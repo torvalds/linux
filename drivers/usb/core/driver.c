@@ -1413,6 +1413,109 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 	return status;
 }
 
+/**
+ * usb_external_suspend_device - external suspend of a USB device and its interfaces
+ * @udev: the usb_device to suspend
+ * @msg: Power Management message describing this state transition
+ *
+ * This routine handles external suspend requests: ones not generated
+ * internally by a USB driver (autosuspend) but rather coming from the user
+ * (via sysfs) or the PM core (system sleep).  The suspend will be carried
+ * out regardless of @udev's usage counter or those of its interfaces,
+ * and regardless of whether or not remote wakeup is enabled.  Of course,
+ * interface drivers still have the option of failing the suspend (if
+ * there are unsuspended children, for example).
+ *
+ * The caller must hold @udev's device lock.
+ */
+int usb_external_suspend_device(struct usb_device *udev, pm_message_t msg)
+{
+	int	status;
+
+	do_unbind_rebind(udev, DO_UNBIND);
+	usb_pm_lock(udev);
+	status = usb_suspend_both(udev, msg);
+	usb_pm_unlock(udev);
+	return status;
+}
+
+/**
+ * usb_external_resume_device - external resume of a USB device and its interfaces
+ * @udev: the usb_device to resume
+ * @msg: Power Management message describing this state transition
+ *
+ * This routine handles external resume requests: ones not generated
+ * internally by a USB driver (autoresume) but rather coming from the user
+ * (via sysfs), the PM core (system resume), or the device itself (remote
+ * wakeup).  @udev's usage counter is unaffected.
+ *
+ * The caller must hold @udev's device lock.
+ */
+int usb_external_resume_device(struct usb_device *udev, pm_message_t msg)
+{
+	int	status;
+
+	usb_pm_lock(udev);
+	status = usb_resume_both(udev, msg);
+	udev->last_busy = jiffies;
+	usb_pm_unlock(udev);
+	if (status == 0)
+		do_unbind_rebind(udev, DO_REBIND);
+
+	/* Now that the device is awake, we can start trying to autosuspend
+	 * it again. */
+	if (status == 0)
+		usb_try_autosuspend_device(udev);
+	return status;
+}
+
+int usb_suspend(struct device *dev, pm_message_t msg)
+{
+	struct usb_device	*udev;
+
+	udev = to_usb_device(dev);
+
+	/* If udev is already suspended, we can skip this suspend and
+	 * we should also skip the upcoming system resume.  High-speed
+	 * root hubs are an exception; they need to resume whenever the
+	 * system wakes up in order for USB-PERSIST port handover to work
+	 * properly.
+	 */
+	if (udev->state == USB_STATE_SUSPENDED) {
+		if (udev->parent || udev->speed != USB_SPEED_HIGH)
+			udev->skip_sys_resume = 1;
+		return 0;
+	}
+
+	udev->skip_sys_resume = 0;
+	return usb_external_suspend_device(udev, msg);
+}
+
+int usb_resume(struct device *dev, pm_message_t msg)
+{
+	struct usb_device	*udev;
+	int			status;
+
+	udev = to_usb_device(dev);
+
+	/* If udev->skip_sys_resume is set then udev was already suspended
+	 * when the system sleep started, so we don't want to resume it
+	 * during this system wakeup.
+	 */
+	if (udev->skip_sys_resume)
+		return 0;
+	status = usb_external_resume_device(udev, msg);
+
+	/* Avoid PM error messages for devices disconnected while suspended
+	 * as we'll display regular disconnect messages just a bit later.
+	 */
+	if (status == -ENODEV)
+		return 0;
+	return status;
+}
+
+#endif /* CONFIG_PM */
+
 #ifdef CONFIG_USB_SUSPEND
 
 /**
@@ -1783,109 +1886,6 @@ void usb_autoresume_work(struct work_struct *work)
 {}
 
 #endif /* CONFIG_USB_SUSPEND */
-
-/**
- * usb_external_suspend_device - external suspend of a USB device and its interfaces
- * @udev: the usb_device to suspend
- * @msg: Power Management message describing this state transition
- *
- * This routine handles external suspend requests: ones not generated
- * internally by a USB driver (autosuspend) but rather coming from the user
- * (via sysfs) or the PM core (system sleep).  The suspend will be carried
- * out regardless of @udev's usage counter or those of its interfaces,
- * and regardless of whether or not remote wakeup is enabled.  Of course,
- * interface drivers still have the option of failing the suspend (if
- * there are unsuspended children, for example).
- *
- * The caller must hold @udev's device lock.
- */
-int usb_external_suspend_device(struct usb_device *udev, pm_message_t msg)
-{
-	int	status;
-
-	do_unbind_rebind(udev, DO_UNBIND);
-	usb_pm_lock(udev);
-	status = usb_suspend_both(udev, msg);
-	usb_pm_unlock(udev);
-	return status;
-}
-
-/**
- * usb_external_resume_device - external resume of a USB device and its interfaces
- * @udev: the usb_device to resume
- * @msg: Power Management message describing this state transition
- *
- * This routine handles external resume requests: ones not generated
- * internally by a USB driver (autoresume) but rather coming from the user
- * (via sysfs), the PM core (system resume), or the device itself (remote
- * wakeup).  @udev's usage counter is unaffected.
- *
- * The caller must hold @udev's device lock.
- */
-int usb_external_resume_device(struct usb_device *udev, pm_message_t msg)
-{
-	int	status;
-
-	usb_pm_lock(udev);
-	status = usb_resume_both(udev, msg);
-	udev->last_busy = jiffies;
-	usb_pm_unlock(udev);
-	if (status == 0)
-		do_unbind_rebind(udev, DO_REBIND);
-
-	/* Now that the device is awake, we can start trying to autosuspend
-	 * it again. */
-	if (status == 0)
-		usb_try_autosuspend_device(udev);
-	return status;
-}
-
-int usb_suspend(struct device *dev, pm_message_t msg)
-{
-	struct usb_device	*udev;
-
-	udev = to_usb_device(dev);
-
-	/* If udev is already suspended, we can skip this suspend and
-	 * we should also skip the upcoming system resume.  High-speed
-	 * root hubs are an exception; they need to resume whenever the
-	 * system wakes up in order for USB-PERSIST port handover to work
-	 * properly.
-	 */
-	if (udev->state == USB_STATE_SUSPENDED) {
-		if (udev->parent || udev->speed != USB_SPEED_HIGH)
-			udev->skip_sys_resume = 1;
-		return 0;
-	}
-
-	udev->skip_sys_resume = 0;
-	return usb_external_suspend_device(udev, msg);
-}
-
-int usb_resume(struct device *dev, pm_message_t msg)
-{
-	struct usb_device	*udev;
-	int			status;
-
-	udev = to_usb_device(dev);
-
-	/* If udev->skip_sys_resume is set then udev was already suspended
-	 * when the system sleep started, so we don't want to resume it
-	 * during this system wakeup.
-	 */
-	if (udev->skip_sys_resume)
-		return 0;
-	status = usb_external_resume_device(udev, msg);
-
-	/* Avoid PM error messages for devices disconnected while suspended
-	 * as we'll display regular disconnect messages just a bit later.
-	 */
-	if (status == -ENODEV)
-		return 0;
-	return status;
-}
-
-#endif /* CONFIG_PM */
 
 struct bus_type usb_bus_type = {
 	.name =		"usb",
