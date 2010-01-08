@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/spi/spi.h>
 
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
@@ -23,6 +24,7 @@
 #include <plat/mux.h>
 #include <mach/gpio.h>
 #include <plat/mmc.h>
+#include <plat/omap7xx.h>
 
 /*-------------------------------------------------------------------------*/
 
@@ -196,6 +198,38 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 
 /*-------------------------------------------------------------------------*/
 
+/* OMAP7xx SPI support */
+#if defined(CONFIG_SPI_OMAP_100K) || defined(CONFIG_SPI_OMAP_100K_MODULE)
+
+struct platform_device omap_spi1 = {
+	.name           = "omap1_spi100k",
+	.id             = 1,
+};
+
+struct platform_device omap_spi2 = {
+	.name           = "omap1_spi100k",
+	.id             = 2,
+};
+
+static void omap_init_spi100k(void)
+{
+	omap_spi1.dev.platform_data = ioremap(OMAP7XX_SPI1_BASE, 0x7ff);
+	if (omap_spi1.dev.platform_data)
+		platform_device_register(&omap_spi1);
+
+	omap_spi2.dev.platform_data = ioremap(OMAP7XX_SPI2_BASE, 0x7ff);
+	if (omap_spi2.dev.platform_data)
+		platform_device_register(&omap_spi2);
+}
+
+#else
+static inline void omap_init_spi100k(void)
+{
+}
+#endif
+
+/*-------------------------------------------------------------------------*/
+
 #if defined(CONFIG_OMAP_STI)
 
 #define OMAP1_STI_BASE		0xfffea000
@@ -263,6 +297,7 @@ static int __init omap1_init_devices(void)
 
 	omap_init_mbox();
 	omap_init_rtc();
+	omap_init_spi100k();
 	omap_init_sti();
 
 	return 0;
