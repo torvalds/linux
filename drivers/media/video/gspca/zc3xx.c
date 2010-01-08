@@ -6663,7 +6663,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0x0e:
 			PDEBUG(D_PROBE, "Find Sensor PAS202B");
 			sd->sensor = SENSOR_PAS202B;
-			sd->sharpness = 1;
+/*			sd->sharpness = 1; */
 			break;
 		case 0x0f:
 			PDEBUG(D_PROBE, "Find Sensor PAS106");
