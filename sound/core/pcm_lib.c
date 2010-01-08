@@ -362,7 +362,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			   (unsigned long)runtime->hw_ptr_base);
 	}
 	/* something must be really wrong */
-	if (delta >= runtime->buffer_size) {
+	if (delta >= runtime->buffer_size + runtime->period_size) {
 		hw_ptr_error(substream,
 			       "Unexpected hw_pointer value %s"
 			       "(stream=%i, pos=%ld, new_hw_ptr=%ld, "
