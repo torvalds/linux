@@ -913,6 +913,9 @@ static void check_sync(struct device *dev,
 				ref->size);
 	}
 
+	if (entry->direction == DMA_BIDIRECTIONAL)
+		goto out;
+
 	if (ref->direction != entry->direction) {
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"DMA memory with different direction "
@@ -922,9 +925,6 @@ static void check_sync(struct device *dev,
 				dir2name[entry->direction],
 				dir2name[ref->direction]);
 	}
-
-	if (entry->direction == DMA_BIDIRECTIONAL)
-		goto out;
 
 	if (to_cpu && !(entry->direction == DMA_FROM_DEVICE) &&
 		      !(ref->direction == DMA_TO_DEVICE))
@@ -948,7 +948,6 @@ static void check_sync(struct device *dev,
 
 out:
 	put_hash_bucket(bucket, &flags);
-
 }
 
 void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
