@@ -91,9 +91,6 @@ struct storvsc_driver_object {
 	/* Maximum # of requests in flight per channel/device */
 	u32 MaxOutstandingRequestsPerChannel;
 
-	/* Set by the caller to allow us to re-enumerate the bus on the host */
-	void (*OnHostRescan)(struct hv_device *Device);
-
 	/* Specific to this driver */
 	int (*OnIORequest)(struct hv_device *Device,
 			   struct hv_storvsc_request *Request);
