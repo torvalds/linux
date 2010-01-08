@@ -119,6 +119,12 @@ enum dss_clock {
 	DSS_CLK_96M	= 1 << 4,
 };
 
+enum dss_clk_source {
+	DSS_SRC_DSI1_PLL_FCLK,
+	DSS_SRC_DSI2_PLL_FCLK,
+	DSS_SRC_DSS1_ALWON_FCLK,
+};
+
 struct dss_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fck;
@@ -219,9 +225,11 @@ void dss_sdi_init(u8 datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
-void dss_select_clk_source(bool dsi, bool dispc);
-int dss_get_dsi_clk_source(void);
-int dss_get_dispc_clk_source(void);
+void dss_select_dispc_clk_source(enum dss_clk_source clk_src);
+void dss_select_dsi_clk_source(enum dss_clk_source clk_src);
+enum dss_clk_source dss_get_dispc_clk_source(void);
+enum dss_clk_source dss_get_dsi_clk_source(void);
+
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);
 

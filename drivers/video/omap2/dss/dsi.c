@@ -3203,7 +3203,8 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	dss_select_clk_source(true, true);
+	dss_select_dispc_clk_source(DSS_SRC_DSI1_PLL_FCLK);
+	dss_select_dsi_clk_source(DSS_SRC_DSI2_PLL_FCLK);
 
 	DSSDBG("PLL OK\n");
 
@@ -3247,7 +3248,8 @@ err4:
 err3:
 	dsi_complexio_uninit();
 err2:
-	dss_select_clk_source(false, false);
+	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 err1:
 	dsi_pll_uninit();
 err0:
@@ -3259,7 +3261,8 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 	if (dssdev->driver->disable)
 		dssdev->driver->disable(dssdev);
 
-	dss_select_clk_source(false, false);
+	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
+	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dsi_complexio_uninit();
 	dsi_pll_uninit();
 }
