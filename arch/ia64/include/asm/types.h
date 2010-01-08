@@ -30,15 +30,15 @@
 
 typedef unsigned int umode_t;
 
-struct fnptr {
-	unsigned long ip;
-	unsigned long gp;
-};
-
 /*
  * These aren't exported outside the kernel to avoid name space clashes
  */
 # ifdef __KERNEL__
+
+struct fnptr {
+	unsigned long ip;
+	unsigned long gp;
+};
 
 /* DMA addresses are 64-bits wide, in general.  */
 typedef u64 dma_addr_t;
