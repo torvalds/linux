@@ -108,6 +108,26 @@ static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 	return vcpu->arch.gpr[num];
 }
 
+static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.cr = val;
+}
+
+static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.cr;
+}
+
+static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.xer = val;
+}
+
+static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.xer;
+}
+
 #else
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
@@ -118,6 +138,26 @@ static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
 	return vcpu->arch.gpr[num];
+}
+
+static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.cr = val;
+}
+
+static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.cr;
+}
+
+static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.xer = val;
+}
+
+static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.xer;
 }
 
 #endif

@@ -506,10 +506,12 @@ int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc)
 
 	gtlb_index = kvmppc_44x_tlb_index(vcpu, ea, pid, as);
 	if (rc) {
+		u32 cr = kvmppc_get_cr(vcpu);
+
 		if (gtlb_index < 0)
-			vcpu->arch.cr &= ~0x20000000;
+			kvmppc_set_cr(vcpu, cr & ~0x20000000);
 		else
-			vcpu->arch.cr |= 0x20000000;
+			kvmppc_set_cr(vcpu, cr | 0x20000000);
 	}
 	kvmppc_set_gpr(vcpu, rt, gtlb_index);
 

@@ -717,10 +717,10 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	int i;
 
 	regs->pc = vcpu->arch.pc;
-	regs->cr = vcpu->arch.cr;
+	regs->cr = kvmppc_get_cr(vcpu);
 	regs->ctr = vcpu->arch.ctr;
 	regs->lr = vcpu->arch.lr;
-	regs->xer = vcpu->arch.xer;
+	regs->xer = kvmppc_get_xer(vcpu);
 	regs->msr = vcpu->arch.msr;
 	regs->srr0 = vcpu->arch.srr0;
 	regs->srr1 = vcpu->arch.srr1;
@@ -744,10 +744,10 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	int i;
 
 	vcpu->arch.pc = regs->pc;
-	vcpu->arch.cr = regs->cr;
+	kvmppc_set_cr(vcpu, regs->cr);
 	vcpu->arch.ctr = regs->ctr;
 	vcpu->arch.lr = regs->lr;
-	vcpu->arch.xer = regs->xer;
+	kvmppc_set_xer(vcpu, regs->xer);
 	kvmppc_set_msr(vcpu, regs->msr);
 	vcpu->arch.srr0 = regs->srr0;
 	vcpu->arch.srr1 = regs->srr1;
