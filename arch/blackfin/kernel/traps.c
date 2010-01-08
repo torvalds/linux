@@ -712,7 +712,7 @@ static void decode_instruction(unsigned short *address)
 			verbose_printk("RTE");
 		else if (opcode == 0x0025)
 			verbose_printk("EMUEXCPT");
-		else if (opcode == 0x0040 && opcode <= 0x0047)
+		else if (opcode >= 0x0040 && opcode <= 0x0047)
 			verbose_printk("STI R%i", opcode & 7);
 		else if (opcode >= 0x0050 && opcode <= 0x0057)
 			verbose_printk("JUMP (P%i)", opcode & 7);
