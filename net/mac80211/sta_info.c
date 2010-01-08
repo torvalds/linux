@@ -119,6 +119,27 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	return sta;
 }
 
+/*
+ * Get sta info either from the specified interface
+ * or from one of its vlans
+ */
+struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
+	while (sta) {
+		if ((sta->sdata == sdata ||
+		     sta->sdata->bss == sdata->bss) &&
+		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
+			break;
+		sta = rcu_dereference(sta->hnext);
+	}
+	return sta;
+}
+
 struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
 				     int idx)
 {

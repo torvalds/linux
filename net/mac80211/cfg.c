@@ -148,7 +148,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_lock();
 
 	if (mac_addr) {
-		sta = sta_info_get(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta) {
 			ieee80211_key_free(key);
 			err = -ENOENT;
@@ -179,7 +179,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	if (mac_addr) {
 		ret = -ENOENT;
 
-		sta = sta_info_get(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta)
 			goto out_unlock;
 
@@ -226,7 +226,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_lock();
 
 	if (mac_addr) {
-		sta = sta_info_get(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta)
 			goto out;
 
@@ -419,7 +419,7 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	rcu_read_lock();
 
-	sta = sta_info_get(sdata, mac);
+	sta = sta_info_get_bss(sdata, mac);
 	if (sta) {
 		ret = 0;
 		sta_set_sinfo(sta, sinfo);
@@ -775,7 +775,7 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (mac) {
 		rcu_read_lock();
 
-		sta = sta_info_get(sdata, mac);
+		sta = sta_info_get_bss(sdata, mac);
 		if (!sta) {
 			rcu_read_unlock();
 			return -ENOENT;
@@ -803,7 +803,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	rcu_read_lock();
 
-	sta = sta_info_get(sdata, mac);
+	sta = sta_info_get_bss(sdata, mac);
 	if (!sta) {
 		rcu_read_unlock();
 		return -ENOENT;
