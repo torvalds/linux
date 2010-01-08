@@ -944,6 +944,8 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	/* Stop ANI */
 	del_timer_sync(&common->ani.timer);
 
+	ieee80211_stop_queues(hw);
+
 	ath9k_hw_set_interrupts(ah, 0);
 	ath_drain_all_txq(sc, retry_tx);
 	ath_stoprecv(sc);
@@ -984,6 +986,8 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 			}
 		}
 	}
+
+	ieee80211_wake_queues(hw);
 
 	/* Start ANI */
 	ath_start_ani(common);
