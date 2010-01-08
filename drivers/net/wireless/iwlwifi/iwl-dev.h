@@ -711,7 +711,7 @@ extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
-	return q->write_ptr > q->read_ptr ?
+	return q->write_ptr >= q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
 }
