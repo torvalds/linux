@@ -6783,7 +6783,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	const struct usb_action *zc3_init;
 	int mode;
 	static const struct usb_action *init_tb[SENSOR_MAX][2] = {
 		{adcm2700_Initial, adcm2700_InitialScale},	/* 0 */
@@ -6816,8 +6815,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			0x21);		/* JPEG 422 */
 	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
-	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	zc3_init = init_tb[sd->sensor][mode];
+	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
 	case SENSOR_HV7131C:
 		zcxx_probeSensor(gspca_dev);
@@ -6826,7 +6824,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		usb_exchange(gspca_dev, pas106b_Initial_com);
 		break;
 	}
-	usb_exchange(gspca_dev, zc3_init);
+	usb_exchange(gspca_dev, init_tb[sd->sensor][mode]);
 
 	switch (sd->sensor) {
 	case SENSOR_ADCM2700:
