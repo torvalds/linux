@@ -2524,6 +2524,47 @@ static int mwl8k_cmd_use_fixed_rate_sta(struct ieee80211_hw *hw)
 }
 
 /*
+ * CMD_USE_FIXED_RATE (AP version).
+ */
+struct mwl8k_cmd_use_fixed_rate_ap {
+	struct mwl8k_cmd_pkt header;
+	__le32 action;
+	__le32 allow_rate_drop;
+	__le32 num_rates;
+	struct mwl8k_rate_entry_ap {
+		__le32 is_ht_rate;
+		__le32 enable_retry;
+		__le32 rate;
+		__le32 retry_count;
+	} rate_entry[4];
+	u8 multicast_rate;
+	u8 multicast_rate_type;
+	u8 management_rate;
+} __attribute__((packed));
+
+static int
+mwl8k_cmd_use_fixed_rate_ap(struct ieee80211_hw *hw, int mcast, int mgmt)
+{
+	struct mwl8k_cmd_use_fixed_rate_ap *cmd;
+	int rc;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (cmd == NULL)
+		return -ENOMEM;
+
+	cmd->header.code = cpu_to_le16(MWL8K_CMD_USE_FIXED_RATE);
+	cmd->header.length = cpu_to_le16(sizeof(*cmd));
+	cmd->action = cpu_to_le32(MWL8K_USE_AUTO_RATE);
+	cmd->multicast_rate = mcast;
+	cmd->management_rate = mgmt;
+
+	rc = mwl8k_post_cmd(hw, &cmd->header);
+	kfree(cmd);
+
+	return rc;
+}
+
+/*
  * CMD_ENABLE_SNIFFER.
  */
 struct mwl8k_cmd_enable_sniffer {
