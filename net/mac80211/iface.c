@@ -675,10 +675,10 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 		return 0;
 
 	if (skb->len < 4 ||
-	    skb->len < rtap->it_len + 2 /* frame control */)
+	    skb->len < le16_to_cpu(rtap->it_len) + 2 /* frame control */)
 		return 0; /* doesn't matter, frame will be dropped */
 
-	hdr = (void *)((u8 *)skb->data + rtap->it_len);
+	hdr = (void *)((u8 *)skb->data + le16_to_cpu(rtap->it_len));
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
 		skb->priority = 7;
