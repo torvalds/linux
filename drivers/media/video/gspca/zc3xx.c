@@ -6734,8 +6734,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (sensor < 0x20) {
 		if (sensor == -1 || sensor == 0x10 || sensor == 0x12)
 			reg_w(gspca_dev->dev, 0x02, 0x0010);
-		else
-			reg_w(gspca_dev->dev, sensor & 0x0f, 0x0010);
 		reg_r(gspca_dev, 0x0010);
 	}
 
