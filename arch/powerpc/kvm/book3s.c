@@ -658,7 +658,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
 #ifdef EXIT_DEBUG
-		printk(KERN_INFO "Syscall Nr %d\n", (int)vcpu->arch.gpr[0]);
+		printk(KERN_INFO "Syscall Nr %d\n", (int)kvmppc_get_gpr(vcpu, 0));
 #endif
 		vcpu->stat.syscall_exits++;
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
@@ -734,7 +734,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->sprg7 = vcpu->arch.sprg6;
 
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
-		regs->gpr[i] = vcpu->arch.gpr[i];
+		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
 
 	return 0;
 }
@@ -759,8 +759,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.sprg6 = regs->sprg5;
 	vcpu->arch.sprg7 = regs->sprg6;
 
-	for (i = 0; i < ARRAY_SIZE(vcpu->arch.gpr); i++)
-		vcpu->arch.gpr[i] = regs->gpr[i];
+	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
+		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
 
 	return 0;
 }

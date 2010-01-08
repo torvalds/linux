@@ -270,34 +270,35 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
                                      struct kvm_run *run)
 {
-	ulong *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
-	*gpr = run->dcr.data;
+	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, run->dcr.data);
 }
 
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	ulong *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
+	ulong gpr;
 
-	if (run->mmio.len > sizeof(*gpr)) {
+	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
 		return;
 	}
 
 	if (vcpu->arch.mmio_is_bigendian) {
 		switch (run->mmio.len) {
-		case 4: *gpr = *(u32 *)run->mmio.data; break;
-		case 2: *gpr = *(u16 *)run->mmio.data; break;
-		case 1: *gpr = *(u8 *)run->mmio.data; break;
+		case 4: gpr = *(u32 *)run->mmio.data; break;
+		case 2: gpr = *(u16 *)run->mmio.data; break;
+		case 1: gpr = *(u8 *)run->mmio.data; break;
 		}
 	} else {
 		/* Convert BE data from userland back to LE. */
 		switch (run->mmio.len) {
-		case 4: *gpr = ld_le32((u32 *)run->mmio.data); break;
-		case 2: *gpr = ld_le16((u16 *)run->mmio.data); break;
-		case 1: *gpr = *(u8 *)run->mmio.data; break;
+		case 4: gpr = ld_le32((u32 *)run->mmio.data); break;
+		case 2: gpr = ld_le16((u16 *)run->mmio.data); break;
+		case 1: gpr = *(u8 *)run->mmio.data; break;
 		}
 	}
+
+	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
 }
 
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
