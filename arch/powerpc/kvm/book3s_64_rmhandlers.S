@@ -49,7 +49,7 @@ kvmppc_trampoline_\intno:
 	mfcr	r12
 	stw	r12, PACA_KVM_SCRATCH1(r13)
 	lbz	r12, PACA_KVM_IN_GUEST(r13)
-	cmpwi	r12, 0
+	cmpwi	r12, KVM_GUEST_MODE_NONE
 	bne	..kvmppc_handler_hasmagic_\intno
 	/* No KVM guest? Then jump back to the Linux handler! */
 	lwz	r12, PACA_KVM_SCRATCH1(r13)
@@ -60,6 +60,11 @@ kvmppc_trampoline_\intno:
 
 	/* Now we know we're handling a KVM guest */
 ..kvmppc_handler_hasmagic_\intno:
+
+	/* Should we just skip the faulting instruction? */
+	cmpwi	r12, KVM_GUEST_MODE_SKIP
+	beq	kvmppc_handler_skip_ins
+
 	/* Let's store which interrupt we're handling */
 	li	r12, \intno
 
@@ -84,6 +89,38 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_TRACE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_PERFMON
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_VSX
+
+/*
+ * Bring us back to the faulting code, but skip the
+ * faulting instruction.
+ *
+ * This is a generic exit path from the interrupt
+ * trampolines above.
+ *
+ * Input Registers:
+ *
+ * R12               = free
+ * R13               = PACA
+ * PACA.KVM.SCRATCH0 = guest R12
+ * PACA.KVM.SCRATCH1 = guest CR
+ * SPRG_SCRATCH0     = guest R13
+ *
+ */
+kvmppc_handler_skip_ins:
+
+	/* Patch the IP to the next instruction */
+	mfsrr0	r12
+	addi	r12, r12, 4
+	mtsrr0	r12
+
+	/* Clean up all state */
+	lwz	r12, PACA_KVM_SCRATCH1(r13)
+	mtcr	r12
+	ld	r12, PACA_KVM_SCRATCH0(r13)
+	mfspr	r13, SPRN_SPRG_SCRATCH0
+
+	/* And get back into the code */
+	RFI
 
 /*
  * This trampoline brings us back to a real mode handler

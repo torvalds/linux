@@ -212,10 +212,6 @@ kvmppc_handler_trampoline_exit:
 	mfdar	r5
 	mfdsisr	r6
 
-	/* Unset guest state */
-	li	r9, 0
-	stb	r9, PACA_KVM_IN_GUEST(r13)
-
 	/*
 	 * In order for us to easily get the last instruction,
 	 * we got the #vmexit at, we exploit the fact that the
@@ -233,17 +229,27 @@ kvmppc_handler_trampoline_exit:
 
 ld_last_inst:
 	/* Save off the guest instruction we're at */
+
+	/* Set guest mode to 'jump over instruction' so if lwz faults
+	 * we'll just continue at the next IP. */
+	li	r9, KVM_GUEST_MODE_SKIP
+	stb	r9, PACA_KVM_IN_GUEST(r13)
+
 	/*    1) enable paging for data */
 	mfmsr	r9
 	ori	r11, r9, MSR_DR			/* Enable paging for data */
 	mtmsr	r11
 	/*    2) fetch the instruction */
-	/* XXX implement PACA_KVM_IN_GUEST=2 path to safely jump over this */
+	li	r0, KVM_INST_FETCH_FAILED	/* In case lwz faults */
 	lwz	r0, 0(r3)
 	/*    3) disable paging again */
 	mtmsr	r9
 
 no_ld_last_inst:
+
+	/* Unset guest mode */
+	li	r9, KVM_GUEST_MODE_NONE
+	stb	r9, PACA_KVM_IN_GUEST(r13)
 
 	/* Restore bolted entries from the shadow and fix it along the way */
 

@@ -143,6 +143,10 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	pr_debug(KERN_INFO "Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
 
+	/* Try again next time */
+	if (inst == KVM_INST_FETCH_FAILED)
+		return EMULATE_DONE;
+
 	switch (get_op(inst)) {
 	case OP_TRAP:
 #ifdef CONFIG_PPC64
