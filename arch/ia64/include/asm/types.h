@@ -30,6 +30,11 @@
 
 typedef unsigned int umode_t;
 
+struct fnptr {
+	unsigned long ip;
+	unsigned long gp;
+};
+
 /*
  * These aren't exported outside the kernel to avoid name space clashes
  */
