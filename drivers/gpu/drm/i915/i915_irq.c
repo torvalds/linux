@@ -1239,7 +1239,11 @@ void i915_hangcheck_elapsed(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t acthd;
-       
+
+	/* No reset support on this chip yet. */
+	if (IS_GEN6(dev))
+		return;
+
 	if (!IS_I965G(dev))
 		acthd = I915_READ(ACTHD);
 	else
