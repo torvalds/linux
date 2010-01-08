@@ -365,10 +365,13 @@ int ab3100_event_registers_startup_state_get(struct ab3100 *ab3100,
 }
 EXPORT_SYMBOL(ab3100_event_registers_startup_state_get);
 
-/* Interrupt handling worker */
-static void ab3100_work(struct work_struct *work)
+/*
+ * This is a threaded interrupt handler so we can make some
+ * I2C calls etc.
+ */
+static irqreturn_t ab3100_irq_handler(int irq, void *data)
 {
-	struct ab3100 *ab3100 = container_of(work, struct ab3100, work);
+	struct ab3100 *ab3100 = data;
 	u8 event_regs[3];
 	u32 fatevent;
 	int err;
@@ -376,7 +379,7 @@ static void ab3100_work(struct work_struct *work)
 	err = ab3100_get_register_page_interruptible(ab3100, AB3100_EVENTA1,
 				       event_regs, 3);
 	if (err)
-		goto err_event_wq;
+		goto err_event;
 
 	fatevent = (event_regs[0] << 16) |
 		(event_regs[1] << 8) |
@@ -398,29 +401,11 @@ static void ab3100_work(struct work_struct *work)
 	dev_dbg(ab3100->dev,
 		"IRQ Event: 0x%08x\n", fatevent);
 
-	/* By now the IRQ should be acked and deasserted so enable it again */
-	enable_irq(ab3100->i2c_client->irq);
-	return;
+	return IRQ_HANDLED;
 
- err_event_wq:
+ err_event:
 	dev_dbg(ab3100->dev,
-		"error in event workqueue\n");
-	/* Enable the IRQ anyway, what choice do we have? */
-	enable_irq(ab3100->i2c_client->irq);
-	return;
-}
-
-static irqreturn_t ab3100_irq_handler(int irq, void *data)
-{
-	struct ab3100 *ab3100 = data;
-	/*
-	 * Disable the IRQ and dispatch a worker to handle the
-	 * event. Since the chip resides on I2C this is slow
-	 * stuff and we will re-enable the interrupts once th
-	 * worker has finished.
-	 */
-	disable_irq_nosync(irq);
-	schedule_work(&ab3100->work);
+		"error reading event status\n");
 	return IRQ_HANDLED;
 }
 
@@ -904,12 +889,10 @@ static int __init ab3100_probe(struct i2c_client *client,
 	if (err)
 		goto exit_no_setup;
 
-	INIT_WORK(&ab3100->work, ab3100_work);
-
 	/* This real unpredictable IRQ is of course sampled for entropy */
-	err = request_irq(client->irq, ab3100_irq_handler,
-			  IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
-			  "AB3100 IRQ", ab3100);
+	err = request_threaded_irq(client->irq, NULL, ab3100_irq_handler,
+			  IRQF_ONESHOT,
+			  "ab3100-core", ab3100);
 	if (err)
 		goto exit_no_irq;
 
