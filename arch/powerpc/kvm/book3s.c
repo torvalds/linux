@@ -633,6 +633,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
 		enum emulation_result er;
+		ulong flags;
+
+		flags = (vcpu->arch.shadow_msr & 0x1f0000ull);
 
 		if (vcpu->arch.msr & MSR_PR) {
 #ifdef EXIT_DEBUG
@@ -640,7 +643,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 #endif
 			if ((vcpu->arch.last_inst & 0xff0007ff) !=
 			    (INS_DCBZ & 0xfffffff7)) {
-				kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+				kvmppc_core_queue_program(vcpu, flags);
 				r = RESUME_GUEST;
 				break;
 			}
@@ -655,7 +658,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case EMULATE_FAIL:
 			printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
 			       __func__, vcpu->arch.pc, vcpu->arch.last_inst);
-			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+			kvmppc_core_queue_program(vcpu, flags);
 			r = RESUME_GUEST;
 			break;
 		default:
