@@ -2955,6 +2955,9 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			return 0;
 		else
 			return ret;
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		/* do nothing */
+		return -EOPNOTSUPP;
 	default:
 		IWL_DEBUG_HT(priv, "unknown\n");
 		return -EINVAL;
