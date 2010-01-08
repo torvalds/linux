@@ -202,8 +202,8 @@ struct mwl8k_priv {
 	 */
 	struct work_struct finalize_join_worker;
 
-	/* Tasklet to reclaim TX descriptors and buffers after tx */
-	struct tasklet_struct tx_reclaim_task;
+	/* Tasklet to perform TX reclaim.  */
+	struct tasklet_struct poll_tx_task;
 };
 
 /* Per interface specific private data */
@@ -2963,13 +2963,16 @@ static irqreturn_t mwl8k_interrupt(int irq, void *dev_id)
 	u32 status;
 
 	status = ioread32(priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
-	iowrite32(~status, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
-
 	if (!status)
 		return IRQ_NONE;
 
-	if (status & MWL8K_A2H_INT_TX_DONE)
-		tasklet_schedule(&priv->tx_reclaim_task);
+	if (status & MWL8K_A2H_INT_TX_DONE) {
+		status &= ~MWL8K_A2H_INT_TX_DONE;
+		tasklet_schedule(&priv->poll_tx_task);
+	}
+
+	if (status)
+		iowrite32(~status, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
 
 	if (status & MWL8K_A2H_INT_RX_READY) {
 		while (rxq_process(hw, 0, 1))
@@ -2988,6 +2991,35 @@ static irqreturn_t mwl8k_interrupt(int irq, void *dev_id)
 	}
 
 	return IRQ_HANDLED;
+}
+
+static void mwl8k_tx_poll(unsigned long data)
+{
+	struct ieee80211_hw *hw = (struct ieee80211_hw *)data;
+	struct mwl8k_priv *priv = hw->priv;
+	int limit;
+	int i;
+
+	limit = 32;
+
+	spin_lock_bh(&priv->tx_lock);
+
+	for (i = 0; i < MWL8K_TX_QUEUES; i++)
+		limit -= mwl8k_txq_reclaim(hw, i, limit, 0);
+
+	if (!priv->pending_tx_pkts && priv->tx_wait != NULL) {
+		complete(priv->tx_wait);
+		priv->tx_wait = NULL;
+	}
+
+	spin_unlock_bh(&priv->tx_lock);
+
+	if (limit) {
+		writel(~MWL8K_A2H_INT_TX_DONE,
+		       priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
+	} else {
+		tasklet_schedule(&priv->poll_tx_task);
+	}
 }
 
 
@@ -3026,7 +3058,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	}
 
 	/* Enable tx reclaim tasklet */
-	tasklet_enable(&priv->tx_reclaim_task);
+	tasklet_enable(&priv->poll_tx_task);
 
 	/* Enable interrupts */
 	iowrite32(MWL8K_A2H_EVENTS, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
@@ -3059,7 +3091,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	if (rc) {
 		iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
 		free_irq(priv->pdev->irq, hw);
-		tasklet_disable(&priv->tx_reclaim_task);
+		tasklet_disable(&priv->poll_tx_task);
 	}
 
 	return rc;
@@ -3084,7 +3116,7 @@ static void mwl8k_stop(struct ieee80211_hw *hw)
 		dev_kfree_skb(priv->beacon_skb);
 
 	/* Stop tx reclaim tasklet */
-	tasklet_disable(&priv->tx_reclaim_task);
+	tasklet_disable(&priv->poll_tx_task);
 
 	/* Return all skbs to mac80211 */
 	for (i = 0; i < MWL8K_TX_QUEUES; i++)
@@ -3643,23 +3675,6 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.ampdu_action		= mwl8k_ampdu_action,
 };
 
-static void mwl8k_tx_reclaim_handler(unsigned long data)
-{
-	int i;
-	struct ieee80211_hw *hw = (struct ieee80211_hw *) data;
-	struct mwl8k_priv *priv = hw->priv;
-
-	spin_lock_bh(&priv->tx_lock);
-	for (i = 0; i < MWL8K_TX_QUEUES; i++)
-		mwl8k_txq_reclaim(hw, i, INT_MAX, 0);
-
-	if (priv->tx_wait != NULL && !priv->pending_tx_pkts) {
-		complete(priv->tx_wait);
-		priv->tx_wait = NULL;
-	}
-	spin_unlock_bh(&priv->tx_lock);
-}
-
 static void mwl8k_finalize_join_worker(struct work_struct *work)
 {
 	struct mwl8k_priv *priv =
@@ -3859,9 +3874,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	INIT_WORK(&priv->finalize_join_worker, mwl8k_finalize_join_worker);
 
 	/* TX reclaim tasklet */
-	tasklet_init(&priv->tx_reclaim_task,
-			mwl8k_tx_reclaim_handler, (unsigned long)hw);
-	tasklet_disable(&priv->tx_reclaim_task);
+	tasklet_init(&priv->poll_tx_task, mwl8k_tx_poll, (unsigned long)hw);
+	tasklet_disable(&priv->poll_tx_task);
 
 	/* Power management cookie */
 	priv->cookie = pci_alloc_consistent(priv->pdev, 4, &priv->cookie_dma);
@@ -3890,7 +3904,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS);
 	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_MASK);
-	iowrite32(0, priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
+	iowrite32(MWL8K_A2H_INT_TX_DONE,
+		  priv->regs + MWL8K_HIU_A2H_INTERRUPT_CLEAR_SEL);
 	iowrite32(0xffffffff, priv->regs + MWL8K_HIU_A2H_INTERRUPT_STATUS_MASK);
 
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
@@ -4018,7 +4033,7 @@ static void __devexit mwl8k_remove(struct pci_dev *pdev)
 	ieee80211_unregister_hw(hw);
 
 	/* Remove tx reclaim tasklet */
-	tasklet_kill(&priv->tx_reclaim_task);
+	tasklet_kill(&priv->poll_tx_task);
 
 	/* Stop hardware */
 	mwl8k_hw_reset(priv);
