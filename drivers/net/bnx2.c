@@ -6145,6 +6145,10 @@ bnx2_enable_msix(struct bnx2 *bp, int msix_vecs)
 	REG_WR(bp, BNX2_PCI_MSIX_TBL_OFF_BIR, BNX2_PCI_GRC_WINDOW2_BASE);
 	REG_WR(bp, BNX2_PCI_MSIX_PBA_OFF_BIT, BNX2_PCI_GRC_WINDOW3_BASE);
 
+	/*  Need to flush the previous three writes to ensure MSI-X
+	 *  is setup properly */
+	REG_RD(bp, BNX2_PCI_MSIX_CONTROL);
+
 	for (i = 0; i < BNX2_MAX_MSIX_VEC; i++) {
 		msix_ent[i].entry = i;
 		msix_ent[i].vector = 0;
