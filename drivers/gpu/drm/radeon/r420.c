@@ -32,6 +32,13 @@
 #include "atom.h"
 #include "r100d.h"
 #include "r420d.h"
+#include "r420_reg_safe.h"
+
+static void r420_set_reg_safe(struct radeon_device *rdev)
+{
+	rdev->config.r300.reg_safe_bm = r420_reg_safe_bm;
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r420_reg_safe_bm);
+}
 
 int r420_mc_init(struct radeon_device *rdev)
 {
@@ -378,7 +385,7 @@ int r420_init(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
-	r300_set_reg_safe(rdev);
+	r420_set_reg_safe(rdev);
 	rdev->accel_working = true;
 	r = r420_startup(rdev);
 	if (r) {
