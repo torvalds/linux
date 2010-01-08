@@ -221,15 +221,8 @@ no_dcbz32_off:
 	mflr	r5
 	std	r5, VCPU_LR(r7)
 
-	/* XXX convert to safe function call */
-
 	/* Restore host msr -> SRR1 */
 	ld	r6, VCPU_HOST_MSR(r7)
-	mtsrr1	r6
-
-	/* Restore host IP -> SRR0 */
-	ld	r5, VCPU_HOST_RETIP(r7)
-	mtsrr0	r5
 
 	/*
 	 * For some interrupts, we need to call the real Linux
@@ -246,8 +239,9 @@ no_dcbz32_off:
 	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
 	beq	call_linux_handler
 
-	/* Back to Interruptable Mode! (goto kvm_return_point) */
-	RFI
+	/* Back to EE=1 */
+	mtmsr	r6
+	b	kvm_return_point
 
 call_linux_handler:
 
@@ -260,9 +254,15 @@ call_linux_handler:
 	 * interrupt handler!
 	 *
 	 * R3 still contains the exit code,
-	 * R6 VCPU_HOST_RETIP and
-	 * R7 VCPU_HOST_MSR
+	 * R5 VCPU_HOST_RETIP and
+	 * R6 VCPU_HOST_MSR
 	 */
+
+	/* Restore host IP -> SRR0 */
+	ld	r5, VCPU_HOST_RETIP(r7)
+
+	/* XXX Better move to a safe function?
+	 *     What if we get an HTAB flush in between mtsrr0 and mtsrr1? */
 
 	mtlr	r12
 
