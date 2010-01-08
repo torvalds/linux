@@ -364,13 +364,13 @@ static __init void get_lowmem_redirect(unsigned long *base, unsigned long *size)
 
 enum map_type {map_wb, map_uc};
 
-static __init void map_high(char *id, unsigned long base, int shift,
-			    int max_pnode, enum map_type map_type)
+static __init void map_high(char *id, unsigned long base, int pshift,
+			int bshift, int max_pnode, enum map_type map_type)
 {
 	unsigned long bytes, paddr;
 
-	paddr = base << shift;
-	bytes = (1UL << shift) * (max_pnode + 1);
+	paddr = base << pshift;
+	bytes = (1UL << bshift) * (max_pnode + 1);
 	printk(KERN_INFO "UV: Map %s_HI 0x%lx - 0x%lx\n", id, paddr,
 						paddr + bytes);
 	if (map_type == map_uc)
@@ -386,7 +386,7 @@ static __init void map_gru_high(int max_pnode)
 
 	gru.v = uv_read_local_mmr(UVH_RH_GAM_GRU_OVERLAY_CONFIG_MMR);
 	if (gru.s.enable)
-		map_high("GRU", gru.s.base, shift, max_pnode, map_wb);
+		map_high("GRU", gru.s.base, shift, shift, max_pnode, map_wb);
 }
 
 static __init void map_mmr_high(int max_pnode)
@@ -396,7 +396,7 @@ static __init void map_mmr_high(int max_pnode)
 
 	mmr.v = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR);
 	if (mmr.s.enable)
-		map_high("MMR", mmr.s.base, shift, max_pnode, map_uc);
+		map_high("MMR", mmr.s.base, shift, shift, max_pnode, map_uc);
 }
 
 static __init void map_mmioh_high(int max_pnode)
@@ -406,7 +406,8 @@ static __init void map_mmioh_high(int max_pnode)
 
 	mmioh.v = uv_read_local_mmr(UVH_RH_GAM_MMIOH_OVERLAY_CONFIG_MMR);
 	if (mmioh.s.enable)
-		map_high("MMIOH", mmioh.s.base, shift, max_pnode, map_uc);
+		map_high("MMIOH", mmioh.s.base, shift, mmioh.s.m_io,
+			max_pnode, map_uc);
 }
 
 static __init void uv_rtc_init(void)
