@@ -177,8 +177,9 @@ kvmppc_handler_highmem:
 	rldicl.	r5, r5, 0, 63		/* CR = ((r5 & 1) == 0) */
 	beq	no_dcbz32_off
 
+	li	r4, 0
 	mfspr   r5,SPRN_HID5
-	rldimi  r5,r5,6,56
+	rldimi  r5,r4,6,56
 	mtspr   SPRN_HID5,r5
 
 no_dcbz32_off:
