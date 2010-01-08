@@ -1056,16 +1056,15 @@ static int process_banner(struct ceph_connection *con)
 	 * end may not yet know their ip address, so if it's 0.0.0.0, give
 	 * them the benefit of the doubt.
 	 */
-	if (!ceph_entity_addr_is_local(&con->peer_addr,
-				       &con->actual_peer_addr) &&
+	if (memcmp(&con->peer_addr, &con->actual_peer_addr,
+		   sizeof(con->peer_addr)) != 0 &&
 	    !(addr_is_blank(&con->actual_peer_addr.in_addr) &&
 	      con->actual_peer_addr.nonce == con->peer_addr.nonce)) {
-		pr_warning("wrong peer, want %s/%d, "
-		       "got %s/%d\n",
-		       pr_addr(&con->peer_addr.in_addr),
-		       con->peer_addr.nonce,
-		       pr_addr(&con->actual_peer_addr.in_addr),
-		       con->actual_peer_addr.nonce);
+		pr_warning("wrong peer, want %s/%lld, got %s/%lld\n",
+			   pr_addr(&con->peer_addr.in_addr),
+			   le64_to_cpu(con->peer_addr.nonce),
+			   pr_addr(&con->actual_peer_addr.in_addr),
+			   le64_to_cpu(con->actual_peer_addr.nonce));
 		con->error_msg = "wrong peer at address";
 		return -1;
 	}
@@ -1934,8 +1933,7 @@ struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr)
 		msgr->inst.addr = *myaddr;
 
 	/* select a random nonce */
-	get_random_bytes(&msgr->inst.addr.nonce,
-			 sizeof(msgr->inst.addr.nonce));
+	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
 	encode_my_addr(msgr);
 
 	dout("messenger_create %p\n", msgr);
@@ -1966,7 +1964,6 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	msg->hdr.src.name = con->msgr->inst.name;
 	msg->hdr.src.addr = con->msgr->my_enc_addr;
 	msg->hdr.orig_src = msg->hdr.src;
-	msg->hdr.dst_erank = con->peer_addr.erank;
 
 	/* queue */
 	mutex_lock(&con->mutex);

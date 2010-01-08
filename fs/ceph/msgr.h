@@ -61,23 +61,9 @@ extern const char *ceph_entity_type_name(int type);
  * entity_addr -- network address
  */
 struct ceph_entity_addr {
-	__le32 erank;  /* entity's rank in process */
-	__le32 nonce;  /* unique id for process (e.g. pid) */
+	__le64 nonce;  /* unique id for process (e.g. pid) */
 	struct sockaddr_storage in_addr;
 } __attribute__ ((packed));
-
-static inline bool ceph_entity_addr_is_local(const struct ceph_entity_addr *a,
-					     const struct ceph_entity_addr *b)
-{
-	return a->nonce == b->nonce &&
-		memcmp(&a->in_addr, &b->in_addr, sizeof(a->in_addr)) == 0;
-}
-
-static inline bool ceph_entity_addr_equal(const struct ceph_entity_addr *a,
-					  const struct ceph_entity_addr *b)
-{
-	return memcmp(a, b, sizeof(*a)) == 0;
-}
 
 struct ceph_entity_inst {
 	struct ceph_entity_name name;
@@ -147,7 +133,7 @@ struct ceph_msg_header {
 			     receiver: mask against ~PAGE_MASK */
 
 	struct ceph_entity_inst src, orig_src;
-	__le32 dst_erank;
+	__le32 reserved;
 	__le32 crc;       /* header crc32c */
 } __attribute__ ((packed));
 

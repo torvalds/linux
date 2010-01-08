@@ -821,9 +821,10 @@ static void kick_requests(struct ceph_osd_client *osdc,
 
 			n = rb_next(p);
 			if (!ceph_osd_is_up(osdc->osdmap, osd->o_osd) ||
-			    !ceph_entity_addr_equal(&osd->o_con.peer_addr,
-					    ceph_osd_addr(osdc->osdmap,
-							  osd->o_osd)))
+			    memcmp(&osd->o_con.peer_addr,
+				   ceph_osd_addr(osdc->osdmap,
+						 osd->o_osd),
+				   sizeof(struct ceph_entity_addr)) != 0)
 				reset_osd(osdc, osd);
 		}
 	}
