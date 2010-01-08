@@ -882,7 +882,6 @@ zlError:
 /************************************************************************/
 u16_t zfTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port, u16_t bufType, u16_t flag)
 {
-    u16_t err;
     //u16_t addrTblSize;
     //struct zsAddrTbl addrTbl;
     u16_t removeLen;
@@ -904,7 +903,6 @@ u16_t zfTxSendEth(zdev_t* dev, zbuf_t* buf, u16_t port, u16_t bufType, u16_t fla
     u8_t qosType, keyIdx = 0;
     u16_t fragOff;
     u16_t newFlag;
-    struct zsMicVar*  pMicKey;
     u8_t tkipFrameOffset = 0;
 
     zmw_get_wlan_dev(dev);
@@ -1692,8 +1690,6 @@ void zfShowTxEAPOL(zdev_t* dev, zbuf_t* buf, u16_t offset)
     u16_t  packetLen, keyInfo, keyLen, keyDataLen, length, Op_Code;
     u32_t  replayCounterH, replayCounterL, vendorId, VendorType;
 
-    zmw_get_wlan_dev(dev);
-
     zm_debug_msg1("EAPOL Packet size = ", zfwBufGetSize(dev, buf));
 
     /* EAPOL packet type */
@@ -2436,7 +2432,6 @@ void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo)
                     u16_t IvOffset;
                     u8_t keyLen = 5;
                     u8_t iv[3];
-                    u8_t *wepKey;
                     u8_t keyIdx;
 
                     IvOffset = offset + ZM_SIZE_OF_WLAN_DATA_HEADER;

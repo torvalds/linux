@@ -4848,8 +4848,6 @@ u16_t zfStaAddIePowerCap(zdev_t* dev, zbuf_t* buf, u16_t offset)
     u8_t MaxTxPower;
     u8_t MinTxPower;
 
-    zmw_get_wlan_dev(dev);
-
     /* Element ID */
     zmw_tx_buf_writeb(dev, buf, offset++, ZM_WLAN_EID_POWER_CAPABILITY);
 
@@ -5276,7 +5274,6 @@ u16_t zfStaRxValidateFrame(zdev_t* dev, zbuf_t* buf)
     u8_t   da0;
     //u16_t  sa[3];
     u16_t  ret;
-    u16_t  i;
     //u8_t    sa0;
 
     zmw_get_wlan_dev(dev);
@@ -5737,8 +5734,6 @@ u16_t zfComputeBssInfoWeightValue(zdev_t *dev, u8_t isBMode, u8_t isHT, u8_t isH
 	u8_t  weightOfN20UpThr    = 30;
 	u8_t  weightOfN40BelowThr = 16;
 	u8_t  weightOfN40UpThr    = 32;
-
-    zmw_get_wlan_dev(dev);
 
     if( isBMode == 0 )
         return (signalStrength + weightOfB);    // pure b mode , do not add the weight value for this AP !

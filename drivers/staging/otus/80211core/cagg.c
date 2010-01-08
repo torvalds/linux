@@ -1832,8 +1832,7 @@ u16_t zfAggRxClear(zdev_t* dev, u32_t time)
 
 struct agg_tid_rx* zfAggRxEnabled(zdev_t* dev, zbuf_t* buf)
 {
-    u16_t   dst0, src[3], ac, aid, fragOff;
-    u8_t    up;
+    u16_t   dst0, src[3], aid;
     u16_t   offset = 0;
     u16_t   seq_no;
     u16_t frameType;
