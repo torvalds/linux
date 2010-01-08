@@ -323,19 +323,6 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 	*fifo_low = fifo_size - burst_size_bytes;
 }
 
-static int default_wait_vsync(struct omap_dss_device *dssdev)
-{
-	unsigned long timeout = msecs_to_jiffies(500);
-	u32 irq;
-
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC)
-		irq = DISPC_IRQ_EVSYNC_ODD;
-	else
-		irq = DISPC_IRQ_VSYNC;
-
-	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
-}
-
 static int default_get_recommended_bpp(struct omap_dss_device *dssdev)
 {
 	if (dssdev->panel.recommended_bpp)
@@ -427,7 +414,6 @@ void dss_init_device(struct platform_device *pdev,
 
 	dssdev->get_resolution = default_get_resolution;
 	dssdev->get_recommended_bpp = default_get_recommended_bpp;
-	dssdev->wait_vsync = default_wait_vsync;
 
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_DPI:

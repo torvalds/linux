@@ -370,6 +370,7 @@ struct omap_overlay_manager {
 
 	int (*apply)(struct omap_overlay_manager *mgr);
 	int (*wait_for_go)(struct omap_overlay_manager *mgr);
+	int (*wait_for_vsync)(struct omap_overlay_manager *mgr);
 };
 
 struct omap_dss_device {
@@ -479,7 +480,6 @@ struct omap_dss_device {
 	int (*update)(struct omap_dss_device *dssdev,
 			       u16 x, u16 y, u16 w, u16 h);
 	int (*sync)(struct omap_dss_device *dssdev);
-	int (*wait_vsync)(struct omap_dss_device *dssdev);
 
 	int (*set_update_mode)(struct omap_dss_device *dssdev,
 			enum omap_dss_update_mode);

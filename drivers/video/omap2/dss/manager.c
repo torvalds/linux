@@ -501,6 +501,19 @@ static int omap_dss_unset_device(struct omap_overlay_manager *mgr)
 	return 0;
 }
 
+static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
+{
+	unsigned long timeout = msecs_to_jiffies(500);
+	u32 irq;
+
+	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC)
+		irq = DISPC_IRQ_EVSYNC_ODD;
+	else
+		irq = DISPC_IRQ_VSYNC;
+
+	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
+}
+
 static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
@@ -1394,6 +1407,7 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->set_manager_info = &omap_dss_mgr_set_info;
 		mgr->get_manager_info = &omap_dss_mgr_get_info;
 		mgr->wait_for_go = &dss_mgr_wait_for_go;
+		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
 
 		mgr->caps = OMAP_DSS_OVL_MGR_CAP_DISPC;
 

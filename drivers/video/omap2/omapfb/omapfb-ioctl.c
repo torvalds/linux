@@ -649,7 +649,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		r = display->wait_vsync(display);
+		r = display->manager->wait_for_vsync(display->manager);
 		break;
 
 	case OMAPFB_WAITFORGO:
