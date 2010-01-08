@@ -1478,8 +1478,7 @@ void usb_autoresume_work(struct work_struct *work)
  * driver requires remote-wakeup capability during autosuspend but remote
  * wakeup is disabled, the autosuspend will fail.
  *
- * Often the caller will hold @udev's device lock, but this is not
- * necessary.
+ * The caller must hold @udev's device lock.
  *
  * This routine can run only in process context.
  */
@@ -1502,6 +1501,8 @@ void usb_autosuspend_device(struct usb_device *udev)
  * @udev's usage counter left unchanged.  If it or any of the usage counters
  * for an active interface is greater than 0, or autosuspend is not allowed
  * for any other reason, no autosuspend request will be queued.
+ *
+ * The caller must hold @udev's device lock.
  *
  * This routine can run only in process context.
  */
@@ -1526,8 +1527,7 @@ void usb_try_autosuspend_device(struct usb_device *udev)
  * @udev's usage counter is incremented to prevent subsequent autosuspends.
  * However if the autoresume fails then the usage counter is re-decremented.
  *
- * Often the caller will hold @udev's device lock, but this is not
- * necessary (and attempting it might cause deadlock).
+ * The caller must hold @udev's device lock.
  *
  * This routine can run only in process context.
  */

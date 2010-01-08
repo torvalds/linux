@@ -352,6 +352,7 @@ set_autosuspend(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	value *= HZ;
 
+	usb_lock_device(udev);
 	udev->autosuspend_delay = value;
 	if (value >= 0)
 		usb_try_autosuspend_device(udev);
@@ -359,6 +360,7 @@ set_autosuspend(struct device *dev, struct device_attribute *attr,
 		if (usb_autoresume_device(udev) == 0)
 			usb_autosuspend_device(udev);
 	}
+	usb_unlock_device(udev);
 	return count;
 }
 

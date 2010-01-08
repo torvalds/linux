@@ -654,19 +654,21 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	int ret;
 
 	lock_kernel();
-	/* Protect against simultaneous removal or release */
-	mutex_lock(&usbfs_mutex);
 
 	ret = -ENOMEM;
 	ps = kmalloc(sizeof(struct dev_state), GFP_KERNEL);
 	if (!ps)
-		goto out;
+		goto out_free_ps;
 
 	ret = -ENODEV;
+
+	/* Protect against simultaneous removal or release */
+	mutex_lock(&usbfs_mutex);
 
 	/* usbdev device-node */
 	if (imajor(inode) == USB_DEVICE_MAJOR)
 		dev = usbdev_lookup_by_devt(inode->i_rdev);
+
 #ifdef CONFIG_USB_DEVICEFS
 	/* procfs file */
 	if (!dev) {
@@ -678,13 +680,19 @@ static int usbdev_open(struct inode *inode, struct file *file)
 			dev = NULL;
 	}
 #endif
-	if (!dev || dev->state == USB_STATE_NOTATTACHED)
-		goto out;
+	mutex_unlock(&usbfs_mutex);
+
+	if (!dev)
+		goto out_free_ps;
+
+	usb_lock_device(dev);
+	if (dev->state == USB_STATE_NOTATTACHED)
+		goto out_unlock_device;
+
 	ret = usb_autoresume_device(dev);
 	if (ret)
-		goto out;
+		goto out_unlock_device;
 
-	ret = 0;
 	ps->dev = dev;
 	ps->file = file;
 	spin_lock_init(&ps->lock);
@@ -702,14 +710,17 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	smp_wmb();
 	list_add_tail(&ps->list, &dev->filelist);
 	file->private_data = ps;
+	usb_unlock_device(dev);
 	snoop(&dev->dev, "opened by process %d: %s\n", task_pid_nr(current),
 			current->comm);
- out:
-	if (ret) {
-		kfree(ps);
-		usb_put_dev(dev);
-	}
-	mutex_unlock(&usbfs_mutex);
+	unlock_kernel();
+	return ret;
+
+ out_unlock_device:
+	usb_unlock_device(dev);
+	usb_put_dev(dev);
+ out_free_ps:
+	kfree(ps);
 	unlock_kernel();
 	return ret;
 }
@@ -724,10 +735,7 @@ static int usbdev_release(struct inode *inode, struct file *file)
 	usb_lock_device(dev);
 	usb_hub_release_all_ports(dev, ps);
 
-	/* Protect against simultaneous open */
-	mutex_lock(&usbfs_mutex);
 	list_del_init(&ps->list);
-	mutex_unlock(&usbfs_mutex);
 
 	for (ifnum = 0; ps->ifclaimed && ifnum < 8*sizeof(ps->ifclaimed);
 			ifnum++) {
