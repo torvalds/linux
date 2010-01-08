@@ -2397,12 +2397,6 @@ mwl8k_cmd_set_edca_params(struct ieee80211_hw *hw, __u8 qnum,
 	if (cmd == NULL)
 		return -ENOMEM;
 
-	/*
-	 * Queues 0 (BE) and 1 (BK) are swapped in hardware for
-	 * this call.
-	 */
-	qnum ^= !(qnum >> 1);
-
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_EDCA_PARAMS);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	cmd->action = cpu_to_le16(MWL8K_SET_EDCA_ALL);
