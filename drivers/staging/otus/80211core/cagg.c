@@ -1838,7 +1838,6 @@ struct agg_tid_rx* zfAggRxEnabled(zdev_t* dev, zbuf_t* buf)
     u16_t frameType;
     u16_t frameCtrl;
     u16_t frameSubtype;
-    u32_t tcp_seq;
     //struct aggSta *agg_sta;
 #if ZM_AGG_FPGA_REORDERING
     struct agg_tid_rx *tid_rx;
@@ -1863,13 +1862,17 @@ struct agg_tid_rx* zfAggRxEnabled(zdev_t* dev, zbuf_t* buf)
         return NULL;
     }
 #ifdef ZM_ENABLE_PERFORMANCE_EVALUATION
-    tcp_seq = zmw_rx_buf_readb(dev, buf, 22+36) << 24;
-    tcp_seq += zmw_rx_buf_readb(dev, buf, 22+37) << 16;
-    tcp_seq += zmw_rx_buf_readb(dev, buf, 22+38) << 8;
-    tcp_seq += zmw_rx_buf_readb(dev, buf, 22+39);
+    {
+        u32_t tcp_seq;
+
+        tcp_seq = zmw_rx_buf_readb(dev, buf, 22+36) << 24;
+        tcp_seq += zmw_rx_buf_readb(dev, buf, 22+37) << 16;
+        tcp_seq += zmw_rx_buf_readb(dev, buf, 22+38) << 8;
+        tcp_seq += zmw_rx_buf_readb(dev, buf, 22+39);
+        ZM_SEQ_DEBUG("In                   %5d, %12u\n", seq_no, tcp_seq);
+    }
 #endif
 
-    ZM_SEQ_DEBUG("In                   %5d, %12u\n", seq_no, tcp_seq);
     dst0 = zmw_rx_buf_readh(dev, buf, offset+4);
 
     src[0] = zmw_rx_buf_readh(dev, buf, offset+10);
