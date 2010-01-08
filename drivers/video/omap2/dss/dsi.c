@@ -3584,43 +3584,6 @@ static bool dsi_display_get_mirror(struct omap_dss_device *dssdev)
 	return dssdev->driver->get_mirror(dssdev);
 }
 
-static int dsi_display_run_test(struct omap_dss_device *dssdev, int test_num)
-{
-	int r;
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		return -EIO;
-
-	DSSDBGF("%d", test_num);
-
-	dsi_bus_lock();
-
-	/* run test first in low speed mode */
-	omapdss_dsi_vc_enable_hs(0, 0);
-
-	if (dssdev->driver->run_test) {
-		r = dssdev->driver->run_test(dssdev, test_num);
-		if (r)
-			goto end;
-	}
-
-	/* then in high speed */
-	omapdss_dsi_vc_enable_hs(0, 1);
-
-	if (dssdev->driver->run_test) {
-		r = dssdev->driver->run_test(dssdev, test_num);
-		if (r)
-			goto end;
-	}
-
-end:
-	omapdss_dsi_vc_enable_hs(0, 1);
-
-	dsi_bus_unlock();
-
-	return r;
-}
-
 static int dsi_display_memory_read(struct omap_dss_device *dssdev,
 		void *buf, size_t size,
 		u16 x, u16 y, u16 w, u16 h)
@@ -3683,7 +3646,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dssdev->get_mirror = dsi_display_get_mirror;
 	dssdev->set_mirror = dsi_display_set_mirror;
 
-	dssdev->run_test = dsi_display_run_test;
 	dssdev->memory_read = dsi_display_memory_read;
 
 	/* XXX these should be figured out dynamically */

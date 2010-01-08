@@ -670,12 +670,12 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			r = -EFAULT;
 			break;
 		}
-		if (!display || !display->run_test) {
+		if (!display || !display->driver->run_test) {
 			r = -EINVAL;
 			break;
 		}
 
-		r = display->run_test(display, p.test_num);
+		r = display->driver->run_test(display, p.test_num);
 
 		break;
 
@@ -685,12 +685,12 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			r = -EFAULT;
 			break;
 		}
-		if (!display || !display->run_test) {
+		if (!display || !display->driver->run_test) {
 			r = -EINVAL;
 			break;
 		}
 
-		r = display->run_test(display, p.test_num);
+		r = display->driver->run_test(display, p.test_num);
 
 		break;
 

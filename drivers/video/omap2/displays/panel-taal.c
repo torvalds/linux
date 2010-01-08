@@ -820,17 +820,23 @@ static int taal_run_test(struct omap_dss_device *dssdev, int test_num)
 	u8 id1, id2, id3;
 	int r;
 
+	dsi_bus_lock();
+
 	r = taal_dcs_read_1(DCS_GET_ID1, &id1);
 	if (r)
-		return r;
+		goto err;
 	r = taal_dcs_read_1(DCS_GET_ID2, &id2);
 	if (r)
-		return r;
+		goto err;
 	r = taal_dcs_read_1(DCS_GET_ID3, &id3);
 	if (r)
-		return r;
+		goto err;
 
+	dsi_bus_unlock();
 	return 0;
+err:
+	dsi_bus_unlock();
+	return r;
 }
 
 static int taal_memory_read(struct omap_dss_device *dssdev,
