@@ -919,6 +919,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.trampoline_lowmem = kvmppc_trampoline_lowmem;
 	vcpu->arch.trampoline_enter = kvmppc_trampoline_enter;
 	vcpu->arch.highmem_handler = (ulong)kvmppc_handler_highmem;
+	vcpu->arch.rmcall = *(ulong*)kvmppc_rmcall;
 
 	vcpu->arch.shadow_msr = MSR_USER64;
 

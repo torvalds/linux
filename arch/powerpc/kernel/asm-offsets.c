@@ -214,8 +214,6 @@ int main(void)
 	DEFINE(PACA_KVM_HOST_R2, offsetof(struct paca_struct, shadow_vcpu.host_r2));
 	DEFINE(PACA_KVM_VMHANDLER, offsetof(struct paca_struct,
 					    shadow_vcpu.vmhandler));
-	DEFINE(PACA_KVM_RMHANDLER, offsetof(struct paca_struct,
-					    shadow_vcpu.rmhandler));
 	DEFINE(PACA_KVM_SCRATCH0, offsetof(struct paca_struct,
 					   shadow_vcpu.scratch0));
 	DEFINE(PACA_KVM_SCRATCH1, offsetof(struct paca_struct,
@@ -438,6 +436,7 @@ int main(void)
 	DEFINE(VCPU_TRAMPOLINE_LOWMEM, offsetof(struct kvm_vcpu, arch.trampoline_lowmem));
 	DEFINE(VCPU_TRAMPOLINE_ENTER, offsetof(struct kvm_vcpu, arch.trampoline_enter));
 	DEFINE(VCPU_HIGHMEM_HANDLER, offsetof(struct kvm_vcpu, arch.highmem_handler));
+	DEFINE(VCPU_RMCALL, offsetof(struct kvm_vcpu, arch.rmcall));
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
 #else
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));

@@ -95,17 +95,14 @@ kvm_start_entry:
 	ld	r3, VCPU_HIGHMEM_HANDLER(r4)
 	std	r3, PACA_KVM_VMHANDLER(r13)
 
-	ld	r3, VCPU_TRAMPOLINE_ENTER(r4)
-	std	r3, PACA_KVM_RMHANDLER(r13)
-
 kvm_start_lightweight:
 
 	ld	r9, VCPU_PC(r4)			/* r9 = vcpu->arch.pc */
 	ld	r10, VCPU_SHADOW_MSR(r4)	/* r10 = vcpu->arch.shadow_msr */
 
 	/* Load some guest state in the respective registers */
-	ld	r3, VCPU_CTR(r4)	/* r3 = vcpu->arch.ctr */
-	mtctr	r3			/* CTR = r3 */
+	ld	r5, VCPU_CTR(r4)	/* r5 = vcpu->arch.ctr */
+					/* will be swapped in by rmcall */
 
 	ld	r3, VCPU_LR(r4)		/* r3 = vcpu->arch.lr */
 	mtlr	r3			/* LR = r3 */
@@ -131,22 +128,14 @@ kvm_start_lightweight:
 
 no_dcbz32_on:
 
-	/* This sets the Magic value for the trampoline */
+	ld	r6, VCPU_RMCALL(r4)
+	mtctr	r6
 
-	/* XXX this needs to move into a safe function, so we can
-	   be sure we don't get any interrupts */
-
-	li	r11, 1
-	stb	r11, PACA_KVM_IN_GUEST(r13)
-
-	ld	r3, PACA_KVM_RMHANDLER(r13)
-	mtsrr0	r3
-
-	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL & ~(MSR_IR | MSR_DR))
-	mtsrr1	r3
+	ld	r3, VCPU_TRAMPOLINE_ENTER(r4)
+	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL & ~(MSR_IR | MSR_DR))
 
 	/* Jump to SLB patching handlder and into our guest */
-	RFI
+	bctr
 
 /*
  * This is the handler in module memory. It gets jumped at from the

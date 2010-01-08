@@ -140,6 +140,24 @@ kvmppc_handler_lowmem_trampoline:
 	blr
 kvmppc_handler_lowmem_trampoline_end:
 
+/*
+ * Call a function in real mode
+ *
+ * Input Registers:
+ *
+ * R3 = function
+ * R4 = MSR
+ * R5 = CTR
+ *
+ */
+_GLOBAL(kvmppc_rmcall)
+	mtmsr	r4		/* Disable relocation, so mtsrr
+				   doesn't get interrupted */
+	mtctr	r5
+	mtsrr0	r3
+	mtsrr1	r4
+	RFI
+
 .global kvmppc_trampoline_lowmem
 kvmppc_trampoline_lowmem:
 	.long kvmppc_handler_lowmem_trampoline - _stext

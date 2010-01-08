@@ -69,7 +69,6 @@ struct kvmppc_book3s_shadow_vcpu {
 	ulong scratch0;
 	ulong scratch1;
 	ulong vmhandler;
-	ulong rmhandler;
 };
 
 #endif /*__ASSEMBLY__ */

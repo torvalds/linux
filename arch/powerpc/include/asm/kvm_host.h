@@ -167,6 +167,7 @@ struct kvm_vcpu_arch {
 	ulong trampoline_lowmem;
 	ulong trampoline_enter;
 	ulong highmem_handler;
+	ulong rmcall;
 	ulong host_paca_phys;
 	struct kvmppc_mmu mmu;
 #endif

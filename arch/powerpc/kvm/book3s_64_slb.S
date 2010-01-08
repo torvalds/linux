@@ -63,6 +63,10 @@ kvmppc_handler_trampoline_enter:
 	mtsrr0	r9
 	mtsrr1	r10
 
+	/* Activate guest mode, so faults get handled by KVM */
+	li	r11, KVM_GUEST_MODE_GUEST
+	stb	r11, PACA_KVM_IN_GUEST(r13)
+
 	/* Remove LPAR shadow entries */
 
 #if SLB_NUM_BOLTED == 3
