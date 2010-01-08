@@ -536,12 +536,57 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 	return be_load_fw(adapter, file_name);
 }
 
+static int
+be_get_eeprom_len(struct net_device *netdev)
+{
+	return BE_READ_SEEPROM_LEN;
+}
+
+static int
+be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
+			uint8_t *data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_dma_mem eeprom_cmd;
+	struct be_cmd_resp_seeprom_read *resp;
+	int status;
+
+	if (!eeprom->len)
+		return -EINVAL;
+
+	eeprom->magic = BE_VENDOR_ID | (adapter->pdev->device<<16);
+
+	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
+	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
+	eeprom_cmd.va = pci_alloc_consistent(adapter->pdev, eeprom_cmd.size,
+				&eeprom_cmd.dma);
+
+	if (!eeprom_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+			"Memory allocation failure. Could not read eeprom\n");
+		return -ENOMEM;
+	}
+
+	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
+
+	if (!status) {
+		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
+		memcpy(data, resp->seeprom_data, eeprom->len);
+	}
+	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
+			eeprom_cmd.dma);
+
+	return status;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
 	.get_wol = be_get_wol,
 	.set_wol = be_set_wol,
 	.get_link = ethtool_op_get_link,
+	.get_eeprom_len = be_get_eeprom_len,
+	.get_eeprom = be_read_eeprom,
 	.get_coalesce = be_get_coalesce,
 	.set_coalesce = be_set_coalesce,
 	.get_ringparam = be_get_ringparam,

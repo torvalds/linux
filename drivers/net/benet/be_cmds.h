@@ -124,6 +124,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE        		21
+#define OPCODE_COMMON_SEEPROM_READ			30
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_SET_FLOW_CONTROL			36
@@ -840,6 +841,19 @@ struct be_cmd_resp_ddrdma_test {
 	u8  rcv_buff[4096];
 };
 
+/*********************** SEEPROM Read ***********************/
+
+#define BE_READ_SEEPROM_LEN 1024
+struct be_cmd_req_seeprom_read {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd0[BE_READ_SEEPROM_LEN];
+};
+
+struct be_cmd_resp_seeprom_read {
+	struct be_cmd_req_hdr hdr;
+	u8 seeprom_data[BE_READ_SEEPROM_LEN];
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -912,3 +926,5 @@ extern int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 				u32 num_pkts, u64 pattern);
 extern int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 			u32 byte_cnt, struct be_dma_mem *cmd);
+extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
+				struct be_dma_mem *nonemb_cmd);
