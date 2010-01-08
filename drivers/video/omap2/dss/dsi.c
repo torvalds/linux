@@ -3562,28 +3562,6 @@ static u8 dsi_display_get_rotate(struct omap_dss_device *dssdev)
 	return dssdev->driver->get_rotate(dssdev);
 }
 
-static int dsi_display_set_mirror(struct omap_dss_device *dssdev, bool mirror)
-{
-	DSSDBGF("%d", mirror);
-
-	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
-		return -EINVAL;
-
-	dsi_bus_lock();
-	dssdev->driver->set_mirror(dssdev, mirror);
-	dsi_bus_unlock();
-
-	return 0;
-}
-
-static bool dsi_display_get_mirror(struct omap_dss_device *dssdev)
-{
-	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
-		return 0;
-
-	return dssdev->driver->get_mirror(dssdev);
-}
-
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high)
@@ -3614,9 +3592,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 
 	dssdev->get_rotate = dsi_display_get_rotate;
 	dssdev->set_rotate = dsi_display_set_rotate;
-
-	dssdev->get_mirror = dsi_display_get_mirror;
-	dssdev->set_mirror = dsi_display_set_mirror;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |

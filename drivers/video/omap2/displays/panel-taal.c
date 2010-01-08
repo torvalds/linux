@@ -797,16 +797,20 @@ static int taal_mirror(struct omap_dss_device *dssdev, bool enable)
 
 	dev_dbg(&dssdev->dev, "mirror %d\n", enable);
 
+	dsi_bus_lock();
 	if (td->enabled) {
 		r = taal_set_addr_mode(td->rotate, enable);
-
 		if (r)
-			return r;
+			goto err;
 	}
 
 	td->mirror = enable;
 
+	dsi_bus_unlock();
 	return 0;
+err:
+	dsi_bus_unlock();
+	return r;
 }
 
 static bool taal_get_mirror(struct omap_dss_device *dssdev)

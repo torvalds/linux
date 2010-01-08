@@ -215,9 +215,9 @@ static ssize_t display_mirror_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	int mirror;
-	if (!dssdev->get_mirror)
+	if (!dssdev->driver->get_mirror)
 		return -ENOENT;
-	mirror = dssdev->get_mirror(dssdev);
+	mirror = dssdev->driver->get_mirror(dssdev);
 	return snprintf(buf, PAGE_SIZE, "%u\n", mirror);
 }
 
@@ -228,12 +228,12 @@ static ssize_t display_mirror_store(struct device *dev,
 	unsigned long mirror;
 	int r;
 
-	if (!dssdev->set_mirror || !dssdev->get_mirror)
+	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
 		return -ENOENT;
 
 	mirror = simple_strtoul(buf, NULL, 0);
 
-	r = dssdev->set_mirror(dssdev, mirror);
+	r = dssdev->driver->set_mirror(dssdev, mirror);
 	if (r)
 		return r;
 

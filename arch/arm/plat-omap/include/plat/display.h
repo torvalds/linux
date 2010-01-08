@@ -492,9 +492,6 @@ struct omap_dss_device {
 	u8 (*get_rotate)(struct omap_dss_device *dssdev);
 	int (*set_rotate)(struct omap_dss_device *dssdev, u8 rotate);
 
-	bool (*get_mirror)(struct omap_dss_device *dssdev);
-	int (*set_mirror)(struct omap_dss_device *dssdev, bool enable);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 
