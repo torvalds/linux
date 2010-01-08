@@ -2607,6 +2607,9 @@ struct mwl8k_cmd_set_mac_addr {
 	};
 } __attribute__((packed));
 
+#define MWL8K_MAC_TYPE_PRIMARY_CLIENT	0
+#define MWL8K_MAC_TYPE_PRIMARY_AP	2
+
 static int mwl8k_cmd_set_mac_addr(struct ieee80211_hw *hw, u8 *mac)
 {
 	struct mwl8k_priv *priv = hw->priv;
@@ -2620,7 +2623,7 @@ static int mwl8k_cmd_set_mac_addr(struct ieee80211_hw *hw, u8 *mac)
 	cmd->header.code = cpu_to_le16(MWL8K_CMD_SET_MAC_ADDR);
 	cmd->header.length = cpu_to_le16(sizeof(*cmd));
 	if (priv->ap_fw) {
-		cmd->mbss.mac_type = 0;
+		cmd->mbss.mac_type = cpu_to_le16(MWL8K_MAC_TYPE_PRIMARY_AP);
 		memcpy(cmd->mbss.mac_addr, mac, ETH_ALEN);
 	} else {
 		memcpy(cmd->mac_addr, mac, ETH_ALEN);
