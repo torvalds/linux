@@ -6768,14 +6768,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		break;
 	}
 
-	/* switch the led off */
-	reg_w(gspca_dev->dev, 0x01, 0x0000);
 	return 0;
 }
 
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	/* switch off the led */
 	reg_w(gspca_dev->dev, 0x01, 0x0000);
 	return 0;
 }
