@@ -55,8 +55,7 @@
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 					I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_3(adm9240, ds1780, lm81);
+enum chips { adm9240, ds1780, lm81 };
 
 /* ADM9240 registers */
 #define ADM9240_REG_MAN_ID		0x3e
@@ -132,7 +131,7 @@ static inline unsigned int AOUT_FROM_REG(u8 reg)
 
 static int adm9240_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm9240_detect(struct i2c_client *client, int kind,
+static int adm9240_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm9240_init_client(struct i2c_client *client);
 static int adm9240_remove(struct i2c_client *client);
@@ -156,7 +155,7 @@ static struct i2c_driver adm9240_driver = {
 	.remove		= adm9240_remove,
 	.id_table	= adm9240_id,
 	.detect		= adm9240_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* per client data */
@@ -545,7 +544,7 @@ static const struct attribute_group adm9240_group = {
 /*** sensor chip detect and driver install ***/
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm9240_detect(struct i2c_client *new_client, int kind,
+static int adm9240_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

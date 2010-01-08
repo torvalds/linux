@@ -43,6 +43,7 @@ int acpi_power_transition(struct acpi_device *device, int state);
 extern int acpi_power_nocheck;
 
 int acpi_wakeup_device_init(void);
+void acpi_early_processor_set_pdc(void);
 
 /* --------------------------------------------------------------------------
                                   Embedded Controller

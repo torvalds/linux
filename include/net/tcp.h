@@ -408,8 +408,7 @@ extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 extern void			tcp_parse_options(struct sk_buff *skb,
 						  struct tcp_options_received *opt_rx,
 						  u8 **hvpp,
-						  int estab,
-						  struct dst_entry *dst);
+						  int estab);
 
 extern u8			*tcp_parse_md5sig_option(struct tcphdr *th);
 

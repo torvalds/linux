@@ -166,9 +166,9 @@ struct driver_attribute driver_attr_##_name =		\
 	__ATTR(_name, _mode, _show, _store)
 
 extern int __must_check driver_create_file(struct device_driver *driver,
-					   struct driver_attribute *attr);
+					const struct driver_attribute *attr);
 extern void driver_remove_file(struct device_driver *driver,
-			       struct driver_attribute *attr);
+			       const struct driver_attribute *attr);
 
 extern int __must_check driver_add_kobj(struct device_driver *drv,
 					struct kobject *kobj,
@@ -319,13 +319,13 @@ struct device_attribute {
 struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
 extern int __must_check device_create_file(struct device *device,
-					   struct device_attribute *entry);
+					const struct device_attribute *entry);
 extern void device_remove_file(struct device *dev,
-			       struct device_attribute *attr);
+			       const struct device_attribute *attr);
 extern int __must_check device_create_bin_file(struct device *dev,
-					       struct bin_attribute *attr);
+					const struct bin_attribute *attr);
 extern void device_remove_bin_file(struct device *dev,
-				   struct bin_attribute *attr);
+				   const struct bin_attribute *attr);
 extern int device_schedule_callback_owner(struct device *dev,
 		void (*func)(struct device *dev), struct module *owner);
 

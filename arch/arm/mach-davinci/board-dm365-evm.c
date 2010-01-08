@@ -192,7 +192,11 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_delay	= 0	/* usec */,
 };
 
-#ifdef CONFIG_KEYBOARD_DAVINCI
+static int dm365evm_keyscan_enable(struct device *dev)
+{
+	return davinci_cfg_reg(DM365_KEYSCAN);
+}
+
 static unsigned short dm365evm_keymap[] = {
 	KEY_KP2,
 	KEY_LEFT,
@@ -214,6 +218,7 @@ static unsigned short dm365evm_keymap[] = {
 };
 
 static struct davinci_ks_platform_data dm365evm_ks_data = {
+	.device_enable	= dm365evm_keyscan_enable,
 	.keymap		= dm365evm_keymap,
 	.keymapsize	= ARRAY_SIZE(dm365evm_keymap),
 	.rep		= 1,
@@ -222,7 +227,6 @@ static struct davinci_ks_platform_data dm365evm_ks_data = {
 	.interval	= 0x2,
 	.matrix_type	= DAVINCI_KEYSCAN_MATRIX_4X4,
 };
-#endif
 
 static int cpld_mmc_get_cd(int module)
 {
@@ -511,10 +515,7 @@ static __init void dm365_evm_init(void)
 
 	dm365_init_asp(&dm365_evm_snd_data);
 	dm365_init_rtc();
-
-#ifdef CONFIG_KEYBOARD_DAVINCI
 	dm365_init_ks(&dm365evm_ks_data);
-#endif
 }
 
 static __init void dm365_evm_irq_init(void)

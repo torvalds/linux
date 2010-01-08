@@ -774,25 +774,8 @@ void __devinit setup_sparc64_timer(void)
 static struct clocksource clocksource_tick = {
 	.rating		= 100,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.shift		= 16,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
-
-static void __init setup_clockevent_multiplier(unsigned long hz)
-{
-	unsigned long mult, shift = 32;
-
-	while (1) {
-		mult = div_sc(hz, NSEC_PER_SEC, shift);
-		if (mult && (mult >> 32UL) == 0UL)
-			break;
-
-		shift--;
-	}
-
-	sparc64_clockevent.shift = shift;
-	sparc64_clockevent.mult = mult;
-}
 
 static unsigned long tb_ticks_per_usec __read_mostly;
 
@@ -828,9 +811,7 @@ void __init time_init(void)
 		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
 
 	clocksource_tick.name = tick_ops->name;
-	clocksource_tick.mult =
-		clocksource_hz2mult(freq,
-				    clocksource_tick.shift);
+	clocksource_calc_mult_shift(&clocksource_tick, freq, 4);
 	clocksource_tick.read = clocksource_tick_read;
 
 	printk("clocksource: mult[%x] shift[%d]\n",
@@ -839,15 +820,14 @@ void __init time_init(void)
 	clocksource_register(&clocksource_tick);
 
 	sparc64_clockevent.name = tick_ops->name;
-
-	setup_clockevent_multiplier(freq);
+	clockevents_calc_mult_shift(&sparc64_clockevent, freq, 4);
 
 	sparc64_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7fffffffffffffffUL, &sparc64_clockevent);
 	sparc64_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &sparc64_clockevent);
 
-	printk("clockevent: mult[%ux] shift[%d]\n",
+	printk("clockevent: mult[%x] shift[%d]\n",
 	       sparc64_clockevent.mult, sparc64_clockevent.shift);
 
 	setup_sparc64_timer();

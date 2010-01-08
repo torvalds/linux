@@ -1270,8 +1270,6 @@ static int __init dw_probe(struct platform_device *pdev)
 		goto err_kfree;
 	}
 
-	memset(dw, 0, sizeof *dw);
-
 	dw->regs = ioremap(io->start, DW_REGLEN);
 	if (!dw->regs) {
 		err = -ENOMEM;
@@ -1427,7 +1425,7 @@ static int dw_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops dw_dev_pm_ops = {
+static const struct dev_pm_ops dw_dev_pm_ops = {
 	.suspend_noirq = dw_suspend_noirq,
 	.resume_noirq = dw_resume_noirq,
 };

@@ -69,8 +69,15 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX8660
+	tristate "Maxim 8660/8661 voltage regulator"
+	depends on I2C
+	help
+	  This driver controls a Maxim 8660/8661 voltage output
+	  regulator via I2C bus.
+
 config REGULATOR_TWL4030
-	bool "TI TWL4030/TWL5030/TPS695x0 PMIC"
+	bool "TI TWL4030/TWL5030/TWL6030/TPS695x0 PMIC"
 	depends on TWL4030_CORE
 	help
 	  This driver supports the voltage regulators provided by
@@ -156,6 +163,12 @@ config REGULATOR_TPS6507X
 	  This driver supports TPS6507X voltage regulator chips. TPS6507X provides
 	  three step-down converters and two general-purpose LDO voltage regulators.
 	  It supports TI's software based Class-2 SmartReflex implementation.
+
+config REGULATOR_88PM8607
+	bool "Marvell 88PM8607 Power regulators"
+	depends on MFD_88PM8607=y
+	help
+	  This driver supports 88PM8607 voltage regulator chips.
 
 endif
 

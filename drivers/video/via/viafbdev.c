@@ -680,7 +680,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		if (!viafb_gamma_table)
 			return -ENOMEM;
 		if (copy_from_user(viafb_gamma_table, argp,
-				sizeof(viafb_gamma_table))) {
+				256 * sizeof(u32))) {
 			kfree(viafb_gamma_table);
 			return -EFAULT;
 		}
@@ -694,7 +694,7 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 			return -ENOMEM;
 		viafb_get_gamma_table(viafb_gamma_table);
 		if (copy_to_user(argp, viafb_gamma_table,
-			sizeof(viafb_gamma_table))) {
+			256 * sizeof(u32))) {
 			kfree(viafb_gamma_table);
 			return -EFAULT;
 		}
@@ -1797,7 +1797,7 @@ static const struct file_operations viafb_vt1636_proc_fops = {
 static void viafb_init_proc(struct proc_dir_entry **viafb_entry)
 {
 	*viafb_entry = proc_mkdir("viafb", NULL);
-	if (viafb_entry) {
+	if (*viafb_entry) {
 		proc_create("dvp0", 0, *viafb_entry, &viafb_dvp0_proc_fops);
 		proc_create("dvp1", 0, *viafb_entry, &viafb_dvp1_proc_fops);
 		proc_create("dfph", 0, *viafb_entry, &viafb_dfph_proc_fops);

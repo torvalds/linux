@@ -62,7 +62,7 @@ struct au8522_register_config {
    The values are as follows from left to right
    0="ATV RF" 1="ATV RF13" 2="CVBS" 3="S-Video" 4="PAL" 5=CVBS13" 6="SVideo13"
 */
-struct au8522_register_config filter_coef[] = {
+static const struct au8522_register_config filter_coef[] = {
 	{AU8522_FILTER_COEF_R410, {0x25, 0x00, 0x25, 0x25, 0x00, 0x00, 0x00} },
 	{AU8522_FILTER_COEF_R411, {0x20, 0x00, 0x20, 0x20, 0x00, 0x00, 0x00} },
 	{AU8522_FILTER_COEF_R412, {0x03, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00} },
@@ -104,7 +104,7 @@ struct au8522_register_config filter_coef[] = {
    0="SIF" 1="ATVRF/ATVRF13"
    Note: the "ATVRF/ATVRF13" mode has never been tested
 */
-struct au8522_register_config lpfilter_coef[] = {
+static const struct au8522_register_config lpfilter_coef[] = {
 	{0x060b, {0x21, 0x0b} },
 	{0x060c, {0xad, 0xad} },
 	{0x060d, {0x70, 0xf0} },

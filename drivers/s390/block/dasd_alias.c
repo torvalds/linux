@@ -218,7 +218,7 @@ int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
 		spin_unlock_irqrestore(&aliastree.lock, flags);
 		newlcu = _allocate_lcu(uid);
 		if (IS_ERR(newlcu))
-			return PTR_ERR(lcu);
+			return PTR_ERR(newlcu);
 		spin_lock_irqsave(&aliastree.lock, flags);
 		lcu = _find_lcu(server, uid);
 		if (!lcu) {

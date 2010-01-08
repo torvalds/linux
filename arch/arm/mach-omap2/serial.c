@@ -640,12 +640,9 @@ void __init omap_serial_early_init(void)
 		uart->num = i;
 		p->private_data = uart;
 		uart->p = p;
-		list_add_tail(&uart->node, &uart_list);
 
 		if (cpu_is_omap44xx())
 			p->irq += 32;
-
-		omap_uart_enable_clocks(uart);
 	}
 }
 
@@ -673,8 +670,12 @@ void __init omap_serial_init_port(int port)
 	pdev = &uart->pdev;
 	dev = &pdev->dev;
 
+	omap_uart_enable_clocks(uart);
+
 	omap_uart_reset(uart);
 	omap_uart_idle_init(uart);
+
+	list_add_tail(&uart->node, &uart_list);
 
 	if (WARN_ON(platform_device_register(pdev)))
 		return;

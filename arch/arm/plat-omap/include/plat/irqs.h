@@ -472,8 +472,22 @@
 #endif
 #define TWL4030_GPIO_IRQ_END	(TWL4030_GPIO_IRQ_BASE + TWL4030_GPIO_NR_IRQS)
 
+#define	TWL6030_IRQ_BASE	(OMAP_FPGA_IRQ_END)
+#ifdef CONFIG_TWL4030_CORE
+#define	TWL6030_BASE_NR_IRQS	20
+#else
+#define	TWL6030_BASE_NR_IRQS	0
+#endif
+#define TWL6030_IRQ_END		(TWL6030_IRQ_BASE + TWL6030_BASE_NR_IRQS)
+
 /* Total number of interrupts depends on the enabled blocks above */
-#define NR_IRQS			TWL4030_GPIO_IRQ_END
+#if (TWL4030_GPIO_IRQ_END > TWL6030_IRQ_END)
+#define TWL_IRQ_END 		TWL4030_GPIO_IRQ_END
+#else
+#define TWL_IRQ_END		TWL6030_IRQ_END
+#endif
+
+#define NR_IRQS			TWL_IRQ_END
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 

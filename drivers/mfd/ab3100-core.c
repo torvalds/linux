@@ -900,9 +900,6 @@ static int __init ab3100_probe(struct i2c_client *client,
 		goto exit_no_testreg_client;
 	}
 
-	strlcpy(ab3100->testreg_client->name, id->name,
-		sizeof(ab3100->testreg_client->name));
-
 	err = ab3100_setup(ab3100);
 	if (err)
 		goto exit_no_setup;

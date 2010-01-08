@@ -8,5 +8,6 @@ obj-$(CONFIG_MACH_SHEEVAPLUG)		+= sheevaplug-setup.o
 obj-$(CONFIG_MACH_TS219)		+= ts219-setup.o tsx1x-common.o
 obj-$(CONFIG_MACH_TS41X)		+= ts41x-setup.o tsx1x-common.o
 obj-$(CONFIG_MACH_OPENRD_BASE)		+= openrd_base-setup.o
+obj-$(CONFIG_MACH_NETSPACE_V2)		+= netspace_v2-setup.o
 
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o

@@ -56,9 +56,10 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_4(w83781d, w83782d, w83783s, as99127f);
 
+enum chips { w83781d, w83782d, w83783s, as99127f };
+
+/* Insmod parameters */
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
 MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
@@ -1051,8 +1052,7 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int
-w83781d_detect(struct i2c_client *client, int kind,
-	       struct i2c_board_info *info)
+w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	int val1, val2;
 	struct w83781d_data *isa = w83781d_data_if_isa();
@@ -1537,7 +1537,7 @@ static struct i2c_driver w83781d_driver = {
 	.remove		= w83781d_remove,
 	.id_table	= w83781d_ids,
 	.detect		= w83781d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*

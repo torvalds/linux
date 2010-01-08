@@ -24,16 +24,6 @@
 #include <asm/blackfin.h>
 #include <asm/dma.h>
 
-/* Put the error code here just in case the user cares.  */
-int gdb_bfin_errcode;
-/* Likewise, the vector number here (since GDB only gets the signal
-   number through the usual means, and that's not very specific).  */
-int gdb_bfin_vector = -1;
-
-#if KGDB_MAX_NO_CPUS != 8
-#error change the definition of slavecpulocks
-#endif
-
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
 	gdb_regs[BFIN_R0] = regs->r0;
@@ -368,13 +358,6 @@ void kgdb_roundup_cpu(int cpu, unsigned long flags)
 	smp_call_function_single(cpu, kgdb_passive_cpu_callback, NULL, 0);
 }
 #endif
-
-void kgdb_post_primary_code(struct pt_regs *regs, int eVector, int err_code)
-{
-	/* Master processor is completely in the debugger */
-	gdb_bfin_vector = eVector;
-	gdb_bfin_errcode = err_code;
-}
 
 int kgdb_arch_handle_exception(int vector, int signo,
 			       int err_code, char *remcom_in_buffer,

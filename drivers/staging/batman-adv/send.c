@@ -363,8 +363,10 @@ void add_bcast_packet_to_list(unsigned char *packet_buff, int packet_len)
 		return;
 
 	forw_packet->packet_buff = kmalloc(packet_len, GFP_ATOMIC);
-	if (!forw_packet->packet_buff)
+	if (!forw_packet->packet_buff) {
+		kfree(forw_packet);
 		return;
+	}
 
 	forw_packet->packet_len = packet_len;
 	memcpy(forw_packet->packet_buff, packet_buff, forw_packet->packet_len);

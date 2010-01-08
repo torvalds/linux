@@ -108,12 +108,19 @@
 		dcr-reg = <0x00c 0x002>;
 	};
 
+	MQ0: mq {
+		compatible = "ibm,mq-440spe";
+		dcr-reg = <0x040 0x020>;
+	};
+
 	plb {
 		compatible = "ibm,plb-440spe", "ibm,plb-440gp", "ibm,plb4";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		/*        addr-child     addr-parent    size */
-		ranges = <0x4 0xe0000000 0x4 0xe0000000 0x20000000
+		ranges = <0x4 0x00100000 0x4 0x00100000 0x00001000
+			  0x4 0x00200000 0x4 0x00200000 0x00000400
+			  0x4 0xe0000000 0x4 0xe0000000 0x20000000
 			  0xc 0x00000000 0xc 0x00000000 0x20000000
 			  0xd 0x00000000 0xd 0x00000000 0x80000000
 			  0xd 0x80000000 0xd 0x80000000 0x80000000
@@ -399,6 +406,49 @@
 				0x0 0x0 0x0 0x2 &UIC3 0x9 0x4 /* swizzled int B */
 				0x0 0x0 0x0 0x3 &UIC3 0xa 0x4 /* swizzled int C */
 				0x0 0x0 0x0 0x4 &UIC3 0xb 0x4 /* swizzled int D */>;
+		};
+
+		I2O: i2o@400100000 {
+			compatible = "ibm,i2o-440spe";
+			reg = <0x00000004 0x00100000 0x100>;
+			dcr-reg = <0x060 0x020>;
+		};
+
+		DMA0: dma0@400100100 {
+			compatible = "ibm,dma-440spe";
+			cell-index = <0>;
+			reg = <0x00000004 0x00100100 0x100>;
+			dcr-reg = <0x060 0x020>;
+			interrupt-parent = <&DMA0>;
+			interrupts = <0 1>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <
+				0 &UIC0 0x14 4
+				1 &UIC1 0x16 4>;
+		};
+
+		DMA1: dma1@400100200 {
+			compatible = "ibm,dma-440spe";
+			cell-index = <1>;
+			reg = <0x00000004 0x00100200 0x100>;
+			dcr-reg = <0x060 0x020>;
+			interrupt-parent = <&DMA1>;
+			interrupts = <0 1>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <
+				0 &UIC0 0x16 4
+				1 &UIC1 0x16 4>;
+		};
+
+		xor-accel@400200000 {
+			compatible = "amcc,xor-accelerator";
+			reg = <0x00000004 0x00200000 0x400>;
+			interrupt-parent = <&UIC1>;
+			interrupts = <0x1f 4>;
 		};
 	};
 

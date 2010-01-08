@@ -126,8 +126,8 @@ typedef struct irq_req_t {
 #define IRQ_TYPE_TIME			0x01
 #define IRQ_TYPE_DYNAMIC_SHARING	0x02
 #define IRQ_FORCED_PULSE		0x04
-#define IRQ_FIRST_SHARED		0x08
-//#define IRQ_HANDLE_PRESENT		0x10
+#define IRQ_FIRST_SHARED		0x08 /* unused */
+#define IRQ_HANDLE_PRESENT		0x10 /* unused */
 #define IRQ_PULSE_ALLOCATED		0x100
 
 /* Bits in IRQInfo1 field */

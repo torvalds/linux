@@ -159,7 +159,7 @@ static int pxa2xx_ac97_resume(struct device *dev)
 	return ret;
 }
 
-static struct dev_pm_ops pxa2xx_ac97_pm_ops = {
+static const struct dev_pm_ops pxa2xx_ac97_pm_ops = {
 	.suspend	= pxa2xx_ac97_suspend,
 	.resume		= pxa2xx_ac97_resume,
 };

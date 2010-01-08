@@ -315,41 +315,26 @@ A: The following are what is required for CPU hotplug infrastructure to work
 
 Q: I need to ensure that a particular cpu is not removed when there is some
    work specific to this cpu is in progress.
-A: First switch the current thread context to preferred cpu
+A: There are two ways.  If your code can be run in interrupt context, use
+   smp_call_function_single(), otherwise use work_on_cpu().  Note that
+   work_on_cpu() is slow, and can fail due to out of memory:
 
 	int my_func_on_cpu(int cpu)
 	{
-		cpumask_t saved_mask, new_mask = CPU_MASK_NONE;
-		int curr_cpu, err = 0;
-
-		saved_mask = current->cpus_allowed;
-		cpu_set(cpu, new_mask);
-		err = set_cpus_allowed(current, new_mask);
-
-		if (err)
-			return err;
-
-		/*
-		 * If we got scheduled out just after the return from
-		 * set_cpus_allowed() before running the work, this ensures
-		 * we stay locked.
-		 */
-		curr_cpu = get_cpu();
-
-		if (curr_cpu != cpu) {
-			err = -EAGAIN;
-			goto ret;
-		} else {
-			/*
-			 * Do work : But cant sleep, since get_cpu() disables preempt
-			 */
-		}
-		ret:
-			put_cpu();
-			set_cpus_allowed(current, saved_mask);
-			return err;
-		}
-
+		int err;
+		get_online_cpus();
+		if (!cpu_online(cpu))
+			err = -EINVAL;
+		else
+#if NEEDS_BLOCKING
+			err = work_on_cpu(cpu, __my_func_on_cpu, NULL);
+#else
+			smp_call_function_single(cpu, __my_func_on_cpu, &err,
+						 true);
+#endif
+		put_online_cpus();
+		return err;
+	}
 
 Q: How do we determine how many CPUs are available for hotplug.
 A: There is no clear spec defined way from ACPI that can give us that

@@ -326,7 +326,7 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	wdt->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	wdt->regs = ioremap(regs->start, resource_size(regs));
 	if (!wdt->regs) {
 		ret = -ENOMEM;
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");

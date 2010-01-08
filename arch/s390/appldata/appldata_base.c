@@ -551,7 +551,7 @@ static int appldata_thaw(struct device *dev)
 	return appldata_restore(dev);
 }
 
-static struct dev_pm_ops appldata_pm_ops = {
+static const struct dev_pm_ops appldata_pm_ops = {
 	.freeze		= appldata_freeze,
 	.thaw		= appldata_thaw,
 	.restore	= appldata_restore,

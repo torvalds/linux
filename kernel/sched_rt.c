@@ -327,7 +327,7 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 
 	weight = cpumask_weight(rd->span);
 
-	spin_lock(&rt_b->rt_runtime_lock);
+	raw_spin_lock(&rt_b->rt_runtime_lock);
 	rt_period = ktime_to_ns(rt_b->rt_period);
 	for_each_cpu(i, rd->span) {
 		struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
@@ -336,7 +336,7 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 		if (iter == rt_rq)
 			continue;
 
-		spin_lock(&iter->rt_runtime_lock);
+		raw_spin_lock(&iter->rt_runtime_lock);
 		/*
 		 * Either all rqs have inf runtime and there's nothing to steal
 		 * or __disable_runtime() below sets a specific rq to inf to
@@ -358,14 +358,14 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 			rt_rq->rt_runtime += diff;
 			more = 1;
 			if (rt_rq->rt_runtime == rt_period) {
-				spin_unlock(&iter->rt_runtime_lock);
+				raw_spin_unlock(&iter->rt_runtime_lock);
 				break;
 			}
 		}
 next:
-		spin_unlock(&iter->rt_runtime_lock);
+		raw_spin_unlock(&iter->rt_runtime_lock);
 	}
-	spin_unlock(&rt_b->rt_runtime_lock);
+	raw_spin_unlock(&rt_b->rt_runtime_lock);
 
 	return more;
 }
@@ -386,8 +386,8 @@ static void __disable_runtime(struct rq *rq)
 		s64 want;
 		int i;
 
-		spin_lock(&rt_b->rt_runtime_lock);
-		spin_lock(&rt_rq->rt_runtime_lock);
+		raw_spin_lock(&rt_b->rt_runtime_lock);
+		raw_spin_lock(&rt_rq->rt_runtime_lock);
 		/*
 		 * Either we're all inf and nobody needs to borrow, or we're
 		 * already disabled and thus have nothing to do, or we have
@@ -396,7 +396,7 @@ static void __disable_runtime(struct rq *rq)
 		if (rt_rq->rt_runtime == RUNTIME_INF ||
 				rt_rq->rt_runtime == rt_b->rt_runtime)
 			goto balanced;
-		spin_unlock(&rt_rq->rt_runtime_lock);
+		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 
 		/*
 		 * Calculate the difference between what we started out with
@@ -418,7 +418,7 @@ static void __disable_runtime(struct rq *rq)
 			if (iter == rt_rq || iter->rt_runtime == RUNTIME_INF)
 				continue;
 
-			spin_lock(&iter->rt_runtime_lock);
+			raw_spin_lock(&iter->rt_runtime_lock);
 			if (want > 0) {
 				diff = min_t(s64, iter->rt_runtime, want);
 				iter->rt_runtime -= diff;
@@ -427,13 +427,13 @@ static void __disable_runtime(struct rq *rq)
 				iter->rt_runtime -= want;
 				want -= want;
 			}
-			spin_unlock(&iter->rt_runtime_lock);
+			raw_spin_unlock(&iter->rt_runtime_lock);
 
 			if (!want)
 				break;
 		}
 
-		spin_lock(&rt_rq->rt_runtime_lock);
+		raw_spin_lock(&rt_rq->rt_runtime_lock);
 		/*
 		 * We cannot be left wanting - that would mean some runtime
 		 * leaked out of the system.
@@ -445,8 +445,8 @@ balanced:
 		 * runtime - in which case borrowing doesn't make sense.
 		 */
 		rt_rq->rt_runtime = RUNTIME_INF;
-		spin_unlock(&rt_rq->rt_runtime_lock);
-		spin_unlock(&rt_b->rt_runtime_lock);
+		raw_spin_unlock(&rt_rq->rt_runtime_lock);
+		raw_spin_unlock(&rt_b->rt_runtime_lock);
 	}
 }
 
@@ -454,9 +454,9 @@ static void disable_runtime(struct rq *rq)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->lock, flags);
 	__disable_runtime(rq);
-	spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 
 static void __enable_runtime(struct rq *rq)
@@ -472,13 +472,13 @@ static void __enable_runtime(struct rq *rq)
 	for_each_leaf_rt_rq(rt_rq, rq) {
 		struct rt_bandwidth *rt_b = sched_rt_bandwidth(rt_rq);
 
-		spin_lock(&rt_b->rt_runtime_lock);
-		spin_lock(&rt_rq->rt_runtime_lock);
+		raw_spin_lock(&rt_b->rt_runtime_lock);
+		raw_spin_lock(&rt_rq->rt_runtime_lock);
 		rt_rq->rt_runtime = rt_b->rt_runtime;
 		rt_rq->rt_time = 0;
 		rt_rq->rt_throttled = 0;
-		spin_unlock(&rt_rq->rt_runtime_lock);
-		spin_unlock(&rt_b->rt_runtime_lock);
+		raw_spin_unlock(&rt_rq->rt_runtime_lock);
+		raw_spin_unlock(&rt_b->rt_runtime_lock);
 	}
 }
 
@@ -486,9 +486,9 @@ static void enable_runtime(struct rq *rq)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->lock, flags);
 	__enable_runtime(rq);
-	spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 
 static int balance_runtime(struct rt_rq *rt_rq)
@@ -496,9 +496,9 @@ static int balance_runtime(struct rt_rq *rt_rq)
 	int more = 0;
 
 	if (rt_rq->rt_time > rt_rq->rt_runtime) {
-		spin_unlock(&rt_rq->rt_runtime_lock);
+		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 		more = do_balance_runtime(rt_rq);
-		spin_lock(&rt_rq->rt_runtime_lock);
+		raw_spin_lock(&rt_rq->rt_runtime_lock);
 	}
 
 	return more;
@@ -524,11 +524,11 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
 		struct rq *rq = rq_of_rt_rq(rt_rq);
 
-		spin_lock(&rq->lock);
+		raw_spin_lock(&rq->lock);
 		if (rt_rq->rt_time) {
 			u64 runtime;
 
-			spin_lock(&rt_rq->rt_runtime_lock);
+			raw_spin_lock(&rt_rq->rt_runtime_lock);
 			if (rt_rq->rt_throttled)
 				balance_runtime(rt_rq);
 			runtime = rt_rq->rt_runtime;
@@ -539,13 +539,13 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 			}
 			if (rt_rq->rt_time || rt_rq->rt_nr_running)
 				idle = 0;
-			spin_unlock(&rt_rq->rt_runtime_lock);
+			raw_spin_unlock(&rt_rq->rt_runtime_lock);
 		} else if (rt_rq->rt_nr_running)
 			idle = 0;
 
 		if (enqueue)
 			sched_rt_rq_enqueue(rt_rq);
-		spin_unlock(&rq->lock);
+		raw_spin_unlock(&rq->lock);
 	}
 
 	return idle;
@@ -624,11 +624,11 @@ static void update_curr_rt(struct rq *rq)
 		rt_rq = rt_rq_of_se(rt_se);
 
 		if (sched_rt_runtime(rt_rq) != RUNTIME_INF) {
-			spin_lock(&rt_rq->rt_runtime_lock);
+			raw_spin_lock(&rt_rq->rt_runtime_lock);
 			rt_rq->rt_time += delta_exec;
 			if (sched_rt_runtime_exceeded(rt_rq))
 				resched_task(curr);
-			spin_unlock(&rt_rq->rt_runtime_lock);
+			raw_spin_unlock(&rt_rq->rt_runtime_lock);
 		}
 	}
 }
@@ -1246,7 +1246,7 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 				     task_running(rq, task) ||
 				     !task->se.on_rq)) {
 
-				spin_unlock(&lowest_rq->lock);
+				raw_spin_unlock(&lowest_rq->lock);
 				lowest_rq = NULL;
 				break;
 			}
@@ -1472,7 +1472,7 @@ static void post_schedule_rt(struct rq *rq)
  * If we are not running and we are not going to reschedule soon, we should
  * try to push tasks away now
  */
-static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
+static void task_woken_rt(struct rq *rq, struct task_struct *p)
 {
 	if (!task_running(rq, p) &&
 	    !test_tsk_need_resched(rq->curr) &&
@@ -1753,7 +1753,7 @@ static const struct sched_class rt_sched_class = {
 	.rq_offline             = rq_offline_rt,
 	.pre_schedule		= pre_schedule_rt,
 	.post_schedule		= post_schedule_rt,
-	.task_wake_up		= task_wake_up_rt,
+	.task_woken		= task_woken_rt,
 	.switched_from		= switched_from_rt,
 #endif
 

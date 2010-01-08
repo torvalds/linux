@@ -113,11 +113,9 @@ static inline int iucv_dbf_passes(debug_info_t *dbf_grp, int level)
 #define IUCV_DBF_TEXT_(name, level, text...) \
 	do { \
 		if (iucv_dbf_passes(iucv_dbf_##name, level)) { \
-			char* iucv_dbf_txt_buf = \
-					get_cpu_var(iucv_dbf_txt_buf); \
-			sprintf(iucv_dbf_txt_buf, text); \
-			debug_text_event(iucv_dbf_##name, level, \
-						iucv_dbf_txt_buf); \
+			char* __buf = get_cpu_var(iucv_dbf_txt_buf); \
+			sprintf(__buf, text); \
+			debug_text_event(iucv_dbf_##name, level, __buf); \
 			put_cpu_var(iucv_dbf_txt_buf); \
 		} \
 	} while (0)
@@ -161,7 +159,7 @@ static void netiucv_pm_complete(struct device *);
 static int netiucv_pm_freeze(struct device *);
 static int netiucv_pm_restore_thaw(struct device *);
 
-static struct dev_pm_ops netiucv_pm_ops = {
+static const struct dev_pm_ops netiucv_pm_ops = {
 	.prepare = netiucv_pm_prepare,
 	.complete = netiucv_pm_complete,
 	.freeze = netiucv_pm_freeze,

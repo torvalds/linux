@@ -190,7 +190,7 @@ acpi_evaluate_object(acpi_handle handle,
 
 	/* Convert and validate the device handle */
 
-	info->prefix_node = acpi_ns_map_handle_to_node(handle);
+	info->prefix_node = acpi_ns_validate_handle(handle);
 	if (!info->prefix_node) {
 		status = AE_BAD_PARAMETER;
 		goto cleanup;
@@ -552,7 +552,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 		return (status);
 	}
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		return (status);
@@ -729,7 +729,7 @@ acpi_attach_data(acpi_handle obj_handle,
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -775,7 +775,7 @@ acpi_detach_data(acpi_handle obj_handle, acpi_object_handler handler)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -822,7 +822,7 @@ acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 
 	/* Convert and validate the handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;

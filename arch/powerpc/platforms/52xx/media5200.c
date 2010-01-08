@@ -86,9 +86,9 @@ void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	u32 status, enable;
 
 	/* Mask off the cascaded IRQ */
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->chip->mask(virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	/* Ask the FPGA for IRQ status.  If 'val' is 0, then no irqs
 	 * are pending.  'ffs()' is 1 based */
@@ -104,11 +104,11 @@ void media5200_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	}
 
 	/* Processing done; can reenable the cascade now */
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->chip->ack(virq);
 	if (!(desc->status & IRQ_DISABLED))
 		desc->chip->unmask(virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 static int media5200_irq_map(struct irq_host *h, unsigned int virq,

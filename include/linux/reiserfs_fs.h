@@ -62,6 +62,12 @@ void reiserfs_write_unlock(struct super_block *s);
 int reiserfs_write_lock_once(struct super_block *s);
 void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
 
+#ifdef CONFIG_REISERFS_CHECK
+void reiserfs_lock_check_recursive(struct super_block *s);
+#else
+static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
+#endif
+
 /*
  * Several mutexes depend on the write lock.
  * However sometimes we want to relax the write lock while we hold
@@ -92,8 +98,28 @@ void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
 static inline void reiserfs_mutex_lock_safe(struct mutex *m,
 			       struct super_block *s)
 {
+	reiserfs_lock_check_recursive(s);
 	reiserfs_write_unlock(s);
 	mutex_lock(m);
+	reiserfs_write_lock(s);
+}
+
+static inline void
+reiserfs_mutex_lock_nested_safe(struct mutex *m, unsigned int subclass,
+			       struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	mutex_lock_nested(m, subclass);
+	reiserfs_write_lock(s);
+}
+
+static inline void
+reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	down_read(sem);
 	reiserfs_write_lock(s);
 }
 
@@ -2051,25 +2077,12 @@ void set_de_name_and_namelen(struct reiserfs_dir_entry *de);
 int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 			struct treepath *path, struct reiserfs_dir_entry *de);
 struct dentry *reiserfs_get_parent(struct dentry *);
-/* procfs.c */
 
-#if defined( CONFIG_PROC_FS ) && defined( CONFIG_REISERFS_PROC_INFO )
-#define REISERFS_PROC_INFO
-#else
-#undef REISERFS_PROC_INFO
-#endif
-
+#ifdef CONFIG_REISERFS_PROC_INFO
 int reiserfs_proc_info_init(struct super_block *sb);
 int reiserfs_proc_info_done(struct super_block *sb);
-struct proc_dir_entry *reiserfs_proc_register_global(char *name,
-						     read_proc_t * func);
-void reiserfs_proc_unregister_global(const char *name);
 int reiserfs_proc_info_global_init(void);
 int reiserfs_proc_info_global_done(void);
-int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
-				    int count, int *eof, void *data);
-
-#if defined( REISERFS_PROC_INFO )
 
 #define PROC_EXP( e )   e
 
@@ -2084,6 +2097,26 @@ int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
     PROC_INFO_ADD( sb, free_at[ ( level ) ], B_FREE_SPACE( bh ) );	\
     PROC_INFO_ADD( sb, items_at[ ( level ) ], B_NR_ITEMS( bh ) )
 #else
+static inline int reiserfs_proc_info_init(struct super_block *sb)
+{
+	return 0;
+}
+
+static inline int reiserfs_proc_info_done(struct super_block *sb)
+{
+	return 0;
+}
+
+static inline int reiserfs_proc_info_global_init(void)
+{
+	return 0;
+}
+
+static inline int reiserfs_proc_info_global_done(void)
+{
+	return 0;
+}
+
 #define PROC_EXP( e )
 #define VOID_V ( ( void ) 0 )
 #define PROC_INFO_MAX( sb, field, value ) VOID_V

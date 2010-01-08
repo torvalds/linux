@@ -222,28 +222,6 @@ out:
 	return ret;
 }
 
-static void ramzswap_flush_dcache_page(struct page *page)
-{
-#ifdef CONFIG_ARM
-	int flag = 0;
-	/*
-	 * Ugly hack to get flush_dcache_page() work on ARM.
-	 * page_mapping(page) == NULL after clearing this swap cache flag.
-	 * Without clearing this flag, flush_dcache_page() will simply set
-	 * "PG_dcache_dirty" bit and return.
-	 */
-	if (PageSwapCache(page)) {
-		flag = 1;
-		ClearPageSwapCache(page);
-	}
-#endif
-	flush_dcache_page(page);
-#ifdef CONFIG_ARM
-	if (flag)
-		SetPageSwapCache(page);
-#endif
-}
-
 void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 			struct ramzswap_ioctl_stats *s)
 {
@@ -655,7 +633,7 @@ static int handle_zero_page(struct bio *bio)
 	memset(user_mem, 0, PAGE_SIZE);
 	kunmap_atomic(user_mem, KM_USER0);
 
-	ramzswap_flush_dcache_page(page);
+	flush_dcache_page(page);
 
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
 	bio_endio(bio, 0);
@@ -679,7 +657,7 @@ static int handle_uncompressed_page(struct ramzswap *rzs, struct bio *bio)
 	kunmap_atomic(user_mem, KM_USER0);
 	kunmap_atomic(cmem, KM_USER1);
 
-	ramzswap_flush_dcache_page(page);
+	flush_dcache_page(page);
 
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
 	bio_endio(bio, 0);
@@ -779,7 +757,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 		goto out;
 	}
 
-	ramzswap_flush_dcache_page(page);
+	flush_dcache_page(page);
 
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
 	bio_endio(bio, 0);

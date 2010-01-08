@@ -145,7 +145,7 @@ static int multipath_make_request (struct request_queue *q, struct bio * bio)
 	int cpu;
 
 	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
-		bio_endio(bio, -EOPNOTSUPP);
+		md_barrier_request(mddev, bio);
 		return 0;
 	}
 
@@ -581,6 +581,7 @@ static void __exit multipath_exit (void)
 module_init(multipath_init);
 module_exit(multipath_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("simple multi-path personality for MD");
 MODULE_ALIAS("md-personality-7"); /* MULTIPATH */
 MODULE_ALIAS("md-multipath");
 MODULE_ALIAS("md-level--4");

@@ -310,8 +310,7 @@ static ssize_t pnp_set_current_resources(struct device *dmdev,
 		goto done;
 	}
 
-	while (isspace(*buf))
-		++buf;
+	buf = skip_spaces(buf);
 	if (!strnicmp(buf, "disable", 7)) {
 		retval = pnp_disable_dev(dev);
 		goto done;
@@ -353,19 +352,13 @@ static ssize_t pnp_set_current_resources(struct device *dmdev,
 		pnp_init_resources(dev);
 		mutex_lock(&pnp_res_mutex);
 		while (1) {
-			while (isspace(*buf))
-				++buf;
+			buf = skip_spaces(buf);
 			if (!strnicmp(buf, "io", 2)) {
-				buf += 2;
-				while (isspace(*buf))
-					++buf;
+				buf = skip_spaces(buf + 2);
 				start = simple_strtoul(buf, &buf, 0);
-				while (isspace(*buf))
-					++buf;
+				buf = skip_spaces(buf);
 				if (*buf == '-') {
-					buf += 1;
-					while (isspace(*buf))
-						++buf;
+					buf = skip_spaces(buf + 1);
 					end = simple_strtoul(buf, &buf, 0);
 				} else
 					end = start;
@@ -373,16 +366,11 @@ static ssize_t pnp_set_current_resources(struct device *dmdev,
 				continue;
 			}
 			if (!strnicmp(buf, "mem", 3)) {
-				buf += 3;
-				while (isspace(*buf))
-					++buf;
+				buf = skip_spaces(buf + 3);
 				start = simple_strtoul(buf, &buf, 0);
-				while (isspace(*buf))
-					++buf;
+				buf = skip_spaces(buf);
 				if (*buf == '-') {
-					buf += 1;
-					while (isspace(*buf))
-						++buf;
+					buf = skip_spaces(buf + 1);
 					end = simple_strtoul(buf, &buf, 0);
 				} else
 					end = start;
@@ -390,17 +378,13 @@ static ssize_t pnp_set_current_resources(struct device *dmdev,
 				continue;
 			}
 			if (!strnicmp(buf, "irq", 3)) {
-				buf += 3;
-				while (isspace(*buf))
-					++buf;
+				buf = skip_spaces(buf + 3);
 				start = simple_strtoul(buf, &buf, 0);
 				pnp_add_irq_resource(dev, start, 0);
 				continue;
 			}
 			if (!strnicmp(buf, "dma", 3)) {
-				buf += 3;
-				while (isspace(*buf))
-					++buf;
+				buf = skip_spaces(buf + 3);
 				start = simple_strtoul(buf, &buf, 0);
 				pnp_add_dma_resource(dev, start, 0);
 				continue;

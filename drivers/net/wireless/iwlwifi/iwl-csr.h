@@ -77,8 +77,7 @@
  * The MAC (uCode processor, etc.) does not need to be powered up for accessing
  * the CSR registers.
  *
- * NOTE:  Newer devices using one-time-programmable (OTP) memory
- *        require device to be awake in order to read this memory
+ * NOTE:  Device does need to be awake in order to read this memory
  *        via CSR_EEPROM and CSR_OTP registers
  */
 #define CSR_BASE    (0x000)
@@ -111,9 +110,8 @@
 /*
  * EEPROM and OTP (one-time-programmable) memory reads
  *
- * NOTE:  For (newer) devices using OTP, device must be awake, initialized via
- *        apm_ops.init() in order to read.  Older devices (3945/4965/5000)
- *        use EEPROM and do not require this.
+ * NOTE:  Device must be awake, initialized via apm_ops.init(),
+ *        in order to read.
  */
 #define CSR_EEPROM_REG          (CSR_BASE+0x02c)
 #define CSR_EEPROM_GP           (CSR_BASE+0x030)

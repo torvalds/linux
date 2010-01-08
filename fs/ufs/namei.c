@@ -56,7 +56,7 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, stru
 		return ERR_PTR(-ENAMETOOLONG);
 
 	lock_kernel();
-	ino = ufs_inode_by_name(dir, dentry);
+	ino = ufs_inode_by_name(dir, &dentry->d_name);
 	if (ino) {
 		inode = ufs_iget(dir->i_sb, ino);
 		if (IS_ERR(inode)) {
@@ -237,7 +237,7 @@ static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 	struct page *page;
 	int err = -ENOENT;
 
-	de = ufs_find_entry(dir, dentry, &page);
+	de = ufs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto out;
 
@@ -281,7 +281,7 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
 
-	old_de = ufs_find_entry(old_dir, old_dentry, &old_page);
+	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)
 		goto out;
 
@@ -301,7 +301,7 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = ufs_find_entry(new_dir, new_dentry, &new_page);
+		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
 		inode_inc_link_count(old_inode);

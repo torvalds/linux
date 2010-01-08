@@ -154,7 +154,7 @@ struct pcmcia_socket {
 	struct list_head		socket_list;
 	struct completion		socket_released;
 
- 	/* deprecated */
+	/* deprecated */
 	unsigned int			sock;		/* socket number */
 
 
@@ -164,7 +164,7 @@ struct pcmcia_socket {
 	u_int				map_size;
 	u_int				io_offset;
 	u_int				pci_irq;
-	struct pci_dev *		cb_dev;
+	struct pci_dev			*cb_dev;
 
 
 	/* socket setup is done so resources should be able to be allocated.
@@ -179,9 +179,9 @@ struct pcmcia_socket {
 	u8				reserved:5;
 
 	/* socket operations */
-	struct pccard_operations *	ops;
-	struct pccard_resource_ops *	resource_ops;
-	void *				resource_data;
+	struct pccard_operations	*ops;
+	struct pccard_resource_ops	*resource_ops;
+	void				*resource_data;
 
 	/* Zoom video behaviour is so chip specific its not worth adding
 	   this to _ops */
@@ -245,7 +245,7 @@ struct pcmcia_socket {
 
 	/* cardbus (32-bit) */
 #ifdef CONFIG_CARDBUS
-	struct resource *		cb_cis_res;
+	struct resource			*cb_cis_res;
 	void __iomem			*cb_cis_virt;
 #endif /* CONFIG_CARDBUS */
 

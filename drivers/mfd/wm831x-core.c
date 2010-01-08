@@ -90,9 +90,10 @@ int wm831x_isinkv_values[WM831X_ISINK_MAX_ISEL + 1] = {
 EXPORT_SYMBOL_GPL(wm831x_isinkv_values);
 
 enum wm831x_parent {
-	WM8310 = 0,
-	WM8311 = 1,
-	WM8312 = 2,
+	WM8310 = 0x8310,
+	WM8311 = 0x8311,
+	WM8312 = 0x8312,
+	WM8320 = 0x8320,
 };
 
 static int wm831x_reg_locked(struct wm831x *wm831x, unsigned short reg)
@@ -478,6 +479,20 @@ static struct resource wm831x_dcdc4_resources[] = {
 	},
 };
 
+static struct resource wm8320_dcdc4_buck_resources[] = {
+	{
+		.start = WM831X_DC4_CONTROL,
+		.end   = WM832X_DC4_SLEEP_CONTROL,
+		.flags = IORESOURCE_IO,
+	},
+	{
+		.name  = "UV",
+		.start = WM831X_IRQ_UV_DC4,
+		.end   = WM831X_IRQ_UV_DC4,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static struct resource wm831x_gpio_resources[] = {
 	{
 		.start = WM831X_IRQ_GPIO_1,
@@ -794,6 +809,9 @@ static struct resource wm831x_wdt_resources[] = {
 
 static struct mfd_cell wm8310_devs[] = {
 	{
+		.name = "wm831x-backup",
+	},
+	{
 		.name = "wm831x-buckv",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_dcdc1_resources),
@@ -947,6 +965,9 @@ static struct mfd_cell wm8310_devs[] = {
 
 static struct mfd_cell wm8311_devs[] = {
 	{
+		.name = "wm831x-backup",
+	},
+	{
 		.name = "wm831x-buckv",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_dcdc1_resources),
@@ -1080,6 +1101,9 @@ static struct mfd_cell wm8311_devs[] = {
 };
 
 static struct mfd_cell wm8312_devs[] = {
+	{
+		.name = "wm831x-backup",
+	},
 	{
 		.name = "wm831x-buckv",
 		.id = 1,
@@ -1237,6 +1261,137 @@ static struct mfd_cell wm8312_devs[] = {
 	},
 };
 
+static struct mfd_cell wm8320_devs[] = {
+	{
+		.name = "wm831x-backup",
+	},
+	{
+		.name = "wm831x-buckv",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(wm831x_dcdc1_resources),
+		.resources = wm831x_dcdc1_resources,
+	},
+	{
+		.name = "wm831x-buckv",
+		.id = 2,
+		.num_resources = ARRAY_SIZE(wm831x_dcdc2_resources),
+		.resources = wm831x_dcdc2_resources,
+	},
+	{
+		.name = "wm831x-buckp",
+		.id = 3,
+		.num_resources = ARRAY_SIZE(wm831x_dcdc3_resources),
+		.resources = wm831x_dcdc3_resources,
+	},
+	{
+		.name = "wm831x-buckp",
+		.id = 4,
+		.num_resources = ARRAY_SIZE(wm8320_dcdc4_buck_resources),
+		.resources = wm8320_dcdc4_buck_resources,
+	},
+	{
+		.name = "wm831x-gpio",
+		.num_resources = ARRAY_SIZE(wm831x_gpio_resources),
+		.resources = wm831x_gpio_resources,
+	},
+	{
+		.name = "wm831x-hwmon",
+	},
+	{
+		.name = "wm831x-ldo",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(wm831x_ldo1_resources),
+		.resources = wm831x_ldo1_resources,
+	},
+	{
+		.name = "wm831x-ldo",
+		.id = 2,
+		.num_resources = ARRAY_SIZE(wm831x_ldo2_resources),
+		.resources = wm831x_ldo2_resources,
+	},
+	{
+		.name = "wm831x-ldo",
+		.id = 3,
+		.num_resources = ARRAY_SIZE(wm831x_ldo3_resources),
+		.resources = wm831x_ldo3_resources,
+	},
+	{
+		.name = "wm831x-ldo",
+		.id = 4,
+		.num_resources = ARRAY_SIZE(wm831x_ldo4_resources),
+		.resources = wm831x_ldo4_resources,
+	},
+	{
+		.name = "wm831x-ldo",
+		.id = 5,
+		.num_resources = ARRAY_SIZE(wm831x_ldo5_resources),
+		.resources = wm831x_ldo5_resources,
+	},
+	{
+		.name = "wm831x-ldo",
+		.id = 6,
+		.num_resources = ARRAY_SIZE(wm831x_ldo6_resources),
+		.resources = wm831x_ldo6_resources,
+	},
+	{
+		.name = "wm831x-aldo",
+		.id = 7,
+		.num_resources = ARRAY_SIZE(wm831x_ldo7_resources),
+		.resources = wm831x_ldo7_resources,
+	},
+	{
+		.name = "wm831x-aldo",
+		.id = 8,
+		.num_resources = ARRAY_SIZE(wm831x_ldo8_resources),
+		.resources = wm831x_ldo8_resources,
+	},
+	{
+		.name = "wm831x-aldo",
+		.id = 9,
+		.num_resources = ARRAY_SIZE(wm831x_ldo9_resources),
+		.resources = wm831x_ldo9_resources,
+	},
+	{
+		.name = "wm831x-aldo",
+		.id = 10,
+		.num_resources = ARRAY_SIZE(wm831x_ldo10_resources),
+		.resources = wm831x_ldo10_resources,
+	},
+	{
+		.name = "wm831x-alive-ldo",
+		.id = 11,
+		.num_resources = ARRAY_SIZE(wm831x_ldo11_resources),
+		.resources = wm831x_ldo11_resources,
+	},
+	{
+		.name = "wm831x-on",
+		.num_resources = ARRAY_SIZE(wm831x_on_resources),
+		.resources = wm831x_on_resources,
+	},
+	{
+		.name = "wm831x-rtc",
+		.num_resources = ARRAY_SIZE(wm831x_rtc_resources),
+		.resources = wm831x_rtc_resources,
+	},
+	{
+		.name = "wm831x-status",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(wm831x_status1_resources),
+		.resources = wm831x_status1_resources,
+	},
+	{
+		.name = "wm831x-status",
+		.id = 2,
+		.num_resources = ARRAY_SIZE(wm831x_status2_resources),
+		.resources = wm831x_status2_resources,
+	},
+	{
+		.name = "wm831x-watchdog",
+		.num_resources = ARRAY_SIZE(wm831x_wdt_resources),
+		.resources = wm831x_wdt_resources,
+	},
+};
+
 static struct mfd_cell backlight_devs[] = {
 	{
 		.name = "wm831x-backlight",
@@ -1282,50 +1437,37 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		goto err;
 	}
 
+	/* Some engineering samples do not have the ID set, rely on
+	 * the device being registered correctly.
+	 */
+	if (ret == 0) {
+		dev_info(wm831x->dev, "Device is an engineering sample\n");
+		ret = id;
+	}
+
 	switch (ret) {
-	case 0x8310:
+	case WM8310:
 		parent = WM8310;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM8310 revision %c\n",
-				 'A' + rev);
-			break;
-		}
+		wm831x->num_gpio = 16;
+		dev_info(wm831x->dev, "WM8310 revision %c\n", 'A' + rev);
 		break;
 
-	case 0x8311:
+	case WM8311:
 		parent = WM8311;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM8311 revision %c\n",
-				 'A' + rev);
-			break;
-		}
+		wm831x->num_gpio = 16;
+		dev_info(wm831x->dev, "WM8311 revision %c\n", 'A' + rev);
 		break;
 
-	case 0x8312:
+	case WM8312:
 		parent = WM8312;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM8312 revision %c\n",
-				 'A' + rev);
-			break;
-		}
+		wm831x->num_gpio = 16;
+		dev_info(wm831x->dev, "WM8312 revision %c\n", 'A' + rev);
 		break;
 
-	case 0:
-		/* Some engineering samples do not have the ID set,
-		 * rely on the device being registered correctly.
-		 * This will need revisiting for future devices with
-		 * multiple dies.
-		 */
-		parent = id;
-		switch (rev) {
-		case 0:
-			dev_info(wm831x->dev, "WM831%d ES revision %c\n",
-				 parent, 'A' + rev);
-			break;
-		}
+	case WM8320:
+		parent = WM8320;
+		wm831x->num_gpio = 12;
+		dev_info(wm831x->dev, "WM8320 revision %c\n", 'A' + rev);
 		break;
 
 	default:
@@ -1338,7 +1480,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	 * current parts.
 	 */
 	if (parent != id)
-		dev_warn(wm831x->dev, "Device was registered as a WM831%lu\n",
+		dev_warn(wm831x->dev, "Device was registered as a WM%lx\n",
 			 id);
 
 	/* Bootstrap the user key */
@@ -1371,18 +1513,24 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8310_devs, ARRAY_SIZE(wm8310_devs),
-				      NULL, 0);
+				      NULL, wm831x->irq_base);
 		break;
 
 	case WM8311:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
-				      NULL, 0);
+				      NULL, wm831x->irq_base);
 		break;
 
 	case WM8312:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
+				      NULL, wm831x->irq_base);
+		break;
+
+	case WM8320:
+		ret = mfd_add_devices(wm831x->dev, -1,
+				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
 				      NULL, 0);
 		break;
 
@@ -1399,7 +1547,8 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (pdata && pdata->backlight) {
 		/* Treat errors as non-critical */
 		ret = mfd_add_devices(wm831x->dev, -1, backlight_devs,
-				      ARRAY_SIZE(backlight_devs), NULL, 0);
+				      ARRAY_SIZE(backlight_devs), NULL,
+				      wm831x->irq_base);
 		if (ret < 0)
 			dev_err(wm831x->dev, "Failed to add backlight: %d\n",
 				ret);
@@ -1511,6 +1660,7 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8310", WM8310 },
 	{ "wm8311", WM8311 },
 	{ "wm8312", WM8312 },
+	{ "wm8320", WM8320 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);

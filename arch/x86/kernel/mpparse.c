@@ -945,9 +945,6 @@ void __init early_reserve_e820_mpc_new(void)
 {
 	if (enable_update_mptable && alloc_mptable) {
 		u64 startt = 0;
-#ifdef CONFIG_X86_TRAMPOLINE
-		startt = TRAMPOLINE_BASE;
-#endif
 		mpc_new_phys = early_reserve_e820(startt, mpc_new_length, 4);
 	}
 }

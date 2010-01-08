@@ -340,7 +340,7 @@ static int __init htab_dt_scan_page_sizes(unsigned long node,
 			else
 				def->tlbiel = 0;
 
-			DBG(" %d: shift=%02x, sllp=%04x, avpnm=%08x, "
+			DBG(" %d: shift=%02x, sllp=%04lx, avpnm=%08lx, "
 			    "tlbiel=%d, penc=%d\n",
 			    idx, shift, def->sllp, def->avpnm, def->tlbiel,
 			    def->penc);
@@ -663,7 +663,7 @@ static void __init htab_initialize(void)
 		base = (unsigned long)__va(lmb.memory.region[i].base);
 		size = lmb.memory.region[i].size;
 
-		DBG("creating mapping for region: %lx..%lx (prot: %x)\n",
+		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
 		    base, size, prot);
 
 #ifdef CONFIG_U3_DART
@@ -879,7 +879,7 @@ static inline int subpage_protection(struct mm_struct *mm, unsigned long ea)
  */
 int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 {
-	void *pgdir;
+	pgd_t *pgdir;
 	unsigned long vsid;
 	struct mm_struct *mm;
 	pte_t *ptep;
@@ -1025,7 +1025,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 	{
-		int spp = subpage_protection(pgdir, ea);
+		int spp = subpage_protection(mm, ea);
 		if (access & spp)
 			rc = -2;
 		else
@@ -1115,7 +1115,7 @@ void flush_hash_page(unsigned long va, real_pte_t pte, int psize, int ssize,
 {
 	unsigned long hash, index, shift, hidx, slot;
 
-	DBG_LOW("flush_hash_page(va=%016x)\n", va);
+	DBG_LOW("flush_hash_page(va=%016lx)\n", va);
 	pte_iterate_hashed_subpages(pte, psize, va, index, shift) {
 		hash = hpt_hash(va, shift, ssize);
 		hidx = __rpte_to_hidx(pte, index);
@@ -1123,7 +1123,7 @@ void flush_hash_page(unsigned long va, real_pte_t pte, int psize, int ssize,
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
-		DBG_LOW(" sub %d: hash=%x, hidx=%x\n", index, slot, hidx);
+		DBG_LOW(" sub %ld: hash=%lx, hidx=%lx\n", index, slot, hidx);
 		ppc_md.hpte_invalidate(slot, va, psize, ssize, local);
 	} pte_iterate_hashed_end();
 }

@@ -140,16 +140,15 @@ int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence)
 
 bool radeon_fence_signaled(struct radeon_fence *fence)
 {
-	struct radeon_device *rdev = fence->rdev;
 	unsigned long irq_flags;
 	bool signaled = false;
 
-	if (rdev->gpu_lockup) {
+	if (!fence)
 		return true;
-	}
-	if (fence == NULL) {
+
+	if (fence->rdev->gpu_lockup)
 		return true;
-	}
+
 	write_lock_irqsave(&fence->rdev->fence_drv.lock, irq_flags);
 	signaled = fence->signaled;
 	/* if we are shuting down report all fence as signaled */
@@ -324,7 +323,7 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
 	write_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
 	r = radeon_scratch_get(rdev, &rdev->fence_drv.scratch_reg);
 	if (r) {
-		DRM_ERROR("Fence failed to get a scratch register.");
+		dev_err(rdev->dev, "fence failed to get scratch register\n");
 		write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 		return r;
 	}
@@ -335,9 +334,10 @@ int radeon_fence_driver_init(struct radeon_device *rdev)
 	INIT_LIST_HEAD(&rdev->fence_drv.signaled);
 	rdev->fence_drv.count_timeout = 0;
 	init_waitqueue_head(&rdev->fence_drv.queue);
+	rdev->fence_drv.initialized = true;
 	write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
 	if (radeon_debugfs_fence_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for fence !\n");
+		dev_err(rdev->dev, "fence debugfs file creation failed\n");
 	}
 	return 0;
 }
@@ -346,11 +346,13 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 {
 	unsigned long irq_flags;
 
+	if (!rdev->fence_drv.initialized)
+		return;
 	wake_up_all(&rdev->fence_drv.queue);
 	write_lock_irqsave(&rdev->fence_drv.lock, irq_flags);
 	radeon_scratch_free(rdev, rdev->fence_drv.scratch_reg);
 	write_unlock_irqrestore(&rdev->fence_drv.lock, irq_flags);
-	DRM_INFO("radeon: fence finalized\n");
+	rdev->fence_drv.initialized = false;
 }
 
 

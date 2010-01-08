@@ -490,7 +490,7 @@ static void **dbg_userword(struct kmem_cache *cachep, void *objp)
 
 #endif
 
-#ifdef CONFIG_KMEMTRACE
+#ifdef CONFIG_TRACING
 size_t slab_buffer_size(struct kmem_cache *cachep)
 {
 	return cachep->buffer_size;
@@ -654,7 +654,7 @@ static void init_node_lock_keys(int q)
 
 		l3 = s->cs_cachep->nodelists[q];
 		if (!l3 || OFF_SLAB(s->cs_cachep))
-			return;
+			continue;
 		lockdep_set_class(&l3->list_lock, &on_slab_l3_key);
 		alc = l3->alien;
 		/*
@@ -665,7 +665,7 @@ static void init_node_lock_keys(int q)
 		 * for alloc_alien_cache,
 		 */
 		if (!alc || (unsigned long)alc == BAD_ALIEN_MAGIC)
-			return;
+			continue;
 		for_each_node(r) {
 			if (alc[r])
 				lockdep_set_class(&alc[r]->lock,
@@ -697,7 +697,7 @@ static inline void init_lock_keys(void)
 static DEFINE_MUTEX(cache_chain_mutex);
 static struct list_head cache_chain;
 
-static DEFINE_PER_CPU(struct delayed_work, reap_work);
+static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
 
 static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
 {
@@ -838,7 +838,7 @@ __setup("noaliencache", noaliencache_setup);
  * objects freed on different nodes from which they were allocated) and the
  * flushing of remote pcps by calling drain_node_pages.
  */
-static DEFINE_PER_CPU(unsigned long, reap_node);
+static DEFINE_PER_CPU(unsigned long, slab_reap_node);
 
 static void init_reap_node(int cpu)
 {
@@ -848,17 +848,17 @@ static void init_reap_node(int cpu)
 	if (node == MAX_NUMNODES)
 		node = first_node(node_online_map);
 
-	per_cpu(reap_node, cpu) = node;
+	per_cpu(slab_reap_node, cpu) = node;
 }
 
 static void next_reap_node(void)
 {
-	int node = __get_cpu_var(reap_node);
+	int node = __get_cpu_var(slab_reap_node);
 
 	node = next_node(node, node_online_map);
 	if (unlikely(node >= MAX_NUMNODES))
 		node = first_node(node_online_map);
-	__get_cpu_var(reap_node) = node;
+	__get_cpu_var(slab_reap_node) = node;
 }
 
 #else
@@ -875,7 +875,7 @@ static void next_reap_node(void)
  */
 static void __cpuinit start_cpu_timer(int cpu)
 {
-	struct delayed_work *reap_work = &per_cpu(reap_work, cpu);
+	struct delayed_work *reap_work = &per_cpu(slab_reap_work, cpu);
 
 	/*
 	 * When this gets called from do_initcalls via cpucache_init(),
@@ -1039,7 +1039,7 @@ static void __drain_alien_cache(struct kmem_cache *cachep,
  */
 static void reap_alien(struct kmem_cache *cachep, struct kmem_list3 *l3)
 {
-	int node = __get_cpu_var(reap_node);
+	int node = __get_cpu_var(slab_reap_node);
 
 	if (l3->alien) {
 		struct array_cache *ac = l3->alien[node];
@@ -1132,7 +1132,7 @@ static void __cpuinit cpuup_canceled(long cpu)
 		if (nc)
 			free_block(cachep, nc->entry, nc->avail, node);
 
-		if (!cpus_empty(*mask)) {
+		if (!cpumask_empty(mask)) {
 			spin_unlock_irq(&l3->list_lock);
 			goto free_array_cache;
 		}
@@ -1300,9 +1300,9 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		 * anything expensive but will only modify reap_work
 		 * and reschedule the timer.
 		*/
-		cancel_rearming_delayed_work(&per_cpu(reap_work, cpu));
+		cancel_rearming_delayed_work(&per_cpu(slab_reap_work, cpu));
 		/* Now the cache_reaper is guaranteed to be not running. */
-		per_cpu(reap_work, cpu).work.func = NULL;
+		per_cpu(slab_reap_work, cpu).work.func = NULL;
   		break;
   	case CPU_DOWN_FAILED:
   	case CPU_DOWN_FAILED_FROZEN:
@@ -2275,9 +2275,11 @@ kmem_cache_create (const char *name, size_t size, size_t align,
 	/*
 	 * Determine if the slab management is 'on' or 'off' slab.
 	 * (bootstrapping cannot cope with offslab caches so don't do
-	 * it too early on.)
+	 * it too early on. Always use on-slab management when
+	 * SLAB_NOLEAKTRACE to avoid recursive calls into kmemleak)
 	 */
-	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init)
+	if ((size >= (PAGE_SIZE >> 3)) && !slab_early_init &&
+	    !(flags & SLAB_NOLEAKTRACE))
 		/*
 		 * Size is large, assume best to place the slab management obj
 		 * off-slab (should allow better packing of objs).
@@ -2596,8 +2598,8 @@ static struct slab *alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
 		 * kmemleak does not treat the ->s_mem pointer as a reference
 		 * to the object. Otherwise we will not report the leak.
 		 */
-		kmemleak_scan_area(slabp, offsetof(struct slab, list),
-				   sizeof(struct list_head), local_flags);
+		kmemleak_scan_area(&slabp->list, sizeof(struct list_head),
+				   local_flags);
 		if (!slabp)
 			return NULL;
 	} else {
@@ -3578,7 +3580,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
 }
 EXPORT_SYMBOL(kmem_cache_alloc);
 
-#ifdef CONFIG_KMEMTRACE
+#ifdef CONFIG_TRACING
 void *kmem_cache_alloc_notrace(struct kmem_cache *cachep, gfp_t flags)
 {
 	return __cache_alloc(cachep, flags, __builtin_return_address(0));
@@ -3641,7 +3643,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 }
 EXPORT_SYMBOL(kmem_cache_alloc_node);
 
-#ifdef CONFIG_KMEMTRACE
+#ifdef CONFIG_TRACING
 void *kmem_cache_alloc_node_notrace(struct kmem_cache *cachep,
 				    gfp_t flags,
 				    int nodeid)
@@ -3669,7 +3671,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, void *caller)
 	return ret;
 }
 
-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_KMEMTRACE)
+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
 void *__kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	return __do_kmalloc_node(size, flags, node,
@@ -3689,7 +3691,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
 	return __do_kmalloc_node(size, flags, node, NULL);
 }
 EXPORT_SYMBOL(__kmalloc_node);
-#endif /* CONFIG_DEBUG_SLAB */
+#endif /* CONFIG_DEBUG_SLAB || CONFIG_TRACING */
 #endif /* CONFIG_NUMA */
 
 /**
@@ -3721,7 +3723,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
 }
 
 
-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_KMEMTRACE)
+#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
 void *__kmalloc(size_t size, gfp_t flags)
 {
 	return __do_kmalloc(size, flags, __builtin_return_address(0));

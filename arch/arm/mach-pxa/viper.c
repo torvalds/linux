@@ -47,6 +47,7 @@
 #include <mach/pxafb.h>
 #include <plat/i2c.h>
 #include <mach/regs-uart.h>
+#include <mach/arcom-pcmcia.h>
 #include <mach/viper.h>
 
 #include <asm/setup.h>
@@ -76,14 +77,28 @@ static void viper_icr_clear_bit(unsigned int bit)
 }
 
 /* This function is used from the pcmcia module to reset the CF */
-void viper_cf_rst(int state)
+static void viper_cf_reset(int state)
 {
 	if (state)
 		viper_icr_set_bit(VIPER_ICR_CF_RST);
 	else
 		viper_icr_clear_bit(VIPER_ICR_CF_RST);
 }
-EXPORT_SYMBOL(viper_cf_rst);
+
+static struct arcom_pcmcia_pdata viper_pcmcia_info = {
+	.cd_gpio	= VIPER_CF_CD_GPIO,
+	.rdy_gpio	= VIPER_CF_RDY_GPIO,
+	.pwr_gpio	= VIPER_CF_POWER_GPIO,
+	.reset		= viper_cf_reset,
+};
+
+static struct platform_device viper_pcmcia_device = {
+	.name		= "viper-pcmcia",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &viper_pcmcia_info,
+	},
+};
 
 /*
  * The CPLD version register was not present on VIPER boards prior to
@@ -685,6 +700,7 @@ static struct platform_device *viper_devs[] __initdata = {
 	&viper_mtd_devices[0],
 	&viper_mtd_devices[1],
 	&viper_backlight_device,
+	&viper_pcmcia_device,
 };
 
 static mfp_cfg_t viper_pin_config[] __initdata = {

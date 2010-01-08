@@ -26,33 +26,11 @@ struct ocfs2_acl_entry {
 	__le32 e_id;
 };
 
-#ifdef CONFIG_OCFS2_FS_POSIX_ACL
-
 extern int ocfs2_check_acl(struct inode *, int);
 extern int ocfs2_acl_chmod(struct inode *);
 extern int ocfs2_init_acl(handle_t *, struct inode *, struct inode *,
 			  struct buffer_head *, struct buffer_head *,
 			  struct ocfs2_alloc_context *,
 			  struct ocfs2_alloc_context *);
-
-#else /* CONFIG_OCFS2_FS_POSIX_ACL*/
-
-#define ocfs2_check_acl NULL
-static inline int ocfs2_acl_chmod(struct inode *inode)
-{
-	return 0;
-}
-static inline int ocfs2_init_acl(handle_t *handle,
-				 struct inode *inode,
-				 struct inode *dir,
-				 struct buffer_head *di_bh,
-				 struct buffer_head *dir_bh,
-				 struct ocfs2_alloc_context *meta_ac,
-				 struct ocfs2_alloc_context *data_ac)
-{
-	return 0;
-}
-
-#endif /* CONFIG_OCFS2_FS_POSIX_ACL*/
 
 #endif /* OCFS2_ACL_H */

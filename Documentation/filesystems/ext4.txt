@@ -196,7 +196,7 @@ nobarrier		This also requires an IO stack which can support
 			also be used to enable or disable barriers, for
 			consistency with other ext4 mount options.
 
-inode_readahead=n	This tuning parameter controls the maximum
+inode_readahead_blks=n	This tuning parameter controls the maximum
 			number of inode table blocks that ext4's inode
 			table readahead algorithm will pre-read into
 			the buffer cache.  The default value is 32 blocks.

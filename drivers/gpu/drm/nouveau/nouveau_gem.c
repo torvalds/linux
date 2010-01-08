@@ -342,8 +342,6 @@ retry:
 			}
 
 			ret = ttm_bo_wait_cpu(&nvbo->bo, false);
-			if (ret == -ERESTART)
-				ret = -EAGAIN;
 			if (ret)
 				return ret;
 			goto retry;
@@ -915,8 +913,6 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 			goto out;
 
 		ret = ttm_bo_wait_cpu(&nvbo->bo, no_wait);
-		if (ret == -ERESTART)
-			ret = -EAGAIN;
 		if (ret)
 			goto out;
 	}
@@ -925,9 +921,6 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 		ret = ttm_bo_wait(&nvbo->bo, false, false, no_wait);
 	} else {
 		ret = ttm_bo_synccpu_write_grab(&nvbo->bo, no_wait);
-		if (ret == -ERESTART)
-			ret = -EAGAIN;
-		else
 		if (ret == 0)
 			nvbo->cpu_filp = file_priv;
 	}

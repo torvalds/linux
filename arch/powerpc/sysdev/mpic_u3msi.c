@@ -64,16 +64,43 @@ static u64 read_ht_magic_addr(struct pci_dev *pdev, unsigned int pos)
 	return addr;
 }
 
-static u64 find_ht_magic_addr(struct pci_dev *pdev)
+static u64 find_ht_magic_addr(struct pci_dev *pdev, unsigned int hwirq)
 {
 	struct pci_bus *bus;
 	unsigned int pos;
 
-	for (bus = pdev->bus; bus; bus = bus->parent) {
+	for (bus = pdev->bus; bus && bus->self; bus = bus->parent) {
 		pos = pci_find_ht_capability(bus->self, HT_CAPTYPE_MSI_MAPPING);
 		if (pos)
 			return read_ht_magic_addr(bus->self, pos);
 	}
+
+	return 0;
+}
+
+static u64 find_u4_magic_addr(struct pci_dev *pdev, unsigned int hwirq)
+{
+	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
+
+	/* U4 PCIe MSIs need to write to the special register in
+	 * the bridge that generates interrupts. There should be
+	 * theorically a register at 0xf8005000 where you just write
+	 * the MSI number and that triggers the right interrupt, but
+	 * unfortunately, this is busted in HW, the bridge endian swaps
+	 * the value and hits the wrong nibble in the register.
+	 *
+	 * So instead we use another register set which is used normally
+	 * for converting HT interrupts to MPIC interrupts, which decodes
+	 * the interrupt number as part of the low address bits
+	 *
+	 * This will not work if we ever use more than one legacy MSI in
+	 * a block but we never do. For one MSI or multiple MSI-X where
+	 * each interrupt address can be specified separately, it works
+	 * just fine.
+	 */
+	if (of_device_is_compatible(hose->dn, "u4-pcie") ||
+	    of_device_is_compatible(hose->dn, "U4-pcie"))
+		return 0xf8004000 | (hwirq << 4);
 
 	return 0;
 }
@@ -84,7 +111,8 @@ static int u3msi_msi_check_device(struct pci_dev *pdev, int nvec, int type)
 		pr_debug("u3msi: MSI-X untested, trying anyway.\n");
 
 	/* If we can't find a magic address then MSI ain't gonna work */
-	if (find_ht_magic_addr(pdev) == 0) {
+	if (find_ht_magic_addr(pdev, 0) == 0 &&
+	    find_u4_magic_addr(pdev, 0) == 0) {
 		pr_debug("u3msi: no magic address found for %s\n",
 			 pci_name(pdev));
 		return -ENXIO;
@@ -118,16 +146,18 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	u64 addr;
 	int hwirq;
 
-	addr = find_ht_magic_addr(pdev);
-	msg.address_lo = addr & 0xFFFFFFFF;
-	msg.address_hi = addr >> 32;
-
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		hwirq = msi_bitmap_alloc_hwirqs(&msi_mpic->msi_bitmap, 1);
 		if (hwirq < 0) {
 			pr_debug("u3msi: failed allocating hwirq\n");
 			return hwirq;
 		}
+
+		addr = find_ht_magic_addr(pdev, hwirq);
+		if (addr == 0)
+			addr = find_u4_magic_addr(pdev, hwirq);
+		msg.address_lo = addr & 0xFFFFFFFF;
+		msg.address_hi = addr >> 32;
 
 		virq = irq_create_mapping(msi_mpic->irqhost, hwirq);
 		if (virq == NO_IRQ) {
@@ -143,6 +173,8 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		pr_debug("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
 			  virq, hwirq, (unsigned long)addr);
 
+		printk("u3msi: allocated virq 0x%x (hw 0x%x) addr 0x%lx\n",
+			  virq, hwirq, (unsigned long)addr);
 		msg.data = hwirq;
 		write_msi_msg(virq, &msg);
 

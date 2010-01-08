@@ -2589,6 +2589,14 @@ retry:
 			     "begin reco msg (%d)\n", dlm->name, nodenum, ret);
 			ret = 0;
 		}
+		if (ret == -EAGAIN) {
+			mlog(0, "%s: trying to start recovery of node "
+			     "%u, but node %u is waiting for last recovery "
+			     "to complete, backoff for a bit\n", dlm->name,
+			     dead_node, nodenum);
+			msleep(100);
+			goto retry;
+		}
 		if (ret < 0) {
 			struct dlm_lock_resource *res;
 			/* this is now a serious problem, possibly ENOMEM 
@@ -2606,14 +2614,6 @@ retry:
 			}
 			/* sleep for a bit in hopes that we can avoid 
 			 * another ENOMEM */
-			msleep(100);
-			goto retry;
-		} else if (ret == EAGAIN) {
-			mlog(0, "%s: trying to start recovery of node "
-			     "%u, but node %u is waiting for last recovery "
-			     "to complete, backoff for a bit\n", dlm->name,
-			     dead_node, nodenum);
-			/* TODO Look into replacing msleep with cond_resched() */
 			msleep(100);
 			goto retry;
 		}
@@ -2639,7 +2639,7 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 		     dlm->name, br->node_idx, br->dead_node,
 		     dlm->reco.dead_node, dlm->reco.new_master);
 		spin_unlock(&dlm->spinlock);
-		return EAGAIN;
+		return -EAGAIN;
 	}
 	spin_unlock(&dlm->spinlock);
 

@@ -329,8 +329,11 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 				ret = radeon_get_atom_connector_info_from_object_table(dev);
 			else
 				ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
-		} else
+		} else {
 			ret = radeon_get_legacy_connector_info_from_bios(dev);
+			if (ret == false)
+				ret = radeon_get_legacy_connector_info_from_table(dev);
+		}
 	} else {
 		if (!ASIC_IS_AVIVO(rdev))
 			ret = radeon_get_legacy_connector_info_from_table(dev);
@@ -739,7 +742,7 @@ static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
 	{ TV_STD_SECAM, "secam" },
 };
 
-int radeon_modeset_create_props(struct radeon_device *rdev)
+static int radeon_modeset_create_props(struct radeon_device *rdev)
 {
 	int i, sz;
 

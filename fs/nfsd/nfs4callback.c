@@ -1,6 +1,4 @@
 /*
- *  linux/fs/nfsd/nfs4callback.c
- *
  *  Copyright (c) 2001 The Regents of the University of Michigan.
  *  All rights reserved.
  *
@@ -33,22 +31,9 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/module.h>
-#include <linux/list.h>
-#include <linux/inet.h>
-#include <linux/errno.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/kthread.h>
-#include <linux/sunrpc/xdr.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/clnt.h>
-#include <linux/sunrpc/svcsock.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/state.h>
-#include <linux/sunrpc/sched.h>
-#include <linux/nfs4.h>
-#include <linux/sunrpc/xprtsock.h>
+#include "nfsd.h"
+#include "state.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 

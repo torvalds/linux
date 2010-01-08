@@ -77,9 +77,27 @@ clean-files += $(objtree)/binkernel.spec
 
 # Deb target
 # ---------------------------------------------------------------------------
+quiet_cmd_builddeb = BUILDDEB
+      cmd_builddeb = set -e; \
+	test `id -u` = 0 || \
+	test -n "$(KBUILD_PKG_ROOTCMD)" || { \
+		which fakeroot >/dev/null 2>&1 && \
+		KBUILD_PKG_ROOTCMD="fakeroot -u"; \
+	} || { \
+		echo; \
+		echo "builddeb must be run as root (or using fakeroot)."; \
+		echo "KBUILD_PKG_ROOTCMD is unset and fakeroot not found."; \
+		echo "Try setting KBUILD_PKG_ROOTCMD to a command to acquire"; \
+		echo "root privileges (e.g., 'fakeroot -u' or 'sudo')."; \
+		false; \
+	} && \
+	\
+	$$KBUILD_PKG_ROOTCMD $(CONFIG_SHELL) \
+		$(srctree)/scripts/package/builddeb
+
 deb-pkg: FORCE
 	$(MAKE) KBUILD_SRC=
-	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
+	$(call cmd,builddeb)
 
 clean-dirs += $(objtree)/debian/
 

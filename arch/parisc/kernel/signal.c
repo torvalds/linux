@@ -26,7 +26,6 @@
 #include <linux/stddef.h>
 #include <linux/compat.h>
 #include <linux/elf.h>
-#include <linux/tracehook.h>
 #include <asm/ucontext.h>
 #include <asm/rt_sigframe.h>
 #include <asm/uaccess.h>

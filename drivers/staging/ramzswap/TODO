@@ -1,6 +1,5 @@
 TODO:
 	- Add support for swap notifiers
-	- Remove CONFIG_ARM hack
 
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
 Nitin Gupta <ngupta@vflare.org>

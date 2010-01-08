@@ -211,17 +211,11 @@ struct perf_event_attr {
 		__u32		wakeup_watermark; /* bytes before wakeup   */
 	};
 
-	struct { /* Hardware breakpoint info */
-		__u64		bp_addr;
-		__u32		bp_type;
-		__u32		bp_len;
-		__u64		__bp_reserved_1;
-		__u64		__bp_reserved_2;
-	};
-
 	__u32			__reserved_2;
 
-	__u64			__reserved_3;
+	__u64			bp_addr;
+	__u32			bp_type;
+	__u32			bp_len;
 };
 
 /*
@@ -681,7 +675,7 @@ struct perf_event_context {
 	 * Protect the states of the events in the list,
 	 * nr_active, and the list:
 	 */
-	spinlock_t			lock;
+	raw_spinlock_t			lock;
 	/*
 	 * Protect the list of events.  Locking either mutex or lock
 	 * is sufficient to ensure the list doesn't change; to change

@@ -137,7 +137,7 @@ static int elsa_cs_probe(struct pcmcia_device *link)
     local->cardnr = -1;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->irq.Handler = NULL;
 
     /*

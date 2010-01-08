@@ -219,7 +219,7 @@ static void  nv17_tv_dpms(struct drm_encoder *encoder, int mode)
 		return;
 	nouveau_encoder(encoder)->last_dpms = mode;
 
-	NV_TRACE(dev, "Setting dpms mode %d on TV encoder (output %d)\n",
+	NV_INFO(dev, "Setting dpms mode %d on TV encoder (output %d)\n",
 		 mode, nouveau_encoder(encoder)->dcb->index);
 
 	regs->ptv_200 &= ~1;
@@ -619,7 +619,7 @@ static void nv17_tv_destroy(struct drm_encoder *encoder)
 {
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(tv_enc);

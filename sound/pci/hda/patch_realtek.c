@@ -337,6 +337,9 @@ struct alc_spec {
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	void (*power_hook)(struct hda_codec *codec, int power);
+#endif
 
 	/* for pin sensing */
 	unsigned int sense_updated: 1;
@@ -388,6 +391,7 @@ struct alc_config_preset {
 	void (*init_hook)(struct hda_codec *);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_amp_list *loopbacks;
+	void (*power_hook)(struct hda_codec *codec, int power);
 #endif
 };
 
@@ -900,6 +904,7 @@ static void setup_preset(struct hda_codec *codec,
 	spec->unsol_event = preset->unsol_event;
 	spec->init_hook = preset->init_hook;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->power_hook = preset->power_hook;
 	spec->loopback.amplist = preset->loopbacks;
 #endif
 
@@ -1665,9 +1670,6 @@ static struct hda_verb alc889_acer_aspire_8930g_verbs[] = {
 /*  some bit here disables the other DACs. Init=0x4900 */
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x08},
 	{0x20, AC_VERB_SET_PROC_COEF, 0x0000},
-/* Enable amplifiers */
-	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
-	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
 /* DMIC fix
  * This laptop has a stereo digital microphone. The mics are only 1cm apart
  * which makes the stereo useless. However, either the mic or the ALC889
@@ -1780,6 +1782,25 @@ static struct snd_kcontrol_new alc888_base_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc889_acer_aspire_8930g_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Surround Playback Switch", 0x0d, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0,
+		HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
+	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	{ } /* end */
+};
+
+
 static void alc888_acer_aspire_4930g_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -1809,6 +1830,16 @@ static void alc889_acer_aspire_8930g_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[1] = 0x16;
 	spec->autocfg.speaker_pins[2] = 0x1b;
 }
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static void alc889_power_eapd(struct hda_codec *codec, int power)
+{
+	snd_hda_codec_write(codec, 0x14, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE, power ? 2 : 0);
+	snd_hda_codec_write(codec, 0x15, 0,
+			    AC_VERB_SET_EAPD_BTLENABLE, power ? 2 : 0);
+}
+#endif
 
 /*
  * ALC880 3-stack model
@@ -3603,12 +3634,29 @@ static void alc_free(struct hda_codec *codec)
 	snd_hda_detach_beep_device(codec);
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static int alc_suspend(struct hda_codec *codec, pm_message_t state)
+{
+	struct alc_spec *spec = codec->spec;
+	if (spec && spec->power_hook)
+		spec->power_hook(codec, 0);
+	return 0;
+}
+#endif
+
 #ifdef SND_HDA_NEEDS_RESUME
 static int alc_resume(struct hda_codec *codec)
 {
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	struct alc_spec *spec = codec->spec;
+#endif
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (spec && spec->power_hook)
+		spec->power_hook(codec, 1);
+#endif
 	return 0;
 }
 #endif
@@ -3625,6 +3673,7 @@ static struct hda_codec_ops alc_patch_ops = {
 	.resume = alc_resume,
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+	.suspend = alc_suspend,
 	.check_power_status = alc_check_power_status,
 #endif
 };
@@ -9381,10 +9430,11 @@ static struct alc_config_preset alc882_presets[] = {
 		.init_hook = alc_automute_amp,
 	},
 	[ALC888_ACER_ASPIRE_8930G] = {
-		.mixers = { alc888_base_mixer,
+		.mixers = { alc889_acer_aspire_8930g_mixer,
 				alc883_chmode_mixer },
 		.init_verbs = { alc883_init_verbs, alc880_gpio1_init_verbs,
-				alc889_acer_aspire_8930g_verbs },
+				alc889_acer_aspire_8930g_verbs,
+				alc889_eapd_verbs},
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc889_adc_nids),
@@ -9401,6 +9451,9 @@ static struct alc_config_preset alc882_presets[] = {
 		.unsol_event = alc_automute_amp_unsol_event,
 		.setup = alc889_acer_aspire_8930g_setup,
 		.init_hook = alc_automute_amp,
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		.power_hook = alc889_power_eapd,
+#endif
 	},
 	[ALC888_ACER_ASPIRE_7730G] = {
 		.mixers = { alc883_3ST_6ch_mixer,
@@ -10684,6 +10737,13 @@ static struct hda_verb alc262_lenovo_3000_unsol_verbs[] = {
 	{}
 };
 
+static struct hda_verb alc262_lenovo_3000_init_verbs[] = {
+	/* Front Mic pin: input vref at 50% */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{}
+};
+
 static struct hda_input_mux alc262_fujitsu_capture_source = {
 	.num_items = 3,
 	.items = {
@@ -11726,7 +11786,8 @@ static struct alc_config_preset alc262_presets[] = {
 	[ALC262_LENOVO_3000] = {
 		.mixers = { alc262_lenovo_3000_mixer },
 		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs,
-				alc262_lenovo_3000_unsol_verbs },
+				alc262_lenovo_3000_unsol_verbs,
+				alc262_lenovo_3000_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
 		.dac_nids = alc262_dac_nids,
 		.hp_nid = 0x03,
@@ -12863,7 +12924,7 @@ static int patch_alc268(struct hda_codec *codec)
 	int board_config;
 	int i, has_beep, err;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 

@@ -17,6 +17,7 @@
 #include "util/header.h"
 #include "util/event.h"
 #include "util/debug.h"
+#include "util/session.h"
 #include "util/symbol.h"
 
 #include <unistd.h>
@@ -62,7 +63,7 @@ static int			nr_cpu				=      0;
 
 static int			file_new			=      1;
 
-struct perf_header		*header				=   NULL;
+static struct perf_session	*session;
 
 struct mmap_data {
 	int			counter;
@@ -122,7 +123,8 @@ static void write_event(event_t *buf, size_t size)
 	write_output(buf, size);
 }
 
-static int process_synthesized_event(event_t *event)
+static int process_synthesized_event(event_t *event,
+				     struct perf_session *self __used)
 {
 	write_event(event, event->header.size);
 	return 0;
@@ -216,12 +218,12 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 {
 	struct perf_header_attr *h_attr;
 
-	if (nr < header->attrs) {
-		h_attr = header->attr[nr];
+	if (nr < session->header.attrs) {
+		h_attr = session->header.attr[nr];
 	} else {
 		h_attr = perf_header_attr__new(a);
 		if (h_attr != NULL)
-			if (perf_header__add_attr(header, h_attr) < 0) {
+			if (perf_header__add_attr(&session->header, h_attr) < 0) {
 				perf_header_attr__delete(h_attr);
 				h_attr = NULL;
 			}
@@ -276,7 +278,7 @@ static void create_counter(int counter, int cpu, pid_t pid)
 
 	attr->mmap		= track;
 	attr->comm		= track;
-	attr->inherit		= (cpu < 0) && inherit;
+	attr->inherit		= inherit;
 	attr->disabled		= 1;
 
 try_again:
@@ -395,9 +397,9 @@ static void open_counters(int cpu, pid_t pid)
 
 static void atexit_header(void)
 {
-	header->data_size += bytes_written;
+	session->header.data_size += bytes_written;
 
-	perf_header__write(header, output, true);
+	perf_header__write(&session->header, output, true);
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -408,6 +410,9 @@ static int __cmd_record(int argc, const char **argv)
 	int flags;
 	int err;
 	unsigned long waking = 0;
+	int child_ready_pipe[2], go_pipe[2];
+	const bool forks = target_pid == -1 && argc > 0;
+	char buf;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
@@ -418,11 +423,25 @@ static int __cmd_record(int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 
+	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
+		perror("failed to create pipes");
+		exit(-1);
+	}
+
 	if (!stat(output_name, &st) && st.st_size) {
-		if (!force && !append_file) {
-			fprintf(stderr, "Error, output file %s exists, use -A to append or -f to overwrite.\n",
-					output_name);
-			exit(-1);
+		if (!force) {
+			if (!append_file) {
+				pr_err("Error, output file %s exists, use -A "
+				       "to append or -f to overwrite.\n",
+				       output_name);
+				exit(-1);
+			}
+		} else {
+			char oldname[PATH_MAX];
+			snprintf(oldname, sizeof(oldname), "%s.old",
+				 output_name);
+			unlink(oldname);
+			rename(output_name, oldname);
 		}
 	} else {
 		append_file = 0;
@@ -440,24 +459,24 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	header = perf_header__new();
-	if (header == NULL) {
+	session = perf_session__new(output_name, O_WRONLY, force);
+	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
 	}
 
 	if (!file_new) {
-		err = perf_header__read(header, output);
+		err = perf_header__read(&session->header, output);
 		if (err < 0)
 			return err;
 	}
 
 	if (raw_samples) {
-		perf_header__set_feat(header, HEADER_TRACE_INFO);
+		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 	} else {
 		for (i = 0; i < nr_counters; i++) {
 			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				perf_header__set_feat(header, HEADER_TRACE_INFO);
+				perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
 				break;
 			}
 		}
@@ -465,55 +484,78 @@ static int __cmd_record(int argc, const char **argv)
 
 	atexit(atexit_header);
 
-	if (!system_wide) {
-		pid = target_pid;
-		if (pid == -1)
-			pid = getpid();
-
-		open_counters(profile_cpu, pid);
-	} else {
-		if (profile_cpu != -1) {
-			open_counters(profile_cpu, target_pid);
-		} else {
-			for (i = 0; i < nr_cpus; i++)
-				open_counters(i, target_pid);
+	if (forks) {
+		pid = fork();
+		if (pid < 0) {
+			perror("failed to fork");
+			exit(-1);
 		}
+
+		if (!pid) {
+			close(child_ready_pipe[0]);
+			close(go_pipe[1]);
+			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+			/*
+			 * Do a dummy execvp to get the PLT entry resolved,
+			 * so we avoid the resolver overhead on the real
+			 * execvp call.
+			 */
+			execvp("", (char **)argv);
+
+			/*
+			 * Tell the parent we're ready to go
+			 */
+			close(child_ready_pipe[1]);
+
+			/*
+			 * Wait until the parent tells us to go.
+			 */
+			if (read(go_pipe[0], &buf, 1) == -1)
+				perror("unable to read pipe");
+
+			execvp(argv[0], (char **)argv);
+
+			perror(argv[0]);
+			exit(-1);
+		}
+
+		child_pid = pid;
+
+		if (!system_wide)
+			target_pid = pid;
+
+		close(child_ready_pipe[1]);
+		close(go_pipe[0]);
+		/*
+		 * wait for child to settle
+		 */
+		if (read(child_ready_pipe[0], &buf, 1) == -1) {
+			perror("unable to read pipe");
+			exit(-1);
+		}
+		close(child_ready_pipe[0]);
+	}
+
+
+	if ((!system_wide && !inherit) || profile_cpu != -1) {
+		open_counters(profile_cpu, target_pid);
+	} else {
+		for (i = 0; i < nr_cpus; i++)
+			open_counters(i, target_pid);
 	}
 
 	if (file_new) {
-		err = perf_header__write(header, output, false);
+		err = perf_header__write(&session->header, output, false);
 		if (err < 0)
 			return err;
 	}
 
-	if (!system_wide)
-		event__synthesize_thread(pid, process_synthesized_event);
+	if (!system_wide && profile_cpu == -1)
+		event__synthesize_thread(pid, process_synthesized_event,
+					 session);
 	else
-		event__synthesize_threads(process_synthesized_event);
-
-	if (target_pid == -1 && argc) {
-		pid = fork();
-		if (pid < 0)
-			die("failed to fork");
-
-		if (!pid) {
-			if (execvp(argv[0], (char **)argv)) {
-				perror(argv[0]);
-				exit(-1);
-			}
-		} else {
-			/*
-			 * Wait a bit for the execv'ed child to appear
-			 * and be updated in /proc
-			 * FIXME: Do you know a less heuristical solution?
-			 */
-			usleep(1000);
-			event__synthesize_thread(pid,
-						 process_synthesized_event);
-		}
-
-		child_pid = pid;
-	}
+		event__synthesize_threads(process_synthesized_event, session);
 
 	if (realtime_prio) {
 		struct sched_param param;
@@ -524,6 +566,12 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 	}
+
+	/*
+	 * Let the child rip
+	 */
+	if (forks)
+		close(go_pipe[1]);
 
 	for (;;) {
 		int hits = samples;
@@ -619,12 +667,12 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	symbol__init(0);
-
 	argc = parse_options(argc, argv, options, record_usage,
-		PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1 && !system_wide)
+			    PARSE_OPT_STOP_AT_NON_OPTION);
+	if (!argc && target_pid == -1 && !system_wide && profile_cpu == -1)
 		usage_with_options(record_usage, options);
+
+	symbol__init();
 
 	if (!nr_counters) {
 		nr_counters	= 1;

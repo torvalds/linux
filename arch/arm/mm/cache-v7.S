@@ -186,16 +186,17 @@ ENDPROC(v7_coherent_kern_range)
 ENDPROC(v7_coherent_user_range)
 
 /*
- *	v7_flush_kern_dcache_page(kaddr)
+ *	v7_flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure that the data held in the page kaddr is written back
  *	to the page in question.
  *
- *	- kaddr   - kernel address (guaranteed to be page aligned)
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(v7_flush_kern_dcache_page)
+ENTRY(v7_flush_kern_dcache_area)
 	dcache_line_size r2, r3
-	add	r1, r0, #PAGE_SZ
+	add	r1, r0, r1
 1:
 	mcr	p15, 0, r0, c7, c14, 1		@ clean & invalidate D line / unified line
 	add	r0, r0, r2
@@ -203,7 +204,7 @@ ENTRY(v7_flush_kern_dcache_page)
 	blo	1b
 	dsb
 	mov	pc, lr
-ENDPROC(v7_flush_kern_dcache_page)
+ENDPROC(v7_flush_kern_dcache_area)
 
 /*
  *	v7_dma_inv_range(start,end)
@@ -279,7 +280,7 @@ ENTRY(v7_cache_fns)
 	.long	v7_flush_user_cache_range
 	.long	v7_coherent_kern_range
 	.long	v7_coherent_user_range
-	.long	v7_flush_kern_dcache_page
+	.long	v7_flush_kern_dcache_area
 	.long	v7_dma_inv_range
 	.long	v7_dma_clean_range
 	.long	v7_dma_flush_range

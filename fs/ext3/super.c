@@ -1928,6 +1928,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	sb->dq_op = &ext3_quota_operations;
 #endif
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
+	mutex_init(&sbi->s_orphan_lock);
+	mutex_init(&sbi->s_resize_lock);
 
 	sb->s_root = NULL;
 
@@ -2014,14 +2016,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 	}
 
 	ext3_setup_super (sb, es, sb->s_flags & MS_RDONLY);
-	/*
-	 * akpm: core read_super() calls in here with the superblock locked.
-	 * That deadlocks, because orphan cleanup needs to lock the superblock
-	 * in numerous places.  Here we just pop the lock - it's relatively
-	 * harmless, because we are now ready to accept write_super() requests,
-	 * and aviro says that's the only reason for hanging onto the
-	 * superblock lock.
-	 */
+
 	EXT3_SB(sb)->s_mount_state |= EXT3_ORPHAN_FS;
 	ext3_orphan_cleanup(sb, es);
 	EXT3_SB(sb)->s_mount_state &= ~EXT3_ORPHAN_FS;
@@ -2403,13 +2398,11 @@ static void ext3_mark_recovery_complete(struct super_block * sb,
 	if (journal_flush(journal) < 0)
 		goto out;
 
-	lock_super(sb);
 	if (EXT3_HAS_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_RECOVER) &&
 	    sb->s_flags & MS_RDONLY) {
 		EXT3_CLEAR_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_RECOVER);
 		ext3_commit_super(sb, es, 1);
 	}
-	unlock_super(sb);
 
 out:
 	journal_unlock_updates(journal);
@@ -2601,13 +2594,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			    (sbi->s_mount_state & EXT3_VALID_FS))
 				es->s_state = cpu_to_le16(sbi->s_mount_state);
 
-			/*
-			 * We have to unlock super so that we can wait for
-			 * transactions.
-			 */
-			unlock_super(sb);
 			ext3_mark_recovery_complete(sb, es);
-			lock_super(sb);
 		} else {
 			__le32 ret;
 			if ((ret = EXT3_HAS_RO_COMPAT_FEATURE(sb,

@@ -1036,7 +1036,6 @@ static struct video_device saa_template =
 	.name	  = "saa5246a",
 	.fops	  = &saa_fops,
 	.release  = video_device_release,
-	.minor    = -1,
 };
 
 static int saa5246a_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)

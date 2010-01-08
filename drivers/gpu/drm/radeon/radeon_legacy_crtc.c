@@ -43,8 +43,7 @@ static void radeon_overscan_setup(struct drm_crtc *crtc,
 }
 
 static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adjusted_mode)
+				       struct drm_display_mode *mode)
 {
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -1059,7 +1058,7 @@ static int radeon_crtc_mode_set(struct drm_crtc *crtc,
 	radeon_set_pll(crtc, adjusted_mode);
 	radeon_overscan_setup(crtc, adjusted_mode);
 	if (radeon_crtc->crtc_id == 0) {
-		radeon_legacy_rmx_mode_set(crtc, mode, adjusted_mode);
+		radeon_legacy_rmx_mode_set(crtc, adjusted_mode);
 	} else {
 		if (radeon_crtc->rmx_type != RMX_OFF) {
 			/* FIXME: only first crtc has rmx what should we

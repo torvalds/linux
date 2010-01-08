@@ -39,8 +39,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(f75373, f75375);
+enum chips { f75373, f75375 };
 
 /* Fintek F75375 registers  */
 #define F75375_REG_CONFIG0		0x0
@@ -113,7 +112,7 @@ struct f75375_data {
 	s8 temp_max_hyst[2];
 };
 
-static int f75375_detect(struct i2c_client *client, int kind,
+static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int f75375_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
@@ -135,7 +134,7 @@ static struct i2c_driver f75375_driver = {
 	.remove = f75375_remove,
 	.id_table = f75375_id,
 	.detect = f75375_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static inline int f75375_read8(struct i2c_client *client, u8 reg)
@@ -677,7 +676,7 @@ static int f75375_remove(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int f75375_detect(struct i2c_client *client, int kind,
+static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

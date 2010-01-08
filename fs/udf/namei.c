@@ -408,15 +408,6 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 	}
 
 add:
-	/* Is there any extent whose size we need to round up? */
-	if (dinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB && elen) {
-		elen = (elen + sb->s_blocksize - 1) & ~(sb->s_blocksize - 1);
-		if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
-			epos.offset -= sizeof(struct short_ad);
-		else if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
-			epos.offset -= sizeof(struct long_ad);
-		udf_write_aext(dir, &epos, &eloc, elen, 1);
-	}
 	f_pos += nfidlen;
 
 	if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB &&
@@ -439,6 +430,7 @@ add:
 		udf_current_aext(dir, &epos, &eloc, &elen, 1);
 	}
 
+	/* Entry fits into current block? */
 	if (sb->s_blocksize - fibh->eoffset >= nfidlen) {
 		fibh->soffset = fibh->eoffset;
 		fibh->eoffset += nfidlen;
@@ -462,6 +454,16 @@ add:
 				(fibh->sbh->b_data + fibh->soffset);
 		}
 	} else {
+		/* Round up last extent in the file */
+		elen = (elen + sb->s_blocksize - 1) & ~(sb->s_blocksize - 1);
+		if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
+			epos.offset -= sizeof(struct short_ad);
+		else if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
+			epos.offset -= sizeof(struct long_ad);
+		udf_write_aext(dir, &epos, &eloc, elen, 1);
+		dinfo->i_lenExtents = (dinfo->i_lenExtents + sb->s_blocksize
+					- 1) & ~(sb->s_blocksize - 1);
+
 		fibh->soffset = fibh->eoffset - sb->s_blocksize;
 		fibh->eoffset += nfidlen - sb->s_blocksize;
 		if (fibh->sbh != fibh->ebh) {
@@ -508,6 +510,20 @@ add:
 		dir->i_size += nfidlen;
 		if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 			dinfo->i_lenAlloc += nfidlen;
+		else {
+			/* Find the last extent and truncate it to proper size */
+			while (udf_next_aext(dir, &epos, &eloc, &elen, 1) ==
+				(EXT_RECORDED_ALLOCATED >> 30))
+				;
+			elen -= dinfo->i_lenExtents - dir->i_size;
+			if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_SHORT)
+				epos.offset -= sizeof(struct short_ad);
+			else if (dinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
+				epos.offset -= sizeof(struct long_ad);
+			udf_write_aext(dir, &epos, &eloc, elen, 1);
+			dinfo->i_lenExtents = dir->i_size;
+		}
+
 		mark_inode_dirty(dir);
 		goto out_ok;
 	} else {
@@ -922,7 +938,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 		block = udf_get_pblock(inode->i_sb, block,
 				iinfo->i_location.partitionReferenceNum,
 				0);
-		epos.bh = udf_tread(inode->i_sb, block);
+		epos.bh = udf_tgetblk(inode->i_sb, block);
 		lock_buffer(epos.bh);
 		memset(epos.bh->b_data, 0x00, inode->i_sb->s_blocksize);
 		set_buffer_uptodate(epos.bh);
@@ -999,6 +1015,8 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	inode->i_size = elen;
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
 		iinfo->i_lenAlloc = inode->i_size;
+	else
+		udf_truncate_tail_extent(inode);
 	mark_inode_dirty(inode);
 
 	fi = udf_add_entry(dir, dentry, &fibh, &cfi, &err);

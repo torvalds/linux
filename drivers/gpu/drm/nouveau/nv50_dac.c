@@ -44,7 +44,7 @@ nv50_dac_disconnect(struct nouveau_encoder *nv_encoder)
 	struct nouveau_channel *evo = dev_priv->evo;
 	int ret;
 
-	NV_DEBUG(dev, "Disconnecting DAC %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(dev, "Disconnecting DAC %d\n", nv_encoder->or);
 
 	ret = RING_SPACE(evo, 2);
 	if (ret) {
@@ -81,11 +81,11 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	/* Use bios provided value if possible. */
 	if (dev_priv->vbios->dactestval) {
 		load_pattern = dev_priv->vbios->dactestval;
-		NV_DEBUG(dev, "Using bios provided load_pattern of %d\n",
+		NV_DEBUG_KMS(dev, "Using bios provided load_pattern of %d\n",
 			  load_pattern);
 	} else {
 		load_pattern = 340;
-		NV_DEBUG(dev, "Using default load_pattern of %d\n",
+		NV_DEBUG_KMS(dev, "Using default load_pattern of %d\n",
 			 load_pattern);
 	}
 
@@ -103,9 +103,9 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 		status = connector_status_connected;
 
 	if (status == connector_status_connected)
-		NV_DEBUG(dev, "Load was detected on output with or %d\n", or);
+		NV_DEBUG_KMS(dev, "Load was detected on output with or %d\n", or);
 	else
-		NV_DEBUG(dev, "Load was not detected on output with or %d\n", or);
+		NV_DEBUG_KMS(dev, "Load was not detected on output with or %d\n", or);
 
 	return status;
 }
@@ -118,7 +118,7 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t val;
 	int or = nv_encoder->or;
 
-	NV_DEBUG(dev, "or %d mode %d\n", or, mode);
+	NV_DEBUG_KMS(dev, "or %d mode %d\n", or, mode);
 
 	/* wait for it to be done */
 	if (!nv_wait(NV50_PDISPLAY_DAC_DPMS_CTRL(or),
@@ -173,7 +173,7 @@ nv50_dac_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *connector;
 
-	NV_DEBUG(encoder->dev, "or %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(encoder->dev, "or %d\n", nv_encoder->or);
 
 	connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!connector) {
@@ -213,7 +213,7 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	uint32_t mode_ctl = 0, mode_ctl2 = 0;
 	int ret;
 
-	NV_DEBUG(dev, "or %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(dev, "or %d\n", nv_encoder->or);
 
 	nv50_dac_dpms(encoder, DRM_MODE_DPMS_ON);
 
@@ -264,7 +264,7 @@ nv50_dac_destroy(struct drm_encoder *encoder)
 	if (!encoder)
 		return;
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);
@@ -280,7 +280,7 @@ nv50_dac_create(struct drm_device *dev, struct dcb_entry *entry)
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 	NV_INFO(dev, "Detected a DAC output\n");
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);

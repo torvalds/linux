@@ -7,7 +7,7 @@
 #ifndef _MACH_PORTMUX_H_
 #define _MACH_PORTMUX_H_
 
-#define MAX_RESOURCES	MAX_BLACKFIN_GPIOS
+#define MAX_RESOURCES	64
 
 #define P_TMR2		(P_DONTCARE)
 #define P_TMR1		(P_DONTCARE)

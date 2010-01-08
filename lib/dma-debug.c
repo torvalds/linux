@@ -670,12 +670,13 @@ static int device_dma_allocations(struct device *dev)
 	return count;
 }
 
-static int dma_debug_device_change(struct notifier_block *nb,
-				    unsigned long action, void *data)
+static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	int count;
 
+	if (global_disable)
+		return 0;
 
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
@@ -696,6 +697,9 @@ static int dma_debug_device_change(struct notifier_block *nb,
 void dma_debug_add_bus(struct bus_type *bus)
 {
 	struct notifier_block *nb;
+
+	if (global_disable)
+		return;
 
 	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
 	if (nb == NULL) {

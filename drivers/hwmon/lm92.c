@@ -54,9 +54,6 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm92);
-
 /* The LM92 registers */
 #define LM92_REG_CONFIG			0x01 /* 8-bit, RW */
 #define LM92_REG_TEMP			0x00 /* 16-bit, RO */
@@ -319,7 +316,7 @@ static const struct attribute_group lm92_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm92_detect(struct i2c_client *new_client, int kind,
+static int lm92_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
@@ -401,7 +398,7 @@ static int lm92_remove(struct i2c_client *client)
  */
 
 static const struct i2c_device_id lm92_id[] = {
-	{ "lm92", lm92 },
+	{ "lm92", 0 },
 	/* max6635 could be added here */
 	{ }
 };
@@ -416,7 +413,7 @@ static struct i2c_driver lm92_driver = {
 	.remove		= lm92_remove,
 	.id_table	= lm92_id,
 	.detect		= lm92_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init sensors_lm92_init(void)

@@ -426,7 +426,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     if (link->io.NumPorts2 != 0) {
     	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+		IRQ_TYPE_DYNAMIC_SHARING;
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {

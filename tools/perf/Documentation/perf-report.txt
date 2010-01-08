@@ -39,6 +39,10 @@ OPTIONS
 	Only consider these symbols. CSV that understands
 	file://filename entries.
 
+-s::
+--sort=::
+	Sort by key(s): pid, comm, dso, symbol, parent.
+
 -w::
 --field-width=::
 	Force each column width to the provided list, for large terminal

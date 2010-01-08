@@ -209,10 +209,6 @@ void __init zylonite_pxa320_init(void)
 		gpio_debug_led1	= mfp_to_gpio(MFP_PIN_GPIO1_2);
 		gpio_debug_led2	= mfp_to_gpio(MFP_PIN_GPIO4_2);
 
-		/* MMC card detect & write protect for controller 0 */
-		zylonite_mmc_slot[0].gpio_cd  = mfp_to_gpio(MFP_PIN_GPIO1);
-		zylonite_mmc_slot[0].gpio_wp  = mfp_to_gpio(MFP_PIN_GPIO5);
-
 		/* WM9713 IRQ */
 		wm9713_irq = mfp_to_gpio(MFP_PIN_GPIO15);
 	}

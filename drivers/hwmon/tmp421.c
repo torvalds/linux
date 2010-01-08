@@ -39,8 +39,7 @@
 static unsigned short normal_i2c[] = { 0x2a, 0x4c, 0x4d, 0x4e, 0x4f,
 				       I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_3(tmp421, tmp422, tmp423);
+enum chips { tmp421, tmp422, tmp423 };
 
 /* The TMP421 registers */
 #define TMP421_CONFIG_REG_1			0x09
@@ -223,7 +222,7 @@ static int tmp421_init_client(struct i2c_client *client)
 	return 0;
 }
 
-static int tmp421_detect(struct i2c_client *client, int _kind,
+static int tmp421_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	enum chips kind;
@@ -322,7 +321,7 @@ static struct i2c_driver tmp421_driver = {
 	.remove = tmp421_remove,
 	.id_table = tmp421_id,
 	.detect = tmp421_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 static int __init tmp421_init(void)

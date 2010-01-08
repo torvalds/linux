@@ -40,6 +40,7 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/cpu.h>
 #include <linux/smp.h>
 
 #include <linux/hw_breakpoint.h>
@@ -96,7 +97,7 @@ static int task_bp_pinned(struct task_struct *tsk)
 
 	list = &ctx->event_list;
 
-	spin_lock_irqsave(&ctx->lock, flags);
+	raw_spin_lock_irqsave(&ctx->lock, flags);
 
 	/*
 	 * The current breakpoint counter is not included in the list
@@ -107,7 +108,7 @@ static int task_bp_pinned(struct task_struct *tsk)
 			count++;
 	}
 
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	raw_spin_unlock_irqrestore(&ctx->lock, flags);
 
 	return count;
 }
@@ -388,7 +389,8 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 	if (!cpu_events)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_possible_cpu(cpu) {
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
 		pevent = per_cpu_ptr(cpu_events, cpu);
 		bp = perf_event_create_kernel_counter(attr, cpu, -1, triggered);
 
@@ -399,18 +401,20 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 			goto fail;
 		}
 	}
+	put_online_cpus();
 
 	return cpu_events;
 
 fail:
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		pevent = per_cpu_ptr(cpu_events, cpu);
 		if (IS_ERR(*pevent))
 			break;
 		unregister_hw_breakpoint(*pevent);
 	}
+	put_online_cpus();
+
 	free_percpu(cpu_events);
-	/* return the error if any */
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(register_wide_hw_breakpoint);

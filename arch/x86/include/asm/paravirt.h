@@ -731,34 +731,34 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PARAVIRT_SPINLOCKS)
 
-static inline int __raw_spin_is_locked(struct raw_spinlock *lock)
+static inline int arch_spin_is_locked(struct arch_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_is_locked, lock);
 }
 
-static inline int __raw_spin_is_contended(struct raw_spinlock *lock)
+static inline int arch_spin_is_contended(struct arch_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_is_contended, lock);
 }
-#define __raw_spin_is_contended	__raw_spin_is_contended
+#define arch_spin_is_contended	arch_spin_is_contended
 
-static __always_inline void __raw_spin_lock(struct raw_spinlock *lock)
+static __always_inline void arch_spin_lock(struct arch_spinlock *lock)
 {
 	PVOP_VCALL1(pv_lock_ops.spin_lock, lock);
 }
 
-static __always_inline void __raw_spin_lock_flags(struct raw_spinlock *lock,
+static __always_inline void arch_spin_lock_flags(struct arch_spinlock *lock,
 						  unsigned long flags)
 {
 	PVOP_VCALL2(pv_lock_ops.spin_lock_flags, lock, flags);
 }
 
-static __always_inline int __raw_spin_trylock(struct raw_spinlock *lock)
+static __always_inline int arch_spin_trylock(struct arch_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_trylock, lock);
 }
 
-static __always_inline void __raw_spin_unlock(struct raw_spinlock *lock)
+static __always_inline void arch_spin_unlock(struct arch_spinlock *lock)
 {
 	PVOP_VCALL1(pv_lock_ops.spin_unlock, lock);
 }

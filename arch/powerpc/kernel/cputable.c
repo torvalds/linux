@@ -697,9 +697,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
 	},
-	{	/* 750CL */
-		.pvr_mask		= 0xfffff0f0,
-		.pvr_value		= 0x00087010,
+	{	/* 750CL (and "Broadway") */
+		.pvr_mask		= 0xfffff0e0,
+		.pvr_value		= 0x00087000,
 		.cpu_name		= "750CL",
 		.cpu_features		= CPU_FTRS_750CL,
 		.cpu_user_features	= COMMON_USER | PPC_FEATURE_PPC_LE,

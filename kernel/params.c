@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 
 #if 0
 #define DEBUGP printk
@@ -122,9 +123,7 @@ static char *next_arg(char *args, char **param, char **val)
 		next = args + i;
 
 	/* Chew up trailing spaces. */
-	while (isspace(*next))
-		next++;
-	return next;
+	return skip_spaces(next);
 }
 
 /* Args looks like "foo=bar,bar2 baz=fuz wiz". */
@@ -139,8 +138,7 @@ int parse_args(const char *name,
 	DEBUGP("Parsing ARGS: %s\n", args);
 
 	/* Chew leading spaces */
-	while (isspace(*args))
-		args++;
+	args = skip_spaces(args);
 
 	while (*args) {
 		int ret;

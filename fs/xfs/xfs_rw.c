@@ -44,6 +44,7 @@
 #include "xfs_error.h"
 #include "xfs_buf_item.h"
 #include "xfs_rw.h"
+#include "xfs_trace.h"
 
 /*
  * This is a subroutine for xfs_write() and other writers (xfs_ioctl)
@@ -171,7 +172,6 @@ xfs_bioerror(
 	 * No need to wait until the buffer is unpinned.
 	 * We aren't flushing it.
 	 */
-	xfs_buftrace("XFS IOERROR", bp);
 	XFS_BUF_ERROR(bp, EIO);
 	/*
 	 * We're calling biodone, so delete B_DONE flag. Either way
@@ -205,7 +205,6 @@ xfs_bioerror_relse(
 	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xfs_buf_iodone_callbacks);
 	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xlog_iodone);
 
-	xfs_buftrace("XFS IOERRELSE", bp);
 	fl = XFS_BUF_BFLAGS(bp);
 	/*
 	 * No need to wait until the buffer is unpinned.

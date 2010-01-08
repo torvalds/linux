@@ -464,8 +464,7 @@ static void __iomem *mpc83xx_pcie_remap_cfg(struct pci_bus *bus,
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct mpc83xx_pcie_priv *pcie = hose->dn->data;
-	u8 bus_no = bus->number - hose->first_busno;
-	u32 dev_base = bus_no << 24 | devfn << 16;
+	u32 dev_base = bus->number << 24 | devfn << 16;
 	int ret;
 
 	ret = mpc83xx_pcie_exclude_device(bus, devfn);
@@ -515,11 +514,16 @@ static int mpc83xx_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 static int mpc83xx_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int offset, int len, u32 val)
 {
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	void __iomem *cfg_addr;
 
 	cfg_addr = mpc83xx_pcie_remap_cfg(bus, devfn, offset);
 	if (!cfg_addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	/* PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS */
+	if (offset == PCI_PRIMARY_BUS && bus->number == hose->first_busno)
+		val &= 0xffffff00;
 
 	switch (len) {
 	case 1:

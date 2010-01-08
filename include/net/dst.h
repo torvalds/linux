@@ -113,7 +113,7 @@ dst_metric(const struct dst_entry *dst, int metric)
 static inline u32
 dst_feature(const struct dst_entry *dst, u32 feature)
 {
-	return (dst ? dst_metric(dst, RTAX_FEATURES) & feature : 0);
+	return dst_metric(dst, RTAX_FEATURES) & feature;
 }
 
 static inline u32 dst_mtu(const struct dst_entry *dst)

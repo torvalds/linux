@@ -133,12 +133,8 @@ void __update_cache(struct vm_area_struct *vma,
 	page = pfn_to_page(pfn);
 	if (pfn_valid(pfn)) {
 		int dirty = test_and_clear_bit(PG_dcache_dirty, &page->flags);
-		if (dirty) {
-			unsigned long addr = (unsigned long)page_address(page);
-
-			if (pages_do_alias(addr, address & PAGE_MASK))
-				__flush_purge_region((void *)addr, PAGE_SIZE);
-		}
+		if (dirty)
+			__flush_purge_region(page_address(page), PAGE_SIZE);
 	}
 }
 

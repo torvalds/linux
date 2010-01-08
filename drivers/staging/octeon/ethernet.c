@@ -30,7 +30,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
-#include <linux/mii.h>
+#include <linux/phy.h>
 
 #include <net/dst.h>
 
@@ -132,8 +132,6 @@ static struct timer_list cvm_oct_poll_timer;
  */
 struct net_device *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
 
-extern struct semaphore mdio_sem;
-
 /**
  * Periodic timer tick for slow management operations
  *
@@ -160,13 +158,8 @@ static void cvm_do_timer(unsigned long arg)
 		goto out;
 
 	priv = netdev_priv(cvm_oct_device[port]);
-	if (priv->poll) {
-		/* skip polling if we don't get the lock */
-		if (!down_trylock(&mdio_sem)) {
-			priv->poll(cvm_oct_device[port]);
-			up(&mdio_sem);
-		}
-	}
+	if (priv->poll)
+		priv->poll(cvm_oct_device[port]);
 
 	queues_per_port = cvmx_pko_get_num_queues(port);
 	/* Drain any pending packets in the free list */
@@ -524,7 +517,7 @@ int cvm_oct_common_init(struct net_device *dev)
 	dev->features |= NETIF_F_LLTX;
 	SET_ETHTOOL_OPS(dev, &cvm_oct_ethtool_ops);
 
-	cvm_oct_mdio_setup_device(dev);
+	cvm_oct_phy_setup_device(dev);
 	dev->netdev_ops->ndo_set_mac_address(dev, &sa);
 	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
 
@@ -540,7 +533,10 @@ int cvm_oct_common_init(struct net_device *dev)
 
 void cvm_oct_common_uninit(struct net_device *dev)
 {
-	/* Currently nothing to do */
+	struct octeon_ethernet *priv = netdev_priv(dev);
+
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
 }
 
 static const struct net_device_ops cvm_oct_npi_netdev_ops = {
@@ -627,6 +623,8 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
+extern void octeon_mdiobus_force_mod_depencency(void);
+
 /**
  * Module/ driver initialization. Creates the linux network
  * devices.
@@ -640,6 +638,7 @@ static int __init cvm_oct_init_module(void)
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
 
+	octeon_mdiobus_force_mod_depencency();
 	pr_notice("cavium-ethernet %s\n", OCTEON_ETHERNET_VERSION);
 
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX))

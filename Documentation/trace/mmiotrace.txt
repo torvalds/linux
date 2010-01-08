@@ -44,7 +44,8 @@ Check for lost events.
 Usage
 -----
 
-Make sure debugfs is mounted to /sys/kernel/debug. If not, (requires root privileges)
+Make sure debugfs is mounted to /sys/kernel/debug.
+If not (requires root privileges):
 $ mount -t debugfs debugfs /sys/kernel/debug
 
 Check that the driver you are about to trace is not loaded.
@@ -91,7 +92,7 @@ $ dmesg > dmesg.txt
 $ tar zcf pciid-nick-mmiotrace.tar.gz mydump.txt lspci.txt dmesg.txt
 and then send the .tar.gz file. The trace compresses considerably. Replace
 "pciid" and "nick" with the PCI ID or model name of your piece of hardware
-under investigation and your nick name.
+under investigation and your nickname.
 
 
 How Mmiotrace Works
@@ -100,7 +101,7 @@ How Mmiotrace Works
 Access to hardware IO-memory is gained by mapping addresses from PCI bus by
 calling one of the ioremap_*() functions. Mmiotrace is hooked into the
 __ioremap() function and gets called whenever a mapping is created. Mapping is
-an event that is recorded into the trace log. Note, that ISA range mappings
+an event that is recorded into the trace log. Note that ISA range mappings
 are not caught, since the mapping always exists and is returned directly.
 
 MMIO accesses are recorded via page faults. Just before __ioremap() returns,
@@ -122,11 +123,11 @@ Trace Log Format
 ----------------
 
 The raw log is text and easily filtered with e.g. grep and awk. One record is
-one line in the log. A record starts with a keyword, followed by keyword
-dependant arguments. Arguments are separated by a space, or continue until the
+one line in the log. A record starts with a keyword, followed by keyword-
+dependent arguments. Arguments are separated by a space, or continue until the
 end of line. The format for version 20070824 is as follows:
 
-Explanation	Keyword	Space separated arguments
+Explanation	Keyword	Space-separated arguments
 ---------------------------------------------------------------------------
 
 read event	R	width, timestamp, map id, physical, value, PC, PID
@@ -136,7 +137,7 @@ iounmap event	UNMAP	timestamp, map id, PC, PID
 marker		MARK	timestamp, text
 version		VERSION	the string "20070824"
 info for reader	LSPCI	one line from lspci -v
-PCI address map	PCIDEV	space separated /proc/bus/pci/devices data
+PCI address map	PCIDEV	space-separated /proc/bus/pci/devices data
 unk. opcode	UNKNOWN	timestamp, map id, physical, data, PC, PID
 
 Timestamp is in seconds with decimals. Physical is a PCI bus address, virtual

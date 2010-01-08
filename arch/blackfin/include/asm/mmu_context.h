@@ -66,8 +66,8 @@ activate_l1stack(struct mm_struct *mm, unsigned long sp_base)
 
 #define activate_mm(prev, next) switch_mm(prev, next, NULL)
 
-static inline void switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
-			     struct task_struct *tsk)
+static inline void __switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
+			       struct task_struct *tsk)
 {
 #ifdef CONFIG_MPU
 	unsigned int cpu = smp_processor_id();
@@ -95,7 +95,24 @@ static inline void switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_m
 #endif
 }
 
+#ifdef CONFIG_IPIPE
+#define lock_mm_switch(flags)	local_irq_save_hw_cond(flags)
+#define unlock_mm_switch(flags)	local_irq_restore_hw_cond(flags)
+#else
+#define lock_mm_switch(flags)	do { (void)(flags); } while (0)
+#define unlock_mm_switch(flags)	do { (void)(flags); } while (0)
+#endif /* CONFIG_IPIPE */
+
 #ifdef CONFIG_MPU
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+			     struct task_struct *tsk)
+{
+	unsigned long flags;
+	lock_mm_switch(flags);
+	__switch_mm(prev, next, tsk);
+	unlock_mm_switch(flags);
+}
+
 static inline void protect_page(struct mm_struct *mm, unsigned long addr,
 				unsigned long flags)
 {
@@ -127,6 +144,12 @@ static inline void update_protections(struct mm_struct *mm)
 		flush_switched_cplbs(cpu);
 		set_mask_dcplbs(mm->context.page_rwx_mask, cpu);
 	}
+}
+#else /* !CONFIG_MPU */
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+			     struct task_struct *tsk)
+{
+	__switch_mm(prev, next, tsk);
 }
 #endif
 
@@ -172,5 +195,11 @@ static inline void destroy_context(struct mm_struct *mm)
 	free_pages((unsigned long)mm->context.page_rwx_mask, page_mask_order);
 #endif
 }
+
+#define ipipe_mm_switch_protect(flags)		\
+	local_irq_save_hw_cond(flags)
+
+#define ipipe_mm_switch_unprotect(flags)	\
+	local_irq_restore_hw_cond(flags)
 
 #endif

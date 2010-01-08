@@ -135,7 +135,7 @@ int pcmcia_socket_dev_resume(struct device *dev)
 EXPORT_SYMBOL(pcmcia_socket_dev_resume);
 
 
-struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt)
+struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt)
 {
 	struct device *dev = get_device(&skt->dev);
 	if (!dev)
@@ -145,7 +145,7 @@ struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt)
 		put_device(&skt->dev);
 		return NULL;
 	}
-	return (skt);
+	return skt;
 }
 EXPORT_SYMBOL(pcmcia_get_socket);
 
@@ -297,7 +297,7 @@ void pcmcia_unregister_socket(struct pcmcia_socket *socket)
 EXPORT_SYMBOL(pcmcia_unregister_socket);
 
 
-struct pcmcia_socket * pcmcia_get_socket_by_nr(unsigned int nr)
+struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr)
 {
 	struct pcmcia_socket *s;
 
@@ -736,7 +736,7 @@ EXPORT_SYMBOL(pcmcia_parse_events);
 /* register pcmcia_callback */
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 {
-        int ret = 0;
+	int ret = 0;
 
 	/* s->skt_mutex also protects s->callback */
 	mutex_lock(&s->skt_mutex);
@@ -848,7 +848,7 @@ EXPORT_SYMBOL(pcmcia_suspend_card);
 int pcmcia_resume_card(struct pcmcia_socket *skt)
 {
 	int ret;
-    
+
 	dev_dbg(&skt->dev, "waking up socket\n");
 
 	mutex_lock(&skt->skt_mutex);
@@ -876,7 +876,7 @@ EXPORT_SYMBOL(pcmcia_resume_card);
 int pcmcia_eject_card(struct pcmcia_socket *skt)
 {
 	int ret;
-    
+
 	dev_dbg(&skt->dev, "user eject request\n");
 
 	mutex_lock(&skt->skt_mutex);

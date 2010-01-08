@@ -164,7 +164,8 @@ extern int page_is_ram(unsigned long pfn);
 #  endif /* CONFIG_MMU */
 
 #  ifndef CONFIG_MMU
-#  define pfn_valid(pfn)	((pfn) >= min_low_pfn && (pfn) <= max_mapnr)
+#  define pfn_valid(pfn)	(((pfn) >= min_low_pfn) && \
+				((pfn) <= (min_low_pfn + max_mapnr)))
 #  define ARCH_PFN_OFFSET	(PAGE_OFFSET >> PAGE_SHIFT)
 #  else /* CONFIG_MMU */
 #  define ARCH_PFN_OFFSET	(memory_start >> PAGE_SHIFT)

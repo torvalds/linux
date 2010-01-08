@@ -50,7 +50,7 @@ static ssize_t led_brightness_store(struct device *dev,
 	unsigned long state = simple_strtoul(buf, &after, 10);
 	size_t count = after - buf;
 
-	if (*after && isspace(*after))
+	if (isspace(*after))
 		count++;
 
 	if (count == size) {

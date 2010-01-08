@@ -828,9 +828,6 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	stats.freq = zd_channels[_zd_chip_get_channel(&mac->chip) - 1].center_freq;
 	stats.band = IEEE80211_BAND_2GHZ;
 	stats.signal = status->signal_strength;
-	stats.qual = zd_rx_qual_percent(buffer,
-		                          length - sizeof(struct rx_status),
-		                          status);
 
 	rate = zd_rx_rate(buffer, status);
 

@@ -97,15 +97,17 @@ no_delete:
  */
 void udf_clear_inode(struct inode *inode)
 {
-	struct udf_inode_info *iinfo;
-	if (!(inode->i_sb->s_flags & MS_RDONLY)) {
-		lock_kernel();
-		udf_truncate_tail_extent(inode);
-		unlock_kernel();
-		write_inode_now(inode, 0);
-		invalidate_inode_buffers(inode);
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
+	    inode->i_size != iinfo->i_lenExtents) {
+		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
+			"inode size %llu different from extent lenght %llu. "
+			"Filesystem need not be standards compliant.\n",
+			inode->i_sb->s_id, inode->i_ino, inode->i_mode,
+			(unsigned long long)inode->i_size,
+			(unsigned long long)iinfo->i_lenExtents);
 	}
-	iinfo = UDF_I(inode);
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
 }
@@ -198,7 +200,6 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	int newblock;
 	struct buffer_head *dbh = NULL;
 	struct kernel_lb_addr eloc;
-	uint32_t elen;
 	uint8_t alloctype;
 	struct extent_position epos;
 
@@ -273,12 +274,11 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	eloc.logicalBlockNum = *block;
 	eloc.partitionReferenceNum =
 				iinfo->i_location.partitionReferenceNum;
-	elen = inode->i_sb->s_blocksize;
-	iinfo->i_lenExtents = elen;
+	iinfo->i_lenExtents = inode->i_size;
 	epos.bh = NULL;
 	epos.block = iinfo->i_location;
 	epos.offset = udf_file_entry_alloc_offset(inode);
-	udf_add_aext(inode, &epos, &eloc, elen, 0);
+	udf_add_aext(inode, &epos, &eloc, inode->i_size, 0);
 	/* UniqueID stuff */
 
 	brelse(epos.bh);

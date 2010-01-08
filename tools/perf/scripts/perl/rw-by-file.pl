@@ -18,8 +18,9 @@ use lib "./Perf-Trace-Util/lib";
 use Perf::Trace::Core;
 use Perf::Trace::Util;
 
-# change this to the comm of the program you're interested in
-my $for_comm = "perf";
+my $usage = "perf trace -s rw-by-file.pl <comm>\n";
+
+my $for_comm = shift or die $usage;
 
 my %reads;
 my %writes;

@@ -417,8 +417,8 @@ __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
 
 	key = page_index(bh->b_page) << (PAGE_CACHE_SHIFT -
 					 bmap->b_inode->i_blkbits);
-	for (pbh = page_buffers(bh->b_page); pbh != bh;
-	     pbh = pbh->b_this_page, key++);
+	for (pbh = page_buffers(bh->b_page); pbh != bh; pbh = pbh->b_this_page)
+		key++;
 
 	return key;
 }
