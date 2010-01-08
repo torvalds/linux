@@ -419,7 +419,7 @@ static const struct usb_action adcm2700_NoFliker[] = {
 	{0xaa, 0xfe, 0x0010},				/* 00,fe,10,aa */
 	{}
 };
-static const struct usb_action cs2102_Initial[] = {	/* 320x240 */
+static const struct usb_action cs2102_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -471,7 +471,7 @@ static const struct usb_action cs2102_Initial[] = {	/* 320x240 */
 	{}
 };
 
-static const struct usb_action cs2102_InitialScale[] = {	/* 640x480 */
+static const struct usb_action cs2102_Initial[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -522,7 +522,7 @@ static const struct usb_action cs2102_InitialScale[] = {	/* 640x480 */
 	{0xa0, 0x00, 0x01ad},
 	{}
 };
-static const struct usb_action cs2102_50HZ[] = {
+static const struct usb_action cs2102_50HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0001},
 	{0xaa, 0x24, 0x005f},
@@ -544,7 +544,7 @@ static const struct usb_action cs2102_50HZ[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_50HZScale[] = {
+static const struct usb_action cs2102_50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0000},
 	{0xaa, 0x24, 0x00af},
@@ -566,7 +566,7 @@ static const struct usb_action cs2102_50HZScale[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_60HZ[] = {
+static const struct usb_action cs2102_60HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0001},
 	{0xaa, 0x24, 0x0055},
@@ -588,7 +588,7 @@ static const struct usb_action cs2102_60HZ[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_60HZScale[] = {
+static const struct usb_action cs2102_60HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0000},
 	{0xaa, 0x24, 0x00aa},
@@ -610,7 +610,7 @@ static const struct usb_action cs2102_60HZScale[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_NoFliker[] = {
+static const struct usb_action cs2102_NoFlikerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0001},
 	{0xaa, 0x24, 0x005f},
@@ -632,7 +632,7 @@ static const struct usb_action cs2102_NoFliker[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3},
 	{}
 };
-static const struct usb_action cs2102_NoFlikerScale[] = {
+static const struct usb_action cs2102_NoFliker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 	{0xaa, 0x23, 0x0000},
 	{0xaa, 0x24, 0x00af},
@@ -656,7 +656,7 @@ static const struct usb_action cs2102_NoFlikerScale[] = {
 };
 
 /* CS2102_KOCOM */
-static const struct usb_action cs2102K_Initial[] = {
+static const struct usb_action cs2102K_InitialScale[] = {
 	{0xa0, 0x11, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
 	{0xa0, 0x08, ZC3XX_R010_CMOSSENSORSELECT},
@@ -915,7 +915,7 @@ static const struct usb_action cs2102K_Initial[] = {
 	{}
 };
 
-static const struct usb_action cs2102K_InitialScale[] = {
+static const struct usb_action cs2102K_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
@@ -1493,7 +1493,7 @@ static const struct usb_action gc0305_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action hdcs2020xb_Initial[] = {
+static const struct usb_action hdcs2020b_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x11, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* qtable 0x05 */
@@ -1625,7 +1625,7 @@ static const struct usb_action hdcs2020xb_Initial[] = {
 	{0xa0, 0x40, ZC3XX_R118_BGAIN},
 	{}
 };
-static const struct usb_action hdcs2020xb_InitialScale[] = {
+static const struct usb_action hdcs2020b_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
@@ -1817,7 +1817,7 @@ static const struct usb_action hdcs2020b_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action hv7131bxx_Initial[] = {		/* 320x240 */
+static const struct usb_action hv7131b_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -1864,7 +1864,7 @@ static const struct usb_action hv7131bxx_Initial[] = {		/* 320x240 */
 	{}
 };
 
-static const struct usb_action hv7131bxx_InitialScale[] = {	/* 640x480*/
+static const struct usb_action hv7131b_Initial[] = {	/* 640x480*/
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x00, ZC3XX_R010_CMOSSENSORSELECT},
@@ -2061,7 +2061,7 @@ static const struct usb_action hv7131b_NoFlikerScale[] = { /* 320x240 */
 	{}
 };
 
-static const struct usb_action hv7131cxx_Initial[] = {
+static const struct usb_action hv7131r_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},
@@ -2155,7 +2155,7 @@ static const struct usb_action hv7131cxx_Initial[] = {
 	{}
 };
 
-static const struct usb_action hv7131cxx_InitialScale[] = {
+static const struct usb_action hv7131r_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},	/* diff */
@@ -2257,7 +2257,7 @@ static const struct usb_action hv7131cxx_InitialScale[] = {
 	{}
 };
 
-static const struct usb_action icm105axx_Initial[] = {
+static const struct usb_action icm105a_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
@@ -2434,7 +2434,7 @@ static const struct usb_action icm105axx_Initial[] = {
 	{}
 };
 
-static const struct usb_action icm105axx_InitialScale[] = {
+static const struct usb_action icm105a_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
@@ -2613,7 +2613,7 @@ static const struct usb_action icm105axx_InitialScale[] = {
 	{0xa0, 0x40, ZC3XX_R118_BGAIN},
 	{}
 };
-static const struct usb_action icm105a_50HZ[] = {
+static const struct usb_action icm105a_50HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0020}, /* 00,0c,20,aa */
@@ -2644,7 +2644,7 @@ static const struct usb_action icm105a_50HZ[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3}, /* 00,20,ff,cc */
 	{}
 };
-static const struct usb_action icm105a_50HZScale[] = {
+static const struct usb_action icm105a_50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x008c}, /* 00,0c,8c,aa */
@@ -2677,7 +2677,7 @@ static const struct usb_action icm105a_50HZScale[] = {
 	{0xa0, 0xc0, ZC3XX_R1A8_DIGITALGAIN}, /* 01,a8,c0,cc */
 	{}
 };
-static const struct usb_action icm105a_60HZ[] = {
+static const struct usb_action icm105a_60HZScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0004}, /* 00,0c,04,aa */
@@ -2708,7 +2708,7 @@ static const struct usb_action icm105a_60HZ[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3}, /* 00,20,ff,cc */
 	{}
 };
-static const struct usb_action icm105a_60HZScale[] = {
+static const struct usb_action icm105a_60HZ[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0008}, /* 00,0c,08,aa */
@@ -2741,7 +2741,7 @@ static const struct usb_action icm105a_60HZScale[] = {
 	{0xa0, 0xc0, ZC3XX_R1A8_DIGITALGAIN}, /* 01,a8,c0,cc */
 	{}
 };
-static const struct usb_action icm105a_NoFliker[] = {
+static const struct usb_action icm105a_NoFlikerScale[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0004}, /* 00,0c,04,aa */
@@ -2772,7 +2772,7 @@ static const struct usb_action icm105a_NoFliker[] = {
 	{0xa0, 0xff, ZC3XX_R020_HSYNC_3}, /* 00,20,ff,cc */
 	{}
 };
-static const struct usb_action icm105a_NoFlikerScale[] = {
+static const struct usb_action icm105a_NoFliker[] = {
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS}, /* 00,19,00,cc */
 	{0xaa, 0x0d, 0x0003}, /* 00,0d,03,aa */
 	{0xaa, 0x0c, 0x0004}, /* 00,0c,04,aa */
@@ -2806,7 +2806,7 @@ static const struct usb_action icm105a_NoFlikerScale[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_InitialScale[] = {
+static const struct usb_action mc501cb_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT}, /* 00,02,00,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -2926,7 +2926,7 @@ static const struct usb_action MC501CB_InitialScale[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_Initial[] = {	 /* 320x240 */
+static const struct usb_action mc501cb_InitialScale[] = {	 /* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT}, /* 00,02,10,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -3045,7 +3045,7 @@ static const struct usb_action MC501CB_Initial[] = {	 /* 320x240 */
 	{}
 };
 
-static const struct usb_action MC501CB_50HZ[] = {
+static const struct usb_action mc501cb_50HZScale[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x001d}, /* 00,36,1D,aa */
@@ -3062,7 +3062,7 @@ static const struct usb_action MC501CB_50HZ[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_50HZScale[] = {
+static const struct usb_action mc501cb_50HZ[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x003a}, /* 00,36,3A,aa */
@@ -3079,7 +3079,7 @@ static const struct usb_action MC501CB_50HZScale[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_60HZ[] = {
+static const struct usb_action mc501cb_60HZScale[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x0018}, /* 00,36,18,aa */
@@ -3096,7 +3096,7 @@ static const struct usb_action MC501CB_60HZ[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_60HZScale[] = {
+static const struct usb_action mc501cb_60HZ[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x0030}, /* 00,36,30,aa */
@@ -3113,7 +3113,7 @@ static const struct usb_action MC501CB_60HZScale[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_NoFliker[] = {
+static const struct usb_action mc501cb_NoFlikerScale[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x0018}, /* 00,36,18,aa */
@@ -3130,7 +3130,7 @@ static const struct usb_action MC501CB_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action MC501CB_NoFlikerScale[] = {
+static const struct usb_action mc501cb_NoFliker[] = {
 	{0xaa, 0x03, 0x0003}, /* 00,03,03,aa */
 	{0xaa, 0x10, 0x00fc}, /* 00,10,fc,aa */
 	{0xaa, 0x36, 0x0030}, /* 00,36,30,aa */
@@ -3142,8 +3142,8 @@ static const struct usb_action MC501CB_NoFlikerScale[] = {
 	{}
 };
 
-/* from zs211.inf - HKR,%OV7620%,Initial - 640x480 */
-static const struct usb_action OV7620_mode0[] = {
+/* from zs211.inf */
+static const struct usb_action ov7620_Initial[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT}, /* 00,02,40,cc */
 	{0xa0, 0x00, ZC3XX_R008_CLOCKSETTING}, /* 00,08,00,cc */
@@ -3212,9 +3212,7 @@ static const struct usb_action OV7620_mode0[] = {
 	{0xa0, 0x50, ZC3XX_R1A8_DIGITALGAIN}, /* 01,a8,50,cc */
 	{}
 };
-
-/* from zs211.inf - HKR,%OV7620%,InitialScale - 320x240 */
-static const struct usb_action OV7620_mode1[] = {
+static const struct usb_action ov7620_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x50, ZC3XX_R002_CLOCKSELECT},	/* 00,02,50,cc */
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},	/* 00,08,00,cc */
@@ -3285,9 +3283,7 @@ static const struct usb_action OV7620_mode1[] = {
 	{0xa0, 0x50, ZC3XX_R1A8_DIGITALGAIN},	/* 01,a8,50,cc */
 	{}
 };
-
-/* from zs211.inf - HKR,%OV7620%\AE,50HZ */
-static const struct usb_action OV7620_50HZ[] = {
+static const struct usb_action ov7620_50HZ[] = {
 	{0xaa, 0x13, 0x00a3},	/* 00,13,a3,aa */
 	{0xdd, 0x00, 0x0100},	/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0096},	/* 00,2b,96,aa */
@@ -3305,9 +3301,7 @@ static const struct usb_action OV7620_50HZ[] = {
 							 if mode0 (640x480) */
 	{}
 };
-
-/* from zs211.inf - HKR,%OV7620%\AE,60HZ */
-static const struct usb_action OV7620_60HZ[] = {
+static const struct usb_action ov7620_60HZ[] = {
 	{0xaa, 0x13, 0x00a3},			/* 00,13,a3,aa */
 						/* (bug in zs211.inf) */
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
@@ -3329,9 +3323,7 @@ static const struct usb_action OV7620_60HZ[] = {
 	{0xa1, 0x01, 0x0037},		*/
 	{}
 };
-
-/* from zs211.inf - HKR,%OV7620%\AE,NoFliker */
-static const struct usb_action OV7620_NoFliker[] = {
+static const struct usb_action ov7620_NoFliker[] = {
 	{0xaa, 0x13, 0x00a3},			/* 00,13,a3,aa */
 						/* (bug in zs211.inf) */
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
@@ -3352,7 +3344,7 @@ static const struct usb_action OV7620_NoFliker[] = {
 	{}
 };
 
-static const struct usb_action ov7630c_Initial[] = {
+static const struct usb_action ov7630c_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
@@ -3509,7 +3501,7 @@ static const struct usb_action ov7630c_Initial[] = {
 	{}
 };
 
-static const struct usb_action ov7630c_InitialScale[] = {
+static const struct usb_action ov7630c_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x00, ZC3XX_R002_CLOCKSELECT},
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
@@ -3680,7 +3672,7 @@ static const struct usb_action pas106b_Initial_com[] = {
 	{}
 };
 
-static const struct usb_action pas106b_Initial[] = {	/* 176x144 */
+static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 /* JPEG control */
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
 /* Sream and Sensor specific */
@@ -3798,7 +3790,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 176x144 */
 	{}
 };
 
-static const struct usb_action pas106b_InitialScale[] = {	/* 352x288 */
+static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 /* JPEG control */
 	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
 /* Sream and Sensor specific */
@@ -4713,8 +4705,8 @@ static const struct usb_action pb0330_NoFlikerScale[] = {
 	{}
 };
 
-/* from oem9.inf - HKR,%PO2030%,Initial - 640x480 - (close to CS2102) */
-static const struct usb_action PO2030_mode0[] = {
+/* from oem9.inf */
+static const struct usb_action po2030_Initial[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x04, ZC3XX_R002_CLOCKSELECT},	/* 00,02,04,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -4790,8 +4782,8 @@ static const struct usb_action PO2030_mode0[] = {
 	{}
 };
 
-/* from oem9.inf - HKR,%PO2030%,InitialScale - 320x240 */
-static const struct usb_action PO2030_mode1[] = {
+/* from oem9.inf */
+static const struct usb_action po2030_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL}, /* 00,00,01,cc */
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT}, /* 00,02,10,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT}, /* 00,10,01,cc */
@@ -4867,7 +4859,7 @@ static const struct usb_action PO2030_mode1[] = {
 	{}
 };
 
-static const struct usb_action PO2030_50HZ[] = {
+static const struct usb_action po2030_50HZ[] = {
 	{0xaa, 0x8d, 0x0008}, /* 00,8d,08,aa */
 	{0xaa, 0x1a, 0x0001}, /* 00,1a,01,aa */
 	{0xaa, 0x1b, 0x000a}, /* 00,1b,0a,aa */
@@ -4889,7 +4881,7 @@ static const struct usb_action PO2030_50HZ[] = {
 	{}
 };
 
-static const struct usb_action PO2030_60HZ[] = {
+static const struct usb_action po2030_60HZ[] = {
 	{0xaa, 0x8d, 0x0008}, /* 00,8d,08,aa */
 	{0xaa, 0x1a, 0x0000}, /* 00,1a,00,aa */
 	{0xaa, 0x1b, 0x00de}, /* 00,1b,de,aa */
@@ -4912,7 +4904,7 @@ static const struct usb_action PO2030_60HZ[] = {
 	{}
 };
 
-static const struct usb_action PO2030_NoFliker[] = {
+static const struct usb_action po2030_NoFliker[] = {
 	{0xa0, 0x02, ZC3XX_R180_AUTOCORRECTENABLE}, /* 01,80,02,cc */
 	{0xaa, 0x8d, 0x000d}, /* 00,8d,0d,aa */
 	{0xaa, 0x1a, 0x0000}, /* 00,1a,00,aa */
@@ -4924,7 +4916,7 @@ static const struct usb_action PO2030_NoFliker[] = {
 };
 
 /* TEST */
-static const struct usb_action tas5130CK_Initial[] = {
+static const struct usb_action tas5130cK_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x01, 0x003b},
 	{0xa0, 0x0e, 0x003a},
@@ -5127,7 +5119,7 @@ static const struct usb_action tas5130CK_Initial[] = {
 	{}
 };
 
-static const struct usb_action tas5130CK_InitialScale[] = {
+static const struct usb_action tas5130cK_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x01, 0x003b},
 	{0xa0, 0x0e, 0x003a},
@@ -5560,7 +5552,7 @@ static const struct usb_action tas5130cxx_NoFlikerScale[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_Initial[] = {
+static const struct usb_action tas5130c_vf0250_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc, */
 	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},		/* 00,08,02,cc, */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc, */
@@ -5627,7 +5619,7 @@ static const struct usb_action tas5130c_vf0250_Initial[] = {
 	{}
 };
 
-static const struct usb_action tas5130c_vf0250_InitialScale[] = {
+static const struct usb_action tas5130c_vf0250_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc, */
 	{0xa0, 0x02, ZC3XX_R008_CLOCKSETTING},		/* 00,08,02,cc, */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc, */
@@ -5692,8 +5684,7 @@ static const struct usb_action tas5130c_vf0250_InitialScale[] = {
 	{0xa0, 0x65, ZC3XX_R118_BGAIN},		/* 01,18,65,cc */
 	{}
 };
-/* "50HZ" light frequency banding filter */
-static const struct usb_action tas5130c_vf0250_50HZ[] = {
+static const struct usb_action tas5130c_vf0250_50HZScale[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0001},		/* 00,83,01,aa */
 	{0xaa, 0x84, 0x00aa},		/* 00,84,aa,aa */
@@ -5717,8 +5708,7 @@ static const struct usb_action tas5130c_vf0250_50HZ[] = {
 	{}
 };
 
-/* "50HZScale" light frequency banding filter */
-static const struct usb_action tas5130c_vf0250_50HZScale[] = {
+static const struct usb_action tas5130c_vf0250_50HZ[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0003},		/* 00,83,03,aa */
 	{0xaa, 0x84, 0x0054},		/* 00,84,54,aa */
@@ -5742,8 +5732,7 @@ static const struct usb_action tas5130c_vf0250_50HZScale[] = {
 	{}
 };
 
-/* "60HZ" light frequency banding filter */
-static const struct usb_action tas5130c_vf0250_60HZ[] = {
+static const struct usb_action tas5130c_vf0250_60HZScale[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0001},		/* 00,83,01,aa */
 	{0xaa, 0x84, 0x0062},		/* 00,84,62,aa */
@@ -5767,8 +5756,7 @@ static const struct usb_action tas5130c_vf0250_60HZ[] = {
 	{}
 };
 
-/* "60HZScale" light frequency banding ilter */
-static const struct usb_action tas5130c_vf0250_60HZScale[] = {
+static const struct usb_action tas5130c_vf0250_60HZ[] = {
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0002},		/* 00,83,02,aa */
 	{0xaa, 0x84, 0x00c4},		/* 00,84,c4,aa */
@@ -5792,8 +5780,7 @@ static const struct usb_action tas5130c_vf0250_60HZScale[] = {
 	{}
 };
 
-/* "NoFliker" light frequency banding flter */
-static const struct usb_action tas5130c_vf0250_NoFliker[] = {
+static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -5815,8 +5802,7 @@ static const struct usb_action tas5130c_vf0250_NoFliker[] = {
 	{}
 };
 
-/* "NoFlikerScale" light frequency banding filter */
-static const struct usb_action tas5130c_vf0250_NoFlikerScale[] = {
+static const struct usb_action tas5130c_vf0250_NoFliker[] = {
 	{0xa0, 0x0c, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0c,cc, */
 	{0xaa, 0x82, 0x0000},		/* 00,82,00,aa */
 	{0xaa, 0x83, 0x0000},		/* 00,83,00,aa */
@@ -6170,9 +6156,9 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 hdcs2020b_50HZ, hdcs2020b_50HZ,
 		 hdcs2020b_60HZ, hdcs2020b_60HZ},
 /* SENSOR_HV7131B 5 */
-		{hv7131b_NoFlikerScale, hv7131b_NoFliker,
-		 hv7131b_50HZScale, hv7131b_50HZ,
-		 hv7131b_60HZScale, hv7131b_60HZ},
+		{hv7131b_NoFliker, hv7131b_NoFlikerScale,
+		 hv7131b_50HZ, hv7131b_50HZScale,
+		 hv7131b_60HZ, hv7131b_60HZScale},
 /* SENSOR_HV7131C 6 */
 		{NULL, NULL,
 		 NULL, NULL,
@@ -6182,17 +6168,17 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 icm105a_50HZ, icm105a_50HZScale,
 		 icm105a_60HZ, icm105a_60HZScale},
 /* SENSOR_MC501CB 8 */
-		{MC501CB_NoFliker, MC501CB_NoFlikerScale,
-		 MC501CB_50HZ, MC501CB_50HZScale,
-		 MC501CB_60HZ, MC501CB_60HZScale},
+		{mc501cb_NoFliker, mc501cb_NoFlikerScale,
+		 mc501cb_50HZ, mc501cb_50HZScale,
+		 mc501cb_60HZ, mc501cb_60HZScale},
 /* SENSOR_MI0360SOC 9 */
-		{mi360soc_AENoFlikerScale, mi360soc_AENoFliker,
-		 mi360soc_AE50HZScale, mi360soc_AE50HZ,
-		 mi360soc_AE60HZScale, mi360soc_AE60HZ},
+		{mi360soc_AENoFliker, mi360soc_AENoFlikerScale,
+		 mi360soc_AE50HZ, mi360soc_AE50HZScale,
+		 mi360soc_AE60HZ, mi360soc_AE60HZScale},
 /* SENSOR_OV7620 10 */
-		{OV7620_NoFliker, OV7620_NoFliker,
-		 OV7620_50HZ, OV7620_50HZ,
-		 OV7620_60HZ, OV7620_60HZ},
+		{ov7620_NoFliker, ov7620_NoFliker,
+		 ov7620_50HZ, ov7620_50HZ,
+		 ov7620_60HZ, ov7620_60HZ},
 /* SENSOR_OV7630C 11 */
 		{NULL, NULL,
 		 NULL, NULL,
@@ -6210,17 +6196,17 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 		 pb0330_50HZScale, pb0330_50HZ,
 		 pb0330_60HZScale, pb0330_60HZ},
 /* SENSOR_PO2030 15 */
-		{PO2030_NoFliker, PO2030_NoFliker,
-		 PO2030_50HZ, PO2030_50HZ,
-		 PO2030_60HZ, PO2030_60HZ},
+		{po2030_NoFliker, po2030_NoFliker,
+		 po2030_50HZ, po2030_50HZ,
+		 po2030_60HZ, po2030_60HZ},
 /* SENSOR_TAS5130CK 16 */
-		{tas5130cxx_NoFlikerScale, tas5130cxx_NoFliker,
-		 tas5130cxx_50HZScale, tas5130cxx_50HZ,
-		 tas5130cxx_60HZScale, tas5130cxx_60HZ},
+		{tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale,
+		 tas5130cxx_50HZ, tas5130cxx_50HZScale,
+		 tas5130cxx_60HZ, tas5130cxx_60HZScale},
 /* SENSOR_TAS5130CXX 17 */
-		{tas5130cxx_NoFlikerScale, tas5130cxx_NoFliker,
-		 tas5130cxx_50HZScale, tas5130cxx_50HZ,
-		 tas5130cxx_60HZScale, tas5130cxx_60HZ},
+		{tas5130cxx_NoFliker, tas5130cxx_NoFlikerScale,
+		 tas5130cxx_50HZ, tas5130cxx_50HZScale,
+		 tas5130cxx_60HZ, tas5130cxx_60HZScale},
 /* SENSOR_TAS5130C_VF0250 18 */
 		{tas5130c_vf0250_NoFliker, tas5130c_vf0250_NoFlikerScale,
 		 tas5130c_vf0250_50HZ, tas5130c_vf0250_50HZScale,
@@ -6229,8 +6215,8 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 
 	i = sd->lightfreq * 2;
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
-	if (!mode)
-		i++;			/* 640x480 */
+	if (mode)
+		i++;			/* 320x240 */
 	zc3_freq = freq_tb[sd->sensor][i];
 	if (zc3_freq != NULL) {
 		usb_exchange(gspca_dev, zc3_freq);
@@ -6803,24 +6789,24 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int mode;
 	static const struct usb_action *init_tb[SENSOR_MAX][2] = {
 		{adcm2700_Initial, adcm2700_InitialScale},	/* 0 */
-		{cs2102_InitialScale, cs2102_Initial},		/* 1 */
-		{cs2102K_InitialScale, cs2102K_Initial},	/* 2 */
+		{cs2102_Initial, cs2102_InitialScale},		/* 1 */
+		{cs2102K_Initial, cs2102K_InitialScale},	/* 2 */
 		{gc0305_Initial, gc0305_InitialScale},		/* 3 */
-		{hdcs2020xb_InitialScale, hdcs2020xb_Initial},	/* 4 */
-		{hv7131bxx_InitialScale, hv7131bxx_Initial},	/* 5 */
-		{hv7131cxx_InitialScale, hv7131cxx_Initial},	/* 6 */
-		{icm105axx_InitialScale, icm105axx_Initial},	/* 7 */
-		{MC501CB_InitialScale, MC501CB_Initial},	/* 8 */
+		{hdcs2020b_Initial, hdcs2020b_InitialScale},	/* 4 */
+		{hv7131b_Initial, hv7131b_InitialScale},	/* 5 */
+		{hv7131r_Initial, hv7131r_InitialScale},	/* 6 */
+		{icm105a_Initial, icm105a_InitialScale},	/* 7 */
+		{mc501cb_Initial, mc501cb_InitialScale},	/* 8 */
 		{mi0360soc_Initial, mi0360soc_InitialScale},	/* 9 */
-		{OV7620_mode0, OV7620_mode1},			/* 10 */
-		{ov7630c_InitialScale, ov7630c_Initial},	/* 11 */
-		{pas106b_InitialScale, pas106b_Initial},	/* 12 */
+		{ov7620_Initial, ov7620_InitialScale},		/* 10 */
+		{ov7630c_Initial, ov7630c_InitialScale},	/* 11 */
+		{pas106b_Initial, pas106b_InitialScale},	/* 12 */
 		{pas202b_Initial, pas202b_InitialScale},	/* 13 */
 		{pb0330_Initial, pb0330_InitialScale},		/* 14 */
-		{PO2030_mode0, PO2030_mode1},			/* 15 */
-		{tas5130CK_InitialScale, tas5130CK_Initial},	/* 16 */
+		{po2030_Initial, po2030_InitialScale},		/* 15 */
+		{tas5130cK_Initial, tas5130cK_InitialScale},	/* 16 */
 		{tas5130cxx_Initial, tas5130cxx_InitialScale},	/* 17 */
-		{tas5130c_vf0250_InitialScale, tas5130c_vf0250_Initial},
+		{tas5130c_vf0250_Initial, tas5130c_vf0250_InitialScale},
 								/* 18 */
 	};
 
