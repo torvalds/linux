@@ -1581,6 +1581,14 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		if (conf->flags & IEEE80211_CONF_MONITOR) {
+			ath_print(common, ATH_DBG_CONFIG,
+				  "HW opmode set to Monitor mode\n");
+			sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
+		}
+	}
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
