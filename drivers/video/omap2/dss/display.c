@@ -185,9 +185,9 @@ static ssize_t display_rotate_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	int rotate;
-	if (!dssdev->get_rotate)
+	if (!dssdev->driver->get_rotate)
 		return -ENOENT;
-	rotate = dssdev->get_rotate(dssdev);
+	rotate = dssdev->driver->get_rotate(dssdev);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rotate);
 }
 
@@ -198,12 +198,12 @@ static ssize_t display_rotate_store(struct device *dev,
 	unsigned long rot;
 	int r;
 
-	if (!dssdev->set_rotate || !dssdev->get_rotate)
+	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
 		return -ENOENT;
 
 	rot = simple_strtoul(buf, NULL, 0);
 
-	r = dssdev->set_rotate(dssdev, rot);
+	r = dssdev->driver->set_rotate(dssdev, rot);
 	if (r)
 		return r;
 

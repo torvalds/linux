@@ -489,9 +489,6 @@ struct omap_dss_device {
 	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
 	int (*get_te)(struct omap_dss_device *dssdev);
 
-	u8 (*get_rotate)(struct omap_dss_device *dssdev);
-	int (*set_rotate)(struct omap_dss_device *dssdev, u8 rotate);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 

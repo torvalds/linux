@@ -772,16 +772,21 @@ static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
 
 	dev_dbg(&dssdev->dev, "rotate %d\n", rotate);
 
+	dsi_bus_lock();
+
 	if (td->enabled) {
 		r = taal_set_addr_mode(rotate, td->mirror);
-
 		if (r)
-			return r;
+			goto err;
 	}
 
 	td->rotate = rotate;
 
+	dsi_bus_unlock();
 	return 0;
+err:
+	dsi_bus_unlock();
+	return r;
 }
 
 static u8 taal_get_rotate(struct omap_dss_device *dssdev)

@@ -3532,36 +3532,6 @@ static int dsi_display_get_te(struct omap_dss_device *dssdev)
 	return dsi.te_enabled;
 }
 
-static int dsi_display_set_rotate(struct omap_dss_device *dssdev, u8 rotate)
-{
-
-	DSSDBGF("%d", rotate);
-
-	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
-		return -EINVAL;
-
-	dsi_bus_lock();
-	dssdev->driver->set_rotate(dssdev, rotate);
-	if (dsi.update_mode == OMAP_DSS_UPDATE_AUTO) {
-		u16 w, h;
-		/* the display dimensions may have changed, so set a new
-		 * update region */
-		dssdev->get_resolution(dssdev, &w, &h);
-		dsi_set_update_region(dssdev, 0, 0, w, h);
-	}
-	dsi_bus_unlock();
-
-	return 0;
-}
-
-static u8 dsi_display_get_rotate(struct omap_dss_device *dssdev)
-{
-	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
-		return 0;
-
-	return dssdev->driver->get_rotate(dssdev);
-}
-
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
 		u32 *fifo_low, u32 *fifo_high)
@@ -3589,9 +3559,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dssdev->get_update_mode = dsi_display_get_update_mode;
 	dssdev->enable_te = dsi_display_enable_te;
 	dssdev->get_te = dsi_display_get_te;
-
-	dssdev->get_rotate = dsi_display_get_rotate;
-	dssdev->set_rotate = dsi_display_set_rotate;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
