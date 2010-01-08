@@ -119,7 +119,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 		mdelay(2);
 	}
 
-	dispc_enable_lcd_out(1);
+	dssdev->manager->enable(dssdev->manager);
 
 	if (dssdev->driver->enable) {
 		r = dssdev->driver->enable(dssdev);
@@ -133,7 +133,7 @@ static int sdi_display_enable(struct omap_dss_device *dssdev)
 
 	return 0;
 err3:
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 err2:
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 err1:
@@ -156,7 +156,7 @@ static void sdi_display_disable(struct omap_dss_device *dssdev)
 	if (dssdev->driver->disable)
 		dssdev->driver->disable(dssdev);
 
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 
 	dss_sdi_disable();
 
@@ -175,7 +175,7 @@ static int sdi_display_suspend(struct omap_dss_device *dssdev)
 	if (dssdev->driver->suspend)
 		dssdev->driver->suspend(dssdev);
 
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 
 	dss_sdi_disable();
 
@@ -200,7 +200,7 @@ static int sdi_display_resume(struct omap_dss_device *dssdev)
 		goto err;
 	mdelay(2);
 
-	dispc_enable_lcd_out(1);
+	dssdev->manager->enable(dssdev->manager);
 
 	if (dssdev->driver->resume)
 		dssdev->driver->resume(dssdev);
@@ -220,10 +220,10 @@ static int sdi_display_set_update_mode(struct omap_dss_device *dssdev,
 		return -EINVAL;
 
 	if (mode == OMAP_DSS_UPDATE_DISABLED) {
-		dispc_enable_lcd_out(0);
+		dssdev->manager->disable(dssdev->manager);
 		sdi.update_enabled = 0;
 	} else {
-		dispc_enable_lcd_out(1);
+		dssdev->manager->enable(dssdev->manager);
 		sdi.update_enabled = 1;
 	}
 

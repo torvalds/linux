@@ -382,7 +382,7 @@ void rfbi_transfer_area(u16 width, u16 height,
 
 	dispc_set_lcd_size(width, height);
 
-	dispc_enable_lcd_out(1);
+	dispc_enable_channel(OMAP_DSS_CHANNEL_LCD, true);
 
 	rfbi.framedone_callback = callback;
 	rfbi.framedone_callback_data = data;

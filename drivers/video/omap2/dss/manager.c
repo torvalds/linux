@@ -1077,7 +1077,7 @@ void dss_start_update(struct omap_dss_device *dssdev)
 		mc->shadow_dirty = false;
 	}
 
-	dispc_enable_lcd_out(1);
+	dssdev->manager->enable(dssdev->manager);
 }
 
 static void dss_apply_irq_handler(void *data, u32 mask)
@@ -1364,6 +1364,18 @@ static void omap_dss_mgr_get_info(struct omap_overlay_manager *mgr,
 	*info = mgr->info;
 }
 
+static int dss_mgr_enable(struct omap_overlay_manager *mgr)
+{
+	dispc_enable_channel(mgr->id, 1);
+	return 0;
+}
+
+static int dss_mgr_disable(struct omap_overlay_manager *mgr)
+{
+	dispc_enable_channel(mgr->id, 0);
+	return 0;
+}
+
 static void omap_dss_add_overlay_manager(struct omap_overlay_manager *manager)
 {
 	++num_managers;
@@ -1408,6 +1420,9 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		mgr->get_manager_info = &omap_dss_mgr_get_info;
 		mgr->wait_for_go = &dss_mgr_wait_for_go;
 		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
+
+		mgr->enable = &dss_mgr_enable;
+		mgr->disable = &dss_mgr_disable;
 
 		mgr->caps = OMAP_DSS_OVL_MGR_CAP_DISPC;
 

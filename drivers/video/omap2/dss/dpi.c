@@ -194,7 +194,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	dispc_enable_lcd_out(1);
+	dssdev->manager->enable(dssdev->manager);
 
 	r = dssdev->driver->enable(dssdev);
 	if (r)
@@ -205,7 +205,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	return 0;
 
 err6:
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 err5:
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dsi_pll_uninit();
@@ -235,7 +235,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dssdev->driver->disable(dssdev);
 
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
@@ -263,7 +263,7 @@ static int dpi_display_suspend(struct omap_dss_device *dssdev)
 	if (dssdev->driver->suspend)
 		dssdev->driver->suspend(dssdev);
 
-	dispc_enable_lcd_out(0);
+	dssdev->manager->disable(dssdev->manager);
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
@@ -292,7 +292,7 @@ static int dpi_display_resume(struct omap_dss_device *dssdev)
 
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
-	dispc_enable_lcd_out(1);
+	dssdev->manager->enable(dssdev->manager);
 
 	if (dssdev->driver->resume)
 		dssdev->driver->resume(dssdev);
@@ -383,10 +383,10 @@ static int dpi_display_set_update_mode(struct omap_dss_device *dssdev,
 		return -EINVAL;
 
 	if (mode == OMAP_DSS_UPDATE_DISABLED) {
-		dispc_enable_lcd_out(0);
+		dssdev->manager->disable(dssdev->manager);
 		dpi.update_enabled = 0;
 	} else {
-		dispc_enable_lcd_out(1);
+		dssdev->manager->enable(dssdev->manager);
 		dpi.update_enabled = 1;
 	}
 

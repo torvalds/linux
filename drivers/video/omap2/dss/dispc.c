@@ -1725,7 +1725,7 @@ static void _enable_lcd_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
 }
 
-void dispc_enable_lcd_out(bool enable)
+static void dispc_enable_lcd_out(bool enable)
 {
 	struct completion frame_done_completion;
 	bool is_on;
@@ -1772,7 +1772,7 @@ static void _enable_digit_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 1, 1);
 }
 
-void dispc_enable_digit_out(bool enable)
+static void dispc_enable_digit_out(bool enable)
 {
 	struct completion frame_done_completion;
 	int r;
@@ -1834,6 +1834,26 @@ void dispc_enable_digit_out(bool enable)
 	}
 
 	enable_clocks(0);
+}
+
+bool dispc_is_channel_enabled(enum omap_channel channel)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD)
+		return !!REG_GET(DISPC_CONTROL, 0, 0);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		return !!REG_GET(DISPC_CONTROL, 1, 1);
+	else
+		BUG();
+}
+
+void dispc_enable_channel(enum omap_channel channel, bool enable)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD)
+		dispc_enable_lcd_out(enable);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		dispc_enable_digit_out(enable);
+	else
+		BUG();
 }
 
 void dispc_lcd_enable_signal_polarity(bool act_high)

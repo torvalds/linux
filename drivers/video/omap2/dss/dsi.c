@@ -3013,7 +3013,7 @@ static int dsi_update_thread(void *data)
 						x, y, w, h);
 
 				dispc_enable_sidle();
-				dispc_enable_lcd_out(0);
+				device->manager->disable(device->manager);
 
 				dsi_reset_tx_fifo(0);
 			} else {

@@ -324,8 +324,8 @@ int dispc_setup_plane(enum omap_plane plane,
 
 bool dispc_go_busy(enum omap_channel channel);
 void dispc_go(enum omap_channel channel);
-void dispc_enable_lcd_out(bool enable);
-void dispc_enable_digit_out(bool enable);
+void dispc_enable_channel(enum omap_channel channel, bool enable);
+bool dispc_is_channel_enabled(enum omap_channel channel);
 int dispc_enable_plane(enum omap_plane plane, bool enable);
 void dispc_enable_replication(enum omap_plane plane, bool enable);
 
