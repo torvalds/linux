@@ -837,6 +837,7 @@ nouveau_debugfs_channel_fini(struct nouveau_channel *chan)
 #endif
 
 /* nouveau_dma.c */
+extern void nouveau_dma_pre_init(struct nouveau_channel *);
 extern int  nouveau_dma_init(struct nouveau_channel *);
 extern int  nouveau_dma_wait(struct nouveau_channel *, int size);
 

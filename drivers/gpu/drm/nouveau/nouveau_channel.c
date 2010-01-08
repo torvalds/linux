@@ -158,6 +158,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
+	nouveau_dma_pre_init(chan);
+
 	/* Locate channel's user control regs */
 	if (dev_priv->card_type < NV_40)
 		user = NV03_USER(channel);

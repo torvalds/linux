@@ -29,6 +29,15 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 
+void
+nouveau_dma_pre_init(struct nouveau_channel *chan)
+{
+	chan->dma.max  = (chan->pushbuf_bo->bo.mem.size >> 2) - 2;
+	chan->dma.put  = 0;
+	chan->dma.cur  = chan->dma.put;
+	chan->dma.free = chan->dma.max - chan->dma.cur;
+}
+
 int
 nouveau_dma_init(struct nouveau_channel *chan)
 {
@@ -73,12 +82,6 @@ nouveau_dma_init(struct nouveau_channel *chan)
 		if (ret)
 			return ret;
 	}
-
-	/* Initialise DMA vars */
-	chan->dma.max  = (chan->pushbuf_bo->bo.mem.size >> 2) - 2;
-	chan->dma.put  = 0;
-	chan->dma.cur  = chan->dma.put;
-	chan->dma.free = chan->dma.max - chan->dma.cur;
 
 	/* Insert NOPS for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
