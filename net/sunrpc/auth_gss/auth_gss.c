@@ -644,7 +644,22 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	p = gss_fill_context(p, end, ctx, gss_msg->auth->mech);
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
-		gss_msg->msg.errno = (err == -EAGAIN) ? -EAGAIN : -EACCES;
+		switch (err) {
+		case -EACCES:
+			gss_msg->msg.errno = err;
+			err = mlen;
+			break;
+		case -EFAULT:
+		case -ENOMEM:
+		case -EINVAL:
+		case -ENOSYS:
+			gss_msg->msg.errno = -EAGAIN;
+			break;
+		default:
+			printk(KERN_CRIT "%s: bad return from "
+				"gss_fill_context: %zd\n", __func__, err);
+			BUG();
+		}
 		goto err_release_msg;
 	}
 	gss_msg->ctx = gss_get_ctx(ctx);
