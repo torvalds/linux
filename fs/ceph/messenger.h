@@ -44,9 +44,8 @@ struct ceph_connection_operations {
 	void (*peer_reset) (struct ceph_connection *con);
 
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
-					struct ceph_msg_header *hdr);
-	int (*alloc_middle) (struct ceph_connection *con,
-			     struct ceph_msg *msg);
+					struct ceph_msg_header *hdr,
+					int *skip);
 	/* an incoming message has a data payload; tell me what pages I
 	 * should read the data into. */
 	int (*prepare_pages) (struct ceph_connection *con, struct ceph_msg *m,
@@ -241,10 +240,6 @@ extern struct ceph_msg *ceph_msg_new(int type, int front_len,
 				     int page_len, int page_off,
 				     struct page **pages);
 extern void ceph_msg_kfree(struct ceph_msg *m);
-
-extern struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
-				       struct ceph_msg_header *hdr);
-extern int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg);
 
 
 static inline struct ceph_msg *ceph_msg_get(struct ceph_msg *msg)

@@ -692,21 +692,33 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
  * Allocate memory for incoming message
  */
 static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
-				      struct ceph_msg_header *hdr)
+				      struct ceph_msg_header *hdr,
+				      int *skip)
 {
 	struct ceph_mon_client *monc = con->private;
 	int type = le16_to_cpu(hdr->type);
-	int front = le32_to_cpu(hdr->front_len);
+	int front_len = le32_to_cpu(hdr->front_len);
+	struct ceph_msg *m;
 
+	*skip = 0;
 	switch (type) {
 	case CEPH_MSG_MON_SUBSCRIBE_ACK:
-		return ceph_msgpool_get(&monc->msgpool_subscribe_ack, front);
+		m = ceph_msgpool_get(&monc->msgpool_subscribe_ack, front_len);
+		break;
 	case CEPH_MSG_STATFS_REPLY:
-		return ceph_msgpool_get(&monc->msgpool_statfs_reply, front);
+		m = ceph_msgpool_get(&monc->msgpool_statfs_reply, front_len);
+		break;
 	case CEPH_MSG_AUTH_REPLY:
-		return ceph_msgpool_get(&monc->msgpool_auth_reply, front);
+		m = ceph_msgpool_get(&monc->msgpool_auth_reply, front_len);
+		break;
+	default:
+		return NULL;
 	}
-	return ceph_alloc_msg(con, hdr);
+
+	if (!m)
+		*skip = 1;
+
+	return m;
 }
 
 /*
@@ -749,5 +761,4 @@ const static struct ceph_connection_operations mon_con_ops = {
 	.dispatch = dispatch,
 	.fault = mon_fault,
 	.alloc_msg = mon_alloc_msg,
-	.alloc_middle = ceph_alloc_middle,
 };

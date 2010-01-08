@@ -2953,8 +2953,6 @@ const static struct ceph_connection_operations mds_con_ops = {
 	.get_authorizer = get_authorizer,
 	.verify_authorizer_reply = verify_authorizer_reply,
 	.peer_reset = peer_reset,
-	.alloc_msg = ceph_alloc_msg,
-	.alloc_middle = ceph_alloc_middle,
 };
 
 

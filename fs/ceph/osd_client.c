@@ -1304,18 +1304,28 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 }
 
 static struct ceph_msg *alloc_msg(struct ceph_connection *con,
-				  struct ceph_msg_header *hdr)
+				  struct ceph_msg_header *hdr,
+				  int *skip)
 {
 	struct ceph_osd *osd = con->private;
 	struct ceph_osd_client *osdc = osd->o_osdc;
 	int type = le16_to_cpu(hdr->type);
 	int front = le32_to_cpu(hdr->front_len);
+	struct ceph_msg *m;
 
+	*skip = 0;
 	switch (type) {
 	case CEPH_MSG_OSD_OPREPLY:
-		return ceph_msgpool_get(&osdc->msgpool_op_reply, front);
+		m = ceph_msgpool_get(&osdc->msgpool_op_reply, front);
+		break;
+	default:
+		return NULL;
 	}
-	return ceph_alloc_msg(con, hdr);
+
+	if (!m)
+		*skip = 1;
+
+	return m;
 }
 
 /*
@@ -1390,6 +1400,5 @@ const static struct ceph_connection_operations osd_con_ops = {
 	.verify_authorizer_reply = verify_authorizer_reply,
 	.alloc_msg = alloc_msg,
 	.fault = osd_reset,
-	.alloc_middle = ceph_alloc_middle,
 	.prepare_pages = prepare_pages,
 };
