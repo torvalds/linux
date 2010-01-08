@@ -2344,6 +2344,21 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static inline void iwl_set_no_assoc(struct iwl_priv *priv)
+{
+	priv->assoc_id = 0;
+	iwl_led_disassociate(priv);
+	/*
+	 * inform the ucode that there is no longer an
+	 * association and that no more packets should be
+	 * sent
+	 */
+	priv->staging_rxon.filter_flags &=
+		~RXON_FILTER_ASSOC_MSK;
+	priv->staging_rxon.assoc_id = 0;
+	iwlcore_commit_rxon(priv);
+}
+
 #define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,
@@ -2475,20 +2490,8 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			if (!iwl_is_rfkill(priv))
 				priv->cfg->ops->lib->post_associate(priv);
-		} else {
-			priv->assoc_id = 0;
-			iwl_led_disassociate(priv);
-
-			/*
-			 * inform the ucode that there is no longer an
-			 * association and that no more packets should be
-			 * send
-			 */
-			priv->staging_rxon.filter_flags &=
-				~RXON_FILTER_ASSOC_MSK;
-			priv->staging_rxon.assoc_id = 0;
-			iwlcore_commit_rxon(priv);
-		}
+		} else
+			iwl_set_no_assoc(priv);
 	}
 
 	if (changes && iwl_is_associated(priv) && priv->assoc_id) {
@@ -2503,12 +2506,14 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	if ((changes & BSS_CHANGED_BEACON_ENABLED) &&
-	    vif->bss_conf.enable_beacon) {
-		memcpy(priv->staging_rxon.bssid_addr,
-		       bss_conf->bssid, ETH_ALEN);
-		memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
-		iwlcore_config_ap(priv);
+	if (changes & BSS_CHANGED_BEACON_ENABLED) {
+		if (vif->bss_conf.enable_beacon) {
+			memcpy(priv->staging_rxon.bssid_addr,
+			       bss_conf->bssid, ETH_ALEN);
+			memcpy(priv->bssid, bss_conf->bssid, ETH_ALEN);
+			iwlcore_config_ap(priv);
+		} else
+			iwl_set_no_assoc(priv);
 	}
 
 	mutex_unlock(&priv->mutex);
