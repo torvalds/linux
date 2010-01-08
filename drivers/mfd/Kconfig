@@ -197,6 +197,7 @@ config PMIC_ADP5520
 config MFD_MAX8925
 	tristate "Maxim Semiconductor MAX8925 PMIC Support"
 	depends on I2C
+	select MFD_CORE
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8925. This is
 	  a Power Management IC. This driver provies common support for

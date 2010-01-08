@@ -20,6 +20,109 @@
 #define IRQ_MODE_STATUS		0
 #define IRQ_MODE_MASK		1
 
+static struct resource backlight_resources[] = {
+	{
+		.name	= "max8925-backlight",
+		.start	= MAX8925_WLED_MODE_CNTL,
+		.end	= MAX8925_WLED_CNTL,
+		.flags	= IORESOURCE_IO,
+	},
+};
+
+static struct mfd_cell backlight_devs[] = {
+	{
+		.name		= "max8925-backlight",
+		.num_resources	= 1,
+		.resources	= &backlight_resources[0],
+		.id		= -1,
+	},
+};
+
+static struct resource touch_resources[] = {
+	{
+		.name	= "max8925-tsc",
+		.start	= MAX8925_TSC_IRQ,
+		.end	= MAX8925_ADC_RES_END,
+		.flags	= IORESOURCE_IO,
+	},
+};
+
+static struct mfd_cell touch_devs[] = {
+	{
+		.name		= "max8925-touch",
+		.num_resources	= 1,
+		.resources	= &touch_resources[0],
+		.id		= -1,
+	},
+};
+
+#define MAX8925_REG_RESOURCE(_start, _end)	\
+{						\
+	.start	= MAX8925_##_start,		\
+	.end	= MAX8925_##_end,		\
+	.flags	= IORESOURCE_IO,		\
+}
+
+static struct resource regulator_resources[] = {
+	MAX8925_REG_RESOURCE(SDCTL1, SDCTL1),
+	MAX8925_REG_RESOURCE(SDCTL2, SDCTL2),
+	MAX8925_REG_RESOURCE(SDCTL3, SDCTL3),
+	MAX8925_REG_RESOURCE(LDOCTL1, LDOCTL1),
+	MAX8925_REG_RESOURCE(LDOCTL2, LDOCTL2),
+	MAX8925_REG_RESOURCE(LDOCTL3, LDOCTL3),
+	MAX8925_REG_RESOURCE(LDOCTL4, LDOCTL4),
+	MAX8925_REG_RESOURCE(LDOCTL5, LDOCTL5),
+	MAX8925_REG_RESOURCE(LDOCTL6, LDOCTL6),
+	MAX8925_REG_RESOURCE(LDOCTL7, LDOCTL7),
+	MAX8925_REG_RESOURCE(LDOCTL8, LDOCTL8),
+	MAX8925_REG_RESOURCE(LDOCTL9, LDOCTL9),
+	MAX8925_REG_RESOURCE(LDOCTL10, LDOCTL10),
+	MAX8925_REG_RESOURCE(LDOCTL11, LDOCTL11),
+	MAX8925_REG_RESOURCE(LDOCTL12, LDOCTL12),
+	MAX8925_REG_RESOURCE(LDOCTL13, LDOCTL13),
+	MAX8925_REG_RESOURCE(LDOCTL14, LDOCTL14),
+	MAX8925_REG_RESOURCE(LDOCTL15, LDOCTL15),
+	MAX8925_REG_RESOURCE(LDOCTL16, LDOCTL16),
+	MAX8925_REG_RESOURCE(LDOCTL17, LDOCTL17),
+	MAX8925_REG_RESOURCE(LDOCTL18, LDOCTL18),
+	MAX8925_REG_RESOURCE(LDOCTL19, LDOCTL19),
+	MAX8925_REG_RESOURCE(LDOCTL20, LDOCTL20),
+};
+
+#define MAX8925_REG_DEVS(_id)						\
+{									\
+	.name		= "max8925-regulator",				\
+	.num_resources	= 1,						\
+	.resources	= &regulator_resources[MAX8925_ID_##_id],	\
+	.id		= MAX8925_ID_##_id,				\
+}
+
+static struct mfd_cell regulator_devs[] = {
+	MAX8925_REG_DEVS(SD1),
+	MAX8925_REG_DEVS(SD2),
+	MAX8925_REG_DEVS(SD3),
+	MAX8925_REG_DEVS(LDO1),
+	MAX8925_REG_DEVS(LDO2),
+	MAX8925_REG_DEVS(LDO3),
+	MAX8925_REG_DEVS(LDO4),
+	MAX8925_REG_DEVS(LDO5),
+	MAX8925_REG_DEVS(LDO6),
+	MAX8925_REG_DEVS(LDO7),
+	MAX8925_REG_DEVS(LDO8),
+	MAX8925_REG_DEVS(LDO9),
+	MAX8925_REG_DEVS(LDO10),
+	MAX8925_REG_DEVS(LDO11),
+	MAX8925_REG_DEVS(LDO12),
+	MAX8925_REG_DEVS(LDO13),
+	MAX8925_REG_DEVS(LDO14),
+	MAX8925_REG_DEVS(LDO15),
+	MAX8925_REG_DEVS(LDO16),
+	MAX8925_REG_DEVS(LDO17),
+	MAX8925_REG_DEVS(LDO18),
+	MAX8925_REG_DEVS(LDO19),
+	MAX8925_REG_DEVS(LDO20),
+};
+
 static int __get_irq_offset(struct max8925_chip *chip, int irq, int mode,
 			    int *offset, int *bit)
 {
@@ -210,6 +313,30 @@ static int __devinit device_gpm_init(struct max8925_chip *chip,
 
 	/* enable hard-reset for ONKEY power-off */
 	max8925_set_bits(i2c, MAX8925_SYSENSEL, 0x80, 0x80);
+
+	ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
+			      ARRAY_SIZE(regulator_devs),
+			      &regulator_resources[0], 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add regulator subdev\n");
+		goto out_irq;
+	}
+
+	if (pdata && pdata->backlight) {
+		ret = mfd_add_devices(chip->dev, 0, &backlight_devs[0],
+				      ARRAY_SIZE(backlight_devs),
+				      &backlight_resources[0], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add backlight subdev\n");
+			goto out_dev;
+		}
+	}
+	return 0;
+out_dev:
+	mfd_remove_devices(chip->dev);
+out_irq:
+	if (chip->chip_irq)
+		free_irq(chip->chip_irq, chip);
 out:
 	return ret;
 }
@@ -233,6 +360,20 @@ static int __devinit device_adc_init(struct max8925_chip *chip,
 		goto out;
 	}
 	chip->chip_irq = i2c->irq;
+
+	if (pdata && pdata->touch) {
+		ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
+				      ARRAY_SIZE(touch_devs),
+				      &touch_resources[0], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add touch subdev\n");
+			goto out_irq;
+		}
+	}
+	return 0;
+out_irq:
+	if (chip->chip_irq)
+		free_irq(chip->chip_irq, chip);
 out:
 	return ret;
 }
@@ -255,6 +396,7 @@ void max8925_device_exit(struct max8925_chip *chip)
 {
 	if (chip->chip_irq >= 0)
 		free_irq(chip->chip_irq, chip);
+	mfd_remove_devices(chip->dev);
 }
 
 MODULE_DESCRIPTION("PMIC Driver for Maxim MAX8925");
