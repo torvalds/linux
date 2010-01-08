@@ -1242,7 +1242,7 @@ static void ath9k_hw_init_user_settings(struct ath_hw *ah)
 		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
 }
 
-void ath9k_hw_detach(struct ath_hw *ah)
+void ath9k_hw_deinit(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -1260,7 +1260,7 @@ free_hw:
 	kfree(ah);
 	ah = NULL;
 }
-EXPORT_SYMBOL(ath9k_hw_detach);
+EXPORT_SYMBOL(ath9k_hw_deinit);
 
 /*******/
 /* INI */

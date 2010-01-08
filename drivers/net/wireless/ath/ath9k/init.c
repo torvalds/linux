@@ -128,7 +128,7 @@ static struct ieee80211_rate ath9k_legacy_rates[] = {
 	RATE(540, 0x0c, 0),
 };
 
-static void ath9k_uninit_hw(struct ath_softc *sc);
+static void ath9k_deinit_softc(struct ath_softc *sc);
 
 /*
  * Read and write, they both share the same lock. We do this to serialize
@@ -333,67 +333,13 @@ fail:
 #undef DS2PHYS
 }
 
-static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
-			  const struct ath_bus_ops *bus_ops)
+static void ath9k_init_crypto(struct ath_softc *sc)
 {
-	struct ath_hw *ah = NULL;
-	struct ath_common *common;
-	int r = 0, i;
-	int csz = 0;
-	int qnum;
-
-	/* XXX: hardware will not be ready until ath_open() being called */
-	sc->sc_flags |= SC_OP_INVALID;
-
-	spin_lock_init(&sc->wiphy_lock);
-	spin_lock_init(&sc->sc_resetlock);
-	spin_lock_init(&sc->sc_serial_rw);
-	spin_lock_init(&sc->sc_pm_lock);
-	mutex_init(&sc->mutex);
-	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
-	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
-		     (unsigned long)sc);
-
-	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
-	if (!ah)
-		return -ENOMEM;
-
-	ah->hw_version.devid = devid;
-	ah->hw_version.subsysid = subsysid;
-	sc->sc_ah = ah;
-
-	common = ath9k_hw_common(ah);
-	common->ops = &ath9k_common_ops;
-	common->bus_ops = bus_ops;
-	common->ah = ah;
-	common->hw = sc->hw;
-	common->priv = sc;
-	common->debug_mask = ath9k_debug;
-
-	/*
-	 * Cache line size is used to size and align various
-	 * structures used to communicate with the hardware.
-	 */
-	ath_read_cachesize(common, &csz);
-	/* XXX assert csz is non-zero */
-	common->cachelsz = csz << 2;	/* convert to bytes */
-
-	r = ath9k_hw_init(ah);
-	if (r) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize hardware; "
-			  "initialization status: %d\n", r);
-		goto bad_free_hw;
-	}
-
-	if (ath9k_init_debug(ah) < 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to create debugfs files\n");
-		goto bad_free_hw;
-	}
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	int i = 0;
 
 	/* Get the hardware key cache size. */
-	common->keymax = ah->caps.keycache_size;
+	common->keymax = sc->sc_ah->caps.keycache_size;
 	if (common->keymax > ATH_KEYMAX) {
 		ath_print(common, ATH_DBG_ANY,
 			  "Warning, using only %u entries in %u key cache\n",
@@ -406,73 +352,9 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	 * reset the contents on initial power up.
 	 */
 	for (i = 0; i < common->keymax; i++)
-		ath9k_hw_keyreset(ah, (u16) i);
+		ath9k_hw_keyreset(sc->sc_ah, (u16) i);
 
-	/* default to MONITOR mode */
-	sc->sc_ah->opmode = NL80211_IFTYPE_MONITOR;
-
-	/*
-	 * Allocate hardware transmit queues: one queue for
-	 * beacon frames and one data queue for each QoS
-	 * priority.  Note that the hal handles reseting
-	 * these queues at the needed time.
-	 */
-	sc->beacon.beaconq = ath9k_hw_beaconq_setup(ah);
-	if (sc->beacon.beaconq == -1) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup a beacon xmit queue\n");
-		r = -EIO;
-		goto bad2;
-	}
-	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
-	if (sc->beacon.cabq == NULL) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup CAB xmit queue\n");
-		r = -EIO;
-		goto bad2;
-	}
-
-	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
-	ath_cabq_update(sc);
-
-	for (i = 0; i < ARRAY_SIZE(sc->tx.hwq_map); i++)
-		sc->tx.hwq_map[i] = -1;
-
-	/* Setup data queues */
-	/* NB: ensure BK queue is the lowest priority h/w queue */
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BK traffic\n");
-		r = -EIO;
-		goto bad2;
-	}
-
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BE traffic\n");
-		r = -EIO;
-		goto bad2;
-	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VI traffic\n");
-		r = -EIO;
-		goto bad2;
-	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VO traffic\n");
-		r = -EIO;
-		goto bad2;
-	}
-
-	/* Initializes the noise floor to a reasonable default value.
-	 * Later on this will be updated during ANI processing. */
-
-	common->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
-	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
-
-	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
+	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)) {
 		/*
 		 * Whether we should enable h/w TKIP MIC.
@@ -480,8 +362,7 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 		 * report WMM capable, so it's always safe to turn on
 		 * TKIP MIC in this case.
 		 */
-		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC,
-				       0, 1, NULL);
+		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
 	}
 
 	/*
@@ -490,46 +371,107 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
+	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
+	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
 				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(ah, ATH9K_CAP_TKIP_SPLIT,
+	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT,
 				      0, NULL))
 		common->splitmic = 1;
 
 	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(ah, ATH9K_CAP_MCAST_KEYSRCH, 1,
-					     1, NULL);
+	if (!ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
+		(void)ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH,
+					     1, 1, NULL);
 
-	sc->config.txpowlimit = ATH_TXPOWER_MAX;
+}
 
-	/* 11n Capabilities */
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		sc->sc_flags |= SC_OP_TXAGGR;
-		sc->sc_flags |= SC_OP_RXAGGR;
+static int ath9k_init_btcoex(struct ath_softc *sc)
+{
+	int r, qnum;
+
+	switch (sc->sc_ah->btcoex_hw.scheme) {
+	case ATH_BTCOEX_CFG_NONE:
+		break;
+	case ATH_BTCOEX_CFG_2WIRE:
+		ath9k_hw_btcoex_init_2wire(sc->sc_ah);
+		break;
+	case ATH_BTCOEX_CFG_3WIRE:
+		ath9k_hw_btcoex_init_3wire(sc->sc_ah);
+		r = ath_init_btcoex_timer(sc);
+		if (r)
+			return -1;
+		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+		ath9k_hw_init_btcoex_hw(sc->sc_ah, qnum);
+		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		break;
+	default:
+		WARN_ON(1);
+		break;
 	}
 
-	common->tx_chainmask = ah->caps.tx_chainmask;
-	common->rx_chainmask = ah->caps.rx_chainmask;
+	return 0;
+}
 
-	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
-	sc->rx.defant = ath9k_hw_getdefantenna(ah);
+static int ath9k_init_queues(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	int i = 0;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
+	for (i = 0; i < ARRAY_SIZE(sc->tx.hwq_map); i++)
+		sc->tx.hwq_map[i] = -1;
 
-	sc->beacon.slottime = ATH9K_SLOT_TIME_9;	/* default to short slot time */
-
-	/* initialize beacon slots */
-	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
-		sc->beacon.bslot[i] = NULL;
-		sc->beacon.bslot_aphy[i] = NULL;
+	sc->beacon.beaconq = ath9k_hw_beaconq_setup(sc->sc_ah);
+	if (sc->beacon.beaconq == -1) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup a beacon xmit queue\n");
+		goto err;
 	}
 
-	/* setup channels and rates */
+	sc->beacon.cabq = ath_txq_setup(sc, ATH9K_TX_QUEUE_CAB, 0);
+	if (sc->beacon.cabq == NULL) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup CAB xmit queue\n");
+		goto err;
+	}
 
+	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
+	ath_cabq_update(sc);
+
+	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for BK traffic\n");
+		goto err;
+	}
+
+	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for BE traffic\n");
+		goto err;
+	}
+	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for VI traffic\n");
+		goto err;
+	}
+	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup xmit queue for VO traffic\n");
+		goto err;
+	}
+
+	return 0;
+
+err:
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
+
+	return -EIO;
+}
+
+static void ath9k_init_channels_rates(struct ath_softc *sc)
+{
 	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes)) {
 		sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
 		sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
@@ -550,41 +492,133 @@ static int ath_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 		sc->sbands[IEEE80211_BAND_5GHZ].n_bitrates =
 			ARRAY_SIZE(ath9k_legacy_rates) - 4;
 	}
+}
 
-	switch (ah->btcoex_hw.scheme) {
-	case ATH_BTCOEX_CFG_NONE:
-		break;
-	case ATH_BTCOEX_CFG_2WIRE:
-		ath9k_hw_btcoex_init_2wire(ah);
-		break;
-	case ATH_BTCOEX_CFG_3WIRE:
-		ath9k_hw_btcoex_init_3wire(ah);
-		r = ath_init_btcoex_timer(sc);
-		if (r)
-			goto bad2;
-		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
-		ath9k_hw_init_btcoex_hw(ah, qnum);
-		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
-		break;
-	default:
-		WARN_ON(1);
-		break;
+static void ath9k_init_misc(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	int i = 0;
+
+	common->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
+	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
+
+	sc->config.txpowlimit = ATH_TXPOWER_MAX;
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+		sc->sc_flags |= SC_OP_TXAGGR;
+		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
+	common->tx_chainmask = sc->sc_ah->caps.tx_chainmask;
+	common->rx_chainmask = sc->sc_ah->caps.rx_chainmask;
+
+	ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
+	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
+		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
+
+	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
+
+	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
+		sc->beacon.bslot[i] = NULL;
+		sc->beacon.bslot_aphy[i] = NULL;
+	}
+}
+
+static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
+			    const struct ath_bus_ops *bus_ops)
+{
+	struct ath_hw *ah = NULL;
+	struct ath_common *common;
+	int ret = 0, i;
+	int csz = 0;
+
+	sc->sc_flags |= SC_OP_INVALID;
+
+	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
+	if (!ah)
+		return -ENOMEM;
+
+	ah->hw_version.devid = devid;
+	ah->hw_version.subsysid = subsysid;
+	sc->sc_ah = ah;
+
+	common = ath9k_hw_common(ah);
+	common->ops = &ath9k_common_ops;
+	common->bus_ops = bus_ops;
+	common->ah = ah;
+	common->hw = sc->hw;
+	common->priv = sc;
+	common->debug_mask = ath9k_debug;
+
+	spin_lock_init(&sc->wiphy_lock);
+	spin_lock_init(&sc->sc_resetlock);
+	spin_lock_init(&sc->sc_serial_rw);
+	spin_lock_init(&sc->sc_pm_lock);
+	mutex_init(&sc->mutex);
+	tasklet_init(&sc->intr_tq, ath9k_tasklet, (unsigned long)sc);
+	tasklet_init(&sc->bcon_tasklet, ath_beacon_tasklet,
+		     (unsigned long)sc);
+
+	/*
+	 * Cache line size is used to size and align various
+	 * structures used to communicate with the hardware.
+	 */
+	ath_read_cachesize(common, &csz);
+	common->cachelsz = csz << 2; /* convert to bytes */
+
+	ret = ath9k_hw_init(ah);
+	if (ret) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to initialize hardware; "
+			  "initialization status: %d\n", ret);
+		goto err_hw;
+	}
+
+	ret = ath9k_init_debug(ah);
+	if (ret) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to create debugfs files\n");
+		goto err_debug;
+	}
+
+	ret = ath9k_init_queues(sc);
+	if (ret)
+		goto err_queues;
+
+	ret =  ath9k_init_btcoex(sc);
+	if (ret)
+		goto err_btcoex;
+
+	ath9k_init_crypto(sc);
+	ath9k_init_channels_rates(sc);
+	ath9k_init_misc(sc);
+
 	return 0;
-bad2:
-	/* cleanup tx queues */
+
+err_btcoex:
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
+err_queues:
+	ath9k_exit_debug(ah);
+err_debug:
+	ath9k_hw_deinit(ah);
+err_hw:
+	tasklet_kill(&sc->intr_tq);
+	tasklet_kill(&sc->bcon_tasklet);
 
-bad_free_hw:
-	ath9k_uninit_hw(sc);
-	return r;
+	kfree(ah);
+	sc->sc_ah = NULL;
+
+	return ret;
 }
 
-void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
+void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		IEEE80211_HW_SIGNAL_DBM |
@@ -621,85 +655,85 @@ void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+		if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes))
+			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+		if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
+			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+	}
+
+	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
 
-/* Device driver core initialization */
-int ath_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
 	struct ath_common *common;
 	struct ath_hw *ah;
-	int error = 0, i;
+	int error = 0;
 	struct ath_regulatory *reg;
 
-	dev_dbg(sc->dev, "Attach ATH hw\n");
-
-	error = ath_init_softc(devid, sc, subsysid, bus_ops);
+	/* Bring up device */
+	error = ath9k_init_softc(devid, sc, subsysid, bus_ops);
 	if (error != 0)
-		return error;
+		goto error_init;
 
 	ah = sc->sc_ah;
 	common = ath9k_hw_common(ah);
+	ath9k_set_hw_capab(sc, hw);
 
-	/* get mac address from hardware and set in mac80211 */
-
-	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
-
-	ath_set_hw_capab(sc, hw);
-
+	/* Initialize regulatory */
 	error = ath_regd_init(&common->regulatory, sc->hw->wiphy,
 			      ath9k_reg_notifier);
 	if (error)
-		return error;
+		goto error_regd;
 
 	reg = &common->regulatory;
 
-	if (ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (test_bit(ATH9K_MODE_11G, ah->caps.wireless_modes))
-			setup_ht_cap(sc,
-				     &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes))
-			setup_ht_cap(sc,
-				     &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
-	}
-
-	/* initialize tx/rx engine */
+	/* Setup TX DMA */
 	error = ath_tx_init(sc, ATH_TXBUF);
 	if (error != 0)
-		goto error_attach;
+		goto error_tx;
 
+	/* Setup RX DMA */
 	error = ath_rx_init(sc, ATH_RXBUF);
 	if (error != 0)
-		goto error_attach;
+		goto error_rx;
+
+	/* Register with mac80211 */
+	error = ieee80211_register_hw(hw);
+	if (error)
+		goto error_register;
+
+	/* Handle world regulatory */
+	if (!ath_is_world_regd(reg)) {
+		error = regulatory_hint(hw->wiphy, reg->alpha2);
+		if (error)
+			goto error_world;
+	}
 
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
 
-	error = ieee80211_register_hw(hw);
-
-	if (!ath_is_world_regd(reg)) {
-		error = regulatory_hint(hw->wiphy, reg->alpha2);
-		if (error)
-			goto error_attach;
-	}
-
-	/* Initialize LED control */
 	ath_init_leds(sc);
-
 	ath_start_rfkill_poll(sc);
 
 	return 0;
 
-error_attach:
-	/* cleanup tx queues */
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
-
-	ath9k_uninit_hw(sc);
-
+error_world:
+	ieee80211_unregister_hw(hw);
+error_register:
+	ath_rx_cleanup(sc);
+error_rx:
+	ath_tx_cleanup(sc);
+error_tx:
+	/* Nothing */
+error_regd:
+	ath9k_deinit_softc(sc);
+error_init:
 	return error;
 }
 
@@ -707,29 +741,34 @@ error_attach:
 /*     De-Initialization     */
 /*****************************/
 
-static void ath9k_uninit_hw(struct ath_softc *sc)
+static void ath9k_deinit_softc(struct ath_softc *sc)
 {
-	struct ath_hw *ah = sc->sc_ah;
+	int i = 0;
 
-	BUG_ON(!ah);
+        if ((sc->btcoex.no_stomp_timer) &&
+	    sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+		ath_gen_timer_free(sc->sc_ah, sc->btcoex.no_stomp_timer);
 
-	ath9k_exit_debug(ah);
-	ath9k_hw_detach(ah);
-	sc->sc_ah = NULL;
+	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
+		if (ATH_TXQ_SETUP(sc, i))
+			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
+
+	ath9k_exit_debug(sc->sc_ah);
+	ath9k_hw_deinit(sc->sc_ah);
+
+	tasklet_kill(&sc->intr_tq);
+	tasklet_kill(&sc->bcon_tasklet);
 }
 
-static void ath_clean_core(struct ath_softc *sc)
+void ath9k_deinit_device(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
-	struct ath_hw *ah = sc->sc_ah;
 	int i = 0;
 
 	ath9k_ps_wakeup(sc);
 
-	dev_dbg(sc->dev, "Detach ATH hw\n");
-
-	ath_deinit_leds(sc);
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
+	ath_deinit_leds(sc);
 
 	for (i = 0; i < sc->num_sec_wiphy; i++) {
 		struct ath_wiphy *aphy = sc->sec_wiphy[i];
@@ -739,24 +778,12 @@ static void ath_clean_core(struct ath_softc *sc)
 		ieee80211_unregister_hw(aphy->hw);
 		ieee80211_free_hw(aphy->hw);
 	}
+	kfree(sc->sec_wiphy);
+
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
-
-	tasklet_kill(&sc->intr_tq);
-	tasklet_kill(&sc->bcon_tasklet);
-
-	if (!(sc->sc_flags & SC_OP_INVALID))
-		ath9k_setpower(sc, ATH9K_PM_AWAKE);
-
-	/* cleanup tx queues */
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
-
-	if ((sc->btcoex.no_stomp_timer) &&
-	    ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
-		ath_gen_timer_free(ah, sc->btcoex.no_stomp_timer);
+	ath9k_deinit_softc(sc);
 }
 
 void ath_descdma_cleanup(struct ath_softc *sc,
@@ -769,26 +796,6 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 	INIT_LIST_HEAD(head);
 	kfree(dd->dd_bufptr);
 	memset(dd, 0, sizeof(*dd));
-}
-
-void ath_detach(struct ath_softc *sc)
-{
-	ath_clean_core(sc);
-	ath9k_uninit_hw(sc);
-}
-
-void ath_cleanup(struct ath_softc *sc)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	ath_clean_core(sc);
-	free_irq(sc->irq, sc);
-	ath_bus_cleanup(common);
-	kfree(sc->sec_wiphy);
-	ieee80211_free_hw(sc->hw);
-
-	ath9k_uninit_hw(sc);
 }
 
 /************************/
