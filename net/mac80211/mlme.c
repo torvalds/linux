@@ -1098,7 +1098,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	if (err) {
 		printk(KERN_DEBUG "%s: failed to insert STA entry for"
 		       " the AP (error %d)\n", sdata->name, err);
-		return RX_MGMT_CFG80211_ASSOC_ERROR;
+		return false;
 	}
 
 	if (elems.wmm_param)
