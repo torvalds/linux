@@ -786,45 +786,6 @@ enum {
 	WT1_5760_5800,
 };
 
-static REG_DMN_FREQ_BAND regDmn5GhzTurboFreq[] = {
-	{ 5130, 5210, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5130_5210 */
-	{ 5250, 5330, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5250_5330 */
-	{ 5370, 5490, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5370_5490 */
-	{ 5530, 5650, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5530_5650 */
-
-	{ 5150, 5190, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5150_5190 */
-	{ 5230, 5310, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5230_5310 */
-	{ 5350, 5470, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5350_5470 */
-	{ 5510, 5670, 5,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 0},	/* T1_5510_5670 */
-
-	{ 5200, 5240, 17, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5200_5240 */
-	{ 5200, 5240, 23, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T2_5200_5240 */
-	{ 5210, 5210, 17, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5210_5210 */
-	{ 5210, 5210, 23, 0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T2_5210_5210 */
-
-	{ 5280, 5280, 23, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5280_5280 */
-	{ 5280, 5280, 20, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T2_5280_5280 */
-	{ 5250, 5250, 17, 0, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5250_5250 */
-	{ 5290, 5290, 20, 0, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5290_5290 */
-	{ 5250, 5290, 20, 0, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5250_5290 */
-	{ 5250, 5290, 23, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T2_5250_5290 */
-
-	{ 5540, 5660, 20, 6, 40, 40, DFS_FCC3, PSCAN_FCC_T, 0, 0},	/* T1_5540_5660 */
-	{ 5760, 5800, 20, 0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5760_5800 */
-	{ 5760, 5800, 30, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T2_5760_5800 */
-
-	{ 5765, 5805, 30, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* T1_5765_5805 */
-
-	/*
-	 * Below are the WWR frequencies
-	 */
-
-	{ 5210, 5250, 15, 0, 40, 40, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, 0, 0}, /* WT1_5210_5250 */
-	{ 5290, 5290, 18, 0, 40, 40, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, 0, 0}, /* WT1_5290_5290 */
-	{ 5540, 5660, 20, 0, 40, 40, DFS_FCC3 | DFS_ETSI, PSCAN_WWR, 0, 0}, /* WT1_5540_5660 */
-	{ 5760, 5800, 20, 0, 40, 40, NO_DFS, PSCAN_WWR, 0, 0},	/* WT1_5760_5800 */
-};
-
 /*
  * 2GHz 11b channel tags
  */
@@ -862,45 +823,6 @@ enum {
 	W2_2472_2472,
 	W1_2484_2484,
 	W2_2484_2484,
-};
-
-static REG_DMN_FREQ_BAND regDmn2GhzFreq[] = {
-	{ 2312, 2372, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2312_2372 */
-	{ 2312, 2372, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F2_2312_2372 */
-
-	{ 2412, 2472, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2412_2472 */
-	{ 2412, 2472, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA, 0, 0},	/* F2_2412_2472 */
-	{ 2412, 2472, 30, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F3_2412_2472 */
-
-	{ 2412, 2462, 27, 6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2412_2462 */
-	{ 2412, 2462, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA, 0, 0},	/* F2_2412_2462 */
-	{ 2432, 2442, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2432_2442 */
-
-	{ 2457, 2472, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2457_2472 */
-
-	{ 2467, 2472, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA2 | PSCAN_MKKA, 0, 0}, /* F1_2467_2472 */
-
-	{ 2484, 2484, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2484_2484 */
-	{ 2484, 2484, 20, 0, 20, 5, NO_DFS, PSCAN_MKKA | PSCAN_MKKA1 | PSCAN_MKKA2, 0, 0},	/* F2_2484_2484 */
-
-	{ 2512, 2732, 5,  6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* F1_2512_2732 */
-
-	/*
-	 * WWR have powers opened up to 20dBm.  Limits should often come from CTL/Max powers
-	 */
-
-	{ 2312, 2372, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2312_2372 */
-	{ 2412, 2412, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2412_2412 */
-	{ 2417, 2432, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2417_2432 */
-	{ 2437, 2442, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2437_2442 */
-	{ 2447, 2457, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2447_2457 */
-	{ 2462, 2462, 20, 0, 20, 5, NO_DFS, NO_PSCAN, 0, 0},	/* W1_2462_2462 */
-	{ 2467, 2467, 20, 0, 20, 5, NO_DFS, PSCAN_WWR | IS_ECM_CHAN, 0, 0}, /* W1_2467_2467 */
-	{ 2467, 2467, 20, 0, 20, 5, NO_DFS, NO_PSCAN | IS_ECM_CHAN, 0, 0},	/* W2_2467_2467 */
-	{ 2472, 2472, 20, 0, 20, 5, NO_DFS, PSCAN_WWR | IS_ECM_CHAN, 0, 0}, /* W1_2472_2472 */
-	{ 2472, 2472, 20, 0, 20, 5, NO_DFS, NO_PSCAN | IS_ECM_CHAN, 0, 0},	/* W2_2472_2472 */
-	{ 2484, 2484, 20, 0, 20, 5, NO_DFS, PSCAN_WWR | IS_ECM_CHAN, 0, 0}, /* W1_2484_2484 */
-	{ 2484, 2484, 20, 0, 20, 5, NO_DFS, NO_PSCAN | IS_ECM_CHAN, 0, 0},	/* W2_2484_2484 */
 };
 
 
@@ -984,16 +906,6 @@ enum {
 	T1_2512_2732
 };
 
-static REG_DMN_FREQ_BAND regDmn2Ghz11gTurboFreq[] = {
-	{ 2312, 2372, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T1_2312_2372 */
-	{ 2437, 2437, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T1_2437_2437 */
-	{ 2437, 2437, 20, 6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T2_2437_2437 */
-	{ 2437, 2437, 18, 6, 40, 40, NO_DFS, PSCAN_WWR, 0, 0}, /* T3_2437_2437 */
-	{ 2512, 2732, 5,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},  /* T1_2512_2732 */
-};
-
-
-
 /*
  * 2GHz 11n frequency tags
  */
@@ -1004,15 +916,6 @@ enum {
 
     NG_DEMO_ALL_CHANNELS,
 };
-
-static REG_DMN_FREQ_BAND regDmn2Ghz11ngFreq[] = {
-    { 2422, 2452, 20, 0, 40, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG1_2422_2452 */
-    { 2422, 2452, 27, 0, 40, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG2_2422_2452 */
-    { 2422, 2452, 30, 0, 40, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG3_2422_2452 */
-
-	{ 2312, 2732, 27, 6, 20, 5, NO_DFS, NO_PSCAN, 0, 0},    /* NG_DEMO_ALL_CHANNELS */
-};
-
 
 /*
  * 5GHz 11n frequency tags
@@ -1048,42 +951,6 @@ enum {
     NA1_5795_5795,
 
     NA_DEMO_ALL_CHANNELS,
-};
-
-static REG_DMN_FREQ_BAND regDmn5Ghz11naFreq[] = {
-    /*
-     * ToDo: This table needs to be completely populated with 5GHz 11n properties
-     */
-	{ 5190, 5230, 15,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA1_5190_5230 */
-	{ 5190, 5230, 17,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA2_5190_5230 */
-	{ 5190, 5230, 18,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA3_5190_5230 */
-	{ 5190, 5230, 20,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA4_5190_5230 */
-	{ 5190, 5230, 23,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA5_5190_5230 */
-
-	{ 5270, 5270, 23,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5270_5270 */
-
-	{ 5270, 5310, 18,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5270_5310 */
-	{ 5270, 5310, 20,  0, 40, 40, DFS_FCC3|DFS_ETSI|DFS_MKK4, NO_PSCAN, 0, 1},  /* NA2_5270_5310 */
-	{ 5270, 5310, 23,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA3_5270_5310 */
-	{ 5270, 5310, 30,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA4_5270_5310 */
-
-	{ 5310, 5310, 17,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5310_5310 */
-
-	{ 5510, 5630, 30,  6, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA1_5510_5630 */
-
-	{ 5510, 5670, 20,  6, 40, 40, DFS_FCC3|DFS_ETSI|DFS_MKK4, NO_PSCAN, 0, 1},  /* NA1_5510_5670 */
-	{ 5510, 5670, 27,  0, 40, 40, DFS_FCC3|DFS_ETSI, NO_PSCAN, 0, 1},  /* NA2_5510_5670 */
-	{ 5510, 5670, 30,  6, 40, 40, DFS_FCC3, NO_PSCAN, 0, 1},   /* NA3_5510_5670 */
-
-	{ 5755, 5795, 17,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA1_5755_5795 */
-	{ 5755, 5795, 20,  6, 40, 40, DFS_ETSI, NO_PSCAN, 0, 0},	    /* NA2_5755_5795 */
-	{ 5755, 5795, 23,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA3_5755_5795 */
-	{ 5755, 5795, 30,  0, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA4_5755_5795 */
-	{ 5755, 5795, 30,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA5_5755_5795 */
-
-	{ 5795, 5795, 30,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	    /* NA1_5795_5795 */
-
-    { 4920, 6100, 30,  6, 40, 40, NO_DFS, NO_PSCAN, 0, 0},	/* NA_DEMO_ALL_CHANNELS */
 };
 
 typedef struct regDomain {
