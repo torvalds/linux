@@ -87,7 +87,7 @@ struct oled_dev_desc_str {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	/* Asus G1/G2 (and variants)*/
 	{ USB_DEVICE(USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_LCM) },
 	/* Asus G50V (and possibly others - G70? G71?)*/

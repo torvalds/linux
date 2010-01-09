@@ -58,7 +58,7 @@
 #endif
 
 /* table of devices that work with this driver */
-static struct usb_device_id usb_alphatrack_table[] = {
+static const struct usb_device_id usb_alphatrack_table[] = {
 	{USB_DEVICE(VENDOR_ID, PRODUCT_ID)},
 	{}			/* Terminating entry */
 };

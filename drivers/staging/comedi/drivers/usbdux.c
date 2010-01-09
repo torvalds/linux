@@ -2833,7 +2833,7 @@ static struct comedi_driver driver_usbdux = {
 };
 
 /* Table with the USB-devices: just now only testing IDs */
-static struct usb_device_id usbduxsub_table[] = {
+static const struct usb_device_id usbduxsub_table[] = {
 	{USB_DEVICE(0x13d8, 0x0001)},
 	{USB_DEVICE(0x13d8, 0x0002)},
 	{}			/* Terminating entry */

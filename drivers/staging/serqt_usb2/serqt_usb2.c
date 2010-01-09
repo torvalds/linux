@@ -126,7 +126,7 @@ static int debug;
 #define MODEM_CTRL          0x40
 #define RS232_MODE          0x00
 
-static struct usb_device_id serqt_id_table[] = {
+static const struct usb_device_id serqt_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU200)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU100)},
