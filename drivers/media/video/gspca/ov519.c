@@ -141,6 +141,7 @@ static void setautobrightness(struct sd *sd);
 static void setfreq(struct sd *sd);
 
 static const struct ctrl sd_ctrls[] = {
+#define BRIGHTNESS_IDX 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -155,6 +156,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
+#define CONTRAST_IDX 1
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -169,6 +171,7 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
+#define COLOR_IDX 2
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -3118,8 +3121,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	sd->quality = QUALITY_DEF;
 	if (sd->sensor == SEN_OV7640 ||
-	    sd->sensor == SEN_OV7648 ||
-	    sd->sensor == SEN_OV7670)
+	    sd->sensor == SEN_OV7648)
+		gspca_dev->ctrl_dis |= (1 << AUTOBRIGHT_IDX) |
+				       (1 << CONTRAST_IDX);
+	if (sd->sensor == SEN_OV7670)
 		gspca_dev->ctrl_dis |= 1 << AUTOBRIGHT_IDX;
 	/* OV8610 Frequency filter control should work but needs testing */
 	if (sd->sensor == SEN_OV8610)
@@ -4180,11 +4185,6 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		i2c_w(sd, 0x64, ctab[val >> 4]);
 		break;
 	    }
-	case SEN_OV7640:
-	case SEN_OV7648:
-		/* Use gain control instead. */
-		i2c_w(sd, OV7610_REG_GAIN, val >> 2);
-		break;
 	case SEN_OV7670:
 		/* check that this isn't just the same as ov7610 */
 		i2c_w(sd, OV7670_REG_CONTRAS, val >> 1);
