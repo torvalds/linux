@@ -101,9 +101,10 @@ struct sd {
 #define SEN_OV7620 7
 #define SEN_OV7620AE 8
 #define SEN_OV7640 9
-#define SEN_OV7670 10
-#define SEN_OV76BE 11
-#define SEN_OV8610 12
+#define SEN_OV7648 10
+#define SEN_OV7670 11
+#define SEN_OV76BE 12
+#define SEN_OV8610 13
 
 	u8 sensor_addr;
 	int sensor_width;
@@ -2589,7 +2590,7 @@ static int ov7xx0_configure(struct sd *sd)
 				break;
 			case 0x48:
 				PDEBUG(D_PROBE, "Sensor is an OV7648");
-				sd->sensor = SEN_OV7640; /* FIXME */
+				sd->sensor = SEN_OV7648;
 				break;
 			default:
 				PDEBUG(D_PROBE, "Unknown sensor: 0x76%x", low);
@@ -3116,7 +3117,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				      (1 << OV7670_FREQ_IDX);
 	}
 	sd->quality = QUALITY_DEF;
-	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670)
+	if (sd->sensor == SEN_OV7640 ||
+	    sd->sensor == SEN_OV7648 ||
+	    sd->sensor == SEN_OV7670)
 		gspca_dev->ctrl_dis |= 1 << AUTOBRIGHT_IDX;
 	/* OV8610 Frequency filter control should work but needs testing */
 	if (sd->sensor == SEN_OV8610)
@@ -3175,6 +3178,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			return -EIO;
 		break;
 	case SEN_OV7640:
+	case SEN_OV7648:
 		if (write_i2c_regvals(sd, norm_7640, ARRAY_SIZE(norm_7640)))
 			return -EIO;
 		break;
@@ -3250,6 +3254,7 @@ static int ov511_mode_init_regs(struct sd *sd)
 	case SEN_OV7620:
 	case SEN_OV7620AE:
 	case SEN_OV7640:
+	case SEN_OV7648:
 	case SEN_OV76BE:
 		if (sd->gspca_dev.width == 320)
 			interlaced = 1;
@@ -3495,7 +3500,8 @@ static int ov519_mode_init_regs(struct sd *sd)
 		if (write_regvals(sd, mode_init_519,
 				  ARRAY_SIZE(mode_init_519)))
 			return -EIO;
-		if (sd->sensor == SEN_OV7640) {
+		if (sd->sensor == SEN_OV7640 ||
+		    sd->sensor == SEN_OV7648) {
 			/* Select 8-bit input mode */
 			reg_w_mask(sd, OV519_R20_DFR, 0x10, 0x10);
 		}
@@ -3510,6 +3516,9 @@ static int ov519_mode_init_regs(struct sd *sd)
 	if (sd->sensor == SEN_OV7670 &&
 	    sd->gspca_dev.cam.cam_mode[sd->gspca_dev.curr_mode].priv)
 		reg_w(sd, OV519_R12_X_OFFSETL, 0x04);
+	else if (sd->sensor == SEN_OV7648 &&
+	    sd->gspca_dev.cam.cam_mode[sd->gspca_dev.curr_mode].priv)
+		reg_w(sd, OV519_R12_X_OFFSETL, 0x01);
 	else
 		reg_w(sd, OV519_R12_X_OFFSETL, 0x00);
 	reg_w(sd, OV519_R13_X_OFFSETH,	0x00);
@@ -3527,6 +3536,7 @@ static int ov519_mode_init_regs(struct sd *sd)
 	sd->clockdiv = 0;
 	switch (sd->sensor) {
 	case SEN_OV7640:
+	case SEN_OV7648:
 		switch (sd->frame_rate) {
 		default:
 /*		case 30: */
@@ -3671,13 +3681,18 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 			i2c_w(sd, 0x35, qvga ? 0x1e : 0x9e);
 		break;
 	case SEN_OV7640:
+	case SEN_OV7648:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
-/*		i2c_w(sd, 0x24, qvga ? 0x20 : 0x3a); */
-/*		i2c_w(sd, 0x25, qvga ? 0x30 : 0x60); */
-/*		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40); */
-/*		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0); */
-/*		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20); */
+		/* The following 5 lines where commented out before with a
+		   comment wondering if they did anything. This was because
+		   the old driver did only 640x480, at 320x240 these 5 writes
+		   *significantly* improve the image quality. */
+		i2c_w(sd, 0x24, qvga ? 0x20 : 0x3a);
+		i2c_w(sd, 0x25, qvga ? 0x30 : 0x60);
+		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
+		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
+		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x12, 0x04, 0x04); /* AWB: 1 */
 		break;
 	case SEN_OV7670:
@@ -3809,6 +3824,7 @@ static int set_ov_sensor_window(struct sd *sd)
 		vwsbase = vwebase = 0x05;
 		break;
 	case SEN_OV7640:
+	case SEN_OV7648:
 		hwsbase = 0x1a;
 		hwebase = 0x1a;
 		vwsbase = vwebase = 0x03;
@@ -4112,6 +4128,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	case SEN_OV6630:
 	case SEN_OV66308AF:
 	case SEN_OV7640:
+	case SEN_OV7648:
 		i2c_w(sd, OV7610_REG_BRT, val);
 		break;
 	case SEN_OV7620:
@@ -4164,6 +4181,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		break;
 	    }
 	case SEN_OV7640:
+	case SEN_OV7648:
 		/* Use gain control instead. */
 		i2c_w(sd, OV7610_REG_GAIN, val >> 2);
 		break;
@@ -4198,6 +4216,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		i2c_w(sd, OV7610_REG_SAT, val);
 		break;
 	case SEN_OV7640:
+	case SEN_OV7648:
 		i2c_w(sd, OV7610_REG_SAT, val & 0xf0);
 		break;
 	case SEN_OV7670:
@@ -4210,7 +4229,8 @@ static void setcolors(struct gspca_dev *gspca_dev)
 
 static void setautobrightness(struct sd *sd)
 {
-	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670 ||
+	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7648 ||
+	    sd->sensor == SEN_OV7670 ||
 	    sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
 		return;
 
