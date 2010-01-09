@@ -31,6 +31,7 @@
 
 #include "ixgbe.h"
 #include "ixgbe_phy.h"
+#include "ixgbe_mbx.h"
 
 #define IXGBE_82599_MAX_TX_QUEUES 128
 #define IXGBE_82599_MAX_RX_QUEUES 128
@@ -951,8 +952,6 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 
 	msleep(50);
 
-
-
 	/*
 	 * Store the original AUTOC/AUTOC2 values if they have not been
 	 * stored off yet.  Otherwise restore the stored original
@@ -1095,9 +1094,11 @@ static s32 ixgbe_set_vfta_82599(struct ixgbe_hw *hw, u32 vlan, u32 vind,
                                 bool vlan_on)
 {
 	u32 regindex;
+	u32 vlvf_index;
 	u32 bitindex;
 	u32 bits;
 	u32 first_empty_slot;
+	u32 vt_ctl;
 
 	if (vlan > 4095)
 		return IXGBE_ERR_PARAM;
@@ -1124,76 +1125,84 @@ static s32 ixgbe_set_vfta_82599(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 
 
 	/* Part 2
-	 * If the vind is set
+	 * If VT mode is set
 	 *   Either vlan_on
 	 *     make sure the vlan is in VLVF
 	 *     set the vind bit in the matching VLVFB
 	 *   Or !vlan_on
 	 *     clear the pool bit and possibly the vind
 	 */
-	if (vind) {
-		/* find the vlanid or the first empty slot */
-		first_empty_slot = 0;
+	vt_ctl = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
+	if (!(vt_ctl & IXGBE_VT_CTL_VT_ENABLE))
+		goto out;
 
-		for (regindex = 1; regindex < IXGBE_VLVF_ENTRIES; regindex++) {
-			bits = IXGBE_READ_REG(hw, IXGBE_VLVF(regindex));
-			if (!bits && !first_empty_slot)
-				first_empty_slot = regindex;
-			else if ((bits & 0x0FFF) == vlan)
-				break;
-		}
+	/* find the vlanid or the first empty slot */
+	first_empty_slot = 0;
 
-		if (regindex >= IXGBE_VLVF_ENTRIES) {
-			if (first_empty_slot)
-				regindex = first_empty_slot;
-			else {
-				hw_dbg(hw, "No space in VLVF.\n");
-				goto out;
-			}
-		}
-
-		if (vlan_on) {
-			/* set the pool bit */
-			if (vind < 32) {
-				bits = IXGBE_READ_REG(hw,
-				                    IXGBE_VLVFB(regindex * 2));
-				bits |= (1 << vind);
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_VLVFB(regindex * 2), bits);
-			} else {
-				bits = IXGBE_READ_REG(hw,
-				              IXGBE_VLVFB((regindex * 2) + 1));
-				bits |= (1 << vind);
-				IXGBE_WRITE_REG(hw,
-				        IXGBE_VLVFB((regindex * 2) + 1), bits);
-			}
-		} else {
-			/* clear the pool bit */
-			if (vind < 32) {
-				bits = IXGBE_READ_REG(hw,
-				     IXGBE_VLVFB(regindex * 2));
-			bits &= ~(1 << vind);
-				IXGBE_WRITE_REG(hw,
-				              IXGBE_VLVFB(regindex * 2), bits);
-				bits |= IXGBE_READ_REG(hw,
-				              IXGBE_VLVFB((regindex * 2) + 1));
-			} else {
-				bits = IXGBE_READ_REG(hw,
-				              IXGBE_VLVFB((regindex * 2) + 1));
-				bits &= ~(1 << vind);
-				IXGBE_WRITE_REG(hw,
-				        IXGBE_VLVFB((regindex * 2) + 1), bits);
-				bits |= IXGBE_READ_REG(hw,
-				                    IXGBE_VLVFB(regindex * 2));
-			}
-		}
-
-		if (bits)
-			IXGBE_WRITE_REG(hw, IXGBE_VLVF(regindex),
-			                (IXGBE_VLVF_VIEN | vlan));
-		else
-			IXGBE_WRITE_REG(hw, IXGBE_VLVF(regindex), 0);
+	for (vlvf_index = 1; vlvf_index < IXGBE_VLVF_ENTRIES; vlvf_index++) {
+		bits = IXGBE_READ_REG(hw, IXGBE_VLVF(vlvf_index));
+		if (!bits && !first_empty_slot)
+			first_empty_slot = vlvf_index;
+		else if ((bits & 0x0FFF) == vlan)
+			break;
 	}
+
+	if (vlvf_index >= IXGBE_VLVF_ENTRIES) {
+		if (first_empty_slot)
+			vlvf_index = first_empty_slot;
+		else {
+			hw_dbg(hw, "No space in VLVF.\n");
+			goto out;
+		}
+	}
+
+	if (vlan_on) {
+		/* set the pool bit */
+		if (vind < 32) {
+			bits = IXGBE_READ_REG(hw,
+					      IXGBE_VLVFB(vlvf_index * 2));
+			bits |= (1 << vind);
+			IXGBE_WRITE_REG(hw,
+					IXGBE_VLVFB(vlvf_index * 2), bits);
+		} else {
+			bits = IXGBE_READ_REG(hw,
+				IXGBE_VLVFB((vlvf_index * 2) + 1));
+			bits |= (1 << (vind - 32));
+			IXGBE_WRITE_REG(hw,
+				IXGBE_VLVFB((vlvf_index * 2) + 1), bits);
+		}
+	} else {
+		/* clear the pool bit */
+		if (vind < 32) {
+			bits = IXGBE_READ_REG(hw,
+					      IXGBE_VLVFB(vlvf_index * 2));
+			bits &= ~(1 << vind);
+			IXGBE_WRITE_REG(hw,
+					IXGBE_VLVFB(vlvf_index * 2), bits);
+			bits |= IXGBE_READ_REG(hw,
+					IXGBE_VLVFB((vlvf_index * 2) + 1));
+		} else {
+			bits = IXGBE_READ_REG(hw,
+				IXGBE_VLVFB((vlvf_index * 2) + 1));
+			bits &= ~(1 << (vind - 32));
+			IXGBE_WRITE_REG(hw,
+				IXGBE_VLVFB((vlvf_index * 2) + 1), bits);
+			bits |= IXGBE_READ_REG(hw,
+					       IXGBE_VLVFB(vlvf_index * 2));
+		}
+	}
+
+	if (bits) {
+		IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index),
+				(IXGBE_VLVF_VIEN | vlan));
+		/* if bits is non-zero then some pools/VFs are still
+		 * using this VLAN ID.  Force the VFTA entry to on */
+		bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
+		bits |= (1 << bitindex);
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
+	}
+	else
+		IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index), 0);
 
 out:
 	return 0;
@@ -2655,4 +2664,5 @@ struct ixgbe_info ixgbe_82599_info = {
 	.mac_ops                = &mac_ops_82599,
 	.eeprom_ops             = &eeprom_ops_82599,
 	.phy_ops                = &phy_ops_82599,
+	.mbx_ops                = &mbx_ops_82599,
 };
