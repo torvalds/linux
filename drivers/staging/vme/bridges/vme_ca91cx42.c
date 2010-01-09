@@ -61,7 +61,7 @@ static struct mutex vme_int;	/*
 
 static char driver_name[] = "vme_ca91cx42";
 
-static struct pci_device_id ca91cx42_ids[] = {
+static const struct pci_device_id ca91cx42_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_CA91C142) },
 	{ },
 };

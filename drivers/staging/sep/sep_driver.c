@@ -2587,7 +2587,7 @@ end_function:
 	return error;
 }
 
-static struct pci_device_id sep_pci_id_tbl[] = {
+static const struct pci_device_id sep_pci_id_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080c)},
 	{0}
 };

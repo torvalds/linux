@@ -71,7 +71,7 @@ static void __exit rar_exit_handler(void);
 static int __devinit rar_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent);
 
-static struct pci_device_id rar_pci_id_tbl[] = {
+static const struct pci_device_id rar_pci_id_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4110) },
 	{ 0 }
 };

@@ -1103,7 +1103,7 @@ static int __init smtcfb_pci_probe(struct pci_dev *pdev,
 
 
 /* Jason (08/11/2009) PCI_DRV wrapper essential structs */
-static struct pci_device_id smtcfb_pci_table[] = {
+static const struct pci_device_id smtcfb_pci_table[] = {
 	{0x126f, 0x710, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x712, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x126f, 0x720, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
