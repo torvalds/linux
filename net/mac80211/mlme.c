@@ -1783,7 +1783,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	if (!wk)
 		return -ENOMEM;
 
-	memcpy(wk->filter_ta, req->bss->bssid, ETH_ALEN);;
+	memcpy(wk->filter_ta, req->bss->bssid, ETH_ALEN);
 
 	if (req->ie && req->ie_len) {
 		memcpy(wk->ie, req->ie, req->ie_len);
