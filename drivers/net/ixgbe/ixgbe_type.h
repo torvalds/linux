@@ -277,6 +277,7 @@
 #define IXGBE_DTXCTL    0x07E00
 
 #define IXGBE_DMATXCTL  0x04A80
+#define IXGBE_PFDTXGSWC     0x08220
 #define IXGBE_DTXMXSZRQ     0x08100
 #define IXGBE_DTXTCPFLGL    0x04A88
 #define IXGBE_DTXTCPFLGH    0x04A8C
@@ -287,6 +288,8 @@
 #define IXGBE_DMATXCTL_NS       0x2 /* No Snoop LSO hdr buffer */
 #define IXGBE_DMATXCTL_GDV      0x8 /* Global Double VLAN */
 #define IXGBE_DMATXCTL_VT_SHIFT 16  /* VLAN EtherType */
+
+#define IXGBE_PFDTXGSWC_VT_LBEN 0x1 /* Local L2 VT switch enable */
 #define IXGBE_DCA_TXCTRL(_i)    (0x07200 + ((_i) * 4)) /* 16 of these (0-15) */
 /* Tx DCA Control register : 128 of these (0-127) */
 #define IXGBE_DCA_TXCTRL_82599(_i)  (0x0600C + ((_i) * 0x40))
@@ -497,6 +500,7 @@
 /* DCB registers */
 #define IXGBE_RTRPCS      0x02430
 #define IXGBE_RTTDCS      0x04900
+#define IXGBE_RTTDCS_ARBDIS     0x00000040 /* DCB arbiter disable */
 #define IXGBE_RTTPCS      0x0CD00
 #define IXGBE_RTRUP2TC    0x03020
 #define IXGBE_RTTUP2TC    0x0C800
@@ -729,6 +733,13 @@
 #define IXGBE_GCR_CMPL_TMOUT_10ms       0x00001000
 #define IXGBE_GCR_CMPL_TMOUT_RESEND     0x00010000
 #define IXGBE_GCR_CAP_VER2              0x00040000
+
+#define IXGBE_GCR_EXT_MSIX_EN           0x80000000
+#define IXGBE_GCR_EXT_VT_MODE_16        0x00000001
+#define IXGBE_GCR_EXT_VT_MODE_32        0x00000002
+#define IXGBE_GCR_EXT_VT_MODE_64        0x00000003
+#define IXGBE_GCR_EXT_SRIOV             (IXGBE_GCR_EXT_MSIX_EN | \
+                                         IXGBE_GCR_EXT_VT_MODE_64)
 
 /* Time Sync Registers */
 #define IXGBE_TSYNCRXCTL 0x05188 /* Rx Time Sync Control register - RW */
@@ -1065,6 +1076,8 @@
 /* VFRE bitmask */
 #define IXGBE_VFRE_ENABLE_ALL   0xFFFFFFFF
 
+#define IXGBE_VF_INIT_TIMEOUT   200 /* Number of retries to clear RSTI */
+
 /* RDHMPN and TDHMPN bitmasks */
 #define IXGBE_RDHMPN_RDICADDR       0x007FF800
 #define IXGBE_RDHMPN_RDICRDREQ      0x00800000
@@ -1295,6 +1308,7 @@
 /* VLAN pool filtering masks */
 #define IXGBE_VLVF_VIEN         0x80000000  /* filter is valid */
 #define IXGBE_VLVF_ENTRIES      64
+#define IXGBE_VLVF_VLANID_MASK  0x00000FFF
 
 #define IXGBE_ETHERNET_IEEE_VLAN_TYPE 0x8100  /* 802.1q protocol */
 
@@ -1842,6 +1856,12 @@
 #define IXGBE_RX_DESC_SPECIAL_PRI_MASK   0xE000 /* Priority in upper 3 bits */
 #define IXGBE_RX_DESC_SPECIAL_PRI_SHIFT  0x000D /* Priority in upper 3 of 16 */
 #define IXGBE_TX_DESC_SPECIAL_PRI_SHIFT  IXGBE_RX_DESC_SPECIAL_PRI_SHIFT
+
+/* SR-IOV specific macros */
+#define IXGBE_MBVFICR_INDEX(vf_number)   (vf_number >> 4)
+#define IXGBE_MBVFICR(_i)                (0x00710 + (_i * 4))
+#define IXGBE_VFLRE(_i)                  (((_i & 1) ? 0x001C0 : 0x00600))
+#define IXGBE_VFLREC(_i)                 (0x00700 + (_i * 4))
 
 /* Little Endian defines */
 #ifndef __le32
@@ -2463,6 +2483,37 @@ struct ixgbe_phy_info {
 	bool                            multispeed_fiber;
 };
 
+#include "ixgbe_mbx.h"
+
+struct ixgbe_mbx_operations {
+	s32 (*init_params)(struct ixgbe_hw *hw);
+	s32 (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
+	s32 (*write)(struct ixgbe_hw *, u32 *, u16, u16);
+	s32 (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
+	s32 (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
+	s32 (*check_for_msg)(struct ixgbe_hw *, u16);
+	s32 (*check_for_ack)(struct ixgbe_hw *, u16);
+	s32 (*check_for_rst)(struct ixgbe_hw *, u16);
+};
+
+struct ixgbe_mbx_stats {
+	u32 msgs_tx;
+	u32 msgs_rx;
+
+	u32 acks;
+	u32 reqs;
+	u32 rsts;
+};
+
+struct ixgbe_mbx_info {
+	struct ixgbe_mbx_operations ops;
+	struct ixgbe_mbx_stats stats;
+	u32 timeout;
+	u32 usec_delay;
+	u32 v2p_mailbox;
+	u16 size;
+};
+
 struct ixgbe_hw {
 	u8 __iomem			*hw_addr;
 	void				*back;
@@ -2472,6 +2523,7 @@ struct ixgbe_hw {
 	struct ixgbe_phy_info		phy;
 	struct ixgbe_eeprom_info	eeprom;
 	struct ixgbe_bus_info		bus;
+	struct ixgbe_mbx_info		mbx;
 	u16				device_id;
 	u16				vendor_id;
 	u16				subsystem_device_id;
@@ -2486,6 +2538,7 @@ struct ixgbe_info {
 	struct ixgbe_mac_operations	*mac_ops;
 	struct ixgbe_eeprom_operations	*eeprom_ops;
 	struct ixgbe_phy_operations	*phy_ops;
+	struct ixgbe_mbx_operations	*mbx_ops;
 };
 
 

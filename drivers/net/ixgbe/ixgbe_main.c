@@ -2409,7 +2409,7 @@ static u8 *ixgbe_addr_list_itr(struct ixgbe_hw *hw, u8 **mc_addr_ptr, u32 *vmdq)
  * responsible for configuring the hardware for proper unicast, multicast and
  * promiscuous mode.
  **/
-static void ixgbe_set_rx_mode(struct net_device *netdev)
+void ixgbe_set_rx_mode(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;

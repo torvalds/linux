@@ -98,6 +98,23 @@
 
 #define IXGBE_MAX_RSC_INT_RATE          162760
 
+#define IXGBE_MAX_VF_MC_ENTRIES         30
+#define IXGBE_MAX_VF_FUNCTIONS          64
+#define IXGBE_MAX_VFTA_ENTRIES          128
+#define MAX_EMULATION_MAC_ADDRS         16
+#define VMDQ_P(p)   ((p) + adapter->num_vfs)
+
+struct vf_data_storage {
+	unsigned char vf_mac_addresses[ETH_ALEN];
+	u16 vf_mc_hashes[IXGBE_MAX_VF_MC_ENTRIES];
+	u16 num_vf_mc_hashes;
+	u16 default_vf_vlan_id;
+	u16 vlans_enabled;
+	unsigned char em_mac_addresses[MAX_EMULATION_MAC_ADDRS * ETH_ALEN];
+	bool clear_to_send;
+	int rar;
+};
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct ixgbe_tx_buffer {
@@ -171,7 +188,7 @@ struct ixgbe_ring {
 enum ixgbe_ring_f_enum {
 	RING_F_NONE = 0,
 	RING_F_DCB,
-	RING_F_VMDQ,
+	RING_F_VMDQ,  /* SR-IOV uses the same ring feature */
 	RING_F_RSS,
 	RING_F_FDIR,
 #ifdef IXGBE_FCOE
@@ -183,7 +200,7 @@ enum ixgbe_ring_f_enum {
 
 #define IXGBE_MAX_DCB_INDICES   8
 #define IXGBE_MAX_RSS_INDICES  16
-#define IXGBE_MAX_VMDQ_INDICES 16
+#define IXGBE_MAX_VMDQ_INDICES 64
 #define IXGBE_MAX_FDIR_INDICES 64
 #ifdef IXGBE_FCOE
 #define IXGBE_MAX_FCOE_INDICES  8
@@ -288,6 +305,8 @@ struct ixgbe_adapter {
 	/* RX */
 	struct ixgbe_ring *rx_ring ____cacheline_aligned_in_smp; /* One per active queue */
 	int num_rx_queues;
+	int num_rx_pools;		/* == num_rx_queues in 82598 */
+	int num_rx_queues_per_pool;	/* 1 if 82598, can be many if 82599 */
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
 	u64 non_eop_descs;
@@ -330,6 +349,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_FDIR_PERFECT_CAPABLE         (u32)(1 << 27)
 #define IXGBE_FLAG_FCOE_CAPABLE                 (u32)(1 << 28)
 #define IXGBE_FLAG_FCOE_ENABLED                 (u32)(1 << 29)
+#define IXGBE_FLAG_SRIOV_CAPABLE                (u32)(1 << 30)
+#define IXGBE_FLAG_SRIOV_ENABLED                (u32)(1 << 31)
 
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
@@ -379,6 +400,11 @@ struct ixgbe_adapter {
 	u64 rsc_total_flush;
 	u32 wol;
 	u16 eeprom_version;
+
+	/* SR-IOV */
+	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
+	unsigned int num_vfs;
+	struct vf_data_storage *vfinfo;
 };
 
 enum ixbge_state_t {
@@ -440,6 +466,7 @@ extern s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input,
                                          u16 flex_byte);
 extern s32 ixgbe_atr_set_l4type_82599(struct ixgbe_atr_input *input,
                                       u8 l4type);
+extern void ixgbe_set_rx_mode(struct net_device *netdev);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_adapter *adapter,
