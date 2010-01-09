@@ -142,6 +142,7 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		wdata->butstate = rw;
 		input_report_key(input, BTN_0, rw & 0x02);
 		input_report_key(input, BTN_1, rw & 0x01);
+		input_report_key(input, BTN_TOOL_FINGER, 0xf0);
 		input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
 		input_sync(input);
 	}
