@@ -2618,6 +2618,28 @@ config IXGBE_DCB
 
 	  If unsure, say N.
 
+config IXGBEVF
+       tristate "Intel(R) 82599 Virtual Function Ethernet support"
+       depends on PCI_MSI
+       ---help---
+         This driver supports Intel(R) 82599 virtual functions.  For more
+         information on how to identify your adapter, go to the Adapter &
+         Driver ID Guide at:
+
+         <http://support.intel.com/support/network/sb/CS-008441.htm>
+
+         For general information and support, go to the Intel support
+         website at:
+
+         <http://support.intel.com>
+
+         More specific information on configuring the driver is in
+         <file:Documentation/networking/ixgbevf.txt>.
+
+         To compile this driver as a module, choose M here. The module
+         will be called ixgbevf.  MSI-X interrupt support is required
+         for this driver to work correctly.
+
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
 	depends on PCI
