@@ -683,7 +683,8 @@ struct perf_event_context {
 	 */
 	struct mutex			mutex;
 
-	struct list_head		group_list;
+	struct list_head		pinned_groups;
+	struct list_head		flexible_groups;
 	struct list_head		event_list;
 	int				nr_events;
 	int				nr_active;
