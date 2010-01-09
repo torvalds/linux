@@ -138,7 +138,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	int tmp;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__ (
@@ -305,7 +305,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned int tmp;
 
-	smp_llsc_mb();
+	smp_mb__before_llsc();
 
 	if (R10000_LLSC_WAR) {
 		__asm__ __volatile__(
