@@ -349,7 +349,7 @@ static int __devexit fun_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id of_fun_match[] = {
+static const struct of_device_id of_fun_match[] = {
 	{ .compatible = "fsl,upm-nand" },
 	{},
 };

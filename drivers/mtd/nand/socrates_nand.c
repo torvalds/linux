@@ -290,7 +290,7 @@ static int __devexit socrates_nand_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id socrates_nand_match[] =
+static const struct of_device_id socrates_nand_match[] =
 {
 	{
 		.compatible   = "abb,socrates-nand",
