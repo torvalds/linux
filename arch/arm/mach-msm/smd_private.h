@@ -269,7 +269,7 @@ struct smd_half_channel {
 	unsigned char fUNUSED;
 	unsigned tail;
 	unsigned head;
-} __attribute__((packed));
+} __attribute__(( aligned(4), packed ));
 
 struct smd_shared_v1 {
 	struct smd_half_channel ch0;
