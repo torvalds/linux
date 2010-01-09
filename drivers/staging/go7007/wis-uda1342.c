@@ -82,7 +82,7 @@ static int wis_uda1342_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id wis_uda1342_id[] = {
+static const struct i2c_device_id wis_uda1342_id[] = {
 	{ "wis_uda1342", 0 },
 	{ }
 };
