@@ -1867,11 +1867,22 @@ static void ixgbe_diag_test(struct net_device *netdev,
 		if (ixgbe_intr_test(adapter, &data[2]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
+		/* If SRIOV or VMDq is enabled then skip MAC
+		 * loopback diagnostic. */
+		if (adapter->flags & (IXGBE_FLAG_SRIOV_ENABLED |
+				      IXGBE_FLAG_VMDQ_ENABLED)) {
+			DPRINTK(HW, INFO, "Skip MAC loopback diagnostic in VT "
+				"mode\n");
+			data[3] = 0;
+			goto skip_loopback;
+		}
+
 		ixgbe_reset(adapter);
 		DPRINTK(HW, INFO, "loopback testing starting\n");
 		if (ixgbe_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
+skip_loopback:
 		ixgbe_reset(adapter);
 
 		clear_bit(__IXGBE_TESTING, &adapter->state);
