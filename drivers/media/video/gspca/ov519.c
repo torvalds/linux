@@ -3689,14 +3689,12 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 	case SEN_OV7648:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
-		/* The following 5 lines where commented out before with a
-		   comment wondering if they did anything. This was because
-		   the old driver did only 640x480, at 320x240 these 5 writes
-		   *significantly* improve the image quality. */
-		i2c_w(sd, 0x24, qvga ? 0x20 : 0x3a);
-		i2c_w(sd, 0x25, qvga ? 0x30 : 0x60);
+		/* Setting this undocumented bit in qvga mode removes a very
+		   annoying vertical shaking of the image */
 		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
+		/* Unknown */
 		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
+		/* Allow higher automatic gain (to allow higher framerates) */
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
 		i2c_w_mask(sd, 0x12, 0x04, 0x04); /* AWB: 1 */
 		break;
