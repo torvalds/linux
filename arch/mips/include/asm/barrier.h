@@ -88,12 +88,20 @@
 		: /* no output */		\
 		: "m" (*(int *)CKSEG1)		\
 		: "memory")
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+# define OCTEON_SYNCW_STR	".set push\n.set arch=octeon\nsyncw\nsyncw\n.set pop\n"
+# define __syncw() 	__asm__ __volatile__(OCTEON_SYNCW_STR : : : "memory")
 
-#define fast_wmb()	__sync()
-#define fast_rmb()	__sync()
-#define fast_mb()	__sync()
-#ifdef CONFIG_SGI_IP28
-#define fast_iob()				\
+# define fast_wmb()	__syncw()
+# define fast_rmb()	barrier()
+# define fast_mb()	__sync()
+# define fast_iob()	do { } while (0)
+#else /* ! CONFIG_CPU_CAVIUM_OCTEON */
+# define fast_wmb()	__sync()
+# define fast_rmb()	__sync()
+# define fast_mb()	__sync()
+# ifdef CONFIG_SGI_IP28
+#  define fast_iob()				\
 	__asm__ __volatile__(			\
 		".set	push\n\t"		\
 		".set	noreorder\n\t"		\
@@ -104,13 +112,14 @@
 		: /* no output */		\
 		: "m" (*(int *)CKSEG1ADDR(0x1fa00004)) \
 		: "memory")
-#else
-#define fast_iob()				\
+# else
+#  define fast_iob()				\
 	do {					\
 		__sync();			\
 		__fast_iob();			\
 	} while (0)
-#endif
+# endif
+#endif /* CONFIG_CPU_CAVIUM_OCTEON */
 
 #ifdef CONFIG_CPU_HAS_WB
 
@@ -131,9 +140,15 @@
 #endif /* !CONFIG_CPU_HAS_WB */
 
 #if defined(CONFIG_WEAK_ORDERING) && defined(CONFIG_SMP)
-#define smp_mb()	__asm__ __volatile__("sync" : : :"memory")
-#define smp_rmb()	__asm__ __volatile__("sync" : : :"memory")
-#define smp_wmb()	__asm__ __volatile__("sync" : : :"memory")
+# ifdef CONFIG_CPU_CAVIUM_OCTEON
+#  define smp_mb()	__sync()
+#  define smp_rmb()	barrier()
+#  define smp_wmb()	__syncw()
+# else
+#  define smp_mb()	__asm__ __volatile__("sync" : : :"memory")
+#  define smp_rmb()	__asm__ __volatile__("sync" : : :"memory")
+#  define smp_wmb()	__asm__ __volatile__("sync" : : :"memory")
+# endif
 #else
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()
@@ -151,6 +166,10 @@
 
 #define smp_llsc_mb()	__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
 
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+#define smp_mb__before_llsc() smp_wmb()
+#else
 #define smp_mb__before_llsc() smp_llsc_mb()
+#endif
 
 #endif /* __ASM_BARRIER_H */
