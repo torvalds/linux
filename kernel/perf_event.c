@@ -1454,25 +1454,16 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
  */
 static void rotate_ctx(struct perf_event_context *ctx)
 {
-	struct perf_event *event;
-
 	if (!ctx->nr_events)
 		return;
 
 	raw_spin_lock(&ctx->lock);
-	/*
-	 * Rotate the first entry last (works just fine for group events too):
-	 */
-	perf_disable();
-	list_for_each_entry(event, &ctx->pinned_groups, group_entry) {
-		list_move_tail(&event->group_entry, &ctx->pinned_groups);
-		break;
-	}
 
-	list_for_each_entry(event, &ctx->flexible_groups, group_entry) {
-		list_move_tail(&event->group_entry, &ctx->flexible_groups);
-		break;
-	}
+	/* Rotate the first entry last of non-pinned groups */
+	perf_disable();
+
+	list_rotate_left(&ctx->flexible_groups);
+
 	perf_enable();
 
 	raw_spin_unlock(&ctx->lock);
