@@ -79,11 +79,14 @@ EXPORT_SYMBOL(__iio_change_event);
 	/* Does anyone care? */
 	mutex_lock(&ev_int->event_list_lock);
 	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->handler.flags)) {
-		if (ev_int->current_events == ev_int->max_events)
+		if (ev_int->current_events == ev_int->max_events) {
+			mutex_unlock(&ev_int->event_list_lock);
 			return 0;
+		}
 		ev = kmalloc(sizeof(*ev), GFP_KERNEL);
 		if (ev == NULL) {
 			ret = -ENOMEM;
+			mutex_unlock(&ev_int->event_list_lock);
 			goto error_ret;
 		}
 		ev->ev.id = ev_code;
