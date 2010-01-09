@@ -421,8 +421,10 @@ int ir_input_register(struct input_dev *input_dev,
 	ir_dev->rc_tab.size = ir_roundup_tablesize(rc_tab->size);
 	ir_dev->rc_tab.scan = kzalloc(ir_dev->rc_tab.size *
 				    sizeof(struct ir_scancode), GFP_KERNEL);
-	if (!ir_dev->rc_tab.scan)
+	if (!ir_dev->rc_tab.scan) {
+		kfree(ir_dev);
 		return -ENOMEM;
+	}
 
 	IR_dprintk(1, "Allocated space for %d keycode entries (%zd bytes)\n",
 		ir_dev->rc_tab.size,
