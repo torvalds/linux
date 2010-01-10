@@ -34,7 +34,8 @@ struct kvmppc_slb {
 	bool Ks;
 	bool Kp;
 	bool nx;
-	bool large;
+	bool large;	/* PTEs are 16MB */
+	bool tb;	/* 1TB segment */
 	bool class;
 };
 
