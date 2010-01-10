@@ -1069,9 +1069,9 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	ieee80211_led_radio(local, false);
 
 	cancel_work_sync(&local->reconfig_filter);
-	drv_stop(local);
 
 	flush_workqueue(local->workqueue);
+	drv_stop(local);
 }
 
 int ieee80211_reconfig(struct ieee80211_local *local)
