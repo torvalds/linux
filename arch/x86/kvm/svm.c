@@ -2588,8 +2588,6 @@ static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
-	if (npt_enabled)
-		vcpu->fpu_active = 1;
 }
 
 static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
@@ -2927,12 +2925,6 @@ static bool svm_rdtscp_supported(void)
 static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	if (npt_enabled) {
-		/* hack: npt requires active fpu at this time */
-		vcpu->fpu_active = 1;
-		return;
-	}
 
 	update_cr0_intercept(svm);
 	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
