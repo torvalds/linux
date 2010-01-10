@@ -1390,7 +1390,7 @@ static int usblp_resume(struct usb_interface *intf)
 	return r;
 }
 
-static struct usb_device_id usblp_ids [] = {
+static const struct usb_device_id usblp_ids[] = {
 	{ USB_DEVICE_INFO(7, 1, 1) },
 	{ USB_DEVICE_INFO(7, 1, 2) },
 	{ USB_DEVICE_INFO(7, 1, 3) },
