@@ -362,7 +362,7 @@ static int __devexit qt2160_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id qt2160_idtable[] = {
+static const struct i2c_device_id qt2160_idtable[] = {
 	{ "qt2160", 0, },
 	{ }
 };
