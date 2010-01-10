@@ -10,11 +10,6 @@
  *
  *  This file contains the ARM-specific time handling details:
  *  reading the RTC at bootup, etc...
- *
- *  1994-07-02  Alan Modra
- *              fixed set_rtc_mmss, fixed time.year for >= 2000, new mktime
- *  1998-12-20  Updated NTP code according to technical memorandum Jan '96
- *              "A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -77,47 +72,12 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 #endif
 
-/*
- * hook for setting the RTC's idea of the current time.
- */
-int (*set_rtc)(void);
-
 #ifndef CONFIG_GENERIC_TIME
 static unsigned long dummy_gettimeoffset(void)
 {
 	return 0;
 }
 #endif
-
-static unsigned long next_rtc_update;
-
-/*
- * If we have an externally synchronized linux clock, then update
- * CMOS clock accordingly every ~11 minutes.  set_rtc() has to be
- * called as close as possible to 500 ms before the new second
- * starts.
- */
-static inline void do_set_rtc(void)
-{
-	if (!ntp_synced() || set_rtc == NULL)
-		return;
-
-	if (next_rtc_update &&
-	    time_before((unsigned long)xtime.tv_sec, next_rtc_update))
-		return;
-
-	if (xtime.tv_nsec < 500000000 - ((unsigned) tick_nsec >> 1) &&
-	    xtime.tv_nsec >= 500000000 + ((unsigned) tick_nsec >> 1))
-		return;
-
-	if (set_rtc())
-		/*
-		 * rtc update failed.  Try again in 60s
-		 */
-		next_rtc_update = xtime.tv_sec + 60;
-	else
-		next_rtc_update = xtime.tv_sec + 660;
-}
 
 #ifdef CONFIG_LEDS
 
@@ -295,39 +255,6 @@ int do_settimeofday(struct timespec *tv)
 EXPORT_SYMBOL(do_settimeofday);
 #endif /* !CONFIG_GENERIC_TIME */
 
-/**
- * save_time_delta - Save the offset between system time and RTC time
- * @delta: pointer to timespec to store delta
- * @rtc: pointer to timespec for current RTC time
- *
- * Return a delta between the system time and the RTC time, such
- * that system time can be restored later with restore_time_delta()
- */
-void save_time_delta(struct timespec *delta, struct timespec *rtc)
-{
-	set_normalized_timespec(delta,
-				xtime.tv_sec - rtc->tv_sec,
-				xtime.tv_nsec - rtc->tv_nsec);
-}
-EXPORT_SYMBOL(save_time_delta);
-
-/**
- * restore_time_delta - Restore the current system time
- * @delta: delta returned by save_time_delta()
- * @rtc: pointer to timespec for current RTC time
- */
-void restore_time_delta(struct timespec *delta, struct timespec *rtc)
-{
-	struct timespec ts;
-
-	set_normalized_timespec(&ts,
-				delta->tv_sec + rtc->tv_sec,
-				delta->tv_nsec + rtc->tv_nsec);
-
-	do_settimeofday(&ts);
-}
-EXPORT_SYMBOL(restore_time_delta);
-
 #ifndef CONFIG_GENERIC_CLOCKEVENTS
 /*
  * Kernel system timer support.
@@ -336,7 +263,6 @@ void timer_tick(void)
 {
 	profile_tick(CPU_PROFILING);
 	do_leds();
-	do_set_rtc();
 	write_seqlock(&xtime_lock);
 	do_timer(1);
 	write_sequnlock(&xtime_lock);
