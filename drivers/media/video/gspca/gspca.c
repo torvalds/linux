@@ -2063,14 +2063,11 @@ int gspca_dev_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	/* check the interface class and ignore the sound interfaces */
+	/* the USB video interface must be the first one */
 	interface = &intf->cur_altsetting->desc;
-	if (interface->bInterfaceClass != USB_CLASS_VENDOR_SPEC
-	    && interface->bInterfaceClass != USB_CLASS_PER_INTERFACE) {
-		PDEBUG(D_PROBE, "Interface class %d not handled here",
-			interface->bInterfaceClass);
+	if (dev->config->desc.bNumInterfaces != 1 &&
+	    interface->bInterfaceNumber != 0)
 		return -ENODEV;
-	}
 
 	/* create the device */
 	if (dev_size < sizeof *gspca_dev)
