@@ -411,6 +411,17 @@ static void pmz_transmit_chars(struct uart_pmac_port *uap)
 		goto ack_tx_int;
 	}
 
+	/* Under some circumstances, we see interrupts reported for
+	 * a closed channel. The interrupt mask in R1 is clear, but
+	 * R3 still signals the interrupts and we see them when taking
+	 * an interrupt for the other channel (this could be a qemu
+	 * bug but since the ESCC doc doesn't specify precsiely whether
+	 * R3 interrup status bits are masked by R1 interrupt enable
+	 * bits, better safe than sorry). --BenH.
+	 */
+	if (!ZS_IS_OPEN(uap))
+		goto ack_tx_int;
+
 	if (uap->port.x_char) {
 		uap->flags |= PMACZILOG_FLAG_TX_ACTIVE;
 		write_zsdata(uap, uap->port.x_char);
