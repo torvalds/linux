@@ -113,6 +113,19 @@ static uint wapf = 1;
 module_param(wapf, uint, 0644);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
+static uint wireless_status = 1;
+static uint bluetooth_status = 1;
+
+module_param(wireless_status, uint, 0644);
+MODULE_PARM_DESC(wireless_status, "Set the wireless status on boot "
+		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
+		 "default is 1");
+
+module_param(bluetooth_status, uint, 0644);
+MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
+		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
+		 "default is 1");
+
 #define ASUS_HANDLE(object, paths...)					\
 	static acpi_handle  object##_handle = NULL;			\
 	static char *object##_paths[] = { paths }
@@ -1272,8 +1285,10 @@ static int asus_hotk_add(struct acpi_device *device)
 	asus_hotk_found = 1;
 
 	/* WLED and BLED are on by default */
-	write_status(bt_switch_handle, 1, BT_ON);
-	write_status(wl_switch_handle, 1, WL_ON);
+	if (bluetooth_status != -1)
+		write_status(bt_switch_handle, !!bluetooth_status, BT_ON);
+	if (wireless_status != -1)
+		write_status(wl_switch_handle, !!wireless_status, WL_ON);
 
 	/* If the h/w switch is off, we need to check the real status */
 	write_status(NULL, read_status(BT_ON), BT_ON);
