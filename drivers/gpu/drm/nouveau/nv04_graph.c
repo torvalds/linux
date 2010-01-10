@@ -537,7 +537,7 @@ nv04_graph_mthd_set_operation(struct nouveau_channel *chan, int grclass,
 			      int mthd, uint32_t data)
 {
 	struct drm_device *dev = chan->dev;
-	uint32_t instance = nv_rd32(dev, NV04_PGRAPH_CTX_SWITCH4) & 0xffff;
+	uint32_t instance = (nv_rd32(dev, NV04_PGRAPH_CTX_SWITCH4) & 0xffff) << 4;
 	int subc = (nv_rd32(dev, NV04_PGRAPH_TRAPPED_ADDR) >> 13) & 0x7;
 	uint32_t tmp;
 
