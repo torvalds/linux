@@ -212,7 +212,7 @@ static int ohci_hcd_ppc_of_shutdown(struct of_device *op)
 }
 
 
-static struct of_device_id ohci_hcd_ppc_of_match[] = {
+static const struct of_device_id ohci_hcd_ppc_of_match[] = {
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF_BE
 	{
 		.name = "usb",

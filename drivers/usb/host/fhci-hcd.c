@@ -805,7 +805,7 @@ static int __devexit of_fhci_remove(struct of_device *ofdev)
 	return fhci_remove(&ofdev->dev);
 }
 
-static struct of_device_id of_fhci_match[] = {
+static const struct of_device_id of_fhci_match[] = {
 	{ .compatible = "fsl,mpc8323-qe-usb", },
 	{},
 };

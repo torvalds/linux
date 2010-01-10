@@ -264,7 +264,7 @@ static int ehci_hcd_ppc_of_shutdown(struct of_device *op)
 }
 
 
-static struct of_device_id ehci_hcd_ppc_of_match[] = {
+static const struct of_device_id ehci_hcd_ppc_of_match[] = {
 	{
 		.compatible = "usb-ehci",
 	},

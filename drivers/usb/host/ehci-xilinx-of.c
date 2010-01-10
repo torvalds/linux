@@ -281,7 +281,7 @@ static int ehci_hcd_xilinx_of_shutdown(struct of_device *op)
 }
 
 
-static struct of_device_id ehci_hcd_xilinx_of_match[] = {
+static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
 		{.compatible = "xlnx,xps-usb-host-1.00.a",},
 	{},
 };
