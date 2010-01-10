@@ -1782,12 +1782,12 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 
 			if (state->config->tuner_set_frequency) {
 				if (state->config->tuner_set_frequency(fe, freq) < 0)
-					goto err;
+					goto err_gateoff;
 			}
 
 			if (state->config->tuner_set_bandwidth) {
 				if (state->config->tuner_set_bandwidth(fe, state->tuner_bw) < 0)
-					goto err;
+					goto err_gateoff;
 			}
 
 			if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -1800,7 +1800,7 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 
 			if (state->config->tuner_get_status) {
 				if (state->config->tuner_get_status(fe, &reg) < 0)
-					goto err;
+					goto err_gateoff;
 			}
 
 			if (reg)
@@ -1819,6 +1819,9 @@ static u32 stv090x_srate_srch_coarse(struct stv090x_state *state)
 		srate_coarse = stv090x_get_srate(state, state->internal->mclk);
 
 	return srate_coarse;
+
+err_gateoff:
+	stv090x_i2c_gate_ctrl(fe, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -2167,12 +2170,12 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 
 					if (state->config->tuner_set_frequency) {
 						if (state->config->tuner_set_frequency(fe, freq) < 0)
-							goto err;
+							goto err_gateoff;
 					}
 
 					if (state->config->tuner_set_bandwidth) {
 						if (state->config->tuner_set_bandwidth(fe, state->tuner_bw) < 0)
-							goto err;
+							goto err_gateoff;
 					}
 
 					if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -2185,7 +2188,7 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 
 					if (state->config->tuner_get_status) {
 						if (state->config->tuner_get_status(fe, &reg) < 0)
-							goto err;
+							goto err_gateoff;
 					}
 
 					if (reg)
@@ -2216,6 +2219,8 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 
 	return lock;
 
+err_gateoff:
+	stv090x_i2c_gate_ctrl(fe, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -2589,7 +2594,7 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 
 	if (state->config->tuner_get_frequency) {
 		if (state->config->tuner_get_frequency(fe, &state->frequency) < 0)
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -2617,7 +2622,7 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 
 		if (state->config->tuner_get_frequency) {
 			if (state->config->tuner_get_frequency(fe, &state->frequency) < 0)
-				goto err;
+				goto err_gateoff;
 		}
 
 		if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -2637,6 +2642,9 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	}
 
 	return STV090x_OUTOFRANGE;
+
+err_gateoff:
+	stv090x_i2c_gate_ctrl(fe, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -2995,7 +3003,7 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 
 				if (state->config->tuner_set_bandwidth) {
 					if (state->config->tuner_set_bandwidth(fe, state->tuner_bw) < 0)
-						goto err;
+						goto err_gateoff;
 				}
 
 				if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -3047,6 +3055,9 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 		stv090x_set_vit_thtracq(state);
 
 	return 0;
+
+err_gateoff:
+	stv090x_i2c_gate_ctrl(fe, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -3227,17 +3238,17 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 
 	if (state->config->tuner_set_bbgain) {
 		if (state->config->tuner_set_bbgain(fe, 10) < 0) /* 10dB */
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (state->config->tuner_set_frequency) {
 		if (state->config->tuner_set_frequency(fe, state->frequency) < 0)
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (state->config->tuner_set_bandwidth) {
 		if (state->config->tuner_set_bandwidth(fe, state->tuner_bw) < 0)
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -3250,7 +3261,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 
 	if (state->config->tuner_get_status) {
 		if (state->config->tuner_get_status(fe, &reg) < 0)
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (reg)
@@ -3383,6 +3394,8 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	}
 	return signal_state;
 
+err_gateoff:
+	stv090x_i2c_gate_ctrl(fe, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
@@ -4323,12 +4336,12 @@ static int stv090x_init(struct dvb_frontend *fe)
 
 	if (config->tuner_set_mode) {
 		if (config->tuner_set_mode(fe, TUNER_WAKE) < 0)
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (config->tuner_init) {
 		if (config->tuner_init(fe) < 0)
-			goto err;
+			goto err_gateoff;
 	}
 
 	if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
@@ -4338,6 +4351,9 @@ static int stv090x_init(struct dvb_frontend *fe)
 		goto err;
 
 	return 0;
+
+err_gateoff:
+	stv090x_i2c_gate_ctrl(fe, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;
