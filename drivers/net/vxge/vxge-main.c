@@ -310,7 +310,7 @@ static int vxge_rx_map(void *dtrh, struct vxge_ring *ring)
 	dma_addr = pci_map_single(ring->pdev, rx_priv->skb_data,
 				rx_priv->data_size, PCI_DMA_FROMDEVICE);
 
-	if (dma_addr == 0) {
+	if (unlikely(pci_dma_mapping_error(ring->pdev, dma_addr))) {
 		ring->stats.pci_map_fail++;
 		return -EIO;
 	}
