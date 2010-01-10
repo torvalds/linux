@@ -61,7 +61,7 @@
 
 #define VST_MAXBUFFER		(64*1024)
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(USB_VENDOR_OCEANOPTICS, USB_PRODUCT_USB2000)},
 	{ USB_DEVICE(USB_VENDOR_OCEANOPTICS, USB_PRODUCT_HR4000)},
 	{ USB_DEVICE(USB_VENDOR_OCEANOPTICS, USB_PRODUCT_USB650)},

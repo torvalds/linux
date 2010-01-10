@@ -56,7 +56,7 @@ MODULE_PARM_DESC(debug, "Debug enabled or not");
 #define ADU_PRODUCT_ID 0x0064
 
 /* table of devices that work with this driver */
-static struct usb_device_id device_table [] = {
+static const struct usb_device_id device_table[] = {
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID) },		/* ADU100 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+20) }, 	/* ADU120 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+30) }, 	/* ADU130 */

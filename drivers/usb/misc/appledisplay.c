@@ -57,7 +57,7 @@
 	.bInterfaceProtocol = 0x00
 
 /* table of devices that work with this driver */
-static struct usb_device_id appledisplay_table [] = {
+static const struct usb_device_id appledisplay_table[] = {
 	{ APPLEDISPLAY_DEVICE(0x9218) },
 	{ APPLEDISPLAY_DEVICE(0x9219) },
 	{ APPLEDISPLAY_DEVICE(0x921c) },

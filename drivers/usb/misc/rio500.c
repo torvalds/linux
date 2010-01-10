@@ -510,7 +510,7 @@ static void disconnect_rio(struct usb_interface *intf)
 	}
 }
 
-static struct usb_device_id rio_table [] = {
+static const struct usb_device_id rio_table[] = {
 	{ USB_DEVICE(0x0841, 1) }, 		/* Rio 500 */
 	{ }					/* Terminating entry */
 };

@@ -39,7 +39,7 @@ static int pearl_dual_mode = 1;
 	if (debug)						\
 		dev_printk(KERN_DEBUG , dev , format , ## arg)
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(RIM_VENDOR, BLACKBERRY) },
 	{ USB_DEVICE(RIM_VENDOR, BLACKBERRY_PEARL) },
 	{ USB_DEVICE(RIM_VENDOR, BLACKBERRY_PEARL_DUAL) },

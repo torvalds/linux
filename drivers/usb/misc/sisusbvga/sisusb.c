@@ -3238,7 +3238,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	kref_put(&sisusb->kref, sisusb_delete);
 }
 
-static struct usb_device_id sisusb_table [] = {
+static const struct usb_device_id sisusb_table[] = {
 	{ USB_DEVICE(0x0711, 0x0550) },
 	{ USB_DEVICE(0x0711, 0x0900) },
 	{ USB_DEVICE(0x0711, 0x0901) },

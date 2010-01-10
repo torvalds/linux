@@ -2097,7 +2097,7 @@ static struct usbtest_info generic_info = {
 #endif
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 
 	/*-------------------------------------------------------------*/
 

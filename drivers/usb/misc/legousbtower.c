@@ -192,7 +192,7 @@ struct tower_get_version_reply {
 
 
 /* table of devices that work with this driver */
-static struct usb_device_id tower_table [] = {
+static const struct usb_device_id tower_table[] = {
 	{ USB_DEVICE(LEGO_USB_TOWER_VENDOR_ID, LEGO_USB_TOWER_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };

@@ -139,7 +139,7 @@ static int usb_set_report(struct usb_interface *intf, unsigned char type,
 /* driver registration */
 /*---------------------*/
 /* table of devices that work with this driver */
-static struct usb_device_id iowarrior_ids[] = {
+static const struct usb_device_id iowarrior_ids[] = {
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW40)},
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW24)},
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOWPV1)},

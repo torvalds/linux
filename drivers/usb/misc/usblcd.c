@@ -30,7 +30,7 @@
 #define IOCTL_GET_DRV_VERSION	2
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ .idVendor = 0x10D2, .match_flags = USB_DEVICE_ID_MATCH_VENDOR, },
 	{ },
 };

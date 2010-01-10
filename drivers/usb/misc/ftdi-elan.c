@@ -86,7 +86,7 @@ static struct list_head ftdi_static_list;
 #define USB_FTDI_ELAN_VENDOR_ID 0x0403
 #define USB_FTDI_ELAN_PRODUCT_ID 0xd6ea
 /* table of devices that work with this driver*/
-static struct usb_device_id ftdi_elan_table[] = {
+static const struct usb_device_id ftdi_elan_table[] = {
         {USB_DEVICE(USB_FTDI_ELAN_VENDOR_ID, USB_FTDI_ELAN_PRODUCT_ID)},
         { /* Terminating entry */ }
 };
