@@ -73,8 +73,9 @@ struct sd {
 #define SENSOR_OV7630 2
 #define SENSOR_PAS106 3
 #define SENSOR_PAS202 4
-#define SENSOR_TAS5110 5
-#define SENSOR_TAS5130CXX 6
+#define SENSOR_TAS5110C 5
+#define SENSOR_TAS5110D 6
+#define SENSOR_TAS5130CXX 7
 	__u8 reg11;
 };
 
@@ -460,10 +461,18 @@ static const __u8 pas202_sensor_init[][8] = {
 	{0xa0, 0x40, 0x11, 0x01, 0x31, 0x00, 0x63, 0x16},
 };
 
-static const __u8 initTas5110[] = {
+static const __u8 initTas5110c[] = {
 	0x44, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
 	0x00, 0x01, 0x00, 0x45, 0x09, 0x0a,
+	0x16, 0x12, 0x60, 0x86, 0x2b,
+	0x14, 0x0a, 0x02, 0x02, 0x09, 0x07
+};
+/* Same as above, except a different hstart */
+static const __u8 initTas5110d[] = {
+	0x44, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x11, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+	0x00, 0x01, 0x00, 0x41, 0x09, 0x0a,
 	0x16, 0x12, 0x60, 0x86, 0x2b,
 	0x14, 0x0a, 0x02, 0x02, 0x09, 0x07
 };
@@ -497,7 +506,9 @@ SENS(initPas106, NULL, pas106_sensor_init, NULL, NULL, F_SIF, NO_EXPO|NO_FREQ,
 	0),
 SENS(initPas202, initPas202, pas202_sensor_init, NULL, NULL, 0,
 	NO_EXPO|NO_FREQ, 0),
-SENS(initTas5110, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF,
+SENS(initTas5110c, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF,
+	NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initTas5110d, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF,
 	NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initTas5130, NULL, tas5130_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ,
 	0),
@@ -652,7 +663,8 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 
 	switch (sd->sensor) {
 
-	case SENSOR_TAS5110: {
+	case SENSOR_TAS5110C:
+	case SENSOR_TAS5110D: {
 		__u8 i2c[] =
 			{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10};
 
@@ -704,7 +716,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
-	case SENSOR_TAS5110: {
+	case SENSOR_TAS5110C:
+	case SENSOR_TAS5110D: {
 		__u8 reg;
 
 		/* register 19's high nibble contains the sn9c10x clock divider
@@ -1227,10 +1240,10 @@ static const struct sd_desc sd_desc = {
 
 
 static const struct usb_device_id device_table[] __devinitconst = {
-	{USB_DEVICE(0x0c45, 0x6001), SB(TAS5110, 102)}, /* TAS5110C1B */
-	{USB_DEVICE(0x0c45, 0x6005), SB(TAS5110, 101)}, /* TAS5110C1B */
+	{USB_DEVICE(0x0c45, 0x6001), SB(TAS5110C, 102)}, /* TAS5110C1B */
+	{USB_DEVICE(0x0c45, 0x6005), SB(TAS5110C, 101)}, /* TAS5110C1B */
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
-	{USB_DEVICE(0x0c45, 0x6007), SB(TAS5110, 101)}, /* TAS5110D */
+	{USB_DEVICE(0x0c45, 0x6007), SB(TAS5110D, 101)}, /* TAS5110D */
 	{USB_DEVICE(0x0c45, 0x6009), SB(PAS106, 101)},
 	{USB_DEVICE(0x0c45, 0x600d), SB(PAS106, 101)},
 #endif
