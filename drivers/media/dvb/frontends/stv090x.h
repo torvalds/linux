@@ -60,6 +60,11 @@ enum stv090x_i2crpt {
 	STV090x_RPTLEVEL_2	= 7,
 };
 
+enum stv090x_adc_range {
+	STV090x_ADC_2Vpp	= 0,
+	STV090x_ADC_1Vpp	= 1
+};
+
 struct stv090x_config {
 	enum stv090x_device	device;
 	enum stv090x_mode	demod_mode;
@@ -74,6 +79,10 @@ struct stv090x_config {
 	u32 ts2_clk;
 
 	enum stv090x_i2crpt	repeater_level;
+
+	u8			tuner_bbgain; /* default: 10db */
+	enum stv090x_adc_range	adc1_range; /* default: 2Vpp */
+	enum stv090x_adc_range	adc2_range; /* default: 2Vpp */
 
 	bool diseqc_envelope_mode;
 

@@ -3237,7 +3237,10 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 		goto err;
 
 	if (state->config->tuner_set_bbgain) {
-		if (state->config->tuner_set_bbgain(fe, 10) < 0) /* 10dB */
+		reg = state->config->tuner_bbgain;
+		if (reg == 0)
+			reg = 10; /* default: 10dB */
+		if (state->config->tuner_set_bbgain(fe, reg) < 0)
 			goto err_gateoff;
 	}
 
@@ -4445,6 +4448,20 @@ static int stv090x_setup(struct dvb_frontend *fe)
 		dprintk(FE_ERROR, 1, "INFO: Cut: 0x%02x probably incomplete support!",
 			state->internal->dev_ver);
 	}
+
+	/* ADC1 range */
+	reg = stv090x_read_reg(state, STV090x_TSTTNR1);
+	STV090x_SETFIELD(reg, ADC1_INMODE_FIELD,
+		(config->adc1_range == STV090x_ADC_1Vpp) ? 0 : 1);
+	if (stv090x_write_reg(state, STV090x_TSTTNR1, reg) < 0)
+		goto err;
+
+	/* ADC2 range */
+	reg = stv090x_read_reg(state, STV090x_TSTTNR3);
+	STV090x_SETFIELD(reg, ADC2_INMODE_FIELD,
+		(config->adc2_range == STV090x_ADC_1Vpp) ? 0 : 1);
+	if (stv090x_write_reg(state, STV090x_TSTTNR3, reg) < 0)
+		goto err;
 
 	if (stv090x_write_reg(state, STV090x_TSTRES0, 0x80) < 0)
 		goto err;
