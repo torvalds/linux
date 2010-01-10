@@ -2657,7 +2657,7 @@ static int pci_resume(struct pci_dev *dev)
 }
 #endif
 
-static struct pci_device_id pci_table[] = {
+static const struct pci_device_id pci_table[] = {
 	{ PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_FIREWIRE_OHCI, ~0) },
 	{ }
 };
