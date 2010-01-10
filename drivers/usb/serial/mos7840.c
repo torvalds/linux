@@ -181,7 +181,7 @@
 #define URB_TRANSFER_BUFFER_SIZE        32	/* URB Size  */
 
 
-static struct usb_device_id moschip_port_id_table[] = {
+static const struct usb_device_id moschip_port_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
@@ -198,7 +198,7 @@ static struct usb_device_id moschip_port_id_table[] = {
 	{}			/* terminating entry */
 };
 
-static __devinitdata struct usb_device_id moschip_id_table_combined[] = {
+static const struct usb_device_id moschip_id_table_combined[] __devinitconst = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},

@@ -134,7 +134,7 @@ enum {
 
 #define IPW_WANTS_TO_SEND	0x30
 
-static struct usb_device_id usb_ipw_ids[] = {
+static const struct usb_device_id usb_ipw_ids[] = {
 	{ USB_DEVICE(IPW_VID, IPW_PID) },
 	{ },
 };

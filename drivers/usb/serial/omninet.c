@@ -75,7 +75,7 @@ static void omninet_disconnect(struct usb_serial *serial);
 static void omninet_release(struct usb_serial *serial);
 static int omninet_attach(struct usb_serial *serial);
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, ZYXEL_OMNINET_ID) },
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, BT_IGNITIONPRO_ID) },
 	{ }						/* Terminating entry */

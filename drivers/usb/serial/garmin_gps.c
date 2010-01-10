@@ -210,7 +210,7 @@ static unsigned char const PRIVATE_REQ[]
 
 
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	/* the same device id seems to be used by all
 	   usb enabled GPS devices */
 	{ USB_DEVICE(GARMIN_VENDOR_ID, 3) },

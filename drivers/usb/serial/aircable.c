@@ -78,7 +78,7 @@ static int debug;
 #define DRIVER_DESC "AIRcable USB Driver"
 
 /* ID table that will be registered with USB core */
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(AIRCABLE_VID, AIRCABLE_USB_PID) },
 	{ },
 };

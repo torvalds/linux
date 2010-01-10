@@ -94,7 +94,7 @@ static int  klsi_105_tiocmset(struct tty_struct *tty, struct file *file,
 /*
  * All of the device info needed for the KLSI converters.
  */
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PALMCONNECT_VID, PALMCONNECT_PID) },
 	{ USB_DEVICE(KLSI_VID, KLSI_KL5KUSB105D_PID) },
 	{ }		/* Terminating entry */
