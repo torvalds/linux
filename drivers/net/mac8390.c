@@ -303,7 +303,7 @@ static bool __init mac8390_init(struct net_device *dev, struct nubus_dev *ndev,
 	int offset;
 	volatile unsigned short *i;
 
-	printk_once(KERN_INFO pr_fmt(version));
+	printk_once(KERN_INFO pr_fmt("%s"), version);
 
 	dev->irq = SLOT2IRQ(ndev->board->slot);
 	/* This is getting to be a habit */
