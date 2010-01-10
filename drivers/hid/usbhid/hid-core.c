@@ -1342,7 +1342,7 @@ static int hid_reset_resume(struct usb_interface *intf)
 
 #endif /* CONFIG_PM */
 
-static struct usb_device_id hid_usb_ids [] = {
+static const struct usb_device_id hid_usb_ids[] = {
 	{ .match_flags = USB_DEVICE_ID_MATCH_INT_CLASS,
 		.bInterfaceClass = USB_INTERFACE_CLASS_HID },
 	{ }						/* Terminating entry */
