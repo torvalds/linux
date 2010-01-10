@@ -7134,7 +7134,7 @@ static struct DAC960_privdata DAC960_P_privdata = {
 	.MemoryWindowSize =	DAC960_PD_RegisterWindowSize,
 };
 
-static struct pci_device_id DAC960_id_table[] = {
+static const struct pci_device_id DAC960_id_table[] = {
 	{
 		.vendor 	= PCI_VENDOR_ID_MYLEX,
 		.device		= PCI_DEVICE_ID_MYLEX_DAC960_GEM,
