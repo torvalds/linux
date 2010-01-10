@@ -3256,21 +3256,21 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 
 	msleep(50);
 
-	if (stv090x_i2c_gate_ctrl(fe, 1) < 0)
-		goto err;
-
 	if (state->config->tuner_get_status) {
+		if (stv090x_i2c_gate_ctrl(fe, 1) < 0)
+			goto err;
 		if (state->config->tuner_get_status(fe, &reg) < 0)
 			goto err_gateoff;
+		if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
+			goto err;
+
+		if (reg)
+			dprintk(FE_DEBUG, 1, "Tuner phase locked");
+		else {
+			dprintk(FE_DEBUG, 1, "Tuner unlocked");
+			return STV090x_NOCARRIER;
+		}
 	}
-
-	if (reg)
-		dprintk(FE_DEBUG, 1, "Tuner phase locked");
-	else
-		dprintk(FE_DEBUG, 1, "Tuner unlocked");
-
-	if (stv090x_i2c_gate_ctrl(fe, 0) < 0)
-		goto err;
 
 	msleep(10);
 	agc1_power = MAKEWORD16(STV090x_READ_DEMOD(state, AGCIQIN1),
