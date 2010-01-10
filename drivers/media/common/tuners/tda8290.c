@@ -144,7 +144,8 @@ static void set_audio(struct dvb_frontend *fe,
 	}
 
 	if (params->mode == V4L2_TUNER_RADIO) {
-		priv->tda8290_easy_mode = 0x01;		/* Start with MN values */
+		/* Set TDA8295 to FM radio; Start TDA8290 with MN values */
+		priv->tda8290_easy_mode = (priv->ver & TDA8295) ? 0x80 : 0x01;
 		tuner_dbg("setting to radio FM\n");
 	} else {
 		tuner_dbg("setting tda829x to system %s\n", mode);
