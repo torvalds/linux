@@ -64,7 +64,7 @@ static int can_cap_in_hardware(void)
 	return force_cap_on || cap_in_hardware;
 }
 
-static struct acpi_device_id power_meter_ids[] = {
+static const struct acpi_device_id power_meter_ids[] = {
 	{"ACPI000D", 0},
 	{"", 0},
 };
