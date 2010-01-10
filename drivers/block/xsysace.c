@@ -1227,7 +1227,7 @@ static int __devexit ace_of_remove(struct of_device *op)
 }
 
 /* Match table for of_platform binding */
-static struct of_device_id ace_of_match[] __devinitdata = {
+static const struct of_device_id ace_of_match[] __devinitconst = {
 	{ .compatible = "xlnx,opb-sysace-1.00.b", },
 	{ .compatible = "xlnx,opb-sysace-1.00.c", },
 	{ .compatible = "xlnx,xps-sysace-1.00.a", },
