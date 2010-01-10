@@ -195,7 +195,7 @@ static void __devexit k10temp_remove(struct pci_dev *pdev)
 	dev_set_drvdata(&pdev->dev, NULL);
 }
 
-static struct pci_device_id k10temp_id_table[] = {
+static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_10H_NB_MISC) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_11H_NB_MISC) },
 	{}
