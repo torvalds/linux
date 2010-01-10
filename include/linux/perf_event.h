@@ -565,6 +565,10 @@ typedef void (*perf_overflow_handler_t)(struct perf_event *, int,
 					struct perf_sample_data *,
 					struct pt_regs *regs);
 
+enum perf_group_flag {
+	PERF_GROUP_SOFTWARE = 0x1,
+};
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -574,6 +578,7 @@ struct perf_event {
 	struct list_head		event_entry;
 	struct list_head		sibling_list;
 	int				nr_siblings;
+	int				group_flags;
 	struct perf_event		*group_leader;
 	struct perf_event		*output;
 	const struct pmu		*pmu;

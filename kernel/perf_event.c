@@ -315,9 +315,16 @@ list_add_event(struct perf_event *event, struct perf_event_context *ctx)
 	if (group_leader == event) {
 		struct list_head *list;
 
+		if (is_software_event(event))
+			event->group_flags |= PERF_GROUP_SOFTWARE;
+
 		list = ctx_group_list(event, ctx);
 		list_add_tail(&event->group_entry, list);
 	} else {
+		if (group_leader->group_flags & PERF_GROUP_SOFTWARE &&
+		    !is_software_event(event))
+			group_leader->group_flags &= ~PERF_GROUP_SOFTWARE;
+
 		list_add_tail(&event->group_entry, &group_leader->sibling_list);
 		group_leader->nr_siblings++;
 	}
@@ -372,6 +379,9 @@ list_del_event(struct perf_event *event, struct perf_event_context *ctx)
 		list = ctx_group_list(event, ctx);
 		list_move_tail(&sibling->group_entry, list);
 		sibling->group_leader = sibling;
+
+		/* Inherit group flags from the previous leader */
+		sibling->group_flags = event->group_flags;
 	}
 }
 
@@ -700,24 +710,6 @@ group_error:
 }
 
 /*
- * Return 1 for a group consisting entirely of software events,
- * 0 if the group contains any hardware events.
- */
-static int is_software_only_group(struct perf_event *leader)
-{
-	struct perf_event *event;
-
-	if (!is_software_event(leader))
-		return 0;
-
-	list_for_each_entry(event, &leader->sibling_list, group_entry)
-		if (!is_software_event(event))
-			return 0;
-
-	return 1;
-}
-
-/*
  * Work out whether we can put this event group on the CPU now.
  */
 static int group_can_go_on(struct perf_event *event,
@@ -727,7 +719,7 @@ static int group_can_go_on(struct perf_event *event,
 	/*
 	 * Groups consisting entirely of software events can always go on.
 	 */
-	if (is_software_only_group(event))
+	if (event->group_flags & PERF_GROUP_SOFTWARE)
 		return 1;
 	/*
 	 * If an exclusive group is already on, no other hardware
