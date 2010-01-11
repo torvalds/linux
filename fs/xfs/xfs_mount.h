@@ -384,7 +384,7 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 /*
- * perag get/put wrappers for eventual ref counting
+ * perag get/put wrappers for ref counting
  */
 static inline struct xfs_perag *
 xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
@@ -393,6 +393,12 @@ xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
 
 	spin_lock(&mp->m_perag_lock);
 	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
+	if (pag) {
+		ASSERT(atomic_read(&pag->pag_ref) >= 0);
+		/* catch leaks in the positive direction during testing */
+		ASSERT(atomic_read(&pag->pag_ref) < 1000);
+		atomic_inc(&pag->pag_ref);
+	}
 	spin_unlock(&mp->m_perag_lock);
 	return pag;
 }
@@ -400,7 +406,8 @@ xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
 static inline void
 xfs_perag_put(struct xfs_perag *pag)
 {
-	/* nothing to see here, move along */
+	ASSERT(atomic_read(&pag->pag_ref) > 0);
+	atomic_dec(&pag->pag_ref);
 }
 
 /*

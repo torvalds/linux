@@ -196,8 +196,8 @@ typedef struct xfs_perag_busy {
 #define XFS_PAGB_NUM_SLOTS	128
 #endif
 
-typedef struct xfs_perag
-{
+typedef struct xfs_perag {
+	atomic_t	pag_ref;	/* perag reference count */
 	char		pagf_init;	/* this agf's entry is initialized */
 	char		pagi_init;	/* this agi's entry is initialized */
 	char		pagf_metadata;	/* the agf is preferred to be metadata */
