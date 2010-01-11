@@ -10,6 +10,8 @@
  * your option) any later version.
  */
 
+#define pr_fmt(fmt) "ep93xx " KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -468,9 +470,9 @@ static int __init ep93xx_clock_init(void)
 	}
 	clk_usb_host.rate = clk_pll2.rate / (((value >> 28) & 0xf) + 1);
 
-	printk(KERN_INFO "ep93xx: PLL1 running at %ld MHz, PLL2 at %ld MHz\n",
+	pr_info("PLL1 running at %ld MHz, PLL2 at %ld MHz\n",
 		clk_pll1.rate / 1000000, clk_pll2.rate / 1000000);
-	printk(KERN_INFO "ep93xx: FCLK %ld MHz, HCLK %ld MHz, PCLK %ld MHz\n",
+	pr_info("FCLK %ld MHz, HCLK %ld MHz, PCLK %ld MHz\n",
 		clk_f.rate / 1000000, clk_h.rate / 1000000,
 		clk_p.rate / 1000000);
 
