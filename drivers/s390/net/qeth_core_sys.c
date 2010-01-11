@@ -118,7 +118,7 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	char *tmp;
-	unsigned int portno;
+	unsigned int portno, limit;
 
 	if (!card)
 		return -EINVAL;
@@ -128,9 +128,11 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		return -EPERM;
 
 	portno = simple_strtoul(buf, &tmp, 16);
-	if (portno > QETH_MAX_PORTNO) {
+	if (portno > QETH_MAX_PORTNO)
 		return -EINVAL;
-	}
+	limit = (card->ssqd.pcnt ? card->ssqd.pcnt - 1 : card->ssqd.pcnt);
+	if (portno > limit)
+		return -EINVAL;
 
 	card->info.portno = portno;
 	return count;

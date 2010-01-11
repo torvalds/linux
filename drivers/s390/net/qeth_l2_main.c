@@ -769,7 +769,8 @@ static void qeth_l2_qdio_input_handler(struct ccw_device *ccwdev,
 		index = i % QDIO_MAX_BUFFERS_PER_Q;
 		buffer = &card->qdio.in_q->bufs[index];
 		if (!(qdio_err &&
-		      qeth_check_qdio_errors(buffer->buffer, qdio_err, "qinerr")))
+		      qeth_check_qdio_errors(card, buffer->buffer, qdio_err,
+					     "qinerr")))
 			qeth_l2_process_inbound_buffer(card, buffer, index);
 		/* clear buffer and give back to hardware */
 		qeth_put_buffer_pool_entry(card, buffer->pool_entry);
