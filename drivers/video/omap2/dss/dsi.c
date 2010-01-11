@@ -261,8 +261,6 @@ static struct
 #ifdef DEBUG
 	ktime_t perf_setup_time;
 	ktime_t perf_start_time;
-	ktime_t perf_start_time_auto;
-	int perf_measure_frames;
 #endif
 	int debug_read;
 	int debug_write;
@@ -338,12 +336,6 @@ static void dsi_perf_mark_start(void)
 	dsi.perf_start_time = ktime_get();
 }
 
-static void dsi_perf_mark_start_auto(void)
-{
-	dsi.perf_measure_frames = 0;
-	dsi.perf_start_time_auto = ktime_get();
-}
-
 static void dsi_perf_show(const char *name)
 {
 	ktime_t t, setup_time, trans_time;
@@ -374,72 +366,19 @@ static void dsi_perf_show(const char *name)
 		dsi.active_update_region.h *
 		dsi.active_update_region.device->ctrl.pixel_size / 8;
 
-	if (dsi.update_mode == OMAP_DSS_UPDATE_AUTO) {
-		static u32 s_total_trans_us, s_total_setup_us;
-		static u32 s_min_trans_us = 0xffffffff, s_min_setup_us;
-		static u32 s_max_trans_us, s_max_setup_us;
-		const int numframes = 100;
-		ktime_t total_time_auto;
-		u32 total_time_auto_us;
-
-		dsi.perf_measure_frames++;
-
-		if (setup_us < s_min_setup_us)
-			s_min_setup_us = setup_us;
-
-		if (setup_us > s_max_setup_us)
-			s_max_setup_us = setup_us;
-
-		s_total_setup_us += setup_us;
-
-		if (trans_us < s_min_trans_us)
-			s_min_trans_us = trans_us;
-
-		if (trans_us > s_max_trans_us)
-			s_max_trans_us = trans_us;
-
-		s_total_trans_us += trans_us;
-
-		if (dsi.perf_measure_frames < numframes)
-			return;
-
-		total_time_auto = ktime_sub(t, dsi.perf_start_time_auto);
-		total_time_auto_us = (u32)ktime_to_us(total_time_auto);
-
-		printk(KERN_INFO "DSI(%s): %u fps, setup %u/%u/%u, "
-				"trans %u/%u/%u\n",
-				name,
-				1000 * 1000 * numframes / total_time_auto_us,
-				s_min_setup_us,
-				s_max_setup_us,
-				s_total_setup_us / numframes,
-				s_min_trans_us,
-				s_max_trans_us,
-				s_total_trans_us / numframes);
-
-		s_total_setup_us = 0;
-		s_min_setup_us = 0xffffffff;
-		s_max_setup_us = 0;
-		s_total_trans_us = 0;
-		s_min_trans_us = 0xffffffff;
-		s_max_trans_us = 0;
-		dsi_perf_mark_start_auto();
-	} else {
-		printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
-				"%u bytes, %u kbytes/sec\n",
-				name,
-				setup_us,
-				trans_us,
-				total_us,
-				1000*1000 / total_us,
-				total_bytes,
-				total_bytes * 1000 / total_us);
-	}
+	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
+			"%u bytes, %u kbytes/sec\n",
+			name,
+			setup_us,
+			trans_us,
+			total_us,
+			1000*1000 / total_us,
+			total_bytes,
+			total_bytes * 1000 / total_us);
 }
 #else
 #define dsi_perf_mark_setup()
 #define dsi_perf_mark_start()
-#define dsi_perf_mark_start_auto()
 #define dsi_perf_show(x)
 #endif
 
@@ -2932,8 +2871,6 @@ static int dsi_set_update_mode(struct omap_dss_device *dssdev,
 			dssdev->get_resolution(dssdev, &w, &h);
 
 			dsi_set_update_region(dssdev, 0, 0, w, h);
-
-			dsi_perf_mark_start_auto();
 
 			wake_up(&dsi.waitqueue);
 		}
