@@ -66,6 +66,14 @@ config S3C_GPIO_PULL_UP
 	help
 	  Internal configuration to enable the correct GPIO pull helper
 
+config SAMSUNG_GPIO_EXTRA
+	int "Number of additional GPIO pins"
+	default 0
+	help
+	  Use additional GPIO space in addition to the GPIO's the SOC
+	  provides. This allows expanding the GPIO space for use with
+	  GPIO expanders.
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC
