@@ -209,13 +209,16 @@ STATIC void
 xfs_free_perag(
 	xfs_mount_t	*mp)
 {
-	if (mp->m_perag) {
-		int	agno;
+	xfs_agnumber_t	agno;
+	struct xfs_perag *pag;
 
-		for (agno = 0; agno < mp->m_maxagi; agno++)
-			if (mp->m_perag[agno].pagb_list)
-				kmem_free(mp->m_perag[agno].pagb_list);
-		kmem_free(mp->m_perag);
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		spin_lock(&mp->m_perag_lock);
+		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		spin_unlock(&mp->m_perag_lock);
+		ASSERT(pag);
+		kmem_free(pag->pagb_list);
+		kmem_free(pag);
 	}
 }
 
@@ -389,10 +392,11 @@ xfs_initialize_perag_icache(
 	}
 }
 
-xfs_agnumber_t
+int
 xfs_initialize_perag(
 	xfs_mount_t	*mp,
-	xfs_agnumber_t	agcount)
+	xfs_agnumber_t	agcount,
+	xfs_agnumber_t	*maxagi)
 {
 	xfs_agnumber_t	index, max_metadata;
 	xfs_perag_t	*pag;
@@ -404,6 +408,33 @@ xfs_initialize_perag(
 	/* Check to see if the filesystem can overflow 32 bit inodes */
 	agino = XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
 	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
+
+	/*
+	 * Walk the current per-ag tree so we don't try to initialise AGs
+	 * that already exist (growfs case). Allocate and insert all the
+	 * AGs we don't find ready for initialisation.
+	 */
+	for (index = 0; index < agcount; index++) {
+		pag = xfs_perag_get(mp, index);
+		if (pag) {
+			xfs_perag_put(pag);
+			continue;
+		}
+		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
+		if (!pag)
+			return -ENOMEM;
+		if (radix_tree_preload(GFP_NOFS))
+			return -ENOMEM;
+		spin_lock(&mp->m_perag_lock);
+		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
+			BUG();
+			spin_unlock(&mp->m_perag_lock);
+			kmem_free(pag);
+			return -EEXIST;
+		}
+		spin_unlock(&mp->m_perag_lock);
+		radix_tree_preload_end();
+	}
 
 	/* Clear the mount flag if no inode can overflow 32 bits
 	 * on this filesystem, or if specifically requested..
@@ -454,7 +485,9 @@ xfs_initialize_perag(
 			xfs_perag_put(pag);
 		}
 	}
-	return index;
+	if (maxagi)
+		*maxagi = index;
+	return 0;
 }
 
 void
@@ -1155,13 +1188,13 @@ xfs_mountfs(
 	/*
 	 * Allocate and initialize the per-ag data.
 	 */
-	init_rwsem(&mp->m_peraglock);
-	mp->m_perag = kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t),
-				  KM_MAYFAIL);
-	if (!mp->m_perag)
+	spin_lock_init(&mp->m_perag_lock);
+	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_NOFS);
+	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
+	if (error) {
+		cmn_err(CE_WARN, "XFS: Failed per-ag init: %d", error);
 		goto out_remove_uuid;
-
-	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
+	}
 
 	if (!sbp->sb_logblocks) {
 		cmn_err(CE_WARN, "XFS: no log defined");

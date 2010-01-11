@@ -253,8 +253,7 @@ next_ag:
 
 /*
  * Set the allocation group number for a file or a directory, updating inode
- * references and per-AG references as appropriate.  Must be called with the
- * m_peraglock held in read mode.
+ * references and per-AG references as appropriate.
  */
 static int
 _xfs_filestream_update_ag(
@@ -456,10 +455,10 @@ xfs_filestream_unmount(
 }
 
 /*
- * If the mount point's m_perag array is going to be reallocated, all
+ * If the mount point's m_perag tree is going to be modified, all
  * outstanding cache entries must be flushed to avoid accessing reference count
  * addresses that have been freed.  The call to xfs_filestream_flush() must be
- * made inside the block that holds the m_peraglock in write mode to do the
+ * made inside the block that holds the m_perag_lock in write mode to do the
  * reallocation.
  */
 void
@@ -531,7 +530,6 @@ xfs_filestream_associate(
 
 	mp = pip->i_mount;
 	cache = mp->m_filestream;
-	down_read(&mp->m_peraglock);
 
 	/*
 	 * We have a problem, Houston.
@@ -548,10 +546,8 @@ xfs_filestream_associate(
 	 *
 	 * So, if we can't get the iolock without sleeping then just give up
 	 */
-	if (!xfs_ilock_nowait(pip, XFS_IOLOCK_EXCL)) {
-		up_read(&mp->m_peraglock);
+	if (!xfs_ilock_nowait(pip, XFS_IOLOCK_EXCL))
 		return 1;
-	}
 
 	/* If the parent directory is already in the cache, use its AG. */
 	item = xfs_mru_cache_lookup(cache, pip->i_ino);
@@ -606,7 +602,6 @@ exit_did_pick:
 
 exit:
 	xfs_iunlock(pip, XFS_IOLOCK_EXCL);
-	up_read(&mp->m_peraglock);
 	return -err;
 }
 
