@@ -1595,6 +1595,11 @@ xfs_buf_delwri_queue(
 		list_del(&bp->b_list);
 	}
 
+	if (list_empty(dwq)) {
+		/* start xfsbufd as it is about to have something to do */
+		wake_up_process(bp->b_target->bt_task);
+	}
+
 	bp->b_flags |= _XBF_DELWRI_Q;
 	list_add_tail(&bp->b_list, dwq);
 	bp->b_queuetime = jiffies;
@@ -1643,6 +1648,8 @@ xfsbufd_wakeup(
 	spin_lock(&xfs_buftarg_lock);
 	list_for_each_entry(btp, &xfs_buftarg_list, bt_list) {
 		if (test_bit(XBT_FORCE_SLEEP, &btp->bt_flags))
+			continue;
+		if (list_empty(&btp->bt_delwrite_queue))
 			continue;
 		set_bit(XBT_FORCE_FLUSH, &btp->bt_flags);
 		wake_up_process(btp->bt_task);
@@ -1708,6 +1715,9 @@ xfsbufd(
 	set_freezable();
 
 	do {
+		long	age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
+		long	tout = xfs_buf_timer_centisecs * msecs_to_jiffies(10);
+
 		if (unlikely(freezing(current))) {
 			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
 			refrigerator();
@@ -1715,12 +1725,12 @@ xfsbufd(
 			clear_bit(XBT_FORCE_SLEEP, &target->bt_flags);
 		}
 
-		schedule_timeout_interruptible(
-			xfs_buf_timer_centisecs * msecs_to_jiffies(10));
+		/* sleep for a long time if there is nothing to do. */
+		if (list_empty(&target->bt_delwrite_queue))
+			tout = MAX_SCHEDULE_TIMEOUT;
+		schedule_timeout_interruptible(tout);
 
-		xfs_buf_delwri_split(target, &tmp,
-				xfs_buf_age_centisecs * msecs_to_jiffies(10));
-
+		xfs_buf_delwri_split(target, &tmp, age);
 		count = 0;
 		while (!list_empty(&tmp)) {
 			bp = list_entry(tmp.next, xfs_buf_t, b_list);
