@@ -111,6 +111,8 @@ static struct platform_device davinci_nand_device = {
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 400	/* kHz */,
 	.bus_delay	= 0	/* usec */,
+	.sda_pin        = 15,
+	.scl_pin        = 14,
 };
 
 static struct snd_platform_data dm355_evm_snd_data;
