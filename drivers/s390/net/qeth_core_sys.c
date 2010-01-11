@@ -539,7 +539,7 @@ static ssize_t qeth_dev_blkt_total_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	return qeth_dev_blkt_store(card, buf, count,
-				   &card->info.blkt.time_total, 1000);
+				   &card->info.blkt.time_total, 5000);
 }
 
 
@@ -561,7 +561,7 @@ static ssize_t qeth_dev_blkt_inter_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	return qeth_dev_blkt_store(card, buf, count,
-				   &card->info.blkt.inter_packet, 100);
+				   &card->info.blkt.inter_packet, 1000);
 }
 
 static DEVICE_ATTR(inter, 0644, qeth_dev_blkt_inter_show,
@@ -582,7 +582,7 @@ static ssize_t qeth_dev_blkt_inter_jumbo_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	return qeth_dev_blkt_store(card, buf, count,
-				   &card->info.blkt.inter_packet_jumbo, 100);
+				   &card->info.blkt.inter_packet_jumbo, 1000);
 }
 
 static DEVICE_ATTR(inter_jumbo, 0644, qeth_dev_blkt_inter_jumbo_show,
