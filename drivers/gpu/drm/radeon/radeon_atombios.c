@@ -346,7 +346,9 @@ const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_DisplayPort
+	DRM_MODE_CONNECTOR_DisplayPort,
+	DRM_MODE_CONNECTOR_eDP,
+	DRM_MODE_CONNECTOR_Unknown
 };
 
 bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
@@ -932,6 +934,43 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		    le32_to_cpu(firmware_info->info.ulDefaultMemoryClock);
 
 		return true;
+	}
+	return false;
+}
+
+union igp_info {
+	struct _ATOM_INTEGRATED_SYSTEM_INFO info;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_2;
+};
+
+bool radeon_atombios_sideport_present(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
+	union igp_info *igp_info;
+	u8 frev, crev;
+	u16 data_offset;
+
+	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
+			       &crev, &data_offset);
+
+	igp_info = (union igp_info *)(mode_info->atom_context->bios +
+				      data_offset);
+
+	if (igp_info) {
+		switch (crev) {
+		case 1:
+			if (igp_info->info.ucMemoryType & 0xf0)
+				return true;
+			break;
+		case 2:
+			if (igp_info->info_2.ucMemoryType & 0x0f)
+				return true;
+			break;
+		default:
+			DRM_ERROR("Unsupported IGP table: %d %d\n", frev, crev);
+			break;
+		}
 	}
 	return false;
 }
