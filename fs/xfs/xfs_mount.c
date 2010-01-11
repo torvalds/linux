@@ -432,11 +432,13 @@ xfs_initialize_perag(
 	xfs_agnumber_t	*maxagi)
 {
 	xfs_agnumber_t	index, max_metadata;
+	xfs_agnumber_t	first_initialised = 0;
 	xfs_perag_t	*pag;
 	xfs_agino_t	agino;
 	xfs_ino_t	ino;
 	xfs_sb_t	*sbp = &mp->m_sb;
 	xfs_ino_t	max_inum = XFS_MAXINUMBER_32;
+	int		error = -ENOMEM;
 
 	/* Check to see if the filesystem can overflow 32 bit inodes */
 	agino = XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
@@ -453,17 +455,20 @@ xfs_initialize_perag(
 			xfs_perag_put(pag);
 			continue;
 		}
+		if (!first_initialised)
+			first_initialised = index;
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
 		if (!pag)
-			return -ENOMEM;
+			goto out_unwind;
 		if (radix_tree_preload(GFP_NOFS))
-			return -ENOMEM;
+			goto out_unwind;
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
 			BUG();
 			spin_unlock(&mp->m_perag_lock);
-			kmem_free(pag);
-			return -EEXIST;
+			radix_tree_preload_end();
+			error = -EEXIST;
+			goto out_unwind;
 		}
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
@@ -523,6 +528,14 @@ xfs_initialize_perag(
 	if (maxagi)
 		*maxagi = index;
 	return 0;
+
+out_unwind:
+	kmem_free(pag);
+	for (; index > first_initialised; index--) {
+		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		kmem_free(pag);
+	}
+	return error;
 }
 
 void
