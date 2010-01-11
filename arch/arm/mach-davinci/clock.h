@@ -106,20 +106,14 @@ struct clk {
 #define CLK_PLL			BIT(4) /* PLL-derived clock */
 #define PRE_PLL                 BIT(5) /* source is before PLL mult/div */
 
-struct davinci_clk {
-	struct clk_lookup lk;
-};
+#define CLK(dev, con, ck) 	\
+	{			\
+		.dev_id = dev,	\
+		.con_id = con,	\
+		.clk = ck,	\
+	}			\
 
-#define CLK(dev, con, ck) 		\
-	{				\
-		.lk = {			\
-			.dev_id = dev,	\
-			.con_id = con,	\
-			.clk = ck,	\
-		},			\
-	}
-
-int davinci_clk_init(struct davinci_clk *clocks);
+int davinci_clk_init(struct clk_lookup *clocks);
 int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 				unsigned int mult, unsigned int postdiv);
 

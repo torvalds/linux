@@ -335,7 +335,7 @@ static struct clk aemif_clk = {
 	.flags		= ALWAYS_ENABLED,
 };
 
-static struct davinci_clk da850_clks[] = {
+static struct clk_lookup da850_clks[] = {
 	CLK(NULL,		"ref",		&ref_clk),
 	CLK(NULL,		"pll0",		&pll0_clk),
 	CLK(NULL,		"pll0_aux",	&pll0_aux_clk),
@@ -834,12 +834,12 @@ static struct davinci_timer_info da850_timer_info = {
 static void da850_set_async3_src(int pllnum)
 {
 	struct clk *clk, *newparent = pllnum ? &pll1_sysclk2 : &pll0_sysclk2;
-	struct davinci_clk *c;
+	struct clk_lookup *c;
 	unsigned int v;
 	int ret;
 
-	for (c = da850_clks; c->lk.clk; c++) {
-		clk = c->lk.clk;
+	for (c = da850_clks; c->clk; c++) {
+		clk = c->clk;
 		if (clk->flags & DA850_CLK_ASYNC3) {
 			ret = clk_set_parent(clk, newparent);
 			WARN(ret, "DA850: unable to re-parent clock %s",

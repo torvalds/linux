@@ -403,7 +403,7 @@ static struct clk mjcp_clk = {
 	.lpsc		= DM365_LPSC_MJCP,
 };
 
-static struct davinci_clk dm365_clks[] = {
+static struct clk_lookup dm365_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "pll1", &pll1_clk),
 	CLK(NULL, "pll1_aux", &pll1_aux_clk),

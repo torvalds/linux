@@ -427,13 +427,14 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 }
 EXPORT_SYMBOL(davinci_set_pllrate);
 
-int __init davinci_clk_init(struct davinci_clk *clocks)
+int __init davinci_clk_init(struct clk_lookup *clocks)
   {
-	struct davinci_clk *c;
+	struct clk_lookup *c;
 	struct clk *clk;
+	size_t num_clocks = 0;
 
-	for (c = clocks; c->lk.clk; c++) {
-		clk = c->lk.clk;
+	for (c = clocks; c->clk; c++) {
+		clk = c->clk;
 
 		if (!clk->recalc) {
 
@@ -456,13 +457,15 @@ int __init davinci_clk_init(struct davinci_clk *clocks)
 		if (clk->lpsc)
 			clk->flags |= CLK_PSC;
 
-		clkdev_add(&c->lk);
 		clk_register(clk);
+		num_clocks++;
 
 		/* Turn on clocks that Linux doesn't otherwise manage */
 		if (clk->flags & ALWAYS_ENABLED)
 			clk_enable(clk);
 	}
+
+	clkdev_add_table(clocks, num_clocks);
 
 	return 0;
 }
