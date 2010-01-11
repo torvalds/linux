@@ -144,7 +144,7 @@ enum {
 	.bInterfaceClass = USB_INTERFACE_CLASS_HID, \
 	.bInterfaceProtocol = USB_INTERFACE_PROTOCOL_MOUSE
 
-static struct usb_device_id usbtouch_devices[] = {
+static const struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	/* ignore the HID capable devices, handled by usbhid */
 	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_IGNORE},
