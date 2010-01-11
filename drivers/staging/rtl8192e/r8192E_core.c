@@ -1807,7 +1807,7 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
             return 0;
         priv->rx_buf[i] = skb;
         mapping = (dma_addr_t *)skb->cb;
-        *mapping = pci_map_single(priv->pdev, skb->tail,//skb_tail_pointer(skb),
+        *mapping = pci_map_single(priv->pdev, skb_tail_pointer(skb),
                 priv->rxbuffersize, PCI_DMA_FROMDEVICE);
 
         entry->BufferAddress = cpu_to_le32(*mapping);
@@ -6287,8 +6287,7 @@ static void rtl8192_rx(struct net_device *dev)
 
                 skb = new_skb;
                 priv->rx_buf[priv->rx_idx] = skb;
-                *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb->tail, priv->rxbuffersize, PCI_DMA_FROMDEVICE);
-//                *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
+                *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
             }
 
         }
