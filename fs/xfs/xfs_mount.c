@@ -247,10 +247,9 @@ xfs_free_perag(
 	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
 		spin_lock(&mp->m_perag_lock);
 		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
 		spin_unlock(&mp->m_perag_lock);
-		ASSERT(pag);
-		kmem_free(pag->pagb_list);
 		kmem_free(pag);
 	}
 }

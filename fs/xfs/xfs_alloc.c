@@ -2200,8 +2200,8 @@ xfs_alloc_read_agf(
 		pag->pagf_levels[XFS_BTNUM_CNTi] =
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]);
 		spin_lock_init(&pag->pagb_lock);
-		pag->pagb_list = kmem_zalloc(XFS_PAGB_NUM_SLOTS *
-					sizeof(xfs_perag_busy_t), KM_SLEEP);
+		pag->pagb_count = 0;
+		memset(pag->pagb_list, 0, sizeof(pag->pagb_list));
 		pag->pagf_init = 1;
 	}
 #ifdef DEBUG
