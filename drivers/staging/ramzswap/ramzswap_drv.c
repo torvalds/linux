@@ -1292,7 +1292,7 @@ static struct block_device_operations ramzswap_devops = {
 	.owner = THIS_MODULE,
 };
 
-static void create_device(struct ramzswap *rzs, int device_id)
+static int create_device(struct ramzswap *rzs, int device_id)
 {
 	mutex_init(&rzs->lock);
 	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
@@ -1301,7 +1301,7 @@ static void create_device(struct ramzswap *rzs, int device_id)
 	if (!rzs->queue) {
 		pr_err("Error allocating disk queue for device %d\n",
 			device_id);
-		return;
+		return 0;
 	}
 
 	blk_queue_make_request(rzs->queue, ramzswap_make_request);
@@ -1313,7 +1313,7 @@ static void create_device(struct ramzswap *rzs, int device_id)
 		blk_cleanup_queue(rzs->queue);
 		pr_warning("Error allocating disk structure for device %d\n",
 			device_id);
-		return;
+		return 0;
 	}
 
 	rzs->disk->major = ramzswap_major;
@@ -1331,6 +1331,7 @@ static void create_device(struct ramzswap *rzs, int device_id)
 	add_disk(rzs->disk);
 
 	rzs->init_done = 0;
+	return 1;
 }
 
 static void destroy_device(struct ramzswap *rzs)
@@ -1368,16 +1369,20 @@ static int __init ramzswap_init(void)
 	/* Allocate the device array and initialize each one */
 	pr_info("Creating %u devices ...\n", num_devices);
 	devices = kzalloc(num_devices * sizeof(struct ramzswap), GFP_KERNEL);
-	if (!devices) {
-		ret = -ENOMEM;
+	if (!devices)
 		goto out;
-	}
 
 	for (i = 0; i < num_devices; i++)
-		create_device(&devices[i], i);
-
+		if (!create_device(&devices[i], i)) {
+			ret = i;
+			goto free_devices;
+		}
 	return 0;
+free_devices:
+	for (i = 0; i < ret; i++)
+		destroy_device(&devices[i]);
 out:
+	ret = -ENOMEM;
 	unregister_blkdev(ramzswap_major, "ramzswap");
 	return ret;
 }
