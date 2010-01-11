@@ -748,7 +748,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	struct gfs2_rgrpd *nrgd;
 	unsigned int num_gh;
 	int dir_rename = 0;
-	int alloc_required;
+	int alloc_required = 0;
 	unsigned int x;
 	int error;
 
@@ -867,7 +867,9 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			goto out_gunlock;
 	}
 
-	alloc_required = error = gfs2_diradd_alloc_required(ndir, &ndentry->d_name);
+	if (nip == NULL)
+		alloc_required = gfs2_diradd_alloc_required(ndir, &ndentry->d_name);
+	error = alloc_required;
 	if (error < 0)
 		goto out_gunlock;
 	error = 0;
