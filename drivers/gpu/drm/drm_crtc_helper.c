@@ -1032,7 +1032,7 @@ bool drm_helper_initial_config(struct drm_device *dev)
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
-	WARN(!count, "No connectors reported connected with modes\n");
+	printk(KERN_INFO "No connectors reported conncted with modes\n");
 
 	drm_setup_crtcs(dev);
 
