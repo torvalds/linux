@@ -78,6 +78,33 @@ DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	)
 )
 
+#define DEFINE_PERAG_REF_EVENT(name) \
+TRACE_EVENT(name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, int refcount, \
+		 unsigned long caller_ip), \
+	TP_ARGS(mp, agno, refcount, caller_ip), \
+	TP_STRUCT__entry( \
+		__field(dev_t, dev) \
+		__field(xfs_agnumber_t, agno) \
+		__field(int, refcount) \
+		__field(unsigned long, caller_ip) \
+	), \
+	TP_fast_assign( \
+		__entry->dev = mp->m_super->s_dev; \
+		__entry->agno = agno; \
+		__entry->refcount = refcount; \
+		__entry->caller_ip = caller_ip; \
+	), \
+	TP_printk("dev %d:%d agno %u refcount %d caller %pf", \
+		  MAJOR(__entry->dev), MINOR(__entry->dev), \
+		  __entry->agno, \
+		  __entry->refcount, \
+		  (char *)__entry->caller_ip) \
+);
+
+DEFINE_PERAG_REF_EVENT(xfs_perag_get)
+DEFINE_PERAG_REF_EVENT(xfs_perag_put)
+
 #define DEFINE_ATTR_LIST_EVENT(name) \
 DEFINE_EVENT(xfs_attr_list_class, name, \
 	TP_PROTO(struct xfs_attr_list_context *ctx), \
