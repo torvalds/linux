@@ -438,18 +438,20 @@ xfs_initialize_perag(
 			}
 
 			/* This ag is preferred for inodes */
-			pag = &mp->m_perag[index];
+			pag = xfs_perag_get(mp, index);
 			pag->pagi_inodeok = 1;
 			if (index < max_metadata)
 				pag->pagf_metadata = 1;
 			xfs_initialize_perag_icache(pag);
+			xfs_perag_put(pag);
 		}
 	} else {
 		/* Setup default behavior for smaller filesystems */
 		for (index = 0; index < agcount; index++) {
-			pag = &mp->m_perag[index];
+			pag = xfs_perag_get(mp, index);
 			pag->pagi_inodeok = 1;
 			xfs_initialize_perag_icache(pag);
+			xfs_perag_put(pag);
 		}
 	}
 	return index;
@@ -731,12 +733,13 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
 		error = xfs_ialloc_pagi_init(mp, NULL, index);
 		if (error)
 			return error;
-		pag = &mp->m_perag[index];
+		pag = xfs_perag_get(mp, index);
 		ifree += pag->pagi_freecount;
 		ialloc += pag->pagi_count;
 		bfree += pag->pagf_freeblks;
 		bfreelst += pag->pagf_flcount;
 		btree += pag->pagf_btreeblks;
+		xfs_perag_put(pag);
 	}
 	/*
 	 * Overwrite incore superblock counters with just-read data

@@ -2630,11 +2630,12 @@ xfs_bmap_btalloc(
 			startag = ag = 0;
 		notinit = 0;
 		down_read(&mp->m_peraglock);
+		pag = xfs_perag_get(mp, ag);
 		while (blen < ap->alen) {
-			pag = &mp->m_perag[ag];
 			if (!pag->pagf_init &&
 			    (error = xfs_alloc_pagf_init(mp, args.tp,
 				    ag, XFS_ALLOC_FLAG_TRYLOCK))) {
+				xfs_perag_put(pag);
 				up_read(&mp->m_peraglock);
 				return error;
 			}
@@ -2667,6 +2668,7 @@ xfs_bmap_btalloc(
 						break;
 
 					error = xfs_filestream_new_ag(ap, &ag);
+					xfs_perag_put(pag);
 					if (error) {
 						up_read(&mp->m_peraglock);
 						return error;
@@ -2674,6 +2676,7 @@ xfs_bmap_btalloc(
 
 					/* loop again to set 'blen'*/
 					startag = NULLAGNUMBER;
+					pag = xfs_perag_get(mp, ag);
 					continue;
 				}
 			}
@@ -2681,7 +2684,10 @@ xfs_bmap_btalloc(
 				ag = 0;
 			if (ag == startag)
 				break;
+			xfs_perag_put(pag);
+			pag = xfs_perag_get(mp, ag);
 		}
+		xfs_perag_put(pag);
 		up_read(&mp->m_peraglock);
 		/*
 		 * Since the above loop did a BUF_TRYLOCK, it is
