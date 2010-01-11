@@ -1479,6 +1479,41 @@ err:
 	return status;
 }
 
+int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
+			u8 loopback_type, u8 enable)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_lmode *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+				OPCODE_LOWLEVEL_SET_LOOPBACK_MODE);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
+			OPCODE_LOWLEVEL_SET_LOOPBACK_MODE,
+			sizeof(*req));
+
+	req->src_port = port_num;
+	req->dest_port = port_num;
+	req->loopback_type = loopback_type;
+	req->loopback_state = enable;
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 		u32 loopback_type, u32 pkt_size, u32 num_pkts, u64 pattern)
 {
@@ -1501,6 +1536,7 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
 			OPCODE_LOWLEVEL_LOOPBACK_TEST, sizeof(*req));
+	req->hdr.timeout = 4;
 
 	req->pattern = cpu_to_le64(pattern);
 	req->src_port = cpu_to_le32(port_num);

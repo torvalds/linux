@@ -118,6 +118,7 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 #define BE_MAC_LOOPBACK 0x0
 #define BE_PHY_LOOPBACK 0x1
 #define BE_ONE_PORT_EXT_LOOPBACK 0x2
+#define BE_NO_LOOPBACK 0xff
 
 static void
 be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
@@ -339,28 +340,50 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		status = be_cmd_read_port_type(adapter, adapter->port_num,
 						&connector);
-		switch (connector) {
-		case 7:
-			ecmd->port = PORT_FIBRE;
-			break;
-		default:
-			ecmd->port = PORT_TP;
-			break;
+		if (!status) {
+			switch (connector) {
+			case 7:
+				ecmd->port = PORT_FIBRE;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			case 0:
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			default:
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_INTERNAL;
+				break;
+			}
+		} else {
+			ecmd->port = PORT_AUI;
+			ecmd->transceiver = XCVR_INTERNAL;
 		}
 
 		/* Save for future use */
 		adapter->link_speed = ecmd->speed;
 		adapter->port_type = ecmd->port;
+		adapter->transceiver = ecmd->transceiver;
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
+		ecmd->transceiver = adapter->transceiver;
 	}
 
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->autoneg = AUTONEG_DISABLE;
-	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
 	ecmd->phy_address = adapter->port_num;
-	ecmd->transceiver = XCVR_INTERNAL;
+	switch (ecmd->port) {
+	case PORT_FIBRE:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
+		break;
+	case PORT_TP:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
+		break;
+	case PORT_AUI:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
+		break;
+	}
 
 	return 0;
 }
@@ -489,6 +512,19 @@ err:
 	return ret;
 }
 
+static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
+				u64 *status)
+{
+	be_cmd_set_loopback(adapter, adapter->port_num,
+				loopback_type, 1);
+	*status = be_cmd_loopback_test(adapter, adapter->port_num,
+				loopback_type, 1500,
+				2, 0xabc);
+	be_cmd_set_loopback(adapter, adapter->port_num,
+				BE_NO_LOOPBACK, 1);
+	return *status;
+}
+
 static void
 be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 {
@@ -497,23 +533,18 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
-		data[0] = be_cmd_loopback_test(adapter, adapter->port_num,
-						BE_MAC_LOOPBACK, 1500,
-						2, 0xabc);
-		if (data[0] != 0)
+		if (be_loopback_test(adapter, BE_MAC_LOOPBACK,
+						&data[0]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
-
-		data[1] = be_cmd_loopback_test(adapter, adapter->port_num,
-						BE_PHY_LOOPBACK, 1500,
-						2, 0xabc);
-		if (data[1] != 0)
+		}
+		if (be_loopback_test(adapter, BE_PHY_LOOPBACK,
+						&data[1]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
-
-		data[2] = be_cmd_loopback_test(adapter, adapter->port_num,
-						BE_ONE_PORT_EXT_LOOPBACK,
-						1500, 2, 0xabc);
-		if (data[2] != 0)
+		}
+		if (be_loopback_test(adapter, BE_ONE_PORT_EXT_LOOPBACK,
+						&data[2]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
+		}
 
 		data[3] = be_test_ddr_dma(adapter);
 		if (data[3] != 0)
