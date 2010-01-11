@@ -732,12 +732,13 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		if (!display->enable_te) {
+		if (!display->driver->enable_te) {
 			r = -ENODEV;
 			break;
 		}
 
-		r = display->enable_te(display, !!p.tearsync_info.enabled);
+		r = display->driver->enable_te(display,
+				!!p.tearsync_info.enabled);
 
 		break;
 	}

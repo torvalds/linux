@@ -1232,12 +1232,6 @@ static int rfbi_display_sync(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int rfbi_display_enable_te(struct omap_dss_device *dssdev, bool enable)
-{
-	dssdev->driver->enable_te(dssdev, enable);
-	return 0;
-}
-
 static int rfbi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
@@ -1299,7 +1293,6 @@ int rfbi_init_display(struct omap_dss_device *dssdev)
 	dssdev->disable = rfbi_display_disable;
 	dssdev->update = rfbi_display_update;
 	dssdev->sync = rfbi_display_sync;
-	dssdev->enable_te = rfbi_display_enable_te;
 
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
 

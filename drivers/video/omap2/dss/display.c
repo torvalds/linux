@@ -106,7 +106,8 @@ static ssize_t display_tear_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			dssdev->get_te ? dssdev->get_te(dssdev) : 0);
+			dssdev->driver->get_te ?
+			dssdev->driver->get_te(dssdev) : 0);
 }
 
 static ssize_t display_tear_store(struct device *dev,
@@ -116,12 +117,12 @@ static ssize_t display_tear_store(struct device *dev,
 	unsigned long te;
 	int r;
 
-	if (!dssdev->enable_te || !dssdev->get_te)
+	if (!dssdev->driver->enable_te || !dssdev->driver->get_te)
 		return -ENOENT;
 
 	te = simple_strtoul(buf, NULL, 0);
 
-	r = dssdev->enable_te(dssdev, te);
+	r = dssdev->driver->enable_te(dssdev, te);
 	if (r)
 		return r;
 

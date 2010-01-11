@@ -736,6 +736,8 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
 
+	dsi_bus_lock();
+
 	td->te_enabled = enable;
 
 	if (enable)
@@ -743,7 +745,21 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	else
 		r = taal_dcs_write_0(DCS_TEAR_OFF);
 
+	omapdss_dsi_enable_te(dssdev, enable);
+
+	/* XXX for some reason, DSI TE breaks if we don't wait here.
+	 * Panel bug? Needs more studying */
+	msleep(100);
+
+	dsi_bus_unlock();
+
 	return r;
+}
+
+static int taal_get_te(struct omap_dss_device *dssdev)
+{
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	return td->te_enabled;
 }
 
 static int taal_wait_te(struct omap_dss_device *dssdev)
@@ -993,7 +1009,9 @@ static struct omap_dss_driver taal_driver = {
 	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
 
 	.enable_te	= taal_enable_te,
+	.get_te		= taal_get_te,
 	.wait_for_te	= taal_wait_te,
+
 	.set_rotate	= taal_rotate,
 	.get_rotate	= taal_get_rotate,
 	.set_mirror	= taal_mirror,

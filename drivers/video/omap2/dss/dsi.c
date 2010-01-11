@@ -2879,20 +2879,6 @@ static int dsi_set_update_mode(struct omap_dss_device *dssdev,
 	return r;
 }
 
-static int dsi_set_te(struct omap_dss_device *dssdev, bool enable)
-{
-	int r = 0;
-
-	if (dssdev->driver->enable_te) {
-		r = dssdev->driver->enable_te(dssdev, enable);
-		/* XXX for some reason, DSI TE breaks if we don't wait here.
-		 * Panel bug? Needs more studying */
-		msleep(100);
-	}
-
-	return r;
-}
-
 static void dsi_handle_framedone(void)
 {
 	int r;
@@ -3267,9 +3253,6 @@ static int dsi_display_enable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	dsi.use_ext_te = dssdev->phy.dsi.ext_te;
-	r = dsi_set_te(dssdev, dsi.te_enabled);
-	if (r)
-		goto err4;
 
 	dsi_set_update_mode(dssdev, dsi.user_update_mode);
 
@@ -3278,9 +3261,6 @@ static int dsi_display_enable(struct omap_dss_device *dssdev)
 
 	return 0;
 
-err4:
-
-	dsi_display_uninit_dsi(dssdev);
 err3:
 	dsi_display_uninit_dispc(dssdev);
 err2:
@@ -3382,10 +3362,6 @@ static int dsi_display_resume(struct omap_dss_device *dssdev)
 		goto err2;
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	r = dsi_set_te(dssdev, dsi.te_enabled);
-	if (r)
-		goto err2;
 
 	dsi_set_update_mode(dssdev, dsi.user_update_mode);
 
@@ -3504,33 +3480,12 @@ static enum omap_dss_update_mode dsi_display_get_update_mode(
 }
 
 
-static int dsi_display_enable_te(struct omap_dss_device *dssdev, bool enable)
+int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
-	int r = 0;
-
-	DSSDBGF("%d", enable);
-
-	if (!dssdev->driver->enable_te)
-		return -ENOENT;
-
-	dsi_bus_lock();
-
 	dsi.te_enabled = enable;
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		goto end;
-
-	r = dsi_set_te(dssdev, enable);
-end:
-	dsi_bus_unlock();
-
-	return r;
+	return 0;
 }
-
-static int dsi_display_get_te(struct omap_dss_device *dssdev)
-{
-	return dsi.te_enabled;
-}
+EXPORT_SYMBOL(omapdss_dsi_enable_te);
 
 void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
@@ -3557,8 +3512,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dssdev->sync = dsi_display_sync;
 	dssdev->set_update_mode = dsi_display_set_update_mode;
 	dssdev->get_update_mode = dsi_display_get_update_mode;
-	dssdev->enable_te = dsi_display_enable_te;
-	dssdev->get_te = dsi_display_get_te;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |

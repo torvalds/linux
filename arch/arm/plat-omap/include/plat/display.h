@@ -483,9 +483,6 @@ struct omap_dss_device {
 	enum omap_dss_update_mode (*get_update_mode)
 		(struct omap_dss_device *dssdev);
 
-	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
-	int (*get_te)(struct omap_dss_device *dssdev);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 
@@ -513,6 +510,7 @@ struct omap_dss_driver {
 
 	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
 	int (*wait_for_te)(struct omap_dss_device *dssdev);
+	int (*get_te)(struct omap_dss_device *dssdev);
 
 	u8 (*get_rotate)(struct omap_dss_device *dssdev);
 	int (*set_rotate)(struct omap_dss_device *dssdev, u8 rotate);
@@ -567,5 +565,6 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 #define to_dss_device(x) container_of((x), struct omap_dss_device, dev)
 
 void omapdss_dsi_vc_enable_hs(int channel, bool enable);
+int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
 
 #endif
