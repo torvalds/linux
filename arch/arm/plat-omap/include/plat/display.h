@@ -478,11 +478,6 @@ struct omap_dss_device {
 			       u16 x, u16 y, u16 w, u16 h);
 	int (*sync)(struct omap_dss_device *dssdev);
 
-	int (*set_update_mode)(struct omap_dss_device *dssdev,
-			enum omap_dss_update_mode);
-	enum omap_dss_update_mode (*get_update_mode)
-		(struct omap_dss_device *dssdev);
-
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 
@@ -507,6 +502,10 @@ struct omap_dss_driver {
 
 	void (*setup_update)(struct omap_dss_device *dssdev,
 			u16 x, u16 y, u16 w, u16 h);
+	int (*set_update_mode)(struct omap_dss_device *dssdev,
+			enum omap_dss_update_mode);
+	enum omap_dss_update_mode (*get_update_mode)(
+			struct omap_dss_device *dssdev);
 
 	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
 	int (*wait_for_te)(struct omap_dss_device *dssdev);

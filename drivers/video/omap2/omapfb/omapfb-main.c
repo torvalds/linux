@@ -1226,8 +1226,8 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (display->resume)
 			r = display->resume(display);
 
-		if (r == 0 && display->get_update_mode &&
-				display->get_update_mode(display) ==
+		if (r == 0 && display->driver->get_update_mode &&
+				display->driver->get_update_mode(display) ==
 				OMAP_DSS_UPDATE_MANUAL)
 			do_update = 1;
 
@@ -2193,6 +2193,7 @@ static int omapfb_probe(struct platform_device *pdev)
 	}
 
 	if (def_display) {
+		struct omap_dss_driver *dssdrv = def_display->driver;
 #ifndef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
 		u16 w, h;
 #endif
@@ -2206,25 +2207,25 @@ static int omapfb_probe(struct platform_device *pdev)
 		/* set the update mode */
 		if (def_display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
 #ifdef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
-			if (def_display->driver->enable_te)
-				def_display->driver->enable_te(def_display, 1);
-			if (def_display->set_update_mode)
-				def_display->set_update_mode(def_display,
+			if (dssdrv->enable_te)
+				dssdrv->enable_te(def_display, 1);
+			if (dssdrv->set_update_mode)
+				dssdrv->set_update_mode(def_display,
 						OMAP_DSS_UPDATE_AUTO);
 #else /* MANUAL_UPDATE */
-			if (def_display->driver->enable_te)
-				def_display->driver->enable_te(def_display, 0);
-			if (def_display->set_update_mode)
-				def_display->set_update_mode(def_display,
+			if (dssdrv->enable_te)
+				dssdrv->enable_te(def_display, 0);
+			if (dssdrv->set_update_mode)
+				dssdrv->set_update_mode(def_display,
 						OMAP_DSS_UPDATE_MANUAL);
 
-			def_display->driver->get_resolution(def_display,
+			dssdrv->get_resolution(def_display,
 					&w, &h);
 			def_display->update(def_display, 0, 0, w, h);
 #endif
 		} else {
-			if (def_display->set_update_mode)
-				def_display->set_update_mode(def_display,
+			if (dssdrv->set_update_mode)
+				dssdrv->set_update_mode(def_display,
 						OMAP_DSS_UPDATE_AUTO);
 		}
 	}

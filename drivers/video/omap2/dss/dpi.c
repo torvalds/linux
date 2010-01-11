@@ -36,7 +36,6 @@
 #include "dss.h"
 
 static struct {
-	int update_enabled;
 	struct regulator *vdds_dsi_reg;
 } dpi;
 
@@ -376,30 +375,6 @@ static void dpi_get_timings(struct omap_dss_device *dssdev,
 	*timings = dssdev->panel.timings;
 }
 
-static int dpi_display_set_update_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_update_mode mode)
-{
-	if (mode == OMAP_DSS_UPDATE_MANUAL)
-		return -EINVAL;
-
-	if (mode == OMAP_DSS_UPDATE_DISABLED) {
-		dssdev->manager->disable(dssdev->manager);
-		dpi.update_enabled = 0;
-	} else {
-		dssdev->manager->enable(dssdev->manager);
-		dpi.update_enabled = 1;
-	}
-
-	return 0;
-}
-
-static enum omap_dss_update_mode dpi_display_get_update_mode(
-		struct omap_dss_device *dssdev)
-{
-	return dpi.update_enabled ? OMAP_DSS_UPDATE_AUTO :
-		OMAP_DSS_UPDATE_DISABLED;
-}
-
 int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
@@ -411,8 +386,6 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 	dssdev->set_timings = dpi_set_timings;
 	dssdev->check_timings = dpi_check_timings;
 	dssdev->get_timings = dpi_get_timings;
-	dssdev->set_update_mode = dpi_display_set_update_mode;
-	dssdev->get_update_mode = dpi_display_get_update_mode;
 
 	return 0;
 }

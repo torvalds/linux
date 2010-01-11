@@ -243,8 +243,6 @@ static struct
 	struct dsi_update_region active_update_region;
 	struct completion update_completion;
 
-	enum omap_dss_update_mode user_update_mode;
-	enum omap_dss_update_mode update_mode;
 	bool te_enabled;
 	bool use_ext_te;
 
@@ -343,9 +341,6 @@ static void dsi_perf_show(const char *name)
 	u32 setup_us, trans_us, total_us;
 
 	if (!dsi_perf)
-		return;
-
-	if (dsi.update_mode == OMAP_DSS_UPDATE_DISABLED)
 		return;
 
 	t = ktime_get();
@@ -1704,9 +1699,8 @@ static int dsi_force_tx_stop_mode_io(void)
 
 static int dsi_vc_enable(int channel, bool enable)
 {
-	if (dsi.update_mode != OMAP_DSS_UPDATE_AUTO)
-		DSSDBG("dsi_vc_enable channel %d, enable %d\n",
-				channel, enable);
+	DSSDBG("dsi_vc_enable channel %d, enable %d\n",
+			channel, enable);
 
 	enable = enable ? 1 : 0;
 
@@ -1886,8 +1880,7 @@ static u16 dsi_vc_flush_receive_data(int channel)
 
 static int dsi_vc_send_bta(int channel)
 {
-	if (dsi.update_mode != OMAP_DSS_UPDATE_AUTO &&
-			(dsi.debug_write || dsi.debug_read))
+	if (dsi.debug_write || dsi.debug_read)
 		DSSDBG("dsi_vc_send_bta %d\n", channel);
 
 	WARN_ON(!dsi_bus_is_locked());
@@ -2740,9 +2733,8 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
 
-	if (dsi.update_mode != OMAP_DSS_UPDATE_AUTO)
-		DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
-				x, y, w, h);
+	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
+			x, y, w, h);
 
 	bytespp	= dssdev->ctrl.pixel_size / 8;
 	bytespl = w * bytespp;
@@ -2840,45 +2832,6 @@ static void dsi_set_update_region(struct omap_dss_device *dssdev,
 
 }
 
-static int dsi_set_update_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_update_mode mode)
-{
-	int r = 0;
-	int i;
-
-	WARN_ON(!dsi_bus_is_locked());
-
-	if (dsi.update_mode != mode) {
-		dsi.update_mode = mode;
-
-		/* Mark the overlays dirty, and do apply(), so that we get the
-		 * overlays configured properly after update mode change. */
-		for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
-			struct omap_overlay *ovl;
-			ovl = omap_dss_get_overlay(i);
-			if (ovl->manager == dssdev->manager)
-				ovl->info_dirty = true;
-		}
-
-		r = dssdev->manager->apply(dssdev->manager);
-
-		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE &&
-				mode == OMAP_DSS_UPDATE_AUTO) {
-			u16 w, h;
-
-			DSSDBG("starting auto update\n");
-
-			dssdev->driver->get_resolution(dssdev, &w, &h);
-
-			dsi_set_update_region(dssdev, 0, 0, w, h);
-
-			wake_up(&dsi.waitqueue);
-		}
-	}
-
-	return r;
-}
-
 static void dsi_handle_framedone(void)
 {
 	int r;
@@ -2887,8 +2840,7 @@ static void dsi_handle_framedone(void)
 
 	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
 
-	if (dsi.update_mode != OMAP_DSS_UPDATE_AUTO)
-		DSSDBG("FRAMEDONE\n");
+	DSSDBG("FRAMEDONE\n");
 
 	if (use_te_trigger) {
 		/* enable LP_RX_TO again after the TE */
@@ -2927,9 +2879,7 @@ static int dsi_update_thread(void *data)
 
 	while (1) {
 		wait_event_interruptible(dsi.waitqueue,
-				dsi.update_mode == OMAP_DSS_UPDATE_AUTO ||
-				(dsi.update_mode == OMAP_DSS_UPDATE_MANUAL &&
-				 dsi.update_region.dirty == true) ||
+				dsi.update_region.dirty == true ||
 				kthread_should_stop());
 
 		if (kthread_should_stop())
@@ -2937,8 +2887,7 @@ static int dsi_update_thread(void *data)
 
 		dsi_bus_lock();
 
-		if (dsi.update_mode == OMAP_DSS_UPDATE_DISABLED ||
-				kthread_should_stop()) {
+		if (kthread_should_stop()) {
 			dsi_bus_unlock();
 			break;
 		}
@@ -2960,9 +2909,8 @@ static int dsi_update_thread(void *data)
 
 		if (device->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
 
-			if (dsi.update_mode == OMAP_DSS_UPDATE_MANUAL)
-				dss_setup_partial_planes(device,
-						&x, &y, &w, &h);
+			dss_setup_partial_planes(device,
+					&x, &y, &w, &h);
 
 			dispc_set_lcd_size(w, h);
 		}
@@ -3254,8 +3202,6 @@ static int dsi_display_enable(struct omap_dss_device *dssdev)
 
 	dsi.use_ext_te = dssdev->phy.dsi.ext_te;
 
-	dsi_set_update_mode(dssdev, dsi.user_update_mode);
-
 	dsi_bus_unlock();
 	mutex_unlock(&dsi.lock);
 
@@ -3286,7 +3232,6 @@ static void dsi_display_disable(struct omap_dss_device *dssdev)
 			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
 		goto end;
 
-	dsi.update_mode = OMAP_DSS_UPDATE_DISABLED;
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
 	dsi_display_uninit_dispc(dssdev);
@@ -3313,7 +3258,6 @@ static int dsi_display_suspend(struct omap_dss_device *dssdev)
 			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
 		goto end;
 
-	dsi.update_mode = OMAP_DSS_UPDATE_DISABLED;
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 
 	dsi_display_uninit_dispc(dssdev);
@@ -3363,8 +3307,6 @@ static int dsi_display_resume(struct omap_dss_device *dssdev)
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	dsi_set_update_mode(dssdev, dsi.user_update_mode);
-
 	dsi_bus_unlock();
 	mutex_unlock(&dsi.lock);
 
@@ -3391,9 +3333,6 @@ static int dsi_display_update(struct omap_dss_device *dssdev,
 	DSSDBG("dsi_display_update(%d,%d %dx%d)\n", x, y, w, h);
 
 	mutex_lock(&dsi.lock);
-
-	if (dsi.update_mode != OMAP_DSS_UPDATE_MANUAL)
-		goto end;
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		goto end;
@@ -3436,8 +3375,7 @@ static int dsi_display_sync(struct omap_dss_device *dssdev)
 	mutex_lock(&dsi.lock);
 	dsi_bus_lock();
 
-	if (dsi.update_mode == OMAP_DSS_UPDATE_MANUAL &&
-			dsi.update_region.dirty) {
+	if (dsi.update_region.dirty) {
 		INIT_COMPLETION(dsi.update_completion);
 		wait = true;
 	} else {
@@ -3453,32 +3391,6 @@ static int dsi_display_sync(struct omap_dss_device *dssdev)
 	DSSDBG("dsi_display_sync() done\n");
 	return 0;
 }
-
-static int dsi_display_set_update_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_update_mode mode)
-{
-	int r = 0;
-
-	DSSDBGF("%d", mode);
-
-	mutex_lock(&dsi.lock);
-	dsi_bus_lock();
-
-	dsi.user_update_mode = mode;
-	r = dsi_set_update_mode(dssdev, mode);
-
-	dsi_bus_unlock();
-	mutex_unlock(&dsi.lock);
-
-	return r;
-}
-
-static enum omap_dss_update_mode dsi_display_get_update_mode(
-		struct omap_dss_device *dssdev)
-{
-	return dsi.update_mode;
-}
-
 
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
@@ -3510,8 +3422,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dssdev->resume = dsi_display_resume;
 	dssdev->update = dsi_display_update;
 	dssdev->sync = dsi_display_sync;
-	dssdev->set_update_mode = dsi_display_set_update_mode;
-	dssdev->get_update_mode = dsi_display_get_update_mode;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
@@ -3561,9 +3471,6 @@ int dsi_init(struct platform_device *pdev)
 	dsi.te_timer.function = dsi_te_timeout;
 	dsi.te_timer.data = 0;
 #endif
-
-	dsi.update_mode = OMAP_DSS_UPDATE_DISABLED;
-	dsi.user_update_mode = OMAP_DSS_UPDATE_DISABLED;
 
 	dsi.base = ioremap(DSI_BASE, DSI_SZ_REGS);
 	if (!dsi.base) {

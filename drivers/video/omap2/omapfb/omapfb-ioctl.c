@@ -202,7 +202,7 @@ static int omapfb_set_update_mode(struct fb_info *fbi,
 	enum omap_dss_update_mode um;
 	int r;
 
-	if (!display || !display->set_update_mode)
+	if (!display || !display->driver->set_update_mode)
 		return -EINVAL;
 
 	switch (mode) {
@@ -222,7 +222,7 @@ static int omapfb_set_update_mode(struct fb_info *fbi,
 		return -EINVAL;
 	}
 
-	r = display->set_update_mode(display, um);
+	r = display->driver->set_update_mode(display, um);
 
 	return r;
 }
@@ -233,10 +233,15 @@ static int omapfb_get_update_mode(struct fb_info *fbi,
 	struct omap_dss_device *display = fb2display(fbi);
 	enum omap_dss_update_mode m;
 
-	if (!display || !display->get_update_mode)
+	if (!display)
 		return -EINVAL;
 
-	m = display->get_update_mode(display);
+	if (!display->driver->get_update_mode) {
+		*mode = OMAPFB_AUTO_UPDATE;
+		return 0;
+	}
+
+	m = display->driver->get_update_mode(display);
 
 	switch (m) {
 	case OMAP_DSS_UPDATE_DISABLED:

@@ -69,8 +69,8 @@ static ssize_t display_upd_mode_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	enum omap_dss_update_mode mode = OMAP_DSS_UPDATE_AUTO;
-	if (dssdev->get_update_mode)
-		mode = dssdev->get_update_mode(dssdev);
+	if (dssdev->driver->get_update_mode)
+		mode = dssdev->driver->get_update_mode(dssdev);
 	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
 }
 
@@ -94,7 +94,7 @@ static ssize_t display_upd_mode_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	r = dssdev->set_update_mode(dssdev, mode);
+	r = dssdev->driver->set_update_mode(dssdev, mode);
 	if (r)
 		return r;
 

@@ -995,6 +995,20 @@ err:
 	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
 }
 
+static int taal_set_update_mode(struct omap_dss_device *dssdev,
+		enum omap_dss_update_mode mode)
+{
+	if (mode != OMAP_DSS_UPDATE_MANUAL)
+		return -EINVAL;
+	return 0;
+}
+
+static enum omap_dss_update_mode taal_get_update_mode(
+		struct omap_dss_device *dssdev)
+{
+	return OMAP_DSS_UPDATE_MANUAL;
+}
+
 static struct omap_dss_driver taal_driver = {
 	.probe		= taal_probe,
 	.remove		= taal_remove,
@@ -1005,6 +1019,8 @@ static struct omap_dss_driver taal_driver = {
 	.resume		= taal_resume,
 
 	.setup_update	= taal_setup_update,
+	.set_update_mode = taal_set_update_mode,
+	.get_update_mode = taal_get_update_mode,
 	.get_resolution	= taal_get_resolution,
 	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
 

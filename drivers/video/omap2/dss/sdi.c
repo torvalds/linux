@@ -213,30 +213,6 @@ err:
 	return r;
 }
 
-static int sdi_display_set_update_mode(struct omap_dss_device *dssdev,
-		enum omap_dss_update_mode mode)
-{
-	if (mode == OMAP_DSS_UPDATE_MANUAL)
-		return -EINVAL;
-
-	if (mode == OMAP_DSS_UPDATE_DISABLED) {
-		dssdev->manager->disable(dssdev->manager);
-		sdi.update_enabled = 0;
-	} else {
-		dssdev->manager->enable(dssdev->manager);
-		sdi.update_enabled = 1;
-	}
-
-	return 0;
-}
-
-static enum omap_dss_update_mode sdi_display_get_update_mode(
-		struct omap_dss_device *dssdev)
-{
-	return sdi.update_enabled ? OMAP_DSS_UPDATE_AUTO :
-		OMAP_DSS_UPDATE_DISABLED;
-}
-
 static void sdi_get_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
@@ -251,8 +227,6 @@ int sdi_init_display(struct omap_dss_device *dssdev)
 	dssdev->disable = sdi_display_disable;
 	dssdev->suspend = sdi_display_suspend;
 	dssdev->resume = sdi_display_resume;
-	dssdev->set_update_mode = sdi_display_set_update_mode;
-	dssdev->get_update_mode = sdi_display_get_update_mode;
 	dssdev->get_timings = sdi_get_timings;
 
 	return 0;
