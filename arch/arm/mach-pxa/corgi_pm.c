@@ -77,45 +77,6 @@ static void corgi_discharge(int on)
 
 static void corgi_presuspend(void)
 {
-	int i;
-	unsigned long wakeup_mask;
-
-	/* charging , so CHARGE_ON bit is HIGH during OFF. */
-	if (READ_GPIO_BIT(CORGI_GPIO_CHRG_ON))
-		PGSR1 |= GPIO_bit(CORGI_GPIO_CHRG_ON);
-	else
-		PGSR1 &= ~GPIO_bit(CORGI_GPIO_CHRG_ON);
-
-	if (READ_GPIO_BIT(CORGI_GPIO_LED_ORANGE))
-		PGSR0 |= GPIO_bit(CORGI_GPIO_LED_ORANGE);
-	else
-		PGSR0 &= ~GPIO_bit(CORGI_GPIO_LED_ORANGE);
-
-	if (READ_GPIO_BIT(CORGI_GPIO_CHRG_UKN))
-		PGSR1 |= GPIO_bit(CORGI_GPIO_CHRG_UKN);
-	else
-		PGSR1 &= ~GPIO_bit(CORGI_GPIO_CHRG_UKN);
-
-	/* Resume on keyboard power key */
-	PGSR2 = (PGSR2 & ~CORGI_GPIO_ALL_STROBE_BIT) | CORGI_GPIO_STROBE_BIT(0);
-
-	wakeup_mask = GPIO_bit(CORGI_GPIO_KEY_INT) | GPIO_bit(CORGI_GPIO_WAKEUP) | GPIO_bit(CORGI_GPIO_AC_IN) | GPIO_bit(CORGI_GPIO_CHRG_FULL);
-
-	if (!machine_is_corgi())
-		wakeup_mask |= GPIO_bit(CORGI_GPIO_MAIN_BAT_LOW);
-
-	PWER = wakeup_mask | PWER_RTC;
-	PRER = wakeup_mask;
-	PFER = wakeup_mask;
-
-	for (i = 0; i <=15; i++) {
-		if (PRER & PFER & GPIO_bit(i)) {
-			if (GPLR0 & GPIO_bit(i) )
-				PRER &= ~GPIO_bit(i);
-			else
-				PFER &= ~GPIO_bit(i);
-		}
-	}
 }
 
 static void corgi_postsuspend(void)
