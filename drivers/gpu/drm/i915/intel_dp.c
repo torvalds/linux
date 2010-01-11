@@ -1331,11 +1331,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	else if (output_reg == DP_D || output_reg == PCH_DP_D)
 		intel_output->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
 
-	if (IS_eDP(intel_output)) {
-		intel_output->crtc_mask = (1 << 1);
+	if (IS_eDP(intel_output))
 		intel_output->clone_mask = (1 << INTEL_EDP_CLONE_BIT);
-	} else
-		intel_output->crtc_mask = (1 << 0) | (1 << 1);
+
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
