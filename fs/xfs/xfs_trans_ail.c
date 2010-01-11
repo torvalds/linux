@@ -237,14 +237,15 @@ out:
 }
 
 /*
- * Function that does the work of pushing on the AIL
+ * xfsaild_push does the work of pushing on the AIL.  Returning a timeout of
+ * zero indicates that the caller should sleep until woken.
  */
 long
 xfsaild_push(
 	struct xfs_ail	*ailp,
 	xfs_lsn_t	*last_lsn)
 {
-	long		tout = 1000; /* milliseconds */
+	long		tout = 0;
 	xfs_lsn_t	last_pushed_lsn = *last_lsn;
 	xfs_lsn_t	target =  ailp->xa_target;
 	xfs_lsn_t	lsn;
@@ -262,7 +263,7 @@ xfsaild_push(
 		 */
 		xfs_trans_ail_cursor_done(ailp, cur);
 		spin_unlock(&ailp->xa_lock);
-		last_pushed_lsn = 0;
+		*last_lsn = 0;
 		return tout;
 	}
 
@@ -279,7 +280,6 @@ xfsaild_push(
 	 * prevents use from spinning when we can't do anything or there is
 	 * lots of contention on the AIL lists.
 	 */
-	tout = 10;
 	lsn = lip->li_lsn;
 	flush_log = stuck = count = 0;
 	while ((XFS_LSN_CMP(lip->li_lsn, target) < 0)) {
@@ -376,14 +376,14 @@ xfsaild_push(
 
 	if (!count) {
 		/* We're past our target or empty, so idle */
-		tout = 1000;
+		last_pushed_lsn = 0;
 	} else if (XFS_LSN_CMP(lsn, target) >= 0) {
 		/*
 		 * We reached the target so wait a bit longer for I/O to
 		 * complete and remove pushed items from the AIL before we
 		 * start the next scan from the start of the AIL.
 		 */
-		tout += 20;
+		tout = 50;
 		last_pushed_lsn = 0;
 	} else if ((stuck * 100) / count > 90) {
 		/*
@@ -395,11 +395,14 @@ xfsaild_push(
 		 * Backoff a bit more to allow some I/O to complete before
 		 * continuing from where we were.
 		 */
-		tout += 10;
+		tout = 20;
+	} else {
+		/* more to do, but wait a short while before continuing */
+		tout = 10;
 	}
 	*last_lsn = last_pushed_lsn;
 	return tout;
-}	/* xfsaild_push */
+}
 
 
 /*

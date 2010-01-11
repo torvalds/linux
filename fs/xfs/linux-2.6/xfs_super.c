@@ -877,12 +877,11 @@ xfsaild(
 {
 	struct xfs_ail	*ailp = data;
 	xfs_lsn_t	last_pushed_lsn = 0;
-	long		tout = 0;
+	long		tout = 0; /* milliseconds */
 
 	while (!kthread_should_stop()) {
-		if (tout)
-			schedule_timeout_interruptible(msecs_to_jiffies(tout));
-		tout = 1000;
+		schedule_timeout_interruptible(tout ?
+				msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
 
 		/* swsusp */
 		try_to_freeze();
