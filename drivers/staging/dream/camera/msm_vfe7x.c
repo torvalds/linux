@@ -255,8 +255,7 @@ static int vfe_7x_init(struct msm_vfe_callback *presp,
 
 	extlen = sizeof(struct vfe_frame_extra);
 
-	extdata =
-		kmalloc(sizeof(extlen), GFP_ATOMIC);
+	extdata = kmalloc(extlen, GFP_ATOMIC);
 	if (!extdata) {
 		rc = -ENOMEM;
 		goto init_fail;
