@@ -338,6 +338,8 @@ static int  option_resume(struct usb_serial *serial);
 
 /* 4G Systems products */
 #define FOUR_G_SYSTEMS_VENDOR_ID		0x1c9e
+/* This is the 4G XS Stick W14 a.k.a. Mobilcom Debitel Surf-Stick *
+ * It seems to contain a Qualcomm QSC6240/6290 chipset            */
 #define FOUR_G_SYSTEMS_PRODUCT_W14		0x9603
 
 /* Haier products */
