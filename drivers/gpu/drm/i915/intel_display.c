@@ -2924,6 +2924,21 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
+		} else if (is_edp) {
+			switch (dev_priv->edp_bpp/3) {
+			case 8:
+				temp |= PIPE_8BPC;
+				break;
+			case 10:
+				temp |= PIPE_10BPC;
+				break;
+			case 6:
+				temp |= PIPE_6BPC;
+				break;
+			case 12:
+				temp |= PIPE_12BPC;
+				break;
+			}
 		} else
 			temp |= PIPE_8BPC;
 		I915_WRITE(pipeconf_reg, temp);

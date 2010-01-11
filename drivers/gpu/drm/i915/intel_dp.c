@@ -125,9 +125,15 @@ intel_dp_link_clock(uint8_t link_bw)
 
 /* I think this is a fiction */
 static int
-intel_dp_link_required(int pixel_clock)
+intel_dp_link_required(struct drm_device *dev,
+		       struct intel_output *intel_output, int pixel_clock)
 {
-	return pixel_clock * 3;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_eDP(intel_output))
+		return (pixel_clock * dev_priv->edp_bpp) / 8;
+	else
+		return pixel_clock * 3;
 }
 
 static int
@@ -138,7 +144,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_output));
 	int max_lanes = intel_dp_max_lane_count(intel_output);
 
-	if (intel_dp_link_required(mode->clock) > max_link_clock * max_lanes)
+	if (intel_dp_link_required(connector->dev, intel_output, mode->clock)
+			> max_link_clock * max_lanes)
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -492,7 +499,8 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		for (clock = 0; clock <= max_clock; clock++) {
 			int link_avail = intel_dp_link_clock(bws[clock]) * lane_count;
 
-			if (intel_dp_link_required(mode->clock) <= link_avail) {
+			if (intel_dp_link_required(encoder->dev, intel_output, mode->clock)
+					<= link_avail) {
 				dp_priv->link_bw = bws[clock];
 				dp_priv->lane_count = lane_count;
 				adjusted_mode->clock = intel_dp_link_clock(dp_priv->link_bw);
