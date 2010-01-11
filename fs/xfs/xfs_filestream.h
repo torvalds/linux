@@ -135,7 +135,6 @@ int xfs_filestream_init(void);
 void xfs_filestream_uninit(void);
 int xfs_filestream_mount(struct xfs_mount *mp);
 void xfs_filestream_unmount(struct xfs_mount *mp);
-void xfs_filestream_flush(struct xfs_mount *mp);
 xfs_agnumber_t xfs_filestream_lookup_ag(struct xfs_inode *ip);
 int xfs_filestream_associate(struct xfs_inode *dip, struct xfs_inode *ip);
 void xfs_filestream_deassociate(struct xfs_inode *ip);

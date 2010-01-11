@@ -455,20 +455,6 @@ xfs_filestream_unmount(
 }
 
 /*
- * If the mount point's m_perag tree is going to be modified, all
- * outstanding cache entries must be flushed to avoid accessing reference count
- * addresses that have been freed.  The call to xfs_filestream_flush() must be
- * made inside the block that holds the m_perag_lock in write mode to do the
- * reallocation.
- */
-void
-xfs_filestream_flush(
-	xfs_mount_t	*mp)
-{
-	xfs_mru_cache_flush(mp->m_filestream);
-}
-
-/*
  * Return the AG of the filestream the file or directory belongs to, or
  * NULLAGNUMBER otherwise.
  */

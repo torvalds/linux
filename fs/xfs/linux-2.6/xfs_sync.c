@@ -451,9 +451,6 @@ xfs_quiesce_data(
 	xfs_sync_data(mp, SYNC_WAIT);
 	xfs_qm_sync(mp, SYNC_WAIT);
 
-	/* drop inode references pinned by filestreams */
-	xfs_filestream_flush(mp);
-
 	/* write superblock and hoover up shutdown errors */
 	error = xfs_sync_fsdata(mp, SYNC_WAIT);
 
