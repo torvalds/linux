@@ -701,6 +701,15 @@ static int vfat_find(struct inode *dir, struct qstr *qname,
 	return fat_search_long(dir, qname->name, len, sinfo);
 }
 
+/*
+ * (nfsd's) anonymous disconnected dentry?
+ * NOTE: !IS_ROOT() is not anonymous (I.e. d_splice_alias() did the job).
+ */
+static int vfat_d_anon_disconn(struct dentry *dentry)
+{
+	return IS_ROOT(dentry) && (dentry->d_flags & DCACHE_DISCONNECTED);
+}
+
 static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 				  struct nameidata *nd)
 {
@@ -729,11 +738,11 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	alias = d_find_alias(inode);
-	if (alias && !(alias->d_flags & DCACHE_DISCONNECTED)) {
+	if (alias && !vfat_d_anon_disconn(alias)) {
 		/*
-		 * This inode has non DCACHE_DISCONNECTED dentry. This
-		 * means, the user did ->lookup() by an another name
-		 * (longname vs 8.3 alias of it) in past.
+		 * This inode has non anonymous-DCACHE_DISCONNECTED
+		 * dentry. This means, the user did ->lookup() by an
+		 * another name (longname vs 8.3 alias of it) in past.
 		 *
 		 * Switch to new one for reason of locality if possible.
 		 */
@@ -743,7 +752,9 @@ static struct dentry *vfat_lookup(struct inode *dir, struct dentry *dentry,
 		iput(inode);
 		unlock_super(sb);
 		return alias;
-	}
+	} else
+		dput(alias);
+
 out:
 	unlock_super(sb);
 	dentry->d_op = sb->s_root->d_op;
