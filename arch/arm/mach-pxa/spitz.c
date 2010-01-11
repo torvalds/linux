@@ -86,6 +86,7 @@ static unsigned long spitz_pin_config[] __initdata = {
 
 	/* GPIOs */
 	GPIO9_GPIO,	/* SPITZ_GPIO_nSD_DETECT */
+	GPIO16_GPIO,	/* SPITZ_GPIO_SYNC */
 	GPIO81_GPIO,	/* SPITZ_GPIO_nSD_WP */
 	GPIO41_GPIO,	/* SPITZ_GPIO_USB_CONNECT */
 	GPIO37_GPIO,	/* SPITZ_GPIO_USB_HOST */
@@ -119,7 +120,8 @@ static unsigned long spitz_pin_config[] __initdata = {
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
 
-	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,	/* SPITZ_GPIO_KEY_INT */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_FALL,	/* SPITZ_GPIO_RESET */
 };
 
 /*
