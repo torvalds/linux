@@ -1254,7 +1254,7 @@ exit:
 
 	if (r == 0 && do_update && display->update) {
 		u16 w, h;
-		display->get_resolution(display, &w, &h);
+		display->driver->get_resolution(display, &w, &h);
 
 		r = display->update(display, 0, 0, w, h);
 	}
@@ -1427,7 +1427,7 @@ static int omapfb_alloc_fbmem_display(struct fb_info *fbi, unsigned long size,
 	if (!size) {
 		u16 w, h;
 
-		display->get_resolution(display, &w, &h);
+		display->driver->get_resolution(display, &w, &h);
 
 		if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
 			size = max(omap_vrfb_min_phys_size(w, h, bytespp),
@@ -1745,7 +1745,7 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 		u16 w, h;
 		int rotation = (var->rotate + ofbi->rotation[0]) % 4;
 
-		display->get_resolution(display, &w, &h);
+		display->driver->get_resolution(display, &w, &h);
 
 		if (rotation == FB_ROTATE_CW ||
 				rotation == FB_ROTATE_CCW) {
@@ -2197,7 +2197,8 @@ static int omapfb_probe(struct platform_device *pdev)
 				def_display->set_update_mode(def_display,
 						OMAP_DSS_UPDATE_MANUAL);
 
-			def_display->get_resolution(def_display, &w, &h);
+			def_display->driver->get_resolution(def_display,
+					&w, &h);
 			def_display->update(def_display, 0, 0, w, h);
 #endif
 		} else {

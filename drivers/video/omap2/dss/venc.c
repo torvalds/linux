@@ -459,6 +459,8 @@ static struct omap_dss_driver venc_driver = {
 	.suspend	= venc_panel_suspend,
 	.resume		= venc_panel_resume,
 
+	.get_resolution	= omapdss_default_get_resolution,
+
 	.driver         = {
 		.name   = "venc",
 		.owner  = THIS_MODULE,

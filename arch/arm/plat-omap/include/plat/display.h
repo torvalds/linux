@@ -470,8 +470,6 @@ struct omap_dss_device {
 	int (*suspend)(struct omap_dss_device *dssdev);
 	int (*resume)(struct omap_dss_device *dssdev);
 
-	void (*get_resolution)(struct omap_dss_device *dssdev,
-			u16 *xres, u16 *yres);
 	int (*get_recommended_bpp)(struct omap_dss_device *dssdev);
 
 	int (*check_timings)(struct omap_dss_device *dssdev,
@@ -529,6 +527,9 @@ struct omap_dss_driver {
 	int (*memory_read)(struct omap_dss_device *dssdev,
 			void *buf, size_t size,
 			u16 x, u16 y, u16 w, u16 h);
+
+	void (*get_resolution)(struct omap_dss_device *dssdev,
+			u16 *xres, u16 *yres);
 };
 
 int omap_dss_register_driver(struct omap_dss_driver *);
@@ -553,6 +554,8 @@ struct omap_overlay_manager *omap_dss_get_overlay_manager(int num);
 int omap_dss_get_num_overlays(void);
 struct omap_overlay *omap_dss_get_overlay(int num);
 
+void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
+		u16 *xres, u16 *yres);
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);

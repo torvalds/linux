@@ -167,7 +167,7 @@ static int omapfb_update_window_nolock(struct fb_info *fbi,
 	if (w == 0 || h == 0)
 		return 0;
 
-	display->get_resolution(display, &dw, &dh);
+	display->driver->get_resolution(display, &dw, &dh);
 
 	if (x + w > dw || y + h > dh)
 		return -EINVAL;
@@ -752,7 +752,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		display->get_resolution(display, &xres, &yres);
+		display->driver->get_resolution(display, &xres, &yres);
 
 		p.display_info.xres = xres;
 		p.display_info.yres = yres;

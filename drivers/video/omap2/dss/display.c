@@ -303,12 +303,13 @@ static struct device_attribute *display_sysfs_attrs[] = {
 	NULL
 };
 
-static void default_get_resolution(struct omap_dss_device *dssdev,
+void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 			u16 *xres, u16 *yres)
 {
 	*xres = dssdev->panel.timings.x_res;
 	*yres = dssdev->panel.timings.y_res;
 }
+EXPORT_SYMBOL(omapdss_default_get_resolution);
 
 void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
@@ -412,7 +413,6 @@ void dss_init_device(struct platform_device *pdev,
 		return;
 	}
 
-	dssdev->get_resolution = default_get_resolution;
 	dssdev->get_recommended_bpp = default_get_recommended_bpp;
 
 	switch (dssdev->type) {

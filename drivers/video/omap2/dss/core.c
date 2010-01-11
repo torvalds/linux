@@ -811,6 +811,10 @@ int omap_dss_register_driver(struct omap_dss_driver *dssdriver)
 	dssdriver->driver.bus = &dss_bus_type;
 	dssdriver->driver.probe = dss_driver_probe;
 	dssdriver->driver.remove = dss_driver_remove;
+
+	if (dssdriver->get_resolution == NULL)
+		dssdriver->get_resolution = omapdss_default_get_resolution;
+
 	return driver_register(&dssdriver->driver);
 }
 EXPORT_SYMBOL(omap_dss_register_driver);

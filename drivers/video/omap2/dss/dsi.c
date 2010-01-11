@@ -2868,7 +2868,7 @@ static int dsi_set_update_mode(struct omap_dss_device *dssdev,
 
 			DSSDBG("starting auto update\n");
 
-			dssdev->get_resolution(dssdev, &w, &h);
+			dssdev->driver->get_resolution(dssdev, &w, &h);
 
 			dsi_set_update_region(dssdev, 0, 0, w, h);
 
@@ -3422,7 +3422,7 @@ static int dsi_display_update(struct omap_dss_device *dssdev,
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		goto end;
 
-	dssdev->get_resolution(dssdev, &dw, &dh);
+	dssdev->driver->get_resolution(dssdev, &dw, &dh);
 
 	if  (x > dw || y > dh)
 		goto end;
