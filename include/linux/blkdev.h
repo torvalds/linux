@@ -1148,8 +1148,11 @@ static inline int queue_discard_alignment(struct request_queue *q)
 static inline int queue_sector_discard_alignment(struct request_queue *q,
 						 sector_t sector)
 {
-	return ((sector << 9) - q->limits.discard_alignment)
-		& (q->limits.discard_granularity - 1);
+	struct queue_limits *lim = &q->limits;
+	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
+
+	return (lim->discard_granularity + lim->discard_alignment - alignment)
+		& (lim->discard_granularity - 1);
 }
 
 static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)
