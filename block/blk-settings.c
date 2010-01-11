@@ -507,7 +507,7 @@ static unsigned int lcm(unsigned int a, unsigned int b)
  * blk_stack_limits - adjust queue_limits for stacked devices
  * @t:	the stacking driver limits (top device)
  * @b:  the underlying queue limits (bottom, component device)
- * @offset:  offset to beginning of data within component device
+ * @start:  first data sector within component device
  *
  * Description:
  *    This function is used by stacking drivers like MD and DM to ensure
@@ -525,10 +525,9 @@ static unsigned int lcm(unsigned int a, unsigned int b)
  *    the alignment_offset is undefined.
  */
 int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
-		     sector_t offset)
+		     sector_t start)
 {
-	sector_t alignment;
-	unsigned int top, bottom, ret = 0;
+	unsigned int top, bottom, alignment, ret = 0;
 
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
@@ -548,7 +547,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	t->misaligned |= b->misaligned;
 
-	alignment = queue_limit_alignment_offset(b, offset);
+	alignment = queue_limit_alignment_offset(b, start);
 
 	/* Bottom device has different alignment.  Check that it is
 	 * compatible with the current top alignment.
@@ -611,11 +610,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 
 	/* Discard alignment and granularity */
 	if (b->discard_granularity) {
-		unsigned int granularity = b->discard_granularity;
-		offset &= granularity - 1;
-
-		alignment = (granularity + b->discard_alignment - offset)
-			& (granularity - 1);
+		alignment = queue_limit_discard_alignment(b, start);
 
 		if (t->discard_granularity != 0 &&
 		    t->discard_alignment != alignment) {
@@ -657,7 +652,7 @@ int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
 
 	start += get_start_sect(bdev);
 
-	return blk_stack_limits(t, &bq->limits, start << 9);
+	return blk_stack_limits(t, &bq->limits, start);
 }
 EXPORT_SYMBOL(bdev_stack_limits);
 
@@ -668,9 +663,8 @@ EXPORT_SYMBOL(bdev_stack_limits);
  * @offset:  offset to beginning of data within component device
  *
  * Description:
- *    Merges the limits for two queues.  Returns 0 if alignment
- *    didn't change.  Returns -1 if adding the bottom device caused
- *    misalignment.
+ *    Merges the limits for a top level gendisk and a bottom level
+ *    block_device.
  */
 void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		       sector_t offset)
@@ -678,9 +672,7 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 	struct request_queue *t = disk->queue;
 	struct request_queue *b = bdev_get_queue(bdev);
 
-	offset += get_start_sect(bdev) << 9;
-
-	if (blk_stack_limits(&t->limits, &b->limits, offset) < 0) {
+	if (bdev_stack_limits(&t->limits, bdev, offset >> 9) < 0) {
 		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
 
 		disk_name(disk, 0, top);

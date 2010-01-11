@@ -1112,18 +1112,13 @@ static inline int queue_alignment_offset(struct request_queue *q)
 	return q->limits.alignment_offset;
 }
 
-static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t offset)
+static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t sector)
 {
 	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
+	unsigned int alignment = (sector << 9) & (granularity - 1);
 
-	offset &= granularity - 1;
-	return (granularity + lim->alignment_offset - offset) & (granularity - 1);
-}
-
-static inline int queue_sector_alignment_offset(struct request_queue *q,
-						sector_t sector)
-{
-	return queue_limit_alignment_offset(&q->limits, sector << 9);
+	return (granularity + lim->alignment_offset - alignment)
+		& (granularity - 1);
 }
 
 static inline int bdev_alignment_offset(struct block_device *bdev)
@@ -1147,10 +1142,8 @@ static inline int queue_discard_alignment(struct request_queue *q)
 	return q->limits.discard_alignment;
 }
 
-static inline int queue_sector_discard_alignment(struct request_queue *q,
-						 sector_t sector)
+static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector_t sector)
 {
-	struct queue_limits *lim = &q->limits;
 	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
 
 	return (lim->discard_granularity + lim->discard_alignment - alignment)
