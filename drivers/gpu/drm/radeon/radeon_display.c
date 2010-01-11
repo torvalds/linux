@@ -234,7 +234,7 @@ static const char *encoder_names[34] = {
 	"INTERNAL_UNIPHY2",
 };
 
-static const char *connector_names[13] = {
+static const char *connector_names[15] = {
 	"Unknown",
 	"VGA",
 	"DVI-I",
@@ -248,6 +248,8 @@ static const char *connector_names[13] = {
 	"DisplayPort",
 	"HDMI-A",
 	"HDMI-B",
+	"TV",
+	"eDP",
 };
 
 static const char *hpd_names[7] = {
@@ -352,7 +354,8 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
 	int ret = 0;
 
-	if (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
+	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 		if (dig->dp_i2c_bus)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);

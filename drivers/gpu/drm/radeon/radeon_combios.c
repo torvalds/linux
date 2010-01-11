@@ -595,6 +595,20 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 	return false;
 }
 
+bool radeon_combios_sideport_present(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	u16 igp_info;
+
+	igp_info = combios_get_table_offset(dev, COMBIOS_INTEGRATED_SYSTEM_INFO_TABLE);
+
+	if (igp_info) {
+		if (RBIOS16(igp_info + 0x4))
+			return true;
+	}
+	return false;
+}
+
 static const uint32_t default_primarydac_adj[CHIP_LAST] = {
 	0x00000808,		/* r100  */
 	0x00000808,		/* rv100 */
