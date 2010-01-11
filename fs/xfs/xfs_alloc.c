@@ -1662,11 +1662,13 @@ xfs_free_ag_extent(
 		xfs_agf_t	*agf;
 		xfs_perag_t	*pag;		/* per allocation group data */
 
+		pag = xfs_perag_get(mp, agno);
+		pag->pagf_freeblks += len;
+		xfs_perag_put(pag);
+
 		agf = XFS_BUF_TO_AGF(agbp);
-		pag = &mp->m_perag[agno];
 		be32_add_cpu(&agf->agf_freeblks, len);
 		xfs_trans_agblocks_delta(tp, len);
-		pag->pagf_freeblks += len;
 		XFS_WANT_CORRUPTED_GOTO(
 			be32_to_cpu(agf->agf_freeblks) <=
 			be32_to_cpu(agf->agf_length),
@@ -1969,10 +1971,12 @@ xfs_alloc_get_freelist(
 	xfs_trans_brelse(tp, agflbp);
 	if (be32_to_cpu(agf->agf_flfirst) == XFS_AGFL_SIZE(mp))
 		agf->agf_flfirst = 0;
-	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
+
+	pag = xfs_perag_get(mp, be32_to_cpu(agf->agf_seqno));
 	be32_add_cpu(&agf->agf_flcount, -1);
 	xfs_trans_agflist_delta(tp, -1);
 	pag->pagf_flcount--;
+	xfs_perag_put(pag);
 
 	logflags = XFS_AGF_FLFIRST | XFS_AGF_FLCOUNT;
 	if (btreeblk) {
@@ -2078,7 +2082,8 @@ xfs_alloc_put_freelist(
 	be32_add_cpu(&agf->agf_fllast, 1);
 	if (be32_to_cpu(agf->agf_fllast) == XFS_AGFL_SIZE(mp))
 		agf->agf_fllast = 0;
-	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
+
+	pag = xfs_perag_get(mp, be32_to_cpu(agf->agf_seqno));
 	be32_add_cpu(&agf->agf_flcount, 1);
 	xfs_trans_agflist_delta(tp, 1);
 	pag->pagf_flcount++;
@@ -2089,6 +2094,7 @@ xfs_alloc_put_freelist(
 		pag->pagf_btreeblks--;
 		logflags |= XFS_AGF_BTREEBLKS;
 	}
+	xfs_perag_put(pag);
 
 	xfs_alloc_log_agf(tp, agbp, logflags);
 
@@ -2152,7 +2158,6 @@ xfs_read_agf(
 		xfs_trans_brelse(tp, *bpp);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
-
 	XFS_BUF_SET_VTYPE_REF(*bpp, B_FS_AGF, XFS_AGF_REF);
 	return 0;
 }
@@ -2184,7 +2189,7 @@ xfs_alloc_read_agf(
 	ASSERT(!XFS_BUF_GETERROR(*bpp));
 
 	agf = XFS_BUF_TO_AGF(*bpp);
-	pag = &mp->m_perag[agno];
+	pag = xfs_perag_get(mp, agno);
 	if (!pag->pagf_init) {
 		pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
 		pag->pagf_btreeblks = be32_to_cpu(agf->agf_btreeblks);
@@ -2211,6 +2216,7 @@ xfs_alloc_read_agf(
 		       be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]));
 	}
 #endif
+	xfs_perag_put(pag);
 	return 0;
 }
 
@@ -2271,7 +2277,7 @@ xfs_alloc_vextent(
 		 */
 		args->agno = XFS_FSB_TO_AGNO(mp, args->fsbno);
 		down_read(&mp->m_peraglock);
-		args->pag = &mp->m_perag[args->agno];
+		args->pag = xfs_perag_get(mp, args->agno);
 		args->minleft = 0;
 		error = xfs_alloc_fix_freelist(args, 0);
 		args->minleft = minleft;
@@ -2341,7 +2347,7 @@ xfs_alloc_vextent(
 		 */
 		down_read(&mp->m_peraglock);
 		for (;;) {
-			args->pag = &mp->m_perag[args->agno];
+			args->pag = xfs_perag_get(mp, args->agno);
 			if (no_min) args->minleft = 0;
 			error = xfs_alloc_fix_freelist(args, flags);
 			args->minleft = minleft;
@@ -2400,6 +2406,7 @@ xfs_alloc_vextent(
 					}
 				}
 			}
+			xfs_perag_put(args->pag);
 		}
 		up_read(&mp->m_peraglock);
 		if (bump_rotor || (type == XFS_ALLOCTYPE_ANY_AG)) {
@@ -2427,8 +2434,10 @@ xfs_alloc_vextent(
 			args->len);
 #endif
 	}
+	xfs_perag_put(args->pag);
 	return 0;
 error0:
+	xfs_perag_put(args->pag);
 	up_read(&mp->m_peraglock);
 	return error;
 }
@@ -2455,7 +2464,7 @@ xfs_free_extent(
 	ASSERT(args.agno < args.mp->m_sb.sb_agcount);
 	args.agbno = XFS_FSB_TO_AGBNO(args.mp, bno);
 	down_read(&args.mp->m_peraglock);
-	args.pag = &args.mp->m_perag[args.agno];
+	args.pag = xfs_perag_get(args.mp, args.agno);
 	if ((error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING)))
 		goto error0;
 #ifdef DEBUG
@@ -2465,6 +2474,7 @@ xfs_free_extent(
 #endif
 	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno, len, 0);
 error0:
+	xfs_perag_put(args.pag);
 	up_read(&args.mp->m_peraglock);
 	return error;
 }
@@ -2486,15 +2496,15 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 		    xfs_agblock_t bno,
 		    xfs_extlen_t len)
 {
-	xfs_mount_t		*mp;
 	xfs_perag_busy_t	*bsy;
+	struct xfs_perag	*pag;
 	int			n;
 
-	mp = tp->t_mountp;
-	spin_lock(&mp->m_perag[agno].pagb_lock);
+	pag = xfs_perag_get(tp->t_mountp, agno);
+	spin_lock(&pag->pagb_lock);
 
 	/* search pagb_list for an open slot */
-	for (bsy = mp->m_perag[agno].pagb_list, n = 0;
+	for (bsy = pag->pagb_list, n = 0;
 	     n < XFS_PAGB_NUM_SLOTS;
 	     bsy++, n++) {
 		if (bsy->busy_tp == NULL) {
@@ -2502,11 +2512,11 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 		}
 	}
 
-	trace_xfs_alloc_busy(mp, agno, bno, len, n);
+	trace_xfs_alloc_busy(tp->t_mountp, agno, bno, len, n);
 
 	if (n < XFS_PAGB_NUM_SLOTS) {
-		bsy = &mp->m_perag[agno].pagb_list[n];
-		mp->m_perag[agno].pagb_count++;
+		bsy = &pag->pagb_list[n];
+		pag->pagb_count++;
 		bsy->busy_start = bno;
 		bsy->busy_length = len;
 		bsy->busy_tp = tp;
@@ -2521,7 +2531,8 @@ xfs_alloc_mark_busy(xfs_trans_t *tp,
 		xfs_trans_set_sync(tp);
 	}
 
-	spin_unlock(&mp->m_perag[agno].pagb_lock);
+	spin_unlock(&pag->pagb_lock);
+	xfs_perag_put(pag);
 }
 
 void
@@ -2529,24 +2540,23 @@ xfs_alloc_clear_busy(xfs_trans_t *tp,
 		     xfs_agnumber_t agno,
 		     int idx)
 {
-	xfs_mount_t		*mp;
+	struct xfs_perag	*pag;
 	xfs_perag_busy_t	*list;
 
-	mp = tp->t_mountp;
-
-	spin_lock(&mp->m_perag[agno].pagb_lock);
-	list = mp->m_perag[agno].pagb_list;
-
 	ASSERT(idx < XFS_PAGB_NUM_SLOTS);
+	pag = xfs_perag_get(tp->t_mountp, agno);
+	spin_lock(&pag->pagb_lock);
+	list = pag->pagb_list;
 
-	trace_xfs_alloc_unbusy(mp, agno, idx, list[idx].busy_tp == tp);
+	trace_xfs_alloc_unbusy(tp->t_mountp, agno, idx, list[idx].busy_tp == tp);
 
 	if (list[idx].busy_tp == tp) {
 		list[idx].busy_tp = NULL;
-		mp->m_perag[agno].pagb_count--;
+		pag->pagb_count--;
 	}
 
-	spin_unlock(&mp->m_perag[agno].pagb_lock);
+	spin_unlock(&pag->pagb_lock);
+	xfs_perag_put(pag);
 }
 
 
@@ -2560,17 +2570,15 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 		    xfs_agblock_t bno,
 		    xfs_extlen_t len)
 {
-	xfs_mount_t		*mp;
+	struct xfs_perag	*pag;
 	xfs_perag_busy_t	*bsy;
 	xfs_agblock_t		uend, bend;
 	xfs_lsn_t		lsn = 0;
 	int			cnt;
 
-	mp = tp->t_mountp;
-
-	spin_lock(&mp->m_perag[agno].pagb_lock);
-
-	uend = bno + len - 1;
+	pag = xfs_perag_get(tp->t_mountp, agno);
+	spin_lock(&pag->pagb_lock);
+	cnt = pag->pagb_count;
 
 	/*
 	 * search pagb_list for this slot, skipping open slots. We have to
@@ -2578,8 +2586,9 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	 * we have to get the most recent LSN for the log force to push out
 	 * all the transactions that span the range.
 	 */
-	for (cnt = 0; cnt < mp->m_perag[agno].pagb_count; cnt++) {
-		bsy = &mp->m_perag[agno].pagb_list[cnt];
+	uend = bno + len - 1;
+	for (cnt = 0; cnt < pag->pagb_count; cnt++) {
+		bsy = &pag->pagb_list[cnt];
 		if (!bsy->busy_tp)
 			continue;
 
@@ -2591,7 +2600,8 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 		if (XFS_LSN_CMP(bsy->busy_tp->t_commit_lsn, lsn) > 0)
 			lsn = bsy->busy_tp->t_commit_lsn;
 	}
-	spin_unlock(&mp->m_perag[agno].pagb_lock);
+	spin_unlock(&pag->pagb_lock);
+	xfs_perag_put(pag);
 	trace_xfs_alloc_busysearch(tp->t_mountp, agno, bno, len, lsn);
 
 	/*
@@ -2599,5 +2609,5 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	 * transaction that freed the block
 	 */
 	if (lsn)
-		xfs_log_force(mp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
+		xfs_log_force(tp->t_mountp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
