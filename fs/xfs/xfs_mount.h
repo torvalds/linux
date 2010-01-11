@@ -386,14 +386,14 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 /*
  * perag get/put wrappers for eventual ref counting
  */
-static inline xfs_perag_t *
-xfs_get_perag(struct xfs_mount *mp, xfs_ino_t ino)
+static inline struct xfs_perag *
+xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
 {
-	return &mp->m_perag[XFS_INO_TO_AGNO(mp, ino)];
+	return &mp->m_perag[agno];
 }
 
 static inline void
-xfs_put_perag(struct xfs_mount *mp, xfs_perag_t *pag)
+xfs_perag_put(struct xfs_perag *pag)
 {
 	/* nothing to see here, move along */
 }
