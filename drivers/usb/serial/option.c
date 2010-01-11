@@ -359,6 +359,13 @@ struct option_blacklist_info {
 	enum option_blacklist_reason reason;
 };
 
+static const u8 four_g_w14_no_sendsetup[] = { 0, 1 };
+static const struct option_blacklist_info four_g_w14_blacklist = {
+	.infolen = ARRAY_SIZE(four_g_w14_no_sendsetup),
+	.ifaceinfo = four_g_w14_no_sendsetup,
+	.reason = OPTION_BLACKLIST_SENDSETUP
+};
+
 static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
@@ -659,7 +666,9 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S) },
 	{ USB_DEVICE(AIRPLUS_VENDOR_ID, AIRPLUS_PRODUCT_MCD650) },
 	{ USB_DEVICE(TLAYTECH_VENDOR_ID, TLAYTECH_PRODUCT_TEU800) },
-	{ USB_DEVICE(FOUR_G_SYSTEMS_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14) },
+  	{ USB_DEVICE(FOUR_G_SYSTEMS_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14),
+  	  .driver_info = (kernel_ulong_t)&four_g_w14_blacklist
+  	},
 	{ USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_CE100) },
 	{ } /* Terminating entry */
 };
