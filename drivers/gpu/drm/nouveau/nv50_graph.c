@@ -282,6 +282,7 @@ nv50_graph_unload_context(struct drm_device *dev)
 		return 0;
 	inst &= NV50_PGRAPH_CTXCTL_CUR_INSTANCE;
 
+	nouveau_wait_for_idle(dev);
 	nv_wr32(dev, 0x400500, fifo & ~1);
 	nv_wr32(dev, 0x400784, inst);
 	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x20);
