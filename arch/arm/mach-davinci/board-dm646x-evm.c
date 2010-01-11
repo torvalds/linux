@@ -694,19 +694,19 @@ static struct clk cdce_clk_in = {
 	.rate	= CDCE949_XIN_RATE,
 };
 
-static struct davinci_clk cdce_clks[] = {
+static struct clk_lookup cdce_clks[] = {
 	CLK(NULL, "xin", &cdce_clk_in),
 	CLK(NULL, NULL, NULL),
 };
 
 static void __init cdce_clk_init(void)
 {
-	struct davinci_clk *c;
+	struct clk_lookup *c;
 	struct clk *clk;
 
-	for (c = cdce_clks; c->lk.clk; c++) {
-		clk = c->lk.clk;
-		clkdev_add(&c->lk);
+	for (c = cdce_clks; c->clk; c++) {
+		clk = c->clk;
+		clkdev_add(c);
 		clk_register(clk);
 	}
 }
