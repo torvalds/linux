@@ -46,10 +46,6 @@ struct ceph_connection_operations {
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
 					struct ceph_msg_header *hdr,
 					int *skip);
-	/* an incoming message has a data payload; tell me what pages I
-	 * should read the data into. */
-	int (*prepare_pages) (struct ceph_connection *con, struct ceph_msg *m,
-			      int want);
 };
 
 extern const char *ceph_name_type_str(int t);

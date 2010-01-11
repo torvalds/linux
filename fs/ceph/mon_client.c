@@ -701,6 +701,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	struct ceph_msg *m;
 
 	*skip = 0;
+
 	switch (type) {
 	case CEPH_MSG_MON_SUBSCRIBE_ACK:
 		m = ceph_msgpool_get(&monc->msgpool_subscribe_ack, front_len);

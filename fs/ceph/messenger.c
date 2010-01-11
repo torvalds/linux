@@ -2114,25 +2114,6 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
 	return 0;
 }
 
-static int ceph_alloc_data_section(struct ceph_connection *con, struct ceph_msg *msg)
-{
-	int ret;
-	int want;
-	int data_len = le32_to_cpu(msg->hdr.data_len);
-	unsigned data_off = le16_to_cpu(msg->hdr.data_off);
-
-	want = calc_pages_for(data_off & ~PAGE_MASK, data_len);
-	ret = -1;
-	mutex_unlock(&con->mutex);
-	if (con->ops->prepare_pages)
-		ret = con->ops->prepare_pages(con, msg, want);
-	mutex_lock(&con->mutex);
-
-	BUG_ON(msg->nr_pages < want);
-
-	return ret;
-}
-
 /*
  * Generic message allocator, for incoming messages.
  */
@@ -2143,12 +2124,13 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 	int type = le16_to_cpu(hdr->type);
 	int front_len = le32_to_cpu(hdr->front_len);
 	int middle_len = le32_to_cpu(hdr->middle_len);
-	int data_len = le32_to_cpu(hdr->data_len);
 	struct ceph_msg *msg = NULL;
 	int ret;
 
 	if (con->ops->alloc_msg) {
+		mutex_unlock(&con->mutex);
 		msg = con->ops->alloc_msg(con, hdr, skip);
+		mutex_lock(&con->mutex);
 		if (IS_ERR(msg))
 			return msg;
 
@@ -2174,17 +2156,6 @@ static struct ceph_msg *ceph_alloc_msg(struct ceph_connection *con,
 			return msg;
 		}
 	}
-
-	if (data_len) {
-		ret = ceph_alloc_data_section(con, msg);
-
-		if (ret < 0) {
-			*skip = 1;
-			ceph_msg_put(msg);
-			return NULL;
-		}
-	}
-
 
 	return msg;
 }

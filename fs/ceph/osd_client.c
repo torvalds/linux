@@ -998,31 +998,26 @@ bad:
  * find those pages.
  *  0 = success, -1 failure.
  */
-static int prepare_pages(struct ceph_connection *con, struct ceph_msg *m,
-			 int want)
+static int prepare_pages(struct ceph_connection *con,
+			 struct ceph_msg_header *hdr,
+			 struct ceph_osd_request *req,
+			 u64 tid,
+			 struct ceph_msg *m)
 {
 	struct ceph_osd *osd = con->private;
 	struct ceph_osd_client *osdc;
-	struct ceph_osd_request *req;
-	u64 tid;
 	int ret = -1;
-	int type = le16_to_cpu(m->hdr.type);
+	int data_len = le32_to_cpu(hdr->data_len);
+	unsigned data_off = le16_to_cpu(hdr->data_off);
+
+	int want = calc_pages_for(data_off & ~PAGE_MASK, data_len);
 
 	if (!osd)
 		return -1;
+
 	osdc = osd->o_osdc;
 
 	dout("prepare_pages on msg %p want %d\n", m, want);
-	if (unlikely(type != CEPH_MSG_OSD_OPREPLY))
-		return -1;  /* hmm! */
-
-	tid = le64_to_cpu(m->hdr.tid);
-	mutex_lock(&osdc->request_mutex);
-	req = __lookup_request(osdc, tid);
-	if (!req) {
-		dout("prepare_pages unknown tid %llu\n", tid);
-		goto out;
-	}
 	dout("prepare_pages tid %llu has %d pages, want %d\n",
 	     tid, req->r_num_pages, want);
 	if (unlikely(req->r_num_pages < want))
@@ -1040,7 +1035,8 @@ static int prepare_pages(struct ceph_connection *con, struct ceph_msg *m,
 	m->nr_pages = req->r_num_pages;
 	ret = 0; /* success */
 out:
-	mutex_unlock(&osdc->request_mutex);
+	BUG_ON(ret < 0 || m->nr_pages < want);
+
 	return ret;
 }
 
@@ -1311,19 +1307,42 @@ static struct ceph_msg *alloc_msg(struct ceph_connection *con,
 	struct ceph_osd_client *osdc = osd->o_osdc;
 	int type = le16_to_cpu(hdr->type);
 	int front = le32_to_cpu(hdr->front_len);
+	int data_len = le32_to_cpu(hdr->data_len);
 	struct ceph_msg *m;
+	struct ceph_osd_request *req;
+	u64 tid;
+	int err;
 
 	*skip = 0;
-	switch (type) {
-	case CEPH_MSG_OSD_OPREPLY:
-		m = ceph_msgpool_get(&osdc->msgpool_op_reply, front);
-		break;
-	default:
+	if (type != CEPH_MSG_OSD_OPREPLY)
 		return NULL;
+
+	tid = le64_to_cpu(hdr->tid);
+	mutex_lock(&osdc->request_mutex);
+	req = __lookup_request(osdc, tid);
+	if (!req) {
+		*skip = 1;
+		m = NULL;
+		dout("prepare_pages unknown tid %llu\n", tid);
+		goto out;
+	}
+	m = ceph_msgpool_get(&osdc->msgpool_op_reply, front);
+	if (!m) {
+		*skip = 1;
+		goto out;
 	}
 
-	if (!m)
-		*skip = 1;
+	if (data_len > 0) {
+		err = prepare_pages(con, hdr, req, tid, m);
+		if (err < 0) {
+			*skip = 1;
+			ceph_msg_put(m);
+			m = ERR_PTR(err);
+		}
+	}
+
+out:
+	mutex_unlock(&osdc->request_mutex);
 
 	return m;
 }
@@ -1400,5 +1419,4 @@ const static struct ceph_connection_operations osd_con_ops = {
 	.verify_authorizer_reply = verify_authorizer_reply,
 	.alloc_msg = alloc_msg,
 	.fault = osd_reset,
-	.prepare_pages = prepare_pages,
 };
