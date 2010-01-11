@@ -328,6 +328,17 @@ static int pxa2xx_mfp_suspend(struct sys_device *d, pm_message_t state)
 {
 	int i;
 
+	/* set corresponding PGSR bit of those marked MFP_LPM_KEEP_OUTPUT */
+	for (i = 0; i < pxa_last_gpio; i++) {
+		if ((gpio_desc[i].config & MFP_LPM_KEEP_OUTPUT) &&
+		    (GPDR(i) & GPIO_bit(i))) {
+			if (GPLR(i) & GPIO_bit(i))
+				PGSR(i) |= GPIO_bit(i);
+			else
+				PGSR(i) &= ~GPIO_bit(i);
+		}
+	}
+
 	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 
 		saved_gafr[0][i] = GAFR_L(i);
