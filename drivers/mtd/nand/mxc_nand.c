@@ -888,8 +888,12 @@ static int mxcnd_suspend(struct platform_device *pdev, pm_message_t state)
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND suspend\n");
 
 	ret = mtd->suspend(mtd);
-	/* Disable the NFC clock */
-	clk_disable(host->clk);
+
+	/*
+	 * nand_suspend locks the device for exclusive access, so
+	 * the clock must already be off.
+	 */
+	BUG_ON(!ret && host->clk_act);
 
 	return ret;
 }
@@ -903,8 +907,6 @@ static int mxcnd_resume(struct platform_device *pdev)
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND resume\n");
 
-	/* Enable the NFC clock */
-	clk_enable(host->clk);
 	mtd->resume(mtd);
 
 	return ret;
