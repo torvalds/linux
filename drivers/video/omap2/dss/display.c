@@ -324,11 +324,8 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 	*fifo_low = fifo_size - burst_size_bytes;
 }
 
-static int default_get_recommended_bpp(struct omap_dss_device *dssdev)
+int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 {
-	if (dssdev->panel.recommended_bpp)
-		return dssdev->panel.recommended_bpp;
-
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_DPI:
 		if (dssdev->phy.dpi.data_lines == 24)
@@ -350,6 +347,7 @@ static int default_get_recommended_bpp(struct omap_dss_device *dssdev)
 		BUG();
 	}
 }
+EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
 
 /* Checks if replication logic should be used. Only use for active matrix,
  * when overlay is in RGB12U or RGB16 mode, and LCD interface is
@@ -412,8 +410,6 @@ void dss_init_device(struct platform_device *pdev,
 				dssdev->name);
 		return;
 	}
-
-	dssdev->get_recommended_bpp = default_get_recommended_bpp;
 
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_DPI:

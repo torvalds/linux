@@ -814,6 +814,9 @@ int omap_dss_register_driver(struct omap_dss_driver *dssdriver)
 
 	if (dssdriver->get_resolution == NULL)
 		dssdriver->get_resolution = omapdss_default_get_resolution;
+	if (dssdriver->get_recommended_bpp == NULL)
+		dssdriver->get_recommended_bpp =
+			omapdss_default_get_recommended_bpp;
 
 	return driver_register(&dssdriver->driver);
 }

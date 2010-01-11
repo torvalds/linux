@@ -54,6 +54,8 @@ module_param_named(test, omapfb_test_pattern, bool, 0644);
 #endif
 
 static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi);
+static int omapfb_get_recommended_bpp(struct omapfb2_device *fbdev,
+		struct omap_dss_device *dssdev);
 
 #ifdef DEBUG
 static void draw_pixel(struct fb_info *fbi, int x, int y, unsigned color)
@@ -1404,6 +1406,7 @@ static int omapfb_alloc_fbmem_display(struct fb_info *fbi, unsigned long size,
 		unsigned long paddr)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
+	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omap_dss_device *display;
 	int bytespp;
 
@@ -1412,7 +1415,7 @@ static int omapfb_alloc_fbmem_display(struct fb_info *fbi, unsigned long size,
 	if (!display)
 		return 0;
 
-	switch (display->get_recommended_bpp(display)) {
+	switch (omapfb_get_recommended_bpp(fbdev, display)) {
 	case 16:
 		bytespp = 2;
 		break;
@@ -1760,7 +1763,7 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 		var->yres_virtual = var->yres;
 
 		if (!var->bits_per_pixel) {
-			switch (display->get_recommended_bpp(display)) {
+			switch (omapfb_get_recommended_bpp(fbdev, display)) {
 			case 16:
 				var->bits_per_pixel = 16;
 				break;
@@ -2011,7 +2014,8 @@ static int omapfb_mode_to_timings(const char *mode_str,
 	}
 }
 
-static int omapfb_set_def_mode(struct omap_dss_device *display, char *mode_str)
+static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
+		struct omap_dss_device *display, char *mode_str)
 {
 	int r;
 	u8 bpp;
@@ -2021,7 +2025,9 @@ static int omapfb_set_def_mode(struct omap_dss_device *display, char *mode_str)
 	if (r)
 		return r;
 
-	display->panel.recommended_bpp = bpp;
+	fbdev->bpp_overrides[fbdev->num_bpp_overrides].dssdev = display;
+	fbdev->bpp_overrides[fbdev->num_bpp_overrides].bpp = bpp;
+	++fbdev->num_bpp_overrides;
 
 	if (!display->check_timings || !display->set_timings)
 		return -EINVAL;
@@ -2033,6 +2039,21 @@ static int omapfb_set_def_mode(struct omap_dss_device *display, char *mode_str)
 	display->set_timings(display, &timings);
 
 	return 0;
+}
+
+static int omapfb_get_recommended_bpp(struct omapfb2_device *fbdev,
+		struct omap_dss_device *dssdev)
+{
+	int i;
+
+	BUG_ON(dssdev->driver->get_recommended_bpp == NULL);
+
+	for (i = 0; i < fbdev->num_bpp_overrides; ++i) {
+		if (dssdev == fbdev->bpp_overrides[i].dssdev)
+			return fbdev->bpp_overrides[i].bpp;
+	}
+
+	return dssdev->driver->get_recommended_bpp(dssdev);
 }
 
 static int omapfb_parse_def_modes(struct omapfb2_device *fbdev)
@@ -2073,7 +2094,7 @@ static int omapfb_parse_def_modes(struct omapfb2_device *fbdev)
 			break;
 		}
 
-		r = omapfb_set_def_mode(display, mode_str);
+		r = omapfb_set_def_mode(fbdev, display, mode_str);
 		if (r)
 			break;
 	}

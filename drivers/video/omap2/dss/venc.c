@@ -460,6 +460,7 @@ static struct omap_dss_driver venc_driver = {
 	.resume		= venc_panel_resume,
 
 	.get_resolution	= omapdss_default_get_resolution,
+	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
 
 	.driver         = {
 		.name   = "venc",

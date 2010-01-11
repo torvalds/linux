@@ -990,6 +990,8 @@ static struct omap_dss_driver taal_driver = {
 
 	.setup_update	= taal_setup_update,
 	.get_resolution	= taal_get_resolution,
+	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
+
 	.enable_te	= taal_enable_te,
 	.wait_for_te	= taal_wait_te,
 	.set_rotate	= taal_rotate,
