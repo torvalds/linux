@@ -133,15 +133,11 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	/* DAI clock master masks */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		strcr |= SSI_STCR_TFDIR | SSI_STCR_TXDIR;
+	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
-		strcr |= SSI_STCR_TFDIR;
-		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
-		strcr |= SSI_STCR_TXDIR;
-		break;
+	default:
+		/* Master mode not implemented, needs handling of clocks. */
+		return -EINVAL;
 	}
 
 	strcr |= SSI_STCR_TFEN0;
