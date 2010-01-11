@@ -25,7 +25,6 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ioport.h>
-#include <linux/bitrev.h>
 #include <net/addrconf.h>
 
 #include <asm/page.h>		/* for PAGE_SIZE */
@@ -682,19 +681,16 @@ static char *mac_address_string(char *buf, char *end, u8 *addr,
 	char mac_addr[sizeof("xx:xx:xx:xx:xx:xx")];
 	char *p = mac_addr;
 	int i;
-	bool bitrev;
 	char separator;
 
 	if (fmt[1] == 'F') {		/* FDDI canonical format */
-		bitrev = true;
 		separator = '-';
 	} else {
-		bitrev = false;
 		separator = ':';
 	}
 
 	for (i = 0; i < 6; i++) {
-		p = pack_hex_byte(p, bitrev ? bitrev8(addr[i]) : addr[i]);
+		p = pack_hex_byte(p, addr[i]);
 		if (fmt[0] == 'M' && i != 5)
 			*p++ = separator;
 	}
@@ -908,9 +904,7 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
  *       usual colon-separated hex notation
  * - 'm' For a 6-byte MAC address, it prints the hex address without colons
  * - 'MF' For a 6-byte MAC FDDI address, it prints the address
- *       with a dash-separated hex notation with bit reversed bytes
- * - 'mF' For a 6-byte MAC FDDI address, it prints the address
- *       in hex notation without separators with bit reversed bytes
+ *       with a dash-separated hex notation
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
  *       IPv6 uses colon separated network-order 16 bit hex with leading 0's
