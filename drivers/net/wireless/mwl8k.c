@@ -1666,11 +1666,14 @@ struct mwl8k_cmd_get_hw_spec_sta {
 #define MWL8K_CAP_DELAY_BA		0x00003000
 #define MWL8K_CAP_MIMO			0x00000200
 #define MWL8K_CAP_40MHZ			0x00000100
+#define MWL8K_CAP_BAND_MASK		0x00000007
+#define MWL8K_CAP_5GHZ			0x00000004
+#define MWL8K_CAP_2GHZ4			0x00000001
 
-static void mwl8k_set_ht_caps(struct ieee80211_hw *hw, u32 cap)
+static void
+mwl8k_set_ht_caps(struct ieee80211_hw *hw,
+		  struct ieee80211_supported_band *band, u32 cap)
 {
-	struct mwl8k_priv *priv = hw->priv;
-	struct ieee80211_supported_band *band = &priv->band_24;
 	int rx_streams;
 	int tx_streams;
 
@@ -1716,6 +1719,24 @@ static void mwl8k_set_ht_caps(struct ieee80211_hw *hw, u32 cap)
 	}
 }
 
+static void
+mwl8k_set_caps(struct ieee80211_hw *hw, u32 caps)
+{
+	struct mwl8k_priv *priv = hw->priv;
+
+	if ((caps & MWL8K_CAP_2GHZ4) || !(caps & MWL8K_CAP_BAND_MASK)) {
+		mwl8k_setup_2ghz_band(hw);
+		if (caps & MWL8K_CAP_MIMO)
+			mwl8k_set_ht_caps(hw, &priv->band_24, caps);
+	}
+
+	if (caps & MWL8K_CAP_5GHZ) {
+		mwl8k_setup_5ghz_band(hw);
+		if (caps & MWL8K_CAP_MIMO)
+			mwl8k_set_ht_caps(hw, &priv->band_50, caps);
+	}
+}
+
 static int mwl8k_cmd_get_hw_spec_sta(struct ieee80211_hw *hw)
 {
 	struct mwl8k_priv *priv = hw->priv;
@@ -1746,9 +1767,7 @@ static int mwl8k_cmd_get_hw_spec_sta(struct ieee80211_hw *hw)
 		priv->num_mcaddrs = le16_to_cpu(cmd->num_mcaddrs);
 		priv->fw_rev = le32_to_cpu(cmd->fw_rev);
 		priv->hw_rev = cmd->hw_rev;
-		mwl8k_setup_2ghz_band(hw);
-		if (cmd->caps & cpu_to_le32(MWL8K_CAP_MIMO))
-			mwl8k_set_ht_caps(hw, le32_to_cpu(cmd->caps));
+		mwl8k_set_caps(hw, le32_to_cpu(cmd->caps));
 	}
 
 	kfree(cmd);
