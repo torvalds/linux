@@ -615,7 +615,7 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 				ret = connector_status_connected;
 		}
 	} else {
-		if (radeon_connector->dac_load_detect) {
+		if (radeon_connector->dac_load_detect && encoder) {
 			encoder_funcs = encoder->helper_private;
 			ret = encoder_funcs->detect(encoder, connector);
 		}

@@ -1323,7 +1323,7 @@
 #define PAIRWISE_KEY_ENTRY(__idx) \
 	( PAIRWISE_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)) )
 #define MAC_IVEIV_ENTRY(__idx) \
-	( MAC_IVEIV_TABLE_BASE + ((__idx) & sizeof(struct mac_iveiv_entry)) )
+	( MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)) )
 #define MAC_WCID_ATTR_ENTRY(__idx) \
 	( MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)) )
 #define SHARED_KEY_ENTRY(__idx) \

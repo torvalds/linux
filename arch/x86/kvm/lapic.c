@@ -1150,6 +1150,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 	hrtimer_cancel(&apic->lapic_timer.timer);
 	update_divide_count(apic);
 	start_apic_timer(apic);
+	apic->irr_pending = true;
 }
 
 void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)

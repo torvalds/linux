@@ -340,6 +340,9 @@ struct fw_cdev_send_response {
  * The @closure field is passed back to userspace in the response event.
  * The @handle field is an out parameter, returning a handle to the allocated
  * range to be used for later deallocation of the range.
+ *
+ * The address range is allocated on all local nodes.  The address allocation
+ * is exclusive except for the FCP command and response registers.
  */
 struct fw_cdev_allocate {
 	__u64 offset;

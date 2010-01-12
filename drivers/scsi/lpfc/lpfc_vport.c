@@ -512,8 +512,10 @@ enable_vport(struct fc_vport *fc_vport)
 		return VPORT_OK;
 	}
 
+	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+	spin_unlock_irq(&phba->hbalock);
 
 	/* Use the Physical nodes Fabric NDLP to determine if the link is
 	 * up and ready to FDISC.
@@ -700,7 +702,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			}
 			spin_unlock_irq(&phba->ndlp_lock);
 		}
-		if (vport->vpi_state != LPFC_VPI_REGISTERED)
+		if (!(vport->vpi_state & LPFC_VPI_REGISTERED))
 			goto skip_logo;
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);

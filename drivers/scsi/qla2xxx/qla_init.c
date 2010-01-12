@@ -269,6 +269,8 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
 	vha->flags.reset_active = 0;
+	ha->flags.pci_channel_io_perm_failure = 0;
+	ha->flags.eeh_busy = 0;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	vha->device_flags = DFLG_NO_CABLE;
@@ -581,6 +583,9 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	uint16_t	cmd;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return;
+
 	ha->isp_ops->disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -786,6 +791,12 @@ void
 qla24xx_reset_chip(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	if (pci_channel_offline(ha->pdev) &&
+	    ha->flags.pci_channel_io_perm_failure) {
+		return;
+	}
+
 	ha->isp_ops->disable_intrs(ha);
 
 	/* Perform RISC reset. */
@@ -2266,6 +2277,8 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	clear_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 	clear_bit(RSCN_UPDATE, &vha->dpc_flags);
 
+	qla2x00_get_data_rate(vha);
+
 	/* Determine what we need to do */
 	if (ha->current_topology == ISP_CFG_FL &&
 	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
@@ -3560,6 +3573,13 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		/* Requeue all commands in outstanding command list. */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
 
+		if (unlikely(pci_channel_offline(ha->pdev) &&
+		    ha->flags.pci_channel_io_perm_failure)) {
+			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+			status = 0;
+			return status;
+		}
+
 		ha->isp_ops->get_flash_version(vha, req->ring);
 
 		ha->isp_ops->nvram_config(vha);
@@ -4458,6 +4478,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 	int ret, retries;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (ha->flags.pci_channel_io_perm_failure)
+		return;
 	if (!IS_FWI2_CAPABLE(ha))
 		return;
 	if (!ha->fw_major_version)

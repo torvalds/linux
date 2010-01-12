@@ -24,7 +24,7 @@
  */
 #define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
-#define DRIVER_DESC "PCIE Port Bus Driver"
+#define DRIVER_DESC "PCIe Port Bus Driver"
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

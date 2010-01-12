@@ -1,5 +1,10 @@
+menu "IEEE 1394 (FireWire) support"
+	depends on PCI || BROKEN
+	# firewire-core does not depend on PCI but is
+	# not useful without PCI controller driver
+
 comment "You can enable one or both FireWire driver stacks."
-comment "See the help texts for more information."
+comment "The newer stack is recommended."
 
 config FIREWIRE
 	tristate "FireWire driver stack"
@@ -15,16 +20,6 @@ config FIREWIRE
 	  To compile this driver as a module, say M here: the module will be
 	  called firewire-core.
 
-	  This module functionally replaces ieee1394, raw1394, and video1394.
-	  To access it from application programs, you generally need at least
-	  libraw1394 v2.  IIDC/DCAM applications need libdc1394 v2.
-	  No libraries are required to access storage devices through the
-	  firewire-sbp2 driver.
-
-	  NOTE:
-	  FireWire audio devices currently require the old drivers (ieee1394,
-	  ohci1394, raw1394).
-
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"
 	depends on PCI && FIREWIRE
@@ -34,22 +29,7 @@ config FIREWIRE_OHCI
 	  is the only chipset in use, so say Y here.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-ohci.  It replaces ohci1394 of the classic IEEE 1394
-	  stack.
-
-	  NOTE:
-	  If you want to install firewire-ohci and ohci1394 together, you
-	  should configure them only as modules and blacklist the driver(s)
-	  which you don't want to have auto-loaded.  Add either
-
-	      blacklist firewire-ohci
-	  or
-	      blacklist ohci1394
-	      blacklist video1394
-	      blacklist dv1394
-
-	  to /etc/modprobe.conf or /etc/modprobe.d/* and update modprobe.conf
-	  depending on your distribution.
+	  called firewire-ohci.
 
 config FIREWIRE_OHCI_DEBUG
 	bool
@@ -66,8 +46,7 @@ config FIREWIRE_SBP2
 	  like scanners.
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-sbp2.  It replaces sbp2 of the classic IEEE 1394
-	  stack.
+	  called firewire-sbp2.
 
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
@@ -83,5 +62,8 @@ config FIREWIRE_NET
 	  NOTE, this driver is not stable yet!
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called firewire-net.  It replaces eth1394 of the classic IEEE 1394
-	  stack.
+	  called firewire-net.
+
+source "drivers/ieee1394/Kconfig"
+
+endmenu

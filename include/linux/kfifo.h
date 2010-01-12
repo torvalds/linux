@@ -81,7 +81,7 @@ union { \
 }
 
 /**
- * INIT_KFIFO - Initialize a kfifo declared by DECLARED_KFIFO
+ * INIT_KFIFO - Initialize a kfifo declared by DECLARE_KFIFO
  * @name: name of the declared kfifo datatype
  */
 #define INIT_KFIFO(name) \
