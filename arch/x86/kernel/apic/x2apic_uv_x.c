@@ -36,6 +36,8 @@ DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 static enum uv_system_type uv_system_type;
 static u64 gru_start_paddr, gru_end_paddr;
+int uv_min_hub_revision_id;
+EXPORT_SYMBOL_GPL(uv_min_hub_revision_id);
 
 static inline bool is_GRU_range(u64 start, u64 end)
 {
@@ -55,6 +57,10 @@ static int early_get_nodeid(void)
 	mmr = early_ioremap(UV_LOCAL_MMR_BASE | UVH_NODE_ID, sizeof(*mmr));
 	node_id.v = *mmr;
 	early_iounmap(mmr, sizeof(*mmr));
+
+	/* Currently, all blades have same revision number */
+	uv_min_hub_revision_id = node_id.s.revision;
+
 	return node_id.s.node_id;
 }
 
