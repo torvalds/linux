@@ -305,7 +305,7 @@ void android_register_function(struct android_usb_function *f)
 {
 	struct android_dev *dev = _android_dev;
 
-	printk(KERN_INFO "android_register_function\n");
+	printk(KERN_INFO "android_register_function %s\n", f->name);
 	list_add_tail(&f->list, &_functions);
 	_registered_function_count++;
 

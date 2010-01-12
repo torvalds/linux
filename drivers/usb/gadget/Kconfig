@@ -846,22 +846,28 @@ config USB_ANDROID
 	  enabled and disabled dynamically.
 
 config USB_ANDROID_ACM
-	boolean "Android gadget ACM function"
+	boolean "Android gadget ACM serial function"
 	depends on USB_ANDROID
 	help
-	  Provides adb function for adb gadget driver.
+	  Provides ACM serial function for android gadget driver.
 
 config USB_ANDROID_ADB
 	boolean "Android gadget adb function"
 	depends on USB_ANDROID
 	help
-	  Provides adb function for adb gadget driver.
+	  Provides adb function for android gadget driver.
 
 config USB_ANDROID_MASS_STORAGE
 	boolean "Android gadget mass storage function"
 	depends on USB_ANDROID && SWITCH
 	help
-	  Provides USB mass storage function for adb gadget driver.
+	  Provides USB mass storage function for android gadget driver.
+
+config USB_ANDROID_RNDIS
+	boolean "Android gadget RNDIS ethernet function"
+	depends on USB_ANDROID
+	help
+	  Provides RNDIS ethernet function for android gadget driver.
 
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"

@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
+#include <linux/usb/android_composite.h>
 
 #include <asm/atomic.h>
 
@@ -487,10 +488,10 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_disable(rndis->notify);
 		} else {
 			VDBG(cdev, "init rndis ctrl %d\n", intf);
-			rndis->notify_desc = ep_choose(cdev->gadget,
-					rndis->hs.notify,
-					rndis->fs.notify);
 		}
+		rndis->notify_desc = ep_choose(cdev->gadget,
+				rndis->hs.notify,
+				rndis->fs.notify);
 		usb_ep_enable(rndis->notify, rndis->notify_desc);
 		rndis->notify->driver_data = rndis;
 
@@ -504,11 +505,11 @@ static int rndis_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 		if (!rndis->port.in) {
 			DBG(cdev, "init rndis\n");
-			rndis->port.in = ep_choose(cdev->gadget,
-					rndis->hs.in, rndis->fs.in);
-			rndis->port.out = ep_choose(cdev->gadget,
-					rndis->hs.out, rndis->fs.out);
 		}
+		rndis->port.in = ep_choose(cdev->gadget,
+				rndis->hs.in, rndis->fs.in);
+		rndis->port.out = ep_choose(cdev->gadget,
+				rndis->hs.out, rndis->fs.out);
 
 		/* Avoid ZLPs; they can be troublesome. */
 		rndis->port.is_zlp_ok = false;
@@ -858,3 +859,33 @@ fail:
 	}
 	return status;
 }
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+#include "rndis.c"
+
+// FIXME - using bogus MAC address for now
+
+static u8 ethaddr[ETH_ALEN] = { 11, 22, 33, 44, 55, 66 };
+
+int rndis_function_bind_config(struct usb_configuration *c)
+{
+	int ret = gether_setup(c->cdev->gadget, ethaddr);
+	if (ret == 0)
+		ret = rndis_bind_config(c, ethaddr);
+	return ret;
+}
+
+static struct android_usb_function rndis_function = {
+	.name = "rndis",
+	.bind_config = rndis_function_bind_config,
+};
+
+static int __init init(void)
+{
+	printk(KERN_INFO "f_rndis init\n");
+	android_register_function(&rndis_function);
+	return 0;
+}
+module_init(init);
+
+#endif /* CONFIG_USB_ANDROID_RNDIS */
