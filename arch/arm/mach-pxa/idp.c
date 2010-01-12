@@ -179,6 +179,9 @@ static void __init idp_init(void)
 	printk("idp_init()\n");
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(idp_pin_config));
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	platform_device_register(&smc91x_device);
 	//platform_device_register(&mst_audio_device);

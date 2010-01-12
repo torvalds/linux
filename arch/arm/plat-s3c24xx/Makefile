@@ -55,3 +55,4 @@ obj-$(CONFIG_S3C24XX_SPI_BUS1_GPD8_GPD9_GPD10)	 += spi-bus1-gpd8_9_10.o
 # machine common support
 
 obj-$(CONFIG_MACH_SMDK)		+= common-smdk.o
+obj-$(CONFIG_S3C24XX_SIMTEC_AUDIO)	+= simtec-audio.o

@@ -10,15 +10,13 @@
 #include <linux/timer.h>
 #include <linux/sysctl.h>
 
-struct ipv4_devconf
-{
+struct ipv4_devconf {
 	void	*sysctl;
 	int	data[__NET_IPV4_CONF_MAX - 1];
 	DECLARE_BITMAP(state, __NET_IPV4_CONF_MAX - 1);
 };
 
-struct in_device
-{
+struct in_device {
 	struct net_device	*dev;
 	atomic_t		refcnt;
 	int			dead;
@@ -85,6 +83,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_RPFILTER(in_dev)		IN_DEV_MAXCONF((in_dev), RP_FILTER)
 #define IN_DEV_SOURCE_ROUTE(in_dev)	IN_DEV_ANDCONF((in_dev), \
 						       ACCEPT_SOURCE_ROUTE)
+#define IN_DEV_ACCEPT_LOCAL(in_dev)	IN_DEV_ORCONF((in_dev), ACCEPT_LOCAL)
 #define IN_DEV_BOOTP_RELAY(in_dev)	IN_DEV_ANDCONF((in_dev), BOOTP_RELAY)
 
 #define IN_DEV_LOG_MARTIANS(in_dev)	IN_DEV_ORCONF((in_dev), LOG_MARTIANS)
@@ -110,8 +109,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_ARP_IGNORE(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_IGNORE)
 #define IN_DEV_ARP_NOTIFY(in_dev)	IN_DEV_MAXCONF((in_dev), ARP_NOTIFY)
 
-struct in_ifaddr
-{
+struct in_ifaddr {
 	struct in_ifaddr	*ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;

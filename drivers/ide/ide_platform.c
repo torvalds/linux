@@ -81,14 +81,14 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 
 	if (mmio) {
 		base = devm_ioremap(&pdev->dev,
-			res_base->start, res_base->end - res_base->start + 1);
+			res_base->start, resource_size(res_base));
 		alt_base = devm_ioremap(&pdev->dev,
-			res_alt->start, res_alt->end - res_alt->start + 1);
+			res_alt->start, resource_size(res_alt));
 	} else {
 		base = devm_ioport_map(&pdev->dev,
-			res_base->start, res_base->end - res_base->start + 1);
+			res_base->start, resource_size(res_base));
 		alt_base = devm_ioport_map(&pdev->dev,
-			res_alt->start, res_alt->end - res_alt->start + 1);
+			res_alt->start, resource_size(res_alt));
 	}
 
 	memset(&hw, 0, sizeof(hw));

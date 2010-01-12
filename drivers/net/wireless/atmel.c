@@ -99,6 +99,22 @@ static struct {
 	{ ATMEL_FW_TYPE_506,		"atmel_at76c506",	"bin" },
 	{ ATMEL_FW_TYPE_NONE,		NULL,			NULL }
 };
+MODULE_FIRMWARE("atmel_at76c502-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c502.bin");
+MODULE_FIRMWARE("atmel_at76c502d-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c502d.bin");
+MODULE_FIRMWARE("atmel_at76c502e-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c502e.bin");
+MODULE_FIRMWARE("atmel_at76c502_3com-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c502_3com.bin");
+MODULE_FIRMWARE("atmel_at76c504-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c504.bin");
+MODULE_FIRMWARE("atmel_at76c504_2958-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c504_2958.bin");
+MODULE_FIRMWARE("atmel_at76c504a_2958-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c504a_2958.bin");
+MODULE_FIRMWARE("atmel_at76c506-wpa.bin");
+MODULE_FIRMWARE("atmel_at76c506.bin");
 
 #define MAX_SSID_LENGTH 32
 #define MGMT_JIFFIES (256 * HZ / 100)

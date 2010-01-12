@@ -250,7 +250,7 @@ static void __init hmt_machine_init(void)
 {
 	s3c_i2c0_set_platdata(NULL);
 	s3c_fb_set_platdata(&hmt_lcd_pdata);
-	s3c_device_nand.dev.platform_data = &hmt_nand_info;
+	s3c_nand_set_platdata(&hmt_nand_info);
 
 	gpio_request(S3C64XX_GPC(7), "usb power");
 	gpio_direction_output(S3C64XX_GPC(7), 0);

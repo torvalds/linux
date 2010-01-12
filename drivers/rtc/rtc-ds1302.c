@@ -143,7 +143,6 @@ static int ds1302_rtc_ioctl(struct device *dev, unsigned int cmd,
 #ifdef RTC_SET_CHARGE
 	case RTC_SET_CHARGE:
 	{
-		struct ds1302_rtc *rtc = dev_get_drvdata(dev);
 		int tcs_val;
 
 		if (copy_from_user(&tcs_val, (int __user *)arg, sizeof(int)))
@@ -201,7 +200,7 @@ static struct platform_driver ds1302_platform_driver = {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ds1302_rtc_remove),
+	.remove		= __devexit_p(ds1302_rtc_remove),
 };
 
 static int __init ds1302_rtc_init(void)

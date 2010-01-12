@@ -1403,8 +1403,8 @@ irnet_connect_indication(void *		instance,
   /* Socket already connecting ? On primary ? */
   if(0
 #ifdef ALLOW_SIMULT_CONNECT
-     || ((irttp_is_primary(server->tsap) == 1)	/* primary */
-	 && (test_and_clear_bit(0, &new->ttp_connect)))
+     || ((irttp_is_primary(server->tsap) == 1) &&	/* primary */
+	 (test_and_clear_bit(0, &new->ttp_connect)))
 #endif /* ALLOW_SIMULT_CONNECT */
      )
     {

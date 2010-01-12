@@ -240,7 +240,7 @@ extern int pnpacpi_disabled;
 #define PXM_INVAL	(-1)
 #define NID_INVAL	(-1)
 
-int acpi_check_resource_conflict(struct resource *res);
+int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
 		      const char *name);
@@ -253,10 +253,16 @@ void __init acpi_old_suspend_ordering(void);
 void __init acpi_s4_no_nvs(void);
 #endif /* CONFIG_PM_SLEEP */
 
+struct acpi_osc_context {
+	char *uuid_str; /* uuid string */
+	int rev;
+	struct acpi_buffer cap; /* arg2/arg3 */
+	struct acpi_buffer ret; /* free by caller if success */
+};
+
 #define OSC_QUERY_TYPE			0
 #define OSC_SUPPORT_TYPE 		1
 #define OSC_CONTROL_TYPE		2
-#define OSC_SUPPORT_MASKS		0x1f
 
 /* _OSC DW0 Definition */
 #define OSC_QUERY_ENABLE		1
@@ -265,12 +271,23 @@ void __init acpi_s4_no_nvs(void);
 #define OSC_INVALID_REVISION_ERROR	8
 #define OSC_CAPABILITIES_MASK_ERROR	16
 
+acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context);
+
+/* platform-wide _OSC bits */
+#define OSC_SB_PAD_SUPPORT		1
+#define OSC_SB_PPC_OST_SUPPORT		2
+#define OSC_SB_PR3_SUPPORT		4
+#define OSC_SB_CPUHP_OST_SUPPORT	8
+#define OSC_SB_APEI_SUPPORT		16
+
+/* PCI defined _OSC bits */
 /* _OSC DW1 Definition (OS Support Fields) */
 #define OSC_EXT_PCI_CONFIG_SUPPORT		1
 #define OSC_ACTIVE_STATE_PWR_SUPPORT 		2
 #define OSC_CLOCK_PWR_CAPABILITY_SUPPORT	4
 #define OSC_PCI_SEGMENT_GROUPS_SUPPORT		8
 #define OSC_MSI_SUPPORT				16
+#define OSC_PCI_SUPPORT_MASKS			0x1f
 
 /* _OSC DW1 Definition (OS Control Fields) */
 #define OSC_PCI_EXPRESS_NATIVE_HP_CONTROL	1
@@ -279,7 +296,7 @@ void __init acpi_s4_no_nvs(void);
 #define OSC_PCI_EXPRESS_AER_CONTROL		8
 #define OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL	16
 
-#define OSC_CONTROL_MASKS 	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | 	\
+#define OSC_PCI_CONTROL_MASKS 	(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL | 	\
 				OSC_SHPC_NATIVE_HP_CONTROL | 		\
 				OSC_PCI_EXPRESS_PME_CONTROL |		\
 				OSC_PCI_EXPRESS_AER_CONTROL |		\

@@ -30,7 +30,6 @@ struct mmap_arg_struct;
 asmlinkage long sys32_mmap(struct mmap_arg_struct __user *);
 asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
 
-asmlinkage long sys32_pipe(int __user *);
 struct sigaction32;
 struct old_sigaction32;
 asmlinkage long sys32_rt_sigaction(int, struct sigaction32 __user *,
@@ -51,19 +50,11 @@ asmlinkage long sys32_sched_rr_get_interval(compat_pid_t,
 asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *, compat_size_t);
 asmlinkage long sys32_rt_sigqueueinfo(int, int, compat_siginfo_t __user *);
 
-#ifdef CONFIG_SYSCTL_SYSCALL
-struct sysctl_ia32;
-asmlinkage long sys32_sysctl(struct sysctl_ia32 __user *);
-#endif
-
 asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, char __user *, u32, u32, u32);
 
 asmlinkage long sys32_personality(unsigned long);
 asmlinkage long sys32_sendfile(int, int, compat_off_t __user *, s32);
-
-asmlinkage long sys32_mmap2(unsigned long, unsigned long, unsigned long,
-			    unsigned long, unsigned long, unsigned long);
 
 struct oldold_utsname;
 struct old_utsname;

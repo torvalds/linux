@@ -455,7 +455,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 					(pra->low_rssi_thresh_for_ra40M):(pra->low_rssi_thresh_for_ra20M);
 		}
 
-		//DbgPrint("[DM] THresh H/L=%d/%d\n\r", RATR.HighRSSIThreshForRA, RATR.LowRSSIThreshForRA);
+		//DbgPrint("[DM] Thresh H/L=%d/%d\n\r", RATR.HighRSSIThreshForRA, RATR.LowRSSIThreshForRA);
 		if(priv->undecorated_smoothed_pwdb >= (long)HighRSSIThreshForRA)
 		{
 			//DbgPrint("[DM] RSSI=%d STA=HIGH\n\r", pHalData->UndecoratedSmoothedPWDB);
@@ -571,7 +571,7 @@ static u32 OFDMSwingTable[OFDM_Table_Length] = {
 	0x5a400169,	// 3, +3db
 	0x50800142,	// 4, +2db
 	0x47c0011f,	// 5, +1db
-	0x40000100,	// 6, +0db ===> default, upper for higher temprature, lower for low temprature
+	0x40000100,	// 6, +0db ===> default, upper for higher temperature, lower for low temperature
 	0x390000e4,	// 7, -1db
 	0x32c000cb,	// 8, -2db
 	0x2d4000b5,	// 9, -3db
@@ -932,14 +932,14 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	RT_TRACE(COMP_POWER_TRACKING, "Readback ThermalMeterA = %d \n", tmpRegA);
 	if(tmpRegA < 3 || tmpRegA > 13)
 		return;
-	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temprature
+	if(tmpRegA >= 12)	// if over 12, TP will be bad when high temperature
 		tmpRegA = 12;
 	RT_TRACE(COMP_POWER_TRACKING, "Valid ThermalMeterA = %d \n", tmpRegA);
 	priv->ThermalMeter[0] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 	priv->ThermalMeter[1] = ThermalMeterVal;	//We use fixed value by Bryant's suggestion
 
-	//Get current RF-A temprature index
-	if(priv->ThermalMeter[0] >= (u8)tmpRegA)	//lower temprature
+	//Get current RF-A temperature index
+	if(priv->ThermalMeter[0] >= (u8)tmpRegA)	//lower temperature
 	{
 		tmpOFDMindex = tmpCCK20Mindex = 6+(priv->ThermalMeter[0]-(u8)tmpRegA);
 		tmpCCK40Mindex = tmpCCK20Mindex - 6;
@@ -953,7 +953,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	else
 	{
 		tmpval = ((u8)tmpRegA - priv->ThermalMeter[0]);
-		if(tmpval >= 6)								// higher temprature
+		if(tmpval >= 6)								// higher temperature
 			tmpOFDMindex = tmpCCK20Mindex = 0;		// max to +6dB
 		else
 			tmpOFDMindex = tmpCCK20Mindex = 6 - tmpval;
@@ -2017,7 +2017,7 @@ static void dm_dig_init(struct net_device *dev)
 	dm_digtable.dbg_mode = DM_DBG_OFF;	//off=by real rssi value, on=by DM_DigTable.Rssi_val for new dig
 	dm_digtable.dig_algorithm_switch = 0;
 
-	/* 2007/10/04 MH Define init gain threshol. */
+	/* 2007/10/04 MH Define init gain threshold. */
 	dm_digtable.dig_state		= DM_STA_DIG_MAX;
 	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
 	dm_digtable.initialgain_lowerbound_state = false;
@@ -2145,7 +2145,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	/*DbgPrint("DIG Check\n\r RSSI=%d LOW=%d HIGH=%d STATE=%d",
 	pHalData->UndecoratedSmoothedPWDB, DM_DigTable.RssiLowThresh,
 	DM_DigTable.RssiHighThresh, DM_DigTable.Dig_State);*/
-	/* 1. When RSSI decrease, We have to judge if it is smaller than a treshold
+	/* 1. When RSSI decrease, We have to judge if it is smaller than a threshold
 		  and then execute below step. */
 	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh))
 	{
@@ -2205,7 +2205,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 	}
 
-	/* 2. When RSSI increase, We have to judge if it is larger than a treshold
+	/* 2. When RSSI increase, We have to judge if it is larger than a threshold
 		  and then execute below step.  */
 	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) )
 	{
@@ -2314,7 +2314,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 	}
 
 	/* 3. When RSSI >75% or <70%, it is a high power issue. We have to judge if
-		  it is larger than a treshold and then execute below step.  */
+		  it is larger than a threshold and then execute below step.  */
 	// 2008/02/05 MH SD3-Jerry Modify PD_TH for high power issue.
 	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_power_highthresh)
 	{

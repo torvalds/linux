@@ -186,9 +186,9 @@ static int __init e21_probe1(struct net_device *dev, int ioaddr)
 		return -EBUSY;
 
 	/* First check the station address for the Ctron prefix. */
-	if (inb(ioaddr + E21_SAPROM + 0) != 0x00
-		|| inb(ioaddr + E21_SAPROM + 1) != 0x00
-		|| inb(ioaddr + E21_SAPROM + 2) != 0x1d) {
+	if (inb(ioaddr + E21_SAPROM + 0) != 0x00 ||
+	    inb(ioaddr + E21_SAPROM + 1) != 0x00 ||
+	    inb(ioaddr + E21_SAPROM + 2) != 0x1d) {
 		retval = -ENODEV;
 		goto out;
 	}

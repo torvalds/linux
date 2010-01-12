@@ -720,7 +720,7 @@ error_ret:
 static IIO_DEV_ATTR_TEMP(sca3000_read_temp);
 
 /**
- * sca3000_show_thresh() sysfs query of a theshold
+ * sca3000_show_thresh() sysfs query of a threshold
  **/
 static ssize_t sca3000_show_thresh(struct device *dev,
 				   struct device_attribute *attr,

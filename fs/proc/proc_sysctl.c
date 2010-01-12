@@ -48,7 +48,7 @@ out:
 static struct ctl_table *find_in_table(struct ctl_table *p, struct qstr *name)
 {
 	int len;
-	for ( ; p->ctl_name || p->procname; p++) {
+	for ( ; p->procname; p++) {
 
 		if (!p->procname)
 			continue;
@@ -218,7 +218,7 @@ static int scan(struct ctl_table_header *head, ctl_table *table,
 		void *dirent, filldir_t filldir)
 {
 
-	for (; table->ctl_name || table->procname; table++, (*pos)++) {
+	for (; table->procname; table++, (*pos)++) {
 		int res;
 
 		/* Can't do anything without a proc name */

@@ -365,6 +365,7 @@
 /* PM_PREPWSTST_GFX specific bits */
 
 /* PM_WKEN_WKUP specific bits */
+#define OMAP3430_EN_IO_CHAIN				(1 << 16)
 #define OMAP3430_EN_IO					(1 << 8)
 #define OMAP3430_EN_GPIO1				(1 << 3)
 
@@ -373,6 +374,7 @@
 /* PM_IVA2GRPSEL_WKUP specific bits */
 
 /* PM_WKST_WKUP specific bits */
+#define OMAP3430_ST_IO_CHAIN				(1 << 16)
 #define OMAP3430_ST_IO					(1 << 8)
 
 /* PRM_CLKSEL */

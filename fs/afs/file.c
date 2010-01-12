@@ -315,7 +315,6 @@ static void afs_invalidatepage(struct page *page, unsigned long offset)
 			struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 			fscache_wait_on_page_write(vnode->cache, page);
 			fscache_uncache_page(vnode->cache, page);
-			ClearPageFsCache(page);
 		}
 #endif
 
@@ -349,17 +348,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 	/* deny if page is being written to the cache and the caller hasn't
 	 * elected to wait */
 #ifdef CONFIG_AFS_FSCACHE
-	if (PageFsCache(page)) {
-		if (fscache_check_page_write(vnode->cache, page)) {
-			if (!(gfp_flags & __GFP_WAIT)) {
-				_leave(" = F [cache busy]");
-				return 0;
-			}
-			fscache_wait_on_page_write(vnode->cache, page);
-		}
-
-		fscache_uncache_page(vnode->cache, page);
-		ClearPageFsCache(page);
+	if (!fscache_maybe_release_page(vnode->cache, page, gfp_flags)) {
+		_leave(" = F [cache busy]");
+		return 0;
 	}
 #endif
 

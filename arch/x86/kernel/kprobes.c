@@ -48,31 +48,22 @@
 #include <linux/preempt.h>
 #include <linux/module.h>
 #include <linux/kdebug.h>
+#include <linux/kallsyms.h>
 
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/alternative.h>
+#include <asm/insn.h>
+#include <asm/debugreg.h>
 
 void jprobe_return_end(void);
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
-#ifdef CONFIG_X86_64
-#define stack_addr(regs) ((unsigned long *)regs->sp)
-#else
-/*
- * "&regs->sp" looks wrong, but it's correct for x86_32.  x86_32 CPUs
- * don't save the ss and esp registers if the CPU is already in kernel
- * mode when it traps.  So for kprobes, regs->sp and regs->ss are not
- * the [nonexistent] saved stack pointer and ss register, but rather
- * the top 8 bytes of the pre-int3 stack.  So &regs->sp happens to
- * point to the top of the pre-int3 stack.
- */
-#define stack_addr(regs) ((unsigned long *)&regs->sp)
-#endif
+#define stack_addr(regs) ((unsigned long *)kernel_stack_pointer(regs))
 
 #define W(row, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ba, bb, bc, bd, be, bf)\
 	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \
@@ -103,50 +94,6 @@ static const u32 twobyte_is_boostable[256 / 32] = {
 	W(0xd0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1) , /* d0 */
 	W(0xe0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1) | /* e0 */
 	W(0xf0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0)   /* f0 */
-	/*      -----------------------------------------------         */
-	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f          */
-};
-static const u32 onebyte_has_modrm[256 / 32] = {
-	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f          */
-	/*      -----------------------------------------------         */
-	W(0x00, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* 00 */
-	W(0x10, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) , /* 10 */
-	W(0x20, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) | /* 20 */
-	W(0x30, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0) , /* 30 */
-	W(0x40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) | /* 40 */
-	W(0x50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* 50 */
-	W(0x60, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0) | /* 60 */
-	W(0x70, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* 70 */
-	W(0x80, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 80 */
-	W(0x90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* 90 */
-	W(0xa0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) | /* a0 */
-	W(0xb0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* b0 */
-	W(0xc0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0) | /* c0 */
-	W(0xd0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1) , /* d0 */
-	W(0xe0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) | /* e0 */
-	W(0xf0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1)   /* f0 */
-	/*      -----------------------------------------------         */
-	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f          */
-};
-static const u32 twobyte_has_modrm[256 / 32] = {
-	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f          */
-	/*      -----------------------------------------------         */
-	W(0x00, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1) | /* 0f */
-	W(0x10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0) , /* 1f */
-	W(0x20, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1) | /* 2f */
-	W(0x30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) , /* 3f */
-	W(0x40, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 4f */
-	W(0x50, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 5f */
-	W(0x60, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* 6f */
-	W(0x70, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1) , /* 7f */
-	W(0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) | /* 8f */
-	W(0x90, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* 9f */
-	W(0xa0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1) | /* af */
-	W(0xb0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1) , /* bf */
-	W(0xc0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0) | /* cf */
-	W(0xd0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) , /* df */
-	W(0xe0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) | /* ef */
-	W(0xf0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)   /* ff */
 	/*      -----------------------------------------------         */
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f          */
 };
@@ -244,6 +191,75 @@ retry:
 	}
 }
 
+/* Recover the probed instruction at addr for further analysis. */
+static int recover_probed_instruction(kprobe_opcode_t *buf, unsigned long addr)
+{
+	struct kprobe *kp;
+	kp = get_kprobe((void *)addr);
+	if (!kp)
+		return -EINVAL;
+
+	/*
+	 *  Basically, kp->ainsn.insn has an original instruction.
+	 *  However, RIP-relative instruction can not do single-stepping
+	 *  at different place, fix_riprel() tweaks the displacement of
+	 *  that instruction. In that case, we can't recover the instruction
+	 *  from the kp->ainsn.insn.
+	 *
+	 *  On the other hand, kp->opcode has a copy of the first byte of
+	 *  the probed instruction, which is overwritten by int3. And
+	 *  the instruction at kp->addr is not modified by kprobes except
+	 *  for the first byte, we can recover the original instruction
+	 *  from it and kp->opcode.
+	 */
+	memcpy(buf, kp->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
+	buf[0] = kp->opcode;
+	return 0;
+}
+
+/* Dummy buffers for kallsyms_lookup */
+static char __dummy_buf[KSYM_NAME_LEN];
+
+/* Check if paddr is at an instruction boundary */
+static int __kprobes can_probe(unsigned long paddr)
+{
+	int ret;
+	unsigned long addr, offset = 0;
+	struct insn insn;
+	kprobe_opcode_t buf[MAX_INSN_SIZE];
+
+	if (!kallsyms_lookup(paddr, NULL, &offset, NULL, __dummy_buf))
+		return 0;
+
+	/* Decode instructions */
+	addr = paddr - offset;
+	while (addr < paddr) {
+		kernel_insn_init(&insn, (void *)addr);
+		insn_get_opcode(&insn);
+
+		/*
+		 * Check if the instruction has been modified by another
+		 * kprobe, in which case we replace the breakpoint by the
+		 * original instruction in our buffer.
+		 */
+		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION) {
+			ret = recover_probed_instruction(buf, addr);
+			if (ret)
+				/*
+				 * Another debugging subsystem might insert
+				 * this breakpoint. In that case, we can't
+				 * recover it.
+				 */
+				return 0;
+			kernel_insn_init(&insn, buf);
+		}
+		insn_get_length(&insn);
+		addr += insn.length;
+	}
+
+	return (addr == paddr);
+}
+
 /*
  * Returns non-zero if opcode modifies the interrupt flag.
  */
@@ -277,68 +293,30 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 static void __kprobes fix_riprel(struct kprobe *p)
 {
 #ifdef CONFIG_X86_64
-	u8 *insn = p->ainsn.insn;
-	s64 disp;
-	int need_modrm;
+	struct insn insn;
+	kernel_insn_init(&insn, p->ainsn.insn);
 
-	/* Skip legacy instruction prefixes.  */
-	while (1) {
-		switch (*insn) {
-		case 0x66:
-		case 0x67:
-		case 0x2e:
-		case 0x3e:
-		case 0x26:
-		case 0x64:
-		case 0x65:
-		case 0x36:
-		case 0xf0:
-		case 0xf3:
-		case 0xf2:
-			++insn;
-			continue;
-		}
-		break;
-	}
-
-	/* Skip REX instruction prefix.  */
-	if (is_REX_prefix(insn))
-		++insn;
-
-	if (*insn == 0x0f) {
-		/* Two-byte opcode.  */
-		++insn;
-		need_modrm = test_bit(*insn,
-				      (unsigned long *)twobyte_has_modrm);
-	} else
-		/* One-byte opcode.  */
-		need_modrm = test_bit(*insn,
-				      (unsigned long *)onebyte_has_modrm);
-
-	if (need_modrm) {
-		u8 modrm = *++insn;
-		if ((modrm & 0xc7) == 0x05) {
-			/* %rip+disp32 addressing mode */
-			/* Displacement follows ModRM byte.  */
-			++insn;
-			/*
-			 * The copied instruction uses the %rip-relative
-			 * addressing mode.  Adjust the displacement for the
-			 * difference between the original location of this
-			 * instruction and the location of the copy that will
-			 * actually be run.  The tricky bit here is making sure
-			 * that the sign extension happens correctly in this
-			 * calculation, since we need a signed 32-bit result to
-			 * be sign-extended to 64 bits when it's added to the
-			 * %rip value and yield the same 64-bit result that the
-			 * sign-extension of the original signed 32-bit
-			 * displacement would have given.
-			 */
-			disp = (u8 *) p->addr + *((s32 *) insn) -
-			       (u8 *) p->ainsn.insn;
-			BUG_ON((s64) (s32) disp != disp); /* Sanity check.  */
-			*(s32 *)insn = (s32) disp;
-		}
+	if (insn_rip_relative(&insn)) {
+		s64 newdisp;
+		u8 *disp;
+		insn_get_displacement(&insn);
+		/*
+		 * The copied instruction uses the %rip-relative addressing
+		 * mode.  Adjust the displacement for the difference between
+		 * the original location of this instruction and the location
+		 * of the copy that will actually be run.  The tricky bit here
+		 * is making sure that the sign extension happens correctly in
+		 * this calculation, since we need a signed 32-bit result to
+		 * be sign-extended to 64 bits when it's added to the %rip
+		 * value and yield the same 64-bit result that the sign-
+		 * extension of the original signed 32-bit displacement would
+		 * have given.
+		 */
+		newdisp = (u8 *) p->addr + (s64) insn.displacement.value -
+			  (u8 *) p->ainsn.insn;
+		BUG_ON((s64) (s32) newdisp != newdisp); /* Sanity check.  */
+		disp = (u8 *) p->ainsn.insn + insn_offset_displacement(&insn);
+		*(s32 *) disp = (s32) newdisp;
 	}
 #endif
 }
@@ -359,6 +337,8 @@ static void __kprobes arch_copy_kprobe(struct kprobe *p)
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
+	if (!can_probe((unsigned long)p->addr))
+		return -EILSEQ;
 	/* insn: must be on special executable page on x86. */
 	p->ainsn.insn = get_insn_slot();
 	if (!p->ainsn.insn)
@@ -472,17 +452,6 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 {
 	switch (kcb->kprobe_status) {
 	case KPROBE_HIT_SSDONE:
-#ifdef CONFIG_X86_64
-		/* TODO: Provide re-entrancy from post_kprobes_handler() and
-		 * avoid exception stack corruption while single-stepping on
-		 * the instruction of the new probe.
-		 */
-		arch_disarm_kprobe(p);
-		regs->ip = (unsigned long)p->addr;
-		reset_current_kprobe();
-		preempt_enable_no_resched();
-		break;
-#endif
 	case KPROBE_HIT_ACTIVE:
 		save_previous_kprobe(kcb);
 		set_current_kprobe(p, regs, kcb);
@@ -491,18 +460,16 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		kcb->kprobe_status = KPROBE_REENTER;
 		break;
 	case KPROBE_HIT_SS:
-		if (p == kprobe_running()) {
-			regs->flags &= ~X86_EFLAGS_TF;
-			regs->flags |= kcb->kprobe_saved_flags;
-			return 0;
-		} else {
-			/* A probe has been hit in the codepath leading up
-			 * to, or just after, single-stepping of a probed
-			 * instruction. This entire codepath should strictly
-			 * reside in .kprobes.text section. Raise a warning
-			 * to highlight this peculiar case.
-			 */
-		}
+		/* A probe has been hit in the codepath leading up to, or just
+		 * after, single-stepping of a probed instruction. This entire
+		 * codepath should strictly reside in .kprobes.text section.
+		 * Raise a BUG or we'll continue in an endless reentering loop
+		 * and eventually a stack overflow.
+		 */
+		printk(KERN_WARNING "Unrecoverable kprobe detected at %p.\n",
+		       p->addr);
+		dump_kprobe(p);
+		BUG();
 	default:
 		/* impossible cases */
 		WARN_ON(1);
@@ -514,7 +481,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 
 /*
  * Interrupts are disabled on entry as trap3 is an interrupt gate and they
- * remain disabled thorough out this function.
+ * remain disabled throughout this function.
  */
 static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
@@ -851,7 +818,7 @@ no_change:
 
 /*
  * Interrupts are disabled on entry as trap1 is an interrupt gate and they
- * remain disabled thoroughout this function.
+ * remain disabled throughout this function.
  */
 static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {
@@ -967,8 +934,14 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_DEBUG:
-		if (post_kprobe_handler(args->regs))
+		if (post_kprobe_handler(args->regs)) {
+			/*
+			 * Reset the BS bit in dr6 (pointed by args->err) to
+			 * denote completion of processing
+			 */
+			(*(unsigned long *)ERR_PTR(args->err)) &= ~DR_STEP;
 			ret = NOTIFY_STOP;
+		}
 		break;
 	case DIE_GPF:
 		/*

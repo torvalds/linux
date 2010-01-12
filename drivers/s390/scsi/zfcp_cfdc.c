@@ -86,22 +86,17 @@ static int zfcp_cfdc_copy_to_user(void __user  *user_buffer,
 static struct zfcp_adapter *zfcp_cfdc_get_adapter(u32 devno)
 {
 	char busid[9];
-	struct ccw_device *ccwdev;
-	struct zfcp_adapter *adapter = NULL;
+	struct ccw_device *cdev;
+	struct zfcp_adapter *adapter;
 
 	snprintf(busid, sizeof(busid), "0.0.%04x", devno);
-	ccwdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
-	if (!ccwdev)
-		goto out;
+	cdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (!cdev)
+		return NULL;
 
-	adapter = dev_get_drvdata(&ccwdev->dev);
-	if (!adapter)
-		goto out_put;
+	adapter = zfcp_ccw_adapter_by_cdev(cdev);
 
-	zfcp_adapter_get(adapter);
-out_put:
-	put_device(&ccwdev->dev);
-out:
+	put_device(&cdev->dev);
 	return adapter;
 }
 
@@ -212,7 +207,6 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		retval = -ENXIO;
 		goto free_buffer;
 	}
-	zfcp_adapter_get(adapter);
 
 	retval = zfcp_cfdc_sg_setup(data->command, fsf_cfdc->sg,
 				    data_user->control_file);
@@ -245,7 +239,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
  free_sg:
 	zfcp_sg_free_table(fsf_cfdc->sg, ZFCP_CFDC_PAGES);
  adapter_put:
-	zfcp_adapter_put(adapter);
+	zfcp_ccw_adapter_put(adapter);
  free_buffer:
 	kfree(data);
  no_mem_sense:

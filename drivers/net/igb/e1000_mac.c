@@ -185,13 +185,12 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	}
 
 	if (nvm_alt_mac_addr_offset == 0xFFFF) {
-		ret_val = -(E1000_NOT_IMPLEMENTED);
+		/* There is no Alternate MAC Address */
 		goto out;
 	}
 
 	if (hw->bus.func == E1000_FUNC_1)
-		nvm_alt_mac_addr_offset += ETH_ALEN/sizeof(u16);
-
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
 		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
@@ -206,14 +205,16 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 
 	/* if multicast bit is set, the alternate address will not be used */
 	if (alt_mac_addr[0] & 0x01) {
-		ret_val = -(E1000_NOT_IMPLEMENTED);
+		hw_dbg("Ignoring Alternate Mac Address with MC bit set\n");
 		goto out;
 	}
 
-	for (i = 0; i < ETH_ALEN; i++)
-		hw->mac.addr[i] = hw->mac.perm_addr[i] = alt_mac_addr[i];
-
-	hw->mac.ops.rar_set(hw, hw->mac.perm_addr, 0);
+	/*
+	 * We have a valid alternate MAC address, and we want to treat it the
+	 * same as the normal permanent MAC address stored by the HW into the
+	 * RAR. Do this by mapping this address into RAR0.
+	 */
+	hw->mac.ops.rar_set(hw, alt_mac_addr, 0);
 
 out:
 	return ret_val;
@@ -246,8 +247,15 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
+	/*
+	 * Some bridges will combine consecutive 32-bit writes into
+	 * a single burst write, which will malfunction on some parts.
+	 * The flushes avoid this.
+	 */
 	wr32(E1000_RAL(index), rar_low);
+	wrfl();
 	wr32(E1000_RAH(index), rar_high);
+	wrfl();
 }
 
 /**
@@ -399,45 +407,43 @@ void igb_update_mc_addr_list(struct e1000_hw *hw,
  **/
 void igb_clear_hw_cntrs_base(struct e1000_hw *hw)
 {
-	u32 temp;
-
-	temp = rd32(E1000_CRCERRS);
-	temp = rd32(E1000_SYMERRS);
-	temp = rd32(E1000_MPC);
-	temp = rd32(E1000_SCC);
-	temp = rd32(E1000_ECOL);
-	temp = rd32(E1000_MCC);
-	temp = rd32(E1000_LATECOL);
-	temp = rd32(E1000_COLC);
-	temp = rd32(E1000_DC);
-	temp = rd32(E1000_SEC);
-	temp = rd32(E1000_RLEC);
-	temp = rd32(E1000_XONRXC);
-	temp = rd32(E1000_XONTXC);
-	temp = rd32(E1000_XOFFRXC);
-	temp = rd32(E1000_XOFFTXC);
-	temp = rd32(E1000_FCRUC);
-	temp = rd32(E1000_GPRC);
-	temp = rd32(E1000_BPRC);
-	temp = rd32(E1000_MPRC);
-	temp = rd32(E1000_GPTC);
-	temp = rd32(E1000_GORCL);
-	temp = rd32(E1000_GORCH);
-	temp = rd32(E1000_GOTCL);
-	temp = rd32(E1000_GOTCH);
-	temp = rd32(E1000_RNBC);
-	temp = rd32(E1000_RUC);
-	temp = rd32(E1000_RFC);
-	temp = rd32(E1000_ROC);
-	temp = rd32(E1000_RJC);
-	temp = rd32(E1000_TORL);
-	temp = rd32(E1000_TORH);
-	temp = rd32(E1000_TOTL);
-	temp = rd32(E1000_TOTH);
-	temp = rd32(E1000_TPR);
-	temp = rd32(E1000_TPT);
-	temp = rd32(E1000_MPTC);
-	temp = rd32(E1000_BPTC);
+	rd32(E1000_CRCERRS);
+	rd32(E1000_SYMERRS);
+	rd32(E1000_MPC);
+	rd32(E1000_SCC);
+	rd32(E1000_ECOL);
+	rd32(E1000_MCC);
+	rd32(E1000_LATECOL);
+	rd32(E1000_COLC);
+	rd32(E1000_DC);
+	rd32(E1000_SEC);
+	rd32(E1000_RLEC);
+	rd32(E1000_XONRXC);
+	rd32(E1000_XONTXC);
+	rd32(E1000_XOFFRXC);
+	rd32(E1000_XOFFTXC);
+	rd32(E1000_FCRUC);
+	rd32(E1000_GPRC);
+	rd32(E1000_BPRC);
+	rd32(E1000_MPRC);
+	rd32(E1000_GPTC);
+	rd32(E1000_GORCL);
+	rd32(E1000_GORCH);
+	rd32(E1000_GOTCL);
+	rd32(E1000_GOTCH);
+	rd32(E1000_RNBC);
+	rd32(E1000_RUC);
+	rd32(E1000_RFC);
+	rd32(E1000_ROC);
+	rd32(E1000_RJC);
+	rd32(E1000_TORL);
+	rd32(E1000_TORH);
+	rd32(E1000_TOTL);
+	rd32(E1000_TOTH);
+	rd32(E1000_TPR);
+	rd32(E1000_TPT);
+	rd32(E1000_MPTC);
+	rd32(E1000_BPTC);
 }
 
 /**

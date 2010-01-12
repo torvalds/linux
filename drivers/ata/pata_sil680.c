@@ -212,13 +212,11 @@ static struct ata_port_operations sil680_port_ops = {
 
 static u8 sil680_init_chip(struct pci_dev *pdev, int *try_mmio)
 {
-	u32 class_rev	= 0;
 	u8 tmpbyte	= 0;
 
-        pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);
-        class_rev &= 0xff;
         /* FIXME: double check */
-	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE, (class_rev) ? 1 : 255);
+	pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE,
+			      pdev->revision ? 1 : 255);
 
 	pci_write_config_byte(pdev, 0x80, 0x00);
 	pci_write_config_byte(pdev, 0x84, 0x00);

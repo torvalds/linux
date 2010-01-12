@@ -350,13 +350,13 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 	slot = -1;
 	/* We must check for the EEPROM-config boards first, else accessing
 	   IOCONFIG0 will move the board! */
-	if (at1700_probe_list[inb(ioaddr + IOCONFIG1) & 0x07] == ioaddr
-		&& read_eeprom(ioaddr, 4) == 0x0000
-		&& (read_eeprom(ioaddr, 5) & 0xff00) == 0xF400)
+	if (at1700_probe_list[inb(ioaddr + IOCONFIG1) & 0x07] == ioaddr &&
+	    read_eeprom(ioaddr, 4) == 0x0000 &&
+	    (read_eeprom(ioaddr, 5) & 0xff00) == 0xF400)
 		is_at1700 = 1;
-	else if (inb(ioaddr   + SAPROM    ) == 0x00
-		&& inb(ioaddr + SAPROM + 1) == 0x00
-		&& inb(ioaddr + SAPROM + 2) == 0x0e)
+	else if (inb(ioaddr + SAPROM    ) == 0x00 &&
+		 inb(ioaddr + SAPROM + 1) == 0x00 &&
+		 inb(ioaddr + SAPROM + 2) == 0x0e)
 		is_fmv18x = 1;
 	else {
 		goto err_out;
@@ -468,7 +468,7 @@ found:
 	lp->jumpered = is_fmv18x;
 	lp->mca_slot = slot;
 	/* Snarf the interrupt vector now. */
-	ret = request_irq(irq, &net_interrupt, 0, DRV_NAME, dev);
+	ret = request_irq(irq, net_interrupt, 0, DRV_NAME, dev);
 	if (ret) {
 		printk(KERN_ERR "AT1700 at %#3x is unusable due to a "
 		       "conflict on IRQ %d.\n",
@@ -839,8 +839,8 @@ set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
-	} else if (dev->mc_count > MC_FILTERBREAK
-			   ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if (dev->mc_count > MC_FILTERBREAK ||
+			   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter perfectly -- accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		outb(2, ioaddr + RX_MODE);	/* Use normal mode. */

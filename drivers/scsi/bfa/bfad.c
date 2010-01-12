@@ -188,8 +188,8 @@ static struct bfad_port_s *
 bfad_get_drv_port(struct bfad_s *bfad, struct bfad_vf_s *vf_drv,
 		  struct bfad_vport_s *vp_drv)
 {
-	return ((vp_drv) ? (&(vp_drv)->drv_port)
-		: ((vf_drv) ? (&(vf_drv)->base_port) : (&(bfad)->pport)));
+	return (vp_drv) ? (&(vp_drv)->drv_port)
+		: ((vf_drv) ? (&(vf_drv)->base_port) : (&(bfad)->pport));
 }
 
 struct bfad_port_s *
@@ -716,7 +716,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	if ((bfad->bfad_flags & BFAD_MSIX_ON)
 	    && bfad_install_msix_handler(bfad)) {
 		printk(KERN_WARNING "%s: install_msix failed, bfad%d\n",
-		       __FUNCTION__, bfad->inst_no);
+		       __func__, bfad->inst_no);
 	}
 
 	bfad_init_timer(bfad);

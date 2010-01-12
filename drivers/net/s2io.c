@@ -3238,7 +3238,7 @@ static u64 s2io_mdio_read(u32 mmd_type, u64 addr, struct net_device *dev)
 
 /**
  *  s2io_chk_xpak_counter - Function to check the status of the xpak counters
- *  @counter      : couter value to be updated
+ *  @counter      : counter value to be updated
  *  @flag         : flag to indicate the status
  *  @type         : counter type
  *  Description:
@@ -3494,6 +3494,7 @@ static void s2io_reset(struct s2io_nic *sp)
 
 		/* Restore the PCI state saved during initialization. */
 		pci_restore_state(sp->pdev);
+		pci_save_state(sp->pdev);
 		pci_read_config_word(sp->pdev, 0x2, &val16);
 		if (check_pci_device_id(val16) != (u16)PCI_ANY_ID)
 			break;

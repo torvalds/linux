@@ -249,8 +249,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		/* Max length: 11 "URGP=65535 " */
 		printk("URGP=%u ", ntohs(th->urg_ptr));
 
-		if ((logflags & IP6T_LOG_TCPOPT)
-		    && th->doff * 4 > sizeof(struct tcphdr)) {
+		if ((logflags & IP6T_LOG_TCPOPT) &&
+		    th->doff * 4 > sizeof(struct tcphdr)) {
 			u_int8_t _opt[60 - sizeof(struct tcphdr)];
 			const u_int8_t *op;
 			unsigned int i;

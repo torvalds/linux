@@ -145,7 +145,7 @@ static int device_authorization(struct hdpvr_device *dev)
 #ifdef HDPVR_DEBUG
 	else {
 		hex_dump_to_buffer(dev->usbc_buf, 46, 16, 1, print_buf,
-				   sizeof(print_buf), 0);
+				   5*buf_size+1, 0);
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 			 "Status request returned, len %d: %s\n",
 			 ret, print_buf);
@@ -168,13 +168,13 @@ static int device_authorization(struct hdpvr_device *dev)
 
 	response = dev->usbc_buf+38;
 #ifdef HDPVR_DEBUG
-	hex_dump_to_buffer(response, 8, 16, 1, print_buf, sizeof(print_buf), 0);
+	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, "challenge: %s\n",
 		 print_buf);
 #endif
 	challenge(response);
 #ifdef HDPVR_DEBUG
-	hex_dump_to_buffer(response, 8, 16, 1, print_buf, sizeof(print_buf), 0);
+	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %s\n",
 		 print_buf);
 #endif
@@ -376,8 +376,8 @@ static int hdpvr_probe(struct usb_interface *interface,
 	usb_set_intfdata(interface, dev);
 
 	/* let the user know what node this device is now attached to */
-	v4l2_info(&dev->v4l2_dev, "device now attached to /dev/video%d\n",
-		  dev->video_dev->minor);
+	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",
+		  video_device_node_name(dev->video_dev));
 	return 0;
 
 error:
@@ -391,12 +391,9 @@ error:
 static void hdpvr_disconnect(struct usb_interface *interface)
 {
 	struct hdpvr_device *dev;
-	int minor;
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
-
-	minor = dev->video_dev->minor;
 
 	/* prevent more I/O from starting and stop any ongoing */
 	mutex_lock(&dev->io_mutex);
@@ -425,7 +422,8 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 
 	atomic_dec(&dev_nr);
 
-	v4l2_info(&dev->v4l2_dev, "device /dev/video%d disconnected\n", minor);
+	v4l2_info(&dev->v4l2_dev, "device %s disconnected\n",
+		  video_device_node_name(dev->video_dev));
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev->usbc_buf);

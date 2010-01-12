@@ -3,7 +3,8 @@
 
 #include <linux/threads.h>
 
-#define PTE_NONCACHE_NUM	0  /* dummy for now to share code w/ppc64 */
+/* For 32-bit, all levels of page tables are just drawn from get_free_page() */
+#define MAX_PGTABLE_INDEX_SIZE	0
 
 extern void __bad_pte(pmd_t *pmd);
 
@@ -36,11 +37,10 @@ extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
 extern pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr);
 
-static inline void pgtable_free(pgtable_free_t pgf)
+static inline void pgtable_free(void *table, unsigned index_size)
 {
-	void *p = (void *)(pgf.val & ~PGF_CACHENUM_MASK);
-
-	free_page((unsigned long)p);
+	BUG_ON(index_size); /* 32-bit doesn't use this */
+	free_page((unsigned long)table);
 }
 
 #define check_pgt_cache()	do { } while (0)

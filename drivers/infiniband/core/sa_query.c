@@ -604,6 +604,12 @@ retry:
 	return ret ? ret : id;
 }
 
+void ib_sa_unpack_path(void *attribute, struct ib_sa_path_rec *rec)
+{
+	ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table), attribute, rec);
+}
+EXPORT_SYMBOL(ib_sa_unpack_path);
+
 static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 				    int status,
 				    struct ib_sa_mad *mad)

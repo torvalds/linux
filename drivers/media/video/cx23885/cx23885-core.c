@@ -32,6 +32,9 @@
 
 #include "cx23885.h"
 #include "cimax2.h"
+#include "cx23888-ir.h"
+#include "cx23885-ir.h"
+#include "cx23885-input.h"
 
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -51,9 +54,6 @@ MODULE_PARM_DESC(card, "card type");
 	} while (0)
 
 static unsigned int cx23885_devcount;
-
-static DEFINE_MUTEX(devlist);
-LIST_HEAD(cx23885_devlist);
 
 #define NO_SYNC_LINE (-1U)
 
@@ -753,6 +753,23 @@ static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
 			__func__, dev->hwrevision);
 }
 
+/* Find the first v4l2_subdev member of the group id in hw */
+struct v4l2_subdev *cx23885_find_hw(struct cx23885_dev *dev, u32 hw)
+{
+	struct v4l2_subdev *result = NULL;
+	struct v4l2_subdev *sd;
+
+	spin_lock(&dev->v4l2_dev.lock);
+	v4l2_device_for_each_subdev(sd, &dev->v4l2_dev) {
+		if (sd->grp_id == hw) {
+			result = sd;
+			break;
+		}
+	}
+	spin_unlock(&dev->v4l2_dev.lock);
+	return result;
+}
+
 static int cx23885_dev_setup(struct cx23885_dev *dev)
 {
 	int i;
@@ -764,10 +781,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	dev->nr = cx23885_devcount++;
 	sprintf(dev->name, "cx23885[%d]", dev->nr);
-
-	mutex_lock(&devlist);
-	list_add_tail(&dev->devlist, &cx23885_devlist);
-	mutex_unlock(&devlist);
 
 	/* Configure the internal memory */
 	if (dev->pci->device == 0x8880) {
@@ -899,7 +912,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	cx23885_i2c_register(&dev->i2c_bus[1]);
 	cx23885_i2c_register(&dev->i2c_bus[2]);
 	cx23885_card_setup(dev);
-	call_all(dev, tuner, s_standby);
+	call_all(dev, core, s_power, 0);
 	cx23885_ir_init(dev);
 
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {
@@ -1637,6 +1650,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	u32 ts1_status, ts1_mask;
 	u32 ts2_status, ts2_mask;
 	int vida_count = 0, ts1_count = 0, ts2_count = 0, handled = 0;
+	bool ir_handled = false;
 
 	pci_status = cx_read(PCI_INT_STAT);
 	pci_mask = cx_read(PCI_INT_MSK);
@@ -1662,18 +1676,12 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	dprintk(7, "ts2_status: 0x%08x  ts2_mask: 0x%08x count: 0x%x\n",
 		ts2_status, ts2_mask, ts2_count);
 
-	if ((pci_status & PCI_MSK_RISC_RD) ||
-	    (pci_status & PCI_MSK_RISC_WR) ||
-	    (pci_status & PCI_MSK_AL_RD) ||
-	    (pci_status & PCI_MSK_AL_WR) ||
-	    (pci_status & PCI_MSK_APB_DMA) ||
-	    (pci_status & PCI_MSK_VID_C) ||
-	    (pci_status & PCI_MSK_VID_B) ||
-	    (pci_status & PCI_MSK_VID_A) ||
-	    (pci_status & PCI_MSK_AUD_INT) ||
-	    (pci_status & PCI_MSK_AUD_EXT) ||
-	    (pci_status & PCI_MSK_GPIO0) ||
-	    (pci_status & PCI_MSK_GPIO1)) {
+	if (pci_status & (PCI_MSK_RISC_RD | PCI_MSK_RISC_WR |
+			  PCI_MSK_AL_RD   | PCI_MSK_AL_WR   | PCI_MSK_APB_DMA |
+			  PCI_MSK_VID_C   | PCI_MSK_VID_B   | PCI_MSK_VID_A   |
+			  PCI_MSK_AUD_INT | PCI_MSK_AUD_EXT |
+			  PCI_MSK_GPIO0   | PCI_MSK_GPIO1   |
+			  PCI_MSK_IR)) {
 
 		if (pci_status & PCI_MSK_RISC_RD)
 			dprintk(7, " (PCI_MSK_RISC_RD   0x%08x)\n",
@@ -1722,6 +1730,10 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 		if (pci_status & PCI_MSK_GPIO1)
 			dprintk(7, " (PCI_MSK_GPIO1     0x%08x)\n",
 				PCI_MSK_GPIO1);
+
+		if (pci_status & PCI_MSK_IR)
+			dprintk(7, " (PCI_MSK_IR        0x%08x)\n",
+				PCI_MSK_IR);
 	}
 
 	if (cx23885_boards[dev->board].cimax > 0 &&
@@ -1752,10 +1764,46 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	if (vida_status)
 		handled += cx23885_video_irq(dev, vida_status);
 
+	if (pci_status & PCI_MSK_IR) {
+		v4l2_subdev_call(dev->sd_ir, ir, interrupt_service_routine,
+				 pci_status, &ir_handled);
+		if (ir_handled)
+			handled++;
+	}
+
 	if (handled)
 		cx_write(PCI_INT_STAT, pci_status);
 out:
 	return IRQ_RETVAL(handled);
+}
+
+static void cx23885_v4l2_dev_notify(struct v4l2_subdev *sd,
+				    unsigned int notification, void *arg)
+{
+	struct cx23885_dev *dev;
+
+	if (sd == NULL)
+		return;
+
+	dev = to_cx23885(sd->v4l2_dev);
+
+	switch (notification) {
+	case V4L2_SUBDEV_IR_RX_NOTIFY: /* Called in an IRQ context */
+		if (sd == dev->sd_ir)
+			cx23885_ir_rx_v4l2_dev_notify(sd, *(u32 *)arg);
+		break;
+	case V4L2_SUBDEV_IR_TX_NOTIFY: /* Called in an IRQ context */
+		if (sd == dev->sd_ir)
+			cx23885_ir_tx_v4l2_dev_notify(sd, *(u32 *)arg);
+		break;
+	}
+}
+
+static void cx23885_v4l2_dev_notify_init(struct cx23885_dev *dev)
+{
+	INIT_WORK(&dev->ir_rx_work, cx23885_ir_rx_work_handler);
+	INIT_WORK(&dev->ir_tx_work, cx23885_ir_tx_work_handler);
+	dev->v4l2_dev.notify = cx23885_v4l2_dev_notify;
 }
 
 static inline int encoder_on_portb(struct cx23885_dev *dev)
@@ -1816,6 +1864,26 @@ void cx23885_gpio_clear(struct cx23885_dev *dev, u32 mask)
 		printk(KERN_INFO "%s: Unsupported\n", dev->name);
 }
 
+u32 cx23885_gpio_get(struct cx23885_dev *dev, u32 mask)
+{
+	if (mask & 0x00000007)
+		return (cx_read(GP0_IO) >> 8) & mask & 0x7;
+
+	if (mask & 0x0007fff8) {
+		if (encoder_on_portb(dev) || encoder_on_portc(dev))
+			printk(KERN_ERR
+				"%s: Reading GPIO moving on encoder ports\n",
+				dev->name);
+		return (cx_read(MC417_RWD) & ((mask & 0x7fff8) >> 3)) << 3;
+	}
+
+	/* TODO: 23-19 */
+	if (mask & 0x00f80000)
+		printk(KERN_INFO "%s: Unsupported\n", dev->name);
+
+	return 0;
+}
+
 void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask, int asoutput)
 {
 	if ((mask & 0x00000007) && asoutput)
@@ -1853,6 +1921,9 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
 	if (err < 0)
 		goto fail_free;
+
+	/* Prepare to handle notifications from subdevices */
+	cx23885_v4l2_dev_notify_init(dev);
 
 	/* pci init */
 	dev->pci = pci_dev;
@@ -1896,6 +1967,14 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 		break;
 	}
 
+	/*
+	 * The CX2388[58] IR controller can start firing interrupts when
+	 * enabled, so these have to take place after the cx23885_irq() handler
+	 * is hooked up by the call to request_irq() above.
+	 */
+	cx23885_ir_pci_int_enable(dev);
+	cx23885_input_init(dev);
+
 	return 0;
 
 fail_irq:
@@ -1912,16 +1991,15 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct cx23885_dev *dev = to_cx23885(v4l2_dev);
 
+	cx23885_input_fini(dev);
+	cx23885_ir_fini(dev);
+
 	cx23885_shutdown(dev);
 
 	pci_disable_device(pci_dev);
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
-
-	mutex_lock(&devlist);
-	list_del(&dev->devlist);
-	mutex_unlock(&devlist);
 
 	cx23885_dev_unregister(dev);
 	v4l2_device_unregister(v4l2_dev);
@@ -1957,7 +2035,7 @@ static struct pci_driver cx23885_pci_driver = {
 	.resume   = NULL,
 };
 
-static int cx23885_init(void)
+static int __init cx23885_init(void)
 {
 	printk(KERN_INFO "cx23885 driver version %d.%d.%d loaded\n",
 	       (CX23885_VERSION_CODE >> 16) & 0xff,
@@ -1970,7 +2048,7 @@ static int cx23885_init(void)
 	return pci_register_driver(&cx23885_pci_driver);
 }
 
-static void cx23885_fini(void)
+static void __exit cx23885_fini(void)
 {
 	pci_unregister_driver(&cx23885_pci_driver);
 }

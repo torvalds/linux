@@ -17,13 +17,116 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/kref.h>
 #include <linux/mod_devicetable.h>
+
+typedef u32 phandle;
+typedef u32 ihandle;
+
+struct property {
+	char	*name;
+	int	length;
+	void	*value;
+	struct property *next;
+	unsigned long _flags;
+	unsigned int unique_id;
+};
+
+#if defined(CONFIG_SPARC)
+struct of_irq_controller;
+#endif
+
+struct device_node {
+	const char *name;
+	const char *type;
+	phandle	node;
+#if !defined(CONFIG_SPARC)
+	phandle linux_phandle;
+#endif
+	char	*full_name;
+
+	struct	property *properties;
+	struct	property *deadprops;	/* removed properties */
+	struct	device_node *parent;
+	struct	device_node *child;
+	struct	device_node *sibling;
+	struct	device_node *next;	/* next device of same type */
+	struct	device_node *allnext;	/* next in list of all nodes */
+	struct	proc_dir_entry *pde;	/* this node's proc directory */
+	struct	kref kref;
+	unsigned long _flags;
+	void	*data;
+#if defined(CONFIG_SPARC)
+	char	*path_component_name;
+	unsigned int unique_id;
+	struct of_irq_controller *irq_trans;
+#endif
+};
+
+static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
+{
+	return test_bit(flag, &n->_flags);
+}
+
+static inline void of_node_set_flag(struct device_node *n, unsigned long flag)
+{
+	set_bit(flag, &n->_flags);
+}
+
+static inline void
+set_node_proc_entry(struct device_node *dn, struct proc_dir_entry *de)
+{
+	dn->pde = de;
+}
+
+extern struct device_node *of_find_all_nodes(struct device_node *prev);
+
+#if defined(CONFIG_SPARC)
+/* Dummy ref counting routines - to be implemented later */
+static inline struct device_node *of_node_get(struct device_node *node)
+{
+	return node;
+}
+static inline void of_node_put(struct device_node *node)
+{
+}
+
+#else
+extern struct device_node *of_node_get(struct device_node *node);
+extern void of_node_put(struct device_node *node);
+#endif
+
+/*
+ * OF address retreival & translation
+ */
+
+/* Helper to read a big number; size is in cells (not bytes) */
+static inline u64 of_read_number(const u32 *cell, int size)
+{
+	u64 r = 0;
+	while (size--)
+		r = (r << 32) | *(cell++);
+	return r;
+}
+
+/* Like of_read_number, but we want an unsigned long result */
+#ifdef CONFIG_PPC32
+static inline unsigned long of_read_ulong(const u32 *cell, int size)
+{
+	return cell[size-1];
+}
+#else
+#define of_read_ulong(cell, size)	of_read_number(cell, size)
+#endif
 
 #include <asm/prom.h>
 
 /* flag descriptions */
 #define OF_DYNAMIC	1 /* node and properties were allocated via kmalloc */
 #define OF_DETACHED	2 /* node has been detached from the device tree */
+
+#define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
+#define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
 #define OF_BAD_ADDR	((u64)-1)
 

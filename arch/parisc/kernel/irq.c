@@ -145,7 +145,7 @@ static int cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 #endif
 
 static struct irq_chip cpu_interrupt_type = {
-	.typename	= "CPU",
+	.name		= "CPU",
 	.startup	= cpu_startup_irq,
 	.shutdown	= cpu_disable_irq,
 	.enable		= cpu_enable_irq,
@@ -180,7 +180,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (i < NR_IRQS) {
 		struct irqaction *action;
 
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -192,7 +192,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif
 
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %14s", irq_desc[i].chip->name);
 #ifndef PARISC_IRQ_CR16_COUNTS
 		seq_printf(p, "  %s", action->name);
 
@@ -224,7 +224,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
  skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	}
 
 	return 0;

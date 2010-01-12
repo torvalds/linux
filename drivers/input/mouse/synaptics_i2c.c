@@ -420,8 +420,8 @@ static void synaptics_i2c_check_params(struct synaptics_i2c *touch)
 }
 
 /* Control the Device polling rate / Work Handler sleep time */
-unsigned long synaptics_i2c_adjust_delay(struct synaptics_i2c *touch,
-					 bool have_data)
+static unsigned long synaptics_i2c_adjust_delay(struct synaptics_i2c *touch,
+						bool have_data)
 {
 	unsigned long delay, nodata_count_thres;
 
@@ -520,7 +520,7 @@ static void synaptics_i2c_set_input_params(struct synaptics_i2c *touch)
 	__set_bit(BTN_LEFT, input->keybit);
 }
 
-struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *client)
+static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *client)
 {
 	struct synaptics_i2c *touch;
 

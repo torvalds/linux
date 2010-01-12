@@ -39,7 +39,7 @@ static ssize_t set_cidmode(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
 	cs->waiting = 1;
 	if (!gigaset_add_event(cs, &cs->at_state, EV_PROC_CIDMODE,

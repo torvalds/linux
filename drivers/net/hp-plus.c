@@ -187,8 +187,8 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 		return -EBUSY;
 
 	/* Check for the HP+ signature, 50 48 0x 53. */
-	if (inw(ioaddr + HP_ID) != 0x4850
-		|| (inw(ioaddr + HP_PAGING) & 0xfff0) != 0x5300) {
+	if (inw(ioaddr + HP_ID) != 0x4850 ||
+	    (inw(ioaddr + HP_PAGING) & 0xfff0) != 0x5300) {
 		retval = -ENODEV;
 		goto out;
 	}

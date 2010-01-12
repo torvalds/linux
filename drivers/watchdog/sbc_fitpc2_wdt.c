@@ -227,7 +227,7 @@ static int __init fitpc2_wdt_init(void)
 	}
 
 	err = misc_register(&fitpc2_wdt_miscdev);
-	if (!err) {
+	if (err) {
 		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
 							WATCHDOG_MINOR, err);
 		goto err_margin;

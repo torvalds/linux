@@ -263,8 +263,8 @@ struct emac_regs {
 
 
 /* EMACx_TRTR */
-#define EMAC_TRTR_SHIFT_EMAC4		27
-#define EMAC_TRTR_SHIFT			24
+#define EMAC_TRTR_SHIFT_EMAC4		24
+#define EMAC_TRTR_SHIFT		27
 
 /* EMAC specific TX descriptor control fields (write access) */
 #define EMAC_TX_CTRL_GFCS		0x0200

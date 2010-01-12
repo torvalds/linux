@@ -69,36 +69,30 @@ static int zero;
 
 ctl_table inotify_table[] = {
 	{
-		.ctl_name	= INOTIFY_MAX_USER_INSTANCES,
 		.procname	= "max_user_instances",
 		.data		= &inotify_max_user_instances,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 	},
 	{
-		.ctl_name	= INOTIFY_MAX_USER_WATCHES,
 		.procname	= "max_user_watches",
 		.data		= &inotify_max_user_watches,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero,
 	},
 	{
-		.ctl_name	= INOTIFY_MAX_QUEUED_EVENTS,
 		.procname	= "max_queued_events",
 		.data		= &inotify_max_queued_events,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &zero
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif /* CONFIG_SYSCTL */
 
@@ -652,6 +646,7 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	struct fsnotify_group *group;
 	struct user_struct *user;
 	struct file *filp;
+	struct path path;
 	int fd, ret;
 
 	/* Check the IN_* constants for consistency.  */
@@ -664,12 +659,6 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
 		return fd;
-
-	filp = get_empty_filp();
-	if (!filp) {
-		ret = -ENFILE;
-		goto out_put_fd;
-	}
 
 	user = get_current_user();
 	if (unlikely(atomic_read(&user->inotify_devs) >=
@@ -685,24 +674,28 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 		goto out_free_uid;
 	}
 
-	filp->f_op = &inotify_fops;
-	filp->f_path.mnt = mntget(inotify_mnt);
-	filp->f_path.dentry = dget(inotify_mnt->mnt_root);
-	filp->f_mapping = filp->f_path.dentry->d_inode->i_mapping;
-	filp->f_mode = FMODE_READ;
+	atomic_inc(&user->inotify_devs);
+
+	path.mnt = inotify_mnt;
+	path.dentry = inotify_mnt->mnt_root;
+	path_get(&path);
+	filp = alloc_file(&path, FMODE_READ, &inotify_fops);
+	if (!filp)
+		goto Enfile;
+
 	filp->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	filp->private_data = group;
-
-	atomic_inc(&user->inotify_devs);
 
 	fd_install(fd, filp);
 
 	return fd;
 
+Enfile:
+	ret = -ENFILE;
+	path_put(&path);
+	atomic_dec(&user->inotify_devs);
 out_free_uid:
 	free_uid(user);
-	put_filp(filp);
-out_put_fd:
 	put_unused_fd(fd);
 	return ret;
 }
@@ -747,10 +740,6 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 
 	/* create/update an inode mark */
 	ret = inotify_update_watch(group, inode, mask);
-	if (unlikely(ret))
-		goto path_put_and_out;
-
-path_put_and_out:
 	path_put(&path);
 fput_and_out:
 	fput_light(filp, fput_needed);

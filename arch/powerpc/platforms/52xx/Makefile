@@ -15,3 +15,4 @@ ifeq ($(CONFIG_PPC_LITE5200),y)
 endif
 
 obj-$(CONFIG_PPC_MPC5200_GPIO)	+= mpc52xx_gpio.o
+obj-$(CONFIG_PPC_MPC5200_LPBFIFO)	+= mpc52xx_lpbfifo.o

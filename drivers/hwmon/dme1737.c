@@ -57,11 +57,7 @@ MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(dme1737, sch5027);
-
-/* ISA chip types */
-enum isa_chips { sch311x = sch5027 + 1 };
+enum chips { dme1737, sch5027, sch311x };
 
 /* ---------------------------------------------------------------------
  * Registers
@@ -2208,7 +2204,7 @@ exit:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int dme1737_i2c_detect(struct i2c_client *client, int kind,
+static int dme1737_i2c_detect(struct i2c_client *client,
 			      struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -2220,33 +2216,23 @@ static int dme1737_i2c_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 	}
 
-	/* A negative kind means that the driver was loaded with no force
-	 * parameter (default), so we must identify the chip. */
-	if (kind < 0) {
-		company = i2c_smbus_read_byte_data(client, DME1737_REG_COMPANY);
-		verstep = i2c_smbus_read_byte_data(client, DME1737_REG_VERSTEP);
+	company = i2c_smbus_read_byte_data(client, DME1737_REG_COMPANY);
+	verstep = i2c_smbus_read_byte_data(client, DME1737_REG_VERSTEP);
 
-		if (company == DME1737_COMPANY_SMSC &&
-		    (verstep & DME1737_VERSTEP_MASK) == DME1737_VERSTEP) {
-			kind = dme1737;
-		} else if (company == DME1737_COMPANY_SMSC &&
-			   verstep == SCH5027_VERSTEP) {
-			kind = sch5027;
-		} else {
-			return -ENODEV;
-		}
-	}
-
-	if (kind == sch5027) {
+	if (company == DME1737_COMPANY_SMSC &&
+	    verstep == SCH5027_VERSTEP) {
 		name = "sch5027";
-	} else {
-		kind = dme1737;
+
+	} else if (company == DME1737_COMPANY_SMSC &&
+		   (verstep & DME1737_VERSTEP_MASK) == DME1737_VERSTEP) {
 		name = "dme1737";
+	} else {
+		return -ENODEV;
 	}
 
 	dev_info(dev, "Found a %s chip at 0x%02x (rev 0x%02x).\n",
-		 kind == sch5027 ? "SCH5027" : "DME1737", client->addr,
-		 verstep);
+		 verstep == SCH5027_VERSTEP ? "SCH5027" : "DME1737",
+		 client->addr, verstep);
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
@@ -2328,7 +2314,7 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.remove = dme1737_i2c_remove,
 	.id_table = dme1737_id,
 	.detect = dme1737_i2c_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 /* ---------------------------------------------------------------------

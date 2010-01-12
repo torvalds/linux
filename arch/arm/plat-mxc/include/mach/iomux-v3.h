@@ -88,9 +88,7 @@ struct pad_desc {
 #define PAD_CTL_SRE_FAST		(1 << 0)
 
 /*
- * setups a single pad:
- * 	- reserves the pad so that it is not claimed by another driver
- * 	- setups the iomux according to the configuration
+ * setups a single pad in the iomuxer
  */
 int mxc_iomux_v3_setup_pad(struct pad_desc *pad);
 
@@ -99,19 +97,6 @@ int mxc_iomux_v3_setup_pad(struct pad_desc *pad);
  * convenient way to call the above function with tables
  */
 int mxc_iomux_v3_setup_multiple_pads(struct pad_desc *pad_list, unsigned count);
-
-/*
- * releases a single pad:
- * 	- make it available for a future use by another driver
- * 	- DOES NOT reconfigure the IOMUX in its reset state
- */
-void mxc_iomux_v3_release_pad(struct pad_desc *pad);
-
-/*
- * releases multiple pads
- * convenvient way to call the above function with tables
- */
-void mxc_iomux_v3_release_multiple_pads(struct pad_desc *pad_list, int count);
 
 /*
  * Initialise the iomux controller

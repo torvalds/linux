@@ -1654,7 +1654,8 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 	}
 
-	if (scsi_add_host(vha->host, &fc_vport->dev)) {
+	if (scsi_add_host_with_dma(vha->host, &fc_vport->dev,
+				   &ha->pdev->dev)) {
 		DEBUG15(printk("scsi(%ld): scsi_add_host failure for VP[%d].\n",
 			vha->host_no, vha->vp_idx));
 		goto vport_create_failed_2;

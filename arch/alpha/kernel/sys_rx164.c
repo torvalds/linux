@@ -73,7 +73,7 @@ rx164_end_irq(unsigned int irq)
 }
 
 static struct irq_chip rx164_irq_type = {
-	.typename	= "RX164",
+	.name		= "RX164",
 	.startup	= rx164_startup_irq,
 	.shutdown	= rx164_disable_irq,
 	.enable		= rx164_enable_irq,

@@ -21,6 +21,7 @@
 #include <mach/entry-macro.S>
 #include <asm/thread_notify.h>
 #include <asm/unwind.h>
+#include <asm/unistd.h>
 
 #include "entry-header.S"
 
@@ -908,10 +909,10 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	 * A special ghost syscall is used for that (see traps.c).
 	 */
 	stmfd	sp!, {r7, lr}
-	mov	r7, #0xff00		@ 0xfff0 into r7 for EABI
-	orr	r7, r7, #0xf0
-	swi	#0x9ffff0
+	ldr	r7, =1f			@ it's 20 bits
+	swi	__ARM_NR_cmpxchg
 	ldmfd	sp!, {r7, pc}
+1:	.word	__ARM_NR_cmpxchg
 
 #elif __LINUX_ARM_ARCH__ < 6
 

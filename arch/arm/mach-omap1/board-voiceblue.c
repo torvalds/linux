@@ -22,6 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -29,11 +30,11 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
+#include <plat/common.h>
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/usb.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/usb.h>
 
 static struct plat_serial8250_port voiceblue_ports[] = {
 	{
@@ -106,6 +107,12 @@ static struct platform_device voiceblue_flash_device = {
 	.resource	= &voiceblue_flash_resource,
 };
 
+static struct smc91x_platdata voiceblue_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
+
 static struct resource voiceblue_smc91x_resources[] = {
 	[0] = {
 		.start	= OMAP_CS2_PHYS + 0x300,
@@ -122,6 +129,9 @@ static struct resource voiceblue_smc91x_resources[] = {
 static struct platform_device voiceblue_smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &voiceblue_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(voiceblue_smc91x_resources),
 	.resource	= voiceblue_smc91x_resources,
 };

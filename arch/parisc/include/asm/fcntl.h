@@ -1,14 +1,13 @@
 #ifndef _PARISC_FCNTL_H
 #define _PARISC_FCNTL_H
 
-/* open/fcntl - O_SYNC is only implemented on blocks devices and on files
-   located on an ext2 file system */
 #define O_APPEND	000000010
 #define O_BLKSEEK	000000100 /* HPUX only */
 #define O_CREAT		000000400 /* not fcntl */
 #define O_EXCL		000002000 /* not fcntl */
 #define O_LARGEFILE	000004000
-#define O_SYNC		000100000
+#define __O_SYNC	000100000
+#define O_SYNC		(__O_SYNC|O_DSYNC)
 #define O_NONBLOCK	000200004 /* HPUX has separate NDELAY & NONBLOCK */
 #define O_NOCTTY	000400000 /* not fcntl */
 #define O_DSYNC		001000000 /* HPUX only */
@@ -28,8 +27,6 @@
 #define F_SETOWN	12	/*  for sockets. */
 #define F_SETSIG	13	/*  for sockets. */
 #define F_GETSIG	14	/*  for sockets. */
-#define F_GETOWN_EX	15
-#define F_SETOWN_EX	16
 
 /* for posix fcntl() and lockf() */
 #define F_RDLCK		01

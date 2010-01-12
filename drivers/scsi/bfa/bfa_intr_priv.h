@@ -26,9 +26,9 @@ void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
 void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 
 
-#define bfa_reqq_pi(__bfa, __reqq)	(__bfa)->iocfc.req_cq_pi[__reqq]
+#define bfa_reqq_pi(__bfa, __reqq)	((__bfa)->iocfc.req_cq_pi[__reqq])
 #define bfa_reqq_ci(__bfa, __reqq)					\
-	*(u32 *)((__bfa)->iocfc.req_cq_shadow_ci[__reqq].kva)
+	(*(u32 *)((__bfa)->iocfc.req_cq_shadow_ci[__reqq].kva))
 
 #define bfa_reqq_full(__bfa, __reqq)				\
 	(((bfa_reqq_pi(__bfa, __reqq) + 1) &			\
@@ -50,14 +50,16 @@ void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 } while (0)
 
 #define bfa_rspq_pi(__bfa, __rspq)					\
-	*(u32 *)((__bfa)->iocfc.rsp_cq_shadow_pi[__rspq].kva)
+	(*(u32 *)((__bfa)->iocfc.rsp_cq_shadow_pi[__rspq].kva))
 
-#define bfa_rspq_ci(__bfa, __rspq)	(__bfa)->iocfc.rsp_cq_ci[__rspq]
+#define bfa_rspq_ci(__bfa, __rspq)	((__bfa)->iocfc.rsp_cq_ci[__rspq])
 #define bfa_rspq_elem(__bfa, __rspq, __ci)				\
-	&((struct bfi_msg_s *)((__bfa)->iocfc.rsp_cq_ba[__rspq].kva))[__ci]
+	(&((struct bfi_msg_s *)((__bfa)->iocfc.rsp_cq_ba[__rspq].kva))[__ci])
 
-#define CQ_INCR(__index, __size)					\
-			(__index)++; (__index) &= ((__size) - 1)
+#define CQ_INCR(__index, __size) do {					\
+			(__index)++;					\
+			(__index) &= ((__size) - 1);      \
+} while (0)
 
 /**
  * Queue element to wait for room in request queue. FIFO order is
@@ -94,7 +96,7 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 	wqe->cbarg = cbarg;
 }
 
-#define bfa_reqq(__bfa, __reqq)	&(__bfa)->reqq_waitq[__reqq]
+#define bfa_reqq(__bfa, __reqq)	(&(__bfa)->reqq_waitq[__reqq])
 
 /**
  * static inline void

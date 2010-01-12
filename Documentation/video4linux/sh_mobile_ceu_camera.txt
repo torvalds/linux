@@ -1,0 +1,157 @@
+	Cropping and Scaling algorithm, used in the sh_mobile_ceu_camera driver
+	=======================================================================
+
+Terminology
+-----------
+
+sensor scales: horizontal and vertical scales, configured by the sensor driver
+host scales: -"- host driver
+combined scales: sensor_scale * host_scale
+
+
+Generic scaling / cropping scheme
+---------------------------------
+
+-1--
+|
+-2-- -\
+|      --\
+|         --\
++-5-- -\     -- -3--
+|       ---\
+|           --- -4-- -\
+|                      -\
+|                        - -6--
+|
+|                        - -6'-
+|                      -/
+|           --- -4'- -/
+|       ---/
++-5'- -/
+|            -- -3'-
+|         --/
+|      --/
+-2'- -/
+|
+|
+-1'-
+
+Produced by user requests:
+
+S_CROP(left / top = (5) - (1), width / height = (5') - (5))
+S_FMT(width / height = (6') - (6))
+
+Here:
+
+(1) to (1') - whole max width or height
+(1) to (2)  - sensor cropped left or top
+(2) to (2') - sensor cropped width or height
+(3) to (3') - sensor scale
+(3) to (4)  - CEU cropped left or top
+(4) to (4') - CEU cropped width or height
+(5) to (5') - reverse sensor scale applied to CEU cropped width or height
+(2) to (5)  - reverse sensor scale applied to CEU cropped left or top
+(6) to (6') - CEU scale - user window
+
+
+S_FMT
+-----
+
+Do not touch input rectangle - it is already optimal.
+
+1. Calculate current sensor scales:
+
+	scale_s = ((3') - (3)) / ((2') - (2))
+
+2. Calculate "effective" input crop (sensor subwindow) - CEU crop scaled back at
+current sensor scales onto input window - this is user S_CROP:
+
+	width_u = (5') - (5) = ((4') - (4)) * scale_s
+
+3. Calculate new combined scales from "effective" input window to requested user
+window:
+
+	scale_comb = width_u / ((6') - (6))
+
+4. Calculate sensor output window by applying combined scales to real input
+window:
+
+	width_s_out = ((2') - (2)) / scale_comb
+
+5. Apply iterative sensor S_FMT for sensor output window.
+
+	subdev->video_ops->s_fmt(.width = width_s_out)
+
+6. Retrieve sensor output window (g_fmt)
+
+7. Calculate new sensor scales:
+
+	scale_s_new = ((3')_new - (3)_new) / ((2') - (2))
+
+8. Calculate new CEU crop - apply sensor scales to previously calculated
+"effective" crop:
+
+	width_ceu = (4')_new - (4)_new = width_u / scale_s_new
+	left_ceu = (4)_new - (3)_new = ((5) - (2)) / scale_s_new
+
+9. Use CEU cropping to crop to the new window:
+
+	ceu_crop(.width = width_ceu, .left = left_ceu)
+
+10. Use CEU scaling to scale to the requested user window:
+
+	scale_ceu = width_ceu / width
+
+
+S_CROP
+------
+
+If old scale applied to new crop is invalid produce nearest new scale possible
+
+1. Calculate current combined scales.
+
+	scale_comb = (((4') - (4)) / ((6') - (6))) * (((2') - (2)) / ((3') - (3)))
+
+2. Apply iterative sensor S_CROP for new input window.
+
+3. If old combined scales applied to new crop produce an impossible user window,
+adjust scales to produce nearest possible window.
+
+	width_u_out = ((5') - (5)) / scale_comb
+
+	if (width_u_out > max)
+		scale_comb = ((5') - (5)) / max;
+	else if (width_u_out < min)
+		scale_comb = ((5') - (5)) / min;
+
+4. Issue G_CROP to retrieve actual input window.
+
+5. Using actual input window and calculated combined scales calculate sensor
+target output window.
+
+	width_s_out = ((3') - (3)) = ((2') - (2)) / scale_comb
+
+6. Apply iterative S_FMT for new sensor target output window.
+
+7. Issue G_FMT to retrieve the actual sensor output window.
+
+8. Calculate sensor scales.
+
+	scale_s = ((3') - (3)) / ((2') - (2))
+
+9. Calculate sensor output subwindow to be cropped on CEU by applying sensor
+scales to the requested window.
+
+	width_ceu = ((5') - (5)) / scale_s
+
+10. Use CEU cropping for above calculated window.
+
+11. Calculate CEU scales from sensor scales from results of (10) and user window
+from (3)
+
+	scale_ceu = calc_scale(((5') - (5)), &width_u_out)
+
+12. Apply CEU scales.
+
+--
+Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>

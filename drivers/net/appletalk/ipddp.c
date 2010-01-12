@@ -230,9 +230,9 @@ static int ipddp_delete(struct ipddp_route *rt)
 	spin_lock_bh(&ipddp_route_lock);
         while((tmp = *r) != NULL)
         {
-                if(tmp->ip == rt->ip
-                        && tmp->at.s_net == rt->at.s_net
-                        && tmp->at.s_node == rt->at.s_node)
+                if(tmp->ip == rt->ip &&
+		   tmp->at.s_net == rt->at.s_net &&
+		   tmp->at.s_node == rt->at.s_node)
                 {
                         *r = tmp->next;
 			spin_unlock_bh(&ipddp_route_lock);
@@ -255,9 +255,9 @@ static struct ipddp_route* __ipddp_find_route(struct ipddp_route *rt)
 
         for(f = ipddp_route_list; f != NULL; f = f->next)
         {
-                if(f->ip == rt->ip
-                        && f->at.s_net == rt->at.s_net
-                        && f->at.s_node == rt->at.s_node)
+                if(f->ip == rt->ip &&
+		   f->at.s_net == rt->at.s_net &&
+		   f->at.s_node == rt->at.s_node)
                         return (f);
         }
 

@@ -51,11 +51,6 @@
 #define DRV_NAME "cy82c693"
 
 /*
- *	The following are used to debug the driver.
- */
-#define CY82C693_DEBUG_INFO	0
-
-/*
  *	NOTE: the value for busmaster timeout is tricky and I got it by
  *	trial and error!  By using a to low value will cause DMA timeouts
  *	and drop IDE performance, and by using a to high value will cause
@@ -176,11 +171,6 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	outb(index, CY82_INDEX_PORT);
 	outb(data, CY82_DATA_PORT);
 
-#if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s (ch=%d, dev=%d): set DMA mode to %d (single=%d)\n",
-		drive->name, hwif->channel, drive->dn & 1, mode & 3, single);
-#endif /* CY82C693_DEBUG_INFO */
-
 	/*
 	 * note: below we set the value for Bus Master IDE TimeOut Register
 	 * I'm not absolutly sure what this does, but it solved my problem
@@ -194,11 +184,6 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	data = BUSMASTER_TIMEOUT;
 	outb(CY82_INDEX_TIMEOUT, CY82_INDEX_PORT);
 	outb(data, CY82_DATA_PORT);
-
-#if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s: Set IDE Bus Master TimeOut Register to 0x%X\n",
-		drive->name, data);
-#endif /* CY82C693_DEBUG_INFO */
 }
 
 static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
@@ -239,8 +224,6 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		pci_write_config_byte(dev, CY82_IDE_MASTER_IOR, pclk.time_16r);
 		pci_write_config_byte(dev, CY82_IDE_MASTER_IOW, pclk.time_16w);
 		pci_write_config_byte(dev, CY82_IDE_MASTER_8BIT, pclk.time_8);
-
-		addrCtrl &= 0xF;
 	} else {
 		/*
 		 * set slave drive
@@ -257,17 +240,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_IOR, pclk.time_16r);
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_IOW, pclk.time_16w);
 		pci_write_config_byte(dev, CY82_IDE_SLAVE_8BIT, pclk.time_8);
-
-		addrCtrl >>= 4;
-		addrCtrl &= 0xF;
 	}
-
-#if CY82C693_DEBUG_INFO
-	printk(KERN_INFO "%s (ch=%d, dev=%d): set PIO timing to "
-		"(addr=0x%X, ior=0x%X, iow=0x%X, 8bit=0x%X)\n",
-		drive->name, hwif->channel, drive->dn & 1,
-		addrCtrl, pclk.time_16r, pclk.time_16w, pclk.time_8);
-#endif /* CY82C693_DEBUG_INFO */
 }
 
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)

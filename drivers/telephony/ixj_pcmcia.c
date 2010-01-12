@@ -19,13 +19,6 @@
  *	PCMCIA service support for Quicknet cards
  */
  
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0644);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-#else
-#define DEBUG(n, args...)
-#endif
 
 typedef struct ixj_info_t {
 	int ndev;
@@ -39,7 +32,7 @@ static void ixj_cs_release(struct pcmcia_device * link);
 
 static int ixj_probe(struct pcmcia_device *p_dev)
 {
-	DEBUG(0, "ixj_attach()\n");
+	dev_dbg(&p_dev->dev, "ixj_attach()\n");
 	/* Create new ixj device */
 	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
@@ -55,33 +48,30 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 
 static void ixj_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "ixj_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "ixj_detach\n");
 
 	ixj_cs_release(link);
 
         kfree(link->priv);
 }
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 {
 	char *str;
 	int i, place;
-	DEBUG(0, "ixj_get_serial(0x%p)\n", link);
+	dev_dbg(&link->dev, "ixj_get_serial\n");
 
 	str = link->prod_id[0];
 	if (!str)
-		goto cs_failed;
+		goto failed;
 	printk("%s", str);
 	str = link->prod_id[1];
 	if (!str)
-		goto cs_failed;
+		goto failed;
 	printk(" %s", str);
 	str = link->prod_id[2];
 	if (!str)
-		goto cs_failed;
+		goto failed;
 	place = 1;
 	for (i = strlen(str) - 1; i >= 0; i--) {
 		switch (str[i]) {
@@ -118,9 +108,9 @@ static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 	}
 	str = link->prod_id[3];
 	if (!str)
-		goto cs_failed;
+		goto failed;
 	printk(" version %s\n", str);
-      cs_failed:
+failed:
 	return;
 }
 
@@ -151,13 +141,13 @@ static int ixj_config(struct pcmcia_device * link)
 	cistpl_cftable_entry_t dflt = { 0 };
 
 	info = link->priv;
-	DEBUG(0, "ixj_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "ixj_config\n");
 
 	if (pcmcia_loop_config(link, ixj_config_check, &dflt))
-		goto cs_failed;
+		goto failed;
 
 	if (pcmcia_request_configuration(link, &link->conf))
-		goto cs_failed;
+		goto failed;
 
 	/*
  	 *	Register the card with the core.
@@ -170,7 +160,7 @@ static int ixj_config(struct pcmcia_device * link)
 	ixj_get_serial(link, j);
 	return 0;
 
-      cs_failed:
+failed:
 	ixj_cs_release(link);
 	return -ENODEV;
 }
@@ -178,7 +168,7 @@ static int ixj_config(struct pcmcia_device * link)
 static void ixj_cs_release(struct pcmcia_device *link)
 {
 	ixj_info_t *info = link->priv;
-	DEBUG(0, "ixj_cs_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "ixj_cs_release\n");
 	info->ndev = 0;
 	pcmcia_disable_device(link);
 }

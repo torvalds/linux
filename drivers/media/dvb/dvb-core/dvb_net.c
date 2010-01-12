@@ -1396,7 +1396,7 @@ static int dvb_net_do_ioctl(struct inode *inode, struct file *file,
 		return ret;
 	}
 
-	/* binary compatiblity cruft */
+	/* binary compatibility cruft */
 	case __NET_ADD_IF_OLD:
 	{
 		struct __dvb_net_if_old *dvbnetif = parg;

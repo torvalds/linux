@@ -582,6 +582,8 @@ r600_blit_copy(struct drm_device *dev,
 	u64 vb_addr;
 	u32 *vb;
 
+	vb = r600_nomm_get_vb_ptr(dev);
+
 	if ((size_bytes & 3) || (src_gpu_addr & 3) || (dst_gpu_addr & 3)) {
 		max_bytes = 8192;
 
@@ -617,8 +619,8 @@ r600_blit_copy(struct drm_device *dev,
 				if (!dev_priv->blit_vb)
 					return;
 				set_shaders(dev);
+				vb = r600_nomm_get_vb_ptr(dev);
 			}
-			vb = r600_nomm_get_vb_ptr(dev);
 
 			vb[0] = i2f(dst_x);
 			vb[1] = 0;
@@ -706,8 +708,8 @@ r600_blit_copy(struct drm_device *dev,
 					return;
 
 				set_shaders(dev);
+				vb = r600_nomm_get_vb_ptr(dev);
 			}
-			vb = r600_nomm_get_vb_ptr(dev);
 
 			vb[0] = i2f(dst_x / 4);
 			vb[1] = 0;
@@ -772,6 +774,7 @@ r600_blit_swap(struct drm_device *dev,
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	int cb_format, tex_format;
+	int sx2, sy2, dx2, dy2;
 	u64 vb_addr;
 	u32 *vb;
 
@@ -786,16 +789,10 @@ r600_blit_swap(struct drm_device *dev,
 	}
 	vb = r600_nomm_get_vb_ptr(dev);
 
-	if (cpp == 4) {
-		cb_format = COLOR_8_8_8_8;
-		tex_format = FMT_8_8_8_8;
-	} else if (cpp == 2) {
-		cb_format = COLOR_5_6_5;
-		tex_format = FMT_5_6_5;
-	} else {
-		cb_format = COLOR_8;
-		tex_format = FMT_8;
-	}
+	sx2 = sx + w;
+	sy2 = sy + h;
+	dx2 = dx + w;
+	dy2 = dy + h;
 
 	vb[0] = i2f(dx);
 	vb[1] = i2f(dy);
@@ -803,31 +800,46 @@ r600_blit_swap(struct drm_device *dev,
 	vb[3] = i2f(sy);
 
 	vb[4] = i2f(dx);
-	vb[5] = i2f(dy + h);
+	vb[5] = i2f(dy2);
 	vb[6] = i2f(sx);
-	vb[7] = i2f(sy + h);
+	vb[7] = i2f(sy2);
 
-	vb[8] = i2f(dx + w);
-	vb[9] = i2f(dy + h);
-	vb[10] = i2f(sx + w);
-	vb[11] = i2f(sy + h);
+	vb[8] = i2f(dx2);
+	vb[9] = i2f(dy2);
+	vb[10] = i2f(sx2);
+	vb[11] = i2f(sy2);
+
+	switch(cpp) {
+	case 4:
+		cb_format = COLOR_8_8_8_8;
+		tex_format = FMT_8_8_8_8;
+		break;
+	case 2:
+		cb_format = COLOR_5_6_5;
+		tex_format = FMT_5_6_5;
+		break;
+	default:
+		cb_format = COLOR_8;
+		tex_format = FMT_8;
+		break;
+	}
 
 	/* src */
 	set_tex_resource(dev_priv, tex_format,
 			 src_pitch / cpp,
-			 sy + h, src_pitch / cpp,
+			 sy2, src_pitch / cpp,
 			 src_gpu_addr);
 
 	cp_set_surface_sync(dev_priv,
-			    R600_TC_ACTION_ENA, (src_pitch * (sy + h)), src_gpu_addr);
+			    R600_TC_ACTION_ENA, src_pitch * sy2, src_gpu_addr);
 
 	/* dst */
 	set_render_target(dev_priv, cb_format,
-			  dst_pitch / cpp, dy + h,
+			  dst_pitch / cpp, dy2,
 			  dst_gpu_addr);
 
 	/* scissors */
-	set_scissors(dev_priv, dx, dy, dx + w, dy + h);
+	set_scissors(dev_priv, dx, dy, dx2, dy2);
 
 	/* Vertex buffer setup */
 	vb_addr = dev_priv->gart_buffers_offset +
@@ -840,7 +852,7 @@ r600_blit_swap(struct drm_device *dev,
 
 	cp_set_surface_sync(dev_priv,
 			    R600_CB_ACTION_ENA | R600_CB0_DEST_BASE_ENA,
-			    dst_pitch * (dy + h), dst_gpu_addr);
+			    dst_pitch * dy2, dst_gpu_addr);
 
 	dev_priv->blit_vb->used += 12 * 4;
 }

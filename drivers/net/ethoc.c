@@ -406,10 +406,10 @@ static int ethoc_rx(struct net_device *dev, int limit)
 
 		if (ethoc_update_rx_stats(priv, &bd) == 0) {
 			int size = bd.stat >> 16;
-			struct sk_buff *skb = netdev_alloc_skb(dev, size);
+			struct sk_buff *skb;
 
 			size -= 4; /* strip the CRC */
-			skb_reserve(skb, 2); /* align TCP/IP header */
+			skb = netdev_alloc_skb_ip_align(dev, size);
 
 			if (likely(skb)) {
 				void *src = phys_to_virt(bd.addr);
@@ -641,7 +641,7 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		return -ENXIO;
 	}
 
-	phy = phy_connect(dev, dev_name(&phy->dev), &ethoc_mdio_poll, 0,
+	phy = phy_connect(dev, dev_name(&phy->dev), ethoc_mdio_poll, 0,
 			PHY_INTERFACE_MODE_GMII);
 	if (IS_ERR(phy)) {
 		dev_err(&dev->dev, "could not attach to PHY\n");

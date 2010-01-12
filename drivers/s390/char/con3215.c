@@ -857,7 +857,6 @@ static struct console con3215 = {
 
 /*
  * 3215 console initialization code called from console_init().
- * NOTE: This is called before kmalloc is available.
  */
 static int __init con3215_init(void)
 {

@@ -44,7 +44,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/wait.h>
 #include <linux/if_arp.h>
@@ -79,7 +78,6 @@
 // device specific
 //
 
-#include "kcompat.h"
 #include "device_cfg.h"
 #include "ttype.h"
 #include "80211hdr.h"

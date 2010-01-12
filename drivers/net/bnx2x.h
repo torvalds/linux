@@ -24,6 +24,10 @@
 #define BCM_VLAN			1
 #endif
 
+#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
+#define BCM_CNIC 1
+#include "cnic_if.h"
+#endif
 
 #define BNX2X_MULTI_QUEUE
 
@@ -255,9 +259,6 @@ struct bnx2x_eth_q_stats {
 struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
-
-	u8			is_rx_queue;
-
 	struct host_status_block *status_blk;
 	dma_addr_t		status_blk_mapping;
 
@@ -762,7 +763,11 @@ struct bnx2x_eth_stats {
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 
+#ifdef BCM_CNIC
+#define MAX_CONTEXT			15
+#else
 #define MAX_CONTEXT			16
+#endif
 
 union cdu_context {
 	struct eth_context eth;
@@ -811,13 +816,21 @@ struct bnx2x {
 	struct bnx2x_fastpath	fp[MAX_CONTEXT];
 	void __iomem		*regview;
 	void __iomem		*doorbells;
+#ifdef BCM_CNIC
+#define BNX2X_DB_SIZE		(18*BCM_PAGE_SIZE)
+#else
 #define BNX2X_DB_SIZE		(16*BCM_PAGE_SIZE)
+#endif
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
 	atomic_t		intr_sem;
+#ifdef BCM_CNIC
+	struct msix_entry	msix_table[MAX_CONTEXT+2];
+#else
 	struct msix_entry	msix_table[MAX_CONTEXT+1];
+#endif
 #define INT_MODE_INTx			1
 #define INT_MODE_MSI			2
 #define INT_MODE_MSIX			3
@@ -863,8 +876,8 @@ struct bnx2x {
 
 	/* Flags for marking that there is a STAT_QUERY or
 	   SET_MAC ramrod pending */
-	u8			stats_pending;
-	u8			set_mac_pending;
+	int			stats_pending;
+	int			set_mac_pending;
 
 	/* End of fields used in the performance code paths */
 
@@ -884,12 +897,18 @@ struct bnx2x {
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
 #define HW_VLAN_TX_FLAG			0x400
 #define HW_VLAN_RX_FLAG			0x800
+#define MF_FUNC_DIS			0x1000
 
 	int			func;
 #define BP_PORT(bp)			(bp->func % PORT_MAX)
 #define BP_FUNC(bp)			(bp->func)
 #define BP_E1HVN(bp)			(bp->func >> 1)
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
+
+#ifdef BCM_CNIC
+#define BCM_CNIC_CID_START		16
+#define BCM_ISCSI_ETH_CL_ID		17
+#endif
 
 	int			pm_cap;
 	int			pcie_cap;
@@ -944,13 +963,11 @@ struct bnx2x {
 #define BNX2X_STATE_CLOSING_WAIT4_HALT	0x4000
 #define BNX2X_STATE_CLOSING_WAIT4_DELETE 0x5000
 #define BNX2X_STATE_CLOSING_WAIT4_UNLOAD 0x6000
-#define BNX2X_STATE_DISABLED		0xd000
 #define BNX2X_STATE_DIAG		0xe000
 #define BNX2X_STATE_ERROR		0xf000
 
 	int			multi_mode;
-	int			num_rx_queues;
-	int			num_tx_queues;
+	int			num_queues;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -960,27 +977,50 @@ struct bnx2x {
 #define BNX2X_MAX_MULTICAST		64
 #define BNX2X_MAX_EMUL_MULTI		16
 
+	u32 			rx_mode_cl_mask;
+
 	dma_addr_t		def_status_blk_mapping;
 
 	struct bnx2x_slowpath	*slowpath;
 	dma_addr_t		slowpath_mapping;
 
-#ifdef BCM_ISCSI
-	void    		*t1;
-	dma_addr_t      	t1_mapping;
-	void    		*t2;
-	dma_addr_t      	t2_mapping;
-	void    		*timers;
-	dma_addr_t      	timers_mapping;
-	void    		*qm;
-	dma_addr_t      	qm_mapping;
-#endif
-
 	int			dropless_fc;
+
+#ifdef BCM_CNIC
+	u32			cnic_flags;
+#define BNX2X_CNIC_FLAG_MAC_SET		1
+
+	void			*t1;
+	dma_addr_t		t1_mapping;
+	void			*t2;
+	dma_addr_t		t2_mapping;
+	void			*timers;
+	dma_addr_t		timers_mapping;
+	void			*qm;
+	dma_addr_t		qm_mapping;
+	struct cnic_ops		*cnic_ops;
+	void			*cnic_data;
+	u32			cnic_tag;
+	struct cnic_eth_dev	cnic_eth_dev;
+	struct host_status_block *cnic_sb;
+	dma_addr_t		cnic_sb_mapping;
+#define CNIC_SB_ID(bp)			BP_L_ID(bp)
+	struct eth_spe		*cnic_kwq;
+	struct eth_spe		*cnic_kwq_prod;
+	struct eth_spe		*cnic_kwq_cons;
+	struct eth_spe		*cnic_kwq_last;
+	u16			cnic_kwq_pending;
+	u16			cnic_spq_pending;
+	struct mutex		cnic_mutex;
+	u8			iscsi_mac[6];
+#endif
 
 	int			dmae_ready;
 	/* used to synchronize dmae accesses */
 	struct mutex		dmae_mutex;
+
+	/* used to protect the FW mail box */
+	struct mutex		fw_mb_mutex;
 
 	/* used to synchronize stats collecting */
 	int			stats_state;
@@ -1030,20 +1070,15 @@ struct bnx2x {
 };
 
 
-#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/(2 * E1HVN_MAX)) \
-					      : (MAX_CONTEXT/2))
-#define BNX2X_NUM_QUEUES(bp)	(bp->num_rx_queues + bp->num_tx_queues)
-#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 2)
+#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT/E1HVN_MAX) \
+					      : MAX_CONTEXT)
+#define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
+#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
 
-#define for_each_rx_queue(bp, var) \
-			for (var = 0; var < bp->num_rx_queues; var++)
-#define for_each_tx_queue(bp, var) \
-			for (var = bp->num_rx_queues; \
-			     var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_queue(bp, var) \
 			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_nondefault_queue(bp, var) \
-			for (var = 1; var < bp->num_rx_queues; var++)
+			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
@@ -1147,7 +1182,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define MAX_SP_DESC_CNT			(SP_DESC_CNT - 1)
 
 
-#define BNX2X_BTR			3
+#define BNX2X_BTR			1
 #define MAX_SPQ_PENDING			8
 
 

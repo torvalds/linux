@@ -27,15 +27,11 @@
 #define __NO_VERSION__
 #include "comedi.h"
 #include <linux/smp_lock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "comedi_compat32.h"
 
 #ifdef CONFIG_COMPAT
-
-#ifndef HAVE_COMPAT_IOCTL
-#include <linux/ioctl32.h>	/* for (un)register_ioctl32_conversion */
-#endif
 
 #define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
 #define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
@@ -101,22 +97,9 @@ static int translated_ioctl(struct file *file, unsigned int cmd,
 	if (!file->f_op)
 		return -ENOTTY;
 
-#ifdef HAVE_UNLOCKED_IOCTL
-	if (file->f_op->unlocked_ioctl) {
-		int rc = (int)(*file->f_op->unlocked_ioctl) (file, cmd, arg);
-		if (rc == -ENOIOCTLCMD)
-			rc = -ENOTTY;
-		return rc;
-	}
-#endif
-	if (file->f_op->ioctl) {
-		int rc;
-		lock_kernel();
-		rc = (*file->f_op->ioctl) (file->f_dentry->d_inode,
-					   file, cmd, arg);
-		unlock_kernel();
-		return rc;
-	}
+	if (file->f_op->unlocked_ioctl)
+		return file->f_op->unlocked_ioctl(file, cmd, arg);
+
 	return -ENOTTY;
 }
 
@@ -186,8 +169,8 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit cmd structure to native cmd structure. */
-static int get_compat_cmd(struct comedi_cmd __user * cmd,
-			  struct comedi32_cmd_struct __user * cmd32)
+static int get_compat_cmd(struct comedi_cmd __user *cmd,
+			  struct comedi32_cmd_struct __user *cmd32)
 {
 	int err;
 	union {
@@ -237,8 +220,8 @@ static int get_compat_cmd(struct comedi_cmd __user * cmd,
 }
 
 /* Copy native cmd structure to 32-bit cmd structure. */
-static int put_compat_cmd(struct comedi32_cmd_struct __user * cmd32,
-			  struct comedi_cmd __user * cmd)
+static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
+			  struct comedi_cmd __user *cmd)
 {
 	int err;
 	unsigned int temp;
@@ -328,8 +311,8 @@ static int compat_cmdtest(struct file *file, unsigned long arg)
 }
 
 /* Copy 32-bit insn structure to native insn structure. */
-static int get_compat_insn(struct comedi_insn __user * insn,
-			   struct comedi32_insn_struct __user * insn32)
+static int get_compat_insn(struct comedi_insn __user *insn,
+			   struct comedi32_insn_struct __user *insn32)
 {
 	int err;
 	union {
@@ -372,9 +355,9 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	insnlist32 = compat_ptr(arg);
 
 	/* Get 32-bit insnlist structure.  */
-	if (!access_ok(VERIFY_READ, insnlist32, sizeof(*insnlist32))) {
+	if (!access_ok(VERIFY_READ, insnlist32, sizeof(*insnlist32)))
 		return -EFAULT;
-	}
+
 	err = 0;
 	err |= __get_user(n_insns, &insnlist32->n_insns);
 	err |= __get_user(uptr, &insnlist32->insns);
@@ -387,9 +370,9 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 					     insn[n_insns]));
 
 	/* Set native insnlist structure. */
-	if (!access_ok(VERIFY_WRITE, &s->insnlist, sizeof(s->insnlist))) {
+	if (!access_ok(VERIFY_WRITE, &s->insnlist, sizeof(s->insnlist)))
 		return -EFAULT;
-	}
+
 	err |= __put_user(n_insns, &s->insnlist.n_insns);
 	err |= __put_user(&s->insn[0], &s->insnlist.insns);
 	if (err)
@@ -472,115 +455,11 @@ static inline int raw_ioctl(struct file *file, unsigned int cmd,
 	return rc;
 }
 
-#ifdef HAVE_COMPAT_IOCTL	/* defined in <linux/fs.h> 2.6.11 onwards */
-
 /* compat_ioctl file operation. */
 /* Returns -ENOIOCTLCMD for unrecognised ioctl codes. */
 long comedi_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return raw_ioctl(file, cmd, arg);
 }
-
-#else /* HAVE_COMPAT_IOCTL */
-
-/*
- * Brain-dead ioctl compatibility for 2.6.10 and earlier.
- *
- * It's brain-dead because cmd numbers need to be unique system-wide!
- * The comedi driver could end up attempting to execute ioctls for non-Comedi
- * devices because it registered the system-wide cmd code first.  Similarly,
- * another driver could end up attempting to execute ioctls for a Comedi
- * device because it registered the cmd code first.  Chaos ensues.
- */
-
-/* Handler for all 32-bit ioctl codes registered by this driver. */
-static int mapped_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg,
-			struct file *file)
-{
-	int rc;
-
-	/* Make sure we are dealing with a Comedi device. */
-	if (imajor(file->f_dentry->d_inode) != COMEDI_MAJOR)
-		return -ENOTTY;
-
-	rc = raw_ioctl(file, cmd, arg);
-	/* Do not return -ENOIOCTLCMD. */
-	if (rc == -ENOIOCTLCMD)
-		rc = -ENOTTY;
-
-	return rc;
-}
-
-struct ioctl32_map {
-	unsigned int cmd;
-	int (*handler) (unsigned int, unsigned int, unsigned long,
-			struct file *);
-	int registered;
-};
-
-static struct ioctl32_map comedi_ioctl32_map[] = {
-	{COMEDI_DEVCONFIG, mapped_ioctl, 0},
-	{COMEDI_DEVINFO, mapped_ioctl, 0},
-	{COMEDI_SUBDINFO, mapped_ioctl, 0},
-	{COMEDI_BUFCONFIG, mapped_ioctl, 0},
-	{COMEDI_BUFINFO, mapped_ioctl, 0},
-	{COMEDI_LOCK, mapped_ioctl, 0},
-	{COMEDI_UNLOCK, mapped_ioctl, 0},
-	{COMEDI_CANCEL, mapped_ioctl, 0},
-	{COMEDI_POLL, mapped_ioctl, 0},
-	{COMEDI32_CHANINFO, mapped_ioctl, 0},
-	{COMEDI32_RANGEINFO, mapped_ioctl, 0},
-	{COMEDI32_CMD, mapped_ioctl, 0},
-	{COMEDI32_CMDTEST, mapped_ioctl, 0},
-	{COMEDI32_INSNLIST, mapped_ioctl, 0},
-	{COMEDI32_INSN, mapped_ioctl, 0},
-};
-
-#define NUM_IOCTL32_MAPS ARRAY_SIZE(comedi_ioctl32_map)
-
-/* Register system-wide 32-bit ioctl handlers. */
-void comedi_register_ioctl32(void)
-{
-	int n, rc;
-
-	for (n = 0; n < NUM_IOCTL32_MAPS; n++) {
-		rc = register_ioctl32_conversion(comedi_ioctl32_map[n].cmd,
-						 comedi_ioctl32_map[n].handler);
-		if (rc) {
-			printk(KERN_WARNING
-			       "comedi: failed to register 32-bit "
-			       "compatible ioctl handler for 0x%X - "
-			       "expect bad things to happen!\n",
-			       comedi_ioctl32_map[n].cmd);
-		}
-		comedi_ioctl32_map[n].registered = !rc;
-	}
-}
-
-/* Unregister system-wide 32-bit ioctl translations. */
-void comedi_unregister_ioctl32(void)
-{
-	int n, rc;
-
-	for (n = 0; n < NUM_IOCTL32_MAPS; n++) {
-		if (comedi_ioctl32_map[n].registered) {
-			rc = unregister_ioctl32_conversion(comedi_ioctl32_map
-							   [n].cmd,
-							   comedi_ioctl32_map
-							   [n].handler);
-			if (rc) {
-				printk(KERN_ERR
-				       "comedi: failed to unregister 32-bit "
-				       "compatible ioctl handler for 0x%X - "
-				       "expect kernel Oops!\n",
-				       comedi_ioctl32_map[n].cmd);
-			} else {
-				comedi_ioctl32_map[n].registered = 0;
-			}
-		}
-	}
-}
-
-#endif /* HAVE_COMPAT_IOCTL */
 
 #endif /* CONFIG_COMPAT */

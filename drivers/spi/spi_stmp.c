@@ -242,7 +242,7 @@ static int stmp_spi_txrx_dma(struct stmp_spi *ss, int cs,
 	wait_for_completion(&ss->done);
 
 	if (!busy_wait(readl(ss->regs + HW_SSP_CTRL0) & BM_SSP_CTRL0_RUN))
-		status = ETIMEDOUT;
+		status = -ETIMEDOUT;
 
 	if (!dma_buf)
 		dma_unmap_single(ss->master_dev, spi_buf_dma, len, dir);

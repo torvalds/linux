@@ -84,6 +84,11 @@ struct whc {
  * @len: the length of data in the associated TD.
  * @ntds_remaining: number of TDs (starting from this one) in this transfer.
  *
+ * @bounce_buf: a bounce buffer if the std was from an urb with a sg
+ * list that could not be mapped to qTDs directly.
+ * @bounce_sg: the first scatterlist element bounce_buf is for.
+ * @bounce_offset: the offset into bounce_sg for the start of bounce_buf.
+ *
  * Queued URBs may require more TDs than are available in a qset so we
  * use a list of these "software TDs" (sTDs) to hold per-TD data.
  */
@@ -97,6 +102,10 @@ struct whc_std {
 	int num_pointers;
 	dma_addr_t dma_addr;
 	struct whc_page_list_entry *pl_virt;
+
+	void *bounce_buf;
+	struct scatterlist *bounce_sg;
+	unsigned bounce_offset;
 };
 
 /**

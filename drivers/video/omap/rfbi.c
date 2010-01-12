@@ -27,8 +27,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/omapfb.h>
-
+#include "omapfb.h"
 #include "dispc.h"
 
 /* To work around an RFBI transfer rate limitation */

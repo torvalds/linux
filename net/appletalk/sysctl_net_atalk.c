@@ -12,25 +12,20 @@
 
 static struct ctl_table atalk_table[] = {
 	{
-		.ctl_name	= NET_ATALK_AARP_EXPIRY_TIME,
 		.procname	= "aarp-expiry-time",
 		.data		= &sysctl_aarp_expiry_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-		.strategy	= sysctl_jiffies,
 	},
 	{
-		.ctl_name	= NET_ATALK_AARP_TICK_TIME,
 		.procname	= "aarp-tick-time",
 		.data		= &sysctl_aarp_tick_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-		.strategy	= sysctl_jiffies,
 	},
 	{
-		.ctl_name	= NET_ATALK_AARP_RETRANSMIT_LIMIT,
 		.procname	= "aarp-retransmit-limit",
 		.data		= &sysctl_aarp_retransmit_limit,
 		.maxlen		= sizeof(int),
@@ -38,20 +33,18 @@ static struct ctl_table atalk_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_ATALK_AARP_RESOLVE_TIME,
 		.procname	= "aarp-resolve-time",
 		.data		= &sysctl_aarp_resolve_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-		.strategy	= sysctl_jiffies,
 	},
-	{ 0 },
+	{ },
 };
 
 static struct ctl_path atalk_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "appletalk", .ctl_name = NET_ATALK, },
+	{ .procname = "net", },
+	{ .procname = "appletalk", },
 	{ }
 };
 

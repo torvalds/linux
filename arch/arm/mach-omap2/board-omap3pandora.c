@@ -24,7 +24,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/regulator/machine.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
@@ -34,14 +34,14 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/board.h>
+#include <plat/common.h>
 #include <mach/gpio.h>
 #include <mach/hardware.h>
-#include <mach/mcspi.h>
-#include <mach/usb.h>
-#include <mach/mux.h>
+#include <plat/mcspi.h>
+#include <plat/usb.h>
 
+#include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mmc-twl4030.h"
 
@@ -98,10 +98,10 @@ static struct gpio_keys_button pandora_gpio_keys[] = {
 	GPIO_BUTTON_LOW(103,	KEY_DOWN,	"down"),
 	GPIO_BUTTON_LOW(96,	KEY_LEFT,	"left"),
 	GPIO_BUTTON_LOW(98,	KEY_RIGHT,	"right"),
-	GPIO_BUTTON_LOW(111,	BTN_A,		"a"),
-	GPIO_BUTTON_LOW(106,	BTN_B,		"b"),
-	GPIO_BUTTON_LOW(109,	BTN_X,		"x"),
-	GPIO_BUTTON_LOW(101,	BTN_Y,		"y"),
+	GPIO_BUTTON_LOW(109,	KEY_KP1,	"game 1"),
+	GPIO_BUTTON_LOW(111,	KEY_KP2,	"game 2"),
+	GPIO_BUTTON_LOW(106,	KEY_KP3,	"game 3"),
+	GPIO_BUTTON_LOW(101,	KEY_KP4,	"game 4"),
 	GPIO_BUTTON_LOW(102,	BTN_TL,		"l"),
 	GPIO_BUTTON_LOW(97,	BTN_TL2,	"l2"),
 	GPIO_BUTTON_LOW(105,	BTN_TR,		"r"),
@@ -134,50 +134,50 @@ static void __init pandora_keys_gpio_init(void)
 }
 
 static int board_keymap[] = {
-	/* col, row, code */
+	/* row, col, code */
 	KEY(0, 0, KEY_9),
-	KEY(0, 1, KEY_0),
-	KEY(0, 2, KEY_BACKSPACE),
-	KEY(0, 3, KEY_O),
-	KEY(0, 4, KEY_P),
-	KEY(0, 5, KEY_K),
-	KEY(0, 6, KEY_L),
-	KEY(0, 7, KEY_ENTER),
-	KEY(1, 0, KEY_8),
+	KEY(0, 1, KEY_8),
+	KEY(0, 2, KEY_I),
+	KEY(0, 3, KEY_J),
+	KEY(0, 4, KEY_N),
+	KEY(0, 5, KEY_M),
+	KEY(1, 0, KEY_0),
 	KEY(1, 1, KEY_7),
-	KEY(1, 2, KEY_6),
-	KEY(1, 3, KEY_5),
-	KEY(1, 4, KEY_4),
-	KEY(1, 5, KEY_3),
-	KEY(1, 6, KEY_2),
-	KEY(1, 7, KEY_1),
-	KEY(2, 0, KEY_I),
-	KEY(2, 1, KEY_U),
+	KEY(1, 2, KEY_U),
+	KEY(1, 3, KEY_H),
+	KEY(1, 4, KEY_B),
+	KEY(1, 5, KEY_SPACE),
+	KEY(2, 0, KEY_BACKSPACE),
+	KEY(2, 1, KEY_6),
 	KEY(2, 2, KEY_Y),
-	KEY(2, 3, KEY_T),
-	KEY(2, 4, KEY_R),
-	KEY(2, 5, KEY_E),
-	KEY(2, 6, KEY_W),
-	KEY(2, 7, KEY_Q),
-	KEY(3, 0, KEY_J),
-	KEY(3, 1, KEY_H),
-	KEY(3, 2, KEY_G),
+	KEY(2, 3, KEY_G),
+	KEY(2, 4, KEY_V),
+	KEY(2, 5, KEY_FN),
+	KEY(3, 0, KEY_O),
+	KEY(3, 1, KEY_5),
+	KEY(3, 2, KEY_T),
 	KEY(3, 3, KEY_F),
-	KEY(3, 4, KEY_D),
-	KEY(3, 5, KEY_S),
-	KEY(3, 6, KEY_A),
-	KEY(3, 7, KEY_LEFTSHIFT),
-	KEY(4, 0, KEY_N),
-	KEY(4, 1, KEY_B),
-	KEY(4, 2, KEY_V),
-	KEY(4, 3, KEY_C),
+	KEY(3, 4, KEY_C),
+	KEY(4, 0, KEY_P),
+	KEY(4, 1, KEY_4),
+	KEY(4, 2, KEY_R),
+	KEY(4, 3, KEY_D),
 	KEY(4, 4, KEY_X),
-	KEY(4, 5, KEY_Z),
-	KEY(4, 6, KEY_DOT),
-	KEY(4, 7, KEY_COMMA),
-	KEY(5, 0, KEY_M),
-	KEY(5, 1, KEY_SPACE),
-	KEY(5, 2, KEY_FN),
+	KEY(5, 0, KEY_K),
+	KEY(5, 1, KEY_3),
+	KEY(5, 2, KEY_E),
+	KEY(5, 3, KEY_S),
+	KEY(5, 4, KEY_Z),
+	KEY(6, 0, KEY_L),
+	KEY(6, 1, KEY_2),
+	KEY(6, 2, KEY_W),
+	KEY(6, 3, KEY_A),
+	KEY(6, 4, KEY_DOT),
+	KEY(7, 0, KEY_ENTER),
+	KEY(7, 1, KEY_1),
+	KEY(7, 2, KEY_Q),
+	KEY(7, 3, KEY_LEFTSHIFT),
+	KEY(7, 4, KEY_COMMA),
 };
 
 static struct matrix_keymap_data board_map_data = {
@@ -315,7 +315,7 @@ static int __init omap3pandora_i2c_init(void)
 	omap_register_i2c_bus(1, 2600, omap3pandora_i2c_boardinfo,
 			ARRAY_SIZE(omap3pandora_i2c_boardinfo));
 	/* i2c2 pins are not connected */
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	omap_register_i2c_bus(3, 100, NULL, 0);
 	return 0;
 }
 
@@ -368,23 +368,8 @@ static struct spi_board_info omap3pandora_spi_board_info[] __initdata = {
 	}
 };
 
-static struct platform_device omap3pandora_lcd_device = {
-	.name		= "pandora_lcd",
-	.id		= -1,
-};
-
-static struct omap_lcd_config omap3pandora_lcd_config __initdata = {
-	.ctrl_name	= "internal",
-};
-
-static struct omap_board_config_kernel omap3pandora_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&omap3pandora_lcd_config },
-};
-
 static void __init omap3pandora_init_irq(void)
 {
-	omap_board_config = omap3pandora_config;
-	omap_board_config_size = ARRAY_SIZE(omap3pandora_config);
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
@@ -392,13 +377,33 @@ static void __init omap3pandora_init_irq(void)
 }
 
 static struct platform_device *omap3pandora_devices[] __initdata = {
-	&omap3pandora_lcd_device,
 	&pandora_leds_gpio,
 	&pandora_keys_gpio,
 };
 
+static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+
+	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
+	.port_mode[1] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
+
+	.phy_reset  = true,
+	.reset_gpio_port[0]  = 16,
+	.reset_gpio_port[1]  = -EINVAL,
+	.reset_gpio_port[2]  = -EINVAL
+};
+
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap3pandora_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap3pandora_i2c_init();
 	platform_add_devices(omap3pandora_devices,
 			ARRAY_SIZE(omap3pandora_devices));
@@ -406,12 +411,13 @@ static void __init omap3pandora_init(void)
 	spi_register_board_info(omap3pandora_spi_board_info,
 			ARRAY_SIZE(omap3pandora_spi_board_info));
 	omap3pandora_ads7846_init();
+	usb_ehci_init(&ehci_pdata);
 	pandora_keys_gpio_init();
 	usb_musb_init();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
-	omap_cfg_reg(H16_34XX_SDRC_CKE0);
-	omap_cfg_reg(H17_34XX_SDRC_CKE1);
+	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
+	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 }
 
 static void __init omap3pandora_map_io(void)
@@ -422,7 +428,7 @@ static void __init omap3pandora_map_io(void)
 
 MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
+	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= omap3pandora_map_io,
 	.init_irq	= omap3pandora_init_irq,

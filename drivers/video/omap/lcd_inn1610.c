@@ -23,7 +23,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/gpio.h>
-#include <mach/omapfb.h>
+#include "omapfb.h"
 
 #define MODULE_NAME	"omapfb-lcd_h3"
 

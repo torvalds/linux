@@ -48,6 +48,60 @@ struct va1j5jf8007s_state {
 	enum va1j5jf8007s_tune_state tune_state;
 };
 
+static int va1j5jf8007s_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct va1j5jf8007s_state *state;
+	u8 addr;
+	int i;
+	u8 write_buf[1], read_buf[1];
+	struct i2c_msg msgs[2];
+	s32 word, x1, x2, x3, x4, x5, y;
+
+	state = fe->demodulator_priv;
+	addr = state->config->demod_address;
+
+	word = 0;
+	for (i = 0; i < 2; i++) {
+		write_buf[0] = 0xbc + i;
+
+		msgs[0].addr = addr;
+		msgs[0].flags = 0;
+		msgs[0].len = sizeof(write_buf);
+		msgs[0].buf = write_buf;
+
+		msgs[1].addr = addr;
+		msgs[1].flags = I2C_M_RD;
+		msgs[1].len = sizeof(read_buf);
+		msgs[1].buf = read_buf;
+
+		if (i2c_transfer(state->adap, msgs, 2) != 2)
+			return -EREMOTEIO;
+
+		word <<= 8;
+		word |= read_buf[0];
+	}
+
+	word -= 3000;
+	if (word < 0)
+		word = 0;
+
+	x1 = int_sqrt(word << 16) * ((15625ll << 21) / 1000000);
+	x2 = (s64)x1 * x1 >> 31;
+	x3 = (s64)x2 * x1 >> 31;
+	x4 = (s64)x2 * x2 >> 31;
+	x5 = (s64)x4 * x1 >> 31;
+
+	y = (58857ll << 23) / 1000;
+	y -= (s64)x1 * ((89565ll << 24) / 1000) >> 30;
+	y += (s64)x2 * ((88977ll << 24) / 1000) >> 28;
+	y -= (s64)x3 * ((50259ll << 25) / 1000) >> 27;
+	y += (s64)x4 * ((14341ll << 27) / 1000) >> 27;
+	y -= (s64)x5 * ((16346ll << 30) / 10000) >> 28;
+
+	*snr = y < 0 ? 0 : y >> 15;
+	return 0;
+}
+
 static int va1j5jf8007s_get_frontend_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
@@ -337,7 +391,7 @@ va1j5jf8007s_tune(struct dvb_frontend *fe,
 {
 	struct va1j5jf8007s_state *state;
 	int ret;
-	int lock;
+	int lock = 0;
 
 	state = fe->demodulator_priv;
 
@@ -536,6 +590,7 @@ static struct dvb_frontend_ops va1j5jf8007s_ops = {
 			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO,
 	},
 
+	.read_snr = va1j5jf8007s_read_snr,
 	.get_frontend_algo = va1j5jf8007s_get_frontend_algo,
 	.read_status = va1j5jf8007s_read_status,
 	.tune = va1j5jf8007s_tune,

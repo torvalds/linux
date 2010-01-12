@@ -51,24 +51,24 @@ EXPORT_SYMBOL(fc_frame_crc_check);
  * Allocate a frame intended to be sent via fcoe_xmit.
  * Get an sk_buff for the frame and set the length.
  */
-struct fc_frame *__fc_frame_alloc(size_t len)
+struct fc_frame *_fc_frame_alloc(size_t len)
 {
 	struct fc_frame *fp;
 	struct sk_buff *skb;
 
 	WARN_ON((len % sizeof(u32)) != 0);
 	len += sizeof(struct fc_frame_header);
-	skb = dev_alloc_skb(len + FC_FRAME_HEADROOM + FC_FRAME_TAILROOM);
+	skb = alloc_skb_fclone(len + FC_FRAME_HEADROOM + FC_FRAME_TAILROOM +
+			       NET_SKB_PAD, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+	skb_reserve(skb, NET_SKB_PAD + FC_FRAME_HEADROOM);
 	fp = (struct fc_frame *) skb;
 	fc_frame_init(fp);
-	skb_reserve(skb, FC_FRAME_HEADROOM);
 	skb_put(skb, len);
 	return fp;
 }
-EXPORT_SYMBOL(__fc_frame_alloc);
-
+EXPORT_SYMBOL(_fc_frame_alloc);
 
 struct fc_frame *fc_frame_alloc_fill(struct fc_lport *lp, size_t payload_len)
 {
@@ -78,7 +78,7 @@ struct fc_frame *fc_frame_alloc_fill(struct fc_lport *lp, size_t payload_len)
 	fill = payload_len % 4;
 	if (fill != 0)
 		fill = 4 - fill;
-	fp = __fc_frame_alloc(payload_len + fill);
+	fp = _fc_frame_alloc(payload_len + fill);
 	if (fp) {
 		memset((char *) fr_hdr(fp) + payload_len, 0, fill);
 		/* trim is OK, we just allocated it so there are no fragments */
@@ -87,3 +87,4 @@ struct fc_frame *fc_frame_alloc_fill(struct fc_lport *lp, size_t payload_len)
 	}
 	return fp;
 }
+EXPORT_SYMBOL(fc_frame_alloc_fill);

@@ -755,7 +755,7 @@ static int hw_reset_phy(struct zd_chip *chip)
 static int zd1211_hw_init_hmac(struct zd_chip *chip)
 {
 	static const struct zd_ioreq32 ioreqs[] = {
-		{ CR_ZD1211_RETRY_MAX,		0x2 },
+		{ CR_ZD1211_RETRY_MAX,		ZD1211_RETRY_COUNT },
 		{ CR_RX_THRESHOLD,		0x000c0640 },
 	};
 
@@ -767,7 +767,7 @@ static int zd1211_hw_init_hmac(struct zd_chip *chip)
 static int zd1211b_hw_init_hmac(struct zd_chip *chip)
 {
 	static const struct zd_ioreq32 ioreqs[] = {
-		{ CR_ZD1211B_RETRY_MAX,		0x02020202 },
+		{ CR_ZD1211B_RETRY_MAX,		ZD1211B_RETRY_COUNT },
 		{ CR_ZD1211B_CWIN_MAX_MIN_AC0,	0x007f003f },
 		{ CR_ZD1211B_CWIN_MAX_MIN_AC1,	0x007f003f },
 		{ CR_ZD1211B_CWIN_MAX_MIN_AC2,  0x003f001f },

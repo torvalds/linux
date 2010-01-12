@@ -277,7 +277,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->marker_needed = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
-	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 
 	set_bit(0, ha->req_qid_map);
 	set_bit(0, ha->rsp_qid_map);
@@ -1203,7 +1202,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 				}
 				qla2x00_get_resource_cnts(vha, NULL,
 				    &ha->fw_xcb_count, NULL, NULL,
-				    &ha->max_npiv_vports);
+				    &ha->max_npiv_vports, NULL);
 
 				if (!fw_major_version && ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(vha);
@@ -1443,7 +1442,17 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 			icb->firmware_options_2 |=
 				__constant_cpu_to_le32(BIT_18);
 
-		icb->firmware_options_2 &= __constant_cpu_to_le32(~BIT_22);
+		/* Use Disable MSIX Handshake mode for capable adapters */
+		if (IS_MSIX_NACK_CAPABLE(ha)) {
+			icb->firmware_options_2 &=
+				__constant_cpu_to_le32(~BIT_22);
+			ha->flags.disable_msix_handshake = 1;
+			qla_printk(KERN_INFO, ha,
+				"MSIX Handshake Disable Mode turned on\n");
+		} else {
+			icb->firmware_options_2 |=
+				__constant_cpu_to_le32(BIT_22);
+		}
 		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_23);
 
 		WRT_REG_DWORD(&reg->isp25mq.req_q_in, 0);
@@ -3572,6 +3581,15 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 
 			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+
+			if (IS_QLA81XX(ha))
+				qla2x00_get_fw_version(vha,
+				    &ha->fw_major_version,
+				    &ha->fw_minor_version,
+				    &ha->fw_subminor_version,
+				    &ha->fw_attributes, &ha->fw_memory_size,
+				    ha->mpi_version, &ha->mpi_capabilities,
+				    ha->phy_version);
 
 			if (ha->fce) {
 				ha->flags.fce_enabled = 1;

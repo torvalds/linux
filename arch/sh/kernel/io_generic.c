@@ -24,7 +24,7 @@
 #define dummy_read()
 #endif
 
-unsigned long generic_io_base;
+unsigned long generic_io_base = 0;
 
 u8 generic_inb(unsigned long port)
 {
@@ -147,8 +147,10 @@ void generic_outsl(unsigned long port, const void *src, unsigned long count)
 
 void __iomem *generic_ioport_map(unsigned long addr, unsigned int size)
 {
+#ifdef P1SEG
 	if (PXSEG(addr) >= P1SEG)
 		return (void __iomem *)addr;
+#endif
 
 	return (void __iomem *)(addr + generic_io_base);
 }

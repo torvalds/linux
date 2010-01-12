@@ -30,27 +30,12 @@
 
 /* Registers */
 #define R_000040_GEN_INT_CNTL                        0x000040
-#define   S_000040_DISPLAY_INT_STATUS(x)               (((x) & 0x1) << 0)
-#define   G_000040_DISPLAY_INT_STATUS(x)               (((x) >> 0) & 0x1)
-#define   C_000040_DISPLAY_INT_STATUS                  0xFFFFFFFE
-#define   S_000040_DMA_VIPH0_INT_EN(x)                 (((x) & 0x1) << 12)
-#define   G_000040_DMA_VIPH0_INT_EN(x)                 (((x) >> 12) & 0x1)
-#define   C_000040_DMA_VIPH0_INT_EN                    0xFFFFEFFF
-#define   S_000040_CRTC2_VSYNC(x)                      (((x) & 0x1) << 6)
-#define   G_000040_CRTC2_VSYNC(x)                      (((x) >> 6) & 0x1)
-#define   C_000040_CRTC2_VSYNC                         0xFFFFFFBF
-#define   S_000040_SNAPSHOT2(x)                        (((x) & 0x1) << 7)
-#define   G_000040_SNAPSHOT2(x)                        (((x) >> 7) & 0x1)
-#define   C_000040_SNAPSHOT2                           0xFFFFFF7F
-#define   S_000040_CRTC2_VBLANK(x)                     (((x) & 0x1) << 9)
-#define   G_000040_CRTC2_VBLANK(x)                     (((x) >> 9) & 0x1)
-#define   C_000040_CRTC2_VBLANK                        0xFFFFFDFF
-#define   S_000040_FP2_DETECT(x)                       (((x) & 0x1) << 10)
-#define   G_000040_FP2_DETECT(x)                       (((x) >> 10) & 0x1)
-#define   C_000040_FP2_DETECT                          0xFFFFFBFF
-#define   S_000040_VSYNC_DIFF_OVER_LIMIT(x)            (((x) & 0x1) << 11)
-#define   G_000040_VSYNC_DIFF_OVER_LIMIT(x)            (((x) >> 11) & 0x1)
-#define   C_000040_VSYNC_DIFF_OVER_LIMIT               0xFFFFF7FF
+#define   S_000040_SCRATCH_INT_MASK(x)                 (((x) & 0x1) << 18)
+#define   G_000040_SCRATCH_INT_MASK(x)                 (((x) >> 18) & 0x1)
+#define   C_000040_SCRATCH_INT_MASK                    0xFFFBFFFF
+#define   S_000040_GUI_IDLE_MASK(x)                    (((x) & 0x1) << 19)
+#define   G_000040_GUI_IDLE_MASK(x)                    (((x) >> 19) & 0x1)
+#define   C_000040_GUI_IDLE_MASK                       0xFFF7FFFF
 #define   S_000040_DMA_VIPH1_INT_EN(x)                 (((x) & 0x1) << 13)
 #define   G_000040_DMA_VIPH1_INT_EN(x)                 (((x) >> 13) & 0x1)
 #define   C_000040_DMA_VIPH1_INT_EN                    0xFFFFDFFF
@@ -370,7 +355,90 @@
 #define   S_007EDC_LB_D2_VBLANK_INTERRUPT(x)           (((x) & 0x1) << 5)
 #define   G_007EDC_LB_D2_VBLANK_INTERRUPT(x)           (((x) >> 5) & 0x1)
 #define   C_007EDC_LB_D2_VBLANK_INTERRUPT              0xFFFFFFDF
-
+#define   S_007EDC_DACA_AUTODETECT_INTERRUPT(x)        (((x) & 0x1) << 16)
+#define   G_007EDC_DACA_AUTODETECT_INTERRUPT(x)        (((x) >> 16) & 0x1)
+#define   C_007EDC_DACA_AUTODETECT_INTERRUPT           0xFFFEFFFF
+#define   S_007EDC_DACB_AUTODETECT_INTERRUPT(x)        (((x) & 0x1) << 17)
+#define   G_007EDC_DACB_AUTODETECT_INTERRUPT(x)        (((x) >> 17) & 0x1)
+#define   C_007EDC_DACB_AUTODETECT_INTERRUPT           0xFFFDFFFF
+#define   S_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(x)    (((x) & 0x1) << 18)
+#define   G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(x)    (((x) >> 18) & 0x1)
+#define   C_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT       0xFFFBFFFF
+#define   S_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT(x)    (((x) & 0x1) << 19)
+#define   G_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT(x)    (((x) >> 19) & 0x1)
+#define   C_007EDC_DC_HOT_PLUG_DETECT2_INTERRUPT       0xFFF7FFFF
+#define R_007828_DACA_AUTODETECT_CONTROL               0x007828
+#define   S_007828_DACA_AUTODETECT_MODE(x)             (((x) & 0x3) << 0)
+#define   G_007828_DACA_AUTODETECT_MODE(x)             (((x) >> 0) & 0x3)
+#define   C_007828_DACA_AUTODETECT_MODE                0xFFFFFFFC
+#define   S_007828_DACA_AUTODETECT_FRAME_TIME_COUNTER(x) (((x) & 0xff) << 8)
+#define   G_007828_DACA_AUTODETECT_FRAME_TIME_COUNTER(x) (((x) >> 8) & 0xff)
+#define   C_007828_DACA_AUTODETECT_FRAME_TIME_COUNTER  0xFFFF00FF
+#define   S_007828_DACA_AUTODETECT_CHECK_MASK(x)       (((x) & 0x3) << 16)
+#define   G_007828_DACA_AUTODETECT_CHECK_MASK(x)       (((x) >> 16) & 0x3)
+#define   C_007828_DACA_AUTODETECT_CHECK_MASK          0xFFFCFFFF
+#define R_007838_DACA_AUTODETECT_INT_CONTROL           0x007838
+#define   S_007838_DACA_AUTODETECT_ACK(x)              (((x) & 0x1) << 0)
+#define   C_007838_DACA_DACA_AUTODETECT_ACK            0xFFFFFFFE
+#define   S_007838_DACA_AUTODETECT_INT_ENABLE(x)       (((x) & 0x1) << 16)
+#define   G_007838_DACA_AUTODETECT_INT_ENABLE(x)       (((x) >> 16) & 0x1)
+#define   C_007838_DACA_AUTODETECT_INT_ENABLE          0xFFFCFFFF
+#define R_007A28_DACB_AUTODETECT_CONTROL               0x007A28
+#define   S_007A28_DACB_AUTODETECT_MODE(x)             (((x) & 0x3) << 0)
+#define   G_007A28_DACB_AUTODETECT_MODE(x)             (((x) >> 0) & 0x3)
+#define   C_007A28_DACB_AUTODETECT_MODE                0xFFFFFFFC
+#define   S_007A28_DACB_AUTODETECT_FRAME_TIME_COUNTER(x) (((x) & 0xff) << 8)
+#define   G_007A28_DACB_AUTODETECT_FRAME_TIME_COUNTER(x) (((x) >> 8) & 0xff)
+#define   C_007A28_DACB_AUTODETECT_FRAME_TIME_COUNTER  0xFFFF00FF
+#define   S_007A28_DACB_AUTODETECT_CHECK_MASK(x)       (((x) & 0x3) << 16)
+#define   G_007A28_DACB_AUTODETECT_CHECK_MASK(x)       (((x) >> 16) & 0x3)
+#define   C_007A28_DACB_AUTODETECT_CHECK_MASK          0xFFFCFFFF
+#define R_007A38_DACB_AUTODETECT_INT_CONTROL           0x007A38
+#define   S_007A38_DACB_AUTODETECT_ACK(x)              (((x) & 0x1) << 0)
+#define   C_007A38_DACB_DACA_AUTODETECT_ACK            0xFFFFFFFE
+#define   S_007A38_DACB_AUTODETECT_INT_ENABLE(x)       (((x) & 0x1) << 16)
+#define   G_007A38_DACB_AUTODETECT_INT_ENABLE(x)       (((x) >> 16) & 0x1)
+#define   C_007A38_DACB_AUTODETECT_INT_ENABLE          0xFFFCFFFF
+#define R_007D00_DC_HOT_PLUG_DETECT1_CONTROL           0x007D00
+#define   S_007D00_DC_HOT_PLUG_DETECT1_EN(x)           (((x) & 0x1) << 0)
+#define   G_007D00_DC_HOT_PLUG_DETECT1_EN(x)           (((x) >> 0) & 0x1)
+#define   C_007D00_DC_HOT_PLUG_DETECT1_EN              0xFFFFFFFE
+#define R_007D04_DC_HOT_PLUG_DETECT1_INT_STATUS        0x007D04
+#define   S_007D04_DC_HOT_PLUG_DETECT1_INT_STATUS(x)   (((x) & 0x1) << 0)
+#define   G_007D04_DC_HOT_PLUG_DETECT1_INT_STATUS(x)   (((x) >> 0) & 0x1)
+#define   C_007D04_DC_HOT_PLUG_DETECT1_INT_STATUS      0xFFFFFFFE
+#define   S_007D04_DC_HOT_PLUG_DETECT1_SENSE(x)        (((x) & 0x1) << 1)
+#define   G_007D04_DC_HOT_PLUG_DETECT1_SENSE(x)        (((x) >> 1) & 0x1)
+#define   C_007D04_DC_HOT_PLUG_DETECT1_SENSE           0xFFFFFFFD
+#define R_007D08_DC_HOT_PLUG_DETECT1_INT_CONTROL       0x007D08
+#define   S_007D08_DC_HOT_PLUG_DETECT1_INT_ACK(x)      (((x) & 0x1) << 0)
+#define   C_007D08_DC_HOT_PLUG_DETECT1_INT_ACK         0xFFFFFFFE
+#define   S_007D08_DC_HOT_PLUG_DETECT1_INT_POLARITY(x) (((x) & 0x1) << 8)
+#define   G_007D08_DC_HOT_PLUG_DETECT1_INT_POLARITY(x) (((x) >> 8) & 0x1)
+#define   C_007D08_DC_HOT_PLUG_DETECT1_INT_POLARITY    0xFFFFFEFF
+#define   S_007D08_DC_HOT_PLUG_DETECT1_INT_EN(x)       (((x) & 0x1) << 16)
+#define   G_007D08_DC_HOT_PLUG_DETECT1_INT_EN(x)       (((x) >> 16) & 0x1)
+#define   C_007D08_DC_HOT_PLUG_DETECT1_INT_EN          0xFFFEFFFF
+#define R_007D10_DC_HOT_PLUG_DETECT2_CONTROL           0x007D10
+#define   S_007D10_DC_HOT_PLUG_DETECT2_EN(x)           (((x) & 0x1) << 0)
+#define   G_007D10_DC_HOT_PLUG_DETECT2_EN(x)           (((x) >> 0) & 0x1)
+#define   C_007D10_DC_HOT_PLUG_DETECT2_EN              0xFFFFFFFE
+#define R_007D14_DC_HOT_PLUG_DETECT2_INT_STATUS        0x007D14
+#define   S_007D14_DC_HOT_PLUG_DETECT2_INT_STATUS(x)   (((x) & 0x1) << 0)
+#define   G_007D14_DC_HOT_PLUG_DETECT2_INT_STATUS(x)   (((x) >> 0) & 0x1)
+#define   C_007D14_DC_HOT_PLUG_DETECT2_INT_STATUS      0xFFFFFFFE
+#define   S_007D14_DC_HOT_PLUG_DETECT2_SENSE(x)        (((x) & 0x1) << 1)
+#define   G_007D14_DC_HOT_PLUG_DETECT2_SENSE(x)        (((x) >> 1) & 0x1)
+#define   C_007D14_DC_HOT_PLUG_DETECT2_SENSE           0xFFFFFFFD
+#define R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL       0x007D18
+#define   S_007D18_DC_HOT_PLUG_DETECT2_INT_ACK(x)      (((x) & 0x1) << 0)
+#define   C_007D18_DC_HOT_PLUG_DETECT2_INT_ACK         0xFFFFFFFE
+#define   S_007D18_DC_HOT_PLUG_DETECT2_INT_POLARITY(x) (((x) & 0x1) << 8)
+#define   G_007D18_DC_HOT_PLUG_DETECT2_INT_POLARITY(x) (((x) >> 8) & 0x1)
+#define   C_007D18_DC_HOT_PLUG_DETECT2_INT_POLARITY    0xFFFFFEFF
+#define   S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(x)       (((x) & 0x1) << 16)
+#define   G_007D18_DC_HOT_PLUG_DETECT2_INT_EN(x)       (((x) >> 16) & 0x1)
+#define   C_007D18_DC_HOT_PLUG_DETECT2_INT_EN          0xFFFEFFFF
 
 /* MC registers */
 #define R_000000_MC_STATUS                           0x000000

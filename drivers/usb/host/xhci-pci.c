@@ -54,6 +54,8 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval;
 
+	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 1;
+
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
 		HC_LENGTH(xhci_readl(xhci, &xhci->cap_regs->hc_capbase));

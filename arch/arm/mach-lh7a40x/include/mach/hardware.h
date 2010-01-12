@@ -31,7 +31,7 @@
 /*
  * This __REG() version gives the same results as the one above,  except
  * that we are fooling gcc somehow so it generates far better and smaller
- * assembly code for access to contigous registers.  It's a shame that gcc
+ * assembly code for access to contiguous registers.  It's a shame that gcc
  * doesn't guess this by itself.
  */
 #include <asm/types.h>

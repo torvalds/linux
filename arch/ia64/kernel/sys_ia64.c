@@ -100,51 +100,7 @@ sys_getpagesize (void)
 asmlinkage unsigned long
 ia64_brk (unsigned long brk)
 {
-	unsigned long rlim, retval, newbrk, oldbrk;
-	struct mm_struct *mm = current->mm;
-
-	/*
-	 * Most of this replicates the code in sys_brk() except for an additional safety
-	 * check and the clearing of r8.  However, we can't call sys_brk() because we need
-	 * to acquire the mmap_sem before we can do the test...
-	 */
-	down_write(&mm->mmap_sem);
-
-	if (brk < mm->end_code)
-		goto out;
-	newbrk = PAGE_ALIGN(brk);
-	oldbrk = PAGE_ALIGN(mm->brk);
-	if (oldbrk == newbrk)
-		goto set_brk;
-
-	/* Always allow shrinking brk. */
-	if (brk <= mm->brk) {
-		if (!do_munmap(mm, newbrk, oldbrk-newbrk))
-			goto set_brk;
-		goto out;
-	}
-
-	/* Check against unimplemented/unmapped addresses: */
-	if ((newbrk - oldbrk) > RGN_MAP_LIMIT || REGION_OFFSET(newbrk) > RGN_MAP_LIMIT)
-		goto out;
-
-	/* Check against rlimit.. */
-	rlim = current->signal->rlim[RLIMIT_DATA].rlim_cur;
-	if (rlim < RLIM_INFINITY && brk - mm->start_data > rlim)
-		goto out;
-
-	/* Check against existing mmap mappings. */
-	if (find_vma_intersection(mm, oldbrk, newbrk+PAGE_SIZE))
-		goto out;
-
-	/* Ok, looks good - let it rip. */
-	if (do_brk(oldbrk, newbrk-oldbrk) != oldbrk)
-		goto out;
-set_brk:
-	mm->brk = brk;
-out:
-	retval = mm->brk;
-	up_write(&mm->mmap_sem);
+	unsigned long retval = sys_brk(brk);
 	force_successful_syscall_return();
 	return retval;
 }
@@ -185,39 +141,6 @@ int ia64_mmap_check(unsigned long addr, unsigned long len,
 	return 0;
 }
 
-static inline unsigned long
-do_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, unsigned long pgoff)
-{
-	struct file *file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			return -EBADF;
-
-		if (!file->f_op || !file->f_op->mmap) {
-			addr = -ENODEV;
-			goto out;
-		}
-	}
-
-	/* Careful about overflows.. */
-	len = PAGE_ALIGN(len);
-	if (!len || len > TASK_SIZE) {
-		addr = -EINVAL;
-		goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	addr = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-out:	if (file)
-		fput(file);
-	return addr;
-}
-
 /*
  * mmap2() is like mmap() except that the offset is expressed in units
  * of PAGE_SIZE (instead of bytes).  This allows to mmap2() (pieces
@@ -226,7 +149,7 @@ out:	if (file)
 asmlinkage unsigned long
 sys_mmap2 (unsigned long addr, unsigned long len, int prot, int flags, int fd, long pgoff)
 {
-	addr = do_mmap2(addr, len, prot, flags, fd, pgoff);
+	addr = sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
 	if (!IS_ERR((void *) addr))
 		force_successful_syscall_return();
 	return addr;
@@ -238,7 +161,7 @@ sys_mmap (unsigned long addr, unsigned long len, int prot, int flags, int fd, lo
 	if (offset_in_page(off) != 0)
 		return -EINVAL;
 
-	addr = do_mmap2(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	addr = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 	if (!IS_ERR((void *) addr))
 		force_successful_syscall_return();
 	return addr;

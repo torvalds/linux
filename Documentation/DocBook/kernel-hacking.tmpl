@@ -352,7 +352,7 @@ asmlinkage long sys_mycall(int arg)
   </para>
 
   <programlisting>
-if (signal_pending()) 
+if (signal_pending(current))
         return -ERESTARTSYS;
   </programlisting>
 

@@ -33,6 +33,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/smc91x.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -47,10 +48,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <mach/usb.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/common.h>
+#include <plat/usb.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/common.h>
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
 #define OMAP_OSK_ETHR_START		0x04800300
@@ -115,6 +116,12 @@ static struct platform_device osk5912_flash_device = {
 	.resource	= &osk_flash_resource,
 };
 
+static struct smc91x_platdata osk5912_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
+
 static struct resource osk5912_smc91x_resources[] = {
 	[0] = {
 		.start	= OMAP_OSK_ETHR_START,		/* Physical */
@@ -131,6 +138,9 @@ static struct resource osk5912_smc91x_resources[] = {
 static struct platform_device osk5912_smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
+	.dev	= {
+		.platform_data	= &osk5912_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(osk5912_smc91x_resources),
 	.resource	= osk5912_smc91x_resources,
 };
@@ -312,7 +322,7 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <mach/keypad.h>
+#include <plat/keypad.h>
 
 static struct at24_platform_data at24c04 = {
 	.byte_len	= SZ_4K / 8,

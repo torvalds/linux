@@ -92,16 +92,13 @@ static bool rt_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 		 !((rtinfo->flags & IP6T_RT_RES) &&
 		   (((const struct rt0_hdr *)rh)->reserved)));
 
-	ret = (rh != NULL)
-	      &&
+	ret = (rh != NULL) &&
 	      (segsleft_match(rtinfo->segsleft[0], rtinfo->segsleft[1],
 			      rh->segments_left,
-			      !!(rtinfo->invflags & IP6T_RT_INV_SGS)))
-	      &&
+			      !!(rtinfo->invflags & IP6T_RT_INV_SGS))) &&
 	      (!(rtinfo->flags & IP6T_RT_LEN) ||
 	       ((rtinfo->hdrlen == hdrlen) ^
-		!!(rtinfo->invflags & IP6T_RT_INV_LEN)))
-	      &&
+		!!(rtinfo->invflags & IP6T_RT_INV_LEN))) &&
 	      (!(rtinfo->flags & IP6T_RT_TYP) ||
 	       ((rtinfo->rt_type == rh->type) ^
 		!!(rtinfo->invflags & IP6T_RT_INV_TYP)));

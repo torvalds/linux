@@ -512,13 +512,10 @@ int cifs_get_inode_info(struct inode **pinode,
 					cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc1) {
+			if (rc1 || !fattr.cf_uniqueid) {
 				cFYI(1, ("GetSrvInodeNum rc %d", rc1));
 				fattr.cf_uniqueid = iunique(sb, ROOT_I);
-				/* disable serverino if call not supported */
-				if (rc1 == -EINVAL)
-					cifs_sb->mnt_cifs_flags &=
-							~CIFS_MOUNT_SERVER_INUM;
+				cifs_autodisable_serverino(cifs_sb);
 			}
 		} else {
 			fattr.cf_uniqueid = iunique(sb, ROOT_I);
@@ -917,8 +914,8 @@ undo_setattr:
 /*
  * If dentry->d_inode is null (usually meaning the cached dentry
  * is a negative dentry) then we would attempt a standard SMB delete, but
- * if that fails we can not attempt the fall back mechanisms on EACESS
- * but will return the EACESS to the caller.  Note that the VFS does not call
+ * if that fails we can not attempt the fall back mechanisms on EACCESS
+ * but will return the EACCESS to the caller. Note that the VFS does not call
  * unlink on negative dentries currently.
  */
 int cifs_unlink(struct inode *dir, struct dentry *dentry)

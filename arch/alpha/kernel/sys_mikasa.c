@@ -69,7 +69,7 @@ mikasa_end_irq(unsigned int irq)
 }
 
 static struct irq_chip mikasa_irq_type = {
-	.typename	= "MIKASA",
+	.name		= "MIKASA",
 	.startup	= mikasa_startup_irq,
 	.shutdown	= mikasa_disable_irq,
 	.enable		= mikasa_enable_irq,

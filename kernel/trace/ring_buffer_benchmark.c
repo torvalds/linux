@@ -35,6 +35,28 @@ static int disable_reader;
 module_param(disable_reader, uint, 0644);
 MODULE_PARM_DESC(disable_reader, "only run producer");
 
+static int write_iteration = 50;
+module_param(write_iteration, uint, 0644);
+MODULE_PARM_DESC(write_iteration, "# of writes between timestamp readings");
+
+static int producer_nice = 19;
+static int consumer_nice = 19;
+
+static int producer_fifo = -1;
+static int consumer_fifo = -1;
+
+module_param(producer_nice, uint, 0644);
+MODULE_PARM_DESC(producer_nice, "nice prio for producer");
+
+module_param(consumer_nice, uint, 0644);
+MODULE_PARM_DESC(consumer_nice, "nice prio for consumer");
+
+module_param(producer_fifo, uint, 0644);
+MODULE_PARM_DESC(producer_fifo, "fifo prio for producer");
+
+module_param(consumer_fifo, uint, 0644);
+MODULE_PARM_DESC(consumer_fifo, "fifo prio for consumer");
+
 static int read_events;
 
 static int kill_test;
@@ -208,15 +230,18 @@ static void ring_buffer_producer(void)
 	do {
 		struct ring_buffer_event *event;
 		int *entry;
+		int i;
 
-		event = ring_buffer_lock_reserve(buffer, 10);
-		if (!event) {
-			missed++;
-		} else {
-			hit++;
-			entry = ring_buffer_event_data(event);
-			*entry = smp_processor_id();
-			ring_buffer_unlock_commit(buffer, event);
+		for (i = 0; i < write_iteration; i++) {
+			event = ring_buffer_lock_reserve(buffer, 10);
+			if (!event) {
+				missed++;
+			} else {
+				hit++;
+				entry = ring_buffer_event_data(event);
+				*entry = smp_processor_id();
+				ring_buffer_unlock_commit(buffer, event);
+			}
 		}
 		do_gettimeofday(&end_tv);
 
@@ -263,6 +288,27 @@ static void ring_buffer_producer(void)
 
 	if (kill_test)
 		trace_printk("ERROR!\n");
+
+	if (!disable_reader) {
+		if (consumer_fifo < 0)
+			trace_printk("Running Consumer at nice: %d\n",
+				     consumer_nice);
+		else
+			trace_printk("Running Consumer at SCHED_FIFO %d\n",
+				     consumer_fifo);
+	}
+	if (producer_fifo < 0)
+		trace_printk("Running Producer at nice: %d\n",
+			     producer_nice);
+	else
+		trace_printk("Running Producer at SCHED_FIFO %d\n",
+			     producer_fifo);
+
+	/* Let the user know that the test is running at low priority */
+	if (producer_fifo < 0 && consumer_fifo < 0 &&
+	    producer_nice == 19 && consumer_nice == 19)
+		trace_printk("WARNING!!! This test is running at lowest priority.\n");
+
 	trace_printk("Time:     %lld (usecs)\n", time);
 	trace_printk("Overruns: %lld\n", overruns);
 	if (disable_reader)
@@ -391,6 +437,27 @@ static int __init ring_buffer_benchmark_init(void)
 
 	if (IS_ERR(producer))
 		goto out_kill;
+
+	/*
+	 * Run them as low-prio background tasks by default:
+	 */
+	if (!disable_reader) {
+		if (consumer_fifo >= 0) {
+			struct sched_param param = {
+				.sched_priority = consumer_fifo
+			};
+			sched_setscheduler(consumer, SCHED_FIFO, &param);
+		} else
+			set_user_nice(consumer, consumer_nice);
+	}
+
+	if (producer_fifo >= 0) {
+		struct sched_param param = {
+			.sched_priority = consumer_fifo
+		};
+		sched_setscheduler(producer, SCHED_FIFO, &param);
+	} else
+		set_user_nice(producer, producer_nice);
 
 	return 0;
 

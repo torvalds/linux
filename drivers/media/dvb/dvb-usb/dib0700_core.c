@@ -17,6 +17,14 @@ int dvb_usb_dib0700_ir_proto = 1;
 module_param(dvb_usb_dib0700_ir_proto, int, 0644);
 MODULE_PARM_DESC(dvb_usb_dib0700_ir_proto, "set ir protocol (0=NEC, 1=RC5 (default), 2=RC6).");
 
+static int nb_packet_buffer_size = 21;
+module_param(nb_packet_buffer_size, int, 0644);
+MODULE_PARM_DESC(nb_packet_buffer_size,
+	"Set the dib0700 driver data buffer size. This parameter "
+	"corresponds to the number of TS packets. The actual size of "
+	"the data buffer corresponds to this parameter "
+	"multiplied by 188 (default: 21)");
+
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 
@@ -28,10 +36,14 @@ int dib0700_get_version(struct dvb_usb_device *d, u32 *hwversion,
 				  REQUEST_GET_VERSION,
 				  USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
 				  b, sizeof(b), USB_CTRL_GET_TIMEOUT);
-	*hwversion  = (b[0] << 24)  | (b[1] << 16)  | (b[2] << 8)  | b[3];
-	*romversion = (b[4] << 24)  | (b[5] << 16)  | (b[6] << 8)  | b[7];
-	*ramversion = (b[8] << 24)  | (b[9] << 16)  | (b[10] << 8) | b[11];
-	*fwtype     = (b[12] << 24) | (b[13] << 16) | (b[14] << 8) | b[15];
+	if (hwversion != NULL)
+		*hwversion  = (b[0] << 24)  | (b[1] << 16)  | (b[2] << 8)  | b[3];
+	if (romversion != NULL)
+		*romversion = (b[4] << 24)  | (b[5] << 16)  | (b[6] << 8)  | b[7];
+	if (ramversion != NULL)
+		*ramversion = (b[8] << 24)  | (b[9] << 16)  | (b[10] << 8) | b[11];
+	if (fwtype != NULL)
+		*fwtype     = (b[12] << 24) | (b[13] << 16) | (b[14] << 8) | b[15];
 	return ret;
 }
 
@@ -95,6 +107,27 @@ int dib0700_set_gpio(struct dvb_usb_device *d, enum dib07x0_gpios gpio, u8 gpio_
 {
 	u8 buf[3] = { REQUEST_SET_GPIO, gpio, ((gpio_dir & 0x01) << 7) | ((gpio_val & 0x01) << 6) };
 	return dib0700_ctrl_wr(d,buf,3);
+}
+
+static int dib0700_set_usb_xfer_len(struct dvb_usb_device *d, u16 nb_ts_packets)
+{
+    struct dib0700_state *st = d->priv;
+    u8 b[3];
+    int ret;
+
+    if (st->fw_version >= 0x10201) {
+	b[0] = REQUEST_SET_USB_XFER_LEN;
+	b[1] = (nb_ts_packets >> 8)&0xff;
+	b[2] = nb_ts_packets & 0xff;
+
+	deb_info("set the USB xfer len to %i Ts packet\n", nb_ts_packets);
+
+	ret = dib0700_ctrl_wr(d, b, 3);
+    } else {
+	deb_info("this firmware does not allow to change the USB xfer len\n");
+	ret = -EIO;
+    }
+    return ret;
 }
 
 /*
@@ -328,7 +361,9 @@ static int dib0700_jumpram(struct usb_device *udev, u32 address)
 int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw)
 {
 	struct hexline hx;
-	int pos = 0, ret, act_len;
+	int pos = 0, ret, act_len, i, adap_num;
+	u8 b[16];
+	u32 fw_version;
 
 	u8 buf[260];
 
@@ -364,6 +399,34 @@ int dib0700_download_firmware(struct usb_device *udev, const struct firmware *fw
 	} else
 		ret = -EIO;
 
+	/* the number of ts packet has to be at least 1 */
+	if (nb_packet_buffer_size < 1)
+		nb_packet_buffer_size = 1;
+
+	/* get the fimware version */
+	usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+				  REQUEST_GET_VERSION,
+				  USB_TYPE_VENDOR | USB_DIR_IN, 0, 0,
+				  b, sizeof(b), USB_CTRL_GET_TIMEOUT);
+	fw_version = (b[8] << 24)  | (b[9] << 16)  | (b[10] << 8) | b[11];
+
+	/* set the buffer size - DVB-USB is allocating URB buffers
+	 * only after the firwmare download was successful */
+	for (i = 0; i < dib0700_device_count; i++) {
+		for (adap_num = 0; adap_num < dib0700_devices[i].num_adapters;
+				adap_num++) {
+			if (fw_version >= 0x10201)
+				dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize = 188*nb_packet_buffer_size;
+			else {
+				/* for fw version older than 1.20.1,
+				 * the buffersize has to be n times 512 */
+				dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize = ((188*nb_packet_buffer_size+188/2)/512)*512;
+				if (dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize < 512)
+					dib0700_devices[i].adapter[adap_num].stream.u.bulk.buffersize = 512;
+			}
+		}
+	}
+
 	return ret;
 }
 
@@ -371,6 +434,18 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
 	struct dib0700_state *st = adap->dev->priv;
 	u8 b[4];
+	int ret;
+
+	if ((onoff != 0) && (st->fw_version >= 0x10201)) {
+		/* for firmware later than 1.20.1,
+		 * the USB xfer length can be set  */
+		ret = dib0700_set_usb_xfer_len(adap->dev,
+			st->nb_packet_buffer_size);
+		if (ret < 0) {
+			deb_info("can not set the USB xfer len\n");
+			return ret;
+		}
+	}
 
 	b[0] = REQUEST_ENABLE_VIDEO;
 	b[1] = (onoff << 4) | 0x00; /* this bit gives a kind of command, rather than enabling something or not */
@@ -415,9 +490,21 @@ static int dib0700_probe(struct usb_interface *intf,
 
 	for (i = 0; i < dib0700_device_count; i++)
 		if (dvb_usb_device_init(intf, &dib0700_devices[i], THIS_MODULE,
-					&dev, adapter_nr) == 0)
-		{
+		    &dev, adapter_nr) == 0) {
+			struct dib0700_state *st = dev->priv;
+			u32 hwversion, romversion, fw_version, fwtype;
+
+			dib0700_get_version(dev, &hwversion, &romversion,
+				&fw_version, &fwtype);
+
+			deb_info("Firmware version: %x, %d, 0x%x, %d\n",
+				hwversion, romversion, fw_version, fwtype);
+
+			st->fw_version = fw_version;
+			st->nb_packet_buffer_size = (u32)nb_packet_buffer_size;
+
 			dib0700_rc_setup(dev);
+
 			return 0;
 		}
 

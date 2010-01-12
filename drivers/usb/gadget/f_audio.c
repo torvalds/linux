@@ -56,13 +56,16 @@ static struct usb_interface_descriptor ac_interface_desc __initdata = {
 DECLARE_UAC_AC_HEADER_DESCRIPTOR(2);
 
 #define UAC_DT_AC_HEADER_LENGTH	UAC_DT_AC_HEADER_SIZE(F_AUDIO_NUM_INTERFACES)
+/* 1 input terminal, 1 output terminal and 1 feature unit */
+#define UAC_DT_TOTAL_LENGTH (UAC_DT_AC_HEADER_LENGTH + UAC_DT_INPUT_TERMINAL_SIZE \
+	+ UAC_DT_OUTPUT_TERMINAL_SIZE + UAC_DT_FEATURE_UNIT_SIZE(0))
 /* B.3.2  Class-Specific AC Interface Descriptor */
 static struct uac_ac_header_descriptor_2 ac_header_desc = {
 	.bLength =		UAC_DT_AC_HEADER_LENGTH,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	UAC_HEADER,
 	.bcdADC =		__constant_cpu_to_le16(0x0100),
-	.wTotalLength =		__constant_cpu_to_le16(UAC_DT_AC_HEADER_LENGTH),
+	.wTotalLength =		__constant_cpu_to_le16(UAC_DT_TOTAL_LENGTH),
 	.bInCollection =	F_AUDIO_NUM_INTERFACES,
 	.baInterfaceNr = {
 		[0] =		F_AUDIO_AC_INTERFACE,
@@ -252,12 +255,12 @@ static struct f_audio_buf *f_audio_buffer_alloc(int buf_size)
 
 	copy_buf = kzalloc(sizeof *copy_buf, GFP_ATOMIC);
 	if (!copy_buf)
-		return (struct f_audio_buf *)-ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	copy_buf->buf = kzalloc(buf_size, GFP_ATOMIC);
 	if (!copy_buf->buf) {
 		kfree(copy_buf);
-		return (struct f_audio_buf *)-ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	return copy_buf;
@@ -332,7 +335,7 @@ static int f_audio_out_ep_complete(struct usb_ep *ep, struct usb_request *req)
 		list_add_tail(&copy_buf->list, &audio->play_queue);
 		schedule_work(&audio->playback_work);
 		copy_buf = f_audio_buffer_alloc(audio_buf_size);
-		if (copy_buf < 0)
+		if (IS_ERR(copy_buf))
 			return -ENOMEM;
 	}
 
@@ -445,6 +448,70 @@ static int audio_get_intf_req(struct usb_function *f,
 	return len;
 }
 
+static int audio_set_endpoint_req(struct usb_function *f,
+		const struct usb_ctrlrequest *ctrl)
+{
+	struct usb_composite_dev *cdev = f->config->cdev;
+	int			value = -EOPNOTSUPP;
+	u16			ep = le16_to_cpu(ctrl->wIndex);
+	u16			len = le16_to_cpu(ctrl->wLength);
+	u16			w_value = le16_to_cpu(ctrl->wValue);
+
+	DBG(cdev, "bRequest 0x%x, w_value 0x%04x, len %d, endpoint %d\n",
+			ctrl->bRequest, w_value, len, ep);
+
+	switch (ctrl->bRequest) {
+	case UAC_SET_CUR:
+		value = 0;
+		break;
+
+	case UAC_SET_MIN:
+		break;
+
+	case UAC_SET_MAX:
+		break;
+
+	case UAC_SET_RES:
+		break;
+
+	case UAC_SET_MEM:
+		break;
+
+	default:
+		break;
+	}
+
+	return value;
+}
+
+static int audio_get_endpoint_req(struct usb_function *f,
+		const struct usb_ctrlrequest *ctrl)
+{
+	struct usb_composite_dev *cdev = f->config->cdev;
+	int value = -EOPNOTSUPP;
+	u8 ep = ((le16_to_cpu(ctrl->wIndex) >> 8) & 0xFF);
+	u16 len = le16_to_cpu(ctrl->wLength);
+	u16 w_value = le16_to_cpu(ctrl->wValue);
+
+	DBG(cdev, "bRequest 0x%x, w_value 0x%04x, len %d, endpoint %d\n",
+			ctrl->bRequest, w_value, len, ep);
+
+	switch (ctrl->bRequest) {
+	case UAC_GET_CUR:
+	case UAC_GET_MIN:
+	case UAC_GET_MAX:
+	case UAC_GET_RES:
+		value = 3;
+		break;
+	case UAC_GET_MEM:
+		break;
+	default:
+		break;
+	}
+
+	return value;
+}
+
 static int
 f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 {
@@ -455,8 +522,8 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
 
-	/* composite driver infrastructure handles everything except
-	 * Audio class messages; interface activation uses set_alt().
+	/* composite driver infrastructure handles everything; interface
+	 * activation uses set_alt().
 	 */
 	switch (ctrl->bRequestType) {
 	case USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE:
@@ -465,6 +532,14 @@ f_audio_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 
 	case USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE:
 		value = audio_get_intf_req(f, ctrl);
+		break;
+
+	case USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_ENDPOINT:
+		value = audio_set_endpoint_req(f, ctrl);
+		break;
+
+	case USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_ENDPOINT:
+		value = audio_get_endpoint_req(f, ctrl);
 		break;
 
 	default:
@@ -504,6 +579,8 @@ static int f_audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_enable(out_ep, audio->out_desc);
 			out_ep->driver_data = audio;
 			audio->copy_buf = f_audio_buffer_alloc(audio_buf_size);
+			if (IS_ERR(audio->copy_buf))
+				return -ENOMEM;
 
 			/*
 			 * allocate a bunch of read buffers
@@ -715,7 +792,7 @@ int __init audio_bind_config(struct usb_configuration *c)
 	return status;
 
 add_fail:
-	gaudio_cleanup(&audio->card);
+	gaudio_cleanup();
 setup_fail:
 	kfree(audio);
 	return status;

@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2006-2008 Solarflare Communications Inc.
+ * Copyright 2006-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -11,11 +11,10 @@
 #include <linux/delay.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "mac.h"
-#include "falcon_hwdefs.h"
-#include "falcon_io.h"
-#include "gmii.h"
+#include "regs.h"
+#include "io.h"
 
 /**************************************************************************
  *
@@ -23,106 +22,109 @@
  *
  *************************************************************************/
 
-static void falcon_reconfigure_gmac(struct efx_nic *efx)
+static int falcon_reconfigure_gmac(struct efx_nic *efx)
 {
+	struct efx_link_state *link_state = &efx->link_state;
 	bool loopback, tx_fc, rx_fc, bytemode;
 	int if_mode;
 	unsigned int max_frame_len;
 	efx_oword_t reg;
 
 	/* Configuration register 1 */
-	tx_fc = (efx->link_fc & EFX_FC_TX) || !efx->link_fd;
-	rx_fc = !!(efx->link_fc & EFX_FC_RX);
+	tx_fc = (link_state->fc & EFX_FC_TX) || !link_state->fd;
+	rx_fc = !!(link_state->fc & EFX_FC_RX);
 	loopback = (efx->loopback_mode == LOOPBACK_GMAC);
-	bytemode = (efx->link_speed == 1000);
+	bytemode = (link_state->speed == 1000);
 
 	EFX_POPULATE_OWORD_5(reg,
-			     GM_LOOP, loopback,
-			     GM_TX_EN, 1,
-			     GM_TX_FC_EN, tx_fc,
-			     GM_RX_EN, 1,
-			     GM_RX_FC_EN, rx_fc);
-	falcon_write(efx, &reg, GM_CFG1_REG);
+			     FRF_AB_GM_LOOP, loopback,
+			     FRF_AB_GM_TX_EN, 1,
+			     FRF_AB_GM_TX_FC_EN, tx_fc,
+			     FRF_AB_GM_RX_EN, 1,
+			     FRF_AB_GM_RX_FC_EN, rx_fc);
+	efx_writeo(efx, &reg, FR_AB_GM_CFG1);
 	udelay(10);
 
 	/* Configuration register 2 */
 	if_mode = (bytemode) ? 2 : 1;
 	EFX_POPULATE_OWORD_5(reg,
-			     GM_IF_MODE, if_mode,
-			     GM_PAD_CRC_EN, 1,
-			     GM_LEN_CHK, 1,
-			     GM_FD, efx->link_fd,
-			     GM_PAMBL_LEN, 0x7/*datasheet recommended */);
+			     FRF_AB_GM_IF_MODE, if_mode,
+			     FRF_AB_GM_PAD_CRC_EN, 1,
+			     FRF_AB_GM_LEN_CHK, 1,
+			     FRF_AB_GM_FD, link_state->fd,
+			     FRF_AB_GM_PAMBL_LEN, 0x7/*datasheet recommended */);
 
-	falcon_write(efx, &reg, GM_CFG2_REG);
+	efx_writeo(efx, &reg, FR_AB_GM_CFG2);
 	udelay(10);
 
 	/* Max frame len register */
 	max_frame_len = EFX_MAX_FRAME_LEN(efx->net_dev->mtu);
-	EFX_POPULATE_OWORD_1(reg, GM_MAX_FLEN, max_frame_len);
-	falcon_write(efx, &reg, GM_MAX_FLEN_REG);
+	EFX_POPULATE_OWORD_1(reg, FRF_AB_GM_MAX_FLEN, max_frame_len);
+	efx_writeo(efx, &reg, FR_AB_GM_MAX_FLEN);
 	udelay(10);
 
 	/* FIFO configuration register 0 */
 	EFX_POPULATE_OWORD_5(reg,
-			     GMF_FTFENREQ, 1,
-			     GMF_STFENREQ, 1,
-			     GMF_FRFENREQ, 1,
-			     GMF_SRFENREQ, 1,
-			     GMF_WTMENREQ, 1);
-	falcon_write(efx, &reg, GMF_CFG0_REG);
+			     FRF_AB_GMF_FTFENREQ, 1,
+			     FRF_AB_GMF_STFENREQ, 1,
+			     FRF_AB_GMF_FRFENREQ, 1,
+			     FRF_AB_GMF_SRFENREQ, 1,
+			     FRF_AB_GMF_WTMENREQ, 1);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG0);
 	udelay(10);
 
 	/* FIFO configuration register 1 */
 	EFX_POPULATE_OWORD_2(reg,
-			     GMF_CFGFRTH, 0x12,
-			     GMF_CFGXOFFRTX, 0xffff);
-	falcon_write(efx, &reg, GMF_CFG1_REG);
+			     FRF_AB_GMF_CFGFRTH, 0x12,
+			     FRF_AB_GMF_CFGXOFFRTX, 0xffff);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG1);
 	udelay(10);
 
 	/* FIFO configuration register 2 */
 	EFX_POPULATE_OWORD_2(reg,
-			     GMF_CFGHWM, 0x3f,
-			     GMF_CFGLWM, 0xa);
-	falcon_write(efx, &reg, GMF_CFG2_REG);
+			     FRF_AB_GMF_CFGHWM, 0x3f,
+			     FRF_AB_GMF_CFGLWM, 0xa);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG2);
 	udelay(10);
 
 	/* FIFO configuration register 3 */
 	EFX_POPULATE_OWORD_2(reg,
-			     GMF_CFGHWMFT, 0x1c,
-			     GMF_CFGFTTH, 0x08);
-	falcon_write(efx, &reg, GMF_CFG3_REG);
+			     FRF_AB_GMF_CFGHWMFT, 0x1c,
+			     FRF_AB_GMF_CFGFTTH, 0x08);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG3);
 	udelay(10);
 
 	/* FIFO configuration register 4 */
-	EFX_POPULATE_OWORD_1(reg, GMF_HSTFLTRFRM_PAUSE, 1);
-	falcon_write(efx, &reg, GMF_CFG4_REG);
+	EFX_POPULATE_OWORD_1(reg, FRF_AB_GMF_HSTFLTRFRM_PAUSE, 1);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG4);
 	udelay(10);
 
 	/* FIFO configuration register 5 */
-	falcon_read(efx, &reg, GMF_CFG5_REG);
-	EFX_SET_OWORD_FIELD(reg, GMF_CFGBYTMODE, bytemode);
-	EFX_SET_OWORD_FIELD(reg, GMF_CFGHDPLX, !efx->link_fd);
-	EFX_SET_OWORD_FIELD(reg, GMF_HSTDRPLT64, !efx->link_fd);
-	EFX_SET_OWORD_FIELD(reg, GMF_HSTFLTRFRMDC_PAUSE, 0);
-	falcon_write(efx, &reg, GMF_CFG5_REG);
+	efx_reado(efx, &reg, FR_AB_GMF_CFG5);
+	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGBYTMODE, bytemode);
+	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_CFGHDPLX, !link_state->fd);
+	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTDRPLT64, !link_state->fd);
+	EFX_SET_OWORD_FIELD(reg, FRF_AB_GMF_HSTFLTRFRMDC_PAUSE, 0);
+	efx_writeo(efx, &reg, FR_AB_GMF_CFG5);
 	udelay(10);
 
 	/* MAC address */
 	EFX_POPULATE_OWORD_4(reg,
-			     GM_HWADDR_5, efx->net_dev->dev_addr[5],
-			     GM_HWADDR_4, efx->net_dev->dev_addr[4],
-			     GM_HWADDR_3, efx->net_dev->dev_addr[3],
-			     GM_HWADDR_2, efx->net_dev->dev_addr[2]);
-	falcon_write(efx, &reg, GM_ADR1_REG);
+			     FRF_AB_GM_ADR_B0, efx->net_dev->dev_addr[5],
+			     FRF_AB_GM_ADR_B1, efx->net_dev->dev_addr[4],
+			     FRF_AB_GM_ADR_B2, efx->net_dev->dev_addr[3],
+			     FRF_AB_GM_ADR_B3, efx->net_dev->dev_addr[2]);
+	efx_writeo(efx, &reg, FR_AB_GM_ADR1);
 	udelay(10);
 	EFX_POPULATE_OWORD_2(reg,
-			     GM_HWADDR_1, efx->net_dev->dev_addr[1],
-			     GM_HWADDR_0, efx->net_dev->dev_addr[0]);
-	falcon_write(efx, &reg, GM_ADR2_REG);
+			     FRF_AB_GM_ADR_B4, efx->net_dev->dev_addr[1],
+			     FRF_AB_GM_ADR_B5, efx->net_dev->dev_addr[0]);
+	efx_writeo(efx, &reg, FR_AB_GM_ADR2);
 	udelay(10);
 
 	falcon_reconfigure_mac_wrapper(efx);
+
+	return 0;
 }
 
 static void falcon_update_stats_gmac(struct efx_nic *efx)
@@ -130,11 +132,6 @@ static void falcon_update_stats_gmac(struct efx_nic *efx)
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	unsigned long old_rx_pause, old_tx_pause;
 	unsigned long new_rx_pause, new_tx_pause;
-	int rc;
-
-	rc = falcon_dma_stats(efx, GDmaDone_offset);
-	if (rc)
-		return;
 
 	/* Pause frames are erroneously counted as errors (SFC bug 3269) */
 	old_rx_pause = mac_stats->rx_pause;
@@ -221,9 +218,13 @@ static void falcon_update_stats_gmac(struct efx_nic *efx)
 	mac_stats->rx_lt64 = mac_stats->rx_good_lt64 + mac_stats->rx_bad_lt64;
 }
 
+static bool falcon_gmac_check_fault(struct efx_nic *efx)
+{
+	return false;
+}
+
 struct efx_mac_operations falcon_gmac_operations = {
 	.reconfigure	= falcon_reconfigure_gmac,
 	.update_stats	= falcon_update_stats_gmac,
-	.irq		= efx_port_dummy_op_void,
-	.poll		= efx_port_dummy_op_void,
+	.check_fault 	= falcon_gmac_check_fault,
 };

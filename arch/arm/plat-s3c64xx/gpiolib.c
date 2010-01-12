@@ -213,6 +213,11 @@ static struct s3c_gpio_cfg gpio_4bit_cfg_eint0011 = {
 	.get_pull	= s3c_gpio_getpull_updown,
 };
 
+int s3c64xx_gpio2int_gpm(struct gpio_chip *chip, unsigned pin)
+{
+	return pin < 5 ? IRQ_EINT(23) + pin : -ENXIO;
+}
+
 static struct s3c_gpio_chip gpio_4bit[] = {
 	{
 		.base	= S3C64XX_GPA_BASE,
@@ -269,9 +274,15 @@ static struct s3c_gpio_chip gpio_4bit[] = {
 			.base	= S3C64XX_GPM(0),
 			.ngpio	= S3C64XX_GPIO_M_NR,
 			.label	= "GPM",
+			.to_irq = s3c64xx_gpio2int_gpm,
 		},
 	},
 };
+
+int s3c64xx_gpio2int_gpl(struct gpio_chip *chip, unsigned pin)
+{
+	return pin >= 8 ? IRQ_EINT(16) + pin - 8 : -ENXIO;
+}
 
 static struct s3c_gpio_chip gpio_4bit2[] = {
 	{
@@ -297,6 +308,7 @@ static struct s3c_gpio_chip gpio_4bit2[] = {
 			.base	= S3C64XX_GPL(0),
 			.ngpio	= S3C64XX_GPIO_L_NR,
 			.label	= "GPL",
+			.to_irq = s3c64xx_gpio2int_gpl,
 		},
 	},
 };

@@ -11,7 +11,7 @@ The current DMA resource Allocation provides no means of selecting the
 suitability of a DMA controller based on it's supported modes of operation, as
 opposed to the resource allocation mechanisms for master and slave windows:
 
-	struct vme_resource *vme_request_dma(struct device *dev);
+	struct vme_resource *vme_dma_request(struct device *dev);
 
 As opposed to:
 

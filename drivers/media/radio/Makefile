@@ -18,9 +18,11 @@ obj-$(CONFIG_RADIO_TRUST) += radio-trust.o
 obj-$(CONFIG_I2C_SI4713) += si4713-i2c.o
 obj-$(CONFIG_RADIO_SI4713) += radio-si4713.o
 obj-$(CONFIG_RADIO_MAESTRO) += radio-maestro.o
+obj-$(CONFIG_RADIO_MIROPCM20) += radio-miropcm20.o
 obj-$(CONFIG_USB_DSBR) += dsbr100.o
 obj-$(CONFIG_RADIO_SI470X) += si470x/
 obj-$(CONFIG_USB_MR800) += radio-mr800.o
 obj-$(CONFIG_RADIO_TEA5764) += radio-tea5764.o
+obj-$(CONFIG_RADIO_TEF6862) += tef6862.o
 
 EXTRA_CFLAGS += -Isound

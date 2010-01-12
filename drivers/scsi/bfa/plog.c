@@ -180,5 +180,5 @@ bfa_plog_disable(struct bfa_plog_s *plog)
 bfa_boolean_t
 bfa_plog_get_setting(struct bfa_plog_s *plog)
 {
-	return((bfa_boolean_t)plog->plog_enabled);
+	return (bfa_boolean_t)plog->plog_enabled;
 }

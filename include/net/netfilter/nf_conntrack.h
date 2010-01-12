@@ -255,11 +255,9 @@ static inline bool nf_ct_kill(struct nf_conn *ct)
 }
 
 /* These are for NAT.  Icky. */
-/* Update TCP window tracking data when NAT mangles the packet */
-extern void nf_conntrack_tcp_update(const struct sk_buff *skb,
-				    unsigned int dataoff,
-				    struct nf_conn *ct, int dir,
-				    s16 offset);
+extern s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
+			       enum ip_conntrack_dir dir,
+			       u32 seq);
 
 /* Fake conntrack entry for untracked connections */
 extern struct nf_conn nf_conntrack_untracked;
@@ -295,11 +293,11 @@ extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
 
 #define NF_CT_STAT_INC(net, count)	\
-	(per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++)
+	__this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_INC_ATOMIC(net, count)		\
 do {							\
 	local_bh_disable();				\
-	per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++;	\
+	__this_cpu_inc((net)->ct.stat->count);		\
 	local_bh_enable();				\
 } while (0)
 

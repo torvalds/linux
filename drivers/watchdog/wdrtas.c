@@ -542,7 +542,7 @@ static struct notifier_block wdrtas_notifier = {
 /**
  * wdrtas_get_tokens - reads in RTAS tokens
  *
- * returns 0 on succes, <0 on failure
+ * returns 0 on success, <0 on failure
  *
  * wdrtas_get_tokens reads in the tokens for the RTAS calls used in
  * this watchdog driver. It tolerates, if "get-sensor-state" and
@@ -598,7 +598,7 @@ static void wdrtas_unregister_devs(void)
 /**
  * wdrtas_register_devs - registers the misc dev handlers
  *
- * returns 0 on succes, <0 on failure
+ * returns 0 on success, <0 on failure
  *
  * wdrtas_register_devs registers the watchdog and temperature watchdog
  * misc devs
@@ -630,7 +630,7 @@ static int wdrtas_register_devs(void)
 /**
  * wdrtas_init - init function of the watchdog driver
  *
- * returns 0 on succes, <0 on failure
+ * returns 0 on success, <0 on failure
  *
  * registers the file handlers and the reboot notifier
  */

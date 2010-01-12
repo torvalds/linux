@@ -26,10 +26,10 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#include <mach/clock.h>
-#include <mach/board.h>
-#include <mach/powerdomain.h>
-#include <mach/clockdomain.h>
+#include <plat/clock.h>
+#include <plat/board.h>
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
 
 #include "prm.h"
 #include "cm.h"
@@ -51,7 +51,8 @@ int omap2_pm_debug;
 	regs[reg_count++].val = __raw_readl(reg)
 #define DUMP_INTC_REG(reg, off) \
 	regs[reg_count].name = #reg; \
-	regs[reg_count++].val = __raw_readl(OMAP2_IO_ADDRESS(0x480fe000 + (off)))
+	regs[reg_count++].val = \
+			 __raw_readl(OMAP2_L4_IO_ADDRESS(0x480fe000 + (off)))
 
 static int __init pm_dbg_init(void);
 
@@ -325,7 +326,7 @@ int pm_dbg_regset_save(int reg_set)
 	return 0;
 }
 
-static const char pwrdm_state_names[][4] = {
+static const char pwrdm_state_names[][PWRDM_MAX_PWRSTS] = {
 	"OFF",
 	"RET",
 	"INA",
@@ -380,7 +381,7 @@ static int pwrdm_dbg_show_counter(struct powerdomain *pwrdm, void *user)
 
 	seq_printf(s, "%s (%s)", pwrdm->name,
 			pwrdm_state_names[pwrdm->state]);
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < PWRDM_MAX_PWRSTS; i++)
 		seq_printf(s, ",%s:%d", pwrdm_state_names[i],
 			pwrdm->state_counter[i]);
 
@@ -526,6 +527,29 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 	return 0;
 }
 
+static int option_get(void *data, u64 *val)
+{
+	u32 *option = data;
+
+	*val = *option;
+
+	return 0;
+}
+
+static int option_set(void *data, u64 val)
+{
+	u32 *option = data;
+
+	*option = val;
+
+	if (option == &enable_off_mode)
+		omap3_pm_off_mode_enable(val);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(pm_dbg_option_fops, option_get, option_set, "%llu\n");
+
 static int __init pm_dbg_init(void)
 {
 	int i;
@@ -568,6 +592,12 @@ static int __init pm_dbg_init(void)
 
 		}
 
+	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUGO, d,
+				   &enable_off_mode, &pm_dbg_option_fops);
+	(void) debugfs_create_file("sleep_while_idle", S_IRUGO | S_IWUGO, d,
+				   &sleep_while_idle, &pm_dbg_option_fops);
+	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUGO, d,
+				   &wakeup_timer_seconds, &pm_dbg_option_fops);
 	pm_dbg_init_done = 1;
 
 	return 0;

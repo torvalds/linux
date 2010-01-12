@@ -735,6 +735,21 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 	part_stat_unlock();
 }
 
+/*
+ * Ensure we don't create aliases in VI caches
+ */
+static inline void
+killalias(struct bio *bio)
+{
+	struct bio_vec *bv;
+	int i;
+
+	if (bio_data_dir(bio) == READ)
+		__bio_for_each_segment(bv, bio, i, 0) {
+			flush_dcache_page(bv->bv_page);
+		}
+}
+
 void
 aoecmd_ata_rsp(struct sk_buff *skb)
 {
@@ -853,8 +868,12 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 
 	if (buf && --buf->nframesout == 0 && buf->resid == 0) {
 		diskstats(d->gd, buf->bio, jiffies - buf->stime, buf->sector);
-		n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
-		bio_endio(buf->bio, n);
+		if (buf->flags & BUFFL_FAIL)
+			bio_endio(buf->bio, -EIO);
+		else {
+			killalias(buf->bio);
+			bio_endio(buf->bio, 0);
+		}
 		mempool_free(buf, d->bufpool);
 	}
 

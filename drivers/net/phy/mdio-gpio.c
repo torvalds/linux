@@ -139,7 +139,7 @@ out:
 	return NULL;
 }
 
-static void __devinit mdio_gpio_bus_deinit(struct device *dev)
+static void mdio_gpio_bus_deinit(struct device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(dev);
 	struct mdio_gpio_info *bitbang = bus->priv;

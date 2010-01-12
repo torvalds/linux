@@ -563,7 +563,7 @@ static u8 ixgbe_dcbnl_setapp(struct net_device *netdev,
 	return rval;
 }
 
-struct dcbnl_rtnl_ops dcbnl_ops = {
+const struct dcbnl_rtnl_ops dcbnl_ops = {
 	.getstate	= ixgbe_dcbnl_get_state,
 	.setstate	= ixgbe_dcbnl_set_state,
 	.getpermhwaddr	= ixgbe_dcbnl_get_perm_hw_addr,

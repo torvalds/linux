@@ -393,10 +393,10 @@ struct smt_config {
 					 */
 	u_long	mac_d_max ;		/* MAC : D_Max timer value */
 
-	u_long lct_short ;		/* LCT : error threshhold */
-	u_long lct_medium ;		/* LCT : error threshhold */
-	u_long lct_long ;		/* LCT : error threshhold */
-	u_long lct_extended ;		/* LCT : error threshhold */
+	u_long lct_short ;		/* LCT : error threshold */
+	u_long lct_medium ;		/* LCT : error threshold */
+	u_long lct_long ;		/* LCT : error threshold */
+	u_long lct_extended ;		/* LCT : error threshold */
 } ;
 
 #ifdef	DEBUG

@@ -1,7 +1,8 @@
 config OCTEON_ETHERNET
 	tristate "Cavium Networks Octeon Ethernet support"
 	depends on CPU_CAVIUM_OCTEON
-	select MII
+	select PHYLIB
+	select MDIO_OCTEON
 	help
 	  This driver supports the builtin ethernet ports on Cavium
 	  Networks' products in the Octeon family. This driver supports the

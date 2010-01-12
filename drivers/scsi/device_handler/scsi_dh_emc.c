@@ -528,7 +528,8 @@ retry:
 	return err;
 }
 
-static int clariion_activate(struct scsi_device *sdev)
+static int clariion_activate(struct scsi_device *sdev,
+				activate_complete fn, void *data)
 {
 	struct clariion_dh_data *csdev = get_clariion_data(sdev);
 	int result;
@@ -559,7 +560,9 @@ done:
 		    csdev->port, lun_state[csdev->lun_state],
 		    csdev->default_sp + 'A');
 
-	return result;
+	if (fn)
+		fn(data, result);
+	return 0;
 }
 /*
  * params - parameters in the following format

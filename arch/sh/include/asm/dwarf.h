@@ -194,6 +194,12 @@
 #define DWARF_ARCH_RA_REG	17
 
 #ifndef __ASSEMBLY__
+
+#include <linux/compiler.h>
+#include <linux/bug.h>
+#include <linux/list.h>
+#include <linux/module.h>
+
 /*
  * Read either the frame pointer (r14) or the stack pointer (r15).
  * NOTE: this MUST be inlined.
@@ -241,6 +247,12 @@ struct dwarf_cie {
 
 	unsigned long flags;
 #define DWARF_CIE_Z_AUGMENTATION	(1 << 0)
+
+	/*
+	 * 'mod' will be non-NULL if this CIE came from a module's
+	 * .eh_frame section.
+	 */
+	struct module *mod;
 };
 
 /**
@@ -255,6 +267,12 @@ struct dwarf_fde {
 	unsigned char *instructions;
 	unsigned char *end;
 	struct list_head link;
+
+	/*
+	 * 'mod' will be non-NULL if this FDE came from a module's
+	 * .eh_frame section.
+	 */
+	struct module *mod;
 };
 
 /**
@@ -364,6 +382,12 @@ static inline unsigned int DW_CFA_operand(unsigned long insn)
 
 extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 					      struct dwarf_frame *);
+extern void dwarf_free_frame(struct dwarf_frame *);
+
+extern int module_dwarf_finalize(const Elf_Ehdr *, const Elf_Shdr *,
+				 struct module *);
+extern void module_dwarf_cleanup(struct module *);
+
 #endif /* !__ASSEMBLY__ */
 
 #define CFI_STARTPROC	.cfi_startproc
@@ -391,6 +415,10 @@ extern struct dwarf_frame *dwarf_unwind_stack(unsigned long,
 static inline void dwarf_unwinder_init(void)
 {
 }
+
+#define module_dwarf_finalize(hdr, sechdrs, me)	(0)
+#define module_dwarf_cleanup(mod)		do { } while (0)
+
 #endif
 
 #endif /* CONFIG_DWARF_UNWINDER */

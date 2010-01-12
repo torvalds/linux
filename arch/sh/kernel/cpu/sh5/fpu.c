@@ -34,7 +34,7 @@ static union sh_fpu_union init_fpuregs = {
 	}
 };
 
-void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
+void save_fpu(struct task_struct *tsk)
 {
 	asm volatile("fst.p     %0, (0*8), fp0\n\t"
 		     "fst.p     %0, (1*8), fp2\n\t"
@@ -153,7 +153,7 @@ do_fpu_state_restore(unsigned long ex, struct pt_regs *regs)
 	enable_fpu();
 	if (last_task_used_math != NULL)
 		/* Other processes fpu state, save away */
-		save_fpu(last_task_used_math, regs);
+		save_fpu(last_task_used_math);
 
         last_task_used_math = current;
         if (used_math()) {

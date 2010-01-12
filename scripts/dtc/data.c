@@ -217,7 +217,7 @@ struct data data_insert_at_marker(struct data d, struct marker *m,
 	return d;
 }
 
-struct data data_append_markers(struct data d, struct marker *m)
+static struct data data_append_markers(struct data d, struct marker *m)
 {
 	struct marker **mp = &d.markers;
 

@@ -53,7 +53,7 @@ struct vpss_hw_ops {
 	int (*enable_clock)(enum vpss_clock_sel clock_sel, int en);
 	/* select input to ccdc */
 	void (*select_ccdc_source)(enum vpss_ccdc_source_sel src_sel);
-	/* clear wbl overlflow bit */
+	/* clear wbl overflow bit */
 	int (*clear_wbl_overflow)(enum vpss_wbl_sel wbl_sel);
 };
 
@@ -268,7 +268,7 @@ fail1:
 	return status;
 }
 
-static int vpss_remove(struct platform_device *pdev)
+static int __devexit vpss_remove(struct platform_device *pdev)
 {
 	iounmap(oper_cfg.vpss_bl_regs_base);
 	release_mem_region(oper_cfg.r1->start, oper_cfg.len1);

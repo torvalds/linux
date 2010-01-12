@@ -214,7 +214,7 @@ most specific mask.
 Here is pseudo-code showing how this might be done:
 
 	#define PLAYBACK_ADDRESS_BITS	DMA_BIT_MASK(32)
-	#define RECORD_ADDRESS_BITS	0x00ffffff
+	#define RECORD_ADDRESS_BITS	DMA_BIT_MASK(24)
 
 	struct my_sound_card *card;
 	struct pci_dev *pdev;
@@ -224,14 +224,14 @@ Here is pseudo-code showing how this might be done:
 		card->playback_enabled = 1;
 	} else {
 		card->playback_enabled = 0;
-		printk(KERN_WARN "%s: Playback disabled due to DMA limitations.\n",
+		printk(KERN_WARNING "%s: Playback disabled due to DMA limitations.\n",
 		       card->name);
 	}
 	if (!pci_set_dma_mask(pdev, RECORD_ADDRESS_BITS)) {
 		card->record_enabled = 1;
 	} else {
 		card->record_enabled = 0;
-		printk(KERN_WARN "%s: Record disabled due to DMA limitations.\n",
+		printk(KERN_WARNING "%s: Record disabled due to DMA limitations.\n",
 		       card->name);
 	}
 

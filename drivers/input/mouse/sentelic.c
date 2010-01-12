@@ -836,6 +836,7 @@ int fsp_init(struct psmouse *psmouse)
 	priv->flags |= FSPDRV_FLAG_EN_OPC;
 
 	/* Set up various supported input event bits */
+	__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 	__set_bit(BTN_BACK, psmouse->dev->keybit);
 	__set_bit(BTN_FORWARD, psmouse->dev->keybit);
 	__set_bit(REL_WHEEL, psmouse->dev->relbit);

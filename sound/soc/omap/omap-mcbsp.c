@@ -31,9 +31,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <mach/control.h>
-#include <mach/dma.h>
-#include <mach/mcbsp.h>
+#include <plat/control.h>
+#include <plat/dma.h>
+#include <plat/mcbsp.h>
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 

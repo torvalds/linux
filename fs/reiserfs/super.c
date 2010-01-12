@@ -465,7 +465,7 @@ static void reiserfs_put_super(struct super_block *s)
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
 
-	lock_kernel();
+	reiserfs_write_lock(s);
 
 	if (s->s_dirt)
 		reiserfs_write_super(s);
@@ -499,10 +499,10 @@ static void reiserfs_put_super(struct super_block *s)
 
 	reiserfs_proc_info_done(s);
 
+	reiserfs_write_unlock(s);
+	mutex_destroy(&REISERFS_SB(s)->lock);
 	kfree(s->s_fs_info);
 	s->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static struct kmem_cache *reiserfs_inode_cachep;
@@ -554,25 +554,28 @@ static void reiserfs_dirty_inode(struct inode *inode)
 	struct reiserfs_transaction_handle th;
 
 	int err = 0;
+	int lock_depth;
+
 	if (inode->i_sb->s_flags & MS_RDONLY) {
 		reiserfs_warning(inode->i_sb, "clm-6006",
 				 "writing inode %lu on readonly FS",
 				 inode->i_ino);
 		return;
 	}
-	reiserfs_write_lock(inode->i_sb);
+	lock_depth = reiserfs_write_lock_once(inode->i_sb);
 
 	/* this is really only used for atime updates, so they don't have
 	 ** to be included in O_SYNC or fsync
 	 */
 	err = journal_begin(&th, inode->i_sb, 1);
-	if (err) {
-		reiserfs_write_unlock(inode->i_sb);
-		return;
-	}
+	if (err)
+		goto out;
+
 	reiserfs_update_sd(&th, inode);
 	journal_end(&th, inode->i_sb, 1);
-	reiserfs_write_unlock(inode->i_sb);
+
+out:
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 }
 
 #ifdef CONFIG_QUOTA
@@ -1168,11 +1171,14 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	unsigned int qfmt = 0;
 #ifdef CONFIG_QUOTA
 	int i;
+#endif
 
+	reiserfs_write_lock(s);
+
+#ifdef CONFIG_QUOTA
 	memcpy(qf_names, REISERFS_SB(s)->s_qf_names, sizeof(qf_names));
 #endif
 
-	lock_kernel();
 	rs = SB_DISK_SUPER_BLOCK(s);
 
 	if (!reiserfs_parse_options
@@ -1295,12 +1301,12 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 
 out_ok:
 	replace_mount_options(s, new_opts);
-	unlock_kernel();
+	reiserfs_write_unlock(s);
 	return 0;
 
 out_err:
 	kfree(new_opts);
-	unlock_kernel();
+	reiserfs_write_unlock(s);
 	return err;
 }
 
@@ -1404,7 +1410,9 @@ static int read_super_block(struct super_block *s, int offset)
 static int reread_meta_blocks(struct super_block *s)
 {
 	ll_rw_block(READ, 1, &(SB_BUFFER_WITH_SB(s)));
+	reiserfs_write_unlock(s);
 	wait_on_buffer(SB_BUFFER_WITH_SB(s));
+	reiserfs_write_lock(s);
 	if (!buffer_uptodate(SB_BUFFER_WITH_SB(s))) {
 		reiserfs_warning(s, "reiserfs-2504", "error reading the super");
 		return 1;
@@ -1613,7 +1621,7 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	sbi = kzalloc(sizeof(struct reiserfs_sb_info), GFP_KERNEL);
 	if (!sbi) {
 		errval = -ENOMEM;
-		goto error;
+		goto error_alloc;
 	}
 	s->s_fs_info = sbi;
 	/* Set default values for options: non-aggressive tails, RO on errors */
@@ -1626,6 +1634,20 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	REISERFS_SB(s)->s_alloc_options.preallocsize = 17;
 	/* setup default block allocator options */
 	reiserfs_init_alloc_options(s);
+
+	mutex_init(&REISERFS_SB(s)->lock);
+	REISERFS_SB(s)->lock_depth = -1;
+
+	/*
+	 * This function is called with the bkl, which also was the old
+	 * locking used here.
+	 * do_journal_begin() will soon check if we hold the lock (ie: was the
+	 * bkl). This is likely because do_journal_begin() has several another
+	 * callers because at this time, it doesn't seem to be necessary to
+	 * protect against anything.
+	 * Anyway, let's be conservative and lock for now.
+	 */
+	reiserfs_write_lock(s);
 
 	jdev_name = NULL;
 	if (reiserfs_parse_options
@@ -1852,9 +1874,13 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 	init_waitqueue_head(&(sbi->s_wait));
 	spin_lock_init(&sbi->bitmap_lock);
 
+	reiserfs_write_unlock(s);
+
 	return (0);
 
 error:
+	reiserfs_write_unlock(s);
+error_alloc:
 	if (jinit_done) {	/* kill the commit thread, free journal ram */
 		journal_release_error(NULL, s);
 	}
@@ -2196,8 +2222,6 @@ static int __init init_reiserfs_fs(void)
 	}
 
 	reiserfs_proc_info_global_init();
-	reiserfs_proc_register_global("version",
-				      reiserfs_global_version_in_proc);
 
 	ret = register_filesystem(&reiserfs_fs_type);
 
@@ -2205,7 +2229,6 @@ static int __init init_reiserfs_fs(void)
 		return 0;
 	}
 
-	reiserfs_proc_unregister_global("version");
 	reiserfs_proc_info_global_done();
 	destroy_inodecache();
 
@@ -2214,7 +2237,6 @@ static int __init init_reiserfs_fs(void)
 
 static void __exit exit_reiserfs_fs(void)
 {
-	reiserfs_proc_unregister_global("version");
 	reiserfs_proc_info_global_done();
 	unregister_filesystem(&reiserfs_fs_type);
 	destroy_inodecache();

@@ -164,7 +164,7 @@ static ssize_t pccard_store_irq_mask(struct device *dev,
 	if (!count)
 		return -EINVAL;
 
-	ret = sscanf (buf, "0x%x\n", &mask);
+	ret = sscanf(buf, "0x%x\n", &mask);
 
 	if (ret == 1) {
 		s->irq_mask &= mask;
@@ -278,7 +278,7 @@ static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf, loff_t off
  free_tuple:
 	kfree(tuplebuffer);
 
-	return (ret);
+	return ret;
 }
 
 static ssize_t pccard_show_cis(struct kobject *kobj,
@@ -308,7 +308,7 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 		count = pccard_extract_cis(s, buf, off, count);
 	}
 
-	return (count);
+	return count;
 }
 
 static ssize_t pccard_store_cis(struct kobject *kobj,

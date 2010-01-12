@@ -167,6 +167,7 @@ struct ipv6_devconf {
 #endif
 	__s32		disable_ipv6;
 	__s32		accept_dad;
+	__s32		force_tllao;
 	void		*sysctl;
 };
 
@@ -207,6 +208,7 @@ enum {
 	DEVCONF_MC_FORWARDING,
 	DEVCONF_DISABLE_IPV6,
 	DEVCONF_ACCEPT_DAD,
+	DEVCONF_FORCE_TLLAO,
 	DEVCONF_MAX
 };
 
@@ -503,7 +505,7 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 
 #define INET6_MATCH(__sk, __net, __hash, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash)) && sock_net((__sk)) == (__net)	&& \
-	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))  	&& \
+	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports)) && \
 	 ((__sk)->sk_family		== AF_INET6)		&& \
 	 ipv6_addr_equal(&inet6_sk(__sk)->daddr, (__saddr))	&& \
 	 ipv6_addr_equal(&inet6_sk(__sk)->rcv_saddr, (__daddr))	&& \

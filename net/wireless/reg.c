@@ -141,62 +141,35 @@ static const struct ieee80211_regdomain us_regdom = {
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..11 */
 		REG_RULE(2412-10, 2462+10, 40, 6, 27, 0),
-		/* IEEE 802.11a, channel 36 */
-		REG_RULE(5180-10, 5180+10, 40, 6, 23, 0),
-		/* IEEE 802.11a, channel 40 */
-		REG_RULE(5200-10, 5200+10, 40, 6, 23, 0),
-		/* IEEE 802.11a, channel 44 */
-		REG_RULE(5220-10, 5220+10, 40, 6, 23, 0),
+		/* IEEE 802.11a, channel 36..48 */
+		REG_RULE(5180-10, 5240+10, 40, 6, 17, 0),
 		/* IEEE 802.11a, channels 48..64 */
-		REG_RULE(5240-10, 5320+10, 40, 6, 23, 0),
+		REG_RULE(5260-10, 5320+10, 40, 6, 20, NL80211_RRF_DFS),
+		/* IEEE 802.11a, channels 100..124 */
+		REG_RULE(5500-10, 5590+10, 40, 6, 20, NL80211_RRF_DFS),
+		/* IEEE 802.11a, channels 132..144 */
+		REG_RULE(5660-10, 5700+10, 40, 6, 20, NL80211_RRF_DFS),
 		/* IEEE 802.11a, channels 149..165, outdoor */
 		REG_RULE(5745-10, 5825+10, 40, 6, 30, 0),
 	}
 };
 
 static const struct ieee80211_regdomain jp_regdom = {
-	.n_reg_rules = 3,
+	.n_reg_rules = 6,
 	.alpha2 =  "JP",
 	.reg_rules = {
-		/* IEEE 802.11b/g, channels 1..14 */
-		REG_RULE(2412-10, 2484+10, 40, 6, 20, 0),
-		/* IEEE 802.11a, channels 34..48 */
-		REG_RULE(5170-10, 5240+10, 40, 6, 20,
-			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11b/g, channels 1..11 */
+		REG_RULE(2412-10, 2462+10, 40, 6, 20, 0),
+		/* IEEE 802.11b/g, channels 12..13 */
+		REG_RULE(2467-10, 2472+10, 20, 6, 20, 0),
+		/* IEEE 802.11b/g, channel 14 */
+		REG_RULE(2484-10, 2484+10, 20, 6, 20, NL80211_RRF_NO_OFDM),
+		/* IEEE 802.11a, channels 36..48 */
+		REG_RULE(5180-10, 5240+10, 40, 6, 20, 0),
 		/* IEEE 802.11a, channels 52..64 */
-		REG_RULE(5260-10, 5320+10, 40, 6, 20,
-			NL80211_RRF_NO_IBSS |
-			NL80211_RRF_DFS),
-	}
-};
-
-static const struct ieee80211_regdomain eu_regdom = {
-	.n_reg_rules = 6,
-	/*
-	 * This alpha2 is bogus, we leave it here just for stupid
-	 * backward compatibility
-	 */
-	.alpha2 =  "EU",
-	.reg_rules = {
-		/* IEEE 802.11b/g, channels 1..13 */
-		REG_RULE(2412-10, 2472+10, 40, 6, 20, 0),
-		/* IEEE 802.11a, channel 36 */
-		REG_RULE(5180-10, 5180+10, 40, 6, 23,
-			NL80211_RRF_PASSIVE_SCAN),
-		/* IEEE 802.11a, channel 40 */
-		REG_RULE(5200-10, 5200+10, 40, 6, 23,
-			NL80211_RRF_PASSIVE_SCAN),
-		/* IEEE 802.11a, channel 44 */
-		REG_RULE(5220-10, 5220+10, 40, 6, 23,
-			NL80211_RRF_PASSIVE_SCAN),
-		/* IEEE 802.11a, channels 48..64 */
-		REG_RULE(5240-10, 5320+10, 40, 6, 20,
-			NL80211_RRF_NO_IBSS |
-			NL80211_RRF_DFS),
-		/* IEEE 802.11a, channels 100..140 */
-		REG_RULE(5500-10, 5700+10, 40, 6, 30,
-			NL80211_RRF_NO_IBSS |
-			NL80211_RRF_DFS),
+		REG_RULE(5260-10, 5320+10, 40, 6, 20, NL80211_RRF_DFS),
+		/* IEEE 802.11a, channels 100..144 */
+		REG_RULE(5500-10, 5700+10, 40, 6, 23, NL80211_RRF_DFS),
 	}
 };
 
@@ -206,15 +179,17 @@ static const struct ieee80211_regdomain *static_regdom(char *alpha2)
 		return &us_regdom;
 	if (alpha2[0] == 'J' && alpha2[1] == 'P')
 		return &jp_regdom;
+	/* Use world roaming rules for "EU", since it was a pseudo
+	   domain anyway... */
 	if (alpha2[0] == 'E' && alpha2[1] == 'U')
-		return &eu_regdom;
-	/* Default, as per the old rules */
-	return &us_regdom;
+		return &world_regdom;
+	/* Default, world roaming rules */
+	return &world_regdom;
 }
 
 static bool is_old_static_regdom(const struct ieee80211_regdomain *rd)
 {
-	if (rd == &us_regdom || rd == &jp_regdom || rd == &eu_regdom)
+	if (rd == &us_regdom || rd == &jp_regdom || rd == &world_regdom)
 		return true;
 	return false;
 }
@@ -1008,7 +983,7 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 
 	if (last_request->initiator == NL80211_REGDOM_SET_BY_DRIVER &&
 	    request_wiphy && request_wiphy == wiphy &&
-	    request_wiphy->strict_regulatory) {
+	    request_wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY) {
 		/*
 		 * This gaurantees the driver's requested regulatory domain
 		 * will always be used as a base for further regulatory
@@ -1051,13 +1026,13 @@ static bool ignore_reg_update(struct wiphy *wiphy,
 	if (!last_request)
 		return true;
 	if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-		  wiphy->custom_regulatory)
+	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
 		return true;
 	/*
 	 * wiphy->regd will be set once the device has its own
 	 * desired regulatory domain set
 	 */
-	if (wiphy->strict_regulatory && !wiphy->regd &&
+	if (wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY && !wiphy->regd &&
 	    !is_world_regdom(last_request->alpha2))
 		return true;
 	return false;
@@ -1093,7 +1068,7 @@ static void handle_reg_beacon(struct wiphy *wiphy,
 
 	chan->beacon_found = true;
 
-	if (wiphy->disable_beacon_hints)
+	if (wiphy->flags & WIPHY_FLAG_DISABLE_BEACON_HINTS)
 		return;
 
 	chan_before.center_freq = chan->center_freq;
@@ -1164,7 +1139,7 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 		return true;
 	if (last_request &&
 	    last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
-	    wiphy->custom_regulatory)
+	    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY)
 		return true;
 	return false;
 }
@@ -1591,7 +1566,8 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 
 	r = __regulatory_hint(wiphy, reg_request);
 	/* This is required so that the orig_* parameters are saved */
-	if (r == -EALREADY && wiphy && wiphy->strict_regulatory)
+	if (r == -EALREADY && wiphy &&
+	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
 		wiphy_update_regulatory(wiphy, reg_request->initiator);
 out:
 	mutex_unlock(&reg_mutex);
@@ -1930,7 +1906,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 	const struct ieee80211_freq_range *freq_range = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
 
-	printk(KERN_INFO "\t(start_freq - end_freq @ bandwidth), "
+	printk(KERN_INFO "    (start_freq - end_freq @ bandwidth), "
 		"(max_antenna_gain, max_eirp)\n");
 
 	for (i = 0; i < rd->n_reg_rules; i++) {
@@ -1943,7 +1919,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 		 * in certain regions
 		 */
 		if (power_rule->max_antenna_gain)
-			printk(KERN_INFO "\t(%d KHz - %d KHz @ %d KHz), "
+			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
 				"(%d mBi, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,
@@ -1951,7 +1927,7 @@ static void print_rd_rules(const struct ieee80211_regdomain *rd)
 				power_rule->max_antenna_gain,
 				power_rule->max_eirp);
 		else
-			printk(KERN_INFO "\t(%d KHz - %d KHz @ %d KHz), "
+			printk(KERN_INFO "    (%d KHz - %d KHz @ %d KHz), "
 				"(N/A, %d mBm)\n",
 				freq_range->start_freq_khz,
 				freq_range->end_freq_khz,

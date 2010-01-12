@@ -15,6 +15,5 @@ TODO:
 - sparse fixes
 - integrate with drivers/net/wireless
 
-Please send any patches to Greg Kroah-Hartman <greg@kroah.com>,
-Forest Bond <forest@alittletooquiet.net> and Bartlomiej Zolnierkiewicz
-<bzolnier@gmail.com>.
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>
+and Forest Bond <forest@alittletooquiet.net>.

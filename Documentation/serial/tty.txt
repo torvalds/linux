@@ -42,7 +42,8 @@ TTY side interfaces:
 open()		-	Called when the line discipline is attached to
 			the terminal. No other call into the line
 			discipline for this tty will occur until it
-			completes successfully. Can sleep.
+			completes successfully. Returning an error will
+			prevent the ldisc from being attached. Can sleep.
 
 close()		-	This is called on a terminal when the line
 			discipline is being unplugged. At the point of
@@ -52,7 +53,7 @@ close()		-	This is called on a terminal when the line
 hangup()	-	Called when the tty line is hung up.
 			The line discipline should cease I/O to the tty.
 			No further calls into the ldisc code will occur.
-			Can sleep.
+			The return value is ignored. Can sleep.
 
 write()		-	A process is writing data through the line
 			discipline.  Multiple write calls are serialized
@@ -82,6 +83,10 @@ poll()		-	Check the status for the poll/select calls. Multiple
 ioctl()		-	Called when an ioctl is handed to the tty layer
 			that might be for the ldisc. Multiple ioctl calls
 			may occur in parallel. May sleep. 
+
+compat_ioctl()	-	Called when a 32 bit ioctl is handed to the tty layer
+			that might be for the ldisc. Multiple ioctl calls
+			may occur in parallel. May sleep.
 
 Driver Side Interfaces:
 

@@ -358,7 +358,7 @@ struct port {
 	u8 update_flow_control;
 	struct ctrl_ul ctrl_ul;
 	struct ctrl_dl ctrl_dl;
-	struct kfifo *fifo_ul;
+	struct kfifo fifo_ul;
 	void __iomem *dl_addr[2];
 	u32 dl_size[2];
 	u8 toggle_dl;
@@ -685,8 +685,6 @@ static int nozomi_read_config_table(struct nozomi *dc)
 		dump_table(dc);
 
 		for (i = PORT_MDM; i < MAX_PORT; i++) {
-			dc->port[i].fifo_ul =
-			    kfifo_alloc(FIFO_BUFFER_SIZE_UL, GFP_ATOMIC, NULL);
 			memset(&dc->port[i].ctrl_dl, 0, sizeof(struct ctrl_dl));
 			memset(&dc->port[i].ctrl_ul, 0, sizeof(struct ctrl_ul));
 		}
@@ -798,7 +796,7 @@ static int send_data(enum port_type index, struct nozomi *dc)
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
 
 	/* Get data from tty and place in buf for now */
-	size = __kfifo_get(port->fifo_ul, dc->send_buf,
+	size = kfifo_out(&port->fifo_ul, dc->send_buf,
 			   ul_size < SEND_BUF_MAX ? ul_size : SEND_BUF_MAX);
 
 	if (size == 0) {
@@ -988,11 +986,11 @@ static int receive_flow_control(struct nozomi *dc)
 
 	} else if (old_ctrl.CTS == 0 && ctrl_dl.CTS == 1) {
 
-		if (__kfifo_len(dc->port[port].fifo_ul)) {
+		if (kfifo_len(&dc->port[port].fifo_ul)) {
 			DBG1("Enable interrupt (0x%04X) on port: %d",
 				enable_ier, port);
 			DBG1("Data in buffer [%d], enable transmit! ",
-				__kfifo_len(dc->port[port].fifo_ul));
+				kfifo_len(&dc->port[port].fifo_ul));
 			enable_transmit_ul(port, dc);
 		} else {
 			DBG1("No data in buffer...");
@@ -1433,6 +1431,16 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 		goto err_free_sbuf;
 	}
 
+	for (i = PORT_MDM; i < MAX_PORT; i++) {
+		if (kfifo_alloc(&dc->port[i].fifo_ul,
+		      FIFO_BUFFER_SIZE_UL, GFP_ATOMIC)) {
+			dev_err(&pdev->dev,
+					"Could not allocate kfifo buffer\n");
+			ret = -ENOMEM;
+			goto err_free_kfifo;
+		}
+	}
+
 	spin_lock_init(&dc->spin_mutex);
 
 	nozomi_setup_private_data(dc);
@@ -1445,7 +1453,7 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 			NOZOMI_NAME, dc);
 	if (unlikely(ret)) {
 		dev_err(&pdev->dev, "can't request irq %d\n", pdev->irq);
-		goto err_free_sbuf;
+		goto err_free_kfifo;
 	}
 
 	DBG1("base_addr: %p", dc->base_addr);
@@ -1464,13 +1472,28 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	dc->state = NOZOMI_STATE_ENABLED;
 
 	for (i = 0; i < MAX_PORT; i++) {
+		struct device *tty_dev;
+
 		mutex_init(&dc->port[i].tty_sem);
 		tty_port_init(&dc->port[i].port);
-		tty_register_device(ntty_driver, dc->index_start + i,
+		tty_dev = tty_register_device(ntty_driver, dc->index_start + i,
 							&pdev->dev);
+
+		if (IS_ERR(tty_dev)) {
+			ret = PTR_ERR(tty_dev);
+			dev_err(&pdev->dev, "Could not allocate tty?\n");
+			goto err_free_tty;
+		}
 	}
+
 	return 0;
 
+err_free_tty:
+	for (i = dc->index_start; i < dc->index_start + MAX_PORT; ++i)
+		tty_unregister_device(ntty_driver, i);
+err_free_kfifo:
+	for (i = 0; i < MAX_PORT; i++)
+		kfifo_free(&dc->port[i].fifo_ul);
 err_free_sbuf:
 	kfree(dc->send_buf);
 	iounmap(dc->base_addr);
@@ -1536,8 +1559,7 @@ static void __devexit nozomi_card_exit(struct pci_dev *pdev)
 	free_irq(pdev->irq, dc);
 
 	for (i = 0; i < MAX_PORT; i++)
-		if (dc->port[i].fifo_ul)
-			kfifo_free(dc->port[i].fifo_ul);
+		kfifo_free(&dc->port[i].fifo_ul);
 
 	kfree(dc->send_buf);
 
@@ -1673,7 +1695,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 		goto exit;
 	}
 
-	rval = __kfifo_put(port->fifo_ul, (unsigned char *)buffer, count);
+	rval = kfifo_in(&port->fifo_ul, (unsigned char *)buffer, count);
 
 	/* notify card */
 	if (unlikely(dc == NULL)) {
@@ -1721,7 +1743,7 @@ static int ntty_write_room(struct tty_struct *tty)
 	if (!port->port.count)
 		goto exit;
 
-	room = port->fifo_ul->size - __kfifo_len(port->fifo_ul);
+	room = port->fifo_ul.size - kfifo_len(&port->fifo_ul);
 
 exit:
 	mutex_unlock(&port->tty_sem);
@@ -1878,7 +1900,7 @@ static s32 ntty_chars_in_buffer(struct tty_struct *tty)
 		goto exit_in_buffer;
 	}
 
-	rval = __kfifo_len(port->fifo_ul);
+	rval = kfifo_len(&port->fifo_ul);
 
 exit_in_buffer:
 	return rval;

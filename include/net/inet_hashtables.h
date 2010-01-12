@@ -92,8 +92,8 @@ static inline struct net *ib_net(struct inet_bind_bucket *ib)
 	return read_pnet(&ib->ib_net);
 }
 
-#define inet_bind_bucket_for_each(tb, node, head) \
-	hlist_for_each_entry(tb, node, head, node)
+#define inet_bind_bucket_for_each(tb, pos, head) \
+	hlist_for_each_entry(tb, pos, head, node)
 
 struct inet_bind_hashbucket {
 	spinlock_t		lock;
@@ -125,7 +125,7 @@ struct inet_hashinfo {
 	 */
 	struct inet_ehash_bucket	*ehash;
 	spinlock_t			*ehash_locks;
-	unsigned int			ehash_size;
+	unsigned int			ehash_mask;
 	unsigned int			ehash_locks_mask;
 
 	/* Ok, let's try this, I give up, we do need a local binding
@@ -158,7 +158,7 @@ static inline struct inet_ehash_bucket *inet_ehash_bucket(
 	struct inet_hashinfo *hashinfo,
 	unsigned int hash)
 {
-	return &hashinfo->ehash[hash & (hashinfo->ehash_size - 1)];
+	return &hashinfo->ehash[hash & hashinfo->ehash_mask];
 }
 
 static inline spinlock_t *inet_ehash_lockp(
@@ -241,7 +241,7 @@ static inline int inet_lhashfn(struct net *net, const unsigned short num)
 
 static inline int inet_sk_listen_hashfn(const struct sock *sk)
 {
-	return inet_lhashfn(sock_net(sk), inet_sk(sk)->num);
+	return inet_lhashfn(sock_net(sk), inet_sk(sk)->inet_num);
 }
 
 /* Caller must disable local BH processing. */
@@ -251,7 +251,7 @@ extern void inet_put_port(struct sock *sk);
 
 void inet_hashinfo_init(struct inet_hashinfo *h);
 
-extern void __inet_hash_nolisten(struct sock *sk);
+extern int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw);
 extern void inet_hash(struct sock *sk);
 extern void inet_unhash(struct sock *sk);
 
@@ -301,8 +301,8 @@ typedef __u64 __bitwise __addrpair;
 #endif /* __BIG_ENDIAN */
 #define INET_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net)) &&	\
-	 ((*((__addrpair *)&(inet_sk(__sk)->daddr))) == (__cookie))	&&	\
-	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 ((*((__addrpair *)&(inet_sk(__sk)->inet_daddr))) == (__cookie))  &&	\
+	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports))   &&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #define INET_TW_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net)) &&	\
@@ -313,9 +313,9 @@ typedef __u64 __bitwise __addrpair;
 #define INET_ADDR_COOKIE(__name, __saddr, __daddr)
 #define INET_MATCH(__sk, __net, __hash, __cookie, __saddr, __daddr, __ports, __dif)	\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net))	&&	\
-	 (inet_sk(__sk)->daddr		== (__saddr))		&&	\
-	 (inet_sk(__sk)->rcv_saddr	== (__daddr))		&&	\
-	 ((*((__portpair *)&(inet_sk(__sk)->dport))) == (__ports))	&&	\
+	 (inet_sk(__sk)->inet_daddr	== (__saddr))		&&	\
+	 (inet_sk(__sk)->inet_rcv_saddr	== (__daddr))		&&	\
+	 ((*((__portpair *)&(inet_sk(__sk)->inet_dport))) == (__ports))	&&	\
 	 (!((__sk)->sk_bound_dev_if) || ((__sk)->sk_bound_dev_if == (__dif))))
 #define INET_TW_MATCH(__sk, __net, __hash,__cookie, __saddr, __daddr, __ports, __dif)	\
 	(((__sk)->sk_hash == (__hash)) && net_eq(sock_net(__sk), (__net))	&&	\
@@ -391,10 +391,12 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 }
 
 extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,
-		struct sock *sk, u32 port_offset,
+		struct sock *sk,
+		u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
-			       void (*hash)(struct sock *sk));
+		int (*hash)(struct sock *sk, struct inet_timewait_sock *twp));
+
 extern int inet_hash_connect(struct inet_timewait_death_row *death_row,
 			     struct sock *sk);
 #endif /* _INET_HASHTABLES_H */

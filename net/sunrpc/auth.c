@@ -123,16 +123,19 @@ rpcauth_unhash_cred_locked(struct rpc_cred *cred)
 	clear_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags);
 }
 
-static void
+static int
 rpcauth_unhash_cred(struct rpc_cred *cred)
 {
 	spinlock_t *cache_lock;
+	int ret;
 
 	cache_lock = &cred->cr_auth->au_credcache->lock;
 	spin_lock(cache_lock);
-	if (atomic_read(&cred->cr_count) == 0)
+	ret = atomic_read(&cred->cr_count) == 0;
+	if (ret)
 		rpcauth_unhash_cred_locked(cred);
 	spin_unlock(cache_lock);
+	return ret;
 }
 
 /*
@@ -332,9 +335,9 @@ rpcauth_lookup_credcache(struct rpc_auth *auth, struct auth_cred * acred,
 		list_add_tail(&new->cr_lru, &free);
 	spin_unlock(&cache->lock);
 found:
-	if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags)
-			&& cred->cr_ops->cr_init != NULL
-			&& !(flags & RPCAUTH_LOOKUP_NEW)) {
+	if (test_bit(RPCAUTH_CRED_NEW, &cred->cr_flags) &&
+	    cred->cr_ops->cr_init != NULL &&
+	    !(flags & RPCAUTH_LOOKUP_NEW)) {
 		int res = cred->cr_ops->cr_init(auth, cred);
 		if (res < 0) {
 			put_rpccred(cred);
@@ -446,31 +449,35 @@ void
 put_rpccred(struct rpc_cred *cred)
 {
 	/* Fast path for unhashed credentials */
-	if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
-		goto need_lock;
-
-	if (!atomic_dec_and_test(&cred->cr_count))
+	if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) == 0) {
+		if (atomic_dec_and_test(&cred->cr_count))
+			cred->cr_ops->crdestroy(cred);
 		return;
-	goto out_destroy;
-need_lock:
+	}
+
 	if (!atomic_dec_and_lock(&cred->cr_count, &rpc_credcache_lock))
 		return;
 	if (!list_empty(&cred->cr_lru)) {
 		number_cred_unused--;
 		list_del_init(&cred->cr_lru);
 	}
-	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
-		rpcauth_unhash_cred(cred);
 	if (test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
-		cred->cr_expire = jiffies;
-		list_add_tail(&cred->cr_lru, &cred_unused);
-		number_cred_unused++;
-		spin_unlock(&rpc_credcache_lock);
-		return;
+		if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0) {
+			cred->cr_expire = jiffies;
+			list_add_tail(&cred->cr_lru, &cred_unused);
+			number_cred_unused++;
+			goto out_nodestroy;
+		}
+		if (!rpcauth_unhash_cred(cred)) {
+			/* We were hashed and someone looked us up... */
+			goto out_nodestroy;
+		}
 	}
 	spin_unlock(&rpc_credcache_lock);
-out_destroy:
 	cred->cr_ops->crdestroy(cred);
+	return;
+out_nodestroy:
+	spin_unlock(&rpc_credcache_lock);
 }
 EXPORT_SYMBOL_GPL(put_rpccred);
 

@@ -391,7 +391,7 @@ static int vpx3220_s_routing(struct v4l2_subdev *sd,
 		{0x0e, 1}
 	};
 
-	if (input < 0 || input > 2)
+	if (input > 2)
 		return -EINVAL;
 
 	v4l2_dbg(1, debug, sd, "input switched to %s\n", inputs[input]);

@@ -35,7 +35,9 @@
 #define SR_MASK 0x001f
 
 /* sets the trace bits. */
-#define TRACE_BITS 0x8000
+#define TRACE_BITS 0xC000
+#define T1_BIT 0x8000
+#define T0_BIT 0x4000
 
 /* Find the stack offset for a register, relative to thread.esp0. */
 #define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
@@ -44,7 +46,7 @@
 /* Mapping from PT_xxx to the stack offset at which the register is
    saved.  Notice that usp has no stack-slot and needs to be treated
    specially (see get_reg/put_reg below). */
-static int regoff[] = {
+static const int regoff[] = {
 	[0]	= PT_REG(d1),
 	[1]	= PT_REG(d2),
 	[2]	= PT_REG(d3),
@@ -79,6 +81,14 @@ static inline long get_reg(struct task_struct *task, int regno)
 		addr = (unsigned long *)(task->thread.esp0 + regoff[regno]);
 	else
 		return 0;
+	/* Need to take stkadj into account. */
+	if (regno == PT_SR || regno == PT_PC) {
+		long stkadj = *(long *)(task->thread.esp0 + PT_REG(stkadj));
+		addr = (unsigned long *) ((unsigned long)addr + stkadj);
+		/* The sr is actually a 16 bit register.  */
+		if (regno == PT_SR)
+			return *(unsigned short *)addr;
+	}
 	return *addr;
 }
 
@@ -96,6 +106,16 @@ static inline int put_reg(struct task_struct *task, int regno,
 		addr = (unsigned long *)(task->thread.esp0 + regoff[regno]);
 	else
 		return -1;
+	/* Need to take stkadj into account. */
+	if (regno == PT_SR || regno == PT_PC) {
+		long stkadj = *(long *)(task->thread.esp0 + PT_REG(stkadj));
+		addr = (unsigned long *) ((unsigned long)addr + stkadj);
+		/* The sr is actually a 16 bit register.  */
+		if (regno == PT_SR) {
+			*(unsigned short *)addr = data;
+			return 0;
+		}
+	}
 	*addr = data;
 	return 0;
 }
@@ -105,7 +125,7 @@ static inline int put_reg(struct task_struct *task, int regno,
  */
 static inline void singlestep_disable(struct task_struct *child)
 {
-	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
+	unsigned long tmp = get_reg(child, PT_SR) & ~TRACE_BITS;
 	put_reg(child, PT_SR, tmp);
 	clear_tsk_thread_flag(child, TIF_DELAYED_TRACE);
 }
@@ -118,18 +138,30 @@ void ptrace_disable(struct task_struct *child)
 	singlestep_disable(child);
 }
 
+void user_enable_single_step(struct task_struct *child)
+{
+	unsigned long tmp = get_reg(child, PT_SR) & ~TRACE_BITS;
+	put_reg(child, PT_SR, tmp | T1_BIT);
+	set_tsk_thread_flag(child, TIF_DELAYED_TRACE);
+}
+
+void user_enable_block_step(struct task_struct *child)
+{
+	unsigned long tmp = get_reg(child, PT_SR) & ~TRACE_BITS;
+	put_reg(child, PT_SR, tmp | T0_BIT);
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	singlestep_disable(child);
+}
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	unsigned long tmp;
 	int i, ret = 0;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT:	/* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR:
 		if (addr & 3)
@@ -138,8 +170,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr >= 0 && addr < 19) {
 			tmp = get_reg(child, addr);
-			if (addr == PT_SR)
-				tmp >>= 16;
 		} else if (addr >= 21 && addr < 49) {
 			tmp = child->thread.fp[addr - 21];
 			/* Convert internal fpu reg representation
@@ -149,14 +179,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				tmp = ((tmp & 0xffff0000) << 15) |
 				      ((tmp & 0x0000ffff) << 16);
 		} else
-			break;
+			goto out_eio;
 		ret = put_user(tmp, (unsigned long *)data);
-		break;
-
-	/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT:	/* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR:	/* write the word at location addr in the USER area */
@@ -166,9 +190,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr == PT_SR) {
 			data &= SR_MASK;
-			data <<= 16;
-			data |= get_reg(child, PT_SR) & ~(SR_MASK << 16);
-		} else if (addr >= 0 && addr < 19) {
+			data |= get_reg(child, PT_SR) & ~SR_MASK;
+		}
+		if (addr >= 0 && addr < 19) {
 			if (put_reg(child, addr, data))
 				goto out_eio;
 		} else if (addr >= 21 && addr < 48) {
@@ -185,52 +209,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			goto out_eio;
 		break;
 
-	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
-	case PTRACE_CONT:	/* restart after signal. */
-		if (!valid_signal(data))
-			goto out_eio;
-
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		singlestep_disable(child);
-		wake_up_process(child);
-		break;
-
-	/*
-	 * make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL:
-		if (child->exit_state == EXIT_ZOMBIE) /* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		singlestep_disable(child);
-		wake_up_process(child);
-		break;
-
-	case PTRACE_SINGLESTEP:	/* set the trap flag. */
-		if (!valid_signal(data))
-			goto out_eio;
-
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		tmp = get_reg(child, PT_SR) | (TRACE_BITS << 16);
-		put_reg(child, PT_SR, tmp);
-		set_tsk_thread_flag(child, TIF_DELAYED_TRACE);
-
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		break;
-
 	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
 		for (i = 0; i < 19; i++) {
 			tmp = get_reg(child, i);
-			if (i == PT_SR)
-				tmp >>= 16;
 			ret = put_user(tmp, (unsigned long *)data);
 			if (ret)
 				break;
@@ -245,8 +226,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			if (i == PT_SR) {
 				tmp &= SR_MASK;
-				tmp <<= 16;
-				tmp |= get_reg(child, PT_SR) & ~(SR_MASK << 16);
+				tmp |= get_reg(child, PT_SR) & ~SR_MASK;
 			}
 			put_reg(child, i, tmp);
 			data += sizeof(long);

@@ -1306,8 +1306,8 @@ static int init_max_rx_buff_len(u16 max_rx_buf_len,
 				u16 __iomem *mrblr_register)
 {
 	/* max_rx_buf_len value must be a multiple of 128 */
-	if ((max_rx_buf_len == 0)
-	    || (max_rx_buf_len % UCC_GETH_MRBLR_ALIGNMENT))
+	if ((max_rx_buf_len == 0) ||
+	    (max_rx_buf_len % UCC_GETH_MRBLR_ALIGNMENT))
 		return -EINVAL;
 
 	out_be16(mrblr_register, max_rx_buf_len);
@@ -2159,8 +2159,8 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 	}
 
 	if ((ug_info->numStationAddresses !=
-	     UCC_GETH_NUM_OF_STATION_ADDRESSES_1)
-	    && ug_info->rxExtendedFiltering) {
+	     UCC_GETH_NUM_OF_STATION_ADDRESSES_1) &&
+	    ug_info->rxExtendedFiltering) {
 		if (netif_msg_probe(ugeth))
 			ugeth_err("%s: Number of station addresses greater than 1 "
 				  "not allowed in extended parsing mode.",
@@ -2284,9 +2284,9 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	     UCC_GETH_NUM_OF_STATION_ADDRESSES_1);
 
 	ugeth->rx_extended_features = ugeth->rx_non_dynamic_extended_features ||
-	    (ug_info->vlanOperationTagged != UCC_GETH_VLAN_OPERATION_TAGGED_NOP)
-	    || (ug_info->vlanOperationNonTagged !=
-		UCC_GETH_VLAN_OPERATION_NON_TAGGED_NOP);
+		(ug_info->vlanOperationTagged != UCC_GETH_VLAN_OPERATION_TAGGED_NOP) ||
+		(ug_info->vlanOperationNonTagged !=
+		 UCC_GETH_VLAN_OPERATION_NON_TAGGED_NOP);
 
 	init_default_reg_vals(&uf_regs->upsmr,
 			      &ug_regs->maccfg1, &ug_regs->maccfg2);
@@ -2987,11 +2987,11 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	ugeth->p_init_enet_param_shadow->rgftgfrxglobal |=
 	    ugeth->rx_glbl_pram_offset | ug_info->riscRx;
 	if ((ug_info->largestexternallookupkeysize !=
-	     QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_NONE)
-	    && (ug_info->largestexternallookupkeysize !=
-		QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_8_BYTES)
-	    && (ug_info->largestexternallookupkeysize !=
-		QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_16_BYTES)) {
+	     QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_NONE) &&
+	    (ug_info->largestexternallookupkeysize !=
+	     QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_8_BYTES) &&
+	    (ug_info->largestexternallookupkeysize !=
+	     QE_FLTR_LARGEST_EXTERNAL_TABLE_LOOKUP_KEY_SIZE_16_BYTES)) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Invalid largest External Lookup Key Size.",
 				  __func__);
@@ -3798,7 +3798,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		prop = of_get_property(np, "tx-clock", NULL);
 		if (!prop) {
 			printk(KERN_ERR
-				"ucc_geth: mising tx-clock-name property\n");
+				"ucc_geth: missing tx-clock-name property\n");
 			return -EINVAL;
 		}
 		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {

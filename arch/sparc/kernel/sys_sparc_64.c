@@ -317,10 +317,14 @@ bottomup:
 unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	unsigned long align_goal, addr = -ENOMEM;
+	unsigned long (*get_area)(struct file *, unsigned long,
+				  unsigned long, unsigned long, unsigned long);
+
+	get_area = current->mm->get_unmapped_area;
 
 	if (flags & MAP_FIXED) {
 		/* Ok, don't mess with it. */
-		return get_unmapped_area(NULL, orig_addr, len, pgoff, flags);
+		return get_area(NULL, orig_addr, len, pgoff, flags);
 	}
 	flags &= ~MAP_SHARED;
 
@@ -333,7 +337,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 		align_goal = (64UL * 1024);
 
 	do {
-		addr = get_unmapped_area(NULL, orig_addr, len + (align_goal - PAGE_SIZE), pgoff, flags);
+		addr = get_area(NULL, orig_addr, len + (align_goal - PAGE_SIZE), pgoff, flags);
 		if (!(addr & ~PAGE_MASK)) {
 			addr = (addr + (align_goal - 1UL)) & ~(align_goal - 1UL);
 			break;
@@ -351,7 +355,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 	 * be obtained.
 	 */
 	if (addr & ~PAGE_MASK)
-		addr = get_unmapped_area(NULL, orig_addr, len, pgoff, flags);
+		addr = get_area(NULL, orig_addr, len, pgoff, flags);
 
 	return addr;
 }
@@ -399,18 +403,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	}
 }
 
-SYSCALL_DEFINE1(sparc_brk, unsigned long, brk)
-{
-	/* People could try to be nasty and use ta 0x6d in 32bit programs */
-	if (test_thread_flag(TIF_32BIT) && brk >= STACK_TOP32)
-		return current->mm->brk;
-
-	if (unlikely(straddles_64bit_va_hole(current->mm->brk, brk)))
-		return current->mm->brk;
-
-	return sys_brk(brk);
-}
-                                                                
 /*
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
@@ -568,23 +560,13 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags, unsigned long, fd,
 		unsigned long, off)
 {
-	struct file * file = NULL;
-	unsigned long retval = -EBADF;
+	unsigned long retval = -EINVAL;
 
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	len = PAGE_ALIGN(len);
-
-	down_write(&current->mm->mmap_sem);
-	retval = do_mmap(file, addr, len, prot, flags, off);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
+	if ((off + PAGE_ALIGN(len)) < off)
+		goto out;
+	if (off & ~PAGE_MASK)
+		goto out;
+	retval = sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 out:
 	return retval;
 }
@@ -613,12 +595,6 @@ SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 	unsigned long ret = -EINVAL;
 
 	if (test_thread_flag(TIF_32BIT))
-		goto out;
-	if (unlikely(new_len >= VA_EXCLUDE_START))
-		goto out;
-	if (unlikely(sparc_mmap_check(addr, old_len)))
-		goto out;
-	if (unlikely(sparc_mmap_check(new_addr, new_len)))
 		goto out;
 
 	down_write(&current->mm->mmap_sem);

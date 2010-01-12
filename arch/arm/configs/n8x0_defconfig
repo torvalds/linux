@@ -232,7 +232,6 @@ CONFIG_MACH_NOKIA_N8X0=y
 #
 # Processor Type
 #
-CONFIG_CPU_32=y
 CONFIG_CPU_V6=y
 # CONFIG_CPU_32v6K is not set
 CONFIG_CPU_32v6=y

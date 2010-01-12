@@ -6,11 +6,13 @@ choice
 
 config MACH_MX21
 	bool "i.MX21 support"
+	select ARCH_MXC_AUDMUX_V1
 	help
 	  This enables support for Freescale's MX2 based i.MX21 processor.
 
 config MACH_MX27
 	bool "i.MX27 support"
+	select ARCH_MXC_AUDMUX_V1
 	help
 	  This enables support for Freescale's MX2 based i.MX27 processor.
 
@@ -100,6 +102,13 @@ config MACH_PCA100
 	depends on MACH_MX27
 	help
 	  Include support for phyCARD-s (aka pca100) platform. This
+	  includes specific configurations for the module and its peripherals.
+
+config MACH_MXT_TD60
+	bool "Maxtrack i-MXT TD60"
+	depends on MACH_MX27
+	help
+	  Include support for i-MXT (aka td60) platform. This
 	  includes specific configurations for the module and its peripherals.
 
 endif

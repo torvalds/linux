@@ -648,8 +648,8 @@ static void phy_intr(struct net_device *ndev)
 		dprintk("phy_intr: tbisr=%08x, tanar=%08x, tanlpar=%08x\n",
 			tbisr, tanar, tanlpar);
 
-		if ( (fullduplex = (tanlpar & TANAR_FULL_DUP)
-		      && (tanar & TANAR_FULL_DUP)) ) {
+		if ( (fullduplex = (tanlpar & TANAR_FULL_DUP) &&
+		      (tanar & TANAR_FULL_DUP)) ) {
 
 			/* both of us are full duplex */
 			writel(readl(dev->base + TXCFG)
@@ -661,12 +661,12 @@ static void phy_intr(struct net_device *ndev)
 			writel(readl(dev->base + GPIOR) | GPIOR_GP1_OUT,
 			       dev->base + GPIOR);
 
-		} else if(((tanlpar & TANAR_HALF_DUP)
-			   && (tanar & TANAR_HALF_DUP))
-			|| ((tanlpar & TANAR_FULL_DUP)
-			    && (tanar & TANAR_HALF_DUP))
-			|| ((tanlpar & TANAR_HALF_DUP)
-			    && (tanar & TANAR_FULL_DUP))) {
+		} else if (((tanlpar & TANAR_HALF_DUP) &&
+			    (tanar & TANAR_HALF_DUP)) ||
+			   ((tanlpar & TANAR_FULL_DUP) &&
+			    (tanar & TANAR_HALF_DUP)) ||
+			   ((tanlpar & TANAR_HALF_DUP) &&
+			    (tanar & TANAR_FULL_DUP))) {
 
 			/* one or both of us are half duplex */
 			writel((readl(dev->base + TXCFG)
@@ -720,16 +720,16 @@ static void phy_intr(struct net_device *ndev)
 
 	newlinkstate = (cfg & CFG_LNKSTS) ? LINK_UP : LINK_DOWN;
 
-	if (newlinkstate & LINK_UP
-	    && dev->linkstate != newlinkstate) {
+	if (newlinkstate & LINK_UP &&
+	    dev->linkstate != newlinkstate) {
 		netif_start_queue(ndev);
 		netif_wake_queue(ndev);
 		printk(KERN_INFO "%s: link now %s mbps, %s duplex and up.\n",
 			ndev->name,
 			speeds[speed],
 			fullduplex ? "full" : "half");
-	} else if (newlinkstate & LINK_DOWN
-		   && dev->linkstate != newlinkstate) {
+	} else if (newlinkstate & LINK_DOWN &&
+		   dev->linkstate != newlinkstate) {
 		netif_stop_queue(ndev);
 		printk(KERN_INFO "%s: link now down.\n", ndev->name);
 	}

@@ -17,6 +17,7 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_GRAPH_ENT:
 	case TRACE_GRAPH_RET:
 	case TRACE_HW_BRANCHES:
+	case TRACE_KSYM:
 		return 1;
 	}
 	return 0;
@@ -66,7 +67,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 
 	/* Don't allow flipping of max traces now */
 	local_irq_save(flags);
-	__raw_spin_lock(&ftrace_max_lock);
+	arch_spin_lock(&ftrace_max_lock);
 
 	cnt = ring_buffer_entries(tr->buffer);
 
@@ -84,7 +85,7 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 			break;
 	}
 	tracing_on();
-	__raw_spin_unlock(&ftrace_max_lock);
+	arch_spin_unlock(&ftrace_max_lock);
 	local_irq_restore(flags);
 
 	if (count)
@@ -808,3 +809,57 @@ trace_selftest_startup_hw_branches(struct tracer *trace,
 	return ret;
 }
 #endif /* CONFIG_HW_BRANCH_TRACER */
+
+#ifdef CONFIG_KSYM_TRACER
+static int ksym_selftest_dummy;
+
+int
+trace_selftest_startup_ksym(struct tracer *trace, struct trace_array *tr)
+{
+	unsigned long count;
+	int ret;
+
+	/* start the tracing */
+	ret = tracer_init(trace, tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
+	ksym_selftest_dummy = 0;
+	/* Register the read-write tracing request */
+
+	ret = process_new_ksym_entry("ksym_selftest_dummy",
+				     HW_BREAKPOINT_R | HW_BREAKPOINT_W,
+					(unsigned long)(&ksym_selftest_dummy));
+
+	if (ret < 0) {
+		printk(KERN_CONT "ksym_trace read-write startup test failed\n");
+		goto ret_path;
+	}
+	/* Perform a read and a write operation over the dummy variable to
+	 * trigger the tracer
+	 */
+	if (ksym_selftest_dummy == 0)
+		ksym_selftest_dummy++;
+
+	/* stop the tracing. */
+	tracing_stop();
+	/* check the trace buffer */
+	ret = trace_test_buffer(tr, &count);
+	trace->reset(tr);
+	tracing_start();
+
+	/* read & write operations - one each is performed on the dummy variable
+	 * triggering two entries in the trace buffer
+	 */
+	if (!ret && count != 2) {
+		printk(KERN_CONT "Ksym tracer startup test failed");
+		ret = -1;
+	}
+
+ret_path:
+	return ret;
+}
+#endif /* CONFIG_KSYM_TRACER */
+

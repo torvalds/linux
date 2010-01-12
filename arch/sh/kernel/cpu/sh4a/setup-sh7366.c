@@ -18,6 +18,22 @@
 #include <linux/usb/r8a66597.h>
 #include <asm/clock.h>
 
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xffe00000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 80, 80, 80, 80 },
+	.clk		= "scif0",
+};
+
+static struct platform_device scif0_device = {
+	.name		= "sh-sci",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
 static struct resource iic_resources[] = {
 	[0] = {
 		.name	= "IIC",
@@ -276,33 +292,13 @@ static struct platform_device tmu2_device = {
 	.num_resources	= ARRAY_SIZE(tmu2_resources),
 };
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xffe00000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 80, 80, 80, 80 },
-		.clk		= "scif0",
-	}, {
-		.flags = 0,
-	}
-};
-
-static struct platform_device sci_device = {
-	.name		= "sh-sci",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= sci_platform_data,
-	},
-};
-
 static struct platform_device *sh7366_devices[] __initdata = {
+	&scif0_device,
 	&cmt_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
 	&iic_device,
-	&sci_device,
 	&usb_host_device,
 	&vpu_device,
 	&veu0_device,
@@ -321,6 +317,7 @@ static int __init sh7366_devices_setup(void)
 arch_initcall(sh7366_devices_setup);
 
 static struct platform_device *sh7366_early_devices[] __initdata = {
+	&scif0_device,
 	&cmt_device,
 	&tmu0_device,
 	&tmu1_device,

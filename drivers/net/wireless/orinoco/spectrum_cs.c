@@ -73,9 +73,6 @@ static void spectrum_cs_release(struct pcmcia_device *link);
 #define HCR_MEM16	0x10	/* memory width bit, should be preserved */
 
 
-#define CS_CHECK(fn, ret) \
-  do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 /*
  * Reset the card using configuration registers COR and CCSR.
  * If IDLE is 1, stop the firmware, so that it can be safely rewritten.
@@ -83,7 +80,7 @@ static void spectrum_cs_release(struct pcmcia_device *link);
 static int
 spectrum_reset(struct pcmcia_device *link, int idle)
 {
-	int last_ret, last_fn;
+	int ret;
 	conf_reg_t reg;
 	u_int save_cor;
 
@@ -95,23 +92,26 @@ spectrum_reset(struct pcmcia_device *link, int idle)
 	reg.Function = 0;
 	reg.Action = CS_READ;
 	reg.Offset = CISREG_COR;
-	CS_CHECK(AccessConfigurationRegister,
-		 pcmcia_access_configuration_register(link, &reg));
+	ret = pcmcia_access_configuration_register(link, &reg);
+	if (ret)
+		goto failed;
 	save_cor = reg.Value;
 
 	/* Soft-Reset card */
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_COR;
 	reg.Value = (save_cor | COR_SOFT_RESET);
-	CS_CHECK(AccessConfigurationRegister,
-		 pcmcia_access_configuration_register(link, &reg));
+	ret = pcmcia_access_configuration_register(link, &reg);
+	if (ret)
+		goto failed;
 	udelay(1000);
 
 	/* Read CCSR */
 	reg.Action = CS_READ;
 	reg.Offset = CISREG_CCSR;
-	CS_CHECK(AccessConfigurationRegister,
-		 pcmcia_access_configuration_register(link, &reg));
+	ret = pcmcia_access_configuration_register(link, &reg);
+	if (ret)
+		goto failed;
 
 	/*
 	 * Start or stop the firmware.  Memory width bit should be
@@ -120,21 +120,22 @@ spectrum_reset(struct pcmcia_device *link, int idle)
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_CCSR;
 	reg.Value = (idle ? HCR_IDLE : HCR_RUN) | (reg.Value & HCR_MEM16);
-	CS_CHECK(AccessConfigurationRegister,
-		 pcmcia_access_configuration_register(link, &reg));
+	ret = pcmcia_access_configuration_register(link, &reg);
+	if (ret)
+		goto failed;
 	udelay(1000);
 
 	/* Restore original COR configuration index */
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_COR;
 	reg.Value = (save_cor & ~COR_SOFT_RESET);
-	CS_CHECK(AccessConfigurationRegister,
-		 pcmcia_access_configuration_register(link, &reg));
+	ret = pcmcia_access_configuration_register(link, &reg);
+	if (ret)
+		goto failed;
 	udelay(1000);
 	return 0;
 
-cs_failed:
-	cs_error(link, last_fn, last_ret);
+failed:
 	return -ENODEV;
 }
 
@@ -181,7 +182,7 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 
-	priv = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
+	priv = alloc_orinocodev(sizeof(*card), &link->dev,
 				spectrum_cs_hard_reset,
 				spectrum_cs_stop_firmware);
 	if (!priv)
@@ -193,10 +194,8 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	link->priv = priv;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.Handler = orinoco_interrupt;
-	link->irq.Instance = priv;
 
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for
@@ -307,7 +306,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 	struct orinoco_private *priv = link->priv;
 	struct orinoco_pccard *card = priv->card;
 	hermes_t *hw = &priv->hw;
-	int last_fn, last_ret;
+	int ret;
 	void __iomem *mem;
 
 	/*
@@ -324,13 +323,12 @@ spectrum_cs_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
-	last_ret = pcmcia_loop_config(link, spectrum_cs_config_check, NULL);
-	if (last_ret) {
+	ret = pcmcia_loop_config(link, spectrum_cs_config_check, NULL);
+	if (ret) {
 		if (!ignore_cis_vcc)
 			printk(KERN_ERR PFX "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
 			       "ignore_cis_vcc=1 parameter.\n");
-		cs_error(link, RequestIO, last_ret);
 		goto failed;
 	}
 
@@ -339,14 +337,16 @@ spectrum_cs_config(struct pcmcia_device *link)
 	 * a handler to the interrupt, unless the 'Handler' member of
 	 * the irq structure is initialized.
 	 */
-	CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+	ret = pcmcia_request_irq(link, &link->irq);
+	if (ret)
+		goto failed;
 
 	/* We initialize the hermes structure before completing PCMCIA
 	 * configuration just in case the interrupt handler gets
 	 * called. */
 	mem = ioport_map(link->io.BasePort1, link->io.NumPorts1);
 	if (!mem)
-		goto cs_failed;
+		goto failed;
 
 	hermes_struct_init(hw, mem, HERMES_16BIT_REGSPACING);
 
@@ -355,8 +355,9 @@ spectrum_cs_config(struct pcmcia_device *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	CS_CHECK(RequestConfiguration,
-		 pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	/* Ok, we have the configuration, prepare to register the netdev */
 	card->node.major = card->node.minor = 0;
@@ -385,9 +386,6 @@ spectrum_cs_config(struct pcmcia_device *link)
 				       * used to indicate that the
 				       * net_device has been registered */
 	return 0;
-
- cs_failed:
-	cs_error(link, last_fn, last_ret);
 
  failed:
 	spectrum_cs_release(link);

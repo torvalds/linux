@@ -76,18 +76,18 @@ enum {
 };
 
 static struct usb_device_id vmk80xx_id_table[] = {
-	{USB_DEVICE(0x10cf, 0x5500),.driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x5501),.driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x5502),.driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x5503),.driver_info = DEVICE_VMK8055},
-	{USB_DEVICE(0x10cf, 0x8061),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8062),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8063),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8064),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8065),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8066),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8067),.driver_info = DEVICE_VMK8061},
-	{USB_DEVICE(0x10cf, 0x8068),.driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x5500), .driver_info = DEVICE_VMK8055},
+	{USB_DEVICE(0x10cf, 0x5501), .driver_info = DEVICE_VMK8055},
+	{USB_DEVICE(0x10cf, 0x5502), .driver_info = DEVICE_VMK8055},
+	{USB_DEVICE(0x10cf, 0x5503), .driver_info = DEVICE_VMK8055},
+	{USB_DEVICE(0x10cf, 0x8061), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8062), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8063), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8064), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8065), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8066), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8067), .driver_info = DEVICE_VMK8061},
+	{USB_DEVICE(0x10cf, 0x8068), .driver_info = DEVICE_VMK8061},
 	{}			/* terminating entry */
 };
 

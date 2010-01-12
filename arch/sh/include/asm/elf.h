@@ -114,7 +114,6 @@ typedef struct user_fpu_struct elf_fpregset_t;
  */
 #define CORE_DUMP_USE_REGSET
 
-#define USE_ELF_CORE_DUMP
 #define ELF_FDPIC_CORE_EFLAGS	EF_SH_FDPIC
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 

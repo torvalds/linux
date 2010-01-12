@@ -124,7 +124,7 @@ struct sigcontext {
 	 * fpstate is really (struct _fpstate *) or (struct _xstate *)
 	 * depending on the FP_XSTATE_MAGIC1 encoded in the SW reserved
 	 * bytes of (struct _fpstate) and FP_XSTATE_MAGIC2 present at the end
-	 * of extended memory layout. See comments at the defintion of
+	 * of extended memory layout. See comments at the definition of
 	 * (struct _fpx_sw_bytes)
 	 */
 	void __user *fpstate;		/* zero when no FPU/extended context */
@@ -219,7 +219,7 @@ struct sigcontext {
 	 * fpstate is really (struct _fpstate *) or (struct _xstate *)
 	 * depending on the FP_XSTATE_MAGIC1 encoded in the SW reserved
 	 * bytes of (struct _fpstate) and FP_XSTATE_MAGIC2 present at the end
-	 * of extended memory layout. See comments at the defintion of
+	 * of extended memory layout. See comments at the definition of
 	 * (struct _fpx_sw_bytes)
 	 */
 	void __user *fpstate;		/* zero when no FPU/extended context */

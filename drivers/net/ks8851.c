@@ -1,4 +1,4 @@
-/* drivers/net/ks8651.c
+/* drivers/net/ks8851.c
  *
  * Copyright 2009 Simtec Electronics
  *	http://www.simtec.co.uk/
@@ -714,7 +714,7 @@ static void ks8851_tx_work(struct work_struct *work)
 {
 	struct ks8851_net *ks = container_of(work, struct ks8851_net, tx_work);
 	struct sk_buff *txb;
-	bool last = false;
+	bool last = skb_queue_empty(&ks->txq);
 
 	mutex_lock(&ks->lock);
 

@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -76,7 +75,6 @@ static inline void apc_free(struct of_device *op)
 
 static int apc_open(struct inode *inode, struct file *f)
 {
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -87,61 +85,46 @@ static int apc_release(struct inode *inode, struct file *f)
 
 static long apc_ioctl(struct file *f, unsigned int cmd, unsigned long __arg)
 {
-	__u8 inarg, __user *arg;
-
-	arg = (__u8 __user *) __arg;
-
-	lock_kernel();
+	__u8 inarg, __user *arg = (__u8 __user *) __arg;
 
 	switch (cmd) {
 	case APCIOCGFANCTL:
-		if (put_user(apc_readb(APC_FANCTL_REG) & APC_REGMASK, arg)) {
-			unlock_kernel();
+		if (put_user(apc_readb(APC_FANCTL_REG) & APC_REGMASK, arg))
 			return -EFAULT;
-		}
 		break;
 
 	case APCIOCGCPWR:
-		if (put_user(apc_readb(APC_CPOWER_REG) & APC_REGMASK, arg)) {
-			unlock_kernel();
+		if (put_user(apc_readb(APC_CPOWER_REG) & APC_REGMASK, arg))
 			return -EFAULT;
-		}
 		break;
 
 	case APCIOCGBPORT:
-		if (put_user(apc_readb(APC_BPORT_REG) & APC_BPMASK, arg)) {
-			unlock_kernel();
+		if (put_user(apc_readb(APC_BPORT_REG) & APC_BPMASK, arg))
 			return -EFAULT;
-		}
 		break;
 
 	case APCIOCSFANCTL:
-		if (get_user(inarg, arg)) {
-			unlock_kernel();
+		if (get_user(inarg, arg))
 			return -EFAULT;
-		}
 		apc_writeb(inarg & APC_REGMASK, APC_FANCTL_REG);
 		break;
+
 	case APCIOCSCPWR:
-		if (get_user(inarg, arg)) {
-			unlock_kernel();
+		if (get_user(inarg, arg))
 			return -EFAULT;
-		}
 		apc_writeb(inarg & APC_REGMASK, APC_CPOWER_REG);
 		break;
+
 	case APCIOCSBPORT:
-		if (get_user(inarg, arg)) {
-			unlock_kernel();
+		if (get_user(inarg, arg))
 			return -EFAULT;
-		}
 		apc_writeb(inarg & APC_BPMASK, APC_BPORT_REG);
 		break;
+
 	default:
-		unlock_kernel();
 		return -EINVAL;
 	};
 
-	unlock_kernel();
 	return 0;
 }
 

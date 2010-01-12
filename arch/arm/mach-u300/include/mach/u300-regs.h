@@ -6,7 +6,7 @@
  * Copyright (C) 2006-2009 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  * Basic register address definitions in physical memory and
- * some block defintions for core devices like the timer.
+ * some block definitions for core devices like the timer.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
 

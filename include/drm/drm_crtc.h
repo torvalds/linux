@@ -123,7 +123,7 @@ struct drm_display_mode {
 	int type;
 
 	/* Proposed mode values */
-	int clock;
+	int clock;		/* in kHz */
 	int hdisplay;
 	int hsync_start;
 	int hsync_end;
@@ -164,8 +164,8 @@ struct drm_display_mode {
 	int *private;
 	int private_flags;
 
-	int vrefresh;
-	float hsync;
+	int vrefresh;		/* in Hz */
+	int hsync;		/* in kHz */
 };
 
 enum drm_connector_status {
@@ -242,6 +242,21 @@ struct drm_framebuffer_funcs {
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
 			     unsigned int *handle);
+	/**
+	 * Optinal callback for the dirty fb ioctl.
+	 *
+	 * Userspace can notify the driver via this callback
+	 * that a area of the framebuffer has changed and should
+	 * be flushed to the display hardware.
+	 *
+	 * See documentation in drm_mode.h for the struct
+	 * drm_mode_fb_dirty_cmd for more information as all
+	 * the semantics and arguments have a one to one mapping
+	 * on this function.
+	 */
+	int (*dirty)(struct drm_framebuffer *framebuffer, unsigned flags,
+		     unsigned color, struct drm_clip_rect *clips,
+		     unsigned num_clips);
 };
 
 struct drm_framebuffer {
@@ -256,7 +271,7 @@ struct drm_framebuffer {
 	unsigned int depth;
 	int bits_per_pixel;
 	int flags;
-	void *fbdev;
+	struct fb_info *fbdev;
 	u32 pseudo_palette[17];
 	struct list_head filp_head;
 	/* if you are using the helper */
@@ -290,6 +305,7 @@ struct drm_property {
 struct drm_crtc;
 struct drm_connector;
 struct drm_encoder;
+struct drm_pending_vblank_event;
 
 /**
  * drm_crtc_funcs - control CRTCs for a given device
@@ -333,6 +349,19 @@ struct drm_crtc_funcs {
 	void (*destroy)(struct drm_crtc *crtc);
 
 	int (*set_config)(struct drm_mode_set *set);
+
+	/*
+	 * Flip to the given framebuffer.  This implements the page
+	 * flip ioctl descibed in drm_mode.h, specifically, the
+	 * implementation must return immediately and block all
+	 * rendering to the current fb until the flip has completed.
+	 * If userspace set the event flag in the ioctl, the event
+	 * argument will point to an event to send back when the flip
+	 * completes, otherwise it will be NULL.
+	 */
+	int (*page_flip)(struct drm_crtc *crtc,
+			 struct drm_framebuffer *fb,
+			 struct drm_pending_vblank_event *event);
 };
 
 /**
@@ -596,6 +625,7 @@ struct drm_mode_config {
 	/* Optional properties */
 	struct drm_property *scaling_mode_property;
 	struct drm_property *dithering_mode_property;
+	struct drm_property *dirty_info_property;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -667,6 +697,7 @@ extern void drm_mode_validate_size(struct drm_device *dev,
 extern void drm_mode_prune_invalid(struct drm_device *dev,
 				   struct list_head *mode_list, bool verbose);
 extern void drm_mode_sort(struct list_head *mode_list);
+extern int drm_mode_hsync(struct drm_display_mode *mode);
 extern int drm_mode_vrefresh(struct drm_display_mode *mode);
 extern void drm_mode_set_crtcinfo(struct drm_display_mode *p,
 				  int adjust_flags);
@@ -703,6 +734,7 @@ extern int drm_mode_create_tv_properties(struct drm_device *dev, int num_formats
 				     char *formats[]);
 extern int drm_mode_create_scaling_mode_property(struct drm_device *dev);
 extern int drm_mode_create_dithering_property(struct drm_device *dev);
+extern int drm_mode_create_dirty_info_property(struct drm_device *dev);
 extern char *drm_get_encoder_name(struct drm_encoder *encoder);
 
 extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
@@ -711,7 +743,8 @@ extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
 extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
-extern void *drm_mode_object_find(struct drm_device *dev, uint32_t id, uint32_t type);
+extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
+		uint32_t id, uint32_t type);
 /* IOCTLs */
 extern int drm_mode_getresources(struct drm_device *dev,
 				 void *data, struct drm_file *file_priv);
@@ -730,6 +763,8 @@ extern int drm_mode_rmfb(struct drm_device *dev,
 			 void *data, struct drm_file *file_priv);
 extern int drm_mode_getfb(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
+extern int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
+				  void *data, struct drm_file *file_priv);
 extern int drm_mode_addmode_ioctl(struct drm_device *dev,
 				  void *data, struct drm_file *file_priv);
 extern int drm_mode_rmmode_ioctl(struct drm_device *dev,
@@ -756,6 +791,8 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern bool drm_detect_hdmi_monitor(struct edid *edid);
+extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
+				    void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool reduced, bool interlaced, bool margins);

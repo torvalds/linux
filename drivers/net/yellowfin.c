@@ -579,7 +579,7 @@ static int yellowfin_open(struct net_device *dev)
 	/* Reset the chip. */
 	iowrite32(0x80000000, ioaddr + DMACtrl);
 
-	ret = request_irq(dev->irq, &yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
+	ret = request_irq(dev->irq, yellowfin_interrupt, IRQF_SHARED, dev->name, dev);
 	if (ret)
 		return ret;
 
@@ -944,8 +944,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 			dev_kfree_skb_irq(skb);
 			yp->tx_skbuff[entry] = NULL;
 		}
-		if (yp->tx_full
-			&& yp->cur_tx - yp->dirty_tx < TX_QUEUE_SIZE - 4) {
+		if (yp->tx_full &&
+		    yp->cur_tx - yp->dirty_tx < TX_QUEUE_SIZE - 4) {
 			/* The ring is no longer full, clear tbusy. */
 			yp->tx_full = 0;
 			netif_wake_queue(dev);
@@ -1014,8 +1014,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 			}
 #endif
 
-			if (yp->tx_full
-				&& yp->cur_tx - dirty_tx < TX_QUEUE_SIZE - 2) {
+			if (yp->tx_full &&
+			    yp->cur_tx - dirty_tx < TX_QUEUE_SIZE - 2) {
 				/* The ring is no longer full, clear tbusy. */
 				yp->tx_full = 0;
 				netif_wake_queue(dev);

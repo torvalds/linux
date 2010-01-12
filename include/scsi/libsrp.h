@@ -21,7 +21,7 @@ struct srp_buf {
 struct srp_queue {
 	void *pool;
 	void *items;
-	struct kfifo *queue;
+	struct kfifo queue;
 	spinlock_t lock;
 };
 

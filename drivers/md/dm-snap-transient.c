@@ -36,10 +36,10 @@ static int transient_read_metadata(struct dm_exception_store *store,
 }
 
 static int transient_prepare_exception(struct dm_exception_store *store,
-				       struct dm_snap_exception *e)
+				       struct dm_exception *e)
 {
 	struct transient_c *tc = store->context;
-	sector_t size = get_dev_size(store->cow->bdev);
+	sector_t size = get_dev_size(dm_snap_cow(store->snap)->bdev);
 
 	if (size < (tc->next_free + store->chunk_size))
 		return -1;
@@ -51,7 +51,7 @@ static int transient_prepare_exception(struct dm_exception_store *store,
 }
 
 static void transient_commit_exception(struct dm_exception_store *store,
-				       struct dm_snap_exception *e,
+				       struct dm_exception *e,
 				       void (*callback) (void *, int success),
 				       void *callback_context)
 {
@@ -59,11 +59,14 @@ static void transient_commit_exception(struct dm_exception_store *store,
 	callback(callback_context, 1);
 }
 
-static void transient_fraction_full(struct dm_exception_store *store,
-				    sector_t *numerator, sector_t *denominator)
+static void transient_usage(struct dm_exception_store *store,
+			    sector_t *total_sectors,
+			    sector_t *sectors_allocated,
+			    sector_t *metadata_sectors)
 {
-	*numerator = ((struct transient_c *) store->context)->next_free;
-	*denominator = get_dev_size(store->cow->bdev);
+	*sectors_allocated = ((struct transient_c *) store->context)->next_free;
+	*total_sectors = get_dev_size(dm_snap_cow(store->snap)->bdev);
+	*metadata_sectors = 0;
 }
 
 static int transient_ctr(struct dm_exception_store *store,
@@ -91,8 +94,7 @@ static unsigned transient_status(struct dm_exception_store *store,
 	case STATUSTYPE_INFO:
 		break;
 	case STATUSTYPE_TABLE:
-		DMEMIT(" %s N %llu", store->cow->name,
-		       (unsigned long long)store->chunk_size);
+		DMEMIT(" N %llu", (unsigned long long)store->chunk_size);
 	}
 
 	return sz;
@@ -106,7 +108,7 @@ static struct dm_exception_store_type _transient_type = {
 	.read_metadata = transient_read_metadata,
 	.prepare_exception = transient_prepare_exception,
 	.commit_exception = transient_commit_exception,
-	.fraction_full = transient_fraction_full,
+	.usage = transient_usage,
 	.status = transient_status,
 };
 
@@ -118,7 +120,7 @@ static struct dm_exception_store_type _transient_compat_type = {
 	.read_metadata = transient_read_metadata,
 	.prepare_exception = transient_prepare_exception,
 	.commit_exception = transient_commit_exception,
-	.fraction_full = transient_fraction_full,
+	.usage = transient_usage,
 	.status = transient_status,
 };
 

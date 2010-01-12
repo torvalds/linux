@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -424,8 +424,9 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 
 	nesadapter->base_pd = 1;
 
-	nesadapter->device_cap_flags =
-		IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
+	nesadapter->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
+				       IB_DEVICE_MEM_WINDOW |
+				       IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	nesadapter->allocated_qps = (unsigned long *)&(((unsigned char *)nesadapter)
 			[(sizeof(struct nes_adapter)+(sizeof(unsigned long)-1))&(~(sizeof(unsigned long)-1))]);
@@ -436,11 +437,12 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	nesadapter->qp_table = (struct nes_qp **)(&nesadapter->allocated_arps[BITS_TO_LONGS(arp_table_size)]);
 
 
-	/* mark the usual suspect QPs and CQs as in use */
+	/* mark the usual suspect QPs, MR and CQs as in use */
 	for (u32temp = 0; u32temp < NES_FIRST_QPN; u32temp++) {
 		set_bit(u32temp, nesadapter->allocated_qps);
 		set_bit(u32temp, nesadapter->allocated_cqs);
 	}
+	set_bit(0, nesadapter->allocated_mrs);
 
 	for (u32temp = 0; u32temp < 20; u32temp++)
 		set_bit(u32temp, nesadapter->allocated_pds);
@@ -481,7 +483,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 	nesadapter->max_irrq_wr = (u32temp >> 16) & 3;
 
 	nesadapter->max_sge = 4;
-	nesadapter->max_cqe = 32767;
+	nesadapter->max_cqe = 32766;
 
 	if (nes_read_eeprom_values(nesdev, nesadapter)) {
 		printk(KERN_ERR PFX "Unable to read EEPROM data.\n");
@@ -1355,6 +1357,8 @@ int nes_init_phy(struct nes_device *nesdev)
 	}
 	if ((phy_type == NES_PHY_TYPE_ARGUS) ||
 	    (phy_type == NES_PHY_TYPE_SFP_D)) {
+		u32 first_time = 1;
+
 		/* Check firmware heartbeat */
 		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
 		temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
@@ -1362,8 +1366,13 @@ int nes_init_phy(struct nes_device *nesdev)
 		nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7ee);
 		temp_phy_data2 = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
 
-		if (temp_phy_data != temp_phy_data2)
-			return 0;
+		if (temp_phy_data != temp_phy_data2) {
+			nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7fd);
+			temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
+			if ((temp_phy_data & 0xff) > 0x20)
+				return 0;
+			printk(PFX "Reinitializing PHY\n");
+		}
 
 		/* no heartbeat, configure the PHY */
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0x0000, 0x8000);
@@ -1399,7 +1408,7 @@ int nes_init_phy(struct nes_device *nesdev)
 		temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
 		do {
 			if (counter++ > 150) {
-				nes_debug(NES_DBG_PHY, "No PHY heartbeat\n");
+				printk(PFX "No PHY heartbeat\n");
 				break;
 			}
 			mdelay(1);
@@ -1413,11 +1422,20 @@ int nes_init_phy(struct nes_device *nesdev)
 			nes_read_10G_phy_reg(nesdev, phy_index, 0x3, 0xd7fd);
 			temp_phy_data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
 			if (counter++ > 300) {
-				nes_debug(NES_DBG_PHY, "PHY did not track\n");
-				break;
+				if (((temp_phy_data & 0xff) == 0x0) && first_time) {
+					first_time = 0;
+					counter = 0;
+					/* reset AMCC PHY and try again */
+					nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0xe854, 0x00c0);
+					nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0xe854, 0x0040);
+					continue;
+				} else {
+					printk(PFX "PHY did not track\n");
+					break;
+				}
 			}
 			mdelay(10);
-		} while (((temp_phy_data & 0xff) != 0x50) && ((temp_phy_data & 0xff) != 0x70));
+		} while ((temp_phy_data & 0xff) < 0x30);
 
 		/* setup signal integrity */
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd003, 0x0000);

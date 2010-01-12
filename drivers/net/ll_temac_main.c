@@ -231,8 +231,8 @@ static void temac_set_multicast_list(struct net_device *ndev)
 	int i;
 
 	mutex_lock(&lp->indirect_mutex);
-	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC)
-			|| ndev->mc_count > MULTICAST_CAM_TABLE_NUM) {
+	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
+	    ndev->mc_count > MULTICAST_CAM_TABLE_NUM) {
 		/*
 		 *	We must make the kernel realise we had to move
 		 *	into promisc mode or we start all out war on

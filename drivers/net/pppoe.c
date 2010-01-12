@@ -97,7 +97,7 @@ static const struct proto_ops pppoe_ops;
 static struct ppp_channel_ops pppoe_chan_ops;
 
 /* per-net private data for this module */
-static int pppoe_net_id;
+static int pppoe_net_id __read_mostly;
 struct pppoe_net {
 	/*
 	 * we could use _single_ hash table for all
@@ -250,20 +250,19 @@ static inline struct pppox_sock *get_item_by_addr(struct net *net,
 {
 	struct net_device *dev;
 	struct pppoe_net *pn;
-	struct pppox_sock *pppox_sock;
+	struct pppox_sock *pppox_sock = NULL;
 
 	int ifindex;
 
-	dev = dev_get_by_name(net, sp->sa_addr.pppoe.dev);
-	if (!dev)
-		return NULL;
-
-	ifindex = dev->ifindex;
-	pn = net_generic(net, pppoe_net_id);
-	pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
+	rcu_read_lock();
+	dev = dev_get_by_name_rcu(net, sp->sa_addr.pppoe.dev);
+	if (dev) {
+		ifindex = dev->ifindex;
+		pn = net_generic(net, pppoe_net_id);
+		pppox_sock = get_item(pn, sp->sa_addr.pppoe.sid,
 				sp->sa_addr.pppoe.remote, ifindex);
-	dev_put(dev);
-
+	}
+	rcu_read_unlock();
 	return pppox_sock;
 }
 
@@ -324,8 +323,8 @@ static void pppoe_flush_dev(struct net_device *dev)
 			write_unlock_bh(&pn->hash_lock);
 			lock_sock(sk);
 
-			if (po->pppoe_dev == dev
-			    && sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
+			if (po->pppoe_dev == dev &&
+			    sk->sk_state & (PPPOX_CONNECTED | PPPOX_BOUND)) {
 				pppox_unbind_sock(sk);
 				sk->sk_state = PPPOX_ZOMBIE;
 				sk->sk_state_change(sk);
@@ -1140,59 +1139,37 @@ static struct pppox_proto pppoe_proto = {
 
 static __net_init int pppoe_init_net(struct net *net)
 {
-	struct pppoe_net *pn;
+	struct pppoe_net *pn = pppoe_pernet(net);
 	struct proc_dir_entry *pde;
-	int err;
-
-	pn = kzalloc(sizeof(*pn), GFP_KERNEL);
-	if (!pn)
-		return -ENOMEM;
 
 	rwlock_init(&pn->hash_lock);
 
-	err = net_assign_generic(net, pppoe_net_id, pn);
-	if (err)
-		goto out;
-
 	pde = proc_net_fops_create(net, "pppoe", S_IRUGO, &pppoe_seq_fops);
 #ifdef CONFIG_PROC_FS
-	if (!pde) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!pde)
+		return -ENOMEM;
 #endif
 
 	return 0;
-
-out:
-	kfree(pn);
-	return err;
 }
 
 static __net_exit void pppoe_exit_net(struct net *net)
 {
-	struct pppoe_net *pn;
-
 	proc_net_remove(net, "pppoe");
-	pn = net_generic(net, pppoe_net_id);
-	/*
-	 * if someone has cached our net then
-	 * further net_generic call will return NULL
-	 */
-	net_assign_generic(net, pppoe_net_id, NULL);
-	kfree(pn);
 }
 
 static struct pernet_operations pppoe_net_ops = {
 	.init = pppoe_init_net,
 	.exit = pppoe_exit_net,
+	.id   = &pppoe_net_id,
+	.size = sizeof(struct pppoe_net),
 };
 
 static int __init pppoe_init(void)
 {
 	int err;
 
-	err = register_pernet_gen_device(&pppoe_net_id, &pppoe_net_ops);
+	err = register_pernet_device(&pppoe_net_ops);
 	if (err)
 		goto out;
 
@@ -1213,7 +1190,7 @@ static int __init pppoe_init(void)
 out_unregister_pppoe_proto:
 	proto_unregister(&pppoe_sk_proto);
 out_unregister_net_ops:
-	unregister_pernet_gen_device(pppoe_net_id, &pppoe_net_ops);
+	unregister_pernet_device(&pppoe_net_ops);
 out:
 	return err;
 }
@@ -1225,7 +1202,7 @@ static void __exit pppoe_exit(void)
 	dev_remove_pack(&pppoes_ptype);
 	unregister_pppox_proto(PX_PROTO_OE);
 	proto_unregister(&pppoe_sk_proto);
-	unregister_pernet_gen_device(pppoe_net_id, &pppoe_net_ops);
+	unregister_pernet_device(&pppoe_net_ops);
 }
 
 module_init(pppoe_init);

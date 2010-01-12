@@ -95,6 +95,34 @@ config S390
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
 	select HAVE_PERF_EVENTS
+	select ARCH_INLINE_SPIN_TRYLOCK
+	select ARCH_INLINE_SPIN_TRYLOCK_BH
+	select ARCH_INLINE_SPIN_LOCK
+	select ARCH_INLINE_SPIN_LOCK_BH
+	select ARCH_INLINE_SPIN_LOCK_IRQ
+	select ARCH_INLINE_SPIN_LOCK_IRQSAVE
+	select ARCH_INLINE_SPIN_UNLOCK
+	select ARCH_INLINE_SPIN_UNLOCK_BH
+	select ARCH_INLINE_SPIN_UNLOCK_IRQ
+	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_READ_TRYLOCK
+	select ARCH_INLINE_READ_LOCK
+	select ARCH_INLINE_READ_LOCK_BH
+	select ARCH_INLINE_READ_LOCK_IRQ
+	select ARCH_INLINE_READ_LOCK_IRQSAVE
+	select ARCH_INLINE_READ_UNLOCK
+	select ARCH_INLINE_READ_UNLOCK_BH
+	select ARCH_INLINE_READ_UNLOCK_IRQ
+	select ARCH_INLINE_READ_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_WRITE_TRYLOCK
+	select ARCH_INLINE_WRITE_LOCK
+	select ARCH_INLINE_WRITE_LOCK_BH
+	select ARCH_INLINE_WRITE_LOCK_IRQ
+	select ARCH_INLINE_WRITE_LOCK_IRQSAVE
+	select ARCH_INLINE_WRITE_UNLOCK
+	select ARCH_INLINE_WRITE_UNLOCK_BH
+	select ARCH_INLINE_WRITE_UNLOCK_IRQ
+	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
 
 config SCHED_OMIT_FRAME_POINTER
 	bool
@@ -192,23 +220,8 @@ config AUDIT_ARCH
 	bool
 	default y
 
-config S390_SWITCH_AMODE
-	bool "Switch kernel/user addressing modes"
-	help
-	  This option allows to switch the addressing modes of kernel and user
-	  space. The kernel parameter switch_amode=on will enable this feature,
-	  default is disabled. Enabling this (via kernel parameter) on machines
-	  earlier than IBM System z9-109 EC/BC will reduce system performance.
-
-	  Note that this option will also be selected by selecting the execute
-	  protection option below. Enabling the execute protection via the
-	  noexec kernel parameter will also switch the addressing modes,
-	  independent of the switch_amode kernel parameter.
-
-
 config S390_EXEC_PROTECT
 	bool "Data execute protection"
-	select S390_SWITCH_AMODE
 	help
 	  This option allows to enable a buffer overflow protection for user
 	  space programs and it also selects the addressing mode option above.

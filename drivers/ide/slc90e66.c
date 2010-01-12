@@ -91,8 +91,7 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 		if (!(reg48 & u_flag))
 			pci_write_config_word(dev, 0x48, reg48|u_flag);
-		/* FIXME: (reg4a & a_speed) ? */
-		if ((reg4a & u_speed) != u_speed) {
+		if ((reg4a & a_speed) != u_speed) {
 			pci_write_config_word(dev, 0x4a, reg4a & ~a_speed);
 			pci_read_config_word(dev, 0x4a, &reg4a);
 			pci_write_config_word(dev, 0x4a, reg4a|u_speed);

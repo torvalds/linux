@@ -21,7 +21,6 @@
 
 # Definitions for MICROBLAZE0
 comment "Definitions for MICROBLAZE0"
-	depends on ALLOW_EDIT_AUTO
 
 config KERNEL_BASE_ADDR
 	hex "Physical address where Linux Kernel is"
@@ -30,33 +29,33 @@ config KERNEL_BASE_ADDR
 	  BASE Address for kernel
 
 config XILINX_MICROBLAZE0_FAMILY
-	string "Targetted FPGA family" if ALLOW_EDIT_AUTO
+	string "Targetted FPGA family"
 	default "virtex5"
 
 config XILINX_MICROBLAZE0_USE_MSR_INSTR
-	int "USE_MSR_INSTR range (0:1)" if ALLOW_EDIT_AUTO
-	default 1
+	int "USE_MSR_INSTR range (0:1)"
+	default 0
 
 config XILINX_MICROBLAZE0_USE_PCMP_INSTR
-	int "USE_PCMP_INSTR range (0:1)" if ALLOW_EDIT_AUTO
-	default 1
+	int "USE_PCMP_INSTR range (0:1)"
+	default 0
 
 config XILINX_MICROBLAZE0_USE_BARREL
-	int "USE_BARREL range (0:1)" if ALLOW_EDIT_AUTO
-	default 1
+	int "USE_BARREL range (0:1)"
+	default 0
 
 config XILINX_MICROBLAZE0_USE_DIV
-	int "USE_DIV range (0:1)" if ALLOW_EDIT_AUTO
-	default 1
+	int "USE_DIV range (0:1)"
+	default 0
 
 config XILINX_MICROBLAZE0_USE_HW_MUL
-	int "USE_HW_MUL values (0=NONE, 1=MUL32, 2=MUL64)" if ALLOW_EDIT_AUTO
-	default 2
+	int "USE_HW_MUL values (0=NONE, 1=MUL32, 2=MUL64)"
+	default 0
 
 config XILINX_MICROBLAZE0_USE_FPU
-	int "USE_FPU values (0=NONE, 1=BASIC, 2=EXTENDED)" if ALLOW_EDIT_AUTO
-	default 2
+	int "USE_FPU values (0=NONE, 1=BASIC, 2=EXTENDED)"
+	default 0
 
 config XILINX_MICROBLAZE0_HW_VER
-	string "Core version number" if ALLOW_EDIT_AUTO
+	string "Core version number"
 	default 7.10.d

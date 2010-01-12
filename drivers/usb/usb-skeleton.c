@@ -358,7 +358,7 @@ retry:
 		rv = skel_do_read_io(dev, count);
 		if (rv < 0)
 			goto exit;
-		else if (!file->f_flags & O_NONBLOCK)
+		else if (!(file->f_flags & O_NONBLOCK))
 			goto retry;
 		rv = -EAGAIN;
 	}
@@ -411,7 +411,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer,
 	 * limit the number of URBs in flight to stop a user from using up all
 	 * RAM
 	 */
-	if (!file->f_flags & O_NONBLOCK) {
+	if (!(file->f_flags & O_NONBLOCK)) {
 		if (down_interruptible(&dev->limit_sem)) {
 			retval = -ERESTARTSYS;
 			goto exit;

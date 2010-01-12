@@ -80,6 +80,7 @@ config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
 	depends on X86 && !X86_64
 	select INPUT_POLLDEV
+	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
 	select CHECK_SIGNATURE
@@ -281,6 +282,7 @@ config INPUT_RB532_BUTTON
 config INPUT_DM355EVM
 	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
 	depends on MFD_DM355EVM_MSP
+	select INPUT_SPARSEKMAP
 	help
 	  Supports the pushbuttons and IR remote used with
 	  the DM355 EVM board.

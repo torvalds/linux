@@ -166,11 +166,12 @@ static void cx18_dualwatch(struct cx18 *cx)
 }
 
 
-static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block, int *err)
+static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
+				     int *err)
 {
 	struct cx18 *cx = s->cx;
 	struct cx18_stream *s_vbi = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
-	struct cx18_buffer *buf;
+	struct cx18_mdl *mdl;
 	DEFINE_WAIT(wait);
 
 	*err = 0;
@@ -185,32 +186,33 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 			}
 			if (test_bit(CX18_F_S_INTERNAL_USE, &s_vbi->s_flags) &&
 			    !test_bit(CX18_F_S_APPL_IO, &s_vbi->s_flags)) {
-				while ((buf = cx18_dequeue(s_vbi, &s_vbi->q_full))) {
+				while ((mdl = cx18_dequeue(s_vbi,
+							   &s_vbi->q_full))) {
 					/* byteswap and process VBI data */
-					cx18_process_vbi_data(cx, buf,
+					cx18_process_vbi_data(cx, mdl,
 							      s_vbi->type);
-					cx18_stream_put_buf_fw(s_vbi, buf);
+					cx18_stream_put_mdl_fw(s_vbi, mdl);
 				}
 			}
-			buf = &cx->vbi.sliced_mpeg_buf;
-			if (buf->readpos != buf->bytesused)
-				return buf;
+			mdl = &cx->vbi.sliced_mpeg_mdl;
+			if (mdl->readpos != mdl->bytesused)
+				return mdl;
 		}
 
 		/* do we have new data? */
-		buf = cx18_dequeue(s, &s->q_full);
-		if (buf) {
-			if (!test_and_clear_bit(CX18_F_B_NEED_BUF_SWAP,
-						&buf->b_flags))
-				return buf;
+		mdl = cx18_dequeue(s, &s->q_full);
+		if (mdl) {
+			if (!test_and_clear_bit(CX18_F_M_NEED_SWAP,
+						&mdl->m_flags))
+				return mdl;
 			if (s->type == CX18_ENC_STREAM_TYPE_MPG)
 				/* byteswap MPG data */
-				cx18_buf_swap(buf);
+				cx18_mdl_swap(mdl);
 			else {
 				/* byteswap and process VBI data */
-				cx18_process_vbi_data(cx, buf, s->type);
+				cx18_process_vbi_data(cx, mdl, s->type);
 			}
-			return buf;
+			return mdl;
 		}
 
 		/* return if end of stream */
@@ -229,7 +231,7 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
 		/* New buffers might have become available before we were added
 		   to the waitqueue */
-		if (!atomic_read(&s->q_full.buffers))
+		if (!atomic_read(&s->q_full.depth))
 			schedule();
 		finish_wait(&s->waitq, &wait);
 		if (signal_pending(current)) {
@@ -241,21 +243,28 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 	}
 }
 
-static void cx18_setup_sliced_vbi_buf(struct cx18 *cx)
+static void cx18_setup_sliced_vbi_mdl(struct cx18 *cx)
 {
+	struct cx18_mdl *mdl = &cx->vbi.sliced_mpeg_mdl;
+	struct cx18_buffer *buf = &cx->vbi.sliced_mpeg_buf;
 	int idx = cx->vbi.inserted_frame % CX18_VBI_FRAMES;
 
-	cx->vbi.sliced_mpeg_buf.buf = cx->vbi.sliced_mpeg_data[idx];
-	cx->vbi.sliced_mpeg_buf.bytesused = cx->vbi.sliced_mpeg_size[idx];
-	cx->vbi.sliced_mpeg_buf.readpos = 0;
+	buf->buf = cx->vbi.sliced_mpeg_data[idx];
+	buf->bytesused = cx->vbi.sliced_mpeg_size[idx];
+	buf->readpos = 0;
+
+	mdl->curr_buf = NULL;
+	mdl->bytesused = cx->vbi.sliced_mpeg_size[idx];
+	mdl->readpos = 0;
 }
 
 static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
-		struct cx18_buffer *buf, char __user *ubuf, size_t ucount)
+	struct cx18_buffer *buf, char __user *ubuf, size_t ucount, bool *stop)
 {
 	struct cx18 *cx = s->cx;
 	size_t len = buf->bytesused - buf->readpos;
 
+	*stop = false;
 	if (len > ucount)
 		len = ucount;
 	if (cx->vbi.insert_mpeg && s->type == CX18_ENC_STREAM_TYPE_MPG &&
@@ -335,7 +344,8 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 				/* We declare we actually found a Program Pack*/
 				cx->search_pack_header = 0; /* expect vid PES */
 				len = (char *)q - start;
-				cx18_setup_sliced_vbi_buf(cx);
+				cx18_setup_sliced_vbi_mdl(cx);
+				*stop = true;
 				break;
 			}
 		}
@@ -350,6 +360,60 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 	    buf != &cx->vbi.sliced_mpeg_buf)
 		cx->mpg_data_received += len;
 	return len;
+}
+
+/**
+ * list_entry_is_past_end - check if a previous loop cursor is off list end
+ * @pos:	the type * previously used as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the list_struct within the struct.
+ *
+ * Check if the entry's list_head is the head of the list, thus it's not a
+ * real entry but was the loop cursor that walked past the end
+ */
+#define list_entry_is_past_end(pos, head, member) \
+	(&pos->member == (head))
+
+static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
+		struct cx18_mdl *mdl, char __user *ubuf, size_t ucount)
+{
+	size_t tot_written = 0;
+	int rc;
+	bool stop = false;
+
+	if (mdl->curr_buf == NULL)
+		mdl->curr_buf = list_first_entry(&mdl->buf_list,
+						 struct cx18_buffer, list);
+
+	if (list_entry_is_past_end(mdl->curr_buf, &mdl->buf_list, list)) {
+		/*
+		 * For some reason we've exhausted the buffers, but the MDL
+		 * object still said some data was unread.
+		 * Fix that and bail out.
+		 */
+		mdl->readpos = mdl->bytesused;
+		return 0;
+	}
+
+	list_for_each_entry_from(mdl->curr_buf, &mdl->buf_list, list) {
+
+		if (mdl->curr_buf->readpos >= mdl->curr_buf->bytesused)
+			continue;
+
+		rc = cx18_copy_buf_to_user(s, mdl->curr_buf, ubuf + tot_written,
+					   ucount - tot_written, &stop);
+		if (rc < 0)
+			return rc;
+		mdl->readpos += rc;
+		tot_written += rc;
+
+		if (stop ||	/* Forced stopping point for VBI insertion */
+		    tot_written >= ucount ||	/* Reader request statisfied */
+		    mdl->curr_buf->readpos < mdl->curr_buf->bytesused ||
+		    mdl->readpos >= mdl->bytesused) /* MDL buffers drained */
+			break;
+	}
+	return tot_written;
 }
 
 static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
@@ -373,12 +437,12 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 		single_frame = 1;
 
 	for (;;) {
-		struct cx18_buffer *buf;
+		struct cx18_mdl *mdl;
 		int rc;
 
-		buf = cx18_get_buffer(s, non_block, &rc);
+		mdl = cx18_get_mdl(s, non_block, &rc);
 		/* if there is no data available... */
-		if (buf == NULL) {
+		if (mdl == NULL) {
 			/* if we got data, then return that regardless */
 			if (tot_written)
 				break;
@@ -392,20 +456,20 @@ static ssize_t cx18_read(struct cx18_stream *s, char __user *ubuf,
 			return rc;
 		}
 
-		rc = cx18_copy_buf_to_user(s, buf, ubuf + tot_written,
+		rc = cx18_copy_mdl_to_user(s, mdl, ubuf + tot_written,
 				tot_count - tot_written);
 
-		if (buf != &cx->vbi.sliced_mpeg_buf) {
-			if (buf->readpos == buf->bytesused)
-				cx18_stream_put_buf_fw(s, buf);
+		if (mdl != &cx->vbi.sliced_mpeg_mdl) {
+			if (mdl->readpos == mdl->bytesused)
+				cx18_stream_put_mdl_fw(s, mdl);
 			else
-				cx18_push(s, buf, &s->q_full);
-		} else if (buf->readpos == buf->bytesused) {
+				cx18_push(s, mdl, &s->q_full);
+		} else if (mdl->readpos == mdl->bytesused) {
 			int idx = cx->vbi.inserted_frame % CX18_VBI_FRAMES;
 
 			cx->vbi.sliced_mpeg_size[idx] = 0;
 			cx->vbi.inserted_frame++;
-			cx->vbi_data_inserted += buf->bytesused;
+			cx->vbi_data_inserted += mdl->bytesused;
 		}
 		if (rc < 0)
 			return rc;
@@ -543,7 +607,7 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	CX18_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (atomic_read(&s->q_full.buffers))
+	if (atomic_read(&s->q_full.depth))
 		return POLLIN | POLLRDNORM;
 	if (eof)
 		return POLLHUP;
@@ -694,8 +758,8 @@ int cx18_v4l2_open(struct file *filp)
 
 	mutex_lock(&cx->serialize_lock);
 	if (cx18_init_on_first_open(cx)) {
-		CX18_ERR("Failed to initialize on minor %d\n",
-			 video_dev->minor);
+		CX18_ERR("Failed to initialize on %s\n",
+			 video_device_node_name(video_dev));
 		mutex_unlock(&cx->serialize_lock);
 		return -ENXIO;
 	}

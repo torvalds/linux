@@ -118,6 +118,12 @@
 			};
 		};
 
+		nvram@3,0 {
+			device_type = "nvram";
+			compatible = "simtek,stk14ca8";
+			reg = <0x3 0x0 0x20000>;
+		};
+
 		fpga@4,0 {
 			compatible = "gef,ppc9a-fpga-regs";
 			reg = <0x4 0x0 0x40>;

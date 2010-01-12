@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <mach/omapfb.h>
+#include "omapfb.h"
 
 static int h4_panel_init(struct lcd_panel *panel, struct omapfb_device *fbdev)
 {

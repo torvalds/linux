@@ -16,13 +16,17 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/i2c.h>
 #include <linux/usb/r8a66597.h>
+#include <media/rj54n1cb0c.h>
+#include <media/soc_camera.h>
+#include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
+#include <asm/suspend.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
-#include <asm/sh_keysc.h>
 #include <cpu/sh7724.h>
 #include <mach/kfr2r09.h>
 
@@ -146,6 +150,7 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 		},
 		.board_cfg = {
 			.setup_sys = kfr2r09_lcd_setup,
+			.start_transfer = kfr2r09_lcd_start,
 			.display_on = kfr2r09_lcd_on,
 			.display_off = kfr2r09_lcd_off,
 		},
@@ -212,11 +217,162 @@ static struct platform_device kfr2r09_usb0_gadget_device = {
 	.resource	= kfr2r09_usb0_gadget_resources,
 };
 
+static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
+	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
+};
+
+static struct resource kfr2r09_ceu_resources[] = {
+	[0] = {
+		.name	= "CEU",
+		.start	= 0xfe910000,
+		.end	= 0xfe91009f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 52,
+		.end  = 52,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* place holder for contiguous memory */
+	},
+};
+
+static struct platform_device kfr2r09_ceu_device = {
+	.name		= "sh_mobile_ceu",
+	.id             = 0, /* "ceu0" clock */
+	.num_resources	= ARRAY_SIZE(kfr2r09_ceu_resources),
+	.resource	= kfr2r09_ceu_resources,
+	.dev	= {
+		.platform_data	= &sh_mobile_ceu_info,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_CEU0,
+	},
+};
+
+static struct i2c_board_info kfr2r09_i2c_camera = {
+	I2C_BOARD_INFO("rj54n1cb0c", 0x50),
+};
+
+static struct clk *camera_clk;
+
+/* set VIO_CKO clock to 25MHz */
+#define CEU_MCLK_FREQ 25000000
+
+#define DRVCRB 0xA405018C
+static int camera_power(struct device *dev, int mode)
+{
+	int ret;
+
+	if (mode) {
+		long rate;
+
+		camera_clk = clk_get(NULL, "video_clk");
+		if (IS_ERR(camera_clk))
+			return PTR_ERR(camera_clk);
+
+		rate = clk_round_rate(camera_clk, CEU_MCLK_FREQ);
+		ret = clk_set_rate(camera_clk, rate);
+		if (ret < 0)
+			goto eclkrate;
+
+		/* set DRVCRB
+		 *
+		 * use 1.8 V for VccQ_VIO
+		 * use 2.85V for VccQ_SR
+		 */
+		ctrl_outw((ctrl_inw(DRVCRB) & ~0x0003) | 0x0001, DRVCRB);
+
+		/* reset clear */
+		ret = gpio_request(GPIO_PTB4, NULL);
+		if (ret < 0)
+			goto eptb4;
+		ret = gpio_request(GPIO_PTB7, NULL);
+		if (ret < 0)
+			goto eptb7;
+
+		ret = gpio_direction_output(GPIO_PTB4, 1);
+		if (!ret)
+			ret = gpio_direction_output(GPIO_PTB7, 1);
+		if (ret < 0)
+			goto egpioout;
+		msleep(1);
+
+		ret = clk_enable(camera_clk);	/* start VIO_CKO */
+		if (ret < 0)
+			goto eclkon;
+
+		return 0;
+	}
+
+	ret = 0;
+
+	clk_disable(camera_clk);
+eclkon:
+	gpio_set_value(GPIO_PTB7, 0);
+egpioout:
+	gpio_set_value(GPIO_PTB4, 0);
+	gpio_free(GPIO_PTB7);
+eptb7:
+	gpio_free(GPIO_PTB4);
+eptb4:
+eclkrate:
+	clk_put(camera_clk);
+	return ret;
+}
+
+static struct rj54n1_pdata rj54n1_priv = {
+	.mclk_freq	= CEU_MCLK_FREQ,
+	.ioctl_high	= false,
+};
+
+static struct soc_camera_link rj54n1_link = {
+	.power		= camera_power,
+	.board_info	= &kfr2r09_i2c_camera,
+	.i2c_adapter_id	= 1,
+	.module_name	= "rj54n1cb0c",
+	.priv		= &rj54n1_priv,
+};
+
+static struct platform_device kfr2r09_camera = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &rj54n1_link,
+	},
+};
+
+static struct resource kfr2r09_sh_sdhi0_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start  = 0x04ce0000,
+		.end    = 0x04ce01ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 101,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kfr2r09_sh_sdhi0_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(kfr2r09_sh_sdhi0_resources),
+	.resource       = kfr2r09_sh_sdhi0_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI0,
+	},
+};
+
 static struct platform_device *kfr2r09_devices[] __initdata = {
 	&kfr2r09_nor_flash_device,
 	&kfr2r09_nand_flash_device,
 	&kfr2r09_sh_keysc_device,
 	&kfr2r09_sh_lcdc_device,
+	&kfr2r09_ceu_device,
+	&kfr2r09_camera,
+	&kfr2r09_sh_sdhi0_device,
 };
 
 #define BSC_CS0BCR 0xfec10004
@@ -268,8 +424,56 @@ static int kfr2r09_usb0_gadget_i2c_setup(void)
 
 	return 0;
 }
+
+static int kfr2r09_serial_i2c_setup(void)
+{
+	struct i2c_adapter *a;
+	struct i2c_msg msg;
+	unsigned char buf[2];
+	int ret;
+
+	a = i2c_get_adapter(0);
+	if (!a)
+		return -ENODEV;
+
+	/* set bit 6 (the 7th bit) of chip at 0x09, register 0x13 */
+	buf[0] = 0x13;
+	msg.addr = 0x09;
+	msg.buf = buf;
+	msg.len = 1;
+	msg.flags = 0;
+	ret = i2c_transfer(a, &msg, 1);
+	if (ret != 1)
+		return -ENODEV;
+
+	buf[0] = 0;
+	msg.addr = 0x09;
+	msg.buf = buf;
+	msg.len = 1;
+	msg.flags = I2C_M_RD;
+	ret = i2c_transfer(a, &msg, 1);
+	if (ret != 1)
+		return -ENODEV;
+
+	buf[1] = buf[0] | (1 << 6);
+	buf[0] = 0x13;
+	msg.addr = 0x09;
+	msg.buf = buf;
+	msg.len = 2;
+	msg.flags = 0;
+	ret = i2c_transfer(a, &msg, 1);
+	if (ret != 1)
+		return -ENODEV;
+
+	return 0;
+}
 #else
 static int kfr2r09_usb0_gadget_i2c_setup(void)
+{
+	return -ENODEV;
+}
+
+static int kfr2r09_serial_i2c_setup(void)
 {
 	return -ENODEV;
 }
@@ -299,11 +503,27 @@ static int kfr2r09_usb0_gadget_setup(void)
 	return 0;
 }
 
+extern char kfr2r09_sdram_enter_start;
+extern char kfr2r09_sdram_enter_end;
+extern char kfr2r09_sdram_leave_start;
+extern char kfr2r09_sdram_leave_end;
+
 static int __init kfr2r09_devices_setup(void)
 {
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF |
+					SUSP_SH_RSTANDBY,
+					&kfr2r09_sdram_enter_start,
+					&kfr2r09_sdram_enter_end,
+					&kfr2r09_sdram_leave_start,
+					&kfr2r09_sdram_leave_end);
+
 	/* enable SCIF1 serial port for YC401 console support */
 	gpio_request(GPIO_FN_SCIF1_RXD, NULL);
 	gpio_request(GPIO_FN_SCIF1_TXD, NULL);
+	kfr2r09_serial_i2c_setup(); /* ECONTMSK(bit6=L10ONEN) set 1 */
+	gpio_request(GPIO_PTG3, NULL); /* HPON_ON */
+	gpio_direction_output(GPIO_PTG3, 1); /* HPON_ON = H */
 
 	/* setup NOR flash at CS0 */
 	ctrl_outl(0x36db0400, BSC_CS0BCR);
@@ -360,6 +580,32 @@ static int __init kfr2r09_devices_setup(void)
 	/* setup USB function */
 	if (kfr2r09_usb0_gadget_setup() == 0)
 		platform_device_register(&kfr2r09_usb0_gadget_device);
+
+	/* CEU */
+	gpio_request(GPIO_FN_VIO_CKO, NULL);
+	gpio_request(GPIO_FN_VIO0_CLK, NULL);
+	gpio_request(GPIO_FN_VIO0_VD, NULL);
+	gpio_request(GPIO_FN_VIO0_HD, NULL);
+	gpio_request(GPIO_FN_VIO0_FLD, NULL);
+	gpio_request(GPIO_FN_VIO0_D7, NULL);
+	gpio_request(GPIO_FN_VIO0_D6, NULL);
+	gpio_request(GPIO_FN_VIO0_D5, NULL);
+	gpio_request(GPIO_FN_VIO0_D4, NULL);
+	gpio_request(GPIO_FN_VIO0_D3, NULL);
+	gpio_request(GPIO_FN_VIO0_D2, NULL);
+	gpio_request(GPIO_FN_VIO0_D1, NULL);
+	gpio_request(GPIO_FN_VIO0_D0, NULL);
+
+	platform_resource_setup_memory(&kfr2r09_ceu_device, "ceu", 4 << 20);
+
+	/* SDHI0 connected to yc304 */
+	gpio_request(GPIO_FN_SDHI0CD, NULL);
+	gpio_request(GPIO_FN_SDHI0D3, NULL);
+	gpio_request(GPIO_FN_SDHI0D2, NULL);
+	gpio_request(GPIO_FN_SDHI0D1, NULL);
+	gpio_request(GPIO_FN_SDHI0D0, NULL);
+	gpio_request(GPIO_FN_SDHI0CMD, NULL);
+	gpio_request(GPIO_FN_SDHI0CLK, NULL);
 
 	return platform_add_devices(kfr2r09_devices,
 				    ARRAY_SIZE(kfr2r09_devices));

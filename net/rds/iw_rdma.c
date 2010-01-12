@@ -245,11 +245,8 @@ void __rds_iw_destroy_conns(struct list_head *list, spinlock_t *list_lock)
 	INIT_LIST_HEAD(list);
 	spin_unlock_irq(list_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node) {
-		if (ic->conn->c_passive)
-			rds_conn_destroy(ic->conn->c_passive);
+	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node)
 		rds_conn_destroy(ic->conn);
-	}
 }
 
 static void rds_iw_set_scatterlist(struct rds_iw_scatterlist *sg,
@@ -576,8 +573,8 @@ void rds_iw_free_mr(void *trans_private, int invalidate)
 	rds_iw_free_fastreg(pool, ibmr);
 
 	/* If we've pinned too many pages, request a flush */
-	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned
-	 || atomic_read(&pool->dirty_count) >= pool->max_items / 10)
+	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned ||
+	    atomic_read(&pool->dirty_count) >= pool->max_items / 10)
 		queue_work(rds_wq, &pool->flush_worker);
 
 	if (invalidate) {

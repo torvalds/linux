@@ -37,7 +37,6 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
@@ -209,7 +208,7 @@ static int ieee80211_frag_cache_invalidate(struct ieee80211_device *ieee,
  *
  * Responsible for handling management control frames
  *
- * Called by ieee80211_rx */
+ * Called by ieee80211_rtl_rx */
 static inline int
 ieee80211_rx_frame_mgmt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats, u16 type,
@@ -290,7 +289,7 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 	return 0;
 }
 
-/* Called only as a tasklet (software IRQ), by ieee80211_rx */
+/* Called only as a tasklet (software IRQ), by ieee80211_rtl_rx */
 static inline int
 ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 			   struct ieee80211_crypt_data *crypt)
@@ -859,7 +858,7 @@ u8 parse_subframe(struct sk_buff *skb,
 /* All received frames are sent to this function. @skb contains the frame in
  * IEEE 802.11 format, i.e., in the format it was sent over air.
  * This function is called only as a tasklet (software IRQ). */
-int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
+int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		 struct ieee80211_rx_stats *rx_stats)
 {
 	struct net_device *dev = ieee->dev;

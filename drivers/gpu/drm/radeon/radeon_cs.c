@@ -76,17 +76,17 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			}
 			p->relocs_ptr[i] = &p->relocs[i];
 			p->relocs[i].robj = p->relocs[i].gobj->driver_private;
-			p->relocs[i].lobj.robj = p->relocs[i].robj;
+			p->relocs[i].lobj.bo = p->relocs[i].robj;
 			p->relocs[i].lobj.rdomain = r->read_domains;
 			p->relocs[i].lobj.wdomain = r->write_domain;
 			p->relocs[i].handle = r->handle;
 			p->relocs[i].flags = r->flags;
 			INIT_LIST_HEAD(&p->relocs[i].lobj.list);
-			radeon_object_list_add_object(&p->relocs[i].lobj,
-						      &p->validated);
+			radeon_bo_list_add_object(&p->relocs[i].lobj,
+						&p->validated);
 		}
 	}
-	return radeon_object_list_validate(&p->validated, p->ib->fence);
+	return radeon_bo_list_validate(&p->validated, p->ib->fence);
 }
 
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
@@ -190,9 +190,10 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	unsigned i;
 
 	if (error) {
-		radeon_object_list_unvalidate(&parser->validated);
+		radeon_bo_list_unvalidate(&parser->validated,
+						parser->ib->fence);
 	} else {
-		radeon_object_list_clean(&parser->validated);
+		radeon_bo_list_unreserve(&parser->validated);
 	}
 	for (i = 0; i < parser->nrelocs; i++) {
 		if (parser->relocs[i].gobj) {

@@ -378,6 +378,8 @@ static void ioat3_timer_event(unsigned long data)
 			u32 chanerr;
 
 			chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+			dev_err(to_dev(chan), "%s: Channel halted (%x)\n",
+				__func__, chanerr);
 			BUG_ON(is_ioat_bug(chanerr));
 		}
 
@@ -569,7 +571,7 @@ __ioat3_prep_xor_lock(struct dma_chan *c, enum sum_check_flags *result,
 	dump_desc_dbg(ioat, compl_desc);
 
 	/* we leave the channel locked to ensure in order submission */
-	return &desc->txd;
+	return &compl_desc->txd;
 }
 
 static struct dma_async_tx_descriptor *
@@ -728,7 +730,7 @@ __ioat3_prep_pq_lock(struct dma_chan *c, enum sum_check_flags *result,
 	dump_desc_dbg(ioat, compl_desc);
 
 	/* we leave the channel locked to ensure in order submission */
-	return &desc->txd;
+	return &compl_desc->txd;
 }
 
 static struct dma_async_tx_descriptor *
@@ -736,10 +738,16 @@ ioat3_prep_pq(struct dma_chan *chan, dma_addr_t *dst, dma_addr_t *src,
 	      unsigned int src_cnt, const unsigned char *scf, size_t len,
 	      unsigned long flags)
 {
+	/* specify valid address for disabled result */
+	if (flags & DMA_PREP_PQ_DISABLE_P)
+		dst[0] = dst[1];
+	if (flags & DMA_PREP_PQ_DISABLE_Q)
+		dst[1] = dst[0];
+
 	/* handle the single source multiply case from the raid6
 	 * recovery path
 	 */
-	if (unlikely((flags & DMA_PREP_PQ_DISABLE_P) && src_cnt == 1)) {
+	if ((flags & DMA_PREP_PQ_DISABLE_P) && src_cnt == 1) {
 		dma_addr_t single_source[2];
 		unsigned char single_source_coef[2];
 
@@ -761,6 +769,12 @@ ioat3_prep_pq_val(struct dma_chan *chan, dma_addr_t *pq, dma_addr_t *src,
 		  unsigned int src_cnt, const unsigned char *scf, size_t len,
 		  enum sum_check_flags *pqres, unsigned long flags)
 {
+	/* specify valid address for disabled result */
+	if (flags & DMA_PREP_PQ_DISABLE_P)
+		pq[0] = pq[1];
+	if (flags & DMA_PREP_PQ_DISABLE_Q)
+		pq[1] = pq[0];
+
 	/* the cleanup routine only sets bits on validate failure, it
 	 * does not clear bits on validate success... so clear it here
 	 */
@@ -778,9 +792,9 @@ ioat3_prep_pqxor(struct dma_chan *chan, dma_addr_t dst, dma_addr_t *src,
 	dma_addr_t pq[2];
 
 	memset(scf, 0, src_cnt);
-	flags |= DMA_PREP_PQ_DISABLE_Q;
 	pq[0] = dst;
-	pq[1] = ~0;
+	flags |= DMA_PREP_PQ_DISABLE_Q;
+	pq[1] = dst; /* specify valid address for disabled result */
 
 	return __ioat3_prep_pq_lock(chan, NULL, pq, src, src_cnt, scf, len,
 				    flags);
@@ -800,9 +814,9 @@ ioat3_prep_pqxor_val(struct dma_chan *chan, dma_addr_t *src,
 	*result = 0;
 
 	memset(scf, 0, src_cnt);
-	flags |= DMA_PREP_PQ_DISABLE_Q;
 	pq[0] = src[0];
-	pq[1] = ~0;
+	flags |= DMA_PREP_PQ_DISABLE_Q;
+	pq[1] = pq[0]; /* specify valid address for disabled result */
 
 	return __ioat3_prep_pq_lock(chan, result, pq, &src[1], src_cnt - 1, scf,
 				    len, flags);
@@ -1117,6 +1131,7 @@ static int __devinit ioat3_dma_self_test(struct ioatdma_device *device)
 int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
+	int dca_en = system_has_dca_enabled(pdev);
 	struct dma_device *dma;
 	struct dma_chan *c;
 	struct ioat_chan_common *chan;
@@ -1137,6 +1152,11 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
 
 	cap = readl(device->reg_base + IOAT_DMA_CAP_OFFSET);
+
+	/* dca is incompatible with raid operations */
+	if (dca_en && (cap & (IOAT_CAP_XOR|IOAT_CAP_PQ)))
+		cap &= ~(IOAT_CAP_XOR|IOAT_CAP_PQ);
+
 	if (cap & IOAT_CAP_XOR) {
 		is_raid_device = true;
 		dma->max_xor = 8;
@@ -1185,6 +1205,16 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 		device->cleanup_tasklet = ioat2_cleanup_tasklet;
 		device->timer_fn = ioat2_timer_event;
 	}
+
+	#ifdef CONFIG_ASYNC_TX_DISABLE_PQ_VAL_DMA
+	dma_cap_clear(DMA_PQ_VAL, dma->cap_mask);
+	dma->device_prep_dma_pq_val = NULL;
+	#endif
+
+	#ifdef CONFIG_ASYNC_TX_DISABLE_XOR_VAL_DMA
+	dma_cap_clear(DMA_XOR_VAL, dma->cap_mask);
+	dma->device_prep_dma_xor_val = NULL;
+	#endif
 
 	/* -= IOAT ver.3 workarounds =- */
 	/* Write CHANERRMSK_INT with 3E07h to mask out the errors

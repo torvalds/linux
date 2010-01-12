@@ -35,12 +35,12 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <mach/gpio.h>
-#include <mach/keypad.h>
-#include <mach/menelaus.h>
+#include <plat/keypad.h>
+#include <plat/menelaus.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/io.h>
-#include <mach/mux.h>
+#include <plat/mux.h>
 
 #undef NEW_BOARD_LEARNING_MODE
 

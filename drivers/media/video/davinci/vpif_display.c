@@ -1347,7 +1347,6 @@ static const struct v4l2_file_operations vpif_fops = {
 static struct video_device vpif_video_template = {
 	.name		= "vpif",
 	.fops		= &vpif_fops,
-	.minor		= -1,
 	.ioctl_ops	= &vpif_ioctl_ops,
 	.tvnorms	= DM646X_V4L2_STD,
 	.current_norm	= V4L2_STD_625_50,
@@ -1426,7 +1425,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 	struct vpif_display_config *config;
 	int i, j = 0, k, q, m, err = 0;
 	struct i2c_adapter *i2c_adap;
-	struct vpif_config *config;
 	struct common_obj *common;
 	struct channel_obj *ch;
 	struct video_device *vfd;

@@ -30,8 +30,7 @@
 
 struct rt6_info;
 
-struct fib6_config
-{
+struct fib6_config {
 	u32		fc_table;
 	u32		fc_metric;
 	int		fc_dst_len;
@@ -51,8 +50,7 @@ struct fib6_config
 	struct nl_info	fc_nlinfo;
 };
 
-struct fib6_node
-{
+struct fib6_node {
 	struct fib6_node	*parent;
 	struct fib6_node	*left;
 	struct fib6_node	*right;
@@ -78,16 +76,14 @@ struct fib6_node
  *
  */
 
-struct rt6key
-{
+struct rt6key {
 	struct in6_addr	addr;
 	int		plen;
 };
 
 struct fib6_table;
 
-struct rt6_info
-{
+struct rt6_info {
 	union {
 		struct dst_entry	dst;
 	} u;
@@ -127,8 +123,7 @@ static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 	return ((struct rt6_info *)dst)->rt6i_idev;
 }
 
-struct fib6_walker_t
-{
+struct fib6_walker_t {
 	struct fib6_walker_t *prev, *next;
 	struct fib6_node *root, *node;
 	struct rt6_info *leaf;

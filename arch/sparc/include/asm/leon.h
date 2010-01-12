@@ -148,7 +148,7 @@ static inline unsigned long leon_load_reg(unsigned long paddr)
 	return retval;
 }
 
-extern inline void leon_srmmu_disabletlb(void)
+static inline void leon_srmmu_disabletlb(void)
 {
 	unsigned int retval;
 	__asm__ __volatile__("lda [%%g0] %2, %0\n\t" : "=r"(retval) : "r"(0),
@@ -158,7 +158,7 @@ extern inline void leon_srmmu_disabletlb(void)
 			     "i"(ASI_LEON_MMUREGS) : "memory");
 }
 
-extern inline void leon_srmmu_enabletlb(void)
+static inline void leon_srmmu_enabletlb(void)
 {
 	unsigned int retval;
 	__asm__ __volatile__("lda [%%g0] %2, %0\n\t" : "=r"(retval) : "r"(0),
@@ -190,7 +190,7 @@ extern void leon_init_IRQ(void);
 
 extern unsigned long last_valid_pfn;
 
-extern inline unsigned long sparc_leon3_get_dcachecfg(void)
+static inline unsigned long sparc_leon3_get_dcachecfg(void)
 {
 	unsigned int retval;
 	__asm__ __volatile__("lda [%1] %2, %0\n\t" :
@@ -201,7 +201,7 @@ extern inline unsigned long sparc_leon3_get_dcachecfg(void)
 }
 
 /* enable snooping */
-extern inline void sparc_leon3_enable_snooping(void)
+static inline void sparc_leon3_enable_snooping(void)
 {
 	__asm__ __volatile__ ("lda [%%g0] 2, %%l1\n\t"
 			  "set 0x800000, %%l2\n\t"
@@ -209,7 +209,14 @@ extern inline void sparc_leon3_enable_snooping(void)
 			  "sta %%l2, [%%g0] 2\n\t" : : : "l1", "l2");
 };
 
-extern inline void sparc_leon3_disable_cache(void)
+static inline int sparc_leon3_snooping_enabled(void)
+{
+	u32 cctrl;
+	__asm__ __volatile__("lda [%%g0] 2, %0\n\t" : "=r"(cctrl));
+        return (cctrl >> 23) & 1;
+};
+
+static inline void sparc_leon3_disable_cache(void)
 {
 	__asm__ __volatile__ ("lda [%%g0] 2, %%l1\n\t"
 			  "set 0x00000f, %%l2\n\t"
@@ -340,6 +347,30 @@ extern int leon_flush_needed(void);
 extern void leon_switch_mm(void);
 extern int srmmu_swprobe_trace;
 
+#ifdef CONFIG_SMP
+extern int leon_smp_nrcpus(void);
+extern void leon_clear_profile_irq(int cpu);
+extern void leon_smp_done(void);
+extern void leon_boot_cpus(void);
+extern int leon_boot_one_cpu(int i);
+void leon_init_smp(void);
+extern void cpu_probe(void);
+extern void cpu_idle(void);
+extern void init_IRQ(void);
+extern void cpu_panic(void);
+extern int __leon_processor_id(void);
+void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu);
+
+extern unsigned int real_irq_entry[], smpleon_ticker[];
+extern unsigned int patchme_maybe_smp_msg[];
+extern unsigned long trapbase_cpu1[];
+extern unsigned long trapbase_cpu2[];
+extern unsigned long trapbase_cpu3[];
+extern unsigned int t_nmi[], linux_trap_ipi15_leon[];
+extern unsigned int linux_trap_ipi15_sun4m[];
+
+#endif /* CONFIG_SMP */
+
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
@@ -356,6 +387,10 @@ extern int srmmu_swprobe_trace;
 #define leon_switch_mm() do {} while (0)
 #define leon_init_IRQ() do {} while (0)
 #define init_leon() do {} while (0)
+#define leon_smp_done() do {} while (0)
+#define leon_boot_cpus() do {} while (0)
+#define leon_boot_one_cpu(i) 1
+#define leon_init_smp() do {} while (0)
 
 #endif /* !defined(CONFIG_SPARC_LEON) */
 

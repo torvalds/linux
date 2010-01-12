@@ -90,4 +90,4 @@ Platform Data
 Document Author
 ---------------
 
-Ben Dooks, (c) 2005 Simtec Electronics
+Ben Dooks, Copyright 2005 Simtec Electronics

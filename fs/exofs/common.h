@@ -49,6 +49,7 @@
 #define EXOFS_MIN_PID   0x10000	/* Smallest partition ID */
 #define EXOFS_OBJ_OFF	0x10000	/* offset for objects */
 #define EXOFS_SUPER_ID	0x10000	/* object ID for on-disk superblock */
+#define EXOFS_DEVTABLE_ID 0x10001 /* object ID for on-disk device table */
 #define EXOFS_ROOT_ID	0x10002	/* object ID for root directory */
 
 /* exofs Application specific page/attribute */
@@ -78,17 +79,67 @@ enum {
 #define EXOFS_SUPER_MAGIC	0x5DF5
 
 /*
- * The file system control block - stored in an object's data (mainly, the one
- * with ID EXOFS_SUPER_ID).  This is where the in-memory superblock is stored
- * on disk.  Right now it just has a magic value, which is basically a sanity
- * check on our ability to communicate with the object store.
+ * The file system control block - stored in object EXOFS_SUPER_ID's data.
+ * This is where the in-memory superblock is stored on disk.
  */
+enum {EXOFS_FSCB_VER = 1, EXOFS_DT_VER = 1};
 struct exofs_fscb {
 	__le64  s_nextid;	/* Highest object ID used */
-	__le32  s_numfiles;	/* Number of files on fs */
+	__le64  s_numfiles;	/* Number of files on fs */
+	__le32	s_version;	/* == EXOFS_FSCB_VER */
 	__le16  s_magic;	/* Magic signature */
 	__le16  s_newfs;	/* Non-zero if this is a new fs */
-};
+
+	/* From here on it's a static part, only written by mkexofs */
+	__le64	s_dev_table_oid;   /* Resurved, not used */
+	__le64	s_dev_table_count; /* == 0 means no dev_table */
+} __packed;
+
+/*
+ * Describes the raid used in the FS. It is part of the device table.
+ * This here is taken from the pNFS-objects definition. In exofs we
+ * use one raid policy through-out the filesystem. (NOTE: the funny
+ * alignment at begining. We take care of it at exofs_device_table.
+ */
+struct exofs_dt_data_map {
+	__le32	cb_num_comps;
+	__le64	cb_stripe_unit;
+	__le32	cb_group_width;
+	__le32	cb_group_depth;
+	__le32	cb_mirror_cnt;
+	__le32	cb_raid_algorithm;
+} __packed;
+
+/*
+ * This is an osd device information descriptor. It is a single entry in
+ * the exofs device table. It describes an osd target lun which
+ * contains data belonging to this FS. (Same partition_id on all devices)
+ */
+struct exofs_dt_device_info {
+	__le32	systemid_len;
+	u8	systemid[OSD_SYSTEMID_LEN];
+	__le64	long_name_offset;	/* If !0 then offset-in-file */
+	__le32	osdname_len;		/* */
+	u8	osdname[44];		/* Embbeded, Ususally an asci uuid */
+} __packed;
+
+/*
+ * The EXOFS device table - stored in object EXOFS_DEVTABLE_ID's data.
+ * It contains the raid used for this multy-device FS and an array of
+ * participating devices.
+ */
+struct exofs_device_table {
+	__le32				dt_version;	/* == EXOFS_DT_VER */
+	struct exofs_dt_data_map	dt_data_map;	/* Raid policy to use */
+
+	/* Resurved space For future use. Total includeing this:
+	 * (8 * sizeof(le64))
+	 */
+	__le64				__Resurved[4];
+
+	__le64				dt_num_devices;	/* Array size */
+	struct exofs_dt_device_info	dt_dev_table[];	/* Array of devices */
+} __packed;
 
 /****************************************************************************
  * inode-related things
@@ -154,23 +205,5 @@ enum {
 #define EXOFS_DIR_REC_LEN(name_len) \
 	(((name_len) + offsetof(struct exofs_dir_entry, name)  + \
 	  EXOFS_DIR_ROUND) & ~EXOFS_DIR_ROUND)
-
-/*************************
- * function declarations *
- *************************/
-/* osd.c                 */
-void exofs_make_credential(u8 cred_a[OSD_CAP_LEN],
-			   const struct osd_obj_id *obj);
-
-int exofs_check_ok_resid(struct osd_request *or, u64 *in_resid, u64 *out_resid);
-static inline int exofs_check_ok(struct osd_request *or)
-{
-	return exofs_check_ok_resid(or, NULL, NULL);
-}
-int exofs_sync_op(struct osd_request *or, int timeout, u8 *cred);
-int exofs_async_op(struct osd_request *or,
-	osd_req_done_fn *async_done, void *caller_context, u8 *cred);
-
-int extract_attr_from_req(struct osd_request *or, struct osd_attr *attr);
 
 #endif /*ifndef __EXOFS_COM_H__*/

@@ -300,6 +300,18 @@ static void realview_pb1176_reset(char mode)
 	__raw_writel(REALVIEW_PB1176_SYS_LOCKVAL_RSTCTL, hdr_ctrl);
 }
 
+static void realview_pb1176_fixup(struct machine_desc *mdesc,
+				  struct tag *tags, char **from,
+				  struct meminfo *meminfo)
+{
+	/*
+	 * RealView PB1176 only has 128MB of RAM mapped at 0.
+	 */
+	meminfo->bank[0].start = 0;
+	meminfo->bank[0].size = SZ_128M;
+	meminfo->nr_banks = 1;
+}
+
 static void __init realview_pb1176_init(void)
 {
 	int i;
@@ -331,6 +343,7 @@ MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")
 	.phys_io	= REALVIEW_PB1176_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PB1176_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.fixup		= realview_pb1176_fixup,
 	.map_io		= realview_pb1176_map_io,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pb1176_timer,

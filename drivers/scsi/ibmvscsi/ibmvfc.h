@@ -29,8 +29,8 @@
 #include "viosrp.h"
 
 #define IBMVFC_NAME	"ibmvfc"
-#define IBMVFC_DRIVER_VERSION		"1.0.6"
-#define IBMVFC_DRIVER_DATE		"(May 28, 2009)"
+#define IBMVFC_DRIVER_VERSION		"1.0.7"
+#define IBMVFC_DRIVER_DATE		"(October 16, 2009)"
 
 #define IBMVFC_DEFAULT_TIMEOUT	60
 #define IBMVFC_ADISC_CANCEL_TIMEOUT	45
@@ -58,9 +58,10 @@
  * 1 for ERP
  * 1 for initialization
  * 1 for NPIV Logout
+ * 2 for BSG passthru
  * 2 for each discovery thread
  */
-#define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + 1 + (disc_threads * 2))
+#define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + 1 + 2 + (disc_threads * 2))
 
 #define IBMVFC_MAD_SUCCESS		0x00
 #define IBMVFC_MAD_NOT_SUPPORTED	0xF1
@@ -466,7 +467,10 @@ struct ibmvfc_passthru_iu {
 	u16 error;
 	u32 flags;
 #define IBMVFC_FC_ELS		0x01
+#define IBMVFC_FC_CT_IU		0x02
 	u32 cancel_key;
+#define IBMVFC_PASSTHRU_CANCEL_KEY	0x80000000
+#define IBMVFC_INTERNAL_CANCEL_KEY	0x80000001
 	u32 reserved;
 	struct srp_direct_buf cmd;
 	struct srp_direct_buf rsp;
@@ -693,6 +697,7 @@ struct ibmvfc_host {
 	int disc_buf_sz;
 	int log_level;
 	struct ibmvfc_discover_targets_buf *disc_buf;
+	struct mutex passthru_mutex;
 	int task_set;
 	int init_retries;
 	int discovery_threads;
@@ -702,6 +707,7 @@ struct ibmvfc_host {
 	int delay_init;
 	int scan_complete;
 	int logged_in;
+	int aborting_passthru;
 	int events_to_log;
 #define IBMVFC_AE_LINKUP	0x0001
 #define IBMVFC_AE_LINKDOWN	0x0002

@@ -172,8 +172,6 @@ struct ar9170 {
 
 	/* interface mode settings */
 	struct ieee80211_vif *vif;
-	u8 mac_addr[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
 
 	/* beaconing */
 	struct sk_buff *beacon;
@@ -204,6 +202,8 @@ struct ar9170 {
 	u8 power_2G_ht20[8];
 	u8 power_2G_ht40[8];
 
+	u8 phy_heavy_clip;
+
 #ifdef CONFIG_AR9170_LEDS
 	struct delayed_work led_work;
 	struct ar9170_led leds[AR9170_NUM_LEDS];
@@ -231,7 +231,7 @@ struct ar9170 {
 	struct sk_buff_head tx_status_ampdu;
 	spinlock_t tx_ampdu_list_lock;
 	struct list_head tx_ampdu_list;
-	unsigned int tx_ampdu_pending;
+	atomic_t tx_ampdu_pending;
 
 	/* rxstream mpdu merge */
 	struct ar9170_rxstream_mpdu_merge rx_mpdu;

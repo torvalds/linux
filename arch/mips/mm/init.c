@@ -462,7 +462,9 @@ void __init_refok free_initmem(void)
 			__pa_symbol(&__init_end));
 }
 
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 unsigned long pgd_current[NR_CPUS];
+#endif
 /*
  * On 64-bit we've got three-level pagetables with a slightly
  * different layout ...

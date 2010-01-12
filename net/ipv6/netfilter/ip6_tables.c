@@ -105,9 +105,9 @@ ip6_packet_match(const struct sk_buff *skb,
 #define FWINV(bool, invflg) ((bool) ^ !!(ip6info->invflags & (invflg)))
 
 	if (FWINV(ipv6_masked_addr_cmp(&ipv6->saddr, &ip6info->smsk,
-				       &ip6info->src), IP6T_INV_SRCIP)
-	    || FWINV(ipv6_masked_addr_cmp(&ipv6->daddr, &ip6info->dmsk,
-					  &ip6info->dst), IP6T_INV_DSTIP)) {
+				       &ip6info->src), IP6T_INV_SRCIP) ||
+	    FWINV(ipv6_masked_addr_cmp(&ipv6->daddr, &ip6info->dmsk,
+				       &ip6info->dst), IP6T_INV_DSTIP)) {
 		dprintf("Source or dest mismatch.\n");
 /*
 		dprintf("SRC: %u. Mask: %u. Target: %u.%s\n", ip->saddr,
@@ -277,11 +277,11 @@ get_chainname_rulenum(struct ip6t_entry *s, struct ip6t_entry *e,
 	} else if (s == e) {
 		(*rulenum)++;
 
-		if (s->target_offset == sizeof(struct ip6t_entry)
-		   && strcmp(t->target.u.kernel.target->name,
-			     IP6T_STANDARD_TARGET) == 0
-		   && t->verdict < 0
-		   && unconditional(&s->ipv6)) {
+		if (s->target_offset == sizeof(struct ip6t_entry) &&
+		    strcmp(t->target.u.kernel.target->name,
+			   IP6T_STANDARD_TARGET) == 0 &&
+		    t->verdict < 0 &&
+		    unconditional(&s->ipv6)) {
 			/* Tail of chains: STANDARD target (return/policy) */
 			*comment = *chainname == hookname
 				? comments[NF_IP6_TRACE_COMMENT_POLICY]
@@ -418,8 +418,8 @@ ip6t_do_table(struct sk_buff *skb,
 				back = get_entry(table_base, back->comefrom);
 				continue;
 			}
-			if (table_base + v != ip6t_next_entry(e)
-			    && !(e->ipv6.flags & IP6T_F_GOTO)) {
+			if (table_base + v != ip6t_next_entry(e) &&
+			    !(e->ipv6.flags & IP6T_F_GOTO)) {
 				/* Save old back ptr in next entry */
 				struct ip6t_entry *next = ip6t_next_entry(e);
 				next->comefrom = (void *)back - table_base;
@@ -505,11 +505,11 @@ mark_source_chains(struct xt_table_info *newinfo,
 			e->comefrom |= ((1 << hook) | (1 << NF_INET_NUMHOOKS));
 
 			/* Unconditional return/END. */
-			if ((e->target_offset == sizeof(struct ip6t_entry)
-			    && (strcmp(t->target.u.user.name,
-				       IP6T_STANDARD_TARGET) == 0)
-			    && t->verdict < 0
-			    && unconditional(&e->ipv6)) || visited) {
+			if ((e->target_offset == sizeof(struct ip6t_entry) &&
+			     (strcmp(t->target.u.user.name,
+				     IP6T_STANDARD_TARGET) == 0) &&
+			     t->verdict < 0 &&
+			     unconditional(&e->ipv6)) || visited) {
 				unsigned int oldpos, size;
 
 				if ((strcmp(t->target.u.user.name,
@@ -556,8 +556,8 @@ mark_source_chains(struct xt_table_info *newinfo,
 				int newpos = t->verdict;
 
 				if (strcmp(t->target.u.user.name,
-					   IP6T_STANDARD_TARGET) == 0
-				    && newpos >= 0) {
+					   IP6T_STANDARD_TARGET) == 0 &&
+				    newpos >= 0) {
 					if (newpos > newinfo->size -
 						sizeof(struct ip6t_entry)) {
 						duprintf("mark_source_chains: "
@@ -767,8 +767,8 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 {
 	unsigned int h;
 
-	if ((unsigned long)e % __alignof__(struct ip6t_entry) != 0
-	    || (unsigned char *)e + sizeof(struct ip6t_entry) >= limit) {
+	if ((unsigned long)e % __alignof__(struct ip6t_entry) != 0 ||
+	    (unsigned char *)e + sizeof(struct ip6t_entry) >= limit) {
 		duprintf("Bad offset %p\n", e);
 		return -EINVAL;
 	}
@@ -1584,8 +1584,8 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	int ret, off, h;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);
-	if ((unsigned long)e % __alignof__(struct compat_ip6t_entry) != 0
-	    || (unsigned char *)e + sizeof(struct compat_ip6t_entry) >= limit) {
+	if ((unsigned long)e % __alignof__(struct compat_ip6t_entry) != 0 ||
+	    (unsigned char *)e + sizeof(struct compat_ip6t_entry) >= limit) {
 		duprintf("Bad offset %p, limit = %p\n", e, limit);
 		return -EINVAL;
 	}

@@ -554,8 +554,8 @@ static void adjust_tx_list(void)
 {
 	int timeout_cnt = MAX_TIMEOUT_CNT;
 
-	if (tx_list_head->status.status_word != 0
-	    && current_tx_ptr != tx_list_head) {
+	if (tx_list_head->status.status_word != 0 &&
+	    current_tx_ptr != tx_list_head) {
 		goto adjust_head;	/* released something, just return; */
 	}
 
@@ -567,8 +567,8 @@ static void adjust_tx_list(void)
 	if (current_tx_ptr->next->next == tx_list_head) {
 		while (tx_list_head->status.status_word == 0) {
 			udelay(10);
-			if (tx_list_head->status.status_word != 0
-			    || !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
+			if (tx_list_head->status.status_word != 0 ||
+			    !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
 				goto adjust_head;
 			}
 			if (timeout_cnt-- < 0) {
@@ -596,8 +596,8 @@ adjust_head:
 			       ": no sk_buff in a transmitted frame!\n");
 		}
 		tx_list_head = tx_list_head->next;
-	} while (tx_list_head->status.status_word != 0
-		 && current_tx_ptr != tx_list_head);
+	} while (tx_list_head->status.status_word != 0 &&
+		 current_tx_ptr != tx_list_head);
 	return;
 
 }

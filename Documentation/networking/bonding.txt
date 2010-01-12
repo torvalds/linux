@@ -1,7 +1,7 @@
 
 		Linux Ethernet Bonding Driver HOWTO
 
-		Latest update: 12 November 2007
+		Latest update: 23 September 2009
 
 Initial release : Thomas Davis <tadavis at lbl.gov>
 Corrections, HA extensions : 2000/10/03-15 :
@@ -613,6 +613,46 @@ primary
 	higher throughput than another.
 
 	The primary option is only valid for active-backup mode.
+
+primary_reselect
+
+	Specifies the reselection policy for the primary slave.  This
+	affects how the primary slave is chosen to become the active slave
+	when failure of the active slave or recovery of the primary slave
+	occurs.  This option is designed to prevent flip-flopping between
+	the primary slave and other slaves.  Possible values are:
+
+	always or 0 (default)
+
+		The primary slave becomes the active slave whenever it
+		comes back up.
+
+	better or 1
+
+		The primary slave becomes the active slave when it comes
+		back up, if the speed and duplex of the primary slave is
+		better than the speed and duplex of the current active
+		slave.
+
+	failure or 2
+
+		The primary slave becomes the active slave only if the
+		current active slave fails and the primary slave is up.
+
+	The primary_reselect setting is ignored in two cases:
+
+		If no slaves are active, the first slave to recover is
+		made the active slave.
+
+		When initially enslaved, the primary slave is always made
+		the active slave.
+
+	Changing the primary_reselect policy via sysfs will cause an
+	immediate selection of the best active slave according to the new
+	policy.  This may or may not result in a change of the active
+	slave, depending upon the circumstances.
+
+	This option was added for bonding version 3.6.0.
 
 updelay
 

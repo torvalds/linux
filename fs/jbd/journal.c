@@ -73,6 +73,7 @@ EXPORT_SYMBOL(journal_errno);
 EXPORT_SYMBOL(journal_ack_err);
 EXPORT_SYMBOL(journal_clear_err);
 EXPORT_SYMBOL(log_wait_commit);
+EXPORT_SYMBOL(log_start_commit);
 EXPORT_SYMBOL(journal_start_commit);
 EXPORT_SYMBOL(journal_force_commit_nested);
 EXPORT_SYMBOL(journal_wipe);
@@ -756,6 +757,7 @@ journal_t * journal_init_dev(struct block_device *bdev,
 
 	return journal;
 out_err:
+	kfree(journal->j_wbuf);
 	kfree(journal);
 	return NULL;
 }
@@ -820,6 +822,7 @@ journal_t * journal_init_inode (struct inode *inode)
 
 	return journal;
 out_err:
+	kfree(journal->j_wbuf);
 	kfree(journal);
 	return NULL;
 }
@@ -1910,7 +1913,7 @@ static void __init jbd_create_debugfs_entry(void)
 {
 	jbd_debugfs_dir = debugfs_create_dir("jbd", NULL);
 	if (jbd_debugfs_dir)
-		jbd_debug = debugfs_create_u8("jbd-debug", S_IRUGO,
+		jbd_debug = debugfs_create_u8("jbd-debug", S_IRUGO | S_IWUSR,
 					       jbd_debugfs_dir,
 					       &journal_enable_debug);
 }

@@ -736,7 +736,7 @@ unsigned int ata_sff_data_xfer(struct ata_device *dev, unsigned char *buf,
 
 		/*
 		 * Use io*16_rep() accessors here as well to avoid pointlessly
-		 * swapping bytes to and fro on the big endian machines...
+		 * swapping bytes to and from on the big endian machines...
 		 */
 		if (rw == READ) {
 			ioread16_rep(data_addr, pad, 1);
@@ -776,7 +776,7 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 2;
 	int slop = buflen & 3;
-	
+
 	if (!(ap->pflags & ATA_PFLAG_PIO32))
 		return ata_sff_data_xfer(dev, buf, buflen, rw);
 
@@ -795,7 +795,7 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 
 		/*
 		 * Use io*_rep() accessors here as well to avoid pointlessly
-		 * swapping bytes to and fro on the big endian machines...
+		 * swapping bytes to and from on the big endian machines...
 		 */
 		if (rw == READ) {
 			if (slop < 3)
@@ -2275,7 +2275,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 	ap = qc->ap;
 	/* Drain up to 64K of data before we give up this recovery method */
 	for (count = 0; (ap->ops->sff_check_status(ap) & ATA_DRQ)
-						&& count < 32768; count++)
+						&& count < 65536; count += 2)
 		ioread16(ap->ioaddr.data_addr);
 
 	/* Can become DEBUG later */
@@ -2384,7 +2384,7 @@ void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
 	ap->hsm_task_state = HSM_ST_IDLE;
 
 	if (ap->ioaddr.bmdma_addr)
-		ata_bmdma_stop(qc);
+		ap->ops->bmdma_stop(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 }

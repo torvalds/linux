@@ -279,6 +279,8 @@ struct iscsi_tm {
 #define ISCSI_TM_FUNC_TARGET_COLD_RESET		7
 #define ISCSI_TM_FUNC_TASK_REASSIGN		8
 
+#define ISCSI_TM_FUNC_VALUE(hdr) ((hdr)->flags & ISCSI_FLAG_TM_FUNC_MASK)
+
 /* SCSI Task Management Response Header */
 struct iscsi_tm_rsp {
 	uint8_t opcode;

@@ -120,6 +120,7 @@ struct card_info {
 
 struct atom_context {
 	struct card_info *card;
+	struct mutex mutex;
 	void *bios;
 	uint32_t cmd_table, data_table;
 	uint16_t *iio;
@@ -132,6 +133,7 @@ struct atom_context {
 	uint8_t shift;
 	int cs_equal, cs_above;
 	int io_mode;
+	uint32_t *scratch;
 };
 
 extern int atom_debug;
@@ -142,6 +144,7 @@ int atom_asic_init(struct atom_context *);
 void atom_destroy(struct atom_context *);
 void atom_parse_data_header(struct atom_context *ctx, int index, uint16_t *size, uint8_t *frev, uint8_t *crev, uint16_t *data_start);
 void atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t *frev, uint8_t *crev);
+int atom_allocate_fb_scratch(struct atom_context *ctx);
 #include "atom-types.h"
 #include "atombios.h"
 #include "ObjectID.h"

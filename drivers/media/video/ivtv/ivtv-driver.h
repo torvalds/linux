@@ -64,6 +64,7 @@
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/cx2341x.h>
+#include <media/ir-kbd-i2c.h>
 
 #include <linux/ivtv.h>
 
@@ -176,12 +177,16 @@ extern int ivtv_debug;
 
 #define IVTV_MAX_PGM_INDEX (400)
 
+/* Default I2C SCL period in microseconds */
+#define IVTV_DEFAULT_I2C_CLOCK_PERIOD	20
+
 struct ivtv_options {
 	int kilobytes[IVTV_MAX_STREAMS];        /* size in kilobytes of each stream */
 	int cardtype;				/* force card type on load */
 	int tuner;				/* set tuner on load */
 	int radio;				/* enable/disable radio */
 	int newi2c;				/* new I2C algorithm */
+	int i2c_clock_period;			/* period of SCL for I2C bus */
 };
 
 /* ivtv-specific mailbox template */
@@ -677,6 +682,7 @@ struct ivtv {
 	int i2c_state;                  /* i2c bit state */
 	struct mutex i2c_bus_lock;      /* lock i2c bus */
 
+	struct IR_i2c_init_data ir_i2c_init_data;
 
 	/* Program Index information */
 	u32 pgm_info_offset;            /* start of pgm info in encoder memory */

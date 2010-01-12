@@ -48,8 +48,13 @@
 #include <asm/dma.h>
 #include <asm/iommu.h>
 #include <asm/io-unit.h>
+#include <asm/leon.h>
 
+#ifdef CONFIG_SPARC_LEON
+#define mmu_inval_dma_area(p, l) leon_flush_dcache_all()
+#else
 #define mmu_inval_dma_area(p, l)	/* Anton pulled it out for 2.4.0-xx */
+#endif
 
 static struct resource *_sparc_find_resource(struct resource *r,
 					     unsigned long);

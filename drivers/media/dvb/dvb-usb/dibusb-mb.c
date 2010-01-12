@@ -242,7 +242,7 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 			{ &dibusb_dib3000mb_table[9],  &dibusb_dib3000mb_table[11], NULL },
 			{ &dibusb_dib3000mb_table[10], &dibusb_dib3000mb_table[12], NULL },
 		},
-		{	"Unkown USB1.1 DVB-T device ???? please report the name to the author",
+		{	"Unknown USB1.1 DVB-T device ???? please report the name to the author",
 			{ &dibusb_dib3000mb_table[13], NULL },
 			{ &dibusb_dib3000mb_table[14], NULL },
 		},

@@ -24,7 +24,8 @@
 struct orinoco_private;
 struct dev_addr_list;
 
-int determine_fw_capabilities(struct orinoco_private *priv);
+int determine_fw_capabilities(struct orinoco_private *priv, char *fw_name,
+			      size_t fw_name_len, u32 *hw_ver);
 int orinoco_hw_read_card_settings(struct orinoco_private *priv, u8 *dev_addr);
 int orinoco_hw_allocate_fid(struct orinoco_private *priv);
 int orinoco_get_bitratemode(int bitrate, int automatic);

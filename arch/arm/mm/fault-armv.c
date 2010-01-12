@@ -23,6 +23,8 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+#include "mm.h"
+
 static unsigned long shared_pte_mask = L_PTE_MT_BUFFERABLE;
 
 /*
@@ -151,7 +153,14 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 	if (!pfn_valid(pfn))
 		return;
 
+	/*
+	 * The zero page is never written to, so never has any dirty
+	 * cache lines, and therefore never needs to be flushed.
+	 */
 	page = pfn_to_page(pfn);
+	if (page == ZERO_PAGE(0))
+		return;
+
 	mapping = page_mapping(page);
 #ifndef CONFIG_SMP
 	if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
@@ -198,9 +207,8 @@ void __init check_writebuffer_bugs(void)
 	page = alloc_page(GFP_KERNEL);
 	if (page) {
 		unsigned long *p1, *p2;
-		pgprot_t prot = __pgprot(L_PTE_PRESENT|L_PTE_YOUNG|
-					 L_PTE_DIRTY|L_PTE_WRITE|
-					 L_PTE_MT_BUFFERABLE);
+		pgprot_t prot = __pgprot_modify(PAGE_KERNEL,
+					L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE);
 
 		p1 = vmap(&page, 1, VM_IOREMAP, prot);
 		p2 = vmap(&page, 1, VM_IOREMAP, prot);

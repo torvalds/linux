@@ -32,9 +32,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7462);
-
 /* ADT7462 registers */
 #define ADT7462_REG_DEVICE			0x3D
 #define ADT7462_REG_VENDOR			0x3E
@@ -237,12 +234,12 @@ struct adt7462_data {
 
 static int adt7462_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adt7462_detect(struct i2c_client *client, int kind,
+static int adt7462_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adt7462_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7462_id[] = {
-	{ "adt7462", adt7462 },
+	{ "adt7462", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7462_id);
@@ -256,7 +253,7 @@ static struct i2c_driver adt7462_driver = {
 	.remove		= adt7462_remove,
 	.id_table	= adt7462_id,
 	.detect		= adt7462_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -1902,31 +1899,26 @@ static struct attribute *adt7462_attr[] =
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adt7462_detect(struct i2c_client *client, int kind,
+static int adt7462_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		int vendor, device, revision;
+	vendor = i2c_smbus_read_byte_data(client, ADT7462_REG_VENDOR);
+	if (vendor != ADT7462_VENDOR)
+		return -ENODEV;
 
-		vendor = i2c_smbus_read_byte_data(client, ADT7462_REG_VENDOR);
-		if (vendor != ADT7462_VENDOR)
-			return -ENODEV;
+	device = i2c_smbus_read_byte_data(client, ADT7462_REG_DEVICE);
+	if (device != ADT7462_DEVICE)
+		return -ENODEV;
 
-		device = i2c_smbus_read_byte_data(client, ADT7462_REG_DEVICE);
-		if (device != ADT7462_DEVICE)
-			return -ENODEV;
-
-		revision = i2c_smbus_read_byte_data(client,
-						    ADT7462_REG_REVISION);
-		if (revision != ADT7462_REVISION)
-			return -ENODEV;
-	} else
-		dev_dbg(&adapter->dev, "detection forced\n");
+	revision = i2c_smbus_read_byte_data(client, ADT7462_REG_REVISION);
+	if (revision != ADT7462_REVISION)
+		return -ENODEV;
 
 	strlcpy(info->type, "adt7462", I2C_NAME_SIZE);
 

@@ -18,7 +18,7 @@
  */
 
 #include <linux/jiffies.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/kvm_host.h>
@@ -32,6 +32,7 @@
 #include "trace.h"
 
 #define OP_TRAP 3
+#define OP_TRAP_64 2
 
 #define OP_31_XOP_LWZX      23
 #define OP_31_XOP_LBZX      87
@@ -64,19 +65,45 @@
 #define OP_STH  44
 #define OP_STHU 45
 
+#ifdef CONFIG_PPC64
+static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+#else
+static int kvmppc_dec_enabled(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.tcr & TCR_DIE;
+}
+#endif
+
 void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.tcr & TCR_DIE) {
+	unsigned long dec_nsec;
+
+	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
+#ifdef CONFIG_PPC64
+	/* POWER4+ triggers a dec interrupt if the value is < 0 */
+	if (vcpu->arch.dec & 0x80000000) {
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
+		kvmppc_core_queue_dec(vcpu);
+		return;
+	}
+#endif
+	if (kvmppc_dec_enabled(vcpu)) {
 		/* The decrementer ticks at the same rate as the timebase, so
 		 * that's how we convert the guest DEC value to the number of
 		 * host ticks. */
-		unsigned long nr_jiffies;
 
-		nr_jiffies = vcpu->arch.dec / tb_ticks_per_jiffy;
-		mod_timer(&vcpu->arch.dec_timer,
-		          get_jiffies_64() + nr_jiffies);
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
+		dec_nsec = vcpu->arch.dec;
+		dec_nsec *= 1000;
+		dec_nsec /= tb_ticks_per_usec;
+		hrtimer_start(&vcpu->arch.dec_timer, ktime_set(0, dec_nsec),
+			      HRTIMER_MODE_REL);
+		vcpu->arch.dec_jiffies = get_tb();
 	} else {
-		del_timer(&vcpu->arch.dec_timer);
+		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 	}
 }
 
@@ -111,9 +138,15 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
+	pr_debug(KERN_INFO "Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
+
 	switch (get_op(inst)) {
 	case OP_TRAP:
+#ifdef CONFIG_PPC64
+	case OP_TRAP_64:
+#else
 		vcpu->arch.esr |= ESR_PTR;
+#endif
 		kvmppc_core_queue_program(vcpu);
 		advance = 0;
 		break;
@@ -188,17 +221,19 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			case SPRN_SRR1:
 				vcpu->arch.gpr[rt] = vcpu->arch.srr1; break;
 			case SPRN_PVR:
-				vcpu->arch.gpr[rt] = mfspr(SPRN_PVR); break;
+				vcpu->arch.gpr[rt] = vcpu->arch.pvr; break;
 			case SPRN_PIR:
-				vcpu->arch.gpr[rt] = mfspr(SPRN_PIR); break;
+				vcpu->arch.gpr[rt] = vcpu->vcpu_id; break;
+			case SPRN_MSSSR0:
+				vcpu->arch.gpr[rt] = 0; break;
 
 			/* Note: mftb and TBRL/TBWL are user-accessible, so
 			 * the guest can always access the real TB anyways.
 			 * In fact, we probably will never see these traps. */
 			case SPRN_TBWL:
-				vcpu->arch.gpr[rt] = mftbl(); break;
+				vcpu->arch.gpr[rt] = get_tb() >> 32; break;
 			case SPRN_TBWU:
-				vcpu->arch.gpr[rt] = mftbu(); break;
+				vcpu->arch.gpr[rt] = get_tb(); break;
 
 			case SPRN_SPRG0:
 				vcpu->arch.gpr[rt] = vcpu->arch.sprg0; break;
@@ -211,6 +246,13 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			/* Note: SPRG4-7 are user-readable, so we don't get
 			 * a trap. */
 
+			case SPRN_DEC:
+			{
+				u64 jd = get_tb() - vcpu->arch.dec_jiffies;
+				vcpu->arch.gpr[rt] = vcpu->arch.dec - jd;
+				pr_debug(KERN_INFO "mfDEC: %x - %llx = %lx\n", vcpu->arch.dec, jd, vcpu->arch.gpr[rt]);
+				break;
+			}
 			default:
 				emulated = kvmppc_core_emulate_mfspr(vcpu, sprn, rt);
 				if (emulated == EMULATE_FAIL) {
@@ -259,6 +301,8 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			 * watchdog and FIT. */
 			case SPRN_TBWL: break;
 			case SPRN_TBWU: break;
+
+			case SPRN_MSSSR0: break;
 
 			case SPRN_DEC:
 				vcpu->arch.dec = vcpu->arch.gpr[rs];

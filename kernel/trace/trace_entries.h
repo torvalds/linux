@@ -364,3 +364,19 @@ FTRACE_ENTRY(kmem_free, kmemtrace_free_entry,
 	F_printk("type:%u call_site:%lx ptr:%p",
 		 __entry->type_id, __entry->call_site, __entry->ptr)
 );
+
+FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
+
+	TRACE_KSYM,
+
+	F_STRUCT(
+		__field(	unsigned long,	ip			  )
+		__field(	unsigned char,	type			  )
+		__array(	char	     ,	cmd,	   TASK_COMM_LEN  )
+		__field(	unsigned long,  addr			  )
+	),
+
+	F_printk("ip: %pF type: %d ksym_name: %pS cmd: %s",
+		(void *)__entry->ip, (unsigned int)__entry->type,
+		(void *)__entry->addr,  __entry->cmd)
+);

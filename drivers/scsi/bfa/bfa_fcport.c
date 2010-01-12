@@ -388,32 +388,29 @@ bfa_pport_sm_linkup(struct bfa_pport_s *pport, enum bfa_pport_sm_event event)
 		bfa_pport_callback(pport, BFA_PPORT_LINKDOWN);
 		bfa_plog_str(pport->bfa->plog, BFA_PL_MID_HAL,
 			     BFA_PL_EID_PORT_ST_CHANGE, 0, "Port Linkdown");
-		if (BFA_PORT_IS_DISABLED(pport->bfa)) {
+		if (BFA_PORT_IS_DISABLED(pport->bfa))
 			bfa_pport_aen_post(pport, BFA_PORT_AEN_OFFLINE);
-		} else {
+		else
 			bfa_pport_aen_post(pport, BFA_PORT_AEN_DISCONNECT);
-		}
 		break;
 
 	case BFA_PPORT_SM_STOP:
 		bfa_sm_set_state(pport, bfa_pport_sm_stopped);
 		bfa_pport_reset_linkinfo(pport);
-		if (BFA_PORT_IS_DISABLED(pport->bfa)) {
+		if (BFA_PORT_IS_DISABLED(pport->bfa))
 			bfa_pport_aen_post(pport, BFA_PORT_AEN_OFFLINE);
-		} else {
+		else
 			bfa_pport_aen_post(pport, BFA_PORT_AEN_DISCONNECT);
-		}
 		break;
 
 	case BFA_PPORT_SM_HWFAIL:
 		bfa_sm_set_state(pport, bfa_pport_sm_iocdown);
 		bfa_pport_reset_linkinfo(pport);
 		bfa_pport_callback(pport, BFA_PPORT_LINKDOWN);
-		if (BFA_PORT_IS_DISABLED(pport->bfa)) {
+		if (BFA_PORT_IS_DISABLED(pport->bfa))
 			bfa_pport_aen_post(pport, BFA_PORT_AEN_OFFLINE);
-		} else {
+		else
 			bfa_pport_aen_post(pport, BFA_PORT_AEN_DISCONNECT);
-		}
 		break;
 
 	default:
@@ -999,10 +996,10 @@ bfa_pport_enable(struct bfa_s *bfa)
 	struct bfa_pport_s *pport = BFA_PORT_MOD(bfa);
 
 	if (pport->diag_busy)
-		return (BFA_STATUS_DIAG_BUSY);
+		return BFA_STATUS_DIAG_BUSY;
 	else if (bfa_sm_cmp_state
 		 (BFA_PORT_MOD(bfa), bfa_pport_sm_disabling_qwait))
-		return (BFA_STATUS_DEVBUSY);
+		return BFA_STATUS_DEVBUSY;
 
 	bfa_sm_send_event(BFA_PORT_MOD(bfa), BFA_PPORT_SM_ENABLE);
 	return BFA_STATUS_OK;
@@ -1032,7 +1029,7 @@ bfa_pport_cfg_speed(struct bfa_s *bfa, enum bfa_pport_speed speed)
 
 	pport->cfg.speed = speed;
 
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 /**
@@ -1068,7 +1065,7 @@ bfa_pport_cfg_topology(struct bfa_s *bfa, enum bfa_pport_topology topology)
 	}
 
 	pport->cfg.topology = topology;
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 /**
@@ -1094,7 +1091,7 @@ bfa_pport_cfg_hardalpa(struct bfa_s *bfa, u8 alpa)
 	pport->cfg.cfg_hardalpa = BFA_TRUE;
 	pport->cfg.hardalpa = alpa;
 
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 bfa_status_t
@@ -1106,7 +1103,7 @@ bfa_pport_clr_hardalpa(struct bfa_s *bfa)
 	bfa_trc(bfa, pport->cfg.hardalpa);
 
 	pport->cfg.cfg_hardalpa = BFA_FALSE;
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 bfa_boolean_t
@@ -1138,16 +1135,16 @@ bfa_pport_cfg_maxfrsize(struct bfa_s *bfa, u16 maxfrsize)
 	 * with in range
 	 */
 	if ((maxfrsize > FC_MAX_PDUSZ) || (maxfrsize < FC_MIN_PDUSZ))
-		return (BFA_STATUS_INVLD_DFSZ);
+		return BFA_STATUS_INVLD_DFSZ;
 
 	/*
 	 * power of 2, if not the max frame size of 2112
 	 */
 	if ((maxfrsize != FC_MAX_PDUSZ) && (maxfrsize & (maxfrsize - 1)))
-		return (BFA_STATUS_INVLD_DFSZ);
+		return BFA_STATUS_INVLD_DFSZ;
 
 	pport->cfg.maxfrsize = maxfrsize;
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 u16
@@ -1415,7 +1412,7 @@ bfa_pport_get_stats(struct bfa_s *bfa, union bfa_pport_stats_u *stats,
 
 	if (port->stats_busy) {
 		bfa_trc(bfa, port->stats_busy);
-		return (BFA_STATUS_DEVBUSY);
+		return BFA_STATUS_DEVBUSY;
 	}
 
 	port->stats_busy = BFA_TRUE;
@@ -1427,7 +1424,7 @@ bfa_pport_get_stats(struct bfa_s *bfa, union bfa_pport_stats_u *stats,
 
 	bfa_timer_start(bfa, &port->timer, bfa_port_stats_timeout, port,
 			BFA_PORT_STATS_TOV);
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 bfa_status_t
@@ -1437,7 +1434,7 @@ bfa_pport_clear_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn, void *cbarg)
 
 	if (port->stats_busy) {
 		bfa_trc(bfa, port->stats_busy);
-		return (BFA_STATUS_DEVBUSY);
+		return BFA_STATUS_DEVBUSY;
 	}
 
 	port->stats_busy = BFA_TRUE;
@@ -1448,7 +1445,7 @@ bfa_pport_clear_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn, void *cbarg)
 
 	bfa_timer_start(bfa, &port->timer, bfa_port_stats_clr_timeout, port,
 			BFA_PORT_STATS_TOV);
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 bfa_status_t
@@ -1515,7 +1512,7 @@ bfa_pport_get_qos_stats(struct bfa_s *bfa, union bfa_pport_stats_u *stats,
 	/*
 	 * QoS stats is embedded in port stats
 	 */
-	return (bfa_pport_get_stats(bfa, stats, cbfn, cbarg));
+	return bfa_pport_get_stats(bfa, stats, cbfn, cbarg);
 }
 
 bfa_status_t
@@ -1525,7 +1522,7 @@ bfa_pport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn, void *cbarg)
 
 	if (port->stats_busy) {
 		bfa_trc(bfa, port->stats_busy);
-		return (BFA_STATUS_DEVBUSY);
+		return BFA_STATUS_DEVBUSY;
 	}
 
 	port->stats_busy = BFA_TRUE;
@@ -1536,7 +1533,7 @@ bfa_pport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn, void *cbarg)
 
 	bfa_timer_start(bfa, &port->timer, bfa_port_stats_clr_timeout, port,
 			BFA_PORT_STATS_TOV);
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 /**
@@ -1545,7 +1542,7 @@ bfa_pport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn, void *cbarg)
 bfa_status_t
 bfa_pport_trunk_disable(struct bfa_s *bfa)
 {
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 bfa_boolean_t
@@ -1562,8 +1559,8 @@ bfa_pport_is_disabled(struct bfa_s *bfa)
 {
 	struct bfa_pport_s *port = BFA_PORT_MOD(bfa);
 
-	return (bfa_sm_to_state(hal_pport_sm_table, port->sm) ==
-		BFA_PPORT_ST_DISABLED);
+	return bfa_sm_to_state(hal_pport_sm_table, port->sm) ==
+		BFA_PPORT_ST_DISABLED;
 
 }
 
@@ -1572,7 +1569,7 @@ bfa_pport_is_ratelim(struct bfa_s *bfa)
 {
 	struct bfa_pport_s *pport = BFA_PORT_MOD(bfa);
 
-return (pport->cfg.ratelimit ? BFA_TRUE : BFA_FALSE);
+	return pport->cfg.ratelimit ? BFA_TRUE : BFA_FALSE;
 
 }
 
@@ -1620,7 +1617,7 @@ bfa_pport_cfg_ratelim_speed(struct bfa_s *bfa, enum bfa_pport_speed speed)
 
 	pport->cfg.trl_def_speed = speed;
 
-	return (BFA_STATUS_OK);
+	return BFA_STATUS_OK;
 }
 
 /**
@@ -1632,7 +1629,7 @@ bfa_pport_get_ratelim_speed(struct bfa_s *bfa)
 	struct bfa_pport_s *pport = BFA_PORT_MOD(bfa);
 
 	bfa_trc(bfa, pport->cfg.trl_def_speed);
-	return (pport->cfg.trl_def_speed);
+	return pport->cfg.trl_def_speed;
 
 }
 

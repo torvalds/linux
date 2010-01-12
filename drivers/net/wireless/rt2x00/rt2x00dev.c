@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -205,6 +205,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
 	u8 rate_idx, rate_flags, retry_rates;
+	u8 skbdesc_flags = skbdesc->flags;
 	unsigned int i;
 	bool success;
 
@@ -287,12 +288,12 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	}
 
 	/*
-	 * Only send the status report to mac80211 when TX status was
-	 * requested by it. If this was a extra frame coming through
-	 * a mac80211 library call (RTS/CTS) then we should not send the
-	 * status report back.
+	 * Only send the status report to mac80211 when it's a frame
+	 * that originated in mac80211. If this was a extra frame coming
+	 * through a mac80211 library call (RTS/CTS) then we should not
+	 * send the status report back.
 	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_REQ_TX_STATUS)
+	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211))
 		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
 	else
 		dev_kfree_skb_irq(entry->skb);
@@ -430,7 +431,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->rate_idx = rate_idx;
-	rx_status->qual = rt2x00link_calculate_signal(rt2x00dev, rxdesc.rssi);
 	rx_status->signal = rxdesc.rssi;
 	rx_status->noise = rxdesc.noise;
 	rx_status->flag = rxdesc.flags;
@@ -684,6 +684,11 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->queues = rt2x00dev->ops->tx_queues;
 
 	/*
+	 * Initialize extra TX headroom required.
+	 */
+	rt2x00dev->hw->extra_tx_headroom = rt2x00dev->ops->extra_tx_headroom;
+
+	/*
 	 * Register HW.
 	 */
 	status = ieee80211_register_hw(rt2x00dev->hw);
@@ -815,6 +820,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	mutex_init(&rt2x00dev->csr_mutex);
 
+	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
+
 	/*
 	 * Make room for rt2x00_intf inside the per-interface
 	 * structure ieee80211_vif.
@@ -870,8 +877,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
-
-	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 
 	return 0;
 

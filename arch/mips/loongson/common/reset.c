@@ -22,7 +22,7 @@ static void loongson_restart(char *command)
 	mach_prepare_reboot();
 
 	/* reboot via jumping to boot base address */
-	((void (*)(void))ioremap_nocache(BONITO_BOOT_BASE, 4)) ();
+	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
 }
 
 static void loongson_halt(void)

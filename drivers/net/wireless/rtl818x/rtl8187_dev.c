@@ -320,7 +320,6 @@ static void rtl8187_rx_cb(struct urb *urb)
 	struct ieee80211_rx_status rx_status = { 0 };
 	int rate, signal;
 	u32 flags;
-	u32 quality;
 	unsigned long f;
 
 	spin_lock_irqsave(&priv->rx_queue.lock, f);
@@ -338,10 +337,9 @@ static void rtl8187_rx_cb(struct urb *urb)
 			(typeof(hdr))(skb_tail_pointer(skb) - sizeof(*hdr));
 		flags = le32_to_cpu(hdr->flags);
 		/* As with the RTL8187B below, the AGC is used to calculate
-		 * signal strength and quality. In this case, the scaling
+		 * signal strength. In this case, the scaling
 		 * constants are derived from the output of p54usb.
 		 */
-		quality = 130 - ((41 * hdr->agc) >> 6);
 		signal = -4 - ((27 * hdr->agc) >> 6);
 		rx_status.antenna = (hdr->signal >> 7) & 1;
 		rx_status.mactime = le64_to_cpu(hdr->mac_time);
@@ -354,23 +352,18 @@ static void rtl8187_rx_cb(struct urb *urb)
 		 * In testing, none of these quantities show qualitative
 		 * agreement with AP signal strength, except for the AGC,
 		 * which is inversely proportional to the strength of the
-		 * signal. In the following, the quality and signal strength
-		 * are derived from the AGC. The arbitrary scaling constants
+		 * signal. In the following, the signal strength
+		 * is derived from the AGC. The arbitrary scaling constants
 		 * are chosen to make the results close to the values obtained
 		 * for a BCM4312 using b43 as the driver. The noise is ignored
 		 * for now.
 		 */
 		flags = le32_to_cpu(hdr->flags);
-		quality = 170 - hdr->agc;
 		signal = 14 - hdr->agc / 2;
 		rx_status.antenna = (hdr->rssi >> 7) & 1;
 		rx_status.mactime = le64_to_cpu(hdr->mac_time);
 	}
 
-	if (quality > 100)
-		quality = 100;
-	rx_status.qual = quality;
-	priv->quality = quality;
 	rx_status.signal = signal;
 	priv->signal = signal;
 	rate = (flags >> 20) & 0xF;
@@ -1329,6 +1322,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	struct ieee80211_channel *channel;
 	const char *chip_name;
 	u16 txpwr, reg;
+	u16 product_id = le16_to_cpu(udev->descriptor.idProduct);
 	int err, i;
 
 	dev = ieee80211_alloc_hw(sizeof(*priv), &rtl8187_ops);
@@ -1488,6 +1482,13 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr & 0xFF;
 		(*channel++).hw_value = txpwr >> 8;
 	}
+	/* Handle the differing rfkill GPIO bit in different models */
+	priv->rfkill_mask = RFKILL_MASK_8187_89_97;
+	if (product_id == 0x8197 || product_id == 0x8198) {
+		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_SELECT_GPIO, &reg);
+		if (reg & 0xFF00)
+			priv->rfkill_mask = RFKILL_MASK_8198;
+	}
 
 	/*
 	 * XXX: Once this driver supports anything that requires
@@ -1516,9 +1517,9 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	mutex_init(&priv->conf_mutex);
 	skb_queue_head_init(&priv->b_tx_status.queue);
 
-	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s\n",
+	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s, rfkill mask %d\n",
 	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
-	       chip_name, priv->asic_rev, priv->rf->name);
+	       chip_name, priv->asic_rev, priv->rf->name, priv->rfkill_mask);
 
 #ifdef CONFIG_RTL8187_LEDS
 	eeprom_93cx6_read(&eeprom, 0x3F, &reg);

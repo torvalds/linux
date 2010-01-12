@@ -783,7 +783,7 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 
 			default:
 
-			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():unknow CMD Element\n");
+			        RT_TRACE(COMP_EVENTS, "---->cmpk_message_handle_rx():unknown CMD Element\n");
 				return 1;	/* This is a command packet. */
 		}
 		// 2007/01/22 MH Display received rx command packet info.

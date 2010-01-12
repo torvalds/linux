@@ -103,7 +103,7 @@ static void spitz_presuspend(void)
 	PFER = GPIO_bit(SPITZ_GPIO_KEY_INT) | GPIO_bit(SPITZ_GPIO_RESET);
 	PWER = GPIO_bit(SPITZ_GPIO_KEY_INT) | GPIO_bit(SPITZ_GPIO_RESET) | PWER_RTC;
 	PKWR = GPIO_bit(SPITZ_GPIO_SYNC) | GPIO_bit(SPITZ_GPIO_KEY_INT) | GPIO_bit(SPITZ_GPIO_RESET);
-	PKSR = 0xffffffff; // clear
+	PKSR = 0xffffffff; /* clear */
 
 	/* nRESET_OUT Disable */
 	PSLR |= PSLR_SL_ROD;
@@ -149,7 +149,7 @@ static int spitz_should_wakeup(unsigned int resume_on_alarm)
 	if (resume_on_alarm && (PEDR & PWER_RTC))
 		is_resume |= PWER_RTC;
 
-	dev_dbg(sharpsl_pm.dev, "is_resume: %x\n",is_resume);
+	dev_dbg(sharpsl_pm.dev, "is_resume: %x\n", is_resume);
 	return is_resume;
 }
 
@@ -160,7 +160,7 @@ static unsigned long spitz_charger_wakeup(void)
 
 unsigned long spitzpm_read_devdata(int type)
 {
-	switch(type) {
+	switch (type) {
 	case SHARPSL_STATUS_ACIN:
 		return (((~GPLR(SPITZ_GPIO_AC_IN)) & GPIO_bit(SPITZ_GPIO_AC_IN)) != 0);
 	case SHARPSL_STATUS_LOCK:
@@ -199,7 +199,7 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 #if defined(CONFIG_LCD_CORGI)
 	.backlight_limit = corgi_lcd_limit_intensity,
 #elif defined(CONFIG_BACKLIGHT_CORGI)
-        .backlight_limit  = corgibl_limit_intensity,
+	.backlight_limit  = corgibl_limit_intensity,
 #endif
 	.charge_on_volt	  = SHARPSL_CHARGE_ON_VOLT,
 	.charge_on_temp	  = SHARPSL_CHARGE_ON_TEMP,
@@ -208,8 +208,8 @@ struct sharpsl_charger_machinfo spitz_pm_machinfo = {
 	.fatal_acin_volt  = SHARPSL_FATAL_ACIN_VOLT,
 	.fatal_noacin_volt= SHARPSL_FATAL_NOACIN_VOLT,
 	.bat_levels       = 40,
-	.bat_levels_noac  = spitz_battery_levels_noac,
-	.bat_levels_acin  = spitz_battery_levels_acin,
+	.bat_levels_noac  = sharpsl_battery_levels_noac,
+	.bat_levels_acin  = sharpsl_battery_levels_acin,
 	.status_high_acin = 188,
 	.status_low_acin  = 178,
 	.status_high_noac = 185,
@@ -241,7 +241,7 @@ static int __devinit spitzpm_init(void)
 
 static void spitzpm_exit(void)
 {
- 	platform_device_unregister(spitzpm_device);
+	platform_device_unregister(spitzpm_device);
 }
 
 module_init(spitzpm_init);

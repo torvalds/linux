@@ -1,5 +1,3 @@
-# drivers/mtd/chips/Kconfig
-
 menu "RAM/ROM/Flash chip drivers"
 	depends on MTD!=n
 
@@ -242,4 +240,3 @@ config MTD_XIP
 	  then say N.
 
 endmenu
-

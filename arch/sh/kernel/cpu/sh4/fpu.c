@@ -41,13 +41,11 @@ static unsigned int fpu_exception_flags;
 
 /*
  * Save FPU registers onto task structure.
- * Assume called with FPU enabled (SR.FD=0).
  */
-void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
+void save_fpu(struct task_struct *tsk)
 {
 	unsigned long dummy;
 
-	clear_tsk_thread_flag(tsk, TIF_USEDFPU);
 	enable_fpu();
 	asm volatile ("sts.l	fpul, @-%0\n\t"
 		      "sts.l	fpscr, @-%0\n\t"
@@ -92,7 +90,6 @@ void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
 		      :"memory");
 
 	disable_fpu();
-	release_fpu(regs);
 }
 
 static void restore_fpu(struct task_struct *tsk)
@@ -285,7 +282,6 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 		/* fcnvsd */
 		struct task_struct *tsk = current;
 
-		save_fpu(tsk, regs);
 		if ((tsk->thread.fpu.hard.fpscr & FPSCR_CAUSE_ERROR))
 			/* FPU error */
 			denormal_to_double(&tsk->thread.fpu.hard,
@@ -462,7 +458,7 @@ BUILD_TRAP_HANDLER(fpu_error)
 	struct task_struct *tsk = current;
 	TRAP_HANDLER_DECL;
 
-	save_fpu(tsk, regs);
+	__unlazy_fpu(tsk, regs);
 	fpu_exception_flags = 0;
 	if (ieee_fpe_handler(regs)) {
 		tsk->thread.fpu.hard.fpscr &=
@@ -473,7 +469,7 @@ BUILD_TRAP_HANDLER(fpu_error)
 		tsk->thread.fpu.hard.fpscr |= (fpu_exception_flags >> 10);
 		grab_fpu(regs);
 		restore_fpu(tsk);
-		set_tsk_thread_flag(tsk, TIF_USEDFPU);
+		task_thread_info(tsk)->status |= TS_USEDFPU;
 		if ((((tsk->thread.fpu.hard.fpscr & FPSCR_ENABLE_MASK) >> 7) &
 		     (fpu_exception_flags >> 2)) == 0) {
 			return;
@@ -483,18 +479,18 @@ BUILD_TRAP_HANDLER(fpu_error)
 	force_sig(SIGFPE, tsk);
 }
 
-BUILD_TRAP_HANDLER(fpu_state_restore)
+void fpu_state_restore(struct pt_regs *regs)
 {
 	struct task_struct *tsk = current;
-	TRAP_HANDLER_DECL;
 
 	grab_fpu(regs);
-	if (!user_mode(regs)) {
+	if (unlikely(!user_mode(regs))) {
 		printk(KERN_ERR "BUG: FPU is used in kernel mode.\n");
+		BUG();
 		return;
 	}
 
-	if (used_math()) {
+	if (likely(used_math())) {
 		/* Using the FPU again.  */
 		restore_fpu(tsk);
 	} else {
@@ -502,5 +498,13 @@ BUILD_TRAP_HANDLER(fpu_state_restore)
 		fpu_init();
 		set_used_math();
 	}
-	set_tsk_thread_flag(tsk, TIF_USEDFPU);
+	task_thread_info(tsk)->status |= TS_USEDFPU;
+	tsk->fpu_counter++;
+}
+
+BUILD_TRAP_HANDLER(fpu_state_restore)
+{
+	TRAP_HANDLER_DECL;
+
+	fpu_state_restore(regs);
 }

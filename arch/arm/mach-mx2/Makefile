@@ -20,4 +20,5 @@ obj-$(CONFIG_MACH_MX27LITE) += mx27lite.o
 obj-$(CONFIG_MACH_EUKREA_CPUIMX27) += eukrea_cpuimx27.o
 obj-$(CONFIG_MACH_EUKREA_MBIMX27_BASEBOARD) += eukrea_mbimx27-baseboard.o
 obj-$(CONFIG_MACH_PCA100) += pca100.o
+obj-$(CONFIG_MACH_MXT_TD60) += mxt_td60.o
 

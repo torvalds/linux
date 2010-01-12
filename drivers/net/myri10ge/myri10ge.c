@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.5.1-1.451"
+#define MYRI10GE_VERSION_STR "1.5.1-1.453"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -207,7 +207,6 @@ struct myri10ge_priv {
 	int big_bytes;
 	int max_intr_slots;
 	struct net_device *dev;
-	struct net_device_stats stats;
 	spinlock_t stats_lock;
 	u8 __iomem *sram;
 	int sram_size;
@@ -264,6 +263,10 @@ static char *myri10ge_fw_unaligned = "myri10ge_ethp_z8e.dat";
 static char *myri10ge_fw_aligned = "myri10ge_eth_z8e.dat";
 static char *myri10ge_fw_rss_unaligned = "myri10ge_rss_ethp_z8e.dat";
 static char *myri10ge_fw_rss_aligned = "myri10ge_rss_eth_z8e.dat";
+MODULE_FIRMWARE("myri10ge_ethp_z8e.dat");
+MODULE_FIRMWARE("myri10ge_eth_z8e.dat");
+MODULE_FIRMWARE("myri10ge_rss_ethp_z8e.dat");
+MODULE_FIRMWARE("myri10ge_rss_eth_z8e.dat");
 
 static char *myri10ge_fw_name = NULL;
 module_param(myri10ge_fw_name, charp, S_IRUGO | S_IWUSR);
@@ -344,7 +347,7 @@ static int myri10ge_max_slices = 1;
 module_param(myri10ge_max_slices, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_max_slices, "Max tx/rx queues");
 
-static int myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
+static int myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 module_param(myri10ge_rss_hash, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_rss_hash, "Type of RSS hashing to do");
 
@@ -407,8 +410,8 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 		 * and try to get the completion quickly
 		 * (1ms will be enough for those commands) */
 		for (sleep_total = 0;
-		     sleep_total < 1000
-		     && response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
+		     sleep_total < 1000 &&
+		     response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
 		     sleep_total += 10) {
 			udelay(10);
 			mb();
@@ -416,8 +419,8 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 	} else {
 		/* use msleep for most command */
 		for (sleep_total = 0;
-		     sleep_total < 15
-		     && response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
+		     sleep_total < 15 &&
+		     response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
 		     sleep_total++)
 			msleep(1);
 	}
@@ -554,8 +557,8 @@ myri10ge_validate_firmware(struct myri10ge_priv *mgp,
 	sscanf(mgp->fw_version, "%d.%d.%d", &mgp->fw_ver_major,
 	       &mgp->fw_ver_minor, &mgp->fw_ver_tiny);
 
-	if (!(mgp->fw_ver_major == MXGEFW_VERSION_MAJOR
-	      && mgp->fw_ver_minor == MXGEFW_VERSION_MINOR)) {
+	if (!(mgp->fw_ver_major == MXGEFW_VERSION_MAJOR &&
+	      mgp->fw_ver_minor == MXGEFW_VERSION_MINOR)) {
 		dev_err(dev, "Found firmware version %s\n", mgp->fw_version);
 		dev_err(dev, "Driver needs %d.%d\n", MXGEFW_VERSION_MAJOR,
 			MXGEFW_VERSION_MINOR);
@@ -1409,8 +1412,8 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 	}
 
 	/* start the queue if we've stopped it */
-	if (netif_tx_queue_stopped(dev_queue)
-	    && tx->req - tx->done < (tx->mask >> 1)) {
+	if (netif_tx_queue_stopped(dev_queue) &&
+	    tx->req - tx->done < (tx->mask >> 1)) {
 		tx->wake_queue++;
 		netif_tx_wake_queue(dev_queue);
 	}
@@ -1832,7 +1835,7 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	/* force stats update */
 	(void)myri10ge_get_stats(netdev);
 	for (i = 0; i < MYRI10GE_NET_STATS_LEN; i++)
-		data[i] = ((unsigned long *)&mgp->stats)[i];
+		data[i] = ((unsigned long *)&netdev->stats)[i];
 
 	data[i++] = (unsigned int)mgp->tx_boundary;
 	data[i++] = (unsigned int)mgp->wc_enabled;
@@ -3002,7 +3005,7 @@ static struct net_device_stats *myri10ge_get_stats(struct net_device *dev)
 {
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	struct myri10ge_slice_netstats *slice_stats;
-	struct net_device_stats *stats = &mgp->stats;
+	struct net_device_stats *stats = &dev->stats;
 	int i;
 
 	spin_lock(&mgp->stats_lock);

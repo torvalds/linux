@@ -2,7 +2,7 @@
  * OMAP2/3 clockdomain framework functions
  *
  * Copyright (C) 2008 Texas Instruments, Inc.
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Written by Paul Walmsley and Jouni Högander
  *
@@ -10,9 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifdef CONFIG_OMAP_DEBUG_CLOCKDOMAIN
-#  define DEBUG
-#endif
+#undef DEBUG
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -28,14 +26,14 @@
 
 #include <linux/bitops.h>
 
-#include <mach/clock.h>
+#include <plat/clock.h>
 
 #include "prm.h"
 #include "prm-regbits-24xx.h"
 #include "cm.h"
 
-#include <mach/powerdomain.h>
-#include <mach/clockdomain.h>
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
 
 /* clkdm_list contains all registered struct clockdomains */
 static LIST_HEAD(clkdm_list);

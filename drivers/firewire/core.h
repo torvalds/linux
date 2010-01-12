@@ -40,7 +40,8 @@ struct fw_card_driver {
 	 * enable the PHY or set the link_on bit and initiate a bus
 	 * reset.
 	 */
-	int (*enable)(struct fw_card *card, u32 *config_rom, size_t length);
+	int (*enable)(struct fw_card *card,
+		      const __be32 *config_rom, size_t length);
 
 	int (*update_phy_reg)(struct fw_card *card, int address,
 			      int clear_bits, int set_bits);
@@ -48,10 +49,10 @@ struct fw_card_driver {
 	/*
 	 * Update the config rom for an enabled card.  This function
 	 * should change the config rom that is presented on the bus
-	 * an initiate a bus reset.
+	 * and initiate a bus reset.
 	 */
 	int (*set_config_rom)(struct fw_card *card,
-			      u32 *config_rom, size_t length);
+			      const __be32 *config_rom, size_t length);
 
 	void (*send_request)(struct fw_card *card, struct fw_packet *packet);
 	void (*send_response)(struct fw_card *card, struct fw_packet *packet);
@@ -93,7 +94,7 @@ int fw_card_add(struct fw_card *card,
 		u32 max_receive, u32 link_speed, u64 guid);
 void fw_core_remove_card(struct fw_card *card);
 int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
-int fw_compute_block_crc(u32 *block);
+int fw_compute_block_crc(__be32 *block);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)

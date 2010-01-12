@@ -129,6 +129,18 @@ static inline int claw_dbf_passes(debug_info_t *dbf_grp, int level)
 		} \
 	} while (0)
 
+/**
+ * Enum for classifying detected devices.
+ */
+enum claw_channel_types {
+	/* Device is not a channel  */
+	claw_channel_type_none,
+
+	/* Device is a CLAW channel device */
+	claw_channel_type_claw
+};
+
+
 /*******************************************************
 *  Define Control Blocks                               *
 *                                                      *

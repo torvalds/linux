@@ -18,8 +18,8 @@
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
 
-#include <mach/iommu.h>
-#include <mach/iovmm.h>
+#include <plat/iommu.h>
+#include <plat/iovmm.h>
 
 #include "iopgtable.h"
 
@@ -392,7 +392,6 @@ static void sgtable_fill_vmalloc(struct sg_table *sgt, void *_va)
 	}
 
 	va_end = _va + PAGE_SIZE * i;
-	flush_cache_vmap((unsigned long)_va, (unsigned long)va_end);
 }
 
 static inline void sgtable_drain_vmalloc(struct sg_table *sgt)
@@ -427,8 +426,6 @@ static void sgtable_fill_kmalloc(struct sg_table *sgt, u32 pa, size_t len)
 		len -= bytes;
 	}
 	BUG_ON(len);
-
-	clean_dcache_area(va, len);
 }
 
 static inline void sgtable_drain_kmalloc(struct sg_table *sgt)
@@ -449,7 +446,7 @@ static int map_iovm_area(struct iommu *obj, struct iovm_struct *new,
 	struct scatterlist *sg;
 	u32 da = new->da_start;
 
-	if (!obj || !new || !sgt)
+	if (!obj || !sgt)
 		return -EINVAL;
 
 	BUG_ON(!sgtable_ok(sgt));
@@ -617,7 +614,7 @@ u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
 		 u32 flags)
 {
 	size_t bytes;
-	void *va;
+	void *va = NULL;
 
 	if (!obj || !obj->dev || !sgt)
 		return -EINVAL;
@@ -627,9 +624,11 @@ u32 iommu_vmap(struct iommu *obj, u32 da, const struct sg_table *sgt,
 		return -EINVAL;
 	bytes = PAGE_ALIGN(bytes);
 
-	va = vmap_sg(sgt);
-	if (IS_ERR(va))
-		return PTR_ERR(va);
+	if (flags & IOVMF_MMIO) {
+		va = vmap_sg(sgt);
+		if (IS_ERR(va))
+			return PTR_ERR(va);
+	}
 
 	flags &= IOVMF_HW_MASK;
 	flags |= IOVMF_DISCONT;

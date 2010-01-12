@@ -15,7 +15,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_bss *bss;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	union iwreq_data wrqu;
 #endif
 
@@ -44,7 +44,7 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid)
 
 	nl80211_send_ibss_bssid(wiphy_to_dev(wdev->wiphy), dev, bssid,
 				GFP_KERNEL);
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, bssid, ETH_ALEN);
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
@@ -70,7 +70,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 	spin_lock_irqsave(&wdev->event_lock, flags);
 	list_add_tail(&ev->list, &wdev->event_list);
 	spin_unlock_irqrestore(&wdev->event_lock, flags);
-	schedule_work(&rdev->event_work);
+	queue_work(cfg80211_wq, &rdev->event_work);
 }
 EXPORT_SYMBOL(cfg80211_ibss_joined);
 
@@ -96,7 +96,7 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		kfree(wdev->connect_keys);
 	wdev->connect_keys = connkeys;
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	wdev->wext.ibss.channel = params->channel;
 #endif
 	err = rdev->ops->join_ibss(&rdev->wiphy, dev, params);
@@ -154,7 +154,7 @@ static void __cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 
 	wdev->current_bss = NULL;
 	wdev->ssid_len = 0;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 	if (!nowext)
 		wdev->wext.ibss.ssid_len = 0;
 #endif
@@ -169,8 +169,8 @@ void cfg80211_clear_ibss(struct net_device *dev, bool nowext)
 	wdev_unlock(wdev);
 }
 
-static int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
-				 struct net_device *dev, bool nowext)
+int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, bool nowext)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -203,7 +203,7 @@ int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev)
 {

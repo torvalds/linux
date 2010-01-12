@@ -424,8 +424,6 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 
 	if (level != SOL_CAN_RAW)
 		return -EINVAL;
-	if (optlen < 0)
-		return -EINVAL;
 
 	switch (optname) {
 
@@ -702,7 +700,7 @@ static int raw_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return err;
 	}
 
-	sock_recv_timestamp(msg, sk, skb);
+	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
 		msg->msg_namelen = sizeof(struct sockaddr_can);
@@ -744,7 +742,6 @@ static struct proto raw_proto __read_mostly = {
 static struct can_proto raw_can_proto __read_mostly = {
 	.type       = SOCK_RAW,
 	.protocol   = CAN_RAW,
-	.capability = -1,
 	.ops        = &raw_ops,
 	.prot       = &raw_proto,
 };

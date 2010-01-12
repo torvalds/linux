@@ -840,7 +840,7 @@ static int xilinx_download(struct comedi_device *dev)
 		       "comedi%d: me4000: xilinx_download(): DONE flag is not set\n",
 		       dev->minor);
 		printk(KERN_ERR
-		       "comedi%d: me4000: xilinx_download(): Download not succesful\n",
+		       "comedi%d: me4000: xilinx_download(): Download not successful\n",
 		       dev->minor);
 		return -EIO;
 	}

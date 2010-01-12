@@ -1165,7 +1165,7 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	 */
 	if (record) {
 		struct perf_sample_data data = {
-			.addr	= 0,
+			.addr	= ~0ULL,
 			.period	= event->hw.last_period,
 		};
 

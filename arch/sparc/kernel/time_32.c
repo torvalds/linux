@@ -210,9 +210,6 @@ static void __init sbus_time_init(void)
 	btfixup();
 
 	sparc_init_timers(timer_interrupt);
-	
-	/* Now that OBP ticker has been silenced, it is safe to enable IRQ. */
-	local_irq_enable();
 }
 
 void __init time_init(void)

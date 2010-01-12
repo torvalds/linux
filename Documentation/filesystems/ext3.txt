@@ -32,8 +32,8 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting. Note that this forces
-			mount of inconsistent filesystem, which can lead to
+norecovery		Don't load the journal on mounting. Note that this forces
+noload			mount of inconsistent filesystem, which can lead to
 			various problems.
 
 data=journal		All data are committed into the journal prior to being

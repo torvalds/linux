@@ -1,6 +1,7 @@
 config FB_OMAP
 	tristate "OMAP frame buffer support (EXPERIMENTAL)"
-	depends on FB && ARCH_OMAP
+	depends on FB && ARCH_OMAP && (OMAP2_DSS = "n")
+
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -72,7 +73,7 @@ config FB_OMAP_LCD_MIPID
 
 config FB_OMAP_BOOTLOADER_INIT
 	bool "Check bootloader initialization"
-	depends on FB_OMAP
+	depends on FB_OMAP || FB_OMAP2
 	help
 	  Say Y here if you want to enable checking if the bootloader has
 	  already initialized the display controller. In this case the

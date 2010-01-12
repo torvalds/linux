@@ -324,7 +324,7 @@ CONFIG_ENTRY_OFFSET=0x00001000
 # CONFIG_UBC_WAKEUP is not set
 CONFIG_CMDLINE_OVERWRITE=y
 # CONFIG_CMDLINE_EXTEND is not set
-CONFIG_CMDLINE="console=tty0 console=ttySC0,115200 root=/dev/sda1 earlyprintk=serial"
+CONFIG_CMDLINE="console=tty0 console=ttySC1,115200 root=/dev/sda1"
 
 #
 # Bus options

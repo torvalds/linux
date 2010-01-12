@@ -29,13 +29,13 @@
 #include <asm/mach/map.h>
 #include <asm/setup.h>
 
-#include <mach/common.h>
-#include <mach/board.h>
-#include <mach/control.h>
-#include <mach/mux.h>
-#include <mach/fpga.h>
+#include <plat/common.h>
+#include <plat/board.h>
+#include <plat/control.h>
+#include <plat/mux.h>
+#include <plat/fpga.h>
 
-#include <mach/clock.h>
+#include <plat/clock.h>
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 # include "../mach-omap2/sdrc.h"
@@ -48,6 +48,9 @@ int omap_bootloader_tag_len;
 
 struct omap_board_config_kernel *omap_board_config;
 int omap_board_config_size;
+
+/* used by omap-smp.c and board-4430sdp.c */
+void __iomem *gic_cpu_base_addr;
 
 static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 {
@@ -224,12 +227,12 @@ static void __init __omap2_set_globals(struct omap_globals *omap2_globals)
 
 static struct omap_globals omap242x_globals = {
 	.class	= OMAP242X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x48014000),
-	.sdrc	= OMAP2_IO_ADDRESS(OMAP2420_SDRC_BASE),
-	.sms	= OMAP2_IO_ADDRESS(OMAP2420_SMS_BASE),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP2420_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP2420_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP2420_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x48014000),
+	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP2420_SDRC_BASE),
+	.sms	= OMAP2_L3_IO_ADDRESS(OMAP2420_SMS_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP2420_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE),
 };
 
 void __init omap2_set_globals_242x(void)
@@ -242,12 +245,12 @@ void __init omap2_set_globals_242x(void)
 
 static struct omap_globals omap243x_globals = {
 	.class	= OMAP243X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x4900a000),
-	.sdrc	= OMAP2_IO_ADDRESS(OMAP243X_SDRC_BASE),
-	.sms	= OMAP2_IO_ADDRESS(OMAP243X_SMS_BASE),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP243X_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP2430_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP2430_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x4900a000),
+	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP243X_SDRC_BASE),
+	.sms	= OMAP2_L3_IO_ADDRESS(OMAP243X_SMS_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP243X_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE),
 };
 
 void __init omap2_set_globals_243x(void)
@@ -260,12 +263,12 @@ void __init omap2_set_globals_243x(void)
 
 static struct omap_globals omap343x_globals = {
 	.class	= OMAP343X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x4830A000),
-	.sdrc	= OMAP2_IO_ADDRESS(OMAP343X_SDRC_BASE),
-	.sms	= OMAP2_IO_ADDRESS(OMAP343X_SMS_BASE),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP343X_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP3430_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP3430_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(0x4830A000),
+	.sdrc	= OMAP2_L3_IO_ADDRESS(OMAP343X_SDRC_BASE),
+	.sms	= OMAP2_L3_IO_ADDRESS(OMAP343X_SMS_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP343X_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE),
 };
 
 void __init omap2_set_globals_343x(void)
@@ -277,16 +280,18 @@ void __init omap2_set_globals_343x(void)
 #if defined(CONFIG_ARCH_OMAP4)
 static struct omap_globals omap4_globals = {
 	.class	= OMAP443X_CLASS,
-	.tap	= OMAP2_IO_ADDRESS(0x4830a000),
-	.ctrl	= OMAP2_IO_ADDRESS(OMAP443X_CTRL_BASE),
-	.prm	= OMAP2_IO_ADDRESS(OMAP4430_PRM_BASE),
-	.cm	= OMAP2_IO_ADDRESS(OMAP4430_CM_BASE),
+	.tap	= OMAP2_L4_IO_ADDRESS(OMAP443X_SCM_BASE),
+	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP443X_CTRL_BASE),
+	.prm	= OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE),
+	.cm	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM_BASE),
+	.cm2	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM2_BASE),
 };
 
 void __init omap2_set_globals_443x(void)
 {
 	omap2_set_globals_tap(&omap4_globals);
 	omap2_set_globals_control(&omap4_globals);
+	omap2_set_globals_prcm(&omap4_globals);
 }
 #endif
 

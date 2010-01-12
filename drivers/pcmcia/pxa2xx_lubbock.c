@@ -32,6 +32,7 @@ static int
 lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 				const socket_state_t *state)
 {
+	struct sa1111_pcmcia_socket *s = to_skt(skt);
 	unsigned int pa_dwr_mask, pa_dwr_set, misc_mask, misc_set;
 	int ret = 0;
 
@@ -149,7 +150,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 	if (ret == 0) {
 		lubbock_set_misc_wr(misc_mask, misc_set);
-		sa1111_set_io(SA1111_DEV(skt->dev), pa_dwr_mask, pa_dwr_set);
+		sa1111_set_io(s->dev, pa_dwr_mask, pa_dwr_set);
 	}
 
 #if 1
@@ -175,7 +176,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 			 * Switch to 5V,  Configure socket with 5V voltage
 			 */
 			lubbock_set_misc_wr(misc_mask, 0);
-			sa1111_set_io(SA1111_DEV(skt->dev), pa_dwr_mask, 0);
+			sa1111_set_io(s->dev, pa_dwr_mask, 0);
 
 			/*
 			 * It takes about 100ms to turn off Vcc.
@@ -200,12 +201,8 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 static struct pcmcia_low_level lubbock_pcmcia_ops = {
 	.owner			= THIS_MODULE,
-	.hw_init		= sa1111_pcmcia_hw_init,
-	.hw_shutdown		= sa1111_pcmcia_hw_shutdown,
-	.socket_state		= sa1111_pcmcia_socket_state,
 	.configure_socket	= lubbock_pcmcia_configure_socket,
 	.socket_init		= sa1111_pcmcia_socket_init,
-	.socket_suspend		= sa1111_pcmcia_socket_suspend,
 	.first			= 0,
 	.nr			= 2,
 };
@@ -228,8 +225,9 @@ int pcmcia_lubbock_init(struct sa1111_dev *sadev)
 		/* Set CF Socket 1 power to standby mode. */
 		lubbock_set_misc_wr((1 << 15) | (1 << 14), 0);
 
-		sadev->dev.platform_data = &lubbock_pcmcia_ops;
-		ret = __pxa2xx_drv_pcmcia_probe(&sadev->dev);
+		pxa2xx_drv_pcmcia_ops(&lubbock_pcmcia_ops);
+		ret = sa1111_pcmcia_add(sadev, &lubbock_pcmcia_ops,
+				pxa2xx_drv_pcmcia_add_one);
 	}
 
 	return ret;

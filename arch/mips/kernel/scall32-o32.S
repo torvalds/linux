@@ -583,6 +583,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_rt_tgsigqueueinfo	4
 	sys	sys_perf_event_open	5
 	sys	sys_accept4		4
+	sys     sys_recvmmsg            5
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

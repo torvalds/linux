@@ -7,8 +7,15 @@
 /* Keep error state on tunnel for 30 sec */
 #define IPTUNNEL_ERR_TIMEO	(30*HZ)
 
-struct ip_tunnel
-{
+/* 6rd prefix/relay information */
+struct ip_tunnel_6rd_parm {
+	struct in6_addr		prefix;
+	__be32			relay_prefix;
+	u16			prefixlen;
+	u16			relay_prefixlen;
+};
+
+struct ip_tunnel {
 	struct ip_tunnel	*next;
 	struct net_device	*dev;
 
@@ -23,15 +30,19 @@ struct ip_tunnel
 
 	struct ip_tunnel_parm	parms;
 
+	/* for SIT */
+#ifdef CONFIG_IPV6_SIT_6RD
+	struct ip_tunnel_6rd_parm	ip6rd;
+#endif
 	struct ip_tunnel_prl_entry	*prl;		/* potential router list */
 	unsigned int			prl_count;	/* # of entries in PRL */
 };
 
-struct ip_tunnel_prl_entry
-{
+struct ip_tunnel_prl_entry {
 	struct ip_tunnel_prl_entry	*next;
 	__be32				addr;
 	u16				flags;
+	struct rcu_head			rcu_head;
 };
 
 #define IPTUNNEL_XMIT() do {						\
@@ -42,9 +53,9 @@ struct ip_tunnel_prl_entry
 	ip_select_ident(iph, &rt->u.dst, NULL);				\
 									\
 	err = ip_local_out(skb);					\
-	if (net_xmit_eval(err) == 0) {					\
-		stats->tx_bytes += pkt_len;				\
-		stats->tx_packets++;					\
+	if (likely(net_xmit_eval(err) == 0)) {				\
+		txq->tx_bytes += pkt_len;				\
+		txq->tx_packets++;					\
 	} else {							\
 		stats->tx_errors++;					\
 		stats->tx_aborted_errors++;				\

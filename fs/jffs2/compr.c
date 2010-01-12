@@ -177,7 +177,7 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		spin_unlock(&jffs2_compressor_list_lock);
 		break;
 	default:
-		printk(KERN_ERR "JFFS2: unknow compression mode.\n");
+		printk(KERN_ERR "JFFS2: unknown compression mode.\n");
 	}
  out:
 	if (ret == JFFS2_COMPR_NONE) {

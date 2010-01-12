@@ -91,7 +91,6 @@
 
 #define NUM_SEL_MNT_OPTS 5
 
-extern unsigned int policydb_loaded_version;
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern struct security_operations *security_ops;
 
@@ -3338,9 +3337,18 @@ static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
-static int selinux_kernel_module_request(void)
+static int selinux_kernel_module_request(char *kmod_name)
 {
-	return task_has_system(current, SYSTEM__MODULE_REQUEST);
+	u32 sid;
+	struct common_audit_data ad;
+
+	sid = task_sid(current);
+
+	COMMON_AUDIT_DATA_INIT(&ad, KMOD);
+	ad.u.kmod_name = kmod_name;
+
+	return avc_has_perm(sid, SECINITSID_KERNEL, SECCLASS_SYSTEM,
+			    SYSTEM__MODULE_REQUEST, &ad);
 }
 
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
@@ -4085,7 +4093,7 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 	char *addrp;
 
 	COMMON_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.netif = skb->iif;
+	ad.u.net.netif = skb->skb_iif;
 	ad.u.net.family = family;
 	err = selinux_parse_skb(skb, &ad, &addrp, 1, NULL);
 	if (err)
@@ -4147,7 +4155,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		return 0;
 
 	COMMON_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.netif = skb->iif;
+	ad.u.net.netif = skb->skb_iif;
 	ad.u.net.family = family;
 	err = selinux_parse_skb(skb, &ad, &addrp, 1, NULL);
 	if (err)
@@ -4159,7 +4167,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		err = selinux_skb_peerlbl_sid(skb, family, &peer_sid);
 		if (err)
 			return err;
-		err = selinux_inet_sys_rcv_skb(skb->iif, addrp, family,
+		err = selinux_inet_sys_rcv_skb(skb->skb_iif, addrp, family,
 					       peer_sid, &ad);
 		if (err) {
 			selinux_netlbl_err(skb, err, 0);
@@ -4714,10 +4722,7 @@ static int selinux_netlink_send(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	if (policydb_loaded_version >= POLICYDB_VERSION_NLCLASS)
-		err = selinux_nlmsg_perm(sk, skb);
-
-	return err;
+	return selinux_nlmsg_perm(sk, skb);
 }
 
 static int selinux_netlink_recv(struct sk_buff *skb, int capability)
@@ -5830,11 +5835,11 @@ int selinux_disable(void)
 	selinux_disabled = 1;
 	selinux_enabled = 0;
 
-	/* Try to destroy the avc node cache */
-	avc_disable();
-
 	/* Reset security_ops to the secondary module, dummy or capability. */
 	security_ops = secondary_ops;
+
+	/* Try to destroy the avc node cache */
+	avc_disable();
 
 	/* Unregister netfilter hooks. */
 	selinux_nf_ip_exit();

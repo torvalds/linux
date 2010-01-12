@@ -47,8 +47,8 @@ static struct irqaction cascade_irqaction = {
 void __init set_irq_trigger_mode(void)
 {
 	/* most bonito irq should be level triggered */
-	BONITO_INTEDGE = BONITO_ICU_SYSTEMERR | BONITO_ICU_MASTERERR |
-	    BONITO_ICU_RETRYERR | BONITO_ICU_MBOXES;
+	LOONGSON_INTEDGE = LOONGSON_ICU_SYSTEMERR | LOONGSON_ICU_MASTERERR |
+	    LOONGSON_ICU_RETRYERR | LOONGSON_ICU_MBOXES;
 }
 
 void __init mach_init_irq(void)

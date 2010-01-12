@@ -1,6 +1,8 @@
 #ifndef _ASM_SCORE_DELAY_H
 #define _ASM_SCORE_DELAY_H
 
+#include <asm-generic/param.h>
+
 static inline void __delay(unsigned long loops)
 {
 	/* 3 cycles per loop. */

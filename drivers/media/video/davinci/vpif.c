@@ -266,7 +266,7 @@ fail:
 	return status;
 }
 
-static int vpif_remove(struct platform_device *pdev)
+static int __devexit vpif_remove(struct platform_device *pdev)
 {
 	iounmap(vpif_base);
 	release_mem_region(res->start, res_len);

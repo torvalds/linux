@@ -119,6 +119,7 @@ struct rds_iw_connection {
 	struct rds_iw_send_work *i_sends;
 
 	/* rx */
+	struct tasklet_struct	i_recv_tasklet;
 	struct mutex		i_recv_mutex;
 	struct rds_iw_work_ring	i_recv_ring;
 	struct rds_iw_incoming	*i_iwinc;
@@ -330,6 +331,7 @@ void rds_iw_inc_free(struct rds_incoming *inc);
 int rds_iw_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
 			     size_t size);
 void rds_iw_recv_cq_comp_handler(struct ib_cq *cq, void *context);
+void rds_iw_recv_tasklet_fn(unsigned long data);
 void rds_iw_recv_init_ring(struct rds_iw_connection *ic);
 void rds_iw_recv_clear_ring(struct rds_iw_connection *ic);
 void rds_iw_recv_init_ack(struct rds_iw_connection *ic);

@@ -33,8 +33,7 @@ obj-y				+= $(tlb-y)
 endif
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
-obj-$(CONFIG_PMB)		+= pmb.o
-obj-$(CONFIG_PMB_FIXED)		+= pmb-fixed.o
+obj-$(CONFIG_PMB_ENABLE)	+= pmb.o
 obj-$(CONFIG_NUMA)		+= numa.o
 
 # Special flags for fault_64.o.  This puts restrictions on the number of

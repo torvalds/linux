@@ -257,6 +257,7 @@ static DEVICE_ATTR(operating_mode, S_IWUSR | S_IRUGO,
 
 static ssize_t __tsl2550_show_lux(struct i2c_client *client, char *buf)
 {
+	struct tsl2550_data *data = i2c_get_clientdata(client);
 	u8 ch0, ch1;
 	int ret;
 
@@ -274,6 +275,8 @@ static ssize_t __tsl2550_show_lux(struct i2c_client *client, char *buf)
 	ret = tsl2550_calculate_lux(ch0, ch1);
 	if (ret < 0)
 		return ret;
+	if (data->operating_mode == 1)
+		ret *= 5;
 
 	return sprintf(buf, "%d\n", ret);
 }

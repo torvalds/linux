@@ -45,6 +45,10 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifdef CONFIG_USB_STORAGE_DEBUG
+#define DEBUG
+#endif
+
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/freezer.h>
@@ -228,6 +232,7 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data,
 	if (data_len<36) // You lose.
 		return;
 
+	memset(data+8, ' ', 28);
 	if(data[0]&0x20) { /* USB device currently not connected. Return
 			      peripheral qualifier 001b ("...however, the
 			      physical device is not currently connected
@@ -237,15 +242,15 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data,
 			      device, it may return zeros or ASCII spaces 
 			      (20h) in those fields until the data is
 			      available from the device."). */
-		memset(data+8,0,28);
 	} else {
 		u16 bcdDevice = le16_to_cpu(us->pusb_dev->descriptor.bcdDevice);
-		memcpy(data+8, us->unusual_dev->vendorName, 
-			strlen(us->unusual_dev->vendorName) > 8 ? 8 :
-			strlen(us->unusual_dev->vendorName));
-		memcpy(data+16, us->unusual_dev->productName, 
-			strlen(us->unusual_dev->productName) > 16 ? 16 :
-			strlen(us->unusual_dev->productName));
+		int n;
+
+		n = strlen(us->unusual_dev->vendorName);
+		memcpy(data+8, us->unusual_dev->vendorName, min(8, n));
+		n = strlen(us->unusual_dev->productName);
+		memcpy(data+16, us->unusual_dev->productName, min(16, n));
+
 		data[32] = 0x30 + ((bcdDevice>>12) & 0x0F);
 		data[33] = 0x30 + ((bcdDevice>>8) & 0x0F);
 		data[34] = 0x30 + ((bcdDevice>>4) & 0x0F);
@@ -458,6 +463,9 @@ static void adjust_quirks(struct us_data *us)
 		switch (TOLOWER(*p)) {
 		case 'a':
 			f |= US_FL_SANE_SENSE;
+			break;
+		case 'b':
+			f |= US_FL_BAD_SENSE;
 			break;
 		case 'c':
 			f |= US_FL_FIX_CAPACITY;
@@ -808,14 +816,13 @@ static int usb_stor_scan_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
 
-	printk(KERN_DEBUG
-		"usb-storage: device found at %d\n", us->pusb_dev->devnum);
+	dev_dbg(&us->pusb_intf->dev, "device found\n");
 
 	set_freezable();
 	/* Wait for the timeout to expire or for a disconnect */
 	if (delay_use > 0) {
-		printk(KERN_DEBUG "usb-storage: waiting for device "
-				"to settle before scanning\n");
+		dev_dbg(&us->pusb_intf->dev, "waiting for device to settle "
+				"before scanning\n");
 		wait_event_freezable_timeout(us->delay_wait,
 				test_bit(US_FLIDX_DONT_SCAN, &us->dflags),
 				delay_use * HZ);
@@ -832,7 +839,7 @@ static int usb_stor_scan_thread(void * __us)
 			mutex_unlock(&us->dev_mutex);
 		}
 		scsi_scan_host(us_to_host(us));
-		printk(KERN_DEBUG "usb-storage: device scan complete\n");
+		dev_dbg(&us->pusb_intf->dev, "scan complete\n");
 
 		/* Should we unbind if no devices were detected? */
 	}
@@ -840,6 +847,15 @@ static int usb_stor_scan_thread(void * __us)
 	complete_and_exit(&us->scanning_done, 0);
 }
 
+static unsigned int usb_stor_sg_tablesize(struct usb_interface *intf)
+{
+	struct usb_device *usb_dev = interface_to_usbdev(intf);
+
+	if (usb_dev->bus->sg_tablesize) {
+		return usb_dev->bus->sg_tablesize;
+	}
+	return SG_ALL;
+}
 
 /* First part of general USB mass-storage probing */
 int usb_stor_probe1(struct us_data **pus,
@@ -868,6 +884,7 @@ int usb_stor_probe1(struct us_data **pus,
 	 * Allow 16-byte CDBs and thus > 2TB
 	 */
 	host->max_cmd_len = 16;
+	host->sg_tablesize = usb_stor_sg_tablesize(intf);
 	*pus = us = host_to_us(host);
 	memset(us, 0, sizeof(struct us_data));
 	mutex_init(&(us->dev_mutex));
@@ -929,6 +946,8 @@ int usb_stor_probe2(struct us_data *us)
 	result = usb_stor_acquire_resources(us);
 	if (result)
 		goto BadDevice;
+	snprintf(us->scsi_name, sizeof(us->scsi_name), "usb-storage %s",
+					dev_name(&us->pusb_intf->dev));
 	result = scsi_add_host(us_to_host(us), &us->pusb_intf->dev);
 	if (result) {
 		printk(KERN_WARNING USB_STORAGE

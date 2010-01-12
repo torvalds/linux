@@ -28,6 +28,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/smc91x.h>
 
 #include <mach/hardware.h>
 #include <asm/gpio.h>
@@ -37,14 +38,13 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <mach/dma.h>
-#include <mach/tc.h>
-#include <mach/nand.h>
-#include <mach/irda.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
+#include <plat/mux.h>
+#include <plat/dma.h>
+#include <plat/tc.h>
+#include <plat/irda.h>
+#include <plat/usb.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
 
 #include "board-h2.h"
 
@@ -179,11 +179,43 @@ static struct mtd_partition h2_nand_partitions[] = {
 	},
 };
 
-/* dip switches control NAND chip access:  8 bit, 16 bit, or neither */
-static struct omap_nand_platform_data h2_nand_data = {
-	.options	= NAND_SAMSUNG_LP_OPTIONS,
-	.parts		= h2_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(h2_nand_partitions),
+static void h2_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long mask;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
+	if (ctrl & NAND_ALE)
+		mask |= 0x04;
+	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
+}
+
+#define H2_NAND_RB_GPIO_PIN	62
+
+static int h2_nand_dev_ready(struct mtd_info *mtd)
+{
+	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
+}
+
+static const char *h2_part_probes[] = { "cmdlinepart", NULL };
+
+struct platform_nand_data h2_nand_platdata = {
+	.chip	= {
+		.nr_chips		= 1,
+		.chip_offset		= 0,
+		.nr_partitions		= ARRAY_SIZE(h2_nand_partitions),
+		.partitions		= h2_nand_partitions,
+		.options		= NAND_SAMSUNG_LP_OPTIONS,
+		.part_probe_types	= h2_part_probes,
+	},
+	.ctrl	= {
+		.cmd_ctrl	= h2_nand_cmd_ctl,
+		.dev_ready	= h2_nand_dev_ready,
+
+	},
 };
 
 static struct resource h2_nand_resource = {
@@ -191,13 +223,19 @@ static struct resource h2_nand_resource = {
 };
 
 static struct platform_device h2_nand_device = {
-	.name		= "omapnand",
+	.name		= "gen_nand",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &h2_nand_data,
+		.platform_data	= &h2_nand_platdata,
 	},
 	.num_resources	= 1,
 	.resource	= &h2_nand_resource,
+};
+
+static struct smc91x_platdata h2_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
 };
 
 static struct resource h2_smc91x_resources[] = {
@@ -216,6 +254,9 @@ static struct resource h2_smc91x_resources[] = {
 static struct platform_device h2_smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &h2_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(h2_smc91x_resources),
 	.resource	= h2_smc91x_resources,
 };
@@ -367,8 +408,6 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 static struct omap_board_config_kernel h2_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
-
-#define H2_NAND_RB_GPIO_PIN	62
 
 static void __init h2_init(void)
 {

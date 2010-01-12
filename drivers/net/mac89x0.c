@@ -222,8 +222,8 @@ struct net_device * __init mac89x0_probe(int unit)
 		int card_present;
 
 		local_irq_save(flags);
-		card_present = hwreg_present((void*) ioaddr+4)
-		  && hwreg_present((void*) ioaddr + DATA_PORT);
+		card_present = (hwreg_present((void*) ioaddr+4) &&
+				hwreg_present((void*) ioaddr + DATA_PORT));
 		local_irq_restore(flags);
 
 		if (!card_present)
@@ -337,7 +337,7 @@ net_open(struct net_device *dev)
 	writereg(dev, PP_BusCTL, readreg(dev, PP_BusCTL) & ~ENABLE_IRQ);
 
 	/* Grab the interrupt */
-	if (request_irq(dev->irq, &net_interrupt, 0, "cs89x0", dev))
+	if (request_irq(dev->irq, net_interrupt, 0, "cs89x0", dev))
 		return -EAGAIN;
 
 	/* Set up the IRQ - Apparently magic */

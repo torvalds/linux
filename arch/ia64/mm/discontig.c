@@ -143,21 +143,119 @@ static void *per_cpu_node_setup(void *cpu_data, int node)
 	int cpu;
 
 	for_each_possible_early_cpu(cpu) {
-		if (cpu == 0) {
-			void *cpu0_data = __cpu0_per_cpu;
-			__per_cpu_offset[cpu] = (char*)cpu0_data -
-				__per_cpu_start;
-		} else if (node == node_cpuid[cpu].nid) {
-			memcpy(__va(cpu_data), __phys_per_cpu_start,
-			       __per_cpu_end - __per_cpu_start);
-			__per_cpu_offset[cpu] = (char*)__va(cpu_data) -
-				__per_cpu_start;
-			cpu_data += PERCPU_PAGE_SIZE;
-		}
+		void *src = cpu == 0 ? __cpu0_per_cpu : __phys_per_cpu_start;
+
+		if (node != node_cpuid[cpu].nid)
+			continue;
+
+		memcpy(__va(cpu_data), src, __per_cpu_end - __per_cpu_start);
+		__per_cpu_offset[cpu] = (char *)__va(cpu_data) -
+			__per_cpu_start;
+
+		/*
+		 * percpu area for cpu0 is moved from the __init area
+		 * which is setup by head.S and used till this point.
+		 * Update ar.k3.  This move is ensures that percpu
+		 * area for cpu0 is on the correct node and its
+		 * virtual address isn't insanely far from other
+		 * percpu areas which is important for congruent
+		 * percpu allocator.
+		 */
+		if (cpu == 0)
+			ia64_set_kr(IA64_KR_PER_CPU_DATA,
+				    (unsigned long)cpu_data -
+				    (unsigned long)__per_cpu_start);
+
+		cpu_data += PERCPU_PAGE_SIZE;
 	}
 #endif
 	return cpu_data;
 }
+
+#ifdef CONFIG_SMP
+/**
+ * setup_per_cpu_areas - setup percpu areas
+ *
+ * Arch code has already allocated and initialized percpu areas.  All
+ * this function has to do is to teach the determined layout to the
+ * dynamic percpu allocator, which happens to be more complex than
+ * creating whole new ones using helpers.
+ */
+void __init setup_per_cpu_areas(void)
+{
+	struct pcpu_alloc_info *ai;
+	struct pcpu_group_info *uninitialized_var(gi);
+	unsigned int *cpu_map;
+	void *base;
+	unsigned long base_offset;
+	unsigned int cpu;
+	ssize_t static_size, reserved_size, dyn_size;
+	int node, prev_node, unit, nr_units, rc;
+
+	ai = pcpu_alloc_alloc_info(MAX_NUMNODES, nr_cpu_ids);
+	if (!ai)
+		panic("failed to allocate pcpu_alloc_info");
+	cpu_map = ai->groups[0].cpu_map;
+
+	/* determine base */
+	base = (void *)ULONG_MAX;
+	for_each_possible_cpu(cpu)
+		base = min(base,
+			   (void *)(__per_cpu_offset[cpu] + __per_cpu_start));
+	base_offset = (void *)__per_cpu_start - base;
+
+	/* build cpu_map, units are grouped by node */
+	unit = 0;
+	for_each_node(node)
+		for_each_possible_cpu(cpu)
+			if (node == node_cpuid[cpu].nid)
+				cpu_map[unit++] = cpu;
+	nr_units = unit;
+
+	/* set basic parameters */
+	static_size = __per_cpu_end - __per_cpu_start;
+	reserved_size = PERCPU_MODULE_RESERVE;
+	dyn_size = PERCPU_PAGE_SIZE - static_size - reserved_size;
+	if (dyn_size < 0)
+		panic("percpu area overflow static=%zd reserved=%zd\n",
+		      static_size, reserved_size);
+
+	ai->static_size		= static_size;
+	ai->reserved_size	= reserved_size;
+	ai->dyn_size		= dyn_size;
+	ai->unit_size		= PERCPU_PAGE_SIZE;
+	ai->atom_size		= PAGE_SIZE;
+	ai->alloc_size		= PERCPU_PAGE_SIZE;
+
+	/*
+	 * CPUs are put into groups according to node.  Walk cpu_map
+	 * and create new groups at node boundaries.
+	 */
+	prev_node = -1;
+	ai->nr_groups = 0;
+	for (unit = 0; unit < nr_units; unit++) {
+		cpu = cpu_map[unit];
+		node = node_cpuid[cpu].nid;
+
+		if (node == prev_node) {
+			gi->nr_units++;
+			continue;
+		}
+		prev_node = node;
+
+		gi = &ai->groups[ai->nr_groups++];
+		gi->nr_units		= 1;
+		gi->base_offset		= __per_cpu_offset[cpu] + base_offset;
+		gi->cpu_map		= &cpu_map[unit];
+	}
+
+	rc = pcpu_setup_first_chunk(ai, base);
+	if (rc)
+		panic("failed to setup percpu area (err=%d)", rc);
+
+	pcpu_free_alloc_info(ai);
+}
+#endif
 
 /**
  * fill_pernode - initialize pernode data.
@@ -352,7 +450,8 @@ static void __init initialize_pernode_data(void)
 	/* Set the node_data pointer for each per-cpu struct */
 	for_each_possible_early_cpu(cpu) {
 		node = node_cpuid[cpu].nid;
-		per_cpu(cpu_info, cpu).node_data = mem_data[node].node_data;
+		per_cpu(ia64_cpu_info, cpu).node_data =
+			mem_data[node].node_data;
 	}
 #else
 	{
@@ -360,7 +459,7 @@ static void __init initialize_pernode_data(void)
 		cpu = 0;
 		node = node_cpuid[cpu].nid;
 		cpu0_cpu_info = (struct cpuinfo_ia64 *)(__phys_per_cpu_start +
-			((char *)&per_cpu__cpu_info - __per_cpu_start));
+			((char *)&per_cpu__ia64_cpu_info - __per_cpu_start));
 		cpu0_cpu_info->node_data = mem_data[node].node_data;
 	}
 #endif /* CONFIG_SMP */
@@ -666,9 +765,9 @@ void __init paging_init(void)
 	sparse_init();
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-	vmalloc_end -= PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
+	VMALLOC_END -= PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
 		sizeof(struct page));
-	vmem_map = (struct page *) vmalloc_end;
+	vmem_map = (struct page *) VMALLOC_END;
 	efi_memmap_walk(create_mem_map_page_table, NULL);
 	printk("Virtual mem_map starts at 0x%p\n", vmem_map);
 #endif

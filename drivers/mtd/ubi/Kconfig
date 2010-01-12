@@ -1,5 +1,3 @@
-# drivers/mtd/ubi/Kconfig
-
 menu "UBI - Unsorted block images"
 	depends on MTD
 

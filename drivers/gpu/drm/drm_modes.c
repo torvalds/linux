@@ -553,6 +553,32 @@ int drm_mode_height(struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_mode_height);
 
+/** drm_mode_hsync - get the hsync of a mode
+ * @mode: mode
+ *
+ * LOCKING:
+ * None.
+ *
+ * Return @modes's hsync rate in kHz, rounded to the nearest int.
+ */
+int drm_mode_hsync(struct drm_display_mode *mode)
+{
+	unsigned int calc_val;
+
+	if (mode->hsync)
+		return mode->hsync;
+
+	if (mode->htotal < 0)
+		return 0;
+
+	calc_val = (mode->clock * 1000) / mode->htotal; /* hsync in Hz */
+	calc_val += 500;				/* round to 1000Hz */
+	calc_val /= 1000;				/* truncate to kHz */
+
+	return calc_val;
+}
+EXPORT_SYMBOL(drm_mode_hsync);
+
 /**
  * drm_mode_vrefresh - get the vrefresh of a mode
  * @mode: mode
@@ -560,7 +586,7 @@ EXPORT_SYMBOL(drm_mode_height);
  * LOCKING:
  * None.
  *
- * Return @mode's vrefresh rate or calculate it if necessary.
+ * Return @mode's vrefresh rate in Hz or calculate it if necessary.
  *
  * FIXME: why is this needed?  shouldn't vrefresh be set already?
  *

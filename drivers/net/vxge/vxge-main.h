@@ -112,7 +112,6 @@ enum vxge_mac_addr_state {
 struct vxge_drv_config {
 	int config_dev_cnt;
 	int total_dev_cnt;
-	unsigned long inta_dev_open;
 	int g_no_cpus;
 	unsigned int vpath_per_dev;
 };

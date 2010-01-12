@@ -518,10 +518,11 @@ struct cfi_fixup {
 #define CFI_MFR_ANY 0xffff
 #define CFI_ID_ANY  0xffff
 
-#define CFI_MFR_AMD 0x0001
-#define CFI_MFR_ATMEL 0x001F
-#define CFI_MFR_SAMSUNG 0x00EC
-#define CFI_MFR_ST  0x0020 	/* STMicroelectronics */
+#define CFI_MFR_AMD	0x0001
+#define CFI_MFR_INTEL	0x0089
+#define CFI_MFR_ATMEL	0x001F
+#define CFI_MFR_SAMSUNG	0x00EC
+#define CFI_MFR_ST	0x0020 /* STMicroelectronics */
 
 void cfi_fixup(struct mtd_info *mtd, struct cfi_fixup* fixups);
 

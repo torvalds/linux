@@ -55,16 +55,8 @@ static size_t rpc_ntop6_noscopeid(const struct sockaddr *sap,
 
 	/*
 	 * RFC 4291, Section 2.2.1
-	 *
-	 * To keep the result as short as possible, especially
-	 * since we don't shorthand, we don't want leading zeros
-	 * in each halfword, so avoid %pI6.
 	 */
-	return snprintf(buf, buflen, "%x:%x:%x:%x:%x:%x:%x:%x",
-		ntohs(addr->s6_addr16[0]), ntohs(addr->s6_addr16[1]),
-		ntohs(addr->s6_addr16[2]), ntohs(addr->s6_addr16[3]),
-		ntohs(addr->s6_addr16[4]), ntohs(addr->s6_addr16[5]),
-		ntohs(addr->s6_addr16[6]), ntohs(addr->s6_addr16[7]));
+	return snprintf(buf, buflen, "%pI6c", addr);
 }
 
 static size_t rpc_ntop6(const struct sockaddr *sap,
@@ -306,24 +298,25 @@ EXPORT_SYMBOL_GPL(rpc_sockaddr2uaddr);
  * @sap: buffer into which to plant socket address
  * @salen: size of buffer
  *
+ * @uaddr does not have to be '\0'-terminated, but strict_strtoul() and
+ * rpc_pton() require proper string termination to be successful.
+ *
  * Returns the size of the socket address if successful; otherwise
  * zero is returned.
  */
 size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 			  struct sockaddr *sap, const size_t salen)
 {
-	char *c, buf[RPCBIND_MAXUADDRLEN];
+	char *c, buf[RPCBIND_MAXUADDRLEN + sizeof('\0')];
 	unsigned long portlo, porthi;
 	unsigned short port;
 
-	if (uaddr_len > sizeof(buf))
+	if (uaddr_len > RPCBIND_MAXUADDRLEN)
 		return 0;
 
 	memcpy(buf, uaddr, uaddr_len);
 
-	buf[uaddr_len] = '\n';
-	buf[uaddr_len + 1] = '\0';
-
+	buf[uaddr_len] = '\0';
 	c = strrchr(buf, '.');
 	if (unlikely(c == NULL))
 		return 0;
@@ -332,9 +325,7 @@ size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 	if (unlikely(portlo > 255))
 		return 0;
 
-	c[0] = '\n';
-	c[1] = '\0';
-
+	*c = '\0';
 	c = strrchr(buf, '.');
 	if (unlikely(c == NULL))
 		return 0;
@@ -345,8 +336,7 @@ size_t rpc_uaddr2sockaddr(const char *uaddr, const size_t uaddr_len,
 
 	port = (unsigned short)((porthi << 8) | portlo);
 
-	c[0] = '\0';
-
+	*c = '\0';
 	if (rpc_pton(buf, strlen(buf), sap, salen) == 0)
 		return 0;
 

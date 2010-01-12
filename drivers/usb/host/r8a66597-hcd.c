@@ -822,8 +822,6 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 		return;
 
 	list_for_each_entry_safe(td, next, list, queue) {
-		if (!td)
-			continue;
 		if (td->address != address)
 			continue;
 
@@ -2025,8 +2023,6 @@ static struct r8a66597_device *get_r8a66597_device(struct r8a66597 *r8a66597,
 	struct list_head *list = &r8a66597->child_device;
 
 	list_for_each_entry(dev, list, device_list) {
-		if (!dev)
-			continue;
 		if (dev->usb_address != addr)
 			continue;
 
@@ -2357,7 +2353,7 @@ static int r8a66597_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops r8a66597_dev_pm_ops = {
+static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 	.suspend = r8a66597_suspend,
 	.resume = r8a66597_resume,
 	.poweroff = r8a66597_suspend,

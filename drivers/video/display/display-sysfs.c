@@ -67,7 +67,7 @@ static ssize_t display_store_contrast(struct device *dev,
 	contrast = simple_strtoul(buf, &endp, 0);
 	size = endp - buf;
 
-	if (*endp && isspace(*endp))
+	if (isspace(*endp))
 		size++;
 
 	if (size != count)

@@ -56,12 +56,6 @@ iic_cook_addr(struct i2c_msg *msg)
 	if (msg->flags & I2C_M_RD)
 		addr |= 1;
 
-	/*
-	 * Read or Write?
-	 */
-	if (msg->flags & I2C_M_REV_DIR_ADDR)
-		addr ^= 1;
-
 	return addr;   
 }
 

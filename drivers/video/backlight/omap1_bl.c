@@ -26,8 +26,8 @@
 #include <linux/backlight.h>
 
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/mux.h>
+#include <plat/board.h>
+#include <plat/mux.h>
 
 #define OMAPBL_MAX_INTENSITY		0xff
 
@@ -125,7 +125,7 @@ static int omapbl_get_intensity(struct backlight_device *dev)
 	return bl->current_intensity;
 }
 
-static struct backlight_ops omapbl_ops = {
+static const struct backlight_ops omapbl_ops = {
 	.get_brightness = omapbl_get_intensity,
 	.update_status  = omapbl_update_status,
 };

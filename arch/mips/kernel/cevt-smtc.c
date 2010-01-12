@@ -173,11 +173,12 @@ void smtc_distribute_timer(int vpe)
 	unsigned int mtflags;
 	int cpu;
 	struct clock_event_device *cd;
-	unsigned long nextstamp = 0L;
+	unsigned long nextstamp;
 	unsigned long reference;
 
 
 repeat:
+	nextstamp = 0L;
 	for_each_online_cpu(cpu) {
 	    /*
 	     * Find virtual CPUs within the current VPE who have

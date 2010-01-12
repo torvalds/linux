@@ -57,7 +57,6 @@ STA_FILE(tx_filtered, tx_filtered_count, LU);
 STA_FILE(tx_retry_failed, tx_retry_failed, LU);
 STA_FILE(tx_retry_count, tx_retry_count, LU);
 STA_FILE(last_signal, last_signal, D);
-STA_FILE(last_qual, last_qual, D);
 STA_FILE(last_noise, last_noise, D);
 STA_FILE(wep_weak_iv_count, wep_weak_iv_count, LU);
 
@@ -67,10 +66,11 @@ static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 	char buf[100];
 	struct sta_info *sta = file->private_data;
 	u32 staflags = get_sta_flags(sta);
-	int res = scnprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s",
+	int res = scnprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s",
 		staflags & WLAN_STA_AUTH ? "AUTH\n" : "",
 		staflags & WLAN_STA_ASSOC ? "ASSOC\n" : "",
-		staflags & WLAN_STA_PS ? "PS\n" : "",
+		staflags & WLAN_STA_PS_STA ? "PS (sta)\n" : "",
+		staflags & WLAN_STA_PS_DRIVER ? "PS (driver)\n" : "",
 		staflags & WLAN_STA_AUTHORIZED ? "AUTHORIZED\n" : "",
 		staflags & WLAN_STA_SHORT_PREAMBLE ? "SHORT PREAMBLE\n" : "",
 		staflags & WLAN_STA_WME ? "WME\n" : "",
@@ -157,13 +157,37 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 }
 STA_OPS(agg_status);
 
-#define DEBUGFS_ADD(name) \
-	sta->debugfs.name = debugfs_create_file(#name, 0400, \
-		sta->debugfs.dir, sta, &sta_ ##name## _ops);
+static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
+{
+	char buf[200], *p = buf;
+	int i;
+	struct sta_info *sta = file->private_data;
+	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
 
-#define DEBUGFS_DEL(name) \
-	debugfs_remove(sta->debugfs.name);\
-	sta->debugfs.name = NULL;
+	p += scnprintf(p, sizeof(buf) + buf - p, "ht %ssupported\n",
+			htc->ht_supported ? "" : "not ");
+	if (htc->ht_supported) {
+		p += scnprintf(p, sizeof(buf)+buf-p, "cap: %#.2x\n", htc->cap);
+		p += scnprintf(p, sizeof(buf)+buf-p, "ampdu factor/density: %d/%d\n",
+				htc->ampdu_factor, htc->ampdu_density);
+		p += scnprintf(p, sizeof(buf)+buf-p, "MCS mask:");
+		for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
+			p += scnprintf(p, sizeof(buf)+buf-p, " %.2x",
+					htc->mcs.rx_mask[i]);
+		p += scnprintf(p, sizeof(buf)+buf-p, "\nMCS rx highest: %d\n",
+				le16_to_cpu(htc->mcs.rx_highest));
+		p += scnprintf(p, sizeof(buf)+buf-p, "MCS tx params: %x\n",
+				htc->mcs.tx_params);
+	}
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
+}
+STA_OPS(ht_capa);
+
+#define DEBUGFS_ADD(name) \
+	debugfs_create_file(#name, 0400, \
+		sta->debugfs.dir, sta, &sta_ ##name## _ops);
 
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
@@ -209,36 +233,13 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(tx_retry_failed);
 	DEBUGFS_ADD(tx_retry_count);
 	DEBUGFS_ADD(last_signal);
-	DEBUGFS_ADD(last_qual);
 	DEBUGFS_ADD(last_noise);
 	DEBUGFS_ADD(wep_weak_iv_count);
+	DEBUGFS_ADD(ht_capa);
 }
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 {
-	DEBUGFS_DEL(flags);
-	DEBUGFS_DEL(num_ps_buf_frames);
-	DEBUGFS_DEL(inactive_ms);
-	DEBUGFS_DEL(last_seq_ctrl);
-	DEBUGFS_DEL(agg_status);
-	DEBUGFS_DEL(aid);
-	DEBUGFS_DEL(dev);
-	DEBUGFS_DEL(rx_packets);
-	DEBUGFS_DEL(tx_packets);
-	DEBUGFS_DEL(rx_bytes);
-	DEBUGFS_DEL(tx_bytes);
-	DEBUGFS_DEL(rx_duplicates);
-	DEBUGFS_DEL(rx_fragments);
-	DEBUGFS_DEL(rx_dropped);
-	DEBUGFS_DEL(tx_fragments);
-	DEBUGFS_DEL(tx_filtered);
-	DEBUGFS_DEL(tx_retry_failed);
-	DEBUGFS_DEL(tx_retry_count);
-	DEBUGFS_DEL(last_signal);
-	DEBUGFS_DEL(last_qual);
-	DEBUGFS_DEL(last_noise);
-	DEBUGFS_DEL(wep_weak_iv_count);
-
-	debugfs_remove(sta->debugfs.dir);
+	debugfs_remove_recursive(sta->debugfs.dir);
 	sta->debugfs.dir = NULL;
 }

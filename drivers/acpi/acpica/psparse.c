@@ -610,17 +610,13 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 					    implicit_return_obj) {
 						previous_walk_state->
 						    implicit_return_obj =
-						    acpi_ut_create_internal_object
-						    (ACPI_TYPE_INTEGER);
+						    acpi_ut_create_integer_object
+						    ((u64) 0);
 						if (!previous_walk_state->
 						    implicit_return_obj) {
 							return_ACPI_STATUS
 							    (AE_NO_MEMORY);
 						}
-
-						previous_walk_state->
-						    implicit_return_obj->
-						    integer.value = 0;
 					}
 
 					/* Restart the calling control method */

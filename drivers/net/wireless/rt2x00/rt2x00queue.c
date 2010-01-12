@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -161,10 +162,10 @@ void rt2x00queue_align_frame(struct sk_buff *skb)
 	skb_trim(skb, frame_length);
 }
 
-void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_lengt)
+void rt2x00queue_align_payload(struct sk_buff *skb, unsigned int header_length)
 {
 	unsigned int frame_length = skb->len;
-	unsigned int align = ALIGN_SIZE(skb, header_lengt);
+	unsigned int align = ALIGN_SIZE(skb, header_length);
 
 	if (!align)
 		return;
@@ -213,7 +214,7 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 		skb_push(skb, header_align);
 		memmove(skb->data, skb->data + header_align, header_length);
 		memmove(skb->data + header_length + l2pad,
-			skb->data + header_length + l2pad + header_align,
+			skb->data + header_length + l2pad + payload_align,
 			frame_length - header_length);
 		skbdesc->flags |= SKBDESC_L2_PADDED;
 	}
@@ -453,7 +454,8 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, queue->qid);
 }
 
-int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
+int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
+			       bool local)
 {
 	struct ieee80211_tx_info *tx_info;
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
@@ -493,6 +495,9 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	skbdesc->entry = entry;
 	skbdesc->tx_rate_idx = rate_idx;
 	skbdesc->tx_rate_flags = rate_flags;
+
+	if (local)
+		skbdesc->flags |= SKBDESC_NOT_MAC80211;
 
 	/*
 	 * When hardware encryption is supported, and this frame

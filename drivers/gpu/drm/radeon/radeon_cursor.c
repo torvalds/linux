@@ -109,9 +109,15 @@ static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
 
-	if (ASIC_IS_AVIVO(rdev))
+	if (ASIC_IS_AVIVO(rdev)) {
+		if (rdev->family >= CHIP_RV770) {
+			if (radeon_crtc->crtc_id)
+				WREG32(R700_D2CUR_SURFACE_ADDRESS_HIGH, 0);
+			else
+				WREG32(R700_D1CUR_SURFACE_ADDRESS_HIGH, 0);
+		}
 		WREG32(AVIVO_D1CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset, gpu_addr);
-	else {
+	} else {
 		radeon_crtc->legacy_cursor_offset = gpu_addr - radeon_crtc->legacy_display_base_addr;
 		/* offset is from DISP(2)_BASE_ADDRESS */
 		WREG32(RADEON_CUR_OFFSET + radeon_crtc->crtc_offset, radeon_crtc->legacy_cursor_offset);

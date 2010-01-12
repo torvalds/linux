@@ -123,7 +123,7 @@ static int lnw_irq_type(unsigned irq, unsigned type)
 	void __iomem *grer = (void __iomem *)(&lnw->reg_base->GRER[reg]);
 	void __iomem *gfer = (void __iomem *)(&lnw->reg_base->GFER[reg]);
 
-	if (gpio < 0 || gpio > lnw->chip.ngpio)
+	if (gpio >= lnw->chip.ngpio)
 		return -EINVAL;
 	spin_lock_irqsave(&lnw->lock, flags);
 	if (type & IRQ_TYPE_EDGE_RISING)
@@ -144,13 +144,6 @@ static int lnw_irq_type(unsigned irq, unsigned type)
 
 static void lnw_irq_unmask(unsigned irq)
 {
-	struct lnw_gpio *lnw = get_irq_chip_data(irq);
-	u32 gpio = irq - lnw->irq_base;
-	u8 reg = gpio / 32;
-	void __iomem *gedr;
-
-	gedr = (void __iomem *)(&lnw->reg_base->GEDR[reg]);
-	writel(BIT(gpio % 32), gedr);
 };
 
 static void lnw_irq_mask(unsigned irq)
@@ -183,13 +176,11 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 		gedr_v = readl(gedr);
 		if (!gedr_v)
 			continue;
-		for (gpio = reg*32; gpio < reg*32+32; gpio++) {
-			gedr_v = readl(gedr);
+		for (gpio = reg*32; gpio < reg*32+32; gpio++)
 			if (gedr_v & BIT(gpio % 32)) {
 				pr_debug("pin %d triggered\n", gpio);
 				generic_handle_irq(lnw->irq_base + gpio);
 			}
-		}
 		/* clear the edge detect status bit */
 		writel(gedr_v, gedr);
 	}

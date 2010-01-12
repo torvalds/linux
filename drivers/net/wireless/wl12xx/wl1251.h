@@ -269,6 +269,7 @@ struct wl1251 {
 
 	void (*set_power)(bool enable);
 	int irq;
+	bool use_eeprom;
 
 	enum wl1251_state state;
 	struct mutex mutex;
@@ -354,6 +355,8 @@ struct wl1251 {
 	/* is firmware in elp mode */
 	bool elp;
 
+	struct delayed_work elp_work;
+
 	/* we can be in psm, but not in elp, we have to differentiate */
 	bool psm;
 
@@ -373,6 +376,8 @@ struct wl1251 {
 	u32 buffer_cmd;
 	u8 buffer_busyword[WL1251_BUSY_WORD_LEN];
 	struct wl1251_rx_descriptor *rx_descriptor;
+
+	struct ieee80211_vif *vif;
 
 	u32 chip_id;
 	char fw_ver[21];

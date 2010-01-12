@@ -15,6 +15,7 @@
  * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * Authors:
+ *   Haiyang Zhang <haiyangz@microsoft.com>
  *   Hank Janssen  <hjanssen@microsoft.com>
  */
 #include <linux/kernel.h>

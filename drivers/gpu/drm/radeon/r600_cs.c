@@ -170,7 +170,7 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 			  idx, relocs_chunk->length_dw);
 		return -EINVAL;
 	}
-	*cs_reloc = &p->relocs[0];
+	*cs_reloc = p->relocs;
 	(*cs_reloc)->lobj.gpu_offset = (u64)relocs_chunk->kdata[idx + 3] << 32;
 	(*cs_reloc)->lobj.gpu_offset |= relocs_chunk->kdata[idx + 0];
 	return 0;
@@ -466,6 +466,23 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
 			switch (reg) {
+			case SQ_ESGS_RING_BASE:
+			case SQ_GSVS_RING_BASE:
+			case SQ_ESTMP_RING_BASE:
+			case SQ_GSTMP_RING_BASE:
+			case SQ_VSTMP_RING_BASE:
+			case SQ_PSTMP_RING_BASE:
+			case SQ_FBUF_RING_BASE:
+			case SQ_REDUC_RING_BASE:
+			case SX_MEMORY_EXPORT_BASE:
+				r = r600_cs_packet_next_reloc(p, &reloc);
+				if (r) {
+					DRM_ERROR("bad SET_CONFIG_REG "
+							"0x%04X\n", reg);
+					return -EINVAL;
+				}
+				ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				break;
 			case CP_COHER_BASE:
 				/* use PACKET3_SURFACE_SYNC */
 				return -EINVAL;
@@ -487,6 +504,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			reg = start_reg + (4 * i);
 			switch (reg) {
 			case DB_DEPTH_BASE:
+			case DB_HTILE_DATA_BASE:
 			case CB_COLOR0_BASE:
 			case CB_COLOR1_BASE:
 			case CB_COLOR2_BASE:
@@ -699,7 +717,7 @@ static int r600_cs_parser_relocs_legacy(struct radeon_cs_parser *p)
 	if (p->chunk_relocs_idx == -1) {
 		return 0;
 	}
-	p->relocs = kcalloc(1, sizeof(struct radeon_cs_reloc), GFP_KERNEL);
+	p->relocs = kzalloc(sizeof(struct radeon_cs_reloc), GFP_KERNEL);
 	if (p->relocs == NULL) {
 		return -ENOMEM;
 	}

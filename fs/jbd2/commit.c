@@ -286,7 +286,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 		if (err) {
 			/*
 			 * Because AS_EIO is cleared by
-			 * wait_on_page_writeback_range(), set it again so
+			 * filemap_fdatawait_range(), set it again so
 			 * that user process can get -EIO from fsync().
 			 */
 			set_bit(AS_EIO,
@@ -636,6 +636,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		JBUFFER_TRACE(jh, "ph3: write metadata");
 		flags = jbd2_journal_write_metadata_buffer(commit_transaction,
 						      jh, &new_jh, blocknr);
+		if (flags < 0) {
+			jbd2_journal_abort(journal, flags);
+			continue;
+		}
 		set_bit(BH_JWrite, &jh2bh(new_jh)->b_state);
 		wbuf[bufs++] = jh2bh(new_jh);
 

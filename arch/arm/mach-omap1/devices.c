@@ -18,11 +18,11 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include <mach/tc.h>
-#include <mach/board.h>
-#include <mach/mux.h>
+#include <plat/tc.h>
+#include <plat/board.h>
+#include <plat/mux.h>
 #include <mach/gpio.h>
-#include <mach/mmc.h>
+#include <plat/mmc.h>
 
 /*-------------------------------------------------------------------------*/
 
@@ -108,15 +108,22 @@ static inline void omap1_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 			int controller_nr)
 {
 	if (controller_nr == 0) {
-		omap_cfg_reg(MMC_CMD);
-		omap_cfg_reg(MMC_CLK);
-		omap_cfg_reg(MMC_DAT0);
+		if (cpu_is_omap7xx()) {
+			omap_cfg_reg(MMC_7XX_CMD);
+			omap_cfg_reg(MMC_7XX_CLK);
+			omap_cfg_reg(MMC_7XX_DAT0);
+		} else {
+			omap_cfg_reg(MMC_CMD);
+			omap_cfg_reg(MMC_CLK);
+			omap_cfg_reg(MMC_DAT0);
+		}
+
 		if (cpu_is_omap1710()) {
 			omap_cfg_reg(M15_1710_MMC_CLKI);
 			omap_cfg_reg(P19_1710_MMC_CMDDIR);
 			omap_cfg_reg(P20_1710_MMC_DATDIR0);
 		}
-		if (mmc_controller->slots[0].wires == 4) {
+		if (mmc_controller->slots[0].wires == 4 && !cpu_is_omap7xx()) {
 			omap_cfg_reg(MMC_DAT1);
 			/* NOTE: DAT2 can be on W10 (here) or M15 */
 			if (!mmc_controller->slots[0].nomux)

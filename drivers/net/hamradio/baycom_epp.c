@@ -596,16 +596,16 @@ static int receive(struct net_device *dev, int cnt)
 					if (!(notbitstream & (0x1fc << j)))
 						state = 0;
 
-					/* not flag received */
-					else if (!(bitstream & (0x1fe << j)) != (0x0fc << j)) {
+					/* flag received */
+					else if ((bitstream & (0x1fe << j)) == (0x0fc << j)) {
 						if (state)
 							do_rxpacket(dev);
 						bc->hdlcrx.bufcnt = 0;
 						bc->hdlcrx.bufptr = bc->hdlcrx.buf;
 						state = 1;
 						numbits = 7-j;
-						}
 					}
+				}
 
 				/* stuffed bit */
 				else if (unlikely((bitstream & (0x1f8 << j)) == (0xf8 << j))) {

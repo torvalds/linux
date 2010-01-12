@@ -55,7 +55,6 @@ pcf50633_input_irq(int irq, void *data)
 static int __devinit pcf50633_input_probe(struct platform_device *pdev)
 {
 	struct pcf50633_input *input;
-	struct pcf50633_subdev_pdata *pdata = pdev->dev.platform_data;
 	struct input_dev *input_dev;
 	int ret;
 
@@ -71,7 +70,7 @@ static int __devinit pcf50633_input_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, input);
-	input->pcf = pdata->pcf;
+	input->pcf = dev_to_pcf50633(pdev->dev.parent);
 	input->input_dev = input_dev;
 
 	input_dev->name = "PCF50633 PMU events";
@@ -85,9 +84,9 @@ static int __devinit pcf50633_input_probe(struct platform_device *pdev)
 		kfree(input);
 		return ret;
 	}
-	pcf50633_register_irq(pdata->pcf, PCF50633_IRQ_ONKEYR,
+	pcf50633_register_irq(input->pcf, PCF50633_IRQ_ONKEYR,
 				pcf50633_input_irq, input);
-	pcf50633_register_irq(pdata->pcf, PCF50633_IRQ_ONKEYF,
+	pcf50633_register_irq(input->pcf, PCF50633_IRQ_ONKEYF,
 				pcf50633_input_irq, input);
 
 	return 0;

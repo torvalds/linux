@@ -1,6 +1,3 @@
-#
-# Config.in for Spellcaster ISDN driver
-#
 config ISDN_DRV_SC
 	tristate "Spellcaster support"
 	depends on ISA
@@ -9,4 +6,3 @@ config ISDN_DRV_SC
 	  driver currently builds only in a modularized version.
 	  To build it, choose M here: the module will be called sc.
 	  See <file:Documentation/isdn/README.sc> for more information.
-

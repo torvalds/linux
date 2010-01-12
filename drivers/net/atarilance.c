@@ -930,8 +930,8 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 			}
 #endif
 
-			if (lp->tx_full && (netif_queue_stopped(dev))
-				&& dirty_tx > lp->cur_tx - TX_RING_SIZE + 2) {
+			if (lp->tx_full && (netif_queue_stopped(dev)) &&
+				dirty_tx > lp->cur_tx - TX_RING_SIZE + 2) {
 				/* The ring is no longer full, clear tbusy. */
 				lp->tx_full = 0;
 				netif_wake_queue (dev);

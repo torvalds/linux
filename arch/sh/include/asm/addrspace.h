@@ -28,9 +28,6 @@
 /* Returns the privileged segment base of a given address  */
 #define PXSEG(a)	(((unsigned long)(a)) & 0xe0000000)
 
-/* Returns the physical address of a PnSEG (n=1,2) address   */
-#define PHYSADDR(a)	(((unsigned long)(a)) & 0x1fffffff)
-
 #if defined(CONFIG_29BIT) || defined(CONFIG_PMB_FIXED)
 /*
  * Map an address to a certain privileged segment
@@ -59,6 +56,12 @@
 #else
 #define P3_ADDR_MAX		P4SEG
 #endif
+
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_PMB
+extern int __in_29bit_mode(void);
+#endif /* CONFIG_PMB */
+#endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */

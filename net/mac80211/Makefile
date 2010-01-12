@@ -2,7 +2,7 @@ obj-$(CONFIG_MAC80211) += mac80211.o
 
 # mac80211 objects
 mac80211-y := \
-	main.o \
+	main.o status.o \
 	sta_info.o \
 	wep.o \
 	wpa.o \
