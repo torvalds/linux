@@ -241,6 +241,12 @@ config HID_PETALYNX
 	---help---
 	Support for Petalynx Maxter remote control.
 
+config HID_QUANTA
+	tristate "Quanta Optical Touch"
+	depends on USB_HID
+	---help---
+	Support for Quanta Optical Touch dual-touch panels.
+
 config HID_SAMSUNG
 	tristate "Samsung" if EMBEDDED
 	depends on USB_HID
