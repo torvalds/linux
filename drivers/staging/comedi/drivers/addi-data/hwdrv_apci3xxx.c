@@ -1206,7 +1206,7 @@ int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device *dev,
 
 		if (b_Channel < 8) {
 	      /*****************************************************************************/
-			/* Read port 0 (first digital output port) and set/reset the selcted channel */
+			/* Read port 0 (first digital output port) and set/reset the selected channel */
 	      /*****************************************************************************/
 
 			dw_Status = inl(devpriv->iobase + 80);
@@ -1228,7 +1228,7 @@ int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device *dev,
 				if ((devpriv->ul_TTLPortConfiguration[0] & 0xFF)
 					== 0xFF) {
 		    /*****************************************************************************/
-					/* Read port 2 (first digital output port) and set/reset the selcted channel */
+					/* Read port 2 (first digital output port) and set/reset the selected channel */
 		    /*****************************************************************************/
 
 					dw_Status = inl(devpriv->iobase + 112);
