@@ -1001,8 +1001,7 @@ void rfbi_exit(void)
 	iounmap(rfbi.base);
 }
 
-/* struct omap_display support */
-static int rfbi_display_enable(struct omap_dss_device *dssdev)
+int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
 
@@ -1033,38 +1032,25 @@ static int rfbi_display_enable(struct omap_dss_device *dssdev)
 			 &dssdev->ctrl.rfbi_timings);
 
 
-	if (dssdev->driver->enable) {
-		r = dssdev->driver->enable(dssdev);
-		if (r)
-			goto err2;
-	}
-
 	return 0;
-err2:
-	omap_dispc_unregister_isr(framedone_callback, NULL,
-			DISPC_IRQ_FRAMEDONE);
 err1:
 	omap_dss_stop_device(dssdev);
 err0:
 	return r;
 }
+EXPORT_SYMBOL(omapdss_rfbi_display_enable);
 
-static void rfbi_display_disable(struct omap_dss_device *dssdev)
+void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 {
-	dssdev->driver->disable(dssdev);
 	omap_dispc_unregister_isr(framedone_callback, NULL,
 			DISPC_IRQ_FRAMEDONE);
 	omap_dss_stop_device(dssdev);
 }
+EXPORT_SYMBOL(omapdss_rfbi_display_disable);
 
 int rfbi_init_display(struct omap_dss_device *dssdev)
 {
-	dssdev->enable = rfbi_display_enable;
-	dssdev->disable = rfbi_display_disable;
-
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
-
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
-
 	return 0;
 }

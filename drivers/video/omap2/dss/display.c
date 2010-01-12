@@ -53,11 +53,11 @@ static ssize_t display_enabled_store(struct device *dev,
 
 	if (enabled != (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)) {
 		if (enabled) {
-			r = dssdev->enable(dssdev);
+			r = dssdev->driver->enable(dssdev);
 			if (r)
 				return r;
 		} else {
-			dssdev->disable(dssdev);
+			dssdev->driver->disable(dssdev);
 		}
 	}
 
@@ -485,13 +485,13 @@ static int dss_suspend_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	if (!dssdev->suspend) {
+	if (!dssdev->driver->suspend) {
 		DSSERR("display '%s' doesn't implement suspend\n",
 				dssdev->name);
 		return -ENOSYS;
 	}
 
-	r = dssdev->suspend(dssdev);
+	r = dssdev->driver->suspend(dssdev);
 	if (r)
 		return r;
 
@@ -520,8 +520,8 @@ static int dss_resume_device(struct device *dev, void *data)
 	int r;
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 
-	if (dssdev->activate_after_resume && dssdev->resume) {
-		r = dssdev->resume(dssdev);
+	if (dssdev->activate_after_resume && dssdev->driver->resume) {
+		r = dssdev->driver->resume(dssdev);
 		if (r)
 			return r;
 	}
@@ -541,7 +541,7 @@ int dss_resume_all_devices(void)
 static int dss_disable_device(struct device *dev, void *data)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	dssdev->disable(dssdev);
+	dssdev->driver->disable(dssdev);
 	return 0;
 }
 

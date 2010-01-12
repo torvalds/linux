@@ -42,6 +42,35 @@ static struct omap_video_timings toppoly_tdo_panel_timings = {
 	.vbp		= 2,
 };
 
+static int toppoly_tdo_panel_power_on(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
+
+	if (dssdev->platform_enable) {
+		r = dssdev->platform_enable(dssdev);
+		if (r)
+			goto err1;
+	}
+
+	return 0;
+err1:
+	omapdss_dpi_display_disable(dssdev);
+err0:
+	return r;
+}
+
+static void toppoly_tdo_panel_power_off(struct omap_dss_device *dssdev)
+{
+	if (dssdev->platform_disable)
+		dssdev->platform_disable(dssdev);
+
+	omapdss_dpi_display_disable(dssdev);
+}
+
 static int toppoly_tdo_panel_probe(struct omap_dss_device *dssdev)
 {
 	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
@@ -59,27 +88,40 @@ static int toppoly_tdo_panel_enable(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
-	if (dssdev->platform_enable)
-		r = dssdev->platform_enable(dssdev);
+	r = toppoly_tdo_panel_power_on(dssdev);
+	if (r)
+		return r;
 
-	return r;
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
 }
 
 static void toppoly_tdo_panel_disable(struct omap_dss_device *dssdev)
 {
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
+	toppoly_tdo_panel_power_off(dssdev);
+
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int toppoly_tdo_panel_suspend(struct omap_dss_device *dssdev)
 {
-	toppoly_tdo_panel_disable(dssdev);
+	toppoly_tdo_panel_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 	return 0;
 }
 
 static int toppoly_tdo_panel_resume(struct omap_dss_device *dssdev)
 {
-	return toppoly_tdo_panel_enable(dssdev);
+	int r = 0;
+
+	r = toppoly_tdo_panel_power_on(dssdev);
+	if (r)
+		return r;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
 }
 
 static struct omap_dss_driver generic_driver = {

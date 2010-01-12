@@ -1223,8 +1223,8 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (display->state != OMAP_DSS_DISPLAY_SUSPENDED)
 			goto exit;
 
-		if (display->resume)
-			r = display->resume(display);
+		if (display->driver->resume)
+			r = display->driver->resume(display);
 
 		if (r == 0 && display->driver->get_update_mode &&
 				display->driver->get_update_mode(display) ==
@@ -1242,8 +1242,8 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (display->state != OMAP_DSS_DISPLAY_ACTIVE)
 			goto exit;
 
-		if (display->suspend)
-			r = display->suspend(display);
+		if (display->driver->suspend)
+			r = display->driver->suspend(display);
 
 		break;
 
@@ -1831,7 +1831,7 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 
 	for (i = 0; i < fbdev->num_displays; i++) {
 		if (fbdev->displays[i]->state != OMAP_DSS_DISPLAY_DISABLED)
-			fbdev->displays[i]->disable(fbdev->displays[i]);
+			fbdev->displays[i]->driver->disable(fbdev->displays[i]);
 
 		omap_dss_put_device(fbdev->displays[i]);
 	}
@@ -2197,7 +2197,7 @@ static int omapfb_probe(struct platform_device *pdev)
 #ifndef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
 		u16 w, h;
 #endif
-		r = def_display->enable(def_display);
+		r = def_display->driver->enable(def_display);
 		if (r) {
 			dev_warn(fbdev->dev, "Failed to enable display '%s'\n",
 					def_display->name);

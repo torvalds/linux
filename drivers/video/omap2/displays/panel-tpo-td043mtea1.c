@@ -262,18 +262,20 @@ static const struct omap_video_timings tpo_td043_timings = {
 	.vbp		= 34,
 };
 
-static int tpo_td043_enable(struct omap_dss_device *dssdev)
+static int generic_panel_power_on(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
 	int nreset_gpio = dssdev->reset_gpio;
-	int ret;
+	int r;
 
-	dev_dbg(&dssdev->dev, "enable\n");
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
 
 	if (dssdev->platform_enable) {
-		ret = dssdev->platform_enable(dssdev);
-		if (ret)
-			return ret;
+		r = dssdev->platform_enable(dssdev);
+		if (r)
+			goto err1;
 	}
 
 	regulator_enable(tpo_td043->vcc_reg);
@@ -294,14 +296,16 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	tpo_td043_write_gamma(tpo_td043->spi, tpo_td043->gamma);
 
 	return 0;
+err1:
+	omapdss_dpi_display_disable(dssdev);
+err0:
+	return r;
 }
 
-static void tpo_td043_disable(struct omap_dss_device *dssdev)
+static void generic_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
 	int nreset_gpio = dssdev->reset_gpio;
-
-	dev_dbg(&dssdev->dev, "disable\n");
 
 	tpo_td043_write(tpo_td043->spi, 3,
 			TPO_R03_VAL_STANDBY | TPO_R03_EN_PWM);
@@ -318,17 +322,52 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
+
+	omapdss_dpi_display_disable(dssdev);
+}
+
+static int tpo_td043_enable(struct omap_dss_device *dssdev)
+{
+	int ret;
+
+	dev_dbg(&dssdev->dev, "enable\n");
+
+	ret = generic_panel_power_on(dssdev);
+	if (ret)
+		return ret;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
+}
+
+static void tpo_td043_disable(struct omap_dss_device *dssdev)
+{
+	dev_dbg(&dssdev->dev, "disable\n");
+
+	generic_panel_power_off(dssdev);
+
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int tpo_td043_suspend(struct omap_dss_device *dssdev)
 {
-	tpo_td043_disable(dssdev);
+	generic_panel_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 	return 0;
 }
 
 static int tpo_td043_resume(struct omap_dss_device *dssdev)
 {
-	return tpo_td043_enable(dssdev);
+	int r = 0;
+
+	r = generic_panel_power_on(dssdev);
+	if (r)
+		return r;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
 }
 
 static int tpo_td043_probe(struct omap_dss_device *dssdev)

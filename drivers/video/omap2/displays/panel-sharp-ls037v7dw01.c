@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/regulator/consumer.h>
 #include <linux/err.h>
 
 #include <plat/display.h>
@@ -54,20 +53,31 @@ static void sharp_ls_panel_remove(struct omap_dss_device *dssdev)
 {
 }
 
-static int sharp_ls_panel_enable(struct omap_dss_device *dssdev)
+static int sharp_ls_power_on(struct omap_dss_device *dssdev)
 {
 	int r = 0;
+
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
 
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
 
-	if (dssdev->platform_enable)
+	if (dssdev->platform_enable) {
 		r = dssdev->platform_enable(dssdev);
+		if (r)
+			goto err1;
+	}
 
+	return 0;
+err1:
+	omapdss_dpi_display_disable(dssdev);
+err0:
 	return r;
 }
 
-static void sharp_ls_panel_disable(struct omap_dss_device *dssdev)
+static void sharp_ls_power_off(struct omap_dss_device *dssdev)
 {
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
@@ -75,17 +85,37 @@ static void sharp_ls_panel_disable(struct omap_dss_device *dssdev)
 	/* wait at least 5 vsyncs after disabling the LCD */
 
 	msleep(100);
+
+	omapdss_dpi_display_disable(dssdev);
+}
+
+static int sharp_ls_panel_enable(struct omap_dss_device *dssdev)
+{
+	int r;
+	r = sharp_ls_power_on(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	return r;
+}
+
+static void sharp_ls_panel_disable(struct omap_dss_device *dssdev)
+{
+	sharp_ls_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int sharp_ls_panel_suspend(struct omap_dss_device *dssdev)
 {
-	sharp_ls_panel_disable(dssdev);
+	sharp_ls_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 	return 0;
 }
 
 static int sharp_ls_panel_resume(struct omap_dss_device *dssdev)
 {
-	return sharp_ls_panel_enable(dssdev);
+	int r;
+	r = sharp_ls_power_on(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	return r;
 }
 
 static struct omap_dss_driver sharp_ls_driver = {

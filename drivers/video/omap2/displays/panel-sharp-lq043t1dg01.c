@@ -39,6 +39,41 @@ static struct omap_video_timings sharp_lq_timings = {
 	.vbp		= 2,
 };
 
+static int sharp_lq_panel_power_on(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
+
+	/* wait couple of vsyncs until enabling the LCD */
+	msleep(50);
+
+	if (dssdev->platform_enable) {
+		r = dssdev->platform_enable(dssdev);
+		if (r)
+			goto err1;
+	}
+
+	return 0;
+err1:
+	omapdss_dpi_display_disable(dssdev);
+err0:
+	return r;
+}
+
+static void sharp_lq_panel_power_off(struct omap_dss_device *dssdev)
+{
+	if (dssdev->platform_disable)
+		dssdev->platform_disable(dssdev);
+
+	/* wait at least 5 vsyncs after disabling the LCD */
+	msleep(100);
+
+	omapdss_dpi_display_disable(dssdev);
+}
+
 static int sharp_lq_panel_probe(struct omap_dss_device *dssdev)
 {
 
@@ -58,36 +93,40 @@ static int sharp_lq_panel_enable(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
+	r = sharp_lq_panel_power_on(dssdev);
+	if (r)
+		return r;
 
-	/* wait couple of vsyncs until enabling the LCD */
-	msleep(50);
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	if (dssdev->platform_enable)
-		r = dssdev->platform_enable(dssdev);
-
-	return r;
+	return 0;
 }
 
 static void sharp_lq_panel_disable(struct omap_dss_device *dssdev)
 {
+	sharp_lq_panel_power_off(dssdev);
 
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
-
-	/* wait at least 5 vsyncs after disabling the LCD */
-
-	msleep(100);
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int sharp_lq_panel_suspend(struct omap_dss_device *dssdev)
 {
-	sharp_lq_panel_disable(dssdev);
+	sharp_lq_panel_power_off(dssdev);
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 	return 0;
 }
 
 static int sharp_lq_panel_resume(struct omap_dss_device *dssdev)
 {
-	return sharp_lq_panel_enable(dssdev);
+	int r = 0;
+
+	r = sharp_lq_panel_power_on(dssdev);
+	if (r)
+		return r;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
 }
 
 static struct omap_dss_driver sharp_lq_driver = {

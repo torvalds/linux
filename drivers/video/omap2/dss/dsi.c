@@ -3106,18 +3106,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	dsi_if_enable(1);
 	dsi_force_tx_stop_mode_io();
 
-	if (dssdev->driver->enable) {
-		r = dssdev->driver->enable(dssdev);
-		if (r)
-			goto err4;
-	}
-
-	/* enable high-speed after initial config */
-	omapdss_dsi_vc_enable_hs(0, 1);
-
 	return 0;
-err4:
-	dsi_if_enable(0);
 err3:
 	dsi_complexio_uninit();
 err2:
@@ -3131,9 +3120,6 @@ err0:
 
 static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev)
 {
-	if (dssdev->driver->disable)
-		dssdev->driver->disable(dssdev);
-
 	dss_select_dispc_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dss_select_dsi_clk_source(DSS_SRC_DSS1_ALWON_FCLK);
 	dsi_complexio_uninit();
@@ -3156,14 +3142,15 @@ static int dsi_core_init(void)
 	return 0;
 }
 
-static int dsi_display_enable(struct omap_dss_device *dssdev)
+int omapdss_dsi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
 	DSSDBG("dsi_display_enable\n");
 
+	WARN_ON(!dsi_bus_is_locked());
+
 	mutex_lock(&dsi.lock);
-	dsi_bus_lock();
 
 	r = omap_dss_start_device(dssdev);
 	if (r) {
@@ -3171,64 +3158,49 @@ static int dsi_display_enable(struct omap_dss_device *dssdev)
 		goto err0;
 	}
 
-	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED) {
-		DSSERR("dssdev already enabled\n");
-		r = -EINVAL;
-		goto err1;
-	}
-
 	enable_clocks(1);
 	dsi_enable_pll_clock(1);
 
 	r = _dsi_reset();
 	if (r)
-		goto err2;
+		goto err1;
 
 	dsi_core_init();
 
 	r = dsi_display_init_dispc(dssdev);
 	if (r)
-		goto err2;
+		goto err1;
 
 	r = dsi_display_init_dsi(dssdev);
 	if (r)
-		goto err3;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+		goto err2;
 
 	dsi.use_ext_te = dssdev->phy.dsi.ext_te;
 
-	dsi_bus_unlock();
 	mutex_unlock(&dsi.lock);
 
 	return 0;
 
-err3:
-	dsi_display_uninit_dispc(dssdev);
 err2:
+	dsi_display_uninit_dispc(dssdev);
+err1:
 	enable_clocks(0);
 	dsi_enable_pll_clock(0);
-err1:
 	omap_dss_stop_device(dssdev);
 err0:
-	dsi_bus_unlock();
 	mutex_unlock(&dsi.lock);
 	DSSDBG("dsi_display_enable FAILED\n");
 	return r;
 }
+EXPORT_SYMBOL(omapdss_dsi_display_enable);
 
-static void dsi_display_disable(struct omap_dss_device *dssdev)
+void omapdss_dsi_display_disable(struct omap_dss_device *dssdev)
 {
 	DSSDBG("dsi_display_disable\n");
 
+	WARN_ON(!dsi_bus_is_locked());
+
 	mutex_lock(&dsi.lock);
-	dsi_bus_lock();
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
-			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
-		goto end;
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
 	dsi_display_uninit_dispc(dssdev);
 
@@ -3238,87 +3210,10 @@ static void dsi_display_disable(struct omap_dss_device *dssdev)
 	dsi_enable_pll_clock(0);
 
 	omap_dss_stop_device(dssdev);
-end:
-	dsi_bus_unlock();
+
 	mutex_unlock(&dsi.lock);
 }
-
-static int dsi_display_suspend(struct omap_dss_device *dssdev)
-{
-	DSSDBG("dsi_display_suspend\n");
-
-	mutex_lock(&dsi.lock);
-	dsi_bus_lock();
-
-	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
-			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
-		goto end;
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	dsi_display_uninit_dispc(dssdev);
-
-	dsi_display_uninit_dsi(dssdev);
-
-	enable_clocks(0);
-	dsi_enable_pll_clock(0);
-end:
-	dsi_bus_unlock();
-	mutex_unlock(&dsi.lock);
-
-	return 0;
-}
-
-static int dsi_display_resume(struct omap_dss_device *dssdev)
-{
-	int r;
-
-	DSSDBG("dsi_display_resume\n");
-
-	mutex_lock(&dsi.lock);
-	dsi_bus_lock();
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED) {
-		DSSERR("dssdev not suspended\n");
-		r = -EINVAL;
-		goto err0;
-	}
-
-	enable_clocks(1);
-	dsi_enable_pll_clock(1);
-
-	r = _dsi_reset();
-	if (r)
-		goto err1;
-
-	dsi_core_init();
-
-	r = dsi_display_init_dispc(dssdev);
-	if (r)
-		goto err1;
-
-	r = dsi_display_init_dsi(dssdev);
-	if (r)
-		goto err2;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	dsi_bus_unlock();
-	mutex_unlock(&dsi.lock);
-
-	return 0;
-
-err2:
-	dsi_display_uninit_dispc(dssdev);
-err1:
-	enable_clocks(0);
-	dsi_enable_pll_clock(0);
-err0:
-	dsi_bus_unlock();
-	mutex_unlock(&dsi.lock);
-	DSSDBG("dsi_display_resume FAILED\n");
-	return r;
-}
+EXPORT_SYMBOL(omapdss_dsi_display_disable);
 
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
@@ -3343,11 +3238,6 @@ void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 int dsi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("DSI init\n");
-
-	dssdev->enable = dsi_display_enable;
-	dssdev->disable = dsi_display_disable;
-	dssdev->suspend = dsi_display_suspend;
-	dssdev->resume = dsi_display_resume;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |

@@ -2872,12 +2872,13 @@ static void dispc_error_worker(struct work_struct *work)
 				manager = mgr;
 				enable = mgr->device->state ==
 						OMAP_DSS_DISPLAY_ACTIVE;
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 				break;
 			}
 		}
 
 		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
@@ -2892,7 +2893,7 @@ static void dispc_error_worker(struct work_struct *work)
 			dispc_go(manager->id);
 			mdelay(50);
 			if (enable)
-				manager->device->enable(manager->device);
+				dssdev->driver->enable(dssdev);
 		}
 	}
 
@@ -2910,12 +2911,13 @@ static void dispc_error_worker(struct work_struct *work)
 				manager = mgr;
 				enable = mgr->device->state ==
 						OMAP_DSS_DISPLAY_ACTIVE;
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 				break;
 			}
 		}
 
 		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
@@ -2930,7 +2932,7 @@ static void dispc_error_worker(struct work_struct *work)
 			dispc_go(manager->id);
 			mdelay(50);
 			if (enable)
-				manager->device->enable(manager->device);
+				dssdev->driver->enable(dssdev);
 		}
 	}
 
@@ -2941,7 +2943,7 @@ static void dispc_error_worker(struct work_struct *work)
 			mgr = omap_dss_get_overlay_manager(i);
 
 			if (mgr->caps & OMAP_DSS_OVL_CAP_DISPC)
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 		}
 	}
 

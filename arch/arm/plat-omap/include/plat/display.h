@@ -462,12 +462,6 @@ struct omap_dss_device {
 
 	enum omap_dss_display_state state;
 
-	int (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-
-	int (*suspend)(struct omap_dss_device *dssdev);
-	int (*resume)(struct omap_dss_device *dssdev);
-
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings);
 	void (*set_timings)(struct omap_dss_device *dssdev,
@@ -571,11 +565,21 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(int, void *), void *data);
 
+int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
+void omapdss_dsi_display_disable(struct omap_dss_device *dssdev);
+
+int omapdss_dpi_display_enable(struct omap_dss_device *dssdev);
+void omapdss_dpi_display_disable(struct omap_dss_device *dssdev);
+
+int omapdss_sdi_display_enable(struct omap_dss_device *dssdev);
+void omapdss_sdi_display_disable(struct omap_dss_device *dssdev);
+
+int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev);
+void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev);
 int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 		u16 *x, u16 *y, u16 *w, u16 *h);
 int omap_rfbi_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h,
 		void (*callback)(void *), void *data);
-
 
 #endif
