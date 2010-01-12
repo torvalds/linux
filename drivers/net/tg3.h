@@ -1054,6 +1054,8 @@
 #define  CPMU_MUTEX_REQ_DRIVER		 0x00001000
 #define TG3_CPMU_MUTEX_GNT		0x00003660
 #define  CPMU_MUTEX_GNT_DRIVER		 0x00001000
+#define TG3_CPMU_PHY_STRAP		0x00003664
+#define TG3_CPMU_PHY_STRAP_IS_SERDES	 0x00000020
 /* 0x3664 --> 0x3800 unused */
 
 /* Mbuf cluster free registers */
