@@ -73,6 +73,8 @@
 #define RDS_CMSG_RDMA_MAP		3
 #define RDS_CMSG_RDMA_STATUS		4
 #define RDS_CMSG_CONG_UPDATE		5
+#define RDS_CMSG_ATOMIC_FADD		6
+#define RDS_CMSG_ATOMIC_CSWP		7
 
 #define RDS_INFO_FIRST			10000
 #define RDS_INFO_COUNTERS		10000
@@ -235,6 +237,23 @@ struct rds_rdma_args {
 	u_int64_t	nr_local;
 	u_int64_t	flags;
 	u_int64_t	user_token;
+};
+
+struct rds_atomic_args {
+	rds_rdma_cookie_t cookie;
+	uint64_t 	local_addr;
+	uint64_t 	remote_addr;
+	union {
+		struct {
+			uint64_t	compare;
+			uint64_t	swap;
+		} cswp;
+		struct {
+			uint64_t	add;
+		} fadd;
+	};
+	uint64_t	flags;
+	uint64_t	user_token;
 };
 
 struct rds_rdma_notify {

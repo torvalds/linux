@@ -719,3 +719,76 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 
 	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.m_rdma_mr);
 }
+
+/*
+ * Fill in rds_message for an atomic request.
+ */
+int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
+		    struct cmsghdr *cmsg)
+{
+	struct page *page = NULL;
+	struct rds_atomic_args *args;
+	int ret = 0;
+
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_atomic_args))
+	 || rm->atomic.op_active)
+		return -EINVAL;
+
+	args = CMSG_DATA(cmsg);
+
+	if (cmsg->cmsg_type == RDS_CMSG_ATOMIC_CSWP) {
+		rm->atomic.op_type = RDS_ATOMIC_TYPE_CSWP;
+		rm->atomic.op_swap_add = args->cswp.swap;
+		rm->atomic.op_compare = args->cswp.compare;
+	} else {
+		rm->atomic.op_type = RDS_ATOMIC_TYPE_FADD;
+		rm->atomic.op_swap_add = args->fadd.add;
+	}
+
+	rm->m_rdma_cookie = args->cookie;
+	rm->atomic.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	rm->atomic.op_recverr = rs->rs_recverr;
+	rm->atomic.op_sg = rds_message_alloc_sgs(rm, 1);
+
+	/* verify 8 byte-aligned */
+	if (args->local_addr & 0x7) {
+		ret = -EFAULT;
+		goto err;
+	}
+
+	ret = rds_pin_pages(args->local_addr, 1, &page, 1);
+	if (ret != 1)
+		goto err;
+	ret = 0;
+
+	sg_set_page(rm->atomic.op_sg, page, 8, offset_in_page(args->local_addr));
+
+	if (rm->atomic.op_notify || rm->atomic.op_recverr) {
+		/* We allocate an uninitialized notifier here, because
+		 * we don't want to do that in the completion handler. We
+		 * would have to use GFP_ATOMIC there, and don't want to deal
+		 * with failed allocations.
+		 */
+		rm->atomic.op_notifier = kmalloc(sizeof(*rm->atomic.op_notifier), GFP_KERNEL);
+		if (!rm->atomic.op_notifier) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		rm->atomic.op_notifier->n_user_token = args->user_token;
+		rm->atomic.op_notifier->n_status = RDS_RDMA_SUCCESS;
+	}
+
+	rm->atomic.op_rkey = rds_rdma_cookie_key(rm->m_rdma_cookie);
+	rm->atomic.op_remote_addr = args->remote_addr + rds_rdma_cookie_offset(args->cookie);
+
+	rm->atomic.op_active = 1;
+
+	return ret;
+err:
+	if (page)
+		put_page(page);
+	kfree(rm->atomic.op_notifier);
+
+	return ret;
+}
