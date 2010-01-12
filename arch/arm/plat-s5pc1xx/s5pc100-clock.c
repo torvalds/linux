@@ -446,77 +446,6 @@ static struct clksrc_clk clk_mout_hpll = {
  * have a common parent divisor so are not included here.
  */
 
-static struct clk *clkset_spi_list[] = {
-	&clk_mout_epll.clk,
-	&clk_dout_mpll2,
-	&clk_fin_epll,
-	&clk_mout_hpll.clk,
-};
-
-static struct clksrc_sources clkset_spi = {
-	.sources	= clkset_spi_list,
-	.nr_sources	= ARRAY_SIZE(clkset_spi_list),
-};
-
-static struct clksrc_clk clk_spi0 = {
-	.clk	= {
-		.name		= "spi_bus",
-		.id		= 0,
-		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI0,
-		.enable		= s5pc100_sclk0_ctrl,
-
-	},
-	.sources = &clkset_spi,
-	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 4, .size = 4, },
-	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 4, .size = 2, },
-};
-
-static struct clksrc_clk clk_spi1 = {
-	.clk	= {
-		.name		= "spi_bus",
-		.id		= 1,
-		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI1,
-		.enable		= s5pc100_sclk0_ctrl,
-	},
-	.sources = &clkset_spi,
-	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 8, .size = 4, },
-	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 8, .size = 2, },
-};
-
-static struct clksrc_clk clk_spi2 = {
-	.clk	= {
-		.name		= "spi_bus",
-		.id		= 2,
-		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI2,
-		.enable		= s5pc100_sclk0_ctrl,
-	},
-	.sources = &clkset_spi,
-	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 12, .size = 4, },
-	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 12, .size = 2, },
-};
-
-static struct clk *clkset_uart_list[] = {
-	&clk_mout_epll.clk,
-	&clk_dout_mpll,
-};
-
-static struct clksrc_sources clkset_uart = {
-	.sources	= clkset_uart_list,
-	.nr_sources	= ARRAY_SIZE(clkset_uart_list),
-};
-
-static struct clksrc_clk clk_uart_uclk1 = {
-	.clk	= {
-		.name		= "uclk1",
-		.id		= -1,
-		.ctrlbit        = S5PC100_CLKGATE_SCLK0_UART,
-		.enable		= s5pc100_sclk0_ctrl,
-	},
-	.sources = &clkset_uart,
-	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 0, .size = 3, },
-	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 0, .size = 1, },
-};
-
 static struct clk clk_iis_cd0 = {
 	.name		= "iis_cdclk0",
 	.id		= -1,
@@ -556,16 +485,26 @@ static struct clksrc_sources clkset_audio0 = {
 	.nr_sources	= ARRAY_SIZE(clkset_audio0_list),
 };
 
-static struct clksrc_clk clk_audio0 = {
-	.clk	= {
-		.name		= "audio-bus",
-		.id		= 0,
-		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO0,
-		.enable		= s5pc100_sclk1_ctrl,
-	},
-	.sources = &clkset_audio0,
-	.reg_div = { .reg = S5PC100_CLKDIV4, .shift = 12, .size = 4, },
-	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 12, .size = 3, },
+static struct clk *clkset_spi_list[] = {
+	&clk_mout_epll.clk,
+	&clk_dout_mpll2,
+	&clk_fin_epll,
+	&clk_mout_hpll.clk,
+};
+
+static struct clksrc_sources clkset_spi = {
+	.sources	= clkset_spi_list,
+	.nr_sources	= ARRAY_SIZE(clkset_spi_list),
+};
+
+static struct clk *clkset_uart_list[] = {
+	&clk_mout_epll.clk,
+	&clk_dout_mpll,
+};
+
+static struct clksrc_sources clkset_uart = {
+	.sources	= clkset_uart_list,
+	.nr_sources	= ARRAY_SIZE(clkset_uart_list),
 };
 
 static struct clk *clkset_audio1_list[] = {
@@ -582,18 +521,6 @@ static struct clksrc_sources clkset_audio1 = {
 	.nr_sources	= ARRAY_SIZE(clkset_audio1_list),
 };
 
-static struct clksrc_clk clk_audio1 = {
-	.clk	= {
-		.name		= "audio-bus",
-		.id		= 1,
-		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO1,
-		.enable		= s5pc100_sclk1_ctrl,
-	},
-	.sources = &clkset_audio1,
-	.reg_div = { .reg = S5PC100_CLKDIV4, .shift = 16, .size = 4, },
-	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 16, .size = 3, },
-};
-
 static struct clk *clkset_audio2_list[] = {
 	&clk_mout_epll.clk,
 	&clk_dout_mpll,
@@ -607,17 +534,9 @@ static struct clksrc_sources clkset_audio2 = {
 	.nr_sources	= ARRAY_SIZE(clkset_audio2_list),
 };
 
-static struct clksrc_clk clk_audio2 = {
-	.clk	= {
-		.name		= "audio-bus",
-		.id		= 2,
-		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO2,
-		.enable		= s5pc100_sclk1_ctrl,
-	},
-	.sources = &clkset_audio2,
-	.reg_div = { .reg = S5PC100_CLKDIV4, .shift = 20, .size = 4, },
-	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 20, .size = 3, },
-};
+static struct clksrc_clk clk_audio0;
+static struct clksrc_clk clk_audio1;
+static struct clksrc_clk clk_audio2;
 
 static struct clk *clkset_spdif_list[] = {
 	&clk_audio0.clk,
@@ -630,15 +549,6 @@ static struct clksrc_sources clkset_spdif = {
 	.nr_sources	= ARRAY_SIZE(clkset_spdif_list),
 };
 
-static struct clksrc_clk clk_spdif = {
-	.clk	= {
-		.name		= "spdif",
-		.id		= -1,
-	},
-	.sources	= &clkset_spdif,
-	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 24, .size = 2, },
-};
-
 static struct clk *clkset_lcd_fimc_list[] = {
 	&clk_mout_epll.clk,
 	&clk_dout_mpll,
@@ -649,6 +559,125 @@ static struct clk *clkset_lcd_fimc_list[] = {
 static struct clksrc_sources clkset_lcd_fimc = {
 	.sources	= clkset_lcd_fimc_list,
 	.nr_sources	= ARRAY_SIZE(clkset_lcd_fimc_list),
+};
+
+static struct clk *clkset_mmc_list[] = {
+	&clk_mout_epll.clk,
+	&clk_dout_mpll,
+	&clk_fin_epll,
+	&clk_mout_hpll.clk ,
+};
+
+static struct clksrc_sources clkset_mmc = {
+	.sources	= clkset_mmc_list,
+	.nr_sources	= ARRAY_SIZE(clkset_mmc_list),
+};
+
+static struct clk *clkset_usbhost_list[] = {
+	&clk_mout_epll.clk,
+	&clk_dout_mpll,
+	&clk_mout_hpll.clk,
+	&clk_48m,
+};
+
+static struct clksrc_sources clkset_usbhost = {
+	.sources	= clkset_usbhost_list,
+	.nr_sources	= ARRAY_SIZE(clkset_usbhost_list),
+};
+
+static struct clksrc_clk clk_spi0 = {
+	.clk	= {
+		.name		= "spi_bus",
+		.id		= 0,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI0,
+		.enable		= s5pc100_sclk0_ctrl,
+
+	},
+	.sources = &clkset_spi,
+	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 4, .size = 4, },
+	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 4, .size = 2, },
+};
+
+static struct clksrc_clk clk_spi1 = {
+	.clk	= {
+		.name		= "spi_bus",
+		.id		= 1,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI1,
+		.enable		= s5pc100_sclk0_ctrl,
+	},
+	.sources = &clkset_spi,
+	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 8, .size = 4, },
+	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 8, .size = 2, },
+};
+
+static struct clksrc_clk clk_spi2 = {
+	.clk	= {
+		.name		= "spi_bus",
+		.id		= 2,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK0_SPI2,
+		.enable		= s5pc100_sclk0_ctrl,
+	},
+	.sources = &clkset_spi,
+	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 12, .size = 4, },
+	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 12, .size = 2, },
+};
+
+static struct clksrc_clk clk_uart_uclk1 = {
+	.clk	= {
+		.name		= "uclk1",
+		.id		= -1,
+		.ctrlbit        = S5PC100_CLKGATE_SCLK0_UART,
+		.enable		= s5pc100_sclk0_ctrl,
+	},
+	.sources = &clkset_uart,
+	.reg_div = { .reg = S5PC100_CLKDIV2, .shift = 0, .size = 3, },
+	.reg_src = { .reg = S5PC100_CLKSRC1, .shift = 0, .size = 1, },
+};
+
+static struct clksrc_clk clk_audio0 = {
+	.clk	= {
+		.name		= "audio-bus",
+		.id		= 0,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO0,
+		.enable		= s5pc100_sclk1_ctrl,
+	},
+	.sources = &clkset_audio0,
+	.reg_div = { .reg = S5PC100_CLKDIV4, .shift = 12, .size = 4, },
+	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 12, .size = 3, },
+};
+
+static struct clksrc_clk clk_audio1 = {
+	.clk	= {
+		.name		= "audio-bus",
+		.id		= 1,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO1,
+		.enable		= s5pc100_sclk1_ctrl,
+	},
+	.sources = &clkset_audio1,
+	.reg_div = { .reg = S5PC100_CLKDIV4, .shift = 16, .size = 4, },
+	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 16, .size = 3, },
+};
+
+
+static struct clksrc_clk clk_audio2 = {
+	.clk	= {
+		.name		= "audio-bus",
+		.id		= 2,
+		.ctrlbit	= S5PC100_CLKGATE_SCLK1_AUDIO2,
+		.enable		= s5pc100_sclk1_ctrl,
+	},
+	.sources = &clkset_audio2,
+	.reg_div = { .reg = S5PC100_CLKDIV4, .shift = 20, .size = 4, },
+	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 20, .size = 3, },
+};
+
+static struct clksrc_clk clk_spdif = {
+	.clk	= {
+		.name		= "spdif",
+		.id		= -1,
+	},
+	.sources	= &clkset_spdif,
+	.reg_src = { .reg = S5PC100_CLKSRC3, .shift = 24, .size = 2, },
 };
 
 static struct clksrc_clk clk_lcd = {
@@ -699,18 +728,6 @@ static struct clksrc_clk clk_fimc2 = {
 	.reg_src = { .reg = S5PC100_CLKSRC2, .shift = 24, .size = 2, },
 };
 
-static struct clk *clkset_mmc_list[] = {
-	&clk_mout_epll.clk,
-	&clk_dout_mpll,
-	&clk_fin_epll,
-	&clk_mout_hpll.clk ,
-};
-
-static struct clksrc_sources clkset_mmc = {
-	.sources	= clkset_mmc_list,
-	.nr_sources	= ARRAY_SIZE(clkset_mmc_list),
-};
-
 static struct clksrc_clk clk_mmc0 = {
 	.clk	= {
 		.name		= "mmc_bus",
@@ -745,19 +762,6 @@ static struct clksrc_clk clk_mmc2 = {
 	.sources	= &clkset_mmc,
 	.reg_div = { .reg = S5PC100_CLKDIV3, .shift = 8, .size = 4, },
 	.reg_src = { .reg = S5PC100_CLKSRC2, .shift = 8, .size = 2, },
-};
-
-
-static struct clk *clkset_usbhost_list[] = {
-	&clk_mout_epll.clk,
-	&clk_dout_mpll,
-	&clk_mout_hpll.clk,
-	&clk_48m,
-};
-
-static struct clksrc_sources clkset_usbhost = {
-	.sources	= clkset_usbhost_list,
-	.nr_sources	= ARRAY_SIZE(clkset_usbhost_list),
 };
 
 static struct clksrc_clk clk_usbhost = {
