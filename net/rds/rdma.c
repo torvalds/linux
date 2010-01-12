@@ -534,14 +534,13 @@ static int rds_rdma_prepare(struct rds_message *rm,
 		goto out;
 	}
 
-	op->r_sg = rds_message_alloc_sgs(rm, nr_pages);
 	op->r_write = !!(args->flags & RDS_RDMA_READWRITE);
 	op->r_fence = !!(args->flags & RDS_RDMA_FENCE);
 	op->r_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
 	op->r_active = 1;
 	op->r_recverr = rs->rs_recverr;
 	WARN_ON(!nr_pages);
-	sg_init_table(op->r_sg, nr_pages);
+	op->r_sg = rds_message_alloc_sgs(rm, nr_pages);
 
 	if (op->r_notify || op->r_recverr) {
 		/* We allocate an uninitialized notifier here, because
