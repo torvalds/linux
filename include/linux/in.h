@@ -84,6 +84,8 @@ struct in_addr {
 #define IP_ORIGDSTADDR       20
 #define IP_RECVORIGDSTADDR   IP_ORIGDSTADDR
 
+#define IP_MINTTL       21
+
 /* IP_MTU_DISCOVER values */
 #define IP_PMTUDISC_DONT		0	/* Never send DF frames */
 #define IP_PMTUDISC_WANT		1	/* Use per route hints	*/
