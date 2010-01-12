@@ -13390,6 +13390,11 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (err)
 		return err;
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
+	    (tp->pci_chip_rev_id != CHIPREV_ID_5717_A0 ||
+		 (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
+		return -ENOTSUPP;
+
 	/* Initialize data/descriptor byte/word swapping. */
 	val = tr32(GRC_MODE);
 	val &= GRC_MODE_HOST_STACKUP;
