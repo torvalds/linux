@@ -147,6 +147,18 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 }
 EXPORT_SYMBOL(kernel_thread);
 
+void start_thread(struct pt_regs *regs, unsigned long new_pc,
+		  unsigned long new_sp)
+{
+	set_fs(USER_DS);
+
+	regs->pr = 0;
+	regs->sr = SR_FD;
+	regs->pc = new_pc;
+	regs->regs[15] = new_sp;
+}
+EXPORT_SYMBOL(start_thread);
+
 /*
  * Free current thread data structures etc..
  */

@@ -119,19 +119,10 @@ extern int ubc_usercnt;
 	.sp = sizeof(init_stack) + (long) &init_stack,		\
 }
 
-/*
- * Do necessary setup to start up a newly executed thread.
- */
-#define start_thread(_regs, new_pc, new_sp)	 \
-	set_fs(USER_DS);			 \
-	_regs->pr = 0;				 \
-	_regs->sr = SR_FD;	/* User mode. */ \
-	_regs->pc = new_pc;			 \
-	_regs->regs[15] = new_sp
-
 /* Forward declaration, a strange C thing */
 struct task_struct;
-struct mm_struct;
+
+extern void start_thread(struct pt_regs *regs, unsigned long new_pc, unsigned long new_sp);
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
