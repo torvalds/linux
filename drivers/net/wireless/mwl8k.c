@@ -2,7 +2,7 @@
  * drivers/net/wireless/mwl8k.c
  * Driver for Marvell TOPDOG 802.11 Wireless cards
  *
- * Copyright (C) 2008-2009 Marvell Semiconductor Inc.
+ * Copyright (C) 2008, 2009, 2010 Marvell Semiconductor Inc.
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -26,7 +26,7 @@
 
 #define MWL8K_DESC	"Marvell TOPDOG(R) 802.11 Wireless Network Driver"
 #define MWL8K_NAME	KBUILD_MODNAME
-#define MWL8K_VERSION	"0.11"
+#define MWL8K_VERSION	"0.12"
 
 /* Register definitions */
 #define MWL8K_HIU_GEN_PTR			0x00000c10
