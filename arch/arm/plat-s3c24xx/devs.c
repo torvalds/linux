@@ -112,34 +112,6 @@ struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 	},
 };
 
-/* yart devices */
-
-static struct platform_device s3c24xx_uart_device0 = {
-	.id		= 0,
-};
-
-static struct platform_device s3c24xx_uart_device1 = {
-	.id		= 1,
-};
-
-static struct platform_device s3c24xx_uart_device2 = {
-	.id		= 2,
-};
-
-static struct platform_device s3c24xx_uart_device3 = {
-	.id		= 3,
-};
-
-struct platform_device *s3c24xx_uart_src[4] = {
-	&s3c24xx_uart_device0,
-	&s3c24xx_uart_device1,
-	&s3c24xx_uart_device2,
-	&s3c24xx_uart_device3,
-};
-
-struct platform_device *s3c24xx_uart_devs[4] = {
-};
-
 /* LCD Controller */
 
 static struct resource s3c_lcd_resource[] = {
