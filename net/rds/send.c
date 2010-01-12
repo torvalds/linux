@@ -551,7 +551,7 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 			rds_send_sndbuf_remove(rs, rm);
 
 			if (ro->r_active && ro->r_notifier &&
-			    (status || ro->r_notify)) {
+			    (ro->r_notify || (ro->r_recverr && status))) {
 				notifier = ro->r_notifier;
 				list_add_tail(&notifier->n_list,
 						&rs->rs_notify_queue);
