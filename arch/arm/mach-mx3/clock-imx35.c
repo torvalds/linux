@@ -485,15 +485,13 @@ static struct clk_lookup lookups[] = {
 
 int __init mx35_clocks_init()
 {
-	int i;
 	unsigned int ll = 0;
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
 	ll = (3 << 16);
 #endif
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* Turn off all clocks except the ones we need to survive, namely:
 	 * EMI, GPIO1/2/3, GPT, IOMUX, MAX and eventually uart

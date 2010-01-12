@@ -128,6 +128,6 @@ static struct clk_lookup eseries_clkregs[] = {
 
 void eseries_register_clks(void)
 {
-	clks_register(eseries_clkregs, ARRAY_SIZE(eseries_clkregs));
+	clkdev_add_table(eseries_clkregs, ARRAY_SIZE(eseries_clkregs));
 }
 

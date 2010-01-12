@@ -210,11 +210,7 @@ static struct clk_lookup lookups[] = {
 
 int __init mx25_clocks_init(unsigned long fref)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
-
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 	mxc_timer_init(&gpt_clk, MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), 54);
 
 	return 0;

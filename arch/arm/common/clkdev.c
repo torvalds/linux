@@ -99,6 +99,16 @@ void clkdev_add(struct clk_lookup *cl)
 }
 EXPORT_SYMBOL(clkdev_add);
 
+void __init clkdev_add_table(struct clk_lookup *cl, size_t num)
+{
+	mutex_lock(&clocks_mutex);
+	while (num--) {
+		list_add_tail(&cl->node, &clocks);
+		cl++;
+	}
+	mutex_unlock(&clocks_mutex);
+}
+
 #define MAX_DEV_ID	20
 #define MAX_CON_ID	16
 

@@ -445,7 +445,6 @@ static void __init ep93xx_dma_clock_init(void)
 static int __init ep93xx_clock_init(void)
 {
 	u32 value;
-	int i;
 
 	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET1);
 	if (!(value & 0x00800000)) {			/* PLL1 bypassed?  */
@@ -474,8 +473,7 @@ static int __init ep93xx_clock_init(void)
 		clk_f.rate / 1000000, clk_h.rate / 1000000,
 		clk_p.rate / 1000000);
 
-	for (i = 0; i < ARRAY_SIZE(clocks); i++)
-		clkdev_add(&clocks[i]);
+	clkdev_add_table(clocks, ARRAY_SIZE(clocks));
 	return 0;
 }
 arch_initcall(ep93xx_clock_init);
