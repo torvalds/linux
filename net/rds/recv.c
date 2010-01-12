@@ -333,10 +333,10 @@ int rds_notify_queue_get(struct rds_sock *rs, struct msghdr *msghdr)
 
 		if (msghdr) {
 			cmsg.user_token = notifier->n_user_token;
-			cmsg.status  = notifier->n_status;
+			cmsg.status = notifier->n_status;
 
 			err = put_cmsg(msghdr, SOL_RDS, RDS_CMSG_RDMA_STATUS,
-					sizeof(cmsg), &cmsg);
+				       sizeof(cmsg), &cmsg);
 			if (err)
 				break;
 		}

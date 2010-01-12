@@ -688,7 +688,6 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 	 */
 	r_key = rds_rdma_cookie_key(rm->m_rdma_cookie);
 
-
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
 	if (!mr)

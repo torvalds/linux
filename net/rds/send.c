@@ -150,7 +150,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		 */
 		if (conn->c_map_bytes) {
 			ret = conn->c_trans->xmit_cong_map(conn, conn->c_lcong,
-						conn->c_map_offset);
+							   conn->c_map_offset);
 			if (ret <= 0)
 				break;
 
