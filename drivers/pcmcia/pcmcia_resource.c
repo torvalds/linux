@@ -306,6 +306,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		int i;
 
 		io_on.speed = io_speed;
+		mutex_lock(&s->ops_mutex);
 		for (i = 0; i < MAX_IO_WIN; i++) {
 			if (!s->io[i].res)
 				continue;
@@ -320,6 +321,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 			mdelay(40);
 			s->ops->set_io_map(s, &io_on);
 		}
+		mutex_unlock(&s->ops_mutex);
 	}
 
 	return 0;
@@ -345,6 +347,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 	}
 	if (c->state & CONFIG_LOCKED) {
 		c->state &= ~CONFIG_LOCKED;
+		mutex_lock(&s->ops_mutex);
 		if (c->state & CONFIG_IO_REQ)
 			for (i = 0; i < MAX_IO_WIN; i++) {
 				if (!s->io[i].res)
@@ -355,6 +358,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 				io.map = i;
 				s->ops->set_io_map(s, &io);
 			}
+		mutex_unlock(&s->ops_mutex);
 	}
 
 	return 0;
@@ -562,6 +566,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 
 	/* Configure I/O windows */
 	if (c->state & CONFIG_IO_REQ) {
+		mutex_lock(&s->ops_mutex);
 		iomap.speed = io_speed;
 		for (i = 0; i < MAX_IO_WIN; i++)
 			if (s->io[i].res) {
@@ -580,6 +585,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 				s->ops->set_io_map(s, &iomap);
 				s->io[i].Config++;
 			}
+		mutex_unlock(&s->ops_mutex);
 	}
 
 	c->state |= CONFIG_LOCKED;
@@ -625,10 +631,12 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 		return -EINVAL;
 	}
 
+	mutex_lock(&s->ops_mutex);
 	dev_dbg(&s->dev, "trying to allocate resource 1\n");
 	if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
 			   req->NumPorts1, req->IOAddrLines)) {
 		dev_dbg(&s->dev, "allocation of resource 1 failed\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EBUSY;
 	}
 
@@ -638,9 +646,11 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 				   req->NumPorts2, req->IOAddrLines)) {
 			dev_dbg(&s->dev, "allocation of resource 2 failed\n");
 			release_io_space(s, req->BasePort1, req->NumPorts1);
+			mutex_unlock(&s->ops_mutex);
 			return -EBUSY;
 		}
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	c->io = *req;
 	c->state |= CONFIG_IO_REQ;
