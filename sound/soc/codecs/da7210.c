@@ -471,8 +471,8 @@ init_err:
 }
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static int da7210_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
+			   	      const struct i2c_device_id *id)
 {
 	struct da7210_priv *da7210;
 	struct snd_soc_codec *codec;
@@ -495,7 +495,7 @@ static int da7210_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int da7210_i2c_remove(struct i2c_client *client)
+static int __devexit da7210_i2c_remove(struct i2c_client *client)
 {
 	struct da7210_priv *da7210 = i2c_get_clientdata(client);
 

@@ -1191,8 +1191,8 @@ struct snd_soc_dai dac33_dai = {
 };
 EXPORT_SYMBOL_GPL(dac33_dai);
 
-static int dac33_i2c_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int __devinit dac33_i2c_probe(struct i2c_client *client,
+				     const struct i2c_device_id *id)
 {
 	struct tlv320dac33_platform_data *pdata;
 	struct tlv320dac33_priv *dac33;
@@ -1345,7 +1345,7 @@ error_reg:
 	return ret;
 }
 
-static int dac33_i2c_remove(struct i2c_client *client)
+static int __devexit dac33_i2c_remove(struct i2c_client *client)
 {
 	struct tlv320dac33_priv *dac33;
 

@@ -379,8 +379,8 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
 
-static int tpa6130a2_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int __devinit tpa6130a2_probe(struct i2c_client *client,
+				     const struct i2c_device_id *id)
 {
 	struct device *dev;
 	struct tpa6130a2_data *data;
@@ -479,7 +479,7 @@ err_gpio:
 	return ret;
 }
 
-static int tpa6130a2_remove(struct i2c_client *client)
+static int __devexit tpa6130a2_remove(struct i2c_client *client)
 {
 	struct tpa6130a2_data *data = i2c_get_clientdata(client);
 
