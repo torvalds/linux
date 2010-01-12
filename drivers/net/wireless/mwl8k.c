@@ -759,7 +759,13 @@ mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 		}
 	}
 
-	status->band = IEEE80211_BAND_2GHZ;
+	if (rxd->channel > 14) {
+		status->band = IEEE80211_BAND_5GHZ;
+		if (!(status->flag & RX_FLAG_HT))
+			status->rate_idx -= 5;
+	} else {
+		status->band = IEEE80211_BAND_2GHZ;
+	}
 	status->freq = ieee80211_channel_to_frequency(rxd->channel);
 
 	*qos = rxd->qos_control;
@@ -850,7 +856,13 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 	if (rate_info & MWL8K_STA_RATE_INFO_MCS_FORMAT)
 		status->flag |= RX_FLAG_HT;
 
-	status->band = IEEE80211_BAND_2GHZ;
+	if (rxd->channel > 14) {
+		status->band = IEEE80211_BAND_5GHZ;
+		if (!(status->flag & RX_FLAG_HT))
+			status->rate_idx -= 5;
+	} else {
+		status->band = IEEE80211_BAND_2GHZ;
+	}
 	status->freq = ieee80211_channel_to_frequency(rxd->channel);
 
 	*qos = rxd->qos_control;
