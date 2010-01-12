@@ -35,7 +35,7 @@
 #include <linux/rbtree.h>
 #include <linux/dma-mapping.h> /* for DMA_*_DEVICE */
 
-#include "rdma.h"
+#include "rds.h"
 
 /*
  * XXX

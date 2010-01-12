@@ -36,7 +36,6 @@
 #include <linux/dmapool.h>
 
 #include "rds.h"
-#include "rdma.h"
 #include "ib.h"
 
 static void rds_ib_send_rdma_complete(struct rds_message *rm,

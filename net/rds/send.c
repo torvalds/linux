@@ -37,7 +37,6 @@
 #include <linux/list.h>
 
 #include "rds.h"
-#include "rdma.h"
 
 /* When transmitting messages in rds_send_xmit, we need to emerge from
  * time to time and briefly release the CPU. Otherwise the softlock watchdog

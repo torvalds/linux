@@ -36,7 +36,6 @@
 #include <linux/in.h>
 
 #include "rds.h"
-#include "rdma.h"
 
 void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 		  __be32 saddr)

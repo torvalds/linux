@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 
 #include "rds.h"
-#include "rdma.h"
 
 static DECLARE_WAIT_QUEUE_HEAD(rds_message_flush_waitq);
 

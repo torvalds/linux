@@ -39,7 +39,6 @@
 #include <net/sock.h>
 
 #include "rds.h"
-#include "rdma.h"
 
 /* this is just used for stats gathering :/ */
 static DEFINE_SPINLOCK(rds_sock_lock);
