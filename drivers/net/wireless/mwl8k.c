@@ -3740,6 +3740,7 @@ static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
 	{ PCI_VDEVICE(MARVELL, 0x2a2b), .driver_data = MWL8687, },
 	{ PCI_VDEVICE(MARVELL, 0x2a30), .driver_data = MWL8687, },
 	{ PCI_VDEVICE(MARVELL, 0x2a40), .driver_data = MWL8366, },
+	{ PCI_VDEVICE(MARVELL, 0x2a43), .driver_data = MWL8366, },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, mwl8k_pci_id_table);
