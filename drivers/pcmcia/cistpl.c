@@ -64,6 +64,7 @@ module_param(cis_width, int, 0444);
 
 void release_cis_mem(struct pcmcia_socket *s)
 {
+    mutex_lock(&s->ops_mutex);
     if (s->cis_mem.flags & MAP_ACTIVE) {
 	s->cis_mem.flags &= ~MAP_ACTIVE;
 	s->ops->set_mem_map(s, &s->cis_mem);
@@ -75,6 +76,7 @@ void release_cis_mem(struct pcmcia_socket *s)
 	iounmap(s->cis_virt);
 	s->cis_virt = NULL;
     }
+    mutex_unlock(&s->ops_mutex);
 }
 
 /*
@@ -88,11 +90,13 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 	pccard_mem_map *mem = &s->cis_mem;
 	int ret;
 
+	mutex_lock(&s->ops_mutex);
 	if (!(s->features & SS_CAP_STATIC_MAP) && (mem->res == NULL)) {
 		mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
 		if (mem->res == NULL) {
 			dev_printk(KERN_NOTICE, &s->dev,
 				   "cs: unable to map card memory!\n");
+			mutex_unlock(&s->ops_mutex);
 			return NULL;
 		}
 		s->cis_virt = NULL;
@@ -108,6 +112,7 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 	if (ret) {
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
+		mutex_unlock(&s->ops_mutex);
 		return NULL;
 	}
 
@@ -117,6 +122,7 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 		s->cis_virt = ioremap(mem->static_start, s->map_size);
 	}
 
+	mutex_unlock(&s->ops_mutex);
 	return s->cis_virt;
 }
 

@@ -274,17 +274,21 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 {
 	int ret = -EINVAL;
 
+	mutex_lock(&s->ops_mutex);
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
+		mutex_unlock(&s->ops_mutex);
 		/* as we're only called from pcmcia.c, we're safe */
 		if (s->callback->validate)
 			ret = s->callback->validate(s, count);
 		/* invalidate mapping */
+		mutex_lock(&s->ops_mutex);
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
 	}
 	s->cis_mem.res = NULL;
+	mutex_unlock(&s->ops_mutex);
 	if ((ret) || (*count == 0))
 		return -EINVAL;
 	return 0;
@@ -299,6 +303,8 @@ static int checksum(struct pcmcia_socket *s, struct resource *res,
 	pccard_mem_map map;
 	int i, a = 0, b = -1, d;
 	void __iomem *virt;
+
+	mutex_lock(&s->ops_mutex);
 
 	virt = ioremap(res->start, s->map_size);
 	if (virt) {
@@ -321,6 +327,8 @@ static int checksum(struct pcmcia_socket *s, struct resource *res,
 
 		iounmap(virt);
 	}
+
+	mutex_unlock(&s->ops_mutex);
 
 	if (b == -1)
 		return -EINVAL;

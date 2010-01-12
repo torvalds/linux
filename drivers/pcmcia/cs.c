@@ -222,6 +222,7 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	init_completion(&socket->socket_released);
 	init_completion(&socket->thread_done);
 	mutex_init(&socket->skt_mutex);
+	mutex_init(&socket->ops_mutex);
 	spin_lock_init(&socket->thread_lock);
 
 	if (socket->resource_ops->init) {

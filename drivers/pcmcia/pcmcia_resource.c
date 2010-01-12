@@ -223,6 +223,7 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
 			memreq_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
+	int ret;
 
 	wh--;
 	if (wh >= MAX_WIN)
@@ -231,12 +232,13 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
 		dev_dbg(&s->dev, "failure: requested page is zero\n");
 		return -EINVAL;
 	}
+	mutex_lock(&s->ops_mutex);
 	s->win[wh].card_start = req->CardOffset;
-	if (s->ops->set_mem_map(s, &s->win[wh]) != 0) {
-		dev_dbg(&s->dev, "failed to set_mem_map\n");
-		return -EIO;
-	}
-	return 0;
+	ret = s->ops->set_mem_map(s, &s->win[wh]);
+	if (ret)
+		dev_warn(&s->dev, "failed to set_mem_map\n");
+	mutex_unlock(&s->ops_mutex);
+	return ret;
 } /* pcmcia_map_mem_page */
 EXPORT_SYMBOL(pcmcia_map_mem_page);
 
@@ -437,10 +439,12 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 	if (wh >= MAX_WIN)
 		return -EINVAL;
 
+	mutex_lock(&s->ops_mutex);
 	win = &s->win[wh];
 
 	if (!(p_dev->_win & CLIENT_WIN_REQ(wh))) {
 		dev_dbg(&s->dev, "not releasing unknown window\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
 
@@ -456,6 +460,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 		win->res = NULL;
 	}
 	p_dev->_win &= ~CLIENT_WIN_REQ(wh);
+	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 } /* pcmcia_release_window */
@@ -829,6 +834,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 		return -EINVAL;
 	}
 
+	mutex_lock(&s->ops_mutex);
 	win = &s->win[w];
 
 	if (!(s->features & SS_CAP_STATIC_MAP)) {
@@ -836,6 +842,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 						      (req->Attributes & WIN_MAP_BELOW_1MB), s);
 		if (!win->res) {
 			dev_dbg(&s->dev, "allocating mem region failed\n");
+			mutex_unlock(&s->ops_mutex);
 			return -EINVAL;
 		}
 	}
@@ -854,8 +861,10 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	if (req->Attributes & WIN_USE_WAIT)
 		win->flags |= MAP_USE_WAIT;
 	win->card_start = 0;
+
 	if (s->ops->set_mem_map(s, win) != 0) {
 		dev_dbg(&s->dev, "failed to set memory mapping\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EIO;
 	}
 	s->state |= SOCKET_WIN_REQ(w);
@@ -866,6 +875,7 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	else
 		req->Base = win->res->start;
 
+	mutex_unlock(&s->ops_mutex);
 	*wh = w + 1;
 
 	return 0;

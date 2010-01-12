@@ -203,6 +203,8 @@ struct pcmcia_socket {
 	unsigned int			thread_events;
 	/* protects socket h/w state */
 	struct mutex			skt_mutex;
+	/* protects PCMCIA state */
+	struct mutex			ops_mutex;
 	/* protects thread_events */
 	spinlock_t			thread_lock;
 
