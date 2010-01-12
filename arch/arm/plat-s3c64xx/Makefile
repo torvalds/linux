@@ -13,6 +13,7 @@ obj-				:=
 # Core files
 
 obj-y				+= dev-uart.o
+obj-y				+= dev-rtc.o
 obj-y				+= cpu.o
 obj-y				+= irq.o
 obj-y				+= irq-eint.o
