@@ -62,7 +62,7 @@ static int rds_release(struct socket *sock)
 	struct rds_sock *rs;
 	unsigned long flags;
 
-	if (sk == NULL)
+	if (!sk)
 		goto out;
 
 	rs = rds_sk_to_rs(sk);

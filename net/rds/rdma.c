@@ -189,7 +189,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 		goto out;
 	}
 
-	if (rs->rs_transport->get_mr == NULL) {
+	if (!rs->rs_transport->get_mr) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -205,13 +205,13 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 
 	/* XXX clamp nr_pages to limit the size of this alloc? */
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
-	if (pages == NULL) {
+	if (!pages) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	mr = kzalloc(sizeof(struct rds_mr), GFP_KERNEL);
-	if (mr == NULL) {
+	if (!mr) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -244,7 +244,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 
 	nents = ret;
 	sg = kcalloc(nents, sizeof(*sg), GFP_KERNEL);
-	if (sg == NULL) {
+	if (!sg) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -425,7 +425,7 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	/* May have to issue a dma_sync on this memory region.
 	 * Note we could avoid this if the operation was a RDMA READ,
 	 * but at this point we can't tell. */
-	if (mr != NULL) {
+	if (mr) {
 		if (mr->r_trans->sync_mr)
 			mr->r_trans->sync_mr(mr->r_trans_private, DMA_FROM_DEVICE);
 
@@ -511,13 +511,13 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 	}
 
 	pages = kcalloc(max_pages, sizeof(struct page *), GFP_KERNEL);
-	if (pages == NULL) {
+	if (!pages) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	op = kzalloc(offsetof(struct rds_rdma_op, r_sg[nr_pages]), GFP_KERNEL);
-	if (op == NULL) {
+	if (!op) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -643,7 +643,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	struct rds_rdma_op *op;
 
 	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args)) ||
-	    rm->m_rdma_op != NULL)
+	    rm->m_rdma_op)
 		return -EINVAL;
 
 	op = rds_rdma_prepare(rs, CMSG_DATA(cmsg));
@@ -681,7 +681,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 
 	spin_lock_irqsave(&rs->rs_rdma_lock, flags);
 	mr = rds_mr_tree_walk(&rs->rs_rdma_keys, r_key, NULL);
-	if (mr == NULL)
+	if (!mr)
 		err = -EINVAL;	/* invalid r_key */
 	else
 		atomic_inc(&mr->r_refcount);

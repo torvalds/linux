@@ -116,7 +116,7 @@ void rds_tcp_listen_data_ready(struct sock *sk, int bytes)
 
 	read_lock(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
-	if (ready == NULL) { /* check for teardown race */
+	if (!ready) { /* check for teardown race */
 		ready = sk->sk_data_ready;
 		goto out;
 	}
@@ -178,7 +178,7 @@ void rds_tcp_listen_stop(void)
 	struct socket *sock = rds_tcp_listen_sock;
 	struct sock *sk;
 
-	if (sock == NULL)
+	if (!sock)
 		return;
 
 	sk = sock->sk;

@@ -86,7 +86,7 @@ static void rds_iw_send_unmap_rm(struct rds_iw_connection *ic,
 		     rm->m_sg, rm->m_nents,
 		     DMA_TO_DEVICE);
 
-	if (rm->m_rdma_op != NULL) {
+	if (rm->m_rdma_op) {
 		rds_iw_send_unmap_rdma(ic, rm->m_rdma_op);
 
 		/* If the user asked for a completion notification on this
@@ -556,7 +556,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	}
 
 	/* map the message the first time we see it */
-	if (ic->i_rm == NULL) {
+	if (!ic->i_rm) {
 		/*
 		printk(KERN_NOTICE "rds_iw_xmit prep msg dport=%u flags=0x%x len=%d\n",
 				be16_to_cpu(rm->m_inc.i_hdr.h_dport),

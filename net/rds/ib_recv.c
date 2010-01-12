@@ -53,7 +53,7 @@ static void rds_ib_frag_drop_page(struct rds_page_frag *frag)
 static void rds_ib_frag_free(struct rds_page_frag *frag)
 {
 	rdsdebug("frag %p page %p\n", frag, frag->f_page);
-	BUG_ON(frag->f_page != NULL);
+	BUG_ON(frag->f_page);
 	kmem_cache_free(rds_ib_frag_slab, frag);
 }
 
@@ -143,14 +143,14 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	struct ib_sge *sge;
 	int ret = -ENOMEM;
 
-	if (recv->r_ibinc == NULL) {
+	if (!recv->r_ibinc) {
 		if (!atomic_add_unless(&rds_ib_allocation, 1, rds_ib_sysctl_max_recv_allocation)) {
 			rds_ib_stats_inc(s_ib_rx_alloc_limit);
 			goto out;
 		}
 		recv->r_ibinc = kmem_cache_alloc(rds_ib_incoming_slab,
 						 kptr_gfp);
-		if (recv->r_ibinc == NULL) {
+		if (!recv->r_ibinc) {
 			atomic_dec(&rds_ib_allocation);
 			goto out;
 		}
@@ -158,17 +158,17 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 		rds_inc_init(&recv->r_ibinc->ii_inc, conn, conn->c_faddr);
 	}
 
-	if (recv->r_frag == NULL) {
+	if (!recv->r_frag) {
 		recv->r_frag = kmem_cache_alloc(rds_ib_frag_slab, kptr_gfp);
-		if (recv->r_frag == NULL)
+		if (!recv->r_frag)
 			goto out;
 		INIT_LIST_HEAD(&recv->r_frag->f_item);
 		recv->r_frag->f_page = NULL;
 	}
 
-	if (ic->i_frag.f_page == NULL) {
+	if (!ic->i_frag.f_page) {
 		ic->i_frag.f_page = alloc_page(page_gfp);
-		if (ic->i_frag.f_page == NULL)
+		if (!ic->i_frag.f_page)
 			goto out;
 		ic->i_frag.f_offset = 0;
 	}
@@ -757,7 +757,7 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 	 * into the inc and save the inc so we can hang upcoming fragments
 	 * off its list.
 	 */
-	if (ibinc == NULL) {
+	if (!ibinc) {
 		ibinc = recv->r_ibinc;
 		recv->r_ibinc = NULL;
 		ic->i_ibinc = ibinc;
@@ -940,13 +940,13 @@ int __init rds_ib_recv_init(void)
 	rds_ib_incoming_slab = kmem_cache_create("rds_ib_incoming",
 					sizeof(struct rds_ib_incoming),
 					0, 0, NULL);
-	if (rds_ib_incoming_slab == NULL)
+	if (!rds_ib_incoming_slab)
 		goto out;
 
 	rds_ib_frag_slab = kmem_cache_create("rds_ib_frag",
 					sizeof(struct rds_page_frag),
 					0, 0, NULL);
-	if (rds_ib_frag_slab == NULL)
+	if (!rds_ib_frag_slab)
 		kmem_cache_destroy(rds_ib_incoming_slab);
 	else
 		ret = 0;

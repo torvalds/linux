@@ -240,7 +240,7 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	unsigned int i;
 
 	rm = rds_message_alloc(ceil(total_len, PAGE_SIZE), GFP_KERNEL);
-	if (rm == NULL)
+	if (!rm)
 		return ERR_PTR(-ENOMEM);
 
 	set_bit(RDS_MSG_PAGEVEC, &rm->m_flags);
@@ -284,7 +284,7 @@ struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
 
 	while (total_len) {
-		if (sg_page(sg) == NULL) {
+		if (!sg_page(sg)) {
 			ret = rds_page_remainder_alloc(sg, total_len,
 						       GFP_HIGHUSER);
 			if (ret)

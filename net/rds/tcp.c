@@ -200,7 +200,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	struct rds_tcp_connection *tc;
 
 	tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
-	if (tc == NULL)
+	if (!tc)
 		return -ENOMEM;
 
 	tc->t_sock = NULL;
@@ -283,7 +283,7 @@ int __init rds_tcp_init(void)
 	rds_tcp_conn_slab = kmem_cache_create("rds_tcp_connection",
 					      sizeof(struct rds_tcp_connection),
 					      0, 0, NULL);
-	if (rds_tcp_conn_slab == NULL) {
+	if (!rds_tcp_conn_slab) {
 		ret = -ENOMEM;
 		goto out;
 	}

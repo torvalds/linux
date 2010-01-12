@@ -112,7 +112,7 @@ static int rds_loop_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	unsigned long flags;
 
 	lc = kzalloc(sizeof(struct rds_loop_connection), GFP_KERNEL);
-	if (lc == NULL)
+	if (!lc)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&lc->loop_node);

@@ -164,7 +164,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		 * offset and S/G temporaries.
 		 */
 		rm = conn->c_xmit_rm;
-		if (rm != NULL &&
+		if (rm &&
 		    conn->c_xmit_hdr_off == sizeof(struct rds_header) &&
 		    conn->c_xmit_sg == rm->m_nents) {
 			conn->c_xmit_rm = NULL;
@@ -180,8 +180,8 @@ int rds_send_xmit(struct rds_connection *conn)
 
 		/* If we're asked to send a cong map update, do so.
 		 */
-		if (rm == NULL && test_and_clear_bit(0, &conn->c_map_queued)) {
-			if (conn->c_trans->xmit_cong_map != NULL) {
+		if (!rm && test_and_clear_bit(0, &conn->c_map_queued)) {
+			if (conn->c_trans->xmit_cong_map) {
 				conn->c_map_offset = 0;
 				conn->c_map_bytes = sizeof(struct rds_header) +
 					RDS_CONG_MAP_BYTES;
@@ -204,7 +204,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		 * the connction.  We can use this ref while holding the
 		 * send_sem.. rds_send_reset() is serialized with it.
 		 */
-		if (rm == NULL) {
+		if (!rm) {
 			unsigned int len;
 
 			spin_lock_irqsave(&conn->c_lock, flags);
@@ -224,7 +224,7 @@ int rds_send_xmit(struct rds_connection *conn)
 
 			spin_unlock_irqrestore(&conn->c_lock, flags);
 
-			if (rm == NULL) {
+			if (!rm) {
 				was_empty = 1;
 				break;
 			}
@@ -875,7 +875,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		goto out;
 
 	if ((rm->m_rdma_cookie || rm->m_rdma_op) &&
-	    conn->c_trans->xmit_rdma == NULL) {
+	    !conn->c_trans->xmit_rdma) {
 		if (printk_ratelimit())
 			printk(KERN_NOTICE "rdma_op %p conn xmit_rdma %p\n",
 				rm->m_rdma_op, conn->c_trans->xmit_rdma);
@@ -961,7 +961,7 @@ rds_send_pong(struct rds_connection *conn, __be16 dport)
 	int ret = 0;
 
 	rm = rds_message_alloc(0, GFP_ATOMIC);
-	if (rm == NULL) {
+	if (!rm) {
 		ret = -ENOMEM;
 		goto out;
 	}

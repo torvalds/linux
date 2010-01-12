@@ -141,7 +141,7 @@ static struct rds_cong_map *rds_cong_from_addr(__be32 addr)
 	unsigned long flags;
 
 	map = kzalloc(sizeof(struct rds_cong_map), GFP_KERNEL);
-	if (map == NULL)
+	if (!map)
 		return NULL;
 
 	map->m_addr = addr;
@@ -159,7 +159,7 @@ static struct rds_cong_map *rds_cong_from_addr(__be32 addr)
 	ret = rds_cong_tree_walk(addr, map);
 	spin_unlock_irqrestore(&rds_cong_lock, flags);
 
-	if (ret == NULL) {
+	if (!ret) {
 		ret = map;
 		map = NULL;
 	}
@@ -205,7 +205,7 @@ int rds_cong_get_maps(struct rds_connection *conn)
 	conn->c_lcong = rds_cong_from_addr(conn->c_laddr);
 	conn->c_fcong = rds_cong_from_addr(conn->c_faddr);
 
-	if (conn->c_lcong == NULL || conn->c_fcong == NULL)
+	if (!(conn->c_lcong && conn->c_fcong))
 		return -ENOMEM;
 
 	return 0;

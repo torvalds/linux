@@ -148,7 +148,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 		goto out;
 
 	conn = kmem_cache_zalloc(rds_conn_slab, gfp);
-	if (conn == NULL) {
+	if (!conn) {
 		conn = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -502,7 +502,7 @@ int __init rds_conn_init(void)
 	rds_conn_slab = kmem_cache_create("rds_connection",
 					  sizeof(struct rds_connection),
 					  0, 0, NULL);
-	if (rds_conn_slab == NULL)
+	if (!rds_conn_slab)
 		return -ENOMEM;
 
 	rds_info_register_func(RDS_INFO_CONNECTIONS, rds_conn_info);

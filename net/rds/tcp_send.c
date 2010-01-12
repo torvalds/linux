@@ -226,7 +226,7 @@ void rds_tcp_write_space(struct sock *sk)
 
 	read_lock(&sk->sk_callback_lock);
 	conn = sk->sk_user_data;
-	if (conn == NULL) {
+	if (!conn) {
 		write_space = sk->sk_write_space;
 		goto out;
 	}

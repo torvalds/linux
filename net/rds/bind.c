@@ -121,7 +121,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 	do {
 		if (rover == 0)
 			rover++;
-		if (rds_bind_tree_walk(addr, cpu_to_be16(rover), rs) == NULL) {
+		if (!rds_bind_tree_walk(addr, cpu_to_be16(rover), rs)) {
 			*port = cpu_to_be16(rover);
 			ret = 0;
 			break;
@@ -184,7 +184,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 
 	trans = rds_trans_get_preferred(sin->sin_addr.s_addr);
-	if (trans == NULL) {
+	if (!trans) {
 		ret = -EADDRNOTAVAIL;
 		rds_remove_bound(rs);
 		if (printk_ratelimit())

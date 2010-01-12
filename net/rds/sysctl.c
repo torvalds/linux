@@ -111,7 +111,7 @@ int __init rds_sysctl_init(void)
 	rds_sysctl_reconnect_min_jiffies = rds_sysctl_reconnect_min;
 
 	rds_sysctl_reg_table = register_sysctl_paths(rds_sysctl_path, rds_sysctl_rds_table);
-	if (rds_sysctl_reg_table == NULL)
+	if (!rds_sysctl_reg_table)
 		return -ENOMEM;
 	return 0;
 }
