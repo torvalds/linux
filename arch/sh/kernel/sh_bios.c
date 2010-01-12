@@ -55,3 +55,40 @@ void sh_bios_shutdown(unsigned int how)
 {
 	sh_bios_call(BIOS_CALL_SHUTDOWN, how, 0, 0, 0);
 }
+
+void *gdb_vbr_vector = NULL;
+
+/*
+ * Read the old value of the VBR register to initialise the vector
+ * through which debug and BIOS traps are delegated by the Linux trap
+ * handler.
+ */
+void sh_bios_vbr_init(void)
+{
+	unsigned long vbr;
+
+	if (unlikely(gdb_vbr_vector))
+		return;
+
+	__asm__ __volatile__ ("stc vbr, %0" : "=r" (vbr));
+
+	gdb_vbr_vector = (void *)(vbr + 0x100);
+	printk(KERN_NOTICE "Setting GDB trap vector to %p\n", gdb_vbr_vector);
+}
+
+/**
+ * sh_bios_vbr_reload - Re-load the system VBR from the BIOS vector.
+ *
+ * This can be used by save/restore code to reinitialize the system VBR
+ * from the fixed BIOS VBR. A no-op if no BIOS VBR is known.
+ */
+void sh_bios_vbr_reload(void)
+{
+	if (gdb_vbr_vector)
+		__asm__ __volatile__ (
+			"ldc %0, vbr"
+			:
+			: "r" (((unsigned long) gdb_vbr_vector) - 0x100)
+			: "memory"
+		);
+}

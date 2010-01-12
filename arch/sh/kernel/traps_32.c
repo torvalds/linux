@@ -31,6 +31,7 @@
 #include <asm/uaccess.h>
 #include <asm/fpu.h>
 #include <asm/kprobes.h>
+#include <asm/sh_bios.h>
 
 #ifdef CONFIG_CPU_SH2
 # define TRAP_RESERVED_INST	4
@@ -876,34 +877,9 @@ asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 	die_if_kernel("exception", regs, ex);
 }
 
-#if defined(CONFIG_SH_STANDARD_BIOS)
-void *gdb_vbr_vector;
-
-static inline void __init gdb_vbr_init(void)
-{
-	register unsigned long vbr;
-
-	/*
-	 * Read the old value of the VBR register to initialise
-	 * the vector through which debug and BIOS traps are
-	 * delegated by the Linux trap handler.
-	 */
-	asm volatile("stc vbr, %0" : "=r" (vbr));
-
-	gdb_vbr_vector = (void *)(vbr + 0x100);
-	printk("Setting GDB trap vector to 0x%08lx\n",
-	       (unsigned long)gdb_vbr_vector);
-}
-#endif
-
 void __cpuinit per_cpu_trap_init(void)
 {
 	extern void *vbr_base;
-
-#ifdef CONFIG_SH_STANDARD_BIOS
-	if (raw_smp_processor_id() == 0)
-		gdb_vbr_init();
-#endif
 
 	/* NOTE: The VBR value should be at P1
 	   (or P2, virtural "fixed" address space).
@@ -958,6 +934,9 @@ void __init trap_init(void)
 #ifdef TRAP_UBC
 	set_exception_table_vec(TRAP_UBC, break_point_trap);
 #endif
+
+	/* Save off the BIOS VBR, if there is one */
+	sh_bios_vbr_init();
 
 	/* Setup VBR for boot cpu */
 	per_cpu_trap_init();
