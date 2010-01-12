@@ -694,7 +694,7 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 #if 1
 	case IW_AUTH_WPA_ENABLED:
 		ieee->wpa_enabled = (data->value)?1:0;
-		//printk("enalbe wpa:%d\n", ieee->wpa_enabled);
+		//printk("enable wpa:%d\n", ieee->wpa_enabled);
 		break;
 
 #endif
