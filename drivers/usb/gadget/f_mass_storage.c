@@ -69,10 +69,9 @@
 #include <linux/wakelock.h>
 #include <linux/platform_device.h>
 
+#include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb/composite.h>
-#include <linux/usb/gadget.h>
 #include <linux/usb/android_composite.h>
 
 #include "gadget_chips.h"
@@ -2756,8 +2755,7 @@ fsg_function_bind(struct usb_configuration *c, struct usb_function *f)
 		else
 			curlun->dev.parent = &cdev->gadget->dev;
 		dev_set_drvdata(&curlun->dev, fsg);
-		snprintf(curlun->dev.bus_id, BUS_ID_SIZE,
-				"lun%d", i);
+		dev_set_name(&curlun->dev,"lun%d", i);
 
 		rc = device_register(&curlun->dev);
 		if (rc != 0) {
