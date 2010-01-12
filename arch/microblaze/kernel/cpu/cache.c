@@ -532,4 +532,9 @@ void microblaze_cache_init(void)
 			}
 		}
 	}
+	invalidate_dcache();
+	enable_dcache();
+
+	invalidate_icache();
+	enable_icache();
 }
