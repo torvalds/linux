@@ -156,8 +156,6 @@ struct mwl8k_priv {
 
 	struct ieee80211_vif *vif;
 
-	struct ieee80211_channel *current_channel;
-
 	/* power management status cookie from firmware */
 	u32 *cookie;
 	dma_addr_t cookie_dma;
@@ -3050,7 +3048,7 @@ static int mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int index = skb_get_queue_mapping(skb);
 	int rc;
 
-	if (priv->current_channel == NULL) {
+	if (!priv->radio_on) {
 		printk(KERN_DEBUG "%s: dropped TX frame since radio "
 		       "disabled\n", wiphy_name(hw->wiphy));
 		dev_kfree_skb(skb);
@@ -3182,7 +3180,6 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	mwl8k_vif->seqno = 0;
 
 	priv->vif = vif;
-	priv->current_channel = NULL;
 
 	return 0;
 }
@@ -3208,7 +3205,6 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (conf->flags & IEEE80211_CONF_IDLE) {
 		mwl8k_cmd_radio_disable(hw);
-		priv->current_channel = NULL;
 		return 0;
 	}
 
@@ -3223,8 +3219,6 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	rc = mwl8k_cmd_set_rf_channel(hw, conf);
 	if (rc)
 		goto out;
-
-	priv->current_channel = conf->channel;
 
 	if (conf->power_level > 18)
 		conf->power_level = 18;
