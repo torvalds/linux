@@ -84,9 +84,9 @@ Configuration options:
 #define PCI171x_DAREF	14	/* W:   D/A reference control */
 #define PCI171x_DI	16	/* R:   digi inputs */
 #define PCI171x_DO	16	/* R:   digi inputs */
-#define PCI171x_CNT0	24	/* R/W: 8254 couter 0 */
-#define PCI171x_CNT1	26	/* R/W: 8254 couter 1 */
-#define PCI171x_CNT2	28	/* R/W: 8254 couter 2 */
+#define PCI171x_CNT0	24	/* R/W: 8254 counter 0 */
+#define PCI171x_CNT1	26	/* R/W: 8254 counter 1 */
+#define PCI171x_CNT2	28	/* R/W: 8254 counter 2 */
 #define PCI171x_CNTCTRL	30	/* W:   8254 counter control */
 
 /* upper bits from status register (PCI171x_STATUS) (lower is same woth control reg) */
