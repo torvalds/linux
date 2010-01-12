@@ -2252,10 +2252,11 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 
 	if (ha->flags.msix_enabled)
 		qla24xx_disable_msix(ha);
-	else if (ha->flags.inta_enabled) {
+	else if (ha->flags.msi_enabled) {
 		free_irq(ha->pdev->irq, rsp);
 		pci_disable_msi(ha->pdev);
-	}
+	} else
+		free_irq(ha->pdev->irq, rsp);
 }
 
 
