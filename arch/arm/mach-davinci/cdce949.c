@@ -23,6 +23,7 @@
 #include "clock.h"
 
 static struct i2c_client *cdce_i2c_client;
+static DEFINE_MUTEX(cdce_mutex);
 
 /* CDCE register descriptor */
 struct cdce_reg {
@@ -231,16 +232,19 @@ int cdce_set_rate(struct clk *clk, unsigned long rate)
 	if (!regs)
 		return -EINVAL;
 
+	mutex_lock(&cdce_mutex);
 	for (i = 0; regs[i].addr; i++) {
 		ret = i2c_smbus_write_byte_data(cdce_i2c_client,
 					regs[i].addr | 0x80, regs[i].val);
 		if (ret)
-			return ret;
+			break;
 	}
+	mutex_unlock(&cdce_mutex);
 
-	clk->rate = rate;
+	if (!ret)
+		clk->rate = rate;
 
-	return 0;
+	return ret;
 }
 
 static int cdce_probe(struct i2c_client *client,
