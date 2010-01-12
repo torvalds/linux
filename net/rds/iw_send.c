@@ -85,8 +85,8 @@ static void rds_iw_send_unmap_rm(struct rds_iw_connection *ic,
 		     rm->data.m_sg, rm->data.m_nents,
 		     DMA_TO_DEVICE);
 
-	if (rm->rdma.m_rdma_op) {
-		rds_iw_send_unmap_rdma(ic, rm->rdma.m_rdma_op);
+	if (rm->rdma.m_rdma_op.r_active) {
+		rds_iw_send_unmap_rdma(ic, &rm->rdma.m_rdma_op);
 
 		/* If the user asked for a completion notification on this
 		 * message, we can implement three different semantics:
@@ -110,10 +110,10 @@ static void rds_iw_send_unmap_rm(struct rds_iw_connection *ic,
 		 */
 		rds_iw_send_rdma_complete(rm, wc_status);
 
-		if (rm->rdma.m_rdma_op->r_write)
-			rds_stats_add(s_send_rdma_bytes, rm->rdma.m_rdma_op->r_bytes);
+		if (rm->rdma.m_rdma_op.r_write)
+			rds_stats_add(s_send_rdma_bytes, rm->rdma.m_rdma_op.r_bytes);
 		else
-			rds_stats_add(s_recv_rdma_bytes, rm->rdma.m_rdma_op->r_bytes);
+			rds_stats_add(s_recv_rdma_bytes, rm->rdma.m_rdma_op.r_bytes);
 	}
 
 	/* If anyone waited for this message to get flushed out, wake
@@ -591,10 +591,10 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		/* If it has a RDMA op, tell the peer we did it. This is
 		 * used by the peer to release use-once RDMA MRs. */
-		if (rm->rdma.m_rdma_op) {
+		if (rm->rdma.m_rdma_op.r_active) {
 			struct rds_ext_header_rdma ext_hdr;
 
-			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.m_rdma_op->r_key);
+			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.m_rdma_op.r_key);
 			rds_message_add_extension(&rm->m_inc.i_hdr,
 					RDS_EXTHDR_RDMA, &ext_hdr, sizeof(ext_hdr));
 		}
@@ -632,7 +632,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	 * or when requested by the user. Right now, we let
 	 * the application choose.
 	 */
-	if (rm->rdma.m_rdma_op && rm->rdma.m_rdma_op->r_fence)
+	if (rm->rdma.m_rdma_op.r_active && rm->rdma.m_rdma_op.r_fence)
 		send_flags = IB_SEND_FENCE;
 
 	/*

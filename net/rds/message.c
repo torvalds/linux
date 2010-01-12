@@ -69,8 +69,8 @@ static void rds_message_purge(struct rds_message *rm)
 	}
 	rm->data.m_nents = 0;
 
-	if (rm->rdma.m_rdma_op)
-		rds_rdma_free_op(rm->rdma.m_rdma_op);
+	if (rm->rdma.m_rdma_op.r_active)
+		rds_rdma_free_op(&rm->rdma.m_rdma_op);
 	if (rm->rdma.m_rdma_mr)
 		rds_mr_put(rm->rdma.m_rdma_mr);
 }
@@ -259,14 +259,17 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 {
 	struct rds_message *rm;
 	unsigned int i;
+	int num_sgs = ceil(total_len, PAGE_SIZE);
+	int extra_bytes = num_sgs * sizeof(struct scatterlist);
 
-	rm = rds_message_alloc(ceil(total_len, PAGE_SIZE), GFP_KERNEL);
+	rm = rds_message_alloc(extra_bytes, GFP_KERNEL);
 	if (!rm)
 		return ERR_PTR(-ENOMEM);
 
 	set_bit(RDS_MSG_PAGEVEC, &rm->m_flags);
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
 	rm->data.m_nents = ceil(total_len, PAGE_SIZE);
+	rm->data.m_sg = rds_message_alloc_sgs(rm, num_sgs);
 
 	for (i = 0; i < rm->data.m_nents; ++i) {
 		sg_set_page(&rm->data.m_sg[i],

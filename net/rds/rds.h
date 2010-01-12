@@ -316,7 +316,7 @@ struct rds_message {
 	rds_rdma_cookie_t	m_rdma_cookie;
 	struct {
 		struct {
-			struct rds_rdma_op	*m_rdma_op;
+			struct rds_rdma_op	m_rdma_op;
 			struct rds_mr		*m_rdma_mr;
 		} rdma;
 		struct {

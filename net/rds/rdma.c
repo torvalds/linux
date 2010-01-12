@@ -458,26 +458,60 @@ void rds_rdma_free_op(struct rds_rdma_op *ro)
 	}
 
 	kfree(ro->r_notifier);
-	kfree(ro);
+	ro->r_notifier = NULL;
+	ro->r_active = 0;
+}
+
+/*
+ * Count the number of pages needed to describe an incoming iovec.
+ */
+static int rds_rdma_pages(struct rds_rdma_args *args)
+{
+	struct rds_iovec vec;
+	struct rds_iovec __user *local_vec;
+	unsigned int tot_pages = 0;
+	unsigned int nr_pages;
+	unsigned int i;
+
+	local_vec = (struct rds_iovec __user *)(unsigned long) args->local_vec_addr;
+
+	/* figure out the number of pages in the vector */
+	for (i = 0; i < args->nr_local; i++) {
+		if (copy_from_user(&vec, &local_vec[i],
+				   sizeof(struct rds_iovec)))
+			return -EFAULT;
+
+		nr_pages = rds_pages_in_vec(&vec);
+		if (nr_pages == 0)
+			return -EINVAL;
+
+		tot_pages += nr_pages;
+	}
+
+	return tot_pages;
+}
+
+int rds_rdma_extra_size(struct rds_rdma_args *args)
+{
+	return rds_rdma_pages(args) * sizeof(struct scatterlist);
 }
 
 /*
  * args is a pointer to an in-kernel copy in the sendmsg cmsg.
  */
-static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
-					    struct rds_rdma_args *args)
+static int rds_rdma_prepare(struct rds_message *rm,
+			    struct rds_sock *rs,
+			    struct rds_rdma_args *args)
 {
 	struct rds_iovec vec;
-	struct rds_rdma_op *op = NULL;
+	struct rds_rdma_op *op = &rm->rdma.m_rdma_op;
 	unsigned int nr_pages;
-	unsigned int max_pages;
 	unsigned int nr_bytes;
 	struct page **pages = NULL;
 	struct rds_iovec __user *local_vec;
-	struct scatterlist *sg;
 	unsigned int nr;
 	unsigned int i, j;
-	int ret;
+	int ret = 0;
 
 
 	if (rs->rs_bound_addr == 0) {
@@ -490,44 +524,21 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 		goto out;
 	}
 
-	nr_pages = 0;
-	max_pages = 0;
+	nr_pages = rds_rdma_pages(args);
+	if (nr_pages < 0)
+		goto out;
 
-	local_vec = (struct rds_iovec __user *)(unsigned long) args->local_vec_addr;
-
-	/* figure out the number of pages in the vector */
-	for (i = 0; i < args->nr_local; i++) {
-		if (copy_from_user(&vec, &local_vec[i],
-				   sizeof(struct rds_iovec))) {
-			ret = -EFAULT;
-			goto out;
-		}
-
-		nr = rds_pages_in_vec(&vec);
-		if (nr == 0) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		max_pages = max(nr, max_pages);
-		nr_pages += nr;
-	}
-
-	pages = kcalloc(max_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	op = kzalloc(offsetof(struct rds_rdma_op, r_sg[nr_pages]), GFP_KERNEL);
-	if (!op) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
+	op->r_sg = rds_message_alloc_sgs(rm, nr_pages);
 	op->r_write = !!(args->flags & RDS_RDMA_READWRITE);
 	op->r_fence = !!(args->flags & RDS_RDMA_FENCE);
 	op->r_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	op->r_active = 1;
 	op->r_recverr = rs->rs_recverr;
 	WARN_ON(!nr_pages);
 	sg_init_table(op->r_sg, nr_pages);
@@ -564,6 +575,8 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 	       (unsigned long long)args->remote_vec.addr,
 	       op->r_key);
 
+	local_vec = (struct rds_iovec __user *)(unsigned long) args->local_vec_addr;
+
 	for (i = 0; i < args->nr_local; i++) {
 		if (copy_from_user(&vec, &local_vec[i],
 				   sizeof(struct rds_iovec))) {
@@ -580,11 +593,6 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 		rs->rs_user_addr = vec.addr;
 		rs->rs_user_bytes = vec.bytes;
 
-		/* did the user change the vec under us? */
-		if (nr > max_pages || op->r_nents + nr > nr_pages) {
-			ret = -EINVAL;
-			goto out;
-		}
 		/* If it's a WRITE operation, we want to pin the pages for reading.
 		 * If it's a READ operation, we need to pin the pages for writing.
 		 */
@@ -599,6 +607,7 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 
 		for (j = 0; j < nr; j++) {
 			unsigned int offset = vec.addr & ~PAGE_MASK;
+			struct scatterlist *sg;
 
 			sg = &op->r_sg[op->r_nents + j];
 			sg_set_page(sg, pages[j],
@@ -628,12 +637,10 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 	ret = 0;
 out:
 	kfree(pages);
-	if (ret) {
-		if (op)
-			rds_rdma_free_op(op);
-		op = ERR_PTR(ret);
-	}
-	return op;
+	if (ret)
+		rds_rdma_free_op(op);
+
+	return ret;
 }
 
 /*
@@ -643,17 +650,17 @@ out:
 int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg)
 {
-	struct rds_rdma_op *op;
+	int ret;
 
 	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args)) ||
-	    rm->rdma.m_rdma_op)
+	    rm->rdma.m_rdma_op.r_active)
 		return -EINVAL;
 
-	op = rds_rdma_prepare(rs, CMSG_DATA(cmsg));
-	if (IS_ERR(op))
-		return PTR_ERR(op);
+	ret = rds_rdma_prepare(rm, rs, CMSG_DATA(cmsg));
+	if (ret)
+		return ret;
+
 	rds_stats_inc(s_send_rdma);
-	rm->rdma.m_rdma_op = op;
 	return 0;
 }
 
