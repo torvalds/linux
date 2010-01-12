@@ -204,11 +204,8 @@ static netdev_tx_t mscan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, rtr, buf_id;
 	u32 can_id;
 
-	if (skb->len != sizeof(*frame) || frame->can_dlc > 8) {
-		kfree_skb(skb);
-		dev->stats.tx_dropped++;
+	if (can_dropped_invalid_skb(dev, skb))
 		return NETDEV_TX_OK;
-	}
 
 	out_8(&regs->cantier, 0);
 

@@ -494,12 +494,8 @@ static netdev_tx_t mcp251x_hard_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	if (skb->len != sizeof(struct can_frame)) {
-		dev_err(&spi->dev, "dropping packet - bad length\n");
-		dev_kfree_skb(skb);
-		net->stats.tx_dropped++;
+	if (can_dropped_invalid_skb(net, skb))
 		return NETDEV_TX_OK;
-	}
 
 	netif_stop_queue(net);
 	priv->tx_skb = skb;

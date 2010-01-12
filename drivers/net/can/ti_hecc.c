@@ -477,6 +477,9 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	u32 mbxno, mbx_mask, data;
 	unsigned long flags;
 
+	if (can_dropped_invalid_skb(ndev, skb))
+		return NETDEV_TX_OK;
+
 	mbxno = get_tx_head_mb(priv);
 	mbx_mask = BIT(mbxno);
 	spin_lock_irqsave(&priv->mbx_lock, flags);
@@ -491,7 +494,6 @@ static netdev_tx_t ti_hecc_xmit(struct sk_buff *skb, struct net_device *ndev)
 	spin_unlock_irqrestore(&priv->mbx_lock, flags);
 
 	/* Prepare mailbox for transmission */
-	data = min_t(u8, cf->can_dlc, 8);
 	if (cf->can_id & CAN_RTR_FLAG) /* Remote transmission request */
 		data |= HECC_CANMCF_RTR;
 	data |= get_tx_head_prio(priv) << 8;

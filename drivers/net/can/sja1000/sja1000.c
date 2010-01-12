@@ -249,6 +249,9 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	uint8_t dreg;
 	int i;
 
+	if (can_dropped_invalid_skb(dev, skb))
+		return NETDEV_TX_OK;
+
 	netif_stop_queue(dev);
 
 	fi = dlc = cf->can_dlc;
