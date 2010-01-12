@@ -1355,11 +1355,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	mwl8k_vif = MWL8K_VIF(tx_info->control.vif);
 
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		u16 seqno = mwl8k_vif->seqno;
-
 		wh->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		wh->seq_ctrl |= cpu_to_le16(seqno << 4);
-		mwl8k_vif->seqno = seqno++ % 4096;
+		wh->seq_ctrl |= cpu_to_le16(mwl8k_vif->seqno);
+		mwl8k_vif->seqno += 0x10;
 	}
 
 	/* Setup firmware control bit fields for each frame type.  */
