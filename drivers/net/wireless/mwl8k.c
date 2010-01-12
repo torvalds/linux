@@ -144,6 +144,9 @@ struct mwl8k_priv {
 	struct ieee80211_supported_band band_24;
 	struct ieee80211_channel channels_24[14];
 	struct ieee80211_rate rates_24[14];
+	struct ieee80211_supported_band band_50;
+	struct ieee80211_channel channels_50[4];
+	struct ieee80211_rate rates_50[9];
 
 	/* firmware access */
 	struct mutex fw_mutex;
@@ -241,6 +244,25 @@ static const struct ieee80211_rate mwl8k_rates_24[] = {
 	{ .bitrate = 55, .hw_value = 11, },
 	{ .bitrate = 110, .hw_value = 22, },
 	{ .bitrate = 220, .hw_value = 44, },
+	{ .bitrate = 60, .hw_value = 12, },
+	{ .bitrate = 90, .hw_value = 18, },
+	{ .bitrate = 120, .hw_value = 24, },
+	{ .bitrate = 180, .hw_value = 36, },
+	{ .bitrate = 240, .hw_value = 48, },
+	{ .bitrate = 360, .hw_value = 72, },
+	{ .bitrate = 480, .hw_value = 96, },
+	{ .bitrate = 540, .hw_value = 108, },
+	{ .bitrate = 720, .hw_value = 144, },
+};
+
+static const struct ieee80211_channel mwl8k_channels_50[] = {
+	{ .center_freq = 5180, .hw_value = 36, },
+	{ .center_freq = 5200, .hw_value = 40, },
+	{ .center_freq = 5220, .hw_value = 44, },
+	{ .center_freq = 5240, .hw_value = 48, },
+};
+
+static const struct ieee80211_rate mwl8k_rates_50[] = {
 	{ .bitrate = 60, .hw_value = 12, },
 	{ .bitrate = 90, .hw_value = 18, },
 	{ .bitrate = 120, .hw_value = 24, },
@@ -1577,6 +1599,25 @@ static void mwl8k_setup_2ghz_band(struct ieee80211_hw *hw)
 	priv->band_24.n_bitrates = ARRAY_SIZE(mwl8k_rates_24);
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band_24;
+}
+
+static void mwl8k_setup_5ghz_band(struct ieee80211_hw *hw)
+{
+	struct mwl8k_priv *priv = hw->priv;
+
+	BUILD_BUG_ON(sizeof(priv->channels_50) != sizeof(mwl8k_channels_50));
+	memcpy(priv->channels_50, mwl8k_channels_50, sizeof(mwl8k_channels_50));
+
+	BUILD_BUG_ON(sizeof(priv->rates_50) != sizeof(mwl8k_rates_50));
+	memcpy(priv->rates_50, mwl8k_rates_50, sizeof(mwl8k_rates_50));
+
+	priv->band_50.band = IEEE80211_BAND_5GHZ;
+	priv->band_50.channels = priv->channels_50;
+	priv->band_50.n_channels = ARRAY_SIZE(mwl8k_channels_50);
+	priv->band_50.bitrates = priv->rates_50;
+	priv->band_50.n_bitrates = ARRAY_SIZE(mwl8k_rates_50);
+
+	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &priv->band_50;
 }
 
 /*
