@@ -23,6 +23,8 @@
 #define BIOS_CALL_SHUTDOWN		11
 #define BIOS_CALL_GDB_DETACH		0xff
 
+void *gdb_vbr_vector = NULL;
+
 static inline long sh_bios_call(long func, long arg0, long arg1, long arg2,
 				    long arg3)
 {
@@ -31,6 +33,9 @@ static inline long sh_bios_call(long func, long arg0, long arg1, long arg2,
 	register long r5 __asm__("r5") = arg1;
 	register long r6 __asm__("r6") = arg2;
 	register long r7 __asm__("r7") = arg3;
+
+	if (!gdb_vbr_vector)
+		return -ENOSYS;
 
 	__asm__ __volatile__("trapa	#0x3f":"=z"(r0)
 			     :"0"(r0), "r"(r4), "r"(r5), "r"(r6), "r"(r7)
@@ -60,8 +65,6 @@ void sh_bios_shutdown(unsigned int how)
 	sh_bios_call(BIOS_CALL_SHUTDOWN, how, 0, 0, 0);
 }
 
-void *gdb_vbr_vector = NULL;
-
 /*
  * Read the old value of the VBR register to initialise the vector
  * through which debug and BIOS traps are delegated by the Linux trap
@@ -76,8 +79,12 @@ void sh_bios_vbr_init(void)
 
 	__asm__ __volatile__ ("stc vbr, %0" : "=r" (vbr));
 
-	gdb_vbr_vector = (void *)(vbr + 0x100);
-	printk(KERN_NOTICE "Setting GDB trap vector to %p\n", gdb_vbr_vector);
+	if (vbr) {
+		gdb_vbr_vector = (void *)(vbr + 0x100);
+		printk(KERN_NOTICE "Setting GDB trap vector to %p\n",
+		       gdb_vbr_vector);
+	} else
+		printk(KERN_NOTICE "SH-BIOS not detected\n");
 }
 
 /**
