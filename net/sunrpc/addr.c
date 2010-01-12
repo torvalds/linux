@@ -73,6 +73,8 @@ static size_t rpc_ntop6(const struct sockaddr *sap,
 
 	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
 		return len;
+	if (sin6->sin6_scope_id == 0)
+		return len;
 
 	rc = snprintf(scopebuf, sizeof(scopebuf), "%c%u",
 			IPV6_SCOPE_DELIMITER, sin6->sin6_scope_id);
