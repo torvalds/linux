@@ -1447,6 +1447,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 
+	sd->bridge = id->driver_info >> 16;
+	sd->sensor = id->driver_info;
+
 	cam = &gspca_dev->cam;
 	if (sd->sensor == SENSOR_ADCM1700) {
 		cam->cam_mode = cif_mode;
@@ -1456,9 +1459,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(vga_mode);
 	}
 	cam->npkt = 24;			/* 24 packets per ISOC message */
-
-	sd->bridge = id->driver_info >> 16;
-	sd->sensor = id->driver_info;
 
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
