@@ -289,7 +289,7 @@ struct usbduxsub {
 	/* continous aquisition */
 	short int ai_continous;
 	short int ao_continous;
-	/* number of samples to aquire */
+	/* number of samples to acquire */
 	int ai_sample_count;
 	int ao_sample_count;
 	/* time between samples in units of the timer */

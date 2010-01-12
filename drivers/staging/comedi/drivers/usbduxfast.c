@@ -182,7 +182,7 @@ struct usbduxfastsub_s {
 						   context */
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous aquisition */
-	long int ai_sample_count;	/* number of samples to aquire */
+	long int ai_sample_count;	/* number of samples to acquire */
 	uint8_t *dux_commands;	/* commands */
 	int ignore;		/* counter which ignores the first
 				   buffers */

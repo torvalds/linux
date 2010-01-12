@@ -1503,7 +1503,7 @@ static void handle_isa_dma(struct comedi_device *dev)
 	devpriv->write_byte(0x1, dev->iobase + DMATC_CLEAR_REG);
 }
 
-/* makes sure all data aquired by board is transfered to comedi (used
+/* makes sure all data acquired by board is transfered to comedi (used
  * when aquisition is terminated by stop_src == TRIG_EXT). */
 static void labpc_drain_dregs(struct comedi_device *dev)
 {
