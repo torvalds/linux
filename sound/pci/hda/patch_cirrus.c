@@ -501,7 +501,8 @@ static int add_mute(struct hda_codec *codec, const char *name, int index,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Switch", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
+	return snd_hda_ctl_add(codec, 0, *kctlp);
 }
 
 static int add_volume(struct hda_codec *codec, const char *name,
@@ -514,7 +515,8 @@ static int add_volume(struct hda_codec *codec, const char *name,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Volume", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
+	return snd_hda_ctl_add(codec, 0, *kctlp);
 }
 
 static void fix_volume_caps(struct hda_codec *codec, hda_nid_t dac)
@@ -758,6 +760,10 @@ static int build_input(struct hda_codec *codec)
 			return -ENOMEM;
 		kctl->private_value = (long)spec->capture_bind[i];
 		err = snd_hda_ctl_add(codec, 0, kctl);
+		if (err < 0)
+			return err;
+		err = snd_hda_add_nids(codec, kctl, 0, spec->adc_nid,
+				       spec->num_inputs);
 		if (err < 0)
 			return err;
 	}

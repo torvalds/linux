@@ -2187,6 +2187,7 @@ static struct snd_kcontrol_new cxt5066_mixer_master_olpc[] = {
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 				  SNDRV_CTL_ELEM_ACCESS_TLV_READ |
 				  SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK,
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_volume_info,
 		.get = snd_hda_mixer_amp_volume_get,
 		.put = snd_hda_mixer_amp_volume_put,

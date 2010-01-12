@@ -2688,7 +2688,7 @@ static struct snd_kcontrol_new *
 stac_control_new(struct sigmatel_spec *spec,
 		 struct snd_kcontrol_new *ktemp,
 		 const char *name,
-		 hda_nid_t nid)
+		 unsigned int subdev)
 {
 	struct snd_kcontrol_new *knew;
 
@@ -2704,8 +2704,7 @@ stac_control_new(struct sigmatel_spec *spec,
 		spec->kctls.alloced--;
 		return NULL;
 	}
-	if (nid)
-		knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
+	knew->subdevice = subdev;
 	return knew;
 }
 
@@ -2715,7 +2714,7 @@ static int stac92xx_add_control_temp(struct sigmatel_spec *spec,
 				     unsigned long val)
 {
 	struct snd_kcontrol_new *knew = stac_control_new(spec, ktemp, name,
-							 get_amp_nid_(val));
+							 HDA_SUBDEV_AMP_FLAG);
 	if (!knew)
 		return -ENOMEM;
 	knew->index = idx;
