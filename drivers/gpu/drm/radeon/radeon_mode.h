@@ -83,6 +83,8 @@ struct radeon_i2c_bus_rec {
 	bool valid;
 	/* id used by atom */
 	uint8_t i2c_id;
+	/* id used by atom */
+	uint8_t hpd_id;
 	/* can be used with hw i2c engine */
 	bool hw_capable;
 	/* uses multi-media i2c engine */
@@ -207,7 +209,7 @@ struct radeon_mode_info {
 	struct card_info *atom_card_info;
 	enum radeon_connector_table connector_table;
 	bool mode_config_initialized;
-	struct radeon_crtc *crtcs[2];
+	struct radeon_crtc *crtcs[6];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
 	/* DAC enable load detect */
@@ -252,6 +254,7 @@ struct radeon_crtc {
 	fixed20_12 vsc;
 	fixed20_12 hsc;
 	struct drm_display_mode native_mode;
+	int pll_id;
 };
 
 struct radeon_encoder_primary_dac {
@@ -414,6 +417,7 @@ extern void dp_link_train(struct drm_encoder *encoder,
 			  struct drm_connector *connector);
 extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
+extern void atombios_dig_encoder_setup(struct drm_encoder *encoder, int action);
 extern void atombios_dig_transmitter_setup(struct drm_encoder *encoder,
 					   int action, uint8_t lane_num,
 					   uint8_t lane_set);

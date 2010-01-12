@@ -606,4 +606,54 @@ static struct radeon_asic rv770_asic = {
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
 };
 
+/*
+ * evergreen
+ */
+int evergreen_init(struct radeon_device *rdev);
+void evergreen_fini(struct radeon_device *rdev);
+int evergreen_suspend(struct radeon_device *rdev);
+int evergreen_resume(struct radeon_device *rdev);
+int evergreen_gpu_reset(struct radeon_device *rdev);
+void evergreen_bandwidth_update(struct radeon_device *rdev);
+void evergreen_hpd_init(struct radeon_device *rdev);
+void evergreen_hpd_fini(struct radeon_device *rdev);
+bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+void evergreen_hpd_set_polarity(struct radeon_device *rdev,
+				enum radeon_hpd_id hpd);
+
+static struct radeon_asic evergreen_asic = {
+	.init = &evergreen_init,
+	.fini = &evergreen_fini,
+	.suspend = &evergreen_suspend,
+	.resume = &evergreen_resume,
+	.cp_commit = NULL,
+	.gpu_reset = &evergreen_gpu_reset,
+	.vga_set_state = &r600_vga_set_state,
+	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
+	.gart_set_page = &rs600_gart_set_page,
+	.ring_test = NULL,
+	.ring_ib_execute = NULL,
+	.irq_set = NULL,
+	.irq_process = NULL,
+	.get_vblank_counter = NULL,
+	.fence_ring_emit = NULL,
+	.cs_parse = NULL,
+	.copy_blit = NULL,
+	.copy_dma = NULL,
+	.copy = NULL,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
+	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = &radeon_atom_get_memory_clock,
+	.set_memory_clock = &radeon_atom_set_memory_clock,
+	.set_pcie_lanes = NULL,
+	.set_clock_gating = NULL,
+	.set_surface_reg = r600_set_surface_reg,
+	.clear_surface_reg = r600_clear_surface_reg,
+	.bandwidth_update = &evergreen_bandwidth_update,
+	.hpd_init = &evergreen_hpd_init,
+	.hpd_fini = &evergreen_hpd_fini,
+	.hpd_sense = &evergreen_hpd_sense,
+	.hpd_set_polarity = &evergreen_hpd_set_polarity,
+};
+
 #endif

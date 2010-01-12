@@ -600,6 +600,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	}
 	i2c.mm_i2c = false;
 	i2c.i2c_id = 0;
+	i2c.hpd_id = 0;
 
 	if (ddc_line)
 		i2c.valid = true;

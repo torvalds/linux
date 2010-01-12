@@ -54,7 +54,7 @@
 #include "r300_reg.h"
 #include "r500_reg.h"
 #include "r600_reg.h"
-
+#include "evergreen_reg.h"
 
 #define RADEON_MC_AGP_LOCATION		0x014c
 #define		RADEON_MC_AGP_START_MASK	0x0000FFFF

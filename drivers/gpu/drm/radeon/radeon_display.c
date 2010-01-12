@@ -68,6 +68,36 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(AVIVO_D1GRPH_LUT_SEL + radeon_crtc->crtc_offset, radeon_crtc->crtc_id);
 }
 
+static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int i;
+
+	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
+	WREG32(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
+
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_GREEN + radeon_crtc->crtc_offset, 0);
+	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_RED + radeon_crtc->crtc_offset, 0);
+
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_BLUE + radeon_crtc->crtc_offset, 0xffff);
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_GREEN + radeon_crtc->crtc_offset, 0xffff);
+	WREG32(EVERGREEN_DC_LUT_WHITE_OFFSET_RED + radeon_crtc->crtc_offset, 0xffff);
+
+	WREG32(EVERGREEN_DC_LUT_RW_MODE, radeon_crtc->crtc_id);
+	WREG32(EVERGREEN_DC_LUT_WRITE_EN_MASK, 0x00000007);
+
+	WREG32(EVERGREEN_DC_LUT_RW_INDEX, 0);
+	for (i = 0; i < 256; i++) {
+		WREG32(EVERGREEN_DC_LUT_30_COLOR,
+		       (radeon_crtc->lut_r[i] << 20) |
+		       (radeon_crtc->lut_g[i] << 10) |
+		       (radeon_crtc->lut_b[i] << 0));
+	}
+}
+
 static void legacy_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -100,7 +130,9 @@ void radeon_crtc_load_lut(struct drm_crtc *crtc)
 	if (!crtc->enabled)
 		return;
 
-	if (ASIC_IS_AVIVO(rdev))
+	if (ASIC_IS_DCE4(rdev))
+		evergreen_crtc_load_lut(crtc);
+	else if (ASIC_IS_AVIVO(rdev))
 		avivo_crtc_load_lut(crtc);
 	else
 		legacy_crtc_load_lut(crtc);
@@ -862,8 +894,12 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	if (rdev->flags & RADEON_SINGLE_CRTC)
 		rdev->num_crtc = 1;
-	else
-		rdev->num_crtc = 2;
+	else {
+		if (ASIC_IS_DCE4(rdev))
+			rdev->num_crtc = 6;
+		else
+			rdev->num_crtc = 2;
+	}
 
 	/* allocate crtcs */
 	for (i = 0; i < rdev->num_crtc; i++) {

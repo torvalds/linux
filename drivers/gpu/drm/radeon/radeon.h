@@ -138,11 +138,14 @@ void radeon_dummy_page_fini(struct radeon_device *rdev);
 struct radeon_clock {
 	struct radeon_pll p1pll;
 	struct radeon_pll p2pll;
+	struct radeon_pll dcpll;
 	struct radeon_pll spll;
 	struct radeon_pll mpll;
 	/* 10 Khz units */
 	uint32_t default_mclk;
 	uint32_t default_sclk;
+	uint32_t default_dispclk;
+	uint32_t dp_extclk;
 };
 
 /*
@@ -1062,7 +1065,7 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_AVIVO(rdev) ((rdev->family >= CHIP_RS600))
 #define ASIC_IS_DCE3(rdev) ((rdev->family >= CHIP_RV620))
 #define ASIC_IS_DCE32(rdev) ((rdev->family >= CHIP_RV730))
-
+#define ASIC_IS_DCE4(rdev) ((rdev->family >= CHIP_CEDAR))
 
 /*
  * BIOS helpers.
@@ -1295,6 +1298,14 @@ extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
 					    int bps,
 					    uint8_t status_bits,
 					    uint8_t category_code);
+
+/* evergreen */
+struct evergreen_mc_save {
+	u32 vga_control[6];
+	u32 vga_render_control;
+	u32 vga_hdp_control;
+	u32 crtc_control[6];
+};
 
 #include "radeon_object.h"
 
