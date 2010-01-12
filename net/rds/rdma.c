@@ -238,7 +238,7 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	 * r/o or r/w. We need to assume r/w, or we'll do a lot of RDMA to
 	 * the zero page.
 	 */
-	ret = rds_pin_pages(args->vec.addr & PAGE_MASK, nr_pages, pages, 1);
+	ret = rds_pin_pages(args->vec.addr, nr_pages, pages, 1);
 	if (ret < 0)
 		goto out;
 
@@ -595,7 +595,7 @@ static int rds_rdma_prepare(struct rds_message *rm,
 		/* If it's a WRITE operation, we want to pin the pages for reading.
 		 * If it's a READ operation, we need to pin the pages for writing.
 		 */
-		ret = rds_pin_pages(vec.addr & PAGE_MASK, nr, pages, !op->r_write);
+		ret = rds_pin_pages(vec.addr, nr, pages, !op->r_write);
 		if (ret < 0)
 			goto out;
 
