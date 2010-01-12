@@ -422,7 +422,6 @@ struct rds_transport {
 	int (*recv)(struct rds_connection *conn);
 	int (*inc_copy_to_user)(struct rds_incoming *inc, struct iovec *iov,
 				size_t size);
-	void (*inc_purge)(struct rds_incoming *inc);
 	void (*inc_free)(struct rds_incoming *inc);
 
 	int (*cm_handle_connect)(struct rdma_cm_id *cm_id,
@@ -668,7 +667,6 @@ int rds_message_get_version_extension(struct rds_header *hdr, unsigned int *vers
 int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 offset);
 int rds_message_inc_copy_to_user(struct rds_incoming *inc,
 				 struct iovec *first_iov, size_t size);
-void rds_message_inc_purge(struct rds_incoming *inc);
 void rds_message_inc_free(struct rds_incoming *inc);
 void rds_message_addref(struct rds_message *rm);
 void rds_message_put(struct rds_message *rm);

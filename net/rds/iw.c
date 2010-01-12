@@ -272,7 +272,6 @@ struct rds_transport rds_iw_transport = {
 	.conn_connect		= rds_iw_conn_connect,
 	.conn_shutdown		= rds_iw_conn_shutdown,
 	.inc_copy_to_user	= rds_iw_inc_copy_to_user,
-	.inc_purge		= rds_iw_inc_purge,
 	.inc_free		= rds_iw_inc_free,
 	.cm_initiate_connect	= rds_iw_cm_initiate_connect,
 	.cm_handle_connect	= rds_iw_cm_handle_connect,

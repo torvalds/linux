@@ -301,7 +301,6 @@ void rds_ib_recv_exit(void);
 int rds_ib_recv(struct rds_connection *conn);
 int rds_ib_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 		       gfp_t page_gfp, int prefill);
-void rds_ib_inc_purge(struct rds_incoming *inc);
 void rds_ib_inc_free(struct rds_incoming *inc);
 int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,
 			     size_t size);

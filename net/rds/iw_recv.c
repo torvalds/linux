@@ -273,7 +273,7 @@ int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 	return ret;
 }
 
-void rds_iw_inc_purge(struct rds_incoming *inc)
+static void rds_iw_inc_purge(struct rds_incoming *inc)
 {
 	struct rds_iw_incoming *iwinc;
 	struct rds_page_frag *frag;

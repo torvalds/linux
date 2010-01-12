@@ -39,7 +39,7 @@
 
 static struct kmem_cache *rds_tcp_incoming_slab;
 
-void rds_tcp_inc_purge(struct rds_incoming *inc)
+static void rds_tcp_inc_purge(struct rds_incoming *inc)
 {
 	struct rds_tcp_incoming *tinc;
 	tinc = container_of(inc, struct rds_tcp_incoming, ti_inc);

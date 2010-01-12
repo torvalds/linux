@@ -75,12 +75,6 @@ static void rds_message_purge(struct rds_message *rm)
 		rds_mr_put(rm->rdma.m_rdma_mr);
 }
 
-void rds_message_inc_purge(struct rds_incoming *inc)
-{
-	struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
-	rds_message_purge(rm);
-}
-
 void rds_message_put(struct rds_message *rm)
 {
 	rdsdebug("put rm %p ref %d\n", rm, atomic_read(&rm->m_refcount));

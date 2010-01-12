@@ -176,7 +176,6 @@ struct rds_transport rds_loop_transport = {
 	.conn_connect		= rds_loop_conn_connect,
 	.conn_shutdown		= rds_loop_conn_shutdown,
 	.inc_copy_to_user	= rds_message_inc_copy_to_user,
-	.inc_purge		= rds_message_inc_purge,
 	.inc_free		= rds_message_inc_free,
 	.t_name			= "loopback",
 };

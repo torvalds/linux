@@ -266,7 +266,6 @@ struct rds_transport rds_tcp_transport = {
 	.conn_connect		= rds_tcp_conn_connect,
 	.conn_shutdown		= rds_tcp_conn_shutdown,
 	.inc_copy_to_user	= rds_tcp_inc_copy_to_user,
-	.inc_purge		= rds_tcp_inc_purge,
 	.inc_free		= rds_tcp_inc_free,
 	.stats_info_copy	= rds_tcp_stats_info_copy,
 	.exit			= rds_tcp_exit,

@@ -273,7 +273,7 @@ int rds_ib_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 	return ret;
 }
 
-void rds_ib_inc_purge(struct rds_incoming *inc)
+static void rds_ib_inc_purge(struct rds_incoming *inc)
 {
 	struct rds_ib_incoming *ibinc;
 	struct rds_page_frag *frag;
