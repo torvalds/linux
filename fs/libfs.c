@@ -338,28 +338,14 @@ int simple_readpage(struct file *file, struct page *page)
 	return 0;
 }
 
-int simple_prepare_write(struct file *file, struct page *page,
-			unsigned from, unsigned to)
-{
-	if (!PageUptodate(page)) {
-		if (to - from != PAGE_CACHE_SIZE)
-			zero_user_segments(page,
-				0, from,
-				to, PAGE_CACHE_SIZE);
-	}
-	return 0;
-}
-
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
 	struct page *page;
 	pgoff_t index;
-	unsigned from;
 
 	index = pos >> PAGE_CACHE_SHIFT;
-	from = pos & (PAGE_CACHE_SIZE - 1);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -367,7 +353,12 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = page;
 
-	return simple_prepare_write(file, page, from, from+len);
+	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+
+		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
+	}
+	return 0;
 }
 
 /**
@@ -864,7 +855,6 @@ EXPORT_SYMBOL(simple_getattr);
 EXPORT_SYMBOL(simple_link);
 EXPORT_SYMBOL(simple_lookup);
 EXPORT_SYMBOL(simple_pin_fs);
-EXPORT_UNUSED_SYMBOL(simple_prepare_write);
 EXPORT_SYMBOL(simple_readpage);
 EXPORT_SYMBOL(simple_release_fs);
 EXPORT_SYMBOL(simple_rename);

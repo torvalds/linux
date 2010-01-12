@@ -2340,8 +2340,6 @@ extern int simple_rename(struct inode *, struct dentry *, struct inode *, struct
 extern int simple_sync_file(struct file *, struct dentry *, int);
 extern int simple_empty(struct dentry *);
 extern int simple_readpage(struct file *file, struct page *page);
-extern int simple_prepare_write(struct file *file, struct page *page,
-			unsigned offset, unsigned to);
 extern int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata);
