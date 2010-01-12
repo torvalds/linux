@@ -569,7 +569,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	struct ieee80211_tx_queue_params params;
 	size_t left;
 	int count;
-	u8 *pos;
+	u8 *pos, uapsd_queues = 0;
 
 	if (local->hw.queues < 4)
 		return;
@@ -579,6 +579,10 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	if (wmm_param_len < 8 || wmm_param[5] /* version */ != 1)
 		return;
+
+	if (ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
+		uapsd_queues = IEEE80211_DEFAULT_UAPSD_QUEUES;
+
 	count = wmm_param[6] & 0x0f;
 	if (count == ifmgd->wmm_last_param_set)
 		return;
@@ -593,6 +597,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	for (; left >= 4; left -= 4, pos += 4) {
 		int aci = (pos[0] >> 5) & 0x03;
 		int acm = (pos[0] >> 4) & 0x01;
+		bool uapsd = false;
 		int queue;
 
 		switch (aci) {
@@ -600,22 +605,30 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 			queue = 3;
 			if (acm)
 				local->wmm_acm |= BIT(1) | BIT(2); /* BK/- */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+				uapsd = true;
 			break;
 		case 2: /* AC_VI */
 			queue = 1;
 			if (acm)
 				local->wmm_acm |= BIT(4) | BIT(5); /* CL/VI */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
+				uapsd = true;
 			break;
 		case 3: /* AC_VO */
 			queue = 0;
 			if (acm)
 				local->wmm_acm |= BIT(6) | BIT(7); /* VO/NC */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+				uapsd = true;
 			break;
 		case 0: /* AC_BE */
 		default:
 			queue = 2;
 			if (acm)
 				local->wmm_acm |= BIT(0) | BIT(3); /* BE/EE */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+				uapsd = true;
 			break;
 		}
 
@@ -623,11 +636,14 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		params.cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
 		params.cw_min = ecw2cw(pos[1] & 0x0f);
 		params.txop = get_unaligned_le16(pos + 2);
+		params.uapsd = uapsd;
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		printk(KERN_DEBUG "%s: WMM queue=%d aci=%d acm=%d aifs=%d "
-		       "cWmin=%d cWmax=%d txop=%d\n",
+		       "cWmin=%d cWmax=%d txop=%d uapsd=%d\n",
 		       wiphy_name(local->hw.wiphy), queue, aci, acm,
-		       params.aifs, params.cw_min, params.cw_max, params.txop);
+		       params.aifs, params.cw_min, params.cw_max, params.txop,
+		       params.uapsd);
 #endif
 		if (drv_conf_tx(local, queue, &params) && local->ops->conf_tx)
 			printk(KERN_DEBUG "%s: failed to set TX queue "
@@ -1905,6 +1921,15 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	wk->assoc.supp_rates_len = bss->supp_rates_len;
 	wk->assoc.ht_information_ie =
 		ieee80211_bss_get_ie(req->bss, WLAN_EID_HT_INFORMATION);
+
+	if (bss->wmm_used && bss->uapsd_supported &&
+	    (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)) {
+		wk->assoc.uapsd_used = true;
+		ifmgd->flags |= IEEE80211_STA_UAPSD_ENABLED;
+	} else {
+		wk->assoc.uapsd_used = false;
+		ifmgd->flags &= ~IEEE80211_STA_UAPSD_ENABLED;
+	}
 
 	ssid = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);
 	memcpy(wk->assoc.ssid, ssid + 2, ssid[1]);

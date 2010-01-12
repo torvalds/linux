@@ -792,6 +792,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 			break;
 		}
 
+		qparam.uapsd = false;
+
 		drv_conf_tx(local, queue, &qparam);
 	}
 }

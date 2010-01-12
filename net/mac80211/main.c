@@ -491,6 +491,10 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 
+	WARN((local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)
+	     && (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK),
+	     "U-APSD not supported with HW_PS_NULLFUNC_STACK\n");
+
 	/*
 	 * Calculate scan IE length -- we need this to alloc
 	 * memory and to subtract from the driver limit. It

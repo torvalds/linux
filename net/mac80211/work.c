@@ -202,7 +202,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos;
+	u8 *pos, qos_info;
 	const u8 *ies;
 	size_t offset = 0, noffset;
 	int i, len, count, rates_len, supp_rates_len;
@@ -375,6 +375,14 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (wk->assoc.wmm_used && local->hw.queues >= 4) {
+		if (wk->assoc.uapsd_used) {
+			qos_info = IEEE80211_DEFAULT_UAPSD_QUEUES;
+			qos_info |= (IEEE80211_DEFAULT_MAX_SP_LEN <<
+				     IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT);
+		} else {
+			qos_info = 0;
+		}
+
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
@@ -384,7 +392,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		*pos++ = 2; /* WME */
 		*pos++ = 0; /* WME info */
 		*pos++ = 1; /* WME ver */
-		*pos++ = 0;
+		*pos++ = qos_info;
 	}
 
 	/* add any remaining custom (i.e. vendor specific here) IEs */

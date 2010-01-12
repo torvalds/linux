@@ -54,6 +54,23 @@ void ieee80211_rx_bss_put(struct ieee80211_local *local,
 	cfg80211_put_bss(container_of((void *)bss, struct cfg80211_bss, priv));
 }
 
+static bool is_uapsd_supported(struct ieee802_11_elems *elems)
+{
+	u8 qos_info;
+
+	if (elems->wmm_info && elems->wmm_info_len == 7
+	    && elems->wmm_info[5] == 1)
+		qos_info = elems->wmm_info[6];
+	else if (elems->wmm_param && elems->wmm_param_len == 24
+		 && elems->wmm_param[5] == 1)
+		qos_info = elems->wmm_param[6];
+	else
+		/* no valid wmm information or parameter element found */
+		return false;
+
+	return qos_info & IEEE80211_WMM_IE_AP_QOSINFO_UAPSD;
+}
+
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
@@ -117,6 +134,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	}
 
 	bss->wmm_used = elems->wmm_param || elems->wmm_info;
+	bss->uapsd_supported = is_uapsd_supported(elems);
 
 	if (!beacon)
 		bss->last_probe_resp = jiffies;
