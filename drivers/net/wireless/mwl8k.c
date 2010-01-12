@@ -2222,6 +2222,8 @@ static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
 
 	if (channel->band == IEEE80211_BAND_2GHZ)
 		cmd->channel_flags |= cpu_to_le32(0x00000001);
+	else if (channel->band == IEEE80211_BAND_5GHZ)
+		cmd->channel_flags |= cpu_to_le32(0x00000004);
 
 	if (conf->channel_type == NL80211_CHAN_NO_HT ||
 	    conf->channel_type == NL80211_CHAN_HT20)
