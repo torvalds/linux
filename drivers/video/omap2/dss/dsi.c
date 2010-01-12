@@ -1864,9 +1864,11 @@ static void dsi_vc_config_vp(int channel)
 }
 
 
-static void dsi_vc_enable_hs(int channel, bool enable)
+void omapdss_dsi_vc_enable_hs(int channel, bool enable)
 {
 	DSSDBG("dsi_vc_enable_hs(%d, %d)\n", channel, enable);
+
+	WARN_ON(!dsi_bus_is_locked());
 
 	dsi_vc_enable(channel, 0);
 	dsi_if_enable(0);
@@ -1878,6 +1880,7 @@ static void dsi_vc_enable_hs(int channel, bool enable)
 
 	dsi_force_tx_stop_mode_io();
 }
+EXPORT_SYMBOL(omapdss_dsi_vc_enable_hs);
 
 static void dsi_vc_flush_long_data(int channel)
 {
@@ -3275,7 +3278,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	}
 
 	/* enable high-speed after initial config */
-	dsi_vc_enable_hs(0, 1);
+	omapdss_dsi_vc_enable_hs(0, 1);
 
 	return 0;
 err4:
@@ -3688,7 +3691,7 @@ static int dsi_display_run_test(struct omap_dss_device *dssdev, int test_num)
 	dsi_bus_lock();
 
 	/* run test first in low speed mode */
-	dsi_vc_enable_hs(0, 0);
+	omapdss_dsi_vc_enable_hs(0, 0);
 
 	if (dssdev->driver->run_test) {
 		r = dssdev->driver->run_test(dssdev, test_num);
@@ -3697,7 +3700,7 @@ static int dsi_display_run_test(struct omap_dss_device *dssdev, int test_num)
 	}
 
 	/* then in high speed */
-	dsi_vc_enable_hs(0, 1);
+	omapdss_dsi_vc_enable_hs(0, 1);
 
 	if (dssdev->driver->run_test) {
 		r = dssdev->driver->run_test(dssdev, test_num);
@@ -3706,7 +3709,7 @@ static int dsi_display_run_test(struct omap_dss_device *dssdev, int test_num)
 	}
 
 end:
-	dsi_vc_enable_hs(0, 1);
+	omapdss_dsi_vc_enable_hs(0, 1);
 
 	dsi_bus_unlock();
 
