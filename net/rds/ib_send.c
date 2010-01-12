@@ -38,8 +38,13 @@
 #include "rds.h"
 #include "ib.h"
 
-static void rds_ib_send_rdma_complete(struct rds_message *rm,
-				      int wc_status)
+/*
+ * Convert IB-specific error message to RDS error message and call core
+ * completion handler.
+ */
+static void rds_ib_send_complete(struct rds_message *rm,
+				 int wc_status,
+				 void (*complete)(struct rds_message *rm, int status))
 {
 	int notify_status;
 
@@ -59,20 +64,7 @@ static void rds_ib_send_rdma_complete(struct rds_message *rm,
 		notify_status = RDS_RDMA_OTHER_ERROR;
 		break;
 	}
-	rds_rdma_send_complete(rm, notify_status);
-}
-
-static void rds_ib_send_atomic_complete(struct rds_message *rm,
-				      int wc_status)
-{
-	int notify_status;
-
-	if (wc_status != IB_WC_SUCCESS)
-		notify_status = RDS_RDMA_OTHER_ERROR;
-	else
-		notify_status = RDS_RDMA_SUCCESS;
-
-	rds_atomic_send_complete(rm, notify_status);
+	complete(rm, notify_status);
 }
 
 static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
@@ -117,7 +109,7 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 		 * operation itself unmapped the RDMA buffers, which takes care
 		 * of synching.
 		 */
-		rds_ib_send_rdma_complete(rm, wc_status);
+		rds_ib_send_complete(rm, wc_status, rds_rdma_send_complete);
 
 		if (rm->rdma.m_rdma_op.r_write)
 			rds_stats_add(s_send_rdma_bytes, rm->rdma.m_rdma_op.r_bytes);
@@ -135,7 +127,7 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 			op->op_mapped = 0;
 		}
 
-		rds_ib_send_atomic_complete(rm, wc_status);
+		rds_ib_send_complete(rm, wc_status, rds_atomic_send_complete);
 
 		if (rm->atomic.op_type == RDS_ATOMIC_TYPE_CSWP)
 			rds_stats_inc(s_atomic_cswp);
@@ -270,7 +262,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 				rm = rds_send_get_message(conn, send->s_op);
 				if (rm) {
 					rds_ib_send_unmap_rm(ic, send, wc.status);
-					rds_ib_send_rdma_complete(rm, wc.status);
+					rds_ib_send_complete(rm, wc.status, rds_rdma_send_complete);
 					rds_message_put(rm);
 				}
 			}
