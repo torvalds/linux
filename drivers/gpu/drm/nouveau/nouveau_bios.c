@@ -310,63 +310,22 @@ valid_reg(struct nvbios *bios, uint32_t reg)
 	struct drm_device *dev = bios->dev;
 
 	/* C51 has misaligned regs on purpose. Marvellous */
-	if (reg & 0x2 || (reg & 0x1 && dev_priv->VBIOS.pub.chip_version != 0x51)) {
-		NV_ERROR(dev, "========== misaligned reg 0x%08X ==========\n",
-			 reg);
-		return 0;
-	}
-	/*
-	 * Warn on C51 regs that have not been verified accessible in
-	 * mmiotracing
-	 */
+	if (reg & 0x2 ||
+	    (reg & 0x1 && dev_priv->VBIOS.pub.chip_version != 0x51))
+		NV_ERROR(dev, "======= misaligned reg 0x%08X =======\n", reg);
+
+	/* warn on C51 regs that haven't been verified accessible in tracing */
 	if (reg & 0x1 && dev_priv->VBIOS.pub.chip_version == 0x51 &&
 	    reg != 0x130d && reg != 0x1311 && reg != 0x60081d)
 		NV_WARN(dev, "=== C51 misaligned reg 0x%08X not verified ===\n",
 			reg);
 
-	/* Trust the init scripts on G80 */
-	if (dev_priv->card_type >= NV_50)
-		return 1;
-
-	#define WITHIN(x, y, z) ((x >= y) && (x < y + z))
-	if (WITHIN(reg, NV_PMC_OFFSET, NV_PMC_SIZE))
-		return 1;
-	if (WITHIN(reg, NV_PBUS_OFFSET, NV_PBUS_SIZE))
-		return 1;
-	if (WITHIN(reg, NV_PFIFO_OFFSET, NV_PFIFO_SIZE))
-		return 1;
-	if (dev_priv->VBIOS.pub.chip_version >= 0x30 &&
-	    (WITHIN(reg, 0x4000, 0x600) || reg == 0x00004600))
-		return 1;
-	if (dev_priv->VBIOS.pub.chip_version >= 0x40 &&
-						WITHIN(reg, 0xc000, 0x48))
-		return 1;
-	if (dev_priv->VBIOS.pub.chip_version >= 0x17 && reg == 0x0000d204)
-		return 1;
-	if (dev_priv->VBIOS.pub.chip_version >= 0x40) {
-		if (reg == 0x00011014 || reg == 0x00020328)
-			return 1;
-		if (WITHIN(reg, 0x88000, NV_PBUS_SIZE)) /* new PBUS */
-			return 1;
+	if (reg >= (8*1024*1024)) {
+		NV_ERROR(dev, "=== reg 0x%08x out of mapped bounds ===\n", reg);
+		return 0;
 	}
-	if (WITHIN(reg, NV_PFB_OFFSET, NV_PFB_SIZE))
-		return 1;
-	if (WITHIN(reg, NV_PEXTDEV_OFFSET, NV_PEXTDEV_SIZE))
-		return 1;
-	if (WITHIN(reg, NV_PCRTC0_OFFSET, NV_PCRTC0_SIZE * 2))
-		return 1;
-	if (WITHIN(reg, NV_PRAMDAC0_OFFSET, NV_PRAMDAC0_SIZE * 2))
-		return 1;
-	if (dev_priv->VBIOS.pub.chip_version >= 0x17 && reg == 0x0070fff0)
-		return 1;
-	if (dev_priv->VBIOS.pub.chip_version == 0x51 &&
-				WITHIN(reg, NV_PRAMIN_OFFSET, NV_PRAMIN_SIZE))
-		return 1;
-	#undef WITHIN
 
-	NV_ERROR(dev, "========== unknown reg 0x%08X ==========\n", reg);
-
-	return 0;
+	return 1;
 }
 
 static bool
