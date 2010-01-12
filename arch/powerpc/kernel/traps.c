@@ -60,13 +60,13 @@
 #endif
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
-int (*__debugger)(struct pt_regs *regs);
-int (*__debugger_ipi)(struct pt_regs *regs);
-int (*__debugger_bpt)(struct pt_regs *regs);
-int (*__debugger_sstep)(struct pt_regs *regs);
-int (*__debugger_iabr_match)(struct pt_regs *regs);
-int (*__debugger_dabr_match)(struct pt_regs *regs);
-int (*__debugger_fault_handler)(struct pt_regs *regs);
+int (*__debugger)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_ipi)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_bpt)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_sstep)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_iabr_match)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_dabr_match)(struct pt_regs *regs) __read_mostly;
+int (*__debugger_fault_handler)(struct pt_regs *regs) __read_mostly;
 
 EXPORT_SYMBOL(__debugger);
 EXPORT_SYMBOL(__debugger_ipi);
