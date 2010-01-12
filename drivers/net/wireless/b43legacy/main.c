@@ -61,6 +61,8 @@ MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
 MODULE_FIRMWARE(B43legacy_SUPPORTED_FIRMWARE_ID);
+MODULE_FIRMWARE("b43legacy/ucode2.fw");
+MODULE_FIRMWARE("b43legacy/ucode4.fw");
 
 #if defined(CONFIG_B43LEGACY_DMA) && defined(CONFIG_B43LEGACY_PIO)
 static int modparam_pio;
