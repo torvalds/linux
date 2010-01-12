@@ -82,7 +82,6 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.mapbase	= 0x16000000,
 		.regshift	= 1,
 		.flags		= ST16C2550C_FLAGS,
-		.irq		= UARTA_IRQ,
 		.uartclk	= 7372800,
 	},
 	[1] = {
@@ -90,7 +89,6 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.mapbase	= 0x17000000,
 		.regshift	= 1,
 		.flags		= ST16C2550C_FLAGS,
-		.irq		= UARTB_IRQ,
 		.uartclk	= 7372800,
 	},
 	{ },
@@ -121,7 +119,7 @@ static struct resource usb_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[2] = {
-		.start  = USB_IRQ,
+		/* Filled in later */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -138,8 +136,8 @@ static struct isp116x_platform_data usb_platform_data = {
 static struct platform_device usb_device = {
 	.name			= "isp116x-hcd",
 	.id			= -1,
-	.num_resources  	= ARRAY_SIZE(usb_resources),
-	.resource       	= usb_resources,
+	.num_resources		= ARRAY_SIZE(usb_resources),
+	.resource		= usb_resources,
 	.dev			= {
 		.platform_data	= &usb_platform_data,
 	},
@@ -155,6 +153,13 @@ static struct platform_device *sh7343se_platform_devices[] __initdata = {
 
 static int __init sh7343se_devices_setup(void)
 {
+	/* Wire-up dynamic vectors */
+	serial_platform_data[0].irq = se7343_fpga_irq[SE7343_FPGA_IRQ_UARTA];
+	serial_platform_data[1].irq = se7343_fpga_irq[SE7343_FPGA_IRQ_UARTB];
+
+	usb_resources[2].start = usb_resources[2].end =
+		se7343_fpga_irq[SE7343_FPGA_IRQ_USB];
+
 	return platform_add_devices(sh7343se_platform_devices,
 				    ARRAY_SIZE(sh7343se_platform_devices));
 }
@@ -179,6 +184,5 @@ static void __init sh7343se_setup(char **cmdline_p)
 static struct sh_machine_vector mv_7343se __initmv = {
 	.mv_name = "SolutionEngine 7343",
 	.mv_setup = sh7343se_setup,
-	.mv_nr_irqs = SE7343_FPGA_IRQ_BASE + SE7343_FPGA_IRQ_NR,
 	.mv_init_irq = init_7343se_IRQ,
 };
