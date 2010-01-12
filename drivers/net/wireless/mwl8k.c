@@ -394,9 +394,6 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 	return 0;
 }
 
-MODULE_FIRMWARE("mwl8k/helper_8687.fw");
-MODULE_FIRMWARE("mwl8k/fmimage_8687.fw");
-
 struct mwl8k_cmd_pkt {
 	__le16	code;
 	__le16	length;
@@ -3736,6 +3733,13 @@ static struct mwl8k_device_info mwl8k_info_tbl[] __devinitdata = {
 		.ap_rxd_ops	= &rxd_8366_ap_ops,
 	},
 };
+
+MODULE_FIRMWARE("mwl8k/helper_8363.fw");
+MODULE_FIRMWARE("mwl8k/fmimage_8363.fw");
+MODULE_FIRMWARE("mwl8k/helper_8687.fw");
+MODULE_FIRMWARE("mwl8k/fmimage_8687.fw");
+MODULE_FIRMWARE("mwl8k/helper_8366.fw");
+MODULE_FIRMWARE("mwl8k/fmimage_8366.fw");
 
 static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
 	{ PCI_VDEVICE(MARVELL, 0x2a0c), .driver_data = MWL8363, },
