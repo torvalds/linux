@@ -430,7 +430,7 @@ error:
 
 
 /** USB device ID's that we handle */
-static struct usb_device_id i1480_usb_id_table[] = {
+static const struct usb_device_id i1480_usb_id_table[] = {
 	i1480_USB_DEV(0x8086, 0xdf3b),
 	i1480_USB_DEV(0x15a9, 0x0005),
 	i1480_USB_DEV(0x07d1, 0x3802),
