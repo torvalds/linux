@@ -758,6 +758,19 @@ out:
 	return *queued;
 }
 
+/*
+ * rds_message is getting to be quite complicated, and we'd like to allocate
+ * it all in one go. This figures out how big it needs to be up front.
+ */
+static int rds_rm_size(struct msghdr *msg, int data_len)
+{
+	int size = 0;
+
+	size +=	ceil(data_len, PAGE_SIZE) * sizeof(struct scatterlist);
+
+	return size;
+}
+
 static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 			 struct msghdr *msg, int *allocated_mr)
 {
@@ -845,12 +858,22 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		goto out;
 	}
 
-	rm = rds_message_copy_from_user(msg->msg_iov, payload_len);
-	if (IS_ERR(rm)) {
-		ret = PTR_ERR(rm);
-		rm = NULL;
+	/* size of rm including all sgs */
+	ret = rds_rm_size(msg, payload_len);
+	if (ret < 0)
+		goto out;
+
+	rm = rds_message_alloc(ret, GFP_KERNEL);
+	if (!rm) {
+		ret = -ENOMEM;
 		goto out;
 	}
+
+	rm->data.m_sg = rds_message_alloc_sgs(rm, ceil(payload_len, PAGE_SIZE));
+	/* XXX fix this to not allocate memory */
+	ret = rds_message_copy_from_user(rm, msg->msg_iov, payload_len);
+	if (ret)
+		goto out;
 
 	rm->m_daddr = daddr;
 

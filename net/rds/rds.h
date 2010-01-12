@@ -268,9 +268,11 @@ struct rds_message {
 		struct {
 			unsigned int		m_nents;
 			unsigned int		m_count;
-			struct scatterlist	m_sg[0];
+			struct scatterlist	*m_sg;
 		} data;
 	};
+	unsigned int		m_used_sgs;
+	unsigned int		m_total_sgs;
 };
 
 /*
@@ -573,7 +575,8 @@ rds_conn_connecting(struct rds_connection *conn)
 
 /* message.c */
 struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp);
-struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents);
+int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
 					       size_t total_len);
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len);
 void rds_message_populate_header(struct rds_header *hdr, __be16 sport,

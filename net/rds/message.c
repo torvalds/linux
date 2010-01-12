@@ -214,17 +214,22 @@ int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 o
 }
 EXPORT_SYMBOL_GPL(rds_message_add_rdma_dest_extension);
 
-struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp)
+/*
+ * Each rds_message is allocated with extra space for the scatterlist entries
+ * rds ops will need. This is to minimize memory allocation count. Then, each rds op
+ * can grab SGs when initializing its part of the rds_message.
+ */
+struct rds_message *rds_message_alloc(unsigned int extra_len, gfp_t gfp)
 {
 	struct rds_message *rm;
 
-	rm = kzalloc(sizeof(struct rds_message) +
-		     (nents * sizeof(struct scatterlist)), gfp);
+	rm = kzalloc(sizeof(struct rds_message) + extra_len, gfp);
 	if (!rm)
 		goto out;
 
-	if (nents)
-		sg_init_table(rm->data.m_sg, nents);
+	rm->m_used_sgs = 0;
+	rm->m_total_sgs = extra_len / sizeof(struct scatterlist);
+
 	atomic_set(&rm->m_refcount, 1);
 	INIT_LIST_HEAD(&rm->m_sock_item);
 	INIT_LIST_HEAD(&rm->m_conn_item);
@@ -232,6 +237,23 @@ struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp)
 
 out:
 	return rm;
+}
+
+/*
+ * RDS ops use this to grab SG entries from the rm's sg pool.
+ */
+struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents)
+{
+	struct scatterlist *sg_first = (struct scatterlist *) &rm[1];
+	struct scatterlist *sg_ret;
+
+	WARN_ON(rm->m_used_sgs + nents > rm->m_total_sgs);
+
+	sg_ret = &sg_first[rm->m_used_sgs];
+
+	rm->m_used_sgs += nents;
+
+	return sg_ret;
 }
 
 struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned int total_len)
@@ -256,22 +278,15 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	return rm;
 }
 
-struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
+int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
 					       size_t total_len)
 {
 	unsigned long to_copy;
 	unsigned long iov_off;
 	unsigned long sg_off;
-	struct rds_message *rm;
 	struct iovec *iov;
 	struct scatterlist *sg;
-	int ret;
-
-	rm = rds_message_alloc(ceil(total_len, PAGE_SIZE), GFP_KERNEL);
-	if (rm == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	int ret = 0;
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
 
@@ -320,14 +335,8 @@ struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
 			sg++;
 	}
 
-	ret = 0;
 out:
-	if (ret) {
-		if (rm)
-			rds_message_put(rm);
-		rm = ERR_PTR(ret);
-	}
-	return rm;
+	return ret;
 }
 
 int rds_message_inc_copy_to_user(struct rds_incoming *inc,
