@@ -1303,7 +1303,7 @@ static int m8xx_resume(struct platform_device *pdev)
 #define m8xx_resume NULL
 #endif
 
-static struct of_device_id m8xx_pcmcia_match[] = {
+static const struct of_device_id m8xx_pcmcia_match[] = {
 	{
 	 .type = "pcmcia",
 	 .compatible = "fsl,pq-pcmcia",
