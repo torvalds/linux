@@ -214,6 +214,9 @@ struct mwl8k_vif {
 	struct list_head list;
 	struct ieee80211_vif *vif;
 
+	/* Firmware macid for this vif.  */
+	int macid;
+
 	/* Non AMPDU sequence number assigned by driver.  */
 	u16 seqno;
 };
@@ -419,7 +422,8 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv)
 struct mwl8k_cmd_pkt {
 	__le16	code;
 	__le16	length;
-	__le16	seq_num;
+	__u8	seq_num;
+	__u8	macid;
 	__le16	result;
 	char	payload[0];
 } __attribute__((packed));
@@ -477,6 +481,7 @@ static int mwl8k_load_fw_image(struct mwl8k_priv *priv,
 
 	cmd->code = cpu_to_le16(MWL8K_CMD_CODE_DNLD);
 	cmd->seq_num = 0;
+	cmd->macid = 0;
 	cmd->result = 0;
 
 	done = 0;
@@ -1593,6 +1598,15 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	}
 
 	return rc;
+}
+
+static int mwl8k_post_pervif_cmd(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct mwl8k_cmd_pkt *cmd)
+{
+	if (vif != NULL)
+		cmd->macid = MWL8K_VIF(vif)->macid;
+	return mwl8k_post_cmd(hw, cmd);
 }
 
 /*
@@ -3283,6 +3297,7 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	mwl8k_vif = MWL8K_VIF(vif);
 	memset(mwl8k_vif, 0, sizeof(*mwl8k_vif));
 	mwl8k_vif->vif = vif;
+	mwl8k_vif->macid = 0;
 	mwl8k_vif->seqno = 0;
 
 	list_add_tail(&mwl8k_vif->list, &priv->vif_list);
