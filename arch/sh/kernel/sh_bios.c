@@ -34,11 +34,6 @@ void sh_bios_console_write(const char *buf, unsigned int len)
 	sh_bios_call(BIOS_CALL_CONSOLE_WRITE, (long)buf, (long)len, 0, 0);
 }
 
-void sh_bios_char_out(char ch)
-{
-	sh_bios_call(BIOS_CALL_CHAR_OUT, ch, 0, 0, 0);
-}
-
 void sh_bios_gdb_detach(void)
 {
 	sh_bios_call(BIOS_CALL_GDB_DETACH, 0, 0, 0, 0);
