@@ -277,20 +277,24 @@ static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 	if (s->state & SOCKET_CARDBUS)
 		return;
 
+	mutex_lock(&s->ops_mutex);
 	if (s->fake_cis) {
 		if (s->fake_cis_len >= addr+len)
 			memcpy(ptr, s->fake_cis+addr, len);
 		else
 			memset(ptr, 0xff, len);
+		mutex_unlock(&s->ops_mutex);
 		return;
 	}
 
 	list_for_each_entry(cis, &s->cis_cache, node) {
 		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
 			memcpy(ptr, cis->cache, len);
+			mutex_unlock(&s->ops_mutex);
 			return;
 		}
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	ret = pcmcia_read_cis_mem(s, attr, addr, len, ptr);
 
@@ -302,7 +306,9 @@ static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 			cis->len = len;
 			cis->attr = attr;
 			memcpy(cis->cache, ptr, len);
+			mutex_lock(&s->ops_mutex);
 			list_add(&cis->node, &s->cis_cache);
+			mutex_unlock(&s->ops_mutex);
 		}
 	}
 }
@@ -312,19 +318,22 @@ remove_cis_cache(struct pcmcia_socket *s, int attr, u_int addr, u_int len)
 {
 	struct cis_cache_entry *cis;
 
+	mutex_lock(&s->ops_mutex);
 	list_for_each_entry(cis, &s->cis_cache, node)
 		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
 			list_del(&cis->node);
 			kfree(cis);
 			break;
 		}
+	mutex_unlock(&s->ops_mutex);
 }
 
 /**
  * destroy_cis_cache() - destroy the CIS cache
  * @s:		pcmcia_socket for which CIS cache shall be destroyed
  *
- * This destroys the CIS cache but keeps any fake CIS alive.
+ * This destroys the CIS cache but keeps any fake CIS alive. Must be
+ * called with ops_mutex held.
  */
 
 void destroy_cis_cache(struct pcmcia_socket *s)
@@ -391,14 +400,17 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 		dev_printk(KERN_WARNING, &s->dev, "replacement CIS too big\n");
 		return -EINVAL;
 	}
+	mutex_lock(&s->ops_mutex);
 	kfree(s->fake_cis);
 	s->fake_cis = kmalloc(len, GFP_KERNEL);
 	if (s->fake_cis == NULL) {
 		dev_printk(KERN_WARNING, &s->dev, "no memory to replace CIS\n");
+		mutex_unlock(&s->ops_mutex);
 		return -ENOMEM;
 	}
 	s->fake_cis_len = len;
 	memcpy(s->fake_cis, data, len);
+	mutex_unlock(&s->ops_mutex);
 	return 0;
 }
 
@@ -1461,7 +1473,9 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 		return -EINVAL;
 
 	/* We do not want to validate the CIS cache... */
+	mutex_lock(&s->ops_mutex);
 	destroy_cis_cache(s);
+	mutex_unlock(&s->ops_mutex);
 
 	tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
 	if (tuple == NULL) {
@@ -1518,7 +1532,9 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 done:
 	/* invalidate CIS cache on failure */
 	if (!dev_ok || !ident_ok || !count) {
+		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s);
+		mutex_unlock(&s->ops_mutex);
 		ret = -EIO;
 	}
 

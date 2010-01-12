@@ -1241,12 +1241,16 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		s->pcmcia_state.present = 0;
 		pcmcia_card_remove(skt, NULL);
 		handle_event(skt, event);
+		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s);
+		mutex_unlock(&s->ops_mutex);
 		break;
 
 	case CS_EVENT_CARD_INSERTION:
 		s->pcmcia_state.present = 1;
+		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s); /* to be on the safe side... */
+		mutex_unlock(&s->ops_mutex);
 		pcmcia_card_add(skt);
 		handle_event(skt, event);
 		break;
@@ -1259,9 +1263,11 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 			dev_dbg(&skt->dev, "cis mismatch - different card\n");
 			/* first, remove the card */
 			ds_event(skt, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
+			mutex_lock(&s->ops_mutex);
 			destroy_cis_cache(skt);
 			kfree(skt->fake_cis);
 			skt->fake_cis = NULL;
+			mutex_unlock(&s->ops_mutex);
 			/* now, add the new card */
 			ds_event(skt, CS_EVENT_CARD_INSERTION,
 				 CS_EVENT_PRI_LOW);
