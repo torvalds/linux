@@ -172,7 +172,7 @@ static int omapfb_update_window_nolock(struct fb_info *fbi,
 	if (x + w > dw || y + h > dh)
 		return -EINVAL;
 
-	return display->update(display, x, y, w, h);
+	return display->driver->update(display, x, y, w, h);
 }
 
 /* This function is exported for SGX driver use */
@@ -496,18 +496,18 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case OMAPFB_SYNC_GFX:
 		DBG("ioctl SYNC_GFX\n");
-		if (!display || !display->sync) {
+		if (!display || !display->driver->sync) {
 			/* DSS1 never returns an error here, so we neither */
 			/*r = -EINVAL;*/
 			break;
 		}
 
-		r = display->sync(display);
+		r = display->driver->sync(display);
 		break;
 
 	case OMAPFB_UPDATE_WINDOW_OLD:
 		DBG("ioctl UPDATE_WINDOW_OLD\n");
-		if (!display || !display->update) {
+		if (!display || !display->driver->update) {
 			r = -EINVAL;
 			break;
 		}
@@ -525,7 +525,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 
 	case OMAPFB_UPDATE_WINDOW:
 		DBG("ioctl UPDATE_WINDOW\n");
-		if (!display || !display->update) {
+		if (!display || !display->driver->update) {
 			r = -EINVAL;
 			break;
 		}

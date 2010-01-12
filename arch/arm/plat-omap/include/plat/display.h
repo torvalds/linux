@@ -474,9 +474,6 @@ struct omap_dss_device {
 			struct omap_video_timings *timings);
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings);
-	int (*update)(struct omap_dss_device *dssdev,
-			       u16 x, u16 y, u16 w, u16 h);
-	int (*sync)(struct omap_dss_device *dssdev);
 
 	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
@@ -500,15 +497,16 @@ struct omap_dss_driver {
 	int (*resume)(struct omap_dss_device *display);
 	int (*run_test)(struct omap_dss_device *display, int test);
 
-	void (*setup_update)(struct omap_dss_device *dssdev,
-			u16 x, u16 y, u16 w, u16 h);
 	int (*set_update_mode)(struct omap_dss_device *dssdev,
 			enum omap_dss_update_mode);
 	enum omap_dss_update_mode (*get_update_mode)(
 			struct omap_dss_device *dssdev);
 
+	int (*update)(struct omap_dss_device *dssdev,
+			       u16 x, u16 y, u16 w, u16 h);
+	int (*sync)(struct omap_dss_device *dssdev);
+
 	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
-	int (*wait_for_te)(struct omap_dss_device *dssdev);
 	int (*get_te)(struct omap_dss_device *dssdev);
 
 	u8 (*get_rotate)(struct omap_dss_device *dssdev);
@@ -565,5 +563,19 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 
 void omapdss_dsi_vc_enable_hs(int channel, bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
+
+int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
+				    u16 *x, u16 *y, u16 *w, u16 *h);
+int omap_dsi_update(struct omap_dss_device *dssdev,
+		int channel,
+		u16 x, u16 y, u16 w, u16 h,
+		void (*callback)(int, void *), void *data);
+
+int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
+		u16 *x, u16 *y, u16 *w, u16 *h);
+int omap_rfbi_update(struct omap_dss_device *dssdev,
+		u16 x, u16 y, u16 w, u16 h,
+		void (*callback)(void *), void *data);
+
 
 #endif

@@ -1254,11 +1254,11 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 exit:
 	omapfb_unlock(fbdev);
 
-	if (r == 0 && do_update && display->update) {
+	if (r == 0 && do_update && display->driver->update) {
 		u16 w, h;
 		display->driver->get_resolution(display, &w, &h);
 
-		r = display->update(display, 0, 0, w, h);
+		r = display->driver->update(display, 0, 0, w, h);
 	}
 
 	return r;
@@ -1639,8 +1639,8 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 	if (old_size == size && old_type == type)
 		return 0;
 
-	if (display && display->sync)
-			display->sync(display);
+	if (display && display->driver->sync)
+			display->driver->sync(display);
 
 	omapfb_free_fbmem(fbi);
 
@@ -2221,7 +2221,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 			dssdrv->get_resolution(def_display,
 					&w, &h);
-			def_display->update(def_display, 0, 0, w, h);
+			def_display->driver->update(def_display, 0, 0, w, h);
 #endif
 		} else {
 			if (dssdrv->set_update_mode)

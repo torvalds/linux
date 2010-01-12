@@ -725,10 +725,58 @@ static int taal_resume(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void taal_setup_update(struct omap_dss_device *dssdev,
+static void taal_framedone_cb(int err, void *data)
+{
+	struct omap_dss_device *dssdev = data;
+	dev_dbg(&dssdev->dev, "framedone, err %d\n", err);
+	dsi_bus_unlock();
+}
+
+static int taal_update(struct omap_dss_device *dssdev,
 				    u16 x, u16 y, u16 w, u16 h)
 {
-	taal_set_update_window(x, y, w, h);
+	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	int r;
+
+	dev_dbg(&dssdev->dev, "update %d, %d, %d x %d\n", x, y, w, h);
+
+	dsi_bus_lock();
+
+	if (!td->enabled) {
+		r = 0;
+		goto err;
+	}
+
+	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h);
+	if (r)
+		goto err;
+
+	r = taal_set_update_window(x, y, w, h);
+	if (r)
+		goto err;
+
+	r = omap_dsi_update(dssdev, TCH, x, y, w, h,
+			taal_framedone_cb, dssdev);
+	if (r)
+		goto err;
+
+	/* note: no bus_unlock here. unlock is in framedone_cb */
+	return 0;
+err:
+	dsi_bus_unlock();
+	return r;
+}
+
+static int taal_sync(struct omap_dss_device *dssdev)
+{
+	dev_dbg(&dssdev->dev, "sync\n");
+
+	dsi_bus_lock();
+	dsi_bus_unlock();
+
+	dev_dbg(&dssdev->dev, "sync done\n");
+
+	return 0;
 }
 
 static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
@@ -760,24 +808,6 @@ static int taal_get_te(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	return td->te_enabled;
-}
-
-static int taal_wait_te(struct omap_dss_device *dssdev)
-{
-	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	long wait = msecs_to_jiffies(500);
-
-	if (!td->use_ext_te || !td->te_enabled)
-		return 0;
-
-	INIT_COMPLETION(td->te_completion);
-	wait = wait_for_completion_timeout(&td->te_completion, wait);
-	if (wait == 0) {
-		dev_err(&dssdev->dev, "timeout waiting TE\n");
-		return -ETIME;
-	}
-
-	return 0;
 }
 
 static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
@@ -1018,15 +1048,17 @@ static struct omap_dss_driver taal_driver = {
 	.suspend	= taal_suspend,
 	.resume		= taal_resume,
 
-	.setup_update	= taal_setup_update,
 	.set_update_mode = taal_set_update_mode,
 	.get_update_mode = taal_get_update_mode,
+
+	.update		= taal_update,
+	.sync		= taal_sync,
+
 	.get_resolution	= taal_get_resolution,
 	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
 
 	.enable_te	= taal_enable_te,
 	.get_te		= taal_get_te,
-	.wait_for_te	= taal_wait_te,
 
 	.set_rotate	= taal_rotate,
 	.get_rotate	= taal_get_rotate,

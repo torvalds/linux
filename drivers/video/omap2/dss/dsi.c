@@ -31,8 +31,8 @@
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/kthread.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include <plat/display.h>
 #include <plat/clock.h>
@@ -200,7 +200,6 @@ enum dsi_vc_mode {
 };
 
 struct dsi_update_region {
-	bool dirty;
 	u16 x, y, w, h;
 	struct omap_dss_device *device;
 };
@@ -234,17 +233,17 @@ static struct
 
 	struct completion bta_completion;
 
-	struct task_struct *thread;
-	wait_queue_head_t waitqueue;
-
-	spinlock_t update_lock;
-	bool framedone_received;
+	int update_channel;
 	struct dsi_update_region update_region;
-	struct dsi_update_region active_update_region;
-	struct completion update_completion;
 
 	bool te_enabled;
 	bool use_ext_te;
+
+	struct work_struct framedone_work;
+	void (*framedone_callback)(int, void *);
+	void *framedone_data;
+
+	struct delayed_work framedone_timeout_work;
 
 #ifdef DSI_CATCH_MISSING_TE
 	struct timer_list te_timer;
@@ -357,9 +356,9 @@ static void dsi_perf_show(const char *name)
 
 	total_us = setup_us + trans_us;
 
-	total_bytes = dsi.active_update_region.w *
-		dsi.active_update_region.h *
-		dsi.active_update_region.device->ctrl.pixel_size / 8;
+	total_bytes = dsi.update_region.w *
+		dsi.update_region.h *
+		dsi.update_region.device->ctrl.pixel_size / 8;
 
 	printk(KERN_INFO "DSI(%s): %u us + %u us = %u us (%uHz), "
 			"%u bytes, %u kbytes/sec\n",
@@ -2725,7 +2724,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	unsigned packet_len;
 	u32 l;
 	bool use_te_trigger;
-	const unsigned channel = 0;
+	const unsigned channel = dsi.update_channel;
 	/* line buffer is 1024 x 24bits */
 	/* XXX: for some reason using full buffer size causes considerable TX
 	 * slowdown with update sizes that fill the whole buffer */
@@ -2735,6 +2734,8 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
 			x, y, w, h);
+
+	dsi_vc_config_vp(channel);
 
 	bytespp	= dssdev->ctrl.pixel_size / 8;
 	bytespl = w * bytespp;
@@ -2773,6 +2774,11 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	 */
 	dispc_disable_sidle();
 
+	dsi_perf_mark_start();
+
+	schedule_delayed_work(&dsi.framedone_timeout_work,
+			msecs_to_jiffies(250));
+
 	dss_start_update(dssdev);
 
 	if (use_te_trigger) {
@@ -2795,6 +2801,46 @@ static void dsi_te_timeout(unsigned long arg)
 }
 #endif
 
+static void dsi_framedone_timeout_work_callback(struct work_struct *work)
+{
+	int r;
+	const int channel = dsi.update_channel;
+	bool use_te_trigger;
+
+	DSSERR("Framedone not received for 250ms!\n");
+
+	/* SIDLEMODE back to smart-idle */
+	dispc_enable_sidle();
+
+	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
+
+	if (use_te_trigger) {
+		/* enable LP_RX_TO again after the TE */
+		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	}
+
+	/* Send BTA after the frame. We need this for the TE to work, as TE
+	 * trigger is only sent for BTAs without preceding packet. Thus we need
+	 * to BTA after the pixel packets so that next BTA will cause TE
+	 * trigger.
+	 *
+	 * This is not needed when TE is not in use, but we do it anyway to
+	 * make sure that the transfer has been completed. It would be more
+	 * optimal, but more complex, to wait only just before starting next
+	 * transfer. */
+	r = dsi_vc_send_bta_sync(channel);
+	if (r)
+		DSSERR("BTA after framedone failed\n");
+
+	/* RX_FIFO_NOT_EMPTY */
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
+		DSSERR("Received error during frame transfer:\n");
+		dsi_vc_flush_receive_data(channel);
+	}
+
+	dsi.framedone_callback(-ETIMEDOUT, dsi.framedone_data);
+}
+
 static void dsi_framedone_irq_callback(void *data, u32 mask)
 {
 	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
@@ -2805,37 +2851,13 @@ static void dsi_framedone_irq_callback(void *data, u32 mask)
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
 
-	dsi.framedone_received = true;
-	wake_up(&dsi.waitqueue);
-}
-
-static void dsi_set_update_region(struct omap_dss_device *dssdev,
-		u16 x, u16 y, u16 w, u16 h)
-{
-	spin_lock(&dsi.update_lock);
-	if (dsi.update_region.dirty) {
-		dsi.update_region.x = min(x, dsi.update_region.x);
-		dsi.update_region.y = min(y, dsi.update_region.y);
-		dsi.update_region.w = max(w, dsi.update_region.w);
-		dsi.update_region.h = max(h, dsi.update_region.h);
-	} else {
-		dsi.update_region.x = x;
-		dsi.update_region.y = y;
-		dsi.update_region.w = w;
-		dsi.update_region.h = h;
-	}
-
-	dsi.update_region.device = dssdev;
-	dsi.update_region.dirty = true;
-
-	spin_unlock(&dsi.update_lock);
-
+	schedule_work(&dsi.framedone_work);
 }
 
 static void dsi_handle_framedone(void)
 {
 	int r;
-	const int channel = 0;
+	const int channel = dsi.update_channel;
 	bool use_te_trigger;
 
 	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
@@ -2871,105 +2893,79 @@ static void dsi_handle_framedone(void)
 #endif
 }
 
-static int dsi_update_thread(void *data)
+static void dsi_framedone_work_callback(struct work_struct *work)
 {
-	unsigned long timeout;
-	struct omap_dss_device *device;
-	u16 x, y, w, h;
+	DSSDBGF();
 
-	while (1) {
-		wait_event_interruptible(dsi.waitqueue,
-				dsi.update_region.dirty == true ||
-				kthread_should_stop());
+	cancel_delayed_work_sync(&dsi.framedone_timeout_work);
 
-		if (kthread_should_stop())
-			break;
+	dsi_handle_framedone();
 
-		dsi_bus_lock();
+	dsi_perf_show("DISPC");
 
-		if (kthread_should_stop()) {
-			dsi_bus_unlock();
-			break;
-		}
+	dsi.framedone_callback(0, dsi.framedone_data);
+}
 
-		dsi_perf_mark_setup();
+int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
+				    u16 *x, u16 *y, u16 *w, u16 *h)
+{
+	u16 dw, dh;
 
-		if (dsi.update_region.dirty) {
-			spin_lock(&dsi.update_lock);
-			dsi.active_update_region = dsi.update_region;
-			dsi.update_region.dirty = false;
-			spin_unlock(&dsi.update_lock);
-		}
+	dssdev->driver->get_resolution(dssdev, &dw, &dh);
 
-		device = dsi.active_update_region.device;
-		x = dsi.active_update_region.x;
-		y = dsi.active_update_region.y;
-		w = dsi.active_update_region.w;
-		h = dsi.active_update_region.h;
+	if  (*x > dw || *y > dh)
+		return -EINVAL;
 
-		if (device->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+	if (*x + *w > dw)
+		return -EINVAL;
 
-			dss_setup_partial_planes(device,
-					&x, &y, &w, &h);
+	if (*y + *h > dh)
+		return -EINVAL;
 
-			dispc_set_lcd_size(w, h);
-		}
+	if (*w == 1)
+		return -EINVAL;
 
-		if (dsi.active_update_region.dirty) {
-			dsi.active_update_region.dirty = false;
-			/* XXX TODO we don't need to send the coords, if they
-			 * are the same that are already programmed to the
-			 * panel. That should speed up manual update a bit */
-			device->driver->setup_update(device, x, y, w, h);
-		}
+	if (*w == 0 || *h == 0)
+		return -EINVAL;
 
-		dsi_perf_mark_start();
+	dsi_perf_mark_setup();
 
-		if (device->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-			dsi_vc_config_vp(0);
-
-			if (dsi.te_enabled && dsi.use_ext_te)
-				device->driver->wait_for_te(device);
-
-			dsi.framedone_received = false;
-
-			dsi_update_screen_dispc(device, x, y, w, h);
-
-			/* wait for framedone */
-			timeout = msecs_to_jiffies(1000);
-			wait_event_timeout(dsi.waitqueue,
-					dsi.framedone_received == true,
-					timeout);
-
-			if (!dsi.framedone_received) {
-				DSSERR("framedone timeout\n");
-				DSSERR("failed update %d,%d %dx%d\n",
-						x, y, w, h);
-
-				dispc_enable_sidle();
-				device->manager->disable(device->manager);
-
-				dsi_reset_tx_fifo(0);
-			} else {
-				dsi_handle_framedone();
-				dsi_perf_show("DISPC");
-			}
-		} else {
-			dsi_update_screen_l4(device, x, y, w, h);
-			dsi_perf_show("L4");
-		}
-
-		complete_all(&dsi.update_completion);
-
-		dsi_bus_unlock();
+	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+		dss_setup_partial_planes(dssdev, x, y, w, h);
+		dispc_set_lcd_size(*w, *h);
 	}
-
-	DSSDBG("update thread exiting\n");
 
 	return 0;
 }
+EXPORT_SYMBOL(omap_dsi_prepare_update);
 
+int omap_dsi_update(struct omap_dss_device *dssdev,
+		int channel,
+		u16 x, u16 y, u16 w, u16 h,
+		void (*callback)(int, void *), void *data)
+{
+	dsi.update_channel = channel;
 
+	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
+		dsi.framedone_callback = callback;
+		dsi.framedone_data = data;
+
+		dsi.update_region.x = x;
+		dsi.update_region.y = y;
+		dsi.update_region.w = w;
+		dsi.update_region.h = h;
+		dsi.update_region.device = dssdev;
+
+		dsi_update_screen_dispc(dssdev, x, y, w, h);
+	} else {
+		dsi_update_screen_l4(dssdev, x, y, w, h);
+		dsi_perf_show("L4");
+		callback(0, data);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(omap_dsi_update);
 
 /* Display funcs */
 
@@ -3324,74 +3320,6 @@ err0:
 	return r;
 }
 
-static int dsi_display_update(struct omap_dss_device *dssdev,
-			u16 x, u16 y, u16 w, u16 h)
-{
-	int r = 0;
-	u16 dw, dh;
-
-	DSSDBG("dsi_display_update(%d,%d %dx%d)\n", x, y, w, h);
-
-	mutex_lock(&dsi.lock);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
-		goto end;
-
-	dssdev->driver->get_resolution(dssdev, &dw, &dh);
-
-	if  (x > dw || y > dh)
-		goto end;
-
-	if (x + w > dw)
-		w = dw - x;
-
-	if (y + h > dh)
-		h = dh - y;
-
-	if (w == 0 || h == 0)
-		goto end;
-
-	if (w == 1) {
-		r = -EINVAL;
-		goto end;
-	}
-
-	dsi_set_update_region(dssdev, x, y, w, h);
-
-	wake_up(&dsi.waitqueue);
-
-end:
-	mutex_unlock(&dsi.lock);
-
-	return r;
-}
-
-static int dsi_display_sync(struct omap_dss_device *dssdev)
-{
-	bool wait;
-
-	DSSDBG("dsi_display_sync()\n");
-
-	mutex_lock(&dsi.lock);
-	dsi_bus_lock();
-
-	if (dsi.update_region.dirty) {
-		INIT_COMPLETION(dsi.update_completion);
-		wait = true;
-	} else {
-		wait = false;
-	}
-
-	dsi_bus_unlock();
-	mutex_unlock(&dsi.lock);
-
-	if (wait)
-		wait_for_completion_interruptible(&dsi.update_completion);
-
-	DSSDBG("dsi_display_sync() done\n");
-	return 0;
-}
-
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
 	dsi.te_enabled = enable;
@@ -3420,8 +3348,6 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	dssdev->disable = dsi_display_disable;
 	dssdev->suspend = dsi_display_suspend;
 	dssdev->resume = dsi_display_resume;
-	dssdev->update = dsi_display_update;
-	dssdev->sync = dsi_display_sync;
 
 	/* XXX these should be figured out dynamically */
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
@@ -3437,9 +3363,6 @@ int dsi_init(struct platform_device *pdev)
 {
 	u32 rev;
 	int r;
-	struct sched_param param = {
-		.sched_priority = MAX_USER_RT_PRIO-1
-	};
 
 	spin_lock_init(&dsi.errors_lock);
 	dsi.errors = 0;
@@ -3450,28 +3373,19 @@ int dsi_init(struct platform_device *pdev)
 #endif
 
 	init_completion(&dsi.bta_completion);
-	init_completion(&dsi.update_completion);
-
-	dsi.thread = kthread_create(dsi_update_thread, NULL, "dsi");
-	if (IS_ERR(dsi.thread)) {
-		DSSERR("cannot create kthread\n");
-		r = PTR_ERR(dsi.thread);
-		goto err0;
-	}
-	sched_setscheduler(dsi.thread, SCHED_FIFO, &param);
-
-	init_waitqueue_head(&dsi.waitqueue);
-	spin_lock_init(&dsi.update_lock);
 
 	mutex_init(&dsi.lock);
 	sema_init(&dsi.bus_lock, 1);
+
+	INIT_WORK(&dsi.framedone_work, dsi_framedone_work_callback);
+	INIT_DELAYED_WORK_DEFERRABLE(&dsi.framedone_timeout_work,
+			dsi_framedone_timeout_work_callback);
 
 #ifdef DSI_CATCH_MISSING_TE
 	init_timer(&dsi.te_timer);
 	dsi.te_timer.function = dsi_te_timeout;
 	dsi.te_timer.data = 0;
 #endif
-
 	dsi.base = ioremap(DSI_BASE, DSI_SZ_REGS);
 	if (!dsi.base) {
 		DSSERR("can't ioremap DSI\n");
@@ -3495,21 +3409,15 @@ int dsi_init(struct platform_device *pdev)
 
 	enable_clocks(0);
 
-	wake_up_process(dsi.thread);
-
 	return 0;
 err2:
 	iounmap(dsi.base);
 err1:
-	kthread_stop(dsi.thread);
-err0:
 	return r;
 }
 
 void dsi_exit(void)
 {
-	kthread_stop(dsi.thread);
-
 	iounmap(dsi.base);
 
 	DSSDBG("omap_dsi_exit\n");
