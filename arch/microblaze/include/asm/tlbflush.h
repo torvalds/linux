@@ -23,7 +23,7 @@
 extern void _tlbie(unsigned long address);
 extern void _tlbia(void);
 
-#define __tlbia()	_tlbia()
+#define __tlbia()	{ preempt_disable(); _tlbia(); preempt_enable(); }
 
 static inline void local_flush_tlb_all(void)
 	{ __tlbia(); }
