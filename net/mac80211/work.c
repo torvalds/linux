@@ -376,8 +376,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 
 	if (wk->assoc.wmm_used && local->hw.queues >= 4) {
 		if (wk->assoc.uapsd_used) {
-			qos_info = IEEE80211_DEFAULT_UAPSD_QUEUES;
-			qos_info |= (IEEE80211_DEFAULT_MAX_SP_LEN <<
+			qos_info = local->uapsd_queues;
+			qos_info |= (local->uapsd_max_sp_len <<
 				     IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT);
 		} else {
 			qos_info = 0;
