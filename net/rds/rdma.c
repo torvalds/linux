@@ -745,7 +745,6 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		rm->atomic.op_swap_add = args->fadd.add;
 	}
 
-	rm->m_rdma_cookie = args->cookie;
 	rm->atomic.op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
 	rm->atomic.op_recverr = rs->rs_recverr;
 	rm->atomic.op_sg = rds_message_alloc_sgs(rm, 1);
@@ -779,7 +778,7 @@ int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
 		rm->atomic.op_notifier->n_status = RDS_RDMA_SUCCESS;
 	}
 
-	rm->atomic.op_rkey = rds_rdma_cookie_key(rm->m_rdma_cookie);
+	rm->atomic.op_rkey = rds_rdma_cookie_key(args->cookie);
 	rm->atomic.op_remote_addr = args->remote_addr + rds_rdma_cookie_offset(args->cookie);
 
 	rm->atomic.op_active = 1;

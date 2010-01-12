@@ -153,18 +153,25 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			struct rdma_conn_param *conn_param,
 			struct rds_ib_connect_private *dp,
-			u32 protocol_version)
+			u32 protocol_version,
+			u32 max_responder_resources,
+			u32 max_initiator_depth)
 {
+	struct rds_ib_connection *ic = conn->c_transport_data;
+	struct rds_ib_device *rds_ibdev;
+
 	memset(conn_param, 0, sizeof(struct rdma_conn_param));
-	/* XXX tune these? */
-	conn_param->responder_resources = 1;
-	conn_param->initiator_depth = 1;
+
+	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
+
+	conn_param->responder_resources =
+		min_t(u32, rds_ibdev->max_responder_resources, max_responder_resources);
+	conn_param->initiator_depth =
+		min_t(u32, rds_ibdev->max_initiator_depth, max_initiator_depth);
 	conn_param->retry_count = min_t(unsigned int, rds_ib_retry_count, 7);
 	conn_param->rnr_retry_count = 7;
 
 	if (dp) {
-		struct rds_ib_connection *ic = conn->c_transport_data;
-
 		memset(dp, 0, sizeof(*dp));
 		dp->dp_saddr = conn->c_laddr;
 		dp->dp_daddr = conn->c_faddr;
@@ -479,7 +486,9 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 		goto out;
 	}
 
-	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp_rep, version);
+	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp_rep, version,
+		event->param.conn.responder_resources,
+		event->param.conn.initiator_depth);
 
 	/* rdma_accept() calls rdma_reject() internally if it fails */
 	err = rdma_accept(cm_id, &conn_param);
@@ -516,8 +525,8 @@ int rds_ib_cm_initiate_connect(struct rdma_cm_id *cm_id)
 		goto out;
 	}
 
-	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp, RDS_PROTOCOL_VERSION);
-
+	rds_ib_cm_fill_conn_param(conn, &conn_param, &dp, RDS_PROTOCOL_VERSION,
+		UINT_MAX, UINT_MAX);
 	ret = rdma_connect(cm_id, &conn_param);
 	if (ret)
 		rds_ib_conn_error(conn, "rdma_connect failed (%d)\n", ret);

@@ -164,6 +164,8 @@ struct rds_ib_device {
 	unsigned int		max_fmrs;
 	int			max_sge;
 	unsigned int		max_wrs;
+	unsigned int		max_initiator_depth;
+	unsigned int		max_responder_resources;
 	spinlock_t		spinlock;	/* protect the above */
 };
 

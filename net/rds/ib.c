@@ -91,6 +91,9 @@ void rds_ib_add_one(struct ib_device *device)
 			min_t(unsigned int, dev_attr->max_fmr, fmr_pool_size) :
 			fmr_pool_size;
 
+	rds_ibdev->max_initiator_depth = dev_attr->max_qp_init_rd_atom;
+	rds_ibdev->max_responder_resources = dev_attr->max_qp_rd_atom;
+
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device);
 	if (IS_ERR(rds_ibdev->pd))
