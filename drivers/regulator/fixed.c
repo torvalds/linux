@@ -24,12 +24,14 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 
 struct fixed_voltage_data {
 	struct regulator_desc desc;
 	struct regulator_dev *dev;
 	int microvolts;
 	int gpio;
+	unsigned startup_delay;
 	unsigned enable_high:1;
 	unsigned is_enabled:1;
 };
@@ -48,6 +50,8 @@ static int fixed_voltage_enable(struct regulator_dev *dev)
 	if (gpio_is_valid(data->gpio)) {
 		gpio_set_value_cansleep(data->gpio, data->enable_high);
 		data->is_enabled = 1;
+		if (data->startup_delay)
+			udelay(data->startup_delay);
 	}
 
 	return 0;
@@ -117,6 +121,7 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 
 	drvdata->microvolts = config->microvolts;
 	drvdata->gpio = config->gpio;
+	drvdata->startup_delay = config->startup_delay;
 
 	if (gpio_is_valid(config->gpio)) {
 		drvdata->enable_high = config->enable_high;
