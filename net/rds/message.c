@@ -63,17 +63,17 @@ static void rds_message_purge(struct rds_message *rm)
 	if (unlikely(test_bit(RDS_MSG_PAGEVEC, &rm->m_flags)))
 		return;
 
-	for (i = 0; i < rm->m_nents; i++) {
-		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->m_sg[i]));
+	for (i = 0; i < rm->data.m_nents; i++) {
+		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->data.m_sg[i]));
 		/* XXX will have to put_page for page refs */
-		__free_page(sg_page(&rm->m_sg[i]));
+		__free_page(sg_page(&rm->data.m_sg[i]));
 	}
-	rm->m_nents = 0;
+	rm->data.m_nents = 0;
 
-	if (rm->m_rdma_op)
-		rds_rdma_free_op(rm->m_rdma_op);
-	if (rm->m_rdma_mr)
-		rds_mr_put(rm->m_rdma_mr);
+	if (rm->rdma.m_rdma_op)
+		rds_rdma_free_op(rm->rdma.m_rdma_op);
+	if (rm->rdma.m_rdma_mr)
+		rds_mr_put(rm->rdma.m_rdma_mr);
 }
 
 void rds_message_inc_purge(struct rds_incoming *inc)
@@ -224,7 +224,7 @@ struct rds_message *rds_message_alloc(unsigned int nents, gfp_t gfp)
 		goto out;
 
 	if (nents)
-		sg_init_table(rm->m_sg, nents);
+		sg_init_table(rm->data.m_sg, nents);
 	atomic_set(&rm->m_refcount, 1);
 	INIT_LIST_HEAD(&rm->m_sock_item);
 	INIT_LIST_HEAD(&rm->m_conn_item);
@@ -245,10 +245,10 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 
 	set_bit(RDS_MSG_PAGEVEC, &rm->m_flags);
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
-	rm->m_nents = ceil(total_len, PAGE_SIZE);
+	rm->data.m_nents = ceil(total_len, PAGE_SIZE);
 
-	for (i = 0; i < rm->m_nents; ++i) {
-		sg_set_page(&rm->m_sg[i],
+	for (i = 0; i < rm->data.m_nents; ++i) {
+		sg_set_page(&rm->data.m_sg[i],
 				virt_to_page(page_addrs[i]),
 				PAGE_SIZE, 0);
 	}
@@ -278,7 +278,7 @@ struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
 	/*
 	 * now allocate and copy in the data payload.
 	 */
-	sg = rm->m_sg;
+	sg = rm->data.m_sg;
 	iov = first_iov;
 	iov_off = 0;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
@@ -289,7 +289,7 @@ struct rds_message *rds_message_copy_from_user(struct iovec *first_iov,
 						       GFP_HIGHUSER);
 			if (ret)
 				goto out;
-			rm->m_nents++;
+			rm->data.m_nents++;
 			sg_off = 0;
 		}
 
@@ -348,7 +348,7 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc,
 
 	iov = first_iov;
 	iov_off = 0;
-	sg = rm->m_sg;
+	sg = rm->data.m_sg;
 	vec_off = 0;
 	copied = 0;
 

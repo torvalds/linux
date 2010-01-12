@@ -83,11 +83,11 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 	rdsdebug("ic %p send %p rm %p\n", ic, send, rm);
 
 	ib_dma_unmap_sg(ic->i_cm_id->device,
-		     rm->m_sg, rm->m_nents,
-		     DMA_TO_DEVICE);
+			rm->data.m_sg, rm->data.m_nents,
+			DMA_TO_DEVICE);
 
-	if (rm->m_rdma_op) {
-		rds_ib_send_unmap_rdma(ic, rm->m_rdma_op);
+	if (rm->rdma.m_rdma_op) {
+		rds_ib_send_unmap_rdma(ic, rm->rdma.m_rdma_op);
 
 		/* If the user asked for a completion notification on this
 		 * message, we can implement three different semantics:
@@ -111,10 +111,10 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 		 */
 		rds_ib_send_rdma_complete(rm, wc_status);
 
-		if (rm->m_rdma_op->r_write)
-			rds_stats_add(s_send_rdma_bytes, rm->m_rdma_op->r_bytes);
+		if (rm->rdma.m_rdma_op->r_write)
+			rds_stats_add(s_send_rdma_bytes, rm->rdma.m_rdma_op->r_bytes);
 		else
-			rds_stats_add(s_recv_rdma_bytes, rm->m_rdma_op->r_bytes);
+			rds_stats_add(s_recv_rdma_bytes, rm->rdma.m_rdma_op->r_bytes);
 	}
 
 	/* If anyone waited for this message to get flushed out, wake
@@ -244,8 +244,8 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 				rm = rds_send_get_message(conn, send->s_op);
 				if (rm) {
-					if (rm->m_rdma_op)
-						rds_ib_send_unmap_rdma(ic, rm->m_rdma_op);
+					if (rm->rdma.m_rdma_op)
+						rds_ib_send_unmap_rdma(ic, rm->rdma.m_rdma_op);
 					rds_ib_send_rdma_complete(rm, wc.status);
 					rds_message_put(rm);
 				}
@@ -532,18 +532,20 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 				rm->m_inc.i_hdr.h_flags,
 				be32_to_cpu(rm->m_inc.i_hdr.h_len));
 		   */
-		if (rm->m_nents) {
-			rm->m_count = ib_dma_map_sg(dev,
-					 rm->m_sg, rm->m_nents, DMA_TO_DEVICE);
-			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->m_count);
-			if (rm->m_count == 0) {
+		if (rm->data.m_nents) {
+			rm->data.m_count = ib_dma_map_sg(dev,
+							    rm->data.m_sg,
+							    rm->data.m_nents,
+							    DMA_TO_DEVICE);
+			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.m_count);
+			if (rm->data.m_count == 0) {
 				rds_ib_stats_inc(s_ib_tx_sg_mapping_failure);
 				rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 				ret = -ENOMEM; /* XXX ? */
 				goto out;
 			}
 		} else {
-			rm->m_count = 0;
+			rm->data.m_count = 0;
 		}
 
 		ic->i_unsignaled_wrs = rds_ib_sysctl_max_unsig_wrs;
@@ -559,10 +561,10 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		/* If it has a RDMA op, tell the peer we did it. This is
 		 * used by the peer to release use-once RDMA MRs. */
-		if (rm->m_rdma_op) {
+		if (rm->rdma.m_rdma_op) {
 			struct rds_ext_header_rdma ext_hdr;
 
-			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->m_rdma_op->r_key);
+			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.m_rdma_op->r_key);
 			rds_message_add_extension(&rm->m_inc.i_hdr,
 					RDS_EXTHDR_RDMA, &ext_hdr, sizeof(ext_hdr));
 		}
@@ -590,7 +592,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &rm->m_sg[sg];
+	scat = &rm->data.m_sg[sg];
 	sent = 0;
 	i = 0;
 
@@ -600,7 +602,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	 * or when requested by the user. Right now, we let
 	 * the application choose.
 	 */
-	if (rm->m_rdma_op && rm->m_rdma_op->r_fence)
+	if (rm->rdma.m_rdma_op && rm->rdma.m_rdma_op->r_fence)
 		send_flags = IB_SEND_FENCE;
 
 	/*
@@ -619,7 +621,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	}
 
 	/* if there's data reference it with a chain of work reqs */
-	for (; i < work_alloc && scat != &rm->m_sg[rm->m_count]; i++) {
+	for (; i < work_alloc && scat != &rm->data.m_sg[rm->data.m_count]; i++) {
 		unsigned int len;
 
 		send = &ic->i_sends[pos];
@@ -697,7 +699,7 @@ add_header:
 		sent += sizeof(struct rds_header);
 
 	/* if we finished the message then send completion owns it */
-	if (scat == &rm->m_sg[rm->m_count]) {
+	if (scat == &rm->data.m_sg[rm->data.m_count]) {
 		prev->s_rm = ic->i_rm;
 		prev->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
 		ic->i_rm = NULL;

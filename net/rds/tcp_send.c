@@ -166,21 +166,21 @@ int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 			goto out;
 	}
 
-	while (sg < rm->m_nents) {
+	while (sg < rm->data.m_nents) {
 		ret = tc->t_sock->ops->sendpage(tc->t_sock,
-						sg_page(&rm->m_sg[sg]),
-						rm->m_sg[sg].offset + off,
-						rm->m_sg[sg].length - off,
+						sg_page(&rm->data.m_sg[sg]),
+						rm->data.m_sg[sg].offset + off,
+						rm->data.m_sg[sg].length - off,
 						MSG_DONTWAIT|MSG_NOSIGNAL);
-		rdsdebug("tcp sendpage %p:%u:%u ret %d\n", (void *)sg_page(&rm->m_sg[sg]),
-			 rm->m_sg[sg].offset + off, rm->m_sg[sg].length - off,
+		rdsdebug("tcp sendpage %p:%u:%u ret %d\n", (void *)sg_page(&rm->data.m_sg[sg]),
+			 rm->data.m_sg[sg].offset + off, rm->data.m_sg[sg].length - off,
 			 ret);
 		if (ret <= 0)
 			break;
 
 		off += ret;
 		done += ret;
-		if (off == rm->m_sg[sg].length) {
+		if (off == rm->data.m_sg[sg].length) {
 			off = 0;
 			sg++;
 		}

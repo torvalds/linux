@@ -166,7 +166,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		rm = conn->c_xmit_rm;
 		if (rm &&
 		    conn->c_xmit_hdr_off == sizeof(struct rds_header) &&
-		    conn->c_xmit_sg == rm->m_nents) {
+		    conn->c_xmit_sg == rm->data.m_nents) {
 			conn->c_xmit_rm = NULL;
 			conn->c_xmit_sg = 0;
 			conn->c_xmit_hdr_off = 0;
@@ -236,7 +236,7 @@ int rds_send_xmit(struct rds_connection *conn)
 			 * connection.
 			 * Therefore, we never retransmit messages with RDMA ops.
 			 */
-			if (rm->m_rdma_op &&
+			if (rm->rdma.m_rdma_op &&
 			    test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags)) {
 				spin_lock_irqsave(&conn->c_lock, flags);
 				if (test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags))
@@ -268,8 +268,8 @@ int rds_send_xmit(struct rds_connection *conn)
 		 * keep this simple and require that the transport either
 		 * send the whole rdma or none of it.
 		 */
-		if (rm->m_rdma_op && !conn->c_xmit_rdma_sent) {
-			ret = conn->c_trans->xmit_rdma(conn, rm->m_rdma_op);
+		if (rm->rdma.m_rdma_op && !conn->c_xmit_rdma_sent) {
+			ret = conn->c_trans->xmit_rdma(conn, rm->rdma.m_rdma_op);
 			if (ret)
 				break;
 			conn->c_xmit_rdma_sent = 1;
@@ -279,7 +279,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		}
 
 		if (conn->c_xmit_hdr_off < sizeof(struct rds_header) ||
-		    conn->c_xmit_sg < rm->m_nents) {
+		    conn->c_xmit_sg < rm->data.m_nents) {
 			ret = conn->c_trans->xmit(conn, rm,
 						  conn->c_xmit_hdr_off,
 						  conn->c_xmit_sg,
@@ -295,7 +295,7 @@ int rds_send_xmit(struct rds_connection *conn)
 				ret -= tmp;
 			}
 
-			sg = &rm->m_sg[conn->c_xmit_sg];
+			sg = &rm->data.m_sg[conn->c_xmit_sg];
 			while (ret) {
 				tmp = min_t(int, ret, sg->length -
 						      conn->c_xmit_data_off);
@@ -306,7 +306,7 @@ int rds_send_xmit(struct rds_connection *conn)
 					sg++;
 					conn->c_xmit_sg++;
 					BUG_ON(ret != 0 &&
-					       conn->c_xmit_sg == rm->m_nents);
+					       conn->c_xmit_sg == rm->data.m_nents);
 				}
 			}
 		}
@@ -419,7 +419,7 @@ void rds_rdma_send_complete(struct rds_message *rm, int status)
 
 	spin_lock_irqsave(&rm->m_rs_lock, flags);
 
-	ro = rm->m_rdma_op;
+	ro = rm->rdma.m_rdma_op;
 	if (test_bit(RDS_MSG_ON_SOCK, &rm->m_flags) &&
 	    ro && ro->r_notify && ro->r_notifier) {
 		notifier = ro->r_notifier;
@@ -453,7 +453,7 @@ __rds_rdma_send_complete(struct rds_sock *rs, struct rds_message *rm, int status
 {
 	struct rds_rdma_op *ro;
 
-	ro = rm->m_rdma_op;
+	ro = rm->rdma.m_rdma_op;
 	if (ro && ro->r_notify && ro->r_notifier) {
 		ro->r_notifier->n_status = status;
 		list_add_tail(&ro->r_notifier->n_list, &rs->rs_notify_queue);
@@ -477,7 +477,7 @@ struct rds_message *rds_send_get_message(struct rds_connection *conn,
 	spin_lock_irqsave(&conn->c_lock, flags);
 
 	list_for_each_entry_safe(rm, tmp, &conn->c_retrans, m_conn_item) {
-		if (rm->m_rdma_op == op) {
+		if (rm->rdma.m_rdma_op == op) {
 			atomic_inc(&rm->m_refcount);
 			found = rm;
 			goto out;
@@ -485,7 +485,7 @@ struct rds_message *rds_send_get_message(struct rds_connection *conn,
 	}
 
 	list_for_each_entry_safe(rm, tmp, &conn->c_send_queue, m_conn_item) {
-		if (rm->m_rdma_op == op) {
+		if (rm->rdma.m_rdma_op == op) {
 			atomic_inc(&rm->m_refcount);
 			found = rm;
 			break;
@@ -545,7 +545,7 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 		spin_lock(&rs->rs_lock);
 
 		if (test_and_clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags)) {
-			struct rds_rdma_op *ro = rm->m_rdma_op;
+			struct rds_rdma_op *ro = rm->rdma.m_rdma_op;
 			struct rds_notifier *notifier;
 
 			list_del_init(&rm->m_sock_item);
@@ -557,7 +557,7 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 						&rs->rs_notify_queue);
 				if (!notifier->n_status)
 					notifier->n_status = status;
-				rm->m_rdma_op->r_notifier = NULL;
+				rm->rdma.m_rdma_op->r_notifier = NULL;
 			}
 			was_on_sock = 1;
 			rm->m_rs = NULL;
@@ -874,11 +874,11 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (ret)
 		goto out;
 
-	if ((rm->m_rdma_cookie || rm->m_rdma_op) &&
+	if ((rm->m_rdma_cookie || rm->rdma.m_rdma_op) &&
 	    !conn->c_trans->xmit_rdma) {
 		if (printk_ratelimit())
 			printk(KERN_NOTICE "rdma_op %p conn xmit_rdma %p\n",
-				rm->m_rdma_op, conn->c_trans->xmit_rdma);
+				rm->rdma.m_rdma_op, conn->c_trans->xmit_rdma);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}

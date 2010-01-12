@@ -259,12 +259,18 @@ struct rds_message {
 	 */
 	spinlock_t		m_rs_lock;
 	struct rds_sock		*m_rs;
-	struct rds_rdma_op	*m_rdma_op;
 	rds_rdma_cookie_t	m_rdma_cookie;
-	struct rds_mr		*m_rdma_mr;
-	unsigned int		m_nents;
-	unsigned int		m_count;
-	struct scatterlist	m_sg[0];
+	struct {
+		struct {
+			struct rds_rdma_op	*m_rdma_op;
+			struct rds_mr		*m_rdma_mr;
+		} rdma;
+		struct {
+			unsigned int		m_nents;
+			unsigned int		m_count;
+			struct scatterlist	m_sg[0];
+		} data;
+	};
 };
 
 /*
