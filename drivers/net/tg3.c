@@ -4693,8 +4693,9 @@ next_pkt:
 		(*post_ptr)++;
 
 		if (unlikely(rx_std_posted >= tp->rx_std_max_post)) {
-			u32 idx = *post_ptr % TG3_RX_RING_SIZE;
-			tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG, idx);
+			tpr->rx_std_prod_idx = std_prod_idx % TG3_RX_RING_SIZE;
+			tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG,
+				     tpr->rx_std_prod_idx);
 			work_mask &= ~RXD_OPAQUE_RING_STD;
 			rx_std_posted = 0;
 		}
