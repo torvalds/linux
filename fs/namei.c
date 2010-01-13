@@ -1604,11 +1604,12 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct file *filp;
 	struct nameidata nd;
 	int error;
-	struct path path, save;
+	struct path path;
 	struct dentry *dir;
 	int count = 0;
 	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
+	int force_reval = 0;
 
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
@@ -1660,9 +1661,12 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	/*
 	 * Create - we need to know the parent.
 	 */
+reval:
 	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
+	if (force_reval)
+		nd.flags |= LOOKUP_REVAL;
 	error = path_walk(pathname, &nd);
 	if (error) {
 		if (nd.root.mnt)
@@ -1854,17 +1858,7 @@ do_link:
 	error = security_inode_follow_link(path.dentry, &nd);
 	if (error)
 		goto exit_dput;
-	save = nd.path;
-	path_get(&save);
 	error = __do_follow_link(&path, &nd);
-	if (error == -ESTALE) {
-		/* nd.path had been dropped */
-		nd.path = save;
-		path_get(&nd.path);
-		nd.flags |= LOOKUP_REVAL;
-		error = __do_follow_link(&path, &nd);
-	}
-	path_put(&save);
 	path_put(&path);
 	if (error) {
 		/* Does someone understand code flow here? Or it is only
@@ -1874,6 +1868,10 @@ do_link:
 		release_open_intent(&nd);
 		if (nd.root.mnt)
 			path_put(&nd.root);
+		if (error == -ESTALE && !force_reval) {
+			force_reval = 1;
+			goto reval;
+		}
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;
