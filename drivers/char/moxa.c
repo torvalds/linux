@@ -172,6 +172,9 @@ static unsigned int numports[MAX_BOARDS];
 MODULE_AUTHOR("William Chen");
 MODULE_DESCRIPTION("MOXA Intellio Family Multiport Board Device Driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("c218tunx.cod");
+MODULE_FIRMWARE("cp204unx.cod");
+MODULE_FIRMWARE("c320tunx.cod");
 
 module_param_array(type, uint, NULL, 0);
 MODULE_PARM_DESC(type, "card type: C218=2, C320=4");
