@@ -687,6 +687,9 @@ radeon_combios_get_tv_info(struct radeon_device *rdev)
 	uint16_t tv_info;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
 
+	if (rdev->bios == NULL)
+		return tv_std;
+
 	tv_info = combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 	if (tv_info) {
 		if (RBIOS8(tv_info + 6) == 'T') {

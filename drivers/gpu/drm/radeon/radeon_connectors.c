@@ -900,9 +900,17 @@ static void radeon_dvi_force(struct drm_connector *connector)
 static int radeon_dvi_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
 	/* XXX check mode bandwidth */
+
+	/* clocks over 135 MHz have heat issues with DVI on RV100 */
+	if (radeon_connector->use_digital &&
+	    (rdev->family == CHIP_RV100) &&
+	    (mode->clock > 135000))
+		return MODE_CLOCK_HIGH;
 
 	if (radeon_connector->use_digital && (mode->clock > 165000)) {
 		if ((radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_DUAL_LINK_DVI_I) ||

@@ -215,7 +215,10 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
+		if (rbo->rdev->cp.ready == false)
+			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
+		else
+			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
 		break;
 	case TTM_PL_TT:
 	default:
