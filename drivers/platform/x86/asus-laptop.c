@@ -241,6 +241,7 @@ struct asus_laptop {
 
 	int wireless_status;
 	bool have_rsts;
+	int lcd_state;
 
 	acpi_handle handle;	/* the handle of the hotk device */
 	char status;		/* status of the hotk, for LEDs, ... */
@@ -538,36 +539,41 @@ error:
 /*
  * Backlight device
  */
-static int get_lcd_state(struct asus_laptop *asus)
+static int asus_lcd_status(struct asus_laptop *asus)
 {
-	return read_status(asus, LCD_ON);
+	return asus->lcd_state;
 }
 
-static int set_lcd_state(struct asus_laptop *asus, int value)
+static int asus_lcd_set(struct asus_laptop *asus, int value)
 {
 	int lcd = 0;
 	acpi_status status = 0;
 
-	lcd = value ? 1 : 0;
+	lcd = !!value;
 
-	if (lcd == get_lcd_state(asus))
+	if (lcd == asus_lcd_status(asus))
 		return 0;
 
-	if (lcd_switch_handle) {
-		status = acpi_evaluate_object(lcd_switch_handle,
-					      NULL, NULL, NULL);
+	if (!lcd_switch_handle)
+		return -ENODEV;
 
-		if (ACPI_FAILURE(status))
-			pr_warning("Error switching LCD\n");
+	status = acpi_evaluate_object(lcd_switch_handle,
+				      NULL, NULL, NULL);
+
+	if (ACPI_FAILURE(status)) {
+		pr_warning("Error switching LCD\n");
+		return -ENODEV;
 	}
 
-	write_status(asus, NULL, lcd, LCD_ON);
+	asus->lcd_state = lcd;
 	return 0;
 }
 
 static void lcd_blank(struct asus_laptop *asus, int blank)
 {
 	struct backlight_device *bd = asus->backlight_device;
+
+	asus->lcd_state = (blank == FB_BLANK_UNBLANK);
 
 	if (bd) {
 		bd->props.power = blank;
@@ -607,7 +613,7 @@ static int update_bl_status(struct backlight_device *bd)
 		return rv;
 
 	value = (bd->props.power == FB_BLANK_UNBLANK) ? 1 : 0;
-	return set_lcd_state(asus, value);
+	return asus_lcd_set(asus, value);
 }
 
 static struct backlight_ops asusbl_ops = {
@@ -1144,13 +1150,10 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 	 * We need to tell the backlight device when the backlight power is
 	 * switched
 	 */
-	if (event == ATKD_LCD_ON) {
-		write_status(asus, NULL, 1, LCD_ON);
+	if (event == ATKD_LCD_ON)
 		lcd_blank(asus, FB_BLANK_UNBLANK);
-	} else if (event == ATKD_LCD_OFF) {
-		write_status(asus, NULL, 0, LCD_ON);
+	else if (event == ATKD_LCD_OFF)
 		lcd_blank(asus, FB_BLANK_POWERDOWN);
-	}
 
 	/* TODO Find a better way to handle events count. */
 	count = asus->event_count[event % 128]++;
