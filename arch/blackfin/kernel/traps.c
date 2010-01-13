@@ -138,6 +138,12 @@ static void decode_address(char *buf, unsigned long address)
 		if (!mm)
 			continue;
 
+		if (!down_read_trylock(&mm->mmap_sem)) {
+			if (!in_atomic)
+				mmput(mm);
+			continue;
+		}
+
 		for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
 			struct vm_area_struct *vma;
 
@@ -177,6 +183,7 @@ static void decode_address(char *buf, unsigned long address)
 					sprintf(buf, "[ %s vma:0x%lx-0x%lx]",
 						name, vma->vm_start, vma->vm_end);
 
+				up_read(&mm->mmap_sem);
 				if (!in_atomic)
 					mmput(mm);
 
@@ -186,11 +193,16 @@ static void decode_address(char *buf, unsigned long address)
 				goto done;
 			}
 		}
+
+		up_read(&mm->mmap_sem);
 		if (!in_atomic)
 			mmput(mm);
 	}
 
-	/* we were unable to find this address anywhere */
+	/*
+	 * we were unable to find this address anywhere,
+	 * or some MMs were skipped because they were in use.
+	 */
 	sprintf(buf, "/* kernel dynamic memory */");
 
 done:
