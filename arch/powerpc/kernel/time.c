@@ -265,8 +265,8 @@ void account_system_vtime(struct task_struct *tsk)
 		account_system_time(tsk, 0, delta, deltascaled);
 	else
 		account_idle_time(delta);
-	per_cpu(cputime_last_delta, smp_processor_id()) = delta;
-	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
+	__get_cpu_var(cputime_last_delta) = delta;
+	__get_cpu_var(cputime_scaled_last_delta) = deltascaled;
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
