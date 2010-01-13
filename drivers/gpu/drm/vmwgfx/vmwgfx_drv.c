@@ -217,6 +217,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
+	dev_priv->last_read_sequence = (uint32_t) -100;
 	mutex_init(&dev_priv->hw_mutex);
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	rwlock_init(&dev_priv->resource_lock);
