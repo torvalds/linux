@@ -32,7 +32,7 @@
 #define mb()		__asm__ __volatile__ ("synco": : :"memory")
 #define rmb()		mb()
 #define wmb()		__asm__ __volatile__ ("synco": : :"memory")
-#define ctrl_barrier()	__icbi(0xa8000000)
+#define ctrl_barrier()	__icbi(PAGE_OFFSET)
 #define read_barrier_depends()	do { } while(0)
 #else
 #define mb()		__asm__ __volatile__ ("": : :"memory")
