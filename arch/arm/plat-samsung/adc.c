@@ -1,10 +1,10 @@
-/* arch/arm/plat-s3c24xx/adc.c
+/* arch/arm/plat-samsung/adc.c
  *
  * Copyright (c) 2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>, <ben-linux@fluff.org>
  *
- * S3C24XX ADC device core
+ * Samsung ADC device core
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

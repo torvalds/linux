@@ -1,10 +1,10 @@
-/* arch/arm/plat-s3c/include/plat/adc.h
+/* arch/arm/plat-samsung/include/plat/adc.h
  *
  * Copyright (c) 2008 Simtec Electronics
  *	http://armlinux.simnte.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C24XX ADC driver information
+ * S3C ADC driver information
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
