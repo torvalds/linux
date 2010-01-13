@@ -52,6 +52,9 @@
 #include <asm/cpu.h>
 #include "entry.h"
 
+/* logical cpu to cpu address */
+int __cpu_logical_map[NR_CPUS];
+
 static struct task_struct *current_set[NR_CPUS];
 
 static u8 smp_cpu_type;
