@@ -56,6 +56,7 @@ static void __clk_disable(struct clk *clk)
 	__clk_disable(clk->parent);
 	__clk_disable(clk->secondary);
 
+	WARN_ON(!clk->usecount);
 	if (!(--clk->usecount) && clk->disable)
 		clk->disable(clk);
 }
