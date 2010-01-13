@@ -814,7 +814,9 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
 
-	return 0;
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+
+	return ret_val;
 }
 
 /**
@@ -1340,6 +1342,29 @@ static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
 }
 
 /**
+ *  e1000_read_mac_addr_80003es2lan - Read device MAC address
+ *  @hw: pointer to the HW structure
+ **/
+static s32 e1000_read_mac_addr_80003es2lan(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  * e1000_power_down_phy_copper_80003es2lan - Remove link during PHY power down
  * @hw: pointer to the HW structure
  *
@@ -1403,6 +1428,7 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 }
 
 static struct e1000_mac_operations es2_mac_ops = {
+	.read_mac_addr		= e1000_read_mac_addr_80003es2lan,
 	.id_led_init		= e1000e_id_led_init,
 	.check_mng_mode		= e1000e_check_mng_mode_generic,
 	/* check_for_link dependent on media type */

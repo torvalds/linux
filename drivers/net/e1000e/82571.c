@@ -922,9 +922,12 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
 
-	if (hw->mac.type == e1000_82571 &&
-		hw->dev_spec.e82571.alt_mac_addr_is_present)
-			e1000e_set_laa_state_82571(hw, true);
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		return ret_val;
+
+	e1000e_set_laa_state_82571(hw, true);
 
 	/* Reinitialize the 82571 serdes link state machine */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes)
@@ -1621,6 +1624,29 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_read_mac_addr_82571 - Read device MAC address
+ *  @hw: pointer to the HW structure
+ **/
+static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  * e1000_power_down_phy_copper_82571 - Remove link during PHY power down
  * @hw: pointer to the HW structure
  *
@@ -1706,6 +1732,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
 	.setup_led		= e1000e_setup_led_generic,
+	.read_mac_addr		= e1000_read_mac_addr_82571,
 };
 
 static struct e1000_phy_operations e82_phy_ops_igp = {

@@ -529,6 +529,7 @@ extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
 extern s32 e1000e_blink_led(struct e1000_hw *hw);
 extern void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
+extern s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 extern void e1000e_reset_adaptive(struct e1000_hw *hw);
 extern void e1000e_update_adaptive(struct e1000_hw *hw);
 
@@ -629,7 +630,15 @@ extern s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 
 extern s32 e1000e_validate_nvm_checksum_generic(struct e1000_hw *hw);
 extern void e1000e_release_nvm(struct e1000_hw *hw);
 extern void e1000e_reload_nvm(struct e1000_hw *hw);
-extern s32 e1000e_read_mac_addr(struct e1000_hw *hw);
+extern s32 e1000_read_mac_addr_generic(struct e1000_hw *hw);
+
+static inline s32 e1000e_read_mac_addr(struct e1000_hw *hw)
+{
+	if (hw->mac.ops.read_mac_addr)
+		return hw->mac.ops.read_mac_addr(hw);
+
+	return e1000_read_mac_addr_generic(hw);
+}
 
 static inline s32 e1000_validate_nvm_checksum(struct e1000_hw *hw)
 {

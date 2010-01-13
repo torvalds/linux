@@ -139,6 +139,68 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 }
 
 /**
+ *  e1000_check_alt_mac_addr_generic - Check for alternate MAC addr
+ *  @hw: pointer to the HW structure
+ *
+ *  Checks the nvm for an alternate MAC address.  An alternate MAC address
+ *  can be setup by pre-boot software and must be treated like a permanent
+ *  address and must override the actual permanent MAC address. If an
+ *  alternate MAC address is found it is programmed into RAR0, replacing
+ *  the permanent address that was installed into RAR0 by the Si on reset.
+ *  This function will return SUCCESS unless it encounters an error while
+ *  reading the EEPROM.
+ **/
+s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
+{
+	u32 i;
+	s32 ret_val = 0;
+	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
+	u8 alt_mac_addr[ETH_ALEN];
+
+	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
+	                         &nvm_alt_mac_addr_offset);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	if (nvm_alt_mac_addr_offset == 0xFFFF) {
+		/* There is no Alternate MAC Address */
+		goto out;
+	}
+
+	if (hw->bus.func == E1000_FUNC_1)
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
+	for (i = 0; i < ETH_ALEN; i += 2) {
+		offset = nvm_alt_mac_addr_offset + (i >> 1);
+		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
+		if (ret_val) {
+			e_dbg("NVM Read Error\n");
+			goto out;
+		}
+
+		alt_mac_addr[i] = (u8)(nvm_data & 0xFF);
+		alt_mac_addr[i + 1] = (u8)(nvm_data >> 8);
+	}
+
+	/* if multicast bit is set, the alternate address will not be used */
+	if (alt_mac_addr[0] & 0x01) {
+		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
+		goto out;
+	}
+
+	/*
+	 * We have a valid alternate MAC address, and we want to treat it the
+	 * same as the normal permanent MAC address stored by the HW into the
+	 * RAR. Do this by mapping this address into RAR0.
+	 */
+	e1000e_rar_set(hw, alt_mac_addr, 0);
+
+out:
+	return ret_val;
+}
+
+/**
  *  e1000e_rar_set - Set receive address register
  *  @hw: pointer to the HW structure
  *  @addr: pointer to the receive address
@@ -2072,67 +2134,27 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 }
 
 /**
- *  e1000e_read_mac_addr - Read device MAC address
+ *  e1000_read_mac_addr_generic - Read device MAC address
  *  @hw: pointer to the HW structure
  *
  *  Reads the device MAC address from the EEPROM and stores the value.
  *  Since devices with two ports use the same EEPROM, we increment the
  *  last bit in the MAC address for the second port.
  **/
-s32 e1000e_read_mac_addr(struct e1000_hw *hw)
+s32 e1000_read_mac_addr_generic(struct e1000_hw *hw)
 {
-	s32 ret_val;
-	u16 offset, nvm_data, i;
-	u16 mac_addr_offset = 0;
+	u32 rar_high;
+	u32 rar_low;
+	u16 i;
 
-	if (hw->mac.type == e1000_82571) {
-		/* Check for an alternate MAC address.  An alternate MAC
-		 * address can be setup by pre-boot software and must be
-		 * treated like a permanent address and must override the
-		 * actual permanent MAC address.*/
-		ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
-					 &mac_addr_offset);
-		if (ret_val) {
-			e_dbg("NVM Read Error\n");
-			return ret_val;
-		}
-		if (mac_addr_offset == 0xFFFF)
-			mac_addr_offset = 0;
+	rar_high = er32(RAH(0));
+	rar_low = er32(RAL(0));
 
-		if (mac_addr_offset) {
-			if (hw->bus.func == E1000_FUNC_1)
-				mac_addr_offset += ETH_ALEN/sizeof(u16);
+	for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i] = (u8)(rar_low >> (i*8));
 
-			/* make sure we have a valid mac address here
-			* before using it */
-			ret_val = e1000_read_nvm(hw, mac_addr_offset, 1,
-						 &nvm_data);
-			if (ret_val) {
-				e_dbg("NVM Read Error\n");
-				return ret_val;
-			}
-			if (nvm_data & 0x0001)
-				mac_addr_offset = 0;
-		}
-
-		if (mac_addr_offset)
-		hw->dev_spec.e82571.alt_mac_addr_is_present = 1;
-	}
-
-	for (i = 0; i < ETH_ALEN; i += 2) {
-		offset = mac_addr_offset + (i >> 1);
-		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
-		if (ret_val) {
-			e_dbg("NVM Read Error\n");
-			return ret_val;
-		}
-		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
-		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
-	}
-
-	/* Flip last bit of mac address if we're on second port */
-	if (!mac_addr_offset && hw->bus.func == E1000_FUNC_1)
-		hw->mac.perm_addr[5] ^= 1;
+	for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i+4] = (u8)(rar_high >> (i*8));
 
 	for (i = 0; i < ETH_ALEN; i++)
 		hw->mac.addr[i] = hw->mac.perm_addr[i];

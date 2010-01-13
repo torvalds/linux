@@ -389,6 +389,9 @@ enum e1e_registers {
 
 #define E1000_FUNC_1 1
 
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+
 enum e1000_mac_type {
 	e1000_82571,
 	e1000_82572,
@@ -756,6 +759,7 @@ struct e1000_mac_operations {
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
 /* Function pointers for the PHY. */
@@ -897,7 +901,6 @@ struct e1000_fc_info {
 
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
-	bool alt_mac_addr_is_present;
 	u32 smb_counter;
 };
 
