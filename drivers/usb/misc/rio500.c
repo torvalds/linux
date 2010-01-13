@@ -77,7 +77,7 @@ static struct rio_usb_data rio_instance;
 static int open_rio(struct inode *inode, struct file *file)
 {
 	struct rio_usb_data *rio = &rio_instance;
-
+	lock_kernel();
 	mutex_lock(&(rio->lock));
 
 	if (rio->isopen || !rio->present) {
@@ -91,6 +91,7 @@ static int open_rio(struct inode *inode, struct file *file)
 	mutex_unlock(&(rio->lock));
 
 	dev_info(&rio->rio_dev->dev, "Rio opened.\n");
+	unlock_kernel();
 
 	return 0;
 }

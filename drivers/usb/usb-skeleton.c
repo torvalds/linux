@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
+#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
@@ -90,6 +91,7 @@ static int skel_open(struct inode *inode, struct file *file)
 	int subminor;
 	int retval = 0;
 
+	lock_kernel();
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&skel_driver, subminor);
@@ -135,6 +137,7 @@ static int skel_open(struct inode *inode, struct file *file)
 	mutex_unlock(&dev->io_mutex);
 
 exit:
+	unlock_kernel();
 	return retval;
 }
 

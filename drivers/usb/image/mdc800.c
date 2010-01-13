@@ -96,6 +96,7 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <linux/usb.h>
 #include <linux/fs.h>
@@ -622,6 +623,7 @@ static int mdc800_device_open (struct inode* inode, struct file *file)
 	int retval=0;
 	int errn=0;
 
+	lock_kernel();
 	mutex_lock(&mdc800->io_lock);
 	
 	if (mdc800->state == NOT_CONNECTED)
@@ -660,6 +662,7 @@ static int mdc800_device_open (struct inode* inode, struct file *file)
 
 error_out:
 	mutex_unlock(&mdc800->io_lock);
+	unlock_kernel();
 	return errn;
 }
 

@@ -602,10 +602,12 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 	dbg("%s", __func__);
 
+	lock_kernel();
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
+		unlock_kernel();
 		err("%s - error, can't find device for minor %d", __func__,
 		    subminor);
 		return -ENODEV;
@@ -615,6 +617,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		mutex_unlock(&iowarrior_open_disc_lock);
+		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -641,6 +644,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 out:
 	mutex_unlock(&dev->mutex);
+	unlock_kernel();
 	return retval;
 }
 
