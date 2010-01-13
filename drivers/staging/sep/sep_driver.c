@@ -223,6 +223,9 @@ static int sep_load_firmware(struct sep_device *sep)
 	return 0;
 }
 
+MODULE_FIRMWARE("sep/cache.image.bin");
+MODULE_FIRMWARE("sep/resident.image.bin");
+
 /**
  *	sep_map_and_alloc_shared_area	-	allocate shared block
  *	@sep: security processor
