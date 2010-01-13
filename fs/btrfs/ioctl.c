@@ -1843,6 +1843,49 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	return 0;
 }
 
+long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_space_args space_args;
+	struct btrfs_ioctl_space_info space;
+	struct btrfs_ioctl_space_info *dest;
+	struct btrfs_space_info *info;
+	int ret = 0;
+
+	if (copy_from_user(&space_args,
+			   (struct btrfs_ioctl_space_args __user *)arg,
+			   sizeof(space_args)))
+		return -EFAULT;
+
+	space_args.total_spaces = 0;
+	dest = (struct btrfs_ioctl_space_info *)
+		(arg + sizeof(struct btrfs_ioctl_space_args));
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(info, &root->fs_info->space_info, list) {
+		if (!space_args.space_slots) {
+			space_args.total_spaces++;
+			continue;
+		}
+		if (space_args.total_spaces >= space_args.space_slots)
+			break;
+		space.flags = info->flags;
+		space.total_bytes = info->total_bytes;
+		space.used_bytes = info->bytes_used;
+		if (copy_to_user(dest, &space, sizeof(space))) {
+			ret = -EFAULT;
+			break;
+		}
+		dest++;
+		space_args.total_spaces++;
+	}
+	rcu_read_unlock();
+
+	if (copy_to_user(arg, &space_args, sizeof(space_args)))
+		ret = -EFAULT;
+
+	return ret;
+}
+
 /*
  * there are many ways the trans_start and trans_end ioctls can lead
  * to deadlocks.  They should only be used by applications that
@@ -1915,6 +1958,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_tree_search(file, argp);
 	case BTRFS_IOC_INO_LOOKUP:
 		return btrfs_ioctl_ino_lookup(file, argp);
+	case BTRFS_IOC_SPACE_INFO:
+		return btrfs_ioctl_space_info(root, argp);
 	case BTRFS_IOC_SYNC:
 		btrfs_sync_fs(file->f_dentry->d_sb, 1);
 		return 0;

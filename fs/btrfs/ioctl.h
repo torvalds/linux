@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  *
@@ -127,6 +126,17 @@ struct btrfs_ioctl_defrag_range_args {
 	__u32 unused[5];
 };
 
+struct btrfs_ioctl_space_info {
+	u64 flags;
+	u64 total_bytes;
+	u64 used_bytes;
+};
+
+struct btrfs_ioctl_space_args {
+	u64 space_slots;
+	u64 total_spaces;
+	struct btrfs_ioctl_space_info spaces[0];
+};
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
 				   struct btrfs_ioctl_vol_args)
@@ -166,4 +176,6 @@ struct btrfs_ioctl_defrag_range_args {
 #define BTRFS_IOC_INO_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
 				   struct btrfs_ioctl_ino_lookup_args)
 #define BTRFS_IOC_DEFAULT_SUBVOL _IOW(BTRFS_IOCTL_MAGIC, 19, u64)
+#define BTRFS_IOC_SPACE_INFO _IOWR(BTRFS_IOCTL_MAGIC, 20, \
+				    struct btrfs_ioctl_space_args)
 #endif
