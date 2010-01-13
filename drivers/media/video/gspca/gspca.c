@@ -589,6 +589,8 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		goto out;
 	}
 
+	gspca_dev->usb_err = 0;
+
 	/* set the higher alternate setting and
 	 * loop until urb submit succeeds */
 	if (gspca_dev->cam.reverse_alts)
