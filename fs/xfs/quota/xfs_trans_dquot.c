@@ -589,14 +589,6 @@ xfs_trans_unreserve_and_mod_dquots(
 	}
 }
 
-STATIC int
-xfs_quota_error(uint flags)
-{
-	if (flags & XFS_QMOPT_ENOSPC)
-		return ENOSPC;
-	return EDQUOT;
-}
-
 /*
  * This reserves disk blocks and inodes against a dquot.
  * Flags indicate if the dquot is to be locked here and also
@@ -612,7 +604,6 @@ xfs_trans_dqresv(
 	long		ninos,
 	uint		flags)
 {
-	int		error;
 	xfs_qcnt_t	hardlimit;
 	xfs_qcnt_t	softlimit;
 	time_t		timer;
@@ -649,7 +640,6 @@ xfs_trans_dqresv(
 		warnlimit = XFS_QI_RTBWARNLIMIT(dqp->q_mount);
 		resbcountp = &dqp->q_res_rtbcount;
 	}
-	error = 0;
 
 	if ((flags & XFS_QMOPT_FORCE_RES) == 0 &&
 	    dqp->q_core.d_id &&
@@ -667,19 +657,13 @@ xfs_trans_dqresv(
 			 * nblks.
 			 */
 			if (hardlimit > 0ULL &&
-			     (hardlimit <= nblks + *resbcountp)) {
-				error = xfs_quota_error(flags);
+			    hardlimit <= nblks + *resbcountp)
 				goto error_return;
-			}
-
 			if (softlimit > 0ULL &&
-			     (softlimit <= nblks + *resbcountp)) {
-				if ((timer != 0 && get_seconds() > timer) ||
-				    (warns != 0 && warns >= warnlimit)) {
-					error = xfs_quota_error(flags);
-					goto error_return;
-				}
-			}
+			    softlimit <= nblks + *resbcountp &&
+			    ((timer != 0 && get_seconds() > timer) ||
+			     (warns != 0 && warns >= warnlimit)))
+				goto error_return;
 		}
 		if (ninos > 0) {
 			count = be64_to_cpu(dqp->q_core.d_icount);
@@ -692,16 +676,13 @@ xfs_trans_dqresv(
 			softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
 			if (!softlimit)
 				softlimit = q->qi_isoftlimit;
-			if (hardlimit > 0ULL && count >= hardlimit) {
-				error = xfs_quota_error(flags);
+
+			if (hardlimit > 0ULL && count >= hardlimit)
 				goto error_return;
-			} else if (softlimit > 0ULL && count >= softlimit) {
-				if ((timer != 0 && get_seconds() > timer) ||
-				     (warns != 0 && warns >= warnlimit)) {
-					error = xfs_quota_error(flags);
-					goto error_return;
-				}
-			}
+			if (softlimit > 0ULL && count >= softlimit &&
+			    ((timer != 0 && get_seconds() > timer) ||
+			     (warns != 0 && warns >= warnlimit)))
+				goto error_return;
 		}
 	}
 
@@ -736,9 +717,14 @@ xfs_trans_dqresv(
 	ASSERT(dqp->q_res_rtbcount >= be64_to_cpu(dqp->q_core.d_rtbcount));
 	ASSERT(dqp->q_res_icount >= be64_to_cpu(dqp->q_core.d_icount));
 
+	xfs_dqunlock(dqp);
+	return 0;
+
 error_return:
 	xfs_dqunlock(dqp);
-	return error;
+	if (flags & XFS_QMOPT_ENOSPC)
+		return ENOSPC;
+	return EDQUOT;
 }
 
 
