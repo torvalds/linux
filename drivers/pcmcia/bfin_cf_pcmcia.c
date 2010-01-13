@@ -205,7 +205,7 @@ static int __devinit bfin_cf_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Blackfin CompactFlash/PCMCIA Socket Driver\n");
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq)
+	if (irq <= 0)
 		return -EINVAL;
 
 	cd_pfx = platform_get_irq(pdev, 1);	/*Card Detect GPIO PIN */
