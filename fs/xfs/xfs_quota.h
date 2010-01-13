@@ -226,7 +226,6 @@ typedef struct xfs_qoff_logformat {
  * flags for dqflush and dqflush_all.
  */
 #define XFS_QMOPT_SYNC		0x1000000
-#define XFS_QMOPT_ASYNC		0x2000000
 #define XFS_QMOPT_DELWRI	0x4000000
 
 /*

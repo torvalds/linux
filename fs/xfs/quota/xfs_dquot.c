@@ -1253,8 +1253,6 @@ xfs_qm_dqflush(
 
 	if (flags & XFS_QMOPT_DELWRI) {
 		xfs_bdwrite(mp, bp);
-	} else if (flags & XFS_QMOPT_ASYNC) {
-		error = xfs_bawrite(mp, bp);
 	} else {
 		error = xfs_bwrite(mp, bp);
 	}
