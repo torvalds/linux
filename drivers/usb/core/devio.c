@@ -1719,9 +1719,12 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EPERM;
+
+	lock_kernel();
 	usb_lock_device(dev);
 	if (!connected(ps)) {
 		usb_unlock_device(dev);
+		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -1780,10 +1783,12 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case USBDEVFS_SUBMITURB:
+		unlock_kernel();
 		snoop(&dev->dev, "%s: SUBMITURB\n", __func__);
 		ret = proc_submiturb(ps, p);
 		if (ret >= 0)
 			inode->i_mtime = CURRENT_TIME;
+		lock_kernel();
 		break;
 
 #ifdef CONFIG_COMPAT
@@ -1835,13 +1840,17 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case USBDEVFS_REAPURB:
+		unlock_kernel();
 		snoop(&dev->dev, "%s: REAPURB\n", __func__);
 		ret = proc_reapurb(ps, p);
+		lock_kernel();
 		break;
 
 	case USBDEVFS_REAPURBNDELAY:
+		unlock_kernel();
 		snoop(&dev->dev, "%s: REAPURBNDELAY\n", __func__);
 		ret = proc_reapurbnonblock(ps, p);
+		lock_kernel();
 		break;
 
 	case USBDEVFS_DISCSIGNAL:
@@ -1875,6 +1884,7 @@ static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	usb_unlock_device(dev);
+	unlock_kernel();
 	if (ret >= 0)
 		inode->i_atime = CURRENT_TIME;
 	return ret;
@@ -1885,9 +1895,7 @@ static long usbdev_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret;
 
-	lock_kernel();
 	ret = usbdev_do_ioctl(file, cmd, (void __user *)arg);
-	unlock_kernel();
 
 	return ret;
 }
@@ -1898,9 +1906,7 @@ static long usbdev_compat_ioctl(struct file *file, unsigned int cmd,
 {
 	int ret;
 
-	lock_kernel();
 	ret = usbdev_do_ioctl(file, cmd, compat_ptr(arg));
-	unlock_kernel();
 
 	return ret;
 }
