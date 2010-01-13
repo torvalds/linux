@@ -5576,6 +5576,10 @@ static void ixgbe_netpoll(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i;
 
+	/* if interface is down do nothing */
+	if (test_bit(__IXGBE_DOWN, &adapter->state))
+		return;
+
 	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
