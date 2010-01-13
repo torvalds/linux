@@ -228,7 +228,7 @@ int __init detect_cpu_and_cache_system(void)
 			 * Size calculation is much more sensible
 			 * than it is for the L1.
 			 *
-			 * Sizes are 128KB, 258KB, 512KB, and 1MB.
+			 * Sizes are 128KB, 256KB, 512KB, and 1MB.
 			 */
 			size = (cvr & 0xf) << 17;
 
