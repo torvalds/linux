@@ -784,53 +784,6 @@ write_retry:
 }
 
 /*
- * All xfs metadata buffers except log state machine buffers
- * get this attached as their b_bdstrat callback function.
- * This is so that we can catch a buffer
- * after prematurely unpinning it to forcibly shutdown the filesystem.
- */
-int
-xfs_bdstrat_cb(struct xfs_buf *bp)
-{
-	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-		trace_xfs_bdstrat_shut(bp, _RET_IP_);
-		/*
-		 * Metadata write that didn't get logged but
-		 * written delayed anyway. These aren't associated
-		 * with a transaction, and can be ignored.
-		 */
-		if (XFS_BUF_IODONE_FUNC(bp) == NULL &&
-		    (XFS_BUF_ISREAD(bp)) == 0)
-			return (xfs_bioerror_relse(bp));
-		else
-			return (xfs_bioerror(bp));
-	}
-
-	xfs_buf_iorequest(bp);
-	return 0;
-}
-
-/*
- * Wrapper around bdstrat so that we can stop data from going to disk in case
- * we are shutting down the filesystem.  Typically user data goes thru this
- * path; one of the exceptions is the superblock.
- */
-void
-xfsbdstrat(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	ASSERT(mp);
-	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		xfs_buf_iorequest(bp);
-		return;
-	}
-
-	trace_xfs_bdstrat_shut(bp, _RET_IP_);
-	xfs_bioerror_relse(bp);
-}
-
-/*
  * If the underlying (data/log/rt) device is readonly, there are some
  * operations that cannot proceed.
  */
