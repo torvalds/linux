@@ -111,11 +111,21 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		}
 	}
 
-	printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",
-			&conn->c_faddr,
-			RDS_PROTOCOL_MAJOR(conn->c_version),
-			RDS_PROTOCOL_MINOR(conn->c_version),
-			ic->i_flowctl ? ", flow control" : "");
+	if (conn->c_version < RDS_PROTOCOL(3,1)) {
+		printk(KERN_NOTICE "RDS/IB: Connection to %pI4 version %u.%u failed,"
+		       " no longer supported\n",
+		       &conn->c_faddr,
+		       RDS_PROTOCOL_MAJOR(conn->c_version),
+		       RDS_PROTOCOL_MINOR(conn->c_version));
+		rds_conn_destroy(conn);
+		return;
+	} else {
+		printk(KERN_NOTICE "RDS/IB: connected to %pI4 version %u.%u%s\n",
+		       &conn->c_faddr,
+		       RDS_PROTOCOL_MAJOR(conn->c_version),
+		       RDS_PROTOCOL_MINOR(conn->c_version),
+		       ic->i_flowctl ? ", flow control" : "");
+	}
 
 	/*
 	 * Init rings and fill recv. this needs to wait until protocol negotiation
