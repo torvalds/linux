@@ -1867,3 +1867,4 @@ void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
 	while (ttm_bo_swapout(&bdev->glob->shrink) == 0)
 		;
 }
+EXPORT_SYMBOL(ttm_bo_swapout_all);
