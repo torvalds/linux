@@ -1113,7 +1113,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	set_led(gspca_dev, 0);
 	reg_w(gspca_dev, 0xe0, 0x00);
 
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
@@ -1172,7 +1172,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xe0, 0x00);
 	reg_w(gspca_dev, 0xe0, 0x00);
 	set_led(gspca_dev, 1);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -1271,7 +1271,7 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 	sd->brightness = val;
 	if (gspca_dev->streaming)
 		setbrightness(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
@@ -1289,7 +1289,7 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	sd->contrast = val;
 	if (gspca_dev->streaming)
 		setcontrast(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
@@ -1313,7 +1313,7 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 			gspca_dev->ctrl_inac &= ~(1 << EXPO_IDX);
 		setautogain(gspca_dev);
 	}
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -1331,7 +1331,7 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
 	sd->exposure = val;
 	if (gspca_dev->streaming)
 		setexposure(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
@@ -1349,7 +1349,7 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
 	sd->sharpness = val;
 	if (gspca_dev->streaming)
 		setsharpness(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
@@ -1367,7 +1367,7 @@ static int sd_setsatur(struct gspca_dev *gspca_dev, __s32 val)
 	sd->satur = val;
 	if (gspca_dev->streaming)
 		setsatur(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getsatur(struct gspca_dev *gspca_dev, __s32 *val)
@@ -1384,7 +1384,7 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
 	sd->freq = val;
 	if (gspca_dev->streaming)
 		setfreq(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val)
