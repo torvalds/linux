@@ -3962,7 +3962,7 @@ static struct ssb_driver b43legacy_ssb_driver = {
 
 static void b43legacy_print_driverinfo(void)
 {
-	const char *feat_pci = "", *feat_leds = "", *feat_rfkill = "",
+	const char *feat_pci = "", *feat_leds = "",
 		   *feat_pio = "", *feat_dma = "";
 
 #ifdef CONFIG_B43LEGACY_PCI_AUTOSELECT
@@ -3971,9 +3971,6 @@ static void b43legacy_print_driverinfo(void)
 #ifdef CONFIG_B43LEGACY_LEDS
 	feat_leds = "L";
 #endif
-#ifdef CONFIG_B43LEGACY_RFKILL
-	feat_rfkill = "R";
-#endif
 #ifdef CONFIG_B43LEGACY_PIO
 	feat_pio = "I";
 #endif
@@ -3981,9 +3978,9 @@ static void b43legacy_print_driverinfo(void)
 	feat_dma = "D";
 #endif
 	printk(KERN_INFO "Broadcom 43xx-legacy driver loaded "
-	       "[ Features: %s%s%s%s%s, Firmware-ID: "
+	       "[ Features: %s%s%s%s, Firmware-ID: "
 	       B43legacy_SUPPORTED_FIRMWARE_ID " ]\n",
-	       feat_pci, feat_leds, feat_rfkill, feat_pio, feat_dma);
+	       feat_pci, feat_leds, feat_pio, feat_dma);
 }
 
 static int __init b43legacy_init(void)
