@@ -192,6 +192,19 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.priv = 0},
 };
 
+static const struct v4l2_pix_format broken_vga_mode[] = {
+	{320, 232, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 232 * 4 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 1},
+	{640, 472, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 472 * 3 / 8 + 590,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.priv = 0},
+};
+
 static const struct v4l2_pix_format sif_mode[] = {
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 176,
@@ -6573,7 +6586,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	int sensor;
-	int vga = 1;		/* 1: vga, 0: sif */
 	static const u8 gamma[SENSOR_MAX] = {
 		4,	/* SENSOR_ADCM2700 0 */
 		4,	/* SENSOR_CS2102 1 */
@@ -6594,6 +6606,27 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		4,	/* SENSOR_TAS5130CK 16 */
 		3,	/* SENSOR_TAS5130CXX 17 */
 		3,	/* SENSOR_TAS5130C_VF0250 18 */
+	};
+	static const u8 mode_tb[SENSOR_MAX] = {
+		2,	/* SENSOR_ADCM2700 0 */
+		1,	/* SENSOR_CS2102 1 */
+		1,	/* SENSOR_CS2102K 2 */
+		1,	/* SENSOR_GC0305 3 */
+		1,	/* SENSOR_HDCS2020b 4 */
+		1,	/* SENSOR_HV7131B 5 */
+		1,	/* SENSOR_HV7131C 6 */
+		1,	/* SENSOR_ICM105A 7 */
+		2,	/* SENSOR_MC501CB 8 */
+		1,	/* SENSOR_MI0360SOC 9 */
+		2,	/* SENSOR_OV7620 10 */
+		1,	/* SENSOR_OV7630C 11 */
+		0,	/* SENSOR_PAS106 12 */
+		1,	/* SENSOR_PAS202B 13 */
+		1,	/* SENSOR_PB0330 14 */
+		1,	/* SENSOR_PO2030 15 */
+		1,	/* SENSOR_TAS5130CK 16 */
+		1,	/* SENSOR_TAS5130CXX 17 */
+		1,	/* SENSOR_TAS5130C_VF0250 18 */
 	};
 
 	/* define some sensors from the vendor/product */
@@ -6668,7 +6701,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0x0f:
 			PDEBUG(D_PROBE, "Find Sensor PAS106");
 			sd->sensor = SENSOR_PAS106;
-			vga = 0;		/* SIF */
 			break;
 		case 0x10:
 		case 0x12:
@@ -6740,12 +6772,20 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 /*fixme:test*/
 	gspca_dev->nbalt--;
-	if (vga) {
-		cam->cam_mode = vga_mode;
-		cam->nmodes = ARRAY_SIZE(vga_mode);
-	} else {
+	switch (mode_tb[sd->sensor]) {
+	case 0:
 		cam->cam_mode = sif_mode;
 		cam->nmodes = ARRAY_SIZE(sif_mode);
+		break;
+	case 1:
+		cam->cam_mode = vga_mode;
+		cam->nmodes = ARRAY_SIZE(vga_mode);
+		break;
+	default:
+/*	case 2: */
+		cam->cam_mode = broken_vga_mode;
+		cam->nmodes = ARRAY_SIZE(broken_vga_mode);
+		break;
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
