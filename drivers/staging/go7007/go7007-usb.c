@@ -444,6 +444,8 @@ static struct go7007_usb_board board_sensoray_2250 = {
 	},
 };
 
+MODULE_FIRMWARE("go7007tv.bin");
+
 static const struct usb_device_id go7007_usb_id_table[] = {
 	{
 		.match_flags	= USB_DEVICE_ID_MATCH_DEVICE_AND_VERSION |

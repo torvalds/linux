@@ -538,3 +538,4 @@ bool FirmwareDownload92S(struct net_device *dev)
 	return rtStatus;
 }
 
+MODULE_FIRMWARE("RTL8192SU/rtl8192sfw.bin");

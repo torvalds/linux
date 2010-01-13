@@ -53,6 +53,7 @@
 /* Local Constants */
 
 #define PRISM2_USB_FWFILE	"prism2_ru.fw"
+MODULE_FIRMWARE(PRISM2_USB_FWFILE);
 
 #define S3DATA_MAX		5000
 #define S3PLUG_MAX		200
