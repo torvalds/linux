@@ -408,8 +408,6 @@ static inline int XFS_bwrite(xfs_buf_t *bp)
 	return error;
 }
 
-#define XFS_bdstrat(bp) xfs_buf_iorequest(bp)
-
 #define xfs_iowait(bp)	xfs_buf_iowait(bp)
 
 #define xfs_baread(target, rablkno, ralen)  \
