@@ -1,5 +1,5 @@
-Copyright (C) 2002-2008 Sentelic Corporation.
-Last update: Oct-31-2008
+Copyright (C) 2002-2010 Sentelic Corporation.
+Last update: Jan-13-2010
 
 ==============================================================================
 * Finger Sensing Pad Intellimouse Mode(scrolling wheel, 4th and 5th buttons)
@@ -44,7 +44,7 @@ B) MSID 6: Horizontal and Vertical scrolling.
 Packet 1
    Bit 7 6 5 4 3 2 1 0       7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0
 BYTE  |---------------|BYTE |---------------|BYTE|---------------|BYTE|---------------|
-  1   |Y|X|y|x|1|M|R|L|  2  |X|X|X|X|X|X|X|X|  3 |Y|Y|Y|Y|Y|Y|Y|Y|  4 | | |B|F|l|r|u|d|
+  1   |Y|X|y|x|1|M|R|L|  2  |X|X|X|X|X|X|X|X|  3 |Y|Y|Y|Y|Y|Y|Y|Y|  4 | | |B|F|r|l|u|d|
       |---------------|     |---------------|    |---------------|    |---------------|
 
 Byte 1: Bit7 => Y overflow
@@ -59,15 +59,15 @@ Byte 2: X Movement(9-bit 2's complement integers)
 Byte 3: Y Movement(9-bit 2's complement integers)
 Byte 4: Bit0 => the Vertical scrolling movement downward.
 	Bit1 => the Vertical scrolling movement upward.
-	Bit2 => the Vertical scrolling movement rightward.
-	Bit3 => the Vertical scrolling movement leftward.
+	Bit2 => the Horizontal scrolling movement leftward.
+	Bit3 => the Horizontal scrolling movement rightward.
         Bit4 => 1 = 4th mouse button is pressed, Forward one page.
                 0 = 4th mouse button is not pressed.
         Bit5 => 1 = 5th mouse button is pressed, Backward one page.
                 0 = 5th mouse button is not pressed.
 
 C) MSID 7:
-# FSP uses 2 packets(8 Bytes) data to represent Absolute Position
+# FSP uses 2 packets (8 Bytes) to represent Absolute Position.
   so we have PACKET NUMBER to identify packets.
   If PACKET NUMBER is 0, the packet is Packet 1.
   If PACKET NUMBER is 1, the packet is Packet 2.
@@ -129,7 +129,7 @@ Byte 3: Message Type => 0x00 (Disabled)
 Byte 4: Bit7~Bit0 => Don't Care
 
 ==============================================================================
-* Absolute position for STL3888-A0.
+* Absolute position for STL3888-Ax.
 ==============================================================================
 Packet 1 (ABSOLUTE POSITION)
    Bit 7 6 5 4 3 2 1 0       7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0
@@ -179,14 +179,14 @@ Byte 4: Bit1~Bit0 => Y coordinate (xpos[1:0])
         Bit5~Bit4 => y2_g
         Bit7~Bit6 => x2_g
 
-Notify Packet for STL3888-A0
+Notify Packet for STL3888-Ax
    Bit 7 6 5 4 3 2 1 0       7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0
 BYTE  |---------------|BYTE |---------------|BYTE|---------------|BYTE|---------------|
   1   |1|0|1|P|1|M|R|L|  2  |C|C|C|C|C|C|C|C|  3 |0|0|F|F|0|0|0|i|  4 |r|l|d|u|0|0|0|0|
       |---------------|     |---------------|    |---------------|    |---------------|
 
 Byte 1: Bit7~Bit6 => 00, Normal data packet
-                  => 01, Absolute coordination packet
+                  => 01, Absolute coordinates packet
                   => 10, Notify packet
         Bit5 => 1
         Bit4 => when in absolute coordinates mode (valid when EN_PKT_GO is 1):
@@ -205,15 +205,106 @@ Byte 4: Bit7 => scroll right button
         Bit6 => scroll left button
         Bit5 => scroll down button
         Bit4 => scroll up button
-            * Note that if gesture and additional button (Bit4~Bit7)
-	      happen at the same time, the button information will not
-	      be sent.
+            * Note that if gesture and additional buttoni (Bit4~Bit7)
+              happen at the same time, the button information will not
+              be sent.
         Bit3~Bit0 => Reserved
 
 Sample sequence of Multi-finger, Multi-coordinate mode:
 
 	notify packet (valid bit == 1), abs pkt 1, abs pkt 2, abs pkt 1,
-	abs pkt 2, ..., notify packet(valid bit == 0)
+	abs pkt 2, ..., notify packet (valid bit == 0)
+
+==============================================================================
+* Absolute position for STL3888-B0.
+==============================================================================
+Packet 1(ABSOLUTE POSITION)
+   Bit 7 6 5 4 3 2 1 0       7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0
+BYTE  |---------------|BYTE |---------------|BYTE|---------------|BYTE|---------------|
+  1   |0|1|V|F|1|0|R|L|  2  |X|X|X|X|X|X|X|X|  3 |Y|Y|Y|Y|Y|Y|Y|Y|  4 |r|l|u|d|X|X|Y|Y|
+      |---------------|     |---------------|    |---------------|    |---------------|
+
+Byte 1: Bit7~Bit6 => 00, Normal data packet
+                  => 01, Absolute coordinates packet
+                  => 10, Notify packet
+        Bit5 => Valid bit, 0 means that the coordinate is invalid or finger up.
+                When both fingers are up, the last two reports have zero valid
+                bit.
+        Bit4 => finger up/down information. 1: finger down, 0: finger up.
+        Bit3 => 1
+        Bit2 => finger index, 0 is the first finger, 1 is the second finger.
+        Bit1 => Right Button, 1 is pressed, 0 is not pressed.
+        Bit0 => Left Button, 1 is pressed, 0 is not pressed.
+Byte 2: X coordinate (xpos[9:2])
+Byte 3: Y coordinate (ypos[9:2])
+Byte 4: Bit1~Bit0 => Y coordinate (xpos[1:0])
+        Bit3~Bit2 => X coordinate (ypos[1:0])
+        Bit4 => scroll down button
+        Bit5 => scroll up button
+        Bit6 => scroll left button
+        Bit7 => scroll right button
+
+Packet 2 (ABSOLUTE POSITION)
+   Bit 7 6 5 4 3 2 1 0       7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0
+BYTE  |---------------|BYTE |---------------|BYTE|---------------|BYTE|---------------|
+  1   |0|1|V|F|1|1|R|L|  2  |X|X|X|X|X|X|X|X|  3 |Y|Y|Y|Y|Y|Y|Y|Y|  4 |r|l|u|d|X|X|Y|Y|
+      |---------------|     |---------------|    |---------------|    |---------------|
+
+Byte 1: Bit7~Bit6 => 00, Normal data packet
+                  => 01, Absolute coordination packet
+                  => 10, Notify packet
+        Bit5 => Valid bit, 0 means that the coordinate is invalid or finger up.
+                When both fingers are up, the last two reports have zero valid
+                bit.
+        Bit4 => finger up/down information. 1: finger down, 0: finger up.
+        Bit3 => 1
+        Bit2 => finger index, 0 is the first finger, 1 is the second finger.
+        Bit1 => Right Button, 1 is pressed, 0 is not pressed.
+        Bit0 => Left Button, 1 is pressed, 0 is not pressed.
+Byte 2: X coordinate (xpos[9:2])
+Byte 3: Y coordinate (ypos[9:2])
+Byte 4: Bit1~Bit0 => Y coordinate (xpos[1:0])
+        Bit3~Bit2 => X coordinate (ypos[1:0])
+        Bit4 => scroll down button
+        Bit5 => scroll up button
+        Bit6 => scroll left button
+        Bit7 => scroll right button
+
+Notify Packet for STL3888-B0
+   Bit 7 6 5 4 3 2 1 0       7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0      7 6 5 4 3 2 1 0
+BYTE  |---------------|BYTE |---------------|BYTE|---------------|BYTE|---------------|
+  1   |1|0|1|P|1|M|R|L|  2  |C|C|C|C|C|C|C|C|  3 |0|0|F|F|0|0|0|i|  4 |r|l|u|d|0|0|0|0|
+      |---------------|     |---------------|    |---------------|    |---------------|
+
+Byte 1: Bit7~Bit6 => 00, Normal data packet
+                  => 01, Absolute coordination packet
+                  => 10, Notify packet
+        Bit5 => 1
+        Bit4 => when in absolute coordinate mode (valid when EN_PKT_GO is 1):
+                0: left button is generated by the on-pad command
+                1: left button is generated by the external button
+        Bit3 => 1
+        Bit2 => Middle Button, 1 is pressed, 0 is not pressed.
+        Bit1 => Right Button, 1 is pressed, 0 is not pressed.
+        Bit0 => Left Button, 1 is pressed, 0 is not pressed.
+Byte 2: Message Type => 0xB7 (Multi Finger, Multi Coordinate mode)
+Byte 3: Bit7~Bit6 => Don't care
+        Bit5~Bit4 => Number of fingers
+        Bit3~Bit1 => Reserved
+        Bit0 => 1: enter gesture mode; 0: leaving gesture mode
+Byte 4: Bit7 => scroll right button
+        Bit6 => scroll left button
+        Bit5 => scroll up button
+        Bit4 => scroll down button
+            * Note that if gesture and additional button(Bit4~Bit7)
+              happen at the same time, the button information will not
+              be sent.
+        Bit3~Bit0 => Reserved
+
+Sample sequence of Multi-finger, Multi-coordinate mode:
+
+	notify packet (valid bit == 1), abs pkt 1, abs pkt 2, abs pkt 1,
+	abs pkt 2, ..., notify packet (valid bit == 0)
 
 ==============================================================================
 * FSP Enable/Disable packet
@@ -409,7 +500,8 @@ offset	width		default	r/w	name
 					0: read only, 1: read/write enable
 	(Note that following registers does not require clock gating being
 	enabled prior to write: 05 06 07 08 09 0c 0f 10 11 12 16 17 18 23 2e
-	40 41 42 43.)
+	40 41 42 43.  In addition to that, this bit must be 1 when gesture
+	mode is enabled)
 
 0x31				RW	on-pad command detection
 	bit7		0	RW	on-pad command left button down tag
@@ -462,6 +554,10 @@ offset	width		default	r/w	name
 	bit 2 and 3.  That is, if any of those bit is 1, host will receive
 	absolute coordinates; otherwise, host only receives packets with
 	relative coordinate.)
+
+	bit7		0	RW	EN_PS2_F2: PS/2 gesture mode 2nd
+					finger packet enable
+					0: disable, 1: enable
 
 0x43				RW	on-pad control
 	bit0		0	RW	on-pad control enable
