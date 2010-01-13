@@ -144,8 +144,6 @@ void per_cpu_trap_init(void);
 void default_idle(void);
 void cpu_idle_wait(void);
 
-asmlinkage void break_point_trap(void);
-
 #ifdef CONFIG_SUPERH32
 #define BUILD_TRAP_HANDLER(name)					\
 asmlinkage void name##_trap_handler(unsigned long r4, unsigned long r5,	\

@@ -179,8 +179,10 @@ void load_guest_gdt_entry(struct lg_cpu *cpu, u32 num, u32 lo, u32 hi)
 	 * We assume the Guest has the same number of GDT entries as the
 	 * Host, otherwise we'd have to dynamically allocate the Guest GDT.
 	 */
-	if (num >= ARRAY_SIZE(cpu->arch.gdt))
+	if (num >= ARRAY_SIZE(cpu->arch.gdt)) {
 		kill_guest(cpu, "too many gdt entries %i", num);
+		return;
+	}
 
 	/* Set it up, then fix it. */
 	cpu->arch.gdt[num].a = lo;

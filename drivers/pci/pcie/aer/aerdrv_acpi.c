@@ -24,7 +24,7 @@
  *
  * @return: Zero on success. Nonzero otherwise.
  *
- * Invoked when PCIE bus loads AER service driver. To avoid conflict with
+ * Invoked when PCIe bus loads AER service driver. To avoid conflict with
  * BIOS AER support requires BIOS to yield AER control to OS native driver.
  **/
 int aer_osc_setup(struct pcie_device *pciedev)

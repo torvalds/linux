@@ -30,7 +30,15 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "atom.h"
+#include "r100d.h"
 #include "r420d.h"
+#include "r420_reg_safe.h"
+
+static void r420_set_reg_safe(struct radeon_device *rdev)
+{
+	rdev->config.r300.reg_safe_bm = r420_reg_safe_bm;
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r420_reg_safe_bm);
+}
 
 int r420_mc_init(struct radeon_device *rdev)
 {
@@ -165,6 +173,34 @@ static void r420_clock_resume(struct radeon_device *rdev)
 	WREG32_PLL(R_00000D_SCLK_CNTL, sclk_cntl);
 }
 
+static void r420_cp_errata_init(struct radeon_device *rdev)
+{
+	/* RV410 and R420 can lock up if CP DMA to host memory happens
+	 * while the 2D engine is busy.
+	 *
+	 * The proper workaround is to queue a RESYNC at the beginning
+	 * of the CP init, apparently.
+	 */
+	radeon_scratch_get(rdev, &rdev->config.r300.resync_scratch);
+	radeon_ring_lock(rdev, 8);
+	radeon_ring_write(rdev, PACKET0(R300_CP_RESYNC_ADDR, 1));
+	radeon_ring_write(rdev, rdev->config.r300.resync_scratch);
+	radeon_ring_write(rdev, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev);
+}
+
+static void r420_cp_errata_fini(struct radeon_device *rdev)
+{
+	/* Catch the RESYNC we dispatched all the way back,
+	 * at the very beginning of the CP init.
+	 */
+	radeon_ring_lock(rdev, 8);
+	radeon_ring_write(rdev, PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, R300_RB3D_DC_FINISH);
+	radeon_ring_unlock_commit(rdev);
+	radeon_scratch_free(rdev, rdev->config.r300.resync_scratch);
+}
+
 static int r420_startup(struct radeon_device *rdev)
 {
 	int r;
@@ -190,12 +226,14 @@ static int r420_startup(struct radeon_device *rdev)
 	r420_pipes_init(rdev);
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
 		return r;
 	}
+	r420_cp_errata_init(rdev);
 	r = r100_wb_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
@@ -238,6 +276,7 @@ int r420_resume(struct radeon_device *rdev)
 
 int r420_suspend(struct radeon_device *rdev)
 {
+	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -346,7 +385,7 @@ int r420_init(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
-	r300_set_reg_safe(rdev);
+	r420_set_reg_safe(rdev);
 	rdev->accel_working = true;
 	r = r420_startup(rdev);
 	if (r) {

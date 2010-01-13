@@ -925,6 +925,7 @@ static int falcon_probe_port(struct efx_nic *efx)
 
 static void falcon_remove_port(struct efx_nic *efx)
 {
+	efx->phy_op->remove(efx);
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
 }
 

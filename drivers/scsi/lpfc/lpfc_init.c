@@ -3006,6 +3006,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host  *shost;
+	uint32_t link_state;
 
 	phba->fc_eventTag = acqe_fcoe->event_tag;
 	phba->fcoe_eventtag = acqe_fcoe->event_tag;
@@ -3052,9 +3053,12 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			break;
 		/*
 		 * Currently, driver support only one FCF - so treat this as
-		 * a link down.
+		 * a link down, but save the link state because we don't want
+		 * it to be changed to Link Down unless it is already down.
 		 */
+		link_state = phba->link_state;
 		lpfc_linkdown(phba);
+		phba->link_state = link_state;
 		/* Unregister FCF if no devices connected to it */
 		lpfc_unregister_unused_fcf(phba);
 		break;
@@ -7226,8 +7230,6 @@ lpfc_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 {
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2711 PCI channel permanent disable for failure\n");
-	/* Block all SCSI devices' I/Os on the host */
-	lpfc_scsi_dev_block(phba);
 	/* Clean up all driver's outstanding SCSI I/Os */
 	lpfc_sli_flush_fcp_rings(phba);
 }
@@ -7255,6 +7257,9 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+
+	/* Block all SCSI devices' I/Os on the host */
+	lpfc_scsi_dev_block(phba);
 
 	switch (state) {
 	case pci_channel_io_normal:
@@ -7507,6 +7512,9 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 			error = -ENODEV;
 			goto out_free_sysfs_attr;
 		}
+		/* Default to single FCP EQ for non-MSI-X */
+		if (phba->intr_type != MSIX)
+			phba->cfg_fcp_eq_count = 1;
 		/* Set up SLI-4 HBA */
 		if (lpfc_sli4_hba_setup(phba)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,

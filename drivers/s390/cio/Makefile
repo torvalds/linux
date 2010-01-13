@@ -10,5 +10,5 @@ obj-y += ccw_device.o cmf.o
 obj-$(CONFIG_CHSC_SCH) += chsc_sch.o
 obj-$(CONFIG_CCWGROUP) += ccwgroup.o
 
-qdio-objs := qdio_main.o qdio_thinint.o qdio_debug.o qdio_perf.o qdio_setup.o
+qdio-objs := qdio_main.o qdio_thinint.o qdio_debug.o qdio_setup.o
 obj-$(CONFIG_QDIO) += qdio.o

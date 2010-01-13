@@ -17,5 +17,7 @@ obj-$(CONFIG_ARCH_SHMOBILE)	+= shmobile/
 
 obj-$(CONFIG_SH_ADC)		+= adc.o
 obj-$(CONFIG_SH_CLK_CPG)	+= clock-cpg.o
+obj-$(CONFIG_SH_FPU)		+= fpu.o
+obj-$(CONFIG_SH_FPU_EMU)	+= fpu.o
 
 obj-y	+= irq/ init.o clock.o hwblk.o

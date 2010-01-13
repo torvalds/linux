@@ -156,7 +156,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 			force = DRM_FORCE_ON;
 			break;
 		case 'D':
-			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) ||
+			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
 			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
 				force = DRM_FORCE_ON;
 			else
@@ -606,11 +606,10 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
-	if (var->xres > fb->width || var->yres > fb->height) {
-		DRM_ERROR("Requested width/height is greater than current fb "
-			   "object %dx%d > %dx%d\n", var->xres, var->yres,
-			   fb->width, fb->height);
-		DRM_ERROR("Need resizing code.\n");
+	if (var->bits_per_pixel > fb->bits_per_pixel || var->xres > fb->width || var->yres > fb->height) {
+		DRM_DEBUG("fb userspace requested width/height/bpp is greater than current fb "
+			  "object %dx%d-%d > %dx%d-%d\n", var->xres, var->yres, var->bits_per_pixel,
+			  fb->width, fb->height, fb->bits_per_pixel);
 		return -EINVAL;
 	}
 

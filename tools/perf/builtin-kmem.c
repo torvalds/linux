@@ -137,7 +137,7 @@ static void insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 	if (data && data->ptr == ptr) {
 		data->hit++;
 		data->bytes_req += bytes_req;
-		data->bytes_alloc += bytes_req;
+		data->bytes_alloc += bytes_alloc;
 	} else {
 		data = malloc(sizeof(*data));
 		if (!data)
@@ -177,7 +177,7 @@ static void insert_caller_stat(unsigned long call_site,
 	if (data && data->call_site == call_site) {
 		data->hit++;
 		data->bytes_req += bytes_req;
-		data->bytes_alloc += bytes_req;
+		data->bytes_alloc += bytes_alloc;
 	} else {
 		data = malloc(sizeof(*data));
 		if (!data)

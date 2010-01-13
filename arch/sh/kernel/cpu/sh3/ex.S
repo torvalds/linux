@@ -49,7 +49,7 @@ ENTRY(exception_handling_table)
 	.long	exception_error	! reserved_instruction (filled by trap_init) /* 180 */
 	.long	exception_error	! illegal_slot_instruction (filled by trap_init) /*1A0*/
 	.long	nmi_trap_handler	/* 1C0 */	! Allow trap to debugger
-	.long	break_point_trap	/* 1E0 */
+	.long	breakpoint_trap_handler	/* 1E0 */
 
 	/*
 	 * Pad the remainder of the table out, exceptions residing in far

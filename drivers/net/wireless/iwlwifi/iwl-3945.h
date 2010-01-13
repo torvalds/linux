@@ -222,7 +222,6 @@ struct iwl3945_ibss_seq {
  *
  *****************************************************************************/
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
-extern int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern void iwl3945_rx_replenish(void *data);
 extern void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 extern unsigned int iwl3945_fill_beacon_frame(struct iwl_priv *priv,

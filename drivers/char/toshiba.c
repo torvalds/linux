@@ -68,7 +68,7 @@
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-
+#include <linux/smp_lock.h>
 #include <linux/toshiba.h>
 
 #define TOSH_MINOR_DEV 181
@@ -88,13 +88,13 @@ static int tosh_date;
 static int tosh_sci;
 static int tosh_fan;
 
-static int tosh_ioctl(struct inode *, struct file *, unsigned int,
+static long tosh_ioctl(struct file *, unsigned int,
 	unsigned long);
 
 
 static const struct file_operations tosh_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= tosh_ioctl,
+	.unlocked_ioctl	= tosh_ioctl,
 };
 
 static struct miscdevice tosh_device = {
@@ -252,8 +252,7 @@ int tosh_smm(SMMRegisters *regs)
 EXPORT_SYMBOL(tosh_smm);
 
 
-static int tosh_ioctl(struct inode *ip, struct file *fp, unsigned int cmd,
-	unsigned long arg)
+static long tosh_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	SMMRegisters regs;
 	SMMRegisters __user *argp = (SMMRegisters __user *)arg;
@@ -275,13 +274,16 @@ static int tosh_ioctl(struct inode *ip, struct file *fp, unsigned int cmd,
 				return -EINVAL;
 
 			/* do we need to emulate the fan ? */
+			lock_kernel();
 			if (tosh_fan==1) {
 				if (((ax==0xf300) || (ax==0xf400)) && (bx==0x0004)) {
 					err = tosh_emulate_fan(&regs);
+					unlock_kernel();
 					break;
 				}
 			}
 			err = tosh_smm(&regs);
+			unlock_kernel();
 			break;
 		default:
 			return -EINVAL;

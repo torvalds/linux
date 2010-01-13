@@ -601,8 +601,9 @@ static void release_request(struct client *client,
 	struct inbound_transaction_resource *r = container_of(resource,
 			struct inbound_transaction_resource, resource);
 
-	fw_send_response(client->device->card, r->request,
-			 RCODE_CONFLICT_ERROR);
+	if (r->request)
+		fw_send_response(client->device->card, r->request,
+				 RCODE_CONFLICT_ERROR);
 	kfree(r);
 }
 
@@ -645,7 +646,8 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
  failed:
 	kfree(r);
 	kfree(e);
-	fw_send_response(card, request, RCODE_CONFLICT_ERROR);
+	if (request)
+		fw_send_response(card, request, RCODE_CONFLICT_ERROR);
 }
 
 static void release_address_handler(struct client *client,
@@ -715,15 +717,18 @@ static int ioctl_send_response(struct client *client, void *buffer)
 
 	r = container_of(resource, struct inbound_transaction_resource,
 			 resource);
-	if (request->length < r->length)
-		r->length = request->length;
-
-	if (copy_from_user(r->data, u64_to_uptr(request->data), r->length)) {
-		ret = -EFAULT;
-		goto out;
+	if (r->request) {
+		if (request->length < r->length)
+			r->length = request->length;
+		if (copy_from_user(r->data, u64_to_uptr(request->data),
+				   r->length)) {
+			ret = -EFAULT;
+			kfree(r->request);
+			goto out;
+		}
+		fw_send_response(client->device->card, r->request,
+				 request->rcode);
 	}
-
-	fw_send_response(client->device->card, r->request, request->rcode);
  out:
 	kfree(r);
 
