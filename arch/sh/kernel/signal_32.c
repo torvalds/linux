@@ -150,7 +150,7 @@ static inline int restore_sigcontext_fpu(struct sigcontext __user *sc)
 		return 0;
 
 	set_used_math();
-	return __copy_from_user(&tsk->thread.fpu.hard, &sc->sc_fpregs[0],
+	return __copy_from_user(&tsk->thread.xstate->hardfpu, &sc->sc_fpregs[0],
 				sizeof(long)*(16*2+2));
 }
 
@@ -175,7 +175,7 @@ static inline int save_sigcontext_fpu(struct sigcontext __user *sc,
 	clear_used_math();
 
 	unlazy_fpu(tsk, regs);
-	return __copy_to_user(&sc->sc_fpregs[0], &tsk->thread.fpu.hard,
+	return __copy_to_user(&sc->sc_fpregs[0], &tsk->thread.xstate->hardfpu,
 			      sizeof(long)*(16*2+2));
 }
 #endif /* CONFIG_SH_FPU */

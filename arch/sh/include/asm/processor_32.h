@@ -90,10 +90,14 @@ struct sh_fpu_soft_struct {
 	unsigned long entry_pc;
 };
 
-union sh_fpu_union {
-	struct sh_fpu_hard_struct hard;
-	struct sh_fpu_soft_struct soft;
+union thread_xstate {
+	struct sh_fpu_hard_struct hardfpu;
+	struct sh_fpu_soft_struct softfpu;
 };
+
+extern unsigned int xstate_size;
+extern void free_thread_xstate(struct task_struct *);
+extern struct kmem_cache *task_xstate_cachep;
 
 struct thread_struct {
 	/* Saved registers when thread is descheduled */
@@ -103,13 +107,13 @@ struct thread_struct {
 	/* Hardware debugging registers */
 	unsigned long ubc_pc;
 
-	/* floating point info */
-	union sh_fpu_union fpu;
-
 #ifdef CONFIG_SH_DSP
 	/* Dsp status information */
 	struct sh_dsp_struct dsp_status;
 #endif
+
+	/* Extended processor state */
+	union thread_xstate *xstate;
 };
 
 /* Count of active tasks with UBC settings */

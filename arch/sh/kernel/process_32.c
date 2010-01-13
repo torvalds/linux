@@ -156,6 +156,8 @@ void start_thread(struct pt_regs *regs, unsigned long new_pc,
 	regs->sr = SR_FD;
 	regs->pc = new_pc;
 	regs->regs[15] = new_sp;
+
+	free_thread_xstate(current);
 }
 EXPORT_SYMBOL(start_thread);
 
@@ -316,7 +318,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 
 	/* we're going to use this soon, after a few expensive things */
 	if (next->fpu_counter > 5)
-		prefetch(&next_t->fpu.hard);
+		prefetch(next_t->xstate);
 
 #ifdef CONFIG_MMU
 	/*
@@ -353,7 +355,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 	 * chances of needing FPU soon are obviously high now
 	 */
 	if (next->fpu_counter > 5)
-		fpu_state_restore(task_pt_regs(next));
+		__fpu_state_restore();
 
 	return prev;
 }

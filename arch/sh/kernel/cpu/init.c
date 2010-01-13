@@ -28,18 +28,30 @@
 #include <asm/ubc.h>
 #endif
 
+#ifdef CONFIG_SH_FPU
+#define cpu_has_fpu	1
+#else
+#define cpu_has_fpu	0
+#endif
+
+#ifdef CONFIG_SH_DSP
+#define cpu_has_dsp	1
+#else
+#define cpu_has_dsp	0
+#endif
+
 /*
  * Generic wrapper for command line arguments to disable on-chip
  * peripherals (nofpu, nodsp, and so forth).
  */
-#define onchip_setup(x)				\
-static int x##_disabled __initdata = 0;		\
-						\
-static int __init x##_setup(char *opts)		\
-{						\
-	x##_disabled = 1;			\
-	return 1;				\
-}						\
+#define onchip_setup(x)					\
+static int x##_disabled __initdata = !cpu_has_##x;	\
+							\
+static int __init x##_setup(char *opts)			\
+{							\
+	x##_disabled = 1;				\
+	return 1;					\
+}							\
 __setup("no" __stringify(x), x##_setup);
 
 onchip_setup(fpu);
@@ -207,6 +219,18 @@ static void detect_cache_shape(void)
 		l2_cache_shape = -1; /* No S-cache */
 }
 
+static void __init fpu_init(void)
+{
+	/* Disable the FPU */
+	if (fpu_disabled && (current_cpu_data.flags & CPU_HAS_FPU)) {
+		printk("FPU Disabled\n");
+		current_cpu_data.flags &= ~CPU_HAS_FPU;
+	}
+
+	disable_fpu();
+	clear_used_math();
+}
+
 #ifdef CONFIG_SH_DSP
 static void __init release_dsp(void)
 {
@@ -244,9 +268,17 @@ static void __init dsp_init(void)
 	if (sr & SR_DSP)
 		current_cpu_data.flags |= CPU_HAS_DSP;
 
+	/* Disable the DSP */
+	if (dsp_disabled && (current_cpu_data.flags & CPU_HAS_DSP)) {
+		printk("DSP Disabled\n");
+		current_cpu_data.flags &= ~CPU_HAS_DSP;
+	}
+
 	/* Now that we've determined the DSP status, clear the DSP bit. */
 	release_dsp();
 }
+#else
+static inline void __init dsp_init(void) { }
 #endif /* CONFIG_SH_DSP */
 
 /**
@@ -302,18 +334,8 @@ asmlinkage void __init sh_cpu_init(void)
 		detect_cache_shape();
 	}
 
-	/* Disable the FPU */
-	if (fpu_disabled) {
-		printk("FPU Disabled\n");
-		current_cpu_data.flags &= ~CPU_HAS_FPU;
-	}
-
-	/* FPU initialization */
-	disable_fpu();
-	if ((current_cpu_data.flags & CPU_HAS_FPU)) {
-		current_thread_info()->status &= ~TS_USEDFPU;
-		clear_used_math();
-	}
+	fpu_init();
+	dsp_init();
 
 	/*
 	 * Initialize the per-CPU ASID cache very early, since the
@@ -321,18 +343,12 @@ asmlinkage void __init sh_cpu_init(void)
 	 */
 	current_cpu_data.asid_cache = NO_CONTEXT;
 
-#ifdef CONFIG_SH_DSP
-	/* Probe for DSP */
-	dsp_init();
-
-	/* Disable the DSP */
-	if (dsp_disabled) {
-		printk("DSP Disabled\n");
-		current_cpu_data.flags &= ~CPU_HAS_DSP;
-		release_dsp();
-	}
-#endif
-
 	speculative_execution_init();
 	expmask_init();
+
+	/*
+	 * Boot processor to setup the FP and extended state context info.
+	 */
+	if (raw_smp_processor_id() == 0)
+		init_thread_xstate();
 }

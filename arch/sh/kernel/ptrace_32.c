@@ -163,10 +163,10 @@ int fpregs_get(struct task_struct *target,
 
 	if ((boot_cpu_data.flags & CPU_HAS_FPU))
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					   &target->thread.fpu.hard, 0, -1);
+					   &target->thread.xstate->hardfpu, 0, -1);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu.soft, 0, -1);
+				   &target->thread.xstate->softfpu, 0, -1);
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -184,10 +184,10 @@ static int fpregs_set(struct task_struct *target,
 
 	if ((boot_cpu_data.flags & CPU_HAS_FPU))
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fpu.hard, 0, -1);
+					  &target->thread.xstate->hardfpu, 0, -1);
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.soft, 0, -1);
+				  &target->thread.xstate->softfpu, 0, -1);
 }
 
 static int fpregs_active(struct task_struct *target,
@@ -333,7 +333,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				else
 					tmp = 0;
 			} else
-				tmp = ((long *)&child->thread.fpu)
+				tmp = ((long *)child->thread.xstate)
 					[(addr - (long)&dummy->fpu) >> 2];
 		} else if (addr == (long) &dummy->u_fpvalid)
 			tmp = !!tsk_used_math(child);
@@ -362,7 +362,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		else if (addr >= (long) &dummy->fpu &&
 			 addr < (long) &dummy->u_fpvalid) {
 			set_stopped_child_used_math(child);
-			((long *)&child->thread.fpu)
+			((long *)child->thread.xstate)
 				[(addr - (long)&dummy->fpu) >> 2] = data;
 			ret = 0;
 		} else if (addr == (long) &dummy->u_fpvalid) {
