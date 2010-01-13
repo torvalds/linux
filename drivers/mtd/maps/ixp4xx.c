@@ -107,8 +107,8 @@ static void ixp4xx_copy_from(struct map_info *map, void *to,
 		return;
 
 	if (from & 1) {
-		*dest++ = BYTE1(flash_read16(src));
-                src++;
+		*dest++ = BYTE1(flash_read16(src-1));
+		src++;
 		--len;
 	}
 
