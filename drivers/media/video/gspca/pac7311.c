@@ -200,7 +200,6 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.priv = 0},
 };
 
-#define LOAD_PAGE3		255
 #define LOAD_PAGE4		254
 #define END_OF_SEQUENCE		0
 
@@ -344,7 +343,6 @@ static int reg_w_page(struct gspca_dev *gspca_dev,
 /* output a variable sequence */
 static int reg_w_var(struct gspca_dev *gspca_dev,
 			const __u8 *seq,
-			const __u8 *page3, unsigned int page3_len,
 			const __u8 *page4, unsigned int page4_len)
 {
 	int index, len;
@@ -358,9 +356,6 @@ static int reg_w_var(struct gspca_dev *gspca_dev,
 			return ret;
 		case LOAD_PAGE4:
 			ret = reg_w_page(gspca_dev, page4, page4_len);
-			break;
-		case LOAD_PAGE3:
-			ret = reg_w_page(gspca_dev, page3, page3_len);
 			break;
 		default:
 			if (len > USB_BUF_SZ) {
@@ -515,7 +510,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->sof_read = 0;
 
 	ret = reg_w_var(gspca_dev, start_7311,
-		NULL, 0,
 		page4_7311, sizeof(page4_7311));
 	if (0 <= ret)
 		ret = setcontrast(gspca_dev);

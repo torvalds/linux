@@ -301,7 +301,6 @@ static const struct v4l2_pix_format vga_mode[] = {
 };
 
 #define LOAD_PAGE3		255
-#define LOAD_PAGE4		254
 #define END_OF_SEQUENCE		0
 
 /* pac 7302 */
@@ -486,8 +485,7 @@ static int reg_w_page(struct gspca_dev *gspca_dev,
 /* output a variable sequence */
 static int reg_w_var(struct gspca_dev *gspca_dev,
 			const __u8 *seq,
-			const __u8 *page3, unsigned int page3_len,
-			const __u8 *page4, unsigned int page4_len)
+			const __u8 *page3, unsigned int page3_len)
 {
 	int index, len;
 	int ret = 0;
@@ -498,9 +496,6 @@ static int reg_w_var(struct gspca_dev *gspca_dev,
 		switch (len) {
 		case END_OF_SEQUENCE:
 			return ret;
-		case LOAD_PAGE4:
-			ret = reg_w_page(gspca_dev, page4, page4_len);
-			break;
 		case LOAD_PAGE3:
 			ret = reg_w_page(gspca_dev, page3, page3_len);
 			break;
@@ -745,8 +740,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->sof_read = 0;
 
 	ret = reg_w_var(gspca_dev, start_7302,
-		page3_7302, sizeof(page3_7302),
-		NULL, 0);
+		page3_7302, sizeof(page3_7302));
 	if (0 <= ret)
 		ret = setbrightcont(gspca_dev);
 	if (0 <= ret)
