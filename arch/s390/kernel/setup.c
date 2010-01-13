@@ -849,7 +849,6 @@ setup_arch(char **cmdline_p)
 	setup_lowcore();
 
         cpu_init();
-	__cpu_logical_map[0] = stap();
 	s390_init_cpu_topology();
 
 	/*

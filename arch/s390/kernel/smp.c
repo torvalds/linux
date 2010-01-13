@@ -717,6 +717,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 {
 }
 
+void __init smp_setup_processor_id(void)
+{
+	S390_lowcore.cpu_nr = 0;
+	__cpu_logical_map[0] = stap();
+}
+
 /*
  * the frequency of the profiling timer can be changed
  * by writing a multiplier value into /proc/profile.
