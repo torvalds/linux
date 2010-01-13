@@ -87,7 +87,7 @@ unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
-volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
+int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;

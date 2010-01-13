@@ -19,7 +19,7 @@
 #include <asm/atomic.h>
 
 /* get real cpu address from logical cpu number */
-extern volatile int __cpu_logical_map[];
+extern int __cpu_logical_map[];
 
 typedef enum
 {
