@@ -204,7 +204,8 @@ libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
 BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.lzo \
-	       uImage.srec uImage.bin zImage vmlinux.srec romImage
+	       uImage.srec uImage.bin zImage vmlinux.bin vmlinux.srec \
+	       romImage
 PHONY += $(BOOT_TARGETS)
 
 all: $(KBUILD_IMAGE)
@@ -225,6 +226,7 @@ define archhelp
 	@echo '  zImage 	           - Compressed kernel image'
 	@echo '  romImage	           - Compressed ROM image, if supported'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
+	@echo '  vmlinux.bin	           - Create an uncompressed binary image'
 	@echo '* uImage  	           - Alias to bootable U-Boot image'
 	@echo '  uImage.srec	           - Create an S-record for U-Boot'
 	@echo '  uImage.bin	           - Kernel-only image for U-Boot (bin)'
