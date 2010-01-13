@@ -258,12 +258,14 @@ static const __u8 page4_7311[] = {
 	0x23, 0x28, 0x04, 0x11, 0x00, 0x00
 };
 
-static int reg_w_buf(struct gspca_dev *gspca_dev,
+static void reg_w_buf(struct gspca_dev *gspca_dev,
 		  __u8 index,
 		  const char *buffer, int len)
 {
 	int ret;
 
+	if (gspca_dev->usb_err < 0)
+		return;
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -272,20 +274,23 @@ static int reg_w_buf(struct gspca_dev *gspca_dev,
 			0,		/* value */
 			index, gspca_dev->usb_buf, len,
 			500);
-	if (ret < 0)
+	if (ret < 0) {
 		PDEBUG(D_ERR, "reg_w_buf(): "
 		"Failed to write registers to index 0x%x, error %i",
 		index, ret);
-	return ret;
+		gspca_dev->usb_err = ret;
+	}
 }
 
 
-static int reg_w(struct gspca_dev *gspca_dev,
+static void reg_w(struct gspca_dev *gspca_dev,
 		  __u8 index,
 		  __u8 value)
 {
 	int ret;
 
+	if (gspca_dev->usb_err < 0)
+		return;
 	gspca_dev->usb_buf[0] = value;
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -293,32 +298,32 @@ static int reg_w(struct gspca_dev *gspca_dev,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index, gspca_dev->usb_buf, 1,
 			500);
-	if (ret < 0)
+	if (ret < 0) {
 		PDEBUG(D_ERR, "reg_w(): "
 		"Failed to write register to index 0x%x, value 0x%x, error %i",
 		index, value, ret);
-	return ret;
+		gspca_dev->usb_err = ret;
+	}
 }
 
-static int reg_w_seq(struct gspca_dev *gspca_dev,
+static void reg_w_seq(struct gspca_dev *gspca_dev,
 		const __u8 *seq, int len)
 {
-	int ret = 0;
 	while (--len >= 0) {
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, seq[0], seq[1]);
+		reg_w(gspca_dev, seq[0], seq[1]);
 		seq += 2;
 	}
-	return ret;
 }
 
 /* load the beginning of a page */
-static int reg_w_page(struct gspca_dev *gspca_dev,
+static void reg_w_page(struct gspca_dev *gspca_dev,
 			const __u8 *page, int len)
 {
 	int index;
 	int ret = 0;
 
+	if (gspca_dev->usb_err < 0)
+		return;
 	for (index = 0; index < len; index++) {
 		if (page[index] == SKIP)		/* skip this index */
 			continue;
@@ -334,52 +339,47 @@ static int reg_w_page(struct gspca_dev *gspca_dev,
 			"Failed to write register to index 0x%x, "
 			"value 0x%x, error %i",
 			index, page[index], ret);
+			gspca_dev->usb_err = ret;
 			break;
 		}
 	}
-	return ret;
 }
 
 /* output a variable sequence */
-static int reg_w_var(struct gspca_dev *gspca_dev,
+static void reg_w_var(struct gspca_dev *gspca_dev,
 			const __u8 *seq,
 			const __u8 *page4, unsigned int page4_len)
 {
 	int index, len;
-	int ret = 0;
 
 	for (;;) {
 		index = *seq++;
 		len = *seq++;
 		switch (len) {
 		case END_OF_SEQUENCE:
-			return ret;
+			return;
 		case LOAD_PAGE4:
-			ret = reg_w_page(gspca_dev, page4, page4_len);
+			reg_w_page(gspca_dev, page4, page4_len);
 			break;
 		default:
 			if (len > USB_BUF_SZ) {
 				PDEBUG(D_ERR|D_STREAM,
 					"Incorrect variable sequence");
-				return -EINVAL;
+				return;
 			}
 			while (len > 0) {
 				if (len < 8) {
-					ret = reg_w_buf(gspca_dev,
+					reg_w_buf(gspca_dev,
 						index, seq, len);
-					if (ret < 0)
-						return ret;
 					seq += len;
 					break;
 				}
-				ret = reg_w_buf(gspca_dev, index, seq, 8);
+				reg_w_buf(gspca_dev, index, seq, 8);
 				seq += 8;
 				index += 8;
 				len -= 8;
 			}
 		}
-		if (ret < 0)
-			return ret;
 	}
 	/* not reached */
 }
@@ -407,46 +407,36 @@ static int sd_config(struct gspca_dev *gspca_dev,
 }
 
 /* This function is used by pac7311 only */
-static int setcontrast(struct gspca_dev *gspca_dev)
+static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
 
-	ret = reg_w(gspca_dev, 0xff, 0x04);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x10, sd->contrast >> 4);
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x10, sd->contrast >> 4);
 	/* load registers to sensor (Bit 0, auto clear) */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x11, 0x01);
-	return ret;
+	reg_w(gspca_dev, 0x11, 0x01);
 }
 
-static int setgain(struct gspca_dev *gspca_dev)
+static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int gain = GAIN_MAX - sd->gain;
-	int ret;
 
 	if (gain < 1)
 		gain = 1;
 	else if (gain > 245)
 		gain = 245;
-	ret = reg_w(gspca_dev, 0xff, 0x04);		/* page 4 */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x0e, 0x00);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x0f, gain);
+	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
+	reg_w(gspca_dev, 0x0e, 0x00);
+	reg_w(gspca_dev, 0x0f, gain);
 
 	/* load registers to sensor (Bit 0, auto clear) */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x11, 0x01);
-	return ret;
+	reg_w(gspca_dev, 0x11, 0x01);
 }
 
-static int setexposure(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
 	__u8 reg;
 
 	/* register 2 of frame 3/4 contains the clock divider configuring the
@@ -458,93 +448,72 @@ static int setexposure(struct gspca_dev *gspca_dev)
 	else if (reg > 63)
 		reg = 63;
 
-	ret = reg_w(gspca_dev, 0xff, 0x04);		/* page 4 */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x02, reg);
+	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
+	reg_w(gspca_dev, 0x02, reg);
+
 	/* Page 1 register 8 must always be 0x08 except when not in
 	   640x480 mode and Page3/4 reg 2 <= 3 then it must be 9 */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0xff, 0x01);
 	if (gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv &&
 			reg <= 3) {
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x08, 0x09);
+		reg_w(gspca_dev, 0x08, 0x09);
 	} else {
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x08, 0x08);
+		reg_w(gspca_dev, 0x08, 0x08);
 	}
 
 	/* load registers to sensor (Bit 0, auto clear) */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x11, 0x01);
-	return ret;
+	reg_w(gspca_dev, 0x11, 0x01);
 }
 
-static int sethvflip(struct gspca_dev *gspca_dev)
+static void sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
 	__u8 data;
 
-	ret = reg_w(gspca_dev, 0xff, 0x04);		/* page 4 */
+	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
 	data = (sd->hflip ? 0x04 : 0x00) | (sd->vflip ? 0x08 : 0x00);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x21, data);
+	reg_w(gspca_dev, 0x21, data);
+
 	/* load registers to sensor (Bit 0, auto clear) */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x11, 0x01);
-	return ret;
+	reg_w(gspca_dev, 0x11, 0x01);
 }
 
 /* this function is called at probe and resume time for pac7311 */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	return reg_w_seq(gspca_dev, init_7311, sizeof(init_7311)/2);
+	reg_w_seq(gspca_dev, init_7311, sizeof(init_7311)/2);
+	return gspca_dev->usb_err;
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
 
 	sd->sof_read = 0;
 
-	ret = reg_w_var(gspca_dev, start_7311,
+	reg_w_var(gspca_dev, start_7311,
 		page4_7311, sizeof(page4_7311));
-	if (0 <= ret)
-		ret = setcontrast(gspca_dev);
-	if (0 <= ret)
-		ret = setgain(gspca_dev);
-	if (0 <= ret)
-		ret = setexposure(gspca_dev);
-	if (0 <= ret)
-		ret = sethvflip(gspca_dev);
+	setcontrast(gspca_dev);
+	setgain(gspca_dev);
+	setexposure(gspca_dev);
+	sethvflip(gspca_dev);
 
 	/* set correct resolution */
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
 	case 2:					/* 160x120 pac7311 */
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0xff, 0x01);
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x17, 0x20);
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x87, 0x10);
+		reg_w(gspca_dev, 0xff, 0x01);
+		reg_w(gspca_dev, 0x17, 0x20);
+		reg_w(gspca_dev, 0x87, 0x10);
 		break;
 	case 1:					/* 320x240 pac7311 */
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0xff, 0x01);
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x17, 0x30);
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x87, 0x11);
+		reg_w(gspca_dev, 0xff, 0x01);
+		reg_w(gspca_dev, 0x17, 0x30);
+		reg_w(gspca_dev, 0x87, 0x11);
 		break;
 	case 0:					/* 640x480 */
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0xff, 0x01);
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x17, 0x00);
-		if (0 <= ret)
-			ret = reg_w(gspca_dev, 0x87, 0x12);
+		reg_w(gspca_dev, 0xff, 0x01);
+		reg_w(gspca_dev, 0x17, 0x00);
+		reg_w(gspca_dev, 0x87, 0x12);
 		break;
 	}
 
@@ -553,37 +522,24 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	atomic_set(&sd->avg_lum, -1);
 
 	/* start stream */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0xff, 0x01);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x78, 0x05);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x78, 0x05);
 
-	return ret;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	int ret;
-
-	ret = reg_w(gspca_dev, 0xff, 0x04);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x27, 0x80);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x28, 0xca);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x29, 0x53);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x2a, 0x0e);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0xff, 0x01);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x3e, 0x20);
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
-	if (0 <= ret)
-		ret = reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x27, 0x80);
+	reg_w(gspca_dev, 0x28, 0xca);
+	reg_w(gspca_dev, 0x29, 0x53);
+	reg_w(gspca_dev, 0x2a, 0x0e);
+	reg_w(gspca_dev, 0xff, 0x01);
+	reg_w(gspca_dev, 0x3e, 0x20);
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 }
 
 /* called on streamoff with alt 0 and on disconnect for 7311 */
@@ -728,7 +684,7 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	if (gspca_dev->streaming) {
 		setcontrast(gspca_dev);
 	}
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
@@ -746,7 +702,7 @@ static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
 	sd->gain = val;
 	if (gspca_dev->streaming)
 		setgain(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -764,7 +720,7 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
 	sd->exposure = val;
 	if (gspca_dev->streaming)
 		setexposure(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
@@ -795,7 +751,7 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 		}
 	}
 
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
@@ -813,7 +769,7 @@ static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
 	sd->hflip = val;
 	if (gspca_dev->streaming)
 		sethvflip(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
@@ -831,7 +787,7 @@ static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
 	sd->vflip = val;
 	if (gspca_dev->streaming)
 		sethvflip(gspca_dev);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
