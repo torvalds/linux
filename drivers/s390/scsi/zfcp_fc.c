@@ -677,6 +677,44 @@ static void zfcp_fc_ct_els_job_handler(void *data)
 	job->job_done(job);
 }
 
+static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
+{
+	u32 preamble_word1;
+	u8 gs_type;
+	struct zfcp_adapter *adapter;
+
+	preamble_word1 = job->request->rqst_data.r_ct.preamble_word1;
+	gs_type = (preamble_word1 & 0xff000000) >> 24;
+
+	adapter = (struct zfcp_adapter *) job->shost->hostdata[0];
+
+	switch (gs_type) {
+	case FC_FST_ALIAS:
+		return &adapter->gs->as;
+	case FC_FST_MGMT:
+		return &adapter->gs->ms;
+	case FC_FST_TIME:
+		return &adapter->gs->ts;
+		break;
+	case FC_FST_DIR:
+		return &adapter->gs->ds;
+		break;
+	default:
+		return NULL;
+	}
+}
+
+static void zfcp_fc_ct_job_handler(void *data)
+{
+	struct fc_bsg_job *job = data;
+	struct zfcp_fc_wka_port *wka_port;
+
+	wka_port = zfcp_fc_job_wka_port(job);
+	zfcp_fc_wka_port_put(wka_port);
+
+	zfcp_fc_ct_els_job_handler(data);
+}
+
 static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 				struct zfcp_adapter *adapter)
 {
@@ -695,6 +733,7 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 	} else
 		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
 
+	els->handler = zfcp_fc_ct_els_job_handler;
 	return zfcp_fsf_send_els(adapter, d_id, els);
 }
 
@@ -702,35 +741,18 @@ static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
 			       struct zfcp_adapter *adapter)
 {
 	int ret;
-	u8 gs_type;
 	struct zfcp_fsf_ct_els *ct = job->dd_data;
 	struct zfcp_fc_wka_port *wka_port;
-	u32 preamble_word1;
 
-	preamble_word1 = job->request->rqst_data.r_ct.preamble_word1;
-	gs_type = (preamble_word1 & 0xff000000) >> 24;
-
-	switch (gs_type) {
-	case FC_FST_ALIAS:
-		wka_port = &adapter->gs->as;
-		break;
-	case FC_FST_MGMT:
-		wka_port = &adapter->gs->ms;
-		break;
-	case FC_FST_TIME:
-		wka_port = &adapter->gs->ts;
-		break;
-	case FC_FST_DIR:
-		wka_port = &adapter->gs->ds;
-		break;
-	default:
-		return -EINVAL; /* no such service */
-	}
+	wka_port = zfcp_fc_job_wka_port(job);
+	if (!wka_port)
+		return -EINVAL;
 
 	ret = zfcp_fc_wka_port_get(wka_port);
 	if (ret)
 		return ret;
 
+	ct->handler = zfcp_fc_ct_job_handler;
 	ret = zfcp_fsf_send_ct(wka_port, ct, NULL);
 	if (ret)
 		zfcp_fc_wka_port_put(wka_port);
@@ -752,7 +774,6 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 
 	ct_els->req = job->request_payload.sg_list;
 	ct_els->resp = job->reply_payload.sg_list;
-	ct_els->handler = zfcp_fc_ct_els_job_handler;
 	ct_els->handler_data = job;
 
 	switch (job->request->msgcode) {
