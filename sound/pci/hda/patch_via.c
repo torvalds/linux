@@ -1907,8 +1907,7 @@ static int via_build_controls(struct hda_codec *codec)
 	/* assign Capture Source enums to NID */
 	kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
-		err = snd_hda_add_nids(codec, kctl, i, spec->mux_nids,
-				       spec->input_mux->num_items);
+		err = snd_hda_add_nid(codec, kctl, i, spec->mux_nids[i]);
 		if (err < 0)
 			return err;
 	}

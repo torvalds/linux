@@ -293,8 +293,11 @@ static ssize_t type##_store(struct device *dev,			\
 {								\
 	struct snd_hwdep *hwdep = dev_get_drvdata(dev);		\
 	struct hda_codec *codec = hwdep->private_data;		\
-	char *after;						\
-	codec->type = simple_strtoul(buf, &after, 0);		\
+	unsigned long val;					\
+	int err = strict_strtoul(buf, 0, &val);			\
+	if (err < 0)						\
+		return err;					\
+	codec->type = val;					\
 	return count;						\
 }
 

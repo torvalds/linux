@@ -898,6 +898,7 @@ int snd_hda_codec_set_pincfg(struct hda_codec *codec, hda_nid_t nid,
 			     unsigned int cfg);
 int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		       hda_nid_t nid, unsigned int cfg); /* for hwdep */
+void snd_hda_shutup_pins(struct hda_codec *codec);
 
 /*
  * Mixer

@@ -824,6 +824,9 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 	struct hda_pincfg *pin;
 	unsigned int oldcfg;
 
+	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
+		return -EINVAL;
+
 	oldcfg = snd_hda_codec_get_pincfg(codec, nid);
 	pin = look_up_pincfg(codec, list, nid);
 	if (!pin) {
@@ -898,6 +901,25 @@ static void restore_pincfgs(struct hda_codec *codec)
 			   snd_hda_codec_get_pincfg(codec, pin->nid));
 	}
 }
+
+/**
+ * snd_hda_shutup_pins - Shut up all pins
+ * @codec: the HDA codec
+ *
+ * Clear all pin controls to shup up before suspend for avoiding click noise.
+ * The controls aren't cached so that they can be resumed properly.
+ */
+void snd_hda_shutup_pins(struct hda_codec *codec)
+{
+	int i;
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		/* use read here for syncing after issuing each verb */
+		snd_hda_codec_read(codec, pin->nid, 0,
+				   AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
+	}
+}
+EXPORT_SYMBOL_HDA(snd_hda_shutup_pins);
 
 static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
@@ -3536,32 +3558,6 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_new_ctls);
-
-/**
- * snd_hda_add_nids - assign nids to controls from the array
- * @codec: the HDA codec
- * @kctl: struct snd_kcontrol
- * @index: index to kctl
- * @nids: the array of hda_nid_t
- * @size: count of hda_nid_t items
- *
- * This helper function assigns NIDs in the given array to a control element.
- *
- * Returns 0 if successful, or a negative error code.
- */
-int snd_hda_add_nids(struct hda_codec *codec, struct snd_kcontrol *kctl,
-		     unsigned int index, hda_nid_t *nids, unsigned int size)
-{
-	int err;
-
-	for ( ; size > 0; size--, nids++) {
-		err = snd_hda_add_nid(codec, kctl, index, *nids);
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_HDA(snd_hda_add_nids);
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,

@@ -338,7 +338,7 @@ struct alc_spec {
 	void (*init_hook)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	void (*power_hook)(struct hda_codec *codec, int power);
+	void (*power_hook)(struct hda_codec *codec);
 #endif
 
 	/* for pin sensing */
@@ -391,7 +391,7 @@ struct alc_config_preset {
 	void (*init_hook)(struct hda_codec *);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_amp_list *loopbacks;
-	void (*power_hook)(struct hda_codec *codec, int power);
+	void (*power_hook)(struct hda_codec *codec);
 #endif
 };
 
@@ -1835,16 +1835,6 @@ static void alc889_acer_aspire_8930g_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[2] = 0x1b;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-static void alc889_power_eapd(struct hda_codec *codec, int power)
-{
-	snd_hda_codec_write(codec, 0x14, 0,
-			    AC_VERB_SET_EAPD_BTLENABLE, power ? 2 : 0);
-	snd_hda_codec_write(codec, 0x15, 0,
-			    AC_VERB_SET_EAPD_BTLENABLE, power ? 2 : 0);
-}
-#endif
-
 /*
  * ALC880 3-stack model
  *
@@ -2548,8 +2538,10 @@ static int alc_build_controls(struct hda_codec *codec)
 	if (!kctl)
 		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
-		err = snd_hda_add_nids(codec, kctl, i, spec->capsrc_nids,
-				       spec->input_mux->num_items);
+		hda_nid_t *nids = spec->capsrc_nids;
+		if (!nids)
+			nids = spec->adc_nids;
+		err = snd_hda_add_nid(codec, kctl, i, nids[i]);
 		if (err < 0)
 			return err;
 	}
@@ -3691,6 +3683,11 @@ static int alc_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static inline void alc_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+}
+
 static void alc_free_kctls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3711,17 +3708,47 @@ static void alc_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
+	alc_shutup(codec);
 	alc_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+static void alc_power_eapd(struct hda_codec *codec)
+{
+	/* We currently only handle front, HP */
+	switch (codec->vendor_id) {
+	case 0x10ec0260:
+		snd_hda_codec_write(codec, 0x0f, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		snd_hda_codec_write(codec, 0x10, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		break;
+	case 0x10ec0262:
+	case 0x10ec0267:
+	case 0x10ec0268:
+	case 0x10ec0269:
+	case 0x10ec0272:
+	case 0x10ec0660:
+	case 0x10ec0662:
+	case 0x10ec0663:
+	case 0x10ec0862:
+	case 0x10ec0889:
+		snd_hda_codec_write(codec, 0x14, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		snd_hda_codec_write(codec, 0x15, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		break;
+	}
+}
+
 static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	struct alc_spec *spec = codec->spec;
+	alc_shutup(codec);
 	if (spec && spec->power_hook)
-		spec->power_hook(codec, 0);
+		spec->power_hook(codec);
 	return 0;
 }
 #endif
@@ -3729,16 +3756,9 @@ static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 #ifdef SND_HDA_NEEDS_RESUME
 static int alc_resume(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	struct alc_spec *spec = codec->spec;
-#endif
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	if (spec && spec->power_hook)
-		spec->power_hook(codec, 1);
-#endif
 	return 0;
 }
 #endif
@@ -3758,6 +3778,7 @@ static struct hda_codec_ops alc_patch_ops = {
 	.suspend = alc_suspend,
 	.check_power_status = alc_check_power_status,
 #endif
+	.reboot_notify = alc_shutup,
 };
 
 
@@ -9538,7 +9559,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.setup = alc889_acer_aspire_8930g_setup,
 		.init_hook = alc_automute_amp,
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-		.power_hook = alc889_power_eapd,
+		.power_hook = alc_power_eapd,
 #endif
 	},
 	[ALC888_ACER_ASPIRE_7730G] = {
@@ -14975,8 +14996,12 @@ static int patch_alc861(struct hda_codec *codec)
 	spec->vmaster_nid = 0x03;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC861_AUTO)
+	if (board_config == ALC861_AUTO) {
 		spec->init_hook = alc861_auto_init;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		spec->power_hook = alc_power_eapd;
+#endif
+	}
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc861_loopbacks;
