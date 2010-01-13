@@ -112,6 +112,8 @@ out:
 	return ret;
 }
 
+MODULE_FIRMWARE("isight.fw");
+
 static void isight_firmware_disconnect(struct usb_interface *intf)
 {
 }
