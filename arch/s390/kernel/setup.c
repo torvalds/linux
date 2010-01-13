@@ -124,12 +124,6 @@ void __cpuinit cpu_init(void)
          */
 	get_cpu_id(&S390_lowcore.cpu_id);
 
-        /*
-         * Force FPU initialization:
-         */
-        clear_thread_flag(TIF_USEDFPU);
-        clear_used_math();
-
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);

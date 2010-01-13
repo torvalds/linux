@@ -153,8 +153,6 @@ void exit_thread(void)
 
 void flush_thread(void)
 {
-	clear_used_math();
-	clear_tsk_thread_flag(current, TIF_USEDFPU);
 }
 
 void release_thread(struct task_struct *dead_task)
