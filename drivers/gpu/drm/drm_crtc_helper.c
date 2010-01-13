@@ -702,7 +702,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		DRM_INFO("%s: set mode %s %x\n", drm_get_encoder_name(encoder),
+		DRM_DEBUG("%s: set mode %s %x\n", drm_get_encoder_name(encoder),
 			 mode->name, mode->base.id);
 		encoder_funcs = encoder->helper_private;
 		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
