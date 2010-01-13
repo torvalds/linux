@@ -353,6 +353,7 @@ extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 				       struct vmw_dma_buffer *bo);
 extern int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
 				struct vmw_dma_buffer *bo);
+extern void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,

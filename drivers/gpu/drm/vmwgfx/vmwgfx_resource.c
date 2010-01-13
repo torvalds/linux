@@ -757,20 +757,29 @@ static size_t vmw_dmabuf_acc_size(struct ttm_bo_global *glob,
 	return bo_user_size + page_array_size;
 }
 
-void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
+void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo)
 {
 	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
 	struct ttm_bo_global *glob = bo->glob;
 	struct vmw_private *dev_priv =
 		container_of(bo->bdev, struct vmw_private, bdev);
 
-	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	if (vmw_bo->gmr_bound) {
 		vmw_gmr_unbind(dev_priv, vmw_bo->gmr_id);
 		spin_lock(&glob->lru_lock);
 		ida_remove(&dev_priv->gmr_ida, vmw_bo->gmr_id);
 		spin_unlock(&glob->lru_lock);
+		vmw_bo->gmr_bound = false;
 	}
+}
+
+void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
+{
+	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
+	struct ttm_bo_global *glob = bo->glob;
+
+	vmw_dmabuf_gmr_unbind(bo);
+	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	kfree(vmw_bo);
 }
 
@@ -816,18 +825,10 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
 {
 	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
-	struct vmw_dma_buffer *vmw_bo = &vmw_user_bo->dma;
 	struct ttm_bo_global *glob = bo->glob;
-	struct vmw_private *dev_priv =
-		container_of(bo->bdev, struct vmw_private, bdev);
 
+	vmw_dmabuf_gmr_unbind(bo);
 	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
-	if (vmw_bo->gmr_bound) {
-		vmw_gmr_unbind(dev_priv, vmw_bo->gmr_id);
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, vmw_bo->gmr_id);
-		spin_unlock(&glob->lru_lock);
-	}
 	kfree(vmw_user_bo);
 }
 

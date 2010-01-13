@@ -172,6 +172,13 @@ static int vmw_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 	return 0;
 }
 
+static void vmw_move_notify(struct ttm_buffer_object *bo,
+		     struct ttm_mem_reg *new_mem)
+{
+	if (new_mem->mem_type != TTM_PL_SYSTEM)
+		vmw_dmabuf_gmr_unbind(bo);
+}
+
 /**
  * FIXME: We're using the old vmware polling method to sync.
  * Do this with fences instead.
@@ -225,5 +232,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.sync_obj_wait = vmw_sync_obj_wait,
 	.sync_obj_flush = vmw_sync_obj_flush,
 	.sync_obj_unref = vmw_sync_obj_unref,
-	.sync_obj_ref = vmw_sync_obj_ref
+	.sync_obj_ref = vmw_sync_obj_ref,
+	.move_notify = vmw_move_notify
 };
