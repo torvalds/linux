@@ -134,6 +134,7 @@ size_t dsos__fprintf_buildid(FILE *fp);
 size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
+void dso__set_long_name(struct dso *self, char *name);
 void dso__set_build_id(struct dso *self, void *build_id);
 struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
 struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
@@ -151,5 +152,7 @@ bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
 int perf_session__create_kernel_maps(struct perf_session *self);
 
+struct map *perf_session__new_module_map(struct perf_session *self, u64 start,
+					 const char *filename);
 extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

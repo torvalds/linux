@@ -465,6 +465,11 @@ static int __cmd_record(int argc, const char **argv)
 		return -1;
 	}
 
+	if (perf_session__create_kernel_maps(session) < 0) {
+		pr_err("Problems creating kernel maps\n");
+		return -1;
+	}
+
 	if (!file_new) {
 		err = perf_header__read(&session->header, output);
 		if (err < 0)
@@ -553,6 +558,12 @@ static int __cmd_record(int argc, const char **argv)
 
 	err = event__synthesize_kernel_mmap(process_synthesized_event,
 					    session, "_text");
+	if (err < 0) {
+		pr_err("Couldn't record kernel reference relocation symbol.\n");
+		return err;
+	}
+
+	err = event__synthesize_modules(process_synthesized_event, session);
 	if (err < 0) {
 		pr_err("Couldn't record kernel reference relocation symbol.\n");
 		return err;

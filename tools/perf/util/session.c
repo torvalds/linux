@@ -69,9 +69,6 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->unknown_events = 0;
 	map_groups__init(&self->kmaps);
 
-	if (perf_session__create_kernel_maps(self) < 0)
-		goto out_delete;
-
 	if (mode == O_RDONLY && perf_session__open(self, force) < 0)
 		goto out_delete;
 
@@ -268,8 +265,11 @@ int perf_header__read_build_ids(int input, u64 offset, u64 size)
 			head = &dsos__kernel;
 
 		dso = __dsos__findnew(head, filename);
-		if (dso != NULL)
+		if (dso != NULL) {
 			dso__set_build_id(dso, &bev.build_id);
+			if (head == &dsos__kernel && filename[0] == '[')
+				dso->kernel = 1;
+		}
 
 		offset += bev.header.size;
 	}

@@ -154,6 +154,36 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	return 0;
 }
 
+int event__synthesize_modules(event__handler_t process,
+			      struct perf_session *session)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(&session->kmaps.maps[MAP__FUNCTION]);
+	     nd; nd = rb_next(nd)) {
+		event_t ev;
+		size_t size;
+		struct map *pos = rb_entry(nd, struct map, rb_node);
+
+		if (pos->dso->kernel)
+			continue;
+
+		size = ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
+		memset(&ev, 0, sizeof(ev));
+		ev.mmap.header.type = PERF_RECORD_MMAP;
+		ev.mmap.header.size = (sizeof(ev.mmap) -
+				        (sizeof(ev.mmap.filename) - size));
+		ev.mmap.start = pos->start;
+		ev.mmap.len   = pos->end - pos->start;
+
+		memcpy(ev.mmap.filename, pos->dso->long_name,
+		       pos->dso->long_name_len + 1);
+		process(&ev, session);
+	}
+
+	return 0;
+}
+
 int event__synthesize_thread(pid_t pid, event__handler_t process,
 			     struct perf_session *session)
 {
@@ -222,7 +252,9 @@ int event__synthesize_kernel_mmap(event__handler_t process,
 			"[kernel.kallsyms.%s]", symbol_name) + 1;
 	size = ALIGN(size, sizeof(u64));
 	ev.mmap.header.size = (sizeof(ev.mmap) - (sizeof(ev.mmap.filename) - size));
-	ev.mmap.start = args.start;
+	ev.mmap.pgoff = args.start;
+	ev.mmap.start = session->vmlinux_maps[MAP__FUNCTION]->start;
+	ev.mmap.len   = session->vmlinux_maps[MAP__FUNCTION]->end - ev.mmap.start ;
 
 	return process(&ev, session);
 }
@@ -280,7 +312,6 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 {
 	struct thread *thread;
 	struct map *map;
-	static const char kmmap_prefix[] = "[kernel.kallsyms.";
 
 	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
 		    self->mmap.pid, self->mmap.tid,
@@ -289,13 +320,61 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 		    (void *)(long)self->mmap.pgoff,
 		    self->mmap.filename);
 
-	if (self->mmap.pid == 0 &&
-	    memcmp(self->mmap.filename, kmmap_prefix,
-		   sizeof(kmmap_prefix) - 1) == 0) {
-		const char *symbol_name = (self->mmap.filename +
-					   sizeof(kmmap_prefix) - 1);
-		perf_session__set_kallsyms_ref_reloc_sym(session, symbol_name,
-							 self->mmap.start);
+	if (self->mmap.pid == 0) {
+		static const char kmmap_prefix[] = "[kernel.kallsyms.";
+
+		if (self->mmap.filename[0] == '/') {
+			char short_module_name[1024];
+			char *name = strrchr(self->mmap.filename, '/'), *dot;
+
+			if (name == NULL)
+				goto out_problem;
+
+			++name; /* skip / */
+			dot = strrchr(name, '.');
+			if (dot == NULL)
+				goto out_problem;
+
+			snprintf(short_module_name, sizeof(short_module_name),
+				 "[%.*s]", (int)(dot - name), name);
+			strxfrchar(short_module_name, '-', '_');
+
+			map = perf_session__new_module_map(session,
+							   self->mmap.start,
+							   short_module_name);
+			if (map == NULL)
+				goto out_problem;
+
+			name = strdup(self->mmap.filename);
+			if (name == NULL)
+				goto out_problem;
+
+			dso__set_long_name(map->dso, name);
+			map->end = map->start + self->mmap.len;
+		} else if (memcmp(self->mmap.filename, kmmap_prefix,
+				sizeof(kmmap_prefix) - 1) == 0) {
+			const char *symbol_name = (self->mmap.filename +
+						   sizeof(kmmap_prefix) - 1);
+			/*
+			 * Should be there already, from the build-id table in
+			 * the header.
+			 */
+			struct dso *kernel = __dsos__findnew(&dsos__kernel,
+							     "[kernel.kallsyms]");
+			if (kernel == NULL)
+				goto out_problem;
+
+			if (__map_groups__create_kernel_maps(&session->kmaps,
+							     session->vmlinux_maps,
+							     kernel) < 0)
+				goto out_problem;
+
+			session->vmlinux_maps[MAP__FUNCTION]->start = self->mmap.start;
+			session->vmlinux_maps[MAP__FUNCTION]->end   = self->mmap.start + self->mmap.len;
+
+			perf_session__set_kallsyms_ref_reloc_sym(session, symbol_name,
+								 self->mmap.pgoff);
+		}
 		return 0;
 	}
 
@@ -304,10 +383,13 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 		       session->cwd, session->cwdlen);
 
 	if (thread == NULL || map == NULL)
-		dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
-	else
-		thread__insert_map(thread, map);
+		goto out_problem;
 
+	thread__insert_map(thread, map);
+	return 0;
+
+out_problem:
+	dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
 	return 0;
 }
 

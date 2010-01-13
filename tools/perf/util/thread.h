@@ -67,4 +67,8 @@ map_groups__find_function(struct map_groups *self, struct perf_session *session,
 
 struct map *map_groups__find_by_name(struct map_groups *self,
 				     enum map_type type, const char *name);
+
+int __map_groups__create_kernel_maps(struct map_groups *self,
+				     struct map *vmlinux_maps[MAP__NR_TYPES],
+				     struct dso *kernel);
 #endif	/* __PERF_THREAD_H */
