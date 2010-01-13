@@ -1122,6 +1122,7 @@ static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw)
 static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
+	u16 phy_data;
 
 	if (hw->mac.type != e1000_pchlan)
 		return ret_val;
@@ -1165,16 +1166,32 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 
 	hw->phy.addr = 1;
 	ret_val = e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT, 0);
+	hw->phy.ops.release(hw);
 	if (ret_val)
 		goto out;
-	hw->phy.ops.release(hw);
 
 	/*
 	 * Configure the K1 Si workaround during phy reset assuming there is
 	 * link so that it disables K1 if link is in 1Gbps.
 	 */
 	ret_val = e1000_k1_gig_workaround_hv(hw, true);
+	if (ret_val)
+		goto out;
 
+	/* Workaround for link disconnects on a busy hub in half duplex */
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+	ret_val = hw->phy.ops.read_reg_locked(hw,
+	                                      PHY_REG(BM_PORT_CTRL_PAGE, 17),
+	                                      &phy_data);
+	if (ret_val)
+		goto release;
+	ret_val = hw->phy.ops.write_reg_locked(hw,
+	                                       PHY_REG(BM_PORT_CTRL_PAGE, 17),
+	                                       phy_data & 0x00FF);
+release:
+	hw->phy.ops.release(hw);
 out:
 	return ret_val;
 }
