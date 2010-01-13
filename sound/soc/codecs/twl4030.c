@@ -2192,7 +2192,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 	codec->write = twl4030_write;
 	codec->set_bias_level = twl4030_set_bias_level;
 	codec->dai = twl4030_dai;
-	codec->num_dai = ARRAY_SIZE(twl4030_dai),
+	codec->num_dai = ARRAY_SIZE(twl4030_dai);
 	codec->reg_cache_size = sizeof(twl4030_reg);
 	codec->reg_cache = kmemdup(twl4030_reg, sizeof(twl4030_reg),
 					GFP_KERNEL);
