@@ -1017,6 +1017,8 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 
 /* Common functions */
+/* AGP */
+extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
