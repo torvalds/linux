@@ -913,6 +913,8 @@ static void __exit dabusb_cleanup (void)
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("dabusb/firmware.fw");
+MODULE_FIRMWARE("dabusb/bitstream.bin");
 
 module_param(buffers, int, 0);
 MODULE_PARM_DESC (buffers, "Number of buffers (default=256)");
