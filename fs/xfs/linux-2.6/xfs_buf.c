@@ -1051,6 +1051,33 @@ xfs_buf_ioerror(
 }
 
 int
+xfs_bwrite(
+	struct xfs_mount	*mp,
+	struct xfs_buf		*bp)
+{
+	int			iowait = (bp->b_flags & XBF_ASYNC) == 0;
+	int			error = 0;
+
+	bp->b_strat = xfs_bdstrat_cb;
+	bp->b_mount = mp;
+	bp->b_flags |= XBF_WRITE;
+	if (!iowait)
+		bp->b_flags |= _XBF_RUN_QUEUES;
+
+	xfs_buf_delwri_dequeue(bp);
+	xfs_buf_iostrategy(bp);
+
+	if (iowait) {
+		error = xfs_buf_iowait(bp);
+		if (error)
+			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+		xfs_buf_relse(bp);
+	}
+
+	return error;
+}
+
+int
 xfs_bawrite(
 	void			*mp,
 	struct xfs_buf		*bp)

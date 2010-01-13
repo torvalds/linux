@@ -306,37 +306,6 @@ xfs_read_buf(
 }
 
 /*
- * Wrapper around bwrite() so that we can trap
- * write errors, and act accordingly.
- */
-int
-xfs_bwrite(
-	struct xfs_mount *mp,
-	struct xfs_buf	 *bp)
-{
-	int	error;
-
-	/*
-	 * XXXsup how does this work for quotas.
-	 */
-	XFS_BUF_SET_BDSTRAT_FUNC(bp, xfs_bdstrat_cb);
-	bp->b_mount = mp;
-	XFS_BUF_WRITE(bp);
-
-	if ((error = XFS_bwrite(bp))) {
-		ASSERT(mp);
-		/*
-		 * Cannot put a buftrace here since if the buffer is not
-		 * B_HOLD then we will brelse() the buffer before returning
-		 * from bwrite and we could be tracing a buffer that has
-		 * been reused.
-		 */
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-	}
-	return (error);
-}
-
-/*
  * helper function to extract extent size hint from inode
  */
 xfs_extlen_t
