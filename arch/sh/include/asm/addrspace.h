@@ -28,7 +28,7 @@
 /* Returns the privileged segment base of a given address  */
 #define PXSEG(a)	(((unsigned long)(a)) & 0xe0000000)
 
-#if defined(CONFIG_29BIT) || defined(CONFIG_PMB_FIXED)
+#ifdef CONFIG_29BIT
 /*
  * Map an address to a certain privileged segment
  */
@@ -40,7 +40,7 @@
 	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P3SEG))
 #define P4SEGADDR(a)	\
 	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P4SEG))
-#endif /* 29BIT || PMB_FIXED */
+#endif /* 29BIT */
 #endif /* P1SEG */
 
 /* Check if an address can be reached in 29 bits */

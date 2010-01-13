@@ -65,11 +65,29 @@ struct pmb_entry {
 	struct pmb_entry *link;
 };
 
+#ifdef CONFIG_PMB
 /* arch/sh/mm/pmb.c */
 long pmb_remap(unsigned long virt, unsigned long phys,
 	       unsigned long size, unsigned long flags);
 void pmb_unmap(unsigned long addr);
 int pmb_init(void);
+#else
+static inline long pmb_remap(unsigned long virt, unsigned long phys,
+			     unsigned long size, unsigned long flags)
+{
+	return -EINVAL
+}
+
+static inline void pmb_unmap(unsigned long addr)
+{
+}
+
+static inline int pmb_init(void)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_PMB */
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __MMU_H */

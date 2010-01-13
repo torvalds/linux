@@ -14,17 +14,16 @@ OUTPUT_ARCH(sh)
 #include <asm/cache.h>
 #include <asm/vmlinux.lds.h>
 
+#if defined(CONFIG_32BIT) && !defined(CONFIG_PMB_LEGACY)
+#define MEMORY_OFFSET	0
+#else
+#define MEMORY_OFFSET	(CONFIG_MEMORY_START & 0x1fffffff)
+#endif
+
 ENTRY(_start)
 SECTIONS
 {
-#ifdef CONFIG_PMB_FIXED
-	. = CONFIG_PAGE_OFFSET + (CONFIG_MEMORY_START & 0x1fffffff) +
-	    CONFIG_ZERO_PAGE_OFFSET;
-#elif defined(CONFIG_32BIT)
-	. = CONFIG_PAGE_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
-#else
-	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
-#endif
+	. = CONFIG_PAGE_OFFSET + MEMORY_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
 
 	_text = .;		/* Text and read-only data */
 

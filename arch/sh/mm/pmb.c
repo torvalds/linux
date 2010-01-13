@@ -3,7 +3,7 @@
  *
  * Privileged Space Mapping Buffer (PMB) Support.
  *
- * Copyright (C) 2005, 2006, 2007 Paul Mundt
+ * Copyright (C) 2005 - 2010 Paul Mundt
  *
  * P1/P2 Section mapping definitions from map32.h, which was:
  *
@@ -279,51 +279,12 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 	} while (pmbe);
 }
 
-#ifdef CONFIG_PMB
-int __uses_jump_to_uncached pmb_init(void)
-{
-	unsigned int i;
-	long size, ret;
-
-	jump_to_uncached();
-
-	/*
-	 * Insert PMB entries for the P1 and P2 areas so that, after
-	 * we've switched the MMU to 32-bit mode, the semantics of P1
-	 * and P2 are the same as in 29-bit mode, e.g.
-	 *
-	 *	P1 - provides a cached window onto physical memory
-	 *	P2 - provides an uncached window onto physical memory
-	 */
-	size = __MEMORY_START + __MEMORY_SIZE;
-
-	ret = pmb_remap(P1SEG, 0x00000000, size, PMB_C);
-	BUG_ON(ret != size);
-
-	ret = pmb_remap(P2SEG, 0x00000000, size, PMB_WT | PMB_UB);
-	BUG_ON(ret != size);
-
-	ctrl_outl(0, PMB_IRMCR);
-
-	/* PMB.SE and UB[7] */
-	ctrl_outl(PASCR_SE | (1 << 7), PMB_PASCR);
-
-	/* Flush out the TLB */
-	i =  ctrl_inl(MMUCR);
-	i |= MMUCR_TI;
-	ctrl_outl(i, MMUCR);
-
-	back_to_cached();
-
-	return 0;
-}
-#else
-int __uses_jump_to_uncached pmb_init(void)
+#ifdef CONFIG_PMB_LEGACY
+static int pmb_apply_legacy_mappings(void)
 {
 	int i;
 	unsigned long addr, data;
-
-	jump_to_uncached();
+	unsigned int applied = 0;
 
 	for (i = 0; i < PMB_ENTRY_MAX; i++) {
 		struct pmb_entry *pmbe;
@@ -357,13 +318,69 @@ int __uses_jump_to_uncached pmb_init(void)
 
 		pmbe = pmb_alloc(vpn, ppn, flags, i);
 		WARN_ON(IS_ERR(pmbe));
+
+		applied++;
 	}
+
+	return (applied == 0);
+}
+#else
+static inline int pmb_apply_legacy_mappings(void)
+{
+	return 1;
+}
+#endif
+
+int __uses_jump_to_uncached pmb_init(void)
+{
+	unsigned int i;
+	unsigned long size, ret;
+
+	jump_to_uncached();
+
+	/*
+	 * Attempt to apply the legacy boot mappings if configured. If
+	 * this is successful then we simply carry on with those and
+	 * don't bother establishing additional memory mappings. Dynamic
+	 * device mappings through pmb_remap() can still be bolted on
+	 * after this.
+	 */
+	ret = pmb_apply_legacy_mappings();
+	if (ret == 0) {
+		back_to_cached();
+		return 0;
+	}
+
+	/*
+	 * Insert PMB entries for the P1 and P2 areas so that, after
+	 * we've switched the MMU to 32-bit mode, the semantics of P1
+	 * and P2 are the same as in 29-bit mode, e.g.
+	 *
+	 *	P1 - provides a cached window onto physical memory
+	 *	P2 - provides an uncached window onto physical memory
+	 */
+	size = (unsigned long)__MEMORY_START + __MEMORY_SIZE;
+
+	ret = pmb_remap(P1SEG, 0x00000000, size, PMB_C);
+	BUG_ON(ret != size);
+
+	ret = pmb_remap(P2SEG, 0x00000000, size, PMB_WT | PMB_UB);
+	BUG_ON(ret != size);
+
+	ctrl_outl(0, PMB_IRMCR);
+
+	/* PMB.SE and UB[7] */
+	ctrl_outl(PASCR_SE | (1 << 7), PMB_PASCR);
+
+	/* Flush out the TLB */
+	i =  ctrl_inl(MMUCR);
+	i |= MMUCR_TI;
+	ctrl_outl(i, MMUCR);
 
 	back_to_cached();
 
 	return 0;
 }
-#endif /* CONFIG_PMB */
 
 static int pmb_seq_show(struct seq_file *file, void *iter)
 {
@@ -462,6 +479,5 @@ static int __init pmb_sysdev_init(void)
 {
 	return sysdev_driver_register(&cpu_sysdev_class, &pmb_sysdev_driver);
 }
-
 subsys_initcall(pmb_sysdev_init);
 #endif

@@ -455,10 +455,7 @@ void __init setup_arch(char **cmdline_p)
 		sh_mv.mv_setup(cmdline_p);
 
 	paging_init();
-
-#ifdef CONFIG_PMB_ENABLE
 	pmb_init();
-#endif
 
 #ifdef CONFIG_SMP
 	plat_smp_setup();

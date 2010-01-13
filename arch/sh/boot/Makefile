@@ -46,15 +46,8 @@ $(obj)/romImage: $(obj)/romimage/vmlinux FORCE
 $(obj)/romimage/vmlinux: $(obj)/zImage FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/romimage $@
 
-KERNEL_MEMORY := 0x00000000
-ifeq ($(CONFIG_PMB_FIXED),y)
-KERNEL_MEMORY := $(shell /bin/bash -c 'printf "0x%08x" \
+KERNEL_MEMORY	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_MEMORY_START) & 0x1fffffff]')
-endif
-ifeq ($(CONFIG_29BIT),y)
-KERNEL_MEMORY := $(shell /bin/bash -c 'printf "0x%08x" \
-		     $$[$(CONFIG_MEMORY_START)]')
-endif
 
 KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
