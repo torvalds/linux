@@ -413,6 +413,10 @@ error:
 	return result;
 }
 
+MODULE_FIRMWARE("i1480-pre-phy-0.0.bin");
+MODULE_FIRMWARE("i1480-usb-0.0.bin");
+MODULE_FIRMWARE("i1480-phy-0.0.bin");
+
 #define i1480_USB_DEV(v, p)				\
 {							\
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE	\
