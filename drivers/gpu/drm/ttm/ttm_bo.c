@@ -1844,6 +1844,9 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	 * anyone tries to access a ttm page.
 	 */
 
+	if (bo->bdev->driver->swap_notify)
+		bo->bdev->driver->swap_notify(bo);
+
 	ret = ttm_tt_swapout(bo->ttm, bo->persistant_swap_storage);
 out:
 
