@@ -100,13 +100,8 @@ config PMB_LEGACY
 	  and allows systems to support up to 512MiB of system memory.
 
 config X2TLB
-	bool "Enable extended TLB mode"
-	depends on (CPU_SHX2 || CPU_SHX3) && MMU && EXPERIMENTAL
-	help
-	  Selecting this option will enable the extended mode of the SH-X2
-	  TLB. For legacy SH-X behaviour and interoperability, say N. For
-	  all of the fun new features and a willingless to submit bug reports,
-	  say Y.
+	def_bool y
+	depends on (CPU_SHX2 || CPU_SHX3) && MMU
 
 config VSYSCALL
 	bool "Support vsyscall page"
@@ -175,31 +170,11 @@ config ARCH_MEMORY_PROBE
 	depends on MEMORY_HOTPLUG
 
 choice
-	prompt "Page table layout"
-	default PGTABLE_LEVELS_3 if X2TLB
-	default PGTABLE_LEVELS_2
-
-config PGTABLE_LEVELS_2
-       bool "2 Levels"
-       help
-         This is the default page table layout for all SuperH CPUs.
-
-config PGTABLE_LEVELS_3
-       bool "3 Levels"
-       depends on X2TLB
-       help
-         This enables a 3 level page table structure.
-
-endchoice
-
-choice
 	prompt "Kernel page size"
-	default PAGE_SIZE_8KB if X2TLB
 	default PAGE_SIZE_4KB
 
 config PAGE_SIZE_4KB
 	bool "4kB"
-	depends on !MMU || !X2TLB || PGTABLE_LEVELS_3
 	help
 	  This is the default page size used by all SuperH CPUs.
 

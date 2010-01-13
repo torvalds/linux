@@ -12,7 +12,7 @@
 #ifndef __ASM_SH_PGTABLE_H
 #define __ASM_SH_PGTABLE_H
 
-#ifdef CONFIG_PGTABLE_LEVELS_3
+#ifdef CONFIG_X2TLB
 #include <asm/pgtable_pmd.h>
 #else
 #include <asm/pgtable_nopmd.h>

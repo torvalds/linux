@@ -7,11 +7,12 @@
  * Some cores need a 3-level page table layout, for example when using
  * 64-bit PTEs and 4K pages.
  */
+#define PAGETABLE_LEVELS	3
 
-#define PTE_MAGNITUDE	3	/* 64-bit PTEs on extended mode SH-X2 TLB */
+#define PTE_MAGNITUDE		3	/* 64-bit PTEs on SH-X2 TLB */
 
 /* PGD bits */
-#define PGDIR_SHIFT	30
+#define PGDIR_SHIFT		30
 
 #define PTRS_PER_PGD		4
 #define USER_PTRS_PER_PGD	2
