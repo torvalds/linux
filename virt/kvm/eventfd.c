@@ -47,7 +47,6 @@ struct _irqfd {
 	int                       gsi;
 	struct list_head          list;
 	poll_table                pt;
-	wait_queue_head_t        *wqh;
 	wait_queue_t              wait;
 	struct work_struct        inject;
 	struct work_struct        shutdown;
@@ -159,8 +158,6 @@ irqfd_ptable_queue_proc(struct file *file, wait_queue_head_t *wqh,
 			poll_table *pt)
 {
 	struct _irqfd *irqfd = container_of(pt, struct _irqfd, pt);
-
-	irqfd->wqh = wqh;
 	add_wait_queue(wqh, &irqfd->wait);
 }
 
