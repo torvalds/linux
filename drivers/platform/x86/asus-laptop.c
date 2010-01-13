@@ -331,26 +331,9 @@ static int write_acpi_int(acpi_handle handle, const char *method, int val)
 	return write_acpi_int_ret(handle, method, val, NULL);
 }
 
-static int read_gps_status(struct asus_laptop *asus)
-{
-	unsigned long long status;
-	acpi_status rv = AE_OK;
-
-	rv = acpi_evaluate_integer(gps_status_handle, NULL, NULL, &status);
-	if (ACPI_FAILURE(rv))
-		pr_warning("Error reading GPS status\n");
-	else
-		return status ? 1 : 0;
-
-	return (asus->status & GPS_ON) ? 1 : 0;
-}
-
 /* Generic LED functions */
 static int read_status(struct asus_laptop *asus, int mask)
 {
-	if (mask == GPS_ON)
-		return read_gps_status(asus);
-
 	return (asus->status & mask) ? 1 : 0;
 }
 
@@ -979,21 +962,52 @@ static ssize_t store_lslvl(struct device *dev, struct device_attribute *attr,
 
 /*
  * GPS
+ * TODO: use rfkill
  */
+static int asus_gps_status(struct asus_laptop *asus)
+{
+	unsigned long long status;
+	acpi_status rv = AE_OK;
+
+	rv = acpi_evaluate_integer(gps_status_handle, NULL, NULL, &status);
+	if (ACPI_FAILURE(rv)) {
+		pr_warning("Error reading GPS status\n");
+		return -ENODEV;
+	}
+	return !!status;
+}
+
+static int asus_gps_switch(struct asus_laptop *asus, int status)
+{
+	acpi_handle handle = status ? gps_on_handle : gps_off_handle;
+
+	if (write_acpi_int(handle, NULL, 0x02))
+		return -ENODEV;
+	return 0;
+}
+
 static ssize_t show_gps(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", read_status(asus, GPS_ON));
+	return sprintf(buf, "%d\n", asus_gps_status(asus));
 }
 
 static ssize_t store_gps(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	struct asus_laptop *asus = dev_get_drvdata(dev);
+ 	struct asus_laptop *asus = dev_get_drvdata(dev);
+	int rv, value;
+	int ret;
 
-	return store_status(asus, buf, count, NULL, GPS_ON);
+	rv = parse_arg(buf, count, &value);
+	if (rv <= 0)
+		return -EINVAL;
+	ret = asus_gps_switch(asus, !!value);
+	if (ret)
+		return ret;
+	return rv;
 }
 
 /*
@@ -1451,7 +1465,7 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 		set_light_sens_level(asus, asus->light_level);
 
 	/* GPS is on by default */
-	write_status(asus, NULL, 1, GPS_ON);
+	asus_gps_switch(asus, 1);
 	return result;
 }
 
