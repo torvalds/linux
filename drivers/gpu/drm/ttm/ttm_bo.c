@@ -426,7 +426,8 @@ moved:
 		    bdev->man[bo->mem.mem_type].gpu_offset;
 		bo->cur_placement = bo->mem.placement;
 		spin_unlock(&bo->lock);
-	}
+	} else
+		bo->offset = 0;
 
 	return 0;
 
