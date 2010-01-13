@@ -183,8 +183,8 @@ static DECLARE_WAIT_QUEUE_HEAD(sep_event);
 static int sep_load_firmware(struct sep_device *sep)
 {
 	const struct firmware *fw;
-	char *cache_name = "cache.image.bin";
-	char *res_name = "resident.image.bin";
+	char *cache_name = "sep/cache.image.bin";
+	char *res_name = "sep/resident.image.bin";
 	int error;
 
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
