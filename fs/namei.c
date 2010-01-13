@@ -37,8 +37,6 @@
 
 #include "internal.h"
 
-#define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
-
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
  * were necessary because of omirr.  The reason is that omirr needs
@@ -234,6 +232,7 @@ int generic_permission(struct inode *inode, int mask,
 	/*
 	 * Searching includes executable on directories, else just read.
 	 */
+	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
 	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
 		if (capable(CAP_DAC_READ_SEARCH))
 			return 0;
@@ -1640,6 +1639,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		if (filp == NULL)
 			return ERR_PTR(-ENFILE);
 		nd.intent.open.file = filp;
+		filp->f_flags = open_flag;
 		nd.intent.open.flags = flag;
 		nd.intent.open.create_mode = 0;
 		error = do_path_lookup(dfd, pathname,
@@ -1685,6 +1685,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (filp == NULL)
 		goto exit_parent;
 	nd.intent.open.file = filp;
+	filp->f_flags = open_flag;
 	nd.intent.open.flags = flag;
 	nd.intent.open.create_mode = mode;
 	dir = nd.path.dentry;
@@ -1725,7 +1726,7 @@ do_last:
 			mnt_drop_write(nd.path.mnt);
 			goto exit;
 		}
-		filp = nameidata_to_filp(&nd, open_flag);
+		filp = nameidata_to_filp(&nd);
 		mnt_drop_write(nd.path.mnt);
 		if (nd.root.mnt)
 			path_put(&nd.root);
@@ -1764,7 +1765,7 @@ do_last:
 
 	path_to_nameidata(&path, &nd);
 	error = -EISDIR;
-	if (path.dentry->d_inode && S_ISDIR(path.dentry->d_inode->i_mode))
+	if (S_ISDIR(path.dentry->d_inode->i_mode))
 		goto exit;
 ok:
 	/*
@@ -1789,7 +1790,7 @@ ok:
 			mnt_drop_write(nd.path.mnt);
 		goto exit;
 	}
-	filp = nameidata_to_filp(&nd, open_flag);
+	filp = nameidata_to_filp(&nd);
 	if (!IS_ERR(filp)) {
 		error = ima_path_check(&filp->f_path, filp->f_mode &
 			       (MAY_READ | MAY_WRITE | MAY_EXEC));

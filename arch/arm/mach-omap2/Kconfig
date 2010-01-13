@@ -18,6 +18,7 @@ config ARCH_OMAP2430
 config ARCH_OMAP34XX
 	bool "OMAP34xx Based System"
 	depends on ARCH_OMAP3
+	select USB_ARCH_HAS_EHCI
 
 config ARCH_OMAP3430
 	bool "OMAP3430 support"
@@ -79,6 +80,7 @@ config MACH_OVERO
 config MACH_OMAP3EVM
 	bool "OMAP 3530 EVM board"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"

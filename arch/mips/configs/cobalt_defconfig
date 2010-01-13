@@ -9,7 +9,6 @@ CONFIG_MIPS=y
 # Machine selection
 #
 # CONFIG_MACH_ALCHEMY is not set
-# CONFIG_BASLER_EXCITE is not set
 # CONFIG_BCM47XX is not set
 CONFIG_MIPS_COBALT=y
 # CONFIG_MACH_DECSTATION is not set
@@ -1126,7 +1125,7 @@ CONFIG_FRAME_WARN=1024
 # CONFIG_SLUB_STATS is not set
 # CONFIG_DEBUG_MEMORY_INIT is not set
 # CONFIG_SAMPLES is not set
-CONFIG_CMDLINE=""
+# CONFIG_CMDLINE_BOOL is not set
 
 #
 # Security options

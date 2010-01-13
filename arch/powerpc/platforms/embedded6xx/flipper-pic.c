@@ -102,7 +102,7 @@ static int flipper_pic_map(struct irq_host *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
 	set_irq_chip_data(virq, h->host_data);
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &flipper_pic, handle_level_irq);
 	return 0;
 }

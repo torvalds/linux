@@ -203,6 +203,7 @@ config CS5535_MFGPT
 
 config CS5535_MFGPT_DEFAULT_IRQ
 	int
+	depends on CS5535_MFGPT
 	default 7
 	help
 	  MFGPTs on the CS5535 require an interrupt.  The selected IRQ

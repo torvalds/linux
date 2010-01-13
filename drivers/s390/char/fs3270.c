@@ -467,7 +467,7 @@ fs3270_open(struct inode *inode, struct file *filp)
 	if (IS_ERR(ib)) {
 		raw3270_put_view(&fp->view);
 		raw3270_del_view(&fp->view);
-		rc = PTR_ERR(fp);
+		rc = PTR_ERR(ib);
 		goto out;
 	}
 	fp->rdbuf = ib;

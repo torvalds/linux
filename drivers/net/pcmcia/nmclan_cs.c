@@ -1402,7 +1402,6 @@ static void BuildLAF(int *ladrf, int *adr)
   for (i = 0; i < 8; i++)
     printk(KERN_CONT " %02X", ladrf[i]);
   printk(KERN_CONT "\n");
-  }
 #endif
 } /* BuildLAF */
 

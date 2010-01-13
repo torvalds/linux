@@ -207,6 +207,8 @@ static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
 		*adjusted_mode = *native_mode;
 		adjusted_mode->hdisplay = mode->hdisplay;
 		adjusted_mode->vdisplay = mode->vdisplay;
+		adjusted_mode->crtc_hdisplay = mode->hdisplay;
+		adjusted_mode->crtc_vdisplay = mode->vdisplay;
 		adjusted_mode->base.id = mode_id;
 	}
 

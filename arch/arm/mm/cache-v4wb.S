@@ -114,15 +114,16 @@ ENTRY(v4wb_flush_user_cache_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(v4wb_flush_kern_dcache_page)
-	add	r1, r0, #PAGE_SZ
+ENTRY(v4wb_flush_kern_dcache_area)
+	add	r1, r0, r1
 	/* fall through */
 
 /*
@@ -224,7 +225,7 @@ ENTRY(v4wb_cache_fns)
 	.long	v4wb_flush_user_cache_range
 	.long	v4wb_coherent_kern_range
 	.long	v4wb_coherent_user_range
-	.long	v4wb_flush_kern_dcache_page
+	.long	v4wb_flush_kern_dcache_area
 	.long	v4wb_dma_inv_range
 	.long	v4wb_dma_clean_range
 	.long	v4wb_dma_flush_range

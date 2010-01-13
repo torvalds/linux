@@ -1311,6 +1311,7 @@ static void omapfb_free_fbmem(struct fb_info *fbi)
 		if (rg->vrfb.vaddr[0]) {
 			iounmap(rg->vrfb.vaddr[0]);
 			omap_vrfb_release_ctx(&rg->vrfb);
+			rg->vrfb.vaddr[0] = NULL;
 		}
 	}
 
@@ -2114,6 +2115,11 @@ static int omapfb_probe(struct platform_device *pdev)
 	dssdev = NULL;
 	for_each_dss_dev(dssdev) {
 		omap_dss_get_device(dssdev);
+		if (!dssdev->driver) {
+			dev_err(&pdev->dev, "no driver for display\n");
+			r = -EINVAL;
+			goto cleanup;
+		}
 		fbdev->displays[fbdev->num_displays++] = dssdev;
 	}
 

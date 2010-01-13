@@ -528,7 +528,7 @@ int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 
 	bridge = pci_find_upstream_pcie_bridge(dev);
 	if (bridge) {
-		if (pci_is_pcie(bridge))/* this is a PCIE-to-PCI/PCIX bridge */
+		if (pci_is_pcie(bridge))/* this is a PCIe-to-PCI/PCIX bridge */
 			set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
 				(bridge->bus->number << 8) | dev->bus->number);
 		else /* this is a legacy PCI bridge */

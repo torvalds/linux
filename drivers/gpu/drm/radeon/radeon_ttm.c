@@ -494,6 +494,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
+	rdev->mman.initialized = true;
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
 				rdev->mc.real_vram_size >> PAGE_SHIFT);
 	if (r) {
@@ -541,6 +542,8 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 {
 	int r;
 
+	if (!rdev->mman.initialized)
+		return;
 	if (rdev->stollen_vga_memory) {
 		r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
 		if (r == 0) {
@@ -554,6 +557,7 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	ttm_bo_device_release(&rdev->mman.bdev);
 	radeon_gart_fini(rdev);
 	radeon_ttm_global_fini(rdev);
+	rdev->mman.initialized = false;
 	DRM_INFO("radeon: ttm finalized\n");
 }
 

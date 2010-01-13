@@ -1419,6 +1419,10 @@ static bool need_dynamic_ps(struct ieee80211_local *local)
 	if (!local->ps_sdata)
 		return false;
 
+	/* No point if we're going to suspend */
+	if (local->quiescing)
+		return false;
+
 	return true;
 }
 

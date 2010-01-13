@@ -770,7 +770,7 @@ static int hidp_setup_hid(struct hidp_session *session,
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid))
-		return PTR_ERR(session->hid);
+		return PTR_ERR(hid);
 
 	session->hid = hid;
 	session->req = req;

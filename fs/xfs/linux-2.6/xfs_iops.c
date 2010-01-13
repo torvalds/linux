@@ -794,7 +794,7 @@ xfs_setup_inode(
 	struct inode		*inode = &ip->i_vnode;
 
 	inode->i_ino = ip->i_ino;
-	inode->i_state = I_NEW|I_LOCK;
+	inode->i_state = I_NEW;
 	inode_add_to_lists(ip->i_mount->m_super, inode);
 
 	inode->i_mode	= ip->i_d.di_mode;

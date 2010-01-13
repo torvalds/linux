@@ -7593,6 +7593,8 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		if (bp->cnic_eth_dev.drv_state & CNIC_DRV_STATE_REGD) {
 			bnx2x_set_iscsi_eth_mac_addr(bp, 1);
 			bp->cnic_flags |= BNX2X_CNIC_FLAG_MAC_SET;
+			bnx2x_init_sb(bp, bp->cnic_sb, bp->cnic_sb_mapping,
+				      CNIC_SB_ID(bp));
 		}
 		mutex_unlock(&bp->cnic_mutex);
 #endif

@@ -377,7 +377,7 @@ static int r8180_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	//	queue_work(priv->ieee80211->wq, &priv->ieee80211->wx_sync_scan_wq);
 		//printk("start scan============================>\n");
 		ieee80211_softmac_ips_scan_syncro(priv->ieee80211);
-//ieee80211_start_scan(priv->ieee80211);
+//ieee80211_rtl_start_scan(priv->ieee80211);
 		/* intentionally forget to up sem */
 //			up(&priv->ieee80211->wx_sem);
 			ret = 0;

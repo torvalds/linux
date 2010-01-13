@@ -202,8 +202,13 @@ static void dell_wmi_notify(u32 value, void *context)
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	static struct key_entry *key;
 	union acpi_object *obj;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO "dell-wmi: bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
@@ -238,6 +243,7 @@ static void dell_wmi_notify(u32 value, void *context)
 			input_sync(dell_wmi_input_dev);
 		}
 	}
+	kfree(obj);
 }
 
 
@@ -322,39 +328,37 @@ static int __init dell_wmi_input_setup(void)
 static int __init dell_wmi_init(void)
 {
 	int err;
+	acpi_status status;
 
-	if (wmi_has_guid(DELL_EVENT_GUID)) {
-
-		dmi_walk(find_hk_type, NULL);
-
-		err = dell_wmi_input_setup();
-
-		if (err)
-			return err;
-
-		err = wmi_install_notify_handler(DELL_EVENT_GUID,
-						 dell_wmi_notify, NULL);
-		if (err) {
-			input_unregister_device(dell_wmi_input_dev);
-			printk(KERN_ERR "dell-wmi: Unable to register"
-			       " notify handler - %d\n", err);
-			return err;
-		}
-
-		acpi_video = acpi_video_backlight_support();
-
-	} else
+	if (!wmi_has_guid(DELL_EVENT_GUID)) {
 		printk(KERN_WARNING "dell-wmi: No known WMI GUID found\n");
+		return -ENODEV;
+	}
+
+	dmi_walk(find_hk_type, NULL);
+	acpi_video = acpi_video_backlight_support();
+
+	err = dell_wmi_input_setup();
+	if (err)
+		return err;
+
+	status = wmi_install_notify_handler(DELL_EVENT_GUID,
+					 dell_wmi_notify, NULL);
+	if (ACPI_FAILURE(status)) {
+		input_unregister_device(dell_wmi_input_dev);
+		printk(KERN_ERR
+			"dell-wmi: Unable to register notify handler - %d\n",
+			status);
+		return -ENODEV;
+	}
 
 	return 0;
 }
 
 static void __exit dell_wmi_exit(void)
 {
-	if (wmi_has_guid(DELL_EVENT_GUID)) {
-		wmi_remove_notify_handler(DELL_EVENT_GUID);
-		input_unregister_device(dell_wmi_input_dev);
-	}
+	wmi_remove_notify_handler(DELL_EVENT_GUID);
+	input_unregister_device(dell_wmi_input_dev);
 }
 
 module_init(dell_wmi_init);

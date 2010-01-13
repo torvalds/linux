@@ -113,7 +113,7 @@ static void wake_up_inode(struct inode *inode)
 	 * Prevent speculative execution through spin_unlock(&inode_lock);
 	 */
 	smp_mb();
-	wake_up_bit(&inode->i_state, __I_LOCK);
+	wake_up_bit(&inode->i_state, __I_NEW);
 }
 
 /**
@@ -690,17 +690,17 @@ void unlock_new_inode(struct inode *inode)
 	}
 #endif
 	/*
-	 * This is special!  We do not need the spinlock when clearing I_LOCK,
+	 * This is special!  We do not need the spinlock when clearing I_NEW,
 	 * because we're guaranteed that nobody else tries to do anything about
 	 * the state of the inode when it is locked, as we just created it (so
-	 * there can be no old holders that haven't tested I_LOCK).
+	 * there can be no old holders that haven't tested I_NEW).
 	 * However we must emit the memory barrier so that other CPUs reliably
-	 * see the clearing of I_LOCK after the other inode initialisation has
+	 * see the clearing of I_NEW after the other inode initialisation has
 	 * completed.
 	 */
 	smp_mb();
-	WARN_ON((inode->i_state & (I_LOCK|I_NEW)) != (I_LOCK|I_NEW));
-	inode->i_state &= ~(I_LOCK|I_NEW);
+	WARN_ON(!(inode->i_state & I_NEW));
+	inode->i_state &= ~I_NEW;
 	wake_up_inode(inode);
 }
 EXPORT_SYMBOL(unlock_new_inode);
@@ -731,7 +731,7 @@ static struct inode *get_new_inode(struct super_block *sb,
 				goto set_failed;
 
 			__inode_add_to_lists(sb, head, inode);
-			inode->i_state = I_LOCK|I_NEW;
+			inode->i_state = I_NEW;
 			spin_unlock(&inode_lock);
 
 			/* Return the locked inode with I_NEW set, the
@@ -778,7 +778,7 @@ static struct inode *get_new_inode_fast(struct super_block *sb,
 		if (!old) {
 			inode->i_ino = ino;
 			__inode_add_to_lists(sb, head, inode);
-			inode->i_state = I_LOCK|I_NEW;
+			inode->i_state = I_NEW;
 			spin_unlock(&inode_lock);
 
 			/* Return the locked inode with I_NEW set, the
@@ -1083,7 +1083,7 @@ int insert_inode_locked(struct inode *inode)
 	ino_t ino = inode->i_ino;
 	struct hlist_head *head = inode_hashtable + hash(sb, ino);
 
-	inode->i_state |= I_LOCK|I_NEW;
+	inode->i_state |= I_NEW;
 	while (1) {
 		struct hlist_node *node;
 		struct inode *old = NULL;
@@ -1120,7 +1120,7 @@ int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 	struct super_block *sb = inode->i_sb;
 	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
 
-	inode->i_state |= I_LOCK|I_NEW;
+	inode->i_state |= I_NEW;
 
 	while (1) {
 		struct hlist_node *node;
@@ -1510,7 +1510,7 @@ EXPORT_SYMBOL(inode_wait);
  * until the deletion _might_ have completed.  Callers are responsible
  * to recheck inode state.
  *
- * It doesn't matter if I_LOCK is not set initially, a call to
+ * It doesn't matter if I_NEW is not set initially, a call to
  * wake_up_inode() after removing from the hash list will DTRT.
  *
  * This is called with inode_lock held.
@@ -1518,8 +1518,8 @@ EXPORT_SYMBOL(inode_wait);
 static void __wait_on_freeing_inode(struct inode *inode)
 {
 	wait_queue_head_t *wq;
-	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_LOCK);
-	wq = bit_waitqueue(&inode->i_state, __I_LOCK);
+	DEFINE_WAIT_BIT(wait, &inode->i_state, __I_NEW);
+	wq = bit_waitqueue(&inode->i_state, __I_NEW);
 	prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
 	spin_unlock(&inode_lock);
 	schedule();

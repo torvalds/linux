@@ -83,7 +83,8 @@ static int xattr_unlink(struct inode *dir, struct dentry *dentry)
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
 	vfs_dq_init(dir);
 
-	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
+	reiserfs_mutex_lock_nested_safe(&dentry->d_inode->i_mutex,
+					I_MUTEX_CHILD, dir->i_sb);
 	error = dir->i_op->unlink(dir, dentry);
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
@@ -98,7 +99,8 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
 	vfs_dq_init(dir);
 
-	mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
+	reiserfs_mutex_lock_nested_safe(&dentry->d_inode->i_mutex,
+					I_MUTEX_CHILD, dir->i_sb);
 	dentry_unhash(dentry);
 	error = dir->i_op->rmdir(dir, dentry);
 	if (!error)
@@ -235,16 +237,22 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 	if (IS_PRIVATE(inode) || get_inode_sd_version(inode) == STAT_DATA_V1)
 		return 0;
 
+	reiserfs_write_unlock(inode->i_sb);
 	dir = open_xa_dir(inode, XATTR_REPLACE);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
+		reiserfs_write_lock(inode->i_sb);
 		goto out;
 	} else if (!dir->d_inode) {
 		err = 0;
+		reiserfs_write_lock(inode->i_sb);
 		goto out_dir;
 	}
 
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
+
+	reiserfs_write_lock(inode->i_sb);
+
 	buf.xadir = dir;
 	err = reiserfs_readdir_dentry(dir, &buf, fill_with_dentries, &pos);
 	while ((err == 0 || err == -ENOSPC) && buf.count) {
@@ -283,8 +291,9 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		err = journal_begin(&th, inode->i_sb, blocks);
 		if (!err) {
 			int jerror;
-			mutex_lock_nested(&dir->d_parent->d_inode->i_mutex,
-					  I_MUTEX_XATTR);
+			reiserfs_mutex_lock_nested_safe(
+					  &dir->d_parent->d_inode->i_mutex,
+					  I_MUTEX_XATTR, inode->i_sb);
 			err = action(dir, data);
 			jerror = journal_end(&th, inode->i_sb, blocks);
 			mutex_unlock(&dir->d_parent->d_inode->i_mutex);
@@ -443,7 +452,9 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 	}
 
 	if (dentry->d_inode) {
+		reiserfs_write_lock(inode->i_sb);
 		err = xattr_unlink(xadir->d_inode, dentry);
+		reiserfs_write_unlock(inode->i_sb);
 		update_ctime(inode);
 	}
 
@@ -477,14 +488,23 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	if (get_inode_sd_version(inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
-	if (!buffer)
-		return lookup_and_delete_xattr(inode, name);
+	reiserfs_write_unlock(inode->i_sb);
+
+	if (!buffer) {
+		err = lookup_and_delete_xattr(inode, name);
+		reiserfs_write_lock(inode->i_sb);
+		return err;
+	}
 
 	dentry = xattr_lookup(inode, name, flags);
-	if (IS_ERR(dentry))
+	if (IS_ERR(dentry)) {
+		reiserfs_write_lock(inode->i_sb);
 		return PTR_ERR(dentry);
+	}
 
 	down_write(&REISERFS_I(inode)->i_xattr_sem);
+
+	reiserfs_write_lock(inode->i_sb);
 
 	xahash = xattr_hash(buffer, buffer_size);
 	while (buffer_pos < buffer_size || buffer_pos == 0) {
@@ -540,8 +560,12 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 			.ia_size = buffer_size,
 			.ia_valid = ATTR_SIZE | ATTR_CTIME,
 		};
+
+		reiserfs_write_unlock(inode->i_sb);
 		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_XATTR);
 		down_write(&dentry->d_inode->i_alloc_sem);
+		reiserfs_write_lock(inode->i_sb);
+
 		err = reiserfs_setattr(dentry, &newattrs);
 		up_write(&dentry->d_inode->i_alloc_sem);
 		mutex_unlock(&dentry->d_inode->i_mutex);

@@ -123,6 +123,7 @@ struct vmw_sw_context{
 	uint32_t last_cid;
 	bool cid_valid;
 	uint32_t last_sid;
+	uint32_t sid_translation;
 	bool sid_valid;
 	struct ttm_object_file *tfile;
 	struct list_head validate_nodes;
@@ -317,9 +318,10 @@ extern void vmw_surface_res_free(struct vmw_resource *res);
 extern int vmw_surface_init(struct vmw_private *dev_priv,
 			    struct vmw_surface *srf,
 			    void (*res_free) (struct vmw_resource *res));
-extern int vmw_user_surface_lookup(struct vmw_private *dev_priv,
-				   struct ttm_object_file *tfile,
-				   int sid, struct vmw_surface **out);
+extern int vmw_user_surface_lookup_handle(struct vmw_private *dev_priv,
+					  struct ttm_object_file *tfile,
+					  uint32_t handle,
+					  struct vmw_surface **out);
 extern int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
@@ -328,7 +330,7 @@ extern int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file_priv);
 extern int vmw_surface_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
-			     int id);
+			     uint32_t handle, int *id);
 extern void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_dmabuf_init(struct vmw_private *dev_priv,
 			   struct vmw_dma_buffer *vmw_bo,

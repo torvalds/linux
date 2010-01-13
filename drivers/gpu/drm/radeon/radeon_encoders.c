@@ -233,6 +233,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 		if (!ASIC_IS_AVIVO(rdev)) {
 			adjusted_mode->hdisplay = mode->hdisplay;
 			adjusted_mode->vdisplay = mode->vdisplay;
+			adjusted_mode->crtc_hdisplay = mode->hdisplay;
+			adjusted_mode->crtc_vdisplay = mode->vdisplay;
 		}
 		adjusted_mode->base.id = mode_id;
 	}
@@ -495,9 +497,9 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 				args.v1.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-				if (dig->lvds_misc & (1 << 0))
+				if (dig->lvds_misc & ATOM_PANEL_MISC_DUAL)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_DUAL;
-				if (dig->lvds_misc & (1 << 1))
+				if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
 					args.v1.ucMisc |= (1 << 1);
 			} else {
 				if (dig_connector->linkb)
@@ -524,18 +526,18 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 			args.v2.ucTemporal = 0;
 			args.v2.ucFRC = 0;
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-				if (dig->lvds_misc & (1 << 0))
+				if (dig->lvds_misc & ATOM_PANEL_MISC_DUAL)
 					args.v2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
-				if (dig->lvds_misc & (1 << 5)) {
+				if (dig->lvds_misc & ATOM_PANEL_MISC_SPATIAL) {
 					args.v2.ucSpatial = PANEL_ENCODER_SPATIAL_DITHER_EN;
-					if (dig->lvds_misc & (1 << 1))
+					if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
 						args.v2.ucSpatial |= PANEL_ENCODER_SPATIAL_DITHER_DEPTH;
 				}
-				if (dig->lvds_misc & (1 << 6)) {
+				if (dig->lvds_misc & ATOM_PANEL_MISC_TEMPORAL) {
 					args.v2.ucTemporal = PANEL_ENCODER_TEMPORAL_DITHER_EN;
-					if (dig->lvds_misc & (1 << 1))
+					if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
 						args.v2.ucTemporal |= PANEL_ENCODER_TEMPORAL_DITHER_DEPTH;
-					if (((dig->lvds_misc >> 2) & 0x3) == 2)
+					if (((dig->lvds_misc >> ATOM_PANEL_MISC_GREY_LEVEL_SHIFT) & 0x3) == 2)
 						args.v2.ucTemporal |= PANEL_ENCODER_TEMPORAL_LEVEL_4;
 				}
 			} else {
@@ -594,21 +596,23 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		return ATOM_ENCODER_MODE_LVDS;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
 		radeon_dig_connector = radeon_connector->con_priv;
-		if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
+		if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+		    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
 			return ATOM_ENCODER_MODE_DP;
 		else if (drm_detect_hdmi_monitor(radeon_connector->edid))
 			return ATOM_ENCODER_MODE_HDMI;
 		else
 			return ATOM_ENCODER_MODE_DVI;
 		break;
-	case CONNECTOR_DVI_A:
-	case CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_DVIA:
+	case DRM_MODE_CONNECTOR_VGA:
 		return ATOM_ENCODER_MODE_CRT;
 		break;
-	case CONNECTOR_STV:
-	case CONNECTOR_CTV:
-	case CONNECTOR_DIN:
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_9PinDIN:
 		/* fix me */
 		return ATOM_ENCODER_MODE_TV;
 		/*return ATOM_ENCODER_MODE_CV;*/

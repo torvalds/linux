@@ -155,7 +155,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 					    TASK_UNINTERRUPTIBLE);
 		}
 		if (interruptible && signal_pending(current)) {
-			ret = -ERESTART;
+			ret = -ERESTARTSYS;
 			break;
 		}
 	}
@@ -218,9 +218,7 @@ int vmw_wait_fence(struct vmw_private *dev_priv,
 		     vmw_fence_signaled(dev_priv, sequence),
 		     timeout);
 
-	if (unlikely(ret == -ERESTARTSYS))
-		ret = -ERESTART;
-	else if (unlikely(ret == 0))
+	if (unlikely(ret == 0))
 		ret = -EBUSY;
 	else if (likely(ret > 0))
 		ret = 0;

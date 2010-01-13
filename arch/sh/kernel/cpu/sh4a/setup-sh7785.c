@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/sh_timer.h>
+#include <asm/dma-sh.h>
 #include <asm/mmzone.h>
 
 static struct plat_sci_port scif0_platform_data = {
@@ -294,6 +295,18 @@ static struct platform_device tmu5_device = {
 	.num_resources	= ARRAY_SIZE(tmu5_resources),
 };
 
+static struct sh_dmae_pdata dma_platform_data = {
+	.mode = (SHDMA_MIX_IRQ | SHDMA_DMAOR1),
+};
+
+static struct platform_device dma_device = {
+	.name           = "sh-dma-engine",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &dma_platform_data,
+	},
+};
+
 static struct platform_device *sh7785_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -307,6 +320,7 @@ static struct platform_device *sh7785_devices[] __initdata = {
 	&tmu3_device,
 	&tmu4_device,
 	&tmu5_device,
+	&dma_device,
 };
 
 static int __init sh7785_devices_setup(void)

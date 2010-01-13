@@ -67,13 +67,15 @@ struct r100_cs_track {
 	unsigned			immd_dwords;
 	unsigned			num_arrays;
 	unsigned			max_indx;
+	unsigned			color_channel_mask;
 	struct r100_cs_track_array	arrays[11];
 	struct r100_cs_track_cb 	cb[R300_MAX_CB];
 	struct r100_cs_track_cb 	zb;
 	struct r100_cs_track_texture	textures[R300_TRACK_MAX_TEXTURE];
 	bool				z_enabled;
 	bool                            separate_cube;
-
+	bool				fastfill;
+	bool				blend_read_enable;
 };
 
 int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track);

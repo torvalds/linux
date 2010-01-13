@@ -2226,7 +2226,6 @@ static int ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	if (rest == 0)
 		return -EINVAL;
 
-	/* FIXME: make packet-per-buffer/dual-buffer a context option */
 	while (rest > 0) {
 		d = context_get_descriptors(&ctx->context,
 					    z + header_z, &d_bus);
@@ -2470,7 +2469,10 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	}
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
+#if 0
+	/* FIXME: make it a context option or remove dual-buffer mode */
 	ohci->use_dualbuffer = version >= OHCI_VERSION_1_1;
+#endif
 
 	/* dual-buffer mode is broken if more than one IR context is active */
 	if (dev->vendor == PCI_VENDOR_ID_AGERE &&

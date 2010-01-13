@@ -58,14 +58,13 @@ nouveau_fbcon_sync(struct fb_info *info)
 	struct nouveau_channel *chan = dev_priv->channel;
 	int ret, i;
 
-	if (!chan->accel_done ||
+	if (!chan || !chan->accel_done ||
 	    info->state != FBINFO_STATE_RUNNING ||
 	    info->flags & FBINFO_HWACCEL_DISABLED)
 		return 0;
 
 	if (RING_SPACE(chan, 4)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 		return 0;
 	}
 
@@ -86,8 +85,7 @@ nouveau_fbcon_sync(struct fb_info *info)
 	}
 
 	if (ret) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 		return 0;
 	}
 
@@ -212,11 +210,11 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 
 	mode_cmd.bpp = surface_bpp;
 	mode_cmd.pitch = mode_cmd.width * (mode_cmd.bpp >> 3);
-	mode_cmd.pitch = ALIGN(mode_cmd.pitch, 256);
+	mode_cmd.pitch = roundup(mode_cmd.pitch, 256);
 	mode_cmd.depth = surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
-	size = ALIGN(size, PAGE_SIZE);
+	size = roundup(size, PAGE_SIZE);
 
 	ret = nouveau_gem_new(dev, dev_priv->channel, size, 0, TTM_PL_FLAG_VRAM,
 			      0, 0x0000, false, true, &nvbo);
@@ -318,14 +316,16 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	par->nouveau_fb = nouveau_fb;
 	par->dev = dev;
 
-	switch (dev_priv->card_type) {
-	case NV_50:
-		nv50_fbcon_accel_init(info);
-		break;
-	default:
-		nv04_fbcon_accel_init(info);
-		break;
-	};
+	if (dev_priv->channel) {
+		switch (dev_priv->card_type) {
+		case NV_50:
+			nv50_fbcon_accel_init(info);
+			break;
+		default:
+			nv04_fbcon_accel_init(info);
+			break;
+		};
+	}
 
 	nouveau_fbcon_zfill(dev);
 
@@ -347,7 +347,7 @@ out:
 int
 nouveau_fbcon_probe(struct drm_device *dev)
 {
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	return drm_fb_helper_single_fb_probe(dev, 32, nouveau_fbcon_create);
 }
@@ -377,4 +377,13 @@ nouveau_fbcon_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 	}
 
 	return 0;
+}
+
+void nouveau_fbcon_gpu_lockup(struct fb_info *info)
+{
+	struct nouveau_fbcon_par *par = info->par;
+	struct drm_device *dev = par->dev;
+
+	NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
+	info->flags |= FBINFO_HWACCEL_DISABLED;
 }

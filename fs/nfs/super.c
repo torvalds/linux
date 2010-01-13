@@ -2648,12 +2648,20 @@ out_freepage:
 static int nfs_follow_remote_path(struct vfsmount *root_mnt,
 		const char *export_path, struct vfsmount *mnt_target)
 {
+	struct mnt_namespace *ns_private;
 	struct nameidata nd;
 	struct super_block *s;
 	int ret;
 
+	ns_private = create_mnt_ns(root_mnt);
+	ret = PTR_ERR(ns_private);
+	if (IS_ERR(ns_private))
+		goto out_mntput;
+
 	ret = vfs_path_lookup(root_mnt->mnt_root, root_mnt,
 			export_path, LOOKUP_FOLLOW, &nd);
+
+	put_mnt_ns(ns_private);
 
 	if (ret != 0)
 		goto out_err;

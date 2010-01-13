@@ -186,10 +186,8 @@ struct file *alloc_file(struct path *path, fmode_t mode,
 	 * that we can do debugging checks at __fput()
 	 */
 	if ((mode & FMODE_WRITE) && !special_file(path->dentry->d_inode->i_mode)) {
-		int error = 0;
 		file_take_write(file);
-		error = mnt_clone_write(path->mnt);
-		WARN_ON(error);
+		WARN_ON(mnt_clone_write(path->mnt));
 	}
 	ima_counts_get(file);
 	return file;

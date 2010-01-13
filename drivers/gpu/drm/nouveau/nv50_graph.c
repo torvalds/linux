@@ -107,9 +107,13 @@ nv50_graph_init_regs(struct drm_device *dev)
 static int
 nv50_graph_init_ctxctl(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
 	NV_DEBUG(dev, "\n");
 
-	nv40_grctx_init(dev);
+	nouveau_grctx_prog_load(dev);
+	if (!dev_priv->engine.graph.ctxprog)
+		dev_priv->engine.graph.accel_blocked = true;
 
 	nv_wr32(dev, 0x400320, 4);
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0);
@@ -140,7 +144,7 @@ void
 nv50_graph_takedown(struct drm_device *dev)
 {
 	NV_DEBUG(dev, "\n");
-	nv40_grctx_fini(dev);
+	nouveau_grctx_fini(dev);
 }
 
 void
@@ -207,7 +211,7 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 	dev_priv->engine.instmem.finish_access(dev);
 
 	dev_priv->engine.instmem.prepare_access(dev, true);
-	nv40_grctx_vals_load(dev, ctx);
+	nouveau_grctx_vals_load(dev, ctx);
 	nv_wo32(dev, ctx, 0x00000/4, chan->ramin->instance >> 12);
 	if ((dev_priv->chipset & 0xf0) == 0xa0)
 		nv_wo32(dev, ctx, 0x00004/4, 0x00000000);

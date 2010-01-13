@@ -778,6 +778,8 @@ static int __devinit ds1305_probe(struct spi_device *spi)
 					spi->irq, status);
 			goto fail1;
 		}
+
+		device_set_wakeup_capable(&spi->dev, 1);
 	}
 
 	/* export NVRAM */

@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include "modpost.h"
-#include "../../include/linux/autoconf.h"
+#include "../../include/generated/autoconf.h"
 #include "../../include/linux/license.h"
 
 /* Some toolchains use a `_' prefix for all user symbols. */

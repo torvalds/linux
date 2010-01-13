@@ -454,6 +454,8 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 		mac->rar_entry_count--;
 	/* Set if manageability features are enabled. */
 	mac->arc_subsystem_valid = true;
+	/* Adaptive IFS supported */
+	mac->adaptive_ifs = true;
 
 	/* LED operations */
 	switch (mac->type) {

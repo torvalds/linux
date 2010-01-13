@@ -16,9 +16,7 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED) &&
 	     RING_SPACE(chan, rect->rop == ROP_COPY ? 7 : 11)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 	}
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
@@ -31,7 +29,11 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		OUT_RING(chan, 1);
 	}
 	BEGIN_RING(chan, NvSub2D, 0x0588, 1);
-	OUT_RING(chan, rect->color);
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
+	    info->fix.visual == FB_VISUAL_DIRECTCOLOR)
+		OUT_RING(chan, ((uint32_t *)info->pseudo_palette)[rect->color]);
+	else
+		OUT_RING(chan, rect->color);
 	BEGIN_RING(chan, NvSub2D, 0x0600, 4);
 	OUT_RING(chan, rect->dx);
 	OUT_RING(chan, rect->dy);
@@ -56,9 +58,7 @@ nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 		return;
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 12)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 	}
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
@@ -101,8 +101,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 
 	if (!(info->flags & FBINFO_HWACCEL_DISABLED) && RING_SPACE(chan, 11)) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
-		info->flags |= FBINFO_HWACCEL_DISABLED;
+		nouveau_fbcon_gpu_lockup(info);
 	}
 
 	if (info->flags & FBINFO_HWACCEL_DISABLED) {
@@ -135,9 +134,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		int push = dwords > 2047 ? 2047 : dwords;
 
 		if (RING_SPACE(chan, push + 1)) {
-			NV_ERROR(dev,
-				 "GPU lockup - switching to software fbcon\n");
-			info->flags |= FBINFO_HWACCEL_DISABLED;
+			nouveau_fbcon_gpu_lockup(info);
 			cfb_imageblit(info, image);
 			return;
 		}
@@ -199,7 +196,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 
 	ret = RING_SPACE(chan, 59);
 	if (ret) {
-		NV_ERROR(dev, "GPU lockup - switching to software fbcon\n");
+		nouveau_fbcon_gpu_lockup(info);
 		return ret;
 	}
 

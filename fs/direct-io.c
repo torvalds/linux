@@ -1206,7 +1206,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	 * NOTE: filesystems with their own locking have to handle this
 	 * on their own.
 	 */
-	if (dio->flags & DIO_LOCKING) {
+	if (flags & DIO_LOCKING) {
 		if (unlikely((rw & WRITE) && retval < 0)) {
 			loff_t isize = i_size_read(inode);
 			if (end > isize)

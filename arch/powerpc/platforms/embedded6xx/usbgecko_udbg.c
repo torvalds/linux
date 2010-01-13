@@ -120,7 +120,7 @@ static void ug_putc(char ch)
 
 	while (!ug_is_txfifo_ready() && count--)
 		barrier();
-	if (count)
+	if (count >= 0)
 		ug_raw_putc(ch);
 }
 

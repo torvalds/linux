@@ -85,8 +85,7 @@ extern void prom_identify_arch(void);
 extern PCHAR ArcGetEnvironmentVariable(PCHAR name);
 extern LONG ArcSetEnvironmentVariable(PCHAR name, PCHAR value);
 
-/* ARCS command line acquisition and parsing. */
-extern char *prom_getcmdline(void);
+/* ARCS command line parsing. */
 extern void prom_init_cmdline(void);
 
 /* Acquiring info about the current time, etc. */

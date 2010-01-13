@@ -1,6 +1,5 @@
 config JBD
 	tristate
-	select FS_JOURNAL_INFO
 	help
 	  This is a generic journalling layer for block devices.  It is
 	  currently used by the ext3 file system, but it could also be

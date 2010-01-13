@@ -4690,6 +4690,205 @@ typedef struct _ATOM_POWERPLAY_INFO_V3 {
 	ATOM_POWERMODE_INFO_V3 asPowerPlayInfo[ATOM_MAX_NUMBEROF_POWER_BLOCK];
 } ATOM_POWERPLAY_INFO_V3;
 
+/* New PPlib */
+/**************************************************************************/
+typedef struct _ATOM_PPLIB_THERMALCONTROLLER
+
+{
+    UCHAR ucType;           // one of ATOM_PP_THERMALCONTROLLER_*
+    UCHAR ucI2cLine;        // as interpreted by DAL I2C
+    UCHAR ucI2cAddress;
+    UCHAR ucFanParameters;  // Fan Control Parameters.
+    UCHAR ucFanMinRPM;      // Fan Minimum RPM (hundreds) -- for display purposes only.
+    UCHAR ucFanMaxRPM;      // Fan Maximum RPM (hundreds) -- for display purposes only.
+    UCHAR ucReserved;       // ----
+    UCHAR ucFlags;          // to be defined
+} ATOM_PPLIB_THERMALCONTROLLER;
+
+#define ATOM_PP_FANPARAMETERS_TACHOMETER_PULSES_PER_REVOLUTION_MASK 0x0f
+#define ATOM_PP_FANPARAMETERS_NOFAN                                 0x80    // No fan is connected to this controller.
+
+#define ATOM_PP_THERMALCONTROLLER_NONE      0
+#define ATOM_PP_THERMALCONTROLLER_LM63      1  // Not used by PPLib
+#define ATOM_PP_THERMALCONTROLLER_ADM1032   2  // Not used by PPLib
+#define ATOM_PP_THERMALCONTROLLER_ADM1030   3  // Not used by PPLib
+#define ATOM_PP_THERMALCONTROLLER_MUA6649   4  // Not used by PPLib
+#define ATOM_PP_THERMALCONTROLLER_LM64      5
+#define ATOM_PP_THERMALCONTROLLER_F75375    6  // Not used by PPLib
+#define ATOM_PP_THERMALCONTROLLER_RV6xx     7
+#define ATOM_PP_THERMALCONTROLLER_RV770     8
+#define ATOM_PP_THERMALCONTROLLER_ADT7473   9
+
+typedef struct _ATOM_PPLIB_STATE
+{
+    UCHAR ucNonClockStateIndex;
+    UCHAR ucClockStateIndices[1]; // variable-sized
+} ATOM_PPLIB_STATE;
+
+//// ATOM_PPLIB_POWERPLAYTABLE::ulPlatformCaps
+#define ATOM_PP_PLATFORM_CAP_BACKBIAS 1
+#define ATOM_PP_PLATFORM_CAP_POWERPLAY 2
+#define ATOM_PP_PLATFORM_CAP_SBIOSPOWERSOURCE 4
+#define ATOM_PP_PLATFORM_CAP_ASPM_L0s 8
+#define ATOM_PP_PLATFORM_CAP_ASPM_L1 16
+#define ATOM_PP_PLATFORM_CAP_HARDWAREDC 32
+#define ATOM_PP_PLATFORM_CAP_GEMINIPRIMARY 64
+#define ATOM_PP_PLATFORM_CAP_STEPVDDC 128
+#define ATOM_PP_PLATFORM_CAP_VOLTAGECONTROL 256
+#define ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL 512
+#define ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1 1024
+#define ATOM_PP_PLATFORM_CAP_HTLINKCONTROL 2048
+
+typedef struct _ATOM_PPLIB_POWERPLAYTABLE
+{
+      ATOM_COMMON_TABLE_HEADER sHeader;
+
+      UCHAR ucDataRevision;
+
+      UCHAR ucNumStates;
+      UCHAR ucStateEntrySize;
+      UCHAR ucClockInfoSize;
+      UCHAR ucNonClockSize;
+
+      // offset from start of this table to array of ucNumStates ATOM_PPLIB_STATE structures
+      USHORT usStateArrayOffset;
+
+      // offset from start of this table to array of ASIC-specific structures,
+      // currently ATOM_PPLIB_CLOCK_INFO.
+      USHORT usClockInfoArrayOffset;
+
+      // offset from start of this table to array of ATOM_PPLIB_NONCLOCK_INFO
+      USHORT usNonClockInfoArrayOffset;
+
+      USHORT usBackbiasTime;    // in microseconds
+      USHORT usVoltageTime;     // in microseconds
+      USHORT usTableSize;       //the size of this structure, or the extended structure
+
+      ULONG ulPlatformCaps;            // See ATOM_PPLIB_CAPS_*
+
+      ATOM_PPLIB_THERMALCONTROLLER    sThermalController;
+
+      USHORT usBootClockInfoOffset;
+      USHORT usBootNonClockInfoOffset;
+
+} ATOM_PPLIB_POWERPLAYTABLE;
+
+//// ATOM_PPLIB_NONCLOCK_INFO::usClassification
+#define ATOM_PPLIB_CLASSIFICATION_UI_MASK          0x0007
+#define ATOM_PPLIB_CLASSIFICATION_UI_SHIFT         0
+#define ATOM_PPLIB_CLASSIFICATION_UI_NONE          0
+#define ATOM_PPLIB_CLASSIFICATION_UI_BATTERY       1
+#define ATOM_PPLIB_CLASSIFICATION_UI_BALANCED      3
+#define ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE   5
+// 2, 4, 6, 7 are reserved
+
+#define ATOM_PPLIB_CLASSIFICATION_BOOT                   0x0008
+#define ATOM_PPLIB_CLASSIFICATION_THERMAL                0x0010
+#define ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE     0x0020
+#define ATOM_PPLIB_CLASSIFICATION_REST                   0x0040
+#define ATOM_PPLIB_CLASSIFICATION_FORCED                 0x0080
+#define ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE          0x0100
+#define ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE      0x0200
+#define ATOM_PPLIB_CLASSIFICATION_UVDSTATE               0x0400
+#define ATOM_PPLIB_CLASSIFICATION_3DLOW                  0x0800
+#define ATOM_PPLIB_CLASSIFICATION_ACPI                   0x1000
+// remaining 3 bits are reserved
+
+//// ATOM_PPLIB_NONCLOCK_INFO::ulCapsAndSettings
+#define ATOM_PPLIB_SINGLE_DISPLAY_ONLY           0x00000001
+#define ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK         0x00000002
+
+// 0 is 2.5Gb/s, 1 is 5Gb/s
+#define ATOM_PPLIB_PCIE_LINK_SPEED_MASK            0x00000004
+#define ATOM_PPLIB_PCIE_LINK_SPEED_SHIFT           2
+
+// lanes - 1: 1, 2, 4, 8, 12, 16 permitted by PCIE spec
+#define ATOM_PPLIB_PCIE_LINK_WIDTH_MASK            0x000000F8
+#define ATOM_PPLIB_PCIE_LINK_WIDTH_SHIFT           3
+
+// lookup into reduced refresh-rate table
+#define ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_MASK  0x00000F00
+#define ATOM_PPLIB_LIMITED_REFRESHRATE_VALUE_SHIFT 8
+
+#define ATOM_PPLIB_LIMITED_REFRESHRATE_UNLIMITED    0
+#define ATOM_PPLIB_LIMITED_REFRESHRATE_50HZ         1
+// 2-15 TBD as needed.
+
+#define ATOM_PPLIB_SOFTWARE_DISABLE_LOADBALANCING        0x00001000
+#define ATOM_PPLIB_SOFTWARE_ENABLE_SLEEP_FOR_TIMESTAMPS  0x00002000
+#define ATOM_PPLIB_ENABLE_VARIBRIGHT                     0x00008000
+
+#define ATOM_PPLIB_DISALLOW_ON_DC                       0x00004000
+
+// Contained in an array starting at the offset
+// in ATOM_PPLIB_POWERPLAYTABLE::usNonClockInfoArrayOffset.
+// referenced from ATOM_PPLIB_STATE_INFO::ucNonClockStateIndex
+typedef struct _ATOM_PPLIB_NONCLOCK_INFO
+{
+      USHORT usClassification;
+      UCHAR  ucMinTemperature;
+      UCHAR  ucMaxTemperature;
+      ULONG  ulCapsAndSettings;
+      UCHAR  ucRequiredPower;
+      UCHAR  ucUnused1[3];
+} ATOM_PPLIB_NONCLOCK_INFO;
+
+// Contained in an array starting at the offset
+// in ATOM_PPLIB_POWERPLAYTABLE::usClockInfoArrayOffset.
+// referenced from ATOM_PPLIB_STATE::ucClockStateIndices
+typedef struct _ATOM_PPLIB_R600_CLOCK_INFO
+{
+      USHORT usEngineClockLow;
+      UCHAR ucEngineClockHigh;
+
+      USHORT usMemoryClockLow;
+      UCHAR ucMemoryClockHigh;
+
+      USHORT usVDDC;
+      USHORT usUnused1;
+      USHORT usUnused2;
+
+      ULONG ulFlags; // ATOM_PPLIB_R600_FLAGS_*
+
+} ATOM_PPLIB_R600_CLOCK_INFO;
+
+// ulFlags in ATOM_PPLIB_R600_CLOCK_INFO
+#define ATOM_PPLIB_R600_FLAGS_PCIEGEN2          1
+#define ATOM_PPLIB_R600_FLAGS_UVDSAFE           2
+#define ATOM_PPLIB_R600_FLAGS_BACKBIASENABLE    4
+#define ATOM_PPLIB_R600_FLAGS_MEMORY_ODT_OFF    8
+#define ATOM_PPLIB_R600_FLAGS_MEMORY_DLL_OFF    16
+
+typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
+
+{
+      USHORT usLowEngineClockLow;         // Low Engine clock in MHz (the same way as on the R600).
+      UCHAR  ucLowEngineClockHigh;
+      USHORT usHighEngineClockLow;        // High Engine clock in MHz.
+      UCHAR  ucHighEngineClockHigh;
+      USHORT usMemoryClockLow;            // For now one of the ATOM_PPLIB_RS780_SPMCLK_XXXX constants.
+      UCHAR  ucMemoryClockHigh;           // Currentyl unused.
+      UCHAR  ucPadding;                   // For proper alignment and size.
+      USHORT usVDDC;                      // For the 780, use: None, Low, High, Variable
+      UCHAR  ucMaxHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}
+      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could be bigger as display BW requriement.
+      USHORT usHTLinkFreq;                // See definition ATOM_PPLIB_RS780_HTLINKFREQ_xxx or in MHz(>=200).
+      ULONG  ulFlags;
+} ATOM_PPLIB_RS780_CLOCK_INFO;
+
+#define ATOM_PPLIB_RS780_VOLTAGE_NONE       0
+#define ATOM_PPLIB_RS780_VOLTAGE_LOW        1
+#define ATOM_PPLIB_RS780_VOLTAGE_HIGH       2
+#define ATOM_PPLIB_RS780_VOLTAGE_VARIABLE   3
+
+#define ATOM_PPLIB_RS780_SPMCLK_NONE        0   // We cannot change the side port memory clock, leave it as it is.
+#define ATOM_PPLIB_RS780_SPMCLK_LOW         1
+#define ATOM_PPLIB_RS780_SPMCLK_HIGH        2
+
+#define ATOM_PPLIB_RS780_HTLINKFREQ_NONE       0
+#define ATOM_PPLIB_RS780_HTLINKFREQ_LOW        1
+#define ATOM_PPLIB_RS780_HTLINKFREQ_HIGH       2
+
 /**************************************************************************/
 
 /*  Following definitions are for compatiblity issue in different SW components. */

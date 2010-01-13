@@ -22,7 +22,6 @@
  *
  */
 
-#include <linux/autoconf.h>
 #include <linux/kvm_host.h>
 #include <linux/kbuild.h>
 

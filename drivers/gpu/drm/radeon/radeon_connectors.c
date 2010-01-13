@@ -49,8 +49,10 @@ void radeon_connector_hotplug(struct drm_connector *connector)
 	if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
 		radeon_hpd_set_polarity(rdev, radeon_connector->hpd.hpd);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
-		if (radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+	if ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
+	    (connector->connector_type == DRM_MODE_CONNECTOR_eDP)) {
+		if ((radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+		    (radeon_dp_getsinktype(radeon_connector) == CONNECTOR_OBJECT_ID_eDP)) {
 			if (radeon_dp_needs_link_train(radeon_connector)) {
 				if (connector->encoder)
 					dp_link_train(connector->encoder, connector);
@@ -208,6 +210,18 @@ static struct drm_display_mode *radeon_fp_native_mode(struct drm_encoder *encode
 		drm_mode_set_name(mode);
 
 		DRM_DEBUG("Adding native panel mode %s\n", mode->name);
+	} else if (native_mode->hdisplay != 0 &&
+		   native_mode->vdisplay != 0) {
+		/* mac laptops without an edid */
+		/* Note that this is not necessarily the exact panel mode,
+		 * but an approximation based on the cvt formula.  For these
+		 * systems we should ideally read the mode info out of the
+		 * registers or add a mode table, but this works and is much
+		 * simpler.
+		 */
+		mode = drm_cvt_mode(dev, native_mode->hdisplay, native_mode->vdisplay, 60, true, false, false);
+		mode->type = DRM_MODE_TYPE_PREFERRED | DRM_MODE_TYPE_DRIVER;
+		DRM_DEBUG("Adding cvt approximation of native panel mode %s\n", mode->name);
 	}
 	return mode;
 }
@@ -603,7 +617,7 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 				ret = connector_status_connected;
 		}
 	} else {
-		if (radeon_connector->dac_load_detect) {
+		if (radeon_connector->dac_load_detect && encoder) {
 			encoder_funcs = encoder->helper_private;
 			ret = encoder_funcs->detect(encoder, connector);
 		}
@@ -955,7 +969,8 @@ static enum drm_connector_status radeon_dp_detect(struct drm_connector *connecto
 	}
 
 	sink_type = radeon_dp_getsinktype(radeon_connector);
-	if (sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
+	if ((sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+	    (sink_type == CONNECTOR_OBJECT_ID_eDP)) {
 		if (radeon_dp_getdpcd(radeon_connector)) {
 			radeon_dig_connector->dp_sink_type = sink_type;
 			ret = connector_status_connected;
@@ -980,7 +995,8 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 
 	/* XXX check mode bandwidth */
 
-	if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
+	if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+	    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
 		return radeon_dp_mode_valid_helper(radeon_connector, mode);
 	else
 		return MODE_OK;
@@ -1133,6 +1149,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		subpixel_order = SubPixelHorizontalRGB;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
 		radeon_dig_connector = kzalloc(sizeof(struct radeon_connector_atom_dig), GFP_KERNEL);
 		if (!radeon_dig_connector)
 			goto failed;
@@ -1145,10 +1162,16 @@ radeon_add_atom_connector(struct drm_device *dev,
 			goto failed;
 		if (i2c_bus->valid) {
 			/* add DP i2c bus */
-			radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
+			if (connector_type == DRM_MODE_CONNECTOR_eDP)
+				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "eDP-auxch");
+			else
+				radeon_dig_connector->dp_i2c_bus = radeon_i2c_create_dp(dev, i2c_bus, "DP-auxch");
 			if (!radeon_dig_connector->dp_i2c_bus)
 				goto failed;
-			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DP");
+			if (connector_type == DRM_MODE_CONNECTOR_eDP)
+				radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "eDP");
+			else
+				radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DP");
 			if (!radeon_connector->ddc_bus)
 				goto failed;
 		}
@@ -1171,7 +1194,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 						      1);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
-						      1);
+						      radeon_atombios_get_tv_info(rdev));
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1315,7 +1338,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 						      1);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
-						      1);
+						      radeon_combios_get_tv_info(rdev));
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:

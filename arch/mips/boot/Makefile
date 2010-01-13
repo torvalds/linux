@@ -25,10 +25,10 @@ strip-flags	= $(addprefix --remove-section=,$(drop-sections))
 
 VMLINUX = vmlinux
 
-all: vmlinux.ecoff vmlinux.srec addinitrd
+all: vmlinux.ecoff vmlinux.srec
 
 vmlinux.ecoff: $(obj)/elf2ecoff $(VMLINUX)
-	$(obj)/elf2ecoff $(VMLINUX) vmlinux.ecoff $(E2EFLAGS)
+	$(obj)/elf2ecoff $(VMLINUX) $(obj)/vmlinux.ecoff $(E2EFLAGS)
 
 $(obj)/elf2ecoff: $(obj)/elf2ecoff.c
 	$(HOSTCC) -o $@ $^
@@ -39,11 +39,7 @@ vmlinux.bin: $(VMLINUX)
 vmlinux.srec: $(VMLINUX)
 	$(OBJCOPY) -S -O srec $(strip-flags) $(VMLINUX) $(obj)/vmlinux.srec
 
-$(obj)/addinitrd: $(obj)/addinitrd.c
-	$(HOSTCC) -o $@ $^
-
-clean-files += addinitrd \
-	       elf2ecoff \
+clean-files += elf2ecoff \
 	       vmlinux.bin \
 	       vmlinux.ecoff \
 	       vmlinux.srec

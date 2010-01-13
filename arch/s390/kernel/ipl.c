@@ -221,7 +221,7 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
 		const char *buf, size_t len)				\
 {									\
 	strncpy(_value, buf, sizeof(_value) - 1);			\
-	strstrip(_value);						\
+	strim(_value);							\
 	return len;							\
 }									\
 static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
@@ -472,7 +472,7 @@ static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 		return sprintf(page, "#unknown#\n");
 	memcpy(loadparm, &sclp_ipl_info.loadparm, LOADPARM_LEN);
 	EBCASC(loadparm, LOADPARM_LEN);
-	strstrip(loadparm);
+	strim(loadparm);
 	return sprintf(page, "%s\n", loadparm);
 }
 
@@ -776,7 +776,7 @@ static void reipl_get_ascii_loadparm(char *loadparm,
 	memcpy(loadparm, ibp->ipl_info.ccw.load_parm, LOADPARM_LEN);
 	EBCASC(loadparm, LOADPARM_LEN);
 	loadparm[LOADPARM_LEN] = 0;
-	strstrip(loadparm);
+	strim(loadparm);
 }
 
 static ssize_t reipl_generic_loadparm_show(struct ipl_parameter_block *ipb,

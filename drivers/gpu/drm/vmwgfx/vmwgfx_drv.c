@@ -103,37 +103,39 @@
  */
 
 static struct drm_ioctl_desc vmw_ioctls[] = {
-	VMW_IOCTL_DEF(DRM_IOCTL_VMW_GET_PARAM, vmw_getparam_ioctl, 0),
+	VMW_IOCTL_DEF(DRM_IOCTL_VMW_GET_PARAM, vmw_getparam_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_ALLOC_DMABUF, vmw_dmabuf_alloc_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_DMABUF, vmw_dmabuf_unref_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CURSOR_BYPASS,
-		      vmw_kms_cursor_bypass_ioctl, 0),
+		      vmw_kms_cursor_bypass_ioctl,
+		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CONTROL_STREAM, vmw_overlay_ioctl,
-		      0),
+		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CLAIM_STREAM, vmw_stream_claim_ioctl,
-		      0),
+		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_STREAM, vmw_stream_unref_ioctl,
-		      0),
+		      DRM_MASTER | DRM_CONTROL_ALLOW | DRM_UNLOCKED),
 
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CREATE_CONTEXT, vmw_context_define_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_CONTEXT, vmw_context_destroy_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_CREATE_SURFACE, vmw_surface_define_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_UNREF_SURFACE, vmw_surface_destroy_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_REF_SURFACE, vmw_surface_reference_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_EXECBUF, vmw_execbuf_ioctl,
-		      0),
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_FIFO_DEBUG, vmw_fifo_debug_ioctl,
-		      0),
+		      DRM_AUTH | DRM_ROOT_ONLY | DRM_MASTER | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(DRM_IOCTL_VMW_FENCE_WAIT, vmw_fence_wait_ioctl,
-		      0)
+		      DRM_AUTH | DRM_UNLOCKED)
 };
 
 static struct pci_device_id vmw_pci_id_list[] = {
@@ -460,11 +462,9 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	struct drm_file *file_priv = filp->private_data;
 	struct drm_device *dev = file_priv->minor->dev;
 	unsigned int nr = DRM_IOCTL_NR(cmd);
-	long ret;
 
 	/*
-	 * The driver private ioctls and TTM ioctls should be
-	 * thread-safe.
+	 * Do extra checking on driver private ioctls.
 	 */
 
 	if ((nr >= DRM_COMMAND_BASE) && (nr < DRM_COMMAND_END)
@@ -477,18 +477,9 @@ static long vmw_unlocked_ioctl(struct file *filp, unsigned int cmd,
 				  nr - DRM_COMMAND_BASE);
 			return -EINVAL;
 		}
-		return drm_ioctl(filp->f_path.dentry->d_inode,
-				 filp, cmd, arg);
 	}
 
-	/*
-	 * Not all old drm ioctls are thread-safe.
-	 */
-
-	lock_kernel();
-	ret = drm_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
-	unlock_kernel();
-	return ret;
+	return drm_ioctl(filp, cmd, arg);
 }
 
 static int vmw_firstopen(struct drm_device *dev)

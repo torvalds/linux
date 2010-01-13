@@ -103,6 +103,7 @@ gconf
 gen-devlist
 gen_crc32table
 gen_init_cpio
+generated
 genheaders
 genksyms
 *_gray256.c

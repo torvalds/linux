@@ -1037,7 +1037,7 @@ static int __init at91_can_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || !irq) {
+	if (!res || irq <= 0) {
 		err = -ENODEV;
 		goto exit_put;
 	}
