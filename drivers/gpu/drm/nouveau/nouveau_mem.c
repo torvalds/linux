@@ -383,10 +383,7 @@ void nouveau_mem_close(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->ttm.bdev.man[TTM_PL_PRIV0].has_type)
-		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_PRIV0);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
-
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
 	nouveau_ttm_global_release(dev_priv);
