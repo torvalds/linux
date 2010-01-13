@@ -653,8 +653,6 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	const struct cred *cred = current_cred();
 	int ret;
 
-	lock_kernel();
-
 	ret = -ENOMEM;
 	ps = kmalloc(sizeof(struct dev_state), GFP_KERNEL);
 	if (!ps)
@@ -713,7 +711,6 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	usb_unlock_device(dev);
 	snoop(&dev->dev, "opened by process %d: %s\n", task_pid_nr(current),
 			current->comm);
-	unlock_kernel();
 	return ret;
 
  out_unlock_device:
@@ -721,7 +718,6 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	usb_put_dev(dev);
  out_free_ps:
 	kfree(ps);
-	unlock_kernel();
 	return ret;
 }
 
