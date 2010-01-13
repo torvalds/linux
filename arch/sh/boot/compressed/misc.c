@@ -62,6 +62,10 @@ static unsigned long free_mem_end_ptr;
 #include "../../../../lib/decompress_unlzma.c"
 #endif
 
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
+#endif
+
 #ifdef CONFIG_SH_STANDARD_BIOS
 size_t strlen(const char *s)
 {
