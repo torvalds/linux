@@ -3607,6 +3607,7 @@ static int ucc_geth_suspend(struct of_device *ofdev, pm_message_t state)
 	if (!netif_running(ndev))
 		return 0;
 
+	netif_device_detach(ndev);
 	napi_disable(&ugeth->napi);
 
 	/*
@@ -3665,7 +3666,7 @@ static int ucc_geth_resume(struct of_device *ofdev)
 	phy_start(ugeth->phydev);
 
 	napi_enable(&ugeth->napi);
-	netif_start_queue(ndev);
+	netif_device_attach(ndev);
 
 	return 0;
 }
