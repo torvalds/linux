@@ -148,6 +148,12 @@ static const struct dispc_reg dispc_reg_att[] = { DISPC_GFX_ATTRIBUTES,
 	DISPC_VID_ATTRIBUTES(0),
 	DISPC_VID_ATTRIBUTES(1) };
 
+struct dispc_irq_stats {
+	unsigned long last_reset;
+	unsigned irq_count;
+	unsigned irqs[32];
+};
+
 static struct {
 	void __iomem    *base;
 
@@ -160,6 +166,11 @@ static struct {
 	struct work_struct error_work;
 
 	u32		ctx[DISPC_SZ_REGS / sizeof(u32)];
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spinlock_t irq_stats_lock;
+	struct dispc_irq_stats irq_stats;
+#endif
 } dispc;
 
 static void _omap_dispc_set_irqs(void);
@@ -1443,7 +1454,10 @@ static unsigned long calc_fclk_five_taps(u16 width, u16 height,
 		do_div(tmp, 2 * out_height * ppl);
 		fclk = tmp;
 
-		if (height > 2 * out_height && ppl != out_width) {
+		if (height > 2 * out_height) {
+			if (ppl == out_width)
+				return 0;
+
 			tmp = pclk * (height - 2 * out_height) * out_width;
 			do_div(tmp, 2 * out_height * (ppl - out_width));
 			fclk = max(fclk, (u32) tmp);
@@ -1623,7 +1637,7 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		DSSDBG("required fclk rate = %lu Hz\n", fclk);
 		DSSDBG("current fclk rate = %lu Hz\n", dispc_fclk_rate());
 
-		if (fclk > dispc_fclk_rate()) {
+		if (!fclk || fclk > dispc_fclk_rate()) {
 			DSSERR("failed to set up scaling, "
 					"required fclk rate = %lu Hz, "
 					"current fclk rate = %lu Hz\n",
@@ -2247,6 +2261,50 @@ void dispc_dump_clocks(struct seq_file *s)
 	enable_clocks(0);
 }
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+void dispc_dump_irqs(struct seq_file *s)
+{
+	unsigned long flags;
+	struct dispc_irq_stats stats;
+
+	spin_lock_irqsave(&dispc.irq_stats_lock, flags);
+
+	stats = dispc.irq_stats;
+	memset(&dispc.irq_stats, 0, sizeof(dispc.irq_stats));
+	dispc.irq_stats.last_reset = jiffies;
+
+	spin_unlock_irqrestore(&dispc.irq_stats_lock, flags);
+
+	seq_printf(s, "period %u ms\n",
+			jiffies_to_msecs(jiffies - stats.last_reset));
+
+	seq_printf(s, "irqs %d\n", stats.irq_count);
+#define PIS(x) \
+	seq_printf(s, "%-20s %10d\n", #x, stats.irqs[ffs(DISPC_IRQ_##x)-1]);
+
+	PIS(FRAMEDONE);
+	PIS(VSYNC);
+	PIS(EVSYNC_EVEN);
+	PIS(EVSYNC_ODD);
+	PIS(ACBIAS_COUNT_STAT);
+	PIS(PROG_LINE_NUM);
+	PIS(GFX_FIFO_UNDERFLOW);
+	PIS(GFX_END_WIN);
+	PIS(PAL_GAMMA_MASK);
+	PIS(OCP_ERR);
+	PIS(VID1_FIFO_UNDERFLOW);
+	PIS(VID1_END_WIN);
+	PIS(VID2_FIFO_UNDERFLOW);
+	PIS(VID2_END_WIN);
+	PIS(SYNC_LOST);
+	PIS(SYNC_LOST_DIGIT);
+	PIS(WAKEUP);
+#undef PIS
+}
+#else
+void dispc_dump_irqs(struct seq_file *s) { }
+#endif
+
 void dispc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dispc_read_reg(r))
@@ -2665,6 +2723,13 @@ void dispc_irq_handler(void)
 
 	irqstatus = dispc_read_reg(DISPC_IRQSTATUS);
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock(&dispc.irq_stats_lock);
+	dispc.irq_stats.irq_count++;
+	dss_collect_irq_stats(irqstatus, dispc.irq_stats.irqs);
+	spin_unlock(&dispc.irq_stats_lock);
+#endif
+
 #ifdef DEBUG
 	if (dss_debug)
 		print_irq_status(irqstatus);
@@ -3011,6 +3076,11 @@ int dispc_init(void)
 	u32 rev;
 
 	spin_lock_init(&dispc.irq_lock);
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock_init(&dispc.irq_stats_lock);
+	dispc.irq_stats.last_reset = jiffies;
+#endif
 
 	INIT_WORK(&dispc.error_work, dispc_error_worker);
 
