@@ -1,5 +1,5 @@
-#ifndef __ASM_SH_PGTABLE_NOPMD_H
-#define __ASM_SH_PGTABLE_NOPMD_H
+#ifndef __ASM_SH_PGTABLE_2LEVEL_H
+#define __ASM_SH_PGTABLE_2LEVEL_H
 
 #include <asm-generic/pgtable-nopmd.h>
 
@@ -20,4 +20,4 @@
 #define PTRS_PER_PGD		(PAGE_SIZE / (1 << PTE_MAGNITUDE))
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 
-#endif /* __ASM_SH_PGTABLE_NOPMD_H */
+#endif /* __ASM_SH_PGTABLE_2LEVEL_H */
