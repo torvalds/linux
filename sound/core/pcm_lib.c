@@ -394,6 +394,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 								+ HZ/100);
 		/* move new_hw_ptr according jiffies not pos variable */
 		new_hw_ptr = old_hw_ptr;
+		hw_base = delta;
 		/* use loop to avoid checks for delta overflows */
 		/* the delta value is small or zero in most cases */
 		while (delta > 0) {
@@ -403,8 +404,6 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			delta--;
 		}
 		/* align hw_base to buffer_size */
-		hw_base = new_hw_ptr - (new_hw_ptr % runtime->buffer_size);
-		delta = 0;
 		hw_ptr_error(substream,
 			     "hw_ptr skipping! %s"
 			     "(pos=%ld, delta=%ld, period=%ld, "
@@ -412,9 +411,12 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 			     in_interrupt ? "[Q] " : "",
 			     (long)pos, (long)hdelta,
 			     (long)runtime->period_size, jdelta,
-			     ((hdelta * HZ) / runtime->rate), delta,
+			     ((hdelta * HZ) / runtime->rate), hw_base,
 			     (unsigned long)old_hw_ptr,
 			     (unsigned long)new_hw_ptr);
+		/* reset values to proper state */
+		delta = 0;
+		hw_base = new_hw_ptr - (new_hw_ptr % runtime->buffer_size);
 	}
  no_jiffies_check:
 	if (delta > runtime->period_size + runtime->period_size / 2) {
