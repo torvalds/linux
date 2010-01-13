@@ -32,6 +32,7 @@
 #include "drmP.h"
 #include "vmwgfx_drm.h"
 #include "drm_hashtab.h"
+#include "linux/suspend.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_object.h"
 #include "ttm/ttm_lock.h"
@@ -258,6 +259,7 @@ struct vmw_private {
 
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
+	struct notifier_block pm_nb;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
