@@ -544,7 +544,7 @@ static struct platform_device gta02_bl_dev = {
 
 
 /* USB */
-static struct s3c2410_hcd_info gta02_usb_info = {
+static struct s3c2410_hcd_info gta02_usb_info __initdata = {
 	.port[0]	= {
 		.flags	= S3C_HCDFLG_USED,
 	},
@@ -623,9 +623,8 @@ static void __init gta02_machine_init(void)
 	INIT_DELAYED_WORK(&gta02_charger_work, gta02_charger_worker);
 #endif
 
-	s3c_device_ohci.dev.platform_data = &gta02_usb_info;
-
 	s3c24xx_udc_set_platdata(&gta02_udc_cfg);
+	s3c_ohci_set_platdata(&gta02_usb_info);
 	s3c_nand_set_platdata(&gta02_nand_info);
 	s3c_i2c0_set_platdata(NULL);
 
