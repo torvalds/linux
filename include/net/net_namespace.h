@@ -81,6 +81,8 @@ struct net {
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	struct netns_ct		ct;
 #endif
+	struct sock		*nfnl;
+	struct sock		*nfnl_stash;
 #endif
 #ifdef CONFIG_XFRM
 	struct netns_xfrm	xfrm;
