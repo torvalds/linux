@@ -104,7 +104,7 @@ static void zconf_error(const char *err, ...);
 static void zconferror(const char *err);
 static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken);
 
-struct symbol *symbol_hash[257];
+struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 
 static struct menu *current_menu, *current_entry;
 
