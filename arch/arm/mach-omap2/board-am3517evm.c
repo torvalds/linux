@@ -29,8 +29,150 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/usb.h>
+#include <plat/display.h>
 
 #include "mux.h"
+
+#define LCD_PANEL_PWR		176
+#define LCD_PANEL_BKLIGHT_PWR	182
+#define LCD_PANEL_PWM		181
+
+static int lcd_enabled;
+static int dvi_enabled;
+
+static void __init am3517_evm_display_init(void)
+{
+	int r;
+
+	omap_mux_init_gpio(LCD_PANEL_PWR, OMAP_PIN_INPUT_PULLUP);
+	omap_mux_init_gpio(LCD_PANEL_BKLIGHT_PWR, OMAP_PIN_INPUT_PULLDOWN);
+	omap_mux_init_gpio(LCD_PANEL_PWM, OMAP_PIN_INPUT_PULLDOWN);
+	/*
+	 * Enable GPIO 182 = LCD Backlight Power
+	 */
+	r = gpio_request(LCD_PANEL_BKLIGHT_PWR, "lcd_backlight_pwr");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_backlight_pwr\n");
+		return;
+	}
+	gpio_direction_output(LCD_PANEL_BKLIGHT_PWR, 1);
+	/*
+	 * Enable GPIO 181 = LCD Panel PWM
+	 */
+	r = gpio_request(LCD_PANEL_PWM, "lcd_pwm");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_pwm\n");
+		goto err_1;
+	}
+	gpio_direction_output(LCD_PANEL_PWM, 1);
+	/*
+	 * Enable GPIO 176 = LCD Panel Power enable pin
+	 */
+	r = gpio_request(LCD_PANEL_PWR, "lcd_panel_pwr");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_pwr\n");
+		goto err_2;
+	}
+	gpio_direction_output(LCD_PANEL_PWR, 1);
+
+	printk(KERN_INFO "Display initialized successfully\n");
+	return;
+
+err_2:
+	gpio_free(LCD_PANEL_PWM);
+err_1:
+	gpio_free(LCD_PANEL_BKLIGHT_PWR);
+}
+
+static int am3517_evm_panel_enable_lcd(struct omap_dss_device *dssdev)
+{
+	if (dvi_enabled) {
+		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
+		return -EINVAL;
+	}
+	gpio_set_value(LCD_PANEL_PWR, 1);
+	lcd_enabled = 1;
+
+	return 0;
+}
+
+static void am3517_evm_panel_disable_lcd(struct omap_dss_device *dssdev)
+{
+	gpio_set_value(LCD_PANEL_PWR, 0);
+	lcd_enabled = 0;
+}
+
+static struct omap_dss_device am3517_evm_lcd_device = {
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.name			= "lcd",
+	.driver_name		= "sharp_lq_panel",
+	.phy.dpi.data_lines 	= 16,
+	.platform_enable	= am3517_evm_panel_enable_lcd,
+	.platform_disable	= am3517_evm_panel_disable_lcd,
+};
+
+static int am3517_evm_panel_enable_tv(struct omap_dss_device *dssdev)
+{
+	return 0;
+}
+
+static void am3517_evm_panel_disable_tv(struct omap_dss_device *dssdev)
+{
+}
+
+static struct omap_dss_device am3517_evm_tv_device = {
+	.type 			= OMAP_DISPLAY_TYPE_VENC,
+	.name 			= "tv",
+	.driver_name		= "venc",
+	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+	.platform_enable	= am3517_evm_panel_enable_tv,
+	.platform_disable	= am3517_evm_panel_disable_tv,
+};
+
+static int am3517_evm_panel_enable_dvi(struct omap_dss_device *dssdev)
+{
+	if (lcd_enabled) {
+		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
+		return -EINVAL;
+	}
+	dvi_enabled = 1;
+
+	return 0;
+}
+
+static void am3517_evm_panel_disable_dvi(struct omap_dss_device *dssdev)
+{
+	dvi_enabled = 0;
+}
+
+static struct omap_dss_device am3517_evm_dvi_device = {
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.name			= "dvi",
+	.driver_name		= "generic_panel",
+	.phy.dpi.data_lines	= 24,
+	.platform_enable	= am3517_evm_panel_enable_dvi,
+	.platform_disable	= am3517_evm_panel_disable_dvi,
+};
+
+static struct omap_dss_device *am3517_evm_dss_devices[] = {
+	&am3517_evm_lcd_device,
+	&am3517_evm_tv_device,
+	&am3517_evm_dvi_device,
+};
+
+static struct omap_dss_board_info am3517_evm_dss_data = {
+	.num_devices	= ARRAY_SIZE(am3517_evm_dss_devices),
+	.devices	= am3517_evm_dss_devices,
+	.default_device	= &am3517_evm_lcd_device,
+};
+
+struct platform_device am3517_evm_dss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &am3517_evm_dss_data,
+	},
+};
 
 /*
  * Board initialization
@@ -39,6 +181,7 @@ static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
 };
 
 static struct platform_device *am3517_evm_devices[] __initdata = {
+	&am3517_evm_dss_device,
 };
 
 static void __init am3517_evm_init_irq(void)
@@ -78,6 +221,8 @@ static void __init am3517_evm_init(void)
 
 	omap_serial_init();
 	usb_ehci_init(&ehci_pdata);
+	/* DSS */
+	am3517_evm_display_init();
 }
 
 static void __init am3517_evm_map_io(void)
