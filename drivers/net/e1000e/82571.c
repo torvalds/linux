@@ -267,8 +267,14 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	switch (hw->mac.type) {
+	case e1000_82573:
+		func->set_lan_id = e1000_set_lan_id_single_port;
+		func->check_mng_mode = e1000e_check_mng_mode_generic;
+		func->led_on = e1000e_led_on_generic;
+		break;
 	case e1000_82574:
 	case e1000_82583:
+		func->set_lan_id = e1000_set_lan_id_single_port;
 		func->check_mng_mode = e1000_check_mng_mode_82574;
 		func->led_on = e1000_led_on_82574;
 		break;
@@ -1721,6 +1727,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
+	.set_lan_id		= e1000_set_lan_id_multi_port_pcie,
 	/* .get_link_up_info: media type dependent */
 	/* .led_on: mac type dependent */
 	.led_off		= e1000e_led_off_generic,

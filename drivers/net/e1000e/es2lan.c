@@ -246,6 +246,9 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 		break;
 	}
 
+	/* set lan id for port to determine which phy lock to use */
+	hw->mac.ops.set_lan_id(hw);
+
 	return 0;
 }
 
@@ -1435,6 +1438,7 @@ static struct e1000_mac_operations es2_mac_ops = {
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_80003es2lan,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
+	.set_lan_id		= e1000_set_lan_id_multi_port_pcie,
 	.get_link_up_info	= e1000_get_link_up_info_80003es2lan,
 	.led_on			= e1000e_led_on_generic,
 	.led_off		= e1000e_led_off_generic,
