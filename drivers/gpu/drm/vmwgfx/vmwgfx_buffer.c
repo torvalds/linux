@@ -179,6 +179,11 @@ static void vmw_move_notify(struct ttm_buffer_object *bo,
 		vmw_dmabuf_gmr_unbind(bo);
 }
 
+static void vmw_swap_notify(struct ttm_buffer_object *bo)
+{
+	vmw_dmabuf_gmr_unbind(bo);
+}
+
 /**
  * FIXME: We're using the old vmware polling method to sync.
  * Do this with fences instead.
@@ -233,5 +238,6 @@ struct ttm_bo_driver vmw_bo_driver = {
 	.sync_obj_flush = vmw_sync_obj_flush,
 	.sync_obj_unref = vmw_sync_obj_unref,
 	.sync_obj_ref = vmw_sync_obj_ref,
-	.move_notify = vmw_move_notify
+	.move_notify = vmw_move_notify,
+	.swap_notify = vmw_swap_notify
 };
