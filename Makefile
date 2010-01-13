@@ -910,14 +910,19 @@ endif
 #	  $(localver)
 #	    localversion*		(files without backups, containing '~')
 #	    $(CONFIG_LOCALVERSION)	(from kernel config setting)
-#	  $(localver-auto)		(only if CONFIG_LOCALVERSION_AUTO is set)
-#	    ./scripts/setlocalversion	(SCM tag, if one exists)
-#	    $(LOCALVERSION)		(from make command line if provided)
+#	  $(LOCALVERSION)		(from make command line, if provided)
+#	  $(localver-extra)
+#	    $(scm-identifier)		(unique SCM tag, if one exists)
+#	      ./scripts/setlocalversion	(only with CONFIG_LOCALVERSION_AUTO)
+#	      .scmversion		(only with CONFIG_LOCALVERSION_AUTO)
+#	    +				(only without CONFIG_LOCALVERSION_AUTO
+#					 and without LOCALVERSION= and
+#					 repository is at non-tagged commit)
 #
-#  Note how the final $(localver-auto) string is included *only* if the
-# kernel config option CONFIG_LOCALVERSION_AUTO is selected.  Also, at the
-# moment, only git is supported but other SCMs can edit the script
-# scripts/setlocalversion and add the appropriate checks as needed.
+# For kernels without CONFIG_LOCALVERSION_AUTO compiled from an SCM that has
+# been revised beyond a tagged commit, `+' is appended to the version string
+# when not overridden by using "make LOCALVERSION=".  This indicates that the
+# kernel is not a vanilla release version and has been modified.
 
 pattern = ".*/localversion[^~]*"
 string  = $(shell cat /dev/null \
@@ -926,26 +931,32 @@ string  = $(shell cat /dev/null \
 localver = $(subst $(space),, $(string) \
 			      $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
 
-# If CONFIG_LOCALVERSION_AUTO is set scripts/setlocalversion is called
-# and if the SCM is know a tag from the SCM is appended.
-# The appended tag is determined by the SCM used.
+# scripts/setlocalversion is called to create a unique identifier if the source
+# is managed by a known SCM and the repository has been revised since the last
+# tagged (release) commit.  The format of the identifier is determined by the
+# SCM's implementation.
 #
 # .scmversion is used when generating rpm packages so we do not loose
 # the version information from the SCM when we do the build of the kernel
 # from the copied source
-ifdef CONFIG_LOCALVERSION_AUTO
-
 ifeq ($(wildcard .scmversion),)
-        _localver-auto = $(shell $(CONFIG_SHELL) \
+        scm-identifier = $(shell $(CONFIG_SHELL) \
                          $(srctree)/scripts/setlocalversion $(srctree))
 else
-        _localver-auto = $(shell cat .scmversion 2> /dev/null)
+        scm-identifier = $(shell cat .scmversion 2> /dev/null)
 endif
 
-	localver-auto  = $(LOCALVERSION)$(_localver-auto)
+ifdef CONFIG_LOCALVERSION_AUTO
+	localver-extra = $(scm-identifier)
+else
+	ifneq ($scm-identifier,)
+		ifeq ($(LOCALVERSION),)
+			localver-extra = +
+		endif
+	endif
 endif
 
-localver-full = $(localver)$(localver-auto)
+localver-full = $(localver)$(LOCALVERSION)$(localver-extra)
 
 # Store (new) KERNELRELASE string in include/config/kernel.release
 kernelrelease = $(KERNELVERSION)$(localver-full)
