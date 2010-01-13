@@ -984,7 +984,7 @@ static void build_conf(struct menu *menu)
 				break;
 			default:
 				tmp = 2 + strlen(sym_get_string_value(sym));
-				item_make(menu, 's', "(%s)",
+				item_make(menu, 's', "    (%s)",
 						sym_get_string_value(sym));
 				tmp = indent - tmp + 4;
 				if (tmp < 0)
@@ -1072,8 +1072,8 @@ static void show_menu(const char *prompt, const char *instructions,
 
 	/* position the menu at the middle of the screen */
 	scale_menu(curses_menu, &maxy, &maxx);
-	maxx = min(maxx, mwin_max_cols);
-	maxy = mwin_max_lines-1;
+	maxx = min(maxx, mwin_max_cols-2);
+	maxy = mwin_max_lines-2;
 	menu_window = derwin(main_window,
 			maxy,
 			maxx,
