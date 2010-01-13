@@ -237,6 +237,8 @@ static void __init mpc85xx_mds_setup_arch(void)
 		} else if (machine_is(mpc8569_mds)) {
 #define BCSR7_UCC12_GETHnRST	(0x1 << 2)
 #define BCSR8_UEM_MARVELL_RST	(0x1 << 1)
+#define BCSR_UCC_RGMII		(0x1 << 6)
+#define BCSR_UCC_RTBI		(0x1 << 5)
 			/*
 			 * U-Boot mangles interrupt polarity for Marvell PHYs,
 			 * so reset built-in and UEM Marvell PHYs, this puts
@@ -247,6 +249,28 @@ static void __init mpc85xx_mds_setup_arch(void)
 
 			setbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
 			clrbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
+
+			for (np = NULL; (np = of_find_compatible_node(np,
+							"network",
+							"ucc_geth")) != NULL;) {
+				const unsigned int *prop;
+				int ucc_num;
+
+				prop = of_get_property(np, "cell-index", NULL);
+				if (prop == NULL)
+					continue;
+
+				ucc_num = *prop - 1;
+
+				prop = of_get_property(np, "phy-connection-type", NULL);
+				if (prop == NULL)
+					continue;
+
+				if (strcmp("rtbi", (const char *)prop) == 0)
+					clrsetbits_8(&bcsr_regs[7 + ucc_num],
+						BCSR_UCC_RGMII, BCSR_UCC_RTBI);
+			}
+
 		}
 		iounmap(bcsr_regs);
 	}
