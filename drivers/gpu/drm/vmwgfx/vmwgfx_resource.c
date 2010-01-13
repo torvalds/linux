@@ -599,6 +599,27 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		goto out_err1;
 
+
+	if (srf->flags & (1 << 9) &&
+	    srf->num_sizes == 1 &&
+	    srf->sizes[0].width == 64 &&
+	    srf->sizes[0].height == 64 &&
+	    srf->format == SVGA3D_A8R8G8B8) {
+
+		srf->snooper.image = kmalloc(64 * 64 * 4, GFP_KERNEL);
+		/* clear the image */
+		if (srf->snooper.image) {
+			memset(srf->snooper.image, 0x00, 64 * 64 * 4);
+		} else {
+			DRM_ERROR("Failed to allocate cursor_image\n");
+			ret = -ENOMEM;
+			goto out_err1;
+		}
+	} else {
+		srf->snooper.image = NULL;
+	}
+	srf->snooper.crtc = NULL;
+
 	user_srf->base.shareable = false;
 	user_srf->base.tfile = NULL;
 
@@ -621,24 +642,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		vmw_resource_unreference(&res);
 		return ret;
 	}
-
-	if (srf->flags & (1 << 9) &&
-	    srf->num_sizes == 1 &&
-	    srf->sizes[0].width == 64 &&
-	    srf->sizes[0].height == 64 &&
-	    srf->format == SVGA3D_A8R8G8B8) {
-
-		srf->snooper.image = kmalloc(64 * 64 * 4, GFP_KERNEL);
-		/* clear the image */
-		if (srf->snooper.image)
-			memset(srf->snooper.image, 0x00, 64 * 64 * 4);
-		else
-			DRM_ERROR("Failed to allocate cursor_image\n");
-
-	} else {
-		srf->snooper.image = NULL;
-	}
-	srf->snooper.crtc = NULL;
 
 	rep->sid = user_srf->base.hash.key;
 	if (rep->sid == SVGA3D_INVALID_ID)
