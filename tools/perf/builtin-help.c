@@ -313,8 +313,6 @@ static const char *cmd_to_page(const char *perf_cmd)
 		return "perf";
 	else if (!prefixcmp(perf_cmd, "perf"))
 		return perf_cmd;
-	else if (is_perf_command(perf_cmd))
-		return prepend("perf-", perf_cmd);
 	else
 		return prepend("perf-", perf_cmd);
 }
