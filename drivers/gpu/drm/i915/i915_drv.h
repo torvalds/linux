@@ -283,6 +283,7 @@ typedef struct drm_i915_private {
 	unsigned int lvds_use_ssc:1;
 	unsigned int edp_support:1;
 	int lvds_ssc_freq;
+	int edp_bpp;
 
 	struct notifier_block lid_notifier;
 
