@@ -252,7 +252,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 		if (!nv_connector->edid) {
 			NV_ERROR(dev, "DDC responded, but no EDID for %s\n",
 				 drm_get_connector_name(connector));
-			return connector_status_disconnected;
+			goto detect_analog;
 		}
 
 		if (nv_encoder->dcb->type == OUTPUT_DP &&
@@ -286,6 +286,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 		return connector_status_connected;
 	}
 
+detect_analog:
 	nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG);
 	if (!nv_encoder)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_TV);
