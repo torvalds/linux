@@ -28,6 +28,9 @@
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
 
+/* Internal error code */
+#define NFS4ERR_RESOURCE_HDR	11050
+
 typedef __be32 (*callback_process_op_t)(void *, void *);
 typedef __be32 (*callback_decode_arg_t)(struct svc_rqst *, struct xdr_stream *, void *);
 typedef __be32 (*callback_encode_res_t)(struct svc_rqst *, struct xdr_stream *, void *);
@@ -173,7 +176,7 @@ static __be32 decode_op_hdr(struct xdr_stream *xdr, unsigned int *op)
 	__be32 *p;
 	p = read_buf(xdr, 4);
 	if (unlikely(p == NULL))
-		return htonl(NFS4ERR_RESOURCE);
+		return htonl(NFS4ERR_RESOURCE_HDR);
 	*op = ntohl(*p);
 	return 0;
 }
@@ -465,7 +468,7 @@ static __be32 encode_op_hdr(struct xdr_stream *xdr, uint32_t op, __be32 res)
 	
 	p = xdr_reserve_space(xdr, 8);
 	if (unlikely(p == NULL))
-		return htonl(NFS4ERR_RESOURCE);
+		return htonl(NFS4ERR_RESOURCE_HDR);
 	*p++ = htonl(op);
 	*p = res;
 	return 0;
@@ -605,17 +608,15 @@ static __be32 process_op(uint32_t minorversion, int nop,
 		struct xdr_stream *xdr_out, void *resp)
 {
 	struct callback_op *op = &callback_ops[0];
-	unsigned int op_nr = OP_CB_ILLEGAL;
+	unsigned int op_nr;
 	__be32 status;
 	long maxlen;
 	__be32 res;
 
 	dprintk("%s: start\n", __func__);
 	status = decode_op_hdr(xdr_in, &op_nr);
-	if (unlikely(status)) {
-		status = htonl(NFS4ERR_OP_ILLEGAL);
-		goto out;
-	}
+	if (unlikely(status))
+		return status;
 
 	dprintk("%s: minorversion=%d nop=%d op_nr=%u\n",
 		__func__, minorversion, nop, op_nr);
@@ -624,7 +625,7 @@ static __be32 process_op(uint32_t minorversion, int nop,
 				preprocess_nfs4_op(op_nr, &op);
 	if (status == htonl(NFS4ERR_OP_ILLEGAL))
 		op_nr = OP_CB_ILLEGAL;
-out:
+
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
 		if (likely(status == 0 && op->decode_args != NULL))
@@ -635,8 +636,8 @@ out:
 		status = htonl(NFS4ERR_RESOURCE);
 
 	res = encode_op_hdr(xdr_out, op_nr, status);
-	if (status == 0)
-		status = res;
+	if (unlikely(res))
+		return res;
 	if (op->encode_res != NULL && status == 0)
 		status = op->encode_res(rqstp, xdr_out, resp);
 	dprintk("%s: done, status = %d\n", __func__, ntohl(status));
@@ -675,6 +676,13 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		status = process_op(hdr_arg.minorversion, nops,
 				    rqstp, &xdr_in, argp, &xdr_out, resp);
 		nops++;
+	}
+
+	/* Buffer overflow in decode_ops_hdr or encode_ops_hdr. Return
+	* resource error in cb_compound status without returning op */
+	if (unlikely(status == htonl(NFS4ERR_RESOURCE_HDR))) {
+		status = htonl(NFS4ERR_RESOURCE);
+		nops--;
 	}
 
 	*hdr_res.status = status;
