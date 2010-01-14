@@ -2596,7 +2596,7 @@ netxen_sysfs_read_mem(struct kobject *kobj, struct bin_attribute *attr,
 	return size;
 }
 
-ssize_t netxen_sysfs_write_mem(struct kobject *kobj,
+static ssize_t netxen_sysfs_write_mem(struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t offset, size_t size)
 {
