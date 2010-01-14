@@ -258,7 +258,8 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 	gid_pn->gid_pn_req.gid_pn.fn_wwpn = port->wwpn;
 
 	ret = zfcp_fsf_send_ct(&adapter->gs->ds, &gid_pn->ct,
-			       adapter->pool.gid_pn_req);
+			       adapter->pool.gid_pn_req,
+			       ZFCP_FC_CTELS_TMO);
 	if (!ret) {
 		wait_for_completion(&completion);
 		zfcp_fc_ns_gid_pn_eval(gid_pn);
@@ -421,7 +422,8 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	hton24(adisc->adisc_req.adisc_port_id,
 	       fc_host_port_id(adapter->scsi_host));
 
-	ret = zfcp_fsf_send_els(adapter, port->d_id, &adisc->els);
+	ret = zfcp_fsf_send_els(adapter, port->d_id, &adisc->els,
+				ZFCP_FC_CTELS_TMO);
 	if (ret)
 		kmem_cache_free(zfcp_data.adisc_cache, adisc);
 
@@ -532,7 +534,8 @@ static int zfcp_fc_send_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 	ct->req = &gpn_ft->sg_req;
 	ct->resp = gpn_ft->sg_resp;
 
-	ret = zfcp_fsf_send_ct(&adapter->gs->ds, ct, NULL);
+	ret = zfcp_fsf_send_ct(&adapter->gs->ds, ct, NULL,
+			       ZFCP_FC_CTELS_TMO);
 	if (!ret)
 		wait_for_completion(&completion);
 	return ret;
@@ -734,7 +737,7 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
 
 	els->handler = zfcp_fc_ct_els_job_handler;
-	return zfcp_fsf_send_els(adapter, d_id, els);
+	return zfcp_fsf_send_els(adapter, d_id, els, job->req->timeout / HZ);
 }
 
 static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
@@ -753,7 +756,7 @@ static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
 		return ret;
 
 	ct->handler = zfcp_fc_ct_job_handler;
-	ret = zfcp_fsf_send_ct(wka_port, ct, NULL);
+	ret = zfcp_fsf_send_ct(wka_port, ct, NULL, job->req->timeout / HZ);
 	if (ret)
 		zfcp_fc_wka_port_put(wka_port);
 
