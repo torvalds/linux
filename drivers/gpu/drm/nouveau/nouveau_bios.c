@@ -5523,11 +5523,13 @@ void merge_like_dcb_entries(struct drm_device *dev, struct parsed_dcb *dcb)
 	dcb->entries = newentries;
 }
 
-static int parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
+static int
+parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct bios_parsed_dcb *bdcb = &bios->bdcb;
 	struct parsed_dcb *dcb;
-	uint16_t dcbptr, i2ctabptr = 0;
+	uint16_t dcbptr = 0, i2ctabptr = 0;
 	uint8_t *dcbtable;
 	uint8_t headerlen = 0x4, entries = DCB_MAX_NUM_ENTRIES;
 	bool configblock = true;
@@ -5538,16 +5540,18 @@ static int parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool two
 	dcb->entries = 0;
 
 	/* get the offset from 0x36 */
-	dcbptr = ROM16(bios->data[0x36]);
+	if (dev_priv->card_type > NV_04) {
+		dcbptr = ROM16(bios->data[0x36]);
+		if (dcbptr == 0x0000)
+			NV_WARN(dev, "No output data (DCB) found in BIOS\n");
+	}
 
+	/* this situation likely means a really old card, pre DCB */
 	if (dcbptr == 0x0) {
-		NV_WARN(dev, "No output data (DCB) found in BIOS, "
-			       "assuming a CRT output exists\n");
-		/* this situation likely means a really old card, pre DCB */
+		NV_INFO(dev, "Assuming a CRT output exists\n");
 		fabricate_vga_output(dcb, LEGACY_I2C_CRT, 1);
 
-		if (nv04_tv_identify(dev,
-				     bios->legacy.i2c_indices.tv) >= 0)
+		if (nv04_tv_identify(dev, bios->legacy.i2c_indices.tv) >= 0)
 			fabricate_tv_output(dcb, twoHeads);
 
 		return 0;
