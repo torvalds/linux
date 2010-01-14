@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-realview/clock.c
+ *  linux/arch/arm/plat-versatile/clock.c
  *
  *  Copyright (C) 2004 ARM Limited.
  *  Written by Deep Blue Solutions Limited.
@@ -10,17 +10,13 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/list.h>
 #include <linux/errno.h>
-#include <linux/err.h>
-#include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
 #include <asm/hardware/icst.h>
 
-#include "clock.h"
+#include <mach/clkdev.h>
 
 int clk_enable(struct clk *clk)
 {

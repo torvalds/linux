@@ -43,7 +43,6 @@
 #include <mach/irqs.h>
 
 #include "core.h"
-#include "clock.h"
 
 static struct map_desc realview_eb_io_desc[] __initdata = {
 	{

@@ -192,6 +192,7 @@ plat-$(CONFIG_PLAT_PXA)		:= pxa
 plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx samsung
 plat-$(CONFIG_PLAT_S5PC1XX)	:= s5pc1xx samsung
 plat-$(CONFIG_PLAT_S5P)		:= s5p samsung
+plat-$(CONFIG_PLAT_VERSATILE)	:= versatile
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

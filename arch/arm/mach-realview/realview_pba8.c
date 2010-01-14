@@ -41,7 +41,6 @@
 #include <mach/irqs.h>
 
 #include "core.h"
-#include "clock.h"
 
 static struct map_desc realview_pba8_io_desc[] __initdata = {
 	{

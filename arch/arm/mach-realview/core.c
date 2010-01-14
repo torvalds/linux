@@ -48,11 +48,11 @@
 
 #include <asm/hardware/gic.h>
 
+#include <mach/clkdev.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
 
 #include "core.h"
-#include "clock.h"
 
 #define REALVIEW_REFCOUNTER	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_24MHz_OFFSET)
 

@@ -243,6 +243,7 @@ config ARCH_INTEGRATOR
 	select ICST
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select PLAT_VERSATILE
 	help
 	  Support for ARM's Integrator platform.
 
@@ -255,6 +256,7 @@ config ARCH_REALVIEW
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select PLAT_VERSATILE
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -268,6 +270,7 @@ config ARCH_VERSATILE
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select PLAT_VERSATILE
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -936,6 +939,9 @@ config PLAT_ORION
 	bool
 
 config PLAT_PXA
+	bool
+
+config PLAT_VERSATILE
 	bool
 
 source arch/arm/mm/Kconfig

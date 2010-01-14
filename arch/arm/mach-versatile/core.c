@@ -47,11 +47,11 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 
 #include "core.h"
-#include "clock.h"
 
 /*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
