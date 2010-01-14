@@ -3985,6 +3985,12 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 	if (work == NULL || !work->pending) {
+		if (work && !work->pending) {
+			obj_priv = work->obj->driver_private;
+			DRM_DEBUG_DRIVER("flip finish: %p (%d) not pending?\n",
+					 obj_priv,
+					 atomic_read(&obj_priv->pending_flip));
+		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return;
 	}
@@ -4006,7 +4012,10 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	obj_priv = work->obj->driver_private;
-	if (atomic_dec_and_test(&obj_priv->pending_flip))
+
+	/* Initial scanout buffer will have a 0 pending flip count */
+	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
+	    atomic_dec_and_test(&obj_priv->pending_flip))
 		DRM_WAKEUP(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 }
@@ -4019,8 +4028,11 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	if (intel_crtc->unpin_work)
+	if (intel_crtc->unpin_work) {
 		intel_crtc->unpin_work->pending = 1;
+	} else {
+		DRM_DEBUG_DRIVER("preparing flip with no unpin work?\n");
+	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
@@ -4054,6 +4066,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (intel_crtc->unpin_work) {
+		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
 		mutex_unlock(&dev->struct_mutex);
@@ -4067,7 +4080,10 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
 	if (ret != 0) {
+		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
+			  obj->driver_private);
 		kfree(work);
+		intel_crtc->unpin_work = NULL;
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
