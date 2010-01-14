@@ -1342,7 +1342,7 @@ void HTUseDefaultSetting(struct ieee80211_device* ieee)
 
 		pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
-		pHTInfo->CurrentMPDUDensity = pHTInfo->CurrentMPDUDensity;
+		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
 
 		// Set BWOpMode register
 
