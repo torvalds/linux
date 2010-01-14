@@ -153,8 +153,10 @@ void ieee80211_offchannel_return(struct ieee80211_local *local,
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.associated)
 				ieee80211_offchannel_ps_disable(sdata);
-			netif_tx_wake_all_queues(sdata->dev);
 		}
+
+		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
+			netif_tx_wake_all_queues(sdata->dev);
 
 		/* re-enable beaconing */
 		if (enable_beaconing &&
