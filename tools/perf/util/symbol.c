@@ -1608,11 +1608,11 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 		u8 kallsyms_build_id[BUILD_ID_SIZE];
 
 		if (sysfs__read_build_id("/sys/kernel/notes", kallsyms_build_id,
-					 sizeof(kallsyms_build_id)) == 0)
-
-		is_kallsyms = dso__build_id_equal(self, kallsyms_build_id);
-		if (is_kallsyms)
-			goto do_kallsyms;
+					 sizeof(kallsyms_build_id)) == 0) {
+			is_kallsyms = dso__build_id_equal(self, kallsyms_build_id);
+			if (is_kallsyms)
+				goto do_kallsyms;
+		}
 		goto do_vmlinux;
 	}
 
@@ -1623,6 +1623,9 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 do_vmlinux:
 	err = dso__load_vmlinux(self, map, session, self->long_name, filter);
 	if (err <= 0) {
+		if (self->has_build_id)
+			return -1;
+
 		pr_info("The file %s cannot be used, "
 			"trying to use /proc/kallsyms...", self->long_name);
 do_kallsyms:
