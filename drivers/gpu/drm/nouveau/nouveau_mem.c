@@ -383,6 +383,9 @@ void nouveau_mem_close(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
+	nouveau_bo_unpin(dev_priv->vga_ram);
+	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
@@ -619,6 +622,15 @@ nouveau_mem_init(struct drm_device *dev)
 		return ret;
 	}
 
+	ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
+			     0, 0, true, true, &dev_priv->vga_ram);
+	if (ret == 0)
+		ret = nouveau_bo_pin(dev_priv->vga_ram, TTM_PL_FLAG_VRAM);
+	if (ret) {
+		NV_WARN(dev, "failed to reserve VGA memory\n");
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	}
+
 	/* GART */
 #if !defined(__powerpc__) && !defined(__ia64__)
 	if (drm_device_is_agp(dev) && dev->agp) {
@@ -650,6 +662,7 @@ nouveau_mem_init(struct drm_device *dev)
 	dev_priv->fb_mtrr = drm_mtrr_add(drm_get_resource_start(dev, 1),
 					 drm_get_resource_len(dev, 1),
 					 DRM_MTRR_WC);
+
 	return 0;
 }
 

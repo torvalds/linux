@@ -509,6 +509,8 @@ struct drm_nouveau_private {
 	void __iomem *ramin;
 	uint32_t ramin_size;
 
+	struct nouveau_bo *vga_ram;
+
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
 
