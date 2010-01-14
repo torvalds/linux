@@ -53,8 +53,6 @@
 
 #include "core.h"
 
-#define REALVIEW_REFCOUNTER	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_24MHz_OFFSET)
-
 /* used by entry-macro.S and platsmp.c */
 void __iomem *gic_cpu_base_addr;
 
@@ -76,20 +74,6 @@ void __init realview_adjust_zones(int node, unsigned long *size,
 	hole[ZONE_DMA] = 0;
 }
 #endif
-
-/*
- * This is the RealView sched_clock implementation.  This has
- * a resolution of 41.7ns, and a maximum value of about 179s.
- */
-unsigned long long sched_clock(void)
-{
-	unsigned long long v;
-
-	v = (unsigned long long)readl(REALVIEW_REFCOUNTER) * 125;
-	do_div(v, 3);
-
-	return v;
-}
 
 
 #define REALVIEW_FLASHCTRL    (__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_FLASH_OFFSET)

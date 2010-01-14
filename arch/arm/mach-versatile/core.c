@@ -28,7 +28,6 @@
 #include <linux/amba/clcd.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
-#include <linux/cnt32_to_63.h>
 #include <linux/io.h>
 
 #include <asm/clkdev.h>
@@ -225,27 +224,6 @@ static struct map_desc versatile_io_desc[] __initdata = {
 void __init versatile_map_io(void)
 {
 	iotable_init(versatile_io_desc, ARRAY_SIZE(versatile_io_desc));
-}
-
-#define VERSATILE_REFCOUNTER	(__io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_24MHz_OFFSET)
-
-/*
- * This is the Versatile sched_clock implementation.  This has
- * a resolution of 41.7ns, and a maximum value of about 35583 days.
- *
- * The return value is guaranteed to be monotonic in that range as
- * long as there is always less than 89 seconds between successive
- * calls to this function.
- */
-unsigned long long sched_clock(void)
-{
-	unsigned long long v = cnt32_to_63(readl(VERSATILE_REFCOUNTER));
-
-	/* the <<1 gets rid of the cnt_32_to_63 top bit saving on a bic insn */
-	v *= 125<<1;
-	do_div(v, 3<<1);
-
-	return v;
 }
 
 
