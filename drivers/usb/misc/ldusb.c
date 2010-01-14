@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 #include <linux/input.h>
@@ -297,14 +296,12 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 	int retval;
 	struct usb_interface *interface;
 
-	lock_kernel();
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&ld_usb_driver, subminor);
 
 	if (!interface) {
-		unlock_kernel();
 		err("%s - error, can't find device for minor %d\n",
 		     __func__, subminor);
 		return -ENODEV;
@@ -312,16 +309,12 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 
 	dev = usb_get_intfdata(interface);
 
-	if (!dev) {
-		unlock_kernel();
+	if (!dev)
 		return -ENODEV;
-	}
 
 	/* lock this device */
-	if (mutex_lock_interruptible(&dev->mutex)) {
-		unlock_kernel();
+	if (mutex_lock_interruptible(&dev->mutex))
 		return -ERESTARTSYS;
-	}
 
 	/* allow opening only once */
 	if (dev->open_count) {
@@ -360,7 +353,6 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 
 unlock_exit:
 	mutex_unlock(&dev->mutex);
-	unlock_kernel();
 
 	return retval;
 }
