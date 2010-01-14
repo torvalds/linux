@@ -515,7 +515,7 @@ int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 	write_or_die(buf, 1);
 
 	/* save page_size */
-	page_size = getpagesize();
+	page_size = sysconf(_SC_PAGESIZE);
 	write_or_die(&page_size, 4);
 
 	read_header_files();

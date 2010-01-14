@@ -384,7 +384,7 @@ int perf_session__process_events(struct perf_session *self,
 
 	perf_event_ops__fill_defaults(ops);
 
-	page_size = getpagesize();
+	page_size = sysconf(_SC_PAGESIZE);
 
 	head = self->header.data_offset;
 
