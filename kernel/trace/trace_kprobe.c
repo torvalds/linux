@@ -1507,28 +1507,67 @@ static int kprobe_trace_selftest_target(int a1, int a2, int a3,
 
 static __init int kprobe_trace_self_tests_init(void)
 {
-	int ret;
+	int ret, warn = 0;
 	int (*target)(int, int, int, int, int, int);
+	struct trace_probe *tp;
 
 	target = kprobe_trace_selftest_target;
 
 	pr_info("Testing kprobe tracing: ");
 
 	ret = command_trace_probe("p:testprobe kprobe_trace_selftest_target "
-				  "$arg1 $arg2 $arg3 $arg4 $stack $stack0");
-	if (WARN_ON_ONCE(ret))
-		pr_warning("error enabling function entry\n");
+				  "$stack $stack0 +0($stack)");
+	if (WARN_ON_ONCE(ret)) {
+		pr_warning("error on probing function entry.\n");
+		warn++;
+	} else {
+		/* Enable trace point */
+		tp = find_probe_event("testprobe", KPROBE_EVENT_SYSTEM);
+		if (WARN_ON_ONCE(tp == NULL)) {
+			pr_warning("error on getting new probe.\n");
+			warn++;
+		} else
+			probe_event_enable(&tp->call);
+	}
 
 	ret = command_trace_probe("r:testprobe2 kprobe_trace_selftest_target "
 				  "$retval");
-	if (WARN_ON_ONCE(ret))
-		pr_warning("error enabling function return\n");
+	if (WARN_ON_ONCE(ret)) {
+		pr_warning("error on probing function return.\n");
+		warn++;
+	} else {
+		/* Enable trace point */
+		tp = find_probe_event("testprobe2", KPROBE_EVENT_SYSTEM);
+		if (WARN_ON_ONCE(tp == NULL)) {
+			pr_warning("error on getting new probe.\n");
+			warn++;
+		} else
+			probe_event_enable(&tp->call);
+	}
+
+	if (warn)
+		goto end;
 
 	ret = target(1, 2, 3, 4, 5, 6);
 
-	cleanup_all_probes();
+	ret = command_trace_probe("-:testprobe");
+	if (WARN_ON_ONCE(ret)) {
+		pr_warning("error on deleting a probe.\n");
+		warn++;
+	}
 
-	pr_cont("OK\n");
+	ret = command_trace_probe("-:testprobe2");
+	if (WARN_ON_ONCE(ret)) {
+		pr_warning("error on deleting a probe.\n");
+		warn++;
+	}
+
+end:
+	cleanup_all_probes();
+	if (warn)
+		pr_cont("NG: Some tests are failed. Please check them.\n");
+	else
+		pr_cont("OK\n");
 	return 0;
 }
 
