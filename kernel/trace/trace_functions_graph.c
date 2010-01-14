@@ -212,9 +212,6 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
-	if (unlikely(!tr))
-		return 0;
-
 	if (!ftrace_trace_task(current))
 		return 0;
 
@@ -287,11 +284,20 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 	local_irq_restore(flags);
 }
 
+void set_graph_array(struct trace_array *tr)
+{
+	graph_array = tr;
+
+	/* Make graph_array visible before we start tracing */
+
+	smp_mb();
+}
+
 static int graph_trace_init(struct trace_array *tr)
 {
 	int ret;
 
-	graph_array = tr;
+	set_graph_array(tr);
 	ret = register_ftrace_graph(&trace_graph_return,
 				    &trace_graph_entry);
 	if (ret)
@@ -299,11 +305,6 @@ static int graph_trace_init(struct trace_array *tr)
 	tracing_start_cmdline_record();
 
 	return 0;
-}
-
-void set_graph_array(struct trace_array *tr)
-{
-	graph_array = tr;
 }
 
 static void graph_trace_reset(struct trace_array *tr)
