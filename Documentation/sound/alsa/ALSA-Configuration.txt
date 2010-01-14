@@ -482,6 +482,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     reference_rate	- reference sample rate, 44100 or 48000 (default)
     multiple		- multiple to ref. sample rate, 1 or 2 (default)
+    subsystem		- override the PCI SSID for probing; the value
+			  consists of SSVID << 16 | SSDID.  The default is
+			  zero, which means no override.
 
     This module supports multiple cards.
 
