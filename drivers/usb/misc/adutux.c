@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 #ifdef CONFIG_USB_DEBUG
@@ -275,7 +274,6 @@ static int adu_open(struct inode *inode, struct file *file)
 
 	dbg(2,"%s : enter", __func__);
 
-	lock_kernel();
 	subminor = iminor(inode);
 
 	if ((retval = mutex_lock_interruptible(&adutux_mutex))) {
@@ -334,7 +332,6 @@ static int adu_open(struct inode *inode, struct file *file)
 exit_no_device:
 	mutex_unlock(&adutux_mutex);
 exit_no_lock:
-	unlock_kernel();
 	dbg(2,"%s : leave, return value %d ", __func__, retval);
 	return retval;
 }
