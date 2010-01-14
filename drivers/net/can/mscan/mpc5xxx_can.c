@@ -43,7 +43,7 @@ struct mpc5xxx_can_data {
 			 int *mscan_clksrc);
 };
 
-#ifdef CONFIG_PPC_MPC5200
+#ifdef CONFIG_PPC_MPC52xx
 static struct of_device_id __devinitdata mpc52xx_cdm_ids[] = {
 	{ .compatible = "fsl,mpc5200-cdm", },
 	{}
@@ -84,7 +84,7 @@ static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
 	/* Determine SYS_XTAL_IN frequency from the clock domain settings */
 	np_cdm = of_find_matching_node(NULL, mpc52xx_cdm_ids);
 	if (!np_cdm) {
-		dev_err(&of->dev, "can't get clock node!\n");
+		dev_err(&ofdev->dev, "can't get clock node!\n");
 		return 0;
 	}
 	cdm = of_iomap(np_cdm, 0);
@@ -101,14 +101,14 @@ static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
 
 	return freq;
 }
-#else /* !CONFIG_PPC_MPC5200 */
+#else /* !CONFIG_PPC_MPC52xx */
 static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
 					   const char *clock_name,
 					   int *mscan_clksrc)
 {
 	return 0;
 }
-#endif /* CONFIG_PPC_MPC5200 */
+#endif /* CONFIG_PPC_MPC52xx */
 
 #ifdef CONFIG_PPC_MPC512x
 struct mpc512x_clockctl {
