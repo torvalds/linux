@@ -83,6 +83,7 @@ defaultimage-$(CONFIG_SH_AP325RXA)		:= uImage
 defaultimage-$(CONFIG_SH_7724_SOLUTION_ENGINE)	:= uImage
 defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
+defaultimage-$(CONFIG_SH_SDK7786)		:= vmlinux.bin
 
 # Set some sensible Kbuild defaults
 KBUILD_IMAGE		:= $(defaultimage-y)
@@ -143,6 +144,7 @@ machdir-$(CONFIG_SH_AP325RXA)			+= mach-ap325rxa
 machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
 machdir-$(CONFIG_SH_ECOVEC)			+= mach-ecovec24
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
+machdir-$(CONFIG_SH_SDK7786)			+= mach-sdk7786
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
