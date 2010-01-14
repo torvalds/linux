@@ -77,6 +77,12 @@ static void __init mx25pdk_fec_reset(void)
 	gpio_set_value(FEC_RESET_B_GPIO, 1);
 }
 
+static struct mxc_nand_platform_data mx25pdk_nand_board_info = {
+	.width		= 1,
+	.hw_ecc		= 1,
+	.flash_bbt	= 1,
+};
+
 static void __init mx25pdk_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
@@ -84,6 +90,7 @@ static void __init mx25pdk_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_usbh2, NULL);
+	mxc_register_device(&mxc_nand_device, &mx25pdk_nand_board_info);
 
 	mx25pdk_fec_reset();
 	mxc_register_device(&mx25_fec_device, &mx25_fec_pdata);
