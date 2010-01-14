@@ -638,9 +638,14 @@ config VIDEO_W9966
 	  information.
 
 config VIDEO_CPIA
-	tristate "CPiA Video For Linux"
+	tristate "CPiA Video For Linux (DEPRECATED)"
 	depends on VIDEO_V4L1
+	default n
 	---help---
+	  This driver is DEPRECATED please use the gspca cpia1 module
+	  instead. Note that you need atleast version 0.6.4 of libv4l for
+	  the cpia1 gspca module.
+
 	  This is the video4linux driver for cameras based on Vision's CPiA
 	  (Colour Processor Interface ASIC), such as the Creative Labs Video
 	  Blaster Webcam II. If you have one of these cameras, say Y here
