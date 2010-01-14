@@ -3155,16 +3155,25 @@ static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entr
 	}
 #ifdef __powerpc__
 	/* Powerbook specific quirks */
-	if (script == LVDS_RESET && ((dev->pci_device & 0xffff) == 0x0179 || (dev->pci_device & 0xffff) == 0x0189 || (dev->pci_device & 0xffff) == 0x0329))
-		nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
-	if ((dev->pci_device & 0xffff) == 0x0179 || (dev->pci_device & 0xffff) == 0x0189 || (dev->pci_device & 0xffff) == 0x0329) {
-		if (script == LVDS_PANEL_ON) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL, bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL) | (1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT, bios_rd32(bios, NV_PCRTC_GPIO_EXT) | 1);
-		}
-		if (script == LVDS_PANEL_OFF) {
-			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL, bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL) & ~(1 << 31));
-			bios_wr32(bios, NV_PCRTC_GPIO_EXT, bios_rd32(bios, NV_PCRTC_GPIO_EXT) & ~3);
+	if ((dev->pci_device & 0xffff) == 0x0179 ||
+	    (dev->pci_device & 0xffff) == 0x0189 ||
+	    (dev->pci_device & 0xffff) == 0x0329) {
+		if (script == LVDS_RESET) {
+			nv_write_tmds(dev, dcbent->or, 0, 0x02, 0x72);
+
+		} else if (script == LVDS_PANEL_ON) {
+			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
+				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
+				  | (1 << 31));
+			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
+				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) | 1);
+
+		} else if (script == LVDS_PANEL_OFF) {
+			bios_wr32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL,
+				  bios_rd32(bios, NV_PBUS_DEBUG_DUALHEAD_CTL)
+				  & ~(1 << 31));
+			bios_wr32(bios, NV_PCRTC_GPIO_EXT,
+				  bios_rd32(bios, NV_PCRTC_GPIO_EXT) & ~3);
 		}
 	}
 #endif
