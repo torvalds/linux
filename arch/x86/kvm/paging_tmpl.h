@@ -150,7 +150,9 @@ walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
+		if (kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte)))
+			goto not_present;
+
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
 		if (!is_present_gpte(pte))
