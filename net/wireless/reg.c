@@ -585,6 +585,9 @@ static int max_subband_chan(int orig_cur_chan,
 			break;
 		}
 
+		if (triplet->chans.num_channels == 0)
+			return 0;
+
 		/* Monitonically increasing channel order */
 		if (triplet->chans.first_channel <= end_subband_chan)
 			return 0;
@@ -736,6 +739,9 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 				return NULL;
 			break;
 		}
+
+		if (triplet->chans.num_channels == 0)
+			return NULL;
 
 		/* 2 GHz */
 		if (triplet->chans.first_channel <= 14)
