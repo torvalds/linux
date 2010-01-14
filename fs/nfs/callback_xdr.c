@@ -630,9 +630,8 @@ static __be32 process_op(uint32_t minorversion, int nop,
 
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
-		if (likely(op->decode_args != NULL))
-			status = op->decode_args(rqstp, xdr_in, argp);
-		if (likely(status == 0 && op->process_op != NULL))
+		status = op->decode_args(rqstp, xdr_in, argp);
+		if (likely(status == 0))
 			status = op->process_op(argp, resp);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
