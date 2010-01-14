@@ -77,11 +77,14 @@ static struct rio_usb_data rio_instance;
 static int open_rio(struct inode *inode, struct file *file)
 {
 	struct rio_usb_data *rio = &rio_instance;
+
+	/* against disconnect() */
 	lock_kernel();
 	mutex_lock(&(rio->lock));
 
 	if (rio->isopen || !rio->present) {
 		mutex_unlock(&(rio->lock));
+		unlock_kernel();
 		return -EBUSY;
 	}
 	rio->isopen = 1;
@@ -116,7 +119,6 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 	int retries;
 	int retval=0;
 
-	lock_kernel();
 	mutex_lock(&(rio->lock));
         /* Sanity check to make sure rio is connected, powered, etc */
         if (rio->present == 0 || rio->rio_dev == NULL) {
@@ -255,7 +257,6 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 
 err_out:
 	mutex_unlock(&(rio->lock));
-	unlock_kernel();
 	return retval;
 }
 
@@ -490,6 +491,7 @@ static void disconnect_rio(struct usb_interface *intf)
 	struct rio_usb_data *rio = usb_get_intfdata (intf);
 
 	usb_set_intfdata (intf, NULL);
+	lock_kernel();
 	if (rio) {
 		usb_deregister_dev(intf, &usb_rio_class);
 
@@ -499,6 +501,7 @@ static void disconnect_rio(struct usb_interface *intf)
 			/* better let it finish - the release will do whats needed */
 			rio->rio_dev = NULL;
 			mutex_unlock(&(rio->lock));
+			unlock_kernel();
 			return;
 		}
 		kfree(rio->ibuf);
@@ -509,6 +512,7 @@ static void disconnect_rio(struct usb_interface *intf)
 		rio->present = 0;
 		mutex_unlock(&(rio->lock));
 	}
+	unlock_kernel();
 }
 
 static const struct usb_device_id rio_table[] = {
