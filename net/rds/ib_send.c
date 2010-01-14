@@ -156,18 +156,14 @@ void rds_ib_send_init_ring(struct rds_ib_connection *ic)
 
 		send->s_wr.wr_id = i;
 		send->s_wr.sg_list = send->s_sge;
-		send->s_wr.num_sge = 1;
-		send->s_wr.opcode = IB_WR_SEND;
-		send->s_wr.send_flags = 0;
 		send->s_wr.ex.imm_data = 0;
 
-		sge = rds_ib_data_sge(ic, send->s_sge);
-		sge->lkey = ic->i_mr->lkey;
-
-		sge = rds_ib_header_sge(ic, send->s_sge);
+		sge = &send->s_sge[0];
 		sge->addr = ic->i_send_hdrs_dma + (i * sizeof(struct rds_header));
 		sge->length = sizeof(struct rds_header);
 		sge->lkey = ic->i_mr->lkey;
+
+		send->s_sge[1].lkey = ic->i_mr->lkey;
 	}
 }
 
@@ -441,28 +437,24 @@ rds_ib_xmit_populate_wr(struct rds_ib_connection *ic,
 
 	send->s_wr.send_flags = send_flags;
 	send->s_wr.opcode = IB_WR_SEND;
-	send->s_wr.num_sge = 2;
+	send->s_wr.num_sge = 1;
 	send->s_wr.next = NULL;
 	send->s_queued = jiffies;
 	send->s_op = NULL;
 
-	if (length != 0) {
-		sge = rds_ib_data_sge(ic, send->s_sge);
-		sge->addr = buffer;
-		sge->length = length;
-		sge->lkey = ic->i_mr->lkey;
-
-		sge = rds_ib_header_sge(ic, send->s_sge);
-	} else {
-		/* We're sending a packet with no payload. There is only
-		 * one SGE */
-		send->s_wr.num_sge = 1;
-		sge = &send->s_sge[0];
-	}
-
+	sge = &send->s_sge[0];
 	sge->addr = ic->i_send_hdrs_dma + (pos * sizeof(struct rds_header));
 	sge->length = sizeof(struct rds_header);
 	sge->lkey = ic->i_mr->lkey;
+
+	if (length != 0) {
+		send->s_wr.num_sge = 2;
+
+		sge = &send->s_sge[1];
+		sge->addr = buffer;
+		sge->length = length;
+		sge->lkey = ic->i_mr->lkey;
+	}
 }
 
 /*

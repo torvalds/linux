@@ -95,14 +95,14 @@ void rds_ib_recv_init_ring(struct rds_ib_connection *ic)
 		recv->r_wr.sg_list = recv->r_sge;
 		recv->r_wr.num_sge = RDS_IB_RECV_SGE;
 
-		sge = rds_ib_data_sge(ic, recv->r_sge);
-		sge->addr = 0;
-		sge->length = RDS_FRAG_SIZE;
-		sge->lkey = ic->i_mr->lkey;
-
-		sge = rds_ib_header_sge(ic, recv->r_sge);
+		sge = &recv->r_sge[0];
 		sge->addr = ic->i_recv_hdrs_dma + (i * sizeof(struct rds_header));
 		sge->length = sizeof(struct rds_header);
+		sge->lkey = ic->i_mr->lkey;
+
+		sge = &recv->r_sge[1];
+		sge->addr = 0;
+		sge->length = RDS_FRAG_SIZE;
 		sge->lkey = ic->i_mr->lkey;
 	}
 }
@@ -190,13 +190,13 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	recv->r_frag->f_offset = ic->i_frag.f_offset;
 	recv->r_frag->f_mapped = dma_addr;
 
-	sge = rds_ib_data_sge(ic, recv->r_sge);
-	sge->addr = dma_addr;
-	sge->length = RDS_FRAG_SIZE;
-
-	sge = rds_ib_header_sge(ic, recv->r_sge);
+	sge = &recv->r_sge[0];
 	sge->addr = ic->i_recv_hdrs_dma + (recv - ic->i_recvs) * sizeof(struct rds_header);
 	sge->length = sizeof(struct rds_header);
+
+	sge = &recv->r_sge[1];
+	sge->addr = dma_addr;
+	sge->length = RDS_FRAG_SIZE;
 
 	get_page(recv->r_frag->f_page);
 
