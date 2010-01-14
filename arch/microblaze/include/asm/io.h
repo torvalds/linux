@@ -16,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>          /* Get struct page {...} */
 
+#define PCI_DRAM_OFFSET 0
 
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 

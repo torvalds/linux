@@ -14,6 +14,8 @@ config MICROBLAZE
 	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_OPROFILE
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
 
 config SWAP
@@ -75,9 +77,6 @@ config HAVE_LATENCYTOP_SUPPORT
 
 config PCI
 	def_bool n
-
-config NO_DMA
-	def_bool y
 
 config DTC
 	def_bool y
