@@ -56,7 +56,6 @@
 #include <linux/slab.h>
 #include <linux/lp.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #undef DEBUG
 #include <linux/usb.h>
 
@@ -396,7 +395,6 @@ static int usblp_open(struct inode *inode, struct file *file)
 	if (minor < 0)
 		return -ENODEV;
 
-	lock_kernel();
 	mutex_lock (&usblp_mutex);
 
 	retval = -ENODEV;
@@ -436,7 +434,6 @@ static int usblp_open(struct inode *inode, struct file *file)
 	}
 out:
 	mutex_unlock (&usblp_mutex);
-	unlock_kernel();
 	return retval;
 }
 
