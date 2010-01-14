@@ -346,20 +346,6 @@ int dlpar_release_drc(u32 drc_index)
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 
-static DEFINE_MUTEX(pseries_cpu_hotplug_mutex);
-
-void cpu_hotplug_driver_lock(void)
-__acquires(pseries_cpu_hotplug_mutex)
-{
-	mutex_lock(&pseries_cpu_hotplug_mutex);
-}
-
-void cpu_hotplug_driver_unlock(void)
-__releases(pseries_cpu_hotplug_mutex)
-{
-	mutex_unlock(&pseries_cpu_hotplug_mutex);
-}
-
 static int dlpar_online_cpu(struct device_node *dn)
 {
 	int rc = 0;
