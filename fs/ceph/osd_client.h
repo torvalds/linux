@@ -44,7 +44,7 @@ struct ceph_osd_request {
 	struct ceph_osd *r_osd;
 	struct ceph_pg   r_pgid;
 
-	struct ceph_connection *r_con_filling_pages;
+	struct ceph_connection *r_con_filling_msg;
 
 	struct ceph_msg  *r_request, *r_reply;
 	int               r_result;
@@ -75,6 +75,9 @@ struct ceph_osd_request {
 	struct page     **r_pages;            /* pages for data payload */
 	int               r_pages_from_pool;
 	int               r_own_pages;        /* if true, i own page list */
+
+	struct ceph_msg   *replies[2];
+	int		  cur_reply;
 };
 
 struct ceph_osd_client {
@@ -98,8 +101,7 @@ struct ceph_osd_client {
 
 	mempool_t              *req_mempool;
 
-	struct ceph_msgpool   msgpool_op;
-	struct ceph_msgpool   msgpool_op_reply;
+	struct ceph_msgpool	msgpool_op;
 };
 
 extern int ceph_osdc_init(struct ceph_osd_client *osdc,
