@@ -746,9 +746,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 		else
 			avd = &avd_entry;
 
-		rc = security_compute_av(ssid, tsid, tclass, requested, avd);
-		if (rc)
-			goto out;
+		security_compute_av(ssid, tsid, tclass, avd);
 		rcu_read_lock();
 		node = avc_insert(ssid, tsid, tclass, avd);
 	} else {
@@ -770,7 +768,6 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	}
 
 	rcu_read_unlock();
-out:
 	return rc;
 }
 

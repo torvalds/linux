@@ -494,7 +494,6 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	char *scon, *tcon;
 	u32 ssid, tsid;
 	u16 tclass;
-	u32 req;
 	struct av_decision avd;
 	ssize_t length;
 
@@ -512,7 +511,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 		goto out;
 
 	length = -EINVAL;
-	if (sscanf(buf, "%s %s %hu %x", scon, tcon, &tclass, &req) != 4)
+	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
 		goto out2;
 
 	length = security_context_to_sid(scon, strlen(scon)+1, &ssid);
@@ -522,9 +521,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 	if (length < 0)
 		goto out2;
 
-	length = security_compute_av_user(ssid, tsid, tclass, req, &avd);
-	if (length < 0)
-		goto out2;
+	security_compute_av_user(ssid, tsid, tclass, &avd);
 
 	length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
 			  "%x %x %x %x %u %x",

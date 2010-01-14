@@ -87,11 +87,10 @@ static u32 latest_granting;
 static int context_struct_to_string(struct context *context, char **scontext,
 				    u32 *scontext_len);
 
-static int context_struct_compute_av(struct context *scontext,
-				     struct context *tcontext,
-				     u16 tclass,
-				     u32 requested,
-				     struct av_decision *avd);
+static void context_struct_compute_av(struct context *scontext,
+				      struct context *tcontext,
+				      u16 tclass,
+				      struct av_decision *avd);
 
 struct selinux_mapping {
 	u16 value; /* policy value */
@@ -194,23 +193,6 @@ static u16 unmap_class(u16 tclass)
 		return current_mapping[tclass].value;
 
 	return tclass;
-}
-
-static u32 unmap_perm(u16 tclass, u32 tperm)
-{
-	if (tclass < current_mapping_size) {
-		unsigned i;
-		u32 kperm = 0;
-
-		for (i = 0; i < current_mapping[tclass].num_perms; i++)
-			if (tperm & (1<<i)) {
-				kperm |= current_mapping[tclass].perms[i];
-				tperm &= ~(1<<i);
-			}
-		return kperm;
-	}
-
-	return tperm;
 }
 
 static void map_decision(u16 tclass, struct av_decision *avd,
@@ -532,7 +514,6 @@ out:
 static void type_attribute_bounds_av(struct context *scontext,
 				     struct context *tcontext,
 				     u16 tclass,
-				     u32 requested,
 				     struct av_decision *avd)
 {
 	struct context lo_scontext;
@@ -553,7 +534,6 @@ static void type_attribute_bounds_av(struct context *scontext,
 		context_struct_compute_av(&lo_scontext,
 					  tcontext,
 					  tclass,
-					  requested,
 					  &lo_avd);
 		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
 			return;		/* no masked permission */
@@ -569,7 +549,6 @@ static void type_attribute_bounds_av(struct context *scontext,
 		context_struct_compute_av(scontext,
 					  &lo_tcontext,
 					  tclass,
-					  requested,
 					  &lo_avd);
 		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
 			return;		/* no masked permission */
@@ -586,7 +565,6 @@ static void type_attribute_bounds_av(struct context *scontext,
 		context_struct_compute_av(&lo_scontext,
 					  &lo_tcontext,
 					  tclass,
-					  requested,
 					  &lo_avd);
 		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
 			return;		/* no masked permission */
@@ -607,11 +585,10 @@ static void type_attribute_bounds_av(struct context *scontext,
  * Compute access vectors based on a context structure pair for
  * the permissions in a particular class.
  */
-static int context_struct_compute_av(struct context *scontext,
-				     struct context *tcontext,
-				     u16 tclass,
-				     u32 requested,
-				     struct av_decision *avd)
+static void context_struct_compute_av(struct context *scontext,
+				      struct context *tcontext,
+				      u16 tclass,
+				      struct av_decision *avd)
 {
 	struct constraint_node *constraint;
 	struct role_allow *ra;
@@ -622,19 +599,14 @@ static int context_struct_compute_av(struct context *scontext,
 	struct ebitmap_node *snode, *tnode;
 	unsigned int i, j;
 
-	/*
-	 * Initialize the access vectors to the default values.
-	 */
 	avd->allowed = 0;
 	avd->auditallow = 0;
 	avd->auditdeny = 0xffffffff;
-	avd->seqno = latest_granting;
-	avd->flags = 0;
 
 	if (unlikely(!tclass || tclass > policydb.p_classes.nprim)) {
 		if (printk_ratelimit())
 			printk(KERN_WARNING "SELinux:  Invalid class %hu\n", tclass);
-		return -EINVAL;
+		return;
 	}
 
 	tclass_datum = policydb.class_val_to_struct[tclass - 1];
@@ -705,9 +677,7 @@ static int context_struct_compute_av(struct context *scontext,
 	 * permission and notice it to userspace via audit.
 	 */
 	type_attribute_bounds_av(scontext, tcontext,
-				 tclass, requested, avd);
-
-	return 0;
+				 tclass, avd);
 }
 
 static int security_validtrans_handle_fail(struct context *ocontext,
@@ -886,110 +856,116 @@ out:
 	return rc;
 }
 
-
-static int security_compute_av_core(u32 ssid,
-				    u32 tsid,
-				    u16 tclass,
-				    u32 requested,
-				    struct av_decision *avd)
+static void avd_init(struct av_decision *avd)
 {
-	struct context *scontext = NULL, *tcontext = NULL;
-	int rc = 0;
-
-	scontext = sidtab_search(&sidtab, ssid);
-	if (!scontext) {
-		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
-		       __func__, ssid);
-		return -EINVAL;
-	}
-	tcontext = sidtab_search(&sidtab, tsid);
-	if (!tcontext) {
-		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
-		       __func__, tsid);
-		return -EINVAL;
-	}
-
-	rc = context_struct_compute_av(scontext, tcontext, tclass,
-				       requested, avd);
-
-	/* permissive domain? */
-	if (ebitmap_get_bit(&policydb.permissive_map, scontext->type))
-		avd->flags |= AVD_FLAGS_PERMISSIVE;
-
-	return rc;
+	avd->allowed = 0;
+	avd->auditallow = 0;
+	avd->auditdeny = 0xffffffff;
+	avd->seqno = latest_granting;
+	avd->flags = 0;
 }
+
 
 /**
  * security_compute_av - Compute access vector decisions.
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
- * @requested: requested permissions
  * @avd: access vector decisions
  *
  * Compute a set of access vector decisions based on the
  * SID pair (@ssid, @tsid) for the permissions in @tclass.
- * Return -%EINVAL if any of the parameters are invalid or %0
- * if the access vector decisions were computed successfully.
  */
-int security_compute_av(u32 ssid,
-			u32 tsid,
-			u16 orig_tclass,
-			u32 orig_requested,
-			struct av_decision *avd)
+void security_compute_av(u32 ssid,
+			 u32 tsid,
+			 u16 orig_tclass,
+			 struct av_decision *avd)
 {
 	u16 tclass;
-	u32 requested;
-	int rc;
+	struct context *scontext = NULL, *tcontext = NULL;
 
 	read_lock(&policy_rwlock);
-
+	avd_init(avd);
 	if (!ss_initialized)
 		goto allow;
 
-	requested = unmap_perm(orig_tclass, orig_requested);
+	scontext = sidtab_search(&sidtab, ssid);
+	if (!scontext) {
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, ssid);
+		goto out;
+	}
+
+	/* permissive domain? */
+	if (ebitmap_get_bit(&policydb.permissive_map, scontext->type))
+		avd->flags |= AVD_FLAGS_PERMISSIVE;
+
+	tcontext = sidtab_search(&sidtab, tsid);
+	if (!tcontext) {
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, tsid);
+		goto out;
+	}
+
 	tclass = unmap_class(orig_tclass);
 	if (unlikely(orig_tclass && !tclass)) {
 		if (policydb.allow_unknown)
 			goto allow;
-		rc = -EINVAL;
 		goto out;
 	}
-	rc = security_compute_av_core(ssid, tsid, tclass, requested, avd);
+	context_struct_compute_av(scontext, tcontext, tclass, avd);
 	map_decision(orig_tclass, avd, policydb.allow_unknown);
 out:
 	read_unlock(&policy_rwlock);
-	return rc;
+	return;
 allow:
 	avd->allowed = 0xffffffff;
-	avd->auditallow = 0;
-	avd->auditdeny = 0xffffffff;
-	avd->seqno = latest_granting;
-	avd->flags = 0;
-	rc = 0;
 	goto out;
 }
 
-int security_compute_av_user(u32 ssid,
-			     u32 tsid,
-			     u16 tclass,
-			     u32 requested,
-			     struct av_decision *avd)
+void security_compute_av_user(u32 ssid,
+			      u32 tsid,
+			      u16 tclass,
+			      struct av_decision *avd)
 {
-	int rc;
-
-	if (!ss_initialized) {
-		avd->allowed = 0xffffffff;
-		avd->auditallow = 0;
-		avd->auditdeny = 0xffffffff;
-		avd->seqno = latest_granting;
-		return 0;
-	}
+	struct context *scontext = NULL, *tcontext = NULL;
 
 	read_lock(&policy_rwlock);
-	rc = security_compute_av_core(ssid, tsid, tclass, requested, avd);
+	avd_init(avd);
+	if (!ss_initialized)
+		goto allow;
+
+	scontext = sidtab_search(&sidtab, ssid);
+	if (!scontext) {
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, ssid);
+		goto out;
+	}
+
+	/* permissive domain? */
+	if (ebitmap_get_bit(&policydb.permissive_map, scontext->type))
+		avd->flags |= AVD_FLAGS_PERMISSIVE;
+
+	tcontext = sidtab_search(&sidtab, tsid);
+	if (!tcontext) {
+		printk(KERN_ERR "SELinux: %s:  unrecognized SID %d\n",
+		       __func__, tsid);
+		goto out;
+	}
+
+	if (unlikely(!tclass)) {
+		if (policydb.allow_unknown)
+			goto allow;
+		goto out;
+	}
+
+	context_struct_compute_av(scontext, tcontext, tclass, avd);
+ out:
 	read_unlock(&policy_rwlock);
-	return rc;
+	return;
+allow:
+	avd->allowed = 0xffffffff;
+	goto out;
 }
 
 /*

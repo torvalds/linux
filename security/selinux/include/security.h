@@ -96,13 +96,11 @@ struct av_decision {
 /* definitions of av_decision.flags */
 #define AVD_FLAGS_PERMISSIVE	0x0001
 
-int security_compute_av(u32 ssid, u32 tsid,
-			u16 tclass, u32 requested,
-			struct av_decision *avd);
+void security_compute_av(u32 ssid, u32 tsid,
+			 u16 tclass, struct av_decision *avd);
 
-int security_compute_av_user(u32 ssid, u32 tsid,
-			     u16 tclass, u32 requested,
-			     struct av_decision *avd);
+void security_compute_av_user(u32 ssid, u32 tsid,
+			     u16 tclass, struct av_decision *avd);
 
 int security_transition_sid(u32 ssid, u32 tsid,
 			    u16 tclass, u32 *out_sid);
