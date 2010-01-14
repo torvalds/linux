@@ -138,7 +138,6 @@ struct rds_ib_connection {
 
 	/* Batched completions */
 	unsigned int		i_unsignaled_wrs;
-	long			i_unsignaled_bytes;
 };
 
 /* This assumes that atomic_t is at least 32 bits */

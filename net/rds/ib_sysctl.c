@@ -49,10 +49,6 @@ unsigned long rds_ib_sysctl_max_unsig_wrs = 16;
 static unsigned long rds_ib_sysctl_max_unsig_wr_min = 1;
 static unsigned long rds_ib_sysctl_max_unsig_wr_max = 64;
 
-unsigned long rds_ib_sysctl_max_unsig_bytes = (16 << 20);
-static unsigned long rds_ib_sysctl_max_unsig_bytes_min = 1;
-static unsigned long rds_ib_sysctl_max_unsig_bytes_max = ~0UL;
-
 /*
  * This sysctl does nothing.
  *
@@ -92,15 +88,6 @@ ctl_table rds_ib_sysctl_table[] = {
 		.proc_handler   = proc_doulongvec_minmax,
 		.extra1		= &rds_ib_sysctl_max_unsig_wr_min,
 		.extra2		= &rds_ib_sysctl_max_unsig_wr_max,
-	},
-	{
-		.procname       = "max_unsignaled_bytes",
-		.data		= &rds_ib_sysctl_max_unsig_bytes,
-		.maxlen         = sizeof(unsigned long),
-		.mode           = 0644,
-		.proc_handler   = proc_doulongvec_minmax,
-		.extra1		= &rds_ib_sysctl_max_unsig_bytes_min,
-		.extra2		= &rds_ib_sysctl_max_unsig_bytes_max,
 	},
 	{
 		.procname       = "max_recv_allocation",

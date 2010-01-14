@@ -518,7 +518,6 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		}
 
 		ic->i_unsignaled_wrs = rds_ib_sysctl_max_unsig_wrs;
-		ic->i_unsignaled_bytes = rds_ib_sysctl_max_unsig_bytes;
 		rds_message_addref(rm);
 		ic->i_rm = rm;
 
@@ -614,12 +613,6 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		 */
 		if (ic->i_unsignaled_wrs-- == 0) {
 			ic->i_unsignaled_wrs = rds_ib_sysctl_max_unsig_wrs;
-			send->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
-		}
-
-		ic->i_unsignaled_bytes -= len;
-		if (ic->i_unsignaled_bytes <= 0) {
-			ic->i_unsignaled_bytes = rds_ib_sysctl_max_unsig_bytes;
 			send->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
 		}
 
