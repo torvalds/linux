@@ -47,6 +47,7 @@ MODULE_LICENSE("GPL");
 
 /* Commands. These go in the "value" slot. */
 #define SQ905C_CLEAR   0xa0		/* clear everything */
+#define SQ905C_GET_ID  0x14f4		/* Read version number */
 #define SQ905C_CAPTURE_LOW 0xa040	/* Starts capture at 160x120 */
 #define SQ905C_CAPTURE_MED 0x1440	/* Starts capture at 320x240 */
 #define SQ905C_CAPTURE_HI 0x2840	/* Starts capture at 320x240 */
@@ -95,6 +96,26 @@ static int sq905c_command(struct gspca_dev *gspca_dev, u16 command, u16 index)
 	if (ret < 0) {
 		PDEBUG(D_ERR, "%s: usb_control_msg failed (%d)",
 			__func__, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int sq905c_read(struct gspca_dev *gspca_dev, u16 command, u16 index,
+		       int size)
+{
+	int ret;
+
+	ret = usb_control_msg(gspca_dev->dev,
+			      usb_rcvctrlpipe(gspca_dev->dev, 0),
+			      USB_REQ_SYNCH_FRAME,		/* request */
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      command, index, gspca_dev->usb_buf, size,
+			      SQ905C_CMD_TIMEOUT);
+	if (ret < 0) {
+		PDEBUG(D_ERR, "%s: usb_control_msg failed (%d)",
+		       __func__, ret);
 		return ret;
 	}
 
@@ -183,13 +204,34 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct cam *cam = &gspca_dev->cam;
 	struct sd *dev = (struct sd *) gspca_dev;
+	int i, ret;
 
 	PDEBUG(D_PROBE,
 		"SQ9050 camera detected"
 		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+
+	ret = sq905c_command(gspca_dev, SQ905C_GET_ID, 0);
+	if (ret < 0) {
+		PDEBUG(D_ERR, "Get version command failed");
+		return ret;
+	}
+
+	ret = sq905c_read(gspca_dev, 0xf5, 0, 20);
+	if (ret < 0) {
+		PDEBUG(D_ERR, "Reading version command failed");
+		return ret;
+	}
+	/* Note we leave out the usb id and the manufacturing date */
+	PDEBUG(D_PROBE,
+	       "SQ9050 ID string: %02x - %02x %02x %02x %02x %02x %02x",
+		gspca_dev->usb_buf[3],
+		gspca_dev->usb_buf[14], gspca_dev->usb_buf[15],
+		gspca_dev->usb_buf[16], gspca_dev->usb_buf[17],
+		gspca_dev->usb_buf[18], gspca_dev->usb_buf[19]);
+
 	cam->cam_mode = sq905c_mode;
 	cam->nmodes = 2;
-	if (id->idProduct == 0x9050)
+	if (gspca_dev->usb_buf[15] == 0)
 		cam->nmodes = 1;
 	/* We don't use the buffer gspca allocates so make it small. */
 	cam->bulk_size = 32;
