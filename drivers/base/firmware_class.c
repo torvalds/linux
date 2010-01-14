@@ -19,7 +19,6 @@
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/firmware.h>
-#include "base.h"
 
 #define to_dev(obj) container_of(obj, struct device, kobj)
 
