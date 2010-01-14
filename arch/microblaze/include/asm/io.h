@@ -15,6 +15,7 @@
 #include <asm/page.h>
 #include <linux/types.h>
 #include <linux/mm.h>          /* Get struct page {...} */
+#include <asm-generic/iomap.h>
 
 #define PCI_DRAM_OFFSET 0
 
@@ -228,15 +229,7 @@ static inline void __iomem *__ioremap(phys_addr_t address, unsigned long size,
 #define out_8(a, v) __raw_writeb((v), (a))
 #define in_8(a) __raw_readb(a)
 
-/* FIXME */
-static inline void __iomem *ioport_map(unsigned long port, unsigned int len)
-{
-	return (void __iomem *) (port);
-}
-
-static inline void ioport_unmap(void __iomem *addr)
-{
-	/* Nothing to do */
-}
+#define ioport_map(port, nr)	((void __iomem *)(port))
+#define ioport_unmap(addr)
 
 #endif /* _ASM_MICROBLAZE_IO_H */
