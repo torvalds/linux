@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 
@@ -227,20 +226,16 @@ static int idmouse_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int result;
 
-	lock_kernel();
 	/* get the interface from minor number and driver information */
 	interface = usb_find_interface (&idmouse_driver, iminor (inode));
-	if (!interface) {
-		unlock_kernel();
+	if (!interface)
 		return -ENODEV;
-	}
 
 	mutex_lock(&open_disc_mutex);
 	/* get the device information block from the interface */
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		mutex_unlock(&open_disc_mutex);
-		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -277,7 +272,6 @@ error:
 
 	/* unlock this device */
 	mutex_unlock(&dev->lock);
-	unlock_kernel();
 	return result;
 }
 
