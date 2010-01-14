@@ -24,6 +24,7 @@
 #include <linux/isdn.h>
 #include <linux/isdnif.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/capi.h>
 #include <linux/kernelcapi.h>
 #include <linux/ctype.h>
@@ -2229,59 +2230,37 @@ static void lower_callback(unsigned int cmd, u32 contr, void *data)
  * /proc/capi/capidrv:
  * nrecvctlpkt nrecvdatapkt nsendctlpkt nsenddatapkt
  */
-static int proc_capidrv_read_proc(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data)
+static int capidrv_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-
-	len += sprintf(page+len, "%lu %lu %lu %lu\n",
+	seq_printf(m, "%lu %lu %lu %lu\n",
 			global.ap.nrecvctlpkt,
 			global.ap.nrecvdatapkt,
 			global.ap.nsentctlpkt,
 			global.ap.nsentdatapkt);
-	if (off+count >= len)
-	   *eof = 1;
-	if (len < off)
-           return 0;
-	*start = page + off;
-	return ((count < len-off) ? count : len-off);
+	return 0;
 }
 
-static struct procfsentries {
-  char *name;
-  mode_t mode;
-  int (*read_proc)(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data);
-  struct proc_dir_entry *procent;
-} procfsentries[] = {
-   /* { "capi",		  S_IFDIR, 0 }, */
-   { "capi/capidrv", 	  0	 , proc_capidrv_read_proc },
+static int capidrv_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, capidrv_proc_show, NULL);
+}
+
+static const struct file_operations capidrv_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= capidrv_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 static void __init proc_init(void)
 {
-    int nelem = ARRAY_SIZE(procfsentries);
-    int i;
-
-    for (i=0; i < nelem; i++) {
-        struct procfsentries *p = procfsentries + i;
-	p->procent = create_proc_entry(p->name, p->mode, NULL);
-	if (p->procent) p->procent->read_proc = p->read_proc;
-    }
+	proc_create("capi/capidrv", 0, NULL, &capidrv_proc_fops);
 }
 
 static void __exit proc_exit(void)
 {
-    int nelem = ARRAY_SIZE(procfsentries);
-    int i;
-
-    for (i=nelem-1; i >= 0; i--) {
-        struct procfsentries *p = procfsentries + i;
-	if (p->procent) {
-	   remove_proc_entry(p->name, NULL);
-	   p->procent = NULL;
-	}
-    }
+	remove_proc_entry("capi/capidrv", NULL);
 }
 
 static int __init capidrv_init(void)
