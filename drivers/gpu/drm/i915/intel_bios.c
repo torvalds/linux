@@ -197,7 +197,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		memset(temp_mode, 0, sizeof(*temp_mode));
 	}
 	kfree(temp_mode);
-	if (temp_downclock < panel_fixed_mode->clock) {
+	if (temp_downclock < panel_fixed_mode->clock &&
+	    i915_lvds_downclock) {
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = temp_downclock;
 		DRM_DEBUG_KMS("LVDS downclock is found in VBT. ",

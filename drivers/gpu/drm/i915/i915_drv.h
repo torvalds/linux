@@ -722,6 +722,7 @@ extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
 extern unsigned int i915_powersave;
+extern unsigned int i915_lvds_downclock;
 
 extern void i915_save_display(struct drm_device *dev);
 extern void i915_restore_display(struct drm_device *dev);

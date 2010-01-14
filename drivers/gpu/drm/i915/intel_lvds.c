@@ -926,7 +926,8 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
 		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
-	if (temp_downclock < panel_fixed_mode->clock) {
+	if (temp_downclock < panel_fixed_mode->clock &&
+	    i915_lvds_downclock) {
 		/* We found the downclock for LVDS. */
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = temp_downclock;
