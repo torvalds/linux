@@ -534,8 +534,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	int ret = 0, i;
 	int csz = 0;
 
-	sc->sc_flags |= SC_OP_INVALID;
-
 	ah = kzalloc(sizeof(struct ath_hw), GFP_KERNEL);
 	if (!ah)
 		return -ENOMEM;
