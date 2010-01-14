@@ -625,16 +625,19 @@ static __be32 process_op(uint32_t minorversion, int nop,
 				preprocess_nfs4_op(op_nr, &op);
 	if (status == htonl(NFS4ERR_OP_ILLEGAL))
 		op_nr = OP_CB_ILLEGAL;
+	if (status)
+		goto encode_hdr;
 
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
-		if (likely(status == 0 && op->decode_args != NULL))
+		if (likely(op->decode_args != NULL))
 			status = op->decode_args(rqstp, xdr_in, argp);
 		if (likely(status == 0 && op->process_op != NULL))
 			status = op->process_op(argp, resp);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
 
+encode_hdr:
 	res = encode_op_hdr(xdr_out, op_nr, status);
 	if (unlikely(res))
 		return res;
