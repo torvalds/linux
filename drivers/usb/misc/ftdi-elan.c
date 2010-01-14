@@ -45,7 +45,6 @@
 #include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/workqueue.h>
@@ -627,27 +626,22 @@ static int ftdi_elan_open(struct inode *inode, struct file *file)
 	int subminor;
 	struct usb_interface *interface;
 
-	lock_kernel();
         subminor = iminor(inode);
         interface = usb_find_interface(&ftdi_elan_driver, subminor);
 
         if (!interface) {
-		unlock_kernel();
                 printk(KERN_ERR "can't find device for minor %d\n", subminor);
                 return -ENODEV;
         } else {
                 struct usb_ftdi *ftdi = usb_get_intfdata(interface);
                 if (!ftdi) {
-			unlock_kernel();
                         return -ENODEV;
                 } else {
                         if (down_interruptible(&ftdi->sw_lock)) {
-				unlock_kernel();
                                 return -EINTR;
                         } else {
                                 ftdi_elan_get_kref(ftdi);
                                 file->private_data = ftdi;
-				unlock_kernel();
                                 return 0;
                         }
                 }
