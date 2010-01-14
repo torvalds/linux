@@ -28,19 +28,22 @@
 #define MCE_VECTOR			0x12
 
 /*
- * IDT vectors usable for external interrupt sources start
- * at 0x20:
- * hpa said we can start from 0x1f.
- *   0x1f is documented as reserved.  However, the ability for the APIC
- *   to generate vectors starting at 0x10 is documented, as is the
- *   ability for the CPU to receive any vector number as an interrupt.
- *   0x1f is used for IRQ_MOVE_CLEANUP_VECTOR since that vector needs
- *   an entire privilege level (16 vectors) all by itself at a higher
- *   priority than any actual device vector.  Thus, by placing it in the
- *   otherwise-unusable 0x10 privilege level, we avoid wasting a full
- *   16-vector block.
+ * IDT vectors usable for external interrupt sources start at 0x20.
+ * (0x80 is the syscall vector, 0x30-0x3f are for ISA)
  */
-#define FIRST_EXTERNAL_VECTOR		0x1f
+#define FIRST_EXTERNAL_VECTOR		0x20
+/*
+ * We start allocating at 0x21 to spread out vectors evenly between
+ * priority levels. (0x80 is the syscall vector)
+ */
+#define VECTOR_OFFSET_START		1
+
+/*
+ * Reserve the lowest usable vector (and hence lowest priority)  0x20 for
+ * triggering cleanup after irq migration. 0x21-0x2f will still be used
+ * for device interrupts.
+ */
+#define IRQ_MOVE_CLEANUP_VECTOR		FIRST_EXTERNAL_VECTOR
 
 #define IA32_SYSCALL_VECTOR		0x80
 #ifdef CONFIG_X86_32
@@ -48,17 +51,7 @@
 #endif
 
 /*
- * Reserve the lowest usable priority level 0x10 - 0x1f for triggering
- * cleanup after irq migration.
- * this overlaps with the reserved range for cpu exceptions so this
- * will need to be changed to 0x20 - 0x2f if the last cpu exception is
- * ever allocated.
- */
-
-#define IRQ_MOVE_CLEANUP_VECTOR		FIRST_EXTERNAL_VECTOR
-
-/*
- * Vectors 0x20-0x2f are used for ISA interrupts.
+ * Vectors 0x30-0x3f are used for ISA interrupts.
  *   round up to the next 16-vector boundary
  */
 #define IRQ0_VECTOR			((FIRST_EXTERNAL_VECTOR + 16) & ~15)
@@ -131,14 +124,6 @@
  * Self IPI vector for machine checks
  */
 #define MCE_SELF_VECTOR			0xeb
-
-/*
- * First APIC vector available to drivers: (vectors 0x30-0xee).  We
- * start allocating at 0x31 to spread out vectors evenly between
- * priority levels. (0x80 is the syscall vector)
- */
-#define FIRST_DEVICE_VECTOR		(IRQ15_VECTOR + 1)
-#define VECTOR_OFFSET_START		1
 
 #define NR_VECTORS			 256
 
