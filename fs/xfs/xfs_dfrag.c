@@ -254,6 +254,9 @@ xfs_swap_extents(
 		goto out_unlock;
 	}
 
+	trace_xfs_swap_extent_before(ip, 0);
+	trace_xfs_swap_extent_before(tip, 1);
+
 	/* check inode formats now that data is flushed */
 	error = xfs_swap_extents_check_format(ip, tip);
 	if (error) {
@@ -421,6 +424,8 @@ xfs_swap_extents(
 
 	error = xfs_trans_commit(tp, XFS_TRANS_SWAPEXT);
 
+	trace_xfs_swap_extent_after(ip, 0);
+	trace_xfs_swap_extent_after(tip, 1);
 out:
 	kmem_free(tempifp);
 	return error;
