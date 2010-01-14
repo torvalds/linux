@@ -82,7 +82,6 @@
 #include <linux/module.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
@@ -346,7 +345,6 @@ static int tower_open (struct inode *inode, struct file *file)
 
 	dbg(2, "%s: enter", __func__);
 
-	lock_kernel();
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
 
@@ -432,7 +430,6 @@ unlock_exit:
 	mutex_unlock(&dev->lock);
 
 exit:
-	unlock_kernel();
 	dbg(2, "%s: leave, return value %d ", __func__, retval);
 
 	return retval;
