@@ -33,17 +33,7 @@
 /*
  * How long is the timer interval?
  */
-#define TIMER_INTERVAL	(TICKS_PER_uSEC * mSEC_10)
-#if TIMER_INTERVAL >= 0x100000
-#define TIMER_RELOAD	(TIMER_INTERVAL >> 8)
-#define TIMER_DIVISOR	(TIMER_CTRL_DIV256)
-#elif TIMER_INTERVAL >= 0x10000
-#define TIMER_RELOAD	(TIMER_INTERVAL >> 4)		/* Divide by 16 */
-#define TIMER_DIVISOR	(TIMER_CTRL_DIV16)
-#else
-#define TIMER_RELOAD	(TIMER_INTERVAL)
-#define TIMER_DIVISOR	(TIMER_CTRL_DIV1)
-#endif
+#define TIMER_RELOAD	(TICKS_PER_uSEC * mSEC_10)
 
 
 static void __iomem *clksrc_base;
