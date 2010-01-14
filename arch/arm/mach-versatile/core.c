@@ -370,21 +370,19 @@ static const struct icst_params versatile_oscvco_params = {
 
 static void versatile_oscvco_set(struct clk *clk, struct icst_vco vco)
 {
-	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
-	void __iomem *sys_lock = sys + VERSATILE_SYS_LOCK_OFFSET;
+	void __iomem *sys_lock = __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_LOCK_OFFSET;
 	u32 val;
 
-	val = readl(sys + clk->oscoff) & ~0x7ffff;
+	val = readl(clk->vcoreg) & ~0x7ffff;
 	val |= vco.v | (vco.r << 9) | (vco.s << 16);
 
 	writel(0xa05f, sys_lock);
-	writel(val, sys + clk->oscoff);
+	writel(val, clk->vcoreg);
 	writel(0, sys_lock);
 }
 
 static struct clk osc4_clk = {
 	.params	= &versatile_oscvco_params,
-	.oscoff	= VERSATILE_SYS_OSCCLCD_OFFSET,
 	.setvco	= versatile_oscvco_set,
 };
 
@@ -830,6 +828,8 @@ static void versatile_leds_event(led_event_t ledevt)
 void __init versatile_init(void)
 {
 	int i;
+
+	osc4_clk.vcoreg	= __io_address(VERSATILE_SYS_BASE) + VERSATILE_SYS_OSCCLCD_OFFSET;
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

@@ -55,20 +55,10 @@ static const struct icst_params impd1_vco_params = {
 static void impd1_setvco(struct clk *clk, struct icst_vco vco)
 {
 	struct impd1_module *impd1 = clk->data;
-	int vconr = clk - impd1->vcos;
-	u32 val;
-
-	val = vco.v | (vco.r << 9) | (vco.s << 16);
+	u32 val = vco.v | (vco.r << 9) | (vco.s << 16);
 
 	writel(0xa05f, impd1->base + IMPD1_LOCK);
-	switch (vconr) {
-	case 0:
-		writel(val, impd1->base + IMPD1_OSC1);
-		break;
-	case 1:
-		writel(val, impd1->base + IMPD1_OSC2);
-		break;
-	}
+	writel(val, clk->vcoreg);
 	writel(0, impd1->base + IMPD1_LOCK);
 
 #ifdef DEBUG
@@ -381,6 +371,8 @@ static int impd1_probe(struct lm_device *dev)
 		impd1->vcos[i].data = impd1,
 		impd1->vcos[i].setvco = impd1_setvco;
 	}
+	impd1->vcos[0].vcoreg = impd1->base + IMPD1_OSC1;
+	impd1->vcos[1].vcoreg = impd1->base + IMPD1_OSC2;
 
 	impd1->clks[0] = clkdev_alloc(&impd1->vcos[0], NULL, "lm%x:01000",
 					dev->id);

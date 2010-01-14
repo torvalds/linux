@@ -8,8 +8,9 @@ struct clk {
 	unsigned long		rate;
 	struct module		*owner;
 	const struct icst_params *params;
-	void			*data;
+	void __iomem		*vcoreg;
 	void			(*setvco)(struct clk *, struct icst_vco vco);
+	void			*data;
 };
 
 static inline int __clk_get(struct clk *clk)

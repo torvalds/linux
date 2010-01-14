@@ -266,8 +266,8 @@ static void __init intcp_init_irq(void)
 /*
  * Clock handling
  */
-#define CM_LOCK IO_ADDRESS(INTEGRATOR_HDR_LOCK)
-#define CM_AUXOSC IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x1c)
+#define CM_LOCK		(__io_address(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
+#define CM_AUXOSC	(__io_address(INTEGRATOR_HDR_BASE)+0x1c)
 
 static const struct icst_params cp_auxvco_params = {
 	.ref		= 24000000,
@@ -285,16 +285,17 @@ static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)
 {
 	u32 val;
 
-	val = readl(CM_AUXOSC) & ~0x7ffff;
+	val = readl(clk->vcoreg) & ~0x7ffff;
 	val |= vco.v | (vco.r << 9) | (vco.s << 16);
 
 	writel(0xa05f, CM_LOCK);
-	writel(val, CM_AUXOSC);
+	writel(val, clk->vcoreg);
 	writel(0, CM_LOCK);
 }
 
 static struct clk cp_auxclk = {
 	.params	= &cp_auxvco_params,
+	.vcoreg	= CM_AUXOSC,
 	.setvco = cp_auxvco_set,
 };
 

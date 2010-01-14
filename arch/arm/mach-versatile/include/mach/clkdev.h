@@ -6,7 +6,7 @@
 struct clk {
 	unsigned long		rate;
 	const struct icst_params *params;
-	u32			oscoff;
+	void __iomem		*vcoreg;
 	void			(*setvco)(struct clk *, struct icst_vco vco);
 };
 
