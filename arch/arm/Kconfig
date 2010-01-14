@@ -257,6 +257,7 @@ config ARCH_REALVIEW
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select ARM_TIMER_SP804
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -271,6 +272,7 @@ config ARCH_VERSATILE
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
+	select ARM_TIMER_SP804
 	help
 	  This enables support for ARM Ltd Versatile board.
 
@@ -942,6 +944,9 @@ config PLAT_PXA
 	bool
 
 config PLAT_VERSATILE
+	bool
+
+config ARM_TIMER_SP804
 	bool
 
 source arch/arm/mm/Kconfig
