@@ -542,12 +542,6 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 	/* map the message the first time we see it */
 	if (!ic->i_rm) {
-		/*
-		printk(KERN_NOTICE "rds_ib_xmit prep msg dport=%u flags=0x%x len=%d\n",
-				be16_to_cpu(rm->m_inc.i_hdr.h_dport),
-				rm->m_inc.i_hdr.h_flags,
-				be32_to_cpu(rm->m_inc.i_hdr.h_len));
-		   */
 		if (rm->data.m_nents) {
 			rm->data.m_count = ib_dma_map_sg(dev,
 							    rm->data.m_sg,
@@ -684,14 +678,6 @@ add_header:
 		 * have been set up to point to the right header buffer. */
 		memcpy(&ic->i_send_hdrs[pos], &rm->m_inc.i_hdr, sizeof(struct rds_header));
 
-		if (0) {
-			struct rds_header *hdr = &ic->i_send_hdrs[pos];
-
-			printk(KERN_NOTICE "send WR dport=%u flags=0x%x len=%d\n",
-				be16_to_cpu(hdr->h_dport),
-				hdr->h_flags,
-				be32_to_cpu(hdr->h_len));
-		}
 		if (adv_credits) {
 			struct rds_header *hdr = &ic->i_send_hdrs[pos];
 
