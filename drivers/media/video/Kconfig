@@ -960,6 +960,7 @@ source "drivers/media/video/et61x251/Kconfig"
 config VIDEO_OVCAMCHIP
 	tristate "OmniVision Camera Chip support (DEPRECATED)"
 	depends on I2C && VIDEO_V4L1
+	default n
 	---help---
 	  This driver is DEPRECATED please use the gspca ov519 module
 	  instead. Note that for the ov511 / ov518 support of the gspca module
@@ -976,6 +977,7 @@ config VIDEO_OVCAMCHIP
 config USB_W9968CF
 	tristate "USB W996[87]CF JPEG Dual Mode Camera support (DEPRECATED)"
 	depends on VIDEO_V4L1 && I2C && VIDEO_OVCAMCHIP
+	default n
 	---help---
 	  This driver is DEPRECATED please use the gspca ov519 module
 	  instead. Note that for the w9968cf support of the gspca module
@@ -997,6 +999,7 @@ config USB_W9968CF
 config USB_OV511
 	tristate "USB OV511 Camera support (DEPRECATED)"
 	depends on VIDEO_V4L1
+	default n
 	---help---
 	  This driver is DEPRECATED please use the gspca ov519 module
 	  instead. Note that for the ov511 / ov518 support of the gspca module
@@ -1025,6 +1028,7 @@ source "drivers/media/video/sn9c102/Kconfig"
 config USB_STV680
 	tristate "USB STV680 (Pencam) Camera support (DEPRECATED)"
 	depends on VIDEO_V4L1
+	default n
 	---help---
 	  This driver is DEPRECATED please use the gspca stv0680 module
 	  instead. Note that for the gspca stv0680 module you need
