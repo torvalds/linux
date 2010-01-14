@@ -34,7 +34,7 @@ static inline void _raw_yield_cpu(int cpu)
 {
 	if (MACHINE_HAS_DIAG9C)
 		asm volatile("diag %0,0,0x9c"
-			     : : "d" (__cpu_logical_map[cpu]));
+			     : : "d" (cpu_logical_map(cpu)));
 	else
 		_raw_yield();
 }
