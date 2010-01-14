@@ -237,11 +237,13 @@ static int dso__cache_build_id(struct dso *self, const char *debugdir)
 	char *filename = malloc(size),
 	     *linkname = malloc(size), *targetname, *sbuild_id;
 	int len, err = -1;
+	bool is_kallsyms = self->kernel && self->long_name[0] != '/';
 
 	if (filename == NULL || linkname == NULL)
 		goto out_free;
 
-	len = snprintf(filename, size, "%s%s", debugdir, self->long_name);
+	len = snprintf(filename, size, "%s%s%s",
+		       debugdir, is_kallsyms ? "/" : "", self->long_name);
 	if (mkdir_p(filename, 0755))
 		goto out_free;
 
@@ -249,9 +251,14 @@ static int dso__cache_build_id(struct dso *self, const char *debugdir)
 	sbuild_id = filename + len;
 	build_id__sprintf(self->build_id, sizeof(self->build_id), sbuild_id);
 
-	if (access(filename, F_OK) && link(self->long_name, filename) &&
-	    copyfile(self->long_name, filename))
-		goto out_free;
+	if (access(filename, F_OK)) {
+		if (is_kallsyms) {
+			 if (copyfile("/proc/kallsyms", filename))
+				goto out_free;
+		} else if (link(self->long_name, filename) &&
+			   copyfile(self->long_name, filename))
+			goto out_free;
+	}
 
 	len = snprintf(linkname, size, "%s/.build-id/%.2s",
 		       debugdir, sbuild_id);

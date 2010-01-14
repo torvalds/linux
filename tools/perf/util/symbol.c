@@ -383,13 +383,14 @@ size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp)
 	return ret;
 }
 
-int kallsyms__parse(void *arg, int (*process_symbol)(void *arg, const char *name,
+int kallsyms__parse(const char *filename, void *arg,
+		    int (*process_symbol)(void *arg, const char *name,
 						     char type, u64 start))
 {
 	char *line = NULL;
 	size_t n;
 	int err = 0;
-	FILE *file = fopen("/proc/kallsyms", "r");
+	FILE *file = fopen(filename, "r");
 
 	if (file == NULL)
 		goto out_failure;
@@ -466,10 +467,11 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
  * so that we can in the next step set the symbol ->end address and then
  * call kernel_maps__split_kallsyms.
  */
-static int dso__load_all_kallsyms(struct dso *self, struct map *map)
+static int dso__load_all_kallsyms(struct dso *self, const char *filename,
+				  struct map *map)
 {
 	struct process_kallsyms_args args = { .map = map, .dso = self, };
-	return kallsyms__parse(&args, map__process_kallsym_symbol);
+	return kallsyms__parse(filename, &args, map__process_kallsym_symbol);
 }
 
 /*
@@ -556,10 +558,10 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 }
 
 
-static int dso__load_kallsyms(struct dso *self, struct map *map,
+static int dso__load_kallsyms(struct dso *self, const char *filename, struct map *map,
 			      struct perf_session *session, symbol_filter_t filter)
 {
-	if (dso__load_all_kallsyms(self, map) < 0)
+	if (dso__load_all_kallsyms(self, filename, map) < 0)
 		return -1;
 
 	symbols__fixup_end(&self->symbols[map->type]);
@@ -1580,7 +1582,8 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				struct perf_session *session, symbol_filter_t filter)
 {
 	int err;
-	bool is_kallsyms;
+	const char *kallsyms_filename = NULL;
+	char *kallsyms_allocated_filename = NULL;
 
 	if (vmlinux_path != NULL) {
 		int i;
@@ -1606,19 +1609,37 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 	 */
 	if (self->has_build_id) {
 		u8 kallsyms_build_id[BUILD_ID_SIZE];
+		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 
 		if (sysfs__read_build_id("/sys/kernel/notes", kallsyms_build_id,
 					 sizeof(kallsyms_build_id)) == 0) {
-			is_kallsyms = dso__build_id_equal(self, kallsyms_build_id);
-			if (is_kallsyms)
+			if (dso__build_id_equal(self, kallsyms_build_id)) {
+				kallsyms_filename = "/proc/kallsyms";
 				goto do_kallsyms;
+			}
 		}
+
+		build_id__sprintf(self->build_id, sizeof(self->build_id),
+				  sbuild_id);
+
+		if (asprintf(&kallsyms_allocated_filename,
+			     "%s/.debug/[kernel.kallsyms]/%s",
+			     getenv("HOME"), sbuild_id) != -1) {
+			if (access(kallsyms_filename, F_OK)) {
+				kallsyms_filename = kallsyms_allocated_filename;
+				goto do_kallsyms;
+			}
+			free(kallsyms_allocated_filename);
+			kallsyms_allocated_filename = NULL;
+		}
+
 		goto do_vmlinux;
 	}
 
-	is_kallsyms = self->long_name[0] == '[';
-	if (is_kallsyms)
+	if (self->long_name[0] == '[') {
+		kallsyms_filename = "/proc/kallsyms";
 		goto do_kallsyms;
+	}
 
 do_vmlinux:
 	err = dso__load_vmlinux(self, map, session, self->long_name, filter);
@@ -1629,9 +1650,10 @@ do_vmlinux:
 		pr_info("The file %s cannot be used, "
 			"trying to use /proc/kallsyms...", self->long_name);
 do_kallsyms:
-		err = dso__load_kallsyms(self, map, session, filter);
-		if (err > 0 && !is_kallsyms)
+		err = dso__load_kallsyms(self, kallsyms_filename, map, session, filter);
+		if (err > 0 && kallsyms_filename == NULL)
                         dso__set_long_name(self, strdup("[kernel.kallsyms]"));
+		free(kallsyms_allocated_filename);
 	}
 
 	if (err > 0) {

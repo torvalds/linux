@@ -245,7 +245,7 @@ int event__synthesize_kernel_mmap(event__handler_t process,
 	 */
 	struct process_symbol_args args = { .name = symbol_name, };
 
-	if (kallsyms__parse(&args, find_symbol_cb) <= 0)
+	if (kallsyms__parse("/proc/kallsyms", &args, find_symbol_cb) <= 0)
 		return -ENOENT;
 
 	size = snprintf(ev.mmap.filename, sizeof(ev.mmap.filename),
