@@ -444,7 +444,7 @@ config MTD_NAND_FSL_UPM
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
-	depends on ARCH_MX2 || ARCH_MX3
+	depends on ARCH_MX2 || ARCH_MX25 || ARCH_MX3
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
