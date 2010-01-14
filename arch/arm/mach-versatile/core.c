@@ -35,7 +35,6 @@
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
 #include <asm/hardware/arm_timer.h>
@@ -48,6 +47,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <mach/hardware.h>
+#include <mach/platform.h>
 
 #include "core.h"
 #include "clock.h"
@@ -58,7 +59,6 @@
  *
  * Setup a VA for the Versatile Vectored Interrupt Controller.
  */
-#define __io_address(n)		__io(IO_ADDRESS(n))
 #define VA_VIC_BASE		__io_address(VERSATILE_VIC_BASE)
 #define VA_SIC_BASE		__io_address(VERSATILE_SIC_BASE)
 

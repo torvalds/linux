@@ -23,7 +23,6 @@
 #define __ASM_ARCH_HARDWARE_H
 
 #include <asm/sizes.h>
-#include <mach/platform.h>
 
 /*
  * Where in virtual memory the IO devices (timers, system controllers
@@ -47,6 +46,8 @@
 
 #define PCIBIOS_MIN_IO		0x6000
 #define PCIBIOS_MIN_MEM 	0x00100000
+
+#define __io_address(n)		((void __iomem *)IO_ADDRESS(n))
 
 #endif
 

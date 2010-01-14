@@ -24,6 +24,7 @@
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/irq.h>
 #include <asm/hardware/arm_timer.h>
 #include <mach/cm.h>

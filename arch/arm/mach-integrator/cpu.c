@@ -20,6 +20,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/icst525.h>
 

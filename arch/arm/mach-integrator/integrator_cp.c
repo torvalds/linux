@@ -25,6 +25,7 @@
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
