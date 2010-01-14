@@ -847,7 +847,7 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
-	if (reg < 0x10000)
+	if (reg < rdev->rmmio_size)
 		return readl(((void __iomem *)rdev->rmmio) + reg);
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
@@ -857,7 +857,7 @@ static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 
 static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
-	if (reg < 0x10000)
+	if (reg < rdev->rmmio_size)
 		writel(v, ((void __iomem *)rdev->rmmio) + reg);
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
