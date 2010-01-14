@@ -143,9 +143,8 @@ int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const n
  * Return success if the sequenceID is one more than what we last saw on
  * this slot, accounting for wraparound.  Increments the slot's sequence.
  *
- * We don't yet implement a duplicate request cache, so at this time
- * we will log replays, and process them as if we had not seen them before,
- * but we don't bump the sequence in the slot.  Not too worried about it,
+ * We don't yet implement a duplicate request cache, instead we set the
+ * back channel ca_maxresponsesize_cached to zero. This is OK for now
  * since we only currently implement idempotent callbacks anyway.
  *
  * We have a single slot backchannel at this time, so we don't bother
@@ -174,9 +173,15 @@ validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 
 	/* Replay */
 	if (args->csa_sequenceid == slot->seq_nr) {
-		dprintk("%s seqid %d is a replay - no DRC available\n",
+		dprintk("%s seqid %d is a replay\n",
 			__func__, args->csa_sequenceid);
-		return htonl(NFS4_OK);
+		/* Signal process_op to set this error on next op */
+		if (args->csa_cachethis == 0)
+			return htonl(NFS4ERR_RETRY_UNCACHED_REP);
+
+		/* The ca_maxresponsesize_cached is 0 with no DRC */
+		else if (args->csa_cachethis == 1)
+			return htonl(NFS4ERR_REP_TOO_BIG_TO_CACHE);
 	}
 
 	/* Wraparound */
@@ -319,9 +324,13 @@ out:
 		kfree(args->csa_rclists[i].rcl_refcalls);
 	kfree(args->csa_rclists);
 
-	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
-	res->csr_status = status;
-	return res->csr_status;
+	if (status == htonl(NFS4ERR_RETRY_UNCACHED_REP))
+		res->csr_status = 0;
+	else
+		res->csr_status = status;
+	dprintk("%s: exit with status = %d res->csr_status %d\n", __func__,
+		ntohl(status), ntohl(res->csr_status));
+	return status;
 }
 
 unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy)

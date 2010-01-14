@@ -605,7 +605,7 @@ preprocess_nfs4_op(unsigned int op_nr, struct callback_op **op)
 static __be32 process_op(uint32_t minorversion, int nop,
 		struct svc_rqst *rqstp,
 		struct xdr_stream *xdr_in, void *argp,
-		struct xdr_stream *xdr_out, void *resp)
+		struct xdr_stream *xdr_out, void *resp, int* drc_status)
 {
 	struct callback_op *op = &callback_ops[0];
 	unsigned int op_nr;
@@ -628,6 +628,11 @@ static __be32 process_op(uint32_t minorversion, int nop,
 	if (status)
 		goto encode_hdr;
 
+	if (*drc_status) {
+		status = *drc_status;
+		goto encode_hdr;
+	}
+
 	maxlen = xdr_out->end - xdr_out->p;
 	if (maxlen > 0 && maxlen < PAGE_SIZE) {
 		status = op->decode_args(rqstp, xdr_in, argp);
@@ -635,6 +640,12 @@ static __be32 process_op(uint32_t minorversion, int nop,
 			status = op->process_op(argp, resp);
 	} else
 		status = htonl(NFS4ERR_RESOURCE);
+
+	/* Only set by OP_CB_SEQUENCE processing */
+	if (status == htonl(NFS4ERR_RETRY_UNCACHED_REP)) {
+		*drc_status = status;
+		status = 0;
+	}
 
 encode_hdr:
 	res = encode_op_hdr(xdr_out, op_nr, status);
@@ -655,7 +666,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	struct cb_compound_hdr_res hdr_res = { NULL };
 	struct xdr_stream xdr_in, xdr_out;
 	__be32 *p;
-	__be32 status;
+	__be32 status, drc_status = 0;
 	unsigned int nops = 0;
 
 	dprintk("%s: start\n", __func__);
@@ -675,8 +686,8 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 		return rpc_system_err;
 
 	while (status == 0 && nops != hdr_arg.nops) {
-		status = process_op(hdr_arg.minorversion, nops,
-				    rqstp, &xdr_in, argp, &xdr_out, resp);
+		status = process_op(hdr_arg.minorversion, nops, rqstp,
+				    &xdr_in, argp, &xdr_out, resp, &drc_status);
 		nops++;
 	}
 
