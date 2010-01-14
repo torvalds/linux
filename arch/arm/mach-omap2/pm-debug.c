@@ -54,8 +54,6 @@ int omap2_pm_debug;
 	regs[reg_count++].val = \
 			 __raw_readl(OMAP2_L4_IO_ADDRESS(0x480fe000 + (off)))
 
-static int __init pm_dbg_init(void);
-
 void omap2_pm_dump(int mode, int resume, unsigned int us)
 {
 	struct reg {
@@ -166,6 +164,8 @@ static void pm_dbg_regset_store(u32 *ptr);
 struct dentry *pm_dbg_dir;
 
 static int pm_dbg_init_done;
+
+static int __init pm_dbg_init(void);
 
 enum {
 	DEBUG_FILE_COUNTERS = 0,
