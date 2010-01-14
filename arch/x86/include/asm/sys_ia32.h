@@ -62,9 +62,6 @@ asmlinkage long sys32_pwrite(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_personality(unsigned long);
 asmlinkage long sys32_sendfile(int, int, compat_off_t __user *, s32);
 
-asmlinkage long sys32_mmap2(unsigned long, unsigned long, unsigned long,
-			    unsigned long, unsigned long, unsigned long);
-
 struct oldold_utsname;
 struct old_utsname;
 asmlinkage long sys32_olduname(struct oldold_utsname __user *);
