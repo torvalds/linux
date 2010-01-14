@@ -1,8 +1,10 @@
 #include <sys/types.h>
+#include <byteswap.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/list.h>
+#include <linux/kernel.h>
 
 #include "util.h"
 #include "header.h"
@@ -464,8 +466,21 @@ static int do_read(int fd, void *buf, size_t size)
 	return 0;
 }
 
+static int perf_header__getbuffer64(struct perf_header *self,
+				    int fd, void *buf, size_t size)
+{
+	if (do_read(fd, buf, size))
+		return -1;
+
+	if (self->needs_swap)
+		mem_bswap_64(buf, size);
+
+	return 0;
+}
+
 int perf_header__process_sections(struct perf_header *self, int fd,
 				  int (*process)(struct perf_file_section *self,
+						 struct perf_header *ph,
 						 int feat, int fd))
 {
 	struct perf_file_section *feat_sec;
@@ -486,7 +501,7 @@ int perf_header__process_sections(struct perf_header *self, int fd,
 
 	lseek(fd, self->data_offset + self->data_size, SEEK_SET);
 
-	if (do_read(fd, feat_sec, sec_size))
+	if (perf_header__getbuffer64(self, fd, feat_sec, sec_size))
 		goto out_free;
 
 	err = 0;
@@ -494,7 +509,7 @@ int perf_header__process_sections(struct perf_header *self, int fd,
 		if (perf_header__has_feat(self, feat)) {
 			struct perf_file_section *sec = &feat_sec[idx++];
 
-			err = process(sec, feat, fd);
+			err = process(sec, self, feat, fd);
 			if (err < 0)
 				break;
 		}
@@ -511,9 +526,19 @@ int perf_file_header__read(struct perf_file_header *self,
 	lseek(fd, 0, SEEK_SET);
 
 	if (do_read(fd, self, sizeof(*self)) ||
-	    self->magic     != PERF_MAGIC ||
-	    self->attr_size != sizeof(struct perf_file_attr))
+	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
+
+	if (self->attr_size != sizeof(struct perf_file_attr)) {
+		u64 attr_size = bswap_64(self->attr_size);
+
+		if (attr_size != sizeof(struct perf_file_attr))
+			return -1;
+
+		mem_bswap_64(self, offsetof(struct perf_file_header,
+					    adds_features));
+		ph->needs_swap = true;
+	}
 
 	if (self->size != sizeof(*self)) {
 		/* Support the previous format */
@@ -524,16 +549,28 @@ int perf_file_header__read(struct perf_file_header *self,
 	}
 
 	memcpy(&ph->adds_features, &self->adds_features,
-	       sizeof(self->adds_features));
+	       sizeof(ph->adds_features));
+	/*
+	 * FIXME: hack that assumes that if we need swap the perf.data file
+	 * may be coming from an arch with a different word-size, ergo different
+	 * DEFINE_BITMAP format, investigate more later, but for now its mostly
+	 * safe to assume that we have a build-id section. Trace files probably
+	 * have several other issues in this realm anyway...
+	 */
+	if (ph->needs_swap) {
+		memset(&ph->adds_features, 0, sizeof(ph->adds_features));
+		perf_header__set_feat(ph, HEADER_BUILD_ID);
+	}
 
 	ph->event_offset = self->event_types.offset;
-	ph->event_size	 = self->event_types.size;
-	ph->data_offset	 = self->data.offset;
+	ph->event_size   = self->event_types.size;
+	ph->data_offset  = self->data.offset;
 	ph->data_size	 = self->data.size;
 	return 0;
 }
 
 static int perf_file_section__process(struct perf_file_section *self,
+				      struct perf_header *ph,
 				      int feat, int fd)
 {
 	if (lseek(fd, self->offset, SEEK_SET) < 0) {
@@ -548,7 +585,7 @@ static int perf_file_section__process(struct perf_file_section *self,
 		break;
 
 	case HEADER_BUILD_ID:
-		if (perf_header__read_build_ids(fd, self->offset, self->size))
+		if (perf_header__read_build_ids(ph, fd, self->offset, self->size))
 			pr_debug("Failed to read buildids, continuing...\n");
 		break;
 	default:
@@ -560,7 +597,7 @@ static int perf_file_section__process(struct perf_file_section *self,
 
 int perf_header__read(struct perf_header *self, int fd)
 {
-	struct perf_file_header f_header;
+	struct perf_file_header	f_header;
 	struct perf_file_attr	f_attr;
 	u64			f_id;
 	int nr_attrs, nr_ids, i, j;
@@ -577,8 +614,9 @@ int perf_header__read(struct perf_header *self, int fd)
 		struct perf_header_attr *attr;
 		off_t tmp;
 
-		if (do_read(fd, &f_attr, sizeof(f_attr)))
+		if (perf_header__getbuffer64(self, fd, &f_attr, sizeof(f_attr)))
 			goto out_errno;
+
 		tmp = lseek(fd, 0, SEEK_CUR);
 
 		attr = perf_header_attr__new(&f_attr.attr);
@@ -589,7 +627,7 @@ int perf_header__read(struct perf_header *self, int fd)
 		lseek(fd, f_attr.ids.offset, SEEK_SET);
 
 		for (j = 0; j < nr_ids; j++) {
-			if (do_read(fd, &f_id, sizeof(f_id)))
+			if (perf_header__getbuffer64(self, fd, &f_id, sizeof(f_id)))
 				goto out_errno;
 
 			if (perf_header_attr__add_id(attr, f_id) < 0) {
@@ -610,7 +648,8 @@ int perf_header__read(struct perf_header *self, int fd)
 		events = malloc(f_header.event_types.size);
 		if (events == NULL)
 			return -ENOMEM;
-		if (do_read(fd, events, f_header.event_types.size))
+		if (perf_header__getbuffer64(self, fd, events,
+					     f_header.event_types.size))
 			goto out_errno;
 		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}

@@ -1,5 +1,6 @@
 #include <linux/kernel.h>
 
+#include <byteswap.h>
 #include <unistd.h>
 #include <sys/types.h>
 
@@ -201,20 +202,87 @@ void event__print_totals(void)
 			event__name[i], event__total[i]);
 }
 
+void mem_bswap_64(void *src, int byte_size)
+{
+	u64 *m = src;
+
+	while (byte_size > 0) {
+		*m = bswap_64(*m);
+		byte_size -= sizeof(u64);
+		++m;
+	}
+}
+
+static void event__all64_swap(event_t *self)
+{
+	struct perf_event_header *hdr = &self->header;
+	mem_bswap_64(hdr + 1, self->header.size - sizeof(*hdr));
+}
+
+static void event__comm_swap(event_t *self)
+{
+	self->comm.pid = bswap_32(self->comm.pid);
+	self->comm.tid = bswap_32(self->comm.tid);
+}
+
+static void event__mmap_swap(event_t *self)
+{
+	self->mmap.pid	 = bswap_32(self->mmap.pid);
+	self->mmap.tid	 = bswap_32(self->mmap.tid);
+	self->mmap.start = bswap_64(self->mmap.start);
+	self->mmap.len	 = bswap_64(self->mmap.len);
+	self->mmap.pgoff = bswap_64(self->mmap.pgoff);
+}
+
+static void event__task_swap(event_t *self)
+{
+	self->fork.pid	= bswap_32(self->fork.pid);
+	self->fork.tid	= bswap_32(self->fork.tid);
+	self->fork.ppid	= bswap_32(self->fork.ppid);
+	self->fork.ptid	= bswap_32(self->fork.ptid);
+	self->fork.time	= bswap_64(self->fork.time);
+}
+
+static void event__read_swap(event_t *self)
+{
+	self->read.pid		= bswap_32(self->read.pid);
+	self->read.tid		= bswap_32(self->read.tid);
+	self->read.value	= bswap_64(self->read.value);
+	self->read.time_enabled	= bswap_64(self->read.time_enabled);
+	self->read.time_running	= bswap_64(self->read.time_running);
+	self->read.id		= bswap_64(self->read.id);
+}
+
+typedef void (*event__swap_op)(event_t *self);
+
+static event__swap_op event__swap_ops[] = {
+	[PERF_RECORD_MMAP]   = event__mmap_swap,
+	[PERF_RECORD_COMM]   = event__comm_swap,
+	[PERF_RECORD_FORK]   = event__task_swap,
+	[PERF_RECORD_EXIT]   = event__task_swap,
+	[PERF_RECORD_LOST]   = event__all64_swap,
+	[PERF_RECORD_READ]   = event__read_swap,
+	[PERF_RECORD_SAMPLE] = event__all64_swap,
+	[PERF_RECORD_MAX]    = NULL,
+};
+
 static int perf_session__process_event(struct perf_session *self,
 				       event_t *event,
 				       struct perf_event_ops *ops,
-				       unsigned long offset, unsigned long head)
+				       u64 offset, u64 head)
 {
 	trace_event(event);
 
 	if (event->header.type < PERF_RECORD_MAX) {
-		dump_printf("%#lx [%#x]: PERF_RECORD_%s",
+		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    offset + head, event->header.size,
 			    event__name[event->header.type]);
 		++event__total[0];
 		++event__total[event->header.type];
 	}
+
+	if (self->header.needs_swap && event__swap_ops[event->header.type])
+		event__swap_ops[event->header.type](event);
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
@@ -241,7 +309,15 @@ static int perf_session__process_event(struct perf_session *self,
 	}
 }
 
-int perf_header__read_build_ids(int input, u64 offset, u64 size)
+void perf_event_header__bswap(struct perf_event_header *self)
+{
+	self->type = bswap_32(self->type);
+	self->misc = bswap_16(self->misc);
+	self->size = bswap_16(self->size);
+}
+
+int perf_header__read_build_ids(struct perf_header *self,
+				int input, u64 offset, u64 size)
 {
 	struct build_id_event bev;
 	char filename[PATH_MAX];
@@ -255,6 +331,9 @@ int perf_header__read_build_ids(int input, u64 offset, u64 size)
 
 		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
 			goto out;
+
+		if (self->needs_swap)
+			perf_event_header__bswap(&bev.header);
 
 		len = bev.header.size - sizeof(bev);
 		if (read(input, filename, len) != len)
@@ -292,9 +371,9 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_event_ops *ops)
 {
-	int err;
-	unsigned long head, shift;
-	unsigned long offset = 0;
+	int err, mmap_prot, mmap_flags;
+	u64 head, shift;
+	u64 offset = 0;
 	size_t	page_size;
 	event_t *event;
 	uint32_t size;
@@ -330,9 +409,16 @@ out_getcwd_err:
 	offset += shift;
 	head -= shift;
 
+	mmap_prot  = PROT_READ;
+	mmap_flags = MAP_SHARED;
+
+	if (self->header.needs_swap) {
+		mmap_prot  |= PROT_WRITE;
+		mmap_flags = MAP_PRIVATE;
+	}
 remap:
-	buf = mmap(NULL, page_size * self->mmap_window, PROT_READ,
-		   MAP_SHARED, self->fd, offset);
+	buf = mmap(NULL, page_size * self->mmap_window, mmap_prot,
+		   mmap_flags, self->fd, offset);
 	if (buf == MAP_FAILED) {
 		pr_err("failed to mmap file\n");
 		err = -errno;
@@ -342,6 +428,8 @@ remap:
 more:
 	event = (event_t *)(buf + head);
 
+	if (self->header.needs_swap)
+		perf_event_header__bswap(&event->header);
 	size = event->header.size;
 	if (size == 0)
 		size = 8;
@@ -361,12 +449,12 @@ more:
 
 	size = event->header.size;
 
-	dump_printf("\n%#lx [%#x]: event: %d\n",
+	dump_printf("\n%#Lx [%#x]: event: %d\n",
 		    offset + head, event->header.size, event->header.type);
 
 	if (size == 0 ||
 	    perf_session__process_event(self, event, ops, offset, head) < 0) {
-		dump_printf("%#lx [%#x]: skipping unknown header type: %d\n",
+		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
 			    offset + head, event->header.size,
 			    event->header.type);
 		/*

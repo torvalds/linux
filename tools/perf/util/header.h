@@ -52,6 +52,7 @@ struct perf_header {
 	u64			data_size;
 	u64			event_offset;
 	u64			event_size;
+	bool			needs_swap;
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
@@ -80,6 +81,7 @@ bool perf_header__has_feat(const struct perf_header *self, int feat);
 
 int perf_header__process_sections(struct perf_header *self, int fd,
 				  int (*process)(struct perf_file_section *self,
+						 struct perf_header *ph,
 						 int feat, int fd));
 
 #endif /* __PERF_HEADER_H */
