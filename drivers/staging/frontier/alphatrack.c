@@ -41,7 +41,6 @@
 #include <linux/mutex.h>
 
 #include <linux/uaccess.h>
-#include <linux/smp_lock.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
@@ -326,7 +325,6 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 	int retval = 0;
 	struct usb_interface *interface;
 
-	lock_kernel();
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
 
@@ -396,7 +394,6 @@ unlock_exit:
 
 unlock_disconnect_exit:
 	mutex_unlock(&disconnect_mutex);
-	unlock_kernel();
 
 	return retval;
 }
