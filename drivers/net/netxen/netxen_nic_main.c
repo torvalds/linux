@@ -432,7 +432,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 {
 	int i;
 	unsigned char *p;
-	__le64 mac_addr;
+	u64 mac_addr;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 
