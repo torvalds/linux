@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 
@@ -104,23 +103,19 @@ static int vstusb_open(struct inode *inode, struct file *file)
 	struct vstusb_device *vstdev;
 	struct usb_interface *interface;
 
-	lock_kernel();
 	interface = usb_find_interface(&vstusb_driver, iminor(inode));
 
 	if (!interface) {
 		printk(KERN_ERR KBUILD_MODNAME
 		       ": %s - error, can't find device for minor %d\n",
 		       __func__, iminor(inode));
-		unlock_kernel();
 		return -ENODEV;
 	}
 
 	vstdev = usb_get_intfdata(interface);
 
-	if (!vstdev) {
-		unlock_kernel();
+	if (!vstdev)
 		return -ENODEV;
-	}
 
 	/* lock this device */
 	mutex_lock(&vstdev->lock);
@@ -128,7 +123,6 @@ static int vstusb_open(struct inode *inode, struct file *file)
 	/* can only open one time */
 	if ((!vstdev->present) || (vstdev->isopen)) {
 		mutex_unlock(&vstdev->lock);
-		unlock_kernel();
 		return -EBUSY;
 	}
 
@@ -143,7 +137,6 @@ static int vstusb_open(struct inode *inode, struct file *file)
 	dev_dbg(&vstdev->usb_dev->dev, "%s: opened\n", __func__);
 
 	mutex_unlock(&vstdev->lock);
-	unlock_kernel();
 
 	return 0;
 }
