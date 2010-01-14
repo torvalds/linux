@@ -5393,52 +5393,49 @@ static bool
 parse_dcb15_entry(struct drm_device *dev, struct parsed_dcb *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
-	if (conn != 0xf0003f00 && conn != 0xf2247f10 && conn != 0xf2204001 &&
-	    conn != 0xf2204301 && conn != 0xf2204311 && conn != 0xf2208001 &&
-	    conn != 0xf2244001 && conn != 0xf2244301 && conn != 0xf2244311 &&
-	    conn != 0xf4204011 && conn != 0xf4208011 && conn != 0xf4248011 &&
-	    conn != 0xf2045ff2 && conn != 0xf2045f14 && conn != 0xf207df14 &&
-	    conn != 0xf2205004 && conn != 0xf2209004) {
-		NV_ERROR(dev, "Unknown DCB 1.5 entry, please report\n");
-
-		/* cause output setting to fail for !TV, so message is seen */
-		if ((conn & 0xf) != 0x1)
-			dcb->entries = 0;
-
+	switch (conn & 0x0000000f) {
+	case 0:
+		entry->type = OUTPUT_ANALOG;
+		break;
+	case 1:
+		entry->type = OUTPUT_TV;
+		break;
+	case 2:
+	case 3:
+		entry->type = OUTPUT_LVDS;
+		break;
+	case 4:
+		switch ((conn & 0x000000f0) >> 4) {
+		case 0:
+			entry->type = OUTPUT_TMDS;
+			break;
+		case 1:
+			entry->type = OUTPUT_LVDS;
+			break;
+		default:
+			NV_ERROR(dev, "Unknown DCB subtype 4/%d\n",
+				 (conn & 0x000000f0) >> 4);
+			return false;
+		}
+		break;
+	default:
+		NV_ERROR(dev, "Unknown DCB type %d\n", conn & 0x0000000f);
 		return false;
 	}
-	/* most of the below is a "best guess" atm */
-	entry->type = conn & 0xf;
-	if (entry->type == 2)
-		/* another way of specifying straps based lvds... */
-		entry->type = OUTPUT_LVDS;
-	if (entry->type == 4) { /* digital */
-		if (conn & 0x10)
-			entry->type = OUTPUT_LVDS;
-		else
-			entry->type = OUTPUT_TMDS;
-	}
-	/* what's in bits 5-13? could be some encoder maker thing, in tv case */
-	entry->i2c_index = (conn >> 14) & 0xf;
-	/* raw heads field is in range 0-1, so move to 1-2 */
-	entry->heads = ((conn >> 18) & 0x7) + 1;
-	entry->location = (conn >> 21) & 0xf;
-	/* unused: entry->bus = (conn >> 25) & 0x7; */
-	/* set or to be same as heads -- hopefully safe enough */
-	entry->or = entry->heads;
+
+	entry->i2c_index = (conn & 0x0003c000) >> 14;
+	entry->heads = ((conn & 0x001c0000) >> 18) + 1;
+	entry->or = entry->heads; /* same as heads, hopefully safe enough */
+	entry->location = (conn & 0x01e00000) >> 21;
+	entry->bus = (conn & 0x0e000000) >> 25;
 	entry->duallink_possible = false;
 
 	switch (entry->type) {
 	case OUTPUT_ANALOG:
 		entry->crtconf.maxfreq = (conf & 0xffff) * 10;
 		break;
-	case OUTPUT_LVDS:
-		/*
-		 * This is probably buried in conn's unknown bits.
-		 * This will upset EDID-ful models, if they exist
-		 */
-		entry->lvdsconf.use_straps_for_mode = true;
-		entry->lvdsconf.use_power_scripts = true;
+	case OUTPUT_TV:
+		entry->tvconf.has_component_output = false;
 		break;
 	case OUTPUT_TMDS:
 		/*
@@ -5447,8 +5444,12 @@ parse_dcb15_entry(struct drm_device *dev, struct parsed_dcb *dcb,
 		 */
 		fabricate_vga_output(dcb, entry->i2c_index, entry->heads);
 		break;
-	case OUTPUT_TV:
-		entry->tvconf.has_component_output = false;
+	case OUTPUT_LVDS:
+		if ((conn & 0x00003f00) != 0x10)
+			entry->lvdsconf.use_straps_for_mode = true;
+		entry->lvdsconf.use_power_scripts = true;
+		break;
+	default:
 		break;
 	}
 
