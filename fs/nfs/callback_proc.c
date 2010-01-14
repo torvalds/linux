@@ -153,34 +153,34 @@ int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const n
  * a single outstanding callback request at a time.
  */
 static int
-validate_seqid(struct nfs4_slot_table *tbl, u32 slotid, u32 seqid)
+validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 {
 	struct nfs4_slot *slot;
 
 	dprintk("%s enter. slotid %d seqid %d\n",
-		__func__, slotid, seqid);
+		__func__, args->csa_slotid, args->csa_sequenceid);
 
-	if (slotid > NFS41_BC_MAX_CALLBACKS)
+	if (args->csa_slotid > NFS41_BC_MAX_CALLBACKS)
 		return htonl(NFS4ERR_BADSLOT);
 
-	slot = tbl->slots + slotid;
+	slot = tbl->slots + args->csa_slotid;
 	dprintk("%s slot table seqid: %d\n", __func__, slot->seq_nr);
 
 	/* Normal */
-	if (likely(seqid == slot->seq_nr + 1)) {
+	if (likely(args->csa_sequenceid == slot->seq_nr + 1)) {
 		slot->seq_nr++;
 		return htonl(NFS4_OK);
 	}
 
 	/* Replay */
-	if (seqid == slot->seq_nr) {
+	if (args->csa_sequenceid == slot->seq_nr) {
 		dprintk("%s seqid %d is a replay - no DRC available\n",
-			__func__, seqid);
+			__func__, args->csa_sequenceid);
 		return htonl(NFS4_OK);
 	}
 
 	/* Wraparound */
-	if (seqid == 1 && (slot->seq_nr + 1) == 0) {
+	if (args->csa_sequenceid == 1 && (slot->seq_nr + 1) == 0) {
 		slot->seq_nr = 1;
 		return htonl(NFS4_OK);
 	}
@@ -291,8 +291,7 @@ unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 	if (clp == NULL)
 		goto out;
 
-	status = validate_seqid(&clp->cl_session->bc_slot_table,
-				args->csa_slotid, args->csa_sequenceid);
+	status = validate_seqid(&clp->cl_session->bc_slot_table, args);
 	if (status)
 		goto out_putclient;
 
