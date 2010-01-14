@@ -107,6 +107,7 @@ enum ieee80211_max_queues {
  *	2^n-1 in the range 1..32767]
  * @cw_max: maximum contention window [like @cw_min]
  * @txop: maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @uapsd: is U-APSD mode enabled for the queue
  */
 struct ieee80211_tx_queue_params {
 	u16 txop;
@@ -608,7 +609,11 @@ enum ieee80211_conf_changed {
 /**
  * enum ieee80211_smps_mode - spatial multiplexing power save mode
  *
- * @
+ * @IEEE80211_SMPS_AUTOMATIC: automatic
+ * @IEEE80211_SMPS_OFF: off
+ * @IEEE80211_SMPS_STATIC: static
+ * @IEEE80211_SMPS_DYNAMIC: dynamic
+ * @IEEE80211_SMPS_NUM_MODES: internal, don't use
  */
 enum ieee80211_smps_mode {
 	IEEE80211_SMPS_AUTOMATIC,
