@@ -38,6 +38,7 @@ struct can_priv {
 
 	enum can_state state;
 	u32 ctrlmode;
+	u32 ctrlmode_supported;
 
 	int restart_ms;
 	struct timer_list restart_timer;
