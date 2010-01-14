@@ -209,9 +209,8 @@ static int perf_session__process_event(struct perf_session *self,
 	trace_event(event);
 
 	if (event->header.type < PERF_RECORD_MAX) {
-		dump_printf("%p [%p]: PERF_RECORD_%s",
-			    (void *)(offset + head),
-			    (void *)(long)(event->header.size),
+		dump_printf("%#lx [%#x]: PERF_RECORD_%s",
+			    offset + head, event->header.size,
 			    event__name[event->header.type]);
 		++event__total[0];
 		++event__total[event->header.type];
@@ -362,16 +361,13 @@ more:
 
 	size = event->header.size;
 
-	dump_printf("\n%p [%p]: event: %d\n",
-			(void *)(offset + head),
-			(void *)(long)event->header.size,
-			event->header.type);
+	dump_printf("\n%#lx [%#x]: event: %d\n",
+		    offset + head, event->header.size, event->header.type);
 
 	if (size == 0 ||
 	    perf_session__process_event(self, event, ops, offset, head) < 0) {
-		dump_printf("%p [%p]: skipping unknown header type: %d\n",
-			    (void *)(offset + head),
-			    (void *)(long)(event->header.size),
+		dump_printf("%#lx [%#x]: skipping unknown header type: %d\n",
+			    offset + head, event->header.size,
 			    event->header.type);
 		/*
 		 * assume we lost track of the stream, check alignment, and

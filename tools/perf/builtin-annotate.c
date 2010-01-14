@@ -132,8 +132,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct addr_location al;
 
-	dump_printf("(IP, %d): %d: %p\n", event->header.misc,
-		    event->ip.pid, (void *)(long)event->ip.ip);
+	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
+		    event->ip.pid, event->ip.ip);
 
 	if (event__preprocess_sample(event, session, &al, symbol_filter) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",

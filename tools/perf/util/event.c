@@ -313,12 +313,9 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 	struct thread *thread;
 	struct map *map;
 
-	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
-		    self->mmap.pid, self->mmap.tid,
-		    (void *)(long)self->mmap.start,
-		    (void *)(long)self->mmap.len,
-		    (void *)(long)self->mmap.pgoff,
-		    self->mmap.filename);
+	dump_printf(" %d/%d: [%#Lx(%#Lx) @ %#Lx]: %s\n",
+		    self->mmap.pid, self->mmap.tid, self->mmap.start,
+		    self->mmap.len, self->mmap.pgoff, self->mmap.filename);
 
 	if (self->mmap.pid == 0) {
 		static const char kmmap_prefix[] = "[kernel.kallsyms.";
