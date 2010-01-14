@@ -31,7 +31,9 @@
 #define UART2_BASE_ADDR			0x43f94000
 
 #define MX25_FEC_BASE_ADDR		0x50038000
+#define MX25_NFC_BASE_ADDR		0xbb000000
 
 #define MX25_INT_FEC	57
+#define MX25_INT_NANDFC	33
 
 #endif /* ifndef __MACH_MX25_H__ */
