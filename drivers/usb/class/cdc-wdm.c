@@ -19,7 +19,6 @@
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <asm/byteorder.h>
@@ -517,7 +516,6 @@ static int wdm_open(struct inode *inode, struct file *file)
 	struct usb_interface *intf;
 	struct wdm_device *desc;
 
-	lock_kernel();
 	mutex_lock(&wdm_mutex);
 	intf = usb_find_interface(&wdm_driver, minor);
 	if (!intf)
@@ -550,7 +548,6 @@ static int wdm_open(struct inode *inode, struct file *file)
 	usb_autopm_put_interface(desc->intf);
 out:
 	mutex_unlock(&wdm_mutex);
-	unlock_kernel();
 	return rv;
 }
 
