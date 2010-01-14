@@ -31,18 +31,18 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <linux/gpio.h>
+#include <mach/gpio.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux.h>
+#include <mach/board-mx27ads.h>
 #include <mach/mxc_nand.h>
 #include <mach/i2c.h>
-#include <linux/i2c/pca953x.h>
 #include <mach/imxfb.h>
 #include <mach/mmc.h>
 
 #include "devices.h"
 
-static unsigned int mxt_td60_pins[] __initdata = {
+static unsigned int mx27ads_pins[] = {
 	/* UART0 */
 	PE12_PF_UART1_TXD,
 	PE13_PF_UART1_RXD,
@@ -92,9 +92,6 @@ static unsigned int mxt_td60_pins[] __initdata = {
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN,
-	/* I2C1 */
-	PD17_PF_I2C_DATA,
-	PD18_PF_I2C_CLK,
 	/* I2C2 */
 	PC5_PF_I2C2_SDA,
 	PC6_PF_I2C2_SCL,
@@ -118,7 +115,9 @@ static unsigned int mxt_td60_pins[] __initdata = {
 	PA21_PF_LD15,
 	PA22_PF_LD16,
 	PA23_PF_LD17,
+	PA24_PF_REV,
 	PA25_PF_CLS,
+	PA26_PF_PS,
 	PA27_PF_SPL_SPR,
 	PA28_PF_HSYNC,
 	PA29_PF_VSYNC,
@@ -133,7 +132,6 @@ static unsigned int mxt_td60_pins[] __initdata = {
 	PE21_PF_SD1_D3,
 	PE22_PF_SD1_CMD,
 	PE23_PF_SD1_CLK,
-	PF8_AF_ATA_IORDY,
 	/* SDHC2*/
 	PB4_PF_SD2_D0,
 	PB5_PF_SD2_D1,
@@ -143,81 +141,71 @@ static unsigned int mxt_td60_pins[] __initdata = {
 	PB9_PF_SD2_CLK,
 };
 
-static struct mxc_nand_platform_data mxt_td60_nand_board_info = {
+static struct mxc_nand_platform_data mx27ads_nand_board_info = {
 	.width = 1,
 	.hw_ecc = 1,
 };
 
-static struct imxi2c_platform_data mxt_td60_i2c_data = {
+/* ADS's NOR flash */
+static struct physmap_flash_data mx27ads_flash_data = {
+	.width = 2,
+};
+
+static struct resource mx27ads_flash_resource = {
+	.start = 0xc0000000,
+	.end = 0xc0000000 + 0x02000000 - 1,
+	.flags = IORESOURCE_MEM,
+
+};
+
+static struct platform_device mx27ads_nor_mtd_device = {
+	.name = "physmap-flash",
+	.id = 0,
+	.dev = {
+		.platform_data = &mx27ads_flash_data,
+	},
+	.num_resources = 1,
+	.resource = &mx27ads_flash_resource,
+};
+
+static struct imxi2c_platform_data mx27ads_i2c_data = {
 	.bitrate = 100000,
 };
 
-/* PCA9557 */
-static int mxt_td60_pca9557_setup(struct i2c_client *client,
-				unsigned gpio_base, unsigned ngpio,
-				void *context)
+static struct i2c_board_info mx27ads_i2c_devices[] = {
+};
+
+void lcd_power(int on)
 {
-	static int mxt_td60_gpio_value[] = {
-		-1, -1, -1, -1, -1, -1, -1, 1
-	};
-	int n;
-
-	for (n = 0; n < ARRAY_SIZE(mxt_td60_gpio_value); ++n) {
-		gpio_request(gpio_base + n, "MXT_TD60 GPIO Exp");
-		if (mxt_td60_gpio_value[n] < 0)
-			gpio_direction_input(gpio_base + n);
-		else
-			gpio_direction_output(gpio_base + n,
-						mxt_td60_gpio_value[n]);
-		gpio_export(gpio_base + n, 0);
-	}
-
-	return 0;
+	if (on)
+		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_SET_REG);
+	else
+		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_CLEAR_REG);
 }
 
-static struct pca953x_platform_data mxt_td60_pca9557_pdata = {
-	.gpio_base	= 240, /* place PCA9557 after all MX27 gpio pins */
-	.invert		= 0, /* Do not invert */
-	.setup		= mxt_td60_pca9557_setup,
-};
-
-static struct i2c_board_info mxt_td60_i2c_devices[] = {
-	{
-		I2C_BOARD_INFO("pca9557", 0x18),
-		.platform_data = &mxt_td60_pca9557_pdata,
-	},
-};
-
-static struct imxi2c_platform_data mxt_td60_i2c2_data = {
-	.bitrate = 100000,
-};
-
-static struct i2c_board_info mxt_td60_i2c2_devices[] = {
-};
-
-static struct imx_fb_videomode mxt_td60_modes[] = {
+static struct imx_fb_videomode mx27ads_modes[] = {
 	{
 		.mode = {
-			.name		= "Chimei LW700AT9003",
+			.name		= "Sharp-LQ035Q7",
 			.refresh	= 60,
-			.xres		= 800,
-			.yres		= 480,
-			.pixclock	= 30303,
-			.hsync_len	= 64,
-			.left_margin	= 0x67,
-			.right_margin	= 0x68,
-			.vsync_len	= 16,
-			.upper_margin	= 0x0f,
-			.lower_margin	= 0x0f,
+			.xres		= 240,
+			.yres		= 320,
+			.pixclock	= 188679, /* in ps (5.3MHz) */
+			.hsync_len	= 1,
+			.left_margin	= 9,
+			.right_margin	= 16,
+			.vsync_len	= 1,
+			.upper_margin	= 7,
+			.lower_margin	= 9,
 		},
 		.bpp		= 16,
-		.pcr		= 0xFA208B83,
+		.pcr		= 0xFB008BC0,
 	},
 };
 
-static struct imx_fb_platform_data mxt_td60_fb_data = {
-	.mode = mxt_td60_modes,
-	.num_modes = ARRAY_SIZE(mxt_td60_modes),
+static struct imx_fb_platform_data mx27ads_fb_data = {
+	.mode = mx27ads_modes,
+	.num_modes = ARRAY_SIZE(mx27ads_modes),
 
 	/*
 	 * - HSYNC active high
@@ -231,27 +219,48 @@ static struct imx_fb_platform_data mxt_td60_fb_data = {
 	.pwmr		= 0x00A903FF,
 	.lscr1		= 0x00120300,
 	.dmacr		= 0x00020010,
+
+	.lcd_power	= lcd_power,
 };
 
-static int mxt_td60_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
-				void *data)
+static int mx27ads_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
+			      void *data)
 {
-	return request_irq(IRQ_GPIOF(8), detect_irq, IRQF_TRIGGER_FALLING,
-				"sdhc1-card-detect", data);
+	return request_irq(IRQ_GPIOE(21), detect_irq, IRQF_TRIGGER_RISING,
+			   "sdhc1-card-detect", data);
 }
 
-static void mxt_td60_sdhc1_exit(struct device *dev, void *data)
+static int mx27ads_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
+			      void *data)
 {
-	free_irq(IRQ_GPIOF(8), data);
+	return request_irq(IRQ_GPIOB(7), detect_irq, IRQF_TRIGGER_RISING,
+			   "sdhc2-card-detect", data);
+}
+
+static void mx27ads_sdhc1_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOE(21), data);
+}
+
+static void mx27ads_sdhc2_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOB(7), data);
 }
 
 static struct imxmmc_platform_data sdhc1_pdata = {
-	.init = mxt_td60_sdhc1_init,
-	.exit = mxt_td60_sdhc1_exit,
+	.init = mx27ads_sdhc1_init,
+	.exit = mx27ads_sdhc1_exit,
+};
+
+static struct imxmmc_platform_data sdhc2_pdata = {
+	.init = mx27ads_sdhc2_init,
+	.exit = mx27ads_sdhc2_exit,
 };
 
 static struct platform_device *platform_devices[] __initdata = {
+	&mx27ads_nor_mtd_device,
 	&mxc_fec_device,
+	&mxc_w1_master_device,
 };
 
 static struct imxuart_platform_data uart_pdata[] = {
@@ -270,10 +279,10 @@ static struct imxuart_platform_data uart_pdata[] = {
 	},
 };
 
-static void __init mxt_td60_board_init(void)
+static void __init mx27ads_board_init(void)
 {
-	mxc_gpio_setup_multiple_pins(mxt_td60_pins, ARRAY_SIZE(mxt_td60_pins),
-			"MXT_TD60");
+	mxc_gpio_setup_multiple_pins(mx27ads_pins, ARRAY_SIZE(mx27ads_pins),
+			"mx27ads");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
@@ -281,39 +290,56 @@ static void __init mxt_td60_board_init(void)
 	mxc_register_device(&mxc_uart_device3, &uart_pdata[3]);
 	mxc_register_device(&mxc_uart_device4, &uart_pdata[4]);
 	mxc_register_device(&mxc_uart_device5, &uart_pdata[5]);
-	mxc_register_device(&mxc_nand_device, &mxt_td60_nand_board_info);
+	mxc_register_device(&mxc_nand_device, &mx27ads_nand_board_info);
 
-	i2c_register_board_info(0, mxt_td60_i2c_devices,
-				ARRAY_SIZE(mxt_td60_i2c_devices));
-
-	i2c_register_board_info(1, mxt_td60_i2c2_devices,
-				ARRAY_SIZE(mxt_td60_i2c2_devices));
-
-	mxc_register_device(&mxc_i2c_device0, &mxt_td60_i2c_data);
-	mxc_register_device(&mxc_i2c_device1, &mxt_td60_i2c2_data);
-	mxc_register_device(&mxc_fb_device, &mxt_td60_fb_data);
+	/* only the i2c master 1 is used on this CPU card */
+	i2c_register_board_info(1, mx27ads_i2c_devices,
+				ARRAY_SIZE(mx27ads_i2c_devices));
+	mxc_register_device(&mxc_i2c_device1, &mx27ads_i2c_data);
+	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
+	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 
-static void __init mxt_td60_timer_init(void)
+static void __init mx27ads_timer_init(void)
 {
-	mx27_clocks_init(26000000);
+	unsigned long fref = 26000000;
+
+	if ((__raw_readw(PBC_VERSION_REG) & CKIH_27MHZ_BIT_SET) == 0)
+		fref = 27000000;
+
+	mx27_clocks_init(fref);
 }
 
-static struct sys_timer mxt_td60_timer = {
-	.init	= mxt_td60_timer_init,
+static struct sys_timer mx27ads_timer = {
+	.init	= mx27ads_timer_init,
 };
 
-MACHINE_START(MXT_TD60, "Maxtrack i-MXT TD60")
-	/* maintainer: Maxtrack Industrial */
-	.phys_io	= AIPI_BASE_ADDR,
-	.io_pg_offst	= ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params	= PHYS_OFFSET + 0x100,
-	.map_io		= mx27_map_io,
-	.init_irq	= mx27_init_irq,
-	.init_machine	= mxt_td60_board_init,
-	.timer		= &mxt_td60_timer,
+static struct map_desc mx27ads_io_desc[] __initdata = {
+	{
+		.virtual = PBC_BASE_ADDRESS,
+		.pfn = __phys_to_pfn(MX27_CS4_BASE_ADDR),
+		.length = SZ_1M,
+		.type = MT_DEVICE,
+	},
+};
+
+static void __init mx27ads_map_io(void)
+{
+	mx27_map_io();
+	iotable_init(mx27ads_io_desc, ARRAY_SIZE(mx27ads_io_desc));
+}
+
+MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
+	/* maintainer: Freescale Semiconductor, Inc. */
+	.phys_io        = MX27_AIPI_BASE_ADDR,
+	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.boot_params    = PHYS_OFFSET + 0x100,
+	.map_io         = mx27ads_map_io,
+	.init_irq       = mx27_init_irq,
+	.init_machine   = mx27ads_board_init,
+	.timer          = &mx27ads_timer,
 MACHINE_END
 

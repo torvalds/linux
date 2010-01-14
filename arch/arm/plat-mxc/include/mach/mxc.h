@@ -121,9 +121,10 @@ extern unsigned int __mxc_cpu_type;
 #endif
 
 #if defined(CONFIG_ARCH_MX3) || defined(CONFIG_ARCH_MX2)
-#define CSCR_U(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10)
-#define CSCR_L(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x4)
-#define CSCR_A(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x8)
+/* These are deprecated, use mx[23][157]_setup_weimcs instead. */
+#define CSCR_U(n) (IO_ADDRESS(WEIM_BASE_ADDR + n * 0x10))
+#define CSCR_L(n) (IO_ADDRESS(WEIM_BASE_ADDR + n * 0x10 + 0x4))
+#define CSCR_A(n) (IO_ADDRESS(WEIM_BASE_ADDR + n * 0x10 + 0x8))
 #endif
 
 #define cpu_is_mx3()	(cpu_is_mx31() || cpu_is_mx35() || cpu_is_mxc91231())

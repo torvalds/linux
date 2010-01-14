@@ -118,8 +118,8 @@ static struct physmap_flash_data mx21ads_flash_data = {
 };
 
 static struct resource mx21ads_flash_resource = {
-	.start = CS0_BASE_ADDR,
-	.end = CS0_BASE_ADDR + 0x02000000 - 1,
+	.start = MX21_CS0_BASE_ADDR,
+	.end = MX21_CS0_BASE_ADDR + 0x02000000 - 1,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -242,7 +242,7 @@ static struct map_desc mx21ads_io_desc[] __initdata = {
 	 */
 	{
 		.virtual = MX21ADS_MMIO_BASE_ADDR,
-		.pfn = __phys_to_pfn(CS1_BASE_ADDR),
+		.pfn = __phys_to_pfn(MX21_CS1_BASE_ADDR),
 		.length = MX21ADS_MMIO_SIZE,
 		.type = MT_DEVICE,
 	},
@@ -284,8 +284,8 @@ static struct sys_timer mx21ads_timer = {
 
 MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.phys_io        = AIPI_BASE_ADDR,
-	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io        = MX21_AIPI_BASE_ADDR,
+	.io_pg_offst    = ((MX21_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx21ads_map_io,
 	.init_irq       = mx21_init_irq,

@@ -248,8 +248,8 @@ static struct imxuart_platform_data uart_pdata = {
 
 static struct resource smsc911x_resources[] = {
 	{
-		.start		= CS1_BASE_ADDR + 0x300,
-		.end		= CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
+		.start		= MX31_CS1_BASE_ADDR + 0x300,
+		.end		= MX31_CS1_BASE_ADDR + 0x300 + SZ_64K - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
 		.start		= IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
@@ -281,8 +281,8 @@ static struct platdata_mtd_ram pcm038_sram_data = {
 };
 
 static struct resource pcm038_sram_resource = {
-	.start = CS4_BASE_ADDR,
-	.end   = CS4_BASE_ADDR + 512 * 1024 - 1,
+	.start = MX31_CS4_BASE_ADDR,
+	.end   = MX31_CS4_BASE_ADDR + 512 * 1024 - 1,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -322,16 +322,25 @@ static int pcm037_camera_power(struct device *dev, int on)
 	return 0;
 }
 
-static struct i2c_board_info pcm037_i2c_2_devices[] = {
+static struct i2c_board_info pcm037_i2c_camera[] = {
 	{
 		I2C_BOARD_INFO("mt9t031", 0x5d),
+	}, {
+		I2C_BOARD_INFO("mt9v022", 0x48),
 	},
 };
 
-static struct soc_camera_link iclink = {
+static struct soc_camera_link iclink_mt9v022 = {
+	.bus_id		= 0,		/* Must match with the camera ID */
+	.board_info	= &pcm037_i2c_camera[1],
+	.i2c_adapter_id	= 2,
+	.module_name	= "mt9v022",
+};
+
+static struct soc_camera_link iclink_mt9t031 = {
 	.bus_id		= 0,		/* Must match with the camera ID */
 	.power		= pcm037_camera_power,
-	.board_info	= &pcm037_i2c_2_devices[0],
+	.board_info	= &pcm037_i2c_camera[0],
 	.i2c_adapter_id	= 2,
 	.module_name	= "mt9t031",
 };
@@ -345,11 +354,19 @@ static struct i2c_board_info pcm037_i2c_devices[] = {
 	}
 };
 
-static struct platform_device pcm037_camera = {
+static struct platform_device pcm037_mt9t031 = {
 	.name	= "soc-camera-pdrv",
 	.id	= 0,
 	.dev	= {
-		.platform_data = &iclink,
+		.platform_data = &iclink_mt9t031,
+	},
+};
+
+static struct platform_device pcm037_mt9v022 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 1,
+	.dev	= {
+		.platform_data = &iclink_mt9v022,
 	},
 };
 
@@ -449,7 +466,8 @@ static int __init pcm037_camera_alloc_dma(const size_t buf_size)
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_sram_device,
-	&pcm037_camera,
+	&pcm037_mt9t031,
+	&pcm037_mt9v022,
 };
 
 static struct ipu_platform_data mx3_ipu_data = {
@@ -518,8 +536,8 @@ static struct mx3fb_platform_data mx3fb_pdata = {
 
 static struct resource pcm970_sja1000_resources[] = {
 	{
-		.start   = CS5_BASE_ADDR,
-		.end     = CS5_BASE_ADDR + 0x100 - 1,
+		.start   = MX31_CS5_BASE_ADDR,
+		.end     = MX31_CS5_BASE_ADDR + 0x100 - 1,
 		.flags   = IORESOURCE_MEM,
 	}, {
 		.start   = IOMUX_TO_IRQ(IOMUX_PIN(48, 105)),
@@ -599,7 +617,7 @@ static void __init mxc_board_init(void)
 	if (!ret)
 		gpio_direction_output(IOMUX_TO_GPIO(MX31_PIN_CSI_D5), 1);
 	else
-		iclink.power = NULL;
+		iclink_mt9t031.power = NULL;
 
 	if (!pcm037_camera_alloc_dma(4 * 1024 * 1024))
 		mxc_register_device(&mx3_camera, &camera_pdata);
@@ -618,8 +636,8 @@ struct sys_timer pcm037_timer = {
 
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	/* Maintainer: Pengutronix */
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io	= MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
 	.init_irq       = mx31_init_irq,

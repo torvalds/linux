@@ -211,14 +211,9 @@ static int __init mx31pdk_init_expio(void)
  */
 static struct map_desc mx31pdk_io_desc[] __initdata = {
 	{
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED,
-	}, {
-		.virtual = CS5_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(CS5_BASE_ADDR),
-		.length = CS5_SIZE,
+		.virtual = MX31_CS5_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX31_CS5_BASE_ADDR),
+		.length = MX31_CS5_SIZE,
 		.type = MT_DEVICE,
 	},
 };
@@ -261,8 +256,8 @@ static struct sys_timer mx31pdk_timer = {
  */
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io	= MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31pdk_map_io,
 	.init_irq       = mx31_init_irq,

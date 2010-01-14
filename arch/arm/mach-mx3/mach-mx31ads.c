@@ -60,7 +60,7 @@
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.membase  = (void *)(PBC_BASE_ADDRESS + PBC_SC16C652_UARTA),
-		.mapbase  = (unsigned long)(CS4_BASE_ADDR + PBC_SC16C652_UARTA),
+		.mapbase  = (unsigned long)(MX31_CS4_BASE_ADDR + PBC_SC16C652_UARTA),
 		.irq      = EXPIO_INT_XUART_INTA,
 		.uartclk  = 14745600,
 		.regshift = 0,
@@ -68,7 +68,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 		.flags    = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_AUTO_IRQ,
 	}, {
 		.membase  = (void *)(PBC_BASE_ADDRESS + PBC_SC16C652_UARTB),
-		.mapbase  = (unsigned long)(CS4_BASE_ADDR + PBC_SC16C652_UARTB),
+		.mapbase  = (unsigned long)(MX31_CS4_BASE_ADDR + PBC_SC16C652_UARTB),
 		.irq      = EXPIO_INT_XUART_INTB,
 		.uartclk  = 14745600,
 		.regshift = 0,
@@ -486,14 +486,9 @@ static void mxc_init_i2c(void)
  */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
-		.virtual	= SPBA0_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length		= SPBA0_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= CS4_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(CS4_BASE_ADDR),
-		.length		= CS4_SIZE / 2,
+		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
+		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
+		.length		= MX31_CS4_SIZE / 2,
 		.type		= MT_DEVICE
 	},
 };
@@ -538,8 +533,8 @@ static struct sys_timer mx31ads_timer = {
  */
 MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	/* Maintainer: Freescale Semiconductor, Inc. */
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io	= MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31ads_map_io,
 	.init_irq       = mx31ads_init_irq,

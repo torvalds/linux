@@ -618,14 +618,15 @@ int __init mx31_clocks_init(unsigned long fref)
 
 	mx31_read_cpu_rev();
 
-	if (mx31_revision() >= CHIP_REV_2_0) {
+	if (mx31_revision() >= MX31_CHIP_REV_2_0) {
 		reg = __raw_readl(MXC_CCM_PMCR1);
 		/* No PLL restart on DVFS switch; enable auto EMI handshake */
 		reg |= MXC_CCM_PMCR1_PLLRDIS | MXC_CCM_PMCR1_EMIRQ_EN;
 		__raw_writel(reg, MXC_CCM_PMCR1);
 	}
 
-	mxc_timer_init(&ipg_clk, IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT);
+	mxc_timer_init(&ipg_clk, MX31_IO_ADDRESS(MX31_GPT1_BASE_ADDR),
+			MX31_INT_GPT);
 
 	return 0;
 }

@@ -57,8 +57,8 @@
 
 static struct resource smsc91x_resources[] = {
 	{
-		.start	= CS4_BASE_ADDR,
-		.end	= CS4_BASE_ADDR + 0xffff,
+		.start	= MX31_CS4_BASE_ADDR,
+		.end	= MX31_CS4_BASE_ADDR + 0xffff,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -195,8 +195,8 @@ static struct sys_timer mx31lilly_timer = {
 };
 
 MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io	= MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x100,
 	.map_io		= mx31_map_io,
 	.init_irq	= mx31_init_irq,

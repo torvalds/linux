@@ -108,8 +108,8 @@ static struct platdata_mtd_ram pcm038_sram_data = {
 };
 
 static struct resource pcm038_sram_resource = {
-	.start = CS1_BASE_ADDR,
-	.end   = CS1_BASE_ADDR + 512 * 1024 - 1,
+	.start = MX27_CS1_BASE_ADDR,
+	.end   = MX27_CS1_BASE_ADDR + 512 * 1024 - 1,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -173,9 +173,7 @@ static struct platform_device *platform_devices[] __initdata = {
  * setup other stuffs to access the sram. */
 static void __init pcm038_init_sram(void)
 {
-	__raw_writel(0x0000d843, CSCR_U(1));
-	__raw_writel(0x22252521, CSCR_L(1));
-	__raw_writel(0x22220a00, CSCR_A(1));
+	mx27_setup_weimcs(1, 0x0000d843, 0x22252521, 0x22220a00);
 }
 
 static struct imxi2c_platform_data pcm038_i2c_1_data = {
@@ -328,8 +326,8 @@ static struct sys_timer pcm038_timer = {
 };
 
 MACHINE_START(PCM038, "phyCORE-i.MX27")
-	.phys_io        = AIPI_BASE_ADDR,
-	.io_pg_offst    = ((AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io        = MX27_AIPI_BASE_ADDR,
+	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
 	.init_irq       = mx27_init_irq,

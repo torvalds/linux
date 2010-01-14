@@ -43,7 +43,7 @@
 #define QONG_FPGA_VERSION(major, minor, rev)	\
 	(((major & 0xF) << 12) | ((minor & 0xF) << 8) | (rev & 0xFF))
 
-#define QONG_FPGA_BASEADDR 		CS1_BASE_ADDR
+#define QONG_FPGA_BASEADDR 		MX31_CS1_BASE_ADDR
 #define QONG_FPGA_PERIPH_SIZE 		(1 << 24)
 
 #define QONG_FPGA_CTRL_BASEADDR		QONG_FPGA_BASEADDR
@@ -115,8 +115,8 @@ static struct physmap_flash_data qong_flash_data = {
 };
 
 static struct resource qong_flash_resource = {
-	.start = CS0_BASE_ADDR,
-	.end = CS0_BASE_ADDR + QONG_NOR_SIZE - 1,
+	.start = MX31_CS0_BASE_ADDR,
+	.end = MX31_CS0_BASE_ADDR + QONG_NOR_SIZE - 1,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -180,8 +180,8 @@ static struct platform_nand_data qong_nand_data = {
 };
 
 static struct resource qong_nand_resource = {
-	.start  	= CS3_BASE_ADDR,
-	.end    	= CS3_BASE_ADDR + SZ_32M - 1,
+	.start  	= MX31_CS3_BASE_ADDR,
+	.end    	= MX31_CS3_BASE_ADDR + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -198,9 +198,7 @@ static struct platform_device qong_nand_device = {
 static void __init qong_init_nand_mtd(void)
 {
 	/* init CS */
-	__raw_writel(0x00004f00, CSCR_U(3));
-	__raw_writel(0x20013b31, CSCR_L(3));
-	__raw_writel(0x00020800, CSCR_A(3));
+	mx31_setup_weimcs(3, 0x00004f00, 0x20013b31, 0x00020800);
 	mxc_iomux_set_gpr(MUX_SDCTL_CSD1_SEL, true);
 
 	/* enable pin */
@@ -275,8 +273,8 @@ static struct sys_timer qong_timer = {
 
 MACHINE_START(QONG, "Dave/DENX QongEVB-LITE")
 	/* Maintainer: DENX Software Engineering GmbH */
-	.phys_io        = AIPS1_BASE_ADDR,
-	.io_pg_offst    = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io        = MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst    = (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
 	.init_irq       = mx31_init_irq,

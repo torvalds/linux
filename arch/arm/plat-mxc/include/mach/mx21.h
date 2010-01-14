@@ -22,8 +22,8 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_MX21_H__
-#define __ASM_ARCH_MXC_MX21_H__
+#ifndef __MACH_MX21_H__
+#define __MACH_MX21_H__
 
 #define MX21_AIPI_BASE_ADDR		0x10000000
 #define MX21_AIPI_BASE_ADDR_VIRT	0xf4000000
@@ -91,6 +91,11 @@
 #define MX21_NFC_BASE_ADDR		(MX21_X_MEMC_BASE_ADDR + 0x3000)
 
 #define MX21_IRAM_BASE_ADDR		0xffffe800	/* internal ram */
+
+#define MX21_IO_ADDRESS(x) (						\
+	IMX_IO_ADDRESS(x, MX21_AIPI) ?:					\
+	IMX_IO_ADDRESS(x, MX21_SAHB1) ?:				\
+	IMX_IO_ADDRESS(x, MX21_X_MEMC))
 
 /* fixed interrupt numbers */
 #define MX21_INT_CSPI3		6
@@ -179,6 +184,7 @@
 #define MX21_DMA_REQ_CSI_STAT	30
 #define MX21_DMA_REQ_CSI_RX	31
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define SDRAM_BASE_ADDR MX21_SDRAM_BASE_ADDR
 #define CSD1_BASE_ADDR MX21_CSD1_BASE_ADDR
@@ -211,5 +217,6 @@
 #define DMA_REQ_FIRI_RX MX21_DMA_REQ_FIRI_RX
 #define DMA_REQ_BMI_TX MX21_DMA_REQ_BMI_TX
 #define DMA_REQ_BMI_RX MX21_DMA_REQ_BMI_RX
+#endif
 
-#endif /* __ASM_ARCH_MXC_MX21_H__ */
+#endif /* ifndef __MACH_MX21_H__ */

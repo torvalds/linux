@@ -182,8 +182,8 @@ static struct physmap_flash_data armadillo5x0_nor_flash_pdata = {
 
 static struct resource armadillo5x0_nor_flash_resource = {
 	.flags		= IORESOURCE_MEM,
-	.start		= CS0_BASE_ADDR,
-	.end		= CS0_BASE_ADDR + SZ_64M - 1,
+	.start		= MX31_CS0_BASE_ADDR,
+	.end		= MX31_CS0_BASE_ADDR + SZ_64M - 1,
 };
 
 static struct platform_device armadillo5x0_nor_flash = {
@@ -311,8 +311,8 @@ static struct imxmmc_platform_data sdhc_pdata = {
  */
 static struct resource armadillo5x0_smc911x_resources[] = {
 	{
-		.start	= CS3_BASE_ADDR,
-		.end	= CS3_BASE_ADDR + SZ_32M - 1,
+		.start	= MX31_CS3_BASE_ADDR,
+		.end	= MX31_CS3_BASE_ADDR + SZ_32M - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
@@ -406,8 +406,8 @@ static struct sys_timer armadillo5x0_timer = {
 
 MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	/* Maintainer: Alberto Panizzo  */
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io	= MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
 	.map_io		= mx31_map_io,
 	.init_irq	= mx31_init_irq,

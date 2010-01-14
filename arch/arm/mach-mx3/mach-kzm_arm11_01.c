@@ -46,13 +46,18 @@
 
 #include "devices.h"
 
+#define KZM_ARM11_IO_ADDRESS(x) (					\
+	IMX_IO_ADDRESS(x, MX31_CS4) ?:					\
+	IMX_IO_ADDRESS(x, MX31_CS5) ?:					\
+	MX31_IO_ADDRESS(x))
+
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 /*
  * KZM-ARM11-01 has an external UART on FPGA
  */
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
-		.membase	= IO_ADDRESS(KZM_ARM11_16550),
+		.membase	= KZM_ARM11_IO_ADDRESS(KZM_ARM11_16550),
 		.mapbase	= KZM_ARM11_16550,
 		.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_1),
 		.irqflags	= IRQ_TYPE_EDGE_RISING,
@@ -102,9 +107,9 @@ static int __init kzm_init_ext_uart(void)
 	/*
 	 * Unmask UART interrupt
 	 */
-	tmp = __raw_readb(IO_ADDRESS(KZM_ARM11_CTL1));
+	tmp = __raw_readb(KZM_ARM11_IO_ADDRESS(KZM_ARM11_CTL1));
 	tmp |= 0x2;
-	__raw_writeb(tmp, IO_ADDRESS(KZM_ARM11_CTL1));
+	__raw_writeb(tmp, KZM_ARM11_IO_ADDRESS(KZM_ARM11_CTL1));
 
 	return platform_device_register(&serial_device);
 }
@@ -128,8 +133,8 @@ static struct smsc911x_platform_config kzm_smsc9118_config = {
 
 static struct resource kzm_smsc9118_resources[] = {
 	{
-		.start	= CS5_BASE_ADDR,
-		.end	= CS5_BASE_ADDR + SZ_128K - 1,
+		.start	= MX31_CS5_BASE_ADDR,
+		.end	= MX31_CS5_BASE_ADDR + SZ_128K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -222,15 +227,15 @@ static void __init kzm_board_init(void)
  */
 static struct map_desc kzm_io_desc[] __initdata = {
 	{
-		.virtual	= CS4_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(CS4_BASE_ADDR),
-		.length		= CS4_SIZE,
+		.virtual	= MX31_CS4_BASE_ADDR_VIRT,
+		.pfn		= __phys_to_pfn(MX31_CS4_BASE_ADDR),
+		.length		= MX31_CS4_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= CS5_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(CS5_BASE_ADDR),
-		.length		= CS5_SIZE,
+		.virtual	= MX31_CS5_BASE_ADDR_VIRT,
+		.pfn		= __phys_to_pfn(MX31_CS5_BASE_ADDR),
+		.length		= MX31_CS5_SIZE,
 		.type		= MT_DEVICE
 	},
 };
@@ -258,8 +263,8 @@ static struct sys_timer kzm_timer = {
  * initialize __mach_desc_KZM_ARM11_01 data structure.
  */
 MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
-	.phys_io        = AIPS1_BASE_ADDR,
-	.io_pg_offst    = ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
+	.phys_io        = MX31_AIPS1_BASE_ADDR,
+	.io_pg_offst    = (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = kzm_map_io,
 	.init_irq       = mx31_init_irq,
