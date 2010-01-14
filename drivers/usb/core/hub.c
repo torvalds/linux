@@ -1990,7 +1990,7 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 		if (!(portstatus & USB_PORT_STAT_RESET) &&
 		    (portstatus & USB_PORT_STAT_ENABLE)) {
 			if (hub_is_wusb(hub))
-				udev->speed = USB_SPEED_VARIABLE;
+				udev->speed = USB_SPEED_WIRELESS;
 			else if (portstatus & USB_PORT_STAT_HIGH_SPEED)
 				udev->speed = USB_SPEED_HIGH;
 			else if (portstatus & USB_PORT_STAT_LOW_SPEED)
@@ -2689,7 +2689,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	 */
 	switch (udev->speed) {
 	case USB_SPEED_SUPER:
-	case USB_SPEED_VARIABLE:	/* fixed at 512 */
+	case USB_SPEED_WIRELESS:	/* fixed at 512 */
 		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(512);
 		break;
 	case USB_SPEED_HIGH:		/* fixed at 64 */
@@ -2717,7 +2717,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	case USB_SPEED_SUPER:
 				speed = "super";
 				break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 				speed = "variable";
 				type = "Wireless ";
 				break;

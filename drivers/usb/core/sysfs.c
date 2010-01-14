@@ -115,7 +115,7 @@ show_speed(struct device *dev, struct device_attribute *attr, char *buf)
 	case USB_SPEED_HIGH:
 		speed = "480";
 		break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		speed = "480";
 		break;
 	case USB_SPEED_SUPER:
