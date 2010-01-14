@@ -2076,7 +2076,7 @@ static void moved_group_fair(struct task_struct *p, int on_rq)
 }
 #endif
 
-unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task)
+static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task)
 {
 	struct sched_entity *se = &task->se;
 	unsigned int rr_interval = 0;
