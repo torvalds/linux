@@ -225,13 +225,13 @@ EXPORT_SYMBOL(clk_set_parent);
 
 /* base clocks */
 
-static int clk_default_setrate(struct clk *clk, unsigned long rate)
+int clk_default_setrate(struct clk *clk, unsigned long rate)
 {
 	clk->rate = rate;
 	return 0;
 }
 
-static struct clk_ops clk_ops_def_setrate = {
+struct clk_ops clk_ops_def_setrate = {
 	.set_rate	= clk_default_setrate,
 };
 

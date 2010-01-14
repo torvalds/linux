@@ -64,16 +64,6 @@ struct clk clk_54m = {
 	.rate		= 54000000,
 };
 
-static int clk_default_setrate(struct clk *clk, unsigned long rate)
-{
-	clk->rate = rate;
-	return 0;
-}
-
-static struct clk_ops clk_ops_default_setrate = {
-	.set_rate	= clk_default_setrate,
-};
-
 static int clk_dummy_enable(struct clk *clk, int enable)
 {
 	return 0;
@@ -86,7 +76,7 @@ struct clk clk_hd0 = {
 	.parent		= NULL,
 	.ctrlbit	= 0,
 	.enable		= clk_dummy_enable,
-	.ops		= &clk_ops_default_setrate,
+	.ops		= &clk_ops_def_setrate,
 };
 
 struct clk clk_pd0 = {
@@ -95,7 +85,7 @@ struct clk clk_pd0 = {
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
-	.ops		= &clk_ops_default_setrate,
+	.ops		= &clk_ops_def_setrate,
 	.enable		= clk_dummy_enable,
 };
 
