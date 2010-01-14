@@ -483,6 +483,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 		struct omapfb_memory_read	memory_read;
 		struct omapfb_vram_info		vram_info;
 		struct omapfb_tearsync_info	tearsync_info;
+		struct omapfb_display_info	display_info;
 	} p;
 
 	int r = 0;
@@ -738,6 +739,29 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 
 		r = display->enable_te(display, !!p.tearsync_info.enabled);
 
+		break;
+	}
+
+	case OMAPFB_GET_DISPLAY_INFO: {
+		u16 xres, yres;
+
+		DBG("ioctl GET_DISPLAY_INFO\n");
+
+		if (display == NULL) {
+			r = -ENODEV;
+			break;
+		}
+
+		display->get_resolution(display, &xres, &yres);
+
+		p.display_info.xres = xres;
+		p.display_info.yres = yres;
+		p.display_info.width = 0;
+		p.display_info.height = 0;
+
+		if (copy_to_user((void __user *)arg, &p.display_info,
+					sizeof(p.display_info)))
+			r = -EFAULT;
 		break;
 	}
 
