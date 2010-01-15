@@ -670,6 +670,8 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	}
 
 	use_short_slot = !!(capab & WLAN_CAPABILITY_SHORT_SLOT_TIME);
+	if (sdata->local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
+		use_short_slot = true;
 
 	if (use_protection != bss_conf->use_cts_prot) {
 		bss_conf->use_cts_prot = use_protection;
