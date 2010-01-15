@@ -255,7 +255,6 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier;
-	u32 new_de_iir, new_gt_iir;
 	struct drm_i915_master_private *master_priv;
 
 	/* disable master interrupt before clearing iir  */
@@ -266,35 +265,29 @@ irqreturn_t igdng_irq_handler(struct drm_device *dev)
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
 
-	for (;;) {
-		if (de_iir == 0 && gt_iir == 0)
-			break;
+	if (de_iir == 0 && gt_iir == 0)
+		goto done;
 
-		ret = IRQ_HANDLED;
+	ret = IRQ_HANDLED;
 
-		I915_WRITE(DEIIR, de_iir);
-		new_de_iir = I915_READ(DEIIR);
-		I915_WRITE(GTIIR, gt_iir);
-		new_gt_iir = I915_READ(GTIIR);
-
-		if (dev->primary->master) {
-			master_priv = dev->primary->master->driver_priv;
-			if (master_priv->sarea_priv)
-				master_priv->sarea_priv->last_dispatch =
-					READ_BREADCRUMB(dev_priv);
-		}
-
-		if (gt_iir & GT_USER_INTERRUPT) {
-			u32 seqno = i915_get_gem_seqno(dev);
-			dev_priv->mm.irq_gem_seqno = seqno;
-			trace_i915_gem_request_complete(dev, seqno);
-			DRM_WAKEUP(&dev_priv->irq_queue);
-		}
-
-		de_iir = new_de_iir;
-		gt_iir = new_gt_iir;
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
 	}
 
+	if (gt_iir & GT_USER_INTERRUPT) {
+		u32 seqno = i915_get_gem_seqno(dev);
+		dev_priv->mm.irq_gem_seqno = seqno;
+		trace_i915_gem_request_complete(dev, seqno);
+		DRM_WAKEUP(&dev_priv->irq_queue);
+	}
+
+	I915_WRITE(GTIIR, gt_iir);
+	I915_WRITE(DEIIR, de_iir);
+
+done:
 	I915_WRITE(DEIER, de_ier);
 	(void)I915_READ(DEIER);
 
