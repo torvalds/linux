@@ -42,23 +42,23 @@ If you do not specify any options, they will default to
   option 1: I/O base address. The following table is provided as a help
    of the hardware jumpers.
 
-         address            jumper JADR
-          0x300                 1 (factory default)
-          0x320                 2
-          0x340                 3
-          0x360                 4
-          0x380                 5
-          0x3A0                 6
+	 address            jumper JADR
+	  0x300                 1 (factory default)
+	  0x320                 2
+	  0x340                 3
+	  0x360                 4
+	  0x380                 5
+	  0x3A0                 6
 
   option 2: unipolar/bipolar ADC selection: 0 -> bipolar, 1 -> unipolar
 
-        selection         comedi_config option            JUB
-         bipolar                0                         2-3 (factory default)
-         unipolar               1                         1-2
+	selection         comedi_config option            JUB
+	 bipolar                0                         2-3 (factory default)
+	 unipolar               1                         1-2
 
   option 3: single-ended/differential AI selection: 0 -> SE, 1 -> differential
 
-        selection         comedi_config option     JCHA    JCHB
+	selection         comedi_config option     JCHA    JCHB
        single-ended             0                  1-2     1-2 (factory default)
        differential             1                  2-3     2-3
 
@@ -140,7 +140,7 @@ static const struct adq12b_board adq12b_boards[] = {
 	.ai_bits = 12,
 	.di_chans = 8,
 	.do_chans = 5
-        }*/
+	}*/
 };
 
 #define thisboard ((const struct adq12b_board *)dev->board_ptr)
@@ -164,14 +164,15 @@ struct adq12b_private {
 static int adq12b_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
 static int adq12b_detach(struct comedi_device *dev);
+
 static struct comedi_driver driver_adq12b = {
-driver_name:"adq12b",
-module:THIS_MODULE,
-attach:adq12b_attach,
-detach:adq12b_detach,
-board_name:&adq12b_boards[0].name,
-offset:sizeof(struct adq12b_board),
-num_names:ARRAY_SIZE(adq12b_boards),
+	.driver_name = "adq12b",
+	.module = THIS_MODULE,
+	.attach = adq12b_attach,
+	.detach = adq12b_detach,
+	.board_name = &adq12b_boards[0].name,
+	.offset = sizeof(struct adq12b_board),
+	.num_names = ARRAY_SIZE(adq12b_boards),
 };
 
 static int adq12b_ai_rinsn(struct comedi_device *dev,
@@ -259,11 +260,10 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan = thisboard->ai_se_chans;
 	}
 
-	if (unipolar) {
+	if (unipolar)
 		s->range_table = &range_adq12b_ai_unipolar;
-	} else {
+	else
 		s->range_table = &range_adq12b_ai_bipolar;
-	}
 
 	s->maxdata = (1 << thisboard->ai_bits) - 1;
 
@@ -344,11 +344,11 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,
 		/* wait for end of convertion */
 		i = 0;
 		do {
-/* udelay(1); */
+			/* udelay(1); */
 			status = inb(dev->iobase + ADQ12B_STINR);
 			status = status & ADQ12B_EOC;
 		} while (status == 0 && ++i < TIMEOUT);
-/* } while (++i < 10); */
+		/* } while (++i < 10); */
 
 		/* read data */
 		hi = inb(dev->iobase + ADQ12B_ADHIG);
