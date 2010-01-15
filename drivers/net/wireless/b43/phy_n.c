@@ -344,6 +344,40 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_PHASETR_B2, 0x20);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/PA%20override */
+static void b43_nphy_pa_override(struct b43_wldev *dev, bool enable)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+	enum ieee80211_band band;
+	u16 tmp;
+
+	if (!enable) {
+		nphy->rfctrl_intc1_save = b43_phy_read(dev,
+						       B43_NPHY_RFCTL_INTC1);
+		nphy->rfctrl_intc2_save = b43_phy_read(dev,
+						       B43_NPHY_RFCTL_INTC2);
+		band = b43_current_band(dev->wl);
+		if (dev->phy.rev >= 3) {
+			if (band == IEEE80211_BAND_5GHZ)
+				tmp = 0x600;
+			else
+				tmp = 0x480;
+		} else {
+			if (band == IEEE80211_BAND_5GHZ)
+				tmp = 0x180;
+			else
+				tmp = 0x120;
+		}
+		b43_phy_write(dev, B43_NPHY_RFCTL_INTC1, tmp);
+		b43_phy_write(dev, B43_NPHY_RFCTL_INTC2, tmp);
+	} else {
+		b43_phy_write(dev, B43_NPHY_RFCTL_INTC1,
+				nphy->rfctrl_intc1_save);
+		b43_phy_write(dev, B43_NPHY_RFCTL_INTC2,
+				nphy->rfctrl_intc2_save);
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
 static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
 {
@@ -964,10 +998,10 @@ int b43_phy_initn(struct b43_wldev *dev)
 
 	/* TODO N PHY MAC PHY Clock Set with argument 1 */
 
-	/* b43_nphy_pa_override(dev, false); */
+	b43_nphy_pa_override(dev, false);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RX2TX);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
-	/* b43_nphy_pa_override(dev, true); */
+	b43_nphy_pa_override(dev, true);
 
 	b43_nphy_classifier(dev, 0, 0);
 	b43_nphy_read_clip_detection(dev, clip);
