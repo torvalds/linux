@@ -489,7 +489,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		if (credit_alloc < work_alloc) {
 			rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc - credit_alloc);
 			work_alloc = credit_alloc;
-			flow_controlled++;
+			flow_controlled = 1;
 		}
 		if (work_alloc == 0) {
 			set_bit(RDS_LL_SEND_FULL, &conn->c_flags);
@@ -552,9 +552,11 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		/*
 		 * Update adv_credits since we reset the ACK_REQUIRED bit.
 		 */
-		rds_ib_send_grab_credits(ic, 0, &posted, 1, RDS_MAX_ADV_CREDIT - adv_credits);
-		adv_credits += posted;
-		BUG_ON(adv_credits > 255);
+		if (ic->i_flowctl) {
+			rds_ib_send_grab_credits(ic, 0, &posted, 1, RDS_MAX_ADV_CREDIT - adv_credits);
+			adv_credits += posted;
+			BUG_ON(adv_credits > 255);
+		}
 	}
 
 	/* Sometimes you want to put a fence between an RDMA
@@ -619,13 +621,13 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		/*
 		 * Always signal the last one if we're stopping due to flow control.
 		 */
-		if (flow_controlled && i == (work_alloc-1))
+		if (ic->i_flowctl && flow_controlled && i == (work_alloc-1))
 			send->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
 
 		rdsdebug("send %p wr %p num_sge %u next %p\n", send,
 			 &send->s_wr, send->s_wr.num_sge, send->s_wr.next);
 
-		if (adv_credits) {
+		if (ic->i_flowctl && adv_credits) {
 			struct rds_header *hdr = &ic->i_send_hdrs[pos];
 
 			/* add credit and redo the header checksum */
