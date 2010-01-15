@@ -266,6 +266,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	}
 
 	if (mod->Attributes & CONF_IRQ_CHANGE_VALID) {
+		mutex_lock(&s->ops_mutex);
 		if (mod->Attributes & CONF_ENABLE_IRQ) {
 			c->Attributes |= CONF_ENABLE_IRQ;
 			s->socket.io_irq = s->irq.AssignedIRQ;
@@ -274,6 +275,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 			s->socket.io_irq = 0;
 		}
 		s->ops->set_socket(s, &s->socket);
+		mutex_unlock(&s->ops_mutex);
 	}
 
 	if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
@@ -288,12 +290,15 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 			dev_dbg(&s->dev, "Vpp1 and Vpp2 must be the same\n");
 			return -EINVAL;
 		}
+		mutex_lock(&s->ops_mutex);
 		s->socket.Vpp = mod->Vpp1;
 		if (s->ops->set_socket(s, &s->socket)) {
+			mutex_unlock(&s->ops_mutex);
 			dev_printk(KERN_WARNING, &s->dev,
 				   "Unable to set VPP\n");
 			return -EIO;
 		}
+		mutex_unlock(&s->ops_mutex);
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
 		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
@@ -336,6 +341,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 	config_t *c = p_dev->function_config;
 	int i;
 
+	mutex_lock(&s->ops_mutex);
 	if (p_dev->_locked) {
 		p_dev->_locked = 0;
 		if (--(s->lock_count) == 0) {
@@ -347,7 +353,6 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 	}
 	if (c->state & CONFIG_LOCKED) {
 		c->state &= ~CONFIG_LOCKED;
-		mutex_lock(&s->ops_mutex);
 		if (c->state & CONFIG_IO_REQ)
 			for (i = 0; i < MAX_IO_WIN; i++) {
 				if (!s->io[i].res)
@@ -358,8 +363,8 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 				io.map = i;
 				s->ops->set_io_map(s, &io);
 			}
-		mutex_unlock(&s->ops_mutex);
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 } /* pcmcia_release_configuration */
@@ -493,9 +498,11 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		return -EACCES;
 	}
 
+	mutex_lock(&s->ops_mutex);
 	/* Do power control.  We don't allow changes in Vcc. */
 	s->socket.Vpp = req->Vpp;
 	if (s->ops->set_socket(s, &s->socket)) {
+		mutex_unlock(&s->ops_mutex);
 		dev_printk(KERN_WARNING, &s->dev,
 			   "Unable to set socket state\n");
 		return -EINVAL;
@@ -518,6 +525,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		s->socket.io_irq = 0;
 	s->ops->set_socket(s, &s->socket);
 	s->lock_count++;
+	mutex_unlock(&s->ops_mutex);
 
 	/* Set up CIS configuration registers */
 	base = c->ConfigBase = req->ConfigBase;
@@ -698,6 +706,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		return -EBUSY;
 	}
 
+	mutex_lock(&s->ops_mutex);
 	/* Decide what type of interrupt we are registering */
 	type = 0;
 	if (s->functions > 1)		/* All of this ought to be handled higher up */
@@ -790,6 +799,8 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 #ifdef CONFIG_PCMCIA_PROBE
 	pcmcia_used_irq[irq]++;
 #endif
+
+	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 } /* pcmcia_request_irq */

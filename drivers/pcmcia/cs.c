@@ -383,6 +383,8 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	dev_dbg(&s->dev, "shutdown\n");
 
 	send_event(s, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
+
+	mutex_lock(&s->ops_mutex);
 	s->state &= SOCKET_INUSE | SOCKET_PRESENT;
 	msleep(shutdown_delay * 10);
 	s->state &= SOCKET_INUSE;
@@ -410,6 +412,7 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	}
 
 	s->state &= ~SOCKET_INUSE;
+	mutex_unlock(&s->ops_mutex);
 }
 
 static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
@@ -498,6 +501,7 @@ static int socket_insert(struct pcmcia_socket *skt)
 
 	dev_dbg(&skt->dev, "insert\n");
 
+	mutex_lock(&skt->ops_mutex);
 	WARN_ON(skt->state & SOCKET_INUSE);
 	skt->state |= SOCKET_INUSE;
 
@@ -517,9 +521,11 @@ static int socket_insert(struct pcmcia_socket *skt)
 		}
 #endif
 		dev_dbg(&skt->dev, "insert done\n");
+		mutex_unlock(&skt->ops_mutex);
 
 		send_event(skt, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
 	} else {
+		mutex_unlock(&skt->ops_mutex);
 		socket_shutdown(skt);
 	}
 
@@ -531,6 +537,7 @@ static int socket_suspend(struct pcmcia_socket *skt)
 	if (skt->state & SOCKET_SUSPEND)
 		return -EBUSY;
 
+	mutex_lock(&skt->ops_mutex);
 	skt->suspended_state = skt->state;
 
 	send_event(skt, CS_EVENT_PM_SUSPEND, CS_EVENT_PRI_LOW);
@@ -539,23 +546,27 @@ static int socket_suspend(struct pcmcia_socket *skt)
 	if (skt->ops->suspend)
 		skt->ops->suspend(skt);
 	skt->state |= SOCKET_SUSPEND;
-
+	mutex_unlock(&skt->ops_mutex);
 	return 0;
 }
 
 static int socket_early_resume(struct pcmcia_socket *skt)
 {
+	mutex_lock(&skt->ops_mutex);
 	skt->socket = dead_socket;
 	skt->ops->init(skt);
 	skt->ops->set_socket(skt, &skt->socket);
 	if (skt->state & SOCKET_PRESENT)
 		skt->resume_status = socket_setup(skt, resume_delay);
+	mutex_unlock(&skt->ops_mutex);
 	return 0;
 }
 
 static int socket_late_resume(struct pcmcia_socket *skt)
 {
+	mutex_lock(&skt->ops_mutex);
 	skt->state &= ~SOCKET_SUSPEND;
+	mutex_unlock(&skt->ops_mutex);
 
 	if (!(skt->state & SOCKET_PRESENT))
 		return socket_insert(skt);
@@ -795,7 +806,10 @@ int pcmcia_reset_card(struct pcmcia_socket *skt)
 			send_event(skt, CS_EVENT_RESET_PHYSICAL, CS_EVENT_PRI_LOW);
 			if (skt->callback)
 				skt->callback->suspend(skt);
-			if (socket_reset(skt) == 0) {
+			mutex_lock(&skt->ops_mutex);
+			ret = socket_reset(skt);
+			mutex_unlock(&skt->ops_mutex);
+			if (ret == 0) {
 				send_event(skt, CS_EVENT_CARD_RESET, CS_EVENT_PRI_LOW);
 				if (skt->callback)
 					skt->callback->resume(skt);
