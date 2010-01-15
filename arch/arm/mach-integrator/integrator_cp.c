@@ -577,7 +577,6 @@ static void __init intcp_timer_init(void)
 
 static struct sys_timer cp_timer = {
 	.init		= intcp_timer_init,
-	.offset		= integrator_gettimeoffset,
 };
 
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")

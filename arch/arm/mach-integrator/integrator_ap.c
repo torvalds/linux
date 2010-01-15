@@ -342,7 +342,6 @@ static void __init ap_init_timer(void)
 
 static struct sys_timer ap_timer = {
 	.init		= ap_init_timer,
-	.offset		= integrator_gettimeoffset,
 };
 
 MACHINE_START(INTEGRATOR, "ARM-Integrator")

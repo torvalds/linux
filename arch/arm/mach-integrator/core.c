@@ -19,6 +19,7 @@
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/clocksource.h>
 #include <linux/io.h>
 
 #include <asm/clkdev.h>
@@ -225,7 +226,6 @@ EXPORT_SYMBOL(cm_control);
 #define TIMER0_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000000)
 #define TIMER1_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000100)
 #define TIMER2_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000200)
-#define VA_IC_BASE     IO_ADDRESS(INTEGRATOR_IC_BASE) 
 
 /*
  * How long is the timer interval?
@@ -241,42 +241,38 @@ EXPORT_SYMBOL(cm_control);
 
 static unsigned long timer_reload;
 
-/*
- * Returns number of ms since last clock interrupt.  Note that interrupts
- * will have been disabled by do_gettimeoffset()
- */
-unsigned long integrator_gettimeoffset(void)
+static void __iomem * const clksrc_base = (void __iomem *)TIMER2_VA_BASE;
+
+static cycle_t timersp_read(struct clocksource *cs)
 {
-	unsigned long ticks1, ticks2, status;
+	return ~(readl(clksrc_base + TIMER_VALUE) & 0xffff);
+}
 
-	/*
-	 * Get the current number of ticks.  Note that there is a race
-	 * condition between us reading the timer and checking for
-	 * an interrupt.  We get around this by ensuring that the
-	 * counter has not reloaded between our two reads.
-	 */
-	ticks2 = readl(TIMER1_VA_BASE + TIMER_VALUE) & 0xffff;
-	do {
-		ticks1 = ticks2;
-		status = __raw_readl(VA_IC_BASE + IRQ_RAW_STATUS);
-		ticks2 = readl(TIMER1_VA_BASE + TIMER_VALUE) & 0xffff;
-	} while (ticks2 > ticks1);
+static struct clocksource clocksource_timersp = {
+	.name		= "timer2",
+	.rating		= 200,
+	.read		= timersp_read,
+	.mask		= CLOCKSOURCE_MASK(16),
+	.shift		= 16,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
 
-	/*
-	 * Number of ticks since last interrupt.
-	 */
-	ticks1 = timer_reload - ticks2;
+static void integrator_clocksource_init(u32 khz)
+{
+	struct clocksource *cs = &clocksource_timersp;
+	void __iomem *base = clksrc_base;
+	u32 ctrl = TIMER_CTRL_ENABLE;
 
-	/*
-	 * Interrupt pending?  If so, we've reloaded once already.
-	 */
-	if (status & (1 << IRQ_TIMERINT1))
-		ticks1 += timer_reload;
+	if (khz >= 1500) {
+		khz /= 16;
+		ctrl = TIMER_CTRL_DIV16;
+	}
 
-	/*
-	 * Convert the ticks to usecs
-	 */
-	return TICKS2USECS(ticks1);
+	writel(ctrl, base + TIMER_CTRL);
+	writel(0xffff, base + TIMER_LOAD);
+
+	cs->mult = clocksource_khz2mult(khz, cs->shift);
+	clocksource_register(cs);
 }
 
 /*
@@ -307,6 +303,8 @@ static struct irqaction integrator_timer_irq = {
 void __init integrator_time_init(unsigned long reload, unsigned int ctrl)
 {
 	unsigned int timer_ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
+
+	integrator_clocksource_init(reload * HZ / 1000);
 
 	timer_reload = reload;
 	timer_ctrl |= ctrl;
