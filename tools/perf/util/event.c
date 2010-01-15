@@ -110,7 +110,10 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	while (1) {
 		char bf[BUFSIZ], *pbf = bf;
 		event_t ev = {
-			.header = { .type = PERF_RECORD_MMAP },
+			.header = {
+				.type = PERF_RECORD_MMAP,
+				.misc = 0, /* Just like the kernel, see kernel/perf_event.c __perf_event_mmap */
+			 },
 		};
 		int n;
 		size_t size;
@@ -170,6 +173,7 @@ int event__synthesize_modules(event__handler_t process,
 
 		size = ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
 		memset(&ev, 0, sizeof(ev));
+		ev.mmap.header.misc = 1; /* kernel uses 0 for user space maps, see kernel/perf_event.c __perf_event_mmap */
 		ev.mmap.header.type = PERF_RECORD_MMAP;
 		ev.mmap.header.size = (sizeof(ev.mmap) -
 				        (sizeof(ev.mmap.filename) - size));
@@ -236,7 +240,10 @@ int event__synthesize_kernel_mmap(event__handler_t process,
 {
 	size_t size;
 	event_t ev = {
-		.header = { .type = PERF_RECORD_MMAP },
+		.header = {
+			.type = PERF_RECORD_MMAP,
+			.misc = 1, /* kernel uses 0 for user space maps, see kernel/perf_event.c __perf_event_mmap */
+		},
 	};
 	/*
 	 * We should get this from /sys/kernel/sections/.text, but till that is

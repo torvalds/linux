@@ -117,8 +117,12 @@ static void write_event(event_t *buf, size_t size)
 	* Add it to the list of DSOs, so that when we finish this
 	 * record session we can pick the available build-ids.
 	 */
-	if (buf->header.type == PERF_RECORD_MMAP)
-		dsos__findnew(buf->mmap.filename);
+	if (buf->header.type == PERF_RECORD_MMAP) {
+		struct list_head *head = &dsos__user;
+		if (buf->mmap.header.misc == 1)
+			head = &dsos__kernel;
+		__dsos__findnew(head, buf->mmap.filename);
+	}
 
 	write_output(buf, size);
 }
