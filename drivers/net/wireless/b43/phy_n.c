@@ -1434,6 +1434,232 @@ static void b43_nphy_restore_cal(struct b43_wldev *dev)
 	b43_nphy_rx_iq_coeffs(dev, true, rxcal_coeffs);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalTxIqlo */
+static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
+				struct nphy_txgains target,
+				bool full, bool mphase)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+	int i;
+	int error = 0;
+	int freq;
+	bool avoid = false;
+	u8 length;
+	u16 tmp, core, type, count, max, numb, last, cmd;
+	const u16 *table;
+	bool phy6or5x;
+
+	u16 buffer[11];
+	u16 diq_start = 0;
+	u16 save[2];
+	u16 gain[2];
+	struct nphy_iqcal_params params[2];
+	bool updated[2] = { };
+
+	b43_nphy_stay_in_carrier_search(dev, true);
+
+	if (dev->phy.rev >= 4) {
+		avoid = nphy->hang_avoid;
+		nphy->hang_avoid = 0;
+	}
+
+	/* TODO: Read an N PHY Table with ID 7, length 2, offset 0x110,
+		width 16, and data pointer save */
+
+	for (i = 0; i < 2; i++) {
+		b43_nphy_iq_cal_gain_params(dev, i, target, &params[i]);
+		gain[i] = params[i].cal_gain;
+	}
+	/* TODO: Write an N PHY Table with ID 7, length 2, offset 0x110,
+		width 16, and data pointer gain */
+
+	b43_nphy_tx_cal_radio_setup(dev);
+	/* TODO: Call N PHY TX Cal PHY Setup */
+
+	phy6or5x = dev->phy.rev >= 6 ||
+		(dev->phy.rev == 5 && nphy->ipa2g_on &&
+		b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ);
+	if (phy6or5x) {
+		/* TODO */
+	}
+
+	b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDGCTL, 0x8AA9);
+
+	if (1 /* FIXME: the band width is 20 MHz */)
+		freq = 2500;
+	else
+		freq = 5000;
+
+	if (nphy->mphase_cal_phase_id > 2)
+		;/* TODO: Call N PHY Run Samples with (band width * 8),
+			0xFFFF, 0, 1, 0 as arguments */
+	else
+		;/* TODO: Call N PHY TX Tone with freq, 250, 1, 0 as arguments
+			and save result as error */
+
+	if (error == 0) {
+		if (nphy->mphase_cal_phase_id > 2) {
+			table = nphy->mphase_txcal_bestcoeffs;
+			length = 11;
+			if (dev->phy.rev < 3)
+				length -= 2;
+		} else {
+			if (!full && nphy->txiqlocal_coeffsvalid) {
+				table = nphy->txiqlocal_bestc;
+				length = 11;
+				if (dev->phy.rev < 3)
+					length -= 2;
+			} else {
+				full = true;
+				if (dev->phy.rev >= 3) {
+					table = tbl_tx_iqlo_cal_startcoefs_nphyrev3;
+					length = B43_NTAB_TX_IQLO_CAL_STARTCOEFS_REV3;
+				} else {
+					table = tbl_tx_iqlo_cal_startcoefs;
+					length = B43_NTAB_TX_IQLO_CAL_STARTCOEFS;
+				}
+			}
+		}
+
+		/* TODO: Write an N PHY Table with ID 15, length from above,
+			offset 64, width 16, and the data pointer from above */
+
+		if (full) {
+			if (dev->phy.rev >= 3)
+				max = B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL_REV3;
+			else
+				max = B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL;
+		} else {
+			if (dev->phy.rev >= 3)
+				max = B43_NTAB_TX_IQLO_CAL_CMDS_RECAL_REV3;
+			else
+				max = B43_NTAB_TX_IQLO_CAL_CMDS_RECAL;
+		}
+
+		if (mphase) {
+			count = nphy->mphase_txcal_cmdidx;
+			numb = min(max,
+				(u16)(count + nphy->mphase_txcal_numcmds));
+		} else {
+			count = 0;
+			numb = max;
+		}
+
+		for (; count < numb; count++) {
+			if (full) {
+				if (dev->phy.rev >= 3)
+					cmd = tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[count];
+				else
+					cmd = tbl_tx_iqlo_cal_cmds_fullcal[count];
+			} else {
+				if (dev->phy.rev >= 3)
+					cmd = tbl_tx_iqlo_cal_cmds_recal_nphyrev3[count];
+				else
+					cmd = tbl_tx_iqlo_cal_cmds_recal[count];
+			}
+
+			core = (cmd & 0x3000) >> 12;
+			type = (cmd & 0x0F00) >> 8;
+
+			if (phy6or5x && updated[core] == 0) {
+				b43_nphy_update_tx_cal_ladder(dev, core);
+				updated[core] = 1;
+			}
+
+			tmp = (params[core].ncorr[type] << 8) | 0x66;
+			b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDNNUM, tmp);
+
+			if (type == 1 || type == 3 || type == 4) {
+				/* TODO: Read an N PHY Table with ID 15,
+					length 1, offset 69 + core,
+					width 16, and data pointer buffer */
+				diq_start = buffer[0];
+				buffer[0] = 0;
+				/* TODO: Write an N PHY Table with ID 15,
+					length 1, offset 69 + core, width 16,
+					and data of 0 */
+			}
+
+			b43_phy_write(dev, B43_NPHY_IQLOCAL_CMD, cmd);
+			for (i = 0; i < 2000; i++) {
+				tmp = b43_phy_read(dev, B43_NPHY_IQLOCAL_CMD);
+				if (tmp & 0xC000)
+					break;
+				udelay(10);
+			}
+
+			/* TODO: Read an N PHY Table with ID 15,
+				length table_length, offset 96, width 16,
+				and data pointer buffer */
+			/* TODO: Write an N PHY Table with ID 15,
+				length table_length, offset 64, width 16,
+				and data pointer buffer */
+
+			if (type == 1 || type == 3 || type == 4)
+				buffer[0] = diq_start;
+		}
+
+		if (mphase)
+			nphy->mphase_txcal_cmdidx = (numb >= max) ? 0 : numb;
+
+		last = (dev->phy.rev < 3) ? 6 : 7;
+
+		if (!mphase || nphy->mphase_cal_phase_id == last) {
+			/* TODO: Write an N PHY Table with ID 15, length 4,
+				offset 96, width 16, and data pointer buffer */
+			/* TODO: Read an N PHY Table with ID 15, length 4,
+				offset 80, width 16, and data pointer buffer */
+			if (dev->phy.rev < 3) {
+				buffer[0] = 0;
+				buffer[1] = 0;
+				buffer[2] = 0;
+				buffer[3] = 0;
+			}
+			/* TODO: Write an N PHY Table with ID 15, length 4,
+				offset 88, width 16, and data pointer buffer */
+			/* TODO: Read an N PHY Table with ID 15, length 2,
+				offset 101, width 16, and data pointer buffer*/
+			/* TODO: Write an N PHY Table with ID 15, length 2,
+				offset 85, width 16, and data pointer buffer */
+			/* TODO: Write an N PHY Table with ID 15, length 2,
+				offset 93, width 16, and data pointer buffer */
+			length = 11;
+			if (dev->phy.rev < 3)
+				length -= 2;
+			/* TODO: Read an N PHY Table with ID 15, length length,
+				offset 96, width 16, and data pointer
+				nphy->txiqlocal_bestc */
+			nphy->txiqlocal_coeffsvalid = true;
+			/* TODO: Set nphy->txiqlocal_chanspec to
+				the current channel */
+		} else {
+			length = 11;
+			if (dev->phy.rev < 3)
+				length -= 2;
+			/* TODO: Read an N PHY Table with ID 5, length length,
+				offset 96, width 16, and data pointer
+				nphy->mphase_txcal_bestcoeffs */
+		}
+
+		/* TODO: Call N PHY Stop Playback */
+		b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDGCTL, 0);
+	}
+
+	/* TODO: Call N PHY TX Cal PHY Cleanup */
+	/* TODO: Write an N PHY Table with ID 7, length 2, offset 0x110,
+		width 16, and data from save */
+
+	if (dev->phy.rev < 2 && (!mphase || nphy->mphase_cal_phase_id == last))
+		b43_nphy_tx_iq_workaround(dev);
+
+	if (dev->phy.rev >= 4)
+		nphy->hang_avoid = avoid;
+
+	b43_nphy_stay_in_carrier_search(dev, false);
+
+	return error;
+}
+
 /*
  * Init N-PHY
  * http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N
