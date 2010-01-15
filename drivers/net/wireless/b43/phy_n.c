@@ -443,6 +443,29 @@ static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 	return tmp;
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/carriersearch */
+static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev, bool enable)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = phy->n;
+
+	if (enable) {
+		u16 clip[] = { 0xFFFF, 0xFFFF };
+		if (nphy->deaf_count++ == 0) {
+			nphy->classifier_state = b43_nphy_classifier(dev, 0, 0);
+			b43_nphy_classifier(dev, 0x7, 0);
+			b43_nphy_read_clip_detection(dev, nphy->clip_state);
+			b43_nphy_write_clip_detection(dev, clip);
+		}
+		b43_nphy_reset_cca(dev);
+	} else {
+		if (--nphy->deaf_count == 0) {
+			b43_nphy_classifier(dev, 0x7, nphy->classifier_state);
+			b43_nphy_write_clip_detection(dev, nphy->clip_state);
+		}
+	}
+}
+
 enum b43_nphy_rf_sequence {
 	B43_RFSEQ_RX2TX,
 	B43_RFSEQ_TX2RX,
