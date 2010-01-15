@@ -1173,6 +1173,49 @@ static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxCalRadioSetup */
+static void b43_nphy_tx_cal_radio_setup(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+	u16 *save = nphy->tx_rx_cal_radio_saveregs;
+
+	if (dev->phy.rev >= 3) {
+		/* TODO */
+	} else {
+		save[0] = b43_radio_read16(dev, B2055_C1_TX_RF_IQCAL1);
+		b43_radio_write16(dev, B2055_C1_TX_RF_IQCAL1, 0x29);
+
+		save[1] = b43_radio_read16(dev, B2055_C1_TX_RF_IQCAL2);
+		b43_radio_write16(dev, B2055_C1_TX_RF_IQCAL2, 0x54);
+
+		save[2] = b43_radio_read16(dev, B2055_C2_TX_RF_IQCAL1);
+		b43_radio_write16(dev, B2055_C2_TX_RF_IQCAL1, 0x29);
+
+		save[3] = b43_radio_read16(dev, B2055_C2_TX_RF_IQCAL2);
+		b43_radio_write16(dev, B2055_C2_TX_RF_IQCAL2, 0x54);
+
+		save[3] = b43_radio_read16(dev, B2055_C1_PWRDET_RXTX);
+		save[4] = b43_radio_read16(dev, B2055_C2_PWRDET_RXTX);
+
+		if (!(b43_phy_read(dev, B43_NPHY_BANDCTL) &
+		    B43_NPHY_BANDCTL_5GHZ)) {
+			b43_radio_write16(dev, B2055_C1_PWRDET_RXTX, 0x04);
+			b43_radio_write16(dev, B2055_C2_PWRDET_RXTX, 0x04);
+		} else {
+			b43_radio_write16(dev, B2055_C1_PWRDET_RXTX, 0x20);
+			b43_radio_write16(dev, B2055_C2_PWRDET_RXTX, 0x20);
+		}
+
+		if (dev->phy.rev < 2) {
+			b43_radio_set(dev, B2055_C1_TX_BB_MXGM, 0x20);
+			b43_radio_set(dev, B2055_C2_TX_BB_MXGM, 0x20);
+		} else {
+			b43_radio_mask(dev, B2055_C1_TX_BB_MXGM, ~0x20);
+			b43_radio_mask(dev, B2055_C2_TX_BB_MXGM, ~0x20);
+		}
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetTxGain */
 static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
 {
