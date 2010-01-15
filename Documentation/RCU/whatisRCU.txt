@@ -327,7 +327,8 @@ a.	synchronize_rcu()	rcu_read_lock() / rcu_read_unlock()
 
 b.	call_rcu_bh()		rcu_read_lock_bh() / rcu_read_unlock_bh()
 
-c.	synchronize_sched()	preempt_disable() / preempt_enable()
+c.	synchronize_sched()	rcu_read_lock_sched() / rcu_read_unlock_sched()
+				preempt_disable() / preempt_enable()
 				local_irq_save() / local_irq_restore()
 				hardirq enter / hardirq exit
 				NMI enter / NMI exit

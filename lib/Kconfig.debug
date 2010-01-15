@@ -765,9 +765,9 @@ config RCU_CPU_STALL_DETECTOR
 	  CPUs are delaying the current grace period, but only when
 	  the grace period extends for excessive time periods.
 
-	  Say Y if you want RCU to perform such checks.
+	  Say N if you want to disable such checks.
 
-	  Say N if you are unsure.
+	  Say Y if you are unsure.
 
 config KPROBES_SANITY_TEST
 	bool "Kprobes sanity tests"
