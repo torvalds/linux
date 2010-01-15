@@ -455,6 +455,9 @@ static struct physmap_flash_data stamp_flash_data = {
 	.width      = 2,
 	.parts      = stamp_partitions,
 	.nr_parts   = ARRAY_SIZE(stamp_partitions),
+#ifdef CONFIG_ROMKERNEL
+	.probe_type = "map_rom",
+#endif
 };
 
 static struct resource stamp_flash_resource = {
