@@ -3095,7 +3095,12 @@ struct statistics_general {
 	__le32 ttl_timestamp;
 	struct statistics_div div;
 	__le32 rx_enable_counter;
-	__le32 reserved1;
+	/*
+	 * num_of_sos_states:
+	 *  count the number of times we have to re-tune
+	 *  in order to get out of bad PHY status
+	 */
+	__le32 num_of_sos_states;
 	__le32 reserved2;
 	__le32 reserved3;
 } __attribute__ ((packed));

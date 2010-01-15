@@ -1728,7 +1728,7 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 	struct iwl_priv *priv = file->private_data;
 	int pos = 0;
 	char *buf;
-	int bufsz = sizeof(struct statistics_general) * 8 + 250;
+	int bufsz = sizeof(struct statistics_general) * 10 + 300;
 	ssize_t ret;
 	struct statistics_general *general, *accum_general;
 	struct statistics_general *delta_general, *max_general;
@@ -1828,6 +1828,12 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 			 accum_general->rx_enable_counter,
 			 delta_general->rx_enable_counter,
 			 max_general->rx_enable_counter);
+	pos += scnprintf(buf + pos, bufsz - pos, ucode_stats_format,
+			 "num_of_sos_states:",
+			 le32_to_cpu(general->num_of_sos_states),
+			 accum_general->num_of_sos_states,
+			 delta_general->num_of_sos_states,
+			 max_general->num_of_sos_states);
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;
