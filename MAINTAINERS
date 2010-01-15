@@ -975,7 +975,6 @@ F:	drivers/platform/x86/asus-laptop.c
 
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 M:	Dan Williams <dan.j.williams@intel.com>
-M:	Maciej Sosnowski <maciej.sosnowski@intel.com>
 W:	http://sourceforge.net/projects/xscaleiop
 S:	Supported
 F:	Documentation/crypto/async-tx-api.txt
@@ -1804,7 +1803,6 @@ S:	Supported
 F:	fs/dlm/
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
-M:	Maciej Sosnowski <maciej.sosnowski@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
 S:	Supported
 F:	drivers/dma/
@@ -2767,7 +2765,7 @@ F:	arch/x86/kernel/microcode_core.c
 F:	arch/x86/kernel/microcode_intel.c
 
 INTEL I/OAT DMA DRIVER
-M:	Maciej Sosnowski <maciej.sosnowski@intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
 S:	Supported
 F:	drivers/dma/ioat*
 
