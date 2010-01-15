@@ -78,7 +78,10 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
 
 void plat_start_cpu(unsigned int cpu, unsigned long entry_point)
 {
-	__raw_writel(entry_point, RESET_REG(cpu));
+	if (__in_29bit_mode())
+		__raw_writel(entry_point, RESET_REG(cpu));
+	else
+		__raw_writel(virt_to_phys(entry_point), RESET_REG(cpu));
 
 	if (!(__raw_readl(STBCR_REG(cpu)) & STBCR_MSTP))
 		__raw_writel(STBCR_MSTP, STBCR_REG(cpu));
