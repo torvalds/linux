@@ -15,7 +15,21 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <asm/machvec.h>
+#include <asm/heartbeat.h>
 #include <asm/sizes.h>
+
+static struct resource heartbeat_resource = {
+	.start		= 0x07fff8b0,
+	.end		= 0x07fff8b0 + sizeof(u16) - 1,
+	.flags		= IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
+};
 
 static struct resource smsc911x_resources[] = {
 	[0] = {
@@ -82,6 +96,7 @@ static struct i2c_board_info __initdata sdk7786_i2c_devices[] = {
 };
 
 static struct platform_device *sh7786_devices[] __initdata = {
+	&heartbeat_device,
 	&smsc911x_device,
 	&smbus_fpga_device,
 	&smbus_pcie_device,
