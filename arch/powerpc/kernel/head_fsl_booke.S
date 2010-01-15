@@ -214,11 +214,11 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	bl	1f		/* Find our address */
 1:	mflr	r9
 	rlwimi	r7,r9,0,20,31
-	addi	r7,r7,24
+	addi	r7,r7,(2f - 1b)
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r6
 	rfi
-
+2:
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
 	mtspr   SPRN_MAS6,r6
