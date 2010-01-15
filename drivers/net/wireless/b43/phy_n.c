@@ -408,6 +408,45 @@ static void b43_nphy_reset_cca(struct b43_wldev *dev)
 	/* TODO: N PHY Force RF Seq with argument 2 */
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqEst */
+static void b43_nphy_rx_iq_est(struct b43_wldev *dev, struct nphy_iq_est *est,
+				u16 samps, u8 time, bool wait)
+{
+	int i;
+	u16 tmp;
+
+	b43_phy_write(dev, B43_NPHY_IQEST_SAMCNT, samps);
+	b43_phy_maskset(dev, B43_NPHY_IQEST_WT, ~B43_NPHY_IQEST_WT_VAL, time);
+	if (wait)
+		b43_phy_set(dev, B43_NPHY_IQEST_CMD, B43_NPHY_IQEST_CMD_MODE);
+	else
+		b43_phy_mask(dev, B43_NPHY_IQEST_CMD, ~B43_NPHY_IQEST_CMD_MODE);
+
+	b43_phy_set(dev, B43_NPHY_IQEST_CMD, B43_NPHY_IQEST_CMD_START);
+
+	for (i = 1000; i; i--) {
+		tmp = b43_phy_read(dev, B43_NPHY_IQEST_CMD);
+		if (!(tmp & B43_NPHY_IQEST_CMD_START)) {
+			est->i0_pwr = (b43_phy_read(dev, B43_NPHY_IQEST_IPACC_HI0) << 16) |
+					b43_phy_read(dev, B43_NPHY_IQEST_IPACC_LO0);
+			est->q0_pwr = (b43_phy_read(dev, B43_NPHY_IQEST_QPACC_HI0) << 16) |
+					b43_phy_read(dev, B43_NPHY_IQEST_QPACC_LO0);
+			est->iq0_prod = (b43_phy_read(dev, B43_NPHY_IQEST_IQACC_HI0) << 16) |
+					b43_phy_read(dev, B43_NPHY_IQEST_IQACC_LO0);
+
+			est->i1_pwr = (b43_phy_read(dev, B43_NPHY_IQEST_IPACC_HI1) << 16) |
+					b43_phy_read(dev, B43_NPHY_IQEST_IPACC_LO1);
+			est->q1_pwr = (b43_phy_read(dev, B43_NPHY_IQEST_QPACC_HI1) << 16) |
+					b43_phy_read(dev, B43_NPHY_IQEST_QPACC_LO1);
+			est->iq1_prod = (b43_phy_read(dev, B43_NPHY_IQEST_IQACC_HI1) << 16) |
+					b43_phy_read(dev, B43_NPHY_IQEST_IQACC_LO1);
+			return;
+		}
+		udelay(10);
+	}
+	memset(est, 0, sizeof(*est));
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqCoeffs */
 static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 					struct b43_phy_n_iq_comp *pcomp)
