@@ -297,7 +297,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs,
 	 * and 32bit devices on 16 bit busses
 	 * set the low bit of the alternating bit sequence of the address.
 	 */
-	if (((type * interleave) > bankwidth) && ((uint8_t)cmd_ofs == 0xaa))
+	if (((type * interleave) > bankwidth) && ((cmd_ofs & 0xff) == 0xaa))
 		addr |= (type >> 1)*interleave;
 
 	return  addr;
