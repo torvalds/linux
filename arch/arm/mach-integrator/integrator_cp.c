@@ -572,7 +572,7 @@ static void __init intcp_init(void)
 
 static void __init intcp_timer_init(void)
 {
-	integrator_time_init(1000000 / HZ, TIMER_CTRL_IE);
+	integrator_time_init(1000, TIMER_CTRL_IE);
 }
 
 static struct sys_timer cp_timer = {

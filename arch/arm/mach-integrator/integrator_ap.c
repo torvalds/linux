@@ -337,7 +337,7 @@ static void __init ap_init(void)
 
 static void __init ap_init_timer(void)
 {
-	integrator_time_init(1000000 * TICKS_PER_uSEC / HZ, 0);
+	integrator_time_init(TICKS_PER_uSEC * 1000, 0);
 }
 
 static struct sys_timer ap_timer = {

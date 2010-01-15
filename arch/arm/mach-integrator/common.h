@@ -1,1 +1,1 @@
-extern void integrator_time_init(unsigned long, unsigned int);
+extern void integrator_time_init(u32, unsigned int);

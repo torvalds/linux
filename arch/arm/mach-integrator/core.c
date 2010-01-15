@@ -363,12 +363,12 @@ static void integrator_clockevent_init(u32 khz, unsigned int ctrl)
 /*
  * Set up timer(s).
  */
-void __init integrator_time_init(unsigned long reload, unsigned int ctrl)
+void __init integrator_time_init(u32 khz, unsigned int ctrl)
 {
 	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
 	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
 
-	integrator_clocksource_init(reload * HZ / 1000);
-	integrator_clockevent_init(reload * HZ / 1000, ctrl);
+	integrator_clocksource_init(khz);
+	integrator_clockevent_init(khz, ctrl);
 }
