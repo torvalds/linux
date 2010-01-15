@@ -422,11 +422,10 @@ int event__process_task(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-void thread__find_addr_location(struct thread *self,
-				struct perf_session *session, u8 cpumode,
-				enum map_type type, u64 addr,
-				struct addr_location *al,
-				symbol_filter_t filter)
+void thread__find_addr_map(struct thread *self,
+			   struct perf_session *session, u8 cpumode,
+			   enum map_type type, u64 addr,
+			   struct addr_location *al)
 {
 	struct map_groups *mg = &self->mg;
 
@@ -441,7 +440,6 @@ void thread__find_addr_location(struct thread *self,
 	else {
 		al->level = 'H';
 		al->map = NULL;
-		al->sym = NULL;
 		return;
 	}
 try_again:
@@ -460,11 +458,21 @@ try_again:
 			mg = &session->kmaps;
 			goto try_again;
 		}
-		al->sym = NULL;
-	} else {
+	} else
 		al->addr = al->map->map_ip(al->map, al->addr);
+}
+
+void thread__find_addr_location(struct thread *self,
+				struct perf_session *session, u8 cpumode,
+				enum map_type type, u64 addr,
+				struct addr_location *al,
+				symbol_filter_t filter)
+{
+	thread__find_addr_map(self, session, cpumode, type, addr, al);
+	if (al->map != NULL)
 		al->sym = map__find_symbol(al->map, session, al->addr, filter);
-	}
+	else
+		al->sym = NULL;
 }
 
 static void dso__calc_col_width(struct dso *self)

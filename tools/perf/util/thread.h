@@ -48,6 +48,11 @@ static inline struct map *thread__find_map(struct thread *self,
 	return self ? map_groups__find(&self->mg, type, addr) : NULL;
 }
 
+void thread__find_addr_map(struct thread *self,
+			   struct perf_session *session, u8 cpumode,
+			   enum map_type type, u64 addr,
+			   struct addr_location *al);
+
 void thread__find_addr_location(struct thread *self,
 				struct perf_session *session, u8 cpumode,
 				enum map_type type, u64 addr,
