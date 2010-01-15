@@ -454,6 +454,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	 * - and country_ie[1] which is the IE length
 	 */
 	regulatory_hint_11d(wdev->wiphy,
+			    bss->channel->band,
 			    country_ie + 2,
 			    country_ie[1]);
 }

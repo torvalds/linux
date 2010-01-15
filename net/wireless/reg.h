@@ -41,14 +41,25 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
  * regulatory_hint_11d - hints a country IE as a regulatory domain
  * @wiphy: the wireless device giving the hint (used only for reporting
  *	conflicts)
+ * @band: the band on which the country IE was received on. This determines
+ *	the band we'll process the country IE channel triplets for.
  * @country_ie: pointer to the country IE
  * @country_ie_len: length of the country IE
  *
  * We will intersect the rd with the what CRDA tells us should apply
  * for the alpha2 this country IE belongs to, this prevents APs from
  * sending us incorrect or outdated information against a country.
+ *
+ * The AP is expected to provide Country IE channel triplets for the
+ * band it is on. It is technically possible for APs to send channel
+ * country IE triplets even for channels outside of the band they are
+ * in but for that they would have to use the regulatory extension
+ * in combination with a triplet but this behaviour is currently
+ * not observed. For this reason if a triplet is seen with channel
+ * information for a band the BSS is not present in it will be ignored.
  */
 void regulatory_hint_11d(struct wiphy *wiphy,
+			 enum ieee80211_band band,
 			 u8 *country_ie,
 			 u8 country_ie_len);
 
