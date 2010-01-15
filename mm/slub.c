@@ -2641,7 +2641,7 @@ static noinline struct kmem_cache *dma_kmalloc_cache(int index, gfp_t flags)
 	if (slab_state >= SYSFS)
 		slabflags |= __SYSFS_ADD_DEFERRED;
 
-	if (!s || !text || !kmem_cache_open(s, flags, text,
+	if (!text || !kmem_cache_open(s, flags, text,
 			realsize, ARCH_KMALLOC_MINALIGN, slabflags, NULL)) {
 		s->size = 0;
 		kfree(text);
