@@ -995,6 +995,96 @@ static void b43_nphy_restore_rssi_cal(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Y, rssical_phy_regs[11]);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */
+static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
+{
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (dev->phy.rev >= 6) {
+			/* TODO If the chip is 47162
+				return txpwrctrl_tx_gain_ipa_rev5 */
+			return txpwrctrl_tx_gain_ipa_rev6;
+		} else if (dev->phy.rev >= 5) {
+			return txpwrctrl_tx_gain_ipa_rev5;
+		} else {
+			return txpwrctrl_tx_gain_ipa;
+		}
+	} else {
+		return txpwrctrl_tx_gain_ipa_5g;
+	}
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreCal */
+static void b43_nphy_restore_cal(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	u16 coef[4];
+	u16 *loft = NULL;
+	u16 *table = NULL;
+
+	int i;
+	u16 *txcal_radio_regs = NULL;
+	struct b43_phy_n_iq_comp *rxcal_coeffs = NULL;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (nphy->iqcal_chanspec_2G == 0)
+			return;
+		table = nphy->cal_cache.txcal_coeffs_2G;
+		loft = &nphy->cal_cache.txcal_coeffs_2G[5];
+	} else {
+		if (nphy->iqcal_chanspec_5G == 0)
+			return;
+		table = nphy->cal_cache.txcal_coeffs_5G;
+		loft = &nphy->cal_cache.txcal_coeffs_5G[5];
+	}
+
+	/* TODO: Write an N PHY table with ID 15, length 4, offset 80,
+		width 16, and data from table */
+
+	for (i = 0; i < 4; i++) {
+		if (dev->phy.rev >= 3)
+			table[i] = coef[i];
+		else
+			coef[i] = 0;
+	}
+
+	/* TODO: Write an N PHY table with ID 15, length 4, offset 88,
+		width 16, and data from coef */
+	/* TODO: Write an N PHY table with ID 15, length 2, offset 85,
+		width 16 and data from loft */
+	/* TODO: Write an N PHY table with ID 15, length 2, offset 93,
+		width 16 and data from loft */
+
+	if (dev->phy.rev < 2)
+		b43_nphy_tx_iq_workaround(dev);
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		txcal_radio_regs = nphy->cal_cache.txcal_radio_regs_2G;
+		rxcal_coeffs = &nphy->cal_cache.rxcal_coeffs_2G;
+	} else {
+		txcal_radio_regs = nphy->cal_cache.txcal_radio_regs_5G;
+		rxcal_coeffs = &nphy->cal_cache.rxcal_coeffs_5G;
+	}
+
+	/* TODO use some definitions */
+	if (dev->phy.rev >= 3) {
+		b43_radio_write(dev, 0x2021, txcal_radio_regs[0]);
+		b43_radio_write(dev, 0x2022, txcal_radio_regs[1]);
+		b43_radio_write(dev, 0x3021, txcal_radio_regs[2]);
+		b43_radio_write(dev, 0x3022, txcal_radio_regs[3]);
+		b43_radio_write(dev, 0x2023, txcal_radio_regs[4]);
+		b43_radio_write(dev, 0x2024, txcal_radio_regs[5]);
+		b43_radio_write(dev, 0x3023, txcal_radio_regs[6]);
+		b43_radio_write(dev, 0x3024, txcal_radio_regs[7]);
+	} else {
+		b43_radio_write(dev, 0x8B, txcal_radio_regs[0]);
+		b43_radio_write(dev, 0xBA, txcal_radio_regs[1]);
+		b43_radio_write(dev, 0x8D, txcal_radio_regs[2]);
+		b43_radio_write(dev, 0xBC, txcal_radio_regs[3]);
+	}
+	b43_nphy_rx_iq_coeffs(dev, true, rxcal_coeffs);
+}
+
 /*
  * Init N-PHY
  * http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N
