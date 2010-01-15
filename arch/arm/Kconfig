@@ -242,6 +242,7 @@ config ARCH_INTEGRATOR
 	select COMMON_CLKDEV
 	select ICST525
 	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for ARM's Integrator platform.
 
