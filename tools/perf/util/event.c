@@ -345,15 +345,15 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 
 			map = perf_session__new_module_map(session,
 							   self->mmap.start,
-							   short_module_name);
+							   self->mmap.filename);
 			if (map == NULL)
 				goto out_problem;
 
-			name = strdup(self->mmap.filename);
+			name = strdup(short_module_name);
 			if (name == NULL)
 				goto out_problem;
 
-			dso__set_long_name(map->dso, name);
+			map->dso->short_name = name;
 			map->end = map->start + self->mmap.len;
 		} else if (memcmp(self->mmap.filename, kmmap_prefix,
 				sizeof(kmmap_prefix) - 1) == 0) {
