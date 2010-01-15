@@ -32,26 +32,17 @@
  * NOTE: This board has 2 physical memory maps.
  *	 Please look at include/asm-sh/sh7785lcr.h or hardware manual.
  */
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= PLD_LEDCR,
-		.end	= PLD_LEDCR,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct heartbeat_data heartbeat_data = {
-	.regsize = 8,
+static struct resource heartbeat_resource = {
+	.start	= PLD_LEDCR,
+	.end	= PLD_LEDCR,
+	.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 };
 
 static struct platform_device heartbeat_device = {
 	.name		= "heartbeat",
 	.id		= -1,
-	.dev	= {
-		.platform_data	= &heartbeat_data,
-	},
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
 };
 
 static struct mtd_partition nor_flash_partitions[] = {

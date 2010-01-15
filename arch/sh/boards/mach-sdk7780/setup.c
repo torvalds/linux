@@ -20,27 +20,18 @@
 
 #define GPIO_PECR        0xFFEA0008
 
-//* Heartbeat */
-static struct heartbeat_data heartbeat_data = {
-	.regsize = 16,
-};
-
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start  = PA_LED,
-		.end    = PA_LED,
-		.flags  = IORESOURCE_MEM,
-	},
+/* Heartbeat */
+static struct resource heartbeat_resource = {
+	.start  = PA_LED,
+	.end    = PA_LED,
+	.flags  = IORESOURCE_MEM | IORESOURCE_MEM_16BIT,
 };
 
 static struct platform_device heartbeat_device = {
 	.name           = "heartbeat",
 	.id             = -1,
-	.dev = {
-		.platform_data = &heartbeat_data,
-	},
-	.num_resources  = ARRAY_SIZE(heartbeat_resources),
-	.resource       = heartbeat_resources,
+	.num_resources  = 1
+	.resource       = &heartbeat_resource,
 };
 
 /* SMC91x */

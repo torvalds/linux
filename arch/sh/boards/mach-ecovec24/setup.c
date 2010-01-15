@@ -64,18 +64,16 @@
 
 /* Heartbeat */
 static unsigned char led_pos[] = { 0, 1, 2, 3 };
+
 static struct heartbeat_data heartbeat_data = {
-	.regsize = 8,
 	.nr_bits = 4,
 	.bit_pos = led_pos,
 };
 
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start  = 0xA405012C, /* PTG */
-		.end    = 0xA405012E - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start  = 0xA405012C, /* PTG */
+	.end    = 0xA405012E - 1,
+	.flags  = IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 };
 
 static struct platform_device heartbeat_device = {
@@ -84,8 +82,8 @@ static struct platform_device heartbeat_device = {
 	.dev = {
 		.platform_data = &heartbeat_data,
 	},
-	.num_resources  = ARRAY_SIZE(heartbeat_resources),
-	.resource       = heartbeat_resources,
+	.num_resources  = 1,
+	.resource       = &heartbeat_resource,
 };
 
 /* MTD */
