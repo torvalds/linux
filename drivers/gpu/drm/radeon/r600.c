@@ -2473,8 +2473,12 @@ int r600_irq_set(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
-	if (!rdev->ih.enabled)
+	if (!rdev->ih.enabled) {
+		r600_disable_interrupts(rdev);
+		/* force the active interrupt state to all disabled */
+		r600_disable_interrupt_state(rdev);
 		return 0;
+	}
 
 	if (ASIC_IS_DCE3(rdev)) {
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -2692,6 +2696,8 @@ int r600_irq_process(struct radeon_device *rdev)
 	bool queue_hotplug = false;
 
 	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
+	if (!rdev->ih.enabled)
+		return IRQ_NONE;
 
 	spin_lock_irqsave(&rdev->ih.lock, flags);
 
