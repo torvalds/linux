@@ -919,6 +919,44 @@
 
 struct b43_wldev;
 
+struct b43_phy_n_iq_comp {
+	s16 a0;
+	s16 b0;
+	s16 a1;
+	s16 b1;
+};
+
+struct b43_phy_n_rssical_cache {
+	u16 rssical_radio_regs_2G[2];
+	u16 rssical_phy_regs_2G[12];
+
+	u16 rssical_radio_regs_5G[2];
+	u16 rssical_phy_regs_5G[12];
+};
+
+struct b43_phy_n_cal_cache {
+	u16 txcal_radio_regs_2G[8];
+	u16 txcal_coeffs_2G[8];
+	struct b43_phy_n_iq_comp rxcal_coeffs_2G;
+
+	u16 txcal_radio_regs_5G[8];
+	u16 txcal_coeffs_5G[8];
+	struct b43_phy_n_iq_comp rxcal_coeffs_5G;
+};
+
+struct b43_phy_n_txpwrindex {
+	s8 index;
+	s8 index_internal;
+	s8 index_internal_save;
+	u16 AfectrlOverride;
+	u16 AfeCtrlDacGain;
+	u16 rad_gain;
+	u8 bbmult;
+	u16 iqcomp_a;
+	u16 iqcomp_b;
+	u16 locomp;
+};
+
 struct b43_phy_n {
 	//TODO lots of missing stuff
 };

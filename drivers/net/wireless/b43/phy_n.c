@@ -29,6 +29,30 @@
 #include "phy_n.h"
 #include "tables_nphy.h"
 
+struct nphy_txgains {
+	u16 txgm[2];
+	u16 pga[2];
+	u16 pad[2];
+	u16 ipa[2];
+};
+
+struct nphy_iqcal_params {
+	u16 txgm;
+	u16 pga;
+	u16 pad;
+	u16 ipa;
+	u16 cal_gain;
+	u16 ncorr[5];
+};
+
+struct nphy_iq_est {
+	s32 iq0_prod;
+	u32 i0_pwr;
+	u32 q0_pwr;
+	s32 iq1_prod;
+	u32 i1_pwr;
+	u32 q1_pwr;
+};
 
 void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
 {//TODO

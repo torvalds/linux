@@ -46,6 +46,11 @@ struct b43_nphy_channeltab_entry {
 
 struct b43_wldev;
 
+struct nphy_txiqcal_ladder {
+	u8 percent;
+	u8 g_env;
+};
+
 /* Upload the default register value table.
  * If "ghz5" is true, we upload the 5Ghz table. Otherwise the 2.4Ghz
  * table is uploaded. If "ignore_uploadflag" is true, we upload any value
