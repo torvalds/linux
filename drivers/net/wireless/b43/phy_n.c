@@ -1151,6 +1151,89 @@ static const u32 *b43_nphy_get_ipa_gain_table(struct b43_wldev *dev)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetTxGain */
+static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	u16 curr_gain[2];
+	struct nphy_txgains target;
+	const u32 *table = NULL;
+
+	if (nphy->txpwrctrl == 0) {
+		int i;
+
+		if (nphy->hang_avoid)
+			b43_nphy_stay_in_carrier_search(dev, true);
+		/* TODO: Read an N PHY Table with ID 7, length 2,
+			offset 0x110, width 16, and curr_gain */
+		if (nphy->hang_avoid)
+			b43_nphy_stay_in_carrier_search(dev, false);
+
+		for (i = 0; i < 2; ++i) {
+			if (dev->phy.rev >= 3) {
+				target.ipa[i] = curr_gain[i] & 0x000F;
+				target.pad[i] = (curr_gain[i] & 0x00F0) >> 4;
+				target.pga[i] = (curr_gain[i] & 0x0F00) >> 8;
+				target.txgm[i] = (curr_gain[i] & 0x7000) >> 12;
+			} else {
+				target.ipa[i] = curr_gain[i] & 0x0003;
+				target.pad[i] = (curr_gain[i] & 0x000C) >> 2;
+				target.pga[i] = (curr_gain[i] & 0x0070) >> 4;
+				target.txgm[i] = (curr_gain[i] & 0x0380) >> 7;
+			}
+		}
+	} else {
+		int i;
+		u16 index[2];
+		index[0] = (b43_phy_read(dev, B43_NPHY_C1_TXPCTL_STAT) &
+			B43_NPHY_TXPCTL_STAT_BIDX) >>
+			B43_NPHY_TXPCTL_STAT_BIDX_SHIFT;
+		index[1] = (b43_phy_read(dev, B43_NPHY_C2_TXPCTL_STAT) &
+			B43_NPHY_TXPCTL_STAT_BIDX) >>
+			B43_NPHY_TXPCTL_STAT_BIDX_SHIFT;
+
+		for (i = 0; i < 2; ++i) {
+			if (dev->phy.rev >= 3) {
+				enum ieee80211_band band =
+					b43_current_band(dev->wl);
+
+				if ((nphy->ipa2g_on &&
+				     band == IEEE80211_BAND_2GHZ) ||
+				    (nphy->ipa5g_on &&
+				     band == IEEE80211_BAND_5GHZ)) {
+					table = b43_nphy_get_ipa_gain_table(dev);
+				} else {
+					if (band == IEEE80211_BAND_5GHZ) {
+						if (dev->phy.rev == 3)
+							table = b43_ntab_tx_gain_rev3_5ghz;
+						else if (dev->phy.rev == 4)
+							table = b43_ntab_tx_gain_rev4_5ghz;
+						else
+							table = b43_ntab_tx_gain_rev5plus_5ghz;
+					} else {
+						table = b43_ntab_tx_gain_rev3plus_2ghz;
+					}
+				}
+
+				target.ipa[i] = (table[index[i]] >> 16) & 0xF;
+				target.pad[i] = (table[index[i]] >> 20) & 0xF;
+				target.pga[i] = (table[index[i]] >> 24) & 0xF;
+				target.txgm[i] = (table[index[i]] >> 28) & 0xF;
+			} else {
+				table = b43_ntab_tx_gain_rev0_1_2;
+
+				target.ipa[i] = (table[index[i]] >> 16) & 0x3;
+				target.pad[i] = (table[index[i]] >> 18) & 0x3;
+				target.pga[i] = (table[index[i]] >> 20) & 0x7;
+				target.txgm[i] = (table[index[i]] >> 23) & 0x7;
+			}
+		}
+	}
+
+	return target;
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreCal */
 static void b43_nphy_restore_cal(struct b43_wldev *dev)
 {
@@ -1376,7 +1459,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 			do_cal = false;
 
 		if (do_cal) {
-			/* target = b43_nphy_get_tx_gains(dev); */
+			target = b43_nphy_get_tx_gains(dev);
 
 			if (nphy->antsel_type == 2)
 				;/*TODO NPHY Superswitch Init with argument 1*/
@@ -1388,7 +1471,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 					nphy->cal_orig_pwr_idx[1] =
 					    nphy->txpwrindex[1].index_internal;
 					/* TODO N PHY Pre Calibrate TX Gain */
-					/*target = b43_nphy_get_tx_gains(dev)*/
+					target = b43_nphy_get_tx_gains(dev);
 				}
 			}
 		}
