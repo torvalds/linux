@@ -741,7 +741,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		struct timeval tm;
 	} v;
 
-	unsigned int lv = sizeof(int);
+	int lv = sizeof(int);
 	int len;
 
 	if (get_user(len, optlen))
