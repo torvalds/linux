@@ -730,18 +730,22 @@ static bool increase_address_space(struct protection_domain *domain,
 
 static u64 *alloc_pte(struct protection_domain *domain,
 		      unsigned long address,
-		      int end_lvl,
+		      unsigned long page_size,
 		      u64 **pte_page,
 		      gfp_t gfp)
 {
+	int level, end_lvl;
 	u64 *pte, *page;
-	int level;
+
+	BUG_ON(!is_power_of_2(page_size));
 
 	while (address > PM_LEVEL_SIZE(domain->mode))
 		increase_address_space(domain, gfp);
 
-	level =  domain->mode - 1;
-	pte   = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
+	level   = domain->mode - 1;
+	pte     = &domain->pt_root[PM_LEVEL_INDEX(level, address)];
+	address = PAGE_SIZE_ALIGN(address, page_size);
+	end_lvl = PAGE_SIZE_LEVEL(page_size);
 
 	while (level > end_lvl) {
 		if (!IOMMU_PTE_PRESENT(*pte)) {
@@ -750,6 +754,10 @@ static u64 *alloc_pte(struct protection_domain *domain,
 				return NULL;
 			*pte = PM_LEVEL_PDE(level, virt_to_phys(page));
 		}
+
+		/* No level skipping support yet */
+		if (PM_PTE_LEVEL(*pte) != level)
+			return NULL;
 
 		level -= 1;
 
@@ -806,31 +814,36 @@ static int iommu_map_page(struct protection_domain *dom,
 			  unsigned long bus_addr,
 			  unsigned long phys_addr,
 			  int prot,
-			  int map_size)
+			  unsigned long page_size)
 {
 	u64 __pte, *pte;
-
-	bus_addr  = PAGE_ALIGN(bus_addr);
-	phys_addr = PAGE_ALIGN(phys_addr);
-
-	BUG_ON(!PM_ALIGNED(map_size, bus_addr));
-	BUG_ON(!PM_ALIGNED(map_size, phys_addr));
+	int i, count;
 
 	if (!(prot & IOMMU_PROT_MASK))
 		return -EINVAL;
 
-	pte = alloc_pte(dom, bus_addr, map_size, NULL, GFP_KERNEL);
+	bus_addr  = PAGE_ALIGN(bus_addr);
+	phys_addr = PAGE_ALIGN(phys_addr);
+	count     = PAGE_SIZE_PTE_COUNT(page_size);
+	pte       = alloc_pte(dom, bus_addr, page_size, NULL, GFP_KERNEL);
 
-	if (IOMMU_PTE_PRESENT(*pte))
-		return -EBUSY;
+	for (i = 0; i < count; ++i)
+		if (IOMMU_PTE_PRESENT(pte[i]))
+			return -EBUSY;
 
-	__pte = phys_addr | IOMMU_PTE_P;
+	if (page_size > PAGE_SIZE) {
+		__pte = PAGE_SIZE_PTE(phys_addr, page_size);
+		__pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_P | IOMMU_PTE_FC;
+	} else
+		__pte = phys_addr | IOMMU_PTE_P | IOMMU_PTE_FC;
+
 	if (prot & IOMMU_PROT_IR)
 		__pte |= IOMMU_PTE_IR;
 	if (prot & IOMMU_PROT_IW)
 		__pte |= IOMMU_PTE_IW;
 
-	*pte = __pte;
+	for (i = 0; i < count; ++i)
+		pte[i] = __pte;
 
 	update_domain(dom);
 
@@ -877,7 +890,7 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 	for (addr = e->address_start; addr < e->address_end;
 	     addr += PAGE_SIZE) {
 		ret = iommu_map_page(&dma_dom->domain, addr, addr, e->prot,
-				     PM_MAP_4k);
+				     PAGE_SIZE);
 		if (ret)
 			return ret;
 		/*
@@ -1005,7 +1018,7 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 		u64 *pte, *pte_page;
 
 		for (i = 0; i < num_ptes; ++i) {
-			pte = alloc_pte(&dma_dom->domain, address, PM_MAP_4k,
+			pte = alloc_pte(&dma_dom->domain, address, PAGE_SIZE,
 					&pte_page, gfp);
 			if (!pte)
 				goto out_free;
@@ -1711,7 +1724,7 @@ static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
 
 	pte = aperture->pte_pages[APERTURE_PAGE_INDEX(address)];
 	if (!pte) {
-		pte = alloc_pte(&dom->domain, address, PM_MAP_4k, &pte_page,
+		pte = alloc_pte(&dom->domain, address, PAGE_SIZE, &pte_page,
 				GFP_ATOMIC);
 		aperture->pte_pages[APERTURE_PAGE_INDEX(address)] = pte_page;
 	} else
@@ -2457,7 +2470,7 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 	paddr &= PAGE_MASK;
 
 	for (i = 0; i < npages; ++i) {
-		ret = iommu_map_page(domain, iova, paddr, prot, PM_MAP_4k);
+		ret = iommu_map_page(domain, iova, paddr, prot, PAGE_SIZE);
 		if (ret)
 			return ret;
 
