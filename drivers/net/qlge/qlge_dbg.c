@@ -123,6 +123,53 @@ static int ql_get_mpi_regs(struct ql_adapter *qdev, u32 * buf,
 	return status;
 }
 
+/* Read the ASIC probe dump */
+static unsigned int *ql_get_probe(struct ql_adapter *qdev, u32 clock,
+					u32 valid, u32 *buf)
+{
+	u32 module, mux_sel, probe, lo_val, hi_val;
+
+	for (module = 0; module < PRB_MX_ADDR_MAX_MODS; module++) {
+		if (!((valid >> module) & 1))
+			continue;
+		for (mux_sel = 0; mux_sel < PRB_MX_ADDR_MAX_MUX; mux_sel++) {
+			probe = clock
+				| PRB_MX_ADDR_ARE
+				| mux_sel
+				| (module << PRB_MX_ADDR_MOD_SEL_SHIFT);
+			ql_write32(qdev, PRB_MX_ADDR, probe);
+			lo_val = ql_read32(qdev, PRB_MX_DATA);
+			if (mux_sel == 0) {
+				*buf = probe;
+				buf++;
+			}
+			probe |= PRB_MX_ADDR_UP;
+			ql_write32(qdev, PRB_MX_ADDR, probe);
+			hi_val = ql_read32(qdev, PRB_MX_DATA);
+			*buf = lo_val;
+			buf++;
+			*buf = hi_val;
+			buf++;
+		}
+	}
+	return buf;
+}
+
+static int ql_get_probe_dump(struct ql_adapter *qdev, unsigned int *buf)
+{
+	/* First we have to enable the probe mux */
+	ql_write_mpi_reg(qdev, MPI_TEST_FUNC_PRB_CTL, MPI_TEST_FUNC_PRB_EN);
+	buf = ql_get_probe(qdev, PRB_MX_ADDR_SYS_CLOCK,
+			PRB_MX_ADDR_VALID_SYS_MOD, buf);
+	buf = ql_get_probe(qdev, PRB_MX_ADDR_PCI_CLOCK,
+			PRB_MX_ADDR_VALID_PCI_MOD, buf);
+	buf = ql_get_probe(qdev, PRB_MX_ADDR_XGM_CLOCK,
+			PRB_MX_ADDR_VALID_XGM_MOD, buf);
+	buf = ql_get_probe(qdev, PRB_MX_ADDR_FC_CLOCK,
+			PRB_MX_ADDR_VALID_FC_MOD, buf);
+	return 0;
+
+}
 
 /* Read out the routing index registers */
 static int ql_get_routing_index_registers(struct ql_adapter *qdev, u32 *buf)
@@ -557,6 +604,13 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	status = ql_get_ets_regs(qdev, &mpi_coredump->ets[0]);
 	if (status)
 		goto err;
+
+	ql_build_coredump_seg_header(&mpi_coredump->probe_dump_seg_hdr,
+				PROBE_DUMP_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->probe_dump),
+				"Probe Dump");
+	ql_get_probe_dump(qdev, &mpi_coredump->probe_dump[0]);
 
 	ql_build_coredump_seg_header(&mpi_coredump->routing_reg_seg_hdr,
 				ROUTING_INDEX_SEG_NUM,
