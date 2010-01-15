@@ -94,6 +94,23 @@ static u32 kvmppc_get_dec(struct kvm_vcpu *vcpu)
 }
 #endif
 
+static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.shadow_msr = vcpu->arch.msr;
+	/* Guest MSR values */
+	vcpu->arch.shadow_msr &= MSR_FE0 | MSR_FE1 | MSR_SF | MSR_SE |
+				 MSR_BE | MSR_DE;
+	/* Process MSR values */
+	vcpu->arch.shadow_msr |= MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_PR |
+				 MSR_EE;
+	/* External providers the guest reserved */
+	vcpu->arch.shadow_msr |= (vcpu->arch.msr & vcpu->arch.guest_owned_ext);
+	/* 64-bit Process MSR values */
+#ifdef CONFIG_PPC_BOOK3S_64
+	vcpu->arch.shadow_msr |= MSR_ISF | MSR_HV;
+#endif
+}
+
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 {
 	ulong old_msr = vcpu->arch.msr;
@@ -101,12 +118,10 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 #ifdef EXIT_DEBUG
 	printk(KERN_INFO "KVM: Set MSR to 0x%llx\n", msr);
 #endif
+
 	msr &= to_book3s(vcpu)->msr_mask;
 	vcpu->arch.msr = msr;
-	vcpu->arch.shadow_msr = msr | MSR_USER32;
-	vcpu->arch.shadow_msr &= (MSR_FE0 | MSR_USER64 | MSR_SE | MSR_BE |
-				  MSR_DE | MSR_FE1);
-	vcpu->arch.shadow_msr |= (msr & vcpu->arch.guest_owned_ext);
+	kvmppc_recalc_shadow_msr(vcpu);
 
 	if (msr & (MSR_WE|MSR_POW)) {
 		if (!vcpu->arch.pending_exceptions) {
@@ -610,7 +625,7 @@ static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 
 	vcpu->arch.guest_owned_ext &= ~msr;
 	current->thread.regs->msr &= ~msr;
-	kvmppc_set_msr(vcpu, vcpu->arch.msr);
+	kvmppc_recalc_shadow_msr(vcpu);
 }
 
 /* Handle external providers (FPU, Altivec, VSX) */
@@ -664,7 +679,7 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 
 	vcpu->arch.guest_owned_ext |= msr;
 
-	kvmppc_set_msr(vcpu, vcpu->arch.msr);
+	kvmppc_recalc_shadow_msr(vcpu);
 
 	return RESUME_GUEST;
 }
