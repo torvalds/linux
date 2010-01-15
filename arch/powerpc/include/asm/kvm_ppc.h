@@ -28,6 +28,9 @@
 #include <linux/types.h>
 #include <linux/kvm_types.h>
 #include <linux/kvm_host.h>
+#ifdef CONFIG_PPC_BOOK3S
+#include <asm/kvm_book3s.h>
+#endif
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
@@ -102,9 +105,10 @@ extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
-	if ( num < 14 )
+	if ( num < 14 ) {
 		get_paca()->shadow_vcpu.gpr[num] = val;
-	else
+		to_book3s(vcpu)->shadow_vcpu.gpr[num] = val;
+	} else
 		vcpu->arch.gpr[num] = val;
 }
 
@@ -119,6 +123,7 @@ static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
 {
 	get_paca()->shadow_vcpu.cr = val;
+	to_book3s(vcpu)->shadow_vcpu.cr = val;
 }
 
 static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
@@ -129,6 +134,7 @@ static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
 {
 	get_paca()->shadow_vcpu.xer = val;
+	to_book3s(vcpu)->shadow_vcpu.xer = val;
 }
 
 static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
