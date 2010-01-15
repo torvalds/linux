@@ -2014,6 +2014,18 @@ static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 	mutex_unlock(&sc->mutex);
 }
 
+static void ath9k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+
+	mutex_lock(&sc->mutex);
+	ah->coverage_class = coverage_class;
+	ath9k_hw_init_global_settings(ah);
+	mutex_unlock(&sc->mutex);
+}
+
 struct ieee80211_ops ath9k_ops = {
 	.tx 		    = ath9k_tx,
 	.start 		    = ath9k_start,
@@ -2033,4 +2045,5 @@ struct ieee80211_ops ath9k_ops = {
 	.sw_scan_start      = ath9k_sw_scan_start,
 	.sw_scan_complete   = ath9k_sw_scan_complete,
 	.rfkill_poll        = ath9k_rfkill_poll_state,
+	.set_coverage_class = ath9k_set_coverage_class,
 };

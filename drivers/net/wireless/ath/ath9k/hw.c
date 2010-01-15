@@ -1195,6 +1195,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 {
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
 	int acktimeout;
+	int slottime;
 	int sifstime;
 
 	ath_print(ath9k_hw_common(ah), ATH_DBG_RESET, "ah->misc_mode 0x%x\n",
@@ -1209,8 +1210,10 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	else
 		sifstime = 10;
 
-	acktimeout = ah->slottime + sifstime;
-	ath9k_hw_setslottime(ah, ah->slottime);
+	/* As defined by IEEE 802.11-2007 17.3.8.6 */
+	slottime = ah->slottime + 3 * ah->coverage_class;
+	acktimeout = slottime + sifstime;
+	ath9k_hw_setslottime(ah, slottime);
 	ath9k_hw_set_ack_timeout(ah, acktimeout);
 	ath9k_hw_set_cts_timeout(ah, acktimeout);
 	if (ah->globaltxtimeout != (u32) -1)
