@@ -647,6 +647,41 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 			"Failed RISC unpause. Status = 0x%.08x\n", status);
 		goto err;
 	}
+
+	/* Reset the RISC so we can dump RAM */
+	status = ql_hard_reset_mpi_risc(qdev);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed RISC reset. Status = 0x%.08x\n", status);
+		goto err;
+	}
+
+	ql_build_coredump_seg_header(&mpi_coredump->code_ram_seg_hdr,
+				WCS_RAM_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->code_ram),
+				"WCS RAM");
+	status = ql_dump_risc_ram_area(qdev, &mpi_coredump->code_ram[0],
+					CODE_RAM_ADDR, CODE_RAM_CNT);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed Dump of CODE RAM. Status = 0x%.08x\n", status);
+		goto err;
+	}
+
+	/* Insert the segment header */
+	ql_build_coredump_seg_header(&mpi_coredump->memc_ram_seg_hdr,
+				MEMC_RAM_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->memc_ram),
+				"MEMC RAM");
+	status = ql_dump_risc_ram_area(qdev, &mpi_coredump->memc_ram[0],
+					MEMC_RAM_ADDR, MEMC_RAM_CNT);
+	if (status) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed Dump of MEMC RAM. Status = 0x%.08x\n", status);
+		goto err;
+	}
 err:
 	ql_sem_unlock(qdev, SEM_PROC_REG_MASK); /* does flush too */
 	return status;

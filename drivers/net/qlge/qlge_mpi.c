@@ -30,6 +30,25 @@ int ql_pause_mpi_risc(struct ql_adapter *qdev)
 	return (count == 0) ? -ETIMEDOUT : 0;
 }
 
+int ql_hard_reset_mpi_risc(struct ql_adapter *qdev)
+{
+	u32 tmp;
+	int count = UDELAY_COUNT;
+
+	/* Reset the RISC */
+	ql_write32(qdev, CSR, CSR_CMD_SET_RST);
+	do {
+		tmp = ql_read32(qdev, CSR);
+		if (tmp & CSR_RR) {
+			ql_write32(qdev, CSR, CSR_CMD_CLR_RST);
+			break;
+		}
+		mdelay(UDELAY_DELAY);
+		count--;
+	} while (count);
+	return (count == 0) ? -ETIMEDOUT : 0;
+}
+
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data)
 {
 	int status;
@@ -725,6 +744,63 @@ int ql_mb_set_port_cfg(struct ql_adapter *qdev)
 			"Failed Set Port Configuration.\n");
 		status = -EIO;
 	}
+	return status;
+}
+
+int ql_mb_dump_ram(struct ql_adapter *qdev, u64 req_dma, u32 addr,
+	u32 size)
+{
+	int status = 0;
+	struct mbox_params mbc;
+	struct mbox_params *mbcp = &mbc;
+
+	memset(mbcp, 0, sizeof(struct mbox_params));
+
+	mbcp->in_count = 9;
+	mbcp->out_count = 1;
+
+	mbcp->mbox_in[0] = MB_CMD_DUMP_RISC_RAM;
+	mbcp->mbox_in[1] = LSW(addr);
+	mbcp->mbox_in[2] = MSW(req_dma);
+	mbcp->mbox_in[3] = LSW(req_dma);
+	mbcp->mbox_in[4] = MSW(size);
+	mbcp->mbox_in[5] = LSW(size);
+	mbcp->mbox_in[6] = MSW(MSD(req_dma));
+	mbcp->mbox_in[7] = LSW(MSD(req_dma));
+	mbcp->mbox_in[8] = MSW(addr);
+
+
+	status = ql_mailbox_command(qdev, mbcp);
+	if (status)
+		return status;
+
+	if (mbcp->mbox_out[0] != MB_CMD_STS_GOOD) {
+		QPRINTK(qdev, DRV, ERR,
+			"Failed to dump risc RAM.\n");
+		status = -EIO;
+	}
+	return status;
+}
+
+/* Issue a mailbox command to dump RISC RAM. */
+int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
+		u32 ram_addr, int word_count)
+{
+	int status;
+	char *my_buf;
+	dma_addr_t buf_dma;
+
+	my_buf = pci_alloc_consistent(qdev->pdev, word_count * sizeof(u32),
+					&buf_dma);
+	if (!my_buf)
+		return -EIO;
+
+	status = ql_mb_dump_ram(qdev, buf_dma, ram_addr, word_count);
+	if (!status)
+		memcpy(buf, my_buf, word_count * sizeof(u32));
+
+	pci_free_consistent(qdev->pdev, word_count * sizeof(u32), my_buf,
+				buf_dma);
 	return status;
 }
 
