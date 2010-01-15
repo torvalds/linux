@@ -288,7 +288,7 @@ static struct s3c2410_platform_nand mini2440_nand_info __initdata = {
 
 /* DM9000AEP 10/100 ethernet controller */
 
-static struct resource mini2440_dm9k_resource[] __initdata = {
+static struct resource mini2440_dm9k_resource[] = {
 	[0] = {
 		.start = MACH_MINI2440_DM9K_BASE,
 		.end   = MACH_MINI2440_DM9K_BASE + 3,
@@ -310,11 +310,11 @@ static struct resource mini2440_dm9k_resource[] __initdata = {
  * The DM9000 has no eeprom, and it's MAC address is set by
  * the bootloader before starting the kernel.
  */
-static struct dm9000_plat_data mini2440_dm9k_pdata __initdata = {
+static struct dm9000_plat_data mini2440_dm9k_pdata = {
 	.flags		= (DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM),
 };
 
-static struct platform_device mini2440_device_eth __initdata = {
+static struct platform_device mini2440_device_eth = {
 	.name		= "dm9000",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(mini2440_dm9k_resource),
@@ -341,7 +341,7 @@ static struct platform_device mini2440_device_eth __initdata = {
  *	|  |  +----+  +----+
  *	  .....
  */
-static struct gpio_keys_button mini2440_buttons[] __initdata = {
+static struct gpio_keys_button mini2440_buttons[] = {
 	{
 		.gpio		= S3C2410_GPG(0),		/* K1 */
 		.code		= KEY_F1,
@@ -384,12 +384,12 @@ static struct gpio_keys_button mini2440_buttons[] __initdata = {
 #endif
 };
 
-static struct gpio_keys_platform_data mini2440_button_data __initdata = {
+static struct gpio_keys_platform_data mini2440_button_data = {
 	.buttons	= mini2440_buttons,
 	.nbuttons	= ARRAY_SIZE(mini2440_buttons),
 };
 
-static struct platform_device mini2440_button_device __initdata = {
+static struct platform_device mini2440_button_device = {
 	.name		= "gpio-keys",
 	.id		= -1,
 	.dev		= {
@@ -433,7 +433,7 @@ static struct s3c24xx_led_platdata mini2440_led_backlight_pdata = {
 	.def_trigger	= "backlight",
 };
 
-static struct platform_device mini2440_led1 __initdata = {
+static struct platform_device mini2440_led1 = {
 	.name		= "s3c24xx_led",
 	.id		= 1,
 	.dev		= {
@@ -441,7 +441,7 @@ static struct platform_device mini2440_led1 __initdata = {
 	},
 };
 
-static struct platform_device mini2440_led2 __initdata = {
+static struct platform_device mini2440_led2 = {
 	.name		= "s3c24xx_led",
 	.id		= 2,
 	.dev		= {
@@ -449,7 +449,7 @@ static struct platform_device mini2440_led2 __initdata = {
 	},
 };
 
-static struct platform_device mini2440_led3 __initdata = {
+static struct platform_device mini2440_led3 = {
 	.name		= "s3c24xx_led",
 	.id		= 3,
 	.dev		= {
@@ -457,7 +457,7 @@ static struct platform_device mini2440_led3 __initdata = {
 	},
 };
 
-static struct platform_device mini2440_led4 __initdata = {
+static struct platform_device mini2440_led4 = {
 	.name		= "s3c24xx_led",
 	.id		= 4,
 	.dev		= {
@@ -465,7 +465,7 @@ static struct platform_device mini2440_led4 __initdata = {
 	},
 };
 
-static struct platform_device mini2440_led_backlight __initdata = {
+static struct platform_device mini2440_led_backlight = {
 	.name		= "s3c24xx_led",
 	.id		= 5,
 	.dev		= {
@@ -475,14 +475,14 @@ static struct platform_device mini2440_led_backlight __initdata = {
 
 /* AUDIO */
 
-static struct s3c24xx_uda134x_platform_data mini2440_audio_pins __initdata = {
+static struct s3c24xx_uda134x_platform_data mini2440_audio_pins = {
 	.l3_clk = S3C2410_GPB(4),
 	.l3_mode = S3C2410_GPB(2),
 	.l3_data = S3C2410_GPB(3),
 	.model = UDA134X_UDA1341
 };
 
-static struct platform_device mini2440_audio __initdata = {
+static struct platform_device mini2440_audio = {
 	.name		= "s3c24xx_uda134x",
 	.id		= 0,
 	.dev		= {
