@@ -138,19 +138,25 @@ Who:	Mauro Carvalho Chehab <mchehab@infradead.org>
 ---------------------------
 
 What:	PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
-When:	November 2005
+When:	2.6.35/2.6.36
 Files:	drivers/pcmcia/: pcmcia_ioctl.c
 Why:	With the 16-bit PCMCIA subsystem now behaving (almost) like a
 	normal hotpluggable bus, and with it using the default kernel
 	infrastructure (hotplug, driver core, sysfs) keeping the PCMCIA
 	control ioctl needed by cardmgr and cardctl from pcmcia-cs is
-	unnecessary, and makes further cleanups and integration of the
+	unnecessary and potentially harmful (it does not provide for
+	proper locking), and makes further cleanups and integration of the
 	PCMCIA subsystem into the Linux kernel device driver model more
 	difficult. The features provided by cardmgr and cardctl are either
 	handled by the kernel itself now or are available in the new
 	pcmciautils package available at
 	http://kernel.org/pub/linux/utils/kernel/pcmcia/
-Who:	Dominik Brodowski <linux@brodo.de>
+
+	For all architectures except ARM, the associated config symbol
+	has been removed from kernel 2.6.34; for ARM, it will be likely
+	be removed from kernel 2.6.35. The actual code will then likely
+	be removed from kernel 2.6.36.
+Who:	Dominik Brodowski <linux@dominikbrodowski.net>
 
 ---------------------------
 
