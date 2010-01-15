@@ -1888,7 +1888,7 @@ do { \
 
 void __init rcu_init(void)
 {
-	int i;
+	int cpu;
 
 	rcu_bootup_announce();
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
@@ -1908,8 +1908,8 @@ void __init rcu_init(void)
 	 * or the scheduler are operational.
 	 */
 	cpu_notifier(rcu_cpu_notify, 0);
-	for_each_online_cpu(i)
-		rcu_cpu_notify(NULL, CPU_UP_PREPARE, (void *)(long)i);
+	for_each_online_cpu(cpu)
+		rcu_cpu_notify(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
 }
 
 #include "rcutree_plugin.h"

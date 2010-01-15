@@ -144,7 +144,7 @@ EXPORT_SYMBOL_GPL(srcu_read_unlock);
 /*
  * Helper function for synchronize_srcu() and synchronize_srcu_expedited().
  */
-void __synchronize_srcu(struct srcu_struct *sp, void (*sync_func)(void))
+static void __synchronize_srcu(struct srcu_struct *sp, void (*sync_func)(void))
 {
 	int idx;
 
