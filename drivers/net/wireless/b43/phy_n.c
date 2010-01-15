@@ -425,6 +425,22 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxIqWar */
+static void b43_nphy_tx_iq_workaround(struct b43_wldev *dev)
+{
+	u16 array[4];
+	int i;
+
+	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x3C50);
+	for (i = 0; i < 4; i++)
+		array[i] = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW0, array[0]);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW1, array[1]);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW2, array[2]);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_NPHY_TXIQW3, array[3]);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
 static void b43_nphy_write_clip_detection(struct b43_wldev *dev, u16 *clip_st)
 {
