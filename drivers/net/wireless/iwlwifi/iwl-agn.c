@@ -1965,7 +1965,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		IWL_ERR(priv,
 			"Invalid event log pointer 0x%08X for %s uCode\n",
 			base, (priv->ucode_type == UCODE_INIT) ? "Init" : "RT");
-		return pos;
+		return -EINVAL;
 	}
 
 	/* event log header */
@@ -2013,7 +2013,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			bufsz = size * 48;
 		*buf = kmalloc(bufsz, GFP_KERNEL);
 		if (!*buf)
-			return pos;
+			return -ENOMEM;
 	}
 	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
 		/*

@@ -1644,7 +1644,7 @@ int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 	if (!iwl3945_hw_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
-		return pos;
+		return  -EINVAL;
 	}
 
 	/* event log header */
@@ -1693,7 +1693,7 @@ int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			bufsz = size * 48;
 		*buf = kmalloc(bufsz, GFP_KERNEL);
 		if (!*buf)
-			return pos;
+			return -ENOMEM;
 	}
 	if ((iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) || full_log) {
 		/* if uCode has wrapped back to top of log,

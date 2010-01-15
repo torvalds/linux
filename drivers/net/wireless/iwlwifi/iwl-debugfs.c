@@ -429,8 +429,9 @@ static ssize_t iwl_dbgfs_log_event_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -ENOMEM;
 
-	pos = priv->cfg->ops->lib->dump_nic_event_log(priv, true, &buf, true);
-	if (pos && buf) {
+	ret = pos = priv->cfg->ops->lib->dump_nic_event_log(
+					priv, true, &buf, true);
+	if (buf) {
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 		kfree(buf);
 	}
