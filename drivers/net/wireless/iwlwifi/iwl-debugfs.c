@@ -1109,16 +1109,6 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
-	/* make request to uCode to retrieve statistics information */
-	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
-	mutex_unlock(&priv->mutex);
-
-	if (ret) {
-		IWL_ERR(priv,
-			"Error sending statistics request: %zd\n", ret);
-		return -EAGAIN;
-	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
 		IWL_ERR(priv, "Can not allocate Buffer\n");
@@ -1552,16 +1542,6 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
-	/* make request to uCode to retrieve statistics information */
-	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
-	mutex_unlock(&priv->mutex);
-
-	if (ret) {
-		IWL_ERR(priv,
-			"Error sending statistics request: %zd\n", ret);
-		return -EAGAIN;
-	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
 		IWL_ERR(priv, "Can not allocate Buffer\n");
@@ -1739,16 +1719,6 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
-	/* make request to uCode to retrieve statistics information */
-	mutex_lock(&priv->mutex);
-	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
-	mutex_unlock(&priv->mutex);
-
-	if (ret) {
-		IWL_ERR(priv,
-			"Error sending statistics request: %zd\n", ret);
-		return -EAGAIN;
-	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
 	if (!buf) {
 		IWL_ERR(priv, "Can not allocate Buffer\n");
@@ -1986,23 +1956,12 @@ static ssize_t iwl_dbgfs_tx_power_read(struct file *file,
 	struct iwl_priv *priv = file->private_data;
 	char buf[128];
 	int pos = 0;
-	ssize_t ret;
 	const size_t bufsz = sizeof(buf);
 	struct statistics_tx *tx;
 
 	if (!iwl_is_alive(priv))
 		pos += scnprintf(buf + pos, bufsz - pos, "N/A\n");
 	else {
-		/* make request to uCode to retrieve statistics information */
-		mutex_lock(&priv->mutex);
-		ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
-		mutex_unlock(&priv->mutex);
-
-		if (ret) {
-			IWL_ERR(priv, "Error sending statistics request: %zd\n",
-				ret);
-			return -EAGAIN;
-		}
 		tx = &priv->statistics.tx;
 		if (tx->tx_power.ant_a ||
 		    tx->tx_power.ant_b ||
