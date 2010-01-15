@@ -1679,7 +1679,7 @@ static struct dso *dsos__find(struct list_head *head, const char *name)
 	struct dso *pos;
 
 	list_for_each_entry(pos, head, node)
-		if (strcmp(pos->name, name) == 0)
+		if (strcmp(pos->long_name, name) == 0)
 			return pos;
 	return NULL;
 }
