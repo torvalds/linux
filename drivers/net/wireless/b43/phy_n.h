@@ -963,7 +963,49 @@ struct b43_phy_n_txpwrindex {
 };
 
 struct b43_phy_n {
-	//TODO lots of missing stuff
+	u8 antsel_type;
+	u8 cal_orig_pwr_idx[2];
+	u8 measure_hold;
+	u8 phyrxchain;
+	u8 perical;
+	u32 deaf_count;
+	u32 rxcalparams;
+	bool hang_avoid;
+	bool mute;
+	u16 papd_epsilon_offset[2];
+
+	u8 mphase_cal_phase_id;
+	u16 mphase_txcal_cmdidx;
+	u16 mphase_txcal_numcmds;
+	u16 mphase_txcal_bestcoeffs[11];
+
+	u8 txpwrctrl;
+	u16 txcal_bbmult;
+	u16 txiqlocal_bestc[11];
+	bool txiqlocal_coeffsvalid;
+	struct b43_phy_n_txpwrindex txpwrindex[2];
+
+	u16 tx_rx_cal_phy_saveregs[11];
+	u16 tx_rx_cal_radio_saveregs[22];
+
+	u16 rfctrl_intc1_save;
+	u16 rfctrl_intc2_save;
+
+	u16 classifier_state;
+	u16 clip_state[2];
+
+	bool ipa2g_on;
+	u8 iqcal_chanspec_2G;
+	u8 rssical_chanspec_2G;
+
+	bool ipa5g_on;
+	u8 iqcal_chanspec_5G;
+	u8 rssical_chanspec_5G;
+
+	struct b43_phy_n_rssical_cache rssical_cache;
+	struct b43_phy_n_cal_cache cal_cache;
+	bool crsminpwr_adjusted;
+	bool noisevars_adjusted;
 };
 
 
