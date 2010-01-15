@@ -227,7 +227,12 @@ static int find_symbol_cb(void *arg, const char *name, char type, u64 start)
 {
 	struct process_symbol_args *args = arg;
 
-	if (!symbol_type__is_a(type, MAP__FUNCTION) || strcmp(name, args->name))
+	/*
+	 * Must be a function or at least an alias, as in PARISC64, where "_text" is
+	 * an 'A' to the same address as "_stext".
+	 */
+	if (!(symbol_type__is_a(type, MAP__FUNCTION) ||
+	      type == 'A') || strcmp(name, args->name))
 		return 0;
 
 	args->start = start;
