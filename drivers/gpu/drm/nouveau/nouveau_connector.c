@@ -83,14 +83,16 @@ nouveau_encoder_connector_get(struct nouveau_encoder *encoder)
 static void
 nouveau_connector_destroy(struct drm_connector *drm_connector)
 {
-	struct nouveau_connector *connector = nouveau_connector(drm_connector);
-	struct drm_device *dev = connector->base.dev;
+	struct nouveau_connector *nv_connector =
+		nouveau_connector(drm_connector);
+	struct drm_device *dev = nv_connector->base.dev;
 
 	NV_DEBUG_KMS(dev, "\n");
 
-	if (!connector)
+	if (!nv_connector)
 		return;
 
+	kfree(nv_connector->edid);
 	drm_sysfs_connector_remove(drm_connector);
 	drm_connector_cleanup(drm_connector);
 	kfree(drm_connector);
@@ -237,6 +239,13 @@ nouveau_connector_detect(struct drm_connector *connector)
 		return connector_status_connected;
 	}
 
+	/* Cleanup the previous EDID block. */
+	if (nv_connector->edid) {
+		drm_mode_connector_update_edid_property(connector, NULL);
+		kfree(nv_connector->edid);
+		nv_connector->edid = NULL;
+	}
+
 	i2c = nouveau_connector_ddc_detect(connector, &nv_encoder);
 	if (i2c) {
 		nouveau_connector_ddc_prepare(connector, &flags);
@@ -247,7 +256,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 		if (!nv_connector->edid) {
 			NV_ERROR(dev, "DDC responded, but no EDID for %s\n",
 				 drm_get_connector_name(connector));
-			return connector_status_disconnected;
+			goto detect_analog;
 		}
 
 		if (nv_encoder->dcb->type == OUTPUT_DP &&
@@ -281,6 +290,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 		return connector_status_connected;
 	}
 
+detect_analog:
 	nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG);
 	if (!nv_encoder)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_TV);
@@ -687,8 +697,12 @@ nouveau_connector_create_lvds(struct drm_device *dev,
 	 */
 	if (!nv_connector->edid && !nv_connector->native_mode &&
 	    !dev_priv->VBIOS.pub.fp_no_ddc) {
-		nv_connector->edid =
+		struct edid *edid =
 			(struct edid *)nouveau_bios_embedded_edid(dev);
+		if (edid) {
+			nv_connector->edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+			*(nv_connector->edid) = *edid;
+		}
 	}
 
 	if (!nv_connector->edid)
