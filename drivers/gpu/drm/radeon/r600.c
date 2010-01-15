@@ -2648,9 +2648,13 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
 	wptr = RREG32(IH_RB_WPTR);
 
 	if (wptr & RB_OVERFLOW) {
-		WARN_ON(1);
-		/* XXX deal with overflow */
-		DRM_ERROR("IH RB overflow\n");
+		/* When a ring buffer overflow happen start parsing interrupt
+		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * this should allow us to catchup.
+		 */
+		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, %d, %d)\n",
+			wptr, rdev->ih.rptr, (wptr + 16) + rdev->ih.ptr_mask);
+		rdev->ih.rptr = (wptr + 16) & rdev->ih.ptr_mask;
 		tmp = RREG32(IH_RB_CNTL);
 		tmp |= IH_WPTR_OVERFLOW_CLEAR;
 		WREG32(IH_RB_CNTL, tmp);
