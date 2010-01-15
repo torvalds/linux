@@ -222,12 +222,6 @@ void b43_nphy_radio_turn_off(struct b43_wldev *dev)
 		     ~B43_NPHY_RFCTL_CMD_EN);
 }
 
-#define ntab_upload(dev, offset, data) do { \
-		unsigned int i;						\
-		for (i = 0; i < (offset##_SIZE); i++)			\
-			b43_ntab_write(dev, (offset) + i, (data)[i]);	\
-	} while (0)
-
 /*
  * Upload the N-PHY tables.
  * http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables
@@ -2021,11 +2015,11 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_nphy_workarounds(dev);
 
 	/* Reset CCA, in init code it differs a little from standard way */
-	/* b43_nphy_bmac_clock_fgc(dev, 1); */
+	b43_nphy_bmac_clock_fgc(dev, 1);
 	tmp = b43_phy_read(dev, B43_NPHY_BBCFG);
 	b43_phy_write(dev, B43_NPHY_BBCFG, tmp | B43_NPHY_BBCFG_RSTCCA);
 	b43_phy_write(dev, B43_NPHY_BBCFG, tmp & ~B43_NPHY_BBCFG_RSTCCA);
-	/* b43_nphy_bmac_clock_fgc(dev, 0); */
+	b43_nphy_bmac_clock_fgc(dev, 0);
 
 	/* TODO N PHY MAC PHY Clock Set with argument 1 */
 
