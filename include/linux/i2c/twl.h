@@ -605,12 +605,7 @@ int twl4030_sih_setup(int module);
 #define TWL4030_VAUX3_DEV_GRP		0x1F
 #define TWL4030_VAUX3_DEDICATED		0x22
 
-#if defined(CONFIG_TWL4030_BCI_BATTERY) || \
-	defined(CONFIG_TWL4030_BCI_BATTERY_MODULE)
-	extern int twl4030charger_usb_en(int enable);
-#else
-	static inline int twl4030charger_usb_en(int enable) { return 0; }
-#endif
+static inline int twl4030charger_usb_en(int enable) { return 0; }
 
 /*----------------------------------------------------------------------*/
 
