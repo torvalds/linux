@@ -659,6 +659,73 @@ static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev, bool enable)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlCoefSetup */
+static void b43_nphy_tx_pwr_ctrl_coef_setup(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+	int i, j;
+	u32 tmp;
+	u32 cur_real, cur_imag, real_part, imag_part;
+
+	u16 buffer[7];
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, true);
+
+	/* TODO: Read an N PHY Table with ID 15, length 7, offset 80,
+		width 16, and data pointer buffer */
+
+	for (i = 0; i < 2; i++) {
+		tmp = ((buffer[i * 2] & 0x3FF) << 10) |
+			(buffer[i * 2 + 1] & 0x3FF);
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR,
+				(((i + 26) << 10) | 320));
+		for (j = 0; j < 128; j++) {
+			b43_phy_write(dev, B43_NPHY_TABLE_DATAHI,
+					((tmp >> 16) & 0xFFFF));
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO,
+					(tmp & 0xFFFF));
+		}
+	}
+
+	for (i = 0; i < 2; i++) {
+		tmp = buffer[5 + i];
+		real_part = (tmp >> 8) & 0xFF;
+		imag_part = (tmp & 0xFF);
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR,
+				(((i + 26) << 10) | 448));
+
+		if (dev->phy.rev >= 3) {
+			cur_real = real_part;
+			cur_imag = imag_part;
+			tmp = ((cur_real & 0xFF) << 8) | (cur_imag & 0xFF);
+		}
+
+		for (j = 0; j < 128; j++) {
+			if (dev->phy.rev < 3) {
+				cur_real = (real_part * loscale[j] + 128) >> 8;
+				cur_imag = (imag_part * loscale[j] + 128) >> 8;
+				tmp = ((cur_real & 0xFF) << 8) |
+					(cur_imag & 0xFF);
+			}
+			b43_phy_write(dev, B43_NPHY_TABLE_DATAHI,
+					((tmp >> 16) & 0xFFFF));
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO,
+					(tmp & 0xFFFF));
+		}
+	}
+
+	if (dev->phy.rev >= 3) {
+		b43_shm_write16(dev, B43_SHM_SHARED,
+				B43_SHM_SH_NPHY_TXPWR_INDX0, 0xFFFF);
+		b43_shm_write16(dev, B43_SHM_SHARED,
+				B43_SHM_SH_NPHY_TXPWR_INDX1, 0xFFFF);
+	}
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, false);
+}
+
 enum b43_nphy_rf_sequence {
 	B43_RFSEQ_RX2TX,
 	B43_RFSEQ_TX2RX,
@@ -2040,7 +2107,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 		b43_nphy_restore_cal(dev);
 	}
 
-	/* b43_nphy_tx_pwr_ctrl_coef_setup(dev); */
+	b43_nphy_tx_pwr_ctrl_coef_setup(dev);
 	/* TODO N PHY TX Power Control Enable with argument tx_pwr_state */
 	b43_phy_write(dev, B43_NPHY_TXMACIF_HOLDOFF, 0x0015);
 	b43_phy_write(dev, B43_NPHY_TXMACDELAY, 0x0320);
