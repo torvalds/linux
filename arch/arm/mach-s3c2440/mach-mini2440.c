@@ -508,7 +508,6 @@ static struct i2c_board_info mini2440_i2c_devs[] __initdata = {
 static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_ohci,
 	&s3c_device_wdt,
-/*	&s3c_device_adc,*/ /* ADC doesn't like living with touchscreen ! */
 	&s3c_device_i2c0,
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
@@ -522,8 +521,6 @@ static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_sdi,
 	&s3c_device_iis,
 	&mini2440_audio,
-/*	&s3c_device_timer[0],*/	/* buzzer pwm, no API for it */
-	/* remaining devices are optional */
 };
 
 static void __init mini2440_map_io(void)
