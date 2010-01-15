@@ -524,14 +524,14 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		/* Page not found in guest PTE entries */
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		to_book3s(vcpu)->dsisr = vcpu->arch.fault_dsisr;
-		vcpu->arch.msr |= (vcpu->arch.shadow_msr & 0x00000000f8000000ULL);
+		vcpu->arch.msr |= (vcpu->arch.shadow_srr1 & 0x00000000f8000000ULL);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EPERM) {
 		/* Storage protection */
 		vcpu->arch.dear = vcpu->arch.fault_dear;
 		to_book3s(vcpu)->dsisr = vcpu->arch.fault_dsisr & ~DSISR_NOHPTE;
 		to_book3s(vcpu)->dsisr |= DSISR_PROTFAULT;
-		vcpu->arch.msr |= (vcpu->arch.shadow_msr & 0x00000000f8000000ULL);
+		vcpu->arch.msr |= (vcpu->arch.shadow_srr1 & 0x00000000f8000000ULL);
 		kvmppc_book3s_queue_irqprio(vcpu, vec);
 	} else if (page_found == -EINVAL) {
 		/* Page not found in guest SLB */
@@ -693,7 +693,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOK3S_INTERRUPT_INST_STORAGE:
 		vcpu->stat.pf_instruc++;
 		/* only care about PTEG not found errors, but leave NX alone */
-		if (vcpu->arch.shadow_msr & 0x40000000) {
+		if (vcpu->arch.shadow_srr1 & 0x40000000) {
 			r = kvmppc_handle_pagefault(run, vcpu, vcpu->arch.pc, exit_nr);
 			vcpu->stat.sp_instruc++;
 		} else if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
@@ -705,7 +705,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 */
 			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.pc, ~0xFFFULL);
 		} else {
-			vcpu->arch.msr |= (vcpu->arch.shadow_msr & 0x58000000);
+			vcpu->arch.msr |= vcpu->arch.shadow_srr1 & 0x58000000;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.pc, ~0xFFFULL);
 			r = RESUME_GUEST;
@@ -753,7 +753,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		enum emulation_result er;
 		ulong flags;
 
-		flags = (vcpu->arch.shadow_msr & 0x1f0000ull);
+		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
 
 		if (vcpu->arch.msr & MSR_PR) {
 #ifdef EXIT_DEBUG
@@ -808,7 +808,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	default:
 		/* Ugh - bork here! What did we get? */
-		printk(KERN_EMERG "exit_nr=0x%x | pc=0x%lx | msr=0x%lx\n", exit_nr, vcpu->arch.pc, vcpu->arch.shadow_msr);
+		printk(KERN_EMERG "exit_nr=0x%x | pc=0x%lx | msr=0x%lx\n",
+			exit_nr, vcpu->arch.pc, vcpu->arch.shadow_srr1);
 		r = RESUME_HOST;
 		BUG();
 		break;

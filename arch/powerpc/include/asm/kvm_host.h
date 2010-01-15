@@ -198,6 +198,7 @@ struct kvm_vcpu_arch {
 	ulong msr;
 #ifdef CONFIG_PPC64
 	ulong shadow_msr;
+	ulong shadow_srr1;
 	ulong hflags;
 	ulong guest_owned_ext;
 #endif
