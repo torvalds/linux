@@ -52,28 +52,6 @@ module_exit(ath9k_exit);
 /* Helper Functions */
 /********************/
 
-static u32 ath9k_hw_mac_usec(struct ath_hw *ah, u32 clks)
-{
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-
-	if (!ah->curchan) /* should really check for CCK instead */
-		return clks / ATH9K_CLOCK_RATE_CCK;
-	if (conf->channel->band == IEEE80211_BAND_2GHZ)
-		return clks / ATH9K_CLOCK_RATE_2GHZ_OFDM;
-
-	return clks / ATH9K_CLOCK_RATE_5GHZ_OFDM;
-}
-
-static u32 ath9k_hw_mac_to_usec(struct ath_hw *ah, u32 clks)
-{
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-
-	if (conf_is_ht40(conf))
-		return ath9k_hw_mac_usec(ah, clks) / 2;
-	else
-		return ath9k_hw_mac_usec(ah, clks);
-}
-
 static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 {
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
@@ -413,8 +391,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
 	ah->slottime = (u32) -1;
-	ah->acktimeout = (u32) -1;
-	ah->ctstimeout = (u32) -1;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
@@ -1180,34 +1156,25 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 	}
 }
 
-static bool ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
+static void ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 {
-	if (us > ath9k_hw_mac_to_usec(ah, MS(0xffffffff, AR_TIME_OUT_ACK))) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_RESET,
-			  "bad ack timeout %u\n", us);
-		ah->acktimeout = (u32) -1;
-		return false;
-	} else {
-		REG_RMW_FIELD(ah, AR_TIME_OUT,
-			      AR_TIME_OUT_ACK, ath9k_hw_mac_to_clks(ah, us));
-		ah->acktimeout = us;
-		return true;
-	}
+	u32 val = ath9k_hw_mac_to_clks(ah, us);
+	val = min(val, (u32) 0xFFFF);
+	REG_WRITE(ah, AR_D_GBL_IFS_SLOT, val);
 }
 
-static bool ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
+static void ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
 {
-	if (us > ath9k_hw_mac_to_usec(ah, MS(0xffffffff, AR_TIME_OUT_CTS))) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_RESET,
-			  "bad cts timeout %u\n", us);
-		ah->ctstimeout = (u32) -1;
-		return false;
-	} else {
-		REG_RMW_FIELD(ah, AR_TIME_OUT,
-			      AR_TIME_OUT_CTS, ath9k_hw_mac_to_clks(ah, us));
-		ah->ctstimeout = us;
-		return true;
-	}
+	u32 val = ath9k_hw_mac_to_clks(ah, us);
+	val = min(val, (u32) MS(0xFFFFFFFF, AR_TIME_OUT_ACK));
+	REG_RMW_FIELD(ah, AR_TIME_OUT, AR_TIME_OUT_ACK, val);
+}
+
+static void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
+{
+	u32 val = ath9k_hw_mac_to_clks(ah, us);
+	val = min(val, (u32) MS(0xFFFFFFFF, AR_TIME_OUT_CTS));
+	REG_RMW_FIELD(ah, AR_TIME_OUT, AR_TIME_OUT_CTS, val);
 }
 
 static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
@@ -1224,23 +1191,32 @@ static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 	}
 }
 
-static void ath9k_hw_init_user_settings(struct ath_hw *ah)
+void ath9k_hw_init_global_settings(struct ath_hw *ah)
 {
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
+	int acktimeout;
+	int sifstime;
+
 	ath_print(ath9k_hw_common(ah), ATH_DBG_RESET, "ah->misc_mode 0x%x\n",
 		  ah->misc_mode);
 
 	if (ah->misc_mode != 0)
 		REG_WRITE(ah, AR_PCU_MISC,
 			  REG_READ(ah, AR_PCU_MISC) | ah->misc_mode);
-	if (ah->slottime != (u32) -1)
-		ath9k_hw_setslottime(ah, ah->slottime);
-	if (ah->acktimeout != (u32) -1)
-		ath9k_hw_set_ack_timeout(ah, ah->acktimeout);
-	if (ah->ctstimeout != (u32) -1)
-		ath9k_hw_set_cts_timeout(ah, ah->ctstimeout);
+
+	if (conf->channel && conf->channel->band == IEEE80211_BAND_5GHZ)
+		sifstime = 16;
+	else
+		sifstime = 10;
+
+	acktimeout = ah->slottime + sifstime;
+	ath9k_hw_setslottime(ah, ah->slottime);
+	ath9k_hw_set_ack_timeout(ah, acktimeout);
+	ath9k_hw_set_cts_timeout(ah, acktimeout);
 	if (ah->globaltxtimeout != (u32) -1)
 		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
 }
+EXPORT_SYMBOL(ath9k_hw_init_global_settings);
 
 void ath9k_hw_deinit(struct ath_hw *ah)
 {
@@ -2061,7 +2037,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
 		ath9k_enable_rfkill(ah);
 
-	ath9k_hw_init_user_settings(ah);
+	ath9k_hw_init_global_settings(ah);
 
 	if (AR_SREV_9287_12_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_D_GBL_IFS_SIFS,
@@ -3657,21 +3633,6 @@ u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp)
 	return (tsf & ~0x7fff) | rstamp;
 }
 EXPORT_SYMBOL(ath9k_hw_extend_tsf);
-
-bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
-{
-	if (us < ATH9K_SLOT_TIME_9 || us > ath9k_hw_mac_to_usec(ah, 0xffff)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_RESET,
-			  "bad slot time %u\n", us);
-		ah->slottime = (u32) -1;
-		return false;
-	} else {
-		REG_WRITE(ah, AR_D_GBL_IFS_SLOT, ath9k_hw_mac_to_clks(ah, us));
-		ah->slottime = us;
-		return true;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_setslottime);
 
 void ath9k_hw_set11nmac2040(struct ath_hw *ah)
 {
