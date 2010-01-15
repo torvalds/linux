@@ -4051,8 +4051,6 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 				  "back to user (%d)\n",
 				  args->buffer_count, ret);
 		}
-	} else {
-		DRM_ERROR("i915_gem_do_execbuffer returns %d\n", ret);
 	}
 
 	drm_free_large(exec_list);
