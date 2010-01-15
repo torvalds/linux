@@ -264,13 +264,12 @@ EXPORT_SYMBOL(bio_init);
  * bio_alloc_bioset - allocate a bio for I/O
  * @gfp_mask:   the GFP_ mask given to the slab allocator
  * @nr_iovecs:	number of iovecs to pre-allocate
- * @bs:		the bio_set to allocate from. If %NULL, just use kmalloc
+ * @bs:		the bio_set to allocate from.
  *
  * Description:
- *   bio_alloc_bioset will first try its own mempool to satisfy the allocation.
+ *   bio_alloc_bioset will try its own mempool to satisfy the allocation.
  *   If %__GFP_WAIT is set then we will block on the internal pool waiting
- *   for a &struct bio to become free. If a %NULL @bs is passed in, we will
- *   fall back to just using @kmalloc to allocate the required memory.
+ *   for a &struct bio to become free.
  *
  *   Note that the caller must set ->bi_destructor on successful return
  *   of a bio, to do the appropriate freeing of the bio once the reference
