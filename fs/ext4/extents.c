@@ -3142,7 +3142,7 @@ out:
 	 * But fallocate would have already updated quota and block
 	 * count for this offset. So cancel these reservation
 	 */
-	if (flags & EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE)
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		ext4_da_update_reserve_space(inode, allocated, 0);
 
 map_out:
@@ -3388,7 +3388,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	 * Update reserved blocks/metadata blocks after successful
 	 * block allocation which had been deferred till now.
 	 */
-	if (flags & EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE)
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		ext4_da_update_reserve_space(inode, allocated, 1);
 
 	/*
