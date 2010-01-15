@@ -32,22 +32,22 @@ Configuration options:
   [0] - I/O port base address
   [1] - IRQ
   [2] - A/D reference
-          0 = differential
-          1 = pseudodifferential (common)
-          2 = single-ended
+	0 = differential
+	1 = pseudodifferential (common)
+	2 = single-ended
   [3] - A/D range
-          0 = [-10,10]
-          1 = [-5,5]
-          2 = [0,10]
+	0 = [-10,10]
+	1 = [-5,5]
+	2 = [0,10]
   [4] - A/D encoding
-          0 = two's complement
-          1 = straight binary
+	0 = two's complement
+	1 = straight binary
   [5] - DAC 0 range
-          0 = [-10,10]
-          1 = [0,10]
+	0 = [-10,10]
+	1 = [0,10]
   [6] - DAC 0 encoding
-          0 = two's complement
-          1 = straight binary
+	0 = two's complement
+	1 = straight binary
   [7] - DAC 1 range (same as DAC 0)
   [8] - DAC 1 encoding (same as DAC 0)
 */
@@ -240,9 +240,8 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
 		data[i] |= (0xf & inb(dev->iobase + RTI800_ADCHI)) << 8;
 
-		if (devpriv->adc_coding == adc_2comp) {
+		if (devpriv->adc_coding == adc_2comp)
 			data[i] ^= 0x800;
-		}
 	}
 
 	return i;
@@ -271,9 +270,9 @@ static int rti800_ao_insn_write(struct comedi_device *dev,
 
 	for (i = 0; i < insn->n; i++) {
 		devpriv->ao_readback[chan] = d = data[i];
-		if (devpriv->dac0_coding == dac_2comp) {
+		if (devpriv->dac0_coding == dac_2comp)
 			d ^= 0x800;
-		}
+
 		outb(d & 0xff,
 		     dev->iobase + (chan ? RTI800_DAC1LO : RTI800_DAC0LO));
 		outb(d >> 8,
@@ -315,15 +314,15 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
    options[0] - I/O port
    options[1] - irq
    options[2] - a/d mux
-   	0=differential, 1=pseudodiff, 2=single
+	0=differential, 1=pseudodiff, 2=single
    options[3] - a/d range
-   	0=bipolar10, 1=bipolar5, 2=unipolar10
+	0=bipolar10, 1=bipolar5, 2=unipolar10
    options[4] - a/d coding
-   	0=2's comp, 1=straight binary
+	0=2's comp, 1=straight binary
    options[5] - dac0 range
-   	0=bipolar10, 1=unipolar10
+	0=bipolar10, 1=unipolar10
    options[6] - dac0 coding
-   	0=2's comp, 1=straight binary
+	0=2's comp, 1=straight binary
    options[7] - dac1 range
    options[8] - dac1 coding
  */
