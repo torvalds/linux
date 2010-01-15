@@ -378,6 +378,28 @@ static void b43_nphy_pa_override(struct b43_wldev *dev, bool enable)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxLpFbw */
+static void b43_nphy_tx_lp_fbw(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+	u16 tmp;
+	enum ieee80211_band band = b43_current_band(dev->wl);
+	bool ipa = (nphy->ipa2g_on && band == IEEE80211_BAND_2GHZ) ||
+			(nphy->ipa5g_on && band == IEEE80211_BAND_5GHZ);
+
+	if (dev->phy.rev >= 3) {
+		if (ipa) {
+			tmp = 4;
+			b43_phy_write(dev, B43_NPHY_TXF_40CO_B32S2,
+			      (((((tmp << 3) | tmp) << 3) | tmp) << 3) | tmp);
+		}
+
+		tmp = 1;
+		b43_phy_write(dev, B43_NPHY_TXF_40CO_B1S2,
+			      (((((tmp << 3) | tmp) << 3) | tmp) << 3) | tmp);
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
 static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
 {
@@ -1494,7 +1516,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_TXMACDELAY, 0x0320);
 	if (phy->rev >= 3 && phy->rev <= 6)
 		b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 0x0014);
-	/* b43_nphy_tx_lp_fbw(dev); */
+	b43_nphy_tx_lp_fbw(dev);
 	/* TODO N PHY Spur Workaround */
 
 	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
