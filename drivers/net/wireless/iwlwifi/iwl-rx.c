@@ -638,8 +638,6 @@ void iwl_reply_statistics(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
-		memset(&priv->statistics, 0,
-			sizeof(struct iwl_notif_statistics));
 #ifdef CONFIG_IWLWIFI_DEBUG
 		memset(&priv->accum_statistics, 0,
 			sizeof(struct iwl_notif_statistics));
