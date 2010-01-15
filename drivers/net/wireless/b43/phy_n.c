@@ -897,6 +897,49 @@ static void b43_nphy_rssi_cal(struct b43_wldev *dev)
 }
 
 /*
+ * Restore RSSI Calibration
+ * http://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreRssiCal
+ */
+static void b43_nphy_restore_rssi_cal(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	u16 *rssical_radio_regs = NULL;
+	u16 *rssical_phy_regs = NULL;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (!nphy->rssical_chanspec_2G)
+			return;
+		rssical_radio_regs = nphy->rssical_cache.rssical_radio_regs_2G;
+		rssical_phy_regs = nphy->rssical_cache.rssical_phy_regs_2G;
+	} else {
+		if (!nphy->rssical_chanspec_5G)
+			return;
+		rssical_radio_regs = nphy->rssical_cache.rssical_radio_regs_5G;
+		rssical_phy_regs = nphy->rssical_cache.rssical_phy_regs_5G;
+	}
+
+	/* TODO use some definitions */
+	b43_radio_maskset(dev, 0x602B, 0xE3, rssical_radio_regs[0]);
+	b43_radio_maskset(dev, 0x702B, 0xE3, rssical_radio_regs[1]);
+
+	b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Z, rssical_phy_regs[0]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Z, rssical_phy_regs[1]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_Z, rssical_phy_regs[2]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Z, rssical_phy_regs[3]);
+
+	b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_X, rssical_phy_regs[4]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_X, rssical_phy_regs[5]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_X, rssical_phy_regs[6]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_X, rssical_phy_regs[7]);
+
+	b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Y, rssical_phy_regs[8]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Y, rssical_phy_regs[9]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_Y, rssical_phy_regs[10]);
+	b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Y, rssical_phy_regs[11]);
+}
+
+/*
  * Init N-PHY
  * http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N
  */
@@ -1034,7 +1077,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 		if (do_rssi_cal)
 			b43_nphy_rssi_cal(dev);
 		else
-			;/* b43_nphy_restore_rssi_cal(dev); */
+			b43_nphy_restore_rssi_cal(dev);
 	} else {
 		b43_nphy_rssi_cal(dev);
 	}
