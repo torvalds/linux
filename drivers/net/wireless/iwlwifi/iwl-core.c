@@ -1803,6 +1803,16 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (val == 0xffffffff)
 		val = 0;
 
+	/*
+	 * this is a w/a for a h/w bug. the h/w bug may cause the Rx bit
+	 * (bit 15 before shifting it to 31) to clear when using interrupt
+	 * coalescing. fortunately, bits 18 and 19 stay set when this happens
+	 * so we use them to decide on the real state of the Rx bit.
+	 * In order words, bit 15 is set if bit 18 or bit 19 are set.
+	 */
+	if (val & 0xC0000)
+		val |= 0x8000;
+
 	inta = (0xff & val) | ((0xff00 & val) << 16);
 	IWL_DEBUG_ISR(priv, "ISR inta 0x%08x, enabled 0x%08x ict 0x%08x\n",
 			inta, inta_mask, val);
