@@ -464,6 +464,105 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalcRxIqComp */
+static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
+{
+	int i;
+	s32 iq;
+	u32 ii;
+	u32 qq;
+	int iq_nbits, qq_nbits;
+	int arsh, brsh;
+	u16 tmp, a, b;
+
+	struct nphy_iq_est est;
+	struct b43_phy_n_iq_comp old;
+	struct b43_phy_n_iq_comp new = { };
+	bool error = false;
+
+	if (mask == 0)
+		return;
+
+	b43_nphy_rx_iq_coeffs(dev, false, &old);
+	b43_nphy_rx_iq_coeffs(dev, true, &new);
+	b43_nphy_rx_iq_est(dev, &est, 0x4000, 32, false);
+	new = old;
+
+	for (i = 0; i < 2; i++) {
+		if (i == 0 && (mask & 1)) {
+			iq = est.iq0_prod;
+			ii = est.i0_pwr;
+			qq = est.q0_pwr;
+		} else if (i == 1 && (mask & 2)) {
+			iq = est.iq1_prod;
+			ii = est.i1_pwr;
+			qq = est.q1_pwr;
+		} else {
+			B43_WARN_ON(1);
+			continue;
+		}
+
+		if (ii + qq < 2) {
+			error = true;
+			break;
+		}
+
+		iq_nbits = fls(abs(iq));
+		qq_nbits = fls(qq);
+
+		arsh = iq_nbits - 20;
+		if (arsh >= 0) {
+			a = -((iq << (30 - iq_nbits)) + (ii >> (1 + arsh)));
+			tmp = ii >> arsh;
+		} else {
+			a = -((iq << (30 - iq_nbits)) + (ii << (-1 - arsh)));
+			tmp = ii << -arsh;
+		}
+		if (tmp == 0) {
+			error = true;
+			break;
+		}
+		a /= tmp;
+
+		brsh = qq_nbits - 11;
+		if (brsh >= 0) {
+			b = (qq << (31 - qq_nbits));
+			tmp = ii >> brsh;
+		} else {
+			b = (qq << (31 - qq_nbits));
+			tmp = ii << -brsh;
+		}
+		if (tmp == 0) {
+			error = true;
+			break;
+		}
+		b = int_sqrt(b / tmp - a * a) - (1 << 10);
+
+		if (i == 0 && (mask & 0x1)) {
+			if (dev->phy.rev >= 3) {
+				new.a0 = a & 0x3FF;
+				new.b0 = b & 0x3FF;
+			} else {
+				new.a0 = b & 0x3FF;
+				new.b0 = a & 0x3FF;
+			}
+		} else if (i == 1 && (mask & 0x2)) {
+			if (dev->phy.rev >= 3) {
+				new.a1 = a & 0x3FF;
+				new.b1 = b & 0x3FF;
+			} else {
+				new.a1 = b & 0x3FF;
+				new.b1 = a & 0x3FF;
+			}
+		}
+	}
+
+	if (error)
+		new = old;
+
+	b43_nphy_rx_iq_coeffs(dev, true, &new);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxIqWar */
 static void b43_nphy_tx_iq_workaround(struct b43_wldev *dev)
 {
