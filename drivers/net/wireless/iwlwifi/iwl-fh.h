@@ -379,6 +379,25 @@
 
 #define FH_TSSR_TX_STATUS_REG		(FH_TSSR_LOWER_BOUND + 0x010)
 
+/**
+ * Bit fields for TSSR(Tx Shared Status & Control) error status register:
+ * 31:  Indicates an address error when accessed to internal memory
+ *	uCode/driver must write "1" in order to clear this flag
+ * 30:  Indicates that Host did not send the expected number of dwords to FH
+ *	uCode/driver must write "1" in order to clear this flag
+ * 16-9:Each status bit is for one channel. Indicates that an (Error) ActDMA
+ *	command was received from the scheduler while the TRB was already full
+ *	with previous command
+ *	uCode/driver must write "1" in order to clear this flag
+ * 7-0: Each status bit indicates a channel's TxCredit error. When an error
+ *	bit is set, it indicates that the FH has received a full indication
+ *	from the RTC TxFIFO and the current value of the TxCredit counter was
+ *	not equal to zero. This mean that the credit mechanism was not
+ *	synchronized to the TxFIFO status
+ *	uCode/driver must write "1" in order to clear this flag
+ */
+#define FH_TSSR_TX_ERROR_REG		(FH_TSSR_LOWER_BOUND + 0x018)
+
 #define FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) ((1 << (_chnl)) << 24)
 #define FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl) ((1 << (_chnl)) << 16)
 

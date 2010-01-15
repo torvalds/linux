@@ -2151,6 +2151,27 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	char *buf;
+	int pos = 0;
+	ssize_t ret = -EFAULT;
+
+	if (priv->cfg->ops->lib->dump_fh) {
+		ret = pos = priv->cfg->ops->lib->dump_fh(priv, &buf, true);
+		if (buf) {
+			ret = simple_read_from_buffer(user_buf,
+						      count, ppos, buf, pos);
+			kfree(buf);
+		}
+	}
+
+	return ret;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -2167,6 +2188,7 @@ DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
 DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
 DEBUGFS_WRITE_FILE_OPS(csr);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
+DEBUGFS_READ_FILE_OPS(fh_reg);
 
 /*
  * Create the debugfs files and directories
@@ -2218,6 +2240,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(clear_traffic_statistics, debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(csr, debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(fh_reg, debug, S_IRUSR);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_ADD_FILE(ucode_rx_stats, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_tx_stats, debug, S_IRUSR);
@@ -2277,6 +2300,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_clear_traffic_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_csr);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_fh_reg);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_ucode_rx_stats);
