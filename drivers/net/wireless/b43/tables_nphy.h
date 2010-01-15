@@ -131,9 +131,46 @@ b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel);
 #define B43_NTAB_C1_LOFEEDTH		B43_NTAB16(0x1B, 0x1C0) /* Local Oscillator Feed Through Lookup Table Core 1 */
 #define B43_NTAB_C1_LOFEEDTH_SIZE	128
 
+#define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_40_SIZE	18
+#define B43_NTAB_TX_IQLO_CAL_LOFT_LADDER_20_SIZE	18
+#define B43_NTAB_TX_IQLO_CAL_IQIMB_LADDER_40_SIZE	18
+#define B43_NTAB_TX_IQLO_CAL_IQIMB_LADDER_20_SIZE	18
+#define B43_NTAB_TX_IQLO_CAL_STARTCOEFS_REV3		11
+#define B43_NTAB_TX_IQLO_CAL_STARTCOEFS			9
+#define B43_NTAB_TX_IQLO_CAL_CMDS_RECAL_REV3		12
+#define B43_NTAB_TX_IQLO_CAL_CMDS_RECAL			10
+#define B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL		10
+#define B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL_REV3		12
+
 void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value);
 
 void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev);
 void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
+
+extern const u32 b43_ntab_tx_gain_rev0_1_2[];
+extern const u32 b43_ntab_tx_gain_rev3plus_2ghz[];
+extern const u32 b43_ntab_tx_gain_rev3_5ghz[];
+extern const u32 b43_ntab_tx_gain_rev4_5ghz[];
+extern const u32 b43_ntab_tx_gain_rev5plus_5ghz[];
+
+extern const u32 txpwrctrl_tx_gain_ipa[];
+extern const u32 txpwrctrl_tx_gain_ipa_rev5[];
+extern const u32 txpwrctrl_tx_gain_ipa_rev6[];
+extern const u32 txpwrctrl_tx_gain_ipa_5g[];
+extern const u16 tbl_iqcal_gainparams[2][9][8];
+extern const struct nphy_txiqcal_ladder ladder_lo[];
+extern const struct nphy_txiqcal_ladder ladder_iq[];
+extern const u16 loscale[];
+
+extern const u16 tbl_tx_iqlo_cal_loft_ladder_40[];
+extern const u16 tbl_tx_iqlo_cal_loft_ladder_20[];
+extern const u16 tbl_tx_iqlo_cal_iqimb_ladder_40[];
+extern const u16 tbl_tx_iqlo_cal_iqimb_ladder_20[];
+extern const u16 tbl_tx_iqlo_cal_startcoefs_nphyrev3[];
+extern const u16 tbl_tx_iqlo_cal_startcoefs[];
+extern const u16 tbl_tx_iqlo_cal_cmds_recal_nphyrev3[];
+extern const u16 tbl_tx_iqlo_cal_cmds_recal[];
+extern const u16 tbl_tx_iqlo_cal_cmds_fullcal[];
+extern const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[];
 
 #endif /* B43_TABLES_NPHY_H_ */
