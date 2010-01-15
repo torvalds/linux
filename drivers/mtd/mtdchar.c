@@ -482,7 +482,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	{
 		uint32_t ur_idx;
 		struct mtd_erase_region_info *kr;
-		struct region_info_user *ur = (struct region_info_user *) argp;
+		struct region_info_user __user *ur = argp;
 
 		if (get_user(ur_idx, &(ur->regionindex)))
 			return -EFAULT;
