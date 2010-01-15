@@ -1710,19 +1710,6 @@ static const struct lpphy_rx_iq_comp lpphy_rev2plus_iq_comp = {
 	.c0 = 0,
 };
 
-static u8 lpphy_nbits(s32 val)
-{
-	u32 tmp = abs(val);
-	u8 nbits = 0;
-
-	while (tmp != 0) {
-		nbits++;
-		tmp >>= 1;
-	}
-
-	return nbits;
-}
-
 static int lpphy_calc_rx_iq_comp(struct b43_wldev *dev, u16 samples)
 {
 	struct lpphy_iq_est iq_est;
@@ -1749,8 +1736,8 @@ static int lpphy_calc_rx_iq_comp(struct b43_wldev *dev, u16 samples)
 		goto out;
 	}
 
-	prod_msb = lpphy_nbits(prod);
-	q_msb = lpphy_nbits(qpwr);
+	prod_msb = fls(abs(prod));
+	q_msb = fls(abs(qpwr));
 	tmp1 = prod_msb - 20;
 
 	if (tmp1 >= 0) {
