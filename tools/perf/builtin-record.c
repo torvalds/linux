@@ -113,16 +113,24 @@ static void write_output(void *buf, size_t size)
 
 static void write_event(event_t *buf, size_t size)
 {
-	/*
-	* Add it to the list of DSOs, so that when we finish this
-	 * record session we can pick the available build-ids.
-	 */
-	if (buf->header.type == PERF_RECORD_MMAP) {
-		struct list_head *head = &dsos__user;
-		if (buf->mmap.header.misc == 1)
-			head = &dsos__kernel;
-		__dsos__findnew(head, buf->mmap.filename);
-	}
+	size_t processed_size = buf->header.size;
+	event_t *ev = buf;
+
+	do {
+		/*
+		* Add it to the list of DSOs, so that when we finish this
+		 * record session we can pick the available build-ids.
+		 */
+		if (ev->header.type == PERF_RECORD_MMAP) {
+			struct list_head *head = &dsos__user;
+			if (ev->header.misc == 1)
+				head = &dsos__kernel;
+			__dsos__findnew(head, ev->mmap.filename);
+		}
+
+		ev = ((void *)ev) + ev->header.size;
+		processed_size += ev->header.size;
+	} while (processed_size < size);
 
 	write_output(buf, size);
 }
