@@ -218,6 +218,23 @@ static void __init init_sdk7786_IRQ(void)
 	plat_irq_setup_pins(IRQ_MODE_IRL3210_MASK);
 }
 
+#define MODSWR_REGS	0x07fff830
+
+static int sdk7786_mode_pins(void)
+{
+	void __iomem *modswr;
+	int pin_states;
+
+	modswr = ioremap_nocache(MODSWR_REGS, SZ_16);
+	if (!modswr)
+		return -ENXIO;
+
+	pin_states = ioread16(modswr);
+	iounmap(modswr);
+
+	return pin_states;
+}
+
 /* Initialize the board */
 static void __init sdk7786_setup(char **cmdline_p)
 {
@@ -230,5 +247,6 @@ static void __init sdk7786_setup(char **cmdline_p)
 static struct sh_machine_vector mv_sdk7786 __initmv = {
 	.mv_name		= "SDK7786",
 	.mv_setup		= sdk7786_setup,
+	.mv_mode_pins		= sdk7786_mode_pins,
 	.mv_init_irq		= init_sdk7786_IRQ,
 };
