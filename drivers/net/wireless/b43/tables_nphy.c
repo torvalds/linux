@@ -1336,7 +1336,7 @@ b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel)
 }
 
 
-const u8 b43_ntab_adjustpower0[] = {
+static const u8 b43_ntab_adjustpower0[] = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
 	0x02, 0x02, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03,
 	0x04, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05,
@@ -1355,7 +1355,7 @@ const u8 b43_ntab_adjustpower0[] = {
 	0x1E, 0x1E, 0x1E, 0x1E, 0x1F, 0x1F, 0x1F, 0x1F,
 };
 
-const u8 b43_ntab_adjustpower1[] = {
+static const u8 b43_ntab_adjustpower1[] = {
 	0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01,
 	0x02, 0x02, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03,
 	0x04, 0x04, 0x04, 0x04, 0x05, 0x05, 0x05, 0x05,
@@ -1374,11 +1374,11 @@ const u8 b43_ntab_adjustpower1[] = {
 	0x1E, 0x1E, 0x1E, 0x1E, 0x1F, 0x1F, 0x1F, 0x1F,
 };
 
-const u16 b43_ntab_bdi[] = {
+static const u16 b43_ntab_bdi[] = {
 	0x0070, 0x0126, 0x012C, 0x0246, 0x048D, 0x04D2,
 };
 
-const u32 b43_ntab_channelest[] = {
+static const u32 b43_ntab_channelest[] = {
 	0x44444444, 0x44444444, 0x44444444, 0x44444444,
 	0x44444444, 0x44444444, 0x44444444, 0x44444444,
 	0x10101010, 0x10101010, 0x10101010, 0x10101010,
@@ -1405,7 +1405,7 @@ const u32 b43_ntab_channelest[] = {
 	0x10101010, 0x10101010, 0x10101010, 0x10101010,
 };
 
-const u8 b43_ntab_estimatepowerlt0[] = {
+static const u8 b43_ntab_estimatepowerlt0[] = {
 	0x50, 0x4F, 0x4E, 0x4D, 0x4C, 0x4B, 0x4A, 0x49,
 	0x48, 0x47, 0x46, 0x45, 0x44, 0x43, 0x42, 0x41,
 	0x40, 0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39,
@@ -1416,7 +1416,7 @@ const u8 b43_ntab_estimatepowerlt0[] = {
 	0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11,
 };
 
-const u8 b43_ntab_estimatepowerlt1[] = {
+static const u8 b43_ntab_estimatepowerlt1[] = {
 	0x50, 0x4F, 0x4E, 0x4D, 0x4C, 0x4B, 0x4A, 0x49,
 	0x48, 0x47, 0x46, 0x45, 0x44, 0x43, 0x42, 0x41,
 	0x40, 0x3F, 0x3E, 0x3D, 0x3C, 0x3B, 0x3A, 0x39,
@@ -1427,14 +1427,14 @@ const u8 b43_ntab_estimatepowerlt1[] = {
 	0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11,
 };
 
-const u8 b43_ntab_framelookup[] = {
+static const u8 b43_ntab_framelookup[] = {
 	0x02, 0x04, 0x14, 0x14, 0x03, 0x05, 0x16, 0x16,
 	0x0A, 0x0C, 0x1C, 0x1C, 0x0B, 0x0D, 0x1E, 0x1E,
 	0x06, 0x08, 0x18, 0x18, 0x07, 0x09, 0x1A, 0x1A,
 	0x0E, 0x10, 0x20, 0x28, 0x0F, 0x11, 0x22, 0x2A,
 };
 
-const u32 b43_ntab_framestruct[] = {
+static const u32 b43_ntab_framestruct[] = {
 	0x08004A04, 0x00100000, 0x01000A05, 0x00100020,
 	0x09804506, 0x00100030, 0x09804507, 0x00100030,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -1645,7 +1645,7 @@ const u32 b43_ntab_framestruct[] = {
 	0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
-const u32 b43_ntab_gainctl0[] = {
+static const u32 b43_ntab_gainctl0[] = {
 	0x007F003F, 0x007E013F, 0x007D023E, 0x007C033E,
 	0x007B043D, 0x007A053D, 0x0079063C, 0x0078073C,
 	0x0077083B, 0x0076093B, 0x00750A3A, 0x00740B3A,
@@ -1680,7 +1680,7 @@ const u32 b43_ntab_gainctl0[] = {
 	0x00030C01, 0x00020D01, 0x00010E00, 0x00000F00,
 };
 
-const u32 b43_ntab_gainctl1[] = {
+static const u32 b43_ntab_gainctl1[] = {
 	0x007F003F, 0x007E013F, 0x007D023E, 0x007C033E,
 	0x007B043D, 0x007A053D, 0x0079063C, 0x0078073C,
 	0x0077083B, 0x0076093B, 0x00750A3A, 0x00740B3A,
@@ -1715,12 +1715,12 @@ const u32 b43_ntab_gainctl1[] = {
 	0x00030C01, 0x00020D01, 0x00010E00, 0x00000F00,
 };
 
-const u32 b43_ntab_intlevel[] = {
+static const u32 b43_ntab_intlevel[] = {
 	0x00802070, 0x0671188D, 0x0A60192C, 0x0A300E46,
 	0x00C1188D, 0x080024D2, 0x00000070,
 };
 
-const u32 b43_ntab_iqlt0[] = {
+static const u32 b43_ntab_iqlt0[] = {
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
@@ -1755,7 +1755,7 @@ const u32 b43_ntab_iqlt0[] = {
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
 };
 
-const u32 b43_ntab_iqlt1[] = {
+static const u32 b43_ntab_iqlt1[] = {
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
@@ -1790,7 +1790,7 @@ const u32 b43_ntab_iqlt1[] = {
 	0x0000007F, 0x0000007F, 0x0000007F, 0x0000007F,
 };
 
-const u16 b43_ntab_loftlt0[] = {
+static const u16 b43_ntab_loftlt0[] = {
 	0x0000, 0x0101, 0x0002, 0x0103, 0x0000, 0x0101,
 	0x0002, 0x0103, 0x0000, 0x0101, 0x0002, 0x0103,
 	0x0000, 0x0101, 0x0002, 0x0103, 0x0000, 0x0101,
@@ -1815,7 +1815,7 @@ const u16 b43_ntab_loftlt0[] = {
 	0x0002, 0x0103,
 };
 
-const u16 b43_ntab_loftlt1[] = {
+static const u16 b43_ntab_loftlt1[] = {
 	0x0000, 0x0101, 0x0002, 0x0103, 0x0000, 0x0101,
 	0x0002, 0x0103, 0x0000, 0x0101, 0x0002, 0x0103,
 	0x0000, 0x0101, 0x0002, 0x0103, 0x0000, 0x0101,
@@ -1840,7 +1840,7 @@ const u16 b43_ntab_loftlt1[] = {
 	0x0002, 0x0103,
 };
 
-const u8 b43_ntab_mcs[] = {
+static const u8 b43_ntab_mcs[] = {
 	0x00, 0x08, 0x0A, 0x10, 0x12, 0x19, 0x1A, 0x1C,
 	0x40, 0x48, 0x4A, 0x50, 0x52, 0x59, 0x5A, 0x5C,
 	0x80, 0x88, 0x8A, 0x90, 0x92, 0x99, 0x9A, 0x9C,
@@ -1859,7 +1859,7 @@ const u8 b43_ntab_mcs[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-const u32 b43_ntab_noisevar10[] = {
+static const u32 b43_ntab_noisevar10[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
@@ -1926,7 +1926,7 @@ const u32 b43_ntab_noisevar10[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 };
 
-const u32 b43_ntab_noisevar11[] = {
+static const u32 b43_ntab_noisevar11[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
@@ -1993,7 +1993,7 @@ const u32 b43_ntab_noisevar11[] = {
 	0x020C020C, 0x0000014D, 0x020C020C, 0x0000014D,
 };
 
-const u16 b43_ntab_pilot[] = {
+static const u16 b43_ntab_pilot[] = {
 	0xFF08, 0xFF08, 0xFF08, 0xFF08, 0xFF08, 0xFF08,
 	0xFF08, 0xFF08, 0x80D5, 0x80D5, 0x80D5, 0x80D5,
 	0x80D5, 0x80D5, 0x80D5, 0x80D5, 0xFF0A, 0xFF82,
@@ -2011,12 +2011,12 @@ const u16 b43_ntab_pilot[] = {
 	0xF0A0, 0xF028, 0xFFFF, 0xFFFF,
 };
 
-const u32 b43_ntab_pilotlt[] = {
+static const u32 b43_ntab_pilotlt[] = {
 	0x76540123, 0x62407351, 0x76543201, 0x76540213,
 	0x76540123, 0x76430521,
 };
 
-const u32 b43_ntab_tdi20a0[] = {
+static const u32 b43_ntab_tdi20a0[] = {
 	0x00091226, 0x000A1429, 0x000B56AD, 0x000C58B0,
 	0x000D5AB3, 0x000E9CB6, 0x000F9EBA, 0x0000C13D,
 	0x00020301, 0x00030504, 0x00040708, 0x0005090B,
@@ -2033,7 +2033,7 @@ const u32 b43_ntab_tdi20a0[] = {
 	0x00000000, 0x00000000, 0x00000000,
 };
 
-const u32 b43_ntab_tdi20a1[] = {
+static const u32 b43_ntab_tdi20a1[] = {
 	0x00014B26, 0x00028D29, 0x000393AD, 0x00049630,
 	0x0005D833, 0x0006DA36, 0x00099C3A, 0x000A9E3D,
 	0x000BC081, 0x000CC284, 0x000DC488, 0x000F068B,
@@ -2050,7 +2050,7 @@ const u32 b43_ntab_tdi20a1[] = {
 	0x00000000, 0x00000000, 0x00000000,
 };
 
-const u32 b43_ntab_tdi40a0[] = {
+static const u32 b43_ntab_tdi40a0[] = {
 	0x0011A346, 0x00136CCF, 0x0014F5D9, 0x001641E2,
 	0x0017CB6B, 0x00195475, 0x001B2383, 0x001CAD0C,
 	0x001E7616, 0x0000821F, 0x00020BA8, 0x0003D4B2,
@@ -2081,7 +2081,7 @@ const u32 b43_ntab_tdi40a0[] = {
 	0x00000000, 0x00000000,
 };
 
-const u32 b43_ntab_tdi40a1[] = {
+static const u32 b43_ntab_tdi40a1[] = {
 	0x001EDB36, 0x000129CA, 0x0002B353, 0x00047CDD,
 	0x0005C8E6, 0x000791EF, 0x00091BF9, 0x000AAA07,
 	0x000C3391, 0x000DFD1A, 0x00120923, 0x0013D22D,
@@ -2112,7 +2112,7 @@ const u32 b43_ntab_tdi40a1[] = {
 	0x00000000, 0x00000000,
 };
 
-const u32 b43_ntab_tdtrn[] = {
+static const u32 b43_ntab_tdtrn[] = {
 	0x061C061C, 0x0050EE68, 0xF592FE36, 0xFE5212F6,
 	0x00000C38, 0xFE5212F6, 0xF592FE36, 0x0050EE68,
 	0x061C061C, 0xEE680050, 0xFE36F592, 0x12F6FE52,
@@ -2291,7 +2291,7 @@ const u32 b43_ntab_tdtrn[] = {
 	0xFA58FC00, 0x0B64FC7E, 0x0800F7B6, 0x00F006BE,
 };
 
-const u32 b43_ntab_tmap[] = {
+static const u32 b43_ntab_tmap[] = {
 	0x8A88AA80, 0x8AAAAA8A, 0x8A8A8AA8, 0x00000888,
 	0x88000000, 0x8A8A88AA, 0x8AA88888, 0x8888A8A8,
 	0xF1111110, 0x11111111, 0x11F11111, 0x00000111,
@@ -2473,4 +2473,52 @@ void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value)
 
 	/* Some compiletime assertions... */
 	assert_ntab_array_sizes();
+}
+
+#define ntab_upload(dev, offset, data) do { \
+		unsigned int i;						\
+		for (i = 0; i < (offset##_SIZE); i++)			\
+			b43_ntab_write(dev, (offset) + i, (data)[i]);	\
+	} while (0)
+
+void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
+{
+	/* Static tables */
+	ntab_upload(dev, B43_NTAB_FRAMESTRUCT, b43_ntab_framestruct);
+	ntab_upload(dev, B43_NTAB_FRAMELT, b43_ntab_framelookup);
+	ntab_upload(dev, B43_NTAB_TMAP, b43_ntab_tmap);
+	ntab_upload(dev, B43_NTAB_TDTRN, b43_ntab_tdtrn);
+	ntab_upload(dev, B43_NTAB_INTLEVEL, b43_ntab_intlevel);
+	ntab_upload(dev, B43_NTAB_PILOT, b43_ntab_pilot);
+	ntab_upload(dev, B43_NTAB_PILOTLT, b43_ntab_pilotlt);
+	ntab_upload(dev, B43_NTAB_TDI20A0, b43_ntab_tdi20a0);
+	ntab_upload(dev, B43_NTAB_TDI20A1, b43_ntab_tdi20a1);
+	ntab_upload(dev, B43_NTAB_TDI40A0, b43_ntab_tdi40a0);
+	ntab_upload(dev, B43_NTAB_TDI40A1, b43_ntab_tdi40a1);
+	ntab_upload(dev, B43_NTAB_BDI, b43_ntab_bdi);
+	ntab_upload(dev, B43_NTAB_CHANEST, b43_ntab_channelest);
+	ntab_upload(dev, B43_NTAB_MCS, b43_ntab_mcs);
+
+	/* Volatile tables */
+	ntab_upload(dev, B43_NTAB_NOISEVAR10, b43_ntab_noisevar10);
+	ntab_upload(dev, B43_NTAB_NOISEVAR11, b43_ntab_noisevar11);
+	ntab_upload(dev, B43_NTAB_C0_ESTPLT, b43_ntab_estimatepowerlt0);
+	ntab_upload(dev, B43_NTAB_C1_ESTPLT, b43_ntab_estimatepowerlt1);
+	ntab_upload(dev, B43_NTAB_C0_ADJPLT, b43_ntab_adjustpower0);
+	ntab_upload(dev, B43_NTAB_C1_ADJPLT, b43_ntab_adjustpower1);
+	ntab_upload(dev, B43_NTAB_C0_GAINCTL, b43_ntab_gainctl0);
+	ntab_upload(dev, B43_NTAB_C1_GAINCTL, b43_ntab_gainctl1);
+	ntab_upload(dev, B43_NTAB_C0_IQLT, b43_ntab_iqlt0);
+	ntab_upload(dev, B43_NTAB_C1_IQLT, b43_ntab_iqlt1);
+	ntab_upload(dev, B43_NTAB_C0_LOFEEDTH, b43_ntab_loftlt0);
+	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH, b43_ntab_loftlt1);
+}
+
+void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
+{
+	/* Static tables */
+	/* TODO */
+
+	/* Volatile tables */
+	/* TODO */
 }

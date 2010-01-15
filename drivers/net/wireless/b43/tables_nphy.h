@@ -128,32 +128,7 @@ b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel);
 
 void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value);
 
-extern const u8 b43_ntab_adjustpower0[];
-extern const u8 b43_ntab_adjustpower1[];
-extern const u16 b43_ntab_bdi[];
-extern const u32 b43_ntab_channelest[];
-extern const u8 b43_ntab_estimatepowerlt0[];
-extern const u8 b43_ntab_estimatepowerlt1[];
-extern const u8 b43_ntab_framelookup[];
-extern const u32 b43_ntab_framestruct[];
-extern const u32 b43_ntab_gainctl0[];
-extern const u32 b43_ntab_gainctl1[];
-extern const u32 b43_ntab_intlevel[];
-extern const u32 b43_ntab_iqlt0[];
-extern const u32 b43_ntab_iqlt1[];
-extern const u16 b43_ntab_loftlt0[];
-extern const u16 b43_ntab_loftlt1[];
-extern const u8 b43_ntab_mcs[];
-extern const u32 b43_ntab_noisevar10[];
-extern const u32 b43_ntab_noisevar11[];
-extern const u16 b43_ntab_pilot[];
-extern const u32 b43_ntab_pilotlt[];
-extern const u32 b43_ntab_tdi20a0[];
-extern const u32 b43_ntab_tdi20a1[];
-extern const u32 b43_ntab_tdi40a0[];
-extern const u32 b43_ntab_tdi40a1[];
-extern const u32 b43_ntab_tdtrn[];
-extern const u32 b43_ntab_tmap[];
-
+void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev);
+void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
 
 #endif /* B43_TABLES_NPHY_H_ */
