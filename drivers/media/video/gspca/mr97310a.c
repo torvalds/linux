@@ -327,7 +327,6 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	err_code = mr_write(gspca_dev, 1);
 	data[0] = 0x19;
 	data[1] = 0x51;
 	err_code = mr_write(gspca_dev, 2);
@@ -460,12 +459,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (err_code < 0)
 		return err_code;
 
+	/* Now, the query for sensor type. */
+	err_code = cam_get_response16(gspca_dev, 0x07, 1);
+	if (err_code < 0)
+		return err_code;
+
 	if (id->idProduct == 0x0110 || id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
-		err_code = cam_get_response16(gspca_dev, 0x06, 1);
-		if (err_code < 0)
-			return err_code;
 		/*
 		 * All but one of the known CIF cameras share the same USB ID,
 		 * but two different init routines are in use, and the control
@@ -473,7 +474,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		 * of the two known varieties is connected!
 		 *
 		 * A list of known CIF cameras follows. They all report either
-		 * 0002 for type 0 or 0003 for type 1.
+		 * 0200 for type 0 or 0300 for type 1.
 		 * If you have another to report, please do
 		 *
 		 * Name		sd->sensor_type		reported by
@@ -487,7 +488,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		 * Philips dig. keych.	1		T. Kilgore
 		 * Trust Spyc@m 100	1		A. Jacobs
 		 */
-		switch (gspca_dev->usb_buf[1]) {
+		switch (gspca_dev->usb_buf[0]) {
 		case 2:
 			sd->sensor_type = 0;
 			break;
@@ -504,13 +505,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
 
-		err_code = cam_get_response16(gspca_dev, 0x07, 1);
-		if (err_code < 0)
-			return err_code;
-
 		/*
-		 * Here is a table of the responses to the previous command
-		 * from the known MR97310A VGA cameras.
+		 * Here is a table of the responses to the query for sensor
+		 * type, from the known MR97310A VGA cameras.
 		 *
 		 * Name			gspca_dev->usb_buf[]	sd->sensor_type
 		 *				sd->do_lcd_stop
@@ -560,7 +557,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",
 		       sd->sensor_type);
 	}
-	/* Stop streaming as we've started it to probe the sensor type. */
+	/* Stop streaming as we've started it only to probe the sensor type. */
 	sd_stopN(gspca_dev);
 
 	if (force_sensor_type != -1) {
