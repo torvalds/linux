@@ -1716,22 +1716,25 @@ void dsos__fprintf(FILE *fp)
 	__dsos__fprintf(&dsos__user, fp);
 }
 
-static size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp)
+static size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
+				      bool with_hits)
 {
 	struct dso *pos;
 	size_t ret = 0;
 
 	list_for_each_entry(pos, head, node) {
+		if (with_hits && !pos->hit)
+			continue;
 		ret += dso__fprintf_buildid(pos, fp);
 		ret += fprintf(fp, " %s\n", pos->long_name);
 	}
 	return ret;
 }
 
-size_t dsos__fprintf_buildid(FILE *fp)
+size_t dsos__fprintf_buildid(FILE *fp, bool with_hits)
 {
-	return (__dsos__fprintf_buildid(&dsos__kernel, fp) +
-		__dsos__fprintf_buildid(&dsos__user, fp));
+	return (__dsos__fprintf_buildid(&dsos__kernel, fp, with_hits) +
+		__dsos__fprintf_buildid(&dsos__user, fp, with_hits));
 }
 
 static struct dso *dsos__create_kernel(const char *vmlinux)

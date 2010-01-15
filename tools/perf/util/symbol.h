@@ -97,6 +97,7 @@ struct dso {
 	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
 	u8		 kernel:1;
+	u8		 hit:1;
 	unsigned char	 origin;
 	u8		 sorted_by_name;
 	u8		 loaded;
@@ -129,7 +130,7 @@ struct perf_session;
 int dso__load(struct dso *self, struct map *map, struct perf_session *session,
 	      symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
-size_t dsos__fprintf_buildid(FILE *fp);
+size_t dsos__fprintf_buildid(FILE *fp, bool with_hits);
 
 size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
