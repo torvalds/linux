@@ -465,6 +465,127 @@ static void b43_nphy_bphy_init(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_N_BMODE(0x38), 0x668);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ScaleOffsetRssi */
+static void b43_nphy_scale_offset_rssi(struct b43_wldev *dev, u16 scale,
+				       s8 offset, u8 core, u8 rail, u8 type)
+{
+	u16 tmp;
+	bool core1or5 = (core == 1) || (core == 5);
+	bool core2or5 = (core == 2) || (core == 5);
+
+	offset = clamp_val(offset, -32, 31);
+	tmp = ((scale & 0x3F) << 8) | (offset & 0x3F);
+
+	if (core1or5 && (rail == 0) && (type == 2))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Z, tmp);
+	if (core1or5 && (rail == 1) && (type == 2))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Z, tmp);
+	if (core2or5 && (rail == 0) && (type == 2))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_Z, tmp);
+	if (core2or5 && (rail == 1) && (type == 2))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Z, tmp);
+	if (core1or5 && (rail == 0) && (type == 0))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_X, tmp);
+	if (core1or5 && (rail == 1) && (type == 0))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_X, tmp);
+	if (core2or5 && (rail == 0) && (type == 0))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_X, tmp);
+	if (core2or5 && (rail == 1) && (type == 0))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_X, tmp);
+	if (core1or5 && (rail == 0) && (type == 1))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Y, tmp);
+	if (core1or5 && (rail == 1) && (type == 1))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Y, tmp);
+	if (core2or5 && (rail == 0) && (type == 1))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_Y, tmp);
+	if (core2or5 && (rail == 1) && (type == 1))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Y, tmp);
+	if (core1or5 && (rail == 0) && (type == 6))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_TBD, tmp);
+	if (core1or5 && (rail == 1) && (type == 6))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_TBD, tmp);
+	if (core2or5 && (rail == 0) && (type == 6))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_TBD, tmp);
+	if (core2or5 && (rail == 1) && (type == 6))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_TBD, tmp);
+	if (core1or5 && (rail == 0) && (type == 3))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_PWRDET, tmp);
+	if (core1or5 && (rail == 1) && (type == 3))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_PWRDET, tmp);
+	if (core2or5 && (rail == 0) && (type == 3))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_PWRDET, tmp);
+	if (core2or5 && (rail == 1) && (type == 3))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_PWRDET, tmp);
+	if (core1or5 && (type == 4))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_TSSI, tmp);
+	if (core2or5 && (type == 4))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_TSSI, tmp);
+	if (core1or5 && (type == 5))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_TSSI, tmp);
+	if (core2or5 && (type == 5))
+		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_TSSI, tmp);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSISel */
+static void b43_nphy_rssi_select(struct b43_wldev *dev, u8 code, u8 type)
+{
+	u16 val;
+
+	if (dev->phy.rev >= 3) {
+		/* TODO */
+	} else {
+		if (type < 3)
+			val = 0;
+		else if (type == 6)
+			val = 1;
+		else if (type == 3)
+			val = 2;
+		else
+			val = 3;
+
+		val = (val << 12) | (val << 14);
+		b43_phy_maskset(dev, B43_NPHY_AFECTL_C1, 0x0FFF, val);
+		b43_phy_maskset(dev, B43_NPHY_AFECTL_C2, 0x0FFF, val);
+
+		if (type < 3) {
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_RSSIO1, 0xFFCF,
+					(type + 1) << 4);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_RSSIO2, 0xFFCF,
+					(type + 1) << 4);
+		}
+
+		/* TODO use some definitions */
+		if (code == 0) {
+			b43_phy_maskset(dev, B43_NPHY_AFECTL_OVER, 0xCFFF, 0);
+			if (type < 3) {
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
+						0xFEC7, 0);
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
+						0xEFDC, 0);
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
+						0xFFFE, 0);
+				udelay(20);
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
+						0xFFFE, 0);
+			}
+		} else {
+			b43_phy_maskset(dev, B43_NPHY_AFECTL_OVER, 0xCFFF,
+					0x3000);
+			if (type < 3) {
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
+						0xFEC7, 0x0180);
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
+						0xEFDC, (code << 1 | 0x1021));
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
+						0xFFFE, 0x0001);
+				udelay(20);
+				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
+						0xFFFE, 0);
+			}
+		}
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal */
 static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, u8 type)
 {
