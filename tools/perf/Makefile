@@ -286,11 +286,7 @@ SCRIPT_PERL =
 SCRIPT_SH =
 TEST_PROGRAMS =
 
-#
-# No scripts right now:
-#
-
-# SCRIPT_SH += perf-am.sh
+SCRIPT_SH += perf-archive.sh
 
 #
 # No Perl scripts right now:
@@ -315,9 +311,7 @@ PROGRAMS += perf
 # List built-in command $C whose implementation cmd_$C() is not in
 # builtin-$C.o but is linked in as part of some other command.
 #
-# None right now:
-#
-# BUILT_INS += perf-init $X
+BUILT_INS += perf-archive
 
 # what 'all' will build and 'install' will install, in perfexecdir
 ALL_PROGRAMS = $(PROGRAMS) $(SCRIPTS)
