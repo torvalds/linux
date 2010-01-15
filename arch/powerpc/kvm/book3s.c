@@ -33,6 +33,9 @@
 
 /* #define EXIT_DEBUG */
 /* #define EXIT_DEBUG_SIMPLE */
+/* #define DEBUG_EXT */
+
+static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exits",       VCPU_STAT(sum_exits) },
@@ -77,6 +80,10 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	memcpy(&to_book3s(vcpu)->shadow_vcpu, &get_paca()->shadow_vcpu,
 	       sizeof(get_paca()->shadow_vcpu));
 	to_book3s(vcpu)->slb_shadow_max = get_paca()->kvm_slb_max;
+
+	kvmppc_giveup_ext(vcpu, MSR_FP);
+	kvmppc_giveup_ext(vcpu, MSR_VEC);
+	kvmppc_giveup_ext(vcpu, MSR_VSX);
 }
 
 #if defined(EXIT_DEBUG)
@@ -97,9 +104,9 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 	msr &= to_book3s(vcpu)->msr_mask;
 	vcpu->arch.msr = msr;
 	vcpu->arch.shadow_msr = msr | MSR_USER32;
-	vcpu->arch.shadow_msr &= ( MSR_VEC | MSR_VSX | MSR_FP | MSR_FE0 |
-				   MSR_USER64 | MSR_SE | MSR_BE | MSR_DE |
-				   MSR_FE1);
+	vcpu->arch.shadow_msr &= (MSR_FE0 | MSR_USER64 | MSR_SE | MSR_BE |
+				  MSR_DE | MSR_FE1);
+	vcpu->arch.shadow_msr |= (msr & vcpu->arch.guest_owned_ext);
 
 	if (msr & (MSR_WE|MSR_POW)) {
 		if (!vcpu->arch.pending_exceptions) {
@@ -551,6 +558,117 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return r;
 }
 
+static inline int get_fpr_index(int i)
+{
+#ifdef CONFIG_VSX
+	i *= 2;
+#endif
+	return i;
+}
+
+/* Give up external provider (FPU, Altivec, VSX) */
+static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
+{
+	struct thread_struct *t = &current->thread;
+	u64 *vcpu_fpr = vcpu->arch.fpr;
+	u64 *vcpu_vsx = vcpu->arch.vsr;
+	u64 *thread_fpr = (u64*)t->fpr;
+	int i;
+
+	if (!(vcpu->arch.guest_owned_ext & msr))
+		return;
+
+#ifdef DEBUG_EXT
+	printk(KERN_INFO "Giving up ext 0x%lx\n", msr);
+#endif
+
+	switch (msr) {
+	case MSR_FP:
+		giveup_fpu(current);
+		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
+			vcpu_fpr[i] = thread_fpr[get_fpr_index(i)];
+
+		vcpu->arch.fpscr = t->fpscr.val;
+		break;
+	case MSR_VEC:
+#ifdef CONFIG_ALTIVEC
+		giveup_altivec(current);
+		memcpy(vcpu->arch.vr, t->vr, sizeof(vcpu->arch.vr));
+		vcpu->arch.vscr = t->vscr;
+#endif
+		break;
+	case MSR_VSX:
+#ifdef CONFIG_VSX
+		__giveup_vsx(current);
+		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr); i++)
+			vcpu_vsx[i] = thread_fpr[get_fpr_index(i) + 1];
+#endif
+		break;
+	default:
+		BUG();
+	}
+
+	vcpu->arch.guest_owned_ext &= ~msr;
+	current->thread.regs->msr &= ~msr;
+	kvmppc_set_msr(vcpu, vcpu->arch.msr);
+}
+
+/* Handle external providers (FPU, Altivec, VSX) */
+static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
+			     ulong msr)
+{
+	struct thread_struct *t = &current->thread;
+	u64 *vcpu_fpr = vcpu->arch.fpr;
+	u64 *vcpu_vsx = vcpu->arch.vsr;
+	u64 *thread_fpr = (u64*)t->fpr;
+	int i;
+
+	if (!(vcpu->arch.msr & msr)) {
+		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+		return RESUME_GUEST;
+	}
+
+#ifdef DEBUG_EXT
+	printk(KERN_INFO "Loading up ext 0x%lx\n", msr);
+#endif
+
+	current->thread.regs->msr |= msr;
+
+	switch (msr) {
+	case MSR_FP:
+		for (i = 0; i < ARRAY_SIZE(vcpu->arch.fpr); i++)
+			thread_fpr[get_fpr_index(i)] = vcpu_fpr[i];
+
+		t->fpscr.val = vcpu->arch.fpscr;
+		t->fpexc_mode = 0;
+		kvmppc_load_up_fpu();
+		break;
+	case MSR_VEC:
+#ifdef CONFIG_ALTIVEC
+		memcpy(t->vr, vcpu->arch.vr, sizeof(vcpu->arch.vr));
+		t->vscr = vcpu->arch.vscr;
+		t->vrsave = -1;
+		kvmppc_load_up_altivec();
+#endif
+		break;
+	case MSR_VSX:
+#ifdef CONFIG_VSX
+		for (i = 0; i < ARRAY_SIZE(vcpu->arch.vsr); i++)
+			thread_fpr[get_fpr_index(i) + 1] = vcpu_vsx[i];
+		kvmppc_load_up_vsx();
+#endif
+		break;
+	default:
+		BUG();
+	}
+
+	vcpu->arch.guest_owned_ext |= msr;
+
+	kvmppc_set_msr(vcpu, vcpu->arch.msr);
+
+	return RESUME_GUEST;
+}
+
 int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
                        unsigned int exit_nr)
 {
@@ -674,11 +792,17 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		r = RESUME_GUEST;
 		break;
-	case BOOK3S_INTERRUPT_MACHINE_CHECK:
 	case BOOK3S_INTERRUPT_FP_UNAVAIL:
-	case BOOK3S_INTERRUPT_TRACE:
+		r = kvmppc_handle_ext(vcpu, exit_nr, MSR_FP);
+		break;
 	case BOOK3S_INTERRUPT_ALTIVEC:
+		r = kvmppc_handle_ext(vcpu, exit_nr, MSR_VEC);
+		break;
 	case BOOK3S_INTERRUPT_VSX:
+		r = kvmppc_handle_ext(vcpu, exit_nr, MSR_VSX);
+		break;
+	case BOOK3S_INTERRUPT_MACHINE_CHECK:
+	case BOOK3S_INTERRUPT_TRACE:
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		r = RESUME_GUEST;
 		break;
@@ -959,6 +1083,10 @@ extern int __kvmppc_vcpu_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret;
+	struct thread_struct ext_bkp;
+	bool save_vec = current->thread.used_vr;
+	bool save_vsx = current->thread.used_vsr;
+	ulong ext_msr;
 
 	/* No need to go into the guest when all we do is going out */
 	if (signal_pending(current)) {
@@ -966,12 +1094,67 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		return -EINTR;
 	}
 
+	/* Save FPU state in stack */
+	if (current->thread.regs->msr & MSR_FP)
+		giveup_fpu(current);
+	memcpy(ext_bkp.fpr, current->thread.fpr, sizeof(current->thread.fpr));
+	ext_bkp.fpscr = current->thread.fpscr;
+	ext_bkp.fpexc_mode = current->thread.fpexc_mode;
+
+#ifdef CONFIG_ALTIVEC
+	/* Save Altivec state in stack */
+	if (save_vec) {
+		if (current->thread.regs->msr & MSR_VEC)
+			giveup_altivec(current);
+		memcpy(ext_bkp.vr, current->thread.vr, sizeof(ext_bkp.vr));
+		ext_bkp.vscr = current->thread.vscr;
+		ext_bkp.vrsave = current->thread.vrsave;
+	}
+	ext_bkp.used_vr = current->thread.used_vr;
+#endif
+
+#ifdef CONFIG_VSX
+	/* Save VSX state in stack */
+	if (save_vsx && (current->thread.regs->msr & MSR_VSX))
+			__giveup_vsx(current);
+	ext_bkp.used_vsr = current->thread.used_vsr;
+#endif
+
+	/* Remember the MSR with disabled extensions */
+	ext_msr = current->thread.regs->msr;
+
 	/* XXX we get called with irq disabled - change that! */
 	local_irq_enable();
 
 	ret = __kvmppc_vcpu_entry(kvm_run, vcpu);
 
 	local_irq_disable();
+
+	current->thread.regs->msr = ext_msr;
+
+	/* Make sure we save the guest FPU/Altivec/VSX state */
+	kvmppc_giveup_ext(vcpu, MSR_FP);
+	kvmppc_giveup_ext(vcpu, MSR_VEC);
+	kvmppc_giveup_ext(vcpu, MSR_VSX);
+
+	/* Restore FPU state from stack */
+	memcpy(current->thread.fpr, ext_bkp.fpr, sizeof(ext_bkp.fpr));
+	current->thread.fpscr = ext_bkp.fpscr;
+	current->thread.fpexc_mode = ext_bkp.fpexc_mode;
+
+#ifdef CONFIG_ALTIVEC
+	/* Restore Altivec state from stack */
+	if (save_vec && current->thread.used_vr) {
+		memcpy(current->thread.vr, ext_bkp.vr, sizeof(ext_bkp.vr));
+		current->thread.vscr = ext_bkp.vscr;
+		current->thread.vrsave= ext_bkp.vrsave;
+	}
+	current->thread.used_vr = ext_bkp.used_vr;
+#endif
+
+#ifdef CONFIG_VSX
+	current->thread.used_vsr = ext_bkp.used_vsr;
+#endif
 
 	return ret;
 }

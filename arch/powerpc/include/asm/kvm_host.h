@@ -172,8 +172,19 @@ struct kvm_vcpu_arch {
 	struct kvmppc_mmu mmu;
 #endif
 
-	u64 fpr[32];
 	ulong gpr[32];
+
+	u64 fpr[32];
+	u32 fpscr;
+
+#ifdef CONFIG_ALTIVEC
+	vector128 vr[32];
+	vector128 vscr;
+#endif
+
+#ifdef CONFIG_VSX
+	u64 vsr[32];
+#endif
 
 	ulong pc;
 	ulong ctr;
@@ -188,6 +199,7 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_PPC64
 	ulong shadow_msr;
 	ulong hflags;
+	ulong guest_owned_ext;
 #endif
 	u32 mmucr;
 	ulong sprg0;
