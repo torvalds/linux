@@ -419,75 +419,196 @@ static void b43_nphy_rssi_cal(struct b43_wldev *dev, u8 type)
 	//TODO
 }
 
+/*
+ * Init N-PHY
+ * http://bcm-v4.sipsolutions.net/802.11/PHY/Init/N
+ */
 int b43_phy_initn(struct b43_wldev *dev)
 {
+	struct ssb_bus *bus = dev->dev->bus;
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = phy->n;
+	u8 tx_pwr_state;
+	struct nphy_txgains target;
 	u16 tmp;
+	enum ieee80211_band tmp2;
+	bool do_rssi_cal;
 
-	//TODO: Spectral management
+	u16 clip[2];
+	bool do_cal = false;
+
+	if ((dev->phy.rev >= 3) &&
+	   (bus->sprom.boardflags_lo & B43_BFL_EXTLNA) &&
+	   (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)) {
+		chipco_set32(&dev->dev->bus->chipco, SSB_CHIPCO_CHIPCTL, 0x40);
+	}
+	nphy->deaf_count = 0;
 	b43_nphy_tables_init(dev);
+	nphy->crsminpwr_adjusted = false;
+	nphy->noisevars_adjusted = false;
 
 	/* Clear all overrides */
-	b43_phy_write(dev, B43_NPHY_RFCTL_OVER, 0);
+	if (dev->phy.rev >= 3) {
+		b43_phy_write(dev, B43_NPHY_TXF_40CO_B1S1, 0);
+		b43_phy_write(dev, B43_NPHY_RFCTL_OVER, 0);
+		b43_phy_write(dev, B43_NPHY_TXF_40CO_B1S0, 0);
+		b43_phy_write(dev, B43_NPHY_TXF_40CO_B32S1, 0);
+	} else {
+		b43_phy_write(dev, B43_NPHY_RFCTL_OVER, 0);
+	}
 	b43_phy_write(dev, B43_NPHY_RFCTL_INTC1, 0);
 	b43_phy_write(dev, B43_NPHY_RFCTL_INTC2, 0);
-	b43_phy_write(dev, B43_NPHY_RFCTL_INTC3, 0);
-	b43_phy_write(dev, B43_NPHY_RFCTL_INTC4, 0);
+	if (dev->phy.rev < 6) {
+		b43_phy_write(dev, B43_NPHY_RFCTL_INTC3, 0);
+		b43_phy_write(dev, B43_NPHY_RFCTL_INTC4, 0);
+	}
 	b43_phy_mask(dev, B43_NPHY_RFSEQMODE,
 		     ~(B43_NPHY_RFSEQMODE_CAOVER |
 		       B43_NPHY_RFSEQMODE_TROVER));
+	if (dev->phy.rev >= 3)
+		b43_phy_write(dev, B43_NPHY_AFECTL_OVER1, 0);
 	b43_phy_write(dev, B43_NPHY_AFECTL_OVER, 0);
 
-	tmp = (phy->rev < 2) ? 64 : 59;
-	b43_phy_maskset(dev, B43_NPHY_BPHY_CTL3,
-			~B43_NPHY_BPHY_CTL3_SCALE,
-			tmp << B43_NPHY_BPHY_CTL3_SCALE_SHIFT);
-
+	if (dev->phy.rev <= 2) {
+		tmp = (dev->phy.rev == 2) ? 0x3B : 0x40;
+		b43_phy_maskset(dev, B43_NPHY_BPHY_CTL3,
+				~B43_NPHY_BPHY_CTL3_SCALE,
+				tmp << B43_NPHY_BPHY_CTL3_SCALE_SHIFT);
+	}
 	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_20M, 0x20);
 	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_40M, 0x20);
 
-	b43_phy_write(dev, B43_NPHY_TXREALFD, 184);
-	b43_phy_write(dev, B43_NPHY_MIMO_CRSTXEXT, 200);
-	b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 80);
-	b43_phy_write(dev, B43_NPHY_C2_BCLIPBKOFF, 511);
+	if (bus->sprom.boardflags2_lo & 0x100 ||
+	    (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
+	     bus->boardinfo.type == 0x8B))
+		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xA0);
+	else
+		b43_phy_write(dev, B43_NPHY_TXREALFD, 0xB8);
+	b43_phy_write(dev, B43_NPHY_MIMO_CRSTXEXT, 0xC8);
+	b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 0x50);
+	b43_phy_write(dev, B43_NPHY_TXRIFS_FRDEL, 0x30);
 
-	//TODO MIMO-Config
-	//TODO Update TX/RX chain
+	/* TODO MIMO-Config */
+	/* TODO Update TX/RX chain */
 
 	if (phy->rev < 2) {
 		b43_phy_write(dev, B43_NPHY_DUP40_GFBL, 0xAA8);
 		b43_phy_write(dev, B43_NPHY_DUP40_BL, 0x9A4);
 	}
-	b43_nphy_workarounds(dev);
-	b43_nphy_reset_cca(dev);
 
-	ssb_write32(dev->dev, SSB_TMSLOW,
-		    ssb_read32(dev->dev, SSB_TMSLOW) | B43_TMSLOW_MACPHYCLKEN);
+	tmp2 = b43_current_band(dev->wl);
+	if ((nphy->ipa2g_on && tmp2 == IEEE80211_BAND_2GHZ) ||
+	    (nphy->ipa5g_on && tmp2 == IEEE80211_BAND_5GHZ)) {
+		b43_phy_set(dev, B43_NPHY_PAPD_EN0, 0x1);
+		b43_phy_maskset(dev, B43_NPHY_EPS_TABLE_ADJ0, 0x007F,
+				nphy->papd_epsilon_offset[0] << 7);
+		b43_phy_set(dev, B43_NPHY_PAPD_EN1, 0x1);
+		b43_phy_maskset(dev, B43_NPHY_EPS_TABLE_ADJ1, 0x007F,
+				nphy->papd_epsilon_offset[1] << 7);
+		/* TODO N PHY IPA Set TX Dig Filters */
+	} else if (phy->rev >= 5) {
+		/* TODO N PHY Ext PA Set TX Dig Filters */
+	}
+
+	b43_nphy_workarounds(dev);
+
+	/* Reset CCA, in init code it differs a little from standard way */
+	/* b43_nphy_bmac_clock_fgc(dev, 1); */
+	tmp = b43_phy_read(dev, B43_NPHY_BBCFG);
+	b43_phy_write(dev, B43_NPHY_BBCFG, tmp | B43_NPHY_BBCFG_RSTCCA);
+	b43_phy_write(dev, B43_NPHY_BBCFG, tmp & ~B43_NPHY_BBCFG_RSTCCA);
+	/* b43_nphy_bmac_clock_fgc(dev, 0); */
+
+	/* TODO N PHY MAC PHY Clock Set with argument 1 */
+
+	/* b43_nphy_pa_override(dev, false); */
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RX2TX);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
+	/* b43_nphy_pa_override(dev, true); */
 
-	b43_phy_read(dev, B43_NPHY_CLASSCTL); /* dummy read */
-	//TODO read core1/2 clip1 thres regs
+	/* b43_nphy_classifier(dev, 0, 0); */
+	/* b43_nphy_read_clip_detection(dev, clip); */
+	tx_pwr_state = nphy->txpwrctrl;
+	/* TODO N PHY TX power control with argument 0
+		(turning off power control) */
+	/* TODO Fix the TX Power Settings */
+	/* TODO N PHY TX Power Control Idle TSSI */
+	/* TODO N PHY TX Power Control Setup */
 
-	if (1 /* FIXME Band is 2.4GHz */)
-		b43_nphy_bphy_init(dev);
-	//TODO disable TX power control
-	//TODO Fix the TX power settings
-	//TODO Init periodic calibration with reason 3
-	b43_nphy_rssi_cal(dev, 2);
-	b43_nphy_rssi_cal(dev, 0);
-	b43_nphy_rssi_cal(dev, 1);
-	//TODO get TX gain
-	//TODO init superswitch
-	//TODO calibrate LO
-	//TODO idle TSSI TX pctl
-	//TODO TX power control power setup
-	//TODO table writes
-	//TODO TX power control coefficients
-	//TODO enable TX power control
-	//TODO control antenna selection
-	//TODO init radar detection
-	//TODO reset channel if changed
+	if (phy->rev >= 3) {
+		/* TODO */
+	} else {
+		/* TODO Write an N PHY table with ID 26, length 128, offset 192, width 32, and the data from Rev 2 TX Power Control Table */
+		/* TODO Write an N PHY table with ID 27, length 128, offset 192, width 32, and the data from Rev 2 TX Power Control Table */
+	}
+
+	if (nphy->phyrxchain != 3)
+		;/* TODO N PHY RX Core Set State with phyrxchain as argument */
+	if (nphy->mphase_cal_phase_id > 0)
+		;/* TODO PHY Periodic Calibration Multi-Phase Restart */
+
+	do_rssi_cal = false;
+	if (phy->rev >= 3) {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+			do_rssi_cal = (nphy->rssical_chanspec_2G == 0);
+		else
+			do_rssi_cal = (nphy->rssical_chanspec_5G == 0);
+
+		if (do_rssi_cal)
+			;/* b43_nphy_rssi_cal(dev); */
+		else
+			;/* b43_nphy_restore_rssi_cal(dev); */
+	} else {
+		/* b43_nphy_rssi_cal(dev); */
+	}
+
+	if (!((nphy->measure_hold & 0x6) != 0)) {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+			do_cal = (nphy->iqcal_chanspec_2G == 0);
+		else
+			do_cal = (nphy->iqcal_chanspec_5G == 0);
+
+		if (nphy->mute)
+			do_cal = false;
+
+		if (do_cal) {
+			/* target = b43_nphy_get_tx_gains(dev); */
+
+			if (nphy->antsel_type == 2)
+				;/*TODO NPHY Superswitch Init with argument 1*/
+			if (nphy->perical != 2) {
+				/* b43_nphy_rssi_cal(dev); */
+				if (phy->rev >= 3) {
+					nphy->cal_orig_pwr_idx[0] =
+					    nphy->txpwrindex[0].index_internal;
+					nphy->cal_orig_pwr_idx[1] =
+					    nphy->txpwrindex[1].index_internal;
+					/* TODO N PHY Pre Calibrate TX Gain */
+					/*target = b43_nphy_get_tx_gains(dev)*/
+				}
+			}
+		}
+	}
+
+	/*
+	if (!b43_nphy_cal_tx_iq_lo(dev, target, true, false)) {
+		if (b43_nphy_cal_rx_iq(dev, target, 2, 0) == 0)
+			Call N PHY Save Cal
+		else if (nphy->mphase_cal_phase_id == 0)
+			N PHY Periodic Calibration with argument 3
+	} else {
+		b43_nphy_restore_cal(dev);
+	}
+	*/
+
+	/* b43_nphy_tx_pwr_ctrl_coef_setup(dev); */
+	/* TODO N PHY TX Power Control Enable with argument tx_pwr_state */
+	b43_phy_write(dev, B43_NPHY_TXMACIF_HOLDOFF, 0x0015);
+	b43_phy_write(dev, B43_NPHY_TXMACDELAY, 0x0320);
+	if (phy->rev >= 3 && phy->rev <= 6)
+		b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 0x0014);
+	/* b43_nphy_tx_lp_fbw(dev); */
+	/* TODO N PHY Spur Workaround */
 
 	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
 	return 0;
