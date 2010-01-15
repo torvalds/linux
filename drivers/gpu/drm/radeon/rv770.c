@@ -779,7 +779,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
-	int r;
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
@@ -822,9 +821,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 
 	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r)
-			return r;
 		/* gtt_size is setup by radeon_agp_init */
 		rdev->mc.gtt_location = rdev->mc.agp_base;
 		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
@@ -975,10 +971,12 @@ int rv770_suspend(struct radeon_device *rdev)
 	r600_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (likely(r == 0)) {
-		radeon_bo_unpin(rdev->r600_blit.shader_obj);
-		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (likely(r == 0)) {
+			radeon_bo_unpin(rdev->r600_blit.shader_obj);
+			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		}
 	}
 	return 0;
 }
@@ -1037,6 +1035,11 @@ int rv770_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r)
+			radeon_agp_disable(rdev);
+	}
 	r = rv770_mc_init(rdev);
 	if (r)
 		return r;

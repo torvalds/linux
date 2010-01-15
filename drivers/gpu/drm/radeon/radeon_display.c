@@ -357,7 +357,8 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
-		if (dig->dp_i2c_bus)
+		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
+		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) && dig->dp_i2c_bus)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);
 	}
 	if (!radeon_connector->ddc_bus)
@@ -667,7 +668,6 @@ static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 		radeonfb_remove(dev, fb);
 
 	if (radeon_fb->obj) {
-		radeon_gem_object_unpin(radeon_fb->obj);
 		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(radeon_fb->obj);
 		mutex_unlock(&dev->struct_mutex);

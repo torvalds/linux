@@ -512,14 +512,16 @@ void r600_blit_fini(struct radeon_device *rdev)
 {
 	int r;
 
+	if (rdev->r600_blit.shader_obj == NULL)
+		return;
+	/* If we can't reserve the bo, unref should be enough to destroy
+	 * it when it becomes idle.
+	 */
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0)) {
-		dev_err(rdev->dev, "(%d) can't finish r600 blit\n", r);
-		goto out_unref;
+	if (!r) {
+		radeon_bo_unpin(rdev->r600_blit.shader_obj);
+		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	}
-	radeon_bo_unpin(rdev->r600_blit.shader_obj);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-out_unref:
 	radeon_bo_unref(&rdev->r600_blit.shader_obj);
 }
 
