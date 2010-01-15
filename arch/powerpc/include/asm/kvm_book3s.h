@@ -124,6 +124,9 @@ extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 extern u32 kvmppc_trampoline_lowmem;
 extern u32 kvmppc_trampoline_enter;
 extern void kvmppc_rmcall(ulong srr0, ulong srr1);
+extern void kvmppc_load_up_fpu(void);
+extern void kvmppc_load_up_altivec(void);
+extern void kvmppc_load_up_vsx(void);
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {
