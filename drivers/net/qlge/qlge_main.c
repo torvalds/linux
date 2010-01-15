@@ -73,6 +73,13 @@ static int qlge_irq_type = MSIX_IRQ;
 module_param(qlge_irq_type, int, MSIX_IRQ);
 MODULE_PARM_DESC(qlge_irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 
+static int qlge_mpi_coredump;
+module_param(qlge_mpi_coredump, int, 0);
+MODULE_PARM_DESC(qlge_mpi_coredump,
+		"Option to enable MPI firmware dump. "
+		"Default is OFF - Do Not allocate memory. "
+		"Do not perform firmware coredump.");
+
 static DEFINE_PCI_DEVICE_TABLE(qlge_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8000)},
@@ -3842,6 +3849,7 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
 	cancel_delayed_work_sync(&qdev->mpi_idc_work);
+	cancel_delayed_work_sync(&qdev->mpi_core_to_log);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 
 	for (i = 0; i < qdev->rss_ring_count; i++)
@@ -4398,6 +4406,7 @@ static void ql_release_all(struct pci_dev *pdev)
 		iounmap(qdev->reg_base);
 	if (qdev->doorbell_area)
 		iounmap(qdev->doorbell_area);
+	vfree(qdev->mpi_coredump);
 	pci_release_regions(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
@@ -4479,6 +4488,15 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	spin_lock_init(&qdev->hw_lock);
 	spin_lock_init(&qdev->stats_lock);
 
+	if (qlge_mpi_coredump) {
+		qdev->mpi_coredump =
+			vmalloc(sizeof(struct ql_mpi_coredump));
+		if (qdev->mpi_coredump == NULL) {
+			dev_err(&pdev->dev, "Coredump alloc failed.\n");
+			err = -ENOMEM;
+			goto err_out;
+		}
+	}
 	/* make sure the EEPROM is good */
 	err = qdev->nic_ops->get_flash(qdev);
 	if (err) {
@@ -4508,6 +4526,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
 	INIT_DELAYED_WORK(&qdev->mpi_port_cfg_work, ql_mpi_port_cfg_work);
 	INIT_DELAYED_WORK(&qdev->mpi_idc_work, ql_mpi_idc_work);
+	INIT_DELAYED_WORK(&qdev->mpi_core_to_log, ql_mpi_core_to_log);
 	init_completion(&qdev->ide_completion);
 
 	if (!cards_found) {
@@ -4630,6 +4649,7 @@ static void ql_eeh_close(struct net_device *ndev)
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
 	cancel_delayed_work_sync(&qdev->mpi_idc_work);
+	cancel_delayed_work_sync(&qdev->mpi_core_to_log);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 
 	for (i = 0; i < qdev->rss_ring_count; i++)

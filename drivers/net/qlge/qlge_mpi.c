@@ -1,5 +1,35 @@
 #include "qlge.h"
 
+int ql_unpause_mpi_risc(struct ql_adapter *qdev)
+{
+	u32 tmp;
+
+	/* Un-pause the RISC */
+	tmp = ql_read32(qdev, CSR);
+	if (!(tmp & CSR_RP))
+		return -EIO;
+
+	ql_write32(qdev, CSR, CSR_CMD_CLR_PAUSE);
+	return 0;
+}
+
+int ql_pause_mpi_risc(struct ql_adapter *qdev)
+{
+	u32 tmp;
+	int count = UDELAY_COUNT;
+
+	/* Pause the RISC */
+	ql_write32(qdev, CSR, CSR_CMD_SET_PAUSE);
+	do {
+		tmp = ql_read32(qdev, CSR);
+		if (tmp & CSR_RP)
+			break;
+		mdelay(UDELAY_DELAY);
+		count--;
+	} while (count);
+	return (count == 0) ? -ETIMEDOUT : 0;
+}
+
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data)
 {
 	int status;
@@ -43,6 +73,35 @@ int ql_soft_reset_mpi_risc(struct ql_adapter *qdev)
 	int status;
 	status = ql_write_mpi_reg(qdev, 0x00001010, 1);
 	return status;
+}
+
+/* Determine if we are in charge of the firwmare. If
+ * we are the lower of the 2 NIC pcie functions, or if
+ * we are the higher function and the lower function
+ * is not enabled.
+ */
+int ql_own_firmware(struct ql_adapter *qdev)
+{
+	u32 temp;
+
+	/* If we are the lower of the 2 NIC functions
+	 * on the chip the we are responsible for
+	 * core dump and firmware reset after an error.
+	 */
+	if (qdev->func < qdev->alt_func)
+		return 1;
+
+	/* If we are the higher of the 2 NIC functions
+	 * on the chip and the lower function is not
+	 * enabled, then we are responsible for
+	 * core dump and firmware reset after an error.
+	 */
+	temp =  ql_read32(qdev, STS);
+	if (!(temp & (1 << (8 + qdev->alt_func))))
+		return 1;
+
+	return 0;
+
 }
 
 static int ql_get_mb_sts(struct ql_adapter *qdev, struct mbox_params *mbcp)
@@ -1143,5 +1202,19 @@ void ql_mpi_reset_work(struct work_struct *work)
 	cancel_delayed_work_sync(&qdev->mpi_work);
 	cancel_delayed_work_sync(&qdev->mpi_port_cfg_work);
 	cancel_delayed_work_sync(&qdev->mpi_idc_work);
+	/* If we're not the dominant NIC function,
+	 * then there is nothing to do.
+	 */
+	if (!ql_own_firmware(qdev)) {
+		QPRINTK(qdev, DRV, ERR, "Don't own firmware!\n");
+		return;
+	}
+
+	if (!ql_core_dump(qdev, qdev->mpi_coredump)) {
+		QPRINTK(qdev, DRV, ERR, "Core is dumped!\n");
+		qdev->core_is_dumped = 1;
+		queue_delayed_work(qdev->workqueue,
+			&qdev->mpi_core_to_log, 5 * HZ);
+	}
 	ql_soft_reset_mpi_risc(qdev);
 }

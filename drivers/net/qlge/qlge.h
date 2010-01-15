@@ -2211,6 +2211,7 @@ extern int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
 void ql_queue_fw_error(struct ql_adapter *qdev);
 void ql_mpi_work(struct work_struct *work);
 void ql_mpi_reset_work(struct work_struct *work);
+void ql_mpi_core_to_log(struct work_struct *work);
 int ql_wait_reg_rdy(struct ql_adapter *qdev, u32 reg, u32 bit, u32 ebit);
 void ql_queue_asic_error(struct ql_adapter *qdev);
 u32 ql_enable_completion_interrupt(struct ql_adapter *qdev, u32 intr);
@@ -2221,6 +2222,11 @@ void ql_mpi_port_cfg_work(struct work_struct *work);
 int ql_mb_get_fw_state(struct ql_adapter *qdev);
 int ql_cam_route_initialize(struct ql_adapter *qdev);
 int ql_read_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 *data);
+int ql_write_mpi_reg(struct ql_adapter *qdev, u32 reg, u32 data);
+int ql_unpause_mpi_risc(struct ql_adapter *qdev);
+int ql_pause_mpi_risc(struct ql_adapter *qdev);
+int ql_core_dump(struct ql_adapter *qdev,
+		struct ql_mpi_coredump *mpi_coredump);
 int ql_mb_about_fw(struct ql_adapter *qdev);
 int ql_wol(struct ql_adapter *qdev);
 int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol);
