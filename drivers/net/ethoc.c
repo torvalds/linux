@@ -904,7 +904,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	}
 
 	mmio = devm_request_mem_region(&pdev->dev, res->start,
-			res->end - res->start + 1, res->name);
+			resource_size(res), res->name);
 	if (!mmio) {
 		dev_err(&pdev->dev, "cannot request I/O memory space\n");
 		ret = -ENXIO;
@@ -917,7 +917,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		mem = devm_request_mem_region(&pdev->dev, res->start,
-			res->end - res->start + 1, res->name);
+			resource_size(res), res->name);
 		if (!mem) {
 			dev_err(&pdev->dev, "cannot request memory space\n");
 			ret = -ENXIO;
@@ -945,7 +945,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv->dma_alloc = 0;
 
 	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
-			mmio->end - mmio->start + 1);
+			resource_size(mmio));
 	if (!priv->iobase) {
 		dev_err(&pdev->dev, "cannot remap I/O memory space\n");
 		ret = -ENXIO;
@@ -954,7 +954,7 @@ static int ethoc_probe(struct platform_device *pdev)
 
 	if (netdev->mem_end) {
 		priv->membase = devm_ioremap_nocache(&pdev->dev,
-			netdev->mem_start, mem->end - mem->start + 1);
+			netdev->mem_start, resource_size(mem));
 		if (!priv->membase) {
 			dev_err(&pdev->dev, "cannot remap memory space\n");
 			ret = -ENXIO;
