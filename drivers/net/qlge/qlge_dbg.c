@@ -1,5 +1,23 @@
 #include "qlge.h"
 
+/* Read a NIC register from the alternate function. */
+static u32 ql_read_other_func_reg(struct ql_adapter *qdev,
+						u32 reg)
+{
+	u32 register_to_read;
+	u32 reg_val;
+	unsigned int status = 0;
+
+	register_to_read = MPI_NIC_REG_BLOCK
+				| MPI_NIC_READ
+				| (qdev->alt_func << MPI_NIC_FUNCTION_SHIFT)
+				| reg;
+	status = ql_read_mpi_reg(qdev, register_to_read, &reg_val);
+	if (status != 0)
+		return 0xffffffff;
+
+	return reg_val;
+}
 
 static int ql_get_ets_regs(struct ql_adapter *qdev, u32 * buf)
 {
@@ -371,16 +389,28 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 			sizeof(struct mpi_coredump_segment_header) +
 			sizeof(mpi_coredump->nic_regs), "NIC1 Registers");
 
+	ql_build_coredump_seg_header(&mpi_coredump->nic2_regs_seg_hdr,
+			NIC2_CONTROL_SEG_NUM,
+			sizeof(struct mpi_coredump_segment_header) +
+			sizeof(mpi_coredump->nic2_regs), "NIC2 Registers");
+
 	if (qdev->func & 1) {
 		/* Odd means our function is NIC 2 */
 		for (i = 0; i < NIC_REGS_DUMP_WORD_COUNT; i++)
 			mpi_coredump->nic2_regs[i] =
 					 ql_read32(qdev, i * sizeof(u32));
+
+		for (i = 0; i < NIC_REGS_DUMP_WORD_COUNT; i++)
+			mpi_coredump->nic_regs[i] =
+			ql_read_other_func_reg(qdev, (i * sizeof(u32)) / 4);
 	} else {
 		/* Even means our function is NIC 1 */
 		for (i = 0; i < NIC_REGS_DUMP_WORD_COUNT; i++)
 			mpi_coredump->nic_regs[i] =
 					ql_read32(qdev, i * sizeof(u32));
+		for (i = 0; i < NIC_REGS_DUMP_WORD_COUNT; i++)
+			mpi_coredump->nic2_regs[i] =
+			ql_read_other_func_reg(qdev, (i * sizeof(u32)) / 4);
 	}
 
 	ql_build_coredump_seg_header(&mpi_coredump->core_regs_seg_hdr,
