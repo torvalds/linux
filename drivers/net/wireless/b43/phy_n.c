@@ -429,10 +429,31 @@ static void b43_nphy_bphy_init(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_N_BMODE(0x38), 0x668);
 }
 
-/* RSSI Calibration */
-static void b43_nphy_rssi_cal(struct b43_wldev *dev, u8 type)
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal */
+static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, u8 type)
 {
-	//TODO
+	/* TODO */
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICalRev3 */
+static void b43_nphy_rev3_rssi_cal(struct b43_wldev *dev)
+{
+	/* TODO */
+}
+
+/*
+ * RSSI Calibration
+ * http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICal
+ */
+static void b43_nphy_rssi_cal(struct b43_wldev *dev)
+{
+	if (dev->phy.rev >= 3) {
+		b43_nphy_rev3_rssi_cal(dev);
+	} else {
+		b43_nphy_rev2_rssi_cal(dev, 2);
+		b43_nphy_rev2_rssi_cal(dev, 0);
+		b43_nphy_rev2_rssi_cal(dev, 1);
+	}
 }
 
 /*
@@ -571,11 +592,11 @@ int b43_phy_initn(struct b43_wldev *dev)
 			do_rssi_cal = (nphy->rssical_chanspec_5G == 0);
 
 		if (do_rssi_cal)
-			;/* b43_nphy_rssi_cal(dev); */
+			b43_nphy_rssi_cal(dev);
 		else
 			;/* b43_nphy_restore_rssi_cal(dev); */
 	} else {
-		/* b43_nphy_rssi_cal(dev); */
+		b43_nphy_rssi_cal(dev);
 	}
 
 	if (!((nphy->measure_hold & 0x6) != 0)) {
