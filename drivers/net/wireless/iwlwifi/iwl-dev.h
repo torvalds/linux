@@ -1162,6 +1162,8 @@ struct iwl_priv {
 	struct iwl_notif_statistics statistics;
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_notif_statistics accum_statistics;
+	struct iwl_notif_statistics delta_statistics;
+	struct iwl_notif_statistics max_delta;
 #endif
 
 	/* context information */

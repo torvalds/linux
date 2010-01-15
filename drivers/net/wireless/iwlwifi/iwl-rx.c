@@ -564,15 +564,24 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 	int i;
 	__le32 *prev_stats;
 	u32 *accum_stats;
+	u32 *delta, *max_delta;
 
 	prev_stats = (__le32 *)&priv->statistics;
 	accum_stats = (u32 *)&priv->accum_statistics;
+	delta = (u32 *)&priv->delta_statistics;
+	max_delta = (u32 *)&priv->max_delta;
 
 	for (i = sizeof(__le32); i < sizeof(struct iwl_notif_statistics);
-	     i += sizeof(__le32), stats++, prev_stats++, accum_stats++)
-		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats))
-			*accum_stats += (le32_to_cpu(*stats) -
+	     i += sizeof(__le32), stats++, prev_stats++, delta++,
+	     max_delta++, accum_stats++) {
+		if (le32_to_cpu(*stats) > le32_to_cpu(*prev_stats)) {
+			*delta = (le32_to_cpu(*stats) -
 				le32_to_cpu(*prev_stats));
+			*accum_stats += *delta;
+			if (*delta > *max_delta)
+				*max_delta = *delta;
+		}
+	}
 
 	/* reset accumulative statistics for "no-counter" type statistics */
 	priv->accum_statistics.general.temperature =
@@ -640,6 +649,10 @@ void iwl_reply_statistics(struct iwl_priv *priv,
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLWIFI_DEBUG
 		memset(&priv->accum_statistics, 0,
+			sizeof(struct iwl_notif_statistics));
+		memset(&priv->delta_statistics, 0,
+			sizeof(struct iwl_notif_statistics));
+		memset(&priv->max_delta, 0,
 			sizeof(struct iwl_notif_statistics));
 #endif
 		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
