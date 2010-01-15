@@ -28,6 +28,7 @@
 #include "b43.h"
 #include "phy_n.h"
 #include "tables_nphy.h"
+#include "main.h"
 
 struct nphy_txgains {
 	u16 txgm[2];
@@ -373,6 +374,41 @@ static void b43_nphy_reset_cca(struct b43_wldev *dev)
 	/* TODO: N PHY Force RF Seq with argument 2 */
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
+static void b43_nphy_write_clip_detection(struct b43_wldev *dev, u16 *clip_st)
+{
+	b43_phy_write(dev, B43_NPHY_C1_CLIP1THRES, clip_st[0]);
+	b43_phy_write(dev, B43_NPHY_C2_CLIP1THRES, clip_st[1]);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
+static void b43_nphy_read_clip_detection(struct b43_wldev *dev, u16 *clip_st)
+{
+	clip_st[0] = b43_phy_read(dev, B43_NPHY_C1_CLIP1THRES);
+	clip_st[1] = b43_phy_read(dev, B43_NPHY_C2_CLIP1THRES);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/classifier */
+static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
+{
+	u16 tmp;
+
+	if (dev->dev->id.revision == 16)
+		b43_mac_suspend(dev);
+
+	tmp = b43_phy_read(dev, B43_NPHY_CLASSCTL);
+	tmp &= (B43_NPHY_CLASSCTL_CCKEN | B43_NPHY_CLASSCTL_OFDMEN |
+		B43_NPHY_CLASSCTL_WAITEDEN);
+	tmp &= ~mask;
+	tmp |= (val & mask);
+	b43_phy_maskset(dev, B43_NPHY_CLASSCTL, 0xFFF8, tmp);
+
+	if (dev->dev->id.revision == 16)
+		b43_mac_enable(dev);
+
+	return tmp;
+}
+
 enum b43_nphy_rf_sequence {
 	B43_RFSEQ_RX2TX,
 	B43_RFSEQ_TX2RX,
@@ -563,8 +599,8 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
 	/* b43_nphy_pa_override(dev, true); */
 
-	/* b43_nphy_classifier(dev, 0, 0); */
-	/* b43_nphy_read_clip_detection(dev, clip); */
+	b43_nphy_classifier(dev, 0, 0);
+	b43_nphy_read_clip_detection(dev, clip);
 	tx_pwr_state = nphy->txpwrctrl;
 	/* TODO N PHY TX power control with argument 0
 		(turning off power control) */
