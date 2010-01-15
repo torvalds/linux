@@ -343,18 +343,34 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_PHASETR_B2, 0x20);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
+static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
+{
+	u32 tmslow;
+
+	if (dev->phy.type != B43_PHYTYPE_N)
+		return;
+
+	tmslow = ssb_read32(dev->dev, SSB_TMSLOW);
+	if (force)
+		tmslow |= SSB_TMSLOW_FGC;
+	else
+		tmslow &= ~SSB_TMSLOW_FGC;
+	ssb_write32(dev->dev, SSB_TMSLOW, tmslow);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CCA */
 static void b43_nphy_reset_cca(struct b43_wldev *dev)
 {
 	u16 bbcfg;
 
-	ssb_write32(dev->dev, SSB_TMSLOW,
-		    ssb_read32(dev->dev, SSB_TMSLOW) | SSB_TMSLOW_FGC);
+	b43_nphy_bmac_clock_fgc(dev, 1);
 	bbcfg = b43_phy_read(dev, B43_NPHY_BBCFG);
-	b43_phy_set(dev, B43_NPHY_BBCFG, B43_NPHY_BBCFG_RSTCCA);
-	b43_phy_write(dev, B43_NPHY_BBCFG,
-		      bbcfg & ~B43_NPHY_BBCFG_RSTCCA);
-	ssb_write32(dev->dev, SSB_TMSLOW,
-		    ssb_read32(dev->dev, SSB_TMSLOW) & ~SSB_TMSLOW_FGC);
+	b43_phy_write(dev, B43_NPHY_BBCFG, bbcfg | B43_NPHY_BBCFG_RSTCCA);
+	udelay(1);
+	b43_phy_write(dev, B43_NPHY_BBCFG, bbcfg & ~B43_NPHY_BBCFG_RSTCCA);
+	b43_nphy_bmac_clock_fgc(dev, 0);
+	/* TODO: N PHY Force RF Seq with argument 2 */
 }
 
 enum b43_nphy_rf_sequence {
