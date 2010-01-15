@@ -410,7 +410,6 @@ struct r600_ih {
 	unsigned		wptr_old;
 	unsigned		ring_size;
 	uint64_t		gpu_addr;
-	uint32_t		align_mask;
 	uint32_t		ptr_mask;
 	spinlock_t              lock;
 	bool                    enabled;
@@ -1162,7 +1161,8 @@ extern int r600_irq_init(struct radeon_device *rdev);
 extern void r600_irq_fini(struct radeon_device *rdev);
 extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_irq_set(struct radeon_device *rdev);
-
+extern void r600_irq_suspend(struct radeon_device *rdev);
+/* r600 audio */
 extern int r600_audio_init(struct radeon_device *rdev);
 extern int r600_audio_tmds_index(struct drm_encoder *encoder);
 extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);

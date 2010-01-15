@@ -968,6 +968,7 @@ int rv770_suspend(struct radeon_device *rdev)
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
+	r600_irq_suspend(rdev);
 	r600_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
