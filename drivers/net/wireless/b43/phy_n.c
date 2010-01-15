@@ -408,6 +408,23 @@ static void b43_nphy_reset_cca(struct b43_wldev *dev)
 	/* TODO: N PHY Force RF Seq with argument 2 */
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqCoeffs */
+static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
+					struct b43_phy_n_iq_comp *pcomp)
+{
+	if (write) {
+		b43_phy_write(dev, B43_NPHY_C1_RXIQ_COMPA0, pcomp->a0);
+		b43_phy_write(dev, B43_NPHY_C1_RXIQ_COMPB0, pcomp->b0);
+		b43_phy_write(dev, B43_NPHY_C2_RXIQ_COMPA1, pcomp->a1);
+		b43_phy_write(dev, B43_NPHY_C2_RXIQ_COMPB1, pcomp->b1);
+	} else {
+		pcomp->a0 = b43_phy_read(dev, B43_NPHY_C1_RXIQ_COMPA0);
+		pcomp->b0 = b43_phy_read(dev, B43_NPHY_C1_RXIQ_COMPB0);
+		pcomp->a1 = b43_phy_read(dev, B43_NPHY_C2_RXIQ_COMPA1);
+		pcomp->b1 = b43_phy_read(dev, B43_NPHY_C2_RXIQ_COMPB1);
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
 static void b43_nphy_write_clip_detection(struct b43_wldev *dev, u16 *clip_st)
 {
