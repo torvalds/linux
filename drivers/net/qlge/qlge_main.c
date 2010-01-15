@@ -77,8 +77,13 @@ static int qlge_mpi_coredump;
 module_param(qlge_mpi_coredump, int, 0);
 MODULE_PARM_DESC(qlge_mpi_coredump,
 		"Option to enable MPI firmware dump. "
-		"Default is OFF - Do Not allocate memory. "
-		"Do not perform firmware coredump.");
+		"Default is OFF - Do Not allocate memory. ");
+
+static int qlge_force_coredump;
+module_param(qlge_force_coredump, int, 0);
+MODULE_PARM_DESC(qlge_force_coredump,
+		"Option to allow force of firmware core dump. "
+		"Default is OFF - Do not allow.");
 
 static DEFINE_PCI_DEVICE_TABLE(qlge_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
@@ -4496,6 +4501,8 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 			err = -ENOMEM;
 			goto err_out;
 		}
+		if (qlge_force_coredump)
+			set_bit(QL_FRC_COREDUMP, &qdev->flags);
 	}
 	/* make sure the EEPROM is good */
 	err = qdev->nic_ops->get_flash(qdev);

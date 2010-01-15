@@ -2004,6 +2004,7 @@ enum {
 	QL_CAM_RT_SET = 8,
 	QL_SELFTEST = 9,
 	QL_LB_LINK_UP = 10,
+	QL_FRC_COREDUMP = 11,
 };
 
 /* link_status bit definitions */
@@ -2230,6 +2231,7 @@ int ql_dump_risc_ram_area(struct ql_adapter *qdev, void *buf,
 		u32 ram_addr, int word_count);
 int ql_core_dump(struct ql_adapter *qdev,
 		struct ql_mpi_coredump *mpi_coredump);
+int ql_mb_sys_err(struct ql_adapter *qdev);
 int ql_mb_about_fw(struct ql_adapter *qdev);
 int ql_wol(struct ql_adapter *qdev);
 int ql_mb_wol_set_magic(struct ql_adapter *qdev, u32 enable_wol);
@@ -2246,6 +2248,7 @@ void ql_gen_reg_dump(struct ql_adapter *qdev,
 			struct ql_reg_dump *mpi_coredump);
 netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev);
 void ql_check_lb_frame(struct ql_adapter *, struct sk_buff *);
+int ql_own_firmware(struct ql_adapter *qdev);
 int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
 
 #if 1

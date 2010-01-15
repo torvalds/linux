@@ -1222,6 +1222,28 @@ err:
 
 }
 
+static void ql_get_core_dump(struct ql_adapter *qdev)
+{
+	if (!ql_own_firmware(qdev)) {
+		QPRINTK(qdev, DRV, ERR, "%s: Don't own firmware!\n",
+					qdev->ndev->name);
+		return;
+	}
+
+	if (!netif_running(qdev->ndev)) {
+		QPRINTK(qdev, IFUP, ERR,
+			"Force Coredump can only be done from interface "
+			"that is up.\n");
+		return;
+	}
+
+	if (ql_mb_sys_err(qdev)) {
+		QPRINTK(qdev, IFUP, ERR,
+			"Fail force coredump with ql_mb_sys_err().\n");
+		return;
+	}
+}
+
 void ql_gen_reg_dump(struct ql_adapter *qdev,
 			struct ql_reg_dump *mpi_coredump)
 {
@@ -1297,6 +1319,9 @@ void ql_gen_reg_dump(struct ql_adapter *qdev,
 	status = ql_get_ets_regs(qdev, &mpi_coredump->ets[0]);
 	if (status)
 		return;
+
+	if (test_bit(QL_FRC_COREDUMP, &qdev->flags))
+		ql_get_core_dump(qdev);
 }
 
 /* Coredump to messages log file using separate worker thread */
