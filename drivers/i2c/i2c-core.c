@@ -248,7 +248,7 @@ static const struct attribute_group *i2c_dev_attr_groups[] = {
 	NULL
 };
 
-const static struct dev_pm_ops i2c_device_pm_ops = {
+static const struct dev_pm_ops i2c_device_pm_ops = {
 	.suspend = i2c_device_pm_suspend,
 	.resume = i2c_device_pm_resume,
 };
