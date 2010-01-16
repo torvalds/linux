@@ -108,6 +108,13 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			break;
 		case Opt_trans:
 			clnt->trans_mod = v9fs_get_trans_by_name(&args[0]);
+			if(clnt->trans_mod == NULL) {
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				   "Could not find request transport: %s\n",
+				   (char *) &args[0]);
+				ret = -EINVAL;
+				goto free_and_return;
+			}
 			break;
 		case Opt_legacy:
 			clnt->dotu = 0;
@@ -117,6 +124,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 		}
 	}
 
+free_and_return:
 	kfree(options);
 	return ret;
 }
