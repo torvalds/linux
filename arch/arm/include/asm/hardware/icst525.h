@@ -19,4 +19,12 @@
 unsigned long icst525_khz(const struct icst_params *p, struct icst_vco vco);
 struct icst_vco icst525_khz_to_vco(const struct icst_params *p, unsigned long freq);
 
+/*
+ * ICST525 VCO frequency must be between 10MHz and 200MHz (3V) or 320MHz (5V).
+ * This frequency is pre-output divider.
+ */
+#define ICST525_VCO_MIN		10000
+#define ICST525_VCO_MAX_3V	200000
+#define ICST525_VCO_MAX_5V	320000
+
 #endif

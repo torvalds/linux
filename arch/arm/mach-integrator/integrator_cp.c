@@ -270,7 +270,7 @@ static void __init intcp_init_irq(void)
 
 static const struct icst_params cp_auxvco_params = {
 	.ref		= 24000,
-	.vco_max	= 320000,
+	.vco_max	= ICST525_VCO_MAX_5V,
 	.vd_min 	= 8,
 	.vd_max 	= 263,
 	.rd_min 	= 3,

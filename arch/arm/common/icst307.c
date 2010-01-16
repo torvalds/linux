@@ -53,7 +53,7 @@ icst307_khz_to_vco(const struct icst_params *p, unsigned long freq)
 		/*
 		 * f must be between 6MHz and 200MHz (3.3 or 5V)
 		 */
-		if (f > 6000 && f <= p->vco_max)
+		if (f > ICST307_VCO_MIN && f <= p->vco_max)
 			break;
 	} while (i < ARRAY_SIZE(idx2s));
 

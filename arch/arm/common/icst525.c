@@ -51,7 +51,7 @@ icst525_khz_to_vco(const struct icst_params *p, unsigned long freq)
 		 * f must be between 10MHz and
 		 *  320MHz (5V) or 200MHz (3V)
 		 */
-		if (f > 10000 && f <= p->vco_max)
+		if (f > ICST525_VCO_MIN && f <= p->vco_max)
 			break;
 	} while (i < ARRAY_SIZE(idx2s));
 

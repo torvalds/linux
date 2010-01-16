@@ -33,7 +33,7 @@ static struct cpufreq_driver integrator_driver;
 
 static const struct icst_params lclk_params = {
 	.ref		= 24000,
-	.vco_max	= 320000,
+	.vco_max	= ICST525_VCO_MAX_5V,
 	.vd_min		= 8,
 	.vd_max		= 132,
 	.rd_min		= 24,
@@ -42,7 +42,7 @@ static const struct icst_params lclk_params = {
 
 static const struct icst_params cclk_params = {
 	.ref		= 24000,
-	.vco_max	= 320000,
+	.vco_max	= ICST525_VCO_MAX_5V,
 	.vd_min		= 12,
 	.vd_max		= 160,
 	.rd_min		= 24,
