@@ -134,7 +134,6 @@ struct pccard_operations {
 
 struct pcmcia_socket {
 	struct module			*owner;
-	spinlock_t			lock;
 	socket_state_t			socket;
 	u_int				state;
 	u_int				suspended_state;	/* state before suspend */
@@ -201,10 +200,12 @@ struct pcmcia_socket {
 	struct task_struct		*thread;
 	struct completion		thread_done;
 	unsigned int			thread_events;
-	/* protects socket h/w state */
+
+	/* For the non-trivial interaction between these locks,
+	 * see Documentation/pcmcia/locking.txt */
 	struct mutex			skt_mutex;
-	/* protects PCMCIA state */
 	struct mutex			ops_mutex;
+
 	/* protects thread_events */
 	spinlock_t			thread_lock;
 

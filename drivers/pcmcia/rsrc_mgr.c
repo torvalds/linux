@@ -23,14 +23,12 @@
 
 static int static_init(struct pcmcia_socket *s)
 {
-	unsigned long flags;
-
 	/* the good thing about SS_CAP_STATIC_MAP sockets is
 	 * that they don't need a resource database */
 
-	spin_lock_irqsave(&s->lock, flags);
+	mutex_lock(&s->ops_mutex);
 	s->resource_setup_done = 1;
-	spin_unlock_irqrestore(&s->lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 }

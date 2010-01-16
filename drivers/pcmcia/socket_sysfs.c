@@ -189,16 +189,15 @@ static ssize_t pccard_store_resource(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
-	unsigned long flags;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!count)
 		return -EINVAL;
 
-	spin_lock_irqsave(&s->lock, flags);
+	mutex_lock(&s->ops_mutex);
 	if (!s->resource_setup_done)
 		s->resource_setup_done = 1;
-	spin_unlock_irqrestore(&s->lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	mutex_lock(&s->skt_mutex);
 	if ((s->callback) &&

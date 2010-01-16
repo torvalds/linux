@@ -42,8 +42,6 @@ MODULE_DESCRIPTION("PCMCIA Driver Services");
 MODULE_LICENSE("GPL");
 
 
-spinlock_t pcmcia_dev_list_lock;
-
 /*====================================================================*/
 
 static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
@@ -265,7 +263,6 @@ static int pcmcia_device_probe(struct device *dev)
 	struct pcmcia_device_id *did;
 	struct pcmcia_socket *s;
 	cistpl_config_t cis_config;
-	unsigned long flags;
 	int ret = 0;
 
 	dev = get_device(dev);
@@ -316,11 +313,11 @@ static int pcmcia_device_probe(struct device *dev)
 		goto put_module;
 	}
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_device_later(p_dev->socket, 0);
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 put_module:
 	if (ret)
@@ -339,28 +336,27 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 {
 	struct pcmcia_device	*p_dev;
 	struct pcmcia_device	*tmp;
-	unsigned long		flags;
 
 	dev_dbg(leftover ? &leftover->dev : &s->dev,
 		   "pcmcia_card_remove(%d) %s\n", s->sock,
 		   leftover ? leftover->devname : "");
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	if (!leftover)
 		s->device_count = 0;
 	else
 		s->device_count = 1;
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	/* unregister all pcmcia_devices registered with this socket, except leftover */
 	list_for_each_entry_safe(p_dev, tmp, &s->devices_list, socket_device_list) {
 		if (p_dev == leftover)
 			continue;
 
-		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+		mutex_lock(&s->ops_mutex);
 		list_del(&p_dev->socket_device_list);
 		p_dev->_removed = 1;
-		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+		mutex_unlock(&s->ops_mutex);
 
 		dev_dbg(&p_dev->dev, "unregistering device\n");
 		device_unregister(&p_dev->dev);
@@ -507,7 +503,6 @@ static DEFINE_MUTEX(device_add_lock);
 struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
-	unsigned long flags;
 
 	s = pcmcia_get_socket(s);
 	if (!s)
@@ -521,9 +516,9 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	if (!p_dev)
 		goto err_put;
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	p_dev->device_no = (s->device_count++);
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	/* max of 4 devices per card */
 	if (p_dev->device_no >= 4)
@@ -546,7 +541,7 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 		goto err_free;
 	dev_dbg(&p_dev->dev, "devname is %s\n", p_dev->devname);
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 
 	/*
 	 * p_dev->function_config must be the same for all card functions.
@@ -564,7 +559,7 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	/* Add to the list in pcmcia_bus_socket */
 	list_add(&p_dev->socket_device_list, &s->devices_list);
 
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	if (!p_dev->function_config) {
 		dev_dbg(&p_dev->dev, "creating config_t\n");
@@ -589,14 +584,14 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	return p_dev;
 
  err_unreg:
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	list_del(&p_dev->socket_device_list);
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
  err_free:
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	s->device_count--;
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	kfree(p_dev->devname);
 	kfree(p_dev);
@@ -650,13 +645,12 @@ static void pcmcia_delayed_add_device(struct work_struct *work)
 	struct pcmcia_socket *s =
 		container_of(work, struct pcmcia_socket, device_add);
 	u8 mfc_pfc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&s->ops_mutex);
 	mfc_pfc = s->pcmcia_state.mfc_pfc;
 	s->pcmcia_state.device_add_pending = 0;
 	s->pcmcia_state.mfc_pfc = 0;
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&s->ops_mutex);
 
 	dev_dbg(&s->dev, "adding additional device to %d\n", s->sock);
 	pcmcia_device_add(s, mfc_pfc);
@@ -677,15 +671,14 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt, int new_cis)
 {
 	int no_devices = 0;
 	int ret = 0;
-	unsigned long flags;
 
 	/* must be called with skt_mutex held */
 	dev_dbg(&skt->dev, "re-scanning socket %d\n", skt->sock);
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&skt->ops_mutex);
 	if (list_empty(&skt->devices_list))
 		no_devices = 1;
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&skt->ops_mutex);
 
 	/* If this is because of a CIS override, start over */
 	if (new_cis && !no_devices)
@@ -769,11 +762,9 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 		if (old_funcs > no_funcs)
 			pcmcia_card_remove(s, dev);
 		else if (no_funcs > old_funcs) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+			mutex_lock(&s->ops_mutex);
 			pcmcia_add_device_later(s, 1);
-			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+			mutex_unlock(&s->ops_mutex);
 		}
 	}
  release:
@@ -1248,7 +1239,6 @@ static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
 static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 {
 	struct pcmcia_socket *s = pcmcia_get_socket(skt);
-	unsigned long flags;
 
 	if (!s) {
 		dev_printk(KERN_ERR, &skt->dev,
@@ -1262,9 +1252,9 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
-		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+		mutex_lock(&s->ops_mutex);
 		s->pcmcia_state.present = 0;
-		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+		mutex_unlock(&s->ops_mutex);
 		pcmcia_card_remove(skt, NULL);
 		handle_event(skt, event);
 		mutex_lock(&s->ops_mutex);
@@ -1273,10 +1263,8 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		break;
 
 	case CS_EVENT_CARD_INSERTION:
-		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-		s->pcmcia_state.present = 1;
-		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 		mutex_lock(&s->ops_mutex);
+		s->pcmcia_state.present = 1;
 		destroy_cis_cache(s); /* to be on the safe side... */
 		mutex_unlock(&s->ops_mutex);
 		pcmcia_card_add(skt);
@@ -1321,13 +1309,12 @@ struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_device *ret = NULL;
-	unsigned long flags;
 
 	p_dev = pcmcia_get_dev(_p_dev);
 	if (!p_dev)
 		return NULL;
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&p_dev->socket->ops_mutex);
 	if (!p_dev->socket->pcmcia_state.present)
 		goto out;
 
@@ -1342,7 +1329,7 @@ struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 
 	ret = p_dev;
  out:
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&p_dev->socket->ops_mutex);
 	pcmcia_put_dev(p_dev);
 	return ret;
 }
@@ -1406,14 +1393,13 @@ static void pcmcia_bus_remove_socket(struct device *dev,
 				     struct class_interface *class_intf)
 {
 	struct pcmcia_socket *socket = dev_get_drvdata(dev);
-	unsigned long flags;
 
 	if (!socket)
 		return;
 
-	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mutex_lock(&socket->ops_mutex);
 	socket->pcmcia_state.dead = 1;
-	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	mutex_unlock(&socket->ops_mutex);
 
 	pccard_register_pcmcia(socket, NULL);
 
@@ -1454,8 +1440,6 @@ struct bus_type pcmcia_bus_type = {
 static int __init init_pcmcia_bus(void)
 {
 	int ret;
-
-	spin_lock_init(&pcmcia_dev_list_lock);
 
 	ret = bus_register(&pcmcia_bus_type);
 	if (ret < 0) {

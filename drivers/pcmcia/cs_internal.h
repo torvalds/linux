@@ -182,8 +182,6 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
 
 #ifdef CONFIG_PCMCIA_IOCTL
 /* ds.c */
-extern spinlock_t pcmcia_dev_list_lock;
-
 extern struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev);
 extern void pcmcia_put_dev(struct pcmcia_device *p_dev);
 

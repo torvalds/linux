@@ -175,8 +175,6 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 	dev_dbg(&socket->dev, "pcmcia_register_socket(0x%p)\n", socket->ops);
 
-	spin_lock_init(&socket->lock);
-
 	/* try to obtain a socket number [yes, it gets ugly if we
 	 * register more than 2^sizeof(unsigned int) pcmcia
 	 * sockets... but the socket number is deprecated
