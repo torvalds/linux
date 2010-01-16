@@ -324,7 +324,7 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 		/* Allocate fragment table for this buffer */
 
 		mem = (void *)get_zeroed_page(GFP_KERNEL);
-		if (mem == 0) {
+		if (!mem) {
 			dprintk(1,
 				KERN_ERR
 				"%s: %s - get_zeroed_page (frag_tab) failed for buffer %d\n",
