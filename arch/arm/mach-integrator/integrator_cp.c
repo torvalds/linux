@@ -29,6 +29,7 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
+#include <asm/hardware/arm_timer.h>
 #include <asm/hardware/icst.h>
 
 #include <mach/cm.h>
@@ -39,6 +40,8 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
+
+#include <plat/timer-sp.h>
 
 #include "common.h"
 
@@ -569,11 +572,18 @@ static void __init intcp_init(void)
 	}
 }
 
-#define TIMER_CTRL_IE	(1 << 5)			/* Interrupt Enable */
+#define TIMER0_VA_BASE __io_address(INTEGRATOR_TIMER0_BASE)
+#define TIMER1_VA_BASE __io_address(INTEGRATOR_TIMER1_BASE)
+#define TIMER2_VA_BASE __io_address(INTEGRATOR_TIMER2_BASE)
 
 static void __init intcp_timer_init(void)
 {
-	integrator_time_init(1000, TIMER_CTRL_IE);
+	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
+	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
+
+	sp804_clocksource_init(TIMER2_VA_BASE);
+	sp804_clockevents_init(TIMER1_VA_BASE, IRQ_TIMERINT1);
 }
 
 static struct sys_timer cp_timer = {
