@@ -943,6 +943,14 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		ttm_flag_masked(&cur_flags, placement->busy_placement[i],
 				~TTM_PL_MASK_MEMTYPE);
 
+
+		if (mem_type == TTM_PL_SYSTEM) {
+			mem->mem_type = mem_type;
+			mem->placement = cur_flags;
+			mem->mm_node = NULL;
+			return 0;
+		}
+
 		ret = ttm_bo_mem_force_space(bo, mem_type, placement, mem,
 						interruptible, no_wait);
 		if (ret == 0 && mem->mm_node) {
