@@ -177,16 +177,15 @@ static int viafb_set_par(struct fb_info *info)
 	}
 
 	if (vmode_index != VIA_RES_INVALID) {
-		viafb_setmode(vmode_index, info->var.xres, info->var.yres,
-			info->var.bits_per_pixel, vmode_index1,
-			viafb_second_xres, viafb_second_yres, viafb_bpp1);
-
 		viafb_update_fix(info);
 		viafb_bpp = info->var.bits_per_pixel;
 		if (info->var.accel_flags & FB_ACCELF_TEXT)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		else
 			info->flags |= FBINFO_HWACCEL_DISABLED;
+		viafb_setmode(vmode_index, info->var.xres, info->var.yres,
+			info->var.bits_per_pixel, vmode_index1,
+			viafb_second_xres, viafb_second_yres, viafb_bpp1);
 	}
 
 	return 0;
