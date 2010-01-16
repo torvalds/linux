@@ -21,8 +21,7 @@
 #define CL_SLAVE     		0x02
 #define CL_COPY_ALL 		0x04
 #define CL_MAKE_SHARED 		0x08
-#define CL_PROPAGATION 		0x10
-#define CL_PRIVATE 		0x20
+#define CL_PRIVATE 		0x10
 
 static inline void set_mnt_shared(struct vfsmount *mnt)
 {
