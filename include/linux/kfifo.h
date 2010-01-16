@@ -235,11 +235,11 @@ static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
 
 extern void kfifo_skip(struct kfifo *fifo, unsigned int len);
 
-extern __must_check unsigned int kfifo_from_user(struct kfifo *fifo,
-	const void __user *from, unsigned int n);
+extern __must_check int kfifo_from_user(struct kfifo *fifo,
+	const void __user *from, unsigned int n, unsigned *lenout);
 
-extern __must_check unsigned int kfifo_to_user(struct kfifo *fifo,
-	void __user *to, unsigned int n);
+extern __must_check int kfifo_to_user(struct kfifo *fifo,
+	void __user *to, unsigned int n, unsigned *lenout);
 
 /*
  * __kfifo_add_out internal helper function for updating the out offset
