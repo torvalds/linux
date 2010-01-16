@@ -92,6 +92,12 @@ ax25_cb *ax25_send_frame(struct sk_buff *skb, int paclen, ax25_address *src, ax2
 #endif
 	}
 
+	/*
+	 * There is one ref for the state machine; a caller needs
+	 * one more to put it back, just like with the existing one.
+	 */
+	ax25_cb_hold(ax25);
+
 	ax25_cb_add(ax25);
 
 	ax25->state = AX25_STATE_1;
