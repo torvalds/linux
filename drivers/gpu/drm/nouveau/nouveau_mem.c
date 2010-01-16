@@ -386,7 +386,6 @@ void nouveau_mem_close(struct drm_device *dev)
 	nouveau_bo_unpin(dev_priv->vga_ram);
 	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 
-	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
 	nouveau_ttm_global_release(dev_priv);
