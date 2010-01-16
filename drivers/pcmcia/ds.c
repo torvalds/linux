@@ -265,6 +265,7 @@ static int pcmcia_device_probe(struct device *dev)
 	struct pcmcia_device_id *did;
 	struct pcmcia_socket *s;
 	cistpl_config_t cis_config;
+	unsigned long flags;
 	int ret = 0;
 
 	dev = get_device(dev);
@@ -315,9 +316,11 @@ static int pcmcia_device_probe(struct device *dev)
 		goto put_module;
 	}
 
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_add_device_later(p_dev->socket, 0);
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 put_module:
 	if (ret)
@@ -342,10 +345,12 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 		   "pcmcia_card_remove(%d) %s\n", s->sock,
 		   leftover ? leftover->devname : "");
 
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	if (!leftover)
 		s->device_count = 0;
 	else
 		s->device_count = 1;
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
 	/* unregister all pcmcia_devices registered with this socket, except leftover */
 	list_for_each_entry_safe(p_dev, tmp, &s->devices_list, socket_device_list) {
@@ -382,7 +387,7 @@ static int pcmcia_device_remove(struct device *dev)
 	 */
 	did = dev_get_drvdata(&p_dev->dev);
 	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
-	    (p_dev->socket->device_count != 0) &&
+	    (p_dev->socket->device_count > 0) &&
 	    (p_dev->device_no == 0))
 		pcmcia_card_remove(p_dev->socket, p_dev);
 
@@ -512,16 +517,19 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 
 	pr_debug("adding device to %d, function %d\n", s->sock, function);
 
-	/* max of 4 devices per card */
-	if (s->device_count == 4)
-		goto err_put;
-
 	p_dev = kzalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
 	if (!p_dev)
 		goto err_put;
 
-	p_dev->socket = s;
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	p_dev->device_no = (s->device_count++);
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+	/* max of 4 devices per card */
+	if (p_dev->device_no >= 4)
+		goto err_free;
+
+	p_dev->socket = s;
 	p_dev->func   = function;
 
 	p_dev->dev.bus = &pcmcia_bus_type;
@@ -586,9 +594,12 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
  err_free:
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	s->device_count--;
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
 	kfree(p_dev->devname);
 	kfree(p_dev);
-	s->device_count--;
  err_put:
 	mutex_unlock(&device_add_lock);
 	pcmcia_put_socket(s);
