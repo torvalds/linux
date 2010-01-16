@@ -1222,10 +1222,11 @@ static int p9_client_statsize(struct p9_wstat *wst, int optional)
 {
 	int ret;
 
+	/* NOTE: size shouldn't include its own length */
 	/* size[2] type[2] dev[4] qid[13] */
 	/* mode[4] atime[4] mtime[4] length[8]*/
 	/* name[s] uid[s] gid[s] muid[s] */
-	ret = 2+2+4+13+4+4+4+8+2+2+2+2;
+	ret = 2+4+13+4+4+4+8+2+2+2+2;
 
 	if (wst->name)
 		ret += strlen(wst->name);
@@ -1266,7 +1267,7 @@ int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst)
 		wst->name, wst->uid, wst->gid, wst->muid, wst->extension,
 		wst->n_uid, wst->n_gid, wst->n_muid);
 
-	req = p9_client_rpc(clnt, P9_TWSTAT, "dwS", fid->fid, wst->size, wst);
+	req = p9_client_rpc(clnt, P9_TWSTAT, "dwS", fid->fid, wst->size+2, wst);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
