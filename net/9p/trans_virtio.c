@@ -311,6 +311,7 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 	}
 
 	client->trans = (void *)chan;
+	client->status = Connected;
 	chan->client = client;
 
 	return 0;
