@@ -2381,7 +2381,7 @@ static int mem_cgroup_force_empty(struct mem_cgroup *mem, bool free_all)
 	if (free_all)
 		goto try_to_free;
 move_account:
-	while (mem->res.usage > 0) {
+	do {
 		ret = -EBUSY;
 		if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
 			goto out;
@@ -2408,8 +2408,8 @@ move_account:
 		if (ret == -ENOMEM)
 			goto try_to_free;
 		cond_resched();
-	}
-	ret = 0;
+	/* "ret" should also be checked to ensure all lists are empty. */
+	} while (mem->res.usage > 0 || ret);
 out:
 	css_put(&mem->css);
 	return ret;
@@ -2442,10 +2442,7 @@ try_to_free:
 	}
 	lru_add_drain();
 	/* try move_account...there may be some *locked* pages. */
-	if (mem->res.usage)
-		goto move_account;
-	ret = 0;
-	goto out;
+	goto move_account;
 }
 
 int mem_cgroup_force_empty_write(struct cgroup *cont, unsigned int event)
