@@ -48,6 +48,8 @@ static const struct icst_params impd1_vco_params = {
 	.vd_max		= 519,
 	.rd_min		= 3,
 	.rd_max		= 120,
+	.s2div		= icst525_s2div,
+	.idx2s		= icst525_idx2s,
 };
 
 static void impd1_setvco(struct clk *clk, struct icst_vco vco)

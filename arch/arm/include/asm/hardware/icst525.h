@@ -27,4 +27,7 @@ struct icst_vco icst525_hz_to_vco(const struct icst_params *p, unsigned long fre
 #define ICST525_VCO_MAX_3V	200000000
 #define ICST525_VCO_MAX_5V	320000000
 
+extern const unsigned char icst525_s2div[];
+extern const unsigned char icst525_idx2s[];
+
 #endif

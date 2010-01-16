@@ -28,4 +28,7 @@ struct icst_vco icst307_hz_to_vco(const struct icst_params *p, unsigned long fre
 #define ICST307_VCO_MIN	6000000
 #define ICST307_VCO_MAX	200000000
 
+extern const unsigned char icst307_s2div[];
+extern const unsigned char icst307_idx2s[];
+
 #endif

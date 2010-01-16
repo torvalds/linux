@@ -276,6 +276,8 @@ static const struct icst_params cp_auxvco_params = {
 	.vd_max 	= 263,
 	.rd_min 	= 3,
 	.rd_max 	= 65,
+	.s2div		= icst525_s2div,
+	.idx2s		= icst525_idx2s,
 };
 
 static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)

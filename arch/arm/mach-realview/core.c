@@ -281,6 +281,8 @@ static const struct icst_params realview_oscvco_params = {
 	.vd_max		= 511 + 8,
 	.rd_min		= 1 + 2,
 	.rd_max		= 127 + 2,
+	.s2div		= icst307_s2div,
+	.idx2s		= icst307_idx2s,
 };
 
 static void realview_oscvco_set(struct clk *clk, struct icst_vco vco)

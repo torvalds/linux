@@ -19,11 +19,13 @@
 /*
  * Divisors for each OD setting.
  */
-static unsigned char s2div[8] = { 10, 2, 8, 4, 5, 7, 9, 6 };
+const unsigned char icst525_s2div[8] = { 10, 2, 8, 4, 5, 7, 9, 6 };
+
+EXPORT_SYMBOL(icst525_s2div);
 
 unsigned long icst525_hz(const struct icst_params *p, struct icst_vco vco)
 {
-	return p->ref * 2 * (vco.v + 8) / ((vco.r + 2) * s2div[vco.s]);
+	return p->ref * 2 * (vco.v + 8) / ((vco.r + 2) * p->s2div[vco.s]);
 }
 
 EXPORT_SYMBOL(icst525_hz);
@@ -31,7 +33,9 @@ EXPORT_SYMBOL(icst525_hz);
 /*
  * Ascending divisor S values.
  */
-static unsigned char idx2s[] = { 1, 3, 4, 7, 5, 2, 6, 0 };
+const unsigned char icst525_idx2s[8] = { 1, 3, 4, 7, 5, 2, 6, 0 };
+
+EXPORT_SYMBOL(icst525_idx2s);
 
 struct icst_vco
 icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
@@ -45,7 +49,7 @@ icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
 	 * that the PLL output is within spec.
 	 */
 	do {
-		f = freq * s2div[idx2s[i]];
+		f = freq * p->s2div[p->idx2s[i]];
 
 		/*
 		 * f must be between 10MHz and
@@ -53,12 +57,12 @@ icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
 		 */
 		if (f > p->vco_min && f <= p->vco_max)
 			break;
-	} while (i < ARRAY_SIZE(idx2s));
+	} while (i < 8);
 
-	if (i >= ARRAY_SIZE(idx2s))
+	if (i >= 8)
 		return vco;
 
-	vco.s = idx2s[i];
+	vco.s = p->idx2s[i];
 
 	/*
 	 * Now find the closest divisor combination

@@ -22,6 +22,8 @@ struct icst_params {
 	unsigned short	vd_max;		/* inclusive */
 	unsigned char	rd_min;		/* inclusive */
 	unsigned char	rd_max;		/* inclusive */
+	const unsigned char *s2div;	/* chip specific s2div array */
+	const unsigned char *idx2s;	/* chip specific idx2s array */
 };
 
 struct icst_vco {

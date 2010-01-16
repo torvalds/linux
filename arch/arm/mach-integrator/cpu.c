@@ -39,6 +39,8 @@ static const struct icst_params lclk_params = {
 	.vd_max		= 132,
 	.rd_min		= 24,
 	.rd_max		= 24,
+	.s2div		= icst525_s2div,
+	.idx2s		= icst525_idx2s,
 };
 
 static const struct icst_params cclk_params = {
@@ -49,6 +51,8 @@ static const struct icst_params cclk_params = {
 	.vd_max		= 160,
 	.rd_min		= 24,
 	.rd_max		= 24,
+	.s2div		= icst525_s2div,
+	.idx2s		= icst525_idx2s,
 };
 
 /*
