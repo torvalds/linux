@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/icst525.h>
+#include <asm/hardware/icst.h>
 
 #include <mach/cm.h>
 #include <mach/lm.h>

@@ -24,7 +24,7 @@
 
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
-#include <asm/hardware/icst525.h>
+#include <asm/hardware/icst.h>
 #include <mach/lm.h>
 #include <mach/impd1.h>
 #include <asm/sizes.h>

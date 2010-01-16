@@ -22,7 +22,7 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/icst525.h>
+#include <asm/hardware/icst.h>
 
 static struct cpufreq_driver integrator_driver;
 
@@ -66,11 +66,11 @@ static int integrator_verify_policy(struct cpufreq_policy *policy)
 				     policy->cpuinfo.min_freq, 
 				     policy->cpuinfo.max_freq);
 
-	vco = icst525_hz_to_vco(&cclk_params, policy->max * 1000);
-	policy->max = icst525_hz(&cclk_params, vco) / 1000;
+	vco = icst_hz_to_vco(&cclk_params, policy->max * 1000);
+	policy->max = icst_hz(&cclk_params, vco) / 1000;
 
-	vco = icst525_hz_to_vco(&cclk_params, policy->min * 1000);
-	policy->min = icst525_hz(&cclk_params, vco) / 1000;
+	vco = icst_hz_to_vco(&cclk_params, policy->min * 1000);
+	policy->min = icst_hz(&cclk_params, vco) / 1000;
 
 	cpufreq_verify_within_limits(policy, 
 				     policy->cpuinfo.min_freq, 
@@ -112,17 +112,17 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	}
 	vco.v = cm_osc & 255;
 	vco.r = 22;
-	freqs.old = icst525_hz(&cclk_params, vco) / 1000;
+	freqs.old = icst_hz(&cclk_params, vco) / 1000;
 
-	/* icst525_hz_to_vco rounds down -- so we need the next
+	/* icst_hz_to_vco rounds down -- so we need the next
 	 * larger freq in case of CPUFREQ_RELATION_L.
 	 */
 	if (relation == CPUFREQ_RELATION_L)
 		target_freq += 999;
 	if (target_freq > policy->max)
 		target_freq = policy->max;
-	vco = icst525_hz_to_vco(&cclk_params, target_freq * 1000);
-	freqs.new = icst525_hz(&cclk_params, vco) / 1000;
+	vco = icst_hz_to_vco(&cclk_params, target_freq * 1000);
+	freqs.new = icst_hz(&cclk_params, vco) / 1000;
 
 	freqs.cpu = policy->cpu;
 
@@ -180,7 +180,7 @@ static unsigned int integrator_get(unsigned int cpu)
 	vco.v = cm_osc & 255;
 	vco.r = 22;
 
-	current_freq = icst525_hz(&cclk_params, vco) / 1000; /* current freq */
+	current_freq = icst_hz(&cclk_params, vco) / 1000; /* current freq */
 
 	set_cpus_allowed(current, cpus_allowed);
 

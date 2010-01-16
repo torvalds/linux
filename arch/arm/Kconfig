@@ -240,7 +240,7 @@ config ARCH_INTEGRATOR
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select ICST525
+	select ICST
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
@@ -251,7 +251,7 @@ config ARCH_REALVIEW
 	select ARM_AMBA
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select ICST307
+	select ICST
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -264,7 +264,7 @@ config ARCH_VERSATILE
 	select ARM_VIC
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select ICST307
+	select ICST
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB

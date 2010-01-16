@@ -32,4 +32,28 @@ struct icst_vco {
 	unsigned char	s;
 };
 
+unsigned long icst_hz(const struct icst_params *p, struct icst_vco vco);
+struct icst_vco icst_hz_to_vco(const struct icst_params *p, unsigned long freq);
+
+/*
+ * ICST307 VCO frequency must be between 6MHz and 200MHz (3.3 or 5V).
+ * This frequency is pre-output divider.
+ */
+#define ICST307_VCO_MIN	6000000
+#define ICST307_VCO_MAX	200000000
+
+extern const unsigned char icst307_s2div[];
+extern const unsigned char icst307_idx2s[];
+
+/*
+ * ICST525 VCO frequency must be between 10MHz and 200MHz (3V) or 320MHz (5V).
+ * This frequency is pre-output divider.
+ */
+#define ICST525_VCO_MIN		10000000
+#define ICST525_VCO_MAX_3V	200000000
+#define ICST525_VCO_MAX_5V	320000000
+
+extern const unsigned char icst525_s2div[];
+extern const unsigned char icst525_idx2s[];
+
 #endif

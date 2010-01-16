@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/common/icst525.c
+ *  linux/arch/arm/common/icst307.c
  *
  *  Copyright (C) 2003 Deep Blue Solutions, Ltd, All Rights Reserved.
  *
@@ -7,38 +7,43 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- *  Support functions for calculating clocks/divisors for the ICST525
+ *  Support functions for calculating clocks/divisors for the ICST307
  *  clock generators.  See http://www.icst.com/ for more information
  *  on these devices.
+ *
+ *  This is an almost identical implementation to the ICST525 clock generator.
+ *  The s2div and idx2s files are different
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-#include <asm/hardware/icst525.h>
+#include <asm/hardware/icst.h>
 
 /*
  * Divisors for each OD setting.
  */
+const unsigned char icst307_s2div[8] = { 10, 2, 8, 4, 5, 7, 3, 6 };
 const unsigned char icst525_s2div[8] = { 10, 2, 8, 4, 5, 7, 9, 6 };
-
+EXPORT_SYMBOL(icst307_s2div);
 EXPORT_SYMBOL(icst525_s2div);
 
-unsigned long icst525_hz(const struct icst_params *p, struct icst_vco vco)
+unsigned long icst_hz(const struct icst_params *p, struct icst_vco vco)
 {
 	return p->ref * 2 * (vco.v + 8) / ((vco.r + 2) * p->s2div[vco.s]);
 }
 
-EXPORT_SYMBOL(icst525_hz);
+EXPORT_SYMBOL(icst_hz);
 
 /*
  * Ascending divisor S values.
  */
+const unsigned char icst307_idx2s[8] = { 1, 6, 3, 4, 7, 5, 2, 0 };
 const unsigned char icst525_idx2s[8] = { 1, 3, 4, 7, 5, 2, 6, 0 };
-
+EXPORT_SYMBOL(icst307_idx2s);
 EXPORT_SYMBOL(icst525_idx2s);
 
 struct icst_vco
-icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
+icst_hz_to_vco(const struct icst_params *p, unsigned long freq)
 {
 	struct icst_vco vco = { .s = 1, .v = p->vd_max, .r = p->rd_max };
 	unsigned long f;
@@ -51,10 +56,6 @@ icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
 	do {
 		f = freq * p->s2div[p->idx2s[i]];
 
-		/*
-		 * f must be between 10MHz and
-		 *  320MHz (5V) or 200MHz (3V)
-		 */
 		if (f > p->vco_min && f <= p->vco_max)
 			break;
 	} while (i < 8);
@@ -96,4 +97,4 @@ icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
 	return vco;
 }
 
-EXPORT_SYMBOL(icst525_hz_to_vco);
+EXPORT_SYMBOL(icst_hz_to_vco);
