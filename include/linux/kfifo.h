@@ -116,6 +116,16 @@ extern __must_check unsigned int kfifo_out(struct kfifo *fifo,
 extern __must_check unsigned int kfifo_out_peek(struct kfifo *fifo,
 				void *to, unsigned int len, unsigned offset);
 
+/**
+ * kfifo_initialized - Check if kfifo is initialized.
+ * @fifo: fifo to check
+ * Return %true if FIFO is initialized, otherwise %false.
+ * Assumes the fifo was 0 before.
+ */
+static inline bool kfifo_initialized(struct kfifo *fifo)
+{
+	return fifo->buffer != 0;
+}
 
 /**
  * kfifo_reset - removes the entire FIFO contents
