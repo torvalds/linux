@@ -965,10 +965,12 @@ EXPORT_SYMBOL(may_umount_tree);
 int may_umount(struct vfsmount *mnt)
 {
 	int ret = 1;
+	down_read(&namespace_sem);
 	spin_lock(&vfsmount_lock);
 	if (propagate_mount_busy(mnt, 2))
 		ret = 0;
 	spin_unlock(&vfsmount_lock);
+	up_read(&namespace_sem);
 	return ret;
 }
 
