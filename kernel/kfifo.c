@@ -41,7 +41,7 @@ static void _kfifo_init(struct kfifo *fifo, void *buffer,
  * kfifo_init - initialize a FIFO using a preallocated buffer
  * @fifo: the fifo to assign the buffer
  * @buffer: the preallocated buffer to be used.
- * @size: the size of the internal buffer, this have to be a power of 2.
+ * @size: the size of the internal buffer, this has to be a power of 2.
  *
  */
 void kfifo_init(struct kfifo *fifo, void *buffer, unsigned int size)

@@ -67,7 +67,7 @@ struct kfifo {
 /**
  * DECLARE_KFIFO - macro to declare a kfifo and the associated buffer
  * @name: name of the declared kfifo datatype
- * @size: size of the fifo buffer
+ * @size: size of the fifo buffer. Must be a power of two.
  *
  * Note1: the macro can be used inside struct or union declaration
  * Note2: the macro creates two objects:
@@ -91,7 +91,7 @@ union { \
 /**
  * DEFINE_KFIFO - macro to define and initialize a kfifo
  * @name: name of the declared kfifo datatype
- * @size: size of the fifo buffer
+ * @size: size of the fifo buffer. Must be a power of two.
  *
  * Note1: the macro can be used for global and local kfifo data type variables
  * Note2: the macro creates two objects:
