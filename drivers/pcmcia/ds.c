@@ -124,9 +124,9 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	dynid->id.device_no = device_no;
 	memcpy(dynid->id.prod_id_hash, prod_id_hash, sizeof(__u32) * 4);
 
-	spin_lock(&pdrv->dynids.lock);
+	mutex_lock(&pdrv->dynids.lock);
 	list_add_tail(&dynid->node, &pdrv->dynids.list);
-	spin_unlock(&pdrv->dynids.lock);
+	mutex_unlock(&pdrv->dynids.lock);
 
 	if (get_driver(&pdrv->drv)) {
 		retval = driver_attach(&pdrv->drv);
@@ -144,12 +144,12 @@ pcmcia_free_dynids(struct pcmcia_driver *drv)
 {
 	struct pcmcia_dynid *dynid, *n;
 
-	spin_lock(&drv->dynids.lock);
+	mutex_lock(&drv->dynids.lock);
 	list_for_each_entry_safe(dynid, n, &drv->dynids.list, node) {
 		list_del(&dynid->node);
 		kfree(dynid);
 	}
-	spin_unlock(&drv->dynids.lock);
+	mutex_unlock(&drv->dynids.lock);
 }
 
 static int
@@ -180,7 +180,7 @@ int pcmcia_register_driver(struct pcmcia_driver *driver)
 	/* initialize common fields */
 	driver->drv.bus = &pcmcia_bus_type;
 	driver->drv.owner = driver->owner;
-	spin_lock_init(&driver->dynids.lock);
+	mutex_init(&driver->dynids.lock);
 	INIT_LIST_HEAD(&driver->dynids.list);
 
 	pr_debug("registering driver %s\n", driver->drv.name);
@@ -894,16 +894,16 @@ static int pcmcia_bus_match(struct device *dev, struct device_driver *drv)
 	struct pcmcia_dynid *dynid;
 
 	/* match dynamic devices first */
-	spin_lock(&p_drv->dynids.lock);
+	mutex_lock(&p_drv->dynids.lock);
 	list_for_each_entry(dynid, &p_drv->dynids.list, node) {
 		dev_dbg(dev, "trying to match to %s\n", drv->name);
 		if (pcmcia_devmatch(p_dev, &dynid->id)) {
 			dev_dbg(dev, "matched to %s\n", drv->name);
-			spin_unlock(&p_drv->dynids.lock);
+			mutex_unlock(&p_drv->dynids.lock);
 			return 1;
 		}
 	}
-	spin_unlock(&p_drv->dynids.lock);
+	mutex_unlock(&p_drv->dynids.lock);
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	/* matching by cardmgr */
