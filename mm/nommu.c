@@ -1914,3 +1914,65 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 	mmput(mm);
 	return len;
 }
+
+/**
+ * nommu_shrink_inode_mappings - Shrink the shared mappings on an inode
+ * @inode: The inode to check
+ * @size: The current filesize of the inode
+ * @newsize: The proposed filesize of the inode
+ *
+ * Check the shared mappings on an inode on behalf of a shrinking truncate to
+ * make sure that that any outstanding VMAs aren't broken and then shrink the
+ * vm_regions that extend that beyond so that do_mmap_pgoff() doesn't
+ * automatically grant mappings that are too large.
+ */
+int nommu_shrink_inode_mappings(struct inode *inode, size_t size,
+				size_t newsize)
+{
+	struct vm_area_struct *vma;
+	struct prio_tree_iter iter;
+	struct vm_region *region;
+	pgoff_t low, high;
+	size_t r_size, r_top;
+
+	low = newsize >> PAGE_SHIFT;
+	high = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	down_write(&nommu_region_sem);
+
+	/* search for VMAs that fall within the dead zone */
+	vma_prio_tree_foreach(vma, &iter, &inode->i_mapping->i_mmap,
+			      low, high) {
+		/* found one - only interested if it's shared out of the page
+		 * cache */
+		if (vma->vm_flags & VM_SHARED) {
+			up_write(&nommu_region_sem);
+			return -ETXTBSY; /* not quite true, but near enough */
+		}
+	}
+
+	/* reduce any regions that overlap the dead zone - if in existence,
+	 * these will be pointed to by VMAs that don't overlap the dead zone
+	 *
+	 * we don't check for any regions that start beyond the EOF as there
+	 * shouldn't be any
+	 */
+	vma_prio_tree_foreach(vma, &iter, &inode->i_mapping->i_mmap,
+			      0, ULONG_MAX) {
+		if (!(vma->vm_flags & VM_SHARED))
+			continue;
+
+		region = vma->vm_region;
+		r_size = region->vm_top - region->vm_start;
+		r_top = (region->vm_pgoff << PAGE_SHIFT) + r_size;
+
+		if (r_top > newsize) {
+			region->vm_top -= r_top - newsize;
+			if (region->vm_end > region->vm_top)
+				region->vm_end = region->vm_top;
+		}
+	}
+
+	up_write(&nommu_region_sem);
+	return 0;
+}
