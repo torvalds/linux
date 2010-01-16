@@ -28,7 +28,7 @@
 #include <linux/log2.h>
 #include <linux/uaccess.h>
 
-static void _kfifo_init(struct kfifo *fifo, unsigned char *buffer,
+static void _kfifo_init(struct kfifo *fifo, void *buffer,
 		unsigned int size)
 {
 	fifo->buffer = buffer;
@@ -44,7 +44,7 @@ static void _kfifo_init(struct kfifo *fifo, unsigned char *buffer,
  * @size: the size of the internal buffer, this have to be a power of 2.
  *
  */
-void kfifo_init(struct kfifo *fifo, unsigned char *buffer, unsigned int size)
+void kfifo_init(struct kfifo *fifo, void *buffer, unsigned int size)
 {
 	/* size must be a power of 2 */
 	BUG_ON(!is_power_of_2(size));
@@ -235,7 +235,7 @@ EXPORT_SYMBOL(__kfifo_in_n);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_in(struct kfifo *fifo, const unsigned char *from,
+unsigned int kfifo_in(struct kfifo *fifo, const void *from,
 				unsigned int len)
 {
 	len = min(kfifo_avail(fifo), len);
@@ -277,7 +277,7 @@ EXPORT_SYMBOL(__kfifo_out_n);
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these functions.
  */
-unsigned int kfifo_out(struct kfifo *fifo, unsigned char *to, unsigned int len)
+unsigned int kfifo_out(struct kfifo *fifo, void *to, unsigned int len)
 {
 	len = min(kfifo_len(fifo), len);
 
