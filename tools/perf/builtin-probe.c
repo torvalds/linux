@@ -118,15 +118,6 @@ static int opt_del_probe_event(const struct option *opt __used,
 	return 0;
 }
 
-static int opt_show_lines(const struct option *opt __used,
-			  const char *str, int unset __used)
-{
-	if (str)
-		parse_line_range_desc(str, &session.line_range);
-	INIT_LIST_HEAD(&session.line_range.line_list);
-	session.show_lines = true;
-	return 0;
-}
 /* Currently just checking function name from symbol map */
 static void evaluate_probe_point(struct probe_point *pp)
 {
@@ -147,6 +138,16 @@ static int open_vmlinux(void)
 	}
 	pr_debug("Try to open %s\n", session.kmap->dso->long_name);
 	return open(session.kmap->dso->long_name, O_RDONLY);
+}
+
+static int opt_show_lines(const struct option *opt __used,
+			  const char *str, int unset __used)
+{
+	if (str)
+		parse_line_range_desc(str, &session.line_range);
+	INIT_LIST_HEAD(&session.line_range.line_list);
+	session.show_lines = true;
+	return 0;
 }
 #endif
 
