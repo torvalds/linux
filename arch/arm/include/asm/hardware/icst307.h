@@ -20,6 +20,5 @@
 
 unsigned long icst307_khz(const struct icst_params *p, struct icst_vco vco);
 struct icst_vco icst307_khz_to_vco(const struct icst_params *p, unsigned long freq);
-struct icst_vco icst307_ps_to_vco(const struct icst_params *p, unsigned long period);
 
 #endif
