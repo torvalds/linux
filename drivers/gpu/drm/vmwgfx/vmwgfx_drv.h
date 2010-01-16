@@ -404,6 +404,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
 extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
+extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);

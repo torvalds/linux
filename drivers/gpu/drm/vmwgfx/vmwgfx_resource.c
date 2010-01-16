@@ -872,7 +872,7 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 	}
 
 	ret = vmw_dmabuf_init(dev_priv, &vmw_user_bo->dma, req->size,
-			      &vmw_vram_placement, true,
+			      &vmw_vram_sys_placement, true,
 			      &vmw_user_dmabuf_destroy);
 	if (unlikely(ret != 0))
 		return ret;

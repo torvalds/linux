@@ -48,6 +48,15 @@ struct ttm_placement vmw_vram_placement = {
 	.busy_placement = &vram_placement_flags
 };
 
+struct ttm_placement vmw_vram_sys_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 1,
+	.placement = &vram_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_placement_flags
+};
+
 struct ttm_placement vmw_vram_ne_placement = {
 	.fpfn = 0,
 	.lpfn = 0,
