@@ -1,10 +1,5 @@
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
 #include "util.h"
+#include <sys/mman.h>
 
 int mkdir_p(char *path, mode_t mode)
 {
