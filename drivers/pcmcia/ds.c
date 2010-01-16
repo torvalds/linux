@@ -649,10 +649,17 @@ static void pcmcia_delayed_add_device(struct work_struct *work)
 {
 	struct pcmcia_socket *s =
 		container_of(work, struct pcmcia_socket, device_add);
-	dev_dbg(&s->dev, "adding additional device to %d\n", s->sock);
-	pcmcia_device_add(s, s->pcmcia_state.mfc_pfc);
+	u8 mfc_pfc;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	mfc_pfc = s->pcmcia_state.mfc_pfc;
 	s->pcmcia_state.device_add_pending = 0;
 	s->pcmcia_state.mfc_pfc = 0;
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+	dev_dbg(&s->dev, "adding additional device to %d\n", s->sock);
+	pcmcia_device_add(s, mfc_pfc);
 }
 
 static int pcmcia_requery(struct device *dev, void * _data)
@@ -761,8 +768,13 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 
 		if (old_funcs > no_funcs)
 			pcmcia_card_remove(s, dev);
-		else if (no_funcs > old_funcs)
+		else if (no_funcs > old_funcs) {
+			unsigned long flags;
+
+			spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 			pcmcia_add_device_later(s, 1);
+			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+		}
 	}
  release:
 	release_firmware(fw);
@@ -1236,6 +1248,7 @@ static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
 static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 {
 	struct pcmcia_socket *s = pcmcia_get_socket(skt);
+	unsigned long flags;
 
 	if (!s) {
 		dev_printk(KERN_ERR, &skt->dev,
@@ -1249,7 +1262,9 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
+		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 		s->pcmcia_state.present = 0;
+		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 		pcmcia_card_remove(skt, NULL);
 		handle_event(skt, event);
 		mutex_lock(&s->ops_mutex);
@@ -1258,7 +1273,9 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		break;
 
 	case CS_EVENT_CARD_INSERTION:
+		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 		s->pcmcia_state.present = 1;
+		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s); /* to be on the safe side... */
 		mutex_unlock(&s->ops_mutex);
@@ -1304,12 +1321,17 @@ struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_device *ret = NULL;
+	unsigned long flags;
 
 	p_dev = pcmcia_get_dev(_p_dev);
 	if (!p_dev)
 		return NULL;
 
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	if (!p_dev->socket->pcmcia_state.present)
+		goto out;
+
+	if (p_dev->socket->pcmcia_state.dead)
 		goto out;
 
 	if (p_dev->_removed)
@@ -1320,6 +1342,7 @@ struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 
 	ret = p_dev;
  out:
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 	pcmcia_put_dev(p_dev);
 	return ret;
 }
@@ -1383,11 +1406,15 @@ static void pcmcia_bus_remove_socket(struct device *dev,
 				     struct class_interface *class_intf)
 {
 	struct pcmcia_socket *socket = dev_get_drvdata(dev);
+	unsigned long flags;
 
 	if (!socket)
 		return;
 
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	socket->pcmcia_state.dead = 1;
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
 	pccard_register_pcmcia(socket, NULL);
 
 	/* unregister any unbound devices */
