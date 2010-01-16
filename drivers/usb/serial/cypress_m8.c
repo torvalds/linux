@@ -691,7 +691,6 @@ static void cypress_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	/* drop dtr and rts */
-	priv = usb_get_serial_port_data(port);
 	spin_lock_irq(&priv->lock);
 	if (on == 0)
 		priv->line_control = 0;

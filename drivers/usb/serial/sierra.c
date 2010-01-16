@@ -477,7 +477,7 @@ static void sierra_outdat_callback(struct urb *urb)
 static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count)
 {
-	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
+	struct sierra_port_private *portdata;
 	struct sierra_intf_private *intfdata;
 	struct usb_serial *serial = port->serial;
 	unsigned long flags;
