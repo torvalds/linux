@@ -228,13 +228,6 @@ static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
 
 	ret = kfifo_out(fifo, to, n);
 
-	/*
-	 * optimization: if the FIFO is empty, set the indices to 0
-	 * so we don't wrap the next time
-	 */
-	if (kfifo_is_empty(fifo))
-		kfifo_reset(fifo);
-
 	spin_unlock_irqrestore(lock, flags);
 
 	return ret;
