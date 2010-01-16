@@ -1536,8 +1536,12 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = change_mount_flags(path->mnt, flags);
 	else
 		err = do_remount_sb(sb, flags, data, 0);
-	if (!err)
+	if (!err) {
+		spin_lock(&vfsmount_lock);
+		mnt_flags |= path->mnt->mnt_flags & MNT_PNODE_MASK;
 		path->mnt->mnt_flags = mnt_flags;
+		spin_unlock(&vfsmount_lock);
+	}
 	up_write(&sb->s_umount);
 	if (!err) {
 		security_sb_post_remount(path->mnt, flags, data);
