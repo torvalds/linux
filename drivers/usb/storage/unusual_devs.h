@@ -941,7 +941,7 @@ UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0000, 0x9999,
 UNUSUAL_DEV(  0x07af, 0x0004, 0x0100, 0x0133,
 		"Microtech",
 		"USB-SCSI-DB25",
-		US_SC_SCSI, US_PR_BULK, usb_stor_euscsi_init,
+		US_SC_DEVICE, US_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ), 
 
 UNUSUAL_DEV(  0x07af, 0x0005, 0x0100, 0x0100,
