@@ -21,12 +21,12 @@
  */
 static unsigned char s2div[8] = { 10, 2, 8, 4, 5, 7, 9, 6 };
 
-unsigned long icst525_khz(const struct icst_params *p, struct icst_vco vco)
+unsigned long icst525_hz(const struct icst_params *p, struct icst_vco vco)
 {
 	return p->ref * 2 * (vco.v + 8) / ((vco.r + 2) * s2div[vco.s]);
 }
 
-EXPORT_SYMBOL(icst525_khz);
+EXPORT_SYMBOL(icst525_hz);
 
 /*
  * Ascending divisor S values.
@@ -34,7 +34,7 @@ EXPORT_SYMBOL(icst525_khz);
 static unsigned char idx2s[] = { 1, 3, 4, 7, 5, 2, 6, 0 };
 
 struct icst_vco
-icst525_khz_to_vco(const struct icst_params *p, unsigned long freq)
+icst525_hz_to_vco(const struct icst_params *p, unsigned long freq)
 {
 	struct icst_vco vco = { .s = 1, .v = p->vd_max, .r = p->rd_max };
 	unsigned long f;
@@ -92,4 +92,4 @@ icst525_khz_to_vco(const struct icst_params *p, unsigned long freq)
 	return vco;
 }
 
-EXPORT_SYMBOL(icst525_khz_to_vco);
+EXPORT_SYMBOL(icst525_hz_to_vco);

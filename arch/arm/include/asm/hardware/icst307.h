@@ -18,14 +18,14 @@
 
 #include <asm/hardware/icst.h>
 
-unsigned long icst307_khz(const struct icst_params *p, struct icst_vco vco);
-struct icst_vco icst307_khz_to_vco(const struct icst_params *p, unsigned long freq);
+unsigned long icst307_hz(const struct icst_params *p, struct icst_vco vco);
+struct icst_vco icst307_hz_to_vco(const struct icst_params *p, unsigned long freq);
 
 /*
  * ICST307 VCO frequency must be between 6MHz and 200MHz (3.3 or 5V).
  * This frequency is pre-output divider.
  */
-#define ICST307_VCO_MIN	6000
-#define ICST307_VCO_MAX	200000
+#define ICST307_VCO_MIN	6000000
+#define ICST307_VCO_MAX	200000000
 
 #endif

@@ -269,7 +269,7 @@ static void __init intcp_init_irq(void)
 #define CM_AUXOSC IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x1c)
 
 static const struct icst_params cp_auxvco_params = {
-	.ref		= 24000,
+	.ref		= 24000000,
 	.vco_max	= ICST525_VCO_MAX_5V,
 	.vd_min 	= 8,
 	.vd_max 	= 263,

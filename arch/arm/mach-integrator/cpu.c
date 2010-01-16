@@ -32,7 +32,7 @@ static struct cpufreq_driver integrator_driver;
 #define CM_LOCK IO_ADDRESS(INTEGRATOR_HDR_LOCK)
 
 static const struct icst_params lclk_params = {
-	.ref		= 24000,
+	.ref		= 24000000,
 	.vco_max	= ICST525_VCO_MAX_5V,
 	.vd_min		= 8,
 	.vd_max		= 132,
@@ -41,7 +41,7 @@ static const struct icst_params lclk_params = {
 };
 
 static const struct icst_params cclk_params = {
-	.ref		= 24000,
+	.ref		= 24000000,
 	.vco_max	= ICST525_VCO_MAX_5V,
 	.vd_min		= 12,
 	.vd_max		= 160,
@@ -60,11 +60,11 @@ static int integrator_verify_policy(struct cpufreq_policy *policy)
 				     policy->cpuinfo.min_freq, 
 				     policy->cpuinfo.max_freq);
 
-	vco = icst525_khz_to_vco(&cclk_params, policy->max);
-	policy->max = icst525_khz(&cclk_params, vco);
+	vco = icst525_hz_to_vco(&cclk_params, policy->max * 1000);
+	policy->max = icst525_hz(&cclk_params, vco) / 1000;
 
-	vco = icst525_khz_to_vco(&cclk_params, policy->min);
-	policy->min = icst525_khz(&cclk_params, vco);
+	vco = icst525_hz_to_vco(&cclk_params, policy->min * 1000);
+	policy->min = icst525_hz(&cclk_params, vco) / 1000;
 
 	cpufreq_verify_within_limits(policy, 
 				     policy->cpuinfo.min_freq, 
@@ -106,17 +106,17 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 	}
 	vco.v = cm_osc & 255;
 	vco.r = 22;
-	freqs.old = icst525_khz(&cclk_params, vco);
+	freqs.old = icst525_hz(&cclk_params, vco) / 1000;
 
-	/* icst525_khz_to_vco rounds down -- so we need the next
+	/* icst525_hz_to_vco rounds down -- so we need the next
 	 * larger freq in case of CPUFREQ_RELATION_L.
 	 */
 	if (relation == CPUFREQ_RELATION_L)
 		target_freq += 999;
 	if (target_freq > policy->max)
 		target_freq = policy->max;
-	vco = icst525_khz_to_vco(&cclk_params, target_freq);
-	freqs.new = icst525_khz(&cclk_params, vco);
+	vco = icst525_hz_to_vco(&cclk_params, target_freq * 1000);
+	freqs.new = icst525_hz(&cclk_params, vco) / 1000;
 
 	freqs.cpu = policy->cpu;
 
@@ -174,7 +174,7 @@ static unsigned int integrator_get(unsigned int cpu)
 	vco.v = cm_osc & 255;
 	vco.r = 22;
 
-	current_freq = icst525_khz(&cclk_params, vco); /* current freq */
+	current_freq = icst525_hz(&cclk_params, vco) / 1000; /* current freq */
 
 	set_cpus_allowed(current, cpus_allowed);
 

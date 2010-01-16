@@ -41,7 +41,7 @@ struct impd1_module {
 };
 
 static const struct icst_params impd1_vco_params = {
-	.ref		= 24000,	/* 24 MHz */
+	.ref		= 24000000,	/* 24 MHz */
 	.vco_max	= ICST525_VCO_MAX_3V,
 	.vd_min		= 12,
 	.vd_max		= 519,
@@ -73,8 +73,8 @@ static void impd1_setvco(struct clk *clk, struct icst_vco vco)
 	vco.r = (val >> 9) & 0x7f;
 	vco.s = (val >> 16) & 7;
 
-	pr_debug("IM-PD1: VCO%d clock is %ld kHz\n",
-		 vconr, icst525_khz(&impd1_vco_params, vco));
+	pr_debug("IM-PD1: VCO%d clock is %ld Hz\n",
+		 vconr, icst525_hz(&impd1_vco_params, vco));
 #endif
 }
 
