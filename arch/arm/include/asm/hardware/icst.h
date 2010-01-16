@@ -17,6 +17,7 @@
 struct icst_params {
 	unsigned long	ref;
 	unsigned long	vco_max;	/* inclusive */
+	unsigned long	vco_min;	/* exclusive */
 	unsigned short	vd_min;		/* inclusive */
 	unsigned short	vd_max;		/* inclusive */
 	unsigned char	rd_min;		/* inclusive */

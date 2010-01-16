@@ -276,6 +276,7 @@ struct mmci_platform_data realview_mmc1_plat_data = {
 static const struct icst_params realview_oscvco_params = {
 	.ref		= 24000000,
 	.vco_max	= ICST307_VCO_MAX,
+	.vco_min	= ICST307_VCO_MIN,
 	.vd_min		= 4 + 8,
 	.vd_max		= 511 + 8,
 	.rd_min		= 1 + 2,

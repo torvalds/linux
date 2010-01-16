@@ -43,6 +43,7 @@ struct impd1_module {
 static const struct icst_params impd1_vco_params = {
 	.ref		= 24000000,	/* 24 MHz */
 	.vco_max	= ICST525_VCO_MAX_3V,
+	.vco_min	= ICST525_VCO_MIN,
 	.vd_min		= 12,
 	.vd_max		= 519,
 	.rd_min		= 3,
