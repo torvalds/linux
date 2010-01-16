@@ -31,7 +31,7 @@ static struct cpufreq_driver integrator_driver;
 #define CM_STAT IO_ADDRESS(INTEGRATOR_HDR_STAT)
 #define CM_LOCK IO_ADDRESS(INTEGRATOR_HDR_LOCK)
 
-static const struct icst525_params lclk_params = {
+static const struct icst_params lclk_params = {
 	.ref		= 24000,
 	.vco_max	= 320000,
 	.vd_min		= 8,
@@ -40,7 +40,7 @@ static const struct icst525_params lclk_params = {
 	.rd_max		= 24,
 };
 
-static const struct icst525_params cclk_params = {
+static const struct icst_params cclk_params = {
 	.ref		= 24000,
 	.vco_max	= 320000,
 	.vd_min		= 12,
@@ -54,7 +54,7 @@ static const struct icst525_params cclk_params = {
  */
 static int integrator_verify_policy(struct cpufreq_policy *policy)
 {
-	struct icst525_vco vco;
+	struct icst_vco vco;
 
 	cpufreq_verify_within_limits(policy, 
 				     policy->cpuinfo.min_freq, 
@@ -80,7 +80,7 @@ static int integrator_set_target(struct cpufreq_policy *policy,
 {
 	cpumask_t cpus_allowed;
 	int cpu = policy->cpu;
-	struct icst525_vco vco;
+	struct icst_vco vco;
 	struct cpufreq_freqs freqs;
 	u_int cm_osc;
 
@@ -156,7 +156,7 @@ static unsigned int integrator_get(unsigned int cpu)
 	cpumask_t cpus_allowed;
 	unsigned int current_freq;
 	u_int cm_osc;
-	struct icst525_vco vco;
+	struct icst_vco vco;
 
 	cpus_allowed = current->cpus_allowed;
 

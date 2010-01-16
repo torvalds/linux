@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
+#include <asm/hardware/icst525.h>
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
 
@@ -36,7 +37,7 @@ EXPORT_SYMBOL(clk_get_rate);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	struct icst525_vco vco;
+	struct icst_vco vco;
 	vco = icst525_khz_to_vco(clk->params, rate / 1000);
 	return icst525_khz(clk->params, vco) * 1000;
 }
@@ -47,7 +48,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	int ret = -EIO;
 
 	if (clk->setvco) {
-		struct icst525_vco vco;
+		struct icst_vco vco;
 
 		vco = icst525_khz_to_vco(clk->params, rate / 1000);
 		clk->rate = icst525_khz(clk->params, vco) * 1000;

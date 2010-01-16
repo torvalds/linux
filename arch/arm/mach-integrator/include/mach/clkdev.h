@@ -2,14 +2,14 @@
 #define __ASM_MACH_CLKDEV_H
 
 #include <linux/module.h>
-#include <asm/hardware/icst525.h>
+#include <asm/hardware/icst.h>
 
 struct clk {
 	unsigned long		rate;
 	struct module		*owner;
-	const struct icst525_params *params;
+	const struct icst_params *params;
 	void			*data;
-	void			(*setvco)(struct clk *, struct icst525_vco vco);
+	void			(*setvco)(struct clk *, struct icst_vco vco);
 };
 
 static inline int __clk_get(struct clk *clk)

@@ -8,13 +8,14 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/hardware/icst.h>
+
 struct module;
-struct icst307_params;
 
 struct clk {
 	unsigned long		rate;
-	const struct icst307_params *params;
+	const struct icst_params *params;
 	u32			oscoff;
 	void			*data;
-	void			(*setvco)(struct clk *, struct icst307_vco vco);
+	void			(*setvco)(struct clk *, struct icst_vco vco);
 };

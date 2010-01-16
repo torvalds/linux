@@ -21,7 +21,7 @@
  */
 static unsigned char s2div[8] = { 10, 2, 8, 4, 5, 7, 9, 6 };
 
-unsigned long icst525_khz(const struct icst525_params *p, struct icst525_vco vco)
+unsigned long icst525_khz(const struct icst_params *p, struct icst_vco vco)
 {
 	return p->ref * 2 * (vco.v + 8) / ((vco.r + 2) * s2div[vco.s]);
 }
@@ -33,10 +33,10 @@ EXPORT_SYMBOL(icst525_khz);
  */
 static unsigned char idx2s[] = { 1, 3, 4, 7, 5, 2, 6, 0 };
 
-struct icst525_vco
-icst525_khz_to_vco(const struct icst525_params *p, unsigned long freq)
+struct icst_vco
+icst525_khz_to_vco(const struct icst_params *p, unsigned long freq)
 {
-	struct icst525_vco vco = { .s = 1, .v = p->vd_max, .r = p->rd_max };
+	struct icst_vco vco = { .s = 1, .v = p->vd_max, .r = p->rd_max };
 	unsigned long f;
 	unsigned int i = 0, rd, best = (unsigned int)-1;
 
@@ -94,10 +94,10 @@ icst525_khz_to_vco(const struct icst525_params *p, unsigned long freq)
 
 EXPORT_SYMBOL(icst525_khz_to_vco);
 
-struct icst525_vco
-icst525_ps_to_vco(const struct icst525_params *p, unsigned long period)
+struct icst_vco
+icst525_ps_to_vco(const struct icst_params *p, unsigned long period)
 {
-	struct icst525_vco vco = { .s = 1, .v = p->vd_max, .r = p->rd_max };
+	struct icst_vco vco = { .s = 1, .v = p->vd_max, .r = p->rd_max };
 	unsigned long f, ps;
 	unsigned int i = 0, rd, best = (unsigned int)-1;
 

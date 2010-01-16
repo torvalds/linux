@@ -42,7 +42,7 @@ EXPORT_SYMBOL(clk_get_rate);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	struct icst307_vco vco;
+	struct icst_vco vco;
 	vco = icst307_khz_to_vco(clk->params, rate / 1000);
 	return icst307_khz(clk->params, vco) * 1000;
 }
@@ -53,7 +53,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	int ret = -EIO;
 
 	if (clk->setvco) {
-		struct icst307_vco vco;
+		struct icst_vco vco;
 
 		vco = icst307_khz_to_vco(clk->params, rate / 1000);
 		clk->rate = icst307_khz(clk->params, vco) * 1000;

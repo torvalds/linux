@@ -268,7 +268,7 @@ static void __init intcp_init_irq(void)
 #define CM_LOCK IO_ADDRESS(INTEGRATOR_HDR_LOCK)
 #define CM_AUXOSC IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x1c)
 
-static const struct icst525_params cp_auxvco_params = {
+static const struct icst_params cp_auxvco_params = {
 	.ref		= 24000,
 	.vco_max	= 320000,
 	.vd_min 	= 8,
@@ -277,7 +277,7 @@ static const struct icst525_params cp_auxvco_params = {
 	.rd_max 	= 65,
 };
 
-static void cp_auxvco_set(struct clk *clk, struct icst525_vco vco)
+static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)
 {
 	u32 val;
 

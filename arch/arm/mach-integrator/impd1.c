@@ -40,7 +40,7 @@ struct impd1_module {
 	struct clk_lookup *clks[3];
 };
 
-static const struct icst525_params impd1_vco_params = {
+static const struct icst_params impd1_vco_params = {
 	.ref		= 24000,	/* 24 MHz */
 	.vco_max	= 200000,	/* 200 MHz */
 	.vd_min		= 12,
@@ -49,7 +49,7 @@ static const struct icst525_params impd1_vco_params = {
 	.rd_max		= 120,
 };
 
-static void impd1_setvco(struct clk *clk, struct icst525_vco vco)
+static void impd1_setvco(struct clk *clk, struct icst_vco vco)
 {
 	struct impd1_module *impd1 = clk->data;
 	int vconr = clk - impd1->vcos;

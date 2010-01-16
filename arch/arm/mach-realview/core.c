@@ -273,7 +273,7 @@ struct mmci_platform_data realview_mmc1_plat_data = {
 /*
  * Clock handling
  */
-static const struct icst307_params realview_oscvco_params = {
+static const struct icst_params realview_oscvco_params = {
 	.ref		= 24000,
 	.vco_max	= 200000,
 	.vd_min		= 4 + 8,
@@ -282,7 +282,7 @@ static const struct icst307_params realview_oscvco_params = {
 	.rd_max		= 127 + 2,
 };
 
-static void realview_oscvco_set(struct clk *clk, struct icst307_vco vco)
+static void realview_oscvco_set(struct clk *clk, struct icst_vco vco)
 {
 	void __iomem *sys_lock = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_LOCK_OFFSET;
 	void __iomem *sys_osc;
