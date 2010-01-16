@@ -1441,10 +1441,9 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	kenter("");
 
-	/* we're only permitted to split anonymous regions that have a single
-	 * owner */
-	if (vma->vm_file ||
-	    vma->vm_region->vm_usage != 1)
+	/* we're only permitted to split anonymous regions (these should have
+	 * only a single usage on the region) */
+	if (vma->vm_file)
 		return -ENOMEM;
 
 	if (mm->map_count >= sysctl_max_map_count)
