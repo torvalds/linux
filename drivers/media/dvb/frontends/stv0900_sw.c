@@ -193,7 +193,7 @@ static int stv0900_search_carr_sw_loop(struct stv0900_internal *intp,
 	return lock;
 }
 
-int stv0900_sw_algo(struct stv0900_internal *intp,
+static int stv0900_sw_algo(struct stv0900_internal *intp,
 				enum fe_stv0900_demod_num demod)
 {
 	int	lock = FALSE,
@@ -795,7 +795,7 @@ static enum fe_stv0900_fec stv0900_get_vit_fec(struct stv0900_internal *intp,
 	return prate;
 }
 
-void stv0900_set_dvbs1_track_car_loop(struct stv0900_internal *intp,
+static void stv0900_set_dvbs1_track_car_loop(struct stv0900_internal *intp,
 					enum fe_stv0900_demod_num demod,
 					u32 srate)
 {
