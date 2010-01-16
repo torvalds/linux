@@ -113,6 +113,9 @@ extern unsigned int kfifo_in(struct kfifo *fifo,
 				const void *from, unsigned int len);
 extern __must_check unsigned int kfifo_out(struct kfifo *fifo,
 				void *to, unsigned int len);
+extern __must_check unsigned int kfifo_out_peek(struct kfifo *fifo,
+				void *to, unsigned int len, unsigned offset);
+
 
 /**
  * kfifo_reset - removes the entire FIFO contents

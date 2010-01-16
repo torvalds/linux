@@ -302,6 +302,27 @@ unsigned int kfifo_out(struct kfifo *fifo, void *to, unsigned int len)
 }
 EXPORT_SYMBOL(kfifo_out);
 
+/**
+ * kfifo_out_peek - copy some data from the FIFO, but do not remove it
+ * @fifo: the fifo to be used.
+ * @to: where the data must be copied.
+ * @len: the size of the destination buffer.
+ * @offset: offset into the fifo
+ *
+ * This function copies at most @len bytes at @offset from the FIFO
+ * into the @to buffer and returns the number of copied bytes.
+ * The data is not removed from the FIFO.
+ */
+unsigned int kfifo_out_peek(struct kfifo *fifo, void *to, unsigned int len,
+			    unsigned offset)
+{
+	len = min(kfifo_len(fifo), len + offset);
+
+	__kfifo_out_data(fifo, to, len, offset);
+	return len;
+}
+EXPORT_SYMBOL(kfifo_out_peek);
+
 unsigned int __kfifo_out_generic(struct kfifo *fifo,
 	void *to, unsigned int len, unsigned int recsize,
 	unsigned int *total)
