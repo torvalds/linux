@@ -177,7 +177,7 @@ u8 stv0900_read_reg(struct stv0900_internal *intp, u16 reg)
 	return buf;
 }
 
-void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
+static void extract_mask_pos(u32 label, u8 *mask, u8 *pos)
 {
 	u8 position = 0, i = 0;
 
@@ -218,7 +218,7 @@ u8 stv0900_get_bits(struct stv0900_internal *intp, u32 label)
 	return val;
 }
 
-enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *intp)
+static enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *intp)
 {
 	s32 i;
 
@@ -282,7 +282,7 @@ enum fe_stv0900_error stv0900_initialize(struct stv0900_internal *intp)
 	return STV0900_NO_ERROR;
 }
 
-u32 stv0900_get_mclk_freq(struct stv0900_internal *intp, u32 ext_clk)
+static u32 stv0900_get_mclk_freq(struct stv0900_internal *intp, u32 ext_clk)
 {
 	u32 mclk = 90000000, div = 0, ad_div = 0;
 
@@ -296,7 +296,7 @@ u32 stv0900_get_mclk_freq(struct stv0900_internal *intp, u32 ext_clk)
 	return mclk;
 }
 
-enum fe_stv0900_error stv0900_set_mclk(struct stv0900_internal *intp, u32 mclk)
+static enum fe_stv0900_error stv0900_set_mclk(struct stv0900_internal *intp, u32 mclk)
 {
 	u32 m_div, clk_sel;
 
@@ -334,7 +334,7 @@ enum fe_stv0900_error stv0900_set_mclk(struct stv0900_internal *intp, u32 mclk)
 	return STV0900_NO_ERROR;
 }
 
-u32 stv0900_get_err_count(struct stv0900_internal *intp, int cntr,
+static u32 stv0900_get_err_count(struct stv0900_internal *intp, int cntr,
 					enum fe_stv0900_demod_num demod)
 {
 	u32 lsb, msb, hsb, err_val;
