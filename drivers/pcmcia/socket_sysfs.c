@@ -167,7 +167,9 @@ static ssize_t pccard_store_irq_mask(struct device *dev,
 	ret = sscanf(buf, "0x%x\n", &mask);
 
 	if (ret == 1) {
+		mutex_lock(&s->ops_mutex);
 		s->irq_mask &= mask;
+		mutex_unlock(&s->ops_mutex);
 		ret = 0;
 	}
 

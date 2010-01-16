@@ -419,7 +419,9 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		dev_dbg(&s->dev, "IRQ attributes must match assigned ones\n");
 		return -EINVAL;
 	}
+	mutex_lock(&s->ops_mutex);
 	if (s->irq.AssignedIRQ != req->AssignedIRQ) {
+		mutex_unlock(&s->ops_mutex);
 		dev_dbg(&s->dev, "IRQ must match assigned one\n");
 		return -EINVAL;
 	}
@@ -434,6 +436,7 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 #ifdef CONFIG_PCMCIA_PROBE
 	pcmcia_used_irq[req->AssignedIRQ]--;
 #endif
+	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 } /* pcmcia_release_irq */
