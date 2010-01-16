@@ -1671,6 +1671,8 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 {
 	int err;
 
+	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD);
+
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
 	while (d_mountpoint(path->dentry) &&
