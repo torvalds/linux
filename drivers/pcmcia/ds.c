@@ -835,6 +835,8 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FUNC_ID) {
+		int ret;
+
 		if ((!dev->has_func_id) || (dev->func_id != did->func_id))
 			return 0;
 
@@ -849,10 +851,15 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 		 * after it has re-checked that there is no possible module
 		 * with a prod_id/manf_id/card_id match.
 		 */
-		dev_dbg(&dev->dev,
-			"skipping FUNC_ID match until userspace interaction\n");
-		if (!dev->allow_func_id_match)
+		mutex_lock(&dev->socket->ops_mutex);
+		ret = dev->allow_func_id_match;
+		mutex_unlock(&dev->socket->ops_mutex);
+
+		if (!ret) {
+			dev_dbg(&dev->dev,
+				"skipping FUNC_ID match until userspace ACK\n");
 			return 0;
+		}
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FAKE_CIS) {
@@ -1079,9 +1086,9 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 	if (!count)
 		return -EINVAL;
 
-	mutex_lock(&p_dev->socket->skt_mutex);
+	mutex_lock(&p_dev->socket->ops_mutex);
 	p_dev->allow_func_id_match = 1;
-	mutex_unlock(&p_dev->socket->skt_mutex);
+	mutex_unlock(&p_dev->socket->ops_mutex);
 
 	ret = bus_rescan_devices(&pcmcia_bus_type);
 	if (ret)
@@ -1114,8 +1121,13 @@ static int pcmcia_dev_suspend(struct device *dev, pm_message_t state)
 	struct pcmcia_driver *p_drv = NULL;
 	int ret = 0;
 
-	if (p_dev->suspended)
+	mutex_lock(&p_dev->socket->ops_mutex);
+	if (p_dev->suspended) {
+		mutex_unlock(&p_dev->socket->ops_mutex);
 		return 0;
+	}
+	p_dev->suspended = 1;
+	mutex_unlock(&p_dev->socket->ops_mutex);
 
 	dev_dbg(dev, "suspending\n");
 
@@ -1132,6 +1144,9 @@ static int pcmcia_dev_suspend(struct device *dev, pm_message_t state)
 				   "pcmcia: device %s (driver %s) did "
 				   "not want to go to sleep (%d)\n",
 				   p_dev->devname, p_drv->drv.name, ret);
+			mutex_lock(&p_dev->socket->ops_mutex);
+			p_dev->suspended = 0;
+			mutex_unlock(&p_dev->socket->ops_mutex);
 			goto out;
 		}
 	}
@@ -1142,8 +1157,6 @@ static int pcmcia_dev_suspend(struct device *dev, pm_message_t state)
 	}
 
  out:
-	if (!ret)
-		p_dev->suspended = 1;
 	return ret;
 }
 
@@ -1154,8 +1167,13 @@ static int pcmcia_dev_resume(struct device *dev)
 	struct pcmcia_driver *p_drv = NULL;
 	int ret = 0;
 
-	if (!p_dev->suspended)
+	mutex_lock(&p_dev->socket->ops_mutex);
+	if (!p_dev->suspended) {
+		mutex_unlock(&p_dev->socket->ops_mutex);
 		return 0;
+	}
+	p_dev->suspended = 0;
+	mutex_unlock(&p_dev->socket->ops_mutex);
 
 	dev_dbg(dev, "resuming\n");
 
@@ -1176,8 +1194,6 @@ static int pcmcia_dev_resume(struct device *dev)
 		ret = p_drv->resume(p_dev);
 
  out:
-	if (!ret)
-		p_dev->suspended = 0;
 	return ret;
 }
 

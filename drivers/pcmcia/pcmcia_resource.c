@@ -191,14 +191,18 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 		return -EINVAL;
 
 	s = p_dev->socket;
+
+	mutex_lock(&s->ops_mutex);
 	c = p_dev->function_config;
 
 	if (!(c->state & CONFIG_LOCKED)) {
 		dev_dbg(&s->dev, "Configuration isnt't locked\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EACCES;
 	}
 
 	addr = (c->ConfigBase + reg->Offset) >> 1;
+	mutex_unlock(&s->ops_mutex);
 
 	switch (reg->Action) {
 	case CS_READ:
@@ -254,19 +258,22 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	config_t *c;
 
 	s = p_dev->socket;
+
+	mutex_lock(&s->ops_mutex);
 	c = p_dev->function_config;
 
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "No card present\n");
+		mutex_unlock(&s->ops_mutex);
 		return -ENODEV;
 	}
 	if (!(c->state & CONFIG_LOCKED)) {
 		dev_dbg(&s->dev, "Configuration isnt't locked\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EACCES;
 	}
 
 	if (mod->Attributes & CONF_IRQ_CHANGE_VALID) {
-		mutex_lock(&s->ops_mutex);
 		if (mod->Attributes & CONF_ENABLE_IRQ) {
 			c->Attributes |= CONF_ENABLE_IRQ;
 			s->socket.io_irq = s->irq.AssignedIRQ;
@@ -275,7 +282,6 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 			s->socket.io_irq = 0;
 		}
 		s->ops->set_socket(s, &s->socket);
-		mutex_unlock(&s->ops_mutex);
 	}
 
 	if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
@@ -288,9 +294,9 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		if (mod->Vpp1 != mod->Vpp2) {
 			dev_dbg(&s->dev, "Vpp1 and Vpp2 must be the same\n");
+			mutex_unlock(&s->ops_mutex);
 			return -EINVAL;
 		}
-		mutex_lock(&s->ops_mutex);
 		s->socket.Vpp = mod->Vpp1;
 		if (s->ops->set_socket(s, &s->socket)) {
 			mutex_unlock(&s->ops_mutex);
@@ -298,10 +304,10 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 				   "Unable to set VPP\n");
 			return -EIO;
 		}
-		mutex_unlock(&s->ops_mutex);
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
 		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
 
@@ -311,7 +317,6 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		int i;
 
 		io_on.speed = io_speed;
-		mutex_lock(&s->ops_mutex);
 		for (i = 0; i < MAX_IO_WIN; i++) {
 			if (!s->io[i].res)
 				continue;
@@ -326,8 +331,8 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 			mdelay(40);
 			s->ops->set_io_map(s, &io_on);
 		}
-		mutex_unlock(&s->ops_mutex);
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 } /* modify_configuration */
@@ -338,10 +343,11 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 {
 	pccard_io_map io = { 0, 0, 0, 0, 1 };
 	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c = p_dev->function_config;
+	config_t *c;
 	int i;
 
 	mutex_lock(&s->ops_mutex);
+	c = p_dev->function_config;
 	if (p_dev->_locked) {
 		p_dev->_locked = 0;
 		if (--(s->lock_count) == 0) {
@@ -381,10 +387,14 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c = p_dev->function_config;
+	int ret = -EINVAL;
+	config_t *c;
+
+	mutex_lock(&s->ops_mutex);
+	c = p_dev->function_config;
 
 	if (!p_dev->_io)
-		return -EINVAL;
+		goto out;
 
 	p_dev->_io = 0;
 
@@ -392,7 +402,7 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	    (c->io.NumPorts1 != req->NumPorts1) ||
 	    (c->io.BasePort2 != req->BasePort2) ||
 	    (c->io.NumPorts2 != req->NumPorts2))
-		return -EINVAL;
+		goto out;
 
 	c->state &= ~CONFIG_IO_REQ;
 
@@ -400,30 +410,38 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	if (req->NumPorts2)
 		release_io_space(s, req->BasePort2, req->NumPorts2);
 
-	return 0;
+out:
+	mutex_unlock(&s->ops_mutex);
+
+	return ret;
 } /* pcmcia_release_io */
 
 
 static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c = p_dev->function_config;
+	config_t *c;
+	int ret = -EINVAL;
+
+	mutex_lock(&s->ops_mutex);
+
+	c = p_dev->function_config;
 
 	if (!p_dev->_irq)
-		return -EINVAL;
+		goto out;
+
 	p_dev->_irq = 0;
 
 	if (c->state & CONFIG_LOCKED)
-		return -EACCES;
+		goto out;
+
 	if (c->irq.Attributes != req->Attributes) {
 		dev_dbg(&s->dev, "IRQ attributes must match assigned ones\n");
-		return -EINVAL;
+		goto out;
 	}
-	mutex_lock(&s->ops_mutex);
 	if (s->irq.AssignedIRQ != req->AssignedIRQ) {
-		mutex_unlock(&s->ops_mutex);
 		dev_dbg(&s->dev, "IRQ must match assigned one\n");
-		return -EINVAL;
+		goto out;
 	}
 	if (--s->irq.Config == 0) {
 		c->state &= ~CONFIG_IRQ_REQ;
@@ -436,9 +454,12 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 #ifdef CONFIG_PCMCIA_PROBE
 	pcmcia_used_irq[req->AssignedIRQ]--;
 #endif
+	ret = 0;
+
+out:
 	mutex_unlock(&s->ops_mutex);
 
-	return 0;
+	return ret;
 } /* pcmcia_release_irq */
 
 
@@ -495,13 +516,15 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 		dev_dbg(&s->dev, "IntType may not be INT_CARDBUS\n");
 		return -EINVAL;
 	}
+
+	mutex_lock(&s->ops_mutex);
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED) {
+		mutex_unlock(&s->ops_mutex);
 		dev_dbg(&s->dev, "Configuration is locked\n");
 		return -EACCES;
 	}
 
-	mutex_lock(&s->ops_mutex);
 	/* Do power control.  We don't allow changes in Vcc. */
 	s->socket.Vpp = req->Vpp;
 	if (s->ops->set_socket(s, &s->socket)) {
@@ -615,58 +638,65 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c;
+	int ret = -EINVAL;
+
+	mutex_lock(&s->ops_mutex);
 
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "No card present\n");
-		return -ENODEV;
+		goto out;
 	}
 
 	if (!req)
-		return -EINVAL;
+		goto out;
+
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED) {
 		dev_dbg(&s->dev, "Configuration is locked\n");
-		return -EACCES;
+		goto out;
 	}
 	if (c->state & CONFIG_IO_REQ) {
 		dev_dbg(&s->dev, "IO already configured\n");
-		return -EBUSY;
+		goto out;
 	}
 	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS)) {
 		dev_dbg(&s->dev, "bad attribute setting for IO region 1\n");
-		return -EINVAL;
+		goto out;
 	}
 	if ((req->NumPorts2 > 0) &&
 	    (req->Attributes2 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))) {
 		dev_dbg(&s->dev, "bad attribute setting for IO region 2\n");
-		return -EINVAL;
+		goto out;
 	}
 
-	mutex_lock(&s->ops_mutex);
 	dev_dbg(&s->dev, "trying to allocate resource 1\n");
-	if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
-			   req->NumPorts1, req->IOAddrLines)) {
+	ret = alloc_io_space(s, req->Attributes1, &req->BasePort1,
+			     req->NumPorts1, req->IOAddrLines);
+	if (ret) {
 		dev_dbg(&s->dev, "allocation of resource 1 failed\n");
-		mutex_unlock(&s->ops_mutex);
-		return -EBUSY;
+		goto out;
 	}
 
 	if (req->NumPorts2) {
 		dev_dbg(&s->dev, "trying to allocate resource 2\n");
-		if (alloc_io_space(s, req->Attributes2, &req->BasePort2,
-				   req->NumPorts2, req->IOAddrLines)) {
+		ret = alloc_io_space(s, req->Attributes2, &req->BasePort2,
+				     req->NumPorts2, req->IOAddrLines);
+		if (ret) {
 			dev_dbg(&s->dev, "allocation of resource 2 failed\n");
 			release_io_space(s, req->BasePort1, req->NumPorts1);
-			mutex_unlock(&s->ops_mutex);
-			return -EBUSY;
+			goto out;
 		}
 	}
-	mutex_unlock(&s->ops_mutex);
 
 	c->io = *req;
 	c->state |= CONFIG_IO_REQ;
 	p_dev->_io = 1;
-	return 0;
+	dev_dbg(&s->dev, "allocating resources succeeded: %d\n", ret);
+
+out:
+	mutex_unlock(&s->ops_mutex);
+
+	return ret;
 } /* pcmcia_request_io */
 EXPORT_SYMBOL(pcmcia_request_io);
 
@@ -695,21 +725,22 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	int ret = -EINVAL, irq = 0;
 	int type;
 
+	mutex_lock(&s->ops_mutex);
+
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "No card present\n");
-		return -ENODEV;
+		goto out;
 	}
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED) {
 		dev_dbg(&s->dev, "Configuration is locked\n");
-		return -EACCES;
+		goto out;
 	}
 	if (c->state & CONFIG_IRQ_REQ) {
 		dev_dbg(&s->dev, "IRQ already configured\n");
-		return -EBUSY;
+		goto out;
 	}
 
-	mutex_lock(&s->ops_mutex);
 	/* Decide what type of interrupt we are registering */
 	type = 0;
 	if (s->functions > 1)		/* All of this ought to be handled higher up */
@@ -768,7 +799,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	if (ret && !s->irq.AssignedIRQ) {
 		if (!s->pci_irq) {
 			dev_printk(KERN_INFO, &s->dev, "no IRQ found\n");
-			return ret;
+			goto out;
 		}
 		type = IRQF_SHARED;
 		irq = s->pci_irq;
@@ -780,7 +811,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		if (ret) {
 			dev_printk(KERN_INFO, &s->dev,
 				"request_irq() failed\n");
-			return ret;
+			goto out;
 		}
 	}
 
@@ -803,9 +834,10 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	pcmcia_used_irq[irq]++;
 #endif
 
+	ret = 0;
+out:
 	mutex_unlock(&s->ops_mutex);
-
-	return 0;
+	return ret;
 } /* pcmcia_request_irq */
 EXPORT_SYMBOL(pcmcia_request_irq);
 

@@ -90,3 +90,28 @@ or single-use fields not mentioned):
 	struct list_head	devices_list;
 	u8			device_count;
 	struct 			pcmcia_state;
+
+
+3. Per PCMCIA-device Data:
+--------------------------
+
+The "main" struct pcmcia_devie is protected as follows (read-only fields
+or single-use fields not mentioned):
+
+
+- by pcmcia_socket->ops_mutex:
+	struct list_head	socket_device_list;
+	struct config_t		*function_config;
+	u16			_irq:1;
+	u16			_io:1;
+	u16			_win:4;
+	u16			_locked:1;
+	u16			allow_func_id_match:1;
+	u16			suspended:1;
+	u16			_removed:1;
+
+- by the PCMCIA driver:
+	io_req_t		io;
+	irq_req_t		irq;
+	config_req_t		conf;
+	window_handle_t		win;
