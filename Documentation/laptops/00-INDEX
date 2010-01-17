@@ -2,6 +2,10 @@
 	- This file
 acer-wmi.txt
 	- information on the Acer Laptop WMI Extras driver.
+asus-laptop.txt
+	- information on the Asus Laptop Extras driver.
+disk-shock-protection.txt
+	- information on hard disk shock protection.
 laptop-mode.txt
 	- how to conserve battery power using laptop-mode.
 sony-laptop.txt
