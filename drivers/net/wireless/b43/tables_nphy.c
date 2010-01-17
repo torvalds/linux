@@ -2919,6 +2919,37 @@ static inline void assert_ntab_array_sizes(void)
 #undef check
 }
 
+u32 b43_ntab_read(struct b43_wldev *dev, u32 offset)
+{
+	u32 type, value;
+
+	type = offset & B43_NTAB_TYPEMASK;
+	offset &= ~B43_NTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	switch (type) {
+	case B43_NTAB_8BIT:
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO) & 0xFF;
+		break;
+	case B43_NTAB_16BIT:
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		break;
+	case B43_NTAB_32BIT:
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
+		value <<= 16;
+		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		break;
+	default:
+		B43_WARN_ON(1);
+		value = 0;
+	}
+
+	return value;
+}
+
 void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value)
 {
 	u32 type;

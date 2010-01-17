@@ -1628,12 +1628,11 @@ static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 		regs[4] = b43_phy_read(dev, B43_NPHY_BBCFG);
 		b43_phy_mask(dev, B43_NPHY_BBCFG, ~B43_NPHY_BBCFG_RSTRX);
 
-		/* TODO: Read an N PHY Table with ID 8, length 1, offset 3,
-			width 16, and data pointing to tmp */
+		tmp = b43_ntab_read(dev, B43_NTAB16(8, 3));
 		regs[5] = tmp;
 		b43_ntab_write(dev, B43_NTAB16(8, 3), 0);
-		/* TODO: Read an N PHY Table with ID 8, length 1, offset 19,
-			width 16, and data pointing to tmp */
+
+		tmp = b43_ntab_read(dev, B43_NTAB16(8, 19));
 		regs[6] = tmp;
 		b43_ntab_write(dev, B43_NTAB16(8, 19), 0);
 		regs[7] = b43_phy_read(dev, B43_NPHY_RFCTL_INTC1);
@@ -1653,13 +1652,11 @@ static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 		tmp = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
 		regs[2] = tmp;
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, tmp | 0x3000);
-		/* TODO: Read an N PHY Table with ID 8, length 1, offset 2,
-			width 16, and data pointing to tmp */
+		tmp = b43_ntab_read(dev, B43_NTAB16(8, 2));
 		regs[3] = tmp;
 		tmp |= 0x2000;
 		b43_ntab_write(dev, B43_NTAB16(8, 2), tmp);
-		/* TODO: Read an N PHY Table with ID 8, length 1, offset 18,
-			width 16, and data pointer tmp */
+		tmp = b43_ntab_read(dev, B43_NTAB16(8, 18));
 		regs[4] = tmp;
 		tmp |= 0x2000;
 		b43_ntab_write(dev, B43_NTAB16(8, 18), tmp);
@@ -1877,9 +1874,8 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDNNUM, tmp);
 
 			if (type == 1 || type == 3 || type == 4) {
-				/* TODO: Read an N PHY Table with ID 15,
-					length 1, offset 69 + core,
-					width 16, and data pointer buffer */
+				buffer[0] = b43_ntab_read(dev,
+						B43_NTAB16(15, 69 + core));
 				diq_start = buffer[0];
 				buffer[0] = 0;
 				b43_ntab_write(dev, B43_NTAB16(15, 69 + core),

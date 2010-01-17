@@ -142,6 +142,7 @@ b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel);
 #define B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL		10
 #define B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL_REV3		12
 
+u32 b43_ntab_read(struct b43_wldev *dev, u32 offset);
 void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value);
 void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data);
