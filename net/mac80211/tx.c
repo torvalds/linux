@@ -560,6 +560,17 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result debug_noinline
+ieee80211_tx_h_sta(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
+
+	if (tx->sta)
+		info->control.sta = &tx->sta->sta;
+
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -729,17 +740,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 			info->control.rates[i].flags |=
 				IEEE80211_TX_RC_USE_CTS_PROTECT;
 	}
-
-	return TX_CONTINUE;
-}
-
-static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-
-	if (tx->sta)
-		info->control.sta = &tx->sta->sta;
 
 	return TX_CONTINUE;
 }
@@ -1292,10 +1292,10 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_check_assoc);
 	CALL_TXH(ieee80211_tx_h_ps_buf);
 	CALL_TXH(ieee80211_tx_h_select_key);
+	CALL_TXH(ieee80211_tx_h_sta);
 	CALL_TXH(ieee80211_tx_h_michael_mic_add);
 	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
-	CALL_TXH(ieee80211_tx_h_misc);
 	CALL_TXH(ieee80211_tx_h_sequence);
 	CALL_TXH(ieee80211_tx_h_fragment);
 	/* handlers after fragment must be aware of tx info fragmentation! */
