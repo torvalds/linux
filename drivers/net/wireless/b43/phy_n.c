@@ -829,8 +829,7 @@ static void b43_nphy_tx_pwr_ctrl_coef_setup(struct b43_wldev *dev)
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, true);
 
-	/* TODO: Read an N PHY Table with ID 15, length 7, offset 80,
-		width 16, and data pointer buffer */
+	b43_ntab_read_bulk(dev, B43_NTAB16(15, 80), 7, buffer);
 
 	for (i = 0; i < 2; i++) {
 		tmp = ((buffer[i * 2] & 0x3FF) << 10) |
@@ -1507,8 +1506,7 @@ static struct nphy_txgains b43_nphy_get_tx_gains(struct b43_wldev *dev)
 
 		if (nphy->hang_avoid)
 			b43_nphy_stay_in_carrier_search(dev, true);
-		/* TODO: Read an N PHY Table with ID 7, length 2,
-			offset 0x110, width 16, and curr_gain */
+		b43_ntab_read_bulk(dev, B43_NTAB16(7, 0x110), 2, curr_gain);
 		if (nphy->hang_avoid)
 			b43_nphy_stay_in_carrier_search(dev, false);
 
@@ -1768,8 +1766,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 		nphy->hang_avoid = 0;
 	}
 
-	/* TODO: Read an N PHY Table with ID 7, length 2, offset 0x110,
-		width 16, and data pointer save */
+	b43_ntab_read_bulk(dev, B43_NTAB16(7, 0x110), 2, save);
 
 	for (i = 0; i < 2; i++) {
 		b43_nphy_iq_cal_gain_params(dev, i, target, &params[i]);
@@ -1890,9 +1887,8 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 				udelay(10);
 			}
 
-			/* TODO: Read an N PHY Table with ID 15,
-				length table_length, offset 96, width 16,
-				and data pointer buffer */
+			b43_ntab_read_bulk(dev, B43_NTAB16(15, 96), length,
+						buffer);
 			b43_ntab_write_bulk(dev, B43_NTAB16(15, 64), length,
 						buffer);
 
@@ -1907,8 +1903,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 
 		if (!mphase || nphy->mphase_cal_phase_id == last) {
 			b43_ntab_write_bulk(dev, B43_NTAB16(15, 96), 4, buffer);
-			/* TODO: Read an N PHY Table with ID 15, length 4,
-				offset 80, width 16, and data pointer buffer */
+			b43_ntab_read_bulk(dev, B43_NTAB16(15, 80), 4, buffer);
 			if (dev->phy.rev < 3) {
 				buffer[0] = 0;
 				buffer[1] = 0;
@@ -1926,9 +1921,8 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			length = 11;
 			if (dev->phy.rev < 3)
 				length -= 2;
-			/* TODO: Read an N PHY Table with ID 15, length length,
-				offset 96, width 16, and data pointer
-				nphy->txiqlocal_bestc */
+			b43_ntab_read_bulk(dev, B43_NTAB16(15, 96), length,
+						nphy->txiqlocal_bestc);
 			nphy->txiqlocal_coeffsvalid = true;
 			/* TODO: Set nphy->txiqlocal_chanspec to
 				the current channel */
@@ -1936,9 +1930,8 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			length = 11;
 			if (dev->phy.rev < 3)
 				length -= 2;
-			/* TODO: Read an N PHY Table with ID 5, length length,
-				offset 96, width 16, and data pointer
-				nphy->mphase_txcal_bestcoeffs */
+			b43_ntab_read_bulk(dev, B43_NTAB16(15, 96), length,
+						nphy->mphase_txcal_bestcoeffs);
 		}
 
 		b43_nphy_stop_playback(dev);
@@ -1990,8 +1983,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 
 	if (dev->phy.rev < 2)
 		;/* TODO: Call N PHY Reapply TX Cal Coeffs */
-	/* TODO: Read an N PHY Table with ID 7, length 2, offset 0x110,
-		width 16, and data gain_save */
+	b43_ntab_read_bulk(dev, B43_NTAB16(7, 0x110), 2, gain_save);
 	for (i = 0; i < 2; i++) {
 		b43_nphy_iq_cal_gain_params(dev, i, target, &cal_params[i]);
 		cal_gain[i] = cal_params[i].cal_gain;
