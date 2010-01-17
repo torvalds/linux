@@ -1,7 +1,7 @@
 /*
  * Wireless configuration interface internals.
  *
- * Copyright 2006-2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -48,6 +48,7 @@ struct cfg80211_registered_device {
 
 	/* associate netdev list */
 	struct mutex devlist_mtx;
+	/* protected by devlist_mtx or RCU */
 	struct list_head netdev_list;
 	int devlist_generation;
 	int opencount; /* also protected by devlist_mtx */
