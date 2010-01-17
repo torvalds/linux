@@ -47,7 +47,7 @@
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE) + 0x40
+#define INTCP_VA_CIC_BASE		IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x40)
 #define INTCP_VA_PIC_BASE		IO_ADDRESS(INTEGRATOR_IC_BASE)
 #define INTCP_VA_SIC_BASE		IO_ADDRESS(INTEGRATOR_CP_SIC_BASE)
 
@@ -265,8 +265,8 @@ static void __init intcp_init_irq(void)
 /*
  * Clock handling
  */
-#define CM_LOCK (IO_ADDRESS(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
-#define CM_AUXOSC (IO_ADDRESS(INTEGRATOR_HDR_BASE)+0x1c)
+#define CM_LOCK IO_ADDRESS(INTEGRATOR_HDR_LOCK)
+#define CM_AUXOSC IO_ADDRESS(INTEGRATOR_HDR_BASE + 0x1c)
 
 static const struct icst525_params cp_auxvco_params = {
 	.ref		= 24000,
@@ -393,8 +393,8 @@ static struct platform_device *intcp_devs[] __initdata = {
  */
 static unsigned int mmc_status(struct device *dev)
 {
-	unsigned int status = readl(IO_ADDRESS(0xca000000) + 4);
-	writel(8, IO_ADDRESS(INTEGRATOR_CP_CTL_BASE) + 8);
+	unsigned int status = readl(IO_ADDRESS(0xca000000 + 4));
+	writel(8, IO_ADDRESS(INTEGRATOR_CP_CTL_BASE + 8));
 
 	return status & 8;
 }

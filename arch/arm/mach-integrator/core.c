@@ -166,8 +166,8 @@ arch_initcall(integrator_init);
  *  UART0  7    6
  *  UART1  5    4
  */
-#define SC_CTRLC	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLC_OFFSET)
-#define SC_CTRLS	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLS_OFFSET)
+#define SC_CTRLC	IO_ADDRESS(INTEGRATOR_SC_CTRLC)
+#define SC_CTRLS	IO_ADDRESS(INTEGRATOR_SC_CTRLS)
 
 static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
 {
@@ -199,7 +199,7 @@ static struct amba_pl010_data integrator_uart_data = {
 	.set_mctrl = integrator_uart_set_mctrl,
 };
 
-#define CM_CTRL	IO_ADDRESS(INTEGRATOR_HDR_BASE) + INTEGRATOR_HDR_CTRL_OFFSET
+#define CM_CTRL	IO_ADDRESS(INTEGRATOR_HDR_CTRL)
 
 static DEFINE_SPINLOCK(cm_lock);
 
@@ -224,9 +224,9 @@ EXPORT_SYMBOL(cm_control);
 /*
  * Where is the timer (VA)?
  */
-#define TIMER0_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000000)
-#define TIMER1_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000100)
-#define TIMER2_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000200)
+#define TIMER0_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER0_BASE)
+#define TIMER1_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER1_BASE)
+#define TIMER2_VA_BASE IO_ADDRESS(INTEGRATOR_TIMER2_BASE)
 
 /*
  * How long is the timer interval?
