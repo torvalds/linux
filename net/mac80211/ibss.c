@@ -454,6 +454,9 @@ static int ieee80211_sta_active_ibss(struct ieee80211_sub_if_data *sdata)
 	return active;
 }
 
+/*
+ * This function is called with state == IEEE80211_IBSS_MLME_JOINED
+ */
 
 static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 {
@@ -519,6 +522,10 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 				  capability, 0);
 }
 
+/*
+ * This function is called with state == IEEE80211_IBSS_MLME_SEARCH
+ */
+
 static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -575,18 +582,14 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
 	/* Selected IBSS not found in current scan results - try to scan */
-	if (ifibss->state == IEEE80211_IBSS_MLME_JOINED &&
-	    !ieee80211_sta_active_ibss(sdata)) {
-		mod_timer(&ifibss->timer,
-			  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
-	} else if (time_after(jiffies, ifibss->last_scan_completed +
+	if (time_after(jiffies, ifibss->last_scan_completed +
 					IEEE80211_SCAN_INTERVAL)) {
 		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
 		       "join\n", sdata->name);
 
 		ieee80211_request_internal_scan(sdata, ifibss->ssid,
 						ifibss->ssid_len);
-	} else if (ifibss->state != IEEE80211_IBSS_MLME_JOINED) {
+	} else {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
 		if (time_after(jiffies, ifibss->ibss_join_req +
@@ -604,7 +607,6 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 			interval = IEEE80211_SCAN_INTERVAL_SLOW;
 		}
 
-		ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
 		mod_timer(&ifibss->timer,
 			  round_jiffies(jiffies + interval));
 	}
