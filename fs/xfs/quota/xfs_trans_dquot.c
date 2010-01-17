@@ -589,6 +589,20 @@ xfs_trans_unreserve_and_mod_dquots(
 	}
 }
 
+STATIC void
+xfs_quota_warn(
+	struct xfs_mount	*mp,
+	struct xfs_dquot	*dqp,
+	int			type)
+{
+	/* no warnings for project quotas - we just return ENOSPC later */
+	if (dqp->dq_flags & XFS_DQ_PROJ)
+		return;
+	quota_send_warning((dqp->dq_flags & XFS_DQ_USER) ? USRQUOTA : GRPQUOTA,
+			   be32_to_cpu(dqp->q_core.d_id), mp->m_super->s_dev,
+			   type);
+}
+
 /*
  * This reserves disk blocks and inodes against a dquot.
  * Flags indicate if the dquot is to be locked here and also
@@ -657,13 +671,21 @@ xfs_trans_dqresv(
 			 * nblks.
 			 */
 			if (hardlimit > 0ULL &&
-			    hardlimit <= nblks + *resbcountp)
+			    hardlimit <= nblks + *resbcountp) {
+				xfs_quota_warn(mp, dqp, QUOTA_NL_BHARDWARN);
 				goto error_return;
+			}
 			if (softlimit > 0ULL &&
-			    softlimit <= nblks + *resbcountp &&
-			    ((timer != 0 && get_seconds() > timer) ||
-			     (warns != 0 && warns >= warnlimit)))
-				goto error_return;
+			    softlimit <= nblks + *resbcountp) {
+				if ((timer != 0 && get_seconds() > timer) ||
+				    (warns != 0 && warns >= warnlimit)) {
+					xfs_quota_warn(mp, dqp,
+						       QUOTA_NL_BSOFTLONGWARN);
+					goto error_return;
+				}
+
+				xfs_quota_warn(mp, dqp, QUOTA_NL_BSOFTWARN);
+			}
 		}
 		if (ninos > 0) {
 			count = be64_to_cpu(dqp->q_core.d_icount);
@@ -677,12 +699,19 @@ xfs_trans_dqresv(
 			if (!softlimit)
 				softlimit = q->qi_isoftlimit;
 
-			if (hardlimit > 0ULL && count >= hardlimit)
+			if (hardlimit > 0ULL && count >= hardlimit) {
+				xfs_quota_warn(mp, dqp, QUOTA_NL_IHARDWARN);
 				goto error_return;
-			if (softlimit > 0ULL && count >= softlimit &&
-			    ((timer != 0 && get_seconds() > timer) ||
-			     (warns != 0 && warns >= warnlimit)))
-				goto error_return;
+			}
+			if (softlimit > 0ULL && count >= softlimit) {
+				if  ((timer != 0 && get_seconds() > timer) ||
+				     (warns != 0 && warns >= warnlimit)) {
+					xfs_quota_warn(mp, dqp,
+						       QUOTA_NL_ISOFTLONGWARN);
+					goto error_return;
+				}
+				xfs_quota_warn(mp, dqp, QUOTA_NL_ISOFTWARN);
+			}
 		}
 	}
 
