@@ -43,8 +43,6 @@
 
 #include <plat/timer-sp.h>
 
-#include "common.h"
-
 #define INTCP_PA_FLASH_BASE		0x24000000
 #define INTCP_FLASH_SIZE		SZ_32M
 
