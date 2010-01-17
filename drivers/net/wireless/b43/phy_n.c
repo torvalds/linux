@@ -424,6 +424,20 @@ static void b43_nphy_reset_cca(struct b43_wldev *dev)
 	/* TODO: N PHY Force RF Seq with argument 2 */
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MIMOConfig */
+static void b43_nphy_update_mimo_config(struct b43_wldev *dev, s32 preamble)
+{
+	u16 mimocfg = b43_phy_read(dev, B43_NPHY_MIMOCFG);
+
+	mimocfg |= B43_NPHY_MIMOCFG_AUTO;
+	if (preamble == 1)
+		mimocfg |= B43_NPHY_MIMOCFG_GFMIX;
+	else
+		mimocfg &= ~B43_NPHY_MIMOCFG_GFMIX;
+
+	b43_phy_write(dev, B43_NPHY_MIMOCFG, mimocfg);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqEst */
 static void b43_nphy_rx_iq_est(struct b43_wldev *dev, struct nphy_iq_est *est,
 				u16 samps, u8 time, bool wait)
@@ -2180,7 +2194,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 0x50);
 	b43_phy_write(dev, B43_NPHY_TXRIFS_FRDEL, 0x30);
 
-	/* TODO MIMO-Config */
+	b43_nphy_update_mimo_config(dev, nphy->preamble_override);
 	/* TODO Update TX/RX chain */
 
 	if (phy->rev < 2) {
