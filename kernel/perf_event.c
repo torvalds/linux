@@ -1525,17 +1525,17 @@ void perf_event_task_tick(struct task_struct *curr)
 	if (ctx)
 		perf_ctx_adjust_freq(ctx);
 
-	cpu_ctx_sched_out(cpuctx, EVENT_ALL);
+	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
-		task_ctx_sched_out(ctx, EVENT_ALL);
+		task_ctx_sched_out(ctx, EVENT_FLEXIBLE);
 
 	rotate_ctx(&cpuctx->ctx);
 	if (ctx)
 		rotate_ctx(ctx);
 
-	cpu_ctx_sched_in(cpuctx, EVENT_ALL);
+	cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
-		task_ctx_sched_in(curr, EVENT_ALL);
+		task_ctx_sched_in(curr, EVENT_FLEXIBLE);
 }
 
 static int event_enable_on_exec(struct perf_event *event,
