@@ -350,7 +350,7 @@ static int acpi_check_handle(acpi_handle handle, const char *method,
 }
 
 /* Generic LED function */
-static void asus_led_set(struct asus_laptop *asus, char *method,
+static int asus_led_set(struct asus_laptop *asus, char *method,
 			 int value)
 {
 	if (!strcmp(method, METHOD_MLED))
@@ -360,7 +360,7 @@ static void asus_led_set(struct asus_laptop *asus, char *method,
 	else
 		value = !!value;
 
-	write_acpi_int(asus->handle, method, value);
+	return write_acpi_int(asus->handle, method, value);
 }
 
 /*
@@ -817,6 +817,15 @@ static int asus_wireless_status(struct asus_laptop *asus, int mask)
 /*
  * WLAN
  */
+static int asus_wlan_set(struct asus_laptop *asus, int status)
+{
+	if (write_acpi_int(asus->handle, METHOD_WLAN, !!status)) {
+		pr_warning("Error setting wlan status to %d", status);
+		return -EIO;
+	}
+	return 0;
+}
+
 static ssize_t show_wlan(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
@@ -836,6 +845,15 @@ static ssize_t store_wlan(struct device *dev, struct device_attribute *attr,
 /*
  * Bluetooth
  */
+static int asus_bluetooth_set(struct asus_laptop *asus, int status)
+{
+	if (write_acpi_int(asus->handle, METHOD_BLUETOOTH, !!status)) {
+		pr_warning("Error setting bluetooth status to %d", status);
+		return -EIO;
+	}
+	return 0;
+}
+
 static ssize_t show_bluetooth(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -1353,8 +1371,8 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 		       (uint) bsts_result);
 
 	/* This too ... */
-	write_acpi_int(asus->handle, "CWAP", wapf);
-
+	if (write_acpi_int(asus->handle, "CWAP", wapf))
+		pr_err("Error calling CWAP(%d)\n", wapf);
 	/*
 	 * Try to match the object returned by INIT to the specific model.
 	 * Handle every possible object (or the lack of thereof) the DSDT
@@ -1426,11 +1444,10 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 
 	/* WLED and BLED are on by default */
 	if (bluetooth_status >= 0)
-		write_acpi_int(asus->handle, METHOD_BLUETOOTH,
-			       !!bluetooth_status);
+		asus_bluetooth_set(asus, !!bluetooth_status);
+
 	if (wireless_status >= 0)
-		write_acpi_int(asus->handle, METHOD_WLAN,
-			       !!wireless_status);
+		asus_wlan_set(asus, !!wireless_status);
 
 	/* Keyboard Backlight is on by default */
 	if (!acpi_check_handle(asus->handle, METHOD_KBD_LIGHT_SET, NULL))
