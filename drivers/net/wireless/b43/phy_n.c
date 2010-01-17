@@ -438,6 +438,34 @@ static void b43_nphy_update_mimo_config(struct b43_wldev *dev, s32 preamble)
 	b43_phy_write(dev, B43_NPHY_MIMOCFG, mimocfg);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/Chains */
+static void b43_nphy_update_txrx_chain(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	bool override = false;
+	u16 chain = 0x33;
+
+	if (nphy->txrx_chain == 0) {
+		chain = 0x11;
+		override = true;
+	} else if (nphy->txrx_chain == 1) {
+		chain = 0x22;
+		override = true;
+	}
+
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA,
+			~(B43_NPHY_RFSEQCA_TXEN | B43_NPHY_RFSEQCA_RXEN),
+			chain);
+
+	if (override)
+		b43_phy_set(dev, B43_NPHY_RFSEQMODE,
+				B43_NPHY_RFSEQMODE_CAOVER);
+	else
+		b43_phy_mask(dev, B43_NPHY_RFSEQMODE,
+				~B43_NPHY_RFSEQMODE_CAOVER);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxIqEst */
 static void b43_nphy_rx_iq_est(struct b43_wldev *dev, struct nphy_iq_est *est,
 				u16 samps, u8 time, bool wait)
@@ -2223,7 +2251,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_NPHY_TXRIFS_FRDEL, 0x30);
 
 	b43_nphy_update_mimo_config(dev, nphy->preamble_override);
-	/* TODO Update TX/RX chain */
+	b43_nphy_update_txrx_chain(dev);
 
 	if (phy->rev < 2) {
 		b43_phy_write(dev, B43_NPHY_DUP40_GFBL, 0xAA8);

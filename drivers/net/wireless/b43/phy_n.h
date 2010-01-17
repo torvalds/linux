@@ -987,6 +987,7 @@ struct b43_phy_n {
 	bool txiqlocal_coeffsvalid;
 	struct b43_phy_n_txpwrindex txpwrindex[2];
 
+	u8 txrx_chain;
 	u16 tx_rx_cal_phy_saveregs[11];
 	u16 tx_rx_cal_radio_saveregs[22];
 
