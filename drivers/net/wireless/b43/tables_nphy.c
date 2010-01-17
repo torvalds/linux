@@ -2952,6 +2952,46 @@ void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value)
 	assert_ntab_array_sizes();
 }
 
+void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
+			  unsigned int nr_elements, const void *_data)
+{
+	u32 type, value;
+	const u8 *data = _data;
+	unsigned int i;
+
+	type = offset & B43_NTAB_TYPEMASK;
+	offset &= ~B43_NTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+
+	for (i = 0; i < nr_elements; i++) {
+		switch (type) {
+		case B43_NTAB_8BIT:
+			value = *data;
+			data++;
+			B43_WARN_ON(value & ~0xFF);
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, value);
+			break;
+		case B43_NTAB_16BIT:
+			value = *((u16 *)data);
+			data += 2;
+			B43_WARN_ON(value & ~0xFFFF);
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, value);
+			break;
+		case B43_NTAB_32BIT:
+			value = *((u32 *)data);
+			data += 4;
+			b43_phy_write(dev, B43_NPHY_TABLE_DATAHI, value >> 16);
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO,
+					value & 0xFFFF);
+			break;
+		default:
+			B43_WARN_ON(1);
+		}
+	}
+}
+
 #define ntab_upload(dev, offset, data) do { \
 		unsigned int i;						\
 		for (i = 0; i < (offset##_SIZE); i++)			\
