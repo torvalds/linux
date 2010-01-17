@@ -749,6 +749,34 @@ static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev, bool enable)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/stop-playback */
+static void b43_nphy_stop_playback(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+	u16 tmp;
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 1);
+
+	tmp = b43_phy_read(dev, B43_NPHY_SAMP_STAT);
+	if (tmp & 0x1)
+		b43_phy_set(dev, B43_NPHY_SAMP_CMD, B43_NPHY_SAMP_CMD_STOP);
+	else if (tmp & 0x2)
+		b43_phy_mask(dev, B43_NPHY_IQLOCAL_CMDGCTL, (u16)~0x8000);
+
+	b43_phy_mask(dev, B43_NPHY_SAMP_CMD, ~0x0004);
+
+	if (nphy->bb_mult_save & 0x80000000) {
+		tmp = nphy->bb_mult_save & 0xFFFF;
+		/* TODO: Write an N PHY Table with ID 15, length 1, offset 87,
+			width 16 and data from tmp */
+		nphy->bb_mult_save = 0;
+	}
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 0);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/TxPwrCtrlCoefSetup */
 static void b43_nphy_tx_pwr_ctrl_coef_setup(struct b43_wldev *dev)
 {
@@ -1906,7 +1934,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 				nphy->mphase_txcal_bestcoeffs */
 		}
 
-		/* TODO: Call N PHY Stop Playback */
+		b43_nphy_stop_playback(dev);
 		b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDGCTL, 0);
 	}
 
@@ -2053,7 +2081,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 			/* TODO:Call N PHY RF Ctrl Override with 0x400, tmp[0],
 				3, 0 as arguments */
 			/* TODO: Call N PHY Force RF Seq with 2 as argument */
-			/* TODO: Call N PHT Stop Playback */
+			b43_nphy_stop_playback(dev);
 
 			if (playtone) {
 				/* TODO: Call N PHY TX Tone with 4000,
@@ -2080,7 +2108,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 				} else {
 					b43_nphy_calc_rx_iq_comp(dev, 1 << i);
 				}
-				/* TODO: Call N PHY Stop Playback */
+				b43_nphy_stop_playback(dev);
 			}
 
 			if (ret != 0)

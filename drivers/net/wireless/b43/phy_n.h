@@ -974,6 +974,7 @@ struct b43_phy_n {
 	bool mute;
 	u16 papd_epsilon_offset[2];
 	s32 preamble_override;
+	u32 bb_mult_save;
 
 	u8 mphase_cal_phase_id;
 	u16 mphase_txcal_cmdidx;
