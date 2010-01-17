@@ -1230,6 +1230,8 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 			return; /* invalid entry */
 		}
 	}
+	if (!ext || !fixed)
+		return;
 	if (!(get_wcaps(codec, ext) & AC_WCAP_UNSOL_CAP))
 		return; /* no unsol support */
 	snd_printdd("realtek: Enable auto-mic switch on NID 0x%x/0x%x\n",
@@ -4812,6 +4814,49 @@ static void fixup_automic_adc(struct hda_codec *codec)
 	spec->auto_mic = 0; /* disable auto-mic to be sure */
 }
 
+/* choose the ADC/MUX containing the input pin and initialize the setup */
+static void fixup_single_adc(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t pin;
+	int i;
+
+	/* search for the input pin; there must be only one */
+	for (i = 0; i < AUTO_PIN_LAST; i++) {
+		if (spec->autocfg.input_pins[i]) {
+			pin = spec->autocfg.input_pins[i];
+			break;
+		}
+	}
+	if (!pin)
+		return;
+
+	/* set the default connection to that pin */
+	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t cap = spec->capsrc_nids ?
+			spec->capsrc_nids[i] : spec->adc_nids[i];
+		int idx;
+
+		idx = get_connection_index(codec, cap, pin);
+		if (idx < 0)
+			continue;
+		/* use only this ADC */
+		if (spec->capsrc_nids)
+			spec->capsrc_nids += i;
+		spec->adc_nids += i;
+		spec->num_adc_nids = 1;
+		/* select or unmute this route */
+		if (get_wcaps_type(get_wcaps(codec, cap)) == AC_WID_AUD_MIX) {
+			snd_hda_codec_amp_stereo(codec, cap, HDA_INPUT, idx,
+						 HDA_AMP_MUTE, 0);
+		} else {
+			snd_hda_codec_write_cache(codec, cap, 0,
+					  AC_VERB_SET_CONNECT_SEL, idx);
+		}
+		return;
+	}
+}
+
 static void set_capture_mixer(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -4824,14 +4869,15 @@ static void set_capture_mixer(struct hda_codec *codec)
 		  alc_capture_mixer3 },
 	};
 	if (spec->num_adc_nids > 0 && spec->num_adc_nids <= 3) {
-		int mux;
-		if (spec->auto_mic) {
-			mux = 0;
+		int mux = 0;
+		if (spec->auto_mic)
 			fixup_automic_adc(codec);
-		} else if (spec->input_mux && spec->input_mux->num_items > 1)
-			mux = 1;
-		else
-			mux = 0;
+		else if (spec->input_mux) {
+			if (spec->input_mux->num_items > 1)
+				mux = 1;
+			else if (spec->input_mux->num_items == 1)
+				fixup_single_adc(codec);
+		}
 		spec->cap_mixer = caps[mux][spec->num_adc_nids - 1];
 	}
 }
@@ -11203,7 +11249,7 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
 }
 
 #define alc262_auto_create_input_ctls \
-	alc880_auto_create_input_ctls
+	alc882_auto_create_input_ctls
 
 /*
  * generic initialization of ADC, input mixers and output mixers
