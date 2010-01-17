@@ -270,7 +270,7 @@ struct infrared {
 	u32			ir_command;
 };
 
-struct dm1105dvb {
+struct dm1105_dev {
 	/* pci */
 	struct pci_dev *pdev;
 	u8 __iomem *io_mem;
@@ -309,17 +309,17 @@ struct dm1105dvb {
 	spinlock_t lock;
 };
 
-#define dm_io_mem(reg)	((unsigned long)(&dm1105dvb->io_mem[reg]))
+#define dm_io_mem(reg)	((unsigned long)(&dev->io_mem[reg]))
 
 static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 			    struct i2c_msg *msgs, int num)
 {
-	struct dm1105dvb *dm1105dvb ;
+	struct dm1105_dev *dev ;
 
 	int addr, rc, i, j, k, len, byte, data;
 	u8 status;
 
-	dm1105dvb = i2c_adap->algo_data;
+	dev = i2c_adap->algo_data;
 	for (i = 0; i < num; i++) {
 		outb(0x00, dm_io_mem(DM1105_I2CCTR));
 		if (msgs[i].flags & I2C_M_RD) {
@@ -406,22 +406,22 @@ static struct i2c_algorithm dm1105_algo = {
 	.functionality = functionality,
 };
 
-static inline struct dm1105dvb *feed_to_dm1105dvb(struct dvb_demux_feed *feed)
+static inline struct dm1105_dev *feed_to_dm1105_dev(struct dvb_demux_feed *feed)
 {
-	return container_of(feed->demux, struct dm1105dvb, demux);
+	return container_of(feed->demux, struct dm1105_dev, demux);
 }
 
-static inline struct dm1105dvb *frontend_to_dm1105dvb(struct dvb_frontend *fe)
+static inline struct dm1105_dev *frontend_to_dm1105_dev(struct dvb_frontend *fe)
 {
-	return container_of(fe->dvb, struct dm1105dvb, dvb_adapter);
+	return container_of(fe->dvb, struct dm1105_dev, dvb_adapter);
 }
 
-static int dm1105dvb_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
-	struct dm1105dvb *dm1105dvb = frontend_to_dm1105dvb(fe);
+	struct dm1105_dev *dev = frontend_to_dm1105_dev(fe);
 	u32 lnb_mask, lnb_13v, lnb_18v, lnb_off;
 
-	switch (dm1105dvb->boardnr) {
+	switch (dev->boardnr) {
 	case DM1105_BOARD_AXESS_DM05:
 		lnb_mask = DM05_LNB_MASK;
 		lnb_off = DM05_LNB_OFF;
@@ -448,51 +448,56 @@ static int dm1105dvb_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t volta
 	return 0;
 }
 
-static void dm1105dvb_set_dma_addr(struct dm1105dvb *dm1105dvb)
+static void dm1105_set_dma_addr(struct dm1105_dev *dev)
 {
-	outl(cpu_to_le32(dm1105dvb->dma_addr), dm_io_mem(DM1105_STADR));
+	outl(cpu_to_le32(dev->dma_addr), dm_io_mem(DM1105_STADR));
 }
 
-static int __devinit dm1105dvb_dma_map(struct dm1105dvb *dm1105dvb)
+static int __devinit dm1105_dma_map(struct dm1105_dev *dev)
 {
-	dm1105dvb->ts_buf = pci_alloc_consistent(dm1105dvb->pdev, 6*DM1105_DMA_BYTES, &dm1105dvb->dma_addr);
+	dev->ts_buf = pci_alloc_consistent(dev->pdev,
+					6 * DM1105_DMA_BYTES,
+					&dev->dma_addr);
 
-	return !dm1105dvb->ts_buf;
+	return !dev->ts_buf;
 }
 
-static void dm1105dvb_dma_unmap(struct dm1105dvb *dm1105dvb)
+static void dm1105_dma_unmap(struct dm1105_dev *dev)
 {
-	pci_free_consistent(dm1105dvb->pdev, 6*DM1105_DMA_BYTES, dm1105dvb->ts_buf, dm1105dvb->dma_addr);
+	pci_free_consistent(dev->pdev,
+			6 * DM1105_DMA_BYTES,
+			dev->ts_buf,
+			dev->dma_addr);
 }
 
-static void dm1105dvb_enable_irqs(struct dm1105dvb *dm1105dvb)
+static void dm1105_enable_irqs(struct dm1105_dev *dev)
 {
 	outb(INTMAK_ALLMASK, dm_io_mem(DM1105_INTMAK));
 	outb(1, dm_io_mem(DM1105_CR));
 }
 
-static void dm1105dvb_disable_irqs(struct dm1105dvb *dm1105dvb)
+static void dm1105_disable_irqs(struct dm1105_dev *dev)
 {
 	outb(INTMAK_IRM, dm_io_mem(DM1105_INTMAK));
 	outb(0, dm_io_mem(DM1105_CR));
 }
 
-static int dm1105dvb_start_feed(struct dvb_demux_feed *f)
+static int dm1105_start_feed(struct dvb_demux_feed *f)
 {
-	struct dm1105dvb *dm1105dvb = feed_to_dm1105dvb(f);
+	struct dm1105_dev *dev = feed_to_dm1105_dev(f);
 
-	if (dm1105dvb->full_ts_users++ == 0)
-		dm1105dvb_enable_irqs(dm1105dvb);
+	if (dev->full_ts_users++ == 0)
+		dm1105_enable_irqs(dev);
 
 	return 0;
 }
 
-static int dm1105dvb_stop_feed(struct dvb_demux_feed *f)
+static int dm1105_stop_feed(struct dvb_demux_feed *f)
 {
-	struct dm1105dvb *dm1105dvb = feed_to_dm1105dvb(f);
+	struct dm1105_dev *dev = feed_to_dm1105_dev(f);
 
-	if (--dm1105dvb->full_ts_users == 0)
-		dm1105dvb_disable_irqs(dm1105dvb);
+	if (--dev->full_ts_users == 0)
+		dm1105_disable_irqs(dev);
 
 	return 0;
 }
@@ -516,42 +521,39 @@ static void dm1105_emit_key(struct work_struct *work)
 /* work handler */
 static void dm1105_dmx_buffer(struct work_struct *work)
 {
-	struct dm1105dvb *dm1105dvb =
-				container_of(work, struct dm1105dvb, work);
+	struct dm1105_dev *dev = container_of(work, struct dm1105_dev, work);
 	unsigned int nbpackets;
-	u32 oldwrp = dm1105dvb->wrp;
-	u32 nextwrp = dm1105dvb->nextwrp;
+	u32 oldwrp = dev->wrp;
+	u32 nextwrp = dev->nextwrp;
 
-	if (!((dm1105dvb->ts_buf[oldwrp] == 0x47) &&
-			(dm1105dvb->ts_buf[oldwrp + 188] == 0x47) &&
-			(dm1105dvb->ts_buf[oldwrp + 188 * 2] == 0x47))) {
-		dm1105dvb->PacketErrorCount++;
+	if (!((dev->ts_buf[oldwrp] == 0x47) &&
+			(dev->ts_buf[oldwrp + 188] == 0x47) &&
+			(dev->ts_buf[oldwrp + 188 * 2] == 0x47))) {
+		dev->PacketErrorCount++;
 		/* bad packet found */
-		if ((dm1105dvb->PacketErrorCount >= 2) &&
-				(dm1105dvb->dmarst == 0)) {
+		if ((dev->PacketErrorCount >= 2) &&
+				(dev->dmarst == 0)) {
 			outb(1, dm_io_mem(DM1105_RST));
-			dm1105dvb->wrp = 0;
-			dm1105dvb->PacketErrorCount = 0;
-			dm1105dvb->dmarst = 0;
+			dev->wrp = 0;
+			dev->PacketErrorCount = 0;
+			dev->dmarst = 0;
 			return;
 		}
 	}
 
 	if (nextwrp < oldwrp) {
-		memcpy(dm1105dvb->ts_buf + dm1105dvb->buffer_size,
-						dm1105dvb->ts_buf, nextwrp);
-		nbpackets = ((dm1105dvb->buffer_size - oldwrp) + nextwrp) / 188;
+		memcpy(dev->ts_buf + dev->buffer_size, dev->ts_buf, nextwrp);
+		nbpackets = ((dev->buffer_size - oldwrp) + nextwrp) / 188;
 	} else
 		nbpackets = (nextwrp - oldwrp) / 188;
 
-	dm1105dvb->wrp = nextwrp;
-	dvb_dmx_swfilter_packets(&dm1105dvb->demux,
-					&dm1105dvb->ts_buf[oldwrp], nbpackets);
+	dev->wrp = nextwrp;
+	dvb_dmx_swfilter_packets(&dev->demux, &dev->ts_buf[oldwrp], nbpackets);
 }
 
-static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
+static irqreturn_t dm1105_irq(int irq, void *dev_id)
 {
-	struct dm1105dvb *dm1105dvb = dev_id;
+	struct dm1105_dev *dev = dev_id;
 
 	/* Read-Write INSTS Ack's Interrupt for DM1105 chip 16.03.2008 */
 	unsigned int intsts = inb(dm_io_mem(DM1105_INTSTS));
@@ -560,20 +562,20 @@ static irqreturn_t dm1105dvb_irq(int irq, void *dev_id)
 	switch (intsts) {
 	case INTSTS_TSIRQ:
 	case (INTSTS_TSIRQ | INTSTS_IR):
-		dm1105dvb->nextwrp = inl(dm_io_mem(DM1105_WRP)) -
+		dev->nextwrp = inl(dm_io_mem(DM1105_WRP)) -
 					inl(dm_io_mem(DM1105_STADR));
-		queue_work(dm1105dvb->wq, &dm1105dvb->work);
+		queue_work(dev->wq, &dev->work);
 		break;
 	case INTSTS_IR:
-		dm1105dvb->ir.ir_command = inl(dm_io_mem(DM1105_IRCODE));
-		schedule_work(&dm1105dvb->ir.work);
+		dev->ir.ir_command = inl(dm_io_mem(DM1105_IRCODE));
+		schedule_work(&dev->ir.work);
 		break;
 	}
 
 	return IRQ_HANDLED;
 }
 
-int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
+int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 {
 	struct input_dev *input_dev;
 	struct ir_scancode_table *ir_codes = &ir_codes_dm1105_nec_table;
@@ -615,14 +617,14 @@ int __devinit dm1105_ir_init(struct dm1105dvb *dm1105)
 	return err;
 }
 
-void __devexit dm1105_ir_exit(struct dm1105dvb *dm1105)
+void __devexit dm1105_ir_exit(struct dm1105_dev *dm1105)
 {
 	ir_input_unregister(dm1105->ir.input_dev);
 }
 
-static int __devinit dm1105dvb_hw_init(struct dm1105dvb *dm1105dvb)
+static int __devinit dm1105_hw_init(struct dm1105_dev *dev)
 {
-	dm1105dvb_disable_irqs(dm1105dvb);
+	dm1105_disable_irqs(dev);
 
 	outb(0, dm_io_mem(DM1105_HOST_CTR));
 
@@ -632,8 +634,8 @@ static int __devinit dm1105dvb_hw_init(struct dm1105dvb *dm1105dvb)
 	outw(0xc10a, dm_io_mem(DM1105_TSCTR));
 
 	/* map DMA and set address */
-	dm1105dvb_dma_map(dm1105dvb);
-	dm1105dvb_set_dma_addr(dm1105dvb);
+	dm1105_dma_map(dev);
+	dm1105_set_dma_addr(dev);
 	/* big buffer */
 	outl(5*DM1105_DMA_BYTES, dm_io_mem(DM1105_RLEN));
 	outb(47, dm_io_mem(DM1105_INTCNT));
@@ -646,15 +648,15 @@ static int __devinit dm1105dvb_hw_init(struct dm1105dvb *dm1105dvb)
 	return 0;
 }
 
-static void dm1105dvb_hw_exit(struct dm1105dvb *dm1105dvb)
+static void dm1105_hw_exit(struct dm1105_dev *dev)
 {
-	dm1105dvb_disable_irqs(dm1105dvb);
+	dm1105_disable_irqs(dev);
 
 	/* IR disable */
 	outb(0, dm_io_mem(DM1105_IRCTR));
 	outb(INTMAK_NONEMASK, dm_io_mem(DM1105_INTMAK));
 
-	dm1105dvb_dma_unmap(dm1105dvb);
+	dm1105_dma_unmap(dev);
 }
 
 static struct stv0299_config sharp_z0194a_config = {
@@ -688,78 +690,75 @@ static struct ds3000_config dvbworld_ds3000_config = {
 	.demod_address = 0x68,
 };
 
-static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
+static int __devinit frontend_init(struct dm1105_dev *dev)
 {
 	int ret;
 
-	switch (dm1105dvb->boardnr) {
+	switch (dev->boardnr) {
 	case DM1105_BOARD_DVBWORLD_2004:
-		dm1105dvb->fe = dvb_attach(
+		dev->fe = dvb_attach(
 			cx24116_attach, &serit_sp2633_config,
-			&dm1105dvb->i2c_adap);
-		if (dm1105dvb->fe) {
-			dm1105dvb->fe->ops.set_voltage = dm1105dvb_set_voltage;
+			&dev->i2c_adap);
+		if (dev->fe) {
+			dev->fe->ops.set_voltage = dm1105_set_voltage;
 			break;
 		}
 
-		dm1105dvb->fe = dvb_attach(
+		dev->fe = dvb_attach(
 			ds3000_attach, &dvbworld_ds3000_config,
-			&dm1105dvb->i2c_adap);
-		if (dm1105dvb->fe)
-			dm1105dvb->fe->ops.set_voltage = dm1105dvb_set_voltage;
+			&dev->i2c_adap);
+		if (dev->fe)
+			dev->fe->ops.set_voltage = dm1105_set_voltage;
 
 		break;
 	case DM1105_BOARD_DVBWORLD_2002:
 	case DM1105_BOARD_AXESS_DM05:
 	default:
-		dm1105dvb->fe = dvb_attach(
+		dev->fe = dvb_attach(
 			stv0299_attach, &sharp_z0194a_config,
-			&dm1105dvb->i2c_adap);
-		if (dm1105dvb->fe) {
-			dm1105dvb->fe->ops.set_voltage =
-							dm1105dvb_set_voltage;
-			dvb_attach(dvb_pll_attach, dm1105dvb->fe, 0x60,
-					&dm1105dvb->i2c_adap, DVB_PLL_OPERA1);
+			&dev->i2c_adap);
+		if (dev->fe) {
+			dev->fe->ops.set_voltage = dm1105_set_voltage;
+			dvb_attach(dvb_pll_attach, dev->fe, 0x60,
+					&dev->i2c_adap, DVB_PLL_OPERA1);
 			break;
 		}
 
-		dm1105dvb->fe = dvb_attach(
+		dev->fe = dvb_attach(
 			stv0288_attach, &earda_config,
-			&dm1105dvb->i2c_adap);
-		if (dm1105dvb->fe) {
-			dm1105dvb->fe->ops.set_voltage =
-						dm1105dvb_set_voltage;
-			dvb_attach(stb6000_attach, dm1105dvb->fe, 0x61,
-					&dm1105dvb->i2c_adap);
+			&dev->i2c_adap);
+		if (dev->fe) {
+			dev->fe->ops.set_voltage = dm1105_set_voltage;
+			dvb_attach(stb6000_attach, dev->fe, 0x61,
+					&dev->i2c_adap);
 			break;
 		}
 
-		dm1105dvb->fe = dvb_attach(
+		dev->fe = dvb_attach(
 			si21xx_attach, &serit_config,
-			&dm1105dvb->i2c_adap);
-		if (dm1105dvb->fe)
-			dm1105dvb->fe->ops.set_voltage =
-						dm1105dvb_set_voltage;
+			&dev->i2c_adap);
+		if (dev->fe)
+			dev->fe->ops.set_voltage = dm1105_set_voltage;
 
 	}
 
-	if (!dm1105dvb->fe) {
-		dev_err(&dm1105dvb->pdev->dev, "could not attach frontend\n");
+	if (!dev->fe) {
+		dev_err(&dev->pdev->dev, "could not attach frontend\n");
 		return -ENODEV;
 	}
 
-	ret = dvb_register_frontend(&dm1105dvb->dvb_adapter, dm1105dvb->fe);
+	ret = dvb_register_frontend(&dev->dvb_adapter, dev->fe);
 	if (ret < 0) {
-		if (dm1105dvb->fe->ops.release)
-			dm1105dvb->fe->ops.release(dm1105dvb->fe);
-		dm1105dvb->fe = NULL;
+		if (dev->fe->ops.release)
+			dev->fe->ops.release(dev->fe);
+		dev->fe = NULL;
 		return ret;
 	}
 
 	return 0;
 }
 
-static void __devinit dm1105dvb_read_mac(struct dm1105dvb *dm1105dvb, u8 *mac)
+static void __devinit dm1105_read_mac(struct dm1105_dev *dev, u8 *mac)
 {
 	static u8 command[1] = { 0x28 };
 
@@ -777,47 +776,47 @@ static void __devinit dm1105dvb_read_mac(struct dm1105dvb *dm1105dvb, u8 *mac)
 		},
 	};
 
-	dm1105_i2c_xfer(&dm1105dvb->i2c_adap, msg , 2);
-	dev_info(&dm1105dvb->pdev->dev, "MAC %pM\n", mac);
+	dm1105_i2c_xfer(&dev->i2c_adap, msg , 2);
+	dev_info(&dev->pdev->dev, "MAC %pM\n", mac);
 }
 
 static int __devinit dm1105_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
-	struct dm1105dvb *dm1105dvb;
+	struct dm1105_dev *dev;
 	struct dvb_adapter *dvb_adapter;
 	struct dvb_demux *dvbdemux;
 	struct dmx_demux *dmx;
 	int ret = -ENOMEM;
 	int i;
 
-	dm1105dvb = kzalloc(sizeof(struct dm1105dvb), GFP_KERNEL);
-	if (!dm1105dvb)
+	dev = kzalloc(sizeof(struct dm1105_dev), GFP_KERNEL);
+	if (!dev)
 		return -ENOMEM;
 
 	/* board config */
-	dm1105dvb->nr = dm1105_devcount;
-	dm1105dvb->boardnr = UNSET;
-	if (card[dm1105dvb->nr] < ARRAY_SIZE(dm1105_boards))
-		dm1105dvb->boardnr = card[dm1105dvb->nr];
-	for (i = 0; UNSET == dm1105dvb->boardnr &&
+	dev->nr = dm1105_devcount;
+	dev->boardnr = UNSET;
+	if (card[dev->nr] < ARRAY_SIZE(dm1105_boards))
+		dev->boardnr = card[dev->nr];
+	for (i = 0; UNSET == dev->boardnr &&
 				i < ARRAY_SIZE(dm1105_subids); i++)
 		if (pdev->subsystem_vendor ==
 			dm1105_subids[i].subvendor &&
 				pdev->subsystem_device ==
 					dm1105_subids[i].subdevice)
-			dm1105dvb->boardnr = dm1105_subids[i].card;
+			dev->boardnr = dm1105_subids[i].card;
 
-	if (UNSET == dm1105dvb->boardnr) {
-		dm1105dvb->boardnr = DM1105_BOARD_UNKNOWN;
+	if (UNSET == dev->boardnr) {
+		dev->boardnr = DM1105_BOARD_UNKNOWN;
 		dm1105_card_list(pdev);
 	}
 
 	dm1105_devcount++;
-	dm1105dvb->pdev = pdev;
-	dm1105dvb->buffer_size = 5 * DM1105_DMA_BYTES;
-	dm1105dvb->PacketErrorCount = 0;
-	dm1105dvb->dmarst = 0;
+	dev->pdev = pdev;
+	dev->buffer_size = 5 * DM1105_DMA_BYTES;
+	dev->PacketErrorCount = 0;
+	dev->dmarst = 0;
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0)
@@ -833,47 +832,47 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		goto err_pci_disable_device;
 
-	dm1105dvb->io_mem = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
-	if (!dm1105dvb->io_mem) {
+	dev->io_mem = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
+	if (!dev->io_mem) {
 		ret = -EIO;
 		goto err_pci_release_regions;
 	}
 
-	spin_lock_init(&dm1105dvb->lock);
-	pci_set_drvdata(pdev, dm1105dvb);
+	spin_lock_init(&dev->lock);
+	pci_set_drvdata(pdev, dev);
 
-	ret = dm1105dvb_hw_init(dm1105dvb);
+	ret = dm1105_hw_init(dev);
 	if (ret < 0)
 		goto err_pci_iounmap;
 
 	/* i2c */
-	i2c_set_adapdata(&dm1105dvb->i2c_adap, dm1105dvb);
-	strcpy(dm1105dvb->i2c_adap.name, DRIVER_NAME);
-	dm1105dvb->i2c_adap.owner = THIS_MODULE;
-	dm1105dvb->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
-	dm1105dvb->i2c_adap.dev.parent = &pdev->dev;
-	dm1105dvb->i2c_adap.algo = &dm1105_algo;
-	dm1105dvb->i2c_adap.algo_data = dm1105dvb;
-	ret = i2c_add_adapter(&dm1105dvb->i2c_adap);
+	i2c_set_adapdata(&dev->i2c_adap, dev);
+	strcpy(dev->i2c_adap.name, DRIVER_NAME);
+	dev->i2c_adap.owner = THIS_MODULE;
+	dev->i2c_adap.class = I2C_CLASS_TV_DIGITAL;
+	dev->i2c_adap.dev.parent = &pdev->dev;
+	dev->i2c_adap.algo = &dm1105_algo;
+	dev->i2c_adap.algo_data = dev;
+	ret = i2c_add_adapter(&dev->i2c_adap);
 
 	if (ret < 0)
-		goto err_dm1105dvb_hw_exit;
+		goto err_dm1105_hw_exit;
 
 	/* dvb */
-	ret = dvb_register_adapter(&dm1105dvb->dvb_adapter, DRIVER_NAME,
+	ret = dvb_register_adapter(&dev->dvb_adapter, DRIVER_NAME,
 					THIS_MODULE, &pdev->dev, adapter_nr);
 	if (ret < 0)
 		goto err_i2c_del_adapter;
 
-	dvb_adapter = &dm1105dvb->dvb_adapter;
+	dvb_adapter = &dev->dvb_adapter;
 
-	dm1105dvb_read_mac(dm1105dvb, dvb_adapter->proposed_mac);
+	dm1105_read_mac(dev, dvb_adapter->proposed_mac);
 
-	dvbdemux = &dm1105dvb->demux;
+	dvbdemux = &dev->demux;
 	dvbdemux->filternum = 256;
 	dvbdemux->feednum = 256;
-	dvbdemux->start_feed = dm1105dvb_start_feed;
-	dvbdemux->stop_feed = dm1105dvb_stop_feed;
+	dvbdemux->start_feed = dm1105_start_feed;
+	dvbdemux->stop_feed = dm1105_stop_feed;
 	dvbdemux->dmx.capabilities = (DMX_TS_FILTERING |
 			DMX_SECTION_FILTERING | DMX_MEMORY_BASED_FILTERING);
 	ret = dvb_dmx_init(dvbdemux);
@@ -881,113 +880,113 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 		goto err_dvb_unregister_adapter;
 
 	dmx = &dvbdemux->dmx;
-	dm1105dvb->dmxdev.filternum = 256;
-	dm1105dvb->dmxdev.demux = dmx;
-	dm1105dvb->dmxdev.capabilities = 0;
+	dev->dmxdev.filternum = 256;
+	dev->dmxdev.demux = dmx;
+	dev->dmxdev.capabilities = 0;
 
-	ret = dvb_dmxdev_init(&dm1105dvb->dmxdev, dvb_adapter);
+	ret = dvb_dmxdev_init(&dev->dmxdev, dvb_adapter);
 	if (ret < 0)
 		goto err_dvb_dmx_release;
 
-	dm1105dvb->hw_frontend.source = DMX_FRONTEND_0;
+	dev->hw_frontend.source = DMX_FRONTEND_0;
 
-	ret = dmx->add_frontend(dmx, &dm1105dvb->hw_frontend);
+	ret = dmx->add_frontend(dmx, &dev->hw_frontend);
 	if (ret < 0)
 		goto err_dvb_dmxdev_release;
 
-	dm1105dvb->mem_frontend.source = DMX_MEMORY_FE;
+	dev->mem_frontend.source = DMX_MEMORY_FE;
 
-	ret = dmx->add_frontend(dmx, &dm1105dvb->mem_frontend);
+	ret = dmx->add_frontend(dmx, &dev->mem_frontend);
 	if (ret < 0)
 		goto err_remove_hw_frontend;
 
-	ret = dmx->connect_frontend(dmx, &dm1105dvb->hw_frontend);
+	ret = dmx->connect_frontend(dmx, &dev->hw_frontend);
 	if (ret < 0)
 		goto err_remove_mem_frontend;
 
-	ret = frontend_init(dm1105dvb);
+	ret = frontend_init(dev);
 	if (ret < 0)
 		goto err_disconnect_frontend;
 
-	dvb_net_init(dvb_adapter, &dm1105dvb->dvbnet, dmx);
-	dm1105_ir_init(dm1105dvb);
+	dvb_net_init(dvb_adapter, &dev->dvbnet, dmx);
+	dm1105_ir_init(dev);
 
-	INIT_WORK(&dm1105dvb->work, dm1105_dmx_buffer);
-	sprintf(dm1105dvb->wqn, "%s/%d", dvb_adapter->name, dvb_adapter->num);
-	dm1105dvb->wq = create_singlethread_workqueue(dm1105dvb->wqn);
-	if (!dm1105dvb->wq)
+	INIT_WORK(&dev->work, dm1105_dmx_buffer);
+	sprintf(dev->wqn, "%s/%d", dvb_adapter->name, dvb_adapter->num);
+	dev->wq = create_singlethread_workqueue(dev->wqn);
+	if (!dev->wq)
 		goto err_dvb_net;
 
-	ret = request_irq(pdev->irq, dm1105dvb_irq, IRQF_SHARED,
-						DRIVER_NAME, dm1105dvb);
+	ret = request_irq(pdev->irq, dm1105_irq, IRQF_SHARED,
+						DRIVER_NAME, dev);
 	if (ret < 0)
 		goto err_workqueue;
 
 	return 0;
 
 err_workqueue:
-	destroy_workqueue(dm1105dvb->wq);
+	destroy_workqueue(dev->wq);
 err_dvb_net:
-	dvb_net_release(&dm1105dvb->dvbnet);
+	dvb_net_release(&dev->dvbnet);
 err_disconnect_frontend:
 	dmx->disconnect_frontend(dmx);
 err_remove_mem_frontend:
-	dmx->remove_frontend(dmx, &dm1105dvb->mem_frontend);
+	dmx->remove_frontend(dmx, &dev->mem_frontend);
 err_remove_hw_frontend:
-	dmx->remove_frontend(dmx, &dm1105dvb->hw_frontend);
+	dmx->remove_frontend(dmx, &dev->hw_frontend);
 err_dvb_dmxdev_release:
-	dvb_dmxdev_release(&dm1105dvb->dmxdev);
+	dvb_dmxdev_release(&dev->dmxdev);
 err_dvb_dmx_release:
 	dvb_dmx_release(dvbdemux);
 err_dvb_unregister_adapter:
 	dvb_unregister_adapter(dvb_adapter);
 err_i2c_del_adapter:
-	i2c_del_adapter(&dm1105dvb->i2c_adap);
-err_dm1105dvb_hw_exit:
-	dm1105dvb_hw_exit(dm1105dvb);
+	i2c_del_adapter(&dev->i2c_adap);
+err_dm1105_hw_exit:
+	dm1105_hw_exit(dev);
 err_pci_iounmap:
-	pci_iounmap(pdev, dm1105dvb->io_mem);
+	pci_iounmap(pdev, dev->io_mem);
 err_pci_release_regions:
 	pci_release_regions(pdev);
 err_pci_disable_device:
 	pci_disable_device(pdev);
 err_kfree:
 	pci_set_drvdata(pdev, NULL);
-	kfree(dm1105dvb);
+	kfree(dev);
 	return ret;
 }
 
 static void __devexit dm1105_remove(struct pci_dev *pdev)
 {
-	struct dm1105dvb *dm1105dvb = pci_get_drvdata(pdev);
-	struct dvb_adapter *dvb_adapter = &dm1105dvb->dvb_adapter;
-	struct dvb_demux *dvbdemux = &dm1105dvb->demux;
+	struct dm1105_dev *dev = pci_get_drvdata(pdev);
+	struct dvb_adapter *dvb_adapter = &dev->dvb_adapter;
+	struct dvb_demux *dvbdemux = &dev->demux;
 	struct dmx_demux *dmx = &dvbdemux->dmx;
 
-	dm1105_ir_exit(dm1105dvb);
+	dm1105_ir_exit(dev);
 	dmx->close(dmx);
-	dvb_net_release(&dm1105dvb->dvbnet);
-	if (dm1105dvb->fe)
-		dvb_unregister_frontend(dm1105dvb->fe);
+	dvb_net_release(&dev->dvbnet);
+	if (dev->fe)
+		dvb_unregister_frontend(dev->fe);
 
 	dmx->disconnect_frontend(dmx);
-	dmx->remove_frontend(dmx, &dm1105dvb->mem_frontend);
-	dmx->remove_frontend(dmx, &dm1105dvb->hw_frontend);
-	dvb_dmxdev_release(&dm1105dvb->dmxdev);
+	dmx->remove_frontend(dmx, &dev->mem_frontend);
+	dmx->remove_frontend(dmx, &dev->hw_frontend);
+	dvb_dmxdev_release(&dev->dmxdev);
 	dvb_dmx_release(dvbdemux);
 	dvb_unregister_adapter(dvb_adapter);
-	if (&dm1105dvb->i2c_adap)
-		i2c_del_adapter(&dm1105dvb->i2c_adap);
+	if (&dev->i2c_adap)
+		i2c_del_adapter(&dev->i2c_adap);
 
-	dm1105dvb_hw_exit(dm1105dvb);
+	dm1105_hw_exit(dev);
 	synchronize_irq(pdev->irq);
-	free_irq(pdev->irq, dm1105dvb);
-	pci_iounmap(pdev, dm1105dvb->io_mem);
+	free_irq(pdev->irq, dev);
+	pci_iounmap(pdev, dev->io_mem);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	dm1105_devcount--;
-	kfree(dm1105dvb);
+	kfree(dev);
 }
 
 static struct pci_device_id dm1105_id_table[] __devinitdata = {
