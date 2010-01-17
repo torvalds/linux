@@ -432,16 +432,20 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 
 	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL,
 			       CISTPL_MANFID, &manf_id)) {
+		mutex_lock(&p_dev->socket->ops_mutex);
 		p_dev->manf_id = manf_id.manf;
 		p_dev->card_id = manf_id.card;
 		p_dev->has_manf_id = 1;
 		p_dev->has_card_id = 1;
+		mutex_unlock(&p_dev->socket->ops_mutex);
 	}
 
 	if (!pccard_read_tuple(p_dev->socket, p_dev->func,
 			       CISTPL_FUNCID, &func_id)) {
+		mutex_lock(&p_dev->socket->ops_mutex);
 		p_dev->func_id = func_id.func;
 		p_dev->has_func_id = 1;
+		mutex_unlock(&p_dev->socket->ops_mutex);
 	} else {
 		/* rule of thumb: cards with no FUNCID, but with
 		 * common memory device geometry information, are
@@ -458,14 +462,17 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 			dev_dbg(&p_dev->dev,
 				   "mem device geometry probably means "
 				   "FUNCID_MEMORY\n");
+			mutex_lock(&p_dev->socket->ops_mutex);
 			p_dev->func_id = CISTPL_FUNCID_MEMORY;
 			p_dev->has_func_id = 1;
+			mutex_unlock(&p_dev->socket->ops_mutex);
 		}
 		kfree(devgeo);
 	}
 
 	if (!pccard_read_tuple(p_dev->socket, BIND_FN_ALL, CISTPL_VERS_1,
 			       vers1)) {
+		mutex_lock(&p_dev->socket->ops_mutex);
 		for (i = 0; i < min_t(unsigned int, 4, vers1->ns); i++) {
 			char *tmp;
 			unsigned int length;
@@ -484,6 +491,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 			p_dev->prod_id[i] = strncpy(p_dev->prod_id[i],
 						    tmp, length);
 		}
+		mutex_unlock(&p_dev->socket->ops_mutex);
 	}
 
 	kfree(vers1);
@@ -660,7 +668,7 @@ static void pcmcia_delayed_add_device(struct work_struct *work)
 	pcmcia_device_add(s, mfc_pfc);
 }
 
-static int pcmcia_requery(struct device *dev, void * _data)
+static int pcmcia_requery_callback(struct device *dev, void * _data)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	if (!p_dev->dev.driver) {
@@ -671,43 +679,56 @@ static int pcmcia_requery(struct device *dev, void * _data)
 	return 0;
 }
 
-static void pcmcia_bus_rescan(struct pcmcia_socket *skt, int new_cis)
+static void pcmcia_requery(struct pcmcia_socket *s)
 {
-	int no_devices = 0;
-	int ret = 0;
+	int present;
 
-	/* must be called with skt_mutex held */
-	dev_dbg(&skt->dev, "re-scanning socket %d\n", skt->sock);
+	mutex_lock(&s->ops_mutex);
+	present = s->pcmcia_state.present;
+	mutex_unlock(&s->ops_mutex);
 
-	mutex_lock(&skt->ops_mutex);
-	if (list_empty(&skt->devices_list))
-		no_devices = 1;
-	mutex_unlock(&skt->ops_mutex);
+	if (!present)
+		return;
 
-	/* If this is because of a CIS override, start over */
-	if (new_cis && !no_devices)
-		pcmcia_card_remove(skt, NULL);
-
-	/* if no devices were added for this socket yet because of
-	 * missing resource information or other trouble, we need to
-	 * do this now. */
-	if (no_devices || new_cis) {
-		ret = pcmcia_card_add(skt);
-		if (ret)
-			return;
+	if (s->functions == 0) {
+		pcmcia_card_add(s);
+		return;
 	}
 
 	/* some device information might have changed because of a CIS
 	 * update or because we can finally read it correctly... so
 	 * determine it again, overwriting old values if necessary. */
-	bus_for_each_dev(&pcmcia_bus_type, NULL, NULL, pcmcia_requery);
+	bus_for_each_dev(&pcmcia_bus_type, NULL, NULL, pcmcia_requery_callback);
+
+	/* if the CIS changed, we need to check whether the number of
+	 * functions changed. */
+	if (s->fake_cis) {
+		int old_funcs, new_funcs;
+		cistpl_longlink_mfc_t mfc;
+
+		/* does this cis override add or remove functions? */
+		old_funcs = s->functions;
+
+		if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC,
+					&mfc))
+			new_funcs = mfc.nfn;
+		else
+			new_funcs = 1;
+		if (old_funcs > new_funcs) {
+			pcmcia_card_remove(s, NULL);
+			pcmcia_card_add(s);
+		} else if (new_funcs > old_funcs) {
+			s->functions = new_funcs;
+			pcmcia_device_add(s, 1);
+		}
+	}
 
 	/* we re-scan all devices, not just the ones connected to this
 	 * socket. This does not matter, though. */
-	ret = bus_rescan_devices(&pcmcia_bus_type);
-	if (ret)
-		printk(KERN_INFO "pcmcia: bus_rescan_devices failed\n");
+	if (bus_rescan_devices(&pcmcia_bus_type))
+		dev_warn(&s->dev, "rescanning the bus failed\n");
 }
+
 
 #ifdef CONFIG_PCMCIA_LOAD_CIS
 
@@ -1085,7 +1106,6 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
-	int ret;
 
 	if (!count)
 		return -EINVAL;
@@ -1093,11 +1113,7 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 	mutex_lock(&p_dev->socket->ops_mutex);
 	p_dev->allow_func_id_match = 1;
 	mutex_unlock(&p_dev->socket->ops_mutex);
-
-	ret = bus_rescan_devices(&pcmcia_bus_type);
-	if (ret)
-		printk(KERN_INFO "pcmcia: bus_rescan_devices failed after "
-		       "allowing func_id matches\n");
+	pcmcia_parse_uevents(p_dev->socket, PCMCIA_UEVENT_REQUERY);
 
 	return count;
 }
@@ -1359,7 +1375,7 @@ EXPORT_SYMBOL(pcmcia_dev_present);
 static struct pcmcia_callback pcmcia_bus_callback = {
 	.owner = THIS_MODULE,
 	.event = ds_event,
-	.requery = pcmcia_bus_rescan,
+	.requery = pcmcia_requery,
 	.validate = pccard_validate_cis,
 	.suspend = pcmcia_bus_suspend,
 	.resume = pcmcia_bus_resume,

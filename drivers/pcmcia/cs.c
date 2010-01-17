@@ -728,6 +728,11 @@ static int pccardd(void *__skt)
 				if (!ret)
 					socket_suspend(skt);
 			}
+			if ((sysfs_events & PCMCIA_UEVENT_REQUERY) &&
+				!(skt->state & SOCKET_CARDBUS)) {
+				if (!ret && skt->callback)
+					skt->callback->requery(skt);
+			}
 		}
 		mutex_unlock(&skt->skt_mutex);
 
@@ -783,7 +788,8 @@ EXPORT_SYMBOL(pcmcia_parse_events);
  * userspace-issued insert, eject, suspend and resume commands must be
  * handled by pccardd to avoid any sysfs-related deadlocks. Valid events
  * are PCMCIA_UEVENT_EJECT (for eject), PCMCIA_UEVENT__INSERT (for insert),
- * PCMCIA_UEVENT_RESUME (for resume) and PCMCIA_UEVENT_SUSPEND (for suspend).
+ * PCMCIA_UEVENT_RESUME (for resume), PCMCIA_UEVENT_SUSPEND (for suspend)
+ * and PCMCIA_UEVENT_REQUERY (for re-querying the PCMCIA card).
  */
 void pcmcia_parse_uevents(struct pcmcia_socket *s, u_int events)
 {

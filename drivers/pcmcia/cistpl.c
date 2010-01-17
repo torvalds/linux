@@ -1670,15 +1670,7 @@ static ssize_t pccard_store_cis(struct kobject *kobj,
 	if (error)
 		return -EIO;
 
-	mutex_lock(&s->skt_mutex);
-	if ((s->callback) && (s->state & SOCKET_PRESENT) &&
-	    !(s->state & SOCKET_CARDBUS)) {
-		if (try_module_get(s->callback->owner)) {
-			s->callback->requery(s, 1);
-			module_put(s->callback->owner);
-		}
-	}
-	mutex_unlock(&s->skt_mutex);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
 
 	return count;
 }

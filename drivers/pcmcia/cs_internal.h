@@ -110,7 +110,7 @@ struct pcmcia_callback{
 	struct module	*owner;
 	int		(*event) (struct pcmcia_socket *s,
 				  event_t event, int priority);
-	void		(*requery) (struct pcmcia_socket *s, int new_cis);
+	void		(*requery) (struct pcmcia_socket *s);
 	int		(*validate) (struct pcmcia_socket *s, unsigned int *i);
 	int		(*suspend) (struct pcmcia_socket *s);
 	int		(*resume) (struct pcmcia_socket *s);
@@ -129,6 +129,7 @@ void pcmcia_parse_uevents(struct pcmcia_socket *socket, unsigned int events);
 #define PCMCIA_UEVENT_INSERT	0x0002
 #define PCMCIA_UEVENT_SUSPEND	0x0004
 #define PCMCIA_UEVENT_RESUME	0x0008
+#define PCMCIA_UEVENT_REQUERY	0x0010
 
 struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt);
 void pcmcia_put_socket(struct pcmcia_socket *skt);

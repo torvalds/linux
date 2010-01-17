@@ -201,16 +201,7 @@ static ssize_t pccard_store_resource(struct device *dev,
 		s->resource_setup_done = 1;
 	mutex_unlock(&s->ops_mutex);
 
-	mutex_lock(&s->skt_mutex);
-	if ((s->callback) &&
-	    (s->state & SOCKET_PRESENT) &&
-	    !(s->state & SOCKET_CARDBUS)) {
-		if (try_module_get(s->callback->owner)) {
-			s->callback->requery(s, 0);
-			module_put(s->callback->owner);
-		}
-	}
-	mutex_unlock(&s->skt_mutex);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
 
 	return count;
 }
