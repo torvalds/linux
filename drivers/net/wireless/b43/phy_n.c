@@ -480,6 +480,88 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhyCleanup */
+static void b43_nphy_rx_cal_phy_cleanup(struct b43_wldev *dev, u8 core)
+{
+	u16 *regs = dev->phy.n->tx_rx_cal_phy_saveregs;
+
+	b43_phy_write(dev, B43_NPHY_RFSEQCA, regs[0]);
+	if (core == 0) {
+		b43_phy_write(dev, B43_NPHY_AFECTL_C1, regs[1]);
+		b43_phy_write(dev, B43_NPHY_AFECTL_OVER1, regs[2]);
+	} else {
+		b43_phy_write(dev, B43_NPHY_AFECTL_C2, regs[1]);
+		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, regs[2]);
+	}
+	b43_phy_write(dev, B43_NPHY_RFCTL_INTC1, regs[3]);
+	b43_phy_write(dev, B43_NPHY_RFCTL_INTC2, regs[4]);
+	b43_phy_write(dev, B43_NPHY_RFCTL_RSSIO1, regs[5]);
+	b43_phy_write(dev, B43_NPHY_RFCTL_RSSIO2, regs[6]);
+	b43_phy_write(dev, B43_NPHY_TXF_40CO_B1S1, regs[7]);
+	b43_phy_write(dev, B43_NPHY_RFCTL_OVER, regs[8]);
+	b43_phy_write(dev, B43_NPHY_PAPD_EN0, regs[9]);
+	b43_phy_write(dev, B43_NPHY_PAPD_EN1, regs[10]);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhySetup */
+static void b43_nphy_rx_cal_phy_setup(struct b43_wldev *dev, u8 core)
+{
+	u8 rxval, txval;
+	u16 *regs = dev->phy.n->tx_rx_cal_phy_saveregs;
+
+	regs[0] = b43_phy_read(dev, B43_NPHY_RFSEQCA);
+	if (core == 0) {
+		regs[1] = b43_phy_read(dev, B43_NPHY_AFECTL_C1);
+		regs[2] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER1);
+	} else {
+		regs[1] = b43_phy_read(dev, B43_NPHY_AFECTL_C2);
+		regs[2] = b43_phy_read(dev, B43_NPHY_AFECTL_OVER);
+	}
+	regs[3] = b43_phy_read(dev, B43_NPHY_RFCTL_INTC1);
+	regs[4] = b43_phy_read(dev, B43_NPHY_RFCTL_INTC2);
+	regs[5] = b43_phy_read(dev, B43_NPHY_RFCTL_RSSIO1);
+	regs[6] = b43_phy_read(dev, B43_NPHY_RFCTL_RSSIO2);
+	regs[7] = b43_phy_read(dev, B43_NPHY_TXF_40CO_B1S1);
+	regs[8] = b43_phy_read(dev, B43_NPHY_RFCTL_OVER);
+	regs[9] = b43_phy_read(dev, B43_NPHY_PAPD_EN0);
+	regs[10] = b43_phy_read(dev, B43_NPHY_PAPD_EN1);
+
+	b43_phy_mask(dev, B43_NPHY_PAPD_EN0, ~0x0001);
+	b43_phy_mask(dev, B43_NPHY_PAPD_EN1, ~0x0001);
+
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, (u16)~B43_NPHY_RFSEQCA_RXDIS,
+			((1 - core) << B43_NPHY_RFSEQCA_RXDIS_SHIFT));
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_TXEN,
+			((1 - core) << B43_NPHY_RFSEQCA_TXEN_SHIFT));
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_RXEN,
+			(core << B43_NPHY_RFSEQCA_RXEN_SHIFT));
+	b43_phy_maskset(dev, B43_NPHY_RFSEQCA, ~B43_NPHY_RFSEQCA_TXDIS,
+			(core << B43_NPHY_RFSEQCA_TXDIS_SHIFT));
+
+	if (core == 0) {
+		b43_phy_mask(dev, B43_NPHY_AFECTL_C1, ~0x0007);
+		b43_phy_set(dev, B43_NPHY_AFECTL_OVER1, 0x0007);
+	} else {
+		b43_phy_mask(dev, B43_NPHY_AFECTL_C2, ~0x0007);
+		b43_phy_set(dev, B43_NPHY_AFECTL_OVER, 0x0007);
+	}
+
+	/* TODO: Call N PHY RF Ctrl Intc Override with 2, 0, 3 as arguments */
+	/* TODO: Call N PHY RF Intc Override with 8, 0, 3, 0 as arguments */
+	/* TODO: Call N PHY RF Seq with 0 as argument */
+
+	if (core == 0) {
+		rxval = 1;
+		txval = 8;
+	} else {
+		rxval = 4;
+		txval = 2;
+	}
+
+	/* TODO: Call N PHY RF Ctrl Intc Override with 1, rxval, (core + 1) */
+	/* TODO: Call N PHY RF Ctrl Intc Override with 1, txval, (2 - core) */
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalcRxIqComp */
 static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
 {
