@@ -1624,7 +1624,7 @@ static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_AFECTL_OVER, tmp | 0x0600);
 
 		regs[4] = b43_phy_read(dev, B43_NPHY_BBCFG);
-		b43_phy_mask(dev, B43_NPHY_BBCFG, ~B43_NPHY_BBCFG_RSTRX);
+		b43_phy_mask(dev, B43_NPHY_BBCFG, (u16)~B43_NPHY_BBCFG_RSTRX);
 
 		tmp = b43_ntab_read(dev, B43_NTAB16(8, 3));
 		regs[5] = tmp;
@@ -1970,7 +1970,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 	u16 lna[3] = { 3, 3, 1 };
 	u16 hpf1[3] = { 7, 2, 0 };
 	u16 hpf2[3] = { 2, 0, 0 };
-	u32 power[3];
+	u32 power[3] = { };
 	u16 gain_save[2];
 	u16 cal_gain[2];
 	struct nphy_iqcal_params cal_params[2];
@@ -2077,7 +2077,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 					(cur_lna << 2));
 			/* TODO:Call N PHY RF Ctrl Override with 0x400, tmp[0],
 				3, 0 as arguments */
-			/* TODO: Call N PHY Force RF Seq with 2 as argument */
+			b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
 			b43_nphy_stop_playback(dev);
 
 			if (playtone) {
