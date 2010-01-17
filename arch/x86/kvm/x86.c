@@ -622,9 +622,10 @@ static inline u32 bit(int bitno)
  * kvm-specific. Those are put in the beginning of the list.
  */
 
-#define KVM_SAVE_MSRS_BEGIN	2
+#define KVM_SAVE_MSRS_BEGIN	4
 static u32 msrs_to_save[] = {
 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
+	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
 	MSR_K6_STAR,
 #ifdef CONFIG_X86_64
@@ -1004,6 +1005,74 @@ out:
 	return r;
 }
 
+static bool kvm_hv_hypercall_enabled(struct kvm *kvm)
+{
+	return kvm->arch.hv_hypercall & HV_X64_MSR_HYPERCALL_ENABLE;
+}
+
+static bool kvm_hv_msr_partition_wide(u32 msr)
+{
+	bool r = false;
+	switch (msr) {
+	case HV_X64_MSR_GUEST_OS_ID:
+	case HV_X64_MSR_HYPERCALL:
+		r = true;
+		break;
+	}
+
+	return r;
+}
+
+static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	switch (msr) {
+	case HV_X64_MSR_GUEST_OS_ID:
+		kvm->arch.hv_guest_os_id = data;
+		/* setting guest os id to zero disables hypercall page */
+		if (!kvm->arch.hv_guest_os_id)
+			kvm->arch.hv_hypercall &= ~HV_X64_MSR_HYPERCALL_ENABLE;
+		break;
+	case HV_X64_MSR_HYPERCALL: {
+		u64 gfn;
+		unsigned long addr;
+		u8 instructions[4];
+
+		/* if guest os id is not set hypercall should remain disabled */
+		if (!kvm->arch.hv_guest_os_id)
+			break;
+		if (!(data & HV_X64_MSR_HYPERCALL_ENABLE)) {
+			kvm->arch.hv_hypercall = data;
+			break;
+		}
+		gfn = data >> HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT;
+		addr = gfn_to_hva(kvm, gfn);
+		if (kvm_is_error_hva(addr))
+			return 1;
+		kvm_x86_ops->patch_hypercall(vcpu, instructions);
+		((unsigned char *)instructions)[3] = 0xc3; /* ret */
+		if (copy_to_user((void __user *)addr, instructions, 4))
+			return 1;
+		kvm->arch.hv_hypercall = data;
+		break;
+	}
+	default:
+		pr_unimpl(vcpu, "HYPER-V unimplemented wrmsr: 0x%x "
+			  "data 0x%llx\n", msr, data);
+		return 1;
+	}
+	return 0;
+}
+
+static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+	pr_unimpl(vcpu, "HYPER-V unimplemented wrmsr: 0x%x data 0x%llx\n",
+		  msr, data);
+
+	return 1;
+}
+
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	switch (msr) {
@@ -1118,6 +1187,16 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		pr_unimpl(vcpu, "unimplemented perfctr wrmsr: "
 			"0x%x data 0x%llx\n", msr, data);
 		break;
+	case HV_X64_MSR_GUEST_OS_ID ... HV_X64_MSR_SINT15:
+		if (kvm_hv_msr_partition_wide(msr)) {
+			int r;
+			mutex_lock(&vcpu->kvm->lock);
+			r = set_msr_hyperv_pw(vcpu, msr, data);
+			mutex_unlock(&vcpu->kvm->lock);
+			return r;
+		} else
+			return set_msr_hyperv(vcpu, msr, data);
+		break;
 	default:
 		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
 			return xen_hvm_config(vcpu, data);
@@ -1217,6 +1296,48 @@ static int get_msr_mce(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	return 0;
 }
 
+static int get_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
+{
+	u64 data = 0;
+	struct kvm *kvm = vcpu->kvm;
+
+	switch (msr) {
+	case HV_X64_MSR_GUEST_OS_ID:
+		data = kvm->arch.hv_guest_os_id;
+		break;
+	case HV_X64_MSR_HYPERCALL:
+		data = kvm->arch.hv_hypercall;
+		break;
+	default:
+		pr_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
+		return 1;
+	}
+
+	*pdata = data;
+	return 0;
+}
+
+static int get_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
+{
+	u64 data = 0;
+
+	switch (msr) {
+	case HV_X64_MSR_VP_INDEX: {
+		int r;
+		struct kvm_vcpu *v;
+		kvm_for_each_vcpu(r, v, vcpu->kvm)
+			if (v == vcpu)
+				data = r;
+		break;
+	}
+	default:
+		pr_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
+		return 1;
+	}
+	*pdata = data;
+	return 0;
+}
+
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 {
 	u64 data;
@@ -1283,6 +1404,16 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MCG_STATUS:
 	case MSR_IA32_MC0_CTL ... MSR_IA32_MC0_CTL + 4 * KVM_MAX_MCE_BANKS - 1:
 		return get_msr_mce(vcpu, msr, pdata);
+	case HV_X64_MSR_GUEST_OS_ID ... HV_X64_MSR_SINT15:
+		if (kvm_hv_msr_partition_wide(msr)) {
+			int r;
+			mutex_lock(&vcpu->kvm->lock);
+			r = get_msr_hyperv_pw(vcpu, msr, pdata);
+			mutex_unlock(&vcpu->kvm->lock);
+			return r;
+		} else
+			return get_msr_hyperv(vcpu, msr, pdata);
+		break;
 	default:
 		if (!ignore_msrs) {
 			pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
@@ -1398,6 +1529,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_XEN_HVM:
 	case KVM_CAP_ADJUST_CLOCK:
 	case KVM_CAP_VCPU_EVENTS:
+	case KVM_CAP_HYPERV:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -3618,10 +3750,69 @@ static inline gpa_t hc_gpa(struct kvm_vcpu *vcpu, unsigned long a0,
 		return a0 | ((gpa_t)a1 << 32);
 }
 
+int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
+{
+	u64 param, ingpa, outgpa, ret;
+	uint16_t code, rep_idx, rep_cnt, res = HV_STATUS_SUCCESS, rep_done = 0;
+	bool fast, longmode;
+	int cs_db, cs_l;
+
+	/*
+	 * hypercall generates UD from non zero cpl and real mode
+	 * per HYPER-V spec
+	 */
+	if (kvm_x86_ops->get_cpl(vcpu) != 0 ||
+	    !kvm_read_cr0_bits(vcpu, X86_CR0_PE)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return 0;
+	}
+
+	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+	longmode = is_long_mode(vcpu) && cs_l == 1;
+
+	if (!longmode) {
+		param = (kvm_register_read(vcpu, VCPU_REGS_RDX) << 32) |
+			(kvm_register_read(vcpu, VCPU_REGS_RAX) & 0xffffff);
+		ingpa = (kvm_register_read(vcpu, VCPU_REGS_RBX) << 32) |
+			(kvm_register_read(vcpu, VCPU_REGS_RCX) & 0xffffff);
+		outgpa = (kvm_register_read(vcpu, VCPU_REGS_RDI) << 32) |
+			(kvm_register_read(vcpu, VCPU_REGS_RSI) & 0xffffff);
+	}
+#ifdef CONFIG_X86_64
+	else {
+		param = kvm_register_read(vcpu, VCPU_REGS_RCX);
+		ingpa = kvm_register_read(vcpu, VCPU_REGS_RDX);
+		outgpa = kvm_register_read(vcpu, VCPU_REGS_R8);
+	}
+#endif
+
+	code = param & 0xffff;
+	fast = (param >> 16) & 0x1;
+	rep_cnt = (param >> 32) & 0xfff;
+	rep_idx = (param >> 48) & 0xfff;
+
+	trace_kvm_hv_hypercall(code, fast, rep_cnt, rep_idx, ingpa, outgpa);
+
+	res = HV_STATUS_INVALID_HYPERCALL_CODE;
+
+	ret = res | (((u64)rep_done & 0xfff) << 32);
+	if (longmode) {
+		kvm_register_write(vcpu, VCPU_REGS_RAX, ret);
+	} else {
+		kvm_register_write(vcpu, VCPU_REGS_RDX, ret >> 32);
+		kvm_register_write(vcpu, VCPU_REGS_RAX, ret & 0xffffffff);
+	}
+
+	return 1;
+}
+
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
 	unsigned long nr, a0, a1, a2, a3, ret;
 	int r = 1;
+
+	if (kvm_hv_hypercall_enabled(vcpu->kvm))
+		return kvm_hv_hypercall(vcpu);
 
 	nr = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	a0 = kvm_register_read(vcpu, VCPU_REGS_RBX);

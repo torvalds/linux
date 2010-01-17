@@ -413,6 +413,10 @@ struct kvm_arch {
 	s64 kvmclock_offset;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
+
+	/* fields used by HYPER-V emulation */
+	u64 hv_guest_os_id;
+	u64 hv_hypercall;
 };
 
 struct kvm_vm_stat {

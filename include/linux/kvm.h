@@ -497,6 +497,7 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_S390_PSW 42
 #define KVM_CAP_PPC_SEGSTATE 43
+#define KVM_CAP_HYPERV 44
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
