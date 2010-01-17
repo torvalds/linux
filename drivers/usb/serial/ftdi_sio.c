@@ -812,7 +812,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 		.name =		"ftdi_sio",
 	},
 	.description =		"FTDI USB Serial Device",
-	.usb_driver = 		&ftdi_driver ,
+	.usb_driver = 		&ftdi_driver,
 	.id_table =		id_table_combined,
 	.num_ports =		1,
 	.probe =		ftdi_sio_probe,
@@ -828,8 +828,8 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.chars_in_buffer =	ftdi_chars_in_buffer,
 	.read_bulk_callback =	ftdi_read_bulk_callback,
 	.write_bulk_callback =	ftdi_write_bulk_callback,
-	.tiocmget =             ftdi_tiocmget,
-	.tiocmset =             ftdi_tiocmset,
+	.tiocmget =		ftdi_tiocmget,
+	.tiocmset =		ftdi_tiocmset,
 	.ioctl =		ftdi_ioctl,
 	.set_termios =		ftdi_set_termios,
 	.break_ctl =		ftdi_break_ctl,
@@ -1327,20 +1327,20 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 					__func__);
 		}
 	} else if (version < 0x200) {
-		/* Old device.  Assume its the original SIO. */
+		/* Old device.  Assume it's the original SIO. */
 		priv->chip_type = SIO;
 		priv->baud_base = 12000000 / 16;
 		priv->write_offset = 1;
 	} else if (version < 0x400) {
-		/* Assume its an FT8U232AM (or FT8U245AM) */
+		/* Assume it's an FT8U232AM (or FT8U245AM) */
 		/* (It might be a BM because of the iSerialNumber bug,
 		 * but it will still work as an AM device.) */
 		priv->chip_type = FT8U232AM;
 	} else if (version < 0x600) {
-		/* Assume its an FT232BM (or FT245BM) */
+		/* Assume it's an FT232BM (or FT245BM) */
 		priv->chip_type = FT232BM;
 	} else {
-		/* Assume its an FT232R  */
+		/* Assume it's an FT232R */
 		priv->chip_type = FT232RL;
 	}
 	dev_info(&udev->dev, "Detected %s\n", ftdi_chip_name[priv->chip_type]);
