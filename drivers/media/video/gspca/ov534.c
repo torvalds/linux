@@ -992,9 +992,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			frame = gspca_get_i_frame(gspca_dev);
 			if (frame == NULL)
 				goto discard;
-			if (frame->data_end - frame->data !=
+			if (frame->data_end - frame->data + (len - 12) !=
 			    gspca_dev->width * gspca_dev->height * 2) {
-				PDEBUG(D_PACK, "short frame");
+				PDEBUG(D_PACK, "wrong sized frame");
 				goto discard;
 			}
 			gspca_frame_add(gspca_dev, LAST_PACKET,
