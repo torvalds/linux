@@ -6231,6 +6231,8 @@ bnx2_open(struct net_device *dev)
 
 	atomic_set(&bp->intr_sem, 0);
 
+	memset(bp->temp_stats_blk, 0, sizeof(struct statistics_block));
+
 	bnx2_enable_int(bp);
 
 	if (bp->flags & BNX2_FLAG_USING_MSI) {
@@ -6542,6 +6544,30 @@ bnx2_close(struct net_device *dev)
 	return 0;
 }
 
+static void
+bnx2_save_stats(struct bnx2 *bp)
+{
+	u32 *hw_stats = (u32 *) bp->stats_blk;
+	u32 *temp_stats = (u32 *) bp->temp_stats_blk;
+	int i;
+
+	/* The 1st 10 counters are 64-bit counters */
+	for (i = 0; i < 20; i += 2) {
+		u32 hi;
+		u64 lo;
+
+		hi = *(temp_stats + i) + *(hw_stats + i);
+		lo = *(temp_stats + i + 1) + *(hw_stats + i + 1);
+		if (lo > 0xffffffff)
+			hi++;
+		*(temp_stats + i) = hi;
+		*(temp_stats + i + 1) = lo & 0xffffffff;
+	}
+
+	for ( ; i < sizeof(struct statistics_block) / 4; i++)
+		*(temp_stats + i) = *(temp_stats + i) + *(hw_stats + i);
+}
+
 #define GET_64BIT_NET_STATS64(ctr)				\
 	(unsigned long) ((unsigned long) (ctr##_hi) << 32) +	\
 	(unsigned long) (ctr##_lo)
@@ -6551,14 +6577,17 @@ bnx2_close(struct net_device *dev)
 
 #if (BITS_PER_LONG == 64)
 #define GET_64BIT_NET_STATS(ctr)				\
-	GET_64BIT_NET_STATS64(bp->stats_blk->ctr)
+	GET_64BIT_NET_STATS64(bp->stats_blk->ctr) +		\
+	GET_64BIT_NET_STATS64(bp->temp_stats_blk->ctr)
 #else
 #define GET_64BIT_NET_STATS(ctr)				\
-	GET_64BIT_NET_STATS32(bp->stats_blk->ctr)
+	GET_64BIT_NET_STATS32(bp->stats_blk->ctr) +		\
+	GET_64BIT_NET_STATS32(bp->temp_stats_blk->ctr)
 #endif
 
 #define GET_32BIT_NET_STATS(ctr)				\
-	(unsigned long) (bp->stats_blk->ctr)
+	(unsigned long) (bp->stats_blk->ctr +			\
+			 bp->temp_stats_blk->ctr)
 
 static struct net_device_stats *
 bnx2_get_stats(struct net_device *dev)
@@ -7089,6 +7118,9 @@ static int
 bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx)
 {
 	if (netif_running(bp->dev)) {
+		/* Reset will erase chipset stats; save them */
+		bnx2_save_stats(bp);
+
 		bnx2_netif_stop(bp);
 		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
 		bnx2_free_skbs(bp);
@@ -7433,6 +7465,7 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 	struct bnx2 *bp = netdev_priv(dev);
 	int i;
 	u32 *hw_stats = (u32 *) bp->stats_blk;
+	u32 *temp_stats = (u32 *) bp->temp_stats_blk;
 	u8 *stats_len_arr = NULL;
 
 	if (hw_stats == NULL) {
@@ -7449,21 +7482,26 @@ bnx2_get_ethtool_stats(struct net_device *dev,
 		stats_len_arr = bnx2_5708_stats_len_arr;
 
 	for (i = 0; i < BNX2_NUM_STATS; i++) {
+		unsigned long offset;
+
 		if (stats_len_arr[i] == 0) {
 			/* skip this counter */
 			buf[i] = 0;
 			continue;
 		}
+
+		offset = bnx2_stats_offset_arr[i];
 		if (stats_len_arr[i] == 4) {
 			/* 4-byte counter */
-			buf[i] = (u64)
-				*(hw_stats + bnx2_stats_offset_arr[i]);
+			buf[i] = (u64) *(hw_stats + offset) +
+				 *(temp_stats + offset);
 			continue;
 		}
 		/* 8-byte counter */
-		buf[i] = (((u64) *(hw_stats +
-					bnx2_stats_offset_arr[i])) << 32) +
-				*(hw_stats + bnx2_stats_offset_arr[i] + 1);
+		buf[i] = (((u64) *(hw_stats + offset)) << 32) +
+			 *(hw_stats + offset + 1) +
+			 (((u64) *(temp_stats + offset)) << 32) +
+			 *(temp_stats + offset + 1);
 	}
 }
 
@@ -7830,6 +7868,14 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->flags = 0;
 	bp->phy_flags = 0;
+
+	bp->temp_stats_blk =
+		kzalloc(sizeof(struct statistics_block), GFP_KERNEL);
+
+	if (bp->temp_stats_blk == NULL) {
+		rc = -ENOMEM;
+		goto err_out;
+	}
 
 	/* enable device (incl. PCI PM wakeup), and bus-mastering */
 	rc = pci_enable_device(pdev);
@@ -8351,6 +8397,8 @@ bnx2_remove_one(struct pci_dev *pdev)
 
 	if (bp->regview)
 		iounmap(bp->regview);
+
+	kfree(bp->temp_stats_blk);
 
 	free_netdev(dev);
 	pci_release_regions(pdev);
