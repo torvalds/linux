@@ -897,6 +897,7 @@ static void b43_nphy_force_rf_sequence(struct b43_wldev *dev,
 		[B43_RFSEQ_UPDATE_GAINU]	= B43_NPHY_RFSEQTR_UPGU,
 	};
 	int i;
+	u16 seq_mode = b43_phy_read(dev, B43_NPHY_RFSEQMODE);
 
 	B43_WARN_ON(seq >= ARRAY_SIZE(trigger));
 
@@ -910,8 +911,7 @@ static void b43_nphy_force_rf_sequence(struct b43_wldev *dev,
 	}
 	b43err(dev->wl, "RF sequence status timeout\n");
 ok:
-	b43_phy_mask(dev, B43_NPHY_RFSEQMODE,
-		     ~(B43_NPHY_RFSEQMODE_CAOVER | B43_NPHY_RFSEQMODE_TROVER));
+	b43_phy_write(dev, B43_NPHY_RFSEQMODE, seq_mode);
 }
 
 static void b43_nphy_bphy_init(struct b43_wldev *dev)
