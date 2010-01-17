@@ -293,12 +293,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	/* check if we need to merge IBSS */
 
-	/* merge only on beacons (???) */
-	if (!beacon)
-		goto put_bss;
-
 	/* we use a fixed BSSID */
-	if (sdata->u.ibss.bssid)
+	if (sdata->u.ibss.fixed_bssid)
 		goto put_bss;
 
 	/* not an IBSS */
