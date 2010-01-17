@@ -272,6 +272,8 @@ static const struct key_entry asus_keymap[] = {
 	{KE_KEY, 0x62, { KEY_SWITCHVIDEOMODE } },
 	{KE_KEY, 0x63, { KEY_SWITCHVIDEOMODE } },
 	{KE_KEY, 0x6B, { KEY_F13 } }, /* Lock Touchpad */
+	{KE_KEY, 0x7E, { KEY_BLUETOOTH } },
+	{KE_KEY, 0x7D, { KEY_BLUETOOTH } },
 	{KE_KEY, 0x82, { KEY_CAMERA } },
 	{KE_KEY, 0x88, { KEY_WLAN  } },
 	{KE_KEY, 0x8A, { KEY_PROG1 } },
