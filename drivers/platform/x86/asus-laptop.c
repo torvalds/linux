@@ -76,11 +76,11 @@ static uint wapf = 1;
 module_param(wapf, uint, 0644);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
-static uint wireless_status = 1;
+static uint wlan_status = 1;
 static uint bluetooth_status = 1;
 
-module_param(wireless_status, uint, 0644);
-MODULE_PARM_DESC(wireless_status, "Set the wireless status on boot "
+module_param(wlan_status, uint, 0644);
+MODULE_PARM_DESC(wlan_status, "Set the wireless status on boot "
 		 "(0 = disabled, 1 = enabled, -1 = don't do anything). "
 		 "default is 1");
 
@@ -1446,8 +1446,8 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	if (bluetooth_status >= 0)
 		asus_bluetooth_set(asus, !!bluetooth_status);
 
-	if (wireless_status >= 0)
-		asus_wlan_set(asus, !!wireless_status);
+	if (wlan_status >= 0)
+		asus_wlan_set(asus, !!wlan_status);
 
 	/* Keyboard Backlight is on by default */
 	if (!acpi_check_handle(asus->handle, METHOD_KBD_LIGHT_SET, NULL))
