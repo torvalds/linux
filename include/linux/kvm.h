@@ -499,6 +499,7 @@ struct kvm_ioeventfd {
 #define KVM_CAP_PPC_SEGSTATE 43
 #define KVM_CAP_HYPERV 44
 #define KVM_CAP_HYPERV_VAPIC 45
+#define KVM_CAP_HYPERV_SPIN 46
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

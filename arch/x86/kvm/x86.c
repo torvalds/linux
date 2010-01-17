@@ -1564,6 +1564,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_VCPU_EVENTS:
 	case KVM_CAP_HYPERV:
 	case KVM_CAP_HYPERV_VAPIC:
+	case KVM_CAP_HYPERV_SPIN:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -3827,7 +3828,14 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 
 	trace_kvm_hv_hypercall(code, fast, rep_cnt, rep_idx, ingpa, outgpa);
 
-	res = HV_STATUS_INVALID_HYPERCALL_CODE;
+	switch (code) {
+	case HV_X64_HV_NOTIFY_LONG_SPIN_WAIT:
+		kvm_vcpu_on_spin(vcpu);
+		break;
+	default:
+		res = HV_STATUS_INVALID_HYPERCALL_CODE;
+		break;
+	}
 
 	ret = res | (((u64)rep_done & 0xfff) << 32);
 	if (longmode) {
