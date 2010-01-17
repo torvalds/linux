@@ -271,6 +271,9 @@ struct ieee80211_bss_conf {
  *	transmit function after the current frame, this can be used
  *	by drivers to kick the DMA queue only if unset or when the
  *	queue gets full.
+ * @IEEE80211_TX_INTFL_RETRANSMISSION: This frame is being retransmitted
+ *	after TX status because the destination was asleep, it must not
+ *	be modified again (no seqno assignment, crypto, etc.)
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -291,6 +294,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
 	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
+	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
 };
 
 /**
