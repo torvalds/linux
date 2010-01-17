@@ -1362,6 +1362,14 @@ ctx_sched_in(struct perf_event_context *ctx,
 	raw_spin_unlock(&ctx->lock);
 }
 
+static void cpu_ctx_sched_in(struct perf_cpu_context *cpuctx,
+			     enum event_type_t event_type)
+{
+	struct perf_event_context *ctx = &cpuctx->ctx;
+
+	ctx_sched_in(ctx, cpuctx, event_type);
+}
+
 static void task_ctx_sched_in(struct task_struct *task,
 			      enum event_type_t event_type)
 {
@@ -1388,15 +1396,27 @@ static void task_ctx_sched_in(struct task_struct *task,
  */
 void perf_event_task_sched_in(struct task_struct *task)
 {
-	task_ctx_sched_in(task, EVENT_ALL);
-}
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
+	struct perf_event_context *ctx = task->perf_event_ctxp;
 
-static void cpu_ctx_sched_in(struct perf_cpu_context *cpuctx,
-			     enum event_type_t event_type)
-{
-	struct perf_event_context *ctx = &cpuctx->ctx;
+	if (likely(!ctx))
+		return;
 
-	ctx_sched_in(ctx, cpuctx, event_type);
+	if (cpuctx->task_ctx == ctx)
+		return;
+
+	/*
+	 * We want to keep the following priority order:
+	 * cpu pinned (that don't need to move), task pinned,
+	 * cpu flexible, task flexible.
+	 */
+	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
+
+	ctx_sched_in(ctx, cpuctx, EVENT_PINNED);
+	cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE);
+	ctx_sched_in(ctx, cpuctx, EVENT_FLEXIBLE);
+
+	cpuctx->task_ctx = ctx;
 }
 
 #define MAX_INTERRUPTS (~0ULL)
