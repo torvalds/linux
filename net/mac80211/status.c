@@ -69,6 +69,14 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	 */
 	goto drop;
 
+	/*
+	 * This skb 'survived' a round-trip through the driver, and
+	 * hopefully the driver didn't mangle it too badly. However,
+	 * we can definitely not rely on the the control information
+	 * being correct. Clear it so we don't get junk there.
+	 */
+	memset(&info->control, 0, sizeof(info->control));
+
 	sta->tx_filtered_count++;
 
 	/*
