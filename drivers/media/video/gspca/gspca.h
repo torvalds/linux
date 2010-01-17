@@ -48,7 +48,7 @@ extern int gspca_debug;
 
 /* used to list framerates supported by a camera mode (resolution) */
 struct framerates {
-	int *rates;
+	const u8 *rates;
 	int nrates;
 };
 

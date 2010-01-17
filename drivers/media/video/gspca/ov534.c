@@ -282,6 +282,20 @@ static const struct v4l2_pix_format ov772x_mode[] = {
 	 .priv = 0},
 };
 
+static const u8 qvga_rates[] = {125, 100, 75, 60, 50, 40, 30};
+static const u8 vga_rates[] = {60, 50, 40, 30, 15};
+
+static const struct framerates ov772x_framerates[] = {
+	{ /* 320x240 */
+		.rates = qvga_rates,
+		.nrates = ARRAY_SIZE(qvga_rates),
+	},
+	{ /* 640x480 */
+		.rates = vga_rates,
+		.nrates = ARRAY_SIZE(vga_rates),
+	},
+};
+
 static const u8 bridge_init[][2] = {
 	{ 0xc2, 0x0c },
 	{ 0x88, 0xf8 },
@@ -799,6 +813,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam->cam_mode = ov772x_mode;
 	cam->nmodes = ARRAY_SIZE(ov772x_mode);
+	cam->mode_framerates = ov772x_framerates;
 
 	cam->bulk = 1;
 	cam->bulk_size = 16384;
