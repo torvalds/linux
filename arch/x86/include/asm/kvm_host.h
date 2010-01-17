@@ -363,6 +363,8 @@ struct kvm_vcpu_arch {
 	/* used for guest single stepping over the given code position */
 	u16 singlestep_cs;
 	unsigned long singlestep_rip;
+	/* fields used by HYPER-V emulation */
+	u64 hv_vapic;
 };
 
 struct kvm_mem_alias {

@@ -622,10 +622,11 @@ static inline u32 bit(int bitno)
  * kvm-specific. Those are put in the beginning of the list.
  */
 
-#define KVM_SAVE_MSRS_BEGIN	4
+#define KVM_SAVE_MSRS_BEGIN	5
 static u32 msrs_to_save[] = {
 	MSR_KVM_SYSTEM_TIME, MSR_KVM_WALL_CLOCK,
 	HV_X64_MSR_GUEST_OS_ID, HV_X64_MSR_HYPERCALL,
+	HV_X64_MSR_APIC_ASSIST_PAGE,
 	MSR_IA32_SYSENTER_CS, MSR_IA32_SYSENTER_ESP, MSR_IA32_SYSENTER_EIP,
 	MSR_K6_STAR,
 #ifdef CONFIG_X86_64
@@ -1067,10 +1068,36 @@ static int set_msr_hyperv_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 
 static int set_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
-	pr_unimpl(vcpu, "HYPER-V unimplemented wrmsr: 0x%x data 0x%llx\n",
-		  msr, data);
+	switch (msr) {
+	case HV_X64_MSR_APIC_ASSIST_PAGE: {
+		unsigned long addr;
 
-	return 1;
+		if (!(data & HV_X64_MSR_APIC_ASSIST_PAGE_ENABLE)) {
+			vcpu->arch.hv_vapic = data;
+			break;
+		}
+		addr = gfn_to_hva(vcpu->kvm, data >>
+				  HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT);
+		if (kvm_is_error_hva(addr))
+			return 1;
+		if (clear_user((void __user *)addr, PAGE_SIZE))
+			return 1;
+		vcpu->arch.hv_vapic = data;
+		break;
+	}
+	case HV_X64_MSR_EOI:
+		return kvm_hv_vapic_msr_write(vcpu, APIC_EOI, data);
+	case HV_X64_MSR_ICR:
+		return kvm_hv_vapic_msr_write(vcpu, APIC_ICR, data);
+	case HV_X64_MSR_TPR:
+		return kvm_hv_vapic_msr_write(vcpu, APIC_TASKPRI, data);
+	default:
+		pr_unimpl(vcpu, "HYPER-V unimplemented wrmsr: 0x%x "
+			  "data 0x%llx\n", msr, data);
+		return 1;
+	}
+
+	return 0;
 }
 
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
@@ -1330,6 +1357,12 @@ static int get_msr_hyperv(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 				data = r;
 		break;
 	}
+	case HV_X64_MSR_EOI:
+		return kvm_hv_vapic_msr_read(vcpu, APIC_EOI, pdata);
+	case HV_X64_MSR_ICR:
+		return kvm_hv_vapic_msr_read(vcpu, APIC_ICR, pdata);
+	case HV_X64_MSR_TPR:
+		return kvm_hv_vapic_msr_read(vcpu, APIC_TASKPRI, pdata);
 	default:
 		pr_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -1530,6 +1563,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_ADJUST_CLOCK:
 	case KVM_CAP_VCPU_EVENTS:
 	case KVM_CAP_HYPERV:
+	case KVM_CAP_HYPERV_VAPIC:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
