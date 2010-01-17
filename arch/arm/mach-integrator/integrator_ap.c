@@ -118,8 +118,8 @@ static struct map_desc ap_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_GPIO_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_GPIO_BASE),
+		.virtual	= IO_ADDRESS(INTEGRATOR_AP_GPIO_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_AP_GPIO_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {

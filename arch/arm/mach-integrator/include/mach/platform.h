@@ -290,12 +290,14 @@
 #define INTEGRATOR_DBG_LEDS             (INTEGRATOR_DBG_BASE + INTEGRATOR_DBG_LEDS_OFFSET)
 #define INTEGRATOR_DBG_SWITCH           (INTEGRATOR_DBG_BASE + INTEGRATOR_DBG_SWITCH_OFFSET)
 
+#define INTEGRATOR_AP_GPIO_BASE		0x1B000000	/* GPIO */
 
-#if defined(CONFIG_ARCH_INTEGRATOR_AP)
-#define INTEGRATOR_GPIO_BASE            0x1B000000	 /*  GPIO */
-#elif defined(CONFIG_ARCH_INTEGRATOR_CP)
-#define INTEGRATOR_GPIO_BASE            0xC9000000	 /*  GPIO */
-#endif
+#define INTEGRATOR_CP_MMC_BASE		0x1C000000	/* MMC */
+#define INTEGRATOR_CP_AACI_BASE		0x1D000000	/* AACI */
+#define INTEGRATOR_CP_ETH_BASE		0xC8000000	/* Ethernet */
+#define INTEGRATOR_CP_GPIO_BASE		0xC9000000	/* GPIO */
+#define INTEGRATOR_CP_SIC_BASE		0xCA000000	/* SIC */
+#define INTEGRATOR_CP_CTL_BASE		0xCB000000	/* CP system control */
 
 /* ------------------------------------------------------------------------
  *  KMI keyboard/mouse definitions
