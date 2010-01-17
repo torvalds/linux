@@ -272,7 +272,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 			return ret;
 		ramfc = chan->ramfc->gpuobj;
 
-		ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 4096, 256,
+		ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 4096, 1024,
 					     0, &chan->cache);
 		if (ret)
 			return ret;
