@@ -311,6 +311,22 @@ struct dm1105_dev {
 
 #define dm_io_mem(reg)	((unsigned long)(&dev->io_mem[reg]))
 
+#define dm_readb(reg)		inb(dm_io_mem(reg))
+#define dm_writeb(reg, value)	outb((value), (dm_io_mem(reg)))
+
+#define dm_readw(reg)		inw(dm_io_mem(reg))
+#define dm_writew(reg, value)	outw((value), (dm_io_mem(reg)))
+
+#define dm_readl(reg)		inl(dm_io_mem(reg))
+#define dm_writel(reg, value)	outl((value), (dm_io_mem(reg)))
+
+#define dm_andorl(reg, mask, value) \
+	outl((inl(dm_io_mem(reg)) & ~(mask)) |\
+		((value) & (mask)), (dm_io_mem(reg)))
+
+#define dm_setl(reg, bit)	dm_andorl((reg), (bit), (bit))
+#define dm_clearl(reg, bit)	dm_andorl((reg), (bit), 0)
+
 static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 			    struct i2c_msg *msgs, int num)
 {
@@ -321,19 +337,19 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	dev = i2c_adap->algo_data;
 	for (i = 0; i < num; i++) {
-		outb(0x00, dm_io_mem(DM1105_I2CCTR));
+		dm_writeb(DM1105_I2CCTR, 0x00);
 		if (msgs[i].flags & I2C_M_RD) {
 			/* read bytes */
 			addr  = msgs[i].addr << 1;
 			addr |= 1;
-			outb(addr, dm_io_mem(DM1105_I2CDAT));
+			dm_writeb(DM1105_I2CDAT, addr);
 			for (byte = 0; byte < msgs[i].len; byte++)
-				outb(0, dm_io_mem(DM1105_I2CDAT + byte + 1));
+				dm_writeb(DM1105_I2CDAT + byte + 1, 0);
 
-			outb(0x81 + msgs[i].len, dm_io_mem(DM1105_I2CCTR));
+			dm_writeb(DM1105_I2CCTR, 0x81 + msgs[i].len);
 			for (j = 0; j < 55; j++) {
 				mdelay(10);
-				status = inb(dm_io_mem(DM1105_I2CSTS));
+				status = dm_readb(DM1105_I2CSTS);
 				if ((status & 0xc0) == 0x40)
 					break;
 			}
@@ -341,7 +357,7 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 				return -1;
 
 			for (byte = 0; byte < msgs[i].len; byte++) {
-				rc = inb(dm_io_mem(DM1105_I2CDAT + byte + 1));
+				rc = dm_readb(DM1105_I2CDAT + byte + 1);
 				if (rc < 0)
 					goto err;
 				msgs[i].buf[byte] = rc;
@@ -352,16 +368,16 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 			len = msgs[i].len - 1;
 			k = 1;
 			do {
-				outb(msgs[i].addr << 1, dm_io_mem(DM1105_I2CDAT));
-				outb(0xf7, dm_io_mem(DM1105_I2CDAT + 1));
+				dm_writeb(DM1105_I2CDAT, msgs[i].addr << 1);
+				dm_writeb(DM1105_I2CDAT + 1, 0xf7);
 				for (byte = 0; byte < (len > 48 ? 48 : len); byte++) {
 					data = msgs[i].buf[k + byte];
-					outb(data, dm_io_mem(DM1105_I2CDAT + byte + 2));
+					dm_writeb(DM1105_I2CDAT + byte + 2, data);
 				}
-				outb(0x82 + (len > 48 ? 48 : len), dm_io_mem(DM1105_I2CCTR));
+				dm_writeb(DM1105_I2CCTR, 0x82 + (len > 48 ? 48 : len));
 				for (j = 0; j < 25; j++) {
 					mdelay(10);
-					status = inb(dm_io_mem(DM1105_I2CSTS));
+					status = dm_readb(DM1105_I2CSTS);
 					if ((status & 0xc0) == 0x40)
 						break;
 				}
@@ -374,15 +390,15 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 			} while (len > 0);
 		} else {
 			/* write bytes */
-			outb(msgs[i].addr<<1, dm_io_mem(DM1105_I2CDAT));
+			dm_writeb(DM1105_I2CDAT, msgs[i].addr << 1);
 			for (byte = 0; byte < msgs[i].len; byte++) {
 				data = msgs[i].buf[byte];
-				outb(data, dm_io_mem(DM1105_I2CDAT + byte + 1));
+				dm_writeb(DM1105_I2CDAT + byte + 1, data);
 			}
-			outb(0x81 + msgs[i].len, dm_io_mem(DM1105_I2CCTR));
+			dm_writeb(DM1105_I2CCTR, 0x81 + msgs[i].len);
 			for (j = 0; j < 25; j++) {
 				mdelay(10);
-				status = inb(dm_io_mem(DM1105_I2CSTS));
+				status = dm_readb(DM1105_I2CSTS);
 				if ((status & 0xc0) == 0x40)
 					break;
 			}
@@ -437,20 +453,20 @@ static int dm1105_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 		lnb_18v = DM1105_LNB_18V;
 	}
 
-	outl(lnb_mask, dm_io_mem(DM1105_GPIOCTR));
+	dm_writel(DM1105_GPIOCTR, lnb_mask);
 	if (voltage == SEC_VOLTAGE_18)
-		outl(lnb_18v , dm_io_mem(DM1105_GPIOVAL));
+		dm_writel(DM1105_GPIOVAL, lnb_18v);
 	else if (voltage == SEC_VOLTAGE_13)
-		outl(lnb_13v, dm_io_mem(DM1105_GPIOVAL));
+		dm_writel(DM1105_GPIOVAL, lnb_13v);
 	else
-		outl(lnb_off, dm_io_mem(DM1105_GPIOVAL));
+		dm_writel(DM1105_GPIOVAL, lnb_off);
 
 	return 0;
 }
 
 static void dm1105_set_dma_addr(struct dm1105_dev *dev)
 {
-	outl(cpu_to_le32(dev->dma_addr), dm_io_mem(DM1105_STADR));
+	dm_writel(DM1105_STADR, cpu_to_le32(dev->dma_addr));
 }
 
 static int __devinit dm1105_dma_map(struct dm1105_dev *dev)
@@ -472,14 +488,14 @@ static void dm1105_dma_unmap(struct dm1105_dev *dev)
 
 static void dm1105_enable_irqs(struct dm1105_dev *dev)
 {
-	outb(INTMAK_ALLMASK, dm_io_mem(DM1105_INTMAK));
-	outb(1, dm_io_mem(DM1105_CR));
+	dm_writeb(DM1105_INTMAK, INTMAK_ALLMASK);
+	dm_writeb(DM1105_CR, 1);
 }
 
 static void dm1105_disable_irqs(struct dm1105_dev *dev)
 {
-	outb(INTMAK_IRM, dm_io_mem(DM1105_INTMAK));
-	outb(0, dm_io_mem(DM1105_CR));
+	dm_writeb(DM1105_INTMAK, INTMAK_IRM);
+	dm_writeb(DM1105_CR, 0);
 }
 
 static int dm1105_start_feed(struct dvb_demux_feed *f)
@@ -533,7 +549,7 @@ static void dm1105_dmx_buffer(struct work_struct *work)
 		/* bad packet found */
 		if ((dev->PacketErrorCount >= 2) &&
 				(dev->dmarst == 0)) {
-			outb(1, dm_io_mem(DM1105_RST));
+			dm_writeb(DM1105_RST, 1);
 			dev->wrp = 0;
 			dev->PacketErrorCount = 0;
 			dev->dmarst = 0;
@@ -556,18 +572,17 @@ static irqreturn_t dm1105_irq(int irq, void *dev_id)
 	struct dm1105_dev *dev = dev_id;
 
 	/* Read-Write INSTS Ack's Interrupt for DM1105 chip 16.03.2008 */
-	unsigned int intsts = inb(dm_io_mem(DM1105_INTSTS));
-	outb(intsts, dm_io_mem(DM1105_INTSTS));
+	unsigned int intsts = dm_readb(DM1105_INTSTS);
+	dm_writeb(DM1105_INTSTS, intsts);
 
 	switch (intsts) {
 	case INTSTS_TSIRQ:
 	case (INTSTS_TSIRQ | INTSTS_IR):
-		dev->nextwrp = inl(dm_io_mem(DM1105_WRP)) -
-					inl(dm_io_mem(DM1105_STADR));
+		dev->nextwrp = dm_readl(DM1105_WRP) - dm_readl(DM1105_STADR);
 		queue_work(dev->wq, &dev->work);
 		break;
 	case INTSTS_IR:
-		dev->ir.ir_command = inl(dm_io_mem(DM1105_IRCODE));
+		dev->ir.ir_command = dm_readl(DM1105_IRCODE);
 		schedule_work(&dev->ir.work);
 		break;
 	}
@@ -626,24 +641,24 @@ static int __devinit dm1105_hw_init(struct dm1105_dev *dev)
 {
 	dm1105_disable_irqs(dev);
 
-	outb(0, dm_io_mem(DM1105_HOST_CTR));
+	dm_writeb(DM1105_HOST_CTR, 0);
 
 	/*DATALEN 188,*/
-	outb(188, dm_io_mem(DM1105_DTALENTH));
+	dm_writeb(DM1105_DTALENTH, 188);
 	/*TS_STRT TS_VALP MSBFIRST TS_MODE ALPAS TSPES*/
-	outw(0xc10a, dm_io_mem(DM1105_TSCTR));
+	dm_writew(DM1105_TSCTR, 0xc10a);
 
 	/* map DMA and set address */
 	dm1105_dma_map(dev);
 	dm1105_set_dma_addr(dev);
 	/* big buffer */
-	outl(5*DM1105_DMA_BYTES, dm_io_mem(DM1105_RLEN));
-	outb(47, dm_io_mem(DM1105_INTCNT));
+	dm_writel(DM1105_RLEN, 5 * DM1105_DMA_BYTES);
+	dm_writeb(DM1105_INTCNT, 47);
 
 	/* IR NEC mode enable */
-	outb((DM1105_IR_EN | DM1105_SYS_CHK), dm_io_mem(DM1105_IRCTR));
-	outb(0, dm_io_mem(DM1105_IRMODE));
-	outw(0, dm_io_mem(DM1105_SYSTEMCODE));
+	dm_writeb(DM1105_IRCTR, (DM1105_IR_EN | DM1105_SYS_CHK));
+	dm_writeb(DM1105_IRMODE, 0);
+	dm_writew(DM1105_SYSTEMCODE, 0);
 
 	return 0;
 }
@@ -653,8 +668,8 @@ static void dm1105_hw_exit(struct dm1105_dev *dev)
 	dm1105_disable_irqs(dev);
 
 	/* IR disable */
-	outb(0, dm_io_mem(DM1105_IRCTR));
-	outb(INTMAK_NONEMASK, dm_io_mem(DM1105_INTMAK));
+	dm_writeb(DM1105_IRCTR, 0);
+	dm_writeb(DM1105_INTMAK, INTMAK_NONEMASK);
 
 	dm1105_dma_unmap(dev);
 }
