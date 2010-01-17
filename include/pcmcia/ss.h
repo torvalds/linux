@@ -200,13 +200,14 @@ struct pcmcia_socket {
 	struct task_struct		*thread;
 	struct completion		thread_done;
 	unsigned int			thread_events;
+	unsigned int			sysfs_events;
 
 	/* For the non-trivial interaction between these locks,
 	 * see Documentation/pcmcia/locking.txt */
 	struct mutex			skt_mutex;
 	struct mutex			ops_mutex;
 
-	/* protects thread_events */
+	/* protects thread_events and sysfs_events */
 	spinlock_t			thread_lock;
 
 	/* pcmcia (16-bit) */

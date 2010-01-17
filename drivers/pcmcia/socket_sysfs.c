@@ -88,15 +88,14 @@ static DEVICE_ATTR(card_vcc, 0444, pccard_show_vcc, NULL);
 static ssize_t pccard_store_insert(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
-	ssize_t ret;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!count)
 		return -EINVAL;
 
-	ret = pcmcia_insert_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_INSERT);
 
-	return ret ? ret : count;
+	return count;
 }
 static DEVICE_ATTR(card_insert, 0200, NULL, pccard_store_insert);
 
@@ -113,18 +112,22 @@ static ssize_t pccard_store_card_pm_state(struct device *dev,
 					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
-	ssize_t ret = -EINVAL;
 	struct pcmcia_socket *s = to_socket(dev);
+	ssize_t ret = count;
 
 	if (!count)
 		return -EINVAL;
 
-	if (!(s->state & SOCKET_SUSPEND) && !strncmp(buf, "off", 3))
-		ret = pcmcia_suspend_card(s);
-	else if ((s->state & SOCKET_SUSPEND) && !strncmp(buf, "on", 2))
-		ret = pcmcia_resume_card(s);
+	if (!strncmp(buf, "off", 3))
+		pcmcia_parse_uevents(s, PCMCIA_UEVENT_SUSPEND);
+	else {
+		if (!strncmp(buf, "on", 2))
+			pcmcia_parse_uevents(s, PCMCIA_UEVENT_RESUME);
+		else
+			ret = -EINVAL;
+	}
 
-	return ret ? -ENODEV : count;
+	return ret;
 }
 static DEVICE_ATTR(card_pm_state, 0644, pccard_show_card_pm_state, pccard_store_card_pm_state);
 
@@ -132,15 +135,14 @@ static ssize_t pccard_store_eject(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	ssize_t ret;
 	struct pcmcia_socket *s = to_socket(dev);
 
 	if (!count)
 		return -EINVAL;
 
-	ret = pcmcia_eject_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_EJECT);
 
-	return ret ? ret : count;
+	return count;
 }
 static DEVICE_ATTR(card_eject, 0200, NULL, pccard_store_eject);
 

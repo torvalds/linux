@@ -124,11 +124,11 @@ extern struct class pcmcia_socket_class;
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
 struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr);
 
-int pcmcia_suspend_card(struct pcmcia_socket *skt);
-int pcmcia_resume_card(struct pcmcia_socket *skt);
-
-int pcmcia_eject_card(struct pcmcia_socket *skt);
-int pcmcia_insert_card(struct pcmcia_socket *skt);
+void pcmcia_parse_uevents(struct pcmcia_socket *socket, unsigned int events);
+#define PCMCIA_UEVENT_EJECT	0x0001
+#define PCMCIA_UEVENT_INSERT	0x0002
+#define PCMCIA_UEVENT_SUSPEND	0x0004
+#define PCMCIA_UEVENT_RESUME	0x0008
 
 struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt);
 void pcmcia_put_socket(struct pcmcia_socket *skt);

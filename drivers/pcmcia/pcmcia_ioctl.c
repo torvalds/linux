@@ -925,16 +925,16 @@ static int ds_ioctl(struct inode *inode, struct file *file,
 	ret = pccard_validate_cis(s, &buf->cisinfo.Chains);
 	break;
     case DS_SUSPEND_CARD:
-	ret = pcmcia_suspend_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_SUSPEND);
 	break;
     case DS_RESUME_CARD:
-	ret = pcmcia_resume_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_RESUME);
 	break;
     case DS_EJECT_CARD:
-	err = pcmcia_eject_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_EJECT);
 	break;
     case DS_INSERT_CARD:
-	err = pcmcia_insert_card(s);
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_INSERT);
 	break;
     case DS_ACCESS_CONFIGURATION_REGISTER:
 	if ((buf->conf_reg.Action == CS_WRITE) && !capable(CAP_SYS_ADMIN)) {
