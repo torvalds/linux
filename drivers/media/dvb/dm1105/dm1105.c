@@ -43,6 +43,7 @@
 #include "si21xx.h"
 #include "cx24116.h"
 #include "z0194a.h"
+#include "ds3000.h"
 
 #define UNSET (-1U)
 
@@ -685,6 +686,10 @@ static struct cx24116_config serit_sp2633_config = {
 	.demod_address = 0x55,
 };
 
+static struct ds3000_config dvbworld_ds3000_config = {
+	.demod_address = 0x68,
+};
+
 static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 {
 	int ret;
@@ -693,6 +698,14 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 	case DM1105_BOARD_DVBWORLD_2004:
 		dm1105dvb->fe = dvb_attach(
 			cx24116_attach, &serit_sp2633_config,
+			&dm1105dvb->i2c_adap);
+		if (dm1105dvb->fe) {
+			dm1105dvb->fe->ops.set_voltage = dm1105dvb_set_voltage;
+			break;
+		}
+
+		dm1105dvb->fe = dvb_attach(
+			ds3000_attach, &dvbworld_ds3000_config,
 			&dm1105dvb->i2c_adap);
 		if (dm1105dvb->fe)
 			dm1105dvb->fe->ops.set_voltage = dm1105dvb_set_voltage;
