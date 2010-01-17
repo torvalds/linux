@@ -69,7 +69,7 @@ static void switch_back(struct async_state *state)
 	local_irq_restore(state->irq_flags);
 }
 
-static map_word bfin_read(struct map_info *map, unsigned long ofs)
+static map_word bfin_flash_read(struct map_info *map, unsigned long ofs)
 {
 	struct async_state *state = (struct async_state *)map->map_priv_1;
 	uint16_t word;
@@ -85,7 +85,7 @@ static map_word bfin_read(struct map_info *map, unsigned long ofs)
 	return test;
 }
 
-static void bfin_copy_from(struct map_info *map, void *to, unsigned long from, ssize_t len)
+static void bfin_flash_copy_from(struct map_info *map, void *to, unsigned long from, ssize_t len)
 {
 	struct async_state *state = (struct async_state *)map->map_priv_1;
 
@@ -96,7 +96,7 @@ static void bfin_copy_from(struct map_info *map, void *to, unsigned long from, s
 	switch_back(state);
 }
 
-static void bfin_write(struct map_info *map, map_word d1, unsigned long ofs)
+static void bfin_flash_write(struct map_info *map, map_word d1, unsigned long ofs)
 {
 	struct async_state *state = (struct async_state *)map->map_priv_1;
 	uint16_t d;
@@ -111,7 +111,7 @@ static void bfin_write(struct map_info *map, map_word d1, unsigned long ofs)
 	switch_back(state);
 }
 
-static void bfin_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
+static void bfin_flash_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
 {
 	struct async_state *state = (struct async_state *)map->map_priv_1;
 
@@ -140,10 +140,10 @@ static int __devinit bfin_flash_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	state->map.name       = DRIVER_NAME;
-	state->map.read       = bfin_read;
-	state->map.copy_from  = bfin_copy_from;
-	state->map.write      = bfin_write;
-	state->map.copy_to    = bfin_copy_to;
+	state->map.read       = bfin_flash_read;
+	state->map.copy_from  = bfin_flash_copy_from;
+	state->map.write      = bfin_flash_write;
+	state->map.copy_to    = bfin_flash_copy_to;
 	state->map.bankwidth  = pdata->width;
 	state->map.size       = memory->end - memory->start + 1;
 	state->map.virt       = (void __iomem *)memory->start;
