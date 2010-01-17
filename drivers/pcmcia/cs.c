@@ -224,7 +224,9 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 	spin_lock_init(&socket->thread_lock);
 
 	if (socket->resource_ops->init) {
+		mutex_lock(&socket->ops_mutex);
 		ret = socket->resource_ops->init(socket);
+		mutex_unlock(&socket->ops_mutex);
 		if (ret)
 			goto err;
 	}
@@ -282,8 +284,11 @@ void pcmcia_unregister_socket(struct pcmcia_socket *socket)
 	up_write(&pcmcia_socket_list_rwsem);
 
 	/* wait for sysfs to drop all references */
-	if (socket->resource_ops->exit)
+	if (socket->resource_ops->exit) {
+		mutex_lock(&socket->ops_mutex);
 		socket->resource_ops->exit(socket);
+		mutex_unlock(&socket->ops_mutex);
+	}
 	wait_for_completion(&socket->socket_released);
 } /* pcmcia_unregister_socket */
 EXPORT_SYMBOL(pcmcia_unregister_socket);

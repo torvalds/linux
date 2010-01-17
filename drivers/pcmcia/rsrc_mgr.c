@@ -26,9 +26,7 @@ static int static_init(struct pcmcia_socket *s)
 	/* the good thing about SS_CAP_STATIC_MAP sockets is
 	 * that they don't need a resource database */
 
-	mutex_lock(&s->ops_mutex);
 	s->resource_setup_done = 1;
-	mutex_unlock(&s->ops_mutex);
 
 	return 0;
 }

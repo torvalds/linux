@@ -607,19 +607,23 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 {
 	cistpl_longlink_mfc_t mfc;
 	unsigned int no_funcs, i, no_chains;
-	int ret = 0;
+	int ret = -EAGAIN;
 
+	mutex_lock(&s->ops_mutex);
 	if (!(s->resource_setup_done)) {
 		dev_dbg(&s->dev,
 			   "no resources available, delaying card_add\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EAGAIN; /* try again, but later... */
 	}
 
 	if (pcmcia_validate_mem(s)) {
 		dev_dbg(&s->dev, "validating mem resources failed, "
 		       "delaying card_add\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EAGAIN; /* try again, but later... */
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	ret = pccard_validate_cis(s, &no_chains);
 	if (ret || !no_chains) {

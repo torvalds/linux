@@ -187,7 +187,6 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 				continue;
 			} else if (!(s->resource_setup_old))
 				s->resource_setup_old = 1;
-			mutex_unlock(&s->ops_mutex);
 
 			switch (adj->Resource) {
 			case RES_MEMORY_RANGE:
@@ -206,10 +205,9 @@ static int pcmcia_adjust_resource_info(adjust_t *adj)
 				 * last call to adjust_resource_info, we
 				 * always need to assume this is the latest
 				 * one... */
-				mutex_lock(&s->ops_mutex);
 				s->resource_setup_done = 1;
-				mutex_unlock(&s->ops_mutex);
 			}
+			mutex_unlock(&s->ops_mutex);
 		}
 	}
 	up_read(&pcmcia_socket_list_rwsem);

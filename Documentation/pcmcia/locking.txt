@@ -36,7 +36,8 @@ be called with "ops_mutex" held:
 	socket_reset()
 	socket_setup()
 
-	struct pccard_operations *ops
+	struct pccard_operations	*ops
+	struct pccard_resource_ops	*resource_ops;
 
 Note that send_event() and struct pcmcia_callback *callback must not be
 called with "ops_mutex" held.
@@ -54,7 +55,7 @@ protected by pcmcia_socket_list_rwsem;
 
 2. Per-Socket Data:
 -------------------
-The resource_ops are on their own to provide proper locking.
+The resource_ops and their data are protected by ops_mutex.
 
 The "main" struct pcmcia_socket is protected as follows (read-only fields
 or single-use fields not mentioned):
