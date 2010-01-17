@@ -481,7 +481,7 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 
 /*
  * Interrupts are disabled on entry as trap3 is an interrupt gate and they
- * remain disabled thorough out this function.
+ * remain disabled throughout this function.
  */
 static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
@@ -818,7 +818,7 @@ no_change:
 
 /*
  * Interrupts are disabled on entry as trap1 is an interrupt gate and they
- * remain disabled thoroughout this function.
+ * remain disabled throughout this function.
  */
 static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 {

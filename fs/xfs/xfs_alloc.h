@@ -37,6 +37,15 @@ typedef enum xfs_alloctype
 	XFS_ALLOCTYPE_THIS_BNO		/* at exactly this block */
 } xfs_alloctype_t;
 
+#define XFS_ALLOC_TYPES \
+	{ XFS_ALLOCTYPE_ANY_AG,		"ANY_AG" }, \
+	{ XFS_ALLOCTYPE_FIRST_AG,	"FIRST_AG" }, \
+	{ XFS_ALLOCTYPE_START_AG,	"START_AG" }, \
+	{ XFS_ALLOCTYPE_THIS_AG,	"THIS_AG" }, \
+	{ XFS_ALLOCTYPE_START_BNO,	"START_BNO" }, \
+	{ XFS_ALLOCTYPE_NEAR_BNO,	"NEAR_BNO" }, \
+	{ XFS_ALLOCTYPE_THIS_BNO,	"THIS_BNO" }
+
 /*
  * Flags for xfs_alloc_fix_freelist.
  */
@@ -108,24 +117,6 @@ xfs_alloc_longest_free_extent(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 
 #ifdef __KERNEL__
-
-#if defined(XFS_ALLOC_TRACE)
-/*
- * Allocation tracing buffer size.
- */
-#define	XFS_ALLOC_TRACE_SIZE	4096
-extern ktrace_t *xfs_alloc_trace_buf;
-
-/*
- * Types for alloc tracing.
- */
-#define	XFS_ALLOC_KTRACE_ALLOC	1
-#define	XFS_ALLOC_KTRACE_FREE	2
-#define	XFS_ALLOC_KTRACE_MODAGF	3
-#define	XFS_ALLOC_KTRACE_BUSY	4
-#define	XFS_ALLOC_KTRACE_UNBUSY	5
-#define	XFS_ALLOC_KTRACE_BUSYSEARCH	6
-#endif
 
 void
 xfs_alloc_mark_busy(xfs_trans_t *tp,

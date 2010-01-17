@@ -993,7 +993,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	}
 
 	if (i == ARRAY_SIZE(if_sdio_models)) {
-		lbs_pr_err("unkown card model 0x%x\n", card->model);
+		lbs_pr_err("unknown card model 0x%x\n", card->model);
 		ret = -ENODEV;
 		goto free;
 	}

@@ -16,7 +16,9 @@ config SUPERH
 	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
+	select HAVE_DMA_ATTRS
 	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
@@ -37,6 +39,7 @@ config SUPERH32
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_ARCH_KGDB
 	select ARCH_HIBERNATION_POSSIBLE if MMU
@@ -170,6 +173,12 @@ config ARCH_HAS_CPU_IDLE_WAIT
 config IO_TRAPPED
 	bool
 
+config DMA_COHERENT
+	bool
+
+config DMA_NONCOHERENT
+	def_bool !DMA_COHERENT
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
@@ -220,6 +229,7 @@ config CPU_SHX2
 
 config CPU_SHX3
 	bool
+	select DMA_COHERENT
 
 config ARCH_SHMOBILE
 	bool
@@ -530,14 +540,16 @@ config SH_TIMER_MTU2
 
 config SH_PCLK_FREQ
 	int "Peripheral clock frequency (in Hz)"
-	default "27000000" if CPU_SUBTYPE_SH7343
+	depends on SH_CLK_CPG_LEGACY
 	default "31250000" if CPU_SUBTYPE_SH7619
-	default "32000000" if CPU_SUBTYPE_SH7722
-	default "33333333" if CPU_SUBTYPE_SH7770 || CPU_SUBTYPE_SH7723 || \
-			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
-			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
-			      CPU_SUBTYPE_SH7263 || CPU_SUBTYPE_MXG    || \
-			      CPU_SUBTYPE_SH7786 || CPU_SUBTYPE_SH7724
+	default "33333333" if CPU_SUBTYPE_SH7770 || \
+			      CPU_SUBTYPE_SH7760 || \
+			      CPU_SUBTYPE_SH7705 || \
+			      CPU_SUBTYPE_SH7203 || \
+			      CPU_SUBTYPE_SH7206 || \
+			      CPU_SUBTYPE_SH7263 || \
+			      CPU_SUBTYPE_MXG    || \
+			      CPU_SUBTYPE_SH7786
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -761,17 +773,6 @@ config ENTRY_OFFSET
 	default "0x00010000" if PAGE_SIZE_64KB
 	default "0x00000000"
 
-config UBC_WAKEUP
-	bool "Wakeup UBC on startup"
-	depends on CPU_SH4 && !CPU_SH4A
-	help
-	  Selecting this option will wakeup the User Break Controller (UBC) on
-	  startup. Although the UBC is left in an awake state when the processor
-	  comes up, some boot loaders misbehave by putting the UBC to sleep in a
-	  power saving state, which causes issues with things like ptrace().
-
-	  If unsure, say N.
-
 choice
 	prompt "Kernel command line"
 	optional
@@ -818,7 +819,13 @@ config MAPLE
 	 Dreamcast with a serial line terminal or a remote network
 	 connection.
 
-source "arch/sh/drivers/pci/Kconfig"
+config PCI
+	bool "PCI support"
+	depends on SYS_SUPPORTS_PCI
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. If you have PCI, say Y, otherwise N.
 
 source "drivers/pci/pcie/Kconfig"
 

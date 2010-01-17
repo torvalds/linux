@@ -51,25 +51,30 @@
 int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
+	struct ext4_inode_info *ei = EXT4_I(inode);
 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
-	int err, ret = 0;
+	int ret;
+	tid_t commit_tid;
 
 	J_ASSERT(ext4_journal_current_handle() == NULL);
 
 	trace_ext4_sync_file(file, dentry, datasync);
 
+	if (inode->i_sb->s_flags & MS_RDONLY)
+		return 0;
+
 	ret = flush_aio_dio_completed_IO(inode);
 	if (ret < 0)
-		goto out;
+		return ret;
+	
+	if (!journal)
+		return simple_fsync(file, dentry, datasync);
+
 	/*
-	 * data=writeback:
+	 * data=writeback,ordered:
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
-	 *  sync_inode() will sync the metadata
-	 *
-	 * data=ordered:
-	 *  The caller's filemap_fdatawrite() will write the data and
-	 *  sync_inode() will write the inode if it is dirty.  Then the caller's
-	 *  filemap_fdatawait() will wait on the pages.
+	 *  Metadata is in the journal, we wait for proper transaction to
+	 *  commit here.
 	 *
 	 * data=journal:
 	 *  filemap_fdatawrite won't do anything (the buffers are clean).
@@ -79,32 +84,25 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	 *  (they were dirtied by commit).  But that's OK - the blocks are
 	 *  safe in-journal, which is all fsync() needs to ensure.
 	 */
-	if (ext4_should_journal_data(inode)) {
-		ret = ext4_force_commit(inode->i_sb);
-		goto out;
-	}
+	if (ext4_should_journal_data(inode))
+		return ext4_force_commit(inode->i_sb);
 
-	if (!journal)
-		ret = sync_mapping_buffers(inode->i_mapping);
-
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
-		goto out;
-
-	/*
-	 * The VFS has written the file data.  If the inode is unaltered
-	 * then we need not start a commit.
-	 */
-	if (inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC)) {
-		struct writeback_control wbc = {
-			.sync_mode = WB_SYNC_ALL,
-			.nr_to_write = 0, /* sys_fsync did this */
-		};
-		err = sync_inode(inode, &wbc);
-		if (ret == 0)
-			ret = err;
-	}
-out:
-	if (journal && (journal->j_flags & JBD2_BARRIER))
+	commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
+	if (jbd2_log_start_commit(journal, commit_tid)) {
+		/*
+		 * When the journal is on a different device than the
+		 * fs data disk, we need to issue the barrier in
+		 * writeback mode.  (In ordered mode, the jbd2 layer
+		 * will take care of issuing the barrier.  In
+		 * data=journal, all of the data blocks are written to
+		 * the journal device.)
+		 */
+		if (ext4_should_writeback_data(inode) &&
+		    (journal->j_fs_dev != journal->j_dev) &&
+		    (journal->j_flags & JBD2_BARRIER))
+			blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+		jbd2_log_wait_commit(journal, commit_tid);
+	} else if (journal->j_flags & JBD2_BARRIER)
 		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 	return ret;
 }

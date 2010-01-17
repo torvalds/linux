@@ -33,6 +33,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
 static int deemphasis_50;
+module_param(deemphasis_50, int, 0644);
 MODULE_PARM_DESC(deemphasis_50, "0 - 75us deemphasis; 1 - 50us deemphasis");
 
 /* ---------------------------------------------------------------------- */

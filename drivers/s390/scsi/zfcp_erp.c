@@ -99,9 +99,12 @@ static void zfcp_erp_action_dismiss_port(struct zfcp_port *port)
 
 	if (atomic_read(&port->status) & ZFCP_STATUS_COMMON_ERP_INUSE)
 		zfcp_erp_action_dismiss(&port->erp_action);
-	else
-		list_for_each_entry(unit, &port->unit_list_head, list)
-		    zfcp_erp_action_dismiss_unit(unit);
+	else {
+		read_lock(&port->unit_list_lock);
+		list_for_each_entry(unit, &port->unit_list, list)
+			zfcp_erp_action_dismiss_unit(unit);
+		read_unlock(&port->unit_list_lock);
+	}
 }
 
 static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
@@ -110,9 +113,12 @@ static void zfcp_erp_action_dismiss_adapter(struct zfcp_adapter *adapter)
 
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_ERP_INUSE)
 		zfcp_erp_action_dismiss(&adapter->erp_action);
-	else
-		list_for_each_entry(port, &adapter->port_list_head, list)
+	else {
+		read_lock(&adapter->port_list_lock);
+		list_for_each_entry(port, &adapter->port_list, list)
 		    zfcp_erp_action_dismiss_port(port);
+		read_unlock(&adapter->port_list_lock);
+	}
 }
 
 static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
@@ -168,7 +174,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	switch (need) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		zfcp_unit_get(unit);
+		if (!get_device(&unit->sysfs_device))
+			return NULL;
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status);
 		erp_action = &unit->erp_action;
 		if (!(atomic_read(&unit->status) & ZFCP_STATUS_COMMON_RUNNING))
@@ -177,7 +184,8 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
-		zfcp_port_get(port);
+		if (!get_device(&port->sysfs_device))
+			return NULL;
 		zfcp_erp_action_dismiss_port(port);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &port->status);
 		erp_action = &port->erp_action;
@@ -186,7 +194,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
-		zfcp_adapter_get(adapter);
+		kref_get(&adapter->ref);
 		zfcp_erp_action_dismiss_adapter(adapter);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status);
 		erp_action = &adapter->erp_action;
@@ -264,11 +272,16 @@ void zfcp_erp_adapter_reopen(struct zfcp_adapter *adapter, int clear,
 {
 	unsigned long flags;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	write_lock(&adapter->erp_lock);
-	_zfcp_erp_adapter_reopen(adapter, clear, id, ref);
-	write_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	zfcp_erp_adapter_block(adapter, clear);
+	zfcp_scsi_schedule_rports_block(adapter);
+
+	write_lock_irqsave(&adapter->erp_lock, flags);
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_COMMON_ERP_FAILED)
+		zfcp_erp_adapter_failed(adapter, "erareo1", NULL);
+	else
+		zfcp_erp_action_enqueue(ZFCP_ERP_ACTION_REOPEN_ADAPTER, adapter,
+					NULL, NULL, id, ref);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
 /**
@@ -345,11 +358,9 @@ void zfcp_erp_port_forced_reopen(struct zfcp_port *port, int clear, char *id,
 	unsigned long flags;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	write_lock(&adapter->erp_lock);
+	write_lock_irqsave(&adapter->erp_lock, flags);
 	_zfcp_erp_port_forced_reopen(port, clear, id, ref);
-	write_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
 static int _zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *id,
@@ -377,15 +388,13 @@ static int _zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *id,
  */
 int zfcp_erp_port_reopen(struct zfcp_port *port, int clear, char *id, void *ref)
 {
-	unsigned long flags;
 	int retval;
+	unsigned long flags;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	write_lock(&adapter->erp_lock);
+	write_lock_irqsave(&adapter->erp_lock, flags);
 	retval = _zfcp_erp_port_reopen(port, clear, id, ref);
-	write_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 	return retval;
 }
@@ -424,11 +433,9 @@ void zfcp_erp_unit_reopen(struct zfcp_unit *unit, int clear, char *id,
 	struct zfcp_port *port = unit->port;
 	struct zfcp_adapter *adapter = port->adapter;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	write_lock(&adapter->erp_lock);
+	write_lock_irqsave(&adapter->erp_lock, flags);
 	_zfcp_erp_unit_reopen(unit, clear, id, ref);
-	write_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
 static int status_change_set(unsigned long mask, atomic_t *status)
@@ -540,8 +547,10 @@ static void _zfcp_erp_port_reopen_all(struct zfcp_adapter *adapter,
 {
 	struct zfcp_port *port;
 
-	list_for_each_entry(port, &adapter->port_list_head, list)
+	read_lock(&adapter->port_list_lock);
+	list_for_each_entry(port, &adapter->port_list, list)
 		_zfcp_erp_port_reopen(port, clear, id, ref);
+	read_unlock(&adapter->port_list_lock);
 }
 
 static void _zfcp_erp_unit_reopen_all(struct zfcp_port *port, int clear,
@@ -549,8 +558,10 @@ static void _zfcp_erp_unit_reopen_all(struct zfcp_port *port, int clear,
 {
 	struct zfcp_unit *unit;
 
-	list_for_each_entry(unit, &port->unit_list_head, list)
+	read_lock(&port->unit_list_lock);
+	list_for_each_entry(unit, &port->unit_list, list)
 		_zfcp_erp_unit_reopen(unit, clear, id, ref);
+	read_unlock(&port->unit_list_lock);
 }
 
 static void zfcp_erp_strategy_followup_failed(struct zfcp_erp_action *act)
@@ -590,16 +601,14 @@ static void zfcp_erp_wakeup(struct zfcp_adapter *adapter)
 {
 	unsigned long flags;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	read_lock(&adapter->erp_lock);
+	read_lock_irqsave(&adapter->erp_lock, flags);
 	if (list_empty(&adapter->erp_ready_head) &&
 	    list_empty(&adapter->erp_running_head)) {
 			atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_PENDING,
 					  &adapter->status);
 			wake_up(&adapter->erp_done_wqh);
 	}
-	read_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	read_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
 static int zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *act)
@@ -1170,28 +1179,28 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
 		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
-			zfcp_unit_get(unit);
+			get_device(&unit->sysfs_device);
 			if (scsi_queue_work(unit->port->adapter->scsi_host,
 					    &unit->scsi_work) <= 0)
-				zfcp_unit_put(unit);
+				put_device(&unit->sysfs_device);
 		}
-		zfcp_unit_put(unit);
+		put_device(&unit->sysfs_device);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		if (result == ZFCP_ERP_SUCCEEDED)
 			zfcp_scsi_schedule_rport_register(port);
-		zfcp_port_put(port);
+		put_device(&port->sysfs_device);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:
 		if (result == ZFCP_ERP_SUCCEEDED) {
 			register_service_level(&adapter->service_level);
-			schedule_work(&adapter->scan_work);
+			queue_work(adapter->work_queue, &adapter->scan_work);
 		} else
 			unregister_service_level(&adapter->service_level);
-		zfcp_adapter_put(adapter);
+		kref_put(&adapter->ref, zfcp_adapter_release);
 		break;
 	}
 }
@@ -1214,12 +1223,12 @@ static int zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 {
 	int retval;
-	struct zfcp_adapter *adapter = erp_action->adapter;
 	unsigned long flags;
+	struct zfcp_adapter *adapter = erp_action->adapter;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	write_lock(&adapter->erp_lock);
+	kref_get(&adapter->ref);
 
+	write_lock_irqsave(&adapter->erp_lock, flags);
 	zfcp_erp_strategy_check_fsfreq(erp_action);
 
 	if (erp_action->status & ZFCP_STATUS_ERP_DISMISSED) {
@@ -1231,11 +1240,9 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 	zfcp_erp_action_to_running(erp_action);
 
 	/* no lock to allow for blocking operations */
-	write_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
 	retval = zfcp_erp_strategy_do_action(erp_action);
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	write_lock(&adapter->erp_lock);
+	write_lock_irqsave(&adapter->erp_lock, flags);
 
 	if (erp_action->status & ZFCP_STATUS_ERP_DISMISSED)
 		retval = ZFCP_ERP_CONTINUES;
@@ -1273,12 +1280,12 @@ static int zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 		zfcp_erp_strategy_followup_failed(erp_action);
 
  unlock:
-	write_unlock(&adapter->erp_lock);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 	if (retval != ZFCP_ERP_CONTINUES)
 		zfcp_erp_action_cleanup(erp_action, retval);
 
+	kref_put(&adapter->ref, zfcp_adapter_release);
 	return retval;
 }
 
@@ -1415,6 +1422,7 @@ void zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter, char *id,
 				    void *ref, u32 mask, int set_or_clear)
 {
 	struct zfcp_port *port;
+	unsigned long flags;
 	u32 common_mask = mask & ZFCP_COMMON_FLAGS;
 
 	if (set_or_clear == ZFCP_SET) {
@@ -1429,10 +1437,13 @@ void zfcp_erp_modify_adapter_status(struct zfcp_adapter *adapter, char *id,
 			atomic_set(&adapter->erp_counter, 0);
 	}
 
-	if (common_mask)
-		list_for_each_entry(port, &adapter->port_list_head, list)
+	if (common_mask) {
+		read_lock_irqsave(&adapter->port_list_lock, flags);
+		list_for_each_entry(port, &adapter->port_list, list)
 			zfcp_erp_modify_port_status(port, id, ref, common_mask,
 						    set_or_clear);
+		read_unlock_irqrestore(&adapter->port_list_lock, flags);
+	}
 }
 
 /**
@@ -1449,6 +1460,7 @@ void zfcp_erp_modify_port_status(struct zfcp_port *port, char *id, void *ref,
 				 u32 mask, int set_or_clear)
 {
 	struct zfcp_unit *unit;
+	unsigned long flags;
 	u32 common_mask = mask & ZFCP_COMMON_FLAGS;
 
 	if (set_or_clear == ZFCP_SET) {
@@ -1463,10 +1475,13 @@ void zfcp_erp_modify_port_status(struct zfcp_port *port, char *id, void *ref,
 			atomic_set(&port->erp_counter, 0);
 	}
 
-	if (common_mask)
-		list_for_each_entry(unit, &port->unit_list_head, list)
+	if (common_mask) {
+		read_lock_irqsave(&port->unit_list_lock, flags);
+		list_for_each_entry(unit, &port->unit_list, list)
 			zfcp_erp_modify_unit_status(unit, id, ref, common_mask,
 						    set_or_clear);
+		read_unlock_irqrestore(&port->unit_list_lock, flags);
+	}
 }
 
 /**
@@ -1502,12 +1517,8 @@ void zfcp_erp_modify_unit_status(struct zfcp_unit *unit, char *id, void *ref,
  */
 void zfcp_erp_port_boxed(struct zfcp_port *port, char *id, void *ref)
 {
-	unsigned long flags;
-
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	zfcp_erp_modify_port_status(port, id, ref,
 				    ZFCP_STATUS_COMMON_ACCESS_BOXED, ZFCP_SET);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 	zfcp_erp_port_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED, id, ref);
 }
 
@@ -1535,13 +1546,9 @@ void zfcp_erp_unit_boxed(struct zfcp_unit *unit, char *id, void *ref)
  */
 void zfcp_erp_port_access_denied(struct zfcp_port *port, char *id, void *ref)
 {
-	unsigned long flags;
-
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
 	zfcp_erp_modify_port_status(port, id, ref,
 				    ZFCP_STATUS_COMMON_ERP_FAILED |
 				    ZFCP_STATUS_COMMON_ACCESS_DENIED, ZFCP_SET);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 }
 
 /**
@@ -1574,12 +1581,15 @@ static void zfcp_erp_port_access_changed(struct zfcp_port *port, char *id,
 					 void *ref)
 {
 	struct zfcp_unit *unit;
+	unsigned long flags;
 	int status = atomic_read(&port->status);
 
 	if (!(status & (ZFCP_STATUS_COMMON_ACCESS_DENIED |
 			ZFCP_STATUS_COMMON_ACCESS_BOXED))) {
-		list_for_each_entry(unit, &port->unit_list_head, list)
+		read_lock_irqsave(&port->unit_list_lock, flags);
+		list_for_each_entry(unit, &port->unit_list, list)
 				    zfcp_erp_unit_access_changed(unit, id, ref);
+		read_unlock_irqrestore(&port->unit_list_lock, flags);
 		return;
 	}
 
@@ -1595,14 +1605,14 @@ static void zfcp_erp_port_access_changed(struct zfcp_port *port, char *id,
 void zfcp_erp_adapter_access_changed(struct zfcp_adapter *adapter, char *id,
 				     void *ref)
 {
-	struct zfcp_port *port;
 	unsigned long flags;
+	struct zfcp_port *port;
 
 	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
 		return;
 
-	read_lock_irqsave(&zfcp_data.config_lock, flags);
-	list_for_each_entry(port, &adapter->port_list_head, list)
+	read_lock_irqsave(&adapter->port_list_lock, flags);
+	list_for_each_entry(port, &adapter->port_list, list)
 		zfcp_erp_port_access_changed(port, id, ref);
-	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
+	read_unlock_irqrestore(&adapter->port_list_lock, flags);
 }

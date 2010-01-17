@@ -158,11 +158,13 @@ config PAGEFLAGS_EXTENDED
 # Default to 4 for wider testing, though 8 might be more appropriate.
 # ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
 # PA-RISC 7xxx's spinlock_t would enlarge struct page from 32 to 44 bytes.
+# DEBUG_SPINLOCK and DEBUG_LOCK_ALLOC spinlock_t also enlarge struct page.
 #
 config SPLIT_PTLOCK_CPUS
 	int
-	default "4096" if ARM && !CPU_CACHE_VIPT
-	default "4096" if PARISC && !PA20
+	default "999999" if ARM && !CPU_CACHE_VIPT
+	default "999999" if PARISC && !PA20
+	default "999999" if DEBUG_SPINLOCK || DEBUG_LOCK_ALLOC
 	default "4"
 
 #
@@ -200,14 +202,6 @@ config VIRT_TO_BUS
 	def_bool y
 	depends on !ARCH_NO_VIRT_TO_BUS
 
-config HAVE_MLOCK
-	bool
-	default y if MMU=y
-
-config HAVE_MLOCKED_PAGE_BIT
-	bool
-	default y if HAVE_MLOCK=y
-
 config MMU_NOTIFIER
 	bool
 
@@ -218,7 +212,7 @@ config KSM
 	  Enable Kernel Samepage Merging: KSM periodically scans those areas
 	  of an application's address space that an app has advised may be
 	  mergeable.  When it finds pages of identical content, it replaces
-	  the many instances by a single resident page with that content, so
+	  the many instances by a single page with that content, so
 	  saving memory until one or another app needs to modify the content.
 	  Recommended for use with KVM, or with other duplicative applications.
 	  See Documentation/vm/ksm.txt for more information: KSM is inactive
@@ -227,6 +221,7 @@ config KSM
 
 config DEFAULT_MMAP_MIN_ADDR
         int "Low address space to protect from user allocation"
+	depends on MMU
         default 4096
         help
 	  This is the portion of low virtual memory which should be protected
@@ -257,8 +252,9 @@ config MEMORY_FAILURE
 	  special hardware support and typically ECC memory.
 
 config HWPOISON_INJECT
-	tristate "Poison pages injector"
-	depends on MEMORY_FAILURE && DEBUG_KERNEL
+	tristate "HWPoison pages injector"
+	depends on MEMORY_FAILURE && DEBUG_KERNEL && PROC_FS
+	select PROC_PAGE_MONITOR
 
 config NOMMU_INITIAL_TRIM_EXCESS
 	int "Turn on mmap() excess space trimming before booting"

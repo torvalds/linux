@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -47,6 +47,8 @@
 #define IEFT_MPA_KEY_REP  "MPA ID Rep Frame"
 #define IETF_MPA_KEY_SIZE 16
 #define IETF_MPA_VERSION  1
+#define IETF_MAX_PRIV_DATA_LEN 512
+#define IETF_MPA_FRAME_SIZE     20
 
 enum ietf_mpa_flags {
 	IETF_MPA_FLAGS_MARKERS = 0x80,	/* receive Markers */
@@ -169,7 +171,7 @@ struct nes_timer_entry {
 
 #define NES_CM_DEF_SEQ2      0x18ed5740
 #define NES_CM_DEF_LOCAL_ID2 0xb807
-#define	MAX_CM_BUFFER	512
+#define	MAX_CM_BUFFER	(IETF_MPA_FRAME_SIZE + IETF_MAX_PRIV_DATA_LEN)
 
 
 typedef u32 nes_addr_t;
@@ -198,6 +200,7 @@ enum nes_cm_node_state {
 	NES_CM_STATE_TIME_WAIT,
 	NES_CM_STATE_LAST_ACK,
 	NES_CM_STATE_CLOSING,
+	NES_CM_STATE_LISTENER_DESTROYED,
 	NES_CM_STATE_CLOSED
 };
 

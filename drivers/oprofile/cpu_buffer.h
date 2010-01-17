@@ -50,7 +50,7 @@ struct oprofile_cpu_buffer {
 	struct delayed_work work;
 };
 
-DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
+DECLARE_PER_CPU(struct oprofile_cpu_buffer, op_cpu_buffer);
 
 /*
  * Resets the cpu buffer to a sane state.
@@ -60,7 +60,7 @@ DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
  */
 static inline void op_cpu_buffer_reset(int cpu)
 {
-	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
+	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(op_cpu_buffer, cpu);
 
 	cpu_buf->last_is_kernel = -1;
 	cpu_buf->last_task = NULL;

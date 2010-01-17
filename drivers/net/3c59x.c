@@ -837,7 +837,7 @@ static int vortex_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops vortex_pm_ops = {
+static const struct dev_pm_ops vortex_pm_ops = {
 	.suspend = vortex_suspend,
 	.resume = vortex_resume,
 	.freeze = vortex_suspend,

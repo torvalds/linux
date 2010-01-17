@@ -222,9 +222,6 @@ static inline int bin_search(const void *key,	/* Key to search for. */
 	return ITEM_NOT_FOUND;
 }
 
-#ifdef CONFIG_REISERFS_CHECK
-extern struct tree_balance *cur_tb;
-#endif
 
 /* Minimal possible key. It is never in the tree. */
 const struct reiserfs_key MIN_KEY = { 0, 0, {{0, 0},} };
@@ -519,25 +516,48 @@ static int is_tree_node(struct buffer_head *bh, int level)
 
 #define SEARCH_BY_KEY_READA 16
 
-/* The function is NOT SCHEDULE-SAFE! */
-static void search_by_key_reada(struct super_block *s,
+/*
+ * The function is NOT SCHEDULE-SAFE!
+ * It might unlock the write lock if we needed to wait for a block
+ * to be read. Note that in this case it won't recover the lock to avoid
+ * high contention resulting from too much lock requests, especially
+ * the caller (search_by_key) will perform other schedule-unsafe
+ * operations just after calling this function.
+ *
+ * @return true if we have unlocked
+ */
+static bool search_by_key_reada(struct super_block *s,
 				struct buffer_head **bh,
 				b_blocknr_t *b, int num)
 {
 	int i, j;
+	bool unlocked = false;
 
 	for (i = 0; i < num; i++) {
 		bh[i] = sb_getblk(s, b[i]);
 	}
+	/*
+	 * We are going to read some blocks on which we
+	 * have a reference. It's safe, though we might be
+	 * reading blocks concurrently changed if we release
+	 * the lock. But it's still fine because we check later
+	 * if the tree changed
+	 */
 	for (j = 0; j < i; j++) {
 		/*
 		 * note, this needs attention if we are getting rid of the BKL
 		 * you have to make sure the prepared bit isn't set on this buffer
 		 */
-		if (!buffer_uptodate(bh[j]))
+		if (!buffer_uptodate(bh[j])) {
+			if (!unlocked) {
+				reiserfs_write_unlock(s);
+				unlocked = true;
+			}
 			ll_rw_block(READA, 1, bh + j);
+		}
 		brelse(bh[j]);
 	}
+	return unlocked;
 }
 
 /**************************************************************************
@@ -625,11 +645,26 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,	/* Key to s
 		   have a pointer to it. */
 		if ((bh = last_element->pe_buffer =
 		     sb_getblk(sb, block_number))) {
+			bool unlocked = false;
+
 			if (!buffer_uptodate(bh) && reada_count > 1)
-				search_by_key_reada(sb, reada_bh,
+				/* may unlock the write lock */
+				unlocked = search_by_key_reada(sb, reada_bh,
 						    reada_blocks, reada_count);
+			/*
+			 * If we haven't already unlocked the write lock,
+			 * then we need to do that here before reading
+			 * the current block
+			 */
+			if (!buffer_uptodate(bh) && !unlocked) {
+				reiserfs_write_unlock(sb);
+				unlocked = true;
+			}
 			ll_rw_block(READ, 1, &bh);
 			wait_on_buffer(bh);
+
+			if (unlocked)
+				reiserfs_write_lock(sb);
 			if (!buffer_uptodate(bh))
 				goto io_error;
 		} else {
@@ -673,7 +708,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,	/* Key to s
 		       !key_in_buffer(search_path, key, sb),
 		       "PAP-5130: key is not in the buffer");
 #ifdef CONFIG_REISERFS_CHECK
-		if (cur_tb) {
+		if (REISERFS_SB(sb)->cur_tb) {
 			print_cur_tb("5140");
 			reiserfs_panic(sb, "PAP-5140",
 				       "schedule occurred in do_balance!");
@@ -1024,7 +1059,9 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 			reiserfs_free_block(th, inode, block, 1);
 		    }
 
+		    reiserfs_write_unlock(sb);
 		    cond_resched();
+		    reiserfs_write_lock(sb);
 
 		    if (item_moved (&s_ih, path))  {
 			need_re_search = 1;

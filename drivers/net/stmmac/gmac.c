@@ -112,7 +112,7 @@ static void gmac_dma_operation_mode(unsigned long ioaddr, int txmode,
 			      " (threshold = %d)\n", txmode);
 		csr6 &= ~DMA_CONTROL_TSF;
 		csr6 &= DMA_CONTROL_TC_TX_MASK;
-		/* Set the transmit threashold */
+		/* Set the transmit threshold */
 		if (txmode <= 32)
 			csr6 |= DMA_CONTROL_TTC_32;
 		else if (txmode <= 64)

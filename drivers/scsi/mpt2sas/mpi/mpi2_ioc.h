@@ -6,7 +6,7 @@
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.11
+ *  mpi2_ioc.h Version:  02.00.12
  *
  *  Version History
  *  ---------------
@@ -84,6 +84,9 @@
  *                      Added two new reason codes for SAS Device Status Change
  *                      Event.
  *                      Added new event: SAS PHY Counter.
+ *  07-30-09  02.00.12  Added GPIO Interrupt event define and structure.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
+ *                      Added new product id family for 2208.
  *  --------------------------------------------------------------------------
  */
 
@@ -274,6 +277,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY
 #define MPI2_IOCFACTS_CAPABILITY_MULTICAST              (0x00000100)
 #define MPI2_IOCFACTS_CAPABILITY_BIDIRECTIONAL_TARGET   (0x00000080)
 #define MPI2_IOCFACTS_CAPABILITY_EEDP                   (0x00000040)
+#define MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER        (0x00000020)
 #define MPI2_IOCFACTS_CAPABILITY_SNAPSHOT_BUFFER        (0x00000010)
 #define MPI2_IOCFACTS_CAPABILITY_DIAG_TRACE_BUFFER      (0x00000008)
 #define MPI2_IOCFACTS_CAPABILITY_TASK_SET_FULL_HANDLING (0x00000004)
@@ -448,6 +452,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST     (0x0020)
 #define MPI2_EVENT_LOG_ENTRY_ADDED                  (0x0021)
 #define MPI2_EVENT_SAS_PHY_COUNTER                  (0x0022)
+#define MPI2_EVENT_GPIO_INTERRUPT                   (0x0023)
 
 
 /* Log Entry Added Event data */
@@ -468,6 +473,16 @@ typedef struct _MPI2_EVENT_DATA_LOG_ENTRY_ADDED
 } MPI2_EVENT_DATA_LOG_ENTRY_ADDED,
   MPI2_POINTER PTR_MPI2_EVENT_DATA_LOG_ENTRY_ADDED,
   Mpi2EventDataLogEntryAdded_t, MPI2_POINTER pMpi2EventDataLogEntryAdded_t;
+
+/* GPIO Interrupt Event data */
+
+typedef struct _MPI2_EVENT_DATA_GPIO_INTERRUPT {
+    U8          GPIONum;                            /* 0x00 */
+    U8          Reserved1;                          /* 0x01 */
+    U16         Reserved2;                          /* 0x02 */
+} MPI2_EVENT_DATA_GPIO_INTERRUPT,
+  MPI2_POINTER PTR_MPI2_EVENT_DATA_GPIO_INTERRUPT,
+  Mpi2EventDataGpioInterrupt_t, MPI2_POINTER pMpi2EventDataGpioInterrupt_t;
 
 /* Hard Reset Received Event data */
 
@@ -1117,6 +1132,7 @@ typedef struct _MPI2_FW_IMAGE_HEADER
 #define MPI2_FW_HEADER_PID_FAMILY_MASK          (0x00FF)
 /* SAS */
 #define MPI2_FW_HEADER_PID_FAMILY_2108_SAS      (0x0010)
+#define MPI2_FW_HEADER_PID_FAMILY_2208_SAS      (0x0011)
 
 /* use MPI2_IOCFACTS_PROTOCOL_ defines for ProtocolFlags field */
 

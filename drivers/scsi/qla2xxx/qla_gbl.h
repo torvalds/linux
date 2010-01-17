@@ -72,8 +72,6 @@ extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
 extern int ql2xallocfwdump;
 extern int ql2xextended_error_logging;
-extern int ql2xqfullrampup;
-extern int ql2xqfulltracking;
 extern int ql2xiidmaenable;
 extern int ql2xmaxqueues;
 extern int ql2xmultique_tag;
@@ -92,6 +90,7 @@ extern int qla2x00_post_async_logout_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_logout_done_work(struct scsi_qla_host *,
     fc_port_t *, uint16_t *);
+extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 
 extern int qla81xx_restart_mpi_firmware(scsi_qla_host_t *);
 
@@ -246,7 +245,7 @@ qla2x00_get_id_list(scsi_qla_host_t *, void *, dma_addr_t, uint16_t *);
 
 extern int
 qla2x00_get_resource_cnts(scsi_qla_host_t *, uint16_t *, uint16_t *,
-    uint16_t *, uint16_t *, uint16_t *);
+    uint16_t *, uint16_t *, uint16_t *, uint16_t *);
 
 extern int
 qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map);
@@ -325,6 +324,7 @@ qla2x00_read_ram_word(scsi_qla_host_t *, uint32_t, uint32_t *);
 extern int
 qla2x00_write_ram_word(scsi_qla_host_t *, uint32_t, uint32_t);
 
+extern int qla2x00_get_data_rate(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

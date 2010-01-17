@@ -1,0 +1,51 @@
+=> proc interface
+* implement new interface to add/delete interfaces and setting options
+* /proc/sys/net/batman-adv/ as main folder
+* in interfaces/ list every available interface of the host
+* each interfaces/$iface/ contains the following files:
+-> enable (def: 0) [add/remove this interface to batman-adv]
+-> ogm_interval (def: 1000) [ogm interval of that interface]
+-> context (def: bat0) [later we want to support multiple mesh instances via
+-> bat0/bat1/bat2/..]
+-> status (read-only) [outputs the interface status from batman's
+-> perspective]
+* in mesh/batX/ list every available mesh subnet
+-> vis_server (def: 0) [enable/disable vis server for that mesh]
+-> vis_data (read-only) [outputs the vis data in a raw format]
+-> aggregate_ogm (def: 1) [enable/disable ogm aggregation for that mesh]
+-> originators (read-only) [outputs the originator table]
+-> transtable_global (read-only) [outputs the global translation table]
+-> transtable_local (read-only) [outputs the local translation table]
+
+=> vis "raw" data output
+* the raw format shall replace dot draw / json to offer a neutral that can
+* be converted
+* the format (comma seperated entries):
+-> "mac" -> mac address of an originator (each line begins with it)
+-> "TQ mac value" -> src mac's link quality towards mac address
+-> "HNA mac" -> HNA announced by source mac
+-> "PRIMARY" -> this is a primary interface
+-> "SEC mac" -> secondary mac address of source (requires preceeding
+-> PRIMARY)
+
+=> logging
+* the log level LOG_TYPE_CRIT, LOG_TYPE_WARN & LOG_TYPE_NOTICE will be
+* unified to use printk
+* LOG_TYPE_BATMAN & LOG_TYPE_ROUTES will also use printk but only after the
+* internal debug level has been raised
+* the internal debug level can be modified using a module parameter (debug)
+* or at run time via /sys/module/batman-adv/parameters/debug
+* make use of printk %pM support instead of converting mac addresses
+* manually
+
+=> strip out all backward compatibility support to older kernels
+   (only found in compat.h)
+
+=> fix checkpatch.pl errors
+
+Please send all patches to:
+	Marek Lindner <lindner_marek@yahoo.de>
+	Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
+	Andrew Lunn <andrew@lunn.ch>
+	b.a.t.m.a.n@lists.open-mesh.net
+	Greg Kroah-Hartman <gregkh@suse.de>

@@ -187,7 +187,12 @@ extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
 extern void __init at91_add_device_isi(void);
 
  /* Touchscreen Controller */
-extern void __init at91_add_device_tsadcc(void);
+struct at91_tsadcc_data {
+	unsigned int    adc_clock;
+	u8		pendet_debounce;
+	u8		ts_sample_hold_time;
+};
+extern void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data);
 
 /* CAN */
 struct at91_can_data {

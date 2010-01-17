@@ -314,7 +314,7 @@ static void gelic_card_reset_chain(struct gelic_card *card,
  * @card: card structure
  * @descr: descriptor to re-init
  *
- * return 0 on succes, <0 on failure
+ * return 0 on success, <0 on failure
  *
  * allocates a new rx skb, iommu-maps it and attaches it to the descriptor.
  * Activate the descriptor state-wise

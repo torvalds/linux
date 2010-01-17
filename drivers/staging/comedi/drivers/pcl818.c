@@ -50,7 +50,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
           1, 10=A/D input -10V..+10V
     [5] - 0,  5=D/A output 0-5V  (internal reference -5V)
           1, 10=D/A output 0-10V (internal reference -10V)
-	  2    =D/A output unknow (external reference)
+	  2    =D/A output unknown (external reference)
 
    Options for PCL-818, PCL-818H:
     [0] - IO Base
@@ -60,7 +60,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
               1= 1MHz clock for 8254
     [4] - 0,  5=D/A output 0-5V  (internal reference -5V)
           1, 10=D/A output 0-10V (internal reference -10V)
-	  2    =D/A output unknow (external reference)
+	  2    =D/A output unknown (external reference)
 
    Options for PCL-818HD, PCL-818HG:
     [0] - IO Base
@@ -71,7 +71,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
               1= 1MHz clock for 8254
     [4] - 0,  5=D/A output 0-5V  (internal reference -5V)
           1, 10=D/A output 0-10V (internal reference -10V)
-   	  2    =D/A output unknow (external reference)
+   	  2    =D/A output unknown (external reference)
 
    Options for PCL-718:
     [0] - IO Base
@@ -92,7 +92,7 @@ A word or two about DMA. Driver support DMA operations at two ways:
 	     10=	     user defined unipolar
     [5] - 0,  5=D/A outputs 0-5V  (internal reference -5V)
           1, 10=D/A outputs 0-10V (internal reference -10V)
-	      2=D/A outputs unknow (external reference)
+	      2=D/A outputs unknown (external reference)
     [6] - 0, 60=max  60kHz A/D sampling
           1,100=max 100kHz A/D sampling (PCL-718 with Option 001 installed)
 
@@ -876,7 +876,7 @@ static irqreturn_t interrupt_pcl818(int irq, void *d)
 		return IRQ_NONE;
 	}
 
-	comedi_error(dev, "IRQ from unknow source!");
+	comedi_error(dev, "IRQ from unknown source!");
 	return IRQ_NONE;
 }
 
@@ -970,7 +970,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 			      struct comedi_subdevice *s)
 {
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int divisor1, divisor2;
+	int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
 	printk("pcl818_ai_cmd_mode()\n");
@@ -1089,7 +1089,7 @@ static int pcl818_ai_cmd_mode(int mode, struct comedi_device *dev,
 static int pcl818_ao_mode13(int mode, struct comedi_device *dev,
 			    struct comedi_subdevice *s, comedi_trig * it)
 {
-	int divisor1, divisor2;
+	int divisor1 = 0, divisor2 = 0;
 
 	if (!dev->irq) {
 		comedi_error(dev, "IRQ not defined!");
@@ -1287,7 +1287,7 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	/* step 1: make sure trigger sources are trivially valid */
 

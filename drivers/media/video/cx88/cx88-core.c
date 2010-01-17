@@ -624,7 +624,7 @@ int cx88_reset(struct cx88_core *core)
 	/* setup image format */
 	cx_andor(MO_COLOR_CTRL, 0x4000, 0x4000);
 
-	/* setup FIFO Threshholds */
+	/* setup FIFO Thresholds */
 	cx_write(MO_PDMA_STHRSH,   0x0807);
 	cx_write(MO_PDMA_DTHRSH,   0x0807);
 

@@ -11,6 +11,7 @@
  */
 
 #define KMSG_COMPONENT "tape"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/fs.h>
 #include <linux/module.h>
@@ -45,8 +46,6 @@
  */
 static int tapeblock_open(struct block_device *, fmode_t);
 static int tapeblock_release(struct gendisk *, fmode_t);
-static int tapeblock_ioctl(struct block_device *, fmode_t, unsigned int,
-				unsigned long);
 static int tapeblock_medium_changed(struct gendisk *);
 static int tapeblock_revalidate_disk(struct gendisk *);
 
@@ -54,7 +53,6 @@ static const struct block_device_operations tapeblock_fops = {
 	.owner		 = THIS_MODULE,
 	.open		 = tapeblock_open,
 	.release	 = tapeblock_release,
-	.locked_ioctl           = tapeblock_ioctl,
 	.media_changed   = tapeblock_medium_changed,
 	.revalidate_disk = tapeblock_revalidate_disk,
 };
@@ -239,7 +237,7 @@ tapeblock_setup_device(struct tape_device * device)
 	disk->major = tapeblock_major;
 	disk->first_minor = device->first_minor;
 	disk->fops = &tapeblock_fops;
-	disk->private_data = tape_get_device_reference(device);
+	disk->private_data = tape_get_device(device);
 	disk->queue = blkdat->request_queue;
 	set_capacity(disk, 0);
 	sprintf(disk->disk_name, "btibm%d",
@@ -247,11 +245,11 @@ tapeblock_setup_device(struct tape_device * device)
 
 	blkdat->disk = disk;
 	blkdat->medium_changed = 1;
-	blkdat->request_queue->queuedata = tape_get_device_reference(device);
+	blkdat->request_queue->queuedata = tape_get_device(device);
 
 	add_disk(disk);
 
-	tape_get_device_reference(device);
+	tape_get_device(device);
 	INIT_WORK(&blkdat->requeue_task, tapeblock_requeue);
 
 	return 0;
@@ -274,13 +272,14 @@ tapeblock_cleanup_device(struct tape_device *device)
 	}
 
 	del_gendisk(device->blk_data.disk);
-	device->blk_data.disk->private_data =
-		tape_put_device(device->blk_data.disk->private_data);
+	device->blk_data.disk->private_data = NULL;
+	tape_put_device(device);
 	put_disk(device->blk_data.disk);
 
 	device->blk_data.disk = NULL;
 cleanup_queue:
-	device->blk_data.request_queue->queuedata = tape_put_device(device);
+	device->blk_data.request_queue->queuedata = NULL;
+	tape_put_device(device);
 
 	blk_cleanup_queue(device->blk_data.request_queue);
 	device->blk_data.request_queue = NULL;
@@ -363,7 +362,7 @@ tapeblock_open(struct block_device *bdev, fmode_t mode)
 	struct tape_device *	device;
 	int			rc;
 
-	device = tape_get_device_reference(disk->private_data);
+	device = tape_get_device(disk->private_data);
 
 	if (device->required_tapemarks) {
 		DBF_EVENT(2, "TBLOCK: missing tapemarks\n");
@@ -411,42 +410,6 @@ tapeblock_release(struct gendisk *disk, fmode_t mode)
 	tape_put_device(device);
 
 	return 0;
-}
-
-/*
- * Support of some generic block device IOCTLs.
- */
-static int
-tapeblock_ioctl(
-	struct block_device *	bdev,
-	fmode_t			mode,
-	unsigned int		command,
-	unsigned long		arg
-) {
-	int rc;
-	int minor;
-	struct gendisk *disk = bdev->bd_disk;
-	struct tape_device *device;
-
-	rc     = 0;
-	BUG_ON(!disk);
-	device = disk->private_data;
-	BUG_ON(!device);
-	minor  = MINOR(bdev->bd_dev);
-
-	DBF_LH(6, "tapeblock_ioctl(0x%0x)\n", command);
-	DBF_LH(6, "device = %d:%d\n", tapeblock_major, minor);
-
-	switch (command) {
-		/* Refuse some IOCTL calls without complaining (mount). */
-		case 0x5310:		/* CDROMMULTISESSION */
-			rc = -EINVAL;
-			break;
-		default:
-			rc = -EINVAL;
-	}
-
-	return rc;
 }
 
 /*

@@ -40,6 +40,11 @@ enum davinci_dm644x_index {
 
 	/* AEAW functions */
 	DM644X_AEAW,
+	DM644X_AEAW0,
+	DM644X_AEAW1,
+	DM644X_AEAW2,
+	DM644X_AEAW3,
+	DM644X_AEAW4,
 
 	/* Memory Stick */
 	DM644X_MSTK,
@@ -237,8 +242,8 @@ enum davinci_dm365_index {
 	DM365_EMAC_MDIO,
 	DM365_EMAC_MDCLK,
 
-	/* Keypad */
-	DM365_KEYPAD,
+	/* Key Scan */
+	DM365_KEYSCAN,
 
 	/* PWM */
 	DM365_PWM0,
@@ -774,6 +779,14 @@ enum davinci_da850_index {
 	DA850_MII_RXD_0,
 	DA850_MDIO_CLK,
 	DA850_MDIO_D,
+	DA850_RMII_TXD_0,
+	DA850_RMII_TXD_1,
+	DA850_RMII_TXEN,
+	DA850_RMII_CRS_DV,
+	DA850_RMII_RXD_0,
+	DA850_RMII_RXD_1,
+	DA850_RMII_RXER,
+	DA850_RMII_MHZ_50_CLK,
 
 	/* McASP function */
 	DA850_ACLKR,
@@ -881,8 +894,9 @@ enum davinci_da850_index {
 	DA850_NEMA_CS_2,
 
 	/* GPIO function */
+	DA850_GPIO2_6,
+	DA850_GPIO2_8,
 	DA850_GPIO2_15,
-	DA850_GPIO8_10,
 	DA850_GPIO4_0,
 	DA850_GPIO4_1,
 };

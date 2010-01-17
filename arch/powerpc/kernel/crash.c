@@ -373,7 +373,7 @@ void default_machine_crash_shutdown(struct pt_regs *regs)
 	hard_irq_disable();
 
 	for_each_irq(i) {
-		struct irq_desc *desc = irq_desc + i;
+		struct irq_desc *desc = irq_to_desc(i);
 
 		if (desc->status & IRQ_INPROGRESS)
 			desc->chip->eoi(i);

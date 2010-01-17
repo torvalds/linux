@@ -5,7 +5,7 @@
 //###########################################################################
 #define CISS_VERSION "1.00"
 
-//general boundary defintions
+//general boundary definitions
 #define SENSEINFOBYTES          32//note that this value may vary between host implementations
 #define MAXSGENTRIES            32
 #define CCISS_SG_CHAIN          0x80000000

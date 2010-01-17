@@ -43,9 +43,9 @@ enum {
 	/*
 	 * SATA-FSL host controller supports a max. of (15+1) direct PRDEs, and
 	 * chained indirect PRDEs upto a max count of 63.
-	 * We are allocating an array of 63 PRDEs contigiously, but PRDE#15 will
+	 * We are allocating an array of 63 PRDEs contiguously, but PRDE#15 will
 	 * be setup as an indirect descriptor, pointing to it's next
-	 * (contigious) PRDE. Though chained indirect PRDE arrays are
+	 * (contiguous) PRDE. Though chained indirect PRDE arrays are
 	 * supported,it will be more efficient to use a direct PRDT and
 	 * a single chain/link to indirect PRDE array/PRDT.
 	 */
@@ -314,7 +314,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 	u32 ttl_dwords = 0;
 
 	/*
-	 * NOTE : direct & indirect prdt's are contigiously allocated
+	 * NOTE : direct & indirect prdt's are contiguously allocated
 	 */
 	struct prde *prd = (struct prde *)&((struct command_desc *)
 					    cmd_desc)->prdt;

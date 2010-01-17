@@ -59,7 +59,6 @@ typedef struct user_m68kfp_struct elf_fpregset_t;
    is actually used on ASV.  */
 #define ELF_PLAT_INIT(_r, load_addr)	_r->a1 = 0
 
-#define USE_ELF_CORE_DUMP
 #ifndef CONFIG_SUN3
 #define ELF_EXEC_PAGESIZE	4096
 #else

@@ -152,7 +152,7 @@ struct clk div6_clks[] = {
 	SH_CLK_DIV6("fsia_clk", &div3_clk, FCLKACR, 0),
 	SH_CLK_DIV6("fsib_clk", &div3_clk, FCLKBCR, 0),
 	SH_CLK_DIV6("irda_clk", &div3_clk, IRDACLKCR, 0),
-	SH_CLK_DIV6("spu_clk", &div3_clk, SPUCLKCR, 0),
+	SH_CLK_DIV6("spu_clk", &div3_clk, SPUCLKCR, CLK_ENABLE_ON_INIT),
 };
 
 #define R_CLK (&r_clk)

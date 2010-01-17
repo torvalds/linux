@@ -43,12 +43,29 @@
 #define MDPS_POLL_INTERVAL 50
 /*
  * The sensor can also generate interrupts (DRDY) but it's pretty pointless
- * because their are generated even if the data do not change. So it's better
+ * because they are generated even if the data do not change. So it's better
  * to keep the interrupt for the free-fall event. The values are updated at
  * 40Hz (at the lowest frequency), but as it can be pretty time consuming on
  * some low processor, we poll the sensor only at 20Hz... enough for the
  * joystick.
  */
+
+#define LIS3_PWRON_DELAY_WAI_12B	(5000)
+#define LIS3_PWRON_DELAY_WAI_8B		(3000)
+
+/*
+ * LIS3LV02D spec says 1024 LSBs corresponds 1 G -> 1LSB is 1000/1024 mG
+ * LIS302D spec says: 18 mG / digit
+ * LIS3_ACCURACY is used to increase accuracy of the intermediate
+ * calculation results.
+ */
+#define LIS3_ACCURACY			1024
+/* Sensitivity values for -2G +2G scale */
+#define LIS3_SENSITIVITY_12B		((LIS3_ACCURACY * 1000) / 1024)
+#define LIS3_SENSITIVITY_8B		(18 * LIS3_ACCURACY)
+
+#define LIS3_DEFAULT_FUZZ		3
+#define LIS3_DEFAULT_FLAT		3
 
 struct lis3lv02d lis3_dev = {
 	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(lis3_dev.misc_wait),
@@ -65,7 +82,7 @@ static s16 lis3lv02d_read_8(struct lis3lv02d *lis3, int reg)
 	return lo;
 }
 
-static s16 lis3lv02d_read_16(struct lis3lv02d *lis3, int reg)
+static s16 lis3lv02d_read_12(struct lis3lv02d *lis3, int reg)
 {
 	u8 lo, hi;
 
@@ -102,14 +119,104 @@ static inline int lis3lv02d_get_axis(s8 axis, int hw_values[3])
 static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 {
 	int position[3];
+	int i;
 
+	mutex_lock(&lis3->mutex);
 	position[0] = lis3->read_data(lis3, OUTX);
 	position[1] = lis3->read_data(lis3, OUTY);
 	position[2] = lis3->read_data(lis3, OUTZ);
+	mutex_unlock(&lis3->mutex);
+
+	for (i = 0; i < 3; i++)
+		position[i] = (position[i] * lis3->scale) / LIS3_ACCURACY;
 
 	*x = lis3lv02d_get_axis(lis3->ac.x, position);
 	*y = lis3lv02d_get_axis(lis3->ac.y, position);
 	*z = lis3lv02d_get_axis(lis3->ac.z, position);
+}
+
+/* conversion btw sampling rate and the register values */
+static int lis3_12_rates[4] = {40, 160, 640, 2560};
+static int lis3_8_rates[2] = {100, 400};
+
+/* ODR is Output Data Rate */
+static int lis3lv02d_get_odr(void)
+{
+	u8 ctrl;
+	int shift;
+
+	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
+	ctrl &= lis3_dev.odr_mask;
+	shift = ffs(lis3_dev.odr_mask) - 1;
+	return lis3_dev.odrs[(ctrl >> shift)];
+}
+
+static int lis3lv02d_set_odr(int rate)
+{
+	u8 ctrl;
+	int i, len, shift;
+
+	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
+	ctrl &= ~lis3_dev.odr_mask;
+	len = 1 << hweight_long(lis3_dev.odr_mask); /* # of possible values */
+	shift = ffs(lis3_dev.odr_mask) - 1;
+
+	for (i = 0; i < len; i++)
+		if (lis3_dev.odrs[i] == rate) {
+			lis3_dev.write(&lis3_dev, CTRL_REG1,
+					ctrl | (i << shift));
+			return 0;
+		}
+	return -EINVAL;
+}
+
+static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
+{
+	u8 reg;
+	s16 x, y, z;
+	u8 selftest;
+	int ret;
+
+	mutex_lock(&lis3->mutex);
+	if (lis3_dev.whoami == WAI_12B)
+		selftest = CTRL1_ST;
+	else
+		selftest = CTRL1_STP;
+
+	lis3->read(lis3, CTRL_REG1, &reg);
+	lis3->write(lis3, CTRL_REG1, (reg | selftest));
+	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+
+	/* Read directly to avoid axis remap */
+	x = lis3->read_data(lis3, OUTX);
+	y = lis3->read_data(lis3, OUTY);
+	z = lis3->read_data(lis3, OUTZ);
+
+	/* back to normal settings */
+	lis3->write(lis3, CTRL_REG1, reg);
+	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+
+	results[0] = x - lis3->read_data(lis3, OUTX);
+	results[1] = y - lis3->read_data(lis3, OUTY);
+	results[2] = z - lis3->read_data(lis3, OUTZ);
+
+	ret = 0;
+	if (lis3->pdata) {
+		int i;
+		for (i = 0; i < 3; i++) {
+			/* Check against selftest acceptance limits */
+			if ((results[i] < lis3->pdata->st_min_limits[i]) ||
+			    (results[i] > lis3->pdata->st_max_limits[i])) {
+				ret = -EIO;
+				goto fail;
+			}
+		}
+	}
+
+	/* test passed */
+fail:
+	mutex_unlock(&lis3->mutex);
+	return ret;
 }
 
 void lis3lv02d_poweroff(struct lis3lv02d *lis3)
@@ -125,14 +232,19 @@ void lis3lv02d_poweron(struct lis3lv02d *lis3)
 
 	lis3->init(lis3);
 
+	/* LIS3 power on delay is quite long */
+	msleep(lis3->pwron_delay / lis3lv02d_get_odr());
+
 	/*
 	 * Common configuration
-	 * BDU: LSB and MSB values are not updated until both have been read.
-	 *      So the value read will always be correct.
+	 * BDU: (12 bits sensors only) LSB and MSB values are not updated until
+	 *      both have been read. So the value read will always be correct.
 	 */
-	lis3->read(lis3, CTRL_REG2, &reg);
-	reg |= CTRL2_BDU;
-	lis3->write(lis3, CTRL_REG2, reg);
+	if (lis3->whoami ==  WAI_12B) {
+		lis3->read(lis3, CTRL_REG2, &reg);
+		reg |= CTRL2_BDU;
+		lis3->write(lis3, CTRL_REG2, reg);
+	}
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
@@ -273,22 +385,17 @@ static void lis3lv02d_joystick_poll(struct input_polled_dev *pidev)
 	int x, y, z;
 
 	lis3lv02d_get_xyz(&lis3_dev, &x, &y, &z);
-	input_report_abs(pidev->input, ABS_X, x - lis3_dev.xcalib);
-	input_report_abs(pidev->input, ABS_Y, y - lis3_dev.ycalib);
-	input_report_abs(pidev->input, ABS_Z, z - lis3_dev.zcalib);
-}
-
-
-static inline void lis3lv02d_calibrate_joystick(void)
-{
-	lis3lv02d_get_xyz(&lis3_dev,
-		&lis3_dev.xcalib, &lis3_dev.ycalib, &lis3_dev.zcalib);
+	input_report_abs(pidev->input, ABS_X, x);
+	input_report_abs(pidev->input, ABS_Y, y);
+	input_report_abs(pidev->input, ABS_Z, z);
+	input_sync(pidev->input);
 }
 
 int lis3lv02d_joystick_enable(void)
 {
 	struct input_dev *input_dev;
 	int err;
+	int max_val, fuzz, flat;
 
 	if (lis3_dev.idev)
 		return -EINVAL;
@@ -301,8 +408,6 @@ int lis3lv02d_joystick_enable(void)
 	lis3_dev.idev->poll_interval = MDPS_POLL_INTERVAL;
 	input_dev = lis3_dev.idev->input;
 
-	lis3lv02d_calibrate_joystick();
-
 	input_dev->name       = "ST LIS3LV02DL Accelerometer";
 	input_dev->phys       = DRIVER_NAME "/input0";
 	input_dev->id.bustype = BUS_HOST;
@@ -310,9 +415,12 @@ int lis3lv02d_joystick_enable(void)
 	input_dev->dev.parent = &lis3_dev.pdev->dev;
 
 	set_bit(EV_ABS, input_dev->evbit);
-	input_set_abs_params(input_dev, ABS_X, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(input_dev, ABS_Y, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
-	input_set_abs_params(input_dev, ABS_Z, -lis3_dev.mdps_max_val, lis3_dev.mdps_max_val, 3, 3);
+	max_val = (lis3_dev.mdps_max_val * lis3_dev.scale) / LIS3_ACCURACY;
+	fuzz = (LIS3_DEFAULT_FUZZ * lis3_dev.scale) / LIS3_ACCURACY;
+	flat = (LIS3_DEFAULT_FLAT * lis3_dev.scale) / LIS3_ACCURACY;
+	input_set_abs_params(input_dev, ABS_X, -max_val, max_val, fuzz, flat);
+	input_set_abs_params(input_dev, ABS_Y, -max_val, max_val, fuzz, flat);
+	input_set_abs_params(input_dev, ABS_Z, -max_val, max_val, fuzz, flat);
 
 	err = input_register_polled_device(lis3_dev.idev);
 	if (err) {
@@ -332,11 +440,23 @@ void lis3lv02d_joystick_disable(void)
 	if (lis3_dev.irq)
 		misc_deregister(&lis3lv02d_misc_device);
 	input_unregister_polled_device(lis3_dev.idev);
+	input_free_polled_device(lis3_dev.idev);
 	lis3_dev.idev = NULL;
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_joystick_disable);
 
 /* Sysfs stuff */
+static ssize_t lis3lv02d_selftest_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int result;
+	s16 values[3];
+
+	result = lis3lv02d_selftest(&lis3_dev, values);
+	return sprintf(buf, "%s %d %d %d\n", result == 0 ? "OK" : "FAIL",
+		values[0], values[1], values[2]);
+}
+
 static ssize_t lis3lv02d_position_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -346,41 +466,35 @@ static ssize_t lis3lv02d_position_show(struct device *dev,
 	return sprintf(buf, "(%d,%d,%d)\n", x, y, z);
 }
 
-static ssize_t lis3lv02d_calibrate_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "(%d,%d,%d)\n", lis3_dev.xcalib, lis3_dev.ycalib, lis3_dev.zcalib);
-}
-
-static ssize_t lis3lv02d_calibrate_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	lis3lv02d_calibrate_joystick();
-	return count;
-}
-
-/* conversion btw sampling rate and the register values */
-static int lis3lv02dl_df_val[4] = {40, 160, 640, 2560};
 static ssize_t lis3lv02d_rate_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	u8 ctrl;
-	int val;
-
-	lis3_dev.read(&lis3_dev, CTRL_REG1, &ctrl);
-	val = (ctrl & (CTRL1_DF0 | CTRL1_DF1)) >> 4;
-	return sprintf(buf, "%d\n", lis3lv02dl_df_val[val]);
+	return sprintf(buf, "%d\n", lis3lv02d_get_odr());
 }
 
+static ssize_t lis3lv02d_rate_set(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
+{
+	unsigned long rate;
+
+	if (strict_strtoul(buf, 0, &rate))
+		return -EINVAL;
+
+	if (lis3lv02d_set_odr(rate))
+		return -EINVAL;
+
+	return count;
+}
+
+static DEVICE_ATTR(selftest, S_IRUSR, lis3lv02d_selftest_show, NULL);
 static DEVICE_ATTR(position, S_IRUGO, lis3lv02d_position_show, NULL);
-static DEVICE_ATTR(calibrate, S_IRUGO|S_IWUSR, lis3lv02d_calibrate_show,
-	lis3lv02d_calibrate_store);
-static DEVICE_ATTR(rate, S_IRUGO, lis3lv02d_rate_show, NULL);
+static DEVICE_ATTR(rate, S_IRUGO | S_IWUSR, lis3lv02d_rate_show,
+					    lis3lv02d_rate_set);
 
 static struct attribute *lis3lv02d_attributes[] = {
+	&dev_attr_selftest.attr,
 	&dev_attr_position.attr,
-	&dev_attr_calibrate.attr,
 	&dev_attr_rate.attr,
 	NULL
 };
@@ -409,28 +523,38 @@ EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 
 /*
  * Initialise the accelerometer and the various subsystems.
- * Should be rather independant of the bus system.
+ * Should be rather independent of the bus system.
  */
 int lis3lv02d_init_device(struct lis3lv02d *dev)
 {
 	dev->whoami = lis3lv02d_read_8(dev, WHO_AM_I);
 
 	switch (dev->whoami) {
-	case LIS_DOUBLE_ID:
-		printk(KERN_INFO DRIVER_NAME ": 2-byte sensor found\n");
-		dev->read_data = lis3lv02d_read_16;
+	case WAI_12B:
+		printk(KERN_INFO DRIVER_NAME ": 12 bits sensor found\n");
+		dev->read_data = lis3lv02d_read_12;
 		dev->mdps_max_val = 2048;
+		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_12B;
+		dev->odrs = lis3_12_rates;
+		dev->odr_mask = CTRL1_DF0 | CTRL1_DF1;
+		dev->scale = LIS3_SENSITIVITY_12B;
 		break;
-	case LIS_SINGLE_ID:
-		printk(KERN_INFO DRIVER_NAME ": 1-byte sensor found\n");
+	case WAI_8B:
+		printk(KERN_INFO DRIVER_NAME ": 8 bits sensor found\n");
 		dev->read_data = lis3lv02d_read_8;
 		dev->mdps_max_val = 128;
+		dev->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
+		dev->odrs = lis3_8_rates;
+		dev->odr_mask = CTRL1_DR;
+		dev->scale = LIS3_SENSITIVITY_8B;
 		break;
 	default:
 		printk(KERN_ERR DRIVER_NAME
 			": unknown sensor type 0x%X\n", dev->whoami);
 		return -EINVAL;
 	}
+
+	mutex_init(&dev->mutex);
 
 	lis3lv02d_add_fs(dev);
 	lis3lv02d_poweron(dev);
@@ -443,7 +567,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	if (dev->pdata) {
 		struct lis3lv02d_platform_data *p = dev->pdata;
 
-		if (p->click_flags && (dev->whoami == LIS_SINGLE_ID)) {
+		if (p->click_flags && (dev->whoami == WAI_8B)) {
 			dev->write(dev, CLICK_CFG, p->click_flags);
 			dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
 			dev->write(dev, CLICK_LATENCY, p->click_latency);
@@ -454,7 +578,7 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 					(p->click_thresh_y << 4));
 		}
 
-		if (p->wakeup_flags && (dev->whoami == LIS_SINGLE_ID)) {
+		if (p->wakeup_flags && (dev->whoami == WAI_8B)) {
 			dev->write(dev, FF_WU_CFG_1, p->wakeup_flags);
 			dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
 			/* default to 2.5ms for now */
@@ -484,4 +608,3 @@ EXPORT_SYMBOL_GPL(lis3lv02d_init_device);
 MODULE_DESCRIPTION("ST LIS3LV02Dx three-axis digital accelerometer driver");
 MODULE_AUTHOR("Yan Burman, Eric Piel, Pavel Machek");
 MODULE_LICENSE("GPL");
-

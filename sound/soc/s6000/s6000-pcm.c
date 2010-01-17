@@ -196,7 +196,7 @@ static int s6000_pcm_start(struct snd_pcm_substream *substream)
 			   0 /* destination skip after chunk (impossible) */,
 			   4 /* 16 byte burst size */,
 			   -1 /* don't conserve bandwidth */,
-			   0 /* low watermark irq descriptor theshold */,
+			   0 /* low watermark irq descriptor threshold */,
 			   0 /* disable hardware timestamps */,
 			   1 /* enable channel */);
 

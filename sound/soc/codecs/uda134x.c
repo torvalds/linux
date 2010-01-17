@@ -101,7 +101,7 @@ static int uda134x_write(struct snd_soc_codec *codec, unsigned int reg,
 	pr_debug("%s reg: %02X, value:%02X\n", __func__, reg, value);
 
 	if (reg >= UDA134X_REGS_NUM) {
-		printk(KERN_ERR "%s unkown register: reg: %u",
+		printk(KERN_ERR "%s unknown register: reg: %u",
 		       __func__, reg);
 		return -EINVAL;
 	}
@@ -552,7 +552,7 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 					ARRAY_SIZE(uda1341_snd_controls));
 	break;
 	default:
-		printk(KERN_ERR "%s unkown codec type: %d",
+		printk(KERN_ERR "%s unknown codec type: %d",
 			__func__, pd->model);
 	return -EINVAL;
 	}

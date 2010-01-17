@@ -22,6 +22,8 @@
 
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/namei.h>
+#include <linux/fs.h>
 #include <asm/div64.h>
 #include "ubi.h"
 
@@ -278,6 +280,44 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
+
+/**
+ * ubi_open_volume_path - open UBI volume by its character device node path.
+ * @pathname: volume character device node path
+ * @mode: open mode
+ *
+ * This function is similar to 'ubi_open_volume()', but opens a volume the path
+ * to its character device node.
+ */
+struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
+{
+	int error, ubi_num, vol_id;
+	struct ubi_volume_desc *ret;
+	struct inode *inode;
+	struct path path;
+
+	dbg_gen("open volume %s, mode %d", pathname, mode);
+
+	if (!pathname || !*pathname)
+		return ERR_PTR(-EINVAL);
+
+	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	if (error)
+		return ERR_PTR(error);
+
+	inode = path.dentry->d_inode;
+	ubi_num = ubi_major2num(imajor(inode));
+	vol_id = iminor(inode) - 1;
+
+	if (vol_id >= 0 && ubi_num >= 0)
+		ret = ubi_open_volume(ubi_num, vol_id, mode);
+	else
+		ret = ERR_PTR(-ENODEV);
+
+	path_put(&path);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ubi_open_volume_path);
 
 /**
  * ubi_close_volume - close UBI volume.

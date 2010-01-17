@@ -25,5 +25,7 @@ struct us122l {
 
 #define USB_ID_US122L 0x800E
 #define USB_ID_US144 0x800F
+#define USB_ID_US122MKII 0x8021
+#define USB_ID_US144MKII 0x8020
 
 #endif

@@ -24,6 +24,16 @@ config KEYBOARD_AAED2000
 	  To compile this driver as a module, choose M here: the
 	  module will be called aaed2000_kbd.
 
+config KEYBOARD_ADP5520
+	tristate "Keypad Support for ADP5520 PMIC"
+	depends on PMIC_ADP5520
+	help
+	  This option enables support for the keypad scan matrix
+	  on Analog Devices ADP5520 PMICs.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp5520-keys.
+
 config KEYBOARD_ADP5588
 	tristate "ADP5588 I2C QWERTY Keypad and IO Expander"
 	depends on I2C
@@ -360,6 +370,16 @@ config KEYBOARD_SH_KEYSC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sh_keysc.
+
+config KEYBOARD_DAVINCI
+	tristate "TI DaVinci Key Scan"
+	depends on ARCH_DAVINCI_DM365
+	help
+	  Say Y to enable keypad module support for the TI DaVinci
+	  platforms (DM365).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called davinci_keyscan.
 
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"

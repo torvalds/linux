@@ -53,11 +53,6 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 
 	i = batch->index;
 
-	/* We mask the address for the base page size. Huge pages will
-	 * have applied their own masking already
-	 */
-	addr &= PAGE_MASK;
-
 	/* Get page size (maybe move back to caller).
 	 *
 	 * NOTE: when using special 64K mappings in 4K environment like
@@ -74,6 +69,9 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 #endif
 	} else
 		psize = pte_pagesize_index(mm, addr, pte);
+
+	/* Mask the address for the correct page size */
+	addr &= ~((1UL << mmu_psize_defs[psize].shift) - 1);
 
 	/* Build full vaddr */
 	if (!is_kernel_addr(addr)) {

@@ -68,6 +68,116 @@ struct workqueue_struct {
 #endif
 };
 
+#ifdef CONFIG_DEBUG_OBJECTS_WORK
+
+static struct debug_obj_descr work_debug_descr;
+
+/*
+ * fixup_init is called when:
+ * - an active object is initialized
+ */
+static int work_fixup_init(void *addr, enum debug_obj_state state)
+{
+	struct work_struct *work = addr;
+
+	switch (state) {
+	case ODEBUG_STATE_ACTIVE:
+		cancel_work_sync(work);
+		debug_object_init(work, &work_debug_descr);
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+/*
+ * fixup_activate is called when:
+ * - an active object is activated
+ * - an unknown object is activated (might be a statically initialized object)
+ */
+static int work_fixup_activate(void *addr, enum debug_obj_state state)
+{
+	struct work_struct *work = addr;
+
+	switch (state) {
+
+	case ODEBUG_STATE_NOTAVAILABLE:
+		/*
+		 * This is not really a fixup. The work struct was
+		 * statically initialized. We just make sure that it
+		 * is tracked in the object tracker.
+		 */
+		if (test_bit(WORK_STRUCT_STATIC, work_data_bits(work))) {
+			debug_object_init(work, &work_debug_descr);
+			debug_object_activate(work, &work_debug_descr);
+			return 0;
+		}
+		WARN_ON_ONCE(1);
+		return 0;
+
+	case ODEBUG_STATE_ACTIVE:
+		WARN_ON(1);
+
+	default:
+		return 0;
+	}
+}
+
+/*
+ * fixup_free is called when:
+ * - an active object is freed
+ */
+static int work_fixup_free(void *addr, enum debug_obj_state state)
+{
+	struct work_struct *work = addr;
+
+	switch (state) {
+	case ODEBUG_STATE_ACTIVE:
+		cancel_work_sync(work);
+		debug_object_free(work, &work_debug_descr);
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static struct debug_obj_descr work_debug_descr = {
+	.name		= "work_struct",
+	.fixup_init	= work_fixup_init,
+	.fixup_activate	= work_fixup_activate,
+	.fixup_free	= work_fixup_free,
+};
+
+static inline void debug_work_activate(struct work_struct *work)
+{
+	debug_object_activate(work, &work_debug_descr);
+}
+
+static inline void debug_work_deactivate(struct work_struct *work)
+{
+	debug_object_deactivate(work, &work_debug_descr);
+}
+
+void __init_work(struct work_struct *work, int onstack)
+{
+	if (onstack)
+		debug_object_init_on_stack(work, &work_debug_descr);
+	else
+		debug_object_init(work, &work_debug_descr);
+}
+EXPORT_SYMBOL_GPL(__init_work);
+
+void destroy_work_on_stack(struct work_struct *work)
+{
+	debug_object_free(work, &work_debug_descr);
+}
+EXPORT_SYMBOL_GPL(destroy_work_on_stack);
+
+#else
+static inline void debug_work_activate(struct work_struct *work) { }
+static inline void debug_work_deactivate(struct work_struct *work) { }
+#endif
+
 /* Serializes the accesses to the list of workqueues. */
 static DEFINE_SPINLOCK(workqueue_lock);
 static LIST_HEAD(workqueues);
@@ -145,6 +255,7 @@ static void __queue_work(struct cpu_workqueue_struct *cwq,
 {
 	unsigned long flags;
 
+	debug_work_activate(work);
 	spin_lock_irqsave(&cwq->lock, flags);
 	insert_work(cwq, work, &cwq->worklist);
 	spin_unlock_irqrestore(&cwq->lock, flags);
@@ -280,6 +391,7 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 		struct lockdep_map lockdep_map = work->lockdep_map;
 #endif
 		trace_workqueue_execution(cwq->thread, work);
+		debug_work_deactivate(work);
 		cwq->current_work = work;
 		list_del_init(cwq->worklist.next);
 		spin_unlock_irq(&cwq->lock);
@@ -350,11 +462,18 @@ static void wq_barrier_func(struct work_struct *work)
 static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
 			struct wq_barrier *barr, struct list_head *head)
 {
-	INIT_WORK(&barr->work, wq_barrier_func);
+	/*
+	 * debugobject calls are safe here even with cwq->lock locked
+	 * as we know for sure that this will not trigger any of the
+	 * checks and call back into the fixup functions where we
+	 * might deadlock.
+	 */
+	INIT_WORK_ON_STACK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING, work_data_bits(&barr->work));
 
 	init_completion(&barr->done);
 
+	debug_work_activate(&barr->work);
 	insert_work(cwq, &barr->work, head);
 }
 
@@ -372,8 +491,10 @@ static int flush_cpu_workqueue(struct cpu_workqueue_struct *cwq)
 	}
 	spin_unlock_irq(&cwq->lock);
 
-	if (active)
+	if (active) {
 		wait_for_completion(&barr.done);
+		destroy_work_on_stack(&barr.work);
+	}
 
 	return active;
 }
@@ -451,6 +572,7 @@ out:
 		return 0;
 
 	wait_for_completion(&barr.done);
+	destroy_work_on_stack(&barr.work);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(flush_work);
@@ -485,6 +607,7 @@ static int try_to_grab_pending(struct work_struct *work)
 		 */
 		smp_rmb();
 		if (cwq == get_wq_data(work)) {
+			debug_work_deactivate(work);
 			list_del_init(&work->entry);
 			ret = 1;
 		}
@@ -507,8 +630,10 @@ static void wait_on_cpu_work(struct cpu_workqueue_struct *cwq,
 	}
 	spin_unlock_irq(&cwq->lock);
 
-	if (unlikely(running))
+	if (unlikely(running)) {
 		wait_for_completion(&barr.done);
+		destroy_work_on_stack(&barr.work);
+	}
 }
 
 static void wait_on_work(struct work_struct *work)

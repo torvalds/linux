@@ -408,8 +408,7 @@ extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 extern void			tcp_parse_options(struct sk_buff *skb,
 						  struct tcp_options_received *opt_rx,
 						  u8 **hvpp,
-						  int estab,
-						  struct dst_entry *dst);
+						  int estab);
 
 extern u8			*tcp_parse_md5sig_option(struct tcphdr *th);
 
@@ -1260,29 +1259,6 @@ static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_bu
 
 #define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
 	skb_queue_walk_from_safe(&(sk)->sk_write_queue, skb, tmp)
-
-/* This function calculates a "timeout" which is equivalent to the timeout of a
- * TCP connection after "boundary" unsucessful, exponentially backed-off
- * retransmissions with an initial RTO of TCP_RTO_MIN.
- */
-static inline bool retransmits_timed_out(const struct sock *sk,
-					 unsigned int boundary)
-{
-	unsigned int timeout, linear_backoff_thresh;
-
-	if (!inet_csk(sk)->icsk_retransmits)
-		return false;
-
-	linear_backoff_thresh = ilog2(TCP_RTO_MAX/TCP_RTO_MIN);
-
-	if (boundary <= linear_backoff_thresh)
-		timeout = ((2 << boundary) - 1) * TCP_RTO_MIN;
-	else
-		timeout = ((2 << linear_backoff_thresh) - 1) * TCP_RTO_MIN +
-			  (boundary - linear_backoff_thresh) * TCP_RTO_MAX;
-
-	return (tcp_time_stamp - tcp_sk(sk)->retrans_stamp) >= timeout;
-}
 
 static inline struct sk_buff *tcp_send_head(struct sock *sk)
 {

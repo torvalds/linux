@@ -1208,6 +1208,7 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
  *	ata_scsi_change_queue_depth - SCSI callback for queue depth config
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
+ *	@reason: calling context
  *
  *	This is libata standard hostt->change_queue_depth callback.
  *	SCSI will call into this callback when user tries to set queue
@@ -1219,11 +1220,15 @@ void ata_scsi_slave_destroy(struct scsi_device *sdev)
  *	RETURNS:
  *	Newly configured queue depth.
  */
-int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
+int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth,
+				int reason)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev;
 	unsigned long flags;
+
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
 
 	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
 		return sdev->queue_depth;
@@ -3017,7 +3022,7 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case WRITE_16:
 		return ata_scsi_rw_xlat;
 
-	case 0x93 /*WRITE_SAME_16*/:
+	case WRITE_SAME_16:
 		return ata_scsi_write_same_xlat;
 
 	case SYNCHRONIZE_CACHE:

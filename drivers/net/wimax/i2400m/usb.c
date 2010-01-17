@@ -579,7 +579,7 @@ void i2400mu_disconnect(struct usb_interface *iface)
  *
  *    As well, the device might refuse going to sleep for whichever
  *    reason. In this case we just fail. For system suspend/hibernate,
- *    we *can't* fail. We look at usb_dev->auto_pm to see if the
+ *    we *can't* fail. We check PM_EVENT_AUTO to see if the
  *    suspend call comes from the USB stack or from the system and act
  *    in consequence.
  *
@@ -591,14 +591,11 @@ int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
 	int result = 0;
 	struct device *dev = &iface->dev;
 	struct i2400mu *i2400mu = usb_get_intfdata(iface);
-#ifdef CONFIG_PM
-	struct usb_device *usb_dev = i2400mu->usb_dev;
-#endif
 	unsigned is_autosuspend = 0;
 	struct i2400m *i2400m = &i2400mu->i2400m;
 
 #ifdef CONFIG_PM
-	if (usb_dev->auto_pm > 0)
+	if (pm_msg.event & PM_EVENT_AUTO)
 		is_autosuspend = 1;
 #endif
 

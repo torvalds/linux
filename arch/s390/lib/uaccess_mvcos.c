@@ -162,7 +162,6 @@ static size_t clear_user_mvcos(size_t size, void __user *to)
 	return size;
 }
 
-#ifdef CONFIG_S390_SWITCH_AMODE
 static size_t strnlen_user_mvcos(size_t count, const char __user *src)
 {
 	char buf[256];
@@ -200,7 +199,6 @@ static size_t strncpy_from_user_mvcos(size_t count, const char __user *src,
 	} while ((len_str == len) && (done < count));
 	return done;
 }
-#endif /* CONFIG_S390_SWITCH_AMODE */
 
 struct uaccess_ops uaccess_mvcos = {
 	.copy_from_user = copy_from_user_mvcos_check,
@@ -215,7 +213,6 @@ struct uaccess_ops uaccess_mvcos = {
 	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_std,
 };
 
-#ifdef CONFIG_S390_SWITCH_AMODE
 struct uaccess_ops uaccess_mvcos_switch = {
 	.copy_from_user = copy_from_user_mvcos,
 	.copy_from_user_small = copy_from_user_mvcos,
@@ -228,4 +225,3 @@ struct uaccess_ops uaccess_mvcos_switch = {
 	.futex_atomic_op = futex_atomic_op_pt,
 	.futex_atomic_cmpxchg = futex_atomic_cmpxchg_pt,
 };
-#endif

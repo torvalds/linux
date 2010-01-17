@@ -1842,7 +1842,7 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log)
 	}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS))
+	if (!(iwl_get_debug_level(priv) & IWL_DL_FW_ERRORS) && !full_log)
 		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
 			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
 #else
@@ -3173,7 +3173,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	priv->ibss_beacon = NULL;
 
-	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
@@ -3361,10 +3360,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(unsigned long long) pci_resource_len(pdev, 0));
 	IWL_DEBUG_INFO(priv, "pci_resource_base = %p\n", priv->hw_base);
 
-	/* this spin lock will be used in apm_ops.init and EEPROM access
+	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
 	spin_lock_init(&priv->reg_lock);
+	spin_lock_init(&priv->lock);
 	iwl_hw_detect(priv);
 	IWL_INFO(priv, "Detected Intel Wireless WiFi Link %s REV=0x%X\n",
 		priv->cfg->name, priv->hw_rev);

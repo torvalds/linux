@@ -519,7 +519,7 @@ int et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 void et131x_tx_timeout(struct net_device *netdev)
 {
 	struct et131x_adapter *etdev = netdev_priv(netdev);
-	PMP_TCB pMpTcb;
+	struct tcb *tcb;
 	unsigned long flags;
 
 	/* Just skip this part if the adapter is doing link detection */
@@ -541,28 +541,19 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Is send stuck? */
 	spin_lock_irqsave(&etdev->TCBSendQLock, flags);
 
-	pMpTcb = etdev->TxRing.CurrSendHead;
+	tcb = etdev->tx_ring.send_head;
 
-	if (pMpTcb != NULL) {
-		pMpTcb->Count++;
+	if (tcb != NULL) {
+		tcb->count++;
 
-		if (pMpTcb->Count > NIC_SEND_HANG_THRESHOLD) {
-			TX_DESC_ENTRY_t StuckDescriptors[10];
-
-			if (INDEX10(pMpTcb->WrIndex) > 7) {
-				memcpy(StuckDescriptors,
-				       etdev->TxRing.pTxDescRingVa +
-				       INDEX10(pMpTcb->WrIndex) - 6,
-				       sizeof(TX_DESC_ENTRY_t) * 10);
-			}
-
+		if (tcb->count > NIC_SEND_HANG_THRESHOLD) {
 			spin_unlock_irqrestore(&etdev->TCBSendQLock,
 					       flags);
 
 			dev_warn(&etdev->pdev->dev,
-				"Send stuck - reset.  pMpTcb->WrIndex %x, Flags 0x%08x\n",
-				pMpTcb->WrIndex,
-				pMpTcb->Flags);
+				"Send stuck - reset.  tcb->WrIndex %x, Flags 0x%08x\n",
+				tcb->index,
+				tcb->flags);
 
 			et131x_close(netdev);
 			et131x_open(netdev);
@@ -622,7 +613,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	et131x_init_send(adapter);
 
-	et131x_setup_hardware_properties(adapter);
+	et131x_hwaddr_init(adapter);
 	memcpy(netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN);
 
 	/* Init the device with the new settings */
@@ -709,9 +700,7 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	et131x_init_send(adapter);
 
-	et131x_setup_hardware_properties(adapter);
-	/* memcpy( netdev->dev_addr, adapter->CurrentAddress, ETH_ALEN ); */
-	/* blux: no, do not override our nice address */
+	et131x_hwaddr_init(adapter);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);

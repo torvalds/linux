@@ -806,7 +806,7 @@ int security_bounded_transition(u32 old_sid, u32 new_sid)
 		goto out;
 	}
 
-	/* type/domain unchaned */
+	/* type/domain unchanged */
 	if (old_context->type == new_context->type) {
 		rc = 0;
 		goto out;

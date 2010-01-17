@@ -46,7 +46,7 @@
 /**
  * struct ps3_sys_manager_header - System manager message header.
  * @version: Header version, currently 1.
- * @size: Header size in bytes, curently 16.
+ * @size: Header size in bytes, currently 16.
  * @payload_size: Message payload size in bytes.
  * @service_id: Message type, one of enum ps3_sys_manager_service_id.
  * @request_tag: Unique number to identify reply.

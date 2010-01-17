@@ -4,7 +4,7 @@
  *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * based upon cs5535.c from AMD <Jens.Altmann@amd.com> as cleaned up and
- * made readable and Linux style by Wolfgang Zuleger <wolfgang.zuleger@gmx.de
+ * made readable and Linux style by Wolfgang Zuleger <wolfgang.zuleger@gmx.de>
  * and Alexander Kiausch <alex.kiausch@t-online.de>
  *
  * This program is free software; you can redistribute it and/or modify

@@ -118,8 +118,7 @@ void __init mem_init(void)
 	       reservedpages << (PAGE_SHIFT - 10),
 	       datasize >> 10,
 	       initsize >> 10,
-	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT - 10))
-	       );
+	       totalhigh_pages << (PAGE_SHIFT - 10));
 }
 
 /*

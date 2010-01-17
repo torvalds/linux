@@ -1,5 +1,3 @@
-# drivers/platform/Kconfig
-
 if X86
 source "drivers/platform/x86/Kconfig"
 endif

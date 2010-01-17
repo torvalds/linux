@@ -72,7 +72,8 @@ struct ad198x_spec {
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	unsigned int jack_present :1;
-	unsigned int inv_jack_detect:1;
+	unsigned int inv_jack_detect:1;	/* inverted jack-detection */
+	unsigned int inv_eapd:1;	/* inverted EAPD implementation */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
@@ -458,7 +459,7 @@ static struct hda_codec_ops ad198x_patch_ops = {
 
 /*
  * EAPD control
- * the private value = nid | (invert << 8)
+ * the private value = nid
  */
 #define ad198x_eapd_info	snd_ctl_boolean_mono_info
 
@@ -467,8 +468,7 @@ static int ad198x_eapd_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
-	int invert = (kcontrol->private_value >> 8) & 1;
-	if (invert)
+	if (spec->inv_eapd)
 		ucontrol->value.integer.value[0] = ! spec->cur_eapd;
 	else
 		ucontrol->value.integer.value[0] = spec->cur_eapd;
@@ -480,11 +480,10 @@ static int ad198x_eapd_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
-	int invert = (kcontrol->private_value >> 8) & 1;
 	hda_nid_t nid = kcontrol->private_value & 0xff;
 	unsigned int eapd;
 	eapd = !!ucontrol->value.integer.value[0];
-	if (invert)
+	if (spec->inv_eapd)
 		eapd = !eapd;
 	if (eapd == spec->cur_eapd)
 		return 0;
@@ -705,7 +704,7 @@ static struct snd_kcontrol_new ad1986a_laptop_eapd_mixers[] = {
 		.info = ad198x_eapd_info,
 		.get = ad198x_eapd_get,
 		.put = ad198x_eapd_put,
-		.private_value = 0x1b | (1 << 8), /* port-D, inversed */
+		.private_value = 0x1b, /* port-D */
 	},
 	{ } /* end */
 };
@@ -1074,6 +1073,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->loopback.amplist = ad1986a_loopbacks;
 #endif
 	spec->vmaster_nid = 0x1b;
+	spec->inv_eapd = 1; /* AD1986A has the inverted EAPD implementation */
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -1185,6 +1185,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 	 * So, let's disable the shared stream.
 	 */
 	spec->multiout.no_share_stream = 1;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -1370,6 +1372,8 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -1789,6 +1793,14 @@ static int patch_ad1981(struct hda_codec *codec)
 
 		codec->patch_ops.init = ad1981_hp_init;
 		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
+		/* set the upper-limit for mixer amp to 0dB for avoiding the
+		 * possible damage by overloading
+		 */
+		snd_hda_override_amp_caps(codec, 0x11, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
 		break;
 	case AD1981_THINKPAD:
 		spec->mixers[0] = ad1981_thinkpad_mixers;
@@ -1805,6 +1817,9 @@ static int patch_ad1981(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = ad1981_hp_unsol_event;
 		break;
 	}
+
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -2124,7 +2139,7 @@ static struct snd_kcontrol_new ad1988_laptop_mixers[] = {
 		.info = ad198x_eapd_info,
 		.get = ad198x_eapd_get,
 		.put = ad198x_eapd_put,
-		.private_value = 0x12 | (1 << 8), /* port-D, inversed */
+		.private_value = 0x12, /* port-D */
 	},
 
 	{ } /* end */
@@ -3065,6 +3080,7 @@ static int patch_ad1988(struct hda_codec *codec)
 		spec->input_mux = &ad1988_laptop_capture_source;
 		spec->num_mixers = 1;
 		spec->mixers[0] = ad1988_laptop_mixers;
+		spec->inv_eapd = 1; /* inverted EAPD */
 		spec->num_init_verbs = 1;
 		spec->init_verbs[0] = ad1988_laptop_init_verbs;
 		if (board_config == AD1988_LAPTOP_DIG)
@@ -3108,6 +3124,8 @@ static int patch_ad1988(struct hda_codec *codec)
 	spec->loopback.amplist = ad1988_loopbacks;
 #endif
 	spec->vmaster_nid = 0x04;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -3320,6 +3338,8 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec->slave_vols = ad1884_slave_vols;
 
 	codec->patch_ops = ad198x_patch_ops;
+
+	codec->no_trigger_sense = 1;
 
 	return 0;
 }
@@ -4278,6 +4298,8 @@ static int patch_ad1884a(struct hda_codec *codec)
 		break;
 	}
 
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 
@@ -4614,6 +4636,9 @@ static int patch_ad1882(struct hda_codec *codec)
 		spec->mixers[2] = ad1882_6stack_mixers;
 		break;
 	}
+
+	codec->no_trigger_sense = 1;
+
 	return 0;
 }
 

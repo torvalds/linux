@@ -141,11 +141,12 @@ static int alloc_pidmap(struct pid_namespace *pid_ns)
 			 * installing it:
 			 */
 			spin_lock_irq(&pidmap_lock);
-			if (map->page)
-				kfree(page);
-			else
+			if (!map->page) {
 				map->page = page;
+				page = NULL;
+			}
 			spin_unlock_irq(&pidmap_lock);
+			kfree(page);
 			if (unlikely(!map->page))
 				break;
 		}
@@ -268,12 +269,11 @@ struct pid *alloc_pid(struct pid_namespace *ns)
 	for (type = 0; type < PIDTYPE_MAX; ++type)
 		INIT_HLIST_HEAD(&pid->tasks[type]);
 
+	upid = pid->numbers + ns->level;
 	spin_lock_irq(&pidmap_lock);
-	for (i = ns->level; i >= 0; i--) {
-		upid = &pid->numbers[i];
+	for ( ; upid >= pid->numbers; --upid)
 		hlist_add_head_rcu(&upid->pid_chain,
 				&pid_hash[pid_hashfn(upid->nr, upid->ns)]);
-	}
 	spin_unlock_irq(&pidmap_lock);
 
 out:

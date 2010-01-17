@@ -57,10 +57,8 @@ struct intc_desc {
 	struct intc_sense_reg *sense_regs;
 	unsigned int nr_sense_regs;
 	char *name;
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 	struct intc_mask_reg *ack_regs;
 	unsigned int nr_ack_regs;
-#endif
 };
 
 #define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
@@ -73,7 +71,6 @@ struct intc_desc symbol __initdata = {					\
 	chipname,							\
 }
 
-#if defined(CONFIG_CPU_SH3) || defined(CONFIG_CPU_SH4A)
 #define DECLARE_INTC_DESC_ACK(symbol, chipname, vectors, groups,	\
 	mask_regs, prio_regs, sense_regs, ack_regs)			\
 struct intc_desc symbol __initdata = {					\
@@ -83,9 +80,11 @@ struct intc_desc symbol __initdata = {					\
 	chipname,							\
 	_INTC_ARRAY(ack_regs),						\
 }
-#endif
 
 void __init register_intc_controller(struct intc_desc *desc);
 int intc_set_priority(unsigned int irq, unsigned int prio);
+
+int reserve_irq_vector(unsigned int irq);
+void reserve_irq_legacy(void);
 
 #endif /* __SH_INTC_H */

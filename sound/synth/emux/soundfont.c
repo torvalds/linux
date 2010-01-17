@@ -374,7 +374,7 @@ sf_zone_new(struct snd_sf_list *sflist, struct snd_soundfont *sf)
 
 
 /*
- * increment sample couter
+ * increment sample counter
  */
 static void
 set_sample_counter(struct snd_sf_list *sflist, struct snd_soundfont *sf,

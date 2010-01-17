@@ -895,7 +895,7 @@ struct ff_periodic_effect {
 	struct ff_envelope envelope;
 
 	__u32 custom_len;
-	__s16 *custom_data;
+	__s16 __user *custom_data;
 };
 
 /**
@@ -1021,9 +1021,12 @@ struct ff_effect {
  * @keycodesize: size of elements in keycode table
  * @keycode: map of scancodes to keycodes for this device
  * @setkeycode: optional method to alter current keymap, used to implement
- *	sparse keymaps. If not supplied default mechanism will be used
+ *	sparse keymaps. If not supplied default mechanism will be used.
+ *	The method is being called while holding event_lock and thus must
+ *	not sleep
  * @getkeycode: optional method to retrieve current keymap. If not supplied
- *	default mechanism will be used
+ *	default mechanism will be used. The method is being called while
+ *	holding event_lock and thus must not sleep
  * @ff: force feedback structure associated with the device if device
  *	supports force feedback effects
  * @repeat_key: stores key code of the last key pressed; used to implement
@@ -1040,6 +1043,7 @@ struct ff_effect {
  * @absmin: minimum values for events coming from absolute axes
  * @absfuzz: describes noisiness for axes
  * @absflat: size of the center flat position (used by joydev)
+ * @absres: resolution used for events coming form absolute axes
  * @open: this method is called when the very first user calls
  *	input_open_device(). The driver must prepare the device
  *	to start generating events (start polling thread,
@@ -1293,6 +1297,9 @@ void input_unregister_device(struct input_dev *);
 
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
+
+int input_handler_for_each_handle(struct input_handler *, void *data,
+				  int (*fn)(struct input_handle *, void *));
 
 int input_register_handle(struct input_handle *);
 void input_unregister_handle(struct input_handle *);

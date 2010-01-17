@@ -160,11 +160,14 @@ Under each section, you can see 4 files.
 NOTE:
   These directories/files appear after physical memory hotplug phase.
 
-If CONFIG_NUMA is enabled the
-/sys/devices/system/memory/memoryXXX memory section
-directories can also be accessed via symbolic links located in
-the /sys/devices/system/node/node* directories.  For example:
+If CONFIG_NUMA is enabled the memoryXXX/ directories can also be accessed
+via symbolic links located in the /sys/devices/system/node/node* directories.
+
+For example:
 /sys/devices/system/node/node0/memory9 -> ../../memory/memory9
+
+A backlink will also be created:
+/sys/devices/system/memory/memory9/node0 -> ../../node/node0
 
 --------------------------------
 4. Physical memory hot-add phase

@@ -170,14 +170,12 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 		/* Table not found, return an Integer=0 and AE_OK */
 
-		ddb_handle = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		ddb_handle = acpi_ut_create_integer_object((u64) 0);
 		if (!ddb_handle) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
-		ddb_handle->integer.value = 0;
 		*return_desc = ddb_handle;
-
 		return_ACPI_STATUS(AE_OK);
 	}
 

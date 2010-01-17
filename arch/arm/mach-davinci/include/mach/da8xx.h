@@ -11,12 +11,17 @@
 #ifndef __ASM_ARCH_DAVINCI_DA8XX_H
 #define __ASM_ARCH_DAVINCI_DA8XX_H
 
+#include <video/da8xx-fb.h>
+
 #include <mach/serial.h>
 #include <mach/edma.h>
 #include <mach/i2c.h>
 #include <mach/emac.h>
 #include <mach/asp.h>
 #include <mach/mmc.h>
+#include <mach/usb.h>
+
+extern void __iomem *da8xx_syscfg_base;
 
 /*
  * The cp_intc interrupt controller for the da8xx isn't in the same
@@ -29,11 +34,15 @@
 #define DA8XX_CP_INTC_SIZE	SZ_8K
 #define DA8XX_CP_INTC_VIRT	(IO_VIRT - DA8XX_CP_INTC_SIZE - SZ_4K)
 
-#define DA8XX_BOOT_CFG_BASE	(IO_PHYS + 0x14000)
+#define DA8XX_SYSCFG_BASE	(IO_PHYS + 0x14000)
+#define DA8XX_SYSCFG_VIRT(x)	(da8xx_syscfg_base + (x))
+#define DA8XX_JTAG_ID_REG	0x18
+#define DA8XX_CFGCHIP0_REG	0x17c
+#define DA8XX_CFGCHIP2_REG	0x184
+#define DA8XX_CFGCHIP3_REG	0x188
 
 #define DA8XX_PSC0_BASE		0x01c10000
 #define DA8XX_PLL0_BASE		0x01c11000
-#define DA8XX_JTAG_ID_REG	0x01c14018
 #define DA8XX_TIMER64P0_BASE	0x01c20000
 #define DA8XX_TIMER64P1_BASE	0x01c21000
 #define DA8XX_GPIO_BASE		0x01e26000
@@ -43,6 +52,7 @@
 #define DA8XX_AEMIF_CS2_BASE	0x60000000
 #define DA8XX_AEMIF_CS3_BASE	0x62000000
 #define DA8XX_AEMIF_CTL_BASE	0x68000000
+#define DA8XX_DDR2_CTL_BASE	0xb0000000
 
 #define PINMUX0			0x00
 #define PINMUX1			0x04
@@ -71,13 +81,20 @@ void __init da850_init(void);
 int da8xx_register_edma(void);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_watchdog(void);
+int da8xx_register_usb20(unsigned mA, unsigned potpgt);
+int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
 int da8xx_register_emac(void);
-int da8xx_register_lcdc(void);
+int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
 int da8xx_register_mmcsd0(struct davinci_mmc_config *config);
-void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata);
+void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata);
+int da8xx_register_rtc(void);
+int da850_register_cpufreq(void);
+int da8xx_register_cpuidle(void);
 
 extern struct platform_device da8xx_serial_device;
 extern struct emac_platform_data da8xx_emac_pdata;
+extern struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata;
+extern struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata;
 
 extern const short da830_emif25_pins[];
 extern const short da830_spi0_pins[];
@@ -110,6 +127,7 @@ extern const short da850_uart2_pins[];
 extern const short da850_i2c0_pins[];
 extern const short da850_i2c1_pins[];
 extern const short da850_cpgmac_pins[];
+extern const short da850_rmii_pins[];
 extern const short da850_mcasp_pins[];
 extern const short da850_lcdcntl_pins[];
 extern const short da850_mmcsd0_pins[];

@@ -1,7 +1,7 @@
 /*
  * Loongson2 performance counter driver for oprofile
  *
- * Copyright (C) 2009 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2009 Lemote Inc.
  * Author: Yanhua <yanh@lemote.com>
  * Author: Wu Zhangjin <wuzj@lemote.com>
  *
@@ -125,6 +125,9 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	 */
 
 	/* Check whether the irq belongs to me */
+	enabled = read_c0_perfcnt() & LOONGSON2_PERFCNT_INT_EN;
+	if (!enabled)
+		return IRQ_NONE;
 	enabled = reg.cnt1_enabled | reg.cnt2_enabled;
 	if (!enabled)
 		return IRQ_NONE;

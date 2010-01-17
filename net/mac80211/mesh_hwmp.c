@@ -937,7 +937,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 
 	if (mpath->flags & MESH_PATH_ACTIVE) {
 		if (time_after(jiffies,
-			       mpath->exp_time +
+			       mpath->exp_time -
 			       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
 		    !memcmp(sdata->dev->dev_addr, hdr->addr4, ETH_ALEN) &&
 		    !(mpath->flags & MESH_PATH_RESOLVING) &&

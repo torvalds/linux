@@ -121,7 +121,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 				     0,   pcibios_align_resource,
 				     dev_priv->bridge_dev);
 	if (ret) {
-		DRM_DEBUG("failed bus alloc: %d\n", ret);
+		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
 		dev_priv->mch_res.start = 0;
 		goto out;
 	}
@@ -209,8 +209,8 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	uint32_t swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 	bool need_disable;
 
-	if (IS_IGDNG(dev)) {
-		/* On IGDNG whatever DRAM config, GPU always do
+	if (IS_IRONLAKE(dev)) {
+		/* On Ironlake whatever DRAM config, GPU always do
 		 * same swizzling setup.
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_9_10;
@@ -304,35 +304,39 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 
 
 /**
- * Returns the size of the fence for a tiled object of the given size.
+ * Returns whether an object is currently fenceable.  If not, it may need
+ * to be unbound and have its pitch adjusted.
  */
-static int
-i915_get_fence_size(struct drm_device *dev, int size)
+bool
+i915_obj_fenceable(struct drm_device *dev, struct drm_gem_object *obj)
 {
-	int i;
-	int start;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
 	if (IS_I965G(dev)) {
 		/* The 965 can have fences at any page boundary. */
-		return ALIGN(size, 4096);
+		if (obj->size & 4095)
+			return false;
+		return true;
+	} else if (IS_I9XX(dev)) {
+		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
+			return false;
 	} else {
-		/* Align the size to a power of two greater than the smallest
-		 * fence size.
-		 */
-		if (IS_I9XX(dev))
-			start = 1024 * 1024;
-		else
-			start = 512 * 1024;
-
-		for (i = start; i < size; i <<= 1)
-			;
-
-		return i;
+		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
+			return false;
 	}
+
+	/* Power of two sized... */
+	if (obj->size & (obj->size - 1))
+		return false;
+
+	/* Objects must be size aligned as well */
+	if (obj_priv->gtt_offset & (obj->size - 1))
+		return false;
+	return true;
 }
 
 /* Check pitch constriants for all chips & tiling formats */
-static bool
+bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 {
 	int tile_width;
@@ -382,12 +386,6 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 		return false;
 
 	if (stride & (stride - 1))
-		return false;
-
-	/* We don't 0handle the aperture area covered by the fence being bigger
-	 * than the object size.
-	 */
-	if (i915_get_fence_size(dev, size) != size)
 		return false;
 
 	return true;

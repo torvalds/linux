@@ -141,9 +141,11 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 	struct vm_area_struct *vma;
 	unsigned long prev_pfn, this_pfn;
 	unsigned long pages_done, user_address;
+	unsigned int offset;
 	int ret;
 
-	mem->size = PAGE_ALIGN(vb->size);
+	offset = vb->baddr & ~PAGE_MASK;
+	mem->size = PAGE_ALIGN(vb->size + offset);
 	mem->is_userptr = 0;
 	ret = -EINVAL;
 
@@ -166,7 +168,7 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
 			break;
 
 		if (pages_done == 0)
-			mem->dma_handle = this_pfn << PAGE_SHIFT;
+			mem->dma_handle = (this_pfn << PAGE_SHIFT) + offset;
 		else if (this_pfn != (prev_pfn + 1))
 			ret = -EFAULT;
 
@@ -429,7 +431,7 @@ static struct videobuf_qtype_ops qops = {
 };
 
 void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
-				    struct videobuf_queue_ops *ops,
+				    const struct videobuf_queue_ops *ops,
 				    struct device *dev,
 				    spinlock_t *irqlock,
 				    enum v4l2_buf_type type,

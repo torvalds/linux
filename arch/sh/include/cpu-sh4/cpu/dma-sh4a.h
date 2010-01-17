@@ -19,10 +19,10 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723) || \
       defined(CONFIG_CPU_SUBTYPE_SH7724)
 #define DMTE0_IRQ	48	/* DMAC0A*/
-#define DMTE4_IRQ	40	/* DMAC0B */
-#define DMTE6_IRQ	42
-#define DMTE8_IRQ	76	/* DMAC1A */
-#define DMTE9_IRQ	77
+#define DMTE4_IRQ	76	/* DMAC0B */
+#define DMTE6_IRQ	40
+#define DMTE8_IRQ	42	/* DMAC1A */
+#define DMTE9_IRQ	43
 #define DMTE10_IRQ	72	/* DMAC1B */
 #define DMTE11_IRQ	73
 #define DMAE0_IRQ	78	/* DMA Error IRQ*/

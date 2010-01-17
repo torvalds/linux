@@ -319,7 +319,7 @@ static int adp5588_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops adp5588_dev_pm_ops = {
+static const struct dev_pm_ops adp5588_dev_pm_ops = {
 	.suspend = adp5588_suspend,
 	.resume  = adp5588_resume,
 };

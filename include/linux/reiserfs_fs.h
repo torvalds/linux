@@ -52,11 +52,89 @@
 #define REISERFS_IOC32_GETVERSION	FS_IOC32_GETVERSION
 #define REISERFS_IOC32_SETVERSION	FS_IOC32_SETVERSION
 
-/* Locking primitives */
-/* Right now we are still falling back to (un)lock_kernel, but eventually that
-   would evolve into real per-fs locks */
-#define reiserfs_write_lock( sb ) lock_kernel()
-#define reiserfs_write_unlock( sb ) unlock_kernel()
+/*
+ * Locking primitives. The write lock is a per superblock
+ * special mutex that has properties close to the Big Kernel Lock
+ * which was used in the previous locking scheme.
+ */
+void reiserfs_write_lock(struct super_block *s);
+void reiserfs_write_unlock(struct super_block *s);
+int reiserfs_write_lock_once(struct super_block *s);
+void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
+
+#ifdef CONFIG_REISERFS_CHECK
+void reiserfs_lock_check_recursive(struct super_block *s);
+#else
+static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
+#endif
+
+/*
+ * Several mutexes depend on the write lock.
+ * However sometimes we want to relax the write lock while we hold
+ * these mutexes, according to the release/reacquire on schedule()
+ * properties of the Bkl that were used.
+ * Reiserfs performances and locking were based on this scheme.
+ * Now that the write lock is a mutex and not the bkl anymore, doing so
+ * may result in a deadlock:
+ *
+ * A acquire write_lock
+ * A acquire j_commit_mutex
+ * A release write_lock and wait for something
+ * B acquire write_lock
+ * B can't acquire j_commit_mutex and sleep
+ * A can't acquire write lock anymore
+ * deadlock
+ *
+ * What we do here is avoiding such deadlock by playing the same game
+ * than the Bkl: if we can't acquire a mutex that depends on the write lock,
+ * we release the write lock, wait a bit and then retry.
+ *
+ * The mutexes concerned by this hack are:
+ * - The commit mutex of a journal list
+ * - The flush mutex
+ * - The journal lock
+ * - The inode mutex
+ */
+static inline void reiserfs_mutex_lock_safe(struct mutex *m,
+			       struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	mutex_lock(m);
+	reiserfs_write_lock(s);
+}
+
+static inline void
+reiserfs_mutex_lock_nested_safe(struct mutex *m, unsigned int subclass,
+			       struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	mutex_lock_nested(m, subclass);
+	reiserfs_write_lock(s);
+}
+
+static inline void
+reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	down_read(sem);
+	reiserfs_write_lock(s);
+}
+
+/*
+ * When we schedule, we usually want to also release the write lock,
+ * according to the previous bkl based locking scheme of reiserfs.
+ */
+static inline void reiserfs_cond_resched(struct super_block *s)
+{
+	if (need_resched()) {
+		reiserfs_write_unlock(s);
+		schedule();
+		reiserfs_write_lock(s);
+	}
+}
 
 struct fid;
 
@@ -1329,7 +1407,11 @@ static inline loff_t max_reiserfs_offset(struct inode *inode)
 #define get_generation(s) atomic_read (&fs_generation(s))
 #define FILESYSTEM_CHANGED_TB(tb)  (get_generation((tb)->tb_sb) != (tb)->fs_gen)
 #define __fs_changed(gen,s) (gen != get_generation (s))
-#define fs_changed(gen,s) ({cond_resched(); __fs_changed(gen, s);})
+#define fs_changed(gen,s)		\
+({					\
+	reiserfs_cond_resched(s);	\
+	__fs_changed(gen, s);		\
+})
 
 /***************************************************************************/
 /*                  FIXATE NODES                                           */
@@ -1995,25 +2077,12 @@ void set_de_name_and_namelen(struct reiserfs_dir_entry *de);
 int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 			struct treepath *path, struct reiserfs_dir_entry *de);
 struct dentry *reiserfs_get_parent(struct dentry *);
-/* procfs.c */
 
-#if defined( CONFIG_PROC_FS ) && defined( CONFIG_REISERFS_PROC_INFO )
-#define REISERFS_PROC_INFO
-#else
-#undef REISERFS_PROC_INFO
-#endif
-
+#ifdef CONFIG_REISERFS_PROC_INFO
 int reiserfs_proc_info_init(struct super_block *sb);
 int reiserfs_proc_info_done(struct super_block *sb);
-struct proc_dir_entry *reiserfs_proc_register_global(char *name,
-						     read_proc_t * func);
-void reiserfs_proc_unregister_global(const char *name);
 int reiserfs_proc_info_global_init(void);
 int reiserfs_proc_info_global_done(void);
-int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
-				    int count, int *eof, void *data);
-
-#if defined( REISERFS_PROC_INFO )
 
 #define PROC_EXP( e )   e
 
@@ -2028,6 +2097,26 @@ int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
     PROC_INFO_ADD( sb, free_at[ ( level ) ], B_FREE_SPACE( bh ) );	\
     PROC_INFO_ADD( sb, items_at[ ( level ) ], B_NR_ITEMS( bh ) )
 #else
+static inline int reiserfs_proc_info_init(struct super_block *sb)
+{
+	return 0;
+}
+
+static inline int reiserfs_proc_info_done(struct super_block *sb)
+{
+	return 0;
+}
+
+static inline int reiserfs_proc_info_global_init(void)
+{
+	return 0;
+}
+
+static inline int reiserfs_proc_info_global_done(void)
+{
+	return 0;
+}
+
 #define PROC_EXP( e )
 #define VOID_V ( ( void ) 0 )
 #define PROC_INFO_MAX( sb, field, value ) VOID_V
@@ -2258,8 +2347,7 @@ __u32 r5_hash(const signed char *msg, int len);
 #define SPARE_SPACE 500
 
 /* prototypes from ioctl.c */
-int reiserfs_ioctl(struct inode *inode, struct file *filp,
-		   unsigned int cmd, unsigned long arg);
+long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long reiserfs_compat_ioctl(struct file *filp,
 		   unsigned int cmd, unsigned long arg);
 int reiserfs_unpack(struct inode *inode, struct file *filp);

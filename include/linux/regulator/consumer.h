@@ -35,6 +35,8 @@
 #ifndef __LINUX_REGULATOR_CONSUMER_H_
 #define __LINUX_REGULATOR_CONSUMER_H_
 
+#include <linux/device.h>
+
 /*
  * Regulator operating modes.
  *

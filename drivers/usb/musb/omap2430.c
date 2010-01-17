@@ -315,7 +315,7 @@ int musb_platform_exit(struct musb *musb)
 	musb_platform_suspend(musb);
 
 	clk_put(musb->clock);
-	musb->clock = 0;
+	musb->clock = NULL;
 
 	return 0;
 }

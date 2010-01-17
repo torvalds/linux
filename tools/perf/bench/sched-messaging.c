@@ -1,6 +1,6 @@
 /*
  *
- * builtin-bench-messaging.c
+ * sched-messaging.c
  *
  * messaging: Benchmark for scheduler and IPC mechanisms
  *
@@ -320,10 +320,12 @@ int bench_sched_messaging(int argc, const char **argv,
 		       num_groups, num_groups * 2 * num_fds,
 		       thread_mode ? "threads" : "processes");
 		printf(" %14s: %lu.%03lu [sec]\n", "Total time",
-		       diff.tv_sec, diff.tv_usec/1000);
+		       diff.tv_sec,
+		       (unsigned long) (diff.tv_usec/1000));
 		break;
 	case BENCH_FORMAT_SIMPLE:
-		printf("%lu.%03lu\n", diff.tv_sec, diff.tv_usec/1000);
+		printf("%lu.%03lu\n", diff.tv_sec,
+		       (unsigned long) (diff.tv_usec/1000));
 		break;
 	default:
 		/* reaching here is something disaster */

@@ -1403,11 +1403,13 @@ static struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 		ord = &dma_order->channels[channel];
 
 		for (ch = 0; ch < dma_channels; ch++) {
+			int tmp;
 			if (!is_channel_valid(ord->list[ch]))
 				continue;
 
-			if (s3c2410_chans[ord->list[ch]].in_use == 0) {
-				ch = ord->list[ch] & ~DMA_CH_VALID;
+			tmp = ord->list[ch] & ~DMA_CH_VALID;
+			if (s3c2410_chans[tmp].in_use == 0) {
+				ch = tmp;
 				goto found;
 			}
 		}

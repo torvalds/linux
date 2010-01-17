@@ -601,12 +601,9 @@ request_firmware_work_func(void *arg)
 	}
 	ret = _request_firmware(&fw, fw_work->name, fw_work->device,
 		fw_work->uevent);
-	if (ret < 0)
-		fw_work->cont(NULL, fw_work->context);
-	else {
-		fw_work->cont(fw, fw_work->context);
-		release_firmware(fw);
-	}
+
+	fw_work->cont(fw, fw_work->context);
+
 	module_put(fw_work->module);
 	kfree(fw_work);
 	return ret;
@@ -619,6 +616,7 @@ request_firmware_work_func(void *arg)
  *	is non-zero else the firmware copy must be done manually.
  * @name: name of firmware file
  * @device: device for which firmware is being loaded
+ * @gfp: allocation flags
  * @context: will be passed over to @cont, and
  *	@fw may be %NULL if firmware request fails.
  * @cont: function will be called asynchronously when the firmware
@@ -631,12 +629,12 @@ request_firmware_work_func(void *arg)
 int
 request_firmware_nowait(
 	struct module *module, int uevent,
-	const char *name, struct device *device, void *context,
+	const char *name, struct device *device, gfp_t gfp, void *context,
 	void (*cont)(const struct firmware *fw, void *context))
 {
 	struct task_struct *task;
 	struct firmware_work *fw_work = kmalloc(sizeof (struct firmware_work),
-						GFP_ATOMIC);
+						gfp);
 
 	if (!fw_work)
 		return -ENOMEM;

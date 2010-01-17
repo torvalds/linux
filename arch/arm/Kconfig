@@ -18,6 +18,8 @@ config ARM
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -603,6 +605,7 @@ config ARCH_SA1100
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_MTD_XIP
 	select ARCH_HAS_CPUFREQ
+	select CPU_FREQ
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -687,6 +690,7 @@ config ARCH_DAVINCI
 	select HAVE_IDE
 	select COMMON_CLKDEV
 	select GENERIC_ALLOCATOR
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's DaVinci platform.
 
@@ -1359,13 +1363,9 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
-	default y
 
 config CPU_FREQ_SA1110
 	bool
-	depends on CPU_FREQ && (SA1100_ASSABET || SA1100_CERF || SA1100_PT_SYSTEM3)
-	default y
 
 config CPU_FREQ_INTEGRATOR
 	tristate "CPUfreq driver for ARM Integrator CPUs"

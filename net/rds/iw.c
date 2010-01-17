@@ -184,8 +184,8 @@ static int rds_iw_conn_info_visitor(struct rds_connection *conn,
 		ic = conn->c_transport_data;
 		dev_addr = &ic->i_cm_id->route.addr.dev_addr;
 
-		ib_addr_get_sgid(dev_addr, (union ib_gid *) &iinfo->src_gid);
-		ib_addr_get_dgid(dev_addr, (union ib_gid *) &iinfo->dst_gid);
+		rdma_addr_get_sgid(dev_addr, (union ib_gid *) &iinfo->src_gid);
+		rdma_addr_get_dgid(dev_addr, (union ib_gid *) &iinfo->dst_gid);
 
 		rds_iwdev = ib_get_client_data(ic->i_cm_id->device, &rds_iw_client);
 		iinfo->max_send_wr = ic->i_send_ring.w_nr;

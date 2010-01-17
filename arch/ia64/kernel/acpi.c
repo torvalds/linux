@@ -702,10 +702,22 @@ int __init early_acpi_boot_init(void)
 		printk(KERN_ERR PREFIX
 		       "Error parsing MADT - no LAPIC entries\n");
 
+#ifdef CONFIG_SMP
+	if (available_cpus == 0) {
+		printk(KERN_INFO "ACPI: Found 0 CPUS; assuming 1\n");
+		printk(KERN_INFO "CPU 0 (0x%04x)", hard_smp_processor_id());
+		smp_boot_data.cpu_phys_id[available_cpus] =
+		    hard_smp_processor_id();
+		available_cpus = 1;	/* We've got at least one of these, no? */
+	}
+	smp_boot_data.cpu_count = available_cpus;
+#endif
+	/* Make boot-up look pretty */
+	printk(KERN_INFO "%d CPUs available, %d CPUs total\n", available_cpus,
+	       total_cpus);
+
 	return 0;
 }
-
-
 
 int __init acpi_boot_init(void)
 {
@@ -769,18 +781,8 @@ int __init acpi_boot_init(void)
 	if (acpi_table_parse(ACPI_SIG_FADT, acpi_parse_fadt))
 		printk(KERN_ERR PREFIX "Can't find FADT\n");
 
+#ifdef CONFIG_ACPI_NUMA
 #ifdef CONFIG_SMP
-	if (available_cpus == 0) {
-		printk(KERN_INFO "ACPI: Found 0 CPUS; assuming 1\n");
-		printk(KERN_INFO "CPU 0 (0x%04x)", hard_smp_processor_id());
-		smp_boot_data.cpu_phys_id[available_cpus] =
-		    hard_smp_processor_id();
-		available_cpus = 1;	/* We've got at least one of these, no? */
-	}
-	smp_boot_data.cpu_count = available_cpus;
-
-	smp_build_cpu_map();
-# ifdef CONFIG_ACPI_NUMA
 	if (srat_num_cpus == 0) {
 		int cpu, i = 1;
 		for (cpu = 0; cpu < smp_boot_data.cpu_count; cpu++)
@@ -789,14 +791,9 @@ int __init acpi_boot_init(void)
 				node_cpuid[i++].phys_id =
 				    smp_boot_data.cpu_phys_id[cpu];
 	}
-# endif
 #endif
-#ifdef CONFIG_ACPI_NUMA
 	build_cpu_to_node_map();
 #endif
-	/* Make boot-up look pretty */
-	printk(KERN_INFO "%d CPUs available, %d CPUs total\n", available_cpus,
-	       total_cpus);
 	return 0;
 }
 

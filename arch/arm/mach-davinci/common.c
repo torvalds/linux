@@ -86,6 +86,8 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	dip = davinci_get_id(davinci_soc_info.jtag_id);
 	if (!dip) {
 		ret = -EINVAL;
+		pr_err("Unknown DaVinci JTAG ID 0x%x\n",
+						davinci_soc_info.jtag_id);
 		goto err;
 	}
 
@@ -104,5 +106,5 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	return;
 
 err:
-	pr_err("davinci_common_init: SoC Initialization failed\n");
+	panic("davinci_common_init: SoC Initialization failed\n");
 }

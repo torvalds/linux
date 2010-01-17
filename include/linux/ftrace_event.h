@@ -57,6 +57,7 @@ struct trace_iterator {
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
 	struct trace_entry	*ent;
+	int			leftover;
 	int			cpu;
 	u64			ts;
 
@@ -130,7 +131,7 @@ struct ftrace_event_call {
 	void			*mod;
 	void			*data;
 
-	atomic_t		profile_count;
+	int			profile_count;
 	int			(*profile_enable)(struct ftrace_event_call *);
 	void			(*profile_disable)(struct ftrace_event_call *);
 };
@@ -157,7 +158,7 @@ enum {
 	FILTER_PTR_STRING,
 };
 
-extern int trace_define_common_fields(struct ftrace_event_call *call);
+extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,
 			      const char *name, int offset, int size,
 			      int is_signed, int filter_type);

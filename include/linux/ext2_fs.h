@@ -565,14 +565,14 @@ struct ext2_dir_entry_2 {
  * other bits are reserved for now.
  */
 enum {
-	EXT2_FT_UNKNOWN,
-	EXT2_FT_REG_FILE,
-	EXT2_FT_DIR,
-	EXT2_FT_CHRDEV,
-	EXT2_FT_BLKDEV,
-	EXT2_FT_FIFO,
-	EXT2_FT_SOCK,
-	EXT2_FT_SYMLINK,
+	EXT2_FT_UNKNOWN		= 0,
+	EXT2_FT_REG_FILE	= 1,
+	EXT2_FT_DIR		= 2,
+	EXT2_FT_CHRDEV		= 3,
+	EXT2_FT_BLKDEV		= 4,
+	EXT2_FT_FIFO		= 5,
+	EXT2_FT_SOCK		= 6,
+	EXT2_FT_SYMLINK		= 7,
 	EXT2_FT_MAX
 };
 

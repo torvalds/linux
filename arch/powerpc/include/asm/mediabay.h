@@ -17,25 +17,30 @@
 #define MB_POWER	6	/* media bay contains a Power device (???) */
 #define MB_NO		7	/* media bay contains nothing */
 
-/* Number of bays in the machine or 0 */
-extern int media_bay_count;
+struct macio_dev;
 
-#ifdef CONFIG_BLK_DEV_IDE_PMAC
-#include <linux/ide.h>
+#ifdef CONFIG_PMAC_MEDIABAY
 
-int check_media_bay_by_base(unsigned long base, int what);
-/* called by IDE PMAC host driver to register IDE controller for media bay */
-int media_bay_set_ide_infos(struct device_node *which_bay, unsigned long base,
-			    int irq, ide_hwif_t *hwif);
+/* Check the content type of the bay, returns MB_NO if the bay is still
+ * transitionning
+ */
+extern int check_media_bay(struct macio_dev *bay);
 
-int check_media_bay(struct device_node *which_bay, int what);
+/* The ATA driver uses the calls below to temporarily hold on the
+ * media bay callbacks while initializing the interface
+ */
+extern void lock_media_bay(struct macio_dev *bay);
+extern void unlock_media_bay(struct macio_dev *bay);
 
 #else
 
-static inline int check_media_bay(struct device_node *which_bay, int what)
+static inline int check_media_bay(struct macio_dev *bay)
 {
-	return -ENODEV;
+	return MB_NO;
 }
+
+static inline void lock_media_bay(struct macio_dev *bay) { }
+static inline void unlock_media_bay(struct macio_dev *bay) { }
 
 #endif
 

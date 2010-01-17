@@ -66,7 +66,7 @@ struct cmi_spec {
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 
-	/* pin deafault configuration */
+	/* pin default configuration */
 	hda_nid_t pin_nid[NUM_PINS];
 	unsigned int def_conf[NUM_PINS];
 	unsigned int pin_def_confs;

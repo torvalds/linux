@@ -75,16 +75,11 @@ static void __init expmask_init(void)
 	/*
 	 * Future proofing.
 	 *
-	 * Disable support for slottable sleep instruction
-	 * and non-nop instructions in the rte delay slot.
+	 * Disable support for slottable sleep instruction, non-nop
+	 * instructions in the rte delay slot, and associative writes to
+	 * the memory-mapped cache array.
 	 */
-	expmask &= ~(EXPMASK_RTEDS | EXPMASK_BRDSSLP);
-
-	/*
-	 * Enable associative writes to the memory-mapped cache array
-	 * until the cache flush ops have been rewritten.
-	 */
-	expmask |= EXPMASK_MMCAW;
+	expmask &= ~(EXPMASK_RTEDS | EXPMASK_BRDSSLP | EXPMASK_MMCAW);
 
 	__raw_writel(expmask, EXPMASK);
 	ctrl_barrier();
@@ -311,12 +306,12 @@ asmlinkage void __init sh_cpu_init(void)
 	if (fpu_disabled) {
 		printk("FPU Disabled\n");
 		current_cpu_data.flags &= ~CPU_HAS_FPU;
-		disable_fpu();
 	}
 
 	/* FPU initialization */
+	disable_fpu();
 	if ((current_cpu_data.flags & CPU_HAS_FPU)) {
-		clear_thread_flag(TIF_USEDFPU);
+		current_thread_info()->status &= ~TS_USEDFPU;
 		clear_used_math();
 	}
 
@@ -336,17 +331,6 @@ asmlinkage void __init sh_cpu_init(void)
 		current_cpu_data.flags &= ~CPU_HAS_DSP;
 		release_dsp();
 	}
-#endif
-
-	/*
-	 * Some brain-damaged loaders decided it would be a good idea to put
-	 * the UBC to sleep. This causes some issues when it comes to things
-	 * like PTRACE_SINGLESTEP or doing hardware watchpoints in GDB.  So ..
-	 * we wake it up and hope that all is well.
-	 */
-#ifdef CONFIG_SUPERH32
-	if (raw_smp_processor_id() == 0)
-		ubc_wakeup();
 #endif
 
 	speculative_execution_init();

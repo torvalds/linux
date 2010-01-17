@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
+#include <linux/module.h>
 
 #include <asm/mmu_context.h>
 
@@ -32,7 +33,7 @@ static DEFINE_IDR(mmu_context_idr);
 #define NO_CONTEXT	0
 #define MAX_CONTEXT	((1UL << 19) - 1)
 
-int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+int __init_new_context(void)
 {
 	int index;
 	int err;
@@ -57,22 +58,41 @@ again:
 		return -ENOMEM;
 	}
 
+	return index;
+}
+EXPORT_SYMBOL_GPL(__init_new_context);
+
+int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
+{
+	int index;
+
+	index = __init_new_context();
+	if (index < 0)
+		return index;
+
 	/* The old code would re-promote on fork, we don't do that
 	 * when using slices as it could cause problem promoting slices
 	 * that have been forced down to 4K
 	 */
 	if (slice_mm_new_context(mm))
 		slice_set_user_psize(mm, mmu_virtual_psize);
+	subpage_prot_init_new_context(mm);
 	mm->context.id = index;
 
 	return 0;
 }
 
-void destroy_context(struct mm_struct *mm)
+void __destroy_context(int context_id)
 {
 	spin_lock(&mmu_context_lock);
-	idr_remove(&mmu_context_idr, mm->context.id);
+	idr_remove(&mmu_context_idr, context_id);
 	spin_unlock(&mmu_context_lock);
+}
+EXPORT_SYMBOL_GPL(__destroy_context);
 
+void destroy_context(struct mm_struct *mm)
+{
+	__destroy_context(mm->context.id);
+	subpage_prot_free(mm);
 	mm->context.id = NO_CONTEXT;
 }

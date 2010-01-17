@@ -16,8 +16,6 @@
 #ifdef __KERNEL__
 
 extern void __memmove(void *,const void *,__kernel_size_t);
-extern __kernel_size_t __memcpy(void *,const void *,__kernel_size_t);
-extern __kernel_size_t __memset(void *,int,__kernel_size_t);
 
 #ifndef EXPORT_SYMTAB_STROPS
 
@@ -32,82 +30,10 @@ extern __kernel_size_t __memset(void *,int,__kernel_size_t);
 })
 
 #define __HAVE_ARCH_MEMCPY
-
-static inline void *__constant_memcpy(void *to, const void *from, __kernel_size_t n)
-{
-	extern void __copy_1page(void *, const void *);
-
-	if(n <= 32) {
-		__builtin_memcpy(to, from, n);
-	} else if (((unsigned int) to & 7) != 0) {
-		/* Destination is not aligned on the double-word boundary */
-		__memcpy(to, from, n);
-	} else {
-		switch(n) {
-		case PAGE_SIZE:
-			__copy_1page(to, from);
-			break;
-		default:
-			__memcpy(to, from, n);
-			break;
-		}
-	}
-	return to;
-}
-
-static inline void *__nonconstant_memcpy(void *to, const void *from, __kernel_size_t n)
-{
-	__memcpy(to, from, n);
-	return to;
-}
-
-#undef memcpy
-#define memcpy(t, f, n) \
-(__builtin_constant_p(n) ? \
- __constant_memcpy((t),(f),(n)) : \
- __nonconstant_memcpy((t),(f),(n)))
+#define memcpy(t, f, n) __builtin_memcpy(t, f, n)
 
 #define __HAVE_ARCH_MEMSET
-
-static inline void *__constant_c_and_count_memset(void *s, char c, __kernel_size_t count)
-{
-	extern void bzero_1page(void *);
-	extern __kernel_size_t __bzero(void *, __kernel_size_t);
-
-	if(!c) {
-		if(count == PAGE_SIZE)
-			bzero_1page(s);
-		else
-			__bzero(s, count);
-	} else {
-		__memset(s, c, count);
-	}
-	return s;
-}
-
-static inline void *__constant_c_memset(void *s, char c, __kernel_size_t count)
-{
-	extern __kernel_size_t __bzero(void *, __kernel_size_t);
-
-	if(!c)
-		__bzero(s, count);
-	else
-		__memset(s, c, count);
-	return s;
-}
-
-static inline void *__nonconstant_memset(void *s, char c, __kernel_size_t count)
-{
-	__memset(s, c, count);
-	return s;
-}
-
-#undef memset
-#define memset(s, c, count) \
-(__builtin_constant_p(c) ? (__builtin_constant_p(count) ? \
-                            __constant_c_and_count_memset((s), (c), (count)) : \
-                            __constant_c_memset((s), (c), (count))) \
-                          : __nonconstant_memset((s), (c), (count)))
+#define memset(s, c, count) __builtin_memset(s, c, count)
 
 #define __HAVE_ARCH_MEMSCAN
 

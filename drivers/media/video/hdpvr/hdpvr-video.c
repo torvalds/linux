@@ -139,7 +139,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			v4l2_err(&dev->v4l2_dev, "cannot allocate urb\n");
-			goto exit;
+			goto exit_urb;
 		}
 		buf->urb = urb;
 
@@ -148,7 +148,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		if (!mem) {
 			v4l2_err(&dev->v4l2_dev,
 				 "cannot allocate usb transfer buffer\n");
-			goto exit;
+			goto exit_urb_buffer;
 		}
 
 		usb_fill_bulk_urb(buf->urb, dev->udev,
@@ -161,6 +161,10 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		list_add_tail(&buf->buff_list, &dev->free_buff_list);
 	}
 	return 0;
+exit_urb_buffer:
+	usb_free_urb(urb);
+exit_urb:
+	kfree(buf);
 exit:
 	hdpvr_free_buffers(dev);
 	return retval;
@@ -519,7 +523,7 @@ static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 
 	mutex_lock(&dev->io_mutex);
 
-	if (video_is_unregistered(dev->video_dev)) {
+	if (!video_is_registered(dev->video_dev)) {
 		mutex_unlock(&dev->io_mutex);
 		return -EIO;
 	}

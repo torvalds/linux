@@ -133,7 +133,7 @@ struct snd_miro {
 static struct snd_miro_aci aci_device;
 
 static char * snd_opti9xx_names[] = {
-	"unkown",
+	"unknown",
 	"82C928", "82C929",
 	"82C924", "82C925",
 	"82C930", "82C931", "82C933"

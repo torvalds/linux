@@ -214,7 +214,8 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 		posix_flags |= SMB_O_EXCL;
 	if (oflags & O_TRUNC)
 		posix_flags |= SMB_O_TRUNC;
-	if (oflags & O_SYNC)
+	/* be safe and imply O_SYNC for O_DSYNC */
+	if (oflags & O_DSYNC)
 		posix_flags |= SMB_O_SYNC;
 	if (oflags & O_DIRECTORY)
 		posix_flags |= SMB_O_DIRECTORY;

@@ -1023,6 +1023,7 @@ ZEBRA_Config_85BASIC_HardCode(
 	u32	addr,data;
 	u32	u4bRegOffset, u4bRegValue, u4bRF23, u4bRF24;
        u8			u1b24E;
+	int d_cut = 0;
 
 
 	//=============================================================================
@@ -1035,8 +1036,10 @@ ZEBRA_Config_85BASIC_HardCode(
 	u4bRF23= RF_ReadReg(dev, 0x08);			mdelay(1);
 	u4bRF24= RF_ReadReg(dev, 0x09);			mdelay(1);
 
-	if (u4bRF23==0x818 && u4bRF24==0x70C && priv->card_8185 == VERSION_8187S_C)
-		priv->card_8185 = VERSION_8187S_D;
+	if (u4bRF23 == 0x818 && u4bRF24 == 0x70C) {
+		d_cut = 1;
+		printk(KERN_INFO "rtl8187se: card type changed from C- to D-cut\n");
+	}
 
 	// Page0 : reg0-reg15
 
@@ -1070,18 +1073,9 @@ ZEBRA_Config_85BASIC_HardCode(
 
 	RF_WriteReg(dev, 0x03, 0x0806);			mdelay(1);
 
-	if(priv->card_8185 < VERSION_8187S_C)
-	{
-		RF_WriteReg(dev, 0x04, 0x03f7);			mdelay(1);
-		RF_WriteReg(dev, 0x05, 0x05ab);			mdelay(1);
-		RF_WriteReg(dev, 0x06, 0x00c1);			mdelay(1);
-	}
-	else
-	{
-		RF_WriteReg(dev, 0x04, 0x03a7);			mdelay(1);
-		RF_WriteReg(dev, 0x05, 0x059b);			mdelay(1);
-		RF_WriteReg(dev, 0x06, 0x0081);			mdelay(1);
-	}
+	RF_WriteReg(dev, 0x04, 0x03a7);			mdelay(1);
+	RF_WriteReg(dev, 0x05, 0x059b);			mdelay(1);
+	RF_WriteReg(dev, 0x06, 0x0081);			mdelay(1);
 
 
 	RF_WriteReg(dev, 0x07, 0x01A0);			mdelay(1);
@@ -1091,14 +1085,11 @@ ZEBRA_Config_85BASIC_HardCode(
 	RF_WriteReg(dev, 0x0a, 0x0001);			mdelay(1);
 	RF_WriteReg(dev, 0x0b, 0x0418);			mdelay(1);
 
-	if(priv->card_8185 == VERSION_8187S_D)
-	{
+	if (d_cut) {
 		RF_WriteReg(dev, 0x0c, 0x0fbe);			mdelay(1);
 		RF_WriteReg(dev, 0x0d, 0x0008);			mdelay(1);
 		RF_WriteReg(dev, 0x0e, 0x0807);			mdelay(1); // RX LO buffer
-	}
-	else
-	{
+	} else {
 		RF_WriteReg(dev, 0x0c, 0x0fbe);			mdelay(1);
 		RF_WriteReg(dev, 0x0d, 0x0008);			mdelay(1);
 		RF_WriteReg(dev, 0x0e, 0x0806);			mdelay(1); // RX LO buffer
@@ -2493,8 +2484,8 @@ void rtl8185b_adapter_start(struct net_device *dev)
 	PhyConfig8185(dev);
 
 	// We assume RegWirelessMode has already been initialized before,
-	// however, we has to validate the wireless mode here and provide a reasonble
-	// initialized value if necessary. 2005.01.13, by rcnjko.
+	// however, we has to validate the wireless mode here and provide a
+	// reasonable initialized value if necessary. 2005.01.13, by rcnjko.
 	SupportedWirelessMode = GetSupportedWirelessMode8185(dev);
 	if(	(ieee->mode != WIRELESS_MODE_B) &&
 		(ieee->mode != WIRELESS_MODE_G) &&

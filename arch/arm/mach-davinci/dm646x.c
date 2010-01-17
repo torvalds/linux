@@ -8,7 +8,6 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
@@ -18,7 +17,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/dm646x.h>
-#include <mach/clock.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/irqs.h>
@@ -789,7 +787,14 @@ static struct davinci_id dm646x_ids[] = {
 		.part_no	= 0xb770,
 		.manufacturer	= 0x017,
 		.cpu_id		= DAVINCI_CPU_ID_DM6467,
-		.name		= "dm6467",
+		.name		= "dm6467_rev1.x",
+	},
+	{
+		.variant	= 0x1,
+		.part_no	= 0xb770,
+		.manufacturer	= 0x017,
+		.cpu_id		= DAVINCI_CPU_ID_DM6467,
+		.name		= "dm6467_rev3.x",
 	},
 };
 

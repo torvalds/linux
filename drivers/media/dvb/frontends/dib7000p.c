@@ -108,7 +108,7 @@ static int dib7000p_set_output_mode(struct dib7000p_state *state, int mode)
 
 	outreg = 0;
 	fifo_threshold = 1792;
-	smo_mode = (dib7000p_read_word(state, 235) & 0x0010) | (1 << 1);
+	smo_mode = (dib7000p_read_word(state, 235) & 0x0050) | (1 << 1);
 
 	dprintk( "setting output mode for demod %p to %d",
 			&state->demod, mode);
@@ -162,18 +162,19 @@ static int dib7000p_set_diversity_in(struct dvb_frontend *demod, int onoff)
 	if (state->div_force_off) {
 		dprintk( "diversity combination deactivated - forced by COFDM parameters");
 		onoff = 0;
-	}
+		dib7000p_write_word(state, 207, 0);
+	} else
+		dib7000p_write_word(state, 207, (state->div_sync_wait << 4) | (1 << 2) | (2 << 0));
+
 	state->div_state = (u8)onoff;
 
 	if (onoff) {
 		dib7000p_write_word(state, 204, 6);
 		dib7000p_write_word(state, 205, 16);
 		/* P_dvsy_sync_mode = 0, P_dvsy_sync_enable=1, P_dvcb_comb_mode=2 */
-		dib7000p_write_word(state, 207, (state->div_sync_wait << 4) | (1 << 2) | (2 << 0));
 	} else {
 		dib7000p_write_word(state, 204, 1);
 		dib7000p_write_word(state, 205, 0);
-		dib7000p_write_word(state, 207, 0);
 	}
 
 	return 0;
@@ -1188,7 +1189,7 @@ static int dib7000p_read_status(struct dvb_frontend *fe, fe_status_t *stat)
 		*stat |= FE_HAS_VITERBI;
 	if (lock & 0x0010)
 		*stat |= FE_HAS_SYNC;
-	if (lock & 0x0008)
+    if ((lock & 0x0038) == 0x38)
 		*stat |= FE_HAS_LOCK;
 
 	return 0;
@@ -1302,6 +1303,24 @@ struct i2c_adapter * dib7000p_get_i2c_master(struct dvb_frontend *demod, enum di
 }
 EXPORT_SYMBOL(dib7000p_get_i2c_master);
 
+int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
+{
+    struct dib7000p_state *state = fe->demodulator_priv;
+    u16 val = dib7000p_read_word(state, 235) & 0xffef;
+    val |= (onoff & 0x1) << 4;
+    dprintk("PID filter enabled %d", onoff);
+    return dib7000p_write_word(state, 235, val);
+}
+EXPORT_SYMBOL(dib7000p_pid_filter_ctrl);
+
+int dib7000p_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+    struct dib7000p_state *state = fe->demodulator_priv;
+    dprintk("PID filter: index %x, PID %d, OnOff %d", id, pid, onoff);
+    return dib7000p_write_word(state, 241 + id, onoff ? (1 << 13) | pid : 0);
+}
+EXPORT_SYMBOL(dib7000p_pid_filter);
+
 int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000p_config cfg[])
 {
 	struct dib7000p_state st = { .i2c_adap = i2c };
@@ -1314,8 +1333,10 @@ int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defau
 		/* designated i2c address */
 		new_addr          = (0x40 + k) << 1;
 		st.i2c_addr = new_addr;
+		dib7000p_write_word(&st, 1287, 0x0003); /* sram lead in, rdy */
 		if (dib7000p_identify(&st) != 0) {
 			st.i2c_addr = default_addr;
+			dib7000p_write_word(&st, 1287, 0x0003); /* sram lead in, rdy */
 			if (dib7000p_identify(&st) != 0) {
 				dprintk("DiB7000P #%d: not identified\n", k);
 				return -EIO;
@@ -1371,6 +1392,8 @@ struct dvb_frontend * dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
 	demod                   = &st->demod;
 	demod->demodulator_priv = st;
 	memcpy(&st->demod.ops, &dib7000p_ops, sizeof(struct dvb_frontend_ops));
+
+    dib7000p_write_word(st, 1287, 0x0003); /* sram lead in, rdy */
 
 	if (dib7000p_identify(st) != 0)
 		goto error;

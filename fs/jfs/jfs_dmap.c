@@ -755,7 +755,7 @@ int dbAlloc(struct inode *ip, s64 hint, s64 nblocks, s64 * results)
 	 * allocation group.
 	 */
 	if ((blkno & (bmp->db_agsize - 1)) == 0)
-		/* check if the AG is currenly being written to.
+		/* check if the AG is currently being written to.
 		 * if so, call dbNextAG() to find a non-busy
 		 * AG with sufficient free space.
 		 */
@@ -3337,7 +3337,7 @@ int dbExtendFS(struct inode *ipbmap, s64 blkno,	s64 nblocks)
 	for (i = 0, n = 0; i < agno; n++) {
 		bmp->db_agfree[n] = 0;	/* init collection point */
 
-		/* coalesce cotiguous k AGs; */
+		/* coalesce contiguous k AGs; */
 		for (j = 0; j < k && i < agno; j++, i++) {
 			/* merge AGi to AGn */
 			bmp->db_agfree[n] += bmp->db_agfree[i];

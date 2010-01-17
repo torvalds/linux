@@ -35,9 +35,6 @@
 static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm80);
-
 /* Many LM80 constants specified below */
 
 /* The LM80 registers */
@@ -133,8 +130,7 @@ struct lm80_data {
 
 static int lm80_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
-static int lm80_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm80_init_client(struct i2c_client *client);
 static int lm80_remove(struct i2c_client *client);
 static struct lm80_data *lm80_update_device(struct device *dev);
@@ -146,7 +142,7 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
  */
 
 static const struct i2c_device_id lm80_id[] = {
-	{ "lm80", lm80 },
+	{ "lm80", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm80_id);
@@ -160,7 +156,7 @@ static struct i2c_driver lm80_driver = {
 	.remove		= lm80_remove,
 	.id_table	= lm80_id,
 	.detect		= lm80_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -447,8 +443,7 @@ static const struct attribute_group lm80_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm80_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info)
+static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int i, cur;

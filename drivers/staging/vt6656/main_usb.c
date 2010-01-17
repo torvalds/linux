@@ -64,11 +64,9 @@
 #include "ioctl.h"
 #include "iwctl.h"
 #include "dpc.h"
-#include "iocmd.h"
 #include "datarate.h"
 #include "rf.h"
 #include "firmware.h"
-#include "mac.h"
 #include "rndis.h"
 #include "control.h"
 #include "channel.h"
@@ -809,12 +807,6 @@ vntwusb_found1(struct usb_interface *intf, const struct usb_device_id *id)
         kfree(pDevice);
         return -ENODEV;
     }
-	//2008-0623-02<Remark>by MikeLiu
-        //2007-0821-01<Add>by MikeLiu
-       //#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,21)
-  	//usb_set_intfdata(intf, pDevice);
-	//SET_NETDEV_DEV(netdev, &intf->dev);
-       //#endif
 
 //2008-07-21-01<Add>by MikeLiu
 //register wpadev
@@ -1545,7 +1537,7 @@ if(result!=0) {
   return buffer;
 }
 
-//return --->-1:fail;  >=0:sucessful
+//return --->-1:fail;  >=0:successful
 static int Read_config_file(PSDevice pDevice) {
   int result=0;
   UCHAR      tmpbuffer[100];

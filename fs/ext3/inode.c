@@ -970,7 +970,7 @@ static int ext3_get_block(struct inode *inode, sector_t iblock,
 		if (max_blocks > DIO_MAX_BLOCKS)
 			max_blocks = DIO_MAX_BLOCKS;
 		handle = ext3_journal_start(inode, DIO_CREDITS +
-				2 * EXT3_QUOTA_TRANS_BLOCKS(inode->i_sb));
+				EXT3_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb));
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			goto out;
@@ -1151,6 +1151,16 @@ static int do_journal_get_write_access(handle_t *handle,
 	return ext3_journal_get_write_access(handle, bh);
 }
 
+/*
+ * Truncate blocks that were not used by write. We have to truncate the
+ * pagecache as well so that corresponding buffers get properly unmapped.
+ */
+static void ext3_truncate_failed_write(struct inode *inode)
+{
+	truncate_inode_pages(inode->i_mapping, inode->i_size);
+	ext3_truncate(inode);
+}
+
 static int ext3_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
@@ -1209,7 +1219,7 @@ write_begin_failed:
 		unlock_page(page);
 		page_cache_release(page);
 		if (pos + len > inode->i_size)
-			ext3_truncate(inode);
+			ext3_truncate_failed_write(inode);
 	}
 	if (ret == -ENOSPC && ext3_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
@@ -1304,7 +1314,7 @@ static int ext3_ordered_write_end(struct file *file,
 	page_cache_release(page);
 
 	if (pos + len > inode->i_size)
-		ext3_truncate(inode);
+		ext3_truncate_failed_write(inode);
 	return ret ? ret : copied;
 }
 
@@ -1330,7 +1340,7 @@ static int ext3_writeback_write_end(struct file *file,
 	page_cache_release(page);
 
 	if (pos + len > inode->i_size)
-		ext3_truncate(inode);
+		ext3_truncate_failed_write(inode);
 	return ret ? ret : copied;
 }
 
@@ -1383,7 +1393,7 @@ static int ext3_journalled_write_end(struct file *file,
 	page_cache_release(page);
 
 	if (pos + len > inode->i_size)
-		ext3_truncate(inode);
+		ext3_truncate_failed_write(inode);
 	return ret ? ret : copied;
 }
 
@@ -2033,7 +2043,7 @@ static Indirect *ext3_find_shared(struct inode *inode, int depth,
 	int k, err;
 
 	*top = 0;
-	/* Make k index the deepest non-null offest + 1 */
+	/* Make k index the deepest non-null offset + 1 */
 	for (k = depth; k > 1 && !offsets[k-1]; k--)
 		;
 	partial = ext3_get_branch(inode, k, offsets, chain, &err);
@@ -3136,8 +3146,8 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 
 		/* (user+group)*(old+new) structure, inode write (sb,
 		 * inode block, ? - but truncate inode update has it) */
-		handle = ext3_journal_start(inode, 2*(EXT3_QUOTA_INIT_BLOCKS(inode->i_sb)+
-					EXT3_QUOTA_DEL_BLOCKS(inode->i_sb))+3);
+		handle = ext3_journal_start(inode, EXT3_MAXQUOTAS_INIT_BLOCKS(inode->i_sb)+
+					EXT3_MAXQUOTAS_DEL_BLOCKS(inode->i_sb)+3);
 		if (IS_ERR(handle)) {
 			error = PTR_ERR(handle);
 			goto err_out;
@@ -3229,7 +3239,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 #ifdef CONFIG_QUOTA
 	/* We know that structure was already allocated during vfs_dq_init so
 	 * we will be updating only the data blocks + inodes */
-	ret += 2*EXT3_QUOTA_TRANS_BLOCKS(inode->i_sb);
+	ret += EXT3_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
 #endif
 
 	return ret;

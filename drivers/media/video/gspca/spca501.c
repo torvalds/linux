@@ -1636,7 +1636,7 @@ static const __u16 spca501c_arowana_init_data[][3] = {
 	{}
 };
 
-/* Unknow camera from Ori Usbid 0x0000:0x0000 */
+/* Unknown camera from Ori Usbid 0x0000:0x0000 */
 /* Based on snoops from Ori Cohen */
 static const __u16 spca501c_mysterious_open_data[][3] = {
 	{0x02, 0x000f, 0x0005},
@@ -1945,7 +1945,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			goto error;
 		break;
 	case MystFromOriUnknownCamera:
-		/* UnKnow Ori CMOS Camera data */
+		/* Unknown Ori CMOS Camera data */
 		if (write_vector(gspca_dev, spca501c_mysterious_open_data))
 			goto error;
 		break;
@@ -1978,7 +1978,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		write_vector(gspca_dev, spca501c_arowana_open_data);
 		break;
 	case MystFromOriUnknownCamera:
-		/* UnKnow  CMOS Camera data */
+		/* Unknown CMOS Camera data */
 		write_vector(gspca_dev, spca501c_mysterious_init_data);
 		break;
 	default:
@@ -2032,20 +2032,15 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	switch (data[0]) {
 	case 0:				/* start of frame */
-		frame = gspca_frame_add(gspca_dev,
-					LAST_PACKET,
-					frame,
-					data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		data += SPCA501_OFFSET_DATA;
 		len -= SPCA501_OFFSET_DATA;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	case 0xff:			/* drop */
 /*		gspca_dev->last_packet_type = DISCARD_PACKET; */
@@ -2053,8 +2048,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 	data++;
 	len--;
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-			data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)

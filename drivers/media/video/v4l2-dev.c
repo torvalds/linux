@@ -189,7 +189,7 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 
 	if (!vdev->fops->read)
 		return -EINVAL;
-	if (video_is_unregistered(vdev))
+	if (!video_is_registered(vdev))
 		return -EIO;
 	return vdev->fops->read(filp, buf, sz, off);
 }
@@ -201,7 +201,7 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 
 	if (!vdev->fops->write)
 		return -EINVAL;
-	if (video_is_unregistered(vdev))
+	if (!video_is_registered(vdev))
 		return -EIO;
 	return vdev->fops->write(filp, buf, sz, off);
 }
@@ -210,7 +210,7 @@ static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
 
-	if (!vdev->fops->poll || video_is_unregistered(vdev))
+	if (!vdev->fops->poll || !video_is_registered(vdev))
 		return DEFAULT_POLLMASK;
 	return vdev->fops->poll(filp, poll);
 }
@@ -250,7 +250,7 @@ static unsigned long v4l2_get_unmapped_area(struct file *filp,
 
 	if (!vdev->fops->get_unmapped_area)
 		return -ENOSYS;
-	if (video_is_unregistered(vdev))
+	if (!video_is_registered(vdev))
 		return -ENODEV;
 	return vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
 }
@@ -260,8 +260,7 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 {
 	struct video_device *vdev = video_devdata(filp);
 
-	if (!vdev->fops->mmap ||
-	    video_is_unregistered(vdev))
+	if (!vdev->fops->mmap || !video_is_registered(vdev))
 		return -ENODEV;
 	return vdev->fops->mmap(filp, vm);
 }
@@ -277,7 +276,7 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	vdev = video_devdata(filp);
 	/* return ENODEV if the video device has been removed
 	   already or if it is not registered anymore. */
-	if (vdev == NULL || video_is_unregistered(vdev)) {
+	if (vdev == NULL || !video_is_registered(vdev)) {
 		mutex_unlock(&videodev_lock);
 		return -ENODEV;
 	}
@@ -551,10 +550,11 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 	vdev->dev.release = v4l2_device_release;
 
 	if (nr != -1 && nr != vdev->num && warn_if_nr_in_use)
-		printk(KERN_WARNING "%s: requested %s%d, got %s%d\n",
-				__func__, name_base, nr, name_base, vdev->num);
+		printk(KERN_WARNING "%s: requested %s%d, got %s\n", __func__,
+			name_base, nr, video_device_node_name(vdev));
 
 	/* Part 5: Activate this minor. The char device can now be used. */
+	set_bit(V4L2_FL_REGISTERED, &vdev->flags);
 	mutex_lock(&videodev_lock);
 	video_device[vdev->minor] = vdev;
 	mutex_unlock(&videodev_lock);
@@ -593,11 +593,11 @@ EXPORT_SYMBOL(video_register_device_no_warn);
 void video_unregister_device(struct video_device *vdev)
 {
 	/* Check if vdev was ever registered at all */
-	if (!vdev || vdev->minor < 0)
+	if (!vdev || !video_is_registered(vdev))
 		return;
 
 	mutex_lock(&videodev_lock);
-	set_bit(V4L2_FL_UNREGISTERED, &vdev->flags);
+	clear_bit(V4L2_FL_REGISTERED, &vdev->flags);
 	mutex_unlock(&videodev_lock);
 	device_unregister(&vdev->dev);
 }

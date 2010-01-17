@@ -133,6 +133,14 @@ config SPI_LM70_LLP
 	  which interfaces to an LM70 temperature sensor using
 	  a parallel port.
 
+config SPI_MPC52xx
+	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
+	depends on PPC_MPC52xx && SPI
+	select SPI_MASTER_OF
+	help
+	  This drivers supports the MPC52xx SPI controller in master SPI
+	  mode.
+
 config SPI_MPC52xx_PSC
 	tristate "Freescale MPC52xx PSC SPI controller"
 	depends on PPC_MPC52xx && EXPERIMENTAL
@@ -147,9 +155,6 @@ config SPI_MPC8xxx
 	  This enables using the Freescale MPC8xxx SPI controllers in master
 	  mode.
 
-	  This driver uses a simple set of shift registers for data (opposed
-	  to the CPM based descriptor model).
-
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
 	depends on ARCH_OMAP1
@@ -163,6 +168,12 @@ config SPI_OMAP24XX
 	help
 	  SPI master controller for OMAP24xx/OMAP34xx Multichannel SPI
 	  (McSPI) modules.
+
+config SPI_OMAP_100K
+	tristate "OMAP SPI 100K"
+	depends on SPI_MASTER && (ARCH_OMAP850 || ARCH_OMAP730)
+	help
+	  OMAP SPI 100K master controller for omap7xx boards.
 
 config SPI_ORION
 	tristate "Orion SPI master (EXPERIMENTAL)"
@@ -205,6 +216,17 @@ config SPI_S3C24XX
 	help
 	  SPI driver for Samsung S3C24XX series ARM SoCs
 
+config SPI_S3C24XX_FIQ
+	bool "S3C24XX driver with FIQ pseudo-DMA"
+	depends on SPI_S3C24XX
+	select FIQ
+	help
+	  Enable FIQ support for the S3C24XX SPI driver to provide pseudo
+	  DMA by using the fast-interrupt request framework, This allows
+	  the driver to get DMA-like performance when there are either
+	  no free DMA channels, or when doing transfers that required both
+	  TX and RX data paths.
+
 config SPI_S3C24XX_GPIO
 	tristate "Samsung S3C24XX series SPI by GPIO"
 	depends on ARCH_S3C2410 && EXPERIMENTAL
@@ -214,6 +236,20 @@ config SPI_S3C24XX_GPIO
 	  GPIO lines to provide the SPI bus. This can be used where
 	  the inbuilt hardware cannot provide the transfer mode, or
 	  where the board is using non hardware connected pins.
+
+config SPI_S3C64XX
+	tristate "Samsung S3C64XX series type SPI"
+	depends on ARCH_S3C64XX && EXPERIMENTAL
+	select S3C64XX_DMA
+	help
+	  SPI driver for Samsung S3C64XX and newer SoCs.
+
+config SPI_SH_MSIOF
+	tristate "SuperH MSIOF SPI controller"
+	depends on SUPERH && HAVE_CLK
+	select SPI_BITBANG
+	help
+	  SPI driver for SuperH MSIOF blocks.
 
 config SPI_SH_SCI
 	tristate "SuperH SCI SPI controller"
@@ -235,18 +271,51 @@ config SPI_TXX9
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 
 config SPI_XILINX
-	tristate "Xilinx SPI controller"
-	depends on (XILINX_VIRTEX || MICROBLAZE) && EXPERIMENTAL
+	tristate "Xilinx SPI controller common module"
+	depends on HAS_IOMEM && EXPERIMENTAL
 	select SPI_BITBANG
+	select SPI_XILINX_OF if (XILINX_VIRTEX || MICROBLAZE)
 	help
 	  This exposes the SPI controller IP from the Xilinx EDK.
 
 	  See the "OPB Serial Peripheral Interface (SPI) (v1.00e)"
 	  Product Specification document (DS464) for hardware details.
 
+	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
+
+config SPI_XILINX_OF
+	tristate "Xilinx SPI controller OF device"
+	depends on SPI_XILINX && (XILINX_VIRTEX || MICROBLAZE)
+	help
+	  This is the OF driver for the SPI controller IP from the Xilinx EDK.
+
+config SPI_XILINX_PLTFM
+	tristate "Xilinx SPI controller platform device"
+	depends on SPI_XILINX
+	help
+	  This is the platform driver for the SPI controller IP
+	  from the Xilinx EDK.
+
+config SPI_NUC900
+	tristate "Nuvoton NUC900 series SPI"
+	depends on ARCH_W90X900 && EXPERIMENTAL
+	select SPI_BITBANG
+	help
+	  SPI driver for Nuvoton NUC900 series ARM SoCs
+
 #
 # Add new SPI master controllers in alphabetical order above this line
 #
+
+config SPI_DESIGNWARE
+	bool "DesignWare SPI controller core support"
+	depends on SPI_MASTER
+	help
+	  general driver for SPI controller core from DesignWare
+
+config SPI_DW_PCI
+	tristate "PCI interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE && PCI
 
 #
 # There are lots of SPI device types, with sensors and memory

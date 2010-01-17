@@ -117,7 +117,7 @@ static unsigned int ath5k_hw_rfb_op(struct ath5k_hw *ah,
 
 /*
  * This code is used to optimize rf gain on different environments
- * (temprature mostly) based on feedback from a power detector.
+ * (temperature mostly) based on feedback from a power detector.
  *
  * It's only used on RF5111 and RF5112, later RF chips seem to have
  * auto adjustment on hw -notice they have a much smaller BANK 7 and
@@ -2746,7 +2746,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		/* Fill curves in reverse order
 		 * from lower power (max gain)
 		 * to higher power. Use curve -> idx
-		 * backmaping we did on eeprom init */
+		 * backmapping we did on eeprom init */
 		u8 idx = pdg_curve_to_idx[pdg];
 
 		/* Grab the needed curves by index */
@@ -2848,7 +2848,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 	/* Now we have a set of curves for this
 	 * channel on tmpL (x range is table_max - table_min
 	 * and y values are tmpL[pdg][]) sorted in the same
-	 * order as EEPROM (because we've used the backmaping).
+	 * order as EEPROM (because we've used the backmapping).
 	 * So for RF5112 it's from higher power to lower power
 	 * and for RF2413 it's from lower power to higher power.
 	 * For RF5111 we only have one curve. */

@@ -1,0 +1,22 @@
+menu "OMAP2/3 Display Device Drivers"
+        depends on OMAP2_DSS
+
+config PANEL_GENERIC
+        tristate "Generic Panel"
+        help
+	  Generic panel driver.
+	  Used for DVI output for Beagle and OMAP3 SDP.
+
+config PANEL_SHARP_LS037V7DW01
+        tristate "Sharp LS037V7DW01 LCD Panel"
+        depends on OMAP2_DSS
+        help
+          LCD Panel used in TI's SDP3430 and EVM boards
+
+config PANEL_TAAL
+        tristate "Taal DSI Panel"
+        depends on OMAP2_DSS_DSI
+        help
+          Taal DSI command mode panel from TPO.
+
+endmenu

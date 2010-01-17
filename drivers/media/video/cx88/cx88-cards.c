@@ -2075,6 +2075,18 @@ static const struct cx88_board cx88_boards[] = {
 		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_PROF_7301] = {
+		.name           = "Prof 7301 DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = { {
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2535,6 +2547,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x107d,
 		.subdevice = 0x6618,
 		.card      = CX88_BOARD_WINFAST_TV2000_XP_GLOBAL,
+	}, {
+		.subvendor = 0xb034,
+		.subdevice = 0x3034,
+		.card      = CX88_BOARD_PROF_7301,
 	},
 };
 
@@ -3211,6 +3227,7 @@ static void cx88_card_setup(struct cx88_core *core)
 	case  CX88_BOARD_TBS_8920:
 	case  CX88_BOARD_PROF_6200:
 	case  CX88_BOARD_PROF_7300:
+	case  CX88_BOARD_PROF_7301:
 	case  CX88_BOARD_SATTRADE_ST4200:
 		cx_write(MO_GP0_IO, 0x8000);
 		msleep(100);
@@ -3267,7 +3284,7 @@ static void cx88_card_setup(struct cx88_core *core)
 			    ctl.fname);
 		call_all(core, tuner, s_config, &xc2028_cfg);
 	}
-	call_all(core, tuner, s_standby);
+	call_all(core, core, s_power, 0);
 }
 
 /* ------------------------------------------------------------------ */

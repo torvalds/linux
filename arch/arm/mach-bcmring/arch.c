@@ -70,9 +70,19 @@ static struct ctl_table bcmring_sysctl_reboot[] = {
 	{}
 };
 
+static struct resource nand_resource[] = {
+	[0] = {
+		.start = MM_ADDR_IO_NAND,
+		.end = MM_ADDR_IO_NAND + 0x1000 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
 static struct platform_device nand_device = {
 	.name = "bcm-nand",
 	.id = -1,
+	.resource = nand_resource,
+	.num_resources	= ARRAY_SIZE(nand_resource),
 };
 
 static struct platform_device *devices[] __initdata = {

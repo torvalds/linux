@@ -40,7 +40,6 @@ config ATA_VERBOSE_ERROR
 config ATA_ACPI
 	bool "ATA ACPI Support"
 	depends on ACPI && PCI
-	select ACPI_DOCK
 	default y
 	help
 	  This option adds support for ATA-related ACPI objects.
@@ -789,6 +788,16 @@ config PATA_BF54X
 	  Blackfin 54x family chips.
 
 	  If unsure, say N.
+
+config PATA_MACIO
+	tristate "Apple PowerMac/PowerBook internal 'MacIO' IDE"
+	depends on PPC_PMAC
+	help
+	  Most IDE capable PowerMacs have IDE busses driven by a variant
+          of this controller which is part of the Apple chipset used on
+          most PowerMac models. Some models have multiple busses using
+          different chipsets, though generally, MacIO is one of them.
+
 
 endif # ATA_SFF
 endif # ATA

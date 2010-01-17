@@ -211,7 +211,7 @@ struct cpu_cache_fns {
 
 	void (*coherent_kern_range)(unsigned long, unsigned long);
 	void (*coherent_user_range)(unsigned long, unsigned long);
-	void (*flush_kern_dcache_page)(void *);
+	void (*flush_kern_dcache_area)(void *, size_t);
 
 	void (*dma_inv_range)(const void *, const void *);
 	void (*dma_clean_range)(const void *, const void *);
@@ -236,7 +236,7 @@ extern struct cpu_cache_fns cpu_cache;
 #define __cpuc_flush_user_range		cpu_cache.flush_user_range
 #define __cpuc_coherent_kern_range	cpu_cache.coherent_kern_range
 #define __cpuc_coherent_user_range	cpu_cache.coherent_user_range
-#define __cpuc_flush_dcache_page	cpu_cache.flush_kern_dcache_page
+#define __cpuc_flush_dcache_area	cpu_cache.flush_kern_dcache_area
 
 /*
  * These are private to the dma-mapping API.  Do not use directly.
@@ -255,14 +255,14 @@ extern struct cpu_cache_fns cpu_cache;
 #define __cpuc_flush_user_range		__glue(_CACHE,_flush_user_cache_range)
 #define __cpuc_coherent_kern_range	__glue(_CACHE,_coherent_kern_range)
 #define __cpuc_coherent_user_range	__glue(_CACHE,_coherent_user_range)
-#define __cpuc_flush_dcache_page	__glue(_CACHE,_flush_kern_dcache_page)
+#define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
 
 extern void __cpuc_flush_kern_all(void);
 extern void __cpuc_flush_user_all(void);
 extern void __cpuc_flush_user_range(unsigned long, unsigned long, unsigned int);
 extern void __cpuc_coherent_kern_range(unsigned long, unsigned long);
 extern void __cpuc_coherent_user_range(unsigned long, unsigned long);
-extern void __cpuc_flush_dcache_page(void *);
+extern void __cpuc_flush_dcache_area(void *, size_t);
 
 /*
  * These are private to the dma-mapping API.  Do not use directly.
@@ -448,7 +448,7 @@ static inline void flush_kernel_dcache_page(struct page *page)
 {
 	/* highmem pages are always flushed upon kunmap already */
 	if ((cache_is_vivt() || cache_is_vipt_aliasing()) && !PageHighMem(page))
-		__cpuc_flush_dcache_page(page_address(page));
+		__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
 }
 
 #define flush_dcache_mmap_lock(mapping) \
@@ -464,13 +464,6 @@ static inline void flush_kernel_dcache_page(struct page *page)
  * duplicate cache flushing elsewhere performed by flush_dcache_page().
  */
 #define flush_icache_page(vma,page)	do { } while (0)
-
-static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
-	unsigned offset, size_t size)
-{
-	const void *start = (void __force *)virt + offset;
-	dmac_inv_range(start, start + size);
-}
 
 /*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,

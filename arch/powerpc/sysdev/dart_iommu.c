@@ -160,7 +160,7 @@ static int dart_build(struct iommu_table *tbl, long index,
 
 	dp = ((unsigned int*)tbl->it_base) + index;
 
-	/* On U3, all memory is contigous, so we can move this
+	/* On U3, all memory is contiguous, so we can move this
 	 * out of the loop.
 	 */
 	l = npages;

@@ -273,7 +273,8 @@ static int ni6527_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and */
+	/*         are mutually compatible */
 
 	if (err)
 		return 2;
@@ -377,7 +378,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	printk("comedi%d: ni6527:", dev->minor);
+	printk(KERN_INFO "comedi%d: ni6527\n", dev->minor);
 
 	ret = alloc_private(dev, sizeof(struct ni6527_private));
 	if (ret < 0)
@@ -389,14 +390,13 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
-		printk("error setting up mite\n");
+		printk(KERN_ERR "comedi: error setting up mite\n");
 		return ret;
 	}
 
 	dev->board_name = this_board->name;
-	printk(" %s", dev->board_name);
-
-	printk(" ID=0x%02x", readb(devpriv->mite->daq_io_addr + ID_Register));
+	printk(KERN_INFO "comedi board: %s, ID=0x%02x\n", dev->board_name,
+		readb(devpriv->mite->daq_io_addr + ID_Register));
 
 	ret = alloc_subdevices(dev, 3);
 	if (ret < 0)
@@ -415,7 +415,7 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 24;
-	s->range_table = &range_unknown;	/* FIXME: actually conductance */
+	s->range_table = &range_unknown;  /* FIXME: actually conductance */
 	s->maxdata = 1;
 	s->insn_bits = ni6527_do_insn_bits;
 
@@ -442,30 +442,25 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
 			  IRQF_SHARED, "ni6527", dev);
-	if (ret < 0) {
-		printk(" irq not available");
-	} else
+	if (ret < 0)
+		printk(KERN_WARNING "comedi i6527 irq not available\n");
+	else
 		dev->irq = mite_irq(devpriv->mite);
-
-	printk("\n");
 
 	return 0;
 }
 
 static int ni6527_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr) {
+	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr)
 		writeb(0x00,
 		       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
-	}
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 
-	if (devpriv && devpriv->mite) {
+	if (devpriv && devpriv->mite)
 		mite_unsetup(devpriv->mite);
-	}
 
 	return 0;
 }
@@ -491,7 +486,7 @@ static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_ERR "comedi 6527: no device found\n");
 	mite_list_devices();
 	return -EIO;
 }

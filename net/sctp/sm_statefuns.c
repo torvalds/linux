@@ -3577,7 +3577,7 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 	 * To do this properly, we'll set the destination address of the chunk
 	 * and at the transmit time, will try look up the transport to use.
 	 * Since ASCONFs may be bundled, the correct transport may not be
-	 * created untill we process the entire packet, thus this workaround.
+	 * created until we process the entire packet, thus this workaround.
 	 */
 	asconf_ack->dest = chunk->source;
 	sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(asconf_ack));

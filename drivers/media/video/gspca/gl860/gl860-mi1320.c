@@ -1,6 +1,5 @@
-/* @file gl860-mi1320.c
- * @author Olivier LORIN from my logs
- * @date 2009-08-27
+/* Subdriver for the GL860 chip with the MI1320 sensor
+ * Author Olivier LORIN from own logs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -127,49 +126,49 @@ static u8 dat_wbalBL[] =
 
 static u8 dat_hvflip1[] = {0xf0, 0x00, 0xf1, 0x00};
 
-static u8 s000[] =
+static u8 dat_common00[] =
 	"\x00\x01\x07\x6a\x06\x63\x0d\x6a" "\xc0\x00\x10\x10\xc1\x03\xc2\x42"
 	"\xd8\x04\x58\x00\x04\x02";
-static u8 s001[] =
+static u8 dat_common01[] =
 	"\x0d\x00\xf1\x0b\x0d\x00\xf1\x08" "\x35\x00\xf1\x22\x68\x00\xf1\x5d"
 	"\xf0\x00\xf1\x01\x06\x70\xf1\x0e" "\xf0\x00\xf1\x02\xdd\x18\xf1\xe0";
-static u8 s002[] =
+static u8 dat_common02[] =
 	"\x05\x01\xf1\x84\x06\x00\xf1\x44" "\x07\x00\xf1\xbe\x08\x00\xf1\x1e"
 	"\x20\x01\xf1\x03\x21\x84\xf1\x00" "\x22\x0d\xf1\x0f\x24\x80\xf1\x00"
 	"\x34\x18\xf1\x2d\x35\x00\xf1\x22" "\x43\x83\xf1\x83\x59\x00\xf1\xff";
-static u8 s003[] =
+static u8 dat_common03[] =
 	"\xf0\x00\xf1\x02\x39\x06\xf1\x8c" "\x3a\x06\xf1\x8c\x3b\x03\xf1\xda"
 	"\x3c\x05\xf1\x30\x57\x01\xf1\x0c" "\x58\x01\xf1\x42\x59\x01\xf1\x0c"
 	"\x5a\x01\xf1\x42\x5c\x13\xf1\x0e" "\x5d\x17\xf1\x12\x64\x1e\xf1\x1c";
-static u8 s004[] =
+static u8 dat_common04[] =
 	"\xf0\x00\xf1\x02\x24\x5f\xf1\x20" "\x28\xea\xf1\x02\x5f\x41\xf1\x43";
-static u8 s005[] =
+static u8 dat_common05[] =
 	"\x02\x00\xf1\xee\x03\x29\xf1\x1a" "\x04\x02\xf1\xa4\x09\x00\xf1\x68"
 	"\x0a\x00\xf1\x2a\x0b\x00\xf1\x04" "\x0c\x00\xf1\x93\x0d\x00\xf1\x82"
 	"\x0e\x00\xf1\x40\x0f\x00\xf1\x5f" "\x10\x00\xf1\x4e\x11\x00\xf1\x5b";
-static u8 s006[] =
+static u8 dat_common06[] =
 	"\x15\x00\xf1\xc9\x16\x00\xf1\x5e" "\x17\x00\xf1\x9d\x18\x00\xf1\x06"
 	"\x19\x00\xf1\x89\x1a\x00\xf1\x12" "\x1b\x00\xf1\xa1\x1c\x00\xf1\xe4"
 	"\x1d\x00\xf1\x7a\x1e\x00\xf1\x64" "\xf6\x00\xf1\x5f";
-static u8 s007[] =
+static u8 dat_common07[] =
 	"\xf0\x00\xf1\x01\x53\x09\xf1\x03" "\x54\x3d\xf1\x1c\x55\x99\xf1\x72"
 	"\x56\xc1\xf1\xb1\x57\xd8\xf1\xce" "\x58\xe0\xf1\x00\xdc\x0a\xf1\x03"
 	"\xdd\x45\xf1\x20\xde\xae\xf1\x82" "\xdf\xdc\xf1\xc9\xe0\xf6\xf1\xea"
 	"\xe1\xff\xf1\x00";
-static u8 s008[] =
+static u8 dat_common08[] =
 	"\xf0\x00\xf1\x01\x80\x00\xf1\x06" "\x81\xf6\xf1\x08\x82\xfb\xf1\xf7"
 	"\x83\x00\xf1\xfe\xb6\x07\xf1\x03" "\xb7\x18\xf1\x0c\x84\xfb\xf1\x06"
 	"\x85\xfb\xf1\xf9\x86\x00\xf1\xff" "\xb8\x07\xf1\x04\xb9\x16\xf1\x0a";
-static u8 s009[] =
+static u8 dat_common09[] =
 	"\x87\xfa\xf1\x05\x88\xfc\xf1\xf9" "\x89\x00\xf1\xff\xba\x06\xf1\x03"
 	"\xbb\x17\xf1\x09\x8a\xe8\xf1\x14" "\x8b\xf7\xf1\xf0\x8c\xfd\xf1\xfa"
 	"\x8d\x00\xf1\x00\xbc\x05\xf1\x01" "\xbd\x0c\xf1\x08\xbe\x00\xf1\x14";
-static u8 s010[] =
+static u8 dat_common10[] =
 	"\x8e\xea\xf1\x13\x8f\xf7\xf1\xf2" "\x90\xfd\xf1\xfa\x91\x00\xf1\x00"
 	"\xbf\x05\xf1\x01\xc0\x0a\xf1\x08" "\xc1\x00\xf1\x0c\x92\xed\xf1\x0f"
 	"\x93\xf9\xf1\xf4\x94\xfe\xf1\xfb" "\x95\x00\xf1\x00\xc2\x04\xf1\x01"
 	"\xc3\x0a\xf1\x07\xc4\x00\xf1\x10";
-static u8 s011[] =
+static u8 dat_common11[] =
 	"\xf0\x00\xf1\x01\x05\x00\xf1\x06" "\x25\x00\xf1\x55\x34\x10\xf1\x10"
 	"\x35\xf0\xf1\x10\x3a\x02\xf1\x03" "\x3b\x04\xf1\x2a\x9b\x43\xf1\x00"
 	"\xa4\x03\xf1\xc0\xa7\x02\xf1\x81";
@@ -222,26 +221,26 @@ void mi1320_init_settings(struct gspca_dev *gspca_dev)
 
 static void common(struct gspca_dev *gspca_dev)
 {
-	s32 n; /* reserved for FETCH macros */
+	s32 n; /* reserved for FETCH functions */
 
-	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 22, s000);
+	ctrl_out(gspca_dev, 0x40, 3, 0x0000, 0x0200, 22, dat_common00);
 	ctrl_out(gspca_dev, 0x40, 1, 0x0041, 0x0000, 0, NULL);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 32, s001);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 32, dat_common01);
 	n = fetch_validx(gspca_dev, tbl_common, ARRAY_SIZE(tbl_common));
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, s002);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, s003);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 16, s004);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, s005);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 44, s006);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, dat_common02);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, dat_common03);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 16, dat_common04);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, dat_common05);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 44, dat_common06);
 	keep_on_fetching_validx(gspca_dev, tbl_common,
 					ARRAY_SIZE(tbl_common), n);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 52, s007);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, s008);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, s009);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 56, s010);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 52, dat_common07);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, dat_common08);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 48, dat_common09);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 56, dat_common10);
 	keep_on_fetching_validx(gspca_dev, tbl_common,
 					ARRAY_SIZE(tbl_common), n);
-	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 40, s011);
+	ctrl_out(gspca_dev, 0x40, 3, 0xba00, 0x0200, 40, dat_common11);
 	keep_on_fetching_validx(gspca_dev, tbl_common,
 					ARRAY_SIZE(tbl_common), n);
 }
@@ -346,7 +345,7 @@ static int mi1320_configure_alt(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-int mi1320_camera_settings(struct gspca_dev *gspca_dev)
+static int mi1320_camera_settings(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 

@@ -5318,7 +5318,7 @@ struct _snd_pcm_runtime {
       pages of the given size and map them onto the virtually contiguous
       memory.  The virtual pointer is addressed in runtime-&gt;dma_area.
       The physical address (runtime-&gt;dma_addr) is set to zero,
-      because the buffer is physically non-contigous.
+      because the buffer is physically non-contiguous.
       The physical address table is set up in sgbuf-&gt;table.
       You can get the physical address at a certain offset via
       <function>snd_pcm_sgbuf_get_addr()</function>. 

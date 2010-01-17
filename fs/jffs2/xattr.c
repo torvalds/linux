@@ -31,7 +31,7 @@
  *   is used to release xattr name/value pair and detach from c->xattrindex.
  * reclaim_xattr_datum(c)
  *   is used to reclaim xattr name/value pairs on the xattr name/value pair cache when
- *   memory usage by cache is over c->xdatum_mem_threshold. Currentry, this threshold 
+ *   memory usage by cache is over c->xdatum_mem_threshold. Currently, this threshold 
  *   is hard coded as 32KiB.
  * do_verify_xattr_datum(c, xd)
  *   is used to load the xdatum informations without name/value pair from the medium.
@@ -990,9 +990,11 @@ ssize_t jffs2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (!xhandle)
 			continue;
 		if (buffer) {
-			rc = xhandle->list(inode, buffer+len, size-len, xd->xname, xd->name_len);
+			rc = xhandle->list(dentry, buffer+len, size-len,
+					   xd->xname, xd->name_len, xd->flags);
 		} else {
-			rc = xhandle->list(inode, NULL, 0, xd->xname, xd->name_len);
+			rc = xhandle->list(dentry, NULL, 0, xd->xname,
+					   xd->name_len, xd->flags);
 		}
 		if (rc < 0)
 			goto out;

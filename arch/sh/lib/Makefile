@@ -2,7 +2,7 @@
 # Makefile for SuperH-specific library files..
 #
 
-lib-y  = delay.o memset.o memmove.o memchr.o \
+lib-y  = delay.o memmove.o memchr.o \
 	 checksum.o strlen.o div64.o div64-generic.o
 
 # Extracted from libgcc
@@ -23,8 +23,11 @@ obj-y				+= io.o
 memcpy-y			:= memcpy.o
 memcpy-$(CONFIG_CPU_SH4)	:= memcpy-sh4.o
 
+memset-y			:= memset.o
+memset-$(CONFIG_CPU_SH4)	:= memset-sh4.o
+
 lib-$(CONFIG_MMU)		+= copy_page.o __clear_user.o
 lib-$(CONFIG_MCOUNT)		+= mcount.o
-lib-y				+= $(memcpy-y) $(udivsi3-y)
+lib-y				+= $(memcpy-y) $(memset-y) $(udivsi3-y)
 
 EXTRA_CFLAGS += -Werror

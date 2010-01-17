@@ -18,10 +18,6 @@
 #include <linux/ioctl.h>
 #include <asm/byteorder.h>
 
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
-#include <asm/hw_breakpoint.h>
-#endif
-
 /*
  * User-space ABI bits:
  */
@@ -215,17 +211,11 @@ struct perf_event_attr {
 		__u32		wakeup_watermark; /* bytes before wakeup   */
 	};
 
-	union {
-		struct { /* Hardware breakpoint info */
-			__u64		bp_addr;
-			__u32		bp_type;
-			__u32		bp_len;
-		};
-	};
-
 	__u32			__reserved_2;
 
-	__u64			__reserved_3;
+	__u64			bp_addr;
+	__u32			bp_type;
+	__u32			bp_len;
 };
 
 /*
@@ -451,6 +441,10 @@ enum perf_callchain_context {
 # include <asm/perf_event.h>
 #endif
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+#include <asm/hw_breakpoint.h>
+#endif
+
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rculist.h>
@@ -565,9 +559,11 @@ struct perf_pending_entry {
 	void (*func)(struct perf_pending_entry *);
 };
 
-typedef void (*perf_callback_t)(struct perf_event *, void *);
-
 struct perf_sample_data;
+
+typedef void (*perf_overflow_handler_t)(struct perf_event *, int,
+					struct perf_sample_data *,
+					struct pt_regs *regs);
 
 /**
  * struct perf_event - performance event kernel representation:
@@ -660,17 +656,11 @@ struct perf_event {
 	struct pid_namespace		*ns;
 	u64				id;
 
-	void (*overflow_handler)(struct perf_event *event,
-			int nmi, struct perf_sample_data *data,
-			struct pt_regs *regs);
+	perf_overflow_handler_t		overflow_handler;
 
 #ifdef CONFIG_EVENT_PROFILE
 	struct event_filter		*filter;
 #endif
-
-	perf_callback_t			callback;
-
-	perf_callback_t			event_callback;
 
 #endif /* CONFIG_PERF_EVENTS */
 };
@@ -685,7 +675,7 @@ struct perf_event_context {
 	 * Protect the states of the events in the list,
 	 * nr_active, and the list:
 	 */
-	spinlock_t			lock;
+	raw_spinlock_t			lock;
 	/*
 	 * Protect the list of events.  Locking either mutex or lock
 	 * is sufficient to ensure the list doesn't change; to change
@@ -781,7 +771,7 @@ extern struct perf_event *
 perf_event_create_kernel_counter(struct perf_event_attr *attr,
 				int cpu,
 				pid_t pid,
-				perf_callback_t callback);
+				perf_overflow_handler_t callback);
 extern u64 perf_event_read_value(struct perf_event *event,
 				 u64 *enabled, u64 *running);
 
@@ -876,6 +866,8 @@ extern void perf_output_copy(struct perf_output_handle *handle,
 			     const void *buf, unsigned int len);
 extern int perf_swevent_get_recursion_context(void);
 extern void perf_swevent_put_recursion_context(int rctx);
+extern void perf_event_enable(struct perf_event *event);
+extern void perf_event_disable(struct perf_event *event);
 #else
 static inline void
 perf_event_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -906,7 +898,8 @@ static inline void perf_event_fork(struct task_struct *tsk)		{ }
 static inline void perf_event_init(void)				{ }
 static inline int  perf_swevent_get_recursion_context(void)  { return -1; }
 static inline void perf_swevent_put_recursion_context(int rctx)		{ }
-
+static inline void perf_event_enable(struct perf_event *event)		{ }
+static inline void perf_event_disable(struct perf_event *event)		{ }
 #endif
 
 #define perf_output_put(handle, x) \

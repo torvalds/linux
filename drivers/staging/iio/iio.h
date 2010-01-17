@@ -166,7 +166,7 @@ static inline int iio_scan_mask_clear(struct iio_dev *dev_info, int bit)
  * @bit: which number scan element is this
  **/
 static inline int iio_scan_mask_count_to_right(struct iio_dev *dev_info,
-int bit)
+						int bit)
 {
 	int count = 0;
 	int mask = (1 << bit);
@@ -239,7 +239,7 @@ void iio_unregister_interrupt_line(struct iio_dev *dev_info,
  * @dev_info:		IIO device structure
  * @ev_line:		Which event line (hardware interrupt)
  * @ev_code:		What event
- * @timestamp:		When the event occured
+ * @timestamp:		When the event occurred
  **/
 int iio_push_event(struct iio_dev *dev_info,
 		  int ev_line,
@@ -248,11 +248,11 @@ int iio_push_event(struct iio_dev *dev_info,
 
 /**
  * struct iio_work_cont - container for when singleton handler case matters
- * @ws:			[DEVICE]work_struct when not only possible event
- * @ws_nocheck:		[DEVICE]work_struct when only possible event
- * @address:		[DEVICE]associated register address
- * @mask:		[DEVICE]associated mask for identifying event source
- * @st:			[DEVICE]device specific state information
+ * @ws:			[DEVICE] work_struct when not only possible event
+ * @ws_nocheck:		[DEVICE] work_struct when only possible event
+ * @address:		[DEVICE] associated register address
+ * @mask:		[DEVICE] associated mask for identifying event source
+ * @st:			[DEVICE] device specific state information
  **/
 struct iio_work_cont {
 	struct work_struct	ws;
@@ -273,9 +273,9 @@ struct iio_work_cont {
  * @cont: the work container
  * @_checkfunc: function called when there are multiple possible int sources
  * @_nocheckfunc: function for when there is only one int source
- * @_add: driver dependant, typically a register address
- * @_mask: driver dependant, typically a bit mask for a register
- * @_st: driver dependant, typically pointer to a device state structure
+ * @_add: driver dependent, typically a register address
+ * @_mask: driver dependent, typically a bit mask for a register
+ * @_st: driver dependent, typically pointer to a device state structure
  **/
 static inline void
 iio_init_work_cont(struct iio_work_cont *cont,
@@ -290,7 +290,7 @@ iio_init_work_cont(struct iio_work_cont *cont,
 	cont->st = _st;
 }
 /**
- * __iio_push_event() tries to add an event to the list associated with a chrdev
+ * __iio_push_event() - tries to add an event to the list associated with a chrdev
  * @ev_int:		the event interface to which we are pushing the event
  * @ev_code:		the outgoing event code
  * @timestamp:		timestamp of the event
@@ -302,8 +302,8 @@ int __iio_push_event(struct iio_event_interface *ev_int,
 		    struct iio_shared_ev_pointer*
 		    shared_pointer_p);
 /**
- * __iio_change_event() change an event code in case of event escallation
- * @ev:			the evnet to be changed
+ * __iio_change_event() - change an event code in case of event escalation
+ * @ev:			the event to be changed
  * @ev_code:		new event code
  * @timestamp:		new timestamp
  **/
@@ -312,7 +312,7 @@ void __iio_change_event(struct iio_detected_event_list *ev,
 			s64 timestamp);
 
 /**
- * iio_setup_ev_int() Configure an event interface (chrdev)
+ * iio_setup_ev_int() - configure an event interface (chrdev)
  * @name:		name used for resulting sysfs directory etc.
  * @ev_int:		interface we are configuring
  * @owner:		module that is responsible for registering this ev_int
@@ -343,7 +343,7 @@ extern dev_t iio_devt;
 extern struct class iio_class;
 
 /**
- * iio_put_device() - reference counted deallocated of struct device
+ * iio_put_device() - reference counted deallocation of struct device
  * @dev: the iio_device containing the device
  **/
 static inline void iio_put_device(struct iio_dev *dev)
@@ -353,7 +353,7 @@ static inline void iio_put_device(struct iio_dev *dev)
 };
 
 /**
- * to_iio_dev() - get iio_dev for which we have have the struct device
+ * to_iio_dev() - get iio_dev for which we have the struct device
  * @d: the struct device
  **/
 static inline struct iio_dev *to_iio_dev(struct device *d)
@@ -377,6 +377,7 @@ struct iio_dev *iio_allocate_device(void);
 
 /**
  * iio_free_device() - free an iio_dev from a driver
+ * @dev: the iio_dev associated with the device
  **/
 void iio_free_device(struct iio_dev *dev);
 
@@ -395,7 +396,8 @@ int iio_device_get_chrdev_minor(void);
 void iio_device_free_chrdev_minor(int val);
 
 /**
- * iio_ring_enabled() helper function to test if any form of ring enabled
+ * iio_ring_enabled() - helper function to test if any form of ring is enabled
+ * @dev_info:		IIO device info structure for device
  **/
 static inline bool iio_ring_enabled(struct iio_dev *dev_info)
 {

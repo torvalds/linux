@@ -135,7 +135,7 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 
 	ret = __uvc_query_ctrl(stream->dev, query, 0, stream->intfnum,
 		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,
-		size, UVC_CTRL_STREAMING_TIMEOUT);
+		size, uvc_timeout_param);
 
 	if ((query == UVC_GET_MIN || query == UVC_GET_MAX) && ret == 2) {
 		/* Some cameras, mostly based on Bison Electronics chipsets,
@@ -145,7 +145,7 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		uvc_warn_once(stream->dev, UVC_WARN_MINMAX, "UVC non "
 			"compliance - GET_MIN/MAX(PROBE) incorrectly "
 			"supported. Enabling workaround.\n");
-		memset(ctrl, 0, sizeof ctrl);
+		memset(ctrl, 0, sizeof *ctrl);
 		ctrl->wCompQuality = le16_to_cpup((__le16 *)data);
 		ret = 0;
 		goto out;
@@ -239,7 +239,7 @@ static int uvc_set_video_ctrl(struct uvc_streaming *stream,
 
 	ret = __uvc_query_ctrl(stream->dev, UVC_SET_CUR, 0, stream->intfnum,
 		probe ? UVC_VS_PROBE_CONTROL : UVC_VS_COMMIT_CONTROL, data,
-		size, UVC_CTRL_STREAMING_TIMEOUT);
+		size, uvc_timeout_param);
 	if (ret != size) {
 		uvc_printk(KERN_ERR, "Failed to set UVC %s control : "
 			"%d (exp. %u).\n", probe ? "probe" : "commit",
@@ -770,8 +770,9 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 	/* Retry allocations until one succeed. */
 	for (; npackets > 1; npackets /= 2) {
 		for (i = 0; i < UVC_URBS; ++i) {
+			stream->urb_size = psize * npackets;
 			stream->urb_buffer[i] = usb_buffer_alloc(
-				stream->dev->udev, psize * npackets,
+				stream->dev->udev, stream->urb_size,
 				gfp_flags | __GFP_NOWARN, &stream->urb_dma[i]);
 			if (!stream->urb_buffer[i]) {
 				uvc_free_urb_buffers(stream);
@@ -780,11 +781,15 @@ static int uvc_alloc_urb_buffers(struct uvc_streaming *stream,
 		}
 
 		if (i == UVC_URBS) {
-			stream->urb_size = psize * npackets;
+			uvc_trace(UVC_TRACE_VIDEO, "Allocated %u URB buffers "
+				"of %ux%u bytes each.\n", UVC_URBS, npackets,
+				psize);
 			return npackets;
 		}
 	}
 
+	uvc_trace(UVC_TRACE_VIDEO, "Failed to allocate URB buffers (%u bytes "
+		"per packet).\n", psize);
 	return 0;
 }
 
@@ -935,10 +940,12 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 		bandwidth = stream->ctrl.dwMaxPayloadTransferSize;
 
 		if (bandwidth == 0) {
-			uvc_printk(KERN_WARNING, "device %s requested null "
-				"bandwidth, defaulting to lowest.\n",
-				stream->dev->name);
+			uvc_trace(UVC_TRACE_VIDEO, "Device requested null "
+				"bandwidth, defaulting to lowest.\n");
 			bandwidth = 1;
+		} else {
+			uvc_trace(UVC_TRACE_VIDEO, "Device requested %u "
+				"B/frame bandwidth.\n", bandwidth);
 		}
 
 		for (i = 0; i < intf->num_altsetting; ++i) {
@@ -955,8 +962,11 @@ static int uvc_init_video(struct uvc_streaming *stream, gfp_t gfp_flags)
 				break;
 		}
 
-		if (i >= intf->num_altsetting)
+		if (i >= intf->num_altsetting) {
+			uvc_trace(UVC_TRACE_VIDEO, "No fast enough alt setting "
+				"for requested bandwidth.\n");
 			return -EIO;
+		}
 
 		ret = usb_set_interface(stream->dev->udev, intfnum, i);
 		if (ret < 0)

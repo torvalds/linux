@@ -19,7 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/gfp.h>
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
@@ -165,6 +165,43 @@ static int iommu_init_device(struct device *dev)
 static void iommu_uninit_device(struct device *dev)
 {
 	kfree(dev->archdata.iommu);
+}
+
+void __init amd_iommu_uninit_devices(void)
+{
+	struct pci_dev *pdev = NULL;
+
+	for_each_pci_dev(pdev) {
+
+		if (!check_device(&pdev->dev))
+			continue;
+
+		iommu_uninit_device(&pdev->dev);
+	}
+}
+
+int __init amd_iommu_init_devices(void)
+{
+	struct pci_dev *pdev = NULL;
+	int ret = 0;
+
+	for_each_pci_dev(pdev) {
+
+		if (!check_device(&pdev->dev))
+			continue;
+
+		ret = iommu_init_device(&pdev->dev);
+		if (ret)
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+
+	amd_iommu_uninit_devices();
+
+	return ret;
 }
 #ifdef CONFIG_AMD_IOMMU_STATS
 
@@ -1125,7 +1162,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
 
-	iommu_area_free(range->bitmap, address, pages);
+	bitmap_clear(range->bitmap, address, pages);
 
 }
 
@@ -1587,6 +1624,11 @@ static struct notifier_block device_nb = {
 	.notifier_call = device_change_notifier,
 };
 
+void amd_iommu_init_notifier(void)
+{
+	bus_register_notifier(&pci_bus_type, &device_nb);
+}
+
 /*****************************************************************************
  *
  * The next functions belong to the dma_ops mapping/unmapping code.
@@ -1783,7 +1825,7 @@ retry:
 			goto out;
 
 		/*
-		 * aperture was sucessfully enlarged by 128 MB, try
+		 * aperture was successfully enlarged by 128 MB, try
 		 * allocation again
 		 */
 		goto retry;
@@ -2145,8 +2187,6 @@ static void prealloc_protection_domains(void)
 		if (!check_device(&dev->dev))
 			continue;
 
-		iommu_init_device(&dev->dev);
-
 		/* Is there already any domain for it? */
 		if (domain_for_device(&dev->dev))
 			continue;
@@ -2214,8 +2254,6 @@ int __init amd_iommu_init_dma_ops(void)
 	dma_ops = &amd_iommu_dma_ops;
 
 	register_iommu(&amd_iommu_ops);
-
-	bus_register_notifier(&pci_bus_type, &device_nb);
 
 	amd_iommu_stats_init();
 
@@ -2490,7 +2528,7 @@ int __init amd_iommu_init_passthrough(void)
 	struct pci_dev *dev = NULL;
 	u16 devid;
 
-	/* allocate passthroug domain */
+	/* allocate passthrough domain */
 	pt_domain = protection_domain_alloc();
 	if (!pt_domain)
 		return -ENOMEM;

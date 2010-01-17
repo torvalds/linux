@@ -30,9 +30,9 @@
 #include <asm/apic.h>
 #include <asm/desc.h>
 
-static DEFINE_PER_CPU(struct cpu_cpuX_base [CPU_REG_ALL_BIT], cpu_arr);
-static DEFINE_PER_CPU(struct cpu_private * [MAX_CPU_FILES], priv_arr);
-static DEFINE_PER_CPU(int, cpu_priv_count);
+static DEFINE_PER_CPU(struct cpu_cpuX_base [CPU_REG_ALL_BIT], cpud_arr);
+static DEFINE_PER_CPU(struct cpu_private * [MAX_CPU_FILES], cpud_priv_arr);
+static DEFINE_PER_CPU(int, cpud_priv_count);
 
 static DEFINE_MUTEX(cpu_debug_lock);
 
@@ -531,7 +531,7 @@ static int cpu_create_file(unsigned cpu, unsigned type, unsigned reg,
 
 	/* Already intialized */
 	if (file == CPU_INDEX_BIT)
-		if (per_cpu(cpu_arr[type].init, cpu))
+		if (per_cpu(cpud_arr[type].init, cpu))
 			return 0;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -543,8 +543,8 @@ static int cpu_create_file(unsigned cpu, unsigned type, unsigned reg,
 	priv->reg = reg;
 	priv->file = file;
 	mutex_lock(&cpu_debug_lock);
-	per_cpu(priv_arr[type], cpu) = priv;
-	per_cpu(cpu_priv_count, cpu)++;
+	per_cpu(cpud_priv_arr[type], cpu) = priv;
+	per_cpu(cpud_priv_count, cpu)++;
 	mutex_unlock(&cpu_debug_lock);
 
 	if (file)
@@ -552,10 +552,10 @@ static int cpu_create_file(unsigned cpu, unsigned type, unsigned reg,
 				    dentry, (void *)priv, &cpu_fops);
 	else {
 		debugfs_create_file(cpu_base[type].name, S_IRUGO,
-				    per_cpu(cpu_arr[type].dentry, cpu),
+				    per_cpu(cpud_arr[type].dentry, cpu),
 				    (void *)priv, &cpu_fops);
 		mutex_lock(&cpu_debug_lock);
-		per_cpu(cpu_arr[type].init, cpu) = 1;
+		per_cpu(cpud_arr[type].init, cpu) = 1;
 		mutex_unlock(&cpu_debug_lock);
 	}
 
@@ -615,7 +615,7 @@ static int cpu_init_allreg(unsigned cpu, struct dentry *dentry)
 		if (!is_typeflag_valid(cpu, cpu_base[type].flag))
 			continue;
 		cpu_dentry = debugfs_create_dir(cpu_base[type].name, dentry);
-		per_cpu(cpu_arr[type].dentry, cpu) = cpu_dentry;
+		per_cpu(cpud_arr[type].dentry, cpu) = cpu_dentry;
 
 		if (type < CPU_TSS_BIT)
 			err = cpu_init_msr(cpu, type, cpu_dentry);
@@ -647,11 +647,11 @@ static int cpu_init_cpu(void)
 		err = cpu_init_allreg(cpu, cpu_dentry);
 
 		pr_info("cpu%d(%d) debug files %d\n",
-			cpu, nr_cpu_ids, per_cpu(cpu_priv_count, cpu));
-		if (per_cpu(cpu_priv_count, cpu) > MAX_CPU_FILES) {
+			cpu, nr_cpu_ids, per_cpu(cpud_priv_count, cpu));
+		if (per_cpu(cpud_priv_count, cpu) > MAX_CPU_FILES) {
 			pr_err("Register files count %d exceeds limit %d\n",
-				per_cpu(cpu_priv_count, cpu), MAX_CPU_FILES);
-			per_cpu(cpu_priv_count, cpu) = MAX_CPU_FILES;
+				per_cpu(cpud_priv_count, cpu), MAX_CPU_FILES);
+			per_cpu(cpud_priv_count, cpu) = MAX_CPU_FILES;
 			err = -ENFILE;
 		}
 		if (err)
@@ -676,8 +676,8 @@ static void __exit cpu_debug_exit(void)
 		debugfs_remove_recursive(cpu_debugfs_dir);
 
 	for (cpu = 0; cpu <  nr_cpu_ids; cpu++)
-		for (i = 0; i < per_cpu(cpu_priv_count, cpu); i++)
-			kfree(per_cpu(priv_arr[i], cpu));
+		for (i = 0; i < per_cpu(cpud_priv_count, cpu); i++)
+			kfree(per_cpu(cpud_priv_arr[i], cpu));
 }
 
 module_init(cpu_debug_init);

@@ -138,6 +138,11 @@ int amd_iommus_present;
 bool amd_iommu_np_cache __read_mostly;
 
 /*
+ * Set to true if ACPI table parsing and hardware intialization went properly
+ */
+static bool amd_iommu_initialized;
+
+/*
  * List of protection domains - used during resume
  */
 LIST_HEAD(amd_iommu_pd_list);
@@ -929,6 +934,8 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 	}
 	WARN_ON(p != end);
 
+	amd_iommu_initialized = true;
+
 	return 0;
 }
 
@@ -1263,6 +1270,9 @@ static int __init amd_iommu_init(void)
 	if (acpi_table_parse("IVRS", init_iommu_all) != 0)
 		goto free;
 
+	if (!amd_iommu_initialized)
+		goto free;
+
 	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
 		goto free;
 
@@ -1274,12 +1284,18 @@ static int __init amd_iommu_init(void)
 	if (ret)
 		goto free;
 
+	ret = amd_iommu_init_devices();
+	if (ret)
+		goto free;
+
 	if (iommu_pass_through)
 		ret = amd_iommu_init_passthrough();
 	else
 		ret = amd_iommu_init_dma_ops();
 	if (ret)
 		goto free;
+
+	amd_iommu_init_notifier();
 
 	enable_iommus();
 
@@ -1296,6 +1312,9 @@ out:
 	return ret;
 
 free:
+
+	amd_iommu_uninit_devices();
+
 	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap,
 		   get_order(MAX_DOMAIN_ID/8));
 
@@ -1336,6 +1355,9 @@ void __init amd_iommu_detect(void)
 		iommu_detected = 1;
 		amd_iommu_detected = 1;
 		x86_init.iommu.iommu_init = amd_iommu_init;
+
+		/* Make sure ACS will be enabled */
+		pci_request_acs();
 	}
 }
 

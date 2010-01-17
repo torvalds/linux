@@ -1724,7 +1724,7 @@ int iwctl_siwauth(struct net_device *dev,
 	case IW_AUTH_WPA_ENABLED:
 		//pDevice->bWPADEVUp = !! wrq->value;
 		//if(pDevice->bWPADEVUp==TRUE)
-		  // printk("iwctl_siwauth:set WPADEV to enable sucessful*******\n");
+		  // printk("iwctl_siwauth:set WPADEV to enable successful*******\n");
 		//else
 		 //  printk("iwctl_siwauth:set WPADEV to enable fail?????\n");
 		break;

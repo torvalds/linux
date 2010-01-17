@@ -895,104 +895,27 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 }
 
 static struct dtv_cmds_h dtv_cmds[] = {
-	[DTV_TUNE] = {
-		.name	= "DTV_TUNE",
-		.cmd	= DTV_TUNE,
-		.set	= 1,
-	},
-	[DTV_CLEAR] = {
-		.name	= "DTV_CLEAR",
-		.cmd	= DTV_CLEAR,
-		.set	= 1,
-	},
+	_DTV_CMD(DTV_TUNE, 1, 0),
+	_DTV_CMD(DTV_CLEAR, 1, 0),
 
 	/* Set */
-	[DTV_FREQUENCY] = {
-		.name	= "DTV_FREQUENCY",
-		.cmd	= DTV_FREQUENCY,
-		.set	= 1,
-	},
-	[DTV_BANDWIDTH_HZ] = {
-		.name	= "DTV_BANDWIDTH_HZ",
-		.cmd	= DTV_BANDWIDTH_HZ,
-		.set	= 1,
-	},
-	[DTV_MODULATION] = {
-		.name	= "DTV_MODULATION",
-		.cmd	= DTV_MODULATION,
-		.set	= 1,
-	},
-	[DTV_INVERSION] = {
-		.name	= "DTV_INVERSION",
-		.cmd	= DTV_INVERSION,
-		.set	= 1,
-	},
-	[DTV_DISEQC_MASTER] = {
-		.name	= "DTV_DISEQC_MASTER",
-		.cmd	= DTV_DISEQC_MASTER,
-		.set	= 1,
-		.buffer	= 1,
-	},
-	[DTV_SYMBOL_RATE] = {
-		.name	= "DTV_SYMBOL_RATE",
-		.cmd	= DTV_SYMBOL_RATE,
-		.set	= 1,
-	},
-	[DTV_INNER_FEC] = {
-		.name	= "DTV_INNER_FEC",
-		.cmd	= DTV_INNER_FEC,
-		.set	= 1,
-	},
-	[DTV_VOLTAGE] = {
-		.name	= "DTV_VOLTAGE",
-		.cmd	= DTV_VOLTAGE,
-		.set	= 1,
-	},
-	[DTV_TONE] = {
-		.name	= "DTV_TONE",
-		.cmd	= DTV_TONE,
-		.set	= 1,
-	},
-	[DTV_PILOT] = {
-		.name	= "DTV_PILOT",
-		.cmd	= DTV_PILOT,
-		.set	= 1,
-	},
-	[DTV_ROLLOFF] = {
-		.name	= "DTV_ROLLOFF",
-		.cmd	= DTV_ROLLOFF,
-		.set	= 1,
-	},
-	[DTV_DELIVERY_SYSTEM] = {
-		.name	= "DTV_DELIVERY_SYSTEM",
-		.cmd	= DTV_DELIVERY_SYSTEM,
-		.set	= 1,
-	},
-	[DTV_HIERARCHY] = {
-		.name	= "DTV_HIERARCHY",
-		.cmd	= DTV_HIERARCHY,
-		.set	= 1,
-	},
-	[DTV_CODE_RATE_HP] = {
-		.name	= "DTV_CODE_RATE_HP",
-		.cmd	= DTV_CODE_RATE_HP,
-		.set	= 1,
-	},
-	[DTV_CODE_RATE_LP] = {
-		.name	= "DTV_CODE_RATE_LP",
-		.cmd	= DTV_CODE_RATE_LP,
-		.set	= 1,
-	},
-	[DTV_GUARD_INTERVAL] = {
-		.name	= "DTV_GUARD_INTERVAL",
-		.cmd	= DTV_GUARD_INTERVAL,
-		.set	= 1,
-	},
-	[DTV_TRANSMISSION_MODE] = {
-		.name	= "DTV_TRANSMISSION_MODE",
-		.cmd	= DTV_TRANSMISSION_MODE,
-		.set	= 1,
-	},
+	_DTV_CMD(DTV_FREQUENCY, 1, 0),
+	_DTV_CMD(DTV_BANDWIDTH_HZ, 1, 0),
+	_DTV_CMD(DTV_MODULATION, 1, 0),
+	_DTV_CMD(DTV_INVERSION, 1, 0),
+	_DTV_CMD(DTV_DISEQC_MASTER, 1, 1),
+	_DTV_CMD(DTV_SYMBOL_RATE, 1, 0),
+	_DTV_CMD(DTV_INNER_FEC, 1, 0),
+	_DTV_CMD(DTV_VOLTAGE, 1, 0),
+	_DTV_CMD(DTV_TONE, 1, 0),
+	_DTV_CMD(DTV_PILOT, 1, 0),
+	_DTV_CMD(DTV_ROLLOFF, 1, 0),
+	_DTV_CMD(DTV_DELIVERY_SYSTEM, 1, 0),
+	_DTV_CMD(DTV_HIERARCHY, 1, 0),
+	_DTV_CMD(DTV_CODE_RATE_HP, 1, 0),
+	_DTV_CMD(DTV_CODE_RATE_LP, 1, 0),
+	_DTV_CMD(DTV_GUARD_INTERVAL, 1, 0),
+	_DTV_CMD(DTV_TRANSMISSION_MODE, 1, 0),
 
 	_DTV_CMD(DTV_ISDBT_PARTIAL_RECEPTION, 1, 0),
 	_DTV_CMD(DTV_ISDBT_SOUND_BROADCASTING, 1, 0),
@@ -1035,43 +958,13 @@ static struct dtv_cmds_h dtv_cmds[] = {
 	_DTV_CMD(DTV_ISDBS_TS_ID, 1, 0),
 
 	/* Get */
-	[DTV_DISEQC_SLAVE_REPLY] = {
-		.name	= "DTV_DISEQC_SLAVE_REPLY",
-		.cmd	= DTV_DISEQC_SLAVE_REPLY,
-		.set	= 0,
-		.buffer	= 1,
-	},
-
-	[DTV_API_VERSION] = {
-		.name	= "DTV_API_VERSION",
-		.cmd	= DTV_API_VERSION,
-		.set	= 0,
-	},
-	[DTV_CODE_RATE_HP] = {
-		.name	= "DTV_CODE_RATE_HP",
-		.cmd	= DTV_CODE_RATE_HP,
-		.set	= 0,
-	},
-	[DTV_CODE_RATE_LP] = {
-		.name	= "DTV_CODE_RATE_LP",
-		.cmd	= DTV_CODE_RATE_LP,
-		.set	= 0,
-	},
-	[DTV_GUARD_INTERVAL] = {
-		.name	= "DTV_GUARD_INTERVAL",
-		.cmd	= DTV_GUARD_INTERVAL,
-		.set	= 0,
-	},
-	[DTV_TRANSMISSION_MODE] = {
-		.name	= "DTV_TRANSMISSION_MODE",
-		.cmd	= DTV_TRANSMISSION_MODE,
-		.set	= 0,
-	},
-	[DTV_HIERARCHY] = {
-		.name	= "DTV_HIERARCHY",
-		.cmd	= DTV_HIERARCHY,
-		.set	= 0,
-	},
+	_DTV_CMD(DTV_DISEQC_SLAVE_REPLY, 0, 1),
+	_DTV_CMD(DTV_API_VERSION, 0, 0),
+	_DTV_CMD(DTV_CODE_RATE_HP, 0, 0),
+	_DTV_CMD(DTV_CODE_RATE_LP, 0, 0),
+	_DTV_CMD(DTV_GUARD_INTERVAL, 0, 0),
+	_DTV_CMD(DTV_TRANSMISSION_MODE, 0, 0),
+	_DTV_CMD(DTV_HIERARCHY, 0, 0),
 };
 
 static void dtv_property_dump(struct dtv_property *tvp)
@@ -1712,7 +1605,18 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	int err = -EOPNOTSUPP;
+	int cb_err, err = -EOPNOTSUPP;
+
+	if (fe->dvb->fe_ioctl_override) {
+		cb_err = fe->dvb->fe_ioctl_override(fe, cmd, parg,
+						    DVB_FE_IOCTL_PRE);
+		if (cb_err < 0)
+			return cb_err;
+		if (cb_err > 0)
+			return 0;
+		/* fe_ioctl_override returning 0 allows
+		 * dvb-core to continue handling the ioctl */
+	}
 
 	switch (cmd) {
 	case FE_GET_INFO: {
@@ -1977,6 +1881,13 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 		err = 0;
 		break;
 	};
+
+	if (fe->dvb->fe_ioctl_override) {
+		cb_err = fe->dvb->fe_ioctl_override(fe, cmd, parg,
+						    DVB_FE_IOCTL_POST);
+		if (cb_err < 0)
+			return cb_err;
+	}
 
 	return err;
 }

@@ -1386,8 +1386,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device *dev,
 				/* Test the timout parameter */
 		 /*****************************/
 
-				if ((ui_TimeOut >= 0)
-					&& (ui_TimeOut <= 65535UL)) {
+				if (ui_TimeOut <= 65535UL) {
 
 					for (;;) {
 			  /*******************/

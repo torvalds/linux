@@ -50,7 +50,7 @@ static ssize_t video_output_store_state(struct device *dev,
 	int request_state = simple_strtoul(buf,&endp,0);
 	size_t size = endp - buf;
 
-	if (*endp && isspace(*endp))
+	if (isspace(*endp))
 		size++;
 	if (size != count)
 		return -EINVAL;

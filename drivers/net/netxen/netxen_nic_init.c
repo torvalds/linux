@@ -184,6 +184,8 @@ skip_rds:
 
 	tx_ring = adapter->tx_ring;
 	vfree(tx_ring->cmd_buf_arr);
+	kfree(tx_ring);
+	adapter->tx_ring = NULL;
 }
 
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
@@ -619,17 +621,20 @@ nx_set_product_offs(struct netxen_adapter *adapter)
 	uint32_t i;
 	__le32 entries;
 
+	int mn_present = (NX_IS_REVISION_P2(adapter->ahw.revision_id)) ?
+			1 : netxen_p3_has_mn(adapter);
+
 	ptab_descr = nx_get_table_desc(unirom, NX_UNI_DIR_SECT_PRODUCT_TBL);
 	if (ptab_descr == NULL)
 		return -1;
 
 	entries = cpu_to_le32(ptab_descr->num_entries);
 
+nomn:
 	for (i = 0; i < entries; i++) {
 
 		__le32 flags, file_chiprev, offs;
 		u8 chiprev = adapter->ahw.revision_id;
-		int mn_present = netxen_p3_has_mn(adapter);
 		uint32_t flagbit;
 
 		offs = cpu_to_le32(ptab_descr->findex) +
@@ -645,6 +650,11 @@ nx_set_product_offs(struct netxen_adapter *adapter)
 			adapter->file_prd_off = offs;
 			return 0;
 		}
+	}
+
+	if (mn_present && NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		mn_present = 0;
+		goto nomn;
 	}
 
 	return -1;
@@ -774,7 +784,7 @@ netxen_need_fw_reset(struct netxen_adapter *adapter)
 	if (NXRD32(adapter, CRB_CMDPEG_STATE) == PHAN_INITIALIZE_FAILED)
 		return 1;
 
-	old_count = count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+	old_count = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
 
 	for (i = 0; i < 10; i++) {
 
@@ -1020,6 +1030,10 @@ netxen_p3_has_mn(struct netxen_adapter *adapter)
 {
 	u32 capability, flashed_ver;
 	capability = 0;
+
+	/* NX2031 always had MN */
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		return 1;
 
 	netxen_rom_fast_read(adapter,
 			NX_FW_VERSION_OFFSET, (int *)&flashed_ver);

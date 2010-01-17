@@ -716,7 +716,7 @@ static int kaweth_open(struct net_device *net)
 	return 0;
 
 err_out:
-	usb_autopm_enable(kaweth->intf);
+	usb_autopm_put_interface(kaweth->intf);
 	return -EIO;
 }
 
@@ -753,7 +753,7 @@ static int kaweth_close(struct net_device *net)
 
 	kaweth->status &= ~KAWETH_STATUS_CLOSING;
 
-	usb_autopm_enable(kaweth->intf);
+	usb_autopm_put_interface(kaweth->intf);
 
 	return 0;
 }

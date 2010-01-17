@@ -82,9 +82,7 @@ config 32BIT
 
 config PMB_ENABLE
 	bool "Support 32-bit physical addressing through PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
-	select 32BIT
-	default y
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
@@ -97,8 +95,7 @@ choice
 
 config PMB
 	bool "PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
-	select 32BIT
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
@@ -106,9 +103,7 @@ config PMB
 
 config PMB_FIXED
 	bool "fixed PMB"
-	depends on MMU && EXPERIMENTAL && (CPU_SUBTYPE_SH7757 || \
-					   CPU_SUBTYPE_SH7780 || \
-					   CPU_SUBTYPE_SH7785)
+	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	select 32BIT
 	help
 	  If this option is enabled, fixed PMB mappings are inherited
@@ -257,6 +252,15 @@ config HUGETLB_PAGE_SIZE_512MB
 endchoice
 
 source "mm/Kconfig"
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on SMP
+	default y
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
 
 endmenu
 

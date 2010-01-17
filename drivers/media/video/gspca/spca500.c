@@ -589,7 +589,7 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 	int err;
 	__u8 Data;
 
-	/* some unknow command from Aiptek pocket dv and family300 */
+	/* some unknown command from Aiptek pocket dv and family300 */
 
 	reg_w(gspca_dev, 0x00, 0x0d01, 0x01);
 	reg_w(gspca_dev, 0x00, 0x0d03, 0x00);
@@ -899,8 +899,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -913,11 +912,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /*			gspca_dev->last_packet_type = DISCARD_PACKET; */
 			return;
 		}
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+		gspca_frame_add(gspca_dev, LAST_PACKET,
 					ffd9, 2);
 
 		/* put the JPEG header in the new frame */
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
 			sd->jpeg_hdr, JPEG_HDR_SZ);
 
 		data += SPCA500_OFFSET_DATA;
@@ -931,7 +930,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	i = 0;
 	do {
 		if (data[i] == 0xff) {
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, INTER_PACKET,
 					data, i + 1);
 			len -= i;
 			data += i;
@@ -940,7 +939,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 		i++;
 	} while (i < len);
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)

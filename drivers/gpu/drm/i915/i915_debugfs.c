@@ -27,6 +27,7 @@
  */
 
 #include <linux/seq_file.h>
+#include <linux/debugfs.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -96,13 +97,14 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	{
 		struct drm_gem_object *obj = obj_priv->obj;
 
-		seq_printf(m, "    %p: %s %8zd %08x %08x %d %s",
+		seq_printf(m, "    %p: %s %8zd %08x %08x %d%s%s",
 			   obj,
 			   get_pin_flag(obj_priv),
 			   obj->size,
 			   obj->read_domains, obj->write_domain,
 			   obj_priv->last_rendering_seqno,
-			   obj_priv->dirty ? "dirty" : "");
+			   obj_priv->dirty ? " dirty" : "",
+			   obj_priv->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 
 		if (obj->name)
 			seq_printf(m, " (name: %d)", obj->name);
@@ -160,7 +162,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (!IS_IGDNG(dev)) {
+	if (!IS_IRONLAKE(dev)) {
 		seq_printf(m, "Interrupt enable:    %08x\n",
 			   I915_READ(IER));
 		seq_printf(m, "Interrupt identity:  %08x\n",
@@ -270,7 +272,7 @@ static void i915_dump_pages(struct seq_file *m, struct page **pages, int page_co
 		mem = kmap_atomic(pages[page], KM_USER0);
 		for (i = 0; i < PAGE_SIZE; i += 4)
 			seq_printf(m, "%08x :  %08x\n", i, mem[i / 4]);
-		kunmap_atomic(pages[page], KM_USER0);
+		kunmap_atomic(mem, KM_USER0);
 	}
 }
 
@@ -384,37 +386,111 @@ out:
 	return 0;
 }
 
-static int i915_registers_info(struct seq_file *m, void *data) {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+static int
+i915_wedged_open(struct inode *inode,
+		 struct file *filp)
+{
+	filp->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t
+i915_wedged_read(struct file *filp,
+		 char __user *ubuf,
+		 size_t max,
+		 loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t reg;
+	char buf[80];
+	int len;
 
-#define DUMP_RANGE(start, end) \
-	for (reg=start; reg < end; reg += 4) \
-	seq_printf(m, "%08x\t%08x\n", reg, I915_READ(reg));
+	len = snprintf(buf, sizeof (buf),
+		       "wedged :  %d\n",
+		       atomic_read(&dev_priv->mm.wedged));
 
-	DUMP_RANGE(0x00000, 0x00fff);   /* VGA registers */
-	DUMP_RANGE(0x02000, 0x02fff);   /* instruction, memory, interrupt control registers */
-	DUMP_RANGE(0x03000, 0x031ff);   /* FENCE and PPGTT control registers */
-	DUMP_RANGE(0x03200, 0x03fff);   /* frame buffer compression registers */
-	DUMP_RANGE(0x05000, 0x05fff);   /* I/O control registers */
-	DUMP_RANGE(0x06000, 0x06fff);   /* clock control registers */
-	DUMP_RANGE(0x07000, 0x07fff);   /* 3D internal debug registers */
-	DUMP_RANGE(0x07400, 0x088ff);   /* GPE debug registers */
-	DUMP_RANGE(0x0a000, 0x0afff);   /* display palette registers */
-	DUMP_RANGE(0x10000, 0x13fff);   /* MMIO MCHBAR */
-	DUMP_RANGE(0x30000, 0x3ffff);   /* overlay registers */
-	DUMP_RANGE(0x60000, 0x6ffff);   /* display engine pipeline registers */
-	DUMP_RANGE(0x70000, 0x72fff);   /* display and cursor registers */
-	DUMP_RANGE(0x73000, 0x73fff);   /* performance counters */
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_wedged_write(struct file *filp,
+		  const char __user *ubuf,
+		  size_t cnt,
+		  loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[20];
+	int val = 1;
+
+	if (cnt > 0) {
+		if (cnt > sizeof (buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_INFO("Manually setting wedged to %d\n", val);
+
+	atomic_set(&dev_priv->mm.wedged, val);
+	if (val) {
+		DRM_WAKEUP(&dev_priv->irq_queue);
+		queue_work(dev_priv->wq, &dev_priv->error_work);
+	}
+
+	return cnt;
+}
+
+static const struct file_operations i915_wedged_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_wedged_open,
+	.read = i915_wedged_read,
+	.write = i915_wedged_write,
+};
+
+/* As the drm_debugfs_init() routines are called before dev->dev_private is
+ * allocated we need to hook into the minor for release. */
+static int
+drm_add_fake_info_node(struct drm_minor *minor,
+		       struct dentry *ent,
+		       const void *key)
+{
+	struct drm_info_node *node;
+
+	node = kmalloc(sizeof(struct drm_info_node), GFP_KERNEL);
+	if (node == NULL) {
+		debugfs_remove(ent);
+		return -ENOMEM;
+	}
+
+	node->minor = minor;
+	node->dent = ent;
+	node->info_ent = (void *) key;
+	list_add(&node->list, &minor->debugfs_nodes.list);
 
 	return 0;
 }
 
+static int i915_wedged_create(struct dentry *root, struct drm_minor *minor)
+{
+	struct drm_device *dev = minor->dev;
+	struct dentry *ent;
+
+	ent = debugfs_create_file("i915_wedged",
+				  S_IRUGO | S_IWUSR,
+				  root, dev,
+				  &i915_wedged_fops);
+	if (IS_ERR(ent))
+		return PTR_ERR(ent);
+
+	return drm_add_fake_info_node(minor, ent, &i915_wedged_fops);
+}
 
 static struct drm_info_list i915_debugfs_list[] = {
-	{"i915_regs", i915_registers_info, 0},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
@@ -432,6 +508,12 @@ static struct drm_info_list i915_debugfs_list[] = {
 
 int i915_debugfs_init(struct drm_minor *minor)
 {
+	int ret;
+
+	ret = i915_wedged_create(minor->debugfs_root, minor);
+	if (ret)
+		return ret;
+
 	return drm_debugfs_create_files(i915_debugfs_list,
 					I915_DEBUGFS_ENTRIES,
 					minor->debugfs_root, minor);
@@ -441,7 +523,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(i915_debugfs_list,
 				 I915_DEBUGFS_ENTRIES, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_wedged_fops,
+				 1, minor);
 }
 
 #endif /* CONFIG_DEBUG_FS */
-

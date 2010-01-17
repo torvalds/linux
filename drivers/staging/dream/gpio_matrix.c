@@ -18,13 +18,11 @@
 #include <linux/gpio_event.h>
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
-#include <linux/wakelock.h>
 
 struct gpio_kp {
 	struct input_dev *input_dev;
 	struct gpio_event_matrix_info *keypad_info;
 	struct hrtimer timer;
-	struct wake_lock wake_lock;
 	int current_output;
 	unsigned int use_irq:1;
 	unsigned int key_state_changed:1;
@@ -199,7 +197,6 @@ static enum hrtimer_restart gpio_keypad_timer_func(struct hrtimer *timer)
 	}
 	for (in = 0; in < mi->ninputs; in++)
 		enable_irq(gpio_to_irq(mi->input_gpios[in]));
-	wake_unlock(&kp->wake_lock);
 	return HRTIMER_NORESTART;
 }
 
@@ -222,7 +219,6 @@ static irqreturn_t gpio_keypad_irq_handler(int irq_in, void *dev_id)
 		else
 			gpio_direction_input(mi->output_gpios[i]);
 	}
-	wake_lock(&kp->wake_lock);
 	hrtimer_start(&kp->timer, ktime_set(0, 0), HRTIMER_MODE_REL);
 	return IRQ_HANDLED;
 }
@@ -363,7 +359,6 @@ int gpio_event_matrix_func(struct input_dev *input_dev,
 
 		hrtimer_init(&kp->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		kp->timer.function = gpio_keypad_timer_func;
-		wake_lock_init(&kp->wake_lock, WAKE_LOCK_SUSPEND, "gpio_kp");
 		err = gpio_keypad_request_irqs(kp);
 		kp->use_irq = err == 0;
 
@@ -371,8 +366,6 @@ int gpio_event_matrix_func(struct input_dev *input_dev,
 			"in %s mode\n", input_dev->name,
 			kp->use_irq ? "interrupt" : "polling");
 
-		if (kp->use_irq)
-			wake_lock(&kp->wake_lock);
 		hrtimer_start(&kp->timer, ktime_set(0, 0), HRTIMER_MODE_REL);
 
 		return 0;
@@ -386,7 +379,6 @@ int gpio_event_matrix_func(struct input_dev *input_dev,
 			free_irq(gpio_to_irq(mi->input_gpios[i]), kp);
 
 	hrtimer_cancel(&kp->timer);
-	wake_lock_destroy(&kp->wake_lock);
 	for (i = mi->noutputs - 1; i >= 0; i--) {
 err_gpio_direction_input_failed:
 		gpio_free(mi->input_gpios[i]);

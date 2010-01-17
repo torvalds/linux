@@ -28,7 +28,6 @@
 #include <asm/uaccess.h>
 #include <net/sock.h>
 
-#include <linux/version.h>
 #include <linux/drbd.h>
 #include <linux/fs.h>
 #include <linux/file.h>

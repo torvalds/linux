@@ -1286,7 +1286,7 @@ x86_perf_event_set_period(struct perf_event *event,
 		return 0;
 
 	/*
-	 * If we are way outside a reasoable range then just skip forward:
+	 * If we are way outside a reasonable range then just skip forward:
 	 */
 	if (unlikely(left <= -period)) {
 		left = period;
@@ -1632,6 +1632,7 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_events *cpuc)
 
 	data.period	= event->hw.last_period;
 	data.addr	= 0;
+	data.raw	= NULL;
 	regs.ip		= 0;
 
 	/*
@@ -1749,6 +1750,7 @@ static int p6_pmu_handle_irq(struct pt_regs *regs)
 	u64 val;
 
 	data.addr = 0;
+	data.raw = NULL;
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1794,6 +1796,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	u64 ack, status;
 
 	data.addr = 0;
+	data.raw = NULL;
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1857,6 +1860,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs)
 	u64 val;
 
 	data.addr = 0;
+	data.raw = NULL;
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -2062,12 +2066,6 @@ static __init int p6_pmu_init(void)
 
 	x86_pmu = p6_pmu;
 
-	if (!cpu_has_apic) {
-		pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
-		pr_info("no hardware sampling interrupt available.\n");
-		x86_pmu.apic = 0;
-	}
-
 	return 0;
 }
 
@@ -2159,6 +2157,16 @@ static __init int amd_pmu_init(void)
 	return 0;
 }
 
+static void __init pmu_check_apic(void)
+{
+	if (cpu_has_apic)
+		return;
+
+	x86_pmu.apic = 0;
+	pr_info("no APIC, boot with the \"lapic\" boot parameter to force-enable it.\n");
+	pr_info("no hardware sampling interrupt available.\n");
+}
+
 void __init init_hw_perf_events(void)
 {
 	int err;
@@ -2179,6 +2187,8 @@ void __init init_hw_perf_events(void)
 		pr_cont("no PMU driver, software events only.\n");
 		return;
 	}
+
+	pmu_check_apic();
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
@@ -2287,7 +2297,7 @@ void callchain_store(struct perf_callchain_entry *entry, u64 ip)
 
 static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_irq_entry);
 static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_nmi_entry);
-static DEFINE_PER_CPU(int, in_nmi_frame);
+static DEFINE_PER_CPU(int, in_ignored_frame);
 
 
 static void
@@ -2303,8 +2313,9 @@ static void backtrace_warning(void *data, char *msg)
 
 static int backtrace_stack(void *data, char *name)
 {
-	per_cpu(in_nmi_frame, smp_processor_id()) =
-			x86_is_stack_id(NMI_STACK, name);
+	per_cpu(in_ignored_frame, smp_processor_id()) =
+			x86_is_stack_id(NMI_STACK, name) ||
+			x86_is_stack_id(DEBUG_STACK, name);
 
 	return 0;
 }
@@ -2313,7 +2324,7 @@ static void backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	struct perf_callchain_entry *entry = data;
 
-	if (per_cpu(in_nmi_frame, smp_processor_id()))
+	if (per_cpu(in_ignored_frame, smp_processor_id()))
 		return;
 
 	if (reliable)
@@ -2325,6 +2336,7 @@ static const struct stacktrace_ops backtrace_ops = {
 	.warning_symbol		= backtrace_warning_symbol,
 	.stack			= backtrace_stack,
 	.address		= backtrace_address,
+	.walk_stack		= print_context_stack_bp,
 };
 
 #include "../dumpstack.h"
@@ -2335,7 +2347,7 @@ perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	callchain_store(entry, PERF_CONTEXT_KERNEL);
 	callchain_store(entry, regs->ip);
 
-	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
+	dump_trace(NULL, regs, NULL, regs->bp, &backtrace_ops, entry);
 }
 
 /*

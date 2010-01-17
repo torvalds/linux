@@ -17,6 +17,7 @@
 #ifdef CONFIG_PPC_PSERIES
 extern int pSeries_reconfig_notifier_register(struct notifier_block *);
 extern void pSeries_reconfig_notifier_unregister(struct notifier_block *);
+extern struct blocking_notifier_head pSeries_reconfig_chain;
 #else /* !CONFIG_PPC_PSERIES */
 static inline int pSeries_reconfig_notifier_register(struct notifier_block *nb)
 {

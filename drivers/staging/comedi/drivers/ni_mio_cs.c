@@ -250,9 +250,8 @@ static int mio_cs_detach(struct comedi_device *dev)
 
 	/* PCMCIA layer frees the IO region */
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 
 	return 0;
 }
@@ -293,9 +292,8 @@ static void cs_detach(struct pcmcia_device *link)
 {
 	DPRINTK("cs_detach(link=%p)\n", link);
 
-	if (link->dev_node) {
+	if (link->dev_node)
 		cs_release(link);
-	}
 }
 
 static int mio_cs_suspend(struct pcmcia_device *link)
@@ -387,9 +385,8 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		printk("\n");
 		printk(" board fingerprint (windowed):");
-		for (i = 0; i < 10; i++) {
+		for (i = 0; i < 10; i++)
 			printk(" 0x%04x", win_in(i));
-		}
 		printk("\n");
 	}
 #endif

@@ -55,8 +55,7 @@
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 					I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_3(adm9240, ds1780, lm81);
+enum chips { adm9240, ds1780, lm81 };
 
 /* ADM9240 registers */
 #define ADM9240_REG_MAN_ID		0x3e
@@ -132,7 +131,7 @@ static inline unsigned int AOUT_FROM_REG(u8 reg)
 
 static int adm9240_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adm9240_detect(struct i2c_client *client, int kind,
+static int adm9240_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void adm9240_init_client(struct i2c_client *client);
 static int adm9240_remove(struct i2c_client *client);
@@ -156,7 +155,7 @@ static struct i2c_driver adm9240_driver = {
 	.remove		= adm9240_remove,
 	.id_table	= adm9240_id,
 	.detect		= adm9240_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* per client data */
@@ -545,7 +544,7 @@ static const struct attribute_group adm9240_group = {
 /*** sensor chip detect and driver install ***/
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adm9240_detect(struct i2c_client *new_client, int kind,
+static int adm9240_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
@@ -556,51 +555,34 @@ static int adm9240_detect(struct i2c_client *new_client, int kind,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind == 0) {
-		kind = adm9240;
+	/* verify chip: reg address should match i2c address */
+	if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR)
+			!= address) {
+		dev_err(&adapter->dev, "detect fail: address match, 0x%02x\n",
+			address);
+		return -ENODEV;
 	}
 
-	if (kind < 0) {
-
-		/* verify chip: reg address should match i2c address */
-		if (i2c_smbus_read_byte_data(new_client, ADM9240_REG_I2C_ADDR)
-				!= address) {
-			dev_err(&adapter->dev, "detect fail: address match, "
-					"0x%02x\n", address);
-			return -ENODEV;
-		}
-
-		/* check known chip manufacturer */
-		man_id = i2c_smbus_read_byte_data(new_client,
-				ADM9240_REG_MAN_ID);
-		if (man_id == 0x23) {
-			kind = adm9240;
-		} else if (man_id == 0xda) {
-			kind = ds1780;
-		} else if (man_id == 0x01) {
-			kind = lm81;
-		} else {
-			dev_err(&adapter->dev, "detect fail: unknown manuf, "
-					"0x%02x\n", man_id);
-			return -ENODEV;
-		}
-
-		/* successful detect, print chip info */
-		die_rev = i2c_smbus_read_byte_data(new_client,
-				ADM9240_REG_DIE_REV);
-		dev_info(&adapter->dev, "found %s revision %u\n",
-				man_id == 0x23 ? "ADM9240" :
-				man_id == 0xda ? "DS1780" : "LM81", die_rev);
-	}
-
-	/* either forced or detected chip kind */
-	if (kind == adm9240) {
+	/* check known chip manufacturer */
+	man_id = i2c_smbus_read_byte_data(new_client, ADM9240_REG_MAN_ID);
+	if (man_id == 0x23) {
 		name = "adm9240";
-	} else if (kind == ds1780) {
+	} else if (man_id == 0xda) {
 		name = "ds1780";
-	} else if (kind == lm81) {
+	} else if (man_id == 0x01) {
 		name = "lm81";
+	} else {
+		dev_err(&adapter->dev, "detect fail: unknown manuf, 0x%02x\n",
+			man_id);
+		return -ENODEV;
 	}
+
+	/* successful detect, print chip info */
+	die_rev = i2c_smbus_read_byte_data(new_client, ADM9240_REG_DIE_REV);
+	dev_info(&adapter->dev, "found %s revision %u\n",
+		 man_id == 0x23 ? "ADM9240" :
+		 man_id == 0xda ? "DS1780" : "LM81", die_rev);
+
 	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;

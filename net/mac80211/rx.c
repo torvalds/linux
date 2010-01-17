@@ -1712,7 +1712,6 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			mpp_path_add(proxied_addr, mpp_addr, sdata);
 		} else {
 			spin_lock_bh(&mppath->state_lock);
-			mppath->exp_time = jiffies;
 			if (compare_ether_addr(mppath->mpp, mpp_addr) != 0)
 				memcpy(mppath->mpp, mpp_addr, ETH_ALEN);
 			spin_unlock_bh(&mppath->state_lock);
@@ -1747,7 +1746,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			memset(info, 0, sizeof(*info));
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			info->control.vif = &rx->sdata->vif;
-			ieee80211_select_queue(local, fwd_skb);
+			skb_set_queue_mapping(skb,
+				ieee80211_select_queue(rx->sdata, fwd_skb));
+			ieee80211_set_qos_hdr(local, skb);
 			if (is_multicast_ether_addr(fwd_hdr->addr1))
 				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
 								fwded_mcast);
@@ -2014,6 +2015,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	default:
+		/* do not process rejected action frames */
+		if (mgmt->u.action.category & 0x80)
+			return RX_DROP_MONITOR;
+
 		return RX_CONTINUE;
 	}
 

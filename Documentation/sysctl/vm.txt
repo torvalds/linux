@@ -370,7 +370,7 @@ The default is 1 percent.
 mmap_min_addr
 
 This file indicates the amount of address space  which a user process will
-be restricted from mmaping.  Since kernel null dereference bugs could
+be restricted from mmapping.  Since kernel null dereference bugs could
 accidentally operate based on the information in the first couple of pages
 of memory userspace processes should not be allowed to write to them.  By
 default this value is set to 0 and no protections will be enforced by the

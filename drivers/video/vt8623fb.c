@@ -446,7 +446,7 @@ static int vt8623fb_set_par(struct fb_info *info)
 
 	svga_wseq_mask(0x1E, 0xF0, 0xF0); // DI/DVP bus
 	svga_wseq_mask(0x2A, 0x0F, 0x0F); // DI/DVP bus
-	svga_wseq_mask(0x16, 0x08, 0xBF); // FIFO read treshold
+	svga_wseq_mask(0x16, 0x08, 0xBF); // FIFO read threshold
 	vga_wseq(NULL, 0x17, 0x1F);       // FIFO depth
 	vga_wseq(NULL, 0x18, 0x4E);
 	svga_wseq_mask(0x1A, 0x08, 0x08); // enable MMIO ?

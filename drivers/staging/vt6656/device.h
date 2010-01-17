@@ -44,7 +44,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/wait.h>
 #include <linux/if_arp.h>
@@ -88,7 +87,6 @@
 // device specific
 //
 
-#include "kcompat.h"
 #include "device_cfg.h"
 #include "ttype.h"
 #include "80211hdr.h"
@@ -103,7 +101,7 @@
 #include "card.h"
 
 /*---------------------  Export Definitions -------------------------*/
-#define VNT_USB_VENDOR_ID                     0x160A
+#define VNT_USB_VENDOR_ID                     0x160a
 #define VNT_USB_PRODUCT_ID                    0x3184
 
 #define MAC_MAX_CONTEXT_REG     (256+128)

@@ -46,6 +46,9 @@
 #define E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT	 0x0000
 #define E1000_KMRNCTRLSTA_OPMODE_E_IDLE		 0x2000
 
+#define E1000_KMRNCTRLSTA_OPMODE_MASK		 0x000C
+#define E1000_KMRNCTRLSTA_OPMODE_INBAND_MDIO	 0x0004
+
 #define E1000_TCTL_EXT_GCEX_MASK 0x000FFC00 /* Gigabit Carry Extend Padding */
 #define DEFAULT_TCTL_EXT_GCEX_80003ES2LAN	 0x00010000
 
@@ -221,6 +224,8 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 	/* Set if manageability features are enabled. */
 	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
                         ? true : false;
+	/* Adaptive IFS not supported */
+	mac->adaptive_ifs = false;
 
 	/* check for link */
 	switch (hw->phy.media_type) {
@@ -462,28 +467,36 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		return ret_val;
 	}
 
-	/*
-	 * The "ready" bit in the MDIC register may be incorrectly set
-	 * before the device has completed the "Page Select" MDI
-	 * transaction.  So we wait 200us after each MDI command...
-	 */
-	udelay(200);
+	if (hw->dev_spec.e80003es2lan.mdic_wa_enable == true) {
+		/*
+		 * The "ready" bit in the MDIC register may be incorrectly set
+		 * before the device has completed the "Page Select" MDI
+		 * transaction.  So we wait 200us after each MDI command...
+		 */
+		udelay(200);
 
-	/* ...and verify the command was successful. */
-	ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
+		/* ...and verify the command was successful. */
+		ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
 
-	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
-		ret_val = -E1000_ERR_PHY;
-		e1000_release_phy_80003es2lan(hw);
-		return ret_val;
+		if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
+			ret_val = -E1000_ERR_PHY;
+			e1000_release_phy_80003es2lan(hw);
+			return ret_val;
+		}
+
+		udelay(200);
+
+		ret_val = e1000e_read_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
+
+		udelay(200);
+	} else {
+		ret_val = e1000e_read_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
 	}
 
-	udelay(200);
-
-	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
-					   data);
-
-	udelay(200);
 	e1000_release_phy_80003es2lan(hw);
 
 	return ret_val;
@@ -526,28 +539,35 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		return ret_val;
 	}
 
+	if (hw->dev_spec.e80003es2lan.mdic_wa_enable == true) {
+		/*
+		 * The "ready" bit in the MDIC register may be incorrectly set
+		 * before the device has completed the "Page Select" MDI
+		 * transaction.  So we wait 200us after each MDI command...
+		 */
+		udelay(200);
 
-	/*
-	 * The "ready" bit in the MDIC register may be incorrectly set
-	 * before the device has completed the "Page Select" MDI
-	 * transaction.  So we wait 200us after each MDI command...
-	 */
-	udelay(200);
+		/* ...and verify the command was successful. */
+		ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
 
-	/* ...and verify the command was successful. */
-	ret_val = e1000e_read_phy_reg_mdic(hw, page_select, &temp);
+		if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
+			e1000_release_phy_80003es2lan(hw);
+			return -E1000_ERR_PHY;
+		}
 
-	if (((u16)offset >> GG82563_PAGE_SHIFT) != temp) {
-		e1000_release_phy_80003es2lan(hw);
-		return -E1000_ERR_PHY;
+		udelay(200);
+
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
+
+		udelay(200);
+	} else {
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+		                                  MAX_PHY_REG_ADDRESS & offset,
+		                                  data);
 	}
 
-	udelay(200);
-
-	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
-					    data);
-
-	udelay(200);
 	e1000_release_phy_80003es2lan(hw);
 
 	return ret_val;
@@ -865,6 +885,19 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	reg_data = E1000_READ_REG_ARRAY(hw, E1000_FFLT, 0x0001);
 	reg_data &= ~0x00100000;
 	E1000_WRITE_REG_ARRAY(hw, E1000_FFLT, 0x0001, reg_data);
+
+	/* default to true to enable the MDIC W/A */
+	hw->dev_spec.e80003es2lan.mdic_wa_enable = true;
+
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
+	                              E1000_KMRNCTRLSTA_OFFSET >>
+	                              E1000_KMRNCTRLSTA_OFFSET_SHIFT,
+	                              &i);
+	if (!ret_val) {
+		if ((i & E1000_KMRNCTRLSTA_OPMODE_MASK) ==
+		     E1000_KMRNCTRLSTA_OPMODE_INBAND_MDIO)
+			hw->dev_spec.e80003es2lan.mdic_wa_enable = false;
+	}
 
 	/*
 	 * Clear all of the statistics registers (clear on read).  It is

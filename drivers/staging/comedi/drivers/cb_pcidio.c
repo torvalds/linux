@@ -109,12 +109,12 @@ MODULE_DEVICE_TABLE(pci, pcidio_pci_table);
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
 struct pcidio_private {
-	int data;		/*  curently unused */
+	int data;		/*  currently unused */
 
 	/* would be useful for a PCI device */
 	struct pci_dev *pci_dev;
 
-	/* used for DO readback, curently unused */
+	/* used for DO readback, currently unused */
 	unsigned int do_readback[4];	/* up to 4 unsigned int suffice to hold 96 bits for PCI-DIO96 */
 
 	unsigned long dio_reg_base;	/*  address of port A of the first 8255 chip on board */

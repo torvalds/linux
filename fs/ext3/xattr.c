@@ -99,7 +99,7 @@ static struct buffer_head *ext3_xattr_cache_find(struct inode *,
 						 struct mb_cache_entry **);
 static void ext3_xattr_rehash(struct ext3_xattr_header *,
 			      struct ext3_xattr_entry *);
-static int ext3_xattr_list(struct inode *inode, char *buffer,
+static int ext3_xattr_list(struct dentry *dentry, char *buffer,
 			   size_t buffer_size);
 
 static struct mb_cache *ext3_xattr_cache;
@@ -147,7 +147,7 @@ ext3_xattr_handler(int name_index)
 ssize_t
 ext3_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	return ext3_xattr_list(dentry->d_inode, buffer, size);
+	return ext3_xattr_list(dentry, buffer, size);
 }
 
 static int
@@ -332,7 +332,7 @@ ext3_xattr_get(struct inode *inode, int name_index, const char *name,
 }
 
 static int
-ext3_xattr_list_entries(struct inode *inode, struct ext3_xattr_entry *entry,
+ext3_xattr_list_entries(struct dentry *dentry, struct ext3_xattr_entry *entry,
 			char *buffer, size_t buffer_size)
 {
 	size_t rest = buffer_size;
@@ -342,9 +342,10 @@ ext3_xattr_list_entries(struct inode *inode, struct ext3_xattr_entry *entry,
 			ext3_xattr_handler(entry->e_name_index);
 
 		if (handler) {
-			size_t size = handler->list(inode, buffer, rest,
+			size_t size = handler->list(dentry, buffer, rest,
 						    entry->e_name,
-						    entry->e_name_len);
+						    entry->e_name_len,
+						    handler->flags);
 			if (buffer) {
 				if (size > rest)
 					return -ERANGE;
@@ -357,8 +358,9 @@ ext3_xattr_list_entries(struct inode *inode, struct ext3_xattr_entry *entry,
 }
 
 static int
-ext3_xattr_block_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext3_xattr_block_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
+	struct inode *inode = dentry->d_inode;
 	struct buffer_head *bh = NULL;
 	int error;
 
@@ -383,7 +385,7 @@ ext3_xattr_block_list(struct inode *inode, char *buffer, size_t buffer_size)
 		goto cleanup;
 	}
 	ext3_xattr_cache_insert(bh);
-	error = ext3_xattr_list_entries(inode, BFIRST(bh), buffer, buffer_size);
+	error = ext3_xattr_list_entries(dentry, BFIRST(bh), buffer, buffer_size);
 
 cleanup:
 	brelse(bh);
@@ -392,8 +394,9 @@ cleanup:
 }
 
 static int
-ext3_xattr_ibody_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext3_xattr_ibody_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
+	struct inode *inode = dentry->d_inode;
 	struct ext3_xattr_ibody_header *header;
 	struct ext3_inode *raw_inode;
 	struct ext3_iloc iloc;
@@ -411,7 +414,7 @@ ext3_xattr_ibody_list(struct inode *inode, char *buffer, size_t buffer_size)
 	error = ext3_xattr_check_names(IFIRST(header), end);
 	if (error)
 		goto cleanup;
-	error = ext3_xattr_list_entries(inode, IFIRST(header),
+	error = ext3_xattr_list_entries(dentry, IFIRST(header),
 					buffer, buffer_size);
 
 cleanup:
@@ -430,12 +433,12 @@ cleanup:
  * used / required on success.
  */
 static int
-ext3_xattr_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext3_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	int i_error, b_error;
 
-	down_read(&EXT3_I(inode)->xattr_sem);
-	i_error = ext3_xattr_ibody_list(inode, buffer, buffer_size);
+	down_read(&EXT3_I(dentry->d_inode)->xattr_sem);
+	i_error = ext3_xattr_ibody_list(dentry, buffer, buffer_size);
 	if (i_error < 0) {
 		b_error = 0;
 	} else {
@@ -443,11 +446,11 @@ ext3_xattr_list(struct inode *inode, char *buffer, size_t buffer_size)
 			buffer += i_error;
 			buffer_size -= i_error;
 		}
-		b_error = ext3_xattr_block_list(inode, buffer, buffer_size);
+		b_error = ext3_xattr_block_list(dentry, buffer, buffer_size);
 		if (b_error < 0)
 			i_error = 0;
 	}
-	up_read(&EXT3_I(inode)->xattr_sem);
+	up_read(&EXT3_I(dentry->d_inode)->xattr_sem);
 	return i_error + b_error;
 }
 
@@ -960,6 +963,10 @@ ext3_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 	if (error)
 		goto cleanup;
 
+	error = ext3_journal_get_write_access(handle, is.iloc.bh);
+	if (error)
+		goto cleanup;
+
 	if (EXT3_I(inode)->i_state & EXT3_STATE_NEW) {
 		struct ext3_inode *raw_inode = ext3_raw_inode(&is.iloc);
 		memset(raw_inode, 0, EXT3_SB(inode->i_sb)->s_inode_size);
@@ -985,9 +992,6 @@ ext3_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 		if (flags & XATTR_CREATE)
 			goto cleanup;
 	}
-	error = ext3_journal_get_write_access(handle, is.iloc.bh);
-	if (error)
-		goto cleanup;
 	if (!value) {
 		if (!is.s.not_found)
 			error = ext3_xattr_ibody_set(handle, inode, &i, &is);

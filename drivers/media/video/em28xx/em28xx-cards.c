@@ -225,6 +225,14 @@ static struct em28xx_reg_seq silvercrest_reg_seq[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+static struct em28xx_reg_seq vc211a_enable[] = {
+	{EM28XX_R08_GPIO,	0xff,	0x07,		10},
+	{EM28XX_R08_GPIO,	0xff,	0x0f,		10},
+	{EM28XX_R08_GPIO,	0xff,	0x0b,		10},
+	{	-1,		-1,	-1,		-1},
+};
+
+
 /*
  *  Board definitions
  */
@@ -829,7 +837,7 @@ struct em28xx_board em28xx_boards[] = {
 		.mts_firmware   = 1,
 		.has_dvb        = 1,
 		.dvb_gpio       = hauppauge_wintv_hvr_900_digital,
-		.ir_codes       = &ir_codes_hauppauge_new_table,
+		.ir_codes       = &ir_codes_rc5_hauppauge_new_table,
 		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -1007,6 +1015,23 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
+	[EM2800_BOARD_VC211A] = {
+		.name         = "Actionmaster/LinXcel/Digitus VC211A",
+		.is_em2800    = 1,
+		.tuner_type   = TUNER_ABSENT,	/* Capture-only board */
+		.decoder      = EM28XX_SAA711X,
+		.input        = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = vc211a_enable,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+			.gpio     = vc211a_enable,
 		} },
 	},
 	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
@@ -1381,10 +1406,14 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2882_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS (em2882)",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_gpio   = default_tuner_gpio,
+		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
+		.has_dvb      = 1,
+		.dvb_gpio     = hauppauge_wintv_hvr_900_digital,
+		.ir_codes     = &ir_codes_terratec_cinergy_xs_table,
+		.xclk         = EM28XX_XCLK_FREQUENCY_12MHZ,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -1607,6 +1636,8 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0xeb1a, 0x2860),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2861),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2862),
 			.driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2870),
 			.driver_info = EM2820_BOARD_UNKNOWN },
@@ -2050,6 +2081,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 	switch (dev->model) {
 	case EM2880_BOARD_EMPIRE_DUAL_TV:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2882_BOARD_TERRATEC_HYBRID_XS:
 		ctl->demod = XC3028_FE_ZARLINK456;
 		break;
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
@@ -2227,6 +2259,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 /* ----------------------------------------------------------------------- */
 void em28xx_register_i2c_ir(struct em28xx *dev)
 {
+	struct i2c_board_info info;
 	const unsigned short addr_list[] = {
 		 0x30, 0x47, I2C_CLIENT_END
 	};
@@ -2234,9 +2267,9 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 	if (disable_ir)
 		return;
 
-	memset(&dev->info, 0, sizeof(&dev->info));
+	memset(&info, 0, sizeof(struct i2c_board_info));
 	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(dev->info.type, "ir_video", I2C_NAME_SIZE);
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
 
 	/* detect & configure */
 	switch (dev->model) {
@@ -2252,15 +2285,15 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
 		break;
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
-		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		dev->init_data.ir_codes = &ir_codes_rc5_hauppauge_new_table;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
 		break;
 	}
 
 	if (dev->init_data.name)
-		dev->info.platform_data = &dev->init_data;
-	i2c_new_probed_device(&dev->i2c_adap, &dev->info, addr_list);
+		info.platform_data = &dev->init_data;
+	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
 }
 
 void em28xx_card_setup(struct em28xx *dev)
@@ -2524,6 +2557,9 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		dev->chip_id = retval;
 
 		switch (dev->chip_id) {
+		case CHIP_ID_EM2800:
+			em28xx_info("chip ID is em2800\n");
+			break;
 		case CHIP_ID_EM2710:
 			em28xx_info("chip ID is em2710\n");
 			break;
@@ -2617,7 +2653,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	INIT_LIST_HEAD(&dev->vbiq.active);
 	INIT_LIST_HEAD(&dev->vbiq.queued);
 
-
 	if (dev->board.has_msp34xx) {
 		/* Send a reset to other chips via gpio */
 		errCode = em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
@@ -2650,7 +2685,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	em28xx_init_extension(dev);
 
 	/* Save some power by putting tuner to sleep */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_standby);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
 
 	return 0;
 
@@ -2887,9 +2922,9 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	if (dev->users) {
 		em28xx_warn
-		    ("device /dev/video%d is open! Deregistration and memory "
+		    ("device %s is open! Deregistration and memory "
 		     "deallocation are deferred on close.\n",
-				dev->vdev->num);
+		     video_device_node_name(dev->vdev));
 
 		dev->state |= DEV_MISCONFIGURED;
 		em28xx_uninit_isoc(dev);

@@ -1,5 +1,6 @@
 #include <linux/notifier.h>
 
+#include <xen/xen.h>
 #include <xen/xenbus.h>
 
 #include <asm/xen/hypervisor.h>

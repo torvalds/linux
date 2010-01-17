@@ -73,7 +73,8 @@ a specific frontend type.</para>
 <section id="frontend_info">
 <title>frontend information</title>
 
-<para>Information about the frontend ca be queried with FE_GET_INFO.</para>
+<para>Information about the frontend ca be queried with
+	<link linkend="FE_GET_INFO">FE_GET_INFO</link>.</para>
 
 <programlisting>
 	struct dvb_frontend_info {
@@ -338,7 +339,7 @@ modulation mode which can be one of the following:
 <entry align="char">
 <para>This system call opens a named frontend device (/dev/dvb/adapter0/frontend0)
  for subsequent use. Usually the first thing to do after a successful open is to
- find out the frontend type with FE_GET_INFO.</para>
+ find out the frontend type with <link linkend="FE_GET_INFO">FE_GET_INFO</link>.</para>
 <para>The device can be opened in read-only mode, which only allows monitoring of
  device status and statistics, or read/write mode, which allows any kind of use
  (e.g. performing tuning operations.)
@@ -478,7 +479,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_read_status">
+<section id="FE_READ_STATUS">
 <title>FE_READ_STATUS</title>
 <para>DESCRIPTION
 </para>
@@ -492,7 +493,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_READ_STATUS,
+<para>int ioctl(int fd, int request = <link linkend="FE_READ_STATUS">FE_READ_STATUS</link>,
  fe_status_t &#x22C6;status);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -511,7 +512,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_READ_STATUS for this command.</para>
+<para>Equals <link linkend="FE_READ_STATUS">FE_READ_STATUS</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -542,7 +543,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_read_ber">
+<section id="FE_READ_BER">
 <title>FE_READ_BER</title>
 <para>DESCRIPTION
 </para>
@@ -557,7 +558,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_READ_BER,
+<para>int ioctl(int fd, int request = <link linkend="FE_READ_BER">FE_READ_BER</link>,
  uint32_t &#x22C6;ber);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -575,7 +576,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_READ_BER for this command.</para>
+<para>Equals <link linkend="FE_READ_BER">FE_READ_BER</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -619,7 +620,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_read_snr">
+<section id="FE_READ_SNR">
 <title>FE_READ_SNR</title>
 
 <para>DESCRIPTION
@@ -634,7 +635,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_READ_SNR, int16_t
+<para>int ioctl(int fd, int request = <link linkend="FE_READ_SNR">FE_READ_SNR</link>, int16_t
  &#x22C6;snr);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -652,7 +653,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_READ_SNR for this command.</para>
+<para>Equals <link linkend="FE_READ_SNR">FE_READ_SNR</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -697,7 +698,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_read_signal_strength">
+<section id="FE_READ_SIGNAL_STRENGTH">
 <title>FE_READ_SIGNAL_STRENGTH</title>
 <para>DESCRIPTION
 </para>
@@ -712,7 +713,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl( int fd, int request =
- FE_READ_SIGNAL_STRENGTH, int16_t &#x22C6;strength);</para>
+ <link linkend="FE_READ_SIGNAL_STRENGTH">FE_READ_SIGNAL_STRENGTH</link>, int16_t &#x22C6;strength);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 
@@ -730,7 +731,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_READ_SIGNAL_STRENGTH for this
+<para>Equals <link linkend="FE_READ_SIGNAL_STRENGTH">FE_READ_SIGNAL_STRENGTH</link> for this
  command.</para>
 </entry>
  </row><row><entry
@@ -775,7 +776,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_read_ub">
+<section id="FE_READ_UNCORRECTED_BLOCKS">
 <title>FE_READ_UNCORRECTED_BLOCKS</title>
 <para>DESCRIPTION
 </para>
@@ -797,7 +798,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl( int fd, int request =
- FE_READ_UNCORRECTED_BLOCKS, uint32_t &#x22C6;ublocks);</para>
+ <link linkend="FE_READ_UNCORRECTED_BLOCKS">FE_READ_UNCORRECTED_BLOCKS</link>, uint32_t &#x22C6;ublocks);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>PARAMETERS
@@ -814,7 +815,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_READ_UNCORRECTED_BLOCKS for this
+<para>Equals <link linkend="FE_READ_UNCORRECTED_BLOCKS">FE_READ_UNCORRECTED_BLOCKS</link> for this
  command.</para>
 </entry>
  </row><row><entry
@@ -852,7 +853,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_set_fe">
+<section id="FE_SET_FRONTEND">
 <title>FE_SET_FRONTEND</title>
 <para>DESCRIPTION
 </para>
@@ -861,8 +862,8 @@ modulation mode which can be one of the following:
 <para>This ioctl call starts a tuning operation using specified parameters. The result
  of this call will be successful if the parameters were valid and the tuning could
  be initiated. The result of the tuning operation in itself, however, will arrive
- asynchronously as an event (see documentation for FE_GET_EVENT and
- FrontendEvent.) If a new FE_SET_FRONTEND operation is initiated before
+ asynchronously as an event (see documentation for <link linkend="FE_GET_EVENT">FE_GET_EVENT</link> and
+ FrontendEvent.) If a new <link linkend="FE_SET_FRONTEND">FE_SET_FRONTEND</link> operation is initiated before
  the previous one was completed, the previous operation will be aborted in favor
  of the new one. This command requires read/write access to the device.</para>
 </entry>
@@ -872,7 +873,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_SET_FRONTEND,
+<para>int ioctl(int fd, int request = <link linkend="FE_SET_FRONTEND">FE_SET_FRONTEND</link>,
  struct dvb_frontend_parameters &#x22C6;p);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -890,7 +891,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_SET_FRONTEND for this command.</para>
+<para>Equals <link linkend="FE_SET_FRONTEND">FE_SET_FRONTEND</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -928,7 +929,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_get_fe">
+<section id="FE_GET_FRONTEND">
 <title>FE_GET_FRONTEND</title>
 <para>DESCRIPTION
 </para>
@@ -943,7 +944,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_GET_FRONTEND,
+<para>int ioctl(int fd, int request = <link linkend="FE_GET_FRONTEND">FE_GET_FRONTEND</link>,
  struct dvb_frontend_parameters &#x22C6;p);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -962,7 +963,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_SET_FRONTEND for this command.</para>
+<para>Equals <link linkend="FE_SET_FRONTEND">FE_SET_FRONTEND</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1003,7 +1004,7 @@ modulation mode which can be one of the following:
 
 </section>
 
-<section id="frontend_get_event">
+<section id="FE_GET_EVENT">
 <title>FE_GET_EVENT</title>
 <para>DESCRIPTION
 </para>
@@ -1024,7 +1025,8 @@ modulation mode which can be one of the following:
  rather small (room for 8 events), the queue must be serviced regularly to avoid
  overflow. If an overflow happens, the oldest event is discarded from the queue,
  and an error (EOVERFLOW) occurs the next time the queue is read. After
- reporting the error condition in this fashion, subsequent FE_GET_EVENT
+ reporting the error condition in this fashion, subsequent
+ <link linkend="FE_GET_EVENT">FE_GET_EVENT</link>
  calls will return events from the queue as usual.</para>
 </entry>
  </row><row><entry
@@ -1057,7 +1059,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_GET_EVENT for this command.</para>
+<para>Equals <link linkend="FE_GET_EVENT">FE_GET_EVENT</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1115,7 +1117,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_get_info">
+<section id="FE_GET_INFO">
 <title>FE_GET_INFO</title>
 <para>DESCRIPTION
 </para>
@@ -1130,7 +1132,7 @@ modulation mode which can be one of the following:
 
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para> int ioctl(int fd, int request = FE_GET_INFO, struct
+<para> int ioctl(int fd, int request = <link linkend="FE_GET_INFO">FE_GET_INFO</link>, struct
  dvb_frontend_info &#x22C6;info);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -1149,7 +1151,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_GET_INFO for this command.</para>
+<para>Equals <link linkend="FE_GET_INFO">FE_GET_INFO</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1181,7 +1183,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_diseqc_reset_overload">
+<section id="FE_DISEQC_RESET_OVERLOAD">
 <title>FE_DISEQC_RESET_OVERLOAD</title>
 <para>DESCRIPTION
 </para>
@@ -1199,7 +1201,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl(int fd, int request =
- FE_DISEQC_RESET_OVERLOAD);</para>
+ <link linkend="FE_DISEQC_RESET_OVERLOAD">FE_DISEQC_RESET_OVERLOAD</link>);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 <para>PARAMETERS
@@ -1216,7 +1218,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_DISEQC_RESET_OVERLOAD for this
+<para>Equals <link linkend="FE_DISEQC_RESET_OVERLOAD">FE_DISEQC_RESET_OVERLOAD</link> for this
  command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -1247,7 +1249,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_diseqc_send_master_cmd">
+<section id="FE_DISEQC_SEND_MASTER_CMD">
 <title>FE_DISEQC_SEND_MASTER_CMD</title>
 <para>DESCRIPTION
 </para>
@@ -1261,7 +1263,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl(int fd, int request =
- FE_DISEQC_SEND_MASTER_CMD, struct
+ <link linkend="FE_DISEQC_SEND_MASTER_CMD">FE_DISEQC_SEND_MASTER_CMD</link>, struct
  dvb_diseqc_master_cmd &#x22C6;cmd);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -1280,7 +1282,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_DISEQC_SEND_MASTER_CMD for this
+<para>Equals <link linkend="FE_DISEQC_SEND_MASTER_CMD">FE_DISEQC_SEND_MASTER_CMD</link> for this
  command.</para>
 </entry>
  </row><row><entry
@@ -1335,7 +1337,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_diseqc_recv_slave_reply">
+<section id="FE_DISEQC_RECV_SLAVE_REPLY">
 <title>FE_DISEQC_RECV_SLAVE_REPLY</title>
 <para>DESCRIPTION
 </para>
@@ -1350,7 +1352,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl(int fd, int request =
- FE_DISEQC_RECV_SLAVE_REPLY, struct
+ <link linkend="FE_DISEQC_RECV_SLAVE_REPLY">FE_DISEQC_RECV_SLAVE_REPLY</link>, struct
  dvb_diseqc_slave_reply &#x22C6;reply);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -1369,7 +1371,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_DISEQC_RECV_SLAVE_REPLY for this
+<para>Equals <link linkend="FE_DISEQC_RECV_SLAVE_REPLY">FE_DISEQC_RECV_SLAVE_REPLY</link> for this
  command.</para>
 </entry>
  </row><row><entry
@@ -1423,7 +1425,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_diseqc_send_burst">
+<section id="FE_DISEQC_SEND_BURST">
 <title>FE_DISEQC_SEND_BURST</title>
 <para>DESCRIPTION
 </para>
@@ -1438,7 +1440,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl(int fd, int request =
- FE_DISEQC_SEND_BURST, fe_sec_mini_cmd_t burst);</para>
+ <link linkend="FE_DISEQC_SEND_BURST">FE_DISEQC_SEND_BURST</link>, fe_sec_mini_cmd_t burst);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 
@@ -1456,7 +1458,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_DISEQC_SEND_BURST for this command.</para>
+<para>Equals <link linkend="FE_DISEQC_SEND_BURST">FE_DISEQC_SEND_BURST</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1509,7 +1511,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_set_tone">
+<section id="FE_SET_TONE">
 <title>FE_SET_TONE</title>
 <para>DESCRIPTION
 </para>
@@ -1523,7 +1525,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_SET_TONE,
+<para>int ioctl(int fd, int request = <link linkend="FE_SET_TONE">FE_SET_TONE</link>,
  fe_sec_tone_mode_t tone);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -1541,7 +1543,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_SET_TONE for this command.</para>
+<para>Equals <link linkend="FE_SET_TONE">FE_SET_TONE</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1592,7 +1594,7 @@ modulation mode which can be one of the following:
 </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="fe_set_voltage">
+<section id="FE_SET_VOLTAGE">
 <title>FE_SET_VOLTAGE</title>
 <para>DESCRIPTION
 </para>
@@ -1606,7 +1608,7 @@ modulation mode which can be one of the following:
 </para>
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
-<para>int ioctl(int fd, int request = FE_SET_VOLTAGE,
+<para>int ioctl(int fd, int request = <link linkend="FE_SET_VOLTAGE">FE_SET_VOLTAGE</link>,
  fe_sec_voltage_t voltage);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
@@ -1625,7 +1627,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_SET_VOLTAGE for this command.</para>
+<para>Equals <link linkend="FE_SET_VOLTAGE">FE_SET_VOLTAGE</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1677,7 +1679,7 @@ modulation mode which can be one of the following:
  </row></tbody></tgroup></informaltable>
 </section>
 
-<section id="frontend_enable_high_lnb_volt">
+<section id="FE_ENABLE_HIGH_LNB_VOLTAGE">
 <title>FE_ENABLE_HIGH_LNB_VOLTAGE</title>
 <para>DESCRIPTION
 </para>
@@ -1694,7 +1696,7 @@ modulation mode which can be one of the following:
 <informaltable><tgroup cols="1"><tbody><row><entry
  align="char">
 <para>int ioctl(int fd, int request =
- FE_ENABLE_HIGH_LNB_VOLTAGE, int high);</para>
+ <link linkend="FE_ENABLE_HIGH_LNB_VOLTAGE">FE_ENABLE_HIGH_LNB_VOLTAGE</link>, int high);</para>
 </entry>
  </row></tbody></tgroup></informaltable>
 
@@ -1712,7 +1714,7 @@ modulation mode which can be one of the following:
 <para>int request</para>
 </entry><entry
  align="char">
-<para>Equals FE_SET_VOLTAGE for this command.</para>
+<para>Equals <link linkend="FE_SET_VOLTAGE">FE_SET_VOLTAGE</link> for this command.</para>
 </entry>
  </row><row><entry
  align="char">
@@ -1762,5 +1764,82 @@ modulation mode which can be one of the following:
 </entry>
  </row></tbody></tgroup></informaltable>
 </section>
+
+<section id="FE_SET_FRONTEND_TUNE_MODE">
+<title>FE_SET_FRONTEND_TUNE_MODE</title>
+<para>DESCRIPTION</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>Allow setting tuner mode flags to the frontend.</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>SYNOPSIS</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>int ioctl(int fd, int request =
+<link linkend="FE_SET_FRONTEND_TUNE_MODE">FE_SET_FRONTEND_TUNE_MODE</link>, unsigned int flags);</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>PARAMETERS</para>
+<informaltable><tgroup cols="2"><tbody><row>
+<entry align="char">
+	<para>unsigned int flags</para>
+</entry>
+<entry align="char">
+<para>
+FE_TUNE_MODE_ONESHOT When set, this flag will disable any zigzagging or other "normal" tuning behaviour. Additionally, there will be no automatic monitoring of the lock status, and hence no frontend events will be generated. If a frontend device is closed, this flag will be automatically turned off when the device is reopened read-write.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+
+<para>ERRORS</para>
+<informaltable><tgroup cols="2"><tbody><row>
+<entry align="char"><para>EINVAL</para></entry>
+<entry align="char"><para>Invalid argument.</para></entry>
+ </row></tbody></tgroup></informaltable>
 </section>
-&sub-isdbt;
+
+<section id="FE_DISHNETWORK_SEND_LEGACY_CMD">
+	<title>FE_DISHNETWORK_SEND_LEGACY_CMD</title>
+<para>DESCRIPTION</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>WARNING: This is a very obscure legacy command, used only at stv0299 driver. Should not be used on newer drivers.</para>
+<para>It provides a non-standard method for selecting Diseqc voltage on the frontend, for Dish Network legacy switches.</para>
+<para>As support for this ioctl were added in 2004, this means that such dishes were already legacy in 2004.</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>SYNOPSIS</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+<para>int ioctl(int fd, int request =
+	<link linkend="FE_DISHNETWORK_SEND_LEGACY_CMD">FE_DISHNETWORK_SEND_LEGACY_CMD</link>, unsigned long cmd);</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+
+<para>PARAMETERS</para>
+<informaltable><tgroup cols="2"><tbody><row>
+<entry align="char">
+	<para>unsigned long cmd</para>
+</entry>
+<entry align="char">
+<para>
+sends the specified raw cmd to the dish via DISEqC.
+</para>
+</entry>
+ </row></tbody></tgroup></informaltable>
+
+<para>ERRORS</para>
+<informaltable><tgroup cols="1"><tbody><row>
+<entry align="char">
+	<para>There are no errors in use for this call</para>
+</entry>
+</row></tbody></tgroup></informaltable>
+</section>
+
+</section>
+
+&sub-dvbproperty;

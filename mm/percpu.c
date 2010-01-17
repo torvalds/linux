@@ -46,8 +46,6 @@
  *
  * To use this allocator, arch code should do the followings.
  *
- * - drop CONFIG_HAVE_LEGACY_PER_CPU_AREA
- *
  * - define __addr_to_pcpu_ptr() and __pcpu_ptr_to_addr() to translate
  *   regular address to percpu pointer and back if they need to be
  *   different from the default
@@ -74,6 +72,7 @@
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
+#include <asm/io.h>
 
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
@@ -1272,13 +1271,15 @@ static void pcpu_reclaim(struct work_struct *work)
  */
 void free_percpu(void *ptr)
 {
-	void *addr = __pcpu_ptr_to_addr(ptr);
+	void *addr;
 	struct pcpu_chunk *chunk;
 	unsigned long flags;
 	int off;
 
 	if (!ptr)
 		return;
+
+	addr = __pcpu_ptr_to_addr(ptr);
 
 	spin_lock_irqsave(&pcpu_lock, flags);
 
@@ -1301,6 +1302,27 @@ void free_percpu(void *ptr)
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 }
 EXPORT_SYMBOL_GPL(free_percpu);
+
+/**
+ * per_cpu_ptr_to_phys - convert translated percpu address to physical address
+ * @addr: the address to be converted to physical address
+ *
+ * Given @addr which is dereferenceable address obtained via one of
+ * percpu access macros, this function translates it into its physical
+ * address.  The caller is responsible for ensuring @addr stays valid
+ * until this function finishes.
+ *
+ * RETURNS:
+ * The physical address for @addr.
+ */
+phys_addr_t per_cpu_ptr_to_phys(void *addr)
+{
+	if ((unsigned long)addr < VMALLOC_START ||
+			(unsigned long)addr >= VMALLOC_END)
+		return __pa(addr);
+	else
+		return page_to_phys(vmalloc_to_page(addr));
+}
 
 static inline size_t pcpu_calc_fc_sizes(size_t static_size,
 					size_t reserved_size,

@@ -379,6 +379,12 @@ static int __devinit synaptics_ts_probe(
 		goto err_check_functionality_failed;
 	}
 
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
+		pr_err("synaptics_ts_probe: need I2C_FUNC_SMBUS_WORD_DATA\n");
+		ret = -ENODEV;
+		goto err_check_functionality_failed;
+	}
+
 	ts = kzalloc(sizeof(*ts), GFP_KERNEL);
 	if (ts == NULL) {
 		ret = -ENOMEM;

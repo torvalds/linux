@@ -64,8 +64,9 @@ mcount:
 2:	 sethi		%hi(softirq_stack), %g3
 	or		%g3, %lo(softirq_stack), %g3
 	ldx		[%g3 + %g1], %g7
+	sub		%g7, STACK_BIAS, %g7
 	cmp		%sp, %g7
-	bleu,pt		%xcc, 2f
+	bleu,pt		%xcc, 3f
 	 sethi		%hi(THREAD_SIZE), %g3
 	add		%g7, %g3, %g7
 	cmp		%sp, %g7
@@ -75,7 +76,7 @@ mcount:
 	 * again, we are already trying to output the stack overflow
 	 * message.
 	 */
-	sethi		%hi(ovstack), %g7		! cant move to panic stack fast enough
+3:	sethi		%hi(ovstack), %g7		! cant move to panic stack fast enough
 	 or		%g7, %lo(ovstack), %g7
 	add		%g7, OVSTACKSIZE, %g3
 	sub		%g3, STACK_BIAS + 192, %g3

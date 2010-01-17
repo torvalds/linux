@@ -295,10 +295,11 @@ SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
  */
 int generic_write_sync(struct file *file, loff_t pos, loff_t count)
 {
-	if (!(file->f_flags & O_SYNC) && !IS_SYNC(file->f_mapping->host))
+	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
 		return 0;
 	return vfs_fsync_range(file, file->f_path.dentry, pos,
-			       pos + count - 1, 1);
+			       pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
 }
 EXPORT_SYMBOL(generic_write_sync);
 
@@ -354,6 +355,7 @@ SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
 {
 	int ret;
 	struct file *file;
+	struct address_space *mapping;
 	loff_t endbyte;			/* inclusive */
 	int fput_needed;
 	umode_t i_mode;
@@ -404,7 +406,28 @@ SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
 			!S_ISLNK(i_mode))
 		goto out_put;
 
-	ret = do_sync_mapping_range(file->f_mapping, offset, endbyte, flags);
+	mapping = file->f_mapping;
+	if (!mapping) {
+		ret = -EINVAL;
+		goto out_put;
+	}
+
+	ret = 0;
+	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
+		ret = filemap_fdatawait_range(mapping, offset, endbyte);
+		if (ret < 0)
+			goto out_put;
+	}
+
+	if (flags & SYNC_FILE_RANGE_WRITE) {
+		ret = filemap_fdatawrite_range(mapping, offset, endbyte);
+		if (ret < 0)
+			goto out_put;
+	}
+
+	if (flags & SYNC_FILE_RANGE_WAIT_AFTER)
+		ret = filemap_fdatawait_range(mapping, offset, endbyte);
+
 out_put:
 	fput_light(file, fput_needed);
 out:
@@ -436,42 +459,3 @@ asmlinkage long SyS_sync_file_range2(long fd, long flags,
 }
 SYSCALL_ALIAS(sys_sync_file_range2, SyS_sync_file_range2);
 #endif
-
-/*
- * `endbyte' is inclusive
- */
-int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
-			  loff_t endbyte, unsigned int flags)
-{
-	int ret;
-
-	if (!mapping) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ret = 0;
-	if (flags & SYNC_FILE_RANGE_WAIT_BEFORE) {
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (flags & SYNC_FILE_RANGE_WRITE) {
-		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
-						WB_SYNC_ALL);
-		if (ret < 0)
-			goto out;
-	}
-
-	if (flags & SYNC_FILE_RANGE_WAIT_AFTER) {
-		ret = wait_on_page_writeback_range(mapping,
-					offset >> PAGE_CACHE_SHIFT,
-					endbyte >> PAGE_CACHE_SHIFT);
-	}
-out:
-	return ret;
-}
-EXPORT_SYMBOL_GPL(do_sync_mapping_range);

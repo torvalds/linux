@@ -281,7 +281,7 @@ static int idr_get_new_above_int(struct idr *idp, void *ptr, int starting_id)
 /**
  * idr_get_new_above - allocate new idr entry above or equal to a start id
  * @idp: idr handle
- * @ptr: pointer you want associated with the ide
+ * @ptr: pointer you want associated with the id
  * @start_id: id to start search at
  * @id: pointer to the allocated handle
  *
@@ -313,7 +313,7 @@ EXPORT_SYMBOL(idr_get_new_above);
 /**
  * idr_get_new - allocate new idr entry
  * @idp: idr handle
- * @ptr: pointer you want associated with the ide
+ * @ptr: pointer you want associated with the id
  * @id: pointer to the allocated handle
  *
  * This is the allocate id function.  It should be called with any

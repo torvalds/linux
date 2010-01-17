@@ -677,6 +677,7 @@ static void raise_barrier(conf_t *conf)
 static void lower_barrier(conf_t *conf)
 {
 	unsigned long flags;
+	BUG_ON(conf->barrier <= 0);
 	spin_lock_irqsave(&conf->resync_lock, flags);
 	conf->barrier--;
 	spin_unlock_irqrestore(&conf->resync_lock, flags);
@@ -801,6 +802,25 @@ static int make_request(struct request_queue *q, struct bio * bio)
 
 	md_write_start(mddev, bio); /* wait on superblock update early */
 
+	if (bio_data_dir(bio) == WRITE &&
+	    bio->bi_sector + bio->bi_size/512 > mddev->suspend_lo &&
+	    bio->bi_sector < mddev->suspend_hi) {
+		/* As the suspend_* range is controlled by
+		 * userspace, we want an interruptible
+		 * wait.
+		 */
+		DEFINE_WAIT(w);
+		for (;;) {
+			flush_signals(current);
+			prepare_to_wait(&conf->wait_barrier,
+					&w, TASK_INTERRUPTIBLE);
+			if (bio->bi_sector + bio->bi_size/512 <= mddev->suspend_lo ||
+			    bio->bi_sector >= mddev->suspend_hi)
+				break;
+			schedule();
+		}
+		finish_wait(&conf->wait_barrier, &w);
+	}
 	if (unlikely(!mddev->barriers_work &&
 		     bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		if (rw == WRITE)
@@ -923,7 +943,8 @@ static int make_request(struct request_queue *q, struct bio * bio)
 
 	/* do behind I/O ? */
 	if (bitmap &&
-	    atomic_read(&bitmap->behind_writes) < bitmap->max_write_behind &&
+	    (atomic_read(&bitmap->behind_writes)
+	     < mddev->bitmap_info.max_write_behind) &&
 	    (behind_pages = alloc_behind_pages(bio)) != NULL)
 		set_bit(R1BIO_BehindIO, &r1_bio->state);
 
@@ -1941,74 +1962,48 @@ static sector_t raid1_size(mddev_t *mddev, sector_t sectors, int raid_disks)
 	return mddev->dev_sectors;
 }
 
-static int run(mddev_t *mddev)
+static conf_t *setup_conf(mddev_t *mddev)
 {
 	conf_t *conf;
-	int i, j, disk_idx;
+	int i;
 	mirror_info_t *disk;
 	mdk_rdev_t *rdev;
+	int err = -ENOMEM;
 
-	if (mddev->level != 1) {
-		printk("raid1: %s: raid level not set to mirroring (%d)\n",
-		       mdname(mddev), mddev->level);
-		goto out;
-	}
-	if (mddev->reshape_position != MaxSector) {
-		printk("raid1: %s: reshape_position set but not supported\n",
-		       mdname(mddev));
-		goto out;
-	}
-	/*
-	 * copy the already verified devices into our private RAID1
-	 * bookkeeping area. [whatever we allocate in run(),
-	 * should be freed in stop()]
-	 */
 	conf = kzalloc(sizeof(conf_t), GFP_KERNEL);
-	mddev->private = conf;
 	if (!conf)
-		goto out_no_mem;
+		goto abort;
 
 	conf->mirrors = kzalloc(sizeof(struct mirror_info)*mddev->raid_disks,
 				 GFP_KERNEL);
 	if (!conf->mirrors)
-		goto out_no_mem;
+		goto abort;
 
 	conf->tmppage = alloc_page(GFP_KERNEL);
 	if (!conf->tmppage)
-		goto out_no_mem;
+		goto abort;
 
-	conf->poolinfo = kmalloc(sizeof(*conf->poolinfo), GFP_KERNEL);
+	conf->poolinfo = kzalloc(sizeof(*conf->poolinfo), GFP_KERNEL);
 	if (!conf->poolinfo)
-		goto out_no_mem;
-	conf->poolinfo->mddev = NULL;
+		goto abort;
 	conf->poolinfo->raid_disks = mddev->raid_disks;
 	conf->r1bio_pool = mempool_create(NR_RAID1_BIOS, r1bio_pool_alloc,
 					  r1bio_pool_free,
 					  conf->poolinfo);
 	if (!conf->r1bio_pool)
-		goto out_no_mem;
+		goto abort;
+
 	conf->poolinfo->mddev = mddev;
 
 	spin_lock_init(&conf->device_lock);
-	mddev->queue->queue_lock = &conf->device_lock;
-
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		disk_idx = rdev->raid_disk;
+		int disk_idx = rdev->raid_disk;
 		if (disk_idx >= mddev->raid_disks
 		    || disk_idx < 0)
 			continue;
 		disk = conf->mirrors + disk_idx;
 
 		disk->rdev = rdev;
-		disk_stack_limits(mddev->gendisk, rdev->bdev,
-				  rdev->data_offset << 9);
-		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, so limit ->max_sector to one PAGE, as
-		 * a one page request is never in violation.
-		 */
-		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
 		disk->head_position = 0;
 	}
@@ -2022,8 +2017,7 @@ static int run(mddev_t *mddev)
 	bio_list_init(&conf->pending_bio_list);
 	bio_list_init(&conf->flushing_bio_list);
 
-
-	mddev->degraded = 0;
+	conf->last_used = -1;
 	for (i = 0; i < conf->raid_disks; i++) {
 
 		disk = conf->mirrors + i;
@@ -2031,37 +2025,96 @@ static int run(mddev_t *mddev)
 		if (!disk->rdev ||
 		    !test_bit(In_sync, &disk->rdev->flags)) {
 			disk->head_position = 0;
-			mddev->degraded++;
 			if (disk->rdev)
 				conf->fullsync = 1;
-		}
+		} else if (conf->last_used < 0)
+			/*
+			 * The first working device is used as a
+			 * starting point to read balancing.
+			 */
+			conf->last_used = i;
 	}
-	if (mddev->degraded == conf->raid_disks) {
+
+	err = -EIO;
+	if (conf->last_used < 0) {
 		printk(KERN_ERR "raid1: no operational mirrors for %s\n",
-			mdname(mddev));
-		goto out_free_conf;
+		       mdname(mddev));
+		goto abort;
 	}
-	if (conf->raid_disks - mddev->degraded == 1)
-		mddev->recovery_cp = MaxSector;
-
-	/*
-	 * find the first working one and use it as a starting point
-	 * to read balancing.
-	 */
-	for (j = 0; j < conf->raid_disks &&
-		     (!conf->mirrors[j].rdev ||
-		      !test_bit(In_sync, &conf->mirrors[j].rdev->flags)) ; j++)
-		/* nothing */;
-	conf->last_used = j;
-
-
-	mddev->thread = md_register_thread(raid1d, mddev, NULL);
-	if (!mddev->thread) {
+	err = -ENOMEM;
+	conf->thread = md_register_thread(raid1d, mddev, NULL);
+	if (!conf->thread) {
 		printk(KERN_ERR
 		       "raid1: couldn't allocate thread for %s\n",
 		       mdname(mddev));
-		goto out_free_conf;
+		goto abort;
 	}
+
+	return conf;
+
+ abort:
+	if (conf) {
+		if (conf->r1bio_pool)
+			mempool_destroy(conf->r1bio_pool);
+		kfree(conf->mirrors);
+		safe_put_page(conf->tmppage);
+		kfree(conf->poolinfo);
+		kfree(conf);
+	}
+	return ERR_PTR(err);
+}
+
+static int run(mddev_t *mddev)
+{
+	conf_t *conf;
+	int i;
+	mdk_rdev_t *rdev;
+
+	if (mddev->level != 1) {
+		printk("raid1: %s: raid level not set to mirroring (%d)\n",
+		       mdname(mddev), mddev->level);
+		return -EIO;
+	}
+	if (mddev->reshape_position != MaxSector) {
+		printk("raid1: %s: reshape_position set but not supported\n",
+		       mdname(mddev));
+		return -EIO;
+	}
+	/*
+	 * copy the already verified devices into our private RAID1
+	 * bookkeeping area. [whatever we allocate in run(),
+	 * should be freed in stop()]
+	 */
+	if (mddev->private == NULL)
+		conf = setup_conf(mddev);
+	else
+		conf = mddev->private;
+
+	if (IS_ERR(conf))
+		return PTR_ERR(conf);
+
+	mddev->queue->queue_lock = &conf->device_lock;
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
+		disk_stack_limits(mddev->gendisk, rdev->bdev,
+				  rdev->data_offset << 9);
+		/* as we don't honour merge_bvec_fn, we must never risk
+		 * violating it, so limit ->max_sector to one PAGE, as
+		 * a one page request is never in violation.
+		 */
+		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
+		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
+			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+	}
+
+	mddev->degraded = 0;
+	for (i=0; i < conf->raid_disks; i++)
+		if (conf->mirrors[i].rdev == NULL ||
+		    !test_bit(In_sync, &conf->mirrors[i].rdev->flags) ||
+		    test_bit(Faulty, &conf->mirrors[i].rdev->flags))
+			mddev->degraded++;
+
+	if (conf->raid_disks - mddev->degraded == 1)
+		mddev->recovery_cp = MaxSector;
 
 	if (mddev->recovery_cp != MaxSector)
 		printk(KERN_NOTICE "raid1: %s is not clean"
@@ -2071,9 +2124,14 @@ static int run(mddev_t *mddev)
 		"raid1: raid set %s active with %d out of %d mirrors\n",
 		mdname(mddev), mddev->raid_disks - mddev->degraded, 
 		mddev->raid_disks);
+
 	/*
 	 * Ok, everything is just fine now
 	 */
+	mddev->thread = conf->thread;
+	conf->thread = NULL;
+	mddev->private = conf;
+
 	md_set_array_sectors(mddev, raid1_size(mddev, 0, 0));
 
 	mddev->queue->unplug_fn = raid1_unplug;
@@ -2081,23 +2139,6 @@ static int run(mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_data = mddev;
 	md_integrity_register(mddev);
 	return 0;
-
-out_no_mem:
-	printk(KERN_ERR "raid1: couldn't allocate memory for %s\n",
-	       mdname(mddev));
-
-out_free_conf:
-	if (conf) {
-		if (conf->r1bio_pool)
-			mempool_destroy(conf->r1bio_pool);
-		kfree(conf->mirrors);
-		safe_put_page(conf->tmppage);
-		kfree(conf->poolinfo);
-		kfree(conf);
-		mddev->private = NULL;
-	}
-out:
-	return -EIO;
 }
 
 static int stop(mddev_t *mddev)
@@ -2271,6 +2312,9 @@ static void raid1_quiesce(mddev_t *mddev, int state)
 	conf_t *conf = mddev->private;
 
 	switch(state) {
+	case 2: /* wake for suspend */
+		wake_up(&conf->wait_barrier);
+		break;
 	case 1:
 		raise_barrier(conf);
 		break;
@@ -2280,6 +2324,23 @@ static void raid1_quiesce(mddev_t *mddev, int state)
 	}
 }
 
+static void *raid1_takeover(mddev_t *mddev)
+{
+	/* raid1 can take over:
+	 *  raid5 with 2 devices, any layout or chunk size
+	 */
+	if (mddev->level == 5 && mddev->raid_disks == 2) {
+		conf_t *conf;
+		mddev->new_level = 1;
+		mddev->new_layout = 0;
+		mddev->new_chunk_sectors = 0;
+		conf = setup_conf(mddev);
+		if (!IS_ERR(conf))
+			conf->barrier = 1;
+		return conf;
+	}
+	return ERR_PTR(-EINVAL);
+}
 
 static struct mdk_personality raid1_personality =
 {
@@ -2299,6 +2360,7 @@ static struct mdk_personality raid1_personality =
 	.size		= raid1_size,
 	.check_reshape	= raid1_reshape,
 	.quiesce	= raid1_quiesce,
+	.takeover	= raid1_takeover,
 };
 
 static int __init raid_init(void)
@@ -2314,6 +2376,7 @@ static void raid_exit(void)
 module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("RAID1 (mirroring) personality for MD");
 MODULE_ALIAS("md-personality-3"); /* RAID1 */
 MODULE_ALIAS("md-raid1");
 MODULE_ALIAS("md-level-1");

@@ -125,6 +125,23 @@ void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	kfree(ring);
 }
 
+static void xhci_initialize_ring_info(struct xhci_ring *ring)
+{
+	/* The ring is empty, so the enqueue pointer == dequeue pointer */
+	ring->enqueue = ring->first_seg->trbs;
+	ring->enq_seg = ring->first_seg;
+	ring->dequeue = ring->enqueue;
+	ring->deq_seg = ring->first_seg;
+	/* The ring is initialized to 0. The producer must write 1 to the cycle
+	 * bit to handover ownership of the TRB, so PCS = 1.  The consumer must
+	 * compare CCS to the cycle bit to check ownership, so CCS = 1.
+	 */
+	ring->cycle_state = 1;
+	/* Not necessary for new rings, but needed for re-initialized rings */
+	ring->enq_updates = 0;
+	ring->deq_updates = 0;
+}
+
 /**
  * Create a new ring with zero or more segments.
  *
@@ -173,22 +190,33 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 				" segment %p (virtual), 0x%llx (DMA)\n",
 				prev, (unsigned long long)prev->dma);
 	}
-	/* The ring is empty, so the enqueue pointer == dequeue pointer */
-	ring->enqueue = ring->first_seg->trbs;
-	ring->enq_seg = ring->first_seg;
-	ring->dequeue = ring->enqueue;
-	ring->deq_seg = ring->first_seg;
-	/* The ring is initialized to 0. The producer must write 1 to the cycle
-	 * bit to handover ownership of the TRB, so PCS = 1.  The consumer must
-	 * compare CCS to the cycle bit to check ownership, so CCS = 1.
-	 */
-	ring->cycle_state = 1;
-
+	xhci_initialize_ring_info(ring);
 	return ring;
 
 fail:
 	xhci_ring_free(xhci, ring);
 	return 0;
+}
+
+/* Zero an endpoint ring (except for link TRBs) and move the enqueue and dequeue
+ * pointers to the beginning of the ring.
+ */
+static void xhci_reinit_cached_ring(struct xhci_hcd *xhci,
+		struct xhci_ring *ring)
+{
+	struct xhci_segment	*seg = ring->first_seg;
+	do {
+		memset(seg->trbs, 0,
+				sizeof(union xhci_trb)*TRBS_PER_SEGMENT);
+		/* All endpoint rings have link TRBs */
+		xhci_link_segments(xhci, seg, seg->next, 1);
+		seg = seg->next;
+	} while (seg != ring->first_seg);
+	xhci_initialize_ring_info(ring);
+	/* td list should be empty since all URBs have been cancelled,
+	 * but just in case...
+	 */
+	INIT_LIST_HEAD(&ring->td_list);
 }
 
 #define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
@@ -248,6 +276,15 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci,
 		(ctx->bytes + (ep_index * CTX_SIZE(xhci->hcc_params)));
 }
 
+static void xhci_init_endpoint_timer(struct xhci_hcd *xhci,
+		struct xhci_virt_ep *ep)
+{
+	init_timer(&ep->stop_cmd_timer);
+	ep->stop_cmd_timer.data = (unsigned long) ep;
+	ep->stop_cmd_timer.function = xhci_stop_endpoint_command_watchdog;
+	ep->xhci = xhci;
+}
+
 /* All the xhci_tds in the ring's TD list should be freed at this point */
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 {
@@ -266,6 +303,12 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 	for (i = 0; i < 31; ++i)
 		if (dev->eps[i].ring)
 			xhci_ring_free(xhci, dev->eps[i].ring);
+
+	if (dev->ring_cache) {
+		for (i = 0; i < dev->num_rings_cached; i++)
+			xhci_ring_free(xhci, dev->ring_cache[i]);
+		kfree(dev->ring_cache);
+	}
 
 	if (dev->in_ctx)
 		xhci_free_container_ctx(xhci, dev->in_ctx);
@@ -309,14 +352,24 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
 			(unsigned long long)dev->in_ctx->dma);
 
-	/* Initialize the cancellation list for each endpoint */
-	for (i = 0; i < 31; i++)
+	/* Initialize the cancellation list and watchdog timers for each ep */
+	for (i = 0; i < 31; i++) {
+		xhci_init_endpoint_timer(xhci, &dev->eps[i]);
 		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
+	}
 
 	/* Allocate endpoint 0 ring */
 	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, true, flags);
 	if (!dev->eps[0].ring)
 		goto fail;
+
+	/* Allocate pointers to the ring cache */
+	dev->ring_cache = kzalloc(
+			sizeof(struct xhci_ring *)*XHCI_MAX_RINGS_CACHED,
+			flags);
+	if (!dev->ring_cache)
+		goto fail;
+	dev->num_rings_cached = 0;
 
 	init_completion(&dev->cmd_completion);
 	INIT_LIST_HEAD(&dev->cmd_list);
@@ -544,8 +597,16 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	/* Set up the endpoint ring */
 	virt_dev->eps[ep_index].new_ring =
 		xhci_ring_alloc(xhci, 1, true, mem_flags);
-	if (!virt_dev->eps[ep_index].new_ring)
-		return -ENOMEM;
+	if (!virt_dev->eps[ep_index].new_ring) {
+		/* Attempt to use the ring cache */
+		if (virt_dev->num_rings_cached == 0)
+			return -ENOMEM;
+		virt_dev->eps[ep_index].new_ring =
+			virt_dev->ring_cache[virt_dev->num_rings_cached];
+		virt_dev->ring_cache[virt_dev->num_rings_cached] = NULL;
+		virt_dev->num_rings_cached--;
+		xhci_reinit_cached_ring(xhci, virt_dev->eps[ep_index].new_ring);
+	}
 	ep_ring = virt_dev->eps[ep_index].new_ring;
 	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
@@ -768,14 +829,17 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 
 	command->in_ctx =
 		xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, mem_flags);
-	if (!command->in_ctx)
+	if (!command->in_ctx) {
+		kfree(command);
 		return NULL;
+	}
 
 	if (allocate_completion) {
 		command->completion =
 			kzalloc(sizeof(struct completion), mem_flags);
 		if (!command->completion) {
 			xhci_free_container_ctx(xhci, command->in_ctx);
+			kfree(command);
 			return NULL;
 		}
 		init_completion(command->completion);
@@ -847,6 +911,163 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
 }
+
+static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
+		struct xhci_segment *input_seg,
+		union xhci_trb *start_trb,
+		union xhci_trb *end_trb,
+		dma_addr_t input_dma,
+		struct xhci_segment *result_seg,
+		char *test_name, int test_number)
+{
+	unsigned long long start_dma;
+	unsigned long long end_dma;
+	struct xhci_segment *seg;
+
+	start_dma = xhci_trb_virt_to_dma(input_seg, start_trb);
+	end_dma = xhci_trb_virt_to_dma(input_seg, end_trb);
+
+	seg = trb_in_td(input_seg, start_trb, end_trb, input_dma);
+	if (seg != result_seg) {
+		xhci_warn(xhci, "WARN: %s TRB math test %d failed!\n",
+				test_name, test_number);
+		xhci_warn(xhci, "Tested TRB math w/ seg %p and "
+				"input DMA 0x%llx\n",
+				input_seg,
+				(unsigned long long) input_dma);
+		xhci_warn(xhci, "starting TRB %p (0x%llx DMA), "
+				"ending TRB %p (0x%llx DMA)\n",
+				start_trb, start_dma,
+				end_trb, end_dma);
+		xhci_warn(xhci, "Expected seg %p, got seg %p\n",
+				result_seg, seg);
+		return -1;
+	}
+	return 0;
+}
+
+/* TRB math checks for xhci_trb_in_td(), using the command and event rings. */
+static int xhci_check_trb_in_td_math(struct xhci_hcd *xhci, gfp_t mem_flags)
+{
+	struct {
+		dma_addr_t		input_dma;
+		struct xhci_segment	*result_seg;
+	} simple_test_vector [] = {
+		/* A zeroed DMA field should fail */
+		{ 0, NULL },
+		/* One TRB before the ring start should fail */
+		{ xhci->event_ring->first_seg->dma - 16, NULL },
+		/* One byte before the ring start should fail */
+		{ xhci->event_ring->first_seg->dma - 1, NULL },
+		/* Starting TRB should succeed */
+		{ xhci->event_ring->first_seg->dma, xhci->event_ring->first_seg },
+		/* Ending TRB should succeed */
+		{ xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 1)*16,
+			xhci->event_ring->first_seg },
+		/* One byte after the ring end should fail */
+		{ xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 1)*16 + 1, NULL },
+		/* One TRB after the ring end should fail */
+		{ xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT)*16, NULL },
+		/* An address of all ones should fail */
+		{ (dma_addr_t) (~0), NULL },
+	};
+	struct {
+		struct xhci_segment	*input_seg;
+		union xhci_trb		*start_trb;
+		union xhci_trb		*end_trb;
+		dma_addr_t		input_dma;
+		struct xhci_segment	*result_seg;
+	} complex_test_vector [] = {
+		/* Test feeding a valid DMA address from a different ring */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = xhci->event_ring->first_seg->trbs,
+			.end_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+			.input_dma = xhci->cmd_ring->first_seg->dma,
+			.result_seg = NULL,
+		},
+		/* Test feeding a valid end TRB from a different ring */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = xhci->event_ring->first_seg->trbs,
+			.end_trb = &xhci->cmd_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+			.input_dma = xhci->cmd_ring->first_seg->dma,
+			.result_seg = NULL,
+		},
+		/* Test feeding a valid start and end TRB from a different ring */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = xhci->cmd_ring->first_seg->trbs,
+			.end_trb = &xhci->cmd_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+			.input_dma = xhci->cmd_ring->first_seg->dma,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but after this TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[0],
+			.end_trb = &xhci->event_ring->first_seg->trbs[3],
+			.input_dma = xhci->event_ring->first_seg->dma + 4*16,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but before this TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[6],
+			.input_dma = xhci->event_ring->first_seg->dma + 2*16,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but after this wrapped TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[1],
+			.input_dma = xhci->event_ring->first_seg->dma + 2*16,
+			.result_seg = NULL,
+		},
+		/* TRB in this ring, but before this wrapped TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[1],
+			.input_dma = xhci->event_ring->first_seg->dma + (TRBS_PER_SEGMENT - 4)*16,
+			.result_seg = NULL,
+		},
+		/* TRB not in this ring, and we have a wrapped TD */
+		{	.input_seg = xhci->event_ring->first_seg,
+			.start_trb = &xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 3],
+			.end_trb = &xhci->event_ring->first_seg->trbs[1],
+			.input_dma = xhci->cmd_ring->first_seg->dma + 2*16,
+			.result_seg = NULL,
+		},
+	};
+
+	unsigned int num_tests;
+	int i, ret;
+
+	num_tests = sizeof(simple_test_vector) / sizeof(simple_test_vector[0]);
+	for (i = 0; i < num_tests; i++) {
+		ret = xhci_test_trb_in_td(xhci,
+				xhci->event_ring->first_seg,
+				xhci->event_ring->first_seg->trbs,
+				&xhci->event_ring->first_seg->trbs[TRBS_PER_SEGMENT - 1],
+				simple_test_vector[i].input_dma,
+				simple_test_vector[i].result_seg,
+				"Simple", i);
+		if (ret < 0)
+			return ret;
+	}
+
+	num_tests = sizeof(complex_test_vector) / sizeof(complex_test_vector[0]);
+	for (i = 0; i < num_tests; i++) {
+		ret = xhci_test_trb_in_td(xhci,
+				complex_test_vector[i].input_seg,
+				complex_test_vector[i].start_trb,
+				complex_test_vector[i].end_trb,
+				complex_test_vector[i].input_dma,
+				complex_test_vector[i].result_seg,
+				"Complex", i);
+		if (ret < 0)
+			return ret;
+	}
+	xhci_dbg(xhci, "TRB math tests passed.\n");
+	return 0;
+}
+
 
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
@@ -950,6 +1171,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg(xhci, "// Allocating event ring\n");
 	xhci->event_ring = xhci_ring_alloc(xhci, ERST_NUM_SEGS, false, flags);
 	if (!xhci->event_ring)
+		goto fail;
+	if (xhci_check_trb_in_td_math(xhci, flags) < 0)
 		goto fail;
 
 	xhci->erst.entries = pci_alloc_consistent(to_pci_dev(dev),

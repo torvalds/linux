@@ -354,6 +354,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"FUJ02E5",		0	},
 	/* Fujitsu P-series tablet PC device */
 	{	"FUJ02E6",		0	},
+	/* Fujitsu Wacom 2FGT Tablet PC device */
+	{	"FUJ02E7",		0	},
 	/*
 	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in
 	 * disguise)
@@ -361,9 +363,9 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"LTS0001",		0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
-	/* Unkown PnP modems */
+	/* Unknown PnP modems */
 	{	"PNPCXXX",		UNKNOWN_DEV	},
-	/* More unkown PnP modems */
+	/* More unknown PnP modems */
 	{	"PNPDXXX",		UNKNOWN_DEV	},
 	{	"",			0	}
 };

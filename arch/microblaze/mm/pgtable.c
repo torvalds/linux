@@ -144,7 +144,6 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 	pmd_t *pd;
 	pte_t *pg;
 	int err = -ENOMEM;
-	/* spin_lock(&init_mm.page_table_lock); */
 	/* Use upper 10 bits of VA to index the first level map */
 	pd = pmd_offset(pgd_offset_k(va), va);
 	/* Use middle 10 bits of VA to index the second-level map */
@@ -158,9 +157,7 @@ int map_page(unsigned long va, phys_addr_t pa, int flags)
 		if (mem_init_done)
 			flush_HPTE(0, va, pmd_val(*pd));
 			/* flush_HPTE(0, va, pg); */
-
 	}
-	/* spin_unlock(&init_mm.page_table_lock); */
 	return err;
 }
 
@@ -182,12 +179,6 @@ void __init adjust_total_lowmem(void)
 #endif
 }
 
-static void show_tmem(unsigned long tmem)
-{
-	volatile unsigned long a;
-	a = a + tmem;
-}
-
 /*
  * Map in all of physical memory starting at CONFIG_KERNEL_START.
  */
@@ -197,7 +188,6 @@ void __init mapin_ram(void)
 
 	v = CONFIG_KERNEL_START;
 	p = memory_start;
-	show_tmem(memory_size);
 	for (s = 0; s < memory_size; s += PAGE_SIZE) {
 		f = _PAGE_PRESENT | _PAGE_ACCESSED |
 				_PAGE_SHARED | _PAGE_HWEXEC;

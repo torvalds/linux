@@ -37,7 +37,7 @@ What this layer doesn't do (yet)
   disassociate clients, and it is really prone to always allow access.
   In bss client mode it is a bit rough with AP deauth and disassoc requests.
 - It has not any entry point to view the collected stats.
-- Altought it takes care of the card supported rates in the management frame
+- Although it takes care of the card supported rates in the management frame
   it sends, support for rate changing on TXed packet is not complete.
 - Give up once associated in bss client mode (it never detect a
   signal loss condition to disassociate and restart scanning)

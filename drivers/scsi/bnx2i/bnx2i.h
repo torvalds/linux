@@ -232,7 +232,6 @@ struct bnx2i_conn {
 	struct iscsi_cls_conn *cls_conn;
 	struct bnx2i_hba *hba;
 	struct completion cmd_cleanup_cmpl;
-	int is_bound;
 
 	u32 iscsi_conn_cid;
 #define BNX2I_CID_RESERVED	0x5AFF
@@ -685,6 +684,7 @@ extern unsigned int error_mask1, error_mask2;
 extern u64 iscsi_error_mask;
 extern unsigned int en_tcp_dack;
 extern unsigned int event_coal_div;
+extern unsigned int event_coal_min;
 
 extern struct scsi_transport_template *bnx2i_scsi_xport_template;
 extern struct iscsi_transport bnx2i_iscsi_transport;

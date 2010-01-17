@@ -322,12 +322,12 @@ static int mx1_mx2_pcm_open(struct snd_pcm_substream *substream)
 
 	pr_debug("%s: Requesting dma channel (%s)\n", __func__,
 						prtd->dma_params->name);
-	prtd->dma_ch = imx_dma_request_by_prio(prtd->dma_params->name,
-						DMA_PRIO_HIGH);
-	if (prtd->dma_ch < 0) {
+	ret = imx_dma_request_by_prio(prtd->dma_params->name, DMA_PRIO_HIGH);
+	if (ret < 0) {
 		printk(KERN_ERR "Error %d requesting dma channel\n", ret);
 		return ret;
 	}
+	prtd->dma_ch = ret;
 	imx_dma_config_burstlen(prtd->dma_ch,
 				prtd->dma_params->watermark_level);
 

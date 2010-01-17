@@ -36,7 +36,7 @@
  */
 
 /*
- * Defintions for the Atheros Wireless LAN controller driver.
+ * Definitions for the Atheros Wireless LAN controller driver.
  */
 #ifndef _DEV_ATH_ATHVAR_H
 #define _DEV_ATH_ATHVAR_H
@@ -190,7 +190,7 @@ struct ath5k_softc {
 	struct ath5k_txq	*cabq;		/* content after beacon */
 
 	int 			power_level;	/* Requested tx power in dbm */
-	bool			assoc;		/* assocate state */
+	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
 };
 

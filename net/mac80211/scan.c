@@ -227,7 +227,8 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_local *local)
 static void ieee80211_scan_ps_enable(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	bool ps = false;
+
+	local->scan_ps_enabled = false;
 
 	/* FIXME: what to do when local->pspolling is true? */
 
@@ -235,12 +236,13 @@ static void ieee80211_scan_ps_enable(struct ieee80211_sub_if_data *sdata)
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
-		ps = true;
+		local->scan_ps_enabled = true;
 		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
-	if (!ps || !(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
+	if (!(local->scan_ps_enabled) ||
+	    !(local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK))
 		/*
 		 * If power save was enabled, no need to send a nullfunc
 		 * frame because AP knows that we are sleeping. But if the
@@ -261,7 +263,7 @@ static void ieee80211_scan_ps_disable(struct ieee80211_sub_if_data *sdata)
 
 	if (!local->ps_sdata)
 		ieee80211_send_nullfunc(local, sdata, 0);
-	else {
+	else if (local->scan_ps_enabled) {
 		/*
 		 * In !IEEE80211_HW_PS_NULLFUNC_STACK case the hardware
 		 * will send a nullfunc frame with the powersave bit set
@@ -277,6 +279,16 @@ static void ieee80211_scan_ps_disable(struct ieee80211_sub_if_data *sdata)
 		 */
 		local->hw.conf.flags |= IEEE80211_CONF_PS;
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	} else if (local->hw.conf.dynamic_ps_timeout > 0) {
+		/*
+		 * If IEEE80211_CONF_PS was not set and the dynamic_ps_timer
+		 * had been running before leaving the operating channel,
+		 * restart the timer now and send a nullfunc frame to inform
+		 * the AP that we are awake.
+		 */
+		ieee80211_send_nullfunc(local, sdata, 0);
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
 	}
 }
 
@@ -341,10 +353,10 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.associated) {
 				ieee80211_scan_ps_disable(sdata);
-				netif_wake_queue(sdata->dev);
+				netif_tx_wake_all_queues(sdata->dev);
 			}
 		} else
-			netif_wake_queue(sdata->dev);
+			netif_tx_wake_all_queues(sdata->dev);
 
 		/* re-enable beaconing */
 		if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -399,7 +411,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 		 * are handled in the scan state machine
 		 */
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			netif_stop_queue(sdata->dev);
+			netif_tx_stop_all_queues(sdata->dev);
 	}
 	mutex_unlock(&local->iflist_mtx);
 
@@ -563,7 +575,7 @@ static void ieee80211_scan_state_leave_oper_channel(struct ieee80211_local *loca
 			continue;
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			netif_stop_queue(sdata->dev);
+			netif_tx_stop_all_queues(sdata->dev);
 			if (sdata->u.mgd.associated)
 				ieee80211_scan_ps_enable(sdata);
 		}
@@ -598,7 +610,7 @@ static void ieee80211_scan_state_enter_oper_channel(struct ieee80211_local *loca
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.associated)
 				ieee80211_scan_ps_disable(sdata);
-			netif_wake_queue(sdata->dev);
+			netif_tx_wake_all_queues(sdata->dev);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);

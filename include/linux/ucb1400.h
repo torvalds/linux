@@ -110,6 +110,10 @@ struct ucb1400 {
 	struct platform_device	*ucb1400_gpio;
 };
 
+struct ucb1400_pdata {
+	int	irq;
+};
+
 static inline u16 ucb1400_reg_read(struct snd_ac97 *ac97, u16 reg)
 {
 	return ac97->bus->ops->read(ac97, reg);

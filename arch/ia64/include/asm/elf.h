@@ -25,7 +25,6 @@
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_IA_64
 
-#define USE_ELF_CORE_DUMP
 #define CORE_DUMP_USE_REGSET
 
 /* Least-significant four bits of ELF header's e_flags are OS-specific.  The bits are

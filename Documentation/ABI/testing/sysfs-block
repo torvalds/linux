@@ -4,7 +4,7 @@ Contact:	Jerome Marchand <jmarchan@redhat.com>
 Description:
 		The /sys/block/<disk>/stat files displays the I/O
 		statistics of disk <disk>. They contain 11 fields:
-		 1 - reads completed succesfully
+		 1 - reads completed successfully
 		 2 - reads merged
 		 3 - sectors read
 		 4 - time spent reading (ms)

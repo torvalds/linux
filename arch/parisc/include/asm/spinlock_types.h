@@ -4,18 +4,18 @@
 typedef struct {
 #ifdef CONFIG_PA20
 	volatile unsigned int slock;
-# define __RAW_SPIN_LOCK_UNLOCKED { 1 }
+# define __ARCH_SPIN_LOCK_UNLOCKED { 1 }
 #else
 	volatile unsigned int lock[4];
-# define __RAW_SPIN_LOCK_UNLOCKED	{ { 1, 1, 1, 1 } }
+# define __ARCH_SPIN_LOCK_UNLOCKED	{ { 1, 1, 1, 1 } }
 #endif
-} raw_spinlock_t;
+} arch_spinlock_t;
 
 typedef struct {
-	raw_spinlock_t lock;
+	arch_spinlock_t lock;
 	volatile int counter;
-} raw_rwlock_t;
+} arch_rwlock_t;
 
-#define __RAW_RW_LOCK_UNLOCKED		{ __RAW_SPIN_LOCK_UNLOCKED, 0 }
+#define __ARCH_RW_LOCK_UNLOCKED		{ __ARCH_SPIN_LOCK_UNLOCKED, 0 }
 
 #endif

@@ -48,7 +48,16 @@ ifneq ($(SUBARCH),$(ARCH))
   endif
 endif
 
+ifndef CONFIG_FUNCTION_TRACER
 cflags-y := -ffunction-sections
+endif
+ifdef CONFIG_FUNCTION_GRAPH_TRACER
+  ifndef KBUILD_MCOUNT_RA_ADDRESS
+    ifeq ($(call cc-option-yn,-mmcount-ra-address), y)
+      cflags-y += -mmcount-ra-address -DKBUILD_MCOUNT_RA_ADDRESS
+    endif
+  endif
+endif
 cflags-y += $(call cc-option, -mno-check-zero-division)
 
 ifdef CONFIG_32BIT
@@ -69,6 +78,7 @@ endif
 
 all-$(CONFIG_BOOT_ELF32)	:= $(vmlinux-32)
 all-$(CONFIG_BOOT_ELF64)	:= $(vmlinux-64)
+all-$(CONFIG_SYS_SUPPORTS_ZBOOT)+= vmlinuz
 
 #
 # GCC uses -G 0 -mabicalls -fpic as default.  We don't want PIC in the kernel
@@ -124,6 +134,8 @@ cflags-$(CONFIG_CPU_TX49XX)	+= -march=r4600 -Wa,--trap
 cflags-$(CONFIG_CPU_LOONGSON2)	+= -Wa,--trap
 cflags-$(CONFIG_CPU_LOONGSON2E) += \
 	$(call cc-option,-march=loongson2e,-march=r4600)
+cflags-$(CONFIG_CPU_LOONGSON2F) += \
+	$(call cc-option,-march=loongson2f,-march=r4600)
 
 cflags-$(CONFIG_CPU_MIPS32_R1)	+= $(call cc-option,-march=mips32,-mips32 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS32) \
 			-Wa,-mips32 -Wa,--trap
@@ -324,6 +336,7 @@ core-$(CONFIG_MACH_LOONGSON) +=arch/mips/loongson/
 cflags-$(CONFIG_MACH_LOONGSON) += -I$(srctree)/arch/mips/include/asm/mach-loongson \
                     -mno-branch-likely
 load-$(CONFIG_LEMOTE_FULOONG2E) +=0xffffffff80100000
+load-$(CONFIG_LEMOTE_MACH2F) +=0xffffffff80200000
 
 #
 # MIPS Malta board
@@ -331,7 +344,7 @@ load-$(CONFIG_LEMOTE_FULOONG2E) +=0xffffffff80100000
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mti-malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -I$(srctree)/arch/mips/include/asm/mach-malta
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
+all-$(CONFIG_MIPS_MALTA)	:= vmlinuz.bin
 
 #
 # MIPS SIM
@@ -354,13 +367,6 @@ load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000
 core-$(CONFIG_PMC_YOSEMITE)	+= arch/mips/pmc-sierra/yosemite/
 cflags-$(CONFIG_PMC_YOSEMITE)	+= -I$(srctree)/arch/mips/include/asm/mach-yosemite
 load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
-
-#
-# Basler eXcite
-#
-core-$(CONFIG_BASLER_EXCITE)	+= arch/mips/basler/excite/
-cflags-$(CONFIG_BASLER_EXCITE)	+= -I$(srctree)/arch/mips/include/asm/mach-excite
-load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
 # LASAT platforms
@@ -439,6 +445,13 @@ cflags-$(CONFIG_SOC_EMMA2RH)	+= -I$(srctree)/arch/mips/include/asm/mach-emma2rh
 #
 core-$(CONFIG_NEC_MARKEINS)	+= arch/mips/emma/markeins/
 load-$(CONFIG_NEC_MARKEINS)	+= 0xffffffff88100000
+
+#
+# Cisco PowerTV Platform
+#
+core-$(CONFIG_POWERTV)		+= arch/mips/powertv/
+cflags-$(CONFIG_POWERTV)        += -I$(srctree)/arch/mips/include/asm/mach-powertv
+load-$(CONFIG_POWERTV)		+= 0xffffffff90800000
 
 #
 # SGI IP22 (Indy/Indigo2)
@@ -581,7 +594,7 @@ load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
 else
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80030000
 endif
-all-$(CONFIG_SNI_RM)		:= vmlinux.ecoff
+all-$(CONFIG_SNI_RM)		:= vmlinuz.ecoff
 
 #
 # Common TXx9
@@ -699,8 +712,22 @@ vmlinux.64: vmlinux
 	$(OBJCOPY) -O $(64bit-bfd) $(OBJCOPYFLAGS) $< $@
 
 makeboot =$(Q)$(MAKE) $(build)=arch/mips/boot VMLINUX=$(vmlinux-32) $(1)
+makezboot =$(Q)$(MAKE) $(build)=arch/mips/boot/compressed \
+	   VMLINUX_LOAD_ADDRESS=$(load-y) 32bit-bfd=$(32bit-bfd) $(1)
 
 all:	$(all-y)
+
+vmlinuz: vmlinux FORCE
+	+@$(call makezboot,$@)
+
+vmlinuz.bin: vmlinux
+	+@$(call makezboot,$@)
+
+vmlinuz.ecoff: vmlinux
+	+@$(call makezboot,$@)
+
+vmlinuz.srec: vmlinux
+	+@$(call makezboot,$@)
 
 vmlinux.bin: $(vmlinux-32)
 	+@$(call makeboot,$@)
@@ -726,11 +753,13 @@ endif
 
 install:
 	$(Q)install -D -m 755 vmlinux $(INSTALL_PATH)/vmlinux-$(KERNELRELEASE)
+	$(Q)install -D -m 755 vmlinuz $(INSTALL_PATH)/vmlinuz-$(KERNELRELEASE)
 	$(Q)install -D -m 644 .config $(INSTALL_PATH)/config-$(KERNELRELEASE)
 	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
 
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
+	@$(MAKE) $(clean)=arch/mips/boot/compressed
 	@$(MAKE) $(clean)=arch/mips/lasat
 
 define archhelp
@@ -738,10 +767,18 @@ define archhelp
 	echo '  vmlinux.ecoff        - ECOFF boot image'
 	echo '  vmlinux.bin          - Raw binary boot image'
 	echo '  vmlinux.srec         - SREC boot image'
+	echo '  vmlinuz              - Compressed boot(zboot) image'
+	echo '  vmlinuz.ecoff        - ECOFF zboot image'
+	echo '  vmlinuz.bin          - Raw binary zboot image'
+	echo '  vmlinuz.srec         - SREC zboot image'
 	echo
 	echo '  These will be default as apropriate for a configured platform.'
 endef
 
 CLEAN_FILES += vmlinux.32 \
 	       vmlinux.64 \
-	       vmlinux.ecoff
+	       vmlinux.ecoff \
+	       vmlinuz \
+	       vmlinuz.ecoff \
+	       vmlinuz.bin \
+	       vmlinuz.srec

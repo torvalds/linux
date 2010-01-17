@@ -125,7 +125,7 @@
    0 - no debugging messages
    1 - some debugging messages, but none during DMA frame transmission
    2 - lots of messages, including during DMA frame transmission
-       (will cause undeflows if your machine is too slow!)
+       (will cause underflows if your machine is too slow!)
 */
 
 #define DV1394_DEBUG_LEVEL 0

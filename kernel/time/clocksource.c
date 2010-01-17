@@ -677,7 +677,7 @@ sysfs_show_current_clocksources(struct sys_device *dev,
  * @count:	length of buffer
  *
  * Takes input from sysfs interface for manually overriding the default
- * clocksource selction.
+ * clocksource selection.
  */
 static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 					  struct sysdev_attribute *attr,

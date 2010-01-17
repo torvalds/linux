@@ -76,7 +76,6 @@ static int rng_dev_open(struct inode *inode, struct file *filp)
 		return -EINVAL;
 	if (filp->f_mode & FMODE_WRITE)
 		return -EINVAL;
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -159,10 +158,11 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 			goto out;
 		}
 	}
-out_unlock:
-	mutex_unlock(&rng_mutex);
 out:
 	return ret ? : err;
+out_unlock:
+	mutex_unlock(&rng_mutex);
+	goto out;
 }
 
 

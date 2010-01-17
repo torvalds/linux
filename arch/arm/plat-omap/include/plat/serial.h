@@ -53,6 +53,7 @@
 #ifndef __ASSEMBLER__
 extern void __init omap_serial_early_init(void);
 extern void omap_serial_init(void);
+extern void omap_serial_init_port(int port);
 extern int omap_uart_can_sleep(void);
 extern void omap_uart_check_wakeup(void);
 extern void omap_uart_prepare_suspend(void);

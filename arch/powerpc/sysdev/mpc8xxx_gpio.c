@@ -54,6 +54,22 @@ static void mpc8xxx_gpio_save_regs(struct of_mm_gpio_chip *mm)
 	mpc8xxx_gc->data = in_be32(mm->regs + GPIO_DAT);
 }
 
+/* Workaround GPIO 1 errata on MPC8572/MPC8536. The status of GPIOs
+ * defined as output cannot be determined by reading GPDAT register,
+ * so we use shadow data register instead. The status of input pins
+ * is determined by reading GPDAT register.
+ */
+static int mpc8572_gpio_get(struct gpio_chip *gc, unsigned int gpio)
+{
+	u32 val;
+	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
+	struct mpc8xxx_gpio_chip *mpc8xxx_gc = to_mpc8xxx_gpio_chip(mm);
+
+	val = in_be32(mm->regs + GPIO_DAT) & ~in_be32(mm->regs + GPIO_DIR);
+
+	return (val | mpc8xxx_gc->data) & mpc8xxx_gpio2mask(gpio);
+}
+
 static int mpc8xxx_gpio_get(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct of_mm_gpio_chip *mm = to_of_mm_gpio_chip(gc);
@@ -136,7 +152,10 @@ static void __init mpc8xxx_add_controller(struct device_node *np)
 	gc->ngpio = MPC8XXX_GPIO_PINS;
 	gc->direction_input = mpc8xxx_gpio_dir_in;
 	gc->direction_output = mpc8xxx_gpio_dir_out;
-	gc->get = mpc8xxx_gpio_get;
+	if (of_device_is_compatible(np, "fsl,mpc8572-gpio"))
+		gc->get = mpc8572_gpio_get;
+	else
+		gc->get = mpc8xxx_gpio_get;
 	gc->set = mpc8xxx_gpio_set;
 
 	ret = of_mm_gpiochip_add(np, mm_gc);

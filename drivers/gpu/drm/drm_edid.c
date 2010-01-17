@@ -123,18 +123,20 @@ static const u8 edid_header[] = {
  */
 static bool edid_is_valid(struct edid *edid)
 {
-	int i;
+	int i, score = 0;
 	u8 csum = 0;
 	u8 *raw_edid = (u8 *)edid;
 
-	if (memcmp(edid->header, edid_header, sizeof(edid_header)))
+	for (i = 0; i < sizeof(edid_header); i++)
+		if (raw_edid[i] == edid_header[i])
+			score++;
+
+	if (score == 8) ;
+	else if (score >= 6) {
+		DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
+		memcpy(raw_edid, edid_header, sizeof(edid_header));
+	} else
 		goto bad;
-	if (edid->version != 1) {
-		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
-		goto bad;
-	}
-	if (edid->revision > 4)
-		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
 
 	for (i = 0; i < EDID_LENGTH; i++)
 		csum += raw_edid[i];
@@ -142,6 +144,14 @@ static bool edid_is_valid(struct edid *edid)
 		DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
 		goto bad;
 	}
+
+	if (edid->version != 1) {
+		DRM_ERROR("EDID has major version %d, instead of 1\n", edid->version);
+		goto bad;
+	}
+
+	if (edid->revision > 4)
+		DRM_DEBUG("EDID minor > 4, assuming backward compatibility\n");
 
 	return 1;
 
@@ -481,16 +491,17 @@ static struct drm_display_mode drm_dmt_modes[] = {
 		   3048, 3536, 0, 1600, 1603, 1609, 1682, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
 };
+static const int drm_num_dmt_modes =
+	sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
 
 static struct drm_display_mode *drm_find_dmt(struct drm_device *dev,
 			int hsize, int vsize, int fresh)
 {
-	int i, count;
+	int i;
 	struct drm_display_mode *ptr, *mode;
 
-	count = sizeof(drm_dmt_modes) / sizeof(struct drm_display_mode);
 	mode = NULL;
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < drm_num_dmt_modes; i++) {
 		ptr = &drm_dmt_modes[i];
 		if (hsize == ptr->hdisplay &&
 			vsize == ptr->vdisplay &&
@@ -834,8 +845,169 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 	return modes;
 }
 
+/*
+ * XXX fix this for:
+ * - GTF secondary curve formula
+ * - EDID 1.4 range offsets
+ * - CVT extended bits
+ */
+static bool
+mode_in_range(struct drm_display_mode *mode, struct detailed_timing *timing)
+{
+	struct detailed_data_monitor_range *range;
+	int hsync, vrefresh;
+
+	range = &timing->data.other_data.data.range;
+
+	hsync = drm_mode_hsync(mode);
+	vrefresh = drm_mode_vrefresh(mode);
+
+	if (hsync < range->min_hfreq_khz || hsync > range->max_hfreq_khz)
+		return false;
+
+	if (vrefresh < range->min_vfreq || vrefresh > range->max_vfreq)
+		return false;
+
+	if (range->pixel_clock_mhz && range->pixel_clock_mhz != 0xff) {
+		/* be forgiving since it's in units of 10MHz */
+		int max_clock = range->pixel_clock_mhz * 10 + 9;
+		max_clock *= 1000;
+		if (mode->clock > max_clock)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * XXX If drm_dmt_modes ever regrows the CVT-R modes (and it will) this will
+ * need to account for them.
+ */
+static int drm_gtf_modes_for_range(struct drm_connector *connector,
+				   struct detailed_timing *timing)
+{
+	int i, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+
+	for (i = 0; i < drm_num_dmt_modes; i++) {
+		if (mode_in_range(drm_dmt_modes + i, timing)) {
+			newmode = drm_mode_duplicate(dev, &drm_dmt_modes[i]);
+			if (newmode) {
+				drm_mode_probed_add(connector, newmode);
+				modes++;
+			}
+		}
+	}
+
+	return modes;
+}
+
+static int drm_cvt_modes(struct drm_connector *connector,
+			 struct detailed_timing *timing)
+{
+	int i, j, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+	struct cvt_timing *cvt;
+	const int rates[] = { 60, 85, 75, 60, 50 };
+	const u8 empty[3] = { 0, 0, 0 };
+
+	for (i = 0; i < 4; i++) {
+		int uninitialized_var(width), height;
+		cvt = &(timing->data.other_data.data.cvt[i]);
+
+		if (!memcmp(cvt->code, empty, 3))
+			continue;
+
+		height = (cvt->code[0] + ((cvt->code[1] & 0xf0) << 4) + 1) * 2;
+		switch (cvt->code[1] & 0x0c) {
+		case 0x00:
+			width = height * 4 / 3;
+			break;
+		case 0x04:
+			width = height * 16 / 9;
+			break;
+		case 0x08:
+			width = height * 16 / 10;
+			break;
+		case 0x0c:
+			width = height * 15 / 9;
+			break;
+		}
+
+		for (j = 1; j < 5; j++) {
+			if (cvt->code[2] & (1 << j)) {
+				newmode = drm_cvt_mode(dev, width, height,
+						       rates[j], j == 0,
+						       false, false);
+				if (newmode) {
+					drm_mode_probed_add(connector, newmode);
+					modes++;
+				}
+			}
+		}
+	}
+
+	return modes;
+}
+
+static int add_detailed_modes(struct drm_connector *connector,
+			      struct detailed_timing *timing,
+			      struct edid *edid, u32 quirks, int preferred)
+{
+	int i, modes = 0;
+	struct detailed_non_pixel *data = &timing->data.other_data;
+	int timing_level = standard_timing_level(edid);
+	int gtf = (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF);
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+
+	if (timing->pixel_clock) {
+		newmode = drm_mode_detailed(dev, edid, timing, quirks);
+		if (!newmode)
+			return 0;
+
+		if (preferred)
+			newmode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		drm_mode_probed_add(connector, newmode);
+		return 1;
+	}
+
+	/* other timing types */
+	switch (data->type) {
+	case EDID_DETAIL_MONITOR_RANGE:
+		if (gtf)
+			modes += drm_gtf_modes_for_range(connector, timing);
+		break;
+	case EDID_DETAIL_STD_MODES:
+		/* Six modes per detailed section */
+		for (i = 0; i < 6; i++) {
+			struct std_timing *std;
+			struct drm_display_mode *newmode;
+
+			std = &data->data.timings[i];
+			newmode = drm_mode_std(dev, std, edid->revision,
+					       timing_level);
+			if (newmode) {
+				drm_mode_probed_add(connector, newmode);
+				modes++;
+			}
+		}
+		break;
+	case EDID_DETAIL_CVT_3BYTE:
+		modes += drm_cvt_modes(connector, timing);
+		break;
+	default:
+		break;
+	}
+
+	return modes;
+}
+
 /**
- * add_detailed_modes - get detailed mode info from EDID data
+ * add_detailed_info - get detailed mode info from EDID data
  * @connector: attached connector
  * @edid: EDID block to scan
  * @quirks: quirks to apply
@@ -846,67 +1018,24 @@ static int add_standard_modes(struct drm_connector *connector, struct edid *edid
 static int add_detailed_info(struct drm_connector *connector,
 			     struct edid *edid, u32 quirks)
 {
-	struct drm_device *dev = connector->dev;
-	int i, j, modes = 0;
-	int timing_level;
-
-	timing_level = standard_timing_level(edid);
+	int i, modes = 0;
 
 	for (i = 0; i < EDID_DETAILED_TIMINGS; i++) {
 		struct detailed_timing *timing = &edid->detailed_timings[i];
-		struct detailed_non_pixel *data = &timing->data.other_data;
-		struct drm_display_mode *newmode;
+		int preferred = (i == 0) && (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
 
-		/* X server check is version 1.1 or higher */
-		if (edid->version == 1 && edid->revision >= 1 &&
-		    !timing->pixel_clock) {
-			/* Other timing or info */
-			switch (data->type) {
-			case EDID_DETAIL_MONITOR_SERIAL:
-				break;
-			case EDID_DETAIL_MONITOR_STRING:
-				break;
-			case EDID_DETAIL_MONITOR_RANGE:
-				/* Get monitor range data */
-				break;
-			case EDID_DETAIL_MONITOR_NAME:
-				break;
-			case EDID_DETAIL_MONITOR_CPDATA:
-				break;
-			case EDID_DETAIL_STD_MODES:
-				for (j = 0; j < 6; i++) {
-					struct std_timing *std;
-					struct drm_display_mode *newmode;
+		/* In 1.0, only timings are allowed */
+		if (!timing->pixel_clock && edid->version == 1 &&
+			edid->revision == 0)
+			continue;
 
-					std = &data->data.timings[j];
-					newmode = drm_mode_std(dev, std,
-							       edid->revision,
-							       timing_level);
-					if (newmode) {
-						drm_mode_probed_add(connector, newmode);
-						modes++;
-					}
-				}
-				break;
-			default:
-				break;
-			}
-		} else {
-			newmode = drm_mode_detailed(dev, edid, timing, quirks);
-			if (!newmode)
-				continue;
-
-			/* First detailed mode is preferred */
-			if (i == 0 && (edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING))
-				newmode->type |= DRM_MODE_TYPE_PREFERRED;
-			drm_mode_probed_add(connector, newmode);
-
-			modes++;
-		}
+		modes += add_detailed_modes(connector, timing, edid, quirks,
+					    preferred);
 	}
 
 	return modes;
 }
+
 /**
  * add_detailed_mode_eedid - get detailed mode info from addtional timing
  * 			EDID block
@@ -920,12 +1049,9 @@ static int add_detailed_info(struct drm_connector *connector,
 static int add_detailed_info_eedid(struct drm_connector *connector,
 			     struct edid *edid, u32 quirks)
 {
-	struct drm_device *dev = connector->dev;
-	int i, j, modes = 0;
+	int i, modes = 0;
 	char *edid_ext = NULL;
 	struct detailed_timing *timing;
-	struct detailed_non_pixel *data;
-	struct drm_display_mode *newmode;
 	int edid_ext_num;
 	int start_offset, end_offset;
 	int timing_level;
@@ -976,51 +1102,7 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 	for (i = start_offset; i < end_offset;
 			i += sizeof(struct detailed_timing)) {
 		timing = (struct detailed_timing *)(edid_ext + i);
-		data = &timing->data.other_data;
-		/* Detailed mode timing */
-		if (timing->pixel_clock) {
-			newmode = drm_mode_detailed(dev, edid, timing, quirks);
-			if (!newmode)
-				continue;
-
-			drm_mode_probed_add(connector, newmode);
-
-			modes++;
-			continue;
-		}
-
-		/* Other timing or info */
-		switch (data->type) {
-		case EDID_DETAIL_MONITOR_SERIAL:
-			break;
-		case EDID_DETAIL_MONITOR_STRING:
-			break;
-		case EDID_DETAIL_MONITOR_RANGE:
-			/* Get monitor range data */
-			break;
-		case EDID_DETAIL_MONITOR_NAME:
-			break;
-		case EDID_DETAIL_MONITOR_CPDATA:
-			break;
-		case EDID_DETAIL_STD_MODES:
-			/* Five modes per detailed section */
-			for (j = 0; j < 5; i++) {
-				struct std_timing *std;
-				struct drm_display_mode *newmode;
-
-				std = &data->data.timings[j];
-				newmode = drm_mode_std(dev, std,
-						       edid->revision,
-						       timing_level);
-				if (newmode) {
-					drm_mode_probed_add(connector, newmode);
-					modes++;
-				}
-			}
-			break;
-		default:
-			break;
-		}
+		modes += add_detailed_modes(connector, timing, edid, quirks, 0);
 	}
 
 	return modes;
@@ -1066,19 +1148,19 @@ static int drm_ddc_read_edid(struct drm_connector *connector,
 			     struct i2c_adapter *adapter,
 			     char *buf, int len)
 {
-	int ret;
+	int i;
 
-	ret = drm_do_probe_ddc_edid(adapter, buf, len);
-	if (ret != 0) {
-		goto end;
+	for (i = 0; i < 4; i++) {
+		if (drm_do_probe_ddc_edid(adapter, buf, len))
+			return -1;
+		if (edid_is_valid((struct edid *)buf))
+			return 0;
 	}
-	if (!edid_is_valid((struct edid *)buf)) {
-		dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
-			 drm_get_connector_name(connector));
-		ret = -1;
-	}
-end:
-	return ret;
+
+	/* repeated checksum failures; warn, but carry on */
+	dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
+		 drm_get_connector_name(connector));
+	return -1;
 }
 
 /**
@@ -1296,6 +1378,8 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 					ptr->vdisplay > vdisplay)
 				continue;
 		}
+		if (drm_mode_vrefresh(ptr) > 61)
+			continue;
 		mode = drm_mode_duplicate(dev, ptr);
 		if (mode) {
 			drm_mode_probed_add(connector, mode);

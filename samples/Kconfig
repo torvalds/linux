@@ -1,5 +1,3 @@
-# samples/Kconfig
-
 menuconfig SAMPLES
 	bool "Sample kernel code"
 	help
@@ -47,4 +45,3 @@ config SAMPLE_HW_BREAKPOINT
 	  This builds kernel hardware breakpoint example modules.
 
 endif # SAMPLES
-

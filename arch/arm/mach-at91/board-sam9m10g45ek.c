@@ -229,6 +229,16 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 
 
 /*
+ * Touchscreen
+ */
+static struct at91_tsadcc_data ek_tsadcc_data = {
+	.adc_clock		= 300000,
+	.pendet_debounce	= 0x0d,
+	.ts_sample_hold_time	= 0x0a,
+};
+
+
+/*
  * GPIO Buttons
  */
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -379,6 +389,8 @@ static void __init ek_board_init(void)
 	at91_add_device_i2c(0, NULL, 0);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
+	/* Touch Screen */
+	at91_add_device_tsadcc(&ek_tsadcc_data);
 	/* Push Buttons */
 	ek_add_device_buttons();
 	/* AC97 */

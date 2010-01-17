@@ -479,6 +479,7 @@ static int __cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 			}
 			err = rdev->ops->del_key(&rdev->wiphy, dev, idx, addr);
 		}
+		wdev->wext.connect.privacy = false;
 		/*
 		 * Applications using wireless extensions expect to be
 		 * able to delete keys that don't exist, so allow that.

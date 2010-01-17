@@ -137,7 +137,8 @@ static int ext2_block_to_path(struct inode *inode,
 	int final = 0;
 
 	if (i_block < 0) {
-		ext2_warning (inode->i_sb, "ext2_block_to_path", "block < 0");
+		ext2_msg(inode->i_sb, KERN_WARNING,
+			"warning: %s: block < 0", __func__);
 	} else if (i_block < direct_blocks) {
 		offsets[n++] = i_block;
 		final = direct_blocks;
@@ -157,7 +158,8 @@ static int ext2_block_to_path(struct inode *inode,
 		offsets[n++] = i_block & (ptrs - 1);
 		final = ptrs;
 	} else {
-		ext2_warning (inode->i_sb, "ext2_block_to_path", "block > big");
+		ext2_msg(inode->i_sb, KERN_WARNING,
+			"warning: %s: block is too big", __func__);
 	}
 	if (boundary)
 		*boundary = final - 1 - (i_block & (ptrs - 1));

@@ -70,13 +70,13 @@ static inline unsigned long ufs_dir_pages(struct inode *inode)
 	return (inode->i_size+PAGE_CACHE_SIZE-1)>>PAGE_CACHE_SHIFT;
 }
 
-ino_t ufs_inode_by_name(struct inode *dir, struct dentry *dentry)
+ino_t ufs_inode_by_name(struct inode *dir, struct qstr *qstr)
 {
 	ino_t res = 0;
 	struct ufs_dir_entry *de;
 	struct page *page;
 	
-	de = ufs_find_entry(dir, dentry, &page);
+	de = ufs_find_entry(dir, qstr, &page);
 	if (de) {
 		res = fs32_to_cpu(dir->i_sb, de->d_ino);
 		ufs_put_page(page);
@@ -249,12 +249,12 @@ struct ufs_dir_entry *ufs_dotdot(struct inode *dir, struct page **p)
  * (as a parameter - res_dir). Page is returned mapped and unlocked.
  * Entry is guaranteed to be valid.
  */
-struct ufs_dir_entry *ufs_find_entry(struct inode *dir, struct dentry *dentry,
+struct ufs_dir_entry *ufs_find_entry(struct inode *dir, struct qstr *qstr,
 				     struct page **res_page)
 {
 	struct super_block *sb = dir->i_sb;
-	const char *name = dentry->d_name.name;
-	int namelen = dentry->d_name.len;
+	const char *name = qstr->name;
+	int namelen = qstr->len;
 	unsigned reclen = UFS_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = ufs_dir_pages(dir);

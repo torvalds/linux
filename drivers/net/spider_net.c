@@ -410,7 +410,7 @@ spider_net_free_rx_chain_contents(struct spider_net_card *card)
  * @card: card structure
  * @descr: descriptor to re-init
  *
- * Return 0 on succes, <0 on failure.
+ * Return 0 on success, <0 on failure.
  *
  * Allocates a new rx skb, iommu-maps it and attaches it to the
  * descriptor. Mark the descriptor as activated, ready-to-use.

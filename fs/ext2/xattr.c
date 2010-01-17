@@ -60,6 +60,7 @@
 #include <linux/mbcache.h>
 #include <linux/quotaops.h>
 #include <linux/rwsem.h>
+#include <linux/security.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"
@@ -249,8 +250,9 @@ cleanup:
  * used / required on success.
  */
 static int
-ext2_xattr_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
+	struct inode *inode = dentry->d_inode;
 	struct buffer_head *bh = NULL;
 	struct ext2_xattr_entry *entry;
 	char *end;
@@ -300,9 +302,10 @@ bad_block:	ext2_error(inode->i_sb, "ext2_xattr_list",
 			ext2_xattr_handler(entry->e_name_index);
 
 		if (handler) {
-			size_t size = handler->list(inode, buffer, rest,
+			size_t size = handler->list(dentry, buffer, rest,
 						    entry->e_name,
-						    entry->e_name_len);
+						    entry->e_name_len,
+						    handler->flags);
 			if (buffer) {
 				if (size > rest) {
 					error = -ERANGE;
@@ -330,7 +333,7 @@ cleanup:
 ssize_t
 ext2_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	return ext2_xattr_list(dentry->d_inode, buffer, size);
+	return ext2_xattr_list(dentry, buffer, size);
 }
 
 /*

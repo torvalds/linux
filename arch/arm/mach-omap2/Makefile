@@ -6,11 +6,14 @@
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o
 
 omap-2-3-common				= irq.o sdrc.o omap_hwmod.o
+omap-3-4-common				= dpll.o
 prcm-common				= prcm.o powerdomain.o
-clock-common				= clock.o clockdomain.o
+clock-common				= clock.o clock_common_data.o clockdomain.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common)
-obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common)
+obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common) \
+			    $(omap-3-4-common)
+obj-$(CONFIG_ARCH_OMAP4) += $(omap-3-4-common) prcm.o clock.o
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -22,6 +25,9 @@ obj-$(CONFIG_LOCAL_TIMERS)		+= timer-mpu.o
 obj-$(CONFIG_ARCH_OMAP2420)		+= sram242x.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= sram243x.o
 obj-$(CONFIG_ARCH_OMAP3)		+= sram34xx.o
+
+# Pin multiplexing
+obj-$(CONFIG_ARCH_OMAP3)		+= mux34xx.o
 
 # SMS/SDRC
 obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
@@ -41,8 +47,11 @@ obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
 obj-$(CONFIG_ARCH_OMAP4)		+= cm4xxx.o
 
 # Clock framework
-obj-$(CONFIG_ARCH_OMAP2)		+= clock24xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= clock2xxx.o clock2xxx_data.o
+obj-$(CONFIG_ARCH_OMAP2420)		+= opp2420_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o clock34xx_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= opp2430_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= clock44xx.o clock44xx_data.o
 
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)		+= emu.o
@@ -54,6 +63,9 @@ iommu-y					+= iommu2.o
 iommu-$(CONFIG_ARCH_OMAP3)		+= omap3-iommu.o
 
 obj-$(CONFIG_OMAP_IOMMU)		+= $(iommu-y)
+
+i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
+obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
@@ -93,7 +105,8 @@ obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o \
 					   mmc-twl4030.o
 obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o \
 					   mmc-twl4030.o
-
+obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o \
+					   mmc-twl4030.o
 obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o
 
 obj-$(CONFIG_MACH_OMAP3517EVM)     += board-am3517evm.o

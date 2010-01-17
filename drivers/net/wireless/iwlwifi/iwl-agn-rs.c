@@ -150,7 +150,7 @@ static s32 expected_tpt_mimo3_40MHz[4][IWL_RATE_COUNT] = {
 };
 
 /* mbps, mcs */
-const static struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
+static const struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
 	{  "1", "BPSK DSSS"},
 	{  "2", "QPSK DSSS"},
 	{"5.5", "BPSK CCK"},

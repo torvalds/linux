@@ -13,7 +13,7 @@
  *
  */
 
-#include <linux/earlysuspend.h>
+
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/gpio_event.h>
@@ -23,7 +23,6 @@
 struct gpio_event {
 	struct input_dev *input_dev;
 	const struct gpio_event_platform_data *info;
-	struct early_suspend early_suspend;
 	void *state[0];
 };
 

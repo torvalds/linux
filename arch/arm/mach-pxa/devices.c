@@ -4,7 +4,6 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <mach/hardware.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
@@ -14,6 +13,7 @@
 #include <mach/pxa2xx_spi.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
+#include <mach/hardware.h>
 #include <plat/i2c.h>
 #include <plat/pxa3xx_nand.h>
 

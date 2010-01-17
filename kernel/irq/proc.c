@@ -179,7 +179,7 @@ static int name_unique(unsigned int irq, struct irqaction *new_action)
 	unsigned long flags;
 	int ret = 1;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	for (action = desc->action ; action; action = action->next) {
 		if ((action != new_action) && action->name &&
 				!strcmp(new_action->name, action->name)) {
@@ -187,7 +187,7 @@ static int name_unique(unsigned int irq, struct irqaction *new_action)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
 

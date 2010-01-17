@@ -9,17 +9,16 @@
 #include "builtin.h"
 #include "perf.h"
 #include "util/cache.h"
-#include "util/data_map.h"
 #include "util/debug.h"
-#include "util/header.h"
 #include "util/parse-options.h"
+#include "util/session.h"
 #include "util/symbol.h"
 
 static char const *input_name = "perf.data";
 static int force;
 
-static const char *const buildid_list_usage[] = {
-	"perf report [<options>]",
+static const char * const buildid_list_usage[] = {
+	"perf buildid-list [<options>]",
 	NULL
 };
 
@@ -55,56 +54,18 @@ static int perf_file_section__process_buildids(struct perf_file_section *self,
 static int __cmd_buildid_list(void)
 {
 	int err = -1;
-	struct perf_header *header;
-	struct perf_file_header f_header;
-	struct stat input_stat;
-	int input = open(input_name, O_RDONLY);
+	struct perf_session *session;
 
-	if (input < 0) {
-		pr_err("failed to open file: %s", input_name);
-		if (!strcmp(input_name, "perf.data"))
-			pr_err("  (try 'perf record' first)");
-		pr_err("\n");
-		goto out;
-	}
+	session = perf_session__new(input_name, O_RDONLY, force);
+	if (session == NULL)
+		return -1;
 
-	err = fstat(input, &input_stat);
-	if (err < 0) {
-		perror("failed to stat file");
-		goto out_close;
-	}
-
-	if (!force && input_stat.st_uid && (input_stat.st_uid != geteuid())) {
-		pr_err("file %s not owned by current user or root\n",
-		       input_name);
-		goto out_close;
-	}
-
-	if (!input_stat.st_size) {
-		pr_info("zero-sized file, nothing to do!\n");
-		goto out_close;
-	}
-
-	err = -1;
-	header = perf_header__new();
-	if (header == NULL)
-		goto out_close;
-
-	if (perf_file_header__read(&f_header, header, input) < 0) {
-		pr_warning("incompatible file format");
-		goto out_close;
-	}
-
-	err = perf_header__process_sections(header, input,
+	err = perf_header__process_sections(&session->header, session->fd,
 				         perf_file_section__process_buildids);
+	if (err >= 0)
+		dsos__fprintf_buildid(stdout);
 
-	if (err < 0)
-		goto out_close;
-
-	dsos__fprintf_buildid(stdout);
-out_close:
-	close(input);
-out:
+	perf_session__delete(session);
 	return err;
 }
 

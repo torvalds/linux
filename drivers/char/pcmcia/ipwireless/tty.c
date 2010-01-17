@@ -603,7 +603,7 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 	}
 }
 
-static struct tty_operations tty_ops = {
+static const struct tty_operations tty_ops = {
 	.open = ipw_open,
 	.close = ipw_close,
 	.hangup = ipw_hangup,

@@ -932,11 +932,10 @@ bfa_fcs_port_ns_send_rff_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	}
 	ns->fcxp = fcxp;
 
-	if (BFA_FCS_VPORT_IS_INITIATOR_MODE(ns->port)) {
+	if (BFA_FCS_VPORT_IS_INITIATOR_MODE(ns->port))
 		fc4_ftrs = FC_GS_FCP_FC4_FEATURE_INITIATOR;
-	} else if (BFA_FCS_VPORT_IS_TARGET_MODE(ns->port)) {
+	else if (BFA_FCS_VPORT_IS_TARGET_MODE(ns->port))
 		fc4_ftrs = FC_GS_FCP_FC4_FEATURE_TARGET;
-	}
 
 	len = fc_rffid_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
 			     bfa_fcs_port_get_fcid(port), 0, FC_TYPE_FCP,

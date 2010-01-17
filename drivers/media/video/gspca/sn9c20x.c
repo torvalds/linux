@@ -1158,7 +1158,7 @@ static int i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 	return i2c_w(gspca_dev, row);
 }
 
-int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
+static int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
@@ -1183,7 +1183,7 @@ int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	return 0;
 }
 
-int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
+static int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
@@ -1476,8 +1476,9 @@ static int sn9c20x_input_init(struct gspca_dev *gspca_dev)
 	if (input_register_device(sd->input_dev))
 		return -EINVAL;
 
-	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%d",
-				     gspca_dev->vdev.minor);
+	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%s-%s",
+				     gspca_dev->dev->bus->bus_name,
+				     gspca_dev->dev->devpath);
 
 	if (IS_ERR(sd->input_task))
 		return -EINVAL;
@@ -2174,8 +2175,7 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 }
 
 #define HW_WIN(mode, hstart, vstart) \
-((const u8 []){hstart & 0xff, hstart >> 8, \
-vstart & 0xff, vstart >> 8, \
+((const u8 []){hstart, 0, vstart, 0, \
 (mode & MODE_SXGA ? 1280 >> 4 : 640 >> 4), \
 (mode & MODE_SXGA ? 1024 >> 3 : 480 >> 3)})
 
@@ -2342,7 +2342,6 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
@@ -2378,22 +2377,22 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		avg_lum >>= 9;
 		atomic_set(&sd->avg_lum, avg_lum);
 		gspca_frame_add(gspca_dev, LAST_PACKET,
-				frame, data, len);
+				data, len);
 		return;
 	}
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
 		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
 				& MODE_JPEG) {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 				sd->jpeg_hdr, JPEG_HDR_SZ);
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, INTER_PACKET,
 				data, len);
 		} else {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET,
 				data, len);
 		}
 	} else {
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 	}
 }
 

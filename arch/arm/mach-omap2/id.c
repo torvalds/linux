@@ -246,6 +246,31 @@ void __init omap3_check_revision(void)
 	}
 }
 
+void __init omap4_check_revision(void)
+{
+	u32 idcode;
+	u16 hawkeye;
+	u8 rev;
+	char *rev_name = "ES1.0";
+
+	/*
+	 * The IC rev detection is done with hawkeye and rev.
+	 * Note that rev does not map directly to defined processor
+	 * revision numbers as ES1.0 uses value 0.
+	 */
+	idcode = read_tap_reg(OMAP_TAP_IDCODE);
+	hawkeye = (idcode >> 12) & 0xffff;
+	rev = (idcode >> 28) & 0xff;
+
+	if ((hawkeye == 0xb852) && (rev == 0x0)) {
+		omap_revision = OMAP4430_REV_ES1_0;
+		pr_info("OMAP%04x %s\n", omap_rev() >> 16, rev_name);
+		return;
+	}
+
+	pr_err("Unknown OMAP4 CPU id\n");
+}
+
 #define OMAP3_SHOW_FEATURE(feat)		\
 	if (omap3_has_ ##feat())		\
 		printk(#feat" ");
@@ -277,10 +302,10 @@ void __init omap3_cpuinfo(void)
 	} else if (omap3_has_iva() && omap3_has_sgx()) {
 		/* OMAP3430, OMAP3525, OMAP3515, OMAP3503 devices */
 		strcpy(cpu_name, "OMAP3430/3530");
-	} else if (omap3_has_sgx()) {
+	} else if (omap3_has_iva()) {
 		omap_revision = OMAP3525_REV(rev);
 		strcpy(cpu_name, "OMAP3525");
-	} else if (omap3_has_iva()) {
+	} else if (omap3_has_sgx()) {
 		omap_revision = OMAP3515_REV(rev);
 		strcpy(cpu_name, "OMAP3515");
 	} else {
@@ -336,7 +361,7 @@ void __init omap2_check_revision(void)
 		omap3_check_features();
 		omap3_cpuinfo();
 	} else if (cpu_is_omap44xx()) {
-		printk(KERN_INFO "FIXME: CPU revision = OMAP4430\n");
+		omap4_check_revision();
 		return;
 	} else {
 		pr_err("OMAP revision unknown, please fix!\n");

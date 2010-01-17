@@ -86,7 +86,7 @@ struct switch_stack {
 extern void show_regs(struct pt_regs *);
 
 /*
- * These are defined as per linux/ptrace.h, which see.
+ * These are defined as per linux/ptrace.h.
  */
 struct task_struct;
 

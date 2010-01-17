@@ -41,6 +41,7 @@ char *klimit = _end;
  * have available.
  */
 unsigned long memory_start;
+EXPORT_SYMBOL(memory_start);
 unsigned long memory_end; /* due to mm/nommu.c */
 unsigned long memory_size;
 

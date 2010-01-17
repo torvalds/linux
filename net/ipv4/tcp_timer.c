@@ -132,6 +132,35 @@ static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 	}
 }
 
+/* This function calculates a "timeout" which is equivalent to the timeout of a
+ * TCP connection after "boundary" unsucessful, exponentially backed-off
+ * retransmissions with an initial RTO of TCP_RTO_MIN.
+ */
+static bool retransmits_timed_out(struct sock *sk,
+				  unsigned int boundary)
+{
+	unsigned int timeout, linear_backoff_thresh;
+	unsigned int start_ts;
+
+	if (!inet_csk(sk)->icsk_retransmits)
+		return false;
+
+	if (unlikely(!tcp_sk(sk)->retrans_stamp))
+		start_ts = TCP_SKB_CB(tcp_write_queue_head(sk))->when;
+	else
+		start_ts = tcp_sk(sk)->retrans_stamp;
+
+	linear_backoff_thresh = ilog2(TCP_RTO_MAX/TCP_RTO_MIN);
+
+	if (boundary <= linear_backoff_thresh)
+		timeout = ((2 << boundary) - 1) * TCP_RTO_MIN;
+	else
+		timeout = ((2 << linear_backoff_thresh) - 1) * TCP_RTO_MIN +
+			  (boundary - linear_backoff_thresh) * TCP_RTO_MAX;
+
+	return (tcp_time_stamp - start_ts) >= timeout;
+}
+
 /* A write timeout has occurred. Process the after effects. */
 static int tcp_write_timeout(struct sock *sk)
 {

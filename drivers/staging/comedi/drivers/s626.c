@@ -1926,7 +1926,7 @@ static int s626_ai_cmdtest(struct comedi_device *dev,
 	/* step 2: make sure trigger sources are unique and mutually
 	   compatible */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
 	    cmd->scan_begin_src != TRIG_EXT
 	    && cmd->scan_begin_src != TRIG_FOLLOW)

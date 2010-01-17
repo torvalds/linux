@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.21';
+my $V = '0.23';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -23,16 +23,19 @@ my $email_usename = 1;
 my $email_maintainer = 1;
 my $email_list = 1;
 my $email_subscriber_list = 0;
-my $email_git = 1;
 my $email_git_penguin_chiefs = 0;
+my $email_git = 1;
+my $email_git_blame = 0;
 my $email_git_min_signatures = 1;
 my $email_git_max_maintainers = 5;
 my $email_git_min_percent = 5;
 my $email_git_since = "1-year-ago";
-my $email_git_blame = 0;
+my $email_hg_since = "-365";
 my $email_remove_duplicates = 1;
 my $output_multiline = 1;
 my $output_separator = ", ";
+my $output_roles = 0;
+my $output_rolestats = 0;
 my $scm = 0;
 my $web = 0;
 my $subsystem = 0;
@@ -64,21 +67,52 @@ my $penguin_chiefs = "\(" . join("|",@penguin_chief_names) . "\)";
 my $rfc822_lwsp = "(?:(?:\\r\\n)?[ \\t])";
 my $rfc822_char = '[\\000-\\377]';
 
+# VCS command support: class-like functions and strings
+
+my %VCS_cmds;
+
+my %VCS_cmds_git = (
+    "execute_cmd" => \&git_execute_cmd,
+    "available" => '(which("git") ne "") && (-d ".git")',
+    "find_signers_cmd" => "git log --since=\$email_git_since -- \$file",
+    "find_commit_signers_cmd" => "git log -1 \$commit",
+    "blame_range_cmd" => "git blame -l -L \$diff_start,+\$diff_length \$file",
+    "blame_file_cmd" => "git blame -l \$file",
+    "commit_pattern" => "^commit [0-9a-f]{40,40}",
+    "blame_commit_pattern" => "^([0-9a-f]+) "
+);
+
+my %VCS_cmds_hg = (
+    "execute_cmd" => \&hg_execute_cmd,
+    "available" => '(which("hg") ne "") && (-d ".hg")',
+    "find_signers_cmd" =>
+	"hg log --date=\$email_hg_since" .
+		" --template='commit {node}\\n{desc}\\n' -- \$file",
+    "find_commit_signers_cmd" => "hg log --template='{desc}\\n' -r \$commit",
+    "blame_range_cmd" => "",		# not supported
+    "blame_file_cmd" => "hg blame -c \$file",
+    "commit_pattern" => "^commit [0-9a-f]{40,40}",
+    "blame_commit_pattern" => "^([0-9a-f]+):"
+);
+
 if (!GetOptions(
 		'email!' => \$email,
 		'git!' => \$email_git,
+		'git-blame!' => \$email_git_blame,
 		'git-chief-penguins!' => \$email_git_penguin_chiefs,
 		'git-min-signatures=i' => \$email_git_min_signatures,
 		'git-max-maintainers=i' => \$email_git_max_maintainers,
 		'git-min-percent=i' => \$email_git_min_percent,
 		'git-since=s' => \$email_git_since,
-		'git-blame!' => \$email_git_blame,
+		'hg-since=s' => \$email_hg_since,
 		'remove-duplicates!' => \$email_remove_duplicates,
 		'm!' => \$email_maintainer,
 		'n!' => \$email_usename,
 		'l!' => \$email_list,
 		's!' => \$email_subscriber_list,
 		'multiline!' => \$output_multiline,
+		'roles!' => \$output_roles,
+		'rolestats!' => \$output_rolestats,
 		'separator=s' => \$output_separator,
 		'subsystem!' => \$subsystem,
 		'status!' => \$status,
@@ -90,8 +124,7 @@ if (!GetOptions(
 		'v|version' => \$version,
 		'h|help' => \$help,
 		)) {
-    usage();
-    die "$P: invalid argument\n";
+    die "$P: invalid argument - use --help if necessary\n";
 }
 
 if ($help != 0) {
@@ -111,6 +144,10 @@ if ($#ARGV < 0) {
 
 if ($output_separator ne ", ") {
     $output_multiline = 0;
+}
+
+if ($output_rolestats) {
+    $output_roles = 1;
 }
 
 my $selections = $email + $scm + $status + $subsystem + $web;
@@ -175,7 +212,7 @@ if ($email_remove_duplicates) {
 	next if ($line =~ m/^\s*$/);
 
 	my ($name, $address) = parse_email($line);
-	$line = format_email($name, $address);
+	$line = format_email($name, $address, $email_usename);
 
 	next if ($line =~ m/^\s*$/);
 
@@ -207,12 +244,10 @@ foreach my $file (@ARGV) {
 	push(@files, $file);
 	if (-f $file && $keywords) {
 	    open(FILE, "<$file") or die "$P: Can't open ${file}\n";
-	    while (<FILE>) {
-		my $patch_line = $_;
-		foreach my $line (keys %keyword_hash) {
-		    if ($patch_line =~ m/^.*$keyword_hash{$line}/x) {
-			push(@keyword_tvi, $line);
-		    }
+	    my $text = do { local($/) ; <FILE> };
+	    foreach my $line (keys %keyword_hash) {
+		if ($text =~ m/$keyword_hash{$line}/x) {
+		    push(@keyword_tvi, $line);
 		}
 	    }
 	    close(FILE);
@@ -261,54 +296,64 @@ my @status = ();
 
 foreach my $file (@files) {
 
-#Do not match excluded file patterns
+    my %hash;
+    my $tvi = find_first_section();
+    while ($tvi < @typevalue) {
+	my $start = find_starting_index($tvi);
+	my $end = find_ending_index($tvi);
+	my $exclude = 0;
+	my $i;
 
-    my $exclude = 0;
-    foreach my $line (@typevalue) {
-	if ($line =~ m/^(\C):\s*(.*)/) {
-	    my $type = $1;
-	    my $value = $2;
-	    if ($type eq 'X') {
-		if (file_match_pattern($file, $value)) {
-		    $exclude = 1;
-		    last;
-		}
-	    }
-	}
-    }
+	#Do not match excluded file patterns
 
-    if (!$exclude) {
-	my $tvi = 0;
-	my %hash;
-	foreach my $line (@typevalue) {
+	for ($i = $start; $i < $end; $i++) {
+	    my $line = $typevalue[$i];
 	    if ($line =~ m/^(\C):\s*(.*)/) {
 		my $type = $1;
 		my $value = $2;
-		if ($type eq 'F') {
+		if ($type eq 'X') {
 		    if (file_match_pattern($file, $value)) {
-			my $value_pd = ($value =~ tr@/@@);
-			my $file_pd = ($file  =~ tr@/@@);
-			$value_pd++ if (substr($value,-1,1) ne "/");
-			if ($pattern_depth == 0 ||
-			    (($file_pd - $value_pd) < $pattern_depth)) {
-			    $hash{$tvi} = $value_pd;
+			$exclude = 1;
+		    }
+		}
+	    }
+	}
+
+	if (!$exclude) {
+	    for ($i = $start; $i < $end; $i++) {
+		my $line = $typevalue[$i];
+		if ($line =~ m/^(\C):\s*(.*)/) {
+		    my $type = $1;
+		    my $value = $2;
+		    if ($type eq 'F') {
+			if (file_match_pattern($file, $value)) {
+			    my $value_pd = ($value =~ tr@/@@);
+			    my $file_pd = ($file  =~ tr@/@@);
+			    $value_pd++ if (substr($value,-1,1) ne "/");
+			    if ($pattern_depth == 0 ||
+				(($file_pd - $value_pd) < $pattern_depth)) {
+				$hash{$tvi} = $value_pd;
+			    }
 			}
 		    }
 		}
 	    }
-	    $tvi++;
 	}
-	foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
-	    add_categories($line);
-	}
+
+	$tvi += ($end - $start);
+
+    }
+
+    foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
+	add_categories($line);
     }
 
     if ($email && $email_git) {
-	recent_git_signoffs($file);
+	vcs_file_signoffs($file);
     }
 
     if ($email && $email_git_blame) {
-	git_assign_blame($file);
+	vcs_file_blame($file);
     }
 }
 
@@ -324,11 +369,11 @@ if ($email) {
 	if ($chief =~ m/^(.*):(.*)/) {
 	    my $email_address;
 
-	    $email_address = format_email($1, $2);
+	    $email_address = format_email($1, $2, $email_usename);
 	    if ($email_git_penguin_chiefs) {
-		push(@email_to, $email_address);
+		push(@email_to, [$email_address, 'chief penguin']);
 	    } else {
-		@email_to = grep(!/${email_address}/, @email_to);
+		@email_to = grep($_->[0] !~ /${email_address}/, @email_to);
 	    }
 	}
     }
@@ -342,7 +387,7 @@ if ($email || $email_list) {
     if ($email_list) {
 	@to = (@to, @list_to);
     }
-    output(uniq(@to));
+    output(merge_email(@to));
 }
 
 if ($scm) {
@@ -398,13 +443,16 @@ MAINTAINER field selection options:
     --git-min-signatures => number of signatures required (default: 1)
     --git-max-maintainers => maximum maintainers to add (default: 5)
     --git-min-percent => minimum percentage of commits required (default: 5)
-    --git-since => git history to use (default: 1-year-ago)
     --git-blame => use git blame to find modified commits for patch or file
+    --git-since => git history to use (default: 1-year-ago)
+    --hg-since => hg history to use (default: -365)
     --m => include maintainer(s) if any
     --n => include name 'Full Name <addr\@domain.tld>'
     --l => include list(s) if any
     --s => include subscriber only list(s) if any
     --remove-duplicates => minimize duplicate email names/addresses
+    --roles => show roles (status:subsystem, git-signer, list, etc...)
+    --rolestats => show roles and statistics (commits/total_commits, %)
   --scm => print SCM tree(s) if any
   --status => print status if any
   --subsystem => print subsystem name if any
@@ -430,11 +478,24 @@ Notes:
           directory are examined as git recurses directories.
           Any specified X: (exclude) pattern matches are _not_ ignored.
       Used with "--nogit", directory is used as a pattern match,
-         no individual file within the directory or subdirectory
-         is matched.
+          no individual file within the directory or subdirectory
+          is matched.
       Used with "--git-blame", does not iterate all files in directory
   Using "--git-blame" is slow and may add old committers and authors
       that are no longer active maintainers to the output.
+  Using "--roles" or "--rolestats" with git send-email --cc-cmd or any
+      other automated tools that expect only ["name"] <email address>
+      may not work because of additional output after <email address>.
+  Using "--rolestats" and "--git-blame" shows the #/total=% commits,
+      not the percentage of the entire file authored.  # of commits is
+      not a good measure of amount of code authored.  1 major commit may
+      contain a thousand lines, 5 trivial commits may modify a single line.
+  If git is not installed, but mercurial (hg) is installed and an .hg
+      repository exists, the following options apply to mercurial:
+          --git,
+          --git-min-signatures, --git-max-maintainers, --git-min-percent, and
+          --git-blame
+      Use --hg-since not --git-since to control date selection
 EOT
 }
 
@@ -493,7 +554,7 @@ sub parse_email {
 }
 
 sub format_email {
-    my ($name, $address) = @_;
+    my ($name, $address, $usename) = @_;
 
     my $formatted_email;
 
@@ -506,17 +567,31 @@ sub format_email {
 	$name = "\"$name\"";
     }
 
-    if ($email_usename) {
+    if ($usename) {
 	if ("$name" eq "") {
 	    $formatted_email = "$address";
 	} else {
-	    $formatted_email = "$name <${address}>";
+	    $formatted_email = "$name <$address>";
 	}
     } else {
 	$formatted_email = $address;
     }
 
     return $formatted_email;
+}
+
+sub find_first_section {
+    my $index = 0;
+
+    while ($index < @typevalue) {
+	my $tv = $typevalue[$index];
+	if (($tv =~ m/^(\C):\s*(.*)/)) {
+	    last;
+	}
+	$index++;
+    }
+
+    return $index;
 }
 
 sub find_starting_index {
@@ -547,6 +622,71 @@ sub find_ending_index {
     return $index;
 }
 
+sub get_maintainer_role {
+    my ($index) = @_;
+
+    my $i;
+    my $start = find_starting_index($index);
+    my $end = find_ending_index($index);
+
+    my $role;
+    my $subsystem = $typevalue[$start];
+    if (length($subsystem) > 20) {
+	$subsystem = substr($subsystem, 0, 17);
+	$subsystem =~ s/\s*$//;
+	$subsystem = $subsystem . "...";
+    }
+
+    for ($i = $start + 1; $i < $end; $i++) {
+	my $tv = $typevalue[$i];
+	if ($tv =~ m/^(\C):\s*(.*)/) {
+	    my $ptype = $1;
+	    my $pvalue = $2;
+	    if ($ptype eq "S") {
+		$role = $pvalue;
+	    }
+	}
+    }
+
+    $role = lc($role);
+    if      ($role eq "supported") {
+	$role = "supporter";
+    } elsif ($role eq "maintained") {
+	$role = "maintainer";
+    } elsif ($role eq "odd fixes") {
+	$role = "odd fixer";
+    } elsif ($role eq "orphan") {
+	$role = "orphan minder";
+    } elsif ($role eq "obsolete") {
+	$role = "obsolete minder";
+    } elsif ($role eq "buried alive in reporters") {
+	$role = "chief penguin";
+    }
+
+    return $role . ":" . $subsystem;
+}
+
+sub get_list_role {
+    my ($index) = @_;
+
+    my $i;
+    my $start = find_starting_index($index);
+    my $end = find_ending_index($index);
+
+    my $subsystem = $typevalue[$start];
+    if (length($subsystem) > 20) {
+	$subsystem = substr($subsystem, 0, 17);
+	$subsystem =~ s/\s*$//;
+	$subsystem = $subsystem . "...";
+    }
+
+    if ($subsystem eq "THE REST") {
+	$subsystem = "";
+    }
+
+    return $subsystem;
+}
+
 sub add_categories {
     my ($index) = @_;
 
@@ -564,17 +704,22 @@ sub add_categories {
 	    if ($ptype eq "L") {
 		my $list_address = $pvalue;
 		my $list_additional = "";
+		my $list_role = get_list_role($i);
+
+		if ($list_role ne "") {
+		    $list_role = ":" . $list_role;
+		}
 		if ($list_address =~ m/([^\s]+)\s+(.*)$/) {
 		    $list_address = $1;
 		    $list_additional = $2;
 		}
 		if ($list_additional =~ m/subscribers-only/) {
 		    if ($email_subscriber_list) {
-			push(@list_to, $list_address);
+			push(@list_to, [$list_address, "subscriber list${list_role}"]);
 		    }
 		} else {
 		    if ($email_list) {
-			push(@list_to, $list_address);
+			push(@list_to, [$list_address, "open list${list_role}"]);
 		    }
 		}
 	    } elsif ($ptype eq "M") {
@@ -585,13 +730,14 @@ sub add_categories {
 			if ($tv =~ m/^(\C):\s*(.*)/) {
 			    if ($1 eq "P") {
 				$name = $2;
-				$pvalue = format_email($name, $address);
+				$pvalue = format_email($name, $address, $email_usename);
 			    }
 			}
 		    }
 		}
 		if ($email_maintainer) {
-		    push_email_addresses($pvalue);
+		    my $role = get_maintainer_role($i);
+		    push_email_addresses($pvalue, $role);
 		}
 	    } elsif ($ptype eq "T") {
 		push(@scm, $pvalue);
@@ -618,7 +764,7 @@ sub email_inuse {
 }
 
 sub push_email_address {
-    my ($line) = @_;
+    my ($line, $role) = @_;
 
     my ($name, $address) = parse_email($line);
 
@@ -627,9 +773,9 @@ sub push_email_address {
     }
 
     if (!$email_remove_duplicates) {
-	push(@email_to, format_email($name, $address));
+	push(@email_to, [format_email($name, $address, $email_usename), $role]);
     } elsif (!email_inuse($name, $address)) {
-	push(@email_to, format_email($name, $address));
+	push(@email_to, [format_email($name, $address, $email_usename), $role]);
 	$email_hash_name{$name}++;
 	$email_hash_address{$address}++;
     }
@@ -638,20 +784,48 @@ sub push_email_address {
 }
 
 sub push_email_addresses {
-    my ($address) = @_;
+    my ($address, $role) = @_;
 
     my @address_list = ();
 
     if (rfc822_valid($address)) {
-	push_email_address($address);
+	push_email_address($address, $role);
     } elsif (@address_list = rfc822_validlist($address)) {
 	my $array_count = shift(@address_list);
 	while (my $entry = shift(@address_list)) {
-	    push_email_address($entry);
+	    push_email_address($entry, $role);
 	}
     } else {
-	if (!push_email_address($address)) {
+	if (!push_email_address($address, $role)) {
 	    warn("Invalid MAINTAINERS address: '" . $address . "'\n");
+	}
+    }
+}
+
+sub add_role {
+    my ($line, $role) = @_;
+
+    my ($name, $address) = parse_email($line);
+    my $email = format_email($name, $address, $email_usename);
+
+    foreach my $entry (@email_to) {
+	if ($email_remove_duplicates) {
+	    my ($entry_name, $entry_address) = parse_email($entry->[0]);
+	    if ($name eq $entry_name || $address eq $entry_address) {
+		if ($entry->[1] eq "") {
+		    $entry->[1] = "$role";
+		} else {
+		    $entry->[1] = "$entry->[1],$role";
+		}
+	    }
+	} else {
+	    if ($email eq $entry->[0]) {
+		if ($entry->[1] eq "") {
+		    $entry->[1] = "$role";
+		} else {
+		    $entry->[1] = "$entry->[1],$role";
+		}
+	    }
 	}
     }
 }
@@ -669,7 +843,7 @@ sub which {
 }
 
 sub mailmap {
-    my @lines = @_;
+    my (@lines) = @_;
     my %hash;
 
     foreach my $line (@lines) {
@@ -678,14 +852,14 @@ sub mailmap {
 	    $hash{$name} = $address;
 	} elsif ($address ne $hash{$name}) {
 	    $address = $hash{$name};
-	    $line = format_email($name, $address);
+	    $line = format_email($name, $address, $email_usename);
 	}
 	if (exists($mailmap{$name})) {
 	    my $obj = $mailmap{$name};
 	    foreach my $map_address (@$obj) {
 		if (($map_address eq $address) &&
 		    ($map_address ne $hash{$name})) {
-		    $line = format_email($name, $hash{$name});
+		    $line = format_email($name, $hash{$name}, $email_usename);
 		}
 	    }
 	}
@@ -694,33 +868,37 @@ sub mailmap {
     return @lines;
 }
 
-sub recent_git_signoffs {
-    my ($file) = @_;
-
-    my $sign_offs = "";
-    my $cmd = "";
-    my $output = "";
-    my $count = 0;
+sub git_execute_cmd {
+    my ($cmd) = @_;
     my @lines = ();
-    my %hash;
-    my $total_sign_offs;
 
-    if (which("git") eq "") {
-	warn("$P: git not found.  Add --nogit to options?\n");
-	return;
-    }
-    if (!(-d ".git")) {
-	warn("$P: .git directory not found.  Use a git repository for better results.\n");
-	warn("$P: perhaps 'git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git'\n");
-	return;
-    }
-
-    $cmd = "git log --since=${email_git_since} -- ${file}";
-
-    $output = `${cmd}`;
+    my $output = `$cmd`;
     $output =~ s/^\s*//gm;
-
     @lines = split("\n", $output);
+
+    return @lines;
+}
+
+sub hg_execute_cmd {
+    my ($cmd) = @_;
+    my @lines = ();
+
+    my $output = `$cmd`;
+    @lines = split("\n", $output);
+
+    return @lines;
+}
+
+sub vcs_find_signers {
+    my ($cmd) = @_;
+    my @lines = ();
+    my $commits;
+
+    @lines = &{$VCS_cmds{"execute_cmd"}}($cmd);
+
+    my $pattern = $VCS_cmds{"commit_pattern"};
+
+    $commits = grep(/$pattern/, @lines);	# of commits
 
     @lines = grep(/^[-_ 	a-z]+by:.*\@.*$/i, @lines);
     if (!$email_git_penguin_chiefs) {
@@ -729,7 +907,105 @@ sub recent_git_signoffs {
     # cut -f2- -d":"
     s/.*:\s*(.+)\s*/$1/ for (@lines);
 
-    $total_sign_offs = @lines;
+## Reformat email addresses (with names) to avoid badly written signatures
+
+    foreach my $line (@lines) {
+	my ($name, $address) = parse_email($line);
+	$line = format_email($name, $address, 1);
+    }
+
+    return ($commits, @lines);
+}
+
+sub vcs_save_commits {
+    my ($cmd) = @_;
+    my @lines = ();
+    my @commits = ();
+
+    @lines = &{$VCS_cmds{"execute_cmd"}}($cmd);
+
+    foreach my $line (@lines) {
+	if ($line =~ m/$VCS_cmds{"blame_commit_pattern"}/) {
+	    push(@commits, $1);
+	}
+    }
+
+    return @commits;
+}
+
+sub vcs_blame {
+    my ($file) = @_;
+    my $cmd;
+    my @commits = ();
+
+    return @commits if (!(-f $file));
+
+    if (@range && $VCS_cmds{"blame_range_cmd"} eq "") {
+	my @all_commits = ();
+
+	$cmd = $VCS_cmds{"blame_file_cmd"};
+	$cmd =~ s/(\$\w+)/$1/eeg;		#interpolate $cmd
+	@all_commits = vcs_save_commits($cmd);
+
+	foreach my $file_range_diff (@range) {
+	    next if (!($file_range_diff =~ m/(.+):(.+):(.+)/));
+	    my $diff_file = $1;
+	    my $diff_start = $2;
+	    my $diff_length = $3;
+	    next if ("$file" ne "$diff_file");
+	    for (my $i = $diff_start; $i < $diff_start + $diff_length; $i++) {
+		push(@commits, $all_commits[$i]);
+	    }
+	}
+    } elsif (@range) {
+	foreach my $file_range_diff (@range) {
+	    next if (!($file_range_diff =~ m/(.+):(.+):(.+)/));
+	    my $diff_file = $1;
+	    my $diff_start = $2;
+	    my $diff_length = $3;
+	    next if ("$file" ne "$diff_file");
+	    $cmd = $VCS_cmds{"blame_range_cmd"};
+	    $cmd =~ s/(\$\w+)/$1/eeg;		#interpolate $cmd
+	    push(@commits, vcs_save_commits($cmd));
+	}
+    } else {
+	$cmd = $VCS_cmds{"blame_file_cmd"};
+	$cmd =~ s/(\$\w+)/$1/eeg;		#interpolate $cmd
+	@commits = vcs_save_commits($cmd);
+    }
+
+    return @commits;
+}
+
+my $printed_novcs = 0;
+sub vcs_exists {
+    %VCS_cmds = %VCS_cmds_git;
+    return 1 if eval $VCS_cmds{"available"};
+    %VCS_cmds = %VCS_cmds_hg;
+    return 1 if eval $VCS_cmds{"available"};
+    %VCS_cmds = ();
+    if (!$printed_novcs) {
+	warn("$P: No supported VCS found.  Add --nogit to options?\n");
+	warn("Using a git repository produces better results.\n");
+	warn("Try Linus Torvalds' latest git repository using:\n");
+	warn("git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git\n");
+	$printed_novcs = 1;
+    }
+    return 0;
+}
+
+sub vcs_assign {
+    my ($role, $divisor, @lines) = @_;
+
+    my %hash;
+    my $count = 0;
+
+    return if (@lines <= 0);
+
+    if ($divisor <= 0) {
+	warn("Bad divisor in " . (caller(0))[3] . ": $divisor\n");
+	$divisor = 1;
+    }
 
     if ($email_remove_duplicates) {
 	@lines = mailmap(@lines);
@@ -743,97 +1019,71 @@ sub recent_git_signoffs {
     # sort -rn
     foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
 	my $sign_offs = $hash{$line};
+	my $percent = $sign_offs * 100 / $divisor;
+
+	$percent = 100 if ($percent > 100);
 	$count++;
 	last if ($sign_offs < $email_git_min_signatures ||
 		 $count > $email_git_max_maintainers ||
-		 $sign_offs * 100 / $total_sign_offs < $email_git_min_percent);
-	push_email_address($line);
-    }
-}
-
-sub save_commits {
-    my ($cmd, @commits) = @_;
-    my $output;
-    my @lines = ();
-
-    $output = `${cmd}`;
-
-    @lines = split("\n", $output);
-    foreach my $line (@lines) {
-	if ($line =~ m/^(\w+) /) {
-	    push (@commits, $1);
+		 $percent < $email_git_min_percent);
+	push_email_address($line, '');
+	if ($output_rolestats) {
+	    my $fmt_percent = sprintf("%.0f", $percent);
+	    add_role($line, "$role:$sign_offs/$divisor=$fmt_percent%");
+	} else {
+	    add_role($line, $role);
 	}
     }
-    return @commits;
 }
 
-sub git_assign_blame {
+sub vcs_file_signoffs {
     my ($file) = @_;
 
-    my @lines = ();
+    my @signers = ();
+    my $commits;
+
+    return if (!vcs_exists());
+
+    my $cmd = $VCS_cmds{"find_signers_cmd"};
+    $cmd =~ s/(\$\w+)/$1/eeg;		# interpolate $cmd
+
+    ($commits, @signers) = vcs_find_signers($cmd);
+    vcs_assign("commit_signer", $commits, @signers);
+}
+
+sub vcs_file_blame {
+    my ($file) = @_;
+
+    my @signers = ();
     my @commits = ();
-    my $cmd;
-    my $output;
-    my %hash;
-    my $total_sign_offs;
-    my $count;
+    my $total_commits;
 
-    if (@range) {
-	foreach my $file_range_diff (@range) {
-	    next if (!($file_range_diff =~ m/(.+):(.+):(.+)/));
-	    my $diff_file = $1;
-	    my $diff_start = $2;
-	    my $diff_length = $3;
-	    next if (!("$file" eq "$diff_file"));
-	    $cmd = "git blame -l -L $diff_start,+$diff_length $file";
-	    @commits = save_commits($cmd, @commits);
-	}
-    } else {
-	if (-f $file) {
-	    $cmd = "git blame -l $file";
-	    @commits = save_commits($cmd, @commits);
-	}
-    }
+    return if (!vcs_exists());
 
-    $total_sign_offs = 0;
+    @commits = vcs_blame($file);
     @commits = uniq(@commits);
+    $total_commits = @commits;
+
     foreach my $commit (@commits) {
-	$cmd = "git log -1 ${commit}";
+	my $commit_count;
+	my @commit_signers = ();
 
-	$output = `${cmd}`;
-	$output =~ s/^\s*//gm;
-	@lines = split("\n", $output);
+	my $cmd = $VCS_cmds{"find_commit_signers_cmd"};
+	$cmd =~ s/(\$\w+)/$1/eeg;	#interpolate $cmd
 
-	@lines = grep(/^[-_ 	a-z]+by:.*\@.*$/i, @lines);
-	if (!$email_git_penguin_chiefs) {
-	    @lines = grep(!/${penguin_chiefs}/i, @lines);
-	}
-
-	# cut -f2- -d":"
-	s/.*:\s*(.+)\s*/$1/ for (@lines);
-
-	$total_sign_offs += @lines;
-
-	if ($email_remove_duplicates) {
-	    @lines = mailmap(@lines);
-	}
-
-	$hash{$_}++ for @lines;
+	($commit_count, @commit_signers) = vcs_find_signers($cmd);
+	push(@signers, @commit_signers);
     }
 
-    $count = 0;
-    foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
-	my $sign_offs = $hash{$line};
-	$count++;
-	last if ($sign_offs < $email_git_min_signatures ||
-		 $count > $email_git_max_maintainers ||
-		 $sign_offs * 100 / $total_sign_offs < $email_git_min_percent);
-	push_email_address($line);
+    if ($from_filename) {
+	vcs_assign("commits", $total_commits, @signers);
+    } else {
+	vcs_assign("modified commits", $total_commits, @signers);
     }
 }
 
 sub uniq {
-    my @parms = @_;
+    my (@parms) = @_;
 
     my %saw;
     @parms = grep(!$saw{$_}++, @parms);
@@ -841,7 +1091,7 @@ sub uniq {
 }
 
 sub sort_and_uniq {
-    my @parms = @_;
+    my (@parms) = @_;
 
     my %saw;
     @parms = sort @parms;
@@ -849,8 +1099,27 @@ sub sort_and_uniq {
     return @parms;
 }
 
+sub merge_email {
+    my @lines;
+    my %saw;
+
+    for (@_) {
+	my ($address, $role) = @$_;
+	if (!$saw{$address}) {
+	    if ($output_roles) {
+		push(@lines, "$address ($role)");
+	    } else {
+		push(@lines, $address);
+	    }
+	    $saw{$address} = 1;
+	}
+    }
+
+    return @lines;
+}
+
 sub output {
-    my @parms = @_;
+    my (@parms) = @_;
 
     if ($output_multiline) {
 	foreach my $line (@parms) {
@@ -947,11 +1216,9 @@ sub rfc822_validlist ($) {
     if ($s =~ m/^(?:$rfc822re)?(?:,(?:$rfc822re)?)*$/so &&
 	$s =~ m/^$rfc822_char*$/) {
         while ($s =~ m/(?:^|,$rfc822_lwsp*)($rfc822re)/gos) {
-            push @r, $1;
+            push(@r, $1);
         }
         return wantarray ? (scalar(@r), @r) : 1;
     }
-    else {
-        return wantarray ? () : 0;
-    }
+    return wantarray ? () : 0;
 }

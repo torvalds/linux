@@ -82,7 +82,7 @@ struct addi_board {
 
 	int i_NbrDiChannel;	/*  Number of DI channels */
 	int i_NbrDoChannel;	/*  Number of DO channels */
-	int i_DoMaxdata;	/*  data to set all chanels high */
+	int i_DoMaxdata;	/*  data to set all channels high */
 
 	int i_NbrTTLChannel;	/*  Number of TTL channels */
 	const struct comedi_lrange *pr_TTLRangelist;	/* rangelist for TTL */

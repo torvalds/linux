@@ -393,13 +393,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (io->entries <= 0)
 		return io->entries;
 
-	/* If we're running on an xHCI host controller, queue the whole scatter
-	 * gather list with one call to urb_enqueue().  This is only for bulk,
-	 * as that endpoint type does not care how the data gets broken up
-	 * across frames.
-	 */
-	if (usb_pipebulk(pipe) &&
-			bus_to_hcd(dev->bus)->driver->flags & HCD_USB3) {
+	if (dev->bus->sg_tablesize > 0) {
 		io->urbs = kmalloc(sizeof *io->urbs, mem_flags);
 		use_sg = true;
 	} else {
@@ -409,7 +403,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (!io->urbs)
 		goto nomem;
 
-	urb_flags = URB_NO_INTERRUPT;
+	urb_flags = 0;
 	if (dma)
 		urb_flags |= URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein(pipe))
@@ -441,6 +435,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		io->urbs[0]->num_sgs = io->entries;
 		io->entries = 1;
 	} else {
+		urb_flags |= URB_NO_INTERRUPT;
 		for_each_sg(sg, sg, io->entries, i) {
 			unsigned len;
 
@@ -1303,6 +1298,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 {
 	struct usb_interface *iface;
 	struct usb_host_interface *alt;
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 	int ret;
 	int manual = 0;
 	unsigned int epaddr;
@@ -1325,6 +1321,18 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 		return -EINVAL;
 	}
 
+	/* Make sure we have enough bandwidth for this alternate interface.
+	 * Remove the current alt setting and add the new alt setting.
+	 */
+	mutex_lock(&hcd->bandwidth_mutex);
+	ret = usb_hcd_alloc_bandwidth(dev, NULL, iface->cur_altsetting, alt);
+	if (ret < 0) {
+		dev_info(&dev->dev, "Not enough bandwidth for altsetting %d\n",
+				alternate);
+		mutex_unlock(&hcd->bandwidth_mutex);
+		return ret;
+	}
+
 	if (dev->quirks & USB_QUIRK_NO_SET_INTF)
 		ret = -EPIPE;
 	else
@@ -1340,8 +1348,13 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 			"manual set_interface for iface %d, alt %d\n",
 			interface, alternate);
 		manual = 1;
-	} else if (ret < 0)
+	} else if (ret < 0) {
+		/* Re-instate the old alt setting */
+		usb_hcd_alloc_bandwidth(dev, NULL, alt, iface->cur_altsetting);
+		mutex_unlock(&hcd->bandwidth_mutex);
 		return ret;
+	}
+	mutex_unlock(&hcd->bandwidth_mutex);
 
 	/* FIXME drivers shouldn't need to replicate/bugfix the logic here
 	 * when they implement async or easily-killable versions of this or
@@ -1423,6 +1436,7 @@ int usb_reset_configuration(struct usb_device *dev)
 {
 	int			i, retval;
 	struct usb_host_config	*config;
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -1438,12 +1452,46 @@ int usb_reset_configuration(struct usb_device *dev)
 	}
 
 	config = dev->actconfig;
+	retval = 0;
+	mutex_lock(&hcd->bandwidth_mutex);
+	/* Make sure we have enough bandwidth for each alternate setting 0 */
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		struct usb_interface *intf = config->interface[i];
+		struct usb_host_interface *alt;
+
+		alt = usb_altnum_to_altsetting(intf, 0);
+		if (!alt)
+			alt = &intf->altsetting[0];
+		if (alt != intf->cur_altsetting)
+			retval = usb_hcd_alloc_bandwidth(dev, NULL,
+					intf->cur_altsetting, alt);
+		if (retval < 0)
+			break;
+	}
+	/* If not, reinstate the old alternate settings */
+	if (retval < 0) {
+reset_old_alts:
+		for (; i >= 0; i--) {
+			struct usb_interface *intf = config->interface[i];
+			struct usb_host_interface *alt;
+
+			alt = usb_altnum_to_altsetting(intf, 0);
+			if (!alt)
+				alt = &intf->altsetting[0];
+			if (alt != intf->cur_altsetting)
+				usb_hcd_alloc_bandwidth(dev, NULL,
+						alt, intf->cur_altsetting);
+		}
+		mutex_unlock(&hcd->bandwidth_mutex);
+		return retval;
+	}
 	retval = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_CONFIGURATION, 0,
 			config->desc.bConfigurationValue, 0,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (retval < 0)
-		return retval;
+		goto reset_old_alts;
+	mutex_unlock(&hcd->bandwidth_mutex);
 
 	/* re-init hc/hcd interface/endpoint state */
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
@@ -1585,7 +1633,7 @@ static struct usb_interface_assoc_descriptor *find_iad(struct usb_device *dev,
  *
  * See usb_queue_reset_device() for more details
  */
-void __usb_queue_reset_device(struct work_struct *ws)
+static void __usb_queue_reset_device(struct work_struct *ws)
 {
 	int rc;
 	struct usb_interface *iface =
@@ -1652,6 +1700,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	int i, ret;
 	struct usb_host_config *cp = NULL;
 	struct usb_interface **new_interfaces = NULL;
+	struct usb_hcd *hcd = bus_to_hcd(dev->bus);
 	int n, nintf;
 
 	if (dev->authorized == 0 || configuration == -1)
@@ -1721,12 +1770,11 @@ free_interfaces:
 	 * host controller will not allow submissions to dropped endpoints.  If
 	 * this call fails, the device state is unchanged.
 	 */
-	if (cp)
-		ret = usb_hcd_check_bandwidth(dev, cp, NULL);
-	else
-		ret = usb_hcd_check_bandwidth(dev, NULL, NULL);
+	mutex_lock(&hcd->bandwidth_mutex);
+	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
 	if (ret < 0) {
 		usb_autosuspend_device(dev);
+		mutex_unlock(&hcd->bandwidth_mutex);
 		goto free_interfaces;
 	}
 
@@ -1752,10 +1800,12 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
-		usb_hcd_check_bandwidth(dev, NULL, NULL);
+		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
 		usb_autosuspend_device(dev);
+		mutex_unlock(&hcd->bandwidth_mutex);
 		goto free_interfaces;
 	}
+	mutex_unlock(&hcd->bandwidth_mutex);
 	usb_set_device_state(dev, USB_STATE_CONFIGURED);
 
 	/* Initialize the new interface structures and the
@@ -1890,7 +1940,7 @@ static void cancel_async_set_config(struct usb_device *udev)
  * routine gets around the normal restrictions by using a work thread to
  * submit the change-config request.
  *
- * Returns 0 if the request was succesfully queued, error code otherwise.
+ * Returns 0 if the request was successfully queued, error code otherwise.
  * The caller has no way to know whether the queued request will eventually
  * succeed.
  */

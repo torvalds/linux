@@ -337,14 +337,13 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,
-			__u8 *data,
+			u8 *data,
 			int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac_find_sof(gspca_dev, data, len);
+	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
 		int n;
 
@@ -354,10 +353,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			n -= sizeof pac_sof_marker;
 		else
 			n = 0;
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, n);
+		gspca_frame_add(gspca_dev, LAST_PACKET,
+				data, n);
 		sd->header_read = 0;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, NULL, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		len -= sof - data;
 		data = sof;
 	}
@@ -381,7 +380,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		sd->header_read = 11;
 	}
 
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev)

@@ -231,9 +231,9 @@ bfa_log_get_level(struct bfa_log_mod_s *log_mod, int mod_id)
 		return BFA_LOG_INVALID;
 
 	if (log_mod)
-		return (log_mod->log_level[mod_id]);
+		return log_mod->log_level[mod_id];
 	else
-		return (bfa_log_info[mod_id].level);
+		return bfa_log_info[mod_id].level;
 }
 
 enum bfa_log_severity

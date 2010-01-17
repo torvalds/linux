@@ -1154,8 +1154,11 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 	struct musb_hw_ep	*hw_ep = NULL;
 	u32			rx, tx;
 	int			i, index;
+	unsigned long		flags;
 
 	cppi = container_of(musb->dma_controller, struct cppi, controller);
+	if (cppi->irq)
+		spin_lock_irqsave(&musb->lock, flags);
 
 	tibase = musb->ctrl_base;
 
@@ -1284,6 +1287,9 @@ irqreturn_t cppi_interrupt(int irq, void *dev_id)
 
 	/* write to CPPI EOI register to re-enable interrupts */
 	musb_writel(tibase, DAVINCI_CPPI_EOI_REG, 0);
+
+	if (cppi->irq)
+		spin_unlock_irqrestore(&musb->lock, flags);
 
 	return IRQ_HANDLED;
 }

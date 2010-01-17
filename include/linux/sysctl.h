@@ -89,8 +89,8 @@ enum
 	KERN_VERSION=4,		/* string: compile time info */
 	KERN_SECUREMASK=5,	/* struct: maximum rights mask */
 	KERN_PROF=6,		/* table: profiling information */
-	KERN_NODENAME=7,
-	KERN_DOMAINNAME=8,
+	KERN_NODENAME=7,	/* string: hostname */
+	KERN_DOMAINNAME=8,	/* string: domainname */
 
 	KERN_PANIC=15,		/* int: panic timeout */
 	KERN_REALROOTDEV=16,	/* real root device to mount after initrd */
@@ -102,8 +102,8 @@ enum
 	KERN_PPC_HTABRECLAIM=25, /* turn htab reclaimation on/off on PPC */
 	KERN_PPC_ZEROPAGED=26,	/* turn idle page zeroing on/off on PPC */
 	KERN_PPC_POWERSAVE_NAP=27, /* use nap mode for power saving */
-	KERN_MODPROBE=28,
-	KERN_SG_BIG_BUFF=29,
+	KERN_MODPROBE=28,	/* string: modprobe path */
+	KERN_SG_BIG_BUFF=29,	/* int: sg driver reserved buffer size */
 	KERN_ACCT=30,		/* BSD process accounting parameters */
 	KERN_PPC_L2CR=31,	/* l2cr register on PPC */
 
@@ -150,7 +150,7 @@ enum
 	KERN_ACPI_VIDEO_FLAGS=71, /* int: flags for setting up video after ACPI sleep */
 	KERN_IA64_UNALIGNED=72, /* int: ia64 unaligned userland trap enable */
 	KERN_COMPAT_LOG=73,	/* int: print compat layer  messages */
-	KERN_MAX_LOCK_DEPTH=74,
+	KERN_MAX_LOCK_DEPTH=74, /* int: rtmutex's maximum lock depth */
 	KERN_NMI_WATCHDOG=75, /* int: enable/disable nmi watchdog */
 	KERN_PANIC_ON_NMI=76, /* int: whether we will panic on an unrecovered */
 };
@@ -482,6 +482,7 @@ enum
 	NET_IPV4_CONF_ARP_ACCEPT=21,
 	NET_IPV4_CONF_ARP_NOTIFY=22,
 	NET_IPV4_CONF_ACCEPT_LOCAL=23,
+	NET_IPV4_CONF_SRC_VMARK=24,
 	__NET_IPV4_CONF_MAX
 };
 

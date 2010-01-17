@@ -522,6 +522,8 @@ int s3c24xx_set_fiq(unsigned int irq, bool on)
 	__raw_writel(intmod, S3C2410_INTMOD);
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(s3c24xx_set_fiq);
 #endif
 
 

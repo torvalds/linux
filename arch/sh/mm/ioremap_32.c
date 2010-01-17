@@ -33,10 +33,10 @@
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
-			unsigned long flags)
+void __iomem *__ioremap_caller(unsigned long phys_addr, unsigned long size,
+			       unsigned long flags, void *caller)
 {
-	struct vm_struct * area;
+	struct vm_struct *area;
 	unsigned long offset, last_addr, addr, orig_addr;
 	pgprot_t pgprot;
 
@@ -67,7 +67,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	/*
 	 * Ok, go for it..
 	 */
-	area = get_vm_area(size, VM_IOREMAP);
+	area = get_vm_area_caller(size, VM_IOREMAP, caller);
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
@@ -103,7 +103,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 
 	return (void __iomem *)(offset + (char *)orig_addr);
 }
-EXPORT_SYMBOL(__ioremap);
+EXPORT_SYMBOL(__ioremap_caller);
 
 void __iounmap(void __iomem *addr)
 {

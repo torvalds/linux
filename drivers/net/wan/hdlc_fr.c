@@ -182,7 +182,7 @@ static inline pvc_device* find_pvc(hdlc_device *hdlc, u16 dlci)
 		if (pvc->dlci == dlci)
 			return pvc;
 		if (pvc->dlci > dlci)
-			return NULL; /* the listed is sorted */
+			return NULL; /* the list is sorted */
 		pvc = pvc->next;
 	}
 

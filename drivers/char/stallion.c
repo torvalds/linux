@@ -407,7 +407,7 @@ static unsigned int	stl_baudrates[] = {
  *	Declare all those functions in this driver!
  */
 
-static int	stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg);
+static long	stl_memioctl(struct file *fp, unsigned int cmd, unsigned long arg);
 static int	stl_brdinit(struct stlbrd *brdp);
 static int	stl_getportstats(struct tty_struct *tty, struct stlport *portp, comstats_t __user *cp);
 static int	stl_clrportstats(struct stlport *portp, comstats_t __user *cp);
@@ -607,7 +607,7 @@ static unsigned int	sc26198_baudtable[] = {
  */
 static const struct file_operations	stl_fsiomem = {
 	.owner		= THIS_MODULE,
-	.ioctl		= stl_memioctl,
+	.unlocked_ioctl	= stl_memioctl,
 };
 
 static struct class *stallion_class;
@@ -702,6 +702,24 @@ static struct stlbrd *stl_allocbrd(void)
 
 /*****************************************************************************/
 
+static int stl_activate(struct tty_port *port, struct tty_struct *tty)
+{
+	struct stlport *portp = container_of(port, struct stlport, port);
+	if (!portp->tx.buf) {
+		portp->tx.buf = kmalloc(STL_TXBUFSIZE, GFP_KERNEL);
+		if (!portp->tx.buf)
+			return -ENOMEM;
+		portp->tx.head = portp->tx.buf;
+		portp->tx.tail = portp->tx.buf;
+	}
+	stl_setport(portp, tty->termios);
+	portp->sigs = stl_getsignals(portp);
+	stl_setsignals(portp, 1, 1);
+	stl_enablerxtx(portp, 1, 1);
+	stl_startrxtx(portp, 1, 0);
+	return 0;
+}
+
 static int stl_open(struct tty_struct *tty, struct file *filp)
 {
 	struct stlport	*portp;
@@ -737,32 +755,8 @@ static int stl_open(struct tty_struct *tty, struct file *filp)
 	if (portp == NULL)
 		return -ENODEV;
 	port = &portp->port;
+	return tty_port_open(&portp->port, tty, filp);
 
-/*
- *	On the first open of the device setup the port hardware, and
- *	initialize the per port data structure.
- */
-	tty_port_tty_set(port, tty);
-	tty->driver_data = portp;
-	port->count++;
-
-	if ((port->flags & ASYNC_INITIALIZED) == 0) {
-		if (!portp->tx.buf) {
-			portp->tx.buf = kmalloc(STL_TXBUFSIZE, GFP_KERNEL);
-			if (!portp->tx.buf)
-				return -ENOMEM;
-			portp->tx.head = portp->tx.buf;
-			portp->tx.tail = portp->tx.buf;
-		}
-		stl_setport(portp, tty->termios);
-		portp->sigs = stl_getsignals(portp);
-		stl_setsignals(portp, 1, 1);
-		stl_enablerxtx(portp, 1, 1);
-		stl_startrxtx(portp, 1, 0);
-		clear_bit(TTY_IO_ERROR, &tty->flags);
-		port->flags |= ASYNC_INITIALIZED;
-	}
-	return tty_port_block_til_ready(port, tty, filp);
 }
 
 /*****************************************************************************/
@@ -826,38 +820,12 @@ static void stl_waituntilsent(struct tty_struct *tty, int timeout)
 
 /*****************************************************************************/
 
-static void stl_close(struct tty_struct *tty, struct file *filp)
+static void stl_shutdown(struct tty_port *port)
 {
-	struct stlport	*portp;
-	struct tty_port *port;
-	unsigned long	flags;
-
-	pr_debug("stl_close(tty=%p,filp=%p)\n", tty, filp);
-
-	portp = tty->driver_data;
-	BUG_ON(portp == NULL);
-
-	port = &portp->port;
-
-	if (tty_port_close_start(port, tty, filp) == 0)
-		return;
-/*
- *	May want to wait for any data to drain before closing. The BUSY
- *	flag keeps track of whether we are still sending or not - it is
- *	very accurate for the cd1400, not quite so for the sc26198.
- *	(The sc26198 has no "end-of-data" interrupt only empty FIFO)
- */
-	stl_waituntilsent(tty, (HZ / 2));
-
-	spin_lock_irqsave(&port->lock, flags);
-	portp->port.flags &= ~ASYNC_INITIALIZED;
-	spin_unlock_irqrestore(&port->lock, flags);
-
+	struct stlport *portp = container_of(port, struct stlport, port);
 	stl_disableintrs(portp);
-	if (tty->termios->c_cflag & HUPCL)
-		stl_setsignals(portp, 0, 0);
 	stl_enablerxtx(portp, 0, 0);
-	stl_flushbuffer(tty);
+	stl_flush(portp);
 	portp->istate = 0;
 	if (portp->tx.buf != NULL) {
 		kfree(portp->tx.buf);
@@ -865,9 +833,16 @@ static void stl_close(struct tty_struct *tty, struct file *filp)
 		portp->tx.head = NULL;
 		portp->tx.tail = NULL;
 	}
+}
 
-	tty_port_close_end(port, tty);
-	tty_port_tty_set(port, NULL);
+static void stl_close(struct tty_struct *tty, struct file *filp)
+{
+	struct stlport*portp;
+	pr_debug("stl_close(tty=%p,filp=%p)\n", tty, filp);
+
+	portp = tty->driver_data;
+	BUG_ON(portp == NULL);
+	tty_port_close(&portp->port, tty, filp);
 }
 
 /*****************************************************************************/
@@ -1314,35 +1289,12 @@ static void stl_stop(struct tty_struct *tty)
 
 static void stl_hangup(struct tty_struct *tty)
 {
-	struct stlport	*portp;
-	struct tty_port *port;
-	unsigned long flags;
-
+	struct stlport	*portp = tty->driver_data;
 	pr_debug("stl_hangup(tty=%p)\n", tty);
 
-	portp = tty->driver_data;
 	if (portp == NULL)
 		return;
-	port = &portp->port;
-
-	spin_lock_irqsave(&port->lock, flags);
-	port->flags &= ~ASYNC_INITIALIZED;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	stl_disableintrs(portp);
-	if (tty->termios->c_cflag & HUPCL)
-		stl_setsignals(portp, 0, 0);
-	stl_enablerxtx(portp, 0, 0);
-	stl_flushbuffer(tty);
-	portp->istate = 0;
-	set_bit(TTY_IO_ERROR, &tty->flags);
-	if (portp->tx.buf != NULL) {
-		kfree(portp->tx.buf);
-		portp->tx.buf = NULL;
-		portp->tx.head = NULL;
-		portp->tx.tail = NULL;
-	}
-	tty_port_hangup(port);
+	tty_port_hangup(&portp->port);
 }
 
 /*****************************************************************************/
@@ -2486,18 +2438,19 @@ static int stl_getbrdstruct(struct stlbrd __user *arg)
  *	collection.
  */
 
-static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, unsigned long arg)
+static long stl_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int	brdnr, rc;
 	void __user *argp = (void __user *)arg;
 
-	pr_debug("stl_memioctl(ip=%p,fp=%p,cmd=%x,arg=%lx)\n", ip, fp, cmd,arg);
+	pr_debug("stl_memioctl(fp=%p,cmd=%x,arg=%lx)\n", fp, cmd,arg);
 
-	brdnr = iminor(ip);
+	brdnr = iminor(fp->f_dentry->d_inode);
 	if (brdnr >= STL_MAXBRDS)
 		return -ENODEV;
 	rc = 0;
 
+	lock_kernel();
 	switch (cmd) {
 	case COM_GETPORTSTATS:
 		rc = stl_getportstats(NULL, NULL, argp);
@@ -2518,7 +2471,7 @@ static int stl_memioctl(struct inode *ip, struct file *fp, unsigned int cmd, uns
 		rc = -ENOIOCTLCMD;
 		break;
 	}
-
+	unlock_kernel();
 	return rc;
 }
 
@@ -2549,6 +2502,8 @@ static const struct tty_operations stl_ops = {
 static const struct tty_port_operations stl_port_ops = {
 	.carrier_raised = stl_carrier_raised,
 	.dtr_rts = stl_dtr_rts,
+	.activate = stl_activate,
+	.shutdown = stl_shutdown,
 };
 
 /*****************************************************************************/

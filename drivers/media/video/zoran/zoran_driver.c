@@ -2764,7 +2764,7 @@ static int zoran_enum_input(struct file *file, void *__fh,
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 
-	if (inp->index < 0 || inp->index >= zr->card.inputs)
+	if (inp->index >= zr->card.inputs)
 		return -EINVAL;
 	else {
 		int id = inp->index;
@@ -3387,6 +3387,5 @@ struct video_device zoran_template __devinitdata = {
 	.ioctl_ops = &zoran_ioctl_ops,
 	.release = &zoran_vdev_release,
 	.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
-	.minor = -1
 };
 

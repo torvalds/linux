@@ -98,8 +98,7 @@ xfs_bmdr_to_bmbt(
  * This code must be in sync with the routines xfs_bmbt_get_startoff,
  * xfs_bmbt_get_startblock, xfs_bmbt_get_blockcount and xfs_bmbt_get_state.
  */
-
-STATIC_INLINE void
+STATIC void
 __xfs_bmbt_get_all(
 		__uint64_t l0,
 		__uint64_t l1,
@@ -764,12 +763,6 @@ xfs_bmbt_trace_enter(
 	int			whichfork = cur->bc_private.b.whichfork;
 
 	ktrace_enter(xfs_bmbt_trace_buf,
-		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
-		(void *)func, (void *)s, (void *)ip, (void *)cur,
-		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
-		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
-		(void *)a8, (void *)a9, (void *)a10);
-	ktrace_enter(ip->i_btrace,
 		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
 		(void *)func, (void *)s, (void *)ip, (void *)cur,
 		(void *)a0, (void *)a1, (void *)a2, (void *)a3,

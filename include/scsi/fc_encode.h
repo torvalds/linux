@@ -32,7 +32,10 @@ struct fc_ct_req {
 		struct fc_ns_gid_ft gid;
 		struct fc_ns_rn_id  rn;
 		struct fc_ns_rft rft;
+		struct fc_ns_rff_id rff;
 		struct fc_ns_fid fid;
+		struct fc_ns_rsnn snn;
+		struct fc_ns_rspn spn;
 	} payload;
 };
 
@@ -109,6 +112,7 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		      enum fc_fh_type *fh_type)
 {
 	struct fc_ct_req *ct;
+	size_t len;
 
 	switch (op) {
 	case FC_NS_GPN_FT:
@@ -128,12 +132,41 @@ static inline int fc_ct_fill(struct fc_lport *lport,
 		ct->payload.rft.fts = lport->fcts;
 		break;
 
-	case FC_NS_RPN_ID:
+	case FC_NS_RFF_ID:
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rff_id));
+		hton24(ct->payload.rff.fr_fid.fp_fid,
+		       fc_host_port_id(lport->host));
+		ct->payload.rff.fr_type = FC_TYPE_FCP;
+		if (lport->service_params & FCP_SPPF_INIT_FCN)
+			ct->payload.rff.fr_feat = FCP_FEAT_INIT;
+		if (lport->service_params & FCP_SPPF_TARG_FCN)
+			ct->payload.rff.fr_feat |= FCP_FEAT_TARG;
+		break;
+
+	case FC_NS_RNN_ID:
 		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rn_id));
 		hton24(ct->payload.rn.fr_fid.fp_fid,
 		       fc_host_port_id(lport->host));
-		ct->payload.rft.fts = lport->fcts;
-		put_unaligned_be64(lport->wwpn, &ct->payload.rn.fr_wwn);
+		put_unaligned_be64(lport->wwnn, &ct->payload.rn.fr_wwn);
+		break;
+
+	case FC_NS_RSPN_ID:
+		len = strnlen(fc_host_symbolic_name(lport->host), 255);
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rspn) + len);
+		hton24(ct->payload.spn.fr_fid.fp_fid,
+		       fc_host_port_id(lport->host));
+		strncpy(ct->payload.spn.fr_name,
+			fc_host_symbolic_name(lport->host), len);
+		ct->payload.spn.fr_name_len = len;
+		break;
+
+	case FC_NS_RSNN_NN:
+		len = strnlen(fc_host_symbolic_name(lport->host), 255);
+		ct = fc_ct_hdr_fill(fp, op, sizeof(struct fc_ns_rsnn) + len);
+		put_unaligned_be64(lport->wwnn, &ct->payload.snn.fr_wwn);
+		strncpy(ct->payload.snn.fr_name,
+			fc_host_symbolic_name(lport->host), len);
+		ct->payload.snn.fr_name_len = len;
 		break;
 
 	default:
@@ -197,6 +230,31 @@ static inline void fc_flogi_fill(struct fc_lport *lport, struct fc_frame *fp)
 	sp->sp_bb_cred = htons(10);	/* this gets set by gateway */
 	sp->sp_bb_data = htons((u16) lport->mfs);
 	cp = &flogi->fl_cssp[3 - 1];	/* class 3 parameters */
+	cp->cp_class = htons(FC_CPC_VALID | FC_CPC_SEQ);
+	if (lport->does_npiv)
+		sp->sp_features = htons(FC_SP_FT_NPIV);
+}
+
+/**
+ * fc_fdisc_fill - Fill in a fdisc request frame.
+ */
+static inline void fc_fdisc_fill(struct fc_lport *lport, struct fc_frame *fp)
+{
+	struct fc_els_csp *sp;
+	struct fc_els_cssp *cp;
+	struct fc_els_flogi *fdisc;
+
+	fdisc = fc_frame_payload_get(fp, sizeof(*fdisc));
+	memset(fdisc, 0, sizeof(*fdisc));
+	fdisc->fl_cmd = (u8) ELS_FDISC;
+	put_unaligned_be64(lport->wwpn, &fdisc->fl_wwpn);
+	put_unaligned_be64(lport->wwnn, &fdisc->fl_wwnn);
+	sp = &fdisc->fl_csp;
+	sp->sp_hi_ver = 0x20;
+	sp->sp_lo_ver = 0x20;
+	sp->sp_bb_cred = htons(10);	/* this gets set by gateway */
+	sp->sp_bb_data = htons((u16) lport->mfs);
+	cp = &fdisc->fl_cssp[3 - 1];	/* class 3 parameters */
 	cp->cp_class = htons(FC_CPC_VALID | FC_CPC_SEQ);
 }
 
@@ -294,6 +352,10 @@ static inline int fc_els_fill(struct fc_lport *lport,
 
 	case ELS_FLOGI:
 		fc_flogi_fill(lport, fp);
+		break;
+
+	case ELS_FDISC:
+		fc_fdisc_fill(lport, fp);
 		break;
 
 	case ELS_LOGO:

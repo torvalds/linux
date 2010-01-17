@@ -1808,7 +1808,7 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 									2) {
 									if (dw_Status & 4) {
 				/************************/
-										/* Tor counter owerflow */
+										/* Tor counter overflow */
 				/************************/
 
 										*pb_TorCounterStatus

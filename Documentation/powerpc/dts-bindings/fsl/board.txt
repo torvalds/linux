@@ -20,12 +20,16 @@ Required properities:
 - compatible : should be "fsl,fpga-pixis".
 - reg : should contain the address and the length of the FPPGA register
   set.
+- interrupt-parent: should specify phandle for the interrupt controller.
+- interrupts : should specify event (wakeup) IRQ.
 
 Example (MPC8610HPCD):
 
 	board-control@e8000000 {
 		compatible = "fsl,fpga-pixis";
 		reg = <0xe8000000 32>;
+		interrupt-parent = <&mpic>;
+		interrupts = <8 8>;
 	};
 
 * Freescale BCSR GPIO banks

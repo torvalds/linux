@@ -742,17 +742,7 @@ struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	v4l2_id &= V4L2_CTRL_ID_MASK;
 
 	/* Find the control. */
-	__uvc_find_control(chain->processing, v4l2_id, mapping, &ctrl, next);
-	if (ctrl && !next)
-		return ctrl;
-
-	list_for_each_entry(entity, &chain->iterms, chain) {
-		__uvc_find_control(entity, v4l2_id, mapping, &ctrl, next);
-		if (ctrl && !next)
-			return ctrl;
-	}
-
-	list_for_each_entry(entity, &chain->extensions, chain) {
+	list_for_each_entry(entity, &chain->entities, chain) {
 		__uvc_find_control(entity, v4l2_id, mapping, &ctrl, next);
 		if (ctrl && !next)
 			return ctrl;
@@ -823,6 +813,13 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 1;
 		v4l2_ctrl->step = 1;
+		ret = 0;
+		goto out;
+
+	case V4L2_CTRL_TYPE_BUTTON:
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = 0;
+		v4l2_ctrl->step = 0;
 		ret = 0;
 		goto out;
 
@@ -944,17 +941,7 @@ int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback)
 	int ret = 0;
 
 	/* Find the control. */
-	ret = uvc_ctrl_commit_entity(chain->dev, chain->processing, rollback);
-	if (ret < 0)
-		goto done;
-
-	list_for_each_entry(entity, &chain->iterms, chain) {
-		ret = uvc_ctrl_commit_entity(chain->dev, entity, rollback);
-		if (ret < 0)
-			goto done;
-	}
-
-	list_for_each_entry(entity, &chain->extensions, chain) {
+	list_for_each_entry(entity, &chain->entities, chain) {
 		ret = uvc_ctrl_commit_entity(chain->dev, entity, rollback);
 		if (ret < 0)
 			goto done;
@@ -1068,8 +1055,9 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	int ret;
 
 	/* Find the extension unit. */
-	list_for_each_entry(entity, &chain->extensions, chain) {
-		if (entity->id == xctrl->unit)
+	list_for_each_entry(entity, &chain->entities, chain) {
+		if (UVC_ENTITY_TYPE(entity) == UVC_VC_EXTENSION_UNIT &&
+		    entity->id == xctrl->unit)
 			break;
 	}
 

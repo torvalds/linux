@@ -111,6 +111,20 @@ struct usb_hcd {
 	u64			rsrc_len;	/* memory/io resource length */
 	unsigned		power_budget;	/* in mA, 0 = no limit */
 
+	/* bandwidth_mutex should be taken before adding or removing
+	 * any new bus bandwidth constraints:
+	 *   1. Before adding a configuration for a new device.
+	 *   2. Before removing the configuration to put the device into
+	 *      the addressed state.
+	 *   3. Before selecting a different configuration.
+	 *   4. Before selecting an alternate interface setting.
+	 *
+	 * bandwidth_mutex should be dropped after a successful control message
+	 * to the device, or resetting the bandwidth after a failed attempt.
+	 */
+	struct mutex		bandwidth_mutex;
+
+
 #define HCD_BUFFER_POOLS	4
 	struct dma_pool		*pool [HCD_BUFFER_POOLS];
 
@@ -290,9 +304,10 @@ extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 extern void usb_hcd_reset_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
-extern int usb_hcd_check_bandwidth(struct usb_device *udev,
+extern int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		struct usb_host_config *new_config,
-		struct usb_interface *new_intf);
+		struct usb_host_interface *old_alt,
+		struct usb_host_interface *new_alt);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
@@ -315,7 +330,7 @@ extern void usb_hcd_pci_remove(struct pci_dev *dev);
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
 
 #ifdef CONFIG_PM_SLEEP
-extern struct dev_pm_ops	usb_hcd_pci_pm_ops;
+extern const struct dev_pm_ops usb_hcd_pci_pm_ops;
 #endif
 #endif /* CONFIG_PCI */
 

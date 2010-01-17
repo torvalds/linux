@@ -1784,7 +1784,10 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 			       dma_reason[0], dma_reason[1],
 			       dma_reason[2], dma_reason[3],
 			       dma_reason[4], dma_reason[5]);
-			b43_controller_restart(dev, "DMA error");
+			b43err(dev->wl, "This device does not support DMA "
+			       "on your system. Please use PIO instead.\n");
+			b43err(dev->wl, "CONFIG_B43_FORCE_PIO must be set in "
+			       "your kernel configuration.\n");
 			return;
 		}
 		if (merged_dma_reason & B43_DMAIRQ_NONFATALMASK) {
@@ -2955,7 +2958,7 @@ static void do_periodic_work(struct b43_wldev *dev)
 /* Periodic work locking policy:
  * 	The whole periodic work handler is protected by
  * 	wl->mutex. If another lock is needed somewhere in the
- * 	pwork callchain, it's aquired in-place, where it's needed.
+ * 	pwork callchain, it's acquired in-place, where it's needed.
  */
 static void b43_periodic_work_handler(struct work_struct *work)
 {

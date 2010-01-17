@@ -25,6 +25,8 @@
 #include <linux/types.h>
 
 #include <asm/xen/hypervisor.h>
+
+#include <xen/xen.h>
 #include <xen/page.h>
 #include <xen/events.h>
 #include <xen/interface/io/console.h>

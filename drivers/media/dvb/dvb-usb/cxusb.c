@@ -36,9 +36,11 @@
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
 #include "mxl5005s.h"
+#include "max2165.h"
 #include "dib7000p.h"
 #include "dib0070.h"
 #include "lgs8gxx.h"
+#include "atbm8830.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -714,6 +716,11 @@ static struct mxl5005s_config d680_dmb_tuner = {
 	.AgcMasterByte   = 0x00,
 };
 
+static struct max2165_config mygica_d689_max2165_cfg = {
+	.i2c_address = 0x60,
+	.osc_clk = 20
+};
+
 /* Callbacks for DVB USB */
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
@@ -810,6 +817,14 @@ static int cxusb_d680_dmb_tuner_attach(struct dvb_usb_adapter *adap)
 	struct dvb_frontend *fe;
 	fe = dvb_attach(mxl5005s_attach, adap->fe,
 			&adap->dev->i2c_adap, &d680_dmb_tuner);
+	return (fe == NULL) ? -EIO : 0;
+}
+
+static int cxusb_mygica_d689_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_frontend *fe;
+	fe = dvb_attach(max2165_attach, adap->fe,
+			&adap->dev->i2c_adap, &mygica_d689_max2165_cfg);
 	return (fe == NULL) ? -EIO : 0;
 }
 
@@ -1160,6 +1175,55 @@ static int cxusb_d680_dmb_frontend_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
+static struct atbm8830_config mygica_d689_atbm8830_cfg = {
+	.prod = ATBM8830_PROD_8830,
+	.demod_address = 0x40,
+	.serial_ts = 0,
+	.ts_sampling_edge = 1,
+	.ts_clk_gated = 0,
+	.osc_clk_freq = 30400, /* in kHz */
+	.if_freq = 0, /* zero IF */
+	.zif_swap_iq = 1,
+};
+
+static int cxusb_mygica_d689_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_usb_device *d = adap->dev;
+
+	/* Select required USB configuration */
+	if (usb_set_interface(d->udev, 0, 0) < 0)
+		err("set interface failed");
+
+	/* Unblock all USB pipes */
+	usb_clear_halt(d->udev,
+		usb_sndbulkpipe(d->udev, d->props.generic_bulk_ctrl_endpoint));
+	usb_clear_halt(d->udev,
+		usb_rcvbulkpipe(d->udev, d->props.generic_bulk_ctrl_endpoint));
+	usb_clear_halt(d->udev,
+		usb_rcvbulkpipe(d->udev, d->props.adapter[0].stream.endpoint));
+
+
+	/* Reset the tuner */
+	if (cxusb_d680_dmb_gpio_tuner(d, 0x07, 0) < 0) {
+		err("clear tuner gpio failed");
+		return -EIO;
+	}
+	msleep(100);
+	if (cxusb_d680_dmb_gpio_tuner(d, 0x07, 1) < 0) {
+		err("set tuner gpio failed");
+		return -EIO;
+	}
+	msleep(100);
+
+	/* Attach frontend */
+	adap->fe = dvb_attach(atbm8830_attach, &mygica_d689_atbm8830_cfg,
+		&d->i2c_adap);
+	if (adap->fe == NULL)
+		return -EIO;
+
+	return 0;
+}
+
 /*
  * DViCO has shipped two devices with the same USB ID, but only one of them
  * needs a firmware download.  Check the device class details to see if they
@@ -1240,6 +1304,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_properties;
 static struct dvb_usb_device_properties cxusb_aver_a868r_properties;
 static struct dvb_usb_device_properties cxusb_d680_dmb_properties;
+static struct dvb_usb_device_properties cxusb_mygica_d689_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -1268,6 +1333,8 @@ static int cxusb_probe(struct usb_interface *intf,
 				     THIS_MODULE, NULL, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_d680_dmb_properties,
 				     THIS_MODULE, NULL, adapter_nr) ||
+	    0 == dvb_usb_device_init(intf, &cxusb_mygica_d689_properties,
+				     THIS_MODULE, NULL, adapter_nr) ||
 	    0)
 		return 0;
 
@@ -1294,6 +1361,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_A868R) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4_REV_2) },
 	{ USB_DEVICE(USB_VID_CONEXANT, USB_PID_CONEXANT_D680_DMB) },
+	{ USB_DEVICE(USB_VID_CONEXANT, USB_PID_MYGICA_D689) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -1833,6 +1901,55 @@ static struct dvb_usb_device_properties cxusb_d680_dmb_properties = {
 			"Conexant DMB-TH Stick",
 			{ NULL },
 			{ &cxusb_table[18], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties cxusb_mygica_d689_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = cxusb_d680_dmb_streaming_ctrl,
+			.frontend_attach  = cxusb_mygica_d689_frontend_attach,
+			.tuner_attach     = cxusb_mygica_d689_tuner_attach,
+
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
+		},
+	},
+
+	.power_ctrl       = cxusb_d680_dmb_power_ctrl,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.rc_interval      = 100,
+	.rc_key_map       = d680_dmb_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(d680_dmb_rc_keys),
+	.rc_query         = cxusb_d680_dmb_rc_query,
+
+	.num_device_descs = 1,
+	.devices = {
+		{
+			"Mygica D689 DMB-TH",
+			{ NULL },
+			{ &cxusb_table[19], NULL },
 		},
 	}
 };

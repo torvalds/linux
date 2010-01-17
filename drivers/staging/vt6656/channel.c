@@ -19,7 +19,7 @@
  *
  * File: channel.c
  *
- * Purpose: Channel number maping
+ * Purpose: Channel number mapping
  *
  * Author: Lucas Lin
  *

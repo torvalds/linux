@@ -578,7 +578,7 @@ static int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 		/* get number of entries */
 		field_count = *(((u16 *) & field_info) + 1);
 
-		/* abort if no enought memory */
+		/* abort if no enough memory */
 		total_length = field_len * field_count;
 		if (total_length > *len) {
 			*len = total_length;
@@ -3127,7 +3127,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 			     IPW_MAX_BDS)) {
 			/* TODO: Support merging buffers if more than
 			 * IPW_MAX_BDS are used */
-			IPW_DEBUG_INFO("%s: Maximum BD theshold exceeded.  "
+			IPW_DEBUG_INFO("%s: Maximum BD threshold exceeded.  "
 				       "Increase fragmentation level.\n",
 				       priv->net_dev->name);
 		}
@@ -6897,7 +6897,7 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;	/* > 8% missed beacons is 'bad' */
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + IPW2100_RSSI_TO_DBM;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7;	/* Updated all three */

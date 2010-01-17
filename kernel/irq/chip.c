@@ -34,7 +34,7 @@ void dynamic_irq_init(unsigned int irq)
 	}
 
 	/* Ensure we don't have left over values from a previous use of this irq */
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->status = IRQ_DISABLED;
 	desc->chip = &no_irq_chip;
 	desc->handle_irq = handle_bad_irq;
@@ -51,7 +51,7 @@ void dynamic_irq_init(unsigned int irq)
 	cpumask_clear(desc->pending_mask);
 #endif
 #endif
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 /**
@@ -68,9 +68,9 @@ void dynamic_irq_cleanup(unsigned int irq)
 		return;
 	}
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (desc->action) {
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 		WARN(1, KERN_ERR "Destroying IRQ%d without calling free_irq\n",
 			irq);
 		return;
@@ -82,7 +82,7 @@ void dynamic_irq_cleanup(unsigned int irq)
 	desc->chip = &no_irq_chip;
 	desc->name = NULL;
 	clear_kstat_irqs(desc);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 
@@ -104,10 +104,10 @@ int set_irq_chip(unsigned int irq, struct irq_chip *chip)
 	if (!chip)
 		chip = &no_irq_chip;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	irq_chip_set_defaults(chip);
 	desc->chip = chip;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	return 0;
 }
@@ -133,9 +133,9 @@ int set_irq_type(unsigned int irq, unsigned int type)
 	if (type == IRQ_TYPE_NONE)
 		return 0;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	ret = __irq_set_trigger(desc, irq, type);
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return ret;
 }
 EXPORT_SYMBOL(set_irq_type);
@@ -158,9 +158,9 @@ int set_irq_data(unsigned int irq, void *data)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->handler_data = data;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(set_irq_data);
@@ -183,11 +183,11 @@ int set_irq_msi(unsigned int irq, struct msi_desc *entry)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->msi_desc = entry;
 	if (entry)
 		entry->irq = irq;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
@@ -214,9 +214,9 @@ int set_irq_chip_data(unsigned int irq, void *data)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->chip_data = data;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	return 0;
 }
@@ -241,12 +241,12 @@ void set_irq_nested_thread(unsigned int irq, int nest)
 	if (!desc)
 		return;
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (nest)
 		desc->status |= IRQ_NESTED_THREAD;
 	else
 		desc->status &= ~IRQ_NESTED_THREAD;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 EXPORT_SYMBOL_GPL(set_irq_nested_thread);
 
@@ -343,7 +343,7 @@ void handle_nested_irq(unsigned int irq)
 
 	might_sleep();
 
-	spin_lock_irq(&desc->lock);
+	raw_spin_lock_irq(&desc->lock);
 
 	kstat_incr_irqs_this_cpu(irq, desc);
 
@@ -352,17 +352,17 @@ void handle_nested_irq(unsigned int irq)
 		goto out_unlock;
 
 	desc->status |= IRQ_INPROGRESS;
-	spin_unlock_irq(&desc->lock);
+	raw_spin_unlock_irq(&desc->lock);
 
 	action_ret = action->thread_fn(action->irq, action->dev_id);
 	if (!noirqdebug)
 		note_interrupt(irq, desc, action_ret);
 
-	spin_lock_irq(&desc->lock);
+	raw_spin_lock_irq(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 
 out_unlock:
-	spin_unlock_irq(&desc->lock);
+	raw_spin_unlock_irq(&desc->lock);
 }
 EXPORT_SYMBOL_GPL(handle_nested_irq);
 
@@ -384,7 +384,7 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 	struct irqaction *action;
 	irqreturn_t action_ret;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
 		goto out_unlock;
@@ -396,16 +396,16 @@ handle_simple_irq(unsigned int irq, struct irq_desc *desc)
 		goto out_unlock;
 
 	desc->status |= IRQ_INPROGRESS;
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	action_ret = handle_IRQ_event(irq, action);
 	if (!noirqdebug)
 		note_interrupt(irq, desc, action_ret);
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 out_unlock:
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 /**
@@ -424,7 +424,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	struct irqaction *action;
 	irqreturn_t action_ret;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	mask_ack_irq(desc, irq);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
@@ -441,13 +441,13 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 		goto out_unlock;
 
 	desc->status |= IRQ_INPROGRESS;
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	action_ret = handle_IRQ_event(irq, action);
 	if (!noirqdebug)
 		note_interrupt(irq, desc, action_ret);
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 
 	if (unlikely(desc->status & IRQ_ONESHOT))
@@ -455,7 +455,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 	else if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
 		desc->chip->unmask(irq);
 out_unlock:
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 EXPORT_SYMBOL_GPL(handle_level_irq);
 
@@ -475,7 +475,7 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 	struct irqaction *action;
 	irqreturn_t action_ret;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 
 	if (unlikely(desc->status & IRQ_INPROGRESS))
 		goto out;
@@ -497,18 +497,18 @@ handle_fasteoi_irq(unsigned int irq, struct irq_desc *desc)
 
 	desc->status |= IRQ_INPROGRESS;
 	desc->status &= ~IRQ_PENDING;
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	action_ret = handle_IRQ_event(irq, action);
 	if (!noirqdebug)
 		note_interrupt(irq, desc, action_ret);
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	desc->status &= ~IRQ_INPROGRESS;
 out:
 	desc->chip->eoi(irq);
 
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 /**
@@ -530,7 +530,7 @@ out:
 void
 handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 {
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 
 	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
 
@@ -576,17 +576,17 @@ handle_edge_irq(unsigned int irq, struct irq_desc *desc)
 		}
 
 		desc->status &= ~IRQ_PENDING;
-		spin_unlock(&desc->lock);
+		raw_spin_unlock(&desc->lock);
 		action_ret = handle_IRQ_event(irq, action);
 		if (!noirqdebug)
 			note_interrupt(irq, desc, action_ret);
-		spin_lock(&desc->lock);
+		raw_spin_lock(&desc->lock);
 
 	} while ((desc->status & (IRQ_PENDING | IRQ_DISABLED)) == IRQ_PENDING);
 
 	desc->status &= ~IRQ_INPROGRESS;
 out_unlock:
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 /**
@@ -643,7 +643,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	}
 
 	chip_bus_lock(irq, desc);
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 
 	/* Uninstall? */
 	if (handle == handle_bad_irq) {
@@ -661,7 +661,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 		desc->depth = 0;
 		desc->chip->startup(irq);
 	}
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	chip_bus_sync_unlock(irq, desc);
 }
 EXPORT_SYMBOL_GPL(__set_irq_handler);
@@ -692,9 +692,9 @@ void __init set_irq_noprobe(unsigned int irq)
 		return;
 	}
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->status |= IRQ_NOPROBE;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
 void __init set_irq_probe(unsigned int irq)
@@ -707,7 +707,7 @@ void __init set_irq_probe(unsigned int irq)
 		return;
 	}
 
-	spin_lock_irqsave(&desc->lock, flags);
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	desc->status &= ~IRQ_NOPROBE;
-	spin_unlock_irqrestore(&desc->lock, flags);
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }

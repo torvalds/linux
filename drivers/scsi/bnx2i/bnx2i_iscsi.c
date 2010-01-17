@@ -485,7 +485,6 @@ static int bnx2i_setup_cmd_pool(struct bnx2i_hba *hba,
 		struct iscsi_task *task = session->cmds[i];
 		struct bnx2i_cmd *cmd = task->dd_data;
 
-		/* Anil */
 		task->hdr = &cmd->hdr;
 		task->hdr_max = sizeof(struct iscsi_hdr);
 
@@ -765,7 +764,6 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	hba->pci_svid = hba->pcidev->subsystem_vendor;
 	hba->pci_func = PCI_FUNC(hba->pcidev->devfn);
 	hba->pci_devno = PCI_SLOT(hba->pcidev->devfn);
-	bnx2i_identify_device(hba);
 
 	bnx2i_identify_device(hba);
 	bnx2i_setup_host_queue_size(hba, shost);
@@ -1161,9 +1159,6 @@ static int bnx2i_task_xmit(struct iscsi_task *task)
 	struct bnx2i_cmd *cmd = task->dd_data;
 	struct iscsi_cmd *hdr = (struct iscsi_cmd *) task->hdr;
 
-	if (!bnx2i_conn->is_bound)
-		return -ENOTCONN;
-
 	/*
 	 * If there is no scsi_cmnd this must be a mgmt task
 	 */
@@ -1371,7 +1366,6 @@ static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
 	bnx2i_conn->ep = bnx2i_ep;
 	bnx2i_conn->iscsi_conn_cid = bnx2i_ep->ep_iscsi_cid;
 	bnx2i_conn->fw_cid = bnx2i_ep->ep_cid;
-	bnx2i_conn->is_bound = 1;
 
 	ret_code = bnx2i_bind_conn_to_iscsi_cid(hba, bnx2i_conn,
 						bnx2i_ep->ep_iscsi_cid);
@@ -1883,7 +1877,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 
 	bnx2i_ep = ep->dd_data;
 
-	/* driver should not attempt connection cleanup untill TCP_CONNECT
+	/* driver should not attempt connection cleanup until TCP_CONNECT
 	 * completes either successfully or fails. Timeout is 9-secs, so
 	 * wait for it to complete
 	 */
@@ -1896,9 +1890,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 		conn = bnx2i_conn->cls_conn->dd_data;
 		session = conn->session;
 
-		spin_lock_bh(&session->lock);
-		bnx2i_conn->is_bound = 0;
-		spin_unlock_bh(&session->lock);
+		iscsi_suspend_queue(conn);
 	}
 
 	hba = bnx2i_ep->hba;
@@ -2034,7 +2026,7 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 				  ISCSI_USERNAME | ISCSI_PASSWORD |
 				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
 				  ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
-				  ISCSI_LU_RESET_TMO |
+				  ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
 				  ISCSI_PING_TMO | ISCSI_RECV_TMO |
 				  ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_NETDEV_NAME,

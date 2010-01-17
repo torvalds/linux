@@ -326,7 +326,7 @@ int pm_dbg_regset_save(int reg_set)
 	return 0;
 }
 
-static const char pwrdm_state_names[][4] = {
+static const char pwrdm_state_names[][PWRDM_MAX_PWRSTS] = {
 	"OFF",
 	"RET",
 	"INA",
@@ -381,7 +381,7 @@ static int pwrdm_dbg_show_counter(struct powerdomain *pwrdm, void *user)
 
 	seq_printf(s, "%s (%s)", pwrdm->name,
 			pwrdm_state_names[pwrdm->state]);
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < PWRDM_MAX_PWRSTS; i++)
 		seq_printf(s, ",%s:%d", pwrdm_state_names[i],
 			pwrdm->state_counter[i]);
 

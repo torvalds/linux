@@ -1563,7 +1563,7 @@ isdn_net_ciscohdlck_slarp_send_keepalive(unsigned long data)
 	*(__be32 *)(p +  4) = cpu_to_be32(CISCO_SLARP_KEEPALIVE);
 	*(__be32 *)(p +  8) = cpu_to_be32(lp->cisco_myseq);
 	*(__be32 *)(p + 12) = cpu_to_be32(lp->cisco_yourseq);
-	*(__be16 *)(p + 16) = cpu_to_be16(0xffff); // reliablity, always 0xffff
+	*(__be16 *)(p + 16) = cpu_to_be16(0xffff); // reliability, always 0xffff
 	p += 18;
 
 	isdn_net_write_super(lp, skb);

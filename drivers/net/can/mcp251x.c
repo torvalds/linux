@@ -403,9 +403,8 @@ static void mcp251x_hw_rx_frame(struct spi_device *spi, u8 *buf,
 
 		for (i = 1; i < RXBDAT_OFF; i++)
 			buf[i] = mcp251x_read_reg(spi, RXBCTRL(buf_idx) + i);
-		len = buf[RXBDLC_OFF] & RXBDLC_LEN_MASK;
-		if (len > 8)
-			len = 8;
+
+		len = get_can_dlc(buf[RXBDLC_OFF] & RXBDLC_LEN_MASK);
 		for (; i < (RXBDAT_OFF + len); i++)
 			buf[i] = mcp251x_read_reg(spi, RXBCTRL(buf_idx) + i);
 	} else {
@@ -455,13 +454,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 			(buf[RXBSIDL_OFF] >> RXBSIDL_SHIFT);
 	}
 	/* Data length */
-	frame->can_dlc = buf[RXBDLC_OFF] & RXBDLC_LEN_MASK;
-	if (frame->can_dlc > 8) {
-		dev_warn(&spi->dev, "invalid frame recevied\n");
-		priv->net->stats.rx_errors++;
-		dev_kfree_skb(skb);
-		return;
-	}
+	frame->can_dlc = get_can_dlc(buf[RXBDLC_OFF] & RXBDLC_LEN_MASK);
 	memcpy(frame->data, buf + RXBDAT_OFF, frame->can_dlc);
 
 	priv->net->stats.rx_packets++;
@@ -997,7 +990,7 @@ static int __devinit mcp251x_can_probe(struct spi_device *spi)
 			goto error_tx_buf;
 		}
 		priv->spi_rx_buf = kmalloc(SPI_TRANSFER_BUF_LEN, GFP_KERNEL);
-		if (!priv->spi_tx_buf) {
+		if (!priv->spi_rx_buf) {
 			ret = -ENOMEM;
 			goto error_rx_buf;
 		}

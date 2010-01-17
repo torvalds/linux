@@ -426,7 +426,7 @@ static int smctr_alloc_shared_memory(struct net_device *dev)
         smctr_malloc(dev, 1L);
 
         /* Allocate Non-MAC receive data buffers.
-         * To guarantee a minimum of 256 contigous memory to
+         * To guarantee a minimum of 256 contiguous memory to
          * UM_Receive_Packet's lookahead pointer, before a page
          * change or ring end is encountered, place each rx buffer on
          * a 256 byte boundary.

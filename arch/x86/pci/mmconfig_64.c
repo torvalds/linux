@@ -12,38 +12,15 @@
 #include <asm/e820.h>
 #include <asm/pci_x86.h>
 
-/* Static virtual mapping of the MMCONFIG aperture */
-struct mmcfg_virt {
-	struct acpi_mcfg_allocation *cfg;
-	char __iomem *virt;
-};
-static struct mmcfg_virt *pci_mmcfg_virt;
-
-static char __iomem *get_virt(unsigned int seg, unsigned bus)
-{
-	struct acpi_mcfg_allocation *cfg;
-	int cfg_num;
-
-	for (cfg_num = 0; cfg_num < pci_mmcfg_config_num; cfg_num++) {
-		cfg = pci_mmcfg_virt[cfg_num].cfg;
-		if (cfg->pci_segment == seg &&
-		    (cfg->start_bus_number <= bus) &&
-		    (cfg->end_bus_number >= bus))
-			return pci_mmcfg_virt[cfg_num].virt;
-	}
-
-	/* Fall back to type 0 */
-	return NULL;
-}
+#define PREFIX "PCI: "
 
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
-	char __iomem *addr;
+	struct pci_mmcfg_region *cfg = pci_mmconfig_lookup(seg, bus);
 
-	addr = get_virt(seg, bus);
-	if (!addr)
-		return NULL;
- 	return addr + ((bus << 20) | (devfn << 12));
+	if (cfg && cfg->virt)
+		return cfg->virt + (PCI_MMCFG_BUS_OFFSET(bus) | (devfn << 12));
+	return NULL;
 }
 
 static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
@@ -109,42 +86,30 @@ static struct pci_raw_ops pci_mmcfg = {
 	.write =	pci_mmcfg_write,
 };
 
-static void __iomem * __init mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
+static void __iomem * __init mcfg_ioremap(struct pci_mmcfg_region *cfg)
 {
 	void __iomem *addr;
 	u64 start, size;
+	int num_buses;
 
-	start = cfg->start_bus_number;
-	start <<= 20;
-	start += cfg->address;
-	size = cfg->end_bus_number + 1 - cfg->start_bus_number;
-	size <<= 20;
+	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
+	num_buses = cfg->end_bus - cfg->start_bus + 1;
+	size = PCI_MMCFG_BUS_OFFSET(num_buses);
 	addr = ioremap_nocache(start, size);
-	if (addr) {
-		printk(KERN_INFO "PCI: Using MMCONFIG at %Lx - %Lx\n",
-		       start, start + size - 1);
-		addr -= cfg->start_bus_number << 20;
-	}
+	if (addr)
+		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	return addr;
 }
 
 int __init pci_mmcfg_arch_init(void)
 {
-	int i;
-	pci_mmcfg_virt = kzalloc(sizeof(*pci_mmcfg_virt) *
-				 pci_mmcfg_config_num, GFP_KERNEL);
-	if (pci_mmcfg_virt == NULL) {
-		printk(KERN_ERR "PCI: Can not allocate memory for mmconfig structures\n");
-		return 0;
-	}
+	struct pci_mmcfg_region *cfg;
 
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		pci_mmcfg_virt[i].cfg = &pci_mmcfg_config[i];
-		pci_mmcfg_virt[i].virt = mcfg_ioremap(&pci_mmcfg_config[i]);
-		if (!pci_mmcfg_virt[i].virt) {
-			printk(KERN_ERR "PCI: Cannot map mmconfig aperture for "
-					"segment %d\n",
-				pci_mmcfg_config[i].pci_segment);
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+		cfg->virt = mcfg_ioremap(cfg);
+		if (!cfg->virt) {
+			printk(KERN_ERR PREFIX "can't map MMCONFIG at %pR\n",
+			       &cfg->res);
 			pci_mmcfg_arch_free();
 			return 0;
 		}
@@ -155,19 +120,12 @@ int __init pci_mmcfg_arch_init(void)
 
 void __init pci_mmcfg_arch_free(void)
 {
-	int i;
+	struct pci_mmcfg_region *cfg;
 
-	if (pci_mmcfg_virt == NULL)
-		return;
-
-	for (i = 0; i < pci_mmcfg_config_num; ++i) {
-		if (pci_mmcfg_virt[i].virt) {
-			iounmap(pci_mmcfg_virt[i].virt + (pci_mmcfg_virt[i].cfg->start_bus_number << 20));
-			pci_mmcfg_virt[i].virt = NULL;
-			pci_mmcfg_virt[i].cfg = NULL;
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+		if (cfg->virt) {
+			iounmap(cfg->virt + PCI_MMCFG_BUS_OFFSET(cfg->start_bus));
+			cfg->virt = NULL;
 		}
 	}
-
-	kfree(pci_mmcfg_virt);
-	pci_mmcfg_virt = NULL;
 }

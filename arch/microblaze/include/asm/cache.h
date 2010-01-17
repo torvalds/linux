@@ -21,20 +21,4 @@
 
 #define SMP_CACHE_BYTES	L1_CACHE_BYTES
 
-void _enable_icache(void);
-void _disable_icache(void);
-void _invalidate_icache(unsigned int addr);
-
-#define __enable_icache()		_enable_icache()
-#define __disable_icache()		_disable_icache()
-#define __invalidate_icache(addr)	_invalidate_icache(addr)
-
-void _enable_dcache(void);
-void _disable_dcache(void);
-void _invalidate_dcache(unsigned int addr);
-
-#define __enable_dcache()		_enable_dcache()
-#define __disable_dcache()		_disable_dcache()
-#define __invalidate_dcache(addr)	_invalidate_dcache(addr)
-
 #endif /* _ASM_MICROBLAZE_CACHE_H */

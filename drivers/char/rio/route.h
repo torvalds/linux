@@ -67,7 +67,7 @@
 typedef struct COST_ROUTE COST_ROUTE;
 struct COST_ROUTE {
 	unsigned char cost;	/* Cost down this link */
-	unsigned char route[NODE_BYTES];	/* Nodes thorough this route */
+	unsigned char route[NODE_BYTES];	/* Nodes through this route */
 };
 
 typedef struct ROUTE_STR ROUTE_STR;
