@@ -346,41 +346,19 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 					goto err;
 				msgs[i].buf[byte] = rc;
 			}
-		} else {
-			if ((msgs[i].buf[0] == 0xf7) && (msgs[i].addr == 0x55)) {
-				/* prepaired for cx24116 firmware */
-				/* Write in small blocks */
-				len = msgs[i].len - 1;
-				k = 1;
-				do {
-					outb(msgs[i].addr << 1, dm_io_mem(DM1105_I2CDAT));
-					outb(0xf7, dm_io_mem(DM1105_I2CDAT + 1));
-					for (byte = 0; byte < (len > 48 ? 48 : len); byte++) {
-						data = msgs[i].buf[k+byte];
-						outb(data, dm_io_mem(DM1105_I2CDAT + byte + 2));
-					}
-					outb(0x82 + (len > 48 ? 48 : len), dm_io_mem(DM1105_I2CCTR));
-					for (j = 0; j < 25; j++) {
-						mdelay(10);
-						status = inb(dm_io_mem(DM1105_I2CSTS));
-						if ((status & 0xc0) == 0x40)
-							break;
-					}
-
-					if (j >= 25)
-						return -1;
-
-					k += 48;
-					len -= 48;
-				} while (len > 0);
-			} else {
-				/* write bytes */
-				outb(msgs[i].addr<<1, dm_io_mem(DM1105_I2CDAT));
-				for (byte = 0; byte < msgs[i].len; byte++) {
-					data = msgs[i].buf[byte];
-					outb(data, dm_io_mem(DM1105_I2CDAT + byte + 1));
+		} else if ((msgs[i].buf[0] == 0xf7) && (msgs[i].addr == 0x55)) {
+			/* prepaired for cx24116 firmware */
+			/* Write in small blocks */
+			len = msgs[i].len - 1;
+			k = 1;
+			do {
+				outb(msgs[i].addr << 1, dm_io_mem(DM1105_I2CDAT));
+				outb(0xf7, dm_io_mem(DM1105_I2CDAT + 1));
+				for (byte = 0; byte < (len > 48 ? 48 : len); byte++) {
+					data = msgs[i].buf[k + byte];
+					outb(data, dm_io_mem(DM1105_I2CDAT + byte + 2));
 				}
-				outb(0x81 + msgs[i].len, dm_io_mem(DM1105_I2CCTR));
+				outb(0x82 + (len > 48 ? 48 : len), dm_io_mem(DM1105_I2CCTR));
 				for (j = 0; j < 25; j++) {
 					mdelay(10);
 					status = inb(dm_io_mem(DM1105_I2CSTS));
@@ -390,7 +368,27 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 				if (j >= 25)
 					return -1;
+
+				k += 48;
+				len -= 48;
+			} while (len > 0);
+		} else {
+			/* write bytes */
+			outb(msgs[i].addr<<1, dm_io_mem(DM1105_I2CDAT));
+			for (byte = 0; byte < msgs[i].len; byte++) {
+				data = msgs[i].buf[byte];
+				outb(data, dm_io_mem(DM1105_I2CDAT + byte + 1));
 			}
+			outb(0x81 + msgs[i].len, dm_io_mem(DM1105_I2CCTR));
+			for (j = 0; j < 25; j++) {
+				mdelay(10);
+				status = inb(dm_io_mem(DM1105_I2CSTS));
+				if ((status & 0xc0) == 0x40)
+					break;
+			}
+
+			if (j >= 25)
+				return -1;
 		}
 	}
 	return num;
