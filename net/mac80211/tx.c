@@ -529,6 +529,8 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		tx->key = NULL;
 
 	if (tx->key) {
+		bool skip_hw = false;
+
 		tx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
 
@@ -545,12 +547,19 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			    !ieee80211_use_mfp(hdr->frame_control, tx->sta,
 					       tx->skb))
 				tx->key = NULL;
+			skip_hw = (tx->key->conf.flags &
+						IEEE80211_KEY_FLAG_SW_MGMT) &&
+				   ieee80211_is_mgmt(hdr->frame_control);
 			break;
 		case ALG_AES_CMAC:
 			if (!ieee80211_is_mgmt(hdr->frame_control))
 				tx->key = NULL;
 			break;
 		}
+
+		if (!skip_hw &&
+		    tx->key->conf.flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
+			info->control.hw_key = &tx->key->conf;
 	}
 
 	return TX_CONTINUE;
