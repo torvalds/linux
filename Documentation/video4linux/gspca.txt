@@ -154,6 +154,7 @@ sunplus		0546:3191	Polaroid Ion 80
 sunplus		0546:3273	Polaroid PDC2030
 ov519		054c:0154	Sonny toy4
 ov519		054c:0155	Sonny toy5
+cpia1		0553:0002	CPIA CPiA (version1) based cameras
 zc3xx		055f:c005	Mustek Wcam300A
 spca500		055f:c200	Mustek Gsmart 300
 sunplus		055f:c211	Kowa Bs888e Microcamera
@@ -206,6 +207,7 @@ sunplus		0733:2221	Mercury Digital Pro 3.1p
 sunplus		0733:3261	Concord 3045 spca536a
 sunplus		0733:3281	Cyberpix S550V
 spca506		0734:043b	3DeMon USB Capture aka
+cpia1		0813:0001	QX3 camera
 ov519		0813:0002	Dual Mode USB Camera Plus
 spca500		084d:0003	D-Link DSC-350
 spca500		08ca:0103	Aiptek PocketDV
