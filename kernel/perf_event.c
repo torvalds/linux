@@ -1049,8 +1049,8 @@ static int perf_event_refresh(struct perf_event *event, int refresh)
 	return 0;
 }
 
-void __perf_event_sched_out(struct perf_event_context *ctx,
-			      struct perf_cpu_context *cpuctx)
+static void __perf_event_sched_out(struct perf_event_context *ctx,
+				   struct perf_cpu_context *cpuctx)
 {
 	struct perf_event *event;
 
