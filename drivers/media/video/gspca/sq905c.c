@@ -204,7 +204,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct cam *cam = &gspca_dev->cam;
 	struct sd *dev = (struct sd *) gspca_dev;
-	int i, ret;
+	int ret;
 
 	PDEBUG(D_PROBE,
 		"SQ9050 camera detected"
