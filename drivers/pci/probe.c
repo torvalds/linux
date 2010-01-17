@@ -1222,11 +1222,19 @@ EXPORT_SYMBOL(pci_scan_single_device);
 static unsigned next_ari_fn(struct pci_dev *dev, unsigned fn)
 {
 	u16 cap;
-	unsigned pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
+	unsigned pos, next_fn;
+
+	if (!dev)
+		return 0;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
 	if (!pos)
 		return 0;
 	pci_read_config_word(dev, pos + 4, &cap);
-	return cap >> 8;
+	next_fn = cap >> 8;
+	if (next_fn <= fn)
+		return 0;
+	return next_fn;
 }
 
 static unsigned next_trad_fn(struct pci_dev *dev, unsigned fn)
@@ -1271,12 +1279,14 @@ int pci_scan_slot(struct pci_bus *bus, int devfn)
 		return 0; /* Already scanned the entire slot */
 
 	dev = pci_scan_single_device(bus, devfn);
-	if (dev && !dev->is_added)	/* new device? */
+	if (!dev)
+		return 0;
+	if (!dev->is_added)
 		nr++;
 
 	if (pci_ari_enabled(bus))
 		next_fn = next_ari_fn;
-	else if (dev && dev->multifunction)
+	else if (dev->multifunction)
 		next_fn = next_trad_fn;
 
 	for (fn = next_fn(dev, 0); fn > 0; fn = next_fn(dev, fn)) {
