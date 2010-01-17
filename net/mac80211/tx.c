@@ -553,9 +553,6 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		}
 	}
 
-	if (!tx->key || !(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
-		info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-
 	return TX_CONTINUE;
 }
 
