@@ -646,7 +646,7 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 	{ }
 };
 
-static int ip4_frags_ns_ctl_register(struct net *net)
+static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
@@ -676,7 +676,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void ip4_frags_ns_ctl_unregister(struct net *net)
+static void __net_exit ip4_frags_ns_ctl_unregister(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -704,7 +704,7 @@ static inline void ip4_frags_ctl_register(void)
 }
 #endif
 
-static int ipv4_frags_init_net(struct net *net)
+static int __net_init ipv4_frags_init_net(struct net *net)
 {
 	/*
 	 * Fragment cache limits. We will commit 256K at one time. Should we
@@ -726,7 +726,7 @@ static int ipv4_frags_init_net(struct net *net)
 	return ip4_frags_ns_ctl_register(net);
 }
 
-static void ipv4_frags_exit_net(struct net *net)
+static void __net_exit ipv4_frags_exit_net(struct net *net)
 {
 	ip4_frags_ns_ctl_unregister(net);
 	inet_frags_exit_net(&net->ipv4.frags, &ip4_frags);

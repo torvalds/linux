@@ -951,7 +951,7 @@ ctl_table ipv6_icmp_table_template[] = {
 	{ },
 };
 
-struct ctl_table *ipv6_icmp_sysctl_init(struct net *net)
+struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 {
 	struct ctl_table *table;
 

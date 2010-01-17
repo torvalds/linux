@@ -239,7 +239,7 @@ struct fib6_table *fib6_get_table(struct net *net, u32 id)
 	return NULL;
 }
 
-static void fib6_tables_init(struct net *net)
+static void __net_init fib6_tables_init(struct net *net)
 {
 	fib6_link_table(net, net->ipv6.fib6_main_tbl);
 	fib6_link_table(net, net->ipv6.fib6_local_tbl);
@@ -262,7 +262,7 @@ struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi *fl,
 	return (struct dst_entry *) lookup(net, net->ipv6.fib6_main_tbl, fl, flags);
 }
 
-static void fib6_tables_init(struct net *net)
+static void __net_init fib6_tables_init(struct net *net)
 {
 	fib6_link_table(net, net->ipv6.fib6_main_tbl);
 }
@@ -1469,7 +1469,7 @@ static void fib6_gc_timer_cb(unsigned long arg)
 	fib6_run_gc(0, (struct net *)arg);
 }
 
-static int fib6_net_init(struct net *net)
+static int __net_init fib6_net_init(struct net *net)
 {
 	setup_timer(&net->ipv6.ip6_fib_timer, fib6_gc_timer_cb, (unsigned long)net);
 

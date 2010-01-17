@@ -663,7 +663,7 @@ out:
 	return err;
 }
 
-static int vlan_init_net(struct net *net)
+static int __net_init vlan_init_net(struct net *net)
 {
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
 	int err;
@@ -675,7 +675,7 @@ static int vlan_init_net(struct net *net)
 	return err;
 }
 
-static void vlan_exit_net(struct net *net)
+static void __net_exit vlan_exit_net(struct net *net)
 {
 	vlan_proc_cleanup(net);
 }

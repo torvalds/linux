@@ -2448,7 +2448,7 @@ static const struct file_operations packet_seq_fops = {
 
 #endif
 
-static int packet_net_init(struct net *net)
+static int __net_init packet_net_init(struct net *net)
 {
 	rwlock_init(&net->packet.sklist_lock);
 	INIT_HLIST_HEAD(&net->packet.sklist);
@@ -2459,7 +2459,7 @@ static int packet_net_init(struct net *net)
 	return 0;
 }
 
-static void packet_net_exit(struct net *net)
+static void __net_exit packet_net_exit(struct net *net)
 {
 	proc_net_remove(net, "packet");
 }

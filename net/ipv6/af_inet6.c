@@ -999,7 +999,7 @@ err_udplite_mib:
 	return -ENOMEM;
 }
 
-static void __net_exit ipv6_cleanup_mibs(struct net *net)
+static void ipv6_cleanup_mibs(struct net *net)
 {
 	snmp_mib_free((void **)net->mib.udp_stats_in6);
 	snmp_mib_free((void **)net->mib.udplite_stats_in6);
@@ -1042,7 +1042,7 @@ out:
 #endif
 }
 
-static void inet6_net_exit(struct net *net)
+static void __net_exit inet6_net_exit(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	udp6_proc_exit(net);

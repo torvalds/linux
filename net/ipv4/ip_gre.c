@@ -1307,7 +1307,7 @@ static void ipgre_destroy_tunnels(struct ipgre_net *ign, struct list_head *head)
 	}
 }
 
-static int ipgre_init_net(struct net *net)
+static int __net_init ipgre_init_net(struct net *net)
 {
 	struct ipgre_net *ign = net_generic(net, ipgre_net_id);
 	int err;
@@ -1334,7 +1334,7 @@ err_alloc_dev:
 	return err;
 }
 
-static void ipgre_exit_net(struct net *net)
+static void __net_exit ipgre_exit_net(struct net *net)
 {
 	struct ipgre_net *ign;
 	LIST_HEAD(list);

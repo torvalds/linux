@@ -2027,12 +2027,12 @@ static struct udp_seq_afinfo udp4_seq_afinfo = {
 	},
 };
 
-static int udp4_proc_init_net(struct net *net)
+static int __net_init udp4_proc_init_net(struct net *net)
 {
 	return udp_proc_register(net, &udp4_seq_afinfo);
 }
 
-static void udp4_proc_exit_net(struct net *net)
+static void __net_exit udp4_proc_exit_net(struct net *net)
 {
 	udp_proc_unregister(net, &udp4_seq_afinfo);
 }

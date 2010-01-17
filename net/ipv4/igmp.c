@@ -2603,7 +2603,7 @@ static const struct file_operations igmp_mcf_seq_fops = {
 	.release	=	seq_release_net,
 };
 
-static int igmp_net_init(struct net *net)
+static int __net_init igmp_net_init(struct net *net)
 {
 	struct proc_dir_entry *pde;
 
@@ -2621,7 +2621,7 @@ out_igmp:
 	return -ENOMEM;
 }
 
-static void igmp_net_exit(struct net *net)
+static void __net_exit igmp_net_exit(struct net *net)
 {
 	proc_net_remove(net, "mcfilter");
 	proc_net_remove(net, "igmp");

@@ -2113,7 +2113,7 @@ static struct tcp_seq_afinfo tcp6_seq_afinfo = {
 	},
 };
 
-int tcp6_proc_init(struct net *net)
+int __net_init tcp6_proc_init(struct net *net)
 {
 	return tcp_proc_register(net, &tcp6_seq_afinfo);
 }
@@ -2182,18 +2182,18 @@ static struct inet_protosw tcpv6_protosw = {
 				INET_PROTOSW_ICSK,
 };
 
-static int tcpv6_net_init(struct net *net)
+static int __net_init tcpv6_net_init(struct net *net)
 {
 	return inet_ctl_sock_create(&net->ipv6.tcp_sk, PF_INET6,
 				    SOCK_RAW, IPPROTO_TCP, net);
 }
 
-static void tcpv6_net_exit(struct net *net)
+static void __net_exit tcpv6_net_exit(struct net *net)
 {
 	inet_ctl_sock_destroy(net->ipv6.tcp_sk);
 }
 
-static void tcpv6_net_exit_batch(struct list_head *net_exit_list)
+static void __net_exit tcpv6_net_exit_batch(struct list_head *net_exit_list)
 {
 	inet_twsk_purge(&tcp_hashinfo, &tcp_death_row, AF_INET6);
 }

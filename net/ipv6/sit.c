@@ -62,7 +62,6 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
-static void ipip6_fb_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_setup(struct net_device *dev);
 
@@ -1120,7 +1119,7 @@ static void ipip6_tunnel_init(struct net_device *dev)
 	ipip6_tunnel_bind_dev(dev);
 }
 
-static void ipip6_fb_tunnel_init(struct net_device *dev)
+static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -1145,7 +1144,7 @@ static struct xfrm_tunnel sit_handler = {
 	.priority	=	1,
 };
 
-static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
+static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 {
 	int prio;
 
@@ -1162,7 +1161,7 @@ static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 	}
 }
 
-static int sit_init_net(struct net *net)
+static int __net_init sit_init_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	int err;
@@ -1195,7 +1194,7 @@ err_alloc_dev:
 	return err;
 }
 
-static void sit_exit_net(struct net *net)
+static void __net_exit sit_exit_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	LIST_HEAD(list);

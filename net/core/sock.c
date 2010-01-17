@@ -2140,13 +2140,13 @@ int sock_prot_inuse_get(struct net *net, struct proto *prot)
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
-static int sock_inuse_init_net(struct net *net)
+static int __net_init sock_inuse_init_net(struct net *net)
 {
 	net->core.inuse = alloc_percpu(struct prot_inuse);
 	return net->core.inuse ? 0 : -ENOMEM;
 }
 
-static void sock_inuse_exit_net(struct net *net)
+static void __net_exit sock_inuse_exit_net(struct net *net)
 {
 	free_percpu(net->core.inuse);
 }

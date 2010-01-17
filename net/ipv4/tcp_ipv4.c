@@ -2430,12 +2430,12 @@ static struct tcp_seq_afinfo tcp4_seq_afinfo = {
 	},
 };
 
-static int tcp4_proc_init_net(struct net *net)
+static int __net_init tcp4_proc_init_net(struct net *net)
 {
 	return tcp_proc_register(net, &tcp4_seq_afinfo);
 }
 
-static void tcp4_proc_exit_net(struct net *net)
+static void __net_exit tcp4_proc_exit_net(struct net *net)
 {
 	tcp_proc_unregister(net, &tcp4_seq_afinfo);
 }

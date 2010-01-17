@@ -467,7 +467,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	return 0;
 }
 
-void br_net_exit(struct net *net)
+void __net_exit br_net_exit(struct net *net)
 {
 	struct net_device *dev;
 	LIST_HEAD(list);
