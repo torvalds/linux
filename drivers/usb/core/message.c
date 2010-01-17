@@ -1316,7 +1316,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 
 	alt = usb_altnum_to_altsetting(iface, alternate);
 	if (!alt) {
-		dev_warn(&dev->dev, "selecting invalid altsetting %d",
+		dev_warn(&dev->dev, "selecting invalid altsetting %d\n",
 			 alternate);
 		return -EINVAL;
 	}
