@@ -177,9 +177,11 @@ void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 {
 	int ret;
 
-	WARN_ON(!clksrc->reg_div.reg && !clksrc->reg_src.reg);
-
 	for (; size > 0; size--, clksrc++) {
+		if (!clksrc->reg_div.reg && !clksrc->reg_src.reg)
+			printk(KERN_ERR "%s: clock %s has no registers set\n",
+			       __func__, clksrc->clk.name);
+
 		/* fill in the default functions */
 
 		if (!clksrc->clk.ops) {
