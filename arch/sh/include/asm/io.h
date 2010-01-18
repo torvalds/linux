@@ -241,6 +241,15 @@ void __iounmap(void __iomem *addr);
 extern void __iomem *ioremap_fixed(resource_size_t, unsigned long, pgprot_t);
 extern void iounmap_fixed(void __iomem *);
 extern void ioremap_fixed_init(void);
+#else
+static inline void __iomem *
+ioremap_fixed(resource_size t phys_addr, unsigned long size, pgprot_t prot)
+{
+	BUG();
+}
+
+static inline void ioremap_fixed_init(void) { }
+static inline void iounmap_fixed(void __iomem *addr) { }
 #endif
 
 static inline void __iomem *
