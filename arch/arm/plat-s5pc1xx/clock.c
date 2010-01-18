@@ -64,18 +64,12 @@ struct clk clk_54m = {
 	.rate		= 54000000,
 };
 
-static int clk_dummy_enable(struct clk *clk, int enable)
-{
-	return 0;
-}
-
 struct clk clk_hd0 = {
 	.name		= "hclkd0",
 	.id		= -1,
 	.rate		= 0,
 	.parent		= NULL,
 	.ctrlbit	= 0,
-	.enable		= clk_dummy_enable,
 	.ops		= &clk_ops_def_setrate,
 };
 
@@ -86,7 +80,6 @@ struct clk clk_pd0 = {
 	.parent		= NULL,
 	.ctrlbit	= 0,
 	.ops		= &clk_ops_def_setrate,
-	.enable		= clk_dummy_enable,
 };
 
 static int s5pc1xx_clk_gate(void __iomem *reg, struct clk *clk, int enable)
@@ -680,6 +673,8 @@ static struct clk s5pc100_init_clocks[] = {
 static struct clk *clks[] __initdata = {
 	&clk_ext,
 	&clk_epll,
+	&clk_pd0,
+	&clk_hd0,
 	&clk_27m,
 	&clk_48m,
 	&clk_54m,
