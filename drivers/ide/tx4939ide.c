@@ -114,7 +114,7 @@ static void tx4939ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	pair = ide_get_pair_dev(drive);
 	if (pair)
-		safe = min(safe, ide_get_best_pio_mode(pair, 255, 4));
+		safe = min(safe, pair->pio_mode - XFER_PIO_0);
 	/*
 	 * Update Command Transfer Mode for master/slave and Data
 	 * Transfer Mode for this drive.
