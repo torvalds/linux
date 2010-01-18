@@ -230,13 +230,13 @@ struct rx_status_block {
 /*
  * Structure for look-up table holding free buffer ring pointers
  */
-typedef struct _FbrLookupTable {
-	void *Va[MAX_DESC_PER_RING_RX];
-	void *Buffer1[MAX_DESC_PER_RING_RX];
-	void *Buffer2[MAX_DESC_PER_RING_RX];
-	u32 PAHigh[MAX_DESC_PER_RING_RX];
-	u32 PALow[MAX_DESC_PER_RING_RX];
-} FBRLOOKUPTABLE, *PFBRLOOKUPTABLE;
+struct fbr_lookup {
+	void *virt[MAX_DESC_PER_RING_RX];
+	void *buffer1[MAX_DESC_PER_RING_RX];
+	void *buffer2[MAX_DESC_PER_RING_RX];
+	u32 bus_high[MAX_DESC_PER_RING_RX];
+	u32 bus_low[MAX_DESC_PER_RING_RX];
+};
 
 /*
  * RX_RING_t is sructure representing the adaptor's local reference(s) to the
@@ -260,7 +260,7 @@ typedef struct _rx_ring_t {
 	dma_addr_t Fbr1MemPa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
 	uint64_t Fbr1Realpa;
 	uint64_t Fbr1offset;
-	FBRLOOKUPTABLE *Fbr[2];
+	struct fbr_lookup *fbr[2];	/* One per ring */
 	u32 local_Fbr1_full;
 	u32 Fbr1NumEntries;
 	u32 Fbr1BufferSize;

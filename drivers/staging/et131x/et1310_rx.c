@@ -116,10 +116,9 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Alloc memory for the lookup table */
 #ifdef USE_FBR0
-	rx_ring->Fbr[0] = kmalloc(sizeof(FBRLOOKUPTABLE), GFP_KERNEL);
+	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
 #endif
-
-	rx_ring->Fbr[1] = kmalloc(sizeof(FBRLOOKUPTABLE), GFP_KERNEL);
+	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
 
 	/* The first thing we will do is configure the sizes of the buffer
 	 * rings. These will change based on jumbo packet support.  Larger
@@ -270,23 +269,23 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			/* Save the Virtual address of this index for quick
 			 * access later
 			 */
-			rx_ring->Fbr[1]->Va[index] =
+			rx_ring->fbr[1]->virt[index] =
 			    (uint8_t *) rx_ring->Fbr1MemVa[i] +
 			    (j * rx_ring->Fbr1BufferSize) + Fbr1Offset;
 
 			/* now store the physical address in the descriptor
 			 * so the device can access it
 			 */
-			rx_ring->Fbr[1]->PAHigh[index] =
+			rx_ring->fbr[1]->bus_high[index] =
 			    (u32) (Fbr1TempPa >> 32);
-			rx_ring->Fbr[1]->PALow[index] = (u32) Fbr1TempPa;
+			rx_ring->fbr[1]->bus_low[index] = (u32) Fbr1TempPa;
 
 			Fbr1TempPa += rx_ring->Fbr1BufferSize;
 
-			rx_ring->Fbr[1]->Buffer1[index] =
-			    rx_ring->Fbr[1]->Va[index];
-			rx_ring->Fbr[1]->Buffer2[index] =
-			    rx_ring->Fbr[1]->Va[index] - 4;
+			rx_ring->fbr[1]->buffer1[index] =
+			    rx_ring->fbr[1]->virt[index];
+			rx_ring->fbr[1]->buffer2[index] =
+			    rx_ring->fbr[1]->virt[index] - 4;
 		}
 	}
 
@@ -319,20 +318,20 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		for (j = 0; j < FBR_CHUNKS; j++) {
 			u32 index = (i * FBR_CHUNKS) + j;
 
-			rx_ring->Fbr[0]->Va[index] =
+			rx_ring->fbr[0]->virt[index] =
 			    (uint8_t *) rx_ring->Fbr0MemVa[i] +
 			    (j * rx_ring->Fbr0BufferSize) + Fbr0Offset;
 
-			rx_ring->Fbr[0]->PAHigh[index] =
+			rx_ring->fbr[0]->bus_high[index] =
 			    (u32) (Fbr0TempPa >> 32);
-			rx_ring->Fbr[0]->PALow[index] = (u32) Fbr0TempPa;
+			rx_ring->fbr[0]->bus_low[index] = (u32) Fbr0TempPa;
 
 			Fbr0TempPa += rx_ring->Fbr0BufferSize;
 
-			rx_ring->Fbr[0]->Buffer1[index] =
-			    rx_ring->Fbr[0]->Va[index];
-			rx_ring->Fbr[0]->Buffer2[index] =
-			    rx_ring->Fbr[0]->Va[index] - 4;
+			rx_ring->fbr[0]->buffer1[index] =
+			    rx_ring->fbr[0]->virt[index];
+			rx_ring->fbr[0]->buffer2[index] =
+			    rx_ring->fbr[0]->virt[index] - 4;
 		}
 	}
 #endif
@@ -525,10 +524,10 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free the FBR Lookup Table */
 #ifdef USE_FBR0
-	kfree(rx_ring->Fbr[0]);
+	kfree(rx_ring->fbr[0]);
 #endif
 
-	kfree(rx_ring->Fbr[1]);
+	kfree(rx_ring->fbr[1]);
 
 	/* Reset Counters */
 	rx_ring->nReadyRecv = 0;
@@ -609,9 +608,9 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	 * are ever returned, make sure the high part is retrieved here
 	 * before storing the adjusted address.
 	 */
-	writel((u32) ((u64)rx_local->pRxStatusPa >> 32),
+	writel((u32) ((u64)rx_local->rx_status_bus >> 32),
 	       &rx_dma->dma_wb_base_hi);
-	writel((u32) rx_local->pRxStatusPa, &rx_dma->dma_wb_base_lo);
+	writel((u32) rx_local->rx_status_bus, &rx_dma->dma_wb_base_lo);
 
 	memset(rx_local->rx_status_block, 0, sizeof(struct rx_status_block));
 
@@ -636,8 +635,8 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	/* Now's the best time to initialize FBR1 contents */
 	fbr_entry = (struct fbr_desc *) rx_local->pFbr1RingVa;
 	for (entry = 0; entry < rx_local->Fbr1NumEntries; entry++) {
-		fbr_entry->addr_hi = rx_local->Fbr[1]->PAHigh[entry];
-		fbr_entry->addr_lo = rx_local->Fbr[1]->PALow[entry];
+		fbr_entry->addr_hi = rx_local->fbr[1]->bus_high[entry];
+		fbr_entry->addr_lo = rx_local->fbr[1]->bus_low[entry];
 		fbr_entry->word2 = entry;
 		fbr_entry++;
 	}
@@ -661,8 +660,8 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	/* Now's the best time to initialize FBR0 contents */
 	fbr_entry = (struct fbr_desc *) rx_local->pFbr0RingVa;
 	for (entry = 0; entry < rx_local->Fbr0NumEntries; entry++) {
-		fbr_entry->addr_hi = rx_local->Fbr[0]->PAHigh[entry];
-		fbr_entry->addr_lo = rx_local->Fbr[0]->PALow[entry];
+		fbr_entry->addr_hi = rx_local->fbr[0]->bus_high[entry];
+		fbr_entry->addr_lo = rx_local->fbr[0]->bus_low[entry];
 		fbr_entry->word2 = entry;
 		fbr_entry++;
 	}
@@ -893,7 +892,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 
 	if (len) {
 		if (etdev->ReplicaPhyLoopbk == 1) {
-			buf = rx_local->Fbr[rindex]->Va[bindex];
+			buf = rx_local->fbr[rindex]->virt[bindex];
 
 			if (memcmp(&buf[6], &etdev->CurrentAddress[0],
 				   ETH_ALEN) == 0) {
@@ -917,8 +916,8 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 			if ((etdev->PacketFilter & ET131X_PACKET_TYPE_MULTICAST)
 			    && !(etdev->PacketFilter & ET131X_PACKET_TYPE_PROMISCUOUS)
 			    && !(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-				buf = rx_local->Fbr[rindex]->
-						Va[bindex];
+				buf = rx_local->fbr[rindex]->
+						virt[bindex];
 
 				/* Loop through our list to see if the
 				 * destination address of this packet
@@ -984,7 +983,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		etdev->net_stats.rx_bytes += rfd->PacketSize;
 
 		memcpy(skb_put(skb, rfd->PacketSize),
-		       rx_local->Fbr[rindex]->Va[bindex],
+		       rx_local->fbr[rindex]->virt[bindex],
 		       rfd->PacketSize);
 
 		skb->dev = etdev->netdev;
@@ -1118,8 +1117,8 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 			 * the PA / Buffer Index for the returned buffer into
 			 * the oldest (next to be freed)FBR entry
 			 */
-			next->addr_hi = rx_local->Fbr[1]->PAHigh[bi];
-			next->addr_lo = rx_local->Fbr[1]->PALow[bi];
+			next->addr_hi = rx_local->fbr[1]->bus_high[bi];
+			next->addr_lo = rx_local->fbr[1]->bus_low[bi];
 			next->word2 = bi;
 
 			writel(bump_fbr(&rx_local->local_Fbr1_full,
@@ -1136,8 +1135,8 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 			 * the PA / Buffer Index for the returned buffer into
 			 * the oldest (next to be freed) FBR entry
 			 */
-			next->addr_hi = rx_local->Fbr[0]->PAHigh[bi];
-			next->addr_lo = rx_local->Fbr[0]->PALow[bi];
+			next->addr_hi = rx_local->fbr[0]->bus_high[bi];
+			next->addr_lo = rx_local->fbr[0]->bus_low[bi];
 			next->word2 = bi;
 
 			writel(bump_fbr(&rx_local->local_Fbr0_full,
