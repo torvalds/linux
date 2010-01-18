@@ -62,11 +62,22 @@ static void ali_fifo_control(ide_hwif_t *hwif, ide_drive_t *drive, int on)
 }
 
 static void ali_program_timings(ide_hwif_t *hwif, ide_drive_t *drive,
-				struct ide_timing *t)
+				struct ide_timing *t, u8 ultra)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	int port = hwif->channel ? 0x5c : 0x58;
-	u8 unit = drive->dn & 1;
+	int udmat = 0x56 + hwif->channel;
+	u8 unit = drive->dn & 1, udma;
+	int shift = 4 * unit;
+
+	/* Set up the UDMA */
+	pci_read_config_byte(dev, udmat, &udma);
+	udma &= ~(0x0F << shift);
+	udma |= ultra << shift;
+	pci_write_config_byte(dev, udmat, udma);
+
+	if (t == NULL)
+		return;
 
 	t->setup = clamp_val(t->setup, 1, 8) & 7;
 	t->act8b = clamp_val(t->act8b, 1, 8) & 7;
@@ -114,7 +125,7 @@ static void ali_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	 */
 	ali_fifo_control(hwif, drive, (drive->media == ide_disk) ? 0x05 : 0x00);
 
-	ali_program_timings(hwif, drive, &t);
+	ali_program_timings(hwif, drive, &t, 0);
 }
 
 /**
@@ -152,29 +163,16 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 
 static void ali_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
+	static u8 udma_timing[7] = { 0xC, 0xB, 0xA, 0x9, 0x8, 0xF, 0xD };
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	ide_drive_t *pair	= ide_get_pair_dev(drive);
 	int bus_speed		= ide_pci_clk ? ide_pci_clk : 33;
 	unsigned long T		=  1000000 / bus_speed; /* PCI clock based */
 	const u8 speed		= drive->dma_mode;
-	u8 speed1		= speed;
-	u8 unit			= drive->dn & 1;
 	u8 tmpbyte		= 0x00;
-	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
 	struct ide_timing t;
 
-	if (speed == XFER_UDMA_6)
-		speed1 = 0x47;
-
 	if (speed < XFER_UDMA_0) {
-		u8 ultra_enable	= (unit) ? 0x7f : 0xf7;
-		/*
-		 * clear "ultra enable" bit
-		 */
-		pci_read_config_byte(dev, m5229_udma, &tmpbyte);
-		tmpbyte &= ultra_enable;
-		pci_write_config_byte(dev, m5229_udma, tmpbyte);
-
 		ide_timing_compute(drive, drive->dma_mode, &t, T, 1);
 		if (pair) {
 			struct ide_timing p;
@@ -189,15 +187,10 @@ static void ali_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 					IDE_TIMING_SETUP | IDE_TIMING_8BIT);
 			}
 		}
-		ali_program_timings(hwif, drive, &t);
+		ali_program_timings(hwif, drive, &t, 0);
 	} else {
-		pci_read_config_byte(dev, m5229_udma, &tmpbyte);
-		tmpbyte &= (0x0f << ((1-unit) << 2));
-		/*
-		 * enable ultra dma and set timing
-		 */
-		tmpbyte |= ((0x08 | ((4-speed1)&0x07)) << (unit << 2));
-		pci_write_config_byte(dev, m5229_udma, tmpbyte);
+		ali_program_timings(hwif, drive, NULL,
+				udma_timing[speed - XFER_UDMA_0]);
 		if (speed >= XFER_UDMA_3) {
 			pci_read_config_byte(dev, 0x4b, &tmpbyte);
 			tmpbyte |= 1;
