@@ -270,8 +270,8 @@ typedef struct _rx_ring_t {
 	u32 local_psr_full;
 	u32 PsrNumEntries;
 
-	void *pRxStatusVa;
-	dma_addr_t pRxStatusPa;
+	struct rx_status_block *rx_status_block;
+	dma_addr_t rx_status_bus;
 
 	struct list_head RecvBufferPool;
 

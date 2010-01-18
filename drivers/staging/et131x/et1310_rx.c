@@ -360,16 +360,16 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 */
 
 	/* Allocate an area of memory for writeback of status information */
-	rx_ring->pRxStatusVa = pci_alloc_consistent(adapter->pdev,
+	rx_ring->rx_status_block = pci_alloc_consistent(adapter->pdev,
 					    sizeof(struct rx_status_block),
-					    &rx_ring->pRxStatusPa);
-	if (!rx_ring->pRxStatusVa) {
+					    &rx_ring->rx_status_bus);
+	if (!rx_ring->rx_status_block) {
 		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Status Block\n");
 		return -ENOMEM;
 	}
 	rx_ring->NumRfd = NIC_DEFAULT_NUM_RFD;
-	printk("PRS %lx\n", (unsigned long)rx_ring->pRxStatusPa);
+	printk("PRS %lx\n", (unsigned long)rx_ring->rx_status_bus);
 
 	/* Recv
 	 * pci_pool_create initializes a lookaside list. After successful
@@ -506,12 +506,11 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	}
 
 	/* Free area of memory for the writeback of status information */
-	if (rx_ring->pRxStatusVa) {
+	if (rx_ring->rx_status_block) {
 		pci_free_consistent(adapter->pdev,
-				sizeof(struct rx_status_block),
-				rx_ring->pRxStatusVa, rx_ring->pRxStatusPa);
-
-		rx_ring->pRxStatusVa = NULL;
+			sizeof(struct rx_status_block),
+			rx_ring->rx_status_block, rx_ring->rx_status_bus);
+        	rx_ring->rx_status_block = NULL;
 	}
 
 	/* Free receive buffer pool */
@@ -614,7 +613,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	       &rx_dma->dma_wb_base_hi);
 	writel((u32) rx_local->pRxStatusPa, &rx_dma->dma_wb_base_lo);
 
-	memset(rx_local->pRxStatusVa, 0, sizeof(struct rx_status_block));
+	memset(rx_local->rx_status_block, 0, sizeof(struct rx_status_block));
 
 	/* Set the address and parameters of the packet status ring into the
 	 * 1310's registers
@@ -803,7 +802,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	 * interrupt. It contains the next to be used entry in the Packet
 	 * Status Ring, and also the two Free Buffer rings.
 	 */
-	status = (struct rx_status_block *)rx_local->pRxStatusVa;
+	status = rx_local->rx_status_block;
 	word1 = status->Word1 >> 16;	/* Get the useful bits */
 
 	/* Check the PSR and wrap bits do not match */
