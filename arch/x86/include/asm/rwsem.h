@@ -41,6 +41,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/lockdep.h>
+#include <asm/asm.h>
 
 struct rwsem_waiter;
 
@@ -56,18 +57,24 @@ extern asmregparm struct rw_semaphore *
 /*
  * the semaphore definition
  *
- * The bias values and the counter type needs to be extended to 64 bits
- * if we want to have more than 32767 potential readers/writers
+ * The bias values and the counter type limits the number of
+ * potential readers/writers to 32767 for 32 bits and 2147483647
+ * for 64 bits.
  */
 
-#define RWSEM_UNLOCKED_VALUE		0x00000000
-#define RWSEM_ACTIVE_BIAS		0x00000001
-#define RWSEM_ACTIVE_MASK		0x0000ffff
-#define RWSEM_WAITING_BIAS		(-0x00010000)
+#ifdef CONFIG_X86_64
+# define RWSEM_ACTIVE_MASK		0xffffffffL
+#else
+# define RWSEM_ACTIVE_MASK		0x0000ffffL
+#endif
+
+#define RWSEM_UNLOCKED_VALUE		0x00000000L
+#define RWSEM_ACTIVE_BIAS		0x00000001L
+#define RWSEM_WAITING_BIAS		(-RWSEM_ACTIVE_MASK-1)
 #define RWSEM_ACTIVE_READ_BIAS		RWSEM_ACTIVE_BIAS
 #define RWSEM_ACTIVE_WRITE_BIAS		(RWSEM_WAITING_BIAS + RWSEM_ACTIVE_BIAS)
 
-typedef signed int rwsem_count_t;
+typedef signed long rwsem_count_t;
 
 struct rw_semaphore {
 	rwsem_count_t		count;
@@ -110,7 +117,7 @@ do {								\
 static inline void __down_read(struct rw_semaphore *sem)
 {
 	asm volatile("# beginning down_read\n\t"
-		     LOCK_PREFIX "  inc%z0      (%1)\n\t"
+		     LOCK_PREFIX _ASM_INC "(%1)\n\t"
 		     /* adds 0x00000001, returns the old value */
 		     "  jns        1f\n"
 		     "  call call_rwsem_down_read_failed\n"
@@ -225,8 +232,25 @@ static inline void __up_write(struct rw_semaphore *sem)
  */
 static inline void __downgrade_write(struct rw_semaphore *sem)
 {
+#ifdef CONFIG_X86_64
+# if RWSEM_WAITING_BIAS != -0x100000000
+#  error "This code assumes RWSEM_WAITING_BIAS == -2^32"
+# endif
+
+	/* 64-bit immediates are special and expensive, and not needed here */
 	asm volatile("# beginning __downgrade_write\n\t"
-		     LOCK_PREFIX "  add%z0    %2,(%1)\n\t"
+		     LOCK_PREFIX "incl 4(%1)\n\t"
+		     /* transitions 0xZZZZZZZZ00000001 -> 0xYYYYYYYY00000001 */
+		     "  jns       1f\n\t"
+		     "  call call_rwsem_downgrade_wake\n"
+		     "1:\n\t"
+		     "# ending __downgrade_write\n"
+		     : "+m" (sem->count)
+		     : "a" (sem)
+		     : "memory", "cc");
+#else
+	asm volatile("# beginning __downgrade_write\n\t"
+		     LOCK_PREFIX _ASM_ADD "%2,(%1)\n\t"
 		     /* transitions 0xZZZZ0001 -> 0xYYYY0001 */
 		     "  jns       1f\n\t"
 		     "  call call_rwsem_downgrade_wake\n"
@@ -235,22 +259,25 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 		     : "+m" (sem->count)
 		     : "a" (sem), "i" (-RWSEM_WAITING_BIAS)
 		     : "memory", "cc");
+#endif
 }
 
 /*
  * implement atomic add functionality
  */
-static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
+static inline void rwsem_atomic_add(rwsem_count_t delta,
+				    struct rw_semaphore *sem)
 {
-	asm volatile(LOCK_PREFIX "add%z0 %1,%0"
+	asm volatile(LOCK_PREFIX _ASM_ADD "%1,%0"
 		     : "+m" (sem->count)
-		     : "ir" (delta));
+		     : "er" (delta));
 }
 
 /*
  * implement exchange and add functionality
  */
-static inline rwsem_count_t rwsem_atomic_update(int delta, struct rw_semaphore *sem)
+static inline rwsem_count_t rwsem_atomic_update(rwsem_count_t delta,
+						struct rw_semaphore *sem)
 {
 	rwsem_count_t tmp = delta;
 
