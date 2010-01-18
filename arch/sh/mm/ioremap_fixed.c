@@ -103,7 +103,7 @@ ioremap_fixed(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 	return map->addr;
 }
 
-void __init iounmap_fixed(void __iomem *addr)
+int iounmap_fixed(void __iomem *addr)
 {
 	enum fixed_addresses idx;
 	unsigned long virt_addr;
@@ -122,8 +122,11 @@ void __init iounmap_fixed(void __iomem *addr)
 		}
 	}
 
+	/*
+	 * If we don't match, it's not for us.
+	 */
 	if (slot < 0)
-		return;
+		return -EINVAL;
 
 	virt_addr = (unsigned long)addr;
 
@@ -141,4 +144,6 @@ void __init iounmap_fixed(void __iomem *addr)
 
 	map->size = 0;
 	map->addr = NULL;
+
+	return 0;
 }

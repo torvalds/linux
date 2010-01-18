@@ -22,6 +22,7 @@
  * for old compat code for I/O offseting to SuperIOs, all of which are
  * better handled through the machvec ioport mapping routines these days.
  */
+#include <linux/errno.h>
 #include <asm/cache.h>
 #include <asm/system.h>
 #include <asm/addrspace.h>
@@ -239,7 +240,7 @@ void __iounmap(void __iomem *addr);
 
 #ifdef CONFIG_IOREMAP_FIXED
 extern void __iomem *ioremap_fixed(resource_size_t, unsigned long, pgprot_t);
-extern void iounmap_fixed(void __iomem *);
+extern int iounmap_fixed(void __iomem *);
 extern void ioremap_fixed_init(void);
 #else
 static inline void __iomem *
@@ -249,7 +250,7 @@ ioremap_fixed(resource_size t phys_addr, unsigned long size, pgprot_t prot)
 }
 
 static inline void ioremap_fixed_init(void) { }
-static inline void iounmap_fixed(void __iomem *addr) { }
+static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 #endif
 
 static inline void __iomem *
