@@ -101,6 +101,9 @@ struct seq_operations;
 
 extern struct pt_regs fake_swapper_regs;
 
+/* arch/sh/mm/init.c */
+extern unsigned int mem_init_done;
+
 /* arch/sh/kernel/setup.c */
 const char *get_cpu_subtype(struct sh_cpuinfo *c);
 extern const struct seq_operations cpuinfo_op;

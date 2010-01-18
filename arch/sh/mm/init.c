@@ -237,6 +237,8 @@ static void __init iommu_init(void)
 	no_iommu_init();
 }
 
+unsigned int mem_init_done = 0;
+
 void __init mem_init(void)
 {
 	int codesize, datasize, initsize;
@@ -287,6 +289,8 @@ void __init mem_init(void)
 
 	/* Initialize the vDSO */
 	vsyscall_init();
+
+	mem_init_done = 1;
 }
 
 void free_initmem(void)
