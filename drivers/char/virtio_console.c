@@ -51,6 +51,24 @@ static struct ports_driver_data pdrvdata;
 
 DEFINE_SPINLOCK(pdrvdata_lock);
 
+/* This struct holds information that's relevant only for console ports */
+struct console {
+	/* We'll place all consoles in a list in the pdrvdata struct */
+	struct list_head list;
+
+	/* The hvc device associated with this console port */
+	struct hvc_struct *hvc;
+
+	/*
+	 * This number identifies the number that we used to register
+	 * with hvc in hvc_instantiate() and hvc_alloc(); this is the
+	 * number passed on by the hvc callbacks to us to
+	 * differentiate between the other console ports handled by
+	 * this driver
+	 */
+	u32 vtermno;
+};
+
 /*
  * This is a per-device struct that stores data common to all the
  * ports for that device (vdev->priv).
@@ -83,15 +101,11 @@ struct port {
 	/* The IO vqs for this port */
 	struct virtqueue *in_vq, *out_vq;
 
-	/* For console ports, hvc != NULL and these are valid. */
-	/* The hvc device */
-	struct hvc_struct *hvc;
-
-	/* We'll place all consoles in a list in the pdrvdata struct */
-	struct list_head list;
-
-	/* Our vterm number. */
-	u32 vtermno;
+	/*
+	 * The entries in this struct will be valid if this port is
+	 * hooked up to an hvc console
+	 */
+	struct console cons;
 };
 
 /* This is the very early arch-specified put chars function. */
@@ -100,12 +114,15 @@ static int (*early_put_chars)(u32, const char *, int);
 static struct port *find_port_by_vtermno(u32 vtermno)
 {
 	struct port *port;
+	struct console *cons;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdrvdata_lock, flags);
-	list_for_each_entry(port, &pdrvdata.consoles, list) {
-		if (port->vtermno == vtermno)
+	list_for_each_entry(cons, &pdrvdata.consoles, list) {
+		if (cons->vtermno == vtermno) {
+			port = container_of(cons, struct port, cons);
 			goto out;
+		}
 	}
 	port = NULL;
 out:
@@ -264,7 +281,7 @@ static void resize_console(struct port *port)
 		vdev->config->get(vdev,
 				  offsetof(struct virtio_console_config, rows),
 				  &ws.ws_row, sizeof(u16));
-		hvc_resize(port->hvc, ws);
+		hvc_resize(port->cons.hvc, ws);
 	}
 }
 
@@ -295,11 +312,11 @@ static void notifier_del_vio(struct hvc_struct *hp, int data)
 
 static void hvc_handle_input(struct virtqueue *vq)
 {
-	struct port *port;
+	struct console *cons;
 	bool activity = false;
 
-	list_for_each_entry(port, &pdrvdata.consoles, list)
-		activity |= hvc_poll(port->hvc);
+	list_for_each_entry(cons, &pdrvdata.consoles, list)
+		activity |= hvc_poll(cons->hvc);
 
 	if (activity)
 		hvc_kick();
@@ -361,17 +378,17 @@ static int __devinit add_port(struct ports_device *portdev)
 	 * pointers.  The final argument is the output buffer size: we
 	 * can do any size, so we put PAGE_SIZE here.
 	 */
-	port->vtermno = pdrvdata.next_vtermno;
-	port->hvc = hvc_alloc(port->vtermno, 0, &hv_ops, PAGE_SIZE);
-	if (IS_ERR(port->hvc)) {
-		err = PTR_ERR(port->hvc);
+	port->cons.vtermno = pdrvdata.next_vtermno;
+	port->cons.hvc = hvc_alloc(port->cons.vtermno, 0, &hv_ops, PAGE_SIZE);
+	if (IS_ERR(port->cons.hvc)) {
+		err = PTR_ERR(port->cons.hvc);
 		goto free_inbuf;
 	}
 
 	/* Add to vtermno list. */
 	spin_lock_irq(&pdrvdata_lock);
 	pdrvdata.next_vtermno++;
-	list_add(&port->list, &pdrvdata.consoles);
+	list_add(&port->cons.list, &pdrvdata.consoles);
 	spin_unlock_irq(&pdrvdata_lock);
 
 	/* Register the input buffer the first time. */
