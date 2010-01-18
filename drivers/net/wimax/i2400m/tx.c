@@ -643,9 +643,11 @@ int i2400m_tx(struct i2400m *i2400m, const void *buf, size_t buf_len,
 	 * current one is out of payload slots or we have a singleton,
 	 * close it and start a new one */
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
-	result = -ESHUTDOWN;
-	if (i2400m->tx_buf == NULL)
+	/* If tx_buf is NULL, device is shutdown */
+	if (i2400m->tx_buf == NULL) {
+		result = -ESHUTDOWN;
 		goto error_tx_new;
+	}
 try_new:
 	if (unlikely(i2400m->tx_msg == NULL))
 		i2400m_tx_new(i2400m);
