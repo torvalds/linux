@@ -309,6 +309,11 @@ void dsi_bus_unlock(void)
 }
 EXPORT_SYMBOL(dsi_bus_unlock);
 
+static bool dsi_bus_is_locked(void)
+{
+	return mutex_is_locked(&dsi.bus_lock);
+}
+
 static inline int wait_for_bit_change(const struct dsi_reg idx, int bitnum,
 		int value)
 {
@@ -1959,7 +1964,7 @@ static int dsi_vc_send_bta(int channel)
 			(dsi.debug_write || dsi.debug_read))
 		DSSDBG("dsi_vc_send_bta %d\n", channel);
 
-	WARN_ON(!mutex_is_locked(&dsi.bus_lock));
+	WARN_ON(!dsi_bus_is_locked());
 
 	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {	/* RX_FIFO_NOT_EMPTY */
 		DSSERR("rx fifo not empty when sending BTA, dumping data:\n");
@@ -2010,7 +2015,7 @@ static inline void dsi_vc_write_long_header(int channel, u8 data_type,
 	u32 val;
 	u8 data_id;
 
-	WARN_ON(!mutex_is_locked(&dsi.bus_lock));
+	WARN_ON(!dsi_bus_is_locked());
 
 	/*data_id = data_type | channel << 6; */
 	data_id = data_type | dsi.vc[channel].dest_per << 6;
@@ -2105,7 +2110,7 @@ static int dsi_vc_send_short(int channel, u8 data_type, u16 data, u8 ecc)
 	u32 r;
 	u8 data_id;
 
-	WARN_ON(!mutex_is_locked(&dsi.bus_lock));
+	WARN_ON(!dsi_bus_is_locked());
 
 	if (dsi.debug_write)
 		DSSDBG("dsi_vc_send_short(ch%d, dt %#x, b1 %#x, b2 %#x)\n",
@@ -2895,7 +2900,7 @@ static int dsi_set_update_mode(struct omap_dss_device *dssdev,
 	int r = 0;
 	int i;
 
-	WARN_ON(!mutex_is_locked(&dsi.bus_lock));
+	WARN_ON(!dsi_bus_is_locked());
 
 	if (dsi.update_mode != mode) {
 		dsi.update_mode = mode;
