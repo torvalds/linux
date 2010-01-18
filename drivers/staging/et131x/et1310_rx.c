@@ -361,8 +361,8 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Allocate an area of memory for writeback of status information */
 	rx_ring->pRxStatusVa = pci_alloc_consistent(adapter->pdev,
-						    sizeof(RX_STATUS_BLOCK_t),
-						    &rx_ring->pRxStatusPa);
+					    sizeof(struct rx_status_block),
+					    &rx_ring->pRxStatusPa);
 	if (!rx_ring->pRxStatusVa) {
 		dev_err(&adapter->pdev->dev,
 			  "Cannot alloc memory for Status Block\n");
@@ -508,7 +508,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free area of memory for the writeback of status information */
 	if (rx_ring->pRxStatusVa) {
 		pci_free_consistent(adapter->pdev,
-				sizeof(RX_STATUS_BLOCK_t),
+				sizeof(struct rx_status_block),
 				rx_ring->pRxStatusVa, rx_ring->pRxStatusPa);
 
 		rx_ring->pRxStatusVa = NULL;
@@ -614,7 +614,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	       &rx_dma->dma_wb_base_hi);
 	writel((u32) rx_local->pRxStatusPa, &rx_dma->dma_wb_base_lo);
 
-	memset(rx_local->pRxStatusVa, 0, sizeof(RX_STATUS_BLOCK_t));
+	memset(rx_local->pRxStatusVa, 0, sizeof(struct rx_status_block));
 
 	/* Set the address and parameters of the packet status ring into the
 	 * 1310's registers
@@ -786,7 +786,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 {
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
-	PRX_STATUS_BLOCK_t status;
+	struct rx_status_block *status;
 	PPKT_STAT_DESC_t psr;
 	PMP_RFD rfd;
 	u32 i;
@@ -803,7 +803,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	 * interrupt. It contains the next to be used entry in the Packet
 	 * Status Ring, and also the two Free Buffer rings.
 	 */
-	status = (PRX_STATUS_BLOCK_t) rx_local->pRxStatusVa;
+	status = (struct rx_status_block *)rx_local->pRxStatusVa;
 	word1 = status->Word1 >> 16;	/* Get the useful bits */
 
 	/* Check the PSR and wrap bits do not match */

@@ -219,13 +219,13 @@ typedef struct _PKT_STAT_DESC_t {
  */
 
 /*
- * RX_STATUS_BLOCK_t is sructure representing the status of the Rx DMA engine
- * it sits in free memory, and is pointed to by 0x101c / 0x1020
+ * struct rx_status_block is a structure representing the status of the Rx
+ * DMA engine it sits in free memory, and is pointed to by 0x101c / 0x1020
  */
-typedef struct _rx_status_block_t {
+struct rx_status_block {
 	u32 Word0;
 	u32 Word1;
-} RX_STATUS_BLOCK_t, *PRX_STATUS_BLOCK_t;
+};
 
 /*
  * Structure for look-up table holding free buffer ring pointers
