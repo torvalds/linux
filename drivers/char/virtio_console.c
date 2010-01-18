@@ -100,6 +100,13 @@ struct port {
 	/* The current buffer from which data has to be fed to readers */
 	struct port_buffer *inbuf;
 
+	/*
+	 * To protect the operations on the in_vq associated with this
+	 * port.  Has to be a spinlock because it can be called from
+	 * interrupt context (get_char()).
+	 */
+	spinlock_t inbuf_lock;
+
 	/* The IO vqs for this port */
 	struct virtqueue *in_vq, *out_vq;
 
@@ -125,6 +132,25 @@ static struct port *find_port_by_vtermno(u32 vtermno)
 			port = container_of(cons, struct port, cons);
 			goto out;
 		}
+	}
+	port = NULL;
+out:
+	spin_unlock_irqrestore(&pdrvdata_lock, flags);
+	return port;
+}
+
+static struct port *find_port_by_vq(struct ports_device *portdev,
+				    struct virtqueue *vq)
+{
+	struct port *port;
+	struct console *cons;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdrvdata_lock, flags);
+	list_for_each_entry(cons, &pdrvdata.consoles, list) {
+		port = container_of(cons, struct port, cons);
+		if (port->in_vq == vq || port->out_vq == vq)
+			goto out;
 	}
 	port = NULL;
 out:
@@ -181,15 +207,67 @@ static void *get_inbuf(struct port *port)
  *
  * Callers should take appropriate locks.
  */
-static void add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
+static int add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
 {
 	struct scatterlist sg[1];
+	int ret;
 
 	sg_init_one(sg, buf->buf, buf->size);
 
-	if (vq->vq_ops->add_buf(vq, sg, 0, 1, buf) < 0)
-		BUG();
+	ret = vq->vq_ops->add_buf(vq, sg, 0, 1, buf);
 	vq->vq_ops->kick(vq);
+	return ret;
+}
+
+static bool port_has_data(struct port *port)
+{
+	unsigned long flags;
+	bool ret;
+
+	ret = false;
+	spin_lock_irqsave(&port->inbuf_lock, flags);
+	if (port->inbuf)
+		ret = true;
+	spin_unlock_irqrestore(&port->inbuf_lock, flags);
+
+	return ret;
+}
+
+/*
+ * Give out the data that's requested from the buffer that we have
+ * queued up.
+ */
+static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count)
+{
+	struct port_buffer *buf;
+	unsigned long flags;
+
+	if (!out_count || !port_has_data(port))
+		return 0;
+
+	buf = port->inbuf;
+	if (out_count > buf->len - buf->offset)
+		out_count = buf->len - buf->offset;
+
+	memcpy(out_buf, buf->buf + buf->offset, out_count);
+
+	/* Return the number of bytes actually copied */
+	buf->offset += out_count;
+
+	if (buf->offset == buf->len) {
+		/*
+		 * We're done using all the data in this buffer.
+		 * Re-queue so that the Host can send us more data.
+		 */
+		spin_lock_irqsave(&port->inbuf_lock, flags);
+		port->inbuf = NULL;
+
+		if (add_inbuf(port->in_vq, buf) < 0)
+			dev_warn(&port->portdev->vdev->dev, "failed add_buf\n");
+
+		spin_unlock_irqrestore(&port->inbuf_lock, flags);
+	}
+	return out_count;
 }
 
 /*
@@ -234,9 +312,8 @@ static int put_chars(u32 vtermno, const char *buf, int count)
  * get_chars() is the callback from the hvc_console infrastructure
  * when an interrupt is received.
  *
- * Most of the code deals with the fact that the hvc_console()
- * infrastructure only asks us for 16 bytes at a time.  We keep
- * in_offset and in_used fields for partially-filled buffers.
+ * We call out to fill_readbuf that gets us the required data from the
+ * buffers that are queued up.
  */
 static int get_chars(u32 vtermno, char *buf, int count)
 {
@@ -249,25 +326,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 	/* If we don't have an input queue yet, we can't get input. */
 	BUG_ON(!port->in_vq);
 
-	/* No more in buffer?  See if they've (re)used it. */
-	if (port->inbuf->offset == port->inbuf->len) {
-		if (!get_inbuf(port))
-			return 0;
-	}
-
-	/* You want more than we have to give?  Well, try wanting less! */
-	if (port->inbuf->offset + count > port->inbuf->len)
-		count = port->inbuf->len - port->inbuf->offset;
-
-	/* Copy across to their buffer and increment offset. */
-	memcpy(buf, port->inbuf->buf + port->inbuf->offset, count);
-	port->inbuf->offset += count;
-
-	/* Finished?  Re-register buffer so Host will use it again. */
-	if (port->inbuf->offset == port->inbuf->len)
-		add_inbuf(port->in_vq, port->inbuf);
-
-	return count;
+	return fill_readbuf(port, buf, count);
 }
 
 static void resize_console(struct port *port)
@@ -314,13 +373,18 @@ static void notifier_del_vio(struct hvc_struct *hp, int data)
 
 static void hvc_handle_input(struct virtqueue *vq)
 {
-	struct console *cons;
-	bool activity = false;
+	struct port *port;
+	unsigned long flags;
 
-	list_for_each_entry(cons, &pdrvdata.consoles, list)
-		activity |= hvc_poll(cons->hvc);
+	port = find_port_by_vq(vq->vdev->priv, vq);
+	if (!port)
+		return;
 
-	if (activity)
+	spin_lock_irqsave(&port->inbuf_lock, flags);
+	port->inbuf = get_inbuf(port);
+	spin_unlock_irqrestore(&port->inbuf_lock, flags);
+
+	if (hvc_poll(port->cons.hvc))
 		hvc_kick();
 }
 
@@ -388,6 +452,7 @@ int __devinit init_port_console(struct port *port)
 static int __devinit add_port(struct ports_device *portdev)
 {
 	struct port *port;
+	struct port_buffer *inbuf;
 	int err;
 
 	port = kmalloc(sizeof(*port), GFP_KERNEL);
@@ -397,26 +462,31 @@ static int __devinit add_port(struct ports_device *portdev)
 	}
 
 	port->portdev = portdev;
+
+	port->inbuf = NULL;
+
 	port->in_vq = portdev->in_vqs[0];
 	port->out_vq = portdev->out_vqs[0];
 
-	port->inbuf = alloc_buf(PAGE_SIZE);
-	if (!port->inbuf) {
+	spin_lock_init(&port->inbuf_lock);
+
+	inbuf = alloc_buf(PAGE_SIZE);
+	if (!inbuf) {
 		err = -ENOMEM;
 		goto free_port;
 	}
+
+	/* Register the input buffer the first time. */
+	add_inbuf(port->in_vq, inbuf);
 
 	err = init_port_console(port);
 	if (err)
 		goto free_inbuf;
 
-	/* Register the input buffer the first time. */
-	add_inbuf(port->in_vq, port->inbuf);
-
 	return 0;
 
 free_inbuf:
-	free_buf(port->inbuf);
+	free_buf(inbuf);
 free_port:
 	kfree(port);
 fail:
