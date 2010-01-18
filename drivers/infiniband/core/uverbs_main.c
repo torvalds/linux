@@ -41,8 +41,8 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/anon_inodes.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/cdev.h>
 
 #include <asm/uaccess.h>
@@ -52,8 +52,6 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand userspace verbs access");
 MODULE_LICENSE("Dual BSD/GPL");
-
-#define INFINIBANDEVENTFS_MAGIC	0x49426576	/* "IBev" */
 
 enum {
 	IB_UVERBS_MAJOR       = 231,
@@ -110,8 +108,6 @@ static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_CMD_QUERY_SRQ]     	= ib_uverbs_query_srq,
 	[IB_USER_VERBS_CMD_DESTROY_SRQ]   	= ib_uverbs_destroy_srq,
 };
-
-static struct vfsmount *uverbs_event_mnt;
 
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device);
@@ -489,12 +485,10 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 }
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
-					int is_async, int *fd)
+					int is_async)
 {
 	struct ib_uverbs_event_file *ev_file;
-	struct path path;
 	struct file *filp;
-	int ret;
 
 	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
 	if (!ev_file)
@@ -509,38 +503,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
-	*fd = get_unused_fd();
-	if (*fd < 0) {
-		ret = *fd;
-		goto err;
-	}
-
-	/*
-	 * fops_get() can't fail here, because we're coming from a
-	 * system call on a uverbs file, which will already have a
-	 * module reference.
-	 */
-	path.mnt = uverbs_event_mnt;
-	path.dentry = uverbs_event_mnt->mnt_root;
-	path_get(&path);
-	filp = alloc_file(&path, FMODE_READ, fops_get(&uverbs_event_fops));
-	if (!filp) {
-		ret = -ENFILE;
-		goto err_fd;
-	}
-
-	filp->private_data = ev_file;
+	filp = anon_inode_getfile("[infinibandevent]", &uverbs_event_fops,
+				  ev_file, O_RDONLY);
+	if (IS_ERR(filp))
+		kfree(ev_file);
 
 	return filp;
-
-err_fd:
-	fops_put(&uverbs_event_fops);
-	path_put(&path);
-	put_unused_fd(*fd);
-
-err:
-	kfree(ev_file);
-	return ERR_PTR(ret);
 }
 
 /*
@@ -825,21 +793,6 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	kfree(uverbs_dev);
 }
 
-static int uverbs_event_get_sb(struct file_system_type *fs_type, int flags,
-			       const char *dev_name, void *data,
-			       struct vfsmount *mnt)
-{
-	return get_sb_pseudo(fs_type, "infinibandevent:", NULL,
-			     INFINIBANDEVENTFS_MAGIC, mnt);
-}
-
-static struct file_system_type uverbs_event_fs = {
-	/* No owner field so module can be unloaded */
-	.name    = "infinibandeventfs",
-	.get_sb  = uverbs_event_get_sb,
-	.kill_sb = kill_litter_super
-};
-
 static int __init ib_uverbs_init(void)
 {
 	int ret;
@@ -864,32 +817,13 @@ static int __init ib_uverbs_init(void)
 		goto out_class;
 	}
 
-	ret = register_filesystem(&uverbs_event_fs);
-	if (ret) {
-		printk(KERN_ERR "user_verbs: couldn't register infinibandeventfs\n");
-		goto out_class;
-	}
-
-	uverbs_event_mnt = kern_mount(&uverbs_event_fs);
-	if (IS_ERR(uverbs_event_mnt)) {
-		ret = PTR_ERR(uverbs_event_mnt);
-		printk(KERN_ERR "user_verbs: couldn't mount infinibandeventfs\n");
-		goto out_fs;
-	}
-
 	ret = ib_register_client(&uverbs_client);
 	if (ret) {
 		printk(KERN_ERR "user_verbs: couldn't register client\n");
-		goto out_mnt;
+		goto out_class;
 	}
 
 	return 0;
-
-out_mnt:
-	mntput(uverbs_event_mnt);
-
-out_fs:
-	unregister_filesystem(&uverbs_event_fs);
 
 out_class:
 	class_destroy(uverbs_class);
@@ -904,8 +838,6 @@ out:
 static void __exit ib_uverbs_cleanup(void)
 {
 	ib_unregister_client(&uverbs_client);
-	mntput(uverbs_event_mnt);
-	unregister_filesystem(&uverbs_event_fs);
 	class_destroy(uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES);
 	idr_destroy(&ib_uverbs_pd_idr);
