@@ -843,44 +843,22 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * structure for Memory Controller Interface Control Max Segment reg in rxmac
  * address map.  Located at address 0x4088
+ *
+ * 31-10: reserved
+ * 9-2: max_size
+ * 1: fc_en
+ * 0: seg_en
  */
-typedef union _RXMAC_MCIF_CTRL_MAX_SEG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:22;	/* bits 10-31 */
-		u32 max_size:8;	/* bits 2-9 */
-		u32 fc_en:1;	/* bit 1 */
-		u32 seg_en:1;	/* bit 0 */
-#else
-		u32 seg_en:1;	/* bit 0 */
-		u32 fc_en:1;	/* bit 1 */
-		u32 max_size:8;	/* bits 2-9 */
-		u32 reserved:22;	/* bits 10-31 */
-#endif
-	} bits;
-} RXMAC_MCIF_CTRL_MAX_SEG_t, *PRXMAC_MCIF_CTRL_MAX_SEG_t;
 
 /*
  * structure for Memory Controller Interface Water Mark reg in rxmac address
  * map.  Located at address 0x408C
+ *
+ * 31-26: unused
+ * 25-16: mark_hi
+ * 15-10: unused
+ * 9-0: mark_lo
  */
-typedef union _RXMAC_MCIF_WATER_MARK_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:6;	/* bits 26-31 */
-		u32 mark_hi:10;	/* bits 16-25 */
-		u32 reserved1:6;	/* bits 10-15 */
-		u32 mark_lo:10;	/* bits 0-9 */
-#else
-		u32 mark_lo:10;	/* bits 0-9 */
-		u32 reserved1:6;	/* bits 10-15 */
-		u32 mark_hi:10;	/* bits 16-25 */
-		u32 reserved2:6;	/* bits 26-31 */
-#endif
-	} bits;
-} RXMAC_MCIF_WATER_MARK_t, *PRXMAC_MCIF_WATER_MARK_t;
 
 /*
  * structure for Rx Queue Dialog reg in rxmac address map.
@@ -1004,8 +982,8 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 multi_hash3;				/*  0x407C */
 	u32 multi_hash4;				/*  0x4080 */
 	u32 pf_ctrl;					/*  0x4084 */
-	RXMAC_MCIF_CTRL_MAX_SEG_t mcif_ctrl_max_seg;	/*  0x4088 */
-	RXMAC_MCIF_WATER_MARK_t mcif_water_mark;	/*  0x408C */
+	u32 mcif_ctrl_max_seg;				/*  0x4088 */
+	u32 mcif_water_mark;				/*  0x408C */
 	RXMAC_RXQ_DIAG_t rxq_diag;			/*  0x4090 */
 	RXMAC_SPACE_AVAIL_t space_avail;		/*  0x4094 */
 

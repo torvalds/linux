@@ -314,9 +314,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
 	pf_ctrl |= 8;	/* Fragment filter */
 
-	if (etdev->RegistryJumboPacket > 8192) {
-		RXMAC_MCIF_CTRL_MAX_SEG_t mcif_ctrl_max_seg;
-
+	if (etdev->RegistryJumboPacket > 8192)
 		/* In order to transmit jumbo packets greater than 8k, the
 		 * FIFO between RxMAC and RxDMA needs to be reduced in size
 		 * to (16k - Jumbo packet size).  In order to implement this,
@@ -324,19 +322,15 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 		 * packets down into segments which are (max_size * 16).  In
 		 * this case we selected 256 bytes, since this is the size of
 		 * the PCI-Express TLP's that the 1310 uses.
+		 *
+		 * seg_en on, fc_en off, size 0x10
 		 */
-		mcif_ctrl_max_seg.bits.seg_en = 0x1;
-		mcif_ctrl_max_seg.bits.fc_en = 0x0;
-		mcif_ctrl_max_seg.bits.max_size = 0x10;
-
-		writel(mcif_ctrl_max_seg.value,
-		       &pRxMac->mcif_ctrl_max_seg.value);
-	} else {
-		writel(0, &pRxMac->mcif_ctrl_max_seg.value);
-	}
+		writel(0x41, &pRxMac->mcif_ctrl_max_seg);
+	else
+		writel(0, &pRxMac->mcif_ctrl_max_seg);
 
 	/* Initialize the MCIF water marks */
-	writel(0, &pRxMac->mcif_water_mark.value);
+	writel(0, &pRxMac->mcif_water_mark);
 
 	/*  Initialize the MIF control */
 	writel(0, &pRxMac->mif_ctrl.value);
