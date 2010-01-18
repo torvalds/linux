@@ -6,39 +6,6 @@
  * CYPRESS CY82C693 chipset IDE controller
  *
  * The CY82C693 chipset is used on Digital's PC-Alpha 164SX boards.
- * Writing the driver was quite simple, since most of the job is
- * done by the generic pci-ide support.
- * The hard part was finding the CY82C693's datasheet on Cypress's
- * web page :-(. But Altavista solved this problem :-).
- *
- *
- * Notes:
- * - I recently got a 16.8G IBM DTTA, so I was able to test it with
- *   a large and fast disk - the results look great, so I'd say the
- *   driver is working fine :-)
- *   hdparm -t reports 8.17 MB/sec at about 6% CPU usage for the DTTA
- * - this is my first linux driver, so there's probably a lot  of room
- *   for optimizations and bug fixing, so feel free to do it.
- * - if using PIO mode it's a good idea to set the PIO mode and
- *   32-bit I/O support (if possible), e.g. hdparm -p2 -c1 /dev/hda
- * - I had some problems with my IBM DHEA with PIO modes < 2
- *   (lost interrupts) ?????
- * - first tests with DMA look okay, they seem to work, but there is a
- *   problem with sound - the BusMaster IDE TimeOut should fixed this
- *
- * Ancient History:
- * AMH@1999-08-24: v0.34 init_cy82c693_chip moved to pci_init_cy82c693
- * ASK@1999-01-23: v0.33 made a few minor code clean ups
- *                       removed DMA clock speed setting by default
- *                       added boot message
- * ASK@1998-11-01: v0.32 added support to set BusMaster IDE TimeOut
- *                       added support to set DMA Controller Clock Speed
- * ASK@1998-10-31: v0.31 fixed problem with setting to high DMA modes
- *                       on some drives.
- * ASK@1998-10-29: v0.3 added support to set DMA modes
- * ASK@1998-10-28: v0.2 added support to set PIO modes
- * ASK@1998-10-27: v0.1 first version - chipset detection
- *
  */
 
 #include <linux/module.h>
