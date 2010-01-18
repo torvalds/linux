@@ -753,6 +753,8 @@ int init_port_console(struct port *port)
 	port->cons.hvc = hvc_alloc(port->cons.vtermno, 0, &hv_ops, PAGE_SIZE);
 	if (IS_ERR(port->cons.hvc)) {
 		ret = PTR_ERR(port->cons.hvc);
+		dev_err(port->dev,
+			"error %d allocating hvc for port\n", ret);
 		port->cons.hvc = NULL;
 		return ret;
 	}
