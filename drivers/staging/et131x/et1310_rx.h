@@ -191,10 +191,10 @@ struct fbr_lookup {
 };
 
 /*
- * RX_RING_t is sructure representing the adaptor's local reference(s) to the
- * rings
+ * struct rx_ring is the ssructure representing the adaptor's local
+ * reference(s) to the rings
  */
-typedef struct _rx_ring_t {
+struct rx_ring {
 #ifdef USE_FBR0
 	void *pFbr0RingVa;
 	dma_addr_t pFbr0RingPa;
@@ -239,7 +239,7 @@ typedef struct _rx_ring_t {
 
 	/* lookaside lists */
 	struct kmem_cache *RecvLookaside;
-} RX_RING_t, *PRX_RING_t;
+};
 
 /* Forward reference of RFD */
 struct _MP_RFD;

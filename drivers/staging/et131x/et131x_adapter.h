@@ -248,7 +248,7 @@ struct et131x_adapter {
 	struct tx_ring tx_ring;
 
 	/* Rx Memory Variables */
-	RX_RING_t RxRing;
+	struct rx_ring rx_ring;
 
 	/* Loopback specifics */
 	u8 ReplicaPhyLoopbk;	/* Replica Enable */

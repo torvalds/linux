@@ -109,10 +109,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	u32 i, j;
 	u32 bufsize;
 	u32 pktStatRingSize, FBRChunkSize;
-	RX_RING_t *rx_ring;
+	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
-	rx_ring = (RX_RING_t *) &adapter->RxRing;
+	rx_ring = &adapter->rx_ring;
 
 	/* Alloc memory for the lookup table */
 #ifdef USE_FBR0
@@ -162,10 +162,10 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	}
 
 #ifdef USE_FBR0
-	adapter->RxRing.PsrNumEntries = adapter->RxRing.Fbr0NumEntries +
-	    adapter->RxRing.Fbr1NumEntries;
+	adapter->rx_ring.PsrNumEntries = adapter->rx_ring.Fbr0NumEntries +
+	    adapter->rx_ring.Fbr1NumEntries;
 #else
-	adapter->RxRing.PsrNumEntries = adapter->RxRing.Fbr1NumEntries;
+	adapter->rx_ring.PsrNumEntries = adapter->rx_ring.Fbr1NumEntries;
 #endif
 
 	/* Allocate an area of memory for Free Buffer Ring 1 */
@@ -338,7 +338,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Allocate an area of memory for FIFO of Packet Status ring entries */
 	pktStatRingSize =
-	    sizeof(struct pkt_stat_desc) * adapter->RxRing.PsrNumEntries;
+	    sizeof(struct pkt_stat_desc) * adapter->rx_ring.PsrNumEntries;
 
 	rx_ring->pPSRingVa = pci_alloc_consistent(adapter->pdev,
 						  pktStatRingSize,
@@ -402,10 +402,10 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	u32 bufsize;
 	u32 pktStatRingSize;
 	PMP_RFD rfd;
-	RX_RING_t *rx_ring;
+	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
-	rx_ring = (RX_RING_t *) &adapter->RxRing;
+	rx_ring = &adapter->rx_ring;
 
 	/* Free RFDs and associated packet descriptors */
 	WARN_ON(rx_ring->nReadyRecv != rx_ring->NumRfd);
@@ -416,7 +416,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 		list_del(&rfd->list_node);
 		rfd->Packet = NULL;
-		kmem_cache_free(adapter->RxRing.RecvLookaside, rfd);
+		kmem_cache_free(adapter->rx_ring.RecvLookaside, rfd);
 	}
 
 	/* Free Free Buffer Ring 1 */
@@ -496,7 +496,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free Packet Status Ring */
 	if (rx_ring->pPSRingVa) {
 		pktStatRingSize =
-		    sizeof(struct pkt_stat_desc) * adapter->RxRing.PsrNumEntries;
+		    sizeof(struct pkt_stat_desc) * adapter->rx_ring.PsrNumEntries;
 
 		pci_free_consistent(adapter->pdev, pktStatRingSize,
 				    rx_ring->pPSRingVa, rx_ring->pPSRingPa);
@@ -545,10 +545,10 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 	PMP_RFD rfd = NULL;
 	u32 rfdct;
 	u32 numrfd = 0;
-	RX_RING_t *rx_ring = NULL;
+	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
-	rx_ring = (RX_RING_t *) &adapter->RxRing;
+	rx_ring = &adapter->rx_ring;
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->NumRfd; rfdct++) {
@@ -592,7 +592,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
 void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 {
 	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
-	struct _rx_ring_t *rx_local = &etdev->RxRing;
+	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct fbr_desc *fbr_entry;
 	u32 entry;
 	u32 psr_num_des;
@@ -741,19 +741,19 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 	/* Setup the receive dma configuration register for normal operation */
 	u32 csr =  0x2000;	/* FBR1 enable */
 
-	if (etdev->RxRing.Fbr1BufferSize == 4096)
+	if (etdev->rx_ring.Fbr1BufferSize == 4096)
 		csr |= 0x0800;
-	else if (etdev->RxRing.Fbr1BufferSize == 8192)
+	else if (etdev->rx_ring.Fbr1BufferSize == 8192)
 		csr |= 0x1000;
-	else if (etdev->RxRing.Fbr1BufferSize == 16384)
+	else if (etdev->rx_ring.Fbr1BufferSize == 16384)
 		csr |= 0x1800;
 #ifdef USE_FBR0
         csr |= 0x0400;		/* FBR0 enable */
-	if (etdev->RxRing.Fbr0BufferSize == 256)
+	if (etdev->rx_ring.Fbr0BufferSize == 256)
 	        csr |= 0x0100;
-	else if (etdev->RxRing.Fbr0BufferSize == 512)
+	else if (etdev->rx_ring.Fbr0BufferSize == 512)
 		csr |= 0x0200;
-	else if (etdev->RxRing.Fbr0BufferSize == 1024)
+	else if (etdev->rx_ring.Fbr0BufferSize == 1024)
 		csr |= 0x0300;
 #endif
 	writel(csr, &etdev->regs->rxdma.csr);
@@ -783,7 +783,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
  */
 PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 {
-	struct _rx_ring_t *rx_local = &etdev->RxRing;
+	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rx_status_block *status;
 	struct pkt_stat_desc *psr;
 	PMP_RFD rfd;
@@ -1006,7 +1006,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
  */
 void et131x_reset_recv(struct et131x_adapter *etdev)
 {
-	WARN_ON(list_empty(&etdev->RxRing.RecvList));
+	WARN_ON(list_empty(&etdev->rx_ring.RecvList));
 
 }
 
@@ -1024,8 +1024,8 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 
 	/* Process up to available RFD's */
 	while (count < NUM_PACKETS_HANDLED) {
-		if (list_empty(&etdev->RxRing.RecvList)) {
-			WARN_ON(etdev->RxRing.nReadyRecv != 0);
+		if (list_empty(&etdev->rx_ring.RecvList)) {
+			WARN_ON(etdev->rx_ring.nReadyRecv != 0);
 			done = false;
 			break;
 		}
@@ -1050,7 +1050,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		etdev->Stats.ipackets++;
 
 		/* Set the status on the packet, either resources or success */
-		if (etdev->RxRing.nReadyRecv < RFD_LOW_WATER_MARK) {
+		if (etdev->rx_ring.nReadyRecv < RFD_LOW_WATER_MARK) {
 			dev_warn(&etdev->pdev->dev,
 				    "RFD's are running out\n");
 		}
@@ -1058,12 +1058,12 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 	}
 
 	if (count == NUM_PACKETS_HANDLED || !done) {
-		etdev->RxRing.UnfinishedReceives = true;
+		etdev->rx_ring.UnfinishedReceives = true;
 		writel(PARM_TX_TIME_INT_DEF * NANO_IN_A_MICRO,
 		       &etdev->regs->global.watchdog_timer);
 	} else
 		/* Watchdog timer will disable itself if appropriate. */
-		etdev->RxRing.UnfinishedReceives = false;
+		etdev->rx_ring.UnfinishedReceives = false;
 }
 
 static inline u32 bump_fbr(u32 *fbr, u32 limit)
@@ -1091,7 +1091,7 @@ static inline u32 bump_fbr(u32 *fbr, u32 limit)
  */
 void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 {
-	struct _rx_ring_t *rx_local = &etdev->RxRing;
+	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
 	u16 bi = rfd->bufferindex;
 	u8 ri = rfd->ringindex;
