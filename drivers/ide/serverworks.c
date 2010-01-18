@@ -178,6 +178,7 @@ static int init_chipset_svwks(struct pci_dev *dev)
 					"enabled.\n", pci_name(dev));
 			reg |=  0x00004000; /* enable UDMA/33 support */
 			pci_write_config_dword(isa_dev, 0x64, reg);
+			pci_dev_put(isa_dev);
 		}
 	}
 
