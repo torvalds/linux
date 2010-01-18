@@ -327,7 +327,7 @@ void et131x_link_detection_handler(unsigned long data)
  */
 void ConfigGlobalRegs(struct et131x_adapter *etdev)
 {
-	struct _GLOBAL_t __iomem *regs = &etdev->regs->global;
+	struct global_regs __iomem *regs = &etdev->regs->global;
 
 	writel(0, &regs->rxq_start_addr);
 	writel(INTERNAL_MEM_SIZE - 1, &regs->txq_end_addr);

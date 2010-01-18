@@ -149,7 +149,7 @@
  * GLOBAL Module of JAGCore Address Mapping
  * Located at address 0x0000
  */
-typedef struct _GLOBAL_t {			/* Location: */
+struct global_regs {			/* Location: */
 	u32 txq_start_addr;			/*  0x0000 */
 	u32 txq_end_addr;			/*  0x0004 */
 	u32 rxq_start_addr;			/*  0x0008 */
@@ -165,9 +165,7 @@ typedef struct _GLOBAL_t {			/* Location: */
 	u32 msi_config;				/*  0x0030 */
 	u32 loopback;			/*  0x0034 */
 	u32 watchdog_timer;			/*  0x0038 */
-} GLOBAL_t, *PGLOBAL_t;
-
-/* END OF GLOBAL REGISTER ADDRESS MAP */
+};
 
 
 /* START OF TXDMA REGISTER ADDRESS MAP */
@@ -1666,9 +1664,9 @@ typedef struct _MMC_t {			/* Location: */
  * JAGCore Address Mapping
  */
 typedef struct _ADDRESS_MAP_t {
-	GLOBAL_t global;
+	struct global_regs global;
 	/* unused section of global address map */
-	u8 unused_global[4096 - sizeof(GLOBAL_t)];
+	u8 unused_global[4096 - sizeof(struct global_regs)];
 	TXDMA_t txdma;
 	/* unused section of txdma address map */
 	u8 unused_txdma[4096 - sizeof(TXDMA_t)];
