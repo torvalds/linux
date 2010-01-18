@@ -345,18 +345,12 @@ static int ali_cable_override(struct pci_dev *pdev)
  *
  *	This checks if the controller and the cable are capable
  *	of UDMA66 transfers. It doesn't check the drives.
- *	But see note 2 below!
- *
- *	FIXME: frobs bits that are not defined on newer ALi devicea
  */
 
 static u8 ali_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	unsigned long flags;
 	u8 cbl = ATA_CBL_PATA40, tmpbyte;
-
-	local_irq_save(flags);
 
 	if (m5229_revision >= 0xC2) {
 		/*
@@ -376,8 +370,6 @@ static u8 ali_cable_detect(ide_hwif_t *hwif)
 				cbl = ATA_CBL_PATA80;
 		}
 	}
-
-	local_irq_restore(flags);
 
 	return cbl;
 }
