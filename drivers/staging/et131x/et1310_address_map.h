@@ -1106,37 +1106,19 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for Interface Status reg in mac address map.
  * located at address 0x503C
+ *
+ * 31-10: reserved
+ * 9: excess_defer
+ * 8: clash
+ * 7: phy_jabber
+ * 6: phy_link_ok
+ * 5: phy_full_duplex
+ * 4: phy_speed
+ * 3: pe100x_link_fail
+ * 2: pe10t_loss_carrier
+ * 1: pe10t_sqe_error
+ * 0: pe10t_jabber
  */
-typedef union _MAC_IF_STAT_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:22;		/* bits 10-31 */
-		u32 excess_defer:1;	/* bit 9 */
-		u32 clash:1;		/* bit 8 */
-		u32 phy_jabber:1;		/* bit 7 */
-		u32 phy_link_ok:1;		/* bit 6 */
-		u32 phy_full_duplex:1;	/* bit 5 */
-		u32 phy_speed:1;		/* bit 4 */
-		u32 pe100x_link_fail:1;	/* bit 3 */
-		u32 pe10t_loss_carrie:1;	/* bit 2 */
-		u32 pe10t_sqe_error:1;	/* bit 1 */
-		u32 pe10t_jabber:1;	/* bit 0 */
-#else
-		u32 pe10t_jabber:1;	/* bit 0 */
-		u32 pe10t_sqe_error:1;	/* bit 1 */
-		u32 pe10t_loss_carrie:1;	/* bit 2 */
-		u32 pe100x_link_fail:1;	/* bit 3 */
-		u32 phy_speed:1;		/* bit 4 */
-		u32 phy_full_duplex:1;	/* bit 5 */
-		u32 phy_link_ok:1;		/* bit 6 */
-		u32 phy_jabber:1;		/* bit 7 */
-		u32 clash:1;		/* bit 8 */
-		u32 excess_defer:1;	/* bit 9 */
-		u32 reserved:22;		/* bits 10-31 */
-#endif
-	} bits;
-} MAC_IF_STAT_t, *PMAC_IF_STAT_t;
 
 /*
  * structure for Mac Station Address, Part 1 reg in mac address map.
@@ -1197,7 +1179,7 @@ typedef struct _MAC_t {					/* Location: */
 	u32 mii_mgmt_stat;				/*  0x5030 */
 	u32 mii_mgmt_indicator;				/*  0x5034 */
 	u32 if_ctrl;					/*  0x5038 */
-	MAC_IF_STAT_t if_stat;				/*  0x503C */
+	u32 if_stat;					/*  0x503C */
 	MAC_STATION_ADDR1_t station_addr_1;		/*  0x5040 */
 	MAC_STATION_ADDR2_t station_addr_2;		/*  0x5044 */
 } MAC_t, *PMAC_t;
