@@ -238,11 +238,6 @@ typedef struct _FbrLookupTable {
 	u32 PALow[MAX_DESC_PER_RING_RX];
 } FBRLOOKUPTABLE, *PFBRLOOKUPTABLE;
 
-typedef enum {
-	ONE_PACKET_INTERRUPT,
-	FOUR_PACKET_INTERRUPT
-} eRX_INTERRUPT_STATE_t, *PeRX_INTERRUPT_STATE_t;
-
 /*
  * RX_RING_t is sructure representing the adaptor's local reference(s) to the
  * rings
