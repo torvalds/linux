@@ -58,7 +58,7 @@ EXPORT_SYMBOL(ide_xfer_verbose);
  *	This is used by most chipset support modules when "auto-tuning".
  */
 
-u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
+static u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 {
 	u16 *id = drive->id;
 	int pio_mode = -1, overridden = 0;
@@ -105,7 +105,6 @@ u8 ide_get_best_pio_mode(ide_drive_t *drive, u8 mode_wanted, u8 max_mode)
 
 	return pio_mode;
 }
-EXPORT_SYMBOL_GPL(ide_get_best_pio_mode);
 
 int ide_pio_need_iordy(ide_drive_t *drive, const u8 pio)
 {

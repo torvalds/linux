@@ -1496,7 +1496,6 @@ int ide_timing_compute(ide_drive_t *, u8, struct ide_timing *, int, int);
 #ifdef CONFIG_IDE_XFER_MODE
 int ide_scan_pio_blacklist(char *);
 const char *ide_xfer_verbose(u8);
-u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
 int ide_pio_need_iordy(ide_drive_t *, const u8);
 int ide_set_pio_mode(ide_drive_t *, u8);
 int ide_set_dma_mode(ide_drive_t *, u8);
