@@ -40,7 +40,7 @@
 
 enum {
 	CFR 		= 0x50,
-		CFR_INTR_CH0  = 0x02,
+		CFR_INTR_CH0  = 0x04,
 	CNTRL 		= 0x51,
 		CNTRL_DIS_RA0 = 0x40,
 		CNTRL_DIS_RA1 = 0x80,
