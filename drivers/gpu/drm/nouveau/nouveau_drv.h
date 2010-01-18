@@ -677,6 +677,7 @@ extern char *nouveau_tv_norm;
 extern int nouveau_reg_debug;
 extern char *nouveau_vbios;
 extern int nouveau_ctxfw;
+extern int nouveau_ignorelid;
 
 /* nouveau_state.c */
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);

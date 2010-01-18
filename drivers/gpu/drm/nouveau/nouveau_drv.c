@@ -71,6 +71,10 @@ MODULE_PARM_DESC(uscript_tmds, "TMDS output script table ID (>=GeForce 8)");
 int nouveau_uscript_tmds = -1;
 module_param_named(uscript_tmds, nouveau_uscript_tmds, int, 0400);
 
+MODULE_PARM_DESC(ignorelid, "Ignore ACPI lid status");
+int nouveau_ignorelid = 0;
+module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
+
 MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"
 		 "\t\t\thd480i, hd480p, hd576i, hd576p, hd720p, hd1080i.\n"
