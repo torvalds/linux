@@ -91,23 +91,10 @@
 #define ALCATEL_BROADCAST_PKT	0x02000000
 
 /* typedefs for Free Buffer Descriptors */
-typedef union _FBR_WORD2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:22;	/* bits 10-31 */
-		u32 bi:10;		/* bits 0-9(Buffer Index) */
-#else
-		u32 bi:10;		/* bits 0-9(Buffer Index) */
-		u32 reserved:22;	/* bit 10-31 */
-#endif
-	} bits;
-} FBR_WORD2_t, *PFBR_WORD2_t;
-
 typedef struct _FBR_DESC_t {
 	u32 addr_lo;
 	u32 addr_hi;
-	FBR_WORD2_t word2;
+	u32 word2;		/* Bits 10-31 reserved, 0-9 descriptor */
 } FBR_DESC_t, *PFBR_DESC_t;
 
 /* Typedefs for Packet Status Ring Descriptors */

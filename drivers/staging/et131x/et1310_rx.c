@@ -640,7 +640,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	for (entry = 0; entry < rx_local->Fbr1NumEntries; entry++) {
 		fbr_entry->addr_hi = rx_local->Fbr[1]->PAHigh[entry];
 		fbr_entry->addr_lo = rx_local->Fbr[1]->PALow[entry];
-		fbr_entry->word2.bits.bi = entry;
+		fbr_entry->word2 = entry;
 		fbr_entry++;
 	}
 
@@ -665,7 +665,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	for (entry = 0; entry < rx_local->Fbr0NumEntries; entry++) {
 		fbr_entry->addr_hi = rx_local->Fbr[0]->PAHigh[entry];
 		fbr_entry->addr_lo = rx_local->Fbr[0]->PALow[entry];
-		fbr_entry->word2.bits.bi = entry;
+		fbr_entry->word2 = entry;
 		fbr_entry++;
 	}
 
@@ -1126,7 +1126,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 			 */
 			next->addr_hi = rx_local->Fbr[1]->PAHigh[bi];
 			next->addr_lo = rx_local->Fbr[1]->PALow[bi];
-			next->word2.value = bi;
+			next->word2 = bi;
 
 			writel(bump_fbr(&rx_local->local_Fbr1_full,
 				rx_local->Fbr1NumEntries - 1),
@@ -1144,7 +1144,7 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 			 */
 			next->addr_hi = rx_local->Fbr[0]->PAHigh[bi];
 			next->addr_lo = rx_local->Fbr[0]->PALow[bi];
-			next->word2.value = bi;
+			next->word2 = bi;
 
 			writel(bump_fbr(&rx_local->local_Fbr0_full,
 					rx_local->Fbr0NumEntries - 1),
