@@ -3229,6 +3229,9 @@ static void perf_event_task_output(struct perf_event *event,
 
 static int perf_event_task_match(struct perf_event *event)
 {
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
+		return 0;
+
 	if (event->cpu != -1 && event->cpu != smp_processor_id())
 		return 0;
 
@@ -3344,6 +3347,9 @@ static void perf_event_comm_output(struct perf_event *event,
 
 static int perf_event_comm_match(struct perf_event *event)
 {
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
+		return 0;
+
 	if (event->cpu != -1 && event->cpu != smp_processor_id())
 		return 0;
 
@@ -3471,6 +3477,9 @@ static void perf_event_mmap_output(struct perf_event *event,
 static int perf_event_mmap_match(struct perf_event *event,
 				   struct perf_mmap_event *mmap_event)
 {
+	if (event->state != PERF_EVENT_STATE_ACTIVE)
+		return 0;
+
 	if (event->cpu != -1 && event->cpu != smp_processor_id())
 		return 0;
 
