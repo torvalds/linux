@@ -100,7 +100,7 @@ static int cs5535_cable_detect(struct ata_port *ap)
 static void cs5535_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u16 pio_timings[5] = {
-		0xF7F4, 0x53F3, 0x13F1, 0x5131, 0x1131
+		0xF7F4, 0xF173, 0x8141, 0x5131, 0x1131
 	};
 	static const u16 pio_cmd_timings[5] = {
 		0xF7F4, 0x53F3, 0x13F1, 0x5131, 0x1131
