@@ -49,7 +49,7 @@ _start:		add	lr, pc, #-0x8		@ lr = current load addr
 /*
  * find the end of the tag list, and then add an INITRD tag on the end.
  * If there is already an INITRD tag, then we ignore it; the last INITRD
- * tag takes precidence.
+ * tag takes precedence.
  */
 taglist:	ldr	r10, [r9, #0]		@ tag length
 		teq	r10, #0			@ last tag (zero length)?
