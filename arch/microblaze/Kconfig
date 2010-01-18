@@ -267,6 +267,10 @@ config PCI_DOMAINS
 config PCI_SYSCALL
 	def_bool PCI
 
+config PCI_XILINX
+	bool "Xilinx PCI host bridge support"
+	depends on PCI
+
 source "drivers/pci/Kconfig"
 
 endmenu

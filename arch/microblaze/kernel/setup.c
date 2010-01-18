@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/bug.h>
 #include <linux/param.h>
+#include <linux/pci.h>
 #include <linux/cache.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
@@ -63,6 +64,8 @@ void __init setup_arch(char **cmdline_p)
 	enable_icache();
 
 	setup_memory();
+
+	xilinx_pci_init();
 
 #if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
 	printk(KERN_NOTICE "Self modified code enable\n");

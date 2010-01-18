@@ -166,5 +166,12 @@ extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 extern void pcibios_setup_bus_devices(struct pci_bus *bus);
 extern void pcibios_setup_bus_self(struct pci_bus *bus);
 
+/* This part of code was originaly in xilinx-pci.h */
+#ifdef CONFIG_PCI_XILINX
+extern void __init xilinx_pci_init(void);
+#else
+static inline void __init xilinx_pci_init(void) { return; }
+#endif
+
 #endif	/* __KERNEL__ */
 #endif /* __ASM_MICROBLAZE_PCI_H */
