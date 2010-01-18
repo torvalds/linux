@@ -852,9 +852,18 @@ arp_notify - BOOLEAN
 	    or hardware address changes.
 
 arp_accept - BOOLEAN
-	Define behavior when gratuitous arp replies are received:
-	0 - drop gratuitous arp frames
-	1 - accept gratuitous arp frames
+	Define behavior for gratuitous ARP frames who's IP is not
+	already present in the ARP table:
+	0 - don't create new entries in the ARP table
+	1 - create new entries in the ARP table
+
+	Both replies and requests type gratuitous arp will trigger the
+	ARP table to be updated, if this setting is on.
+
+	If the ARP table already contains the IP address of the
+	gratuitous arp frame, the arp table will be updated regardless
+	if this setting is on or off.
+
 
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon
