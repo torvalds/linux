@@ -15,7 +15,7 @@ obj-y			+= $(cacheops-y)
 
 mmu-y			:= nommu.o extable_32.o
 mmu-$(CONFIG_MMU)	:= extable_$(BITS).o fault_$(BITS).o \
-			   ioremap_$(BITS).o kmap.o pgtable.o tlbflush_$(BITS).o
+			   ioremap.o kmap.o pgtable.o tlbflush_$(BITS).o
 
 obj-y			+= $(mmu-y)
 obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o
