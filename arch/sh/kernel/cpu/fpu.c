@@ -56,6 +56,7 @@ void fpu_state_restore(struct pt_regs *regs)
 	}
 
 	if (!tsk_used_math(tsk)) {
+		local_irq_enable();
 		/*
 		 * does a slab alloc which can sleep
 		 */
@@ -66,6 +67,7 @@ void fpu_state_restore(struct pt_regs *regs)
 			do_group_exit(SIGKILL);
 			return;
 		}
+		local_irq_disable();
 	}
 
 	grab_fpu(regs);
