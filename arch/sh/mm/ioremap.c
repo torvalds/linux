@@ -33,8 +33,9 @@
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void __iomem *__ioremap_caller(unsigned long phys_addr, unsigned long size,
-			       unsigned long flags, void *caller)
+void __iomem * __init_refok
+__ioremap_caller(unsigned long phys_addr, unsigned long size,
+		 unsigned long flags, void *caller)
 {
 	struct vm_struct *area;
 	unsigned long offset, last_addr, addr, orig_addr;
