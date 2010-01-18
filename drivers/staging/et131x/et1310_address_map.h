@@ -883,21 +883,11 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * structure for management interface reg in rxmac address map.
  * located at address 0x4098
+ *
+ * 31-18: reserved
+ * 17: drop_pkt_en
+ * 16-0: drop_pkt_mask
  */
-typedef union _RXMAC_MIF_CTL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserve:14;		/* bits 18-31 */
-		u32 drop_pkt_en:1;		/* bit 17 */
-		u32 drop_pkt_mask:17;	/* bits 0-16 */
-#else
-		u32 drop_pkt_mask:17;	/* bits 0-16 */
-		u32 drop_pkt_en:1;		/* bit 17 */
-		u32 reserve:14;		/* bits 18-31 */
-#endif
-	} bits;
-} RXMAC_MIF_CTL_t, *PRXMAC_MIF_CTL_t;
 
 /*
  * structure for Error reg in rxmac address map.
@@ -965,7 +955,7 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 rxq_diag;					/*  0x4090 */
 	u32 space_avail;				/*  0x4094 */
 
-	RXMAC_MIF_CTL_t mif_ctrl;			/*  0x4098 */
+	u32 mif_ctrl;					/*  0x4098 */
 	RXMAC_ERROR_REG_t err_reg;			/*  0x409C */
 } RXMAC_t, *PRXMAC_t;
 

@@ -333,7 +333,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(0, &pRxMac->mcif_water_mark);
 
 	/*  Initialize the MIF control */
-	writel(0, &pRxMac->mif_ctrl.value);
+	writel(0, &pRxMac->mif_ctrl);
 
 	/* Initialize the Space Available Register */
 	writel(0, &pRxMac->space_avail);
@@ -352,9 +352,9 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 * bit 17: Drop packet enable
 	 */
 	if (etdev->linkspeed == TRUEPHY_SPEED_100MBPS)
-		writel(0x30038, &pRxMac->mif_ctrl.value);
+		writel(0x30038, &pRxMac->mif_ctrl);
 	else
-		writel(0x30030, &pRxMac->mif_ctrl.value);
+		writel(0x30030, &pRxMac->mif_ctrl);
 
 	/* Finally we initialize RxMac to be enabled & WOL disabled.  Packet
 	 * filter is always enabled since it is where the runt packets are
