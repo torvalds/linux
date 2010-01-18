@@ -1719,6 +1719,7 @@ struct rt_rtmp_adapter {
 	void *OS_Cookie;	/* save specific structure relative to OS */
 	struct net_device *net_dev;
 	unsigned long VirtualIfCnt;
+	const struct firmware *firmware;
 
 	struct rt_rtmp_chip_op chipOps;
 	u16 ThisTbttNumToNextWakeUp;

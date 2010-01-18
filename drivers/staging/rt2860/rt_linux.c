@@ -25,6 +25,7 @@
  *************************************************************************
  */
 
+#include <linux/firmware.h>
 #include <linux/sched.h>
 #include "rt_config.h"
 
@@ -259,6 +260,8 @@ void RTMPFreeAdapter(struct rt_rtmp_adapter *pAd)
 	}
 
 	NdisFreeSpinLock(&pAd->irq_lock);
+
+	release_firmware(pAd->firmware);
 
 	vfree(pAd);		/* pci_free_consistent(os_cookie->pci_dev,sizeof(struct rt_rtmp_adapter),pAd,os_cookie->pAd_pa); */
 	if (os_cookie)
