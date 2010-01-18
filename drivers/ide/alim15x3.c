@@ -73,7 +73,6 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	unsigned long flags;
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	unsigned long T =  1000000 / bus_speed; /* PCI clock based */
 	int port = hwif->channel ? 0x5c : 0x58;
@@ -86,8 +85,6 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	t.active = clamp_val(t.active, 1, 8) & 7;
 	t.recover = clamp_val(t.recover, 1, 16) & 15;
 
-	local_irq_save(flags);
-
 	/* 
 	 * PIO mode => ATA FIFO on, ATAPI FIFO off
 	 */
@@ -96,8 +93,6 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pci_write_config_byte(dev, port, t.setup);
 	pci_write_config_byte(dev, port + unit + 2,
 			      (t.active << 4) | t.recover);
-
-	local_irq_restore(flags);
 }
 
 /**
