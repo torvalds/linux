@@ -100,15 +100,6 @@
 #define LO_MARK_PERCENT_FOR_PSR     15
 #define LO_MARK_PERCENT_FOR_RX      15
 
-/* Counters for error rate monitoring */
-typedef struct _MP_ERR_COUNTERS {
-	u32 PktCountTxPackets;
-	u32 PktCountTxErrors;
-	u32 TimerBasedTxErrors;
-	u32 PktCountLastError;
-	u32 ErredConsecPackets;
-} MP_ERR_COUNTERS, *PMP_ERR_COUNTERS;
-
 /* RFD (Receive Frame Descriptor) */
 typedef struct _MP_RFD {
 	struct list_head list_node;
