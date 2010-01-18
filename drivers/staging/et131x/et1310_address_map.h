@@ -563,23 +563,12 @@ struct rxdma_regs {					/* Location: */
 /*
  * structure for error count reg in txmac address map
  * located at address 0x3008
+ *
+ * 31-12: unused
+ * 11-8: reserved
+ * 7-4: txq_underrun
+ * 3-0: fifo_underrun
  */
-typedef union _TXMAC_ERR_CNT_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;		/* bits 12-31 */
-		u32 reserved:4;		/* bits 8-11 */
-		u32 txq_underrun:4;	/* bits 4-7 */
-		u32 fifo_underrun:4;	/* bits 0-3 */
-#else
-		u32 fifo_underrun:4;	/* bits 0-3 */
-		u32 txq_underrun:4;	/* bits 4-7 */
-		u32 reserved:4;		/* bits 8-11 */
-		u32 unused:20;		/* bits 12-31 */
-#endif
-	} bits;
-} TXMAC_ERR_CNT_t, *PTXMAC_ERR_CNT_t;
 
 /*
  * structure for max fill reg in txmac address map
@@ -682,7 +671,7 @@ typedef union _TXMAC_ERR_INT_t {
 typedef struct _TXMAC_t {		/* Location: */
 	u32 ctl;			/*  0x3000 */
 	u32 shadow_ptr;			/*  0x3004 */
-	TXMAC_ERR_CNT_t err_cnt;	/*  0x3008 */
+	u32 err_cnt;			/*  0x3008 */
 	u32 max_fill;			/*  0x300C */
 	u32 cf_param;			/*  0x3010 */
 	u32 tx_test;			/*  0x3014 */
