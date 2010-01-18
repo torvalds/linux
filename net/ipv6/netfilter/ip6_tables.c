@@ -693,8 +693,8 @@ static int check_target(struct ip6t_entry *e, const char *name)
 }
 
 static int
-find_check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
-		 unsigned int *i)
+find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
+		 unsigned int size, unsigned int *i)
 {
 	struct ip6t_entry_target *t;
 	struct xt_target *target;
@@ -707,6 +707,7 @@ find_check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 		return ret;
 
 	j = 0;
+	mtpar.net	= net;
 	mtpar.table     = name;
 	mtpar.entryinfo = &e->ipv6;
 	mtpar.hook_mask = e->comefrom;
@@ -830,7 +831,8 @@ cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 /* Checks and translates the user-supplied table segment (held in
    newinfo) */
 static int
-translate_table(const char *name,
+translate_table(struct net *net,
+		const char *name,
 		unsigned int valid_hooks,
 		struct xt_table_info *newinfo,
 		void *entry0,
@@ -892,7 +894,7 @@ translate_table(const char *name,
 	/* Finally, each sanity check must pass */
 	i = 0;
 	ret = IP6T_ENTRY_ITERATE(entry0, newinfo->size,
-				find_check_entry, name, size, &i);
+				find_check_entry, net, name, size, &i);
 
 	if (ret != 0) {
 		IP6T_ENTRY_ITERATE(entry0, newinfo->size,
@@ -1336,7 +1338,7 @@ do_replace(struct net *net, void __user *user, unsigned int len)
 		goto free_newinfo;
 	}
 
-	ret = translate_table(tmp.name, tmp.valid_hooks,
+	ret = translate_table(net, tmp.name, tmp.valid_hooks,
 			      newinfo, loc_cpu_entry, tmp.size, tmp.num_entries,
 			      tmp.hook_entry, tmp.underflow);
 	if (ret != 0)
@@ -2121,7 +2123,7 @@ struct xt_table *ip6t_register_table(struct net *net,
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
-	ret = translate_table(table->name, table->valid_hooks,
+	ret = translate_table(net, table->name, table->valid_hooks,
 			      newinfo, loc_cpu_entry, repl->size,
 			      repl->num_entries,
 			      repl->hook_entry,

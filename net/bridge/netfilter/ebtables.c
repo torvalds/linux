@@ -619,7 +619,9 @@ ebt_cleanup_entry(struct ebt_entry *e, unsigned int *cnt)
 }
 
 static inline int
-ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
+ebt_check_entry(struct ebt_entry *e,
+   struct net *net,
+   struct ebt_table_info *newinfo,
    const char *name, unsigned int *cnt,
    struct ebt_cl_stack *cl_s, unsigned int udc_cnt)
 {
@@ -671,6 +673,7 @@ ebt_check_entry(struct ebt_entry *e, struct ebt_table_info *newinfo,
 	}
 	i = 0;
 
+	mtpar.net	= net;
 	mtpar.table     = tgpar.table     = name;
 	mtpar.entryinfo = tgpar.entryinfo = e;
 	mtpar.hook_mask = tgpar.hook_mask = hookmask;
@@ -808,7 +811,8 @@ letscontinue:
 }
 
 /* do the parsing of the table/chains/entries/matches/watchers/targets, heh */
-static int translate_table(char *name, struct ebt_table_info *newinfo)
+static int translate_table(struct net *net, char *name,
+			   struct ebt_table_info *newinfo)
 {
 	unsigned int i, j, k, udc_cnt;
 	int ret;
@@ -917,7 +921,7 @@ static int translate_table(char *name, struct ebt_table_info *newinfo)
 	/* used to know what we need to clean up if something goes wrong */
 	i = 0;
 	ret = EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
-	   ebt_check_entry, newinfo, name, &i, cl_s, udc_cnt);
+	   ebt_check_entry, net, newinfo, name, &i, cl_s, udc_cnt);
 	if (ret != 0) {
 		EBT_ENTRY_ITERATE(newinfo->entries, newinfo->entries_size,
 		   ebt_cleanup_entry, &i);
@@ -1017,7 +1021,7 @@ static int do_replace(struct net *net, void __user *user, unsigned int len)
 	if (ret != 0)
 		goto free_counterstmp;
 
-	ret = translate_table(tmp.name, newinfo);
+	ret = translate_table(net, tmp.name, newinfo);
 
 	if (ret != 0)
 		goto free_counterstmp;
@@ -1154,7 +1158,7 @@ ebt_register_table(struct net *net, const struct ebt_table *input_table)
 			newinfo->hook_entry[i] = p +
 				((char *)repl->hook_entry[i] - repl->entries);
 	}
-	ret = translate_table(repl->name, newinfo);
+	ret = translate_table(net, repl->name, newinfo);
 	if (ret != 0) {
 		BUGPRINT("Translate_table failed\n");
 		goto free_chainstack;

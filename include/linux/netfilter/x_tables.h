@@ -205,6 +205,7 @@ struct xt_match_param {
  * @hook_mask:	via which hooks the new rule is reachable
  */
 struct xt_mtchk_param {
+	struct net *net;
 	const char *table;
 	const void *entryinfo;
 	const struct xt_match *match;
