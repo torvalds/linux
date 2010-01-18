@@ -1648,14 +1648,14 @@ typedef struct _MAC_STAT_t {		/* Location: */
 /*
  * Memory Control Module of JAGCore Address Mapping
  */
-typedef struct _MMC_t {			/* Location: */
+struct mmc_regs {		/* Location: */
 	u32 mmc_ctrl;		/*  0x7000 */
 	u32 sram_access;	/*  0x7004 */
 	u32 sram_word1;		/*  0x7008 */
 	u32 sram_word2;		/*  0x700C */
 	u32 sram_word3;		/*  0x7010 */
 	u32 sram_word4;		/*  0x7014 */
-} MMC_t, *PMMC_t;
+};
 
 /* END OF MMC REGISTER ADDRESS MAP */
 
@@ -1685,9 +1685,9 @@ typedef struct _ADDRESS_MAP_t {
 	MAC_STAT_t macStat;
 	/* unused section of mac stat address map */
 	u8 unused_mac_stat[4096 - sizeof(MAC_STAT_t)];
-	MMC_t mmc;
+	struct mmc_regs mmc;
 	/* unused section of mmc address map */
-	u8 unused_mmc[4096 - sizeof(MMC_t)];
+	u8 unused_mmc[4096 - sizeof(struct mmc_regs)];
 	/* unused section of address map */
 	u8 unused_[1015808];
 
