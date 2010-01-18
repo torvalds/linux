@@ -742,9 +742,9 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  *	This still operates on a request_sock only, not on a big
  *	socket.
  */
-static int __tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
-				struct request_sock *req,
-				struct request_values *rvp)
+static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
+			      struct request_sock *req,
+			      struct request_values *rvp)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	int err = -1;
@@ -775,10 +775,11 @@ static int __tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	return err;
 }
 
-static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
+static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req,
 			      struct request_values *rvp)
 {
-	return __tcp_v4_send_synack(sk, NULL, req, rvp);
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return tcp_v4_send_synack(sk, NULL, req, rvp);
 }
 
 /*
@@ -1192,10 +1193,11 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
-	.rtx_syn_ack	=	tcp_v4_send_synack,
+	.rtx_syn_ack	=	tcp_v4_rtx_synack,
 	.send_ack	=	tcp_v4_reqsk_send_ack,
 	.destructor	=	tcp_v4_reqsk_destructor,
 	.send_reset	=	tcp_v4_send_reset,
+	.syn_ack_timeout = 	tcp_syn_ack_timeout,
 };
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -1373,8 +1375,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	}
 	tcp_rsk(req)->snt_isn = isn;
 
-	if (__tcp_v4_send_synack(sk, dst, req,
-				 (struct request_values *)&tmp_ext) ||
+	if (tcp_v4_send_synack(sk, dst, req,
+			       (struct request_values *)&tmp_ext) ||
 	    want_cookie)
 		goto drop_and_free;
 

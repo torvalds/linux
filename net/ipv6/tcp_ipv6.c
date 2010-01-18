@@ -520,6 +520,13 @@ done:
 	return err;
 }
 
+static int tcp_v6_rtx_synack(struct sock *sk, struct request_sock *req,
+			     struct request_values *rvp)
+{
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return tcp_v6_send_synack(sk, req, rvp);
+}
+
 static inline void syn_flood_warning(struct sk_buff *skb)
 {
 #ifdef CONFIG_SYN_COOKIES
@@ -890,10 +897,11 @@ static int tcp_v6_inbound_md5_hash (struct sock *sk, struct sk_buff *skb)
 struct request_sock_ops tcp6_request_sock_ops __read_mostly = {
 	.family		=	AF_INET6,
 	.obj_size	=	sizeof(struct tcp6_request_sock),
-	.rtx_syn_ack	=	tcp_v6_send_synack,
+	.rtx_syn_ack	=	tcp_v6_rtx_synack,
 	.send_ack	=	tcp_v6_reqsk_send_ack,
 	.destructor	=	tcp_v6_reqsk_destructor,
-	.send_reset	=	tcp_v6_send_reset
+	.send_reset	=	tcp_v6_send_reset,
+	.syn_ack_timeout = 	tcp_syn_ack_timeout,
 };
 
 #ifdef CONFIG_TCP_MD5SIG
