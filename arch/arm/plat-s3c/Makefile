@@ -22,7 +22,6 @@ obj-$(CONFIG_S3C_DMA)		+= dma.o
 # PM support
 
 obj-$(CONFIG_PM)		+= pm.o
-obj-$(CONFIG_PM)		+= pm-gpio.o
 obj-$(CONFIG_S3C2410_PM_CHECK)	+= pm-check.o
 
 # PWM support
