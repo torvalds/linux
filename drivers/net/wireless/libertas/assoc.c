@@ -2052,13 +2052,6 @@ void lbs_association_worker(struct work_struct *work)
 			goto out;
 	}
 
-	if (   test_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags)
-	    || test_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags)) {
-		ret = assoc_helper_wep_keys(priv, assoc_req);
-		if (ret)
-			goto out;
-	}
-
 	if (test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
 		ret = assoc_helper_secinfo(priv, assoc_req);
 		if (ret)
@@ -2077,6 +2070,14 @@ void lbs_association_worker(struct work_struct *work)
 		if (ret)
 			goto out;
 	}
+
+	if (   test_bit(ASSOC_FLAG_WEP_KEYS, &assoc_req->flags)
+	    || test_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags)) {
+		ret = assoc_helper_wep_keys(priv, assoc_req);
+		if (ret)
+			goto out;
+	}
+
 
 	/* SSID/BSSID should be the _last_ config option set, because they
 	 * trigger the association attempt.
