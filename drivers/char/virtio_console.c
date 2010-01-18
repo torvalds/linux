@@ -187,6 +187,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
  */
 static void virtcons_apply_config(struct virtio_device *dev)
 {
+	struct port *port = dev->priv;
 	struct winsize ws;
 
 	if (virtio_has_feature(dev, VIRTIO_CONSOLE_F_SIZE)) {
@@ -196,7 +197,7 @@ static void virtcons_apply_config(struct virtio_device *dev)
 		dev->config->get(dev,
 				 offsetof(struct virtio_console_config, rows),
 				 &ws.ws_row, sizeof(u16));
-		hvc_resize(console.hvc, ws);
+		hvc_resize(port->hvc, ws);
 	}
 }
 
@@ -219,7 +220,9 @@ static void notifier_del_vio(struct hvc_struct *hp, int data)
 
 static void hvc_handle_input(struct virtqueue *vq)
 {
-	if (hvc_poll(console.hvc))
+	struct port *port = vq->vdev->priv;
+
+	if (hvc_poll(port->hvc))
 		hvc_kick();
 }
 
@@ -272,7 +275,10 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 			 "Multiple virtio-console devices not supported yet\n");
 		return -EEXIST;
 	}
+
+	/* Attach this port to this virtio_device, and vice-versa. */
 	port->vdev = vdev;
+	vdev->priv = port;
 
 	/* This is the scratch page we use to receive console input */
 	port->inbuf = alloc_buf(PAGE_SIZE);
