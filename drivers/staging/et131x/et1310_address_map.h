@@ -1464,8 +1464,9 @@ typedef struct _MAC_t {					/* Location: */
 /*
  * MAC STATS Module of JAGCore Address Mapping
  */
-typedef struct _MAC_STAT_t {		/* Location: */
-	u32 pad[32];		/*  0x6000 - 607C */
+struct macstat_regs
+{					/* Location: */
+	u32 pad[32];			/*  0x6000 - 607C */
 
 	/* Tx/Rx 0-64 Byte Frame Counter */
 	u32 TR64;			/*  0x6080 */
@@ -1610,7 +1611,7 @@ typedef struct _MAC_STAT_t {		/* Location: */
 
 	/* Carry Register Two Mask Register */
 	u32 Carry2M;			/*  0x613C */
-} MAC_STAT_t, *PMAC_STAT_t;
+};
 
 /* END OF MAC STAT REGISTER ADDRESS MAP */
 
@@ -1682,9 +1683,9 @@ typedef struct _ADDRESS_MAP_t {
 	MAC_t mac;
 	/* unused section of mac address map */
 	u8 unused_mac[4096 - sizeof(MAC_t)];
-	MAC_STAT_t macStat;
+	struct macstat_regs macstat;
 	/* unused section of mac stat address map */
-	u8 unused_mac_stat[4096 - sizeof(MAC_STAT_t)];
+	u8 unused_mac_stat[4096 - sizeof(struct macstat_regs)];
 	struct mmc_regs mmc;
 	/* unused section of mmc address map */
 	u8 unused_mmc[4096 - sizeof(struct mmc_regs)];

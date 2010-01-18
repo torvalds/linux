@@ -384,8 +384,8 @@ void ConfigTxMacRegs(struct et131x_adapter *etdev)
 
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
 {
-	struct _MAC_STAT_t __iomem *macstat =
-		&etdev->regs->macStat;
+	struct macstat_regs __iomem *macstat =
+		&etdev->regs->macstat;
 
 	/* Next we need to initialize all the MAC_STAT registers to zero on
 	 * the device.
@@ -456,8 +456,8 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
 	struct _ce_stats_t *stats = &etdev->Stats;
-	struct _MAC_STAT_t __iomem *macstat =
-		&etdev->regs->macStat;
+	struct macstat_regs __iomem *macstat =
+		&etdev->regs->macstat;
 
 	stats->collisions += readl(&macstat->TNcl);
 	stats->first_collision += readl(&macstat->TScl);
@@ -493,11 +493,11 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1 = readl(&etdev->regs->macStat.Carry1);
-	Carry2 = readl(&etdev->regs->macStat.Carry2);
+	Carry1 = readl(&etdev->regs->macstat.Carry1);
+	Carry2 = readl(&etdev->regs->macstat.Carry2);
 
-	writel(Carry1, &etdev->regs->macStat.Carry1);
-	writel(Carry2, &etdev->regs->macStat.Carry2);
+	writel(Carry1, &etdev->regs->macstat.Carry1);
+	writel(Carry2, &etdev->regs->macstat.Carry2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
