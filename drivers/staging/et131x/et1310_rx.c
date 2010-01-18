@@ -593,7 +593,7 @@ int et131x_init_recv(struct et131x_adapter *adapter)
  */
 void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _RXDMA_t __iomem *rx_dma = &etdev->regs->rxdma;
+	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
 	struct fbr_desc *fbr_entry;
 	u32 entry;
@@ -1097,7 +1097,7 @@ static inline u32 bump_fbr(u32 *fbr, u32 limit)
 void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 {
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
-	struct _RXDMA_t __iomem *rx_dma = &etdev->regs->rxdma;
+	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
 	uint16_t bi = rfd->bufferindex;
 	uint8_t ri = rfd->ringindex;
 	unsigned long flags;

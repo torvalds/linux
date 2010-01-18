@@ -500,7 +500,7 @@ typedef struct _TXDMA_t {		/* Location: */
  * Rx DMA Module of JAGCore Address Mapping
  * Located at address 0x2000
  */
-typedef struct _RXDMA_t {				/* Location: */
+struct rxdma_regs {					/* Location: */
 	u32 csr;					/*  0x2000 */
 	u32 dma_wb_base_lo;				/*  0x2004 */
 	u32 dma_wb_base_hi;				/*  0x2008 */
@@ -530,7 +530,7 @@ typedef struct _RXDMA_t {				/* Location: */
 	u32 fbr1_full_offset;				/*  0x2068 */
 	u32 fbr1_rd_index;				/*  0x206C */
 	u32 fbr1_min_des;				/*  0x2070 */
-} RXDMA_t, *PRXDMA_t;
+};
 
 /* END OF RXDMA REGISTER ADDRESS MAP */
 
@@ -1688,9 +1688,9 @@ typedef struct _ADDRESS_MAP_t {
 	TXDMA_t txdma;
 	/* unused section of txdma address map */
 	u8 unused_txdma[4096 - sizeof(TXDMA_t)];
-	RXDMA_t rxdma;
+	struct rxdma_regs rxdma;
 	/* unused section of rxdma address map */
-	u8 unused_rxdma[4096 - sizeof(RXDMA_t)];
+	u8 unused_rxdma[4096 - sizeof(struct rxdma_regs)];
 	TXMAC_t txmac;
 	/* unused section of txmac address map */
 	u8 unused_txmac[4096 - sizeof(TXMAC_t)];
