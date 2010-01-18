@@ -146,10 +146,25 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 	case ATA_UDMA4: t = timing->udma ? (0xe8 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x0f; break;
 	case ATA_UDMA5: t = timing->udma ? (0xe0 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x07; break;
 	case ATA_UDMA6: t = timing->udma ? (0xe0 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x07; break;
-	default: return;
 	}
 
-	pci_write_config_byte(dev, VIA_UDMA_TIMING + (3 - dn), t);
+	/* Set UDMA unless device is not UDMA capable */
+	if (vdev->via_config->udma_mask) {
+		u8 udma_etc;
+
+		pci_read_config_byte(dev, VIA_UDMA_TIMING + 3 - dn, &udma_etc);
+
+		/* clear transfer mode bit */
+		udma_etc &= ~0x20;
+
+		if (timing->udma) {
+			/* preserve 80-wire cable detection bit */
+			udma_etc &= 0x10;
+			udma_etc |= t;
+		}
+
+		pci_write_config_byte(dev, VIA_UDMA_TIMING + 3 - dn, udma_etc);
+	}
 }
 
 /**
