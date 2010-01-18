@@ -841,8 +841,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(htable->lock)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket;
 
 	spin_lock_bh(&htable->lock);
@@ -859,8 +858,7 @@ static void *dl_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 
 	*pos = ++(*bucket);
@@ -874,8 +872,7 @@ static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 static void dl_seq_stop(struct seq_file *s, void *v)
 	__releases(htable->lock)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 
 	kfree(bucket);
@@ -917,8 +914,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 
 static int dl_seq_show(struct seq_file *s, void *v)
 {
-	struct proc_dir_entry *pde = s->private;
-	struct xt_hashlimit_htable *htable = pde->data;
+	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 	struct dsthash_ent *ent;
 	struct hlist_node *pos;
@@ -944,7 +940,7 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 
 	if (!ret) {
 		struct seq_file *sf = file->private_data;
-		sf->private = PDE(inode);
+		sf->private = PDE(inode)->data;
 	}
 	return ret;
 }
