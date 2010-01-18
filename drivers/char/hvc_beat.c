@@ -84,7 +84,7 @@ static int hvc_beat_put_chars(uint32_t vtermno, const char *buf, int cnt)
 	return cnt;
 }
 
-static struct hv_ops hvc_beat_get_put_ops = {
+static const struct hv_ops hvc_beat_get_put_ops = {
 	.get_chars = hvc_beat_get_chars,
 	.put_chars = hvc_beat_put_chars,
 };
