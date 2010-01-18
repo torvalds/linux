@@ -684,77 +684,33 @@ typedef union _RXMAC_CTRL_t {
 /*
  * structure for Wake On Lan Control and CRC 0 reg in rxmac address map
  * located at address 0x4004
+ * 31-16: crc
+ * 15-12: reserved
+ * 11: ignore_pp
+ * 10: ignore_mp
+ * 9: clr_intr
+ * 8: ignore_link_chg
+ * 7: ignore_uni
+ * 6: ignore_multi
+ * 5: ignore_broad
+ * 4-0: valid_crc 4-0
  */
-typedef union _RXMAC_WOL_CTL_CRC0_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 crc0:16;		/* bits 16-31 */
-		u32 reserve:4;		/* bits 12-15 */
-		u32 ignore_pp:1;	/* bit 11 */
-		u32 ignore_mp:1;	/* bit 10 */
-		u32 clr_intr:1;		/* bit 9 */
-		u32 ignore_link_chg:1;	/* bit 8 */
-		u32 ignore_uni:1;	/* bit 7 */
-		u32 ignore_multi:1;	/* bit 6 */
-		u32 ignore_broad:1;	/* bit 5 */
-		u32 valid_crc4:1;	/* bit 4 */
-		u32 valid_crc3:1;	/* bit 3 */
-		u32 valid_crc2:1;	/* bit 2 */
-		u32 valid_crc1:1;	/* bit 1 */
-		u32 valid_crc0:1;	/* bit 0 */
-#else
-		u32 valid_crc0:1;	/* bit 0 */
-		u32 valid_crc1:1;	/* bit 1 */
-		u32 valid_crc2:1;	/* bit 2 */
-		u32 valid_crc3:1;	/* bit 3 */
-		u32 valid_crc4:1;	/* bit 4 */
-		u32 ignore_broad:1;	/* bit 5 */
-		u32 ignore_multi:1;	/* bit 6 */
-		u32 ignore_uni:1;	/* bit 7 */
-		u32 ignore_link_chg:1;	/* bit 8 */
-		u32 clr_intr:1;		/* bit 9 */
-		u32 ignore_mp:1;	/* bit 10 */
-		u32 ignore_pp:1;	/* bit 11 */
-		u32 reserve:4;		/* bits 12-15 */
-		u32 crc0:16;		/* bits 16-31 */
-#endif
-	} bits;
-} RXMAC_WOL_CTL_CRC0_t, *PRXMAC_WOL_CTL_CRC0_t;
 
 /*
  * structure for CRC 1 and CRC 2 reg in rxmac address map
  * located at address 0x4008
+ *
+ * 31-16: crc2
+ * 15-0: crc1
  */
-typedef union _RXMAC_WOL_CRC12_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 crc2:16;	/* bits 16-31 */
-		u32 crc1:16;	/* bits 0-15 */
-#else
-		u32 crc1:16;	/* bits 0-15 */
-		u32 crc2:16;	/* bits 16-31 */
-#endif
-	} bits;
-} RXMAC_WOL_CRC12_t, *PRXMAC_WOL_CRC12_t;
 
 /*
  * structure for CRC 3 and CRC 4 reg in rxmac address map
  * located at address 0x400C
+ *
+ * 31-16: crc4
+ * 15-0: crc3
  */
-typedef union _RXMAC_WOL_CRC34_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 crc4:16;	/* bits 16-31 */
-		u32 crc3:16;	/* bits 0-15 */
-#else
-		u32 crc3:16;	/* bits 0-15 */
-		u32 crc4:16;	/* bits 16-31 */
-#endif
-	} bits;
-} RXMAC_WOL_CRC34_t, *PRXMAC_WOL_CRC34_t;
 
 /*
  * structure for Wake On Lan Source Address Lo reg in rxmac address map
@@ -1029,9 +985,9 @@ typedef union _RXMAC_ERROR_REG_t {
  */
 typedef struct _RXMAC_t {				/* Location: */
 	RXMAC_CTRL_t ctrl;				/*  0x4000 */
-	RXMAC_WOL_CTL_CRC0_t crc0;			/*  0x4004 */
-	RXMAC_WOL_CRC12_t crc12;			/*  0x4008 */
-	RXMAC_WOL_CRC34_t crc34;			/*  0x400C */
+	u32 crc0;					/*  0x4004 */
+	u32 crc12;					/*  0x4008 */
+	u32 crc34;					/*  0x400C */
 	RXMAC_WOL_SA_LO_t sa_lo;			/*  0x4010 */
 	RXMAC_WOL_SA_HI_t sa_hi;			/*  0x4014 */
 	u32 mask0_word0;				/*  0x4018 */

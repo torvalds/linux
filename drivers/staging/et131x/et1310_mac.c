@@ -247,9 +247,9 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(0x8, &pRxMac->ctrl.value);
 
 	/* Initialize WOL to disabled. */
-	writel(0, &pRxMac->crc0.value);
-	writel(0, &pRxMac->crc12.value);
-	writel(0, &pRxMac->crc34.value);
+	writel(0, &pRxMac->crc0);
+	writel(0, &pRxMac->crc12);
+	writel(0, &pRxMac->crc34);
 
 	/* We need to set the WOL mask0 - mask4 next.  We initialize it to
 	 * its default Values of 0x00000000 because there are not WOL masks
