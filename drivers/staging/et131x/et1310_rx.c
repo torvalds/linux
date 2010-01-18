@@ -193,7 +193,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 				      &rx_ring->Fbr1Realpa,
 				      &rx_ring->Fbr1offset, 0x0FFF);
 
-	rx_ring->pFbr1RingVa = (void *)((uint8_t *) rx_ring->pFbr1RingVa +
+	rx_ring->pFbr1RingVa = (void *)((u8 *) rx_ring->pFbr1RingVa +
 					rx_ring->Fbr1offset);
 
 #ifdef USE_FBR0
@@ -222,7 +222,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 				      &rx_ring->Fbr0Realpa,
 				      &rx_ring->Fbr0offset, 0x0FFF);
 
-	rx_ring->pFbr0RingVa = (void *)((uint8_t *) rx_ring->pFbr0RingVa +
+	rx_ring->pFbr0RingVa = (void *)((u8 *) rx_ring->pFbr0RingVa +
 					rx_ring->Fbr0offset);
 #endif
 
@@ -270,7 +270,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			 * access later
 			 */
 			rx_ring->fbr[1]->virt[index] =
-			    (uint8_t *) rx_ring->Fbr1MemVa[i] +
+			    (u8 *) rx_ring->Fbr1MemVa[i] +
 			    (j * rx_ring->Fbr1BufferSize) + Fbr1Offset;
 
 			/* now store the physical address in the descriptor
@@ -319,7 +319,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			u32 index = (i * FBR_CHUNKS) + j;
 
 			rx_ring->fbr[0]->virt[index] =
-			    (uint8_t *) rx_ring->Fbr0MemVa[i] +
+			    (u8 *) rx_ring->Fbr0MemVa[i] +
 			    (j * rx_ring->Fbr0BufferSize) + Fbr0Offset;
 
 			rx_ring->fbr[0]->bus_high[index] =
@@ -338,7 +338,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Allocate an area of memory for FIFO of Packet Status ring entries */
 	pktStatRingSize =
-	    sizeof(PKT_STAT_DESC_t) * adapter->RxRing.PsrNumEntries;
+	    sizeof(struct pkt_stat_desc) * adapter->RxRing.PsrNumEntries;
 
 	rx_ring->pPSRingVa = pci_alloc_consistent(adapter->pdev,
 						  pktStatRingSize,
@@ -446,7 +446,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		}
 
 		/* Now the FIFO itself */
-		rx_ring->pFbr1RingVa = (void *)((uint8_t *)
+		rx_ring->pFbr1RingVa = (void *)((u8 *)
 				rx_ring->pFbr1RingVa - rx_ring->Fbr1offset);
 
 		bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr1NumEntries)
@@ -479,7 +479,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		}
 
 		/* Now the FIFO itself */
-		rx_ring->pFbr0RingVa = (void *)((uint8_t *)
+		rx_ring->pFbr0RingVa = (void *)((u8 *)
 				rx_ring->pFbr0RingVa - rx_ring->Fbr0offset);
 
 		bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr0NumEntries)
@@ -496,7 +496,7 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free Packet Status Ring */
 	if (rx_ring->pPSRingVa) {
 		pktStatRingSize =
-		    sizeof(PKT_STAT_DESC_t) * adapter->RxRing.PsrNumEntries;
+		    sizeof(struct pkt_stat_desc) * adapter->RxRing.PsrNumEntries;
 
 		pci_free_consistent(adapter->pdev, pktStatRingSize,
 				    rx_ring->pPSRingVa, rx_ring->pPSRingPa);
@@ -785,16 +785,16 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 {
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
 	struct rx_status_block *status;
-	PPKT_STAT_DESC_t psr;
+	struct pkt_stat_desc *psr;
 	PMP_RFD rfd;
 	u32 i;
-	uint8_t *buf;
+	u8 *buf;
 	unsigned long flags;
 	struct list_head *element;
-	uint8_t rindex;
-	uint16_t bindex;
+	u8 rindex;
+	u16 bindex;
 	u32 len;
-	PKT_STAT_DESC_WORD0_t Word0;
+	u32 word0;
 	u32 word1;
 
 	/* RX Status block is written by the DMA engine prior to every
@@ -810,17 +810,17 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		return NULL;
 
 	/* The packet status ring indicates that data is available. */
-	psr = (PPKT_STAT_DESC_t) (rx_local->pPSRingVa) +
+	psr = (struct pkt_stat_desc *) (rx_local->pPSRingVa) +
 			(rx_local->local_psr_full & 0xFFF);
 
 	/* Grab any information that is required once the PSR is
 	 * advanced, since we can no longer rely on the memory being
 	 * accurate
 	 */
-	len = psr->word1.bits.length;
-	rindex = (uint8_t) psr->word1.bits.ri;
-	bindex = (uint16_t) psr->word1.bits.bi;
-	Word0 = psr->word0;
+	len = psr->word1 & 0xFFFF;
+	rindex = (psr->word1 >> 26) & 0x03;
+	bindex = (psr->word1 >> 16) & 0x3FF;
+	word0 = psr->word0;
 
 	/* Indicate that we have used this PSR entry. */
 	/* FIXME wrap 12 */
@@ -835,9 +835,8 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	       &etdev->regs->rxdma.psr_full_offset);
 
 #ifndef USE_FBR0
-	if (rindex != 1) {
+	if (rindex != 1)
 		return NULL;
-	}
 #endif
 
 #ifdef USE_FBR0
@@ -904,8 +903,8 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 		}
 
 		/* Determine if this is a multicast packet coming in */
-		if ((Word0.value & ALCATEL_MULTICAST_PKT) &&
-		    !(Word0.value & ALCATEL_BROADCAST_PKT)) {
+		if ((word0 & ALCATEL_MULTICAST_PKT) &&
+		    !(word0 & ALCATEL_BROADCAST_PKT)) {
 			/* Promiscuous mode and Multicast mode are
 			 * not mutually exclusive as was first
 			 * thought.  I guess Promiscuous is just
@@ -956,7 +955,7 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 
 			if (len > 0)
 				etdev->Stats.multircv++;
-		} else if (Word0.value & ALCATEL_BROADCAST_PKT)
+		} else if (word0 & ALCATEL_BROADCAST_PKT)
 			etdev->Stats.brdcstrcv++;
 		else
 			/* Not sure what this counter measures in
@@ -1094,8 +1093,8 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 {
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
 	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
-	uint16_t bi = rfd->bufferindex;
-	uint8_t ri = rfd->ringindex;
+	u16 bi = rfd->bufferindex;
+	u8 ri = rfd->ringindex;
 	unsigned long flags;
 
 	/* We don't use any of the OOB data besides status. Otherwise, we

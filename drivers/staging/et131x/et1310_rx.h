@@ -98,101 +98,53 @@ struct fbr_desc
 	u32 word2;		/* Bits 10-31 reserved, 0-9 descriptor */
 };
 
-/* Typedefs for Packet Status Ring Descriptors */
-typedef union _PKT_STAT_DESC_WORD0_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		/* top 16 bits are from the Alcatel Status Word as enumerated in */
-		/* PE-MCXMAC Data Sheet IPD DS54 0210-1 (also IPD-DS80 0205-2) */
-#if 0
-		u32 asw_trunc:1;		/* bit 31(Rx frame truncated) */
-#endif
-		u32 asw_long_evt:1;	/* bit 31(Rx long event) */
-		u32 asw_VLAN_tag:1;	/* bit 30(VLAN tag detected) */
-		u32 asw_unsupported_op:1;	/* bit 29(unsupported OP code) */
-		u32 asw_pause_frame:1;	/* bit 28(is a pause frame) */
-		u32 asw_control_frame:1;	/* bit 27(is a control frame) */
-		u32 asw_dribble_nibble:1;	/* bit 26(spurious bits after EOP) */
-		u32 asw_broadcast:1;	/* bit 25(has a broadcast address) */
-		u32 asw_multicast:1;	/* bit 24(has a multicast address) */
-		u32 asw_OK:1;		/* bit 23(valid CRC + no code error) */
-		u32 asw_too_long:1;	/* bit 22(frame length > 1518 bytes) */
-		u32 asw_len_chk_err:1;	/* bit 21(frame length field incorrect) */
-		u32 asw_CRC_err:1;		/* bit 20(CRC error) */
-		u32 asw_code_err:1;	/* bit 19(one or more nibbles signalled as errors) */
-		u32 asw_false_carrier_event:1;	/* bit 18(bad carrier since last good packet) */
-		u32 asw_RX_DV_event:1;	/* bit 17(short receive event detected) */
-		u32 asw_prev_pkt_dropped:1;/* bit 16(e.g. IFG too small on previous) */
-		u32 unused:5;		/* bits 11-15 */
-		u32 vp:1;			/* bit 10(VLAN Packet) */
-		u32 jp:1;			/* bit 9(Jumbo Packet) */
-		u32 ft:1;			/* bit 8(Frame Truncated) */
-		u32 drop:1;		/* bit 7(Drop packet) */
-		u32 rxmac_error:1;		/* bit 6(RXMAC Error Indicator) */
-		u32 wol:1;			/* bit 5(WOL Event) */
-		u32 tcpp:1;		/* bit 4(TCP checksum pass) */
-		u32 tcpa:1;		/* bit 3(TCP checksum assist) */
-		u32 ipp:1;			/* bit 2(IP checksum pass) */
-		u32 ipa:1;			/* bit 1(IP checksum assist) */
-		u32 hp:1;			/* bit 0(hash pass) */
-#else
-		u32 hp:1;			/* bit 0(hash pass) */
-		u32 ipa:1;			/* bit 1(IP checksum assist) */
-		u32 ipp:1;			/* bit 2(IP checksum pass) */
-		u32 tcpa:1;		/* bit 3(TCP checksum assist) */
-		u32 tcpp:1;		/* bit 4(TCP checksum pass) */
-		u32 wol:1;			/* bit 5(WOL Event) */
-		u32 rxmac_error:1;		/* bit 6(RXMAC Error Indicator) */
-		u32 drop:1;		/* bit 7(Drop packet) */
-		u32 ft:1;			/* bit 8(Frame Truncated) */
-		u32 jp:1;			/* bit 9(Jumbo Packet) */
-		u32 vp:1;			/* bit 10(VLAN Packet) */
-		u32 unused:5;		/* bits 11-15 */
-		u32 asw_prev_pkt_dropped:1;/* bit 16(e.g. IFG too small on previous) */
-		u32 asw_RX_DV_event:1;	/* bit 17(short receive event detected) */
-		u32 asw_false_carrier_event:1;	/* bit 18(bad carrier since last good packet) */
-		u32 asw_code_err:1;	/* bit 19(one or more nibbles signalled as errors) */
-		u32 asw_CRC_err:1;		/* bit 20(CRC error) */
-		u32 asw_len_chk_err:1;	/* bit 21(frame length field incorrect) */
-		u32 asw_too_long:1;	/* bit 22(frame length > 1518 bytes) */
-		u32 asw_OK:1;		/* bit 23(valid CRC + no code error) */
-		u32 asw_multicast:1;	/* bit 24(has a multicast address) */
-		u32 asw_broadcast:1;	/* bit 25(has a broadcast address) */
-		u32 asw_dribble_nibble:1;	/* bit 26(spurious bits after EOP) */
-		u32 asw_control_frame:1;	/* bit 27(is a control frame) */
-		u32 asw_pause_frame:1;	/* bit 28(is a pause frame) */
-		u32 asw_unsupported_op:1;	/* bit 29(unsupported OP code) */
-		u32 asw_VLAN_tag:1;	/* bit 30(VLAN tag detected) */
-		u32 asw_long_evt:1;	/* bit 31(Rx long event) */
-#if 0
-		u32 asw_trunc:1;		/* bit 31(Rx frame truncated) */
-#endif
-#endif
-	} bits;
-} PKT_STAT_DESC_WORD0_t, *PPKT_STAT_WORD0_t;
+/* Packet Status Ring Descriptors
+ *
+ * Word 0:
+ *
+ * top 16 bits are from the Alcatel Status Word as enumerated in
+ * PE-MCXMAC Data Sheet IPD DS54 0210-1 (also IPD-DS80 0205-2)
+ *
+ * 0: hp			hash pass
+ * 1: ipa			IP checksum assist
+ * 2: ipp			IP checksum pass
+ * 3: tcpa			TCP checksum assist
+ * 4: tcpp			TCP checksum pass
+ * 5: wol			WOL Event
+ * 6: rxmac_error		RXMAC Error Indicator
+ * 7: drop			Drop packet
+ * 8: ft			Frame Truncated
+ * 9: jp			Jumbo Packet
+ * 10: vp			VLAN Packet
+ * 11-15: unused
+ * 16: asw_prev_pkt_dropped 	e.g. IFG too small on previous
+ * 17: asw_RX_DV_event		short receive event detected
+ * 18: asw_false_carrier_event	bad carrier since last good packet
+ * 19: asw_code_err		one or more nibbles signalled as errors
+ * 20: asw_CRC_err		CRC error
+ * 21: asw_len_chk_err		frame length field incorrect
+ * 22: asw_too_long		frame length > 1518 bytes
+ * 23: asw_OK			valid CRC + no code error
+ * 24: asw_multicast		has a multicast address
+ * 25: asw_broadcast		has a broadcast address
+ * 26: asw_dribble_nibble	spurious bits after EOP
+ * 27: asw_control_frame	is a control frame
+ * 28: asw_pause_frame		is a pause frame
+ * 29: asw_unsupported_op	unsupported OP code
+ * 30: asw_VLAN_tag		VLAN tag detected
+ * 31: asw_long_evt		Rx long event
+ *
+ * Word 1:
+ * 0-15: length			length in bytes
+ * 16-25: bi			Buffer Index
+ * 26-27: ri			Ring Index
+ * 28-31: reserved
+ */
 
-typedef union _PKT_STAT_DESC_WORD1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:4;	/* bits 28-31 */
-		u32 ri:2;		/* bits 26-27(Ring Index) */
-		u32 bi:10;		/* bits 16-25(Buffer Index) */
-		u32 length:16;	/* bit 0-15(length in bytes) */
-#else
-		u32 length:16;	/* bit 0-15(length in bytes) */
-		u32 bi:10;		/* bits 16-25(Buffer Index) */
-		u32 ri:2;		/* bits 26-27(Ring Index) */
-		u32 unused:4;	/* bits 28-31 */
-#endif
-	} bits;
-} PKT_STAT_DESC_WORD1_t, *PPKT_STAT_WORD1_t;
-
-typedef struct _PKT_STAT_DESC_t {
-	PKT_STAT_DESC_WORD0_t word0;
-	PKT_STAT_DESC_WORD1_t word1;
-} PKT_STAT_DESC_t, *PPKT_STAT_DESC_t;
+struct pkt_stat_desc {
+	u32 word0;
+	u32 word1;
+};
 
 /* Typedefs for the RX DMA status word */
 
