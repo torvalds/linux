@@ -152,7 +152,7 @@ static void cs5536_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	u8 cmd_pio = pio;
 
 	if (pair)
-		cmd_pio = min(pio, ide_get_best_pio_mode(pair, 255, 4));
+		cmd_pio = min_t(u8, pio, pair->pio_mode - XFER_PIO_0);
 
 	timings &= (IDE_DRV_MASK << 8);
 	timings |= drv_timings[pio];
