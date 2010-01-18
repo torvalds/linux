@@ -3,11 +3,8 @@
  *
  * Privileged Space Mapping Buffer (PMB) Support.
  *
- * Copyright (C) 2005 - 2010 Paul Mundt
- *
- * P1/P2 Section mapping definitions from map32.h, which was:
- *
- *	Copyright 2003 (c) Lineo Solutions,Inc.
+ * Copyright (C) 2005 - 2010  Paul Mundt
+ * Copyright (C) 2010  Matt Fleming
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -280,12 +277,119 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 }
 
 #ifdef CONFIG_PMB_LEGACY
+static inline unsigned int pmb_ppn_in_range(unsigned long ppn)
+{
+	return ppn >= __MEMORY_START && ppn < __MEMORY_START + __MEMORY_SIZE;
+}
+
 static int pmb_apply_legacy_mappings(void)
+{
+	unsigned int applied = 0;
+	int i;
+
+	pr_info("PMB: Preserving legacy mappings:\n");
+
+	/*
+	 * The following entries are setup by the bootloader.
+	 *
+	 * Entry       VPN	   PPN	    V	SZ	C	UB
+	 * --------------------------------------------------------
+	 *   0      0xA0000000 0x00000000   1   64MB    0       0
+	 *   1      0xA4000000 0x04000000   1   16MB    0       0
+	 *   2      0xA6000000 0x08000000   1   16MB    0       0
+	 *   9      0x88000000 0x48000000   1  128MB    1       1
+	 *  10      0x90000000 0x50000000   1  128MB    1       1
+	 *  11      0x98000000 0x58000000   1  128MB    1       1
+	 *  13      0xA8000000 0x48000000   1  128MB    0       0
+	 *  14      0xB0000000 0x50000000   1  128MB    0       0
+	 *  15      0xB8000000 0x58000000   1  128MB    0       0
+	 *
+	 * The only entries the we need are the ones that map the kernel
+	 * at the cached and uncached addresses.
+	 */
+	for (i = 0; i < PMB_ENTRY_MAX; i++) {
+		unsigned long addr, data;
+		unsigned long addr_val, data_val;
+		unsigned long ppn, vpn;
+
+		addr = mk_pmb_addr(i);
+		data = mk_pmb_data(i);
+
+		addr_val = __raw_readl(addr);
+		data_val = __raw_readl(data);
+
+		/*
+		 * Skip over any bogus entries
+		 */
+		if (!(data_val & PMB_V) || !(addr_val & PMB_V))
+			continue;
+
+		ppn = data_val & PMB_PFN_MASK;
+		vpn = addr_val & PMB_PFN_MASK;
+
+		/*
+		 * Only preserve in-range mappings.
+		 */
+		if (pmb_ppn_in_range(ppn)) {
+			unsigned int size;
+			char *sz_str = NULL;
+
+			size = data_val & PMB_SZ_MASK;
+
+			sz_str = (size == PMB_SZ_16M)  ? " 16MB":
+				 (size == PMB_SZ_64M)  ? " 64MB":
+				 (size == PMB_SZ_128M) ? "128MB":
+							 "512MB";
+
+			pr_info("\t0x%08lx -> 0x%08lx [ %s %scached ]\n",
+				vpn >> PAGE_SHIFT, ppn >> PAGE_SHIFT, sz_str,
+				(data_val & PMB_C) ? "" : "un");
+
+			applied++;
+		} else {
+			/*
+			 * Invalidate anything out of bounds.
+			 */
+			__raw_writel(addr_val & ~PMB_V, addr);
+			__raw_writel(data_val & ~PMB_V, data);
+		}
+	}
+
+	return (applied == 0);
+}
+#else
+static inline int pmb_apply_legacy_mappings(void)
+{
+	return 1;
+}
+#endif
+
+int __uses_jump_to_uncached pmb_init(void)
 {
 	int i;
 	unsigned long addr, data;
-	unsigned int applied = 0;
+	unsigned long ret;
 
+	jump_to_uncached();
+
+	/*
+	 * Attempt to apply the legacy boot mappings if configured. If
+	 * this is successful then we simply carry on with those and
+	 * don't bother establishing additional memory mappings. Dynamic
+	 * device mappings through pmb_remap() can still be bolted on
+	 * after this.
+	 */
+	ret = pmb_apply_legacy_mappings();
+	if (ret == 0) {
+		back_to_cached();
+		return 0;
+	}
+
+	/*
+	 * Sync our software copy of the PMB mappings with those in
+	 * hardware. The mappings in the hardware PMB were either set up
+	 * by the bootloader or very early on by the kernel.
+	 */
 	for (i = 0; i < PMB_ENTRY_MAX; i++) {
 		struct pmb_entry *pmbe;
 		unsigned long vpn, ppn, flags;
@@ -318,59 +422,9 @@ static int pmb_apply_legacy_mappings(void)
 
 		pmbe = pmb_alloc(vpn, ppn, flags, i);
 		WARN_ON(IS_ERR(pmbe));
-
-		applied++;
 	}
-
-	return (applied == 0);
-}
-#else
-static inline int pmb_apply_legacy_mappings(void)
-{
-	return 1;
-}
-#endif
-
-int __uses_jump_to_uncached pmb_init(void)
-{
-	unsigned int i;
-	unsigned long size, ret;
-
-	jump_to_uncached();
-
-	/*
-	 * Attempt to apply the legacy boot mappings if configured. If
-	 * this is successful then we simply carry on with those and
-	 * don't bother establishing additional memory mappings. Dynamic
-	 * device mappings through pmb_remap() can still be bolted on
-	 * after this.
-	 */
-	ret = pmb_apply_legacy_mappings();
-	if (ret == 0) {
-		back_to_cached();
-		return 0;
-	}
-
-	/*
-	 * Insert PMB entries for the P1 and P2 areas so that, after
-	 * we've switched the MMU to 32-bit mode, the semantics of P1
-	 * and P2 are the same as in 29-bit mode, e.g.
-	 *
-	 *	P1 - provides a cached window onto physical memory
-	 *	P2 - provides an uncached window onto physical memory
-	 */
-	size = (unsigned long)__MEMORY_START + __MEMORY_SIZE;
-
-	ret = pmb_remap(P1SEG, 0x00000000, size, PMB_C);
-	BUG_ON(ret != size);
-
-	ret = pmb_remap(P2SEG, 0x00000000, size, PMB_WT | PMB_UB);
-	BUG_ON(ret != size);
 
 	ctrl_outl(0, PMB_IRMCR);
-
-	/* PMB.SE and UB[7] */
-	ctrl_outl(PASCR_SE | (1 << 7), PMB_PASCR);
 
 	/* Flush out the TLB */
 	i =  ctrl_inl(MMUCR);
