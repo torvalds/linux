@@ -317,7 +317,8 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
  *
  * Allocate a new USB request structure appropriate for the specified endpoint
  */
-struct usb_request *s3c_hsotg_ep_alloc_request(struct usb_ep *ep, gfp_t flags)
+static struct usb_request *s3c_hsotg_ep_alloc_request(struct usb_ep *ep,
+						      gfp_t flags)
 {
 	struct s3c_hsotg_req *req;
 
@@ -1460,7 +1461,7 @@ static u32 s3c_hsotg_read_frameno(struct s3c_hsotg *hsotg)
  * as the actual data should be sent to the memory directly and we turn
  * on the completion interrupts to get notifications of transfer completion.
  */
-void s3c_hsotg_handle_rx(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_handle_rx(struct s3c_hsotg *hsotg)
 {
 	u32 grxstsr = readl(hsotg->regs + S3C_GRXSTSP);
 	u32 epnum, status, size;
@@ -3094,7 +3095,7 @@ static void s3c_hsotg_gate(struct platform_device *pdev, bool on)
 	local_irq_restore(flags);
 }
 
-struct s3c_hsotg_plat s3c_hsotg_default_pdata;
+static struct s3c_hsotg_plat s3c_hsotg_default_pdata;
 
 static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 {
