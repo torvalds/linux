@@ -892,25 +892,13 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * structure for Error reg in rxmac address map.
  * located at address 0x409C
+ *
+ * 31-4: unused
+ * 3: mif
+ * 2: async
+ * 1: pkt_filter
+ * 0: mcif
  */
-typedef union _RXMAC_ERROR_REG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserve:28;	/* bits 4-31 */
-		u32 mif:1;		/* bit 3 */
-		u32 async:1;	/* bit 2 */
-		u32 pkt_filter:1;	/* bit 1 */
-		u32 mcif:1;	/* bit 0 */
-#else
-		u32 mcif:1;	/* bit 0 */
-		u32 pkt_filter:1;	/* bit 1 */
-		u32 async:1;	/* bit 2 */
-		u32 mif:1;		/* bit 3 */
-		u32 reserve:28;	/* bits 4-31 */
-#endif
-	} bits;
-} RXMAC_ERROR_REG_t, *PRXMAC_ERROR_REG_t;
 
 /*
  * Rx MAC Module of JAGCore Address Mapping
@@ -956,7 +944,7 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 space_avail;				/*  0x4094 */
 
 	u32 mif_ctrl;					/*  0x4098 */
-	RXMAC_ERROR_REG_t err_reg;			/*  0x409C */
+	u32 err_reg;					/*  0x409C */
 } RXMAC_t, *PRXMAC_t;
 
 /* END OF RXMAC REGISTER ADDRESS MAP */

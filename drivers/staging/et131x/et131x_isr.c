@@ -441,7 +441,7 @@ void et131x_isr_handler(struct work_struct *work)
 
 			dev_warn(&etdev->pdev->dev,
 			  "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
-				    readl(&iomem->rxmac.err_reg.value));
+				    readl(&iomem->rxmac.err_reg));
 
 			dev_warn(&etdev->pdev->dev,
 				    "Enable 0x%08x, Diag 0x%08x\n",
