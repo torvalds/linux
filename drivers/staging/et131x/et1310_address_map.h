@@ -253,7 +253,7 @@ extern inline void add_12bit(u32 *v, int n)
  * Tx DMA Module of JAGCore Address Mapping
  * Located at address 0x1000
  */
-typedef struct _TXDMA_t {		/* Location: */
+struct txdma_regs {			/* Location: */
 	u32 csr;			/*  0x1000 */
 	u32 pr_base_hi;			/*  0x1004 */
 	u32 pr_base_lo;			/*  0x1008 */
@@ -280,7 +280,7 @@ typedef struct _TXDMA_t {		/* Location: */
 	u32 DroppedTLPCount;		/*  0x105c */
 	u32 NewServiceComplete;		/*  0x1060 */
 	u32 EthernetPacketCount;	/*  0x1064 */
-} TXDMA_t, *PTXDMA_t;
+};
 
 /* END OF TXDMA REGISTER ADDRESS MAP */
 
@@ -1667,9 +1667,9 @@ typedef struct _ADDRESS_MAP_t {
 	struct global_regs global;
 	/* unused section of global address map */
 	u8 unused_global[4096 - sizeof(struct global_regs)];
-	TXDMA_t txdma;
+	struct txdma_regs txdma;
 	/* unused section of txdma address map */
-	u8 unused_txdma[4096 - sizeof(TXDMA_t)];
+	u8 unused_txdma[4096 - sizeof(struct txdma_regs)];
 	struct rxdma_regs rxdma;
 	/* unused section of rxdma address map */
 	u8 unused_rxdma[4096 - sizeof(struct rxdma_regs)];

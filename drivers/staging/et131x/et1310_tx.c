@@ -200,7 +200,7 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
  */
 void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _TXDMA_t __iomem *txdma = &etdev->regs->txdma;
+	struct txdma_regs __iomem *txdma = &etdev->regs->txdma;
 
 	/* Load the hardware with the start of the transmit descriptor ring. */
 	writel((u32) ((u64)etdev->tx_ring.tx_desc_ring_pa >> 32),
