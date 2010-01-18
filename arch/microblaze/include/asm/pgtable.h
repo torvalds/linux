@@ -90,6 +90,21 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #endif /* __ASSEMBLY__ */
 
 /*
+ * Macro to mark a page protection value as "uncacheable".
+ */
+
+#define _PAGE_CACHE_CTL	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
+							_PAGE_WRITETHRU)
+
+#define pgprot_noncached(prot) \
+			(__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+					_PAGE_NO_CACHE | _PAGE_GUARDED))
+
+#define pgprot_noncached_wc(prot) \
+			 (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
+							_PAGE_NO_CACHE))
+
+/*
  * The MicroBlaze MMU is identical to the PPC-40x MMU, and uses a hash
  * table containing PTEs, together with a set of 16 segment registers, to
  * define the virtual to physical address mapping.

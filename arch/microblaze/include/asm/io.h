@@ -17,7 +17,21 @@
 #include <linux/mm.h>          /* Get struct page {...} */
 #include <asm-generic/iomap.h>
 
-#define PCI_DRAM_OFFSET 0
+#ifndef CONFIG_PCI
+#define _IO_BASE	0
+#define _ISA_MEM_BASE	0
+#define PCI_DRAM_OFFSET	0
+#else
+#define _IO_BASE	isa_io_base
+#define _ISA_MEM_BASE	isa_mem_base
+#define PCI_DRAM_OFFSET	pci_dram_offset
+#endif
+
+extern unsigned long isa_io_base;
+extern unsigned long pci_io_base;
+extern unsigned long pci_dram_offset;
+
+extern resource_size_t isa_mem_base;
 
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 

@@ -256,6 +256,21 @@ source "fs/Kconfig.binfmt"
 
 endmenu
 
+menu "Bus Options"
+
+config PCI
+	bool "PCI support"
+
+config PCI_DOMAINS
+	def_bool PCI
+
+config PCI_SYSCALL
+	def_bool PCI
+
+source "drivers/pci/Kconfig"
+
+endmenu
+
 source "net/Kconfig"
 
 source "drivers/Kconfig"
