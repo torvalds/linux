@@ -451,18 +451,6 @@ typedef union _RXDMA_CSR_t {
  * 31-10: unused
  * 9-0: fbr ndesc
  */
-typedef union _RXDMA_FBR_NUM_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;		/* bits 10-31 */
-		u32 fbr_ndesc:10;	/* bits 0-9 */
-#else
-		u32 fbr_ndesc:10;	/* bits 0-9 */
-		u32 unused:22;		/* bits 10-31 */
-#endif
-	} bits;
-} RXDMA_FBR_NUM_DES_t, *PRXDMA_FBR_NUM_DES_t;
 
 /*
  * structure for free buffer ring 0 available offset reg in rxdma address map
