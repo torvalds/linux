@@ -170,9 +170,9 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	u32 cfg1;
 	u32 cfg2;
 	u32 ifctrl;
-	TXMAC_CTL_t ctl;
+	u32 ctl;
 
-	ctl.value = readl(&etdev->regs->txmac.ctl.value);
+	ctl = readl(&etdev->regs->txmac.ctl);
 	cfg1 = readl(&pMac->cfg1);
 	cfg2 = readl(&pMac->cfg2);
 	ifctrl = readl(&pMac->if_ctrl);
@@ -226,9 +226,8 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 	}
 
 	/* Enable TXMAC */
-	ctl.bits.txmac_en = 0x1;
-	ctl.bits.fc_disable = 0x1;
-	writel(ctl.value, &etdev->regs->txmac.ctl.value);
+	ctl |= 0x05;	/* TX mac enable, FC disable */
+	writel(ctl, &etdev->regs->txmac.ctl);
 
 	/* Ready to start the RXDMA/TXDMA engine */
 	if (etdev->Flags & fMP_ADAPTER_LOWER_POWER) {

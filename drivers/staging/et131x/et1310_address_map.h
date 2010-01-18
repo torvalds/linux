@@ -538,33 +538,18 @@ struct rxdma_regs {					/* Location: */
 /*
  * structure for control reg in txmac address map
  * located at address 0x3000
+ *
+ * bits
+ * 31-8: unused
+ * 7: cklseg_disable
+ * 6: ckbcnt_disable
+ * 5: cksegnum
+ * 4: async_disable
+ * 3: fc_disable
+ * 2: mcif_disable
+ * 1: mif_disable
+ * 0: txmac_en
  */
-typedef union _TXMAC_CTL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:24;		/* bits 8-31 */
-		u32 cklseg_diable:1;	/* bit 7 */
-		u32 ckbcnt_disable:1;	/* bit 6 */
-		u32 cksegnum:1;		/* bit 5 */
-		u32 async_disable:1;	/* bit 4 */
-		u32 fc_disable:1;	/* bit 3 */
-		u32 mcif_disable:1;	/* bit 2 */
-		u32 mif_disable:1;	/* bit 1 */
-		u32 txmac_en:1;		/* bit 0 */
-#else
-		u32 txmac_en:1;		/* bit 0 */
-		u32 mif_disable:1;	/* bit 1 mac interface */
-		u32 mcif_disable:1;	/* bit 2 mem. contr. interface */
-		u32 fc_disable:1;	/* bit 3 */
-		u32 async_disable:1;	/* bit 4 */
-		u32 cksegnum:1;		/* bit 5 */
-		u32 ckbcnt_disable:1;	/* bit 6 */
-		u32 cklseg_diable:1;	/* bit 7 */
-		u32 unused:24;		/* bits 8-31 */
-#endif
-	} bits;
-} TXMAC_CTL_t, *PTXMAC_CTL_t;
 
 /*
  * structure for shadow pointer reg in txmac address map
@@ -695,7 +680,7 @@ typedef union _TXMAC_ERR_INT_t {
  * Tx MAC Module of JAGCore Address Mapping
  */
 typedef struct _TXMAC_t {		/* Location: */
-	TXMAC_CTL_t ctl;		/*  0x3000 */
+	u32 ctl;			/*  0x3000 */
 	u32 shadow_ptr;			/*  0x3004 */
 	TXMAC_ERR_CNT_t err_cnt;	/*  0x3008 */
 	u32 max_fill;			/*  0x300C */
