@@ -229,7 +229,7 @@ static int via_pre_reset(struct ata_link *link, unsigned long deadline)
 
 
 /**
- *	via_do_set_mode	-	set initial PIO mode data
+ *	via_do_set_mode	-	set transfer mode data
  *	@ap: ATA interface
  *	@adev: ATA device
  *	@mode: ATA mode being programmed
@@ -273,7 +273,7 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 
 		pci_read_config_byte(pdev, 0x4C, &setup);
 		setup &= ~(3 << shift);
-		setup |= clamp_val(t.setup, 1, 4) << shift;	/* 1,4 or 1,4 - 1  FIXME */
+		setup |= (clamp_val(t.setup, 1, 4) - 1) << shift;
 		pci_write_config_byte(pdev, 0x4C, setup);
 	}
 
