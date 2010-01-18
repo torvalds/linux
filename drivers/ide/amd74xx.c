@@ -3,7 +3,7 @@
  * IDE driver for Linux.
  *
  * Copyright (c) 2000-2002 Vojtech Pavlik
- * Copyright (c) 2007-2008 Bartlomiej Zolnierkiewicz
+ * Copyright (c) 2007-2010 Bartlomiej Zolnierkiewicz
  *
  * Based on the work of:
  *      Andre Hedrick
@@ -70,7 +70,8 @@ static void amd_set_speed(struct pci_dev *dev, u8 dn, u8 udma_mask,
 	default: return;
 	}
 
-	pci_write_config_byte(dev, AMD_UDMA_TIMING + offset + (3 - dn), t);
+	if (timing->udma)
+		pci_write_config_byte(dev, AMD_UDMA_TIMING + offset + 3 - dn, t);
 }
 
 /*
@@ -340,6 +341,6 @@ static void __exit amd74xx_ide_exit(void)
 module_init(amd74xx_ide_init);
 module_exit(amd74xx_ide_exit);
 
-MODULE_AUTHOR("Vojtech Pavlik");
+MODULE_AUTHOR("Vojtech Pavlik, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("AMD PCI IDE driver");
 MODULE_LICENSE("GPL");
