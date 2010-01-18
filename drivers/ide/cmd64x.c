@@ -146,10 +146,8 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	u8 unit			= drive->dn & 0x01;
 	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
 
-	if (speed >= XFER_SW_DMA_0) {
-		(void) pci_read_config_byte(dev, pciU, &regU);
-		regU &= ~(unit ? 0xCA : 0x35);
-	}
+	pci_read_config_byte(dev, pciU, &regU);
+	regU &= ~(unit ? 0xCA : 0x35);
 
 	switch(speed) {
 	case XFER_UDMA_5:
@@ -177,8 +175,7 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		break;
 	}
 
-	if (speed >= XFER_SW_DMA_0)
-		(void) pci_write_config_byte(dev, pciU, regU);
+	pci_write_config_byte(dev, pciU, regU);
 }
 
 static void cmd648_clear_irq(ide_drive_t *drive)
