@@ -78,6 +78,22 @@ fail:
 }
 
 /*
+ * Create a scatter-gather list representing our input buffer and put
+ * it in the queue.
+ *
+ * Callers should take appropriate locks.
+ */
+static void add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
+{
+	struct scatterlist sg[1];
+	sg_init_one(sg, buf->buf, buf->size);
+
+	if (vq->vq_ops->add_buf(vq, sg, 0, 1, buf) < 0)
+		BUG();
+	vq->vq_ops->kick(vq);
+}
+
+/*
  * The put_chars() callback is pretty straightforward.
  *
  * We turn the characters into a scatter-gather list, add it to the
@@ -109,21 +125,6 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 
 	/* We're expected to return the amount of data we wrote: all of it. */
 	return count;
-}
-
-/*
- * Create a scatter-gather list representing our input buffer and put
- * it in the queue.
- */
-static void add_inbuf(struct port *port)
-{
-	struct scatterlist sg[1];
-	sg_init_one(sg, port->inbuf->buf, PAGE_SIZE);
-
-	/* Should always be able to add one buffer to an empty queue. */
-	if (port->in_vq->vq_ops->add_buf(port->in_vq, sg, 0, 1, port) < 0)
-		BUG();
-	port->in_vq->vq_ops->kick(port->in_vq);
 }
 
 /*
@@ -162,7 +163,7 @@ static int get_chars(u32 vtermno, char *buf, int count)
 
 	/* Finished?  Re-register buffer so Host will use it again. */
 	if (port->inbuf->offset == port->inbuf->len)
-		add_inbuf(port);
+		add_inbuf(port->in_vq, port->inbuf);
 
 	return count;
 }
@@ -294,7 +295,7 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	}
 
 	/* Register the input buffer the first time. */
-	add_inbuf(port);
+	add_inbuf(port->in_vq, port->inbuf);
 
 	/* Start using the new console output. */
 	early_put_chars = NULL;
