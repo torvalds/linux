@@ -211,28 +211,12 @@ typedef struct _PKT_STAT_DESC_t {
  * RXSTAT_WORD1_t structure holds part of the status bits of the Rx DMA engine
  * that get copied out to memory by the ET-1310.  Word 3 is a 32 bit word
  * which contains the Packet Status Ring available offset.
+ *
+ * bit 0-15 reserved
+ * bit 16-27 PSRoffset
+ * bit 28 PSRwrap
+ * bit 29-31 unused
  */
-
-#define RXSTAT1_OFFSET	16
-#define RXSTAT1_MASK	0xFFF
-#define RXSTAT1_WRAP	0x10000000
-
-typedef union _rxstat_word1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 PSRunused:3;	/* bits 29-31 */
-		u32 PSRwrap:1;	/* bit 28 */
-		u32 PSRoffset:12;	/* bits 16-27 */
-		u32 reserved:16;	/* bits 0-15 */
-#else
-		u32 reserved:16;	/* bits 0-15 */
-		u32 PSRoffset:12;	/* bits 16-27 */
-		u32 PSRwrap:1;	/* bit 28 */
-		u32 PSRunused:3;	/* bits 29-31 */
-#endif
-	} bits;
-} RXSTAT_WORD1_t, *PRXSTAT_WORD1_t;
 
 /*
  * RX_STATUS_BLOCK_t is sructure representing the status of the Rx DMA engine
@@ -240,7 +224,7 @@ typedef union _rxstat_word1_t {
  */
 typedef struct _rx_status_block_t {
 	u32 Word0;
-	RXSTAT_WORD1_t Word1;
+	u32 Word1;
 } RX_STATUS_BLOCK_t, *PRX_STATUS_BLOCK_t;
 
 /*

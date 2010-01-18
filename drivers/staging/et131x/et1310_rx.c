@@ -797,21 +797,19 @@ PMP_RFD nic_rx_pkts(struct et131x_adapter *etdev)
 	uint16_t bindex;
 	u32 len;
 	PKT_STAT_DESC_WORD0_t Word0;
+	u32 word1;
 
 	/* RX Status block is written by the DMA engine prior to every
 	 * interrupt. It contains the next to be used entry in the Packet
 	 * Status Ring, and also the two Free Buffer rings.
 	 */
 	status = (PRX_STATUS_BLOCK_t) rx_local->pRxStatusVa;
+	word1 = status->Word1 >> 16;	/* Get the useful bits */
 
-	/* FIXME: tidy later when conversions complete */
-	if (status->Word1.bits.PSRoffset ==
-			(rx_local->local_psr_full & 0xFFF) &&
-			status->Word1.bits.PSRwrap ==
-			((rx_local->local_psr_full >> 12) & 1)) {
+	/* Check the PSR and wrap bits do not match */
+	if ((word1 & 0x1FFF) == (rx_local->local_psr_full & 0x1FFF))
 		/* Looks like this ring is not updated yet */
 		return NULL;
-	}
 
 	/* The packet status ring indicates that data is available. */
 	psr = (PPKT_STAT_DESC_t) (rx_local->pPSRingVa) +
