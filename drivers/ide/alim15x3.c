@@ -48,6 +48,19 @@ static u8 m5229_revision;
 static u8 chip_is_1543c_e;
 static struct pci_dev *isa_dev;
 
+static void ali_fifo_control(ide_hwif_t *hwif, ide_drive_t *drive, int on)
+{
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
+	int pio_fifo = 0x54 + hwif->channel;
+	u8 fifo;
+	int shift = 4 * (drive->dn & 1);
+
+	pci_read_config_byte(pdev, pio_fifo, &fifo);
+	fifo &= ~(0x0F << shift);
+	fifo |= (on << shift);
+	pci_write_config_byte(pdev, pio_fifo, fifo);
+}
+
 /**
  *	ali_set_pio_mode	-	set host controller for PIO mode
  *	@drive: drive
@@ -64,8 +77,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	unsigned long T =  1000000 / bus_speed; /* PCI clock based */
 	int port = hwif->channel ? 0x5c : 0x58;
-	int portFIFO = hwif->channel ? 0x55 : 0x54;
-	u8 cd_dma_fifo = 0, unit = drive->dn & 1;
+	u8 unit = drive->dn & 1;
 	struct ide_timing t;
 
 	ide_timing_compute(drive, XFER_PIO_0 + pio, &t, T, 1);
@@ -79,20 +91,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	/* 
 	 * PIO mode => ATA FIFO on, ATAPI FIFO off
 	 */
-	pci_read_config_byte(dev, portFIFO, &cd_dma_fifo);
-	if (drive->media==ide_disk) {
-		if (unit) {
-			pci_write_config_byte(dev, portFIFO, (cd_dma_fifo & 0x0F) | 0x50);
-		} else {
-			pci_write_config_byte(dev, portFIFO, (cd_dma_fifo & 0xF0) | 0x05);
-		}
-	} else {
-		if (unit) {
-			pci_write_config_byte(dev, portFIFO, cd_dma_fifo & 0x0F);
-		} else {
-			pci_write_config_byte(dev, portFIFO, cd_dma_fifo & 0xF0);
-		}
-	}
+	ali_fifo_control(hwif, drive, (drive->media == ide_disk) ? 0x05 : 0x00);
 
 	pci_write_config_byte(dev, port, t.setup);
 	pci_write_config_byte(dev, port + unit + 2,
