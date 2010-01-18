@@ -77,6 +77,22 @@ fail:
 	return NULL;
 }
 
+/* Callers should take appropriate locks */
+static void *get_inbuf(struct port *port)
+{
+	struct port_buffer *buf;
+	struct virtqueue *vq;
+	unsigned int len;
+
+	vq = port->in_vq;
+	buf = vq->vq_ops->get_buf(vq, &len);
+	if (buf) {
+		buf->len = len;
+		buf->offset = 0;
+	}
+	return buf;
+}
+
 /*
  * Create a scatter-gather list representing our input buffer and put
  * it in the queue.
@@ -138,7 +154,6 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 static int get_chars(u32 vtermno, char *buf, int count)
 {
 	struct port *port;
-	unsigned int len;
 
 	port = &console;
 
@@ -147,10 +162,8 @@ static int get_chars(u32 vtermno, char *buf, int count)
 
 	/* No more in buffer?  See if they've (re)used it. */
 	if (port->inbuf->offset == port->inbuf->len) {
-		if (!port->in_vq->vq_ops->get_buf(port->in_vq, &len))
+		if (!get_inbuf(port))
 			return 0;
-		port->inbuf->offset = 0;
-		port->inbuf->len = len;
 	}
 
 	/* You want more than we have to give?  Well, try wanting less! */
