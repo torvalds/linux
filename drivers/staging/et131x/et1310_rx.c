@@ -170,7 +170,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 #endif
 
 	/* Allocate an area of memory for Free Buffer Ring 1 */
-	bufsize = (sizeof(FBR_DESC_t) * rx_ring->Fbr1NumEntries) + 0xfff;
+	bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr1NumEntries) + 0xfff;
 	rx_ring->pFbr1RingVa = pci_alloc_consistent(adapter->pdev,
 						    bufsize,
 						    &rx_ring->pFbr1RingPa);
@@ -199,7 +199,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 #ifdef USE_FBR0
 	/* Allocate an area of memory for Free Buffer Ring 0 */
-	bufsize = (sizeof(FBR_DESC_t) * rx_ring->Fbr0NumEntries) + 0xfff;
+	bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr0NumEntries) + 0xfff;
 	rx_ring->pFbr0RingVa = pci_alloc_consistent(adapter->pdev,
 						    bufsize,
 						    &rx_ring->pFbr0RingPa);
@@ -450,12 +450,11 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		rx_ring->pFbr1RingVa = (void *)((uint8_t *)
 				rx_ring->pFbr1RingVa - rx_ring->Fbr1offset);
 
-		bufsize =
-		    (sizeof(FBR_DESC_t) * rx_ring->Fbr1NumEntries) + 0xfff;
+		bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr1NumEntries)
+	                                                        + 0xfff;
 
-		pci_free_consistent(adapter->pdev,
-				    bufsize,
-				    rx_ring->pFbr1RingVa, rx_ring->pFbr1RingPa);
+		pci_free_consistent(adapter->pdev, bufsize,
+                                rx_ring->pFbr1RingVa, rx_ring->pFbr1RingPa);
 
 		rx_ring->pFbr1RingVa = NULL;
 	}
@@ -484,8 +483,8 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		rx_ring->pFbr0RingVa = (void *)((uint8_t *)
 				rx_ring->pFbr0RingVa - rx_ring->Fbr0offset);
 
-		bufsize =
-		    (sizeof(FBR_DESC_t) * rx_ring->Fbr0NumEntries) + 0xfff;
+		bufsize = (sizeof(struct fbr_desc) * rx_ring->Fbr0NumEntries)
+                                                                + 0xfff;
 
 		pci_free_consistent(adapter->pdev,
 				    bufsize,
@@ -596,7 +595,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 {
 	struct _RXDMA_t __iomem *rx_dma = &etdev->regs->rxdma;
 	struct _rx_ring_t *rx_local = &etdev->RxRing;
-	PFBR_DESC_t fbr_entry;
+	struct fbr_desc *fbr_entry;
 	u32 entry;
 	u32 psr_num_des;
 	unsigned long flags;
@@ -636,7 +635,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 	rx_local->local_psr_full = 0;
 
 	/* Now's the best time to initialize FBR1 contents */
-	fbr_entry = (PFBR_DESC_t) rx_local->pFbr1RingVa;
+	fbr_entry = (struct fbr_desc *) rx_local->pFbr1RingVa;
 	for (entry = 0; entry < rx_local->Fbr1NumEntries; entry++) {
 		fbr_entry->addr_hi = rx_local->Fbr[1]->PAHigh[entry];
 		fbr_entry->addr_lo = rx_local->Fbr[1]->PALow[entry];
@@ -661,7 +660,7 @@ void ConfigRxDmaRegs(struct et131x_adapter *etdev)
 
 #ifdef USE_FBR0
 	/* Now's the best time to initialize FBR0 contents */
-	fbr_entry = (PFBR_DESC_t) rx_local->pFbr0RingVa;
+	fbr_entry = (struct fbr_desc *) rx_local->pFbr0RingVa;
 	for (entry = 0; entry < rx_local->Fbr0NumEntries; entry++) {
 		fbr_entry->addr_hi = rx_local->Fbr[0]->PAHigh[entry];
 		fbr_entry->addr_lo = rx_local->Fbr[0]->PALow[entry];
@@ -1116,9 +1115,9 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 		spin_lock_irqsave(&etdev->FbrLock, flags);
 
 		if (ri == 1) {
-			PFBR_DESC_t next =
-			    (PFBR_DESC_t) (rx_local->pFbr1RingVa) +
-			    INDEX10(rx_local->local_Fbr1_full);
+			struct fbr_desc *next =
+			    (struct fbr_desc *) (rx_local->pFbr1RingVa) +
+                		            INDEX10(rx_local->local_Fbr1_full);
 
 			/* Handle the Free Buffer Ring advancement here. Write
 			 * the PA / Buffer Index for the returned buffer into
@@ -1134,9 +1133,9 @@ void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD rfd)
 		}
 #ifdef USE_FBR0
 		else {
-			PFBR_DESC_t next =
-			    (PFBR_DESC_t) rx_local->pFbr0RingVa +
-			    INDEX10(rx_local->local_Fbr0_full);
+			struct fbr_desc *next = (struct fbr_desc *)
+				rx_local->pFbr0RingVa +
+					INDEX10(rx_local->local_Fbr0_full);
 
 			/* Handle the Free Buffer Ring advancement here. Write
 			 * the PA / Buffer Index for the returned buffer into
