@@ -166,7 +166,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	writel(val32, base + BK3710_DATRCVR);
 
 	if (mate) {
-		u8 mode2 = ide_get_best_pio_mode(mate, 255, 4);
+		u8 mode2 = mate->pio_mode - XFER_PIO_0;
 
 		if (mode2 < mode)
 			mode = mode2;
