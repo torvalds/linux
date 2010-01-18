@@ -77,25 +77,7 @@
  */
 #define NUM_TRAFFIC_CLASSES          1
 
-/*
- * There are three ways of counting errors - if there are more than X errors
- * in Y packets (represented by the "SAMPLE" macros), if there are more than
- * N errors in a S mSec time period (the "PERIOD" macros), or if there are
- * consecutive packets with errors (CONSEC_ERRORED_THRESH).  This last covers
- * for "Bursty" errors, and the errored packets may well not be contiguous,
- * but several errors where the packet counter has changed by less than a
- * small amount will cause this count to increment.
- */
-#define TX_PACKETS_IN_SAMPLE        10000
-#define TX_MAX_ERRORS_IN_SAMPLE     50
-
 #define TX_ERROR_PERIOD             1000
-#define TX_MAX_ERRORS_IN_PERIOD     10
-
-#define LINK_DETECTION_TIMER        5000
-
-#define TX_CONSEC_RANGE             5
-#define TX_CONSEC_ERRORED_THRESH    10
 
 #define LO_MARK_PERCENT_FOR_PSR     15
 #define LO_MARK_PERCENT_FOR_RX      15
