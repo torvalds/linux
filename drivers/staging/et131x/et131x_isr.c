@@ -446,7 +446,7 @@ void et131x_isr_handler(struct work_struct *work)
 			dev_warn(&etdev->pdev->dev,
 				    "Enable 0x%08x, Diag 0x%08x\n",
 				    readl(&iomem->rxmac.ctrl.value),
-				    readl(&iomem->rxmac.rxq_diag.value));
+				    readl(&iomem->rxmac.rxq_diag));
 
 			/*
 			 * If we are debugging, we want to see this error,

@@ -863,23 +863,12 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * structure for Rx Queue Dialog reg in rxmac address map.
  * located at address 0x4090
+ *
+ * 31-26: reserved
+ * 25-16: rd_ptr
+ * 15-10: reserved
+ * 9-0: wr_ptr
  */
-typedef union _RXMAC_RXQ_DIAG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:6;	/* bits 26-31 */
-		u32 rd_ptr:10;	/* bits 16-25 */
-		u32 reserved1:6;	/* bits 10-15 */
-		u32 wr_ptr:10;	/* bits 0-9 */
-#else
-		u32 wr_ptr:10;	/* bits 0-9 */
-		u32 reserved1:6;	/* bits 10-15 */
-		u32 rd_ptr:10;	/* bits 16-25 */
-		u32 reserved2:6;	/* bits 26-31 */
-#endif
-	} bits;
-} RXMAC_RXQ_DIAG_t, *PRXMAC_RXQ_DIAG_t;
 
 /*
  * structure for space availiable reg in rxmac address map.
@@ -984,7 +973,7 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 pf_ctrl;					/*  0x4084 */
 	u32 mcif_ctrl_max_seg;				/*  0x4088 */
 	u32 mcif_water_mark;				/*  0x408C */
-	RXMAC_RXQ_DIAG_t rxq_diag;			/*  0x4090 */
+	u32 rxq_diag;					/*  0x4090 */
 	RXMAC_SPACE_AVAIL_t space_avail;		/*  0x4094 */
 
 	RXMAC_MIF_CTL_t mif_ctrl;			/*  0x4098 */
