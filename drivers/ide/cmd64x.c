@@ -88,9 +88,6 @@ static void cmd64x_program_timings(ide_drive_t *drive, u8 mode)
 	pci_write_config_byte(dev, drwtim_regs[drive->dn],
 			      (t.active << 4) | t.recover);
 
-	if (mode >= XFER_SW_DMA_0)
-		return;
-
 	/*
 	 * The primary channel has individual address setup timing registers
 	 * for each drive and the hardware selects the slowest timing itself.
@@ -100,11 +97,17 @@ static void cmd64x_program_timings(ide_drive_t *drive, u8 mode)
 	if (hwif->channel) {
 		ide_drive_t *pair = ide_get_pair_dev(drive);
 
-		ide_set_drivedata(drive, (void *)(unsigned long)t.setup);
+		if (pair) {
+			struct ide_timing tp;
 
-		if (pair)
-			t.setup = max_t(u8, t.setup,
-					(unsigned long)ide_get_drivedata(pair));
+			ide_timing_compute(pair, pair->pio_mode, &tp, T, 0);
+			ide_timing_merge(&t, &tp, &t, IDE_TIMING_SETUP);
+			if (pair->dma_mode) {
+				ide_timing_compute(pair, pair->dma_mode,
+						&tp, T, 0);
+				ide_timing_merge(&tp, &t, &t, IDE_TIMING_SETUP);
+			}
+		}
 	}
 
 	if (t.setup > 5)		/* shouldn't actually happen... */
