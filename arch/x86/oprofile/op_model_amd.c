@@ -218,6 +218,29 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 	}
 }
 
+/*
+ * 16-bit Linear Feedback Shift Register (LFSR)
+ *
+ *                       16   14   13    11
+ * Feedback polynomial = X  + X  + X  +  X  + 1
+ */
+static unsigned int lfsr_random(void)
+{
+	static unsigned int lfsr_value = 0xF00D;
+	unsigned int bit;
+
+	/* Compute next bit to shift in */
+	bit = ((lfsr_value >> 0) ^
+	       (lfsr_value >> 2) ^
+	       (lfsr_value >> 3) ^
+	       (lfsr_value >> 5)) & 0x0001;
+
+	/* Advance to next register value */
+	lfsr_value = (lfsr_value >> 1) | (bit << 15);
+
+	return lfsr_value;
+}
+
 static inline void
 op_amd_handle_ibs(struct pt_regs * const regs,
 		  struct op_msrs const * const msrs)
