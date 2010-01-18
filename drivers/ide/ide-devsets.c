@@ -105,6 +105,8 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 		return -ENOSYS;
 
 	if (set_pio_mode_abuse(drive->hwif, arg)) {
+		drive->pio_mode = arg + XFER_PIO_0;
+
 		if (arg == 8 || arg == 9) {
 			unsigned long flags;
 

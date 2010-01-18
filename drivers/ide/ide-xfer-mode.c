@@ -135,6 +135,7 @@ int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 	 * set transfer mode on the device in ->set_pio_mode method...
 	 */
 	if (port_ops->set_dma_mode == NULL) {
+		drive->pio_mode = mode;
 		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
 		return 0;
 	}
@@ -142,9 +143,11 @@ int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
+		drive->pio_mode = mode;
 		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
 		return 0;
 	} else {
+		drive->pio_mode = mode;
 		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
 		return ide_config_drive_speed(drive, mode);
 	}
