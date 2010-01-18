@@ -49,6 +49,7 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x834f) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835c) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835d) },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x838e) },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
 	{ }
 };
@@ -60,6 +61,8 @@ static int __devinit get_xonar_model(struct oxygen *chip,
 	if (get_xonar_pcm179x_model(chip, id) >= 0)
 		return 0;
 	if (get_xonar_cs43xx_model(chip, id) >= 0)
+		return 0;
+	if (get_xonar_wm87x6_model(chip, id) >= 0)
 		return 0;
 	return -EINVAL;
 }
