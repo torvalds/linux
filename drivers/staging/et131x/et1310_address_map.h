@@ -292,45 +292,25 @@ typedef struct _TXDMA_t {		/* Location: */
 /*
  * structure for control status reg in rxdma address map
  * Located at address 0x2000
+ *
+ * CSR
+ * 0: halt
+ * 1-3: tc
+ * 4: fbr_big_endian
+ * 5: psr_big_endian
+ * 6: pkt_big_endian
+ * 7: dma_big_endian
+ * 8-9: fbr0_size
+ * 10: fbr0_enable
+ * 11-12: fbr1_size
+ * 13: fbr1_enable
+ * 14: unused
+ * 15: pkt_drop_disable
+ * 16: pkt_done_flush
+ * 17: halt_status
+ * 18-31: unused
  */
-typedef union _RXDMA_CSR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused2:14;		/* bits 18-31 */
-		u32 halt_status:1;	/* bit 17 */
-		u32 pkt_done_flush:1;	/* bit 16 */
-		u32 pkt_drop_disable:1;	/* bit 15 */
-		u32 unused1:1;		/* bit 14 */
-		u32 fbr1_enable:1;	/* bit 13 */
-		u32 fbr1_size:2;	/* bits 11-12 */
-		u32 fbr0_enable:1;	/* bit 10 */
-		u32 fbr0_size:2;	/* bits 8-9 */
-		u32 dma_big_endian:1;	/* bit 7 */
-		u32 pkt_big_endian:1;	/* bit 6 */
-		u32 psr_big_endian:1;	/* bit 5 */
-		u32 fbr_big_endian:1;	/* bit 4 */
-		u32 tc:3;		/* bits 1-3 */
-		u32 halt:1;		/* bit 0 */
-#else
-		u32 halt:1;		/* bit 0 */
-		u32 tc:3;		/* bits 1-3 */
-		u32 fbr_big_endian:1;	/* bit 4 */
-		u32 psr_big_endian:1;	/* bit 5 */
-		u32 pkt_big_endian:1;	/* bit 6 */
-		u32 dma_big_endian:1;	/* bit 7 */
-		u32 fbr0_size:2;	/* bits 8-9 */
-		u32 fbr0_enable:1;	/* bit 10 */
-		u32 fbr1_size:2;	/* bits 11-12 */
-		u32 fbr1_enable:1;	/* bit 13 */
-		u32 unused1:1;		/* bit 14 */
-		u32 pkt_drop_disable:1;	/* bit 15 */
-		u32 pkt_done_flush:1;	/* bit 16 */
-		u32 halt_status:1;	/* bit 17 */
-		u32 unused2:14;		/* bits 18-31 */
-#endif
-	} bits;
-} RXDMA_CSR_t, *PRXDMA_CSR_t;
+
 
 /*
  * structure for dma writeback lo reg in rxdma address map
@@ -521,7 +501,7 @@ typedef union _RXDMA_CSR_t {
  * Located at address 0x2000
  */
 typedef struct _RXDMA_t {				/* Location: */
-	RXDMA_CSR_t csr;				/*  0x2000 */
+	u32 csr;					/*  0x2000 */
 	u32 dma_wb_base_lo;				/*  0x2004 */
 	u32 dma_wb_base_hi;				/*  0x2008 */
 	u32 num_pkt_done;				/*  0x200C */

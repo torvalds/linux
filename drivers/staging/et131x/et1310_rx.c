@@ -720,18 +720,17 @@ void SetRxDmaTimer(struct et131x_adapter *etdev)
  */
 void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 {
-	RXDMA_CSR_t csr;
-
+        u32 csr;
 	/* Setup the receive dma configuration register */
-	writel(0x00002001, &etdev->regs->rxdma.csr.value);
-	csr.value = readl(&etdev->regs->rxdma.csr.value);
-	if (csr.bits.halt_status != 1) {
+	writel(0x00002001, &etdev->regs->rxdma.csr);
+	csr = readl(&etdev->regs->rxdma.csr);
+	if ((csr & 0x00020000) != 1) {	/* Check halt status (bit 17) */
 		udelay(5);
-		csr.value = readl(&etdev->regs->rxdma.csr.value);
-		if (csr.bits.halt_status != 1)
+		csr = readl(&etdev->regs->rxdma.csr);
+		if ((csr & 0x00020000) != 1)
 			dev_err(&etdev->pdev->dev,
-				"RX Dma failed to enter halt state. CSR 0x%08x\n",
-				csr.value);
+			"RX Dma failed to enter halt state. CSR 0x%08x\n",
+				csr);
 	}
 }
 
@@ -742,34 +741,33 @@ void et131x_rx_dma_disable(struct et131x_adapter *etdev)
 void et131x_rx_dma_enable(struct et131x_adapter *etdev)
 {
 	/* Setup the receive dma configuration register for normal operation */
-	RXDMA_CSR_t csr = { 0 };
+	u32 csr =  0x2000;	/* FBR1 enable */
 
-	csr.bits.fbr1_enable = 1;
 	if (etdev->RxRing.Fbr1BufferSize == 4096)
-		csr.bits.fbr1_size = 1;
+		csr |= 0x0800;
 	else if (etdev->RxRing.Fbr1BufferSize == 8192)
-		csr.bits.fbr1_size = 2;
+		csr |= 0x1000;
 	else if (etdev->RxRing.Fbr1BufferSize == 16384)
-		csr.bits.fbr1_size = 3;
+		csr |= 0x1800;
 #ifdef USE_FBR0
-	csr.bits.fbr0_enable = 1;
+        csr |= 0x0400;		/* FBR0 enable */
 	if (etdev->RxRing.Fbr0BufferSize == 256)
-		csr.bits.fbr0_size = 1;
+	        csr |= 0x0100;
 	else if (etdev->RxRing.Fbr0BufferSize == 512)
-		csr.bits.fbr0_size = 2;
+		csr |= 0x0200;
 	else if (etdev->RxRing.Fbr0BufferSize == 1024)
-		csr.bits.fbr0_size = 3;
+		csr |= 0x0300;
 #endif
-	writel(csr.value, &etdev->regs->rxdma.csr.value);
+	writel(csr, &etdev->regs->rxdma.csr);
 
-	csr.value = readl(&etdev->regs->rxdma.csr.value);
-	if (csr.bits.halt_status != 0) {
+	csr = readl(&etdev->regs->rxdma.csr);
+	if ((csr & 0x00020000) != 0) {
 		udelay(5);
-		csr.value = readl(&etdev->regs->rxdma.csr.value);
-		if (csr.bits.halt_status != 0) {
+		csr = readl(&etdev->regs->rxdma.csr);
+        	if ((csr & 0x00020000) != 0) {
 			dev_err(&etdev->pdev->dev,
 			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
-				csr.value);
+				csr);
 		}
 	}
 }
