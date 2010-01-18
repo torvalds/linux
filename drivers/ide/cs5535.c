@@ -86,7 +86,7 @@ static void cs5535_set_speed(ide_drive_t *drive, const u8 speed)
 		cmd = pioa = speed - XFER_PIO_0;
 
 		if (pair) {
-			u8 piob = ide_get_best_pio_mode(pair, 255, 4);
+			u8 piob = pair->pio_mode - XFER_PIO_0;
 
 			if (piob < cmd)
 				cmd = piob;
