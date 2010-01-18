@@ -905,6 +905,7 @@ static struct snd_pcm_ops vx_pcm_playback_ops = {
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_playback_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
+	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 
@@ -1125,6 +1126,7 @@ static struct snd_pcm_ops vx_pcm_capture_ops = {
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_capture_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
+	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 
