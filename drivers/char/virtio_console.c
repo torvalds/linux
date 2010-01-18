@@ -251,25 +251,26 @@ static int get_chars(u32 vtermno, char *buf, int count)
 	return count;
 }
 
-/*
- * virtio console configuration. This supports:
- * - console resize
- */
-static void virtcons_apply_config(struct virtio_device *dev)
+static void resize_console(struct port *port)
 {
+	struct virtio_device *vdev;
 	struct winsize ws;
 
-	if (virtio_has_feature(dev, VIRTIO_CONSOLE_F_SIZE)) {
-		dev->config->get(dev,
-				 offsetof(struct virtio_console_config, cols),
-				 &ws.ws_col, sizeof(u16));
-		dev->config->get(dev,
-				 offsetof(struct virtio_console_config, rows),
-				 &ws.ws_row, sizeof(u16));
-		/* This is the pre-multiport style: we use control messages
-		 * these days which specify the port.  So this means port 0. */
-		hvc_resize(find_port_by_vtermno(0)->hvc, ws);
+	vdev = port->portdev->vdev;
+	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE)) {
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_console_config, cols),
+				  &ws.ws_col, sizeof(u16));
+		vdev->config->get(vdev,
+				  offsetof(struct virtio_console_config, rows),
+				  &ws.ws_row, sizeof(u16));
+		hvc_resize(port->hvc, ws);
 	}
+}
+
+static void virtcons_apply_config(struct virtio_device *vdev)
+{
+	resize_console(find_port_by_vtermno(0));
 }
 
 /* We set the configuration at this point, since we now have a tty */
@@ -282,7 +283,7 @@ static int notifier_add_vio(struct hvc_struct *hp, int data)
 		return -EINVAL;
 
 	hp->irq_requested = 1;
-	virtcons_apply_config(port->portdev->vdev);
+	resize_console(port);
 
 	return 0;
 }
