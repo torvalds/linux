@@ -334,6 +334,8 @@ int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
  * et131x_set_packet_filter - Configures the Rx Packet filtering on the device
  * @adapter: pointer to our private adapter structure
  *
+ * FIXME: lot of dups with MAC code
+ *
  * Returns 0 on success, errno on failure
  */
 int et131x_set_packet_filter(struct et131x_adapter *adapter)
@@ -341,10 +343,10 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 	int status = 0;
 	uint32_t filter = adapter->PacketFilter;
 	RXMAC_CTRL_t ctrl;
-	RXMAC_PF_CTRL_t pf_ctrl;
+	u32 pf_ctrl;
 
 	ctrl.value = readl(&adapter->regs->rxmac.ctrl.value);
-	pf_ctrl.value = readl(&adapter->regs->rxmac.pf_ctrl.value);
+	pf_ctrl = readl(&adapter->regs->rxmac.pf_ctrl);
 
 	/* Default to disabled packet filtering.  Enable it in the individual
 	 * case statements that require the device to filter something
@@ -354,45 +356,41 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 	/* Set us to be in promiscuous mode so we receive everything, this
 	 * is also true when we get a packet filter of 0
 	 */
-	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0) {
-		pf_ctrl.bits.filter_broad_en = 0;
-		pf_ctrl.bits.filter_multi_en = 0;
-		pf_ctrl.bits.filter_uni_en = 0;
-	} else {
+	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0)
+		pf_ctrl &= ~7;	/* Clear filter bits */
+	else {
 		/*
 		 * Set us up with Multicast packet filtering.  Three cases are
 		 * possible - (1) we have a multi-cast list, (2) we receive ALL
 		 * multicast entries or (3) we receive none.
 		 */
-		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST) {
-			pf_ctrl.bits.filter_multi_en = 0;
-		} else {
+		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST)
+			pf_ctrl &= ~2;	/* Multicast filter bit */
+		else {
 			SetupDeviceForMulticast(adapter);
-			pf_ctrl.bits.filter_multi_en = 1;
+			pf_ctrl |= 2;
 			ctrl.bits.pkt_filter_disable = 0;
 		}
 
 		/* Set us up with Unicast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_DIRECTED) {
 			SetupDeviceForUnicast(adapter);
-			pf_ctrl.bits.filter_uni_en = 1;
+			pf_ctrl |= 4;
 			ctrl.bits.pkt_filter_disable = 0;
 		}
 
 		/* Set us up with Broadcast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_BROADCAST) {
-			pf_ctrl.bits.filter_broad_en = 1;
+			pf_ctrl |= 1;	/* Broadcast filter bit */
 			ctrl.bits.pkt_filter_disable = 0;
-		} else {
-			pf_ctrl.bits.filter_broad_en = 0;
-		}
+		} else
+			pf_ctrl &= ~1;
 
 		/* Setup the receive mac configuration registers - Packet
 		 * Filter control + the enable / disable for packet filter
 		 * in the control reg.
 		 */
-		writel(pf_ctrl.value,
-		       &adapter->regs->rxmac.pf_ctrl.value);
+		writel(pf_ctrl, &adapter->regs->rxmac.pf_ctrl);
 		writel(ctrl.value, &adapter->regs->rxmac.ctrl.value);
 	}
 	return status;

@@ -830,29 +830,15 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * structure for Packet Filter Control reg in rxmac address map
  * located at address 0x4084
+ *
+ * 31-23: unused
+ * 22-16: min_pkt_size
+ * 15-4: unused
+ * 3: filter_frag_en
+ * 2: filter_uni_en
+ * 1: filter_multi_en
+ * 0: filter_broad_en
  */
-typedef union _RXMAC_PF_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused2:9;		/* bits 23-31 */
-		u32 min_pkt_size:7;	/* bits 16-22 */
-		u32 unused1:12;		/* bits 4-15 */
-		u32 filter_frag_en:1;	/* bit 3 */
-		u32 filter_uni_en:1;	/* bit 2 */
-		u32 filter_multi_en:1;	/* bit 1 */
-		u32 filter_broad_en:1;	/* bit 0 */
-#else
-		u32 filter_broad_en:1;	/* bit 0 */
-		u32 filter_multi_en:1;	/* bit 1 */
-		u32 filter_uni_en:1;	/* bit 2 */
-		u32 filter_frag_en:1;	/* bit 3 */
-		u32 unused1:12;		/* bits 4-15 */
-		u32 min_pkt_size:7;	/* bits 16-22 */
-		u32 unused2:9;		/* bits 23-31 */
-#endif
-	} bits;
-} RXMAC_PF_CTRL_t, *PRXMAC_PF_CTRL_t;
 
 /*
  * structure for Memory Controller Interface Control Max Segment reg in rxmac
@@ -1017,7 +1003,7 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 multi_hash2;				/*  0x4078 */
 	u32 multi_hash3;				/*  0x407C */
 	u32 multi_hash4;				/*  0x4080 */
-	RXMAC_PF_CTRL_t pf_ctrl;			/*  0x4084 */
+	u32 pf_ctrl;					/*  0x4084 */
 	RXMAC_MCIF_CTRL_MAX_SEG_t mcif_ctrl_max_seg;	/*  0x4088 */
 	RXMAC_MCIF_WATER_MARK_t mcif_water_mark;	/*  0x408C */
 	RXMAC_RXQ_DIAG_t rxq_diag;			/*  0x4090 */

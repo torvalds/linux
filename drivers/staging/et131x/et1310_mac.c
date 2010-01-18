@@ -241,7 +241,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	struct _RXMAC_t __iomem *pRxMac = &etdev->regs->rxmac;
 	RXMAC_WOL_SA_LO_t sa_lo;
 	RXMAC_WOL_SA_HI_t sa_hi;
-	RXMAC_PF_CTRL_t pf_ctrl = { 0 };
+	u32 pf_ctrl = 0;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
 	writel(0x8, &pRxMac->ctrl.value);
@@ -292,12 +292,12 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(sa_hi.value, &pRxMac->sa_hi.value);
 
 	/* Disable all Packet Filtering */
-	writel(0, &pRxMac->pf_ctrl.value);
+	writel(0, &pRxMac->pf_ctrl);
 
 	/* Let's initialize the Unicast Packet filtering address */
 	if (etdev->PacketFilter & ET131X_PACKET_TYPE_DIRECTED) {
 		SetupDeviceForUnicast(etdev);
-		pf_ctrl.bits.filter_uni_en = 1;
+		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
 		writel(0, &pRxMac->uni_pf_addr1.value);
 		writel(0, &pRxMac->uni_pf_addr2.value);
@@ -305,16 +305,14 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	}
 
 	/* Let's initialize the Multicast hash */
-	if (etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST) {
-		pf_ctrl.bits.filter_multi_en = 0;
-	} else {
-		pf_ctrl.bits.filter_multi_en = 1;
+	if (!(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
+		pf_ctrl |= 2;	/* Multicast filter */
 		SetupDeviceForMulticast(etdev);
 	}
 
 	/* Runt packet filtering.  Didn't work in version A silicon. */
-	pf_ctrl.bits.min_pkt_size = NIC_MIN_PACKET_SIZE + 4;
-	pf_ctrl.bits.filter_frag_en = 1;
+	pf_ctrl |= (NIC_MIN_PACKET_SIZE + 4) << 16;
+	pf_ctrl |= 8;	/* Fragment filter */
 
 	if (etdev->RegistryJumboPacket > 8192) {
 		RXMAC_MCIF_CTRL_MAX_SEG_t mcif_ctrl_max_seg;
@@ -370,7 +368,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 * dropping doesn't work, so it is disabled in the pf_ctrl register,
 	 * but we still leave the packet filter on.
 	 */
-	writel(pf_ctrl.value, &pRxMac->pf_ctrl.value);
+	writel(pf_ctrl, &pRxMac->pf_ctrl);
 	writel(0x9, &pRxMac->ctrl.value);
 }
 
