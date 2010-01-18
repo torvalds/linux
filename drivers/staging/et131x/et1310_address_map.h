@@ -873,23 +873,12 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
 /*
  * structure for space availiable reg in rxmac address map.
  * located at address 0x4094
+ *
+ * 31-17: reserved
+ * 16: space_avail_en
+ * 15-10: reserved
+ * 9-0: space_avail
  */
-typedef union _RXMAC_SPACE_AVAIL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:15;		/* bits 17-31 */
-		u32 space_avail_en:1;	/* bit 16 */
-		u32 reserved1:6;		/* bits 10-15 */
-		u32 space_avail:10;	/* bits 0-9 */
-#else
-		u32 space_avail:10;	/* bits 0-9 */
-		u32 reserved1:6;		/* bits 10-15 */
-		u32 space_avail_en:1;	/* bit 16 */
-		u32 reserved2:15;		/* bits 17-31 */
-#endif
-	} bits;
-} RXMAC_SPACE_AVAIL_t, *PRXMAC_SPACE_AVAIL_t;
 
 /*
  * structure for management interface reg in rxmac address map.
@@ -974,7 +963,7 @@ typedef struct _RXMAC_t {				/* Location: */
 	u32 mcif_ctrl_max_seg;				/*  0x4088 */
 	u32 mcif_water_mark;				/*  0x408C */
 	u32 rxq_diag;					/*  0x4090 */
-	RXMAC_SPACE_AVAIL_t space_avail;		/*  0x4094 */
+	u32 space_avail;				/*  0x4094 */
 
 	RXMAC_MIF_CTL_t mif_ctrl;			/*  0x4098 */
 	RXMAC_ERROR_REG_t err_reg;			/*  0x409C */

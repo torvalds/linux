@@ -336,7 +336,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	writel(0, &pRxMac->mif_ctrl.value);
 
 	/* Initialize the Space Available Register */
-	writel(0, &pRxMac->space_avail.value);
+	writel(0, &pRxMac->space_avail);
 
 	/* Initialize the the mif_ctrl register
 	 * bit 3:  Receive code error. One or more nibbles were signaled as
