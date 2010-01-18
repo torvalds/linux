@@ -342,16 +342,16 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
 	int status = 0;
 	uint32_t filter = adapter->PacketFilter;
-	RXMAC_CTRL_t ctrl;
+	u32 ctrl;
 	u32 pf_ctrl;
 
-	ctrl.value = readl(&adapter->regs->rxmac.ctrl.value);
+	ctrl = readl(&adapter->regs->rxmac.ctrl);
 	pf_ctrl = readl(&adapter->regs->rxmac.pf_ctrl);
 
 	/* Default to disabled packet filtering.  Enable it in the individual
 	 * case statements that require the device to filter something
 	 */
-	ctrl.bits.pkt_filter_disable = 1;
+	ctrl |= 0x04;
 
 	/* Set us to be in promiscuous mode so we receive everything, this
 	 * is also true when we get a packet filter of 0
@@ -369,20 +369,20 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 		else {
 			SetupDeviceForMulticast(adapter);
 			pf_ctrl |= 2;
-			ctrl.bits.pkt_filter_disable = 0;
+			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Unicast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_DIRECTED) {
 			SetupDeviceForUnicast(adapter);
 			pf_ctrl |= 4;
-			ctrl.bits.pkt_filter_disable = 0;
+			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Broadcast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_BROADCAST) {
 			pf_ctrl |= 1;	/* Broadcast filter bit */
-			ctrl.bits.pkt_filter_disable = 0;
+			ctrl &= ~0x04;
 		} else
 			pf_ctrl &= ~1;
 
@@ -391,7 +391,7 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 		 * in the control reg.
 		 */
 		writel(pf_ctrl, &adapter->regs->rxmac.pf_ctrl);
-		writel(ctrl.value, &adapter->regs->rxmac.ctrl.value);
+		writel(ctrl, &adapter->regs->rxmac.ctrl);
 	}
 	return status;
 }

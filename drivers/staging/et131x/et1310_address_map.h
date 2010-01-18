@@ -655,31 +655,16 @@ struct txmac_regs {			/* Location: */
 /*
  * structure for rxmac control reg in rxmac address map
  * located at address 0x4000
+ *
+ * 31-7: reserved
+ * 6: rxmac_int_disable
+ * 5: async_disable
+ * 4: mif_disable
+ * 3: wol_disable
+ * 2: pkt_filter_disable
+ * 1: mcif_disable
+ * 0: rxmac_en
  */
-typedef union _RXMAC_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:25;		/* bits 7-31 */
-		u32 rxmac_int_disable:1;	/* bit 6 */
-		u32 async_disable:1;		/* bit 5 */
-		u32 mif_disable:1;		/* bit 4 */
-		u32 wol_disable:1;		/* bit 3 */
-		u32 pkt_filter_disable:1;	/* bit 2 */
-		u32 mcif_disable:1;		/* bit 1 */
-		u32 rxmac_en:1;			/* bit 0 */
-#else
-		u32 rxmac_en:1;			/* bit 0 */
-		u32 mcif_disable:1;		/* bit 1 */
-		u32 pkt_filter_disable:1;	/* bit 2 */
-		u32 wol_disable:1;		/* bit 3 */
-		u32 mif_disable:1;		/* bit 4 */
-		u32 async_disable:1;		/* bit 5 */
-		u32 rxmac_int_disable:1;	/* bit 6 */
-		u32 reserved:25;		/* bits 7-31 */
-#endif
-	} bits;
-} RXMAC_CTRL_t, *PRXMAC_CTRL_t;
 
 /*
  * structure for Wake On Lan Control and CRC 0 reg in rxmac address map
@@ -904,7 +889,7 @@ typedef union _RXMAC_UNI_PF_ADDR3_t {
  * Rx MAC Module of JAGCore Address Mapping
  */
 typedef struct _RXMAC_t {				/* Location: */
-	RXMAC_CTRL_t ctrl;				/*  0x4000 */
+	u32 ctrl;					/*  0x4000 */
 	u32 crc0;					/*  0x4004 */
 	u32 crc12;					/*  0x4008 */
 	u32 crc34;					/*  0x400C */

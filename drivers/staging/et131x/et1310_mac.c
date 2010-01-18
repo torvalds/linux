@@ -244,7 +244,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	u32 pf_ctrl = 0;
 
 	/* Disable the MAC while it is being configured (also disable WOL) */
-	writel(0x8, &pRxMac->ctrl.value);
+	writel(0x8, &pRxMac->ctrl);
 
 	/* Initialize WOL to disabled. */
 	writel(0, &pRxMac->crc0);
@@ -363,7 +363,7 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 	 * but we still leave the packet filter on.
 	 */
 	writel(pf_ctrl, &pRxMac->pf_ctrl);
-	writel(0x9, &pRxMac->ctrl.value);
+	writel(0x9, &pRxMac->ctrl);
 }
 
 void ConfigTxMacRegs(struct et131x_adapter *etdev)
