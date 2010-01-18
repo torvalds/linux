@@ -5,6 +5,7 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
+#include <linux/writeback.h>
 
 #include "super.h"
 #include "decode.h"
@@ -1801,12 +1802,13 @@ int ceph_fsync(struct file *file, struct dentry *dentry, int datasync)
  * get by with fewer MDS messages if we wait for data writeback to
  * complete first.
  */
-int ceph_write_inode(struct inode *inode, int wait)
+int ceph_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	unsigned flush_tid;
 	int err = 0;
 	int dirty;
+	int wait = wbc->sync_mode == WB_SYNC_ALL;
 
 	dout("write_inode %p wait=%d\n", inode, wait);
 	if (wait) {
