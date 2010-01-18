@@ -241,28 +241,4 @@ struct rx_ring {
 	struct kmem_cache *RecvLookaside;
 };
 
-/* Forward reference of RFD */
-struct _MP_RFD;
-
-/* Forward declaration of the private adapter structure */
-struct et131x_adapter;
-
-/* PROTOTYPES for Initialization */
-int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter);
-void et131x_rx_dma_memory_free(struct et131x_adapter *adapter);
-int et131x_rfd_resources_alloc(struct et131x_adapter *adapter,
-			       struct _MP_RFD *pMpRfd);
-void et131x_rfd_resources_free(struct et131x_adapter *adapter,
-			       struct _MP_RFD *pMpRfd);
-int et131x_init_recv(struct et131x_adapter *adapter);
-
-void ConfigRxDmaRegs(struct et131x_adapter *adapter);
-void SetRxDmaTimer(struct et131x_adapter *adapter);
-void et131x_rx_dma_disable(struct et131x_adapter *adapter);
-void et131x_rx_dma_enable(struct et131x_adapter *adapter);
-
-void et131x_reset_recv(struct et131x_adapter *adapter);
-
-void et131x_handle_recv_interrupt(struct et131x_adapter *adapter);
-
 #endif /* __ET1310_RX_H__ */

@@ -84,15 +84,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-
 #include "et131x_adapter.h"
-#include "et131x_initpci.h"
-#include "et131x_isr.h"
-
 #include "et1310_tx.h"
-
+#include "et131x.h"
 
 static inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 					   struct tcb *tcb);

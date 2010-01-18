@@ -84,14 +84,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-
 #include "et131x_adapter.h"
-#include "et131x_initpci.h"
-
 #include "et1310_rx.h"
-
+#include "et131x.h"
 
 void nic_return_rfd(struct et131x_adapter *etdev, PMP_RFD pMpRfd);
 

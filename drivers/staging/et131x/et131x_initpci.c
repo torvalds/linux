@@ -87,20 +87,16 @@
 #include <linux/random.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
 
 #include "et131x_adapter.h"
-#include "et131x_netdev.h"
-#include "et131x_config.h"
-#include "et131x_isr.h"
 
 #include "et1310_address_map.h"
 #include "et1310_tx.h"
 #include "et1310_rx.h"
-#include "et1310_mac.h"
-#include "et1310_eeprom.h"
+#include "et131x.h"
 
+#define INTERNAL_MEM_SIZE       0x400	/* 1024 of internal memory */
+#define INTERNAL_MEM_RX_OFFSET  0x1FF	/* 50%   Tx, 50%   Rx */
 
 /* Defines for Parameter Default/Min/Max vaules */
 #define PARM_SPEED_DUPLEX_MIN   0

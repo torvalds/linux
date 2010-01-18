@@ -85,14 +85,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-#include "et1310_mac.h"
 #include "et1310_tx.h"
-
 #include "et131x_adapter.h"
-#include "et131x_isr.h"
-#include "et131x_initpci.h"
+#include "et131x.h"
 
 struct net_device_stats *et131x_stats(struct net_device *netdev);
 int et131x_open(struct net_device *netdev);
