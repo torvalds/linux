@@ -2,7 +2,7 @@
  *    pata_efar.c - EFAR PIIX clone controller driver
  *
  *	(C) 2005 Red Hat
- *	(C) 2009 Bartlomiej Zolnierkiewicz
+ *	(C) 2009-2010 Bartlomiej Zolnierkiewicz
  *
  *    Some parts based on ata_piix.c by Jeff Garzik and others.
  *
@@ -256,7 +256,7 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		.udma_mask 	= ATA_UDMA4,
 		.port_ops	= &efar_ops,
 	};
-	const struct ata_port_info *ppi[] = { &info, NULL };
+	const struct ata_port_info *ppi[] = { &info, &info };
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
