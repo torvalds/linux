@@ -2582,6 +2582,7 @@ err:
 	hsotg->gadget.dev.driver = NULL;
 	return ret;
 }
+EXPORT_SYMBOL(usb_gadget_register_driver);
 
 int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 {
