@@ -3162,9 +3162,7 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 	long size;
 	unsigned long offset;
 
-#ifdef pgprot_noncached
 	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
-#endif
 	area->vm_flags |= VM_IO;
 	size = area->vm_end - area->vm_start;
 	offset = area->vm_pgoff << PAGE_SHIFT;
