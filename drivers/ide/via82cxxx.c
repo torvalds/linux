@@ -54,6 +54,7 @@
 #define VIA_NO_UNMASK		0x08 /* Doesn't work with IRQ unmasking on */
 #define VIA_BAD_ID		0x10 /* Has wrong vendor ID (0x1107) */
 #define VIA_BAD_AST		0x20 /* Don't touch Address Setup Timing */
+#define VIA_SATA_PATA		0x80 /* SATA/PATA combined configuration */
 
 enum {
 	VIA_IDFLAG_SINGLE = (1 << 1), /* single channel controller */
@@ -71,9 +72,9 @@ static struct via_isa_bridge {
 	u8 udma_mask;
 	u8 flags;
 } via_isa_bridges[] = {
-	{ "vx855",	PCI_DEVICE_ID_VIA_VX855,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
-	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
-	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vx855",	PCI_DEVICE_ID_VIA_VX855,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
+	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
+	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
@@ -365,6 +366,9 @@ static u8 via82cxxx_cable_detect(ide_hwif_t *hwif)
 
 	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
+
+	if ((vdev->via_config->flags & VIA_SATA_PATA) && hwif->channel == 0)
+		return ATA_CBL_SATA;
 
 	if ((vdev->via_80w >> hwif->channel) & 1)
 		return ATA_CBL_PATA80;
