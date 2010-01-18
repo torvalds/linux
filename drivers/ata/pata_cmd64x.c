@@ -131,8 +131,14 @@ static void cmd64x_set_timing(struct ata_port *ap, struct ata_device *adev, u8 m
 
 		if (pair) {
 			struct ata_timing tp;
+
 			ata_timing_compute(pair, pair->pio_mode, &tp, T, 0);
 			ata_timing_merge(&t, &tp, &t, ATA_TIMING_SETUP);
+			if (pair->dma_mode) {
+				ata_timing_compute(pair, pair->dma_mode,
+						&tp, T, 0);
+				ata_timing_merge(&tp, &t, &t, ATA_TIMING_SETUP);
+			}
 		}
 	}
 
