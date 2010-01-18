@@ -142,6 +142,12 @@ void __iounmap(void __iomem *addr)
 	if (iomapping_nontranslatable(vaddr))
 		return;
 
+	/*
+	 * There's no VMA if it's from an early fixed mapping.
+	 */
+	if (iounmap_fixed(addr) == 0)
+		return;
+
 #ifdef CONFIG_PMB
 	/*
 	 * Purge any PMB entries that may have been established for this
