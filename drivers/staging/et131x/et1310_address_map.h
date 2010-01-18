@@ -1662,22 +1662,6 @@ typedef struct _MMC_t {			/* Location: */
 /* END OF MMC REGISTER ADDRESS MAP */
 
 
-/* START OF EXP ROM REGISTER ADDRESS MAP */
-
-/*
- * Expansion ROM Module of JAGCore Address Mapping
- */
-
-/* Take this out until it is not empty */
-#if 0
-typedef struct _EXP_ROM_t {
-
-} EXP_ROM_t, *PEXP_ROM_t;
-#endif
-
-/* END OF EXP ROM REGISTER ADDRESS MAP */
-
-
 /*
  * JAGCore Address Mapping
  */
@@ -1708,11 +1692,6 @@ typedef struct _ADDRESS_MAP_t {
 	u8 unused_mmc[4096 - sizeof(MMC_t)];
 	/* unused section of address map */
 	u8 unused_[1015808];
-
-/* Take this out until it is not empty */
-#if 0
-	EXP_ROM_t exp_rom;
-#endif
 
 	u8 unused_exp_rom[4096];	/* MGS-size TBD */
 	u8 unused__[524288];	/* unused section of address map */
