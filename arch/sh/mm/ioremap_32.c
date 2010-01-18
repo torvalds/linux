@@ -105,15 +105,35 @@ void __iomem *__ioremap_caller(unsigned long phys_addr, unsigned long size,
 }
 EXPORT_SYMBOL(__ioremap_caller);
 
+/*
+ * Simple checks for non-translatable mappings.
+ */
+static inline int iomapping_nontranslatable(unsigned long offset)
+{
+#ifdef CONFIG_29BIT
+	/*
+	 * In 29-bit mode this includes the fixed P1/P2 areas, as well as
+	 * parts of P3.
+	 */
+	if (PXSEG(offset) < P3SEG || offset >= P3_ADDR_MAX)
+		return 1;
+#endif
+
+	if (is_pci_memory_fixed_range(offset, 0))
+		return 1;
+
+	return 0;
+}
+
 void __iounmap(void __iomem *addr)
 {
 	unsigned long vaddr = (unsigned long __force)addr;
-	unsigned long seg = PXSEG(vaddr);
 	struct vm_struct *p;
 
-	if (seg < P3SEG || vaddr >= P3_ADDR_MAX)
-		return;
-	if (is_pci_memory_fixed_range(vaddr, 0))
+	/*
+	 * Nothing to do if there is no translatable mapping.
+	 */
+	if (iomapping_nontranslatable(vaddr))
 		return;
 
 #ifdef CONFIG_PMB

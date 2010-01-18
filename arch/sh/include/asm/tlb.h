@@ -11,6 +11,7 @@
 #ifdef CONFIG_MMU
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu_context.h>
 
 /*
  * TLB handling.  This allows us to remove pages from the page
@@ -96,6 +97,62 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
 #define pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
 
 #define tlb_migrate_finish(mm)		do { } while (0)
+
+#ifdef CONFIG_CPU_SH4
+extern void tlb_wire_entry(struct vm_area_struct *, unsigned long, pte_t);
+extern void tlb_unwire_entry(void);
+#elif defined(CONFIG_SUPERH64)
+static int dtlb_entry;
+static unsigned long long dtlb_entries[64];
+
+static inline void tlb_wire_entry(struct vm_area_struct *vma,
+				  unsigned long addr, pte_t pte)
+{
+	unsigned long long entry;
+	unsigned long paddr, flags;
+
+	BUG_ON(dtlb_entry == 64);
+
+	local_irq_save(flags);
+
+	entry = sh64_get_wired_dtlb_entry();
+	dtlb_entries[dtlb_entry++] = entry;
+
+	paddr = pte_val(pte) & _PAGE_FLAGS_HARDWARE_MASK;
+	paddr &= ~PAGE_MASK;
+
+	sh64_setup_tlb_slot(entry, addr, get_asid(), paddr);
+
+	local_irq_restore(flags);
+}
+
+static inline void tlb_unwire_entry(void)
+{
+	unsigned long long entry;
+	unsigned long flags;
+
+	BUG_ON(!dtlb_entry);
+
+	local_irq_save(flags);
+	entry = dtlb_entries[dtlb_entry--];
+
+	sh64_teardown_tlb_slot(entry);
+	sh64_put_wired_dtlb_entry(entry);
+
+	local_irq_restore(flags);
+}
+#else
+static inline void tlb_wire_entry(struct vm_area_struct *vma ,
+				  unsigned long addr, pte_t pte)
+{
+	BUG();
+}
+
+static inline void tlb_unwire_entry(void)
+{
+	BUG();
+}
+#endif /* CONFIG_CPU_SH4 */
 
 #else /* CONFIG_MMU */
 

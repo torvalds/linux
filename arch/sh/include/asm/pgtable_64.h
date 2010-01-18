@@ -123,8 +123,21 @@ static __inline__ void set_pte(pte_t *pteptr, pte_t pteval)
 #define _PAGE_DIRTY	0x400  /* software: page accessed in write */
 #define _PAGE_ACCESSED	0x800  /* software: page referenced */
 
+/* Wrapper for extended mode pgprot twiddling */
+#define _PAGE_EXT(x)		((unsigned long long)(x) << 32)
+
+/*
+ * We can use the sign-extended bits in the PTEL to get 32 bits of
+ * software flags. This works for now because no implementations uses
+ * anything above the PPN field.
+ */
+#define _PAGE_WIRED	_PAGE_EXT(0x001) /* software: wire the tlb entry */
+
+#define _PAGE_CLEAR_FLAGS	(_PAGE_PRESENT | _PAGE_FILE | _PAGE_SHARED | \
+				 _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_WIRED)
+
 /* Mask which drops software flags */
-#define _PAGE_FLAGS_HARDWARE_MASK	0xfffffffffffff3dbLL
+#define _PAGE_FLAGS_HARDWARE_MASK	(NEFF_MASK & ~(_PAGE_CLEAR_FLAGS))
 
 /*
  * HugeTLB support
