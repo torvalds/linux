@@ -400,10 +400,19 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	s->lock_count = 0;
 	kfree(s->fake_cis);
 	s->fake_cis = NULL;
+	s->functions = 0;
+
+	/* From here on we can be sure that only we (that is, the
+	 * pccardd thread) accesses this socket, and all (16-bit)
+	 * PCMCIA interactions are gone. Therefore, release
+	 * ops_mutex so that we don't get a sysfs-related lockdep
+	 * warning.
+	 */
+	mutex_unlock(&s->ops_mutex);
+
 #ifdef CONFIG_CARDBUS
 	cb_free(s);
 #endif
-	s->functions = 0;
 
 	/* give socket some time to power down */
 	msleep(100);
@@ -415,7 +424,6 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	}
 
 	s->state &= ~SOCKET_INUSE;
-	mutex_unlock(&s->ops_mutex);
 }
 
 static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
