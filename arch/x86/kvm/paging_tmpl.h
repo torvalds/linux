@@ -162,7 +162,7 @@ walk:
 		if (rsvd_fault)
 			goto access_error;
 
-		if (write_fault && !is_writeble_pte(pte))
+		if (write_fault && !is_writable_pte(pte))
 			if (user_fault || is_write_protection(vcpu))
 				goto access_error;
 
