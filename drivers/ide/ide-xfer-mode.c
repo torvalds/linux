@@ -167,9 +167,11 @@ int ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	if (hwif->host_flags & IDE_HFLAG_POST_SET_MODE) {
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
+		drive->dma_mode = mode;
 		port_ops->set_dma_mode(drive, mode);
 		return 0;
 	} else {
+		drive->dma_mode = mode;
 		port_ops->set_dma_mode(drive, mode);
 		return ide_config_drive_speed(drive, mode);
 	}

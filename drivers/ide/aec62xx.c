@@ -136,6 +136,7 @@ static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 
 static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
+	drive->dma_mode = pio + XFER_PIO_0;
 	drive->hwif->port_ops->set_dma_mode(drive, pio + XFER_PIO_0);
 }
 
