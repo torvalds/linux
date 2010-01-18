@@ -2566,7 +2566,7 @@ void watch_dog_adaptive(unsigned long data)
 	// Tx Power Tracking on 87SE.
 #ifdef TX_TRACK
 	//if( priv->bTxPowerTrack )	//lzm mod 080826
-	if( CheckTxPwrTracking((struct net_device *)data));
+	if (CheckTxPwrTracking((struct net_device *)data))
 		TxPwrTracking87SE((struct net_device *)data);
 #endif
 
