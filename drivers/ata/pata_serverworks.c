@@ -328,7 +328,7 @@ static int serverworks_fixup_osb4(struct pci_dev *pdev)
 		pci_dev_put(isa_dev);
 		return 0;
 	}
-	printk(KERN_WARNING "ata_serverworks: Unable to find bridge.\n");
+	printk(KERN_WARNING DRV_NAME ": Unable to find bridge.\n");
 	return -ENODEV;
 }
 
