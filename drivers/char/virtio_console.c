@@ -346,6 +346,43 @@ int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int))
 	return hvc_instantiate(0, 0, &hv_ops);
 }
 
+int __devinit init_port_console(struct port *port)
+{
+	int ret;
+
+	/*
+	 * The Host's telling us this port is a console port.  Hook it
+	 * up with an hvc console.
+	 *
+	 * To set up and manage our virtual console, we call
+	 * hvc_alloc().
+	 *
+	 * The first argument of hvc_alloc() is the virtual console
+	 * number.  The second argument is the parameter for the
+	 * notification mechanism (like irq number).  We currently
+	 * leave this as zero, virtqueues have implicit notifications.
+	 *
+	 * The third argument is a "struct hv_ops" containing the
+	 * put_chars() get_chars(), notifier_add() and notifier_del()
+	 * pointers.  The final argument is the output buffer size: we
+	 * can do any size, so we put PAGE_SIZE here.
+	 */
+	port->cons.vtermno = pdrvdata.next_vtermno;
+
+	port->cons.hvc = hvc_alloc(port->cons.vtermno, 0, &hv_ops, PAGE_SIZE);
+	if (IS_ERR(port->cons.hvc)) {
+		ret = PTR_ERR(port->cons.hvc);
+		port->cons.hvc = NULL;
+		return ret;
+	}
+	spin_lock_irq(&pdrvdata_lock);
+	pdrvdata.next_vtermno++;
+	list_add_tail(&port->cons.list, &pdrvdata.consoles);
+	spin_unlock_irq(&pdrvdata_lock);
+
+	return 0;
+}
+
 static int __devinit add_port(struct ports_device *portdev)
 {
 	struct port *port;
@@ -367,29 +404,9 @@ static int __devinit add_port(struct ports_device *portdev)
 		goto free_port;
 	}
 
-	/*
-	 * The first argument of hvc_alloc() is the virtual console
-	 * number.  The second argument is the parameter for the
-	 * notification mechanism (like irq number).  We currently
-	 * leave this as zero, virtqueues have implicit notifications.
-	 *
-	 * The third argument is a "struct hv_ops" containing the
-	 * put_chars(), get_chars(), notifier_add() and notifier_del()
-	 * pointers.  The final argument is the output buffer size: we
-	 * can do any size, so we put PAGE_SIZE here.
-	 */
-	port->cons.vtermno = pdrvdata.next_vtermno;
-	port->cons.hvc = hvc_alloc(port->cons.vtermno, 0, &hv_ops, PAGE_SIZE);
-	if (IS_ERR(port->cons.hvc)) {
-		err = PTR_ERR(port->cons.hvc);
+	err = init_port_console(port);
+	if (err)
 		goto free_inbuf;
-	}
-
-	/* Add to vtermno list. */
-	spin_lock_irq(&pdrvdata_lock);
-	pdrvdata.next_vtermno++;
-	list_add(&port->cons.list, &pdrvdata.consoles);
-	spin_unlock_irq(&pdrvdata_lock);
 
 	/* Register the input buffer the first time. */
 	add_inbuf(port->in_vq, port->inbuf);
