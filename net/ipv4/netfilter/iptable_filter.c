@@ -138,7 +138,7 @@ static int __net_init iptable_filter_net_init(struct net *net)
 
 static void __net_exit iptable_filter_net_exit(struct net *net)
 {
-	ipt_unregister_table(net->ipv4.iptable_filter);
+	ipt_unregister_table(net, net->ipv4.iptable_filter);
 }
 
 static struct pernet_operations iptable_filter_net_ops = {

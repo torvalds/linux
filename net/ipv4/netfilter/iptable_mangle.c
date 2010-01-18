@@ -208,7 +208,7 @@ static int __net_init iptable_mangle_net_init(struct net *net)
 
 static void __net_exit iptable_mangle_net_exit(struct net *net)
 {
-	ipt_unregister_table(net->ipv4.iptable_mangle);
+	ipt_unregister_table(net, net->ipv4.iptable_mangle);
 }
 
 static struct pernet_operations iptable_mangle_net_ops = {

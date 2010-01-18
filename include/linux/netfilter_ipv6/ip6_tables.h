@@ -300,7 +300,7 @@ extern void ip6t_init(void) __init;
 extern struct xt_table *ip6t_register_table(struct net *net,
 					    const struct xt_table *table,
 					    const struct ip6t_replace *repl);
-extern void ip6t_unregister_table(struct xt_table *table);
+extern void ip6t_unregister_table(struct net *net, struct xt_table *table);
 extern unsigned int ip6t_do_table(struct sk_buff *skb,
 				  unsigned int hook,
 				  const struct net_device *in,

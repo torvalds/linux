@@ -195,7 +195,7 @@ static int __net_init nf_nat_rule_net_init(struct net *net)
 
 static void __net_exit nf_nat_rule_net_exit(struct net *net)
 {
-	ipt_unregister_table(net->ipv4.nat_table);
+	ipt_unregister_table(net, net->ipv4.nat_table);
 }
 
 static struct pernet_operations nf_nat_rule_net_ops = {

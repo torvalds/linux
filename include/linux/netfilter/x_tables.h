@@ -216,6 +216,7 @@ struct xt_mtchk_param {
 
 /* Match destructor parameters */
 struct xt_mtdtor_param {
+	struct net *net;
 	const struct xt_match *match;
 	void *matchinfo;
 	u_int8_t family;

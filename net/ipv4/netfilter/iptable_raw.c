@@ -100,7 +100,7 @@ static int __net_init iptable_raw_net_init(struct net *net)
 
 static void __net_exit iptable_raw_net_exit(struct net *net)
 {
-	ipt_unregister_table(net->ipv4.iptable_raw);
+	ipt_unregister_table(net, net->ipv4.iptable_raw);
 }
 
 static struct pernet_operations iptable_raw_net_ops = {

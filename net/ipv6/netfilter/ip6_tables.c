@@ -585,13 +585,14 @@ mark_source_chains(struct xt_table_info *newinfo,
 }
 
 static int
-cleanup_match(struct ip6t_entry_match *m, unsigned int *i)
+cleanup_match(struct ip6t_entry_match *m, struct net *net, unsigned int *i)
 {
 	struct xt_mtdtor_param par;
 
 	if (i && (*i)-- == 0)
 		return 1;
 
+	par.net       = net;
 	par.match     = m->u.kernel.match;
 	par.matchinfo = m->data;
 	par.family    = NFPROTO_IPV6;
@@ -737,7 +738,7 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
  err:
 	module_put(t->u.kernel.target->me);
  cleanup_matches:
-	IP6T_MATCH_ITERATE(e, cleanup_match, &j);
+	IP6T_MATCH_ITERATE(e, cleanup_match, net, &j);
 	return ret;
 }
 
@@ -807,7 +808,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 }
 
 static int
-cleanup_entry(struct ip6t_entry *e, unsigned int *i)
+cleanup_entry(struct ip6t_entry *e, struct net *net, unsigned int *i)
 {
 	struct xt_tgdtor_param par;
 	struct ip6t_entry_target *t;
@@ -816,7 +817,7 @@ cleanup_entry(struct ip6t_entry *e, unsigned int *i)
 		return 1;
 
 	/* Cleanup all matches */
-	IP6T_MATCH_ITERATE(e, cleanup_match, NULL);
+	IP6T_MATCH_ITERATE(e, cleanup_match, net, NULL);
 	t = ip6t_get_target(e);
 
 	par.target   = t->u.kernel.target;
@@ -898,7 +899,7 @@ translate_table(struct net *net,
 
 	if (ret != 0) {
 		IP6T_ENTRY_ITERATE(entry0, newinfo->size,
-				   cleanup_entry, &i);
+				   cleanup_entry, net, &i);
 		return ret;
 	}
 
@@ -1293,7 +1294,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	/* Decrease module usage counts and free resource */
 	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
 	IP6T_ENTRY_ITERATE(loc_cpu_old_entry, oldinfo->size, cleanup_entry,
-			   NULL);
+			   net, NULL);
 	xt_free_table_info(oldinfo);
 	if (copy_to_user(counters_ptr, counters,
 			 sizeof(struct xt_counters) * num_counters) != 0)
@@ -1353,7 +1354,7 @@ do_replace(struct net *net, void __user *user, unsigned int len)
 	return 0;
 
  free_newinfo_untrans:
-	IP6T_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, NULL);
+	IP6T_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, net, NULL);
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
@@ -1692,14 +1693,15 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 	return ret;
 }
 
-static int compat_check_entry(struct ip6t_entry *e, const char *name,
-				     unsigned int *i)
+static int compat_check_entry(struct ip6t_entry *e, struct net *net,
+			      const char *name, unsigned int *i)
 {
 	unsigned int j;
 	int ret;
 	struct xt_mtchk_param mtpar;
 
 	j = 0;
+	mtpar.net	= net;
 	mtpar.table     = name;
 	mtpar.entryinfo = &e->ipv6;
 	mtpar.hook_mask = e->comefrom;
@@ -1716,12 +1718,13 @@ static int compat_check_entry(struct ip6t_entry *e, const char *name,
 	return 0;
 
  cleanup_matches:
-	IP6T_MATCH_ITERATE(e, cleanup_match, &j);
+	IP6T_MATCH_ITERATE(e, cleanup_match, net, &j);
 	return ret;
 }
 
 static int
-translate_compat_table(const char *name,
+translate_compat_table(struct net *net,
+		       const char *name,
 		       unsigned int valid_hooks,
 		       struct xt_table_info **pinfo,
 		       void **pentry0,
@@ -1810,12 +1813,12 @@ translate_compat_table(const char *name,
 
 	i = 0;
 	ret = IP6T_ENTRY_ITERATE(entry1, newinfo->size, compat_check_entry,
-				 name, &i);
+				 net, name, &i);
 	if (ret) {
 		j -= i;
 		COMPAT_IP6T_ENTRY_ITERATE_CONTINUE(entry0, newinfo->size, i,
 						   compat_release_entry, &j);
-		IP6T_ENTRY_ITERATE(entry1, newinfo->size, cleanup_entry, &i);
+		IP6T_ENTRY_ITERATE(entry1, newinfo->size, cleanup_entry, net, &i);
 		xt_free_table_info(newinfo);
 		return ret;
 	}
@@ -1870,7 +1873,7 @@ compat_do_replace(struct net *net, void __user *user, unsigned int len)
 		goto free_newinfo;
 	}
 
-	ret = translate_compat_table(tmp.name, tmp.valid_hooks,
+	ret = translate_compat_table(net, tmp.name, tmp.valid_hooks,
 				     &newinfo, &loc_cpu_entry, tmp.size,
 				     tmp.num_entries, tmp.hook_entry,
 				     tmp.underflow);
@@ -1886,7 +1889,7 @@ compat_do_replace(struct net *net, void __user *user, unsigned int len)
 	return 0;
 
  free_newinfo_untrans:
-	IP6T_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, NULL);
+	IP6T_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, net, NULL);
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
@@ -2144,7 +2147,7 @@ out:
 	return ERR_PTR(ret);
 }
 
-void ip6t_unregister_table(struct xt_table *table)
+void ip6t_unregister_table(struct net *net, struct xt_table *table)
 {
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
@@ -2154,7 +2157,7 @@ void ip6t_unregister_table(struct xt_table *table)
 
 	/* Decrease module usage counts and free resources */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
-	IP6T_ENTRY_ITERATE(loc_cpu_entry, private->size, cleanup_entry, NULL);
+	IP6T_ENTRY_ITERATE(loc_cpu_entry, private->size, cleanup_entry, net, NULL);
 	if (private->number > private->initial_entries)
 		module_put(table_owner);
 	xt_free_table_info(private);

@@ -131,7 +131,7 @@ static int __net_init ip6table_filter_net_init(struct net *net)
 
 static void __net_exit ip6table_filter_net_exit(struct net *net)
 {
-	ip6t_unregister_table(net->ipv6.ip6table_filter);
+	ip6t_unregister_table(net, net->ipv6.ip6table_filter);
 }
 
 static struct pernet_operations ip6table_filter_net_ops = {
