@@ -528,8 +528,6 @@ static void __init mini2440_map_io(void)
 	s3c24xx_init_io(mini2440_iodesc, ARRAY_SIZE(mini2440_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini2440_uartcfgs, ARRAY_SIZE(mini2440_uartcfgs));
-
-	s3c_device_sdi.dev.platform_data = &mini2440_mmc_cfg;
 }
 
 /*
@@ -675,6 +673,7 @@ static void __init mini2440_init(void)
 	}
 
 	s3c24xx_udc_set_platdata(&mini2440_udc_cfg);
+	s3c24xx_mci_set_platdata(&mini2440_mmc_cfg);
 	s3c_nand_set_platdata(&mini2440_nand_info);
 	s3c_i2c0_set_platdata(NULL);
 
