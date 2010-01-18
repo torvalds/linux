@@ -258,7 +258,7 @@ static void sil_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	/* trim *taskfile* PIO to the slowest of the master/slave */
 	if (pair) {
-		u8 pair_pio = ide_get_best_pio_mode(pair, 255, 4);
+		u8 pair_pio = pair->pio_mode - XFER_PIO_0;
 
 		if (pair_pio < tf_pio)
 			tf_pio = pair_pio;
