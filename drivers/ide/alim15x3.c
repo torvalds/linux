@@ -72,6 +72,7 @@ static void ali_fifo_control(ide_hwif_t *hwif, ide_drive_t *drive, int on)
 static void ali_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	unsigned long T =  1000000 / bus_speed; /* PCI clock based */
 	int port = hwif->channel ? 0x5c : 0x58;
@@ -79,6 +80,16 @@ static void ali_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	struct ide_timing t;
 
 	ide_timing_compute(drive, drive->pio_mode, &t, T, 1);
+	if (pair) {
+		struct ide_timing p;
+
+		ide_timing_compute(pair, pair->pio_mode, &p, T, 1);
+		ide_timing_merge(&p, &t, &t, IDE_TIMING_SETUP);
+		if (pair->dma_mode) {
+			ide_timing_compute(pair, pair->dma_mode, &p, T, 1);
+			ide_timing_merge(&p, &t, &t, IDE_TIMING_SETUP);
+		}
+	}
 
 	t.setup = clamp_val(t.setup, 1, 8) & 7;
 	t.active = clamp_val(t.active, 1, 8) & 7;
