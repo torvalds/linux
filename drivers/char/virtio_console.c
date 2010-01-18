@@ -204,6 +204,11 @@ static int __devinit virtcons_probe(struct virtio_device *dev)
 	struct virtqueue *vqs[2];
 	int err;
 
+	if (vdev) {
+		dev_warn(&vdev->dev,
+			 "Multiple virtio-console devices not supported yet\n");
+		return -EEXIST;
+	}
 	vdev = dev;
 
 	/* This is the scratch page we use to receive console input */
