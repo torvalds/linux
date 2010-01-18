@@ -8,7 +8,7 @@
  *  Copyright (C) 2002 Alan Cox
  *  ALi (now ULi M5228) support by Clear Zhang <Clear.Zhang@ali.com.tw>
  *  Copyright (C) 2007 MontaVista Software, Inc. <source@mvista.com>
- *  Copyright (C) 2007 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
+ *  Copyright (C) 2007-2010 Bartlomiej Zolnierkiewicz
  *
  *  (U)DMA capable version of ali 1533/1543(C), 1535(D)
  *
@@ -60,28 +60,22 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
-	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
-	int s_time = t->setup, a_time = t->active, c_time = t->cycle;
-	u8 s_clc, a_clc, r_clc;
 	unsigned long flags;
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
+	unsigned long T =  1000000 / bus_speed; /* PCI clock based */
 	int port = hwif->channel ? 0x5c : 0x58;
 	int portFIFO = hwif->channel ? 0x55 : 0x54;
 	u8 cd_dma_fifo = 0, unit = drive->dn & 1;
+	struct ide_timing t;
 
-	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
-		s_clc = 0;
-	if ((a_clc = (a_time * bus_speed + 999) / 1000) >= 8)
-		a_clc = 0;
+	ide_timing_compute(drive, XFER_PIO_0 + pio, &t, T, 1);
 
-	if (!(r_clc = (c_time * bus_speed + 999) / 1000 - a_clc - s_clc)) {
-		r_clc = 1;
-	} else {
-		if (r_clc >= 16)
-			r_clc = 0;
-	}
+	t.setup = clamp_val(t.setup, 1, 8) & 7;
+	t.active = clamp_val(t.active, 1, 8) & 7;
+	t.recover = clamp_val(t.recover, 1, 16) & 15;
+
 	local_irq_save(flags);
-	
+
 	/* 
 	 * PIO mode => ATA FIFO on, ATAPI FIFO off
 	 */
@@ -99,9 +93,11 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 			pci_write_config_byte(dev, portFIFO, cd_dma_fifo & 0xF0);
 		}
 	}
-	
-	pci_write_config_byte(dev, port, s_clc);
-	pci_write_config_byte(dev, port + unit + 2, (a_clc << 4) | r_clc);
+
+	pci_write_config_byte(dev, port, t.setup);
+	pci_write_config_byte(dev, port + unit + 2,
+			      (t.active << 4) | t.recover);
+
 	local_irq_restore(flags);
 }
 
@@ -584,6 +580,6 @@ static void __exit ali15x3_ide_exit(void)
 module_init(ali15x3_ide_init);
 module_exit(ali15x3_ide_exit);
 
-MODULE_AUTHOR("Michael Aubry, Andrzej Krzysztofowicz, CJ, Andre Hedrick, Alan Cox");
+MODULE_AUTHOR("Michael Aubry, Andrzej Krzysztofowicz, CJ, Andre Hedrick, Alan Cox, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("PCI driver module for ALi 15x3 IDE");
 MODULE_LICENSE("GPL");
