@@ -84,14 +84,18 @@ static void ali_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		struct ide_timing p;
 
 		ide_timing_compute(pair, pair->pio_mode, &p, T, 1);
-		ide_timing_merge(&p, &t, &t, IDE_TIMING_SETUP);
+		ide_timing_merge(&p, &t, &t,
+			IDE_TIMING_SETUP | IDE_TIMING_8BIT);
 		if (pair->dma_mode) {
 			ide_timing_compute(pair, pair->dma_mode, &p, T, 1);
-			ide_timing_merge(&p, &t, &t, IDE_TIMING_SETUP);
+			ide_timing_merge(&p, &t, &t,
+				IDE_TIMING_SETUP | IDE_TIMING_8BIT);
 		}
 	}
 
 	t.setup = clamp_val(t.setup, 1, 8) & 7;
+	t.act8b = clamp_val(t.act8b, 1, 8) & 7;
+	t.rec8b = clamp_val(t.rec8b, 1, 16) & 15;
 	t.active = clamp_val(t.active, 1, 8) & 7;
 	t.recover = clamp_val(t.recover, 1, 16) & 15;
 
@@ -101,6 +105,7 @@ static void ali_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	ali_fifo_control(hwif, drive, (drive->media == ide_disk) ? 0x05 : 0x00);
 
 	pci_write_config_byte(dev, port, t.setup);
+	pci_write_config_byte(dev, port + 1, (t.act8b << 4) | t.rec8b);
 	pci_write_config_byte(dev, port + unit + 2,
 			      (t.active << 4) | t.recover);
 }
