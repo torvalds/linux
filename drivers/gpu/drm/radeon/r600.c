@@ -2729,7 +2729,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2749,7 +2749,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2798,7 +2798,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2812,7 +2812,7 @@ restart_ih:
 			DRM_DEBUG("IH: CP EOP\n");
 			break;
 		default:
-			DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 			break;
 		}
 

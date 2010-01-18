@@ -45,6 +45,9 @@ module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0400);
 
+unsigned int i915_lvds_downclock = 0;
+module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
+
 static struct drm_driver driver;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
@@ -464,8 +467,11 @@ static struct drm_driver driver = {
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
+
+	/* Used in place of i915_pm_ops for non-DRIVER_MODESET */
 	.suspend = i915_suspend,
 	.resume = i915_resume,
+
 	.device_is_agp = i915_driver_device_is_agp,
 	.enable_vblank = i915_enable_vblank,
 	.disable_vblank = i915_disable_vblank,
