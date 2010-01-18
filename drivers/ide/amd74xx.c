@@ -94,7 +94,7 @@ static void amd_set_drive(ide_hwif_t *hwif, ide_drive_t *drive)
 	ide_timing_compute(drive, speed, &t, T, UT);
 
 	if (peer) {
-		ide_timing_compute(peer, peer->current_speed, &p, T, UT);
+		ide_timing_compute(peer, peer->pio_mode, &p, T, UT);
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
 
