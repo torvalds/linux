@@ -406,7 +406,7 @@ void et131x_isr_handler(struct work_struct *work)
 
 		/* Let's move on to the TxMac */
 		if (status & ET_INTR_TXMAC) {
-			u32 err = readl(&iomem->txmac.err.value);
+			u32 err = readl(&iomem->txmac.err);
 
 			/*
 			 * When any of the errors occur and TXMAC generates
