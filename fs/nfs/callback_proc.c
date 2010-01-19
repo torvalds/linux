@@ -280,16 +280,11 @@ out:
 	return status;
 }
 
-/* FIXME: referring calls should be processed */
 unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 				struct cb_sequenceres *res)
 {
 	struct nfs_client *clp;
 	int i, status;
-
-	for (i = 0; i < args->csa_nrclists; i++)
-		kfree(args->csa_rclists[i].rcl_refcalls);
-	kfree(args->csa_rclists);
 
 	status = htonl(NFS4ERR_BADSESSION);
 	clp = find_client_with_session(args->csa_addr, 4, &args->csa_sessionid);
@@ -301,6 +296,16 @@ unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 	if (status)
 		goto out_putclient;
 
+	/*
+	 * Check for pending referring calls.  If a match is found, a
+	 * related callback was received before the response to the original
+	 * call.
+	 */
+	if (referring_call_exists(clp, args->csa_nrclists, args->csa_rclists)) {
+		status = htonl(NFS4ERR_DELAY);
+		goto out_putclient;
+	}
+
 	memcpy(&res->csr_sessionid, &args->csa_sessionid,
 	       sizeof(res->csr_sessionid));
 	res->csr_sequenceid = args->csa_sequenceid;
@@ -311,6 +316,10 @@ unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 out_putclient:
 	nfs_put_client(clp);
 out:
+	for (i = 0; i < args->csa_nrclists; i++)
+		kfree(args->csa_rclists[i].rcl_refcalls);
+	kfree(args->csa_rclists);
+
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	res->csr_status = status;
 	return res->csr_status;
