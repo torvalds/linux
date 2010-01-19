@@ -3007,6 +3007,8 @@ static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
 		break;
 	case STA_NOTIFY_AWAKE:
 		WARN_ON(!sta_priv->client);
+		if (!sta_priv->asleep)
+			break;
 		sta_priv->asleep = false;
 		sta_id = iwl_find_station(priv, sta->addr);
 		if (sta_id != IWL_INVALID_STATION)
