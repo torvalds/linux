@@ -71,11 +71,11 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.dcache.ways = 4;
 	} else {
 		/* And some SH-4 defaults.. */
-		boot_cpu_data.flags |= CPU_HAS_PTEA;
+		boot_cpu_data.flags |= CPU_HAS_PTEA | CPU_HAS_FPU;
 		boot_cpu_data.family = CPU_FAMILY_SH4;
 	}
 
-	/* FPU detection works for everyone */
+	/* FPU detection works for almost everyone */
 	if ((cvr & 0x20000000))
 		boot_cpu_data.flags |= CPU_HAS_FPU;
 
@@ -161,6 +161,7 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	case 0x700:
 		boot_cpu_data.type = CPU_SH4_501;
+		boot_cpu_data.flags &= ~CPU_HAS_FPU;
 		boot_cpu_data.icache.ways = 2;
 		boot_cpu_data.dcache.ways = 2;
 		break;
