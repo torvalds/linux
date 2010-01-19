@@ -373,6 +373,7 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 			if (kernel == NULL)
 				goto out_problem;
 
+			kernel->kernel = 1;
 			if (__map_groups__create_kernel_maps(&session->kmaps,
 							     session->vmlinux_maps,
 							     kernel) < 0)
