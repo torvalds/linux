@@ -2,7 +2,7 @@
  * Renesas Technology Corp. SH7786 Urquell Support.
  *
  * Copyright (C) 2008  Kuninori Morimoto <morimoto.kuninori@renesas.com>
- * Copyright (C) 2009  Paul Mundt
+ * Copyright (C) 2009, 2010  Paul Mundt
  *
  * Based on board-sh7785lcr.c
  * Copyright (C) 2008  Yoshihiro Shimoda
@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
 #include <mach/urquell.h>
 #include <cpu/sh7786.h>
 #include <asm/heartbeat.h>
@@ -175,6 +176,27 @@ static int urquell_mode_pins(void)
 	return __raw_readw(UBOARDREG(MDSWMR));
 }
 
+static int urquell_clk_init(void)
+{
+	struct clk *clk;
+	int ret;
+
+	/*
+	 * Only handle the EXTAL case, anyone interfacing a crystal
+	 * resonator will need to provide their own input clock.
+	 */
+	if (test_mode_pin(MODE_PIN9))
+		return -EINVAL;
+
+	clk = clk_get(NULL, "extal");
+	if (!clk || IS_ERR(clk))
+		return PTR_ERR(clk);
+	ret = clk_set_rate(clk, 33333333);
+	clk_put(clk);
+
+	return ret;
+}
+
 /* Initialize the board */
 static void __init urquell_setup(char **cmdline_p)
 {
@@ -191,4 +213,5 @@ static struct sh_machine_vector mv_urquell __initmv = {
 	.mv_setup	= urquell_setup,
 	.mv_init_irq	= urquell_init_irq,
 	.mv_mode_pins	= urquell_mode_pins,
+	.mv_clk_init	= urquell_clk_init,
 };
