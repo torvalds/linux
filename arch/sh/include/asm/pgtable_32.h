@@ -143,12 +143,14 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 # elif defined(CONFIG_HUGETLB_PAGE_SIZE_64MB)
 #  define _PAGE_SZHUGE	(_PAGE_EXT_ESZ2 | _PAGE_EXT_ESZ3)
 # endif
+# define _PAGE_WIRED	(_PAGE_EXT(_PAGE_EXT_WIRED))
 #else
 # if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
 #  define _PAGE_SZHUGE	(_PAGE_SZ1)
 # elif defined(CONFIG_HUGETLB_PAGE_SIZE_1MB)
 #  define _PAGE_SZHUGE	(_PAGE_SZ0 | _PAGE_SZ1)
 # endif
+# define _PAGE_WIRED	(0)
 #endif
 
 /*
@@ -165,8 +167,6 @@ static inline unsigned long copy_ptea_attributes(unsigned long x)
 #define _PAGE_CHG_MASK \
 	(PTE_MASK | _PAGE_ACCESSED | _PAGE_CACHABLE | \
 	 _PAGE_DIRTY | _PAGE_SPECIAL)
-
-#define _PAGE_WIRED	(_PAGE_EXT(_PAGE_EXT_WIRED))
 
 #ifndef __ASSEMBLY__
 
