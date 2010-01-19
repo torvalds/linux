@@ -14,6 +14,7 @@
 #include <linux/smsc911x.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
 #include <asm/machvec.h>
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
@@ -235,6 +236,27 @@ static int sdk7786_mode_pins(void)
 	return pin_states;
 }
 
+static int sdk7786_clk_init(void)
+{
+	struct clk *clk;
+	int ret;
+
+	/*
+	 * Only handle the EXTAL case, anyone interfacing a crystal
+	 * resonator will need to provide their own input clock.
+	 */
+	if (test_mode_pin(MODE_PIN9))
+		return -EINVAL;
+
+	clk = clk_get(NULL, "extal");
+	if (!clk || IS_ERR(clk))
+		return PTR_ERR(clk);
+	ret = clk_set_rate(clk, 33333333);
+	clk_put(clk);
+
+	return ret;
+}
+
 /* Initialize the board */
 static void __init sdk7786_setup(char **cmdline_p)
 {
@@ -248,5 +270,6 @@ static struct sh_machine_vector mv_sdk7786 __initmv = {
 	.mv_name		= "SDK7786",
 	.mv_setup		= sdk7786_setup,
 	.mv_mode_pins		= sdk7786_mode_pins,
+	.mv_clk_init		= sdk7786_clk_init,
 	.mv_init_irq		= init_sdk7786_IRQ,
 };
