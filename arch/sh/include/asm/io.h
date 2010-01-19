@@ -245,10 +245,11 @@ extern int iounmap_fixed(void __iomem *);
 extern void ioremap_fixed_init(void);
 #else
 static inline void __iomem *
-ioremap_fixed(resource_size t phys_addr, unsigned long offset,
+ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
 	      unsigned long size, pgprot_t prot)
 {
 	BUG();
+	return NULL;
 }
 
 static inline void ioremap_fixed_init(void) { }
