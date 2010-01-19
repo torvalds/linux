@@ -148,6 +148,10 @@ int sh_clk_mstp32_register(struct clk *clks, int nr);
 
 int sh_clk_div4_register(struct clk *clks, int nr,
 			 struct clk_div_mult_table *table);
+int sh_clk_div4_enable_register(struct clk *clks, int nr,
+			 struct clk_div_mult_table *table);
+int sh_clk_div4_reparent_register(struct clk *clks, int nr,
+			 struct clk_div_mult_table *table);
 
 #define SH_CLK_DIV6(_name, _parent, _reg, _flags)	\
 {							\
