@@ -545,10 +545,11 @@ be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 						&data[2]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
 		}
+	}
 
-		data[3] = be_test_ddr_dma(adapter);
-		if (data[3] != 0)
-			test->flags |= ETH_TEST_FL_FAILED;
+	if (be_test_ddr_dma(adapter) != 0) {
+		data[3] = 1;
+		test->flags |= ETH_TEST_FL_FAILED;
 	}
 
 }
