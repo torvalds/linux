@@ -409,30 +409,22 @@ static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 	}
 }
 
-void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
+union adjust_pixel_clock {
+	ADJUST_DISPLAY_PLL_PS_ALLOCATION v1;
+};
+
+static u32 atombios_adjust_pll(struct drm_crtc *crtc,
+			       struct drm_display_mode *mode,
+			       struct radeon_pll *pll)
 {
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder = NULL;
 	struct radeon_encoder *radeon_encoder = NULL;
-	uint8_t frev, crev;
-	int index;
-	SET_PIXEL_CLOCK_PS_ALLOCATION args;
-	PIXEL_CLOCK_PARAMETERS *spc1_ptr;
-	PIXEL_CLOCK_PARAMETERS_V2 *spc2_ptr;
-	PIXEL_CLOCK_PARAMETERS_V3 *spc3_ptr;
-	uint32_t pll_clock = mode->clock;
-	uint32_t adjusted_clock;
-	uint32_t ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
-	struct radeon_pll *pll;
+	u32 adjusted_clock = mode->clock;
 
-	if (radeon_crtc->crtc_id == 0)
-		pll = &rdev->clock.p1pll;
-	else
-		pll = &rdev->clock.p2pll;
-
-	memset(&args, 0, sizeof(args));
+	/* reset the pll flags */
+	pll->flags = 0;
 
 	if (ASIC_IS_AVIVO(rdev)) {
 		if ((rdev->family == CHIP_RS600) ||
@@ -457,15 +449,17 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
-			if (!ASIC_IS_AVIVO(rdev)) {
-				if (encoder->encoder_type !=
-				    DRM_MODE_ENCODER_DAC)
+			radeon_encoder = to_radeon_encoder(encoder);
+			if (ASIC_IS_AVIVO(rdev)) {
+				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
+				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)
+					adjusted_clock = mode->clock * 2;
+			} else {
+				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;
-				if (encoder->encoder_type ==
-					DRM_MODE_ENCODER_LVDS)
+				if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS)
 					pll->flags |= RADEON_PLL_USE_REF_DIV;
 			}
-			radeon_encoder = to_radeon_encoder(encoder);
 			break;
 		}
 	}
@@ -475,28 +469,88 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	 * special hw requirements.
 	 */
 	if (ASIC_IS_DCE3(rdev)) {
-		ADJUST_DISPLAY_PLL_PS_ALLOCATION adjust_pll_args;
+		union adjust_pixel_clock args;
+		struct radeon_encoder_atom_dig *dig;
+		u8 frev, crev;
+		int index;
 
-		if (!encoder)
-			return;
-
-		memset(&adjust_pll_args, 0, sizeof(adjust_pll_args));
-		adjust_pll_args.usPixelClock = cpu_to_le16(mode->clock / 10);
-		adjust_pll_args.ucTransmitterID = radeon_encoder->encoder_id;
-		adjust_pll_args.ucEncodeMode = atombios_get_encoder_mode(encoder);
+		if (!radeon_encoder->enc_priv)
+			return adjusted_clock;
+		dig = radeon_encoder->enc_priv;
 
 		index = GetIndexIntoMasterTable(COMMAND, AdjustDisplayPll);
-		atom_execute_table(rdev->mode_info.atom_context,
-				   index, (uint32_t *)&adjust_pll_args);
-		adjusted_clock = le16_to_cpu(adjust_pll_args.usPixelClock) * 10;
-	} else {
-		/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
-		if (ASIC_IS_AVIVO(rdev) &&
-		    (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1))
-			adjusted_clock = mode->clock * 2;
-		else
-			adjusted_clock = mode->clock;
+		atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
+				      &crev);
+
+		memset(&args, 0, sizeof(args));
+
+		switch (frev) {
+		case 1:
+			switch (crev) {
+			case 1:
+			case 2:
+				args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
+				args.v1.ucTransmitterID = radeon_encoder->encoder_id;
+				args.v1.ucEncodeMode = atombios_get_encoder_mode(encoder);
+
+				atom_execute_table(rdev->mode_info.atom_context,
+						   index, (uint32_t *)&args);
+				adjusted_clock = le16_to_cpu(args.v1.usPixelClock) * 10;
+				break;
+			default:
+				DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+				return adjusted_clock;
+			}
+			break;
+		default:
+			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
+			return adjusted_clock;
+		}
 	}
+	return adjusted_clock;
+}
+
+union set_pixel_clock {
+	SET_PIXEL_CLOCK_PS_ALLOCATION base;
+	PIXEL_CLOCK_PARAMETERS v1;
+	PIXEL_CLOCK_PARAMETERS_V2 v2;
+	PIXEL_CLOCK_PARAMETERS_V3 v3;
+};
+
+void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_encoder *encoder = NULL;
+	struct radeon_encoder *radeon_encoder = NULL;
+	u8 frev, crev;
+	int index;
+	union set_pixel_clock args;
+	u32 pll_clock = mode->clock;
+	u32 ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
+	struct radeon_pll *pll;
+	u32 adjusted_clock;
+
+	memset(&args, 0, sizeof(args));
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		if (encoder->crtc == crtc) {
+			radeon_encoder = to_radeon_encoder(encoder);
+			break;
+		}
+	}
+
+	if (!radeon_encoder)
+		return;
+
+	if (radeon_crtc->crtc_id == 0)
+		pll = &rdev->clock.p1pll;
+	else
+		pll = &rdev->clock.p2pll;
+
+	/* adjust pixel clock as needed */
+	adjusted_clock = atombios_adjust_pll(crtc, mode, pll);
 
 	if (ASIC_IS_AVIVO(rdev)) {
 		if (radeon_new_pll)
@@ -519,45 +573,38 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	case 1:
 		switch (crev) {
 		case 1:
-			spc1_ptr = (PIXEL_CLOCK_PARAMETERS *) & args.sPCLKInput;
-			spc1_ptr->usPixelClock = cpu_to_le16(mode->clock / 10);
-			spc1_ptr->usRefDiv = cpu_to_le16(ref_div);
-			spc1_ptr->usFbDiv = cpu_to_le16(fb_div);
-			spc1_ptr->ucFracFbDiv = frac_fb_div;
-			spc1_ptr->ucPostDiv = post_div;
-			spc1_ptr->ucPpll =
+			args.v1.usPixelClock = cpu_to_le16(mode->clock / 10);
+			args.v1.usRefDiv = cpu_to_le16(ref_div);
+			args.v1.usFbDiv = cpu_to_le16(fb_div);
+			args.v1.ucFracFbDiv = frac_fb_div;
+			args.v1.ucPostDiv = post_div;
+			args.v1.ucPpll =
 			    radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
-			spc1_ptr->ucCRTC = radeon_crtc->crtc_id;
-			spc1_ptr->ucRefDivSrc = 1;
+			args.v1.ucCRTC = radeon_crtc->crtc_id;
+			args.v1.ucRefDivSrc = 1;
 			break;
 		case 2:
-			spc2_ptr =
-			    (PIXEL_CLOCK_PARAMETERS_V2 *) & args.sPCLKInput;
-			spc2_ptr->usPixelClock = cpu_to_le16(mode->clock / 10);
-			spc2_ptr->usRefDiv = cpu_to_le16(ref_div);
-			spc2_ptr->usFbDiv = cpu_to_le16(fb_div);
-			spc2_ptr->ucFracFbDiv = frac_fb_div;
-			spc2_ptr->ucPostDiv = post_div;
-			spc2_ptr->ucPpll =
+			args.v2.usPixelClock = cpu_to_le16(mode->clock / 10);
+			args.v2.usRefDiv = cpu_to_le16(ref_div);
+			args.v2.usFbDiv = cpu_to_le16(fb_div);
+			args.v2.ucFracFbDiv = frac_fb_div;
+			args.v2.ucPostDiv = post_div;
+			args.v2.ucPpll =
 			    radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
-			spc2_ptr->ucCRTC = radeon_crtc->crtc_id;
-			spc2_ptr->ucRefDivSrc = 1;
+			args.v2.ucCRTC = radeon_crtc->crtc_id;
+			args.v2.ucRefDivSrc = 1;
 			break;
 		case 3:
-			if (!encoder)
-				return;
-			spc3_ptr =
-			    (PIXEL_CLOCK_PARAMETERS_V3 *) & args.sPCLKInput;
-			spc3_ptr->usPixelClock = cpu_to_le16(mode->clock / 10);
-			spc3_ptr->usRefDiv = cpu_to_le16(ref_div);
-			spc3_ptr->usFbDiv = cpu_to_le16(fb_div);
-			spc3_ptr->ucFracFbDiv = frac_fb_div;
-			spc3_ptr->ucPostDiv = post_div;
-			spc3_ptr->ucPpll =
+			args.v3.usPixelClock = cpu_to_le16(mode->clock / 10);
+			args.v3.usRefDiv = cpu_to_le16(ref_div);
+			args.v3.usFbDiv = cpu_to_le16(fb_div);
+			args.v3.ucFracFbDiv = frac_fb_div;
+			args.v3.ucPostDiv = post_div;
+			args.v3.ucPpll =
 			    radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
-			spc3_ptr->ucMiscInfo = (radeon_crtc->crtc_id << 2);
-			spc3_ptr->ucTransmitterId = radeon_encoder->encoder_id;
-			spc3_ptr->ucEncoderMode =
+			args.v3.ucMiscInfo = (radeon_crtc->crtc_id << 2);
+			args.v3.ucTransmitterId = radeon_encoder->encoder_id;
+			args.v3.ucEncoderMode =
 			    atombios_get_encoder_mode(encoder);
 			break;
 		default:
@@ -570,7 +617,6 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		return;
 	}
 
-	printk("executing set pll\n");
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
