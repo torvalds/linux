@@ -691,13 +691,13 @@ static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 		ni_660x_register = G0StatusRegister;
 		break;
 	case NITIO_G1_Status_Reg:
-		ni_660x_register = G0StatusRegister;
+		ni_660x_register = G1StatusRegister;
 		break;
 	case NITIO_G2_Status_Reg:
-		ni_660x_register = G0StatusRegister;
+		ni_660x_register = G2StatusRegister;
 		break;
 	case NITIO_G3_Status_Reg:
-		ni_660x_register = G0StatusRegister;
+		ni_660x_register = G3StatusRegister;
 		break;
 	case NITIO_G0_Interrupt_Enable_Reg:
 		ni_660x_register = G0InterruptEnable;
