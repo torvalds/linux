@@ -200,6 +200,12 @@
 		(((address) | ((pagesize) - 1)) &	\
 		 (~(pagesize >> 1)) & PM_ADDR_MASK)
 
+/*
+ * Takes a PTE value with mode=0x07 and returns the page size it maps
+ */
+#define PTE_PAGE_SIZE(pte) \
+	(1ULL << (1 + ffz(((pte) | 0xfffULL))))
+
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)
