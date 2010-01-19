@@ -173,6 +173,21 @@ static int exofs_io_execute(struct exofs_io_state *ios)
 	return ret;
 }
 
+static void _clear_bio(struct bio *bio)
+{
+	struct bio_vec *bv;
+	unsigned i;
+
+	__bio_for_each_segment(bv, bio, i, 0) {
+		unsigned this_count = bv->bv_len;
+
+		if (likely(PAGE_SIZE == this_count))
+			clear_highpage(bv->bv_page);
+		else
+			zero_user(bv->bv_page, bv->bv_offset, this_count);
+	}
+}
+
 int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 {
 	enum osd_err_priority acumulated_osd_err = 0;
@@ -181,16 +196,25 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 
 	for (i = 0; i < ios->numdevs; i++) {
 		struct osd_sense_info osi;
-		int ret = osd_req_decode_sense(ios->per_dev[i].or, &osi);
+		struct osd_request *or = ios->per_dev[i].or;
+		int ret;
 
+		if (unlikely(!or))
+			continue;
+
+		ret = osd_req_decode_sense(or, &osi);
 		if (likely(!ret))
 			continue;
 
-		if (unlikely(ret == -EFAULT)) {
-			EXOFS_DBGMSG("%s: EFAULT Need page clear\n", __func__);
-			/*FIXME: All the pages in this device range should:
-			 *	clear_highpage(page);
-			 */
+		if (OSD_ERR_PRI_CLEAR_PAGES == osi.osd_err_pri) {
+			/* start read offset passed endof file */
+			_clear_bio(ios->per_dev[i].bio);
+			EXOFS_DBGMSG("start read offset passed end of file "
+				"offset=0x%llx, length=0x%llx\n",
+				_LLU(ios->offset),
+				_LLU(ios->length));
+
+			continue; /* we recovered */
 		}
 
 		if (osi.osd_err_pri >= acumulated_osd_err) {
