@@ -399,6 +399,7 @@ static int __init smdk6410_wm8350_init(struct wm8350 *wm8350)
 static struct wm8350_platform_data __initdata smdk6410_wm8350_pdata = {
 	.init = smdk6410_wm8350_init,
 	.irq_high = 1,
+	.irq_base = IRQ_BOARD_START,
 };
 #endif
 

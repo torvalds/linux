@@ -198,7 +198,11 @@
  * interrupt controllers). */
 #define IRQ_BOARD_START (IRQ_EINT_GROUP9_BASE + IRQ_EINT_GROUP9_NR + 1)
 
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+#define IRQ_BOARD_NR 64
+#else
 #define IRQ_BOARD_NR 16
+#endif
 
 #define IRQ_BOARD_END (IRQ_BOARD_START + IRQ_BOARD_NR)
 
