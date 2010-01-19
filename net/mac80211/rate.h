@@ -44,10 +44,7 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	if (likely(info->flags & IEEE80211_TX_INTFL_RCALGO))
-		ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
+	ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
 }
 
 

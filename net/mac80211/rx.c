@@ -1111,6 +1111,18 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (ieee80211_is_nullfunc(hdr->frame_control) ||
 	    ieee80211_is_qos_nullfunc(hdr->frame_control)) {
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_nullfunc);
+
+		/*
+		 * If we receive a 4-addr nullfunc frame from a STA
+		 * that was not moved to a 4-addr STA vlan yet, drop
+		 * the frame to the monitor interface, to make sure
+		 * that hostapd sees it
+		 */
+		if (ieee80211_has_a4(hdr->frame_control) &&
+		    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
+		     (rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+		      !rx->sdata->u.vlan.sta)))
+			return RX_DROP_MONITOR;
 		/*
 		 * Update counter and free packet here to avoid
 		 * counting this as a dropped packed.
@@ -1665,7 +1677,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			memset(info, 0, sizeof(*info));
 			info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING;
 			info->control.vif = &rx->sdata->vif;
-			ieee80211_select_queue(local, fwd_skb);
+			skb_set_queue_mapping(skb,
+				ieee80211_select_queue(rx->sdata, fwd_skb));
+			ieee80211_set_qos_hdr(local, skb);
 			if (is_multicast_ether_addr(fwd_hdr->addr1))
 				IEEE80211_IFSTA_MESH_CTR_INC(&sdata->u.mesh,
 								fwded_mcast);

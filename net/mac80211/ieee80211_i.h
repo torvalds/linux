@@ -58,6 +58,15 @@ struct ieee80211_local;
 
 #define TU_TO_EXP_TIME(x)	(jiffies + usecs_to_jiffies((x) * 1024))
 
+#define IEEE80211_DEFAULT_UAPSD_QUEUES \
+	(IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |	\
+	 IEEE80211_WMM_IE_STA_QOSINFO_AC_BE |	\
+	 IEEE80211_WMM_IE_STA_QOSINFO_AC_VI |	\
+	 IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+
+#define IEEE80211_DEFAULT_MAX_SP_LEN		\
+	IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL
+
 struct ieee80211_fragment_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;
@@ -78,6 +87,7 @@ struct ieee80211_bss {
 	u8 dtim_period;
 
 	bool wmm_used;
+	bool uapsd_supported;
 
 	unsigned long last_probe_resp;
 
@@ -285,7 +295,7 @@ struct ieee80211_work {
 			u8 ssid[IEEE80211_MAX_SSID_LEN];
 			u8 ssid_len;
 			u8 supp_rates_len;
-			bool wmm_used, use_11n;
+			bool wmm_used, use_11n, uapsd_used;
 		} assoc;
 		struct {
 			u32 duration;
@@ -306,6 +316,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_DISABLE_11N	= BIT(4),
 	IEEE80211_STA_CSA_RECEIVED	= BIT(5),
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
+	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
 };
 
 struct ieee80211_if_managed {
@@ -494,8 +505,8 @@ struct ieee80211_sub_if_data {
 	 */
 	struct ieee80211_if_ap *bss;
 
-	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
-	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
+	/* bitmap of allowed (non-MCS) rate indexes for rate control */
+	u32 rc_rateidx_mask[IEEE80211_NUM_BANDS];
 
 	union {
 		struct ieee80211_if_ap ap;
@@ -796,6 +807,20 @@ struct ieee80211_local {
 				*/
 	int wifi_wme_noack_test;
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
+
+	/*
+	 * Bitmask of enabled u-apsd queues,
+	 * IEEE80211_WMM_IE_STA_QOSINFO_AC_BE & co. Needs a new association
+	 * to take effect.
+	 */
+	unsigned int uapsd_queues;
+
+	/*
+	 * Maximum number of buffered frames AP can deliver during a
+	 * service period, IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL or similar.
+	 * Needs a new association to take effect.
+	 */
+	unsigned int uapsd_max_sp_len;
 
 	bool pspolling;
 	bool offchannel_ps_enabled;

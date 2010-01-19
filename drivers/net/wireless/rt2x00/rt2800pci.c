@@ -453,24 +453,6 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
 }
 
-static int rt2800pci_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
-{
-	unsigned int i;
-	u32 reg;
-
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-		if (!rt2x00_get_field32(reg, WPDMA_GLO_CFG_TX_DMA_BUSY) &&
-		    !rt2x00_get_field32(reg, WPDMA_GLO_CFG_RX_DMA_BUSY))
-			return 0;
-
-		msleep(1);
-	}
-
-	ERROR(rt2x00dev, "WPDMA TX/RX busy, aborting.\n");
-	return -EACCES;
-}
-
 static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -479,10 +461,10 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all registers.
 	 */
-	if (unlikely(rt2800pci_wait_wpdma_ready(rt2x00dev) ||
+	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
 		     rt2800pci_init_queues(rt2x00dev) ||
 		     rt2800_init_registers(rt2x00dev) ||
-		     rt2800pci_wait_wpdma_ready(rt2x00dev) ||
+		     rt2800_wait_wpdma_ready(rt2x00dev) ||
 		     rt2800_init_bbp(rt2x00dev) ||
 		     rt2800_init_rfcsr(rt2x00dev)))
 		return -EIO;
@@ -562,7 +544,7 @@ static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
 
 	/* Wait for DMA, ignore error */
-	rt2800pci_wait_wpdma_ready(rt2x00dev);
+	rt2800_wait_wpdma_ready(rt2x00dev);
 }
 
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,

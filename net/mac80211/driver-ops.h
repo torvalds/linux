@@ -214,6 +214,21 @@ static inline int drv_set_rts_threshold(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_set_coverage_class(struct ieee80211_local *local,
+					 u8 value)
+{
+	int ret = 0;
+	might_sleep();
+
+	if (local->ops->set_coverage_class)
+		local->ops->set_coverage_class(&local->hw, value);
+	else
+		ret = -EOPNOTSUPP;
+
+	trace_drv_set_coverage_class(local, value, ret);
+	return ret;
+}
+
 static inline void drv_sta_notify(struct ieee80211_local *local,
 				  struct ieee80211_sub_if_data *sdata,
 				  enum sta_notify_cmd cmd,

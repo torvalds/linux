@@ -18,7 +18,6 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
-#include <linux/wireless.h>
 #include <linux/bitmap.h>
 #include <linux/crc32.h>
 #include <net/net_namespace.h>
@@ -269,6 +268,7 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 				   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata;
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
@@ -281,6 +281,11 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 
 	if (!skb_queue_empty(&local->pending[queue]))
 		tasklet_schedule(&local->tx_pending_tasklet);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list)
+		netif_tx_wake_queue(netdev_get_tx_queue(sdata->dev, queue));
+	rcu_read_unlock();
 }
 
 void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -305,11 +310,17 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 				   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata;
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list)
+		netif_tx_stop_queue(netdev_get_tx_queue(sdata->dev, queue));
+	rcu_read_unlock();
 }
 
 void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
@@ -781,6 +792,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 			break;
 		}
 
+		qparam.uapsd = false;
+
 		drv_conf_tx(local, queue, &qparam);
 	}
 }
@@ -989,40 +1002,33 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos;
+	size_t buf_len;
+	u8 *buf;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
-			    ie_len);
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
-		       "request\n", sdata->name);
+	/* FIXME: come up with a proper value */
+	buf = kmalloc(200 + ie_len, GFP_KERNEL);
+	if (!buf) {
+		printk(KERN_DEBUG "%s: failed to allocate temporary IE "
+		       "buffer\n", sdata->name);
 		return;
 	}
-	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_PROBE_REQ);
-	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
+					   local->hw.conf.channel->band);
+
+	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
+				     ssid, ssid_len,
+				     buf, buf_len);
+
 	if (dst) {
+		mgmt = (struct ieee80211_mgmt *) skb->data;
 		memcpy(mgmt->da, dst, ETH_ALEN);
 		memcpy(mgmt->bssid, dst, ETH_ALEN);
-	} else {
-		memset(mgmt->da, 0xff, ETH_ALEN);
-		memset(mgmt->bssid, 0xff, ETH_ALEN);
 	}
-	pos = skb_put(skb, 2 + ssid_len);
-	*pos++ = WLAN_EID_SSID;
-	*pos++ = ssid_len;
-	memcpy(pos, ssid, ssid_len);
-	pos += ssid_len;
-
-	skb_put(skb, ieee80211_build_preq_ies(local, pos, ie, ie_len,
-					      local->hw.conf.channel->band));
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
+	kfree(buf);
 }
 
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
@@ -1066,9 +1072,9 @@ void ieee80211_stop_device(struct ieee80211_local *local)
 	ieee80211_led_radio(local, false);
 
 	cancel_work_sync(&local->reconfig_filter);
-	drv_stop(local);
 
 	flush_workqueue(local->workqueue);
+	drv_stop(local);
 }
 
 int ieee80211_reconfig(struct ieee80211_local *local)
@@ -1094,7 +1100,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (res) {
 			WARN(local->suspended, "Harware became unavailable "
 			     "upon resume. This is could be a software issue"
-			     "prior to suspend or a harware issue\n");
+			     "prior to suspend or a hardware issue\n");
 			return res;
 		}
 

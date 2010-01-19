@@ -111,7 +111,8 @@ struct cfg80211_internal_bss {
 	unsigned long ts;
 	struct kref ref;
 	atomic_t hold;
-	bool ies_allocated;
+	bool beacon_ies_allocated;
+	bool proberesp_ies_allocated;
 
 	/* must be last because of priv member */
 	struct cfg80211_bss pub;

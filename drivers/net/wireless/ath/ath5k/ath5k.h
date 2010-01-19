@@ -1063,6 +1063,7 @@ struct ath5k_hw {
 	u32			ah_cw_min;
 	u32			ah_cw_max;
 	u32			ah_limit_tx_retries;
+	u8			ah_coverage_class;
 
 	/* Antenna Control */
 	u32			ah_ant_ctl[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
@@ -1200,6 +1201,7 @@ extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 
 /* Protocol Control Unit Functions */
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
+extern void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* BSSID Functions */
 extern int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
 extern void ath5k_hw_set_associd(struct ath5k_hw *ah);
@@ -1231,6 +1233,10 @@ extern int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout);
 extern unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah);
 extern int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout);
 extern unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah);
+/* Clock rate related functions */
+unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec);
+unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock);
+unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah);
 /* Key table (WEP) functions */
 extern int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry);
 extern int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry);
@@ -1309,24 +1315,6 @@ extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 /*
  * Functions used internaly
  */
-
-/*
- * Translate usec to hw clock units
- * TODO: Half/quarter rate
- */
-static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
-{
-	return turbo ? (usec * 80) : (usec * 40);
-}
-
-/*
- * Translate hw clock units to usec
- * TODO: Half/quarter rate
- */
-static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
-{
-	return turbo ? (clock / 80) : (clock / 40);
-}
 
 static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
 {

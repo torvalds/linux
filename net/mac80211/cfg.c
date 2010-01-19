@@ -148,7 +148,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_lock();
 
 	if (mac_addr) {
-		sta = sta_info_get(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta) {
 			ieee80211_key_free(key);
 			err = -ENOENT;
@@ -179,7 +179,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	if (mac_addr) {
 		ret = -ENOENT;
 
-		sta = sta_info_get(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta)
 			goto out_unlock;
 
@@ -226,7 +226,7 @@ static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_lock();
 
 	if (mac_addr) {
-		sta = sta_info_get(sdata, mac_addr);
+		sta = sta_info_get_bss(sdata, mac_addr);
 		if (!sta)
 			goto out;
 
@@ -419,7 +419,7 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	rcu_read_lock();
 
-	sta = sta_info_get(sdata, mac);
+	sta = sta_info_get_bss(sdata, mac);
 	if (sta) {
 		ret = 0;
 		sta_set_sinfo(sta, sinfo);
@@ -775,7 +775,7 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (mac) {
 		rcu_read_lock();
 
-		sta = sta_info_get(sdata, mac);
+		sta = sta_info_get_bss(sdata, mac);
 		if (!sta) {
 			rcu_read_unlock();
 			return -ENOENT;
@@ -803,7 +803,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 
 	rcu_read_lock();
 
-	sta = sta_info_get(sdata, mac);
+	sta = sta_info_get_bss(sdata, mac);
 	if (!sta) {
 		rcu_read_unlock();
 		return -ENOENT;
@@ -1085,6 +1085,13 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 			params->use_short_preamble;
 		changed |= BSS_CHANGED_ERP_PREAMBLE;
 	}
+
+	if (!sdata->vif.bss_conf.use_short_slot &&
+	    sdata->local->hw.conf.channel->band == IEEE80211_BAND_5GHZ) {
+		sdata->vif.bss_conf.use_short_slot = true;
+		changed |= BSS_CHANGED_ERP_SLOT;
+	}
+
 	if (params->use_short_slot_time >= 0) {
 		sdata->vif.bss_conf.use_short_slot =
 			params->use_short_slot_time;
@@ -1128,6 +1135,13 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	p.cw_max = params->cwmax;
 	p.cw_min = params->cwmin;
 	p.txop = params->txop;
+
+	/*
+	 * Setting tx queue params disables u-apsd because it's only
+	 * called in master mode.
+	 */
+	p.uapsd = false;
+
 	if (drv_conf_tx(local, params->queue, &p)) {
 		printk(KERN_DEBUG "%s: failed to set TX queue "
 		       "parameters for queue %d\n",
@@ -1229,6 +1243,13 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	int err;
+
+	if (changed & WIPHY_PARAM_COVERAGE_CLASS) {
+		err = drv_set_coverage_class(local, wiphy->coverage_class);
+
+		if (err)
+			return err;
+	}
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
 		err = drv_set_rts_threshold(local, wiphy->rts_threshold);
@@ -1399,8 +1420,6 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int i;
-	u32 target_rate;
-	struct ieee80211_supported_band *sband;
 
 	/*
 	 * This _could_ be supported by providing a hook for
@@ -1410,35 +1429,11 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
 		return -EOPNOTSUPP;
 
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	/*
-	 * target_rate = -1, rate->fixed = 0 means auto only, so use all rates
-	 * target_rate = X, rate->fixed = 1 means only rate X
-	 * target_rate = X, rate->fixed = 0 means all rates <= X
-	 */
-	sdata->max_ratectrl_rateidx = -1;
-	sdata->force_unicast_rateidx = -1;
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
 
-	if (mask->fixed)
-		target_rate = mask->fixed / 100;
-	else if (mask->maxrate)
-		target_rate = mask->maxrate / 100;
-	else
-		return 0;
-
-	for (i = 0; i< sband->n_bitrates; i++) {
-		if (target_rate != sband->bitrates[i].bitrate)
-			continue;
-
-		/* requested bitrate found */
-		sdata->max_ratectrl_rateidx = i;
-		if (mask->fixed)
-			sdata->force_unicast_rateidx = i;
-		return 0;
-	}
-
-	return -EINVAL;
+	return 0;
 }
 
 static int ieee80211_remain_on_channel(struct wiphy *wiphy,

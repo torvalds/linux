@@ -491,6 +491,29 @@ TRACE_EVENT(drv_set_rts_threshold,
 	)
 );
 
+TRACE_EVENT(drv_set_coverage_class,
+	TP_PROTO(struct ieee80211_local *local, u8 value, int ret),
+
+	TP_ARGS(local, value, ret),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u8, value)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->ret = ret;
+		__entry->value = value;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " value:%d ret:%d",
+		LOCAL_PR_ARG, __entry->value, __entry->ret
+	)
+);
+
 TRACE_EVENT(drv_sta_notify,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,

@@ -127,8 +127,10 @@ __IEEE80211_IF_FILE(name, ieee80211_if_write_##name)
 
 /* common attributes */
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
-IEEE80211_IF_FILE(force_unicast_rateidx, force_unicast_rateidx, DEC);
-IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
+IEEE80211_IF_FILE(rc_rateidx_mask_2ghz, rc_rateidx_mask[IEEE80211_BAND_2GHZ],
+		  HEX);
+IEEE80211_IF_FILE(rc_rateidx_mask_5ghz, rc_rateidx_mask[IEEE80211_BAND_5GHZ],
+		  HEX);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
@@ -253,7 +255,7 @@ IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 #endif
 
 
-#define DEBUGFS_ADD(name, type) \
+#define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, sdata->debugfs.dir, \
 			    sdata, &name##_ops);
 
@@ -263,40 +265,40 @@ IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, sta);
-	DEBUGFS_ADD(force_unicast_rateidx, sta);
-	DEBUGFS_ADD(max_ratectrl_rateidx, sta);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
-	DEBUGFS_ADD(bssid, sta);
-	DEBUGFS_ADD(aid, sta);
+	DEBUGFS_ADD(bssid);
+	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD_MODE(smps, 0600);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, ap);
-	DEBUGFS_ADD(force_unicast_rateidx, ap);
-	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
-	DEBUGFS_ADD(num_sta_ps, ap);
-	DEBUGFS_ADD(dtim_count, ap);
-	DEBUGFS_ADD(num_buffered_multicast, ap);
+	DEBUGFS_ADD(num_sta_ps);
+	DEBUGFS_ADD(dtim_count);
+	DEBUGFS_ADD(num_buffered_multicast);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, wds);
-	DEBUGFS_ADD(force_unicast_rateidx, wds);
-	DEBUGFS_ADD(max_ratectrl_rateidx, wds);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
-	DEBUGFS_ADD(peer, wds);
+	DEBUGFS_ADD(peer);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, vlan);
-	DEBUGFS_ADD(force_unicast_rateidx, vlan);
-	DEBUGFS_ADD(max_ratectrl_rateidx, vlan);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)

@@ -254,6 +254,8 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		u32 changes);
 static void ath5k_sw_scan_start(struct ieee80211_hw *hw);
 static void ath5k_sw_scan_complete(struct ieee80211_hw *hw);
+static void ath5k_set_coverage_class(struct ieee80211_hw *hw,
+		u8 coverage_class);
 
 static const struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
@@ -274,6 +276,7 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.bss_info_changed = ath5k_bss_info_changed,
 	.sw_scan_start	= ath5k_sw_scan_start,
 	.sw_scan_complete = ath5k_sw_scan_complete,
+	.set_coverage_class = ath5k_set_coverage_class,
 };
 
 /*
@@ -3261,4 +3264,23 @@ static void ath5k_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath5k_softc *sc = hw->priv;
 	ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
 		AR5K_LED_ASSOC : AR5K_LED_INIT);
+}
+
+/**
+ * ath5k_set_coverage_class - Set IEEE 802.11 coverage class
+ *
+ * @hw: struct ieee80211_hw pointer
+ * @coverage_class: IEEE 802.11 coverage class number
+ *
+ * Mac80211 callback. Sets slot time, ACK timeout and CTS timeout for given
+ * coverage class. The values are persistent, they are restored after device
+ * reset.
+ */
+static void ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+{
+	struct ath5k_softc *sc = hw->priv;
+
+	mutex_lock(&sc->lock);
+	ath5k_hw_set_coverage_class(sc->ah, coverage_class);
+	mutex_unlock(&sc->lock);
 }

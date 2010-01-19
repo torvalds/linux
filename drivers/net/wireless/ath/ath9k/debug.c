@@ -580,6 +580,116 @@ static const struct file_operations fops_xmit = {
 	.owner = THIS_MODULE
 };
 
+static ssize_t read_file_recv(struct file *file, char __user *user_buf,
+			      size_t count, loff_t *ppos)
+{
+#define PHY_ERR(s, p) \
+	len += snprintf(buf + len, size - len, "%18s : %10u\n", s, \
+			sc->debug.stats.rxstats.phy_err_stats[p]);
+
+	struct ath_softc *sc = file->private_data;
+	char *buf;
+	unsigned int len = 0, size = 1152;
+	ssize_t retval = 0;
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return 0;
+
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "CRC ERR",
+			sc->debug.stats.rxstats.crc_err);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "DECRYPT CRC ERR",
+			sc->debug.stats.rxstats.decrypt_crc_err);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "PHY ERR",
+			sc->debug.stats.rxstats.phy_err);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "MIC ERR",
+			sc->debug.stats.rxstats.mic_err);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "PRE-DELIM CRC ERR",
+			sc->debug.stats.rxstats.pre_delim_crc_err);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "POST-DELIM CRC ERR",
+			sc->debug.stats.rxstats.post_delim_crc_err);
+	len += snprintf(buf + len, size - len,
+			"%18s : %10u\n", "DECRYPT BUSY ERR",
+			sc->debug.stats.rxstats.decrypt_busy_err);
+
+	PHY_ERR("UNDERRUN", ATH9K_PHYERR_UNDERRUN);
+	PHY_ERR("TIMING", ATH9K_PHYERR_TIMING);
+	PHY_ERR("PARITY", ATH9K_PHYERR_PARITY);
+	PHY_ERR("RATE", ATH9K_PHYERR_RATE);
+	PHY_ERR("LENGTH", ATH9K_PHYERR_LENGTH);
+	PHY_ERR("RADAR", ATH9K_PHYERR_RADAR);
+	PHY_ERR("SERVICE", ATH9K_PHYERR_SERVICE);
+	PHY_ERR("TOR", ATH9K_PHYERR_TOR);
+	PHY_ERR("OFDM-TIMING", ATH9K_PHYERR_OFDM_TIMING);
+	PHY_ERR("OFDM-SIGNAL-PARITY", ATH9K_PHYERR_OFDM_SIGNAL_PARITY);
+	PHY_ERR("OFDM-RATE", ATH9K_PHYERR_OFDM_RATE_ILLEGAL);
+	PHY_ERR("OFDM-LENGTH", ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL);
+	PHY_ERR("OFDM-POWER-DROP", ATH9K_PHYERR_OFDM_POWER_DROP);
+	PHY_ERR("OFDM-SERVICE", ATH9K_PHYERR_OFDM_SERVICE);
+	PHY_ERR("OFDM-RESTART", ATH9K_PHYERR_OFDM_RESTART);
+	PHY_ERR("FALSE-RADAR-EXT", ATH9K_PHYERR_FALSE_RADAR_EXT);
+	PHY_ERR("CCK-TIMING", ATH9K_PHYERR_CCK_TIMING);
+	PHY_ERR("CCK-HEADER-CRC", ATH9K_PHYERR_CCK_HEADER_CRC);
+	PHY_ERR("CCK-RATE", ATH9K_PHYERR_CCK_RATE_ILLEGAL);
+	PHY_ERR("CCK-SERVICE", ATH9K_PHYERR_CCK_SERVICE);
+	PHY_ERR("CCK-RESTART", ATH9K_PHYERR_CCK_RESTART);
+	PHY_ERR("CCK-LENGTH", ATH9K_PHYERR_CCK_LENGTH_ILLEGAL);
+	PHY_ERR("CCK-POWER-DROP", ATH9K_PHYERR_CCK_POWER_DROP);
+	PHY_ERR("HT-CRC", ATH9K_PHYERR_HT_CRC_ERROR);
+	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
+	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+
+#undef PHY_ERR
+}
+
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_buf *bf)
+{
+#define RX_STAT_INC(c) sc->debug.stats.rxstats.c++
+#define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
+
+	struct ath_desc *ds = bf->bf_desc;
+	u32 phyerr;
+
+	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
+		RX_STAT_INC(crc_err);
+	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_DECRYPT)
+		RX_STAT_INC(decrypt_crc_err);
+	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_MIC)
+		RX_STAT_INC(mic_err);
+	if (ds->ds_rxstat.rs_status & ATH9K_RX_DELIM_CRC_PRE)
+		RX_STAT_INC(pre_delim_crc_err);
+	if (ds->ds_rxstat.rs_status & ATH9K_RX_DELIM_CRC_POST)
+		RX_STAT_INC(post_delim_crc_err);
+	if (ds->ds_rxstat.rs_status & ATH9K_RX_DECRYPT_BUSY)
+		RX_STAT_INC(decrypt_busy_err);
+
+	if (ds->ds_rxstat.rs_status & ATH9K_RXERR_PHY) {
+		RX_STAT_INC(phy_err);
+		phyerr = ds->ds_rxstat.rs_phyerr & 0x24;
+		RX_PHY_ERR_INC(phyerr);
+	}
+
+#undef RX_STAT_INC
+#undef RX_PHY_ERR_INC
+}
+
+static const struct file_operations fops_recv = {
+	.read = read_file_recv,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -632,6 +742,13 @@ int ath9k_init_debug(struct ath_hw *ah)
 	if (!sc->debug.debugfs_xmit)
 		goto err;
 
+	sc->debug.debugfs_recv = debugfs_create_file("recv",
+						     S_IRUSR,
+						     sc->debug.debugfs_phy,
+						     sc, &fops_recv);
+	if (!sc->debug.debugfs_recv)
+		goto err;
+
 	return 0;
 err:
 	ath9k_exit_debug(ah);
@@ -643,6 +760,7 @@ void ath9k_exit_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
+	debugfs_remove(sc->debug.debugfs_recv);
 	debugfs_remove(sc->debug.debugfs_xmit);
 	debugfs_remove(sc->debug.debugfs_wiphy);
 	debugfs_remove(sc->debug.debugfs_rcstat);

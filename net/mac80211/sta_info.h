@@ -408,6 +408,9 @@ static inline u32 get_sta_flags(struct sta_info *sta)
 struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 			      const u8 *addr);
 
+struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr);
+
 static inline
 void for_each_sta_info_type_check(struct ieee80211_local *local,
 				  const u8 *addr,

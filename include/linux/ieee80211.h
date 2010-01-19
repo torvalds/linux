@@ -120,6 +120,24 @@
 #define IEEE80211_QOS_CTL_TID_MASK	0x000F
 #define IEEE80211_QOS_CTL_TAG1D_MASK	0x0007
 
+/* U-APSD queue for WMM IEs sent by AP */
+#define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
+
+/* U-APSD queues for WMM IEs sent by STA */
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_VO	(1<<0)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_VI	(1<<1)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_BK	(1<<2)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_BE	(1<<3)
+#define IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK	0x0f
+
+/* U-APSD max SP length for WMM IEs sent by STA */
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL	0x00
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_2	0x01
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_4	0x02
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_6	0x03
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK	0x03
+#define IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT	5
+
 struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
@@ -128,6 +146,25 @@ struct ieee80211_hdr {
 	u8 addr3[6];
 	__le16 seq_ctrl;
 	u8 addr4[6];
+} __attribute__ ((packed));
+
+struct ieee80211_hdr_3addr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[6];
+	u8 addr2[6];
+	u8 addr3[6];
+	__le16 seq_ctrl;
+} __attribute__ ((packed));
+
+struct ieee80211_qos_hdr {
+	__le16 frame_control;
+	__le16 duration_id;
+	u8 addr1[6];
+	u8 addr2[6];
+	u8 addr3[6];
+	__le16 seq_ctrl;
+	__le16 qos_ctrl;
 } __attribute__ ((packed));
 
 /**

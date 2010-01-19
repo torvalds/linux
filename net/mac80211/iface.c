@@ -15,12 +15,14 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
+#include <net/ieee80211_radiotap.h>
 #include "ieee80211_i.h"
 #include "sta_info.h"
 #include "debugfs_netdev.h"
 #include "mesh.h"
 #include "led.h"
 #include "driver-ops.h"
+#include "wme.h"
 
 /**
  * DOC: Interface list locking
@@ -63,15 +65,16 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 static int ieee80211_change_mac(struct net_device *dev, void *addr)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct sockaddr *sa = addr;
 	int ret;
 
 	if (ieee80211_sdata_running(sdata))
 		return -EBUSY;
 
-	ret = eth_mac_addr(dev, addr);
+	ret = eth_mac_addr(dev, sa);
 
 	if (ret == 0)
-		memcpy(sdata->vif.addr, addr, ETH_ALEN);
+		memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
 
 	return ret;
 }
@@ -326,7 +329,7 @@ static int ieee80211_open(struct net_device *dev)
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		ieee80211_queue_work(&local->hw, &sdata->u.mgd.work);
 
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 
 	return 0;
  err_del_interface:
@@ -354,7 +357,7 @@ static int ieee80211_stop(struct net_device *dev)
 	/*
 	 * Stop TX on this interface first.
 	 */
-	netif_stop_queue(dev);
+	netif_tx_stop_all_queues(dev);
 
 	/*
 	 * Purge work for this interface.
@@ -657,6 +660,12 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 	WARN_ON(flushed);
 }
 
+static u16 ieee80211_netdev_select_queue(struct net_device *dev,
+					 struct sk_buff *skb)
+{
+	return ieee80211_select_queue(IEEE80211_DEV_TO_SUB_IF(dev), skb);
+}
+
 static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_open		= ieee80211_open,
 	.ndo_stop		= ieee80211_stop,
@@ -665,7 +674,33 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_set_multicast_list = ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= ieee80211_change_mac,
+	.ndo_select_queue	= ieee80211_netdev_select_queue,
 };
+
+static u16 ieee80211_monitor_select_queue(struct net_device *dev,
+					  struct sk_buff *skb)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_radiotap_header *rtap = (void *)skb->data;
+
+	if (local->hw.queues < 4)
+		return 0;
+
+	if (skb->len < 4 ||
+	    skb->len < rtap->it_len + 2 /* frame control */)
+		return 0; /* doesn't matter, frame will be dropped */
+
+	hdr = (void *)((u8 *)skb->data + rtap->it_len);
+
+	if (!ieee80211_is_data(hdr->frame_control)) {
+		skb->priority = 7;
+		return ieee802_1d_to_ac[skb->priority];
+	}
+
+	return ieee80211_downgrade_queue(local, skb);
+}
 
 static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_open		= ieee80211_open,
@@ -675,6 +710,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_set_multicast_list = ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_select_queue	= ieee80211_monitor_select_queue,
 };
 
 static void ieee80211_if_setup(struct net_device *dev)
@@ -781,8 +817,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size,
-			    name, ieee80211_if_setup);
+	ndev = alloc_netdev_mq(sizeof(*sdata) + local->hw.vif_data_size,
+			       name, ieee80211_if_setup, local->hw.queues);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));
@@ -820,8 +856,12 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	INIT_LIST_HEAD(&sdata->key_list);
 
-	sdata->force_unicast_rateidx = -1;
-	sdata->max_ratectrl_rateidx = -1;
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		struct ieee80211_supported_band *sband;
+		sband = local->hw.wiphy->bands[i];
+		sdata->rc_rateidx_mask[i] =
+			sband ? (1 << sband->n_bitrates) - 1 : 0;
+	}
 
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);

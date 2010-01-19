@@ -107,12 +107,14 @@ enum ieee80211_max_queues {
  *	2^n-1 in the range 1..32767]
  * @cw_max: maximum contention window [like @cw_min]
  * @txop: maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @uapsd: is U-APSD mode enabled for the queue
  */
 struct ieee80211_tx_queue_params {
 	u16 txop;
 	u16 cw_min;
 	u16 cw_max;
 	u8 aifs;
+	bool uapsd;
 };
 
 /**
@@ -255,9 +257,6 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_RATE_CTRL_PROBE: internal to mac80211, can be
  *	set by rate control algorithms to indicate probe rate, will
  *	be cleared for fragmented frames (except on the last fragment)
- * @IEEE80211_TX_INTFL_RCALGO: mac80211 internal flag, do not test or
- *	set this flag in the driver; indicates that the rate control
- *	algorithm was used and should be notified of TX status
  * @IEEE80211_TX_INTFL_NEED_TXPROCESSING: completely internal to mac80211,
  *	used to indicate that a pending frame requires TX processing before
  *	it can be sent out.
@@ -287,7 +286,6 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_AMPDU			= BIT(10),
 	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(11),
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
-	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
@@ -571,7 +569,13 @@ struct ieee80211_rx_status {
  * @IEEE80211_CONF_MONITOR: there's a monitor interface present -- use this
  *	to determine for example whether to calculate timestamps for packets
  *	or not, do not use instead of filter flags!
- * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
+ * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only).
+ *	This is the power save mode defined by IEEE 802.11-2007 section 11.2,
+ *	meaning that the hardware still wakes up for beacons, is able to
+ *	transmit frames and receive the possible acknowledgment frames.
+ *	Not to be confused with hardware specific wakeup/sleep states,
+ *	driver is responsible for that. See the section "Powersave support"
+ *	for more.
  * @IEEE80211_CONF_IDLE: The device is running, but idle; if the flag is set
  *	the driver should be prepared to handle configuration requests but
  *	may turn the device off as much as possible. Typically, this flag will
@@ -611,7 +615,11 @@ enum ieee80211_conf_changed {
 /**
  * enum ieee80211_smps_mode - spatial multiplexing power save mode
  *
- * @
+ * @IEEE80211_SMPS_AUTOMATIC: automatic
+ * @IEEE80211_SMPS_OFF: off
+ * @IEEE80211_SMPS_STATIC: static
+ * @IEEE80211_SMPS_DYNAMIC: dynamic
+ * @IEEE80211_SMPS_NUM_MODES: internal, don't use
  */
 enum ieee80211_smps_mode {
 	IEEE80211_SMPS_AUTOMATIC,
@@ -933,6 +941,11 @@ enum ieee80211_tkip_key_type {
  *	Hardware supports dynamic spatial multiplexing powersave,
  *	ie. can turn off all but one chain and then wake the rest
  *	up as required after, for example, rts/cts handshake.
+ *
+ * @IEEE80211_HW_SUPPORTS_UAPSD:
+ *	Hardware supports Unscheduled Automatic Power Save Delivery
+ *	(U-APSD) in managed mode. The mode is configured with
+ *	conf_tx() operation.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -952,6 +965,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_BEACON_FILTER			= 1<<14,
 	IEEE80211_HW_SUPPORTS_STATIC_SMPS		= 1<<15,
 	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
+	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 };
 
 /**
@@ -1130,18 +1144,24 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  *
  * mac80211 has support for various powersave implementations.
  *
- * First, it can support hardware that handles all powersaving by
- * itself, such hardware should simply set the %IEEE80211_HW_SUPPORTS_PS
- * hardware flag. In that case, it will be told about the desired
- * powersave mode depending on the association status, and the driver
- * must take care of sending nullfunc frames when necessary, i.e. when
- * entering and leaving powersave mode. The driver is required to look at
- * the AID in beacons and signal to the AP that it woke up when it finds
- * traffic directed to it. This mode supports dynamic PS by simply
- * enabling/disabling PS.
+ * First, it can support hardware that handles all powersaving by itself,
+ * such hardware should simply set the %IEEE80211_HW_SUPPORTS_PS hardware
+ * flag. In that case, it will be told about the desired powersave mode
+ * with the %IEEE80211_CONF_PS flag depending on the association status.
+ * The hardware must take care of sending nullfunc frames when necessary,
+ * i.e. when entering and leaving powersave mode. The hardware is required
+ * to look at the AID in beacons and signal to the AP that it woke up when
+ * it finds traffic directed to it.
  *
- * Additionally, such hardware may set the %IEEE80211_HW_SUPPORTS_DYNAMIC_PS
- * flag to indicate that it can support dynamic PS mode itself (see below).
+ * %IEEE80211_CONF_PS flag enabled means that the powersave mode defined in
+ * IEEE 802.11-2007 section 11.2 is enabled. This is not to be confused
+ * with hardware wakeup and sleep states. Driver is responsible for waking
+ * up the hardware before issueing commands to the hardware and putting it
+ * back to sleep at approriate times.
+ *
+ * When PS is enabled, hardware needs to wakeup for beacons and receive the
+ * buffered multicast/broadcast frames after the beacon. Also it must be
+ * possible to send frames and receive the acknowledment frame.
  *
  * Other hardware designs cannot send nullfunc frames by themselves and also
  * need software support for parsing the TIM bitmap. This is also supported
@@ -1149,14 +1169,35 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * %IEEE80211_HW_PS_NULLFUNC_STACK flags. The hardware is of course still
  * required to pass up beacons. The hardware is still required to handle
  * waking up for multicast traffic; if it cannot the driver must handle that
- * as best as it can, mac80211 is too slow.
+ * as best as it can, mac80211 is too slow to do that.
  *
- * Dynamic powersave mode is an extension to normal powersave mode in which
- * the hardware stays awake for a user-specified period of time after sending
- * a frame so that reply frames need not be buffered and therefore delayed
- * to the next wakeup. This can either be supported by hardware, in which case
- * the driver needs to look at the @dynamic_ps_timeout hardware configuration
- * value, or by the stack if all nullfunc handling is in the stack.
+ * Dynamic powersave is an extension to normal powersave in which the
+ * hardware stays awake for a user-specified period of time after sending a
+ * frame so that reply frames need not be buffered and therefore delayed to
+ * the next wakeup. It's compromise of getting good enough latency when
+ * there's data traffic and still saving significantly power in idle
+ * periods.
+ *
+ * Dynamic powersave is supported by simply mac80211 enabling and disabling
+ * PS based on traffic. Driver needs to only set %IEEE80211_HW_SUPPORTS_PS
+ * flag and mac80211 will handle everything automatically. Additionally,
+ * hardware having support for the dynamic PS feature may set the
+ * %IEEE80211_HW_SUPPORTS_DYNAMIC_PS flag to indicate that it can support
+ * dynamic PS mode itself. The driver needs to look at the
+ * @dynamic_ps_timeout hardware configuration value and use it that value
+ * whenever %IEEE80211_CONF_PS is set. In this case mac80211 will disable
+ * dynamic PS feature in stack and will just keep %IEEE80211_CONF_PS
+ * enabled whenever user has enabled powersave.
+ *
+ * Driver informs U-APSD client support by enabling
+ * %IEEE80211_HW_SUPPORTS_UAPSD flag. The mode is configured through the
+ * uapsd paramater in conf_tx() operation. Hardware needs to send the QoS
+ * Nullfunc frames and stay awake until the service period has ended. To
+ * utilize U-APSD, dynamic powersave is disabled for voip AC and all frames
+ * from that AC are transmitted with powersave enabled.
+ *
+ * Note: U-APSD client mode is not yet supported with
+ * %IEEE80211_HW_PS_NULLFUNC_STACK.
  */
 
 /**
@@ -1533,6 +1574,10 @@ enum ieee80211_ampdu_mlme_action {
  *	and need to call wiphy_rfkill_set_hw_state() in the callback.
  *	The callback can sleep.
  *
+ * @set_coverage_class: Set slot time for given coverage class as specified
+ *	in IEEE 802.11-2007 section 17.3.8.6 and modify ACK timeout
+ *	accordingly. This callback is not required and may sleep.
+ *
  * @testmode_cmd: Implement a cfg80211 test mode command.
  *	The callback can sleep.
  *
@@ -1592,6 +1637,7 @@ struct ieee80211_ops {
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
+	void (*set_coverage_class)(struct ieee80211_hw *hw, u8 coverage_class);
 #ifdef CONFIG_NL80211_TESTMODE
 	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
 #endif
@@ -1872,6 +1918,53 @@ static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 {
 	return ieee80211_beacon_get_tim(hw, vif, NULL, NULL);
 }
+
+/**
+ * ieee80211_pspoll_get - retrieve a PS Poll template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a PS Poll a template which can, for example, uploaded to
+ * hardware. The template must be updated after association so that correct
+ * AID, BSSID and MAC address is used.
+ *
+ * Note: Caller (or hardware) is responsible for setting the
+ * &IEEE80211_FCTL_PM bit.
+ */
+struct sk_buff *ieee80211_pspoll_get(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_nullfunc_get - retrieve a nullfunc template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a Nullfunc template which can, for example, uploaded to
+ * hardware. The template must be updated after association so that correct
+ * BSSID and address is used.
+ *
+ * Note: Caller (or hardware) is responsible for setting the
+ * &IEEE80211_FCTL_PM bit as well as Duration and Sequence Control fields.
+ */
+struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_probereq_get - retrieve a Probe Request template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @ssid: SSID buffer
+ * @ssid_len: length of SSID
+ * @ie: buffer containing all IEs except SSID for the template
+ * @ie_len: length of the IE buffer
+ *
+ * Creates a Probe Request template which can, for example, be uploaded to
+ * hardware.
+ */
+struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif,
+				       const u8 *ssid, size_t ssid_len,
+				       const u8 *ie, size_t ie_len);
 
 /**
  * ieee80211_rts_get - RTS frame generation function
@@ -2292,8 +2385,12 @@ enum rate_control_changed {
  * @short_preamble: whether mac80211 will request short-preamble transmission
  *	if the selected rate supports it
  * @max_rate_idx: user-requested maximum rate (not MCS for now)
+ *	(deprecated; this will be removed once drivers get updated to use
+ *	rate_idx_mask)
+ * @rate_idx_mask: user-requested rate mask (not MCS for now)
  * @skb: the skb that will be transmitted, the control information in it needs
  *	to be filled in
+ * @ap: whether this frame is sent out in AP mode
  */
 struct ieee80211_tx_rate_control {
 	struct ieee80211_hw *hw;
@@ -2303,6 +2400,8 @@ struct ieee80211_tx_rate_control {
 	struct ieee80211_tx_rate reported_rate;
 	bool rts, short_preamble;
 	u8 max_rate_idx;
+	u32 rate_idx_mask;
+	bool ap;
 };
 
 struct rate_control_ops {

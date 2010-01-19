@@ -113,25 +113,22 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u16 subsysid;
 	u32 val;
 	int ret = 0;
-	struct ath_hw *ah;
 	char hw_name[64];
 
 	if (pci_enable_device(pdev))
 		return -EIO;
 
 	ret =  pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-
 	if (ret) {
 		printk(KERN_ERR "ath9k: 32-bit DMA not available\n");
-		goto bad;
+		goto err_dma;
 	}
 
 	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-
 	if (ret) {
 		printk(KERN_ERR "ath9k: 32-bit DMA consistent "
 			"DMA enable failed\n");
-		goto bad;
+		goto err_dma;
 	}
 
 	/*
@@ -171,22 +168,22 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret) {
 		dev_err(&pdev->dev, "PCI memory region reserve error\n");
 		ret = -ENODEV;
-		goto bad;
+		goto err_region;
 	}
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
 		printk(KERN_ERR "PCI memory map error\n") ;
 		ret = -EIO;
-		goto bad1;
+		goto err_iomap;
 	}
 
 	hw = ieee80211_alloc_hw(sizeof(struct ath_wiphy) +
 				sizeof(struct ath_softc), &ath9k_ops);
 	if (!hw) {
-		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
+		dev_err(&pdev->dev, "No memory for ieee80211_hw\n");
 		ret = -ENOMEM;
-		goto bad2;
+		goto err_alloc_hw;
 	}
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -201,25 +198,25 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->dev = &pdev->dev;
 	sc->mem = mem;
 
-	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsysid);
-	ret = ath_init_device(id->device, sc, subsysid, &ath_pci_bus_ops);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize device\n");
-		goto bad3;
-	}
-
-	/* setup interrupt service routine */
+	/* Will be cleared in ath9k_start() */
+	sc->sc_flags |= SC_OP_INVALID;
 
 	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
-		goto bad4;
+		goto err_irq;
 	}
 
 	sc->irq = pdev->irq;
 
-	ah = sc->sc_ah;
-	ath9k_hw_name(ah, hw_name, sizeof(hw_name));
+	pci_read_config_word(pdev, PCI_SUBSYSTEM_ID, &subsysid);
+	ret = ath9k_init_device(id->device, sc, subsysid, &ath_pci_bus_ops);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize device\n");
+		goto err_init;
+	}
+
+	ath9k_hw_name(sc->sc_ah, hw_name, sizeof(hw_name));
 	printk(KERN_INFO
 	       "%s: %s mem=0x%lx, irq=%d\n",
 	       wiphy_name(hw->wiphy),
@@ -227,15 +224,18 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	       (unsigned long)mem, pdev->irq);
 
 	return 0;
-bad4:
-	ath_detach(sc);
-bad3:
+
+err_init:
+	free_irq(sc->irq, sc);
+err_irq:
 	ieee80211_free_hw(hw);
-bad2:
+err_alloc_hw:
 	pci_iounmap(pdev, mem);
-bad1:
+err_iomap:
 	pci_release_region(pdev, 0);
-bad:
+err_region:
+	/* Nothing */
+err_dma:
 	pci_disable_device(pdev);
 	return ret;
 }
@@ -245,8 +245,12 @@ static void ath_pci_remove(struct pci_dev *pdev)
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
-	ath_cleanup(sc);
+	ath9k_deinit_device(sc);
+	free_irq(sc->irq, sc);
+	ieee80211_free_hw(sc->hw);
+	ath_bus_cleanup(common);
 }
 
 #ifdef CONFIG_PM

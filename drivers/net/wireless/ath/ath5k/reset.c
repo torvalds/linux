@@ -60,12 +60,11 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 		!(channel->hw_value & CHANNEL_OFDM));
 
 	/* Get coefficient
-	 * ALGO: coef = (5 * clock * carrier_freq) / 2)
+	 * ALGO: coef = (5 * clock / carrier_freq) / 2
 	 * we scale coef by shifting clock value by 24 for
 	 * better precision since we use integers */
 	/* TODO: Half/quarter rate */
-	clock =  ath5k_hw_htoclock(1, channel->hw_value & CHANNEL_TURBO);
-
+	clock =  (channel->hw_value & CHANNEL_TURBO) ? 80 : 40;
 	coef_scaled = ((5 * (clock << 24)) / 2) / channel->center_freq;
 
 	/* Get exponent
@@ -1316,6 +1315,10 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 	/* Restore antenna mode */
 	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);
+
+	/* Restore slot time and ACK timeouts */
+	if (ah->ah_coverage_class > 0)
+		ath5k_hw_set_coverage_class(ah, ah->ah_coverage_class);
 
 	/*
 	 * Configure QCUs/DCUs

@@ -39,8 +39,8 @@
  * @IEEE80211_BAND_5GHZ: around 5GHz band (4.9-5.7)
  */
 enum ieee80211_band {
-	IEEE80211_BAND_2GHZ,
-	IEEE80211_BAND_5GHZ,
+	IEEE80211_BAND_2GHZ = NL80211_BAND_2GHZ,
+	IEEE80211_BAND_5GHZ = NL80211_BAND_5GHZ,
 
 	/* keep last */
 	IEEE80211_NUM_BANDS
@@ -626,8 +626,14 @@ enum cfg80211_signal_type {
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
  * @information_elements: the information elements (Note that there
- *	is no guarantee that these are well-formed!)
+ *	is no guarantee that these are well-formed!); this is a pointer to
+ *	either the beacon_ies or proberesp_ies depending on whether Probe
+ *	Response frame has been received
  * @len_information_elements: total length of the information elements
+ * @beacon_ies: the information elements from the last Beacon frame
+ * @len_beacon_ies: total length of the beacon_ies
+ * @proberesp_ies: the information elements from the last Probe Response frame
+ * @len_proberesp_ies: total length of the proberesp_ies
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
@@ -641,6 +647,10 @@ struct cfg80211_bss {
 	u16 capability;
 	u8 *information_elements;
 	size_t len_information_elements;
+	u8 *beacon_ies;
+	size_t len_beacon_ies;
+	u8 *proberesp_ies;
+	size_t len_proberesp_ies;
 
 	s32 signal;
 
@@ -837,6 +847,7 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_RETRY_LONG		= 1 << 1,
 	WIPHY_PARAM_FRAG_THRESHOLD	= 1 << 2,
 	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
+	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
 };
 
 /**
@@ -856,20 +867,11 @@ enum tx_power_setting {
  * cfg80211_bitrate_mask - masks for bitrate control
  */
 struct cfg80211_bitrate_mask {
-/*
- * As discussed in Berlin, this struct really
- * should look like this:
-
 	struct {
 		u32 legacy;
-		u8 mcs[IEEE80211_HT_MCS_MASK_LEN];
+		/* TODO: add support for masking MCS rates; e.g.: */
+		/* u8 mcs[IEEE80211_HT_MCS_MASK_LEN]; */
 	} control[IEEE80211_NUM_BANDS];
-
- * Since we can always fix in-kernel users, let's keep
- * it simpler for now:
- */
-	u32 fixed;   /* fixed bitrate, 0 == not fixed */
-	u32 maxrate; /* in kbps, 0 == no limit */
 };
 /**
  * struct cfg80211_pmksa - PMK Security Association
@@ -1236,6 +1238,7 @@ struct wiphy {
 	u8 retry_long;
 	u32 frag_threshold;
 	u32 rts_threshold;
+	u8 coverage_class;
 
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 	u32 hw_version;

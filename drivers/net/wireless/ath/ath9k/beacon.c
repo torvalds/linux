@@ -480,7 +480,8 @@ void ath_beacon_tasklet(unsigned long data)
 		sc->beacon.updateslot = COMMIT; /* commit next beacon */
 		sc->beacon.slotupdate = slot;
 	} else if (sc->beacon.updateslot == COMMIT && sc->beacon.slotupdate == slot) {
-		ath9k_hw_setslottime(sc->sc_ah, sc->beacon.slottime);
+		ah->slottime = sc->beacon.slottime;
+		ath9k_hw_init_global_settings(ah);
 		sc->beacon.updateslot = OK;
 	}
 	if (bfaddr != 0) {
