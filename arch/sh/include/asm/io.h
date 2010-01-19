@@ -328,7 +328,6 @@ ioremap_prot(resource_size_t offset, unsigned long size, unsigned long flags)
 }
 
 #define ioremap_nocache	ioremap
-#define p3_ioremap	__ioremap
 #define iounmap		__iounmap
 
 #define maybebadio(port) \
