@@ -186,11 +186,10 @@ int ide_timing_compute(ide_drive_t *drive, u8 speed,
 	/*
 	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY,
 	 * S.M.A.R.T and some other commands. We have to ensure that the
-	 * DMA cycle timing is slower/equal than the fastest PIO timing.
+	 * DMA cycle timing is slower/equal than the current PIO timing.
 	 */
 	if (speed >= XFER_SW_DMA_0) {
-		u8 pio = ide_get_best_pio_mode(drive, 255, 5);
-		ide_timing_compute(drive, XFER_PIO_0 + pio, &p, T, UT);
+		ide_timing_compute(drive, drive->pio_mode, &p, T, UT);
 		ide_timing_merge(&p, t, t, IDE_TIMING_ALL);
 	}
 
