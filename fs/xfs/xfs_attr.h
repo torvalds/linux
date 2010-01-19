@@ -113,7 +113,7 @@ typedef struct attrlist_cursor_kern {
 
 
 typedef int (*put_listent_func_t)(struct xfs_attr_list_context *, int,
-				      char *, int, int, char *);
+			      unsigned char *, int, int, unsigned char *);
 
 typedef struct xfs_attr_list_context {
 	struct xfs_inode		*dp;		/* inode */

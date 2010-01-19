@@ -93,12 +93,12 @@ STATIC int xfs_attr_rmtval_remove(xfs_da_args_t *args);
 STATIC int
 xfs_attr_name_to_xname(
 	struct xfs_name	*xname,
-	const char	*aname)
+	const unsigned char *aname)
 {
 	if (!aname)
 		return EINVAL;
 	xname->name = aname;
-	xname->len = strlen(aname);
+	xname->len = strlen((char *)aname);
 	if (xname->len >= MAXNAMELEN)
 		return EFAULT;		/* match IRIX behaviour */
 
@@ -124,7 +124,7 @@ STATIC int
 xfs_attr_get_int(
 	struct xfs_inode	*ip,
 	struct xfs_name		*name,
-	char			*value,
+	unsigned char		*value,
 	int			*valuelenp,
 	int			flags)
 {
@@ -171,8 +171,8 @@ xfs_attr_get_int(
 int
 xfs_attr_get(
 	xfs_inode_t	*ip,
-	const char	*name,
-	char		*value,
+	const unsigned char *name,
+	unsigned char	*value,
 	int		*valuelenp,
 	int		flags)
 {
@@ -235,8 +235,12 @@ xfs_attr_calc_size(
 }
 
 STATIC int
-xfs_attr_set_int(xfs_inode_t *dp, struct xfs_name *name,
-		char *value, int valuelen, int flags)
+xfs_attr_set_int(
+	struct xfs_inode *dp,
+	struct xfs_name	*name,
+	unsigned char	*value,
+	int		valuelen,
+	int		flags)
 {
 	xfs_da_args_t	args;
 	xfs_fsblock_t	firstblock;
@@ -452,8 +456,8 @@ out:
 int
 xfs_attr_set(
 	xfs_inode_t	*dp,
-	const char	*name,
-	char		*value,
+	const unsigned char *name,
+	unsigned char	*value,
 	int		valuelen,
 	int		flags)
 {
@@ -600,7 +604,7 @@ out:
 int
 xfs_attr_remove(
 	xfs_inode_t	*dp,
-	const char	*name,
+	const unsigned char *name,
 	int		flags)
 {
 	int		error;
@@ -669,9 +673,13 @@ xfs_attr_list_int(xfs_attr_list_context_t *context)
  */
 /*ARGSUSED*/
 STATIC int
-xfs_attr_put_listent(xfs_attr_list_context_t *context, int flags,
-		     char *name, int namelen,
-		     int valuelen, char *value)
+xfs_attr_put_listent(
+	xfs_attr_list_context_t *context,
+	int		flags,
+	unsigned char	*name,
+	int		namelen,
+	int		valuelen,
+	unsigned char	*value)
 {
 	struct attrlist *alist = (struct attrlist *)context->alist;
 	attrlist_ent_t *aep;
@@ -1980,7 +1988,7 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 	xfs_bmbt_irec_t map[ATTR_RMTVALUE_MAPSIZE];
 	xfs_mount_t *mp;
 	xfs_daddr_t dblkno;
-	xfs_caddr_t dst;
+	void *dst;
 	xfs_buf_t *bp;
 	int nmap, error, tmp, valuelen, blkcnt, i;
 	xfs_dablk_t lblkno;
@@ -2039,7 +2047,7 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 	xfs_inode_t *dp;
 	xfs_bmbt_irec_t map;
 	xfs_daddr_t dblkno;
-	xfs_caddr_t src;
+	void *src;
 	xfs_buf_t *bp;
 	xfs_dablk_t lblkno;
 	int blkcnt, valuelen, nmap, error, tmp, committed;
