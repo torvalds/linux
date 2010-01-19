@@ -260,9 +260,7 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int j;
 #endif
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 	unsigned int cpu = raw_smp_processor_id();
-#endif
 	const char *strerror = NULL;
 	int sig = 0;
 	siginfo_t info;
@@ -651,7 +649,17 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 	{
 		info.si_signo = sig;
 		info.si_errno = 0;
-		info.si_addr = (void __user *)fp->pc;
+		switch (trapnr) {
+		case VEC_CPLB_VL:
+		case VEC_MISALI_D:
+		case VEC_CPLB_M:
+		case VEC_CPLB_MHIT:
+			info.si_addr = (void __user *)cpu_pda[cpu].dcplb_fault_addr;
+			break;
+		default:
+			info.si_addr = (void __user *)fp->pc;
+			break;
+		}
 		force_sig_info(sig, &info, current);
 	}
 
