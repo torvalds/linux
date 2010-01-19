@@ -75,19 +75,24 @@ extern int s3c24xx_serial_probe(struct platform_device *dev,
 extern int __devexit s3c24xx_serial_remove(struct platform_device *dev);
 
 extern int s3c24xx_serial_initconsole(struct platform_driver *drv,
-				      struct s3c24xx_uart_info *uart);
+				      struct s3c24xx_uart_info **uart);
 
 extern int s3c24xx_serial_init(struct platform_driver *drv,
 			       struct s3c24xx_uart_info *info);
 
 #ifdef CONFIG_SERIAL_SAMSUNG_CONSOLE
 
-#define s3c24xx_console_init(__drv, __inf)			\
-static int __init s3c_serial_console_init(void)			\
-{								\
-	return s3c24xx_serial_initconsole(__drv, __inf);	\
-}								\
-								\
+#define s3c24xx_console_init(__drv, __inf)				\
+static int __init s3c_serial_console_init(void)				\
+{									\
+	struct s3c24xx_uart_info *uinfo[CONFIG_SERIAL_SAMSUNG_UARTS];	\
+	int i;								\
+									\
+	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++)		\
+		uinfo[i] = __inf;					\
+	return s3c24xx_serial_initconsole(__drv, uinfo);		\
+}									\
+									\
 console_initcall(s3c_serial_console_init)
 
 #else
