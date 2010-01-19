@@ -1763,7 +1763,7 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;
-	unsigned int handled = 0;
+	unsigned int handled = 0, polling = 0;
 	unsigned long flags;
 
 	/* TODO: make _irqsave conditional on x86 PCI IDE legacy mode */
@@ -1777,8 +1777,37 @@ irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
 			continue;
 
 		qc = ata_qc_from_tag(ap, ap->link.active_tag);
-		if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING))
-			handled |= ata_sff_host_intr(ap, qc);
+		if (qc) {
+			if (!(qc->tf.flags & ATA_TFLAG_POLLING))
+				handled |= ata_sff_host_intr(ap, qc);
+			else
+				polling |= 1 << i;
+		}
+	}
+
+	/*
+	 * If no port was expecting IRQ but the controller is actually
+	 * asserting IRQ line, nobody cared will ensue.  Check IRQ
+	 * pending status if available and clear spurious IRQ.
+	 */
+	if (!handled) {
+		for (i = 0; i < host->n_ports; i++) {
+			struct ata_port *ap = host->ports[i];
+
+			if (polling & (1 << i))
+				continue;
+
+			if (!ap->ops->sff_irq_check ||
+			    !ap->ops->sff_irq_check(ap))
+				continue;
+
+			if (printk_ratelimit())
+				ata_port_printk(ap, KERN_INFO,
+						"clearing spurious IRQ\n");
+
+			ap->ops->sff_check_status(ap);
+			ap->ops->sff_irq_clear(ap);
+		}
 	}
 
 	spin_unlock_irqrestore(&host->lock, flags);

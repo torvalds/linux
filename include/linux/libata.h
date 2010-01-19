@@ -857,6 +857,7 @@ struct ata_port_operations {
 	unsigned int (*sff_data_xfer)(struct ata_device *dev,
 			unsigned char *buf, unsigned int buflen, int rw);
 	u8   (*sff_irq_on)(struct ata_port *);
+	bool (*sff_irq_check)(struct ata_port *);
 	void (*sff_irq_clear)(struct ata_port *);
 
 	void (*bmdma_setup)(struct ata_queued_cmd *qc);
