@@ -60,7 +60,7 @@ static int s3c_setrate_clksrc(struct clk *clk, unsigned long rate)
 
 	rate = clk_round_rate(clk, rate);
 	div = clk_get_rate(clk->parent) / rate;
-	if (div > 16)
+	if (div > (1 << sclk->reg_div.size))
 		return -EINVAL;
 
 	val = __raw_readl(reg);
@@ -102,7 +102,9 @@ static int s3c_setparent_clksrc(struct clk *clk, struct clk *parent)
 static unsigned long s3c_roundrate_clksrc(struct clk *clk,
 					      unsigned long rate)
 {
+	struct clksrc_clk *sclk = to_clksrc(clk);
 	unsigned long parent_rate = clk_get_rate(clk->parent);
+	int max_div = 1 << sclk->reg_div.size;
 	int div;
 
 	if (rate >= parent_rate)
@@ -114,8 +116,8 @@ static unsigned long s3c_roundrate_clksrc(struct clk *clk,
 
 		if (div == 0)
 			div = 1;
-		if (div > 16)
-			div = 16;
+		if (div > max_div)
+			div = max_div;
 
 		rate = parent_rate / div;
 	}
@@ -129,11 +131,16 @@ void __init_or_cpufreq s3c_set_clksrc(struct clksrc_clk *clk, bool announce)
 {
 	struct clksrc_sources *srcs = clk->sources;
 	u32 mask = bit_mask(clk->reg_src.shift, clk->reg_src.size);
-	u32 clksrc = 0;
+	u32 clksrc;
 
-	if (clk->reg_src.reg)
-		clksrc = __raw_readl(clk->reg_src.reg);
+	if (!clk->reg_src.reg) {
+		if (!clk->clk.parent)
+			printk(KERN_ERR "%s: no parent clock specified\n",
+				clk->clk.name);
+		return;
+	}
 
+	clksrc = __raw_readl(clk->reg_src.reg);
 	clksrc &= mask;
 	clksrc >>= clk->reg_src.shift;
 
@@ -172,9 +179,11 @@ void __init s3c_register_clksrc(struct clksrc_clk *clksrc, int size)
 {
 	int ret;
 
-	WARN_ON(!clksrc->reg_div.reg && !clksrc->reg_src.reg);
-
 	for (; size > 0; size--, clksrc++) {
+		if (!clksrc->reg_div.reg && !clksrc->reg_src.reg)
+			printk(KERN_ERR "%s: clock %s has no registers set\n",
+			       __func__, clksrc->clk.name);
+
 		/* fill in the default functions */
 
 		if (!clksrc->clk.ops) {
