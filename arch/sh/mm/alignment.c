@@ -69,12 +69,12 @@ void unaligned_fixups_notify(struct task_struct *tsk, insn_size_t insn,
 		pr_notice("Fixing up unaligned userspace access "
 			  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			  tsk->comm, task_pid_nr(tsk),
-			  (void *)regs->pc, insn);
+			  (void *)instruction_pointer(regs), insn);
 	else if (se_kernmode_warn && printk_ratelimit())
 		pr_notice("Fixing up unaligned kernel access "
 			  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			  tsk->comm, task_pid_nr(tsk),
-			  (void *)regs->pc, insn);
+			  (void *)instruction_pointer(regs), insn);
 }
 
 static const char *se_usermode_action[] = {
