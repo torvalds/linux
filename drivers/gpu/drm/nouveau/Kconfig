@@ -30,12 +30,11 @@ config DRM_NOUVEAU_DEBUG
 	  via debugfs.
 
 menu "I2C encoder or helper chips"
-     depends on DRM && I2C
+     depends on DRM && DRM_KMS_HELPER && I2C
 
 config DRM_I2C_CH7006
 	tristate "Chrontel ch7006 TV encoder"
-	depends on DRM_NOUVEAU
-	default m
+	default m if DRM_NOUVEAU
 	help
 	  Support for Chrontel ch7006 and similar TV encoders, found
 	  on some nVidia video cards.

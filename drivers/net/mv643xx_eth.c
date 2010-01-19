@@ -656,6 +656,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 		struct sk_buff *skb;
 		int rx;
 		struct rx_desc *rx_desc;
+		int size;
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
@@ -678,10 +679,11 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 
 		rx_desc = rxq->rx_desc_area + rx;
 
+		size = skb->end - skb->data;
 		rx_desc->buf_ptr = dma_map_single(mp->dev->dev.parent,
-						  skb->data, mp->skb_size,
+						  skb->data, size,
 						  DMA_FROM_DEVICE);
-		rx_desc->buf_size = mp->skb_size;
+		rx_desc->buf_size = size;
 		rxq->rx_skb[rx] = skb;
 		wmb();
 		rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;

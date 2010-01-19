@@ -106,7 +106,7 @@ void __init mem_init(void)
 			ram << (PAGE_SHIFT-10), codesize >> 10,
 			reservedpages << (PAGE_SHIFT-10), datasize >> 10,
 			initsize >> 10,
-			(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
+			totalhigh_pages << (PAGE_SHIFT-10));
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 

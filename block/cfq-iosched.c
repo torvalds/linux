@@ -208,8 +208,6 @@ struct cfq_data {
 	/* Root service tree for cfq_groups */
 	struct cfq_rb_root grp_service_tree;
 	struct cfq_group root_group;
-	/* Number of active cfq groups on group service tree */
-	int nr_groups;
 
 	/*
 	 * The priority currently being served
@@ -294,8 +292,7 @@ static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
 static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
 					    enum wl_prio_t prio,
-					    enum wl_type_t type,
-					    struct cfq_data *cfqd)
+					    enum wl_type_t type)
 {
 	if (!cfqg)
 		return NULL;
@@ -842,7 +839,6 @@ cfq_group_service_tree_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	__cfq_group_service_tree_add(st, cfqg);
 	cfqg->on_st = true;
-	cfqd->nr_groups++;
 	st->total_weight += cfqg->weight;
 }
 
@@ -863,7 +859,6 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	cfq_log_cfqg(cfqd, cfqg, "del_from_rr group");
 	cfqg->on_st = false;
-	cfqd->nr_groups--;
 	st->total_weight -= cfqg->weight;
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
@@ -1150,7 +1145,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 #endif
 
 	service_tree = service_tree_for(cfqq->cfqg, cfqq_prio(cfqq),
-						cfqq_type(cfqq), cfqd);
+						cfqq_type(cfqq));
 	if (cfq_class_idle(cfqq)) {
 		rb_key = CFQ_IDLE_DELAY;
 		parent = rb_last(&service_tree->rb);
@@ -1513,9 +1508,6 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	struct cfq_io_context *cic;
 	struct cfq_queue *cfqq;
 
-	/* Deny merge if bio and rq don't belong to same cfq group */
-	if ((RQ_CFQQ(rq))->cfqg != cfq_get_cfqg(cfqd, 0))
-		return false;
 	/*
 	 * Disallow merge of a sync bio into an async request.
 	 */
@@ -1616,7 +1608,7 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
 	struct cfq_rb_root *service_tree =
 		service_tree_for(cfqd->serving_group, cfqd->serving_prio,
-					cfqd->serving_type, cfqd);
+					cfqd->serving_type);
 
 	if (!cfqd->rq_queued)
 		return NULL;
@@ -1675,11 +1667,15 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 #define CFQQ_SEEKY(cfqq)	((cfqq)->seek_mean > CFQQ_SEEK_THR)
 
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-			       struct request *rq)
+			       struct request *rq, bool for_preempt)
 {
 	sector_t sdist = cfqq->seek_mean;
 
 	if (!sample_valid(cfqq->seek_samples))
+		sdist = CFQQ_SEEK_THR;
+
+	/* if seek_mean is big, using it as close criteria is meaningless */
+	if (sdist > CFQQ_SEEK_THR && !for_preempt)
 		sdist = CFQQ_SEEK_THR;
 
 	return cfq_dist_from_last(cfqd, rq) <= sdist;
@@ -1709,7 +1705,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * will contain the closest sector.
 	 */
 	__cfqq = rb_entry(parent, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	if (blk_rq_pos(__cfqq->next_rq) < sector)
@@ -1720,7 +1716,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 		return NULL;
 
 	__cfqq = rb_entry(node, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	return NULL;
@@ -1963,8 +1959,7 @@ static void cfq_setup_merge(struct cfq_queue *cfqq, struct cfq_queue *new_cfqq)
 }
 
 static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
-				struct cfq_group *cfqg, enum wl_prio_t prio,
-				bool prio_changed)
+				struct cfq_group *cfqg, enum wl_prio_t prio)
 {
 	struct cfq_queue *queue;
 	int i;
@@ -1972,24 +1967,9 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 	unsigned long lowest_key = 0;
 	enum wl_type_t cur_best = SYNC_NOIDLE_WORKLOAD;
 
-	if (prio_changed) {
-		/*
-		 * When priorities switched, we prefer starting
-		 * from SYNC_NOIDLE (first choice), or just SYNC
-		 * over ASYNC
-		 */
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-		cur_best = SYNC_WORKLOAD;
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-
-		return ASYNC_WORKLOAD;
-	}
-
-	for (i = 0; i < 3; ++i) {
-		/* otherwise, select the one with lowest rb_key */
-		queue = cfq_rb_first(service_tree_for(cfqg, prio, i, cfqd));
+	for (i = 0; i <= SYNC_WORKLOAD; ++i) {
+		/* select the one with lowest rb_key */
+		queue = cfq_rb_first(service_tree_for(cfqg, prio, i));
 		if (queue &&
 		    (!key_valid || time_before(queue->rb_key, lowest_key))) {
 			lowest_key = queue->rb_key;
@@ -2003,8 +1983,6 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 
 static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
-	enum wl_prio_t previous_prio = cfqd->serving_prio;
-	bool prio_changed;
 	unsigned slice;
 	unsigned count;
 	struct cfq_rb_root *st;
@@ -2032,24 +2010,19 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	 * (SYNC, SYNC_NOIDLE, ASYNC), and to compute a workload
 	 * expiration time
 	 */
-	prio_changed = (cfqd->serving_prio != previous_prio);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
-	 * If priority didn't change, check workload expiration,
-	 * and that we still have other queues ready
+	 * check workload expiration, and that we still have other queues ready
 	 */
-	if (!prio_changed && count &&
-	    !time_after(jiffies, cfqd->workload_expires))
+	if (count && !time_after(jiffies, cfqd->workload_expires))
 		return;
 
 	/* otherwise select new workload type */
 	cfqd->serving_type =
-		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio, prio_changed);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
@@ -3143,7 +3116,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, cfqq, rq))
+	if (cfq_rq_close(cfqd, cfqq, rq, true))
 		return true;
 
 	return false;

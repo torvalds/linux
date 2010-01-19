@@ -186,7 +186,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 		wait = wait_time;
 		while (ath9k_hw_numtxpending(ah, q)) {
 			if ((--wait) == 0) {
-				ath_print(common, ATH_DBG_QUEUE,
+				ath_print(common, ATH_DBG_FATAL,
 					  "Failed to stop TX DMA in 100 "
 					  "msec after killing last frame\n");
 				break;

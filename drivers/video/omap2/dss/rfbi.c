@@ -120,7 +120,7 @@ static struct {
 
 	struct omap_dss_device *dssdev[2];
 
-	struct kfifo      *cmd_fifo;
+	struct kfifo      cmd_fifo;
 	spinlock_t        cmd_lock;
 	struct completion cmd_done;
 	atomic_t          cmd_fifo_full;
@@ -1011,20 +1011,20 @@ static void process_cmd_fifo(void)
 		return;
 
 	while (true) {
-		spin_lock_irqsave(rfbi.cmd_fifo->lock, flags);
+		spin_lock_irqsave(&rfbi.cmd_lock, flags);
 
-		len = __kfifo_get(rfbi.cmd_fifo, (unsigned char *)&p,
+		len = kfifo_out(&rfbi.cmd_fifo, (unsigned char *)&p,
 				  sizeof(struct update_param));
 		if (len == 0) {
 			DSSDBG("nothing more in fifo\n");
 			atomic_set(&rfbi.cmd_pending, 0);
-			spin_unlock_irqrestore(rfbi.cmd_fifo->lock, flags);
+			spin_unlock_irqrestore(&rfbi.cmd_lock, flags);
 			break;
 		}
 
 		/* DSSDBG("fifo full %d\n", rfbi.cmd_fifo_full.counter);*/
 
-		spin_unlock_irqrestore(rfbi.cmd_fifo->lock, flags);
+		spin_unlock_irqrestore(&rfbi.cmd_lock, flags);
 
 		BUG_ON(len != sizeof(struct update_param));
 		BUG_ON(p.rfbi_module > 1);
@@ -1052,25 +1052,25 @@ static void rfbi_push_cmd(struct update_param *p)
 		unsigned long flags;
 		int available;
 
-		spin_lock_irqsave(rfbi.cmd_fifo->lock, flags);
+		spin_lock_irqsave(&rfbi.cmd_lock, flags);
 		available = RFBI_CMD_FIFO_LEN_BYTES -
-			__kfifo_len(rfbi.cmd_fifo);
+			kfifo_len(&rfbi.cmd_fifo);
 
 /*		DSSDBG("%d bytes left in fifo\n", available); */
 		if (available < sizeof(struct update_param)) {
 			DSSDBG("Going to wait because FIFO FULL..\n");
-			spin_unlock_irqrestore(rfbi.cmd_fifo->lock, flags);
+			spin_unlock_irqrestore(&rfbi.cmd_lock, flags);
 			atomic_inc(&rfbi.cmd_fifo_full);
 			wait_for_completion(&rfbi.cmd_done);
 			/*DSSDBG("Woke up because fifo not full anymore\n");*/
 			continue;
 		}
 
-		ret = __kfifo_put(rfbi.cmd_fifo, (unsigned char *)p,
+		ret = kfifo_in(&rfbi.cmd_fifo, (unsigned char *)p,
 				  sizeof(struct update_param));
 /*		DSSDBG("pushed %d bytes\n", ret);*/
 
-		spin_unlock_irqrestore(rfbi.cmd_fifo->lock, flags);
+		spin_unlock_irqrestore(&rfbi.cmd_lock, flags);
 
 		BUG_ON(ret != sizeof(struct update_param));
 
@@ -1155,12 +1155,12 @@ int rfbi_init(void)
 {
 	u32 rev;
 	u32 l;
+	int r;
 
 	spin_lock_init(&rfbi.cmd_lock);
-	rfbi.cmd_fifo = kfifo_alloc(RFBI_CMD_FIFO_LEN_BYTES, GFP_KERNEL,
-				    &rfbi.cmd_lock);
-	if (IS_ERR(rfbi.cmd_fifo))
-		return -ENOMEM;
+	r = kfifo_alloc(&rfbi.cmd_fifo, RFBI_CMD_FIFO_LEN_BYTES, GFP_KERNEL);
+	if (r)
+		return r;
 
 	init_completion(&rfbi.cmd_done);
 	atomic_set(&rfbi.cmd_fifo_full, 0);
@@ -1196,7 +1196,7 @@ void rfbi_exit(void)
 {
 	DSSDBG("rfbi_exit\n");
 
-	kfifo_free(rfbi.cmd_fifo);
+	kfifo_free(&rfbi.cmd_fifo);
 
 	iounmap(rfbi.base);
 }

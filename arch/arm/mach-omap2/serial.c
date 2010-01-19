@@ -125,6 +125,13 @@ static struct plat_serial8250_port serial_platform_data3[] = {
 	}
 };
 #endif
+static inline unsigned int __serial_read_reg(struct uart_port *up,
+					   int offset)
+{
+	offset <<= up->regshift;
+	return (unsigned int)__raw_readb(up->membase + offset);
+}
+
 static inline unsigned int serial_read_reg(struct plat_serial8250_port *up,
 					   int offset)
 {
@@ -583,11 +590,12 @@ static unsigned int serial_in_override(struct uart_port *up, int offset)
 {
 	if (UART_RX == offset) {
 		unsigned int lsr;
-		lsr = serial_read_reg(omap_uart[up->line].p, UART_LSR);
+		lsr = __serial_read_reg(up, UART_LSR);
 		if (!(lsr & UART_LSR_DR))
 			return -EPERM;
 	}
-	return serial_read_reg(omap_uart[up->line].p, offset);
+
+	return __serial_read_reg(up, offset);
 }
 
 void __init omap_serial_early_init(void)

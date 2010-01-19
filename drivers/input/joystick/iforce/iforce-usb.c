@@ -109,6 +109,7 @@ static void iforce_usb_out(struct urb *urb)
 	struct iforce *iforce = urb->context;
 
 	if (urb->status) {
+		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
 		dbg("urb->status %d, exiting", urb->status);
 		return;
 	}
@@ -186,33 +187,19 @@ fail:
 	return err;
 }
 
-/* Called by iforce_delete() */
-void iforce_usb_delete(struct iforce* iforce)
+static void iforce_usb_disconnect(struct usb_interface *intf)
 {
-	usb_kill_urb(iforce->irq);
-	usb_kill_urb(iforce->out);
-	usb_kill_urb(iforce->ctrl);
+	struct iforce *iforce = usb_get_intfdata(intf);
+
+	usb_set_intfdata(intf, NULL);
+
+	input_unregister_device(iforce->dev);
 
 	usb_free_urb(iforce->irq);
 	usb_free_urb(iforce->out);
 	usb_free_urb(iforce->ctrl);
-}
 
-static void iforce_usb_disconnect(struct usb_interface *intf)
-{
-	struct iforce *iforce = usb_get_intfdata(intf);
-	int open = 0; /* FIXME! iforce->dev.handle->open; */
-
-	usb_set_intfdata(intf, NULL);
-	if (iforce) {
-		iforce->usbdev = NULL;
-		input_unregister_device(iforce->dev);
-
-		if (!open) {
-			iforce_delete_device(iforce);
-			kfree(iforce);
-		}
-	}
+	kfree(iforce);
 }
 
 static struct usb_device_id iforce_usb_ids [] = {

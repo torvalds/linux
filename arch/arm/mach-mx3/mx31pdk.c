@@ -211,11 +211,6 @@ static int __init mx31pdk_init_expio(void)
  */
 static struct map_desc mx31pdk_io_desc[] __initdata = {
 	{
-		.virtual = SPBA0_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length = SPBA0_SIZE,
-		.type = MT_DEVICE_NONSHARED,
-	}, {
 		.virtual = CS5_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(CS5_BASE_ADDR),
 		.length = CS5_SIZE,

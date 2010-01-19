@@ -1107,6 +1107,12 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		struct dev_archdata *sd = &dev->dev.archdata;
 
+		/* Cardbus can call us to add new devices to a bus, so ignore
+		 * those who are already fully discovered
+		 */
+		if (dev->is_added)
+			continue;
+
 		/* Setup OF node pointer in archdata */
 		sd->of_node = pci_device_to_OF_node(dev);
 
@@ -1146,6 +1152,13 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	pcibios_setup_bus_devices(bus);
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
+
+void __devinit pci_fixup_cardbus(struct pci_bus *bus)
+{
+	/* Now fixup devices on that bus */
+	pcibios_setup_bus_devices(bus);
+}
+
 
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {

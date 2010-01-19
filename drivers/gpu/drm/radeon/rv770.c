@@ -1096,8 +1096,7 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-	if (rdev->flags & RADEON_IS_AGP)
-		radeon_agp_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);

@@ -34,10 +34,7 @@
 #include <asm/mips-boards/generic.h>
 #include <asm/mach-powertv/asic.h>
 
-#include "init.h"
-
-int prom_argc;
-int *_prom_argv, *_prom_envp;
+static int *_prom_envp;
 unsigned long _prom_memsize;
 
 /*
@@ -109,16 +106,20 @@ static void __init mips_ejtag_setup(void)
 
 void __init prom_init(void)
 {
+	int prom_argc;
+	char *prom_argv;
+
 	prom_argc = fw_arg0;
-	_prom_argv = (int *) fw_arg1;
+	prom_argv = (char *) fw_arg1;
 	_prom_envp = (int *) fw_arg2;
 	_prom_memsize = (unsigned long) fw_arg3;
 
 	board_nmi_handler_setup = mips_nmi_setup;
 	board_ejtag_handler_setup = mips_ejtag_setup;
 
-	pr_info("\nLINUX started...\n");
-	prom_init_cmdline();
+	if (prom_argc == 1)
+		strlcat(arcs_cmdline, prom_argv, COMMAND_LINE_SIZE);
+
 	configure_platform();
 	prom_meminit();
 

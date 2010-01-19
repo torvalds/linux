@@ -512,7 +512,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 	return path;
 }
 
-static const char * const annotate_usage[] = {
+static const char * const trace_usage[] = {
 	"perf trace [<options>] <command>",
 	NULL
 };
@@ -581,7 +581,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	setup_scripting();
 
-	argc = parse_options(argc, argv, options, annotate_usage,
+	argc = parse_options(argc, argv, options, trace_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (symbol__init() < 0)
