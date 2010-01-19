@@ -12541,6 +12541,7 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 		dac = 0x02;
 		break;
 	case 0x15:
+	case 0x21:
 		dac = 0x03;
 		break;
 	default:
