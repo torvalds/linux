@@ -329,8 +329,8 @@ config PCF50633_GPIO
 	 the PCF50633 chip.
 
 config AB3100_CORE
-	tristate "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
-	depends on I2C
+	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
+	depends on I2C=y
 	default y if ARCH_U300
 	help
 	  Select this to enable the AB3100 Mixed Signal IC core

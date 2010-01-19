@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 ST-Ericsson
+ * Copyright (C) 2007-2010 ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
  * Low-level core for exclusive access to the AB3100 IC on the I2C bus
  * and some basic chip-configuration.
@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/random.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -376,6 +377,8 @@ static irqreturn_t ab3100_irq_handler(int irq, void *data)
 	u32 fatevent;
 	int err;
 
+	add_interrupt_randomness(irq);
+
 	err = ab3100_get_register_page_interruptible(ab3100, AB3100_EVENTA1,
 				       event_regs, 3);
 	if (err)
@@ -720,10 +723,7 @@ static struct platform_device ab3100_##devname##_device = {	\
 	.id		= -1,					\
 }
 
-/*
- * This lists all the subdevices and corresponding register
- * ranges.
- */
+/* This lists all the subdevices */
 AB3100_DEVICE(dac, "ab3100-dac");
 AB3100_DEVICE(leds, "ab3100-leds");
 AB3100_DEVICE(power, "ab3100-power");
@@ -889,10 +889,11 @@ static int __init ab3100_probe(struct i2c_client *client,
 	if (err)
 		goto exit_no_setup;
 
-	/* This real unpredictable IRQ is of course sampled for entropy */
 	err = request_threaded_irq(client->irq, NULL, ab3100_irq_handler,
-			  IRQF_ONESHOT,
-			  "ab3100-core", ab3100);
+				IRQF_ONESHOT, "ab3100-core", ab3100);
+	/* This real unpredictable IRQ is of course sampled for entropy */
+	rand_initialize_irq(client->irq);
+
 	if (err)
 		goto exit_no_irq;
 
