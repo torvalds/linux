@@ -66,8 +66,8 @@ xfs_ascii_ci_hashname(
 STATIC enum xfs_dacmp
 xfs_ascii_ci_compname(
 	struct xfs_da_args *args,
-	const char	*name,
-	int 		len)
+	const unsigned char *name,
+	int		len)
 {
 	enum xfs_dacmp	result;
 	int		i;
