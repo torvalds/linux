@@ -2199,7 +2199,8 @@ xfs_symlink(
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_SYMLINK)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_SYMLINK, dp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
-					link_name->name, target_path, 0, 0, 0);
+					link_name->name,
+					(unsigned char *)target_path, 0, 0, 0);
 		if (error)
 			return error;
 	}
@@ -2395,7 +2396,8 @@ std_return:
 					dp, DM_RIGHT_NULL,
 					error ? NULL : ip,
 					DM_RIGHT_NULL, link_name->name,
-					target_path, 0, error, 0);
+					(unsigned char *)target_path,
+					0, error, 0);
 	}
 
 	if (!error)
