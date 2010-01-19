@@ -419,6 +419,9 @@ static struct i2c_board_info migor_i2c_devices[] = {
 		I2C_BOARD_INFO("migor_ts", 0x51),
 		.irq = 38, /* IRQ6 */
 	},
+	{
+		I2C_BOARD_INFO("wm8978", 0x1a),
+	},
 };
 
 static struct i2c_board_info migor_i2c_camera[] = {
@@ -618,6 +621,19 @@ static int __init migor_devices_setup(void)
 	__raw_writew(__raw_readw(PORT_MSELCRB) | 0x2000, PORT_MSELCRB); /* D15->D8 */
 
 	platform_resource_setup_memory(&migor_ceu_device, "ceu", 4 << 20);
+
+	/* SIU: Port B */
+	gpio_request(GPIO_FN_SIUBOLR, NULL);
+	gpio_request(GPIO_FN_SIUBOBT, NULL);
+	gpio_request(GPIO_FN_SIUBISLD, NULL);
+	gpio_request(GPIO_FN_SIUBOSLD, NULL);
+	gpio_request(GPIO_FN_SIUMCKB, NULL);
+
+	/*
+	 * The original driver sets SIUB OLR/OBT, ILR/IBT, and SIUA OLR/OBT to
+	 * output. Need only SIUB, set to output for master mode (table 34.2)
+	 */
+	ctrl_outw(ctrl_inw(PORT_MSELCRA) | 1, PORT_MSELCRA);
 
 	i2c_register_board_info(0, migor_i2c_devices,
 				ARRAY_SIZE(migor_i2c_devices));
