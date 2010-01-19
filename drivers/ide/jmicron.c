@@ -86,13 +86,13 @@ static void jmicron_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 /**
  *	jmicron_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@mode: DMA mode
  *
  *	As the JMicron snoops for timings we don't need to do anything here.
  */
 
-static void jmicron_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void jmicron_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 }
 

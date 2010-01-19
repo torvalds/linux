@@ -168,11 +168,11 @@ int ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
 		drive->dma_mode = mode;
-		port_ops->set_dma_mode(drive, mode);
+		port_ops->set_dma_mode(hwif, drive);
 		return 0;
 	} else {
 		drive->dma_mode = mode;
-		port_ops->set_dma_mode(drive, mode);
+		port_ops->set_dma_mode(hwif, drive);
 		return ide_config_drive_speed(drive, mode);
 	}
 }

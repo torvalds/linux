@@ -393,14 +393,16 @@ static int it821x_dma_end(ide_drive_t *drive)
 
 /**
  *	it821x_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Tune the ITE chipset for the desired DMA mode.
  */
 
-static void it821x_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void it821x_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
+	const u8 speed = drive->dma_mode;
+
 	/*
 	 * MWDMA tuning is really hard because our MWDMA and PIO
 	 * timings are kept in the same place.  We can switch in the

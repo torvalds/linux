@@ -100,12 +100,12 @@ out:
 	return mask;
 }
 
-static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void cs5530_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	unsigned long basereg;
 	unsigned int reg, timings = 0;
 
-	switch (mode) {
+	switch (drive->dma_mode) {
 		case XFER_UDMA_0:	timings = 0x00921250; break;
 		case XFER_UDMA_1:	timings = 0x00911140; break;
 		case XFER_UDMA_2:	timings = 0x00911030; break;
@@ -113,7 +113,7 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
 	}
-	basereg = CS5530_BASEREG(drive->hwif);
+	basereg = CS5530_BASEREG(hwif);
 	reg = inl(basereg + 4);			/* get drive0 config register */
 	timings |= reg & 0x80000000;		/* preserve PIO format bit */
 	if ((drive-> dn & 1) == 0) {		/* are we configuring drive0? */

@@ -340,8 +340,10 @@ static void sis_program_udma_timings(ide_drive_t *drive, const u8 mode)
 		sis_ata33_program_udma_timings(drive, mode);
 }
 
-static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void sis_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
+	const u8 speed = drive->dma_mode;
+
 	if (speed >= XFER_UDMA_0)
 		sis_program_udma_timings(drive, speed);
 	else

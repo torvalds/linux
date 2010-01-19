@@ -169,22 +169,22 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 
 /**
  *	via_set_drive		-	configure transfer mode
+ *	@hwif: port
  *	@drive: Drive to set up
- *	@speed: desired speed
  *
  *	via_set_drive() computes timing values configures the chipset to
  *	a desired transfer mode.  It also can be called by upper layers.
  */
 
-static void via_set_drive(ide_drive_t *drive, const u8 speed)
+static void via_set_drive(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *peer = ide_get_pair_dev(drive);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
 	struct ide_timing t, p;
 	unsigned int T, UT;
+	const u8 speed = drive->dma_mode;
 
 	T = 1000000000 / via_clock;
 
@@ -216,7 +216,8 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 
 static void via_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	via_set_drive(drive, drive->pio_mode);
+	drive->dma_mode = drive->pio_mode;
+	via_set_drive(hwif, drive);
 }
 
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)

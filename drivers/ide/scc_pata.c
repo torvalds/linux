@@ -231,16 +231,15 @@ static void scc_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 /**
  *	scc_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Load the timing settings for this device mode into the
  *	controller.
  */
 
-static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void scc_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
 	unsigned long ctl_base = ports->ctl;
 	unsigned long cckctrl_port = ctl_base + 0xff0;
@@ -254,6 +253,7 @@ static void scc_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int offset, idx;
 	unsigned long reg;
 	unsigned long jcactsel;
+	const u8 speed = drive->dma_mode;
 
 	reg = in_be32((void __iomem *)cckctrl_port);
 	if (reg & CCKCTRL_ATACLKOEN) {

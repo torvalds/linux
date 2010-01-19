@@ -289,19 +289,18 @@ static void sil_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 /**
  *	sil_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Tune the SiI chipset for the desired DMA mode.
  */
 
-static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void sil_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static const u8 ultra6[] = { 0x0F, 0x0B, 0x07, 0x05, 0x03, 0x02, 0x01 };
 	static const u8 ultra5[] = { 0x0C, 0x07, 0x05, 0x04, 0x02, 0x01 };
 	static const u16 dma[]	 = { 0x2208, 0x10C2, 0x10C1 };
 
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	unsigned long base	= (unsigned long)hwif->hwif_data;
 	u16 ultra = 0, multi	= 0;
@@ -311,6 +310,7 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 						: (mmio ? 0xB4 : 0x80);
 	unsigned long ma	= siimage_seldev(drive, 0x08);
 	unsigned long ua	= siimage_seldev(drive, 0x0C);
+	const u8 speed		= drive->dma_mode;
 
 	scsc  = sil_ioread8 (dev, base + (mmio ? 0x4A : 0x8A));
 	mode  = sil_ioread8 (dev, base + addr_mask);

@@ -160,11 +160,11 @@ static void au1xxx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	au_writel(mem_stcfg,MEM_STCFG2);
 }
 
-static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void auide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int mem_sttime = 0, mem_stcfg = au_readl(MEM_STCFG2);
 
-	switch(speed) {
+	switch (drive->dma_mode) {
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	case XFER_MW_DMA_2:
 		mem_sttime = SBC_IDE_TIMING(MDMA2);

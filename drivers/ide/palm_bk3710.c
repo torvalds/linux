@@ -188,10 +188,11 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	writel(val32, base + BK3710_REGRCVR);
 }
 
-static void palm_bk3710_set_dma_mode(ide_drive_t *drive, u8 xferspeed)
+static void palm_bk3710_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int is_slave = drive->dn & 1;
-	void __iomem *base = (void *)drive->hwif->dma_base;
+	void __iomem *base = (void *)hwif->dma_base;
+	const u8 xferspeed = drive->dma_mode;
 
 	if (xferspeed >= XFER_UDMA_0) {
 		palm_bk3710_setudmamode(base, is_slave,

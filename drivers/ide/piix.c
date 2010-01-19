@@ -127,16 +127,15 @@ static void piix_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 /**
  *	piix_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Set a PIIX host controller to the desired DMA mode.  This involves
  *	programming the right timing data into the PCI configuration space.
  */
 
-static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void piix_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
 	int a_speed		= 3 << (drive->dn * 4);
@@ -147,6 +146,7 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	int			sitre;
 	u16			reg4042, reg4a;
 	u8			reg48, reg54, reg55;
+	const u8 speed		= drive->dma_mode;
 
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;

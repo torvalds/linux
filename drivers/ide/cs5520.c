@@ -81,12 +81,12 @@ static void cs5520_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		(cs5520_pio_clocks[pio].assert));
 }
 
-static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void cs5520_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	printk(KERN_ERR "cs55x0: bad ide timing.\n");
 
 	drive->pio_mode = XFER_PIO_0 + 0;
-	cs5520_set_pio_mode(drive->hwif, drive);
+	cs5520_set_pio_mode(hwif, drive);
 }
 
 static const struct ide_port_ops cs5520_port_ops = {

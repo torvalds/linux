@@ -79,14 +79,14 @@ static void amd_set_speed(struct pci_dev *dev, u8 dn, u8 udma_mask,
  * to a desired transfer mode.  It also can be called by upper layers.
  */
 
-static void amd_set_drive(ide_drive_t *drive, const u8 speed)
+static void amd_set_drive(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	ide_drive_t *peer = ide_get_pair_dev(drive);
 	struct ide_timing t, p;
 	int T, UT;
 	u8 udma_mask = hwif->ultra_mask;
+	const u8 speed = drive->dma_mode;
 
 	T = 1000000000 / amd_clock;
 	UT = (udma_mask == ATA_UDMA2) ? T : (T / 2);
@@ -110,7 +110,8 @@ static void amd_set_drive(ide_drive_t *drive, const u8 speed)
 
 static void amd_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	amd_set_drive(drive, drive->pio_mode);
+	drive->dma_mode = drive->pio_mode;
+	amd_set_drive(hwif, drive);
 }
 
 static void amd7409_cable_detect(struct pci_dev *dev)

@@ -21,11 +21,11 @@
 
 #define DRV_NAME "pdc202xx_old"
 
-static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
+static void pdc202xx_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
+	const u8 speed		= drive->dma_mode;
 
 	u8			AP = 0, BP = 0, CP = 0;
 	u8			TA = 0, TB = 0, TC = 0;
@@ -78,7 +78,8 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 
 static void pdc202xx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	pdc202xx_set_mode(drive, drive->pio_mode);
+	drive->dma_mode = drive->pio_mode;
+	pdc202xx_set_mode(hwif, drive);
 }
 
 static int pdc202xx_test_irq(ide_hwif_t *hwif)

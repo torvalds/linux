@@ -125,10 +125,10 @@ static void tx4939ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	/* tx4939ide_tf_load_fixup() will set the Sys_Ctl register */
 }
 
-static void tx4939ide_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void tx4939ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	u32 mask, val;
+	const u8 mode = drive->dma_mode;
 
 	/* Update Data Transfer Mode for this drive. */
 	if (mode >= XFER_UDMA_0)

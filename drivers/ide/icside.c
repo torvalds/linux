@@ -185,10 +185,11 @@ static const expansioncard_ops_t icside_ops_arcin_v6 = {
  *	MW1	80	50	50	150	C
  *	MW2	70	25	25	120	C
  */
-static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
+static void icside_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	unsigned long cycle_time;
 	int use_dma_info = 0;
+	const u8 xfer_mode = drive->dma_mode;
 
 	switch (xfer_mode) {
 	case XFER_MW_DMA_2:

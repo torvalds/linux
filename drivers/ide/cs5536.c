@@ -173,11 +173,11 @@ static void cs5536_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 /**
  *	cs5536_set_dma_mode		-	DMA timing setup
+ *	@hwif: ATA port
  *	@drive: ATA device
- *	@mode: DMA mode
  */
 
-static void cs5536_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void cs5536_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static const u8 udma_timings[6] = {
 		0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6,
@@ -187,10 +187,11 @@ static void cs5536_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		0x67, 0x21, 0x20,
 	};
 
-	struct pci_dev *pdev = to_pci_dev(drive->hwif->dev);
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	int dshift = (drive->dn & 1) ? IDE_D1_SHIFT : IDE_D0_SHIFT;
 	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 	u32 etc;
+	const u8 mode = drive->dma_mode;
 
 	cs5536_read(pdev, ETC, &etc);
 

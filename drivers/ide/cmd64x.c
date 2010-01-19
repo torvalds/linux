@@ -141,12 +141,12 @@ static void cmd64x_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	cmd64x_program_timings(drive, XFER_PIO_0 + pio);
 }
 
-static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void cmd64x_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 unit			= drive->dn & 0x01;
 	u8 regU = 0, pciU	= hwif->channel ? UDIDETCR1 : UDIDETCR0;
+	const u8 speed		= drive->dma_mode;
 
 	pci_read_config_byte(dev, pciU, &regU);
 	regU &= ~(unit ? 0xCA : 0x35);

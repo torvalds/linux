@@ -53,9 +53,9 @@
  * set DMA mode a specific channel for CY82C693
  */
 
-static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void cy82c693_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
+	const u8 mode = drive->dma_mode;
 	u8 single = (mode & 0x10) >> 4, index = 0, data = 0;
 
 	index = hwif->channel ? CY82_INDEX_CHANNEL1 : CY82_INDEX_CHANNEL0;

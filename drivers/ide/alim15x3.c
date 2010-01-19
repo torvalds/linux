@@ -121,16 +121,16 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 
 /**
  *	ali_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@speed: DMA mode
  *
  *	Configure the hardware for the desired IDE transfer mode.
  */
 
-static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void ali_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
+	const u8 speed		= drive->dma_mode;
 	u8 speed1		= speed;
 	u8 unit			= drive->dn & 1;
 	u8 tmpbyte		= 0x00;

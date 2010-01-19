@@ -122,13 +122,13 @@ out:
 	return mask;
 }
 
-static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void sc1200_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t		*hwif = drive->hwif;
 	struct pci_dev		*dev = to_pci_dev(hwif->dev);
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
+	const u8		mode = drive->dma_mode;
 
 	static const u32 udma_timing[3][3] = {
 		{ 0x00921250, 0x00911140, 0x00911030 },
