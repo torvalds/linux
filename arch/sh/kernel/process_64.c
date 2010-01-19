@@ -410,7 +410,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 			regs->sr |= SR_FD;
 		}
 
-		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
+		memcpy(fpu, &tsk->thread.xstate->hardfpu, sizeof(*fpu));
 	}
 
 	return fpvalid;

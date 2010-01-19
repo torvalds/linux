@@ -87,20 +87,21 @@ struct sh_fpu_hard_struct {
 	/* long status; * software status information */
 };
 
-#if 0
 /* Dummy fpu emulator  */
 struct sh_fpu_soft_struct {
-	unsigned long long fp_regs[32];
+	unsigned long fp_regs[64];
 	unsigned int fpscr;
 	unsigned char lookahead;
 	unsigned long entry_pc;
 };
-#endif
 
-union sh_fpu_union {
-	struct sh_fpu_hard_struct hard;
-	/* 'hard' itself only produces 32 bit alignment, yet we need
-	   to access it using 64 bit load/store as well. */
+union thread_xstate {
+	struct sh_fpu_hard_struct hardfpu;
+	struct sh_fpu_soft_struct softfpu;
+	/*
+	 * The structure definitions only produce 32 bit alignment, yet we need
+	 * to access them using 64 bit load/store as well.
+	 */
 	unsigned long long alignment_dummy;
 };
 
@@ -122,7 +123,7 @@ struct thread_struct {
 	/* Hardware debugging registers may come here */
 
 	/* floating point info */
-	union sh_fpu_union fpu;
+	union thread_xstate *xstate;
 };
 
 #define INIT_MMAP \
@@ -137,7 +138,6 @@ struct thread_struct {
 	.trap_no	= 0,			\
 	.error_code	= 0,			\
 	.address	= 0,			\
-	.fpu		= { { { 0, } }, }	\
 }
 
 /*

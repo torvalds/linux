@@ -88,7 +88,7 @@ get_fpu_long(struct task_struct *task, unsigned long addr)
 		regs->sr |= SR_FD;
 	}
 
-	tmp = ((long *)&task->thread.fpu)[addr / sizeof(unsigned long)];
+	tmp = ((long *)task->thread.xstate)[addr / sizeof(unsigned long)];
 	return tmp;
 }
 
@@ -114,7 +114,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	regs = (struct pt_regs*)((unsigned char *)task + THREAD_SIZE) - 1;
 
 	if (!tsk_used_math(task)) {
-		fpinit(&task->thread.fpu.hard);
+		fpinit(&task->thread.xstate->hardfpu);
 		set_stopped_child_used_math(task);
 	} else if (last_task_used_math == task) {
 		enable_fpu();
@@ -124,7 +124,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 		regs->sr |= SR_FD;
 	}
 
-	((long *)&task->thread.fpu)[addr / sizeof(unsigned long)] = data;
+	((long *)task->thread.xstate)[addr / sizeof(unsigned long)] = data;
 	return 0;
 }
 
@@ -222,7 +222,7 @@ int fpregs_get(struct task_struct *target,
 		return ret;
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu.hard, 0, -1);
+				   &target->thread.xstate->hardfpu, 0, -1);
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -239,7 +239,7 @@ static int fpregs_set(struct task_struct *target,
 	set_stopped_child_used_math(target);
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.fpu.hard, 0, -1);
+				  &target->thread.xstate->hardfpu, 0, -1);
 }
 
 static int fpregs_active(struct task_struct *target,

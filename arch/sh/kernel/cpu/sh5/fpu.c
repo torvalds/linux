@@ -27,8 +27,8 @@
 #define sNAN64		0xFFFFFFFFFFFFFFFFULL
 #define sNAN32		0xFFFFFFFFUL
 
-static union sh_fpu_union init_fpuregs = {
-	.hard = {
+static union thread_xstate init_fpuregs = {
+	.hardfpu = {
 		.fp_regs = { [0 ... 63] = sNAN32 },
 		.fpscr = FPSCR_INIT
 	}
@@ -72,7 +72,7 @@ void save_fpu(struct task_struct *tsk)
 		     "fgetscr   fr63\n\t"
 		     "fst.s     %0, (32*8), fr63\n\t"
 		: /* no output */
-		: "r" (&tsk->thread.fpu.hard)
+		: "r" (&tsk->thread.xstate->hardfpu)
 		: "memory");
 }
 
@@ -121,7 +121,7 @@ fpload(struct sh_fpu_hard_struct *fpregs)
 
 void fpinit(struct sh_fpu_hard_struct *fpregs)
 {
-	*fpregs = init_fpuregs.hard;
+	*fpregs = init_fpuregs.hardfpu;
 }
 
 asmlinkage void
@@ -157,10 +157,10 @@ do_fpu_state_restore(unsigned long ex, struct pt_regs *regs)
 
         last_task_used_math = current;
         if (used_math()) {
-                fpload(&current->thread.fpu.hard);
+                fpload(&current->thread.xstate->hardfpu);
         } else {
 		/* First time FPU user.  */
-		fpload(&init_fpuregs.hard);
+		fpload(&init_fpuregs.hardfpu);
                 set_used_math();
         }
 	disable_fpu();

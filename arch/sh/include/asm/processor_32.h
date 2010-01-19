@@ -96,10 +96,6 @@ union thread_xstate {
 	struct sh_fpu_soft_struct softfpu;
 };
 
-extern unsigned int xstate_size;
-extern void free_thread_xstate(struct task_struct *);
-extern struct kmem_cache *task_xstate_cachep;
-
 struct thread_struct {
 	/* Saved registers when thread is descheduled */
 	unsigned long sp;
