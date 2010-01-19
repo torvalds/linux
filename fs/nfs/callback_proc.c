@@ -225,6 +225,61 @@ validate_seqid(struct nfs4_slot_table *tbl, u32 slotid, u32 seqid)
 	return NULL;
 }
 
+/*
+ * For each referring call triple, check the session's slot table for
+ * a match.  If the slot is in use and the sequence numbers match, the
+ * client is still waiting for a response to the original request.
+ */
+static bool referring_call_exists(struct nfs_client *clp,
+				  uint32_t nrclists,
+				  struct referring_call_list *rclists)
+{
+	bool status = 0;
+	int i, j;
+	struct nfs4_session *session;
+	struct nfs4_slot_table *tbl;
+	struct referring_call_list *rclist;
+	struct referring_call *ref;
+
+	/*
+	 * XXX When client trunking is implemented, this becomes
+	 * a session lookup from within the loop
+	 */
+	session = clp->cl_session;
+	tbl = &session->fc_slot_table;
+
+	for (i = 0; i < nrclists; i++) {
+		rclist = &rclists[i];
+		if (memcmp(session->sess_id.data,
+			   rclist->rcl_sessionid.data,
+			   NFS4_MAX_SESSIONID_LEN) != 0)
+			continue;
+
+		for (j = 0; j < rclist->rcl_nrefcalls; j++) {
+			ref = &rclist->rcl_refcalls[j];
+
+			dprintk("%s: sessionid %x:%x:%x:%x sequenceid %u "
+				"slotid %u\n", __func__,
+				((u32 *)&rclist->rcl_sessionid.data)[0],
+				((u32 *)&rclist->rcl_sessionid.data)[1],
+				((u32 *)&rclist->rcl_sessionid.data)[2],
+				((u32 *)&rclist->rcl_sessionid.data)[3],
+				ref->rc_sequenceid, ref->rc_slotid);
+
+			spin_lock(&tbl->slot_tbl_lock);
+			status = (test_bit(ref->rc_slotid, tbl->used_slots) &&
+				  tbl->slots[ref->rc_slotid].seq_nr ==
+					ref->rc_sequenceid);
+			spin_unlock(&tbl->slot_tbl_lock);
+			if (status)
+				goto out;
+		}
+	}
+
+out:
+	return status;
+}
+
 /* FIXME: referring calls should be processed */
 unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 				struct cb_sequenceres *res)
