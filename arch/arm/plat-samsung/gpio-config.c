@@ -17,7 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 
-#include <mach/gpio-core.h>
+#include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 

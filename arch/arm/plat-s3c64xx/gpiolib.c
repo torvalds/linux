@@ -18,8 +18,8 @@
 
 #include <mach/map.h>
 #include <mach/gpio.h>
-#include <mach/gpio-core.h>
 
+#include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 #include <plat/regs-gpio.h>

@@ -16,7 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/io.h>
 
-#include <mach/gpio-core.h>
+#include <plat/gpio-core.h>
 #include <plat/gpio-cfg-s5pc1xx.h>
 
 s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin, unsigned int off)

@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <mach/gpio-core.h>
+#include <plat/gpio-core.h>
 #include <plat/pm.h>
 
 /* PM GPIO helpers */

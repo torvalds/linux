@@ -118,6 +118,8 @@ static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int chip)
 #else
 /* machine specific code should provide s3c_gpiolib_getchip */
 
+#include <mach/gpio-track.h>
+
 static inline void s3c_gpiolib_track(struct s3c_gpio_chip *chip) { }
 #endif
 

@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <mach/gpio-core.h>
+#include <plat/gpio-core.h>
 
 #ifdef CONFIG_S3C_GPIO_TRACK
 struct s3c_gpio_chip *s3c_gpios[S3C_GPIO_END];
