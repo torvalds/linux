@@ -15,6 +15,11 @@
 
 #include <plat/map-base.h>
 
+/* Chip ID */
+#define S5P6440_PA_CHIPID	(0xE0000000)
+#define S5P_PA_CHIPID		S5P6440_PA_CHIPID
+#define S5P_VA_CHIPID		S3C_ADDR(0x00700000)
+
 /* SYSCON */
 #define S5P6440_PA_SYSCON	(0xE0100000)
 #define S5P_PA_SYSCON		S5P6440_PA_SYSCON
