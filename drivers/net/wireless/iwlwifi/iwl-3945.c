@@ -705,9 +705,10 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	iwl_dbg_log_rx_data_frame(priv, le16_to_cpu(rx_hdr->len), header);
 
 	if (network_packet) {
-		priv->last_beacon_time = le32_to_cpu(rx_end->beacon_timestamp);
-		priv->last_tsf = le64_to_cpu(rx_end->timestamp);
-		priv->last_rx_rssi = rx_status.signal;
+		priv->_3945.last_beacon_time =
+			le32_to_cpu(rx_end->beacon_timestamp);
+		priv->_3945.last_tsf = le64_to_cpu(rx_end->timestamp);
+		priv->_3945.last_rx_rssi = rx_status.signal;
 		priv->last_rx_noise = rx_status.noise;
 	}
 

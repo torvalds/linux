@@ -946,7 +946,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	rssi = priv->last_rx_rssi;
+	rssi = priv->_3945.last_rx_rssi;
 	if (rssi == 0)
 		rssi = IWL_MIN_RSSI_VAL;
 

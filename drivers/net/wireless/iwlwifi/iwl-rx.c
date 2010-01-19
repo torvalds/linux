@@ -1036,24 +1036,6 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	rxb->page = NULL;
 }
 
-/* This is necessary only for a number of statistics, see the caller. */
-static int iwl_is_network_packet(struct iwl_priv *priv,
-		struct ieee80211_hdr *header)
-{
-	/* Filter incoming packets to determine if they are targeted toward
-	 * this network, discarding packets coming from ourselves */
-	switch (priv->iw_mode) {
-	case NL80211_IFTYPE_ADHOC: /* Header: Dest. | Source    | BSSID */
-		/* packets to our IBSS update information */
-		return !compare_ether_addr(header->addr3, priv->bssid);
-	case NL80211_IFTYPE_STATION: /* Header: Dest. | AP{BSSID} | Source */
-		/* packets to our IBSS update information */
-		return !compare_ether_addr(header->addr2, priv->bssid);
-	default:
-		return 1;
-	}
-}
-
 /* Called for REPLY_RX (legacy ABG frames), or
  * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
 void iwl_rx_reply_rx(struct iwl_priv *priv,
@@ -1189,12 +1171,6 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		rx_status.flag |= RX_FLAG_40MHZ;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
 		rx_status.flag |= RX_FLAG_SHORT_GI;
-
-	if (iwl_is_network_packet(priv, header)) {
-		priv->last_rx_rssi = rx_status.signal;
-		priv->last_beacon_time =  priv->ucode_beacon_time;
-		priv->last_tsf = le64_to_cpu(phy_res->timestamp);
-	}
 
 	iwl_pass_packet_to_mac80211(priv, header, len, ampdu_status,
 				    rxb, &rx_status);

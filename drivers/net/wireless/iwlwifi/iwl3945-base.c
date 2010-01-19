@@ -753,7 +753,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 	if (iwl_is_associated(priv))
 		add_time =
 		    iwl3945_usecs_to_beacons(
-			le64_to_cpu(params->start_time) - priv->last_tsf,
+			le64_to_cpu(params->start_time) - priv->_3945.last_tsf,
 			le16_to_cpu(priv->rxon_timing.beacon_interval));
 
 	memset(&spectrum, 0, sizeof(spectrum));
@@ -767,7 +767,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 
 	if (iwl_is_associated(priv))
 		spectrum.start_time =
-		    iwl3945_add_beacon_time(priv->last_beacon_time,
+		    iwl3945_add_beacon_time(priv->_3945.last_beacon_time,
 				add_time,
 				le16_to_cpu(priv->rxon_timing.beacon_interval));
 	else
@@ -3590,7 +3590,7 @@ static ssize_t store_measurement(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	struct ieee80211_measurement_params params = {
 		.channel = le16_to_cpu(priv->active_rxon.channel),
-		.start_time = cpu_to_le64(priv->last_tsf),
+		.start_time = cpu_to_le64(priv->_3945.last_tsf),
 		.duration = cpu_to_le16(1),
 	};
 	u8 type = IWL_MEASURE_BASIC;

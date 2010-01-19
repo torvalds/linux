@@ -2956,12 +2956,8 @@ static ssize_t rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 		desc += sprintf(buff+desc,
 				"Bit Rate= %d Mb/s\n",
 				iwl_rates[lq_sta->last_txrate_idx].ieee >> 1);
-	desc += sprintf(buff+desc,
-			"Signal Level= %d dBm\tNoise Level= %d dBm\n",
-			priv->last_rx_rssi, priv->last_rx_noise);
-	desc += sprintf(buff+desc,
-			"Tsf= 0x%llx\tBeacon time= 0x%08X\n",
-			priv->last_tsf, priv->last_beacon_time);
+	desc += sprintf(buff+desc, "Noise Level= %d dBm\n",
+			priv->last_rx_noise);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
 	return ret;

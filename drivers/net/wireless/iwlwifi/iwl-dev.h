@@ -1197,7 +1197,6 @@ struct iwl_priv {
 
 	unsigned long status;
 
-	int last_rx_rssi;	/* From Rx packet statistics */
 	int last_rx_noise;	/* From beacon statistics */
 
 	/* counts mgmt, ctl, and data packets */
@@ -1244,10 +1243,6 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
-	/* Rx'd packet timing information */
-	u32 last_beacon_time;
-	u64 last_tsf;
-
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
@@ -1274,6 +1269,11 @@ struct iwl_priv {
 			struct iwl3945_notif_statistics statistics;
 
 			u32 sta_supp_rates;
+			int last_rx_rssi;	/* From Rx packet statistics */
+
+			/* Rx'd packet timing information */
+			u32 last_beacon_time;
+			u64 last_tsf;
 		} _3945;
 #endif
 #if defined(CONFIG_IWLAGN) || defined(CONFIG_IWLAGN_MODULE)
