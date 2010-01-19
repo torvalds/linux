@@ -322,7 +322,7 @@ static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_usbgadget,
 	&n30_button_device,
 	&n30_blue_led,
