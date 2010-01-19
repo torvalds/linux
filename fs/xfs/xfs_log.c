@@ -617,7 +617,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	if (! (XLOG_FORCED_SHUTDOWN(log))) {
 		reg[0].i_addr = (void*)&magic;
 		reg[0].i_len  = sizeof(magic);
-		XLOG_VEC_SET_TYPE(&reg[0], XLOG_REG_TYPE_UNMOUNT);
+		reg[0].i_type = XLOG_REG_TYPE_UNMOUNT;
 
 		error = xfs_log_reserve(mp, 600, 1, &tic,
 					XFS_LOG, 0, XLOG_UNMOUNT_REC_TYPE);
@@ -1236,7 +1236,7 @@ xlog_commit_record(xfs_mount_t  *mp,
 
 	reg[0].i_addr = NULL;
 	reg[0].i_len = 0;
-	XLOG_VEC_SET_TYPE(&reg[0], XLOG_REG_TYPE_COMMIT);
+	reg[0].i_type = XLOG_REG_TYPE_COMMIT;
 
 	ASSERT_ALWAYS(iclog);
 	if ((error = xlog_write(mp, reg, 1, ticket, commitlsnp,

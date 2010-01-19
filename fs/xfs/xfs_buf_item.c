@@ -250,7 +250,7 @@ xfs_buf_item_format(
 		       ((bip->bli_format.blf_map_size - 1) * sizeof(uint)));
 	vecp->i_addr = (xfs_caddr_t)&bip->bli_format;
 	vecp->i_len = base_size;
-	XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BFORMAT);
+	vecp->i_type = XLOG_REG_TYPE_BFORMAT;
 	vecp++;
 	nvecs = 1;
 
@@ -297,14 +297,14 @@ xfs_buf_item_format(
 			buffer_offset = first_bit * XFS_BLI_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLI_CHUNK;
-			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BCHUNK);
+			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
 			nvecs++;
 			break;
 		} else if (next_bit != last_bit + 1) {
 			buffer_offset = first_bit * XFS_BLI_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLI_CHUNK;
-			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BCHUNK);
+			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
 			nvecs++;
 			vecp++;
 			first_bit = next_bit;
@@ -316,7 +316,7 @@ xfs_buf_item_format(
 			buffer_offset = first_bit * XFS_BLI_CHUNK;
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLI_CHUNK;
-			XLOG_VEC_SET_TYPE(vecp, XLOG_REG_TYPE_BCHUNK);
+			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
 /* You would think we need to bump the nvecs here too, but we do not
  * this number is used by recovery, and it gets confused by the boundary
  * split here
