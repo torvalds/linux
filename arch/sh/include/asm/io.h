@@ -239,12 +239,14 @@ void __iomem *__ioremap_caller(unsigned long offset, unsigned long size,
 void __iounmap(void __iomem *addr);
 
 #ifdef CONFIG_IOREMAP_FIXED
-extern void __iomem *ioremap_fixed(resource_size_t, unsigned long, pgprot_t);
+extern void __iomem *ioremap_fixed(resource_size_t, unsigned long,
+				   unsigned long, pgprot_t);
 extern int iounmap_fixed(void __iomem *);
 extern void ioremap_fixed_init(void);
 #else
 static inline void __iomem *
-ioremap_fixed(resource_size t phys_addr, unsigned long size, pgprot_t prot)
+ioremap_fixed(resource_size t phys_addr, unsigned long offset,
+	      unsigned long size, pgprot_t prot)
 {
 	BUG();
 }

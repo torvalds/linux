@@ -45,12 +45,11 @@ void __init ioremap_fixed_init(void)
 }
 
 void __init __iomem *
-ioremap_fixed(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
+ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
+	      unsigned long size, pgprot_t prot)
 {
 	enum fixed_addresses idx0, idx;
-	resource_size_t last_addr;
 	struct ioremap_map *map;
-	unsigned long offset;
 	unsigned int nrpages;
 	int i, slot;
 
@@ -66,18 +65,6 @@ ioremap_fixed(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 
 	if (slot < 0)
 		return NULL;
-
-	/* Don't allow wraparound or zero size */
-	last_addr = phys_addr + size - 1;
-	if (!size || last_addr < phys_addr)
-		return NULL;
-
-	/*
-	 * Fixmap mappings have to be page-aligned
-	 */
-	offset = phys_addr & ~PAGE_MASK;
-	phys_addr &= PAGE_MASK;
-	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 
 	/*
 	 * Mappings have to fit in the FIX_IOREMAP area.
@@ -111,7 +98,6 @@ int iounmap_fixed(void __iomem *addr)
 	unsigned long offset;
 	unsigned int nrpages;
 	int i, slot;
-	pgprot_t prot;
 
 	slot = -1;
 	for (i = 0; i < FIX_N_IOREMAPS; i++) {
@@ -133,11 +119,9 @@ int iounmap_fixed(void __iomem *addr)
 	offset = virt_addr & ~PAGE_MASK;
 	nrpages = PAGE_ALIGN(offset + map->size - 1) >> PAGE_SHIFT;
 
-	pgprot_val(prot) = _PAGE_WIRED;
-
 	idx = FIX_IOREMAP_BEGIN + slot + nrpages;
 	while (nrpages > 0) {
-		__clear_fixmap(idx, prot);
+		__clear_fixmap(idx, __pgprot(_PAGE_WIRED));
 		--idx;
 		--nrpages;
 	}

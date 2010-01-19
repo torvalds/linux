@@ -68,7 +68,7 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 	 * If we can't yet use the regular approach, go the fixmap route.
 	 */
 	if (!mem_init_done)
-		return ioremap_fixed(phys_addr, size, pgprot);
+		return ioremap_fixed(phys_addr, offset, size, pgprot);
 
 	/*
 	 * Ok, go for it..
