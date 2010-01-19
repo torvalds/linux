@@ -1624,8 +1624,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 skip_chan_change:
-	if (changed & IEEE80211_CONF_CHANGE_POWER)
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		sc->config.txpowlimit = 2 * conf->power_level;
+		ath_update_txpow(sc);
+	}
 
 	spin_lock_bh(&sc->wiphy_lock);
 	disable_radio = ath9k_all_wiphys_idle(sc);
