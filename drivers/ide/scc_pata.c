@@ -199,16 +199,15 @@ scc_ide_outsl(unsigned long port, void *addr, u32 count)
 
 /**
  *	scc_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Load the timing settings for this device mode into the
  *	controller.
  */
 
-static void scc_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void scc_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
 	unsigned long ctl_base = ports->ctl;
 	unsigned long cckctrl_port = ctl_base + 0xff0;
@@ -216,6 +215,7 @@ static void scc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	unsigned long pioct_port = ctl_base + 0x004;
 	unsigned long reg;
 	int offset;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	reg = in_be32((void __iomem *)cckctrl_port);
 	if (reg & CCKCTRL_ATACLKOEN) {

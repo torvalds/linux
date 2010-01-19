@@ -62,12 +62,12 @@ static u8 read_reg(int reg)
 	return ret;
 }
 
-static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void opti621_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *pair = ide_get_pair_dev(drive);
 	unsigned long flags;
-	unsigned long mode = XFER_PIO_0 + pio, pair_mode;
+	unsigned long mode = drive->pio_mode, pair_mode;
+	const u8 pio = mode - XFER_PIO_0;
 	u8 tim, misc, addr_pio = pio, clk;
 
 	/* DRDY is default 2 (by OPTi Databook) */

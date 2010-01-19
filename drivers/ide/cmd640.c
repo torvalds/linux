@@ -572,9 +572,10 @@ static void cmd640_set_mode(ide_drive_t *drive, unsigned int index,
 	program_drive_counts(drive, index);
 }
 
-static void cmd640_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cmd640_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	unsigned int index = 0, cycle_time;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	u8 b;
 
 	switch (pio) {

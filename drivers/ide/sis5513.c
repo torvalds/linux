@@ -290,10 +290,10 @@ static void config_drive_art_rwp(ide_drive_t *drive)
 		pci_write_config_byte(dev, 0x4b, rw_prefetch);
 }
 
-static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void sis_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	config_drive_art_rwp(drive);
-	sis_program_timings(drive, XFER_PIO_0 + pio);
+	sis_program_timings(drive, drive->pio_mode);
 }
 
 static void sis_ata133_program_udma_timings(ide_drive_t *drive, const u8 mode)

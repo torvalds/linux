@@ -108,9 +108,9 @@ static void amd_set_drive(ide_drive_t *drive, const u8 speed)
  * amd_set_pio_mode() is a callback from upper layers for PIO-only tuning.
  */
 
-static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void amd_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	amd_set_drive(drive, XFER_PIO_0 + pio);
+	amd_set_drive(drive, drive->pio_mode);
 }
 
 static void amd7409_cable_detect(struct pci_dev *dev)

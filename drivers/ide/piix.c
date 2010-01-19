@@ -59,15 +59,14 @@ static int no_piix_dma;
 
 /**
  *	piix_set_pio_mode	-	set host controller for PIO mode
+ *	@port: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Set the interface PIO mode based upon the settings done by AMI BIOS.
  */
 
-static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void piix_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int is_slave		= drive->dn & 1;
 	int master_port		= hwif->channel ? 0x42 : 0x40;
@@ -77,6 +76,7 @@ static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	u8 slave_data;
 	static DEFINE_SPINLOCK(tune_lock);
 	int control = 0;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 				     /* ISP  RTC */
 	static const u8 timings[][2]= {
@@ -176,7 +176,6 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x54, reg54 & ~v_flag);
 	} else {
 		const u8 mwdma_to_pio[] = { 0, 3, 4 };
-		u8 pio;
 
 		if (reg48 & u_flag)
 			pci_write_config_byte(dev, 0x48, reg48 & ~u_flag);
@@ -188,11 +187,12 @@ static void piix_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 
 		if (speed >= XFER_MW_DMA_0)
-			pio = mwdma_to_pio[speed - XFER_MW_DMA_0];
+			drive->pio_mode =
+				mwdma_to_pio[speed - XFER_MW_DMA_0] + XFER_PIO_0;
 		else
-			pio = 2; /* only SWDMA2 is allowed */
+			drive->pio_mode = XFER_PIO_2; /* for SWDMA2 */
 
-		piix_set_pio_mode(drive, pio);
+		piix_set_pio_mode(hwif, drive);
 	}
 }
 

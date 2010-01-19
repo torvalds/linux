@@ -112,10 +112,10 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 
 			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
 			spin_lock_irqsave(&hwif->lock, flags);
-			port_ops->set_pio_mode(drive, arg);
+			port_ops->set_pio_mode(hwif, drive);
 			spin_unlock_irqrestore(&hwif->lock, flags);
 		} else
-			port_ops->set_pio_mode(drive, arg);
+			port_ops->set_pio_mode(hwif, drive);
 	} else {
 		int keep_dma = !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
 

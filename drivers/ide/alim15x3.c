@@ -63,15 +63,14 @@ static void ali_fifo_control(ide_hwif_t *hwif, ide_drive_t *drive, int on)
 
 /**
  *	ali_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Program the controller for the given PIO mode.
  */
 
-static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void ali_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	unsigned long T =  1000000 / bus_speed; /* PCI clock based */
@@ -79,7 +78,7 @@ static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	u8 unit = drive->dn & 1;
 	struct ide_timing t;
 
-	ide_timing_compute(drive, XFER_PIO_0 + pio, &t, T, 1);
+	ide_timing_compute(drive, drive->pio_mode, &t, T, 1);
 
 	t.setup = clamp_val(t.setup, 1, 8) & 7;
 	t.active = clamp_val(t.active, 1, 8) & 7;

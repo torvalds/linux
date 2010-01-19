@@ -41,9 +41,9 @@ static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 	outw(scr, scr_port);
 }
 
-static void tc86c001_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void tc86c001_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	tc86c001_set_mode(drive, XFER_PIO_0 + pio);
+	tc86c001_set_mode(drive, drive->pio_mode);
 }
 
 /*

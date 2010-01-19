@@ -41,8 +41,8 @@ static unsigned int cs5530_pio_timings[2][5] = {
 
 /**
  *	cs5530_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Handles setting of PIO mode for the chipset.
  *
@@ -50,10 +50,11 @@ static unsigned int cs5530_pio_timings[2][5] = {
  *	will have valid default PIO timings set up before we get here.
  */
 
-static void cs5530_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cs5530_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	unsigned long basereg = CS5530_BASEREG(drive->hwif);
+	unsigned long basereg = CS5530_BASEREG(hwif);
 	unsigned int format = (inl(basereg + 4) >> 31) & 1;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	outl(cs5530_pio_timings[format][pio], basereg + ((drive->dn & 1)<<3));
 }

@@ -203,12 +203,13 @@ static void palm_bk3710_set_dma_mode(ide_drive_t *drive, u8 xferspeed)
 	}
 }
 
-static void palm_bk3710_set_pio_mode(ide_drive_t *drive, u8 pio)
+static void palm_bk3710_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	unsigned int cycle_time;
 	int is_slave = drive->dn & 1;
 	ide_drive_t *mate;
-	void __iomem *base = (void *)drive->hwif->dma_base;
+	void __iomem *base = (void *)hwif->dma_base;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
 	 * Obtain the drive PIO data for tuning the Palm Chip registers

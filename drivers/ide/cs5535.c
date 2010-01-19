@@ -142,15 +142,15 @@ static void cs5535_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 /**
  *	cs5535_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	A callback from the upper layers for PIO-only tuning.
  */
 
-static void cs5535_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cs5535_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	cs5535_set_speed(drive, XFER_PIO_0 + pio);
+	cs5535_set_speed(drive, drive->pio_mode);
 }
 
 static u8 cs5535_cable_detect(ide_hwif_t *hwif)

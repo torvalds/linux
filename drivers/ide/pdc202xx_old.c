@@ -76,9 +76,9 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void pdc202xx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
+	pdc202xx_set_mode(drive, drive->pio_mode);
 }
 
 static int pdc202xx_test_irq(ide_hwif_t *hwif)

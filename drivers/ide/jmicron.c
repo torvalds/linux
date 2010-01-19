@@ -80,7 +80,7 @@ static u8 jmicron_cable_detect(ide_hwif_t *hwif)
 	return ATA_CBL_PATA80;
 }
 
-static void jmicron_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void jmicron_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 }
 

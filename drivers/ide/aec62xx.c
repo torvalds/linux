@@ -134,10 +134,10 @@ static void aec6260_set_mode(ide_drive_t *drive, const u8 speed)
 	local_irq_restore(flags);
 }
 
-static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void aec_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	drive->dma_mode = pio + XFER_PIO_0;
-	drive->hwif->port_ops->set_dma_mode(drive, pio + XFER_PIO_0);
+	drive->dma_mode = drive->pio_mode;
+	hwif->port_ops->set_dma_mode(drive, drive->dma_mode);
 }
 
 static int init_chipset_aec62xx(struct pci_dev *dev)

@@ -624,7 +624,7 @@ extern const struct ide_tp_ops default_tp_ops;
  */
 struct ide_port_ops {
 	void	(*init_dev)(ide_drive_t *);
-	void	(*set_pio_mode)(ide_drive_t *, const u8);
+	void	(*set_pio_mode)(struct hwif_s *, ide_drive_t *);
 	void	(*set_dma_mode)(ide_drive_t *, const u8);
 	int	(*reset_poll)(ide_drive_t *);
 	void	(*pre_reset)(ide_drive_t *);

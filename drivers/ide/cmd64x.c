@@ -127,8 +127,10 @@ static void cmd64x_program_timings(ide_drive_t *drive, u8 mode)
  * Special cases are 8: prefetch off, 9: prefetch on (both never worked)
  */
 
-static void cmd64x_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cmd64x_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
+
 	/*
 	 * Filter out the prefetch control values
 	 * to prevent PIO5 from being programmed

@@ -80,9 +80,8 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	outb(data, CY82_DATA_PORT);
 }
 
-static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cy82c693_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	int bus_speed = ide_pci_clk ? ide_pci_clk : 33;
 	const unsigned long T = 1000000 / bus_speed;
@@ -101,7 +100,7 @@ static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		}
 	}
 
-	ide_timing_compute(drive, XFER_PIO_0 + pio, &t, T, 1);
+	ide_timing_compute(drive, drive->pio_mode, &t, T, 1);
 
 	time_16 = clamp_val(t.recover - 1, 0, 15) |
 		  (clamp_val(t.active - 1, 0, 15) << 4);

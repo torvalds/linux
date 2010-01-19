@@ -208,15 +208,15 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 
 /**
  *	via_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	A callback from the upper layers for PIO-only tuning.
  */
 
-static void via_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void via_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	via_set_drive(drive, XFER_PIO_0 + pio);
+	via_set_drive(drive, drive->pio_mode);
 }
 
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)

@@ -104,11 +104,11 @@ static void tx4939ide_writeb(u8 val, void __iomem *base, u32 reg)
 
 #define TX4939IDE_BASE(hwif)	((void __iomem *)(hwif)->extra_base)
 
-static void tx4939ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void tx4939ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	int is_slave = drive->dn;
 	u32 mask, val;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	u8 safe = pio;
 	ide_drive_t *pair;
 

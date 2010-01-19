@@ -193,10 +193,10 @@ static int sc1200_dma_end(ide_drive_t *drive)
  * will have valid default PIO timings set up before we get here.
  */
 
-static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void sc1200_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t	*hwif = drive->hwif;
 	int		mode = -1;
+	const u8	pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
 	 * bad abuse of ->set_pio_mode interface

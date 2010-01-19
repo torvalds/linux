@@ -496,12 +496,11 @@ static void pmac_write_devctl(ide_hwif_t *hwif, u8 ctl)
 /*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
-static void
-pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void pmac_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	struct ide_timing *tim = ide_timing_find_mode(XFER_PIO_0 + pio);
 	u32 *timings, t;
 	unsigned accessTicks, recTicks;

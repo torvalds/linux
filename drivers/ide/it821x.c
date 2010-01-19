@@ -228,18 +228,18 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 
 /**
  *	it821x_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Tune the host to the desired PIO mode taking into the consideration
  *	the maximum PIO mode supported by the other device on the cable.
  */
 
-static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void it821x_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 	ide_drive_t *pair = ide_get_pair_dev(drive);
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	u8 unit = drive->dn & 1, set_pio = pio;
 
 	/* Spec says 89 ref driver uses 88 */

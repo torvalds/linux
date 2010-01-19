@@ -82,9 +82,9 @@ static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_dword(dev, channel_offset, triflex_timings);
 }
 
-static void triflex_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void triflex_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	triflex_set_mode(drive, XFER_PIO_0 + pio);
+	triflex_set_mode(drive, drive->pio_mode);
 }
 
 static const struct ide_port_ops triflex_port_ops = {

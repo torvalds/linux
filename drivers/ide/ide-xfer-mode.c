@@ -136,7 +136,7 @@ int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 	 */
 	if (port_ops->set_dma_mode == NULL) {
 		drive->pio_mode = mode;
-		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
+		port_ops->set_pio_mode(hwif, drive);
 		return 0;
 	}
 
@@ -144,11 +144,11 @@ int ide_set_pio_mode(ide_drive_t *drive, const u8 mode)
 		if (ide_config_drive_speed(drive, mode))
 			return -1;
 		drive->pio_mode = mode;
-		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
+		port_ops->set_pio_mode(hwif, drive);
 		return 0;
 	} else {
 		drive->pio_mode = mode;
-		port_ops->set_pio_mode(drive, mode - XFER_PIO_0);
+		port_ops->set_pio_mode(hwif, drive);
 		return ide_config_drive_speed(drive, mode);
 	}
 }

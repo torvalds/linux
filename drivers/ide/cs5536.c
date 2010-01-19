@@ -125,11 +125,11 @@ static u8 cs5536_cable_detect(ide_hwif_t *hwif)
 
 /**
  *	cs5536_set_pio_mode		-	PIO timing setup
+ *	@hwif: ATA port
  *	@drive: ATA device
- *	@pio: PIO mode number
  */
 
-static void cs5536_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void cs5536_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static const u8 drv_timings[5] = {
 		0x98, 0x55, 0x32, 0x21, 0x20,
@@ -143,11 +143,12 @@ static void cs5536_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		0x99, 0x92, 0x90, 0x22, 0x20,
 	};
 
-	struct pci_dev *pdev = to_pci_dev(drive->hwif->dev);
+	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	ide_drive_t *pair = ide_get_pair_dev(drive);
 	int cshift = (drive->dn & 1) ? IDE_CAST_D1_SHIFT : IDE_CAST_D0_SHIFT;
 	unsigned long timings = (unsigned long)ide_get_drivedata(drive);
 	u32 cast;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	u8 cmd_pio = pio;
 
 	if (pair)

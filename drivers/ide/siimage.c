@@ -229,19 +229,18 @@ static u8 sil_sata_udma_filter(ide_drive_t *drive)
 
 /**
  *	sil_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	Load the timing settings for this device mode into the
  *	controller.
  */
 
-static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
+static void sil_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	static const u16 tf_speed[]   = { 0x328a, 0x2283, 0x1281, 0x10c3, 0x10c1 };
 	static const u16 data_speed[] = { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
 
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	ide_drive_t *pair	= ide_get_pair_dev(drive);
 	u32 speedt		= 0;
@@ -249,6 +248,7 @@ static void sil_set_pio_mode(ide_drive_t *drive, u8 pio)
 	unsigned long addr	= siimage_seldev(drive, 0x04);
 	unsigned long tfaddr	= siimage_selreg(hwif,	0x02);
 	unsigned long base	= (unsigned long)hwif->hwif_data;
+	const u8 pio		= drive->pio_mode - XFER_PIO_0;
 	u8 tf_pio		= pio;
 	u8 mmio			= (hwif->host_flags & IDE_HFLAG_MMIO) ? 1 : 0;
 	u8 addr_mask		= hwif->channel ? (mmio ? 0xF4 : 0x84)

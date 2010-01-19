@@ -99,12 +99,11 @@ static void au1xxx_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 }
 #endif
 
-static void au1xxx_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void au1xxx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int mem_sttime = 0, mem_stcfg = au_readl(MEM_STCFG2);
 
-	/* set pio mode! */
-	switch(pio) {
+	switch (drive->pio_mode - XFER_PIO_0) {
 	case 0:
 		mem_sttime = SBC_IDE_TIMING(PIO0);
 

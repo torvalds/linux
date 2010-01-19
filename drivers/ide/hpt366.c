@@ -651,9 +651,9 @@ static void hpt3xx_set_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_dword(dev, itr_addr, new_itr);
 }
 
-static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void hpt3xx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	hpt3xx_set_mode(drive, XFER_PIO_0 + pio);
+	hpt3xx_set_mode(drive, drive->pio_mode);
 }
 
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
