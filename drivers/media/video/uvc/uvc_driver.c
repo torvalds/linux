@@ -315,11 +315,10 @@ static int uvc_parse_format(struct uvc_device *dev,
 				sizeof format->name);
 			format->fcc = fmtdesc->fcc;
 		} else {
-			uvc_printk(KERN_INFO, "Unknown video format "
-				UVC_GUID_FORMAT "\n",
-				UVC_GUID_ARGS(&buffer[5]));
-			snprintf(format->name, sizeof format->name,
-				UVC_GUID_FORMAT, UVC_GUID_ARGS(&buffer[5]));
+			uvc_printk(KERN_INFO, "Unknown video format %pUl\n",
+				&buffer[5]);
+			snprintf(format->name, sizeof(format->name), "%pUl\n",
+				&buffer[5]);
 			format->fcc = 0;
 		}
 

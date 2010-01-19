@@ -1080,10 +1080,8 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 	}
 
 	if (!found) {
-		uvc_trace(UVC_TRACE_CONTROL,
-			"Control " UVC_GUID_FORMAT "/%u not found.\n",
-			UVC_GUID_ARGS(entity->extension.guidExtensionCode),
-			xctrl->selector);
+		uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u not found.\n",
+			entity->extension.guidExtensionCode, xctrl->selector);
 		return -EINVAL;
 	}
 
@@ -1159,9 +1157,9 @@ int uvc_ctrl_resume_device(struct uvc_device *dev)
 			    (ctrl->info->flags & UVC_CONTROL_RESTORE) == 0)
 				continue;
 
-			printk(KERN_INFO "restoring control " UVC_GUID_FORMAT
-				"/%u/%u\n", UVC_GUID_ARGS(ctrl->info->entity),
-				ctrl->info->index, ctrl->info->selector);
+			printk(KERN_INFO "restoring control %pUl/%u/%u\n",
+				ctrl->info->entity, ctrl->info->index,
+				ctrl->info->selector);
 			ctrl->dirty = 1;
 		}
 
@@ -1215,47 +1213,43 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 		ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id,
 			dev->intfnum, info->selector, (__u8 *)&size, 2);
 		if (ret < 0) {
-			uvc_trace(UVC_TRACE_CONTROL, "GET_LEN failed on "
-				"control " UVC_GUID_FORMAT "/%u (%d).\n",
-				UVC_GUID_ARGS(info->entity), info->selector,
-				ret);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"GET_LEN failed on control %pUl/%u (%d).\n",
+				info->entity, info->selector, ret);
 			return;
 		}
 
 		if (info->size != le16_to_cpu(size)) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control " UVC_GUID_FORMAT
-				"/%u size doesn't match user supplied "
-				"value.\n", UVC_GUID_ARGS(info->entity),
-				info->selector);
+			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u size "
+				"doesn't match user supplied value.\n",
+				info->entity, info->selector);
 			return;
 		}
 
 		ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id,
 			dev->intfnum, info->selector, &inf, 1);
 		if (ret < 0) {
-			uvc_trace(UVC_TRACE_CONTROL, "GET_INFO failed on "
-				"control " UVC_GUID_FORMAT "/%u (%d).\n",
-				UVC_GUID_ARGS(info->entity), info->selector,
-				ret);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"GET_INFO failed on control %pUl/%u (%d).\n",
+				info->entity, info->selector, ret);
 			return;
 		}
 
 		flags = info->flags;
 		if (((flags & UVC_CONTROL_GET_CUR) && !(inf & (1 << 0))) ||
 		    ((flags & UVC_CONTROL_SET_CUR) && !(inf & (1 << 1)))) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control "
-				UVC_GUID_FORMAT "/%u flags don't match "
-				"supported operations.\n",
-				UVC_GUID_ARGS(info->entity), info->selector);
+			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u flags "
+				"don't match supported operations.\n",
+				info->entity, info->selector);
 			return;
 		}
 	}
 
 	ctrl->info = info;
 	ctrl->data = kmalloc(ctrl->info->size * UVC_CTRL_NDATA, GFP_KERNEL);
-	uvc_trace(UVC_TRACE_CONTROL, "Added control " UVC_GUID_FORMAT "/%u "
-		"to device %s entity %u\n", UVC_GUID_ARGS(ctrl->info->entity),
-		ctrl->info->selector, dev->udev->devpath, entity->id);
+	uvc_trace(UVC_TRACE_CONTROL, "Added control %pUl/%u to device %s "
+		"entity %u\n", ctrl->info->entity, ctrl->info->selector,
+		dev->udev->devpath, entity->id);
 }
 
 /*
@@ -1281,17 +1275,16 @@ int uvc_ctrl_add_info(struct uvc_control_info *info)
 			continue;
 
 		if (ctrl->selector == info->selector) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control "
-				UVC_GUID_FORMAT "/%u is already defined.\n",
-				UVC_GUID_ARGS(info->entity), info->selector);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"Control %pUl/%u is already defined.\n",
+				info->entity, info->selector);
 			ret = -EEXIST;
 			goto end;
 		}
 		if (ctrl->index == info->index) {
-			uvc_trace(UVC_TRACE_CONTROL, "Control "
-				UVC_GUID_FORMAT "/%u would overwrite index "
-				"%d.\n", UVC_GUID_ARGS(info->entity),
-				info->selector, info->index);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"Control %pUl/%u would overwrite index %d.\n",
+				info->entity, info->selector, info->index);
 			ret = -EEXIST;
 			goto end;
 		}
@@ -1332,10 +1325,9 @@ int uvc_ctrl_add_mapping(struct uvc_control_mapping *mapping)
 			continue;
 
 		if (info->size * 8 < mapping->size + mapping->offset) {
-			uvc_trace(UVC_TRACE_CONTROL, "Mapping '%s' would "
-				"overflow control " UVC_GUID_FORMAT "/%u\n",
-				mapping->name, UVC_GUID_ARGS(info->entity),
-				info->selector);
+			uvc_trace(UVC_TRACE_CONTROL,
+				"Mapping '%s' would overflow control %pUl/%u\n",
+				mapping->name, info->entity, info->selector);
 			ret = -EOVERFLOW;
 			goto end;
 		}
@@ -1354,9 +1346,9 @@ int uvc_ctrl_add_mapping(struct uvc_control_mapping *mapping)
 
 		mapping->ctrl = info;
 		list_add_tail(&mapping->list, &info->mappings);
-		uvc_trace(UVC_TRACE_CONTROL, "Adding mapping %s to control "
-			UVC_GUID_FORMAT "/%u.\n", mapping->name,
-			UVC_GUID_ARGS(info->entity), info->selector);
+		uvc_trace(UVC_TRACE_CONTROL,
+			"Adding mapping %s to control %pUl/%u.\n",
+			mapping->name, info->entity, info->selector);
 
 		ret = 0;
 		break;
