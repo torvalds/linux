@@ -469,9 +469,6 @@ struct omap_dss_device {
 	void (*get_timings)(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings);
 
-	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
-	u32 (*get_wss)(struct omap_dss_device *dssdev);
-
 	/* platform specific  */
 	int (*platform_enable)(struct omap_dss_device *dssdev);
 	void (*platform_disable)(struct omap_dss_device *dssdev);
@@ -516,6 +513,9 @@ struct omap_dss_driver {
 	void (*get_resolution)(struct omap_dss_device *dssdev,
 			u16 *xres, u16 *yres);
 	int (*get_recommended_bpp)(struct omap_dss_device *dssdev);
+
+	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
+	u32 (*get_wss)(struct omap_dss_device *dssdev);
 };
 
 int omap_dss_register_driver(struct omap_dss_driver *);

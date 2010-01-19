@@ -247,10 +247,10 @@ static ssize_t display_wss_show(struct device *dev,
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	unsigned int wss;
 
-	if (!dssdev->get_wss)
+	if (!dssdev->driver->get_wss)
 		return -ENOENT;
 
-	wss = dssdev->get_wss(dssdev);
+	wss = dssdev->driver->get_wss(dssdev);
 
 	return snprintf(buf, PAGE_SIZE, "0x%05x\n", wss);
 }
@@ -262,7 +262,7 @@ static ssize_t display_wss_store(struct device *dev,
 	unsigned long wss;
 	int r;
 
-	if (!dssdev->get_wss || !dssdev->set_wss)
+	if (!dssdev->driver->get_wss || !dssdev->driver->set_wss)
 		return -ENOENT;
 
 	if (strict_strtoul(buf, 0, &wss))
@@ -271,7 +271,7 @@ static ssize_t display_wss_store(struct device *dev,
 	if (wss > 0xfffff)
 		return -EINVAL;
 
-	r = dssdev->set_wss(dssdev, wss);
+	r = dssdev->driver->set_wss(dssdev, wss);
 	if (r)
 		return r;
 

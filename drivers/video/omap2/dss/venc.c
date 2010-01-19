@@ -557,6 +557,37 @@ static int venc_set_update_mode(struct omap_dss_device *dssdev,
 	return 0;
 }
 
+static u32 venc_get_wss(struct omap_dss_device *dssdev)
+{
+	/* Invert due to VENC_L21_WC_CTL:INV=1 */
+	return (venc.wss_data >> 8) ^ 0xfffff;
+}
+
+static int venc_set_wss(struct omap_dss_device *dssdev,	u32 wss)
+{
+	const struct venc_config *config;
+
+	DSSDBG("venc_set_wss\n");
+
+	mutex_lock(&venc.venc_lock);
+
+	config = venc_timings_to_config(&dssdev->panel.timings);
+
+	/* Invert due to VENC_L21_WC_CTL:INV=1 */
+	venc.wss_data = (wss ^ 0xfffff) << 8;
+
+	venc_enable_clocks(1);
+
+	venc_write_reg(VENC_BSTAMP_WSS_DATA, config->bstamp_wss_data |
+			venc.wss_data);
+
+	venc_enable_clocks(0);
+
+	mutex_unlock(&venc.venc_lock);
+
+	return 0;
+}
+
 static struct omap_dss_driver venc_driver = {
 	.probe		= venc_panel_probe,
 	.remove		= venc_panel_remove,
@@ -571,6 +602,9 @@ static struct omap_dss_driver venc_driver = {
 
 	.set_update_mode = venc_set_update_mode,
 	.get_update_mode = venc_get_update_mode,
+
+	.get_wss	= venc_get_wss,
+	.set_wss	= venc_set_wss,
 
 	.driver         = {
 		.name   = "venc",
@@ -656,37 +690,6 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 	return -EINVAL;
 }
 
-static u32 venc_get_wss(struct omap_dss_device *dssdev)
-{
-	/* Invert due to VENC_L21_WC_CTL:INV=1 */
-	return (venc.wss_data >> 8) ^ 0xfffff;
-}
-
-static int venc_set_wss(struct omap_dss_device *dssdev,	u32 wss)
-{
-	const struct venc_config *config;
-
-	DSSDBG("venc_set_wss\n");
-
-	mutex_lock(&venc.venc_lock);
-
-	config = venc_timings_to_config(&dssdev->panel.timings);
-
-	/* Invert due to VENC_L21_WC_CTL:INV=1 */
-	venc.wss_data = (wss ^ 0xfffff) << 8;
-
-	venc_enable_clocks(1);
-
-	venc_write_reg(VENC_BSTAMP_WSS_DATA, config->bstamp_wss_data |
-			venc.wss_data);
-
-	venc_enable_clocks(0);
-
-	mutex_unlock(&venc.venc_lock);
-
-	return 0;
-}
-
 int venc_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
@@ -694,8 +697,6 @@ int venc_init_display(struct omap_dss_device *dssdev)
 	dssdev->get_timings = venc_get_timings;
 	dssdev->set_timings = venc_set_timings;
 	dssdev->check_timings = venc_check_timings;
-	dssdev->get_wss = venc_get_wss;
-	dssdev->set_wss = venc_set_wss;
 
 	return 0;
 }
