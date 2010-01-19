@@ -33,6 +33,13 @@ config SAMSUNG_IRQ_UART
 
 # options for gpio configuration support
 
+config SAMSUNG_GPIOLIB_4BIT
+	bool
+	help
+	  GPIOlib file contains the 4 bit modification functions for gpio
+	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
+	  series of processors.
+
 config S3C_GPIO_CFG_S3C24XX
 	bool
 	help

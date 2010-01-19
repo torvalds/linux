@@ -11,6 +11,11 @@
  * published by the Free Software Foundation.
 */
 
+#define GPIOCON_OFF	(0x00)
+#define GPIODAT_OFF	(0x04)
+
+#define con_4bit_shift(__off) ((__off) * 4)
+
 /* Define the core gpiolib support functions that the s3c platforms may
  * need to extend or change depending on the hardware and the s3c chip
  * selected at build or found at run time.
@@ -79,6 +84,29 @@ extern void s3c_gpiolib_add(struct s3c_gpio_chip *chip);
  * the machine support file should provide its own s3c_gpiolib_getchip()
  * and any other necessary functions.
  */
+
+/**
+ * samsung_gpiolib_add_4bit_chips - 4bit single register GPIO config.
+ * @chip: The gpio chip that is being configured.
+ * @nr_chips: The no of chips (gpio ports) for the GPIO being configured.
+ *
+ * This helper deal with the GPIO cases where the control register has 4 bits
+ * of control per GPIO, generally in the form of:
+ * 0000 = Input
+ * 0001 = Output
+ * others = Special functions (dependant on bank)
+ *
+ * Note, since the code to deal with the case where there are two control
+ * registers instead of one, we do not have a seperate set of function
+ * (samsung_gpiolib_add_4bit2_chips)for each case.
+ */
+extern void samsung_gpiolib_add_4bit_chips(struct s3c_gpio_chip *chip,
+					   int nr_chips);
+extern void samsung_gpiolib_add_4bit2_chips(struct s3c_gpio_chip *chip,
+					    int nr_chips);
+
+extern void samsung_gpiolib_add_4bit(struct s3c_gpio_chip *chip);
+extern void samsung_gpiolib_add_4bit2(struct s3c_gpio_chip *chip);
 
 #ifdef CONFIG_S3C_GPIO_TRACK
 extern struct s3c_gpio_chip *s3c_gpios[S3C_GPIO_END];

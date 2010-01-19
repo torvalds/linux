@@ -22,6 +22,7 @@ config PLAT_S3C64XX
 	select S3C_GPIO_CFG_S3C64XX
 	select S3C_DEV_NAND
 	select USB_ARCH_HAS_OHCI
+	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Base platform code for any Samsung S3C64XX device
 
