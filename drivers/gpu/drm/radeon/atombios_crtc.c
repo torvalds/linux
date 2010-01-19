@@ -426,7 +426,11 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	uint32_t adjusted_clock;
 	uint32_t ref_div = 0, fb_div = 0, frac_fb_div = 0, post_div = 0;
 	struct radeon_pll *pll;
-	int pll_flags = 0;
+
+	if (radeon_crtc->crtc_id == 0)
+		pll = &rdev->clock.p1pll;
+	else
+		pll = &rdev->clock.p2pll;
 
 	memset(&args, 0, sizeof(args));
 
@@ -434,20 +438,20 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 		if ((rdev->family == CHIP_RS600) ||
 		    (rdev->family == CHIP_RS690) ||
 		    (rdev->family == CHIP_RS740))
-			pll_flags |= (RADEON_PLL_USE_FRAC_FB_DIV |
-				      RADEON_PLL_PREFER_CLOSEST_LOWER);
+			pll->flags |= (RADEON_PLL_USE_FRAC_FB_DIV |
+				       RADEON_PLL_PREFER_CLOSEST_LOWER);
 
 		if (ASIC_IS_DCE32(rdev) && mode->clock > 200000)	/* range limits??? */
-			pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
+			pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
-			pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
+			pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 	} else {
-		pll_flags |= RADEON_PLL_LEGACY;
+		pll->flags |= RADEON_PLL_LEGACY;
 
 		if (mode->clock > 200000)	/* range limits??? */
-			pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
+			pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 		else
-			pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
+			pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
 	}
 
@@ -456,10 +460,10 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			if (!ASIC_IS_AVIVO(rdev)) {
 				if (encoder->encoder_type !=
 				    DRM_MODE_ENCODER_DAC)
-					pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
+					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;
 				if (encoder->encoder_type ==
 					DRM_MODE_ENCODER_LVDS)
-					pll_flags |= RADEON_PLL_USE_REF_DIV;
+					pll->flags |= RADEON_PLL_USE_REF_DIV;
 			}
 			radeon_encoder = to_radeon_encoder(encoder);
 			break;
@@ -494,23 +498,18 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			adjusted_clock = mode->clock;
 	}
 
-	if (radeon_crtc->crtc_id == 0)
-		pll = &rdev->clock.p1pll;
-	else
-		pll = &rdev->clock.p2pll;
-
 	if (ASIC_IS_AVIVO(rdev)) {
 		if (radeon_new_pll)
 			radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock,
 						 &fb_div, &frac_fb_div,
-						 &ref_div, &post_div, pll_flags);
+						 &ref_div, &post_div);
 		else
 			radeon_compute_pll(pll, adjusted_clock, &pll_clock,
 					   &fb_div, &frac_fb_div,
-					   &ref_div, &post_div, pll_flags);
+					   &ref_div, &post_div);
 	} else
 		radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-				   &ref_div, &post_div, pll_flags);
+				   &ref_div, &post_div);
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,

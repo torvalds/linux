@@ -692,7 +692,6 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	uint32_t post_divider = 0;
 	uint32_t freq = 0;
 	uint8_t pll_gain;
-	int pll_flags = RADEON_PLL_LEGACY;
 	bool use_bios_divs = false;
 	/* PLL registers */
 	uint32_t pll_ref_div = 0;
@@ -726,10 +725,12 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	else
 		pll = &rdev->clock.p1pll;
 
+	pll->flags = RADEON_PLL_LEGACY;
+
 	if (mode->clock > 200000) /* range limits??? */
-		pll_flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
+		pll->flags |= RADEON_PLL_PREFER_HIGH_FB_DIV;
 	else
-		pll_flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
+		pll->flags |= RADEON_PLL_PREFER_LOW_REF_DIV;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->crtc == crtc) {
@@ -741,7 +742,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 			}
 
 			if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
-				pll_flags |= RADEON_PLL_NO_ODD_POST_DIV;
+				pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;
 			if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
 				if (!rdev->is_atom_bios) {
 					struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -756,7 +757,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 						}
 					}
 				}
-				pll_flags |= RADEON_PLL_USE_REF_DIV;
+				pll->flags |= RADEON_PLL_USE_REF_DIV;
 			}
 		}
 	}
@@ -766,8 +767,7 @@ static void radeon_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	if (!use_bios_divs) {
 		radeon_compute_pll(pll, mode->clock,
 				   &freq, &feedback_div, &frac_fb_div,
-				   &reference_div, &post_divider,
-				   pll_flags);
+				   &reference_div, &post_divider);
 
 		for (post_div = &post_divs[0]; post_div->divider; ++post_div) {
 			if (post_div->divider == post_divider)
