@@ -5547,6 +5547,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		put_page(kvm->arch.apic_access_page);
 	if (kvm->arch.ept_identity_pagetable)
 		put_page(kvm->arch.ept_identity_pagetable);
+	cleanup_srcu_struct(&kvm->srcu);
 	kfree(kvm->arch.aliases);
 	kfree(kvm);
 }

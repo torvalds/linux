@@ -506,7 +506,6 @@ static void kvm_destroy_vm(struct kvm *kvm)
 #else
 	kvm_arch_flush_shadow(kvm);
 #endif
-	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_destroy_vm(kvm);
 	hardware_disable_all();
 	mmdrop(mm);

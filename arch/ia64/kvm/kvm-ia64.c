@@ -1404,6 +1404,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kfree(kvm->arch.vioapic);
 	kvm_release_vm_pages(kvm);
 	kvm_free_physmem(kvm);
+	cleanup_srcu_struct(&kvm->srcu);
 	free_kvm(kvm);
 }
 

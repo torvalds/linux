@@ -242,6 +242,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_physmem(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	debug_unregister(kvm->arch.dbf);
+	cleanup_srcu_struct(&kvm->srcu);
 	kfree(kvm);
 }
 

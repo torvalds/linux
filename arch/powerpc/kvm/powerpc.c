@@ -137,6 +137,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvmppc_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
+	cleanup_srcu_struct(&kvm->srcu);
 	kfree(kvm);
 }
 
