@@ -243,7 +243,7 @@ extern void xfs_buf_ioend(xfs_buf_t *,	int);
 extern void xfs_buf_ioerror(xfs_buf_t *, int);
 extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
-extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, xfs_caddr_t,
+extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
 
 static inline int xfs_buf_iostrategy(xfs_buf_t *bp)

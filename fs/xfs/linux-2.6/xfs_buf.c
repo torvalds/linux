@@ -1443,7 +1443,7 @@ xfs_buf_iomove(
 	xfs_buf_t		*bp,	/* buffer to process		*/
 	size_t			boff,	/* starting buffer offset	*/
 	size_t			bsize,	/* length to copy		*/
-	caddr_t			data,	/* data address			*/
+	void			*data,	/* data address			*/
 	xfs_buf_rw_t		mode)	/* read/write/zero flag		*/
 {
 	size_t			bend, cpoff, csize;
