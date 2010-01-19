@@ -784,7 +784,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __used)
 			setup_sorting(&alloc_sort, default_sort_order);
 
 		return __cmd_kmem();
-	}
+	} else
+		usage_with_options(kmem_usage, kmem_options);
 
 	return 0;
 }
