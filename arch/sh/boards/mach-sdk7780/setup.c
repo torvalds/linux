@@ -30,7 +30,7 @@ static struct resource heartbeat_resource = {
 static struct platform_device heartbeat_device = {
 	.name           = "heartbeat",
 	.id             = -1,
-	.num_resources  = 1
+	.num_resources  = 1,
 	.resource       = &heartbeat_resource,
 };
 
