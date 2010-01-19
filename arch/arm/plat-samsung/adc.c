@@ -1,10 +1,10 @@
-/* arch/arm/plat-s3c24xx/adc.c
+/* arch/arm/plat-samsung/adc.c
  *
  * Copyright (c) 2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>, <ben-linux@fluff.org>
  *
- * S3C24XX ADC device core
+ * Samsung ADC device core
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,11 @@
  * and stores information such as the necessary functions to callback when
  * action is required.
  */
+
+enum s3c_cpu_type {
+	TYPE_S3C24XX,
+	TYPE_S3C64XX
+};
 
 struct s3c_adc_client {
 	struct platform_device	*pdev;
@@ -262,7 +267,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 
 	if (!client) {
 		dev_warn(&adc->pdev->dev, "%s: no adc pending\n", __func__);
-		return IRQ_HANDLED;
+		goto exit;
 	}
 
 	data0 = readl(adc->regs + S3C2410_ADCDAT0);
@@ -289,6 +294,11 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 		local_irq_restore(flags);
 	}
 
+exit:
+	if (platform_get_device_id(client->pdev)->driver_data == TYPE_S3C64XX) {
+		/* Clear ADC interrupt */
+		writel(0, adc->regs + S3C64XX_ADCCLRINT);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -410,9 +420,22 @@ static int s3c_adc_resume(struct platform_device *pdev)
 #define s3c_adc_resume NULL
 #endif
 
+static struct platform_device_id s3c_adc_driver_ids[] = {
+	{
+		.name           = "s3c24xx-adc",
+		.driver_data    = TYPE_S3C24XX,
+	}, {
+		.name           = "s3c64xx-adc",
+		.driver_data    = TYPE_S3C64XX,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, s3c_adc_driver_ids);
+
 static struct platform_driver s3c_adc_driver = {
+	.id_table	= s3c_adc_driver_ids,
 	.driver		= {
-		.name	= "s3c24xx-adc",
+		.name	= "s3c-adc",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c_adc_probe,

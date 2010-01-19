@@ -74,6 +74,15 @@ config SAMSUNG_GPIO_EXTRA
 	  provides. This allows expanding the GPIO space for use with
 	  GPIO expanders.
 
+# ADC driver
+
+config S3C_ADC
+	bool "ADC common driver support"
+	help
+	  Core support for the ADC block found in the Samsung SoC systems
+	  for drivers such as the touchscreen and hwmon to use to share
+	  this resource.
+
 # device definitions to compile in
 
 config S3C_DEV_HSMMC

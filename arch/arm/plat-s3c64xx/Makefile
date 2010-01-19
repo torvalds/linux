@@ -36,6 +36,10 @@ obj-$(CONFIG_PM)		+= irq-pm.o
 
 obj-$(CONFIG_S3C64XX_DMA)	+= dma.o
 
+# ADC support
+
+obj-$(CONFIG_S3C_ADC)		+= dev-adc.o
+
 # Device setup
 
 obj-$(CONFIG_S3C64XX_SETUP_I2C0) += setup-i2c0.o
