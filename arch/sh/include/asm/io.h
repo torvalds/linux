@@ -321,11 +321,13 @@ ioremap_cache(unsigned long offset, unsigned long size)
 	return __ioremap_mode(offset, size, PAGE_KERNEL);
 }
 
+#ifdef CONFIG_HAVE_IOREMAP_PROT
 static inline void __iomem *
 ioremap_prot(resource_size_t offset, unsigned long size, unsigned long flags)
 {
 	return __ioremap_mode(offset, size, __pgprot(flags));
 }
+#endif
 
 #define ioremap_nocache	ioremap
 #define iounmap		__iounmap
