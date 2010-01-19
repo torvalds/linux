@@ -187,7 +187,7 @@ trap_jtable:
 	.rept 6
 		.long do_exception_error	/* 0x880 - 0x920 */
 	.endr
-	.long	do_software_break_point	/* 0x940 */
+	.long	breakpoint_trap_handler	/* 0x940 */
 	.long	do_exception_error		/* 0x960 */
 	.long	do_single_step		/* 0x980 */
 

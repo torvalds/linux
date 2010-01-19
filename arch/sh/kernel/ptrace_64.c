@@ -478,9 +478,10 @@ asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 }
 
 /* Called with interrupts disabled */
-asmlinkage void do_software_break_point(unsigned long long vec,
-					struct pt_regs *regs)
+BUILD_TRAP_HANDLER(breakpoint)
 {
+	TRAP_HANDLER_DECL;
+
 	/* We need to forward step the PC, to counteract the backstep done
 	   in signal.c. */
 	local_irq_enable();
