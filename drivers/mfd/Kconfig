@@ -78,6 +78,15 @@ config HTC_PASIC3
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
 
+config HTC_I2CPLD
+	bool "HTC I2C PLD chip support"
+	depends on I2C=y
+	help
+	  If you say yes here you get support for the supposed CPLD
+	  found on omap850 HTC devices like the HTC Wizard and HTC Herald.
+	  This device provides input and output GPIOs through an I2C
+	  interface to one or more sub-chips.
+
 config UCB1400_CORE
 	tristate "Philips UCB1400 Core driver"
 	depends on AC97_BUS
