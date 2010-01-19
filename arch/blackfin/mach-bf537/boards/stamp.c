@@ -22,6 +22,7 @@
 #endif
 #include <linux/i2c.h>
 #include <linux/i2c/adp5588.h>
+#include <linux/etherdevice.h>
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -816,6 +817,12 @@ static struct adf702x_platform_data adf7021_platform_data = {
 	.adf702x_regs = adf7021_regs,
 	.tx_reg = TXREG,
 };
+static inline void adf702x_mac_init(void)
+{
+	random_ether_addr(adf7021_platform_data.mac_addr);
+}
+#else
+static inline void adf702x_mac_init(void) {}
 #endif
 
 #if defined(CONFIG_MTD_DATAFLASH) \
@@ -1967,6 +1974,7 @@ static int __init stamp_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	bfin_plat_nand_init();
+	adf702x_mac_init();
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
