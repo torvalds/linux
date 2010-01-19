@@ -559,7 +559,7 @@ static inline void dac33_prefill_handler(struct tlv320dac33_priv *dac33)
 		break;
 	case DAC33_FIFO_MODE7:
 		dac33_write16(codec, DAC33_PREFILL_MSB,
-				DAC33_THRREG(20));
+				DAC33_THRREG(10));
 		break;
 	default:
 		dev_warn(codec->dev, "Unhandled FIFO mode: %d\n",
