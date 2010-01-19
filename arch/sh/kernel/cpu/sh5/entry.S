@@ -1124,7 +1124,7 @@ fpu_error_or_IRQA:
 	pta	its_IRQ, tr0
 	beqi/l	r4, EVENT_INTERRUPT, tr0
 #ifdef CONFIG_SH_FPU
-	movi	do_fpu_state_restore, r6
+	movi	fpu_state_restore_trap_handler, r6
 #else
 	movi	do_exception_error, r6
 #endif
@@ -1135,7 +1135,7 @@ fpu_error_or_IRQB:
 	pta	its_IRQ, tr0
 	beqi/l	r4, EVENT_INTERRUPT, tr0
 #ifdef CONFIG_SH_FPU
-	movi	do_fpu_state_restore, r6
+	movi	fpu_state_restore_trap_handler, r6
 #else
 	movi	do_exception_error, r6
 #endif

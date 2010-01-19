@@ -114,8 +114,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	regs = (struct pt_regs*)((unsigned char *)task + THREAD_SIZE) - 1;
 
 	if (!tsk_used_math(task)) {
-		fpinit(&task->thread.xstate->hardfpu);
-		set_stopped_child_used_math(task);
+		init_fpu(task);
 	} else if (last_task_used_math == task) {
 		enable_fpu();
 		save_fpu(task);
