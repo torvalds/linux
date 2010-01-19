@@ -44,7 +44,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
-struct xfs_name xfs_name_dotdot = {"..", 2};
+struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2};
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was

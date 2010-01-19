@@ -57,8 +57,8 @@ static xfs_dahash_t xfs_dir_hash_dot, xfs_dir_hash_dotdot;
 void
 xfs_dir_startup(void)
 {
-	xfs_dir_hash_dot = xfs_da_hashname(".", 1);
-	xfs_dir_hash_dotdot = xfs_da_hashname("..", 2);
+	xfs_dir_hash_dot = xfs_da_hashname((unsigned char *)".", 1);
+	xfs_dir_hash_dotdot = xfs_da_hashname((unsigned char *)"..", 2);
 }
 
 /*
@@ -513,8 +513,9 @@ xfs_dir2_block_getdents(
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
-		if (filldir(dirent, dep->name, dep->namelen, cook & 0x7fffffff,
-			    be64_to_cpu(dep->inumber), DT_UNKNOWN)) {
+		if (filldir(dirent, (char *)dep->name, dep->namelen,
+			    cook & 0x7fffffff, be64_to_cpu(dep->inumber),
+			    DT_UNKNOWN)) {
 			*offset = cook & 0x7fffffff;
 			xfs_da_brelse(NULL, bp);
 			return 0;
