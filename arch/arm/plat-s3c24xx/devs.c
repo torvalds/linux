@@ -32,6 +32,7 @@
 
 #include <plat/regs-serial.h>
 #include <plat/udc.h>
+#include <plat/mci.h>
 
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -110,34 +111,6 @@ struct s3c24xx_uart_resources s3c2410_uart_resources[] __initdata = {
 		.resources	= s3c2410_uart3_resource,
 		.nr_resources	= ARRAY_SIZE(s3c2410_uart3_resource),
 	},
-};
-
-/* yart devices */
-
-static struct platform_device s3c24xx_uart_device0 = {
-	.id		= 0,
-};
-
-static struct platform_device s3c24xx_uart_device1 = {
-	.id		= 1,
-};
-
-static struct platform_device s3c24xx_uart_device2 = {
-	.id		= 2,
-};
-
-static struct platform_device s3c24xx_uart_device3 = {
-	.id		= 3,
-};
-
-struct platform_device *s3c24xx_uart_src[4] = {
-	&s3c24xx_uart_device0,
-	&s3c24xx_uart_device1,
-	&s3c24xx_uart_device2,
-	&s3c24xx_uart_device3,
-};
-
-struct platform_device *s3c24xx_uart_devs[4] = {
 };
 
 /* LCD Controller */
@@ -378,6 +351,18 @@ struct platform_device s3c_device_sdi = {
 };
 
 EXPORT_SYMBOL(s3c_device_sdi);
+
+void s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata)
+{
+	struct s3c24xx_mci_pdata *npd;
+
+	npd = kmemdup(pdata, sizeof(struct s3c24xx_mci_pdata), GFP_KERNEL);
+	if (!npd)
+		printk(KERN_ERR "%s: no memory to copy pdata", __func__);
+
+	s3c_device_sdi.dev.platform_data = npd;
+}
+
 
 /* SPI (0) */
 

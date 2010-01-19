@@ -176,7 +176,7 @@ static struct s3c2410_platform_nand __initdata rx3715_nand_info = {
 };
 
 static struct platform_device *rx3715_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
