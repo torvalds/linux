@@ -73,6 +73,11 @@
 #else
 	cli r0;
 #endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	sp += -12;
+	call _trace_hardirqs_off;
+	sp += 12;
+#endif
 	[--sp] = RETI;  /*orig_pc*/
 	/* Clear all L registers.  */
 	r0 = 0 (x);
@@ -279,6 +284,13 @@
 	RETN = [sp++];
 	RETX = [sp++];
 	RETI = [sp++];
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	sp += -12;
+	call _trace_hardirqs_on;
+	sp += 12;
+#endif
+
 	RETS = [sp++];
 
 #ifdef CONFIG_SMP

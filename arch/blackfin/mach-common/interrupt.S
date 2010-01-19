@@ -88,6 +88,13 @@ __common_int_entry:
 #else
 	cli r1;
 #endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	[--sp] = r0;
+	sp += -12;
+	call _trace_hardirqs_off;
+	sp += 12;
+	r0 = [sp++];
+#endif
 	[--sp] = RETI;  /* orig_pc */
 	/* Clear all L registers.  */
 	r1 = 0 (x);
