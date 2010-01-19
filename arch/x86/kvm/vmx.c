@@ -3449,7 +3449,6 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 		}
 
 		if (err != EMULATE_DONE) {
-			kvm_report_emulation_failure(vcpu, "emulation failure");
 			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 			vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_EMULATION;
 			vcpu->run->internal.ndata = 0;
