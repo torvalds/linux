@@ -5441,6 +5441,27 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+static int complete_mmio(struct kvm_vcpu *vcpu)
+{
+	struct kvm_run *run = vcpu->run;
+	int r;
+
+	if (!(vcpu->arch.pio.count || vcpu->mmio_needed))
+		return 1;
+
+	if (vcpu->mmio_needed) {
+		memcpy(vcpu->mmio_data, run->mmio.data, 8);
+		vcpu->mmio_read_completed = 1;
+		vcpu->mmio_needed = 0;
+	}
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+	if (r != EMULATE_DONE)
+		return 0;
+	return 1;
+}
+
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
@@ -5467,20 +5488,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	}
 
-	if (vcpu->arch.pio.count || vcpu->mmio_needed) {
-		if (vcpu->mmio_needed) {
-			memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
-			vcpu->mmio_read_completed = 1;
-			vcpu->mmio_needed = 0;
-		}
-		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
-		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		if (r != EMULATE_DONE) {
-			r = 0;
-			goto out;
-		}
-	}
+	r = complete_mmio(vcpu);
+	if (r <= 0)
+		goto out;
+
 	if (kvm_run->exit_reason == KVM_EXIT_HYPERCALL)
 		kvm_register_write(vcpu, VCPU_REGS_RAX,
 				     kvm_run->hypercall.ret);
