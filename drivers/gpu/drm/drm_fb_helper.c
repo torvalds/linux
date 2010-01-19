@@ -694,7 +694,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	int i;
 
 	if (var->pixclock != 0) {
-		DRM_ERROR("PIXEL CLCOK SET\n");
+		DRM_ERROR("PIXEL CLOCK SET\n");
 		return -EINVAL;
 	}
 
