@@ -1114,7 +1114,7 @@ int __init init_arch_irq(void)
 #endif
 
 	/* if configured as edge, then will be changed to do_edge_IRQ */
-	for (irq = GPIO_IRQ_BASE; irq < NR_IRQS; irq++)
+	for (irq = GPIO_IRQ_BASE; irq < NR_MACH_IRQS; irq++)
 		set_irq_chip_and_handler(irq, &bfin_gpio_irqchip,
 					 handle_level_irq);
 

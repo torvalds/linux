@@ -12,6 +12,9 @@
 
 #include <linux/irqflags.h>
 
+/* IRQs that may be used by external irq_chip controllers */
+#define NR_SPARE_IRQS	32
+
 #include <mach/anomaly.h>
 
 /* SYS_IRQS and NR_IRQS are defined in <mach-bf5xx/irq.h> */
