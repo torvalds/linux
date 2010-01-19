@@ -79,11 +79,6 @@ STATIC int  xlog_state_release_iclog(xlog_t		*log,
 STATIC void xlog_state_switch_iclogs(xlog_t		*log,
 				     xlog_in_core_t *iclog,
 				     int		eventual_size);
-STATIC int  xlog_state_sync(xlog_t			*log,
-			    xfs_lsn_t 			lsn,
-			    uint			flags,
-			    int				*log_flushed);
-STATIC int  xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed);
 STATIC void xlog_state_want_sync(xlog_t	*log, xlog_in_core_t *iclog);
 
 /* local functions to manipulate grant head */
@@ -295,65 +290,6 @@ xfs_log_done(xfs_mount_t	*mp,
 
 	return lsn;
 }	/* xfs_log_done */
-
-
-/*
- * Force the in-core log to disk.  If flags == XFS_LOG_SYNC,
- *	the force is done synchronously.
- *
- * Asynchronous forces are implemented by setting the WANT_SYNC
- * bit in the appropriate in-core log and then returning.
- *
- * Synchronous forces are implemented with a signal variable. All callers
- * to force a given lsn to disk will wait on a the sv attached to the
- * specific in-core log.  When given in-core log finally completes its
- * write to disk, that thread will wake up all threads waiting on the
- * sv.
- */
-int
-_xfs_log_force(
-	xfs_mount_t	*mp,
-	xfs_lsn_t	lsn,
-	uint		flags,
-	int		*log_flushed)
-{
-	xlog_t		*log = mp->m_log;
-	int		dummy;
-
-	if (!log_flushed)
-		log_flushed = &dummy;
-
-	ASSERT(flags & XFS_LOG_FORCE);
-
-	XFS_STATS_INC(xs_log_force);
-
-	if (log->l_flags & XLOG_IO_ERROR)
-		return XFS_ERROR(EIO);
-	if (lsn == 0)
-		return xlog_state_sync_all(log, flags, log_flushed);
-	else
-		return xlog_state_sync(log, lsn, flags, log_flushed);
-}	/* _xfs_log_force */
-
-/*
- * Wrapper for _xfs_log_force(), to be used when caller doesn't care
- * about errors or whether the log was flushed or not. This is the normal
- * interface to use when trying to unpin items or move the log forward.
- */
-void
-xfs_log_force(
-	xfs_mount_t	*mp,
-	xfs_lsn_t	lsn,
-	uint		flags)
-{
-	int	error;
-	error = _xfs_log_force(mp, lsn, flags, NULL);
-	if (error) {
-		xfs_fs_cmn_err(CE_WARN, mp, "xfs_log_force: "
-			"error %d returned.", error);
-	}
-}
-
 
 /*
  * Attaches a new iclog I/O completion callback routine during
@@ -601,7 +537,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 
-	error = _xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC, NULL);
+	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
 	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
 
 #ifdef DEBUG
@@ -2853,7 +2789,6 @@ xlog_state_switch_iclogs(xlog_t		*log,
 	log->l_iclog = iclog->ic_next;
 }	/* xlog_state_switch_iclogs */
 
-
 /*
  * Write out all data in the in-core log as of this exact moment in time.
  *
@@ -2881,11 +2816,17 @@ xlog_state_switch_iclogs(xlog_t		*log,
  *	   b) when we return from flushing out this iclog, it is still
  *		not in the active nor dirty state.
  */
-STATIC int
-xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed)
+int
+_xfs_log_force(
+	struct xfs_mount	*mp,
+	uint			flags,
+	int			*log_flushed)
 {
-	xlog_in_core_t	*iclog;
-	xfs_lsn_t	lsn;
+	struct log		*log = mp->m_log;
+	struct xlog_in_core	*iclog;
+	xfs_lsn_t		lsn;
+
+	XFS_STATS_INC(xs_log_force);
 
 	spin_lock(&log->l_icloglock);
 
@@ -2931,7 +2872,9 @@ xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed)
 
 				if (xlog_state_release_iclog(log, iclog))
 					return XFS_ERROR(EIO);
-				*log_flushed = 1;
+
+				if (log_flushed)
+					*log_flushed = 1;
 				spin_lock(&log->l_icloglock);
 				if (be64_to_cpu(iclog->ic_header.h_lsn) == lsn &&
 				    iclog->ic_state != XLOG_STATE_DIRTY)
@@ -2975,19 +2918,37 @@ maybe_sleep:
 		 */
 		if (iclog->ic_state & XLOG_STATE_IOERROR)
 			return XFS_ERROR(EIO);
-		*log_flushed = 1;
-
+		if (log_flushed)
+			*log_flushed = 1;
 	} else {
 
 no_sleep:
 		spin_unlock(&log->l_icloglock);
 	}
 	return 0;
-}	/* xlog_state_sync_all */
-
+}
 
 /*
- * Used by code which implements synchronous log forces.
+ * Wrapper for _xfs_log_force(), to be used when caller doesn't care
+ * about errors or whether the log was flushed or not. This is the normal
+ * interface to use when trying to unpin items or move the log forward.
+ */
+void
+xfs_log_force(
+	xfs_mount_t	*mp,
+	uint		flags)
+{
+	int	error;
+
+	error = _xfs_log_force(mp, flags, NULL);
+	if (error) {
+		xfs_fs_cmn_err(CE_WARN, mp, "xfs_log_force: "
+			"error %d returned.", error);
+	}
+}
+
+/*
+ * Force the in-core log to disk for a specific LSN.
  *
  * Find in-core log with lsn.
  *	If it is in the DIRTY state, just return.
@@ -2995,109 +2956,142 @@ no_sleep:
  *		state and go to sleep or return.
  *	If it is in any other state, go to sleep or return.
  *
- * If filesystem activity goes to zero, the iclog will get flushed only by
- * bdflush().
+ * Synchronous forces are implemented with a signal variable. All callers
+ * to force a given lsn to disk will wait on a the sv attached to the
+ * specific in-core log.  When given in-core log finally completes its
+ * write to disk, that thread will wake up all threads waiting on the
+ * sv.
  */
-STATIC int
-xlog_state_sync(xlog_t	  *log,
-		xfs_lsn_t lsn,
-		uint	  flags,
-		int	  *log_flushed)
+int
+_xfs_log_force_lsn(
+	struct xfs_mount	*mp,
+	xfs_lsn_t		lsn,
+	uint			flags,
+	int			*log_flushed)
 {
-    xlog_in_core_t	*iclog;
-    int			already_slept = 0;
+	struct log		*log = mp->m_log;
+	struct xlog_in_core	*iclog;
+	int			already_slept = 0;
+
+	ASSERT(lsn != 0);
+
+	XFS_STATS_INC(xs_log_force);
 
 try_again:
-    spin_lock(&log->l_icloglock);
-    iclog = log->l_iclog;
-
-    if (iclog->ic_state & XLOG_STATE_IOERROR) {
-	    spin_unlock(&log->l_icloglock);
-	    return XFS_ERROR(EIO);
-    }
-
-    do {
-	if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn) {
-		iclog = iclog->ic_next;
-		continue;
-	}
-
-	if (iclog->ic_state == XLOG_STATE_DIRTY) {
+	spin_lock(&log->l_icloglock);
+	iclog = log->l_iclog;
+	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		spin_unlock(&log->l_icloglock);
-		return 0;
+		return XFS_ERROR(EIO);
 	}
 
-	if (iclog->ic_state == XLOG_STATE_ACTIVE) {
-		/*
-		 * We sleep here if we haven't already slept (e.g.
-		 * this is the first time we've looked at the correct
-		 * iclog buf) and the buffer before us is going to
-		 * be sync'ed. The reason for this is that if we
-		 * are doing sync transactions here, by waiting for
-		 * the previous I/O to complete, we can allow a few
-		 * more transactions into this iclog before we close
-		 * it down.
-		 *
-		 * Otherwise, we mark the buffer WANT_SYNC, and bump
-		 * up the refcnt so we can release the log (which drops
-		 * the ref count).  The state switch keeps new transaction
-		 * commits from using this buffer.  When the current commits
-		 * finish writing into the buffer, the refcount will drop to
-		 * zero and the buffer will go out then.
-		 */
-		if (!already_slept &&
-		    (iclog->ic_prev->ic_state & (XLOG_STATE_WANT_SYNC |
-						 XLOG_STATE_SYNCING))) {
-			ASSERT(!(iclog->ic_state & XLOG_STATE_IOERROR));
-			XFS_STATS_INC(xs_log_force_sleep);
-			sv_wait(&iclog->ic_prev->ic_write_wait, PSWP,
-				&log->l_icloglock, s);
-			*log_flushed = 1;
-			already_slept = 1;
-			goto try_again;
-		} else {
+	do {
+		if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn) {
+			iclog = iclog->ic_next;
+			continue;
+		}
+
+		if (iclog->ic_state == XLOG_STATE_DIRTY) {
+			spin_unlock(&log->l_icloglock);
+			return 0;
+		}
+
+		if (iclog->ic_state == XLOG_STATE_ACTIVE) {
+			/*
+			 * We sleep here if we haven't already slept (e.g.
+			 * this is the first time we've looked at the correct
+			 * iclog buf) and the buffer before us is going to
+			 * be sync'ed. The reason for this is that if we
+			 * are doing sync transactions here, by waiting for
+			 * the previous I/O to complete, we can allow a few
+			 * more transactions into this iclog before we close
+			 * it down.
+			 *
+			 * Otherwise, we mark the buffer WANT_SYNC, and bump
+			 * up the refcnt so we can release the log (which
+			 * drops the ref count).  The state switch keeps new
+			 * transaction commits from using this buffer.  When
+			 * the current commits finish writing into the buffer,
+			 * the refcount will drop to zero and the buffer will
+			 * go out then.
+			 */
+			if (!already_slept &&
+			    (iclog->ic_prev->ic_state &
+			     (XLOG_STATE_WANT_SYNC | XLOG_STATE_SYNCING))) {
+				ASSERT(!(iclog->ic_state & XLOG_STATE_IOERROR));
+
+				XFS_STATS_INC(xs_log_force_sleep);
+
+				sv_wait(&iclog->ic_prev->ic_write_wait,
+					PSWP, &log->l_icloglock, s);
+				if (log_flushed)
+					*log_flushed = 1;
+				already_slept = 1;
+				goto try_again;
+			}
 			atomic_inc(&iclog->ic_refcnt);
 			xlog_state_switch_iclogs(log, iclog, 0);
 			spin_unlock(&log->l_icloglock);
 			if (xlog_state_release_iclog(log, iclog))
 				return XFS_ERROR(EIO);
-			*log_flushed = 1;
+			if (log_flushed)
+				*log_flushed = 1;
 			spin_lock(&log->l_icloglock);
 		}
-	}
 
-	if ((flags & XFS_LOG_SYNC) && /* sleep */
-	    !(iclog->ic_state & (XLOG_STATE_ACTIVE | XLOG_STATE_DIRTY))) {
+		if ((flags & XFS_LOG_SYNC) && /* sleep */
+		    !(iclog->ic_state &
+		      (XLOG_STATE_ACTIVE | XLOG_STATE_DIRTY))) {
+			/*
+			 * Don't wait on completion if we know that we've
+			 * gotten a log write error.
+			 */
+			if (iclog->ic_state & XLOG_STATE_IOERROR) {
+				spin_unlock(&log->l_icloglock);
+				return XFS_ERROR(EIO);
+			}
+			XFS_STATS_INC(xs_log_force_sleep);
+			sv_wait(&iclog->ic_force_wait, PSWP, &log->l_icloglock, s);
+			/*
+			 * No need to grab the log lock here since we're
+			 * only deciding whether or not to return EIO
+			 * and the memory read should be atomic.
+			 */
+			if (iclog->ic_state & XLOG_STATE_IOERROR)
+				return XFS_ERROR(EIO);
 
-		/*
-		 * Don't wait on completion if we know that we've
-		 * gotten a log write error.
-		 */
-		if (iclog->ic_state & XLOG_STATE_IOERROR) {
+			if (log_flushed)
+				*log_flushed = 1;
+		} else {		/* just return */
 			spin_unlock(&log->l_icloglock);
-			return XFS_ERROR(EIO);
 		}
-		XFS_STATS_INC(xs_log_force_sleep);
-		sv_wait(&iclog->ic_force_wait, PSWP, &log->l_icloglock, s);
-		/*
-		 * No need to grab the log lock here since we're
-		 * only deciding whether or not to return EIO
-		 * and the memory read should be atomic.
-		 */
-		if (iclog->ic_state & XLOG_STATE_IOERROR)
-			return XFS_ERROR(EIO);
-		*log_flushed = 1;
-	} else {		/* just return */
-		spin_unlock(&log->l_icloglock);
-	}
+
+		return 0;
+	} while (iclog != log->l_iclog);
+
+	spin_unlock(&log->l_icloglock);
 	return 0;
+}
 
-    } while (iclog != log->l_iclog);
+/*
+ * Wrapper for _xfs_log_force_lsn(), to be used when caller doesn't care
+ * about errors or whether the log was flushed or not. This is the normal
+ * interface to use when trying to unpin items or move the log forward.
+ */
+void
+xfs_log_force_lsn(
+	xfs_mount_t	*mp,
+	xfs_lsn_t	lsn,
+	uint		flags)
+{
+	int	error;
 
-    spin_unlock(&log->l_icloglock);
-    return 0;
-}	/* xlog_state_sync */
-
+	error = _xfs_log_force_lsn(mp, lsn, flags, NULL);
+	if (error) {
+		xfs_fs_cmn_err(CE_WARN, mp, "xfs_log_force: "
+			"error %d returned.", error);
+	}
+}
 
 /*
  * Called when we want to mark the current iclog as being ready to sync to
@@ -3462,7 +3456,6 @@ xfs_log_force_umount(
 	xlog_ticket_t	*tic;
 	xlog_t		*log;
 	int		retval;
-	int		dummy;
 
 	log = mp->m_log;
 
@@ -3536,13 +3529,14 @@ xfs_log_force_umount(
 	}
 	spin_unlock(&log->l_grant_lock);
 
-	if (! (log->l_iclog->ic_state & XLOG_STATE_IOERROR)) {
+	if (!(log->l_iclog->ic_state & XLOG_STATE_IOERROR)) {
 		ASSERT(!logerror);
 		/*
 		 * Force the incore logs to disk before shutting the
 		 * log down completely.
 		 */
-		xlog_state_sync_all(log, XFS_LOG_FORCE|XFS_LOG_SYNC, &dummy);
+		_xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+
 		spin_lock(&log->l_icloglock);
 		retval = xlog_state_ioerror(log);
 		spin_unlock(&log->l_icloglock);

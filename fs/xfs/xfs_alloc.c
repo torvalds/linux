@@ -2601,5 +2601,5 @@ xfs_alloc_search_busy(xfs_trans_t *tp,
 	 * transaction that freed the block
 	 */
 	if (lsn)
-		xfs_log_force(tp->t_mountp, lsn, XFS_LOG_FORCE|XFS_LOG_SYNC);
+		xfs_log_force_lsn(tp->t_mountp, lsn, XFS_LOG_SYNC);
 }

@@ -190,7 +190,7 @@ xfs_qm_dqunpin_wait(
 	/*
 	 * Give the log a push so we don't wait here too long.
 	 */
-	xfs_log_force(dqp->q_mount, (xfs_lsn_t)0, XFS_LOG_FORCE);
+	xfs_log_force(dqp->q_mount, 0);
 	wait_event(dqp->q_pinwait, (atomic_read(&dqp->q_pincount) == 0));
 }
 
@@ -245,10 +245,9 @@ xfs_qm_dquot_logitem_pushbuf(
 			qip->qli_pushbuf_flag = 0;
 			xfs_dqunlock(dqp);
 
-			if (XFS_BUF_ISPINNED(bp)) {
-				xfs_log_force(mp, (xfs_lsn_t)0,
-					      XFS_LOG_FORCE);
-			}
+			if (XFS_BUF_ISPINNED(bp))
+				xfs_log_force(mp, 0);
+
 			if (dopush) {
 				int	error;
 #ifdef XFSRACEDEBUG

@@ -3913,8 +3913,7 @@ xlog_recover_finish(
 		 * case the unlink transactions would have problems
 		 * pushing the EFIs out of the way.
 		 */
-		xfs_log_force(log->l_mp, (xfs_lsn_t)0,
-			      (XFS_LOG_FORCE | XFS_LOG_SYNC));
+		xfs_log_force(log->l_mp, XFS_LOG_SYNC);
 
 		xlog_recover_process_iunlinks(log);
 

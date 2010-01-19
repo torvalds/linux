@@ -2484,8 +2484,11 @@ __xfs_iunpin_wait(
 		return;
 
 	/* Give the log a push to start the unpinning I/O */
-	xfs_log_force(ip->i_mount, (iip && iip->ili_last_lsn) ?
-				iip->ili_last_lsn : 0, XFS_LOG_FORCE);
+	if (iip && iip->ili_last_lsn)
+		xfs_log_force_lsn(ip->i_mount, iip->ili_last_lsn, 0);
+	else
+		xfs_log_force(ip->i_mount, 0);
+
 	if (wait)
 		wait_event(ip->i_ipin_wait, (atomic_read(&ip->i_pincount) == 0));
 }
@@ -2970,7 +2973,7 @@ xfs_iflush(
 	 * get stuck waiting in the write for too long.
 	 */
 	if (XFS_BUF_ISPINNED(bp))
-		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
+		xfs_log_force(mp, 0);
 
 	/*
 	 * inode clustering:

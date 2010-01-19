@@ -804,10 +804,9 @@ xfs_inode_item_pushbuf(
 
 			trace_xfs_inode_item_push(bp, _RET_IP_);
 
-			if (XFS_BUF_ISPINNED(bp)) {
-				xfs_log_force(mp, (xfs_lsn_t)0,
-					      XFS_LOG_FORCE);
-			}
+			if (XFS_BUF_ISPINNED(bp))
+				xfs_log_force(mp, 0);
+
 			if (dopush) {
 				int	error;
 				error = xfs_bawrite(mp, bp);

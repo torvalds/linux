@@ -371,7 +371,7 @@ xfsaild_push(
 		 * move forward in the AIL.
 		 */
 		XFS_STATS_INC(xs_push_ail_flush);
-		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
+		xfs_log_force(mp, 0);
 	}
 
 	if (!count) {
