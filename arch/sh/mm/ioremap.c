@@ -35,11 +35,10 @@
  */
 void __iomem * __init_refok
 __ioremap_caller(unsigned long phys_addr, unsigned long size,
-		 unsigned long flags, void *caller)
+		 pgprot_t pgprot, void *caller)
 {
 	struct vm_struct *area;
 	unsigned long offset, last_addr, addr, orig_addr;
-	pgprot_t pgprot;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -69,7 +68,7 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 	 * If we can't yet use the regular approach, go the fixmap route.
 	 */
 	if (!mem_init_done)
-		return ioremap_fixed(phys_addr, size, __pgprot(flags));
+		return ioremap_fixed(phys_addr, size, pgprot);
 
 	/*
 	 * Ok, go for it..
@@ -91,8 +90,9 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 	 * PMB entries are all pre-faulted.
 	 */
 	if (unlikely(phys_addr >= P1SEG)) {
-		unsigned long mapped = pmb_remap(addr, phys_addr, size, flags);
+		unsigned long mapped;
 
+		mapped = pmb_remap(addr, phys_addr, size, pgprot_val(pgprot));
 		if (likely(mapped)) {
 			addr		+= mapped;
 			phys_addr	+= mapped;
@@ -101,7 +101,6 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 	}
 #endif
 
-	pgprot = __pgprot(pgprot_val(PAGE_KERNEL_NOCACHE) | flags);
 	if (likely(size))
 		if (ioremap_page_range(addr, addr + size, phys_addr, pgprot)) {
 			vunmap((void *)orig_addr);

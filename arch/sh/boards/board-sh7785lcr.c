@@ -21,6 +21,7 @@
 #include <linux/i2c-algo-pca.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <mach/sh7785lcr.h>
@@ -332,15 +333,14 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 	pm_power_off = sh7785lcr_power_off;
 
 	/* sm501 DRAM configuration */
-	sm501_reg = ioremap_fixed(SM107_REG_ADDR, SM501_DRAM_CONTROL,
-				  PAGE_KERNEL);
+	sm501_reg = ioremap_nocache(SM107_REG_ADDR, SM501_DRAM_CONTROL);
 	if (!sm501_reg) {
 		printk(KERN_ERR "%s: ioremap error.\n", __func__);
 		return;
 	}
 
 	writel(0x000307c2, sm501_reg + SM501_DRAM_CONTROL);
-	iounmap_fixed(sm501_reg);
+	iounmap(sm501_reg);
 }
 
 /* Return the board specific boot mode pin configuration */

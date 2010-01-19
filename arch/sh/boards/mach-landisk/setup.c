@@ -63,7 +63,7 @@ static int __init landisk_devices_setup(void)
 	/* open I/O area window */
 	paddrbase = virt_to_phys((void *)PA_AREA5_IO);
 	prot = PAGE_KERNEL_PCC(1, _PAGE_PCC_IO16);
-	cf_ide_base = p3_ioremap(paddrbase, PAGE_SIZE, prot.pgprot);
+	cf_ide_base = p3_ioremap(paddrbase, PAGE_SIZE, prot);
 	if (!cf_ide_base) {
 		printk("allocate_cf_area : can't open CF I/O window!\n");
 		return -ENOMEM;
