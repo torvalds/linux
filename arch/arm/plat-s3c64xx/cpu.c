@@ -73,6 +73,11 @@ static struct map_desc s3c_iodesc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
+		.virtual	= (unsigned long)S3C_VA_MEM,
+		.pfn		= __phys_to_pfn(S3C64XX_PA_SROM),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= (unsigned long)(S3C_VA_UART + UART_OFFS),
 		.pfn		= __phys_to_pfn(S3C_PA_UART),
 		.length		= SZ_4K,

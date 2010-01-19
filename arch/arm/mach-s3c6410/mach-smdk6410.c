@@ -49,6 +49,7 @@
 #include <plat/regs-modem.h>
 #include <plat/regs-gpio.h>
 #include <plat/regs-sys.h>
+#include <plat/regs-srom.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
@@ -154,10 +155,20 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 };
 
+/*
+ * Configuring Ethernet on SMDK6410
+ *
+ * Both CS8900A and LAN9115 chips share one chip select mediated by CFG6.
+ * The constant address below corresponds to nCS1
+ *
+ *  1) Set CFGB2 p3 ON others off, no other CFGB selects "ethernet"
+ *  2) CFG6 needs to be switched to "LAN9115" side
+ */
+
 static struct resource smdk6410_smsc911x_resources[] = {
 	[0] = {
-		.start = 0x18000000,
-		.end   = 0x18000000 + SZ_64K - 1,
+		.start = S3C64XX_PA_XM0CSN1,
+		.end   = S3C64XX_PA_XM0CSN1 + SZ_64K - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -430,9 +441,31 @@ static void __init smdk6410_map_io(void)
 
 static void __init smdk6410_machine_init(void)
 {
+	u32 cs1;
+
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
+
+	/* configure nCS1 width to 16 bits */
+
+	cs1 = __raw_readl(S3C64XX_SROM_BW) &
+		    ~(S3C64XX_SROM_BW__CS_MASK << S3C64XX_SROM_BW__NCS1__SHIFT);
+	cs1 |= ((1 << S3C64XX_SROM_BW__DATAWIDTH__SHIFT) |
+		(1 << S3C64XX_SROM_BW__WAITENABLE__SHIFT) |
+		(1 << S3C64XX_SROM_BW__BYTEENABLE__SHIFT)) <<
+						   S3C64XX_SROM_BW__NCS1__SHIFT;
+	__raw_writel(cs1, S3C64XX_SROM_BW);
+
+	/* set timing for nCS1 suitable for ethernet chip */
+
+	__raw_writel((0 << S3C64XX_SROM_BCX__PMC__SHIFT) |
+		     (6 << S3C64XX_SROM_BCX__TACP__SHIFT) |
+		     (4 << S3C64XX_SROM_BCX__TCAH__SHIFT) |
+		     (1 << S3C64XX_SROM_BCX__TCOH__SHIFT) |
+		     (0xe << S3C64XX_SROM_BCX__TACC__SHIFT) |
+		     (4 << S3C64XX_SROM_BCX__TCOS__SHIFT) |
+		     (0 << S3C64XX_SROM_BCX__TACS__SHIFT), S3C64XX_SROM_BC1);
 
 	gpio_request(S3C64XX_GPN(5), "LCD power");
 	gpio_request(S3C64XX_GPF(13), "LCD power");
