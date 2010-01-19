@@ -18,7 +18,76 @@
 #include <asm/clock.h>
 #include <asm/mmzone.h>
 #include <asm/dma-sh.h>
+#include <asm/siu.h>
 #include <cpu/sh7722.h>
+
+static struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
+	{
+		.slave_id	= SHDMA_SLAVE_SCIF0_TX,
+		.addr		= 0xffe0000c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x21,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF0_RX,
+		.addr		= 0xffe00014,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x22,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF1_TX,
+		.addr		= 0xffe1000c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x25,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF1_RX,
+		.addr		= 0xffe10014,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x26,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF2_TX,
+		.addr		= 0xffe2000c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x29,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SCIF2_RX,
+		.addr		= 0xffe20014,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_8BIT),
+		.mid_rid	= 0x2a,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUA_TX,
+		.addr		= 0xa454c098,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb1,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUA_RX,
+		.addr		= 0xa454c090,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb2,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUB_TX,
+		.addr		= 0xa454c09c,
+		.chcr		= DM_FIX | SM_INC | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb5,
+	}, {
+		.slave_id	= SHDMA_SLAVE_SIUB_RX,
+		.addr		= 0xa454c094,
+		.chcr		= DM_INC | SM_FIX | 0x800 | TS_INDEX2VAL(XMIT_SZ_32BIT),
+		.mid_rid	= 0xb6,
+	},
+};
+
+static struct sh_dmae_pdata dma_platform_data = {
+	.mode		= 0,
+	.config		= sh7722_dmae_slaves,
+	.config_num	= ARRAY_SIZE(sh7722_dmae_slaves),
+};
+
+struct platform_device dma_device = {
+	.name		= "sh-dma-engine",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &dma_platform_data,
+	},
+};
 
 /* Serial */
 static struct plat_sci_port scif0_platform_data = {
@@ -388,15 +457,36 @@ static struct platform_device tmu2_device = {
 	},
 };
 
-static struct sh_dmae_pdata dma_platform_data = {
-	.mode = 0,
+static struct siu_platform siu_platform_data = {
+	.dma_dev	= &dma_device.dev,
+	.dma_slave_tx_a	= SHDMA_SLAVE_SIUA_TX,
+	.dma_slave_rx_a	= SHDMA_SLAVE_SIUA_RX,
+	.dma_slave_tx_b	= SHDMA_SLAVE_SIUB_TX,
+	.dma_slave_rx_b	= SHDMA_SLAVE_SIUB_RX,
 };
 
-static struct platform_device dma_device = {
-	.name		= "sh-dma-engine",
+static struct resource siu_resources[] = {
+	[0] = {
+		.start	= 0xa4540000,
+		.end	= 0xa454c10f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 108,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device siu_device = {
+	.name		= "sh_siu",
 	.id		= -1,
-	.dev		= {
-		.platform_data	= &dma_platform_data,
+	.dev = {
+		.platform_data	= &siu_platform_data,
+	},
+	.resource	= siu_resources,
+	.num_resources	= ARRAY_SIZE(siu_resources),
+	.archdata = {
+		.hwblk_id = HWBLK_SIU,
 	},
 };
 
@@ -414,6 +504,7 @@ static struct platform_device *sh7722_devices[] __initdata = {
 	&vpu_device,
 	&veu_device,
 	&jpu_device,
+	&siu_device,
 	&dma_device,
 };
 
