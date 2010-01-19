@@ -275,33 +275,19 @@ extern void xfs_buf_terminate(void);
 	({ char __b[BDEVNAME_SIZE]; bdevname((target)->bt_bdev, __b); __b; })
 
 
-#define XFS_B_ASYNC		XBF_ASYNC
-#define XFS_B_DELWRI		XBF_DELWRI
-#define XFS_B_READ		XBF_READ
-#define XFS_B_WRITE		XBF_WRITE
-#define XFS_B_STALE		XBF_STALE
-
-#define XFS_BUF_TRYLOCK		XBF_TRYLOCK
-#define XFS_INCORE_TRYLOCK	XBF_TRYLOCK
-#define XFS_BUF_LOCK		XBF_LOCK
-#define XFS_BUF_MAPPED		XBF_MAPPED
-
-#define BUF_BUSY		XBF_DONT_BLOCK
-
 #define XFS_BUF_BFLAGS(bp)	((bp)->b_flags)
 #define XFS_BUF_ZEROFLAGS(bp)	((bp)->b_flags &= \
 		~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI|XBF_ORDERED))
 
-#define XFS_BUF_STALE(bp)	((bp)->b_flags |= XFS_B_STALE)
-#define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XFS_B_STALE)
-#define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XFS_B_STALE)
+#define XFS_BUF_STALE(bp)	((bp)->b_flags |= XBF_STALE)
+#define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
+#define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
 #define XFS_BUF_SUPER_STALE(bp)	do {				\
 					XFS_BUF_STALE(bp);	\
 					xfs_buf_delwri_dequeue(bp);	\
 					XFS_BUF_DONE(bp);	\
 				} while (0)
 
-#define XFS_BUF_MANAGE		XBF_FS_MANAGED
 #define XFS_BUF_UNMANAGE(bp)	((bp)->b_flags &= ~XBF_FS_MANAGED)
 
 #define XFS_BUF_DELAYWRITE(bp)		((bp)->b_flags |= XBF_DELWRI)
@@ -390,7 +376,7 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 
 #define xfs_biomove(bp, off, len, data, rw) \
 	    xfs_buf_iomove((bp), (off), (len), (data), \
-		((rw) == XFS_B_WRITE) ? XBRW_WRITE : XBRW_READ)
+		((rw) == XBF_WRITE) ? XBRW_WRITE : XBRW_READ)
 
 #define xfs_biozero(bp, off, len) \
 	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)

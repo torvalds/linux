@@ -665,7 +665,7 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * access to the superblock.
 	 */
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
-	extra_flags = XFS_BUF_LOCK | XFS_BUF_MANAGE | XFS_BUF_MAPPED;
+	extra_flags = XBF_LOCK | XBF_FS_MANAGED | XBF_MAPPED;
 
 	bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR, BTOBB(sector_size),
 			  extra_flags);
@@ -1969,7 +1969,7 @@ xfs_getsb(
 
 	ASSERT(mp->m_sb_bp != NULL);
 	bp = mp->m_sb_bp;
-	if (flags & XFS_BUF_TRYLOCK) {
+	if (flags & XBF_TRYLOCK) {
 		if (!XFS_BUF_CPSEMA(bp)) {
 			return NULL;
 		}

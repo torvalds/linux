@@ -2180,7 +2180,7 @@ xfs_alloc_read_agf(
 	ASSERT(agno != NULLAGNUMBER);
 
 	error = xfs_read_agf(mp, tp, agno,
-			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XFS_BUF_TRYLOCK : 0,
+			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XBF_TRYLOCK : 0,
 			bpp);
 	if (error)
 		return error;

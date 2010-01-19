@@ -1169,7 +1169,7 @@ xfs_bioerror_relse(
 	XFS_BUF_STALE(bp);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	if (!(fl & XFS_B_ASYNC)) {
+	if (!(fl & XBF_ASYNC)) {
 		/*
 		 * Mark b_error and B_ERROR _both_.
 		 * Lot's of chunkcache code assumes that.

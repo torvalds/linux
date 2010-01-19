@@ -234,7 +234,7 @@ xfs_sync_inode_data(
 	}
 
 	error = xfs_flush_pages(ip, 0, -1, (flags & SYNC_WAIT) ?
-				0 : XFS_B_ASYNC, FI_NONE);
+				0 : XBF_ASYNC, FI_NONE);
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
  out_wait:
@@ -370,7 +370,7 @@ xfs_sync_fsdata(
 	if (flags & SYNC_TRYLOCK) {
 		ASSERT(!(flags & SYNC_WAIT));
 
-		bp = xfs_getsb(mp, XFS_BUF_TRYLOCK);
+		bp = xfs_getsb(mp, XBF_TRYLOCK);
 		if (!bp)
 			goto out;
 

@@ -785,7 +785,7 @@ xfs_inode_item_pushbuf(
 
 	mp = ip->i_mount;
 	bp = xfs_incore(mp->m_ddev_targp, iip->ili_format.ilf_blkno,
-		    iip->ili_format.ilf_len, XFS_INCORE_TRYLOCK);
+		    iip->ili_format.ilf_len, XBF_TRYLOCK);
 
 	if (bp != NULL) {
 		if (XFS_BUF_ISDELAYWRITE(bp)) {
