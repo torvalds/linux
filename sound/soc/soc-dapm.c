@@ -1012,11 +1012,26 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 			sys_power = 0;
 			break;
 		case SND_SOC_DAPM_STREAM_NOP:
-			sys_power = codec->bias_level != SND_SOC_BIAS_STANDBY;
+			switch (codec->bias_level) {
+				case SND_SOC_BIAS_STANDBY:
+				case SND_SOC_BIAS_OFF:
+					sys_power = 0;
+					break;
+				default:
+					sys_power = 1;
+					break;
+			}
 			break;
 		default:
 			break;
 		}
+	}
+
+	if (sys_power && codec->bias_level == SND_SOC_BIAS_OFF) {
+		ret = snd_soc_dapm_set_bias_level(socdev,
+						  SND_SOC_BIAS_STANDBY);
+		if (ret != 0)
+			pr_err("Failed to turn on bias: %d\n", ret);
 	}
 
 	/* If we're changing to all on or all off then prepare */
@@ -1040,6 +1055,14 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 						  SND_SOC_BIAS_STANDBY);
 		if (ret != 0)
 			pr_err("Failed to apply standby bias: %d\n", ret);
+	}
+
+	/* If we're in standby and can support bias off then do that */
+	if (codec->bias_level == SND_SOC_BIAS_STANDBY &&
+	    codec->idle_bias_off) {
+		ret = snd_soc_dapm_set_bias_level(socdev, SND_SOC_BIAS_OFF);
+		if (ret != 0)
+			pr_err("Failed to turn off bias: %d\n", ret);
 	}
 
 	/* If we just powered up then move to active bias */

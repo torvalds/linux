@@ -405,6 +405,8 @@ struct snd_soc_codec {
 	short reg_cache_size;
 	short reg_cache_step;
 
+	unsigned int idle_bias_off:1; /* Use BIAS_OFF instead of STANDBY */
+
 	/* dapm */
 	u32 pop_time;
 	struct list_head dapm_widgets;
