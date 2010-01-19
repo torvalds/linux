@@ -246,6 +246,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 		case ATOM_WS_ATTRIBUTES:
 			val = gctx->io_attr;
 			break;
+		case ATOM_WS_REGPTR:
+			val = gctx->reg_block;
+			break;
 		default:
 			val = ctx->ws[idx];
 		}
@@ -508,6 +511,9 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 		case ATOM_WS_ATTRIBUTES:
 			gctx->io_attr = val;
 			break;
+		case ATOM_WS_REGPTR:
+			gctx->reg_block = val;
+			break;
 		default:
 			ctx->ws[idx] = val;
 		}
@@ -705,7 +711,7 @@ static void atom_op_mask(atom_exec_context *ctx, int *ptr, int arg)
 	SDEBUG("   src1: ");
 	src1 = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
 	SDEBUG("   src2: ");
-	src2 = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
+	src2 = atom_get_src(ctx, attr, ptr);
 	dst &= src1;
 	dst |= src2;
 	SDEBUG("   dst: ");
