@@ -3806,12 +3806,12 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 	longmode = is_long_mode(vcpu) && cs_l == 1;
 
 	if (!longmode) {
-		param = (kvm_register_read(vcpu, VCPU_REGS_RDX) << 32) |
-			(kvm_register_read(vcpu, VCPU_REGS_RAX) & 0xffffff);
-		ingpa = (kvm_register_read(vcpu, VCPU_REGS_RBX) << 32) |
-			(kvm_register_read(vcpu, VCPU_REGS_RCX) & 0xffffff);
-		outgpa = (kvm_register_read(vcpu, VCPU_REGS_RDI) << 32) |
-			(kvm_register_read(vcpu, VCPU_REGS_RSI) & 0xffffff);
+		param = ((u64)kvm_register_read(vcpu, VCPU_REGS_RDX) << 32) |
+			(kvm_register_read(vcpu, VCPU_REGS_RAX) & 0xffffffff);
+		ingpa = ((u64)kvm_register_read(vcpu, VCPU_REGS_RBX) << 32) |
+			(kvm_register_read(vcpu, VCPU_REGS_RCX) & 0xffffffff);
+		outgpa = ((u64)kvm_register_read(vcpu, VCPU_REGS_RDI) << 32) |
+			(kvm_register_read(vcpu, VCPU_REGS_RSI) & 0xffffffff);
 	}
 #ifdef CONFIG_X86_64
 	else {
