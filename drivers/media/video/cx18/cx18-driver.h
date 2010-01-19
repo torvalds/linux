@@ -575,6 +575,9 @@ struct cx18 {
 	int stream_buf_size[CX18_MAX_STREAMS]; /* Stream buffer size */
 	struct cx18_stream streams[CX18_MAX_STREAMS]; 	/* Stream data */
 	struct snd_cx18_card *alsa; /* ALSA interface for PCM capture stream */
+	void (*pcm_announce_callback)(struct snd_cx18_card *card, u8 *pcm_data,
+				      size_t num_bytes);
+
 	unsigned long i_flags;  /* global cx18 flags */
 	atomic_t ana_capturing;	/* count number of active analog capture streams */
 	atomic_t tot_capturing;	/* total count number of active capture streams */

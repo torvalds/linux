@@ -24,6 +24,10 @@ struct snd_card;
 struct snd_cx18_card {
 	struct v4l2_device *v4l2_dev;
 	struct snd_card *sc;
+	unsigned int capture_transfer_done;
+	unsigned int hwptr_done_capture;
+	struct snd_pcm_substream *capture_pcm_substream;
+	spinlock_t slock;
 };
 
 extern int cx18_alsa_debug;
