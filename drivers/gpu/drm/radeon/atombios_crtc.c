@@ -575,8 +575,8 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
-int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
-			   struct drm_framebuffer *old_fb)
+static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
+			       struct drm_framebuffer *old_fb)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
@@ -706,6 +706,18 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
+int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
+			   struct drm_framebuffer *old_fb)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (ASIC_IS_AVIVO(rdev))
+		return avivo_crtc_set_base(crtc, x, y, old_fb);
+	else
+		return radeon_crtc_set_base(crtc, x, y, old_fb);
+}
+
 int atombios_crtc_mode_set(struct drm_crtc *crtc,
 			   struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode,
@@ -727,7 +739,7 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 	else {
 		if (radeon_crtc->crtc_id == 0)
 			atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
-		radeon_crtc_set_base(crtc, x, y, old_fb);
+		atombios_crtc_set_base(crtc, x, y, old_fb);
 		radeon_legacy_atom_set_surface(crtc);
 	}
 	atombios_overscan_setup(crtc, mode, adjusted_mode);
