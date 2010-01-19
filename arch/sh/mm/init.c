@@ -98,21 +98,6 @@ static void clear_pte_phys(unsigned long addr, pgprot_t prot)
 	local_flush_tlb_one(get_asid(), addr);
 }
 
-/*
- * As a performance optimization, other platforms preserve the fixmap mapping
- * across a context switch, we don't presently do this, but this could be done
- * in a similar fashion as to the wired TLB interface that sh64 uses (by way
- * of the memory mapped UTLB configuration) -- this unfortunately forces us to
- * give up a TLB entry for each mapping we want to preserve. While this may be
- * viable for a small number of fixmaps, it's not particularly useful for
- * everything and needs to be carefully evaluated. (ie, we may want this for
- * the vsyscall page).
- *
- * XXX: Perhaps add a _PAGE_WIRED flag or something similar that we can pass
- * in at __set_fixmap() time to determine the appropriate behavior to follow.
- *
- *					 -- PFM.
- */
 void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
