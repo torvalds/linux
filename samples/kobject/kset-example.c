@@ -87,7 +87,7 @@ static ssize_t foo_attr_store(struct kobject *kobj,
 }
 
 /* Our custom sysfs_ops that we will associate with our ktype later on */
-static struct sysfs_ops foo_sysfs_ops = {
+static const struct sysfs_ops foo_sysfs_ops = {
 	.show = foo_attr_show,
 	.store = foo_attr_store,
 };
