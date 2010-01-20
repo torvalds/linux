@@ -522,7 +522,7 @@ crc_err:
  *
  * Called after receiving a Transfer Ready data descriptor.
  * If the LLD is capable of sequence offload then send down the
- * seq_blen ammount of data in single frame, otherwise send
+ * seq_blen amount of data in single frame, otherwise send
  * multiple frames of the maximum frame payload supported by
  * the target port.
  */

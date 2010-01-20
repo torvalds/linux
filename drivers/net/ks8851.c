@@ -407,7 +407,7 @@ static irqreturn_t ks8851_irq(int irq, void *pw)
  * @buff: The buffer address
  * @len: The length of the data to read
  *
- * Issue an RXQ FIFO read command and read the @len ammount of data from
+ * Issue an RXQ FIFO read command and read the @len amount of data from
  * the FIFO into the buffer specified by @buff.
  */
 static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
