@@ -338,10 +338,3 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
-#ifdef CONFIG_PMB
-int __in_29bit_mode(void)
-{
-	return !(ctrl_inl(PMB_PASCR) & PASCR_SE);
-}
-#endif /* CONFIG_PMB */

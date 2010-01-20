@@ -31,6 +31,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/errno.h>
+#include <linux/threads.h>
 
 /* Default "unsigned long" context */
 typedef unsigned long mm_context_id_t[NR_CPUS];
@@ -72,6 +73,7 @@ long pmb_remap(unsigned long virt, unsigned long phys,
 	       unsigned long size, unsigned long flags);
 void pmb_unmap(unsigned long addr);
 int pmb_init(void);
+bool __in_29bit_mode(void);
 #else
 static inline long pmb_remap(unsigned long virt, unsigned long phys,
 			     unsigned long size, unsigned long flags)
@@ -87,8 +89,14 @@ static inline int pmb_init(void)
 {
 	return -ENODEV;
 }
-#endif /* CONFIG_PMB */
 
+#ifdef CONFIG_29BIT
+#define __in_29bit_mode()	(1)
+#else
+#define __in_29bit_mode()	(0)
+#endif
+
+#endif /* CONFIG_PMB */
 #endif /* __ASSEMBLY__ */
 
 #endif /* __MMU_H */

@@ -65,11 +65,5 @@
 #define P3_ADDR_MAX		P4SEG
 #endif
 
-#ifndef __ASSEMBLY__
-#ifdef CONFIG_PMB
-extern int __in_29bit_mode(void);
-#endif /* CONFIG_PMB */
-#endif /* __ASSEMBLY__ */
-
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */

@@ -436,6 +436,11 @@ int __uses_jump_to_uncached pmb_init(void)
 	return 0;
 }
 
+bool __in_29bit_mode(void)
+{
+        return (__raw_readl(PMB_PASCR) & PASCR_SE) == 0;
+}
+
 static int pmb_seq_show(struct seq_file *file, void *iter)
 {
 	int i;
