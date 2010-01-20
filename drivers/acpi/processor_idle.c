@@ -516,23 +516,6 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	return status;
 }
 
-static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
-{
-
-	if (!cx->address)
-		return;
-
-	/*
-	 * Otherwise we've met all of our C2 requirements.
-	 * Normalize the C2 latency to expidite policy
-	 */
-	cx->valid = 1;
-
-	cx->latency_ticks = cx->latency;
-
-	return;
-}
-
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 					   struct acpi_processor_cx *cx)
 {
@@ -631,7 +614,10 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 			break;
 
 		case ACPI_STATE_C2:
-			acpi_processor_power_verify_c2(cx);
+			if (!cx->address)
+				break;
+			cx->valid = 1; 
+			cx->latency_ticks = cx->latency; /* Normalize latency */
 			break;
 
 		case ACPI_STATE_C3:
