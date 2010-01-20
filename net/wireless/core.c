@@ -413,6 +413,18 @@ int wiphy_register(struct wiphy *wiphy)
 	int i;
 	u16 ifmodes = wiphy->interface_modes;
 
+	if (WARN_ON(wiphy->addresses && !wiphy->n_addresses))
+		return -EINVAL;
+
+	if (WARN_ON(wiphy->addresses &&
+		    !is_zero_ether_addr(wiphy->perm_addr) &&
+		    memcmp(wiphy->perm_addr, wiphy->addresses[0].addr,
+			   ETH_ALEN)))
+		return -EINVAL;
+
+	if (wiphy->addresses)
+		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
+
 	/* sanity check ifmodes */
 	WARN_ON(!ifmodes);
 	ifmodes &= ((1 << __NL80211_IFTYPE_AFTER_LAST) - 1) & ~1;

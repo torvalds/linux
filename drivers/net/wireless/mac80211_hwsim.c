@@ -281,6 +281,8 @@ struct mac80211_hwsim_data {
 	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
 
+	struct mac_address addresses[2];
+
 	struct ieee80211_channel *channel;
 	unsigned long beacon_int; /* in jiffies unit */
 	unsigned int rx_filter;
@@ -1154,7 +1156,11 @@ static int __init init_mac80211_hwsim(void)
 		SET_IEEE80211_DEV(hw, data->dev);
 		addr[3] = i >> 8;
 		addr[4] = i;
-		SET_IEEE80211_PERM_ADDR(hw, addr);
+		memcpy(data->addresses[0].addr, addr, ETH_ALEN);
+		memcpy(data->addresses[1].addr, addr, ETH_ALEN);
+		data->addresses[1].addr[0] |= 0x40;
+		hw->wiphy->n_addresses = 2;
+		hw->wiphy->addresses = data->addresses;
 
 		hw->channel_change_time = 1;
 		hw->queues = 4;
