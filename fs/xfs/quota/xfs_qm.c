@@ -118,9 +118,14 @@ xfs_Gqm_init(void)
 	 */
 	udqhash = kmem_zalloc_greedy(&hsize,
 				     XFS_QM_HASHSIZE_LOW * sizeof(xfs_dqhash_t),
-				     XFS_QM_HASHSIZE_HIGH * sizeof(xfs_dqhash_t),
-				     KM_SLEEP | KM_MAYFAIL | KM_LARGE);
-	gdqhash = kmem_zalloc(hsize, KM_SLEEP | KM_LARGE);
+				     XFS_QM_HASHSIZE_HIGH * sizeof(xfs_dqhash_t));
+	if (!udqhash)
+		goto out;
+
+	gdqhash = kmem_zalloc_large(hsize);
+	if (!udqhash)
+		goto out_free_udqhash;
+
 	hsize /= sizeof(xfs_dqhash_t);
 	ndquot = hsize << 8;
 
@@ -170,6 +175,11 @@ xfs_Gqm_init(void)
 	mutex_init(&qcheck_lock);
 #endif
 	return xqm;
+
+ out_free_udqhash:
+	kmem_free_large(udqhash);
+ out:
+	return NULL;
 }
 
 /*
@@ -189,8 +199,8 @@ xfs_qm_destroy(
 		xfs_qm_list_destroy(&(xqm->qm_usr_dqhtable[i]));
 		xfs_qm_list_destroy(&(xqm->qm_grp_dqhtable[i]));
 	}
-	kmem_free(xqm->qm_usr_dqhtable);
-	kmem_free(xqm->qm_grp_dqhtable);
+	kmem_free_large(xqm->qm_usr_dqhtable);
+	kmem_free_large(xqm->qm_grp_dqhtable);
 	xqm->qm_usr_dqhtable = NULL;
 	xqm->qm_grp_dqhtable = NULL;
 	xqm->qm_dqhashmask = 0;
@@ -219,8 +229,12 @@ xfs_qm_hold_quotafs_ref(
 	 */
 	mutex_lock(&xfs_Gqm_lock);
 
-	if (xfs_Gqm == NULL)
+	if (!xfs_Gqm) {
 		xfs_Gqm = xfs_Gqm_init();
+		if (!xfs_Gqm)
+			return ENOMEM;
+	}
+
 	/*
 	 * We can keep a list of all filesystems with quotas mounted for
 	 * debugging and statistical purposes, but ...
