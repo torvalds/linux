@@ -89,12 +89,6 @@ void rds_message_put(struct rds_message *rm)
 }
 EXPORT_SYMBOL_GPL(rds_message_put);
 
-void rds_message_inc_free(struct rds_incoming *inc)
-{
-	struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
-	rds_message_put(rm);
-}
-
 void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 				 __be16 dport, u64 seq)
 {

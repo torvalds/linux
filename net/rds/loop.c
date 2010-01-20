@@ -64,7 +64,8 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 	BUG_ON(hdr_off || sg || off);
 
 	rds_inc_init(&rm->m_inc, conn, conn->c_laddr);
-	rds_message_addref(rm); /* for the inc */
+	/* For the embedded inc. Matching put is in loop_inc_free() */
+	rds_message_addref(rm);
 
 	rds_recv_incoming(conn, conn->c_laddr, conn->c_faddr, &rm->m_inc,
 			  GFP_KERNEL, KM_USER0);
@@ -75,6 +76,16 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 	rds_inc_put(&rm->m_inc);
 
 	return sizeof(struct rds_header) + be32_to_cpu(rm->m_inc.i_hdr.h_len);
+}
+
+/*
+ * See rds_loop_xmit(). Since our inc is embedded in the rm, we
+ * make sure the rm lives at least until the inc is done.
+ */
+static void rds_loop_inc_free(struct rds_incoming *inc)
+{
+        struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
+        rds_message_put(rm);
 }
 
 static int rds_loop_xmit_cong_map(struct rds_connection *conn,
@@ -176,6 +187,6 @@ struct rds_transport rds_loop_transport = {
 	.conn_connect		= rds_loop_conn_connect,
 	.conn_shutdown		= rds_loop_conn_shutdown,
 	.inc_copy_to_user	= rds_message_inc_copy_to_user,
-	.inc_free		= rds_message_inc_free,
+	.inc_free		= rds_loop_inc_free,
 	.t_name			= "loopback",
 };
