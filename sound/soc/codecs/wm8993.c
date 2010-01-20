@@ -213,6 +213,7 @@ static struct {
 };
 
 struct wm8993_priv {
+	struct wm_hubs_data hubs_data;
 	u16 reg_cache[WM8993_REGISTER_COUNT];
 	struct wm8993_platform_data pdata;
 	struct snd_soc_codec codec;
@@ -997,6 +998,11 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			/* Tune DC servo configuration */
+			snd_soc_write(codec, 0x44, 3);
+			snd_soc_write(codec, 0x56, 3);
+			snd_soc_write(codec, 0x44, 0);
+
 			/* Bring up VMID with fast soft start */
 			snd_soc_update_bits(codec, WM8993_ANTIPOP2,
 					    WM8993_STARTUP_BIAS_ENA |
@@ -1590,6 +1596,8 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	codec->dai = &wm8993_dai;
 	codec->num_dai = 1;
 	codec->private_data = wm8993;
+
+	wm8993->hubs_data.hp_startup_mode = 1;
 
 	memcpy(wm8993->reg_cache, wm8993_reg_defaults,
 	       sizeof(wm8993->reg_cache));
