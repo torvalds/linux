@@ -768,13 +768,12 @@ static int davinci_mcasp_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (!dev->clk_active) {
 			clk_enable(dev->clk);
 			dev->clk_active = 1;
 		}
-		/* Fall through */
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		davinci_mcasp_start(dev, substream->stream);
 		break;
 
