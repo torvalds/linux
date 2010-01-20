@@ -194,12 +194,28 @@ ENTRY(_evt_ivhw)
 ENDPROC(_evt_ivhw)
 
 /* Interrupt routine for evt2 (NMI).
- * We don't actually use this, so just return.
  * For inner circle type details, please see:
  * http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:nmi
  */
 ENTRY(_evt_nmi)
+#ifndef CONFIG_NMI_WATCHDOG
 .weak _evt_nmi
+#else
+	/* Not take account of CPLBs, this handler will not return */
+	SAVE_ALL_SYS
+	r0 = sp;
+	r1 = retn;
+	[sp + PT_PC] = r1;
+	trace_buffer_save(p4,r5);
+
+	ANOMALY_283_315_WORKAROUND(p4, r5)
+
+	SP += -12;
+	call _do_nmi;
+	SP += 12;
+1:
+	jump 1b;
+#endif
 	rtn;
 ENDPROC(_evt_nmi)
 

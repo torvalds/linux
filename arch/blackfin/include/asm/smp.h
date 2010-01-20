@@ -22,6 +22,7 @@ extern char coreb_trampoline_start, coreb_trampoline_end;
 struct corelock_slot {
 	int lock;
 };
+extern struct corelock_slot corelock;
 
 void smp_icache_flush_range_others(unsigned long start,
 				   unsigned long end);
