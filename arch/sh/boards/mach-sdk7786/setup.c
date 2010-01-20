@@ -15,10 +15,11 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
+#include <mach/fpga.h>
+#include <mach/irq.h>
 #include <asm/machvec.h>
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
-#include <mach/fpga.h>
 
 static struct resource heartbeat_resource = {
 	.start		= 0x07fff8b0,
@@ -132,41 +133,6 @@ static int __init sdk7786_devices_setup(void)
 }
 __initcall(sdk7786_devices_setup);
 
-enum {
-	ATA_IRQ_BIT		= 1,
-	SPI_BUSY_BIT		= 2,
-	LIRQ5_BIT		= 3,
-	LIRQ6_BIT		= 4,
-	LIRQ7_BIT		= 5,
-	LIRQ8_BIT		= 6,
-	KEY_IRQ_BIT		= 7,
-	PEN_IRQ_BIT		= 8,
-	ETH_IRQ_BIT		= 9,
-	RTC_ALARM_BIT		= 10,
-	CRYSTAL_FAIL_BIT	= 12,
-	ETH_PME_BIT		= 14,
-};
-
-static void __init init_sdk7786_IRQ(void)
-{
-	unsigned int tmp;
-
-	/* Enable priority encoding for all IRLs */
-	fpga_write_reg(fpga_read_reg(INTMSR) | 0x0303, INTMSR);
-
-	/* Clear FPGA interrupt status registers */
-	fpga_write_reg(0x0000, INTASR);
-	fpga_write_reg(0x0000, INTBSR);
-
-	/* Unmask FPGA interrupts */
-	tmp = fpga_read_reg(INTAMR);
-	tmp &= ~(1 << ETH_IRQ_BIT);
-	fpga_write_reg(tmp, INTAMR);
-
-	plat_irq_setup_pins(IRQ_MODE_IRL7654_MASK);
-	plat_irq_setup_pins(IRQ_MODE_IRL3210_MASK);
-}
-
 static int sdk7786_mode_pins(void)
 {
 	return fpga_read_reg(MODSWR);
@@ -211,5 +177,5 @@ static struct sh_machine_vector mv_sdk7786 __initmv = {
 	.mv_setup		= sdk7786_setup,
 	.mv_mode_pins		= sdk7786_mode_pins,
 	.mv_clk_init		= sdk7786_clk_init,
-	.mv_init_irq		= init_sdk7786_IRQ,
+	.mv_init_irq		= sdk7786_init_irq,
 };

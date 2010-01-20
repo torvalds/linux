@@ -1,1 +1,1 @@
-obj-y	:= setup.o fpga.o
+obj-y	:= setup.o fpga.o irq.o
