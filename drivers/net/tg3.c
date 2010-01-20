@@ -7440,10 +7440,13 @@ static void tg3_rings_reset(struct tg3 *tp)
 		for (i = 1; i < TG3_IRQ_MAX_VECS; i++) {
 			tp->napi[i].tx_prod = 0;
 			tp->napi[i].tx_cons = 0;
-			tw32_mailbox(tp->napi[i].prodmbox, 0);
+			if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
+				tw32_mailbox(tp->napi[i].prodmbox, 0);
 			tw32_rx_mbox(tp->napi[i].consmbox, 0);
 			tw32_mailbox_f(tp->napi[i].int_mbox, 1);
 		}
+		if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS))
+			tw32_mailbox(tp->napi[0].prodmbox, 0);
 	} else {
 		tp->napi[0].tx_prod = 0;
 		tp->napi[0].tx_cons = 0;
