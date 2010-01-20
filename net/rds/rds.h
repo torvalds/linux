@@ -341,6 +341,7 @@ struct rds_message {
 			struct rds_mr		*m_rdma_mr;
 		} rdma;
 		struct rm_data_op {
+			unsigned int		op_active:1;
 			unsigned int		m_nents;
 			unsigned int		m_count;
 			struct scatterlist	*m_sg;
@@ -418,7 +419,7 @@ struct rds_transport {
 	int (*xmit_cong_map)(struct rds_connection *conn,
 			     struct rds_cong_map *map, unsigned long offset);
 	int (*xmit_rdma)(struct rds_connection *conn, struct rds_rdma_op *op);
-	int (*xmit_atomic)(struct rds_connection *conn, struct rm_atomic_op *op);
+	int (*xmit_atomic)(struct rds_connection *conn, struct rds_message *rm);
 	int (*recv)(struct rds_connection *conn);
 	int (*inc_copy_to_user)(struct rds_incoming *inc, struct iovec *iov,
 				size_t size);
