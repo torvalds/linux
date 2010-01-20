@@ -48,6 +48,13 @@ static inline reg_size_t register_align(void *val)
 	return (unsigned long long)(signed long long)(signed long)val;
 }
 
+extern void phys_stext(void);
+
+static inline void trigger_address_error(void)
+{
+	phys_stext();
+}
+
 #define SR_BL_LL	0x0000000010000000LL
 
 static inline void set_bl_bit(void)

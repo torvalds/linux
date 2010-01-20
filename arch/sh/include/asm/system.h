@@ -143,6 +143,7 @@ extern struct dentry *sh_debugfs_root;
 void per_cpu_trap_init(void);
 void default_idle(void);
 void cpu_idle_wait(void);
+void stop_this_cpu(void *);
 
 #ifdef CONFIG_SUPERH32
 #define BUILD_TRAP_HANDLER(name)					\

@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <asm/cacheflush.h>
 #include <asm/sh_bios.h>
+#include <asm/reboot.h>
 
 typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
 				      unsigned long reboot_code_buffer,
@@ -31,12 +32,9 @@ extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
 extern void *vbr_base;
 
-void machine_shutdown(void)
+void native_machine_crash_shutdown(struct pt_regs *regs)
 {
-}
-
-void machine_crash_shutdown(struct pt_regs *regs)
-{
+	/* Nothing to do for UP, but definitely broken for SMP.. */
 }
 
 /*

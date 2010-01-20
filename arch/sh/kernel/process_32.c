@@ -16,63 +16,15 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/elfcore.h>
-#include <linux/pm.h>
 #include <linux/kallsyms.h>
-#include <linux/kexec.h>
-#include <linux/kdebug.h>
-#include <linux/tick.h>
-#include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/ftrace.h>
-#include <linux/preempt.h>
 #include <linux/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
-#include <asm/pgalloc.h>
 #include <asm/system.h>
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
-#include <asm/watchdog.h>
-
-#ifdef CONFIG_32BIT
-static void watchdog_trigger_immediate(void)
-{
-	sh_wdt_write_cnt(0xFF);
-	sh_wdt_write_csr(0xC2);
-}
-
-void machine_restart(char * __unused)
-{
-	local_irq_disable();
-
-	/* Use watchdog timer to trigger reset */
-	watchdog_trigger_immediate();
-
-	while (1)
-		cpu_sleep();
-}
-#else
-void machine_restart(char * __unused)
-{
-	/* SR.BL=1 and invoke address error to let CPU reset (manual reset) */
-	asm volatile("ldc %0, sr\n\t"
-		     "mov.l @%1, %0" : : "r" (0x10000000), "r" (0x80000001));
-}
-#endif
-
-void machine_halt(void)
-{
-	local_irq_disable();
-
-	while (1)
-		cpu_sleep();
-}
-
-void machine_power_off(void)
-{
-	if (pm_power_off)
-		pm_power_off();
-}
 
 void show_regs(struct pt_regs * regs)
 {
