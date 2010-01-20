@@ -995,7 +995,9 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
-	if (s->async->cur_chan == 0) {	/* one scan done */
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= devpriv->ai_n_chan) {	/* one scan done */
+		s->async->cur_chan = 0;
 		devpriv->ai_act_scan++;
 		if (!(devpriv->ai_neverending))
 			if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
@@ -1021,7 +1023,9 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	for (i = len; i; i--) {
 		comedi_buf_put(s->async, ptr[bufptr++]);	/*  get one sample */
 
-		if (s->async->cur_chan == 0) {
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
 			if (!devpriv->ai_neverending)
 				if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
