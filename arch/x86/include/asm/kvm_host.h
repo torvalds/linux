@@ -506,9 +506,8 @@ struct kvm_x86_ops {
 	void (*set_idt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
 	void (*get_gdt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
 	void (*set_gdt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
-	unsigned long (*get_dr)(struct kvm_vcpu *vcpu, int dr);
-	void (*set_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long value,
-		       int *exception);
+	int (*get_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long *dest);
+	int (*set_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long value);
 	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);

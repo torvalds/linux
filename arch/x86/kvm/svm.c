@@ -1122,76 +1122,70 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
 	svm->vmcb->control.asid = sd->next_asid++;
 }
 
-static unsigned long svm_get_dr(struct kvm_vcpu *vcpu, int dr)
+static int svm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *dest)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	unsigned long val;
 
 	switch (dr) {
 	case 0 ... 3:
-		val = vcpu->arch.db[dr];
+		*dest = vcpu->arch.db[dr];
 		break;
+	case 4:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			return EMULATE_FAIL; /* will re-inject UD */
+		/* fall through */
 	case 6:
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-			val = vcpu->arch.dr6;
+			*dest = vcpu->arch.dr6;
 		else
-			val = svm->vmcb->save.dr6;
+			*dest = svm->vmcb->save.dr6;
 		break;
+	case 5:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			return EMULATE_FAIL; /* will re-inject UD */
+		/* fall through */
 	case 7:
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-			val = vcpu->arch.dr7;
+			*dest = vcpu->arch.dr7;
 		else
-			val = svm->vmcb->save.dr7;
+			*dest = svm->vmcb->save.dr7;
 		break;
-	default:
-		val = 0;
 	}
 
-	return val;
+	return EMULATE_DONE;
 }
 
-static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
-		       int *exception)
+static int svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	*exception = 0;
 
 	switch (dr) {
 	case 0 ... 3:
 		vcpu->arch.db[dr] = value;
 		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
 			vcpu->arch.eff_db[dr] = value;
-		return;
-	case 4 ... 5:
-		if (vcpu->arch.cr4 & X86_CR4_DE)
-			*exception = UD_VECTOR;
-		return;
+		break;
+	case 4:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			return EMULATE_FAIL; /* will re-inject UD */
+		/* fall through */
 	case 6:
-		if (value & 0xffffffff00000000ULL) {
-			*exception = GP_VECTOR;
-			return;
-		}
 		vcpu->arch.dr6 = (value & DR6_VOLATILE) | DR6_FIXED_1;
-		return;
+		break;
+	case 5:
+		if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			return EMULATE_FAIL; /* will re-inject UD */
+		/* fall through */
 	case 7:
-		if (value & 0xffffffff00000000ULL) {
-			*exception = GP_VECTOR;
-			return;
-		}
 		vcpu->arch.dr7 = (value & DR7_VOLATILE) | DR7_FIXED_1;
 		if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
 			svm->vmcb->save.dr7 = vcpu->arch.dr7;
 			vcpu->arch.switch_db_regs = (value & DR7_BP_EN_MASK);
 		}
-		return;
-	default:
-		/* FIXME: Possible case? */
-		printk(KERN_DEBUG "%s: unexpected dr %u\n",
-		       __func__, dr);
-		*exception = UD_VECTOR;
-		return;
+		break;
 	}
+
+	return EMULATE_DONE;
 }
 
 static int pf_interception(struct vcpu_svm *svm)
