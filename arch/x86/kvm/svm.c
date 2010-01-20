@@ -554,13 +554,19 @@ static void init_vmcb(struct vcpu_svm *svm)
 	control->intercept_dr_read = 	INTERCEPT_DR0_MASK |
 					INTERCEPT_DR1_MASK |
 					INTERCEPT_DR2_MASK |
-					INTERCEPT_DR3_MASK;
+					INTERCEPT_DR3_MASK |
+					INTERCEPT_DR4_MASK |
+					INTERCEPT_DR5_MASK |
+					INTERCEPT_DR6_MASK |
+					INTERCEPT_DR7_MASK;
 
 	control->intercept_dr_write = 	INTERCEPT_DR0_MASK |
 					INTERCEPT_DR1_MASK |
 					INTERCEPT_DR2_MASK |
 					INTERCEPT_DR3_MASK |
+					INTERCEPT_DR4_MASK |
 					INTERCEPT_DR5_MASK |
+					INTERCEPT_DR6_MASK |
 					INTERCEPT_DR7_MASK;
 
 	control->intercept_exceptions = (1 << PF_VECTOR) |
@@ -2319,11 +2325,17 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_READ_DR1]			= emulate_on_interception,
 	[SVM_EXIT_READ_DR2]			= emulate_on_interception,
 	[SVM_EXIT_READ_DR3]			= emulate_on_interception,
+	[SVM_EXIT_READ_DR4]			= emulate_on_interception,
+	[SVM_EXIT_READ_DR5]			= emulate_on_interception,
+	[SVM_EXIT_READ_DR6]			= emulate_on_interception,
+	[SVM_EXIT_READ_DR7]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR0]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR1]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR2]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR3]			= emulate_on_interception,
+	[SVM_EXIT_WRITE_DR4]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR5]			= emulate_on_interception,
+	[SVM_EXIT_WRITE_DR6]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR7]			= emulate_on_interception,
 	[SVM_EXIT_EXCP_BASE + DB_VECTOR]	= db_interception,
 	[SVM_EXIT_EXCP_BASE + BP_VECTOR]	= bp_interception,
