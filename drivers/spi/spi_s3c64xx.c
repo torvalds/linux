@@ -28,7 +28,7 @@
 #include <linux/spi/spi.h>
 
 #include <mach/dma.h>
-#include <plat/spi.h>
+#include <plat/s3c64xx-spi.h>
 
 /* Registers and bit-fields */
 
