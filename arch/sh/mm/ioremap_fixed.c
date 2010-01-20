@@ -93,9 +93,7 @@ ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
 int iounmap_fixed(void __iomem *addr)
 {
 	enum fixed_addresses idx;
-	unsigned long virt_addr;
 	struct ioremap_map *map;
-	unsigned long offset;
 	unsigned int nrpages;
 	int i, slot;
 
@@ -114,12 +112,9 @@ int iounmap_fixed(void __iomem *addr)
 	if (slot < 0)
 		return -EINVAL;
 
-	virt_addr = (unsigned long)addr;
+	nrpages = map->size >> PAGE_SHIFT;
 
-	offset = virt_addr & ~PAGE_MASK;
-	nrpages = PAGE_ALIGN(offset + map->size - 1) >> PAGE_SHIFT;
-
-	idx = FIX_IOREMAP_BEGIN + slot + nrpages;
+	idx = FIX_IOREMAP_BEGIN + slot + nrpages - 1;
 	while (nrpages > 0) {
 		__clear_fixmap(idx, __pgprot(_PAGE_WIRED));
 		--idx;
