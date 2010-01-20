@@ -12,6 +12,7 @@ config ARM
 	select HAVE_IDE
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
+	select GENERIC_ATOMIC64 if (!CPU_32v6K)
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if (!XIP_KERNEL)
