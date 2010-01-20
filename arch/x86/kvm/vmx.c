@@ -3039,6 +3039,15 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int check_dr_alias(struct kvm_vcpu *vcpu)
+{
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return -1;
+	}
+	return 0;
+}
+
 static int handle_dr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
@@ -3081,14 +3090,20 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 		case 0 ... 3:
 			val = vcpu->arch.db[dr];
 			break;
+		case 4:
+			if (check_dr_alias(vcpu) < 0)
+				return 1;
+			/* fall through */
 		case 6:
 			val = vcpu->arch.dr6;
 			break;
-		case 7:
+		case 5:
+			if (check_dr_alias(vcpu) < 0)
+				return 1;
+			/* fall through */
+		default: /* 7 */
 			val = vcpu->arch.dr7;
 			break;
-		default:
-			val = 0;
 		}
 		kvm_register_write(vcpu, reg, val);
 	} else {
@@ -3099,12 +3114,10 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
 				vcpu->arch.eff_db[dr] = val;
 			break;
-		case 4 ... 5:
-			if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
-				kvm_queue_exception(vcpu, UD_VECTOR);
+		case 4:
+			if (check_dr_alias(vcpu) < 0)
 				return 1;
-			}
-			break;
+			/* fall through */
 		case 6:
 			if (val & 0xffffffff00000000ULL) {
 				kvm_inject_gp(vcpu, 0);
@@ -3112,7 +3125,11 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 			}
 			vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
 			break;
-		case 7:
+		case 5:
+			if (check_dr_alias(vcpu) < 0)
+				return 1;
+			/* fall through */
+		default: /* 7 */
 			if (val & 0xffffffff00000000ULL) {
 				kvm_inject_gp(vcpu, 0);
 				return 1;
