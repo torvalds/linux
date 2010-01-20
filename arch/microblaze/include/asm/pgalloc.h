@@ -19,6 +19,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/cache.h>
+#include <asm/pgtable.h>
 
 #define PGDIR_ORDER	0
 
@@ -111,7 +112,6 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 		unsigned long address)
 {
 	pte_t *pte;
-	extern int mem_init_done;
 	extern void *early_get_page(void);
 	if (mem_init_done) {
 		pte = (pte_t *)__get_free_page(GFP_KERNEL |

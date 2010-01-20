@@ -23,6 +23,9 @@
 #include <asm/sections.h>
 #include <asm/tlb.h>
 
+/* Use for MMU and noMMU because of PCI generic code */
+int mem_init_done;
+
 #ifndef CONFIG_MMU
 unsigned int __page_offset;
 EXPORT_SYMBOL(__page_offset);
@@ -30,7 +33,6 @@ EXPORT_SYMBOL(__page_offset);
 #else
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-int mem_init_done;
 static int init_bootmem_done;
 #endif /* CONFIG_MMU */
 
@@ -202,9 +204,7 @@ void __init mem_init(void)
 	printk(KERN_INFO "Memory: %luk/%luk available\n",
 	       nr_free_pages() << (PAGE_SHIFT-10),
 	       num_physpages << (PAGE_SHIFT-10));
-#ifdef CONFIG_MMU
 	mem_init_done = 1;
-#endif
 }
 
 #ifndef CONFIG_MMU
@@ -216,6 +216,10 @@ int ___range_ok(unsigned long addr, unsigned long size)
 }
 EXPORT_SYMBOL(___range_ok);
 
+int page_is_ram(unsigned long pfn)
+{
+	return __range_ok(pfn, 0);
+}
 #else
 int page_is_ram(unsigned long pfn)
 {
@@ -344,6 +348,8 @@ void __init *early_get_page(void)
 	return p;
 }
 
+#endif /* CONFIG_MMU */
+
 void * __init_refok alloc_maybe_bootmem(size_t size, gfp_t mask)
 {
 	if (mem_init_done)
@@ -365,5 +371,3 @@ void * __init_refok zalloc_maybe_bootmem(size_t size, gfp_t mask)
 	}
 	return p;
 }
-
-#endif /* CONFIG_MMU */

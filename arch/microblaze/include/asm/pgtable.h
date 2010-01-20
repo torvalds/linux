@@ -16,6 +16,10 @@
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
+#ifndef __ASSEMBLY__
+extern int mem_init_done;
+#endif
+
 #ifndef CONFIG_MMU
 
 #define pgd_present(pgd)	(1) /* pages are always present on non MMU */
@@ -50,6 +54,8 @@ static inline int pte_file(pte_t pte) { return 0; }
 #define pgtable_cache_init()	do {} while (0)
 
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
+
+#define pgprot_noncached_wc(prot)	prot
 
 #else /* CONFIG_MMU */
 
