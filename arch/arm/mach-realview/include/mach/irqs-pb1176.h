@@ -31,6 +31,7 @@
 #define IRQ_DC1176_SOFTINT	(IRQ_DC1176_GIC_START + 1)	/* Software interrupt */
 #define IRQ_DC1176_COMMRx	(IRQ_DC1176_GIC_START + 2)	/* Debug Comm Rx interrupt */
 #define IRQ_DC1176_COMMTx	(IRQ_DC1176_GIC_START + 3)	/* Debug Comm Tx interrupt */
+#define IRQ_DC1176_CORE_PMU	(IRQ_DC1176_GIC_START + 7)	/* Core PMU interrupt */
 #define IRQ_DC1176_TIMER0	(IRQ_DC1176_GIC_START + 8)	/* Timer 0 */
 #define IRQ_DC1176_TIMER1	(IRQ_DC1176_GIC_START + 9)	/* Timer 1 */
 #define IRQ_DC1176_TIMER2	(IRQ_DC1176_GIC_START + 10)	/* Timer 2 */
