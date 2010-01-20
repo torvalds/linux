@@ -227,7 +227,7 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_dpi_display_disable);
 
-static void dpi_set_timings(struct omap_dss_device *dssdev,
+void dpi_set_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	DSSDBG("dpi_set_timings\n");
@@ -237,8 +237,9 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 		dispc_go(OMAP_DSS_CHANNEL_LCD);
 	}
 }
+EXPORT_SYMBOL(dpi_set_timings);
 
-static int dpi_check_timings(struct omap_dss_device *dssdev,
+int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	bool is_tft;
@@ -292,20 +293,11 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 
 	return 0;
 }
-
-static void dpi_get_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
+EXPORT_SYMBOL(dpi_check_timings);
 
 int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
-
-	dssdev->set_timings = dpi_set_timings;
-	dssdev->check_timings = dpi_check_timings;
-	dssdev->get_timings = dpi_get_timings;
 
 	return 0;
 }

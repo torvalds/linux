@@ -135,10 +135,10 @@ static ssize_t display_timings_show(struct device *dev,
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	struct omap_video_timings t;
 
-	if (!dssdev->get_timings)
+	if (!dssdev->driver->get_timings)
 		return -ENOENT;
 
-	dssdev->get_timings(dssdev, &t);
+	dssdev->driver->get_timings(dssdev, &t);
 
 	return snprintf(buf, PAGE_SIZE, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
 			t.pixel_clock,
@@ -153,7 +153,7 @@ static ssize_t display_timings_store(struct device *dev,
 	struct omap_video_timings t;
 	int r, found;
 
-	if (!dssdev->set_timings || !dssdev->check_timings)
+	if (!dssdev->driver->set_timings || !dssdev->driver->check_timings)
 		return -ENOENT;
 
 	found = 0;
@@ -172,11 +172,11 @@ static ssize_t display_timings_store(struct device *dev,
 				&t.y_res, &t.vfp, &t.vbp, &t.vsw) != 9)
 		return -EINVAL;
 
-	r = dssdev->check_timings(dssdev, &t);
+	r = dssdev->driver->check_timings(dssdev, &t);
 	if (r)
 		return r;
 
-	dssdev->set_timings(dssdev, &t);
+	dssdev->driver->set_timings(dssdev, &t);
 
 	return size;
 }

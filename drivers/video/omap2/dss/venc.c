@@ -557,6 +557,43 @@ static int venc_set_update_mode(struct omap_dss_device *dssdev,
 	return 0;
 }
 
+static void venc_get_timings(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings)
+{
+	*timings = dssdev->panel.timings;
+}
+
+static void venc_set_timings(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings)
+{
+	DSSDBG("venc_set_timings\n");
+
+	/* Reset WSS data when the TV standard changes. */
+	if (memcmp(&dssdev->panel.timings, timings, sizeof(*timings)))
+		venc.wss_data = 0;
+
+	dssdev->panel.timings = *timings;
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+		/* turn the venc off and on to get new timings to use */
+		venc_panel_disable(dssdev);
+		venc_panel_enable(dssdev);
+	}
+}
+
+static int venc_check_timings(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings)
+{
+	DSSDBG("venc_check_timings\n");
+
+	if (memcmp(&omap_dss_pal_timings, timings, sizeof(*timings)) == 0)
+		return 0;
+
+	if (memcmp(&omap_dss_ntsc_timings, timings, sizeof(*timings)) == 0)
+		return 0;
+
+	return -EINVAL;
+}
+
 static u32 venc_get_wss(struct omap_dss_device *dssdev)
 {
 	/* Invert due to VENC_L21_WC_CTL:INV=1 */
@@ -602,6 +639,10 @@ static struct omap_dss_driver venc_driver = {
 
 	.set_update_mode = venc_set_update_mode,
 	.get_update_mode = venc_get_update_mode,
+
+	.get_timings	= venc_get_timings,
+	.set_timings	= venc_set_timings,
+	.check_timings	= venc_check_timings,
 
 	.get_wss	= venc_get_wss,
 	.set_wss	= venc_set_wss,
@@ -653,50 +694,9 @@ void venc_exit(void)
 	iounmap(venc.base);
 }
 
-static void venc_get_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
-static void venc_set_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
-{
-	DSSDBG("venc_set_timings\n");
-
-	/* Reset WSS data when the TV standard changes. */
-	if (memcmp(&dssdev->panel.timings, timings, sizeof(*timings)))
-		venc.wss_data = 0;
-
-	dssdev->panel.timings = *timings;
-	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		/* turn the venc off and on to get new timings to use */
-		venc_panel_disable(dssdev);
-		venc_panel_enable(dssdev);
-	}
-}
-
-static int venc_check_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
-{
-	DSSDBG("venc_check_timings\n");
-
-	if (memcmp(&omap_dss_pal_timings, timings, sizeof(*timings)) == 0)
-		return 0;
-
-	if (memcmp(&omap_dss_ntsc_timings, timings, sizeof(*timings)) == 0)
-		return 0;
-
-	return -EINVAL;
-}
-
 int venc_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
-
-	dssdev->get_timings = venc_get_timings;
-	dssdev->set_timings = venc_set_timings;
-	dssdev->check_timings = venc_check_timings;
 
 	return 0;
 }

@@ -516,8 +516,6 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	dev_set_drvdata(&dssdev->dev, td);
 
-	dssdev->get_timings = taal_get_timings;
-
 	/* if no platform set_backlight() defined, presume DSI backlight
 	 * control */
 	if (!dssdev->set_backlight)
@@ -1117,6 +1115,8 @@ static struct omap_dss_driver taal_driver = {
 	.get_mirror	= taal_get_mirror,
 	.run_test	= taal_run_test,
 	.memory_read	= taal_memory_read,
+
+	.get_timings	= taal_get_timings,
 
 	.driver         = {
 		.name   = "taal",

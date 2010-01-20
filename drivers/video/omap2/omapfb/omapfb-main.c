@@ -705,9 +705,9 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 	var->width              = -1;
 	var->grayscale          = 0;
 
-	if (display && display->get_timings) {
+	if (display && display->driver->get_timings) {
 		struct omap_video_timings timings;
-		display->get_timings(display, &timings);
+		display->driver->get_timings(display, &timings);
 
 		/* pixclock in ps, the rest in pixclock */
 		var->pixclock = timings.pixel_clock != 0 ?
@@ -2029,14 +2029,14 @@ static int omapfb_set_def_mode(struct omapfb2_device *fbdev,
 	fbdev->bpp_overrides[fbdev->num_bpp_overrides].bpp = bpp;
 	++fbdev->num_bpp_overrides;
 
-	if (!display->check_timings || !display->set_timings)
+	if (!display->driver->check_timings || !display->driver->set_timings)
 		return -EINVAL;
 
-	r = display->check_timings(display, &timings);
+	r = display->driver->check_timings(display, &timings);
 	if (r)
 		return r;
 
-	display->set_timings(display, &timings);
+	display->driver->set_timings(display, &timings);
 
 	return 0;
 }
