@@ -1757,7 +1757,7 @@ static const char *desc_lookup_text[] = {
 	"DEBUG_1",
 	"DEBUG_2",
 	"DEBUG_3",
-	"UNKNOWN"
+	"ADVANCED SYSASSERT"
 };
 
 static const char *desc_lookup(int i)
