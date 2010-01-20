@@ -80,7 +80,7 @@ static struct resource s3c64xx_iis0_resource[] = {
 	},
 };
 
-struct s3c_audio_pdata s3c_i2s0_pdata = {
+static struct s3c_audio_pdata s3c_i2s0_pdata = {
 	.cfg_gpio = s3c64xx_i2sv3_cfg_gpio,
 };
 
@@ -113,7 +113,7 @@ static struct resource s3c64xx_iis1_resource[] = {
 	},
 };
 
-struct s3c_audio_pdata s3c_i2s1_pdata = {
+static struct s3c_audio_pdata s3c_i2s1_pdata = {
 	.cfg_gpio = s3c64xx_i2sv3_cfg_gpio,
 };
 
@@ -146,7 +146,7 @@ static struct resource s3c64xx_iisv4_resource[] = {
 	},
 };
 
-struct s3c_audio_pdata s3c_i2sv4_pdata = {
+static struct s3c_audio_pdata s3c_i2sv4_pdata = {
 	.cfg_gpio = s3c64xx_i2sv4_cfg_gpio,
 };
 
