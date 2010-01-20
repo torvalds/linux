@@ -10,6 +10,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
 #include <asm/bug.h>
+#include <asm/cacheflush.h>
 
 /*
  * Generic direct DMA implementation
@@ -19,6 +20,23 @@
  * can set archdata.dma_data to an unsigned long holding the offset. By
  * default the offset is PCI_DRAM_OFFSET.
  */
+
+static inline void __dma_sync_page(void *vaddr, unsigned long offset,
+				size_t size, enum dma_data_direction direction)
+{
+	unsigned long start = virt_to_phys(vaddr);
+
+	switch (direction) {
+	case DMA_TO_DEVICE:
+		flush_dcache_range(start + offset, start + offset + size);
+		break;
+	case DMA_FROM_DEVICE:
+		invalidate_dcache_range(start + offset, start + offset + size);
+		break;
+	default:
+		BUG();
+	}
+}
 
 static unsigned long get_dma_direct_offset(struct device *dev)
 {
@@ -85,11 +103,11 @@ static inline dma_addr_t dma_direct_map_page(struct device *dev,
 					     struct page *page,
 					     unsigned long offset,
 					     size_t size,
-					     enum dma_data_direction dir,
+					     enum dma_data_direction direction,
 					     struct dma_attrs *attrs)
 {
-	BUG_ON(dir == DMA_NONE);
-	__dma_sync_page(page, offset, size, dir);
+	BUG_ON(direction == DMA_NONE);
+	__dma_sync_page(page, offset, size, direction);
 	return page_to_phys(page) + offset + get_dma_direct_offset(dev);
 }
 
@@ -99,6 +117,8 @@ static inline void dma_direct_unmap_page(struct device *dev,
 					 enum dma_data_direction direction,
 					 struct dma_attrs *attrs)
 {
+/* There is not necessary to do cache cleanup */
+	/* __dma_sync_page(dma_address, 0 , size, direction); */
 }
 
 struct dma_map_ops dma_direct_ops = {
