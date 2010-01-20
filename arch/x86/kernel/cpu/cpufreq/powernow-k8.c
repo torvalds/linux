@@ -806,6 +806,8 @@ static int find_psb_table(struct powernow_k8_data *data)
 	 * www.amd.com
 	 */
 	printk(KERN_ERR FW_BUG PFX "No PSB or ACPI _PSS objects\n");
+	printk(KERN_ERR PFX "Make sure that your BIOS is up to date"
+		" and Cool'N'Quiet support is enabled in BIOS setup\n");
 	return -ENODEV;
 }
 
