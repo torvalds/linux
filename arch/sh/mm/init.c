@@ -260,6 +260,9 @@ void __init mem_init(void)
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
+	/* Initialize the vDSO */
+	vsyscall_init();
+
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
@@ -272,8 +275,39 @@ void __init mem_init(void)
 		datasize >> 10,
 		initsize >> 10);
 
-	/* Initialize the vDSO */
-	vsyscall_init();
+	printk(KERN_INFO "virtual kernel memory layout:\n"
+		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#ifdef CONFIG_HIGHMEM
+		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#endif
+		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+		"      .init : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"      .data : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
+		FIXADDR_START, FIXADDR_TOP,
+		(FIXADDR_TOP - FIXADDR_START) >> 10,
+
+#ifdef CONFIG_HIGHMEM
+		PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,
+		(LAST_PKMAP*PAGE_SIZE) >> 10,
+#endif
+
+		(unsigned long)VMALLOC_START, VMALLOC_END,
+		(VMALLOC_END - VMALLOC_START) >> 20,
+
+		(unsigned long)memory_start, (unsigned long)high_memory,
+		((unsigned long)high_memory - (unsigned long)memory_start) >> 20,
+
+		(unsigned long)&__init_begin, (unsigned long)&__init_end,
+		((unsigned long)&__init_end -
+		 (unsigned long)&__init_begin) >> 10,
+
+		(unsigned long)&_etext, (unsigned long)&_edata,
+		((unsigned long)&_edata - (unsigned long)&_etext) >> 10,
+
+		(unsigned long)&_text, (unsigned long)&_etext,
+		((unsigned long)&_etext - (unsigned long)&_text) >> 10);
 
 	mem_init_done = 1;
 }
