@@ -2631,22 +2631,20 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
-	unsigned long flags;
+	int err = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", vif->type);
 
+	mutex_lock(&priv->mutex);
+
 	if (priv->vif) {
 		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
-		return -EOPNOTSUPP;
+		err = -EOPNOTSUPP;
+		goto out;
 	}
 
-	spin_lock_irqsave(&priv->lock, flags);
 	priv->vif = vif;
 	priv->iw_mode = vif->type;
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	mutex_lock(&priv->mutex);
 
 	if (vif->addr) {
 		IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
@@ -2657,10 +2655,11 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 		/* we are not ready, will run again when ready */
 		set_bit(STATUS_MODE_PENDING, &priv->status);
 
+ out:
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
-	return 0;
+	return err;
 }
 EXPORT_SYMBOL(iwl_mac_add_interface);
 
