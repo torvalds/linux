@@ -36,10 +36,10 @@ struct iommu_ops {
 	void (*domain_destroy)(struct iommu_domain *domain);
 	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
 	void (*detach_dev)(struct iommu_domain *domain, struct device *dev);
-	int (*map)(struct iommu_domain *domain, unsigned long iova,
-		   phys_addr_t paddr, size_t size, int prot);
-	void (*unmap)(struct iommu_domain *domain, unsigned long iova,
-		      size_t size);
+	int (*map_range)(struct iommu_domain *domain, unsigned long iova,
+			 phys_addr_t paddr, size_t size, int prot);
+	void (*unmap_range)(struct iommu_domain *domain, unsigned long iova,
+			    size_t size);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
 				    unsigned long iova);
 	int (*domain_has_cap)(struct iommu_domain *domain,

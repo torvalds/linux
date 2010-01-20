@@ -3714,8 +3714,8 @@ static struct iommu_ops intel_iommu_ops = {
 	.domain_destroy = intel_iommu_domain_destroy,
 	.attach_dev	= intel_iommu_attach_device,
 	.detach_dev	= intel_iommu_detach_device,
-	.map		= intel_iommu_map_range,
-	.unmap		= intel_iommu_unmap_range,
+	.map_range	= intel_iommu_map_range,
+	.unmap_range	= intel_iommu_unmap_range,
 	.iova_to_phys	= intel_iommu_iova_to_phys,
 	.domain_has_cap = intel_iommu_domain_has_cap,
 };

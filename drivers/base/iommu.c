@@ -83,14 +83,14 @@ EXPORT_SYMBOL_GPL(iommu_detach_device);
 int iommu_map_range(struct iommu_domain *domain, unsigned long iova,
 		    phys_addr_t paddr, size_t size, int prot)
 {
-	return iommu_ops->map(domain, iova, paddr, size, prot);
+	return iommu_ops->map_range(domain, iova, paddr, size, prot);
 }
 EXPORT_SYMBOL_GPL(iommu_map_range);
 
 void iommu_unmap_range(struct iommu_domain *domain, unsigned long iova,
 		      size_t size)
 {
-	iommu_ops->unmap(domain, iova, size);
+	iommu_ops->unmap_range(domain, iova, size);
 }
 EXPORT_SYMBOL_GPL(iommu_unmap_range);
 
