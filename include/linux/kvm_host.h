@@ -27,6 +27,10 @@
 
 #include <asm/kvm_host.h>
 
+#ifndef KVM_MMIO_SIZE
+#define KVM_MMIO_SIZE 8
+#endif
+
 /*
  * vcpu->requests bit members
  */
@@ -132,7 +136,8 @@ struct kvm_vcpu {
 	int mmio_read_completed;
 	int mmio_is_write;
 	int mmio_size;
-	unsigned char mmio_data[8];
+	int mmio_index;
+	unsigned char mmio_data[KVM_MMIO_SIZE];
 	gpa_t mmio_phys_addr;
 #endif
 

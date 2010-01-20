@@ -3833,8 +3833,10 @@ mmio:
 	vcpu->mmio_needed = 1;
 	vcpu->run->exit_reason = KVM_EXIT_MMIO;
 	vcpu->run->mmio.phys_addr = vcpu->mmio_phys_addr = gpa;
-	vcpu->run->mmio.len = vcpu->mmio_size = bytes;
+	vcpu->mmio_size = bytes;
+	vcpu->run->mmio.len = min(vcpu->mmio_size, 8);
 	vcpu->run->mmio.is_write = vcpu->mmio_is_write = 0;
+	vcpu->mmio_index = 0;
 
 	return X86EMUL_IO_NEEDED;
 }
@@ -3886,11 +3888,14 @@ mmio:
 	val += handled;
 
 	vcpu->mmio_needed = 1;
+	memcpy(vcpu->mmio_data, val, bytes);
 	vcpu->run->exit_reason = KVM_EXIT_MMIO;
 	vcpu->run->mmio.phys_addr = vcpu->mmio_phys_addr = gpa;
-	vcpu->run->mmio.len = vcpu->mmio_size = bytes;
+	vcpu->mmio_size = bytes;
+	vcpu->run->mmio.len = min(vcpu->mmio_size, 8);
 	vcpu->run->mmio.is_write = vcpu->mmio_is_write = 1;
-	memcpy(vcpu->run->mmio.data, val, bytes);
+	memcpy(vcpu->run->mmio.data, vcpu->mmio_data, 8);
+	vcpu->mmio_index = 0;
 
 	return X86EMUL_CONTINUE;
 }
@@ -4498,11 +4503,9 @@ restart:
 		if (!vcpu->arch.pio.in)
 			vcpu->arch.pio.count = 0;
 		r = EMULATE_DO_MMIO;
-	} else if (vcpu->mmio_needed) {
-		if (vcpu->mmio_is_write)
-			vcpu->mmio_needed = 0;
+	} else if (vcpu->mmio_needed)
 		r = EMULATE_DO_MMIO;
-	} else if (r == EMULATION_RESTART)
+	else if (r == EMULATION_RESTART)
 		goto restart;
 	else
 		r = EMULATE_DONE;
@@ -5450,9 +5453,22 @@ static int complete_mmio(struct kvm_vcpu *vcpu)
 		return 1;
 
 	if (vcpu->mmio_needed) {
-		memcpy(vcpu->mmio_data, run->mmio.data, 8);
-		vcpu->mmio_read_completed = 1;
 		vcpu->mmio_needed = 0;
+		if (!vcpu->mmio_is_write)
+			memcpy(vcpu->mmio_data, run->mmio.data, 8);
+		vcpu->mmio_index += 8;
+		if (vcpu->mmio_index < vcpu->mmio_size) {
+			run->exit_reason = KVM_EXIT_MMIO;
+			run->mmio.phys_addr = vcpu->mmio_phys_addr + vcpu->mmio_index;
+			memcpy(run->mmio.data, vcpu->mmio_data + vcpu->mmio_index, 8);
+			run->mmio.len = min(vcpu->mmio_size - vcpu->mmio_index, 8);
+			run->mmio.is_write = vcpu->mmio_is_write;
+			vcpu->mmio_needed = 1;
+			return 0;
+		}
+		if (vcpu->mmio_is_write)
+			return 1;
+		vcpu->mmio_read_completed = 1;
 	}
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
