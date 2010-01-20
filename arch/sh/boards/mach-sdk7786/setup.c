@@ -18,6 +18,7 @@
 #include <asm/machvec.h>
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
+#include <mach/fpga.h>
 
 static struct resource heartbeat_resource = {
 	.start		= 0x07fff8b0,
@@ -103,27 +104,17 @@ static struct platform_device *sh7786_devices[] __initdata = {
 	&smbus_pcie_device,
 };
 
-#define SBCR_REGS_BASE	0x07fff990
-
-#define SCBR_I2CMEN	(1 << 0)	/* FPGA I2C master enable */
-#define SCBR_I2CCEN	(1 << 1)	/* CPU I2C master enable */
-
 static int sdk7786_i2c_setup(void)
 {
-	void __iomem *sbcr;
 	unsigned int tmp;
-
-	sbcr = ioremap_nocache(SBCR_REGS_BASE, SZ_16);
 
 	/*
 	 * Hand over I2C control to the FPGA.
 	 */
-	tmp = ioread16(sbcr);
+	tmp = fpga_read_reg(SBCR);
 	tmp &= ~SCBR_I2CCEN;
 	tmp |= SCBR_I2CMEN;
-	iowrite16(tmp, sbcr);
-
-	iounmap(sbcr);
+	fpga_write_reg(tmp, SBCR);
 
 	return i2c_register_board_info(0, sdk7786_i2c_devices,
 				       ARRAY_SIZE(sdk7786_i2c_devices));
@@ -140,43 +131,6 @@ static int __init sdk7786_devices_setup(void)
 	return sdk7786_i2c_setup();
 }
 __initcall(sdk7786_devices_setup);
-
-#define FPGA_REGS_BASE	0x07fff800
-#define FPGA_REGS_SIZE	1152
-
-#define INTASR		0x010
-#define INTAMR		0x020
-#define INTBSR		0x090
-#define INTBMR		0x0a0
-#define INTMSR		0x130
-
-#define IASELR1		0x210
-#define IASELR2		0x220
-#define IASELR3		0x230
-#define IASELR4		0x240
-#define IASELR5		0x250
-#define IASELR6		0x260
-#define IASELR7		0x270
-#define IASELR8		0x280
-#define IASELR9		0x290
-#define IASELR10	0x2a0
-#define IASELR11	0x2b0
-#define IASELR12	0x2c0
-#define IASELR13	0x2d0
-#define IASELR14	0x2e0
-#define IASELR15	0x2f0
-
-static void __iomem *fpga_regs;
-
-static u16 fpga_read_reg(unsigned int reg)
-{
-	return __raw_readw(fpga_regs + reg);
-}
-
-static void fpga_write_reg(u16 val, unsigned int reg)
-{
-	__raw_writew(val, fpga_regs + reg);
-}
 
 enum {
 	ATA_IRQ_BIT		= 1,
@@ -197,12 +151,6 @@ static void __init init_sdk7786_IRQ(void)
 {
 	unsigned int tmp;
 
-	fpga_regs = ioremap_nocache(FPGA_REGS_BASE, FPGA_REGS_SIZE);
-	if (!fpga_regs) {
-		printk(KERN_ERR "Couldn't map FPGA registers\n");
-		return;
-	}
-
 	/* Enable priority encoding for all IRLs */
 	fpga_write_reg(fpga_read_reg(INTMSR) | 0x0303, INTMSR);
 
@@ -219,21 +167,9 @@ static void __init init_sdk7786_IRQ(void)
 	plat_irq_setup_pins(IRQ_MODE_IRL3210_MASK);
 }
 
-#define MODSWR_REGS	0x07fff830
-
 static int sdk7786_mode_pins(void)
 {
-	void __iomem *modswr;
-	int pin_states;
-
-	modswr = ioremap_nocache(MODSWR_REGS, SZ_16);
-	if (!modswr)
-		return -ENXIO;
-
-	pin_states = ioread16(modswr);
-	iounmap(modswr);
-
-	return pin_states;
+	return fpga_read_reg(MODSWR);
 }
 
 static int sdk7786_clk_init(void)
@@ -260,7 +196,11 @@ static int sdk7786_clk_init(void)
 /* Initialize the board */
 static void __init sdk7786_setup(char **cmdline_p)
 {
-	printk(KERN_INFO "Renesas Technology Corp. SDK7786 support.\n");
+	pr_info("Renesas Technology Europe SDK7786 support:\n");
+
+	sdk7786_fpga_init();
+
+	pr_info("\tPCB revision:\t%d\n", fpga_read_reg(PCBRR) & 0xf);
 }
 
 /*
