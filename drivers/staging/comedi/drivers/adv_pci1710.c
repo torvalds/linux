@@ -724,6 +724,7 @@ static int move_block_from_fifo(struct comedi_device *dev,
 			devpriv->ai_act_scan++;
 		}
 	}
+	s->async->cur_chan = j;
 	DPRINTK("adv_pci1710 EDBG: END: move_block_from_fifo(...)\n");
 	return 0;
 }
@@ -1230,6 +1231,12 @@ static void setup_channel_list(struct comedi_device *dev,
 		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
 			devpriv->act_chanlist[i]);
 	}
+#ifdef PCI171x_PARANOIDCHECK
+	for ( ; i < n_chan; i++) { /* store remainder of channel list */
+		devpriv->act_chanlist[i] =
+		    (CR_CHAN(chanlist[i]) << 12) & 0xf000;
+	}
+#endif
 
 	devpriv->ai_et_MuxVal =
 	    CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);
