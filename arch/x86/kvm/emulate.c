@@ -2692,10 +2692,8 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 			c->lock_prefix = 1;
 			break;
 		case 0xf2:	/* REPNE/REPNZ */
-			c->rep_prefix = REPNE_PREFIX;
-			break;
 		case 0xf3:	/* REP/REPE/REPZ */
-			c->rep_prefix = REPE_PREFIX;
+			c->rep_prefix = c->b;
 			break;
 		default:
 			goto done_prefixes;
