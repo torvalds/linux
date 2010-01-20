@@ -596,7 +596,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_client *client = ceph_inode_to_client(inode);
+	struct ceph_client *client;
 	pgoff_t index, start, end;
 	int range_whole = 0;
 	int should_loop = 1;
