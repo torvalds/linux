@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
+#include <linux/vmalloc.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
