@@ -44,7 +44,8 @@
  * the output.
 */
 
-int samsung_gpiolib_4bit_input(struct gpio_chip *chip, unsigned int offset)
+static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
+				      unsigned int offset)
 {
 	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
 	void __iomem *base = ourchip->base;
@@ -59,8 +60,8 @@ int samsung_gpiolib_4bit_input(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
-				unsigned int offset, int value)
+static int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
+				       unsigned int offset, int value)
 {
 	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
 	void __iomem *base = ourchip->base;
@@ -106,9 +107,10 @@ int samsung_gpiolib_4bit_output(struct gpio_chip *chip,
  * To allow us to use the s3c_gpiolib_get and s3c_gpiolib_set routines we
  * store the 'base + 0x4' address so that these routines see the data
  * register at ourchip->base + 0x04.
-*/
+ */
 
-int samsung_gpiolib_4bit2_input(struct gpio_chip *chip, unsigned int offset)
+static int samsung_gpiolib_4bit2_input(struct gpio_chip *chip,
+				       unsigned int offset)
 {
 	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
 	void __iomem *base = ourchip->base;
@@ -129,8 +131,8 @@ int samsung_gpiolib_4bit2_input(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
-				 unsigned int offset, int value)
+static int samsung_gpiolib_4bit2_output(struct gpio_chip *chip,
+					unsigned int offset, int value)
 {
 	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
 	void __iomem *base = ourchip->base;
