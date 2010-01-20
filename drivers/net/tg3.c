@@ -1560,7 +1560,9 @@ static void tg3_phy_toggle_apd(struct tg3 *tp, bool enable)
 {
 	u32 reg;
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
+		(GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
+	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
 		return;
 
 	if (tp->tg3_flags3 & TG3_FLG3_PHY_IS_FET) {
@@ -1934,6 +1936,10 @@ static int tg3_phy_reset(struct tg3 *tp)
 			tw32_f(TG3_CPMU_LSPD_1000MB_CLK, val);
 		}
 	}
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
+	    (tp->tg3_flags2 & TG3_FLG2_MII_SERDES))
+		return 0;
 
 	tg3_phy_apply_otp(tp);
 
