@@ -718,6 +718,30 @@ int atombios_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return radeon_crtc_set_base(crtc, x, y, old_fb);
 }
 
+/* properly set additional regs when using atombios */
+static void radeon_legacy_atom_fixup(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	u32 disp_merge_cntl;
+
+	switch (radeon_crtc->crtc_id) {
+	case 0:
+		disp_merge_cntl = RREG32(RADEON_DISP_MERGE_CNTL);
+		disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
+		WREG32(RADEON_DISP_MERGE_CNTL, disp_merge_cntl);
+		break;
+	case 1:
+		disp_merge_cntl = RREG32(RADEON_DISP2_MERGE_CNTL);
+		disp_merge_cntl &= ~RADEON_DISP2_RGB_OFFSET_EN;
+		WREG32(RADEON_DISP2_MERGE_CNTL, disp_merge_cntl);
+		WREG32(RADEON_FP_H2_SYNC_STRT_WID,   RREG32(RADEON_CRTC2_H_SYNC_STRT_WID));
+		WREG32(RADEON_FP_V2_SYNC_STRT_WID,   RREG32(RADEON_CRTC2_V_SYNC_STRT_WID));
+		break;
+	}
+}
+
 int atombios_crtc_mode_set(struct drm_crtc *crtc,
 			   struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode,
@@ -740,7 +764,7 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 		if (radeon_crtc->crtc_id == 0)
 			atombios_set_crtc_dtd_timing(crtc, adjusted_mode);
 		atombios_crtc_set_base(crtc, x, y, old_fb);
-		radeon_legacy_atom_set_surface(crtc);
+		radeon_legacy_atom_fixup(crtc);
 	}
 	atombios_overscan_setup(crtc, mode, adjusted_mode);
 	atombios_scaler_setup(crtc);

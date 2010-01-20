@@ -339,69 +339,6 @@ void radeon_crtc_dpms(struct drm_crtc *crtc, int mode)
 	}
 }
 
-/* properly set crtc bpp when using atombios */
-void radeon_legacy_atom_set_surface(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int format;
-	uint32_t crtc_gen_cntl;
-	uint32_t disp_merge_cntl;
-	uint32_t crtc_pitch;
-
-	switch (crtc->fb->bits_per_pixel) {
-	case 8:
-		format = 2;
-		break;
-	case 15:      /*  555 */
-		format = 3;
-		break;
-	case 16:      /*  565 */
-		format = 4;
-		break;
-	case 24:      /*  RGB */
-		format = 5;
-		break;
-	case 32:      /* xRGB */
-		format = 6;
-		break;
-	default:
-		return;
-	}
-
-	crtc_pitch  = ((((crtc->fb->pitch / (crtc->fb->bits_per_pixel / 8)) * crtc->fb->bits_per_pixel) +
-			((crtc->fb->bits_per_pixel * 8) - 1)) /
-		       (crtc->fb->bits_per_pixel * 8));
-	crtc_pitch |= crtc_pitch << 16;
-
-	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
-
-	switch (radeon_crtc->crtc_id) {
-	case 0:
-		disp_merge_cntl = RREG32(RADEON_DISP_MERGE_CNTL);
-		disp_merge_cntl &= ~RADEON_DISP_RGB_OFFSET_EN;
-		WREG32(RADEON_DISP_MERGE_CNTL, disp_merge_cntl);
-
-		crtc_gen_cntl = RREG32(RADEON_CRTC_GEN_CNTL) & 0xfffff0ff;
-		crtc_gen_cntl |= (format << 8);
-		crtc_gen_cntl |= RADEON_CRTC_EXT_DISP_EN;
-		WREG32(RADEON_CRTC_GEN_CNTL, crtc_gen_cntl);
-		break;
-	case 1:
-		disp_merge_cntl = RREG32(RADEON_DISP2_MERGE_CNTL);
-		disp_merge_cntl &= ~RADEON_DISP2_RGB_OFFSET_EN;
-		WREG32(RADEON_DISP2_MERGE_CNTL, disp_merge_cntl);
-
-		crtc_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL) & 0xfffff0ff;
-		crtc_gen_cntl |= (format << 8);
-		WREG32(RADEON_CRTC2_GEN_CNTL, crtc_gen_cntl);
-		WREG32(RADEON_FP_H2_SYNC_STRT_WID,   RREG32(RADEON_CRTC2_H_SYNC_STRT_WID));
-		WREG32(RADEON_FP_V2_SYNC_STRT_WID,   RREG32(RADEON_CRTC2_V_SYNC_STRT_WID));
-		break;
-	}
-}
-
 int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 			 struct drm_framebuffer *old_fb)
 {
