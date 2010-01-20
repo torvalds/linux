@@ -503,7 +503,7 @@ static int __exit mpc52xx_psc_spi_of_remove(struct of_device *op)
 	return mpc52xx_psc_spi_do_remove(&op->dev);
 }
 
-static struct of_device_id mpc52xx_psc_spi_of_match[] = {
+static const struct of_device_id mpc52xx_psc_spi_of_match[] = {
 	{ .compatible = "fsl,mpc5200-psc-spi", },
 	{ .compatible = "mpc5200-psc-spi", }, /* old */
 	{}
