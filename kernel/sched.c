@@ -4237,7 +4237,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	if (running)
 		p->sched_class->set_curr_task(rq);
 	if (on_rq) {
-		enqueue_task(rq, p, 0, false);
+		enqueue_task(rq, p, 0, oldprio < prio);
 
 		check_class_changed(rq, p, prev_class, oldprio, running);
 	}
