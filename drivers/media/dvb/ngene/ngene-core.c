@@ -253,7 +253,8 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 		spin_unlock(&dev->channel[i].state_lock);
 	}
 
-	return rc;
+	/* Request might have been processed by a previous call. */
+	return IRQ_HANDLED;
 }
 
 /****************************************************************************/
