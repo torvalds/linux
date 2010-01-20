@@ -13328,7 +13328,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
 		tp->grc_local_ctrl |= GRC_LCLCTRL_GPIO_UART_SEL;
 
 	if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761 ||
