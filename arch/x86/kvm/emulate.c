@@ -2415,11 +2415,19 @@ static int em_mov(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_movdqu(struct x86_emulate_ctxt *ctxt)
+{
+	struct decode_cache *c = &ctxt->decode;
+	memcpy(&c->dst.vec_val, &c->src.vec_val, c->op_bytes);
+	return X86EMUL_CONTINUE;
+}
+
 #define D(_y) { .flags = (_y) }
 #define N    D(0)
 #define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | Group | GroupDual), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
+#define GP(_f, _g) { .flags = ((_f) | Prefix), .u.gprefix = (_g) }
 
 #define D2bv(_f)      D((_f) | ByteOp), D(_f)
 #define I2bv(_f, _e)  I((_f) | ByteOp, _e), I(_f, _e)
@@ -2482,6 +2490,10 @@ static struct group_dual group9 = { {
 
 static struct opcode group11[] = {
 	I(DstMem | SrcImm | ModRM | Mov, em_mov), X7(D(Undefined)),
+};
+
+static struct gprefix pfx_0f_6f_0f_7f = {
+	N, N, N, I(Sse, em_movdqu),
 };
 
 static struct opcode opcode_table[256] = {
@@ -2608,9 +2620,15 @@ static struct opcode twobyte_table[256] = {
 	/* 0x50 - 0x5F */
 	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
 	/* 0x60 - 0x6F */
-	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
+	N, N, N, N,
+	N, N, N, N,
+	N, N, N, N,
+	N, N, N, GP(SrcMem | DstReg | ModRM | Mov, &pfx_0f_6f_0f_7f),
 	/* 0x70 - 0x7F */
-	N, N, N, N, N, N, N, N, N, N, N, N, N, N, N, N,
+	N, N, N, N,
+	N, N, N, N,
+	N, N, N, N,
+	N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_6f_0f_7f),
 	/* 0x80 - 0x8F */
 	X16(D(SrcImm)),
 	/* 0x90 - 0x9F */
@@ -2654,6 +2672,7 @@ static struct opcode twobyte_table[256] = {
 #undef G
 #undef GD
 #undef I
+#undef GP
 
 #undef D2bv
 #undef I2bv
