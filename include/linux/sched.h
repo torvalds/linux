@@ -731,14 +731,6 @@ struct user_struct {
 	uid_t uid;
 	struct user_namespace *user_ns;
 
-#ifdef CONFIG_USER_SCHED
-	struct task_group *tg;
-#ifdef CONFIG_SYSFS
-	struct kobject kobj;
-	struct delayed_work work;
-#endif
-#endif
-
 #ifdef CONFIG_PERF_EVENTS
 	atomic_long_t locked_vm;
 #endif
@@ -2502,13 +2494,9 @@ extern long sched_getaffinity(pid_t pid, struct cpumask *mask);
 
 extern void normalize_rt_tasks(void);
 
-#ifdef CONFIG_GROUP_SCHED
+#ifdef CONFIG_CGROUP_SCHED
 
 extern struct task_group init_task_group;
-#ifdef CONFIG_USER_SCHED
-extern struct task_group root_task_group;
-extern void set_tg_uid(struct user_struct *user);
-#endif
 
 extern struct task_group *sched_create_group(struct task_group *parent);
 extern void sched_destroy_group(struct task_group *tg);
