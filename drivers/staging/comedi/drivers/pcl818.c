@@ -557,8 +557,14 @@ conv_finish:
 		comedi_event(dev, s);
 		return IRQ_HANDLED;
 	}
-	if (s->async->cur_chan == 0) {
+	devpriv->act_chanlist_pos++;
+	if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
+		devpriv->act_chanlist_pos = 0;
+	}
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= devpriv->ai_n_chan) {
 		/*  printk("E"); */
+		s->async->cur_chan = 0;
 		devpriv->ai_act_scan--;
 	}
 
@@ -627,8 +633,12 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma(int irq, void *d)
 
 		devpriv->act_chanlist_pos++;
 		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
-			devpriv->ai_act_scan--;
 			devpriv->act_chanlist_pos = 0;
+		}
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
+			devpriv->ai_act_scan--;
 		}
 
 		if (!devpriv->neverending_ai)
@@ -717,7 +727,14 @@ static irqreturn_t interrupt_pcl818_ai_mode13_dma_rtc(int irq, void *d)
 			comedi_buf_put(s->async, dmabuf[bufptr++] >> 4);	/*  get one sample */
 			bufptr &= (devpriv->dmasamplsize - 1);
 
-			if (s->async->cur_chan == 0) {
+			devpriv->act_chanlist_pos++;
+			if (devpriv->act_chanlist_pos >=
+					devpriv->act_chanlist_len) {
+				devpriv->act_chanlist_pos = 0;
+			}
+			s->async->cur_chan++;
+			if (s->async->cur_chan >= devpriv->ai_n_chan) {
+				s->async->cur_chan = 0;
 				devpriv->ai_act_scan--;
 			}
 
@@ -796,7 +813,13 @@ static irqreturn_t interrupt_pcl818_ai_mode13_fifo(int irq, void *d)
 
 		comedi_buf_put(s->async, (lo >> 4) | (inb(dev->iobase + PCL818_FI_DATAHI) << 4));	/*  get one sample */
 
-		if (s->async->cur_chan == 0) {
+		devpriv->act_chanlist_pos++;
+		if (devpriv->act_chanlist_pos >= devpriv->act_chanlist_len) {
+			devpriv->act_chanlist_pos = 0;
+		}
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan--;
 		}
 
