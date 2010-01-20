@@ -2332,6 +2332,17 @@ more information.</para>
 	</listitem>
       </orderedlist>
     </section>
+    <section>
+      <title>V4L2 in Linux 2.6.34</title>
+      <orderedlist>
+	<listitem>
+	  <para>Added
+<constant>V4L2_CID_IRIS_ABSOLUTE</constant> and
+<constant>V4L2_CID_IRIS_RELATIVE</constant> controls to the
+	    <link linkend="camera-controls">Camera controls class</link>.
+	  </para>
+	</listitem>
+      </orderedlist>
    </section>
 
    <section id="other">

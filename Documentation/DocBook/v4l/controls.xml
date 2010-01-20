@@ -1831,6 +1831,25 @@ wide-angle direction. The zoom speed unit is driver-specific.</entry>
 	  <row><entry></entry></row>
 
 	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IRIS_ABSOLUTE</constant>&nbsp;</entry>
+	    <entry>integer</entry>
+	  </row><row><entry spanname="descr">This control sets the
+camera's aperture to the specified value. The unit is undefined.
+Larger values open the iris wider, smaller values close it.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IRIS_RELATIVE</constant>&nbsp;</entry>
+	    <entry>integer</entry>
+	  </row><row><entry spanname="descr">This control modifies the
+camera's aperture by the specified amount. The unit is undefined.
+Positive values open the iris one step further, negative values close
+it one step further. This is a write-only control.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
 	    <entry spanname="id"><constant>V4L2_CID_PRIVACY</constant>&nbsp;</entry>
 	    <entry>boolean</entry>
 	  </row><row><entry spanname="descr">Prevent video from being acquired

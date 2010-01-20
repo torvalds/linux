@@ -489,6 +489,8 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_FOCUS_ABSOLUTE:		return "Focus, Absolute";
 	case V4L2_CID_FOCUS_RELATIVE:		return "Focus, Relative";
 	case V4L2_CID_FOCUS_AUTO:		return "Focus, Automatic";
+	case V4L2_CID_IRIS_ABSOLUTE:		return "Iris, Absolute";
+	case V4L2_CID_IRIS_RELATIVE:		return "Iris, Relative";
 	case V4L2_CID_ZOOM_ABSOLUTE:		return "Zoom, Absolute";
 	case V4L2_CID_ZOOM_RELATIVE:		return "Zoom, Relative";
 	case V4L2_CID_ZOOM_CONTINUOUS:		return "Zoom, Continuous";
@@ -643,6 +645,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_PAN_RELATIVE:
 	case V4L2_CID_TILT_RELATIVE:
 	case V4L2_CID_FOCUS_RELATIVE:
+	case V4L2_CID_IRIS_RELATIVE:
 	case V4L2_CID_ZOOM_RELATIVE:
 		qctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
 		break;
