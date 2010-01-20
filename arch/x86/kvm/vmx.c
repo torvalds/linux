@@ -3045,6 +3045,7 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 	unsigned long val;
 	int dr, reg;
 
+	/* Do not handle if the CPL > 0, will trigger GP on re-entry */
 	if (!kvm_require_cpl(vcpu, 0))
 		return 1;
 	dr = vmcs_readl(GUEST_DR7);
@@ -3099,20 +3100,22 @@ static int handle_dr(struct kvm_vcpu *vcpu)
 				vcpu->arch.eff_db[dr] = val;
 			break;
 		case 4 ... 5:
-			if (kvm_read_cr4_bits(vcpu, X86_CR4_DE))
+			if (kvm_read_cr4_bits(vcpu, X86_CR4_DE)) {
 				kvm_queue_exception(vcpu, UD_VECTOR);
+				return 1;
+			}
 			break;
 		case 6:
 			if (val & 0xffffffff00000000ULL) {
-				kvm_queue_exception(vcpu, GP_VECTOR);
-				break;
+				kvm_inject_gp(vcpu, 0);
+				return 1;
 			}
 			vcpu->arch.dr6 = (val & DR6_VOLATILE) | DR6_FIXED_1;
 			break;
 		case 7:
 			if (val & 0xffffffff00000000ULL) {
-				kvm_queue_exception(vcpu, GP_VECTOR);
-				break;
+				kvm_inject_gp(vcpu, 0);
+				return 1;
 			}
 			vcpu->arch.dr7 = (val & DR7_VOLATILE) | DR7_FIXED_1;
 			if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)) {
