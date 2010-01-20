@@ -1097,7 +1097,8 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 	iounmap((void *) sdd->regs);
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem_res->start, resource_size(mem_res));
+	if (mem_res != NULL)
+		release_mem_region(mem_res->start, resource_size(mem_res));
 
 	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
