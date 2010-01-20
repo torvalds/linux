@@ -346,6 +346,9 @@ void scsi_print_command(struct scsi_cmnd *cmd)
 {
 	int k;
 
+	if (cmd->cmnd == NULL)
+		return;
+
 	scmd_printk(KERN_INFO, cmd, "CDB: ");
 	print_opcode_name(cmd->cmnd, cmd->cmd_len);
 

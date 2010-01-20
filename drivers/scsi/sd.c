@@ -1209,8 +1209,19 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 		sd_dif_complete(SCpnt, good_bytes);
 
 	if (scsi_host_dif_capable(sdkp->device->host, sdkp->protection_type)
-	    == SD_DIF_TYPE2_PROTECTION && SCpnt->cmnd != SCpnt->request->cmd)
+	    == SD_DIF_TYPE2_PROTECTION && SCpnt->cmnd != SCpnt->request->cmd) {
+
+		/* We have to print a failed command here as the
+		 * extended CDB gets freed before scsi_io_completion()
+		 * is called.
+		 */
+		if (result)
+			scsi_print_command(SCpnt);
+
 		mempool_free(SCpnt->cmnd, sd_cdb_pool);
+		SCpnt->cmnd = NULL;
+		SCpnt->cmd_len = 0;
+	}
 
 	return good_bytes;
 }
