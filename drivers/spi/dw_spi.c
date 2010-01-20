@@ -749,7 +749,7 @@ static void dw_spi_cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
-static int __init init_queue(struct dw_spi *dws)
+static int __devinit init_queue(struct dw_spi *dws)
 {
 	INIT_LIST_HEAD(&dws->queue);
 	spin_lock_init(&dws->lock);
