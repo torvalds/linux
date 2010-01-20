@@ -361,4 +361,36 @@ out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
+
+/* Reduce the fore channel's max_slots to the target value */
+unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy)
+{
+	struct nfs_client *clp;
+	struct nfs4_slot_table *fc_tbl;
+	int status;
+
+	status = htonl(NFS4ERR_OP_NOT_IN_SESSION);
+	clp = nfs_find_client(args->crsa_addr, 4);
+	if (clp == NULL)
+		goto out;
+
+	dprintk("NFS: CB_RECALL_SLOT request from %s target max slots %d\n",
+		rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR),
+		args->crsa_target_max_slots);
+
+	fc_tbl = &clp->cl_session->fc_slot_table;
+
+	status = htonl(NFS4ERR_BAD_HIGH_SLOT);
+	if (args->crsa_target_max_slots >= fc_tbl->max_slots ||
+	    args->crsa_target_max_slots < 1)
+		goto out;
+
+	fc_tbl->target_max_slots = args->crsa_target_max_slots;
+	nfs41_handle_recall_slot(clp);
+	status = htonl(NFS4_OK);
+	nfs_put_client(clp);	/* balance nfs_find_client */
+out:
+	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
+	return status;
+}
 #endif /* CONFIG_NFS_V4_1 */
