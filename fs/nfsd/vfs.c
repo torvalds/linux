@@ -752,8 +752,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 			    flags, current_cred());
 	if (IS_ERR(*filp))
 		host_err = PTR_ERR(*filp);
-	host_err = ima_path_check(&(*filp)->f_path,
-				  access & (MAY_READ | MAY_WRITE | MAY_EXEC));
+	host_err = ima_path_check(*filp, access);
 out_nfserr:
 	err = nfserrno(host_err);
 out:
