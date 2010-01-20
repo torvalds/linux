@@ -90,6 +90,7 @@ struct dw_spi {
 	unsigned long		paddr;
 	u32			iolen;
 	int			irq;
+	u32			fifo_len;	/* depth of the FIFO buffer */
 	u32			max_freq;	/* max bus freq supported */
 
 	u16			bus_num;
