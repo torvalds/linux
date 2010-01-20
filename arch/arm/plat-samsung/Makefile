@@ -42,6 +42,7 @@ obj-$(CONFIG_S3C_DEV_NAND)	+= dev-nand.o
 # PM support
 
 obj-$(CONFIG_PM)		+= pm-gpio.o
+obj-$(CONFIG_SAMSUNG_PM_CHECK)	+= pm-check.o
 
 # PWM support
 

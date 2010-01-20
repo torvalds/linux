@@ -20,8 +20,8 @@
 
 #include <plat/pm.h>
 
-#if CONFIG_S3C2410_PM_CHECK_CHUNKSIZE < 1
-#error CONFIG_S3C2410_PM_CHECK_CHUNKSIZE must be a positive non-zero value
+#if CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE < 1
+#error CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE must be a positive non-zero value
 #endif
 
 /* suspend checking code...
@@ -29,12 +29,12 @@
  * this next area does a set of crc checks over all the installed
  * memory, so the system can verify if the resume was ok.
  *
- * CONFIG_S3C2410_PM_CHECK_CHUNKSIZE defines the block-size for the CRC,
+ * CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE defines the block-size for the CRC,
  * increasing it will mean that the area corrupted will be less easy to spot,
  * and reducing the size will cause the CRC save area to grow
 */
 
-#define CHECK_CHUNKSIZE (CONFIG_S3C2410_PM_CHECK_CHUNKSIZE * 1024)
+#define CHECK_CHUNKSIZE (CONFIG_SAMSUNG_PM_CHECK_CHUNKSIZE * 1024)
 
 static u32 crc_size;	/* size needed for the crc block */
 static u32 *crcs;	/* allocated over suspend/resume */
