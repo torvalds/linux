@@ -6,6 +6,8 @@
 #include <linux/bitops.h>
 
 #define SRSTR		0x000
+#define  SRSTR_MAGIC	0x1971	/* Fixed magical read value */
+
 #define INTASR		0x010
 #define INTAMR		0x020
 #define MODSWR		0x030
