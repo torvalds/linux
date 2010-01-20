@@ -202,6 +202,7 @@ struct pcl816_private {
 	unsigned int ai_act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int ai_act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int ai_act_chanlist_pos;	/*  actual position in MUX list */
+	unsigned int ai_n_chan;		/*  how many channels per scan */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
 #ifdef unused
@@ -320,7 +321,9 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len)
 		devpriv->ai_act_chanlist_pos = 0;
 
-	if (s->async->cur_chan == 0) {
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		s->async->cur_chan = 0;
 		devpriv->ai_act_scan++;
 	}
 
@@ -353,6 +356,11 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 		if (++devpriv->ai_act_chanlist_pos >=
 		    devpriv->ai_act_chanlist_len) {
 			devpriv->ai_act_chanlist_pos = 0;
+		}
+
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
 		}
 
@@ -647,6 +655,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EINVAL;
 	udelay(1);
 
+	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
 	devpriv->irq_blocked = 1;
