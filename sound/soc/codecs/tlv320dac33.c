@@ -845,11 +845,14 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_A, aictrl_a);
 	dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_B, aictrl_b);
 
+	/* BCLK divide ratio */
+	if (dac33->fifo_mode)
+		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 3);
+	else
+		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 32);
+
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
-		/* 20: BCLK divide ratio */
-		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 3);
-
 		dac33_write16(codec, DAC33_ATHR_MSB,
 			      DAC33_THRREG(dac33->alarm_threshold));
 		break;
@@ -864,8 +867,6 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 			DAC33_THRREG(10));
 		break;
 	default:
-		/* BYPASS mode */
-		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 32);
 		break;
 	}
 
