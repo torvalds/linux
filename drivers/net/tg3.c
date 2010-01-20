@@ -2021,7 +2021,9 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 {
 	struct tg3 *tp_peer = tp;
 
-	if ((tp->tg3_flags2 & TG3_FLG2_IS_NIC) == 0)
+	/* The GPIOs do something completely different on 57765. */
+	if ((tp->tg3_flags2 & TG3_FLG2_IS_NIC) == 0 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
 		return;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
