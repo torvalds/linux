@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include "types.h"
+#include "event.h"
 
 #include <linux/bitmap.h>
 
@@ -83,5 +84,9 @@ int perf_header__process_sections(struct perf_header *self, int fd,
 				  int (*process)(struct perf_file_section *self,
 						 struct perf_header *ph,
 						 int feat, int fd));
+
+int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
+			  const char *name, bool is_kallsyms);
+int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
 
 #endif /* __PERF_HEADER_H */

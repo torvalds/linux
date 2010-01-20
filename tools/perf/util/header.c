@@ -231,32 +231,29 @@ static int dsos__write_buildid_table(int fd)
 	return err;
 }
 
-static int dso__cache_build_id(struct dso *self, const char *debugdir)
+int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
+			  const char *name, bool is_kallsyms)
 {
 	const size_t size = PATH_MAX;
 	char *filename = malloc(size),
-	     *linkname = malloc(size), *targetname, *sbuild_id;
+	     *linkname = malloc(size), *targetname;
 	int len, err = -1;
-	bool is_kallsyms = self->kernel && self->long_name[0] != '/';
 
 	if (filename == NULL || linkname == NULL)
 		goto out_free;
 
 	len = snprintf(filename, size, "%s%s%s",
-		       debugdir, is_kallsyms ? "/" : "", self->long_name);
+		       debugdir, is_kallsyms ? "/" : "", name);
 	if (mkdir_p(filename, 0755))
 		goto out_free;
 
-	len += snprintf(filename + len, sizeof(filename) - len, "/");
-	sbuild_id = filename + len;
-	build_id__sprintf(self->build_id, sizeof(self->build_id), sbuild_id);
+	snprintf(filename + len, sizeof(filename) - len, "/%s", sbuild_id);
 
 	if (access(filename, F_OK)) {
 		if (is_kallsyms) {
 			 if (copyfile("/proc/kallsyms", filename))
 				goto out_free;
-		} else if (link(self->long_name, filename) &&
-			   copyfile(self->long_name, filename))
+		} else if (link(name, filename) && copyfile(name, filename))
 			goto out_free;
 	}
 
@@ -276,6 +273,63 @@ out_free:
 	free(filename);
 	free(linkname);
 	return err;
+}
+
+static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
+				 const char *name, const char *debugdir,
+				 bool is_kallsyms)
+{
+	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+	build_id__sprintf(build_id, build_id_size, sbuild_id);
+
+	return build_id_cache__add_s(sbuild_id, debugdir, name, is_kallsyms);
+}
+
+int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
+{
+	const size_t size = PATH_MAX;
+	char *filename = malloc(size),
+	     *linkname = malloc(size);
+	int err = -1;
+
+	if (filename == NULL || linkname == NULL)
+		goto out_free;
+
+	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
+		 debugdir, sbuild_id, sbuild_id + 2);
+
+	if (access(linkname, F_OK))
+		goto out_free;
+
+	if (readlink(linkname, filename, size) < 0)
+		goto out_free;
+
+	if (unlink(linkname))
+		goto out_free;
+
+	/*
+	 * Since the link is relative, we must make it absolute:
+	 */
+	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
+		 debugdir, sbuild_id, filename);
+
+	if (unlink(linkname))
+		goto out_free;
+
+	err = 0;
+out_free:
+	free(filename);
+	free(linkname);
+	return err;
+}
+
+static int dso__cache_build_id(struct dso *self, const char *debugdir)
+{
+	bool is_kallsyms = self->kernel && self->long_name[0] != '/';
+
+	return build_id_cache__add_b(self->build_id, sizeof(self->build_id),
+				     self->long_name, debugdir, is_kallsyms);
 }
 
 static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)

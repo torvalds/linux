@@ -445,6 +445,7 @@ BUILTIN_OBJS += builtin-diff.o
 BUILTIN_OBJS += builtin-help.o
 BUILTIN_OBJS += builtin-sched.o
 BUILTIN_OBJS += builtin-buildid-list.o
+BUILTIN_OBJS += builtin-buildid-cache.o
 BUILTIN_OBJS += builtin-list.o
 BUILTIN_OBJS += builtin-record.o
 BUILTIN_OBJS += builtin-report.o

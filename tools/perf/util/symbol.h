@@ -144,7 +144,7 @@ struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
-int build_id__sprintf(u8 *self, int len, char *bf);
+int build_id__sprintf(const u8 *self, int len, char *bf);
 int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start));

@@ -345,10 +345,10 @@ void dso__sort_by_name(struct dso *self, enum map_type type)
 				     &self->symbols[type]);
 }
 
-int build_id__sprintf(u8 *self, int len, char *bf)
+int build_id__sprintf(const u8 *self, int len, char *bf)
 {
 	char *bid = bf;
-	u8 *raw = self;
+	const u8 *raw = self;
 	int i;
 
 	for (i = 0; i < len; ++i) {
