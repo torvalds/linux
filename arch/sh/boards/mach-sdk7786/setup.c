@@ -20,6 +20,7 @@
 #include <asm/machvec.h>
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
+#include <asm/reboot.h>
 
 static struct resource heartbeat_resource = {
 	.start		= 0x07fff8b0,
@@ -159,6 +160,11 @@ static int sdk7786_clk_init(void)
 	return ret;
 }
 
+static void sdk7786_restart(char *cmd)
+{
+	fpga_write_reg(0xa5a5, SRSTR);
+}
+
 /* Initialize the board */
 static void __init sdk7786_setup(char **cmdline_p)
 {
@@ -167,6 +173,8 @@ static void __init sdk7786_setup(char **cmdline_p)
 	sdk7786_fpga_init();
 
 	pr_info("\tPCB revision:\t%d\n", fpga_read_reg(PCBRR) & 0xf);
+
+	machine_ops.restart = sdk7786_restart;
 }
 
 /*
