@@ -1196,7 +1196,7 @@ static int emulate_pop(struct x86_emulate_ctxt *ctxt,
 	rc = ops->read_emulated(register_address(c, ss_base(ctxt),
 						 c->regs[VCPU_REGS_RSP]),
 				dest, len, ctxt->vcpu);
-	if (rc != 0)
+	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	register_address_increment(c, &c->regs[VCPU_REGS_RSP], len);
@@ -1370,7 +1370,7 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 	int rc;
 
 	rc = ops->read_emulated(memop, &old, 8, ctxt->vcpu);
-	if (rc != 0)
+	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	if (((u32) (old >> 0) != (u32) c->regs[VCPU_REGS_RAX]) ||
@@ -1385,7 +1385,7 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 		       (u32) c->regs[VCPU_REGS_RBX];
 
 		rc = ops->cmpxchg_emulated(memop, &old, &new, 8, ctxt->vcpu);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		ctxt->eflags |= EFLG_ZF;
 	}
@@ -1451,7 +1451,7 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 					&c->dst.val,
 					c->dst.bytes,
 					ctxt->vcpu);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
 	case OP_NONE:
@@ -1749,7 +1749,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 					&c->src.val,
 					c->src.bytes,
 					ctxt->vcpu);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->src.orig_val = c->src.val;
 	}
@@ -1768,12 +1768,15 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 			c->dst.ptr = (void *)c->dst.ptr +
 						   (c->src.val & mask) / 8;
 		}
-		if (!(c->d & Mov) &&
-				   /* optimisation - avoid slow emulated read */
-		    ((rc = ops->read_emulated((unsigned long)c->dst.ptr,
-					   &c->dst.val,
-					  c->dst.bytes, ctxt->vcpu)) != 0))
-			goto done;
+		if (!(c->d & Mov)) {
+			/* optimisation - avoid slow emulated read */
+			rc = ops->read_emulated((unsigned long)c->dst.ptr,
+						&c->dst.val,
+						c->dst.bytes,
+						ctxt->vcpu);
+			if (rc != X86EMUL_CONTINUE)
+				goto done;
+		}
 	}
 	c->dst.orig_val = c->dst.val;
 
@@ -2039,11 +2042,12 @@ special_insn:
 		c->dst.ptr = (unsigned long *)register_address(c,
 						   es_base(ctxt),
 						   c->regs[VCPU_REGS_RDI]);
-		if ((rc = ops->read_emulated(register_address(c,
-					   seg_override_base(ctxt, c),
-					c->regs[VCPU_REGS_RSI]),
+		rc = ops->read_emulated(register_address(c,
+						seg_override_base(ctxt, c),
+						c->regs[VCPU_REGS_RSI]),
 					&c->dst.val,
-					c->dst.bytes, ctxt->vcpu)) != 0)
+					c->dst.bytes, ctxt->vcpu);
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		register_address_increment(c, &c->regs[VCPU_REGS_RSI],
 				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
@@ -2058,10 +2062,11 @@ special_insn:
 		c->src.ptr = (unsigned long *)register_address(c,
 				       seg_override_base(ctxt, c),
 						   c->regs[VCPU_REGS_RSI]);
-		if ((rc = ops->read_emulated((unsigned long)c->src.ptr,
-						&c->src.val,
-						c->src.bytes,
-						ctxt->vcpu)) != 0)
+		rc = ops->read_emulated((unsigned long)c->src.ptr,
+					&c->src.val,
+					c->src.bytes,
+					ctxt->vcpu);
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 
 		c->dst.type = OP_NONE; /* Disable writeback. */
@@ -2069,10 +2074,11 @@ special_insn:
 		c->dst.ptr = (unsigned long *)register_address(c,
 						   es_base(ctxt),
 						   c->regs[VCPU_REGS_RDI]);
-		if ((rc = ops->read_emulated((unsigned long)c->dst.ptr,
-						&c->dst.val,
-						c->dst.bytes,
-						ctxt->vcpu)) != 0)
+		rc = ops->read_emulated((unsigned long)c->dst.ptr,
+					&c->dst.val,
+					c->dst.bytes,
+					ctxt->vcpu);
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 
 		DPRINTF("cmps: mem1=0x%p mem2=0x%p\n", c->src.ptr, c->dst.ptr);
@@ -2102,12 +2108,13 @@ special_insn:
 		c->dst.type = OP_REG;
 		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
-		if ((rc = ops->read_emulated(register_address(c,
-						 seg_override_base(ctxt, c),
-						 c->regs[VCPU_REGS_RSI]),
-						 &c->dst.val,
-						 c->dst.bytes,
-						 ctxt->vcpu)) != 0)
+		rc = ops->read_emulated(register_address(c,
+						seg_override_base(ctxt, c),
+						c->regs[VCPU_REGS_RSI]),
+					&c->dst.val,
+					c->dst.bytes,
+					ctxt->vcpu);
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		register_address_increment(c, &c->regs[VCPU_REGS_RSI],
 				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
