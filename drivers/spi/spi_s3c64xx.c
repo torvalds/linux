@@ -160,7 +160,7 @@ struct s3c64xx_spi_driver_data {
 	struct platform_device          *pdev;
 	struct spi_master               *master;
 	struct workqueue_struct	        *workqueue;
-	struct s3c64xx_spi_cntrlr_info  *cntrlr_info;
+	struct s3c64xx_spi_info  *cntrlr_info;
 	struct spi_device               *tgl_spi;
 	struct work_struct              work;
 	struct list_head                queue;
@@ -180,7 +180,7 @@ static struct s3c2410_dma_client s3c64xx_spi_dma_client = {
 
 static void flush_fifo(struct s3c64xx_spi_driver_data *sdd)
 {
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	unsigned long loops;
 	u32 val;
@@ -225,7 +225,7 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 				struct spi_device *spi,
 				struct spi_transfer *xfer, int dma_mode)
 {
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	u32 modecfg, chcfg;
 
@@ -310,7 +310,7 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 static int wait_for_xfer(struct s3c64xx_spi_driver_data *sdd,
 				struct spi_transfer *xfer, int dma_mode)
 {
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	unsigned long val;
 	int ms;
@@ -389,7 +389,7 @@ static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
 
 static void s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 {
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	u32 val;
 
@@ -558,7 +558,7 @@ static void s3c64xx_spi_unmap_mssg(struct s3c64xx_spi_driver_data *sdd,
 static void handle_msg(struct s3c64xx_spi_driver_data *sdd,
 					struct spi_message *msg)
 {
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct spi_device *spi = msg->spi;
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 	struct spi_transfer *xfer;
@@ -786,7 +786,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 	struct s3c64xx_spi_driver_data *sdd;
-	struct s3c64xx_spi_cntrlr_info *sci;
+	struct s3c64xx_spi_info *sci;
 	struct spi_message *msg;
 	u32 psr, speed;
 	unsigned long flags;
@@ -867,7 +867,7 @@ setup_exit:
 
 static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd, int channel)
 {
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	void __iomem *regs = sdd->regs;
 	unsigned int val;
 
@@ -902,7 +902,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 {
 	struct resource	*mem_res, *dmatx_res, *dmarx_res;
 	struct s3c64xx_spi_driver_data *sdd;
-	struct s3c64xx_spi_cntrlr_info *sci;
+	struct s3c64xx_spi_info *sci;
 	struct spi_master *master;
 	int ret;
 
@@ -1078,7 +1078,7 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct resource	*mem_res;
 	unsigned long flags;
 
@@ -1118,7 +1118,7 @@ static int s3c64xx_spi_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct s3c64xx_spi_csinfo *cs;
 	unsigned long flags;
 
@@ -1144,7 +1144,7 @@ static int s3c64xx_spi_resume(struct platform_device *pdev)
 {
 	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
-	struct s3c64xx_spi_cntrlr_info *sci = sdd->cntrlr_info;
+	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	unsigned long flags;
 
 	sci->cfg_gpio(pdev);
