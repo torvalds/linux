@@ -59,6 +59,8 @@ MODULE_PARM_DESC(debug, "Print debugging information.");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+#define COMMAND_TIMEOUT_WORKAROUND
+
 #define dprintk	if (debug) printk
 
 #define DEVICE_NAME "ngene"
@@ -258,6 +260,27 @@ static irqreturn_t irq_handler(int irq, void *dev_id)
 /* nGene command interface **************************************************/
 /****************************************************************************/
 
+static void dump_command_io(struct ngene *dev)
+{
+	u8 buf[8], *b;
+
+	ngcpyfrom(buf, HOST_TO_NGENE, 8);
+	printk(KERN_ERR "host_to_ngene (%04x): %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		HOST_TO_NGENE, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+
+	ngcpyfrom(buf, NGENE_TO_HOST, 8);
+	printk(KERN_ERR "ngene_to_host (%04x): %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		NGENE_TO_HOST, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+
+	b = dev->hosttongene;
+	printk(KERN_ERR "dev->hosttongene (%p): %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		b, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
+
+	b = dev->ngenetohost;
+	printk(KERN_ERR "dev->ngenetohost (%p): %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		b, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
+}
+
 static int ngene_command_mutex(struct ngene *dev, struct ngene_command *com)
 {
 	int ret;
@@ -310,6 +333,7 @@ static int ngene_command_mutex(struct ngene *dev, struct ngene_command *com)
 		printk(KERN_ERR DEVICE_NAME
 		       ": Command timeout cmd=%02x prev=%02x\n",
 		       com->cmd.hdr.Opcode, dev->prev_cmd);
+		dump_command_io(dev);
 		return -1;
 	}
 	if (com->cmd.hdr.Opcode == CMD_FWLOAD_FINISH)
@@ -856,7 +880,10 @@ static void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 	struct ngene_channel *chan = priv;
 
 
-	dvb_dmx_swfilter(&chan->demux, buf, len);
+#ifdef COMMAND_TIMEOUT_WORKAROUND
+	if (chan->users > 0)
+#endif
+		dvb_dmx_swfilter(&chan->demux, buf, len);
 	return 0;
 }
 
@@ -889,11 +916,6 @@ static void set_transfer(struct ngene_channel *chan, int state)
 	u8 control = 0, mode = 0, flags = 0;
 	struct ngene *dev = chan->dev;
 	int ret;
-
-	/*
-	if (chan->running)
-		return;
-	*/
 
 	/*
 	printk(KERN_INFO DEVICE_NAME ": st %d\n", state);
@@ -962,7 +984,10 @@ static int ngene_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct ngene_channel *chan = dvbdmx->priv;
 
 	if (chan->users == 0) {
-		set_transfer(chan, 1);
+#ifdef COMMAND_TIMEOUT_WORKAROUND
+		if (!chan->running)
+#endif
+			set_transfer(chan, 1);
 		/* msleep(10); */
 	}
 
@@ -977,7 +1002,9 @@ static int ngene_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	if (--chan->users)
 		return chan->users;
 
+#ifndef COMMAND_TIMEOUT_WORKAROUND
 	set_transfer(chan, 0);
+#endif
 
 	return 0;
 }
@@ -1683,6 +1710,11 @@ static void release_channel(struct ngene_channel *chan)
 	struct ngene_info *ni = dev->card_info;
 	int io = ni->io_type[chan->number];
 
+#ifdef COMMAND_TIMEOUT_WORKAROUND
+	if (chan->running)
+		set_transfer(chan, 0);
+#endif
+
 	tasklet_kill(&chan->demux_tasklet);
 
 	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
@@ -1887,7 +1919,7 @@ static struct ngene_info ngene_info_mps2 = {
 	.tuner_config	= {&tuner_mps2_0, &tuner_mps2_1},
 	.lnb		= {0x0b, 0x08},
 	.tsf		= {3, 3},
-	.fw_version	= 17,
+	.fw_version	= 15,
 };
 
 static struct ngene_info ngene_info_satixs2 = {
@@ -1900,7 +1932,7 @@ static struct ngene_info ngene_info_satixs2 = {
 	.tuner_config	= {&tuner_mps2_0, &tuner_mps2_1},
 	.lnb		= {0x0b, 0x08},
 	.tsf		= {3, 3},
-	.fw_version	= 17,
+	.fw_version	= 15,
 };
 
 /****************************************************************************/
