@@ -91,6 +91,7 @@ struct tlv320dac33_priv {
 					 * this */
 	enum dac33_fifo_modes fifo_mode;/* FIFO mode selection */
 	unsigned int nsample;		/* burst read amount from host */
+	u8 burst_bclkdiv;		/* BCLK divider value in burst mode */
 
 	enum dac33_state state;
 };
@@ -845,9 +846,18 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_A, aictrl_a);
 	dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_B, aictrl_b);
 
-	/* BCLK divide ratio */
+	/*
+	 * BCLK divide ratio
+	 * 0: 1.5
+	 * 1: 1
+	 * 2: 2
+	 * ...
+	 * 254: 254
+	 * 255: 255
+	 */
 	if (dac33->fifo_mode)
-		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 3);
+		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C,
+							dac33->burst_bclkdiv);
 	else
 		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 32);
 
@@ -1239,6 +1249,7 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, dac33);
 
 	dac33->power_gpio = pdata->power_gpio;
+	dac33->burst_bclkdiv = pdata->burst_bclkdiv;
 	dac33->irq = client->irq;
 	dac33->nsample = NSAMPLE_MAX;
 	/* Disable FIFO use by default */
