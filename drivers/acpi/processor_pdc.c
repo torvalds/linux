@@ -125,11 +125,16 @@ acpi_processor_eval_pdc(acpi_handle handle, struct acpi_object_list *pdc_in)
 	return status;
 }
 
+static int early_pdc_done;
+
 void acpi_processor_set_pdc(acpi_handle handle)
 {
 	struct acpi_object_list *obj_list;
 
 	if (arch_has_acpi_pdc() == false)
+		return;
+
+	if (early_pdc_done)
 		return;
 
 	obj_list = acpi_processor_alloc_pdc();
@@ -199,4 +204,6 @@ void __init acpi_early_processor_set_pdc(void)
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,
 			    early_init_pdc, NULL, NULL, NULL);
+
+	early_pdc_done = 1;
 }
