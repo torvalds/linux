@@ -151,6 +151,13 @@ static int set_early_pdc_optin(const struct dmi_system_id *id)
 	return 0;
 }
 
+static int param_early_pdc_optin(char *s)
+{
+	early_pdc_optin = 1;
+	return 1;
+}
+__setup("acpi_early_pdc_eval", param_early_pdc_optin);
+
 static struct dmi_system_id __cpuinitdata early_pdc_optin_table[] = {
 	{
 	set_early_pdc_optin, "HP Envy", {
