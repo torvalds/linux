@@ -1000,10 +1000,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	if (sci->src_clk_nr == S3C64XX_SPI_SRCCLK_PCLK)
-		sci->src_clk = sdd->clk;
-	else
-		sci->src_clk = clk_get(&pdev->dev, sci->src_clk_name);
+	sci->src_clk = clk_get(&pdev->dev, sci->src_clk_name);
 	if (IS_ERR(sci->src_clk)) {
 		dev_err(&pdev->dev,
 			"Unable to acquire clock '%s'\n", sci->src_clk_name);
@@ -1011,7 +1008,7 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 		goto err5;
 	}
 
-	if (sci->src_clk != sdd->clk && clk_enable(sci->src_clk)) {
+	if (clk_enable(sci->src_clk)) {
 		dev_err(&pdev->dev, "Couldn't enable clock '%s'\n",
 							sci->src_clk_name);
 		ret = -EBUSY;
@@ -1053,11 +1050,9 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 err8:
 	destroy_workqueue(sdd->workqueue);
 err7:
-	if (sci->src_clk != sdd->clk)
-		clk_disable(sci->src_clk);
+	clk_disable(sci->src_clk);
 err6:
-	if (sci->src_clk != sdd->clk)
-		clk_put(sci->src_clk);
+	clk_put(sci->src_clk);
 err5:
 	clk_disable(sdd->clk);
 err4:
@@ -1093,11 +1088,8 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 
 	destroy_workqueue(sdd->workqueue);
 
-	if (sci->src_clk != sdd->clk)
-		clk_disable(sci->src_clk);
-
-	if (sci->src_clk != sdd->clk)
-		clk_put(sci->src_clk);
+	clk_disable(sci->src_clk);
+	clk_put(sci->src_clk);
 
 	clk_disable(sdd->clk);
 	clk_put(sdd->clk);
@@ -1130,9 +1122,7 @@ static int s3c64xx_spi_suspend(struct platform_device *pdev, pm_message_t state)
 		msleep(10);
 
 	/* Disable the clock */
-	if (sci->src_clk != sdd->clk)
-		clk_disable(sci->src_clk);
-
+	clk_disable(sci->src_clk);
 	clk_disable(sdd->clk);
 
 	sdd->cur_speed = 0; /* Output Clock is stopped */
@@ -1150,9 +1140,7 @@ static int s3c64xx_spi_resume(struct platform_device *pdev)
 	sci->cfg_gpio(pdev);
 
 	/* Enable the clock */
-	if (sci->src_clk != sdd->clk)
-		clk_enable(sci->src_clk);
-
+	clk_enable(sci->src_clk);
 	clk_enable(sdd->clk);
 
 	s3c64xx_spi_hwinit(sdd, pdev->id);
