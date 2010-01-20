@@ -143,7 +143,7 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 
 	err = paranoid_check_not_bad(ubi, pnum);
 	if (err)
-		return err > 0 ? -EINVAL : err;
+		return err;
 
 	addr = (loff_t)pnum * ubi->peb_size + offset;
 retry:
@@ -236,12 +236,12 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 
 	err = paranoid_check_not_bad(ubi, pnum);
 	if (err)
-		return err > 0 ? -EINVAL : err;
+		return err;
 
 	/* The area we are writing to has to contain all 0xFF bytes */
 	err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
 	if (err)
-		return err > 0 ? -EINVAL : err;
+		return err;
 
 	if (offset >= ubi->leb_start) {
 		/*
@@ -250,10 +250,10 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		 */
 		err = paranoid_check_peb_ec_hdr(ubi, pnum);
 		if (err)
-			return err > 0 ? -EINVAL : err;
+			return err;
 		err = paranoid_check_peb_vid_hdr(ubi, pnum);
 		if (err)
-			return err > 0 ? -EINVAL : err;
+			return err;
 	}
 
 	if (ubi_dbg_is_write_failure()) {
@@ -348,7 +348,7 @@ retry:
 
 	err = ubi_dbg_check_all_ff(ubi, pnum, 0, ubi->peb_size);
 	if (err)
-		return err > 0 ? -EINVAL : err;
+		return err;
 
 	if (ubi_dbg_is_erase_failure() && !err) {
 		dbg_err("cannot erase PEB %d (emulated)", pnum);
@@ -542,7 +542,7 @@ int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture)
 
 	err = paranoid_check_not_bad(ubi, pnum);
 	if (err != 0)
-		return err > 0 ? -EINVAL : err;
+		return err;
 
 	if (ubi->ro_mode) {
 		ubi_err("read-only mode");
@@ -819,7 +819,7 @@ int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
 
 	err = paranoid_check_ec_hdr(ubi, pnum, ec_hdr);
 	if (err)
-		return -EINVAL;
+		return err;
 
 	err = ubi_io_write(ubi, ec_hdr, pnum, 0, ubi->ec_hdr_alsize);
 	return err;
@@ -1083,7 +1083,7 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 
 	err = paranoid_check_peb_ec_hdr(ubi, pnum);
 	if (err)
-		return err > 0 ? -EINVAL : err;
+		return err;
 
 	vid_hdr->magic = cpu_to_be32(UBI_VID_HDR_MAGIC);
 	vid_hdr->version = UBI_VERSION;
@@ -1092,7 +1092,7 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 
 	err = paranoid_check_vid_hdr(ubi, pnum, vid_hdr);
 	if (err)
-		return -EINVAL;
+		return err;
 
 	p = (char *)vid_hdr - ubi->vid_hdr_shift;
 	err = ubi_io_write(ubi, p, pnum, ubi->vid_hdr_aloffset,
@@ -1107,8 +1107,8 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
  * @ubi: UBI device description object
  * @pnum: physical eraseblock number to check
  *
- * This function returns zero if the physical eraseblock is good, a positive
- * number if it is bad and a negative error code if an error occurred.
+ * This function returns zero if the physical eraseblock is good, %-EINVAL if
+ * it is bad and a negative error code if an error occurred.
  */
 static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
 {
@@ -1120,7 +1120,7 @@ static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
 
 	ubi_err("paranoid check failed for PEB %d", pnum);
 	ubi_dbg_dump_stack();
-	return err;
+	return err > 0 ? -EINVAL : err;
 }
 
 /**
@@ -1130,7 +1130,7 @@ static int paranoid_check_not_bad(const struct ubi_device *ubi, int pnum)
  * @ec_hdr: the erase counter header to check
  *
  * This function returns zero if the erase counter header contains valid
- * values, and %1 if not.
+ * values, and %-EINVAL if not.
  */
 static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 				 const struct ubi_ec_hdr *ec_hdr)
@@ -1156,7 +1156,7 @@ static int paranoid_check_ec_hdr(const struct ubi_device *ubi, int pnum,
 fail:
 	ubi_dbg_dump_ec_hdr(ec_hdr);
 	ubi_dbg_dump_stack();
-	return 1;
+	return -EINVAL;
 }
 
 /**
@@ -1164,8 +1164,8 @@ fail:
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock number to check
  *
- * This function returns zero if the erase counter header is all right, %1 if
- * not, and a negative error code if an error occurred.
+ * This function returns zero if the erase counter header is all right and and
+ * a negative error code if not or if an error occurred.
  */
 static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 {
@@ -1188,7 +1188,7 @@ static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 		ubi_err("paranoid check failed for PEB %d", pnum);
 		ubi_dbg_dump_ec_hdr(ec_hdr);
 		ubi_dbg_dump_stack();
-		err = 1;
+		err = -EINVAL;
 		goto exit;
 	}
 
@@ -1206,7 +1206,7 @@ exit:
  * @vid_hdr: the volume identifier header to check
  *
  * This function returns zero if the volume identifier header is all right, and
- * %1 if not.
+ * %-EINVAL if not.
  */
 static int paranoid_check_vid_hdr(const struct ubi_device *ubi, int pnum,
 				  const struct ubi_vid_hdr *vid_hdr)
@@ -1233,7 +1233,7 @@ fail:
 	ubi_err("paranoid check failed for PEB %d", pnum);
 	ubi_dbg_dump_vid_hdr(vid_hdr);
 	ubi_dbg_dump_stack();
-	return 1;
+	return -EINVAL;
 
 }
 
@@ -1243,7 +1243,7 @@ fail:
  * @pnum: the physical eraseblock number to check
  *
  * This function returns zero if the volume identifier header is all right,
- * %1 if not, and a negative error code if an error occurred.
+ * and a negative error code if not or if an error occurred.
  */
 static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 {
@@ -1270,7 +1270,7 @@ static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 		ubi_err("paranoid check failed for PEB %d", pnum);
 		ubi_dbg_dump_vid_hdr(vid_hdr);
 		ubi_dbg_dump_stack();
-		err = 1;
+		err = -EINVAL;
 		goto exit;
 	}
 
@@ -1289,8 +1289,8 @@ exit:
  * @len: the length of the region to check
  *
  * This function returns zero if only 0xFF bytes are present at offset
- * @offset of the physical eraseblock @pnum, %1 if not, and a negative error
- * code if an error occurred.
+ * @offset of the physical eraseblock @pnum, and a negative error code if not
+ * or if an error occurred.
  */
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len)
 {
@@ -1321,7 +1321,7 @@ fail:
 	ubi_msg("hex dump of the %d-%d region", offset, offset + len);
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       ubi->dbg_peb_buf, len, 1);
-	err = 1;
+	err = -EINVAL;
 error:
 	ubi_dbg_dump_stack();
 	mutex_unlock(&ubi->dbg_buf_mutex);
