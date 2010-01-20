@@ -108,7 +108,7 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 
 	.auto_corr_max_ofdm = 145,
 	.auto_corr_max_ofdm_mrc = 232,
-	.auto_corr_max_ofdm_x1 = 145,
+	.auto_corr_max_ofdm_x1 = 110,
 	.auto_corr_max_ofdm_mrc_x1 = 232,
 
 	.auto_corr_min_cck = 125,
