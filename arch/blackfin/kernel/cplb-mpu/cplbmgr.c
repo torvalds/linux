@@ -31,6 +31,12 @@ int nr_dcplb_miss[NR_CPUS], nr_icplb_miss[NR_CPUS];
 int nr_icplb_supv_miss[NR_CPUS], nr_dcplb_prot[NR_CPUS];
 int nr_cplb_flush[NR_CPUS];
 
+#ifdef CONFIG_EXCPT_IRQ_SYSC_L1
+#define MGR_ATTR __attribute__((l1_text))
+#else
+#define MGR_ATTR
+#endif
+
 /*
  * Given the contents of the status register, return the index of the
  * CPLB that caused the fault.
@@ -59,7 +65,7 @@ static int icplb_rr_index[NR_CPUS], dcplb_rr_index[NR_CPUS];
 /*
  * Find an ICPLB entry to be evicted and return its index.
  */
-static int evict_one_icplb(unsigned int cpu)
+MGR_ATTR static int evict_one_icplb(unsigned int cpu)
 {
 	int i;
 	for (i = first_switched_icplb; i < MAX_CPLBS; i++)
@@ -74,7 +80,7 @@ static int evict_one_icplb(unsigned int cpu)
 	return i;
 }
 
-static int evict_one_dcplb(unsigned int cpu)
+MGR_ATTR static int evict_one_dcplb(unsigned int cpu)
 {
 	int i;
 	for (i = first_switched_dcplb; i < MAX_CPLBS; i++)
@@ -89,7 +95,7 @@ static int evict_one_dcplb(unsigned int cpu)
 	return i;
 }
 
-static noinline int dcplb_miss(unsigned int cpu)
+MGR_ATTR static noinline int dcplb_miss(unsigned int cpu)
 {
 	unsigned long addr = bfin_read_DCPLB_FAULT_ADDR();
 	int status = bfin_read_DCPLB_STATUS();
@@ -163,7 +169,7 @@ static noinline int dcplb_miss(unsigned int cpu)
 	return 0;
 }
 
-static noinline int icplb_miss(unsigned int cpu)
+MGR_ATTR static noinline int icplb_miss(unsigned int cpu)
 {
 	unsigned long addr = bfin_read_ICPLB_FAULT_ADDR();
 	int status = bfin_read_ICPLB_STATUS();
@@ -269,7 +275,7 @@ static noinline int icplb_miss(unsigned int cpu)
 	return 0;
 }
 
-static noinline int dcplb_protection_fault(unsigned int cpu)
+MGR_ATTR static noinline int dcplb_protection_fault(unsigned int cpu)
 {
 	int status = bfin_read_DCPLB_STATUS();
 
@@ -289,7 +295,7 @@ static noinline int dcplb_protection_fault(unsigned int cpu)
 	return CPLB_PROT_VIOL;
 }
 
-int cplb_hdr(int seqstat, struct pt_regs *regs)
+MGR_ATTR int cplb_hdr(int seqstat, struct pt_regs *regs)
 {
 	int cause = seqstat & 0x3f;
 	unsigned int cpu = raw_smp_processor_id();
