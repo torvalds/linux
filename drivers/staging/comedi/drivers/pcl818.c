@@ -1392,14 +1392,6 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > s->n_chan) {
-		cmd->chanlist_len = s->n_chan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
