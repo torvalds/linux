@@ -1859,6 +1859,9 @@ static struct stv090x_config fe_mps2 = {
 
 	.repeater_level = STV090x_RPTLEVEL_16,
 
+	.adc1_range	= STV090x_ADC_1Vpp,
+	.adc2_range	= STV090x_ADC_1Vpp,
+
 	.diseqc_envelope_mode = true,
 };
 
