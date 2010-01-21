@@ -1238,14 +1238,6 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 	if (!ch_info)
 		ch_info = &priv->channel_info[0];
 
-	/*
-	 * in some case A channels are all non IBSS
-	 * in this case force B/G channel
-	 */
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
-	    !(is_channel_ibss(ch_info)))
-		ch_info = &priv->channel_info[0];
-
 	priv->staging_rxon.channel = cpu_to_le16(ch_info->channel);
 	priv->band = ch_info->band;
 
