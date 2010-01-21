@@ -381,13 +381,17 @@ unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy)
 	fc_tbl = &clp->cl_session->fc_slot_table;
 
 	status = htonl(NFS4ERR_BAD_HIGH_SLOT);
-	if (args->crsa_target_max_slots >= fc_tbl->max_slots ||
+	if (args->crsa_target_max_slots > fc_tbl->max_slots ||
 	    args->crsa_target_max_slots < 1)
-		goto out;
+		goto out_putclient;
+
+	status = htonl(NFS4_OK);
+	if (args->crsa_target_max_slots == fc_tbl->max_slots)
+		goto out_putclient;
 
 	fc_tbl->target_max_slots = args->crsa_target_max_slots;
 	nfs41_handle_recall_slot(clp);
-	status = htonl(NFS4_OK);
+out_putclient:
 	nfs_put_client(clp);	/* balance nfs_find_client */
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
