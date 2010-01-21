@@ -285,8 +285,8 @@ int snd_pcm_update_state(struct snd_pcm_substream *substream,
 			return -EPIPE;
 		}
 	}
-	if (!runtime->nowake && avail >= runtime->control->avail_min)
-		wake_up(&runtime->sleep);
+	if (avail >= runtime->control->avail_min)
+		wake_up(runtime->twake ? &runtime->tsleep : &runtime->sleep);
 	return 0;
 }
 
@@ -1706,7 +1706,7 @@ static int wait_for_avail_min(struct snd_pcm_substream *substream,
 	long tout;
 
 	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&runtime->sleep, &wait);
+	add_wait_queue(&runtime->tsleep, &wait);
 	for (;;) {
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
@@ -1749,7 +1749,7 @@ static int wait_for_avail_min(struct snd_pcm_substream *substream,
 			break;
 	}
  _endloop:
-	remove_wait_queue(&runtime->sleep, &wait);
+	remove_wait_queue(&runtime->tsleep, &wait);
 	*availp = avail;
 	return err;
 }
@@ -1808,7 +1808,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		goto _end_unlock;
 	}
 
-	runtime->nowake = 1;
+	runtime->twake = 1;
 	while (size > 0) {
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
 		snd_pcm_uframes_t avail;
@@ -1830,7 +1830,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		if (frames > cont)
 			frames = cont;
 		if (snd_BUG_ON(!frames)) {
-			runtime->nowake = 0;
+			runtime->twake = 0;
 			snd_pcm_stream_unlock_irq(substream);
 			return -EINVAL;
 		}
@@ -1869,7 +1869,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		}
 	}
  _end_unlock:
-	runtime->nowake = 0;
+	runtime->twake = 0;
 	if (xfer > 0 && err >= 0)
 		snd_pcm_update_state(substream, runtime);
 	snd_pcm_stream_unlock_irq(substream);
@@ -2030,7 +2030,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		goto _end_unlock;
 	}
 
-	runtime->nowake = 1;
+	runtime->twake = 1;
 	while (size > 0) {
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
 		snd_pcm_uframes_t avail;
@@ -2059,7 +2059,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		if (frames > cont)
 			frames = cont;
 		if (snd_BUG_ON(!frames)) {
-			runtime->nowake = 0;
+			runtime->twake = 0;
 			snd_pcm_stream_unlock_irq(substream);
 			return -EINVAL;
 		}
@@ -2092,7 +2092,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		xfer += frames;
 	}
  _end_unlock:
-	runtime->nowake = 0;
+	runtime->twake = 0;
 	if (xfer > 0 && err >= 0)
 		snd_pcm_update_state(substream, runtime);
 	snd_pcm_stream_unlock_irq(substream);
