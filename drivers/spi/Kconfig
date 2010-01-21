@@ -325,7 +325,7 @@ config SPI_NUC900
 #
 
 config SPI_DESIGNWARE
-	bool "DesignWare SPI controller core support"
+	tristate "DesignWare SPI controller core support"
 	depends on SPI_MASTER
 	help
 	  general driver for SPI controller core from DesignWare
