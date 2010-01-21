@@ -385,11 +385,6 @@ union uint64_overlay {
 	struct uint64_struct part;
 };
 
-struct uint32_struct {
-	u32 lo;
-	u32 hi;
-};
-
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
 
