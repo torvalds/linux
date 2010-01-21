@@ -146,7 +146,8 @@ static void quirk_wakeup_oxsemi(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
 
-	outb(12, info->c950ctrl + 1);
+	if (info->c950ctrl)
+		outb(12, info->c950ctrl + 1);
 }
 
 /* request_region? oxsemi branch does no request_region too... */
