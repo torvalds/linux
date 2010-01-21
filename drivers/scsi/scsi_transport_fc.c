@@ -1215,6 +1215,15 @@ store_fc_vport_delete(struct device *dev, struct device_attribute *attr,
 {
 	struct fc_vport *vport = transport_class_to_vport(dev);
 	struct Scsi_Host *shost = vport_to_shost(vport);
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING)) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		return -EBUSY;
+	}
+	vport->flags |= FC_VPORT_DELETING;
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	fc_queue_work(shost, &vport->vport_delete_work);
 	return count;
@@ -1804,6 +1813,9 @@ store_fc_host_vport_delete(struct device *dev, struct device_attribute *attr,
 	list_for_each_entry(vport, &fc_host->vports, peers) {
 		if ((vport->channel == 0) &&
 		    (vport->port_name == wwpn) && (vport->node_name == wwnn)) {
+			if (vport->flags & (FC_VPORT_DEL | FC_VPORT_CREATING))
+				break;
+			vport->flags |= FC_VPORT_DELETING;
 			match = 1;
 			break;
 		}
@@ -3327,18 +3339,6 @@ fc_vport_terminate(struct fc_vport *vport)
 	struct device *dev = &vport->dev;
 	unsigned long flags;
 	int stat;
-
-	spin_lock_irqsave(shost->host_lock, flags);
-	if (vport->flags & FC_VPORT_CREATING) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return -EBUSY;
-	}
-	if (vport->flags & (FC_VPORT_DEL)) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return -EALREADY;
-	}
-	vport->flags |= FC_VPORT_DELETING;
-	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (i->f->vport_delete)
 		stat = i->f->vport_delete(vport);
