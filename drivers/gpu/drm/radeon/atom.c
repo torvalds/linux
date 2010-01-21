@@ -1122,8 +1122,6 @@ static void atom_execute_table_locked(struct atom_context *ctx, int index, uint3
 
 	SDEBUG(">> execute %04X (len %d, WS %d, PS %d)\n", base, len, ws, ps);
 
-	/* reset reg block */
-	ctx->reg_block = 0;
 	ectx.ctx = ctx;
 	ectx.ps_shift = ps / 4;
 	ectx.start = base;
@@ -1160,6 +1158,12 @@ static void atom_execute_table_locked(struct atom_context *ctx, int index, uint3
 void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
 {
 	mutex_lock(&ctx->mutex);
+	/* reset reg block */
+	ctx->reg_block = 0;
+	/* reset fb window */
+	ctx->fb_base = 0;
+	/* reset io mode */
+	ctx->io_mode = ATOM_IO_MM;
 	atom_execute_table_locked(ctx, index, params);
 	mutex_unlock(&ctx->mutex);
 }
