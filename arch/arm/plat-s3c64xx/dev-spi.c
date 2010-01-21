@@ -18,6 +18,7 @@
 #include <mach/gpio.h>
 
 #include <plat/spi-clocks.h>
+
 #include <plat/s3c64xx-spi.h>
 #include <plat/gpio-bank-c.h>
 #include <plat/gpio-cfg.h>
@@ -154,6 +155,8 @@ EXPORT_SYMBOL(s3c64xx_device_spi1);
 
 void __init s3c64xx_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 {
+	struct s3c64xx_spi_info *pd;
+
 	/* Reject invalid configuration */
 	if (!num_cs || src_clk_nr < 0
 			|| src_clk_nr > S3C64XX_SPI_SRCCLK_48M) {
@@ -163,18 +166,18 @@ void __init s3c64xx_spi_set_info(int cntrlr, int src_clk_nr, int num_cs)
 
 	switch (cntrlr) {
 	case 0:
-		s3c64xx_spi0_pdata.num_cs = num_cs;
-		s3c64xx_spi0_pdata.src_clk_nr = src_clk_nr;
-		s3c64xx_spi0_pdata.src_clk_name = spi_src_clks[src_clk_nr];
+		pd = &s3c64xx_spi0_pdata;
 		break;
 	case 1:
-		s3c64xx_spi1_pdata.num_cs = num_cs;
-		s3c64xx_spi1_pdata.src_clk_nr = src_clk_nr;
-		s3c64xx_spi1_pdata.src_clk_name = spi_src_clks[src_clk_nr];
+		pd = &s3c64xx_spi1_pdata;
 		break;
 	default:
 		printk(KERN_ERR "%s: Invalid SPI controller(%d)\n",
 							__func__, cntrlr);
 		return;
 	}
+
+	pd->num_cs = num_cs;
+	pd->src_clk_nr = src_clk_nr;
+	pd->src_clk_name = spi_src_clks[src_clk_nr];
 }
