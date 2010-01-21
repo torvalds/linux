@@ -100,6 +100,8 @@ struct uvc_xu_control {
 #include <linux/poll.h>
 #include <linux/usb/video.h>
 #include <linux/uvcvideo.h>
+#include <media/media-device.h>
+#include <media/v4l2-device.h>
 
 /* --------------------------------------------------------------------------
  * UVC constants
@@ -504,6 +506,10 @@ struct uvc_device {
 	atomic_t nmappings;
 
 	/* Video control interface */
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device mdev;
+#endif
+	struct v4l2_device vdev;
 	__u16 uvc_version;
 	__u32 clock_frequency;
 
