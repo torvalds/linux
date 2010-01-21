@@ -456,7 +456,7 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
 #ifdef CONFIG_X86_64
-		if ((vcpu->arch.shadow_efer & EFER_LME)) {
+		if ((vcpu->arch.efer & EFER_LME)) {
 			int cs_db, cs_l;
 
 			if (!is_pae(vcpu)) {
@@ -655,7 +655,7 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	}
 
 	if (is_paging(vcpu)
-	    && (vcpu->arch.shadow_efer & EFER_LME) != (efer & EFER_LME)) {
+	    && (vcpu->arch.efer & EFER_LME) != (efer & EFER_LME)) {
 		printk(KERN_DEBUG "set_efer: #GP, change LME while paging\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
@@ -686,9 +686,9 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	kvm_x86_ops->set_efer(vcpu, efer);
 
 	efer &= ~EFER_LMA;
-	efer |= vcpu->arch.shadow_efer & EFER_LMA;
+	efer |= vcpu->arch.efer & EFER_LMA;
 
-	vcpu->arch.shadow_efer = efer;
+	vcpu->arch.efer = efer;
 
 	vcpu->arch.mmu.base_role.nxe = (efer & EFER_NX) && !tdp_enabled;
 	kvm_mmu_reset_context(vcpu);
@@ -1426,7 +1426,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		data |= (((uint64_t)4ULL) << 40);
 		break;
 	case MSR_EFER:
-		data = vcpu->arch.shadow_efer;
+		data = vcpu->arch.efer;
 		break;
 	case MSR_KVM_WALL_CLOCK:
 		data = vcpu->kvm->arch.wall_clock;
@@ -4569,7 +4569,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->cr3 = vcpu->arch.cr3;
 	sregs->cr4 = kvm_read_cr4(vcpu);
 	sregs->cr8 = kvm_get_cr8(vcpu);
-	sregs->efer = vcpu->arch.shadow_efer;
+	sregs->efer = vcpu->arch.efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
 
 	memset(sregs->interrupt_bitmap, 0, sizeof sregs->interrupt_bitmap);
@@ -5059,7 +5059,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	kvm_set_cr8(vcpu, sregs->cr8);
 
-	mmu_reset_needed |= vcpu->arch.shadow_efer != sregs->efer;
+	mmu_reset_needed |= vcpu->arch.efer != sregs->efer;
 	kvm_x86_ops->set_efer(vcpu, sregs->efer);
 	kvm_set_apic_base(vcpu, sregs->apic_base);
 

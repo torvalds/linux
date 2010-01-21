@@ -613,7 +613,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	u64 guest_efer;
 	u64 ignore_bits;
 
-	guest_efer = vmx->vcpu.arch.shadow_efer;
+	guest_efer = vmx->vcpu.arch.efer;
 
 	/*
 	 * NX is emulated; LMA and LME handled by hardware; SCE meaninless
@@ -955,7 +955,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		 * if efer.sce is enabled.
 		 */
 		index = __find_msr_index(vmx, MSR_K6_STAR);
-		if ((index >= 0) && (vmx->vcpu.arch.shadow_efer & EFER_SCE))
+		if ((index >= 0) && (vmx->vcpu.arch.efer & EFER_SCE))
 			move_msr_up(vmx, index, save_nmsrs++);
 	}
 #endif
@@ -1600,7 +1600,7 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	 * of this msr depends on is_long_mode().
 	 */
 	vmx_load_host_state(to_vmx(vcpu));
-	vcpu->arch.shadow_efer = efer;
+	vcpu->arch.efer = efer;
 	if (!msr)
 		return;
 	if (efer & EFER_LMA) {
@@ -1632,13 +1632,13 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 			     (guest_tr_ar & ~AR_TYPE_MASK)
 			     | AR_TYPE_BUSY_64_TSS);
 	}
-	vcpu->arch.shadow_efer |= EFER_LMA;
-	vmx_set_efer(vcpu, vcpu->arch.shadow_efer);
+	vcpu->arch.efer |= EFER_LMA;
+	vmx_set_efer(vcpu, vcpu->arch.efer);
 }
 
 static void exit_lmode(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.shadow_efer &= ~EFER_LMA;
+	vcpu->arch.efer &= ~EFER_LMA;
 
 	vmcs_write32(VM_ENTRY_CONTROLS,
 		     vmcs_read32(VM_ENTRY_CONTROLS)
@@ -1745,7 +1745,7 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		enter_rmode(vcpu);
 
 #ifdef CONFIG_X86_64
-	if (vcpu->arch.shadow_efer & EFER_LME) {
+	if (vcpu->arch.efer & EFER_LME) {
 		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG))
 			enter_lmode(vcpu);
 		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG))

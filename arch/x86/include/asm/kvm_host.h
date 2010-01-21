@@ -277,7 +277,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr8;
 	u32 hflags;
 	u64 pdptrs[4]; /* pae */
-	u64 shadow_efer;
+	u64 efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
 	int32_t apic_arb_prio;

@@ -44,7 +44,7 @@ static inline bool is_protmode(struct kvm_vcpu *vcpu)
 static inline int is_long_mode(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	return vcpu->arch.shadow_efer & EFER_LMA;
+	return vcpu->arch.efer & EFER_LMA;
 #else
 	return 0;
 #endif

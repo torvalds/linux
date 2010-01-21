@@ -237,7 +237,7 @@ static int is_cpuid_PSE36(void)
 
 static int is_nx(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.shadow_efer & EFER_NX;
+	return vcpu->arch.efer & EFER_NX;
 }
 
 static int is_shadow_present_pte(u64 pte)
