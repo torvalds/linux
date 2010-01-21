@@ -17,8 +17,8 @@
 #define DRIVER_NAME "dw_spi_mmio"
 
 struct dw_spi_mmio {
-	struct dw_spi	dws;
-	struct clk		*clk;
+	struct dw_spi  dws;
+	struct clk     *clk;
 };
 
 static int __devinit dw_spi_mmio_probe(struct platform_device *pdev)
@@ -134,13 +134,12 @@ static int __init dw_spi_mmio_init(void)
 {
 	return platform_driver_probe(&dw_spi_mmio_driver, dw_spi_mmio_probe);
 }
+module_init(dw_spi_mmio_init);
 
 static void __exit dw_spi_mmio_exit(void)
 {
 	platform_driver_unregister(&dw_spi_mmio_driver);
 }
-
-module_init(dw_spi_mmio_init);
 module_exit(dw_spi_mmio_exit);
 
 MODULE_AUTHOR("Jean-Hugues Deschenes <jean-hugues.deschenes@octasic.com>");
