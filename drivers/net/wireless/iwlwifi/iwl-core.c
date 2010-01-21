@@ -2436,15 +2436,6 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 			goto set_ch_out;
 		}
 
-		if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
-			!is_channel_ibss(ch_info)) {
-			IWL_ERR(priv, "channel %d in band %d not "
-				"IBSS channel\n",
-				conf->channel->hw_value, conf->channel->band);
-			ret = -EINVAL;
-			goto set_ch_out;
-		}
-
 		spin_lock_irqsave(&priv->lock, flags);
 
 		/* Configure HT40 channels */
