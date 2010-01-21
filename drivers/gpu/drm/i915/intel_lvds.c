@@ -611,7 +611,7 @@ static const struct dmi_system_id bad_lid_status[] = {
 	{
 		.ident = "Samsung SX20S",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Phoenix Technologies LTD"),
+			DMI_MATCH(DMI_SYS_VENDOR, "Samsung Electronics"),
 			DMI_MATCH(DMI_BOARD_NAME, "SX20S"),
 		},
 	},
