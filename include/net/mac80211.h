@@ -1614,8 +1614,10 @@ struct ieee80211_ops {
 		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key);
 	void (*update_tkip_key)(struct ieee80211_hw *hw,
-			struct ieee80211_key_conf *conf, const u8 *address,
-			u32 iv32, u16 *phase1key);
+				struct ieee80211_vif *vif,
+				struct ieee80211_key_conf *conf,
+				struct ieee80211_sta *sta,
+				u32 iv32, u16 *phase1key);
 	int (*hw_scan)(struct ieee80211_hw *hw,
 		       struct cfg80211_scan_request *req);
 	void (*sw_scan_start)(struct ieee80211_hw *hw);

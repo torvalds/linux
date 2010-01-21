@@ -304,14 +304,12 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	if (key->local->ops->update_tkip_key &&
 	    key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
 	    key->u.tkip.rx[queue].state != TKIP_STATE_PHASE1_HW_UPLOADED) {
-		static const u8 bcast[ETH_ALEN] =
-		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-		const u8 *sta_addr = key->sta->sta.addr;
+		struct ieee80211_sub_if_data *sdata = key->sdata;
 
-		if (is_multicast_ether_addr(ra))
-			sta_addr = bcast;
-
-		drv_update_tkip_key(key->local, &key->conf, sta_addr,
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			sdata = container_of(key->sdata->bss,
+					struct ieee80211_sub_if_data, u.ap);
+		drv_update_tkip_key(key->local, sdata, &key->conf, key->sta,
 				iv32, key->u.tkip.rx[queue].p1k);
 		key->u.tkip.rx[queue].state = TKIP_STATE_PHASE1_HW_UPLOADED;
 	}

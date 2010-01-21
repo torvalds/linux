@@ -331,26 +331,29 @@ TRACE_EVENT(drv_set_key,
 
 TRACE_EVENT(drv_update_tkip_key,
 	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_key_conf *conf,
-		 const u8 *address, u32 iv32),
+		 struct ieee80211_sta *sta, u32 iv32),
 
-	TP_ARGS(local, conf, address, iv32),
+	TP_ARGS(local, sdata, conf, sta, iv32),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
-		__array(u8, addr, 6)
+		VIF_ENTRY
+		STA_ENTRY
 		__field(u32, iv32)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
-		memcpy(__entry->addr, address, 6);
+		VIF_ASSIGN;
+		STA_ASSIGN;
 		__entry->iv32 = iv32;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " addr:%pM iv32:%#x",
-		LOCAL_PR_ARG, __entry->addr, __entry->iv32
+		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " iv32:%#x",
+		LOCAL_PR_ARG,VIF_PR_ARG,STA_PR_ARG, __entry->iv32
 	)
 );
 

@@ -2839,14 +2839,18 @@ void iwl_config_ap(struct iwl_priv *priv)
 }
 
 static void iwl_mac_update_tkip_key(struct ieee80211_hw *hw,
-			struct ieee80211_key_conf *keyconf, const u8 *addr,
-			u32 iv32, u16 *phase1key)
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_key_conf *keyconf,
+				    struct ieee80211_sta *sta,
+				    u32 iv32, u16 *phase1key)
 {
 
 	struct iwl_priv *priv = hw->priv;
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	iwl_update_tkip_key(priv, keyconf, addr, iv32, phase1key);
+	iwl_update_tkip_key(priv, keyconf,
+			    sta ? sta->addr : iwl_bcast_addr,
+			    iv32, phase1key);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
