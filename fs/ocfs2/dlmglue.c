@@ -907,8 +907,6 @@ static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
 
 	assert_spin_locked(&lockres->l_lock);
 
-	lockres_or_flags(lockres, OCFS2_LOCK_BLOCKED);
-
 	if (level > lockres->l_blocking) {
 		/* only schedule a downconvert if we haven't already scheduled
 		 * one that goes low enough to satisfy the level we're
@@ -920,6 +918,9 @@ static int ocfs2_generic_handle_bast(struct ocfs2_lock_res *lockres,
 
 		lockres->l_blocking = level;
 	}
+
+	if (needs_downconvert)
+		lockres_or_flags(lockres, OCFS2_LOCK_BLOCKED);
 
 	mlog_exit(needs_downconvert);
 	return needs_downconvert;
