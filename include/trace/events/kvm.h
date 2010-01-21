@@ -145,6 +145,25 @@ TRACE_EVENT(kvm_mmio,
 		  __entry->len, __entry->gpa, __entry->val)
 );
 
+#define kvm_fpu_load_symbol	\
+	{0, "unload"},		\
+	{1, "load"}
+
+TRACE_EVENT(kvm_fpu,
+	TP_PROTO(int load),
+	TP_ARGS(load),
+
+	TP_STRUCT__entry(
+		__field(	u32,	        load		)
+	),
+
+	TP_fast_assign(
+		__entry->load		= load;
+	),
+
+	TP_printk("%s", __print_symbolic(__entry->load, kvm_fpu_load_symbol))
+);
+
 #endif /* _TRACE_KVM_MAIN_H */
 
 /* This part must be outside protection */
