@@ -1800,7 +1800,8 @@ int fc_lport_bsg_request(struct fc_bsg_job *job)
 	u32 did;
 
 	job->reply->reply_payload_rcv_len = 0;
-	rsp->resid_len = job->reply_payload.payload_len;
+	if (rsp)
+		rsp->resid_len = job->reply_payload.payload_len;
 
 	mutex_lock(&lport->lp_mutex);
 
