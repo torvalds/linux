@@ -537,6 +537,22 @@ static void pump_transfers(unsigned long data)
 	}
 	message->state = RUNNING_STATE;
 
+	/*
+	 * Adjust transfer mode if necessary. Requires platform dependent
+	 * chipselect mechanism.
+	 */
+	if (dws->cs_control) {
+		if (dws->rx && dws->tx)
+			chip->tmode = 0x00;
+		else if (dws->rx)
+			chip->tmode = 0x02;
+		else
+			chip->tmode = 0x01;
+
+		cr0 &= ~(0x3 << SPI_MODE_OFFSET);
+		cr0 |= (chip->tmode << SPI_TMOD_OFFSET);
+	}
+
 	/* Check if current transfer is a DMA transaction */
 	dws->dma_mapped = map_dma_buffers(dws);
 
