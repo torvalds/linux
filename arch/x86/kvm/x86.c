@@ -430,12 +430,16 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	cr0 |= X86_CR0_ET;
 
-	if (cr0 & CR0_RESERVED_BITS) {
+#ifdef CONFIG_X86_64
+	if (cr0 & 0xffffffff00000000UL) {
 		printk(KERN_DEBUG "set_cr0: 0x%lx #GP, reserved bits 0x%lx\n",
 		       cr0, kvm_read_cr0(vcpu));
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
+#endif
+
+	cr0 &= ~CR0_RESERVED_BITS;
 
 	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD)) {
 		printk(KERN_DEBUG "set_cr0: #GP, CD == 0 && NW == 1\n");
