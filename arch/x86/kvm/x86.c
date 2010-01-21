@@ -4239,7 +4239,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	preempt_disable();
 
 	kvm_x86_ops->prepare_guest_switch(vcpu);
-	kvm_load_guest_fpu(vcpu);
+	if (vcpu->fpu_active)
+		kvm_load_guest_fpu(vcpu);
 
 	local_irq_disable();
 
@@ -5285,7 +5286,7 @@ EXPORT_SYMBOL_GPL(fx_init);
 
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->fpu_active || vcpu->guest_fpu_loaded)
+	if (vcpu->guest_fpu_loaded)
 		return;
 
 	vcpu->guest_fpu_loaded = 1;
