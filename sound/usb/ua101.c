@@ -911,6 +911,7 @@ static struct snd_pcm_ops capture_pcm_ops = {
 	.trigger = capture_pcm_trigger,
 	.pointer = capture_pcm_pointer,
 	.page = snd_pcm_lib_get_vmalloc_page,
+	.mmap = snd_pcm_lib_mmap_vmalloc,
 };
 
 static struct snd_pcm_ops playback_pcm_ops = {
@@ -923,6 +924,7 @@ static struct snd_pcm_ops playback_pcm_ops = {
 	.trigger = playback_pcm_trigger,
 	.pointer = playback_pcm_pointer,
 	.page = snd_pcm_lib_get_vmalloc_page,
+	.mmap = snd_pcm_lib_mmap_vmalloc,
 };
 
 static const struct uac_format_type_i_discrete_descriptor *
