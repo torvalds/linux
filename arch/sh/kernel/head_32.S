@@ -217,9 +217,16 @@ ENTRY(_stext)
 	__PMB_ITER_BY_SIZE(16)
 
 	/*
-	 * Now that we can access it, update cached_to_uncached.
+	 * Now that we can access it, update cached_to_uncached and
+	 * uncached_size.
 	 */
 	mov.l	.Lcached_to_uncached, r0
+	mov.l	r7, @r0
+
+	mov.l	.Luncached_size, r0
+	mov	#1, r7
+	shll16	r7
+	shll8	r7
 	mov.l	r7, @r0
 
 	/*
@@ -300,5 +307,6 @@ ENTRY(stack_start)
 .LFIRST_DATA_ENTRY:	.long	__MEMORY_START | PMB_V
 .LMMUCR:		.long	MMUCR
 .Lcached_to_uncached:	.long	cached_to_uncached
+.Luncached_size:	.long	uncached_size
 .LMEMORY_SIZE:		.long	__MEMORY_SIZE
 #endif

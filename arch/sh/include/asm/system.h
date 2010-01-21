@@ -137,6 +137,7 @@ extern unsigned int instruction_size(unsigned int insn);
 #endif
 
 extern unsigned long cached_to_uncached;
+extern unsigned long uncached_size;
 
 extern struct dentry *sh_debugfs_root;
 
