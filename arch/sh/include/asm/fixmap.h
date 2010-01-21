@@ -61,6 +61,7 @@ enum fixed_addresses {
 	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
 #endif
 
+#ifdef CONFIG_IOREMAP_FIXED
 	/*
 	 * FIX_IOREMAP entries are useful for mapping physical address
 	 * space before ioremap() is useable, e.g. really early in boot
@@ -69,6 +70,7 @@ enum fixed_addresses {
 #define FIX_N_IOREMAPS	32
 	FIX_IOREMAP_BEGIN,
 	FIX_IOREMAP_END = FIX_IOREMAP_BEGIN + FIX_N_IOREMAPS,
+#endif
 
 	__end_of_fixed_addresses
 };
