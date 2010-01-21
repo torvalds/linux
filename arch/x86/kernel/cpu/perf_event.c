@@ -1245,6 +1245,46 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	}
 
 	/*
+	 * fastpath, try to reuse previous register
+	 */
+	for (i = 0, num = n; i < n; i++, num--) {
+		hwc = &cpuc->event_list[i]->hw;
+		c = (unsigned long *)constraints[i];
+
+		/* never assigned */
+		if (hwc->idx == -1)
+			break;
+
+		/* constraint still honored */
+		if (!test_bit(hwc->idx, c))
+			break;
+
+		/* not already used */
+		if (test_bit(hwc->idx, used_mask))
+			break;
+
+#if 0
+		pr_debug("CPU%d fast config=0x%llx idx=%d assign=%c\n",
+			 smp_processor_id(),
+			 hwc->config,
+			 hwc->idx,
+			 assign ? 'y' : 'n');
+#endif
+
+		set_bit(hwc->idx, used_mask);
+		if (assign)
+			assign[i] = hwc->idx;
+	}
+	if (!num)
+		goto done;
+
+	/*
+	 * begin slow path
+	 */
+
+	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
+
+	/*
 	 * weight = number of possible counters
 	 *
 	 * 1    = most constrained, only works on one counter
@@ -1263,38 +1303,15 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	if (x86_pmu.num_events_fixed)
 		wmax++;
 
-	num = n;
-	for (w = 1; num && w <= wmax; w++) {
+	for (w = 1, num = n; num && w <= wmax; w++) {
 		/* for each event */
-		for (i = 0; i < n; i++) {
+		for (i = 0; num && i < n; i++) {
 			c = (unsigned long *)constraints[i];
 			hwc = &cpuc->event_list[i]->hw;
 
 			weight = bitmap_weight(c, X86_PMC_IDX_MAX);
 			if (weight != w)
 				continue;
-
-			/*
-			 * try to reuse previous assignment
-			 *
-			 * This is possible despite the fact that
-			 * events or events order may have changed.
-			 *
-			 * What matters is the level of constraints
-			 * of an event and this is constant for now.
-			 *
-			 * This is possible also because we always
-			 * scan from most to least constrained. Thus,
-			 * if a counter can be reused, it means no,
-			 * more constrained events, needed it. And
-			 * next events will either compete for it
-			 * (which cannot be solved anyway) or they
-			 * have fewer constraints, and they can use
-			 * another counter.
-			 */
-			j = hwc->idx;
-			if (j != -1 && !test_bit(j, used_mask))
-				goto skip;
 
 			for_each_bit(j, c, X86_PMC_IDX_MAX) {
 				if (!test_bit(j, used_mask))
@@ -1303,22 +1320,23 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 			if (j == X86_PMC_IDX_MAX)
 				break;
-skip:
-			set_bit(j, used_mask);
 
 #if 0
-			pr_debug("CPU%d config=0x%llx idx=%d assign=%c\n",
+			pr_debug("CPU%d slow config=0x%llx idx=%d assign=%c\n",
 				smp_processor_id(),
 				hwc->config,
 				j,
 				assign ? 'y' : 'n');
 #endif
 
+			set_bit(j, used_mask);
+
 			if (assign)
 				assign[i] = j;
 			num--;
 		}
 	}
+done:
 	/*
 	 * scheduling failed or is just a simulation,
 	 * free resources if necessary
@@ -1357,7 +1375,7 @@ static int collect_events(struct cpu_hw_events *cpuc, struct perf_event *leader,
 
 	list_for_each_entry(event, &leader->sibling_list, group_entry) {
 		if (!is_x86_event(event) ||
-		    event->state == PERF_EVENT_STATE_OFF)
+		    event->state <= PERF_EVENT_STATE_OFF)
 			continue;
 
 		if (n >= max_count)
@@ -2184,6 +2202,8 @@ static void amd_get_event_constraints(struct cpu_hw_events *cpuc,
 				      struct perf_event *event,
 				      u64 *idxmsk)
 {
+	/* no constraints, means supports all generic counters */
+	bitmap_fill((unsigned long *)idxmsk, x86_pmu.num_events);
 }
 
 static int x86_event_sched_in(struct perf_event *event,
@@ -2258,7 +2278,7 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 
 	n1 = 1;
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
-		if (sub->state != PERF_EVENT_STATE_OFF) {
+		if (sub->state > PERF_EVENT_STATE_OFF) {
 			ret = x86_event_sched_in(sub, cpuctx, cpu);
 			if (ret)
 				goto undo;
@@ -2613,12 +2633,23 @@ static int validate_group(struct perf_event *event)
 
 const struct pmu *hw_perf_event_init(struct perf_event *event)
 {
+	const struct pmu *tmp;
 	int err;
 
 	err = __hw_perf_event_init(event);
 	if (!err) {
+		/*
+		 * we temporarily connect event to its pmu
+		 * such that validate_group() can classify
+		 * it as an x86 event using is_x86_event()
+		 */
+		tmp = event->pmu;
+		event->pmu = &pmu;
+
 		if (event->group_leader != event)
 			err = validate_group(event);
+
+		event->pmu = tmp;
 	}
 	if (err) {
 		if (event->destroy)
