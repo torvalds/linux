@@ -831,6 +831,22 @@ static void spi_hw_init(struct dw_spi *dws)
 	spi_mask_intr(dws, 0xff);
 	spi_enable_chip(dws, 1);
 	flush(dws);
+
+	/*
+	 * Try to detect the FIFO depth if not set by interface driver,
+	 * the depth could be from 2 to 256 from HW spec
+	 */
+	if (!dws->fifo_len) {
+		u32 fifo;
+		for (fifo = 2; fifo <= 257; fifo++) {
+			dw_writew(dws, txfltr, fifo);
+			if (fifo != dw_readw(dws, txfltr))
+				break;
+		}
+
+		dws->fifo_len = (fifo == 257) ? 0 : fifo;
+		dw_writew(dws, txfltr, 0);
+	}
 }
 
 int __devinit dw_spi_add_host(struct dw_spi *dws)
