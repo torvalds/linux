@@ -119,6 +119,9 @@ int iommu_map(struct iommu_domain *domain, unsigned long iova,
 
 	BUG_ON((iova | paddr) & invalid_mask);
 
+	if (iommu_ops->map)
+		return iommu_ops->map(domain, iova, paddr, gfp_order, prot);
+
 	return iommu_ops->map_range(domain, iova, paddr, size, prot);
 }
 EXPORT_SYMBOL_GPL(iommu_map);
@@ -132,6 +135,9 @@ int iommu_unmap(struct iommu_domain *domain, unsigned long iova, int gfp_order)
 	invalid_mask = size - 1;
 
 	BUG_ON(iova & invalid_mask);
+
+	if (iommu_ops->unmap)
+		return iommu_ops->unmap(domain, iova, gfp_order);
 
 	iommu_ops->unmap_range(domain, iova, size);
 
