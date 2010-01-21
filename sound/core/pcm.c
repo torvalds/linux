@@ -894,6 +894,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	memset((void*)runtime->control, 0, size);
 
 	init_waitqueue_head(&runtime->sleep);
+	init_waitqueue_head(&runtime->tsleep);
 
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
 
