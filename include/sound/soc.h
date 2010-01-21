@@ -169,6 +169,23 @@
 	.private_value = (unsigned long)&xenum }
 
 /*
+ * Simplified versions of above macros, declaring a struct and calculating
+ * ARRAY_SIZE internally
+ */
+#define SOC_ENUM_DOUBLE_DECL(name, xreg, xshift_l, xshift_r, xtexts) \
+	struct soc_enum name = SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, \
+						ARRAY_SIZE(xtexts), xtexts)
+#define SOC_ENUM_SINGLE_DECL(name, xreg, xshift, xtexts) \
+	SOC_ENUM_DOUBLE_DECL(name, xreg, xshift, xshift, xtexts)
+#define SOC_ENUM_SINGLE_EXT_DECL(name, xtexts) \
+	struct soc_enum name = SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(xtexts), xtexts)
+#define SOC_VALUE_ENUM_DOUBLE_DECL(name, xreg, xshift_l, xshift_r, xmask, xtexts, xvalues) \
+	struct soc_enum name = SOC_VALUE_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, \
+							ARRAY_SIZE(xtexts), xtexts, xvalues)
+#define SOC_VALUE_ENUM_SINGLE_DECL(name, xreg, xshift, xmask, xtexts, xvalues) \
+	SOC_VALUE_ENUM_DOUBLE_DECL(name, xreg, xshift, xshift, xmask, xtexts, xvalues)
+
+/*
  * Bias levels
  *
  * @ON:      Bias is fully on for audio playback and capture operations.
