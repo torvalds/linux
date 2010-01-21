@@ -2439,18 +2439,6 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	return;
 }
 
-static void iwl_bg_up(struct work_struct *data)
-{
-	struct iwl_priv *priv = container_of(data, struct iwl_priv, up);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	mutex_lock(&priv->mutex);
-	__iwl_up(priv);
-	mutex_unlock(&priv->mutex);
-}
-
 static void iwl_bg_restart(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv, restart);
@@ -2467,7 +2455,13 @@ static void iwl_bg_restart(struct work_struct *data)
 		ieee80211_restart_hw(priv->hw);
 	} else {
 		iwl_down(priv);
-		queue_work(priv->workqueue, &priv->up);
+
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+			return;
+
+		mutex_lock(&priv->mutex);
+		__iwl_up(priv);
+		mutex_unlock(&priv->mutex);
 	}
 }
 
@@ -3285,7 +3279,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	init_waitqueue_head(&priv->wait_command_queue);
 
-	INIT_WORK(&priv->up, iwl_bg_up);
 	INIT_WORK(&priv->restart, iwl_bg_restart);
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);

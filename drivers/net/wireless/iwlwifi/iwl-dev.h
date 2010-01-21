@@ -1264,7 +1264,6 @@ struct iwl_priv {
 
 	struct workqueue_struct *workqueue;
 
-	struct work_struct up;
 	struct work_struct restart;
 	struct work_struct calibrated_work;
 	struct work_struct scan_completed;

@@ -3033,18 +3033,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-static void iwl3945_bg_up(struct work_struct *data)
-{
-	struct iwl_priv *priv = container_of(data, struct iwl_priv, up);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	mutex_lock(&priv->mutex);
-	__iwl3945_up(priv);
-	mutex_unlock(&priv->mutex);
-}
-
 static void iwl3945_bg_restart(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv, restart);
@@ -3061,7 +3049,13 @@ static void iwl3945_bg_restart(struct work_struct *data)
 		ieee80211_restart_hw(priv->hw);
 	} else {
 		iwl3945_down(priv);
-		queue_work(priv->workqueue, &priv->up);
+
+		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+			return;
+
+		mutex_lock(&priv->mutex);
+		__iwl3945_up(priv);
+		mutex_unlock(&priv->mutex);
 	}
 }
 
@@ -3782,7 +3776,6 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 
 	init_waitqueue_head(&priv->wait_command_queue);
 
-	INIT_WORK(&priv->up, iwl3945_bg_up);
 	INIT_WORK(&priv->restart, iwl3945_bg_restart);
 	INIT_WORK(&priv->rx_replenish, iwl3945_bg_rx_replenish);
 	INIT_WORK(&priv->beacon_update, iwl3945_bg_beacon_update);
