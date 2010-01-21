@@ -182,7 +182,7 @@ acpi_rs_create_pci_routing_table(union acpi_operand_object *package_object,
 
 	/*
 	 * Loop through the ACPI_INTERNAL_OBJECTS - Each object should be a
-	 * package that in turn contains an acpi_integer Address, a u8 Pin,
+	 * package that in turn contains an u64 Address, a u8 Pin,
 	 * a Name, and a u8 source_index.
 	 */
 	top_object_list = package_object->package.elements;

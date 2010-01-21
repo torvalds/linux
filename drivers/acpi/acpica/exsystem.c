@@ -193,7 +193,7 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
  *
  ******************************************************************************/
 
-acpi_status acpi_ex_system_do_suspend(acpi_integer how_long)
+acpi_status acpi_ex_system_do_suspend(u64 how_long)
 {
 	ACPI_FUNCTION_ENTRY();
 

@@ -139,8 +139,7 @@ acpi_status acpi_ev_initialize_op_regions(void);
 acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
 			       u32 function,
-			       u32 region_offset,
-			       u32 bit_width, acpi_integer * value);
+			       u32 region_offset, u32 bit_width, u64 *value);
 
 acpi_status
 acpi_ev_attach_region(union acpi_operand_object *handler_obj,

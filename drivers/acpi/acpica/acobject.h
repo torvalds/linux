@@ -111,7 +111,7 @@ ACPI_OBJECT_COMMON_HEADER};
 
 struct acpi_object_integer {
 	ACPI_OBJECT_COMMON_HEADER u8 fill[3];	/* Prevent warning on some compilers */
-	acpi_integer value;
+	u64 value;
 };
 
 /*

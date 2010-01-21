@@ -397,7 +397,7 @@ struct acpi_resource {
 struct acpi_pci_routing_table {
 	u32 length;
 	u32 pin;
-	acpi_integer address;	/* here for 64-bit alignment */
+	u64 address;		/* here for 64-bit alignment */
 	u32 source_index;
 	char source[4];		/* pad to 64 bits so sizeof() works in all cases */
 };

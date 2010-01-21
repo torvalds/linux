@@ -403,7 +403,7 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 		/* Get 1 byte from the AML stream */
 
 		opcode = AML_BYTE_OP;
-		arg->common.value.integer = (acpi_integer) * aml;
+		arg->common.value.integer = (u64) *aml;
 		length = 1;
 		break;
 

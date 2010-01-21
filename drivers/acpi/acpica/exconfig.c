@@ -284,7 +284,7 @@ static acpi_status
 acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
 {
 	acpi_status status;
-	acpi_integer value;
+	u64 value;
 	u32 region_offset = 0;
 	u32 i;
 

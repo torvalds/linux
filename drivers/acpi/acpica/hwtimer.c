@@ -140,7 +140,7 @@ acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed)
 {
 	acpi_status status;
 	u32 delta_ticks;
-	acpi_integer quotient;
+	u64 quotient;
 
 	ACPI_FUNCTION_TRACE(acpi_get_timer_duration);
 

@@ -650,7 +650,7 @@ struct acpi_opcode_info {
 };
 
 union acpi_parse_value {
-	acpi_integer integer;	/* Integer constant (Up to 64 bits) */
+	u64 integer;		/* Integer constant (Up to 64 bits) */
 	struct uint64_struct integer64;	/* Structure overlay for 2 32-bit Dwords */
 	u32 size;		/* bytelist or field size */
 	char *string;		/* NULL terminated string */

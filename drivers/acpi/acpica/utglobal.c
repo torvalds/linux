@@ -234,7 +234,7 @@ static const char acpi_gbl_hex_to_ascii[] = {
  *
  ******************************************************************************/
 
-char acpi_ut_hex_to_ascii_char(acpi_integer integer, u32 position)
+char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
 {
 
 	return (acpi_gbl_hex_to_ascii[(integer >> position) & 0xF]);

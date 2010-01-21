@@ -684,7 +684,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			case AML_ONES_OP:
 
-				obj_desc->integer.value = ACPI_INTEGER_MAX;
+				obj_desc->integer.value = ACPI_UINT64_MAX;
 
 				/* Truncate value if we are executing from a 32-bit ACPI table */
 
