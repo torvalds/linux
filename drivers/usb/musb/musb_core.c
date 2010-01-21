@@ -2234,7 +2234,7 @@ void musb_save_context(struct musb *musb)
 
 	musb_writeb(musb_base, MUSB_INDEX, musb_context.index);
 
-	musb_platform_save_context(&musb_context);
+	musb_platform_save_context(musb, &musb_context);
 }
 
 void musb_restore_context(struct musb *musb)
@@ -2243,7 +2243,7 @@ void musb_restore_context(struct musb *musb)
 	void __iomem *musb_base = musb->mregs;
 	void __iomem *ep_target_regs;
 
-	musb_platform_restore_context(&musb_context);
+	musb_platform_restore_context(musb, &musb_context);
 
 	if (is_host_enabled(musb)) {
 		musb_writew(musb_base, MUSB_FRAME, musb_context.frame);

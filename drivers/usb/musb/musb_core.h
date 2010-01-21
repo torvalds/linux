@@ -482,13 +482,13 @@ struct musb_context_registers {
 };
 
 #if defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP2430)
-extern void musb_platform_save_context(struct musb_context_registers
-		*musb_context);
-extern void musb_platform_restore_context(struct musb_context_registers
-		*musb_context);
+extern void musb_platform_save_context(struct musb *musb,
+		struct musb_context_registers *musb_context);
+extern void musb_platform_restore_context(struct musb *musb,
+		struct musb_context_registers *musb_context);
 #else
-#define musb_platform_save_context(x)		do {} while (0)
-#define musb_platform_restore_context(x)	do {} while (0)
+#define musb_platform_save_context(m, x)	do {} while (0)
+#define musb_platform_restore_context(m, x)	do {} while (0)
 #endif
 
 #endif
