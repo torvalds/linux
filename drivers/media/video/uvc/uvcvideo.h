@@ -98,6 +98,7 @@ struct uvc_xu_control {
 #ifdef __KERNEL__
 
 #include <linux/poll.h>
+#include <linux/usb.h>
 #include <linux/usb/video.h>
 #include <linux/uvcvideo.h>
 #include <media/media-device.h>
@@ -302,6 +303,12 @@ struct uvc_entity {
 	__u8 id;
 	__u16 type;
 	char name[64];
+
+	/* Media controller-related fields. */
+	struct v4l2_subdev subdev;
+	unsigned int num_pads;
+	unsigned int num_links;
+	struct media_pad *pads;
 
 	union {
 		struct {
@@ -589,6 +596,8 @@ extern unsigned int uvc_timeout_param;
 /* Core driver */
 extern struct uvc_driver uvc_driver;
 
+extern struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id);
+
 /* Video buffers queue management. */
 extern void uvc_queue_init(struct uvc_video_queue *queue,
 		enum v4l2_buf_type type, int drop_corrupted);
@@ -621,6 +630,10 @@ static inline int uvc_queue_streaming(struct uvc_video_queue *queue)
 
 /* V4L2 interface */
 extern const struct v4l2_file_operations uvc_fops;
+
+/* Media controller */
+extern int uvc_mc_register_entities(struct uvc_video_chain *chain);
+extern void uvc_mc_cleanup_entity(struct uvc_entity *entity);
 
 /* Video */
 extern int uvc_video_init(struct uvc_streaming *stream);

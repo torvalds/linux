@@ -248,7 +248,7 @@ uint32_t uvc_fraction_to_interval(uint32_t numerator, uint32_t denominator)
  * Terminal and unit management
  */
 
-static struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id)
+struct uvc_entity *uvc_entity_by_id(struct uvc_device *dev, int id)
 {
 	struct uvc_entity *entity;
 
@@ -795,9 +795,12 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u8 id,
 	struct uvc_entity *entity;
 	unsigned int num_inputs;
 	unsigned int size;
+	unsigned int i;
 
+	extra_size = ALIGN(extra_size, sizeof(*entity->pads));
 	num_inputs = (type & UVC_TERM_OUTPUT) ? num_pads : num_pads - 1;
-	size = sizeof(*entity) + extra_size + num_inputs;
+	size = sizeof(*entity) + extra_size + sizeof(*entity->pads) * num_pads
+	     + num_inputs;
 	entity = kzalloc(size, GFP_KERNEL);
 	if (entity == NULL)
 		return NULL;
@@ -805,8 +808,17 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u8 id,
 	entity->id = id;
 	entity->type = type;
 
+	entity->num_links = 0;
+	entity->num_pads = num_pads;
+	entity->pads = ((void *)(entity + 1)) + extra_size;
+
+	for (i = 0; i < num_inputs; ++i)
+		entity->pads[i].flags = MEDIA_PAD_FL_SINK;
+	if (!UVC_ENTITY_IS_OTERM(entity))
+		entity->pads[num_pads-1].flags = MEDIA_PAD_FL_SOURCE;
+
 	entity->bNrInPins = num_inputs;
-	entity->baSourceID = ((__u8 *)entity) + sizeof(*entity) + extra_size;
+	entity->baSourceID = (__u8 *)(&entity->pads[num_pads]);
 
 	return entity;
 }
@@ -1601,6 +1613,9 @@ static void uvc_delete(struct uvc_device *dev)
 	list_for_each_safe(p, n, &dev->entities) {
 		struct uvc_entity *entity;
 		entity = list_entry(p, struct uvc_entity, list);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		uvc_mc_cleanup_entity(entity);
+#endif
 		kfree(entity);
 	}
 
@@ -1752,6 +1767,14 @@ static int uvc_register_chains(struct uvc_device *dev)
 		ret = uvc_register_terms(dev, chain);
 		if (ret < 0)
 			return ret;
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+		ret = uvc_mc_register_entities(chain);
+		if (ret < 0) {
+			uvc_printk(KERN_INFO, "Failed to register entites "
+				"(%d).\n", ret);
+		}
+#endif
 	}
 
 	return 0;
