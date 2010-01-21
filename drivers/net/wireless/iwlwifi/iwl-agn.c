@@ -2104,7 +2104,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = IWL_RATES_MASK;
-	priv->active_rate_basic = IWL_RATES_MASK & IWL_BASIC_RATES_MASK;
 
 	/* Configure Tx antenna selection based on H/W config */
 	if (priv->cfg->ops->hcmd->set_tx_ant)

@@ -2509,7 +2509,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	ieee80211_wake_queues(priv->hw);
 
 	priv->active_rate = IWL_RATES_MASK;
-	priv->active_rate_basic = IWL_RATES_MASK & IWL_BASIC_RATES_MASK;
 
 	iwl_power_update_mode(priv, true);
 

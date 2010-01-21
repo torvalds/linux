@@ -1168,7 +1168,6 @@ struct iwl_priv {
 	u64 led_tpt;
 
 	u16 active_rate;
-	u16 active_rate_basic;
 
 	u8 assoc_station_added;
 	u8 start_calib;
