@@ -1262,10 +1262,22 @@ struct iwl_priv {
 	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
-	/*Added for 3945 */
-	void *shared_virt;
-	dma_addr_t shared_phys;
-	/*End*/
+	union {
+#if defined(CONFIG_IWL3945) || defined(CONFIG_IWL3945_MODULE)
+		struct {
+			void *shared_virt;
+			dma_addr_t shared_phys;
+
+			struct delayed_work thermal_periodic;
+			struct delayed_work rfkill_poll;
+
+			struct iwl3945_notif_statistics statistics;
+
+			u32 sta_supp_rates;
+		} _3945;
+#endif
+	};
+
 	struct iwl_hw_params hw_params;
 
 	/* INT ICT Table */
@@ -1303,10 +1315,6 @@ struct iwl_priv {
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
 
-	/*For 3945 only*/
-	struct delayed_work thermal_periodic;
-	struct delayed_work rfkill_poll;
-
 	/* TX Power */
 	s8 tx_power_user_lmt;
 	s8 tx_power_device_lmt;
@@ -1339,12 +1347,6 @@ struct iwl_priv {
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
 	bool hw_ready;
-	/*For 3945*/
-#define IWL_DEFAULT_TX_POWER 0x0F
-
-	struct iwl3945_notif_statistics statistics_39;
-
-	u32 sta_supp_rates;
 
 	struct iwl_event_log event_log;
 }; /*iwl_priv */

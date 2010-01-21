@@ -351,11 +351,11 @@ static int iwl3945_send_beacon_cmd(struct iwl_priv *priv)
 
 static void iwl3945_unset_hw_params(struct iwl_priv *priv)
 {
-	if (priv->shared_virt)
+	if (priv->_3945.shared_virt)
 		dma_free_coherent(&priv->pci_dev->dev,
 				  sizeof(struct iwl3945_shared),
-				  priv->shared_virt,
-				  priv->shared_phys);
+				  priv->_3945.shared_virt,
+				  priv->_3945.shared_phys);
 }
 
 static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
@@ -2786,7 +2786,7 @@ static void iwl3945_bg_alive_start(struct work_struct *data)
 static void iwl3945_rfkill_poll(struct work_struct *data)
 {
 	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, rfkill_poll.work);
+	    container_of(data, struct iwl_priv, _3945.rfkill_poll.work);
 	bool old_rfkill = test_bit(STATUS_RF_KILL_HW, &priv->status);
 	bool new_rfkill = !(iwl_read32(priv, CSR_GP_CNTRL)
 			& CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
@@ -2805,7 +2805,7 @@ static void iwl3945_rfkill_poll(struct work_struct *data)
 
 	/* Keep this running, even if radio now enabled.  This will be
 	 * cancelled in mac_start() if system decides to start again */
-	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
+	queue_delayed_work(priv->workqueue, &priv->_3945.rfkill_poll,
 			   round_jiffies_relative(2 * HZ));
 
 }
@@ -3212,7 +3212,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 
 	/* ucode is running and will send rfkill notifications,
 	 * no need to poll the killswitch state anymore */
-	cancel_delayed_work(&priv->rfkill_poll);
+	cancel_delayed_work(&priv->_3945.rfkill_poll);
 
 	iwl_led_start(priv);
 
@@ -3253,7 +3253,7 @@ static void iwl3945_mac_stop(struct ieee80211_hw *hw)
 	flush_workqueue(priv->workqueue);
 
 	/* start polling the killswitch state again */
-	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
+	queue_delayed_work(priv->workqueue, &priv->_3945.rfkill_poll,
 			   round_jiffies_relative(2 * HZ));
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -3660,7 +3660,7 @@ static ssize_t show_statistics(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	u32 size = sizeof(struct iwl3945_notif_statistics);
 	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *)&priv->statistics_39;
+	u8 *data = (u8 *)&priv->_3945.statistics;
 	int rc = 0;
 
 	if (!iwl_is_alive(priv))
@@ -3773,7 +3773,7 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->beacon_update, iwl3945_bg_beacon_update);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl3945_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
-	INIT_DELAYED_WORK(&priv->rfkill_poll, iwl3945_rfkill_poll);
+	INIT_DELAYED_WORK(&priv->_3945.rfkill_poll, iwl3945_rfkill_poll);
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	INIT_WORK(&priv->request_scan, iwl3945_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
@@ -4129,7 +4129,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
 	/* Start monitoring the killswitch */
-	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
+	queue_delayed_work(priv->workqueue, &priv->_3945.rfkill_poll,
 			   2 * HZ);
 
 	return 0;
@@ -4203,7 +4203,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 
-	cancel_delayed_work_sync(&priv->rfkill_poll);
+	cancel_delayed_work_sync(&priv->_3945.rfkill_poll);
 
 	iwl3945_dealloc_ucode_pci(priv);
 

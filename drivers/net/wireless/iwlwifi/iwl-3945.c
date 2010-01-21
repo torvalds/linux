@@ -242,7 +242,7 @@ int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate)
 			next_rate = IWL_RATE_6M_INDEX;
 		break;
 	case IEEE80211_BAND_2GHZ:
-		if (!(priv->sta_supp_rates & IWL_OFDM_RATES_MASK) &&
+		if (!(priv->_3945.sta_supp_rates & IWL_OFDM_RATES_MASK) &&
 		    iwl_is_associated(priv)) {
 			if (rate == IWL_RATE_11M_INDEX)
 				next_rate = IWL_RATE_5M_INDEX;
@@ -359,7 +359,7 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 		     (int)sizeof(struct iwl3945_notif_statistics),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
-	memcpy(&priv->statistics_39, pkt->u.raw, sizeof(priv->statistics_39));
+	memcpy(&priv->_3945.statistics, pkt->u.raw, sizeof(priv->_3945.statistics));
 }
 
 /******************************************************************************
@@ -956,7 +956,7 @@ static int iwl3945_tx_reset(struct iwl_priv *priv)
 	iwl_write_prph(priv, ALM_SCD_TXF5MF_REG, 0x000005);
 
 	iwl_write_direct32(priv, FH39_TSSR_CBB_BASE,
-			     priv->shared_phys);
+			     priv->_3945.shared_phys);
 
 	iwl_write_direct32(priv, FH39_TSSR_MSG_CONFIG,
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_SNOOP_RD_TXPD_ON |
@@ -1997,13 +1997,13 @@ void iwl3945_reg_txpower_periodic(struct iwl_priv *priv)
 
  reschedule:
 	queue_delayed_work(priv->workqueue,
-			   &priv->thermal_periodic, REG_RECALIB_PERIOD * HZ);
+			   &priv->_3945.thermal_periodic, REG_RECALIB_PERIOD * HZ);
 }
 
 static void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     thermal_periodic.work);
+					     _3945.thermal_periodic.work);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -2331,7 +2331,7 @@ int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	int txq_id = txq->q.id;
 
-	struct iwl3945_shared *shared_data = priv->shared_virt;
+	struct iwl3945_shared *shared_data = priv->_3945.shared_virt;
 
 	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32)txq->q.dma_addr);
 
@@ -2431,7 +2431,7 @@ int iwl3945_init_hw_rate_table(struct iwl_priv *priv)
 		/* If an OFDM rate is used, have it fall back to the
 		 * 1M CCK rates */
 
-		if (!(priv->sta_supp_rates & IWL_OFDM_RATES_MASK) &&
+		if (!(priv->_3945.sta_supp_rates & IWL_OFDM_RATES_MASK) &&
 		    iwl_is_associated(priv)) {
 
 			index = IWL_FIRST_CCK_RATE;
@@ -2470,10 +2470,11 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	memset((void *)&priv->hw_params, 0,
 	       sizeof(struct iwl_hw_params));
 
-	priv->shared_virt = dma_alloc_coherent(&priv->pci_dev->dev,
-					       sizeof(struct iwl3945_shared),
-					       &priv->shared_phys, GFP_KERNEL);
-	if (!priv->shared_virt) {
+	priv->_3945.shared_virt =
+		dma_alloc_coherent(&priv->pci_dev->dev,
+				   sizeof(struct iwl3945_shared),
+				   &priv->_3945.shared_phys, GFP_KERNEL);
+	if (!priv->_3945.shared_virt) {
 		IWL_ERR(priv, "failed to allocate pci memory\n");
 		mutex_unlock(&priv->mutex);
 		return -ENOMEM;
@@ -2536,13 +2537,13 @@ void iwl3945_hw_rx_handler_setup(struct iwl_priv *priv)
 
 void iwl3945_hw_setup_deferred_work(struct iwl_priv *priv)
 {
-	INIT_DELAYED_WORK(&priv->thermal_periodic,
+	INIT_DELAYED_WORK(&priv->_3945.thermal_periodic,
 			  iwl3945_bg_reg_txpower_periodic);
 }
 
 void iwl3945_hw_cancel_deferred_work(struct iwl_priv *priv)
 {
-	cancel_delayed_work(&priv->thermal_periodic);
+	cancel_delayed_work(&priv->_3945.thermal_periodic);
 }
 
 /* check contents of special bootstrap uCode SRAM */
