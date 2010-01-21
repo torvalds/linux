@@ -1,6 +1,11 @@
 #ifndef ASM_KVM_CACHE_REGS_H
 #define ASM_KVM_CACHE_REGS_H
 
+#define KVM_POSSIBLE_CR0_GUEST_BITS X86_CR0_TS
+#define KVM_POSSIBLE_CR4_GUEST_BITS				  \
+	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR  \
+	 | X86_CR4_OSXMMEXCPT | X86_CR4_PGE)
+
 static inline unsigned long kvm_register_read(struct kvm_vcpu *vcpu,
 					      enum kvm_reg reg)
 {
@@ -40,7 +45,8 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 
 static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
 {
-	if (mask & vcpu->arch.cr0_guest_owned_bits)
+	ulong tmask = mask & KVM_POSSIBLE_CR0_GUEST_BITS;
+	if (tmask & vcpu->arch.cr0_guest_owned_bits)
 		kvm_x86_ops->decache_cr0_guest_bits(vcpu);
 	return vcpu->arch.cr0 & mask;
 }
@@ -52,7 +58,8 @@ static inline ulong kvm_read_cr0(struct kvm_vcpu *vcpu)
 
 static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
 {
-	if (mask & vcpu->arch.cr4_guest_owned_bits)
+	ulong tmask = mask & KVM_POSSIBLE_CR4_GUEST_BITS;
+	if (tmask & vcpu->arch.cr4_guest_owned_bits)
 		kvm_x86_ops->decache_cr4_guest_bits(vcpu);
 	return vcpu->arch.cr4 & mask;
 }
