@@ -1000,26 +1000,24 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 
 	/* Is the object one of the expected types? */
 
-	if (!(return_btype & expected_btypes)) {
+	if (return_btype & expected_btypes) {
 
-		/* Type mismatch -- attempt repair of the returned object */
+		/* For reference objects, check that the reference type is correct */
 
-		status = acpi_ns_repair_object(data, expected_btypes,
-					       package_index,
-					       return_object_ptr);
-		if (ACPI_SUCCESS(status)) {
-			return (AE_OK);	/* Repair was successful */
+		if (return_object->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
+			status = acpi_ns_check_reference(data, return_object);
 		}
-		goto type_error_exit;
+
+		return (status);
 	}
 
-	/* For reference objects, check that the reference type is correct */
+	/* Type mismatch -- attempt repair of the returned object */
 
-	if (return_object->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
-		status = acpi_ns_check_reference(data, return_object);
+	status = acpi_ns_repair_object(data, expected_btypes,
+				       package_index, return_object_ptr);
+	if (ACPI_SUCCESS(status)) {
+		return (AE_OK);	/* Repair was successful */
 	}
-
-	return (status);
 
       type_error_exit:
 

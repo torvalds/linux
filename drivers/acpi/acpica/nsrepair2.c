@@ -93,7 +93,7 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 			  u32 sort_index,
 			  u8 sort_direction, char *sort_key_name);
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction);
 
@@ -443,7 +443,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	union acpi_operand_object *obj_desc;
 	u32 i;
 	u32 previous_value;
-	acpi_status status;
 
 	ACPI_FUNCTION_NAME(ns_check_sorted_list);
 
@@ -494,19 +493,15 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 		/*
 		 * The list must be sorted in the specified order. If we detect a
-		 * discrepancy, issue a warning and sort the entire list
+		 * discrepancy, sort the entire list.
 		 */
 		if (((sort_direction == ACPI_SORT_ASCENDING) &&
 		     (obj_desc->integer.value < previous_value)) ||
 		    ((sort_direction == ACPI_SORT_DESCENDING) &&
 		     (obj_desc->integer.value > previous_value))) {
-			status =
-			    acpi_ns_sort_list(return_object->package.elements,
-					      outer_element_count, sort_index,
-					      sort_direction);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
+			acpi_ns_sort_list(return_object->package.elements,
+					  outer_element_count, sort_index,
+					  sort_direction);
 
 			data->flags |= ACPI_OBJECT_REPAIRED;
 
@@ -615,15 +610,16 @@ acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
  *              Index               - Sort by which package element
  *              sort_direction      - Ascending or Descending sort
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Sort the objects that are in a package element list.
  *
- * NOTE: Assumes that all NULL elements have been removed from the package.
+ * NOTE: Assumes that all NULL elements have been removed from the package,
+ *       and that all elements have been verified to be of type Integer.
  *
  *****************************************************************************/
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction)
 {
@@ -652,6 +648,4 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
 			}
 		}
 	}
-
-	return (AE_OK);
 }
