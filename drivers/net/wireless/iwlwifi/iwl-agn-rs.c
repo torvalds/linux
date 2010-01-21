@@ -2377,10 +2377,6 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 
 	i = lq_sta->last_txrate_idx;
 
-	if ((lq_sta->lq.sta_id == 0xff) &&
-	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
-		goto out;
-
 	valid_tx_ant = priv->hw_params.valid_tx_ant;
 
 	if (!lq_sta->search_better_tbl)
