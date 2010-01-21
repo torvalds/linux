@@ -1259,12 +1259,17 @@ static int ud_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
-static int nm_interception(struct vcpu_svm *svm)
+static void svm_fpu_activate(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
 	svm->vcpu.fpu_active = 1;
 	update_cr0_intercept(svm);
+}
 
+static int nm_interception(struct vcpu_svm *svm)
+{
+	svm_fpu_activate(&svm->vcpu);
 	return 1;
 }
 
@@ -2977,6 +2982,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.cache_reg = svm_cache_reg,
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
+	.fpu_activate = svm_fpu_activate,
 	.fpu_deactivate = svm_fpu_deactivate,
 
 	.tlb_flush = svm_flush_tlb,
