@@ -364,6 +364,7 @@ struct ath_btcoex {
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
+	u32 btscan_no_stomp; /* in usec */
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 };
 
@@ -429,6 +430,7 @@ void ath_deinit_leds(struct ath_softc *sc);
 #define SC_OP_SCANNING               BIT(10)
 #define SC_OP_TSF_RESET              BIT(11)
 #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
+#define SC_OP_BT_SCAN		     BIT(13)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)

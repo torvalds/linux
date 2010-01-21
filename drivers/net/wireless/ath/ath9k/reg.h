@@ -1547,9 +1547,9 @@ enum {
 
 #define AR_BT_COEX_WEIGHT          0x8174
 #define AR_BT_COEX_WGHT		   0xff55
-#define AR_STOMP_ALL_WLAN_WGHT	   0xffcc
-#define AR_STOMP_LOW_WLAN_WGHT	   0xaaa8
-#define AR_STOMP_NONE_WLAN_WGHT	   0xaa00
+#define AR_STOMP_ALL_WLAN_WGHT	   0xfcfc
+#define AR_STOMP_LOW_WLAN_WGHT	   0xa8a8
+#define AR_STOMP_NONE_WLAN_WGHT	   0x0000
 #define AR_BTCOEX_BT_WGHT          0x0000ffff
 #define AR_BTCOEX_BT_WGHT_S        0
 #define AR_BTCOEX_WL_WGHT          0xffff0000
