@@ -255,6 +255,22 @@ int __init musb_platform_init(struct musb *musb)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+void musb_platform_save_context(struct musb_context_registers
+		*musb_context)
+{
+	musb_context->otg_sysconfig = omap_readl(OTG_SYSCONFIG);
+	musb_context->otg_forcestandby = omap_readl(OTG_FORCESTDBY);
+}
+
+void musb_platform_restore_context(struct musb_context_registers
+		*musb_context)
+{
+	omap_writel(musb_context->otg_sysconfig, OTG_SYSCONFIG);
+	omap_writel(musb_context->otg_forcestandby, OTG_FORCESTDBY);
+}
+#endif
+
 int musb_platform_suspend(struct musb *musb)
 {
 	u32 l;

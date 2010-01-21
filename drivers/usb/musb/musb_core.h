@@ -454,6 +454,45 @@ struct musb {
 #endif
 };
 
+#ifdef CONFIG_PM
+struct musb_csr_regs {
+	/* FIFO registers */
+	u16 txmaxp, txcsr, rxmaxp, rxcsr;
+	u16 rxfifoadd, txfifoadd;
+	u8 txtype, txinterval, rxtype, rxinterval;
+	u8 rxfifosz, txfifosz;
+	u8 txfunaddr, txhubaddr, txhubport;
+	u8 rxfunaddr, rxhubaddr, rxhubport;
+};
+
+struct musb_context_registers {
+
+#if defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP2430)
+	u32 otg_sysconfig, otg_forcestandby;
+#endif
+	u8 power;
+	u16 intrtxe, intrrxe;
+	u8 intrusbe;
+	u16 frame;
+	u8 index, testmode;
+
+	u8 devctl, misc;
+
+	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
+};
+
+#if defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP2430)
+extern void musb_platform_save_context(struct musb_context_registers
+		*musb_context);
+extern void musb_platform_restore_context(struct musb_context_registers
+		*musb_context);
+#else
+#define musb_platform_save_context(x)		do {} while (0)
+#define musb_platform_restore_context(x)	do {} while (0)
+#endif
+
+#endif
+
 static inline void musb_set_vbus(struct musb *musb, int is_on)
 {
 	musb->board_set_vbus(musb, is_on);

@@ -326,6 +326,26 @@ static inline void  musb_write_rxfifoadd(void __iomem *mbase, u16 c_off)
 	musb_writew(mbase, MUSB_RXFIFOADD, c_off);
 }
 
+static inline u8 musb_read_txfifosz(void __iomem *mbase)
+{
+	return musb_readb(mbase, MUSB_TXFIFOSZ);
+}
+
+static inline u16 musb_read_txfifoadd(void __iomem *mbase)
+{
+	return musb_readw(mbase, MUSB_TXFIFOADD);
+}
+
+static inline u8 musb_read_rxfifosz(void __iomem *mbase)
+{
+	return musb_readb(mbase, MUSB_RXFIFOSZ);
+}
+
+static inline u16  musb_read_rxfifoadd(void __iomem *mbase)
+{
+	return musb_readw(mbase, MUSB_RXFIFOADD);
+}
+
 static inline u8 musb_read_configdata(void __iomem *mbase)
 {
 	musb_writeb(mbase, MUSB_INDEX, 0);
@@ -379,6 +399,36 @@ static inline void  musb_write_txhubport(void __iomem *mbase, u8 epnum,
 {
 	musb_writeb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBPORT),
 			qh_h_port_reg);
+}
+
+static inline u8 musb_read_rxfunaddr(void __iomem *mbase, u8 epnum)
+{
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_RXFUNCADDR));
+}
+
+static inline u8 musb_read_rxhubaddr(void __iomem *mbase, u8 epnum)
+{
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_RXHUBADDR));
+}
+
+static inline u8 musb_read_rxhubport(void __iomem *mbase, u8 epnum)
+{
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_RXHUBPORT));
+}
+
+static inline u8  musb_read_txfunaddr(void __iomem *mbase, u8 epnum)
+{
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXFUNCADDR));
+}
+
+static inline u8  musb_read_txhubaddr(void __iomem *mbase, u8 epnum)
+{
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBADDR));
+}
+
+static inline u8  musb_read_txhubport(void __iomem *mbase, u8 epnum)
+{
+	return musb_readb(mbase, MUSB_BUSCTL_OFFSET(epnum, MUSB_TXHUBPORT));
 }
 
 #else /* CONFIG_BLACKFIN */
@@ -460,6 +510,22 @@ static inline void  musb_write_rxfifoadd(void __iomem *mbase, u16 c_off)
 {
 }
 
+static inline u8 musb_read_txfifosz(void __iomem *mbase)
+{
+}
+
+static inline u16 musb_read_txfifoadd(void __iomem *mbase)
+{
+}
+
+static inline u8 musb_read_rxfifosz(void __iomem *mbase)
+{
+}
+
+static inline u16  musb_read_rxfifoadd(void __iomem *mbase)
+{
+}
+
 static inline u8 musb_read_configdata(void __iomem *mbase)
 {
 	return 0;
@@ -502,6 +568,30 @@ static inline void  musb_write_txhubaddr(void __iomem *mbase, u8 epnum,
 
 static inline void  musb_write_txhubport(void __iomem *mbase, u8 epnum,
 		u8 qh_h_port_reg)
+{
+}
+
+static inline u8 musb_read_rxfunaddr(void __iomem *mbase, u8 epnum)
+{
+}
+
+static inline u8 musb_read_rxhubaddr(void __iomem *mbase, u8 epnum)
+{
+}
+
+static inline u8 musb_read_rxhubport(void __iomem *mbase, u8 epnum)
+{
+}
+
+static inline u8  musb_read_txfunaddr(void __iomem *mbase, u8 epnum)
+{
+}
+
+static inline u8  musb_read_txhubaddr(void __iomem *mbase, u8 epnum)
+{
+}
+
+static inline void  musb_read_txhubport(void __iomem *mbase, u8 epnum)
 {
 }
 
