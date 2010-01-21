@@ -516,16 +516,14 @@ static void type_attribute_bounds_av(struct context *scontext,
 				     u16 tclass,
 				     struct av_decision *avd)
 {
-	struct context lo_scontext;
-	struct context lo_tcontext;
-	struct av_decision lo_avd;
 	struct type_datum *source
 		= policydb.type_val_to_struct[scontext->type - 1];
-	struct type_datum *target
-		= policydb.type_val_to_struct[tcontext->type - 1];
-	u32 masked = 0;
 
 	if (source->bounds) {
+		struct context lo_scontext;
+		struct av_decision lo_avd;
+		u32 masked;
+
 		memset(&lo_avd, 0, sizeof(lo_avd));
 
 		memcpy(&lo_scontext, scontext, sizeof(lo_scontext));
@@ -538,40 +536,7 @@ static void type_attribute_bounds_av(struct context *scontext,
 		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
 			return;		/* no masked permission */
 		masked = ~lo_avd.allowed & avd->allowed;
-	}
 
-	if (target->bounds) {
-		memset(&lo_avd, 0, sizeof(lo_avd));
-
-		memcpy(&lo_tcontext, tcontext, sizeof(lo_tcontext));
-		lo_tcontext.type = target->bounds;
-
-		context_struct_compute_av(scontext,
-					  &lo_tcontext,
-					  tclass,
-					  &lo_avd);
-		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
-			return;		/* no masked permission */
-		masked = ~lo_avd.allowed & avd->allowed;
-	}
-
-	if (source->bounds && target->bounds) {
-		memset(&lo_avd, 0, sizeof(lo_avd));
-		/*
-		 * lo_scontext and lo_tcontext are already
-		 * set up.
-		 */
-
-		context_struct_compute_av(&lo_scontext,
-					  &lo_tcontext,
-					  tclass,
-					  &lo_avd);
-		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
-			return;		/* no masked permission */
-		masked = ~lo_avd.allowed & avd->allowed;
-	}
-
-	if (masked) {
 		/* mask violated permissions */
 		avd->allowed &= ~masked;
 
