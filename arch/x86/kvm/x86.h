@@ -2,6 +2,7 @@
 #define ARCH_X86_KVM_X86_H
 
 #include <linux/kvm_host.h>
+#include "kvm_cache_regs.h"
 
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)
 {
@@ -34,5 +35,10 @@ static inline bool kvm_exception_is_soft(unsigned int nr)
 
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
                                              u32 function, u32 index);
+
+static inline bool is_protmode(struct kvm_vcpu *vcpu)
+{
+	return kvm_read_cr0_bits(vcpu, X86_CR0_PE);
+}
 
 #endif

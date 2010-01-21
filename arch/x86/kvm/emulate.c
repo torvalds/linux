@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <asm/kvm_emulate.h>
 
+#include "x86.h"
 #include "mmu.h"		/* for is_long_mode() */
 
 /*
@@ -1515,7 +1516,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 
 	/* syscall is not available in real mode */
 	if (c->lock_prefix || ctxt->mode == X86EMUL_MODE_REAL
-	    || !kvm_read_cr0_bits(ctxt->vcpu, X86_CR0_PE))
+	    || !is_protmode(ctxt->vcpu))
 		return -1;
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
@@ -1568,8 +1569,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 		return -1;
 
 	/* inject #GP if in real mode or paging is disabled */
-	if (ctxt->mode == X86EMUL_MODE_REAL ||
-	    !kvm_read_cr0_bits(ctxt->vcpu, X86_CR0_PE)) {
+	if (ctxt->mode == X86EMUL_MODE_REAL || !is_protmode(ctxt->vcpu)) {
 		kvm_inject_gp(ctxt->vcpu, 0);
 		return -1;
 	}
@@ -1634,8 +1634,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 		return -1;
 
 	/* inject #GP if in real mode or paging is disabled */
-	if (ctxt->mode == X86EMUL_MODE_REAL
-	    || !kvm_read_cr0_bits(ctxt->vcpu, X86_CR0_PE)) {
+	if (ctxt->mode == X86EMUL_MODE_REAL || !is_protmode(ctxt->vcpu)) {
 		kvm_inject_gp(ctxt->vcpu, 0);
 		return -1;
 	}
