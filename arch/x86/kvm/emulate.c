@@ -33,7 +33,6 @@
 #include <asm/kvm_emulate.h>
 
 #include "x86.h"
-#include "mmu.h"		/* for is_long_mode() */
 
 /*
  * Opcode effective-address decode tables.
