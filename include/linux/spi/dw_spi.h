@@ -172,6 +172,10 @@ static inline void spi_chip_sel(struct dw_spi *dws, u16 cs)
 {
 	if (cs > dws->num_cs)
 		return;
+
+	if (dws->cs_control)
+		dws->cs_control(1);
+
 	dw_writel(dws, ser, 1 << cs);
 }
 
