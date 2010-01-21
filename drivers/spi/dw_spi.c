@@ -152,6 +152,7 @@ static void mrst_spi_debugfs_remove(struct dw_spi *dws)
 #else
 static inline int mrst_spi_debugfs_init(struct dw_spi *dws)
 {
+	return 0;
 }
 
 static inline void mrst_spi_debugfs_remove(struct dw_spi *dws)
