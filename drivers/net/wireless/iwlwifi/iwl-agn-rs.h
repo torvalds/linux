@@ -191,7 +191,7 @@ enum {
 	IWL_RATE_2M_MASK)
 
 #define IWL_CCK_RATES_MASK          \
-       (IWL_BASIC_RATES_MASK      | \
+       (IWL_CCK_BASIC_RATES_MASK  | \
 	IWL_RATE_5M_MASK          | \
 	IWL_RATE_11M_MASK)
 
