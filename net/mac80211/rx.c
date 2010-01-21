@@ -2348,22 +2348,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 				continue;
 
-			rx.sta = sta_info_get(sdata, hdr->addr2);
-
-			rx.flags |= IEEE80211_RX_RA_MATCH;
-			prepares = prepare_for_handlers(sdata, &rx, hdr);
-
-			if (!prepares)
-				continue;
-
-			if (status->flag & RX_FLAG_MMIC_ERROR) {
-				rx.sdata = sdata;
-				if (rx.flags & IEEE80211_RX_RA_MATCH)
-					ieee80211_rx_michael_mic_report(hdr,
-									&rx);
-				continue;
-			}
-
 			/*
 			 * frame is destined for this interface, but if it's
 			 * not also for the previous one we handle that after
@@ -2373,6 +2357,22 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			if (!prev) {
 				prev = sdata;
 				continue;
+			}
+
+			rx.sta = sta_info_get(prev, hdr->addr2);
+
+			rx.flags |= IEEE80211_RX_RA_MATCH;
+			prepares = prepare_for_handlers(prev, &rx, hdr);
+
+			if (!prepares)
+				goto next;
+
+			if (status->flag & RX_FLAG_MMIC_ERROR) {
+				rx.sdata = prev;
+				if (rx.flags & IEEE80211_RX_RA_MATCH)
+					ieee80211_rx_michael_mic_report(hdr,
+									&rx);
+				goto next;
 			}
 
 			/*
@@ -2387,10 +2387,21 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 					       "multicast frame for %s\n",
 					       wiphy_name(local->hw.wiphy),
 					       prev->name);
-				continue;
+				goto next;
 			}
 			ieee80211_invoke_rx_handlers(prev, &rx, skb_new, rate);
+next:
 			prev = sdata;
+		}
+
+		if (prev) {
+			rx.sta = sta_info_get(prev, hdr->addr2);
+
+			rx.flags |= IEEE80211_RX_RA_MATCH;
+			prepares = prepare_for_handlers(prev, &rx, hdr);
+
+			if (!prepares)
+				prev = NULL;
 		}
 	}
 	if (prev)
