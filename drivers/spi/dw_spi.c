@@ -408,12 +408,9 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 /* Must be called inside pump_transfers() */
 static void poll_transfer(struct dw_spi *dws)
 {
-	if (dws->tx) {
-		while (dws->write(dws))
-			dws->read(dws);
-	}
+	while (dws->write(dws))
+		dws->read(dws);
 
-	dws->read(dws);
 	transfer_complete(dws);
 }
 
