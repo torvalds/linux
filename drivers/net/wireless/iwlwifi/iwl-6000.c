@@ -42,6 +42,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-sta.h"
+#include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-5000-hw.h"
 #include "iwl-6000-hw.h"

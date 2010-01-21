@@ -43,6 +43,7 @@
 #include "iwl-io.h"
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
+#include "iwl-agn.h"
 #include "iwl-agn-led.h"
 #include "iwl-5000-hw.h"
 #include "iwl-6000-hw.h"
