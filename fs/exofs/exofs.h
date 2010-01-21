@@ -78,13 +78,13 @@ struct exofs_sb_info {
  * our extension to the in-memory inode
  */
 struct exofs_i_info {
+	struct inode   vfs_inode;          /* normal in-memory inode          */
+	wait_queue_head_t i_wq;            /* wait queue for inode            */
 	unsigned long  i_flags;            /* various atomic flags            */
 	uint32_t       i_data[EXOFS_IDATA];/*short symlink names and device #s*/
 	uint32_t       i_dir_start_lookup; /* which page to start lookup      */
-	wait_queue_head_t i_wq;            /* wait queue for inode            */
 	uint64_t       i_commit_size;      /* the object's written length     */
 	uint8_t        i_cred[OSD_CAP_LEN];/* all-powerful credential         */
-	struct inode   vfs_inode;          /* normal in-memory inode          */
 };
 
 static inline osd_id exofs_oi_objno(struct exofs_i_info *oi)
