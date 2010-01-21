@@ -875,6 +875,14 @@ static inline void ocfs2_generic_handle_convert_action(struct ocfs2_lock_res *lo
 		lockres_or_flags(lockres, OCFS2_LOCK_NEEDS_REFRESH);
 
 	lockres->l_level = lockres->l_requested;
+
+	/*
+	 * We set the OCFS2_LOCK_UPCONVERT_FINISHING flag before clearing
+	 * the OCFS2_LOCK_BUSY flag to prevent the dc thread from
+	 * downconverting the lock before the upconvert has fully completed.
+	 */
+	lockres_or_flags(lockres, OCFS2_LOCK_UPCONVERT_FINISHING);
+
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
 
 	mlog_exit_void();
@@ -1134,6 +1142,7 @@ static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
 	mlog_entry_void();
 	spin_lock_irqsave(&lockres->l_lock, flags);
 	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
+	lockres_clear_flags(lockres, OCFS2_LOCK_UPCONVERT_FINISHING);
 	if (convert)
 		lockres->l_action = OCFS2_AST_INVALID;
 	else
@@ -1324,12 +1333,12 @@ static int __ocfs2_cluster_lock(struct ocfs2_super *osb,
 again:
 	wait = 0;
 
+	spin_lock_irqsave(&lockres->l_lock, flags);
+
 	if (catch_signals && signal_pending(current)) {
 		ret = -ERESTARTSYS;
-		goto out;
+		goto unlock;
 	}
-
-	spin_lock_irqsave(&lockres->l_lock, flags);
 
 	mlog_bug_on_msg(lockres->l_flags & OCFS2_LOCK_FREEING,
 			"Cluster lock called on freeing lockres %s! flags "
@@ -1345,6 +1354,25 @@ again:
 		lockres_add_mask_waiter(lockres, &mw, OCFS2_LOCK_BUSY, 0);
 		wait = 1;
 		goto unlock;
+	}
+
+	if (lockres->l_flags & OCFS2_LOCK_UPCONVERT_FINISHING) {
+		/*
+		 * We've upconverted. If the lock now has a level we can
+		 * work with, we take it. If, however, the lock is not at the
+		 * required level, we go thru the full cycle. One way this could
+		 * happen is if a process requesting an upconvert to PR is
+		 * closely followed by another requesting upconvert to an EX.
+		 * If the process requesting EX lands here, we want it to
+		 * continue attempting to upconvert and let the process
+		 * requesting PR take the lock.
+		 * If multiple processes request upconvert to PR, the first one
+		 * here will take the lock. The others will have to go thru the
+		 * OCFS2_LOCK_BLOCKED check to ensure that there is no pending
+		 * downconvert request.
+		 */
+		if (level <= lockres->l_level)
+			goto update_holders;
 	}
 
 	if (lockres->l_flags & OCFS2_LOCK_BLOCKED &&
@@ -1417,11 +1445,14 @@ again:
 		goto again;
 	}
 
+update_holders:
 	/* Ok, if we get here then we're good to go. */
 	ocfs2_inc_holders(lockres, level);
 
 	ret = 0;
 unlock:
+	lockres_clear_flags(lockres, OCFS2_LOCK_UPCONVERT_FINISHING);
+
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 out:
 	/*
@@ -3401,6 +3432,18 @@ recheck:
 		}
 		goto leave;
 	}
+
+	/*
+	 * This prevents livelocks. OCFS2_LOCK_UPCONVERT_FINISHING flag is
+	 * set when the ast is received for an upconvert just before the
+	 * OCFS2_LOCK_BUSY flag is cleared. Now if the fs received a bast
+	 * on the heels of the ast, we want to delay the downconvert just
+	 * enough to allow the up requestor to do its task. Because this
+	 * lock is in the blocked queue, the lock will be downconverted
+	 * as soon as the requestor is done with the lock.
+	 */
+	if (lockres->l_flags & OCFS2_LOCK_UPCONVERT_FINISHING)
+		goto leave_requeue;
 
 	/* if we're blocking an exclusive and we have *any* holders,
 	 * then requeue. */
