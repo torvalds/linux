@@ -934,8 +934,11 @@ static void event__process_sample(const event_t *self,
 	struct addr_location al;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
+	++samples;
+
 	switch (origin) {
 	case PERF_RECORD_MISC_USER:
+		++userspace_samples;
 		if (hide_user_symbols)
 			return;
 		break;
@@ -960,9 +963,6 @@ static void event__process_sample(const event_t *self,
 		if (list_empty(&syme->node) || !syme->node.next)
 			__list_insert_active_sym(syme);
 		pthread_mutex_unlock(&active_symbols_lock);
-		if (origin == PERF_RECORD_MISC_USER)
-			++userspace_samples;
-		++samples;
 	}
 }
 
