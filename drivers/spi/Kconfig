@@ -334,6 +334,10 @@ config SPI_DW_PCI
 	tristate "PCI interface driver for DW SPI core"
 	depends on SPI_DESIGNWARE && PCI
 
+config SPI_DW_MMIO
+	tristate "Memory-mapped io interface driver for DW SPI core"
+	depends on SPI_DESIGNWARE
+
 #
 # There are lots of SPI device types, with sensors and memory
 # being probably the most widely used ones.
