@@ -1006,7 +1006,7 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 
 	if (mapping->v4l2_type == V4L2_CTRL_TYPE_MENU) {
 		if (value < 0 || value >= mapping->menu_count)
-			return -EINVAL;
+			return -ERANGE;
 		value = mapping->menu_info[value].value;
 	}
 
