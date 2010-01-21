@@ -2506,52 +2506,6 @@ static int amd_iommu_attach_device(struct iommu_domain *dom,
 	return ret;
 }
 
-static int amd_iommu_map_range(struct iommu_domain *dom,
-			       unsigned long iova, phys_addr_t paddr,
-			       size_t size, int iommu_prot)
-{
-	struct protection_domain *domain = dom->priv;
-	unsigned long i,  npages = iommu_num_pages(paddr, size, PAGE_SIZE);
-	int prot = 0;
-	int ret;
-
-	if (iommu_prot & IOMMU_READ)
-		prot |= IOMMU_PROT_IR;
-	if (iommu_prot & IOMMU_WRITE)
-		prot |= IOMMU_PROT_IW;
-
-	iova  &= PAGE_MASK;
-	paddr &= PAGE_MASK;
-
-	for (i = 0; i < npages; ++i) {
-		ret = iommu_map_page(domain, iova, paddr, prot, PAGE_SIZE);
-		if (ret)
-			return ret;
-
-		iova  += PAGE_SIZE;
-		paddr += PAGE_SIZE;
-	}
-
-	return 0;
-}
-
-static void amd_iommu_unmap_range(struct iommu_domain *dom,
-				  unsigned long iova, size_t size)
-{
-
-	struct protection_domain *domain = dom->priv;
-	unsigned long i,  npages = iommu_num_pages(iova, size, PAGE_SIZE);
-
-	iova  &= PAGE_MASK;
-
-	for (i = 0; i < npages; ++i) {
-		iommu_unmap_page(domain, iova, PAGE_SIZE);
-		iova  += PAGE_SIZE;
-	}
-
-	iommu_flush_tlb_pde(domain);
-}
-
 static int amd_iommu_map(struct iommu_domain *dom, unsigned long iova,
 			 phys_addr_t paddr, int gfp_order, int iommu_prot)
 {
@@ -2616,8 +2570,6 @@ static struct iommu_ops amd_iommu_ops = {
 	.detach_dev = amd_iommu_detach_device,
 	.map = amd_iommu_map,
 	.unmap = amd_iommu_unmap,
-	.map_range = amd_iommu_map_range,
-	.unmap_range = amd_iommu_unmap_range,
 	.iova_to_phys = amd_iommu_iova_to_phys,
 	.domain_has_cap = amd_iommu_domain_has_cap,
 };
