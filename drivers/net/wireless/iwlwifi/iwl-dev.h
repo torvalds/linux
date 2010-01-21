@@ -1276,18 +1276,21 @@ struct iwl_priv {
 			u32 sta_supp_rates;
 		} _3945;
 #endif
+#if defined(CONFIG_IWLAGN) || defined(CONFIG_IWLAGN_MODULE)
+		struct {
+			/* INT ICT Table */
+			__le32 *ict_tbl;
+			void *ict_tbl_vir;
+			dma_addr_t ict_tbl_dma;
+			dma_addr_t aligned_ict_tbl_dma;
+			int ict_index;
+			u32 inta;
+			bool use_ict;
+		} _agn;
+#endif
 	};
 
 	struct iwl_hw_params hw_params;
-
-	/* INT ICT Table */
-	__le32 *ict_tbl;
-	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
-	int ict_index;
-	void *ict_tbl_vir;
-	u32 inta;
-	bool use_ict;
 
 	u32 inta_mask;
 	/* Current association information needed to configure the
