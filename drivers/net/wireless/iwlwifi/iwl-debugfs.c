@@ -815,7 +815,9 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 
 	priv->power_data.debug_sleep_level_override = value;
 
+	mutex_lock(&priv->mutex);
 	iwl_power_update_mode(priv, true);
+	mutex_unlock(&priv->mutex);
 
 	return count;
 }

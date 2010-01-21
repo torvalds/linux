@@ -303,7 +303,7 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
-
+/* priv->mutex must be held */
 int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
 	int ret = 0;
