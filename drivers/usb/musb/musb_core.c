@@ -2004,19 +2004,6 @@ bad_config:
 		musb->irq_wake = 0;
 	}
 
-	pr_info("%s: USB %s mode controller at %p using %s, IRQ %d\n",
-			musb_driver_name,
-			({char *s;
-			switch (musb->board_mode) {
-			case MUSB_HOST:		s = "Host"; break;
-			case MUSB_PERIPHERAL:	s = "Peripheral"; break;
-			default:		s = "OTG"; break;
-			}; s; }),
-			ctrl,
-			(is_dma_capable() && musb->dma_controller)
-				? "DMA" : "PIO",
-			musb->nIrq);
-
 	/* host side needs more setup */
 	if (is_host_enabled(musb)) {
 		struct usb_hcd	*hcd = musb_to_hcd(musb);
@@ -2078,6 +2065,18 @@ bad_config:
 #endif
 	if (status)
 		goto fail2;
+
+	dev_info(dev, "USB %s mode controller at %p using %s, IRQ %d\n",
+			({char *s;
+			 switch (musb->board_mode) {
+			 case MUSB_HOST:		s = "Host"; break;
+			 case MUSB_PERIPHERAL:	s = "Peripheral"; break;
+			 default:		s = "OTG"; break;
+			 }; s; }),
+			ctrl,
+			(is_dma_capable() && musb->dma_controller)
+			? "DMA" : "PIO",
+			musb->nIrq);
 
 	return 0;
 
