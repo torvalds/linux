@@ -218,6 +218,13 @@ config HID_NTRIG
 	---help---
 	Support for N-Trig touch screen.
 
+config HID_ORTEK
+	tristate "Ortek" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Ortek WKB-2000 wireless keyboard + mouse trackpad.
+
 config HID_PANTHERLORD
 	tristate "Pantherlord support" if EMBEDDED
 	depends on USB_HID
