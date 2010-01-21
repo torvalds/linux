@@ -2556,17 +2556,22 @@ static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
 					  unsigned long iova)
 {
 	struct protection_domain *domain = dom->priv;
-	unsigned long offset = iova & ~PAGE_MASK;
+	unsigned long offset_mask;
 	phys_addr_t paddr;
-	u64 *pte;
+	u64 *pte, __pte;
 
 	pte = fetch_pte(domain, iova);
 
 	if (!pte || !IOMMU_PTE_PRESENT(*pte))
 		return 0;
 
-	paddr  = *pte & IOMMU_PAGE_MASK;
-	paddr |= offset;
+	if (PM_PTE_LEVEL(*pte) == 0)
+		offset_mask = PAGE_SIZE - 1;
+	else
+		offset_mask = PTE_PAGE_SIZE(*pte) - 1;
+
+	__pte = *pte & PM_ADDR_MASK;
+	paddr = (__pte & ~offset_mask) | (iova & offset_mask);
 
 	return paddr;
 }
