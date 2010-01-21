@@ -782,8 +782,8 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 
 static void atombios_crtc_prepare(struct drm_crtc *crtc)
 {
-	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	atombios_lock_crtc(crtc, 1);
+	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 static void atombios_crtc_commit(struct drm_crtc *crtc)
