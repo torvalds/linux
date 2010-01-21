@@ -2110,6 +2110,7 @@ static int __init musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	int		irq = platform_get_irq(pdev, 0);
+	int		status;
 	struct resource	*iomem;
 	void __iomem	*base;
 
@@ -2127,7 +2128,12 @@ static int __init musb_probe(struct platform_device *pdev)
 	/* clobbered by use_dma=n */
 	orig_dma_mask = dev->dma_mask;
 #endif
-	return musb_init_controller(dev, irq, base);
+
+	status = musb_init_controller(dev, irq, base);
+	if (status < 0)
+		iounmap(base);
+
+	return status;
 }
 
 static int __exit musb_remove(struct platform_device *pdev)
