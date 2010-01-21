@@ -169,7 +169,7 @@ static void wait_till_not_busy(struct dw_spi *dws)
 			return;
 	}
 	dev_err(&dws->master->dev,
-		"DW SPI: Stutus keeps busy for 1000us after a read/write!\n");
+		"DW SPI: Status keeps busy for 1000us after a read/write!\n");
 }
 
 static void flush(struct dw_spi *dws)
