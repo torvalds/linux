@@ -455,7 +455,7 @@ static struct davinci_clk dm365_clks[] = {
 	CLK(NULL, "timer3", &timer3_clk),
 	CLK(NULL, "usb", &usb_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
-	CLK("voice_codec", NULL, &voicecodec_clk),
+	CLK("davinci_voicecodec", NULL, &voicecodec_clk),
 	CLK("davinci-asp.0", NULL, &asp0_clk),
 	CLK(NULL, "rto", &rto_clk),
 	CLK(NULL, "mjcp", &mjcp_clk),
@@ -606,6 +606,8 @@ INT_CFG(DM365,  INT_NSF_DISABLE,     25,    1,    0,     false)
 
 EVT_CFG(DM365,	EVT2_ASP_TX,         0,     1,    0,     false)
 EVT_CFG(DM365,	EVT3_ASP_RX,         1,     1,    0,     false)
+EVT_CFG(DM365,	EVT2_VC_TX,          0,     1,    1,     false)
+EVT_CFG(DM365,	EVT3_VC_RX,          1,     1,    1,     false)
 #endif
 };
 
@@ -835,6 +837,31 @@ static struct platform_device dm365_asp_device = {
 	.resource	= dm365_asp_resources,
 };
 
+static struct resource dm365_vc_resources[] = {
+	{
+		.start	= DAVINCI_DM365_VC_BASE,
+		.end	= DAVINCI_DM365_VC_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_VC_TX,
+		.end	= DAVINCI_DMA_VC_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_VC_RX,
+		.end	= DAVINCI_DMA_VC_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm365_vc_device = {
+	.name		= "davinci_voicecodec",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm365_vc_resources),
+	.resource	= dm365_vc_resources,
+};
+
 static struct resource dm365_rtc_resources[] = {
 	{
 		.start = DM365_RTC_BASE,
@@ -989,6 +1016,14 @@ void __init dm365_init_asp(struct snd_platform_data *pdata)
 	davinci_cfg_reg(DM365_EVT3_ASP_RX);
 	dm365_asp_device.dev.platform_data = pdata;
 	platform_device_register(&dm365_asp_device);
+}
+
+void __init dm365_init_vc(struct snd_platform_data *pdata)
+{
+	davinci_cfg_reg(DM365_EVT2_VC_TX);
+	davinci_cfg_reg(DM365_EVT3_VC_RX);
+	dm365_vc_device.dev.platform_data = pdata;
+	platform_device_register(&dm365_vc_device);
 }
 
 void __init dm365_init_ks(struct davinci_ks_platform_data *pdata)
