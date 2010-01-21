@@ -36,6 +36,8 @@ static const struct {
 	[SH_KEYSC_MODE_1] = { 0, 6, 5 },
 	[SH_KEYSC_MODE_2] = { 1, 5, 6 },
 	[SH_KEYSC_MODE_3] = { 2, 4, 7 },
+	[SH_KEYSC_MODE_4] = { 3, 6, 6 },
+	[SH_KEYSC_MODE_5] = { 4, 6, 7 },
 };
 
 struct sh_keysc_priv {
@@ -122,8 +124,6 @@ static irqreturn_t sh_keysc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#define res_size(res) ((res)->end - (res)->start + 1)
-
 static int __devinit sh_keysc_probe(struct platform_device *pdev)
 {
 	struct sh_keysc_priv *priv;
@@ -164,7 +164,7 @@ static int __devinit sh_keysc_probe(struct platform_device *pdev)
 	memcpy(&priv->pdata, pdev->dev.platform_data, sizeof(priv->pdata));
 	pdata = &priv->pdata;
 
-	priv->iomem_base = ioremap_nocache(res->start, res_size(res));
+	priv->iomem_base = ioremap_nocache(res->start, resource_size(res));
 	if (priv->iomem_base == NULL) {
 		dev_err(&pdev->dev, "failed to remap I/O memory\n");
 		error = -ENXIO;
