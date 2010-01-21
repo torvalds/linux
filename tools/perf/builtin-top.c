@@ -975,6 +975,10 @@ static int event__process(event_t *event, struct perf_session *session)
 	case PERF_RECORD_MMAP:
 		event__process_mmap(event, session);
 		break;
+	case PERF_RECORD_FORK:
+	case PERF_RECORD_EXIT:
+		event__process_task(event, session);
+		break;
 	default:
 		break;
 	}
