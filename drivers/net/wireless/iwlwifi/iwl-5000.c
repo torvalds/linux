@@ -412,12 +412,14 @@ static void iwl5000_rx_calib_complete(struct iwl_priv *priv,
 /*
  * ucode
  */
-static int iwl5000_load_section(struct iwl_priv *priv,
-				struct fw_desc *image,
-				u32 dst_addr)
+static int iwl5000_load_section(struct iwl_priv *priv, const char *name,
+				struct fw_desc *image, u32 dst_addr)
 {
 	dma_addr_t phy_addr = image->p_addr;
 	u32 byte_cnt = image->len;
+	int ret;
+
+	priv->ucode_write_complete = 0;
 
 	iwl_write_direct32(priv,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
@@ -447,6 +449,20 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
+	IWL_DEBUG_INFO(priv, "%s uCode section being loaded...\n", name);
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+					priv->ucode_write_complete, 5 * HZ);
+	if (ret == -ERESTARTSYS) {
+		IWL_ERR(priv, "Could not load the %s uCode section due "
+			"to interrupt\n", name);
+		return ret;
+	}
+	if (!ret) {
+		IWL_ERR(priv, "Could not load the %s uCode section\n",
+			name);
+		return -ETIMEDOUT;
+	}
+
 	return 0;
 }
 
@@ -456,48 +472,13 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 {
 	int ret = 0;
 
-	ret = iwl5000_load_section(priv, inst_image,
+	ret = iwl5000_load_section(priv, "INST", inst_image,
 				   IWL50_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
-	IWL_DEBUG_INFO(priv, "INST uCode section being loaded...\n");
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-					priv->ucode_write_complete, 5 * HZ);
-	if (ret == -ERESTARTSYS) {
-		IWL_ERR(priv, "Could not load the INST uCode section due "
-			"to interrupt\n");
-		return ret;
-	}
-	if (!ret) {
-		IWL_ERR(priv, "Could not load the INST uCode section\n");
-		return -ETIMEDOUT;
-	}
-
-	priv->ucode_write_complete = 0;
-
-	ret = iwl5000_load_section(
-		priv, data_image, IWL50_RTC_DATA_LOWER_BOUND);
-	if (ret)
-		return ret;
-
-	IWL_DEBUG_INFO(priv, "DATA uCode section being loaded...\n");
-
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-				priv->ucode_write_complete, 5 * HZ);
-	if (ret == -ERESTARTSYS) {
-		IWL_ERR(priv, "Could not load the INST uCode section due "
-			"to interrupt\n");
-		return ret;
-	} else if (!ret) {
-		IWL_ERR(priv, "Could not load the DATA uCode section\n");
-		return -ETIMEDOUT;
-	} else
-		ret = 0;
-
-	priv->ucode_write_complete = 0;
-
-	return ret;
+	return iwl5000_load_section(priv, "DATA", data_image,
+				    IWL50_RTC_DATA_LOWER_BOUND);
 }
 
 int iwl5000_load_ucode(struct iwl_priv *priv)
