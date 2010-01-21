@@ -5293,7 +5293,6 @@ void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 	kvm_fx_save(&vcpu->arch.host_fx_image);
 	kvm_fx_restore(&vcpu->arch.guest_fx_image);
 }
-EXPORT_SYMBOL_GPL(kvm_load_guest_fpu);
 
 void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 {
@@ -5306,7 +5305,6 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	++vcpu->stat.fpu_reload;
 	set_bit(KVM_REQ_DEACTIVATE_FPU, &vcpu->requests);
 }
-EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
