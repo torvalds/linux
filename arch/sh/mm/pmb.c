@@ -127,14 +127,14 @@ static void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
 	ctrl_outl(ppn | flags | PMB_V, mk_pmb_data(pos));
 }
 
-static void __uses_jump_to_uncached set_pmb_entry(struct pmb_entry *pmbe)
+static void set_pmb_entry(struct pmb_entry *pmbe)
 {
 	jump_to_uncached();
 	__set_pmb_entry(pmbe->vpn, pmbe->ppn, pmbe->flags, pmbe->entry);
 	back_to_cached();
 }
 
-static void __uses_jump_to_uncached clear_pmb_entry(struct pmb_entry *pmbe)
+static void clear_pmb_entry(struct pmb_entry *pmbe)
 {
 	unsigned int entry = pmbe->entry;
 	unsigned long addr;
@@ -364,7 +364,7 @@ static inline int pmb_apply_legacy_mappings(void)
 }
 #endif
 
-int __uses_jump_to_uncached pmb_init(void)
+int pmb_init(void)
 {
 	int i;
 	unsigned long addr, data;

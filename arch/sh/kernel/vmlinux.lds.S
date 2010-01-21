@@ -53,18 +53,6 @@ SECTIONS
 
 	NOTES
 	RO_DATA(PAGE_SIZE)
-
-	/*
-	 * Code which must be executed uncached and the associated data
-	 */
-	. = ALIGN(PAGE_SIZE);
-	.uncached : AT(ADDR(.uncached) - LOAD_OFFSET) {
-		__uncached_start = .;
-		*(.uncached.text)
-		*(.uncached.data)
-		__uncached_end = .;
-	}
-
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 
 	_edata = .;			/* End of data section */

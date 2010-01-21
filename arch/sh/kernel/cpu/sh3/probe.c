@@ -16,7 +16,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 
-int __uses_jump_to_uncached detect_cpu_and_cache_system(void)
+int detect_cpu_and_cache_system(void)
 {
 	unsigned long addr0, addr1, data0, data1, data2, data3;
 

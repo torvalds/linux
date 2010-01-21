@@ -22,8 +22,7 @@ enum cache_type {
 	CACHE_TYPE_UNIFIED,
 };
 
-static int __uses_jump_to_uncached cache_seq_show(struct seq_file *file,
-						  void *iter)
+static int cache_seq_show(struct seq_file *file, void *iter)
 {
 	unsigned int cache_type = (unsigned int)file->private;
 	struct cache_info *cache;

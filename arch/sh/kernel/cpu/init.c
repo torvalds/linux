@@ -98,7 +98,7 @@ static void __init expmask_init(void)
 #endif
 
 /* 2nd-level cache init */
-void __uses_jump_to_uncached __attribute__ ((weak)) l2_cache_init(void)
+void __attribute__ ((weak)) l2_cache_init(void)
 {
 }
 
@@ -106,7 +106,7 @@ void __uses_jump_to_uncached __attribute__ ((weak)) l2_cache_init(void)
  * Generic first-level cache init
  */
 #ifdef CONFIG_SUPERH32
-static void __uses_jump_to_uncached cache_init(void)
+static void cache_init(void)
 {
 	unsigned long ccr, flags;
 

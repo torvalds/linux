@@ -55,11 +55,12 @@ enum fixed_addresses {
 #define FIX_N_COLOURS 8
 	FIX_CMAP_BEGIN,
 	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS) - 1,
-	FIX_UNCACHED,
+
 #ifdef CONFIG_HIGHMEM
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
 	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
 #endif
+
 	/*
 	 * FIX_IOREMAP entries are useful for mapping physical address
 	 * space before ioremap() is useable, e.g. really early in boot
@@ -68,6 +69,7 @@ enum fixed_addresses {
 #define FIX_N_IOREMAPS	32
 	FIX_IOREMAP_BEGIN,
 	FIX_IOREMAP_END = FIX_IOREMAP_BEGIN + FIX_N_IOREMAPS,
+
 	__end_of_fixed_addresses
 };
 

@@ -36,7 +36,7 @@ static void __flush_cache_one(unsigned long addr, unsigned long phys,
  * Called from kernel/module.c:sys_init_module and routine for a.out format,
  * signal handler code and kprobes code
  */
-static void __uses_jump_to_uncached sh4_flush_icache_range(void *args)
+static void sh4_flush_icache_range(void *args)
 {
 	struct flusher_data *data = args;
 	unsigned long start, end;
@@ -124,7 +124,7 @@ static void sh4_flush_dcache_page(void *arg)
 }
 
 /* TODO: Selective icache invalidation through IC address array.. */
-static void __uses_jump_to_uncached flush_icache_all(void)
+static void flush_icache_all(void)
 {
 	unsigned long flags, ccr;
 

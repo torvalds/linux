@@ -211,9 +211,6 @@ void __init paging_init(void)
 	}
 
 	free_area_init_nodes(max_zone_pfns);
-
-	/* Set up the uncached fixmap */
-	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
 }
 
 /*

@@ -33,8 +33,6 @@ do {								\
 			      &next->thread);			\
 } while (0)
 
-#define __uses_jump_to_uncached
-
 #define jump_to_uncached()	do { } while (0)
 #define back_to_cached()	do { } while (0)
 
