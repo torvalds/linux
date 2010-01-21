@@ -371,9 +371,6 @@ static struct kvm *kvm_create_vm(void)
 {
 	int r = 0, i;
 	struct kvm *kvm = kvm_arch_create_vm();
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-	struct page *page;
-#endif
 
 	if (IS_ERR(kvm))
 		goto out;
@@ -402,23 +399,9 @@ static struct kvm *kvm_create_vm(void)
 		}
 	}
 
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!page) {
-		cleanup_srcu_struct(&kvm->srcu);
-		goto out_err;
-	}
-
-	kvm->coalesced_mmio_ring =
-			(struct kvm_coalesced_mmio_ring *)page_address(page);
-#endif
-
 	r = kvm_init_mmu_notifier(kvm);
 	if (r) {
 		cleanup_srcu_struct(&kvm->srcu);
-#ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-		put_page(page);
-#endif
 		goto out_err;
 	}
 
