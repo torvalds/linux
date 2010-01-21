@@ -305,6 +305,7 @@ struct uvc_entity {
 	char name[64];
 
 	/* Media controller-related fields. */
+	struct video_device *vdev;
 	struct v4l2_subdev subdev;
 	unsigned int num_pads;
 	unsigned int num_links;

@@ -33,6 +33,9 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 	int ret;
 
 	for (i = 0; i < entity->num_pads; ++i) {
+		struct media_entity *source;
+		struct media_entity *sink;
+
 		if (!(entity->pads[i].flags & MEDIA_PAD_FL_SINK))
 			continue;
 
@@ -40,14 +43,23 @@ static int uvc_mc_register_entity(struct uvc_video_chain *chain,
 		if (remote == NULL)
 			return -EINVAL;
 
+		source = (UVC_ENTITY_TYPE(remote) == UVC_TT_STREAMING)
+		       ? &remote->vdev->entity : &remote->subdev.entity;
+		sink = (UVC_ENTITY_TYPE(entity) == UVC_TT_STREAMING)
+		     ? &entity->vdev->entity : &entity->subdev.entity;
+
 		remote_pad = remote->num_pads - 1;
-		ret = media_entity_create_link(&remote->subdev.entity,
-				remote_pad, &entity->subdev.entity, i, flags);
+		ret = media_entity_create_link(source, remote_pad,
+					       sink, i, flags);
 		if (ret < 0)
 			return ret;
 	}
 
-	return v4l2_device_register_subdev(&chain->dev->vdev, &entity->subdev);
+	if (UVC_ENTITY_TYPE(entity) != UVC_TT_STREAMING)
+		ret = v4l2_device_register_subdev(&chain->dev->vdev,
+						  &entity->subdev);
+
+	return ret;
 }
 
 static struct v4l2_subdev_ops uvc_subdev_ops = {
@@ -55,16 +67,28 @@ static struct v4l2_subdev_ops uvc_subdev_ops = {
 
 void uvc_mc_cleanup_entity(struct uvc_entity *entity)
 {
-	media_entity_cleanup(&entity->subdev.entity);
+	if (UVC_ENTITY_TYPE(entity) != UVC_TT_STREAMING)
+		media_entity_cleanup(&entity->subdev.entity);
+	else if (entity->vdev != NULL)
+		media_entity_cleanup(&entity->vdev->entity);
 }
 
 static int uvc_mc_init_entity(struct uvc_entity *entity)
 {
-	v4l2_subdev_init(&entity->subdev, &uvc_subdev_ops);
-	strlcpy(entity->subdev.name, entity->name, sizeof(entity->subdev.name));
+	int ret;
 
-	return media_entity_init(&entity->subdev.entity, entity->num_pads,
-				 entity->pads, 0);
+	if (UVC_ENTITY_TYPE(entity) != UVC_TT_STREAMING) {
+		v4l2_subdev_init(&entity->subdev, &uvc_subdev_ops);
+		strlcpy(entity->subdev.name, entity->name,
+			sizeof(entity->subdev.name));
+
+		ret = media_entity_init(&entity->subdev.entity,
+					entity->num_pads, entity->pads, 0);
+	} else
+		ret = media_entity_init(&entity->vdev->entity,
+					entity->num_pads, entity->pads, 0);
+
+	return ret;
 }
 
 int uvc_mc_register_entities(struct uvc_video_chain *chain)

@@ -1616,6 +1616,10 @@ static void uvc_delete(struct uvc_device *dev)
 #ifdef CONFIG_MEDIA_CONTROLLER
 		uvc_mc_cleanup_entity(entity);
 #endif
+		if (entity->vdev) {
+			video_device_release(entity->vdev);
+			entity->vdev = NULL;
+		}
 		kfree(entity);
 	}
 
@@ -1637,8 +1641,6 @@ static void uvc_release(struct video_device *vdev)
 {
 	struct uvc_streaming *stream = video_get_drvdata(vdev);
 	struct uvc_device *dev = stream->dev;
-
-	video_device_release(vdev);
 
 	/* Decrement the registered streams count and delete the device when it
 	 * reaches zero.
@@ -1753,6 +1755,8 @@ static int uvc_register_terms(struct uvc_device *dev,
 		ret = uvc_register_video(dev, stream);
 		if (ret < 0)
 			return ret;
+
+		term->vdev = stream->vdev;
 	}
 
 	return 0;
