@@ -231,6 +231,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 	 * Note: Package may have been newly created by call above.
 	 */
 	if ((*return_object_ptr)->common.type == ACPI_TYPE_PACKAGE) {
+		data->parent_package = *return_object_ptr;
 		status = acpi_ns_check_package(data, return_object_ptr);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
@@ -710,6 +711,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 	for (i = 0; i < count; i++) {
 		sub_package = *elements;
 		sub_elements = sub_package->package.elements;
+		data->parent_package = sub_package;
 
 		/* Each sub-object must be of type Package */
 
@@ -721,6 +723,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 
 		/* Examine the different types of expected sub-packages */
 
+		data->parent_package = sub_package;
 		switch (package->ret_info.type) {
 		case ACPI_PTYPE2:
 		case ACPI_PTYPE2_PKG_COUNT:
@@ -800,7 +803,7 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 
 			/*
 			 * First element is the (Integer) count of elements, including
-			 * the count field.
+			 * the count field (the ACPI name is num_elements)
 			 */
 			status = acpi_ns_check_object_type(data, sub_elements,
 							   ACPI_RTYPE_INTEGER,
@@ -821,6 +824,16 @@ acpi_ns_check_package_list(struct acpi_predefined_data *data,
 			    package->ret_info.count1) {
 				expected_count = package->ret_info.count1;
 				goto package_too_small;
+			}
+			if (expected_count == 0) {
+				/*
+				 * Either the num_entries element was originally zero or it was
+				 * a NULL element and repaired to an Integer of value zero.
+				 * In either case, repair it by setting num_entries to be the
+				 * actual size of the subpackage.
+				 */
+				expected_count = sub_package->package.count;
+				(*sub_elements)->integer.value = expected_count;
 			}
 
 			/* Check the type of each sub-package element */
@@ -945,10 +958,18 @@ acpi_ns_check_object_type(struct acpi_predefined_data *data,
 	char type_buffer[48];	/* Room for 5 types */
 
 	/*
-	 * If we get a NULL return_object here, it is a NULL package element,
-	 * and this is always an error.
+	 * If we get a NULL return_object here, it is a NULL package element.
+	 * Since all extraneous NULL package elements were removed earlier by a
+	 * call to acpi_ns_remove_null_elements, this is an unexpected NULL element.
+	 * We will attempt to repair it.
 	 */
 	if (!return_object) {
+		status = acpi_ns_repair_null_element(data, expected_btypes,
+						     package_index,
+						     return_object_ptr);
+		if (ACPI_SUCCESS(status)) {
+			return (AE_OK);	/* Repair was successful */
+		}
 		goto type_error_exit;
 	}
 
