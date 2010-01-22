@@ -212,6 +212,9 @@ struct b43_phy {
 	bool supports_2ghz;
 	bool supports_5ghz;
 
+	/* HT info */
+	bool is_40mhz;
+
 	/* GMODE bit enabled? */
 	bool gmode;
 

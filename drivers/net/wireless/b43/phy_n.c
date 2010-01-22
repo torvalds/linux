@@ -1787,7 +1787,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 
 	b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDGCTL, 0x8AA9);
 
-	if (1 /* FIXME: the band width is 20 MHz */)
+	if (!dev->phy.is_40mhz)
 		freq = 2500;
 	else
 		freq = 5000;
