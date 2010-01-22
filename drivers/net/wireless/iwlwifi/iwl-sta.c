@@ -1045,24 +1045,19 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap)
 	struct ieee80211_sta_ht_cap *cur_ht_config = NULL;
 	u8 sta_id;
 
-	/* Add station to device's station table */
-
 	/*
-	 * XXX: This check is definitely not correct, if we're an AP
-	 *	it'll always be false which is not what we want, but
-	 *	it doesn't look like iwlagn is prepared to be an HT
-	 *	AP anyway.
+	 * Set HT capabilities. It is ok to set this struct even if not using
+	 * HT config: the priv->current_ht_config.is_ht flag will just be false
 	 */
-	if (priv->current_ht_config.is_ht) {
-		rcu_read_lock();
-		sta = ieee80211_find_sta(priv->vif, addr);
-		if (sta) {
-			memcpy(&ht_config, &sta->ht_cap, sizeof(ht_config));
-			cur_ht_config = &ht_config;
-		}
-		rcu_read_unlock();
+	rcu_read_lock();
+	sta = ieee80211_find_sta(priv->vif, addr);
+	if (sta) {
+		memcpy(&ht_config, &sta->ht_cap, sizeof(ht_config));
+		cur_ht_config = &ht_config;
 	}
+	rcu_read_unlock();
 
+	/* Add station to device's station table */
 	sta_id = iwl_add_station(priv, addr, is_ap, CMD_SYNC, cur_ht_config);
 
 	/* Set up default rate scaling table in device's station table */
