@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/highmem.h>
 #include <linux/cpu.h>
+#include <linux/bitops.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -76,6 +77,7 @@ struct event_constraint {
 	};
 	int	code;
 	int	cmask;
+	int	weight;
 };
 
 struct cpu_hw_events {
@@ -95,6 +97,7 @@ struct cpu_hw_events {
 	{ .idxmsk64[0] = (n) },		\
 	.code = (c),			\
 	.cmask = (m),			\
+	.weight = HWEIGHT64((u64)(n)),	\
 }
 
 #define INTEL_EVENT_CONSTRAINT(c, n)	\
@@ -1242,8 +1245,7 @@ static inline int is_x86_event(struct perf_event *event)
 
 static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 {
-	int i, j , w, num;
-	int weight, wmax;
+	int i, j, w, num, wmax;
 	struct event_constraint *c, *constraints[X86_PMC_IDX_MAX];
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	struct hw_perf_event *hwc;
@@ -1320,8 +1322,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			c = constraints[i];
 			hwc = &cpuc->event_list[i]->hw;
 
-			weight = bitmap_weight(c->idxmsk, X86_PMC_IDX_MAX);
-			if (weight != w)
+			if (c->weight != w)
 				continue;
 
 			for_each_bit(j, c->idxmsk, X86_PMC_IDX_MAX) {
