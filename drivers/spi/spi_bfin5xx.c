@@ -547,7 +547,7 @@ static irqreturn_t bfin_spi_dma_irq_handler(int irq, void *dev_id)
 	dev_dbg(&drv_data->pdev->dev,
 		"disable dma channel irq%d\n",
 		drv_data->dma_channel);
-	dma_disable_irq(drv_data->dma_channel);
+	dma_disable_irq_nosync(drv_data->dma_channel);
 
 	return IRQ_HANDLED;
 }
