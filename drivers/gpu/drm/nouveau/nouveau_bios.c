@@ -1865,7 +1865,7 @@ init_compute_mem(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
 
-	if (dev_priv->card_type >= NV_50)
+	if (dev_priv->card_type >= NV_40)
 		return 1;
 
 	/*
