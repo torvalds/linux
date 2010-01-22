@@ -164,25 +164,9 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->mas7); break;
 
 	case SPRN_TLB0CFG:
-	{
-		ulong tmp = SPRN_TLB0CFG;
-
-		tmp &= ~0xfffUL;
-		tmp |= vcpu_e500->guest_tlb_size[0];
-		kvmppc_set_gpr(vcpu, rt, tmp);
-		break;
-	}
-
+		kvmppc_set_gpr(vcpu, rt, vcpu_e500->tlb0cfg); break;
 	case SPRN_TLB1CFG:
-	{
-		ulong tmp = SPRN_TLB1CFG;
-
-		tmp &= ~0xfffUL;
-		tmp |= vcpu_e500->guest_tlb_size[1];
-		kvmppc_set_gpr(vcpu, rt, tmp);
-		break;
-	}
-
+		kvmppc_set_gpr(vcpu, rt, vcpu_e500->tlb1cfg); break;
 	case SPRN_L1CSR0:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->l1csr0); break;
 	case SPRN_L1CSR1:

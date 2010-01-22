@@ -56,6 +56,8 @@ struct kvmppc_vcpu_e500 {
 	u32 l1csr1;
 	u32 hid0;
 	u32 hid1;
+	u32 tlb0cfg;
+	u32 tlb1cfg;
 
 	struct kvm_vcpu vcpu;
 };

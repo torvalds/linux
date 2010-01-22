@@ -728,6 +728,12 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	if (vcpu_e500->shadow_pages[1] == NULL)
 		goto err_out_page0;
 
+	/* Init TLB configuration register */
+	vcpu_e500->tlb0cfg = mfspr(SPRN_TLB0CFG) & ~0xfffUL;
+	vcpu_e500->tlb0cfg |= vcpu_e500->guest_tlb_size[0];
+	vcpu_e500->tlb1cfg = mfspr(SPRN_TLB1CFG) & ~0xfffUL;
+	vcpu_e500->tlb1cfg |= vcpu_e500->guest_tlb_size[1];
+
 	return 0;
 
 err_out_page0:
