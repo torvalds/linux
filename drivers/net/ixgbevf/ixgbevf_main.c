@@ -1693,8 +1693,10 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_adapter *adapter,
 	unsigned long size;
 	unsigned int i;
 
-	/* Free all the Rx ring sk_buffs */
+	if (!rx_ring->rx_buffer_info)
+		return;
 
+	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
 		struct ixgbevf_rx_buffer *rx_buffer_info;
 
@@ -1750,6 +1752,9 @@ static void ixgbevf_clean_tx_ring(struct ixgbevf_adapter *adapter,
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned long size;
 	unsigned int i;
+
+	if (!tx_ring->tx_buffer_info)
+		return;
 
 	/* Free all the Tx ring sk_buffs */
 
@@ -1843,12 +1848,24 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
+
 	WARN_ON(in_interrupt());
+
 	while (test_and_set_bit(__IXGBEVF_RESETTING, &adapter->state))
 		msleep(1);
 
-	ixgbevf_down(adapter);
-	ixgbevf_up(adapter);
+	/*
+	 * Check if PF is up before re-init.  If not then skip until
+	 * later when the PF is up and ready to service requests from
+	 * the VF via mailbox.  If the VF is up and running then the
+	 * watchdog task will continue to schedule reset tasks until
+	 * the PF is up and running.
+	 */
+	if (!hw->mac.ops.reset_hw(hw)) {
+		ixgbevf_down(adapter);
+		ixgbevf_up(adapter);
+	}
 
 	clear_bit(__IXGBEVF_RESETTING, &adapter->state);
 }
@@ -2422,7 +2439,6 @@ void ixgbevf_free_tx_resources(struct ixgbevf_adapter *adapter,
 			       struct ixgbevf_ring *tx_ring)
 {
 	struct pci_dev *pdev = adapter->pdev;
-
 
 	ixgbevf_clean_tx_ring(adapter, tx_ring);
 
