@@ -26,6 +26,12 @@ config SND_SOC_SH4_FSI
 	help
 	  This option enables FSI sound support
 
+config SND_SOC_SH4_SIU
+	tristate
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	select DMADEVICES
+	select SH_DMAE
+
 ##
 ## Boards
 ##
