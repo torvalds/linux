@@ -420,19 +420,6 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		ctrl |= SAA7134_MAIN_CTRL_TE5;
 		irq  |= SAA7134_IRQ1_INTE_RA2_1 |
 			SAA7134_IRQ1_INTE_RA2_0;
-
-		/* dma: setup channel 5 (= TS) */
-
-		saa_writeb(SAA7134_TS_DMA0, (dev->ts.nr_packets - 1) & 0xff);
-		saa_writeb(SAA7134_TS_DMA1,
-			((dev->ts.nr_packets - 1) >> 8) & 0xff);
-		/* TSNOPIT=0, TSCOLAP=0 */
-		saa_writeb(SAA7134_TS_DMA2,
-			(((dev->ts.nr_packets - 1) >> 16) & 0x3f) | 0x00);
-		saa_writel(SAA7134_RS_PITCH(5), TS_PACKET_SIZE);
-		saa_writel(SAA7134_RS_CONTROL(5), SAA7134_RS_CONTROL_BURST_16 |
-						  SAA7134_RS_CONTROL_ME |
-						  (dev->ts.pt_ts.dma >> 12));
 	}
 
 	/* set task conditions + field handling */
@@ -797,27 +784,28 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	vfd->debug   = video_debug;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, saa7134_boards[dev->board].name);
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 
 static void saa7134_unregister_video(struct saa7134_dev *dev)
 {
 	if (dev->video_dev) {
-		if (-1 != dev->video_dev->minor)
+		if (video_is_registered(dev->video_dev))
 			video_unregister_device(dev->video_dev);
 		else
 			video_device_release(dev->video_dev);
 		dev->video_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		if (-1 != dev->vbi_dev->minor)
+		if (video_is_registered(dev->vbi_dev))
 			video_unregister_device(dev->vbi_dev);
 		else
 			video_device_release(dev->vbi_dev);
 		dev->vbi_dev = NULL;
 	}
 	if (dev->radio_dev) {
-		if (-1 != dev->radio_dev->minor)
+		if (video_is_registered(dev->radio_dev))
 			video_unregister_device(dev->radio_dev);
 		else
 			video_device_release(dev->radio_dev);
@@ -1046,8 +1034,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		       dev->name);
 		goto fail4;
 	}
-	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       dev->name, dev->video_dev->num);
+	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	       dev->name, video_device_node_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
 
@@ -1055,8 +1043,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
 		goto fail4;
-	printk(KERN_INFO "%s: registered device vbi%d\n",
-	       dev->name, dev->vbi_dev->num);
+	printk(KERN_INFO "%s: registered device %s\n",
+	       dev->name, video_device_node_name(dev->vbi_dev));
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
@@ -1064,8 +1052,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 					    radio_nr[dev->nr]);
 		if (err < 0)
 			goto fail4;
-		printk(KERN_INFO "%s: registered device radio%d\n",
-		       dev->name, dev->radio_dev->num);
+		printk(KERN_INFO "%s: registered device %s\n",
+		       dev->name, video_device_node_name(dev->radio_dev));
 	}
 
 	/* everything worked */

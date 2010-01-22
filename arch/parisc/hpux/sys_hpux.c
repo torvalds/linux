@@ -445,12 +445,7 @@ done:
 
 int hpux_pipe(int *kstack_fildes)
 {
-	int error;
-
-	lock_kernel();
-	error = do_pipe_flags(kstack_fildes, 0);
-	unlock_kernel();
-	return error;
+	return do_pipe_flags(kstack_fildes, 0);
 }
 
 /* lies - says it works, but it really didn't lock anything */

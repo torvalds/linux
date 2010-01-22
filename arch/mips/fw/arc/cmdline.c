@@ -16,11 +16,6 @@
 
 #undef DEBUG_CMDLINE
 
-char * __init prom_getcmdline(void)
-{
-	return arcs_cmdline;
-}
-
 static char *ignored[] = {
 	"ConsoleIn=",
 	"ConsoleOut=",

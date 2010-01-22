@@ -410,9 +410,8 @@ F:	drivers/i2c/busses/i2c-ali1563.c
 
 ALPHA PORT
 M:	Richard Henderson <rth@twiddle.net>
-S:	Odd Fixes for 2.4; Maintained for 2.6.
 M:	Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-S:	Maintained for 2.4; PCI support for 2.6.
+M:	Matt Turner <mattst88@gmail.com>
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
@@ -835,13 +834,13 @@ F:	arch/arm/mach-pxa/palmte2.c
 F:	arch/arm/mach-pxa/include/mach/palmtc.h
 F:	arch/arm/mach-pxa/palmtc.c
 
-ARM/PALM TREO 680 SUPPORT
+ARM/PALM TREO SUPPORT
 M:	Tomas Cech <sleep_walker@suse.cz>
 L:	linux-arm-kernel@lists.infradead.org
 W:	http://hackndev.com
 S:	Maintained
-F:	arch/arm/mach-pxa/include/mach/treo680.h
-F:	arch/arm/mach-pxa/treo680.c
+F:	arch/arm/mach-pxa/include/mach/palmtreo.h
+F:	arch/arm/mach-pxa/palmtreo.c
 
 ARM/PALMZ72 SUPPORT
 M:	Sergey Lapin <slapin@ossfans.org>
@@ -1402,6 +1401,8 @@ L:	linux-usb@vger.kernel.org
 S:	Supported
 F:	Documentation/usb/WUSB-Design-overview.txt
 F:	Documentation/usb/wusb-cbaf
+F:	drivers/usb/host/hwa-hc.c
+F:	drivers/usb/host/whci/
 F:	drivers/usb/wusbcore/
 F:	include/linux/usb/wusb*
 
@@ -1470,6 +1471,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/fnic/
 
+CMPC ACPI DRIVER
+M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+M:	Daniel Oliveira Nascimento <don@syst.com.br>
+S:	Supported
+F:	drivers/platform/x86/classmate-laptop.c
+
 CODA FILE SYSTEM
 M:	Jan Harkes <jaharkes@cs.cmu.edu>
 M:	coda@cs.cmu.edu
@@ -1482,8 +1489,8 @@ F:	include/linux/coda*.h
 
 COMMON INTERNET FILE SYSTEM (CIFS)
 M:	Steve French <sfrench@samba.org>
-L:	linux-cifs-client@lists.samba.org
-L:	samba-technical@lists.samba.org
+L:	linux-cifs-client@lists.samba.org (moderated for non-subscribers)
+L:	samba-technical@lists.samba.org (moderated for non-subscribers)
 W:	http://linux-cifs.samba.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sfrench/cifs-2.6.git
 S:	Supported
@@ -1630,9 +1637,8 @@ S:	Maintained
 F:	sound/pci/cs5535audio/
 
 CX18 VIDEO4LINUX DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
 M:	Andy Walls <awalls@radix.net>
-L:	ivtv-devel@ivtvdriver.org
+L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://linuxtv.org
@@ -2161,10 +2167,9 @@ F:	drivers/hwmon/f75375s.c
 F:	include/linux/f75375s.h
 
 FIREWIRE SUBSYSTEM
-M:	Kristian Hoegsberg <krh@redhat.com>
 M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
+W:	http://ieee1394.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
 F:	drivers/firewire/
@@ -2376,6 +2381,15 @@ L:	lm-sensors@lm-sensors.org
 W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 S:	Maintained
 F:	drivers/hwmon/hdaps.c
+
+HWPOISON MEMORY FAILURE HANDLING
+M:	Andi Kleen <andi@firstfloor.org>
+L:	linux-mm@kvack.org
+L:	linux-kernel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ak/linux-mce-2.6.git hwpoison
+S:	Maintained
+F:	mm/memory-failure.c
+F:	mm/hwpoison-inject.c
 
 HYPERVISOR VIRTUAL CONSOLE DRIVER
 L:	linuxppc-dev@ozlabs.org
@@ -2688,21 +2702,13 @@ S:	Supported
 F:	drivers/idle/i7300_idle.c
 
 IEEE 1394 SUBSYSTEM
-M:	Ben Collins <ben.collins@ubuntu.com>
 M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
+W:	http://ieee1394.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
-S:	Maintained
+S:	Obsolete
 F:	Documentation/debugging-via-ohci1394.txt
 F:	drivers/ieee1394/
-
-IEEE 1394 RAW I/O DRIVER
-M:	Dan Dennedy <dan@dennedy.org>
-M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
-L:	linux1394-devel@lists.sourceforge.net
-S:	Maintained
-F:	drivers/ieee1394/raw1394*
 
 IEEE 802.15.4 SUBSYSTEM
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -3004,8 +3010,8 @@ S:	Maintained
 F:	drivers/isdn/hardware/eicon/
 
 IVTV VIDEO4LINUX DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-L:	ivtv-devel@ivtvdriver.org
+M:	Andy Walls <awalls@radix.net>
+L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.ivtvdriver.org
@@ -3081,8 +3087,11 @@ S:	Maintained
 F:	fs/autofs4/
 
 KERNEL BUILD
+M:	Michal Marek <mmarek@suse.cz>
+T:	git git://repo.or.cz/linux-kbuild.git for-next
+T:	git git://repo.or.cz/linux-kbuild.git for-linus
 L:	linux-kbuild@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/kbuild/
 F:	Makefile
 F:	scripts/Makefile.*
@@ -3124,7 +3133,6 @@ L:	kvm@vger.kernel.org
 W:	http://kvm.qumranet.com
 S:	Supported
 F:	arch/x86/include/asm/svm.h
-F:	arch/x86/kvm/kvm_svm.h
 F:	arch/x86/kvm/svm.c
 
 KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
@@ -3633,6 +3641,11 @@ W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
 
+MSI WMI SUPPORT
+M:	Anisse Astier <anisse@astier.eu>
+S:	Supported
+F:	drivers/platform/x86/msi-wmi.c
+
 MULTIFUNCTION DEVICES (MFD)
 M:	Samuel Ortiz <sameo@linux.intel.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/mfd-2.6.git
@@ -3666,7 +3679,7 @@ F:	include/linux/isicom.h
 MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
 M:	Felipe Balbi <felipe.balbi@nokia.com>
 L:	linux-usb@vger.kernel.org
-T:	git git://gitorious.org/musb/mainline.git
+T:	git git://gitorious.org/usb/usb.git
 S:	Maintained
 F:	drivers/usb/musb/
 
@@ -3858,7 +3871,7 @@ F:	drivers/net/ni5010.*
 
 NILFS2 FILESYSTEM
 M:	KONISHI Ryusuke <konishi.ryusuke@lab.ntt.co.jp>
-L:	users@nilfs.org
+L:	linux-nilfs@vger.kernel.org
 W:	http://www.nilfs.org/en/
 S:	Supported
 F:	Documentation/filesystems/nilfs2.txt
@@ -3925,28 +3938,19 @@ S:	Maintained
 F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
-M:	Imre Deak <imre.deak@nokia.com>
+M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap/
 
-OMAP DISPLAY SUBSYSTEM SUPPORT (DSS2)
+OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
 M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-omap@vger.kernel.org
-L:	linux-fbdev@vger.kernel.org (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
-F:	drivers/video/omap2/dss/
-F:	drivers/video/omap2/vrfb.c
-F:	drivers/video/omap2/vram.c
+F:	drivers/video/omap2/
 F:	Documentation/arm/OMAP/DSS
-
-OMAP FRAMEBUFFER SUPPORT (FOR DSS2)
-M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
-L:	linux-omap@vger.kernel.org
-L:	linux-fbdev@vger.kernel.org (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/video/omap2/omapfb/
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
@@ -5419,9 +5423,18 @@ ULTRA-WIDEBAND (UWB) SUBSYSTEM:
 M:	David Vrabel <david.vrabel@csr.com>
 L:	linux-usb@vger.kernel.org
 S:	Supported
-F:	drivers/uwb/*
+F:	drivers/uwb/
+X:	drivers/uwb/wlp/
+X:	drivers/uwb/i1480/i1480u-wlp/
+X:	drivers/uwb/i1480/i1480-wlp.h
 F:	include/linux/uwb.h
 F:	include/linux/uwb/
+
+UNIFDEF
+M:	Tony Finch <dot@dotat.at>
+W:	http://dotat.at/prog/unifdef
+S:	Maintained
+F:	scripts/unifdef.c
 
 UNIFORM CDROM DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
@@ -5926,9 +5939,12 @@ W:	http://linuxwimax.org
 
 WIMEDIA LLC PROTOCOL (WLP) SUBSYSTEM
 M:	David Vrabel <david.vrabel@csr.com>
+L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/wlp.h
 F:	drivers/uwb/wlp/
+F:	drivers/uwb/i1480/i1480u-wlp/
+F:	drivers/uwb/i1480/i1480-wlp.h
 
 WISTRON LAPTOP BUTTON DRIVER
 M:	Miloslav Trmac <mitr@volny.cz>
@@ -5974,6 +5990,7 @@ M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/node/8
 S:	Supported
+F:	Documentation/hwmon/wm83??
 F:	drivers/leds/leds-wm83*.c
 F:	drivers/mfd/wm8*.c
 F:	drivers/power/wm83*.c
@@ -5983,14 +6000,14 @@ F:	drivers/video/backlight/wm83*_bl.c
 F:	drivers/watchdog/wm83*_wdt.c
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
-F:	include/linux/mfd/wm8400/
-F:	sound/soc/codecs/wm8350.c
-F:	sound/soc/codecs/wm8400.c
+F:	include/linux/mfd/wm8400*
+F:	sound/soc/codecs/wm8350.*
+F:	sound/soc/codecs/wm8400.*
 
 X.25 NETWORK LAYER
-M:	Henner Eisen <eis@baty.hanse.de>
+M:	Andrew Hendry <andrew.hendry@gmail.com>
 L:	linux-x25@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/networking/x25*
 F:	include/net/x25*
 F:	net/x25/

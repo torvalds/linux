@@ -481,6 +481,9 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	spin_lock_init(&m48t59->lock);
+	platform_set_drvdata(pdev, m48t59);
+
 	m48t59->rtc = rtc_device_register(name, &pdev->dev, ops, THIS_MODULE);
 	if (IS_ERR(m48t59->rtc)) {
 		ret = PTR_ERR(m48t59->rtc);
@@ -490,16 +493,14 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 	m48t59_nvram_attr.size = pdata->offset;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &m48t59_nvram_attr);
-	if (ret)
+	if (ret) {
+		rtc_device_unregister(m48t59->rtc);
 		goto out;
+	}
 
-	spin_lock_init(&m48t59->lock);
-	platform_set_drvdata(pdev, m48t59);
 	return 0;
 
 out:
-	if (!IS_ERR(m48t59->rtc))
-		rtc_device_unregister(m48t59->rtc);
 	if (m48t59->irq != NO_IRQ)
 		free_irq(m48t59->irq, &pdev->dev);
 	if (m48t59->ioaddr)

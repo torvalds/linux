@@ -518,7 +518,7 @@ static int applesmc_pm_restore(struct device *dev)
 	return applesmc_pm_resume(dev);
 }
 
-static struct dev_pm_ops applesmc_pm_ops = {
+static const struct dev_pm_ops applesmc_pm_ops = {
 	.resume = applesmc_pm_resume,
 	.restore = applesmc_pm_restore,
 };

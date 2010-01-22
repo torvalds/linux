@@ -12,6 +12,7 @@
 #define MSR_FS_BASE		0xc0000100 /* 64bit FS base */
 #define MSR_GS_BASE		0xc0000101 /* 64bit GS base */
 #define MSR_KERNEL_GS_BASE	0xc0000102 /* SwapGS GS shadow */
+#define MSR_TSC_AUX		0xc0000103 /* Auxiliary TSC */
 
 /* EFER bits: */
 #define _EFER_SCE		0  /* SYSCALL/SYSRET */
@@ -123,6 +124,7 @@
 #define FAM10H_MMIO_CONF_BUSRANGE_SHIFT 2
 #define FAM10H_MMIO_CONF_BASE_MASK	0xfffffff
 #define FAM10H_MMIO_CONF_BASE_SHIFT	20
+#define MSR_FAM10H_NODE_ID		0xc001100c
 
 /* K8 MSRs */
 #define MSR_K8_TOP_MEM1			0xc001001a

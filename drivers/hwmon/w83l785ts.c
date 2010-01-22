@@ -52,12 +52,6 @@
 static const unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(w83l785ts);
-
-/*
  * The W83L785TS-S registers
  * Manufacturer ID is 0x5CA3 for Winbond.
  */
@@ -83,7 +77,7 @@ I2C_CLIENT_INSMOD_1(w83l785ts);
 
 static int w83l785ts_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id);
-static int w83l785ts_detect(struct i2c_client *client, int kind,
+static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l785ts_remove(struct i2c_client *client);
 static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval);
@@ -94,7 +88,7 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
  */
  
 static const struct i2c_device_id w83l785ts_id[] = {
-	{ "w83l785ts", w83l785ts },
+	{ "w83l785ts", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l785ts_id);
@@ -108,7 +102,7 @@ static struct i2c_driver w83l785ts_driver = {
 	.remove		= w83l785ts_remove,
 	.id_table	= w83l785ts_id,
 	.detect		= w83l785ts_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -146,7 +140,7 @@ static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83l785ts_detect(struct i2c_client *client, int kind,
+static int w83l785ts_detect(struct i2c_client *client,
 			    struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

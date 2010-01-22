@@ -555,10 +555,8 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 	}
 	rcu_read_unlock();
 
-	if (nr) {
-		BUG_ON(nr > atomic_read(&vmap_lazy_nr));
+	if (nr)
 		atomic_sub(nr, &vmap_lazy_nr);
-	}
 
 	if (nr || force_flush)
 		flush_tlb_kernel_range(*start, *end);
@@ -1411,6 +1409,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 {
 	struct page **pages;
 	unsigned int nr_pages, array_size, i;
+	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
 
 	nr_pages = (area->size - PAGE_SIZE) >> PAGE_SHIFT;
 	array_size = (nr_pages * sizeof(struct page *));
@@ -1418,13 +1417,11 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	area->nr_pages = nr_pages;
 	/* Please note that the recursion is strictly bounded. */
 	if (array_size > PAGE_SIZE) {
-		pages = __vmalloc_node(array_size, 1, gfp_mask | __GFP_ZERO,
+		pages = __vmalloc_node(array_size, 1, nested_gfp|__GFP_HIGHMEM,
 				PAGE_KERNEL, node, caller);
 		area->flags |= VM_VPAGES;
 	} else {
-		pages = kmalloc_node(array_size,
-				(gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO,
-				node);
+		pages = kmalloc_node(array_size, nested_gfp, node);
 	}
 	area->pages = pages;
 	area->caller = caller;

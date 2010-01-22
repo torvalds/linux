@@ -15,9 +15,9 @@
 
 DECLARE_RWSEM(pci_bus_sem);
 /*
- * find the upstream PCIE-to-PCI bridge of a PCI device
+ * find the upstream PCIe-to-PCI bridge of a PCI device
  * if the device is PCIE, return NULL
- * if the device isn't connected to a PCIE bridge (that is its parent is a
+ * if the device isn't connected to a PCIe bridge (that is its parent is a
  * legacy PCI bridge and the bridge is directly connected to bus 0), return its
  * parent
  */
@@ -37,7 +37,7 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 			tmp = pdev;
 			continue;
 		}
-		/* PCI device should connect to a PCIE bridge */
+		/* PCI device should connect to a PCIe bridge */
 		if (pdev->pcie_type != PCI_EXP_TYPE_PCI_BRIDGE) {
 			/* Busted hardware? */
 			WARN_ON_ONCE(1);

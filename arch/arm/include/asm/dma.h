@@ -138,12 +138,12 @@ extern int  get_dma_residue(unsigned int chan);
 #define NO_DMA	255
 #endif
 
+#endif /* CONFIG_ISA_DMA_API */
+
 #ifdef CONFIG_PCI
 extern int isa_dma_bridge_buggy;
 #else
 #define isa_dma_bridge_buggy    (0)
 #endif
-
-#endif /* CONFIG_ISA_DMA_API */
 
 #endif /* __ASM_ARM_DMA_H */

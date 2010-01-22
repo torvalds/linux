@@ -699,11 +699,17 @@ struct ext4_inode_info {
 	unsigned int i_reserved_meta_blocks;
 	unsigned int i_allocated_meta_blocks;
 	unsigned short i_delalloc_reserved_flag;
+	sector_t i_da_metadata_calc_last_lblock;
+	int i_da_metadata_calc_len;
 
 	/* on-disk additional length */
 	__u16 i_extra_isize;
 
 	spinlock_t i_block_reservation_lock;
+#ifdef CONFIG_QUOTA
+	/* quota space reservation, managed internally by quota code */
+	qsize_t i_reserved_quota;
+#endif
 
 	/* completed async DIOs that might need unwritten extents handling */
 	struct list_head i_aio_dio_complete_list;
@@ -1435,7 +1441,7 @@ extern int ext4_chunk_trans_blocks(struct inode *, int nrblocks);
 extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
-extern qsize_t ext4_get_reserved_space(struct inode *inode);
+extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern int flush_aio_dio_completed_IO(struct inode *inode);
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);

@@ -62,6 +62,7 @@ void default_idle(void)
 		clear_thread_flag(TIF_POLLING_NRFLAG);
 		smp_mb__after_clear_bit();
 
+		set_bl_bit();
 		if (!need_resched()) {
 			local_irq_enable();
 			cpu_sleep();
@@ -69,6 +70,7 @@ void default_idle(void)
 			local_irq_enable();
 
 		set_thread_flag(TIF_POLLING_NRFLAG);
+		clear_bl_bit();
 	} else
 		poll_idle();
 }

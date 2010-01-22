@@ -465,7 +465,8 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 
 int pnpacpi_parse_allocated_resource(struct pnp_dev *dev)
 {
-	acpi_handle handle = dev->data;
+	struct acpi_device *acpi_dev = dev->data;
+	acpi_handle handle = acpi_dev->handle;
 	acpi_status status;
 
 	pnp_dbg(&dev->dev, "parse allocated resources\n");
@@ -773,7 +774,8 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 
 int __init pnpacpi_parse_resource_option_data(struct pnp_dev *dev)
 {
-	acpi_handle handle = dev->data;
+	struct acpi_device *acpi_dev = dev->data;
+	acpi_handle handle = acpi_dev->handle;
 	acpi_status status;
 	struct acpipnp_parse_option_s parse_data;
 
@@ -845,7 +847,8 @@ static acpi_status pnpacpi_type_resources(struct acpi_resource *res, void *data)
 int pnpacpi_build_resource_template(struct pnp_dev *dev,
 				    struct acpi_buffer *buffer)
 {
-	acpi_handle handle = dev->data;
+	struct acpi_device *acpi_dev = dev->data;
+	acpi_handle handle = acpi_dev->handle;
 	struct acpi_resource *resource;
 	int res_cnt = 0;
 	acpi_status status;

@@ -44,6 +44,8 @@
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
 #include "xfs_utils.h"
+#include "xfs_trace.h"
+
 
 STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
 

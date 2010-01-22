@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.23
-                          April 10th, 2009
+                            Version 0.24
+                        December 11th,  2009
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -460,6 +460,8 @@ event	code	Key		Notes
 				For Lenovo ThinkPads with a new
 				BIOS, it has to be handled either
 				by the ACPI OSI, or by userspace.
+				The driver does the right thing,
+				never mess with this.
 0x1011	0x10	FN+END		Brightness down.  See brightness
 				up for details.
 
@@ -582,46 +584,15 @@ with hotkey_report_mode.
 
 Brightness hotkey notes:
 
-These are the current sane choices for brightness key mapping in
-thinkpad-acpi:
+Don't mess with the brightness hotkeys in a Thinkpad.  If you want
+notifications for OSD, use the sysfs backlight class event support.
 
-For IBM and Lenovo models *without* ACPI backlight control (the ones on
-which thinkpad-acpi will autoload its backlight interface by default,
-and on which ACPI video does not export a backlight interface):
-
-1. Don't enable or map the brightness hotkeys in thinkpad-acpi, as
-   these older firmware versions unfortunately won't respect the hotkey
-   mask for brightness keys anyway, and always reacts to them.  This
-   usually work fine, unless X.org drivers are doing something to block
-   the BIOS.  In that case, use (3) below.  This is the default mode of
-   operation.
-
-2. Enable the hotkeys, but map them to something else that is NOT
-   KEY_BRIGHTNESS_UP/DOWN or any other keycode that would cause
-   userspace to try to change the backlight level, and use that as an
-   on-screen-display hint.
-
-3. IF AND ONLY IF X.org drivers find a way to block the firmware from
-   automatically changing the brightness, enable the hotkeys and map
-   them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN, and feed that to
-   something that calls xbacklight.  thinkpad-acpi will not be able to
-   change brightness in that case either, so you should disable its
-   backlight interface.
-
-For Lenovo models *with* ACPI backlight control:
-
-1. Load up ACPI video and use that.  ACPI video will report ACPI
-   events for brightness change keys.  Do not mess with thinkpad-acpi
-   defaults in this case.  thinkpad-acpi should not have anything to do
-   with backlight events in a scenario where ACPI video is loaded:
-   brightness hotkeys must be disabled, and the backlight interface is
-   to be kept disabled as well.  This is the default mode of operation.
-
-2. Do *NOT* load up ACPI video, enable the hotkeys in thinkpad-acpi,
-   and map them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN.  Process
-   these keys on userspace somehow (e.g. by calling xbacklight).
-   The driver will do this automatically if it detects that ACPI video
-   has been disabled.
+The driver will issue KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN events
+automatically for the cases were userspace has to do something to
+implement brightness changes.  When you override these events, you will
+either fail to handle properly the ThinkPads that require explicit
+action to change backlight brightness, or the ThinkPads that require
+that no action be taken to work properly.
 
 
 Bluetooth
@@ -1121,25 +1092,103 @@ WARNING:
     its level up and down at every change.
 
 
-Volume control -- /proc/acpi/ibm/volume
----------------------------------------
+Volume control (Console Audio control)
+--------------------------------------
 
-This feature allows volume control on ThinkPad models which don't have
-a hardware volume knob. The available commands are:
+procfs: /proc/acpi/ibm/volume
+ALSA: "ThinkPad Console Audio Control", default ID: "ThinkPadEC"
+
+NOTE: by default, the volume control interface operates in read-only
+mode, as it is supposed to be used for on-screen-display purposes.
+The read/write mode can be enabled through the use of the
+"volume_control=1" module parameter.
+
+NOTE: distros are urged to not enable volume_control by default, this
+should be done by the local admin only.  The ThinkPad UI is for the
+console audio control to be done through the volume keys only, and for
+the desktop environment to just provide on-screen-display feedback.
+Software volume control should be done only in the main AC97/HDA
+mixer.
+
+
+About the ThinkPad Console Audio control:
+
+ThinkPads have a built-in amplifier and muting circuit that drives the
+console headphone and speakers.  This circuit is after the main AC97
+or HDA mixer in the audio path, and under exclusive control of the
+firmware.
+
+ThinkPads have three special hotkeys to interact with the console
+audio control: volume up, volume down and mute.
+
+It is worth noting that the normal way the mute function works (on
+ThinkPads that do not have a "mute LED") is:
+
+1. Press mute to mute.  It will *always* mute, you can press it as
+   many times as you want, and the sound will remain mute.
+
+2. Press either volume key to unmute the ThinkPad (it will _not_
+   change the volume, it will just unmute).
+
+This is a very superior design when compared to the cheap software-only
+mute-toggle solution found on normal consumer laptops:  you can be
+absolutely sure the ThinkPad will not make noise if you press the mute
+button, no matter the previous state.
+
+The IBM ThinkPads, and the earlier Lenovo ThinkPads have variable-gain
+amplifiers driving the speakers and headphone output, and the firmware
+also handles volume control for the headphone and speakers on these
+ThinkPads without any help from the operating system (this volume
+control stage exists after the main AC97 or HDA mixer in the audio
+path).
+
+The newer Lenovo models only have firmware mute control, and depend on
+the main HDA mixer to do volume control (which is done by the operating
+system).  In this case, the volume keys are filtered out for unmute
+key press (there are some firmware bugs in this area) and delivered as
+normal key presses to the operating system (thinkpad-acpi is not
+involved).
+
+
+The ThinkPad-ACPI volume control:
+
+The preferred way to interact with the Console Audio control is the
+ALSA interface.
+
+The legacy procfs interface allows one to read the current state,
+and if volume control is enabled, accepts the following commands:
 
 	echo up   >/proc/acpi/ibm/volume
 	echo down >/proc/acpi/ibm/volume
 	echo mute >/proc/acpi/ibm/volume
+	echo unmute >/proc/acpi/ibm/volume
 	echo 'level <level>' >/proc/acpi/ibm/volume
 
-The <level> number range is 0 to 15 although not all of them may be
-distinct. The unmute the volume after the mute command, use either the
-up or down command (the level command will not unmute the volume).
-The current volume level and mute state is shown in the file.
+The <level> number range is 0 to 14 although not all of them may be
+distinct. To unmute the volume after the mute command, use either the
+up or down command (the level command will not unmute the volume), or
+the unmute command.
 
-The ALSA mixer interface to this feature is still missing, but patches
-to add it exist.  That problem should be addressed in the not so
-distant future.
+You can use the volume_capabilities parameter to tell the driver
+whether your thinkpad has volume control or mute-only control:
+volume_capabilities=1 for mixers with mute and volume control,
+volume_capabilities=2 for mixers with only mute control.
+
+If the driver misdetects the capabilities for your ThinkPad model,
+please report this to ibm-acpi-devel@lists.sourceforge.net, so that we
+can update the driver.
+
+There are two strategies for volume control.  To select which one
+should be used, use the volume_mode module parameter: volume_mode=1
+selects EC mode, and volume_mode=3 selects EC mode with NVRAM backing
+(so that volume/mute changes are remembered across shutdown/reboot).
+
+The driver will operate in volume_mode=3 by default. If that does not
+work well on your ThinkPad model, please report this to
+ibm-acpi-devel@lists.sourceforge.net.
+
+The driver supports the standard ALSA module parameters.  If the ALSA
+mixer is disabled, the driver will disable all volume functionality.
 
 
 Fan control and monitoring: fan speed, fan enable/disable
@@ -1405,6 +1454,7 @@ to enable more than one output class, just add their values.
 	0x0008			HKEY event interface, hotkeys
 	0x0010			Fan control
 	0x0020			Backlight brightness
+	0x0040			Audio mixer/volume control
 
 There is also a kernel build option to enable more debugging
 information, which may be necessary to debug driver problems.
@@ -1465,3 +1515,9 @@ Sysfs interface changelog:
 		and it is always able to disable hot keys.  Very old
 		thinkpads are properly supported.  hotkey_bios_mask
 		is deprecated and marked for removal.
+
+0x020600:	Marker for backlight change event support.
+
+0x020700:	Support for mute-only mixers.
+		Volume control in read-only mode by default.
+		Marker for ALSA mixer support.

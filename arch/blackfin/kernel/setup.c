@@ -178,10 +178,10 @@ void __init bfin_cache_init(void)
 
 void __init bfin_relocate_l1_mem(void)
 {
-	unsigned long l1_code_length;
-	unsigned long l1_data_a_length;
-	unsigned long l1_data_b_length;
-	unsigned long l2_length;
+	unsigned long text_l1_len = (unsigned long)_text_l1_len;
+	unsigned long data_l1_len = (unsigned long)_data_l1_len;
+	unsigned long data_b_l1_len = (unsigned long)_data_b_l1_len;
+	unsigned long l2_len = (unsigned long)_l2_len;
 
 	early_shadow_stamp();
 
@@ -201,30 +201,23 @@ void __init bfin_relocate_l1_mem(void)
 
 	blackfin_dma_early_init();
 
-	/* if necessary, copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	l1_code_length = _etext_l1 - _stext_l1;
-	if (l1_code_length)
-		early_dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
+	/* if necessary, copy L1 text to L1 instruction SRAM */
+	if (L1_CODE_LENGTH && text_l1_len)
+		early_dma_memcpy(_stext_l1, _text_l1_lma, text_l1_len);
 
-	/* if necessary, copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
-	l1_data_a_length = _sbss_l1 - _sdata_l1;
-	if (l1_data_a_length)
-		early_dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
+	/* if necessary, copy L1 data to L1 data bank A SRAM */
+	if (L1_DATA_A_LENGTH && data_l1_len)
+		early_dma_memcpy(_sdata_l1, _data_l1_lma, data_l1_len);
 
-	/* if necessary, copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
-	l1_data_b_length = _sbss_b_l1 - _sdata_b_l1;
-	if (l1_data_b_length)
-		early_dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
-			l1_data_a_length, l1_data_b_length);
+	/* if necessary, copy L1 data B to L1 data bank B SRAM */
+	if (L1_DATA_B_LENGTH && data_b_l1_len)
+		early_dma_memcpy(_sdata_b_l1, _data_b_l1_lma, data_b_l1_len);
 
 	early_dma_memcpy_done();
 
-	/* if necessary, copy _stext_l2 to _edata_l2 to L2 SRAM */
-	if (L2_LENGTH != 0) {
-		l2_length = _sbss_l2 - _stext_l2;
-		if (l2_length)
-			memcpy(_stext_l2, _l2_lma_start, l2_length);
-	}
+	/* if necessary, copy L2 text/data to L2 SRAM */
+	if (L2_LENGTH && l2_len)
+		memcpy(_stext_l2, _l2_lma, l2_len);
 }
 
 /* add_memory_region to memmap */
@@ -608,11 +601,6 @@ static __init void memory_setup(void)
 	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
 #endif
 
-#if !defined(CONFIG_MTD_UCLINUX)
-	/*In case there is no valid CPLB behind memory_end make sure we don't get to close*/
-	memory_end -= SIZE_4K;
-#endif
-
 	init_mm.start_code = (unsigned long)_stext;
 	init_mm.end_code = (unsigned long)_etext;
 	init_mm.end_data = (unsigned long)_edata;
@@ -917,7 +905,7 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Blackfin support (C) 2004-2009 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
-		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
+		printk(KERN_INFO "Compiled for ADSP-%s Rev any, running on 0.%d\n", CPU, bfin_revid());
 	else if (bfin_compiled_revid() == -1)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev none\n", CPU);
 	else

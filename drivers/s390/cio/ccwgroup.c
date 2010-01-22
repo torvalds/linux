@@ -560,7 +560,7 @@ static int ccwgroup_pm_restore(struct device *dev)
 	return gdrv->restore ? gdrv->restore(gdev) : 0;
 }
 
-static struct dev_pm_ops ccwgroup_pm_ops = {
+static const struct dev_pm_ops ccwgroup_pm_ops = {
 	.prepare = ccwgroup_pm_prepare,
 	.complete = ccwgroup_pm_complete,
 	.freeze = ccwgroup_pm_freeze,

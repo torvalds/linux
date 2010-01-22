@@ -547,7 +547,6 @@ enum mac80211_rx_flags {
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
  * @noise: noise when receiving this frame, in dBm.
- * @qual: overall signal quality indication, in percent (0-100).
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -559,7 +558,6 @@ struct ieee80211_rx_status {
 	int freq;
 	int signal;
 	int noise;
-	int __deprecated qual;
 	int antenna;
 	int rate_idx;
 	int flag;
@@ -1736,6 +1734,12 @@ static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
 	ieee80211_rx(hw, skb);
 	local_bh_enable();
 }
+
+/*
+ * The TX headroom reserved by mac80211 for its own tx_status functions.
+ * This is enough for the radiotap header.
+ */
+#define IEEE80211_TX_STATUS_HEADROOM	13
 
 /**
  * ieee80211_tx_status - transmit status callback

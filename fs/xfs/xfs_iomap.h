@@ -43,6 +43,14 @@ typedef enum {
 	BMAPI_TRYLOCK = (1 << 7),	/* non-blocking request */
 } bmapi_flags_t;
 
+#define BMAPI_FLAGS \
+	{ BMAPI_READ,		"READ" }, \
+	{ BMAPI_WRITE,		"WRITE" }, \
+	{ BMAPI_ALLOCATE,	"ALLOCATE" }, \
+	{ BMAPI_IGNSTATE,	"IGNSTATE" }, \
+	{ BMAPI_DIRECT,		"DIRECT" }, \
+	{ BMAPI_MMAP,		"MMAP" }, \
+	{ BMAPI_TRYLOCK,	"TRYLOCK" }
 
 /*
  * xfs_iomap_t:  File system I/O map

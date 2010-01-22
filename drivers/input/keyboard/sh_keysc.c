@@ -295,7 +295,7 @@ static int sh_keysc_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops sh_keysc_dev_pm_ops = {
+static const struct dev_pm_ops sh_keysc_dev_pm_ops = {
 	.suspend = sh_keysc_suspend,
 	.resume = sh_keysc_resume,
 };

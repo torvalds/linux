@@ -685,7 +685,7 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] __devinitconst = {
 	{USB_DEVICE(0x06e1, 0xa190)},
 /*fixme: may be IntelPCCameraPro BRIDGE_SPCA505
 	{USB_DEVICE(0x0733, 0x0430)}, */
@@ -696,7 +696,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int sd_probe(struct usb_interface *intf,
+static int __devinit sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),

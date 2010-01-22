@@ -47,10 +47,10 @@
 #include "xfs_rw.h"
 #include "xfs_error.h"
 #include "xfs_utils.h"
-#include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
 #include "xfs_filestream.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
@@ -1291,42 +1291,6 @@ xfs_file_last_byte(
 	return last_byte;
 }
 
-#if defined(XFS_RW_TRACE)
-STATIC void
-xfs_itrunc_trace(
-	int		tag,
-	xfs_inode_t	*ip,
-	int		flag,
-	xfs_fsize_t	new_size,
-	xfs_off_t	toss_start,
-	xfs_off_t	toss_finish)
-{
-	if (ip->i_rwtrace == NULL) {
-		return;
-	}
-
-	ktrace_enter(ip->i_rwtrace,
-		     (void*)((long)tag),
-		     (void*)ip,
-		     (void*)(unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff),
-		     (void*)(unsigned long)(ip->i_d.di_size & 0xffffffff),
-		     (void*)((long)flag),
-		     (void*)(unsigned long)((new_size >> 32) & 0xffffffff),
-		     (void*)(unsigned long)(new_size & 0xffffffff),
-		     (void*)(unsigned long)((toss_start >> 32) & 0xffffffff),
-		     (void*)(unsigned long)(toss_start & 0xffffffff),
-		     (void*)(unsigned long)((toss_finish >> 32) & 0xffffffff),
-		     (void*)(unsigned long)(toss_finish & 0xffffffff),
-		     (void*)(unsigned long)current_cpu(),
-		     (void*)(unsigned long)current_pid(),
-		     (void*)NULL,
-		     (void*)NULL,
-		     (void*)NULL);
-}
-#else
-#define	xfs_itrunc_trace(tag, ip, flag, new_size, toss_start, toss_finish)
-#endif
-
 /*
  * Start the truncation of the file to new_size.  The new size
  * must be smaller than the current size.  This routine will
@@ -1409,8 +1373,7 @@ xfs_itruncate_start(
 		return 0;
 	}
 	last_byte = xfs_file_last_byte(ip);
-	xfs_itrunc_trace(XFS_ITRUNC_START, ip, flags, new_size, toss_start,
-			 last_byte);
+	trace_xfs_itruncate_start(ip, flags, new_size, toss_start, last_byte);
 	if (last_byte > toss_start) {
 		if (flags & XFS_ITRUNC_DEFINITE) {
 			xfs_tosspages(ip, toss_start,
@@ -1514,7 +1477,8 @@ xfs_itruncate_finish(
 		new_size = 0LL;
 	}
 	first_unmap_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
-	xfs_itrunc_trace(XFS_ITRUNC_FINISH1, ip, 0, new_size, 0, 0);
+	trace_xfs_itruncate_finish_start(ip, new_size);
+
 	/*
 	 * The first thing we do is set the size to new_size permanently
 	 * on disk.  This way we don't have to worry about anyone ever
@@ -1731,7 +1695,7 @@ xfs_itruncate_finish(
 	ASSERT((new_size != 0) ||
 	       (fork == XFS_ATTR_FORK) ||
 	       (ip->i_d.di_nextents == 0));
-	xfs_itrunc_trace(XFS_ITRUNC_FINISH2, ip, 0, new_size, 0, 0);
+	trace_xfs_itruncate_finish_end(ip, new_size);
 	return 0;
 }
 
@@ -2877,8 +2841,8 @@ xfs_iflush(
 	mp = ip->i_mount;
 
 	/*
-	 * If the inode isn't dirty, then just release the inode
-	 * flush lock and do nothing.
+	 * If the inode isn't dirty, then just release the inode flush lock and
+	 * do nothing.
 	 */
 	if (xfs_inode_clean(ip)) {
 		xfs_ifunlock(ip);
@@ -2902,6 +2866,19 @@ xfs_iflush(
 		return EAGAIN;
 	}
 	xfs_iunpin_wait(ip);
+
+	/*
+	 * For stale inodes we cannot rely on the backing buffer remaining
+	 * stale in cache for the remaining life of the stale inode and so
+	 * xfs_itobp() below may give us a buffer that no longer contains
+	 * inodes below. We have to check this after ensuring the inode is
+	 * unpinned so that it is safe to reclaim the stale inode after the
+	 * flush call.
+	 */
+	if (xfs_iflags_test(ip, XFS_ISTALE)) {
+		xfs_ifunlock(ip);
+		return 0;
+	}
 
 	/*
 	 * This may have been unpinned because the filesystem is shutting
@@ -3252,23 +3229,6 @@ corrupt_out:
 	return XFS_ERROR(EFSCORRUPTED);
 }
 
-
-
-#ifdef XFS_ILOCK_TRACE
-void
-xfs_ilock_trace(xfs_inode_t *ip, int lock, unsigned int lockflags, inst_t *ra)
-{
-	ktrace_enter(ip->i_lock_trace,
-		     (void *)ip,
-		     (void *)(unsigned long)lock, /* 1 = LOCK, 3=UNLOCK, etc */
-		     (void *)(unsigned long)lockflags, /* XFS_ILOCK_EXCL etc */
-		     (void *)ra,		/* caller of ilock */
-		     (void *)(unsigned long)current_cpu(),
-		     (void *)(unsigned long)current_pid(),
-		     NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
-}
-#endif
-
 /*
  * Return a pointer to the extent record at file index idx.
  */
@@ -3300,12 +3260,16 @@ xfs_iext_get_ext(
  */
 void
 xfs_iext_insert(
-	xfs_ifork_t	*ifp,		/* inode fork pointer */
+	xfs_inode_t	*ip,		/* incore inode pointer */
 	xfs_extnum_t	idx,		/* starting index of new items */
 	xfs_extnum_t	count,		/* number of inserted items */
-	xfs_bmbt_irec_t	*new)		/* items to insert */
+	xfs_bmbt_irec_t	*new,		/* items to insert */
+	int		state)		/* type of extent conversion */
 {
+	xfs_ifork_t	*ifp = (state & BMAP_ATTRFORK) ? ip->i_afp : &ip->i_df;
 	xfs_extnum_t	i;		/* extent record index */
+
+	trace_xfs_iext_insert(ip, idx, new, state, _RET_IP_);
 
 	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
 	xfs_iext_add(ifp, idx, count);
@@ -3549,12 +3513,16 @@ xfs_iext_add_indirect_multi(
  */
 void
 xfs_iext_remove(
-	xfs_ifork_t	*ifp,		/* inode fork pointer */
+	xfs_inode_t	*ip,		/* incore inode pointer */
 	xfs_extnum_t	idx,		/* index to begin removing exts */
-	int		ext_diff)	/* number of extents to remove */
+	int		ext_diff,	/* number of extents to remove */
+	int		state)		/* type of extent conversion */
 {
+	xfs_ifork_t	*ifp = (state & BMAP_ATTRFORK) ? ip->i_afp : &ip->i_df;
 	xfs_extnum_t	nextents;	/* number of extents in file */
 	int		new_size;	/* size of extents after removal */
+
+	trace_xfs_iext_remove(ip, idx, state, _RET_IP_);
 
 	ASSERT(ext_diff > 0);
 	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);

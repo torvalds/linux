@@ -100,6 +100,12 @@ u8 pmux_offset[][16] = {
 };
 # endif
 
+#elif defined(BF538_FAMILY)
+static unsigned short * const port_fer[] = {
+	(unsigned short *) PORTCIO_FER,
+	(unsigned short *) PORTDIO_FER,
+	(unsigned short *) PORTEIO_FER,
+};
 #endif
 
 static unsigned short reserved_gpio_map[GPIO_BANK_NUM];
@@ -163,6 +169,27 @@ static int cmp_label(unsigned short ident, const char *label)
 
 static void port_setup(unsigned gpio, unsigned short usage)
 {
+#if defined(BF538_FAMILY)
+	/*
+	 * BF538/9 Port C,D and E are special.
+	 * Inverted PORT_FER polarity on CDE and no PORF_FER on F
+	 * Regular PORT F GPIOs are handled here, CDE are exclusively
+	 * managed by GPIOLIB
+	 */
+
+	if (gpio < MAX_BLACKFIN_GPIOS || gpio >= MAX_RESOURCES)
+		return;
+
+	gpio -= MAX_BLACKFIN_GPIOS;
+
+	if (usage == GPIO_USAGE)
+		*port_fer[gpio_bank(gpio)] |= gpio_bit(gpio);
+	else
+		*port_fer[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+	SSYNC();
+	return;
+#endif
+
 	if (check_gpio(gpio))
 		return;
 
@@ -762,6 +789,8 @@ int peripheral_request(unsigned short per, const char *label)
 	if (!(per & P_DEFINED))
 		return -ENODEV;
 
+	BUG_ON(ident >= MAX_RESOURCES);
+
 	local_irq_save_hw(flags);
 
 	/* If a pin can be muxed as either GPIO or peripheral, make
@@ -978,6 +1007,76 @@ void bfin_gpio_free(unsigned gpio)
 	local_irq_restore_hw(flags);
 }
 EXPORT_SYMBOL(bfin_gpio_free);
+
+#ifdef BFIN_SPECIAL_GPIO_BANKS
+static unsigned short reserved_special_gpio_map[gpio_bank(MAX_RESOURCES)];
+
+int bfin_special_gpio_request(unsigned gpio, const char *label)
+{
+	unsigned long flags;
+
+	local_irq_save_hw(flags);
+
+	/*
+	 * Allow that the identical GPIO can
+	 * be requested from the same driver twice
+	 * Do nothing and return -
+	 */
+
+	if (cmp_label(gpio, label) == 0) {
+		local_irq_restore_hw(flags);
+		return 0;
+	}
+
+	if (unlikely(reserved_special_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		local_irq_restore_hw(flags);
+		printk(KERN_ERR "bfin-gpio: GPIO %d is already reserved by %s !\n",
+		       gpio, get_label(gpio));
+
+		return -EBUSY;
+	}
+	if (unlikely(reserved_peri_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		local_irq_restore_hw(flags);
+		printk(KERN_ERR
+		       "bfin-gpio: GPIO %d is already reserved as Peripheral by %s !\n",
+		       gpio, get_label(gpio));
+
+		return -EBUSY;
+	}
+
+	reserved_special_gpio_map[gpio_bank(gpio)] |= gpio_bit(gpio);
+	reserved_peri_map[gpio_bank(gpio)] |= gpio_bit(gpio);
+
+	set_label(gpio, label);
+	local_irq_restore_hw(flags);
+	port_setup(gpio, GPIO_USAGE);
+
+	return 0;
+}
+EXPORT_SYMBOL(bfin_special_gpio_request);
+
+void bfin_special_gpio_free(unsigned gpio)
+{
+	unsigned long flags;
+
+	might_sleep();
+
+	local_irq_save_hw(flags);
+
+	if (unlikely(!(reserved_special_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
+		gpio_error(gpio);
+		local_irq_restore_hw(flags);
+		return;
+	}
+
+	reserved_special_gpio_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+	reserved_peri_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+	set_label(gpio, "free");
+	local_irq_restore_hw(flags);
+}
+EXPORT_SYMBOL(bfin_special_gpio_free);
+#endif
+
 
 int bfin_gpio_irq_request(unsigned gpio, const char *label)
 {

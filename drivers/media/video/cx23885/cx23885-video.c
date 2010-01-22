@@ -318,11 +318,11 @@ static struct video_device *cx23885_vdev_init(struct cx23885_dev *dev,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor = -1;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, cx23885_boards[dev->board].name);
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 
@@ -716,46 +716,34 @@ static int get_resource(struct cx23885_fh *fh)
 
 static int video_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
-	struct cx23885_dev *h, *dev = NULL;
+	struct video_device *vdev = video_devdata(file);
+	struct cx23885_dev *dev = video_drvdata(file);
 	struct cx23885_fh *fh;
-	struct list_head *list;
 	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
-	lock_kernel();
-	list_for_each(list, &cx23885_devlist) {
-		h = list_entry(list, struct cx23885_dev, devlist);
-		if (h->video_dev &&
-		    h->video_dev->minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
-		if (h->vbi_dev &&
-		    h->vbi_dev->minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
-		if (h->radio_dev &&
-		    h->radio_dev->minor == minor) {
-			radio = 1;
-			dev   = h;
-		}
-	}
-	if (NULL == dev) {
-		unlock_kernel();
-		return -ENODEV;
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		break;
+	case VFL_TYPE_VBI:
+		type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		break;
+	case VFL_TYPE_RADIO:
+		radio = 1;
+		break;
 	}
 
-	dprintk(1, "open minor=%d radio=%d type=%s\n",
-		minor, radio, v4l2_type_names[type]);
+	dprintk(1, "open dev=%s radio=%d type=%s\n",
+		video_device_node_name(vdev), radio, v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (NULL == fh)
 		return -ENOMEM;
-	}
+
+	lock_kernel();
+
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1441,7 +1429,6 @@ static struct video_device cx23885_vbi_template;
 static struct video_device cx23885_video_template = {
 	.name                 = "cx23885-video",
 	.fops                 = &video_fops,
-	.minor                = -1,
 	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
@@ -1461,7 +1448,7 @@ void cx23885_video_unregister(struct cx23885_dev *dev)
 	cx_clear(PCI_INT_MSK, 1);
 
 	if (dev->video_dev) {
-		if (-1 != dev->video_dev->minor)
+		if (video_is_registered(dev->video_dev))
 			video_unregister_device(dev->video_dev);
 		else
 			video_device_release(dev->video_dev);
@@ -1532,8 +1519,8 @@ int cx23885_video_register(struct cx23885_dev *dev)
 			dev->name);
 		goto fail_unreg;
 	}
-	printk(KERN_INFO "%s/0: registered device video%d [v4l2]\n",
-	       dev->name, dev->video_dev->num);
+	printk(KERN_INFO "%s/0: registered device %s [v4l2]\n",
+	       dev->name, video_device_node_name(dev->video_dev));
 	/* initial device configuration */
 	mutex_lock(&dev->lock);
 	cx23885_set_tvnorm(dev, dev->tvnorm);

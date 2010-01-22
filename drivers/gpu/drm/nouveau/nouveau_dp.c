@@ -187,7 +187,7 @@ nouveau_dp_link_train_adjust(struct drm_encoder *encoder, uint8_t *config)
 	if (ret)
 		return false;
 
-	NV_DEBUG(dev, "\t\tadjust 0x%02x 0x%02x\n", request[0], request[1]);
+	NV_DEBUG_KMS(dev, "\t\tadjust 0x%02x 0x%02x\n", request[0], request[1]);
 
 	/* Keep all lanes at the same level.. */
 	for (i = 0; i < nv_encoder->dp.link_nr; i++) {
@@ -228,7 +228,7 @@ nouveau_dp_link_train_commit(struct drm_encoder *encoder, uint8_t *config)
 	int or = nv_encoder->or, link = !(nv_encoder->dcb->sorconf.link & 1);
 	int dpe_headerlen, ret, i;
 
-	NV_DEBUG(dev, "\t\tconfig 0x%02x 0x%02x 0x%02x 0x%02x\n",
+	NV_DEBUG_KMS(dev, "\t\tconfig 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		 config[0], config[1], config[2], config[3]);
 
 	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
@@ -276,12 +276,12 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 	bool cr_done, cr_max_vs, eq_done;
 	int ret = 0, i, tries, voltage;
 
-	NV_DEBUG(dev, "link training!!\n");
+	NV_DEBUG_KMS(dev, "link training!!\n");
 train:
 	cr_done = eq_done = false;
 
 	/* set link configuration */
-	NV_DEBUG(dev, "\tbegin train: bw %d, lanes %d\n",
+	NV_DEBUG_KMS(dev, "\tbegin train: bw %d, lanes %d\n",
 		 nv_encoder->dp.link_bw, nv_encoder->dp.link_nr);
 
 	ret = nouveau_dp_link_bw_set(encoder, nv_encoder->dp.link_bw);
@@ -297,7 +297,7 @@ train:
 		return false;
 
 	/* clock recovery */
-	NV_DEBUG(dev, "\tbegin cr\n");
+	NV_DEBUG_KMS(dev, "\tbegin cr\n");
 	ret = nouveau_dp_link_train_set(encoder, DP_TRAINING_PATTERN_1);
 	if (ret)
 		goto stop;
@@ -314,7 +314,7 @@ train:
 		ret = auxch_rd(encoder, DP_LANE0_1_STATUS, status, 2);
 		if (ret)
 			break;
-		NV_DEBUG(dev, "\t\tstatus: 0x%02x 0x%02x\n",
+		NV_DEBUG_KMS(dev, "\t\tstatus: 0x%02x 0x%02x\n",
 			 status[0], status[1]);
 
 		cr_done = true;
@@ -346,7 +346,7 @@ train:
 		goto stop;
 
 	/* channel equalisation */
-	NV_DEBUG(dev, "\tbegin eq\n");
+	NV_DEBUG_KMS(dev, "\tbegin eq\n");
 	ret = nouveau_dp_link_train_set(encoder, DP_TRAINING_PATTERN_2);
 	if (ret)
 		goto stop;
@@ -357,7 +357,7 @@ train:
 		ret = auxch_rd(encoder, DP_LANE0_1_STATUS, status, 3);
 		if (ret)
 			break;
-		NV_DEBUG(dev, "\t\tstatus: 0x%02x 0x%02x\n",
+		NV_DEBUG_KMS(dev, "\t\tstatus: 0x%02x 0x%02x\n",
 			 status[0], status[1]);
 
 		eq_done = true;
@@ -395,9 +395,9 @@ stop:
 
 	/* retry at a lower setting, if possible */
 	if (!ret && !(eq_done && cr_done)) {
-		NV_DEBUG(dev, "\twe failed\n");
+		NV_DEBUG_KMS(dev, "\twe failed\n");
 		if (nv_encoder->dp.link_bw != DP_LINK_BW_1_62) {
-			NV_DEBUG(dev, "retry link training at low rate\n");
+			NV_DEBUG_KMS(dev, "retry link training at low rate\n");
 			nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
 			goto train;
 		}
@@ -418,7 +418,7 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 	if (ret)
 		return false;
 
-	NV_DEBUG(dev, "encoder: link_bw %d, link_nr %d\n"
+	NV_DEBUG_KMS(dev, "encoder: link_bw %d, link_nr %d\n"
 		      "display: link_bw %d, link_nr %d version 0x%02x\n",
 		 nv_encoder->dcb->dpconf.link_bw,
 		 nv_encoder->dcb->dpconf.link_nr,
@@ -446,7 +446,7 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 	uint32_t tmp, ctrl, stat = 0, data32[4] = {};
 	int ret = 0, i, index = auxch->rd;
 
-	NV_DEBUG(dev, "ch %d cmd %d addr 0x%x len %d\n", index, cmd, addr, data_nr);
+	NV_DEBUG_KMS(dev, "ch %d cmd %d addr 0x%x len %d\n", index, cmd, addr, data_nr);
 
 	tmp = nv_rd32(dev, NV50_AUXCH_CTRL(auxch->rd));
 	nv_wr32(dev, NV50_AUXCH_CTRL(auxch->rd), tmp | 0x00100000);
@@ -472,7 +472,7 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 	if (!(cmd & 1)) {
 		memcpy(data32, data, data_nr);
 		for (i = 0; i < 4; i++) {
-			NV_DEBUG(dev, "wr %d: 0x%08x\n", i, data32[i]);
+			NV_DEBUG_KMS(dev, "wr %d: 0x%08x\n", i, data32[i]);
 			nv_wr32(dev, NV50_AUXCH_DATA_OUT(index, i), data32[i]);
 		}
 	}
@@ -504,7 +504,7 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 	if (cmd & 1) {
 		for (i = 0; i < 4; i++) {
 			data32[i] = nv_rd32(dev, NV50_AUXCH_DATA_IN(index, i));
-			NV_DEBUG(dev, "rd %d: 0x%08x\n", i, data32[i]);
+			NV_DEBUG_KMS(dev, "rd %d: 0x%08x\n", i, data32[i]);
 		}
 		memcpy(data, data32, data_nr);
 	}

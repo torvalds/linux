@@ -63,6 +63,24 @@
 			reg = <0x200 0x100>;
 		};
 
+		gpio1: gpio-controller@c00 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8349-gpio";
+			reg = <0xc00 0x100>;
+			interrupts = <74 0x8>;
+			interrupt-parent = <&ipic>;
+			gpio-controller;
+		};
+
+		gpio2: gpio-controller@d00 {
+			#gpio-cells = <2>;
+			compatible = "fsl,mpc8349-gpio";
+			reg = <0xd00 0x100>;
+			interrupts = <75 0x8>;
+			interrupt-parent = <&ipic>;
+			gpio-controller;
+		};
+
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -72,6 +90,12 @@
 			interrupts = <14 0x8>;
 			interrupt-parent = <&ipic>;
 			dfsrr;
+
+			eeprom: at24@50 {
+				compatible = "st-micro,24c256";
+				reg = <0x50>;
+			};
+
 		};
 
 		i2c@3100 {
@@ -89,6 +113,25 @@
 				reg = <0x68>;
 				interrupts = <18 0x8>;
 				interrupt-parent = <&ipic>;
+			};
+
+			pcf1: iexp@38 {
+				#gpio-cells = <2>;
+				compatible = "ti,pcf8574a";
+				reg = <0x38>;
+				gpio-controller;
+			};
+
+			pcf2: iexp@39 {
+				#gpio-cells = <2>;
+				compatible = "ti,pcf8574a";
+				reg = <0x39>;
+				gpio-controller;
+			};
+
+			spd: at24@51 {
+				compatible = "at24,spd";
+				reg = <0x51>;
 			};
 
 			mcu_pio: mcu@a {
@@ -275,6 +318,24 @@
 			reg = <0x700 0x100>;
 			device_type = "ipic";
 		};
+
+		gpio-leds {
+			compatible = "gpio-leds";
+
+			green {
+				label = "Green";
+				gpios = <&pcf1 0 1>;
+				linux,default-trigger = "heartbeat";
+			};
+
+			yellow {
+				label = "Yellow";
+				gpios = <&pcf1 1 1>;
+				/* linux,default-trigger = "heartbeat"; */
+				default-state = "on";
+			};
+		};
+
 	};
 
 	pci0: pci@e0008500 {
@@ -331,7 +392,26 @@
 		compatible = "fsl,mpc8349e-localbus",
 			     "fsl,pq2pro-localbus";
 		reg = <0xe0005000 0xd8>;
-		ranges = <0x3 0x0 0xf0000000 0x210>;
+		ranges = <0x0 0x0 0xfe000000 0x1000000	/* flash */
+			  0x1 0x0 0xf8000000 0x20000	/* VSC 7385 */
+			  0x2 0x0 0xf9000000 0x200000	/* exp slot */
+			  0x3 0x0 0xf0000000 0x210>;	/* CF slot */
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0x0      0x0 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		flash@0,800000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x800000 0x800000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
 
 		pata@3,0 {
 			compatible = "fsl,mpc8349emitx-pata", "ata-generic";

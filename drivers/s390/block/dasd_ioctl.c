@@ -17,7 +17,7 @@
 #include <linux/fs.h>
 #include <linux/blkpg.h>
 #include <linux/smp_lock.h>
-
+#include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include <asm/cmb.h>
 #include <asm/uaccess.h>
@@ -358,9 +358,8 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 }
 
 static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
-		unsigned long arg)
+				  struct cmbdata __user *argp)
 {
-	struct cmbdata __user *argp = (void __user *) arg;
 	size_t size = _IOC_SIZE(cmd);
 	struct cmbdata data;
 	int ret;
@@ -376,7 +375,12 @@ dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
 	      unsigned int cmd, unsigned long arg)
 {
 	struct dasd_block *block = bdev->bd_disk->private_data;
-	void __user *argp = (void __user *)arg;
+	void __user *argp;
+
+	if (is_compat_task())
+		argp = compat_ptr(arg);
+	else
+		argp = (void __user *)arg;
 
 	if (!block)
                 return -ENODEV;
@@ -414,7 +418,7 @@ dasd_do_ioctl(struct block_device *bdev, fmode_t mode,
 	case BIODASDCMFDISABLE:
 		return disable_cmf(block->base->cdev);
 	case BIODASDREADALLCMB:
-		return dasd_ioctl_readall_cmb(block, cmd, arg);
+		return dasd_ioctl_readall_cmb(block, cmd, argp);
 	default:
 		/* if the discipline has an ioctl method try it. */
 		if (block->base->discipline->ioctl) {

@@ -45,10 +45,49 @@
 #include "accommon.h"
 #include "acnamesp.h"
 #include "acinterp.h"
-#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsrepair")
+
+/*******************************************************************************
+ *
+ * This module attempts to repair or convert objects returned by the
+ * predefined methods to an object type that is expected, as per the ACPI
+ * specification. The need for this code is dictated by the many machines that
+ * return incorrect types for the standard predefined methods. Performing these
+ * conversions here, in one place, eliminates the need for individual ACPI
+ * device drivers to do the same. Note: Most of these conversions are different
+ * than the internal object conversion routines used for implicit object
+ * conversion.
+ *
+ * The following conversions can be performed as necessary:
+ *
+ * Integer -> String
+ * Integer -> Buffer
+ * String  -> Integer
+ * String  -> Buffer
+ * Buffer  -> Integer
+ * Buffer  -> String
+ * Buffer  -> Package of Integers
+ * Package -> Package of one Package
+ *
+ ******************************************************************************/
+/* Local prototypes */
+static acpi_status
+acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object);
+
+static acpi_status
+acpi_ns_convert_to_string(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object);
+
+static acpi_status
+acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object);
+
+static acpi_status
+acpi_ns_convert_to_package(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object);
 
 /*******************************************************************************
  *
@@ -68,6 +107,7 @@ ACPI_MODULE_NAME("nsrepair")
  *              not expected.
  *
  ******************************************************************************/
+
 acpi_status
 acpi_ns_repair_object(struct acpi_predefined_data *data,
 		      u32 expected_btypes,
@@ -76,98 +116,46 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 {
 	union acpi_operand_object *return_object = *return_object_ptr;
 	union acpi_operand_object *new_object;
-	acpi_size length;
 	acpi_status status;
+
+	ACPI_FUNCTION_NAME(ns_repair_object);
 
 	/*
 	 * At this point, we know that the type of the returned object was not
 	 * one of the expected types for this predefined name. Attempt to
-	 * repair the object. Only a limited number of repairs are possible.
+	 * repair the object by converting it to one of the expected object
+	 * types for this predefined name.
 	 */
-	switch (return_object->common.type) {
-	case ACPI_TYPE_BUFFER:
-
-		/* Does the method/object legally return a string? */
-
-		if (!(expected_btypes & ACPI_RTYPE_STRING)) {
-			return (AE_AML_OPERAND_TYPE);
+	if (expected_btypes & ACPI_RTYPE_INTEGER) {
+		status = acpi_ns_convert_to_integer(return_object, &new_object);
+		if (ACPI_SUCCESS(status)) {
+			goto object_repaired;
 		}
-
-		/*
-		 * Have a Buffer, expected a String, convert. Use a to_string
-		 * conversion, no transform performed on the buffer data. The best
-		 * example of this is the _BIF method, where the string data from
-		 * the battery is often (incorrectly) returned as buffer object(s).
-		 */
-		length = 0;
-		while ((length < return_object->buffer.length) &&
-		       (return_object->buffer.pointer[length])) {
-			length++;
-		}
-
-		/* Allocate a new string object */
-
-		new_object = acpi_ut_create_string_object(length);
-		if (!new_object) {
-			return (AE_NO_MEMORY);
-		}
-
-		/*
-		 * Copy the raw buffer data with no transform. String is already NULL
-		 * terminated at Length+1.
-		 */
-		ACPI_MEMCPY(new_object->string.pointer,
-			    return_object->buffer.pointer, length);
-		break;
-
-	case ACPI_TYPE_INTEGER:
-
-		/* 1) Does the method/object legally return a buffer? */
-
-		if (expected_btypes & ACPI_RTYPE_BUFFER) {
-			/*
-			 * Convert the Integer to a packed-byte buffer. _MAT needs
-			 * this sometimes, if a read has been performed on a Field
-			 * object that is less than or equal to the global integer
-			 * size (32 or 64 bits).
-			 */
-			status =
-			    acpi_ex_convert_to_buffer(return_object,
-						      &new_object);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
-		}
-
-		/* 2) Does the method/object legally return a string? */
-
-		else if (expected_btypes & ACPI_RTYPE_STRING) {
-			/*
-			 * The only supported Integer-to-String conversion is to convert
-			 * an integer of value 0 to a NULL string. The last element of
-			 * _BIF and _BIX packages occasionally need this fix.
-			 */
-			if (return_object->integer.value != 0) {
-				return (AE_AML_OPERAND_TYPE);
-			}
-
-			/* Allocate a new NULL string object */
-
-			new_object = acpi_ut_create_string_object(0);
-			if (!new_object) {
-				return (AE_NO_MEMORY);
-			}
-		} else {
-			return (AE_AML_OPERAND_TYPE);
-		}
-		break;
-
-	default:
-
-		/* We cannot repair this object */
-
-		return (AE_AML_OPERAND_TYPE);
 	}
+	if (expected_btypes & ACPI_RTYPE_STRING) {
+		status = acpi_ns_convert_to_string(return_object, &new_object);
+		if (ACPI_SUCCESS(status)) {
+			goto object_repaired;
+		}
+	}
+	if (expected_btypes & ACPI_RTYPE_BUFFER) {
+		status = acpi_ns_convert_to_buffer(return_object, &new_object);
+		if (ACPI_SUCCESS(status)) {
+			goto object_repaired;
+		}
+	}
+	if (expected_btypes & ACPI_RTYPE_PACKAGE) {
+		status = acpi_ns_convert_to_package(return_object, &new_object);
+		if (ACPI_SUCCESS(status)) {
+			goto object_repaired;
+		}
+	}
+
+	/* We cannot repair this object */
+
+	return (AE_AML_OPERAND_TYPE);
+
+      object_repaired:
 
 	/* Object was successfully repaired */
 
@@ -185,19 +173,18 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 			return_object->common.reference_count--;
 		}
 
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "Converted %s to expected %s at index %u",
-				      acpi_ut_get_object_type_name
-				      (return_object),
-				      acpi_ut_get_object_type_name(new_object),
-				      package_index));
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Converted %s to expected %s at index %u\n",
+				  data->pathname,
+				  acpi_ut_get_object_type_name(return_object),
+				  acpi_ut_get_object_type_name(new_object),
+				  package_index));
 	} else {
-		ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-				      "Converted %s to expected %s",
-				      acpi_ut_get_object_type_name
-				      (return_object),
-				      acpi_ut_get_object_type_name
-				      (new_object)));
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Converted %s to expected %s\n",
+				  data->pathname,
+				  acpi_ut_get_object_type_name(return_object),
+				  acpi_ut_get_object_type_name(new_object)));
 	}
 
 	/* Delete old object, install the new return object */
@@ -205,6 +192,315 @@ acpi_ns_repair_object(struct acpi_predefined_data *data,
 	acpi_ut_remove_reference(return_object);
 	*return_object_ptr = new_object;
 	data->flags |= ACPI_OBJECT_REPAIRED;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_integer
+ *
+ * PARAMETERS:  original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful.
+ *
+ * DESCRIPTION: Attempt to convert a String/Buffer object to an Integer.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_convert_to_integer(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object;
+	acpi_status status;
+	u64 value = 0;
+	u32 i;
+
+	switch (original_object->common.type) {
+	case ACPI_TYPE_STRING:
+
+		/* String-to-Integer conversion */
+
+		status = acpi_ut_strtoul64(original_object->string.pointer,
+					   ACPI_ANY_BASE, &value);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+		break;
+
+	case ACPI_TYPE_BUFFER:
+
+		/* Buffer-to-Integer conversion. Max buffer size is 64 bits. */
+
+		if (original_object->buffer.length > 8) {
+			return (AE_AML_OPERAND_TYPE);
+		}
+
+		/* Extract each buffer byte to create the integer */
+
+		for (i = 0; i < original_object->buffer.length; i++) {
+			value |=
+			    ((u64) original_object->buffer.
+			     pointer[i] << (i * 8));
+		}
+		break;
+
+	default:
+		return (AE_AML_OPERAND_TYPE);
+	}
+
+	new_object = acpi_ut_create_integer_object(value);
+	if (!new_object) {
+		return (AE_NO_MEMORY);
+	}
+
+	*return_object = new_object;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_string
+ *
+ * PARAMETERS:  original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful.
+ *
+ * DESCRIPTION: Attempt to convert a Integer/Buffer object to a String.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_convert_to_string(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object;
+	acpi_size length;
+	acpi_status status;
+
+	switch (original_object->common.type) {
+	case ACPI_TYPE_INTEGER:
+		/*
+		 * Integer-to-String conversion. Commonly, convert
+		 * an integer of value 0 to a NULL string. The last element of
+		 * _BIF and _BIX packages occasionally need this fix.
+		 */
+		if (original_object->integer.value == 0) {
+
+			/* Allocate a new NULL string object */
+
+			new_object = acpi_ut_create_string_object(0);
+			if (!new_object) {
+				return (AE_NO_MEMORY);
+			}
+		} else {
+			status =
+			    acpi_ex_convert_to_string(original_object,
+						      &new_object,
+						      ACPI_IMPLICIT_CONVERT_HEX);
+			if (ACPI_FAILURE(status)) {
+				return (status);
+			}
+		}
+		break;
+
+	case ACPI_TYPE_BUFFER:
+		/*
+		 * Buffer-to-String conversion. Use a to_string
+		 * conversion, no transform performed on the buffer data. The best
+		 * example of this is the _BIF method, where the string data from
+		 * the battery is often (incorrectly) returned as buffer object(s).
+		 */
+		length = 0;
+		while ((length < original_object->buffer.length) &&
+		       (original_object->buffer.pointer[length])) {
+			length++;
+		}
+
+		/* Allocate a new string object */
+
+		new_object = acpi_ut_create_string_object(length);
+		if (!new_object) {
+			return (AE_NO_MEMORY);
+		}
+
+		/*
+		 * Copy the raw buffer data with no transform. String is already NULL
+		 * terminated at Length+1.
+		 */
+		ACPI_MEMCPY(new_object->string.pointer,
+			    original_object->buffer.pointer, length);
+		break;
+
+	default:
+		return (AE_AML_OPERAND_TYPE);
+	}
+
+	*return_object = new_object;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_buffer
+ *
+ * PARAMETERS:  original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful.
+ *
+ * DESCRIPTION: Attempt to convert a Integer/String/Package object to a Buffer.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_convert_to_buffer(union acpi_operand_object *original_object,
+			  union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object;
+	acpi_status status;
+	union acpi_operand_object **elements;
+	u32 *dword_buffer;
+	u32 count;
+	u32 i;
+
+	switch (original_object->common.type) {
+	case ACPI_TYPE_INTEGER:
+		/*
+		 * Integer-to-Buffer conversion.
+		 * Convert the Integer to a packed-byte buffer. _MAT and other
+		 * objects need this sometimes, if a read has been performed on a
+		 * Field object that is less than or equal to the global integer
+		 * size (32 or 64 bits).
+		 */
+		status =
+		    acpi_ex_convert_to_buffer(original_object, &new_object);
+		if (ACPI_FAILURE(status)) {
+			return (status);
+		}
+		break;
+
+	case ACPI_TYPE_STRING:
+
+		/* String-to-Buffer conversion. Simple data copy */
+
+		new_object =
+		    acpi_ut_create_buffer_object(original_object->string.
+						 length);
+		if (!new_object) {
+			return (AE_NO_MEMORY);
+		}
+
+		ACPI_MEMCPY(new_object->buffer.pointer,
+			    original_object->string.pointer,
+			    original_object->string.length);
+		break;
+
+	case ACPI_TYPE_PACKAGE:
+		/*
+		 * This case is often seen for predefined names that must return a
+		 * Buffer object with multiple DWORD integers within. For example,
+		 * _FDE and _GTM. The Package can be converted to a Buffer.
+		 */
+
+		/* All elements of the Package must be integers */
+
+		elements = original_object->package.elements;
+		count = original_object->package.count;
+
+		for (i = 0; i < count; i++) {
+			if ((!*elements) ||
+			    ((*elements)->common.type != ACPI_TYPE_INTEGER)) {
+				return (AE_AML_OPERAND_TYPE);
+			}
+			elements++;
+		}
+
+		/* Create the new buffer object to replace the Package */
+
+		new_object = acpi_ut_create_buffer_object(ACPI_MUL_4(count));
+		if (!new_object) {
+			return (AE_NO_MEMORY);
+		}
+
+		/* Copy the package elements (integers) to the buffer as DWORDs */
+
+		elements = original_object->package.elements;
+		dword_buffer = ACPI_CAST_PTR(u32, new_object->buffer.pointer);
+
+		for (i = 0; i < count; i++) {
+			*dword_buffer = (u32) (*elements)->integer.value;
+			dword_buffer++;
+			elements++;
+		}
+		break;
+
+	default:
+		return (AE_AML_OPERAND_TYPE);
+	}
+
+	*return_object = new_object;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_convert_to_package
+ *
+ * PARAMETERS:  original_object     - Object to be converted
+ *              return_object       - Where the new converted object is returned
+ *
+ * RETURN:      Status. AE_OK if conversion was successful.
+ *
+ * DESCRIPTION: Attempt to convert a Buffer object to a Package. Each byte of
+ *              the buffer is converted to a single integer package element.
+ *
+ ******************************************************************************/
+
+static acpi_status
+acpi_ns_convert_to_package(union acpi_operand_object *original_object,
+			   union acpi_operand_object **return_object)
+{
+	union acpi_operand_object *new_object;
+	union acpi_operand_object **elements;
+	u32 length;
+	u8 *buffer;
+
+	switch (original_object->common.type) {
+	case ACPI_TYPE_BUFFER:
+
+		/* Buffer-to-Package conversion */
+
+		length = original_object->buffer.length;
+		new_object = acpi_ut_create_package_object(length);
+		if (!new_object) {
+			return (AE_NO_MEMORY);
+		}
+
+		/* Convert each buffer byte to an integer package element */
+
+		elements = new_object->package.elements;
+		buffer = original_object->buffer.pointer;
+
+		while (length--) {
+			*elements =
+			    acpi_ut_create_integer_object((u64) *buffer);
+			if (!*elements) {
+				acpi_ut_remove_reference(new_object);
+				return (AE_NO_MEMORY);
+			}
+			elements++;
+			buffer++;
+		}
+		break;
+
+	default:
+		return (AE_AML_OPERAND_TYPE);
+	}
+
+	*return_object = new_object;
 	return (AE_OK);
 }
 
@@ -238,6 +534,8 @@ acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 {
 	union acpi_operand_object *pkg_obj_desc;
 
+	ACPI_FUNCTION_NAME(ns_repair_package_list);
+
 	/*
 	 * Create the new outer package and populate it. The new package will
 	 * have a single element, the lone subpackage.
@@ -254,8 +552,9 @@ acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 	*obj_desc_ptr = pkg_obj_desc;
 	data->flags |= ACPI_OBJECT_REPAIRED;
 
-	ACPI_INFO_PREDEFINED((AE_INFO, data->pathname, data->node_flags,
-			      "Repaired Incorrectly formed Package"));
+	ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+			  "%s: Repaired incorrectly formed Package\n",
+			  data->pathname));
 
 	return (AE_OK);
 }

@@ -5,7 +5,9 @@ have duplicated data). Fix oops in cifs_lookup. Workaround problem
 mounting to OS/400 Netserve. Fix oops in cifs_get_tcp_session.
 Disable use of server inode numbers when server only
 partially supports them (e.g. for one server querying inode numbers on
-FindFirst fails but QPathInfo queries works).
+FindFirst fails but QPathInfo queries works). Fix oops with dfs in 
+cifs_put_smb_ses. Fix mmap to work on directio mounts (needed
+for OpenOffice when on forcedirectio mount e.g.)
 
 Version 1.60
 -------------

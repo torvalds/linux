@@ -172,7 +172,26 @@ config GPIO_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp5520-gpio.
 
+config GPIO_ADP5588
+	tristate "ADP5588 I2C GPIO expander"
+	depends on I2C
+	help
+	  This option enables support for 18 GPIOs found
+	  on Analog Devices ADP5588 GPIO Expanders.
+	  To compile this driver as a module, choose M here: the module will be
+	  called adp5588-gpio.
+
 comment "PCI GPIO expanders:"
+
+config GPIO_CS5535
+	tristate "AMD CS5535/CS5536 GPIO support"
+	depends on PCI && !CS5535_GPIO
+	help
+	  The AMD CS5535 and CS5536 southbridges support 28 GPIO pins that
+	  can be used for quite a number of things.  The CS5535/6 is found on
+	  AMD Geode and Lemote Yeeloong devices.
+
+	  If unsure, say N.
 
 config GPIO_BT8XX
 	tristate "BT8XX GPIO abuser"
@@ -195,6 +214,12 @@ config GPIO_LANGWELL
 	depends on PCI
 	help
 	  Say Y here to support Intel Moorestown platform GPIO.
+
+config GPIO_TIMBERDALE
+	bool "Support for timberdale GPIO IP"
+	depends on MFD_TIMBERDALE && GPIOLIB && HAS_IOMEM
+	---help---
+	Add support for the GPIO IP in the timberdale FPGA.
 
 comment "SPI GPIO expanders:"
 

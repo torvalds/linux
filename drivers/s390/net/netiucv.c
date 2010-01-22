@@ -159,7 +159,7 @@ static void netiucv_pm_complete(struct device *);
 static int netiucv_pm_freeze(struct device *);
 static int netiucv_pm_restore_thaw(struct device *);
 
-static struct dev_pm_ops netiucv_pm_ops = {
+static const struct dev_pm_ops netiucv_pm_ops = {
 	.prepare = netiucv_pm_prepare,
 	.complete = netiucv_pm_complete,
 	.freeze = netiucv_pm_freeze,

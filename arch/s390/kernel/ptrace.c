@@ -65,6 +65,7 @@ FixPerRegisters(struct task_struct *task)
 {
 	struct pt_regs *regs;
 	per_struct *per_info;
+	per_cr_words cr_words;
 
 	regs = task_pt_regs(task);
 	per_info = (per_struct *) &task->thread.per_info;
@@ -98,6 +99,13 @@ FixPerRegisters(struct task_struct *task)
 		per_info->control_regs.bits.storage_alt_space_ctl = 1;
 	else
 		per_info->control_regs.bits.storage_alt_space_ctl = 0;
+
+	if (task == current) {
+		__ctl_store(cr_words, 9, 11);
+		if (memcmp(&cr_words, &per_info->control_regs.words,
+			   sizeof(cr_words)) != 0)
+			__ctl_load(per_info->control_regs.words, 9, 11);
+	}
 }
 
 void user_enable_single_step(struct task_struct *task)
@@ -959,7 +967,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.set = s390_fpregs_set,
 	},
 	[REGSET_GENERAL_EXTENDED] = {
-		.core_note_type = NT_PRXSTATUS,
+		.core_note_type = NT_S390_HIGH_GPRS,
 		.n = sizeof(s390_compat_regs_high) / sizeof(compat_long_t),
 		.size = sizeof(compat_long_t),
 		.align = sizeof(compat_long_t),

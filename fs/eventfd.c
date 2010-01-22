@@ -339,7 +339,7 @@ struct file *eventfd_file_create(unsigned int count, int flags)
 	ctx->flags = flags;
 
 	file = anon_inode_getfile("[eventfd]", &eventfd_fops, ctx,
-				  flags & EFD_SHARED_FCNTL_FLAGS);
+				  O_RDWR | (flags & EFD_SHARED_FCNTL_FLAGS));
 	if (IS_ERR(file))
 		eventfd_free_ctx(ctx);
 

@@ -316,20 +316,24 @@ static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
-		.pixelformat = V4L2_PIX_FMT_UYVY,
+		.code = V4L2_MBUS_FMT_YUYV8_2X8_BE,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
+		.field = V4L2_FIELD_NONE,
 		.width = 640,
 		.height = 480,
 	},
 	.bus_param = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
-	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8,
+	SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_MASTER | SOCAM_DATAWIDTH_8 |
+	SOCAM_DATA_ACTIVE_HIGH,
 	.set_capture = camera_set_capture,
-	.link = {
-		.bus_id		= 0,
-		.add_device	= ap325rxa_camera_add,
-		.del_device	= ap325rxa_camera_del,
-		.module_name	= "soc_camera_platform",
-	},
+};
+
+struct soc_camera_link camera_link = {
+	.bus_id		= 0,
+	.add_device	= ap325rxa_camera_add,
+	.del_device	= ap325rxa_camera_del,
+	.module_name	= "soc_camera_platform",
+	.priv		= &camera_info,
 };
 
 static void dummy_release(struct device *dev)
@@ -347,7 +351,7 @@ static struct platform_device camera_device = {
 static int ap325rxa_camera_add(struct soc_camera_link *icl,
 			       struct device *dev)
 {
-	if (icl != &camera_info.link || camera_probe() <= 0)
+	if (icl != &camera_link || camera_probe() <= 0)
 		return -ENODEV;
 
 	camera_info.dev = dev;
@@ -357,7 +361,7 @@ static int ap325rxa_camera_add(struct soc_camera_link *icl,
 
 static void ap325rxa_camera_del(struct soc_camera_link *icl)
 {
-	if (icl != &camera_info.link)
+	if (icl != &camera_link)
 		return;
 
 	platform_device_unregister(&camera_device);
@@ -470,13 +474,15 @@ static struct ov772x_camera_info ov7725_info = {
 	.buswidth	= SOCAM_DATAWIDTH_8,
 	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
 	.edgectrl	= OV772X_AUTO_EDGECTRL(0xf, 0),
-	.link = {
-		.bus_id		= 0,
-		.power		= ov7725_power,
-		.board_info	= &ap325rxa_i2c_camera[0],
-		.i2c_adapter_id	= 0,
-		.module_name	= "ov772x",
-	},
+};
+
+static struct soc_camera_link ov7725_link = {
+	.bus_id		= 0,
+	.power		= ov7725_power,
+	.board_info	= &ap325rxa_i2c_camera[0],
+	.i2c_adapter_id	= 0,
+	.module_name	= "ov772x",
+	.priv		= &ov7725_info,
 };
 
 static struct platform_device ap325rxa_camera[] = {
@@ -484,13 +490,13 @@ static struct platform_device ap325rxa_camera[] = {
 		.name	= "soc-camera-pdrv",
 		.id	= 0,
 		.dev	= {
-			.platform_data = &ov7725_info.link,
+			.platform_data = &ov7725_link,
 		},
 	}, {
 		.name	= "soc-camera-pdrv",
 		.id	= 1,
 		.dev	= {
-			.platform_data = &camera_info.link,
+			.platform_data = &camera_link,
 		},
 	},
 };

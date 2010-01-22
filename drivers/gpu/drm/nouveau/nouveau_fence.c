@@ -142,7 +142,7 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	list_add_tail(&fence->entry, &chan->fence.pending);
 	spin_unlock_irqrestore(&chan->fence.lock, flags);
 
-	BEGIN_RING(chan, NvSubM2MF, USE_REFCNT ? 0x0050 : 0x0150, 1);
+	BEGIN_RING(chan, NvSubSw, USE_REFCNT ? 0x0050 : 0x0150, 1);
 	OUT_RING(chan, fence->sequence);
 	FIRE_RING(chan);
 
@@ -205,7 +205,7 @@ nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 			schedule_timeout(1);
 
 		if (intr && signal_pending(current)) {
-			ret = -ERESTART;
+			ret = -ERESTARTSYS;
 			break;
 		}
 	}

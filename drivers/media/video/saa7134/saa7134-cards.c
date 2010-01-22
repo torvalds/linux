@@ -7211,9 +7211,31 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	}
 	case SAA7134_BOARD_FLYDVB_TRIO:
 	{
+		u8 temp = 0;
+		int rc;
 		u8 data[] = { 0x3c, 0x33, 0x62};
 		struct i2c_msg msg = {.addr=0x09, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
+
+		/*
+		 * send weak up message to pic16C505 chip
+		 * @ LifeView FlyDVB Trio
+		 */
+		msg.buf = &temp;
+		msg.addr = 0x0b;
+		msg.len = 1;
+		if (1 != i2c_transfer(&dev->i2c_adap, &msg, 1)) {
+			printk(KERN_WARNING "%s: send wake up byte to pic16C505"
+					"(IR chip) failed\n", dev->name);
+		} else {
+			msg.flags = I2C_M_RD;
+			rc = i2c_transfer(&dev->i2c_adap, &msg, 1);
+			printk(KERN_INFO "%s: probe IR chip @ i2c 0x%02x: %s\n",
+				   dev->name, msg.addr,
+				   (1 == rc) ? "yes" : "no");
+			if (rc == 1)
+				dev->has_remote = SAA7134_REMOTE_I2C;
+		}
 		break;
 	}
 	case SAA7134_BOARD_ADS_DUO_CARDBUS_PTV331:

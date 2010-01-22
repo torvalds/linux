@@ -26,6 +26,8 @@ endif
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
 
+xfs-y				+= linux-2.6/xfs_trace.o
+
 xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix quota/, \
 				   xfs_dquot.o \
 				   xfs_dquot_item.o \
@@ -90,8 +92,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_rw.o \
 				   xfs_dmops.o
 
-xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o \
-				   xfs_dir2_trace.o
+xfs-$(CONFIG_XFS_TRACE)		+= xfs_btree_trace.o
 
 # Objects in linux/
 xfs-y				+= $(addprefix $(XFS_LINUX)/, \
@@ -113,6 +114,3 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 xfs-y				+= $(addprefix support/, \
 				   debug.o \
 				   uuid.o)
-
-xfs-$(CONFIG_XFS_TRACE)		+= support/ktrace.o
-

@@ -219,6 +219,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 {
 	struct cx18_stream *s = &cx->streams[type];
 	int vfl_type = cx18_stream_info[type].vfl_type;
+	const char *name;
 	int num, ret;
 
 	/* TODO: Shouldn't this be a VFL_TYPE_TRANSPORT or something?
@@ -258,31 +259,30 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 		s->video_dev = NULL;
 		return ret;
 	}
-	num = s->video_dev->num;
+
+	name = video_device_node_name(s->video_dev);
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
-		CX18_INFO("Registered device video%d for %s "
-			  "(%d x %d.%02d kB)\n",
-			  num, s->name, cx->stream_buffers[type],
+		CX18_INFO("Registered device %s for %s (%d x %d.%02d kB)\n",
+			  name, s->name, cx->stream_buffers[type],
 			  cx->stream_buf_size[type] / 1024,
 			  (cx->stream_buf_size[type] * 100 / 1024) % 100);
 		break;
 
 	case VFL_TYPE_RADIO:
-		CX18_INFO("Registered device radio%d for %s\n",
-			num, s->name);
+		CX18_INFO("Registered device %s for %s\n", name, s->name);
 		break;
 
 	case VFL_TYPE_VBI:
 		if (cx->stream_buffers[type])
-			CX18_INFO("Registered device vbi%d for %s "
+			CX18_INFO("Registered device %s for %s "
 				  "(%d x %d bytes)\n",
-				  num, s->name, cx->stream_buffers[type],
+				  name, s->name, cx->stream_buffers[type],
 				  cx->stream_buf_size[type]);
 		else
-			CX18_INFO("Registered device vbi%d for %s\n",
-				num, s->name);
+			CX18_INFO("Registered device %s for %s\n",
+				name, s->name);
 		break;
 	}
 

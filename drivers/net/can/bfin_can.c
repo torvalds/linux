@@ -392,7 +392,7 @@ static void bfin_can_rx(struct net_device *dev, u16 isrc)
 		cf->can_id |= CAN_RTR_FLAG;
 
 	/* get data length code */
-	cf->can_dlc = bfin_read16(&reg->chl[obj].dlc);
+	cf->can_dlc = get_can_dlc(bfin_read16(&reg->chl[obj].dlc) & 0xF);
 
 	/* get payload */
 	for (i = 0; i < 8; i += 2) {

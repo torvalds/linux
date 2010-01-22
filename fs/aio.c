@@ -711,10 +711,8 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	 */
 	ret = retry(iocb);
 
-	if (ret != -EIOCBRETRY && ret != -EIOCBQUEUED) {
-		BUG_ON(!list_empty(&iocb->ki_wait.task_list));
+	if (ret != -EIOCBRETRY && ret != -EIOCBQUEUED)
 		aio_complete(iocb, ret, 0);
-	}
 out:
 	spin_lock_irq(&ctx->ctx_lock);
 
@@ -866,13 +864,6 @@ static void try_queue_kicked_iocb(struct kiocb *iocb)
 	unsigned long flags;
 	int run = 0;
 
-	/* We're supposed to be the only path putting the iocb back on the run
-	 * list.  If we find that the iocb is *back* on a wait queue already
-	 * than retry has happened before we could queue the iocb.  This also
-	 * means that the retry could have completed and freed our iocb, no
-	 * good. */
-	BUG_ON((!list_empty(&iocb->ki_wait.task_list)));
-
 	spin_lock_irqsave(&ctx->ctx_lock, flags);
 	/* set this inside the lock so that we can't race with aio_run_iocb()
 	 * testing it and putting the iocb on the run list under the lock */
@@ -886,7 +877,7 @@ static void try_queue_kicked_iocb(struct kiocb *iocb)
 /*
  * kick_iocb:
  *      Called typically from a wait queue callback context
- *      (aio_wake_function) to trigger a retry of the iocb.
+ *      to trigger a retry of the iocb.
  *      The retry is usually executed by aio workqueue
  *      threads (See aio_kick_handler).
  */
@@ -1520,31 +1511,6 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
 	return 0;
 }
 
-/*
- * aio_wake_function:
- * 	wait queue callback function for aio notification,
- * 	Simply triggers a retry of the operation via kick_iocb.
- *
- * 	This callback is specified in the wait queue entry in
- *	a kiocb.
- *
- * Note:
- * This routine is executed with the wait queue lock held.
- * Since kick_iocb acquires iocb->ctx->ctx_lock, it nests
- * the ioctx lock inside the wait queue lock. This is safe
- * because this callback isn't used for wait queues which
- * are nested inside ioctx lock (i.e. ctx->wait)
- */
-static int aio_wake_function(wait_queue_t *wait, unsigned mode,
-			     int sync, void *key)
-{
-	struct kiocb *iocb = container_of(wait, struct kiocb, ki_wait);
-
-	list_del_init(&wait->task_list);
-	kick_iocb(iocb);
-	return 1;
-}
-
 static void aio_batch_add(struct address_space *mapping,
 			  struct hlist_head *batch_hash)
 {
@@ -1642,8 +1608,6 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_buf = (char __user *)(unsigned long)iocb->aio_buf;
 	req->ki_left = req->ki_nbytes = iocb->aio_nbytes;
 	req->ki_opcode = iocb->aio_lio_opcode;
-	init_waitqueue_func_entry(&req->ki_wait, aio_wake_function);
-	INIT_LIST_HEAD(&req->ki_wait.task_list);
 
 	ret = aio_setup_iocb(req);
 

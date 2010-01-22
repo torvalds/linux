@@ -11,7 +11,6 @@
 
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <linux/ima.h>
 #include "internal.h"
 
 /*
@@ -923,7 +922,6 @@ int cachefiles_write_page(struct fscache_storage *op, struct page *page)
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
 	} else {
-		ima_counts_get(file);
 		ret = -EIO;
 		if (file->f_op->write) {
 			pos = (loff_t) page->index << PAGE_SHIFT;

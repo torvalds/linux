@@ -1330,7 +1330,7 @@ static int yenta_dev_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops yenta_pm_ops = {
+static const struct dev_pm_ops yenta_pm_ops = {
 	.suspend_noirq = yenta_dev_suspend_noirq,
 	.resume_noirq = yenta_dev_resume_noirq,
 	.resume = yenta_dev_resume,

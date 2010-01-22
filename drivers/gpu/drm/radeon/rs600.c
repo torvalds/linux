@@ -56,6 +56,7 @@ int rs600_mc_init(struct radeon_device *rdev)
 	rdev->mc.vram_location = G_000004_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xffffffffUL;
 	r = radeon_mc_setup(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	if (r)
 		return r;
 	return 0;
@@ -134,7 +135,8 @@ void rs600_hpd_init(struct radeon_device *rdev)
 			break;
 		}
 	}
-	rs600_irq_set(rdev);
+	if (rdev->irq.installed)
+		rs600_irq_set(rdev);
 }
 
 void rs600_hpd_fini(struct radeon_device *rdev)
@@ -315,6 +317,11 @@ int rs600_irq_set(struct radeon_device *rdev)
 	u32 hpd2 = RREG32(R_007D18_DC_HOT_PLUG_DETECT2_INT_CONTROL) &
 		~S_007D18_DC_HOT_PLUG_DETECT2_INT_EN(1);
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WREG32(R_000040_GEN_INT_CNTL, 0);
+		return -EINVAL;
+	}
 	if (rdev->irq.sw_int) {
 		tmp |= S_000040_SW_INT_EN(1);
 	}
@@ -396,7 +403,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 	}
 	while (status || r500_disp_int) {
 		/* SW interrupt */
-		if (G_000040_SW_INT_EN(status))
+		if (G_000044_SW_INT(status))
 			radeon_fence_process(rdev);
 		/* Vertical blank interrupts */
 		if (G_007EDC_LB_D1_VBLANK_INTERRUPT(r500_disp_int))
@@ -553,6 +560,7 @@ static int rs600_startup(struct radeon_device *rdev)
 		return r;
 	/* Enable IRQ */
 	rs600_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {

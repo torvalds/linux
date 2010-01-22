@@ -219,14 +219,6 @@ static void __init console_config(void)
 	if (strstr(prom_getcmdline(), "console="))
 		return;
 
-#ifdef CONFIG_KGDB
-	if (!strstr(prom_getcmdline(), "nokgdb")) {
-		strcat(prom_getcmdline(), " console=kgdb");
-		kgdb_enabled = 1;
-		return;
-	}
-#endif
-
 	s = prom_getenv("modetty0");
 	if (s) {
 		baud = simple_strtoul(s, &p, 10);
@@ -278,13 +270,6 @@ static inline unsigned int serial_in(int offset)
 static inline void serial_out(int offset, int value)
 {
 	writel(value, (void *)PORT(offset));
-}
-
-char prom_getchar(void)
-{
-	while (!(serial_in(UART_LSR) & UART_LSR_DR))
-		;
-	return serial_in(UART_RX);
 }
 
 int prom_putchar(char c)

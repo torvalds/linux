@@ -173,7 +173,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	u32 intr_index;
 	u32 have_shift = 0;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	if ((msi_data->feature &  FSL_PIC_IP_MASK) == FSL_PIC_IP_IPIC) {
 		if (desc->chip->mask_ack)
 			desc->chip->mask_ack(irq);
@@ -225,7 +225,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		break;
 	}
 unlock:
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 static int __devinit fsl_of_msi_probe(struct of_device *dev,

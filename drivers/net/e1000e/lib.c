@@ -125,6 +125,7 @@ void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value)
 void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 {
 	u32 i;
+	u8 mac_addr[ETH_ALEN] = {0};
 
 	/* Setup the receive address */
 	e_dbg("Programming MAC Address into RAR[0]\n");
@@ -133,12 +134,8 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 
 	/* Zero out the other (rar_entry_count - 1) receive addresses */
 	e_dbg("Clearing RAR[1-%u]\n", rar_count-1);
-	for (i = 1; i < rar_count; i++) {
-		E1000_WRITE_REG_ARRAY(hw, E1000_RA, (i << 1), 0);
-		e1e_flush();
-		E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((i << 1) + 1), 0);
-		e1e_flush();
-	}
+	for (i = 1; i < rar_count; i++)
+		e1000e_rar_set(hw, mac_addr, i);
 }
 
 /**
@@ -164,10 +161,19 @@ void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
 
-	rar_high |= E1000_RAH_AV;
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
+		rar_high |= E1000_RAH_AV;
 
-	E1000_WRITE_REG_ARRAY(hw, E1000_RA, (index << 1), rar_low);
-	E1000_WRITE_REG_ARRAY(hw, E1000_RA, ((index << 1) + 1), rar_high);
+	/*
+	 * Some bridges will combine consecutive 32-bit writes into
+	 * a single burst write, which will malfunction on some parts.
+	 * The flushes avoid this.
+	 */
+	ew32(RAL(index), rar_low);
+	e1e_flush();
+	ew32(RAH(index), rar_high);
+	e1e_flush();
 }
 
 /**
@@ -1609,6 +1615,11 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 
+	if (!mac->adaptive_ifs) {
+		e_dbg("Not in Adaptive IFS mode!\n");
+		goto out;
+	}
+
 	mac->current_ifs_val = 0;
 	mac->ifs_min_val = IFS_MIN;
 	mac->ifs_max_val = IFS_MAX;
@@ -1617,6 +1628,8 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 
 	mac->in_ifs_mode = false;
 	ew32(AIT, 0);
+out:
+	return;
 }
 
 /**
@@ -1629,6 +1642,11 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 void e1000e_update_adaptive(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+
+	if (!mac->adaptive_ifs) {
+		e_dbg("Not in Adaptive IFS mode!\n");
+		goto out;
+	}
 
 	if ((mac->collision_delta * mac->ifs_ratio) > mac->tx_packet_delta) {
 		if (mac->tx_packet_delta > MIN_NUM_XMITS) {
@@ -1650,6 +1668,8 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 			ew32(AIT, 0);
 		}
 	}
+out:
+	return;
 }
 
 /**
@@ -2287,10 +2307,12 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	s32 ret_val, hdr_csum, csum;
 	u8 i, len;
 
+	hw->mac.tx_pkt_filtering = true;
+
 	/* No manageability, no filtering */
 	if (!e1000e_check_mng_mode(hw)) {
 		hw->mac.tx_pkt_filtering = false;
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -2298,9 +2320,9 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	 * reason, disable filtering.
 	 */
 	ret_val = e1000_mng_enable_host_if(hw);
-	if (ret_val != 0) {
+	if (ret_val) {
 		hw->mac.tx_pkt_filtering = false;
-		return ret_val;
+		goto out;
 	}
 
 	/* Read in the header.  Length and offset are in dwords. */
@@ -2319,17 +2341,17 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	 */
 	if ((hdr_csum != csum) || (hdr->signature != E1000_IAMT_SIGNATURE)) {
 		hw->mac.tx_pkt_filtering = true;
-		return 1;
+		goto out;
 	}
 
 	/* Cookie area is valid, make the final check for filtering. */
 	if (!(hdr->status & E1000_MNG_DHCP_COOKIE_STATUS_PARSING)) {
 		hw->mac.tx_pkt_filtering = false;
-		return 0;
+		goto out;
 	}
 
-	hw->mac.tx_pkt_filtering = true;
-	return 1;
+out:
+	return hw->mac.tx_pkt_filtering;
 }
 
 /**

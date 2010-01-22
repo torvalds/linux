@@ -16,15 +16,15 @@
  * tells make when to remake a file.
  *
  * To use this list as-is however has the drawback that virtually
- * every file in the kernel includes <linux/autoconf.h>.
+ * every file in the kernel includes autoconf.h.
  *
- * If the user re-runs make *config, linux/autoconf.h will be
+ * If the user re-runs make *config, autoconf.h will be
  * regenerated.  make notices that and will rebuild every file which
  * includes autoconf.h, i.e. basically all files. This is extremely
  * annoying if the user just changed CONFIG_HIS_DRIVER from n to m.
  *
  * So we play the same trick that "mkdep" played before. We replace
- * the dependency on linux/autoconf.h by a dependency on every config
+ * the dependency on autoconf.h by a dependency on every config
  * option which is mentioned in any of the listed prequisites.
  *
  * kconfig populates a tree in include/config/ with an empty file
@@ -73,7 +73,7 @@
  *   cmd_<target> = <cmdline>
  *
  * and then basically copies the .<target>.d file to stdout, in the
- * process filtering out the dependency on linux/autoconf.h and adding
+ * process filtering out the dependency on autoconf.h and adding
  * dependencies on include/config/my/option.h for every
  * CONFIG_MY_OPTION encountered in any of the prequisites.
  *
@@ -324,7 +324,7 @@ static void parse_dep_file(void *map, size_t len)
 			p++;
 		}
 		memcpy(s, m, p-m); s[p-m] = 0;
-		if (strrcmp(s, "include/linux/autoconf.h") &&
+		if (strrcmp(s, "include/generated/autoconf.h") &&
 		    strrcmp(s, "arch/um/include/uml-config.h") &&
 		    strrcmp(s, ".ver")) {
 			printf("  %s \\\n", s);

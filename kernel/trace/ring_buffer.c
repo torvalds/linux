@@ -423,7 +423,7 @@ struct ring_buffer_per_cpu {
 	int				cpu;
 	struct ring_buffer		*buffer;
 	spinlock_t			reader_lock;	/* serialize readers */
-	raw_spinlock_t			lock;
+	arch_spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	struct list_head		*pages;
 	struct buffer_page		*head_page;	/* read from head */
@@ -998,7 +998,7 @@ rb_allocate_cpu_buffer(struct ring_buffer *buffer, int cpu)
 	cpu_buffer->buffer = buffer;
 	spin_lock_init(&cpu_buffer->reader_lock);
 	lockdep_set_class(&cpu_buffer->reader_lock, buffer->reader_lock_key);
-	cpu_buffer->lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+	cpu_buffer->lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 	bpage = kzalloc_node(ALIGN(sizeof(*bpage), cache_line_size()),
 			    GFP_KERNEL, cpu_to_node(cpu));
@@ -1193,9 +1193,6 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 	struct list_head *p;
 	unsigned i;
 
-	atomic_inc(&cpu_buffer->record_disabled);
-	synchronize_sched();
-
 	spin_lock_irq(&cpu_buffer->reader_lock);
 	rb_head_page_deactivate(cpu_buffer);
 
@@ -1211,12 +1208,9 @@ rb_remove_pages(struct ring_buffer_per_cpu *cpu_buffer, unsigned nr_pages)
 		return;
 
 	rb_reset_cpu(cpu_buffer);
-	spin_unlock_irq(&cpu_buffer->reader_lock);
-
 	rb_check_pages(cpu_buffer);
 
-	atomic_dec(&cpu_buffer->record_disabled);
-
+	spin_unlock_irq(&cpu_buffer->reader_lock);
 }
 
 static void
@@ -1226,9 +1220,6 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer,
 	struct buffer_page *bpage;
 	struct list_head *p;
 	unsigned i;
-
-	atomic_inc(&cpu_buffer->record_disabled);
-	synchronize_sched();
 
 	spin_lock_irq(&cpu_buffer->reader_lock);
 	rb_head_page_deactivate(cpu_buffer);
@@ -1242,22 +1233,15 @@ rb_insert_pages(struct ring_buffer_per_cpu *cpu_buffer,
 		list_add_tail(&bpage->list, cpu_buffer->pages);
 	}
 	rb_reset_cpu(cpu_buffer);
-	spin_unlock_irq(&cpu_buffer->reader_lock);
-
 	rb_check_pages(cpu_buffer);
 
-	atomic_dec(&cpu_buffer->record_disabled);
+	spin_unlock_irq(&cpu_buffer->reader_lock);
 }
 
 /**
  * ring_buffer_resize - resize the ring buffer
  * @buffer: the buffer to resize.
  * @size: the new size.
- *
- * The tracer is responsible for making sure that the buffer is
- * not being used while changing the size.
- * Note: We may be able to change the above requirement by using
- *  RCU synchronizations.
  *
  * Minimum size is 2 * BUF_PAGE_SIZE.
  *
@@ -1289,6 +1273,11 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 
 	if (size == buffer_size)
 		return size;
+
+	atomic_inc(&buffer->record_disabled);
+
+	/* Make sure all writers are done with this buffer. */
+	synchronize_sched();
 
 	mutex_lock(&buffer->mutex);
 	get_online_cpus();
@@ -1352,6 +1341,8 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	put_online_cpus();
 	mutex_unlock(&buffer->mutex);
 
+	atomic_dec(&buffer->record_disabled);
+
 	return size;
 
  free_pages:
@@ -1361,6 +1352,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 	}
 	put_online_cpus();
 	mutex_unlock(&buffer->mutex);
+	atomic_dec(&buffer->record_disabled);
 	return -ENOMEM;
 
 	/*
@@ -1370,6 +1362,7 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
  out_fail:
 	put_online_cpus();
 	mutex_unlock(&buffer->mutex);
+	atomic_dec(&buffer->record_disabled);
 	return -1;
 }
 EXPORT_SYMBOL_GPL(ring_buffer_resize);
@@ -2834,7 +2827,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	int ret;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 
  again:
 	/*
@@ -2876,7 +2869,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 * Splice the empty reader page into the list around the head.
 	 */
 	reader = rb_set_head_page(cpu_buffer);
-	cpu_buffer->reader_page->list.next = reader->list.next;
+	cpu_buffer->reader_page->list.next = rb_list_head(reader->list.next);
 	cpu_buffer->reader_page->list.prev = reader->list.prev;
 
 	/*
@@ -2913,7 +2906,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 *
 	 * Now make the new head point back to the reader page.
 	 */
-	reader->list.next->prev = &cpu_buffer->reader_page->list;
+	rb_list_head(reader->list.next)->prev = &cpu_buffer->reader_page->list;
 	rb_inc_page(cpu_buffer, &cpu_buffer->head_page);
 
 	/* Finally update the reader page to the new head */
@@ -2923,7 +2916,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	goto again;
 
  out:
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 
 	return reader;
@@ -3286,9 +3279,9 @@ ring_buffer_read_start(struct ring_buffer *buffer, int cpu)
 	synchronize_sched();
 
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 	rb_iter_reset(iter);
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
 	return iter;
@@ -3408,11 +3401,11 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (RB_WARN_ON(cpu_buffer, local_read(&cpu_buffer->committing)))
 		goto out;
 
-	__raw_spin_lock(&cpu_buffer->lock);
+	arch_spin_lock(&cpu_buffer->lock);
 
 	rb_reset_cpu(cpu_buffer);
 
-	__raw_spin_unlock(&cpu_buffer->lock);
+	arch_spin_unlock(&cpu_buffer->lock);
 
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);

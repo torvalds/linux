@@ -121,7 +121,7 @@ struct inode *gfs2_aspace_get(struct gfs2_sbd *sdp)
 	if (aspace) {
 		mapping_set_gfp_mask(aspace->i_mapping, GFP_NOFS);
 		aspace->i_mapping->a_ops = &aspace_aops;
-		aspace->i_size = ~0ULL;
+		aspace->i_size = MAX_LFS_FILESIZE;
 		ip = GFS2_I(aspace);
 		clear_bit(GIF_USER, &ip->i_flags);
 		insert_inode_hash(aspace);

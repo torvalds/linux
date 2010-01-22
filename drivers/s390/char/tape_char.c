@@ -10,11 +10,15 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "tape"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/mtio.h>
 #include <linux/smp_lock.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 
@@ -34,8 +38,9 @@ static ssize_t tapechar_write(struct file *, const char __user *, size_t, loff_t
 static int tapechar_open(struct inode *,struct file *);
 static int tapechar_release(struct inode *,struct file *);
 static long tapechar_ioctl(struct file *, unsigned int, unsigned long);
-static long tapechar_compat_ioctl(struct file *, unsigned int,
-			  unsigned long);
+#ifdef CONFIG_COMPAT
+static long tapechar_compat_ioctl(struct file *, unsigned int, unsigned long);
+#endif
 
 static const struct file_operations tape_fops =
 {
@@ -43,7 +48,9 @@ static const struct file_operations tape_fops =
 	.read = tapechar_read,
 	.write = tapechar_write,
 	.unlocked_ioctl = tapechar_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl = tapechar_compat_ioctl,
+#endif
 	.open = tapechar_open,
 	.release = tapechar_release,
 };
@@ -454,15 +461,22 @@ tapechar_ioctl(struct file *filp, unsigned int no, unsigned long data)
 	return rc;
 }
 
+#ifdef CONFIG_COMPAT
 static long
 tapechar_compat_ioctl(struct file *filp, unsigned int no, unsigned long data)
 {
 	struct tape_device *device = filp->private_data;
 	int rval = -ENOIOCTLCMD;
+	unsigned long argp;
 
+	/* The 'arg' argument of any ioctl function may only be used for
+	 * pointers because of the compat pointer conversion.
+	 * Consider this when adding new ioctls.
+	 */
+	argp = (unsigned long) compat_ptr(data);
 	if (device->discipline->ioctl_fn) {
 		mutex_lock(&device->mutex);
-		rval = device->discipline->ioctl_fn(device, no, data);
+		rval = device->discipline->ioctl_fn(device, no, argp);
 		mutex_unlock(&device->mutex);
 		if (rval == -EINVAL)
 			rval = -ENOIOCTLCMD;
@@ -470,6 +484,7 @@ tapechar_compat_ioctl(struct file *filp, unsigned int no, unsigned long data)
 
 	return rval;
 }
+#endif /* CONFIG_COMPAT */
 
 /*
  * Initialize character device frontend.

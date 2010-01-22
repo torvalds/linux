@@ -338,20 +338,34 @@ EXPORT_SYMBOL(strnchr);
 #endif
 
 /**
- * strstrip - Removes leading and trailing whitespace from @s.
+ * skip_spaces - Removes leading whitespace from @str.
+ * @str: The string to be stripped.
+ *
+ * Returns a pointer to the first non-whitespace character in @str.
+ */
+char *skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
+}
+EXPORT_SYMBOL(skip_spaces);
+
+/**
+ * strim - Removes leading and trailing whitespace from @s.
  * @s: The string to be stripped.
  *
  * Note that the first trailing whitespace is replaced with a %NUL-terminator
  * in the given string @s. Returns a pointer to the first non-whitespace
  * character in @s.
  */
-char *strstrip(char *s)
+char *strim(char *s)
 {
 	size_t size;
 	char *end;
 
+	s = skip_spaces(s);
 	size = strlen(s);
-
 	if (!size)
 		return s;
 
@@ -360,12 +374,9 @@ char *strstrip(char *s)
 		end--;
 	*(end + 1) = '\0';
 
-	while (*s && isspace(*s))
-		s++;
-
 	return s;
 }
-EXPORT_SYMBOL(strstrip);
+EXPORT_SYMBOL(strim);
 
 #ifndef __HAVE_ARCH_STRLEN
 /**
@@ -656,7 +667,7 @@ EXPORT_SYMBOL(memscan);
  */
 char *strstr(const char *s1, const char *s2)
 {
-	int l1, l2;
+	size_t l1, l2;
 
 	l2 = strlen(s2);
 	if (!l2)
@@ -671,6 +682,31 @@ char *strstr(const char *s1, const char *s2)
 	return NULL;
 }
 EXPORT_SYMBOL(strstr);
+#endif
+
+#ifndef __HAVE_ARCH_STRNSTR
+/**
+ * strnstr - Find the first substring in a length-limited string
+ * @s1: The string to be searched
+ * @s2: The string to search for
+ * @len: the maximum number of characters to search
+ */
+char *strnstr(const char *s1, const char *s2, size_t len)
+{
+	size_t l1 = len, l2;
+
+	l2 = strlen(s2);
+	if (!l2)
+		return (char *)s1;
+	while (l1 >= l2) {
+		l1--;
+		if (!memcmp(s1, s2, l2))
+			return (char *)s1;
+		s1++;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(strnstr);
 #endif
 
 #ifndef __HAVE_ARCH_MEMCHR

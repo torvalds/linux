@@ -39,24 +39,6 @@ syscall_t sys_call_table[__NR_syscall_count] /* FIXME __cacheline_aligned */= {
 #include <asm/unistd.h>
 };
 
-/*
- * xtensa_pipe() is the normal C calling standard for creating a pipe. It's not
- * the way unix traditional does this, though.
- */
-
-asmlinkage long xtensa_pipe(int __user *userfds)
-{
-	int fd[2];
-	int error;
-
-	error = do_pipe_flags(fd, 0);
-	if (!error) {
-		if (copy_to_user(userfds, fd, 2 * sizeof(int)))
-			error = -EFAULT;
-	}
-	return error;
-}
-
 asmlinkage long xtensa_shmat(int shmid, char __user *shmaddr, int shmflg)
 {
 	unsigned long ret;

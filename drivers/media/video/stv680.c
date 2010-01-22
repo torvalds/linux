@@ -1405,7 +1405,6 @@ static struct video_device stv680_template = {
 	.name =		"STV0680 USB camera",
 	.fops =         &stv680_fops,
 	.release =	video_device_release,
-	.minor = 	-1,
 };
 
 static int stv680_probe (struct usb_interface *intf, const struct usb_device_id *id)
@@ -1467,8 +1466,8 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 		retval = -EIO;
 		goto error_vdev;
 	}
-	PDEBUG(0, "STV(i): registered new video device: video%d",
-		stv680->vdev->num);
+	PDEBUG(0, "STV(i): registered new video device: %s",
+		video_device_node_name(stv680->vdev));
 
 	usb_set_intfdata (intf, stv680);
 	retval = stv680_create_sysfs_files(stv680->vdev);

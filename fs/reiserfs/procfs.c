@@ -17,8 +17,6 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 
-#ifdef CONFIG_REISERFS_PROC_INFO
-
 /*
  * LOCKING:
  *
@@ -45,14 +43,6 @@ static int show_version(struct seq_file *m, struct super_block *sb)
 		   "off"
 #endif
 	    );
-	return 0;
-}
-
-int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
-				    int count, int *eof, void *data)
-{
-	*start = buffer;
-	*eof = 1;
 	return 0;
 }
 
@@ -538,19 +528,6 @@ int reiserfs_proc_info_done(struct super_block *sb)
 	return 0;
 }
 
-struct proc_dir_entry *reiserfs_proc_register_global(char *name,
-						     read_proc_t * func)
-{
-	return (proc_info_root) ? create_proc_read_entry(name, 0,
-							 proc_info_root,
-							 func, NULL) : NULL;
-}
-
-void reiserfs_proc_unregister_global(const char *name)
-{
-	remove_proc_entry(name, proc_info_root);
-}
-
 int reiserfs_proc_info_global_init(void)
 {
 	if (proc_info_root == NULL) {
@@ -572,48 +549,6 @@ int reiserfs_proc_info_global_done(void)
 	}
 	return 0;
 }
-
-/* REISERFS_PROC_INFO */
-#else
-
-int reiserfs_proc_info_init(struct super_block *sb)
-{
-	return 0;
-}
-int reiserfs_proc_info_done(struct super_block *sb)
-{
-	return 0;
-}
-
-struct proc_dir_entry *reiserfs_proc_register_global(char *name,
-						     read_proc_t * func)
-{
-	return NULL;
-}
-
-void reiserfs_proc_unregister_global(const char *name)
-{;
-}
-
-int reiserfs_proc_info_global_init(void)
-{
-	return 0;
-}
-int reiserfs_proc_info_global_done(void)
-{
-	return 0;
-}
-
-int reiserfs_global_version_in_proc(char *buffer, char **start,
-				    off_t offset,
-				    int count, int *eof, void *data)
-{
-	return 0;
-}
-
-/* REISERFS_PROC_INFO */
-#endif
-
 /*
  * Revision 1.1.8.2  2001/07/15 17:08:42  god
  *  . use get_super() in procfs.c

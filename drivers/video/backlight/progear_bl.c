@@ -54,7 +54,7 @@ static int progearbl_get_intensity(struct backlight_device *bd)
 	return intensity - HW_LEVEL_MIN;
 }
 
-static struct backlight_ops progearbl_ops = {
+static const struct backlight_ops progearbl_ops = {
 	.get_brightness = progearbl_get_intensity,
 	.update_status = progearbl_set_intensity,
 };

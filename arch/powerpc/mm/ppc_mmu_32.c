@@ -72,7 +72,7 @@ unsigned long p_mapped_by_bats(phys_addr_t pa)
 	return 0;
 }
 
-unsigned long __init mmu_mapin_ram(void)
+unsigned long __init mmu_mapin_ram(unsigned long top)
 {
 	unsigned long tot, bl, done;
 	unsigned long max_size = (256<<20);
@@ -86,7 +86,7 @@ unsigned long __init mmu_mapin_ram(void)
 
 	/* Make sure we don't map a block larger than the
 	   smallest alignment of the physical address. */
-	tot = total_lowmem;
+	tot = top;
 	for (bl = 128<<10; bl < max_size; bl <<= 1) {
 		if (bl * 2 > tot)
 			break;

@@ -118,6 +118,7 @@ header-y += mtio.h
 header-y += ncp_no.h
 header-y += neighbour.h
 header-y += net_dropmon.h
+header-y += net_tstamp.h
 header-y += netfilter_arp.h
 header-y += netrom.h
 header-y += nfs2.h

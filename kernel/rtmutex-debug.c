@@ -37,8 +37,8 @@ do {								\
 	if (rt_trace_on) {					\
 		rt_trace_on = 0;				\
 		console_verbose();				\
-		if (spin_is_locked(&current->pi_lock))		\
-			spin_unlock(&current->pi_lock);		\
+		if (raw_spin_is_locked(&current->pi_lock))	\
+			raw_spin_unlock(&current->pi_lock);	\
 	}							\
 } while (0)
 

@@ -93,7 +93,7 @@ static int iucv_pm_freeze(struct device *);
 static int iucv_pm_thaw(struct device *);
 static int iucv_pm_restore(struct device *);
 
-static struct dev_pm_ops iucv_pm_ops = {
+static const struct dev_pm_ops iucv_pm_ops = {
 	.prepare = iucv_pm_prepare,
 	.complete = iucv_pm_complete,
 	.freeze = iucv_pm_freeze,

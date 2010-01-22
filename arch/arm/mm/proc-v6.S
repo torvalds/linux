@@ -59,8 +59,6 @@ ENTRY(cpu_v6_proc_fin)
  *	to what would be the reset vector.
  *
  *	- loc   - location to jump to for soft reset
- *
- *	It is assumed that:
  */
 	.align	5
 ENTRY(cpu_v6_reset)
@@ -254,10 +252,9 @@ __pj4_v6_proc_info:
 	.long	0x560f5810
 	.long	0xff0ffff0
 	.long   PMD_TYPE_SECT | \
-		PMD_SECT_BUFFERABLE | \
-		PMD_SECT_CACHEABLE | \
 		PMD_SECT_AP_WRITE | \
-		PMD_SECT_AP_READ
+		PMD_SECT_AP_READ | \
+		PMD_FLAGS
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_XN | \
 		PMD_SECT_AP_WRITE | \

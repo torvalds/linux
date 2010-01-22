@@ -242,6 +242,15 @@ config RTC_DRV_M41T80_WDT
 	  If you say Y here you will get support for the
 	  watchdog timer in the ST M41T60 and M41T80 RTC chips series.
 
+config RTC_DRV_BQ32K
+	tristate "TI BQ32000"
+	help
+	  If you say Y here you will get support for the TI
+	  BQ32000 I2C RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-bq32k.
+
 config RTC_DRV_DM355EVM
 	tristate "TI DaVinci DM355 EVM RTC"
 	depends on MFD_DM355EVM_MSP
@@ -592,15 +601,22 @@ config RTC_DRV_AB3100
 	  Select this to enable the ST-Ericsson AB3100 Mixed Signal IC RTC
 	  support. This chip contains a battery- and capacitor-backed RTC.
 
+config RTC_DRV_NUC900
+	tristate "NUC910/NUC920 RTC driver"
+	depends on RTC_CLASS && ARCH_W90X900
+	help
+	  If you say yes here you get support for the RTC subsystem of the
+	  NUC910/NUC920 used in embedded systems.
 
 comment "on-CPU RTC drivers"
 
 config RTC_DRV_OMAP
 	tristate "TI OMAP1"
-	depends on ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730
+	depends on ARCH_OMAP15XX || ARCH_OMAP16XX || ARCH_OMAP730 || ARCH_DAVINCI_DA8XX
 	help
-	  Say "yes" here to support the real time clock on TI OMAP1 chips.
-	  This driver can also be built as a module called rtc-omap.
+	  Say "yes" here to support the real time clock on TI OMAP1 and
+	  DA8xx/OMAP-L13x chips.  This driver can also be built as a
+	  module called rtc-omap.
 
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
@@ -845,5 +861,11 @@ config RTC_DRV_PCAP
 	help
 	  If you say Y here you will get support for the RTC found on
 	  the PCAP2 ASIC used on some Motorola phones.
+
+config RTC_DRV_MC13783
+	depends on MFD_MC13783
+	tristate "Freescale MC13783 RTC"
+	help
+	  This enables support for the Freescale MC13783 PMIC RTC
 
 endif # RTC_CLASS

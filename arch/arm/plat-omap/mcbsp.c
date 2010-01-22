@@ -436,7 +436,7 @@ int omap_mcbsp_request(unsigned int id)
 			dev_err(mcbsp->dev, "Unable to request TX IRQ %d "
 					"for McBSP%d\n", mcbsp->tx_irq,
 					mcbsp->id);
-			return err;
+			goto error;
 		}
 
 		init_completion(&mcbsp->rx_irq_completion);
@@ -446,12 +446,26 @@ int omap_mcbsp_request(unsigned int id)
 			dev_err(mcbsp->dev, "Unable to request RX IRQ %d "
 					"for McBSP%d\n", mcbsp->rx_irq,
 					mcbsp->id);
-			free_irq(mcbsp->tx_irq, (void *)mcbsp);
-			return err;
+			goto tx_irq;
 		}
 	}
 
 	return 0;
+tx_irq:
+	free_irq(mcbsp->tx_irq, (void *)mcbsp);
+error:
+	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
+			mcbsp->pdata->ops->free(id);
+
+	/* Do procedure specific to omap34xx arch, if applicable */
+	omap34xx_mcbsp_free(mcbsp);
+
+	clk_disable(mcbsp->fclk);
+	clk_disable(mcbsp->iclk);
+
+	mcbsp->free = 1;
+
+	return err;
 }
 EXPORT_SYMBOL(omap_mcbsp_request);
 

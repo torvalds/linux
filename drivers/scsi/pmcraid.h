@@ -1,6 +1,9 @@
 /*
  * pmcraid.h -- PMC Sierra MaxRAID controller driver header file
  *
+ * Written By: Anil Ravindranath<anil_ravindranath@pmc-sierra.com>
+ *             PMC-Sierra Inc
+ *
  * Copyright (C) 2008, 2009 PMC Sierra Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -106,7 +109,7 @@
 #define PMCRAID_VSET_LUN_ID                      0x0
 #define PMCRAID_PHYS_BUS_ID                      0x0
 #define PMCRAID_VIRTUAL_ENCL_BUS_ID              0x8
-#define PMCRAID_MAX_VSET_TARGETS                 240
+#define PMCRAID_MAX_VSET_TARGETS                 0x7F
 #define PMCRAID_MAX_VSET_LUNS_PER_TARGET         8
 
 #define PMCRAID_IOA_MAX_SECTORS                  32767

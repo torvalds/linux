@@ -37,6 +37,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf-dma-contig.h>
+#include <media/soc_mediabus.h>
 
 #include <asm/dma.h>
 #include <asm/fiq.h>
@@ -94,14 +95,16 @@
 /* buffer for one video frame */
 struct mx1_buffer {
 	/* common v4l buffer stuff -- must be first */
-	struct videobuf_buffer vb;
-	const struct soc_camera_data_format *fmt;
-	int inwork;
+	struct videobuf_buffer		vb;
+	enum v4l2_mbus_pixelcode	code;
+	int				inwork;
 };
 
-/* i.MX1/i.MXL is only supposed to handle one camera on its Camera Sensor
+/*
+ * i.MX1/i.MXL is only supposed to handle one camera on its Camera Sensor
  * Interface. If anyone ever builds hardware to enable more than
- * one camera, they will have to modify this driver too */
+ * one camera, they will have to modify this driver too
+ */
 struct mx1_camera_dev {
 	struct soc_camera_host		soc_host;
 	struct soc_camera_device	*icd;
@@ -126,9 +129,13 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			      unsigned int *size)
 {
 	struct soc_camera_device *icd = vq->priv_data;
+	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
+						icd->current_fmt->host_fmt);
 
-	*size = icd->user_width * icd->user_height *
-		((icd->current_fmt->depth + 7) >> 3);
+	if (bytes_per_line < 0)
+		return bytes_per_line;
+
+	*size = bytes_per_line * icd->user_height;
 
 	if (!*count)
 		*count = 32;
@@ -151,8 +158,10 @@ static void free_buffer(struct videobuf_queue *vq, struct mx1_buffer *buf)
 	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
-	/* This waits until this buffer is out of danger, i.e., until it is no
-	 * longer in STATE_QUEUED or STATE_ACTIVE */
+	/*
+	 * This waits until this buffer is out of danger, i.e., until it is no
+	 * longer in STATE_QUEUED or STATE_ACTIVE
+	 */
 	videobuf_waiton(vb, 0, 0);
 	videobuf_dma_contig_free(vq, vb);
 
@@ -165,6 +174,11 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 	struct soc_camera_device *icd = vq->priv_data;
 	struct mx1_buffer *buf = container_of(vb, struct mx1_buffer, vb);
 	int ret;
+	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
+						icd->current_fmt->host_fmt);
+
+	if (bytes_per_line < 0)
+		return bytes_per_line;
 
 	dev_dbg(icd->dev.parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
@@ -174,22 +188,24 @@ static int mx1_videobuf_prepare(struct videobuf_queue *vq,
 
 	BUG_ON(NULL == icd->current_fmt);
 
-	/* I think, in buf_prepare you only have to protect global data,
-	 * the actual buffer is yours */
+	/*
+	 * I think, in buf_prepare you only have to protect global data,
+	 * the actual buffer is yours
+	 */
 	buf->inwork = 1;
 
-	if (buf->fmt	!= icd->current_fmt ||
+	if (buf->code	!= icd->current_fmt->code ||
 	    vb->width	!= icd->user_width ||
 	    vb->height	!= icd->user_height ||
 	    vb->field	!= field) {
-		buf->fmt	= icd->current_fmt;
+		buf->code	= icd->current_fmt->code;
 		vb->width	= icd->user_width;
 		vb->height	= icd->user_height;
 		vb->field	= field;
 		vb->state	= VIDEOBUF_NEEDS_INIT;
 	}
 
-	vb->size = vb->width * vb->height * ((buf->fmt->depth + 7) >> 3);
+	vb->size = bytes_per_line * vb->height;
 	if (0 != vb->baddr && vb->bsize < vb->size) {
 		ret = -EINVAL;
 		goto out;
@@ -381,8 +397,10 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 
 	lcdclk = clk_get_rate(pcdev->clk);
 
-	/* We verify platform_mclk_10khz != 0, so if anyone breaks it, here
-	 * they get a nice Oops */
+	/*
+	 * We verify platform_mclk_10khz != 0, so if anyone breaks it, here
+	 * they get a nice Oops
+	 */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
 	dev_dbg(pcdev->icd->dev.parent,
@@ -420,8 +438,10 @@ static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 	clk_disable(pcdev->clk);
 }
 
-/* The following two functions absolutely depend on the fact, that
- * there can be only one camera on i.MX1/i.MXL camera sensor interface */
+/*
+ * The following two functions absolutely depend on the fact, that
+ * there can be only one camera on i.MX1/i.MXL camera sensor interface
+ */
 static int mx1_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
@@ -487,11 +507,9 @@ static int mx1_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 
 	/* MX1 supports only 8bit buswidth */
 	common_flags = soc_camera_bus_param_compatible(camera_flags,
-							       CSI_BUS_FLAGS);
+						       CSI_BUS_FLAGS);
 	if (!common_flags)
 		return -EINVAL;
-
-	icd->buswidth = 8;
 
 	/* Make choises, based on platform choice */
 	if ((common_flags & SOCAM_VSYNC_ACTIVE_HIGH) &&
@@ -545,7 +563,8 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
-	int ret;
+	struct v4l2_mbus_framefmt mf;
+	int ret, buswidth;
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
@@ -554,11 +573,32 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	ret = v4l2_subdev_call(sd, video, s_fmt, f);
-	if (!ret) {
-		icd->buswidth = xlate->buswidth;
-		icd->current_fmt = xlate->host_fmt;
+	buswidth = xlate->host_fmt->bits_per_sample;
+	if (buswidth > 8) {
+		dev_warn(icd->dev.parent,
+			 "bits-per-sample %d for format %x unsupported\n",
+			 buswidth, pix->pixelformat);
+		return -EINVAL;
 	}
+
+	mf.width	= pix->width;
+	mf.height	= pix->height;
+	mf.field	= pix->field;
+	mf.colorspace	= pix->colorspace;
+	mf.code		= xlate->code;
+
+	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
+	if (ret < 0)
+		return ret;
+
+	if (mf.code != xlate->code)
+		return -EINVAL;
+
+	pix->width		= mf.width;
+	pix->height		= mf.height;
+	pix->field		= mf.field;
+	pix->colorspace		= mf.colorspace;
+	icd->current_fmt	= xlate;
 
 	return ret;
 }
@@ -567,10 +607,36 @@ static int mx1_camera_try_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+	const struct soc_camera_format_xlate *xlate;
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_mbus_framefmt mf;
+	int ret;
 	/* TODO: limit to mx1 hardware capabilities */
 
+	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
+	if (!xlate) {
+		dev_warn(icd->dev.parent, "Format %x not found\n",
+			 pix->pixelformat);
+		return -EINVAL;
+	}
+
+	mf.width	= pix->width;
+	mf.height	= pix->height;
+	mf.field	= pix->field;
+	mf.colorspace	= pix->colorspace;
+	mf.code		= xlate->code;
+
 	/* limit to sensor capabilities */
-	return v4l2_subdev_call(sd, video, try_fmt, f);
+	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
+	if (ret < 0)
+		return ret;
+
+	pix->width	= mf.width;
+	pix->height	= mf.height;
+	pix->field	= mf.field;
+	pix->colorspace	= mf.colorspace;
+
+	return 0;
 }
 
 static int mx1_camera_reqbufs(struct soc_camera_file *icf,
@@ -578,10 +644,12 @@ static int mx1_camera_reqbufs(struct soc_camera_file *icf,
 {
 	int i;
 
-	/* This is for locking debugging only. I removed spinlocks and now I
+	/*
+	 * This is for locking debugging only. I removed spinlocks and now I
 	 * check whether .prepare is ever called on a linked buffer, or whether
 	 * a dma IRQ can occur for an in-work or unlinked buffer. Until now
-	 * it hadn't triggered */
+	 * it hadn't triggered
+	 */
 	for (i = 0; i < p->count; i++) {
 		struct mx1_buffer *buf = container_of(icf->vb_vidq.bufs[i],
 						      struct mx1_buffer, vb);
@@ -650,7 +718,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (!res || !irq) {
+	if (!res || (int)irq <= 0) {
 		err = -ENODEV;
 		goto exit;
 	}

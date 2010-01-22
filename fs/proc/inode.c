@@ -24,29 +24,6 @@
 
 #include "internal.h"
 
-struct proc_dir_entry *de_get(struct proc_dir_entry *de)
-{
-	atomic_inc(&de->count);
-	return de;
-}
-
-/*
- * Decrements the use count and checks for deferred deletion.
- */
-void de_put(struct proc_dir_entry *de)
-{
-	if (!atomic_read(&de->count)) {
-		printk("de_put: entry %s already free!\n", de->name);
-		return;
-	}
-
-	if (atomic_dec_and_test(&de->count))
-		free_proc_entry(de);
-}
-
-/*
- * Decrement the use count of the proc_dir_entry.
- */
 static void proc_delete_inode(struct inode *inode)
 {
 	struct proc_dir_entry *de;
@@ -59,7 +36,7 @@ static void proc_delete_inode(struct inode *inode)
 	/* Let go of any associated proc directory entry */
 	de = PROC_I(inode)->pde;
 	if (de)
-		de_put(de);
+		pde_put(de);
 	if (PROC_I(inode)->sysctl)
 		sysctl_head_put(PROC_I(inode)->sysctl);
 	clear_inode(inode);
@@ -480,7 +457,7 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 		}
 		unlock_new_inode(inode);
 	} else
-	       de_put(de);
+	       pde_put(de);
 	return inode;
 }			
 
@@ -495,7 +472,7 @@ int proc_fill_super(struct super_block *s)
 	s->s_op = &proc_sops;
 	s->s_time_gran = 1;
 	
-	de_get(&proc_root);
+	pde_get(&proc_root);
 	root_inode = proc_get_inode(s, PROC_ROOT_INO, &proc_root);
 	if (!root_inode)
 		goto out_no_root;
@@ -509,6 +486,6 @@ int proc_fill_super(struct super_block *s)
 out_no_root:
 	printk("proc_read_super: get root inode failed\n");
 	iput(root_inode);
-	de_put(&proc_root);
+	pde_put(&proc_root);
 	return -ENOMEM;
 }

@@ -30,6 +30,9 @@
 #include <linux/audit.h>
 #include <linux/falloc.h>
 #include <linux/fs_struct.h>
+#include <linux/ima.h>
+
+#include "internal.h"
 
 int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
@@ -818,15 +821,14 @@ static inline int __get_file_write_access(struct inode *inode,
 }
 
 static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
-					int flags, struct file *f,
+					struct file *f,
 					int (*open)(struct inode *, struct file *),
 					const struct cred *cred)
 {
 	struct inode *inode;
 	int error;
 
-	f->f_flags = flags;
-	f->f_mode = (__force fmode_t)((flags+1) & O_ACCMODE) | FMODE_LSEEK |
+	f->f_mode = OPEN_FMODE(f->f_flags) | FMODE_LSEEK |
 				FMODE_PREAD | FMODE_PWRITE;
 	inode = dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
@@ -855,6 +857,7 @@ static struct file *__dentry_open(struct dentry *dentry, struct vfsmount *mnt,
 		if (error)
 			goto cleanup_all;
 	}
+	ima_counts_get(f);
 
 	f->f_flags &= ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
 
@@ -926,7 +929,6 @@ struct file *lookup_instantiate_filp(struct nameidata *nd, struct dentry *dentry
 	if (IS_ERR(dentry))
 		goto out_err;
 	nd->intent.open.file = __dentry_open(dget(dentry), mntget(nd->path.mnt),
-					     nd->intent.open.flags - 1,
 					     nd->intent.open.file,
 					     open, cred);
 out:
@@ -945,7 +947,7 @@ EXPORT_SYMBOL_GPL(lookup_instantiate_filp);
  *
  * Note that this function destroys the original nameidata
  */
-struct file *nameidata_to_filp(struct nameidata *nd, int flags)
+struct file *nameidata_to_filp(struct nameidata *nd)
 {
 	const struct cred *cred = current_cred();
 	struct file *filp;
@@ -954,7 +956,7 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	filp = nd->intent.open.file;
 	/* Has the filesystem initialised the file for us? */
 	if (filp->f_path.dentry == NULL)
-		filp = __dentry_open(nd->path.dentry, nd->path.mnt, flags, filp,
+		filp = __dentry_open(nd->path.dentry, nd->path.mnt, filp,
 				     NULL, cred);
 	else
 		path_put(&nd->path);
@@ -993,7 +995,8 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags,
 		return ERR_PTR(error);
 	}
 
-	return __dentry_open(dentry, mnt, flags, f, NULL, cred);
+	f->f_flags = flags;
+	return __dentry_open(dentry, mnt, f, NULL, cred);
 }
 EXPORT_SYMBOL(dentry_open);
 

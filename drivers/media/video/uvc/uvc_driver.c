@@ -1651,7 +1651,6 @@ static int uvc_register_video(struct uvc_device *dev,
 	 * get another one.
 	 */
 	vdev->parent = &dev->intf->dev;
-	vdev->minor = -1;
 	vdev->fops = &uvc_fops;
 	vdev->release = uvc_release;
 	strlcpy(vdev->name, dev->name, sizeof vdev->name);

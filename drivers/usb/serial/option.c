@@ -340,6 +340,10 @@ static int  option_resume(struct usb_serial *serial);
 #define FOUR_G_SYSTEMS_VENDOR_ID		0x1c9e
 #define FOUR_G_SYSTEMS_PRODUCT_W14		0x9603
 
+/* Haier products */
+#define HAIER_VENDOR_ID				0x201e
+#define HAIER_PRODUCT_CE100			0x2009
+
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
@@ -641,6 +645,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(AIRPLUS_VENDOR_ID, AIRPLUS_PRODUCT_MCD650) },
 	{ USB_DEVICE(TLAYTECH_VENDOR_ID, TLAYTECH_PRODUCT_TEU800) },
 	{ USB_DEVICE(FOUR_G_SYSTEMS_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14) },
+	{ USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_CE100) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);

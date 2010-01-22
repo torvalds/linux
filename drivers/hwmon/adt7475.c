@@ -148,7 +148,7 @@
 
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
-I2C_CLIENT_INSMOD_4(adt7473, adt7475, adt7476, adt7490);
+enum chips { adt7473, adt7475, adt7476, adt7490 };
 
 static const struct i2c_device_id adt7475_id[] = {
 	{ "adt7473", adt7473 },
@@ -1172,7 +1172,7 @@ static struct attribute_group in4_attr_group = { .attrs = in4_attrs };
 static struct attribute_group in5_attr_group = { .attrs = in5_attrs };
 static struct attribute_group vid_attr_group = { .attrs = vid_attrs };
 
-static int adt7475_detect(struct i2c_client *client, int kind,
+static int adt7475_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -1412,7 +1412,7 @@ static struct i2c_driver adt7475_driver = {
 	.remove		= adt7475_remove,
 	.id_table	= adt7475_id,
 	.detect		= adt7475_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static void adt7475_read_hystersis(struct i2c_client *client)

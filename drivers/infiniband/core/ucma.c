@@ -43,6 +43,7 @@
 #include <rdma/rdma_user_cm.h>
 #include <rdma/ib_marshall.h>
 #include <rdma/rdma_cm.h>
+#include <rdma/rdma_cm_ib.h>
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("RDMA Userspace Connection Manager Access");
@@ -562,10 +563,10 @@ static void ucma_copy_ib_route(struct rdma_ucm_query_route_resp *resp,
 	switch (route->num_paths) {
 	case 0:
 		dev_addr = &route->addr.dev_addr;
-		ib_addr_get_dgid(dev_addr,
-				 (union ib_gid *) &resp->ib_route[0].dgid);
-		ib_addr_get_sgid(dev_addr,
-				 (union ib_gid *) &resp->ib_route[0].sgid);
+		rdma_addr_get_dgid(dev_addr,
+				   (union ib_gid *) &resp->ib_route[0].dgid);
+		rdma_addr_get_sgid(dev_addr,
+				   (union ib_gid *) &resp->ib_route[0].sgid);
 		resp->ib_route[0].pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 		break;
 	case 2:
@@ -812,6 +813,51 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 	return ret;
 }
 
+static int ucma_set_ib_path(struct ucma_context *ctx,
+			    struct ib_path_rec_data *path_data, size_t optlen)
+{
+	struct ib_sa_path_rec sa_path;
+	struct rdma_cm_event event;
+	int ret;
+
+	if (optlen % sizeof(*path_data))
+		return -EINVAL;
+
+	for (; optlen; optlen -= sizeof(*path_data), path_data++) {
+		if (path_data->flags == (IB_PATH_GMP | IB_PATH_PRIMARY |
+					 IB_PATH_BIDIRECTIONAL))
+			break;
+	}
+
+	if (!optlen)
+		return -EINVAL;
+
+	ib_sa_unpack_path(path_data->path_rec, &sa_path);
+	ret = rdma_set_ib_paths(ctx->cm_id, &sa_path, 1);
+	if (ret)
+		return ret;
+
+	memset(&event, 0, sizeof event);
+	event.event = RDMA_CM_EVENT_ROUTE_RESOLVED;
+	return ucma_event_handler(ctx->cm_id, &event);
+}
+
+static int ucma_set_option_ib(struct ucma_context *ctx, int optname,
+			      void *optval, size_t optlen)
+{
+	int ret;
+
+	switch (optname) {
+	case RDMA_OPTION_IB_PATH:
+		ret = ucma_set_ib_path(ctx, optval, optlen);
+		break;
+	default:
+		ret = -ENOSYS;
+	}
+
+	return ret;
+}
+
 static int ucma_set_option_level(struct ucma_context *ctx, int level,
 				 int optname, void *optval, size_t optlen)
 {
@@ -820,6 +866,9 @@ static int ucma_set_option_level(struct ucma_context *ctx, int level,
 	switch (level) {
 	case RDMA_OPTION_ID:
 		ret = ucma_set_option_id(ctx, optname, optval, optlen);
+		break;
+	case RDMA_OPTION_IB:
+		ret = ucma_set_option_ib(ctx, optname, optval, optlen);
 		break;
 	default:
 		ret = -ENOSYS;

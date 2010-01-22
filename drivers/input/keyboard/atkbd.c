@@ -134,7 +134,8 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_CMD_GETID		0x02f2
 #define ATKBD_CMD_SETREP	0x10f3
 #define ATKBD_CMD_ENABLE	0x00f4
-#define ATKBD_CMD_RESET_DIS	0x00f5
+#define ATKBD_CMD_RESET_DIS	0x00f5	/* Reset to defaults and disable */
+#define ATKBD_CMD_RESET_DEF	0x00f6	/* Reset to defaults */
 #define ATKBD_CMD_SETALL_MBR	0x00fa
 #define ATKBD_CMD_RESET_BAT	0x02ff
 #define ATKBD_CMD_RESEND	0x00fe
@@ -224,8 +225,10 @@ struct atkbd {
 
 	struct delayed_work event_work;
 	unsigned long event_jiffies;
-	struct mutex event_mutex;
 	unsigned long event_mask;
+
+	/* Serializes reconnect(), attr->set() and event work */
+	struct mutex mutex;
 };
 
 /*
@@ -575,7 +578,7 @@ static void atkbd_event_work(struct work_struct *work)
 {
 	struct atkbd *atkbd = container_of(work, struct atkbd, event_work.work);
 
-	mutex_lock(&atkbd->event_mutex);
+	mutex_lock(&atkbd->mutex);
 
 	if (!atkbd->enabled) {
 		/*
@@ -594,7 +597,7 @@ static void atkbd_event_work(struct work_struct *work)
 			atkbd_set_repeat_rate(atkbd);
 	}
 
-	mutex_unlock(&atkbd->event_mutex);
+	mutex_unlock(&atkbd->mutex);
 }
 
 /*
@@ -610,7 +613,7 @@ static void atkbd_schedule_event_work(struct atkbd *atkbd, int event_bit)
 
 	atkbd->event_jiffies = jiffies;
 	set_bit(event_bit, &atkbd->event_mask);
-	wmb();
+	mb();
 	schedule_delayed_work(&atkbd->event_work, delay);
 }
 
@@ -840,7 +843,7 @@ static void atkbd_cleanup(struct serio *serio)
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 
 	atkbd_disable(atkbd);
-	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_BAT);
+	ps2_command(&atkbd->ps2dev, NULL, ATKBD_CMD_RESET_DEF);
 }
 
 
@@ -852,13 +855,20 @@ static void atkbd_disconnect(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 
+	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
+
 	atkbd_disable(atkbd);
 
-	/* make sure we don't have a command in flight */
+	input_unregister_device(atkbd->dev);
+
+	/*
+	 * Make sure we don't have a command in flight.
+	 * Note that since atkbd->enabled is false event work will keep
+	 * rescheduling itself until it gets canceled and will not try
+	 * accessing freed input device or serio port.
+	 */
 	cancel_delayed_work_sync(&atkbd->event_work);
 
-	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
-	input_unregister_device(atkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(atkbd);
@@ -1090,7 +1100,7 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
 	INIT_DELAYED_WORK(&atkbd->event_work, atkbd_event_work);
-	mutex_init(&atkbd->event_mutex);
+	mutex_init(&atkbd->mutex);
 
 	switch (serio->id.type) {
 
@@ -1165,6 +1175,7 @@ static int atkbd_reconnect(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 	struct serio_driver *drv = serio->drv;
+	int retval = -1;
 
 	if (!atkbd || !drv) {
 		dev_dbg(&serio->dev,
@@ -1172,13 +1183,16 @@ static int atkbd_reconnect(struct serio *serio)
 		return -1;
 	}
 
+	mutex_lock(&atkbd->mutex);
+
 	atkbd_disable(atkbd);
 
 	if (atkbd->write) {
 		if (atkbd_probe(atkbd))
-			return -1;
+			goto out;
+
 		if (atkbd->set != atkbd_select_set(atkbd, atkbd->set, atkbd->extra))
-			return -1;
+			goto out;
 
 		atkbd_activate(atkbd);
 
@@ -1196,8 +1210,11 @@ static int atkbd_reconnect(struct serio *serio)
 	}
 
 	atkbd_enable(atkbd);
+	retval = 0;
 
-	return 0;
+ out:
+	mutex_unlock(&atkbd->mutex);
+	return retval;
 }
 
 static struct serio_device_id atkbd_serio_ids[] = {
@@ -1241,47 +1258,28 @@ static ssize_t atkbd_attr_show_helper(struct device *dev, char *buf,
 				ssize_t (*handler)(struct atkbd *, char *))
 {
 	struct serio *serio = to_serio_port(dev);
-	int retval;
+	struct atkbd *atkbd = serio_get_drvdata(serio);
 
-	retval = serio_pin_driver(serio);
-	if (retval)
-		return retval;
-
-	if (serio->drv != &atkbd_drv) {
-		retval = -ENODEV;
-		goto out;
-	}
-
-	retval = handler((struct atkbd *)serio_get_drvdata(serio), buf);
-
-out:
-	serio_unpin_driver(serio);
-	return retval;
+	return handler(atkbd, buf);
 }
 
 static ssize_t atkbd_attr_set_helper(struct device *dev, const char *buf, size_t count,
 				ssize_t (*handler)(struct atkbd *, const char *, size_t))
 {
 	struct serio *serio = to_serio_port(dev);
-	struct atkbd *atkbd;
+	struct atkbd *atkbd = serio_get_drvdata(serio);
 	int retval;
 
-	retval = serio_pin_driver(serio);
+	retval = mutex_lock_interruptible(&atkbd->mutex);
 	if (retval)
 		return retval;
 
-	if (serio->drv != &atkbd_drv) {
-		retval = -ENODEV;
-		goto out;
-	}
-
-	atkbd = serio_get_drvdata(serio);
 	atkbd_disable(atkbd);
 	retval = handler(atkbd, buf, count);
 	atkbd_enable(atkbd);
 
-out:
-	serio_unpin_driver(serio);
+	mutex_unlock(&atkbd->mutex);
+
 	return retval;
 }
 

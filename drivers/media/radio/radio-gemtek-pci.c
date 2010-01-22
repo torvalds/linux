@@ -240,6 +240,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct gemtek_pci *card = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	if (f->frequency < GEMTEK_PCI_RANGE_LOW ||
 	    f->frequency > GEMTEK_PCI_RANGE_HIGH)
 		return -EINVAL;
@@ -253,6 +255,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct gemtek_pci *card = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = card->current_frequency;
 	return 0;

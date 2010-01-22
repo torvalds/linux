@@ -470,7 +470,7 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_ak4642);
 
 static int __init ak4642_modinit(void)
 {
-	int ret;
+	int ret = 0;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&ak4642_i2c_driver);
 #endif

@@ -407,7 +407,7 @@ static int sa1100_rtc_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops sa1100_rtc_pm_ops = {
+static const struct dev_pm_ops sa1100_rtc_pm_ops = {
 	.suspend	= sa1100_rtc_suspend,
 	.resume		= sa1100_rtc_resume,
 };

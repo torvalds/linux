@@ -215,13 +215,10 @@ config RADIO_MIROPCM20
 	  module will be called radio-miropcm20.
 
 config RADIO_SF16FMI
-	tristate "SF16FMI Radio"
+	tristate "SF16-FMI/SF16-FMP Radio"
 	depends on ISA && VIDEO_V4L2
 	---help---
-	  Choose Y here if you have one of these FM radio cards.  If you
-	  compile the driver into the kernel and your card is not PnP one, you
-	  have to add "sf16fm=<io>" to the kernel command line (I/O address is
-	  0x284 or 0x384).
+	  Choose Y here if you have one of these FM radio cards.
 
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on

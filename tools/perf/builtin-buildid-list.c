@@ -9,7 +9,6 @@
 #include "builtin.h"
 #include "perf.h"
 #include "util/cache.h"
-#include "util/data_map.h"
 #include "util/debug.h"
 #include "util/parse-options.h"
 #include "util/session.h"
@@ -18,7 +17,7 @@
 static char const *input_name = "perf.data";
 static int force;
 
-static const char *const buildid_list_usage[] = {
+static const char * const buildid_list_usage[] = {
 	"perf buildid-list [<options>]",
 	NULL
 };
@@ -55,8 +54,9 @@ static int perf_file_section__process_buildids(struct perf_file_section *self,
 static int __cmd_buildid_list(void)
 {
 	int err = -1;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, force);
+	struct perf_session *session;
 
+	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
 		return -1;
 

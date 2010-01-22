@@ -77,7 +77,6 @@ typedef struct user_fpu_struct elf_fpregset_t;
 #endif
 #define ELF_ARCH	EM_AVR32
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

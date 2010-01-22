@@ -1451,6 +1451,8 @@ static int stv0900_status(struct stv0900_internal *intp,
 {
 	enum fe_stv0900_search_state demod_state;
 	int locked = FALSE;
+	u8 tsbitrate0_val, tsbitrate1_val;
+	s32 bitrate;
 
 	demod_state = stv0900_get_bits(intp, HEADER_MODE);
 	switch (demod_state) {
@@ -1472,6 +1474,17 @@ static int stv0900_status(struct stv0900_internal *intp,
 	}
 
 	dprintk("%s: locked = %d\n", __func__, locked);
+
+	if (stvdebug) {
+		/* Print TS bitrate */
+		tsbitrate0_val = stv0900_read_reg(intp, TSBITRATE0);
+		tsbitrate1_val = stv0900_read_reg(intp, TSBITRATE1);
+		/* Formula Bit rate = Mclk * px_tsfifo_bitrate / 16384 */
+		bitrate = (stv0900_get_mclk_freq(intp, intp->quartz)/1000000)
+			* (tsbitrate1_val << 8 | tsbitrate0_val);
+		bitrate /= 16384;
+		dprintk("TS bitrate = %d Mbit/sec \n", bitrate);
+	};
 
 	return locked;
 }
