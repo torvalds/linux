@@ -459,7 +459,7 @@ config SERIAL_SAMSUNG_UARTS
 	int
 	depends on ARM && PLAT_S3C
 	default 2 if ARCH_S3C2400
-	default 4 if ARCH_S5P6440 || ARCH_S5PC1XX || ARCH_S3C64XX || CPU_S3C2443
+	default 4 if ARCH_S5P6440 || ARCH_S5PC1XX || ARCH_S5PV210 || ARCH_S3C64XX || CPU_S3C2443
 	default 3
 	help
 	  Select the number of available UART ports for the Samsung S3C
@@ -539,6 +539,13 @@ config SERIAL_S5PC100
 	default y
 	help
 	  Serial port support for the Samsung S5PC100 SoCs
+
+config SERIAL_S5PV210
+	tristate "Samsung S5PV210 Serial port support"
+	depends on SERIAL_SAMSUNG && CPU_S5PV210
+	default y
+	help
+	  Serial port support for Samsung's S5P Family of SoC's
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
