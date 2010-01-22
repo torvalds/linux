@@ -1080,6 +1080,7 @@ struct iwl_priv {
 	void *scan;
 	int scan_bands;
 	struct cfg80211_scan_request *scan_request;
+	bool is_internal_short_scan;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 

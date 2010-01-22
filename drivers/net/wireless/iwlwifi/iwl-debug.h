@@ -113,6 +113,7 @@ struct iwl_debugfs {
 		struct dentry *file_ucode_tracing;
 		struct dentry *file_fh_reg;
 		struct dentry *file_missed_beacon;
+		struct dentry *file_internal_scan;
 	} dbgfs_debug_files;
 	u32 sram_offset;
 	u32 sram_len;

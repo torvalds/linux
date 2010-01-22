@@ -2174,6 +2174,27 @@ static ssize_t iwl_dbgfs_missed_beacon_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_internal_scan_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int scan;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &scan) != 1)
+		return -EINVAL;
+
+	iwl_internal_short_hw_scan(priv);
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -2192,6 +2213,7 @@ DEBUGFS_WRITE_FILE_OPS(csr);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
+DEBUGFS_WRITE_FILE_OPS(internal_scan);
 
 /*
  * Create the debugfs files and directories
@@ -2245,6 +2267,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(csr, debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(internal_scan, debug, S_IWUSR);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_ADD_FILE(ucode_rx_stats, debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_tx_stats, debug, S_IRUSR);
@@ -2306,6 +2329,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_csr);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_fh_reg);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_missed_beacon);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.file_internal_scan);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_REMOVE(priv->dbgfs->dbgfs_debug_files.
 			file_ucode_rx_stats);
