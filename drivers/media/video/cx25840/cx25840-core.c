@@ -734,10 +734,8 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		v4l_dbg(1, cx25840_debug, client, "vid_input 0x%x\n",
 			vid_input);
 		reg = vid_input & 0xff;
-		if ((vid_input & CX25840_SVIDEO_ON) == CX25840_SVIDEO_ON)
-			is_composite = 0;
-		else if ((vid_input & CX25840_COMPONENT_ON) == 0)
-			is_composite = 1;
+		is_composite = !is_component &&
+			((vid_input & CX25840_SVIDEO_ON) != CX25840_SVIDEO_ON);
 
 		v4l_dbg(1, cx25840_debug, client, "mux cfg 0x%x comp=%d\n",
 			reg, is_composite);
