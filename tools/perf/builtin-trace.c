@@ -515,6 +515,8 @@ static const struct option options[] = {
 		     parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-trace.xx script in specified language"),
+	OPT_STRING('i', "input", &input_name, "file",
+		    "input file name"),
 
 	OPT_END()
 };
