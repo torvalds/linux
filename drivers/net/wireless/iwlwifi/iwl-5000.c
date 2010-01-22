@@ -580,9 +580,9 @@ static void iwl5000_tx_queue_set_status(struct iwl_priv *priv,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_INFO(priv, "%s %s Queue %d on AC %d\n",
+	IWL_DEBUG_INFO(priv, "%s %s Queue %d on FIFO %d\n",
 		       active ? "Activate" : "Deactivate",
-		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
+		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
 }
 
 int iwl5000_alive_notify(struct iwl_priv *priv)
