@@ -1232,7 +1232,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	int i, j , w, num;
 	int weight, wmax;
 	unsigned long *c;
-	u64 constraints[X86_PMC_IDX_MAX][BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	unsigned long constraints[X86_PMC_IDX_MAX][BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	struct hw_perf_event *hwc;
 
@@ -1249,7 +1249,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	 */
 	for (i = 0, num = n; i < n; i++, num--) {
 		hwc = &cpuc->event_list[i]->hw;
-		c = (unsigned long *)constraints[i];
+		c = constraints[i];
 
 		/* never assigned */
 		if (hwc->idx == -1)
@@ -1306,7 +1306,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	for (w = 1, num = n; num && w <= wmax; w++) {
 		/* for each event */
 		for (i = 0; num && i < n; i++) {
-			c = (unsigned long *)constraints[i];
+			c = constraints[i];
 			hwc = &cpuc->event_list[i]->hw;
 
 			weight = bitmap_weight(c, X86_PMC_IDX_MAX);
