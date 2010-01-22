@@ -447,34 +447,6 @@ out:
 	return ret;
 }
 
-static void __cpuinit probe_tlb(unsigned long config)
-{
-	struct cpuinfo_mips *c = &current_cpu_data;
-	unsigned int reg;
-
-	/*
-	 * If this isn't a MIPS32 / MIPS64 compliant CPU.  Config 1 register
-	 * is not supported, we assume R4k style.  Cpu probing already figured
-	 * out the number of tlb entries.
-	 */
-	if ((c->processor_id & 0xff0000) == PRID_COMP_LEGACY)
-		return;
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 * If TLB is shared in SMTC system, total size already
-	 * has been calculated and written into cpu_data tlbsize
-	 */
-	if((smtc_status & SMTC_TLB_SHARED) == SMTC_TLB_SHARED)
-		return;
-#endif /* CONFIG_MIPS_MT_SMTC */
-
-	reg = read_c0_config1();
-	if (!((config >> 7) & 3))
-		panic("No TLB present");
-
-	c->tlbsize = ((reg >> 25) & 0x3f) + 1;
-}
-
 static int __cpuinitdata ntlb;
 static int __init set_ntlb(char *str)
 {
@@ -486,8 +458,6 @@ __setup("ntlb=", set_ntlb);
 
 void __cpuinit tlb_init(void)
 {
-	unsigned int config = read_c0_config();
-
 	/*
 	 * You should never change this register:
 	 *   - On R4600 1.7 the tlbp never hits for pages smaller than
@@ -495,7 +465,6 @@ void __cpuinit tlb_init(void)
 	 *   - The entire mm handling assumes the c0_pagemask register to
 	 *     be set to fixed-size pages.
 	 */
-	probe_tlb(config);
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);
 	if (current_cpu_type() == CPU_R10000 ||
