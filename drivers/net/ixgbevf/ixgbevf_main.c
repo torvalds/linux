@@ -956,9 +956,16 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 eicr;
+	u32 msg;
 
 	eicr = IXGBE_READ_REG(hw, IXGBE_VTEICS);
 	IXGBE_WRITE_REG(hw, IXGBE_VTEICR, eicr);
+
+	hw->mbx.ops.read(hw, &msg, 1);
+
+	if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG)
+		mod_timer(&adapter->watchdog_timer,
+			  round_jiffies(jiffies + 10));
 
 	return IRQ_HANDLED;
 }
