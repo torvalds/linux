@@ -18,6 +18,7 @@
 #include <asm/processor.h>
 #include <linux/smp.h>
 #include <asm/k8.h>
+#include <asm/smp.h>
 
 #define LVL_1_INST	1
 #define LVL_1_DATA	2
@@ -299,8 +300,10 @@ amd_check_l3_disable(int index, struct _cpuid4_info_regs *this_leaf)
 	if (boot_cpu_data.x86 == 0x11)
 		return;
 
-	/* see erratum #382 */
-	if ((boot_cpu_data.x86 == 0x10) && (boot_cpu_data.x86_model < 0x8))
+	/* see errata #382 and #388 */
+	if ((boot_cpu_data.x86 == 0x10) &&
+	    ((boot_cpu_data.x86_model < 0x9) ||
+	     (boot_cpu_data.x86_mask  < 0x1)))
 		return;
 
 	this_leaf->can_disable = 1;
@@ -726,12 +729,12 @@ static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf,
 		return -EINVAL;
 
 	pci_read_config_dword(dev, 0x1BC + index * 4, &reg);
-	return sprintf(buf, "%x\n", reg);
+	return sprintf(buf, "0x%08x\n", reg);
 }
 
 #define SHOW_CACHE_DISABLE(index)					\
 static ssize_t								\
-show_cache_disable_##index(struct _cpuid4_info *this_leaf, char *buf)  	\
+show_cache_disable_##index(struct _cpuid4_info *this_leaf, char *buf)	\
 {									\
 	return show_cache_disable(this_leaf, buf, index);		\
 }
@@ -745,7 +748,9 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	int node = cpu_to_node(cpu);
 	struct pci_dev *dev = node_to_k8_nb_misc(node);
 	unsigned long val = 0;
-	unsigned int scrubber = 0;
+
+#define SUBCACHE_MASK	(3UL << 20)
+#define SUBCACHE_INDEX	0xfff
 
 	if (!this_leaf->can_disable)
 		return -EINVAL;
@@ -759,21 +764,24 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	if (strict_strtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	val |= 0xc0000000;
+	/* do not allow writes outside of allowed bits */
+	if (val & ~(SUBCACHE_MASK | SUBCACHE_INDEX))
+		return -EINVAL;
 
-	pci_read_config_dword(dev, 0x58, &scrubber);
-	scrubber &= ~0x1f000000;
-	pci_write_config_dword(dev, 0x58, scrubber);
-
-	pci_write_config_dword(dev, 0x1BC + index * 4, val & ~0x40000000);
-	wbinvd();
+	val |= BIT(30);
 	pci_write_config_dword(dev, 0x1BC + index * 4, val);
+	/*
+	 * We need to WBINVD on a core on the node containing the L3 cache which
+	 * indices we disable therefore a simple wbinvd() is not sufficient.
+	 */
+	wbinvd_on_cpu(cpu);
+	pci_write_config_dword(dev, 0x1BC + index * 4, val | BIT(31));
 	return count;
 }
 
 #define STORE_CACHE_DISABLE(index)					\
 static ssize_t								\
-store_cache_disable_##index(struct _cpuid4_info *this_leaf,	     	\
+store_cache_disable_##index(struct _cpuid4_info *this_leaf,		\
 			    const char *buf, size_t count)		\
 {									\
 	return store_cache_disable(this_leaf, buf, count, index);	\
