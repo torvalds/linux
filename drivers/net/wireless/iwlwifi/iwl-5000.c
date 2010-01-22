@@ -1503,6 +1503,7 @@ struct iwl_lib_ops iwl5000_lib = {
 		.temperature = iwl5000_temperature,
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -1556,6 +1557,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.temperature = iwl5150_temperature,
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static const struct iwl_ops iwl5000_ops = {

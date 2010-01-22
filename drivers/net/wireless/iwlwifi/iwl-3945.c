@@ -1951,11 +1951,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (iwl_add_station(priv, iwl_bcast_addr, false, CMD_SYNC, NULL) ==
-	    IWL_INVALID_STATION) {
-		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
-		return -EIO;
-	}
+	priv->cfg->ops->lib->add_bcast_station(priv);
 
 	/* If we have set the ASSOC_MSK and we are in BSS mode then
 	 * add the IWL_AP_ID to the station rate table */
@@ -2796,6 +2792,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
+	.add_bcast_station = iwl3945_add_bcast_station,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {

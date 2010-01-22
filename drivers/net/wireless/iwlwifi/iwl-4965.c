@@ -2206,6 +2206,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.temperature = iwl4965_temperature_calib,
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static const struct iwl_ops iwl4965_ops = {

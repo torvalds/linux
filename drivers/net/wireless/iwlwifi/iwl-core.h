@@ -188,6 +188,8 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
+	/* station management */
+	void (*add_bcast_station)(struct iwl_priv *priv);
 };
 
 struct iwl_led_ops {

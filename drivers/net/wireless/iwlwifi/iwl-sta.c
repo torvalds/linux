@@ -1127,12 +1127,23 @@ static void iwl_sta_init_bcast_lq(struct iwl_priv *priv)
  */
 void iwl_add_bcast_station(struct iwl_priv *priv)
 {
+	IWL_DEBUG_INFO(priv, "Adding broadcast station to station table\n");
 	iwl_add_station(priv, iwl_bcast_addr, false, CMD_SYNC, NULL);
 
 	/* Set up default rate scaling table in device's station table */
 	iwl_sta_init_bcast_lq(priv);
 }
 EXPORT_SYMBOL(iwl_add_bcast_station);
+
+/**
+ * iwl3945_add_bcast_station - add broadcast station into station table.
+ */
+void iwl3945_add_bcast_station(struct iwl_priv *priv)
+{
+	IWL_DEBUG_INFO(priv, "Adding broadcast station to station table\n");
+	iwl_add_station(priv, iwl_bcast_addr, false, CMD_SYNC, NULL);
+}
+EXPORT_SYMBOL(iwl3945_add_bcast_station);
 
 /**
  * iwl_get_sta_id - Find station's index within station table

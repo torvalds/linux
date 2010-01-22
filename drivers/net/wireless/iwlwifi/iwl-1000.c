@@ -140,6 +140,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.temperature = iwl5000_temperature,
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static const struct iwl_ops iwl1000_ops = {
