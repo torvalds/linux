@@ -980,7 +980,7 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 {
 	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	struct amd_iommu *iommu;
-	int i;
+	unsigned long i;
 
 #ifdef CONFIG_IOMMU_STRESS
 	populate = false;
