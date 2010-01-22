@@ -2381,6 +2381,8 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 					    &link_up, false)) != 0) {
 			adapter->link_up = link_up;
 			adapter->link_speed = link_speed;
+			netif_carrier_off(netdev);
+			netif_tx_stop_all_queues(netdev);
 			schedule_work(&adapter->reset_task);
 			goto pf_has_reset;
 		}
