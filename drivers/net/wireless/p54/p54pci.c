@@ -238,7 +238,6 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	int ring_index, struct p54p_desc *ring, u32 ring_limit,
 	struct sk_buff **tx_buf)
 {
-	unsigned long flags;
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
 	struct p54p_desc *desc;
@@ -249,7 +248,6 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	(*index) = idx = le32_to_cpu(ring_control->device_idx[1]);
 	idx %= ring_limit;
 
-	spin_lock_irqsave(&priv->lock, flags);
 	while (i != idx) {
 		desc = &ring[i];
 
@@ -264,16 +262,12 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 		desc->len = 0;
 		desc->flags = 0;
 
-		if (skb && FREE_AFTER_TX(skb)) {
-			spin_unlock_irqrestore(&priv->lock, flags);
+		if (skb && FREE_AFTER_TX(skb))
 			p54_free_skb(dev, skb);
-			spin_lock_irqsave(&priv->lock, flags);
-		}
 
 		i++;
 		i %= ring_limit;
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void p54p_tasklet(unsigned long dev_id)
@@ -306,7 +300,6 @@ static irqreturn_t p54p_interrupt(int irq, void *dev_id)
 	struct p54p_priv *priv = dev->priv;
 	__le32 reg;
 
-	spin_lock(&priv->lock);
 	reg = P54P_READ(int_ident);
 	if (unlikely(reg == cpu_to_le32(0xFFFFFFFF))) {
 		goto out;
@@ -321,15 +314,14 @@ static irqreturn_t p54p_interrupt(int irq, void *dev_id)
 		complete(&priv->boot_comp);
 
 out:
-	spin_unlock(&priv->lock);
 	return reg ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
+	unsigned long flags;
 	struct p54p_priv *priv = dev->priv;
 	struct p54p_ring_control *ring_control = priv->ring_control;
-	unsigned long flags;
 	struct p54p_desc *desc;
 	dma_addr_t mapping;
 	u32 device_idx, idx, i;
@@ -370,13 +362,13 @@ static void p54p_stop(struct ieee80211_hw *dev)
 	unsigned int i;
 	struct p54p_desc *desc;
 
-	tasklet_kill(&priv->tasklet);
-
 	P54P_WRITE(int_enable, cpu_to_le32(0));
 	P54P_READ(int_enable);
 	udelay(10);
 
 	free_irq(priv->pdev->irq, dev);
+
+	tasklet_kill(&priv->tasklet);
 
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
 
