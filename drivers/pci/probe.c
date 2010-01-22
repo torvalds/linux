@@ -316,13 +316,17 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		limit |= (io_limit_hi << 16);
 	}
 
-	if (base <= limit) {
+	if (base && base <= limit) {
 		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
 		if (!res->start)
 			res->start = base;
 		if (!res->end)
 			res->end = limit + 0xfff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
+	} else {
+		dev_printk(KERN_DEBUG, &dev->dev,
+			 "  bridge window [io  %04lx - %04lx] reg reading\n",
+				 base, limit);
 	}
 
 	res = child->resource[1];
@@ -330,11 +334,15 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 	pci_read_config_word(dev, PCI_MEMORY_LIMIT, &mem_limit_lo);
 	base = (mem_base_lo & PCI_MEMORY_RANGE_MASK) << 16;
 	limit = (mem_limit_lo & PCI_MEMORY_RANGE_MASK) << 16;
-	if (base <= limit) {
+	if (base && base <= limit) {
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM;
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
+	} else {
+		dev_printk(KERN_DEBUG, &dev->dev,
+			"  bridge window [mem 0x%08lx - 0x%08lx] reg reading\n",
+					 base, limit + 0xfffff);
 	}
 
 	res = child->resource[2];
@@ -366,7 +374,7 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 #endif
 		}
 	}
-	if (base <= limit) {
+	if (base && base <= limit) {
 		res->flags = (mem_base_lo & PCI_PREF_RANGE_TYPE_MASK) |
 					 IORESOURCE_MEM | IORESOURCE_PREFETCH;
 		if (res->flags & PCI_PREF_RANGE_TYPE_64)
@@ -374,6 +382,10 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		res->start = base;
 		res->end = limit + 0xfffff;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
+	} else {
+		dev_printk(KERN_DEBUG, &dev->dev,
+		     "  bridge window [mem 0x%08lx - %08lx pref] reg reading\n",
+					 base, limit + 0xfffff);
 	}
 }
 
