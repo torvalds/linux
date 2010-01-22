@@ -270,7 +270,7 @@ static int __devinit xps2_of_probe(struct of_device *ofdev,
 	drvdata->irq = r_irq.start;
 
 	phys_addr = r_mem.start;
-	remap_size = r_mem.end - r_mem.start + 1;
+	remap_size = resource_size(&r_mem);
 	if (!request_mem_region(phys_addr, remap_size, DRIVER_NAME)) {
 		dev_err(dev, "Couldn't lock memory region at 0x%08llX\n",
 			(unsigned long long)phys_addr);
@@ -344,7 +344,7 @@ static int __devexit xps2_of_remove(struct of_device *of_dev)
 	if (of_address_to_resource(of_dev->node, 0, &r_mem))
 		dev_err(dev, "invalid address\n");
 	else
-		release_mem_region(r_mem.start, r_mem.end - r_mem.start + 1);
+		release_mem_region(r_mem.start, resource_size(&r_mem));
 
 	kfree(drvdata);
 
