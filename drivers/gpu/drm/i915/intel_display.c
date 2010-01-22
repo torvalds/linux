@@ -1638,6 +1638,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
 
+		drm_vblank_off(dev, pipe);
 		/* Disable display plane */
 		temp = I915_READ(dspcntr_reg);
 		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
