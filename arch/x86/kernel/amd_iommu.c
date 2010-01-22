@@ -540,7 +540,7 @@ static void flush_all_devices_for_iommu(struct amd_iommu *iommu)
 static void flush_devices_by_domain(struct protection_domain *domain)
 {
 	struct amd_iommu *iommu;
-	int i;
+	unsigned long i;
 
 	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
 		if ((domain == NULL && amd_iommu_pd_table[i] == NULL) ||
