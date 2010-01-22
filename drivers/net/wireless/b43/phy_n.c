@@ -912,6 +912,82 @@ ok:
 	b43_phy_write(dev, B43_NPHY_RFSEQMODE, seq_mode);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RFCtrlOverride */
+static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
+						u16 value, u8 core, bool off)
+{
+	int i;
+	u8 index = fls(field);
+	u8 addr, en_addr, val_addr;
+	/* we expect only one bit set */
+	B43_WARN_ON(field & (~(1 << index)));
+
+	if (dev->phy.rev >= 3) {
+		const struct nphy_rf_control_override_rev3 *rf_ctrl;
+		for (i = 0; i < 2; i++) {
+			if (index == 0 || index == 16) {
+				b43err(dev->wl,
+					"Unsupported RF Ctrl Override call\n");
+				return;
+			}
+
+			rf_ctrl = &tbl_rf_control_override_rev3[index - 1];
+			en_addr = B43_PHY_N((i == 0) ?
+				rf_ctrl->en_addr0 : rf_ctrl->en_addr1);
+			val_addr = B43_PHY_N((i == 0) ?
+				rf_ctrl->val_addr0 : rf_ctrl->val_addr1);
+
+			if (off) {
+				b43_phy_mask(dev, en_addr, ~(field));
+				b43_phy_mask(dev, val_addr,
+						~(rf_ctrl->val_mask));
+			} else {
+				if (core == 0 || ((1 << core) & i) != 0) {
+					b43_phy_set(dev, en_addr, field);
+					b43_phy_maskset(dev, val_addr,
+						~(rf_ctrl->val_mask),
+						(value << rf_ctrl->val_shift));
+				}
+			}
+		}
+	} else {
+		const struct nphy_rf_control_override_rev2 *rf_ctrl;
+		if (off) {
+			b43_phy_mask(dev, B43_NPHY_RFCTL_OVER, ~(field));
+			value = 0;
+		} else {
+			b43_phy_set(dev, B43_NPHY_RFCTL_OVER, field);
+		}
+
+		for (i = 0; i < 2; i++) {
+			if (index <= 1 || index == 16) {
+				b43err(dev->wl,
+					"Unsupported RF Ctrl Override call\n");
+				return;
+			}
+
+			if (index == 2 || index == 10 ||
+			    (index >= 13 && index <= 15)) {
+				core = 1;
+			}
+
+			rf_ctrl = &tbl_rf_control_override_rev2[index - 2];
+			addr = B43_PHY_N((i == 0) ?
+				rf_ctrl->addr0 : rf_ctrl->addr1);
+
+			if ((core & (1 << i)) != 0)
+				b43_phy_maskset(dev, addr, ~(rf_ctrl->bmask),
+						(value << rf_ctrl->shift));
+
+			b43_phy_set(dev, B43_NPHY_RFCTL_OVER, 0x1);
+			b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
+					B43_NPHY_RFCTL_CMD_START);
+			udelay(1);
+			b43_phy_mask(dev, B43_NPHY_RFCTL_OVER, 0xFFFE);
+		}
+	}
+}
+
 static void b43_nphy_bphy_init(struct b43_wldev *dev)
 {
 	unsigned int i;
@@ -2075,8 +2151,8 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 
 			tmp[0] = ((cur_hpf2 << 8) | (cur_hpf1 << 4) |
 					(cur_lna << 2));
-			/* TODO:Call N PHY RF Ctrl Override with 0x400, tmp[0],
-				3, 0 as arguments */
+			b43_nphy_rf_control_override(dev, 0x400, tmp[0], 3,
+									false);
 			b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
 			b43_nphy_stop_playback(dev);
 
@@ -2124,7 +2200,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 			break;
 	}
 
-	/* TODO: Call N PHY RF Ctrl Override with 0x400, 0, 3, 1 as arguments*/
+	b43_nphy_rf_control_override(dev, 0x400, 0, 3, true);
 	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
 	b43_ntab_write_bulk(dev, B43_NTAB16(7, 0x110), 2, gain_save);
 

@@ -51,6 +51,22 @@ struct nphy_txiqcal_ladder {
 	u8 g_env;
 };
 
+struct nphy_rf_control_override_rev2 {
+	u8 addr0;
+	u8 addr1;
+	u16 bmask;
+	u8 shift;
+};
+
+struct nphy_rf_control_override_rev3 {
+	u16 val_mask;
+	u8 val_shift;
+	u8 en_addr0;
+	u8 val_addr0;
+	u8 en_addr1;
+	u8 val_addr1;
+};
+
 /* Upload the default register value table.
  * If "ghz5" is true, we upload the 5Ghz table. Otherwise the 2.4Ghz
  * table is uploaded. If "ignore_uploadflag" is true, we upload any value
@@ -177,5 +193,10 @@ extern const u16 tbl_tx_iqlo_cal_cmds_recal_nphyrev3[];
 extern const u16 tbl_tx_iqlo_cal_cmds_recal[];
 extern const u16 tbl_tx_iqlo_cal_cmds_fullcal[];
 extern const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[];
+
+extern const struct nphy_rf_control_override_rev2
+	tbl_rf_control_override_rev2[];
+extern const struct nphy_rf_control_override_rev3
+	tbl_rf_control_override_rev3[];
 
 #endif /* B43_TABLES_NPHY_H_ */
