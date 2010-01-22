@@ -1489,11 +1489,14 @@ static void __detach_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data = get_dev_data(dev);
 	struct iommu_dev_data *alias_data;
+	struct protection_domain *domain;
 	unsigned long flags;
 
 	BUG_ON(!dev_data->domain);
 
-	spin_lock_irqsave(&dev_data->domain->lock, flags);
+	domain = dev_data->domain;
+
+	spin_lock_irqsave(&domain->lock, flags);
 
 	if (dev_data->alias != dev) {
 		alias_data = get_dev_data(dev_data->alias);
@@ -1504,7 +1507,7 @@ static void __detach_device(struct device *dev)
 	if (atomic_dec_and_test(&dev_data->bind))
 		do_detach(dev);
 
-	spin_unlock_irqrestore(&dev_data->domain->lock, flags);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	/*
 	 * If we run in passthrough mode the device must be assigned to the
