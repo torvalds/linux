@@ -3165,13 +3165,30 @@ struct iwl_notif_statistics {
 
 /*
  * MISSED_BEACONS_NOTIFICATION = 0xa2 (notification only, not a command)
+ *
+ * uCode send MISSED_BEACONS_NOTIFICATION to driver when detect beacon missed
+ * in regardless of how many missed beacons, which mean when driver receive the
+ * notification, inside the command, it can find all the beacons information
+ * which include number of total missed beacons, number of consecutive missed
+ * beacons, number of beacons received and number of beacons expected to
+ * receive.
+ *
+ * If uCode detected consecutive_missed_beacons > 5, it will reset the radio
+ * in order to bring the radio/PHY back to working state; which has no relation
+ * to when driver will perform sensitivity calibration.
+ *
+ * Driver should set it own missed_beacon_threshold to decide when to perform
+ * sensitivity calibration based on number of consecutive missed beacons in
+ * order to improve overall performance, especially in noisy environment.
+ *
  */
-/* if ucode missed CONSECUTIVE_MISSED_BCONS_TH beacons in a row,
- * then this notification will be sent. */
-#define CONSECUTIVE_MISSED_BCONS_TH 20
+
+#define IWL_MISSED_BEACON_THRESHOLD_MIN	(1)
+#define IWL_MISSED_BEACON_THRESHOLD_DEF	(5)
+#define IWL_MISSED_BEACON_THRESHOLD_MAX	IWL_MISSED_BEACON_THRESHOLD_DEF
 
 struct iwl_missed_beacon_notif {
-	__le32 consequtive_missed_beacons;
+	__le32 consecutive_missed_beacons;
 	__le32 total_missed_becons;
 	__le32 num_expected_beacons;
 	__le32 num_recvd_beacons;

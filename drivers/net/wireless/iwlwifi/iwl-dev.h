@@ -1053,6 +1053,7 @@ struct iwl_priv {
 #endif
 	/* ucode beacon time */
 	u32 ucode_beacon_time;
+	int missed_beacon_threshold;
 
 	/* we allocate array of iwl4965_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
