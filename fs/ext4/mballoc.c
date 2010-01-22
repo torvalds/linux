@@ -4476,10 +4476,11 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 
 	sbi = EXT4_SB(sb);
 	es = EXT4_SB(sb)->s_es;
-	if (!ext4_data_block_valid(sbi, block, count)) {
+	if (!(flags & EXT4_FREE_BLOCKS_VALIDATED) &&
+	    !ext4_data_block_valid(sbi, block, count)) {
 		ext4_error(sb, __func__,
-			    "Freeing blocks not in datazone - "
-			    "block = %llu, count = %lu", block, count);
+			   "Freeing blocks not in datazone - "
+			   "block = %llu, count = %lu", block, count);
 		goto error_return;
 	}
 
