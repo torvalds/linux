@@ -1,7 +1,7 @@
 /*
  * mcount and friends -- ftrace stuff
  *
- * Copyright (C) 2009 Analog Devices Inc.
+ * Copyright (C) 2009-2010 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -21,6 +21,15 @@
  * function will be waiting there.  mmmm pie.
  */
 ENTRY(__mcount)
+#ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	/* optional micro optimization: return if stopped */
+	p1.l = _function_trace_stop;
+	p1.h = _function_trace_stop;
+	r3 = [p1];
+	cc = r3 == 0;
+	if ! cc jump _ftrace_stub (bp);
+#endif
+
 	/* save third function arg early so we can do testing below */
 	[--sp] = r2;
 
