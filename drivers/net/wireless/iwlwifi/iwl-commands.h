@@ -2261,6 +2261,9 @@ struct iwl_link_quality_cmd {
 #define BT_ENABLE_PRIORITY	   BIT(1)
 #define BT_ENABLE_2_WIRE	   BIT(2)
 
+#define BT_COEX_DISABLE (0x0)
+#define BT_COEX_ENABLE  (BT_ENABLE_CHANNEL_ANNOUNCE | BT_ENABLE_PRIORITY)
+
 #define BT_LEAD_TIME_MIN (0x0)
 #define BT_LEAD_TIME_DEF (0x1E)
 #define BT_LEAD_TIME_MAX (0xFF)

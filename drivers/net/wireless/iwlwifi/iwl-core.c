@@ -47,6 +47,26 @@ MODULE_VERSION(IWLWIFI_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
+/*
+ * set bt_coex_active to true, uCode will do kill/defer
+ * every time the priority line is asserted (BT is sending signals on the
+ * priority line in the PCIx).
+ * set bt_coex_active to false, uCode will ignore the BT activity and
+ * perform the normal operation
+ *
+ * User might experience transmit issue on some platform due to WiFi/BT
+ * co-exist problem. The possible behaviors are:
+ *   Able to scan and finding all the available AP
+ *   Not able to associate with any AP
+ * On those platforms, WiFi communication can be restored by set
+ * "bt_coex_active" module parameter to "false"
+ *
+ * default: bt_coex_active = true (BT_COEX_ENABLE)
+ */
+static bool bt_coex_active = true;
+module_param(bt_coex_active, bool, S_IRUGO);
+MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist\n");
+
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
 	 0, COEX_UNASSOC_IDLE_FLAGS},
@@ -1977,12 +1997,19 @@ EXPORT_SYMBOL(iwl_isr_legacy);
 int iwl_send_bt_config(struct iwl_priv *priv)
 {
 	struct iwl_bt_cmd bt_cmd = {
-		.flags = BT_ENABLE_CHANNEL_ANNOUNCE | BT_ENABLE_PRIORITY,
 		.lead_time = BT_LEAD_TIME_DEF,
 		.max_kill = BT_MAX_KILL_DEF,
 		.kill_ack_mask = 0,
 		.kill_cts_mask = 0,
 	};
+
+	if (!bt_coex_active)
+		bt_cmd.flags = BT_COEX_DISABLE;
+	else
+		bt_cmd.flags = BT_COEX_ENABLE;
+
+	IWL_DEBUG_INFO(priv, "BT coex %s\n",
+		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
 	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 				sizeof(struct iwl_bt_cmd), &bt_cmd);
