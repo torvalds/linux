@@ -158,11 +158,25 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
 	priv->hw_params.sens = &iwl6000_sensitivity;
-	priv->hw_params.calib_init_cfg =
+	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_6x50:
+		priv->hw_params.calib_init_cfg =
+			BIT(IWL_CALIB_XTAL)		|
+			BIT(IWL_CALIB_DC)		|
+			BIT(IWL_CALIB_LO)		|
+			BIT(IWL_CALIB_TX_IQ) 		|
+			BIT(IWL_CALIB_BASE_BAND);
+
+		break;
+	default:
+		priv->hw_params.calib_init_cfg =
 			BIT(IWL_CALIB_XTAL)		|
 			BIT(IWL_CALIB_LO)		|
 			BIT(IWL_CALIB_TX_IQ) 		|
 			BIT(IWL_CALIB_BASE_BAND);
+		break;
+	}
+
 	return 0;
 }
 
