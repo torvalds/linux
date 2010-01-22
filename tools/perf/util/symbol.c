@@ -1671,7 +1671,7 @@ do_kallsyms:
 out_try_fixup:
 	if (err > 0) {
 out_fixup:
-		if (kallsyms_filename == NULL)
+		if (kallsyms_filename != NULL)
 			dso__set_long_name(self, strdup("[kernel.kallsyms]"));
 		map__fixup_start(map);
 		map__fixup_end(map);
