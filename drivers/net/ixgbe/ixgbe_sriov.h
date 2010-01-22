@@ -39,6 +39,8 @@ void ixgbe_msg_task(struct ixgbe_adapter *adapter);
 int ixgbe_set_vf_mac(struct ixgbe_adapter *adapter,
                      int vf, unsigned char *mac_addr);
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask);
+void ixgbe_disable_tx_rx(struct ixgbe_adapter *adapter);
+void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter);
 void ixgbe_dump_registers(struct ixgbe_adapter *adapter);
 
 #endif /* _IXGBE_SRIOV_H_ */

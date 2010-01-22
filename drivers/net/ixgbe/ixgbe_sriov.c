@@ -334,3 +334,29 @@ void ixgbe_msg_task(struct ixgbe_adapter *adapter)
 	}
 }
 
+void ixgbe_disable_tx_rx(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	/* disable transmit and receive for all vfs */
+	IXGBE_WRITE_REG(hw, IXGBE_VFTE(0), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VFTE(1), 0);
+
+	IXGBE_WRITE_REG(hw, IXGBE_VFRE(0), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VFRE(1), 0);
+}
+
+void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 ping;
+	int i;
+
+	for (i = 0 ; i < adapter->num_vfs; i++) {
+		ping = IXGBE_PF_CONTROL_MSG;
+		if (adapter->vfinfo[i].clear_to_send)
+			ping |= IXGBE_VT_MSGTYPE_CTS;
+		ixgbe_write_mbx(hw, &ping, 1, i);
+	}
+}
+
