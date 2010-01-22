@@ -414,10 +414,9 @@ C_ENTRY(ret_from_trap):
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
-	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 	addi	r7, r0, 1;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
-	nop;
+	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
 /* Finally, return to user state.  */
 1:
@@ -692,10 +691,9 @@ C_ENTRY(ret_from_exc):
 	 * store return registers separately because this macros is use
 	 * for others exceptions */
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
-	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
-	nop;
+	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
 /* Finally, return to user state.  */
 1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
@@ -968,10 +966,9 @@ dbtrap_call:	rtbd	r11, 0;
 	   (in a possibly modified form) after do_signal returns.  */
 
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
-	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 	addi  r7, r0, 0;	/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
-	nop;
+	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
 
 /* Finally, return to user state.  */
