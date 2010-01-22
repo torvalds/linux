@@ -1245,9 +1245,9 @@ static inline int is_x86_event(struct perf_event *event)
 
 static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 {
-	int i, j, w, num, wmax;
 	struct event_constraint *c, *constraints[X86_PMC_IDX_MAX];
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	int i, j, w, wmax, num = 0;
 	struct hw_perf_event *hwc;
 
 	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
@@ -1260,7 +1260,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	/*
 	 * fastpath, try to reuse previous register
 	 */
-	for (i = 0, num = n; i < n; i++, num--) {
+	for (i = 0; i < n; i++) {
 		hwc = &cpuc->event_list[i]->hw;
 		c = constraints[i];
 
@@ -1288,7 +1288,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		if (assign)
 			assign[i] = hwc->idx;
 	}
-	if (!num)
+	if (i == n)
 		goto done;
 
 	/*
