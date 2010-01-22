@@ -110,7 +110,6 @@ struct vf_data_storage {
 	u16 num_vf_mc_hashes;
 	u16 default_vf_vlan_id;
 	u16 vlans_enabled;
-	unsigned char em_mac_addresses[MAX_EMULATION_MAC_ADDRS * ETH_ALEN];
 	bool clear_to_send;
 	int rar;
 };
