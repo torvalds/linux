@@ -557,7 +557,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			break;
 		}
 
-		if (!skip_hw &&
+		if (!skip_hw && tx->key &&
 		    tx->key->conf.flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
 			info->control.hw_key = &tx->key->conf;
 	}
