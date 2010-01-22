@@ -429,6 +429,8 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
 /* Handlers */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
+					  struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 void iwl_reply_statistics(struct iwl_priv *priv,
@@ -531,14 +533,6 @@ int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
 
-/*******************************************************************************
- * Spectrum Measureemtns in  iwl-spectrum.c
- ******************************************************************************/
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
-void iwl_setup_spectrum_handlers(struct iwl_priv *priv);
-#else
-static inline void iwl_setup_spectrum_handlers(struct iwl_priv *priv) {}
-#endif
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
