@@ -1076,6 +1076,7 @@ struct iwl_priv {
 	unsigned long scan_start;
 	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
+	unsigned long last_internal_scan_jiffies;
 	void *scan;
 	int scan_bands;
 	struct cfg80211_scan_request *scan_request;
