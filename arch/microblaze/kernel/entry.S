@@ -305,7 +305,7 @@ C_ENTRY(_user_exception):
 	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
 	addi	r11, r0, 1;
 	swi	r11, r0, TOPHYS(PER_CPU(KM));	/* Now we're in kernel-mode.  */
-2:	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE));	/* get saved current */
+2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
 	swi	r12, r1, PTO+PT_R0;
 	tovirt(r1,r1)
@@ -322,8 +322,7 @@ C_ENTRY(_user_exception):
 	rtid	r11, 0
 	nop
 3:
-	add	r11, r0, CURRENT_TASK	 /* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO /* get thread info */
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO /* get thread info */
 	lwi	r11, r11, TI_FLAGS	 /* get flags in thread info */
 	andi	r11, r11, _TIF_WORK_SYSCALL_MASK
 	beqi	r11, 4f
@@ -382,58 +381,50 @@ C_ENTRY(ret_from_trap):
 /* See if returning to kernel mode, if so, skip resched &c.  */
 	bnei	r11, 2f;
 
+	swi	r3, r1, PTO + PT_R3
+	swi	r4, r1, PTO + PT_R4
+
 	/* We're returning to user mode, so check for various conditions that
 	 * trigger rescheduling. */
-	# FIXME: Restructure all these flag checks.
-	add	r11, r0, CURRENT_TASK;	/* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+	/* FIXME: Restructure all these flag checks. */
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;		/* get flags in thread info */
 	andi	r11, r11, _TIF_WORK_SYSCALL_MASK
 	beqi	r11, 1f
 
-	swi	r3, r1, PTO + PT_R3
-	swi	r4, r1, PTO + PT_R4
 	brlid	r15, do_syscall_trace_leave
 	addik	r5, r1, PTO + PT_R0
-	lwi	r3, r1, PTO + PT_R3
-	lwi	r4, r1, PTO + PT_R4
 1:
-
 	/* We're returning to user mode, so check for various conditions that
 	 * trigger rescheduling. */
-	/* Get current task ptr into r11 */
-	add	r11, r0, CURRENT_TASK;	/* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+	/* get thread info from current task */
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
 	lwi	r11, r11, TI_FLAGS;		/* get flags in thread info */
 	andi	r11, r11, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
 
-	swi	r3, r1, PTO + PT_R3; /* store syscall result */
-	swi	r4, r1, PTO + PT_R4;
 	bralid	r15, schedule;	/* Call scheduler */
 	nop;				/* delay slot */
-	lwi	r3, r1, PTO + PT_R3; /* restore syscall result */
-	lwi	r4, r1, PTO + PT_R4;
 
 	/* Maybe handle a signal */
-5:	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+5:	/* get thread info from current task*/
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
 
-	swi	r3, r1, PTO + PT_R3; /* store syscall result */
-	swi	r4, r1, PTO + PT_R4;
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 	addi	r7, r0, 1;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	nop;
+
+/* Finally, return to user state.  */
+1:
 	lwi	r3, r1, PTO + PT_R3; /* restore syscall result */
 	lwi	r4, r1, PTO + PT_R4;
 
-/* Finally, return to user state.  */
-1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
+	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
 	add	r11, r0, CURRENT_TASK;	/* Get current task ptr into r11 */
 	swi	r11, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
@@ -565,7 +556,7 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
 	addi	r11, r0, 1;						\
 	swi	r11, r0, TOPHYS(PER_CPU(KM)); /* Now we're in kernel-mode.*/\
-2:	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
+2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));	\
 	/* Save away the syscall number.  */				\
 	swi	r0, r1, PTO+PT_R0;					\
 	tovirt(r1,r1)
@@ -673,9 +664,7 @@ C_ENTRY(ret_from_exc):
 
 	/* We're returning to user mode, so check for various conditions that
 	   trigger rescheduling. */
-	/* Get current task ptr into r11 */
-	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
 	andi	r11, r11, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
@@ -685,8 +674,7 @@ C_ENTRY(ret_from_exc):
 	nop;				/* delay slot */
 
 	/* Maybe handle a signal */
-5:	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
@@ -802,7 +790,7 @@ C_ENTRY(_interrupt):
 	swi	r11, r0, TOPHYS(PER_CPU(KM));
 
 2:
-	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
+	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	swi	r0, r1, PTO + PT_R0;
 	tovirt(r1,r1)
 	la	r5, r1, PTO;
@@ -817,8 +805,7 @@ ret_from_irq:
 	lwi	r11, r1, PTO + PT_MODE;
 	bnei	r11, 2f;
 
-	add	r11, r0, CURRENT_TASK;
-	lwi	r11, r11, TS_THREAD_INFO;
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
 	lwi	r11, r11, TI_FLAGS; /* MS: get flags from thread info */
 	andi	r11, r11, _TIF_NEED_RESCHED;
 	beqi	r11, 5f
@@ -826,8 +813,7 @@ ret_from_irq:
 	nop; /* delay slot */
 
     /* Maybe handle a signal */
-5:	add	r11, r0, CURRENT_TASK;
-	lwi	r11, r11, TS_THREAD_INFO; /* MS: get thread info */
+5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO; /* MS: get thread info */
 	lwi	r11, r11, TI_FLAGS; /* get flags in thread info */
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqid	r11, no_intr_resched
@@ -855,8 +841,7 @@ no_intr_resched:
 /* MS: Return to kernel state. */
 2:
 #ifdef CONFIG_PREEMPT
-	add	r11, r0, CURRENT_TASK;
-	lwi	r11, r11, TS_THREAD_INFO;
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;
 	/* MS: get preempt_count from thread info */
 	lwi	r5, r11, TI_PREEMPT_COUNT;
 	bgti	r5, restore;
@@ -869,8 +854,7 @@ preempt:
 	/* interrupts are off that's why I am calling preempt_chedule_irq */
 	bralid	r15, preempt_schedule_irq
 	nop
-	add	r11, r0, CURRENT_TASK;	/* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r5, r11, TI_FLAGS;		/* get flags in thread info */
 	andi	r5, r5, _TIF_NEED_RESCHED;
 	bnei	r5, preempt /* if non zero jump to resched */
@@ -938,7 +922,7 @@ C_ENTRY(_debug_exception):
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
 	addi	r11, r0, 1;
 	swi	r11, r0, TOPHYS(PER_CPU(KM));	/* Now we're in kernel-mode.  */
-2:	lwi	r31, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
+2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
 	swi	r0, r1, PTO+PT_R0;
 	tovirt(r1,r1)
@@ -958,8 +942,7 @@ dbtrap_call:	rtbd	r11, 0;
 	bnei	r11, 2f;
 
 	/* Get current task ptr into r11 */
-	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
 	andi	r11, r11, _TIF_NEED_RESCHED;
 	beqi	r11, 5f;
@@ -972,8 +955,7 @@ dbtrap_call:	rtbd	r11, 0;
 	/* XXX m68knommu also checks TASK_STATE & TASK_COUNTER here.  */
 
 	/* Maybe handle a signal */
-5:	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	lwi	r11, r11, TS_THREAD_INFO;	/* get thread info */
+5:	lwi	r11, CURRENT_TASK, TS_THREAD_INFO;	/* get thread info */
 	lwi	r11, r11, TI_FLAGS;	/* get flags in thread info */
 	andi	r11, r11, _TIF_SIGPENDING;
 	beqi	r11, 1f;		/* Signals to handle, handle them */
@@ -1030,7 +1012,7 @@ DBTRAP_return:		/* Make global symbol for debugging */
 
 ENTRY(_switch_to)
 	/* prepare return value */
-	addk	r3, r0, r31
+	addk	r3, r0, CURRENT_TASK
 
 	/* save registers in cpu_context */
 	/* use r11 and r12, volatile registers, as temp register */
@@ -1074,10 +1056,10 @@ ENTRY(_switch_to)
 	nop
 	swi	r12, r11, CC_FSR
 
-	/* update r31, the current */
-	lwi	r31, r6, TI_TASK/* give me pointer to task which will be next */
+	/* update r31, the current-give me pointer to task which will be next */
+	lwi	CURRENT_TASK, r6, TI_TASK
 	/* stored it to current_save too */
-	swi	r31, r0, PER_CPU(CURRENT_SAVE)
+	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE)
 
 	/* get new process' cpu context and restore */
 	/* give me start where start context of next task */
