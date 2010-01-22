@@ -416,6 +416,7 @@ struct r600_ih {
 };
 
 struct r600_blit {
+	struct mutex		mutex;
 	struct radeon_bo	*shader_obj;
 	u64 shader_gpu_addr;
 	u32 vs_offset, ps_offset;
