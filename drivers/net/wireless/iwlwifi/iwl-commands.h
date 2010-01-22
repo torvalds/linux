@@ -2247,10 +2247,19 @@ struct iwl_link_quality_cmd {
 	__le32 reserved2;
 } __attribute__ ((packed));
 
+/*
+ * BT configuration enable flags:
+ *   bit 0 - 1: BT channel announcement enabled
+ *           0: disable
+ *   bit 1 - 1: priority of BT device enabled
+ *           0: disable
+ *   bit 2 - 1: BT 2 wire support enabled
+ *           0: disable
+ */
 #define BT_COEX_DISABLE (0x0)
-#define BT_COEX_MODE_2W (0x1)
-#define BT_COEX_MODE_3W (0x2)
-#define BT_COEX_MODE_4W (0x3)
+#define BT_ENABLE_CHANNEL_ANNOUNCE BIT(0)
+#define BT_ENABLE_PRIORITY	   BIT(1)
+#define BT_ENABLE_2_WIRE	   BIT(2)
 
 #define BT_LEAD_TIME_MIN (0x0)
 #define BT_LEAD_TIME_DEF (0x1E)
