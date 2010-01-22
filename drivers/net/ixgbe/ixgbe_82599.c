@@ -890,7 +890,7 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
 static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 {
 	s32 status = 0;
-	u32 ctrl, ctrl_ext;
+	u32 ctrl;
 	u32 i;
 	u32 autoc;
 	u32 autoc2;
@@ -945,10 +945,6 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
 	}
-	/* Clear PF Reset Done bit so PF/VF Mail Ops can work */
-	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
-	ctrl_ext |= IXGBE_CTRL_EXT_PFRSTD;
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
 
 	msleep(50);
 
