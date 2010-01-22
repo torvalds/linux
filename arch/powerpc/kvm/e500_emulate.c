@@ -99,6 +99,10 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		vcpu_e500->mas6 = spr_val; break;
 	case SPRN_MAS7:
 		vcpu_e500->mas7 = spr_val; break;
+	case SPRN_L1CSR0:
+		vcpu_e500->l1csr0 = spr_val;
+		vcpu_e500->l1csr0 &= ~(L1CSR0_DCFI | L1CSR0_CLFC);
+		break;
 	case SPRN_L1CSR1:
 		vcpu_e500->l1csr1 = spr_val; break;
 	case SPRN_HID0:
@@ -179,6 +183,8 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		break;
 	}
 
+	case SPRN_L1CSR0:
+		kvmppc_set_gpr(vcpu, rt, vcpu_e500->l1csr0); break;
 	case SPRN_L1CSR1:
 		kvmppc_set_gpr(vcpu, rt, vcpu_e500->l1csr1); break;
 	case SPRN_HID0:
