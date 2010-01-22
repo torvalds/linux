@@ -2606,10 +2606,13 @@ static const struct pmu pmu = {
 static int validate_group(struct perf_event *event)
 {
 	struct perf_event *leader = event->group_leader;
-	struct cpu_hw_events fake_cpuc;
-	int n;
+	struct cpu_hw_events *fake_cpuc;
+	int ret, n;
 
-	memset(&fake_cpuc, 0, sizeof(fake_cpuc));
+	ret = -ENOMEM;
+	fake_cpuc = kmalloc(sizeof(*fake_cpuc), GFP_KERNEL | __GFP_ZERO);
+	if (!fake_cpuc)
+		goto out;
 
 	/*
 	 * the event is not yet connected with its
@@ -2617,18 +2620,24 @@ static int validate_group(struct perf_event *event)
 	 * existing siblings, then add the new event
 	 * before we can simulate the scheduling
 	 */
-	n = collect_events(&fake_cpuc, leader, true);
+	ret = -ENOSPC;
+	n = collect_events(fake_cpuc, leader, true);
 	if (n < 0)
-		return -ENOSPC;
+		goto out_free;
 
-	fake_cpuc.n_events = n;
-	n = collect_events(&fake_cpuc, event, false);
+	fake_cpuc->n_events = n;
+	n = collect_events(fake_cpuc, event, false);
 	if (n < 0)
-		return -ENOSPC;
+		goto out_free;
 
-	fake_cpuc.n_events = n;
+	fake_cpuc->n_events = n;
 
-	return x86_schedule_events(&fake_cpuc, n, NULL);
+	ret = x86_schedule_events(fake_cpuc, n, NULL);
+
+out_free:
+	kfree(fake_cpuc);
+out:
+	return ret;
 }
 
 const struct pmu *hw_perf_event_init(struct perf_event *event)
