@@ -140,10 +140,10 @@
 #define EM28XX_NUM_BUFS 5
 
 /* number of packets for each buffer
-   windows requests only 40 packets .. so we better do the same
+   windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
-#define EM28XX_NUM_PACKETS 40
+#define EM28XX_NUM_PACKETS 64
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
