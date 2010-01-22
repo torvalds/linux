@@ -193,6 +193,7 @@ extern const u16 tbl_tx_iqlo_cal_cmds_recal_nphyrev3[];
 extern const u16 tbl_tx_iqlo_cal_cmds_recal[];
 extern const u16 tbl_tx_iqlo_cal_cmds_fullcal[];
 extern const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[];
+extern const s16 tbl_tx_filter_coef_rev4[7][15];
 
 extern const struct nphy_rf_control_override_rev2
 	tbl_rf_control_override_rev2[];
