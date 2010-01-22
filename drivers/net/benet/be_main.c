@@ -910,7 +910,7 @@ static inline struct page *be_alloc_pages(u32 size)
 static void be_post_rx_frags(struct be_adapter *adapter)
 {
 	struct be_rx_page_info *page_info_tbl = adapter->rx_obj.page_info_tbl;
-	struct be_rx_page_info *page_info = NULL;
+	struct be_rx_page_info *page_info = NULL, *prev_page_info = NULL;
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
 	struct page *pagep = NULL;
 	struct be_eth_rx_d *rxd;
@@ -941,7 +941,6 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 		rxd = queue_head_node(rxq);
 		rxd->fragpa_lo = cpu_to_le32(frag_dmaaddr & 0xFFFFFFFF);
 		rxd->fragpa_hi = cpu_to_le32(upper_32_bits(frag_dmaaddr));
-		queue_head_inc(rxq);
 
 		/* Any space left in the current big page for another frag? */
 		if ((page_offset + rx_frag_size + rx_frag_size) >
@@ -949,10 +948,13 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 			pagep = NULL;
 			page_info->last_page_user = true;
 		}
+
+		prev_page_info = page_info;
+		queue_head_inc(rxq);
 		page_info = &page_info_tbl[rxq->head];
 	}
 	if (pagep)
-		page_info->last_page_user = true;
+		prev_page_info->last_page_user = true;
 
 	if (posted) {
 		atomic_add(posted, &rxq->used);
