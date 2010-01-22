@@ -621,30 +621,21 @@ struct net_device_ops {
 						   struct net_device *dev);
 	u16			(*ndo_select_queue)(struct net_device *dev,
 						    struct sk_buff *skb);
-#define HAVE_CHANGE_RX_FLAGS
 	void			(*ndo_change_rx_flags)(struct net_device *dev,
 						       int flags);
-#define HAVE_SET_RX_MODE
 	void			(*ndo_set_rx_mode)(struct net_device *dev);
-#define HAVE_MULTICAST
 	void			(*ndo_set_multicast_list)(struct net_device *dev);
-#define HAVE_SET_MAC_ADDR
 	int			(*ndo_set_mac_address)(struct net_device *dev,
 						       void *addr);
-#define HAVE_VALIDATE_ADDR
 	int			(*ndo_validate_addr)(struct net_device *dev);
-#define HAVE_PRIVATE_IOCTL
 	int			(*ndo_do_ioctl)(struct net_device *dev,
 					        struct ifreq *ifr, int cmd);
-#define HAVE_SET_CONFIG
 	int			(*ndo_set_config)(struct net_device *dev,
 					          struct ifmap *map);
-#define HAVE_CHANGE_MTU
 	int			(*ndo_change_mtu)(struct net_device *dev,
 						  int new_mtu);
 	int			(*ndo_neigh_setup)(struct net_device *dev,
 						   struct neigh_parms *);
-#define HAVE_TX_TIMEOUT
 	void			(*ndo_tx_timeout) (struct net_device *dev);
 
 	struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
@@ -656,7 +647,6 @@ struct net_device_ops {
 	void			(*ndo_vlan_rx_kill_vid)(struct net_device *dev,
 						        unsigned short vid);
 #ifdef CONFIG_NET_POLL_CONTROLLER
-#define HAVE_NETDEV_POLL
 	void                    (*ndo_poll_controller)(struct net_device *dev);
 #endif
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
