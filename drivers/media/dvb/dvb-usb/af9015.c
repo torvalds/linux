@@ -788,6 +788,13 @@ static const struct af9015_setup af9015_setup_usbids[] = {
 	{ }
 };
 
+static const struct af9015_setup af9015_setup_hashes[] = {
+	{ 0xb8feb708,
+		af9015_rc_keys_msi, ARRAY_SIZE(af9015_rc_keys_msi),
+		af9015_ir_table_msi, ARRAY_SIZE(af9015_ir_table_msi) },
+	{ }
+};
+
 static void af9015_set_remote_config(struct usb_device *udev,
 		struct dvb_usb_device_properties *props)
 {
@@ -800,7 +807,10 @@ static void af9015_set_remote_config(struct usb_device *udev,
 	} else {
 		u16 vendor = le16_to_cpu(udev->descriptor.idVendor);
 
-		if (vendor == USB_VID_AFATECH) {
+		table = af9015_setup_match(af9015_config.eeprom_sum,
+				af9015_setup_hashes);
+
+		if (!table && vendor == USB_VID_AFATECH) {
 			/* Check USB manufacturer and product strings and try
 			   to determine correct remote in case of chip vendor
 			   reference IDs are used.
@@ -831,7 +841,7 @@ static void af9015_set_remote_config(struct usb_device *udev,
 					ARRAY_SIZE(af9015_ir_table_trekstor)
 				};
 			}
-		} else
+		} else if (!table)
 			table = af9015_setup_match(vendor, af9015_setup_usbids);
 	}
 
