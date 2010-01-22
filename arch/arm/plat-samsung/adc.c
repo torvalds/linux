@@ -295,7 +295,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 	}
 
 exit:
-	if (platform_get_device_id(client->pdev)->driver_data == TYPE_S3C64XX) {
+	if (platform_get_device_id(adc->pdev)->driver_data == TYPE_S3C64XX) {
 		/* Clear ADC interrupt */
 		writel(0, adc->regs + S3C64XX_ADCCLRINT);
 	}
