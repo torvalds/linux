@@ -219,10 +219,10 @@ out:
 
 #if defined(CONFIG_NFS_V4_1)
 
-static unsigned decode_sessionid(struct xdr_stream *xdr,
+static __be32 decode_sessionid(struct xdr_stream *xdr,
 				 struct nfs4_sessionid *sid)
 {
-	uint32_t *p;
+	__be32 *p;
 	int len = NFS4_MAX_SESSIONID_LEN;
 
 	p = read_buf(xdr, len);
@@ -233,12 +233,12 @@ static unsigned decode_sessionid(struct xdr_stream *xdr,
 	return 0;
 }
 
-static unsigned decode_rc_list(struct xdr_stream *xdr,
+static __be32 decode_rc_list(struct xdr_stream *xdr,
 			       struct referring_call_list *rc_list)
 {
-	uint32_t *p;
+	__be32 *p;
 	int i;
-	unsigned status;
+	__be32 status;
 
 	status = decode_sessionid(xdr, &rc_list->rcl_sessionid);
 	if (status)
@@ -271,13 +271,13 @@ out:
 	return status;
 }
 
-static unsigned decode_cb_sequence_args(struct svc_rqst *rqstp,
+static __be32 decode_cb_sequence_args(struct svc_rqst *rqstp,
 					struct xdr_stream *xdr,
 					struct cb_sequenceargs *args)
 {
-	uint32_t *p;
+	__be32 *p;
 	int i;
-	unsigned status;
+	__be32 status;
 
 	status = decode_sessionid(xdr, &args->csa_sessionid);
 	if (status)
@@ -331,11 +331,11 @@ out_free:
 	goto out;
 }
 
-static unsigned decode_recallany_args(struct svc_rqst *rqstp,
+static __be32 decode_recallany_args(struct svc_rqst *rqstp,
 				      struct xdr_stream *xdr,
 				      struct cb_recallanyargs *args)
 {
-	uint32_t *p;
+	__be32 *p;
 
 	args->craa_addr = svc_addr(rqstp);
 	p = read_buf(xdr, 4);
@@ -350,7 +350,7 @@ static unsigned decode_recallany_args(struct svc_rqst *rqstp,
 	return 0;
 }
 
-static unsigned decode_recallslot_args(struct svc_rqst *rqstp,
+static __be32 decode_recallslot_args(struct svc_rqst *rqstp,
 					struct xdr_stream *xdr,
 					struct cb_recallslotargs *args)
 {
@@ -517,10 +517,10 @@ out:
 
 #if defined(CONFIG_NFS_V4_1)
 
-static unsigned encode_sessionid(struct xdr_stream *xdr,
+static __be32 encode_sessionid(struct xdr_stream *xdr,
 				 const struct nfs4_sessionid *sid)
 {
-	uint32_t *p;
+	__be32 *p;
 	int len = NFS4_MAX_SESSIONID_LEN;
 
 	p = xdr_reserve_space(xdr, len);
@@ -531,11 +531,11 @@ static unsigned encode_sessionid(struct xdr_stream *xdr,
 	return 0;
 }
 
-static unsigned encode_cb_sequence_res(struct svc_rqst *rqstp,
+static __be32 encode_cb_sequence_res(struct svc_rqst *rqstp,
 				       struct xdr_stream *xdr,
 				       const struct cb_sequenceres *res)
 {
-	uint32_t *p;
+	__be32 *p;
 	unsigned status = res->csr_status;
 
 	if (unlikely(status != 0))

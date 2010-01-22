@@ -151,7 +151,7 @@ int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const n
  * checking the used_slots bit array on the table.  The lower layer guarantees
  * a single outstanding callback request at a time.
  */
-static int
+static __be32
 validate_seqid(struct nfs4_slot_table *tbl, struct cb_sequenceargs * args)
 {
 	struct nfs4_slot *slot;
@@ -285,11 +285,12 @@ out:
 	return status;
 }
 
-unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
+__be32 nfs4_callback_sequence(struct cb_sequenceargs *args,
 				struct cb_sequenceres *res)
 {
 	struct nfs_client *clp;
-	int i, status;
+	int i;
+	__be32 status;
 
 	status = htonl(NFS4ERR_BADSESSION);
 	clp = find_client_with_session(args->csa_addr, 4, &args->csa_sessionid);
@@ -333,10 +334,10 @@ out:
 	return status;
 }
 
-unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy)
+__be32 nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy)
 {
 	struct nfs_client *clp;
-	int status;
+	__be32 status;
 	fmode_t flags = 0;
 
 	status = htonl(NFS4ERR_OP_NOT_IN_SESSION);
@@ -363,11 +364,11 @@ out:
 }
 
 /* Reduce the fore channel's max_slots to the target value */
-unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy)
+__be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy)
 {
 	struct nfs_client *clp;
 	struct nfs4_slot_table *fc_tbl;
-	int status;
+	__be32 status;
 
 	status = htonl(NFS4ERR_OP_NOT_IN_SESSION);
 	clp = nfs_find_client(args->crsa_addr, 4);
