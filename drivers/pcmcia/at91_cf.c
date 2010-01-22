@@ -52,8 +52,6 @@ struct at91_cf_socket {
 	unsigned long		phys_baseaddr;
 };
 
-#define	SZ_2K			(2 * SZ_1K)
-
 static inline int at91_cf_present(struct at91_cf_socket *cf)
 {
 	return !gpio_get_value(cf->board->det_pin);
