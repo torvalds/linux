@@ -1072,7 +1072,6 @@ struct iwl_priv {
 	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
 
 	/* Scan related variables */
-	unsigned long last_scan_jiffies;
 	unsigned long next_scan_jiffies;
 	unsigned long scan_start;
 	unsigned long scan_pass_start;

@@ -192,18 +192,15 @@ static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
 		       "%d [802.11%s] "
 		       "(TSF: 0x%08X:%08X) - %d "
-		       "elapsed=%lu usec (%dms since last)\n",
+		       "elapsed=%lu usec\n",
 		       notif->channel,
 		       notif->band ? "bg" : "a",
 		       le32_to_cpu(notif->tsf_high),
 		       le32_to_cpu(notif->tsf_low),
 		       le32_to_cpu(notif->statistics[0]),
-		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf,
-		       jiffies_to_msecs(elapsed_jiffies
-					(priv->last_scan_jiffies, jiffies)));
+		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf);
 #endif
 
-	priv->last_scan_jiffies = jiffies;
 	priv->next_scan_jiffies = 0;
 }
 
@@ -250,7 +247,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 			goto reschedule;
 	}
 
-	priv->last_scan_jiffies = jiffies;
 	priv->next_scan_jiffies = 0;
 	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
 
@@ -523,15 +519,6 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	if (priv->next_scan_jiffies &&
 	    time_after(priv->next_scan_jiffies, jiffies)) {
 		IWL_DEBUG_SCAN(priv, "scan rejected: within next scan period\n");
-		queue_work(priv->workqueue, &priv->scan_completed);
-		ret = 0;
-		goto out_unlock;
-	}
-
-	/* if we just finished scan ask for delay */
-	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
-	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
-		IWL_DEBUG_SCAN(priv, "scan rejected: within previous scan period\n");
 		queue_work(priv->workqueue, &priv->scan_completed);
 		ret = 0;
 		goto out_unlock;
