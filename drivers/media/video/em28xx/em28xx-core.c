@@ -782,11 +782,15 @@ int em28xx_resolution_set(struct em28xx *dev)
 
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 
-	/* If we don't set the start position to 4 in VBI mode, we end up
-	   with line 21 being YUYV encoded instead of being in 8-bit
-	   greyscale */
+	/* If we don't set the start position to 2 in VBI mode, we end up
+	   with line 20/21 being YUYV encoded instead of being in 8-bit
+	   greyscale.  The core of the issue is that line 21 (and line 23 for
+	   PAL WSS) are inside of active video region, and as a result they
+	   get the pixelformatting associated with that area.  So by cropping
+	   it out, we end up with the same format as the rest of the VBI
+	   region */
 	if (em28xx_vbi_supported(dev) == 1)
-		em28xx_capture_area_set(dev, 0, 4, width >> 2, height >> 2);
+		em28xx_capture_area_set(dev, 0, 2, width >> 2, height >> 2);
 	else
 		em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
 
