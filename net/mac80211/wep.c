@@ -310,9 +310,8 @@ static int wep_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 					  tx->key->conf.keylen,
 					  tx->key->conf.keyidx))
 			return -1;
-	}
-
-	if (info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
+	} else if (info->control.hw_key->flags &
+			IEEE80211_KEY_FLAG_GENERATE_IV) {
 		if (!ieee80211_wep_add_iv(tx->local, skb,
 					  tx->key->conf.keylen,
 					  tx->key->conf.keyidx))
