@@ -1511,9 +1511,11 @@ static void __detach_device(struct device *dev)
 
 	/*
 	 * If we run in passthrough mode the device must be assigned to the
-	 * passthrough domain if it is detached from any other domain
+	 * passthrough domain if it is detached from any other domain.
+	 * Make sure we can deassign from the pt_domain itself.
 	 */
-	if (iommu_pass_through && dev_data->domain == NULL)
+	if (iommu_pass_through &&
+	    (dev_data->domain == NULL && domain != pt_domain))
 		__attach_device(dev, pt_domain);
 }
 
