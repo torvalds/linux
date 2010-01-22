@@ -63,33 +63,8 @@ DEVICE_ATTR(usbip_debug, (S_IRUGO | S_IWUSR), show_flag, store_flag);
 
 static void usbip_dump_buffer(char *buff, int bufflen)
 {
-	int i;
-
-	if (bufflen > 128) {
-		for (i = 0; i < 128; i++) {
-			if (i%24 == 0)
-				printk(KERN_DEBUG "   ");
-			printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
-			if (i%4 == 3)
-				printk(KERN_DEBUG "| ");
-			if (i%24 == 23)
-				printk(KERN_DEBUG "\n");
-		}
-		printk(KERN_DEBUG "... (%d byte)\n", bufflen);
-		return;
-	}
-
-	for (i = 0; i < bufflen; i++) {
-		if (i%24 == 0)
-			printk(KERN_DEBUG "   ");
-		printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
-		if (i%4 == 3)
-			printk(KERN_DEBUG "| ");
-		if (i%24 == 23)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-
+	print_hex_dump(KERN_DEBUG, "usb-ip", DUMP_PREFIX_OFFSET, 16, 4,
+		       buff, bufflen, false);
 }
 
 static void usbip_dump_pipe(unsigned int p)
