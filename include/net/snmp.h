@@ -32,7 +32,7 @@
  *  - name of entries.
  */
 struct snmp_mib {
-	char *name;
+	const char *name;
 	int entry;
 };
 

@@ -59,7 +59,7 @@ static const struct file_operations sockstat6_seq_fops = {
 	.release = single_release_net,
 };
 
-static struct snmp_mib snmp6_ipstats_list[] = {
+static const struct snmp_mib snmp6_ipstats_list[] = {
 /* ipv6 mib according to RFC 2465 */
 	SNMP_MIB_ITEM("Ip6InReceives", IPSTATS_MIB_INPKTS),
 	SNMP_MIB_ITEM("Ip6InHdrErrors", IPSTATS_MIB_INHDRERRORS),
@@ -92,7 +92,7 @@ static struct snmp_mib snmp6_ipstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp6_icmp6_list[] = {
+static const struct snmp_mib snmp6_icmp6_list[] = {
 /* icmpv6 mib according to RFC 2466 */
 	SNMP_MIB_ITEM("Icmp6InMsgs", ICMP6_MIB_INMSGS),
 	SNMP_MIB_ITEM("Icmp6InErrors", ICMP6_MIB_INERRORS),
@@ -120,7 +120,7 @@ static const char *const icmp6type2name[256] = {
 };
 
 
-static struct snmp_mib snmp6_udp6_list[] = {
+static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("Udp6NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("Udp6InErrors", UDP_MIB_INERRORS),
@@ -128,7 +128,7 @@ static struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct snmp_mib snmp6_udplite6_list[] = {
+static const struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6InDatagrams", UDP_MIB_INDATAGRAMS),
 	SNMP_MIB_ITEM("UdpLite6NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("UdpLite6InErrors", UDP_MIB_INERRORS),
@@ -170,8 +170,8 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void **mib)
 	return;
 }
 
-static inline void
-snmp6_seq_show_item(struct seq_file *seq, void **mib, struct snmp_mib *itemlist)
+static void snmp6_seq_show_item(struct seq_file *seq, void **mib,
+				const struct snmp_mib *itemlist)
 {
 	int i;
 	for (i=0; itemlist[i].name; i++)

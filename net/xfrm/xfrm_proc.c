@@ -15,7 +15,7 @@
 #include <net/snmp.h>
 #include <net/xfrm.h>
 
-static struct snmp_mib xfrm_mib_list[] = {
+static const struct snmp_mib xfrm_mib_list[] = {
 	SNMP_MIB_ITEM("XfrmInError", LINUX_MIB_XFRMINERROR),
 	SNMP_MIB_ITEM("XfrmInBufferError", LINUX_MIB_XFRMINBUFFERERROR),
 	SNMP_MIB_ITEM("XfrmInHdrError", LINUX_MIB_XFRMINHDRERROR),
