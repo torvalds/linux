@@ -705,7 +705,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 }
 
-void iwl_continuous_event_trace(struct iwl_priv *priv)
+static void iwl_continuous_event_trace(struct iwl_priv *priv)
 {
 	u32 capacity;   /* event log capacity in # entries */
 	u32 base;       /* SRAM byte address of event log header */
