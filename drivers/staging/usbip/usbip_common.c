@@ -55,10 +55,7 @@ static ssize_t show_flag(struct device *dev, struct device_attribute *attr,
 static ssize_t store_flag(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	unsigned long flag;
-
-	sscanf(buf, "%lx", &flag);
-	usbip_debug_flag = flag;
+	sscanf(buf, "%lx", &usbip_debug_flag);
 
 	return count;
 }
