@@ -1444,7 +1444,7 @@ zoran_set_norm (struct zoran *zr,
 	}
 
 	if (norm == V4L2_STD_ALL) {
-		int status = 0;
+		unsigned int status = 0;
 		v4l2_std_id std = 0;
 
 		decoder_call(zr, video, querystd, &std);

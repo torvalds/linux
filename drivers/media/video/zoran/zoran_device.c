@@ -1196,7 +1196,8 @@ zoran_reap_stat_com (struct zoran *zr)
 static void zoran_restart(struct zoran *zr)
 {
 	/* Now the stat_comm buffer is ready for restart */
-	int status = 0, mode;
+	unsigned int status = 0;
+	int mode;
 
 	if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
 		decoder_call(zr, video, g_input_status, &status);
