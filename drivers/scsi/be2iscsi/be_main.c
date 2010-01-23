@@ -2042,10 +2042,9 @@ static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 	}
 	idx = 0;
 	pwrb = mem_descr_wrb->mem_array[idx].virtual_address;
-	num_cxn_wrb =
-	    ((mem_descr_wrb->mem_array[idx].size) / (sizeof(struct iscsi_wrb)) *
-	     phba->params.wrbs_per_cxn);
-
+	num_cxn_wrb = (mem_descr_wrb->mem_array[idx].size) /
+		      ((sizeof(struct iscsi_wrb) *
+			phba->params.wrbs_per_cxn));
 	for (index = 0; index < phba->params.cxns_per_ctrl; index += 2) {
 		pwrb_context = &phwi_ctrlr->wrb_context[index];
 		if (num_cxn_wrb) {
@@ -2058,9 +2057,9 @@ static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 		} else {
 			idx++;
 			pwrb = mem_descr_wrb->mem_array[idx].virtual_address;
-			num_cxn_wrb = ((mem_descr_wrb->mem_array[idx].size) /
-					(sizeof(struct iscsi_wrb)) *
-					phba->params.wrbs_per_cxn);
+			num_cxn_wrb = (mem_descr_wrb->mem_array[idx].size) /
+				      ((sizeof(struct iscsi_wrb) *
+					phba->params.wrbs_per_cxn));
 			for (j = 0; j < phba->params.wrbs_per_cxn; j++) {
 				pwrb_handle = pwrb_context->pwrb_handle_base[j];
 				pwrb_handle->pwrb = pwrb;
