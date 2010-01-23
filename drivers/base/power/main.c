@@ -201,7 +201,7 @@ static void dpm_wait(struct device *dev, bool async)
 	if (!dev)
 		return;
 
-	if (async || dev->power.async_suspend)
+	if (async || (pm_async_enabled && dev->power.async_suspend))
 		wait_for_completion(&dev->power.completion);
 }
 
@@ -563,7 +563,8 @@ static int device_resume(struct device *dev)
 {
 	INIT_COMPLETION(dev->power.completion);
 
-	if (dev->power.async_suspend && !pm_trace_is_enabled()) {
+	if (pm_async_enabled && dev->power.async_suspend
+	    && !pm_trace_is_enabled()) {
 		get_device(dev);
 		async_schedule(async_resume, dev);
 		return 0;
@@ -867,7 +868,7 @@ static int device_suspend(struct device *dev)
 {
 	INIT_COMPLETION(dev->power.completion);
 
-	if (dev->power.async_suspend) {
+	if (pm_async_enabled && dev->power.async_suspend) {
 		get_device(dev);
 		async_schedule(async_suspend, dev);
 		return 0;
