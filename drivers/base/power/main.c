@@ -495,12 +495,12 @@ static int legacy_resume(struct device *dev, int (*cb)(struct device *dev))
 }
 
 /**
- * __device_resume - Execute "resume" callbacks for given device.
+ * device_resume - Execute "resume" callbacks for given device.
  * @dev: Device to handle.
  * @state: PM transition of the system being carried out.
  * @async: If true, the device is being resumed asynchronously.
  */
-static int __device_resume(struct device *dev, pm_message_t state, bool async)
+static int device_resume(struct device *dev, pm_message_t state, bool async)
 {
 	int error = 0;
 
@@ -509,6 +509,8 @@ static int __device_resume(struct device *dev, pm_message_t state, bool async)
 
 	dpm_wait(dev->parent, async);
 	down(&dev->sem);
+
+	dev->power.status = DPM_RESUMING;
 
 	if (dev->bus) {
 		if (dev->bus->pm) {
@@ -553,24 +555,16 @@ static void async_resume(void *data, async_cookie_t cookie)
 	struct device *dev = (struct device *)data;
 	int error;
 
-	error = __device_resume(dev, pm_transition, true);
+	error = device_resume(dev, pm_transition, true);
 	if (error)
 		pm_dev_err(dev, pm_transition, " async", error);
 	put_device(dev);
 }
 
-static int device_resume(struct device *dev)
+static bool is_async(struct device *dev)
 {
-	INIT_COMPLETION(dev->power.completion);
-
-	if (pm_async_enabled && dev->power.async_suspend
-	    && !pm_trace_is_enabled()) {
-		get_device(dev);
-		async_schedule(async_resume, dev);
-		return 0;
-	}
-
-	return __device_resume(dev, pm_transition, false);
+	return dev->power.async_suspend && pm_async_enabled
+		&& !pm_trace_is_enabled();
 }
 
 /**
@@ -583,22 +577,33 @@ static int device_resume(struct device *dev)
 static void dpm_resume(pm_message_t state)
 {
 	struct list_head list;
+	struct device *dev;
 	ktime_t starttime = ktime_get();
 
 	INIT_LIST_HEAD(&list);
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
-	while (!list_empty(&dpm_list)) {
-		struct device *dev = to_device(dpm_list.next);
 
+	list_for_each_entry(dev, &dpm_list, power.entry) {
+		if (dev->power.status < DPM_OFF)
+			continue;
+
+		INIT_COMPLETION(dev->power.completion);
+		if (is_async(dev)) {
+			get_device(dev);
+			async_schedule(async_resume, dev);
+		}
+	}
+
+	while (!list_empty(&dpm_list)) {
+		dev = to_device(dpm_list.next);
 		get_device(dev);
-		if (dev->power.status >= DPM_OFF) {
+		if (dev->power.status >= DPM_OFF && !is_async(dev)) {
 			int error;
 
-			dev->power.status = DPM_RESUMING;
 			mutex_unlock(&dpm_list_mtx);
 
-			error = device_resume(dev);
+			error = device_resume(dev, state, false);
 
 			mutex_lock(&dpm_list_mtx);
 			if (error)
