@@ -338,14 +338,12 @@ static struct dvb_tuner_ops stv6110x_ops = {
 		.frequency_max	= 2150000,
 		.frequency_step	= 0,
 	},
-
-	.init			= stv6110x_init,
-	.sleep          	= stv6110x_sleep,
 	.release		= stv6110x_release
 };
 
 static struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_init		= stv6110x_init,
+	.tuner_sleep		= stv6110x_sleep,
 	.tuner_set_mode		= stv6110x_set_mode,
 	.tuner_set_frequency	= stv6110x_set_frequency,
 	.tuner_get_frequency	= stv6110x_get_frequency,

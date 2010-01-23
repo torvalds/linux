@@ -3838,6 +3838,11 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
 
+	if (state->config->tuner_init) {
+		if (state->config->tuner_sleep(fe) < 0)
+			goto err_gateoff;
+	}
+
 	dprintk(FE_DEBUG, 1, "Set %s to sleep",
 		state->device == STV0900 ? "STV0900" : "STV0903");
 
@@ -3852,6 +3857,9 @@ static int stv090x_sleep(struct dvb_frontend *fe)
 		goto err;
 
 	return 0;
+
+err_gateoff:
+	stv090x_i2c_gate_ctrl(state, 0);
 err:
 	dprintk(FE_ERROR, 1, "I/O error");
 	return -1;

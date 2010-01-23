@@ -442,6 +442,7 @@ static struct stv090x_config tt1600_stv090x_config = {
 	.repeater_level		= STV090x_RPTLEVEL_16,
 
 	.tuner_init		= NULL,
+	.tuner_sleep		= NULL,
 	.tuner_set_mode		= NULL,
 	.tuner_set_frequency	= NULL,
 	.tuner_get_frequency	= NULL,
@@ -628,6 +629,7 @@ static void frontend_init(struct budget *budget)
 						 &budget->i2c_adap);
 
 				tt1600_stv090x_config.tuner_init	  = ctl->tuner_init;
+				tt1600_stv090x_config.tuner_sleep	  = ctl->tuner_sleep;
 				tt1600_stv090x_config.tuner_set_mode	  = ctl->tuner_set_mode;
 				tt1600_stv090x_config.tuner_set_frequency = ctl->tuner_set_frequency;
 				tt1600_stv090x_config.tuner_get_frequency = ctl->tuner_get_frequency;
