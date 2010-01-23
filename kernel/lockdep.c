@@ -73,11 +73,11 @@ module_param(lock_stat, int, 0644);
  * to use a raw spinlock - we really dont want the spinlock
  * code to recurse back into the lockdep code...
  */
-static raw_spinlock_t lockdep_lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+static arch_spinlock_t lockdep_lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static int graph_lock(void)
 {
-	__raw_spin_lock(&lockdep_lock);
+	arch_spin_lock(&lockdep_lock);
 	/*
 	 * Make sure that if another CPU detected a bug while
 	 * walking the graph we dont change it (while the other
@@ -85,7 +85,7 @@ static int graph_lock(void)
 	 * dropped already)
 	 */
 	if (!debug_locks) {
-		__raw_spin_unlock(&lockdep_lock);
+		arch_spin_unlock(&lockdep_lock);
 		return 0;
 	}
 	/* prevent any recursions within lockdep from causing deadlocks */
@@ -95,11 +95,11 @@ static int graph_lock(void)
 
 static inline int graph_unlock(void)
 {
-	if (debug_locks && !__raw_spin_is_locked(&lockdep_lock))
+	if (debug_locks && !arch_spin_is_locked(&lockdep_lock))
 		return DEBUG_LOCKS_WARN_ON(1);
 
 	current->lockdep_recursion--;
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 	return 0;
 }
 
@@ -111,7 +111,7 @@ static inline int debug_locks_off_graph_unlock(void)
 {
 	int ret = debug_locks_off();
 
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 
 	return ret;
 }
@@ -140,7 +140,8 @@ static inline struct lock_class *hlock_class(struct held_lock *hlock)
 }
 
 #ifdef CONFIG_LOCK_STAT
-static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS], lock_stats);
+static DEFINE_PER_CPU(struct lock_class_stats[MAX_LOCKDEP_KEYS],
+		      cpu_lock_stats);
 
 static inline u64 lockstat_clock(void)
 {
@@ -168,7 +169,7 @@ static void lock_time_inc(struct lock_time *lt, u64 time)
 	if (time > lt->max)
 		lt->max = time;
 
-	if (time < lt->min || !lt->min)
+	if (time < lt->min || !lt->nr)
 		lt->min = time;
 
 	lt->total += time;
@@ -177,8 +178,15 @@ static void lock_time_inc(struct lock_time *lt, u64 time)
 
 static inline void lock_time_add(struct lock_time *src, struct lock_time *dst)
 {
-	dst->min += src->min;
-	dst->max += src->max;
+	if (!src->nr)
+		return;
+
+	if (src->max > dst->max)
+		dst->max = src->max;
+
+	if (src->min < dst->min || !dst->nr)
+		dst->min = src->min;
+
 	dst->total += src->total;
 	dst->nr += src->nr;
 }
@@ -191,7 +199,7 @@ struct lock_class_stats lock_stats(struct lock_class *class)
 	memset(&stats, 0, sizeof(struct lock_class_stats));
 	for_each_possible_cpu(cpu) {
 		struct lock_class_stats *pcs =
-			&per_cpu(lock_stats, cpu)[class - lock_classes];
+			&per_cpu(cpu_lock_stats, cpu)[class - lock_classes];
 
 		for (i = 0; i < ARRAY_SIZE(stats.contention_point); i++)
 			stats.contention_point[i] += pcs->contention_point[i];
@@ -218,7 +226,7 @@ void clear_lock_stats(struct lock_class *class)
 
 	for_each_possible_cpu(cpu) {
 		struct lock_class_stats *cpu_stats =
-			&per_cpu(lock_stats, cpu)[class - lock_classes];
+			&per_cpu(cpu_lock_stats, cpu)[class - lock_classes];
 
 		memset(cpu_stats, 0, sizeof(struct lock_class_stats));
 	}
@@ -228,12 +236,12 @@ void clear_lock_stats(struct lock_class *class)
 
 static struct lock_class_stats *get_lock_stats(struct lock_class *class)
 {
-	return &get_cpu_var(lock_stats)[class - lock_classes];
+	return &get_cpu_var(cpu_lock_stats)[class - lock_classes];
 }
 
 static void put_lock_stats(struct lock_class_stats *stats)
 {
-	put_cpu_var(lock_stats);
+	put_cpu_var(cpu_lock_stats);
 }
 
 static void lock_release_holdtime(struct held_lock *hlock)
@@ -379,7 +387,8 @@ static int save_trace(struct stack_trace *trace)
 	 * complete trace that maxes out the entries provided will be reported
 	 * as incomplete, friggin useless </rant>
 	 */
-	if (trace->entries[trace->nr_entries-1] == ULONG_MAX)
+	if (trace->nr_entries != 0 &&
+	    trace->entries[trace->nr_entries-1] == ULONG_MAX)
 		trace->nr_entries--;
 
 	trace->max_entries = trace->nr_entries;
@@ -1161,9 +1170,9 @@ unsigned long lockdep_count_forward_deps(struct lock_class *class)
 	this.class = class;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&lockdep_lock);
+	arch_spin_lock(&lockdep_lock);
 	ret = __lockdep_count_forward_deps(&this);
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 	local_irq_restore(flags);
 
 	return ret;
@@ -1188,9 +1197,9 @@ unsigned long lockdep_count_backward_deps(struct lock_class *class)
 	this.class = class;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&lockdep_lock);
+	arch_spin_lock(&lockdep_lock);
 	ret = __lockdep_count_backward_deps(&this);
-	__raw_spin_unlock(&lockdep_lock);
+	arch_spin_unlock(&lockdep_lock);
 	local_irq_restore(flags);
 
 	return ret;

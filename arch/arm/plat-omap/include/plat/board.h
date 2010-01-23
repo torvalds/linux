@@ -99,7 +99,6 @@ struct fb_info;
 struct omap_backlight_config {
 	int default_intensity;
 	int (*set_power)(struct device *dev, int state);
-	int (*check_fb)(struct fb_info *fb);
 };
 
 struct omap_fbmem_config {
@@ -112,15 +111,6 @@ struct omap_pwm_led_platform_data {
 	int intensity_timer;
 	int blink_timer;
 	void (*set_power)(struct omap_pwm_led_platform_data *self, int on_off);
-};
-
-/* See arch/arm/plat-omap/include/mach/gpio-switch.h for definitions */
-struct omap_gpio_switch_config {
-	char name[12];
-	u16 gpio;
-	int flags:4;
-	int type:4;
-	int key_code:24; /* Linux key code */
 };
 
 struct omap_uart_config {

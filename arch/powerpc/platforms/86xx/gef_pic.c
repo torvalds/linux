@@ -149,7 +149,7 @@ static void gef_pic_unmask(unsigned int virq)
 }
 
 static struct irq_chip gef_pic_chip = {
-	.typename	= "gefp",
+	.name		= "gefp",
 	.mask		= gef_pic_mask,
 	.mask_ack	= gef_pic_mask_ack,
 	.unmask		= gef_pic_unmask,
@@ -163,14 +163,14 @@ static int gef_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hwirq)
 {
 	/* All interrupts are LEVEL sensitive */
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &gef_pic_chip, handle_level_irq);
 
 	return 0;
 }
 
 static int gef_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 

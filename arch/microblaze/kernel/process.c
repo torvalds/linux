@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <asm/system.h>
 #include <asm/pgalloc.h>
+#include <asm/cacheflush.h>
 
 void show_regs(struct pt_regs *regs)
 {

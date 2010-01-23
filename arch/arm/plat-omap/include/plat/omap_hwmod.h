@@ -50,6 +50,8 @@ struct omap_device;
 #define SYSC_ENAWAKEUP_MASK		(1 << SYSC_ENAWAKEUP_SHIFT)
 #define SYSC_SOFTRESET_SHIFT		1
 #define SYSC_SOFTRESET_MASK		(1 << SYSC_SOFTRESET_SHIFT)
+#define SYSC_AUTOIDLE_SHIFT		0
+#define SYSC_AUTOIDLE_MASK		(1 << SYSC_AUTOIDLE_SHIFT)
 
 /* OCP SYSSTATUS bit shifts/masks */
 #define SYSS_RESETDONE_SHIFT		0
@@ -62,7 +64,21 @@ struct omap_device;
 
 
 /**
- * struct omap_hwmod_dma_info - MPU address space handled by the hwmod
+ * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
+ * @name: name of the IRQ channel (module local name)
+ * @irq_ch: IRQ channel ID
+ *
+ * @name should be something short, e.g., "tx" or "rx".  It is for use
+ * by platform_get_resource_byname().  It is defined locally to the
+ * hwmod.
+ */
+struct omap_hwmod_irq_info {
+	const char	*name;
+	u16		irq;
+};
+
+/**
+ * struct omap_hwmod_dma_info - DMA channels used by the hwmod
  * @name: name of the DMA channel (module local name)
  * @dma_ch: DMA channel ID
  *
@@ -294,13 +310,17 @@ struct omap_hwmod_omap4_prcm {
  *     SDRAM controller, etc.
  * HWMOD_INIT_NO_IDLE: don't idle this module at boot - important for SDRAM
  *     controller, etc.
+ * HWMOD_NO_AUTOIDLE: disable module autoidle (OCP_SYSCONFIG.AUTOIDLE)
+ *     when module is enabled, rather than the default, which is to
+ *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
 #define HWMOD_INIT_NO_RESET			(1 << 2)
 #define HWMOD_INIT_NO_IDLE			(1 << 3)
-#define HWMOD_SET_DEFAULT_CLOCKACT		(1 << 4)
+#define HWMOD_NO_OCP_AUTOIDLE			(1 << 4)
+#define HWMOD_SET_DEFAULT_CLOCKACT		(1 << 5)
 
 /*
  * omap_hwmod._int_flags definitions
@@ -373,7 +393,7 @@ struct omap_hwmod_omap4_prcm {
 struct omap_hwmod {
 	const char			*name;
 	struct omap_device		*od;
-	u8				*mpu_irqs;
+	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_chs;
 	union {
 		struct omap_hwmod_omap2_prcm omap2;

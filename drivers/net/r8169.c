@@ -4859,7 +4859,7 @@ out:
 	return 0;
 }
 
-static struct dev_pm_ops rtl8169_pm_ops = {
+static const struct dev_pm_ops rtl8169_pm_ops = {
 	.suspend = rtl8169_suspend,
 	.resume = rtl8169_resume,
 	.freeze = rtl8169_suspend,

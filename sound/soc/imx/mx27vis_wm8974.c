@@ -180,7 +180,8 @@ static int mx27vis_hifi_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
 	/* disable the PLL */
-	return codec_dai->ops->set_pll(codec_dai, IGNORED_ARG, 0, 0);
+	return codec_dai->ops->set_pll(codec_dai, IGNORED_ARG, IGNORED_ARG,
+				       0, 0);
 }
 
 /*

@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/kallsyms.h>
+#include <linux/sort.h>
 
 #include <asm/uaccess.h>
 #include <asm/assembly.h>
@@ -115,24 +116,18 @@ unwind_table_init(struct unwind_table *table, const char *name,
 	}
 }
 
+static int cmp_unwind_table_entry(const void *a, const void *b)
+{
+	return ((const struct unwind_table_entry *)a)->region_start
+	     - ((const struct unwind_table_entry *)b)->region_start;
+}
+
 static void
 unwind_table_sort(struct unwind_table_entry *start,
 		  struct unwind_table_entry *finish)
 {
-	struct unwind_table_entry el, *p, *q;
-
-	for (p = start + 1; p < finish; ++p) {
-		if (p[0].region_start < p[-1].region_start) {
-			el = *p;
-			q = p;
-			do {
-				q[0] = q[-1];
-				--q;
-			} while (q > start && 
-				 el.region_start < q[-1].region_start);
-			*q = el;
-		}
-	}
+	sort(start, finish - start, sizeof(struct unwind_table_entry),
+	     cmp_unwind_table_entry, NULL);
 }
 
 struct unwind_table *
@@ -416,4 +411,31 @@ int unwind_to_user(struct unwind_frame_info *info)
 	} while (!ret && !(info->ip & 3));
 
 	return ret;
+}
+
+unsigned long return_address(unsigned int level)
+{
+	struct unwind_frame_info info;
+	struct pt_regs r;
+	unsigned long sp;
+
+	/* initialize unwind info */
+	asm volatile ("copy %%r30, %0" : "=r"(sp));
+	memset(&r, 0, sizeof(struct pt_regs));
+	r.iaoq[0] = (unsigned long) current_text_addr();
+	r.gr[2] = (unsigned long) __builtin_return_address(0);
+	r.gr[30] = sp;
+	unwind_frame_init(&info, current, &r);
+
+	/* unwind stack */
+	++level;
+	do {
+		if (unwind_once(&info) < 0 || info.ip == 0)
+			return 0;
+		if (!__kernel_text_address(info.ip)) {
+			return 0;
+		}
+	} while (info.ip && level--);
+
+	return info.ip;
 }

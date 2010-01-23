@@ -487,8 +487,8 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 
 	fbinfo->var.nonstd = 0;
 	fbinfo->var.activate = FB_ACTIVATE_NOW;
-	fbinfo->var.height = -1;
-	fbinfo->var.width = -1;
+	fbinfo->var.height = 53;
+	fbinfo->var.width = 70;
 	fbinfo->var.accel_flags = 0;
 	fbinfo->var.vmode = FB_VMODE_NONINTERLACED;
 
@@ -634,17 +634,35 @@ static int __devexit bfin_t350mcqb_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_t350mcqb_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	bfin_t350mcqb_disable_ppi();
-	disable_dma(CH_PPI);
-	bfin_write_PPI_STATUS(0xFFFF);
+	struct fb_info *fbinfo = platform_get_drvdata(pdev);
+	struct bfin_t350mcqbfb_info *fbi = fbinfo->par;
+
+	if (fbi->lq043_open_cnt) {
+		bfin_t350mcqb_disable_ppi();
+		disable_dma(CH_PPI);
+		bfin_t350mcqb_stop_timers();
+		bfin_write_PPI_STATUS(-1);
+	}
+
 
 	return 0;
 }
 
 static int bfin_t350mcqb_resume(struct platform_device *pdev)
 {
-	enable_dma(CH_PPI);
-	bfin_t350mcqb_enable_ppi();
+	struct fb_info *fbinfo = platform_get_drvdata(pdev);
+	struct bfin_t350mcqbfb_info *fbi = fbinfo->par;
+
+	if (fbi->lq043_open_cnt) {
+		bfin_t350mcqb_config_dma(fbi);
+		bfin_t350mcqb_config_ppi(fbi);
+		bfin_t350mcqb_init_timers();
+
+		/* start dma */
+		enable_dma(CH_PPI);
+		bfin_t350mcqb_enable_ppi();
+		bfin_t350mcqb_start_timers();
+	}
 
 	return 0;
 }

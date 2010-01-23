@@ -155,7 +155,7 @@ static struct aer_rpc *aer_alloc_rpc(struct pcie_device *dev)
 	mutex_init(&rpc->rpc_mutex);
 	init_waitqueue_head(&rpc->wait_release);
 
-	/* Use PCIE bus function to store rpc into PCIE device */
+	/* Use PCIe bus function to store rpc into PCIe device */
 	set_service_data(dev, rpc);
 
 	return rpc;

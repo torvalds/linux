@@ -1,7 +1,8 @@
 /*
  * pmcraid.c -- driver for PMC Sierra MaxRAID controller adapters
  *
- * Written By: PMC Sierra Corporation
+ * Written By: Anil Ravindranath<anil_ravindranath@pmc-sierra.com>
+ *             PMC-Sierra Inc
  *
  * Copyright (C) 2008, 2009 PMC Sierra Inc
  *
@@ -79,7 +80,7 @@ DECLARE_BITMAP(pmcraid_minor, PMCRAID_MAX_ADAPTERS);
 /*
  * Module parameters
  */
-MODULE_AUTHOR("PMC Sierra Corporation, anil_ravindranath@pmc-sierra.com");
+MODULE_AUTHOR("Anil Ravindranath<anil_ravindranath@pmc-sierra.com>");
 MODULE_DESCRIPTION("PMC Sierra MaxRAID Controller Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PMCRAID_DRIVER_VERSION);
@@ -162,10 +163,10 @@ static int pmcraid_slave_alloc(struct scsi_device *scsi_dev)
 	spin_lock_irqsave(&pinstance->resource_lock, lock_flags);
 	list_for_each_entry(temp, &pinstance->used_res_q, queue) {
 
-		/* do not expose VSETs with order-ids >= 240 */
+		/* do not expose VSETs with order-ids > MAX_VSET_TARGETS */
 		if (RES_IS_VSET(temp->cfg_entry)) {
 			target = temp->cfg_entry.unique_flags1;
-			if (target >= PMCRAID_MAX_VSET_TARGETS)
+			if (target > PMCRAID_MAX_VSET_TARGETS)
 				continue;
 			bus = PMCRAID_VSET_BUS_ID;
 			lun = 0;
@@ -1210,7 +1211,7 @@ static int pmcraid_expose_resource(struct pmcraid_config_table_entry *cfgte)
 	int retval = 0;
 
 	if (cfgte->resource_type == RES_TYPE_VSET)
-		retval = ((cfgte->unique_flags1 & 0xFF) < 0xFE);
+		retval = ((cfgte->unique_flags1 & 0x80) == 0);
 	else if (cfgte->resource_type == RES_TYPE_GSCSI)
 		retval = (RES_BUS(cfgte->resource_address) !=
 				PMCRAID_VIRTUAL_ENCL_BUS_ID);
@@ -1361,6 +1362,7 @@ static int pmcraid_notify_aen(struct pmcraid_instance *pinstance, u8 type)
  * Return value:
  *  none
  */
+
 static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 {
 	struct pmcraid_config_table_entry *cfg_entry;
@@ -1368,9 +1370,10 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 	struct pmcraid_cmd *cmd;
 	struct pmcraid_cmd *cfgcmd;
 	struct pmcraid_resource_entry *res = NULL;
-	u32 new_entry = 1;
 	unsigned long lock_flags;
 	unsigned long host_lock_flags;
+	u32 new_entry = 1;
+	u32 hidden_entry = 0;
 	int rc;
 
 	ccn_hcam = (struct pmcraid_hcam_ccn *)pinstance->ccn.hcam;
@@ -1406,9 +1409,15 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 	}
 
 	/* If this resource is not going to be added to mid-layer, just notify
-	 * applications and return
+	 * applications and return. If this notification is about hiding a VSET
+	 * resource, check if it was exposed already.
 	 */
-	if (!pmcraid_expose_resource(cfg_entry))
+	if (pinstance->ccn.hcam->notification_type ==
+	    NOTIFICATION_TYPE_ENTRY_CHANGED &&
+	    cfg_entry->resource_type == RES_TYPE_VSET &&
+	    cfg_entry->unique_flags1 & 0x80) {
+		hidden_entry = 1;
+	} else if (!pmcraid_expose_resource(cfg_entry))
 		goto out_notify_apps;
 
 	spin_lock_irqsave(&pinstance->resource_lock, lock_flags);
@@ -1423,6 +1432,12 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 	}
 
 	if (new_entry) {
+
+		if (hidden_entry) {
+			spin_unlock_irqrestore(&pinstance->resource_lock,
+						lock_flags);
+			goto out_notify_apps;
+		}
 
 		/* If there are more number of resources than what driver can
 		 * manage, do not notify the applications about the CCN. Just
@@ -1454,8 +1469,9 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 		sizeof(struct pmcraid_config_table_entry));
 
 	if (pinstance->ccn.hcam->notification_type ==
-	    NOTIFICATION_TYPE_ENTRY_DELETED) {
+	    NOTIFICATION_TYPE_ENTRY_DELETED || hidden_entry) {
 		if (res->scsi_dev) {
+			res->cfg_entry.unique_flags1 &= 0x7F;
 			res->change_detected = RES_CHANGE_DEL;
 			res->cfg_entry.resource_handle =
 				PMCRAID_INVALID_RES_HANDLE;
@@ -2467,14 +2483,12 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
 			sense_copied = 1;
 		}
 
-		if (RES_IS_GSCSI(res->cfg_entry)) {
+		if (RES_IS_GSCSI(res->cfg_entry))
 			pmcraid_cancel_all(cmd, sense_copied);
-		} else if (sense_copied) {
+		else if (sense_copied)
 			pmcraid_erp_done(cmd);
-			return 0;
-		} else  {
+		else
 			pmcraid_request_sense(cmd);
-		}
 
 		return 1;
 

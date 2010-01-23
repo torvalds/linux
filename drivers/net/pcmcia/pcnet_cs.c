@@ -490,7 +490,7 @@ static int try_io_port(struct pcmcia_device *link)
 	    /* for master/slave multifunction cards */
 	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	    link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+		IRQ_TYPE_DYNAMIC_SHARING;
 	}
     } else {
 	/* This should be two 16-port windows */

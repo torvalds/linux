@@ -31,7 +31,7 @@
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/videodev2.h>

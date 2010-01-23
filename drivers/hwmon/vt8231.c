@@ -697,7 +697,7 @@ static struct platform_driver vt8231_driver = {
 	.remove	= __devexit_p(vt8231_remove),
 };
 
-static struct pci_device_id vt8231_pci_ids[] = {
+static const struct pci_device_id vt8231_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231_4) },
 	{ 0, }
 };

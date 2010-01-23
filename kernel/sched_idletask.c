@@ -34,10 +34,10 @@ static struct task_struct *pick_next_task_idle(struct rq *rq)
 static void
 dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
 {
-	spin_unlock_irq(&rq->lock);
+	raw_spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");
 	dump_stack();
-	spin_lock_irq(&rq->lock);
+	raw_spin_lock_irq(&rq->lock);
 }
 
 static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
@@ -97,7 +97,7 @@ static void prio_changed_idle(struct rq *rq, struct task_struct *p,
 		check_preempt_curr(rq, p, 0);
 }
 
-unsigned int get_rr_interval_idle(struct task_struct *task)
+unsigned int get_rr_interval_idle(struct rq *rq, struct task_struct *task)
 {
 	return 0;
 }

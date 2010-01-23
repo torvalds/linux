@@ -561,6 +561,8 @@ video_device helper functions
 
 There are a few useful helper functions:
 
+- file/video_device private data
+
 You can set/get driver private data in the video_device struct using:
 
 void *video_get_drvdata(struct video_device *vdev);
@@ -575,14 +577,24 @@ struct video_device *video_devdata(struct file *file);
 
 returns the video_device belonging to the file struct.
 
-The final helper function combines video_get_drvdata with
-video_devdata:
+The video_drvdata function combines video_get_drvdata with video_devdata:
 
 void *video_drvdata(struct file *file);
 
 You can go from a video_device struct to the v4l2_device struct using:
 
 struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
+
+- Device node name
+
+The video_device node kernel name can be retrieved using
+
+const char *video_device_node_name(struct video_device *vdev);
+
+The name is used as a hint by userspace tools such as udev. The function
+should be used where possible instead of accessing the video_device::num and
+video_device::minor fields.
+
 
 video buffer helper functions
 -----------------------------

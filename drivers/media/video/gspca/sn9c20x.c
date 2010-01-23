@@ -1158,7 +1158,7 @@ static int i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 	return i2c_w(gspca_dev, row);
 }
 
-int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
+static int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
@@ -1183,7 +1183,7 @@ int i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	return 0;
 }
 
-int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
+static int i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
@@ -1476,8 +1476,9 @@ static int sn9c20x_input_init(struct gspca_dev *gspca_dev)
 	if (input_register_device(sd->input_dev))
 		return -EINVAL;
 
-	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%d",
-				     gspca_dev->vdev.minor);
+	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%s-%s",
+				     gspca_dev->dev->bus->bus_name,
+				     gspca_dev->dev->devpath);
 
 	if (IS_ERR(sd->input_task))
 		return -EINVAL;
@@ -2174,8 +2175,7 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 }
 
 #define HW_WIN(mode, hstart, vstart) \
-((const u8 []){hstart & 0xff, hstart >> 8, \
-vstart & 0xff, vstart >> 8, \
+((const u8 []){hstart, 0, vstart, 0, \
 (mode & MODE_SXGA ? 1280 >> 4 : 640 >> 4), \
 (mode & MODE_SXGA ? 1024 >> 3 : 480 >> 3)})
 
@@ -2319,7 +2319,7 @@ static void do_autogain(struct gspca_dev *gspca_dev, u16 avg_lum)
 		}
 	}
 	if (avg_lum > MAX_AVG_LUM) {
-		if (sd->gain - 1 >= 0) {
+		if (sd->gain >= 1) {
 			sd->gain--;
 			set_gain(gspca_dev);
 		}

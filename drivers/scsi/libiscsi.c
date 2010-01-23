@@ -517,7 +517,7 @@ static void iscsi_free_task(struct iscsi_task *task)
 	if (conn->login_task == task)
 		return;
 
-	__kfifo_put(session->cmdpool.queue, (void*)&task, sizeof(void*));
+	kfifo_in(&session->cmdpool.queue, (void*)&task, sizeof(void*));
 
 	if (sc) {
 		task->sc = NULL;
@@ -737,7 +737,7 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		BUG_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
 		BUG_ON(conn->c_stage == ISCSI_CONN_STOPPED);
 
-		if (!__kfifo_get(session->cmdpool.queue,
+		if (!kfifo_out(&session->cmdpool.queue,
 				 (void*)&task, sizeof(void*)))
 			return NULL;
 	}
@@ -1567,7 +1567,7 @@ static inline struct iscsi_task *iscsi_alloc_task(struct iscsi_conn *conn,
 {
 	struct iscsi_task *task;
 
-	if (!__kfifo_get(conn->session->cmdpool.queue,
+	if (!kfifo_out(&conn->session->cmdpool.queue,
 			 (void *) &task, sizeof(void *)))
 		return NULL;
 
@@ -2461,12 +2461,7 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 	if (q->pool == NULL)
 		return -ENOMEM;
 
-	q->queue = kfifo_init((void*)q->pool, max * sizeof(void*),
-			      GFP_KERNEL, NULL);
-	if (IS_ERR(q->queue)) {
-		q->queue = NULL;
-		goto enomem;
-	}
+	kfifo_init(&q->queue, (void*)q->pool, max * sizeof(void*));
 
 	for (i = 0; i < max; i++) {
 		q->pool[i] = kzalloc(item_size, GFP_KERNEL);
@@ -2474,7 +2469,7 @@ iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 			q->max = i;
 			goto enomem;
 		}
-		__kfifo_put(q->queue, (void*)&q->pool[i], sizeof(void*));
+		kfifo_in(&q->queue, (void*)&q->pool[i], sizeof(void*));
 	}
 
 	if (items) {
@@ -2497,7 +2492,6 @@ void iscsi_pool_free(struct iscsi_pool *q)
 	for (i = 0; i < q->max; i++)
 		kfree(q->pool[i]);
 	kfree(q->pool);
-	kfree(q->queue);
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_free);
 
@@ -2825,7 +2819,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, int dd_size,
 
 	/* allocate login_task used for the login/text sequences */
 	spin_lock_bh(&session->lock);
-	if (!__kfifo_get(session->cmdpool.queue,
+	if (!kfifo_out(&session->cmdpool.queue,
                          (void*)&conn->login_task,
 			 sizeof(void*))) {
 		spin_unlock_bh(&session->lock);
@@ -2845,7 +2839,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, int dd_size,
 	return cls_conn;
 
 login_task_data_alloc_fail:
-	__kfifo_put(session->cmdpool.queue, (void*)&conn->login_task,
+	kfifo_in(&session->cmdpool.queue, (void*)&conn->login_task,
 		    sizeof(void*));
 login_task_alloc_fail:
 	iscsi_destroy_conn(cls_conn);
@@ -2908,7 +2902,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	free_pages((unsigned long) conn->data,
 		   get_order(ISCSI_DEF_MAX_RECV_SEG_LEN));
 	kfree(conn->persistent_address);
-	__kfifo_put(session->cmdpool.queue, (void*)&conn->login_task,
+	kfifo_in(&session->cmdpool.queue, (void*)&conn->login_task,
 		    sizeof(void*));
 	if (session->leadconn == conn)
 		session->leadconn = NULL;

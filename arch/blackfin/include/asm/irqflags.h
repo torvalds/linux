@@ -33,6 +33,7 @@ static inline unsigned long bfin_cli(void)
 
 #ifdef CONFIG_IPIPE
 
+#include <linux/compiler.h>
 #include <linux/ipipe_base.h>
 #include <linux/ipipe_trace.h>
 
@@ -49,12 +50,12 @@ static inline unsigned long bfin_cli(void)
 		barrier();				\
 	} while (0)
 
-static inline void raw_local_irq_enable(void)
-{
-	barrier();
-	ipipe_check_context(ipipe_root_domain);
-	__ipipe_unstall_root();
-}
+#define raw_local_irq_enable()				\
+	do {						\
+		barrier();				\
+		ipipe_check_context(ipipe_root_domain);	\
+		__ipipe_unstall_root();			\
+	} while (0)
 
 #define raw_local_save_flags_ptr(x)					\
 	do {								\

@@ -27,9 +27,6 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4c,
 					0x4d, 0x4e, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm73);
-
 /* LM73 registers */
 #define LM73_REG_INPUT		0x00
 #define LM73_REG_CONF		0x01
@@ -145,13 +142,13 @@ static int lm73_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm73_ids[] = {
-	{ "lm73", lm73 },
+	{ "lm73", 0 },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm73_ids);
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm73_detect(struct i2c_client *new_client, int kind,
+static int lm73_detect(struct i2c_client *new_client,
 			struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
@@ -182,7 +179,7 @@ static struct i2c_driver lm73_driver = {
 	.remove		= lm73_remove,
 	.id_table	= lm73_ids,
 	.detect		= lm73_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* module glue */

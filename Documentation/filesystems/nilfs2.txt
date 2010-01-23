@@ -28,7 +28,7 @@ described in the man pages included in the package.
 Project web page:    http://www.nilfs.org/en/
 Download page:       http://www.nilfs.org/en/download.html
 Git tree web page:   http://www.nilfs.org/git/
-NILFS mailing lists: http://www.nilfs.org/mailman/listinfo/users
+List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
 
 Caveats
 =======

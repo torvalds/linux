@@ -185,11 +185,10 @@ config MD_MULTIPATH
 	tristate "Multipath I/O support"
 	depends on BLK_DEV_MD
 	help
-	  Multipath-IO is the ability of certain devices to address the same
-	  physical disk over multiple 'IO paths'. The code ensures that such
-	  paths can be defined and handled at runtime, and ensures that a
-	  transparent failover to the backup path(s) happens if a IO errors
-	  arrives on the primary path.
+	  MD_MULTIPATH provides a simple multi-path personality for use
+	  the MD framework.  It is not under active development.  New
+	  projects should consider using DM_MULTIPATH which has more
+	  features and more testing.
 
 	  If unsure, say N.
 

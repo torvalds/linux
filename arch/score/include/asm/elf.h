@@ -61,7 +61,6 @@ struct task_struct;
 struct pt_regs;
 
 #define CORE_DUMP_USE_REGSET
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This yields a mask that user programs can use to figure out what

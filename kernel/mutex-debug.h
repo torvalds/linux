@@ -43,13 +43,13 @@ static inline void mutex_clear_owner(struct mutex *lock)
 							\
 		DEBUG_LOCKS_WARN_ON(in_interrupt());	\
 		local_irq_save(flags);			\
-		__raw_spin_lock(&(lock)->raw_lock);	\
+		arch_spin_lock(&(lock)->rlock.raw_lock);\
 		DEBUG_LOCKS_WARN_ON(l->magic != l);	\
 	} while (0)
 
-#define spin_unlock_mutex(lock, flags)			\
-	do {						\
-		__raw_spin_unlock(&(lock)->raw_lock);	\
-		local_irq_restore(flags);		\
-		preempt_check_resched();		\
+#define spin_unlock_mutex(lock, flags)				\
+	do {							\
+		arch_spin_unlock(&(lock)->rlock.raw_lock);	\
+		local_irq_restore(flags);			\
+		preempt_check_resched();			\
 	} while (0)

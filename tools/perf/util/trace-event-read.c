@@ -145,8 +145,9 @@ static void read_proc_kallsyms(void)
 	if (!size)
 		return;
 
-	buf = malloc_or_die(size);
+	buf = malloc_or_die(size + 1);
 	read_or_die(buf, size);
+	buf[size] = '\0';
 
 	parse_proc_kallsyms(buf, size);
 

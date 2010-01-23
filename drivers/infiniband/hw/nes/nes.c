@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -521,7 +521,8 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	spin_lock_init(&nesdev->indexed_regs_lock);
 
 	/* Remap the PCI registers in adapter BAR0 to kernel VA space */
-	mmio_regs = ioremap_nocache(pci_resource_start(pcidev, BAR_0), sizeof(mmio_regs));
+	mmio_regs = ioremap_nocache(pci_resource_start(pcidev, BAR_0),
+				    pci_resource_len(pcidev, BAR_0));
 	if (mmio_regs == NULL) {
 		printk(KERN_ERR PFX "Unable to remap BAR0\n");
 		ret = -EIO;

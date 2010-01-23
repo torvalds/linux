@@ -41,7 +41,6 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 						I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83793);
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
@@ -230,7 +229,7 @@ static u8 w83793_read_value(struct i2c_client *client, u16 reg);
 static int w83793_write_value(struct i2c_client *client, u16 reg, u8 value);
 static int w83793_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int w83793_detect(struct i2c_client *client, int kind,
+static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int w83793_remove(struct i2c_client *client);
 static void w83793_init_client(struct i2c_client *client);
@@ -238,7 +237,7 @@ static void w83793_update_nonvolatile(struct device *dev);
 static struct w83793_data *w83793_update_device(struct device *dev);
 
 static const struct i2c_device_id w83793_id[] = {
-	{ "w83793", w83793 },
+	{ "w83793", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83793_id);
@@ -252,7 +251,7 @@ static struct i2c_driver w83793_driver = {
 	.remove		= w83793_remove,
 	.id_table	= w83793_id,
 	.detect		= w83793_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static ssize_t
@@ -1161,7 +1160,7 @@ ERROR_SC_0:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int w83793_detect(struct i2c_client *client, int kind,
+static int w83793_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	u8 tmp, bank, chip_id;

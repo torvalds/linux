@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -382,7 +382,7 @@ void __kprobes do_single_step(struct pt_regs *regs)
 					SIGTRAP) == NOTIFY_STOP){
 		return;
 	}
-	if ((current->ptrace & PT_PTRACED) != 0)
+	if (tracehook_consider_fatal_signal(current, SIGTRAP))
 		force_sig(SIGTRAP, current);
 }
 
@@ -483,7 +483,7 @@ static void illegal_op(struct pt_regs * regs, long interruption_code)
 		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
 			return;
 		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
-			if (current->ptrace & PT_PTRACED)
+			if (tracehook_consider_fatal_signal(current, SIGTRAP))
 				force_sig(SIGTRAP, current);
 			else
 				signal = SIGILL;

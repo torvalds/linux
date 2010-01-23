@@ -18,6 +18,7 @@ obj-$(CONFIG_SATA_MV)		+= sata_mv.o
 obj-$(CONFIG_SATA_INIC162X)	+= sata_inic162x.o
 obj-$(CONFIG_PDC_ADMA)		+= pdc_adma.o
 obj-$(CONFIG_SATA_FSL)		+= sata_fsl.o
+obj-$(CONFIG_PATA_MACIO)	+= pata_macio.o
 
 obj-$(CONFIG_PATA_ALI)		+= pata_ali.o
 obj-$(CONFIG_PATA_AMD)		+= pata_amd.o

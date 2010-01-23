@@ -272,8 +272,9 @@ static inline int clear_user(char *to, int size)
 	return size;
 }
 
-extern unsigned long __copy_tofrom_user(void __user *to,
-		const void __user *from, unsigned long size);
+#define __copy_from_user(to, from, n)	copy_from_user((to), (from), (n))
+#define __copy_from_user_inatomic(to, from, n) \
+		copy_from_user((to), (from), (n))
 
 #define copy_to_user(to, from, n)					\
 	(access_ok(VERIFY_WRITE, (to), (n)) ?				\
@@ -290,10 +291,6 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 			(void __user *)(from), (n))			\
 		: -EFAULT)
 
-#define __copy_from_user(to, from, n)	copy_from_user((to), (from), (n))
-#define __copy_from_user_inatomic(to, from, n) \
-		copy_from_user((to), (from), (n))
-
 extern int __strncpy_user(char *to, const char __user *from, int len);
 extern int __strnlen_user(const char __user *sstr, int len);
 
@@ -304,6 +301,9 @@ extern int __strnlen_user(const char __user *sstr, int len);
 		(access_ok(VERIFY_READ, str, 1) ? __strnlen_user(str, len) : 0)
 
 #endif /* CONFIG_MMU */
+
+extern unsigned long __copy_tofrom_user(void __user *to,
+		const void __user *from, unsigned long size);
 
 /*
  * The exception table consists of pairs of addresses: the first is the

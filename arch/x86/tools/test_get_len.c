@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 	char line[BUFSIZE], sym[BUFSIZE] = "<unknown>";
 	unsigned char insn_buf[16];
 	struct insn insn;
-	int insns = 0, c;
+	int insns = 0;
 	int warnings = 0;
 
 	parse_args(argc, argv);

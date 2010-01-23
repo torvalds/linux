@@ -1086,11 +1086,6 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	/* audio codec should override the mixer name */
-	if (codec->afg || !*codec->bus->card->mixername)
-		snprintf(codec->bus->card->mixername,
-			 sizeof(codec->bus->card->mixername),
-			 "%s %s", codec->vendor_name, codec->chip_name);
 
 	if (is_generic_config(codec)) {
 		err = snd_hda_parse_generic_codec(codec);
@@ -1109,6 +1104,11 @@ int snd_hda_codec_configure(struct hda_codec *codec)
  patched:
 	if (!err && codec->patch_ops.unsol_event)
 		err = init_unsol_queue(codec->bus);
+	/* audio codec should override the mixer name */
+	if (!err && (codec->afg || !*codec->bus->card->mixername))
+		snprintf(codec->bus->card->mixername,
+			 sizeof(codec->bus->card->mixername),
+			 "%s %s", codec->vendor_name, codec->chip_name);
 	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_configure);
@@ -1327,11 +1327,13 @@ EXPORT_SYMBOL_HDA(snd_hda_query_pin_caps);
  */
 u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 {
-	u32 pincap = snd_hda_query_pin_caps(codec, nid);
+	u32 pincap;
 
-	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
-
+	if (!codec->no_trigger_sense) {
+		pincap = snd_hda_query_pin_caps(codec, nid);
+		if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+			snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
+	}
 	return snd_hda_codec_read(codec, nid, 0,
 				  AC_VERB_GET_PIN_SENSE, 0);
 }

@@ -47,7 +47,7 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 };
 
 #define WM8974_POWER1_BIASEN  0x08
-#define WM8974_POWER1_BUFIOEN 0x10
+#define WM8974_POWER1_BUFIOEN 0x04
 
 struct wm8974_priv {
 	struct snd_soc_codec codec;
@@ -482,23 +482,23 @@ static int wm8974_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* filter coefficient */
 	switch (params_rate(params)) {
-	case SNDRV_PCM_RATE_8000:
+	case 8000:
 		adn |= 0x5 << 1;
 		break;
-	case SNDRV_PCM_RATE_11025:
+	case 11025:
 		adn |= 0x4 << 1;
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case 16000:
 		adn |= 0x3 << 1;
 		break;
-	case SNDRV_PCM_RATE_22050:
+	case 22050:
 		adn |= 0x2 << 1;
 		break;
-	case SNDRV_PCM_RATE_32000:
+	case 32000:
 		adn |= 0x1 << 1;
 		break;
-	case SNDRV_PCM_RATE_44100:
-	case SNDRV_PCM_RATE_48000:
+	case 44100:
+	case 48000:
 		break;
 	}
 

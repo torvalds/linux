@@ -106,7 +106,7 @@ static int strtailcmp(const char *s1, const char *s2)
 {
 	int i1 = strlen(s1);
 	int i2 = strlen(s2);
-	while (--i1 > 0 && --i2 > 0) {
+	while (--i1 >= 0 && --i2 >= 0) {
 		if (s1[i1] != s2[i2])
 			return s1[i1] - s2[i2];
 	}
@@ -687,10 +687,8 @@ int find_probepoint(int fd, struct probe_point *pp)
 	struct probe_finder pf = {.pp = pp};
 
 	ret = dwarf_init(fd, DW_DLC_READ, 0, 0, &__dw_debug, &__dw_error);
-	if (ret != DW_DLV_OK) {
-		pr_warning("No dwarf info found in the vmlinux - please rebuild with CONFIG_DEBUG_INFO.\n");
+	if (ret != DW_DLV_OK)
 		return -ENOENT;
-	}
 
 	pp->found = 0;
 	while (++cu_number) {

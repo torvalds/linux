@@ -27,8 +27,8 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
+#include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
@@ -58,7 +58,7 @@
     image number and an offset within that image.  xlate_rom_addr()
     converts an image/offset address to an absolute offset from the
     ROM's base address.
-    
+
 =====================================================================*/
 
 static u_int xlate_rom_addr(void __iomem *b, u_int addr)
@@ -85,10 +85,10 @@ static u_int xlate_rom_addr(void __iomem *b, u_int addr)
     These are similar to setup_cis_mem and release_cis_mem for 16-bit
     cards.  The "result" that is used externally is the cb_cis_virt
     pointer in the struct pcmcia_socket structure.
-    
+
 =====================================================================*/
 
-static void cb_release_cis_mem(struct pcmcia_socket * s)
+static void cb_release_cis_mem(struct pcmcia_socket *s)
 {
 	if (s->cb_cis_virt) {
 		dev_dbg(&s->dev, "cb_release_cis_mem()\n");
@@ -98,7 +98,7 @@ static void cb_release_cis_mem(struct pcmcia_socket * s)
 	}
 }
 
-static int cb_setup_cis_mem(struct pcmcia_socket * s, struct resource *res)
+static int cb_setup_cis_mem(struct pcmcia_socket *s, struct resource *res)
 {
 	unsigned int start, size;
 
@@ -124,10 +124,11 @@ static int cb_setup_cis_mem(struct pcmcia_socket * s, struct resource *res)
 
     This is used by the CIS processing code to read CIS information
     from a CardBus device.
-    
+
 =====================================================================*/
 
-int read_cb_mem(struct pcmcia_socket * s, int space, u_int addr, u_int len, void *ptr)
+int read_cb_mem(struct pcmcia_socket *s, int space, u_int addr, u_int len,
+		void *ptr)
 {
 	struct pci_dev *dev;
 	struct resource *res;
@@ -181,7 +182,7 @@ fail:
     cb_alloc() and cb_free() allocate and free the kernel data
     structures for a Cardbus device, and handle the lowest level PCI
     device setup issues.
-    
+
 =====================================================================*/
 
 static void cardbus_config_irq_and_cls(struct pci_bus *bus, int irq)
@@ -214,14 +215,14 @@ static void cardbus_config_irq_and_cls(struct pci_bus *bus, int irq)
 	}
 }
 
-int __ref cb_alloc(struct pcmcia_socket * s)
+int __ref cb_alloc(struct pcmcia_socket *s)
 {
 	struct pci_bus *bus = s->cb_dev->subordinate;
 	struct pci_dev *dev;
 	unsigned int max, pass;
 
 	s->functions = pci_scan_slot(bus, PCI_DEVFN(0, 0));
-//	pcibios_fixup_bus(bus);
+	pci_fixup_cardbus(bus); 
 
 	max = bus->secondary;
 	for (pass = 0; pass < 2; pass++)
@@ -248,7 +249,7 @@ int __ref cb_alloc(struct pcmcia_socket * s)
 	return 0;
 }
 
-void cb_free(struct pcmcia_socket * s)
+void cb_free(struct pcmcia_socket *s)
 {
 	struct pci_dev *bridge = s->cb_dev;
 

@@ -514,6 +514,13 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&sdhi1_cn8_device,
 };
 
+/* I2C device */
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("ak4642", 0x12),
+	},
+};
+
 #define EEPROM_OP   0xBA206000
 #define EEPROM_ADR  0xBA206004
 #define EEPROM_DATA 0xBA20600C
@@ -526,7 +533,7 @@ static int __init sh_eth_is_eeprom_ready(void)
 	while (t--) {
 		if (!ctrl_inw(EEPROM_STAT))
 			return 1;
-		cpu_relax();
+		udelay(1);
 	}
 
 	printk(KERN_ERR "ms7724se can not access to eeprom\n");
@@ -574,6 +581,16 @@ extern char ms7724se_sdram_enter_start;
 extern char ms7724se_sdram_enter_end;
 extern char ms7724se_sdram_leave_start;
 extern char ms7724se_sdram_leave_end;
+
+
+static int __init arch_setup(void)
+{
+	/* enable I2C device */
+	i2c_register_board_info(0, i2c0_devices,
+				ARRAY_SIZE(i2c0_devices));
+	return 0;
+}
+arch_initcall(arch_setup);
 
 static int __init devices_setup(void)
 {

@@ -386,7 +386,7 @@ u16 HvSignalEvent(void)
  * retrieve the initialized message and event pages.  Otherwise, we create and
  * initialize the message and event pages.
  */
-int HvSynicInit(u32 irqVector)
+void HvSynicInit(void *irqarg)
 {
 	u64 version;
 	union hv_synic_simp simp;
@@ -394,13 +394,14 @@ int HvSynicInit(u32 irqVector)
 	union hv_synic_sint sharedSint;
 	union hv_synic_scontrol sctrl;
 	u64 guestID;
-	int ret = 0;
+	u32 irqVector = *((u32 *)(irqarg));
+	int cpu = smp_processor_id();
 
 	DPRINT_ENTER(VMBUS);
 
 	if (!gHvContext.HypercallPage) {
 		DPRINT_EXIT(VMBUS);
-		return ret;
+		return;
 	}
 
 	/* Check the version */
@@ -425,27 +426,27 @@ int HvSynicInit(u32 irqVector)
 		 */
 		rdmsrl(HV_X64_MSR_GUEST_OS_ID, guestID);
 		if (guestID == HV_LINUX_GUEST_ID) {
-			gHvContext.synICMessagePage[0] =
+			gHvContext.synICMessagePage[cpu] =
 				phys_to_virt(simp.BaseSimpGpa << PAGE_SHIFT);
-			gHvContext.synICEventPage[0] =
+			gHvContext.synICEventPage[cpu] =
 				phys_to_virt(siefp.BaseSiefpGpa << PAGE_SHIFT);
 		} else {
 			DPRINT_ERR(VMBUS, "unknown guest id!!");
 			goto Cleanup;
 		}
 		DPRINT_DBG(VMBUS, "MAPPED: Simp: %p, Sifep: %p",
-			   gHvContext.synICMessagePage[0],
-			   gHvContext.synICEventPage[0]);
+			   gHvContext.synICMessagePage[cpu],
+			   gHvContext.synICEventPage[cpu]);
 	} else {
-		gHvContext.synICMessagePage[0] = osd_PageAlloc(1);
-		if (gHvContext.synICMessagePage[0] == NULL) {
+		gHvContext.synICMessagePage[cpu] = (void *)get_zeroed_page(GFP_ATOMIC);
+		if (gHvContext.synICMessagePage[cpu] == NULL) {
 			DPRINT_ERR(VMBUS,
 				   "unable to allocate SYNIC message page!!");
 			goto Cleanup;
 		}
 
-		gHvContext.synICEventPage[0] = osd_PageAlloc(1);
-		if (gHvContext.synICEventPage[0] == NULL) {
+		gHvContext.synICEventPage[cpu] = (void *)get_zeroed_page(GFP_ATOMIC);
+		if (gHvContext.synICEventPage[cpu] == NULL) {
 			DPRINT_ERR(VMBUS,
 				   "unable to allocate SYNIC event page!!");
 			goto Cleanup;
@@ -454,7 +455,7 @@ int HvSynicInit(u32 irqVector)
 		/* Setup the Synic's message page */
 		rdmsrl(HV_X64_MSR_SIMP, simp.AsUINT64);
 		simp.SimpEnabled = 1;
-		simp.BaseSimpGpa = virt_to_phys(gHvContext.synICMessagePage[0])
+		simp.BaseSimpGpa = virt_to_phys(gHvContext.synICMessagePage[cpu])
 					>> PAGE_SHIFT;
 
 		DPRINT_DBG(VMBUS, "HV_X64_MSR_SIMP msr set to: %llx",
@@ -465,7 +466,7 @@ int HvSynicInit(u32 irqVector)
 		/* Setup the Synic's event page */
 		rdmsrl(HV_X64_MSR_SIEFP, siefp.AsUINT64);
 		siefp.SiefpEnabled = 1;
-		siefp.BaseSiefpGpa = virt_to_phys(gHvContext.synICEventPage[0])
+		siefp.BaseSiefpGpa = virt_to_phys(gHvContext.synICEventPage[cpu])
 					>> PAGE_SHIFT;
 
 		DPRINT_DBG(VMBUS, "HV_X64_MSR_SIEFP msr set to: %llx",
@@ -501,32 +502,30 @@ int HvSynicInit(u32 irqVector)
 
 	DPRINT_EXIT(VMBUS);
 
-	return ret;
+	return;
 
 Cleanup:
-	ret = -1;
-
 	if (gHvContext.GuestId == HV_LINUX_GUEST_ID) {
-		if (gHvContext.synICEventPage[0])
-			osd_PageFree(gHvContext.synICEventPage[0], 1);
+		if (gHvContext.synICEventPage[cpu])
+			osd_PageFree(gHvContext.synICEventPage[cpu], 1);
 
-		if (gHvContext.synICMessagePage[0])
-			osd_PageFree(gHvContext.synICMessagePage[0], 1);
+		if (gHvContext.synICMessagePage[cpu])
+			osd_PageFree(gHvContext.synICMessagePage[cpu], 1);
 	}
 
 	DPRINT_EXIT(VMBUS);
-
-	return ret;
+	return;
 }
 
 /**
  * HvSynicCleanup - Cleanup routine for HvSynicInit().
  */
-void HvSynicCleanup(void)
+void HvSynicCleanup(void *arg)
 {
 	union hv_synic_sint sharedSint;
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
+	int cpu = smp_processor_id();
 
 	DPRINT_ENTER(VMBUS);
 
@@ -539,6 +538,7 @@ void HvSynicCleanup(void)
 
 	sharedSint.Masked = 1;
 
+	/* Need to correctly cleanup in the case of SMP!!! */
 	/* Disable the interrupt */
 	wrmsrl(HV_X64_MSR_SINT0 + VMBUS_MESSAGE_SINT, sharedSint.AsUINT64);
 
@@ -560,8 +560,8 @@ void HvSynicCleanup(void)
 
 		wrmsrl(HV_X64_MSR_SIEFP, siefp.AsUINT64);
 
-		osd_PageFree(gHvContext.synICMessagePage[0], 1);
-		osd_PageFree(gHvContext.synICEventPage[0], 1);
+		osd_PageFree(gHvContext.synICMessagePage[cpu], 1);
+		osd_PageFree(gHvContext.synICEventPage[cpu], 1);
 	}
 
 	DPRINT_EXIT(VMBUS);

@@ -89,9 +89,9 @@ struct pt_regs {
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13	/* ptrace signal  */
 
-#define PTRACE_GETFDPIC           31
-#define PTRACE_GETFDPIC_EXEC      0
-#define PTRACE_GETFDPIC_INTERP    1
+#define PTRACE_GETFDPIC           31	/* get the ELF fdpic loadmap address */
+#define PTRACE_GETFDPIC_EXEC       0	/* [addr] request the executable loadmap */
+#define PTRACE_GETFDPIC_INTERP     1	/* [addr] request the interpreter loadmap */
 
 #define PS_S  (0x0002)
 

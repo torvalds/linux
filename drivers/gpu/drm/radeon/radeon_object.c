@@ -56,6 +56,13 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
+bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo)
+{
+	if (bo->destroy == &radeon_ttm_bo_destroy)
+		return true;
+	return false;
+}
+
 void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 {
 	u32 c = 0;
@@ -70,6 +77,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	if (domain & RADEON_GEM_DOMAIN_GTT)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	if (domain & RADEON_GEM_DOMAIN_CPU)
+		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	if (!c)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
 	rbo->placement.num_busy_placement = c;
@@ -212,8 +221,9 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
 	if (rdev->flags & RADEON_IS_IGP) {
-		/* Useless to evict on IGP chips */
-		return 0;
+		if (rdev->mc.igp_sideport_enabled == false)
+			/* Useless to evict on IGP chips */
+			return 0;
 	}
 	return ttm_bo_evict_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 }
@@ -481,14 +491,20 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 }
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-				struct ttm_mem_reg *mem)
+			   struct ttm_mem_reg *mem)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 1);
 }
 
 void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 0);
 }

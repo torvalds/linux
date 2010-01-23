@@ -232,7 +232,7 @@ static int socrates_fpga_pic_set_type(unsigned int virq,
 }
 
 static struct irq_chip socrates_fpga_pic_chip = {
-	.typename       = " FPGA-PIC ",
+	.name		= " FPGA-PIC ",
 	.ack		= socrates_fpga_pic_ack,
 	.mask           = socrates_fpga_pic_mask,
 	.mask_ack       = socrates_fpga_pic_mask_ack,
@@ -245,7 +245,7 @@ static int socrates_fpga_pic_host_map(struct irq_host *h, unsigned int virq,
 		irq_hw_number_t hwirq)
 {
 	/* All interrupts are LEVEL sensitive */
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &socrates_fpga_pic_chip,
 			handle_fasteoi_irq);
 
@@ -253,7 +253,7 @@ static int socrates_fpga_pic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int socrates_fpga_pic_host_xlate(struct irq_host *h,
-		struct device_node *ct,	u32 *intspec, unsigned int intsize,
+		struct device_node *ct,	const u32 *intspec, unsigned int intsize,
 		irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	struct socrates_fpga_irq_info *fpga_irq = &fpga_irqs[intspec[0]];

@@ -41,8 +41,7 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 static unsigned short isa_address = 0x290;
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(lm78, lm79);
+enum chips { lm78, lm79 };
 
 /* Many LM78 constants specified below */
 
@@ -142,7 +141,7 @@ struct lm78_data {
 };
 
 
-static int lm78_i2c_detect(struct i2c_client *client, int kind,
+static int lm78_i2c_detect(struct i2c_client *client,
 			   struct i2c_board_info *info);
 static int lm78_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id);
@@ -173,7 +172,7 @@ static struct i2c_driver lm78_driver = {
 	.remove		= lm78_i2c_remove,
 	.id_table	= lm78_i2c_id,
 	.detect		= lm78_i2c_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static struct platform_driver lm78_isa_driver = {
@@ -558,7 +557,7 @@ static int lm78_alias_detect(struct i2c_client *client, u8 chipid)
 	return 1;
 }
 
-static int lm78_i2c_detect(struct i2c_client *client, int kind,
+static int lm78_i2c_detect(struct i2c_client *client,
 			   struct i2c_board_info *info)
 {
 	int i;

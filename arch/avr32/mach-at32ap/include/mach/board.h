@@ -49,6 +49,7 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data);
 struct spi_board_info;
 struct platform_device *
 at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n);
+void at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b, unsigned int n);
 
 struct atmel_lcdfb_info;
 struct platform_device *

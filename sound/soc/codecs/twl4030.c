@@ -26,7 +26,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -175,7 +175,7 @@ static int twl4030_write(struct snd_soc_codec *codec,
 {
 	twl4030_write_reg_cache(codec, reg, value);
 	if (likely(reg < TWL4030_REG_SW_SHADOW))
-		return twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value,
+		return twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value,
 					    reg);
 	else
 		return 0;
@@ -261,7 +261,7 @@ static void twl4030_power_up(struct snd_soc_codec *codec)
 	do {
 		/* this takes a little while, so don't slam i2c */
 		udelay(2000);
-		twl4030_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
+		twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
 				    TWL4030_REG_ANAMICL);
 	} while ((i++ < 100) &&
 		 ((byte & TWL4030_CNCL_OFFSET_START) ==
@@ -542,7 +542,7 @@ static int pin_name##pga_event(struct snd_soc_dapm_widget *w,		\
 		break;							\
 	case SND_SOC_DAPM_POST_PMD:					\
 		reg_val = twl4030_read_reg_cache(w->codec, reg);	\
-		twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,	\
+		twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,	\
 					reg_val & (~mask),		\
 					reg);				\
 		break;							\
@@ -679,7 +679,7 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 		mdelay((ramp_base[(hs_pop & TWL4030_RAMP_DELAY) >> 2] /
 			twl4030->sysclk) + 1);
 		/* Bypass the reg_cache to mute the headset */
-		twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
+		twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
 					hs_gain & (~0x0f),
 					TWL4030_REG_HS_GAIN_SET);
 

@@ -19,6 +19,7 @@
 #include <linux/input/sh_keysc.h>
 #include <linux/i2c.h>
 #include <linux/usb/r8a66597.h>
+#include <media/rj54n1cb0c.h>
 #include <media/soc_camera.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -149,6 +150,7 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 		},
 		.board_cfg = {
 			.setup_sys = kfr2r09_lcd_setup,
+			.start_transfer = kfr2r09_lcd_start,
 			.display_on = kfr2r09_lcd_on,
 			.display_off = kfr2r09_lcd_off,
 		},
@@ -255,6 +257,9 @@ static struct i2c_board_info kfr2r09_i2c_camera = {
 
 static struct clk *camera_clk;
 
+/* set VIO_CKO clock to 25MHz */
+#define CEU_MCLK_FREQ 25000000
+
 #define DRVCRB 0xA405018C
 static int camera_power(struct device *dev, int mode)
 {
@@ -267,8 +272,7 @@ static int camera_power(struct device *dev, int mode)
 		if (IS_ERR(camera_clk))
 			return PTR_ERR(camera_clk);
 
-		/* set VIO_CKO clock to 25MHz */
-		rate = clk_round_rate(camera_clk, 25000000);
+		rate = clk_round_rate(camera_clk, CEU_MCLK_FREQ);
 		ret = clk_set_rate(camera_clk, rate);
 		if (ret < 0)
 			goto eclkrate;
@@ -318,11 +322,17 @@ eclkrate:
 	return ret;
 }
 
+static struct rj54n1_pdata rj54n1_priv = {
+	.mclk_freq	= CEU_MCLK_FREQ,
+	.ioctl_high	= false,
+};
+
 static struct soc_camera_link rj54n1_link = {
 	.power		= camera_power,
 	.board_info	= &kfr2r09_i2c_camera,
 	.i2c_adapter_id	= 1,
 	.module_name	= "rj54n1cb0c",
+	.priv		= &rj54n1_priv,
 };
 
 static struct platform_device kfr2r09_camera = {

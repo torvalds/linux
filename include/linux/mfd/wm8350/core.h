@@ -15,7 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include <linux/mfd/wm8350/audio.h>
 #include <linux/mfd/wm8350/gpio.h>
@@ -601,7 +601,7 @@ extern const u16 wm8352_mode3_defaults[];
 struct wm8350;
 
 struct wm8350_irq {
-	void (*handler) (struct wm8350 *, int, void *);
+	irq_handler_t handler;
 	void *data;
 };
 
@@ -646,10 +646,12 @@ struct wm8350 {
  * @init: Function called during driver initialisation.  Should be
  *        used by the platform to configure GPIO functions and similar.
  * @irq_high: Set if WM8350 IRQ is active high.
+ * @irq_base: Base IRQ for genirq (not currently used).
  */
 struct wm8350_platform_data {
 	int (*init)(struct wm8350 *wm8350);
 	int irq_high;
+	int irq_base;
 };
 
 
@@ -676,11 +678,13 @@ int wm8350_block_write(struct wm8350 *wm8350, int reg, int size, u16 *src);
  * WM8350 internal interrupts
  */
 int wm8350_register_irq(struct wm8350 *wm8350, int irq,
-			void (*handler) (struct wm8350 *, int, void *),
-			void *data);
+			irq_handler_t handler, unsigned long flags,
+			const char *name, void *data);
 int wm8350_free_irq(struct wm8350 *wm8350, int irq);
 int wm8350_mask_irq(struct wm8350 *wm8350, int irq);
 int wm8350_unmask_irq(struct wm8350 *wm8350, int irq);
-
+int wm8350_irq_init(struct wm8350 *wm8350, int irq,
+		    struct wm8350_platform_data *pdata);
+int wm8350_irq_exit(struct wm8350 *wm8350);
 
 #endif

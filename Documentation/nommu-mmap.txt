@@ -119,6 +119,32 @@ FURTHER NOTES ON NO-MMU MMAP
      granule but will only discard the excess if appropriately configured as
      this has an effect on fragmentation.
 
+ (*) The memory allocated by a request for an anonymous mapping will normally
+     be cleared by the kernel before being returned in accordance with the
+     Linux man pages (ver 2.22 or later).
+
+     In the MMU case this can be achieved with reasonable performance as
+     regions are backed by virtual pages, with the contents only being mapped
+     to cleared physical pages when a write happens on that specific page
+     (prior to which, the pages are effectively mapped to the global zero page
+     from which reads can take place).  This spreads out the time it takes to
+     initialize the contents of a page - depending on the write-usage of the
+     mapping.
+
+     In the no-MMU case, however, anonymous mappings are backed by physical
+     pages, and the entire map is cleared at allocation time.  This can cause
+     significant delays during a userspace malloc() as the C library does an
+     anonymous mapping and the kernel then does a memset for the entire map.
+
+     However, for memory that isn't required to be precleared - such as that
+     returned by malloc() - mmap() can take a MAP_UNINITIALIZED flag to
+     indicate to the kernel that it shouldn't bother clearing the memory before
+     returning it.  Note that CONFIG_MMAP_ALLOW_UNINITIALIZED must be enabled
+     to permit this, otherwise the flag will be ignored.
+
+     uClibc uses this to speed up malloc(), and the ELF-FDPIC binfmt uses this
+     to allocate the brk and stack region.
+
  (*) A list of all the private copy and anonymous mappings on the system is
      visible through /proc/maps in no-MMU mode.
 

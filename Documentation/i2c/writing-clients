@@ -44,7 +44,7 @@ static struct i2c_driver foo_driver = {
 	/* if device autodetection is needed: */
 	.class		= I2C_CLASS_SOMETHING,
 	.detect		= foo_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 
 	.shutdown	= foo_shutdown,	/* optional */
 	.suspend	= foo_suspend,	/* optional */

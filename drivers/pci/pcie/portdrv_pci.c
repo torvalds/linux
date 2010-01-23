@@ -24,7 +24,7 @@
  */
 #define DRIVER_VERSION "v1.0"
 #define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
-#define DRIVER_DESC "PCIE Port Bus Driver"
+#define DRIVER_DESC "PCIe Port Bus Driver"
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
@@ -43,7 +43,7 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static struct dev_pm_ops pcie_portdrv_pm_ops = {
+static const struct dev_pm_ops pcie_portdrv_pm_ops = {
 	.suspend	= pcie_port_device_suspend,
 	.resume		= pcie_port_device_resume,
 	.freeze		= pcie_port_device_suspend,
@@ -63,7 +63,7 @@ static struct dev_pm_ops pcie_portdrv_pm_ops = {
  * pcie_portdrv_probe - Probe PCI-Express port devices
  * @dev: PCI-Express port device being probed
  *
- * If detected invokes the pcie_port_device_register() method for 
+ * If detected invokes the pcie_port_device_register() method for
  * this port device.
  *
  */
@@ -78,7 +78,7 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 	     (dev->pcie_type != PCI_EXP_TYPE_DOWNSTREAM)))
 		return -ENODEV;
 
-        if (!dev->irq && dev->pin) {
+	if (!dev->irq && dev->pin) {
 		dev_warn(&dev->dev, "device [%04x:%04x] has invalid IRQ; "
 			 "check vendor BIOS\n", dev->vendor, dev->device);
 	}
@@ -91,7 +91,7 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 	return 0;
 }
 
-static void pcie_portdrv_remove (struct pci_dev *dev)
+static void pcie_portdrv_remove(struct pci_dev *dev)
 {
 	pcie_port_device_remove(dev);
 	pci_disable_device(dev);
@@ -129,14 +129,13 @@ static int error_detected_iter(struct device *device, void *data)
 static pci_ers_result_t pcie_portdrv_error_detected(struct pci_dev *dev,
 					enum pci_channel_state error)
 {
-	struct aer_broadcast_data result_data =
-			{error, PCI_ERS_RESULT_CAN_RECOVER};
-	int retval;
+	struct aer_broadcast_data data = {error, PCI_ERS_RESULT_CAN_RECOVER};
+	int ret;
 
 	/* can not fail */
-	retval = device_for_each_child(&dev->dev, &result_data, error_detected_iter);
+	ret = device_for_each_child(&dev->dev, &data, error_detected_iter);
 
-	return result_data.result;
+	return data.result;
 }
 
 static int mmio_enabled_iter(struct device *device, void *data)
@@ -290,7 +289,7 @@ static int __init pcie_portdrv_init(void)
 	return retval;
 }
 
-static void __exit pcie_portdrv_exit(void) 
+static void __exit pcie_portdrv_exit(void)
 {
 	pci_unregister_driver(&pcie_portdriver);
 	pcie_port_bus_unregister();

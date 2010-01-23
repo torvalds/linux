@@ -49,18 +49,32 @@ struct symbol {
 	char		name[0];
 };
 
+struct strlist;
+
 struct symbol_conf {
 	unsigned short	priv_size;
 	bool		try_vmlinux_path,
-			use_modules;
-	const char	*vmlinux_name;
+			use_modules,
+			sort_by_name,
+			show_nr_samples,
+			use_callchain,
+			exclude_other;
+	const char	*vmlinux_name,
+			*field_sep;
+	char            *dso_list_str,
+			*comm_list_str,
+			*sym_list_str,
+			*col_width_list_str;
+       struct strlist	*dso_list,
+			*comm_list,
+			*sym_list;
 };
 
-extern unsigned int symbol__priv_size;
+extern struct symbol_conf symbol_conf;
 
 static inline void *symbol__priv(struct symbol *self)
 {
-	return ((void *)self) - symbol__priv_size;
+	return ((void *)self) - symbol_conf.priv_size;
 }
 
 struct addr_location {
@@ -69,18 +83,19 @@ struct addr_location {
 	struct symbol *sym;
 	u64	      addr;
 	char	      level;
+	bool	      filtered;
 };
 
 struct dso {
 	struct list_head node;
 	struct rb_root	 symbols[MAP__NR_TYPES];
-	struct symbol    *(*find_symbol)(struct dso *self,
-					 enum map_type type, u64 addr);
+	struct rb_root	 symbol_names[MAP__NR_TYPES];
 	u8		 adjust_symbols:1;
 	u8		 slen_calculated:1;
 	u8		 has_build_id:1;
 	u8		 kernel:1;
 	unsigned char	 origin;
+	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
 	u16		 long_name_len;
@@ -93,9 +108,15 @@ struct dso *dso__new(const char *name);
 void dso__delete(struct dso *self);
 
 bool dso__loaded(const struct dso *self, enum map_type type);
+bool dso__sorted_by_name(const struct dso *self, enum map_type type);
+
+void dso__sort_by_name(struct dso *self, enum map_type type);
+
+struct perf_session;
 
 struct dso *dsos__findnew(const char *name);
-int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
+int dso__load(struct dso *self, struct map *map, struct perf_session *session,
+	      symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
 size_t dsos__fprintf_buildid(FILE *fp);
 
@@ -103,18 +124,18 @@ size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
 char dso__symtab_origin(const struct dso *self);
 void dso__set_build_id(struct dso *self, void *build_id);
+struct symbol *dso__find_symbol(struct dso *self, enum map_type type, u64 addr);
+struct symbol *dso__find_symbol_by_name(struct dso *self, enum map_type type,
+					const char *name);
 
 int filename__read_build_id(const char *filename, void *bf, size_t size);
 int sysfs__read_build_id(const char *filename, void *bf, size_t size);
 bool dsos__read_build_ids(void);
 int build_id__sprintf(u8 *self, int len, char *bf);
 
-size_t kernel_maps__fprintf(FILE *fp);
+int symbol__init(void);
+int perf_session__create_kernel_maps(struct perf_session *self);
 
-int symbol__init(struct symbol_conf *conf);
-
-struct thread;
-struct thread *kthread;
 extern struct list_head dsos__user, dsos__kernel;
 extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

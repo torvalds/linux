@@ -6,6 +6,7 @@ config OCFS2_FS
 	select CRC32
 	select QUOTA
 	select QUOTA_TREE
+	select FS_POSIX_ACL
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
 	  system with many similarities to ext3. It supports 64 bit inode
@@ -74,12 +75,3 @@ config OCFS2_DEBUG_FS
 	  This option will enable expensive consistency checks. Enable
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
-
-config OCFS2_FS_POSIX_ACL
-	bool "OCFS2 POSIX Access Control Lists"
-	depends on OCFS2_FS
-	select FS_POSIX_ACL
-	default n
-	help
-	  Posix Access Control Lists (ACLs) support permissions for users and
-	  groups beyond the owner/group/world scheme.

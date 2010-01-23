@@ -31,12 +31,15 @@
 #include <acpi/acpi_drivers.h>
 #include <linux/acpi.h>
 #include <linux/string.h>
+#include <linux/dmi.h>
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_DESCRIPTION("Dell laptop WMI hotkeys driver");
 MODULE_LICENSE("GPL");
 
 #define DELL_EVENT_GUID "9DBB5994-A997-11DA-B012-B622A1EF5492"
+
+static int acpi_video;
 
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
 
@@ -54,7 +57,7 @@ enum { KE_KEY, KE_SW, KE_IGNORE, KE_END };
  * via the keyboard controller so should not be sent again.
  */
 
-static struct key_entry dell_wmi_keymap[] = {
+static struct key_entry dell_legacy_wmi_keymap[] = {
 	{KE_KEY, 0xe045, KEY_PROG1},
 	{KE_KEY, 0xe009, KEY_EJECTCD},
 
@@ -72,7 +75,7 @@ static struct key_entry dell_wmi_keymap[] = {
 
 	/* The next device is at offset 6, the active devices are at
 	   offset 8 and the attached devices at offset 10 */
-	{KE_KEY, 0xe00b, KEY_DISPLAYTOGGLE},
+	{KE_KEY, 0xe00b, KEY_SWITCHVIDEOMODE},
 
 	{KE_IGNORE, 0xe00c, KEY_KBDILLUMTOGGLE},
 
@@ -95,6 +98,47 @@ static struct key_entry dell_wmi_keymap[] = {
 	{KE_IGNORE, 0xe046, KEY_SCROLLLOCK},
 	{KE_END, 0}
 };
+
+static bool dell_new_hk_type;
+
+struct dell_new_keymap_entry {
+	u16 scancode;
+	u16 keycode;
+};
+
+struct dell_hotkey_table {
+	struct dmi_header header;
+	struct dell_new_keymap_entry keymap[];
+
+};
+
+static struct key_entry *dell_new_wmi_keymap;
+
+static u16 bios_to_linux_keycode[256] = {
+
+	KEY_MEDIA,	KEY_NEXTSONG,	KEY_PLAYPAUSE, KEY_PREVIOUSSONG,
+	KEY_STOPCD,	KEY_UNKNOWN,	KEY_UNKNOWN,	KEY_UNKNOWN,
+	KEY_WWW,	KEY_UNKNOWN,	KEY_VOLUMEDOWN, KEY_MUTE,
+	KEY_VOLUMEUP,	KEY_UNKNOWN,	KEY_BATTERY,	KEY_EJECTCD,
+	KEY_UNKNOWN,	KEY_SLEEP,	KEY_PROG1, KEY_BRIGHTNESSDOWN,
+	KEY_BRIGHTNESSUP,	KEY_UNKNOWN,	KEY_KBDILLUMTOGGLE,
+	KEY_UNKNOWN,	KEY_SWITCHVIDEOMODE,	KEY_UNKNOWN, KEY_UNKNOWN,
+	KEY_SWITCHVIDEOMODE,	KEY_UNKNOWN,	KEY_UNKNOWN, KEY_PROG2,
+	KEY_UNKNOWN, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	KEY_PROG3
+};
+
+
+static struct key_entry *dell_wmi_keymap = dell_legacy_wmi_keymap;
 
 static struct input_dev *dell_wmi_input_dev;
 
@@ -158,29 +202,89 @@ static void dell_wmi_notify(u32 value, void *context)
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	static struct key_entry *key;
 	union acpi_object *obj;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO "dell-wmi: bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
 	if (obj && obj->type == ACPI_TYPE_BUFFER) {
-		int *buffer = (int *)obj->buffer.pointer;
-		/*
-		 *  The upper bytes of the event may contain
-		 *  additional information, so mask them off for the
-		 *  scancode lookup
-		 */
-		key = dell_wmi_get_entry_by_scancode(buffer[1] & 0xFFFF);
-		if (key) {
+		int reported_key;
+		u16 *buffer_entry = (u16 *)obj->buffer.pointer;
+		if (dell_new_hk_type && (buffer_entry[1] != 0x10)) {
+			printk(KERN_INFO "dell-wmi: Received unknown WMI event"
+					 " (0x%x)\n", buffer_entry[1]);
+			return;
+		}
+
+		if (dell_new_hk_type)
+			reported_key = (int)buffer_entry[2];
+		else
+			reported_key = (int)buffer_entry[1] & 0xffff;
+
+		key = dell_wmi_get_entry_by_scancode(reported_key);
+
+		if (!key) {
+			printk(KERN_INFO "dell-wmi: Unknown key %x pressed\n",
+				reported_key);
+		} else if ((key->keycode == KEY_BRIGHTNESSUP ||
+			    key->keycode == KEY_BRIGHTNESSDOWN) && acpi_video) {
+			/* Don't report brightness notifications that will also
+			 * come via ACPI */
+			return;
+		} else {
 			input_report_key(dell_wmi_input_dev, key->keycode, 1);
 			input_sync(dell_wmi_input_dev);
 			input_report_key(dell_wmi_input_dev, key->keycode, 0);
 			input_sync(dell_wmi_input_dev);
-		} else if (buffer[1] & 0xFFFF)
-			printk(KERN_INFO "dell-wmi: Unknown key %x pressed\n",
-			       buffer[1] & 0xFFFF);
+		}
 	}
+	kfree(obj);
 }
+
+
+static void setup_new_hk_map(const struct dmi_header *dm)
+{
+
+	int i;
+	int hotkey_num = (dm->length-4)/sizeof(struct dell_new_keymap_entry);
+	struct dell_hotkey_table *table =
+		container_of(dm, struct dell_hotkey_table, header);
+
+	dell_new_wmi_keymap = kzalloc((hotkey_num+1) *
+				      sizeof(struct key_entry), GFP_KERNEL);
+
+	for (i = 0; i < hotkey_num; i++) {
+		dell_new_wmi_keymap[i].type = KE_KEY;
+		dell_new_wmi_keymap[i].code = table->keymap[i].scancode;
+		dell_new_wmi_keymap[i].keycode =
+			(table->keymap[i].keycode > 255) ? 0 :
+			bios_to_linux_keycode[table->keymap[i].keycode];
+	}
+
+	dell_new_wmi_keymap[i].type = KE_END;
+	dell_new_wmi_keymap[i].code = 0;
+	dell_new_wmi_keymap[i].keycode = 0;
+
+	dell_wmi_keymap = dell_new_wmi_keymap;
+
+}
+
+
+static void find_hk_type(const struct dmi_header *dm, void *dummy)
+{
+
+	if ((dm->type == 0xb2) && (dm->length > 6)) {
+		dell_new_hk_type = true;
+		setup_new_hk_map(dm);
+	}
+
+}
+
 
 static int __init dell_wmi_input_setup(void)
 {
@@ -224,34 +328,37 @@ static int __init dell_wmi_input_setup(void)
 static int __init dell_wmi_init(void)
 {
 	int err;
+	acpi_status status;
 
-	if (wmi_has_guid(DELL_EVENT_GUID)) {
-		err = dell_wmi_input_setup();
-
-		if (err)
-			return err;
-
-		err = wmi_install_notify_handler(DELL_EVENT_GUID,
-						 dell_wmi_notify, NULL);
-		if (err) {
-			input_unregister_device(dell_wmi_input_dev);
-			printk(KERN_ERR "dell-wmi: Unable to register"
-			       " notify handler - %d\n", err);
-			return err;
-		}
-
-	} else
+	if (!wmi_has_guid(DELL_EVENT_GUID)) {
 		printk(KERN_WARNING "dell-wmi: No known WMI GUID found\n");
+		return -ENODEV;
+	}
+
+	dmi_walk(find_hk_type, NULL);
+	acpi_video = acpi_video_backlight_support();
+
+	err = dell_wmi_input_setup();
+	if (err)
+		return err;
+
+	status = wmi_install_notify_handler(DELL_EVENT_GUID,
+					 dell_wmi_notify, NULL);
+	if (ACPI_FAILURE(status)) {
+		input_unregister_device(dell_wmi_input_dev);
+		printk(KERN_ERR
+			"dell-wmi: Unable to register notify handler - %d\n",
+			status);
+		return -ENODEV;
+	}
 
 	return 0;
 }
 
 static void __exit dell_wmi_exit(void)
 {
-	if (wmi_has_guid(DELL_EVENT_GUID)) {
-		wmi_remove_notify_handler(DELL_EVENT_GUID);
-		input_unregister_device(dell_wmi_input_dev);
-	}
+	wmi_remove_notify_handler(DELL_EVENT_GUID);
+	input_unregister_device(dell_wmi_input_dev);
 }
 
 module_init(dell_wmi_init);

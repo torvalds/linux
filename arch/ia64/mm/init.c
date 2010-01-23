@@ -44,8 +44,8 @@ extern void ia64_tlb_init (void);
 unsigned long MAX_DMA_ADDRESS = PAGE_OFFSET + 0x100000000UL;
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-unsigned long vmalloc_end = VMALLOC_END_INIT;
-EXPORT_SYMBOL(vmalloc_end);
+unsigned long VMALLOC_END = VMALLOC_END_INIT;
+EXPORT_SYMBOL(VMALLOC_END);
 struct page *vmem_map;
 EXPORT_SYMBOL(vmem_map);
 #endif
@@ -91,7 +91,7 @@ dma_mark_clean(void *addr, size_t size)
 inline void
 ia64_set_rbs_bot (void)
 {
-	unsigned long stack_size = current->signal->rlim[RLIMIT_STACK].rlim_max & -16;
+	unsigned long stack_size = rlimit_max(RLIMIT_STACK) & -16;
 
 	if (stack_size > MAX_USER_STACK_SIZE)
 		stack_size = MAX_USER_STACK_SIZE;

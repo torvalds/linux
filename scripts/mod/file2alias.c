@@ -804,7 +804,7 @@ static inline int sym_is(const char *symbol, const char *name)
 	match = strstr(symbol, name);
 	if (!match)
 		return 0;
-	return match[strlen(symbol)] == '\0';
+	return match[strlen(name)] == '\0';
 }
 
 static void do_table(void *symval, unsigned long size,

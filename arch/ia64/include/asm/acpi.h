@@ -132,6 +132,12 @@ extern int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
 
+static inline bool arch_has_acpi_pdc(void) { return true; }
+static inline void arch_acpi_set_pdc_bits(u32 *buf)
+{
+	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
+}
+
 #define acpi_unlazy_tlb(x)
 
 #ifdef CONFIG_ACPI_NUMA

@@ -151,6 +151,8 @@ check_critical_timing(struct trace_array *tr,
 		goto out_unlock;
 
 	trace_function(tr, CALLER_ADDR0, parent_ip, flags, pc);
+	/* Skip 5 functions to get to the irq/preempt enable function */
+	__trace_stack(tr, flags, 5, pc);
 
 	if (data->critical_sequence != max_sequence)
 		goto out_unlock;

@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v2.3"
+#define DRIVER_VERSION "v2.4"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX -- Bernd.Porr@f2s.com"
 /*
@@ -81,6 +81,8 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem
  * 2.3:  corrected a bug in bulk timeouts which were far too short
+ * 2.4:  fixed a bug which causes the driver to hang when it ran out of data.
+ *       Thanks to Jan-Matthias Braun and Ian to spot the bug and fix it.
  *
  */
 
@@ -532,6 +534,7 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 		}
 	}
 	/* tell comedi that data is there */
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 	comedi_event(this_usbduxsub->comedidev, s);
 }
 

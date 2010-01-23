@@ -131,6 +131,20 @@ extern void *gru_get_next_message(struct gru_message_queue_desc *mqd);
 
 
 /*
+ * Read a GRU global GPA. Source can be located in a remote partition.
+ *
+ *    Input:
+ *    	value		memory address where MMR value is returned
+ *    	gpa		source numalink physical address of GPA
+ *
+ *    Output:
+ *	0		OK
+ *	>0		error
+ */
+int gru_read_gpa(unsigned long *value, unsigned long gpa);
+
+
+/*
  * Copy data using the GRU. Source or destination can be located in a remote
  * partition.
  *

@@ -309,7 +309,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			size_t request_size;
 
 			/* setup DMA, then program endpoint CSR */
-			request_size = min(request->length,
+			request_size = min_t(size_t, request->length,
 						musb_ep->dma->max_len);
 			if (request_size < musb_ep->packet_sz)
 				musb_ep->dma->desired_mode = 0;
@@ -319,7 +319,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			use_dma = use_dma && c->channel_program(
 					musb_ep->dma, musb_ep->packet_sz,
 					musb_ep->dma->desired_mode,
-					request->dma, request_size);
+					request->dma + request->actual, request_size);
 			if (use_dma) {
 				if (musb_ep->dma->desired_mode == 0) {
 					/*
@@ -515,12 +515,12 @@ void musb_g_tx(struct musb *musb, u8 epnum)
 			if (csr & MUSB_TXCSR_FIFONOTEMPTY)
 				return;
 
-			if (!musb_ep->desc) {
+			request = musb_ep->desc ? next_request(musb_ep) : NULL;
+			if (!request) {
 				DBG(4, "%s idle now\n",
 					musb_ep->end_point.name);
 				return;
-			} else
-				request = next_request(musb_ep);
+			}
 		}
 
 		txstate(musb, to_musb_request(request));
@@ -746,6 +746,8 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 	musb_ep_select(mbase, epnum);
 
 	request = next_request(musb_ep);
+	if (!request)
+		return;
 
 	csr = musb_readw(epio, MUSB_RXCSR);
 	dma = is_dma_capable() ? musb_ep->dma : NULL;
@@ -1731,6 +1733,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		spin_lock_irqsave(&musb->lock, flags);
 
 		otg_set_peripheral(musb->xceiv, &musb->g);
+		musb->xceiv->state = OTG_STATE_B_IDLE;
 		musb->is_active = 1;
 
 		/* FIXME this ignores the softconnect flag.  Drivers are

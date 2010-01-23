@@ -110,7 +110,7 @@ static void beatic_end_irq(unsigned int irq_plug)
 }
 
 static struct irq_chip beatic_pic = {
-	.typename = " CELL-BEAT ",
+	.name = " CELL-BEAT ",
 	.unmask = beatic_unmask_irq,
 	.mask = beatic_mask_irq,
 	.eoi = beatic_end_irq,
@@ -136,7 +136,7 @@ static void beatic_pic_host_unmap(struct irq_host *h, unsigned int virq)
 static int beatic_pic_host_map(struct irq_host *h, unsigned int virq,
 			       irq_hw_number_t hw)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	int64_t	err;
 
 	err = beat_construct_and_connect_irq_plug(virq, hw);
@@ -166,11 +166,11 @@ static void beatic_pic_host_remap(struct irq_host *h, unsigned int virq,
  * Note: We have only 1 entry to translate.
  */
 static int beatic_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-				 u32 *intspec, unsigned int intsize,
+				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
 {
-	u64 *intspec2 = (u64 *)intspec;
+	const u64 *intspec2 = (const u64 *)intspec;
 
 	*out_hwirq = *intspec2;
 	*out_flags |= IRQ_TYPE_LEVEL_LOW;

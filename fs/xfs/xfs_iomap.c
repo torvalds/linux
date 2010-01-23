@@ -47,72 +47,8 @@
 #include "xfs_trans_space.h"
 #include "xfs_utils.h"
 #include "xfs_iomap.h"
+#include "xfs_trace.h"
 
-#if defined(XFS_RW_TRACE)
-void
-xfs_iomap_enter_trace(
-	int		tag,
-	xfs_inode_t	*ip,
-	xfs_off_t	offset,
-	ssize_t		count)
-{
-	if (!ip->i_rwtrace)
-		return;
-
-	ktrace_enter(ip->i_rwtrace,
-		(void *)((unsigned long)tag),
-		(void *)ip,
-		(void *)((unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(ip->i_d.di_size & 0xffffffff)),
-		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(offset & 0xffffffff)),
-		(void *)((unsigned long)count),
-		(void *)((unsigned long)((ip->i_new_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(ip->i_new_size & 0xffffffff)),
-		(void *)((unsigned long)current_pid()),
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL,
-		(void *)NULL);
-}
-
-void
-xfs_iomap_map_trace(
-	int		tag,
-	xfs_inode_t	*ip,
-	xfs_off_t	offset,
-	ssize_t		count,
-	xfs_iomap_t	*iomapp,
-	xfs_bmbt_irec_t	*imapp,
-	int		flags)
-{
-	if (!ip->i_rwtrace)
-		return;
-
-	ktrace_enter(ip->i_rwtrace,
-		(void *)((unsigned long)tag),
-		(void *)ip,
-		(void *)((unsigned long)((ip->i_d.di_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(ip->i_d.di_size & 0xffffffff)),
-		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(offset & 0xffffffff)),
-		(void *)((unsigned long)count),
-		(void *)((unsigned long)flags),
-		(void *)((unsigned long)((iomapp->iomap_offset >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(iomapp->iomap_offset & 0xffffffff)),
-		(void *)((unsigned long)(iomapp->iomap_delta)),
-		(void *)((unsigned long)(iomapp->iomap_bsize)),
-		(void *)((unsigned long)(iomapp->iomap_bn)),
-		(void *)(__psint_t)(imapp->br_startoff),
-		(void *)((unsigned long)(imapp->br_blockcount)),
-		(void *)(__psint_t)(imapp->br_startblock));
-}
-#else
-#define xfs_iomap_enter_trace(tag, io, offset, count)
-#define xfs_iomap_map_trace(tag, io, offset, count, iomapp, imapp, flags)
-#endif
 
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
 						<< mp->m_writeio_log)
@@ -187,21 +123,20 @@ xfs_iomap(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
+	trace_xfs_iomap_enter(ip, offset, count, flags, NULL);
+
 	switch (flags & (BMAPI_READ | BMAPI_WRITE | BMAPI_ALLOCATE)) {
 	case BMAPI_READ:
-		xfs_iomap_enter_trace(XFS_IOMAP_READ_ENTER, ip, offset, count);
 		lockmode = xfs_ilock_map_shared(ip);
 		bmapi_flags = XFS_BMAPI_ENTIRE;
 		break;
 	case BMAPI_WRITE:
-		xfs_iomap_enter_trace(XFS_IOMAP_WRITE_ENTER, ip, offset, count);
 		lockmode = XFS_ILOCK_EXCL;
 		if (flags & BMAPI_IGNSTATE)
 			bmapi_flags |= XFS_BMAPI_IGSTATE|XFS_BMAPI_ENTIRE;
 		xfs_ilock(ip, lockmode);
 		break;
 	case BMAPI_ALLOCATE:
-		xfs_iomap_enter_trace(XFS_IOMAP_ALLOC_ENTER, ip, offset, count);
 		lockmode = XFS_ILOCK_SHARED;
 		bmapi_flags = XFS_BMAPI_ENTIRE;
 
@@ -237,8 +172,7 @@ xfs_iomap(
 		if (nimaps &&
 		    (imap.br_startblock != HOLESTARTBLOCK) &&
 		    (imap.br_startblock != DELAYSTARTBLOCK)) {
-			xfs_iomap_map_trace(XFS_IOMAP_WRITE_MAP, ip,
-					offset, count, iomapp, &imap, flags);
+			trace_xfs_iomap_found(ip, offset, count, flags, &imap);
 			break;
 		}
 
@@ -250,8 +184,7 @@ xfs_iomap(
 						      &imap, &nimaps);
 		}
 		if (!error) {
-			xfs_iomap_map_trace(XFS_IOMAP_ALLOC_MAP, ip,
-					offset, count, iomapp, &imap, flags);
+			trace_xfs_iomap_alloc(ip, offset, count, flags, &imap);
 		}
 		iomap_flags = IOMAP_NEW;
 		break;
@@ -261,8 +194,7 @@ xfs_iomap(
 		lockmode = 0;
 
 		if (nimaps && !isnullstartblock(imap.br_startblock)) {
-			xfs_iomap_map_trace(XFS_IOMAP_WRITE_MAP, ip,
-					offset, count, iomapp, &imap, flags);
+			trace_xfs_iomap_found(ip, offset, count, flags, &imap);
 			break;
 		}
 
@@ -623,8 +555,7 @@ retry:
 	 * delalloc blocks and retry without EOF preallocation.
 	 */
 	if (nimaps == 0) {
-		xfs_iomap_enter_trace(XFS_IOMAP_WRITE_NOSPACE,
-					ip, offset, count);
+		trace_xfs_delalloc_enospc(ip, offset, count);
 		if (flushed)
 			return XFS_ERROR(ENOSPC);
 
@@ -837,7 +768,7 @@ xfs_iomap_write_unwritten(
 	int		committed;
 	int		error;
 
-	xfs_iomap_enter_trace(XFS_IOMAP_UNWRITTEN, ip, offset, count);
+	trace_xfs_unwritten_convert(ip, offset, count);
 
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	count_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);

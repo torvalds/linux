@@ -32,9 +32,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7462);
-
 /* ADT7462 registers */
 #define ADT7462_REG_DEVICE			0x3D
 #define ADT7462_REG_VENDOR			0x3E
@@ -97,7 +94,7 @@ I2C_CLIENT_INSMOD_1(adt7462);
 #define		ADT7462_PIN24_SHIFT		6
 #define		ADT7462_PIN26_VOLT_INPUT	0x08
 #define		ADT7462_PIN25_VOLT_INPUT	0x20
-#define		ADT7462_PIN28_SHIFT		6	/* cfg3 */
+#define		ADT7462_PIN28_SHIFT		4	/* cfg3 */
 #define		ADT7462_PIN28_VOLT		0x5
 
 #define ADT7462_REG_ALARM1			0xB8
@@ -237,12 +234,12 @@ struct adt7462_data {
 
 static int adt7462_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adt7462_detect(struct i2c_client *client, int kind,
+static int adt7462_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adt7462_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7462_id[] = {
-	{ "adt7462", adt7462 },
+	{ "adt7462", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7462_id);
@@ -256,7 +253,7 @@ static struct i2c_driver adt7462_driver = {
 	.remove		= adt7462_remove,
 	.id_table	= adt7462_id,
 	.detect		= adt7462_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -1902,7 +1899,7 @@ static struct attribute *adt7462_attr[] =
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adt7462_detect(struct i2c_client *client, int kind,
+static int adt7462_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

@@ -2755,12 +2755,6 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	if (!(ac->ac_flags & EXT4_MB_DELALLOC_RESERVED))
 		/* release all the reserved blocks if non delalloc */
 		percpu_counter_sub(&sbi->s_dirtyblocks_counter, reserv_blks);
-	else {
-		percpu_counter_sub(&sbi->s_dirtyblocks_counter,
-						ac->ac_b_ex.fe_len);
-		/* convert reserved quota blocks to real quota blocks */
-		vfs_dq_claim_block(ac->ac_inode, ac->ac_b_ex.fe_len);
-	}
 
 	if (sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group = ext4_flex_group(sbi,
@@ -3955,7 +3949,7 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 	 * per cpu locality group is to reduce the contention between block
 	 * request from multiple CPUs.
 	 */
-	ac->ac_lg = per_cpu_ptr(sbi->s_locality_groups, raw_smp_processor_id());
+	ac->ac_lg = __this_cpu_ptr(sbi->s_locality_groups);
 
 	/* we're going to use group allocation */
 	ac->ac_flags |= EXT4_MB_HINT_GROUP_ALLOC;

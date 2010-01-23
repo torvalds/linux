@@ -356,11 +356,6 @@ void __init setup_system(void)
 	 */
 	initialize_cache_info();
 
-	/*
-	 * Initialize irq remapping subsystem
-	 */
-	irq_early_init();
-
 #ifdef CONFIG_PPC_RTAS
 	/*
 	 * Initialize RTAS if available

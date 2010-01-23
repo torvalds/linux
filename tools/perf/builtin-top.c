@@ -20,8 +20,9 @@
 
 #include "perf.h"
 
-#include "util/symbol.h"
 #include "util/color.h"
+#include "util/session.h"
+#include "util/symbol.h"
 #include "util/thread.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
@@ -79,7 +80,6 @@ static int			dump_symtab                     =      0;
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
 static struct winsize		winsize;
-struct symbol_conf		symbol_conf;
 
 /*
  * Source
@@ -926,7 +926,8 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	return 0;
 }
 
-static void event__process_sample(const event_t *self, int counter)
+static void event__process_sample(const event_t *self,
+				 struct perf_session *session, int counter)
 {
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
@@ -946,8 +947,8 @@ static void event__process_sample(const event_t *self, int counter)
 		return;
 	}
 
-	if (event__preprocess_sample(self, &al, symbol_filter) < 0 ||
-	    al.sym == NULL)
+	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
+	    al.sym == NULL || al.filtered)
 		return;
 
 	syme = symbol__priv(al.sym);
@@ -965,14 +966,14 @@ static void event__process_sample(const event_t *self, int counter)
 	}
 }
 
-static int event__process(event_t *event)
+static int event__process(event_t *event, struct perf_session *session)
 {
 	switch (event->header.type) {
 	case PERF_RECORD_COMM:
-		event__process_comm(event);
+		event__process_comm(event, session);
 		break;
 	case PERF_RECORD_MMAP:
-		event__process_mmap(event);
+		event__process_mmap(event, session);
 		break;
 	default:
 		break;
@@ -999,7 +1000,8 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 	return head;
 }
 
-static void mmap_read_counter(struct mmap_data *md)
+static void perf_session__mmap_read_counter(struct perf_session *self,
+					    struct mmap_data *md)
 {
 	unsigned int head = mmap_read_head(md);
 	unsigned int old = md->prev;
@@ -1052,9 +1054,9 @@ static void mmap_read_counter(struct mmap_data *md)
 		}
 
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			event__process_sample(event, md->counter);
+			event__process_sample(event, self, md->counter);
 		else
-			event__process(event);
+			event__process(event, self);
 		old += size;
 	}
 
@@ -1064,13 +1066,13 @@ static void mmap_read_counter(struct mmap_data *md)
 static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
-static void mmap_read(void)
+static void perf_session__mmap_read(struct perf_session *self)
 {
 	int i, counter;
 
 	for (i = 0; i < nr_cpus; i++) {
 		for (counter = 0; counter < nr_counters; counter++)
-			mmap_read_counter(&mmap_array[i][counter]);
+			perf_session__mmap_read_counter(self, &mmap_array[i][counter]);
 	}
 }
 
@@ -1155,11 +1157,18 @@ static int __cmd_top(void)
 	pthread_t thread;
 	int i, counter;
 	int ret;
+	/*
+	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
+	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
+	 */
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false);
+	if (session == NULL)
+		return -ENOMEM;
 
 	if (target_pid != -1)
-		event__synthesize_thread(target_pid, event__process);
+		event__synthesize_thread(target_pid, event__process, session);
 	else
-		event__synthesize_threads(event__process);
+		event__synthesize_threads(event__process, session);
 
 	for (i = 0; i < nr_cpus; i++) {
 		group_fd = -1;
@@ -1170,7 +1179,7 @@ static int __cmd_top(void)
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(event_array, nr_poll, 100);
 
-	mmap_read();
+	perf_session__mmap_read(session);
 
 	if (pthread_create(&thread, NULL, display_thread, NULL)) {
 		printf("Could not create display thread.\n");
@@ -1190,7 +1199,7 @@ static int __cmd_top(void)
 	while (1) {
 		int hits = samples;
 
-		mmap_read();
+		perf_session__mmap_read(session);
 
 		if (hits == samples)
 			ret = poll(event_array, nr_poll, 100);
@@ -1273,7 +1282,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 				 (nr_counters + 1) * sizeof(unsigned long));
 	if (symbol_conf.vmlinux_name == NULL)
 		symbol_conf.try_vmlinux_path = true;
-	if (symbol__init(&symbol_conf) < 0)
+	if (symbol__init() < 0)
 		return -1;
 
 	if (delay_secs < 1)

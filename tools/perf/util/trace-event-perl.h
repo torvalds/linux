@@ -34,9 +34,13 @@ typedef int INTERP;
 #define dXSUB_SYS
 #define pTHX_
 static inline void newXS(const char *a, void *b, const char *c) {}
+static void boot_Perf__Trace__Context(pTHX_ CV *cv) {}
+static void boot_DynaLoader(pTHX_ CV *cv) {}
 #else
 #include <EXTERN.h>
 #include <perl.h>
+void boot_Perf__Trace__Context(pTHX_ CV *cv);
+void boot_DynaLoader(pTHX_ CV *cv);
 typedef PerlInterpreter * INTERP;
 #endif
 

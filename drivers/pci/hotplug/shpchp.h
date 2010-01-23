@@ -121,7 +121,7 @@ struct controller {
 #define PCI_DEVICE_ID_AMD_GOLAM_7450	0x7450
 #define PCI_DEVICE_ID_AMD_POGO_7458	0x7458
 
-/* AMD PCIX bridge registers */
+/* AMD PCI-X bridge registers */
 #define PCIX_MEM_BASE_LIMIT_OFFSET	0x1C
 #define PCIX_MISCII_OFFSET		0x48
 #define PCIX_MISC_BRIDGE_ERRORS_OFFSET	0x80

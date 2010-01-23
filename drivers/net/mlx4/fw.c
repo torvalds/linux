@@ -90,6 +90,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 		[ 9] = "Q_Key violation counter",
 		[10] = "VMM",
 		[12] = "DPDP",
+		[15] = "Big LSO headers",
 		[16] = "MW support",
 		[17] = "APM support",
 		[18] = "Atomic ops support",
@@ -235,7 +236,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_MPT_OFFSET);
 	dev_cap->max_mpts = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_EQ_OFFSET);
-	dev_cap->reserved_eqs = 1 << (field & 0xf);
+	dev_cap->reserved_eqs = field & 0xf;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_EQ_OFFSET);
 	dev_cap->max_eqs = 1 << (field & 0xf);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSVD_MTT_OFFSET);

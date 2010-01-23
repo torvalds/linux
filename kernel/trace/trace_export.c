@@ -158,7 +158,8 @@ ftrace_format_##name(struct ftrace_event_call *unused,			\
 	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item), 0, FILTER_OTHER);	\
+				 sizeof(field.item),			\
+				 is_signed_type(type), FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
 
@@ -168,8 +169,8 @@ ftrace_format_##name(struct ftrace_event_call *unused,			\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field),		\
 					  container.item),		\
-				 sizeof(field.container.item), 0,	\
-				 FILTER_OTHER);				\
+				 sizeof(field.container.item),		\
+				 is_signed_type(type), FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
 
@@ -183,10 +184,6 @@ ftrace_define_fields_##name(struct ftrace_event_call *event_call)	\
 {									\
 	struct struct_name field;					\
 	int ret;							\
-									\
-	ret = trace_define_common_fields(event_call);			\
-	if (ret)							\
-		return ret;						\
 									\
 	tstruct;							\
 									\

@@ -16,6 +16,7 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/sysrq.h>
+#include <linux/kfifo.h>
 
 #define SERIAL_TTY_MAJOR	188	/* Nice legal number now */
 #define SERIAL_TTY_MINORS	254	/* loads of devices :) */
@@ -94,7 +95,7 @@ struct usb_serial_port {
 	unsigned char		*bulk_out_buffer;
 	int			bulk_out_size;
 	struct urb		*write_urb;
-	struct kfifo		*write_fifo;
+	struct kfifo		write_fifo;
 	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 

@@ -53,6 +53,7 @@ struct gpio_desc {
 #define FLAG_SYSFS	4	/* exported via /sys/class/gpio/control */
 #define FLAG_TRIG_FALL	5	/* trigger on falling edge */
 #define FLAG_TRIG_RISE	6	/* trigger on rising edge */
+#define FLAG_ACTIVE_LOW	7	/* sysfs value has active low */
 
 #define PDESC_ID_SHIFT	16	/* add new flags before this one */
 
@@ -210,6 +211,11 @@ static DEFINE_MUTEX(sysfs_lock);
  *      * configures behavior of poll(2) on /value
  *      * available only if pin can generate IRQs on input
  *      * is read/write as "none", "falling", "rising", or "both"
+ *   /active_low
+ *      * configures polarity of /value
+ *      * is read/write as zero/nonzero
+ *      * also affects existing and subsequent "falling" and "rising"
+ *        /edge configuration
  */
 
 static ssize_t gpio_direction_show(struct device *dev,
@@ -255,7 +261,7 @@ static ssize_t gpio_direction_store(struct device *dev,
 	return status ? : size;
 }
 
-static const DEVICE_ATTR(direction, 0644,
+static /* const */ DEVICE_ATTR(direction, 0644,
 		gpio_direction_show, gpio_direction_store);
 
 static ssize_t gpio_value_show(struct device *dev,
@@ -267,10 +273,17 @@ static ssize_t gpio_value_show(struct device *dev,
 
 	mutex_lock(&sysfs_lock);
 
-	if (!test_bit(FLAG_EXPORT, &desc->flags))
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
 		status = -EIO;
-	else
-		status = sprintf(buf, "%d\n", !!gpio_get_value_cansleep(gpio));
+	} else {
+		int value;
+
+		value = !!gpio_get_value_cansleep(gpio);
+		if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+			value = !value;
+
+		status = sprintf(buf, "%d\n", value);
+	}
 
 	mutex_unlock(&sysfs_lock);
 	return status;
@@ -294,6 +307,8 @@ static ssize_t gpio_value_store(struct device *dev,
 
 		status = strict_strtol(buf, 0, &value);
 		if (status == 0) {
+			if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
+				value = !value;
 			gpio_set_value_cansleep(gpio, value != 0);
 			status = size;
 		}
@@ -303,7 +318,7 @@ static ssize_t gpio_value_store(struct device *dev,
 	return status;
 }
 
-static /*const*/ DEVICE_ATTR(value, 0644,
+static const DEVICE_ATTR(value, 0644,
 		gpio_value_show, gpio_value_store);
 
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
@@ -352,9 +367,11 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 
 	irq_flags = IRQF_SHARED;
 	if (test_bit(FLAG_TRIG_FALL, &gpio_flags))
-		irq_flags |= IRQF_TRIGGER_FALLING;
+		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
+			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
 	if (test_bit(FLAG_TRIG_RISE, &gpio_flags))
-		irq_flags |= IRQF_TRIGGER_RISING;
+		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
+			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 
 	if (!pdesc) {
 		pdesc = kmalloc(sizeof(*pdesc), GFP_KERNEL);
@@ -475,9 +492,79 @@ found:
 
 static DEVICE_ATTR(edge, 0644, gpio_edge_show, gpio_edge_store);
 
+static int sysfs_set_active_low(struct gpio_desc *desc, struct device *dev,
+				int value)
+{
+	int			status = 0;
+
+	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
+		return 0;
+
+	if (value)
+		set_bit(FLAG_ACTIVE_LOW, &desc->flags);
+	else
+		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
+
+	/* reconfigure poll(2) support if enabled on one edge only */
+	if (dev != NULL && (!!test_bit(FLAG_TRIG_RISE, &desc->flags) ^
+				!!test_bit(FLAG_TRIG_FALL, &desc->flags))) {
+		unsigned long trigger_flags = desc->flags & GPIO_TRIGGER_MASK;
+
+		gpio_setup_irq(desc, dev, 0);
+		status = gpio_setup_irq(desc, dev, trigger_flags);
+	}
+
+	return status;
+}
+
+static ssize_t gpio_active_low_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	const struct gpio_desc	*desc = dev_get_drvdata(dev);
+	ssize_t			status;
+
+	mutex_lock(&sysfs_lock);
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags))
+		status = -EIO;
+	else
+		status = sprintf(buf, "%d\n",
+				!!test_bit(FLAG_ACTIVE_LOW, &desc->flags));
+
+	mutex_unlock(&sysfs_lock);
+
+	return status;
+}
+
+static ssize_t gpio_active_low_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct gpio_desc	*desc = dev_get_drvdata(dev);
+	ssize_t			status;
+
+	mutex_lock(&sysfs_lock);
+
+	if (!test_bit(FLAG_EXPORT, &desc->flags)) {
+		status = -EIO;
+	} else {
+		long		value;
+
+		status = strict_strtol(buf, 0, &value);
+		if (status == 0)
+			status = sysfs_set_active_low(desc, dev, value != 0);
+	}
+
+	mutex_unlock(&sysfs_lock);
+
+	return status ? : size;
+}
+
+static const DEVICE_ATTR(active_low, 0644,
+		gpio_active_low_show, gpio_active_low_store);
+
 static const struct attribute *gpio_attrs[] = {
-	&dev_attr_direction.attr,
 	&dev_attr_value.attr,
+	&dev_attr_active_low.attr,
 	NULL,
 };
 
@@ -662,12 +749,12 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 		dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
 				desc, ioname ? ioname : "gpio%d", gpio);
 		if (!IS_ERR(dev)) {
-			if (direction_may_change)
-				status = sysfs_create_group(&dev->kobj,
+			status = sysfs_create_group(&dev->kobj,
 						&gpio_attr_group);
-			else
+
+			if (!status && direction_may_change)
 				status = device_create_file(dev,
-						&dev_attr_value);
+						&dev_attr_direction);
 
 			if (!status && gpio_to_irq(gpio) >= 0
 					&& (direction_may_change
@@ -743,6 +830,53 @@ done:
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpio_export_link);
+
+
+/**
+ * gpio_sysfs_set_active_low - set the polarity of gpio sysfs value
+ * @gpio: gpio to change
+ * @value: non-zero to use active low, i.e. inverted values
+ *
+ * Set the polarity of /sys/class/gpio/gpioN/value sysfs attribute.
+ * The GPIO does not have to be exported yet.  If poll(2) support has
+ * been enabled for either rising or falling edge, it will be
+ * reconfigured to follow the new polarity.
+ *
+ * Returns zero on success, else an error.
+ */
+int gpio_sysfs_set_active_low(unsigned gpio, int value)
+{
+	struct gpio_desc	*desc;
+	struct device		*dev = NULL;
+	int			status = -EINVAL;
+
+	if (!gpio_is_valid(gpio))
+		goto done;
+
+	mutex_lock(&sysfs_lock);
+
+	desc = &gpio_desc[gpio];
+
+	if (test_bit(FLAG_EXPORT, &desc->flags)) {
+		dev = class_find_device(&gpio_class, NULL, desc, match_export);
+		if (dev == NULL) {
+			status = -ENODEV;
+			goto unlock;
+		}
+	}
+
+	status = sysfs_set_active_low(desc, dev, value);
+
+unlock:
+	mutex_unlock(&sysfs_lock);
+
+done:
+	if (status)
+		pr_debug("%s: gpio%d status %d\n", __func__, gpio, status);
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(gpio_sysfs_set_active_low);
 
 /**
  * gpio_unexport - reverse effect of gpio_export()
@@ -1094,6 +1228,7 @@ void gpio_free(unsigned gpio)
 		}
 		desc_set_label(desc, NULL);
 		module_put(desc->chip->owner);
+		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
 		clear_bit(FLAG_REQUESTED, &desc->flags);
 	} else
 		WARN_ON(extra_checks);

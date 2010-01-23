@@ -377,7 +377,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 		 cx23885_boards[dev->board].name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(dev->pci));
 
-	ret = ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	ret = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (ret < 0)
 		goto err_out_free;
 
@@ -397,7 +397,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	dev->ir_input = ir;
 	cx23885_input_ir_start(dev);
 
-	ret = input_register_device(ir->dev);
+	ret = ir_input_register(ir->dev, ir_codes);
 	if (ret)
 		goto err_out_stop;
 
@@ -407,8 +407,6 @@ err_out_stop:
 	cx23885_input_ir_stop(dev);
 	dev->ir_input = NULL;
 err_out_free:
-	ir_input_free(input_dev);
-	input_free_device(input_dev);
 	kfree(ir);
 	return ret;
 }
@@ -420,8 +418,7 @@ void cx23885_input_fini(struct cx23885_dev *dev)
 
 	if (dev->ir_input == NULL)
 		return;
-	ir_input_free(dev->ir_input->dev);
-	input_unregister_device(dev->ir_input->dev);
+	ir_input_unregister(dev->ir_input->dev);
 	kfree(dev->ir_input);
 	dev->ir_input = NULL;
 }

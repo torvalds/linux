@@ -127,6 +127,11 @@ _c_flags += $(if $(patsubst n%,, \
 		$(CFLAGS_GCOV))
 endif
 
+ifdef CONFIG_SYMBOL_PREFIX
+_cpp_flags += -DSYMBOL_PREFIX=$(patsubst "%",%,$(CONFIG_SYMBOL_PREFIX))
+endif
+
+
 # If building the kernel in a separate objtree expand all occurrences
 # of -Idir to -I$(srctree)/dir except for absolute paths (starting with '/').
 
@@ -208,14 +213,19 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -f -9 > $@) || \
 
 # Bzip2 and LZMA do not include size in file... so we have to fake that;
 # append the size as a 32-bit littleendian number as gzip does.
-size_append = /bin/echo -ne $(shell					\
+size_append = printf $(shell						\
 dec_size=0;								\
 for F in $1; do								\
 	fsize=$$(stat -c "%s" $$F);					\
 	dec_size=$$(expr $$dec_size + $$fsize);				\
 done;									\
-printf "%08x" $$dec_size |						\
-	sed 's/\(..\)\(..\)\(..\)\(..\)/\\\\x\4\\\\x\3\\\\x\2\\\\x\1/g'	\
+printf "%08x\n" $$dec_size |						\
+	sed 's/\(..\)/\1 /g' | {					\
+		read ch0 ch1 ch2 ch3;					\
+		for ch in $$ch3 $$ch2 $$ch1 $$ch0; do			\
+			printf '%s%03o' '\\' $$((0x$$ch)); 		\
+		done;							\
+	}								\
 )
 
 quiet_cmd_bzip2 = BZIP2   $@
@@ -229,4 +239,9 @@ cmd_bzip2 = (cat $(filter-out FORCE,$^) | \
 quiet_cmd_lzma = LZMA    $@
 cmd_lzma = (cat $(filter-out FORCE,$^) | \
 	lzma -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
+	(rm -f $@ ; false)
+
+quiet_cmd_lzo = LZO    $@
+cmd_lzo = (cat $(filter-out FORCE,$^) | \
+	lzop -9 && $(call size_append, $(filter-out FORCE,$^))) > $@ || \
 	(rm -f $@ ; false)

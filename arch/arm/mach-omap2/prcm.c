@@ -34,6 +34,7 @@
 
 static void __iomem *prm_base;
 static void __iomem *cm_base;
+static void __iomem *cm2_base;
 
 #define MAX_MODULE_ENABLE_WAIT		100000
 
@@ -170,14 +171,12 @@ u32 prm_read_mod_reg(s16 module, u16 idx)
 {
 	return __omap_prcm_read(prm_base, module, idx);
 }
-EXPORT_SYMBOL(prm_read_mod_reg);
 
 /* Write into a register in a PRM module */
 void prm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
 	__omap_prcm_write(val, prm_base, module, idx);
 }
-EXPORT_SYMBOL(prm_write_mod_reg);
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
 u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
@@ -191,21 +190,18 @@ u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 
 	return v;
 }
-EXPORT_SYMBOL(prm_rmw_mod_reg_bits);
 
 /* Read a register in a CM module */
 u32 cm_read_mod_reg(s16 module, u16 idx)
 {
 	return __omap_prcm_read(cm_base, module, idx);
 }
-EXPORT_SYMBOL(cm_read_mod_reg);
 
 /* Write into a register in a CM module */
 void cm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
 	__omap_prcm_write(val, cm_base, module, idx);
 }
-EXPORT_SYMBOL(cm_write_mod_reg);
 
 /* Read-modify-write a register in a CM module. Caller must lock */
 u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
@@ -219,7 +215,6 @@ u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 
 	return v;
 }
-EXPORT_SYMBOL(cm_rmw_mod_reg_bits);
 
 /**
  * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness
@@ -247,9 +242,8 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name)
 		BUG();
 
 	/* Wait for lock */
-	while (((__raw_readl(reg) & mask) != ena) &&
-	       (i++ < MAX_MODULE_ENABLE_WAIT))
-		udelay(1);
+	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
+			  MAX_MODULE_ENABLE_WAIT, i);
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
 		pr_debug("cm: Module associated with clock %s ready after %d "
@@ -265,6 +259,7 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 {
 	prm_base = omap2_globals->prm;
 	cm_base = omap2_globals->cm;
+	cm2_base = omap2_globals->cm2;
 }
 
 #ifdef CONFIG_ARCH_OMAP3

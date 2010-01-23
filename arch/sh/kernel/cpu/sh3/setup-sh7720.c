@@ -48,28 +48,33 @@ static struct platform_device rtc_device = {
 	},
 };
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xa4430000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 80, 80, 80, 80 },
-	}, {
-		.mapbase	= 0xa4438000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs           = { 81, 81, 81, 81 },
-	}, {
-
-		.flags = 0,
-	}
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xa4430000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 80, 80, 80, 80 },
 };
 
-static struct platform_device sci_device = {
+static struct platform_device scif0_device = {
 	.name		= "sh-sci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
-		.platform_data	= sci_platform_data,
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xa4438000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs           = { 81, 81, 81, 81 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
 	},
 };
 
@@ -369,6 +374,8 @@ static struct platform_device tmu2_device = {
 };
 
 static struct platform_device *sh7720_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
 	&cmt0_device,
 	&cmt1_device,
 	&cmt2_device,
@@ -378,7 +385,6 @@ static struct platform_device *sh7720_devices[] __initdata = {
 	&tmu1_device,
 	&tmu2_device,
 	&rtc_device,
-	&sci_device,
 	&usb_ohci_device,
 	&usbf_device,
 };
@@ -391,6 +397,8 @@ static int __init sh7720_devices_setup(void)
 arch_initcall(sh7720_devices_setup);
 
 static struct platform_device *sh7720_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
 	&cmt0_device,
 	&cmt1_device,
 	&cmt2_device,

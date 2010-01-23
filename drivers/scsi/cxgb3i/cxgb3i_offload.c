@@ -291,7 +291,7 @@ static void act_open_req_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 	c3cn_hold(c3cn);
 	spin_lock_bh(&c3cn->lock);
 	if (c3cn->state == C3CN_STATE_CONNECTING)
-		fail_act_open(c3cn, EHOSTUNREACH);
+		fail_act_open(c3cn, -EHOSTUNREACH);
 	spin_unlock_bh(&c3cn->lock);
 	c3cn_put(c3cn);
 	__kfree_skb(skb);
@@ -792,18 +792,18 @@ static int act_open_rpl_status_to_errno(int status)
 {
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
-		return ECONNREFUSED;
+		return -ECONNREFUSED;
 	case CPL_ERR_ARP_MISS:
-		return EHOSTUNREACH;
+		return -EHOSTUNREACH;
 	case CPL_ERR_CONN_TIMEDOUT:
-		return ETIMEDOUT;
+		return -ETIMEDOUT;
 	case CPL_ERR_TCAM_FULL:
-		return ENOMEM;
+		return -ENOMEM;
 	case CPL_ERR_CONN_EXIST:
 		cxgb3i_log_error("ACTIVE_OPEN_RPL: 4-tuple in use\n");
-		return EADDRINUSE;
+		return -EADDRINUSE;
 	default:
-		return EIO;
+		return -EIO;
 	}
 }
 
@@ -817,7 +817,7 @@ static void act_open_retry_timer(unsigned long data)
 	spin_lock_bh(&c3cn->lock);
 	skb = alloc_skb(sizeof(struct cpl_act_open_req), GFP_ATOMIC);
 	if (!skb)
-		fail_act_open(c3cn, ENOMEM);
+		fail_act_open(c3cn, -ENOMEM);
 	else {
 		skb->sk = (struct sock *)c3cn;
 		set_arp_failure_handler(skb, act_open_req_arp_failure);
@@ -966,14 +966,14 @@ static int abort_status_to_errno(struct s3_conn *c3cn, int abort_reason,
 	case CPL_ERR_BAD_SYN: /* fall through */
 	case CPL_ERR_CONN_RESET:
 		return c3cn->state > C3CN_STATE_ESTABLISHED ?
-			EPIPE : ECONNRESET;
+			-EPIPE : -ECONNRESET;
 	case CPL_ERR_XMIT_TIMEDOUT:
 	case CPL_ERR_PERSIST_TIMEDOUT:
 	case CPL_ERR_FINWAIT2_TIMEDOUT:
 	case CPL_ERR_KEEPALIVE_TIMEDOUT:
-		return ETIMEDOUT;
+		return -ETIMEDOUT;
 	default:
-		return EIO;
+		return -EIO;
 	}
 }
 
@@ -1567,10 +1567,10 @@ free_tid:
 	s3_free_atid(cdev, c3cn->tid);
 	c3cn->tid = 0;
 out_err:
-	return -1;
+	return -EINVAL;
 }
 
-/* *
+/**
  * cxgb3i_find_dev - find the interface associated with the given address
  * @ipaddr: ip address
  */

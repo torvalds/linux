@@ -23,7 +23,7 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 #include <linux/adb.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -364,19 +364,6 @@ void __init chrp_setup_arch(void)
 	if (ppc_md.progress) ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0x0);
 }
 
-void
-chrp_event_scan(unsigned long unused)
-{
-	unsigned char log[1024];
-	int ret = 0;
-
-	/* XXX: we should loop until the hardware says no more error logs -- Cort */
-	rtas_call(rtas_token("event-scan"), 4, 1, &ret, 0xffffffff, 0,
-		  __pa(log), 1024);
-	mod_timer(&__get_cpu_var(heartbeat_timer),
-		  jiffies + event_scan_interval);
-}
-
 static void chrp_8259_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq = i8259_irq();
@@ -568,9 +555,6 @@ void __init chrp_init_IRQ(void)
 void __init
 chrp_init2(void)
 {
-	struct device_node *device;
-	const unsigned int *p = NULL;
-
 #ifdef CONFIG_NVRAM
 	chrp_nvram_init();
 #endif
@@ -581,40 +565,6 @@ chrp_init2(void)
 	request_region(0x40,0x20,"timer");
 	request_region(0x80,0x10,"dma page reg");
 	request_region(0xc0,0x20,"dma2");
-
-	/* Get the event scan rate for the rtas so we know how
-	 * often it expects a heartbeat. -- Cort
-	 */
-	device = of_find_node_by_name(NULL, "rtas");
-	if (device)
-		p = of_get_property(device, "rtas-event-scan-rate", NULL);
-	if (p && *p) {
-		/*
-		 * Arrange to call chrp_event_scan at least *p times
-		 * per minute.  We use 59 rather than 60 here so that
-		 * the rate will be slightly higher than the minimum.
-		 * This all assumes we don't do hotplug CPU on any
-		 * machine that needs the event scans done.
-		 */
-		unsigned long interval, offset;
-		int cpu, ncpus;
-		struct timer_list *timer;
-
-		interval = HZ * 59 / *p;
-		offset = HZ;
-		ncpus = num_online_cpus();
-		event_scan_interval = ncpus * interval;
-		for (cpu = 0; cpu < ncpus; ++cpu) {
-			timer = &per_cpu(heartbeat_timer, cpu);
-			setup_timer(timer, chrp_event_scan, 0);
-			timer->expires = jiffies + offset;
-			add_timer_on(timer, cpu);
-			offset += interval;
-		}
-		printk("RTAS Event Scan Rate: %u (%lu jiffies)\n",
-		       *p, interval);
-	}
-	of_node_put(device);
 
 	if (ppc_md.progress)
 		ppc_md.progress("  Have fun!    ", 0x7777);

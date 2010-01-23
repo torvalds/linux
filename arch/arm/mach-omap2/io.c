@@ -35,7 +35,6 @@
 #include <plat/serial.h>
 #include <plat/vram.h>
 
-#ifndef CONFIG_ARCH_OMAP4	/* FIXME: Remove this once clkdev is ready */
 #include "clock.h"
 
 #include <plat/omap-pm.h>
@@ -44,7 +43,6 @@
 
 #include <plat/clockdomain.h>
 #include "clockdomains.h"
-#endif
 #include <plat/omap_hwmod.h>
 #include "omap_hwmod_2420.h"
 #include "omap_hwmod_2430.h"
@@ -74,21 +72,21 @@ static struct map_desc omap24xx_io_desc[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP2420
 static struct map_desc omap242x_io_desc[] __initdata = {
 	{
-		.virtual	= DSP_MEM_24XX_VIRT,
-		.pfn		= __phys_to_pfn(DSP_MEM_24XX_PHYS),
-		.length		= DSP_MEM_24XX_SIZE,
+		.virtual	= DSP_MEM_2420_VIRT,
+		.pfn		= __phys_to_pfn(DSP_MEM_2420_PHYS),
+		.length		= DSP_MEM_2420_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= DSP_IPI_24XX_VIRT,
-		.pfn		= __phys_to_pfn(DSP_IPI_24XX_PHYS),
-		.length		= DSP_IPI_24XX_SIZE,
+		.virtual	= DSP_IPI_2420_VIRT,
+		.pfn		= __phys_to_pfn(DSP_IPI_2420_PHYS),
+		.length		= DSP_IPI_2420_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= DSP_MMU_24XX_VIRT,
-		.pfn		= __phys_to_pfn(DSP_MMU_24XX_PHYS),
-		.length		= DSP_MMU_24XX_SIZE,
+		.virtual	= DSP_MMU_2420_VIRT,
+		.pfn		= __phys_to_pfn(DSP_MMU_2420_PHYS),
+		.length		= DSP_MMU_2420_SIZE,
 		.type		= MT_DEVICE
 	},
 };
@@ -321,8 +319,8 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
-	omap2_clk_init();
 #endif
+	omap2_clk_init();
 	omap_serial_early_init();
 #ifndef CONFIG_ARCH_OMAP4
 	omap_hwmod_late_init();

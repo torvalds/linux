@@ -46,32 +46,6 @@ struct radeon_device;
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
 #define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
-enum radeon_connector_type {
-	CONNECTOR_NONE,
-	CONNECTOR_VGA,
-	CONNECTOR_DVI_I,
-	CONNECTOR_DVI_D,
-	CONNECTOR_DVI_A,
-	CONNECTOR_STV,
-	CONNECTOR_CTV,
-	CONNECTOR_LVDS,
-	CONNECTOR_DIGITAL,
-	CONNECTOR_SCART,
-	CONNECTOR_HDMI_TYPE_A,
-	CONNECTOR_HDMI_TYPE_B,
-	CONNECTOR_0XC,
-	CONNECTOR_0XD,
-	CONNECTOR_DIN,
-	CONNECTOR_DISPLAY_PORT,
-	CONNECTOR_UNSUPPORTED
-};
-
-enum radeon_dvi_type {
-	DVI_AUTO,
-	DVI_DIGITAL,
-	DVI_ANALOG
-};
-
 enum radeon_rmx_type {
 	RMX_OFF,
 	RMX_FULL,
@@ -88,6 +62,7 @@ enum radeon_tv_std {
 	TV_STD_SCART_PAL,
 	TV_STD_SECAM,
 	TV_STD_PAL_CN,
+	TV_STD_PAL_N,
 };
 
 /* radeon gpio-based i2c
@@ -334,6 +309,9 @@ struct radeon_encoder {
 	enum radeon_rmx_type rmx_type;
 	struct drm_display_mode native_mode;
 	void *enc_priv;
+	int hdmi_offset;
+	int hdmi_audio_workaround;
+	int hdmi_buffer_status;
 };
 
 struct radeon_connector_atom_dig {
@@ -391,6 +369,11 @@ struct radeon_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_gem_object *obj;
 };
+
+extern enum radeon_tv_std
+radeon_combios_get_tv_info(struct radeon_device *rdev);
+extern enum radeon_tv_std
+radeon_atombios_get_tv_info(struct radeon_device *rdev);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern bool radeon_dp_needs_link_train(struct radeon_connector *radeon_connector);

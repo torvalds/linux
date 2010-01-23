@@ -141,14 +141,15 @@ ENTRY(arm940_coherent_user_range)
 	/* FALLTHROUGH */
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(arm940_flush_kern_dcache_page)
+ENTRY(arm940_flush_kern_dcache_area)
 	mov	ip, #0
 	mov	r1, #(CACHE_DSEGMENTS - 1) << 4	@ 4 segments
 1:	orr	r3, r1, #(CACHE_DENTRIES - 1) << 26 @ 64 entries
@@ -238,7 +239,7 @@ ENTRY(arm940_cache_fns)
 	.long	arm940_flush_user_cache_range
 	.long	arm940_coherent_kern_range
 	.long	arm940_coherent_user_range
-	.long	arm940_flush_kern_dcache_page
+	.long	arm940_flush_kern_dcache_area
 	.long	arm940_dma_inv_range
 	.long	arm940_dma_clean_range
 	.long	arm940_dma_flush_range

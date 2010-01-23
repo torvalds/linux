@@ -30,6 +30,8 @@
 
 #define __virt_to_bus(x)	((x) - PAGE_OFFSET)
 #define __bus_to_virt(x)	((x) + PAGE_OFFSET)
+#define __pfn_to_bus(x)		(__pfn_to_phys(x) - PHYS_OFFSET)
+#define __bus_to_pfn(x)		__phys_to_pfn((x) + PHYS_OFFSET)
 
 #endif
 

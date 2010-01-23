@@ -200,10 +200,25 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 static void radeon_evict_flags(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	static u32 placements = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+
+	if (!radeon_ttm_bo_is_radeon_bo(bo)) {
+		placement->fpfn = 0;
+		placement->lpfn = 0;
+		placement->placement = &placements;
+		placement->busy_placement = &placements;
+		placement->num_placement = 1;
+		placement->num_busy_placement = 1;
+		return;
+	}
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
+		if (rbo->rdev->cp.ready == false)
+			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
+		else
+			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
 		break;
 	case TTM_PL_TT:
 	default:
@@ -482,6 +497,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
+	rdev->mman.initialized = true;
 	r = ttm_bo_init_mm(&rdev->mman.bdev, TTM_PL_VRAM,
 				rdev->mc.real_vram_size >> PAGE_SHIFT);
 	if (r) {
@@ -529,6 +545,8 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 {
 	int r;
 
+	if (!rdev->mman.initialized)
+		return;
 	if (rdev->stollen_vga_memory) {
 		r = radeon_bo_reserve(rdev->stollen_vga_memory, false);
 		if (r == 0) {
@@ -542,6 +560,7 @@ void radeon_ttm_fini(struct radeon_device *rdev)
 	ttm_bo_device_release(&rdev->mman.bdev);
 	radeon_gart_fini(rdev);
 	radeon_ttm_global_fini(rdev);
+	rdev->mman.initialized = false;
 	DRM_INFO("radeon: ttm finalized\n");
 }
 

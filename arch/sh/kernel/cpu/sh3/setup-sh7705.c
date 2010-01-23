@@ -67,27 +67,33 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 static DECLARE_INTC_DESC(intc_desc, "sh7705", vectors, NULL,
 			 NULL, prio_registers, NULL);
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xa4410000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 56, 56, 56 },
-	}, {
-		.mapbase	= 0xa4400000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 52, 52, 52 },
-	}, {
-		.flags = 0,
-	}
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xa4410000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 56, 56, 56 },
 };
 
-static struct platform_device sci_device = {
+static struct platform_device scif0_device = {
 	.name		= "sh-sci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
-		.platform_data	= sci_platform_data,
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xa4400000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 52, 52, 52 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
 	},
 };
 
@@ -210,10 +216,11 @@ static struct platform_device tmu2_device = {
 };
 
 static struct platform_device *sh7705_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
-	&sci_device,
 	&rtc_device,
 };
 
@@ -225,6 +232,8 @@ static int __init sh7705_devices_setup(void)
 arch_initcall(sh7705_devices_setup);
 
 static struct platform_device *sh7705_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,

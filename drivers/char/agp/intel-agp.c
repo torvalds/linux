@@ -2460,10 +2460,14 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				&bridge->mode);
 	}
 
-	if (bridge->driver->mask_memory == intel_i965_mask_memory)
+	if (bridge->driver->mask_memory == intel_i965_mask_memory) {
 		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
 			dev_err(&intel_private.pcidev->dev,
 				"set gfx device dma mask 36bit failed!\n");
+		else
+			pci_set_consistent_dma_mask(intel_private.pcidev,
+						    DMA_BIT_MASK(36));
+	}
 
 	pci_set_drvdata(pdev, bridge);
 	return agp_add_bridge(bridge);

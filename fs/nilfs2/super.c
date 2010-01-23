@@ -1118,8 +1118,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	/* Abandoning the newly allocated superblock */
 	mutex_unlock(&nilfs->ns_mount_mutex);
 	put_nilfs(nilfs);
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	/*
 	 * deactivate_super() invokes close_bdev_exclusive().
 	 * We must finish all post-cleaning before this call;

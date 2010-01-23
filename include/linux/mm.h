@@ -620,13 +620,22 @@ void page_address_init(void);
 /*
  * On an anonymous page mapped into a user virtual memory area,
  * page->mapping points to its anon_vma, not to a struct address_space;
- * with the PAGE_MAPPING_ANON bit set to distinguish it.
+ * with the PAGE_MAPPING_ANON bit set to distinguish it.  See rmap.h.
+ *
+ * On an anonymous page in a VM_MERGEABLE area, if CONFIG_KSM is enabled,
+ * the PAGE_MAPPING_KSM bit may be set along with the PAGE_MAPPING_ANON bit;
+ * and then page->mapping points, not to an anon_vma, but to a private
+ * structure which KSM associates with that merged page.  See ksm.h.
+ *
+ * PAGE_MAPPING_KSM without PAGE_MAPPING_ANON is currently never used.
  *
  * Please note that, confusingly, "page_mapping" refers to the inode
  * address_space which maps the page from disk; whereas "page_mapped"
  * refers to user virtual address space into which the page is mapped.
  */
 #define PAGE_MAPPING_ANON	1
+#define PAGE_MAPPING_KSM	2
+#define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM)
 
 extern struct address_space swapper_space;
 static inline struct address_space *page_mapping(struct page *page)
@@ -634,14 +643,17 @@ static inline struct address_space *page_mapping(struct page *page)
 	struct address_space *mapping = page->mapping;
 
 	VM_BUG_ON(PageSlab(page));
-#ifdef CONFIG_SWAP
 	if (unlikely(PageSwapCache(page)))
 		mapping = &swapper_space;
-	else
-#endif
-	if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
+	else if (unlikely((unsigned long)mapping & PAGE_MAPPING_ANON))
 		mapping = NULL;
 	return mapping;
+}
+
+/* Neutral page->mapping pointer to address_space or anon_vma or other */
+static inline void *page_rmapping(struct page *page)
+{
+	return (void *)((unsigned long)page->mapping & ~PAGE_MAPPING_FLAGS);
 }
 
 static inline int PageAnon(struct page *page)
@@ -758,6 +770,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlb,
  * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
  * @pte_entry: if set, called for each non-empty PTE (4th-level) entry
  * @pte_hole: if set, called for each hole at all levels
+ * @hugetlb_entry: if set, called for each hugetlb entry
  *
  * (see walk_page_range for more details)
  */
@@ -767,6 +780,8 @@ struct mm_walk {
 	int (*pmd_entry)(pmd_t *, unsigned long, unsigned long, struct mm_walk *);
 	int (*pte_entry)(pte_t *, unsigned long, unsigned long, struct mm_walk *);
 	int (*pte_hole)(unsigned long, unsigned long, struct mm_walk *);
+	int (*hugetlb_entry)(pte_t *, unsigned long, unsigned long,
+			     struct mm_walk *);
 	struct mm_struct *mm;
 	void *private;
 };
@@ -1022,6 +1037,9 @@ extern void add_active_range(unsigned int nid, unsigned long start_pfn,
 extern void remove_active_range(unsigned int nid, unsigned long start_pfn,
 					unsigned long end_pfn);
 extern void remove_all_active_ranges(void);
+void sort_node_map(void);
+unsigned long __absent_pages_in_range(int nid, unsigned long start_pfn,
+						unsigned long end_pfn);
 extern unsigned long absent_pages_in_range(unsigned long start_pfn,
 						unsigned long end_pfn);
 extern void get_pfn_range_for_nid(unsigned int nid,
@@ -1071,6 +1089,7 @@ extern void zone_pcp_update(struct zone *zone);
 
 /* nommu.c */
 extern atomic_long_t mmap_pages_allocated;
+extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);
 
 /* prio_tree.c */
 void vma_prio_tree_add(struct vm_area_struct *, struct vm_area_struct *old);
@@ -1316,11 +1335,17 @@ extern int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
 				 size_t size);
 extern void refund_locked_memory(struct mm_struct *mm, size_t size);
 
+enum mf_flags {
+	MF_COUNT_INCREASED = 1 << 0,
+};
 extern void memory_failure(unsigned long pfn, int trapno);
-extern int __memory_failure(unsigned long pfn, int trapno, int ref);
+extern int __memory_failure(unsigned long pfn, int trapno, int flags);
+extern int unpoison_memory(unsigned long pfn);
 extern int sysctl_memory_failure_early_kill;
 extern int sysctl_memory_failure_recovery;
+extern void shake_page(struct page *p, int access);
 extern atomic_long_t mce_bad_pages;
+extern int soft_offline_page(struct page *page, int flags);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

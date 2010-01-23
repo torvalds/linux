@@ -240,6 +240,11 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		printk(KERN_DEBUG "system APIC only can use physical flat");
 		return 1;
 	}
+
+	if (!strncmp(oem_id, "IBM", 3) && !strncmp(oem_table_id, "EXA", 3)) {
+		printk(KERN_DEBUG "IBM Summit detected, will use apic physical");
+		return 1;
+	}
 #endif
 
 	return 0;
@@ -306,10 +311,7 @@ physflat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
 	}
-	if (cpu < nr_cpu_ids)
-		return per_cpu(x86_cpu_to_apicid, cpu);
-
-	return BAD_APICID;
+	return per_cpu(x86_cpu_to_apicid, cpu);
 }
 
 struct apic apic_physflat =  {

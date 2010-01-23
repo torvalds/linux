@@ -1,0 +1,10 @@
+config OCTEON_MGMT_ETHERNET
+	tristate "Octeon Management port ethernet driver (CN5XXX, CN6XXX)"
+	depends on  CPU_CAVIUM_OCTEON
+	select PHYLIB
+	select MDIO_OCTEON
+	default y
+	help
+	  This option enables the ethernet driver for the management
+	  port on Cavium Networks' Octeon CN57XX, CN56XX, CN55XX,
+	  CN54XX, CN52XX, and CN6XXX chips.

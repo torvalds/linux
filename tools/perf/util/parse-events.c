@@ -197,7 +197,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 			if (id == config) {
 				closedir(evt_dir);
 				closedir(sys_dir);
-				path = zalloc(sizeof(path));
+				path = zalloc(sizeof(*path));
 				path->system = malloc(MAX_EVENT_LENGTH);
 				if (!path->system) {
 					free(path);
@@ -467,7 +467,6 @@ parse_subsystem_tracepoint_event(char *sys_name, char *flags)
 	while ((evt_ent = readdir(evt_dir))) {
 		char event_opt[MAX_EVOPT_LEN + 1];
 		int len;
-		unsigned int rem = MAX_EVOPT_LEN;
 
 		if (!strcmp(evt_ent->d_name, ".")
 		    || !strcmp(evt_ent->d_name, "..")
@@ -475,19 +474,11 @@ parse_subsystem_tracepoint_event(char *sys_name, char *flags)
 		    || !strcmp(evt_ent->d_name, "filter"))
 			continue;
 
-		len = snprintf(event_opt, MAX_EVOPT_LEN, "%s:%s", sys_name,
-			       evt_ent->d_name);
+		len = snprintf(event_opt, MAX_EVOPT_LEN, "%s:%s%s%s", sys_name,
+			       evt_ent->d_name, flags ? ":" : "",
+			       flags ?: "");
 		if (len < 0)
 			return EVT_FAILED;
-
-		rem -= len;
-		if (flags) {
-			if (rem < strlen(flags) + 1)
-				return EVT_FAILED;
-
-			strcat(event_opt, ":");
-			strcat(event_opt, flags);
-		}
 
 		if (parse_events(NULL, event_opt, 0))
 			return EVT_FAILED;

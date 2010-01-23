@@ -110,7 +110,7 @@ extern s32 i2c_smbus_write_i2c_block_data(struct i2c_client *client,
  * @driver: Device driver model driver
  * @id_table: List of I2C devices supported by this driver
  * @detect: Callback for device detection
- * @address_data: The I2C addresses to probe (for detect)
+ * @address_list: The I2C addresses to probe (for detect)
  * @clients: List of detected clients we created (for i2c-core use only)
  *
  * The driver.owner field should be set to the module owner of this driver.
@@ -161,8 +161,8 @@ struct i2c_driver {
 	const struct i2c_device_id *id_table;
 
 	/* Device detection callback for automatic device creation */
-	int (*detect)(struct i2c_client *, int kind, struct i2c_board_info *);
-	const struct i2c_client_address_data *address_data;
+	int (*detect)(struct i2c_client *, struct i2c_board_info *);
+	const unsigned short *address_list;
 	struct list_head clients;
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
@@ -391,14 +391,6 @@ static inline void i2c_unlock_adapter(struct i2c_adapter *adapter)
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* SPD EEPROMs and similar */
 
-/* i2c_client_address_data is the struct for holding default client
- * addresses for a driver and for the parameters supplied on the
- * command line
- */
-struct i2c_client_address_data {
-	const unsigned short *normal_i2c;
-};
-
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
 
@@ -576,82 +568,4 @@ union i2c_smbus_data {
 #define I2C_SMBUS_BLOCK_PROC_CALL   7		/* SMBus 2.0 */
 #define I2C_SMBUS_I2C_BLOCK_DATA    8
 
-
-#ifdef __KERNEL__
-
-/* These defines are used for probing i2c client addresses */
-/* The length of the option lists */
-#define I2C_CLIENT_MAX_OPTS 48
-
-/* Default fill of many variables */
-#define I2C_CLIENT_DEFAULTS {I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END, \
-			     I2C_CLIENT_END, I2C_CLIENT_END, I2C_CLIENT_END}
-
-/* I2C_CLIENT_MODULE_PARM creates a module parameter, and puts it in the
-   module header */
-
-#define I2C_CLIENT_MODULE_PARM(var,desc) \
-  static unsigned short var[I2C_CLIENT_MAX_OPTS] = I2C_CLIENT_DEFAULTS; \
-  static unsigned int var##_num; \
-  module_param_array(var, short, &var##_num, 0); \
-  MODULE_PARM_DESC(var, desc)
-
-#define I2C_CLIENT_INSMOD_COMMON					\
-static const struct i2c_client_address_data addr_data = {		\
-	.normal_i2c	= normal_i2c,					\
-}
-
-/* These are the ones you want to use in your own drivers. Pick the one
-   which matches the number of devices the driver differenciates between. */
-#define I2C_CLIENT_INSMOD						\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_1(chip1)					\
-enum chips { any_chip, chip1 };						\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_2(chip1, chip2)				\
-enum chips { any_chip, chip1, chip2 };					\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_3(chip1, chip2, chip3)			\
-enum chips { any_chip, chip1, chip2, chip3 };				\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_4(chip1, chip2, chip3, chip4)			\
-enum chips { any_chip, chip1, chip2, chip3, chip4 };			\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_5(chip1, chip2, chip3, chip4, chip5)		\
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5 };		\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_6(chip1, chip2, chip3, chip4, chip5, chip6)	\
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6 };	\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_7(chip1, chip2, chip3, chip4, chip5, chip6, chip7) \
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6,	\
-	     chip7 };							\
-I2C_CLIENT_INSMOD_COMMON
-
-#define I2C_CLIENT_INSMOD_8(chip1, chip2, chip3, chip4, chip5, chip6, chip7, chip8) \
-enum chips { any_chip, chip1, chip2, chip3, chip4, chip5, chip6,	\
-	     chip7, chip8 };						\
-I2C_CLIENT_INSMOD_COMMON
-#endif /* __KERNEL__ */
 #endif /* _LINUX_I2C_H */
