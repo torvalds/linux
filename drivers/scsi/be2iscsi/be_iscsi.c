@@ -561,7 +561,7 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		return ERR_PTR(ret);
 	}
 
-	if (phba->state) {
+	if (phba->state != BE_ADAPTER_UP) {
 		ret = -EBUSY;
 		SE_DEBUG(DBG_LVL_1, "The Adapter state is Not UP \n");
 		return ERR_PTR(ret);
