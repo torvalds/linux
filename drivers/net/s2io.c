@@ -3421,7 +3421,7 @@ static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
 				break;
 			}
 		} else {
-			if (!(val64 & busy_bit)) {
+			if (val64 & busy_bit) {
 				ret = SUCCESS;
 				break;
 			}

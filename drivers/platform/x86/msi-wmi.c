@@ -34,16 +34,6 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("wmi:551A1F84-FBDD-4125-91DB-3EA8F44F1D45");
 MODULE_ALIAS("wmi:B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2");
 
-/* Temporary workaround until the WMI sysfs interface goes in
-		{ "svn", DMI_SYS_VENDOR },
-		{ "pn",  DMI_PRODUCT_NAME },
-		{ "pvr", DMI_PRODUCT_VERSION },
-		{ "rvn", DMI_BOARD_VENDOR },
-		{ "rn",  DMI_BOARD_NAME },
-*/
-
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-6638:*");
-
 #define DRV_NAME "msi-wmi"
 #define DRV_PFX DRV_NAME ": "
 
@@ -159,8 +149,13 @@ static void msi_wmi_notify(u32 value, void *context)
 	static struct key_entry *key;
 	union acpi_object *obj;
 	ktime_t cur;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO DRV_PFX "bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
@@ -246,7 +241,7 @@ static int __init msi_wmi_init(void)
 	}
 	err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
 			msi_wmi_notify, NULL);
-	if (err)
+	if (ACPI_FAILURE(err))
 		return -EINVAL;
 
 	err = msi_wmi_input_setup();

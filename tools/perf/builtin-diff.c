@@ -189,8 +189,9 @@ out_delete:
 	return ret;
 }
 
-static const char *const diff_usage[] = {
+static const char * const diff_usage[] = {
 	"perf diff [<options>] [old_file] [new_file]",
+	NULL,
 };
 
 static const struct option options[] = {

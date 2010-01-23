@@ -27,7 +27,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/drbd.h>
 #include <asm/uaccess.h>
 #include <asm/types.h>
@@ -151,7 +150,7 @@ wait_queue_head_t drbd_pp_wait;
 
 DEFINE_RATELIMIT_STATE(drbd_ratelimit_state, 5 * HZ, 5);
 
-static struct block_device_operations drbd_ops = {
+static const struct block_device_operations drbd_ops = {
 	.owner =   THIS_MODULE,
 	.open =    drbd_open,
 	.release = drbd_release,
@@ -1299,6 +1298,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				dev_err(DEV, "Sending state in drbd_io_error() failed\n");
 		}
 
+		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 		lc_destroy(mdev->resync);
 		mdev->resync = NULL;
 		lc_destroy(mdev->act_log);
@@ -3623,7 +3623,7 @@ _drbd_fault_random(struct fault_random_state *rsp)
 {
 	long refresh;
 
-	if (--rsp->count < 0) {
+	if (!rsp->count--) {
 		get_random_bytes(&refresh, sizeof(refresh));
 		rsp->state += refresh;
 		rsp->count = FAULT_RANDOM_REFRESH;

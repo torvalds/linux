@@ -222,9 +222,9 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		   Set SCP6MD1,0 = {01} (output)  */
 		__raw_writew((data & 0x0fcf) | 0x1000, SCPCR);
 
-		data = ctrl_inb(SCPDR);
+		data = __raw_readb(SCPDR);
 		/* Set /RTS2 (bit6) = 0 */
-		ctrl_outb(data & 0xbf, SCPDR);
+		__raw_writeb(data & 0xbf, SCPDR);
 	}
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
@@ -897,11 +897,21 @@ static void sci_shutdown(struct uart_port *port)
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
-	unsigned int status, baud, smr_val;
+	unsigned int status, baud, smr_val, max_baud;
 	int t = -1;
 
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
-	if (likely(baud))
+	/*
+	 * earlyprintk comes here early on with port->uartclk set to zero.
+	 * the clock framework is not up and running at this point so here
+	 * we assume that 115200 is the maximum baud rate. please note that
+	 * the baud rate is not programmed during earlyprintk - it is assumed
+	 * that the previous boot loader has enabled required clocks and
+	 * setup the baud rate generator hardware for us already.
+	 */
+	max_baud = port->uartclk ? port->uartclk / 16 : 115200;
+
+	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
+	if (likely(baud && port->uartclk))
 		t = SCBRR_VALUE(baud, port->uartclk);
 
 	do {
@@ -1042,7 +1052,18 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->port.ops	= &sci_uart_ops;
 	sci_port->port.iotype	= UPIO_MEM;
 	sci_port->port.line	= index;
-	sci_port->port.fifosize	= 1;
+
+	switch (p->type) {
+	case PORT_SCIFA:
+		sci_port->port.fifosize = 64;
+		break;
+	case PORT_SCIF:
+		sci_port->port.fifosize = 16;
+		break;
+	default:
+		sci_port->port.fifosize = 1;
+		break;
+	}
 
 	if (dev) {
 		sci_port->iclk = p->clk ? clk_get(&dev->dev, p->clk) : NULL;

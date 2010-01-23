@@ -338,7 +338,7 @@ static inline int sk_mc_loop(struct sock *sk)
 		return inet6_sk(sk)->mc_loop;
 #endif
 	}
-	__WARN();
+	WARN_ON(1);
 	return 1;
 }
 

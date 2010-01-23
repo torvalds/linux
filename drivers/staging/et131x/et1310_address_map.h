@@ -203,17 +203,25 @@ typedef struct _GLOBAL_t {			/* Location: */
  * 9-0: pr ndes
  */
 
-#define ET_DMA10_MASK		0x3FF	/* 10 bit mask for DMA10W types */
-#define ET_DMA10_WRAP		0x400
-#define ET_DMA4_MASK		0x00F	/* 4 bit mask for DMA4W types */
-#define ET_DMA4_WRAP		0x010
+#define ET_DMA12_MASK		0x0FFF	/* 12 bit mask for DMA12W types */
+#define ET_DMA12_WRAP		0x1000
+#define ET_DMA10_MASK		0x03FF	/* 10 bit mask for DMA10W types */
+#define ET_DMA10_WRAP		0x0400
+#define ET_DMA4_MASK		0x000F	/* 4 bit mask for DMA4W types */
+#define ET_DMA4_WRAP		0x0010
 
+#define INDEX12(x)	((x) & ET_DMA12_MASK)
 #define INDEX10(x)	((x) & ET_DMA10_MASK)
 #define INDEX4(x)	((x) & ET_DMA4_MASK)
 
 extern inline void add_10bit(u32 *v, int n)
 {
 	*v = INDEX10(*v + n) | (*v & ET_DMA10_WRAP);
+}
+
+extern inline void add_12bit(u32 *v, int n)
+{
+	*v = INDEX12(*v + n) | (*v & ET_DMA12_WRAP);
 }
 
 /*

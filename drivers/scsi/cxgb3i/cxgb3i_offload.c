@@ -1570,7 +1570,7 @@ out_err:
 	return -EINVAL;
 }
 
-/* *
+/**
  * cxgb3i_find_dev - find the interface associated with the given address
  * @ipaddr: ip address
  */

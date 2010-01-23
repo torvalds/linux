@@ -93,7 +93,7 @@ static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 	default:
 		return -EINVAL;
 	}
-	if (snd_BUG_ON(minor < 0 || minor >= SNDRV_OSS_MINORS))
+	if (minor < 0 || minor >= SNDRV_OSS_MINORS)
 		return -EINVAL;
 	return minor;
 }

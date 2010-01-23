@@ -587,7 +587,7 @@ static void handle_error_source(struct pcie_device *aerdev,
  * aer_enable_rootport - enable Root Port's interrupts when receiving messages
  * @rpc: pointer to a Root Port data structure
  *
- * Invoked when PCIE bus loads AER service driver.
+ * Invoked when PCIe bus loads AER service driver.
  */
 void aer_enable_rootport(struct aer_rpc *rpc)
 {
@@ -597,7 +597,7 @@ void aer_enable_rootport(struct aer_rpc *rpc)
 	u32 reg32;
 
 	pos = pci_pcie_cap(pdev);
-	/* Clear PCIE Capability's Device Status */
+	/* Clear PCIe Capability's Device Status */
 	pci_read_config_word(pdev, pos+PCI_EXP_DEVSTA, &reg16);
 	pci_write_config_word(pdev, pos+PCI_EXP_DEVSTA, reg16);
 
@@ -631,7 +631,7 @@ void aer_enable_rootport(struct aer_rpc *rpc)
  * disable_root_aer - disable Root Port's interrupts when receiving messages
  * @rpc: pointer to a Root Port data structure
  *
- * Invoked when PCIE bus unloads AER service driver.
+ * Invoked when PCIe bus unloads AER service driver.
  */
 static void disable_root_aer(struct aer_rpc *rpc)
 {

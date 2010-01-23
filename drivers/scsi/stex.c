@@ -623,6 +623,11 @@ stex_queuecommand(struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd *))
 		}
 		break;
 	case INQUIRY:
+		if (lun >= host->max_lun) {
+			cmd->result = DID_NO_CONNECT << 16;
+			done(cmd);
+			return 0;
+		}
 		if (id != host->max_id - 1)
 			break;
 		if (!lun && !cmd->device->channel &&

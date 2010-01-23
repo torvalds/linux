@@ -1417,6 +1417,35 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 	return;
 }
 
+#define WARN_ONCE_HASH_BITS 8
+#define WARN_ONCE_HASH_SIZE (1<<WARN_ONCE_HASH_BITS)
+
+static DECLARE_BITMAP(warn_once_bitmap, WARN_ONCE_HASH_SIZE);
+
+#define FNV32_OFFSET 2166136261U
+#define FNV32_PRIME 0x01000193
+
+/*
+ * Print each legacy sysctl (approximately) only once.
+ * To avoid making the tables non-const use a external
+ * hash-table instead.
+ * Worst case hash collision: 6, but very rarely.
+ * NOTE! We don't use the SMP-safe bit tests. We simply
+ * don't care enough.
+ */
+static void warn_on_bintable(const int *name, int nlen)
+{
+	int i;
+	u32 hash = FNV32_OFFSET;
+
+	for (i = 0; i < nlen; i++)
+		hash = (hash ^ name[i]) * FNV32_PRIME;
+	hash %= WARN_ONCE_HASH_SIZE;
+	if (__test_and_set_bit(hash, warn_once_bitmap))
+		return;
+	deprecated_sysctl_warning(name, nlen);
+}
+
 static ssize_t do_sysctl(int __user *args_name, int nlen,
 	void __user *oldval, size_t oldlen, void __user *newval, size_t newlen)
 {
@@ -1431,7 +1460,7 @@ static ssize_t do_sysctl(int __user *args_name, int nlen,
 		if (get_user(name[i], args_name + i))
 			return -EFAULT;
 
-	deprecated_sysctl_warning(name, nlen);
+	warn_on_bintable(name, nlen);
 
 	return binary_sysctl(name, nlen, oldval, oldlen, newval, newlen);
 }

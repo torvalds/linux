@@ -128,8 +128,6 @@ static struct platform_device nor_flash_device = {
 
 /* SH Eth */
 #define SH_ETH_ADDR	(0xA4600000)
-#define SH_ETH_MAHR	(SH_ETH_ADDR + 0x1C0)
-#define SH_ETH_MALR	(SH_ETH_ADDR + 0x1C8)
 static struct resource sh_eth_resources[] = {
 	[0] = {
 		.start = SH_ETH_ADDR,
@@ -355,6 +353,10 @@ static struct i2c_board_info i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("r2025sd", 0x32),
 	},
+	{
+		I2C_BOARD_INFO("lis3lv02d", 0x1c),
+		.irq = 33,
+	}
 };
 
 /* KEYSC */
@@ -509,6 +511,7 @@ static struct platform_device sdhi1_device = {
 
 #else
 
+/* MMC SPI */
 static int mmc_spi_get_ro(struct device *dev)
 {
 	return gpio_get_value(GPIO_PTY6);
@@ -542,6 +545,7 @@ static struct spi_board_info spi_bus[] = {
 	},
 };
 
+/* MSIOF0 */
 static struct sh_msiof_spi_info msiof0_data = {
 	.num_chipselect = 1,
 };
@@ -1114,6 +1118,10 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_PTU0, NULL);
 	gpio_direction_output(GPIO_PTU0, 0);
 	mdelay(20);
+
+	/* enable motion sensor */
+	gpio_request(GPIO_FN_INTC_IRQ1, NULL);
+	gpio_direction_input(GPIO_FN_INTC_IRQ1);
 
 	/* enable I2C device */
 	i2c_register_board_info(0, i2c0_devices,

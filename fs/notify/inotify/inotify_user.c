@@ -552,7 +552,7 @@ retry:
 
 	spin_lock(&group->inotify_data.idr_lock);
 	ret = idr_get_new_above(&group->inotify_data.idr, &tmp_ientry->fsn_entry,
-				group->inotify_data.last_wd,
+				group->inotify_data.last_wd+1,
 				&tmp_ientry->wd);
 	spin_unlock(&group->inotify_data.idr_lock);
 	if (ret) {
@@ -632,7 +632,7 @@ static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsign
 
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
-	group->inotify_data.last_wd = 1;
+	group->inotify_data.last_wd = 0;
 	group->inotify_data.user = user;
 	group->inotify_data.fa = NULL;
 

@@ -1275,7 +1275,7 @@ struct bm_extent {
 #if DRBD_MAX_SECTORS_BM < DRBD_MAX_SECTORS_32
 #define DRBD_MAX_SECTORS      DRBD_MAX_SECTORS_BM
 #define DRBD_MAX_SECTORS_FLEX DRBD_MAX_SECTORS_BM
-#elif !defined(CONFIG_LBD) && BITS_PER_LONG == 32
+#elif !defined(CONFIG_LBDAF) && BITS_PER_LONG == 32
 #define DRBD_MAX_SECTORS      DRBD_MAX_SECTORS_32
 #define DRBD_MAX_SECTORS_FLEX DRBD_MAX_SECTORS_32
 #else
@@ -1371,10 +1371,9 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 extern void drbd_suspend_io(struct drbd_conf *mdev);
 extern void drbd_resume_io(struct drbd_conf *mdev);
 extern char *ppsize(char *buf, unsigned long long size);
-extern sector_t drbd_new_dev_size(struct drbd_conf *,
-		struct drbd_backing_dev *);
+extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, int);
 enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
-extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *) __must_hold(local);
+extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, int force) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
 extern void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int) __must_hold(local);
 extern int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role,
@@ -1490,7 +1489,7 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo);
 
 /* drbd_proc.c */
 extern struct proc_dir_entry *drbd_proc;
-extern struct file_operations drbd_proc_fops;
+extern const struct file_operations drbd_proc_fops;
 extern const char *drbd_conn_str(enum drbd_conns s);
 extern const char *drbd_role_str(enum drbd_role s);
 

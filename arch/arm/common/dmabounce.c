@@ -312,7 +312,7 @@ static inline void unmap_single(struct device *dev, dma_addr_t dma_addr,
 			 * we need to ensure that the data will be coherent
 			 * with user mappings.
 			 */
-			__cpuc_flush_kernel_dcache_area(ptr, size);
+			__cpuc_flush_dcache_area(ptr, size);
 		}
 		free_safe_buffer(dev->archdata.dmabounce, buf);
 	}

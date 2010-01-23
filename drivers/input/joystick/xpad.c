@@ -446,7 +446,7 @@ static void xpad_irq_in(struct urb *urb)
 	}
 
 exit:
-	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
 		     __func__, retval);
@@ -571,7 +571,7 @@ static int xpad_play_effect(struct input_dev *dev, void *data,
 		xpad->odata[6] = 0x00;
 		xpad->odata[7] = 0x00;
 		xpad->irq_out->transfer_buffer_length = 8;
-		usb_submit_urb(xpad->irq_out, GFP_KERNEL);
+		usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
 	}
 
 	return 0;

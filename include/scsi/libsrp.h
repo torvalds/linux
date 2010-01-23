@@ -2,6 +2,7 @@
 #define __LIBSRP_H__
 
 #include <linux/list.h>
+#include <linux/kfifo.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <scsi/srp.h>

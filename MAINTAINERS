@@ -410,9 +410,8 @@ F:	drivers/i2c/busses/i2c-ali1563.c
 
 ALPHA PORT
 M:	Richard Henderson <rth@twiddle.net>
-S:	Odd Fixes for 2.4; Maintained for 2.6.
 M:	Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-S:	Maintained for 2.4; PCI support for 2.6.
+M:	Matt Turner <mattst88@gmail.com>
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
@@ -988,7 +987,6 @@ F:	drivers/platform/x86/asus-laptop.c
 
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 M:	Dan Williams <dan.j.williams@intel.com>
-M:	Maciej Sosnowski <maciej.sosnowski@intel.com>
 W:	http://sourceforge.net/projects/xscaleiop
 S:	Supported
 F:	Documentation/crypto/async-tx-api.txt
@@ -1472,6 +1470,12 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/fnic/
 
+CMPC ACPI DRIVER
+M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
+M:	Daniel Oliveira Nascimento <don@syst.com.br>
+S:	Supported
+F:	drivers/platform/x86/classmate-laptop.c
+
 CODA FILE SYSTEM
 M:	Jan Harkes <jaharkes@cs.cmu.edu>
 M:	coda@cs.cmu.edu
@@ -1632,9 +1636,8 @@ S:	Maintained
 F:	sound/pci/cs5535audio/
 
 CX18 VIDEO4LINUX DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
 M:	Andy Walls <awalls@radix.net>
-L:	ivtv-devel@ivtvdriver.org
+L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://linuxtv.org
@@ -1819,7 +1822,6 @@ S:	Supported
 F:	fs/dlm/
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
-M:	Maciej Sosnowski <maciej.sosnowski@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
 S:	Supported
 F:	drivers/dma/
@@ -2163,10 +2165,9 @@ F:	drivers/hwmon/f75375s.c
 F:	include/linux/f75375s.h
 
 FIREWIRE SUBSYSTEM
-M:	Kristian Hoegsberg <krh@redhat.com>
 M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
+W:	http://ieee1394.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
 S:	Maintained
 F:	drivers/firewire/
@@ -2699,21 +2700,13 @@ S:	Supported
 F:	drivers/idle/i7300_idle.c
 
 IEEE 1394 SUBSYSTEM
-M:	Ben Collins <ben.collins@ubuntu.com>
 M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 L:	linux1394-devel@lists.sourceforge.net
-W:	http://www.linux1394.org/
+W:	http://ieee1394.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ieee1394/linux1394-2.6.git
-S:	Maintained
+S:	Obsolete
 F:	Documentation/debugging-via-ohci1394.txt
 F:	drivers/ieee1394/
-
-IEEE 1394 RAW I/O DRIVER
-M:	Dan Dennedy <dan@dennedy.org>
-M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
-L:	linux1394-devel@lists.sourceforge.net
-S:	Maintained
-F:	drivers/ieee1394/raw1394*
 
 IEEE 802.15.4 SUBSYSTEM
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
@@ -2791,7 +2784,7 @@ F:	arch/x86/kernel/microcode_core.c
 F:	arch/x86/kernel/microcode_intel.c
 
 INTEL I/OAT DMA DRIVER
-M:	Maciej Sosnowski <maciej.sosnowski@intel.com>
+M:	Dan Williams <dan.j.williams@intel.com>
 S:	Supported
 F:	drivers/dma/ioat*
 
@@ -3015,8 +3008,8 @@ S:	Maintained
 F:	drivers/isdn/hardware/eicon/
 
 IVTV VIDEO4LINUX DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-L:	ivtv-devel@ivtvdriver.org
+M:	Andy Walls <awalls@radix.net>
+L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.ivtvdriver.org
@@ -3646,6 +3639,11 @@ W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 F:	drivers/platform/x86/msi-laptop.c
 
+MSI WMI SUPPORT
+M:	Anisse Astier <anisse@astier.eu>
+S:	Supported
+F:	drivers/platform/x86/msi-wmi.c
+
 MULTIFUNCTION DEVICES (MFD)
 M:	Samuel Ortiz <sameo@linux.intel.com>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sameo/mfd-2.6.git
@@ -3871,7 +3869,7 @@ F:	drivers/net/ni5010.*
 
 NILFS2 FILESYSTEM
 M:	KONISHI Ryusuke <konishi.ryusuke@lab.ntt.co.jp>
-L:	users@nilfs.org
+L:	linux-nilfs@vger.kernel.org
 W:	http://www.nilfs.org/en/
 S:	Supported
 F:	Documentation/filesystems/nilfs2.txt
@@ -3938,28 +3936,19 @@ S:	Maintained
 F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
-M:	Imre Deak <imre.deak@nokia.com>
+M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap/
 
-OMAP DISPLAY SUBSYSTEM SUPPORT (DSS2)
+OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
 M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-omap@vger.kernel.org
-L:	linux-fbdev@vger.kernel.org (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
-F:	drivers/video/omap2/dss/
-F:	drivers/video/omap2/vrfb.c
-F:	drivers/video/omap2/vram.c
+F:	drivers/video/omap2/
 F:	Documentation/arm/OMAP/DSS
-
-OMAP FRAMEBUFFER SUPPORT (FOR DSS2)
-M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
-L:	linux-omap@vger.kernel.org
-L:	linux-fbdev@vger.kernel.org (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/video/omap2/omapfb/
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>

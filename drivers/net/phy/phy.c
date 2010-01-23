@@ -410,7 +410,6 @@ EXPORT_SYMBOL(phy_start_aneg);
 
 
 static void phy_change(struct work_struct *work);
-static void phy_state_machine(struct work_struct *work);
 
 /**
  * phy_start_machine - start PHY state machine tracking
@@ -430,7 +429,6 @@ void phy_start_machine(struct phy_device *phydev,
 {
 	phydev->adjust_state = handler;
 
-	INIT_DELAYED_WORK(&phydev->state_queue, phy_state_machine);
 	schedule_delayed_work(&phydev->state_queue, HZ);
 }
 
@@ -761,7 +759,7 @@ EXPORT_SYMBOL(phy_start);
  * phy_state_machine - Handle the state machine
  * @work: work_struct that describes the work to be done
  */
-static void phy_state_machine(struct work_struct *work)
+void phy_state_machine(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct phy_device *phydev =

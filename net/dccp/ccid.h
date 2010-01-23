@@ -49,6 +49,8 @@ struct ccid_operations {
 	const char		*ccid_name;
 	struct kmem_cache	*ccid_hc_rx_slab,
 				*ccid_hc_tx_slab;
+	char			ccid_hc_rx_slab_name[32];
+	char			ccid_hc_tx_slab_name[32];
 	__u32			ccid_hc_rx_obj_size,
 				ccid_hc_tx_obj_size;
 	/* Interface Routines */

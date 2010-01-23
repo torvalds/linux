@@ -467,14 +467,14 @@ static irqreturn_t dss_irq_handler_omap3(int irq, void *arg)
 
 static int _omap_dss_wait_reset(void)
 {
-	unsigned timeout = 1000;
+	int t = 0;
 
 	while (REG_GET(DSS_SYSSTATUS, 0, 0) == 0) {
-		udelay(1);
-		if (!--timeout) {
+		if (++t > 1000) {
 			DSSERR("soft reset failed\n");
 			return -ENODEV;
 		}
+		udelay(1);
 	}
 
 	return 0;

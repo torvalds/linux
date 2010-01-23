@@ -52,6 +52,9 @@
 #include <asm/cpu.h>
 #include "entry.h"
 
+/* logical cpu to cpu address */
+int __cpu_logical_map[NR_CPUS];
+
 static struct task_struct *current_set[NR_CPUS];
 
 static u8 smp_cpu_type;
@@ -715,6 +718,12 @@ void __init smp_prepare_boot_cpu(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
+}
+
+void __init smp_setup_processor_id(void)
+{
+	S390_lowcore.cpu_nr = 0;
+	__cpu_logical_map[0] = stap();
 }
 
 /*
