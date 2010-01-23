@@ -274,8 +274,8 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 			conn->max_recv_dlength = 65536;
 		break;
 	case ISCSI_PARAM_MAX_BURST:
-		if (session->first_burst > 262144)
-			session->first_burst = 262144;
+		if (session->max_burst > 262144)
+			session->max_burst = 262144;
 		break;
 	default:
 		return 0;
