@@ -1742,8 +1742,8 @@ static struct snd_kcontrol_new cxt5051_hp_dv6736_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5051_f700_mixers[] = {
-	HDA_CODEC_VOLUME("Mic Volume", 0x14, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Switch", 0x14, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x14, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x14, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1901,17 +1901,17 @@ static const char *cxt5051_models[CXT5051_MODELS] = {
 	[CXT5051_HP]		= "hp",
 	[CXT5051_HP_DV6736]	= "hp-dv6736",
 	[CXT5051_LENOVO_X200]	= "lenovo-x200",
-	[CXT5051_F700]          = "hp 700"
+	[CXT5051_F700]          = "hp-700",
 };
 
 static struct snd_pci_quirk cxt5051_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30cf, "HP DV6736", CXT5051_HP_DV6736),
 	SND_PCI_QUIRK(0x103c, 0x360b, "Compaq Presario CQ60", CXT5051_HP),
+	SND_PCI_QUIRK(0x103c, 0x30ea, "Compaq Presario F700", CXT5051_F700),
 	SND_PCI_QUIRK(0x14f1, 0x0101, "Conexant Reference board",
 		      CXT5051_LAPTOP),
 	SND_PCI_QUIRK(0x14f1, 0x5051, "HP Spartan 1.1", CXT5051_HP),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT5051_LENOVO_X200),
-	SND_PCI_QUIRK(0x103c, 0x30ea, "Compaq Presario F700", CXT5051_F700),
 	{}
 };
 
