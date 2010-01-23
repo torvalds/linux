@@ -530,60 +530,6 @@ err:
 }
 EXPORT_SYMBOL_GPL(usbip_xmit);
 
-
-/* now a usrland utility should set options. */
-#if 0
-int setquickack(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_TCP, TCP_QUICKACK,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-int setnodelay(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_TCP, TCP_NODELAY,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-int setkeepalive(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-void setreuse(struct socket *socket)
-{
-	socket->sk->sk_reuse = 1;
-}
-#endif
-
 struct socket *sockfd_to_socket(unsigned int sockfd)
 {
 	struct socket *socket;
