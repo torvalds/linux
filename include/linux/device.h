@@ -478,6 +478,17 @@ static inline void device_enable_async_suspend(struct device *dev)
 		dev->power.async_suspend = true;
 }
 
+static inline void device_disable_async_suspend(struct device *dev)
+{
+	if (dev->power.status == DPM_ON)
+		dev->power.async_suspend = false;
+}
+
+static inline bool device_async_suspend_enabled(struct device *dev)
+{
+	return !!dev->power.async_suspend;
+}
+
 void driver_init(void);
 
 /*

@@ -51,3 +51,29 @@ Description:
 		drivers.  Changing this attribute to "on" prevents the driver
 		from power managing the device at run time.  Doing that while
 		the device is suspended causes it to be woken up.
+
+What:		/sys/devices/.../power/async
+Date:		January 2009
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/devices/.../async attribute allows the user space to
+		enable or diasble the device's suspend and resume callbacks to
+		be executed asynchronously (ie. in separate threads, in parallel
+		with the main suspend/resume thread) during system-wide power
+		transitions (eg. suspend to RAM, hibernation).
+
+		All devices have one of the following two values for the
+		power/async file:
+
+		+ "enabled\n" to permit the asynchronous suspend/resume;
+		+ "disabled\n" to forbid it;
+
+		The value of this attribute may be changed by writing either
+		"enabled", or "disabled" to it.
+
+		It generally is unsafe to permit the asynchronous suspend/resume
+		of a device unless it is certain that all of the PM dependencies
+		of the device are known to the PM core.  However, for some
+		devices this attribute is set to "enabled" by bus type code or
+		device drivers and in that cases it should be safe to leave the
+		default value.
