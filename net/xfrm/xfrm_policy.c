@@ -469,16 +469,16 @@ static inline int xfrm_byidx_should_resize(struct net *net, int total)
 	return 0;
 }
 
-void xfrm_spd_getinfo(struct xfrmk_spdinfo *si)
+void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si)
 {
 	read_lock_bh(&xfrm_policy_lock);
-	si->incnt = init_net.xfrm.policy_count[XFRM_POLICY_IN];
-	si->outcnt = init_net.xfrm.policy_count[XFRM_POLICY_OUT];
-	si->fwdcnt = init_net.xfrm.policy_count[XFRM_POLICY_FWD];
-	si->inscnt = init_net.xfrm.policy_count[XFRM_POLICY_IN+XFRM_POLICY_MAX];
-	si->outscnt = init_net.xfrm.policy_count[XFRM_POLICY_OUT+XFRM_POLICY_MAX];
-	si->fwdscnt = init_net.xfrm.policy_count[XFRM_POLICY_FWD+XFRM_POLICY_MAX];
-	si->spdhcnt = init_net.xfrm.policy_idx_hmask;
+	si->incnt = net->xfrm.policy_count[XFRM_POLICY_IN];
+	si->outcnt = net->xfrm.policy_count[XFRM_POLICY_OUT];
+	si->fwdcnt = net->xfrm.policy_count[XFRM_POLICY_FWD];
+	si->inscnt = net->xfrm.policy_count[XFRM_POLICY_IN+XFRM_POLICY_MAX];
+	si->outscnt = net->xfrm.policy_count[XFRM_POLICY_OUT+XFRM_POLICY_MAX];
+	si->fwdscnt = net->xfrm.policy_count[XFRM_POLICY_FWD+XFRM_POLICY_MAX];
+	si->spdhcnt = net->xfrm.policy_idx_hmask;
 	si->spdhmcnt = xfrm_policy_hashmax;
 	read_unlock_bh(&xfrm_policy_lock);
 }
