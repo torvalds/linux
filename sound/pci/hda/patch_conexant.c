@@ -1726,8 +1726,8 @@ static struct snd_kcontrol_new cxt5051_hp_mixers[] = {
 };
 
 static struct snd_kcontrol_new cxt5051_hp_dv6736_mixers[] = {
-	HDA_CODEC_VOLUME("Mic Volume", 0x14, 0x00, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Switch", 0x14, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x14, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x14, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
