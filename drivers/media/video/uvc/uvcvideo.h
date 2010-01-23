@@ -245,7 +245,8 @@ struct uvc_control {
 			   uvc_control_info. */
 	__u8 dirty : 1,
 	     loaded : 1,
-	     modified : 1;
+	     modified : 1,
+	     cached : 1;
 
 	__u8 *data;
 };

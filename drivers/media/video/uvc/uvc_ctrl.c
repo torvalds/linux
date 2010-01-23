@@ -23,9 +23,13 @@
 
 #include "uvcvideo.h"
 
-#define UVC_CTRL_NDATA		2
 #define UVC_CTRL_DATA_CURRENT	0
 #define UVC_CTRL_DATA_BACKUP	1
+#define UVC_CTRL_DATA_MIN	2
+#define UVC_CTRL_DATA_MAX	3
+#define UVC_CTRL_DATA_RES	4
+#define UVC_CTRL_DATA_DEF	5
+#define UVC_CTRL_DATA_LAST	6
 
 /* ------------------------------------------------------------------------
  * Controls
@@ -755,6 +759,49 @@ struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	return ctrl;
 }
 
+static int uvc_ctrl_populate_cache(struct uvc_video_chain *chain,
+	struct uvc_control *ctrl)
+{
+	int ret;
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_DEF, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_MIN, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_MAX, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
+		ret = uvc_query_ctrl(chain->dev, UVC_GET_RES, ctrl->entity->id,
+				     chain->dev->intfnum, ctrl->info->selector,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES),
+				     ctrl->info->size);
+		if (ret < 0)
+			return ret;
+	}
+
+	ctrl->cached = 1;
+	return 0;
+}
+
 int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	struct v4l2_queryctrl *v4l2_ctrl)
 {
@@ -762,16 +809,11 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	struct uvc_control_mapping *mapping;
 	struct uvc_menu_info *menu;
 	unsigned int i;
-	__u8 *data;
 	int ret;
 
 	ctrl = uvc_find_control(chain, v4l2_ctrl->id, &mapping);
 	if (ctrl == NULL)
 		return -EINVAL;
-
-	data = kmalloc(ctrl->info->size, GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
 
 	memset(v4l2_ctrl, 0, sizeof *v4l2_ctrl);
 	v4l2_ctrl->id = mapping->id;
@@ -782,14 +824,15 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	if (!(ctrl->info->flags & UVC_CONTROL_SET_CUR))
 		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_DEF, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
+	if (!ctrl->cached) {
+		ret = uvc_ctrl_populate_cache(chain, ctrl);
 		if (ret < 0)
-			goto out;
-		v4l2_ctrl->default_value =
-			mapping->get(mapping, UVC_GET_DEF, data);
+			return ret;
+	}
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
+		v4l2_ctrl->default_value = mapping->get(mapping, UVC_GET_DEF,
+				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF));
 	}
 
 	switch (mapping->v4l2_type) {
@@ -806,56 +849,37 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 			}
 		}
 
-		ret = 0;
-		goto out;
+		return 0;
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 1;
 		v4l2_ctrl->step = 1;
-		ret = 0;
-		goto out;
+		return 0;
 
 	case V4L2_CTRL_TYPE_BUTTON:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 0;
 		v4l2_ctrl->step = 0;
-		ret = 0;
-		goto out;
+		return 0;
 
 	default:
 		break;
 	}
 
-	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_MIN, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
-		if (ret < 0)
-			goto out;
-		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN, data);
-	}
-	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_MAX, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
-		if (ret < 0)
-			goto out;
-		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX, data);
-	}
-	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
-		ret = uvc_query_ctrl(chain->dev, UVC_GET_RES, ctrl->entity->id,
-				     chain->dev->intfnum, ctrl->info->selector,
-				     data, ctrl->info->size);
-		if (ret < 0)
-			goto out;
-		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES, data);
-	}
+	if (ctrl->info->flags & UVC_CONTROL_GET_MIN)
+		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
 
-	ret = 0;
-out:
-	kfree(data);
-	return ret;
+	if (ctrl->info->flags & UVC_CONTROL_GET_MAX)
+		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+
+	if (ctrl->info->flags & UVC_CONTROL_GET_RES)
+		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES,
+				  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+
+	return 0;
 }
 
 
@@ -1246,7 +1270,7 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 	}
 
 	ctrl->info = info;
-	ctrl->data = kmalloc(ctrl->info->size * UVC_CTRL_NDATA, GFP_KERNEL);
+	ctrl->data = kmalloc(ctrl->info->size * UVC_CTRL_DATA_LAST, GFP_KERNEL);
 	uvc_trace(UVC_TRACE_CONTROL, "Added control %pUl/%u to device %s "
 		"entity %u\n", ctrl->info->entity, ctrl->info->selector,
 		dev->udev->devpath, entity->id);
