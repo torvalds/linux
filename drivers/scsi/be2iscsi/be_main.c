@@ -1663,11 +1663,7 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_len, pwrb,
 							sg_len);
 			sge_len = sg_len;
-			AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_last, pwrb,
-							1);
 		} else {
-			AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_last, pwrb,
-							0);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_r2t_offset,
 							pwrb, sge_len);
 			sg_len = sg_dma_len(sg);
@@ -1690,8 +1686,22 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 	AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, psgl,
 			io_task->bhs_pa.u.a32.address_lo);
 
-	if (num_sg == 2)
-		AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_last, pwrb, 1);
+	if (num_sg == 1) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_last, pwrb,
+								1);
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_last, pwrb,
+								0);
+	} else if (num_sg == 2) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_last, pwrb,
+								0);
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_last, pwrb,
+								1);
+	} else {
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_last, pwrb,
+								0);
+		AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_last, pwrb,
+								0);
+	}
 	sg = l_sg;
 	psgl++;
 	psgl++;
@@ -3476,6 +3486,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	pwrb = io_task->pwrb_handle->pwrb;
+	memset(pwrb, 0, sizeof(*pwrb));
 	AMAP_SET_BITS(struct amap_iscsi_wrb, cmdsn_itt, pwrb,
 		      be32_to_cpu(task->cmdsn));
 	AMAP_SET_BITS(struct amap_iscsi_wrb, wrb_idx, pwrb,
