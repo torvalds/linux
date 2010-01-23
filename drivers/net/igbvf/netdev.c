@@ -2126,6 +2126,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
 		struct skb_frag_struct *frag;
 
+		count++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
@@ -2146,7 +2147,6 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 						PCI_DMA_TODEVICE);
 		if (pci_dma_mapping_error(pdev, buffer_info->dma))
 			goto dma_error;
-		count++;
 	}
 
 	tx_ring->buffer_info[i].skb = skb;

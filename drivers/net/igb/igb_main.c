@@ -3584,6 +3584,7 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
 		struct skb_frag_struct *frag;
 
+		count++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
@@ -3605,7 +3606,6 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 		if (pci_dma_mapping_error(pdev, buffer_info->dma))
 			goto dma_error;
 
-		count++;
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
