@@ -4,9 +4,25 @@
 
 #include <linux/device.h>
 #include <linux/string.h>
+#include <linux/pm_runtime.h>
 #include "power.h"
 
 /*
+ *	control - Report/change current runtime PM setting of the device
+ *
+ *	Runtime power management of a device can be blocked with the help of
+ *	this attribute.  All devices have one of the following two values for
+ *	the power/control file:
+ *
+ *	 + "auto\n" to allow the device to be power managed at run time;
+ *	 + "on\n" to prevent the device from being power managed at run time;
+ *
+ *	The default for all devices is "auto", which means that devices may be
+ *	subject to automatic power management, depending on their drivers.
+ *	Changing this attribute to "on" prevents the driver from power managing
+ *	the device at run time.  Doing that while the device is suspended causes
+ *	it to be woken up.
+ *
  *	wakeup - Report/change current wakeup option for device
  *
  *	Some devices support "wakeup" events, which are hardware signals
@@ -42,6 +58,38 @@
 
 static const char enabled[] = "enabled";
 static const char disabled[] = "disabled";
+
+#ifdef CONFIG_PM_RUNTIME
+static const char ctrl_auto[] = "auto";
+static const char ctrl_on[] = "on";
+
+static ssize_t control_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	return sprintf(buf, "%s\n",
+				dev->power.runtime_auto ? ctrl_auto : ctrl_on);
+}
+
+static ssize_t control_store(struct device * dev, struct device_attribute *attr,
+			     const char * buf, size_t n)
+{
+	char *cp;
+	int len = n;
+
+	cp = memchr(buf, '\n', n);
+	if (cp)
+		len = cp - buf;
+	if (len == sizeof ctrl_auto - 1 && strncmp(buf, ctrl_auto, len) == 0)
+		pm_runtime_allow(dev);
+	else if (len == sizeof ctrl_on - 1 && strncmp(buf, ctrl_on, len) == 0)
+		pm_runtime_forbid(dev);
+	else
+		return -EINVAL;
+	return n;
+}
+
+static DEVICE_ATTR(control, 0644, control_show, control_store);
+#endif
 
 static ssize_t
 wake_show(struct device * dev, struct device_attribute *attr, char * buf)
@@ -79,6 +127,9 @@ static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
 
 
 static struct attribute * power_attrs[] = {
+#ifdef CONFIG_PM_RUNTIME
+	&dev_attr_control.attr,
+#endif
 	&dev_attr_wakeup.attr,
 	NULL,
 };
