@@ -3228,6 +3228,27 @@ static inline u8 sky2_wol_supported(const struct sky2_hw *hw)
 	return sky2_is_copper(hw) ? (WAKE_PHY | WAKE_MAGIC) : 0;
 }
 
+static void sky2_hw_set_wol(struct sky2_hw *hw)
+{
+	int wol = 0;
+	int i;
+
+	for (i = 0; i < hw->ports; i++) {
+		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
+
+		if (sky2->wol)
+			wol = 1;
+	}
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
+	    hw->chip_id == CHIP_ID_YUKON_EX ||
+	    hw->chip_id == CHIP_ID_YUKON_FE_P)
+		sky2_write32(hw, B0_CTST, wol ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
+
+	device_set_wakeup_enable(&hw->pdev->dev, wol);
+}
+
 static void sky2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
@@ -3247,13 +3268,7 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	sky2->wol = wol->wolopts;
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
-	    hw->chip_id == CHIP_ID_YUKON_EX ||
-	    hw->chip_id == CHIP_ID_YUKON_FE_P)
-		sky2_write32(hw, B0_CTST, sky2->wol
-			     ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
-
-	device_set_wakeup_enable(&hw->pdev->dev, sky2->wol);
+	sky2_hw_set_wol(hw);
 
 	if (!netif_running(dev))
 		sky2_wol_init(sky2);
