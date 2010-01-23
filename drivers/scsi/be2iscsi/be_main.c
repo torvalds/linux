@@ -3873,7 +3873,7 @@ static int __init beiscsi_module_init(void)
 		SE_DEBUG(DBG_LVL_1,
 			 "beiscsi_module_init - Unable to  register beiscsi"
 			 "transport.\n");
-		ret = -ENOMEM;
+		return -ENOMEM;
 	}
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_module_init, tt=%p \n",
 		 &beiscsi_iscsi_transport);
