@@ -66,7 +66,7 @@ module_param(emulate_invalid_guest_state, bool, S_IRUGO);
 #define KVM_GUEST_CR0_MASK						\
 	(KVM_GUEST_CR0_MASK_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
 #define KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST				\
-	(X86_CR0_WP | X86_CR0_NE | X86_CR0_MP)
+	(X86_CR0_WP | X86_CR0_NE)
 #define KVM_VM_CR0_ALWAYS_ON						\
 	(KVM_VM_CR0_ALWAYS_ON_UNRESTRICTED_GUEST | X86_CR0_PG | X86_CR0_PE)
 #define KVM_CR4_GUEST_OWNED_BITS				      \
@@ -791,12 +791,15 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 
 static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
 {
+	ulong cr0;
+
 	if (vcpu->fpu_active)
 		return;
 	vcpu->fpu_active = 1;
-	vmcs_clear_bits(GUEST_CR0, X86_CR0_TS);
-	if (kvm_read_cr0_bits(vcpu, X86_CR0_TS))
-		vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
+	cr0 = vmcs_readl(GUEST_CR0);
+	cr0 &= ~(X86_CR0_TS | X86_CR0_MP);
+	cr0 |= kvm_read_cr0_bits(vcpu, X86_CR0_TS | X86_CR0_MP);
+	vmcs_writel(GUEST_CR0, cr0);
 	update_exception_bitmap(vcpu);
 	vcpu->arch.cr0_guest_owned_bits = X86_CR0_TS;
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~vcpu->arch.cr0_guest_owned_bits);
@@ -807,7 +810,7 @@ static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
 static void vmx_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
 	vmx_decache_cr0_guest_bits(vcpu);
-	vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
+	vmcs_set_bits(GUEST_CR0, X86_CR0_TS | X86_CR0_MP);
 	update_exception_bitmap(vcpu);
 	vcpu->arch.cr0_guest_owned_bits = 0;
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~vcpu->arch.cr0_guest_owned_bits);
@@ -1757,7 +1760,7 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		ept_update_paging_mode_cr0(&hw_cr0, cr0, vcpu);
 
 	if (!vcpu->fpu_active)
-		hw_cr0 |= X86_CR0_TS;
+		hw_cr0 |= X86_CR0_TS | X86_CR0_MP;
 
 	vmcs_writel(CR0_READ_SHADOW, cr0);
 	vmcs_writel(GUEST_CR0, hw_cr0);
