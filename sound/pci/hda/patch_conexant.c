@@ -42,7 +42,7 @@
 
 /* Conexant 5051 specific */
 
-#define CXT5051_SPDIF_OUT	0x1C
+#define CXT5051_SPDIF_OUT	0x12
 #define CXT5051_PORTB_EVENT	0x38
 #define CXT5051_PORTC_EVENT	0x39
 
