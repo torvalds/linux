@@ -253,7 +253,7 @@ void *trace_seq_reserve(struct trace_seq *s, size_t len)
 	void *ret;
 
 	if (s->full)
-		return 0;
+		return NULL;
 
 	if (len > ((PAGE_SIZE - 1) - s->len)) {
 		s->full = 1;
