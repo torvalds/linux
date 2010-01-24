@@ -3076,7 +3076,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		if (io)
 			io->flag = DIO_AIO_UNWRITTEN;
 		else
-			EXT4_I(inode)->i_state |= EXT4_STATE_DIO_UNWRITTEN;
+			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
 		goto out;
 	}
 	/* async DIO end_io complete, convert the filled extent to written */
@@ -3362,8 +3362,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			if (io)
 				io->flag = DIO_AIO_UNWRITTEN;
 			else
-				EXT4_I(inode)->i_state |=
-					EXT4_STATE_DIO_UNWRITTEN;;
+				ext4_set_inode_state(inode,
+						     EXT4_STATE_DIO_UNWRITTEN);
 		}
 	}
 	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
@@ -3739,7 +3739,7 @@ static int ext4_xattr_fiemap(struct inode *inode,
 	int error = 0;
 
 	/* in-inode? */
-	if (EXT4_I(inode)->i_state & EXT4_STATE_XATTR) {
+	if (ext4_test_inode_state(inode, EXT4_STATE_XATTR)) {
 		struct ext4_iloc iloc;
 		int offset;	/* offset of xattr in inode */
 

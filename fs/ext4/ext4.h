@@ -313,17 +313,6 @@ static inline __u32 ext4_mask_flags(umode_t mode, __u32 flags)
 		return flags & EXT4_OTHER_FLMASK;
 }
 
-/*
- * Inode dynamic state flags
- */
-#define EXT4_STATE_JDATA		0x00000001 /* journaled data exists */
-#define EXT4_STATE_NEW			0x00000002 /* inode is newly created */
-#define EXT4_STATE_XATTR		0x00000004 /* has in-inode xattrs */
-#define EXT4_STATE_NO_EXPAND		0x00000008 /* No space for expansion */
-#define EXT4_STATE_DA_ALLOC_CLOSE	0x00000010 /* Alloc DA blks on close */
-#define EXT4_STATE_EXT_MIGRATE		0x00000020 /* Inode is migrating */
-#define EXT4_STATE_DIO_UNWRITTEN	0x00000040 /* need convert on dio done*/
-
 /* Used to pass group descriptor data when online resize is done */
 struct ext4_new_group_input {
 	__u32 group;		/* Group number for this data */
@@ -631,7 +620,7 @@ struct ext4_inode_info {
 	 * near to their parent directory's inode.
 	 */
 	ext4_group_t	i_block_group;
-	__u32	i_state;		/* Dynamic state flags for ext4 */
+	unsigned long	i_state_flags;		/* Dynamic state flags */
 
 	ext4_lblk_t		i_dir_start_lookup;
 #ifdef CONFIG_EXT4_FS_XATTR
@@ -1050,6 +1039,34 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 		ino == EXT4_RESIZE_INO ||
 		(ino >= EXT4_FIRST_INO(sb) &&
 		 ino <= le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count));
+}
+
+/*
+ * Inode dynamic state flags
+ */
+enum {
+	EXT4_STATE_JDATA,		/* journaled data exists */
+	EXT4_STATE_NEW,			/* inode is newly created */
+	EXT4_STATE_XATTR,		/* has in-inode xattrs */
+	EXT4_STATE_NO_EXPAND,		/* No space for expansion */
+	EXT4_STATE_DA_ALLOC_CLOSE,	/* Alloc DA blks on close */
+	EXT4_STATE_EXT_MIGRATE,		/* Inode is migrating */
+	EXT4_STATE_DIO_UNWRITTEN,	/* need convert on dio done*/
+};
+
+static inline int ext4_test_inode_state(struct inode *inode, int bit)
+{
+	return test_bit(bit, &EXT4_I(inode)->i_state_flags);
+}
+
+static inline void ext4_set_inode_state(struct inode *inode, int bit)
+{
+	set_bit(bit, &EXT4_I(inode)->i_state_flags);
+}
+
+static inline void ext4_clear_inode_state(struct inode *inode, int bit)
+{
+	clear_bit(bit, &EXT4_I(inode)->i_state_flags);
 }
 #else
 /* Assume that user mode programs are passing in an ext4fs superblock, not

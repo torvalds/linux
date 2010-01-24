@@ -365,12 +365,12 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * happened after we started the migrate. We need to
 	 * fail the migrate
 	 */
-	if (!(EXT4_I(inode)->i_state & EXT4_STATE_EXT_MIGRATE)) {
+	if (!ext4_test_inode_state(inode, EXT4_STATE_EXT_MIGRATE)) {
 		retval = -EAGAIN;
 		up_write(&EXT4_I(inode)->i_data_sem);
 		goto err_out;
 	} else
-		EXT4_I(inode)->i_state &= ~EXT4_STATE_EXT_MIGRATE;
+		ext4_clear_inode_state(inode, EXT4_STATE_EXT_MIGRATE);
 	/*
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
@@ -533,7 +533,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * allocation.
 	 */
 	down_read((&EXT4_I(inode)->i_data_sem));
-	EXT4_I(inode)->i_state |= EXT4_STATE_EXT_MIGRATE;
+	ext4_set_inode_state(inode, EXT4_STATE_EXT_MIGRATE);
 	up_read((&EXT4_I(inode)->i_data_sem));
 
 	handle = ext4_journal_start(inode, 1);
