@@ -1689,13 +1689,7 @@ static void cxt5051_hp_unsol_event(struct hda_codec *codec,
 	conexant_report_jack(codec, nid);
 }
 
-static struct snd_kcontrol_new cxt5051_mixers[] = {
-	HDA_CODEC_VOLUME("Internal Mic Volume", 0x14, 0x00, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Switch", 0x14, 0x00, HDA_INPUT),
-	HDA_CODEC_VOLUME("External Mic Volume", 0x14, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("External Mic Switch", 0x14, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Docking Mic Volume", 0x15, 0x00, HDA_INPUT),
-	HDA_CODEC_MUTE("Docking Mic Switch", 0x15, 0x00, HDA_INPUT),
+static struct snd_kcontrol_new cxt5051_playback_mixers[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1705,7 +1699,16 @@ static struct snd_kcontrol_new cxt5051_mixers[] = {
 		.put = cxt5051_hp_master_sw_put,
 		.private_value = 0x1a,
 	},
+	{}
+};
 
+static struct snd_kcontrol_new cxt5051_capture_mixers[] = {
+	HDA_CODEC_VOLUME("Internal Mic Volume", 0x14, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Internal Mic Switch", 0x14, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("External Mic Volume", 0x14, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("External Mic Switch", 0x14, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Docking Mic Volume", 0x15, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Docking Mic Switch", 0x15, 0x00, HDA_INPUT),
 	{}
 };
 
@@ -1714,48 +1717,18 @@ static struct snd_kcontrol_new cxt5051_hp_mixers[] = {
 	HDA_CODEC_MUTE("Internal Mic Switch", 0x14, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("External Mic Volume", 0x15, 0x00, HDA_INPUT),
 	HDA_CODEC_MUTE("External Mic Switch", 0x15, 0x00, HDA_INPUT),
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = cxt_eapd_info,
-		.get = cxt_eapd_get,
-		.put = cxt5051_hp_master_sw_put,
-		.private_value = 0x1a,
-	},
-
 	{}
 };
 
 static struct snd_kcontrol_new cxt5051_hp_dv6736_mixers[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x14, 0x00, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x14, 0x00, HDA_INPUT),
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = cxt_eapd_info,
-		.get = cxt_eapd_get,
-		.put = cxt5051_hp_master_sw_put,
-		.private_value = 0x1a,
-	},
-
 	{}
 };
 
 static struct snd_kcontrol_new cxt5051_f700_mixers[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x14, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x14, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = cxt_eapd_info,
-		.get = cxt_eapd_get,
-		.put = cxt5051_hp_master_sw_put,
-		.private_value = 0x1a,
-	},
-
 	{}
 };
 
@@ -1764,16 +1737,6 @@ static struct snd_kcontrol_new cxt5051_toshiba_mixers[] = {
 	HDA_CODEC_MUTE("Internal Mic Switch", 0x14, 0x00, HDA_INPUT),
 	HDA_CODEC_VOLUME("External Mic Volume", 0x14, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("External Mic Switch", 0x14, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x10, 0x00, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = cxt_eapd_info,
-		.get = cxt_eapd_get,
-		.put = cxt5051_hp_master_sw_put,
-		.private_value = 0x1a,
-	},
-
 	{}
 };
 
@@ -1958,8 +1921,9 @@ static int patch_cxt5051(struct hda_codec *codec)
 	spec->multiout.dig_out_nid = CXT5051_SPDIF_OUT;
 	spec->num_adc_nids = 1; /* not 2; via auto-mic switch */
 	spec->adc_nids = cxt5051_adc_nids;
-	spec->num_mixers = 1;
-	spec->mixers[0] = cxt5051_mixers;
+	spec->num_mixers = 2;
+	spec->mixers[0] = cxt5051_capture_mixers;
+	spec->mixers[1] = cxt5051_playback_mixers;
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = cxt5051_init_verbs;
 	spec->spdif_route = 0;
