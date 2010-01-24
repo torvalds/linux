@@ -230,17 +230,12 @@ struct pcmcia_socket {
 		u8			busy:1;
 		/* pcmcia module is being unloaded */
 		u8			dead:1;
-		/* a multifunction-device add event is pending */
-		u8			device_add_pending:1;
-		/* the pending event adds a mfc (1) or pfc (0) */
-		u8			mfc_pfc:1;
+		/* the PCMCIA card consists of two pseudo devices */
+		u8			has_pfc:1;
 
-		u8			reserved:3;
+		u8			reserved:4;
 	} pcmcia_state;
 
-
-	/* for adding further pseudo-multifunction devices */
-	struct work_struct		device_add;
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	struct user_info_t		*user;

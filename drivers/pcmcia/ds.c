@@ -244,23 +244,11 @@ static void pcmcia_release_dev(struct device *dev)
 	kfree(p_dev);
 }
 
-static void pcmcia_add_device_later(struct pcmcia_socket *s, int mfc)
-{
-	if (!s->pcmcia_state.device_add_pending) {
-		dev_dbg(&s->dev, "scheduling to add %s secondary"
-		       " device to %d\n", mfc ? "mfc" : "pfc", s->sock);
-		s->pcmcia_state.device_add_pending = 1;
-		s->pcmcia_state.mfc_pfc = mfc;
-		schedule_work(&s->device_add);
-	}
-	return;
-}
 
 static int pcmcia_device_probe(struct device *dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
-	struct pcmcia_device_id *did;
 	struct pcmcia_socket *s;
 	cistpl_config_t cis_config;
 	int ret = 0;
@@ -272,18 +260,6 @@ static int pcmcia_device_probe(struct device *dev)
 	p_dev = to_pcmcia_dev(dev);
 	p_drv = to_pcmcia_drv(dev->driver);
 	s = p_dev->socket;
-
-	/* The PCMCIA code passes the match data in via dev_set_drvdata(dev)
-	 * which is an ugly hack. Once the driver probe is called it may
-	 * and often will overwrite the match data so we must save it first
-	 *
-	 * handle pseudo multifunction devices:
-	 * there are at most two pseudo multifunction devices.
-	 * if we're matching against the first, schedule a
-	 * call which will then check whether there are two
-	 * pseudo devices, and if not, add the second one.
-	 */
-	did = dev_get_drvdata(&p_dev->dev);
 
 	dev_dbg(dev, "trying to bind to %s\n", p_drv->drv.name);
 
@@ -314,9 +290,9 @@ static int pcmcia_device_probe(struct device *dev)
 	}
 
 	mutex_lock(&s->ops_mutex);
-	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
+	if ((s->pcmcia_state.has_pfc) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
-		pcmcia_add_device_later(p_dev->socket, 0);
+		pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
 	mutex_unlock(&s->ops_mutex);
 
 put_module:
@@ -369,7 +345,6 @@ static int pcmcia_device_remove(struct device *dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
-	struct pcmcia_device_id *did;
 	int i;
 
 	p_dev = to_pcmcia_dev(dev);
@@ -381,8 +356,7 @@ static int pcmcia_device_remove(struct device *dev)
 	 * pseudo multi-function card, we need to unbind
 	 * all devices
 	 */
-	did = dev_get_drvdata(&p_dev->dev);
-	if (did && (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) &&
+	if ((p_dev->socket->pcmcia_state.has_pfc) &&
 	    (p_dev->socket->device_count > 0) &&
 	    (p_dev->device_no == 0))
 		pcmcia_card_remove(p_dev->socket, p_dev);
@@ -528,8 +502,8 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	p_dev->device_no = (s->device_count++);
 	mutex_unlock(&s->ops_mutex);
 
-	/* max of 4 devices per card */
-	if (p_dev->device_no >= 4)
+	/* max of 2 devices per card */
+	if (p_dev->device_no >= 2)
 		goto err_free;
 
 	p_dev->socket = s;
@@ -652,22 +626,6 @@ static int pcmcia_card_add(struct pcmcia_socket *s)
 }
 
 
-static void pcmcia_delayed_add_device(struct work_struct *work)
-{
-	struct pcmcia_socket *s =
-		container_of(work, struct pcmcia_socket, device_add);
-	u8 mfc_pfc;
-
-	mutex_lock(&s->ops_mutex);
-	mfc_pfc = s->pcmcia_state.mfc_pfc;
-	s->pcmcia_state.device_add_pending = 0;
-	s->pcmcia_state.mfc_pfc = 0;
-	mutex_unlock(&s->ops_mutex);
-
-	dev_dbg(&s->dev, "adding additional device to %d\n", s->sock);
-	pcmcia_device_add(s, mfc_pfc);
-}
-
 static int pcmcia_requery_callback(struct device *dev, void * _data)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
@@ -679,9 +637,10 @@ static int pcmcia_requery_callback(struct device *dev, void * _data)
 	return 0;
 }
 
+
 static void pcmcia_requery(struct pcmcia_socket *s)
 {
-	int present;
+	int present, has_pfc;
 
 	mutex_lock(&s->ops_mutex);
 	present = s->pcmcia_state.present;
@@ -723,6 +682,15 @@ static void pcmcia_requery(struct pcmcia_socket *s)
 		}
 	}
 
+	/* If the PCMCIA device consists of two pseudo devices,
+	 * call pcmcia_device_add() -- which will fail if both
+	 * devices are already registered. */
+	mutex_lock(&s->ops_mutex);
+	has_pfc = s->pcmcia_state.has_pfc;
+	mutex_unlock(&s->ops_mutex);
+	if (has_pfc)
+		pcmcia_device_add(s, 0);
+
 	/* we re-scan all devices, not just the ones connected to this
 	 * socket. This does not matter, though. */
 	if (bus_rescan_devices(&pcmcia_bus_type))
@@ -746,9 +714,6 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
 	int ret = -ENOMEM;
-	int no_funcs;
-	int old_funcs;
-	cistpl_longlink_mfc_t mfc;
 
 	if (!filename)
 		return -EINVAL;
@@ -775,22 +740,8 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 		/* update information */
 		pcmcia_device_query(dev);
 
-		/* does this cis override add or remove functions? */
-		old_funcs = s->functions;
-
-		if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC, &mfc))
-			no_funcs = mfc.nfn;
-		else
-			no_funcs = 1;
-		s->functions = no_funcs;
-
-		if (old_funcs > no_funcs)
-			pcmcia_card_remove(s, dev);
-		else if (no_funcs > old_funcs) {
-			mutex_lock(&s->ops_mutex);
-			pcmcia_add_device_later(s, 1);
-			mutex_unlock(&s->ops_mutex);
-		}
+		/* requery (as number of functions might have changed) */
+		pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
 	}
  release:
 	release_firmware(fw);
@@ -857,6 +808,9 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
 		if (dev->device_no != did->device_no)
 			return 0;
+		mutex_lock(&dev->socket->ops_mutex);
+		dev->socket->pcmcia_state.has_pfc = 1;
+		mutex_unlock(&dev->socket->ops_mutex);
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FUNC_ID) {
@@ -904,8 +858,6 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 		if (dev->has_manf_id || dev->has_card_id || dev->has_func_id)
 			return 0;
 	}
-
-	dev_set_drvdata(&dev->dev, did);
 
 	return 1;
 }
@@ -1300,6 +1252,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 	case CS_EVENT_CARD_INSERTION:
 		mutex_lock(&s->ops_mutex);
+		s->pcmcia_state.has_pfc = 0;
 		s->pcmcia_state.present = 1;
 		destroy_cis_cache(s); /* to be on the safe side... */
 		mutex_unlock(&s->ops_mutex);
@@ -1411,7 +1364,6 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 	init_waitqueue_head(&socket->queue);
 #endif
 	INIT_LIST_HEAD(&socket->devices_list);
-	INIT_WORK(&socket->device_add, pcmcia_delayed_add_device);
 	memset(&socket->pcmcia_state, 0, sizeof(u8));
 	socket->device_count = 0;
 
