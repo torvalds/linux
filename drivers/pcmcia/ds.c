@@ -237,8 +237,11 @@ static void pcmcia_release_function(struct kref *ref)
 static void pcmcia_release_dev(struct device *dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	int i;
 	dev_dbg(dev, "releasing device\n");
 	pcmcia_put_socket(p_dev->socket);
+	for (i = 0; i < 4; i++)
+		kfree(p_dev->prod_id[i]);
 	kfree(p_dev->devname);
 	kref_put(&p_dev->function_config->ref, pcmcia_release_function);
 	kfree(p_dev);
@@ -450,6 +453,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 		for (i = 0; i < min_t(unsigned int, 4, vers1->ns); i++) {
 			char *tmp;
 			unsigned int length;
+			char *new;
 
 			tmp = vers1->str + vers1->ofs[i];
 
@@ -457,13 +461,15 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 			if ((length < 2) || (length > 255))
 				continue;
 
-			p_dev->prod_id[i] = kmalloc(sizeof(char) * length,
-						    GFP_KERNEL);
-			if (!p_dev->prod_id[i])
+			new = kmalloc(sizeof(char) * length, GFP_KERNEL);
+			if (!new)
 				continue;
 
-			p_dev->prod_id[i] = strncpy(p_dev->prod_id[i],
-						    tmp, length);
+			new = strncpy(new, tmp, length);
+
+			tmp = p_dev->prod_id[i];
+			p_dev->prod_id[i] = new;
+			kfree(tmp);
 		}
 		mutex_unlock(&p_dev->socket->ops_mutex);
 	}
@@ -485,6 +491,7 @@ static DEFINE_MUTEX(device_add_lock);
 struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
+	int i;
 
 	s = pcmcia_get_socket(s);
 	if (!s)
@@ -575,6 +582,8 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	s->device_count--;
 	mutex_unlock(&s->ops_mutex);
 
+	for (i = 0; i < 4; i++)
+		kfree(p_dev->prod_id[i]);
 	kfree(p_dev->devname);
 	kfree(p_dev);
  err_put:
