@@ -147,6 +147,10 @@ static int scan_for_bad_eraseblocks(void)
 	}
 	memset(bbt, 0 , ebcnt);
 
+	/* NOR flash does not implement block_isbad */
+	if (mtd->block_isbad == NULL)
+		return 0;
+
 	printk(PRINT_PREF "scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
 		bbt[i] = is_block_bad(i) ? 1 : 0;
@@ -184,7 +188,7 @@ static int __init mtd_readtest_init(void)
 	tmp = mtd->size;
 	do_div(tmp, mtd->erasesize);
 	ebcnt = tmp;
-	pgcnt = mtd->erasesize / mtd->writesize;
+	pgcnt = mtd->erasesize / pgsize;
 
 	printk(PRINT_PREF "MTD device size %llu, eraseblock size %u, "
 	       "page size %u, count of eraseblocks %u, pages per "
