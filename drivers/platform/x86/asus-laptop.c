@@ -371,13 +371,7 @@ static int asus_led_set(struct asus_laptop *asus, char *method,
 				     enum led_brightness value);	\
 	static enum led_brightness object##_led_get(			\
 		struct led_classdev *led_cdev);				\
-	static void object##_led_update(struct work_struct *ignored);	\
-	static struct led_classdev object##_led = {			\
-		.name           = "asus::" ledname,			\
-		.brightness_set = object##_led_set,			\
-		.brightness_get = object##_led_get,			\
-		.max_brightness = max					\
-	}
+	static void object##_led_update(struct work_struct *ignored);
 
 ASUS_LED(mled, "mail", 1);
 ASUS_LED(tled, "touchpad", 1);
@@ -478,18 +472,20 @@ static enum led_brightness kled_led_get(struct led_classdev *led_cdev)
 	return asus_kled_lvl(asus);
 }
 
-#define ASUS_LED_UNREGISTER(object)				\
-	if (object##_led.dev)					\
-		led_classdev_unregister(&object##_led)
-
 static void asus_led_exit(struct asus_laptop *asus)
 {
-	ASUS_LED_UNREGISTER(mled);
-	ASUS_LED_UNREGISTER(tled);
-	ASUS_LED_UNREGISTER(pled);
-	ASUS_LED_UNREGISTER(rled);
-	ASUS_LED_UNREGISTER(gled);
-	ASUS_LED_UNREGISTER(kled);
+	if (asus->leds.mled.dev)
+		led_classdev_unregister(&asus->leds.mled);
+	if (asus->leds.tled.dev)
+		led_classdev_unregister(&asus->leds.tled);
+	if (asus->leds.pled.dev)
+		led_classdev_unregister(&asus->leds.pled);
+	if (asus->leds.rled.dev)
+		led_classdev_unregister(&asus->leds.rled);
+	if (asus->leds.gled.dev)
+		led_classdev_unregister(&asus->leds.gled);
+	if (asus->leds.kled.dev)
+		led_classdev_unregister(&asus->leds.kled);
 	if (asus->leds.workqueue) {
 		destroy_workqueue(asus->leds.workqueue);
 		asus->leds.workqueue = NULL;
@@ -507,6 +503,7 @@ static void asus_led_exit(struct asus_laptop *asus)
 		INIT_WORK(&asus->leds.object##_work, object##_led_update); \
 		ldev->name = "asus::" _name;				\
 		ldev->brightness_set = object##_led_set;		\
+		ldev->brightness_get = object##_led_get;		\
 		ldev->max_brightness = max;				\
 		rv = led_classdev_register(&asus->platform_device->dev, ldev); \
 		if (rv)							\
