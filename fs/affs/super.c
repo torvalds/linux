@@ -203,7 +203,7 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 		switch (token) {
 		case Opt_bs:
 			if (match_int(&args[0], &n))
-				return -EINVAL;
+				return 0;
 			if (n != 512 && n != 1024 && n != 2048
 			    && n != 4096) {
 				printk ("AFFS: Invalid blocksize (512, 1024, 2048, 4096 allowed)\n");
@@ -213,7 +213,7 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			break;
 		case Opt_mode:
 			if (match_octal(&args[0], &option))
-				return 1;
+				return 0;
 			*mode = option & 0777;
 			*mount_opts |= SF_SETMODE;
 			break;
@@ -231,21 +231,21 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			break;
 		case Opt_reserved:
 			if (match_int(&args[0], reserved))
-				return 1;
+				return 0;
 			break;
 		case Opt_root:
 			if (match_int(&args[0], root))
-				return 1;
+				return 0;
 			break;
 		case Opt_setgid:
 			if (match_int(&args[0], &option))
-				return 1;
+				return 0;
 			*gid = option;
 			*mount_opts |= SF_SETGID;
 			break;
 		case Opt_setuid:
 			if (match_int(&args[0], &option))
-				return -EINVAL;
+				return 0;
 			*uid = option;
 			*mount_opts |= SF_SETUID;
 			break;
