@@ -144,8 +144,6 @@ static inline void drv_update_tkip_key(struct ieee80211_local *local,
 {
 	struct ieee80211_sta *ista = NULL;
 
-	might_sleep();
-
 	if (sta)
 		ista = &sta->sta;
 
