@@ -1765,8 +1765,6 @@ static struct hda_verb cxt5051_init_verbs[] = {
 	/* EAPD */
 	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */ 
 	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CXT5051_PORTB_EVENT},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CXT5051_PORTC_EVENT},
 	{ } /* end */
 };
 
@@ -1792,7 +1790,6 @@ static struct hda_verb cxt5051_hp_dv6736_init_verbs[] = {
 	/* EAPD */
 	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
 	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CXT5051_PORTB_EVENT},
 	{ } /* end */
 };
 
@@ -1824,8 +1821,6 @@ static struct hda_verb cxt5051_lenovo_x200_init_verbs[] = {
 	/* EAPD */
 	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
 	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CXT5051_PORTB_EVENT},
-	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CXT5051_PORTC_EVENT},
 	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
 	{ } /* end */
 };
@@ -1852,15 +1847,34 @@ static struct hda_verb cxt5051_f700_init_verbs[] = {
 	/* EAPD */
 	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
 	{0x16, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CONEXANT_HP_EVENT},
-	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|CXT5051_PORTB_EVENT},
 	{ } /* end */
 };
+
+static void cxt5051_init_mic_port(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int event)
+{
+	snd_hda_codec_write(codec, nid, 0,
+			    AC_VERB_SET_UNSOLICITED_ENABLE,
+			    AC_USRSP_EN | event);
+#ifdef CONFIG_SND_HDA_INPUT_JACK
+	conexant_add_jack(codec, nid, SND_JACK_MICROPHONE);
+	conexant_report_jack(codec, nid);
+#endif
+}
 
 /* initialize jack-sensing, too */
 static int cxt5051_init(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
+
 	conexant_init(codec);
 	conexant_init_jacks(codec);
+
+	if (spec->auto_mic & AUTO_MIC_PORTB)
+		cxt5051_init_mic_port(codec, 0x17, CXT5051_PORTB_EVENT);
+	if (spec->auto_mic & AUTO_MIC_PORTC)
+		cxt5051_init_mic_port(codec, 0x18, CXT5051_PORTC_EVENT);
+
 	if (codec->patch_ops.unsol_event) {
 		cxt5051_hp_automute(codec);
 		cxt5051_portb_automic(codec);
