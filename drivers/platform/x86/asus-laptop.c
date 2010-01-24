@@ -1421,6 +1421,8 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	    !acpi_check_handle(asus->handle, METHOD_GPS_OFF, NULL) &&
 	    !acpi_check_handle(asus->handle, METHOD_GPS_STATUS, NULL))
 		asus_gps_switch(asus, 1);
+
+	asus->lcd_state = 1; /* LCD should be on when the module load */
 	return result;
 }
 
