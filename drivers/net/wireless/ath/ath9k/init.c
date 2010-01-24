@@ -640,8 +640,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->max_rates = 4;
 	hw->channel_change_time = 5000;
 	hw->max_listen_interval = 10;
-	/* Hardware supports 10 but we use 4 */
-	hw->max_rate_tries = 4;
+	hw->max_rate_tries = 10;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
 
