@@ -2282,7 +2282,7 @@ static int ocfs2_create_xattr_block(handle_t *handle,
 	xblk = (struct ocfs2_xattr_block *)new_bh->b_data;
 	memset(xblk, 0, inode->i_sb->s_blocksize);
 	strcpy((void *)xblk, OCFS2_XATTR_BLOCK_SIGNATURE);
-	xblk->xb_suballoc_slot = cpu_to_le16(osb->slot_num);
+	xblk->xb_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	xblk->xb_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	xblk->xb_fs_generation = cpu_to_le32(osb->fs_generation);
 	xblk->xb_blkno = cpu_to_le64(first_blkno);
