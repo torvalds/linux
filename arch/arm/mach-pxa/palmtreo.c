@@ -375,7 +375,7 @@ err:
 	return ret;
 }
 
-static int treo_backlight_notify(int brightness)
+static int treo_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_TREO_BL_POWER, brightness);
 	return TREO_MAX_INTENSITY - brightness;

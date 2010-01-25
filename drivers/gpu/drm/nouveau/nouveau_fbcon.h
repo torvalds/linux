@@ -43,5 +43,6 @@ void nouveau_fbcon_zfill(struct drm_device *dev);
 int nv04_fbcon_accel_init(struct fb_info *info);
 int nv50_fbcon_accel_init(struct fb_info *info);
 
+void nouveau_fbcon_gpu_lockup(struct fb_info *info);
 #endif /* __NV50_FBCON_H__ */
 

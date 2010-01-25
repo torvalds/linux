@@ -252,10 +252,8 @@ void radeon_agp_resume(struct radeon_device *rdev)
 void radeon_agp_fini(struct radeon_device *rdev)
 {
 #if __OS_HAS_AGP
-	if (rdev->flags & RADEON_IS_AGP) {
-		if (rdev->ddev->agp && rdev->ddev->agp->acquired) {
-			drm_agp_release(rdev->ddev);
-		}
+	if (rdev->ddev->agp && rdev->ddev->agp->acquired) {
+		drm_agp_release(rdev->ddev);
 	}
 #endif
 }

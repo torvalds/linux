@@ -247,6 +247,7 @@ static struct vpfe_subdev_info vpfe_sub_devs[] = {
 
 static struct vpfe_config vpfe_cfg = {
 	.num_subdevs = ARRAY_SIZE(vpfe_sub_devs),
+	.i2c_adapter_id = 1,
 	.sub_devs = vpfe_sub_devs,
 	.card_name = "DM6446 EVM",
 	.ccdc = "DM6446 CCDC",

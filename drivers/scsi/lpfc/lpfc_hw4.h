@@ -1013,7 +1013,7 @@ struct lpfc_mbx_wq_destroy {
 };
 
 #define LPFC_HDR_BUF_SIZE 128
-#define LPFC_DATA_BUF_SIZE 4096
+#define LPFC_DATA_BUF_SIZE 2048
 struct rq_context {
 	uint32_t word0;
 #define lpfc_rq_context_rq_size_SHIFT	16
@@ -1371,6 +1371,7 @@ struct lpfc_mbx_query_fw_cfg {
 #define STATUS_ERROR_ACITMAIN				0x2a
 #define STATUS_REBOOT_REQUIRED				0x2c
 #define STATUS_FCF_IN_USE				0x3a
+#define STATUS_FCF_TABLE_EMPTY				0x43
 
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;

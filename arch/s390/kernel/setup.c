@@ -87,7 +87,6 @@ unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
-volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
@@ -123,12 +122,6 @@ void __cpuinit cpu_init(void)
          * Store processor id in lowcore (used e.g. in timer_interrupt)
          */
 	get_cpu_id(&S390_lowcore.cpu_id);
-
-        /*
-         * Force FPU initialization:
-         */
-        clear_thread_flag(TIF_USEDFPU);
-        clear_used_math();
 
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
@@ -855,7 +848,6 @@ setup_arch(char **cmdline_p)
 	setup_lowcore();
 
         cpu_init();
-	__cpu_logical_map[0] = stap();
 	s390_init_cpu_topology();
 
 	/*

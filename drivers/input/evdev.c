@@ -59,7 +59,8 @@ static void evdev_pass_event(struct evdev_client *client,
 	client->head &= EVDEV_BUFFER_SIZE - 1;
 	spin_unlock(&client->buffer_lock);
 
-	kill_fasync(&client->fasync, SIGIO, POLL_IN);
+	if (event->type == EV_SYN)
+		kill_fasync(&client->fasync, SIGIO, POLL_IN);
 }
 
 /*

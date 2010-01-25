@@ -379,7 +379,7 @@ err_request_bckl:
 	return ret;
 }
 
-static int viper_backlight_notify(int brightness)
+static int viper_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(VIPER_LCD_EN_GPIO, !!brightness);
 	gpio_set_value(VIPER_BCKLIGHT_EN_GPIO, !!brightness);

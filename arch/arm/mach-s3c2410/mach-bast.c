@@ -279,6 +279,7 @@ static struct s3c2410_nand_set __initdata bast_nand_sets[] = {
 		.name		= "SmartMedia",
 		.nr_chips	= 1,
 		.nr_map		= smartmedia_map,
+		.options        = NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
 		.partitions	= bast_default_nand_part,
 	},
@@ -293,6 +294,7 @@ static struct s3c2410_nand_set __initdata bast_nand_sets[] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
+		.options        = NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
 		.partitions	= bast_default_nand_part,
 	},
@@ -300,6 +302,7 @@ static struct s3c2410_nand_set __initdata bast_nand_sets[] = {
 		.name		= "chip2",
 		.nr_chips	= 1,
 		.nr_map		= chip2_map,
+		.options        = NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
 		.partitions	= bast_default_nand_part,
 	}

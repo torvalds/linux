@@ -386,12 +386,12 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (serial->type->max_in_flight_urbs) {
-		spin_lock_irqsave(&port->lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
+	if (serial->type->max_in_flight_urbs)
 		chars = port->tx_bytes_flight;
-		spin_unlock_irqrestore(&port->lock, flags);
-	} else if (serial->num_bulk_out)
+	else if (serial->num_bulk_out)
 		chars = kfifo_len(&port->write_fifo);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
 	return chars;
@@ -489,6 +489,8 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	dbg("%s - port %d", __func__, port->number);
 
 	if (port->serial->type->max_in_flight_urbs) {
+		kfree(urb->transfer_buffer);
+
 		spin_lock_irqsave(&port->lock, flags);
 		--port->urbs_in_flight;
 		port->tx_bytes_flight -= urb->transfer_buffer_length;

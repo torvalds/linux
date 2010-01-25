@@ -639,8 +639,10 @@ static void qla_do_work(struct work_struct *work)
 	struct rsp_que *rsp = container_of(work, struct rsp_que, q_work);
 	struct scsi_qla_host *vha;
 
+	spin_lock_irq(&rsp->hw->hardware_lock);
 	vha = qla25xx_get_host(rsp);
 	qla24xx_process_response_queue(vha, rsp);
+	spin_unlock_irq(&rsp->hw->hardware_lock);
 }
 
 /* create response queue */

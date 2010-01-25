@@ -377,6 +377,8 @@ extern int sysctl_max_map_count;
 
 #include <linux/aio.h>
 
+#ifdef CONFIG_MMU
+extern void arch_pick_mmap_layout(struct mm_struct *mm);
 extern unsigned long
 arch_get_unmapped_area(struct file *, unsigned long, unsigned long,
 		       unsigned long, unsigned long);
@@ -386,6 +388,9 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 			  unsigned long flags);
 extern void arch_unmap_area(struct mm_struct *, unsigned long);
 extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
+#else
+static inline void arch_pick_mmap_layout(struct mm_struct *mm) {}
+#endif
 
 #if USE_SPLIT_PTLOCKS
 /*
@@ -2491,8 +2496,6 @@ static inline void set_task_cpu(struct task_struct *p, unsigned int cpu)
 
 #endif /* CONFIG_SMP */
 
-extern void arch_pick_mmap_layout(struct mm_struct *mm);
-
 #ifdef CONFIG_TRACING
 extern void
 __trace_special(void *__tr, void *__data,
@@ -2600,6 +2603,28 @@ static inline void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 {
 }
 #endif /* CONFIG_MM_OWNER */
+
+static inline unsigned long task_rlimit(const struct task_struct *tsk,
+		unsigned int limit)
+{
+	return ACCESS_ONCE(tsk->signal->rlim[limit].rlim_cur);
+}
+
+static inline unsigned long task_rlimit_max(const struct task_struct *tsk,
+		unsigned int limit)
+{
+	return ACCESS_ONCE(tsk->signal->rlim[limit].rlim_max);
+}
+
+static inline unsigned long rlimit(unsigned int limit)
+{
+	return task_rlimit(current, limit);
+}
+
+static inline unsigned long rlimit_max(unsigned int limit)
+{
+	return task_rlimit_max(current, limit);
+}
 
 #endif /* __KERNEL__ */
 

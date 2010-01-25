@@ -192,6 +192,7 @@ struct usb_interface {
 	unsigned needs_altsetting0:1;	/* switch to altsetting 0 is pending */
 	unsigned needs_binding:1;	/* needs delayed unbind/rebind */
 	unsigned reset_running:1;
+	unsigned resetting_device:1;	/* true: bandwidth alloc after reset */
 
 	struct device dev;		/* interface specific device info */
 	struct device *usb_dev;

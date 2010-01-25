@@ -745,9 +745,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			mutex_unlock(&rdev->devlist_mtx);
 			dev_put(dev);
 		}
-#ifdef CONFIG_CFG80211_WEXT
 		cfg80211_lock_rdev(rdev);
 		mutex_lock(&rdev->devlist_mtx);
+#ifdef CONFIG_CFG80211_WEXT
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
@@ -760,10 +760,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		}
 		wdev_unlock(wdev);
+#endif
 		rdev->opencount++;
 		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);
-#endif
 		break;
 	case NETDEV_UNREGISTER:
 		/*

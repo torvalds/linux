@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
-#include <linux/version.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include "ext4.h"

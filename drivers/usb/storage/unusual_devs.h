@@ -1807,13 +1807,6 @@ UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
 
-/* Reported by Rohan Hart <rohan.hart17@gmail.com> */
-UNUSUAL_DEV(  0x2770, 0x915d, 0x0010, 0x0010,
-		"INTOVA",
-		"Pixtreme",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
-
 /* Reported by Frederic Marchal <frederic.marchal@wowcompany.com>
  * Mio Moov 330
  */

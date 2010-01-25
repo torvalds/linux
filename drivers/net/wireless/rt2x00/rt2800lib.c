@@ -37,7 +37,7 @@
 #include <linux/module.h>
 
 #include "rt2x00.h"
-#ifdef CONFIG_RT2800USB
+#if defined(CONFIG_RT2800USB) || defined(CONFIG_RT2800USB_MODULE)
 #include "rt2x00usb.h"
 #endif
 #include "rt2800lib.h"
@@ -340,7 +340,7 @@ static int rt2800_blink_set(struct led_classdev *led_cdev,
 	rt2x00_set_field32(&reg, LED_CFG_OFF_PERIOD, *delay_off);
 	rt2x00_set_field32(&reg, LED_CFG_SLOW_BLINK_PERIOD, 3);
 	rt2x00_set_field32(&reg, LED_CFG_R_LED_MODE, 3);
-	rt2x00_set_field32(&reg, LED_CFG_G_LED_MODE, 12);
+	rt2x00_set_field32(&reg, LED_CFG_G_LED_MODE, 3);
 	rt2x00_set_field32(&reg, LED_CFG_Y_LED_MODE, 3);
 	rt2x00_set_field32(&reg, LED_CFG_LED_POLAR, 1);
 	rt2800_register_write(led->rt2x00dev, LED_CFG, reg);
@@ -1121,7 +1121,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_intf_is_usb(rt2x00dev)) {
 		rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
-#ifdef CONFIG_RT2800USB
+#if defined(CONFIG_RT2800USB) || defined(CONFIG_RT2800USB_MODULE)
 		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
 					    USB_MODE_RESET, REGISTER_TIMEOUT);
 #endif
@@ -2022,6 +2022,12 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	u16 eeprom;
 
 	/*
+	 * Disable powersaving as default on PCI devices.
+	 */
+	if (rt2x00_intf_is_pci(rt2x00dev))
+		rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	/*
 	 * Initialize all hw fields.
 	 */
 	rt2x00dev->hw->flags =
@@ -2074,8 +2080,7 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40 |
 	    IEEE80211_HT_CAP_TX_STBC |
-	    IEEE80211_HT_CAP_RX_STBC |
-	    IEEE80211_HT_CAP_PSMP_SUPPORT;
+	    IEEE80211_HT_CAP_RX_STBC;
 	spec->ht.ampdu_factor = 3;
 	spec->ht.ampdu_density = 4;
 	spec->ht.mcs.tx_params =
@@ -2140,8 +2145,8 @@ static void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx,
 	rt2800_register_multiread(rt2x00dev, offset,
 				      &iveiv_entry, sizeof(iveiv_entry));
 
-	memcpy(&iveiv_entry.iv[0], iv16, sizeof(iv16));
-	memcpy(&iveiv_entry.iv[4], iv32, sizeof(iv32));
+	memcpy(iv16, &iveiv_entry.iv[0], sizeof(*iv16));
+	memcpy(iv32, &iveiv_entry.iv[4], sizeof(*iv32));
 }
 
 static int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)

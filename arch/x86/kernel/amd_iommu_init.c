@@ -138,6 +138,11 @@ int amd_iommus_present;
 bool amd_iommu_np_cache __read_mostly;
 
 /*
+ * Set to true if ACPI table parsing and hardware intialization went properly
+ */
+static bool amd_iommu_initialized;
+
+/*
  * List of protection domains - used during resume
  */
 LIST_HEAD(amd_iommu_pd_list);
@@ -929,6 +934,8 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 	}
 	WARN_ON(p != end);
 
+	amd_iommu_initialized = true;
+
 	return 0;
 }
 
@@ -1261,6 +1268,9 @@ static int __init amd_iommu_init(void)
 	 */
 	ret = -ENODEV;
 	if (acpi_table_parse("IVRS", init_iommu_all) != 0)
+		goto free;
+
+	if (!amd_iommu_initialized)
 		goto free;
 
 	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)

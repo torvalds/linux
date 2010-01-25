@@ -39,8 +39,6 @@ int put_io_context(struct io_context *ioc)
 
 	if (atomic_long_dec_and_test(&ioc->refcount)) {
 		rcu_read_lock();
-		if (ioc->aic && ioc->aic->dtor)
-			ioc->aic->dtor(ioc->aic);
 		cfq_dtor(ioc);
 		rcu_read_unlock();
 
@@ -76,8 +74,6 @@ void exit_io_context(struct task_struct *task)
 	task_unlock(task);
 
 	if (atomic_dec_and_test(&ioc->nr_tasks)) {
-		if (ioc->aic && ioc->aic->exit)
-			ioc->aic->exit(ioc->aic);
 		cfq_exit(ioc);
 
 	}
@@ -97,7 +93,6 @@ struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 		ret->ioprio = 0;
 		ret->last_waited = jiffies; /* doesn't matter... */
 		ret->nr_batch_requests = 0; /* because this is 0 */
-		ret->aic = NULL;
 		INIT_RADIX_TREE(&ret->radix_root, GFP_ATOMIC | __GFP_HIGH);
 		INIT_HLIST_HEAD(&ret->cic_list);
 		ret->ioc_data = NULL;

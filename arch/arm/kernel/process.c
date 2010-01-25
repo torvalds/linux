@@ -212,7 +212,8 @@ void __show_regs(struct pt_regs *regs)
 	char buf[64];
 
 	printk("CPU: %d    %s  (%s %.*s)\n",
-		smp_processor_id(), print_tainted(), init_utsname()->release,
+		raw_smp_processor_id(), print_tainted(),
+		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
