@@ -246,23 +246,23 @@ TRACE_EVENT(kvm_page_fault,
  * Tracepoint for guest MSR access.
  */
 TRACE_EVENT(kvm_msr,
-	TP_PROTO(unsigned int rw, unsigned int ecx, unsigned long data),
-	TP_ARGS(rw, ecx, data),
+	TP_PROTO(unsigned write, u32 ecx, u64 data),
+	TP_ARGS(write, ecx, data),
 
 	TP_STRUCT__entry(
-		__field(	unsigned int,	rw		)
-		__field(	unsigned int,	ecx		)
-		__field(	unsigned long,	data		)
+		__field(	unsigned,	write		)
+		__field(	u32,		ecx		)
+		__field(	u64,		data		)
 	),
 
 	TP_fast_assign(
-		__entry->rw		= rw;
+		__entry->write		= write;
 		__entry->ecx		= ecx;
 		__entry->data		= data;
 	),
 
-	TP_printk("msr_%s %x = 0x%lx",
-		  __entry->rw ? "write" : "read",
+	TP_printk("msr_%s %x = 0x%llx",
+		  __entry->write ? "write" : "read",
 		  __entry->ecx, __entry->data)
 );
 
