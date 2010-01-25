@@ -4697,18 +4697,6 @@ static u16 get_segment_selector(struct kvm_vcpu *vcpu, int seg)
 	return kvm_seg.selector;
 }
 
-static int load_segment_descriptor_to_kvm_desct(struct kvm_vcpu *vcpu,
-						u16 selector,
-						struct kvm_segment *kvm_seg)
-{
-	struct desc_struct seg_desc;
-
-	if (load_guest_segment_descriptor(vcpu, selector, &seg_desc))
-		return 1;
-	seg_desct_to_kvm_desct(&seg_desc, selector, kvm_seg);
-	return 0;
-}
-
 static int kvm_load_realmode_segment(struct kvm_vcpu *vcpu, u16 selector, int seg)
 {
 	struct kvm_segment segvar = {
@@ -4749,11 +4737,14 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 				int type_bits, int seg)
 {
 	struct kvm_segment kvm_seg;
+	struct desc_struct seg_desc;
 
 	if (is_vm86_segment(vcpu, seg) || !is_protmode(vcpu))
 		return kvm_load_realmode_segment(vcpu, selector, seg);
-	if (load_segment_descriptor_to_kvm_desct(vcpu, selector, &kvm_seg))
+
+	if (load_guest_segment_descriptor(vcpu, selector, &seg_desc))
 		return 1;
+	seg_desct_to_kvm_desct(&seg_desc, selector, &kvm_seg);
 
 	kvm_check_segment_descriptor(vcpu, seg, selector);
 	kvm_seg.type |= type_bits;
@@ -4764,6 +4755,11 @@ int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
 			kvm_seg.unusable = 1;
 
 	kvm_set_segment(vcpu, &kvm_seg, seg);
+	if (selector && !kvm_seg.unusable && kvm_seg.s) {
+		/* mark segment as accessed */
+		seg_desc.type |= 1;
+		save_guest_segment_descriptor(vcpu, selector, &seg_desc);
+	}
 	return 0;
 }
 
