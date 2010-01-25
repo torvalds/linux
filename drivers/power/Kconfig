@@ -29,6 +29,13 @@ config APM_POWER
 	  Say Y here to enable support APM status emulation using
 	  battery class devices.
 
+config MAX8925_POWER
+	tristate "MAX8925 battery charger support"
+	depends on MFD_MAX8925
+	help
+	  Say Y here to enable support for the battery charger in the Maxim
+	  MAX8925 PMIC.
+
 config WM831X_BACKUP
 	tristate "WM831X backup battery charger support"
 	depends on MFD_WM831X
