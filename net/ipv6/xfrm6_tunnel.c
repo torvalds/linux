@@ -353,13 +353,19 @@ static struct xfrm6_tunnel xfrm46_tunnel_handler = {
 
 static int __init xfrm6_tunnel_init(void)
 {
-	if (xfrm_register_type(&xfrm6_tunnel_type, AF_INET6) < 0)
+	int rv;
+
+	rv = xfrm_register_type(&xfrm6_tunnel_type, AF_INET6);
+	if (rv < 0)
 		goto err;
-	if (xfrm6_tunnel_register(&xfrm6_tunnel_handler, AF_INET6))
+	rv = xfrm6_tunnel_register(&xfrm6_tunnel_handler, AF_INET6);
+	if (rv < 0)
 		goto unreg;
-	if (xfrm6_tunnel_register(&xfrm46_tunnel_handler, AF_INET))
+	rv = xfrm6_tunnel_register(&xfrm46_tunnel_handler, AF_INET);
+	if (rv < 0)
 		goto dereg6;
-	if (xfrm6_tunnel_spi_init() < 0)
+	rv = xfrm6_tunnel_spi_init();
+	if (rv < 0)
 		goto dereg46;
 	return 0;
 
@@ -370,7 +376,7 @@ dereg6:
 unreg:
 	xfrm_unregister_type(&xfrm6_tunnel_type, AF_INET6);
 err:
-	return -EAGAIN;
+	return rv;
 }
 
 static void __exit xfrm6_tunnel_fini(void)
