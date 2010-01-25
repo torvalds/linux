@@ -1145,6 +1145,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		case 0x10ec0888:
 			alc888_coef_init(codec);
 			break;
+#if 0 /* XXX: This may cause the silent output on speaker on some machines */
 		case 0x10ec0267:
 		case 0x10ec0268:
 			snd_hda_codec_write(codec, 0x20, 0,
@@ -1157,6 +1158,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 					    AC_VERB_SET_PROC_COEF,
 					    tmp | 0x3000);
 			break;
+#endif /* XXX */
 		}
 		break;
 	}
