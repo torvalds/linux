@@ -1767,47 +1767,6 @@ out:
 	return ret;
 }
 
-/* Complex number using 2 32-bit signed integers */
-typedef struct {s32 i, q;} lpphy_c32;
-
-static lpphy_c32 lpphy_cordic(int theta)
-{
-	u32 arctg[] = { 2949120, 1740967, 919879, 466945, 234379, 117304,
-		      58666, 29335, 14668, 7334, 3667, 1833, 917, 458,
-		      229, 115, 57, 29, };
-	int i, tmp, signx = 1, angle = 0;
-	lpphy_c32 ret = { .i = 39797, .q = 0, };
-
-	theta = clamp_t(int, theta, -180, 180);
-
-	if (theta > 90) {
-		theta -= 180;
-		signx = -1;
-	} else if (theta < -90) {
-		theta += 180;
-		signx = -1;
-	}
-
-	for (i = 0; i <= 17; i++) {
-		if (theta > angle) {
-			tmp = ret.i - (ret.q >> i);
-			ret.q += ret.i >> i;
-			ret.i = tmp;
-			angle += arctg[i];
-		} else {
-			tmp = ret.i + (ret.q >> i);
-			ret.q -= ret.i >> i;
-			ret.i = tmp;
-			angle -= arctg[i];
-		}
-	}
-
-	ret.i *= signx;
-	ret.q *= signx;
-
-	return ret;
-}
-
 static void lpphy_run_samples(struct b43_wldev *dev, u16 samples, u16 loops,
 			      u16 wait)
 {
@@ -1826,7 +1785,7 @@ static void lpphy_start_tx_tone(struct b43_wldev *dev, s32 freq, u16 max)
 	struct b43_phy_lp *lpphy = dev->phy.lp;
 	u16 buf[64];
 	int i, samples = 0, angle = 0, rotation = (9 * freq) / 500;
-	lpphy_c32 sample;
+	struct b43_c32 sample;
 
 	lpphy->tx_tone_freq = freq;
 
@@ -1842,7 +1801,7 @@ static void lpphy_start_tx_tone(struct b43_wldev *dev, s32 freq, u16 max)
 	}
 
 	for (i = 0; i < samples; i++) {
-		sample = lpphy_cordic(angle);
+		sample = b43_cordic(angle);
 		angle += rotation;
 		buf[i] = ((sample.i * max) & 0xFF) << 8;
 		buf[i] |= (sample.q * max) & 0xFF;
