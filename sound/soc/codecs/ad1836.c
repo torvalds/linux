@@ -223,6 +223,36 @@ static unsigned int ad1836_read_reg_cache(struct snd_soc_codec *codec,
 	return reg_cache[reg];
 }
 
+#ifdef CONFIG_PM
+static int ad1836_soc_suspend(struct platform_device *pdev,
+		pm_message_t state)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+
+	/* reset clock control mode */
+	u16 adc_ctrl2 =  codec->read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 &= ~AD1836_ADC_SERFMT_MASK;
+
+	return codec->write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
+}
+
+static int ad1836_soc_resume(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+
+	/* restore clock control mode */
+	u16 adc_ctrl2 = codec->read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 |= AD1836_ADC_AUX;
+
+	return codec->write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
+}
+#else
+#define ad1836_soc_suspend NULL
+#define ad1836_soc_resume  NULL
+#endif
+
 static int __devinit ad1836_spi_probe(struct spi_device *spi)
 {
 	struct snd_soc_codec *codec;
@@ -404,6 +434,8 @@ static int ad1836_remove(struct platform_device *pdev)
 struct snd_soc_codec_device soc_codec_dev_ad1836 = {
 	.probe = 	ad1836_probe,
 	.remove = 	ad1836_remove,
+	.suspend =      ad1836_soc_suspend,
+	.resume =       ad1836_soc_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ad1836);
 
