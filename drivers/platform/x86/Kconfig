@@ -59,6 +59,7 @@ config ASUS_LAPTOP
 	select NEW_LEDS
 	select BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
+	depends on RFKILL || RFKILL = n
 	select INPUT_SPARSEKMAP
 	---help---
 	  This is the new Linux driver for Asus laptops. It may also support some

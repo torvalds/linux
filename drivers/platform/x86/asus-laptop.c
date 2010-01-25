@@ -50,6 +50,7 @@
 #include <asm/uaccess.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/rfkill.h>
 
 #define ASUS_LAPTOP_VERSION	"0.42"
 
@@ -237,6 +238,8 @@ struct asus_laptop {
 	int wireless_status;
 	bool have_rsts;
 	int lcd_state;
+
+	struct rfkill *gps_rfkill;
 
 	acpi_handle handle;	/* the handle of the hotk device */
 	u32 ledd_status;	/* status of the LED display */
@@ -1006,7 +1009,6 @@ static ssize_t store_lslvl(struct device *dev, struct device_attribute *attr,
 
 /*
  * GPS
- * TODO: use rfkill
  */
 static int asus_gps_status(struct asus_laptop *asus)
 {
@@ -1052,7 +1054,55 @@ static ssize_t store_gps(struct device *dev, struct device_attribute *attr,
 	ret = asus_gps_switch(asus, !!value);
 	if (ret)
 		return ret;
+	rfkill_set_sw_state(asus->gps_rfkill, !value);
 	return rv;
+}
+
+/*
+ * rfkill
+ */
+static int asus_gps_rfkill_set(void *data, bool blocked)
+{
+	acpi_handle handle = data;
+
+	return asus_gps_switch(handle, !blocked);
+}
+
+static const struct rfkill_ops asus_gps_rfkill_ops = {
+	.set_block = asus_gps_rfkill_set,
+};
+
+static void asus_rfkill_exit(struct asus_laptop *asus)
+{
+	if (asus->gps_rfkill) {
+		rfkill_unregister(asus->gps_rfkill);
+		rfkill_destroy(asus->gps_rfkill);
+		asus->gps_rfkill = NULL;
+	}
+}
+
+static int asus_rfkill_init(struct asus_laptop *asus)
+{
+	int result;
+
+	if (acpi_check_handle(asus->handle, METHOD_GPS_ON, NULL) ||
+	    acpi_check_handle(asus->handle, METHOD_GPS_OFF, NULL) ||
+	    acpi_check_handle(asus->handle, METHOD_GPS_STATUS, NULL))
+		return 0;
+
+	asus->gps_rfkill = rfkill_alloc("asus-gps", &asus->platform_device->dev,
+					RFKILL_TYPE_GPS,
+					&asus_gps_rfkill_ops, NULL);
+	if (!asus->gps_rfkill)
+		return -EINVAL;
+
+	result = rfkill_register(asus->gps_rfkill);
+	if (result) {
+		rfkill_destroy(asus->gps_rfkill);
+		asus->gps_rfkill = NULL;
+	}
+
+	return result;
 }
 
 /*
@@ -1416,12 +1466,6 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 		asus_als_level(asus, asus->light_level);
 	}
 
-	/* GPS is on by default */
-	if (!acpi_check_handle(asus->handle, METHOD_GPS_ON, NULL) &&
-	    !acpi_check_handle(asus->handle, METHOD_GPS_OFF, NULL) &&
-	    !acpi_check_handle(asus->handle, METHOD_GPS_STATUS, NULL))
-		asus_gps_switch(asus, 1);
-
 	asus->lcd_state = 1; /* LCD should be on when the module load */
 	return result;
 }
@@ -1469,9 +1513,15 @@ static int __devinit asus_acpi_add(struct acpi_device *device)
 	if (result)
 		goto fail_led;
 
+	result = asus_rfkill_init(asus);
+	if (result)
+		goto fail_rfkill;
+
 	asus_device_present = true;
 	return 0;
 
+fail_rfkill:
+	asus_led_exit(asus);
 fail_led:
 	asus_input_exit(asus);
 fail_input:
@@ -1490,6 +1540,7 @@ static int asus_acpi_remove(struct acpi_device *device, int type)
 	struct asus_laptop *asus = acpi_driver_data(device);
 
 	asus_backlight_exit(asus);
+	asus_rfkill_exit(asus);
 	asus_led_exit(asus);
 	asus_input_exit(asus);
 	asus_platform_exit(asus);
