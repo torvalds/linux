@@ -273,6 +273,21 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 	} else
 		ubi_assert(written == len);
 
+	if (!err) {
+		err = ubi_dbg_check_write(ubi, buf, pnum, offset, len);
+		if (err)
+			return err;
+
+		/*
+		 * Since we always write sequentially, the rest of the PEB has
+		 * to contain only 0xFF bytes.
+		 */
+		offset += len;
+		len = ubi->peb_size - offset;
+		if (len)
+			err = ubi_dbg_check_all_ff(ubi, pnum, offset, len);
+	}
+
 	return err;
 }
 
@@ -1278,6 +1293,61 @@ static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 
 exit:
 	ubi_free_vid_hdr(ubi, vid_hdr);
+	return err;
+}
+
+/**
+ * ubi_dbg_check_write - make sure write succeeded.
+ * @ubi: UBI device description object
+ * @buf: buffer with data which were written
+ * @pnum: physical eraseblock number the data were written to
+ * @offset: offset within the physical eraseblock the data were written to
+ * @len: how many bytes were written
+ *
+ * This functions reads data which were recently written and compares it with
+ * the original data buffer - the data have to match. Returns zero if the data
+ * match and a negative error code if not or in case of failure.
+ */
+int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
+			int offset, int len)
+{
+	int err, i;
+
+	mutex_lock(&ubi->dbg_buf_mutex);
+	err = ubi_io_read(ubi, ubi->dbg_peb_buf, pnum, offset, len);
+	if (err)
+		goto out_unlock;
+
+	for (i = 0; i < len; i++) {
+		uint8_t c = ((uint8_t *)buf)[i];
+		uint8_t c1 = ((uint8_t *)ubi->dbg_peb_buf)[i];
+		int dump_len;
+
+		if (c == c1)
+			continue;
+
+		ubi_err("paranoid check failed for PEB %d:%d, len %d",
+			pnum, offset, len);
+		ubi_msg("data differ at position %d", i);
+		dump_len = max_t(int, 128, len - i);
+		ubi_msg("hex dump of the original buffer from %d to %d",
+			i, i + dump_len);
+		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+			       buf + i, dump_len, 1);
+		ubi_msg("hex dump of the read buffer from %d to %d",
+			i, i + dump_len);
+		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+			       ubi->dbg_peb_buf + i, dump_len, 1);
+		ubi_dbg_dump_stack();
+		err = -EINVAL;
+		goto out_unlock;
+	}
+	mutex_unlock(&ubi->dbg_buf_mutex);
+
+	return 0;
+
+out_unlock:
+	mutex_unlock(&ubi->dbg_buf_mutex);
 	return err;
 }
 
