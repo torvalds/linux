@@ -184,6 +184,17 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 {
 	if (status & MCI_DATABLOCKEND) {
 		host->data_xfered += data->blksz;
+#ifdef CONFIG_ARCH_U300
+		/*
+		 * On the U300 some signal or other is
+		 * badly routed so that a data write does
+		 * not properly terminate with a MCI_DATAEND
+		 * status flag. This quirk will make writes
+		 * work again.
+		 */
+		if (data->flags & MMC_DATA_WRITE)
+			status |= MCI_DATAEND;
+#endif
 	}
 	if (status & (MCI_DATACRCFAIL|MCI_DATATIMEOUT|MCI_TXUNDERRUN|MCI_RXOVERRUN)) {
 		if (status & MCI_DATACRCFAIL)
