@@ -1031,7 +1031,7 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 	u8 index = fls(field);
 	u8 addr, en_addr, val_addr;
 	/* we expect only one bit set */
-	B43_WARN_ON(field & (~(1 << index)));
+	B43_WARN_ON(field & (~(1 << (index - 1))));
 
 	if (dev->phy.rev >= 3) {
 		const struct nphy_rf_control_override_rev3 *rf_ctrl;
