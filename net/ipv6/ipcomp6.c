@@ -53,6 +53,7 @@
 static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 				u8 type, u8 code, int offset, __be32 info)
 {
+	struct net *net = dev_net(skb->dev);
 	__be32 spi;
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ip_comp_hdr *ipcomph =
@@ -63,7 +64,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return;
 
 	spi = htonl(ntohs(ipcomph->cpi));
-	x = xfrm_state_lookup(&init_net, (xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
+	x = xfrm_state_lookup(net, (xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
 	if (!x)
 		return;
 
@@ -74,14 +75,15 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 {
+	struct net *net = xs_net(x);
 	struct xfrm_state *t = NULL;
 
-	t = xfrm_state_alloc(&init_net);
+	t = xfrm_state_alloc(net);
 	if (!t)
 		goto out;
 
 	t->id.proto = IPPROTO_IPV6;
-	t->id.spi = xfrm6_tunnel_alloc_spi(&init_net, (xfrm_address_t *)&x->props.saddr);
+	t->id.spi = xfrm6_tunnel_alloc_spi(net, (xfrm_address_t *)&x->props.saddr);
 	if (!t->id.spi)
 		goto error;
 
@@ -108,13 +110,14 @@ error:
 
 static int ipcomp6_tunnel_attach(struct xfrm_state *x)
 {
+	struct net *net = xs_net(x);
 	int err = 0;
 	struct xfrm_state *t = NULL;
 	__be32 spi;
 
-	spi = xfrm6_tunnel_spi_lookup(&init_net, (xfrm_address_t *)&x->props.saddr);
+	spi = xfrm6_tunnel_spi_lookup(net, (xfrm_address_t *)&x->props.saddr);
 	if (spi)
-		t = xfrm_state_lookup(&init_net, (xfrm_address_t *)&x->id.daddr,
+		t = xfrm_state_lookup(net, (xfrm_address_t *)&x->id.daddr,
 					      spi, IPPROTO_IPV6, AF_INET6);
 	if (!t) {
 		t = ipcomp6_tunnel_create(x);
