@@ -562,7 +562,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 						return -EINVAL;
 					}
 					ib[idx+1+i] = track->cb_color0_base_last;
-					printk_once(KERN_WARNING "You have old & broken userspace "
+					printk_once(KERN_WARNING "radeon: You have old & broken userspace "
 						"please consider updating mesa & xf86-video-ati\n");
 				} else {
 					r = r600_cs_packet_next_reloc(p, &reloc);
