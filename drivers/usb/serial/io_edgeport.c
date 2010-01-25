@@ -364,43 +364,6 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
 	release_firmware(fw);
 }
 
-
-/************************************************************************
- *									*
- *  Get string descriptor from device					*
- *									*
- ************************************************************************/
-static int get_string(struct usb_device *dev, int Id, char *string, int buflen)
-{
-	struct usb_string_descriptor *StringDesc = NULL;
-	struct usb_string_descriptor *pStringDesc = NULL;
-	int ret = 0;
-
-	dbg("%s - USB String ID = %d", __func__, Id);
-
-	StringDesc = kmalloc(sizeof(*StringDesc), GFP_KERNEL);
-	if (!StringDesc)
-		goto free;
-	if (usb_get_descriptor(dev, USB_DT_STRING, Id, StringDesc, sizeof(*StringDesc)) <= 0)
-		goto free;
-
-	pStringDesc = kmalloc(StringDesc->bLength, GFP_KERNEL);
-	if (!pStringDesc)
-		goto free;
-
-	if (usb_get_descriptor(dev, USB_DT_STRING, Id, pStringDesc, StringDesc->bLength) <= 0)
-		goto free;
-
-	unicode_to_ascii(string, buflen, pStringDesc->wData, pStringDesc->bLength/2);
-	ret = strlen(string);
-	dbg("%s - USB String %s", __func__, string);
-free:
-	kfree(StringDesc);
-	kfree(pStringDesc);
-	return ret;
-}
-
-
 #if 0
 /************************************************************************
  *
@@ -2998,10 +2961,12 @@ static int edge_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, edge_serial);
 
 	/* get the name for the device from the device */
-	i = get_string(dev, dev->descriptor.iManufacturer,
+	i = usb_string(dev, dev->descriptor.iManufacturer,
 	    &edge_serial->name[0], MAX_NAME_LEN+1);
+	if (i < 0)
+		i = 0;
 	edge_serial->name[i++] = ' ';
-	get_string(dev, dev->descriptor.iProduct,
+	usb_string(dev, dev->descriptor.iProduct,
 	    &edge_serial->name[i], MAX_NAME_LEN+2 - i);
 
 	dev_info(&serial->dev->dev, "%s detected\n", edge_serial->name);
