@@ -14,27 +14,23 @@
 #include <linux/i2c.h>
 #include <linux/mfd/max8925.h>
 
+#define RTC_I2C_ADDR		0x68
+#define ADC_I2C_ADDR		0x47
+
 static inline int max8925_read_device(struct i2c_client *i2c,
 				      int reg, int bytes, void *dest)
 {
-	unsigned char data;
-	unsigned char *buf;
 	int ret;
 
-	buf = kzalloc(bytes + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	data = (unsigned char)reg;
-	ret = i2c_master_send(i2c, &data, 1);
-	if (ret < 0)
-		return ret;
-
-	ret = i2c_master_recv(i2c, buf, bytes + 1);
-	if (ret < 0)
-		return ret;
-	memcpy(dest, buf, bytes);
-	return 0;
+	if (bytes > 1)
+		ret = i2c_smbus_read_i2c_block_data(i2c, reg, bytes, dest);
+	else {
+		ret = i2c_smbus_read_byte_data(i2c, reg);
+		if (ret < 0)
+			return ret;
+		*(unsigned char *)dest = (unsigned char)ret;
+	}
+	return ret;
 }
 
 static inline int max8925_write_device(struct i2c_client *i2c,
@@ -55,7 +51,7 @@ static inline int max8925_write_device(struct i2c_client *i2c,
 int max8925_reg_read(struct i2c_client *i2c, int reg)
 {
 	struct max8925_chip *chip = i2c_get_clientdata(i2c);
-	unsigned char data;
+	unsigned char data = 0;
 	int ret;
 
 	mutex_lock(&chip->io_lock);
@@ -134,7 +130,7 @@ EXPORT_SYMBOL(max8925_set_bits);
 
 static const struct i2c_device_id max8925_id_table[] = {
 	{ "max8925", 0 },
-	{}
+	{ },
 };
 MODULE_DEVICE_TABLE(i2c, max8925_id_table);
 
@@ -142,15 +138,10 @@ static int __devinit max8925_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct max8925_platform_data *pdata = client->dev.platform_data;
-	struct max8925_chip *chip;
+	static struct max8925_chip *chip;
 
 	if (!pdata) {
 		pr_info("%s: platform data is missing\n", __func__);
-		return -EINVAL;
-	}
-	if ((pdata->chip_id <= MAX8925_INVALID)
-		|| (pdata->chip_id >= MAX8925_MAX)) {
-		pr_info("#%s: wrong chip identification\n", __func__);
 		return -EINVAL;
 	}
 
@@ -158,11 +149,17 @@ static int __devinit max8925_probe(struct i2c_client *client,
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->i2c = client;
-	chip->chip_id = pdata->chip_id;
-	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
-	mutex_init(&chip->io_lock);
+	i2c_set_clientdata(client, chip);
 	dev_set_drvdata(chip->dev, chip);
+	mutex_init(&chip->io_lock);
+
+	chip->rtc = i2c_new_dummy(chip->i2c->adapter, RTC_I2C_ADDR);
+	i2c_set_clientdata(chip->rtc, chip);
+
+	chip->adc = i2c_new_dummy(chip->i2c->adapter, ADC_I2C_ADDR);
+	i2c_set_clientdata(chip->adc, chip);
+
 	max8925_device_init(chip, pdata);
 
 	return 0;
@@ -173,7 +170,11 @@ static int __devexit max8925_remove(struct i2c_client *client)
 	struct max8925_chip *chip = i2c_get_clientdata(client);
 
 	max8925_device_exit(chip);
-	i2c_set_clientdata(client, NULL);
+	i2c_unregister_device(chip->adc);
+	i2c_unregister_device(chip->rtc);
+	i2c_set_clientdata(chip->adc, NULL);
+	i2c_set_clientdata(chip->rtc, NULL);
+	i2c_set_clientdata(chip->i2c, NULL);
 	kfree(chip);
 	return 0;
 }
