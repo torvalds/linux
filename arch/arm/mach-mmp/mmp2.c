@@ -28,6 +28,12 @@
 
 #define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
 
+static struct mfp_addr_map mmp2_addr_map[] __initdata = {
+	MFP_ADDR(PMIC_INT, 0x2c4),
+
+	MFP_ADDR_END,
+};
+
 /* APB peripheral clocks */
 static APBC_CLK(uart1, MMP2_UART1, 1, 26000000);
 static APBC_CLK(uart2, MMP2_UART2, 1, 26000000);
@@ -61,6 +67,7 @@ static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
 		mfp_init_base(MFPR_VIRT_BASE);
+		mfp_init_addr(mmp2_addr_map);
 		clks_register(ARRAY_AND_SIZE(mmp2_clkregs));
 	}
 

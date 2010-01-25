@@ -231,6 +231,10 @@
 /* Codec*/
 #define GPIO23_GPIO23		MFP_CFG(GPIO23, AF0)
 
+#define GPIO101_GPIO101		MFP_CFG(GPIO101, AF0)
+
+/* PMIC */
+#define PMIC_PMIC_INT		MFP_CFG(PMIC_INT, AF0)
 
 #endif /* __ASM_MACH_MFP_MMP2_H */
 
