@@ -343,8 +343,12 @@ int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
 	int fails = 0;
 
 	for (; nr_clks > 0; nr_clks--, clks++) {
-		if (s3c24xx_register_clock(*clks) < 0)
+		if (s3c24xx_register_clock(*clks) < 0) {
+			struct clk *clk = *clks;
+			printk(KERN_ERR "%s: failed to register %p: %s\n",
+			       __func__, clk, clk->name);
 			fails++;
+		}
 	}
 
 	return fails;
