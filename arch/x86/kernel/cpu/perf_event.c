@@ -1401,6 +1401,8 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 	}
 }
 
+static void __x86_pmu_disable(struct perf_event *event, struct cpu_hw_events *cpuc);
+
 void hw_perf_enable(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
@@ -1426,13 +1428,7 @@ void hw_perf_enable(void)
 			if (hwc->idx == -1 || hwc->idx == cpuc->assign[i])
 				continue;
 
-			x86_pmu.disable(hwc, hwc->idx);
-
-			clear_bit(hwc->idx, cpuc->active_mask);
-			barrier();
-			cpuc->events[hwc->idx] = NULL;
-
-			x86_perf_event_update(event, hwc, hwc->idx);
+			__x86_pmu_disable(event, cpuc);
 
 			hwc->idx = -1;
 		}
@@ -1822,11 +1818,10 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_events *cpuc)
 	event->pending_kill = POLL_IN;
 }
 
-static void x86_pmu_disable(struct perf_event *event)
+static void __x86_pmu_disable(struct perf_event *event, struct cpu_hw_events *cpuc)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
-	int i, idx = hwc->idx;
+	int idx = hwc->idx;
 
 	/*
 	 * Must be done before we disable, otherwise the nmi handler
@@ -1834,12 +1829,6 @@ static void x86_pmu_disable(struct perf_event *event)
 	 */
 	clear_bit(idx, cpuc->active_mask);
 	x86_pmu.disable(hwc, idx);
-
-	/*
-	 * Make sure the cleared pointer becomes visible before we
-	 * (potentially) free the event:
-	 */
-	barrier();
 
 	/*
 	 * Drain the remaining delta count out of a event
@@ -1852,6 +1841,14 @@ static void x86_pmu_disable(struct perf_event *event)
 		intel_pmu_drain_bts_buffer(cpuc);
 
 	cpuc->events[idx] = NULL;
+}
+
+static void x86_pmu_disable(struct perf_event *event)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int i;
+
+	__x86_pmu_disable(event, cpuc);
 
 	for (i = 0; i < cpuc->n_events; i++) {
 		if (event == cpuc->event_list[i]) {
