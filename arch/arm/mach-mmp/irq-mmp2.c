@@ -37,6 +37,7 @@ static void icu_unmask_irq(unsigned int irq)
 
 static struct irq_chip icu_irq_chip = {
 	.name		= "icu_irq",
+	.mask		= icu_mask_irq,
 	.mask_ack	= icu_mask_irq,
 	.unmask		= icu_unmask_irq,
 };
@@ -80,6 +81,7 @@ SECOND_IRQ_UNMASK(_name_, irq_base, prefix)				\
 SECOND_IRQ_DEMUX(_name_, irq_base, prefix)				\
 static struct irq_chip _name_##_irq_chip = {				\
 	.name		= #_name_,					\
+	.mask		= _name_##_mask_irq,				\
 	.mask_ack	= _name_##_mask_irq,				\
 	.unmask		= _name_##_unmask_irq,				\
 }
