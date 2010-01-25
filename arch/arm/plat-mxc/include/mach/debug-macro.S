@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  *
  */
+#define IMX_NEEDS_DEPRECATED_SYMBOLS
 
 #ifdef CONFIG_ARCH_MX1
 #include <mach/mx1.h>
