@@ -321,6 +321,7 @@ retry:
 		else {
 			NV_ERROR(dev, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
+			list_add_tail(&nvbo->entry, &op->both_list);
 			validate_fini(op, NULL);
 			return -EINVAL;
 		}

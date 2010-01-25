@@ -24,9 +24,12 @@
  *
  */
 
+#include <acpi/button.h>
+
 #include "drmP.h"
 #include "drm_edid.h"
 #include "drm_crtc_helper.h"
+
 #include "nouveau_reg.h"
 #include "nouveau_drv.h"
 #include "nouveau_encoder.h"
@@ -235,6 +238,10 @@ nouveau_connector_detect(struct drm_connector *connector)
 	if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_LVDS);
 	if (nv_encoder && nv_connector->native_mode) {
+#ifdef CONFIG_ACPI
+		if (!nouveau_ignorelid && !acpi_lid_open())
+			return connector_status_disconnected;
+#endif
 		nouveau_connector_set_encoder(connector, nv_encoder);
 		return connector_status_connected;
 	}

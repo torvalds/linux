@@ -525,6 +525,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		engine->mc.takedown(dev);
 
 		mutex_lock(&dev->struct_mutex);
+		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
 		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_TT);
 		mutex_unlock(&dev->struct_mutex);
 		nouveau_sgdma_takedown(dev);
