@@ -374,7 +374,7 @@ static void s3c_hsotg_unmap_dma(struct s3c_hsotg *hsotg,
 		req->dma = DMA_ADDR_INVALID;
 		hs_req->mapped = 0;
 	} else {
-		dma_sync_single(hsotg->dev, req->dma, req->length, dir);
+		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
 	}
 }
 
@@ -756,7 +756,7 @@ static int s3c_hsotg_map_dma(struct s3c_hsotg *hsotg,
 		hs_req->mapped = 1;
 		req->dma = dma;
 	} else {
-		dma_sync_single(hsotg->dev, req->dma, req->length, dir);
+		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
 		hs_req->mapped = 0;
 	}
 
