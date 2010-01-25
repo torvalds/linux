@@ -1884,6 +1884,7 @@ static void x86_pmu_disable(struct perf_event *event)
 				cpuc->event_list[i-1] = cpuc->event_list[i];
 
 			--cpuc->n_events;
+			break;
 		}
 	}
 	perf_event_update_userpage(event);
