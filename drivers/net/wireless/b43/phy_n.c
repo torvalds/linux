@@ -821,8 +821,9 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 					bool test)
 {
 	int i;
-	u16 bw, len, num, rot, angle;
-	/* TODO: *buffer; */
+	u16 bw, len, rot, angle;
+	b43_c32 *samples;
+
 
 	bw = (dev->phy.is_40mhz) ? 40 : 20;
 	len = bw << 3;
@@ -839,18 +840,20 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 		len = bw << 1;
 	}
 
-	/* TODO: buffer = kzalloc(len * sizeof(u32), GFP_KERNEL); */
-	num = len;
+	samples = kzalloc(len * sizeof(b43_c32), GFP_KERNEL);
 	rot = (((freq * 36) / bw) << 16) / 100;
 	angle = 0;
 
-	for (i = 0; i < num; i++) {
-		/* TODO */
+	for (i = 0; i < len; i++) {
+		samples[i] = b43_cordic(angle);
+		angle += rot;
+		samples[i].q = CORDIC_CONVERT(samples[i].q * max);
+		samples[i].i = CORDIC_CONVERT(samples[i].i * max);
 	}
 
-	/* TODO: Call N PHY Load Sample Table with buffer, num as arguments */
-	/* TODO: kfree(buffer); */
-	return num;
+	/* TODO: Call N PHY Load Sample Table with buffer, len as arguments */
+	kfree(samples);
+	return len;
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RunSamples */
