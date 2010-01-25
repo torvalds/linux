@@ -20,21 +20,7 @@
 #include <asm/blackfin.h>
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
-
-/* Bit in WDOG_CTL that indicates watchdog has expired (WDR0) */
-#define WDOG_EXPIRED 0x8000
-
-/* Masks for WDEV field in WDOG_CTL register */
-#define ICTL_RESET   0x0
-#define ICTL_NMI     0x2
-#define ICTL_GPI     0x4
-#define ICTL_NONE    0x6
-#define ICTL_MASK    0x6
-
-/* Masks for WDEN field in WDOG_CTL register */
-#define WDEN_MASK    0x0FF0
-#define WDEN_ENABLE  0x0000
-#define WDEN_DISABLE 0x0AD0
+#include <asm/bfin_watchdog.h>
 
 #define DRV_NAME "nmi-wdt"
 
