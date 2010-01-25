@@ -307,6 +307,12 @@ struct clk s3c24xx_uclk = {
 
 /* initialise the clock system */
 
+/**
+ * s3c24xx_register_clock() - register a clock
+ * @clk: The clock to register
+ *
+ * Add the specified clock to the list of clocks known by the system.
+ */
 int s3c24xx_register_clock(struct clk *clk)
 {
 	if (clk->enable == NULL)
@@ -324,6 +330,14 @@ int s3c24xx_register_clock(struct clk *clk)
 	return 0;
 }
 
+/**
+ * s3c24xx_register_clocks() - register an array of clock pointers
+ * @clks: Pointer to an array of struct clk pointers
+ * @nr_clks: The number of clocks in the @clks array.
+ *
+ * Call s3c24xx_register_clock() for all the clock pointers contained
+ * in the @clks list. Returns the number of failures.
+ */
 int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
 {
 	int fails = 0;
