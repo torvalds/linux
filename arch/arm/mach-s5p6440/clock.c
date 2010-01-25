@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/s5p6440-clock.c
+/* linux/arch/arm/mach-s5p6440/clock.c
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/

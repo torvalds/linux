@@ -24,19 +24,3 @@ config PLAT_S5P
 	select SAMSUNG_IRQ_UART
 	help
 	  Base platform code for Samsung's S5P series SoC.
-
-if (PLAT_S5P && ARCH_S5P6440)
-
-# Configuration options shared by all S5P64XX implementations
-
-config CPU_S5P6440_INIT
-	bool
-	help
-	 Initialisation code for the S5P6440.
-
-config CPU_S5P6440_CLOCK
-	bool
-	help
-	  Clock support code for the S5P6440.
-
-endif

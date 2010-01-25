@@ -12,7 +12,7 @@ obj-				:=
 
 # Core support for S5P6440 system
 
-obj-$(CONFIG_CPU_S5P6440)	+= cpu.o s5p6440-gpio.o
+obj-$(CONFIG_CPU_S5P6440)	+= cpu.o init.o clock.o gpio.o
 
 # machine support
 

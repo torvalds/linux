@@ -1,4 +1,4 @@
-/* arch/arm/mach-s5p6440/s5p6440-gpio.c
+/* arch/arm/mach-s5p6440/gpio.c
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  * 		http://www.samsung.com/

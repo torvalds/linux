@@ -9,8 +9,6 @@ if ARCH_S5P6440
 
 config CPU_S5P6440
 	bool
-	select CPU_S5P6440_INIT
-	select CPU_S5P6440_CLOCK
 	help
 	  Enable S5P6440 CPU support
 
