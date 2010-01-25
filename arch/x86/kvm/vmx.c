@@ -3158,6 +3158,7 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu)
 	u64 data;
 
 	if (vmx_get_msr(vcpu, ecx, &data)) {
+		trace_kvm_msr_read_ex(ecx);
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
@@ -3177,13 +3178,13 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu)
 	u64 data = (vcpu->arch.regs[VCPU_REGS_RAX] & -1u)
 		| ((u64)(vcpu->arch.regs[VCPU_REGS_RDX] & -1u) << 32);
 
-	trace_kvm_msr_write(ecx, data);
-
 	if (vmx_set_msr(vcpu, ecx, data) != 0) {
+		trace_kvm_msr_write_ex(ecx, data);
 		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
+	trace_kvm_msr_write(ecx, data);
 	skip_emulated_instruction(vcpu);
 	return 1;
 }

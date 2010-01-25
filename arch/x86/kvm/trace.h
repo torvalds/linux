@@ -246,28 +246,33 @@ TRACE_EVENT(kvm_page_fault,
  * Tracepoint for guest MSR access.
  */
 TRACE_EVENT(kvm_msr,
-	TP_PROTO(unsigned write, u32 ecx, u64 data),
-	TP_ARGS(write, ecx, data),
+	TP_PROTO(unsigned write, u32 ecx, u64 data, bool exception),
+	TP_ARGS(write, ecx, data, exception),
 
 	TP_STRUCT__entry(
 		__field(	unsigned,	write		)
 		__field(	u32,		ecx		)
 		__field(	u64,		data		)
+		__field(	u8,		exception	)
 	),
 
 	TP_fast_assign(
 		__entry->write		= write;
 		__entry->ecx		= ecx;
 		__entry->data		= data;
+		__entry->exception	= exception;
 	),
 
-	TP_printk("msr_%s %x = 0x%llx",
+	TP_printk("msr_%s %x = 0x%llx%s",
 		  __entry->write ? "write" : "read",
-		  __entry->ecx, __entry->data)
+		  __entry->ecx, __entry->data,
+		  __entry->exception ? " (#GP)" : "")
 );
 
-#define trace_kvm_msr_read(ecx, data)		trace_kvm_msr(0, ecx, data)
-#define trace_kvm_msr_write(ecx, data)		trace_kvm_msr(1, ecx, data)
+#define trace_kvm_msr_read(ecx, data)      trace_kvm_msr(0, ecx, data, false)
+#define trace_kvm_msr_write(ecx, data)     trace_kvm_msr(1, ecx, data, false)
+#define trace_kvm_msr_read_ex(ecx)         trace_kvm_msr(0, ecx, 0, true)
+#define trace_kvm_msr_write_ex(ecx, data)  trace_kvm_msr(1, ecx, data, true)
 
 /*
  * Tracepoint for guest CR access.
