@@ -475,6 +475,9 @@ static int get_v4l2_buffer32(struct v4l2_buffer *kp, struct v4l2_buffer32 __user
 			return -EFAULT;
 	switch (kp->memory) {
 	case V4L2_MEMORY_MMAP:
+		if (get_user(kp->length, &up->length) ||
+			get_user(kp->m.offset, &up->m.offset))
+			return -EFAULT;
 		break;
 	case V4L2_MEMORY_USERPTR:
 		{
