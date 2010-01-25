@@ -39,7 +39,7 @@
 #define CEPH_MDS_PROTOCOL     9 /* cluster internal */
 #define CEPH_MON_PROTOCOL     5 /* cluster internal */
 #define CEPH_OSDC_PROTOCOL   22 /* server/client */
-#define CEPH_MDSC_PROTOCOL   31 /* server/client */
+#define CEPH_MDSC_PROTOCOL   32 /* server/client */
 #define CEPH_MONC_PROTOCOL   15 /* server/client */
 
 
@@ -271,7 +271,7 @@ enum {
 	CEPH_MDS_OP_RMDIR      = 0x01221,
 	CEPH_MDS_OP_SYMLINK    = 0x01222,
 
-	CEPH_MDS_OP_CREATE     = 0x00301,
+	CEPH_MDS_OP_CREATE     = 0x01301,
 	CEPH_MDS_OP_OPEN       = 0x00302,
 	CEPH_MDS_OP_READDIR    = 0x00305,
 
