@@ -1624,11 +1624,29 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		err = PTR_ERR(req->r_reply);
 		req->r_reply = NULL;
 
-		/* clean up */
-		__unregister_request(mdsc, req);
-		if (!list_empty(&req->r_unsafe_item))
-			list_del_init(&req->r_unsafe_item);
-		complete(&req->r_safe_completion);
+		if (err == -ERESTARTSYS) {
+			/* aborted */
+			req->r_aborted = true;
+
+			if (req->r_locked_dir &&
+			    (req->r_op & CEPH_MDS_OP_WRITE)) {
+				struct ceph_inode_info *ci =
+					ceph_inode(req->r_locked_dir);
+
+				dout("aborted, clearing I_COMPLETE on %p\n", 
+				     req->r_locked_dir);
+				spin_lock(&req->r_locked_dir->i_lock);
+				ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
+				ci->i_release_count++;
+				spin_unlock(&req->r_locked_dir->i_lock);
+			}
+		} else {
+			/* clean up this request */
+			__unregister_request(mdsc, req);
+			if (!list_empty(&req->r_unsafe_item))
+				list_del_init(&req->r_unsafe_item);
+			complete(&req->r_safe_completion);
+		}
 	} else if (req->r_err) {
 		err = req->r_err;
 	} else {

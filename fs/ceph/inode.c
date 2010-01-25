@@ -915,6 +915,16 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	}
 
 	if (rinfo->head->is_dentry) {
+		struct inode *dir = req->r_locked_dir;
+
+		err = fill_inode(dir, &rinfo->diri, rinfo->dirfrag,
+				 session, req->r_request_started, -1,
+				 &req->r_caps_reservation);
+		if (err < 0)
+			return err;
+	}
+
+	if (rinfo->head->is_dentry && !req->r_aborted) {
 		/*
 		 * lookup link rename   : null -> possibly existing inode
 		 * mknod symlink mkdir  : null -> new inode
@@ -931,12 +941,6 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 		       le64_to_cpu(rinfo->diri.in->ino));
 		BUG_ON(ceph_snap(dir) !=
 		       le64_to_cpu(rinfo->diri.in->snapid));
-
-		err = fill_inode(dir, &rinfo->diri, rinfo->dirfrag,
-				 session, req->r_request_started, -1,
-				 &req->r_caps_reservation);
-		if (err < 0)
-			return err;
 
 		/* do we have a lease on the whole dir? */
 		have_dir_cap =
