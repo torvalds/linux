@@ -211,7 +211,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
 };
 
-int __init mx25_clocks_init(unsigned long fref)
+int __init mx25_clocks_init(void)
 {
 	int i;
 

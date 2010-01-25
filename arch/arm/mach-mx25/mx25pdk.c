@@ -91,7 +91,7 @@ static void __init mx25pdk_init(void)
 
 static void __init mx25pdk_timer_init(void)
 {
-	mx25_clocks_init(26000000);
+	mx25_clocks_init();
 }
 
 static struct sys_timer mx25pdk_timer = {
