@@ -422,21 +422,28 @@ void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
 	b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/Cordic */
 struct b43_c32 b43_cordic(int theta)
 {
 	u32 arctg[] = { 2949120, 1740967, 919879, 466945, 234379, 117304,
 		      58666, 29335, 14668, 7334, 3667, 1833, 917, 458,
 		      229, 115, 57, 29, };
-	int i, tmp, signx = 1, angle = 0;
+	u8 i;
+	s32 tmp;
+	s8 signx = 1;
+	u32 angle = 0;
 	struct b43_c32 ret = { .i = 39797, .q = 0, };
 
-	theta = clamp_t(int, theta, -180, 180);
+	while (theta > (180 << 16))
+		theta -= (360 << 16);
+	while (theta < -(180 << 16))
+		theta += (360 << 16);
 
-	if (theta > 90) {
-		theta -= 180;
+	if (theta > (90 << 16)) {
+		theta -= (180 << 16);
 		signx = -1;
-	} else if (theta < -90) {
-		theta += 180;
+	} else if (theta < -(90 << 16)) {
+		theta += (180 << 16);
 		signx = -1;
 	}
 
