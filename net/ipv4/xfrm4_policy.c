@@ -15,7 +15,6 @@
 #include <net/xfrm.h>
 #include <net/ip.h>
 
-static struct dst_ops xfrm4_dst_ops;
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
 static struct dst_entry *xfrm4_dst_lookup(struct net *net, int tos,
@@ -190,8 +189,10 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 static inline int xfrm4_garbage_collect(struct dst_ops *ops)
 {
-	xfrm4_policy_afinfo.garbage_collect(&init_net);
-	return (atomic_read(&xfrm4_dst_ops.entries) > xfrm4_dst_ops.gc_thresh*2);
+	struct net *net = container_of(ops, struct net, xfrm.xfrm4_dst_ops);
+
+	xfrm4_policy_afinfo.garbage_collect(net);
+	return (atomic_read(&ops->entries) > ops->gc_thresh * 2);
 }
 
 static void xfrm4_update_pmtu(struct dst_entry *dst, u32 mtu)
@@ -268,7 +269,7 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 static struct ctl_table xfrm4_policy_table[] = {
 	{
 		.procname       = "xfrm4_gc_thresh",
-		.data           = &xfrm4_dst_ops.gc_thresh,
+		.data           = &init_net.xfrm.xfrm4_dst_ops.gc_thresh,
 		.maxlen         = sizeof(int),
 		.mode           = 0644,
 		.proc_handler   = proc_dointvec,
@@ -295,8 +296,6 @@ static void __exit xfrm4_policy_fini(void)
 
 void __init xfrm4_init(int rt_max_size)
 {
-	xfrm4_state_init();
-	xfrm4_policy_init();
 	/*
 	 * Select a default value for the gc_thresh based on the main route
 	 * table hash size.  It seems to me the worst case scenario is when
@@ -308,6 +307,9 @@ void __init xfrm4_init(int rt_max_size)
 	 * and start cleaning when were 1/2 full
 	 */
 	xfrm4_dst_ops.gc_thresh = rt_max_size/2;
+
+	xfrm4_state_init();
+	xfrm4_policy_init();
 #ifdef CONFIG_SYSCTL
 	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path,
 						xfrm4_policy_table);
