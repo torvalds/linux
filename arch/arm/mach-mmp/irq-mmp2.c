@@ -104,7 +104,7 @@ static void init_mux_irq(struct irq_chip *chip, int start, int num)
 	}
 }
 
-void __init mmp2_init_irq(void)
+void __init mmp2_init_icu(void)
 {
 	int irq;
 
