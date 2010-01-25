@@ -307,7 +307,6 @@ atombios_set_crtc_dtd_timing(struct drm_crtc *crtc,
 	args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
 	args.ucCRTC = radeon_crtc->crtc_id;
 
-	printk("executing set crtc dtd timing\n");
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
@@ -347,7 +346,6 @@ static void atombios_crtc_set_timing(struct drm_crtc *crtc,
 	args.susModeMiscInfo.usAccess = cpu_to_le16(misc);
 	args.ucCRTC = radeon_crtc->crtc_id;
 
-	printk("executing set crtc timing\n");
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
