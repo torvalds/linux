@@ -69,6 +69,13 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX8649
+	tristate "Maxim 8649 voltage regulator"
+	depends on I2C
+	help
+	  This driver controls a Maxim 8649 voltage output regulator via
+	  I2C bus.
+
 config REGULATOR_MAX8660
 	tristate "Maxim 8660/8661 voltage regulator"
 	depends on I2C
