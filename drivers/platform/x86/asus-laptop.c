@@ -93,8 +93,10 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 /*
  * Some events we use, same for all Asus
  */
-#define ATKD_BR_UP	0x10
-#define ATKD_BR_DOWN	0x20
+#define ATKD_BR_UP	0x10	// (event & ~ATKD_BR_UP) = brightness level
+#define ATKD_BR_DOWN	0x20	// (event & ~ATKD_BR_DOWN) = britghness level
+#define ATKD_BR_MIN	ATKD_BR_UP
+#define ATKD_BR_MAX	(ATKD_BR_DOWN | 0xF)	// 0x2f
 #define ATKD_LCD_ON	0x33
 #define ATKD_LCD_OFF	0x34
 
@@ -245,11 +247,13 @@ struct asus_laptop {
 };
 
 static const struct key_entry asus_keymap[] = {
+	/* Lenovo SL Specific keycodes */
 	{KE_KEY, 0x02, { KEY_SCREENLOCK } },
 	{KE_KEY, 0x05, { KEY_WLAN } },
 	{KE_KEY, 0x08, { KEY_F13 } },
 	{KE_KEY, 0x17, { KEY_ZOOM } },
 	{KE_KEY, 0x1f, { KEY_BATTERY } },
+	/* End of Lenovo SL Specific keycodes */
 	{KE_KEY, 0x30, { KEY_VOLUMEUP } },
 	{KE_KEY, 0x31, { KEY_VOLUMEDOWN } },
 	{KE_KEY, 0x32, { KEY_MUTE } },
@@ -626,6 +630,16 @@ static struct backlight_ops asusbl_ops = {
 	.update_status = update_bl_status,
 };
 
+static int asus_backlight_notify(struct asus_laptop *asus)
+{
+	struct backlight_device *bd = asus->backlight_device;
+	int old = bd->props.brightness;
+
+	backlight_force_update(bd, BACKLIGHT_UPDATE_HOTKEY);
+
+	return old;
+}
+
 static int asus_backlight_init(struct asus_laptop *asus)
 {
 	struct backlight_device *bd;
@@ -656,6 +670,7 @@ static void asus_backlight_exit(struct asus_laptop *asus)
 {
 	if (asus->backlight_device)
 		backlight_device_unregister(asus->backlight_device);
+	asus->backlight_device = NULL;
 }
 
 /*
@@ -1121,6 +1136,16 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 					dev_name(&asus->device->dev), event,
 					count);
 
+	/* Brightness events are special */
+	if (event >= ATKD_BR_MIN && event <= ATKD_BR_MAX) {
+
+		/* Ignore them completely if the acpi video driver is used */
+		if (asus->backlight_device != NULL) {
+			/* Update the backlight device. */
+			asus_backlight_notify(asus);
+		}
+		return ;
+	}
 	asus_input_notify(asus, event);
 }
 
