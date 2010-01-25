@@ -1443,6 +1443,8 @@ extern int ext4_block_truncate_page(handle_t *handle,
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern int flush_aio_dio_completed_IO(struct inode *inode);
+extern void ext4_da_update_reserve_space(struct inode *inode,
+					int used, int quota_claim);
 /* ioctl.c */
 extern long ext4_ioctl(struct file *, unsigned int, unsigned long);
 extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
