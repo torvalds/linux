@@ -21,6 +21,7 @@ static void gdlm_ast(void *arg)
 {
 	struct gfs2_glock *gl = arg;
 	unsigned ret = gl->gl_state;
+	struct gfs2_sbd *sdp = gl->gl_sbd;
 
 	BUG_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
 
@@ -30,6 +31,8 @@ static void gdlm_ast(void *arg)
 	switch (gl->gl_lksb.sb_status) {
 	case -DLM_EUNLOCK: /* Unlocked, so glock can be freed */
 		kmem_cache_free(gfs2_glock_cachep, gl);
+		if (atomic_dec_and_test(&sdp->sd_glock_disposal))
+			wake_up(&sdp->sd_glock_wait);
 		return;
 	case -DLM_ECANCEL: /* Cancel while getting lock */
 		ret |= LM_OUT_CANCELED;
@@ -167,7 +170,8 @@ static unsigned int gdlm_lock(struct gfs2_glock *gl,
 static void gdlm_put_lock(struct kmem_cache *cachep, void *ptr)
 {
 	struct gfs2_glock *gl = ptr;
-	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int error;
 
 	if (gl->gl_lksb.sb_lkid == 0) {
@@ -183,6 +187,7 @@ static void gdlm_put_lock(struct kmem_cache *cachep, void *ptr)
 		       (unsigned long long)gl->gl_name.ln_number, error);
 		return;
 	}
+	atomic_inc(&sdp->sd_glock_disposal);
 }
 
 static void gdlm_cancel(struct gfs2_glock *gl)

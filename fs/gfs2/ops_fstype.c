@@ -82,6 +82,8 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	gfs2_tune_init(&sdp->sd_tune);
 
+	init_waitqueue_head(&sdp->sd_glock_wait);
+	atomic_set(&sdp->sd_glock_disposal, 0);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
