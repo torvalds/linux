@@ -344,7 +344,7 @@ int s3c24xx_register_clocks(struct clk **clks, int nr_clks)
  * Call s3c24xx_register_clock() on the @clkp array given, printing an
  * error if it fails to register the clock (unlikely).
  */
-void __initdata s3c_register_clocks(struct clk *clkp, int nr_clks)
+void __init s3c_register_clocks(struct clk *clkp, int nr_clks)
 {
 	int ret;
 
