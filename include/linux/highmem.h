@@ -17,6 +17,12 @@ static inline void flush_anon_page(struct vm_area_struct *vma, struct page *page
 static inline void flush_kernel_dcache_page(struct page *page)
 {
 }
+static inline void flush_kernel_vmap_range(void *vaddr, int size)
+{
+}
+static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
+{
+}
 #endif
 
 #include <asm/kmap_types.h>
