@@ -218,6 +218,14 @@ int __init mx25_clocks_init(void)
 	for (i = 0; i < ARRAY_SIZE(lookups); i++)
 		clkdev_add(&lookups[i]);
 
+	/* Turn off all clocks except the ones we need to survive, namely:
+	 * EMI, GPIO1-3 (CCM_CGCR1[18:16]), GPT1, IOMUXC (CCM_CGCR1[27]), IIM,
+	 * SCC
+	 */
+	__raw_writel((1 << 19), CRM_BASE + CCM_CGCR0);
+	__raw_writel((0xf << 16) | (3 << 26), CRM_BASE + CCM_CGCR1);
+	__raw_writel((1 << 5), CRM_BASE + CCM_CGCR2);
+
 	mxc_timer_init(&gpt_clk, MX25_IO_ADDRESS(MX25_GPT1_BASE_ADDR), 54);
 
 	return 0;
