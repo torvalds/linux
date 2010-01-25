@@ -28,7 +28,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/list.h>
 #include <linux/netdevice.h>
 
 #include "ixgbe.h"
@@ -1347,7 +1346,7 @@ static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
 /**
  *  ixgbe_update_uc_addr_list_generic - Updates MAC list of secondary addresses
  *  @hw: pointer to hardware structure
- *  @uc_list: the list of new addresses
+ *  @netdev: pointer to net device structure
  *
  *  The given list replaces any existing list.  Clears the secondary addrs from
  *  receive address registers.  Uses unused receive address registers for the
@@ -1357,7 +1356,7 @@ static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
  *  manually putting the device into promiscuous mode.
  **/
 s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
-				      struct list_head *uc_list)
+				      struct net_device *netdev)
 {
 	u32 i;
 	u32 old_promisc_setting = hw->addr_ctrl.overflow_promisc;
@@ -1381,7 +1380,7 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
 	}
 
 	/* Add the new addresses */
-	list_for_each_entry(ha, uc_list, list) {
+	netdev_for_each_uc_addr(ha, netdev) {
 		hw_dbg(hw, " Adding the secondary addresses:\n");
 		ixgbe_add_uc_addr(hw, ha->addr, 0);
 	}

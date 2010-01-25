@@ -263,6 +263,11 @@ struct netdev_hw_addr_list {
 	int			count;
 };
 
+#define netdev_uc_count(dev) ((dev)->uc.count)
+#define netdev_uc_empty(dev) ((dev)->uc.count == 0)
+#define netdev_for_each_uc_addr(ha, dev) \
+	list_for_each_entry(ha, &dev->uc.list, list)
+
 struct hh_cache {
 	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */

@@ -83,7 +83,7 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	unsigned int value = 0;
 
 	DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
-	    __func__, dev->mc_count, dev->uc.count);
+	    __func__, dev->mc_count, netdev_uc_count(dev));
 
 	if (dev->flags & IFF_PROMISC)
 		value = GMAC_FRAME_FILTER_PR;
@@ -117,7 +117,7 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	}
 
 	/* Handle multiple unicast addresses (perfect filtering)*/
-	if (dev->uc.count > GMAC_MAX_UNICAST_ADDRESSES)
+	if (netdev_uc_count(dev) > GMAC_MAX_UNICAST_ADDRESSES)
 		/* Switch to promiscuous mode is more than 16 addrs
 		   are required */
 		value |= GMAC_FRAME_FILTER_PR;
@@ -125,9 +125,9 @@ static void dwmac1000_set_filter(struct net_device *dev)
 		int reg = 1;
 		struct netdev_hw_addr *ha;
 
-			list_for_each_entry(ha, &dev->uc.list, list) {
-				dwmac1000_set_umac_addr(ioaddr, ha->addr, reg);
-				reg++;
+		netdev_for_each_uc_addr(ha, dev) {
+			dwmac1000_set_umac_addr(ioaddr, ha->addr, reg);
+			reg++;
 		}
 	}
 

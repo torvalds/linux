@@ -30,7 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/mdio.h>
-#include <linux/list.h>
+#include <linux/netdevice.h>
 
 /* Vendor ID */
 #define IXGBE_INTEL_VENDOR_ID   0x8086
@@ -2405,7 +2405,7 @@ struct ixgbe_mac_operations {
 	s32 (*set_vmdq)(struct ixgbe_hw *, u32, u32);
 	s32 (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
 	s32 (*init_rx_addrs)(struct ixgbe_hw *);
-	s32 (*update_uc_addr_list)(struct ixgbe_hw *, struct list_head *);
+	s32 (*update_uc_addr_list)(struct ixgbe_hw *, struct net_device *);
 	s32 (*update_mc_addr_list)(struct ixgbe_hw *, u8 *, u32,
 	                           ixgbe_mc_addr_itr);
 	s32 (*enable_mc)(struct ixgbe_hw *);

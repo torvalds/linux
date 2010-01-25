@@ -2905,12 +2905,13 @@ static int igb_write_uc_addr_list(struct net_device *netdev)
 	int count = 0;
 
 	/* return ENOMEM indicating insufficient memory for addresses */
-	if (netdev->uc.count > rar_entries)
+	if (netdev_uc_count(netdev) > rar_entries)
 		return -ENOMEM;
 
-	if (netdev->uc.count && rar_entries) {
+	if (!netdev_uc_empty(netdev) && rar_entries) {
 		struct netdev_hw_addr *ha;
-		list_for_each_entry(ha, &netdev->uc.list, list) {
+
+		netdev_for_each_uc_addr(ha, netdev) {
 			if (!rar_entries)
 				break;
 			igb_rar_set_qsel(adapter, ha->addr,
