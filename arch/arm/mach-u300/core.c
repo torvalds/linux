@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/core.c
  *
  *
- * Copyright (C) 2007-2009 ST-Ericsson AB
+ * Copyright (C) 2007-2010 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
  * Core platform support, IRQ handling and device definitions.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -1400,7 +1400,7 @@ static struct coh901318_platform coh901318_platform = {
 };
 
 static struct platform_device wdog_device = {
-	.name = "wdog",
+	.name = "coh901327_wdog",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(wdog_resources),
 	.resource = wdog_resources,
