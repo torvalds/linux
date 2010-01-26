@@ -325,8 +325,7 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	if (in_interrupt) {
 		/* we know that one period was processed */
 		/* delta = "expected next hw_ptr" for in_interrupt != 0 */
-		delta = old_hw_ptr - (old_hw_ptr % runtime->period_size)
-			+ runtime->period_size;
+		delta = runtime->hw_ptr_interrupt + runtime->period_size;
 		if (delta > new_hw_ptr) {
 			hw_base += runtime->buffer_size;
 			if (hw_base >= runtime->boundary)
@@ -437,6 +436,10 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, new_hw_ptr);
 
+	if (in_interrupt) {
+		runtime->hw_ptr_interrupt = new_hw_ptr -
+				(new_hw_ptr % runtime->period_size);
+	}
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
 	runtime->hw_ptr_jiffies = jiffies;

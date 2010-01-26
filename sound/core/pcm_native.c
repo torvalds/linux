@@ -1252,6 +1252,8 @@ static int snd_pcm_do_reset(struct snd_pcm_substream *substream, int state)
 	if (err < 0)
 		return err;
 	runtime->hw_ptr_base = 0;
+	runtime->hw_ptr_interrupt = runtime->status->hw_ptr -
+		runtime->status->hw_ptr % runtime->period_size;
 	runtime->silence_start = runtime->status->hw_ptr;
 	runtime->silence_filled = 0;
 	return 0;
