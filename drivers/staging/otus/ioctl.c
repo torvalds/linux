@@ -866,15 +866,15 @@ int usbdrvwext_giwscan(struct net_device *dev,
 	char *current_ev = extra;
 	char *end_buf;
 	int i;
-	/* struct zsBssList BssList; */
-	struct zsBssListV1 *pBssList = kmalloc(sizeof(struct zsBssListV1),
-								GFP_KERNEL);
 	/* BssList = wd->sta.pBssList; */
 	/* zmw_get_wlan_dev(dev); */
 
 	if (macp->DeviceOpened != 1)
 		return 0;
 
+	/* struct zsBssList BssList; */
+	struct zsBssListV1 *pBssList = kmalloc(sizeof(struct zsBssListV1),
+								GFP_KERNEL);
 	if (data->length == 0)
 		end_buf = extra + IW_SCAN_MAX_DATA;
 	else
