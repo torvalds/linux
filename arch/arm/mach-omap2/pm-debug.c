@@ -54,8 +54,6 @@ int omap2_pm_debug;
 	regs[reg_count++].val = \
 			 __raw_readl(OMAP2_L4_IO_ADDRESS(0x480fe000 + (off)))
 
-static int __init pm_dbg_init(void);
-
 void omap2_pm_dump(int mode, int resume, unsigned int us)
 {
 	struct reg {
@@ -166,6 +164,8 @@ static void pm_dbg_regset_store(u32 *ptr);
 struct dentry *pm_dbg_dir;
 
 static int pm_dbg_init_done;
+
+static int __init pm_dbg_init(void);
 
 enum {
 	DEBUG_FILE_COUNTERS = 0,
@@ -488,9 +488,11 @@ int pm_dbg_regset_init(int reg_set)
 
 static int pwrdm_suspend_get(void *data, u64 *val)
 {
-	*val = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	int ret;
+	ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	*val = ret;
 
-	if (*val >= 0)
+	if (ret >= 0)
 		return 0;
 	return *val;
 }
@@ -604,6 +606,4 @@ static int __init pm_dbg_init(void)
 }
 arch_initcall(pm_dbg_init);
 
-#else
-void pm_dbg_update_time(struct powerdomain *pwrdm, int prev) {}
 #endif

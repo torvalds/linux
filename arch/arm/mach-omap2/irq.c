@@ -274,4 +274,22 @@ void omap_intc_restore_context(void)
 	}
 	/* MIRs are saved and restore with other PRCM registers */
 }
+
+void omap3_intc_suspend(void)
+{
+	/* A pending interrupt would prevent OMAP from entering suspend */
+	omap_ack_irq(0);
+}
+
+void omap3_intc_prepare_idle(void)
+{
+	/* Disable autoidle as it can stall interrupt controller */
+	intc_bank_write_reg(0, &irq_banks[0], INTC_SYSCONFIG);
+}
+
+void omap3_intc_resume_idle(void)
+{
+	/* Re-enable autoidle */
+	intc_bank_write_reg(1, &irq_banks[0], INTC_SYSCONFIG);
+}
 #endif /* CONFIG_ARCH_OMAP3 */

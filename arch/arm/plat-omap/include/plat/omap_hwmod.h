@@ -227,6 +227,7 @@ struct omap_hwmod_ocp_if {
 #define SYSC_HAS_SIDLEMODE	(1 << 5)
 #define SYSC_HAS_MIDLEMODE	(1 << 6)
 #define SYSS_MISSING		(1 << 7)
+#define SYSC_NO_CACHE		(1 << 8)  /* XXX SW flag, belongs elsewhere */
 
 /* omap_hwmod_sysconfig.clockact flags */
 #define CLOCKACT_TEST_BOTH	0x0
