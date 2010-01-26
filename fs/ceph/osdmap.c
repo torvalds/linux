@@ -414,6 +414,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	struct ceph_osdmap *map;
 	u16 version;
 	u32 len, max, i;
+	u8 ev;
 	int err = -EINVAL;
 	void *start = *p;
 
@@ -441,10 +442,11 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	}
 	ceph_decode_32_safe(p, end, max, bad);
 	while (max--) {
-		ceph_decode_need(p, end, 4+sizeof(map->pg_pool->v), bad);
+		ceph_decode_need(p, end, 4+1+sizeof(map->pg_pool->v), bad);
 		i = ceph_decode_32(p);
 		if (i >= map->num_pools)
 			goto bad;
+		ev = ceph_decode_8(p); /* encoding version */
 		ceph_decode_copy(p, &map->pg_pool[i].v,
 				 sizeof(map->pg_pool->v));
 		calc_pg_masks(&map->pg_pool[i]);
@@ -603,6 +605,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	/* new_pool */
 	ceph_decode_32_safe(p, end, len, bad);
 	while (len--) {
+		__u8 ev;
+
 		ceph_decode_32_safe(p, end, pool, bad);
 		if (pool >= map->num_pools) {
 			void *pg_pool = kcalloc(pool + 1,
@@ -618,6 +622,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 			map->pg_pool = pg_pool;
 			map->num_pools = pool+1;
 		}
+		ceph_decode_need(p, end, 1 + sizeof(map->pg_pool->v), bad);
+		ev = ceph_decode_8(p);  /* encoding version */
 		ceph_decode_copy(p, &map->pg_pool[pool].v,
 				 sizeof(map->pg_pool->v));
 		calc_pg_masks(&map->pg_pool[pool]);
