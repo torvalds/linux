@@ -140,6 +140,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
 	dev->needs_freset = 0;		/* pcie fundamental reset required */
+	set_pcie_port_type(dev);
 
 	dev->vendor = get_int_prop(node, "vendor-id", 0xffff);
 	dev->device = get_int_prop(node, "device-id", 0xffff);
@@ -164,6 +165,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 		/* a PCI-PCI bridge */
 		dev->hdr_type = PCI_HEADER_TYPE_BRIDGE;
 		dev->rom_base_reg = PCI_ROM_ADDRESS1;
+		set_pcie_hotplug_bridge(dev);
 	} else if (!strcmp(type, "cardbus")) {
 		dev->hdr_type = PCI_HEADER_TYPE_CARDBUS;
 	} else {
