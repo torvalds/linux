@@ -40,6 +40,7 @@
 #define AUTOIDLE	(1 << 0)
 #define SOFTRESET	(1 << 1)
 #define SMARTIDLE	(2 << 3)
+#define OMAP4_SOFTRESET	(1 << 0)
 
 /* SYSSTATUS: register bit definition */
 #define RESETDONE	(1 << 0)
@@ -99,17 +100,32 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 	}
 	clk_enable(mbox_ick_handle);
 
-	mbox_write_reg(SOFTRESET, MAILBOX_SYSCONFIG);
-	timeout = jiffies + msecs_to_jiffies(20);
-	do {
-		l = mbox_read_reg(MAILBOX_SYSSTATUS);
-		if (l & RESETDONE)
-			break;
-	} while (!time_after(jiffies, timeout));
+	if (cpu_is_omap44xx()) {
+		mbox_write_reg(OMAP4_SOFTRESET, MAILBOX_SYSCONFIG);
+		timeout = jiffies + msecs_to_jiffies(20);
+		do {
+			l = mbox_read_reg(MAILBOX_SYSCONFIG);
+			if (!(l & OMAP4_SOFTRESET))
+				break;
+		} while (!time_after(jiffies, timeout));
 
-	if (!(l & RESETDONE)) {
-		pr_err("Can't take mmu out of reset\n");
-		return -ENODEV;
+		if (l & OMAP4_SOFTRESET) {
+			pr_err("Can't take mailbox out of reset\n");
+			return -ENODEV;
+		}
+	} else {
+		mbox_write_reg(SOFTRESET, MAILBOX_SYSCONFIG);
+		timeout = jiffies + msecs_to_jiffies(20);
+		do {
+			l = mbox_read_reg(MAILBOX_SYSSTATUS);
+			if (l & RESETDONE)
+				break;
+		} while (!time_after(jiffies, timeout));
+
+		if (!(l & RESETDONE)) {
+			pr_err("Can't take mailbox out of reset\n");
+			return -ENODEV;
+		}
 	}
 
 	l = mbox_read_reg(MAILBOX_REVISION);
