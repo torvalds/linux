@@ -339,9 +339,8 @@ params:		ldr	r0, =params_phys
  *  r4 = kernel execution address
  *  r7 = architecture number
  *  r8 = atags pointer
- *  r9 = run-time address of "start"  (???)
  * On exit,
- *  r1, r2, r3, r9, r10, r12 corrupted
+ *  r0, r1, r2, r3, r9, r10, r12 corrupted
  * This routine must preserve:
  *  r4, r5, r6, r7, r8
  */
@@ -777,8 +776,10 @@ proc_types:
  * Turn off the Cache and MMU.  ARMv3 does not support
  * reading the control register, but ARMv4 does.
  *
- * On exit, r0, r1, r2, r3, r9, r12 corrupted
- * This routine must preserve: r4, r6, r7
+ * On exit,
+ *  r0, r1, r2, r3, r9, r12 corrupted
+ * This routine must preserve:
+ *  r4, r6, r7
  */
 		.align	5
 cache_off:	mov	r3, #12			@ cache_off function
@@ -851,7 +852,7 @@ __armv3_mmu_cache_off:
  * Clean and flush the cache to maintain consistency.
  *
  * On exit,
- *  r1, r2, r3, r9, r11, r12 corrupted
+ *  r1, r2, r3, r9, r10, r11, r12 corrupted
  * This routine must preserve:
  *  r0, r4, r5, r6, r7
  */
