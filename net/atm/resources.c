@@ -7,6 +7,7 @@
  * 2002/01 - don't free the whole struct sock on sk->destruct time,
  * 	     use the default destruct function initialized by sock_init_data */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -79,8 +80,7 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 
 	dev = __alloc_atm_dev(type);
 	if (!dev) {
-		printk(KERN_ERR "atm_dev_register: no space for dev %s\n",
-		    type);
+		pr_err("no space for dev %s\n", type);
 		return NULL;
 	}
 	mutex_lock(&atm_dev_mutex);
@@ -109,16 +109,12 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 	atomic_set(&dev->refcnt, 1);
 
 	if (atm_proc_dev_register(dev) < 0) {
-		printk(KERN_ERR "atm_dev_register: "
-		       "atm_proc_dev_register failed for dev %s\n",
-		       type);
+		pr_err("atm_proc_dev_register failed for dev %s\n", type);
 		goto out_fail;
 	}
 
 	if (atm_register_sysfs(dev) < 0) {
-		printk(KERN_ERR "atm_dev_register: "
-		       "atm_register_sysfs failed for dev %s\n",
-		       type);
+		pr_err("atm_register_sysfs failed for dev %s\n", type);
 		atm_proc_dev_deregister(dev);
 		goto out_fail;
 	}

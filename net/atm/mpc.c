@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
@@ -1447,7 +1449,7 @@ static __init int atm_mpoa_init(void)
 	register_atm_ioctl(&atm_ioctl_ops);
 
 	if (mpc_proc_init() != 0)
-		printk(KERN_INFO "mpoa: failed to initialize /proc/mpoa\n");
+		pr_info("failed to initialize /proc/mpoa\n");
 
 	printk("mpc.c: " __DATE__ " " __TIME__ " initialized\n");
 

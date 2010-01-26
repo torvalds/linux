@@ -2,6 +2,7 @@
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/string.h>
 #include <linux/net.h>		/* struct socket, struct proto_ops */
@@ -46,7 +47,7 @@ static void svc_disconnect(struct atm_vcc *vcc)
 	struct sk_buff *skb;
 	struct sock *sk = sk_atm(vcc);
 
-	pr_debug("svc_disconnect %p\n",vcc);
+	pr_debug("%p\n",vcc);
 	if (test_bit(ATM_VF_REGIS,&vcc->flags)) {
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_UNINTERRUPTIBLE);
 		sigd_enq(vcc,as_close,NULL,NULL,NULL);
@@ -76,7 +77,7 @@ static int svc_release(struct socket *sock)
 
 	if (sk)  {
 		vcc = ATM_SD(sock);
-		pr_debug("svc_release %p\n", vcc);
+		pr_debug("%p\n", vcc);
 		clear_bit(ATM_VF_READY, &vcc->flags);
 		/* VCC pointer is used as a reference, so we must not free it
 		   (thereby subjecting it to re-use) before all pending connections
@@ -153,7 +154,7 @@ static int svc_connect(struct socket *sock,struct sockaddr *sockaddr,
 	struct atm_vcc *vcc = ATM_SD(sock);
 	int error;
 
-	pr_debug("svc_connect %p\n",vcc);
+	pr_debug("%p\n",vcc);
 	lock_sock(sk);
 	if (sockaddr_len != sizeof(struct sockaddr_atmsvc)) {
 		error = -EINVAL;
@@ -286,7 +287,7 @@ static int svc_listen(struct socket *sock,int backlog)
 	struct atm_vcc *vcc = ATM_SD(sock);
 	int error;
 
-	pr_debug("svc_listen %p\n",vcc);
+	pr_debug("%p\n", vcc);
 	lock_sock(sk);
 	/* let server handle listen on unbound sockets */
 	if (test_bit(ATM_VF_SESSION,&vcc->flags)) {
@@ -336,7 +337,7 @@ static int svc_accept(struct socket *sock,struct socket *newsock,int flags)
 
 	new_vcc = ATM_SD(newsock);
 
-	pr_debug("svc_accept %p -> %p\n",old_vcc,new_vcc);
+	pr_debug("%p -> %p\n", old_vcc, new_vcc);
 	while (1) {
 		DEFINE_WAIT(wait);
 
@@ -540,7 +541,7 @@ static int svc_addparty(struct socket *sock, struct sockaddr *sockaddr,
 		error = -EINPROGRESS;
 		goto out;
 	}
-	pr_debug("svc_addparty added wait queue\n");
+	pr_debug("added wait queue\n");
 	while (test_bit(ATM_VF_WAITING, &vcc->flags) && sigd) {
 		schedule();
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);

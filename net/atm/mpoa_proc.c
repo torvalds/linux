@@ -1,3 +1,4 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #ifdef CONFIG_PROC_FS
 #include <linux/errno.h>
@@ -278,7 +279,7 @@ int mpc_proc_init(void)
 
 	p = proc_create(STAT_FILE_NAME, 0, atm_proc_root, &mpc_file_operations);
 	if (!p) {
-		printk(KERN_ERR "Unable to initialize /proc/atm/%s\n", STAT_FILE_NAME);
+		pr_err("Unable to initialize /proc/atm/%s\n", STAT_FILE_NAME);
 		return -ENOMEM;
 	}
 	return 0;

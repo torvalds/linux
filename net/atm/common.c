@@ -2,6 +2,7 @@
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/kmod.h>
@@ -64,8 +65,7 @@ static struct sk_buff *alloc_tx(struct atm_vcc *vcc,unsigned int size)
 
 	if (sk_wmem_alloc_get(sk) && !atm_may_send(vcc, size)) {
 		pr_debug("Sorry: wmem_alloc = %d, size = %d, sndbuf = %d\n",
-			sk_wmem_alloc_get(sk), size,
-			sk->sk_sndbuf);
+			 sk_wmem_alloc_get(sk), size, sk->sk_sndbuf);
 		return NULL;
 	}
 	while (!(skb = alloc_skb(size, GFP_KERNEL)))
@@ -249,8 +249,7 @@ static int adjust_tp(struct atm_trafprm *tp,unsigned char aal)
 			max_sdu = ATM_MAX_AAL34_PDU;
 			break;
 		default:
-			printk(KERN_WARNING "ATM: AAL problems ... "
-			    "(%d)\n",aal);
+			pr_warning("AAL problems ... (%d)\n", aal);
 			/* fall through */
 		case ATM_AAL5:
 			max_sdu = ATM_MAX_AAL5_PDU;
@@ -385,11 +384,17 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 	if (!error) error = adjust_tp(&vcc->qos.rxtp,vcc->qos.aal);
 	if (error)
 		goto fail;
-	pr_debug("VCC %d.%d, AAL %d\n",vpi,vci,vcc->qos.aal);
-	pr_debug("  TX: %d, PCR %d..%d, SDU %d\n",vcc->qos.txtp.traffic_class,
-	    vcc->qos.txtp.min_pcr,vcc->qos.txtp.max_pcr,vcc->qos.txtp.max_sdu);
-	pr_debug("  RX: %d, PCR %d..%d, SDU %d\n",vcc->qos.rxtp.traffic_class,
-	    vcc->qos.rxtp.min_pcr,vcc->qos.rxtp.max_pcr,vcc->qos.rxtp.max_sdu);
+	pr_debug("VCC %d.%d, AAL %d\n", vpi, vci, vcc->qos.aal);
+	pr_debug("  TX: %d, PCR %d..%d, SDU %d\n",
+		 vcc->qos.txtp.traffic_class,
+		 vcc->qos.txtp.min_pcr,
+		 vcc->qos.txtp.max_pcr,
+		 vcc->qos.txtp.max_sdu);
+	pr_debug("  RX: %d, PCR %d..%d, SDU %d\n",
+		 vcc->qos.rxtp.traffic_class,
+		 vcc->qos.rxtp.min_pcr,
+		 vcc->qos.rxtp.max_pcr,
+		 vcc->qos.rxtp.max_sdu);
 
 	if (dev->ops->open) {
 		if ((error = dev->ops->open(vcc)))
@@ -413,7 +418,7 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	struct atm_vcc *vcc = ATM_SD(sock);
 	int error;
 
-	pr_debug("vcc_connect (vpi %d, vci %d)\n",vpi,vci);
+	pr_debug("(vpi %d, vci %d)\n", vpi, vci);
 	if (sock->state == SS_CONNECTED)
 		return -EISCONN;
 	if (sock->state != SS_UNCONNECTED)
@@ -426,14 +431,15 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	else
 		if (test_bit(ATM_VF_PARTIAL,&vcc->flags))
 			return -EINVAL;
-	pr_debug("vcc_connect (TX: cl %d,bw %d-%d,sdu %d; "
-	    "RX: cl %d,bw %d-%d,sdu %d,AAL %s%d)\n",
-	    vcc->qos.txtp.traffic_class,vcc->qos.txtp.min_pcr,
-	    vcc->qos.txtp.max_pcr,vcc->qos.txtp.max_sdu,
-	    vcc->qos.rxtp.traffic_class,vcc->qos.rxtp.min_pcr,
-	    vcc->qos.rxtp.max_pcr,vcc->qos.rxtp.max_sdu,
-	    vcc->qos.aal == ATM_AAL5 ? "" : vcc->qos.aal == ATM_AAL0 ? "" :
-	    " ??? code ",vcc->qos.aal == ATM_AAL0 ? 0 : vcc->qos.aal);
+	pr_debug("(TX: cl %d,bw %d-%d,sdu %d; "
+		 "RX: cl %d,bw %d-%d,sdu %d,AAL %s%d)\n",
+		 vcc->qos.txtp.traffic_class, vcc->qos.txtp.min_pcr,
+		 vcc->qos.txtp.max_pcr, vcc->qos.txtp.max_sdu,
+		 vcc->qos.rxtp.traffic_class, vcc->qos.rxtp.min_pcr,
+		 vcc->qos.rxtp.max_pcr,vcc->qos.rxtp.max_sdu,
+		 vcc->qos.aal == ATM_AAL5 ? "" :
+		 vcc->qos.aal == ATM_AAL0 ? "" : " ??? code ",
+		 vcc->qos.aal == ATM_AAL0 ? 0 : vcc->qos.aal);
 	if (!test_bit(ATM_VF_HASQOS, &vcc->flags))
 		return -EBADFD;
 	if (vcc->qos.txtp.traffic_class == ATM_ANYCLASS ||
@@ -497,7 +503,7 @@ int vcc_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (error)
 		return error;
 	sock_recv_ts_and_drops(msg, sk, skb);
-	pr_debug("RcvM %d -= %d\n", atomic_read(&sk->sk_rmem_alloc), skb->truesize);
+	pr_debug("%d -= %d\n", atomic_read(&sk->sk_rmem_alloc), skb->truesize);
 	atm_return(vcc, skb->truesize);
 	skb_free_datagram(sk, skb);
 	return copied;
@@ -772,19 +778,19 @@ static int __init atm_init(void)
 		goto out;
 
 	if ((error = atmpvc_init()) < 0) {
-		printk(KERN_ERR "atmpvc_init() failed with %d\n", error);
+		pr_err("atmpvc_init() failed with %d\n", error);
 		goto out_unregister_vcc_proto;
 	}
 	if ((error = atmsvc_init()) < 0) {
-		printk(KERN_ERR "atmsvc_init() failed with %d\n", error);
+		pr_err("atmsvc_init() failed with %d\n", error);
 		goto out_atmpvc_exit;
 	}
 	if ((error = atm_proc_init()) < 0) {
-		printk(KERN_ERR "atm_proc_init() failed with %d\n",error);
+		pr_err("atm_proc_init() failed with %d\n", error);
 		goto out_atmsvc_exit;
 	}
 	if ((error = atm_sysfs_init()) < 0) {
-		printk(KERN_ERR "atm_sysfs_init() failed with %d\n",error);
+		pr_err("atm_sysfs_init() failed with %d\n", error);
 		goto out_atmproc_exit;
 	}
 out:

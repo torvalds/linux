@@ -3,6 +3,7 @@
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 /* 2003 John Levon  <levon@movementarian.org> */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/kmod.h>
@@ -97,8 +98,8 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 			goto done;
 		case ATM_SETSC:
 			if (net_ratelimit())
-				printk(KERN_WARNING "ATM_SETSC is obsolete; used by %s:%d\n",
-				       current->comm, task_pid_nr(current));
+				pr_warning("ATM_SETSC is obsolete; used by %s:%d\n",
+					   current->comm, task_pid_nr(current));
 			error = 0;
 			goto done;
 		case ATMSIGD_CTRL:
@@ -123,7 +124,7 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 			   to think about it at all. dwmw2. */
 			if (compat) {
 				if (net_ratelimit())
-					printk(KERN_WARNING "32-bit task cannot be atmsigd\n");
+					pr_warning("32-bit task cannot be atmsigd\n");
 				error = -EINVAL;
 				goto done;
 			}

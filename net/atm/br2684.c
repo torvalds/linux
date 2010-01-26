@@ -6,6 +6,8 @@
  *          Eric Kinzie, 2006-2007, US Naval Research Laboratory
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -148,7 +150,7 @@ static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct br2684_vcc *brvcc = BR2684_VCC(vcc);
 	struct net_device *net_dev = skb->dev;
 
-	pr_debug("br2684_pop(vcc %p ; net_dev %p )\n", vcc, net_dev);
+	pr_debug("(vcc %p ; net_dev %p )\n", vcc, net_dev);
 	brvcc->old_pop(vcc, skb);
 
 	if (!net_dev)
@@ -244,7 +246,7 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
 
-	pr_debug("br2684_start_xmit, skb_dst(skb)=%p\n", skb_dst(skb));
+	pr_debug("skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
@@ -352,7 +354,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	struct net_device *net_dev = brvcc->device;
 	struct br2684_dev *brdev = BRPRIV(net_dev);
 
-	pr_debug("br2684_push\n");
+	pr_debug("\n");
 
 	if (unlikely(skb == NULL)) {
 		/* skb==NULL means VCC is being destroyed */
@@ -479,8 +481,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {
-		printk(KERN_ERR
-		       "br2684: tried to attach to non-existant device\n");
+		pr_err("tried to attach to non-existant device\n");
 		err = -ENXIO;
 		goto error;
 	}
@@ -503,8 +504,7 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 		err = -EINVAL;
 		goto error;
 	}
-	pr_debug("br2684_regvcc vcc=%p, encaps=%d, brvcc=%p\n", atmvcc,
-		 be.encaps, brvcc);
+	pr_debug("vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps, brvcc);
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
 		if (esi[0] | esi[1] | esi[2] | esi[3] | esi[4] | esi[5])
@@ -595,7 +595,7 @@ static int br2684_create(void __user * arg)
 	struct atm_newif_br2684 ni;
 	enum br2684_payload payload;
 
-	pr_debug("br2684_create\n");
+	pr_debug("\n");
 
 	if (copy_from_user(&ni, arg, sizeof ni)) {
 		return -EFAULT;
@@ -624,7 +624,7 @@ static int br2684_create(void __user * arg)
 	/* open, stop, do_ioctl ? */
 	err = register_netdev(netdev);
 	if (err < 0) {
-		printk(KERN_ERR "br2684_create: register_netdev failed\n");
+		pr_err("register_netdev failed\n");
 		free_netdev(netdev);
 		return err;
 	}

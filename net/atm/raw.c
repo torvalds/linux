@@ -2,6 +2,7 @@
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/atmdev.h>
@@ -32,8 +33,8 @@ static void atm_pop_raw(struct atm_vcc *vcc,struct sk_buff *skb)
 {
 	struct sock *sk = sk_atm(vcc);
 
-	pr_debug("APopR (%d) %d -= %d\n", vcc->vci,
-		sk_wmem_alloc_get(sk), skb->truesize);
+	pr_debug("(%d) %d -= %d\n",
+		 vcc->vci, sk_wmem_alloc_get(sk), skb->truesize);
 	atomic_sub(skb->truesize, &sk->sk_wmem_alloc);
 	dev_kfree_skb_any(skb);
 	sk->sk_write_space(sk);

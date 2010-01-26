@@ -2,6 +2,7 @@
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/errno.h>	/* error codes */
 #include <linux/kernel.h>	/* printk */
@@ -37,14 +38,14 @@ static void sigd_put_skb(struct sk_buff *skb)
 	add_wait_queue(&sigd_sleep,&wait);
 	while (!sigd) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		pr_debug("atmsvc: waiting for signaling demon...\n");
+		pr_debug("atmsvc: waiting for signaling daemon...\n");
 		schedule();
 	}
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&sigd_sleep,&wait);
 #else
 	if (!sigd) {
-		pr_debug("atmsvc: no signaling demon\n");
+		pr_debug("atmsvc: no signaling daemon\n");
 		kfree_skb(skb);
 		return;
 	}
@@ -90,8 +91,7 @@ static int sigd_send(struct atm_vcc *vcc,struct sk_buff *skb)
 	msg = (struct atmsvc_msg *) skb->data;
 	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
 	vcc = *(struct atm_vcc **) &msg->vcc;
-	pr_debug("sigd_send %d (0x%lx)\n",(int) msg->type,
-	  (unsigned long) vcc);
+	pr_debug("%d (0x%lx)\n", (int)msg->type, (unsigned long)vcc);
 	sk = sk_atm(vcc);
 
 	switch (msg->type) {
@@ -150,8 +150,7 @@ as_indicate_complete:
 			clear_bit(ATM_VF_WAITING, &vcc->flags);
 			break;
 		default:
-			printk(KERN_ALERT "sigd_send: bad message type %d\n",
-			    (int) msg->type);
+			pr_alert("bad message type %d\n", (int)msg->type);
 			return -EINVAL;
 	}
 	sk->sk_state_change(sk);
@@ -169,7 +168,7 @@ void sigd_enq2(struct atm_vcc *vcc,enum atmsvc_msg_type type,
 	struct atmsvc_msg *msg;
 	static unsigned session = 0;
 
-	pr_debug("sigd_enq %d (0x%p)\n",(int) type,vcc);
+	pr_debug("%d (0x%p)\n", (int)type, vcc);
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg),GFP_KERNEL)))
 		schedule();
 	msg = (struct atmsvc_msg *) skb_put(skb,sizeof(struct atmsvc_msg));
@@ -219,10 +218,10 @@ static void sigd_close(struct atm_vcc *vcc)
 	struct sock *s;
 	int i;
 
-	pr_debug("sigd_close\n");
+	pr_debug("\n");
 	sigd = NULL;
 	if (skb_peek(&sk_atm(vcc)->sk_receive_queue))
-		printk(KERN_ERR "sigd_close: closing with requests pending\n");
+		pr_err("closing with requests pending\n");
 	skb_queue_purge(&sk_atm(vcc)->sk_receive_queue);
 
 	read_lock(&vcc_sklist_lock);
@@ -256,7 +255,7 @@ static struct atm_dev sigd_dev = {
 int sigd_attach(struct atm_vcc *vcc)
 {
 	if (sigd) return -EADDRINUSE;
-	pr_debug("sigd_attach\n");
+	pr_debug("\n");
 	sigd = vcc;
 	vcc->dev = &sigd_dev;
 	vcc_insert_socket(sk_atm(vcc));
