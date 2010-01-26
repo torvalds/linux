@@ -19,17 +19,12 @@ config CPU_S3C6410
 	help
 	  Enable S3C6410 CPU support
 
-config S3C6400_SETUP_SDHCI
-	bool
-	help
-	  Internal configuration for default SDHCI
-	  setup for S3C6400.
-
-config S3C6410_SETUP_SDHCI
-	bool
+config S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_SDHCI_GPIO
+	bool
 	help
-	  Internal helper functions for S3C6410 based SDHCI systems
+	  Internal configuration for default SDHCI setup for S3C6400 and
+	  S3C6410 SoCs.
 
 # S36400 Macchine support
 
@@ -38,7 +33,7 @@ config MACH_SMDK6400
 	select CPU_S3C6400
 	select S3C_DEV_HSMMC
 	select S3C_DEV_NAND
-	select S3C6400_SETUP_SDHCI
+	select S3C64XX_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDK6400
 
@@ -61,7 +56,7 @@ config MACH_SMDK6410
 	select S3C_DEV_FB
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
-	select S3C6410_SETUP_SDHCI
+	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_I2C1
 	select S3C64XX_SETUP_FB_24BPP
 	help

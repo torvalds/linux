@@ -17,8 +17,7 @@ obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 
 # setup support
 
-obj-$(CONFIG_S3C6400_SETUP_SDHCI) += setup-sdhci-s3c6400.o
-obj-$(CONFIG_S3C6410_SETUP_SDHCI) += setup-sdhci-s3c6410.o
+obj-$(CONFIG_S3C64XX_SETUP_SDHCI) += setup-sdhci.o
 
 # Machine support
 

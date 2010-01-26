@@ -5,7 +5,7 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *
- * S3C6410 - Helper functions for settign up SDHCI device(s) (HSMMC)
+ * S3C6400/S3C6410 - Helper functions for settign up SDHCI device(s) (HSMMC)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -26,24 +26,19 @@
 
 /* clock sources for the mmc bus clock, order as for the ctrl2[5..4] */
 
-char *s3c6410_hsmmc_clksrcs[4] = {
+char *s3c64xx_hsmmc_clksrcs[4] = {
 	[0] = "hsmmc",
 	[1] = "hsmmc",
 	[2] = "mmc_bus",
 	/* [3] = "48m", - note not successfully used yet */
 };
 
-
-void s3c6410_setup_sdhci0_cfg_card(struct platform_device *dev,
-				    void __iomem *r,
-				    struct mmc_ios *ios,
-				    struct mmc_card *card)
+void s3c6400_setup_sdhci_cfg_card(struct platform_device *dev,
+				  void __iomem *r,
+				  struct mmc_ios *ios,
+				  struct mmc_card *card)
 {
 	u32 ctrl2, ctrl3;
-
-	/* don't need to alter anything acording to card-type */
-
-	writel(S3C64XX_SDHCI_CONTROL4_DRIVE_9mA, r + S3C64XX_SDHCI_CONTROL4);
 
 	ctrl2 = readl(r + S3C_SDHCI_CONTROL2);
 	ctrl2 &= S3C_SDHCI_CTRL2_SELBASECLK_MASK;
@@ -66,3 +61,12 @@ void s3c6410_setup_sdhci0_cfg_card(struct platform_device *dev,
 	writel(ctrl3, r + S3C_SDHCI_CONTROL3);
 }
 
+void s3c6410_setup_sdhci_cfg_card(struct platform_device *dev,
+				  void __iomem *r,
+				  struct mmc_ios *ios,
+				  struct mmc_card *card)
+{
+	writel(S3C64XX_SDHCI_CONTROL4_DRIVE_9mA, r + S3C64XX_SDHCI_CONTROL4);
+
+	s3c6400_setup_sdhci_cfg_card(dev, r, ios, card);
+}
