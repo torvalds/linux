@@ -1233,7 +1233,7 @@ int nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-void nfs_commitdata_release(void *data)
+static void nfs_commitdata_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
