@@ -7,14 +7,12 @@
 
 config CPU_S3C6400
 	bool
-	select CPU_S3C6400_INIT
 	select CPU_S3C6400_CLOCK
 	help
 	  Enable S3C6400 CPU support
 
 config CPU_S3C6410
 	bool
-	select CPU_S3C6400_INIT
 	select CPU_S3C6400_CLOCK
 	help
 	  Enable S3C6410 CPU support
