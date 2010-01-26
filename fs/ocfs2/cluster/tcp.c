@@ -930,7 +930,7 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 			cond_resched();
 			continue;
 		}
-		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT 
+		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT
 		     " failed with %zd\n", size, SC_NODEF_ARGS(sc), ret);
 		o2net_ensure_shutdown(nn, sc, 0);
 		break;
@@ -1483,7 +1483,7 @@ static void o2net_idle_timer(unsigned long data)
 	mlog(ML_NOTICE, "here are some times that might help debug the "
 	     "situation: (tmr %ld.%ld now %ld.%ld dr %ld.%ld adv "
 	     "%ld.%ld:%ld.%ld func (%08x:%u) %ld.%ld:%ld.%ld)\n",
-	     sc->sc_tv_timer.tv_sec, (long) sc->sc_tv_timer.tv_usec, 
+	     sc->sc_tv_timer.tv_sec, (long) sc->sc_tv_timer.tv_usec,
 	     now.tv_sec, (long) now.tv_usec,
 	     sc->sc_tv_data_ready.tv_sec, (long) sc->sc_tv_data_ready.tv_usec,
 	     sc->sc_tv_advance_start.tv_sec,

@@ -1050,7 +1050,7 @@ static void dlm_move_reco_locks_to_list(struct dlm_ctxt *dlm,
 				if (lock->ml.node == dead_node) {
 					mlog(0, "AHA! there was "
 					     "a $RECOVERY lock for dead "
-					     "node %u (%s)!\n", 
+					     "node %u (%s)!\n",
 					     dead_node, dlm->name);
 					list_del_init(&lock->list);
 					dlm_lock_put(lock);
@@ -1839,7 +1839,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 				 * the lvb. */
 				memcpy(res->lvb, mres->lvb, DLM_LVB_LEN);
 			} else {
-				/* otherwise, the node is sending its 
+				/* otherwise, the node is sending its
 				 * most recent valid lvb info */
 				BUG_ON(ml->type != LKM_EXMODE &&
 				       ml->type != LKM_PRMODE);
@@ -2114,7 +2114,7 @@ static void dlm_revalidate_lvb(struct dlm_ctxt *dlm,
 	assert_spin_locked(&res->spinlock);
 
 	if (res->owner == dlm->node_num)
-		/* if this node owned the lockres, and if the dead node 
+		/* if this node owned the lockres, and if the dead node
 		 * had an EX when he died, blank out the lvb */
 		search_node = dead_node;
 	else {
@@ -2152,7 +2152,7 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 
 	/* this node is the lockres master:
 	 * 1) remove any stale locks for the dead node
-	 * 2) if the dead node had an EX when he died, blank out the lvb 
+	 * 2) if the dead node had an EX when he died, blank out the lvb
 	 */
 	assert_spin_locked(&dlm->spinlock);
 	assert_spin_locked(&res->spinlock);
@@ -2260,7 +2260,7 @@ static void dlm_do_local_recovery_cleanup(struct dlm_ctxt *dlm, u8 dead_node)
 				}
 				spin_unlock(&res->spinlock);
 				continue;
-			}			
+			}
 			spin_lock(&res->spinlock);
 			/* zero the lvb if necessary */
 			dlm_revalidate_lvb(dlm, res, dead_node);
@@ -2411,7 +2411,7 @@ static void dlm_reco_unlock_ast(void *astdata, enum dlm_status st)
  * this function on each node racing to become the recovery
  * master will not stop attempting this until either:
  * a) this node gets the EX (and becomes the recovery master),
- * or b) dlm->reco.new_master gets set to some nodenum 
+ * or b) dlm->reco.new_master gets set to some nodenum
  * != O2NM_INVALID_NODE_NUM (another node will do the reco).
  * so each time a recovery master is needed, the entire cluster
  * will sync at this point.  if the new master dies, that will
@@ -2424,7 +2424,7 @@ static int dlm_pick_recovery_master(struct dlm_ctxt *dlm)
 
 	mlog(0, "starting recovery of %s at %lu, dead=%u, this=%u\n",
 	     dlm->name, jiffies, dlm->reco.dead_node, dlm->node_num);
-again:	
+again:
 	memset(&lksb, 0, sizeof(lksb));
 
 	ret = dlmlock(dlm, LKM_EXMODE, &lksb, LKM_NOQUEUE|LKM_RECOVERY,
@@ -2437,8 +2437,8 @@ again:
 	if (ret == DLM_NORMAL) {
 		mlog(0, "dlm=%s dlmlock says I got it (this=%u)\n",
 		     dlm->name, dlm->node_num);
-		
-		/* got the EX lock.  check to see if another node 
+
+		/* got the EX lock.  check to see if another node
 		 * just became the reco master */
 		if (dlm_reco_master_ready(dlm)) {
 			mlog(0, "%s: got reco EX lock, but %u will "
@@ -2451,12 +2451,12 @@ again:
 			/* see if recovery was already finished elsewhere */
 			spin_lock(&dlm->spinlock);
 			if (dlm->reco.dead_node == O2NM_INVALID_NODE_NUM) {
-				status = -EINVAL;	
+				status = -EINVAL;
 				mlog(0, "%s: got reco EX lock, but "
 				     "node got recovered already\n", dlm->name);
 				if (dlm->reco.new_master != O2NM_INVALID_NODE_NUM) {
 					mlog(ML_ERROR, "%s: new master is %u "
-					     "but no dead node!\n", 
+					     "but no dead node!\n",
 					     dlm->name, dlm->reco.new_master);
 					BUG();
 				}
@@ -2468,7 +2468,7 @@ again:
 		 * set the master and send the messages to begin recovery */
 		if (!status) {
 			mlog(0, "%s: dead=%u, this=%u, sending "
-			     "begin_reco now\n", dlm->name, 
+			     "begin_reco now\n", dlm->name,
 			     dlm->reco.dead_node, dlm->node_num);
 			status = dlm_send_begin_reco_message(dlm,
 				      dlm->reco.dead_node);
@@ -2501,7 +2501,7 @@ again:
 		mlog(0, "dlm=%s dlmlock says another node got it (this=%u)\n",
 		     dlm->name, dlm->node_num);
 		/* another node is master. wait on
-		 * reco.new_master != O2NM_INVALID_NODE_NUM 
+		 * reco.new_master != O2NM_INVALID_NODE_NUM
 		 * for at most one second */
 		wait_event_timeout(dlm->dlm_reco_thread_wq,
 					 dlm_reco_master_ready(dlm),
@@ -2599,7 +2599,7 @@ retry:
 		}
 		if (ret < 0) {
 			struct dlm_lock_resource *res;
-			/* this is now a serious problem, possibly ENOMEM 
+			/* this is now a serious problem, possibly ENOMEM
 			 * in the network stack.  must retry */
 			mlog_errno(ret);
 			mlog(ML_ERROR, "begin reco of dlm %s to node %u "
@@ -2612,7 +2612,7 @@ retry:
 			} else {
 				mlog(ML_ERROR, "recovery lock not found\n");
 			}
-			/* sleep for a bit in hopes that we can avoid 
+			/* sleep for a bit in hopes that we can avoid
 			 * another ENOMEM */
 			msleep(100);
 			goto retry;
@@ -2664,7 +2664,7 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 	if (dlm->reco.dead_node != O2NM_INVALID_NODE_NUM) {
 		mlog(ML_NOTICE, "%s: dead_node previously set to %u, "
-		     "node %u changing it to %u\n", dlm->name, 
+		     "node %u changing it to %u\n", dlm->name,
 		     dlm->reco.dead_node, br->node_idx, br->dead_node);
 	}
 	dlm_set_reco_master(dlm, br->node_idx);
@@ -2730,8 +2730,8 @@ stage2:
 		if (ret < 0) {
 			mlog_errno(ret);
 			if (dlm_is_host_down(ret)) {
-				/* this has no effect on this recovery 
-				 * session, so set the status to zero to 
+				/* this has no effect on this recovery
+				 * session, so set the status to zero to
 				 * finish out the last recovery */
 				mlog(ML_ERROR, "node %u went down after this "
 				     "node finished recovery.\n", nodenum);
@@ -2768,7 +2768,7 @@ int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 	mlog(0, "%s: node %u finalizing recovery stage%d of "
 	     "node %u (%u:%u)\n", dlm->name, fr->node_idx, stage,
 	     fr->dead_node, dlm->reco.dead_node, dlm->reco.new_master);
- 
+
 	spin_lock(&dlm->spinlock);
 
 	if (dlm->reco.new_master != fr->node_idx) {
