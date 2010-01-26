@@ -4081,7 +4081,8 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_device *dev;
-	struct drm_gem_object *obj;
+	struct drm_gem_object *old_fb_obj;
+	struct drm_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	int pending;
 };
@@ -4092,8 +4093,8 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		container_of(__work, struct intel_unpin_work, work);
 
 	mutex_lock(&work->dev->struct_mutex);
-	i915_gem_object_unpin(work->obj);
-	drm_gem_object_unreference(work->obj);
+	i915_gem_object_unpin(work->old_fb_obj);
+	drm_gem_object_unreference(work->old_fb_obj);
 	mutex_unlock(&work->dev->struct_mutex);
 	kfree(work);
 }
@@ -4117,7 +4118,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	work = intel_crtc->unpin_work;
 	if (work == NULL || !work->pending) {
 		if (work && !work->pending) {
-			obj_priv = work->obj->driver_private;
+			obj_priv = work->pending_flip_obj->driver_private;
 			DRM_DEBUG_DRIVER("flip finish: %p (%d) not pending?\n",
 					 obj_priv,
 					 atomic_read(&obj_priv->pending_flip));
@@ -4142,7 +4143,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	obj_priv = work->obj->driver_private;
+	obj_priv = work->pending_flip_obj->driver_private;
 
 	/* Initial scanout buffer will have a 0 pending flip count */
 	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
@@ -4191,7 +4192,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->event = event;
 	work->dev = crtc->dev;
 	intel_fb = to_intel_framebuffer(crtc->fb);
-	work->obj = intel_fb->obj;
+	work->old_fb_obj = intel_fb->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
 	/* We borrow the event spin lock for protecting unpin_work */
@@ -4220,13 +4221,14 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	}
 
 	/* Reference the old fb object for the scheduled work. */
-	drm_gem_object_reference(work->obj);
+	drm_gem_object_reference(work->old_fb_obj);
 
 	crtc->fb = fb;
 	i915_gem_object_flush_write_domain(obj);
 	drm_vblank_get(dev, intel_crtc->pipe);
 	obj_priv = obj->driver_private;
 	atomic_inc(&obj_priv->pending_flip);
+	work->pending_flip_obj = obj;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_DISPLAY_FLIP |
