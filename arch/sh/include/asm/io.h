@@ -80,16 +80,51 @@
 #define writel(v,a)		({ __raw_writel((v),(a)); mb(); })
 #define writeq(v,a)		({ __raw_writeq((v),(a)); mb(); })
 
-/* SuperH on-chip I/O functions */
-#define ctrl_inb		__raw_readb
-#define ctrl_inw		__raw_readw
-#define ctrl_inl		__raw_readl
-#define ctrl_inq		__raw_readq
+/*
+ * Legacy SuperH on-chip I/O functions
+ *
+ * These are all deprecated, all new (and especially cross-platform) code
+ * should be using the __raw_xxx() routines directly.
+ */
+static inline u8 __deprecated ctrl_inb(unsigned long addr)
+{
+	return __raw_readb(addr);
+}
 
-#define ctrl_outb		__raw_writeb
-#define ctrl_outw		__raw_writew
-#define ctrl_outl		__raw_writel
-#define ctrl_outq		__raw_writeq
+static inline u16 __deprecated ctrl_inw(unsigned long addr)
+{
+	return __raw_readw(addr);
+}
+
+static inline u32 __deprecated ctrl_inl(unsigned long addr)
+{
+	return __raw_readl(addr);
+}
+
+static inline u64 __deprecated ctrl_inq(unsigned long addr)
+{
+	return __raw_readq(addr);
+}
+
+static inline void __deprecated ctrl_outb(u8 v, unsigned long addr)
+{
+	__raw_writeb(v, addr);
+}
+
+static inline void __deprecated ctrl_outw(u16 v, unsigned long addr)
+{
+	__raw_writew(v, addr);
+}
+
+static inline void __deprecated ctrl_outl(u32 v, unsigned long addr)
+{
+	__raw_writel(v, addr);
+}
+
+static inline void __deprecated ctrl_outq(u64 v, unsigned long addr)
+{
+	__raw_writeq(v, addr);
+}
 
 extern unsigned long generic_io_base;
 
