@@ -30,7 +30,7 @@
 
 #include <plat/cpu-freq.h>
 #include <plat/regs-serial.h>
-#include <plat/regs-clock.h>
+#include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>

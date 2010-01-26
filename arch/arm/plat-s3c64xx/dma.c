@@ -28,7 +28,7 @@
 #include <mach/irqs.h>
 
 #include <plat/dma-plat.h>
-#include <plat/regs-sys.h>
+#include <mach/regs-sys.h>
 
 #include <asm/hardware/pl080.h>
 

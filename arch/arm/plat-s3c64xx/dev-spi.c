@@ -16,11 +16,10 @@
 #include <mach/dma.h>
 #include <mach/map.h>
 #include <mach/gpio.h>
+#include <mach/gpio-bank-c.h>
 
 #include <plat/spi-clocks.h>
-
 #include <plat/s3c64xx-spi.h>
-#include <plat/gpio-bank-c.h>
 #include <plat/gpio-cfg.h>
 #include <plat/irqs.h>
 

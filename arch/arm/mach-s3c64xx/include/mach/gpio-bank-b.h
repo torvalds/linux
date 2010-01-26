@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c64xx/include/plat/gpio-bank-b.h
+/* linux/arch/arm/mach-s3c64xx/include/mach/gpio-bank-b.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics

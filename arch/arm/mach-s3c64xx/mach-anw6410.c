@@ -49,8 +49,8 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/regs-gpio.h>
-#include <plat/regs-modem.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-modem.h>
 
 /* DM9000 */
 #define ANW6410_PA_DM9000	(0x18000000)

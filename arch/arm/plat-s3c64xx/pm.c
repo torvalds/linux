@@ -20,14 +20,14 @@
 #include <mach/map.h>
 
 #include <plat/pm.h>
-#include <plat/regs-sys.h>
-#include <plat/regs-gpio.h>
-#include <plat/regs-clock.h>
-#include <plat/regs-syscon-power.h>
-#include <plat/regs-gpio-memport.h>
+#include <mach/regs-sys.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-syscon-power.h>
+#include <mach/regs-gpio-memport.h>
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
-#include <plat/gpio-bank-n.h>
+#include <mach/gpio-bank-n.h>
 
 void s3c_pm_debug_smdkled(u32 set, u32 clear)
 {

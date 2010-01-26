@@ -1,4 +1,4 @@
-/* linux/0arch/arm/plat-s3c64xx/sleep.S
+/* linux/arch/arm/plat-s3c64xx/sleep.S
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
@@ -19,8 +19,8 @@
 #undef S3C64XX_VA_GPIO
 #define S3C64XX_VA_GPIO (0x0)
 
-#include <plat/regs-gpio.h>
-#include <plat/gpio-bank-n.h>
+#include <mach/regs-gpio.h>
+#include <mach/gpio-bank-n.h>
 
 #define LL_UART (S3C_PA_UART + (0x400 * CONFIG_S3C_LOWLEVEL_UART_PORT))
 

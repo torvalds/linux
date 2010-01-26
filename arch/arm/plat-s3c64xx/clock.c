@@ -21,8 +21,8 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 
-#include <plat/regs-sys.h>
-#include <plat/regs-clock.h>
+#include <mach/regs-sys.h>
+#include <mach/regs-clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>

@@ -23,7 +23,7 @@
 
 #include <plat/regs-serial.h>
 #include <plat/regs-timer.h>
-#include <plat/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
 

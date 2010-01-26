@@ -19,11 +19,12 @@
 
 #include <plat/devs.h>
 #include <plat/audio.h>
-#include <plat/gpio-bank-c.h>
-#include <plat/gpio-bank-d.h>
-#include <plat/gpio-bank-e.h>
-#include <plat/gpio-bank-h.h>
 #include <plat/gpio-cfg.h>
+
+#include <mach/gpio-bank-c.h>
+#include <mach/gpio-bank-d.h>
+#include <mach/gpio-bank-e.h>
+#include <mach/gpio-bank-h.h>
 
 static int s3c64xx_i2sv3_cfg_gpio(struct platform_device *pdev)
 {

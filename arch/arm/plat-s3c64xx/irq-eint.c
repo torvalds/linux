@@ -22,7 +22,7 @@
 #include <asm/hardware/vic.h>
 
 #include <plat/regs-irqtype.h>
-#include <plat/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <plat/gpio-cfg.h>
 
 #include <mach/map.h>

@@ -18,8 +18,8 @@
 struct platform_device; /* don't need the contents */
 
 #include <mach/gpio.h>
+#include <mach/gpio-bank-b.h>
 #include <plat/iic.h>
-#include <plat/gpio-bank-b.h>
 #include <plat/gpio-cfg.h>
 
 void s3c_i2c1_cfg_gpio(struct platform_device *dev)

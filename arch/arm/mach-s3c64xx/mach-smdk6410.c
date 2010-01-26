@@ -46,10 +46,10 @@
 #include <asm/mach-types.h>
 
 #include <plat/regs-serial.h>
-#include <plat/regs-modem.h>
-#include <plat/regs-gpio.h>
-#include <plat/regs-sys.h>
-#include <plat/regs-srom.h>
+#include <mach/regs-modem.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-sys.h>
+#include <mach/regs-srom.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
