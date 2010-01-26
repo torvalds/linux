@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c64xx/include/plat/s3c6410.h
+/* arch/arm/mach-s3c64xx/include/mach/s3c6410.h
  *
  * Copyright 2008 Openmoko,  Inc.
  * Copyright 2008 Simtec Electronics

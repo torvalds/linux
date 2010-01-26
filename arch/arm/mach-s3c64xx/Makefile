@@ -10,6 +10,11 @@ obj-m				:=
 obj-n				:=
 obj-				:=
 
+# Core files
+obj-y				+= cpu.o
+obj-y				+= clock.o
+obj-y				+= gpiolib.o
+
 # Core support for S3C6400 system
 
 obj-$(CONFIG_CPU_S3C6400)	+= s3c6400.o
@@ -17,6 +22,14 @@ obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 
 obj-y				+= irq.o
 obj-y				+= irq-eint.o
+
+# CPU frequency scaling
+
+obj-$(CONFIG_CPU_FREQ_S3C64XX)  += cpufreq.o
+
+# DMA support
+
+obj-$(CONFIG_S3C64XX_DMA)	+= dma.o
 
 # Device setup
 
@@ -28,6 +41,8 @@ obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO) += setup-sdhci-gpio.o
 
 # PM
 
+obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_PM)		+= sleep.o
 obj-$(CONFIG_PM)		+= irq-pm.o
 
 # Machine support

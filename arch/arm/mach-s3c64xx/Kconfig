@@ -19,6 +19,10 @@ config CPU_S3C6410
 	help
 	  Enable S3C6410 CPU support
 
+config S3C64XX_DMA
+	bool "S3C64XX DMA"
+	select S3C_DMA
+
 config S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_SDHCI_GPIO
 	bool

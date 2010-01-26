@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c64xx/include/plat/s3c6400.h
+/* arch/arm/mach-s3c64xx/include/macht/s3c6400.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
@@ -33,4 +33,3 @@ extern void s3c6400_init_clocks(int xtal);
 #define s3c6400_map_io NULL
 #define s3c6400_init NULL
 #endif
-

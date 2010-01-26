@@ -18,8 +18,8 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/s3c6400.h>
-#include <plat/s3c6410.h>
+#include <mach/s3c6400.h>
+#include <mach/s3c6410.h>
 
 /* uart registration process */
 

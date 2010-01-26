@@ -37,7 +37,7 @@
 #include <plat/clock.h>
 #include <plat/sdhci.h>
 #include <plat/iic-core.h>
-#include <plat/s3c6400.h>
+#include <mach/s3c6400.h>
 
 void __init s3c6400_map_io(void)
 {

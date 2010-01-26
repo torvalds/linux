@@ -23,6 +23,8 @@
 
 #include <mach/regs-sys.h>
 #include <mach/regs-clock.h>
+#include <mach/pll.h>
+
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
