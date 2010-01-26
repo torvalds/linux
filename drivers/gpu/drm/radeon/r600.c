@@ -624,7 +624,6 @@ int r600_mc_init(struct radeon_device *rdev)
 	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
-	int r;
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
@@ -667,9 +666,6 @@ int r600_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 
 	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r)
-			return r;
 		/* gtt_size is setup by radeon_agp_init */
 		rdev->mc.gtt_location = rdev->mc.agp_base;
 		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
@@ -1958,14 +1954,17 @@ int r600_suspend(struct radeon_device *rdev)
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
 	rdev->cp.ready = false;
+	r600_irq_suspend(rdev);
 	r600_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0))
-		return r;
-	radeon_bo_unpin(rdev->r600_blit.shader_obj);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (!r) {
+			radeon_bo_unpin(rdev->r600_blit.shader_obj);
+			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		}
+	}
 	return 0;
 }
 
@@ -2026,6 +2025,11 @@ int r600_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r)
+			radeon_agp_disable(rdev);
+	}
 	r = r600_mc_init(rdev);
 	if (r)
 		return r;
@@ -2060,13 +2064,14 @@ int r600_init(struct radeon_device *rdev)
 	if (rdev->accel_working) {
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
-			DRM_ERROR("radeon: failed initializing IB pool (%d).\n", r);
+			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 			rdev->accel_working = false;
-		}
-		r = r600_ib_test(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-			rdev->accel_working = false;
+		} else {
+			r = r600_ib_test(rdev);
+			if (r) {
+				dev_err(rdev->dev, "IB test failed (%d).\n", r);
+				rdev->accel_working = false;
+			}
 		}
 	}
 
@@ -2197,14 +2202,14 @@ void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rb_bufsz = drm_order(ring_size / 4);
 	ring_size = (1 << rb_bufsz) * 4;
 	rdev->ih.ring_size = ring_size;
-	rdev->ih.align_mask = 4 - 1;
+	rdev->ih.ptr_mask = rdev->ih.ring_size - 1;
+	rdev->ih.rptr = 0;
 }
 
-static int r600_ih_ring_alloc(struct radeon_device *rdev, unsigned ring_size)
+static int r600_ih_ring_alloc(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->ih.ring_size = ring_size;
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
@@ -2234,9 +2239,6 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev, unsigned ring_size)
 			return r;
 		}
 	}
-	rdev->ih.ptr_mask = (rdev->cp.ring_size / 4) - 1;
-	rdev->ih.rptr = 0;
-
 	return 0;
 }
 
@@ -2386,7 +2388,7 @@ int r600_irq_init(struct radeon_device *rdev)
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
 
 	/* allocate ring */
-	ret = r600_ih_ring_alloc(rdev, rdev->ih.ring_size);
+	ret = r600_ih_ring_alloc(rdev);
 	if (ret)
 		return ret;
 
@@ -2449,10 +2451,15 @@ int r600_irq_init(struct radeon_device *rdev)
 	return ret;
 }
 
-void r600_irq_fini(struct radeon_device *rdev)
+void r600_irq_suspend(struct radeon_device *rdev)
 {
 	r600_disable_interrupts(rdev);
 	r600_rlc_stop(rdev);
+}
+
+void r600_irq_fini(struct radeon_device *rdev)
+{
+	r600_irq_suspend(rdev);
 	r600_ih_ring_fini(rdev);
 }
 
@@ -2467,8 +2474,12 @@ int r600_irq_set(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
-	if (!rdev->ih.enabled)
+	if (!rdev->ih.enabled) {
+		r600_disable_interrupts(rdev);
+		/* force the active interrupt state to all disabled */
+		r600_disable_interrupt_state(rdev);
 		return 0;
+	}
 
 	if (ASIC_IS_DCE3(rdev)) {
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -2638,16 +2649,18 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
 	wptr = RREG32(IH_RB_WPTR);
 
 	if (wptr & RB_OVERFLOW) {
-		WARN_ON(1);
-		/* XXX deal with overflow */
-		DRM_ERROR("IH RB overflow\n");
+		/* When a ring buffer overflow happen start parsing interrupt
+		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * this should allow us to catchup.
+		 */
+		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, %d, %d)\n",
+			wptr, rdev->ih.rptr, (wptr + 16) + rdev->ih.ptr_mask);
+		rdev->ih.rptr = (wptr + 16) & rdev->ih.ptr_mask;
 		tmp = RREG32(IH_RB_CNTL);
 		tmp |= IH_WPTR_OVERFLOW_CLEAR;
 		WREG32(IH_RB_CNTL, tmp);
 	}
-	wptr = wptr & WPTR_OFFSET_MASK;
-
-	return wptr;
+	return (wptr & rdev->ih.ptr_mask);
 }
 
 /*        r600 IV Ring
@@ -2683,12 +2696,13 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 wptr = r600_get_ih_wptr(rdev);
 	u32 rptr = rdev->ih.rptr;
 	u32 src_id, src_data;
-	u32 last_entry = rdev->ih.ring_size - 16;
 	u32 ring_index, disp_int, disp_int_cont, disp_int_cont2;
 	unsigned long flags;
 	bool queue_hotplug = false;
 
 	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
+	if (!rdev->ih.enabled)
+		return IRQ_NONE;
 
 	spin_lock_irqsave(&rdev->ih.lock, flags);
 
@@ -2817,10 +2831,8 @@ restart_ih:
 		}
 
 		/* wptr/rptr are in bytes! */
-		if (rptr == last_entry)
-			rptr = 0;
-		else
-			rptr += 16;
+		rptr += 16;
+		rptr &= rdev->ih.ptr_mask;
 	}
 	/* make sure wptr hasn't changed while processing */
 	wptr = r600_get_ih_wptr(rdev);
