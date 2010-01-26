@@ -130,7 +130,7 @@ void iint_free(struct kref *kref);
 void iint_rcu_free(struct rcu_head *rcu);
 
 /* IMA policy related functions */
-enum ima_hooks { PATH_CHECK = 1, FILE_MMAP, BPRM_CHECK };
+enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
 
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
 void ima_init_policy(void);

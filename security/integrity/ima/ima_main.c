@@ -153,7 +153,7 @@ void ima_counts_get(struct file *file)
 	if (!iint)
 		return;
 	mutex_lock(&iint->mutex);
-	rc = ima_must_measure(iint, inode, MAY_READ, PATH_CHECK);
+	rc = ima_must_measure(iint, inode, MAY_READ, FILE_CHECK);
 	if (rc < 0)
 		goto out;
 
@@ -312,7 +312,7 @@ int ima_file_check(struct file *file, int mask)
 
 	rc = process_measurement(file, file->f_dentry->d_name.name,
 				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
-				 PATH_CHECK);
+				 FILE_CHECK);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
