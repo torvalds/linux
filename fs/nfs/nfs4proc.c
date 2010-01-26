@@ -256,12 +256,8 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			ret = nfs4_wait_clnt_recover(clp);
 			if (ret == 0)
 				exception->retry = 1;
-#if !defined(CONFIG_NFS_V4_1)
 			break;
-#else /* !defined(CONFIG_NFS_V4_1) */
-			if (!nfs4_has_session(server->nfs_client))
-				break;
-			/* FALLTHROUGH */
+#if defined(CONFIG_NFS_V4_1)
 		case -NFS4ERR_BADSESSION:
 		case -NFS4ERR_BADSLOT:
 		case -NFS4ERR_BAD_HIGH_SLOT:
@@ -274,7 +270,7 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			nfs4_schedule_state_recovery(clp);
 			exception->retry = 1;
 			break;
-#endif /* !defined(CONFIG_NFS_V4_1) */
+#endif /* defined(CONFIG_NFS_V4_1) */
 		case -NFS4ERR_FILE_OPEN:
 			if (exception->timeout > HZ) {
 				/* We have retried a decent amount, time to
