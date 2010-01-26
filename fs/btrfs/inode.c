@@ -3797,12 +3797,6 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 
 	if (location.type == BTRFS_INODE_ITEM_KEY) {
 		inode = btrfs_iget(dir->i_sb, &location, root);
-		if (unlikely(root->clean_orphans) &&
-		    !(inode->i_sb->s_flags & MS_RDONLY)) {
-			down_read(&root->fs_info->cleanup_work_sem);
-			btrfs_orphan_cleanup(root);
-			up_read(&root->fs_info->cleanup_work_sem);
-		}
 		return inode;
 	}
 
