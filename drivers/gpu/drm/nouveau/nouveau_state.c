@@ -825,6 +825,15 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = dev_priv->vm_vram_base;
 		break;
+	case NOUVEAU_GETPARAM_GRAPH_UNITS:
+		/* NV40 and NV50 versions are quite different, but register
+		 * address is the same. User is supposed to know the card
+		 * family anyway... */
+		if (dev_priv->chipset >= 0x40) {
+			getparam->value = nv_rd32(dev, NV40_PMC_GRAPH_UNITS);
+			break;
+		}
+		/* FALLTHRU */
 	default:
 		NV_ERROR(dev, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
