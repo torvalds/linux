@@ -310,7 +310,8 @@ static struct async *async_getpending(struct dev_state *ps,
 
 static void snoop_urb(struct usb_device *udev,
 		void __user *userurb, int pipe, unsigned length,
-		int timeout_or_status, enum snoop_when when)
+		int timeout_or_status, enum snoop_when when,
+		unsigned char *data, unsigned data_len)
 {
 	static const char *types[] = {"isoc", "int", "ctrl", "bulk"};
 	static const char *dirs[] = {"out", "in"};
@@ -343,6 +344,11 @@ static void snoop_urb(struct usb_device *udev,
 			dev_info(&udev->dev, "ep%d %s-%s, actual_length %u, "
 					"status %d\n",
 					ep, t, d, length, timeout_or_status);
+	}
+
+	if (data && data_len > 0) {
+		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE, 32, 1,
+			data, data_len, 1);
 	}
 }
 
@@ -410,7 +416,9 @@ static void async_completed(struct urb *urb)
 	}
 	snoop(&urb->dev->dev, "urb complete\n");
 	snoop_urb(urb->dev, as->userurb, urb->pipe, urb->actual_length,
-			as->status, COMPLETE);
+			as->status, COMPLETE,
+			((urb->transfer_flags & URB_DIR_MASK) == USB_DIR_OUT) ?
+				NULL : urb->transfer_buffer, urb->actual_length);
 	if (as->status < 0 && as->bulk_addr && as->status != -ECONNRESET &&
 			as->status != -ENOENT)
 		cancel_bulk_urbs(ps, as->bulk_addr);
@@ -774,6 +782,13 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 	if (!tbuf)
 		return -ENOMEM;
 	tmo = ctrl.timeout;
+	snoop(&dev->dev, "control urb: bRequestType=%02x "
+		"bRequest=%02x wValue=%04x "
+		"wIndex=%04x wLength=%04x\n",
+		ctrl.bRequestType, ctrl.bRequest,
+		__le16_to_cpup(&ctrl.wValue),
+		__le16_to_cpup(&ctrl.wIndex),
+		__le16_to_cpup(&ctrl.wLength));
 	if (ctrl.bRequestType & 0x80) {
 		if (ctrl.wLength && !access_ok(VERIFY_WRITE, ctrl.data,
 					       ctrl.wLength)) {
@@ -781,15 +796,15 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 			return -EINVAL;
 		}
 		pipe = usb_rcvctrlpipe(dev, 0);
-		snoop_urb(dev, NULL, pipe, ctrl.wLength, tmo, SUBMIT);
+		snoop_urb(dev, NULL, pipe, ctrl.wLength, tmo, SUBMIT, NULL, 0);
 
 		usb_unlock_device(dev);
 		i = usb_control_msg(dev, pipe, ctrl.bRequest,
 				    ctrl.bRequestType, ctrl.wValue, ctrl.wIndex,
 				    tbuf, ctrl.wLength, tmo);
 		usb_lock_device(dev);
-		snoop_urb(dev, NULL, pipe, max(i, 0), min(i, 0), COMPLETE);
-
+		snoop_urb(dev, NULL, pipe, max(i, 0), min(i, 0), COMPLETE,
+			tbuf, i);
 		if ((i > 0) && ctrl.wLength) {
 			if (copy_to_user(ctrl.data, tbuf, i)) {
 				free_page((unsigned long)tbuf);
@@ -804,14 +819,15 @@ static int proc_control(struct dev_state *ps, void __user *arg)
 			}
 		}
 		pipe = usb_sndctrlpipe(dev, 0);
-		snoop_urb(dev, NULL, pipe, ctrl.wLength, tmo, SUBMIT);
+		snoop_urb(dev, NULL, pipe, ctrl.wLength, tmo, SUBMIT,
+			tbuf, ctrl.wLength);
 
 		usb_unlock_device(dev);
 		i = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), ctrl.bRequest,
 				    ctrl.bRequestType, ctrl.wValue, ctrl.wIndex,
 				    tbuf, ctrl.wLength, tmo);
 		usb_lock_device(dev);
-		snoop_urb(dev, NULL, pipe, max(i, 0), min(i, 0), COMPLETE);
+		snoop_urb(dev, NULL, pipe, max(i, 0), min(i, 0), COMPLETE, NULL, 0);
 	}
 	free_page((unsigned long)tbuf);
 	if (i < 0 && i != -EPIPE) {
@@ -857,12 +873,12 @@ static int proc_bulk(struct dev_state *ps, void __user *arg)
 			kfree(tbuf);
 			return -EINVAL;
 		}
-		snoop_urb(dev, NULL, pipe, len1, tmo, SUBMIT);
+		snoop_urb(dev, NULL, pipe, len1, tmo, SUBMIT, NULL, 0);
 
 		usb_unlock_device(dev);
 		i = usb_bulk_msg(dev, pipe, tbuf, len1, &len2, tmo);
 		usb_lock_device(dev);
-		snoop_urb(dev, NULL, pipe, len2, i, COMPLETE);
+		snoop_urb(dev, NULL, pipe, len2, i, COMPLETE, tbuf, len2);
 
 		if (!i && len2) {
 			if (copy_to_user(bulk.data, tbuf, len2)) {
@@ -877,12 +893,12 @@ static int proc_bulk(struct dev_state *ps, void __user *arg)
 				return -EFAULT;
 			}
 		}
-		snoop_urb(dev, NULL, pipe, len1, tmo, SUBMIT);
+		snoop_urb(dev, NULL, pipe, len1, tmo, SUBMIT, tbuf, len1);
 
 		usb_unlock_device(dev);
 		i = usb_bulk_msg(dev, pipe, tbuf, len1, &len2, tmo);
 		usb_lock_device(dev);
-		snoop_urb(dev, NULL, pipe, len2, i, COMPLETE);
+		snoop_urb(dev, NULL, pipe, len2, i, COMPLETE, NULL, 0);
 	}
 	kfree(tbuf);
 	if (i < 0)
@@ -1101,6 +1117,13 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			is_in = 0;
 			uurb->endpoint &= ~USB_DIR_IN;
 		}
+		snoop(&ps->dev->dev, "control urb: bRequestType=%02x "
+			"bRequest=%02x wValue=%04x "
+			"wIndex=%04x wLength=%04x\n",
+			dr->bRequestType, dr->bRequest,
+			__le16_to_cpup(&dr->wValue),
+			__le16_to_cpup(&dr->wIndex),
+			__le16_to_cpup(&dr->wLength));
 		break;
 
 	case USBDEVFS_URB_TYPE_BULK:
@@ -1244,7 +1267,9 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		}
 	}
 	snoop_urb(ps->dev, as->userurb, as->urb->pipe,
-			as->urb->transfer_buffer_length, 0, SUBMIT);
+			as->urb->transfer_buffer_length, 0, SUBMIT,
+			is_in ? NULL : as->urb->transfer_buffer,
+				uurb->buffer_length);
 	async_newpending(as);
 
 	if (usb_endpoint_xfer_bulk(&ep->desc)) {
@@ -1282,7 +1307,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		dev_printk(KERN_DEBUG, &ps->dev->dev,
 			   "usbfs: usb_submit_urb returned %d\n", ret);
 		snoop_urb(ps->dev, as->userurb, as->urb->pipe,
-				0, ret, COMPLETE);
+				0, ret, COMPLETE, NULL, 0);
 		async_removepending(as);
 		free_async(as);
 		return ret;
