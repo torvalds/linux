@@ -2412,6 +2412,7 @@ static void ohci_pmac_off(struct pci_dev *dev)
 
 #define PCI_VENDOR_ID_AGERE		PCI_VENDOR_ID_ATT
 #define PCI_DEVICE_ID_AGERE_FW643	0x5901
+#define PCI_DEVICE_ID_TI_TSB43AB23	0x8024
 
 static int __devinit pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
@@ -2477,7 +2478,8 @@ static int __devinit pci_probe(struct pci_dev *dev,
 #if !defined(CONFIG_X86_32)
 	/* dual-buffer mode is broken with descriptor addresses above 2G */
 	if (dev->vendor == PCI_VENDOR_ID_TI &&
-	    dev->device == PCI_DEVICE_ID_TI_TSB43AB22)
+	    (dev->device == PCI_DEVICE_ID_TI_TSB43AB22 ||
+	     dev->device == PCI_DEVICE_ID_TI_TSB43AB23))
 		ohci->use_dualbuffer = false;
 #endif
 
