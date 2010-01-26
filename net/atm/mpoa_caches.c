@@ -11,17 +11,23 @@
  */
 
 #if 0
-#define dprintk(format, args...) printk(KERN_DEBUG format, ##args)  /* debug */
+#define dprintk(format, args...)					\
+	printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args)  /* debug */
 #else
-#define dprintk(format, args...)			\
-	do { if (0) printk(KERN_DEBUG format, ##args); } while (0)
+#define dprintk(format, args...)					\
+	do { if (0)							\
+		printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args);\
+	} while (0)
 #endif
 
 #if 0
-#define ddprintk printk(KERN_DEBUG format, ##args)  /* more debug */
+#define ddprintk(format, args...)					\
+	printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args)  /* debug */
 #else
-#define ddprintk(format, args...)			\
-	do { if (0) printk(KERN_DEBUG format, ##args); } while (0)
+#define ddprintk(format, args...)					\
+	do { if (0)							\
+		printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args);\
+	} while (0)
 #endif
 
 static in_cache_entry *in_cache_get(__be32 dst_ip,
@@ -96,11 +102,10 @@ static in_cache_entry *in_cache_add_entry(__be32 dst_ip,
 		return NULL;
 	}
 
-	dprintk("mpoa: mpoa_caches.c: adding an ingress entry, ip = %pI4\n",
-		&dst_ip);
+	dprintk("adding an ingress entry, ip = %pI4\n", &dst_ip);
 
 	atomic_set(&entry->use, 1);
-	dprintk("mpoa: mpoa_caches.c: new_in_cache_entry: about to lock\n");
+	dprintk("new_in_cache_entry: about to lock\n");
 	write_lock_bh(&client->ingress_lock);
 	entry->next = client->in_cache;
 	entry->prev = NULL;
@@ -118,7 +123,7 @@ static in_cache_entry *in_cache_add_entry(__be32 dst_ip,
 	atomic_inc(&entry->use);
 
 	write_unlock_bh(&client->ingress_lock);
-	dprintk("mpoa: mpoa_caches.c: new_in_cache_entry: unlocked\n");
+	dprintk("new_in_cache_entry: unlocked\n");
 
 	return entry;
 }
@@ -154,7 +159,7 @@ static int cache_hit(in_cache_entry *entry, struct mpoa_client *mpc)
 
 	if (entry->count > mpc->parameters.mpc_p1 &&
 	    entry->entry_state == INGRESS_INVALID) {
-		dprintk("mpoa: (%s) mpoa_caches.c: threshold exceeded for ip %pI4, sending MPOA res req\n",
+		dprintk("(%s) threshold exceeded for ip %pI4, sending MPOA res req\n",
 			mpc->dev->name, &entry->ctrl_info.in_dst_ip);
 		entry->entry_state = INGRESS_RESOLVING;
 		msg.type = SND_MPOA_RES_RQST;
@@ -190,7 +195,7 @@ static void in_cache_remove_entry(in_cache_entry *entry,
 	struct k_message msg;
 
 	vcc = entry->shortcut;
-	dprintk("mpoa: mpoa_caches.c: removing an ingress entry, ip = %pI4\n",
+	dprintk("removing an ingress entry, ip = %pI4\n",
 		&entry->ctrl_info.in_dst_ip);
 
 	if (entry->prev != NULL)
@@ -235,7 +240,7 @@ static void clear_count_and_expired(struct mpoa_client *client)
 		next_entry = entry->next;
 		if ((now.tv_sec - entry->tv.tv_sec)
 		   > entry->ctrl_info.holding_time) {
-			dprintk("mpoa: mpoa_caches.c: holding time expired, ip = %pI4\n",
+			dprintk("holding time expired, ip = %pI4\n",
 				&entry->ctrl_info.in_dst_ip);
 			client->in_ops->remove_entry(entry, client);
 		}
@@ -302,7 +307,7 @@ static void refresh_entries(struct mpoa_client *client)
 	struct timeval now;
 	struct in_cache_entry *entry = client->in_cache;
 
-	ddprintk("mpoa: mpoa_caches.c: refresh_entries\n");
+	ddprintk("refresh_entries\n");
 	do_gettimeofday(&now);
 
 	read_lock_bh(&client->ingress_lock);
@@ -312,7 +317,7 @@ static void refresh_entries(struct mpoa_client *client)
 				entry->refresh_time = (2 * (entry->ctrl_info.holding_time))/3;
 			if ((now.tv_sec - entry->reply_wait.tv_sec) >
 			    entry->refresh_time) {
-				dprintk("mpoa: mpoa_caches.c: refreshing an entry.\n");
+				dprintk("refreshing an entry.\n");
 				entry->entry_state = INGRESS_REFRESHING;
 
 			}
@@ -435,7 +440,7 @@ static void eg_cache_remove_entry(eg_cache_entry *entry,
 	struct k_message msg;
 
 	vcc = entry->shortcut;
-	dprintk("mpoa: mpoa_caches.c: removing an egress entry.\n");
+	dprintk("removing an egress entry.\n");
 	if (entry->prev != NULL)
 		entry->prev->next = entry->next;
 	else
@@ -471,11 +476,11 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg,
 		return NULL;
 	}
 
-	dprintk("mpoa: mpoa_caches.c: adding an egress entry, ip = %pI4, this should be our IP\n",
+	dprintk("adding an egress entry, ip = %pI4, this should be our IP\n",
 		&msg->content.eg_info.eg_dst_ip);
 
 	atomic_set(&entry->use, 1);
-	dprintk("mpoa: mpoa_caches.c: new_eg_cache_entry: about to lock\n");
+	dprintk("new_eg_cache_entry: about to lock\n");
 	write_lock_irq(&client->egress_lock);
 	entry->next = client->eg_cache;
 	entry->prev = NULL;
@@ -487,14 +492,13 @@ static eg_cache_entry *eg_cache_add_entry(struct k_message *msg,
 	entry->ctrl_info = msg->content.eg_info;
 	do_gettimeofday(&(entry->tv));
 	entry->entry_state = EGRESS_RESOLVED;
-	dprintk("mpoa: mpoa_caches.c: new_eg_cache_entry cache_id %u\n",
+	dprintk("new_eg_cache_entry cache_id %u\n",
 		ntohl(entry->ctrl_info.cache_id));
-	dprintk("mpoa: mpoa_caches.c: mps_ip = %pI4\n",
-		&entry->ctrl_info.mps_ip);
+	dprintk("mps_ip = %pI4\n", &entry->ctrl_info.mps_ip);
 	atomic_inc(&entry->use);
 
 	write_unlock_irq(&client->egress_lock);
-	dprintk("mpoa: mpoa_caches.c: new_eg_cache_entry: unlocked\n");
+	dprintk("new_eg_cache_entry: unlocked\n");
 
 	return entry;
 }
@@ -524,7 +528,7 @@ static void clear_expired(struct mpoa_client *client)
 		   > entry->ctrl_info.holding_time) {
 			msg.type = SND_EGRESS_PURGE;
 			msg.content.eg_info = entry->ctrl_info;
-			dprintk("mpoa: mpoa_caches.c: egress_cache: holding time expired, cache_id = %u.\n",
+			dprintk("egress_cache: holding time expired, cache_id = %u.\n",
 				ntohl(entry->ctrl_info.cache_id));
 			msg_to_mpoad(&msg, client);
 			client->eg_ops->remove_entry(entry, client);

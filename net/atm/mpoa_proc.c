@@ -21,10 +21,23 @@
  */
 
 #if 1
-#define dprintk(format, args...) printk(KERN_DEBUG format, ##args)   /* debug */
+#define dprintk(format, args...)					\
+	printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args)  /* debug */
 #else
-#define dprintk(format, args...)			\
-	do { if (0) printk(KERN_DEBUG format, ##args); } while (0)
+#define dprintk(format, args...)					\
+	do { if (0)							\
+		printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args);\
+	} while (0)
+#endif
+
+#if 0
+#define ddprintk(format, args...)					\
+	printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args)  /* debug */
+#else
+#define ddprintk(format, args...)					\
+	do { if (0)							\
+		printk(KERN_DEBUG "mpoa:%s: " format, __FILE__, ##args);\
+	} while (0)
 #endif
 
 #define STAT_FILE_NAME "mpc"     /* Our statistic file's name */
@@ -258,12 +271,9 @@ static int parse_qos(const char *buff)
 	qos.rxtp.max_pcr = rx_pcr;
 	qos.rxtp.max_sdu = rx_sdu;
 	qos.aal = ATM_AAL5;
-	dprintk("mpoa: mpoa_proc.c: parse_qos(): setting qos paramameters to tx=%d,%d rx=%d,%d\n",
-		qos.txtp.max_pcr,
-		qos.txtp.max_sdu,
-		qos.rxtp.max_pcr,
-		qos.rxtp.max_sdu
-		);
+	dprintk("parse_qos(): setting qos paramameters to tx=%d,%d rx=%d,%d\n",
+		qos.txtp.max_pcr, qos.txtp.max_sdu,
+		qos.rxtp.max_pcr, qos.rxtp.max_sdu);
 
 	atm_mpoa_add_qos(ipaddr, &qos);
 	return 1;
