@@ -56,22 +56,12 @@ char * __init prom_getcmdline(void)
 
 static void  __init ar7_init_cmdline(int argc, char *argv[])
 {
-	char *cp;
-	int actr;
+	int i;
 
-	actr = 1; /* Always ignore argv[0] */
-
-	cp = &(arcs_cmdline[0]);
-	while (actr < argc) {
-		strcpy(cp, argv[actr]);
-		cp += strlen(argv[actr]);
-		*cp++ = ' ';
-		actr++;
-	}
-	if (cp != &(arcs_cmdline[0])) {
-		/* get rid of trailing space */
-		--cp;
-		*cp = '\0';
+	for (i = 1; i < argc; i++) {
+		strlcat(arcs_cmdline, argv[i], COMMAND_LINE_SIZE);
+		if (i < (argc - 1))
+			strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
 	}
 }
 
@@ -250,7 +240,7 @@ static void __init console_config(void)
 	else
 		sprintf(console_string, " console=ttyS0,%d%c%c", baud, parity,
 			bits);
-	strcat(prom_getcmdline(), console_string);
+	strlcat(arcs_cmdline, console_string, COMMAND_LINE_SIZE);
 #endif
 }
 
