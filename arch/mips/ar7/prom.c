@@ -49,11 +49,6 @@ char *prom_getenv(const char *name)
 }
 EXPORT_SYMBOL(prom_getenv);
 
-char * __init prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
-}
-
 static void  __init ar7_init_cmdline(int argc, char *argv[])
 {
 	int i;
@@ -206,7 +201,7 @@ static void __init console_config(void)
 	char parity = '\0', bits = '\0', flow = '\0';
 	char *s, *p;
 
-	if (strstr(prom_getcmdline(), "console="))
+	if (strstr(arcs_cmdline, "console="))
 		return;
 
 	s = prom_getenv("modetty0");
