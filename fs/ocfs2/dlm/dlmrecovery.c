@@ -1750,6 +1750,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 	struct dlm_lock *lock = NULL;
 	u8 from = O2NM_MAX_NODES;
 	unsigned int added = 0;
+	__be64 c;
 
 	mlog(0, "running %d locks for this lockres\n", mres->num_locks);
 	for (i=0; i<mres->num_locks; i++) {
@@ -1797,19 +1798,48 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			/* lock is always created locally first, and
 			 * destroyed locally last.  it must be on the list */
 			if (!lock) {
-				__be64 c = ml->cookie;
-				mlog(ML_ERROR, "could not find local lock "
-					       "with cookie %u:%llu!\n",
+				c = ml->cookie;
+				mlog(ML_ERROR, "Could not find local lock "
+					       "with cookie %u:%llu, node %u, "
+					       "list %u, flags 0x%x, type %d, "
+					       "conv %d, highest blocked %d\n",
 				     dlm_get_lock_cookie_node(be64_to_cpu(c)),
-				     dlm_get_lock_cookie_seq(be64_to_cpu(c)));
+				     dlm_get_lock_cookie_seq(be64_to_cpu(c)),
+				     ml->node, ml->list, ml->flags, ml->type,
+				     ml->convert_type, ml->highest_blocked);
 				__dlm_print_one_lock_resource(res);
 				BUG();
 			}
-			BUG_ON(lock->ml.node != ml->node);
+
+			if (lock->ml.node != ml->node) {
+				c = lock->ml.cookie;
+				mlog(ML_ERROR, "Mismatched node# in lock "
+				     "cookie %u:%llu, name %.*s, node %u\n",
+				     dlm_get_lock_cookie_node(be64_to_cpu(c)),
+				     dlm_get_lock_cookie_seq(be64_to_cpu(c)),
+				     res->lockname.len, res->lockname.name,
+				     lock->ml.node);
+				c = ml->cookie;
+				mlog(ML_ERROR, "Migrate lock cookie %u:%llu, "
+				     "node %u, list %u, flags 0x%x, type %d, "
+				     "conv %d, highest blocked %d\n",
+				     dlm_get_lock_cookie_node(be64_to_cpu(c)),
+				     dlm_get_lock_cookie_seq(be64_to_cpu(c)),
+				     ml->node, ml->list, ml->flags, ml->type,
+				     ml->convert_type, ml->highest_blocked);
+				__dlm_print_one_lock_resource(res);
+				BUG();
+			}
 
 			if (tmpq != queue) {
-				mlog(0, "lock was on %u instead of %u for %.*s\n",
-				     j, ml->list, res->lockname.len, res->lockname.name);
+				c = ml->cookie;
+				mlog(0, "Lock cookie %u:%llu was on list %u "
+				     "instead of list %u for %.*s\n",
+				     dlm_get_lock_cookie_node(be64_to_cpu(c)),
+				     dlm_get_lock_cookie_seq(be64_to_cpu(c)),
+				     j, ml->list, res->lockname.len,
+				     res->lockname.name);
+				__dlm_print_one_lock_resource(res);
 				spin_unlock(&res->spinlock);
 				continue;
 			}
@@ -1906,7 +1936,7 @@ skip_lvb:
 		spin_lock(&res->spinlock);
 		list_for_each_entry(lock, queue, list) {
 			if (lock->ml.cookie == ml->cookie) {
-				__be64 c = lock->ml.cookie;
+				c = lock->ml.cookie;
 				mlog(ML_ERROR, "%s:%.*s: %u:%llu: lock already "
 				     "exists on this lockres!\n", dlm->name,
 				     res->lockname.len, res->lockname.name,
