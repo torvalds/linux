@@ -111,10 +111,6 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss->dtim_period = tim_ie->dtim_period;
 	}
 
-	/* set default value for buggy AP/no TIM element */
-	if (bss->dtim_period == 0)
-		bss->dtim_period = 1;
-
 	bss->supp_rates_len = 0;
 	if (elems->supp_rates) {
 		clen = IEEE80211_MAX_SUPP_RATES - bss->supp_rates_len;

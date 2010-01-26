@@ -319,7 +319,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
 	if (priv->vif)
-		dtimper = priv->vif->bss_conf.dtim_period;
+		dtimper = priv->hw->conf.ps_dtim_period;
 	else
 		dtimper = 1;
 

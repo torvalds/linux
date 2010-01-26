@@ -484,6 +484,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 
 	if (count == 1 && found->u.mgd.powersave &&
 	    found->u.mgd.associated &&
+	    found->u.mgd.associated->beacon_ies &&
 	    !(found->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
 				    IEEE80211_STA_CONNECTION_POLL))) {
 		s32 beaconint_us;
@@ -497,14 +498,22 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
 		} else {
-			u8 dtimper = found->vif.bss_conf.dtim_period;
+			struct ieee80211_bss *bss;
 			int maxslp = 1;
+			u8 dtimper;
 
-			if (dtimper > 1)
+			bss = (void *)found->u.mgd.associated->priv;
+			dtimper = bss->dtim_period;
+
+			/* If the TIM IE is invalid, pretend the value is 1 */
+			if (!dtimper)
+				dtimper = 1;
+			else if (dtimper > 1)
 				maxslp = min_t(int, dtimper,
 						    latency / beaconint_us);
 
 			local->hw.conf.max_sleep_period = maxslp;
+			local->hw.conf.ps_dtim_period = dtimper;
 			local->ps_sdata = found;
 		}
 	} else {
@@ -702,7 +711,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	/* set timing information */
 	sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
 	sdata->vif.bss_conf.timestamp = cbss->tsf;
-	sdata->vif.bss_conf.dtim_period = bss->dtim_period;
 
 	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
@@ -1168,6 +1176,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	int freq;
 	struct ieee80211_bss *bss;
 	struct ieee80211_channel *channel;
+	bool need_ps = false;
+
+	if (sdata->u.mgd.associated) {
+		bss = (void *)sdata->u.mgd.associated->priv;
+		/* not previously set so we may need to recalc */
+		need_ps = !bss->dtim_period;
+	}
 
 	if (elems->ds_params && elems->ds_params_len == 1)
 		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
@@ -1186,6 +1201,12 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	if (!sdata->u.mgd.associated)
 		return;
+
+	if (need_ps) {
+		mutex_lock(&local->iflist_mtx);
+		ieee80211_recalc_ps(local, -1);
+		mutex_unlock(&local->iflist_mtx);
+	}
 
 	if (elems->ch_switch_elem && (elems->ch_switch_elem_len == 3) &&
 	    (memcmp(mgmt->bssid, sdata->u.mgd.associated->bssid,
