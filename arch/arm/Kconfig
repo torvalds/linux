@@ -627,9 +627,24 @@ config ARCH_S3C2410
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
+	select PLAT_S3C
+	select CPU_V6
 	select GENERIC_GPIO
+	select ARM_VIC
 	select HAVE_CLK
+	select NO_IOPORT
 	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select SAMSUNG_CLKSRC
+	select SAMSUNG_IRQ_VIC_TIMER
+	select SAMSUNG_IRQ_UART
+	select S3C_GPIO_TRACK
+	select S3C_GPIO_PULL_UPDOWN
+	select S3C_GPIO_CFG_S3C24XX
+	select S3C_GPIO_CFG_S3C64XX
+	select S3C_DEV_NAND
+	select USB_ARCH_HAS_OHCI
+	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Samsung S3C64XX series based systems
 
@@ -784,7 +799,6 @@ source "arch/arm/mach-dove/Kconfig"
 
 source "arch/arm/plat-samsung/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
-source "arch/arm/plat-s3c64xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
 source "arch/arm/plat-s5p/Kconfig"
 source "arch/arm/plat-s5pc1xx/Kconfig"
