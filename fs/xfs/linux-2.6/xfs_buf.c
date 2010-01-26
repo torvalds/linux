@@ -33,6 +33,7 @@
 #include <linux/migrate.h>
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
+#include <linux/list_sort.h>
 
 #include "xfs_sb.h"
 #include "xfs_inum.h"
@@ -1877,14 +1878,42 @@ xfs_buf_delwri_split(
 
 }
 
+/*
+ * Compare function is more complex than it needs to be because
+ * the return value is only 32 bits and we are doing comparisons
+ * on 64 bit values
+ */
+static int
+xfs_buf_cmp(
+	void		*priv,
+	struct list_head *a,
+	struct list_head *b)
+{
+	struct xfs_buf	*ap = container_of(a, struct xfs_buf, b_list);
+	struct xfs_buf	*bp = container_of(b, struct xfs_buf, b_list);
+	xfs_daddr_t		diff;
+
+	diff = ap->b_bn - bp->b_bn;
+	if (diff < 0)
+		return -1;
+	if (diff > 0)
+		return 1;
+	return 0;
+}
+
+void
+xfs_buf_delwri_sort(
+	xfs_buftarg_t	*target,
+	struct list_head *list)
+{
+	list_sort(NULL, list, xfs_buf_cmp);
+}
+
 STATIC int
 xfsbufd(
 	void		*data)
 {
-	struct list_head tmp;
-	xfs_buftarg_t	*target = (xfs_buftarg_t *)data;
-	int		count;
-	xfs_buf_t	*bp;
+	xfs_buftarg_t   *target = (xfs_buftarg_t *)data;
 
 	current->flags |= PF_MEMALLOC;
 
@@ -1893,6 +1922,8 @@ xfsbufd(
 	do {
 		long	age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
 		long	tout = xfs_buf_timer_centisecs * msecs_to_jiffies(10);
+		int	count = 0;
+		struct list_head tmp;
 
 		if (unlikely(freezing(current))) {
 			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
@@ -1907,11 +1938,10 @@ xfsbufd(
 		schedule_timeout_interruptible(tout);
 
 		xfs_buf_delwri_split(target, &tmp, age);
-		count = 0;
+		list_sort(NULL, &tmp, xfs_buf_cmp);
 		while (!list_empty(&tmp)) {
-			bp = list_entry(tmp.next, xfs_buf_t, b_list);
-			ASSERT(target == bp->b_target);
-
+			struct xfs_buf *bp;
+			bp = list_first_entry(&tmp, struct xfs_buf, b_list);
 			list_del_init(&bp->b_list);
 			xfs_buf_iostrategy(bp);
 			count++;
@@ -1937,42 +1967,45 @@ xfs_flush_buftarg(
 	xfs_buftarg_t	*target,
 	int		wait)
 {
-	struct list_head tmp;
-	xfs_buf_t	*bp, *n;
+	xfs_buf_t	*bp;
 	int		pincount = 0;
+	LIST_HEAD(tmp_list);
+	LIST_HEAD(wait_list);
 
 	xfs_buf_runall_queues(xfsconvertd_workqueue);
 	xfs_buf_runall_queues(xfsdatad_workqueue);
 	xfs_buf_runall_queues(xfslogd_workqueue);
 
 	set_bit(XBT_FORCE_FLUSH, &target->bt_flags);
-	pincount = xfs_buf_delwri_split(target, &tmp, 0);
+	pincount = xfs_buf_delwri_split(target, &tmp_list, 0);
 
 	/*
-	 * Dropped the delayed write list lock, now walk the temporary list
+	 * Dropped the delayed write list lock, now walk the temporary list.
+	 * All I/O is issued async and then if we need to wait for completion
+	 * we do that after issuing all the IO.
 	 */
-	list_for_each_entry_safe(bp, n, &tmp, b_list) {
+	list_sort(NULL, &tmp_list, xfs_buf_cmp);
+	while (!list_empty(&tmp_list)) {
+		bp = list_first_entry(&tmp_list, struct xfs_buf, b_list);
 		ASSERT(target == bp->b_target);
-		if (wait)
+		list_del_init(&bp->b_list);
+		if (wait) {
 			bp->b_flags &= ~XBF_ASYNC;
-		else
-			list_del_init(&bp->b_list);
-
+			list_add(&bp->b_list, &wait_list);
+		}
 		xfs_buf_iostrategy(bp);
 	}
 
-	if (wait)
+	if (wait) {
+		/* Expedite and wait for IO to complete. */
 		blk_run_address_space(target->bt_mapping);
+		while (!list_empty(&wait_list)) {
+			bp = list_first_entry(&wait_list, struct xfs_buf, b_list);
 
-	/*
-	 * Remaining list items must be flushed before returning
-	 */
-	while (!list_empty(&tmp)) {
-		bp = list_entry(tmp.next, xfs_buf_t, b_list);
-
-		list_del_init(&bp->b_list);
-		xfs_iowait(bp);
-		xfs_buf_relse(bp);
+			list_del_init(&bp->b_list);
+			xfs_iowait(bp);
+			xfs_buf_relse(bp);
+		}
 	}
 
 	return pincount;
