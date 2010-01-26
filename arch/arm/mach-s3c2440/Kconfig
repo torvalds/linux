@@ -21,8 +21,7 @@ config S3C2440_DMA
 	help
 	  Support for S3C2440 specific DMA code5A
 
-
-menu "S3C2440 Machines"
+menu "S3C2440 and S3C2442 Machines"
 
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
@@ -36,6 +35,18 @@ config MACH_ANUBIS
 	help
 	  Say Y here if you are using the Simtec Electronics ANUBIS
 	  development system
+
+config MACH_NEO1973_GTA02
+	bool "Openmoko GTA02 / Freerunner phone"
+	select CPU_S3C2442
+	select MFD_PCF50633
+	select PCF50633_GPIO
+	select I2C
+	select POWER_SUPPLY
+	select MACH_NEO1973
+	select S3C2410_PWM
+	help
+	   Say Y here if you are using the Openmoko GTA02 / Freerunner GSM Phone
 
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
@@ -98,6 +109,11 @@ config SMDK2440_CPU2440
 	default y if ARCH_S3C2440
 	select S3C2440_XTAL_16934400
 	select CPU_S3C2440
+
+config SMDK2440_CPU2442
+	bool "SMDM2440 with S3C2442 CPU module"
+	depends on ARCH_S3C2440
+	select CPU_S3C2442
 
 config MACH_AT2440EVB
 	bool "Avantech AT2440EVB development board"
