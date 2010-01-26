@@ -1265,6 +1265,14 @@ static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	return 0;
 }
 
+static u64 rtl8187_get_tsf(struct ieee80211_hw *dev)
+{
+	struct rtl8187_priv *priv = dev->priv;
+
+	return rtl818x_ioread32(priv, &priv->map->TSFT[0]) |
+	       (u64)(rtl818x_ioread32(priv, &priv->map->TSFT[1])) << 32;
+}
+
 static const struct ieee80211_ops rtl8187_ops = {
 	.tx			= rtl8187_tx,
 	.start			= rtl8187_start,
@@ -1276,7 +1284,8 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.prepare_multicast	= rtl8187_prepare_multicast,
 	.configure_filter	= rtl8187_configure_filter,
 	.conf_tx		= rtl8187_conf_tx,
-	.rfkill_poll		= rtl8187_rfkill_poll
+	.rfkill_poll		= rtl8187_rfkill_poll,
+	.get_tsf		= rtl8187_get_tsf,
 };
 
 static void rtl8187_eeprom_register_read(struct eeprom_93cx6 *eeprom)
