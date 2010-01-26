@@ -1357,7 +1357,7 @@ int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
 
 	if (!so)
 		return err;
-	if (so->sk->sk_family != AF_INET)
+	if ((so->sk->sk_family != PF_INET) && (so->sk->sk_family != PF_INET6))
 		err =  -EAFNOSUPPORT;
 	else if (so->sk->sk_protocol != IPPROTO_TCP &&
 	    so->sk->sk_protocol != IPPROTO_UDP)
