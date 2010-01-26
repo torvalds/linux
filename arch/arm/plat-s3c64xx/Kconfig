@@ -25,15 +25,3 @@ config PLAT_S3C64XX
 	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Base platform code for any Samsung S3C64XX device
-
-if PLAT_S3C64XX
-
-# Configuration options shared by all S3C64XX implementations
-
-config CPU_S3C6400_CLOCK
-	bool
-	help
-	  Common clock support code for the S3C6400 that is shared
-	  by other CPUs in the series, such as the S3C6410.
-
-endif
