@@ -918,6 +918,8 @@ static ssize_t show_disp(struct device *dev,
 {
 	struct asus_laptop *asus = dev_get_drvdata(dev);
 
+	if (!display_get_handle)
+		return -ENODEV;
 	return sprintf(buf, "%d\n", read_display(asus));
 }
 
@@ -1191,77 +1193,113 @@ static void asus_acpi_notify(struct acpi_device *device, u32 event)
 	asus_input_notify(asus, event);
 }
 
-#define ASUS_CREATE_DEVICE_ATTR(_name)					\
-	struct device_attribute dev_attr_##_name = {			\
-		.attr = {						\
-			.name = __stringify(_name),			\
-			.mode = 0 },					\
-		.show   = NULL,						\
-		.store  = NULL,						\
+static DEVICE_ATTR(infos, S_IRUGO, show_infos, NULL);
+static DEVICE_ATTR(wlan, S_IRUGO | S_IWUSR, show_wlan, store_wlan);
+static DEVICE_ATTR(bluetooth, S_IRUGO | S_IWUSR, show_bluetooth,
+		   store_bluetooth);
+static DEVICE_ATTR(display, S_IRUGO | S_IWUSR, show_disp, store_disp);
+static DEVICE_ATTR(ledd, S_IRUGO | S_IWUSR, show_ledd, store_ledd);
+static DEVICE_ATTR(ls_level, S_IRUGO | S_IWUSR, show_lslvl, store_lslvl);
+static DEVICE_ATTR(ls_switch, S_IRUGO | S_IWUSR, show_lssw, store_lssw);
+static DEVICE_ATTR(gps, S_IRUGO | S_IWUSR, show_gps, store_gps);
+
+static void asus_sysfs_exit(struct asus_laptop *asus)
+{
+	struct platform_device *device = asus->platform_device;
+
+	device_remove_file(&device->dev, &dev_attr_infos);
+	device_remove_file(&device->dev, &dev_attr_wlan);
+	device_remove_file(&device->dev, &dev_attr_bluetooth);
+	device_remove_file(&device->dev, &dev_attr_display);
+	device_remove_file(&device->dev, &dev_attr_ledd);
+	device_remove_file(&device->dev, &dev_attr_ls_switch);
+	device_remove_file(&device->dev, &dev_attr_ls_level);
+	device_remove_file(&device->dev, &dev_attr_gps);
+}
+
+static int asus_sysfs_init(struct asus_laptop *asus)
+{
+	struct platform_device *device = asus->platform_device;
+	int err;
+
+	err = device_create_file(&device->dev, &dev_attr_infos);
+	if (err)
+		return err;
+
+	if (!acpi_check_handle(asus->handle, METHOD_WLAN, NULL)) {
+		err = device_create_file(&device->dev, &dev_attr_wlan);
+		if (err)
+			return err;
 	}
 
-#define ASUS_SET_DEVICE_ATTR(_name, _mode, _show, _store)		\
-	do {								\
-		dev_attr_##_name.attr.mode = _mode;			\
-		dev_attr_##_name.show = _show;				\
-		dev_attr_##_name.store = _store;			\
-	} while(0)
+	if (!acpi_check_handle(asus->handle, METHOD_BLUETOOTH, NULL)) {
+		err = device_create_file(&device->dev, &dev_attr_bluetooth);
+		if (err)
+			return err;
+	}
 
-static ASUS_CREATE_DEVICE_ATTR(infos);
-static ASUS_CREATE_DEVICE_ATTR(wlan);
-static ASUS_CREATE_DEVICE_ATTR(bluetooth);
-static ASUS_CREATE_DEVICE_ATTR(display);
-static ASUS_CREATE_DEVICE_ATTR(ledd);
-static ASUS_CREATE_DEVICE_ATTR(ls_switch);
-static ASUS_CREATE_DEVICE_ATTR(ls_level);
-static ASUS_CREATE_DEVICE_ATTR(gps);
+	if (!acpi_check_handle(asus->handle, METHOD_SWITCH_DISPLAY, NULL)) {
+		err = device_create_file(&device->dev, &dev_attr_display);
+		if (err)
+			return err;
+	}
 
-static struct attribute *asuspf_attributes[] = {
-	&dev_attr_infos.attr,
-	&dev_attr_wlan.attr,
-	&dev_attr_bluetooth.attr,
-	&dev_attr_display.attr,
-	&dev_attr_ledd.attr,
-	&dev_attr_ls_switch.attr,
-	&dev_attr_ls_level.attr,
-	&dev_attr_gps.attr,
-	NULL
-};
+	if (!acpi_check_handle(asus->handle, METHOD_LEDD, NULL)) {
+		err = device_create_file(&device->dev, &dev_attr_ledd);
+		if (err)
+			return err;
+	}
 
-static struct attribute_group platform_attribute_group = {
-	.attrs = asuspf_attributes
-};
+	if (!acpi_check_handle(asus->handle, METHOD_ALS_CONTROL, NULL) &&
+	    !acpi_check_handle(asus->handle, METHOD_ALS_LEVEL, NULL)) {
+		err = device_create_file(&device->dev, &dev_attr_ls_switch);
+		if (err)
+			return err;
+		err = device_create_file(&device->dev, &dev_attr_ls_level);
+		if (err)
+			return err;
+	}
+
+	if (!acpi_check_handle(asus->handle, METHOD_GPS_ON, NULL) &&
+	    !acpi_check_handle(asus->handle, METHOD_GPS_OFF, NULL) &&
+	    !acpi_check_handle(asus->handle, METHOD_GPS_STATUS, NULL)) {
+		err = device_create_file(&device->dev, &dev_attr_gps);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
 
 static int asus_platform_init(struct asus_laptop *asus)
 {
-	int result;
+	int err;
 
 	asus->platform_device = platform_device_alloc(ASUS_LAPTOP_FILE, -1);
 	if (!asus->platform_device)
 		return -ENOMEM;
 	platform_set_drvdata(asus->platform_device, asus);
 
-	result = platform_device_add(asus->platform_device);
-	if (result)
+	err = platform_device_add(asus->platform_device);
+	if (err)
 		goto fail_platform_device;
 
-	result = sysfs_create_group(&asus->platform_device->dev.kobj,
-				    &platform_attribute_group);
-	if (result)
+	err = asus_sysfs_init(asus);
+	if (err)
 		goto fail_sysfs;
 	return 0;
 
 fail_sysfs:
+	asus_sysfs_exit(asus);
 	platform_device_del(asus->platform_device);
 fail_platform_device:
 	platform_device_put(asus->platform_device);
-	return result;
+	return err;
 }
 
 static void asus_platform_exit(struct asus_laptop *asus)
 {
-	sysfs_remove_group(&asus->platform_device->dev.kobj,
-			   &platform_attribute_group);
+	asus_sysfs_exit(asus);
 	platform_device_unregister(asus->platform_device);
 }
 
@@ -1271,40 +1309,6 @@ static struct platform_driver platform_driver = {
 		.owner = THIS_MODULE,
 	}
 };
-
-static void asus_laptop_add_fs(struct asus_laptop *asus)
-{
-	ASUS_SET_DEVICE_ATTR(infos, 0444, show_infos, NULL);
-
-	if (!acpi_check_handle(asus->handle, METHOD_WLAN, NULL))
-		ASUS_SET_DEVICE_ATTR(wlan, 0644, show_wlan, store_wlan);
-
-	if (!acpi_check_handle(asus->handle, METHOD_BLUETOOTH, NULL))
-		ASUS_SET_DEVICE_ATTR(bluetooth, 0644,
-				     show_bluetooth, store_bluetooth);
-
-	if (!acpi_check_handle(asus->handle, METHOD_SWITCH_DISPLAY, NULL)) {
-		if (display_get_handle)
-			ASUS_SET_DEVICE_ATTR(display, 0644, show_disp,
-					     store_disp);
-		else
-			ASUS_SET_DEVICE_ATTR(display, 0200, NULL, store_disp);
-	}
-
-	if (!acpi_check_handle(asus->handle, METHOD_LEDD, NULL))
-		ASUS_SET_DEVICE_ATTR(ledd, 0644, show_ledd, store_ledd);
-
-	if (!acpi_check_handle(asus->handle, METHOD_ALS_CONTROL, NULL) &&
-	    !acpi_check_handle(asus->handle, METHOD_ALS_LEVEL, NULL)) {
-		ASUS_SET_DEVICE_ATTR(ls_level, 0644, show_lslvl, store_lslvl);
-		ASUS_SET_DEVICE_ATTR(ls_switch, 0644, show_lssw, store_lssw);
-	}
-
-	if (!acpi_check_handle(asus->handle, METHOD_GPS_ON, NULL) &&
-	    !acpi_check_handle(asus->handle, METHOD_GPS_OFF, NULL) &&
-	    !acpi_check_handle(asus->handle, METHOD_GPS_STATUS, NULL))
-		ASUS_SET_DEVICE_ATTR(gps, 0644, show_gps, store_gps);
-}
 
 static int asus_handle_init(char *name, acpi_handle * handle,
 			    char **paths, int num_paths)
@@ -1434,8 +1438,6 @@ static int __devinit asus_acpi_init(struct asus_laptop *asus)
 	result = asus_laptop_get_info(asus);
 	if (result)
 		return result;
-
-	asus_laptop_add_fs(asus);
 
 	/* WLED and BLED are on by default */
 	if (bluetooth_status >= 0)
