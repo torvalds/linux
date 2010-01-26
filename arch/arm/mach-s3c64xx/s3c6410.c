@@ -41,20 +41,8 @@
 #include <plat/s3c6400.h>
 #include <plat/s3c6410.h>
 
-/* Initial IO mappings */
-
-static struct map_desc s3c6410_iodesc[] __initdata = {
-};
-
-/* s3c6410_map_io
- *
- * register the standard cpu IO areas
-*/
-
 void __init s3c6410_map_io(void)
 {
-	iotable_init(s3c6410_iodesc, ARRAY_SIZE(s3c6410_iodesc));
-
 	/* initialise device information early */
 	s3c6410_default_sdhci0();
 	s3c6410_default_sdhci1();
