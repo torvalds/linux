@@ -1658,6 +1658,8 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	status = PTR_ERR(state);
 	if (IS_ERR(state))
 		goto err_opendata_put;
+	if ((opendata->o_res.rflags & NFS4_OPEN_RESULT_LOCKTYPE_POSIX) != 0)
+		set_bit(NFS_STATE_POSIX_LOCKS, &state->flags);
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	*res = state;
@@ -4200,8 +4202,11 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 {
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	unsigned char fl_flags = request->fl_flags;
-	int status;
+	int status = -ENOLCK;
 
+	if ((fl_flags & FL_POSIX) &&
+			!test_bit(NFS_STATE_POSIX_LOCKS, &state->flags))
+		goto out;
 	/* Is this a delegated open? */
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
