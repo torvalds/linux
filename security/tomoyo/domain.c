@@ -787,7 +787,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	 * This function assumes that the size of buffer returned by
 	 * tomoyo_realpath() = TOMOYO_MAX_PATHNAME_LEN.
 	 */
-	struct tomoyo_page_buffer *tmp = tomoyo_alloc(sizeof(*tmp));
+	struct tomoyo_page_buffer *tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
 	const char *old_domain_name = old_domain->domainname->name;
@@ -902,8 +902,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (!domain)
 		domain = old_domain;
 	bprm->cred->security = domain;
-	tomoyo_free(real_program_name);
-	tomoyo_free(symlink_program_name);
-	tomoyo_free(tmp);
+	kfree(real_program_name);
+	kfree(symlink_program_name);
+	kfree(tmp);
 	return retval;
 }

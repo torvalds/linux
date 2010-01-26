@@ -150,12 +150,12 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
  *
  * Returns the realpath of the given @path on success, NULL otherwise.
  *
- * These functions use tomoyo_alloc(), so the caller must call tomoyo_free()
+ * These functions use kzalloc(), so the caller must call kfree()
  * if these functions didn't return NULL.
  */
 char *tomoyo_realpath_from_path(struct path *path)
 {
-	char *buf = tomoyo_alloc(sizeof(struct tomoyo_page_buffer));
+	char *buf = kzalloc(sizeof(struct tomoyo_page_buffer), GFP_KERNEL);
 
 	BUILD_BUG_ON(sizeof(struct tomoyo_page_buffer)
 		     <= TOMOYO_MAX_PATHNAME_LEN - 1);
@@ -164,7 +164,7 @@ char *tomoyo_realpath_from_path(struct path *path)
 	if (tomoyo_realpath_from_path2(path, buf,
 				       TOMOYO_MAX_PATHNAME_LEN - 1) == 0)
 		return buf;
-	tomoyo_free(buf);
+	kfree(buf);
 	return NULL;
 }
 
@@ -346,39 +346,6 @@ void __init tomoyo_realpath_init(void)
 		panic("Can't register tomoyo_kernel_domain");
 }
 
-/* Memory allocated for temporary purpose. */
-static atomic_t tomoyo_dynamic_memory_size;
-
-/**
- * tomoyo_alloc - Allocate memory for temporary purpose.
- *
- * @size: Size in bytes.
- *
- * Returns pointer to allocated memory on success, NULL otherwise.
- */
-void *tomoyo_alloc(const size_t size)
-{
-	void *p = kzalloc(size, GFP_KERNEL);
-	if (p)
-		atomic_add(ksize(p), &tomoyo_dynamic_memory_size);
-	return p;
-}
-
-/**
- * tomoyo_free - Release memory allocated by tomoyo_alloc().
- *
- * @p: Pointer returned by tomoyo_alloc(). May be NULL.
- *
- * Returns nothing.
- */
-void tomoyo_free(const void *p)
-{
-	if (p) {
-		atomic_sub(ksize(p), &tomoyo_dynamic_memory_size);
-		kfree(p);
-	}
-}
-
 /**
  * tomoyo_read_memory_counter - Check for memory usage in bytes.
  *
@@ -393,8 +360,6 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 			= tomoyo_allocated_memory_for_savename;
 		const unsigned int private
 			= tomoyo_allocated_memory_for_elements;
-		const unsigned int dynamic
-			= atomic_read(&tomoyo_dynamic_memory_size);
 		char buffer[64];
 
 		memset(buffer, 0, sizeof(buffer));
@@ -412,9 +377,7 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 		else
 			buffer[0] = '\0';
 		tomoyo_io_printf(head, "Private: %10u%s\n", private, buffer);
-		tomoyo_io_printf(head, "Dynamic: %10u\n", dynamic);
-		tomoyo_io_printf(head, "Total:   %10u\n",
-				 shared + private + dynamic);
+		tomoyo_io_printf(head, "Total:   %10u\n", shared + private);
 		head->read_eof = true;
 	}
 	return 0;

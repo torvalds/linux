@@ -750,7 +750,7 @@ bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
  *
  * Returns the tomoyo_realpath() of current process on success, NULL otherwise.
  *
- * This function uses tomoyo_alloc(), so the caller must call tomoyo_free()
+ * This function uses kzalloc(), so the caller must call kfree()
  * if this function didn't return NULL.
  */
 static const char *tomoyo_get_exe(void)
@@ -1248,7 +1248,7 @@ static bool tomoyo_is_policy_manager(void)
 			last_pid = pid;
 		}
 	}
-	tomoyo_free(exe);
+	kfree(exe);
 	return found;
 }
 
@@ -1931,7 +1931,7 @@ static int tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
  */
 static int tomoyo_open_control(const u8 type, struct file *file)
 {
-	struct tomoyo_io_buffer *head = tomoyo_alloc(sizeof(*head));
+	struct tomoyo_io_buffer *head = kzalloc(sizeof(*head), GFP_KERNEL);
 
 	if (!head)
 		return -ENOMEM;
@@ -1992,9 +1992,9 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 	} else {
 		if (!head->readbuf_size)
 			head->readbuf_size = 4096 * 2;
-		head->read_buf = tomoyo_alloc(head->readbuf_size);
+		head->read_buf = kzalloc(head->readbuf_size, GFP_KERNEL);
 		if (!head->read_buf) {
-			tomoyo_free(head);
+			kfree(head);
 			return -ENOMEM;
 		}
 	}
@@ -2006,10 +2006,10 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 		head->write = NULL;
 	} else if (head->write) {
 		head->writebuf_size = 4096 * 2;
-		head->write_buf = tomoyo_alloc(head->writebuf_size);
+		head->write_buf = kzalloc(head->writebuf_size, GFP_KERNEL);
 		if (!head->write_buf) {
-			tomoyo_free(head->read_buf);
-			tomoyo_free(head);
+			kfree(head->read_buf);
+			kfree(head);
 			return -ENOMEM;
 		}
 	}
@@ -2141,11 +2141,11 @@ static int tomoyo_close_control(struct file *file)
 
 	tomoyo_read_unlock(head->reader_idx);
 	/* Release memory used for policy I/O. */
-	tomoyo_free(head->read_buf);
+	kfree(head->read_buf);
 	head->read_buf = NULL;
-	tomoyo_free(head->write_buf);
+	kfree(head->write_buf);
 	head->write_buf = NULL;
-	tomoyo_free(head);
+	kfree(head);
 	head = NULL;
 	file->private_data = NULL;
 	return 0;
