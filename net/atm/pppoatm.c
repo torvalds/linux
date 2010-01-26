@@ -176,7 +176,8 @@ static void pppoatm_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	}
 	ppp_input(&pvcc->chan, skb);
 	return;
-    error:
+
+error:
 	kfree_skb(skb);
 	ppp_input_error(&pvcc->chan, 0);
 }
@@ -209,7 +210,8 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 				goto nospace;
 			}
 			kfree_skb(skb);
-			if ((skb = n) == NULL)
+			skb = n;
+			if (skb == NULL)
 				return DROP_PACKET;
 		} else if (!atm_may_send(pvcc->atmvcc, skb->truesize))
 			goto nospace;
@@ -231,7 +233,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 		 skb, ATM_SKB(skb)->vcc, ATM_SKB(skb)->vcc->dev);
 	return ATM_SKB(skb)->vcc->send(ATM_SKB(skb)->vcc, skb)
 	    ? DROP_PACKET : 1;
-    nospace:
+nospace:
 	/*
 	 * We don't have space to send this SKB now, but we might have
 	 * already applied SC_COMP_PROT compression, so may need to undo
@@ -290,7 +292,8 @@ static int pppoatm_assign_vcc(struct atm_vcc *atmvcc, void __user *arg)
 	    (be.encaps == e_vc ? 0 : LLC_LEN);
 	pvcc->wakeup_tasklet = tasklet_proto;
 	pvcc->wakeup_tasklet.data = (unsigned long) &pvcc->chan;
-	if ((err = ppp_register_channel(&pvcc->chan)) != 0) {
+	err = ppp_register_channel(&pvcc->chan);
+	if (err != 0) {
 		kfree(pvcc);
 		return err;
 	}
