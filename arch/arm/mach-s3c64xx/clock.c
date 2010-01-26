@@ -748,38 +748,6 @@ static struct clk *clks1[] __initdata = {
 	&clk_arm,
 };
 
-/**
- * s3c6400_register_clocks - register clocks for s3c6400 and above
- * @armclk_divlimit: Divisor mask for ARMCLK
- *
- * Register the clocks for the S3C6400 and above SoC range, such
- * as ARMCLK and the clocks which have divider chains attached.
- *
- * This call does not setup the clocks, which is left to the
- * s3c6400_setup_clocks() call which may be needed by the cpufreq
- * or resume code to re-set the clocks if the bootloader has changed
- * them.
- */
-void __init s3c6400_register_clocks(unsigned armclk_divlimit)
-{
-	struct clk *clkp;
-	int ret;
-	int ptr;
-
-	armclk_mask = armclk_divlimit;
-
-	for (ptr = 0; ptr < ARRAY_SIZE(clks1); ptr++) {
-		clkp = clks1[ptr];
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-	}
-
-	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
-}
-
 static struct clk *clks[] __initdata = {
 	&clk_ext,
 	&clk_epll,
@@ -788,13 +756,31 @@ static struct clk *clks[] __initdata = {
 	&clk_h2,
 };
 
-void __init s3c64xx_register_clocks(void)
+/**
+ * s3c64xx_register_clocks - register clocks for s3c6400 and s3c6410
+ * @xtal: The rate for the clock crystal feeding the PLLs.
+ * @armclk_divlimit: Divisor mask for ARMCLK.
+ *
+ * Register the clocks for the S3C6400 and S3C6410 SoC range, such
+ * as ARMCLK as well as the necessary parent clocks.
+ *
+ * This call does not setup the clocks, which is left to the
+ * s3c6400_setup_clocks() call which may be needed by the cpufreq
+ * or resume code to re-set the clocks if the bootloader has changed
+ * them.
+ */
+void __init s3c64xx_register_clocks(unsigned long xtal, 
+				    unsigned armclk_divlimit)
 {
 	struct clk *clkp;
 	int ret;
 	int ptr;
 
+	armclk_mask = armclk_divlimit;
+
+	s3c24xx_register_baseclocks(xtal);
 	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
+
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
 	clkp = init_clocks_disable;
@@ -809,5 +795,7 @@ void __init s3c64xx_register_clocks(void)
 		(clkp->enable)(clkp, 0);
 	}
 
+	s3c24xx_register_clocks(clks1, ARRAY_SIZE(clks1));
+	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_pwmclk_init();
 }

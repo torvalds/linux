@@ -55,10 +55,7 @@ void __init s3c6400_map_io(void)
 
 void __init s3c6400_init_clocks(int xtal)
 {
-	printk(KERN_DEBUG "%s: initialising clocks\n", __func__);
-	s3c24xx_register_baseclocks(xtal);
-	s3c64xx_register_clocks();
-	s3c6400_register_clocks(S3C6400_CLKDIV0_ARM_MASK);
+	s3c64xx_register_clocks(xtal, S3C6400_CLKDIV0_ARM_MASK);
 	s3c6400_setup_clocks();
 }
 
