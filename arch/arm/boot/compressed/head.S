@@ -396,12 +396,18 @@ __armv3_mpu_cache_on:
 
 		mov	r0, #0
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
+		/*
+		 * ?? ARMv3 MMU does not allow reading the control register,
+		 * does this really work on ARMv3 MPU?
+		 */
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
 						@ .... .... .... WC.M
 		orr	r0, r0, #0x000d		@ .... .... .... 11.1
+		/* ?? this overwrites the value constructed above? */
 		mov	r0, #0
 		mcr	p15, 0, r0, c1, c0, 0	@ write control reg
 
+		/* ?? invalidate for the second time? */
 		mcr	p15, 0, r0, c7, c0, 0	@ invalidate whole cache v3
 		mov	pc, lr
 
