@@ -822,7 +822,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 {
 	int i;
 	u16 bw, len, rot, angle;
-	b43_c32 *samples;
+	struct b43_c32 *samples;
 
 
 	bw = (dev->phy.is_40mhz) ? 40 : 20;
@@ -840,7 +840,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 		len = bw << 1;
 	}
 
-	samples = kzalloc(len * sizeof(b43_c32), GFP_KERNEL);
+	samples = kzalloc(len * sizeof(struct b43_c32), GFP_KERNEL);
 	rot = (((freq * 36) / bw) << 16) / 100;
 	angle = 0;
 
