@@ -635,8 +635,7 @@ static long snd_pcm_alsa_frames(struct snd_pcm_substream *substream, long bytes)
 static inline
 snd_pcm_uframes_t get_hw_ptr_period(struct snd_pcm_runtime *runtime)
 {
-	snd_pcm_uframes_t ptr = runtime->status->hw_ptr;
-	return ptr - (ptr % runtime->period_size);
+	return runtime->hw_ptr_interrupt;
 }
 
 /* define extended formats in the recent OSS versions (if any) */
