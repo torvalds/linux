@@ -15,8 +15,6 @@ obj-				:=
 obj-y				+= dev-uart.o
 obj-y				+= dev-rtc.o
 obj-y				+= cpu.o
-obj-y				+= irq.o
-obj-y				+= irq-eint.o
 obj-y				+= clock.o
 obj-y				+= gpiolib.o
 
@@ -30,7 +28,6 @@ obj-$(CONFIG_CPU_FREQ_S3C64XX)  += cpufreq.o
 
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= sleep.o
-obj-$(CONFIG_PM)		+= irq-pm.o
 
 # DMA support
 

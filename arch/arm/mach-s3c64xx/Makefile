@@ -15,9 +15,16 @@ obj-				:=
 obj-$(CONFIG_CPU_S3C6400)	+= s3c6400.o
 obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 
+obj-y				+= irq.o
+obj-y				+= irq-eint.o
+
 # setup support
 
 obj-$(CONFIG_S3C64XX_SETUP_SDHCI) += setup-sdhci.o
+
+# PM
+
+obj-$(CONFIG_PM)		+= irq-pm.o
 
 # Machine support
 
