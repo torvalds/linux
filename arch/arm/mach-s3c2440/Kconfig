@@ -105,14 +105,12 @@ config MACH_NEXCODER_2440
 
 config SMDK2440_CPU2440
 	bool "SMDK2440 with S3C2440 CPU module"
-	depends on ARCH_S3C2440
 	default y if ARCH_S3C2440
 	select S3C2440_XTAL_16934400
 	select CPU_S3C2440
 
 config SMDK2440_CPU2442
 	bool "SMDM2440 with S3C2442 CPU module"
-	depends on ARCH_S3C2440
 	select CPU_S3C2442
 
 config MACH_AT2440EVB
