@@ -1164,6 +1164,39 @@ static void dlm_init_migratable_lockres(struct dlm_migratable_lockres *mres,
 	mres->master = master;
 }
 
+static void dlm_prepare_lvb_for_migration(struct dlm_lock *lock,
+					  struct dlm_migratable_lockres *mres,
+					  int queue)
+{
+	if (!lock->lksb)
+	       return;
+
+	/* Ignore lvb in all locks in the blocked list */
+	if (queue == DLM_BLOCKED_LIST)
+		return;
+
+	/* Only consider lvbs in locks with granted EX or PR lock levels */
+	if (lock->ml.type != LKM_EXMODE && lock->ml.type != LKM_PRMODE)
+		return;
+
+	if (dlm_lvb_is_empty(mres->lvb)) {
+		memcpy(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN);
+		return;
+	}
+
+	/* Ensure the lvb copied for migration matches in other valid locks */
+	if (!memcmp(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN))
+		return;
+
+	mlog(ML_ERROR, "Mismatched lvb in lock cookie=%u:%llu, name=%.*s, "
+	     "node=%u\n",
+	     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
+	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
+	     lock->lockres->lockname.len, lock->lockres->lockname.name,
+	     lock->ml.node);
+	dlm_print_one_lock_resource(lock->lockres);
+	BUG();
+}
 
 /* returns 1 if this lock fills the network structure,
  * 0 otherwise */
@@ -1181,20 +1214,7 @@ static int dlm_add_lock_to_array(struct dlm_lock *lock,
 	ml->list = queue;
 	if (lock->lksb) {
 		ml->flags = lock->lksb->flags;
-		/* send our current lvb */
-		if (ml->type == LKM_EXMODE ||
-		    ml->type == LKM_PRMODE) {
-			/* if it is already set, this had better be a PR
-			 * and it has to match */
-			if (!dlm_lvb_is_empty(mres->lvb) &&
-			    (ml->type == LKM_EXMODE ||
-			     memcmp(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN))) {
-				mlog(ML_ERROR, "mismatched lvbs!\n");
-				dlm_print_one_lock_resource(lock->lockres);
-				BUG();
-			}
-			memcpy(mres->lvb, lock->lksb->lvb, DLM_LVB_LEN);
-		}
+		dlm_prepare_lvb_for_migration(lock, mres, queue);
 	}
 	ml->node = lock->ml.node;
 	mres->num_locks++;
