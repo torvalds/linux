@@ -4794,7 +4794,8 @@ i915_gem_load(struct drm_device *dev)
 	spin_unlock(&shrink_list_lock);
 
 	/* Old X drivers will take 0-2 for front, back, depth buffers */
-	dev_priv->fence_reg_start = 3;
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		dev_priv->fence_reg_start = 3;
 
 	if (IS_I965G(dev) || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 		dev_priv->num_fence_regs = 16;
