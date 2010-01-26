@@ -1538,7 +1538,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
 		spin_lock(&vfsmount_lock);
-		mnt_flags |= path->mnt->mnt_flags & MNT_PNODE_MASK;
+		mnt_flags |= path->mnt->mnt_flags & MNT_PROPAGATION_MASK;
 		path->mnt->mnt_flags = mnt_flags;
 		spin_unlock(&vfsmount_lock);
 	}
