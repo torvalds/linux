@@ -1528,21 +1528,16 @@ xfs_qm_dqflock_pushbuf_wait(
 	 */
 	bp = xfs_incore(dqp->q_mount->m_ddev_targp, dqp->q_blkno,
 		    XFS_QI_DQCHUNKLEN(dqp->q_mount), XBF_TRYLOCK);
-	if (bp != NULL) {
-		if (XFS_BUF_ISDELAYWRITE(bp)) {
-			int	error;
+	if (!bp)
+		goto out_lock;
 
-			if (XFS_BUF_ISPINNED(bp))
-				xfs_log_force(dqp->q_mount, 0);
-			error = xfs_bawrite(dqp->q_mount, bp);
-			if (error)
-				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
-					"xfs_qm_dqflock_pushbuf_wait: "
-					"pushbuf error %d on dqp %p, bp %p",
-					error, dqp, bp);
-		} else {
-			xfs_buf_relse(bp);
-		}
+	if (XFS_BUF_ISDELAYWRITE(bp)) {
+		if (XFS_BUF_ISPINNED(bp))
+			xfs_log_force(dqp->q_mount, 0);
+		xfs_buf_delwri_promote(bp);
+		wake_up_process(bp->b_target->bt_task);
 	}
+	xfs_buf_relse(bp);
+out_lock:
 	xfs_dqflock(dqp);
 }
