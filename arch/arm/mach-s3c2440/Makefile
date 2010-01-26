@@ -16,6 +16,14 @@ obj-$(CONFIG_CPU_S3C2440)	+= irq.o
 obj-$(CONFIG_CPU_S3C2440)	+= clock.o
 obj-$(CONFIG_S3C2440_DMA)	+= dma.o
 
+obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o
+obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-irq.o
+obj-$(CONFIG_CPU_S3C244X)	+= s3c244x-clock.o
+obj-$(CONFIG_S3C2440_CPUFREQ)	+= s3c2440-cpufreq.o
+
+obj-$(CONFIG_S3C2440_PLL_12000000) += s3c2440-pll-12000000.o
+obj-$(CONFIG_S3C2440_PLL_16934400) += s3c2440-pll-16934400.o
+
 # Machine support
 
 obj-$(CONFIG_MACH_ANUBIS)	+= mach-anubis.o

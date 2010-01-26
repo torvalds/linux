@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/s3c244x.h
+/* linux/arch/arm/plat-s3c24xx/include/plat/s3c244x.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
