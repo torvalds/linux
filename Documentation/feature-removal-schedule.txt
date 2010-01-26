@@ -538,3 +538,33 @@ Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
 	sensors) wich are also supported by the gspca_zc3xx driver
 	(which supports 53 USB-ID's in total)
 Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	KVM memory aliases support
+When:	July 2010
+Why:	Memory aliasing support is used for speeding up guest vga access
+	through the vga windows.
+
+	Modern userspace no longer uses this feature, so it's just bitrotted
+	code and can be removed with no impact.
+Who:	Avi Kivity <avi@redhat.com>
+
+----------------------------
+
+What:	KVM kernel-allocated memory slots
+When:	July 2010
+Why:	Since 2.6.25, kvm supports user-allocated memory slots, which are
+	much more flexible than kernel-allocated slots.  All current userspace
+	supports the newer interface and this code can be removed with no
+	impact.
+Who:	Avi Kivity <avi@redhat.com>
+
+----------------------------
+
+What:	KVM paravirt mmu host support
+When:	January 2011
+Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
+	on newer and older hardware.  It is already not exposed to the guest,
+	and kept only for live migration purposes.
+Who:	Avi Kivity <avi@redhat.com>
