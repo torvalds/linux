@@ -528,7 +528,7 @@ handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
 		/* fallthrough */
 		case -ERESTARTNOINTR:
 			regs->regs[0] = save_r0;
-			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+			regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 			break;
 	}
 }
@@ -626,9 +626,9 @@ no_signal:
 		    regs->regs[0] == -ERESTARTSYS ||
 		    regs->regs[0] == -ERESTARTNOINTR) {
 			regs->regs[0] = save_r0;
-			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+			regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 		} else if (regs->regs[0] == -ERESTART_RESTARTBLOCK) {
-			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+			regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 			regs->regs[3] = __NR_restart_syscall;
 		}
 	}

@@ -161,10 +161,10 @@ device_initcall(sh7343se_devices_setup);
  */
 static void __init sh7343se_setup(char **cmdline_p)
 {
-	ctrl_outw(0xf900, FPGA_OUT);	/* FPGA */
+	__raw_writew(0xf900, FPGA_OUT);	/* FPGA */
 
-	ctrl_outw(0x0002, PORT_PECR);	/* PORT E 1 = IRQ5 */
-	ctrl_outw(0x0020, PORT_PSELD);
+	__raw_writew(0x0002, PORT_PECR);	/* PORT E 1 = IRQ5 */
+	__raw_writew(0x0020, PORT_PSELD);
 
 	printk(KERN_INFO "MS7343CP01 Setup...done\n");
 }

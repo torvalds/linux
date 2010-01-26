@@ -16,8 +16,8 @@ static inline unsigned int port2adr(unsigned int port)
 u8 titan_inb(unsigned long port)
 {
         if (PXSEG(port))
-                return ctrl_inb(port);
-        return ctrl_inw(port2adr(port)) & 0xff;
+                return __raw_readb(port);
+        return __raw_readw(port2adr(port)) & 0xff;
 }
 
 u8 titan_inb_p(unsigned long port)
@@ -25,9 +25,9 @@ u8 titan_inb_p(unsigned long port)
         u8 v;
 
         if (PXSEG(port))
-                v = ctrl_inb(port);
+                v = __raw_readb(port);
         else
-                v = ctrl_inw(port2adr(port)) & 0xff;
+                v = __raw_readw(port2adr(port)) & 0xff;
         ctrl_delay();
         return v;
 }
@@ -35,9 +35,9 @@ u8 titan_inb_p(unsigned long port)
 u16 titan_inw(unsigned long port)
 {
         if (PXSEG(port))
-                return ctrl_inw(port);
+                return __raw_readw(port);
         else if (port >= 0x2000)
-                return ctrl_inw(port2adr(port));
+                return __raw_readw(port2adr(port));
         else
                 maybebadio(port);
         return 0;
@@ -46,9 +46,9 @@ u16 titan_inw(unsigned long port)
 u32 titan_inl(unsigned long port)
 {
         if (PXSEG(port))
-                return ctrl_inl(port);
+                return __raw_readl(port);
         else if (port >= 0x2000)
-                return ctrl_inw(port2adr(port));
+                return __raw_readw(port2adr(port));
         else
                 maybebadio(port);
         return 0;
@@ -57,26 +57,26 @@ u32 titan_inl(unsigned long port)
 void titan_outb(u8 value, unsigned long port)
 {
         if (PXSEG(port))
-                ctrl_outb(value, port);
+                __raw_writeb(value, port);
         else
-                ctrl_outw(value, port2adr(port));
+                __raw_writew(value, port2adr(port));
 }
 
 void titan_outb_p(u8 value, unsigned long port)
 {
         if (PXSEG(port))
-                ctrl_outb(value, port);
+                __raw_writeb(value, port);
         else
-                ctrl_outw(value, port2adr(port));
+                __raw_writew(value, port2adr(port));
         ctrl_delay();
 }
 
 void titan_outw(u16 value, unsigned long port)
 {
         if (PXSEG(port))
-                ctrl_outw(value, port);
+                __raw_writew(value, port);
         else if (port >= 0x2000)
-                ctrl_outw(value, port2adr(port));
+                __raw_writew(value, port2adr(port));
         else
                 maybebadio(port);
 }
@@ -84,7 +84,7 @@ void titan_outw(u16 value, unsigned long port)
 void titan_outl(u32 value, unsigned long port)
 {
         if (PXSEG(port))
-                ctrl_outl(value, port);
+                __raw_writel(value, port);
         else
                 maybebadio(port);
 }

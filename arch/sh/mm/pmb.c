@@ -112,7 +112,7 @@ static void pmb_free(struct pmb_entry *pmbe)
 static void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
 			    unsigned long flags, int pos)
 {
-	ctrl_outl(vpn | PMB_V, mk_pmb_addr(pos));
+	__raw_writel(vpn | PMB_V, mk_pmb_addr(pos));
 
 #ifdef CONFIG_CACHE_WRITETHROUGH
 	/*
@@ -124,7 +124,7 @@ static void __set_pmb_entry(unsigned long vpn, unsigned long ppn,
 		flags |= PMB_WT;
 #endif
 
-	ctrl_outl(ppn | flags | PMB_V, mk_pmb_data(pos));
+	__raw_writel(ppn | flags | PMB_V, mk_pmb_data(pos));
 }
 
 static void set_pmb_entry(struct pmb_entry *pmbe)
@@ -146,10 +146,10 @@ static void clear_pmb_entry(struct pmb_entry *pmbe)
 
 	/* Clear V-bit */
 	addr = mk_pmb_addr(entry);
-	ctrl_outl(ctrl_inl(addr) & ~PMB_V, addr);
+	__raw_writel(__raw_readl(addr) & ~PMB_V, addr);
 
 	addr = mk_pmb_data(entry);
-	ctrl_outl(ctrl_inl(addr) & ~PMB_V, addr);
+	__raw_writel(__raw_readl(addr) & ~PMB_V, addr);
 
 	back_to_cached();
 }
@@ -395,7 +395,7 @@ int pmb_init(void)
 		unsigned long vpn, ppn, flags;
 
 		addr = PMB_DATA + (i << PMB_E_SHIFT);
-		data = ctrl_inl(addr);
+		data = __raw_readl(addr);
 		if (!(data & PMB_V))
 			continue;
 
@@ -408,7 +408,7 @@ int pmb_init(void)
 			data &= ~(PMB_C | PMB_WT);
 #endif
 		}
-		ctrl_outl(data, addr);
+		__raw_writel(data, addr);
 
 		ppn = data & PMB_PFN_MASK;
 
@@ -416,7 +416,7 @@ int pmb_init(void)
 		flags |= data & PMB_SZ_MASK;
 
 		addr = PMB_ADDR + (i << PMB_E_SHIFT);
-		data = ctrl_inl(addr);
+		data = __raw_readl(addr);
 
 		vpn = data & PMB_PFN_MASK;
 
@@ -424,12 +424,12 @@ int pmb_init(void)
 		WARN_ON(IS_ERR(pmbe));
 	}
 
-	ctrl_outl(0, PMB_IRMCR);
+	__raw_writel(0, PMB_IRMCR);
 
 	/* Flush out the TLB */
-	i =  ctrl_inl(MMUCR);
+	i =  __raw_readl(MMUCR);
 	i |= MMUCR_TI;
-	ctrl_outl(i, MMUCR);
+	__raw_writel(i, MMUCR);
 
 	back_to_cached();
 
@@ -454,8 +454,8 @@ static int pmb_seq_show(struct seq_file *file, void *iter)
 		unsigned int size;
 		char *sz_str = NULL;
 
-		addr = ctrl_inl(mk_pmb_addr(i));
-		data = ctrl_inl(mk_pmb_data(i));
+		addr = __raw_readl(mk_pmb_addr(i));
+		data = __raw_readl(mk_pmb_data(i));
 
 		size = data & PMB_SZ_MASK;
 		sz_str = (size == PMB_SZ_16M)  ? " 16MB":

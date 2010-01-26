@@ -25,7 +25,7 @@ void init_landisk_IRQ(void);
 
 static void landisk_power_off(void)
 {
-        ctrl_outb(0x01, PA_SHUTDOWN);
+        __raw_writeb(0x01, PA_SHUTDOWN);
 }
 
 static struct resource cf_ide_resources[3];
@@ -88,7 +88,7 @@ __initcall(landisk_devices_setup);
 static void __init landisk_setup(char **cmdline_p)
 {
         /* LED ON */
-	ctrl_outb(ctrl_inb(PA_LED) | 0x03, PA_LED);
+	__raw_writeb(__raw_readb(PA_LED) | 0x03, PA_LED);
 
 	printk(KERN_INFO "I-O DATA DEVICE, INC. \"LANDISK Series\" support.\n");
 	pm_power_off = landisk_power_off;

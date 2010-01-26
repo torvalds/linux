@@ -696,13 +696,13 @@ static struct platform_device camera_devices[] = {
 #define FCLKBCR		0xa415000c
 static void fsimck_init(struct clk *clk)
 {
-	u32 status = ctrl_inl(clk->enable_reg);
+	u32 status = __raw_readl(clk->enable_reg);
 
 	/* use external clock */
 	status &= ~0x000000ff;
 	status |= 0x00000080;
 
-	ctrl_outl(status, clk->enable_reg);
+	__raw_writel(status, clk->enable_reg);
 }
 
 static struct clk_ops fsimck_clk_ops = {
@@ -853,7 +853,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTG1, 0);
 	gpio_direction_output(GPIO_PTG2, 0);
 	gpio_direction_output(GPIO_PTG3, 0);
-	ctrl_outw((ctrl_inw(PORT_HIZA) & ~(0x1 << 1)) , PORT_HIZA);
+	__raw_writew((__raw_readw(PORT_HIZA) & ~(0x1 << 1)) , PORT_HIZA);
 
 	/* enable SH-Eth */
 	gpio_request(GPIO_PTA1, NULL);
@@ -873,16 +873,16 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_LNKSTA,       NULL);
 
 	/* enable USB */
-	ctrl_outw(0x0000, 0xA4D80000);
-	ctrl_outw(0x0000, 0xA4D90000);
+	__raw_writew(0x0000, 0xA4D80000);
+	__raw_writew(0x0000, 0xA4D90000);
 	gpio_request(GPIO_PTB3,  NULL);
 	gpio_request(GPIO_PTB4,  NULL);
 	gpio_request(GPIO_PTB5,  NULL);
 	gpio_direction_input(GPIO_PTB3);
 	gpio_direction_output(GPIO_PTB4, 0);
 	gpio_direction_output(GPIO_PTB5, 0);
-	ctrl_outw(0x0600, 0xa40501d4);
-	ctrl_outw(0x0600, 0xa4050192);
+	__raw_writew(0x0600, 0xa40501d4);
+	__raw_writew(0x0600, 0xa4050192);
 
 	if (gpio_get_value(GPIO_PTB3)) {
 		printk(KERN_INFO "USB1 function is selected\n");
@@ -923,7 +923,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_LCDVSYN,  NULL);
 	gpio_request(GPIO_FN_LCDDON,   NULL);
 	gpio_request(GPIO_FN_LCDLCLK,  NULL);
-	ctrl_outw((ctrl_inw(PORT_HIZA) & ~0x0001), PORT_HIZA);
+	__raw_writew((__raw_readw(PORT_HIZA) & ~0x0001), PORT_HIZA);
 
 	gpio_request(GPIO_PTE6, NULL);
 	gpio_request(GPIO_PTU1, NULL);
@@ -935,7 +935,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTA2, 0);
 
 	/* I/O buffer drive ability is high */
-	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x00c0) | 0x0080 , IODRIVEA);
+	__raw_writew((__raw_readw(IODRIVEA) & ~0x00c0) | 0x0080 , IODRIVEA);
 
 	if (gpio_get_value(GPIO_PTE6)) {
 		/* DVI */
@@ -1067,7 +1067,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTB7, 0);
 
 	/* I/O buffer drive ability is high for SDHI1 */
-	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
+	__raw_writew((__raw_readw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
 #else
 	/* enable MSIOF0 on CN11 (needs DS2.4 set to OFF) */
 	gpio_request(GPIO_FN_MSIOF0_TXD, NULL);

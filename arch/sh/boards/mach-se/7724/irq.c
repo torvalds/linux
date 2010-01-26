@@ -72,14 +72,14 @@ static void disable_se7724_irq(unsigned int irq)
 {
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
-	ctrl_outw(ctrl_inw(set.mraddr) | 0x0001 << bit, set.mraddr);
+	__raw_writew(__raw_readw(set.mraddr) | 0x0001 << bit, set.mraddr);
 }
 
 static void enable_se7724_irq(unsigned int irq)
 {
 	struct fpga_irq set = get_fpga_irq(fpga2irq(irq));
 	unsigned int bit = irq - set.base;
-	ctrl_outw(ctrl_inw(set.mraddr) & ~(0x0001 << bit), set.mraddr);
+	__raw_writew(__raw_readw(set.mraddr) & ~(0x0001 << bit), set.mraddr);
 }
 
 static struct irq_chip se7724_irq_chip __read_mostly = {
@@ -92,7 +92,7 @@ static struct irq_chip se7724_irq_chip __read_mostly = {
 static void se7724_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	struct fpga_irq set = get_fpga_irq(irq);
-	unsigned short intv = ctrl_inw(set.sraddr);
+	unsigned short intv = __raw_readw(set.sraddr);
 	struct irq_desc *ext_desc;
 	unsigned int ext_irq = set.base;
 
@@ -115,13 +115,13 @@ void __init init_se7724_IRQ(void)
 {
 	int i;
 
-	ctrl_outw(0xffff, IRQ0_MR);  /* mask all */
-	ctrl_outw(0xffff, IRQ1_MR);  /* mask all */
-	ctrl_outw(0xffff, IRQ2_MR);  /* mask all */
-	ctrl_outw(0x0000, IRQ0_SR);  /* clear irq */
-	ctrl_outw(0x0000, IRQ1_SR);  /* clear irq */
-	ctrl_outw(0x0000, IRQ2_SR);  /* clear irq */
-	ctrl_outw(0x002a, IRQ_MODE); /* set irq type */
+	__raw_writew(0xffff, IRQ0_MR);  /* mask all */
+	__raw_writew(0xffff, IRQ1_MR);  /* mask all */
+	__raw_writew(0xffff, IRQ2_MR);  /* mask all */
+	__raw_writew(0x0000, IRQ0_SR);  /* clear irq */
+	__raw_writew(0x0000, IRQ1_SR);  /* clear irq */
+	__raw_writew(0x0000, IRQ2_SR);  /* clear irq */
+	__raw_writew(0x002a, IRQ_MODE); /* set irq type */
 
 	for (i = 0; i < SE7724_FPGA_IRQ_NR; i++)
 		set_irq_chip_and_handler_name(SE7724_FPGA_IRQ_BASE + i,

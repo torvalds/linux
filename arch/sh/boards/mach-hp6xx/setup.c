@@ -149,19 +149,19 @@ static void __init hp6xx_setup(char **cmdline_p)
 
 	sh_dac_output(0, DAC_SPEAKER_VOLUME);
 	sh_dac_disable(DAC_SPEAKER_VOLUME);
-	v8 = ctrl_inb(DACR);
+	v8 = __raw_readb(DACR);
 	v8 &= ~DACR_DAE;
-	ctrl_outb(v8,DACR);
+	__raw_writeb(v8,DACR);
 
-	v8 = ctrl_inb(SCPDR);
+	v8 = __raw_readb(SCPDR);
 	v8 |= SCPDR_TS_SCAN_X | SCPDR_TS_SCAN_Y;
 	v8 &= ~SCPDR_TS_SCAN_ENABLE;
-	ctrl_outb(v8, SCPDR);
+	__raw_writeb(v8, SCPDR);
 
-	v = ctrl_inw(SCPCR);
+	v = __raw_readw(SCPCR);
 	v &= ~SCPCR_TS_MASK;
 	v |= SCPCR_TS_ENABLE;
-	ctrl_outw(v, SCPCR);
+	__raw_writew(v, SCPCR);
 }
 device_initcall(hp6xx_devices_setup);
 

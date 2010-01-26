@@ -28,9 +28,9 @@ int __init detect_cpu_and_cache_system(void)
 		[9] = (1 << 16)
 	};
 
-	pvr = (ctrl_inl(CCN_PVR) >> 8) & 0xffffff;
-	prr = (ctrl_inl(CCN_PRR) >> 4) & 0xff;
-	cvr = (ctrl_inl(CCN_CVR));
+	pvr = (__raw_readl(CCN_PVR) >> 8) & 0xffffff;
+	prr = (__raw_readl(CCN_PRR) >> 4) & 0xff;
+	cvr = (__raw_readl(CCN_CVR));
 
 	/*
 	 * Setup some sane SH-4 defaults for the icache

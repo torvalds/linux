@@ -97,9 +97,9 @@ static int __init sh7751_pci_init(void)
 		return ret;
 
 	/* Set the BCR's to enable PCI access */
-	reg = ctrl_inl(SH7751_BCR1);
+	reg = __raw_readl(SH7751_BCR1);
 	reg |= 0x80000;
-	ctrl_outl(reg, SH7751_BCR1);
+	__raw_writel(reg, SH7751_BCR1);
 
 	/* Turn the clocks back on (not done in reset)*/
 	pci_write_reg(chan, 0, SH4_PCICLKR);
@@ -159,13 +159,13 @@ static int __init sh7751_pci_init(void)
 		return -1;
 
 	/* configure the wait control registers */
-	word = ctrl_inl(SH7751_WCR1);
+	word = __raw_readl(SH7751_WCR1);
 	pci_write_reg(chan, word, SH4_PCIWCR1);
-	word = ctrl_inl(SH7751_WCR2);
+	word = __raw_readl(SH7751_WCR2);
 	pci_write_reg(chan, word, SH4_PCIWCR2);
-	word = ctrl_inl(SH7751_WCR3);
+	word = __raw_readl(SH7751_WCR3);
 	pci_write_reg(chan, word, SH4_PCIWCR3);
-	word = ctrl_inl(SH7751_MCR);
+	word = __raw_readl(SH7751_MCR);
 	pci_write_reg(chan, word, SH4_PCIMCR);
 
 	/* NOTE: I'm ignoring the PCI error IRQs for now..

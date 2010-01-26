@@ -80,10 +80,10 @@ device_initcall(se7721_devices_setup);
 static void __init se7721_setup(char **cmdline_p)
 {
 	/* for USB */
-	ctrl_outw(0x0000, 0xA405010C);	/* PGCR */
-	ctrl_outw(0x0000, 0xA405010E);	/* PHCR */
-	ctrl_outw(0x00AA, 0xA4050118);	/* PPCR */
-	ctrl_outw(0x0000, 0xA4050124);	/* PSELA */
+	__raw_writew(0x0000, 0xA405010C);	/* PGCR */
+	__raw_writew(0x0000, 0xA405010E);	/* PHCR */
+	__raw_writew(0x00AA, 0xA4050118);	/* PPCR */
+	__raw_writew(0x0000, 0xA4050124);	/* PSELA */
 }
 
 /*

@@ -149,7 +149,7 @@ static void __init x3proto_init_irq(void)
 	plat_irq_setup_pins(IRQ_MODE_IRL3210);
 
 	/* Set ICR0.LVLMODE */
-	ctrl_outl(ctrl_inl(0xfe410000) | (1 << 21), 0xfe410000);
+	__raw_writel(__raw_readl(0xfe410000) | (1 << 21), 0xfe410000);
 }
 
 static struct sh_machine_vector mv_x3proto __initmv = {

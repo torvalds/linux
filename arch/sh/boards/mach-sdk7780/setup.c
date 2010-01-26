@@ -74,8 +74,8 @@ device_initcall(sdk7780_devices_setup);
 
 static void __init sdk7780_setup(char **cmdline_p)
 {
-	u16 ver = ctrl_inw(FPGA_FPVERR);
-	u16 dateStamp = ctrl_inw(FPGA_FPDATER);
+	u16 ver = __raw_readw(FPGA_FPVERR);
+	u16 dateStamp = __raw_readw(FPGA_FPDATER);
 
 	printk(KERN_INFO "Renesas Technology Europe SDK7780 support.\n");
 	printk(KERN_INFO "Board version: %d (revision %d), "
@@ -85,7 +85,7 @@ static void __init sdk7780_setup(char **cmdline_p)
 			 dateStamp);
 
 	/* Setup pin mux'ing for PCIC */
-	ctrl_outw(0x0000, GPIO_PECR);
+	__raw_writew(0x0000, GPIO_PECR);
 }
 
 /*

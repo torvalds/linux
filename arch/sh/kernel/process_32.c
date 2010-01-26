@@ -41,7 +41,7 @@ void show_regs(struct pt_regs * regs)
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
-	printk("TEA : %08x\n", ctrl_inl(MMU_TEA));
+	printk("TEA : %08x\n", __raw_readl(MMU_TEA));
 #else
 	printk("\n");
 #endif

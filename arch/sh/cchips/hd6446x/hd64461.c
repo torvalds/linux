@@ -55,7 +55,7 @@ static struct irq_chip hd64461_irq_chip = {
 
 static void hd64461_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned short intv = ctrl_inw(HD64461_NIRR);
+	unsigned short intv = __raw_readw(HD64461_NIRR);
 	struct irq_desc *ext_desc;
 	unsigned int ext_irq = HD64461_IRQBASE;
 

@@ -132,9 +132,9 @@ static void flush_icache_all(void)
 	jump_to_uncached();
 
 	/* Flush I-cache */
-	ccr = ctrl_inl(CCR);
+	ccr = __raw_readl(CCR);
 	ccr |= CCR_CACHE_ICI;
-	ctrl_outl(ccr, CCR);
+	__raw_writel(ccr, CCR);
 
 	/*
 	 * back_to_cached() will take care of the barrier for us, don't add
@@ -377,9 +377,9 @@ extern void __weak sh4__flush_region_init(void);
 void __init sh4_cache_init(void)
 {
 	printk("PVR=%08x CVR=%08x PRR=%08x\n",
-		ctrl_inl(CCN_PVR),
-		ctrl_inl(CCN_CVR),
-		ctrl_inl(CCN_PRR));
+		__raw_readl(CCN_PVR),
+		__raw_readl(CCN_CVR),
+		__raw_readl(CCN_PRR));
 
 	local_flush_icache_range	= sh4_flush_icache_range;
 	local_flush_dcache_page		= sh4_flush_dcache_page;

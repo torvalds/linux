@@ -43,9 +43,9 @@ static unsigned long *sq_bitmap;
 
 #define store_queue_barrier()			\
 do {						\
-	(void)ctrl_inl(P4SEG_STORE_QUE);	\
-	ctrl_outl(0, P4SEG_STORE_QUE + 0);	\
-	ctrl_outl(0, P4SEG_STORE_QUE + 8);	\
+	(void)__raw_readl(P4SEG_STORE_QUE);	\
+	__raw_writel(0, P4SEG_STORE_QUE + 0);	\
+	__raw_writel(0, P4SEG_STORE_QUE + 8);	\
 } while (0);
 
 /**
@@ -123,8 +123,8 @@ static int __sq_remap(struct sq_mapping *map, unsigned long flags)
 	 * straightforward, as we can just load up each queue's QACR with
 	 * the physical address appropriately masked.
 	 */
-	ctrl_outl(((map->addr >> 26) << 2) & 0x1c, SQ_QACR0);
-	ctrl_outl(((map->addr >> 26) << 2) & 0x1c, SQ_QACR1);
+	__raw_writel(((map->addr >> 26) << 2) & 0x1c, SQ_QACR0);
+	__raw_writel(((map->addr >> 26) << 2) & 0x1c, SQ_QACR1);
 #endif
 
 	return 0;

@@ -88,7 +88,7 @@ static void disable_microdev_irq(unsigned int irq)
 	fpgaIrq = fpgaIrqTable[irq].fpgaIrq;
 
 	/* disable interrupts on the FPGA INTC register */
-	ctrl_outl(MICRODEV_FPGA_INTC_MASK(fpgaIrq), MICRODEV_FPGA_INTDSB_REG);
+	__raw_writel(MICRODEV_FPGA_INTC_MASK(fpgaIrq), MICRODEV_FPGA_INTDSB_REG);
 }
 
 static void enable_microdev_irq(unsigned int irq)
@@ -107,13 +107,13 @@ static void enable_microdev_irq(unsigned int irq)
 	priorityReg = MICRODEV_FPGA_INTPRI_REG(fpgaIrq);
 
 	/* set priority for the interrupt */
-	priorities = ctrl_inl(priorityReg);
+	priorities = __raw_readl(priorityReg);
 	priorities &= ~MICRODEV_FPGA_INTPRI_MASK(fpgaIrq);
 	priorities |= MICRODEV_FPGA_INTPRI_LEVEL(fpgaIrq, pri);
-	ctrl_outl(priorities, priorityReg);
+	__raw_writel(priorities, priorityReg);
 
 	/* enable interrupts on the FPGA INTC register */
-	ctrl_outl(MICRODEV_FPGA_INTC_MASK(fpgaIrq), MICRODEV_FPGA_INTENB_REG);
+	__raw_writel(MICRODEV_FPGA_INTC_MASK(fpgaIrq), MICRODEV_FPGA_INTENB_REG);
 }
 
 /* This function sets the desired irq handler to be a MicroDev type */
@@ -134,7 +134,7 @@ extern void __init init_microdev_irq(void)
 	int i;
 
 	/* disable interrupts on the FPGA INTC register */
-	ctrl_outl(~0ul, MICRODEV_FPGA_INTDSB_REG);
+	__raw_writel(~0ul, MICRODEV_FPGA_INTDSB_REG);
 
 	for (i = 0; i < NUM_EXTERNAL_IRQS; i++)
 		make_microdev_irq(i);

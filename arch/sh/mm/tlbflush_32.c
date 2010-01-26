@@ -132,9 +132,9 @@ void local_flush_tlb_all(void)
 	 *      It's same position, bit #2.
 	 */
 	local_irq_save(flags);
-	status = ctrl_inl(MMUCR);
+	status = __raw_readl(MMUCR);
 	status |= 0x04;
-	ctrl_outl(status, MMUCR);
+	__raw_writel(status, MMUCR);
 	ctrl_barrier();
 	local_irq_restore(flags);
 }

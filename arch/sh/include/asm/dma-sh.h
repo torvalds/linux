@@ -20,14 +20,14 @@
     defined(CONFIG_CPU_SUBTYPE_SH7780)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define dmaor_read_reg(n) \
-    (n ? ctrl_inw(SH_DMAC_BASE1 + DMAOR) \
-	: ctrl_inw(SH_DMAC_BASE0 + DMAOR))
+    (n ? __raw_readw(SH_DMAC_BASE1 + DMAOR) \
+	: __raw_readw(SH_DMAC_BASE0 + DMAOR))
 #define dmaor_write_reg(n, data) \
-    (n ? ctrl_outw(data, SH_DMAC_BASE1 + DMAOR) \
-    : ctrl_outw(data, SH_DMAC_BASE0 + DMAOR))
+    (n ? __raw_writew(data, SH_DMAC_BASE1 + DMAOR) \
+    : __raw_writew(data, SH_DMAC_BASE0 + DMAOR))
 #else /* Other CPU */
-#define dmaor_read_reg(n) ctrl_inw(SH_DMAC_BASE0 + DMAOR)
-#define dmaor_write_reg(n, data) ctrl_outw(data, SH_DMAC_BASE0 + DMAOR)
+#define dmaor_read_reg(n) __raw_readw(SH_DMAC_BASE0 + DMAOR)
+#define dmaor_write_reg(n, data) __raw_writew(data, SH_DMAC_BASE0 + DMAOR)
 #endif
 
 static int dmte_irq_map[] __maybe_unused = {

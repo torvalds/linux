@@ -54,7 +54,7 @@ static inline unsigned int get_dmte_irq(unsigned int chan)
  */
 static inline unsigned int calc_xmit_shift(struct dma_channel *chan)
 {
-	u32 chcr = ctrl_inl(dma_base_addr[chan->chan] + CHCR);
+	u32 chcr = __raw_readl(dma_base_addr[chan->chan] + CHCR);
 
 	return ts_shift[(chcr & CHCR_TS_MASK)>>CHCR_TS_SHIFT];
 }
@@ -70,13 +70,13 @@ static irqreturn_t dma_tei(int irq, void *dev_id)
 	struct dma_channel *chan = dev_id;
 	u32 chcr;
 
-	chcr = ctrl_inl(dma_base_addr[chan->chan] + CHCR);
+	chcr = __raw_readl(dma_base_addr[chan->chan] + CHCR);
 
 	if (!(chcr & CHCR_TE))
 		return IRQ_NONE;
 
 	chcr &= ~(CHCR_IE | CHCR_DE);
-	ctrl_outl(chcr, (dma_base_addr[chan->chan] + CHCR));
+	__raw_writel(chcr, (dma_base_addr[chan->chan] + CHCR));
 
 	wake_up(&chan->wait_queue);
 
@@ -115,7 +115,7 @@ sh_dmac_configure_channel(struct dma_channel *chan, unsigned long chcr)
 		chan->flags &= ~DMA_TEI_CAPABLE;
 	}
 
-	ctrl_outl(chcr, (dma_base_addr[chan->chan] + CHCR));
+	__raw_writel(chcr, (dma_base_addr[chan->chan] + CHCR));
 
 	chan->flags |= DMA_CONFIGURED;
 	return 0;
@@ -126,13 +126,13 @@ static void sh_dmac_enable_dma(struct dma_channel *chan)
 	int irq;
 	u32 chcr;
 
-	chcr = ctrl_inl(dma_base_addr[chan->chan] + CHCR);
+	chcr = __raw_readl(dma_base_addr[chan->chan] + CHCR);
 	chcr |= CHCR_DE;
 
 	if (chan->flags & DMA_TEI_CAPABLE)
 		chcr |= CHCR_IE;
 
-	ctrl_outl(chcr, (dma_base_addr[chan->chan] + CHCR));
+	__raw_writel(chcr, (dma_base_addr[chan->chan] + CHCR));
 
 	if (chan->flags & DMA_TEI_CAPABLE) {
 		irq = get_dmte_irq(chan->chan);
@@ -150,9 +150,9 @@ static void sh_dmac_disable_dma(struct dma_channel *chan)
 		disable_irq(irq);
 	}
 
-	chcr = ctrl_inl(dma_base_addr[chan->chan] + CHCR);
+	chcr = __raw_readl(dma_base_addr[chan->chan] + CHCR);
 	chcr &= ~(CHCR_DE | CHCR_TE | CHCR_IE);
-	ctrl_outl(chcr, (dma_base_addr[chan->chan] + CHCR));
+	__raw_writel(chcr, (dma_base_addr[chan->chan] + CHCR));
 }
 
 static int sh_dmac_xfer_dma(struct dma_channel *chan)
@@ -183,12 +183,12 @@ static int sh_dmac_xfer_dma(struct dma_channel *chan)
 	 */
 	if (chan->sar || (mach_is_dreamcast() &&
 			  chan->chan == PVR2_CASCADE_CHAN))
-		ctrl_outl(chan->sar, (dma_base_addr[chan->chan]+SAR));
+		__raw_writel(chan->sar, (dma_base_addr[chan->chan]+SAR));
 	if (chan->dar || (mach_is_dreamcast() &&
 			  chan->chan == PVR2_CASCADE_CHAN))
-		ctrl_outl(chan->dar, (dma_base_addr[chan->chan] + DAR));
+		__raw_writel(chan->dar, (dma_base_addr[chan->chan] + DAR));
 
-	ctrl_outl(chan->count >> calc_xmit_shift(chan),
+	__raw_writel(chan->count >> calc_xmit_shift(chan),
 		(dma_base_addr[chan->chan] + TCR));
 
 	sh_dmac_enable_dma(chan);
@@ -198,10 +198,10 @@ static int sh_dmac_xfer_dma(struct dma_channel *chan)
 
 static int sh_dmac_get_dma_residue(struct dma_channel *chan)
 {
-	if (!(ctrl_inl(dma_base_addr[chan->chan] + CHCR) & CHCR_DE))
+	if (!(__raw_readl(dma_base_addr[chan->chan] + CHCR) & CHCR_DE))
 		return 0;
 
-	return ctrl_inl(dma_base_addr[chan->chan] + TCR)
+	return __raw_readl(dma_base_addr[chan->chan] + TCR)
 		 << calc_xmit_shift(chan);
 }
 
