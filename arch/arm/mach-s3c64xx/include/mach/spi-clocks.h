@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c64xx/include/plat/spi-clocks.h
+/* linux/arch/arm/mach-s3c64xx/include/mach/spi-clocks.h
  *
  * Copyright (C) 2009 Samsung Electronics Ltd.
  *	Jaswinder Singh <jassi.brar@samsung.com>

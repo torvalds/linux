@@ -18,9 +18,13 @@ obj-$(CONFIG_CPU_S3C6410)	+= s3c6410.o
 obj-y				+= irq.o
 obj-y				+= irq-eint.o
 
-# setup support
+# Device setup
 
+obj-$(CONFIG_S3C64XX_SETUP_I2C0) += setup-i2c0.o
+obj-$(CONFIG_S3C64XX_SETUP_I2C1) += setup-i2c1.o
 obj-$(CONFIG_S3C64XX_SETUP_SDHCI) += setup-sdhci.o
+obj-$(CONFIG_S3C64XX_SETUP_FB_24BPP) += setup-fb-24bpp.o
+obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO) += setup-sdhci-gpio.o
 
 # PM
 
@@ -33,3 +37,10 @@ obj-$(CONFIG_MACH_SMDK6400)	+= mach-smdk6400.o
 obj-$(CONFIG_MACH_SMDK6410)	+= mach-smdk6410.o
 obj-$(CONFIG_MACH_NCP)		+= mach-ncp.o
 obj-$(CONFIG_MACH_HMT)		+= mach-hmt.o
+
+# device support
+
+obj-y				+= dev-uart.o
+obj-y				+= dev-rtc.o
+obj-$(CONFIG_S3C_ADC)		+= dev-adc.o
+obj-$(CONFIG_SND_S3C24XX_SOC)	+= dev-audio.o

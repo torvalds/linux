@@ -17,8 +17,8 @@
 #include <mach/map.h>
 #include <mach/gpio.h>
 #include <mach/gpio-bank-c.h>
+#include <mach/spi-clocks.h>
 
-#include <plat/spi-clocks.h>
 #include <plat/s3c64xx-spi.h>
 #include <plat/gpio-cfg.h>
 #include <plat/irqs.h>

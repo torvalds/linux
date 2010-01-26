@@ -46,30 +46,4 @@ config S3C64XX_DMA
 	bool "S3C64XX DMA"
 	select S3C_DMA
 
-# platform specific device setup
-
-config S3C64XX_SETUP_I2C0
-	bool
-	default y
-	help
-	  Common setup code for i2c bus 0.
-
-	  Note, currently since i2c0 is always compiled, this setup helper
-	  is always compiled with it.
-
-config S3C64XX_SETUP_I2C1
-	bool
-	help
-	  Common setup code for i2c bus 1.
-
-config S3C64XX_SETUP_FB_24BPP
-	bool
-	help
-	  Common setup code for S3C64XX with an 24bpp RGB display helper.
-
-config S3C64XX_SETUP_SDHCI_GPIO
-	bool
-	help
-	  Common setup code for S3C64XX SDHCI GPIO configurations
-
 endif
