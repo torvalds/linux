@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c6410/mach-anw6410.c
+/* linux/arch/arm/mach-s3c64xx/mach-anw6410.c
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics

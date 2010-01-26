@@ -799,8 +799,7 @@ source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 if ARCH_S3C64XX
-source "arch/arm/mach-s3c6400/Kconfig"
-source "arch/arm/mach-s3c6410/Kconfig"
+source "arch/arm/mach-s3c64xx/Kconfig"
 endif
 
 source "arch/arm/mach-s5p6440/Kconfig"

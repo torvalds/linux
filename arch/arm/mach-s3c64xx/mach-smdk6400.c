@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s3c6400/mach-smdk6400.c
+/* linux/arch/arm/mach-s3c64xx/mach-smdk6400.c
  *
  * Copyright 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

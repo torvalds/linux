@@ -1,9 +1,16 @@
 # Copyright 2008 Openmoko, Inc.
-# Copyright 2008 Simtec Electronics
+#	Simtec Electronics, Ben Dooks <ben@simtec.co.uk>
 #
 # Licensed under GPLv2
 
 # Configuration options for the S3C6410 CPU
+
+config CPU_S3C6400
+	bool
+	select CPU_S3C6400_INIT
+	select CPU_S3C6400_CLOCK
+	help
+	  Enable S3C6400 CPU support
 
 config CPU_S3C6410
 	bool
@@ -12,11 +19,30 @@ config CPU_S3C6410
 	help
 	  Enable S3C6410 CPU support
 
+config S3C6400_SETUP_SDHCI
+	bool
+	help
+	  Internal configuration for default SDHCI
+	  setup for S3C6400.
+
 config S3C6410_SETUP_SDHCI
 	bool
 	select S3C64XX_SETUP_SDHCI_GPIO
 	help
 	  Internal helper functions for S3C6410 based SDHCI systems
+
+# S36400 Macchine support
+
+config MACH_SMDK6400
+       bool "SMDK6400"
+	select CPU_S3C6400
+	select S3C_DEV_HSMMC
+	select S3C_DEV_NAND
+	select S3C6400_SETUP_SDHCI
+	help
+	  Machine support for the Samsung SMDK6400
+
+# S3C6410 machine support
 
 config MACH_ANW6410
 	bool "A&W6410"
@@ -58,7 +84,7 @@ config SMDK6410_SD_CH0
 	  at least some SMDK6410 boards come with the
 	  resistors fitted so that the card detects for
 	  channels 0 and 1 are the same.
-       
+
 config SMDK6410_SD_CH1
 	bool "Use channel 1 only"
 	depends on MACH_SMDK6410

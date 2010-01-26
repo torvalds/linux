@@ -1,6 +1,7 @@
-/* linux/arch/arm/mach-s3c6410/cpu.c
+/* linux/arch/arm/mach-s3c64xx/s3c6410.c
  *
- * Copyright 2009 Simtec Electronics
+ * Copyright 2008 Simtec Electronics
+ * Copyright 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *
@@ -38,55 +39,67 @@
 #include <plat/sdhci.h>
 #include <plat/iic-core.h>
 #include <plat/s3c6400.h>
+#include <plat/s3c6410.h>
 
-void __init s3c6400_map_io(void)
+/* Initial IO mappings */
+
+static struct map_desc s3c6410_iodesc[] __initdata = {
+};
+
+/* s3c6410_map_io
+ *
+ * register the standard cpu IO areas
+*/
+
+void __init s3c6410_map_io(void)
 {
-	/* setup SDHCI */
+	iotable_init(s3c6410_iodesc, ARRAY_SIZE(s3c6410_iodesc));
 
-	s3c6400_default_sdhci0();
-	s3c6400_default_sdhci1();
-	s3c6400_default_sdhci2();
+	/* initialise device information early */
+	s3c6410_default_sdhci0();
+	s3c6410_default_sdhci1();
+	s3c6410_default_sdhci2();
 
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
+	s3c_i2c1_setname("s3c2440-i2c");
 
 	s3c_device_nand.name = "s3c6400-nand";
 }
 
-void __init s3c6400_init_clocks(int xtal)
+void __init s3c6410_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initialising clocks\n", __func__);
 	s3c24xx_register_baseclocks(xtal);
 	s3c64xx_register_clocks();
-	s3c6400_register_clocks(S3C6400_CLKDIV0_ARM_MASK);
+	s3c6400_register_clocks(S3C6410_CLKDIV0_ARM_MASK);
 	s3c6400_setup_clocks();
 }
 
-void __init s3c6400_init_irq(void)
+void __init s3c6410_init_irq(void)
 {
-	/* VIC0 does not have IRQS 5..7,
-	 * VIC1 is fully populated. */
-	s3c64xx_init_irq(~0 & ~(0xf << 5), ~0);
+	/* VIC0 is missing IRQ7, VIC1 is fully populated. */
+	s3c64xx_init_irq(~0 & ~(1 << 7), ~0);
 }
 
-struct sysdev_class s3c6400_sysclass = {
-	.name	= "s3c6400-core",
+struct sysdev_class s3c6410_sysclass = {
+	.name	= "s3c6410-core",
 };
 
-static struct sys_device s3c6400_sysdev = {
-	.cls	= &s3c6400_sysclass,
+static struct sys_device s3c6410_sysdev = {
+	.cls	= &s3c6410_sysclass,
 };
 
-static int __init s3c6400_core_init(void)
+static int __init s3c6410_core_init(void)
 {
-	return sysdev_class_register(&s3c6400_sysclass);
+	return sysdev_class_register(&s3c6410_sysclass);
 }
 
-core_initcall(s3c6400_core_init);
+core_initcall(s3c6410_core_init);
 
-int __init s3c6400_init(void)
+int __init s3c6410_init(void)
 {
-	printk("S3C6400: Initialising architecture\n");
+	printk("S3C6410: Initialising architecture\n");
 
-	return sysdev_register(&s3c6400_sysdev);
+	return sysdev_register(&s3c6410_sysdev);
 }

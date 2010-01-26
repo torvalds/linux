@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-s3c6410/mach-ncp.c
+ * linux/arch/arm/mach-s3c64xx/mach-ncp.c
  *
  * Copyright (C) 2008-2009 Samsung Electronics
  *
