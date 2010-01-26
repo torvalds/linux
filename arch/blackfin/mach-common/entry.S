@@ -736,7 +736,8 @@ ENDPROC(_system_call)
  * this symbol need not be global anyways, so ...
  */
 _sys_trace:
-	pseudo_long_call _syscall_trace, p5;
+	r0 = sp;
+	pseudo_long_call _syscall_trace_enter, p5;
 
 	/* Execute the appropriate system call */
 
@@ -760,7 +761,8 @@ _sys_trace:
 	SP += 24;
 	[sp + PT_R0] = r0;
 
-	pseudo_long_call _syscall_trace, p5;
+	r0 = sp;
+	pseudo_long_call _syscall_trace_leave, p5;
 	jump .Lresume_userspace;
 ENDPROC(_sys_trace)
 

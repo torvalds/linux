@@ -1,6 +1,6 @@
 /*
  * linux/kernel/ptrace.c is by Ross Biro 1/23/92, edited by Linus Torvalds
- * these modifications are Copyright 2004-2009 Analog Devices Inc.
+ * these modifications are Copyright 2004-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2
  */
@@ -15,6 +15,7 @@
 #include <linux/user.h>
 #include <linux/regset.h>
 #include <linux/signal.h>
+#include <linux/tracehook.h>
 #include <linux/uaccess.h>
 
 #include <asm/page.h>
@@ -31,25 +32,6 @@
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
-
-/* Find the stack offset for a register, relative to thread.esp0. */
-#define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
-
-/*
- * Get the address of the live pt_regs for the specified task.
- * These are saved onto the top kernel stack when the process
- * is not running.
- *
- * Note: if a user thread is execve'd from kernel space, the
- * kernel stack will not be empty on entry to the kernel, so
- * ptracing these tasks will fail.
- */
-static inline struct pt_regs *task_pt_regs(struct task_struct *task)
-{
-	return (struct pt_regs *)
-	    ((unsigned long)task_stack_page(task) +
-	     (THREAD_SIZE - sizeof(struct pt_regs)));
-}
 
 /*
  * Get contents of register REGNO in task TASK.
@@ -234,18 +216,13 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 	return &user_bfin_native_view;
 }
 
-void ptrace_enable(struct task_struct *child)
+void user_enable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	regs->syscfg |= SYSCFG_SSSTEP;
 }
 
-/*
- * Called by kernel/ptrace.c when detaching..
- *
- * Make sure the single step bit is not set.
- */
-void ptrace_disable(struct task_struct *child)
+void user_disable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	regs->syscfg &= ~SYSCFG_SSSTEP;
@@ -412,27 +389,18 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
+	int ret = 0;
 
-	if (!(current->ptrace & PT_PTRACED))
-		return;
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		ret = tracehook_report_syscall_entry(regs);
 
-	/* the 0x80 provides a way for the tracing parent to distinguish
-	 * between a syscall stop and SIGTRAP delivery
-	 */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
+	return ret;
+}
 
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
+asmlinkage void syscall_trace_leave(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, 0);
 }
