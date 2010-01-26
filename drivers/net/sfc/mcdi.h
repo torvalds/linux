@@ -111,6 +111,7 @@ extern int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 extern int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 				loff_t offset, const u8 *buffer,
 				size_t length);
+#define EFX_MCDI_NVRAM_LEN_MAX 128
 extern int efx_mcdi_nvram_erase(struct efx_nic *efx, unsigned int type,
 				loff_t offset, size_t length);
 extern int efx_mcdi_nvram_update_finish(struct efx_nic *efx,
