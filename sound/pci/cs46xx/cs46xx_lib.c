@@ -3644,6 +3644,7 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	int i;
 #endif
+	unsigned int tmp;
 
 	pci_set_power_state(pci, PCI_D0);
 	pci_restore_state(pci);
@@ -3684,6 +3685,15 @@ int snd_cs46xx_resume(struct pci_dev *pci)
 
 	snd_ac97_resume(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
 	snd_ac97_resume(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
+
+	/*
+         *  Stop capture DMA.
+	 */
+	tmp = snd_cs46xx_peek(chip, BA1_CCTL);
+	chip->capt.ctl = tmp & 0x0000ffff;
+	snd_cs46xx_poke(chip, BA1_CCTL, tmp & 0xffff0000);
+
+	mdelay(5);
 
 	/* reset playback/capture */
 	snd_cs46xx_set_play_sample_rate(chip, 8000);
