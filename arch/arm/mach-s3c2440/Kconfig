@@ -15,6 +15,18 @@ config CPU_S3C2440
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 
+config CPU_S3C2442
+	bool
+	depends on ARCH_S3C2410
+	select CPU_ARM920T
+	select S3C2410_CLOCK
+	select S3C2410_GPIO
+	select S3C2410_PM if PM
+	select CPU_S3C244X
+	select CPU_LLSERIAL_S3C2440
+	help
+	  Support for S3C2442 Samsung Mobile CPU based systems.
+
 config S3C2440_DMA
 	bool
 	depends on ARCH_S3C2410 && CPU_S3C24405B

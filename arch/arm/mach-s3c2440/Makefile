@@ -10,6 +10,8 @@ obj-n				:=
 obj-				:=
 
 obj-$(CONFIG_CPU_S3C2440)	+= s3c2440.o dsc.o
+obj-$(CONFIG_CPU_S3C2442)	+= s3c2442.o
+
 obj-$(CONFIG_CPU_S3C2440)	+= irq.o
 obj-$(CONFIG_CPU_S3C2440)	+= clock.o
 obj-$(CONFIG_S3C2440_DMA)	+= dma.o
