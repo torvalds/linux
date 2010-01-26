@@ -2033,11 +2033,37 @@ static int wm8904_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
+static void wm8904_sync_cache(struct snd_soc_codec *codec)
+{
+	struct wm8904_priv *wm8904 = codec->private_data;
+	int i;
+
+	if (!codec->cache_sync)
+		return;
+
+	codec->cache_only = 0;
+
+	/* Sync back cached values if they're different from the
+	 * hardware default.
+	 */
+	for (i = 1; i < ARRAY_SIZE(wm8904->reg_cache); i++) {
+		if (!wm8904_access[i].writable)
+			continue;
+
+		if (wm8904->reg_cache[i] == wm8904_reg[i])
+			continue;
+
+		snd_soc_write(codec, i, wm8904->reg_cache[i]);
+	}
+
+	codec->cache_sync = 0;
+}
+
 static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8904_priv *wm8904 = codec->private_data;
-	int ret, i;
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -2065,18 +2091,7 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			/* Sync back cached values if they're
-			 * different from the hardware default.
-			 */
-			for (i = 1; i < ARRAY_SIZE(wm8904->reg_cache); i++) {
-				if (!wm8904_access[i].writable)
-					continue;
-
-				if (wm8904->reg_cache[i] == wm8904_reg[i])
-					continue;
-
-				snd_soc_write(codec, i, wm8904->reg_cache[i]);
-			}
+			wm8904_sync_cache(codec);
 
 			/* Enable bias */
 			snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
@@ -2111,6 +2126,15 @@ static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 		/* Stop bias generation */
 		snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
 				    WM8904_BIAS_ENA, 0);
+
+#ifdef CONFIG_REGULATOR
+		/* Post 2.6.34 we will be able to get a callback when
+		 * the regulators are disabled which we can use but
+		 * for now just assume that the power will be cut if
+		 * the regulator API is in use.
+		 */
+		codec->cache_sync = 1;
+#endif
 
 		regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies),
 				       wm8904->supplies);
@@ -2365,6 +2389,8 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	codec->reg_cache_size = WM8904_MAX_REGISTER;
 	codec->reg_cache = &wm8904->reg_cache;
 	codec->volatile_register = wm8904_volatile_register;
+	codec->cache_sync = 1;
+	codec->idle_bias_off = 1;
 
 	memcpy(codec->reg_cache, wm8904_reg, sizeof(wm8904_reg));
 
