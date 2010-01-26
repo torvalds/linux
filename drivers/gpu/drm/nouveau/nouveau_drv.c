@@ -75,6 +75,14 @@ MODULE_PARM_DESC(ignorelid, "Ignore ACPI lid status");
 int nouveau_ignorelid = 0;
 module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
 
+MODULE_PARM_DESC(noagp, "Disable all acceleration");
+int nouveau_noaccel = 0;
+module_param_named(noaccel, nouveau_noaccel, int, 0400);
+
+MODULE_PARM_DESC(noagp, "Disable fbcon acceleration");
+int nouveau_nofbaccel = 0;
+module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
+
 MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"
 		 "\t\t\thd480i, hd480p, hd576i, hd576p, hd720p, hd1080i.\n"

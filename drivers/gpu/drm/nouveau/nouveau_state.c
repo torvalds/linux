@@ -427,15 +427,19 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	/* PGRAPH */
-	ret = engine->graph.init(dev);
-	if (ret)
-		goto out_fb;
+	if (nouveau_noaccel)
+		engine->graph.accel_blocked = true;
+	else {
+		/* PGRAPH */
+		ret = engine->graph.init(dev);
+		if (ret)
+			goto out_fb;
 
-	/* PFIFO */
-	ret = engine->fifo.init(dev);
-	if (ret)
-		goto out_graph;
+		/* PFIFO */
+		ret = engine->fifo.init(dev);
+		if (ret)
+			goto out_graph;
+	}
 
 	/* this call irq_preinstall, register irq handler and
 	 * call irq_postinstall
@@ -479,9 +483,11 @@ nouveau_card_init(struct drm_device *dev)
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
-	engine->fifo.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->fifo.takedown(dev);
 out_graph:
-	engine->graph.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->graph.takedown(dev);
 out_fb:
 	engine->fb.takedown(dev);
 out_timer:
@@ -518,8 +524,10 @@ static void nouveau_card_takedown(struct drm_device *dev)
 			dev_priv->channel = NULL;
 		}
 
-		engine->fifo.takedown(dev);
-		engine->graph.takedown(dev);
+		if (!nouveau_noaccel) {
+			engine->fifo.takedown(dev);
+			engine->graph.takedown(dev);
+		}
 		engine->fb.takedown(dev);
 		engine->timer.takedown(dev);
 		engine->mc.takedown(dev);

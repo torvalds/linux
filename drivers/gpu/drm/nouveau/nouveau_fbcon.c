@@ -267,8 +267,12 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	dev_priv->fbdev_info = info;
 
 	strcpy(info->fix.id, "nouveaufb");
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
-		      FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_IMAGEBLIT;
+	if (nouveau_nofbaccel)
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_DISABLED;
+	else
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
+			      FBINFO_HWACCEL_FILLRECT |
+			      FBINFO_HWACCEL_IMAGEBLIT;
 	info->fbops = &nouveau_fbcon_ops;
 	info->fix.smem_start = dev->mode_config.fb_base + nvbo->bo.offset -
 			       dev_priv->vm_vram_base;
@@ -316,7 +320,7 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	par->nouveau_fb = nouveau_fb;
 	par->dev = dev;
 
-	if (dev_priv->channel) {
+	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
 		case NV_50:
 			nv50_fbcon_accel_init(info);
