@@ -77,6 +77,8 @@
 #define MSI_STANDARD_EC_SCM_LOAD_ADDRESS	0x2d
 #define MSI_STANDARD_EC_SCM_LOAD_MASK		(1 << 0)
 
+static int msi_laptop_resume(struct platform_device *device);
+
 static int force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
@@ -395,7 +397,8 @@ static struct platform_driver msipf_driver = {
 	.driver = {
 		.name = "msi-laptop-pf",
 		.owner = THIS_MODULE,
-	}
+	},
+	.resume = msi_laptop_resume,
 };
 
 static struct platform_device *msipf_device;
@@ -582,6 +585,27 @@ err_bluetooth:
 	rfkill_destroy(rfk_bluetooth);
 
 	return retval;
+}
+
+static int msi_laptop_resume(struct platform_device *device)
+{
+	u8 data;
+	int result;
+
+	if (!load_scm_model)
+		return 0;
+
+	/* set load SCM to disable hardware control by fn key */
+	result = ec_read(MSI_STANDARD_EC_SCM_LOAD_ADDRESS, &data);
+	if (result < 0)
+		return result;
+
+	result = ec_write(MSI_STANDARD_EC_SCM_LOAD_ADDRESS,
+		data | MSI_STANDARD_EC_SCM_LOAD_MASK);
+	if (result < 0)
+		return result;
+
+	return 0;
 }
 
 static int load_scm_model_init(struct platform_device *sdev)
