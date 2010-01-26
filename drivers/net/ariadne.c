@@ -123,9 +123,7 @@ static void ariadne_reset(struct net_device *dev);
 static irqreturn_t ariadne_interrupt(int irq, void *data);
 static int ariadne_close(struct net_device *dev);
 static struct net_device_stats *ariadne_get_stats(struct net_device *dev);
-#ifdef HAVE_MULTICAST
 static void set_multicast_list(struct net_device *dev);
-#endif
 
 
 static void memcpyw(volatile u_short *dest, u_short *src, int len)
