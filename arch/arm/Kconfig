@@ -1176,7 +1176,7 @@ config HIGHPTE
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && CPU_HAS_PMU && CPU_V6
+	depends on PERF_EVENTS && CPU_HAS_PMU && (CPU_V6 || CPU_V7)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
