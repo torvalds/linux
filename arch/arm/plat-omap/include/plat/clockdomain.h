@@ -70,6 +70,12 @@ struct clkdm_dep {
 	/* Clockdomain pointer - resolved by the clockdomain code */
 	struct clockdomain *clkdm;
 
+	/* Number of wakeup dependencies causing this clkdm to wake  */
+	atomic_t wkdep_usecount;
+
+	/* Number of sleep dependencies that could prevent clkdm from idle */
+	atomic_t sleepdep_usecount;
+
 	/* Flags to mark OMAP chip restrictions, etc. */
 	const struct omap_chip_id omap_chip;
 
@@ -126,9 +132,11 @@ struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm);
 int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_clear_all_wkdeps(struct clockdomain *clkdm);
 int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm);
 
 void omap2_clkdm_allow_idle(struct clockdomain *clkdm);
 void omap2_clkdm_deny_idle(struct clockdomain *clkdm);
