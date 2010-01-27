@@ -12,7 +12,8 @@ clock-common				= clock.o clock_common_data.o \
 					  clockdomain.o clkt_dpll.o \
 					  clkt_clksel.o
 clock-omap2xxx				= clkt2xxx_dpllcore.o \
-					  clkt2xxx_virt_prcm_set.o
+					  clkt2xxx_virt_prcm_set.o \
+					  clkt2xxx_apll.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common) \
 			    $(clock-omap2xxx)
