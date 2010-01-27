@@ -271,6 +271,8 @@ int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 	insn_size_t instruction;
 	int tmp;
 
+	if (trapped_io_disable)
+		return 0;
 	if (!lookup_tiop(address))
 		return 0;
 
