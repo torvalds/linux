@@ -1710,6 +1710,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_dmabuf *mp;
 	uint16_t rpi, vpi;
 	int rc;
+	struct lpfc_vport  *vport = pmb->vport;
 
 	mp = (struct lpfc_dmabuf *) (pmb->context1);
 
@@ -1732,6 +1733,18 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		rpi = pmb->u.mb.un.varWords[0];
 		vpi = pmb->u.mb.un.varRegLogin.vpi - phba->vpi_base;
 		lpfc_unreg_login(phba, vpi, rpi, pmb);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc != MBX_NOT_FINISHED)
+			return;
+	}
+
+	/* Unreg VPI, if the REG_VPI succeed after VLink failure */
+	if ((pmb->u.mb.mbxCommand == MBX_REG_VPI) &&
+		!(phba->pport->load_flag & FC_UNLOADING) &&
+		!pmb->u.mb.mbxStatus) {
+		lpfc_unreg_vpi(phba, pmb->u.mb.un.varRegVpi.vpi, pmb);
+		pmb->vport = vport;
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 		if (rc != MBX_NOT_FINISHED)
@@ -8440,8 +8453,10 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_hba *phba,
 					wcqe->total_data_placed;
 		else
 			pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
-	else
+	else {
 		pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
+		pIocbIn->iocb.un.genreq64.bdl.bdeSize = wcqe->total_data_placed;
+	}
 
 	/* Pick up HBA exchange busy condition */
 	if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
@@ -12139,3 +12154,48 @@ out:
 	kfree(rgn23_data);
 	return;
 }
+
+/**
+ * lpfc_cleanup_pending_mbox - Free up vport discovery mailbox commands.
+ * @vport: pointer to vport data structure.
+ *
+ * This function iterate through the mailboxq and clean up all REG_LOGIN
+ * and REG_VPI mailbox commands associated with the vport. This function
+ * is called when driver want to restart discovery of the vport due to
+ * a Clear Virtual Link event.
+ **/
+void
+lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	LPFC_MBOXQ_t *mb, *nextmb;
+	struct lpfc_dmabuf *mp;
+
+	spin_lock_irq(&phba->hbalock);
+	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
+		if (mb->vport != vport)
+			continue;
+
+		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) &&
+			(mb->u.mb.mbxCommand != MBX_REG_VPI))
+			continue;
+
+		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+			mp = (struct lpfc_dmabuf *) (mb->context1);
+			if (mp) {
+				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
+		}
+		list_del(&mb->list);
+		mempool_free(mb, phba->mbox_mem_pool);
+	}
+	mb = phba->sli.mbox_active;
+	if (mb && (mb->vport == vport)) {
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) ||
+			(mb->u.mb.mbxCommand == MBX_REG_VPI))
+			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	}
+	spin_unlock_irq(&phba->hbalock);
+}
+

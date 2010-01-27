@@ -254,7 +254,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	int rc;
 
 	memset(&stat, 0, sizeof (struct ls_rjt));
-	if (vport->port_state <= LPFC_FLOGI) {
+	if (vport->port_state <= LPFC_FDISC) {
 		/* Before responding to PLOGI, check for pt2pt mode.
 		 * If we are pt2pt, with an outstanding FLOGI, abort
 		 * the FLOGI and resend it first.

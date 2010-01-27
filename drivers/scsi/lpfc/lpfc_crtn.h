@@ -44,6 +44,8 @@ int lpfc_reg_rpi(struct lpfc_hba *, uint16_t, uint32_t, uint8_t *,
 void lpfc_unreg_login(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
 void lpfc_unreg_did(struct lpfc_hba *, uint16_t, uint32_t, LPFC_MBOXQ_t *);
 void lpfc_reg_vpi(struct lpfc_vport *, LPFC_MBOXQ_t *);
+void lpfc_register_new_vport(struct lpfc_hba *, struct lpfc_vport *,
+			struct lpfc_nodelist *);
 void lpfc_unreg_vpi(struct lpfc_hba *, uint16_t, LPFC_MBOXQ_t *);
 void lpfc_init_link(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 void lpfc_request_features(struct lpfc_hba *, struct lpfcMboxq *);
@@ -52,10 +54,13 @@ struct lpfc_vport *lpfc_find_vport_by_did(struct lpfc_hba *, uint32_t);
 void lpfc_cleanup_rcv_buffers(struct lpfc_vport *);
 void lpfc_rcv_seq_check_edtov(struct lpfc_vport *);
 void lpfc_cleanup_rpis(struct lpfc_vport *, int);
+void lpfc_cleanup_pending_mbox(struct lpfc_vport *);
 int lpfc_linkdown(struct lpfc_hba *);
 void lpfc_linkdown_port(struct lpfc_vport *);
 void lpfc_port_link_failure(struct lpfc_vport *);
 void lpfc_mbx_cmpl_read_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_init_vpi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_retry_pport_discovery(struct lpfc_hba *);
 
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *, LPFC_MBOXQ_t *);

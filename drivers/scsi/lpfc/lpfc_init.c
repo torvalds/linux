@@ -2246,6 +2246,9 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 			if (vports[i]->load_flag & FC_UNLOADING)
 				continue;
 			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
+			vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			vports[i]->fc_flag &= ~FC_VFI_REGISTERED;
+
 			shost =	lpfc_shost_from_vport(vports[i]);
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
@@ -3007,6 +3010,9 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host  *shost;
 	uint32_t link_state;
+	int active_vlink_present;
+	struct lpfc_vport **vports;
+	int i;
 
 	phba->fc_eventTag = acqe_fcoe->event_tag;
 	phba->fcoe_eventtag = acqe_fcoe->event_tag;
@@ -3074,14 +3080,46 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 		if (!ndlp)
 			break;
 		shost = lpfc_shost_from_vport(vport);
+		if (phba->pport->port_state <= LPFC_FLOGI)
+			break;
+		/* If virtual link is not yet instantiated ignore CVL */
+		if (vport->port_state <= LPFC_FDISC)
+			break;
+
 		lpfc_linkdown_port(vport);
-		if (vport->port_type != LPFC_NPIV_PORT) {
+		lpfc_cleanup_pending_mbox(vport);
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= FC_VPORT_CVL_RCVD;
+		spin_unlock_irq(shost->host_lock);
+		active_vlink_present = 0;
+
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports) {
+			for (i = 0; i <= phba->max_vports && vports[i] != NULL;
+					i++) {
+				if ((!(vports[i]->fc_flag &
+					FC_VPORT_CVL_RCVD)) &&
+					(vports[i]->port_state > LPFC_FDISC)) {
+					active_vlink_present = 1;
+					break;
+				}
+			}
+			lpfc_destroy_vport_work_array(phba, vports);
+		}
+
+		if (active_vlink_present) {
+			/*
+			 * If there are other active VLinks present,
+			 * re-instantiate the Vlink using FDISC.
+			 */
 			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
 			spin_unlock_irq(shost->host_lock);
-			ndlp->nlp_last_elscmd = ELS_CMD_FLOGI;
-			vport->port_state = LPFC_FLOGI;
+			ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
+			vport->port_state = LPFC_FDISC;
+		} else {
+			lpfc_retry_pport_discovery(phba);
 		}
 		break;
 	default:

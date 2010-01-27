@@ -706,6 +706,8 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 void
 lpfc_port_link_failure(struct lpfc_vport *vport)
 {
+	lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
+
 	/* Cleanup any outstanding received buffers */
 	lpfc_cleanup_rcv_buffers(vport);
 
@@ -1695,10 +1697,11 @@ out:
  *
  * This function handles completion of init vpi mailbox command.
  */
-static void
+void
 lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
 	struct lpfc_vport *vport = mboxq->vport;
+	struct lpfc_nodelist *ndlp;
 	if (mboxq->u.mb.mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR,
 				LOG_MBOX,
@@ -1712,6 +1715,20 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	vport->fc_flag &= ~FC_VPORT_NEEDS_INIT_VPI;
 	spin_unlock_irq(&phba->hbalock);
 
+	/* If this port is physical port or FDISC is done, do reg_vpi */
+	if ((phba->pport == vport) || (vport->port_state == LPFC_FDISC)) {
+			ndlp = lpfc_findnode_did(vport, Fabric_DID);
+			if (!ndlp)
+				lpfc_printf_vlog(vport, KERN_ERR,
+					LOG_DISCOVERY,
+					"2731 Cannot find fabric "
+					"controller node\n");
+			else
+				lpfc_register_new_vport(phba, vport, ndlp);
+			mempool_free(mboxq, phba->mbox_mem_pool);
+			return;
+	}
+
 	if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
 		lpfc_initial_fdisc(vport);
 	else {
@@ -1719,6 +1736,7 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "2606 No NPIV Fabric support\n");
 	}
+	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
 }
 
@@ -1814,6 +1832,9 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	}
 	/* The VPI is implicitly registered when the VFI is registered */
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
+	vport->fc_flag |= FC_VFI_REGISTERED;
+
+	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
 		lpfc_start_fdiscs(phba);
@@ -2333,6 +2354,7 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
+	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
 	if (vport->fc_npr_cnt)
@@ -4462,6 +4484,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	int rc;
 	struct lpfc_vport **vports;
 	int i;
+	struct lpfc_nodelist *ndlp;
 
 	spin_lock_irq(&phba->hbalock);
 	/*
@@ -4489,6 +4512,10 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	if (vports &&
 		(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED))
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			/* Stop FLOGI/FDISC retries */
+			ndlp = lpfc_findnode_did(vports[i], Fabric_DID);
+			if (ndlp)
+				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
 			lpfc_mbx_unreg_vpi(vports[i]);
 			spin_lock_irq(&phba->hbalock);
 			vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
@@ -4496,6 +4523,9 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 			spin_unlock_irq(&phba->hbalock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
+
+	/* Cleanup any outstanding ELS commands */
+	lpfc_els_flush_all_cmd(phba);
 
 	/* Unregister VFI */
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -4520,6 +4550,10 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 		mempool_free(mbox, phba->mbox_mem_pool);
 		return;
 	}
+
+	spin_lock_irq(&phba->hbalock);
+	phba->pport->fc_flag &= ~FC_VFI_REGISTERED;
+	spin_unlock_irq(&phba->hbalock);
 
 	/* Unregister FCF */
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
