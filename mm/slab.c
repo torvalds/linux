@@ -935,7 +935,6 @@ static int transfer_objects(struct array_cache *to,
 
 	from->avail -= nr;
 	to->avail += nr;
-	to->touched = 1;
 	return nr;
 }
 
@@ -2963,8 +2962,10 @@ retry:
 	spin_lock(&l3->list_lock);
 
 	/* See if we can refill from the shared array */
-	if (l3->shared && transfer_objects(ac, l3->shared, batchcount))
+	if (l3->shared && transfer_objects(ac, l3->shared, batchcount)) {
+		l3->shared->touched = 1;
 		goto alloc_done;
+	}
 
 	while (batchcount > 0) {
 		struct list_head *entry;
