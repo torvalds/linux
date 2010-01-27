@@ -2520,6 +2520,10 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		sr_entries = roundup(sr_entries / cacheline_size, 1);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+					& ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, SR %d\n",
@@ -2563,6 +2567,10 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 			srwm = 1;
 		srwm &= 0x3f;
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+					& ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR %d\n",
@@ -2631,6 +2639,10 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		if (srwm < 0)
 			srwm = 1;
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN | (srwm & 0x3f));
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+					& ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
