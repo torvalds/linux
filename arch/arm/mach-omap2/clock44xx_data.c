@@ -2749,9 +2749,7 @@ int __init omap2_clk_init(void)
 		if (c->cpu & cpu_clkflg) {
 			clkdev_add(&c->lk);
 			clk_register(c->lk.clk);
-			/* TODO
 			omap2_init_clk_clkdm(c->lk.clk);
-			*/
 		}
 
 	recalculate_root_clocks();
