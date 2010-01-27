@@ -968,6 +968,7 @@
 #define PAPOUCH_VID			0x5050	/* Vendor ID */
 #define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
 #define PAPOUCH_QUIDO4x4_PID		0x0900	/* Quido 4/4 Module */
+#define PAPOUCH_AD4USB_PID		0x8003	/* AD4USB Measurement Module */
 
 /*
  * Marvell SheevaPlug
