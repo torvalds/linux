@@ -305,7 +305,7 @@ static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
  * This generic page_is_ram() returns true if specified address is
  * registered as "System RAM" in iomem_resource list.
  */
-int __attribute__((weak)) page_is_ram(unsigned long pfn)
+int __weak page_is_ram(unsigned long pfn)
 {
 	return walk_system_ram_range(pfn, 1, NULL, __is_ram) == 1;
 }
