@@ -149,7 +149,8 @@ static struct arm_idlect1_clk armwdt_ck = {
 		.flags		= CLOCK_IDLE_CONTROL,
 		.enable_reg	= OMAP1_IO_ADDRESS(ARM_IDLECT2),
 		.enable_bit	= EN_WDTCK,
-		.recalc		= &omap1_watchdog_recalc,
+		.fixed_div	= 14,
+		.recalc		= &omap_fixed_divisor_recalc,
 	},
 	.idlect_shift	= 0,
 };
