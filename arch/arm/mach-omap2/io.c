@@ -35,7 +35,9 @@
 #include <plat/serial.h>
 #include <plat/vram.h>
 
-#include "clock.h"
+#include "clock2xxx.h"
+#include "clock34xx.h"
+#include "clock44xx.h"
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
@@ -320,7 +322,16 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	omap2_mux_init();
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 #endif
-	omap2_clk_init();
+
+	if (cpu_is_omap24xx())
+		omap2xxx_clk_init();
+	else if (cpu_is_omap34xx())
+		omap3xxx_clk_init();
+	else if (cpu_is_omap44xx())
+		omap4xxx_clk_init();
+	else
+		pr_err("Could not init clock framework - unknown CPU\n");
+
 	omap_serial_early_init();
 #ifndef CONFIG_ARCH_OMAP4
 	omap_hwmod_late_init();

@@ -2238,7 +2238,7 @@ static struct omap_clk omap24xx_clks[] = {
  * init code
  */
 
-int __init omap2_clk_init(void)
+int __init omap2xxx_clk_init(void)
 {
 	const struct prcm_config *prcm;
 	struct omap_clk *c;

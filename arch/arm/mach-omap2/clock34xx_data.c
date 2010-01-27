@@ -3212,11 +3212,9 @@ static struct omap_clk omap3xxx_clks[] = {
 };
 
 
-int __init omap2_clk_init(void)
+int __init omap3xxx_clk_init(void)
 {
-	/* struct prcm_config *prcm; */
 	struct omap_clk *c;
-	/* u32 clkrate; */
 	u32 cpu_clkflg = CK_3XXX;
 
 	if (cpu_is_omap3517()) {
@@ -3253,21 +3251,6 @@ int __init omap2_clk_init(void)
 			clk_register(c->lk.clk);
 			omap2_init_clk_clkdm(c->lk.clk);
 		}
-
-	/* REVISIT: Not yet ready for OMAP3 */
-#if 0
-	/* Check the MPU rate set by bootloader */
-	clkrate = omap2_get_dpll_rate_24xx(&dpll_ck);
-	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
-		if (!(prcm->flags & cpu_mask))
-			continue;
-		if (prcm->xtal_speed != sys_ck.rate)
-			continue;
-		if (prcm->dpll_speed <= clkrate)
-			break;
-	}
-	curr_prcm_set = prcm;
-#endif
 
 	recalculate_root_clocks();
 

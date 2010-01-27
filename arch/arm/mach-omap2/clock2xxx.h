@@ -19,6 +19,7 @@ unsigned long omap2xxx_clk_get_core_rate(struct clk *clk);
 u32 omap2xxx_get_apll_clkin(void);
 u32 omap2xxx_get_sysclkdiv(void);
 void omap2xxx_clk_prepare_for_reboot(void);
+int omap2xxx_clk_init(void);
 
 /* REVISIT: These should be set dynamically for CONFIG_MULTI_OMAP2 */
 #ifdef CONFIG_ARCH_OMAP2420
