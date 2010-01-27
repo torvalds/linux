@@ -79,31 +79,6 @@ const struct clkops clkops_omap2430_i2chs_wait = {
 	.find_companion = omap2_clk_dflt_find_companion,
 };
 
-static int omap2_enable_osc_ck(struct clk *clk)
-{
-	u32 pcc;
-
-	pcc = __raw_readl(prcm_clksrc_ctrl);
-
-	__raw_writel(pcc & ~OMAP_AUTOEXTCLKMODE_MASK, prcm_clksrc_ctrl);
-
-	return 0;
-}
-
-static void omap2_disable_osc_ck(struct clk *clk)
-{
-	u32 pcc;
-
-	pcc = __raw_readl(prcm_clksrc_ctrl);
-
-	__raw_writel(pcc | OMAP_AUTOEXTCLKMODE_MASK, prcm_clksrc_ctrl);
-}
-
-const struct clkops clkops_oscck = {
-	.enable		= omap2_enable_osc_ck,
-	.disable	= omap2_disable_osc_ck,
-};
-
 #ifdef OLD_CK
 /* Recalculate SYST_CLK */
 static void omap2_sys_clk_recalc(struct clk *clk)
@@ -116,7 +91,7 @@ static void omap2_sys_clk_recalc(struct clk *clk)
 }
 #endif	/* OLD_CK */
 
-static u32 omap2_get_sysclkdiv(void)
+u32 omap2xxx_get_sysclkdiv(void)
 {
 	u32 div;
 
@@ -127,14 +102,9 @@ static u32 omap2_get_sysclkdiv(void)
 	return div;
 }
 
-unsigned long omap2_osc_clk_recalc(struct clk *clk)
-{
-	return omap2xxx_get_apll_clkin() * omap2_get_sysclkdiv();
-}
-
 unsigned long omap2_sys_clk_recalc(struct clk *clk)
 {
-	return clk->parent->rate / omap2_get_sysclkdiv();
+	return clk->parent->rate / omap2xxx_get_sysclkdiv();
 }
 
 /*
