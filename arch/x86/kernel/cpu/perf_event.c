@@ -1099,14 +1099,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 static void p6_pmu_disable_all(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
-
-	if (!cpuc->enabled)
-		return;
-
-	cpuc->enabled = 0;
-	barrier();
 
 	/* p6 only has one enable register */
 	rdmsrl(MSR_P6_EVNTSEL0, val);
@@ -1118,12 +1111,6 @@ static void intel_pmu_disable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	if (!cpuc->enabled)
-		return;
-
-	cpuc->enabled = 0;
-	barrier();
-
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
 	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask))
@@ -1134,17 +1121,6 @@ static void amd_pmu_disable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
-
-	if (!cpuc->enabled)
-		return;
-
-	cpuc->enabled = 0;
-	/*
-	 * ensure we write the disable before we start disabling the
-	 * events proper, so that amd_pmu_enable_event() does the
-	 * right thing.
-	 */
-	barrier();
 
 	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		u64 val;
@@ -1166,22 +1142,19 @@ void hw_perf_disable(void)
 	if (!x86_pmu_initialized())
 		return;
 
-	if (cpuc->enabled)
-		cpuc->n_added = 0;
+	if (!cpuc->enabled)
+		return;
+
+	cpuc->n_added = 0;
+	cpuc->enabled = 0;
+	barrier();
 
 	x86_pmu.disable_all();
 }
 
 static void p6_pmu_enable_all(void)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	unsigned long val;
-
-	if (cpuc->enabled)
-		return;
-
-	cpuc->enabled = 1;
-	barrier();
 
 	/* p6 only has one enable register */
 	rdmsrl(MSR_P6_EVNTSEL0, val);
@@ -1192,12 +1165,6 @@ static void p6_pmu_enable_all(void)
 static void intel_pmu_enable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-
-	if (cpuc->enabled)
-		return;
-
-	cpuc->enabled = 1;
-	barrier();
 
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 
@@ -1216,12 +1183,6 @@ static void amd_pmu_enable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int idx;
-
-	if (cpuc->enabled)
-		return;
-
-	cpuc->enabled = 1;
-	barrier();
 
 	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		struct perf_event *event = cpuc->events[idx];
@@ -1417,6 +1378,10 @@ void hw_perf_enable(void)
 
 	if (!x86_pmu_initialized())
 		return;
+
+	if (cpuc->enabled)
+		return;
+
 	if (cpuc->n_added) {
 		/*
 		 * apply assignment obtained either from
@@ -1461,6 +1426,10 @@ void hw_perf_enable(void)
 		cpuc->n_added = 0;
 		perf_events_lapic_init();
 	}
+
+	cpuc->enabled = 1;
+	barrier();
+
 	x86_pmu.enable_all();
 }
 
