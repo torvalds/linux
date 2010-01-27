@@ -288,7 +288,7 @@ static int i915_batchbuffer_info(struct seq_file *m, void *data)
 	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
 		obj = obj_priv->obj;
 		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
-		    ret = i915_gem_object_get_pages(obj);
+		    ret = i915_gem_object_get_pages(obj, 0);
 		    if (ret) {
 			    DRM_ERROR("Failed to get pages: %d\n", ret);
 			    spin_unlock(&dev_priv->mm.active_list_lock);
