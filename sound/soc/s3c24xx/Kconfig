@@ -32,7 +32,11 @@ config SND_S3C2443_SOC_AC97
 	select S3C2410_DMA
 	select AC97_BUS
 	select SND_SOC_AC97_BUS
-	
+
+config SND_S3C_SOC_AC97
+	tristate
+	select SND_SOC_AC97_BUS
+
 config SND_S3C24XX_SOC_NEO1973_WM8753
 	tristate "SoC I2S Audio support for NEO1973 - WM8753"
 	depends on SND_S3C24XX_SOC && MACH_NEO1973_GTA01
