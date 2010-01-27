@@ -461,6 +461,7 @@ static struct clockdomain *clockdomains_omap[] = {
 	&l4_secure_44xx_clkdm,
 	&l4_per_44xx_clkdm,
 	&abe_44xx_clkdm,
+	&l3_instr_44xx_clkdm,
 	&l3_init_44xx_clkdm,
 	&mpuss_44xx_clkdm,
 	&mpu0_44xx_clkdm,

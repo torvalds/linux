@@ -102,6 +102,14 @@ static struct clockdomain abe_44xx_clkdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 };
 
+static struct clockdomain l3_instr_44xx_clkdm = {
+	.name		  = "l3_instr_clkdm",
+	.pwrdm		  = { .name = "core_pwrdm" },
+	.clkstctrl_reg	  = OMAP4430_CM_L3INSTR_CLKSTCTRL,
+	.clktrctrl_mask	  = OMAP4430_CLKTRCTRL_MASK,
+	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
 static struct clockdomain l3_init_44xx_clkdm = {
 	.name		  = "l3_init_clkdm",
 	.pwrdm		  = { .name = "l3init_pwrdm" },
