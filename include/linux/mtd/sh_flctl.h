@@ -51,6 +51,8 @@
 #define _4ECCCNTEN	(0x1 << 24)
 #define _4ECCEN		(0x1 << 23)
 #define _4ECCCORRECT	(0x1 << 22)
+#define SHBUSSEL	(0x1 << 20)
+#define SEL_16BIT	(0x1 << 19)
 #define SNAND_E		(0x1 << 18)	/* SNAND (0=512 1=2048)*/
 #define QTSEL_E		(0x1 << 17)
 #define ENDIAN		(0x1 << 16)	/* 1 = little endian */
