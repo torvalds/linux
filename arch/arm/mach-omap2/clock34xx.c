@@ -2,10 +2,10 @@
  * OMAP3-specific clock framework functions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2010 Nokia Corporation
  *
- * Written by Paul Walmsley
- * Testing and integration fixes by Jouni Högander
+ * Paul Walmsley
+ * Jouni Högander
  *
  * Parts of this code are based on code written by
  * Richard Woodruff, Tony Lindgren, Tuukka Tikkanen, Karthik Dasu
@@ -16,27 +16,17 @@
  */
 #undef DEBUG
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/limits.h>
-#include <linux/bitops.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
-#include <plat/sram.h>
-#include <plat/sdrc.h>
-#include <asm/div64.h>
-#include <asm/clkdev.h>
 
 #include "clock.h"
 #include "clock34xx.h"
-#include "sdrc.h"
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 #include "cm.h"
