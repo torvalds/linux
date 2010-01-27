@@ -351,10 +351,10 @@ static void _init_sleepdep_usecount(struct clockdomain *clkdm)
  * @init_autodeps: optional pointer to an array of autodeps to register
  *
  * Set up internal state.  If a pointer to an array of clockdomains
- * was supplied, loop through the list of clockdomains, register all
- * that are available on the current platform. Similarly, if a pointer
- * to an array of clockdomain autodependencies was provided, register
- * those.  No return value.
+ * @clkdms was supplied, loop through the list of clockdomains,
+ * register all that are available on the current platform. Similarly,
+ * if a pointer to an array of clockdomain autodependencies
+ * @init_autodeps was provided, register those.  No return value.
  */
 void clkdm_init(struct clockdomain **clkdms,
 		struct clkdm_autodep *init_autodeps)
@@ -386,8 +386,8 @@ void clkdm_init(struct clockdomain **clkdms,
  * clkdm_lookup - look up a clockdomain by name, return a pointer
  * @name: name of clockdomain
  *
- * Find a registered clockdomain by its name.  Returns a pointer to the
- * struct clockdomain if found, or NULL otherwise.
+ * Find a registered clockdomain by its name @name.  Returns a pointer
+ * to the struct clockdomain if found, or NULL otherwise.
  */
 struct clockdomain *clkdm_lookup(const char *name)
 {
@@ -412,8 +412,8 @@ struct clockdomain *clkdm_lookup(const char *name)
  * clkdm_for_each - call function on each registered clockdomain
  * @fn: callback function *
  *
- * Call the supplied function for each registered clockdomain.
- * The callback function can return anything but 0 to bail
+ * Call the supplied function @fn for each registered clockdomain.
+ * The callback function @fn can return anything but 0 to bail
  * out early from the iterator.  The callback function is called with
  * the clkdm_mutex held, so no clockdomain structure manipulation
  * functions should be called from the callback, although hardware
@@ -446,7 +446,7 @@ int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),
  * @clkdm: struct clockdomain *
  *
  * Return a pointer to the struct powerdomain that the specified clockdomain
- * 'clkdm' exists in, or returns NULL if clkdm argument is NULL.
+ * @clkdm exists in, or returns NULL if @clkdm is NULL.
  */
 struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm)
 {
@@ -759,10 +759,10 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 
 /**
  * omap2_clkdm_clktrctrl_read - read the clkdm's current state transition mode
- * @clk: struct clk * of a clockdomain
+ * @clkdm: struct clkdm * of a clockdomain
  *
- * Return the clockdomain's current state transition mode from the
- * corresponding domain OMAP2_CM_CLKSTCTRL register.	Returns -EINVAL if clk
+ * Return the clockdomain @clkdm current state transition mode from the
+ * corresponding domain CM_CLKSTCTRL register.	Returns -EINVAL if @clkdm
  * is NULL or the current mode upon success.
  */
 static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
@@ -784,7 +784,7 @@ static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a sleep transition on the specified
- * clockdomain 'clkdm'.  Returns -EINVAL if clk is NULL or if
+ * clockdomain @clkdm.  Returns -EINVAL if @clkdm is NULL or if
  * clockdomain does not support software-initiated sleep; 0 upon
  * success.
  */
@@ -828,7 +828,7 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
  * @clkdm: struct clockdomain *
  *
  * Instruct the CM to force a wakeup transition on the specified
- * clockdomain 'clkdm'.  Returns -EINVAL if clkdm is NULL or if the
+ * clockdomain @clkdm.  Returns -EINVAL if @clkdm is NULL or if the
  * clockdomain does not support software-controlled wakeup; 0 upon
  * success.
  */
@@ -871,7 +871,7 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
  * omap2_clkdm_allow_idle - enable hwsup idle transitions for clkdm
  * @clkdm: struct clockdomain *
  *
- * Allow the hardware to automatically switch the clockdomain into
+ * Allow the hardware to automatically switch the clockdomain @clkdm into
  * active or idle states, as needed by downstream clocks.  If the
  * clockdomain has any downstream clocks enabled in the clock
  * framework, wkdep/sleepdep autodependencies are added; this is so
@@ -904,8 +904,8 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
  * @clkdm: struct clockdomain *
  *
  * Prevent the hardware from automatically switching the clockdomain
- * into inactive or idle states.  If the clockdomain has downstream
- * clocks enabled in the clock framework, wkdep/sleepdep
+ * @clkdm into inactive or idle states.  If the clockdomain has
+ * downstream clocks enabled in the clock framework, wkdep/sleepdep
  * autodependencies are removed.  No return value.
  */
 void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
@@ -936,14 +936,14 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
  * @clkdm: struct clockdomain *
  * @clk: struct clk * of the enabled downstream clock
  *
- * Increment the usecount of this clockdomain 'clkdm' and ensure that
- * it is awake.  Intended to be called by clk_enable() code.  If the
- * clockdomain is in software-supervised idle mode, force the
- * clockdomain to wake.  If the clockdomain is in hardware-supervised
- * idle mode, add clkdm-pwrdm autodependencies, to ensure that devices
- * in the clockdomain can be read from/written to by on-chip processors.
- * Returns -EINVAL if passed null pointers; returns 0 upon success or
- * if the clockdomain is in hwsup idle mode.
+ * Increment the usecount of the clockdomain @clkdm and ensure that it
+ * is awake before @clk is enabled.  Intended to be called by
+ * clk_enable() code.  If the clockdomain is in software-supervised
+ * idle mode, force the clockdomain to wake.  If the clockdomain is in
+ * hardware-supervised idle mode, add clkdm-pwrdm autodependencies, to
+ * ensure that devices in the clockdomain can be read from/written to
+ * by on-chip processors.  Returns -EINVAL if passed null pointers;
+ * returns 0 upon success or if the clockdomain is in hwsup idle mode.
  */
 int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 {
@@ -988,13 +988,14 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
  * @clkdm: struct clockdomain *
  * @clk: struct clk * of the disabled downstream clock
  *
- * Decrement the usecount of this clockdomain 'clkdm'. Intended to be
- * called by clk_disable() code.  If the usecount goes to 0, put the
- * clockdomain to sleep (software-supervised mode) or remove the
- * clkdm-pwrdm autodependencies (hardware-supervised mode).  Returns
- * -EINVAL if passed null pointers; -ERANGE if the clkdm usecount
- * underflows and debugging is enabled; or returns 0 upon success or
- * if the clockdomain is in hwsup idle mode.
+ * Decrement the usecount of this clockdomain @clkdm when @clk is
+ * disabled.  Intended to be called by clk_disable() code.  If the
+ * clockdomain usecount goes to 0, put the clockdomain to sleep
+ * (software-supervised mode) or remove the clkdm autodependencies
+ * (hardware-supervised mode).  Returns -EINVAL if passed null
+ * pointers; -ERANGE if the @clkdm usecount underflows and debugging
+ * is enabled; or returns 0 upon success or if the clockdomain is in
+ * hwsup idle mode.
  */
 int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 {

@@ -68,40 +68,36 @@
 struct clockdomain;
 struct powerdomain;
 
+/**
+ * struct powerdomain - OMAP powerdomain
+ * @name: Powerdomain name
+ * @omap_chip: represents the OMAP chip types containing this pwrdm
+ * @prcm_offs: the address offset from CM_BASE/PRM_BASE
+ * @pwrsts: Possible powerdomain power states
+ * @pwrsts_logic_ret: Possible logic power states when pwrdm in RETENTION
+ * @flags: Powerdomain flags
+ * @banks: Number of software-controllable memory banks in this powerdomain
+ * @pwrsts_mem_ret: Possible memory bank pwrstates when pwrdm in RETENTION
+ * @pwrsts_mem_on: Possible memory bank pwrstates when pwrdm in ON
+ * @pwrdm_clkdms: Clockdomains in this powerdomain
+ * @node: list_head linking all powerdomains
+ * @state:
+ * @state_counter:
+ * @timer:
+ * @state_timer:
+ */
 struct powerdomain {
-
-	/* Powerdomain name */
 	const char *name;
-
-	/* Used to represent the OMAP chip types containing this pwrdm */
 	const struct omap_chip_id omap_chip;
-
-	/* the address offset from CM_BASE/PRM_BASE */
 	const s16 prcm_offs;
-
-	/* Possible powerdomain power states */
 	const u8 pwrsts;
-
-	/* Possible logic power states when pwrdm in RETENTION */
 	const u8 pwrsts_logic_ret;
-
-	/* Powerdomain flags */
 	const u8 flags;
-
-	/* Number of software-controllable memory banks in this powerdomain */
 	const u8 banks;
-
-	/* Possible memory bank pwrstates when pwrdm in RETENTION */
 	const u8 pwrsts_mem_ret[PWRDM_MAX_MEM_BANKS];
-
-	/* Possible memory bank pwrstates when pwrdm is ON */
 	const u8 pwrsts_mem_on[PWRDM_MAX_MEM_BANKS];
-
-	/* Clockdomains in this powerdomain */
 	struct clockdomain *pwrdm_clkdms[PWRDM_MAX_CLKDMS];
-
 	struct list_head node;
-
 	int state;
 	unsigned state_counter[PWRDM_MAX_PWRSTS];
 

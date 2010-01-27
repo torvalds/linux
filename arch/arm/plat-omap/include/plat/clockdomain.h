@@ -40,86 +40,77 @@
 #define OMAP34XX_CLKSTCTRL_FORCE_WAKEUP		0x2
 #define OMAP34XX_CLKSTCTRL_ENABLE_AUTO		0x3
 
-/*
- * struct clkdm_autodep - a clockdomain that should have wkdeps
- * and sleepdeps added when a clockdomain should stay active in hwsup mode;
- * and conversely, removed when the clockdomain should be allowed to go
- * inactive in hwsup mode.
+/**
+ * struct clkdm_autodep - clkdm deps to add when entering/exiting hwsup mode
+ * @clkdm: clockdomain to add wkdep+sleepdep on - set name member only
+ * @omap_chip: OMAP chip types that this autodep is valid on
+ *
+ * A clockdomain that should have wkdeps and sleepdeps added when a
+ * clockdomain should stay active in hwsup mode; and conversely,
+ * removed when the clockdomain should be allowed to go inactive in
+ * hwsup mode.
+ *
+ * Autodeps are deprecated and should be removed after
+ * omap_hwmod-based fine-grained module idle control is added.
  */
 struct clkdm_autodep {
-
 	union {
-		/* Name of the clockdomain to add a wkdep/sleepdep on */
 		const char *name;
-
-		/* Clockdomain pointer (looked up at clkdm_init() time) */
 		struct clockdomain *ptr;
 	} clkdm;
-
-	/* OMAP chip types that this clockdomain dep is valid on */
 	const struct omap_chip_id omap_chip;
-
 };
 
-/* Encodes dependencies between clockdomains - statically defined */
+/**
+ * struct clkdm_dep - encode dependencies between clockdomains
+ * @clkdm_name: clockdomain name
+ * @clkdm: pointer to the struct clockdomain of @clkdm_name
+ * @omap_chip: OMAP chip types that this dependency is valid on
+ * @wkdep_usecount: Number of wakeup dependencies causing this clkdm to wake
+ * @sleepdep_usecount: Number of sleep deps that could prevent clkdm from idle
+ *
+ * Statically defined.  @clkdm is resolved from @clkdm_name at runtime and
+ * should not be pre-initialized.
+ *
+ * XXX Should also include hardware (fixed) dependencies.
+ */
 struct clkdm_dep {
-
-	/* Clockdomain name */
 	const char *clkdm_name;
-
-	/* Clockdomain pointer - resolved by the clockdomain code */
 	struct clockdomain *clkdm;
-
-	/* Number of wakeup dependencies causing this clkdm to wake  */
 	atomic_t wkdep_usecount;
-
-	/* Number of sleep dependencies that could prevent clkdm from idle */
 	atomic_t sleepdep_usecount;
-
-	/* Flags to mark OMAP chip restrictions, etc. */
 	const struct omap_chip_id omap_chip;
-
 };
 
+/**
+ * struct clockdomain - OMAP clockdomain
+ * @name: clockdomain name
+ * @pwrdm: powerdomain containing this clockdomain
+ * @clktrctrl_reg: CLKSTCTRL reg for the given clock domain
+ * @clktrctrl_mask: CLKTRCTRL/AUTOSTATE field mask in CM_CLKSTCTRL reg
+ * @flags: Clockdomain capability flags
+ * @dep_bit: Bit shift of this clockdomain's PM_WKDEP/CM_SLEEPDEP bit
+ * @wkdep_srcs: Clockdomains that can be told to wake this powerdomain up
+ * @sleepdep_srcs: Clockdomains that can be told to keep this clkdm from inact
+ * @omap_chip: OMAP chip types that this clockdomain is valid on
+ * @usecount: Usecount tracking
+ * @node: list_head to link all clockdomains together
+ */
 struct clockdomain {
-
-	/* Clockdomain name */
 	const char *name;
-
 	union {
-		/* Powerdomain enclosing this clockdomain */
 		const char *name;
-
-		/* Powerdomain pointer assigned at clkdm_register() */
 		struct powerdomain *ptr;
 	} pwrdm;
-
-	/* CLKSTCTRL reg for the given clock domain*/
 	void __iomem *clkstctrl_reg;
-
-	/* CLKTRCTRL/AUTOSTATE field mask in CM_CLKSTCTRL reg */
 	const u16 clktrctrl_mask;
-
-	/* Clockdomain capability flags */
 	const u8 flags;
-
-	/* Bit shift of this clockdomain's PM_WKDEP/CM_SLEEPDEP bit */
 	const u8 dep_bit;
-
-	/* Clockdomains that can be told to wake this powerdomain up */
 	struct clkdm_dep *wkdep_srcs;
-
-	/* Clockdomains that can be told to keep this clkdm from inactivity */
 	struct clkdm_dep *sleepdep_srcs;
-
-	/* OMAP chip types that this clockdomain is valid on */
 	const struct omap_chip_id omap_chip;
-
-	/* Usecount tracking */
 	atomic_t usecount;
-
 	struct list_head node;
-
 };
 
 void clkdm_init(struct clockdomain **clkdms, struct clkdm_autodep *autodeps);
