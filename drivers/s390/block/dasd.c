@@ -1005,8 +1005,8 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 	if (device == NULL ||
 	    device != dasd_device_from_cdev_locked(cdev) ||
 	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
-		DBF_DEV_EVENT(DBF_DEBUG, device, "invalid device in request: "
-			      "bus_id %s", dev_name(&cdev->dev));
+		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
+				"invalid device in request");
 		return;
 	}
 
@@ -1078,8 +1078,8 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	device = (struct dasd_device *) cqr->startdev;
 	if (!device ||
 	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
-		DBF_DEV_EVENT(DBF_DEBUG, device, "invalid device in request: "
-			      "bus_id %s", dev_name(&cdev->dev));
+		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
+				"invalid device in request");
 		return;
 	}
 
