@@ -15,11 +15,12 @@ clock-omap2xxx				= clkt2xxx_dpllcore.o \
 					  clkt2xxx_virt_prcm_set.o \
 					  clkt2xxx_apll.o clkt2xxx_osc.o \
 					  clkt2xxx_sys.o
+clock-omap3xxx				= clkt34xx_dpll3m2.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common) \
 			    $(clock-omap2xxx)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common) \
-			    $(omap-3-4-common)
+			    $(omap-3-4-common) $(clock-omap3xxx)
 obj-$(CONFIG_ARCH_OMAP4) += $(omap-3-4-common) $(prcm-common) $(clock-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
