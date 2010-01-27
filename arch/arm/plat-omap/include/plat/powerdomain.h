@@ -73,11 +73,11 @@ struct powerdomain {
 	/* Powerdomain name */
 	const char *name;
 
-	/* the address offset from CM_BASE/PRM_BASE */
-	const s16 prcm_offs;
-
 	/* Used to represent the OMAP chip types containing this pwrdm */
 	const struct omap_chip_id omap_chip;
+
+	/* the address offset from CM_BASE/PRM_BASE */
+	const s16 prcm_offs;
 
 	/* Possible powerdomain power states */
 	const u8 pwrsts;
