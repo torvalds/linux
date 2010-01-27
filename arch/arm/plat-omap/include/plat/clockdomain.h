@@ -117,8 +117,6 @@ struct clockdomain {
 };
 
 void clkdm_init(struct clockdomain **clkdms, struct clkdm_autodep *autodeps);
-int clkdm_register(struct clockdomain *clkdm);
-int clkdm_unregister(struct clockdomain *clkdm);
 struct clockdomain *clkdm_lookup(const char *name);
 
 int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),

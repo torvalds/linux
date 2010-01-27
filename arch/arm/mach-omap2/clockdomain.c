@@ -39,9 +39,6 @@
 /* clkdm_list contains all registered struct clockdomains */
 static LIST_HEAD(clkdm_list);
 
-/* clkdm_mutex protects clkdm_list add and del ops */
-static DEFINE_MUTEX(clkdm_mutex);
-
 /* array of clockdomain deps to be added/removed when clkdm in hwsup mode */
 static struct clkdm_autodep *autodeps;
 
@@ -65,6 +62,45 @@ static struct clockdomain *_clkdm_lookup(const char *name)
 	}
 
 	return clkdm;
+}
+
+/**
+ * _clkdm_register - register a clockdomain
+ * @clkdm: struct clockdomain * to register
+ *
+ * Adds a clockdomain to the internal clockdomain list.
+ * Returns -EINVAL if given a null pointer, -EEXIST if a clockdomain is
+ * already registered by the provided name, or 0 upon success.
+ */
+static int _clkdm_register(struct clockdomain *clkdm)
+{
+	struct powerdomain *pwrdm;
+
+	if (!clkdm || !clkdm->name)
+		return -EINVAL;
+
+	if (!omap_chip_is(clkdm->omap_chip))
+		return -EINVAL;
+
+	pwrdm = pwrdm_lookup(clkdm->pwrdm.name);
+	if (!pwrdm) {
+		pr_err("clockdomain: %s: powerdomain %s does not exist\n",
+			clkdm->name, clkdm->pwrdm.name);
+		return -EINVAL;
+	}
+	clkdm->pwrdm.ptr = pwrdm;
+
+	/* Verify that the clockdomain is not already registered */
+	if (_clkdm_lookup(clkdm->name))
+		return -EEXIST;
+
+	list_add(&clkdm->node, &clkdm_list);
+
+	pwrdm_add_clkdm(pwrdm, clkdm);
+
+	pr_debug("clockdomain: registered %s\n", clkdm->name);
+
+	return 0;
 }
 
 /* _clkdm_deps_lookup - look up the specified clockdomain in a clkdm list */
@@ -240,82 +276,12 @@ void clkdm_init(struct clockdomain **clkdms,
 
 	if (clkdms)
 		for (c = clkdms; *c; c++)
-			clkdm_register(*c);
+			_clkdm_register(*c);
 
 	autodeps = init_autodeps;
 	if (autodeps)
 		for (autodep = autodeps; autodep->clkdm.ptr; autodep++)
 			_autodep_lookup(autodep);
-}
-
-/**
- * clkdm_register - register a clockdomain
- * @clkdm: struct clockdomain * to register
- *
- * Adds a clockdomain to the internal clockdomain list.
- * Returns -EINVAL if given a null pointer, -EEXIST if a clockdomain is
- * already registered by the provided name, or 0 upon success.
- */
-int clkdm_register(struct clockdomain *clkdm)
-{
-	int ret = -EINVAL;
-	struct powerdomain *pwrdm;
-
-	if (!clkdm || !clkdm->name)
-		return -EINVAL;
-
-	if (!omap_chip_is(clkdm->omap_chip))
-		return -EINVAL;
-
-	pwrdm = pwrdm_lookup(clkdm->pwrdm.name);
-	if (!pwrdm) {
-		pr_err("clockdomain: %s: powerdomain %s does not exist\n",
-			clkdm->name, clkdm->pwrdm.name);
-		return -EINVAL;
-	}
-	clkdm->pwrdm.ptr = pwrdm;
-
-	mutex_lock(&clkdm_mutex);
-	/* Verify that the clockdomain is not already registered */
-	if (_clkdm_lookup(clkdm->name)) {
-		ret = -EEXIST;
-		goto cr_unlock;
-	}
-
-	list_add(&clkdm->node, &clkdm_list);
-
-	pwrdm_add_clkdm(pwrdm, clkdm);
-
-	pr_debug("clockdomain: registered %s\n", clkdm->name);
-	ret = 0;
-
-cr_unlock:
-	mutex_unlock(&clkdm_mutex);
-
-	return ret;
-}
-
-/**
- * clkdm_unregister - unregister a clockdomain
- * @clkdm: struct clockdomain * to unregister
- *
- * Removes a clockdomain from the internal clockdomain list.  Returns
- * -EINVAL if clkdm argument is NULL.
- */
-int clkdm_unregister(struct clockdomain *clkdm)
-{
-	if (!clkdm)
-		return -EINVAL;
-
-	pwrdm_del_clkdm(clkdm->pwrdm.ptr, clkdm);
-
-	mutex_lock(&clkdm_mutex);
-	list_del(&clkdm->node);
-	mutex_unlock(&clkdm_mutex);
-
-	pr_debug("clockdomain: unregistered %s\n", clkdm->name);
-
-	return 0;
 }
 
 /**
@@ -334,14 +300,12 @@ struct clockdomain *clkdm_lookup(const char *name)
 
 	clkdm = NULL;
 
-	mutex_lock(&clkdm_mutex);
 	list_for_each_entry(temp_clkdm, &clkdm_list, node) {
 		if (!strcmp(name, temp_clkdm->name)) {
 			clkdm = temp_clkdm;
 			break;
 		}
 	}
-	mutex_unlock(&clkdm_mutex);
 
 	return clkdm;
 }
@@ -369,13 +333,11 @@ int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),
 	if (!fn)
 		return -EINVAL;
 
-	mutex_lock(&clkdm_mutex);
 	list_for_each_entry(clkdm, &clkdm_list, node) {
 		ret = (*fn)(clkdm, user);
 		if (ret)
 			break;
 	}
-	mutex_unlock(&clkdm_mutex);
 
 	return ret;
 }

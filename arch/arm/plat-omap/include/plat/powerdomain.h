@@ -114,8 +114,6 @@ struct powerdomain {
 
 void pwrdm_init(struct powerdomain **pwrdm_list);
 
-int pwrdm_register(struct powerdomain *pwrdm);
-int pwrdm_unregister(struct powerdomain *pwrdm);
 struct powerdomain *pwrdm_lookup(const char *name);
 
 int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
