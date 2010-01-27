@@ -307,8 +307,23 @@ static int annotated_branch_stat_cmp(void *p1, void *p2)
 		return -1;
 	if (percent_a > percent_b)
 		return 1;
-	else
-		return 0;
+
+	if (a->incorrect < b->incorrect)
+		return -1;
+	if (a->incorrect > b->incorrect)
+		return 1;
+
+	/*
+	 * Since the above shows worse (incorrect) cases
+	 * first, we continue that by showing best (correct)
+	 * cases last.
+	 */
+	if (a->correct > b->correct)
+		return -1;
+	if (a->correct < b->correct)
+		return 1;
+
+	return 0;
 }
 
 static struct tracer_stat annotated_branch_stats = {
