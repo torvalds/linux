@@ -1022,14 +1022,13 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
-	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
-			   DE_PIPEA_VBLANK | DE_PIPEB_VBLANK;
+	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT;
 	u32 render_mask = GT_USER_INTERRUPT;
 	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
 
 	dev_priv->irq_mask_reg = ~display_mask;
-	dev_priv->de_irq_enable_reg = display_mask;
+	dev_priv->de_irq_enable_reg = display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK;
 
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
