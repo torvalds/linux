@@ -239,33 +239,6 @@ static inline struct event *find_cache_event(int type)
 	return event;
 }
 
-int common_pc(struct scripting_context *context)
-{
-	int pc;
-
-	pc = parse_common_pc(context->event_data);
-
-	return pc;
-}
-
-int common_flags(struct scripting_context *context)
-{
-	int flags;
-
-	flags = parse_common_flags(context->event_data);
-
-	return flags;
-}
-
-int common_lock_depth(struct scripting_context *context)
-{
-	int lock_depth;
-
-	lock_depth = parse_common_lock_depth(context->event_data);
-
-	return lock_depth;
-}
-
 static void perl_process_event(int cpu, void *data,
 			       int size __unused,
 			       unsigned long long nsecs, char *comm)

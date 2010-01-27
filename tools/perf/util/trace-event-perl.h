@@ -44,12 +44,4 @@ void boot_DynaLoader(pTHX_ CV *cv);
 typedef PerlInterpreter * INTERP;
 #endif
 
-struct scripting_context {
-	void *event_data;
-};
-
-int common_pc(struct scripting_context *context);
-int common_flags(struct scripting_context *context);
-int common_lock_depth(struct scripting_context *context);
-
 #endif /* __PERF_TRACE_EVENT_PERL_H */
