@@ -730,7 +730,22 @@ struct t3_cq {
 
 static inline void cxio_set_wq_in_error(struct t3_wq *wq)
 {
-	wq->queue->wq_in_err.err = 1;
+	wq->queue->wq_in_err.err |= 1;
+}
+
+static inline void cxio_disable_wq_db(struct t3_wq *wq)
+{
+	wq->queue->wq_in_err.err |= 2;
+}
+
+static inline void cxio_enable_wq_db(struct t3_wq *wq)
+{
+	wq->queue->wq_in_err.err &= ~2;
+}
+
+static inline int cxio_wq_db_enabled(struct t3_wq *wq)
+{
+	return !(wq->queue->wq_in_err.err & 2);
 }
 
 static inline struct t3_cqe *cxio_next_hw_cqe(struct t3_cq *cq)
