@@ -70,8 +70,17 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->unknown_events = 0;
 	map_groups__init(&self->kmaps);
 
-	if (mode == O_RDONLY && perf_session__open(self, force) < 0)
-		goto out_delete;
+	if (mode == O_RDONLY) {
+		if (perf_session__open(self, force) < 0)
+			goto out_delete;
+	} else if (mode == O_WRONLY) {
+		/*
+		 * In O_RDONLY mode this will be performed when reading the
+		 * kernel MMAP event, in event__process_mmap().
+		 */
+		if (perf_session__create_kernel_maps(self) < 0)
+			goto out_delete;
+	}
 
 	self->sample_type = perf_header__sample_type(&self->header);
 out:

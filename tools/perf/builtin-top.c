@@ -1191,11 +1191,6 @@ static int __cmd_top(void)
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (perf_session__create_kernel_maps(session) < 0) {
-		pr_err("Problems creating kernel maps\n");
-		return -1;
-	}
-
 	if (target_pid != -1)
 		event__synthesize_thread(target_pid, event__process, session);
 	else

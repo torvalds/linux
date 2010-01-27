@@ -477,11 +477,6 @@ static int __cmd_record(int argc, const char **argv)
 		return -1;
 	}
 
-	if (perf_session__create_kernel_maps(session) < 0) {
-		pr_err("Problems creating kernel maps\n");
-		return -1;
-	}
-
 	if (!file_new) {
 		err = perf_header__read(&session->header, output);
 		if (err < 0)

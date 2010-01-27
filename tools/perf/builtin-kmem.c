@@ -491,11 +491,6 @@ static int __cmd_kmem(void)
 	if (!perf_session__has_traces(session, "kmem record"))
 		goto out_delete;
 
-	if (perf_session__create_kernel_maps(session) < 0) {
-		pr_err("Problems creating kernel maps\n");
-		return -1;
-	}
-
 	setup_pager();
 	err = perf_session__process_events(session, &event_ops);
 	if (err != 0)
