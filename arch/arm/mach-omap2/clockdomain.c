@@ -145,25 +145,29 @@ static void _clkdm_del_autodeps(struct clockdomain *clkdm)
  */
 static void _omap2_clkdm_set_hwsup(struct clockdomain *clkdm, int enable)
 {
-	u32 v;
+	u32 bits, v;
 
 	if (cpu_is_omap24xx()) {
 		if (enable)
-			v = OMAP24XX_CLKSTCTRL_ENABLE_AUTO;
+			bits = OMAP24XX_CLKSTCTRL_ENABLE_AUTO;
 		else
-			v = OMAP24XX_CLKSTCTRL_DISABLE_AUTO;
+			bits = OMAP24XX_CLKSTCTRL_DISABLE_AUTO;
 	} else if (cpu_is_omap34xx()) {
 		if (enable)
-			v = OMAP34XX_CLKSTCTRL_ENABLE_AUTO;
+			bits = OMAP34XX_CLKSTCTRL_ENABLE_AUTO;
 		else
-			v = OMAP34XX_CLKSTCTRL_DISABLE_AUTO;
+			bits = OMAP34XX_CLKSTCTRL_DISABLE_AUTO;
 	} else {
 		BUG();
 	}
 
-	cm_rmw_mod_reg_bits(clkdm->clktrctrl_mask,
-			    v << __ffs(clkdm->clktrctrl_mask),
-			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_CM_CLKSTCTRL);
+	bits = bits << __ffs(clkdm->clktrctrl_mask);
+
+	v = __raw_readl(clkdm->clkstctrl_reg);
+	v &= ~(clkdm->clktrctrl_mask);
+	v |= bits;
+	__raw_writel(v, clkdm->clkstctrl_reg);
+
 }
 
 static struct clockdomain *_clkdm_lookup(const char *name)
@@ -381,7 +385,7 @@ static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
 	if (!clkdm)
 		return -EINVAL;
 
-	v = cm_read_mod_reg(clkdm->pwrdm.ptr->prcm_offs, OMAP2_CM_CLKSTCTRL);
+	v = __raw_readl(clkdm->clkstctrl_reg);
 	v &= clkdm->clktrctrl_mask;
 	v >>= __ffs(clkdm->clktrctrl_mask);
 
@@ -417,12 +421,13 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 
 	} else if (cpu_is_omap34xx()) {
 
-		u32 v = (OMAP34XX_CLKSTCTRL_FORCE_SLEEP <<
+		u32 bits = (OMAP34XX_CLKSTCTRL_FORCE_SLEEP <<
 			 __ffs(clkdm->clktrctrl_mask));
 
-		cm_rmw_mod_reg_bits(clkdm->clktrctrl_mask, v,
-				    clkdm->pwrdm.ptr->prcm_offs,
-							 OMAP2_CM_CLKSTCTRL);
+		u32 v = __raw_readl(clkdm->clkstctrl_reg);
+		v &= ~(clkdm->clktrctrl_mask);
+		v |= bits;
+		__raw_writel(v, clkdm->clkstctrl_reg);
 
 	} else {
 		BUG();
@@ -460,12 +465,13 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 
 	} else if (cpu_is_omap34xx()) {
 
-		u32 v = (OMAP34XX_CLKSTCTRL_FORCE_WAKEUP <<
+		u32 bits = (OMAP34XX_CLKSTCTRL_FORCE_WAKEUP <<
 			 __ffs(clkdm->clktrctrl_mask));
 
-		cm_rmw_mod_reg_bits(clkdm->clktrctrl_mask, v,
-				    clkdm->pwrdm.ptr->prcm_offs,
-						 OMAP2_CM_CLKSTCTRL);
+		u32 v = __raw_readl(clkdm->clkstctrl_reg);
+		v &= ~(clkdm->clktrctrl_mask);
+		v |= bits;
+		__raw_writel(v, clkdm->clkstctrl_reg);
 
 	} else {
 		BUG();
@@ -561,7 +567,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 	 * downstream clocks for debugging purposes?
 	 */
 
-	if (!clkdm || !clk || !clkdm->clktrctrl_mask)
+	if (!clkdm || !clk || !clkdm->clkstctrl_reg)
 		return -EINVAL;
 
 	if (atomic_inc_return(&clkdm->usecount) > 1)
@@ -612,7 +618,7 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 	 * downstream clocks for debugging purposes?
 	 */
 
-	if (!clkdm || !clk || !clkdm->clktrctrl_mask)
+	if (!clkdm || !clk || !clkdm->clkstctrl_reg)
 		return -EINVAL;
 
 #ifdef DEBUG
