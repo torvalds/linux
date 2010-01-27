@@ -15,7 +15,7 @@
 
 #include <mach/map.h>
 
-#define S5P_CLKREG(x)		(S5P_VA_CLK + (x))
+#define S5P_CLKREG(x)		(S3C_VA_SYS + (x))
 
 #define S5P_APLL_LOCK		S5P_CLKREG(0x00)
 #define S5P_MPLL_LOCK		S5P_CLKREG(0x04)

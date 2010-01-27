@@ -29,6 +29,8 @@
 #define S5P_VIC0_BASE		S5P_IRQ(0)
 #define S5P_VIC1_BASE		S5P_IRQ(32)
 
+#define VIC_BASE(x)		(S5P_VIC0_BASE + ((x)*32))
+
 #define IRQ_VIC0_BASE		S5P_VIC0_BASE
 #define IRQ_VIC1_BASE		S5P_VIC1_BASE
 

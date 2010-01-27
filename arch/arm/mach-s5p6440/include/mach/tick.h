@@ -15,7 +15,7 @@
 
 static inline u32 s3c24xx_ostimer_pending(void)
 {
-	u32 pend = __raw_readl(S5P_VA_VIC0 + VIC_RAW_STATUS);
+	u32 pend = __raw_readl(VA_VIC0 + VIC_RAW_STATUS);
 	return pend & (1 << (IRQ_TIMER4_VIC - S5P_IRQ_VIC0(0)));
 }
 
