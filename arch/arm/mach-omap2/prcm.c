@@ -29,6 +29,7 @@
 #include <plat/control.h>
 
 #include "clock.h"
+#include "clock2xxx.h"
 #include "cm.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"
@@ -133,11 +134,12 @@ EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 void omap_prcm_arch_reset(char mode)
 {
 	s16 prcm_offs;
-	omap2_clk_prepare_for_reboot();
 
-	if (cpu_is_omap24xx())
+	if (cpu_is_omap24xx()) {
+		omap2xxx_clk_prepare_for_reboot();
+
 		prcm_offs = WKUP_MOD;
-	else if (cpu_is_omap34xx()) {
+	} else if (cpu_is_omap34xx()) {
 		u32 l;
 
 		prcm_offs = OMAP3430_GR_MOD;

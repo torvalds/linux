@@ -71,7 +71,7 @@ const struct clkops clkops_omap2430_i2chs_wait = {
 /*
  * Set clocks for bypass mode for reboot to work.
  */
-void omap2_clk_prepare_for_reboot(void)
+void omap2xxx_clk_prepare_for_reboot(void)
 {
 	u32 rate;
 

@@ -17,8 +17,3 @@ const struct clkops clkops_noncore_dpll_ops = {
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
 };
-
-void omap2_clk_prepare_for_reboot(void)
-{
-	return;
-}
