@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2010 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -33,6 +33,7 @@
 #include "lpfc_sli.h"
 #include "lpfc_sli4.h"
 #include "lpfc_nl.h"
+#include "lpfc_bsg.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -476,7 +477,7 @@ enum ELX_LOOPBACK_CMD {
  * This function is called when an unsolicited CT command is received.  It
  * forwards the event to any processes registerd to receive CT events.
  */
-void
+int
 lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			struct lpfc_iocbq *piocbq)
 {
@@ -496,6 +497,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_dmabuf *bdeBuf2 = piocbq->context3;
 	struct lpfc_hbq_entry *hbqe;
 	struct lpfc_sli_ct_request *ct_req;
+	unsigned long flags;
 
 	INIT_LIST_HEAD(&head);
 	list_add_tail(&head, &piocbq->list);
@@ -519,7 +521,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
 		lpfc_sli_ringpostbuf_put(phba, pring, dmabuf);
 
-	mutex_lock(&phba->ct_event_mutex);
+	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	list_for_each_entry(evt, &phba->ct_ev_waiters, node) {
 		if (evt->req_id != evt_req_id)
 			continue;
@@ -535,7 +537,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			break;
 		}
 
-		mutex_unlock(&phba->ct_event_mutex);
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 		if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 			/* take accumulated byte count from the last iocbq */
@@ -556,9 +558,9 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					"CT event data, size %d\n",
 					evt_dat->len);
 			kfree(evt_dat);
-			mutex_lock(&phba->ct_event_mutex);
+			spin_lock_irqsave(&phba->ct_ev_lock, flags);
 			lpfc_ct_event_unref(evt);
-			mutex_unlock(&phba->ct_event_mutex);
+			spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 			goto error_ct_unsol_exit;
 		}
 
@@ -601,9 +603,11 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						iocbq);
 					kfree(evt_dat->data);
 					kfree(evt_dat);
-					mutex_lock(&phba->ct_event_mutex);
+					spin_lock_irqsave(&phba->ct_ev_lock,
+						flags);
 					lpfc_ct_event_unref(evt);
-					mutex_unlock(&phba->ct_event_mutex);
+					spin_unlock_irqrestore(
+						&phba->ct_ev_lock, flags);
 					goto error_ct_unsol_exit;
 				}
 				memcpy((char *)(evt_dat->data) + offset,
@@ -638,7 +642,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			}
 		}
 
-		mutex_lock(&phba->ct_event_mutex);
+		spin_lock_irqsave(&phba->ct_ev_lock, flags);
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			evt_dat->immed_dat = phba->ctx_idx;
 			phba->ctx_idx = (phba->ctx_idx + 1) % 64;
@@ -656,13 +660,13 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		if (evt_req_id == SLI_CT_ELX_LOOPBACK)
 			break;
 	}
-	mutex_unlock(&phba->ct_event_mutex);
+	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 error_ct_unsol_exit:
 	if (!list_empty(&head))
 		list_del(&head);
 
-	return;
+	return 1;
 }
 
 /**
@@ -676,6 +680,7 @@ lpfc_bsg_set_event(struct fc_bsg_job *job)
 	struct lpfc_hba *phba = vport->phba;
 	struct set_ct_event *event_req;
 	struct lpfc_ct_event *evt;
+	unsigned long flags;
 	int rc = 0;
 
 	if (job->request_len <
@@ -689,7 +694,7 @@ lpfc_bsg_set_event(struct fc_bsg_job *job)
 	event_req = (struct set_ct_event *)
 		job->request->rqst_data.h_vendor.vendor_cmd;
 
-	mutex_lock(&phba->ct_event_mutex);
+	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	list_for_each_entry(evt, &phba->ct_ev_waiters, node) {
 		if (evt->reg_id == event_req->ev_reg_id) {
 			lpfc_ct_event_ref(evt);
@@ -697,7 +702,7 @@ lpfc_bsg_set_event(struct fc_bsg_job *job)
 			break;
 		}
 	}
-	mutex_unlock(&phba->ct_event_mutex);
+	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 	if (&evt->node == &phba->ct_ev_waiters) {
 		/* no event waiting struct yet - first call */
@@ -710,19 +715,19 @@ lpfc_bsg_set_event(struct fc_bsg_job *job)
 			return -ENOMEM;
 		}
 
-		mutex_lock(&phba->ct_event_mutex);
+		spin_lock_irqsave(&phba->ct_ev_lock, flags);
 		list_add(&evt->node, &phba->ct_ev_waiters);
 		lpfc_ct_event_ref(evt);
-		mutex_unlock(&phba->ct_event_mutex);
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 	}
 
 	evt->waiting = 1;
 	if (wait_event_interruptible(evt->wq,
 				     !list_empty(&evt->events_to_see))) {
-		mutex_lock(&phba->ct_event_mutex);
+		spin_lock_irqsave(&phba->ct_ev_lock, flags);
 		lpfc_ct_event_unref(evt); /* release ref */
 		lpfc_ct_event_unref(evt); /* delete */
-		mutex_unlock(&phba->ct_event_mutex);
+		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 		rc = -EINTR;
 		goto set_event_out;
 	}
@@ -730,10 +735,10 @@ lpfc_bsg_set_event(struct fc_bsg_job *job)
 	evt->wait_time_stamp = jiffies;
 	evt->waiting = 0;
 
-	mutex_lock(&phba->ct_event_mutex);
+	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	list_move(evt->events_to_see.prev, &evt->events_to_get);
 	lpfc_ct_event_unref(evt); /* release ref */
-	mutex_unlock(&phba->ct_event_mutex);
+	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 set_event_out:
 	/* set_event carries no reply payload */
@@ -759,6 +764,7 @@ lpfc_bsg_get_event(struct fc_bsg_job *job)
 	struct get_ct_event_reply *event_reply;
 	struct lpfc_ct_event *evt;
 	struct event_data *evt_dat = NULL;
+	unsigned long flags;
 	int rc = 0;
 
 	if (job->request_len <
@@ -775,7 +781,7 @@ lpfc_bsg_get_event(struct fc_bsg_job *job)
 	event_reply = (struct get_ct_event_reply *)
 		job->reply->reply_data.vendor_reply.vendor_rsp;
 
-	mutex_lock(&phba->ct_event_mutex);
+	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	list_for_each_entry(evt, &phba->ct_ev_waiters, node) {
 		if (evt->reg_id == event_req->ev_reg_id) {
 			if (list_empty(&evt->events_to_get))
@@ -788,7 +794,7 @@ lpfc_bsg_get_event(struct fc_bsg_job *job)
 			break;
 		}
 	}
-	mutex_unlock(&phba->ct_event_mutex);
+	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 	if (!evt_dat) {
 		job->reply->reply_payload_rcv_len = 0;
@@ -818,9 +824,9 @@ lpfc_bsg_get_event(struct fc_bsg_job *job)
 	if (evt_dat)
 		kfree(evt_dat->data);
 	kfree(evt_dat);
-	mutex_lock(&phba->ct_event_mutex);
+	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	lpfc_ct_event_unref(evt);
-	mutex_unlock(&phba->ct_event_mutex);
+	spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
 
 error_get_event_exit:
 	/* make error code available to userspace */
