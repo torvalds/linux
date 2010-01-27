@@ -2701,6 +2701,13 @@ lpfc_info(struct Scsi_Host *host)
 				 " port %s",
 				 phba->Port);
 		}
+		len = strlen(lpfcinfobuf);
+		if (phba->sli4_hba.link_state.logical_speed) {
+			snprintf(lpfcinfobuf + len,
+				 384-len,
+				 " Logical Link Speed: %d Mbps",
+				 phba->sli4_hba.link_state.logical_speed * 10);
+		}
 	}
 	return lpfcinfobuf;
 }

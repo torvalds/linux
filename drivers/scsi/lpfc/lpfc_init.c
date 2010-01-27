@@ -2981,6 +2981,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 				bf_get(lpfc_acqe_link_physical, acqe_link);
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_link);
+	phba->sli4_hba.link_state.logical_speed =
+				bf_get(lpfc_acqe_qos_link_speed, acqe_link);
 
 	/* Invoke the lpfc_handle_latt mailbox command callback function */
 	lpfc_mbx_cmpl_read_la(phba, pmb);

@@ -126,6 +126,7 @@ struct lpfc_sli4_link {
 	uint8_t status;
 	uint8_t physical;
 	uint8_t fault;
+	uint16_t logical_speed;
 };
 
 struct lpfc_fcf {

@@ -1959,6 +1959,9 @@ struct lpfc_acqe_link {
 #define LPFC_ASYNC_LINK_FAULT_NONE	0x0
 #define LPFC_ASYNC_LINK_FAULT_LOCAL	0x1
 #define LPFC_ASYNC_LINK_FAULT_REMOTE	0x2
+#define lpfc_acqe_qos_link_speed_SHIFT	16
+#define lpfc_acqe_qos_link_speed_MASK	0x0000FFFF
+#define lpfc_acqe_qos_link_speed_WORD	word1
 	uint32_t event_tag;
 	uint32_t trailer;
 };
