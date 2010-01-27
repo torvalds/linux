@@ -45,9 +45,11 @@ OPTIONS
 --list=::
         Display a list of available trace scripts.
 
--s::
+-s ['lang']::
 --script=::
         Process trace data with the given script ([lang]:script[.ext]).
+	If the string 'lang' is specified in place of a script name, a
+        list of supported languages will be displayed instead.
 
 -g::
 --gen-script=::

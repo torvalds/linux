@@ -219,9 +219,9 @@ static int parse_scriptname(const struct option *opt __used,
 	const char *script, *ext;
 	int len;
 
-	if (strcmp(str, "list") == 0) {
+	if (strcmp(str, "lang") == 0) {
 		list_available_languages();
-		return 0;
+		exit(0);
 	}
 
 	script = strchr(str, ':');
