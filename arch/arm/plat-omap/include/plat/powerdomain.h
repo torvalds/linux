@@ -1,8 +1,8 @@
 /*
  * OMAP2/3 powerdomain control
  *
- * Copyright (C) 2007-8 Texas Instruments, Inc.
- * Copyright (C) 2007-8 Nokia Corporation
+ * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -68,20 +68,6 @@
 struct clockdomain;
 struct powerdomain;
 
-/* Encodes dependencies between powerdomains - statically defined */
-struct pwrdm_dep {
-
-	/* Powerdomain name */
-	const char *pwrdm_name;
-
-	/* Powerdomain pointer - resolved by the powerdomain code */
-	struct powerdomain *pwrdm;
-
-	/* Flags to mark OMAP chip restrictions, etc. */
-	const struct omap_chip_id omap_chip;
-
-};
-
 struct powerdomain {
 
 	/* Powerdomain name */
@@ -92,15 +78,6 @@ struct powerdomain {
 
 	/* Used to represent the OMAP chip types containing this pwrdm */
 	const struct omap_chip_id omap_chip;
-
-	/* Powerdomains that can be told to wake this powerdomain up */
-	struct pwrdm_dep *wkdep_srcs;
-
-	/* Powerdomains that can be told to keep this pwrdm from inactivity */
-	struct pwrdm_dep *sleepdep_srcs;
-
-	/* Bit shift of this powerdomain's PM_WKDEP/CM_SLEEPDEP bit */
-	const u8 dep_bit;
 
 	/* Possible powerdomain power states */
 	const u8 pwrsts;
@@ -151,13 +128,6 @@ int pwrdm_del_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm);
 int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
 			 int (*fn)(struct powerdomain *pwrdm,
 				   struct clockdomain *clkdm));
-
-int pwrdm_add_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_del_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_read_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_add_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_del_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_read_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
 
 int pwrdm_get_mem_bank_count(struct powerdomain *pwrdm);
 

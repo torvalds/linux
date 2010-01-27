@@ -313,7 +313,7 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		hwmods = omap34xx_hwmods;
 
 	pwrdm_init(powerdomains_omap);
-	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
+	clkdm_init(clockdomains_omap, clkdm_autodeps);
 #ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
 	/* The OPP tables have to be registered before a clk init */
 	omap_hwmod_init(hwmods);

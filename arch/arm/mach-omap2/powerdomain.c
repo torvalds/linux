@@ -2,7 +2,7 @@
  * OMAP powerdomain control
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2008 Nokia Corporation
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -36,6 +36,7 @@
 #include <plat/cpu.h>
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
+#include <plat/prcm.h>
 
 #include "pm.h"
 
@@ -88,17 +89,6 @@ static DEFINE_RWLOCK(pwrdm_rwlock);
 
 /* Private functions */
 
-static u32 prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
-{
-	u32 v;
-
-	v = prm_read_mod_reg(domain, idx);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
-
 static struct powerdomain *_pwrdm_lookup(const char *name)
 {
 	struct powerdomain *pwrdm, *temp_pwrdm;
@@ -113,34 +103,6 @@ static struct powerdomain *_pwrdm_lookup(const char *name)
 	}
 
 	return pwrdm;
-}
-
-/* _pwrdm_deps_lookup - look up the specified powerdomain in a pwrdm list */
-static struct powerdomain *_pwrdm_deps_lookup(struct powerdomain *pwrdm,
-					      struct pwrdm_dep *deps)
-{
-	struct pwrdm_dep *pd;
-
-	if (!pwrdm || !deps || !omap_chip_is(pwrdm->omap_chip))
-		return ERR_PTR(-EINVAL);
-
-	for (pd = deps; pd->pwrdm_name; pd++) {
-
-		if (!omap_chip_is(pd->omap_chip))
-			continue;
-
-		if (!pd->pwrdm && pd->pwrdm_name)
-			pd->pwrdm = pwrdm_lookup(pd->pwrdm_name);
-
-		if (pd->pwrdm == pwrdm)
-			break;
-
-	}
-
-	if (!pd->pwrdm_name)
-		return ERR_PTR(-ENOENT);
-
-	return pd->pwrdm;
 }
 
 static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
@@ -500,223 +462,6 @@ int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
 	read_unlock_irqrestore(&pwrdm_rwlock, flags);
 
 	return ret;
-}
-
-
-/**
- * pwrdm_add_wkdep - add a wakeup dependency from pwrdm2 to pwrdm1
- * @pwrdm1: wake this struct powerdomain * up (dependent)
- * @pwrdm2: when this struct powerdomain * wakes up (source)
- *
- * When the powerdomain represented by pwrdm2 wakes up (due to an
- * interrupt), wake up pwrdm1.	Implemented in hardware on the OMAP,
- * this feature is designed to reduce wakeup latency of the dependent
- * powerdomain.  Returns -EINVAL if presented with invalid powerdomain
- * pointers, -ENOENT if pwrdm2 cannot wake up pwrdm1 in hardware, or
- * 0 upon success.
- */
-int pwrdm_add_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
-{
-	struct powerdomain *p;
-
-	if (!pwrdm1)
-		return -EINVAL;
-
-	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->wkdep_srcs);
-	if (IS_ERR(p)) {
-		pr_debug("powerdomain: hardware cannot set/clear wake up of "
-			 "%s when %s wakes up\n", pwrdm1->name, pwrdm2->name);
-		return PTR_ERR(p);
-	}
-
-	pr_debug("powerdomain: hardware will wake up %s when %s wakes up\n",
-		 pwrdm1->name, pwrdm2->name);
-
-	prm_set_mod_reg_bits((1 << pwrdm2->dep_bit),
-			     pwrdm1->prcm_offs, PM_WKDEP);
-
-	return 0;
-}
-
-/**
- * pwrdm_del_wkdep - remove a wakeup dependency from pwrdm2 to pwrdm1
- * @pwrdm1: wake this struct powerdomain * up (dependent)
- * @pwrdm2: when this struct powerdomain * wakes up (source)
- *
- * Remove a wakeup dependency that causes pwrdm1 to wake up when pwrdm2
- * wakes up.  Returns -EINVAL if presented with invalid powerdomain
- * pointers, -ENOENT if pwrdm2 cannot wake up pwrdm1 in hardware, or
- * 0 upon success.
- */
-int pwrdm_del_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
-{
-	struct powerdomain *p;
-
-	if (!pwrdm1)
-		return -EINVAL;
-
-	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->wkdep_srcs);
-	if (IS_ERR(p)) {
-		pr_debug("powerdomain: hardware cannot set/clear wake up of "
-			 "%s when %s wakes up\n", pwrdm1->name, pwrdm2->name);
-		return PTR_ERR(p);
-	}
-
-	pr_debug("powerdomain: hardware will no longer wake up %s after %s "
-		 "wakes up\n", pwrdm1->name, pwrdm2->name);
-
-	prm_clear_mod_reg_bits((1 << pwrdm2->dep_bit),
-			       pwrdm1->prcm_offs, PM_WKDEP);
-
-	return 0;
-}
-
-/**
- * pwrdm_read_wkdep - read wakeup dependency state from pwrdm2 to pwrdm1
- * @pwrdm1: wake this struct powerdomain * up (dependent)
- * @pwrdm2: when this struct powerdomain * wakes up (source)
- *
- * Return 1 if a hardware wakeup dependency exists wherein pwrdm1 will be
- * awoken when pwrdm2 wakes up; 0 if dependency is not set; -EINVAL
- * if either powerdomain pointer is invalid; or -ENOENT if the hardware
- * is incapable.
- *
- * REVISIT: Currently this function only represents software-controllable
- * wakeup dependencies.  Wakeup dependencies fixed in hardware are not
- * yet handled here.
- */
-int pwrdm_read_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
-{
-	struct powerdomain *p;
-
-	if (!pwrdm1)
-		return -EINVAL;
-
-	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->wkdep_srcs);
-	if (IS_ERR(p)) {
-		pr_debug("powerdomain: hardware cannot set/clear wake up of "
-			 "%s when %s wakes up\n", pwrdm1->name, pwrdm2->name);
-		return PTR_ERR(p);
-	}
-
-	return prm_read_mod_bits_shift(pwrdm1->prcm_offs, PM_WKDEP,
-					(1 << pwrdm2->dep_bit));
-}
-
-/**
- * pwrdm_add_sleepdep - add a sleep dependency from pwrdm2 to pwrdm1
- * @pwrdm1: prevent this struct powerdomain * from sleeping (dependent)
- * @pwrdm2: when this struct powerdomain * is active (source)
- *
- * Prevent pwrdm1 from automatically going inactive (and then to
- * retention or off) if pwrdm2 is still active.	 Returns -EINVAL if
- * presented with invalid powerdomain pointers or called on a machine
- * that does not support software-configurable hardware sleep dependencies,
- * -ENOENT if the specified dependency cannot be set in hardware, or
- * 0 upon success.
- */
-int pwrdm_add_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
-{
-	struct powerdomain *p;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
-
-	if (!pwrdm1)
-		return -EINVAL;
-
-	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
-	if (IS_ERR(p)) {
-		pr_debug("powerdomain: hardware cannot set/clear sleep "
-			 "dependency affecting %s from %s\n", pwrdm1->name,
-			 pwrdm2->name);
-		return PTR_ERR(p);
-	}
-
-	pr_debug("powerdomain: will prevent %s from sleeping if %s is active\n",
-		 pwrdm1->name, pwrdm2->name);
-
-	cm_set_mod_reg_bits((1 << pwrdm2->dep_bit),
-			    pwrdm1->prcm_offs, OMAP3430_CM_SLEEPDEP);
-
-	return 0;
-}
-
-/**
- * pwrdm_del_sleepdep - remove a sleep dependency from pwrdm2 to pwrdm1
- * @pwrdm1: prevent this struct powerdomain * from sleeping (dependent)
- * @pwrdm2: when this struct powerdomain * is active (source)
- *
- * Allow pwrdm1 to automatically go inactive (and then to retention or
- * off), independent of the activity state of pwrdm2.  Returns -EINVAL
- * if presented with invalid powerdomain pointers or called on a machine
- * that does not support software-configurable hardware sleep dependencies,
- * -ENOENT if the specified dependency cannot be cleared in hardware, or
- * 0 upon success.
- */
-int pwrdm_del_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
-{
-	struct powerdomain *p;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
-
-	if (!pwrdm1)
-		return -EINVAL;
-
-	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
-	if (IS_ERR(p)) {
-		pr_debug("powerdomain: hardware cannot set/clear sleep "
-			 "dependency affecting %s from %s\n", pwrdm1->name,
-			 pwrdm2->name);
-		return PTR_ERR(p);
-	}
-
-	pr_debug("powerdomain: will no longer prevent %s from sleeping if "
-		 "%s is active\n", pwrdm1->name, pwrdm2->name);
-
-	cm_clear_mod_reg_bits((1 << pwrdm2->dep_bit),
-			      pwrdm1->prcm_offs, OMAP3430_CM_SLEEPDEP);
-
-	return 0;
-}
-
-/**
- * pwrdm_read_sleepdep - read sleep dependency state from pwrdm2 to pwrdm1
- * @pwrdm1: prevent this struct powerdomain * from sleeping (dependent)
- * @pwrdm2: when this struct powerdomain * is active (source)
- *
- * Return 1 if a hardware sleep dependency exists wherein pwrdm1 will
- * not be allowed to automatically go inactive if pwrdm2 is active;
- * 0 if pwrdm1's automatic power state inactivity transition is independent
- * of pwrdm2's; -EINVAL if either powerdomain pointer is invalid or called
- * on a machine that does not support software-configurable hardware sleep
- * dependencies; or -ENOENT if the hardware is incapable.
- *
- * REVISIT: Currently this function only represents software-controllable
- * sleep dependencies.	Sleep dependencies fixed in hardware are not
- * yet handled here.
- */
-int pwrdm_read_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2)
-{
-	struct powerdomain *p;
-
-	if (!cpu_is_omap34xx())
-		return -EINVAL;
-
-	if (!pwrdm1)
-		return -EINVAL;
-
-	p = _pwrdm_deps_lookup(pwrdm2, pwrdm1->sleepdep_srcs);
-	if (IS_ERR(p)) {
-		pr_debug("powerdomain: hardware cannot set/clear sleep "
-			 "dependency affecting %s from %s\n", pwrdm1->name,
-			 pwrdm2->name);
-		return PTR_ERR(p);
-	}
-
-	return prm_read_mod_bits_shift(pwrdm1->prcm_offs, OMAP3430_CM_SLEEPDEP,
-					(1 << pwrdm2->dep_bit));
 }
 
 /**

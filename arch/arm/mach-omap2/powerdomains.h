@@ -1,8 +1,8 @@
 /*
  * OMAP2/3 common powerdomain definitions
  *
- * Copyright (C) 2007-8 Texas Instruments, Inc.
- * Copyright (C) 2007-8 Nokia Corporation
+ * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  * Debugging and integration fixes by Jouni Högander
@@ -25,19 +25,8 @@
  * This file contains all of the powerdomains that have some element
  * of software control for the OMAP24xx and OMAP34XX chips.
  *
- * A few notes:
- *
  * This is not an exhaustive listing of powerdomains on the chips; only
  * powerdomains that can be controlled in software.
- *
- * A useful validation rule for struct powerdomain:
- * Any powerdomain referenced by a wkdep_srcs or sleepdep_srcs array
- * must have a dep_bit assigned.  So wkdep_srcs/sleepdep_srcs are really
- * just software-controllable dependencies.  Non-software-controllable
- * dependencies do exist, but they are not encoded below (yet).
- *
- * 24xx does not support programmable sleep dependencies (SLEEPDEP)
- *
  */
 
 /*
@@ -47,26 +36,17 @@
  *
  * On the 2420, this is a 'C55 DSP called, simply, the DSP.  Its
  * powerdomain is called the "DSP power domain."  On the 2430, the
- * on-board DSP is a 'C64 DSP, now called the IVA2 or IVA2.1.  Its
- * powerdomain is still called the "DSP power domain."	On the 3430,
- * the DSP is a 'C64 DSP like the 2430, also known as the IVA2; but
- * its powerdomain is now called the "IVA2 power domain."
+ * on-board DSP is a 'C64 DSP, now called (along with its hardware
+ * accelerators) the IVA2 or IVA2.1.  Its powerdomain is still called
+ * the "DSP power domain." On the 3430, the DSP is a 'C64 DSP like the
+ * 2430, also known as the IVA2; but its powerdomain is now called the
+ * "IVA2 power domain."
  *
  * The 2420 also has something called the IVA, which is a separate ARM
  * core, and has nothing to do with the DSP/IVA2.
  *
  * Ideally the DSP/IVA2 could just be the same powerdomain, but the PRCM
  * address offset is different between the C55 and C64 DSPs.
- *
- * The overly-specific dep_bit names are due to a bit name collision
- * with CM_FCLKEN_{DSP,IVA2}.  The DSP/IVA2 PM_WKDEP and CM_SLEEPDEP shift
- * value are the same for all powerdomains: 2
- */
-
-/*
- * XXX should dep_bit be a mask, so we can test to see if it is 0 as a
- * sanity check?
- * XXX encode hardware fixed wakeup dependencies -- esp. for 3430 CORE
  */
 
 #include <plat/powerdomain.h>
@@ -74,60 +54,11 @@
 #include "prcm-common.h"
 #include "prm.h"
 #include "cm.h"
-
-/* OMAP2/3-common powerdomains and wakeup dependencies */
-
-#ifndef CONFIG_ARCH_OMAP4
-/*
- * 2420/2430 PM_WKDEP_GFX: CORE, MPU, WKUP
- * 3430ES1 PM_WKDEP_GFX: adds IVA2, removes CORE
- * 3430ES2 PM_WKDEP_SGX: adds IVA2, removes CORE
- */
-static struct pwrdm_dep gfx_sgx_wkdeps[] = {
-	{
-		.pwrdm_name = "core_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.pwrdm_name = "iva2_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
-	},
-	{
-		.pwrdm_name = "mpu_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX |
-					    CHIP_IS_OMAP3430)
-	},
-	{
-		.pwrdm_name = "wkup_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX |
-					    CHIP_IS_OMAP3430)
-	},
-	{ NULL },
-};
-
-/*
- * 3430: CM_SLEEPDEP_CAM: MPU
- * 3430ES1: CM_SLEEPDEP_GFX: MPU
- * 3430ES2: CM_SLEEPDEP_SGX: MPU
- */
-static struct pwrdm_dep cam_gfx_sleepdeps[] = {
-	{
-		.pwrdm_name = "mpu_pwrdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
-	},
-	{ NULL },
-};
-#endif
-
-
 #include "powerdomains24xx.h"
 #include "powerdomains34xx.h"
 #include "powerdomains44xx.h"
 
-
-/*
- * OMAP2/3 common powerdomains
- */
+/* OMAP2/3-common powerdomains */
 
 #if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
 
@@ -140,8 +71,6 @@ static struct powerdomain gfx_omap2_pwrdm = {
 	.prcm_offs	  = GFX_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX |
 					   CHIP_IS_OMAP3430ES1),
-	.wkdep_srcs	  = gfx_sgx_wkdeps,
-	.sleepdep_srcs	  = cam_gfx_sleepdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	.banks		  = 1,
@@ -157,7 +86,6 @@ static struct powerdomain wkup_omap2_pwrdm = {
 	.name		= "wkup_pwrdm",
 	.prcm_offs	= WKUP_MOD,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
-	.dep_bit	= OMAP_EN_WKUP_SHIFT,
 };
 
 #endif

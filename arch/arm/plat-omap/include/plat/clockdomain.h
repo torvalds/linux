@@ -4,7 +4,7 @@
  * OMAP2/3 clockdomain framework functions
  *
  * Copyright (C) 2008 Texas Instruments, Inc.
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -41,22 +41,36 @@
 #define OMAP34XX_CLKSTCTRL_ENABLE_AUTO		0x3
 
 /*
- * struct clkdm_pwrdm_autodep - a powerdomain that should have wkdeps
- * and sleepdeps added when a powerdomain should stay active in hwsup mode;
- * and conversely, removed when the powerdomain should be allowed to go
+ * struct clkdm_autodep - a clockdomain that should have wkdeps
+ * and sleepdeps added when a clockdomain should stay active in hwsup mode;
+ * and conversely, removed when the clockdomain should be allowed to go
  * inactive in hwsup mode.
  */
-struct clkdm_pwrdm_autodep {
+struct clkdm_autodep {
 
 	union {
-		/* Name of the powerdomain to add a wkdep/sleepdep on */
+		/* Name of the clockdomain to add a wkdep/sleepdep on */
 		const char *name;
 
-		/* Powerdomain pointer (looked up at clkdm_init() time) */
-		struct powerdomain *ptr;
-	} pwrdm;
+		/* Clockdomain pointer (looked up at clkdm_init() time) */
+		struct clockdomain *ptr;
+	} clkdm;
 
 	/* OMAP chip types that this clockdomain dep is valid on */
+	const struct omap_chip_id omap_chip;
+
+};
+
+/* Encodes dependencies between clockdomains - statically defined */
+struct clkdm_dep {
+
+	/* Clockdomain name */
+	const char *clkdm_name;
+
+	/* Clockdomain pointer - resolved by the clockdomain code */
+	struct clockdomain *clkdm;
+
+	/* Flags to mark OMAP chip restrictions, etc. */
 	const struct omap_chip_id omap_chip;
 
 };
@@ -83,6 +97,15 @@ struct clockdomain {
 	/* Clockdomain capability flags */
 	const u8 flags;
 
+	/* Bit shift of this clockdomain's PM_WKDEP/CM_SLEEPDEP bit */
+	const u8 dep_bit;
+
+	/* Clockdomains that can be told to wake this powerdomain up */
+	struct clkdm_dep *wkdep_srcs;
+
+	/* Clockdomains that can be told to keep this clkdm from inactivity */
+	struct clkdm_dep *sleepdep_srcs;
+
 	/* OMAP chip types that this clockdomain is valid on */
 	const struct omap_chip_id omap_chip;
 
@@ -93,7 +116,7 @@ struct clockdomain {
 
 };
 
-void clkdm_init(struct clockdomain **clkdms, struct clkdm_pwrdm_autodep *autodeps);
+void clkdm_init(struct clockdomain **clkdms, struct clkdm_autodep *autodeps);
 int clkdm_register(struct clockdomain *clkdm);
 int clkdm_unregister(struct clockdomain *clkdm);
 struct clockdomain *clkdm_lookup(const char *name);
@@ -101,6 +124,13 @@ struct clockdomain *clkdm_lookup(const char *name);
 int clkdm_for_each(int (*fn)(struct clockdomain *clkdm, void *user),
 			void *user);
 struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm);
+
+int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
+int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
 
 void omap2_clkdm_allow_idle(struct clockdomain *clkdm);
 void omap2_clkdm_deny_idle(struct clockdomain *clkdm);

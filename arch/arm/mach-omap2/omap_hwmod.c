@@ -299,15 +299,14 @@ static int _disable_wakeup(struct omap_hwmod *oh)
  * be accessed by the IVA, there should be a sleepdep between the IVA
  * initiator and the module).  Only applies to modules in smart-idle
  * mode.  Returns -EINVAL upon error or passes along
- * pwrdm_add_sleepdep() value upon success.
+ * clkdm_add_sleepdep() value upon success.
  */
 static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
 	if (!oh->_clk)
 		return -EINVAL;
 
-	return pwrdm_add_sleepdep(oh->_clk->clkdm->pwrdm.ptr,
-				  init_oh->_clk->clkdm->pwrdm.ptr);
+	return clkdm_add_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
 }
 
 /**
@@ -320,15 +319,14 @@ static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  * be accessed by the IVA, there should be no sleepdep between the IVA
  * initiator and the module).  Only applies to modules in smart-idle
  * mode.  Returns -EINVAL upon error or passes along
- * pwrdm_add_sleepdep() value upon success.
+ * clkdm_del_sleepdep() value upon success.
  */
 static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
 	if (!oh->_clk)
 		return -EINVAL;
 
-	return pwrdm_del_sleepdep(oh->_clk->clkdm->pwrdm.ptr,
-				  init_oh->_clk->clkdm->pwrdm.ptr);
+	return clkdm_del_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
 }
 
 /**
