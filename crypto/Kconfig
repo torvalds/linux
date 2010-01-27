@@ -816,8 +816,8 @@ config CRYPTO_ANSI_CPRNG
 	help
 	  This option enables the generic pseudo random number generator
 	  for cryptographic modules.  Uses the Algorithm specified in
-	  ANSI X9.31 A.2.4. Not this option must be enabled if CRYPTO_FIPS 
-	  is selected
+	  ANSI X9.31 A.2.4. Note that this option must be enabled if
+	  CRYPTO_FIPS is selected
 
 source "drivers/crypto/Kconfig"
 
