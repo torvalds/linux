@@ -91,6 +91,7 @@ static void __init mx25pdk_init(void)
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_usbh2, NULL);
 	mxc_register_device(&mxc_nand_device, &mx25pdk_nand_board_info);
+	mxc_register_device(&mx25_rtc_device, NULL);
 
 	mx25pdk_fec_reset();
 	mxc_register_device(&mx25_fec_device, &mx25_fec_pdata);
