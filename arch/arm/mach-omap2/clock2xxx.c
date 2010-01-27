@@ -453,12 +453,15 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
  */
 static struct cpufreq_frequency_table *freq_table;
 
-void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
+void omap2xxx_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
 	const struct prcm_config *prcm;
 	long sys_ck_rate;
 	int i = 0;
 	int tbl_sz = 0;
+
+	if (!cpu_is_omap2xxx())
+		return;
 
 	sys_ck_rate = clk_get_rate(sclk);
 
@@ -516,25 +519,15 @@ void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 	*table = &freq_table[0];
 }
 
-void omap2_clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
+void omap2xxx_clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
 {
+	if (!cpu_is_omap2xxx())
+		return;
+
 	kfree(freq_table);
 }
 
 #endif
-
-struct clk_functions omap2_clk_functions = {
-	.clk_enable		= omap2_clk_enable,
-	.clk_disable		= omap2_clk_disable,
-	.clk_round_rate		= omap2_clk_round_rate,
-	.clk_set_rate		= omap2_clk_set_rate,
-	.clk_set_parent		= omap2_clk_set_parent,
-	.clk_disable_unused	= omap2_clk_disable_unused,
-#ifdef	CONFIG_CPU_FREQ
-	.clk_init_cpufreq_table	= omap2_clk_init_cpufreq_table,
-	.clk_exit_cpufreq_table	= omap2_clk_exit_cpufreq_table,
-#endif
-};
 
 static u32 omap2_get_apll_clkin(void)
 {

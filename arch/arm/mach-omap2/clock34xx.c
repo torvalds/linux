@@ -258,15 +258,6 @@ int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
  */
 #if defined(CONFIG_ARCH_OMAP3)
 
-struct clk_functions omap2_clk_functions = {
-	.clk_enable		= omap2_clk_enable,
-	.clk_disable		= omap2_clk_disable,
-	.clk_round_rate		= omap2_clk_round_rate,
-	.clk_set_rate		= omap2_clk_set_rate,
-	.clk_set_parent		= omap2_clk_set_parent,
-	.clk_disable_unused	= omap2_clk_disable_unused,
-};
-
 /*
  * Set clocks for bypass mode for reboot to work.
  */
