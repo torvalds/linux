@@ -223,7 +223,7 @@ static void ixgbe_dcbnl_set_pg_bwg_cfg_tx(struct net_device *netdev, int bwg_id,
 
 	if (adapter->temp_dcb_cfg.bw_percentage[0][bwg_id] !=
 	    adapter->dcb_cfg.bw_percentage[0][bwg_id]) {
-		adapter->dcb_set_bitmap |= BIT_PG_RX;
+		adapter->dcb_set_bitmap |= BIT_PG_TX;
 		adapter->dcb_set_bitmap |= BIT_RESETLINK;
 	}
 }
