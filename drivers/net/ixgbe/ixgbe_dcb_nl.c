@@ -341,6 +341,12 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	if (!adapter->dcb_set_bitmap)
 		return DCB_NO_HW_CHG;
 
+	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
+				 adapter->ring_feature[RING_F_DCB].indices);
+
+	if (ret)
+		return DCB_NO_HW_CHG;
+
 	/*
 	 * Only take down the adapter if the configuration change
 	 * requires a reset.
@@ -357,14 +363,6 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 			if (netif_running(netdev))
 				ixgbe_down(adapter);
 		}
-	}
-
-	ret = ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg, &adapter->dcb_cfg,
-				 adapter->ring_feature[RING_F_DCB].indices);
-	if (ret) {
-		if (adapter->dcb_set_bitmap & BIT_RESETLINK)
-			clear_bit(__IXGBE_RESETTING, &adapter->state);
-		return DCB_NO_HW_CHG;
 	}
 
 	if (adapter->dcb_cfg.pfc_mode_enable) {
