@@ -97,6 +97,7 @@ EXPORT_SYMBOL(kfifo_alloc);
 void kfifo_free(struct kfifo *fifo)
 {
 	kfree(fifo->buffer);
+	_kfifo_init(fifo, NULL, 0);
 }
 EXPORT_SYMBOL(kfifo_free);
 
