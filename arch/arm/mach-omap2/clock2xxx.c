@@ -101,10 +101,13 @@ void omap2_clk_prepare_for_reboot(void)
  * Switch the MPU rate if specified on cmdline.
  * We cannot do this early until cmdline is parsed.
  */
-static int __init omap2_clk_arch_init(void)
+static int __init omap2xxx_clk_arch_init(void)
 {
 	struct clk *virt_prcm_set, *sys_ck, *dpll_ck, *mpu_ck;
 	unsigned long sys_ck_rate;
+
+	if (!cpu_is_omap24xx())
+		return 0;
 
 	if (!mpurate)
 		return -EINVAL;
@@ -129,6 +132,6 @@ static int __init omap2_clk_arch_init(void)
 
 	return 0;
 }
-arch_initcall(omap2_clk_arch_init);
+arch_initcall(omap2xxx_clk_arch_init);
 
 

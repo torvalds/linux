@@ -163,12 +163,6 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 /* Common clock code */
 
 /*
- * As it is structured now, this will prevent an OMAP2/3 multiboot
- * kernel from compiling.  This will need further attention.
- */
-#if defined(CONFIG_ARCH_OMAP3)
-
-/*
  * Set clocks for bypass mode for reboot to work.
  */
 void omap2_clk_prepare_for_reboot(void)
@@ -213,10 +207,13 @@ void omap3_clk_lock_dpll5(void)
  * Switch the MPU rate if specified on cmdline.
  * We cannot do this early until cmdline is parsed.
  */
-static int __init omap2_clk_arch_init(void)
+static int __init omap3xxx_clk_arch_init(void)
 {
 	struct clk *osc_sys_ck, *dpll1_ck, *arm_fck, *core_ck;
 	unsigned long osc_sys_rate;
+
+	if (!cpu_is_omap34xx())
+		return 0;
 
 	if (!mpurate)
 		return -EINVAL;
@@ -246,9 +243,6 @@ static int __init omap2_clk_arch_init(void)
 
 	return 0;
 }
-arch_initcall(omap2_clk_arch_init);
-
-
-#endif
+arch_initcall(omap3xxx_clk_arch_init);
 
 
