@@ -1762,24 +1762,38 @@ size_t dsos__fprintf_buildid(FILE *fp, bool with_hits)
 		__dsos__fprintf_buildid(&dsos__user, fp, with_hits));
 }
 
+struct dso *dso__new_kernel(const char *name)
+{
+	struct dso *self = dso__new(name ?: "[kernel.kallsyms]");
+
+	if (self != NULL) {
+		self->short_name = "[kernel]";
+		self->kernel	 = 1;
+	}
+
+	return self;
+}
+
+void dso__read_running_kernel_build_id(struct dso *self)
+{
+	if (sysfs__read_build_id("/sys/kernel/notes", self->build_id,
+				 sizeof(self->build_id)) == 0)
+		self->has_build_id = true;
+}
+
 static struct dso *dsos__create_kernel(const char *vmlinux)
 {
-	struct dso *kernel = dso__new(vmlinux ?: "[kernel.kallsyms]");
+	struct dso *kernel = dso__new_kernel(vmlinux);
 
 	if (kernel == NULL)
 		return NULL;
-
-	kernel->short_name = "[kernel]";
-	kernel->kernel	   = 1;
 
 	vdso = dso__new("[vdso]");
 	if (vdso == NULL)
 		goto out_delete_kernel_dso;
 	dso__set_loaded(vdso, MAP__FUNCTION);
 
-	if (sysfs__read_build_id("/sys/kernel/notes", kernel->build_id,
-				 sizeof(kernel->build_id)) == 0)
-		kernel->has_build_id = true;
+	dso__read_running_kernel_build_id(kernel);
 
 	dsos__add(&dsos__kernel, kernel);
 	dsos__add(&dsos__user, vdso);
