@@ -15,6 +15,68 @@
 #include <linux/spi/spi.h>
 #include <sound/soc.h>
 
+static unsigned int snd_soc_4_12_read(struct snd_soc_codec *codec,
+				     unsigned int reg)
+{
+	u16 *cache = codec->reg_cache;
+	if (reg >= codec->reg_cache_size)
+		return -1;
+	return cache[reg];
+}
+
+static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
+			     unsigned int value)
+{
+	u16 *cache = codec->reg_cache;
+	u8 data[2];
+	int ret;
+
+	BUG_ON(codec->volatile_register);
+
+	data[0] = (reg << 4) | ((value >> 8) & 0x000f);
+	data[1] = value & 0x00ff;
+
+	if (reg < codec->reg_cache_size)
+		cache[reg] = value;
+	ret = codec->hw_write(codec->control_data, data, 2);
+	if (ret == 2)
+		return 0;
+	if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
+
+#if defined(CONFIG_SPI_MASTER)
+static int snd_soc_4_12_spi_write(void *control_data, const char *data,
+				 int len)
+{
+	struct spi_device *spi = control_data;
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[1];
+	msg[1] = data[0];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#else
+#define snd_soc_4_12_spi_write NULL
+#endif
+
 static unsigned int snd_soc_7_9_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
@@ -179,6 +241,11 @@ static struct {
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
 } io_types[] = {
+	{
+		.addr_bits = 4, .data_bits = 12,
+		.write = snd_soc_4_12_write, .read = snd_soc_4_12_read,
+		.spi_write = snd_soc_4_12_spi_write,
+	},
 	{
 		.addr_bits = 7, .data_bits = 9,
 		.write = snd_soc_7_9_write, .read = snd_soc_7_9_read,
