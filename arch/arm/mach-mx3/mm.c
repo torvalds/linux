@@ -65,6 +65,11 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
 		.length		= AIPS2_SIZE,
 		.type		= MT_DEVICE_NONSHARED
+	}, {
+		.virtual = SPBA0_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(SPBA0_BASE_ADDR),
+		.length = SPBA0_SIZE,
+		.type = MT_DEVICE_NONSHARED
 	},
 };
 

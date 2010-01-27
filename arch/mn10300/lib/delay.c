@@ -28,7 +28,8 @@ void __delay(unsigned long loops)
 		"2:	add	-1,%0	\n"
 		"	bne	2b	\n"
 		: "=&d" (d0)
-		: "0" (loops));
+		: "0" (loops)
+		: "cc");
 }
 EXPORT_SYMBOL(__delay);
 

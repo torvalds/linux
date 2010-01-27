@@ -187,7 +187,9 @@ static int s3c2443_setparent_epllref(struct clk *clk, struct clk *parent)
 static struct clk clk_epllref = {
 	.name		= "epllref",
 	.id		= -1,
-	.set_parent	= s3c2443_setparent_epllref,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_epllref,
+	},
 };
 
 static unsigned long s3c2443_getrate_mdivclk(struct clk *clk)
@@ -205,7 +207,9 @@ static struct clk clk_mdivclk = {
 	.name		= "mdivclk",
 	.parent		= &clk_mpllref,
 	.id		= -1,
-	.get_rate	= s3c2443_getrate_mdivclk,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_mdivclk,
+	},
 };
 
 static int s3c2443_setparent_msysclk(struct clk *clk, struct clk *parent)
@@ -232,7 +236,9 @@ static struct clk clk_msysclk = {
 	.name		= "msysclk",
 	.parent		= &clk_xtal,
 	.id		= -1,
-	.set_parent	= s3c2443_setparent_msysclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_msysclk,
+	},
 };
 
 /* armdiv
@@ -273,7 +279,9 @@ static int s3c2443_setparent_armclk(struct clk *clk, struct clk *parent)
 static struct clk clk_arm = {
 	.name		= "armclk",
 	.id		= -1,
-	.set_parent	= s3c2443_setparent_armclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_armclk,
+	},
 };
 
 /* esysclk
@@ -302,7 +310,9 @@ static struct clk clk_esysclk = {
 	.name		= "esysclk",
 	.parent		= &clk_epll,
 	.id		= -1,
-	.set_parent	= s3c2443_setparent_esysclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_esysclk,
+	},
 };
 
 /* uartclk
@@ -341,9 +351,11 @@ static struct clk clk_uart = {
 	.name		= "uartclk",
 	.id		= -1,
 	.parent		= &clk_esysclk,
-	.get_rate	= s3c2443_getrate_uart,
-	.set_rate	= s3c2443_setrate_uart,
-	.round_rate	= s3c2443_roundrate_clksrc16,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_uart,
+		.set_rate	= s3c2443_setrate_uart,
+		.round_rate	= s3c2443_roundrate_clksrc16,
+	},
 };
 
 /* hsspi
@@ -384,9 +396,11 @@ static struct clk clk_hsspi = {
 	.parent		= &clk_esysclk,
 	.ctrlbit	= S3C2443_SCLKCON_HSSPICLK,
 	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_hsspi,
-	.set_rate	= s3c2443_setrate_hsspi,
-	.round_rate	= s3c2443_roundrate_clksrc4,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_hsspi,
+		.set_rate	= s3c2443_setrate_hsspi,
+		.round_rate	= s3c2443_roundrate_clksrc4,
+	},
 };
 
 /* usbhost
@@ -426,9 +440,11 @@ static struct clk clk_usb_bus_host = {
 	.parent		= &clk_esysclk,
 	.ctrlbit	= S3C2443_SCLKCON_USBHOST,
 	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_usbhost,
-	.set_rate	= s3c2443_setrate_usbhost,
-	.round_rate	= s3c2443_roundrate_clksrc4,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_usbhost,
+		.set_rate	= s3c2443_setrate_usbhost,
+		.round_rate	= s3c2443_roundrate_clksrc4,
+	},
 };
 
 /* clk_hsmcc_div
@@ -468,9 +484,11 @@ static struct clk clk_hsmmc_div = {
 	.name		= "hsmmc-div",
 	.id		= -1,
 	.parent		= &clk_esysclk,
-	.get_rate	= s3c2443_getrate_hsmmc_div,
-	.set_rate	= s3c2443_setrate_hsmmc_div,
-	.round_rate	= s3c2443_roundrate_clksrc4,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_hsmmc_div,
+		.set_rate	= s3c2443_setrate_hsmmc_div,
+		.round_rate	= s3c2443_roundrate_clksrc4,
+	},
 };
 
 static int s3c2443_setparent_hsmmc(struct clk *clk, struct clk *parent)
@@ -505,7 +523,9 @@ static struct clk clk_hsmmc = {
 	.id		= -1,
 	.parent		= &clk_hsmmc_div,
 	.enable		= s3c2443_enable_hsmmc,
-	.set_parent	= s3c2443_setparent_hsmmc,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_hsmmc,
+	},
 };
 
 /* i2s_eplldiv
@@ -543,9 +563,11 @@ static struct clk clk_i2s_eplldiv = {
 	.name		= "i2s-eplldiv",
 	.id		= -1,
 	.parent		= &clk_esysclk,
-	.get_rate	= s3c2443_getrate_i2s_eplldiv,
-	.set_rate	= s3c2443_setrate_i2s_eplldiv,
-	.round_rate	= s3c2443_roundrate_clksrc16,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_i2s_eplldiv,
+		.set_rate	= s3c2443_setrate_i2s_eplldiv,
+		.round_rate	= s3c2443_roundrate_clksrc16,
+	},
 };
 
 /* i2s-ref
@@ -578,7 +600,9 @@ static struct clk clk_i2s = {
 	.parent		= &clk_i2s_eplldiv,
 	.ctrlbit	= S3C2443_SCLKCON_I2SCLK,
 	.enable		= s3c2443_clkcon_enable_s,
-	.set_parent	= s3c2443_setparent_i2s,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_i2s,
+	},
 };
 
 /* cam-if
@@ -618,9 +642,11 @@ static struct clk clk_cam = {
 	.parent		= &clk_esysclk,
 	.ctrlbit	= S3C2443_SCLKCON_CAMCLK,
 	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_cam,
-	.set_rate	= s3c2443_setrate_cam,
-	.round_rate	= s3c2443_roundrate_clksrc16,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_cam,
+		.set_rate	= s3c2443_setrate_cam,
+		.round_rate	= s3c2443_roundrate_clksrc16,
+	},
 };
 
 /* display-if
@@ -660,9 +686,11 @@ static struct clk clk_display = {
 	.parent		= &clk_esysclk,
 	.ctrlbit	= S3C2443_SCLKCON_DISPCLK,
 	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_display,
-	.set_rate	= s3c2443_setrate_display,
-	.round_rate	= s3c2443_roundrate_clksrc256,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_display,
+		.set_rate	= s3c2443_setrate_display,
+		.round_rate	= s3c2443_roundrate_clksrc256,
+	},
 };
 
 /* prediv
@@ -685,7 +713,9 @@ static struct clk clk_prediv = {
 	.name		= "prediv",
 	.id		= -1,
 	.parent		= &clk_msysclk,
-	.get_rate	= s3c2443_prediv_getrate,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_prediv_getrate,
+	},
 };
 
 /* standard clock definitions */
@@ -1074,14 +1104,7 @@ void __init s3c2443_init_clocks(int xtal)
 
 	/* register clocks from clock array */
 
-	clkp = init_clocks;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks); ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-	}
+	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
 	/* We must be careful disabling the clocks we are not intending to
 	 * be using at boot time, as subsystems such as the LCD which do

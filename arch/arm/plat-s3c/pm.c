@@ -41,7 +41,7 @@ unsigned long s3c_pm_flags;
  * resume before the console layer is available.
 */
 
-#ifdef CONFIG_S3C2410_PM_DEBUG
+#ifdef CONFIG_SAMSUNG_PM_DEBUG
 extern void printascii(const char *);
 
 void s3c_pm_dbg(const char *fmt, ...)
@@ -65,13 +65,13 @@ static inline void s3c_pm_debug_init(void)
 #else
 #define s3c_pm_debug_init() do { } while(0)
 
-#endif /* CONFIG_S3C2410_PM_DEBUG */
+#endif /* CONFIG_SAMSUNG_PM_DEBUG */
 
 /* Save the UART configurations if we are configured for debug. */
 
 unsigned char pm_uart_udivslot;
 
-#ifdef CONFIG_S3C2410_PM_DEBUG
+#ifdef CONFIG_SAMSUNG_PM_DEBUG
 
 struct pm_uart_save uart_save[CONFIG_SERIAL_SAMSUNG_UARTS];
 

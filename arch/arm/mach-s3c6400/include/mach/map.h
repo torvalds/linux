@@ -17,6 +17,18 @@
 
 #include <plat/map-base.h>
 
+/*
+ * Post-mux Chip Select Regions Xm0CSn_
+ * These may be used by SROM, NAND or CF depending on settings
+ */
+
+#define S3C64XX_PA_XM0CSN0 (0x10000000)
+#define S3C64XX_PA_XM0CSN1 (0x18000000)
+#define S3C64XX_PA_XM0CSN2 (0x20000000)
+#define S3C64XX_PA_XM0CSN3 (0x28000000)
+#define S3C64XX_PA_XM0CSN4 (0x30000000)
+#define S3C64XX_PA_XM0CSN5 (0x38000000)
+
 /* HSMMC units */
 #define S3C64XX_PA_HSMMC(x)	(0x7C200000 + ((x) * 0x100000))
 #define S3C64XX_PA_HSMMC0	S3C64XX_PA_HSMMC(0)
@@ -38,16 +50,22 @@
 #define S3C_VA_UART2		S3C_VA_UARTx(2)
 #define S3C_VA_UART3		S3C_VA_UARTx(3)
 
+#define S3C64XX_PA_SROM		(0x70000000)
+
 #define S3C64XX_PA_NAND		(0x70200000)
 #define S3C64XX_PA_FB		(0x77100000)
 #define S3C64XX_PA_USB_HSOTG	(0x7C000000)
 #define S3C64XX_PA_WATCHDOG	(0x7E004000)
+#define S3C64XX_PA_RTC		(0x7E005000)
+#define S3C64XX_PA_ADC		(0x7E00B000)
 #define S3C64XX_PA_SYSCON	(0x7E00F000)
 #define S3C64XX_PA_AC97		(0x7F001000)
 #define S3C64XX_PA_IIS0		(0x7F002000)
 #define S3C64XX_PA_IIS1		(0x7F003000)
 #define S3C64XX_PA_TIMER	(0x7F006000)
 #define S3C64XX_PA_IIC0		(0x7F004000)
+#define S3C64XX_PA_SPI0		(0x7F00B000)
+#define S3C64XX_PA_SPI1		(0x7F00C000)
 #define S3C64XX_PA_PCM0		(0x7F009000)
 #define S3C64XX_PA_PCM1		(0x7F00A000)
 #define S3C64XX_PA_IISV4	(0x7F00D000)
@@ -70,8 +88,8 @@
 #define S3C64XX_VA_USB_HSPHY	S3C_ADDR_CPU(0x00200000)
 
 /* place VICs close together */
-#define S3C_VA_VIC0		(S3C_VA_IRQ + 0x00)
-#define S3C_VA_VIC1		(S3C_VA_IRQ + 0x10000)
+#define VA_VIC0			(S3C_VA_IRQ + 0x00)
+#define VA_VIC1			(S3C_VA_IRQ + 0x10000)
 
 /* compatibiltiy defines. */
 #define S3C_PA_TIMER		S3C64XX_PA_TIMER

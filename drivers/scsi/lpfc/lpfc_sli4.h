@@ -28,7 +28,7 @@
 /* Multi-queue arrangement for fast-path FCP work queues */
 #define LPFC_FN_EQN_MAX       8
 #define LPFC_SP_EQN_DEF       1
-#define LPFC_FP_EQN_DEF       1
+#define LPFC_FP_EQN_DEF       4
 #define LPFC_FP_EQN_MIN       1
 #define LPFC_FP_EQN_MAX       (LPFC_FN_EQN_MAX - LPFC_SP_EQN_DEF)
 

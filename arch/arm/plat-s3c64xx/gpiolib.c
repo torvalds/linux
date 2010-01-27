@@ -18,8 +18,8 @@
 
 #include <mach/map.h>
 #include <mach/gpio.h>
-#include <mach/gpio-core.h>
 
+#include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
 #include <plat/regs-gpio.h>
@@ -48,150 +48,6 @@
  * [1] BANKF pins 14,15 do not form part of the external interrupt sources
  * [2] BANK has two control registers, GPxCON0 and GPxCON1
  */
-
-#define OFF_GPCON	(0x00)
-#define OFF_GPDAT	(0x04)
-
-#define con_4bit_shift(__off) ((__off) * 4)
-
-#if 1
-#define gpio_dbg(x...) do { } while(0)
-#else
-#define gpio_dbg(x...) printk(KERN_DEBUG x)
-#endif
-
-/* The s3c64xx_gpiolib_4bit routines are to control the gpio banks where
- * the gpio configuration register (GPxCON) has 4 bits per GPIO, as the
- * following example:
- *
- * base + 0x00: Control register, 4 bits per gpio
- *	        gpio n: 4 bits starting at (4*n)
- *		0000 = input, 0001 = output, others mean special-function
- * base + 0x04: Data register, 1 bit per gpio
- *		bit n: data bit n
- *
- * Note, since the data register is one bit per gpio and is at base + 0x4
- * we can use s3c_gpiolib_get and s3c_gpiolib_set to change the state of
- * the output.
-*/
-
-static int s3c64xx_gpiolib_4bit_input(struct gpio_chip *chip, unsigned offset)
-{
-	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
-	void __iomem *base = ourchip->base;
-	unsigned long con;
-
-	con = __raw_readl(base + OFF_GPCON);
-	con &= ~(0xf << con_4bit_shift(offset));
-	__raw_writel(con, base + OFF_GPCON);
-
-	gpio_dbg("%s: %p: CON now %08lx\n", __func__, base, con);
-
-	return 0;
-}
-
-static int s3c64xx_gpiolib_4bit_output(struct gpio_chip *chip,
-				       unsigned offset, int value)
-{
-	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
-	void __iomem *base = ourchip->base;
-	unsigned long con;
-	unsigned long dat;
-
-	con = __raw_readl(base + OFF_GPCON);
-	con &= ~(0xf << con_4bit_shift(offset));
-	con |= 0x1 << con_4bit_shift(offset);
-
-	dat = __raw_readl(base + OFF_GPDAT);
-	if (value)
-		dat |= 1 << offset;
-	else
-		dat &= ~(1 << offset);
-
-	__raw_writel(dat, base + OFF_GPDAT);
-	__raw_writel(con, base + OFF_GPCON);
-	__raw_writel(dat, base + OFF_GPDAT);
-
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
-
-	return 0;
-}
-
-/* The next set of routines are for the case where the GPIO configuration
- * registers are 4 bits per GPIO but there is more than one register (the
- * bank has more than 8 GPIOs.
- *
- * This case is the similar to the 4 bit case, but the registers are as
- * follows:
- *
- * base + 0x00: Control register, 4 bits per gpio (lower 8 GPIOs)
- *	        gpio n: 4 bits starting at (4*n)
- *		0000 = input, 0001 = output, others mean special-function
- * base + 0x04: Control register, 4 bits per gpio (up to 8 additions GPIOs)
- *	        gpio n: 4 bits starting at (4*n)
- *		0000 = input, 0001 = output, others mean special-function
- * base + 0x08: Data register, 1 bit per gpio
- *		bit n: data bit n
- *
- * To allow us to use the s3c_gpiolib_get and s3c_gpiolib_set routines we
- * store the 'base + 0x4' address so that these routines see the data
- * register at ourchip->base + 0x04.
-*/
-
-static int s3c64xx_gpiolib_4bit2_input(struct gpio_chip *chip, unsigned offset)
-{
-	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
-	void __iomem *base = ourchip->base;
-	void __iomem *regcon = base;
-	unsigned long con;
-
-	if (offset > 7)
-		offset -= 8;
-	else
-		regcon -= 4;
-
-	con = __raw_readl(regcon);
-	con &= ~(0xf << con_4bit_shift(offset));
-	__raw_writel(con, regcon);
-
-	gpio_dbg("%s: %p: CON %08lx\n", __func__, base, con);
-
-	return 0;
-
-}
-
-static int s3c64xx_gpiolib_4bit2_output(struct gpio_chip *chip,
-				       unsigned offset, int value)
-{
-	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
-	void __iomem *base = ourchip->base;
-	void __iomem *regcon = base;
-	unsigned long con;
-	unsigned long dat;
-
-	if (offset > 7)
-		offset -= 8;
-	else
-		regcon -= 4;
-
-	con = __raw_readl(regcon);
-	con &= ~(0xf << con_4bit_shift(offset));
-	con |= 0x1 << con_4bit_shift(offset);
-
-	dat = __raw_readl(base + OFF_GPDAT);
-	if (value)
-		dat |= 1 << offset;
-	else
-		dat &= ~(1 << offset);
-
-	__raw_writel(dat, base + OFF_GPDAT);
-	__raw_writel(con, regcon);
-	__raw_writel(dat, base + OFF_GPDAT);
-
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
-
-	return 0;
-}
 
 static struct s3c_gpio_cfg gpio_4bit_cfg_noint = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
@@ -399,20 +255,6 @@ static struct s3c_gpio_chip gpio_2bit[] = {
 	},
 };
 
-static __init void s3c64xx_gpiolib_add_4bit(struct s3c_gpio_chip *chip)
-{
-	chip->chip.direction_input = s3c64xx_gpiolib_4bit_input;
-	chip->chip.direction_output = s3c64xx_gpiolib_4bit_output;
-	chip->pm = __gpio_pm(&s3c_gpio_pm_4bit);
-}
-
-static __init void s3c64xx_gpiolib_add_4bit2(struct s3c_gpio_chip *chip)
-{
-	chip->chip.direction_input = s3c64xx_gpiolib_4bit2_input;
-	chip->chip.direction_output = s3c64xx_gpiolib_4bit2_output;
-	chip->pm = __gpio_pm(&s3c_gpio_pm_4bit);
-}
-
 static __init void s3c64xx_gpiolib_add_2bit(struct s3c_gpio_chip *chip)
 {
 	chip->pm = __gpio_pm(&s3c_gpio_pm_2bit);
@@ -432,10 +274,10 @@ static __init void s3c64xx_gpiolib_add(struct s3c_gpio_chip *chips,
 static __init int s3c64xx_gpiolib_init(void)
 {
 	s3c64xx_gpiolib_add(gpio_4bit, ARRAY_SIZE(gpio_4bit),
-			    s3c64xx_gpiolib_add_4bit);
+			    samsung_gpiolib_add_4bit);
 
 	s3c64xx_gpiolib_add(gpio_4bit2, ARRAY_SIZE(gpio_4bit2),
-			    s3c64xx_gpiolib_add_4bit2);
+			    samsung_gpiolib_add_4bit2);
 
 	s3c64xx_gpiolib_add(gpio_2bit, ARRAY_SIZE(gpio_2bit),
 			    s3c64xx_gpiolib_add_2bit);

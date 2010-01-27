@@ -111,7 +111,7 @@ extern int s3c24xx_irq_resume(struct sys_device *dev);
 
 /* PM debug functions */
 
-#ifdef CONFIG_S3C2410_PM_DEBUG
+#ifdef CONFIG_SAMSUNG_PM_DEBUG
 /**
  * s3c_pm_dbg() - low level debug function for use in suspend/resume.
  * @msg: The message to print.
@@ -141,7 +141,7 @@ static inline void s3c_pm_debug_smdkled(u32 set, u32 clear) { }
 
 /* suspend memory checking */
 
-#ifdef CONFIG_S3C2410_PM_CHECK
+#ifdef CONFIG_SAMSUNG_PM_CHECK
 extern void s3c_pm_check_prepare(void);
 extern void s3c_pm_check_restore(void);
 extern void s3c_pm_check_cleanup(void);

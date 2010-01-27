@@ -115,12 +115,12 @@ struct platform_driver htcherald_panel_driver = {
 	},
 };
 
-static int htcherald_panel_drv_init(void)
+static int __init htcherald_panel_drv_init(void)
 {
 	return platform_driver_register(&htcherald_panel_driver);
 }
 
-static void htcherald_panel_drv_cleanup(void)
+static void __exit htcherald_panel_drv_cleanup(void)
 {
 	platform_driver_unregister(&htcherald_panel_driver);
 }

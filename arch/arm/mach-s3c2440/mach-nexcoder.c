@@ -106,7 +106,7 @@ static struct platform_device nexcoder_device_nor = {
 /* Standard Nexcoder devices */
 
 static struct platform_device *nexcoder_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,

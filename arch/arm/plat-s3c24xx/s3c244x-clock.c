@@ -68,7 +68,9 @@ static int s3c2440_setparent_armclk(struct clk *clk, struct clk *parent)
 static struct clk clk_arm = {
 	.name		= "armclk",
 	.id		= -1,
-	.set_parent	= s3c2440_setparent_armclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2440_setparent_armclk,
+	},
 };
 
 static int s3c244x_clk_add(struct sys_device *sysdev)

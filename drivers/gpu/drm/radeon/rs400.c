@@ -356,6 +356,7 @@ static int rs400_mc_init(struct radeon_device *rdev)
 	rdev->mc.vram_location = G_00015C_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_combios_sideport_present(rdev);
 	if (r)
 		return r;
 	return 0;
@@ -395,6 +396,7 @@ static int rs400_startup(struct radeon_device *rdev)
 		return r;
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {

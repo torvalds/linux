@@ -109,8 +109,10 @@ static struct clk s3c2442_clk_cam = {
 static struct clk s3c2442_clk_cam_upll = {
 	.name		= "camif-upll",
 	.id		= -1,
-	.set_rate	= s3c2442_camif_upll_setrate,
-	.round_rate	= s3c2442_camif_upll_round,
+	.ops		= &(struct clk_ops) {
+		.set_rate	= s3c2442_camif_upll_setrate,
+		.round_rate	= s3c2442_camif_upll_round,
+	},
 };
 
 static int s3c2442_clk_add(struct sys_device *sysdev)
