@@ -452,6 +452,33 @@ Similarly, the lines after `[verb]` are parsed as `init_verbs`
 sysfs entries, and the lines after `[hint]` are parsed as `hints`
 sysfs entries, respectively.
 
+Another example to override the codec vendor id from 0x12345678 to
+0xdeadbeef is like below:
+------------------------------------------------------------------------
+  [codec]
+  0x12345678 0xabcd1234 2
+
+  [vendor_id]
+  0xdeadbeef
+------------------------------------------------------------------------
+
+In the similar way, you can override the codec subsystem_id via
+`[subsystem_id]`, the revision id via `[revision_id]` line.
+Also, the codec chip name can be rewritten via `[chip_name]` line.
+------------------------------------------------------------------------
+  [codec]
+  0x12345678 0xabcd1234 2
+
+  [subsystem_id]
+  0xffff1111
+
+  [revision_id]
+  0x10
+
+  [chip_name]
+  My-own NEWS-0002
+------------------------------------------------------------------------
+
 The hd-audio driver reads the file via request_firmware().  Thus,
 a patch file has to be located on the appropriate firmware path,
 typically, /lib/firmware.  For example, when you pass the option
