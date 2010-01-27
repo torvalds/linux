@@ -118,7 +118,7 @@ EXPORT_SYMBOL(elf_platform);
 
 static const char *cpu_name;
 static const char *machine_name;
-static char __initdata command_line[COMMAND_LINE_SIZE];
+static char __initdata cmd_line[COMMAND_LINE_SIZE];
 
 static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 static union { char c[4]; unsigned long l; } endian_test __initdata = { { 'l', '?', '?', 'b' } };
@@ -707,9 +707,9 @@ void __init setup_arch(char **cmdline_p)
 	/* parse_early_param needs a boot_command_line */
 	strlcpy(boot_command_line, from, COMMAND_LINE_SIZE);
 
-	/* populate command_line too for later use, preserving boot_command_line */
-	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
-	*cmdline_p = command_line;
+	/* populate cmd_line too for later use, preserving boot_command_line */
+	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
+	*cmdline_p = cmd_line;
 
 	parse_early_param();
 
