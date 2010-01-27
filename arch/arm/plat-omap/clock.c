@@ -173,7 +173,7 @@ EXPORT_SYMBOL(clk_get_parent);
  * OMAP specific clock functions shared between omap1 and omap2
  *-------------------------------------------------------------------------*/
 
-unsigned int __initdata mpurate;
+int __initdata mpurate;
 
 /*
  * By default we use the rate set by the bootloader.
