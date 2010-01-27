@@ -115,3 +115,11 @@ config SND_S3C24XX_SOC_SIMTEC_HERMES
 	select SND_S3C24XX_SOC_I2S
 	select SND_SOC_TLV320AIC3X
 	select SND_S3C24XX_SOC_SIMTEC
+
+config SND_SOC_SMDK_WM9713
+	tristate "SoC AC97 Audio support for SMDK with WM9713"
+	depends on SND_S3C24XX_SOC && MACH_SMDK6410
+	select SND_SOC_WM9713
+	select SND_S3C_SOC_AC97
+	help
+	  Sat Y if you want to add support for SoC audio on the SMDK.
