@@ -1,10 +1,11 @@
 /*
- * OMAP2/3 clockdomain framework functions
+ * OMAP2/3/4 clockdomain framework functions
  *
- * Copyright (C) 2008 Texas Instruments, Inc.
+ * Copyright (C) 2008-2009 Texas Instruments, Inc.
  * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Written by Paul Walmsley and Jouni Högander
+ * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -152,7 +153,7 @@ static void _omap2_clkdm_set_hwsup(struct clockdomain *clkdm, int enable)
 			bits = OMAP24XX_CLKSTCTRL_ENABLE_AUTO;
 		else
 			bits = OMAP24XX_CLKSTCTRL_DISABLE_AUTO;
-	} else if (cpu_is_omap34xx()) {
+	} else if (cpu_is_omap34xx() | cpu_is_omap44xx()) {
 		if (enable)
 			bits = OMAP34XX_CLKSTCTRL_ENABLE_AUTO;
 		else
@@ -213,10 +214,12 @@ void clkdm_init(struct clockdomain **clkdms,
 		for (c = clkdms; *c; c++)
 			clkdm_register(*c);
 
-	autodeps = init_autodeps;
-	if (autodeps)
-		for (autodep = autodeps; autodep->pwrdm.ptr; autodep++)
-			_autodep_lookup(autodep);
+	if (!cpu_is_omap44xx()) {
+		autodeps = init_autodeps;
+		if (autodeps)
+			for (autodep = autodeps; autodep->pwrdm.ptr; autodep++)
+				_autodep_lookup(autodep);
+	}
 }
 
 /**
@@ -419,7 +422,7 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 		cm_set_mod_reg_bits(OMAP24XX_FORCESTATE,
 			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
-	} else if (cpu_is_omap34xx()) {
+	} else if (cpu_is_omap34xx() | cpu_is_omap44xx()) {
 
 		u32 bits = (OMAP34XX_CLKSTCTRL_FORCE_SLEEP <<
 			 __ffs(clkdm->clktrctrl_mask));
@@ -463,7 +466,7 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 		cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE,
 			      clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
-	} else if (cpu_is_omap34xx()) {
+	} else if (cpu_is_omap34xx() | cpu_is_omap44xx()) {
 
 		u32 bits = (OMAP34XX_CLKSTCTRL_FORCE_WAKEUP <<
 			 __ffs(clkdm->clktrctrl_mask));
