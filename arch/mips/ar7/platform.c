@@ -35,6 +35,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
 
 #include <asm/addrspace.h>
 #include <asm/mach-ar7/ar7.h>
@@ -507,13 +508,18 @@ static int __init ar7_register_devices(void)
 	u32 *bootcr, val;
 #ifdef CONFIG_SERIAL_8250
 	static struct uart_port uart_port[2] __initdata;
+	struct clk *bus_clk;
 
 	memset(uart_port, 0, sizeof(struct uart_port) * 2);
+
+	bus_clk = clk_get(NULL, "bus");
+	if (IS_ERR(bus_clk))
+		panic("unable to get bus clk\n");
 
 	uart_port[0].type = PORT_16550A;
 	uart_port[0].line = 0;
 	uart_port[0].irq = AR7_IRQ_UART0;
-	uart_port[0].uartclk = ar7_bus_freq() / 2;
+	uart_port[0].uartclk = clk_get_rate(bus_clk) / 2;
 	uart_port[0].iotype = UPIO_MEM32;
 	uart_port[0].mapbase = AR7_REGS_UART0;
 	uart_port[0].membase = ioremap(uart_port[0].mapbase, 256);
@@ -528,7 +534,7 @@ static int __init ar7_register_devices(void)
 		uart_port[1].type = PORT_16550A;
 		uart_port[1].line = 1;
 		uart_port[1].irq = AR7_IRQ_UART1;
-		uart_port[1].uartclk = ar7_bus_freq() / 2;
+		uart_port[1].uartclk = clk_get_rate(bus_clk) / 2;
 		uart_port[1].iotype = UPIO_MEM32;
 		uart_port[1].mapbase = UR8_REGS_UART1;
 		uart_port[1].membase = ioremap(uart_port[1].mapbase, 256);
