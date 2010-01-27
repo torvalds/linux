@@ -1,8 +1,8 @@
 /*
- * OMAP34XX powerdomain definitions
+ * OMAP3 powerdomain definitions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2010 Nokia Corporation
  *
  * Written by Paul Walmsley
  * Debugging and integration fixes by Jouni Högander
@@ -32,7 +32,7 @@
  * 34XX-specific powerdomains, dependencies
  */
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 
 /*
  * Powerdomains
@@ -59,7 +59,7 @@ static struct powerdomain iva2_pwrdm = {
 	},
 };
 
-static struct powerdomain mpu_34xx_pwrdm = {
+static struct powerdomain mpu_3xxx_pwrdm = {
 	.name		  = "mpu_pwrdm",
 	.prcm_offs	  = MPU_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
@@ -75,7 +75,7 @@ static struct powerdomain mpu_34xx_pwrdm = {
 	},
 };
 
-static struct powerdomain core_34xx_pre_es3_1_pwrdm = {
+static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES1 |
@@ -93,7 +93,7 @@ static struct powerdomain core_34xx_pre_es3_1_pwrdm = {
 	},
 };
 
-static struct powerdomain core_34xx_es3_1_pwrdm = {
+static struct powerdomain core_3xxx_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
 	.prcm_offs	  = CORE_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES3_1),
@@ -243,7 +243,7 @@ static struct powerdomain dpll5_pwrdm = {
 };
 
 
-#endif    /* CONFIG_ARCH_OMAP34XX */
+#endif    /* CONFIG_ARCH_OMAP3 */
 
 
 #endif

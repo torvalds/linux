@@ -1,8 +1,8 @@
 /*
  * OMAP2/3 clockdomains
  *
- * Copyright (C) 2008 Texas Instruments, Inc.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2009 Texas Instruments, Inc.
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Written by Paul Walmsley and Jouni Högander
  *
@@ -196,9 +196,9 @@ static struct clkdm_dep mdm_2430_wkdeps[] = {
 #endif /* CONFIG_ARCH_OMAP2430 */
 
 
-/* 34XX-specific possible dependencies */
+/* OMAP3-specific possible dependencies */
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 
 /* 3430: PM_WKDEP_PER: CORE, IVA2, MPU, WKUP */
 static struct clkdm_dep per_wkdeps[] = {
@@ -251,7 +251,7 @@ static struct clkdm_dep usbhost_wkdeps[] = {
 };
 
 /* 3430 PM_WKDEP_MPU: CORE, IVA2, DSS, PER */
-static struct clkdm_dep mpu_34xx_wkdeps[] = {
+static struct clkdm_dep mpu_3xxx_wkdeps[] = {
 	{
 		.clkdm_name = "core_l3_clkdm",
 		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
@@ -349,7 +349,7 @@ static struct clkdm_dep neon_wkdeps[] = {
 };
 
 
-/* Sleep dependency source arrays for 34xx-specific clkdms - 34XX only */
+/* Sleep dependency source arrays for OMAP3-specific clkdms */
 
 /* 3430: CM_SLEEPDEP_DSS: MPU, IVA */
 static struct clkdm_dep dss_sleepdeps[] = {
@@ -413,7 +413,7 @@ static struct clkdm_dep gfx_sgx_sleepdeps[] = {
 	{ NULL },
 };
 
-#endif /* CONFIG_ARCH_OMAP34XX */
+#endif /* CONFIG_ARCH_OMAP3 */
 
 
 /*
@@ -425,7 +425,7 @@ static struct clkdm_dep gfx_sgx_sleepdeps[] = {
  * sys_clkout/sys_clkout2.
  */
 
-#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
 /* This is an implicit clockdomain - it is never defined as such in TRM */
 static struct clockdomain wkup_clkdm = {
@@ -626,18 +626,18 @@ static struct clockdomain dss_2430_clkdm = {
 
 
 /*
- * 34xx clockdomains
+ * OMAP3 clockdomains
  */
 
-#if defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP3)
 
-static struct clockdomain mpu_34xx_clkdm = {
+static struct clockdomain mpu_3xxx_clkdm = {
 	.name		= "mpu_clkdm",
 	.pwrdm		= { .name = "mpu_pwrdm" },
 	.flags		= CLKDM_CAN_HWSUP | CLKDM_CAN_FORCE_WAKEUP,
 	.clkstctrl_reg	= OMAP34XX_CM_REGADDR(MPU_MOD, OMAP2_CM_CLKSTCTRL),
 	.dep_bit	= OMAP3430_EN_MPU_SHIFT,
-	.wkdep_srcs	= mpu_34xx_wkdeps,
+	.wkdep_srcs	= mpu_3xxx_wkdeps,
 	.clktrctrl_mask = OMAP3430_CLKTRCTRL_MPU_MASK,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
@@ -706,10 +706,10 @@ static struct clockdomain d2d_clkdm = {
 
 /*
  * XXX add usecounting for clkdm dependencies, otherwise the presence
- * of a single dep bit for core_l3_34xx_clkdm and core_l4_34xx_clkdm
+ * of a single dep bit for core_l3_3xxx_clkdm and core_l4_3xxx_clkdm
  * could cause trouble
  */
-static struct clockdomain core_l3_34xx_clkdm = {
+static struct clockdomain core_l3_3xxx_clkdm = {
 	.name		= "core_l3_clkdm",
 	.pwrdm		= { .name = "core_pwrdm" },
 	.flags		= CLKDM_CAN_HWSUP,
@@ -721,10 +721,10 @@ static struct clockdomain core_l3_34xx_clkdm = {
 
 /*
  * XXX add usecounting for clkdm dependencies, otherwise the presence
- * of a single dep bit for core_l3_34xx_clkdm and core_l4_34xx_clkdm
+ * of a single dep bit for core_l3_3xxx_clkdm and core_l4_3xxx_clkdm
  * could cause trouble
  */
-static struct clockdomain core_l4_34xx_clkdm = {
+static struct clockdomain core_l4_3xxx_clkdm = {
 	.name		= "core_l4_clkdm",
 	.pwrdm		= { .name = "core_pwrdm" },
 	.flags		= CLKDM_CAN_HWSUP,
@@ -735,7 +735,7 @@ static struct clockdomain core_l4_34xx_clkdm = {
 };
 
 /* Another case of bit name collisions between several registers: EN_DSS */
-static struct clockdomain dss_34xx_clkdm = {
+static struct clockdomain dss_3xxx_clkdm = {
 	.name		= "dss_clkdm",
 	.pwrdm		= { .name = "dss_pwrdm" },
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
@@ -829,12 +829,12 @@ static struct clockdomain dpll5_clkdm = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
 
-#endif   /* CONFIG_ARCH_OMAP34XX */
+#endif   /* CONFIG_ARCH_OMAP3 */
 
 #include "clockdomains44xx.h"
 
 /*
- * Clockdomain hwsup dependencies (34XX only)
+ * Clockdomain hwsup dependencies (OMAP3 only)
  */
 
 static struct clkdm_autodep clkdm_autodeps[] = {
@@ -857,7 +857,7 @@ static struct clkdm_autodep clkdm_autodeps[] = {
 
 static struct clockdomain *clockdomains_omap[] = {
 
-#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	&wkup_clkdm,
 	&cm_clkdm,
 	&prm_clkdm,
@@ -883,16 +883,16 @@ static struct clockdomain *clockdomains_omap[] = {
 	&dss_2430_clkdm,
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
-	&mpu_34xx_clkdm,
+#ifdef CONFIG_ARCH_OMAP3
+	&mpu_3xxx_clkdm,
 	&neon_clkdm,
 	&iva2_clkdm,
 	&gfx_3430es1_clkdm,
 	&sgx_clkdm,
 	&d2d_clkdm,
-	&core_l3_34xx_clkdm,
-	&core_l4_34xx_clkdm,
-	&dss_34xx_clkdm,
+	&core_l3_3xxx_clkdm,
+	&core_l4_3xxx_clkdm,
+	&dss_3xxx_clkdm,
 	&cam_clkdm,
 	&usbhost_clkdm,
 	&per_clkdm,

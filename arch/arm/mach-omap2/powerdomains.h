@@ -23,7 +23,7 @@
 
 /*
  * This file contains all of the powerdomains that have some element
- * of software control for the OMAP24xx and OMAP34XX chips.
+ * of software control for the OMAP24xx and OMAP34xx chips.
  *
  * This is not an exhaustive listing of powerdomains on the chips; only
  * powerdomains that can be controlled in software.
@@ -60,7 +60,7 @@
 
 /* OMAP2/3-common powerdomains */
 
-#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 
 /*
  * The GFX powerdomain is not present on 3430ES2, but currently we do not
@@ -94,12 +94,12 @@ static struct powerdomain wkup_omap2_pwrdm = {
 /* As powerdomains are added or removed above, this list must also be changed */
 static struct powerdomain *powerdomains_omap[] __initdata = {
 
-#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	&wkup_omap2_pwrdm,
 	&gfx_omap2_pwrdm,
 #endif
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#ifdef CONFIG_ARCH_OMAP2
 	&dsp_pwrdm,
 	&mpu_24xx_pwrdm,
 	&core_24xx_pwrdm,
@@ -109,12 +109,12 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 	&mdm_pwrdm,
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 	&iva2_pwrdm,
-	&mpu_34xx_pwrdm,
+	&mpu_3xxx_pwrdm,
 	&neon_pwrdm,
-	&core_34xx_pre_es3_1_pwrdm,
-	&core_34xx_es3_1_pwrdm,
+	&core_3xxx_pre_es3_1_pwrdm,
+	&core_3xxx_es3_1_pwrdm,
 	&cam_pwrdm,
 	&dss_pwrdm,
 	&per_pwrdm,
