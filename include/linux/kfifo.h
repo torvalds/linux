@@ -124,7 +124,7 @@ extern __must_check unsigned int kfifo_out_peek(struct kfifo *fifo,
  */
 static inline bool kfifo_initialized(struct kfifo *fifo)
 {
-	return fifo->buffer != 0;
+	return fifo->buffer != NULL;
 }
 
 /**
