@@ -46,6 +46,11 @@ struct ad1938_priv {
 	u8 reg_cache[AD1938_NUM_REGS];
 };
 
+/* ad1938 register cache & default register settings */
+static const u8 ad1938_reg[AD1938_NUM_REGS] = {
+	0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0,
+};
+
 static struct snd_soc_codec *ad1938_codec;
 struct snd_soc_codec_device soc_codec_dev_ad1938;
 static int ad1938_register(struct ad1938_priv *ad1938);
@@ -129,10 +134,10 @@ static int ad1938_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_codec *codec = dai->codec;
 	int reg;
 
-	reg = codec->read(codec, AD1938_DAC_CTRL2);
+	reg = snd_soc_read(codec, AD1938_DAC_CTRL2);
 	reg = (mute > 0) ? reg | AD1938_DAC_MASTER_MUTE : reg &
 		(~AD1938_DAC_MASTER_MUTE);
-	codec->write(codec, AD1938_DAC_CTRL2, reg);
+	snd_soc_write(codec, AD1938_DAC_CTRL2, reg);
 
 	return 0;
 }
@@ -141,8 +146,8 @@ static int ad1938_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots, int width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int dac_reg = codec->read(codec, AD1938_DAC_CTRL1);
-	int adc_reg = codec->read(codec, AD1938_ADC_CTRL2);
+	int dac_reg = snd_soc_read(codec, AD1938_DAC_CTRL1);
+	int adc_reg = snd_soc_read(codec, AD1938_ADC_CTRL2);
 
 	dac_reg &= ~AD1938_DAC_CHAN_MASK;
 	adc_reg &= ~AD1938_ADC_CHAN_MASK;
@@ -168,8 +173,8 @@ static int ad1938_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		return -EINVAL;
 	}
 
-	codec->write(codec, AD1938_DAC_CTRL1, dac_reg);
-	codec->write(codec, AD1938_ADC_CTRL2, adc_reg);
+	snd_soc_write(codec, AD1938_DAC_CTRL1, dac_reg);
+	snd_soc_write(codec, AD1938_ADC_CTRL2, adc_reg);
 
 	return 0;
 }
@@ -180,8 +185,8 @@ static int ad1938_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int adc_reg, dac_reg;
 
-	adc_reg = codec->read(codec, AD1938_ADC_CTRL2);
-	dac_reg = codec->read(codec, AD1938_DAC_CTRL1);
+	adc_reg = snd_soc_read(codec, AD1938_ADC_CTRL2);
+	dac_reg = snd_soc_read(codec, AD1938_DAC_CTRL1);
 
 	/* At present, the driver only support AUX ADC mode(SND_SOC_DAIFMT_I2S
 	 * with TDM) and ADC&DAC TDM mode(SND_SOC_DAIFMT_DSP_A)
@@ -258,8 +263,8 @@ static int ad1938_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	codec->write(codec, AD1938_ADC_CTRL2, adc_reg);
-	codec->write(codec, AD1938_DAC_CTRL1, dac_reg);
+	snd_soc_write(codec, AD1938_ADC_CTRL2, adc_reg);
+	snd_soc_write(codec, AD1938_DAC_CTRL1, dac_reg);
 
 	return 0;
 }
@@ -288,116 +293,13 @@ static int ad1938_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	reg = codec->read(codec, AD1938_DAC_CTRL2);
+	reg = snd_soc_read(codec, AD1938_DAC_CTRL2);
 	reg = (reg & (~AD1938_DAC_WORD_LEN_MASK)) | word_len;
-	codec->write(codec, AD1938_DAC_CTRL2, reg);
+	snd_soc_write(codec, AD1938_DAC_CTRL2, reg);
 
-	reg = codec->read(codec, AD1938_ADC_CTRL1);
+	reg = snd_soc_read(codec, AD1938_ADC_CTRL1);
 	reg = (reg & (~AD1938_ADC_WORD_LEN_MASK)) | word_len;
-	codec->write(codec, AD1938_ADC_CTRL1, reg);
-
-	return 0;
-}
-
-/*
- * interface to read/write ad1938 register
- */
-
-#define AD1938_SPI_ADDR    0x4
-#define AD1938_SPI_READ    0x1
-#define AD1938_SPI_BUFLEN  3
-
-/*
- * write to the ad1938 register space
- */
-
-static int ad1938_write_reg(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value)
-{
-	u8 *reg_cache = codec->reg_cache;
-	int ret = 0;
-
-	if (value != reg_cache[reg]) {
-		uint8_t buf[AD1938_SPI_BUFLEN];
-		struct spi_transfer t = {
-			.tx_buf = buf,
-			.len = AD1938_SPI_BUFLEN,
-		};
-		struct spi_message m;
-
-		buf[0] = AD1938_SPI_ADDR << 1;
-		buf[1] = reg;
-		buf[2] = value;
-		spi_message_init(&m);
-		spi_message_add_tail(&t, &m);
-		ret = spi_sync(codec->control_data, &m);
-		if (ret == 0)
-			reg_cache[reg] = value;
-	}
-
-	return ret;
-}
-
-/*
- * read from the ad1938 register space cache
- */
-
-static unsigned int ad1938_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
-{
-	u8 *reg_cache = codec->reg_cache;
-
-	if (reg >= codec->reg_cache_size)
-		return -EINVAL;
-
-	return reg_cache[reg];
-}
-
-/*
- * read from the ad1938 register space
- */
-
-static unsigned int ad1938_read_reg(struct snd_soc_codec *codec,
-						unsigned int reg)
-{
-	char w_buf[AD1938_SPI_BUFLEN];
-	char r_buf[AD1938_SPI_BUFLEN];
-	int ret;
-
-	struct spi_transfer t = {
-		.tx_buf = w_buf,
-		.rx_buf = r_buf,
-		.len = AD1938_SPI_BUFLEN,
-	};
-	struct spi_message m;
-
-	w_buf[0] = (AD1938_SPI_ADDR << 1) | AD1938_SPI_READ;
-	w_buf[1] = reg;
-	w_buf[2] = 0;
-
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-	ret = spi_sync(codec->control_data, &m);
-	if (ret == 0)
-		return	r_buf[2];
-	else
-		return -EIO;
-}
-
-static int ad1938_fill_cache(struct snd_soc_codec *codec)
-{
-	int i;
-	u8 *reg_cache = codec->reg_cache;
-	struct spi_device *spi = codec->control_data;
-
-	for (i = 0; i < codec->reg_cache_size; i++) {
-		int ret = ad1938_read_reg(codec, i);
-		if (ret == -EIO) {
-			dev_err(&spi->dev, "AD1938 SPI read failure\n");
-			return ret;
-		}
-		reg_cache[i] = ret;
-	}
+	snd_soc_write(codec, AD1938_ADC_CTRL1, reg);
 
 	return 0;
 }
@@ -487,31 +389,37 @@ static int ad1938_register(struct ad1938_priv *ad1938)
 	codec->owner = THIS_MODULE;
 	codec->dai = &ad1938_dai;
 	codec->num_dai = 1;
-	codec->write = ad1938_write_reg;
-	codec->read = ad1938_read_reg_cache;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	ad1938_dai.dev = codec->dev;
 	ad1938_codec = codec;
 
+	memcpy(codec->reg_cache, ad1938_reg, AD1938_NUM_REGS);
+
+	ret = snd_soc_codec_set_cache_io(codec, 16, 8, SND_SOC_SPI);
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to set cache I/O: %d\n",
+				ret);
+		kfree(ad1938);
+		return ret;
+	}
+
 	/* default setting for ad1938 */
 
 	/* unmute dac channels */
-	codec->write(codec, AD1938_DAC_CHNL_MUTE, 0x0);
+	snd_soc_write(codec, AD1938_DAC_CHNL_MUTE, 0x0);
 	/* de-emphasis: 48kHz, powedown dac */
-	codec->write(codec, AD1938_DAC_CTRL2, 0x1A);
+	snd_soc_write(codec, AD1938_DAC_CTRL2, 0x1A);
 	/* powerdown dac, dac in tdm mode */
-	codec->write(codec, AD1938_DAC_CTRL0, 0x41);
+	snd_soc_write(codec, AD1938_DAC_CTRL0, 0x41);
 	/* high-pass filter enable */
-	codec->write(codec, AD1938_ADC_CTRL0, 0x3);
+	snd_soc_write(codec, AD1938_ADC_CTRL0, 0x3);
 	/* sata delay=1, adc aux mode */
-	codec->write(codec, AD1938_ADC_CTRL1, 0x43);
+	snd_soc_write(codec, AD1938_ADC_CTRL1, 0x43);
 	/* pll input: mclki/xi */
-	codec->write(codec, AD1938_PLL_CLK_CTRL0, 0x9D);
-	codec->write(codec, AD1938_PLL_CLK_CTRL1, 0x04);
-
-	ad1938_fill_cache(codec);
+	snd_soc_write(codec, AD1938_PLL_CLK_CTRL0, 0x9D);
+	snd_soc_write(codec, AD1938_PLL_CLK_CTRL1, 0x04);
 
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
