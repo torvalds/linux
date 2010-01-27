@@ -84,12 +84,6 @@
 
 enum {
 /* netdev interface */
-	/*
-	 * Out of NWG spec (R1_v1.2.2), 3.3.3 ASN Bearer Plane MTU Size
-	 *
-	 * The MTU is 1400 or less
-	 */
-	I2400M_MAX_MTU = 1400,
 	/* 20 secs? yep, this is the maximum timeout that the device
 	 * might take to get out of IDLE / negotiate it with the base
 	 * station. We add 1sec for good measure. */

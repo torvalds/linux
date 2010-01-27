@@ -160,6 +160,16 @@
 #include <linux/wimax/i2400m.h>
 #include <asm/byteorder.h>
 
+enum {
+/* netdev interface */
+	/*
+	 * Out of NWG spec (R1_v1.2.2), 3.3.3 ASN Bearer Plane MTU Size
+	 *
+	 * The MTU is 1400 or less
+	 */
+	I2400M_MAX_MTU = 1400,
+};
+
 /* Misc constants */
 enum {
 	/* Size of the Boot Mode Command buffer */
