@@ -2051,6 +2051,7 @@ static void be_unmap_pci_bars(struct be_adapter *adapter)
 static int be_map_pci_bars(struct be_adapter *adapter)
 {
 	u8 __iomem *addr;
+	int pcicfg_reg;
 
 	addr = ioremap_nocache(pci_resource_start(adapter->pdev, 2),
 			pci_resource_len(adapter->pdev, 2));
@@ -2064,8 +2065,13 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 		goto pci_map_err;
 	adapter->db = addr;
 
-	addr = ioremap_nocache(pci_resource_start(adapter->pdev, 1),
-			pci_resource_len(adapter->pdev, 1));
+	if (adapter->generation == BE_GEN2)
+		pcicfg_reg = 1;
+	else
+		pcicfg_reg = 0;
+
+	addr = ioremap_nocache(pci_resource_start(adapter->pdev, pcicfg_reg),
+			pci_resource_len(adapter->pdev, pcicfg_reg));
 	if (addr == NULL)
 		goto pci_map_err;
 	adapter->pcicfg = addr;
@@ -2162,6 +2168,7 @@ static int be_stats_init(struct be_adapter *adapter)
 	cmd->va = pci_alloc_consistent(adapter->pdev, cmd->size, &cmd->dma);
 	if (cmd->va == NULL)
 		return -1;
+	memset(cmd->va, cmd->size, 0);
 	return 0;
 }
 
@@ -2240,6 +2247,20 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		goto rel_reg;
 	}
 	adapter = netdev_priv(netdev);
+
+	switch (pdev->device) {
+	case BE_DEVICE_ID1:
+	case OC_DEVICE_ID1:
+		adapter->generation = BE_GEN2;
+		break;
+	case BE_DEVICE_ID2:
+	case OC_DEVICE_ID2:
+		adapter->generation = BE_GEN3;
+		break;
+	default:
+		adapter->generation = 0;
+	}
+
 	adapter->pdev = pdev;
 	pci_set_drvdata(pdev, adapter);
 	adapter->netdev = netdev;
