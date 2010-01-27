@@ -1578,6 +1578,27 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	return err;
 }
 
+int dso__load_vmlinux_path(struct dso *self, struct map *map,
+			   struct perf_session *session, symbol_filter_t filter)
+{
+	int i, err = 0;
+
+	pr_debug("Looking at the vmlinux_path (%d entries long)\n",
+		 vmlinux_path__nr_entries);
+
+	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
+		err = dso__load_vmlinux(self, map, session, vmlinux_path[i],
+					filter);
+		if (err > 0) {
+			pr_debug("Using %s for symbols\n", vmlinux_path[i]);
+			dso__set_long_name(self, strdup(vmlinux_path[i]));
+			break;
+		}
+	}
+
+	return err;
+}
+
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
 				struct perf_session *session, symbol_filter_t filter)
 {
@@ -1606,20 +1627,9 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 	}
 
 	if (vmlinux_path != NULL) {
-		int i;
-		pr_debug("Looking at the vmlinux_path (%d entries long)\n",
-			 vmlinux_path__nr_entries);
-		for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-			err = dso__load_vmlinux(self, map, session,
-						vmlinux_path[i], filter);
-			if (err > 0) {
-				pr_debug("Using %s for symbols\n",
-					 vmlinux_path[i]);
-				dso__set_long_name(self,
-						   strdup(vmlinux_path[i]));
-				goto out_fixup;
-			}
-		}
+		err = dso__load_vmlinux_path(self, map, session, filter);
+		if (err > 0)
+			goto out_fixup;
 	}
 
 	/*

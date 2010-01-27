@@ -129,6 +129,8 @@ struct perf_session;
 
 int dso__load(struct dso *self, struct map *map, struct perf_session *session,
 	      symbol_filter_t filter);
+int dso__load_vmlinux_path(struct dso *self, struct map *map,
+			   struct perf_session *session, symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
 size_t dsos__fprintf_buildid(FILE *fp, bool with_hits);
 
