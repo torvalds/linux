@@ -46,8 +46,6 @@
 
 struct clk *vclk, *sclk, *dclk;
 
-void __iomem *prcm_clksrc_ctrl;
-
 /*-------------------------------------------------------------------------
  * Omap24xx specific clock functions
  *-------------------------------------------------------------------------*/
@@ -78,34 +76,6 @@ const struct clkops clkops_omap2430_i2chs_wait = {
 	.find_idlest	= omap2430_clk_i2chs_find_idlest,
 	.find_companion = omap2_clk_dflt_find_companion,
 };
-
-#ifdef OLD_CK
-/* Recalculate SYST_CLK */
-static void omap2_sys_clk_recalc(struct clk *clk)
-{
-	u32 div = PRCM_CLKSRC_CTRL;
-	div &= (1 << 7) | (1 << 6);	/* Test if ext clk divided by 1 or 2 */
-	div >>= clk->rate_offset;
-	clk->rate = (clk->parent->rate / div);
-	propagate_rate(clk);
-}
-#endif	/* OLD_CK */
-
-u32 omap2xxx_get_sysclkdiv(void)
-{
-	u32 div;
-
-	div = __raw_readl(prcm_clksrc_ctrl);
-	div &= OMAP_SYSCLKDIV_MASK;
-	div >>= OMAP_SYSCLKDIV_SHIFT;
-
-	return div;
-}
-
-unsigned long omap2_sys_clk_recalc(struct clk *clk)
-{
-	return clk->parent->rate / omap2xxx_get_sysclkdiv();
-}
 
 /*
  * Set clocks for bypass mode for reboot to work.
