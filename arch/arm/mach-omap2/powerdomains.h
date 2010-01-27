@@ -12,6 +12,12 @@
  * published by the Free Software Foundation.
  */
 
+/*
+ * To Do List
+ * -> Move the Sleep/Wakeup dependencies from Power Domain framework to
+ *    Clock Domain Framework
+ */
+
 #ifndef ARCH_ARM_MACH_OMAP2_POWERDOMAINS
 #define ARCH_ARM_MACH_OMAP2_POWERDOMAINS
 
@@ -71,6 +77,7 @@
 
 /* OMAP2/3-common powerdomains and wakeup dependencies */
 
+#ifndef CONFIG_ARCH_OMAP4
 /*
  * 2420/2430 PM_WKDEP_GFX: CORE, MPU, WKUP
  * 3430ES1 PM_WKDEP_GFX: adds IVA2, removes CORE
@@ -110,21 +117,25 @@ static struct pwrdm_dep cam_gfx_sleepdeps[] = {
 	},
 	{ NULL },
 };
+#endif
 
 
 #include "powerdomains24xx.h"
 #include "powerdomains34xx.h"
+#include "powerdomains44xx.h"
 
 
 /*
  * OMAP2/3 common powerdomains
  */
 
+#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
+
 /*
  * The GFX powerdomain is not present on 3430ES2, but currently we do not
  * have a macro to filter it out at compile-time.
  */
-static struct powerdomain gfx_pwrdm = {
+static struct powerdomain gfx_omap2_pwrdm = {
 	.name		  = "gfx_pwrdm",
 	.prcm_offs	  = GFX_MOD,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX |
@@ -142,20 +153,23 @@ static struct powerdomain gfx_pwrdm = {
 	},
 };
 
-static struct powerdomain wkup_pwrdm = {
+static struct powerdomain wkup_omap2_pwrdm = {
 	.name		= "wkup_pwrdm",
 	.prcm_offs	= WKUP_MOD,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
 	.dep_bit	= OMAP_EN_WKUP_SHIFT,
 };
 
+#endif
 
 
 /* As powerdomains are added or removed above, this list must also be changed */
 static struct powerdomain *powerdomains_omap[] __initdata = {
 
-	&gfx_pwrdm,
-	&wkup_pwrdm,
+#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
+	&wkup_omap2_pwrdm,
+	&gfx_omap2_pwrdm,
+#endif
 
 #ifdef CONFIG_ARCH_OMAP24XX
 	&dsp_pwrdm,
@@ -186,6 +200,24 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 	&dpll5_pwrdm,
 #endif
 
+#ifdef CONFIG_ARCH_OMAP4
+	&core_44xx_pwrdm,
+	&gfx_44xx_pwrdm,
+	&abe_44xx_pwrdm,
+	&dss_44xx_pwrdm,
+	&tesla_44xx_pwrdm,
+	&wkup_44xx_pwrdm,
+	&cpu0_44xx_pwrdm,
+	&cpu1_44xx_pwrdm,
+	&emu_44xx_pwrdm,
+	&mpu_44xx_pwrdm,
+	&ivahd_44xx_pwrdm,
+	&cam_44xx_pwrdm,
+	&l3init_44xx_pwrdm,
+	&l4per_44xx_pwrdm,
+	&always_on_core_44xx_pwrdm,
+	&cefuse_44xx_pwrdm,
+#endif
 	NULL
 };
 

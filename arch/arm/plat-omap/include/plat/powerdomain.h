@@ -51,16 +51,16 @@
 					  */
 
 /*
- * Number of memory banks that are power-controllable.	On OMAP3430, the
- * maximum is 4.
+ * Number of memory banks that are power-controllable.	On OMAP4430, the
+ * maximum is 5.
  */
-#define PWRDM_MAX_MEM_BANKS	4
+#define PWRDM_MAX_MEM_BANKS	5
 
 /*
  * Maximum number of clockdomains that can be associated with a powerdomain.
- * CORE powerdomain on OMAP3 is the worst case
+ * CORE powerdomain on OMAP4 is the worst case
  */
-#define PWRDM_MAX_CLKDMS	4
+#define PWRDM_MAX_CLKDMS	9
 
 /* XXX A completely arbitrary number. What is reasonable here? */
 #define PWRDM_TRANSITION_BAILOUT 100000
