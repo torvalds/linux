@@ -306,11 +306,14 @@
 #define   I915_ERROR_MEMORY_REFRESH			(1<<1)
 #define   I915_ERROR_INSTRUCTION			(1<<0)
 #define INSTPM	        0x020c0
+#define   INSTPM_SELF_EN (1<<12) /* 915GM only */
 #define ACTHD	        0x020c8
 #define FW_BLC		0x020d8
 #define FW_BLC2	 	0x020dc
 #define FW_BLC_SELF	0x020e0 /* 915+ only */
-#define   FW_BLC_SELF_EN (1<<15)
+#define   FW_BLC_SELF_EN_MASK      (1<<31)
+#define   FW_BLC_SELF_FIFO_MASK    (1<<16) /* 945 only */
+#define   FW_BLC_SELF_EN           (1<<15) /* 945 only */
 #define MM_BURST_LENGTH     0x00700000
 #define MM_FIFO_WATERMARK   0x0001F000
 #define LM_BURST_LENGTH     0x00000700

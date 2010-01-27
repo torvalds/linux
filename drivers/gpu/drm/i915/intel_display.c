@@ -2757,11 +2757,22 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		srwm = total_size - sr_entries;
 		if (srwm < 0)
 			srwm = 1;
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN | (srwm & 0x3f));
+
+		if (IS_I945G(dev) || IS_I945GM(dev))
+			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_FIFO_MASK | (srwm & 0xff));
+		else if (IS_I915GM(dev)) {
+			/* 915M has a smaller SRWM field */
+			I915_WRITE(FW_BLC_SELF, srwm & 0x3f);
+			I915_WRITE(INSTPM, I915_READ(INSTPM) | INSTPM_SELF_EN);
+		}
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
-		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
-					& ~FW_BLC_SELF_EN);
+		if (IS_I945G(dev) || IS_I945GM(dev)) {
+			I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+				   & ~FW_BLC_SELF_EN);
+		} else if (IS_I915GM(dev)) {
+			I915_WRITE(INSTPM, I915_READ(INSTPM) & ~INSTPM_SELF_EN);
+		}
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
@@ -4011,6 +4022,11 @@ static void intel_idle_update(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 
+	if (IS_I945G(dev) || IS_I945GM(dev)) {
+		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
+	}
+
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
 		if (!crtc->fb)
@@ -4043,6 +4059,15 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
+
+	if (IS_I945G(dev) || IS_I945GM(dev)) {
+		u32 fw_blc_self;
+
+		DRM_DEBUG_DRIVER("disable memory self refresh on 945\n");
+		fw_blc_self = I915_READ(FW_BLC_SELF);
+		fw_blc_self &= ~FW_BLC_SELF_EN;
+		I915_WRITE(FW_BLC_SELF, fw_blc_self | FW_BLC_SELF_EN_MASK);
+	}
 
 	if (!dev_priv->busy)
 		dev_priv->busy = true;
