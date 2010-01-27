@@ -2062,6 +2062,11 @@ void lbs_association_worker(struct work_struct *work)
 			goto out;
 	}
 
+	/*
+	 * v10 FW wants WPA keys to be set/cleared before WEP key operations,
+	 * otherwise it will fail to correctly associate to WEP networks.
+	 * Other firmware versions don't appear to care.
+	 */
 	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags) ||
 	    test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		ret = assoc_helper_wpa_keys(priv, assoc_req);
