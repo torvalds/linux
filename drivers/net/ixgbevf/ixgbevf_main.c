@@ -3262,7 +3262,6 @@ static void ixgbevf_shutdown(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-#ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= &ixgbevf_open,
 	.ndo_stop		= &ixgbevf_close,
@@ -3278,29 +3277,12 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= &ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= &ixgbevf_vlan_rx_kill_vid,
 };
-#endif /* HAVE_NET_DEVICE_OPS */
 
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)
 {
 	struct ixgbevf_adapter *adapter;
 	adapter = netdev_priv(dev);
-#ifdef HAVE_NET_DEVICE_OPS
 	dev->netdev_ops = &ixgbe_netdev_ops;
-#else /* HAVE_NET_DEVICE_OPS */
-	dev->open = &ixgbevf_open;
-	dev->stop = &ixgbevf_close;
-
-	dev->hard_start_xmit = &ixgbevf_xmit_frame;
-
-	dev->get_stats = &ixgbevf_get_stats;
-	dev->set_multicast_list = &ixgbevf_set_rx_mode;
-	dev->set_mac_address = &ixgbevf_set_mac;
-	dev->change_mtu = &ixgbevf_change_mtu;
-	dev->tx_timeout = &ixgbevf_tx_timeout;
-	dev->vlan_rx_register = &ixgbevf_vlan_rx_register;
-	dev->vlan_rx_add_vid = &ixgbevf_vlan_rx_add_vid;
-	dev->vlan_rx_kill_vid = &ixgbevf_vlan_rx_kill_vid;
-#endif /* HAVE_NET_DEVICE_OPS */
 	ixgbevf_set_ethtool_ops(dev);
 	dev->watchdog_timeo = 5 * HZ;
 }

@@ -106,7 +106,7 @@
 #define cas_page_unmap(x)    kunmap_atomic((x), KM_SKB_DATA_SOFTIRQ)
 #define CAS_NCPUS            num_online_cpus()
 
-#if defined(CONFIG_CASSINI_NAPI) && defined(HAVE_NETDEV_POLL)
+#ifdef CONFIG_CASSINI_NAPI
 #define USE_NAPI
 #define cas_skb_release(x)  netif_receive_skb(x)
 #else

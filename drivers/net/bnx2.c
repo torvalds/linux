@@ -7668,7 +7668,7 @@ bnx2_change_mtu(struct net_device *dev, int new_mtu)
 	return (bnx2_change_ring_size(bp, bp->rx_ring_size, bp->tx_ring_size));
 }
 
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+#ifdef CONFIG_NET_POLL_CONTROLLER
 static void
 poll_bnx2(struct net_device *dev)
 {
@@ -8280,7 +8280,7 @@ static const struct net_device_ops bnx2_netdev_ops = {
 #ifdef BCM_VLAN
 	.ndo_vlan_rx_register	= bnx2_vlan_rx_register,
 #endif
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+#ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2,
 #endif
 };
