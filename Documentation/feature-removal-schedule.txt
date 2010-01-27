@@ -64,6 +64,17 @@ Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
 
 ---------------------------
 
+What:	Deprecated snapshot ioctls
+When:	2.6.36
+
+Why:	The ioctls in kernel/power/user.c were marked as deprecated long time
+	ago. Now they notify users about that so that they need to replace
+	their userspace. After some more time, remove them completely.
+
+Who:	Jiri Slaby <jirislaby@gmail.com>
+
+---------------------------
+
 What:	The ieee80211_regdom module parameter
 When:	March 2010 / desktop catchup
 
