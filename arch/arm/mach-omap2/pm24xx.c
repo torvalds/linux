@@ -219,11 +219,12 @@ static void omap2_enter_mpu_retention(void)
 		/* Try to enter MPU retention */
 		prm_write_mod_reg((0x01 << OMAP_POWERSTATE_SHIFT) |
 				  OMAP_LOGICRETSTATE,
-				  MPU_MOD, PM_PWSTCTRL);
+				  MPU_MOD, OMAP2_PM_PWSTCTRL);
 	} else {
 		/* Block MPU retention */
 
-		prm_write_mod_reg(OMAP_LOGICRETSTATE, MPU_MOD, PM_PWSTCTRL);
+		prm_write_mod_reg(OMAP_LOGICRETSTATE, MPU_MOD,
+						 OMAP2_PM_PWSTCTRL);
 		only_idle = 1;
 	}
 

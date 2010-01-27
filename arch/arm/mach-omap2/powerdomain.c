@@ -710,7 +710,7 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 
 	prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
 			     (pwrst << OMAP_POWERSTATE_SHIFT),
-			     pwrdm->prcm_offs, PM_PWSTCTRL);
+			     pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	return 0;
 }
@@ -728,7 +728,7 @@ int pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, PM_PWSTCTRL,
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL,
 					OMAP_POWERSTATE_MASK);
 }
 
@@ -745,7 +745,7 @@ int pwrdm_read_pwrst(struct powerdomain *pwrdm)
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, PM_PWSTST,
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTST,
 					OMAP_POWERSTATEST_MASK);
 }
 
@@ -796,7 +796,7 @@ int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 	 */
 	prm_rmw_mod_reg_bits(OMAP3430_LOGICL1CACHERETSTATE,
 			     (pwrst << __ffs(OMAP3430_LOGICL1CACHERETSTATE)),
-			     pwrdm->prcm_offs, PM_PWSTCTRL);
+			     pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	return 0;
 }
@@ -856,7 +856,7 @@ int pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
 	}
 
 	prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)),
-			     pwrdm->prcm_offs, PM_PWSTCTRL);
+			     pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	return 0;
 }
@@ -917,7 +917,7 @@ int pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
 	}
 
 	prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
-			     PM_PWSTCTRL);
+			     OMAP2_PM_PWSTCTRL);
 
 	return 0;
 }
@@ -936,7 +936,7 @@ int pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, PM_PWSTST,
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTST,
 					OMAP3430_LOGICSTATEST);
 }
 
@@ -1010,7 +1010,7 @@ int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 		return -EEXIST;
 	}
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, PM_PWSTST, m);
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTST, m);
 }
 
 /**
@@ -1114,7 +1114,7 @@ int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm)
 		 pwrdm->name);
 
 	prm_rmw_mod_reg_bits(0, 1 << OMAP3430ES2_SAVEANDRESTORE_SHIFT,
-			     pwrdm->prcm_offs, PM_PWSTCTRL);
+			     pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	return 0;
 }
@@ -1142,7 +1142,7 @@ int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
 		 pwrdm->name);
 
 	prm_rmw_mod_reg_bits(1 << OMAP3430ES2_SAVEANDRESTORE_SHIFT, 0,
-			     pwrdm->prcm_offs, PM_PWSTCTRL);
+			     pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	return 0;
 }
@@ -1183,7 +1183,7 @@ int pwrdm_wait_transition(struct powerdomain *pwrdm)
 	 */
 
 	/* XXX Is this udelay() value meaningful? */
-	while ((prm_read_mod_reg(pwrdm->prcm_offs, PM_PWSTST) &
+	while ((prm_read_mod_reg(pwrdm->prcm_offs, OMAP2_PM_PWSTST) &
 		OMAP_INTRANSITION) &&
 	       (c++ < PWRDM_TRANSITION_BAILOUT))
 		udelay(1);
