@@ -51,7 +51,11 @@
 
 static notrace cycle_t bfin_read_cycles(struct clocksource *cs)
 {
+#ifdef CONFIG_CPU_FREQ
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
+#else
+	return get_cycles();
+#endif
 }
 
 static struct clocksource bfin_cs_cycles = {

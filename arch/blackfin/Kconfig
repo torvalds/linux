@@ -1237,7 +1237,6 @@ config PM_BFIN_WAKE_GP
 endmenu
 
 menu "CPU Frequency scaling"
-	depends on !SMP
 
 source "drivers/cpufreq/Kconfig"
 
