@@ -56,7 +56,7 @@ int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 MODULE_PARM_DESC(vram_notify, "Force DMA notifiers to be in VRAM");
-int nouveau_vram_notify;
+int nouveau_vram_notify = 1;
 module_param_named(vram_notify, nouveau_vram_notify, int, 0400);
 
 MODULE_PARM_DESC(duallink, "Allow dual-link TMDS (>=GeForce 8)");
