@@ -93,24 +93,19 @@ struct cpu_hw_events {
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
 };
 
-#define EVENT_CONSTRAINT(c, n, m) { 	\
+#define EVENT_CONSTRAINT(c, n, m) {	\
 	{ .idxmsk64[0] = (n) },		\
 	.code = (c),			\
 	.cmask = (m),			\
 	.weight = HWEIGHT64((u64)(n)),	\
 }
 
-#define INTEL_EVENT_CONSTRAINT(c, n)	\
-	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
+#define INTEL_EVENT_CONSTRAINT(c, n)		EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
+#define FIXED_EVENT_CONSTRAINT(c, n)		EVENT_CONSTRAINT(c, n, INTEL_ARCH_FIXED_MASK)
 
-#define FIXED_EVENT_CONSTRAINT(c, n)	\
-	EVENT_CONSTRAINT(c, n, INTEL_ARCH_FIXED_MASK)
+#define EVENT_CONSTRAINT_END			EVENT_CONSTRAINT(0, 0, 0)
 
-#define EVENT_CONSTRAINT_END \
-	EVENT_CONSTRAINT(0, 0, 0)
-
-#define for_each_event_constraint(e, c) \
-	for ((e) = (c); (e)->cmask; (e)++)
+#define for_each_event_constraint(e, c)		for ((e) = (c); (e)->cmask; (e)++)
 
 /*
  * struct x86_pmu - generic x86 pmu
@@ -1276,14 +1271,6 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		if (test_bit(hwc->idx, used_mask))
 			break;
 
-#if 0
-		pr_debug("CPU%d fast config=0x%llx idx=%d assign=%c\n",
-			 smp_processor_id(),
-			 hwc->config,
-			 hwc->idx,
-			 assign ? 'y' : 'n');
-#endif
-
 		set_bit(hwc->idx, used_mask);
 		if (assign)
 			assign[i] = hwc->idx;
@@ -1332,14 +1319,6 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 			if (j == X86_PMC_IDX_MAX)
 				break;
-
-#if 0
-			pr_debug("CPU%d slow config=0x%llx idx=%d assign=%c\n",
-				smp_processor_id(),
-				hwc->config,
-				j,
-				assign ? 'y' : 'n');
-#endif
 
 			set_bit(j, used_mask);
 
@@ -2596,9 +2575,9 @@ static const struct pmu pmu = {
  * validate a single event group
  *
  * validation include:
- * 	- check events are compatible which each other
- * 	- events do not compete for the same counter
- * 	- number of events <= number of counters
+ *	- check events are compatible which each other
+ *	- events do not compete for the same counter
+ *	- number of events <= number of counters
  *
  * validation ensures the group can be loaded onto the
  * PMU if it was the only group available.
