@@ -75,8 +75,10 @@ config SND_S3C64XX_SOC_WM8580
 config SND_S3C24XX_SOC_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
 	depends on SND_S3C24XX_SOC && MACH_SMDK2443
-	select SND_S3C2443_SOC_AC97
+	select S3C2410_DMA
+	select AC97_BUS
 	select SND_SOC_AC97_CODEC
+	select SND_S3C_SOC_AC97
 	help
 	  Say Y if you want to add support for SoC audio on smdk2443
 	  with the WM9710.
