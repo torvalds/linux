@@ -37,6 +37,9 @@
 #define PWRSTS_OFF_RET		((1 << PWRDM_POWER_OFF) | \
 				 (1 << PWRDM_POWER_RET))
 
+#define PWRSTS_RET_ON		((1 << PWRDM_POWER_RET) | \
+				 (1 << PWRDM_POWER_ON))
+
 #define PWRSTS_OFF_RET_ON	(PWRSTS_OFF_RET | (1 << PWRDM_POWER_ON))
 
 
