@@ -163,7 +163,7 @@ static void _omap2_clkdm_set_hwsup(struct clockdomain *clkdm, int enable)
 
 	cm_rmw_mod_reg_bits(clkdm->clktrctrl_mask,
 			    v << __ffs(clkdm->clktrctrl_mask),
-			    clkdm->pwrdm.ptr->prcm_offs, CM_CLKSTCTRL);
+			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_CM_CLKSTCTRL);
 }
 
 static struct clockdomain *_clkdm_lookup(const char *name)
@@ -371,7 +371,7 @@ struct powerdomain *clkdm_get_pwrdm(struct clockdomain *clkdm)
  * @clk: struct clk * of a clockdomain
  *
  * Return the clockdomain's current state transition mode from the
- * corresponding domain CM_CLKSTCTRL register.	Returns -EINVAL if clk
+ * corresponding domain OMAP2_CM_CLKSTCTRL register.	Returns -EINVAL if clk
  * is NULL or the current mode upon success.
  */
 static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
@@ -381,7 +381,7 @@ static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
 	if (!clkdm)
 		return -EINVAL;
 
-	v = cm_read_mod_reg(clkdm->pwrdm.ptr->prcm_offs, CM_CLKSTCTRL);
+	v = cm_read_mod_reg(clkdm->pwrdm.ptr->prcm_offs, OMAP2_CM_CLKSTCTRL);
 	v &= clkdm->clktrctrl_mask;
 	v >>= __ffs(clkdm->clktrctrl_mask);
 
@@ -421,7 +421,8 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 			 __ffs(clkdm->clktrctrl_mask));
 
 		cm_rmw_mod_reg_bits(clkdm->clktrctrl_mask, v,
-				    clkdm->pwrdm.ptr->prcm_offs, CM_CLKSTCTRL);
+				    clkdm->pwrdm.ptr->prcm_offs,
+							 OMAP2_CM_CLKSTCTRL);
 
 	} else {
 		BUG();
@@ -463,7 +464,8 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 			 __ffs(clkdm->clktrctrl_mask));
 
 		cm_rmw_mod_reg_bits(clkdm->clktrctrl_mask, v,
-				    clkdm->pwrdm.ptr->prcm_offs, CM_CLKSTCTRL);
+				    clkdm->pwrdm.ptr->prcm_offs,
+						 OMAP2_CM_CLKSTCTRL);
 
 	} else {
 		BUG();

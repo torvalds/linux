@@ -291,7 +291,7 @@ void omap3_prcm_save_context(void)
 	prcm_context.emu_cm_clksel =
 			 cm_read_mod_reg(OMAP3430_EMU_MOD, CM_CLKSEL1);
 	prcm_context.emu_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_EMU_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_EMU_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.pll_cm_autoidle2 =
 			 cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE2);
 	prcm_context.pll_cm_clksel4 =
@@ -344,23 +344,25 @@ void omap3_prcm_save_context(void)
 	prcm_context.mpu_cm_autoidle2 =
 			 cm_read_mod_reg(MPU_MOD, CM_AUTOIDLE2);
 	prcm_context.iva2_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.mpu_cm_clkstctrl =
-			 cm_read_mod_reg(MPU_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(MPU_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.core_cm_clkstctrl =
-			 cm_read_mod_reg(CORE_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(CORE_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.sgx_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430ES2_SGX_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430ES2_SGX_MOD,
+						OMAP2_CM_CLKSTCTRL);
 	prcm_context.dss_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_DSS_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_DSS_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.cam_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_CAM_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_CAM_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.per_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_PER_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_PER_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.neon_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_NEON_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_NEON_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.usbhost_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD,
+						OMAP2_CM_CLKSTCTRL);
 	prcm_context.core_cm_autoidle1 =
 			 cm_read_mod_reg(CORE_MOD, CM_AUTOIDLE1);
 	prcm_context.core_cm_autoidle2 =
@@ -443,7 +445,7 @@ void omap3_prcm_restore_context(void)
 	cm_write_mod_reg(prcm_context.emu_cm_clksel, OMAP3430_EMU_MOD,
 					 CM_CLKSEL1);
 	cm_write_mod_reg(prcm_context.emu_cm_clkstctrl, OMAP3430_EMU_MOD,
-					 CM_CLKSTCTRL);
+					 OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.pll_cm_autoidle2, PLL_MOD,
 					 CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.pll_cm_clksel4, PLL_MOD,
@@ -489,22 +491,23 @@ void omap3_prcm_restore_context(void)
 					CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.mpu_cm_autoidle2, MPU_MOD, CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.iva2_cm_clkstctrl, OMAP3430_IVA2_MOD,
-					CM_CLKSTCTRL);
-	cm_write_mod_reg(prcm_context.mpu_cm_clkstctrl, MPU_MOD, CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
+	cm_write_mod_reg(prcm_context.mpu_cm_clkstctrl, MPU_MOD,
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.core_cm_clkstctrl, CORE_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.sgx_cm_clkstctrl, OMAP3430ES2_SGX_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.dss_cm_clkstctrl, OMAP3430_DSS_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.cam_cm_clkstctrl, OMAP3430_CAM_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.per_cm_clkstctrl, OMAP3430_PER_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.neon_cm_clkstctrl, OMAP3430_NEON_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.usbhost_cm_clkstctrl,
-					OMAP3430ES2_USBHOST_MOD, CM_CLKSTCTRL);
+				OMAP3430ES2_USBHOST_MOD, OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.core_cm_autoidle1, CORE_MOD,
 					CM_AUTOIDLE1);
 	cm_write_mod_reg(prcm_context.core_cm_autoidle2, CORE_MOD,

@@ -74,6 +74,9 @@ struct clockdomain {
 		struct powerdomain *ptr;
 	} pwrdm;
 
+	/* CLKSTCTRL reg for the given clock domain*/
+	void __iomem *clkstctrl_reg;
+
 	/* CLKTRCTRL/AUTOSTATE field mask in CM_CLKSTCTRL reg */
 	const u16 clktrctrl_mask;
 
