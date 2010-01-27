@@ -928,12 +928,6 @@ int pwrdm_clkdm_state_switch(struct clockdomain *clkdm)
 
 	return -EINVAL;
 }
-int pwrdm_clk_state_switch(struct clk *clk)
-{
-	if (clk != NULL && clk->clkdm != NULL)
-		return pwrdm_clkdm_state_switch(clk->clkdm);
-	return -EINVAL;
-}
 
 int pwrdm_pre_transition(void)
 {
