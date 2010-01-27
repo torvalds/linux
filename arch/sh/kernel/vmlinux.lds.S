@@ -50,12 +50,12 @@ SECTIONS
 	} = 0x0009
 
 	EXCEPTION_TABLE(16)
-
 	NOTES
+
+	_sdata = .;
 	RO_DATA(PAGE_SIZE)
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
-
-	_edata = .;			/* End of data section */
+	_edata = .;
 
 	DWARF_EH_FRAME
 
