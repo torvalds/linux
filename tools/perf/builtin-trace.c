@@ -44,6 +44,7 @@ static void setup_scripting(void)
 	perf_set_argv_exec_path(perf_exec_path());
 
 	setup_perl_scripting();
+	setup_python_scripting();
 
 	scripting_ops = &default_scripting_ops;
 }

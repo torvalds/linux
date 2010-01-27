@@ -522,6 +522,19 @@ else
 	LIB_OBJS += scripts/perl/Perf-Trace-Util/Context.o
 endif
 
+ifndef NO_LIBPYTHON
+PYTHON_EMBED_LDOPTS = `python-config --ldflags 2>/dev/null`
+PYTHON_EMBED_CCOPTS = `python-config --cflags 2>/dev/null`
+endif
+
+ifneq ($(shell sh -c "(echo '\#include <Python.h>'; echo 'int main(void) { Py_Initialize(); return 0; }') | $(CC) -x c - $(PYTHON_EMBED_CCOPTS) -o /dev/null $(PYTHON_EMBED_LDOPTS) > /dev/null 2>&1 && echo y"), y)
+	BASIC_CFLAGS += -DNO_LIBPYTHON
+else
+	ALL_LDFLAGS += $(PYTHON_EMBED_LDOPTS)
+	LIB_OBJS += util/scripting-engines/trace-event-python.o
+	LIB_OBJS += scripts/python/Perf-Trace-Util/Context.o
+endif
+
 ifdef NO_DEMANGLE
 	BASIC_CFLAGS += -DNO_DEMANGLE
 else
@@ -899,6 +912,12 @@ util/scripting-engines/trace-event-perl.o: util/scripting-engines/trace-event-pe
 scripts/perl/Perf-Trace-Util/Context.o: scripts/perl/Perf-Trace-Util/Context.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o scripts/perl/Perf-Trace-Util/Context.o -c $(ALL_CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs $<
 
+util/scripting-engines/trace-event-python.o: util/scripting-engines/trace-event-python.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o util/scripting-engines/trace-event-python.o -c $(ALL_CFLAGS) $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow $<
+
+scripts/python/Perf-Trace-Util/Context.o: scripts/python/Perf-Trace-Util/Context.c PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o scripts/python/Perf-Trace-Util/Context.o -c $(ALL_CFLAGS) $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-nested-externs $<
+
 perf-%$X: %.o $(PERFLIBS)
 	$(QUIET_LINK)$(CC) $(ALL_CFLAGS) -o $@ $(ALL_LDFLAGS) $(filter %.o,$^) $(LIBS)
 
@@ -1012,6 +1031,8 @@ install: all
 	$(INSTALL) scripts/perl/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/Perf-Trace-Util/lib/Perf/Trace'
 	$(INSTALL) scripts/perl/*.pl -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl'
 	$(INSTALL) scripts/perl/bin/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/perl/bin'
+	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'
+	$(INSTALL) scripts/python/Perf-Trace-Util/lib/Perf/Trace/* -t '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/scripts/python/Perf-Trace-Util/lib/Perf/Trace'
 
 ifdef BUILT_INS
 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)'

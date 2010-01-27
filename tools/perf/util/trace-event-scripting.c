@@ -44,6 +44,67 @@ static void process_event_unsupported(int cpu __unused,
 {
 }
 
+static void print_python_unsupported_msg(void)
+{
+	fprintf(stderr, "Python scripting not supported."
+		"  Install libpython and rebuild perf to enable it.\n"
+		"For example:\n  # apt-get install python-dev (ubuntu)"
+		"\n  # yum install python-devel (Fedora)"
+		"\n  etc.\n");
+}
+
+static int python_start_script_unsupported(const char *script __unused,
+					   int argc __unused,
+					   const char **argv __unused)
+{
+	print_python_unsupported_msg();
+
+	return -1;
+}
+
+static int python_generate_script_unsupported(const char *outfile __unused)
+{
+	print_python_unsupported_msg();
+
+	return -1;
+}
+
+struct scripting_ops python_scripting_unsupported_ops = {
+	.name = "Python",
+	.start_script = python_start_script_unsupported,
+	.stop_script = stop_script_unsupported,
+	.process_event = process_event_unsupported,
+	.generate_script = python_generate_script_unsupported,
+};
+
+static void register_python_scripting(struct scripting_ops *scripting_ops)
+{
+	int err;
+	err = script_spec_register("Python", scripting_ops);
+	if (err)
+		die("error registering Python script extension");
+
+	err = script_spec_register("py", scripting_ops);
+	if (err)
+		die("error registering py script extension");
+
+	scripting_context = malloc(sizeof(struct scripting_context));
+}
+
+#ifdef NO_LIBPYTHON
+void setup_python_scripting(void)
+{
+	register_python_scripting(&python_scripting_unsupported_ops);
+}
+#else
+struct scripting_ops python_scripting_ops;
+
+void setup_python_scripting(void)
+{
+	register_python_scripting(&python_scripting_ops);
+}
+#endif
+
 static void print_perl_unsupported_msg(void)
 {
 	fprintf(stderr, "Perl scripting not supported."

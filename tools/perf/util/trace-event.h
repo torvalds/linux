@@ -280,6 +280,7 @@ struct scripting_ops {
 int script_spec_register(const char *spec, struct scripting_ops *ops);
 
 void setup_perl_scripting(void);
+void setup_python_scripting(void);
 
 struct scripting_context {
 	void *event_data;
