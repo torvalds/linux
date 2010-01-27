@@ -1325,7 +1325,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	}
 
 	len = sizeof(*head) +
-		pathlen1 + pathlen2 + 2*(sizeof(u32) + sizeof(u64));
+		pathlen1 + pathlen2 + 2*(1 + sizeof(u32) + sizeof(u64));
 
 	/* calculate (max) length for cap releases */
 	len += sizeof(struct ceph_mds_request_release) *

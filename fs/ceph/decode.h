@@ -138,6 +138,7 @@ static inline void ceph_encode_filepath(void **p, void *end,
 {
 	u32 len = path ? strlen(path) : 0;
 	BUG_ON(*p + sizeof(ino) + sizeof(len) + len > end);
+	ceph_encode_8(p, 1);
 	ceph_encode_64(p, ino);
 	ceph_encode_32(p, len);
 	if (len)

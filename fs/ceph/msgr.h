@@ -21,7 +21,7 @@
  * whenever the wire protocol changes.  try to keep this string length
  * constant.
  */
-#define CEPH_BANNER "ceph v026"
+#define CEPH_BANNER "ceph v027"
 #define CEPH_BANNER_MAX_LEN 30
 
 
@@ -61,7 +61,8 @@ extern const char *ceph_entity_type_name(int type);
  * entity_addr -- network address
  */
 struct ceph_entity_addr {
-	__le64 nonce;  /* unique id for process (e.g. pid) */
+	__le32 type;
+	__le32 nonce;  /* unique id for process (e.g. pid) */
 	struct sockaddr_storage in_addr;
 } __attribute__ ((packed));
 

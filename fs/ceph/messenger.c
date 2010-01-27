@@ -1909,6 +1909,7 @@ struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr)
 		msgr->inst.addr = *myaddr;
 
 	/* select a random nonce */
+	msgr->inst.addr.type = 0;
 	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
 	encode_my_addr(msgr);
 
