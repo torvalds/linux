@@ -18,6 +18,11 @@
  * published by the Free Software Foundation.
  */
 
+/*
+ * To-Do List
+ * -> Populate the Sleep/Wakeup dependencies for the domains
+ */
+
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS44XX_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS44XX_H
 

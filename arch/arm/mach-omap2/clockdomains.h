@@ -7,12 +7,18 @@
  * Written by Paul Walmsley
  */
 
+/*
+ * To-Do List
+ * -> Port the Sleep/Wakeup dependencies for the domains
+ *    from the Power domain framework
+ */
+
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS_H
 #define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS_H
 
 #include <plat/clockdomain.h>
 #include "cm.h"
-#include "prm44xx.h"
+#include "prm.h"
 
 /*
  * OMAP2/3-common clockdomains
@@ -22,6 +28,8 @@
  * separate PRM and CM clockdomains.  The usual test case is
  * sys_clkout/sys_clkout2.
  */
+
+#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
 
 /* This is an implicit clockdomain - it is never defined as such in TRM */
 static struct clockdomain wkup_clkdm = {
@@ -41,6 +49,8 @@ static struct clockdomain cm_clkdm = {
 	.pwrdm		= { .name = "core_pwrdm" },
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
 };
+
+#endif
 
 /*
  * 2420-only clockdomains
@@ -365,11 +375,15 @@ static struct clockdomain dpll5_clkdm = {
 
 #endif   /* CONFIG_ARCH_OMAP34XX */
 
+#include "clockdomains44xx.h"
+
 /*
  * Clockdomain-powerdomain hwsup dependencies (34XX only)
  */
 
 static struct clkdm_pwrdm_autodep clkdm_pwrdm_autodeps[] = {
+
+#ifdef CONFIG_ARCH_OMAP34XX
 	{
 		.pwrdm	   = { .name = "mpu_pwrdm" },
 		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
@@ -381,17 +395,21 @@ static struct clkdm_pwrdm_autodep clkdm_pwrdm_autodeps[] = {
 	{
 		.pwrdm	   = { .name = NULL },
 	}
+#endif
+
 };
 
 /*
- *
+ * List of clockdomain pointers per platform
  */
 
 static struct clockdomain *clockdomains_omap[] = {
 
+#if defined(CONFIG_ARCH_OMAP24XX) | defined(CONFIG_ARCH_OMAP34XX)
 	&wkup_clkdm,
 	&cm_clkdm,
 	&prm_clkdm,
+#endif
 
 #ifdef CONFIG_ARCH_OMAP2420
 	&mpu_2420_clkdm,
@@ -432,6 +450,32 @@ static struct clockdomain *clockdomains_omap[] = {
 	&dpll3_clkdm,
 	&dpll4_clkdm,
 	&dpll5_clkdm,
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+	&l4_cefuse_44xx_clkdm,
+	&l4_cfg_44xx_clkdm,
+	&tesla_44xx_clkdm,
+	&l3_gfx_44xx_clkdm,
+	&ivahd_44xx_clkdm,
+	&l4_secure_44xx_clkdm,
+	&l4_per_44xx_clkdm,
+	&abe_44xx_clkdm,
+	&l3_init_44xx_clkdm,
+	&mpuss_44xx_clkdm,
+	&mpu0_44xx_clkdm,
+	&mpu1_44xx_clkdm,
+	&l3_emif_44xx_clkdm,
+	&l4_ao_44xx_clkdm,
+	&ducati_44xx_clkdm,
+	&l3_2_44xx_clkdm,
+	&l3_1_44xx_clkdm,
+	&l3_d2d_44xx_clkdm,
+	&iss_44xx_clkdm,
+	&l3_dss_44xx_clkdm,
+	&l4_wkup_44xx_clkdm,
+	&emu_sys_44xx_clkdm,
+	&l3_dma_44xx_clkdm,
 #endif
 
 	NULL,
