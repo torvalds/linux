@@ -110,30 +110,6 @@ static struct clkdm_dep dsp_24xx_wkdeps[] = {
 };
 
 /*
- * 2420/2430 PM_WKDEP_MDM: CORE, MPU, WKUP
- * XXX This is probably 2430-only; 2420 did not have a stacked modem config.
- */
-static struct clkdm_dep mdm_24xx_wkdeps[] = {
-	{
-		.clkdm_name = "core_l3_clkdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.clkdm_name = "core_l4_clkdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.clkdm_name = "mpu_clkdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{
-		.clkdm_name = "wkup_clkdm",
-		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
-	},
-	{ NULL },
-};
-
-/*
  * 2420 PM_WKDEP_MPU: CORE, DSP, WKUP
  * 2430 adds MDM
  */
@@ -190,6 +166,35 @@ static struct clkdm_dep core_24xx_wkdeps[] = {
 };
 
 #endif
+
+
+/* 2430-specific possible wakeup dependencies */
+
+#ifdef CONFIG_ARCH_OMAP2430
+
+/* 2430 PM_WKDEP_MDM: CORE, MPU, WKUP */
+static struct clkdm_dep mdm_2430_wkdeps[] = {
+	{
+		.clkdm_name = "core_l3_clkdm",
+		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
+	},
+	{
+		.clkdm_name = "core_l4_clkdm",
+		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
+	},
+	{
+		.clkdm_name = "mpu_clkdm",
+		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
+	},
+	{
+		.clkdm_name = "wkup_clkdm",
+		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX)
+	},
+	{ NULL },
+};
+
+#endif /* CONFIG_ARCH_OMAP2430 */
+
 
 /* 34XX-specific possible dependencies */
 
@@ -549,7 +554,7 @@ static struct clockdomain mdm_clkdm = {
 	.clkstctrl_reg  = OMAP2430_CM_REGADDR(OMAP2430_MDM_MOD,
 						 OMAP2_CM_CLKSTCTRL),
 	.dep_bit	= OMAP2430_PM_WKDEP_MPU_EN_MDM_SHIFT,
-	.wkdep_srcs	= mdm_24xx_wkdeps,
+	.wkdep_srcs	= mdm_2430_wkdeps,
 	.clktrctrl_mask = OMAP2430_AUTOSTATE_MDM_MASK,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
 };
