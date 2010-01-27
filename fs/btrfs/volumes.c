@@ -1434,8 +1434,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		return -EINVAL;
 
 	bdev = open_bdev_exclusive(device_path, 0, root->fs_info->bdev_holder);
-	if (!bdev)
-		return -EIO;
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
 
 	if (root->fs_info->fs_devices->seeding) {
 		seeding_dev = 1;
