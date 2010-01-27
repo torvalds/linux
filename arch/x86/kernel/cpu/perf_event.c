@@ -100,12 +100,17 @@ struct cpu_hw_events {
 	.weight = HWEIGHT64((u64)(n)),	\
 }
 
-#define INTEL_EVENT_CONSTRAINT(c, n)		EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
-#define FIXED_EVENT_CONSTRAINT(c, n)		EVENT_CONSTRAINT(c, n, INTEL_ARCH_FIXED_MASK)
+#define INTEL_EVENT_CONSTRAINT(c, n)	\
+	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVTSEL_MASK)
 
-#define EVENT_CONSTRAINT_END			EVENT_CONSTRAINT(0, 0, 0)
+#define FIXED_EVENT_CONSTRAINT(c, n)	\
+	EVENT_CONSTRAINT(c, n, INTEL_ARCH_FIXED_MASK)
 
-#define for_each_event_constraint(e, c)		for ((e) = (c); (e)->cmask; (e)++)
+#define EVENT_CONSTRAINT_END		\
+	EVENT_CONSTRAINT(0, 0, 0)
+
+#define for_each_event_constraint(e, c)	\
+	for ((e) = (c); (e)->cmask; (e)++)
 
 /*
  * struct x86_pmu - generic x86 pmu
