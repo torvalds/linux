@@ -3216,11 +3216,11 @@ int __init omap2_clk_init(void)
 	/* struct prcm_config *prcm; */
 	struct omap_clk *c;
 	/* u32 clkrate; */
-	u32 cpu_clkflg;
+	u32 cpu_clkflg = CK_3XXX;
 
 	if (cpu_is_omap34xx()) {
 		cpu_mask = RATE_IN_343X;
-		cpu_clkflg = CK_343X;
+		cpu_clkflg |= CK_343X;
 
 		/*
 		 * Update this if there are further clock changes between ES2
