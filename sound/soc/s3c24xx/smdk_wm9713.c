@@ -22,6 +22,12 @@
 static struct snd_soc_card smdk;
 
 /*
+ * Default CFG switch settings to use this driver:
+ *
+ *   SMDK6410: Set CFG1 1-3 On, CFG2 1-4 Off
+ */
+
+/*
  Playback (HeadPhone):-
 	Headphone Playback Switch - On
 	$ amixer cset numid=4 1
