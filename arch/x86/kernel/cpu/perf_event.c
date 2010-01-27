@@ -1762,9 +1762,6 @@ static int x86_pmu_enable(struct perf_event *event)
 	cpuc->n_events = n;
 	cpuc->n_added  = n - n0;
 
-	if (hwc->idx != -1)
-		x86_perf_event_set_period(event, hwc, hwc->idx);
-
 	return 0;
 }
 
