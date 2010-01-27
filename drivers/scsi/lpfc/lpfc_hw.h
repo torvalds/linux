@@ -1465,17 +1465,13 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_IOCB_LOGENTRY_CN		0x94
 #define CMD_IOCB_LOGENTRY_ASYNC_CN	0x96
 
-/* Unhandled Data Security SLI Commands */
-#define DSSCMD_IWRITE64_CR 		0xD8
-#define DSSCMD_IWRITE64_CX		0xD9
-#define DSSCMD_IREAD64_CR		0xDA
-#define DSSCMD_IREAD64_CX		0xDB
-#define DSSCMD_INVALIDATE_DEK		0xDC
-#define DSSCMD_SET_KEK			0xDD
-#define DSSCMD_GET_KEK_ID		0xDE
-#define DSSCMD_GEN_XFER			0xDF
+/* Data Security SLI Commands */
+#define DSSCMD_IWRITE64_CR		0xF8
+#define DSSCMD_IWRITE64_CX		0xF9
+#define DSSCMD_IREAD64_CR		0xFA
+#define DSSCMD_IREAD64_CX		0xFB
 
-#define CMD_MAX_IOCB_CMD        0xE6
+#define CMD_MAX_IOCB_CMD        0xFB
 #define CMD_IOCB_MASK           0xff
 
 #define MAX_MSG_DATA            28	/* max msg data in CMD_ADAPTER_MSG

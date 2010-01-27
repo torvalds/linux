@@ -4385,7 +4385,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	did = Fabric_DID;
 
-	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3))) {
+	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3, 1))) {
 		/* For a FLOGI we accept, then if our portname is greater
 		 * then the remote portname we initiate Nport login.
 		 */
