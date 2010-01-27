@@ -618,7 +618,12 @@ static int fsg_setup(struct usb_function *f,
 			return -EDOM;
 		VDBG(fsg, "get max LUN\n");
 		*(u8 *) req->buf = fsg->common->nluns - 1;
-		return 1;
+
+		/* Respond with data/status */
+		req->length = min(1, w_length);
+		fsg->common->ep0req_name =
+			ctrl->bRequestType & USB_DIR_IN ? "ep0-in" : "ep0-out";
+		return ep0_queue(fsg->common);
 	}
 
 	VDBG(fsg,
@@ -2528,14 +2533,6 @@ static void handle_exception(struct fsg_common *common)
 
 	case FSG_STATE_CONFIG_CHANGE:
 		rc = do_set_config(common, new_config);
-		if (common->ep0_req_tag != exception_req_tag)
-			break;
-		if (rc != 0) {			/* STALL on errors */
-			DBG(common, "ep0 set halt\n");
-			usb_ep_set_halt(common->ep0);
-		} else {			/* Complete the status stage */
-			ep0_queue(common);
-		}
 		break;
 
 	case FSG_STATE_EXIT:
