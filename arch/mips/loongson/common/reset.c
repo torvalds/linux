@@ -25,17 +25,26 @@ static void loongson_restart(char *command)
 	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
 }
 
-static void loongson_halt(void)
+static void loongson_poweroff(void)
 {
 	mach_prepare_shutdown();
 	unreachable();
+}
+
+static void loongson_halt(void)
+{
+	pr_notice("\n\n** You can safely turn off the power now **\n\n");
+	while (1) {
+		if (cpu_wait)
+			cpu_wait();
+	}
 }
 
 static int __init mips_reboot_setup(void)
 {
 	_machine_restart = loongson_restart;
 	_machine_halt = loongson_halt;
-	pm_power_off = loongson_halt;
+	pm_power_off = loongson_poweroff;
 
 	return 0;
 }
