@@ -8,7 +8,7 @@ perf-trace-perl - Process trace data with a Perl script
 SYNOPSIS
 --------
 [verse]
-'perf trace' [-s [lang]:script[.ext] ]
+'perf trace' [-s [Perl]:script[.pl] ]
 
 DESCRIPTION
 -----------
@@ -213,6 +213,7 @@ Various utility functions for use with perf trace:
   nsecs_nsecs($nsecs) - returns nsecs remainder given nsecs
   nsecs_str($nsecs) - returns printable string in the form secs.nsecs
   avg($total, $n) - returns average given a sum and a total number of values
+  syscall_name($id) - returns the syscall name for the specified syscall_nr
 
 SEE ALSO
 --------
