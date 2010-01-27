@@ -735,7 +735,7 @@ static struct clk omap_12m_fck = {
 	.ops		= &clkops_null,
 	.parent		= &omap_48m_fck,
 	.fixed_div	= 4,
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /* This virstual clock is the source for dpll4_m4x2_ck */
@@ -1588,7 +1588,7 @@ static struct clk ssi_sst_fck_3430es1 = {
 	.ops		= &clkops_null,
 	.parent		= &ssi_ssr_fck_3430es1,
 	.fixed_div	= 2,
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static struct clk ssi_sst_fck_3430es2 = {
@@ -1596,7 +1596,7 @@ static struct clk ssi_sst_fck_3430es2 = {
 	.ops		= &clkops_null,
 	.parent		= &ssi_ssr_fck_3430es2,
 	.fixed_div	= 2,
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 

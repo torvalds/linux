@@ -199,6 +199,17 @@ unsigned long followparent_recalc(struct clk *clk)
 	return clk->parent->rate;
 }
 
+/*
+ * Used for clocks that have the same value as the parent clock,
+ * divided by some factor
+ */
+unsigned long omap_fixed_divisor_recalc(struct clk *clk)
+{
+	WARN_ON(!clk->fixed_div);
+
+	return clk->parent->rate / clk->fixed_div;
+}
+
 void clk_reparent(struct clk *child, struct clk *parent)
 {
 	list_del_init(&child->sibling);

@@ -300,17 +300,6 @@ u32 omap2_get_dpll_rate(struct clk *clk)
 	return dpll_clk;
 }
 
-/*
- * Used for clocks that have the same value as the parent clock,
- * divided by some factor
- */
-unsigned long omap2_fixed_divisor_recalc(struct clk *clk)
-{
-	WARN_ON(!clk->fixed_div);
-
-	return clk->parent->rate / clk->fixed_div;
-}
-
 /**
  * omap2_clk_dflt_find_companion - find companion clock to @clk
  * @clk: struct clk * to find the companion clock of

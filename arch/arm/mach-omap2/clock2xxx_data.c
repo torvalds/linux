@@ -261,7 +261,7 @@ static struct clk func_12m_ck = {
 	.parent		= &func_48m_ck,
 	.fixed_div	= 4,
 	.clkdm_name	= "wkup_clkdm",
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /* Secure timer, only available in secure mode */
@@ -557,7 +557,7 @@ static struct clk iva1_mpu_int_ifck = {
 	.enable_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP2420_EN_IVA_MPU_SHIFT,
 	.fixed_div	= 2,
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /*
