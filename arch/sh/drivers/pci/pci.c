@@ -162,10 +162,8 @@ void pcibios_align_resource(void *data, struct resource *res,
 		/*
                  * Put everything into 0x00-0xff region modulo 0x400.
 		 */
-		if (start & 0x300) {
+		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
 	} else if (res->flags & IORESOURCE_MEM) {
 		if (start < PCIBIOS_MIN_MEM + chan->mem_resource->start)
 			start = PCIBIOS_MIN_MEM + chan->mem_resource->start;
