@@ -1449,7 +1449,8 @@ static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan,
 	void *buf = NULL;
 	size_t len;
 
-	pr_debug("%s: <- always=%d\n", __func__, always_scan);
+	pr_debug("%s: <- always=%d essid_len=%d\n", __func__,
+		 always_scan, essid_len);
 	if (mutex_lock_interruptible(&wl->scan_lock))
 		return -ERESTARTSYS;
 
@@ -1464,8 +1465,10 @@ static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan,
 	init_completion(&wl->scan_done);
 	/*
 	 * If we have already a bss list, don't try to get new
+	 * unless we are doing an ESSID scan
 	 */
-	if (!always_scan && wl->scan_stat == GELIC_WL_SCAN_STAT_GOT_LIST) {
+	if ((!essid_len && !always_scan)
+	    && wl->scan_stat == GELIC_WL_SCAN_STAT_GOT_LIST) {
 		pr_debug("%s: already has the list\n", __func__);
 		complete(&wl->scan_done);
 		goto out;
@@ -1566,7 +1569,7 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 		}
 	}
 
-	/* put them in the newtork_list */
+	/* put them in the network_list */
 	for (i = 0, scan_info_size = 0, scan_info = buf;
 	     scan_info_size < data_len;
 	     i++, scan_info_size += be16_to_cpu(scan_info->size),
@@ -1902,7 +1905,7 @@ static int gelic_wl_do_wpa_setup(struct gelic_wl_info *wl)
 	/* PSK type */
 	wpa->psk_type = cpu_to_be16(wl->psk_type);
 #ifdef DEBUG
-	pr_debug("%s: sec=%s psktype=%s\nn", __func__,
+	pr_debug("%s: sec=%s psktype=%s\n", __func__,
 		 wpasecstr(wpa->security),
 		 (wpa->psk_type == GELIC_EURUS_WPA_PSK_BIN) ?
 		 "BIN" : "passphrase");
@@ -1912,9 +1915,9 @@ static int gelic_wl_do_wpa_setup(struct gelic_wl_info *wl)
 	 * the debug log because this dumps your precious
 	 * passphrase/key.
 	 */
-	pr_debug("%s: psk=%s\n",
+	pr_debug("%s: psk=%s\n", __func__,
 		 (wpa->psk_type == GELIC_EURUS_WPA_PSK_BIN) ?
-		 (char *)"N/A" : (char *)wpa->psk);
+		 "N/A" : wpa->psk);
 #endif
 #endif
 	/* issue wpa setup */
