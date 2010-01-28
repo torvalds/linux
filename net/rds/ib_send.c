@@ -76,7 +76,7 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 	rdsdebug("ic %p send %p rm %p\n", ic, send, rm);
 
 	ib_dma_unmap_sg(ic->i_cm_id->device,
-			rm->data.m_sg, rm->data.m_nents,
+			rm->data.op_sg, rm->data.op_nents,
 			DMA_TO_DEVICE);
 
 	if (rm->rdma.op_active) {
@@ -513,20 +513,20 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 	/* map the message the first time we see it */
 	if (!ic->i_rm) {
-		if (rm->data.m_nents) {
-			rm->data.m_count = ib_dma_map_sg(dev,
-							    rm->data.m_sg,
-							    rm->data.m_nents,
-							    DMA_TO_DEVICE);
-			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.m_count);
-			if (rm->data.m_count == 0) {
+		if (rm->data.op_nents) {
+			rm->data.op_count = ib_dma_map_sg(dev,
+							  rm->data.op_sg,
+							  rm->data.op_nents,
+							  DMA_TO_DEVICE);
+			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.op_count);
+			if (rm->data.op_count == 0) {
 				rds_ib_stats_inc(s_ib_tx_sg_mapping_failure);
 				rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 				ret = -ENOMEM; /* XXX ? */
 				goto out;
 			}
 		} else {
-			rm->data.m_count = 0;
+			rm->data.op_count = 0;
 		}
 
 		rds_message_addref(rm);
@@ -583,7 +583,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &rm->data.m_sg[sg];
+	scat = &rm->data.op_sg[sg];
 	i = 0;
 	do {
 		unsigned int len = 0;
@@ -604,7 +604,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		/* Set up the data, if present */
 		if (i < work_alloc
-		    && scat != &rm->data.m_sg[rm->data.m_count]) {
+		    && scat != &rm->data.op_sg[rm->data.op_count]) {
 			len = min(RDS_FRAG_SIZE, ib_sg_dma_len(dev, scat) - off);
 			send->s_wr.num_sge = 2;
 
@@ -649,7 +649,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		i++;
 
 	} while (i < work_alloc
-		 && scat != &rm->data.m_sg[rm->data.m_count]);
+		 && scat != &rm->data.op_sg[rm->data.op_count]);
 
 	/* Account the RDS header in the number of bytes we sent, but just once.
 	 * The caller has no concept of fragmentation. */
@@ -657,7 +657,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		bytes_sent += sizeof(struct rds_header);
 
 	/* if we finished the message then send completion owns it */
-	if (scat == &rm->data.m_sg[rm->data.m_count]) {
+	if (scat == &rm->data.op_sg[rm->data.op_count]) {
 		prev->s_rm = ic->i_rm;
 		prev->s_wr.send_flags |= IB_SEND_SOLICITED;
 		ic->i_rm = NULL;

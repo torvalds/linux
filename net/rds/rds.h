@@ -339,9 +339,9 @@ struct rds_message {
 		} rdma;
 		struct rm_data_op {
 			unsigned int		op_active:1;
-			unsigned int		m_nents;
-			unsigned int		m_count;
-			struct scatterlist	*m_sg;
+			unsigned int		op_nents;
+			unsigned int		op_count;
+			struct scatterlist	*op_sg;
 		} data;
 	};
 	unsigned int		m_used_sgs;

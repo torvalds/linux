@@ -82,7 +82,7 @@ static void rds_iw_send_unmap_rm(struct rds_iw_connection *ic,
 	rdsdebug("ic %p send %p rm %p\n", ic, send, rm);
 
 	ib_dma_unmap_sg(ic->i_cm_id->device,
-		     rm->data.m_sg, rm->data.m_nents,
+		     rm->data.op_sg, rm->data.op_nents,
 		     DMA_TO_DEVICE);
 
 	if (rm->rdma.op_active) {
@@ -562,20 +562,20 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 				rm->m_inc.i_hdr.h_flags,
 				be32_to_cpu(rm->m_inc.i_hdr.h_len));
 		   */
-		if (rm->data.m_nents) {
-			rm->data.m_count = ib_dma_map_sg(dev,
-						    rm->data.m_sg,
-						    rm->data.m_nents,
-						    DMA_TO_DEVICE);
-			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.m_count);
-			if (rm->data.m_count == 0) {
+		if (rm->data.op_nents) {
+			rm->data.op_count = ib_dma_map_sg(dev,
+							  rm->data.op_sg,
+							  rm->data.op_nents,
+							  DMA_TO_DEVICE);
+			rdsdebug("ic %p mapping rm %p: %d\n", ic, rm, rm->data.op_count);
+			if (rm->data.op_count == 0) {
 				rds_iw_stats_inc(s_iw_tx_sg_mapping_failure);
 				rds_iw_ring_unalloc(&ic->i_send_ring, work_alloc);
 				ret = -ENOMEM; /* XXX ? */
 				goto out;
 			}
 		} else {
-			rm->data.m_count = 0;
+			rm->data.op_count = 0;
 		}
 
 		ic->i_unsignaled_wrs = rds_iw_sysctl_max_unsig_wrs;
@@ -622,7 +622,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &rm->data.m_sg[sg];
+	scat = &rm->data.op_sg[sg];
 	sent = 0;
 	i = 0;
 
@@ -651,7 +651,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 	}
 
 	/* if there's data reference it with a chain of work reqs */
-	for (; i < work_alloc && scat != &rm->data.m_sg[rm->data.m_count]; i++) {
+	for (; i < work_alloc && scat != &rm->data.op_sg[rm->data.op_count]; i++) {
 		unsigned int len;
 
 		send = &ic->i_sends[pos];
@@ -729,7 +729,7 @@ add_header:
 		sent += sizeof(struct rds_header);
 
 	/* if we finished the message then send completion owns it */
-	if (scat == &rm->data.m_sg[rm->data.m_count]) {
+	if (scat == &rm->data.op_sg[rm->data.op_count]) {
 		prev->s_rm = ic->i_rm;
 		prev->s_wr.send_flags |= IB_SEND_SIGNALED | IB_SEND_SOLICITED;
 		ic->i_rm = NULL;

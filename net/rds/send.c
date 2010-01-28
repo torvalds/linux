@@ -166,7 +166,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		rm = conn->c_xmit_rm;
 		if (rm &&
 		    conn->c_xmit_hdr_off == sizeof(struct rds_header) &&
-		    conn->c_xmit_sg == rm->data.m_nents) {
+		    conn->c_xmit_sg == rm->data.op_nents) {
 			conn->c_xmit_rm = NULL;
 			conn->c_xmit_sg = 0;
 			conn->c_xmit_hdr_off = 0;
@@ -296,7 +296,7 @@ int rds_send_xmit(struct rds_connection *conn)
 
 		if (rm->data.op_active
 		    && (conn->c_xmit_hdr_off < sizeof(struct rds_header) ||
-			conn->c_xmit_sg < rm->data.m_nents)) {
+			conn->c_xmit_sg < rm->data.op_nents)) {
 			ret = conn->c_trans->xmit(conn, rm,
 						  conn->c_xmit_hdr_off,
 						  conn->c_xmit_sg,
@@ -312,7 +312,7 @@ int rds_send_xmit(struct rds_connection *conn)
 				ret -= tmp;
 			}
 
-			sg = &rm->data.m_sg[conn->c_xmit_sg];
+			sg = &rm->data.op_sg[conn->c_xmit_sg];
 			while (ret) {
 				tmp = min_t(int, ret, sg->length -
 						      conn->c_xmit_data_off);
@@ -323,7 +323,7 @@ int rds_send_xmit(struct rds_connection *conn)
 					sg++;
 					conn->c_xmit_sg++;
 					BUG_ON(ret != 0 &&
-					       conn->c_xmit_sg == rm->data.m_nents);
+					       conn->c_xmit_sg == rm->data.op_nents);
 				}
 			}
 		}
@@ -959,7 +959,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		goto out;
 	}
 
-	rm->data.m_sg = rds_message_alloc_sgs(rm, ceil(payload_len, PAGE_SIZE));
+	rm->data.op_sg = rds_message_alloc_sgs(rm, ceil(payload_len, PAGE_SIZE));
 	/* XXX fix this to not allocate memory */
 	ret = rds_message_copy_from_user(rm, msg->msg_iov, payload_len);
 	if (ret)

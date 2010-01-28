@@ -62,12 +62,12 @@ static void rds_message_purge(struct rds_message *rm)
 	if (unlikely(test_bit(RDS_MSG_PAGEVEC, &rm->m_flags)))
 		return;
 
-	for (i = 0; i < rm->data.m_nents; i++) {
-		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->data.m_sg[i]));
+	for (i = 0; i < rm->data.op_nents; i++) {
+		rdsdebug("putting data page %p\n", (void *)sg_page(&rm->data.op_sg[i]));
 		/* XXX will have to put_page for page refs */
-		__free_page(sg_page(&rm->data.m_sg[i]));
+		__free_page(sg_page(&rm->data.op_sg[i]));
 	}
-	rm->data.m_nents = 0;
+	rm->data.op_nents = 0;
 
 	if (rm->rdma.op_active)
 		rds_rdma_free_op(&rm->rdma);
@@ -261,11 +261,11 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 
 	set_bit(RDS_MSG_PAGEVEC, &rm->m_flags);
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
-	rm->data.m_nents = ceil(total_len, PAGE_SIZE);
-	rm->data.m_sg = rds_message_alloc_sgs(rm, num_sgs);
+	rm->data.op_nents = ceil(total_len, PAGE_SIZE);
+	rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
 
-	for (i = 0; i < rm->data.m_nents; ++i) {
-		sg_set_page(&rm->data.m_sg[i],
+	for (i = 0; i < rm->data.op_nents; ++i) {
+		sg_set_page(&rm->data.op_sg[i],
 				virt_to_page(page_addrs[i]),
 				PAGE_SIZE, 0);
 	}
@@ -288,7 +288,7 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
 	/*
 	 * now allocate and copy in the data payload.
 	 */
-	sg = rm->data.m_sg;
+	sg = rm->data.op_sg;
 	iov = first_iov;
 	iov_off = 0;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
@@ -299,7 +299,7 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
 						       GFP_HIGHUSER);
 			if (ret)
 				goto out;
-			rm->data.m_nents++;
+			rm->data.op_nents++;
 			sg_off = 0;
 		}
 
@@ -354,7 +354,7 @@ int rds_message_inc_copy_to_user(struct rds_incoming *inc,
 
 	iov = first_iov;
 	iov_off = 0;
-	sg = rm->data.m_sg;
+	sg = rm->data.op_sg;
 	vec_off = 0;
 	copied = 0;
 
