@@ -383,6 +383,7 @@ struct radeon_ib_pool {
 	struct mutex		mutex;
 	struct radeon_bo	*robj;
 	struct list_head	scheduled_ibs;
+	struct list_head	bogus_ib;
 	struct radeon_ib	ibs[RADEON_IB_POOL_SIZE];
 	bool			ready;
 	DECLARE_BITMAP(alloc_bm, RADEON_IB_POOL_SIZE);
@@ -437,6 +438,7 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_test(struct radeon_device *rdev);
+extern void radeon_ib_bogus_add(struct radeon_device *rdev, struct radeon_ib *ib);
 /* Ring access between begin & end cannot sleep */
 void radeon_ring_free_size(struct radeon_device *rdev);
 int radeon_ring_lock(struct radeon_device *rdev, unsigned ndw);
