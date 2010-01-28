@@ -45,12 +45,12 @@
 #include <linux/fb.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_bus.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/rfkill.h>
+#include <acpi/acpi_drivers.h>
+#include <acpi/acpi_bus.h>
 
 #define ASUS_LAPTOP_VERSION	"0.42"
 
@@ -94,10 +94,10 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 /*
  * Some events we use, same for all Asus
  */
-#define ATKD_BR_UP	0x10	// (event & ~ATKD_BR_UP) = brightness level
-#define ATKD_BR_DOWN	0x20	// (event & ~ATKD_BR_DOWN) = britghness level
+#define ATKD_BR_UP	0x10	/* (event & ~ATKD_BR_UP) = brightness level */
+#define ATKD_BR_DOWN	0x20	/* (event & ~ATKD_BR_DOWN) = britghness level */
 #define ATKD_BR_MIN	ATKD_BR_UP
-#define ATKD_BR_MAX	(ATKD_BR_DOWN | 0xF)	// 0x2f
+#define ATKD_BR_MAX	(ATKD_BR_DOWN | 0xF)	/* 0x2f */
 #define ATKD_LCD_ON	0x33
 #define ATKD_LCD_OFF	0x34
 
@@ -113,10 +113,6 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
  */
 #define WL_RSTS		0x01	/* internal Wifi */
 #define BT_RSTS		0x02	/* internal Bluetooth */
-
-#define ASUS_HANDLE(object, paths...)					\
-	static acpi_handle  object##_handle = NULL;			\
-	static char *object##_paths[] = { paths }
 
 /* LED */
 #define METHOD_MLED		"MLED"
@@ -142,40 +138,44 @@ MODULE_PARM_DESC(bluetooth_status, "Set the wireless status on boot "
 #define METHOD_BRIGHTNESS_GET	"GPLV"
 
 /* Backlight */
-ASUS_HANDLE(lcd_switch, "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
-	    "\\_SB.PCI0.ISA.EC0._Q10",	/* A1x */
-	    "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
-	    "\\_SB.PCI0.PX40.EC0.Q10",	/* M1A */
-	    "\\_SB.PCI0.LPCB.EC0._Q10",	/* P30 */
-	    "\\_SB.PCI0.LPCB.EC0._Q0E", /* P30/P35 */
-	    "\\_SB.PCI0.PX40.Q10",	/* S1x */
-	    "\\Q10");		/* A2x, L2D, L3D, M2E */
+static acpi_handle lcd_switch_handle;
+static const char *lcd_switch_paths[] = {
+  "\\_SB.PCI0.SBRG.EC0._Q10",	/* All new models */
+  "\\_SB.PCI0.ISA.EC0._Q10",	/* A1x */
+  "\\_SB.PCI0.PX40.ECD0._Q10",	/* L3C */
+  "\\_SB.PCI0.PX40.EC0.Q10",	/* M1A */
+  "\\_SB.PCI0.LPCB.EC0._Q10",	/* P30 */
+  "\\_SB.PCI0.LPCB.EC0._Q0E", /* P30/P35 */
+  "\\_SB.PCI0.PX40.Q10",	/* S1x */
+  "\\Q10"};		/* A2x, L2D, L3D, M2E */
 
 /* Display */
 #define METHOD_SWITCH_DISPLAY	"SDSP"
-ASUS_HANDLE(display_get,
-	    /* A6B, A6K A6R A7D F3JM L4R M6R A3G M6A M6V VX-1 V6J V6V W3Z */
-	    "\\_SB.PCI0.P0P1.VGA.GETD",
-	    /* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V S5A M5A z33A W1Jc W2V G1 */
-	    "\\_SB.PCI0.P0P2.VGA.GETD",
-	    /* A6V A6Q */
-	    "\\_SB.PCI0.P0P3.VGA.GETD",
-	    /* A6T, A6M */
-	    "\\_SB.PCI0.P0PA.VGA.GETD",
-	    /* L3C */
-	    "\\_SB.PCI0.PCI1.VGAC.NMAP",
-	    /* Z96F */
-	    "\\_SB.PCI0.VGA.GETD",
-	    /* A2D */
-	    "\\ACTD",
-	    /* A4G Z71A W1N W5A W5F M2N M3N M5N M6N S1N S5N */
-	    "\\ADVG",
-	    /* P30 */
-	    "\\DNXT",
-	    /* A2H D1 L2D L3D L3H L2E L5D L5C M1A M2E L4L W3V */
-	    "\\INFB",
-	    /* A3F A6F A3N A3L M6N W3N W6A */
-	    "\\SSTE");
+
+static acpi_handle display_get_handle;
+static const char *display_get_paths[] = {
+  /* A6B, A6K A6R A7D F3JM L4R M6R A3G M6A M6V VX-1 V6J V6V W3Z */
+  "\\_SB.PCI0.P0P1.VGA.GETD",
+  /* A3E A4K, A4D A4L A6J A7J A8J Z71V M9V S5A M5A z33A W1Jc W2V G1 */
+  "\\_SB.PCI0.P0P2.VGA.GETD",
+  /* A6V A6Q */
+  "\\_SB.PCI0.P0P3.VGA.GETD",
+  /* A6T, A6M */
+  "\\_SB.PCI0.P0PA.VGA.GETD",
+  /* L3C */
+  "\\_SB.PCI0.PCI1.VGAC.NMAP",
+  /* Z96F */
+  "\\_SB.PCI0.VGA.GETD",
+  /* A2D */
+  "\\ACTD",
+  /* A4G Z71A W1N W5A W5F M2N M3N M5N M6N S1N S5N */
+  "\\ADVG",
+  /* P30 */
+  "\\DNXT",
+  /* A2H D1 L2D L3D L3H L2E L5D L5C M1A M2E L4L W3V */
+  "\\INFB",
+  /* A3F A6F A3N A3L M6N W3N W6A */
+  "\\SSTE"};
 
 #define METHOD_ALS_CONTROL	"ALSC" /* Z71A Z71V */
 #define METHOD_ALS_LEVEL	"ALSL" /* Z71A Z71V */
@@ -426,7 +426,7 @@ static void asus_kled_cdev_set(struct led_classdev *led_cdev,
 	struct asus_led *led = container_of(led_cdev, struct asus_led, led);
 	struct asus_laptop *asus = led->asus;
 
-        led->wk = value;
+	led->wk = value;
 	queue_work(asus->led_workqueue, &led->work);
 }
 
@@ -474,7 +474,7 @@ static int asus_led_register(struct asus_laptop *asus,
 	struct led_classdev *led_cdev = &led->led;
 
 	if (!method || acpi_check_handle(asus->handle, method, NULL))
-	    return 0; /* Led not present */
+		return 0; /* Led not present */
 
 	led->asus = asus;
 	led->method = method;
@@ -687,8 +687,8 @@ static ssize_t show_infos(struct device *dev,
 	acpi_status rv = AE_OK;
 
 	/*
-	 * We use the easy way, we don't care of off and count, so we don't set eof
-	 * to 1
+	 * We use the easy way, we don't care of off and count,
+	 * so we don't set eof to 1
 	 */
 
 	len += sprintf(page, ASUS_LAPTOP_NAME " " ASUS_LAPTOP_VERSION "\n");
@@ -904,7 +904,7 @@ static int read_display(struct asus_laptop *asus)
 			pr_warning("Error reading display status\n");
 	}
 
-	value &= 0x0F;		/* needed for some models, shouldn't hurt others */
+	value &= 0x0F; /* needed for some models, shouldn't hurt others */
 
 	return value;
 }
@@ -1041,7 +1041,7 @@ static ssize_t show_gps(struct device *dev,
 static ssize_t store_gps(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
- 	struct asus_laptop *asus = dev_get_drvdata(dev);
+	struct asus_laptop *asus = dev_get_drvdata(dev);
 	int rv, value;
 	int ret;
 
