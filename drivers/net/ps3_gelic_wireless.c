@@ -1389,113 +1389,6 @@ static int gelic_wl_get_mode(struct net_device *netdev,
 	return 0;
 }
 
-#ifdef CONFIG_GELIC_WIRELESS_OLD_PSK_INTERFACE
-/* SIOCIWFIRSTPRIV */
-static int hex2bin(u8 *str, u8 *bin, unsigned int len)
-{
-	unsigned int i;
-	static unsigned char *hex = "0123456789ABCDEF";
-	unsigned char *p, *q;
-	u8 tmp;
-
-	if (len != WPA_PSK_LEN * 2)
-		return -EINVAL;
-
-	for (i = 0; i < WPA_PSK_LEN * 2; i += 2) {
-		p = strchr(hex, toupper(str[i]));
-		q = strchr(hex, toupper(str[i + 1]));
-		if (!p || !q) {
-			pr_info("%s: unconvertible PSK digit=%d\n",
-				__func__, i);
-			return -EINVAL;
-		}
-		tmp = ((p - hex) << 4) + (q - hex);
-		*bin++ = tmp;
-	}
-	return 0;
-};
-
-static int gelic_wl_priv_set_psk(struct net_device *net_dev,
-				 struct iw_request_info *info,
-				 union iwreq_data *data, char *extra)
-{
-	struct gelic_wl_info *wl = port_wl(netdev_priv(net_dev));
-	unsigned int len;
-	unsigned long irqflag;
-	int ret = 0;
-
-	pr_debug("%s:<- len=%d\n", __func__, data->data.length);
-	len = data->data.length - 1;
-	if (len <= 2)
-		return -EINVAL;
-
-	spin_lock_irqsave(&wl->lock, irqflag);
-	if (extra[0] == '"' && extra[len - 1] == '"') {
-		pr_debug("%s: passphrase mode\n", __func__);
-		/* pass phrase */
-		if (GELIC_WL_EURUS_PSK_MAX_LEN < (len - 2)) {
-			pr_info("%s: passphrase too long\n", __func__);
-			ret = -E2BIG;
-			goto out;
-		}
-		memset(wl->psk, 0, sizeof(wl->psk));
-		wl->psk_len = len - 2;
-		memcpy(wl->psk, &(extra[1]), wl->psk_len);
-		wl->psk_type = GELIC_EURUS_WPA_PSK_PASSPHRASE;
-	} else {
-		ret = hex2bin(extra, wl->psk, len);
-		if (ret)
-			goto out;
-		wl->psk_len = WPA_PSK_LEN;
-		wl->psk_type = GELIC_EURUS_WPA_PSK_BIN;
-	}
-	set_bit(GELIC_WL_STAT_WPA_PSK_SET, &wl->stat);
-out:
-	spin_unlock_irqrestore(&wl->lock, irqflag);
-	pr_debug("%s:->\n", __func__);
-	return ret;
-}
-
-static int gelic_wl_priv_get_psk(struct net_device *net_dev,
-				 struct iw_request_info *info,
-				 union iwreq_data *data, char *extra)
-{
-	struct gelic_wl_info *wl = port_wl(netdev_priv(net_dev));
-	char *p;
-	unsigned long irqflag;
-	unsigned int i;
-
-	pr_debug("%s:<-\n", __func__);
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	spin_lock_irqsave(&wl->lock, irqflag);
-	p = extra;
-	if (test_bit(GELIC_WL_STAT_WPA_PSK_SET, &wl->stat)) {
-		if (wl->psk_type == GELIC_EURUS_WPA_PSK_BIN) {
-			for (i = 0; i < wl->psk_len; i++) {
-				sprintf(p, "%02xu", wl->psk[i]);
-				p += 2;
-			}
-			*p = '\0';
-			data->data.length = wl->psk_len * 2;
-		} else {
-			*p++ = '"';
-			memcpy(p, wl->psk, wl->psk_len);
-			p += wl->psk_len;
-			*p++ = '"';
-			*p = '\0';
-			data->data.length = wl->psk_len + 2;
-		}
-	} else
-		/* no psk set */
-		data->data.length = 0;
-	spin_unlock_irqrestore(&wl->lock, irqflag);
-	pr_debug("%s:-> %d\n", __func__, data->data.length);
-	return 0;
-}
-#endif
-
 /* SIOCGIWNICKN */
 static int gelic_wl_get_nick(struct net_device *net_dev,
 				  struct iw_request_info *info,
@@ -2406,40 +2299,10 @@ static const iw_handler gelic_wl_wext_handler[] =
 	IW_IOCTL(SIOCGIWNICKN)		= gelic_wl_get_nick,
 };
 
-#ifdef CONFIG_GELIC_WIRELESS_OLD_PSK_INTERFACE
-static struct iw_priv_args gelic_wl_private_args[] =
-{
-	{
-		.cmd = GELIC_WL_PRIV_SET_PSK,
-		.set_args = IW_PRIV_TYPE_CHAR |
-		(GELIC_WL_EURUS_PSK_MAX_LEN + 2),
-		.name = "set_psk"
-	},
-	{
-		.cmd = GELIC_WL_PRIV_GET_PSK,
-		.get_args = IW_PRIV_TYPE_CHAR |
-		(GELIC_WL_EURUS_PSK_MAX_LEN + 2),
-		.name = "get_psk"
-	}
-};
-
-static const iw_handler gelic_wl_private_handler[] =
-{
-	gelic_wl_priv_set_psk,
-	gelic_wl_priv_get_psk,
-};
-#endif
-
 static const struct iw_handler_def gelic_wl_wext_handler_def = {
 	.num_standard		= ARRAY_SIZE(gelic_wl_wext_handler),
 	.standard		= gelic_wl_wext_handler,
 	.get_wireless_stats	= gelic_wl_get_wireless_stats,
-#ifdef CONFIG_GELIC_WIRELESS_OLD_PSK_INTERFACE
-	.num_private		= ARRAY_SIZE(gelic_wl_private_handler),
-	.num_private_args	= ARRAY_SIZE(gelic_wl_private_args),
-	.private		= gelic_wl_private_handler,
-	.private_args		= gelic_wl_private_args,
-#endif
 };
 
 static struct net_device * __devinit gelic_wl_alloc(struct gelic_card *card)
