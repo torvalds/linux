@@ -11,10 +11,6 @@ targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
 
 OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/cache.o
 
-ifdef CONFIG_SH_STANDARD_BIOS
-OBJECTS += $(obj)/../../kernel/sh_bios.o
-endif
-
 #
 # IMAGE_OFFSET is the load offset of the compression loader
 #
