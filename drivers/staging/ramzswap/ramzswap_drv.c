@@ -593,6 +593,10 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 	u32 offset = rzs->table[index].offset;
 
 	if (unlikely(!page)) {
+		/*
+		 * No memory is allocated for zero filled pages.
+		 * Simply clear zero page flag.
+		 */
 		if (rzs_test_flag(rzs, index, RZS_ZERO)) {
 			rzs_clear_flag(rzs, index, RZS_ZERO);
 			rzs_stat_dec(&rzs->stats.pages_zero);
@@ -789,17 +793,8 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	 * is no longer referenced by any process. So, its now safe
 	 * to free the memory that was allocated for this page.
 	 */
-	if (rzs->table[index].page)
+	if (rzs->table[index].page || rzs_test_flag(rzs, index, RZS_ZERO))
 		ramzswap_free_page(rzs, index);
-
-	/*
-	 * No memory is allocated for zero filled pages.
-	 * Simply clear zero page flag.
-	 */
-	if (rzs_test_flag(rzs, index, RZS_ZERO)) {
-		rzs_stat_dec(&rzs->stats.pages_zero);
-		rzs_clear_flag(rzs, index, RZS_ZERO);
-	}
 
 	mutex_lock(&rzs->lock);
 
