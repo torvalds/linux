@@ -4499,7 +4499,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 		if (qdev->mpi_coredump == NULL) {
 			dev_err(&pdev->dev, "Coredump alloc failed.\n");
 			err = -ENOMEM;
-			goto err_out;
+			goto err_out2;
 		}
 		if (qlge_force_coredump)
 			set_bit(QL_FRC_COREDUMP, &qdev->flags);
