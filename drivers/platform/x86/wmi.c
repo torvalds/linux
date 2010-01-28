@@ -796,7 +796,7 @@ static __init acpi_status parse_wdg(acpi_handle handle)
  */
 static acpi_status
 acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
-		      u32 bits, acpi_integer * value,
+		      u32 bits, u64 *value,
 		      void *handler_context, void *region_context)
 {
 	int result = 0, i = 0;
@@ -813,7 +813,7 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 
 	if (function == ACPI_READ) {
 		result = ec_read(address, &temp);
-		(*value) |= ((acpi_integer)temp) << i;
+		(*value) |= ((u64)temp) << i;
 	} else {
 		temp = 0xff & ((*value) >> i);
 		result = ec_write(address, temp);

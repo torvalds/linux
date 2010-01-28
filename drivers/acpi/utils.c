@@ -107,12 +107,12 @@ acpi_extract_package(union acpi_object *package,
 		case ACPI_TYPE_INTEGER:
 			switch (format_string[i]) {
 			case 'N':
-				size_required += sizeof(acpi_integer);
-				tail_offset += sizeof(acpi_integer);
+				size_required += sizeof(u64);
+				tail_offset += sizeof(u64);
 				break;
 			case 'S':
 				size_required +=
-				    sizeof(char *) + sizeof(acpi_integer) +
+				    sizeof(char *) + sizeof(u64) +
 				    sizeof(char);
 				tail_offset += sizeof(char *);
 				break;
@@ -193,17 +193,17 @@ acpi_extract_package(union acpi_object *package,
 		case ACPI_TYPE_INTEGER:
 			switch (format_string[i]) {
 			case 'N':
-				*((acpi_integer *) head) =
+				*((u64 *) head) =
 				    element->integer.value;
-				head += sizeof(acpi_integer);
+				head += sizeof(u64);
 				break;
 			case 'S':
 				pointer = (u8 **) head;
 				*pointer = tail;
-				*((acpi_integer *) tail) =
+				*((u64 *) tail) =
 				    element->integer.value;
-				head += sizeof(acpi_integer *);
-				tail += sizeof(acpi_integer);
+				head += sizeof(u64 *);
+				tail += sizeof(u64);
 				/* NULL terminate string */
 				*tail = (char)0;
 				tail += sizeof(char);

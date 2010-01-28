@@ -71,17 +71,17 @@ static const struct acpi_device_id power_meter_ids[] = {
 MODULE_DEVICE_TABLE(acpi, power_meter_ids);
 
 struct acpi_power_meter_capabilities {
-	acpi_integer		flags;
-	acpi_integer		units;
-	acpi_integer		type;
-	acpi_integer		accuracy;
-	acpi_integer		sampling_time;
-	acpi_integer		min_avg_interval;
-	acpi_integer		max_avg_interval;
-	acpi_integer		hysteresis;
-	acpi_integer		configurable_cap;
-	acpi_integer		min_cap;
-	acpi_integer		max_cap;
+	u64		flags;
+	u64		units;
+	u64		type;
+	u64		accuracy;
+	u64		sampling_time;
+	u64		min_avg_interval;
+	u64		max_avg_interval;
+	u64		hysteresis;
+	u64		configurable_cap;
+	u64		min_cap;
+	u64		max_cap;
 };
 
 struct acpi_power_meter_resource {
@@ -93,9 +93,9 @@ struct acpi_power_meter_resource {
 	acpi_string		model_number;
 	acpi_string		serial_number;
 	acpi_string		oem_info;
-	acpi_integer		power;
-	acpi_integer		cap;
-	acpi_integer		avg_interval;
+	u64		power;
+	u64		cap;
+	u64		avg_interval;
 	int			sensors_valid;
 	unsigned long		sensors_last_updated;
 	struct sensor_device_attribute	sensors[NUM_SENSORS];
@@ -402,7 +402,7 @@ static ssize_t show_val(struct device *dev,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_power_meter_resource *resource = acpi_dev->driver_data;
-	acpi_integer val = 0;
+	u64 val = 0;
 
 	switch (attr->index) {
 	case 0:
