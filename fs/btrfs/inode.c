@@ -483,7 +483,8 @@ again:
 		nr_pages_ret = 0;
 
 		/* flag the file so we don't compress in the future */
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
+		if (!btrfs_test_opt(root, FORCE_COMPRESS))
+			BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
 	}
 	if (will_compress) {
 		*num_added += 1;
