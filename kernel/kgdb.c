@@ -583,6 +583,9 @@ static void kgdb_wait(struct pt_regs *regs)
 	smp_wmb();
 	atomic_set(&cpu_in_kgdb[cpu], 1);
 
+	/* Disable any cpu specific hw breakpoints */
+	kgdb_disable_hw_debug(regs);
+
 	/* Wait till primary CPU is done with debugging */
 	while (atomic_read(&passive_cpu_wait[cpu]))
 		cpu_relax();
