@@ -468,24 +468,10 @@ static int has_wrprotected_page(struct kvm *kvm,
 
 static int host_mapping_level(struct kvm *kvm, gfn_t gfn)
 {
-	unsigned long page_size = PAGE_SIZE;
-	struct vm_area_struct *vma;
-	unsigned long addr;
+	unsigned long page_size;
 	int i, ret = 0;
 
-	addr = gfn_to_hva(kvm, gfn);
-	if (kvm_is_error_hva(addr))
-		return PT_PAGE_TABLE_LEVEL;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	if (!vma)
-		goto out;
-
-	page_size = vma_kernel_pagesize(vma);
-
-out:
-	up_read(&current->mm->mmap_sem);
+	page_size = kvm_host_page_size(kvm, gfn);
 
 	for (i = PT_PAGE_TABLE_LEVEL;
 	     i < (PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES); ++i) {
