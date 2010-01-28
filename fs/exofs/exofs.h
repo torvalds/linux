@@ -128,7 +128,10 @@ struct exofs_io_state {
 	loff_t			offset;
 	unsigned long		length;
 	void			*kern_buff;
-	struct bio		*bio;
+
+	struct page		**pages;
+	unsigned		nr_pages;
+	unsigned		pgbase;
 
 	/* Attributes */
 	unsigned		in_attr_len;

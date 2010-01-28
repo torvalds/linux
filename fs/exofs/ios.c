@@ -283,10 +283,11 @@ static void _offset_dev_unit_off(struct exofs_io_state *ios, u64 file_offset,
 	*dev = stripe_mod / stripe_unit * ios->layout->mirrors_p1;
 }
 
-static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_bvec,
-		     struct exofs_per_dev_state *per_dev, int cur_len)
+static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
+		unsigned pgbase, struct exofs_per_dev_state *per_dev,
+		int cur_len)
 {
-	unsigned bv = *cur_bvec;
+	unsigned pg = *cur_pg;
 	struct request_queue *q =
 			osd_request_queue(exofs_ios_od(ios, per_dev->dev));
 
@@ -295,7 +296,7 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_bvec,
 	if (per_dev->bio == NULL) {
 		unsigned pages_in_stripe = ios->layout->group_width *
 					(ios->layout->stripe_unit / PAGE_SIZE);
-		unsigned bio_size = (ios->bio->bi_vcnt + pages_in_stripe) /
+		unsigned bio_size = (ios->nr_pages + pages_in_stripe) /
 						ios->layout->group_width;
 
 		per_dev->bio = bio_kmalloc(GFP_KERNEL, bio_size);
@@ -307,21 +308,22 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_bvec,
 	}
 
 	while (cur_len > 0) {
-		int added_len;
-		struct bio_vec *bvec = &ios->bio->bi_io_vec[bv];
+		unsigned pglen = min_t(unsigned, PAGE_SIZE - pgbase, cur_len);
+		unsigned added_len;
 
-		BUG_ON(ios->bio->bi_vcnt <= bv);
-		cur_len -= bvec->bv_len;
+		BUG_ON(ios->nr_pages <= pg);
+		cur_len -= pglen;
 
-		added_len = bio_add_pc_page(q, per_dev->bio, bvec->bv_page,
-					    bvec->bv_len, bvec->bv_offset);
-		if (unlikely(bvec->bv_len != added_len))
+		added_len = bio_add_pc_page(q, per_dev->bio, ios->pages[pg],
+					    pglen, pgbase);
+		if (unlikely(pglen != added_len))
 			return -ENOMEM;
-		++bv;
+		pgbase = 0;
+		++pg;
 	}
 	BUG_ON(cur_len);
 
-	*cur_bvec = bv;
+	*cur_pg = pg;
 	return 0;
 }
 
@@ -332,10 +334,10 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 	unsigned stripe_unit = ios->layout->stripe_unit;
 	unsigned comp = 0;
 	unsigned stripes = 0;
-	unsigned cur_bvec = 0;
-	int ret;
+	unsigned cur_pg = 0;
+	int ret = 0;
 
-	if (!ios->bio) {
+	if (!ios->pages) {
 		if (ios->kern_buff) {
 			struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
 			unsigned unit_off;
@@ -352,7 +354,7 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 
 	while (length) {
 		struct exofs_per_dev_state *per_dev = &ios->per_dev[comp];
-		unsigned cur_len;
+		unsigned cur_len, page_off;
 
 		if (!per_dev->length) {
 			unsigned unit_off;
@@ -362,11 +364,15 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 			stripes++;
 			cur_len = min_t(u64, stripe_unit - unit_off, length);
 			offset += cur_len;
+			page_off = unit_off & ~PAGE_MASK;
+			BUG_ON(page_off != ios->pgbase);
 		} else {
 			cur_len = min_t(u64, stripe_unit, length);
+			page_off = 0;
 		}
 
-		ret = _add_stripe_unit(ios, &cur_bvec, per_dev, cur_len);
+		ret = _add_stripe_unit(ios, &cur_pg, page_off , per_dev,
+				       cur_len);
 		if (unlikely(ret))
 			goto out;
 
@@ -448,7 +454,7 @@ static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
 		per_dev->or = or;
 		per_dev->offset = master_dev->offset;
 
-		if (ios->bio) {
+		if (ios->pages) {
 			struct bio *bio;
 
 			if (per_dev != master_dev) {
@@ -541,7 +547,7 @@ static int _sbi_read_mirror(struct exofs_io_state *ios, unsigned cur_comp)
 	}
 	per_dev->or = or;
 
-	if (ios->bio) {
+	if (ios->pages) {
 		osd_req_read(or, &ios->obj, per_dev->offset,
 				per_dev->bio, per_dev->length);
 		EXOFS_DBGMSG("read(0x%llx) offset=0x%llx length=0x%llx"

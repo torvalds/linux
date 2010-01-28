@@ -41,16 +41,18 @@
 
 enum { BIO_MAX_PAGES_KMALLOC =
 		(PAGE_SIZE - sizeof(struct bio)) / sizeof(struct bio_vec),
+	MAX_PAGES_KMALLOC =
+		PAGE_SIZE / sizeof(struct page *),
 };
 
 struct page_collect {
 	struct exofs_sb_info *sbi;
-	struct request_queue *req_q;
 	struct inode *inode;
 	unsigned expected_pages;
 	struct exofs_io_state *ios;
 
-	struct bio *bio;
+	struct page **pages;
+	unsigned alloc_pages;
 	unsigned nr_pages;
 	unsigned long length;
 	loff_t pg_first; /* keep 64bit also in 32-arches */
@@ -62,15 +64,12 @@ static void _pcol_init(struct page_collect *pcol, unsigned expected_pages,
 	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
 
 	pcol->sbi = sbi;
-	/* Create master bios on first Q, later on cloning, each clone will be
-	 * allocated on it's destination Q
-	 */
-	pcol->req_q = osd_request_queue(sbi->layout.s_ods[0]);
 	pcol->inode = inode;
 	pcol->expected_pages = expected_pages;
 
 	pcol->ios = NULL;
-	pcol->bio = NULL;
+	pcol->pages = NULL;
+	pcol->alloc_pages = 0;
 	pcol->nr_pages = 0;
 	pcol->length = 0;
 	pcol->pg_first = -1;
@@ -80,7 +79,8 @@ static void _pcol_reset(struct page_collect *pcol)
 {
 	pcol->expected_pages -= min(pcol->nr_pages, pcol->expected_pages);
 
-	pcol->bio = NULL;
+	pcol->pages = NULL;
+	pcol->alloc_pages = 0;
 	pcol->nr_pages = 0;
 	pcol->length = 0;
 	pcol->pg_first = -1;
@@ -90,13 +90,13 @@ static void _pcol_reset(struct page_collect *pcol)
 	 * it might not end here. don't be left with nothing
 	 */
 	if (!pcol->expected_pages)
-		pcol->expected_pages = BIO_MAX_PAGES_KMALLOC;
+		pcol->expected_pages = MAX_PAGES_KMALLOC;
 }
 
 static int pcol_try_alloc(struct page_collect *pcol)
 {
-	int pages = min_t(unsigned, pcol->expected_pages,
-			  BIO_MAX_PAGES_KMALLOC);
+	unsigned pages = min_t(unsigned, pcol->expected_pages,
+			  MAX_PAGES_KMALLOC);
 
 	if (!pcol->ios) { /* First time allocate io_state */
 		int ret = exofs_get_io_state(&pcol->sbi->layout, &pcol->ios);
@@ -105,23 +105,28 @@ static int pcol_try_alloc(struct page_collect *pcol)
 			return ret;
 	}
 
+	/* TODO: easily support bio chaining */
+	pages =  min_t(unsigned, pages,
+		       pcol->sbi->layout.group_width * BIO_MAX_PAGES_KMALLOC);
+
 	for (; pages; pages >>= 1) {
-		pcol->bio = bio_kmalloc(GFP_KERNEL, pages);
-		if (likely(pcol->bio))
+		pcol->pages = kmalloc(pages * sizeof(struct page *),
+				      GFP_KERNEL);
+		if (likely(pcol->pages)) {
+			pcol->alloc_pages = pages;
 			return 0;
+		}
 	}
 
-	EXOFS_ERR("Failed to bio_kmalloc expected_pages=%u\n",
+	EXOFS_ERR("Failed to kmalloc expected_pages=%u\n",
 		  pcol->expected_pages);
 	return -ENOMEM;
 }
 
 static void pcol_free(struct page_collect *pcol)
 {
-	if (pcol->bio) {
-		bio_put(pcol->bio);
-		pcol->bio = NULL;
-	}
+	kfree(pcol->pages);
+	pcol->pages = NULL;
 
 	if (pcol->ios) {
 		exofs_put_io_state(pcol->ios);
@@ -132,11 +137,10 @@ static void pcol_free(struct page_collect *pcol)
 static int pcol_add_page(struct page_collect *pcol, struct page *page,
 			 unsigned len)
 {
-	int added_len = bio_add_pc_page(pcol->req_q, pcol->bio, page, len, 0);
-	if (unlikely(len != added_len))
+	if (unlikely(pcol->nr_pages >= pcol->alloc_pages))
 		return -ENOMEM;
 
-	++pcol->nr_pages;
+	pcol->pages[pcol->nr_pages++] = page;
 	pcol->length += len;
 	return 0;
 }
@@ -181,7 +185,6 @@ static void update_write_page(struct page *page, int ret)
  */
 static int __readpages_done(struct page_collect *pcol, bool do_unlock)
 {
-	struct bio_vec *bvec;
 	int i;
 	u64 resid;
 	u64 good_bytes;
@@ -198,8 +201,8 @@ static int __readpages_done(struct page_collect *pcol, bool do_unlock)
 		     pcol->inode->i_ino, _LLU(good_bytes), pcol->length,
 		     pcol->nr_pages);
 
-	__bio_for_each_segment(bvec, pcol->bio, i, 0) {
-		struct page *page = bvec->bv_page;
+	for (i = 0; i < pcol->nr_pages; i++) {
+		struct page *page = pcol->pages[i];
 		struct inode *inode = page->mapping->host;
 		int page_stat;
 
@@ -218,7 +221,7 @@ static int __readpages_done(struct page_collect *pcol, bool do_unlock)
 		ret = update_read_page(page, page_stat);
 		if (do_unlock)
 			unlock_page(page);
-		length += bvec->bv_len;
+		length += PAGE_SIZE;
 	}
 
 	pcol_free(pcol);
@@ -238,11 +241,10 @@ static void readpages_done(struct exofs_io_state *ios, void *p)
 
 static void _unlock_pcol_pages(struct page_collect *pcol, int ret, int rw)
 {
-	struct bio_vec *bvec;
 	int i;
 
-	__bio_for_each_segment(bvec, pcol->bio, i, 0) {
-		struct page *page = bvec->bv_page;
+	for (i = 0; i < pcol->nr_pages; i++) {
+		struct page *page = pcol->pages[i];
 
 		if (rw == READ)
 			update_read_page(page, ret);
@@ -260,13 +262,14 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 	struct page_collect *pcol_copy = NULL;
 	int ret;
 
-	if (!pcol->bio)
+	if (!pcol->pages)
 		return 0;
 
 	/* see comment in _readpage() about sync reads */
 	WARN_ON(is_sync && (pcol->nr_pages != 1));
 
-	ios->bio = pcol->bio;
+	ios->pages = pcol->pages;
+	ios->nr_pages = pcol->nr_pages;
 	ios->length = pcol->length;
 	ios->offset = pcol->pg_first << PAGE_CACHE_SHIFT;
 
@@ -366,7 +369,7 @@ try_again:
 		goto try_again;
 	}
 
-	if (!pcol->bio) {
+	if (!pcol->pages) {
 		ret = pcol_try_alloc(pcol);
 		if (unlikely(ret))
 			goto fail;
@@ -448,7 +451,6 @@ static int exofs_readpage(struct file *file, struct page *page)
 static void writepages_done(struct exofs_io_state *ios, void *p)
 {
 	struct page_collect *pcol = p;
-	struct bio_vec *bvec;
 	int i;
 	u64 resid;
 	u64  good_bytes;
@@ -467,8 +469,8 @@ static void writepages_done(struct exofs_io_state *ios, void *p)
 		     pcol->inode->i_ino, _LLU(good_bytes), pcol->length,
 		     pcol->nr_pages);
 
-	__bio_for_each_segment(bvec, pcol->bio, i, 0) {
-		struct page *page = bvec->bv_page;
+	for (i = 0; i < pcol->nr_pages; i++) {
+		struct page *page = pcol->pages[i];
 		struct inode *inode = page->mapping->host;
 		int page_stat;
 
@@ -485,7 +487,7 @@ static void writepages_done(struct exofs_io_state *ios, void *p)
 		EXOFS_DBGMSG2("    writepages_done(0x%lx, 0x%lx) status=%d\n",
 			     inode->i_ino, page->index, page_stat);
 
-		length += bvec->bv_len;
+		length += PAGE_SIZE;
 	}
 
 	pcol_free(pcol);
@@ -500,7 +502,7 @@ static int write_exec(struct page_collect *pcol)
 	struct page_collect *pcol_copy = NULL;
 	int ret;
 
-	if (!pcol->bio)
+	if (!pcol->pages)
 		return 0;
 
 	pcol_copy = kmalloc(sizeof(*pcol_copy), GFP_KERNEL);
@@ -512,9 +514,8 @@ static int write_exec(struct page_collect *pcol)
 
 	*pcol_copy = *pcol;
 
-	pcol_copy->bio->bi_rw |= (1 << BIO_RW); /* FIXME: bio_set_dir() */
-
-	ios->bio = pcol_copy->bio;
+	ios->pages = pcol_copy->pages;
+	ios->nr_pages = pcol_copy->nr_pages;
 	ios->offset = pcol_copy->pg_first << PAGE_CACHE_SHIFT;
 	ios->length = pcol_copy->length;
 	ios->done = writepages_done;
@@ -605,7 +606,7 @@ try_again:
 		goto try_again;
 	}
 
-	if (!pcol->bio) {
+	if (!pcol->pages) {
 		ret = pcol_try_alloc(pcol);
 		if (unlikely(ret))
 			goto fail;
