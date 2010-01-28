@@ -15,20 +15,6 @@ config OPROFILE
 
 	  If unsure, say N.
 
-config OPROFILE_IBS
-	bool "OProfile AMD IBS support (EXPERIMENTAL)"
-	default n
-	depends on OPROFILE && SMP && X86
-	help
-          Instruction-Based Sampling (IBS) is a new profiling
-          technique that provides rich, precise program performance
-          information. IBS is introduced by AMD Family10h processors
-          (AMD Opteron Quad-Core processor "Barcelona") to overcome
-          the limitations of conventional performance counter
-          sampling.
-
-	  If unsure, say N.
-
 config OPROFILE_EVENT_MULTIPLEX
 	bool "OProfile multiplexing support (EXPERIMENTAL)"
 	default n
