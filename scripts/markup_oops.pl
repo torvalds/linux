@@ -204,7 +204,7 @@ if ($module ne "") {
 
 my $counter = 0;
 my $state   = 0;
-my $center  = 0;
+my $center  = -1;
 my @lines;
 my @reglines;
 
@@ -236,7 +236,8 @@ while (<FILE>) {
 				$state = 1;
 			}
 		}
-	} else {
+	}
+	if ($state == 1) {
 		if ($line =~ /^([a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]+)\:/) {
 			my $val = $1;
 			if (!InRange($val, $target)) {
@@ -259,7 +260,7 @@ if ($counter == 0) {
 	exit;
 }
 
-if ($center == 0) {
+if ($center == -1) {
 	print "No matching code found \n";
 	exit;
 }
