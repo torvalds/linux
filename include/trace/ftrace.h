@@ -850,22 +850,12 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 			    proto)					\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	extern int perf_swevent_get_recursion_context(void);		\
-	extern void perf_swevent_put_recursion_context(int rctx);	\
-	extern void perf_tp_event(int, u64, u64, void *, int);		\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
-	struct trace_entry *ent;					\
 	int __entry_size;						\
 	int __data_size;						\
-	char *trace_buf;						\
-	char *raw_data;							\
-	int __cpu;							\
 	int rctx;							\
-	int pc;								\
-									\
-	pc = preempt_count();						\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 	__entry_size = ALIGN(__data_size + sizeof(*entry) + sizeof(u32),\
@@ -875,42 +865,16 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 	if (WARN_ONCE(__entry_size > FTRACE_MAX_PROFILE_SIZE,		\
 		      "profile buffer not large enough"))		\
 		return;							\
-									\
-	local_irq_save(irq_flags);					\
-									\
-	rctx = perf_swevent_get_recursion_context();			\
-	if (rctx < 0)							\
-		goto end_recursion;					\
-									\
-	__cpu = smp_processor_id();					\
-									\
-	if (in_nmi())							\
-		trace_buf = rcu_dereference(perf_trace_buf_nmi);	\
-	else								\
-		trace_buf = rcu_dereference(perf_trace_buf);		\
-									\
-	if (!trace_buf)							\
-		goto end;						\
-									\
-	raw_data = per_cpu_ptr(trace_buf, __cpu);			\
-									\
-	*(u64 *)(&raw_data[__entry_size - sizeof(u64)]) = 0ULL;		\
-	entry = (struct ftrace_raw_##call *)raw_data;			\
-	ent = &entry->ent;						\
-	tracing_generic_entry_update(ent, irq_flags, pc);		\
-	ent->type = event_call->id;					\
-									\
+	entry = (struct ftrace_raw_##call *)ftrace_perf_buf_prepare(	\
+		__entry_size, event_call->id, &rctx, &irq_flags);	\
+	if (!entry)							\
+		return;							\
 	tstruct								\
 									\
 	{ assign; }							\
 									\
-	perf_tp_event(event_call->id, __addr, __count, entry,		\
-			     __entry_size);				\
-									\
-end:									\
-	perf_swevent_put_recursion_context(rctx);			\
-end_recursion:								\
-	local_irq_restore(irq_flags);					\
+	ftrace_perf_buf_submit(entry, __entry_size, rctx, __addr,	\
+			       __count, irq_flags);			\
 }
 
 #undef DEFINE_EVENT
