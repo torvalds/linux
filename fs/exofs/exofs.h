@@ -55,12 +55,18 @@
 /* u64 has problems with printk this will cast it to unsigned long long */
 #define _LLU(x) (unsigned long long)(x)
 
+struct exofs_layout {
+	osd_id		s_pid;			/* partition ID of file system*/
+
+	unsigned	s_numdevs;		/* Num of devices in array    */
+	struct osd_dev	*s_ods[0];		/* Variable length            */
+};
+
 /*
  * our extension to the in-memory superblock
  */
 struct exofs_sb_info {
 	struct exofs_fscb s_fscb;		/* Written often, pre-allocate*/
-	osd_id		s_pid;			/* partition ID of file system*/
 	int		s_timeout;		/* timeout for OSD operations */
 	uint64_t	s_nextid;		/* highest object ID used     */
 	uint32_t	s_numfiles;		/* number of files on fs      */
@@ -69,9 +75,14 @@ struct exofs_sb_info {
 	atomic_t	s_curr_pending;		/* number of pending commands */
 	uint8_t		s_cred[OSD_CAP_LEN];	/* credential for the fscb    */
 
-	struct pnfs_osd_data_map data_map;	/* Default raid to use        */
-	unsigned	s_numdevs;		/* Num of devices in array    */
-	struct osd_dev	*s_ods[1];		/* Variable length, minimum 1 */
+	struct pnfs_osd_data_map data_map;	/* Default raid to use
+						 * FIXME: Needed ?
+						 */
+/*	struct exofs_layout	dir_layout;*/	/* Default dir layout */
+	struct exofs_layout	layout;		/* Default files layout,
+						 * contains the variable osd_dev
+						 * array. Keep last */
+	struct osd_dev	*_min_one_dev[1];	/* Place holder for one dev   */
 };
 
 /*
@@ -101,7 +112,7 @@ struct exofs_io_state {
 	void			*private;
 	exofs_io_done_fn	done;
 
-	struct exofs_sb_info	*sbi;
+	struct exofs_layout	*layout;
 	struct osd_obj_id	obj;
 	u8			*cred;
 
@@ -189,7 +200,8 @@ void exofs_make_credential(u8 cred_a[OSD_CAP_LEN],
 int exofs_read_kern(struct osd_dev *od, u8 *cred, struct osd_obj_id *obj,
 		    u64 offset, void *p, unsigned length);
 
-int  exofs_get_io_state(struct exofs_sb_info *sbi, struct exofs_io_state** ios);
+int  exofs_get_io_state(struct exofs_layout *layout,
+			struct exofs_io_state **ios);
 void exofs_put_io_state(struct exofs_io_state *ios);
 
 int exofs_check_io(struct exofs_io_state *ios, u64 *resid);

@@ -67,23 +67,24 @@ out:
 	return ret;
 }
 
-int exofs_get_io_state(struct exofs_sb_info *sbi, struct exofs_io_state** pios)
+int exofs_get_io_state(struct exofs_layout *layout,
+		       struct exofs_io_state **pios)
 {
 	struct exofs_io_state *ios;
 
 	/*TODO: Maybe use kmem_cach per sbi of size
-	 * exofs_io_state_size(sbi->s_numdevs)
+	 * exofs_io_state_size(layout->s_numdevs)
 	 */
-	ios = kzalloc(exofs_io_state_size(sbi->s_numdevs), GFP_KERNEL);
+	ios = kzalloc(exofs_io_state_size(layout->s_numdevs), GFP_KERNEL);
 	if (unlikely(!ios)) {
 		EXOFS_DBGMSG("Faild kzalloc bytes=%d\n",
-			     exofs_io_state_size(sbi->s_numdevs));
+			     exofs_io_state_size(layout->s_numdevs));
 		*pios = NULL;
 		return -ENOMEM;
 	}
 
-	ios->sbi = sbi;
-	ios->obj.partition = sbi->s_pid;
+	ios->layout = layout;
+	ios->obj.partition = layout->s_pid;
 	*pios = ios;
 	return 0;
 }
@@ -238,10 +239,10 @@ int exofs_sbi_create(struct exofs_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->sbi->s_numdevs; i++) {
+	for (i = 0; i < ios->layout->s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(ios->sbi->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(ios->layout->s_ods[i], GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -262,10 +263,10 @@ int exofs_sbi_remove(struct exofs_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->sbi->s_numdevs; i++) {
+	for (i = 0; i < ios->layout->s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(ios->sbi->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(ios->layout->s_ods[i], GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -286,10 +287,10 @@ int exofs_sbi_write(struct exofs_io_state *ios)
 {
 	int i, ret;
 
-	for (i = 0; i < ios->sbi->s_numdevs; i++) {
+	for (i = 0; i < ios->layout->s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(ios->sbi->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(ios->layout->s_ods[i], GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -361,8 +362,9 @@ int exofs_sbi_read(struct exofs_io_state *ios)
 		struct osd_request *or;
 		unsigned first_dev = (unsigned)ios->obj.id;
 
-		first_dev %= ios->sbi->s_numdevs;
-		or = osd_start_request(ios->sbi->s_ods[first_dev], GFP_KERNEL);
+		first_dev %= ios->layout->s_numdevs;
+		or = osd_start_request(ios->layout->s_ods[first_dev],
+				       GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -438,7 +440,7 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 	__be64 newsize;
 	int i, ret;
 
-	if (exofs_get_io_state(sbi, &ios))
+	if (exofs_get_io_state(&sbi->layout, &ios))
 		return -ENOMEM;
 
 	ios->obj.id = exofs_oi_objno(oi);
@@ -448,10 +450,10 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 	attr = g_attr_logical_length;
 	attr.val_ptr = &newsize;
 
-	for (i = 0; i < sbi->s_numdevs; i++) {
+	for (i = 0; i < sbi->layout.s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(sbi->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(sbi->layout.s_ods[i], GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;

@@ -65,7 +65,7 @@ static void _pcol_init(struct page_collect *pcol, unsigned expected_pages,
 	/* Create master bios on first Q, later on cloning, each clone will be
 	 * allocated on it's destination Q
 	 */
-	pcol->req_q = osd_request_queue(sbi->s_ods[0]);
+	pcol->req_q = osd_request_queue(sbi->layout.s_ods[0]);
 	pcol->inode = inode;
 	pcol->expected_pages = expected_pages;
 
@@ -99,7 +99,7 @@ static int pcol_try_alloc(struct page_collect *pcol)
 			  BIO_MAX_PAGES_KMALLOC);
 
 	if (!pcol->ios) { /* First time allocate io_state */
-		int ret = exofs_get_io_state(pcol->sbi, &pcol->ios);
+		int ret = exofs_get_io_state(&pcol->sbi->layout, &pcol->ios);
 
 		if (ret)
 			return ret;
@@ -872,7 +872,7 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 	int ret;
 
 	*obj_size = ~0;
-	ret = exofs_get_io_state(sbi, &ios);
+	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
 		return ret;
@@ -1043,7 +1043,7 @@ static void create_done(struct exofs_io_state *ios, void *p)
 
 	if (unlikely(ret)) {
 		EXOFS_ERR("object=0x%llx creation faild in pid=0x%llx",
-			  _LLU(exofs_oi_objno(oi)), _LLU(sbi->s_pid));
+			  _LLU(exofs_oi_objno(oi)), _LLU(sbi->layout.s_pid));
 		/*TODO: When FS is corrupted creation can fail, object already
 		 * exist. Get rid of this asynchronous creation, if exist
 		 * increment the obj counter and try the next object. Until we
@@ -1104,7 +1104,7 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 
 	mark_inode_dirty(inode);
 
-	ret = exofs_get_io_state(sbi, &ios);
+	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("exofs_new_inode: exofs_get_io_state failed\n");
 		return ERR_PTR(ret);
@@ -1202,7 +1202,7 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 	} else
 		memcpy(fcb->i_data, oi->i_data, sizeof(fcb->i_data));
 
-	ret = exofs_get_io_state(sbi, &ios);
+	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
 		goto free_args;
@@ -1286,7 +1286,7 @@ void exofs_delete_inode(struct inode *inode)
 
 	clear_inode(inode);
 
-	ret = exofs_get_io_state(sbi, &ios);
+	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: exofs_get_io_state failed\n", __func__);
 		return;
