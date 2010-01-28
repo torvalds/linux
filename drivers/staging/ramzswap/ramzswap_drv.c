@@ -1335,6 +1335,10 @@ static int create_device(struct ramzswap *rzs, int device_id)
 	 * or set equal to backing swap device (if provided)
 	 */
 	set_capacity(rzs->disk, 0);
+
+	blk_queue_physical_block_size(rzs->disk->queue, PAGE_SIZE);
+	blk_queue_logical_block_size(rzs->disk->queue, PAGE_SIZE);
+
 	add_disk(rzs->disk);
 
 	rzs->init_done = 0;
