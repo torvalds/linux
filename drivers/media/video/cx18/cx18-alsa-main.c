@@ -94,7 +94,7 @@ static void snd_cx18_card_private_free(struct snd_card *sc)
 	sc->private_free = NULL;
 }
 
-static int __init snd_cx18_card_create(struct v4l2_device *v4l2_dev,
+static int snd_cx18_card_create(struct v4l2_device *v4l2_dev,
 				       struct snd_card *sc,
 				       struct snd_cx18_card **cxsc)
 {
@@ -111,7 +111,7 @@ static int __init snd_cx18_card_create(struct v4l2_device *v4l2_dev,
 	return 0;
 }
 
-static int __init snd_cx18_card_set_names(struct snd_cx18_card *cxsc)
+static int snd_cx18_card_set_names(struct snd_cx18_card *cxsc)
 {
 	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
 	struct snd_card *sc = cxsc->sc;
@@ -131,7 +131,7 @@ static int __init snd_cx18_card_set_names(struct snd_cx18_card *cxsc)
 	return 0;
 }
 
-static int __init snd_cx18_init(struct v4l2_device *v4l2_dev)
+static int snd_cx18_init(struct v4l2_device *v4l2_dev)
 {
 	struct cx18 *cx = to_cx18(v4l2_dev);
 	struct snd_card *sc = NULL;
@@ -242,7 +242,7 @@ static int __init cx18_alsa_init(void)
 	return 0;
 }
 
-static void snd_cx18_exit(struct snd_cx18_card *cxsc)
+static void __exit snd_cx18_exit(struct snd_cx18_card *cxsc)
 {
 	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
 
@@ -252,7 +252,7 @@ static void snd_cx18_exit(struct snd_cx18_card *cxsc)
 	cx->alsa = NULL;
 }
 
-static int cx18_alsa_exit_callback(struct device *dev, void *data)
+static int __exit cx18_alsa_exit_callback(struct device *dev, void *data)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
 	struct snd_cx18_card *cxsc;
@@ -274,7 +274,7 @@ static int cx18_alsa_exit_callback(struct device *dev, void *data)
 	return 0;
 }
 
-static void cx18_alsa_exit(void)
+static void __exit cx18_alsa_exit(void)
 {
 	struct device_driver *drv;
 	int ret;
