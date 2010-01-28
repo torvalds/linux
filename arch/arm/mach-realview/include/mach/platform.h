@@ -140,7 +140,7 @@
  *     SYS_CLD, SYS_BOOTCS
  */
 #define REALVIEW_SYS_LOCK_LOCKED    (1 << 16)
-#define REALVIEW_SYS_LOCKVAL_MASK	0xA05F	       /* Enable write access */
+#define REALVIEW_SYS_LOCK_VAL	0xA05F	       /* Enable write access */
 
 /*
  * REALVIEW_SYS_FLASH

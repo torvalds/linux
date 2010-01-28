@@ -386,6 +386,8 @@ u8 acpi_ut_valid_internal_object(void *object);
 
 union acpi_operand_object *acpi_ut_create_package_object(u32 count);
 
+union acpi_operand_object *acpi_ut_create_integer_object(u64 value);
+
 union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size);
 
 union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size);
@@ -480,6 +482,11 @@ acpi_ut_predefined_warning(const char *module_name,
 			   u32 line_number,
 			   char *pathname,
 			   u8 node_flags, const char *format, ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+acpi_ut_predefined_info(const char *module_name,
+			u32 line_number,
+			char *pathname, u8 node_flags, const char *format, ...);
 
 /* Values for Base above (16=Hex, 10=Decimal) */
 

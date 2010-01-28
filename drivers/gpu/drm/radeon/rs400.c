@@ -352,10 +352,11 @@ static int rs400_mc_init(struct radeon_device *rdev)
 	u32 tmp;
 
 	/* Setup GPU memory space */
-	tmp = G_00015C_MC_FB_START(RREG32(R_00015C_NB_TOM));
+	tmp = RREG32(R_00015C_NB_TOM);
 	rdev->mc.vram_location = G_00015C_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_combios_sideport_present(rdev);
 	if (r)
 		return r;
 	return 0;
@@ -387,14 +388,15 @@ static int rs400_startup(struct radeon_device *rdev)
 	r300_clock_startup(rdev);
 	/* Initialize GPU configuration (# pipes, ...) */
 	rs400_gpu_init(rdev);
+	r100_enable_bm(rdev);
 	/* Initialize GART (initialize after TTM so we can allocate
 	 * memory through TTM but finalize after TTM) */
 	r = rs400_gart_enable(rdev);
 	if (r)
 		return r;
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -430,6 +432,8 @@ int rs400_resume(struct radeon_device *rdev)
 	radeon_combios_asic_init(rdev->ddev);
 	/* Resume clock after posting */
 	r300_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return rs400_startup(rdev);
 }
 
@@ -452,7 +456,7 @@ void rs400_fini(struct radeon_device *rdev)
 	rs400_gart_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
@@ -490,12 +494,13 @@ int rs400_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		radeon_combios_asic_init(rdev->ddev);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
+
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
+	/* Initialize power management */
+	radeon_pm_init(rdev);
 	/* Get vram informations */
 	rs400_vram_info(rdev);
 	/* Initialize memory controller (also test AGP) */
@@ -510,7 +515,7 @@ int rs400_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
 	r = rs400_gart_init(rdev);

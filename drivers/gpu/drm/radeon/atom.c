@@ -58,6 +58,7 @@ typedef struct {
 } atom_exec_context;
 
 int atom_debug = 0;
+static void atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params);
 void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params);
 
 static uint32_t atom_arg_mask[8] =
@@ -107,6 +108,7 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
+			(void)ctx->card->reg_read(ctx->card, CU16(base + 1));
 			ctx->card->reg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;
@@ -262,10 +264,10 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_FB:
 		idx = U8(*ptr);
 		(*ptr)++;
+		val = gctx->scratch[((gctx->fb_base + idx) / 4)];
 		if (print)
 			DEBUG("FB[0x%02X]", idx);
-		printk(KERN_INFO "FB access is not implemented.\n");
-		return 0;
+		break;
 	case ATOM_ARG_IMM:
 		switch (align) {
 		case ATOM_SRC_DWORD:
@@ -487,9 +489,9 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 	case ATOM_ARG_FB:
 		idx = U8(*ptr);
 		(*ptr)++;
+		gctx->scratch[((gctx->fb_base + idx) / 4)] = val;
 		DEBUG("FB[0x%02X]", idx);
-		printk(KERN_INFO "FB access is not implemented.\n");
-		return;
+		break;
 	case ATOM_ARG_PLL:
 		idx = U8(*ptr);
 		(*ptr)++;
@@ -572,7 +574,7 @@ static void atom_op_calltable(atom_exec_context *ctx, int *ptr, int arg)
 	else
 		SDEBUG("   table: %d\n", idx);
 	if (U16(ctx->ctx->cmd_table + 4 + 2 * idx))
-		atom_execute_table(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
+		atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
 }
 
 static void atom_op_clear(atom_exec_context *ctx, int *ptr, int arg)
@@ -1039,7 +1041,7 @@ static struct {
 	atom_op_shr, ATOM_ARG_MC}, {
 atom_op_debug, 0},};
 
-void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
+static void atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
 {
 	int base = CU16(ctx->cmd_table + 4 + 2 * index);
 	int len, ws, ps, ptr;
@@ -1089,6 +1091,13 @@ void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
 
 	if (ws)
 		kfree(ectx.ws);
+}
+
+void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
+{
+	mutex_lock(&ctx->mutex);
+	atom_execute_table_locked(ctx, index, params);
+	mutex_unlock(&ctx->mutex);
 }
 
 static int atom_iio_len[] = { 1, 2, 3, 3, 3, 3, 4, 4, 4, 3 };
@@ -1212,4 +1221,29 @@ void atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t * frev,
 	if (crev)
 		*crev = CU8(idx + 3);
 	return;
+}
+
+int atom_allocate_fb_scratch(struct atom_context *ctx)
+{
+	int index = GetIndexIntoMasterTable(DATA, VRAM_UsageByFirmware);
+	uint16_t data_offset;
+	int usage_bytes;
+	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
+
+	atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset);
+
+	firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
+
+	DRM_DEBUG("atom firmware requested %08x %dkb\n",
+		  firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware,
+		  firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
+
+	usage_bytes = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb * 1024;
+	if (usage_bytes == 0)
+		usage_bytes = 20 * 1024;
+	/* allocate some scratch memory */
+	ctx->scratch = kzalloc(usage_bytes, GFP_KERNEL);
+	if (!ctx->scratch)
+		return -ENOMEM;
+	return 0;
 }

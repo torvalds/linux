@@ -154,7 +154,7 @@ static void del_nbp(struct net_bridge_port *p)
 }
 
 /* called with RTNL */
-static void del_br(struct net_bridge *br)
+static void del_br(struct net_bridge *br, struct list_head *head)
 {
 	struct net_bridge_port *p, *n;
 
@@ -165,7 +165,7 @@ static void del_br(struct net_bridge *br)
 	del_timer_sync(&br->gc_timer);
 
 	br_sysfs_delbr(br->dev);
-	unregister_netdevice(br->dev);
+	unregister_netdevice_queue(br->dev, head);
 }
 
 static struct net_device *new_bridge_dev(struct net *net, const char *name)
@@ -323,7 +323,7 @@ int br_del_bridge(struct net *net, const char *name)
 	}
 
 	else
-		del_br(netdev_priv(dev));
+		del_br(netdev_priv(dev), NULL);
 
 	rtnl_unlock();
 	return ret;
@@ -389,6 +389,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	/* Device is already being bridged */
 	if (dev->br_port != NULL)
 		return -EBUSY;
+
+	/* No bridging devices that dislike that (e.g. wireless) */
+	if (dev->priv_flags & IFF_DONT_BRIDGE)
+		return -EOPNOTSUPP;
 
 	p = new_nbp(br, dev);
 	if (IS_ERR(p))
@@ -466,15 +470,14 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 void br_net_exit(struct net *net)
 {
 	struct net_device *dev;
+	LIST_HEAD(list);
 
 	rtnl_lock();
-restart:
-	for_each_netdev(net, dev) {
-		if (dev->priv_flags & IFF_EBRIDGE) {
-			del_br(netdev_priv(dev));
-			goto restart;
-		}
-	}
+	for_each_netdev(net, dev)
+		if (dev->priv_flags & IFF_EBRIDGE)
+			del_br(netdev_priv(dev), &list);
+
+	unregister_netdevice_many(&list);
 	rtnl_unlock();
 
 }

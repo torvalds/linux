@@ -72,7 +72,7 @@ cabriolet_end_irq(unsigned int irq)
 }
 
 static struct irq_chip cabriolet_irq_type = {
-	.typename	= "CABRIOLET",
+	.name		= "CABRIOLET",
 	.startup	= cabriolet_startup_irq,
 	.shutdown	= cabriolet_disable_irq,
 	.enable		= cabriolet_enable_irq,

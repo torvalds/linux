@@ -65,48 +65,53 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
 	struct tcf_common *pc;
-	struct net_device *dev = NULL;
-	int ret = 0, err;
-	int ok_push = 0;
+	struct net_device *dev;
+	int ret, ok_push = 0;
 
 	if (nla == NULL)
 		return -EINVAL;
-
-	err = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy);
-	if (err < 0)
-		return err;
-
+	ret = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy);
+	if (ret < 0)
+		return ret;
 	if (tb[TCA_MIRRED_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
-
+	switch (parm->eaction) {
+	case TCA_EGRESS_MIRROR:
+	case TCA_EGRESS_REDIR:
+		break;
+	default:
+		return -EINVAL;
+	}
 	if (parm->ifindex) {
 		dev = __dev_get_by_index(&init_net, parm->ifindex);
 		if (dev == NULL)
 			return -ENODEV;
 		switch (dev->type) {
-			case ARPHRD_TUNNEL:
-			case ARPHRD_TUNNEL6:
-			case ARPHRD_SIT:
-			case ARPHRD_IPGRE:
-			case ARPHRD_VOID:
-			case ARPHRD_NONE:
-				ok_push = 0;
-				break;
-			default:
-				ok_push = 1;
-				break;
+		case ARPHRD_TUNNEL:
+		case ARPHRD_TUNNEL6:
+		case ARPHRD_SIT:
+		case ARPHRD_IPGRE:
+		case ARPHRD_VOID:
+		case ARPHRD_NONE:
+			ok_push = 0;
+			break;
+		default:
+			ok_push = 1;
+			break;
 		}
+	} else {
+		dev = NULL;
 	}
 
 	pc = tcf_hash_check(parm->index, a, bind, &mirred_hash_info);
 	if (!pc) {
-		if (!parm->ifindex)
+		if (dev == NULL)
 			return -EINVAL;
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*m), bind,
 				     &mirred_idx_gen, &mirred_hash_info);
 		if (IS_ERR(pc))
-		    return PTR_ERR(pc);
+			return PTR_ERR(pc);
 		ret = ACT_P_CREATED;
 	} else {
 		if (!ovr) {
@@ -119,12 +124,12 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 	spin_lock_bh(&m->tcf_lock);
 	m->tcf_action = parm->action;
 	m->tcfm_eaction = parm->eaction;
-	if (parm->ifindex) {
+	if (dev != NULL) {
 		m->tcfm_ifindex = parm->ifindex;
 		if (ret != ACT_P_CREATED)
 			dev_put(m->tcfm_dev);
-		m->tcfm_dev = dev;
 		dev_hold(dev);
+		m->tcfm_dev = dev;
 		m->tcfm_ok_push = ok_push;
 	}
 	spin_unlock_bh(&m->tcf_lock);
@@ -148,57 +153,57 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 {
 	struct tcf_mirred *m = a->priv;
 	struct net_device *dev;
-	struct sk_buff *skb2 = NULL;
-	u32 at = G_TC_AT(skb->tc_verd);
+	struct sk_buff *skb2;
+	u32 at;
+	int retval, err = 1;
 
 	spin_lock(&m->tcf_lock);
-
-	dev = m->tcfm_dev;
 	m->tcf_tm.lastuse = jiffies;
 
-	if (!(dev->flags&IFF_UP) ) {
+	dev = m->tcfm_dev;
+	if (!(dev->flags & IFF_UP)) {
 		if (net_ratelimit())
 			printk("mirred to Houston: device %s is gone!\n",
 			       dev->name);
-bad_mirred:
-		if (skb2 != NULL)
-			kfree_skb(skb2);
-		m->tcf_qstats.overlimits++;
-		m->tcf_bstats.bytes += qdisc_pkt_len(skb);
-		m->tcf_bstats.packets++;
-		spin_unlock(&m->tcf_lock);
-		/* should we be asking for packet to be dropped?
-		 * may make sense for redirect case only
-		*/
-		return TC_ACT_SHOT;
+		goto out;
 	}
 
 	skb2 = skb_act_clone(skb, GFP_ATOMIC);
 	if (skb2 == NULL)
-		goto bad_mirred;
-	if (m->tcfm_eaction != TCA_EGRESS_MIRROR &&
-	    m->tcfm_eaction != TCA_EGRESS_REDIR) {
-		if (net_ratelimit())
-			printk("tcf_mirred unknown action %d\n",
-			       m->tcfm_eaction);
-		goto bad_mirred;
-	}
+		goto out;
 
 	m->tcf_bstats.bytes += qdisc_pkt_len(skb2);
 	m->tcf_bstats.packets++;
-	if (!(at & AT_EGRESS))
+	at = G_TC_AT(skb->tc_verd);
+	if (!(at & AT_EGRESS)) {
 		if (m->tcfm_ok_push)
 			skb_push(skb2, skb2->dev->hard_header_len);
+	}
 
 	/* mirror is always swallowed */
 	if (m->tcfm_eaction != TCA_EGRESS_MIRROR)
 		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
 
 	skb2->dev = dev;
-	skb2->iif = skb->dev->ifindex;
+	skb2->skb_iif = skb->dev->ifindex;
 	dev_queue_xmit(skb2);
+	err = 0;
+
+out:
+	if (err) {
+		m->tcf_qstats.overlimits++;
+		m->tcf_bstats.bytes += qdisc_pkt_len(skb);
+		m->tcf_bstats.packets++;
+		/* should we be asking for packet to be dropped?
+		 * may make sense for redirect case only
+		 */
+		retval = TC_ACT_SHOT;
+	} else {
+		retval = m->tcf_action;
+	}
 	spin_unlock(&m->tcf_lock);
-	return m->tcf_action;
+
+	return retval;
 }
 
 static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)

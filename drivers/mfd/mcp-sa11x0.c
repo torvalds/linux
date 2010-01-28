@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/mcp.h>
 
 #include <mach/dma.h>
 #include <mach/hardware.h>
@@ -28,7 +29,6 @@
 
 #include <mach/assabet.h>
 
-#include "mcp.h"
 
 struct mcp_sa11x0 {
 	u32	mccr0;
@@ -163,6 +163,7 @@ static int mcp_sa11x0_probe(struct platform_device *pdev)
 	mcp->dma_audio_wr	= DMA_Ser4MCP0Wr;
 	mcp->dma_telco_rd	= DMA_Ser4MCP1Rd;
 	mcp->dma_telco_wr	= DMA_Ser4MCP1Wr;
+	mcp->gpio_base		= data->gpio_base;
 
 	platform_set_drvdata(pdev, mcp);
 

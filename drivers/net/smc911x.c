@@ -1984,7 +1984,7 @@ static int __devinit smc911x_probe(struct net_device *dev)
 #endif
 
 	/* Grab the IRQ */
-	retval = request_irq(dev->irq, &smc911x_interrupt,
+	retval = request_irq(dev->irq, smc911x_interrupt,
 			     irq_flags, dev->name, dev);
 	if (retval)
 		goto err_out;

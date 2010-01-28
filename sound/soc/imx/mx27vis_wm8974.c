@@ -157,7 +157,7 @@ static int mx27vis_hifi_hw_params(struct snd_pcm_substream *substream,
 
 
 	/* codec PLL input is 25 MHz */
-	ret = codec_dai->ops->set_pll(codec_dai, IGNORED_ARG,
+	ret = codec_dai->ops->set_pll(codec_dai, IGNORED_ARG, IGNORED_ARG,
 					25000000, pll_out);
 	if (ret < 0) {
 		printk(KERN_ERR "Error when setting PLL input\n");
@@ -180,7 +180,8 @@ static int mx27vis_hifi_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
 	/* disable the PLL */
-	return codec_dai->ops->set_pll(codec_dai, IGNORED_ARG, 0, 0);
+	return codec_dai->ops->set_pll(codec_dai, IGNORED_ARG, IGNORED_ARG,
+				       0, 0);
 }
 
 /*

@@ -18,4 +18,4 @@ Camera Interface
 Document Author
 ---------------
 
-Ben Dooks, (c) 2006 Simtec Electronics
+Ben Dooks, Copyright 2006 Simtec Electronics

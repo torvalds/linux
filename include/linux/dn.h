@@ -71,14 +71,12 @@
 /* Structures */
 
 
-struct dn_naddr 
-{
+struct dn_naddr {
 	__le16		a_len;
 	__u8 a_addr[DN_MAXADDL]; /* Two bytes little endian */
 };
 
-struct sockaddr_dn
-{
+struct sockaddr_dn {
 	__u16		sdn_family;
 	__u8		sdn_flags;
 	__u8		sdn_objnum;
@@ -101,8 +99,7 @@ struct optdata_dn {
         __u8   opt_data[16];   /* User data              */
 };
 
-struct accessdata_dn
-{
+struct accessdata_dn {
 	__u8		acc_accl;
 	__u8		acc_acc[DN_MAXACCL];
 	__u8 		acc_passl;

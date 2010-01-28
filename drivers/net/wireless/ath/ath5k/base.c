@@ -195,12 +195,13 @@ static int __devinit	ath5k_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
 static void __devexit	ath5k_pci_remove(struct pci_dev *pdev);
 #ifdef CONFIG_PM
-static int		ath5k_pci_suspend(struct pci_dev *pdev,
-					pm_message_t state);
-static int		ath5k_pci_resume(struct pci_dev *pdev);
+static int		ath5k_pci_suspend(struct device *dev);
+static int		ath5k_pci_resume(struct device *dev);
+
+SIMPLE_DEV_PM_OPS(ath5k_pm_ops, ath5k_pci_suspend, ath5k_pci_resume);
+#define ATH5K_PM_OPS	(&ath5k_pm_ops)
 #else
-#define ath5k_pci_suspend NULL
-#define ath5k_pci_resume NULL
+#define ATH5K_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 static struct pci_driver ath5k_pci_driver = {
@@ -208,8 +209,7 @@ static struct pci_driver ath5k_pci_driver = {
 	.id_table	= ath5k_pci_id_table,
 	.probe		= ath5k_pci_probe,
 	.remove		= __devexit_p(ath5k_pci_remove),
-	.suspend	= ath5k_pci_suspend,
-	.resume		= ath5k_pci_resume,
+	.driver.pm	= ATH5K_PM_OPS,
 };
 
 
@@ -323,10 +323,13 @@ static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 static inline void ath5k_rxbuf_free(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
+
 	BUG_ON(!bf);
 	if (!bf->skb)
 		return;
-	pci_unmap_single(sc->pdev, bf->skbaddr, sc->rxbufsize,
+	pci_unmap_single(sc->pdev, bf->skbaddr, common->rx_bufsize,
 			PCI_DMA_FROMDEVICE);
 	dev_kfree_skb_any(bf->skb);
 	bf->skb = NULL;
@@ -437,6 +440,22 @@ ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val)
 
 	return name;
 }
+static unsigned int ath5k_ioread32(void *hw_priv, u32 reg_offset)
+{
+	struct ath5k_hw *ah = (struct ath5k_hw *) hw_priv;
+	return ath5k_hw_reg_read(ah, reg_offset);
+}
+
+static void ath5k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
+{
+	struct ath5k_hw *ah = (struct ath5k_hw *) hw_priv;
+	ath5k_hw_reg_write(ah, val, reg_offset);
+}
+
+static const struct ath_ops ath5k_common_ops = {
+	.read = ath5k_ioread32,
+	.write = ath5k_iowrite32,
+};
 
 static int __devinit
 ath5k_pci_probe(struct pci_dev *pdev,
@@ -444,6 +463,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 {
 	void __iomem *mem;
 	struct ath5k_softc *sc;
+	struct ath_common *common;
 	struct ieee80211_hw *hw;
 	int ret;
 	u8 csz;
@@ -547,7 +567,6 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	__set_bit(ATH_STAT_INVALID, sc->status);
 
 	sc->iobase = mem; /* So we can unmap it on detach */
-	sc->common.cachelsz = csz << 2; /* convert to bytes */
 	sc->opmode = NL80211_IFTYPE_STATION;
 	sc->bintval = 1000;
 	mutex_init(&sc->lock);
@@ -565,11 +584,26 @@ ath5k_pci_probe(struct pci_dev *pdev,
 		goto err_free;
 	}
 
-	/* Initialize device */
-	sc->ah = ath5k_hw_attach(sc);
-	if (IS_ERR(sc->ah)) {
-		ret = PTR_ERR(sc->ah);
+	/*If we passed the test malloc a ath5k_hw struct*/
+	sc->ah = kzalloc(sizeof(struct ath5k_hw), GFP_KERNEL);
+	if (!sc->ah) {
+		ret = -ENOMEM;
+		ATH5K_ERR(sc, "out of memory\n");
 		goto err_irq;
+	}
+
+	sc->ah->ah_sc = sc;
+	sc->ah->ah_iobase = sc->iobase;
+	common = ath5k_hw_common(sc->ah);
+	common->ops = &ath5k_common_ops;
+	common->ah = sc->ah;
+	common->hw = hw;
+	common->cachelsz = csz << 2; /* convert to bytes */
+
+	/* Initialize device */
+	ret = ath5k_hw_attach(sc);
+	if (ret) {
+		goto err_free_ah;
 	}
 
 	/* set up multi-rate retry capabilities */
@@ -640,6 +674,8 @@ err_ah:
 	ath5k_hw_detach(sc->ah);
 err_irq:
 	free_irq(pdev->irq, sc);
+err_free_ah:
+	kfree(sc->ah);
 err_free:
 	ieee80211_free_hw(hw);
 err_map:
@@ -661,6 +697,7 @@ ath5k_pci_remove(struct pci_dev *pdev)
 	ath5k_debug_finish_device(sc);
 	ath5k_detach(pdev, hw);
 	ath5k_hw_detach(sc->ah);
+	kfree(sc->ah);
 	free_irq(pdev->irq, sc);
 	pci_iounmap(pdev, sc->iobase);
 	pci_release_region(pdev, 0);
@@ -669,33 +706,20 @@ ath5k_pci_remove(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int
-ath5k_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int ath5k_pci_suspend(struct device *dev)
 {
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ieee80211_hw *hw = pci_get_drvdata(to_pci_dev(dev));
 	struct ath5k_softc *sc = hw->priv;
 
 	ath5k_led_off(sc);
-
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, PCI_D3hot);
-
 	return 0;
 }
 
-static int
-ath5k_pci_resume(struct pci_dev *pdev)
+static int ath5k_pci_resume(struct device *dev)
 {
+	struct pci_dev *pdev = to_pci_dev(dev);
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath5k_softc *sc = hw->priv;
-	int err;
-
-	pci_restore_state(pdev);
-
-	err = pci_enable_device(pdev);
-	if (err)
-		return err;
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
@@ -718,7 +742,7 @@ static int ath5k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *re
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath5k_softc *sc = hw->priv;
-	struct ath_regulatory *regulatory = &sc->common.regulatory;
+	struct ath_regulatory *regulatory = ath5k_hw_regulatory(sc->ah);
 
 	return ath_reg_notifier_apply(wiphy, request, regulatory);
 }
@@ -728,7 +752,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
-	struct ath_regulatory *regulatory = &sc->common.regulatory;
+	struct ath_regulatory *regulatory = ath5k_hw_regulatory(ah);
 	u8 mac[ETH_ALEN] = {};
 	int ret;
 
@@ -815,7 +839,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 
 	SET_IEEE80211_PERM_ADDR(hw, mac);
 	/* All MAC address bits matter for ACKs */
-	memset(sc->bssidmask, 0xff, ETH_ALEN);
+	memcpy(sc->bssidmask, ath_bcast_mac, ETH_ALEN);
 	ath5k_hw_set_bssid_mask(sc->ah, sc->bssidmask);
 
 	regulatory->current_rd = ah->ah_capabilities.cap_eeprom.ee_regdomain;
@@ -1152,24 +1176,26 @@ ath5k_hw_to_driver_rix(struct ath5k_softc *sc, int hw_rix)
 static
 struct sk_buff *ath5k_rx_skb_alloc(struct ath5k_softc *sc, dma_addr_t *skb_addr)
 {
+	struct ath_common *common = ath5k_hw_common(sc->ah);
 	struct sk_buff *skb;
 
 	/*
 	 * Allocate buffer with headroom_needed space for the
 	 * fake physical layer header at the start.
 	 */
-	skb = ath_rxbuf_alloc(&sc->common,
-			      sc->rxbufsize + sc->common.cachelsz - 1,
+	skb = ath_rxbuf_alloc(common,
+			      common->rx_bufsize,
 			      GFP_ATOMIC);
 
 	if (!skb) {
 		ATH5K_ERR(sc, "can't alloc skbuff of size %u\n",
-				sc->rxbufsize + sc->common.cachelsz - 1);
+				common->rx_bufsize);
 		return NULL;
 	}
 
 	*skb_addr = pci_map_single(sc->pdev,
-		skb->data, sc->rxbufsize, PCI_DMA_FROMDEVICE);
+				   skb->data, common->rx_bufsize,
+				   PCI_DMA_FROMDEVICE);
 	if (unlikely(pci_dma_mapping_error(sc->pdev, *skb_addr))) {
 		ATH5K_ERR(sc, "%s: DMA mapping failed\n", __func__);
 		dev_kfree_skb(skb);
@@ -1605,13 +1631,14 @@ static int
 ath5k_rx_start(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct ath5k_buf *bf;
 	int ret;
 
-	sc->rxbufsize = roundup(IEEE80211_MAX_LEN, sc->common.cachelsz);
+	common->rx_bufsize = roundup(IEEE80211_MAX_LEN, common->cachelsz);
 
-	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rxbufsize %u\n",
-		sc->common.cachelsz, sc->rxbufsize);
+	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "cachelsz %u rx_bufsize %u\n",
+		  common->cachelsz, common->rx_bufsize);
 
 	spin_lock_bh(&sc->rxbuflock);
 	sc->rxlink = NULL;
@@ -1656,6 +1683,8 @@ static unsigned int
 ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 		struct sk_buff *skb, struct ath5k_rx_status *rs)
 {
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int keyix, hlen;
 
@@ -1672,7 +1701,7 @@ ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
 	    skb->len >= hlen + 4) {
 		keyix = skb->data[hlen + 3] >> 6;
 
-		if (test_bit(keyix, sc->keymap))
+		if (test_bit(keyix, common->keymap))
 			return RX_FLAG_DECRYPTED;
 	}
 
@@ -1684,13 +1713,14 @@ static void
 ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 		     struct ieee80211_rx_status *rxs)
 {
+	struct ath_common *common = ath5k_hw_common(sc->ah);
 	u64 tsf, bc_tstamp;
 	u32 hw_tu;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
 	if (ieee80211_is_beacon(mgmt->frame_control) &&
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
-	    memcmp(mgmt->bssid, sc->ah->ah_bssid, ETH_ALEN) == 0) {
+	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) == 0) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware *must*
 		 * have updated the local TSF. We have to work around various
@@ -1745,6 +1775,8 @@ ath5k_tasklet_rx(unsigned long data)
 	struct sk_buff *skb, *next_skb;
 	dma_addr_t next_skb_addr;
 	struct ath5k_softc *sc = (void *)data;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
 	int ret;
@@ -1822,7 +1854,7 @@ accept:
 		if (!next_skb)
 			goto next;
 
-		pci_unmap_single(sc->pdev, bf->skbaddr, sc->rxbufsize,
+		pci_unmap_single(sc->pdev, bf->skbaddr, common->rx_bufsize,
 				PCI_DMA_FROMDEVICE);
 		skb_put(skb, rs.rs_datalen);
 
@@ -1870,17 +1902,6 @@ accept:
 
 		rxs->noise = sc->ah->ah_noise_floor;
 		rxs->signal = rxs->noise + rs.rs_rssi;
-
-		/* An rssi of 35 indicates you should be able use
-		 * 54 Mbps reliably. A more elaborate scheme can be used
-		 * here but it requires a map of SNR/throughput for each
-		 * possible mode used */
-		rxs->qual = rs.rs_rssi * 100 / 35;
-
-		/* rssi can be more than 35 though, anything above that
-		 * should be considered at 100% */
-		if (rxs->qual > 100)
-			rxs->qual = 100;
 
 		rxs->antenna = rs.rs_antenna;
 		rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
@@ -2349,6 +2370,9 @@ ath5k_init(struct ath5k_softc *sc)
 	 */
 	ath5k_stop_locked(sc);
 
+	/* Set PHY calibration interval */
+	ah->ah_cal_intval = ath5k_calinterval;
+
 	/*
 	 * The basic interface to setting the hardware in a good
 	 * state is ``reset''.  On return the hardware is known to
@@ -2376,10 +2400,6 @@ ath5k_init(struct ath5k_softc *sc)
 
 	/* Set ack to be sent at low bit-rates */
 	ath5k_hw_set_ack_bitrate_high(ah, false);
-
-	/* Set PHY calibration inteval */
-	ah->ah_cal_intval = ath5k_calinterval;
-
 	ret = 0;
 done:
 	mmiowb();
@@ -3008,6 +3028,8 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	      struct ieee80211_key_conf *key)
 {
 	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	int ret = 0;
 
 	if (modparam_nohwcrypt)
@@ -3040,14 +3062,14 @@ ath5k_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			ATH5K_ERR(sc, "can't set the key\n");
 			goto unlock;
 		}
-		__set_bit(key->keyidx, sc->keymap);
+		__set_bit(key->keyidx, common->keymap);
 		key->hw_key_idx = key->keyidx;
 		key->flags |= (IEEE80211_KEY_FLAG_GENERATE_IV |
 			       IEEE80211_KEY_FLAG_GENERATE_MMIC);
 		break;
 	case DISABLE_KEY:
 		ath5k_hw_reset_key(sc->ah, key->keyidx);
-		__clear_bit(key->keyidx, sc->keymap);
+		__clear_bit(key->keyidx, common->keymap);
 		break;
 	default:
 		ret = -EINVAL;
@@ -3176,6 +3198,7 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	unsigned long flags;
 
 	mutex_lock(&sc->lock);
@@ -3184,10 +3207,9 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changes & BSS_CHANGED_BSSID) {
 		/* Cache for later use during resets */
-		memcpy(ah->ah_bssid, bss_conf->bssid, ETH_ALEN);
-		/* XXX: assoc id is set to 0 for now, mac80211 doesn't have
-		 * a clean way of letting us retrieve this yet. */
-		ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
+		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
+		common->curaid = 0;
+		ath5k_hw_set_associd(ah);
 		mmiowb();
 	}
 
@@ -3200,6 +3222,14 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 			set_beacon_filter(hw, sc->assoc);
 		ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
 			AR5K_LED_ASSOC : AR5K_LED_INIT);
+		if (bss_conf->assoc) {
+			ATH5K_DBG(sc, ATH5K_DEBUG_ANY,
+				  "Bss Info ASSOC %d, bssid: %pM\n",
+				  bss_conf->aid, common->curbssid);
+			common->curaid = bss_conf->aid;
+			ath5k_hw_set_associd(ah);
+			/* Once ANI is available you would start it here */
+		}
 	}
 
 	if (changes & BSS_CHANGED_BEACON) {

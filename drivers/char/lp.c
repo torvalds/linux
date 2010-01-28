@@ -127,6 +127,7 @@
 #include <linux/wait.h>
 #include <linux/jiffies.h>
 #include <linux/smp_lock.h>
+#include <linux/compat.h>
 
 #include <linux/parport.h>
 #undef LP_STATS
@@ -571,13 +572,11 @@ static int lp_release(struct inode * inode, struct file * file)
 	return 0;
 }
 
-static int lp_ioctl(struct inode *inode, struct file *file,
-		    unsigned int cmd, unsigned long arg)
+static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
+	unsigned long arg, void __user *argp)
 {
-	unsigned int minor = iminor(inode);
 	int status;
 	int retval = 0;
-	void __user *argp = (void __user *)arg;
 
 #ifdef LP_DEBUG
 	printk(KERN_DEBUG "lp%d ioctl, cmd: 0x%x, arg: 0x%lx\n", minor, cmd, arg);
@@ -587,9 +586,6 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 	if ((LP_F(minor) & LP_EXIST) == 0)
 		return -ENODEV;
 	switch ( cmd ) {
-		struct timeval par_timeout;
-		long to_jiffies;
-
 		case LPTIME:
 			LP_TIME(minor) = arg * HZ/100;
 			break;
@@ -652,34 +648,101 @@ static int lp_ioctl(struct inode *inode, struct file *file,
 				return -EFAULT;
 			break;
 
-		case LPSETTIMEOUT:
-			if (copy_from_user (&par_timeout, argp,
-					    sizeof (struct timeval))) {
-				return -EFAULT;
-			}
-			/* Convert to jiffies, place in lp_table */
-			if ((par_timeout.tv_sec < 0) ||
-			    (par_timeout.tv_usec < 0)) {
-				return -EINVAL;
-			}
-			to_jiffies = DIV_ROUND_UP(par_timeout.tv_usec, 1000000/HZ);
-			to_jiffies += par_timeout.tv_sec * (long) HZ;
-			if (to_jiffies <= 0) {
-				return -EINVAL;
-			}
-			lp_table[minor].timeout = to_jiffies;
-			break;
-
 		default:
 			retval = -EINVAL;
 	}
 	return retval;
 }
 
+static int lp_set_timeout(unsigned int minor, struct timeval *par_timeout)
+{
+	long to_jiffies;
+
+	/* Convert to jiffies, place in lp_table */
+	if ((par_timeout->tv_sec < 0) ||
+	    (par_timeout->tv_usec < 0)) {
+		return -EINVAL;
+	}
+	to_jiffies = DIV_ROUND_UP(par_timeout->tv_usec, 1000000/HZ);
+	to_jiffies += par_timeout->tv_sec * (long) HZ;
+	if (to_jiffies <= 0) {
+		return -EINVAL;
+	}
+	lp_table[minor].timeout = to_jiffies;
+	return 0;
+}
+
+static long lp_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
+{
+	unsigned int minor;
+	struct timeval par_timeout;
+	int ret;
+
+	minor = iminor(file->f_path.dentry->d_inode);
+	lock_kernel();
+	switch (cmd) {
+	case LPSETTIMEOUT:
+		if (copy_from_user(&par_timeout, (void __user *)arg,
+					sizeof (struct timeval))) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = lp_set_timeout(minor, &par_timeout);
+		break;
+	default:
+		ret = lp_do_ioctl(minor, cmd, arg, (void __user *)arg);
+		break;
+	}
+	unlock_kernel();
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long lp_compat_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
+{
+	unsigned int minor;
+	struct timeval par_timeout;
+	struct compat_timeval __user *tc;
+	int ret;
+
+	minor = iminor(file->f_path.dentry->d_inode);
+	lock_kernel();
+	switch (cmd) {
+	case LPSETTIMEOUT:
+		tc = compat_ptr(arg);
+		if (get_user(par_timeout.tv_sec, &tc->tv_sec) ||
+		    get_user(par_timeout.tv_usec, &tc->tv_usec)) {
+			ret = -EFAULT;
+			break;
+		}
+		ret = lp_set_timeout(minor, &par_timeout);
+		break;
+#ifdef LP_STATS
+	case LPGETSTATS:
+		/* FIXME: add an implementation if you set LP_STATS */
+		ret = -EINVAL;
+		break;
+#endif
+	default:
+		ret = lp_do_ioctl(minor, cmd, arg, compat_ptr(arg));
+		break;
+	}
+	unlock_kernel();
+
+	return ret;
+}
+#endif
+
 static const struct file_operations lp_fops = {
 	.owner		= THIS_MODULE,
 	.write		= lp_write,
-	.ioctl		= lp_ioctl,
+	.unlocked_ioctl	= lp_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lp_compat_ioctl,
+#endif
 	.open		= lp_open,
 	.release	= lp_release,
 #ifdef CONFIG_PARPORT_1284

@@ -43,12 +43,13 @@ config SND_OMAP_SOC_OSK5912
 	  Say Y if you want to add support for SoC audio on osk5912.
 
 config SND_OMAP_SOC_OVERO
-	tristate "SoC Audio support for Gumstix Overo"
-	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OVERO
+	tristate "SoC Audio support for Gumstix Overo and CompuLab CM-T35"
+	depends on TWL4030_CORE && SND_OMAP_SOC && (MACH_OVERO || MACH_CM_T35)
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TWL4030
 	help
-	  Say Y if you want to add support for SoC audio on the Gumstix Overo.
+	  Say Y if you want to add support for SoC audio on the
+	  Gumstix Overo or CompuLab CM-T35
 
 config SND_OMAP_SOC_OMAP2EVM
 	tristate "SoC Audio support for OMAP2EVM board"
@@ -65,6 +66,15 @@ config SND_OMAP_SOC_OMAP3EVM
 	select SND_SOC_TWL4030
 	help
 	  Say Y if you want to add support for SoC audio on the omap3evm board.
+
+config SND_OMAP_SOC_AM3517EVM
+	tristate "SoC Audio support for OMAP3517 / AM3517 EVM"
+	depends on SND_OMAP_SOC && MACH_OMAP3517EVM && I2C
+	select SND_OMAP_SOC_MCBSP
+	select SND_SOC_TLV320AIC23
+	help
+	  Say Y if you want to add support for SoC audio on the OMAP3517 / AM3517
+	  EVM.
 
 config SND_OMAP_SOC_SDP3430
 	tristate "SoC Audio support for Texas Instruments SDP3430"
@@ -99,3 +109,10 @@ config SND_OMAP_SOC_ZOOM2
 	help
 	  Say Y if you want to add support for Soc audio on Zoom2 board.
 
+config SND_OMAP_SOC_IGEP0020
+	tristate "SoC Audio support for IGEP v2"
+	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_IGEP0020
+	select SND_OMAP_SOC_MCBSP
+	select SND_SOC_TWL4030
+	help
+	  Say Y if you want to add support for Soc audio on IGEP v2 board.

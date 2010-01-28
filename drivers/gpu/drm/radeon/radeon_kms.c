@@ -30,10 +30,19 @@
 #include "radeon.h"
 #include "radeon_drm.h"
 
+int radeon_driver_unload_kms(struct drm_device *dev)
+{
+	struct radeon_device *rdev = dev->dev_private;
 
-/*
- * Driver load/unload
- */
+	if (rdev == NULL)
+		return 0;
+	radeon_modeset_fini(rdev);
+	radeon_device_fini(rdev);
+	kfree(rdev);
+	dev->dev_private = NULL;
+	return 0;
+}
+
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
 	struct radeon_device *rdev;
@@ -62,31 +71,20 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 */
 	r = radeon_device_init(rdev, dev, dev->pdev, flags);
 	if (r) {
-		DRM_ERROR("Fatal error while trying to initialize radeon.\n");
-		return r;
+		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
+		goto out;
 	}
 	/* Again modeset_init should fail only on fatal error
 	 * otherwise it should provide enough functionalities
 	 * for shadowfb to run
 	 */
 	r = radeon_modeset_init(rdev);
-	if (r) {
-		return r;
-	}
-	return 0;
-}
-
-int radeon_driver_unload_kms(struct drm_device *dev)
-{
-	struct radeon_device *rdev = dev->dev_private;
-
-	if (rdev == NULL)
-		return 0;
-	radeon_modeset_fini(rdev);
-	radeon_device_fini(rdev);
-	kfree(rdev);
-	dev->dev_private = NULL;
-	return 0;
+	if (r)
+		dev_err(&dev->pdev->dev, "Fatal error during modeset init\n");
+out:
+	if (r)
+		radeon_driver_unload_kms(dev);
+	return r;
 }
 
 

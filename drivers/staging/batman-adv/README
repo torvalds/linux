@@ -1,0 +1,125 @@
+[state: 07-11-2009]
+
+BATMAN-ADV
+----------
+
+Batman-advanced is a new approach to wireless networking which does no longer
+operate on the IP basis. Unlike B.A.T.M.A.N, which exchanges information
+using UDP packets and sets routing tables, batman-advanced operates on ISO/OSI
+Layer 2 only and uses and routes (or better: bridges) Ethernet Frames. It
+emulates a virtual network switch of all nodes participating. Therefore all
+nodes appear to be link local, thus all higher operating protocols won't be
+affected by any changes within the network. You can run almost any protocol
+above B.A.T.M.A.N. Advanced, prominent examples are: IPv4, IPv6, DHCP, IPX.
+
+This is batman-advanced implemented as Linux kernel driver. It does not depend
+on any network (other) driver, and can be used on wifi as well as ethernet,
+vpn, etc ... (anything with ethernet-style layer 2).
+It compiles against and should work with Linux 2.6.20 - 2.6.31. Supporting older
+versions is not planned, but it's probably easy to backport it. If you work on a
+backport, feel free to contact us.  :-)
+
+COMPILE
+-------
+To compile against your currently installed kernel, just type:
+
+# make
+
+if you want to compile against some other kernel, use:
+
+# make KERNELPATH=/path/to/kernel
+
+USAGE
+-----
+
+insmod the batman-adv.ko in your kernel:
+
+# insmod batman-adv.ko
+
+the module is now waiting for activation. You must add some interfaces
+on which batman can operate. Each interface must be added separately:
+
+# echo wlan0 > /proc/net/batman-adv/interfaces
+
+( # echo wlan1 > /proc/net/batman-adv/interfaces )
+( # echo eth0 > /proc/net/batman-adv/interfaces )
+( ... )
+
+Now batman starts broadcasting on this interface.
+You can now view the table of originators (mesh participants) with:
+
+# cat /proc/net/batman-adv/originators
+
+The module will create a new interface "bat0", which can be used as a
+regular interface:
+
+# ifconfig bat0 inet 192.168.0.1 up
+# ping 192.168.0.2
+...
+
+If you want topology visualization, your meshnode must be configured
+as VIS-server:
+
+# echo "server" > /proc/net/batman-adv/vis
+
+Each node is either configured as "server" or as "client" (default:
+"client"). Clients send their topology data to the server next to them,
+and server synchronize with other servers. If there is no server
+configured (default) within the mesh, no topology information will be
+transmitted. With these "synchronizing servers", there can be 1 or
+more vis servers sharing the same (or at least very similar) data.
+
+When configured as server, you can get a topology snapshot of your mesh:
+
+# cat /proc/net/batman-adv/vis
+
+This output format is a graphviz formatted text file which can be
+processed with graphviz-tools like dot.
+The labels are similar/compatible to the ETX metric, 1.0 means perfect
+connection (100%), 2.0 means 50%, 3.0 means 33% and so on.
+
+Alternatively, a JSON output format is available. The format can be set
+using by writing either "dot_draw" or "json" into the vis_format file.
+"dot_draw" is selected by default.
+
+echo "json" > /proc/net/batman-adv/vis_format
+
+In very mobile scenarios, you might want to adjust the originator
+interval to a lower value. This will make the mesh more responsive to
+topology changes, but will also increase the overhead. Please make sure
+that all nodes in your mesh use the same interval. The default value
+is 1000 ms (1 second).
+
+# echo 1000 > /proc/net/batman-adv/orig_interval
+
+To deactivate batman, do:
+
+# echo "" > /proc/net/batman-adv/interfaces
+
+BATCTL
+------
+
+B.A.T.M.A.N.  advanced  operates on layer 2 and thus all hosts partici-
+pating in the virtual switch are completely transparent for all  proto-
+cols above layer 2. Therefore the common diagnosis tools do not work as
+expected. To overcome these problems batctl was created. At the  moment
+the  batctl contains ping, traceroute, tcpdump and interfaces to the
+kernel module settings.
+
+For more information, please see the manpage (man batctl).
+
+batctl is available on http://www.open-mesh.net/
+
+CONTACT
+-------
+
+Please send us comments, experiences, questions, anything :)
+
+IRC:             #batman on irc.freenode.org
+Mailing-list:    b.a.t.m.a.n@open-mesh.net
+(subscription at https://list.open-mesh.net/mm/listinfo/b.a.t.m.a.n )
+
+You can also contact the Authors:
+
+Marek Lindner <lindner_marek@yahoo.de>
+Simon Wunderlich <siwu@hrz.tu-chemnitz.de>

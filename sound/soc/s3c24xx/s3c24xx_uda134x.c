@@ -24,7 +24,7 @@
 
 #include <plat/regs-iis.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-i2s.h"
 #include "../codecs/uda134x.h"
 

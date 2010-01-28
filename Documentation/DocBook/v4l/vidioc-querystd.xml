@@ -70,6 +70,12 @@ current video input or output.</para>
 	  <para>This ioctl is not supported.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>The device is busy and therefore can not detect the standard</para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

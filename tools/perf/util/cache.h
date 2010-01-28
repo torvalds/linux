@@ -1,9 +1,14 @@
-#ifndef CACHE_H
-#define CACHE_H
+#ifndef __PERF_CACHE_H
+#define __PERF_CACHE_H
 
 #include "util.h"
 #include "strbuf.h"
 #include "../perf.h"
+
+#define CMD_EXEC_PATH "--exec-path"
+#define CMD_PERF_DIR "--perf-dir="
+#define CMD_WORK_TREE "--work-tree="
+#define CMD_DEBUGFS_DIR "--debugfs-dir="
 
 #define PERF_DIR_ENVIRONMENT "PERF_DIR"
 #define PERF_WORK_TREE_ENVIRONMENT "PERF_WORK_TREE"
@@ -117,4 +122,4 @@ extern char *perf_pathdup(const char *fmt, ...)
 
 extern size_t strlcpy(char *dest, const char *src, size_t size);
 
-#endif /* CACHE_H */
+#endif /* __PERF_CACHE_H */

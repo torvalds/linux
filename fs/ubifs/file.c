@@ -45,7 +45,7 @@
  *
  * Similarly, @i_mutex is not always locked in 'ubifs_readpage()', e.g., the
  * read-ahead path does not lock it ("sys_read -> generic_file_aio_read ->
- * ondemand_readahead -> readpage"). In case of readahead, @I_LOCK flag is not
+ * ondemand_readahead -> readpage"). In case of readahead, @I_SYNC flag is not
  * set as well. However, UBIFS disables readahead.
  */
 
@@ -1389,7 +1389,6 @@ static ssize_t ubifs_aio_write(struct kiocb *iocb, const struct iovec *iov,
 			       unsigned long nr_segs, loff_t pos)
 {
 	int err;
-	ssize_t ret;
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
@@ -1397,17 +1396,7 @@ static ssize_t ubifs_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (err)
 		return err;
 
-	ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
-	if (ret < 0)
-		return ret;
-
-	if (ret > 0 && (IS_SYNC(inode) || iocb->ki_filp->f_flags & O_SYNC)) {
-		err = ubifs_sync_wbufs_by_inode(c, inode);
-		if (err)
-			return err;
-	}
-
-	return ret;
+	return generic_file_aio_write(iocb, iov, nr_segs, pos);
 }
 
 static int ubifs_set_page_dirty(struct page *page)

@@ -27,16 +27,11 @@
 #ifndef _VMXNET3_INT_H
 #define _VMXNET3_INT_H
 
-#include <linux/types.h>
 #include <linux/ethtool.h>
 #include <linux/delay.h>
-#include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
-#include <linux/ethtool.h>
 #include <linux/compiler.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
@@ -335,14 +330,14 @@ struct vmxnet3_adapter {
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
-	writel((val), (adapter)->hw_addr0 + (reg))
+	writel(cpu_to_le32(val), (adapter)->hw_addr0 + (reg))
 #define VMXNET3_READ_BAR0_REG(adapter, reg)        \
-	readl((adapter)->hw_addr0 + (reg))
+	le32_to_cpu(readl((adapter)->hw_addr0 + (reg)))
 
 #define VMXNET3_WRITE_BAR1_REG(adapter, reg, val)  \
-	writel((val), (adapter)->hw_addr1 + (reg))
+	writel(cpu_to_le32(val), (adapter)->hw_addr1 + (reg))
 #define VMXNET3_READ_BAR1_REG(adapter, reg)        \
-	readl((adapter)->hw_addr1 + (reg))
+	le32_to_cpu(readl((adapter)->hw_addr1 + (reg)))
 
 #define VMXNET3_WAKE_QUEUE_THRESHOLD(tq)  (5)
 #define VMXNET3_RX_ALLOC_THRESHOLD(rq, ring_idx, adapter) \
@@ -357,6 +352,10 @@ struct vmxnet3_adapter {
 
 #define VMXNET3_MAX_ETH_HDR_SIZE    22
 #define VMXNET3_MAX_SKB_BUF_SIZE    (3*1024)
+
+void set_flag_le16(__le16 *data, u16 flag);
+void set_flag_le64(__le64 *data, u64 flag);
+void reset_flag_le64(__le64 *data, u64 flag);
 
 int
 vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter);

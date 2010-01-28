@@ -78,9 +78,7 @@ static void igb_shift_out_eec_bits(struct e1000_hw *hw, u16 data, u16 count)
 	u32 mask;
 
 	mask = 0x01 << (count - 1);
-	if (nvm->type == e1000_nvm_eeprom_microwire)
-		eecd &= ~E1000_EECD_DO;
-	else if (nvm->type == e1000_nvm_eeprom_spi)
+	if (nvm->type == e1000_nvm_eeprom_spi)
 		eecd |= E1000_EECD_DO;
 
 	do {
@@ -220,22 +218,7 @@ static void igb_standby_nvm(struct e1000_hw *hw)
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = rd32(E1000_EECD);
 
-	if (nvm->type == e1000_nvm_eeprom_microwire) {
-		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
-		wr32(E1000_EECD, eecd);
-		wrfl();
-		udelay(nvm->delay_usec);
-
-		igb_raise_eec_clk(hw, &eecd);
-
-		/* Select EEPROM */
-		eecd |= E1000_EECD_CS;
-		wr32(E1000_EECD, eecd);
-		wrfl();
-		udelay(nvm->delay_usec);
-
-		igb_lower_eec_clk(hw, &eecd);
-	} else if (nvm->type == e1000_nvm_eeprom_spi) {
+	if (nvm->type == e1000_nvm_eeprom_spi) {
 		/* Toggle CS to flush commands */
 		eecd |= E1000_EECD_CS;
 		wr32(E1000_EECD, eecd);
@@ -262,12 +245,6 @@ static void e1000_stop_nvm(struct e1000_hw *hw)
 	if (hw->nvm.type == e1000_nvm_eeprom_spi) {
 		/* Pull CS high */
 		eecd |= E1000_EECD_CS;
-		igb_lower_eec_clk(hw, &eecd);
-	} else if (hw->nvm.type == e1000_nvm_eeprom_microwire) {
-		/* CS on Microcwire is active-high */
-		eecd &= ~(E1000_EECD_CS | E1000_EECD_DI);
-		wr32(E1000_EECD, eecd);
-		igb_raise_eec_clk(hw, &eecd);
 		igb_lower_eec_clk(hw, &eecd);
 	}
 }
@@ -304,14 +281,7 @@ static s32 igb_ready_nvm_eeprom(struct e1000_hw *hw)
 	u8 spi_stat_reg;
 
 
-	if (nvm->type == e1000_nvm_eeprom_microwire) {
-		/* Clear SK and DI */
-		eecd &= ~(E1000_EECD_DI | E1000_EECD_SK);
-		wr32(E1000_EECD, eecd);
-		/* Set CS */
-		eecd |= E1000_EECD_CS;
-		wr32(E1000_EECD, eecd);
-	} else if (nvm->type == e1000_nvm_eeprom_spi) {
+	if (nvm->type == e1000_nvm_eeprom_spi) {
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		wr32(E1000_EECD, eecd);

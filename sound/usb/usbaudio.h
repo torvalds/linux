@@ -132,7 +132,6 @@ struct snd_usb_audio {
 	int pcm_devs;
 
 	struct list_head midi_list;	/* list of midi interfaces */
-	int next_midi_device;
 
 	struct list_head mixer_list;	/* list of mixer interfaces */
 };
@@ -227,8 +226,10 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 			 int ignore_error);
 void snd_usb_mixer_disconnect(struct list_head *p);
 
-int snd_usb_create_midi_interface(struct snd_usb_audio *chip, struct usb_interface *iface,
-				  const struct snd_usb_audio_quirk *quirk);
+int snd_usbmidi_create(struct snd_card *card,
+		       struct usb_interface *iface,
+		       struct list_head *midi_list,
+		       const struct snd_usb_audio_quirk *quirk);
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
 void snd_usbmidi_disconnect(struct list_head *p);

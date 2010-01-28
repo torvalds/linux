@@ -183,6 +183,31 @@ static cycle_t microblaze_read(struct clocksource *cs)
 	return (cycle_t) (in_be32(TIMER_BASE + TCR1));
 }
 
+static struct timecounter microblaze_tc = {
+	.cc = NULL,
+};
+
+static cycle_t microblaze_cc_read(const struct cyclecounter *cc)
+{
+	return microblaze_read(NULL);
+}
+
+static struct cyclecounter microblaze_cc = {
+	.read = microblaze_cc_read,
+	.mask = CLOCKSOURCE_MASK(32),
+	.shift = 24,
+};
+
+int __init init_microblaze_timecounter(void)
+{
+	microblaze_cc.mult = div_sc(cpuinfo.cpu_clock_freq, NSEC_PER_SEC,
+				microblaze_cc.shift);
+
+	timecounter_init(&microblaze_tc, &microblaze_cc, sched_clock());
+
+	return 0;
+}
+
 static struct clocksource clocksource_microblaze = {
 	.name		= "microblaze_clocksource",
 	.rating		= 300,
@@ -204,6 +229,9 @@ static int __init microblaze_clocksource_init(void)
 	out_be32(TIMER_BASE + TCSR1, in_be32(TIMER_BASE + TCSR1) & ~TCSR_ENT);
 	/* start timer1 - up counting without interrupt */
 	out_be32(TIMER_BASE + TCSR1, TCSR_TINT|TCSR_ENT|TCSR_ARHT);
+
+	/* register timecounter - for ftrace support */
+	init_microblaze_timecounter();
 	return 0;
 }
 

@@ -23,8 +23,7 @@
 #define EBT_IP6_MATCH "ip6"
 
 /* the same values are used for the invflags */
-struct ebt_ip6_info
-{
+struct ebt_ip6_info {
 	struct in6_addr saddr;
 	struct in6_addr daddr;
 	struct in6_addr smsk;

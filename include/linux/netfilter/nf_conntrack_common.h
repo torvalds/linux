@@ -3,8 +3,7 @@
 /* Connection state tracking for netfilter.  This is separated from,
    but required by, the NAT layer; it can also be used by an iptables
    extension. */
-enum ip_conntrack_info
-{
+enum ip_conntrack_info {
 	/* Part of an established connection (either direction). */
 	IP_CT_ESTABLISHED,
 
@@ -76,8 +75,7 @@ enum ip_conntrack_status {
 };
 
 #ifdef __KERNEL__
-struct ip_conntrack_stat
-{
+struct ip_conntrack_stat {
 	unsigned int searched;
 	unsigned int found;
 	unsigned int new;

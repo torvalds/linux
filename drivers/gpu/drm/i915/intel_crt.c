@@ -39,7 +39,7 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 temp, reg;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		reg = PCH_ADPA;
 	else
 		reg = ADPA;
@@ -64,34 +64,6 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	I915_WRITE(reg, temp);
-
-	if (IS_IGD(dev)) {
-		if (mode == DRM_MODE_DPMS_OFF) {
-			/* turn off DAC */
-			temp = I915_READ(PORT_HOTPLUG_EN);
-			temp &= ~CRT_EOS_INT_EN;
-			I915_WRITE(PORT_HOTPLUG_EN, temp);
-
-			temp = I915_READ(PORT_HOTPLUG_STAT);
-			if (temp & CRT_EOS_INT_STATUS)
-				I915_WRITE(PORT_HOTPLUG_STAT,
-					CRT_EOS_INT_STATUS);
-		} else {
-			/* turn on DAC. EOS interrupt must be enabled after DAC
-			 * is enabled, so it sounds not good to enable it in
-			 * i915_driver_irq_postinstall()
-			 * wait 12.5ms after DAC is enabled
-			 */
-			msleep(13);
-			temp = I915_READ(PORT_HOTPLUG_STAT);
-			if (temp & CRT_EOS_INT_STATUS)
-				I915_WRITE(PORT_HOTPLUG_STAT,
-					CRT_EOS_INT_STATUS);
-			temp = I915_READ(PORT_HOTPLUG_EN);
-			temp |= CRT_EOS_INT_EN;
-			I915_WRITE(PORT_HOTPLUG_EN, temp);
-		}
-	}
 }
 
 static int intel_crt_mode_valid(struct drm_connector *connector,
@@ -141,7 +113,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	else
 		dpll_md_reg = DPLL_B_MD;
 
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		adpa_reg = PCH_ADPA;
 	else
 		adpa_reg = ADPA;
@@ -150,7 +122,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	 * Disable separate mode multiplier used when cloning SDVO to CRT
 	 * XXX this needs to be adjusted when we really are cloning
 	 */
-	if (IS_I965G(dev) && !IS_IGDNG(dev)) {
+	if (IS_I965G(dev) && !IS_IRONLAKE(dev)) {
 		dpll_md = I915_READ(dpll_md_reg);
 		I915_WRITE(dpll_md_reg,
 			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
@@ -164,18 +136,18 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 
 	if (intel_crtc->pipe == 0) {
 		adpa |= ADPA_PIPE_A_SELECT;
-		if (!IS_IGDNG(dev))
+		if (!IS_IRONLAKE(dev))
 			I915_WRITE(BCLRPAT_A, 0);
 	} else {
 		adpa |= ADPA_PIPE_B_SELECT;
-		if (!IS_IGDNG(dev))
+		if (!IS_IRONLAKE(dev))
 			I915_WRITE(BCLRPAT_B, 0);
 	}
 
 	I915_WRITE(adpa_reg, adpa);
 }
 
-static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
+static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -194,7 +166,7 @@ static bool intel_igdng_crt_detect_hotplug(struct drm_connector *connector)
 			ADPA_CRT_HOTPLUG_ENABLE |
 			ADPA_CRT_HOTPLUG_FORCE_TRIGGER);
 
-	DRM_DEBUG("pch crt adpa 0x%x", adpa);
+	DRM_DEBUG_KMS("pch crt adpa 0x%x", adpa);
 	I915_WRITE(PCH_ADPA, adpa);
 
 	while ((I915_READ(PCH_ADPA) & ADPA_CRT_HOTPLUG_FORCE_TRIGGER) != 0)
@@ -227,8 +199,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	u32 hotplug_en;
 	int i, tries = 0;
 
-	if (IS_IGDNG(dev))
-		return intel_igdng_crt_detect_hotplug(connector);
+	if (IS_IRONLAKE(dev))
+		return intel_ironlake_crt_detect_hotplug(connector);
 
 	/*
 	 * On 4 series desktop, CRT detect sequence need to be done twice
@@ -262,8 +234,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 		} while (time_after(timeout, jiffies));
 	}
 
-	if ((I915_READ(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) ==
-	    CRT_HOTPLUG_MONITOR_COLOR)
+	if ((I915_READ(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) !=
+	    CRT_HOTPLUG_MONITOR_NONE)
 		return true;
 
 	return false;
@@ -549,12 +521,12 @@ void intel_crt_init(struct drm_device *dev)
 					  &intel_output->enc);
 
 	/* Set up the DDC bus. */
-	if (IS_IGDNG(dev))
+	if (IS_IRONLAKE(dev))
 		i2c_reg = PCH_GPIOA;
 	else {
 		i2c_reg = GPIOA;
 		/* Use VBT information for CRT DDC if available */
-		if (dev_priv->crt_ddc_bus != -1)
+		if (dev_priv->crt_ddc_bus != 0)
 			i2c_reg = dev_priv->crt_ddc_bus;
 	}
 	intel_output->ddc_bus = intel_i2c_create(dev, i2c_reg, "CRTDDC_A");
@@ -576,4 +548,6 @@ void intel_crt_init(struct drm_device *dev)
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
 
 	drm_sysfs_connector_add(connector);
+
+	dev_priv->hotplug_supported_mask |= CRT_HOTPLUG_INT_STATUS;
 }

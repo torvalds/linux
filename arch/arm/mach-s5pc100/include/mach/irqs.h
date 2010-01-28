@@ -11,4 +11,9 @@
 
 #include <plat/irqs.h>
 
+/* LCD */
+#define IRQ_LCD_FIFO		IRQ_LCD0
+#define IRQ_LCD_VSYNC		IRQ_LCD1
+#define IRQ_LCD_SYSTEM		IRQ_LCD2
+
 #endif /* __ASM_ARCH_IRQ_H */

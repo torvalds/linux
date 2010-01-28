@@ -363,13 +363,9 @@ int nilfs_attach_checkpoint(struct nilfs_sb_info *sbi, __u64 cno)
 	list_add(&sbi->s_list, &nilfs->ns_supers);
 	up_write(&nilfs->ns_super_sem);
 
-	sbi->s_ifile = nilfs_mdt_new(nilfs, sbi->s_super, NILFS_IFILE_INO);
+	sbi->s_ifile = nilfs_ifile_new(sbi, nilfs->ns_inode_size);
 	if (!sbi->s_ifile)
 		return -ENOMEM;
-
-	err = nilfs_palloc_init_blockgroup(sbi->s_ifile, nilfs->ns_inode_size);
-	if (unlikely(err))
-		goto failed;
 
 	down_read(&nilfs->ns_segctor_sem);
 	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
@@ -411,28 +407,11 @@ void nilfs_detach_checkpoint(struct nilfs_sb_info *sbi)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 
-	nilfs_mdt_clear(sbi->s_ifile);
 	nilfs_mdt_destroy(sbi->s_ifile);
 	sbi->s_ifile = NULL;
 	down_write(&nilfs->ns_super_sem);
 	list_del_init(&sbi->s_list);
 	up_write(&nilfs->ns_super_sem);
-}
-
-static int nilfs_mark_recovery_complete(struct nilfs_sb_info *sbi)
-{
-	struct the_nilfs *nilfs = sbi->s_nilfs;
-	int err = 0;
-
-	down_write(&nilfs->ns_sem);
-	if (!(nilfs->ns_mount_state & NILFS_VALID_FS)) {
-		nilfs->ns_mount_state |= NILFS_VALID_FS;
-		err = nilfs_commit_super(sbi, 1);
-		if (likely(!err))
-			printk(KERN_INFO "NILFS: recovery complete.\n");
-	}
-	up_write(&nilfs->ns_sem);
-	return err;
 }
 
 static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -490,7 +469,7 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 
 	if (!nilfs_test_opt(sbi, BARRIER))
-		seq_printf(seq, ",barrier=off");
+		seq_printf(seq, ",nobarrier");
 	if (nilfs_test_opt(sbi, SNAPSHOT))
 		seq_printf(seq, ",cp=%llu",
 			   (unsigned long long int)sbi->s_snapshot_cno);
@@ -500,6 +479,8 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",errors=panic");
 	if (nilfs_test_opt(sbi, STRICT_ORDER))
 		seq_printf(seq, ",order=strict");
+	if (nilfs_test_opt(sbi, NORECOVERY))
+		seq_printf(seq, ",norecovery");
 
 	return 0;
 }
@@ -568,7 +549,7 @@ static const struct export_operations nilfs_export_ops = {
 
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_barrier, Opt_snapshot, Opt_order,
+	Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
 	Opt_err,
 };
 
@@ -576,24 +557,12 @@ static match_table_t tokens = {
 	{Opt_err_cont, "errors=continue"},
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
-	{Opt_barrier, "barrier=%s"},
+	{Opt_nobarrier, "nobarrier"},
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
+	{Opt_norecovery, "norecovery"},
 	{Opt_err, NULL}
 };
-
-static int match_bool(substring_t *s, int *result)
-{
-	int len = s->to - s->from;
-
-	if (strncmp(s->from, "on", len) == 0)
-		*result = 1;
-	else if (strncmp(s->from, "off", len) == 0)
-		*result = 0;
-	else
-		return 1;
-	return 0;
-}
 
 static int parse_options(char *options, struct super_block *sb)
 {
@@ -612,13 +581,8 @@ static int parse_options(char *options, struct super_block *sb)
 
 		token = match_token(p, tokens, args);
 		switch (token) {
-		case Opt_barrier:
-			if (match_bool(&args[0], &option))
-				return 0;
-			if (option)
-				nilfs_set_opt(sbi, BARRIER);
-			else
-				nilfs_clear_opt(sbi, BARRIER);
+		case Opt_nobarrier:
+			nilfs_clear_opt(sbi, BARRIER);
 			break;
 		case Opt_order:
 			if (strcmp(args[0].from, "relaxed") == 0)
@@ -647,6 +611,9 @@ static int parse_options(char *options, struct super_block *sb)
 			sbi->s_snapshot_cno = option;
 			nilfs_set_opt(sbi, SNAPSHOT);
 			break;
+		case Opt_norecovery:
+			nilfs_set_opt(sbi, NORECOVERY);
+			break;
 		default:
 			printk(KERN_ERR
 			       "NILFS: Unrecognized mount option \"%s\"\n", p);
@@ -672,9 +639,7 @@ static int nilfs_setup_super(struct nilfs_sb_info *sbi)
 	int mnt_count = le16_to_cpu(sbp->s_mnt_count);
 
 	/* nilfs->sem must be locked by the caller. */
-	if (!(nilfs->ns_mount_state & NILFS_VALID_FS)) {
-		printk(KERN_WARNING "NILFS warning: mounting unchecked fs\n");
-	} else if (nilfs->ns_mount_state & NILFS_ERROR_FS) {
+	if (nilfs->ns_mount_state & NILFS_ERROR_FS) {
 		printk(KERN_WARNING
 		       "NILFS warning: mounting fs with errors\n");
 #if 0
@@ -782,11 +747,10 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_root = NULL;
 	sb->s_time_gran = 1;
 
-	if (!nilfs_loaded(nilfs)) {
-		err = load_nilfs(nilfs, sbi);
-		if (err)
-			goto failed_sbi;
-	}
+	err = load_nilfs(nilfs, sbi);
+	if (err)
+		goto failed_sbi;
+
 	cno = nilfs_last_cno(nilfs);
 
 	if (sb->s_flags & MS_RDONLY) {
@@ -854,22 +818,12 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 		up_write(&nilfs->ns_sem);
 	}
 
-	err = nilfs_mark_recovery_complete(sbi);
-	if (unlikely(err)) {
-		printk(KERN_ERR "NILFS: recovery failed.\n");
-		goto failed_root;
-	}
-
 	down_write(&nilfs->ns_super_sem);
 	if (!nilfs_test_opt(sbi, SNAPSHOT))
 		nilfs->ns_current = sbi;
 	up_write(&nilfs->ns_super_sem);
 
 	return 0;
-
- failed_root:
-	dput(sb->s_root);
-	sb->s_root = NULL;
 
  failed_segctor:
 	nilfs_detach_segment_constructor(sbi);
@@ -911,6 +865,14 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		printk(KERN_WARNING "NILFS (device %s): couldn't "
 		       "remount to a different snapshot. \n",
 		       sb->s_id);
+		err = -EINVAL;
+		goto restore_opts;
+	}
+
+	if (!nilfs_valid_fs(nilfs)) {
+		printk(KERN_WARNING "NILFS (device %s): couldn't "
+		       "remount because the filesystem is in an "
+		       "incomplete recovery state.\n", sb->s_id);
 		err = -EINVAL;
 		goto restore_opts;
 	}
@@ -1156,8 +1118,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	/* Abandoning the newly allocated superblock */
 	mutex_unlock(&nilfs->ns_mount_mutex);
 	put_nilfs(nilfs);
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	/*
 	 * deactivate_super() invokes close_bdev_exclusive().
 	 * We must finish all post-cleaning before this call;

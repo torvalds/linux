@@ -49,7 +49,7 @@ static struct isp1760_platform_data isp1760_priv = {
 };
 
 static struct platform_device bfin_isp1760_device = {
-	.name           = "isp1760-hcd",
+	.name           = "isp1760",
 	.id             = 0,
 	.dev = {
 		.platform_data = &isp1760_priv,
@@ -156,28 +156,6 @@ static struct platform_device smc91x_device = {
 	.dev	= {
 		.platform_data	= &smc91x_info,
 	},
-};
-#endif
-
-#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
-static struct resource ax88180_resources[] = {
-	[0] = {
-		.start	= 0x2c000000,
-		.end	= 0x2c000000 + 0x8000,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_PF10,
-		.end	= IRQ_PF10,
-		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL),
-	},
-};
-
-static struct platform_device ax88180_device = {
-	.name		= "ax88180",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(ax88180_resources),
-	.resource	= ax88180_resources,
 };
 #endif
 
@@ -419,10 +397,6 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
-#endif
-
-#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
-	&ax88180_device,
 #endif
 
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)

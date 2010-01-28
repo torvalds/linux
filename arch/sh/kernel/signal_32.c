@@ -67,7 +67,8 @@ sys_sigsuspend(old_sigset_t mask,
 
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
+	set_restore_sigmask();
+
 	return -ERESTARTNOHAND;
 }
 
@@ -590,7 +591,7 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
 	else
 		oldset = &current->blocked;
@@ -602,12 +603,13 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 		/* Whee!  Actually deliver the signal.  */
 		if (handle_signal(signr, &ka, &info, oldset,
 				  regs, save_r0) == 0) {
-			/* a signal was successfully delivered; the saved
+			/*
+			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
+			 * clear the TS_RESTORE_SIGMASK flag
+			 */
+			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 
 			tracehook_signal_handler(signr, &info, &ka, regs,
 					test_thread_flag(TIF_SINGLESTEP));
@@ -631,10 +633,12 @@ no_signal:
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
-	 * back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	/*
+	 * If there's no signal to deliver, we just put the saved sigmask
+	 * back.
+	 */
+	if (current_thread_info()->status & TS_RESTORE_SIGMASK) {
+		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }

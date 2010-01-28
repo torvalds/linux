@@ -212,6 +212,9 @@ struct tape_device {
 	struct tape_class_device *	nt;
 	struct tape_class_device *	rt;
 
+	/* Device mutex to serialize tape commands. */
+	struct mutex			mutex;
+
 	/* Device discipline information. */
 	struct tape_discipline *	discipline;
 	void *				discdata;
@@ -292,9 +295,9 @@ extern int tape_generic_pm_suspend(struct ccw_device *);
 extern int tape_generic_probe(struct ccw_device *);
 extern void tape_generic_remove(struct ccw_device *);
 
-extern struct tape_device *tape_get_device(int devindex);
-extern struct tape_device *tape_get_device_reference(struct tape_device *);
-extern struct tape_device *tape_put_device(struct tape_device *);
+extern struct tape_device *tape_find_device(int devindex);
+extern struct tape_device *tape_get_device(struct tape_device *);
+extern void tape_put_device(struct tape_device *);
 
 /* Externals from tape_char.c */
 extern int tapechar_init(void);

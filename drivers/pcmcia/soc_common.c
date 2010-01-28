@@ -144,10 +144,10 @@ soc_common_pcmcia_config_skt(struct soc_pcmcia_socket *skt, socket_state_t *stat
 		 */
 		if (skt->irq_state != 1 && state->io_irq) {
 			skt->irq_state = 1;
-			set_irq_type(skt->irq, IRQ_TYPE_EDGE_FALLING);
+			set_irq_type(skt->socket.pci_irq, IRQ_TYPE_EDGE_FALLING);
 		} else if (skt->irq_state == 1 && state->io_irq == 0) {
 			skt->irq_state = 0;
-			set_irq_type(skt->irq, IRQ_TYPE_NONE);
+			set_irq_type(skt->socket.pci_irq, IRQ_TYPE_NONE);
 		}
 
 		skt->cs_state = *state;
@@ -492,7 +492,8 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr, ch
 
 	p+=sprintf(p, "Vcc      : %d\n", skt->cs_state.Vcc);
 	p+=sprintf(p, "Vpp      : %d\n", skt->cs_state.Vpp);
-	p+=sprintf(p, "IRQ      : %d (%d)\n", skt->cs_state.io_irq, skt->irq);
+	p+=sprintf(p, "IRQ      : %d (%d)\n", skt->cs_state.io_irq,
+		skt->socket.pci_irq);
 	if (skt->ops->show_timing)
 		p+=skt->ops->show_timing(skt, p);
 
@@ -574,7 +575,7 @@ void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt,
 EXPORT_SYMBOL(soc_pcmcia_enable_irqs);
 
 
-LIST_HEAD(soc_pcmcia_sockets);
+static LIST_HEAD(soc_pcmcia_sockets);
 static DEFINE_MUTEX(soc_pcmcia_sockets_lock);
 
 #ifdef CONFIG_CPU_FREQ
@@ -609,177 +610,137 @@ static int soc_pcmcia_cpufreq_register(void)
 				"notifier for PCMCIA (%d)\n", ret);
 	return ret;
 }
+fs_initcall(soc_pcmcia_cpufreq_register);
 
 static void soc_pcmcia_cpufreq_unregister(void)
 {
 	cpufreq_unregister_notifier(&soc_pcmcia_notifier_block, CPUFREQ_TRANSITION_NOTIFIER);
 }
+module_exit(soc_pcmcia_cpufreq_unregister);
 
-#else
-static int soc_pcmcia_cpufreq_register(void) { return 0; }
-static void soc_pcmcia_cpufreq_unregister(void) {}
 #endif
 
-int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops,
-				struct skt_dev_info *sinfo)
+void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 {
-	struct soc_pcmcia_socket *skt;
-	int ret, i;
+	mutex_lock(&soc_pcmcia_sockets_lock);
+	del_timer_sync(&skt->poll_timer);
+
+	pcmcia_unregister_socket(&skt->socket);
+
+	flush_scheduled_work();
+
+	skt->ops->hw_shutdown(skt);
+
+	soc_common_pcmcia_config_skt(skt, &dead_socket);
+
+	list_del(&skt->node);
+	mutex_unlock(&soc_pcmcia_sockets_lock);
+
+	iounmap(skt->virt_io);
+	skt->virt_io = NULL;
+	release_resource(&skt->res_attr);
+	release_resource(&skt->res_mem);
+	release_resource(&skt->res_io);
+	release_resource(&skt->res_skt);
+}
+EXPORT_SYMBOL(soc_pcmcia_remove_one);
+
+int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
+{
+	int ret;
+
+	init_timer(&skt->poll_timer);
+	skt->poll_timer.function = soc_common_pcmcia_poll_event;
+	skt->poll_timer.data = (unsigned long)skt;
+	skt->poll_timer.expires = jiffies + SOC_PCMCIA_POLL_PERIOD;
+
+	ret = request_resource(&iomem_resource, &skt->res_skt);
+	if (ret)
+		goto out_err_1;
+
+	ret = request_resource(&skt->res_skt, &skt->res_io);
+	if (ret)
+		goto out_err_2;
+
+	ret = request_resource(&skt->res_skt, &skt->res_mem);
+	if (ret)
+		goto out_err_3;
+
+	ret = request_resource(&skt->res_skt, &skt->res_attr);
+	if (ret)
+		goto out_err_4;
+
+	skt->virt_io = ioremap(skt->res_io.start, 0x10000);
+	if (skt->virt_io == NULL) {
+		ret = -ENOMEM;
+		goto out_err_5;
+	}
 
 	mutex_lock(&soc_pcmcia_sockets_lock);
+
+	list_add(&skt->node, &soc_pcmcia_sockets);
 
 	/*
-	 * Initialise the per-socket structure.
+	 * We initialize default socket timing here, because
+	 * we are not guaranteed to see a SetIOMap operation at
+	 * runtime.
 	 */
-	for (i = 0; i < sinfo->nskt; i++) {
-		skt = &sinfo->skt[i];
+	skt->ops->set_timing(skt);
 
-		skt->socket.ops = &soc_common_pcmcia_operations;
-		skt->socket.owner = ops->owner;
-		skt->socket.dev.parent = dev;
+	ret = skt->ops->hw_init(skt);
+	if (ret)
+		goto out_err_6;
 
-		init_timer(&skt->poll_timer);
-		skt->poll_timer.function = soc_common_pcmcia_poll_event;
-		skt->poll_timer.data = (unsigned long)skt;
-		skt->poll_timer.expires = jiffies + SOC_PCMCIA_POLL_PERIOD;
+	skt->socket.ops = &soc_common_pcmcia_operations;
+	skt->socket.features = SS_CAP_STATIC_MAP|SS_CAP_PCCARD;
+	skt->socket.resource_ops = &pccard_static_ops;
+	skt->socket.irq_mask = 0;
+	skt->socket.map_size = PAGE_SIZE;
+	skt->socket.io_offset = (unsigned long)skt->virt_io;
 
-		skt->dev	= dev;
-		skt->ops	= ops;
+	skt->status = soc_common_pcmcia_skt_state(skt);
 
-		ret = request_resource(&iomem_resource, &skt->res_skt);
-		if (ret)
-			goto out_err_1;
+	ret = pcmcia_register_socket(&skt->socket);
+	if (ret)
+		goto out_err_7;
 
-		ret = request_resource(&skt->res_skt, &skt->res_io);
-		if (ret)
-			goto out_err_2;
+	add_timer(&skt->poll_timer);
 
-		ret = request_resource(&skt->res_skt, &skt->res_mem);
-		if (ret)
-			goto out_err_3;
+	mutex_unlock(&soc_pcmcia_sockets_lock);
 
-		ret = request_resource(&skt->res_skt, &skt->res_attr);
-		if (ret)
-			goto out_err_4;
+	ret = device_create_file(&skt->socket.dev, &dev_attr_status);
+	if (ret)
+		goto out_err_8;
 
-		skt->virt_io = ioremap(skt->res_io.start, 0x10000);
-		if (skt->virt_io == NULL) {
-			ret = -ENOMEM;
-			goto out_err_5;
-		}
+	return ret;
 
-		if (list_empty(&soc_pcmcia_sockets))
-			soc_pcmcia_cpufreq_register();
-
-		list_add(&skt->node, &soc_pcmcia_sockets);
-
-		/*
-		 * We initialize default socket timing here, because
-		 * we are not guaranteed to see a SetIOMap operation at
-		 * runtime.
-		 */
-		ops->set_timing(skt);
-
-		ret = ops->hw_init(skt);
-		if (ret)
-			goto out_err_6;
-
-		skt->socket.features = SS_CAP_STATIC_MAP|SS_CAP_PCCARD;
-		skt->socket.resource_ops = &pccard_static_ops;
-		skt->socket.irq_mask = 0;
-		skt->socket.map_size = PAGE_SIZE;
-		skt->socket.pci_irq = skt->irq;
-		skt->socket.io_offset = (unsigned long)skt->virt_io;
-
-		skt->status = soc_common_pcmcia_skt_state(skt);
-
-		ret = pcmcia_register_socket(&skt->socket);
-		if (ret)
-			goto out_err_7;
-
-		WARN_ON(skt->socket.sock != i);
-
-		add_timer(&skt->poll_timer);
-
-		ret = device_create_file(&skt->socket.dev, &dev_attr_status);
-		if (ret)
-			goto out_err_8;
-	}
-
-	dev_set_drvdata(dev, sinfo);
-	ret = 0;
-	goto out;
-
-	do {
-		skt = &sinfo->skt[i];
-
-		device_remove_file(&skt->socket.dev, &dev_attr_status);
  out_err_8:
-		del_timer_sync(&skt->poll_timer);
-		pcmcia_unregister_socket(&skt->socket);
+	mutex_lock(&soc_pcmcia_sockets_lock);
+	del_timer_sync(&skt->poll_timer);
+	pcmcia_unregister_socket(&skt->socket);
 
  out_err_7:
-		flush_scheduled_work();
+	flush_scheduled_work();
 
-		ops->hw_shutdown(skt);
+	skt->ops->hw_shutdown(skt);
  out_err_6:
- 		list_del(&skt->node);
-		iounmap(skt->virt_io);
- out_err_5:
-		release_resource(&skt->res_attr);
- out_err_4:
-		release_resource(&skt->res_mem);
- out_err_3:
-		release_resource(&skt->res_io);
- out_err_2:
-		release_resource(&skt->res_skt);
- out_err_1:
-		i--;
-	} while (i > 0);
-
-	kfree(sinfo);
-
- out:
+	list_del(&skt->node);
 	mutex_unlock(&soc_pcmcia_sockets_lock);
+	iounmap(skt->virt_io);
+ out_err_5:
+	release_resource(&skt->res_attr);
+ out_err_4:
+	release_resource(&skt->res_mem);
+ out_err_3:
+	release_resource(&skt->res_io);
+ out_err_2:
+	release_resource(&skt->res_skt);
+ out_err_1:
+
 	return ret;
 }
+EXPORT_SYMBOL(soc_pcmcia_add_one);
 
-int soc_common_drv_pcmcia_remove(struct device *dev)
-{
-	struct skt_dev_info *sinfo = dev_get_drvdata(dev);
-	int i;
-
-	dev_set_drvdata(dev, NULL);
-
-	mutex_lock(&soc_pcmcia_sockets_lock);
-	for (i = 0; i < sinfo->nskt; i++) {
-		struct soc_pcmcia_socket *skt = &sinfo->skt[i];
-
-		del_timer_sync(&skt->poll_timer);
-
-		pcmcia_unregister_socket(&skt->socket);
-
-		flush_scheduled_work();
-
-		skt->ops->hw_shutdown(skt);
-
-		soc_common_pcmcia_config_skt(skt, &dead_socket);
-
-		list_del(&skt->node);
-		iounmap(skt->virt_io);
-		skt->virt_io = NULL;
-		release_resource(&skt->res_attr);
-		release_resource(&skt->res_mem);
-		release_resource(&skt->res_io);
-		release_resource(&skt->res_skt);
-	}
-	if (list_empty(&soc_pcmcia_sockets))
-		soc_pcmcia_cpufreq_unregister();
-
-	mutex_unlock(&soc_pcmcia_sockets_lock);
-
-	kfree(sinfo);
-
-	return 0;
-}
-EXPORT_SYMBOL(soc_common_drv_pcmcia_remove);
+MODULE_AUTHOR("John Dorsey <john+@cs.cmu.edu>");
+MODULE_DESCRIPTION("Linux PCMCIA Card Services: Common SoC support");
+MODULE_LICENSE("Dual MPL/GPL");

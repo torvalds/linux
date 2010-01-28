@@ -439,7 +439,7 @@ void free_chunks(imgchunk_t *fchunk, unsigned int *nfchunks)
 		}
 	}
 	*nfchunks = 0;
-	memset(fchunk, 0, sizeof(fchunk));
+	memset(fchunk, 0, sizeof(*fchunk));
 
 }
 

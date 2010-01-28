@@ -365,8 +365,8 @@ static struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	padlen = ((skb->len + 4) % 512) ? 0 : 4;
 
-	if ((!skb_cloned(skb))
-	    && ((headroom + tailroom) >= (4 + padlen))) {
+	if ((!skb_cloned(skb)) &&
+	    ((headroom + tailroom) >= (4 + padlen))) {
 		if ((headroom < 4) || (tailroom < padlen)) {
 			skb->data = memmove(skb->head + 4, skb->data, skb->len);
 			skb_set_tail_pointer(skb, skb->len);
@@ -541,8 +541,8 @@ static void asix_set_multicast(struct net_device *net)
 
 	if (net->flags & IFF_PROMISC) {
 		rx_ctl |= AX_RX_CTL_PRO;
-	} else if (net->flags & IFF_ALLMULTI
-		   || net->mc_count > AX_MAX_MCAST) {
+	} else if (net->flags & IFF_ALLMULTI ||
+		   net->mc_count > AX_MAX_MCAST) {
 		rx_ctl |= AX_RX_CTL_AMALL;
 	} else if (net->mc_count == 0) {
 		/* just broadcast and directed */
@@ -753,8 +753,8 @@ static void ax88172_set_multicast(struct net_device *net)
 
 	if (net->flags & IFF_PROMISC) {
 		rx_ctl |= 0x01;
-	} else if (net->flags & IFF_ALLMULTI
-		   || net->mc_count > AX_MAX_MCAST) {
+	} else if (net->flags & IFF_ALLMULTI ||
+		   net->mc_count > AX_MAX_MCAST) {
 		rx_ctl |= 0x02;
 	} else if (net->mc_count == 0) {
 		/* just broadcast and directed */
@@ -1327,7 +1327,7 @@ static const struct driver_info ax8817x_info = {
 	.status = asix_status,
 	.link_reset = ax88172_link_reset,
 	.reset = ax88172_link_reset,
-	.flags =  FLAG_ETHER,
+	.flags =  FLAG_ETHER | FLAG_LINK_INTR,
 	.data = 0x00130103,
 };
 
@@ -1337,7 +1337,7 @@ static const struct driver_info dlink_dub_e100_info = {
 	.status = asix_status,
 	.link_reset = ax88172_link_reset,
 	.reset = ax88172_link_reset,
-	.flags =  FLAG_ETHER,
+	.flags =  FLAG_ETHER | FLAG_LINK_INTR,
 	.data = 0x009f9d9f,
 };
 
@@ -1347,7 +1347,7 @@ static const struct driver_info netgear_fa120_info = {
 	.status = asix_status,
 	.link_reset = ax88172_link_reset,
 	.reset = ax88172_link_reset,
-	.flags =  FLAG_ETHER,
+	.flags =  FLAG_ETHER | FLAG_LINK_INTR,
 	.data = 0x00130103,
 };
 
@@ -1357,7 +1357,7 @@ static const struct driver_info hawking_uf200_info = {
 	.status = asix_status,
 	.link_reset = ax88172_link_reset,
 	.reset = ax88172_link_reset,
-	.flags =  FLAG_ETHER,
+	.flags =  FLAG_ETHER | FLAG_LINK_INTR,
 	.data = 0x001f1d1f,
 };
 
@@ -1367,7 +1367,7 @@ static const struct driver_info ax88772_info = {
 	.status = asix_status,
 	.link_reset = ax88772_link_reset,
 	.reset = ax88772_link_reset,
-	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR,
 	.rx_fixup = asix_rx_fixup,
 	.tx_fixup = asix_tx_fixup,
 };
@@ -1378,7 +1378,7 @@ static const struct driver_info ax88178_info = {
 	.status = asix_status,
 	.link_reset = ax88178_link_reset,
 	.reset = ax88178_link_reset,
-	.flags = FLAG_ETHER | FLAG_FRAMING_AX,
+	.flags = FLAG_ETHER | FLAG_FRAMING_AX | FLAG_LINK_INTR,
 	.rx_fixup = asix_rx_fixup,
 	.tx_fixup = asix_tx_fixup,
 };

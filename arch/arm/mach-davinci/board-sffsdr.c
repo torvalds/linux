@@ -23,35 +23,24 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
-
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
-#include <linux/etherdevice.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mtd/physmap.h>
-#include <linux/io.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
-
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
 #include <mach/dm644x.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
-#include <mach/psc.h>
 #include <mach/mux.h>
+#include <mach/usb.h>
 
 #define SFFSDR_PHY_MASK		(0x2)
 #define SFFSDR_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -107,11 +96,6 @@ static struct platform_device davinci_sffsdr_nandflash_device = {
 	.resource	= davinci_sffsdr_nandflash_resource,
 };
 
-static struct emac_platform_data sffsdr_emac_pdata = {
-	.phy_mask	= SFFSDR_PHY_MASK,
-	.mdio_max_freq	= SFFSDR_MDIO_FREQUENCY,
-};
-
 static struct at24_platform_data eeprom_info = {
 	.byte_len	= (64*1024) / 8,
 	.page_size	= 32,
@@ -164,7 +148,7 @@ static __init void davinci_sffsdr_init(void)
 	davinci_serial_init(&uart_config);
 	soc_info->emac_pdata->phy_mask = SFFSDR_PHY_MASK;
 	soc_info->emac_pdata->mdio_max_freq = SFFSDR_MDIO_FREQUENCY;
-	setup_usb(0, 0); /* We support only peripheral mode. */
+	davinci_setup_usb(0, 0); /* We support only peripheral mode. */
 
 	/* mux VLYNQ pins */
 	davinci_cfg_reg(DM644X_VLYNQEN);

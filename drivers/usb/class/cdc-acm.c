@@ -1461,6 +1461,12 @@ err_out:
 }
 
 #endif /* CONFIG_PM */
+
+#define NOKIA_PCSUITE_ACM_INFO(x) \
+		USB_DEVICE_AND_INTERFACE_INFO(0x0421, x, \
+		USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM, \
+		USB_CDC_ACM_PROTO_VENDOR)
+
 /*
  * USB driver structure.
  */
@@ -1519,6 +1525,57 @@ static struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
 
+	/* Nokia S60 phones expose two ACM channels. The first is
+	 * a modem and is picked up by the standard AT-command
+	 * information below. The second is 'vendor-specific' but
+	 * is treated as a serial device at the S60 end, so we want
+	 * to expose it on Linux too. */
+	{ NOKIA_PCSUITE_ACM_INFO(0x042D), }, /* Nokia 3250 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04D8), }, /* Nokia 5500 Sport */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04C9), }, /* Nokia E50 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0419), }, /* Nokia E60 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x044D), }, /* Nokia E61 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0001), }, /* Nokia E61i */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0475), }, /* Nokia E62 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0508), }, /* Nokia E65 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0418), }, /* Nokia E70 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0425), }, /* Nokia N71 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0486), }, /* Nokia N73 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04DF), }, /* Nokia N75 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x000e), }, /* Nokia N77 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0445), }, /* Nokia N80 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x042F), }, /* Nokia N91 & N91 8GB */
+	{ NOKIA_PCSUITE_ACM_INFO(0x048E), }, /* Nokia N92 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0420), }, /* Nokia N93 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04E6), }, /* Nokia N93i  */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04B2), }, /* Nokia 5700 XpressMusic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0134), }, /* Nokia 6110 Navigator (China) */
+	{ NOKIA_PCSUITE_ACM_INFO(0x046E), }, /* Nokia 6110 Navigator */
+	{ NOKIA_PCSUITE_ACM_INFO(0x002f), }, /* Nokia 6120 classic &  */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0088), }, /* Nokia 6121 classic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x00fc), }, /* Nokia 6124 classic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0042), }, /* Nokia E51 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x00b0), }, /* Nokia E66 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x00ab), }, /* Nokia E71 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0481), }, /* Nokia N76 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0007), }, /* Nokia N81 & N81 8GB */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0071), }, /* Nokia N82 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x04F0), }, /* Nokia N95 & N95-3 NAM */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0070), }, /* Nokia N95 8GB  */
+	{ NOKIA_PCSUITE_ACM_INFO(0x00e9), }, /* Nokia 5320 XpressMusic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0099), }, /* Nokia 6210 Navigator, RM-367 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0128), }, /* Nokia 6210 Navigator, RM-419 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x008f), }, /* Nokia 6220 Classic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x00a0), }, /* Nokia 6650 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x007b), }, /* Nokia N78 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0094), }, /* Nokia N85 */
+	{ NOKIA_PCSUITE_ACM_INFO(0x003a), }, /* Nokia N96 & N96-3  */
+	{ NOKIA_PCSUITE_ACM_INFO(0x00e9), }, /* Nokia 5320 XpressMusic */
+	{ NOKIA_PCSUITE_ACM_INFO(0x0108), }, /* Nokia 5320 XpressMusic 2G */
+	{ NOKIA_PCSUITE_ACM_INFO(0x01f5), }, /* Nokia N97, RM-505 */
+
+	/* NOTE: non-Nokia COMM/ACM/0xff is likely MSFT RNDIS... NOT a modem! */
+
 	/* control interfaces with various AT-command sets */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_ACM_PROTO_AT_V25TER) },
@@ -1533,7 +1590,6 @@ static struct usb_device_id acm_ids[] = {
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,
 		USB_CDC_ACM_PROTO_AT_CDMA) },
 
-	/* NOTE:  COMM/ACM/0xff is likely MSFT RNDIS ... NOT a modem!! */
 	{ }
 };
 

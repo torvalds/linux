@@ -281,10 +281,28 @@ minimum value disables backlight compensation.</entry>
 <constant>V4L2_COLORFX_SEPIA</constant> (2).</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CID_ROTATE</constant></entry>
+	    <entry>integer</entry>
+	    <entry>Rotates the image by specified angle. Common angles are 90,
+	    270 and 180. Rotating the image to 90 and 270 will reverse the height
+	    and width of the display window. It is necessary to set the new height and
+	    width of the picture using the &VIDIOC-S-FMT; ioctl according to
+	    the rotation angle selected.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CID_BG_COLOR</constant></entry>
+	    <entry>integer</entry>
+	    <entry>Sets the background color on the current output device.
+	    Background color needs to be specified in the RGB24 format. The
+	    supplied 32 bit value is interpreted as bits 0-7 Red color information,
+	    bits 8-15 Green color information, bits 16-23 Blue color
+	    information and bits 24-31 must be zero.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CID_LASTP1</constant></entry>
 	    <entry></entry>
 	    <entry>End of the predefined control IDs (currently
-<constant>V4L2_CID_COLORFX</constant> + 1).</entry>
+<constant>V4L2_CID_BG_COLOR</constant> + 1).</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_PRIVATE_BASE</constant></entry>

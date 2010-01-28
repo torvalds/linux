@@ -30,7 +30,7 @@
 #define SMSC_NAPI_WEIGHT	16
 
 /* implements a PHY loopback test at initialisation time, to ensure a packet
- * can be succesfully looped back */
+ * can be successfully looped back */
 #define USE_PHY_WORK_AROUND
 
 #define DPRINTK(nlevel, klevel, fmt, args...) \

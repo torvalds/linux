@@ -910,7 +910,8 @@ static int cx18_log_status(struct file *file, void *fh)
 			continue;
 		CX18_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n",
 			  s->name, s->s_flags,
-			  atomic_read(&s->q_full.buffers) * 100 / s->buffers,
+			  atomic_read(&s->q_full.depth) * s->bufs_per_mdl * 100
+			   / s->buffers,
 			  (s->buffers * s->buf_size) / 1024, s->buffers);
 	}
 	CX18_INFO("Read MPEG/VBI: %lld/%lld bytes\n",

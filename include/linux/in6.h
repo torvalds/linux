@@ -27,10 +27,8 @@
  *	IPv6 address structure
  */
 
-struct in6_addr
-{
-	union 
-	{
+struct in6_addr {
+	union {
 		__u8		u6_addr8[16];
 		__be16		u6_addr16[8];
 		__be32		u6_addr32[4];
@@ -75,8 +73,7 @@ struct ipv6_mreq {
 
 #define ipv6mr_acaddr	ipv6mr_multiaddr
 
-struct in6_flowlabel_req
-{
+struct in6_flowlabel_req {
 	struct in6_addr	flr_dst;
 	__be32	flr_label;
 	__u8	flr_action;
@@ -113,7 +110,7 @@ struct in6_flowlabel_req
 #define IPV6_FLOWINFO_FLOWLABEL		0x000fffff
 #define IPV6_FLOWINFO_PRIORITY		0x0ff00000
 
-/* These defintions are obsolete */
+/* These definitions are obsolete */
 #define IPV6_PRIORITY_UNCHARACTERIZED	0x0000
 #define IPV6_PRIORITY_FILLER		0x0100
 #define IPV6_PRIORITY_UNATTENDED	0x0200

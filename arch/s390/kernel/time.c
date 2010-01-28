@@ -214,7 +214,8 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct clocksource *clock)
+void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
+		     u32 mult)
 {
 	if (clock != &clocksource_tod)
 		return;
@@ -334,7 +335,7 @@ int get_sync_clock(unsigned long long *clock)
 	sw0 = atomic_read(sw_ptr);
 	*clock = get_clock();
 	sw1 = atomic_read(sw_ptr);
-	put_cpu_var(clock_sync_sync);
+	put_cpu_var(clock_sync_word);
 	if (sw0 == sw1 && (sw0 & 0x80000000U))
 		/* Success: time is in sync. */
 		return 0;
@@ -384,7 +385,7 @@ static inline int check_sync_clock(void)
 
 	sw_ptr = &get_cpu_var(clock_sync_word);
 	rc = (atomic_read(sw_ptr) & 0x80000000U) != 0;
-	put_cpu_var(clock_sync_sync);
+	put_cpu_var(clock_sync_word);
 	return rc;
 }
 

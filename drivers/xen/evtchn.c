@@ -48,6 +48,8 @@
 #include <linux/gfp.h>
 #include <linux/mutex.h>
 #include <linux/cpu.h>
+
+#include <xen/xen.h>
 #include <xen/events.h>
 #include <xen/evtchn.h>
 #include <asm/xen/hypervisor.h>

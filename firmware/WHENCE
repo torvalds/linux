@@ -601,6 +601,7 @@ File: cis/LA-PCM.cis
       cis/NE2K.cis
       cis/tamarack.cis
       cis/PE-200.cis
+      cis/PE520.cis
 
 Licence: GPL
 
@@ -678,8 +679,8 @@ Found in hex form in kernel source.
 
 Driver: bnx2x: Broadcom Everest
 
-File: bnx2x-e1-4.8.53.0.fw.ihex
-File: bnx2x-e1h-4.8.53.0.fw.ihex
+File: bnx2x-e1-5.2.7.0.fw.ihex
+File: bnx2x-e1h-5.2.7.0.fw.ihex
 
 License:
   Copyright (c) 2007-2009 Broadcom Corporation

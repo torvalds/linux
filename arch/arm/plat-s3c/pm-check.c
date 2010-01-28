@@ -1,7 +1,7 @@
 /* linux/arch/arm/plat-s3c/pm-check.c
  *  originally in linux/arch/arm/plat-s3c24xx/pm.c
  *
- * Copyright (c) 2004,2006,2008 Simtec Electronics
+ * Copyright (c) 2004-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk
  *	Ben Dooks <ben@simtec.co.uk>
  *

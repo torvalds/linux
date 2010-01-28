@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,8 @@
 #ifndef RT2X00USB_H
 #define RT2X00USB_H
 
+#include <linux/usb.h>
+
 #define to_usb_device_intf(d) \
 ({ \
 	struct usb_interface *intf = to_usb_interface(d); \
@@ -39,17 +41,11 @@
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
 /*
- * Register defines.
- * Some registers require multiple attempts before success,
- * in those cases REGISTER_BUSY_COUNT attempts should be
- * taken with a REGISTER_BUSY_DELAY interval.
  * For USB vendor requests we need to pass a timeout
  * time in ms, for this we use the REGISTER_TIMEOUT,
  * however when loading firmware a higher value is
  * required. In that case we use the REGISTER_TIMEOUT_FIRMWARE.
  */
-#define REGISTER_BUSY_COUNT		5
-#define REGISTER_BUSY_DELAY		100
 #define REGISTER_TIMEOUT		500
 #define REGISTER_TIMEOUT_FIRMWARE	1000
 
@@ -232,7 +228,7 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 }
 
 /**
- * rt2x00usb_regbusy_read - Read 32bit register word
+ * rt2x00usb_register_read - Read 32bit register word
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  * @offset: Register offset
  * @value: Pointer to where register contents should be stored
@@ -340,12 +336,13 @@ static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
  * through rt2x00usb_vendor_request_buff().
  */
 static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
-					       const unsigned int offset,
-					       void *value, const u32 length)
+						 const unsigned int offset,
+						 const void *value,
+						 const u32 length)
 {
 	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
 				      USB_VENDOR_REQUEST_OUT, offset,
-				      value, length,
+				      (void *)value, length,
 				      REGISTER_TIMEOUT32(length));
 }
 
@@ -364,7 +361,7 @@ static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
  */
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   const unsigned int offset,
-			   struct rt2x00_field32 field,
+			   const struct rt2x00_field32 field,
 			   u32 *reg);
 
 /*

@@ -23,6 +23,8 @@
 static char *lbtf_fw_name = "lbtf_usb.bin";
 module_param_named(fw_name, lbtf_fw_name, charp, 0644);
 
+MODULE_FIRMWARE("lbtf_usb.bin");
+
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
 	{ USB_DEVICE(0x1286, 0x2001) },

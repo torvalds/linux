@@ -164,6 +164,14 @@ tcp_congestion_control - STRING
 	additional choices may be available based on kernel configuration.
 	Default is set as part of kernel configuration.
 
+tcp_cookie_size - INTEGER
+	Default size of TCP Cookie Transactions (TCPCT) option, that may be
+	overridden on a per socket basis by the TCPCT socket option.
+	Values greater than the maximum (16) are interpreted as the maximum.
+	Values greater than zero and less than the minimum (8) are interpreted
+	as the minimum.  Odd values are interpreted as the next even value.
+	Default: 0 (off).
+
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
@@ -723,6 +731,12 @@ accept_source_route - BOOLEAN
 	default TRUE (router)
 		FALSE (host)
 
+accept_local - BOOLEAN
+	Accept packets with local source addresses. In combination with
+	suitable routing, this can be used to direct packets between two
+	local interfaces over the wire and have them accepted properly.
+	default FALSE
+
 rp_filter - INTEGER
 	0 - No source validation.
 	1 - Strict mode as defined in RFC3704 Strict Reverse Path
@@ -738,8 +752,8 @@ rp_filter - INTEGER
 	to prevent IP spoofing from DDos attacks. If using asymmetric routing
 	or other complicated routing, then loose mode is recommended.
 
-	conf/all/rp_filter must also be set to non-zero to do source validation
-	on the interface
+	The max value from conf/{all,interface}/rp_filter is used
+	when doing source validation on the {interface}.
 
 	Default value is 0. Note that some distributions enable it
 	in startup scripts.
@@ -1085,6 +1099,24 @@ accept_dad - INTEGER
 	1: Enable DAD (default)
 	2: Enable DAD, and disable IPv6 operation if MAC-based duplicate
 	   link-local address has been found.
+
+force_tllao - BOOLEAN
+	Enable sending the target link-layer address option even when
+	responding to a unicast neighbor solicitation.
+	Default: FALSE
+
+	Quoting from RFC 2461, section 4.4, Target link-layer address:
+
+	"The option MUST be included for multicast solicitations in order to
+	avoid infinite Neighbor Solicitation "recursion" when the peer node
+	does not have a cache entry to return a Neighbor Advertisements
+	message.  When responding to unicast solicitations, the option can be
+	omitted since the sender of the solicitation has the correct link-
+	layer address; otherwise it would not have be able to send the unicast
+	solicitation in the first place. However, including the link-layer
+	address in this case adds little overhead and eliminates a potential
+	race condition where the sender deletes the cached link-layer address
+	prior to receiving a response to a previous solicitation."
 
 icmp/*:
 ratelimit - INTEGER

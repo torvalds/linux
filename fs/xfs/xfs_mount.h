@@ -93,6 +93,9 @@ typedef struct xfs_dmops {
 	xfs_send_unmount_t	xfs_send_unmount;
 } xfs_dmops_t;
 
+#define XFS_DMAPI_UNMOUNT_FLAGS(mp) \
+	(((mp)->m_dmevmask & (1 << DM_EVENT_UNMOUNT)) ? 0 : DM_FLAGS_UNWANTED)
+
 #define XFS_SEND_DATA(mp, ev,ip,off,len,fl,lock) \
 	(*(mp)->m_dm_ops->xfs_send_data)(ev,ip,off,len,fl,lock)
 #define XFS_SEND_MMAP(mp, vma,fl) \
@@ -101,12 +104,24 @@ typedef struct xfs_dmops {
 	(*(mp)->m_dm_ops->xfs_send_destroy)(ip,right)
 #define XFS_SEND_NAMESP(mp, ev,b1,r1,b2,r2,n1,n2,mode,rval,fl) \
 	(*(mp)->m_dm_ops->xfs_send_namesp)(ev,NULL,b1,r1,b2,r2,n1,n2,mode,rval,fl)
-#define XFS_SEND_PREUNMOUNT(mp,b1,r1,b2,r2,n1,n2,mode,rval,fl) \
-	(*(mp)->m_dm_ops->xfs_send_namesp)(DM_EVENT_PREUNMOUNT,mp,b1,r1,b2,r2,n1,n2,mode,rval,fl)
 #define XFS_SEND_MOUNT(mp,right,path,name) \
 	(*(mp)->m_dm_ops->xfs_send_mount)(mp,right,path,name)
-#define XFS_SEND_UNMOUNT(mp, ip,right,mode,rval,fl) \
-	(*(mp)->m_dm_ops->xfs_send_unmount)(mp,ip,right,mode,rval,fl)
+#define XFS_SEND_PREUNMOUNT(mp) \
+do { \
+	if (mp->m_flags & XFS_MOUNT_DMAPI) { \
+		(*(mp)->m_dm_ops->xfs_send_namesp)(DM_EVENT_PREUNMOUNT, mp, \
+			(mp)->m_rootip, DM_RIGHT_NULL, \
+			(mp)->m_rootip, DM_RIGHT_NULL, \
+			NULL, NULL, 0, 0, XFS_DMAPI_UNMOUNT_FLAGS(mp)); \
+	} \
+} while (0)
+#define XFS_SEND_UNMOUNT(mp) \
+do { \
+	if (mp->m_flags & XFS_MOUNT_DMAPI) { \
+		(*(mp)->m_dm_ops->xfs_send_unmount)(mp, (mp)->m_rootip, \
+			DM_RIGHT_NULL, 0, 0, XFS_DMAPI_UNMOUNT_FLAGS(mp)); \
+	} \
+} while (0)
 
 
 #ifdef HAVE_PERCPU_SB
@@ -387,13 +402,13 @@ xfs_put_perag(struct xfs_mount *mp, xfs_perag_t *pag)
  * Per-cpu superblock locking functions
  */
 #ifdef HAVE_PERCPU_SB
-STATIC_INLINE void
+static inline void
 xfs_icsb_lock(xfs_mount_t *mp)
 {
 	mutex_lock(&mp->m_icsb_mutex);
 }
 
-STATIC_INLINE void
+static inline void
 xfs_icsb_unlock(xfs_mount_t *mp)
 {
 	mutex_unlock(&mp->m_icsb_mutex);

@@ -197,10 +197,9 @@ struct channel_info {
 
 	/* Contains the header and circular buffer exported to userspace. */
 	spinlock_t group_offsets_lock;
-	struct poch_cbuf_header *header;
-	struct page *header_pg;
-	unsigned long header_size;
 
+	/* Last group consumed by user space. */
+	unsigned int consumed;
 	/* Last group indicated as 'complete' to user space. */
 	unsigned int transfer;
 
@@ -244,6 +243,16 @@ struct poch_dev {
 
 	struct device *dev;
 };
+
+static int synth_rx;
+module_param(synth_rx, bool, 0600);
+MODULE_PARM_DESC(synth_rx,
+		"Synthesize received values using a counter. Default: No");
+
+static int loopback;
+module_param(loopback, bool, 0600);
+MODULE_PARM_DESC(loopback,
+		"Enable hardware loopback of trasnmitted data. Default: No");
 
 static dev_t poch_first_dev;
 static struct class *poch_cls;
@@ -317,14 +326,12 @@ static ssize_t show_mmap_size(struct device *dev,
 	int len;
 	unsigned long mmap_size;
 	unsigned long group_pages;
-	unsigned long header_pages;
 	unsigned long total_group_pages;
 
 	group_pages = npages(channel->group_size);
-	header_pages = npages(channel->header_size);
 	total_group_pages = group_pages * channel->group_count;
 
-	mmap_size = (header_pages + total_group_pages) * PAGE_SIZE;
+	mmap_size = total_group_pages * PAGE_SIZE;
 	len = sprintf(buf, "%lu\n", mmap_size);
 	return len;
 }
@@ -357,10 +364,8 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 {
 	unsigned long i;
 	unsigned long group_pages;
-	unsigned long header_pages;
 
 	group_pages = npages(channel->group_size);
-	header_pages = npages(channel->header_size);
 
 	for (i = 0; i < channel->group_count; i++) {
 		struct poch_group_info *group;
@@ -390,8 +395,7 @@ static int poch_channel_alloc_groups(struct channel_info *channel)
 		 * this?
 		 */
 		group->dma_addr = page_to_pfn(group->pg) * PAGE_SIZE;
-		group->user_offset =
-			(header_pages + (i * group_pages)) * PAGE_SIZE;
+		group->user_offset = (i * group_pages) * PAGE_SIZE;
 
 		printk(KERN_INFO PFX "%ld: user_offset: 0x%lx\n", i,
 		       group->user_offset);
@@ -476,7 +480,7 @@ static void channel_dma_init(struct channel_info *channel)
 		  fpga + block_count_reg);
 	iowrite32(channel->group_count, fpga + group_count_reg);
 	/* FIXME: Hardcoded groups per int. Get it from sysfs? */
-	iowrite32(1, fpga + groups_per_int_reg);
+	iowrite32(16, fpga + groups_per_int_reg);
 
 	/* Unlock PCI address? Not defined in the data sheet, but used
 	 * in the reference code by Redrapids.
@@ -513,56 +517,6 @@ static void channel_dma_init(struct channel_info *channel)
 
 }
 
-static int poch_channel_alloc_header(struct channel_info *channel)
-{
-	struct poch_cbuf_header *header = channel->header;
-	unsigned long group_offset_size;
-	unsigned long tot_group_offsets_size;
-
-	/* Allocate memory to hold header exported userspace */
-	group_offset_size = sizeof(header->group_offsets[0]);
-	tot_group_offsets_size = group_offset_size * channel->group_count;
-	channel->header_size = sizeof(*header) + tot_group_offsets_size;
-	channel->header_pg = alloc_pages(GFP_KERNEL | __GFP_ZERO,
-					 get_order(channel->header_size));
-	if (!channel->header_pg)
-		return -ENOMEM;
-
-	channel->header = page_address(channel->header_pg);
-
-	return 0;
-}
-
-static void poch_channel_free_header(struct channel_info *channel)
-{
-	unsigned int order;
-
-	order = get_order(channel->header_size);
-	__free_pages(channel->header_pg, order);
-}
-
-static void poch_channel_init_header(struct channel_info *channel)
-{
-	int i;
-	struct poch_group_info *groups;
-	s32 *group_offsets;
-
-	channel->header->group_size_bytes = channel->group_size;
-	channel->header->group_count = channel->group_count;
-
-	spin_lock_init(&channel->group_offsets_lock);
-
-	group_offsets = channel->header->group_offsets;
-	groups = channel->groups;
-
-	for (i = 0; i < channel->group_count; i++) {
-		if (channel->dir == CHANNEL_DIR_RX)
-			group_offsets[i] = -1;
-		else
-			group_offsets[i] = groups[i].user_offset;
-	}
-}
-
 static void __poch_channel_clear_counters(struct channel_info *channel)
 {
 	channel->counters.pll_unlock = 0;
@@ -584,6 +538,7 @@ static int poch_channel_init(struct channel_info *channel,
 	if (ret != 0)
 		goto out;
 
+	channel->consumed = 0;
 	channel->transfer = 0;
 
 	/* Allocate memory to hold group information. */
@@ -604,12 +559,6 @@ static int poch_channel_init(struct channel_info *channel,
 		goto out_free_group_info;
 	}
 
-	ret = poch_channel_alloc_header(channel);
-	if (ret) {
-		dev_err(dev, "error allocating user space header\n");
-		goto out_free_groups;
-	}
-
 	channel->fpga_iomem = poch_dev->fpga_iomem;
 	channel->bridge_iomem = poch_dev->bridge_iomem;
 	channel->iomem_lock = &poch_dev->iomem_lock;
@@ -617,14 +566,8 @@ static int poch_channel_init(struct channel_info *channel,
 
 	__poch_channel_clear_counters(channel);
 
-	printk(KERN_WARNING "poch_channel_init_header\n");
-
-	poch_channel_init_header(channel);
-
 	return 0;
 
- out_free_groups:
-	poch_channel_free_groups(channel);
  out_free_group_info:
 	kfree(channel->groups);
  out:
@@ -822,14 +765,21 @@ static int poch_open(struct inode *inode, struct file *filp)
 
 	if (channel->dir == CHANNEL_DIR_TX) {
 		/* Flush TX FIFO and output data from cardbus. */
-		iowrite32(FPGA_TX_CTL_FIFO_FLUSH
-			  | FPGA_TX_CTL_OUTPUT_CARDBUS,
-			  fpga + FPGA_TX_CTL_REG);
+		u32 ctl_val = 0;
+
+		ctl_val |= FPGA_TX_CTL_FIFO_FLUSH;
+		ctl_val |= FPGA_TX_CTL_OUTPUT_CARDBUS;
+		if (loopback)
+			ctl_val |= FPGA_TX_CTL_LOOPBACK;
+
+		iowrite32(ctl_val, fpga + FPGA_TX_CTL_REG);
 	} else {
 		/* Flush RX FIFO and output data to cardbus. */
-		iowrite32(FPGA_RX_CTL_CONT_CAP
-			  | FPGA_RX_CTL_FIFO_FLUSH,
-			  fpga + FPGA_RX_CTL_REG);
+		u32 ctl_val = FPGA_RX_CTL_CONT_CAP | FPGA_RX_CTL_FIFO_FLUSH;
+		if (synth_rx)
+			ctl_val |= FPGA_RX_CTL_SYNTH_DATA;
+
+		iowrite32(ctl_val, fpga + FPGA_RX_CTL_REG);
 	}
 
 	atomic_inc(&channel->inited);
@@ -861,7 +811,6 @@ static int poch_release(struct inode *inode, struct file *filp)
 	}
 
 	atomic_dec(&channel->inited);
-	poch_channel_free_header(channel);
 	poch_channel_free_groups(channel);
 	kfree(channel->groups);
 	atomic_inc(&channel->free);
@@ -870,7 +819,7 @@ static int poch_release(struct inode *inode, struct file *filp)
 }
 
 /*
- * Map the header and the group buffers, to user space.
+ * Map the the group buffers, to user space.
  */
 static int poch_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -880,7 +829,6 @@ static int poch_mmap(struct file *filp, struct vm_area_struct *vma)
 	unsigned long size;
 
 	unsigned long group_pages;
-	unsigned long header_pages;
 	unsigned long total_group_pages;
 
 	int pg_num;
@@ -897,29 +845,15 @@ static int poch_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	group_pages = npages(channel->group_size);
-	header_pages = npages(channel->header_size);
 	total_group_pages = group_pages * channel->group_count;
 
 	size = vma->vm_end - vma->vm_start;
-	if (size != (header_pages + total_group_pages) * PAGE_SIZE) {
+	if (size != total_group_pages * PAGE_SIZE) {
 		printk(KERN_WARNING PFX "required %lu bytes\n", size);
 		return -EINVAL;
 	}
 
 	start = vma->vm_start;
-
-	/* FIXME: Cleanup required on failure? */
-	pg = channel->header_pg;
-	for (pg_num = 0; pg_num < header_pages; pg_num++, pg++) {
-		printk(KERN_DEBUG PFX "page_count: %d\n", page_count(pg));
-		printk(KERN_DEBUG PFX "%d: header: 0x%lx\n", pg_num, start);
-		ret = vm_insert_page(vma, start, pg);
-		if (ret) {
-			printk(KERN_DEBUG "vm_insert 1 failed at %lx\n", start);
-			return ret;
-		}
-		start += PAGE_SIZE;
-	}
 
 	for (i = 0; i < channel->group_count; i++) {
 		pg = channel->groups[i].pg;
@@ -947,20 +881,16 @@ static int poch_mmap(struct file *filp, struct vm_area_struct *vma)
  */
 static int poch_channel_available(struct channel_info *channel)
 {
-	int i;
+	int available = 0;
 
 	spin_lock_irq(&channel->group_offsets_lock);
 
-	for (i = 0; i < channel->group_count; i++) {
-		if (channel->header->group_offsets[i] != -1) {
-			spin_unlock_irq(&channel->group_offsets_lock);
-			return 1;
-		}
-	}
+	if (channel->consumed != channel->transfer)
+		available = 1;
 
 	spin_unlock_irq(&channel->group_offsets_lock);
 
-	return 0;
+	return available;
 }
 
 static unsigned int poch_poll(struct file *filp, poll_table *pt)
@@ -1026,6 +956,51 @@ static int poch_ioctl(struct inode *inode, struct file *filp,
 			break;
 		}
 		break;
+	case POCH_IOC_CONSUME:
+	{
+		int available;
+		int nfetch;
+		unsigned int from;
+		unsigned int count;
+		unsigned int i, j;
+		struct poch_consume consume;
+		struct poch_consume *uconsume;
+
+		uconsume = argp;
+		ret = copy_from_user(&consume, uconsume, sizeof(consume));
+		if (ret)
+			return ret;
+
+		spin_lock_irq(&channel->group_offsets_lock);
+
+		channel->consumed += consume.nflush;
+		channel->consumed %= channel->group_count;
+
+		available = channel->transfer - channel->consumed;
+		if (available < 0)
+			available += channel->group_count;
+
+		from = channel->consumed;
+
+		spin_unlock_irq(&channel->group_offsets_lock);
+
+		nfetch = consume.nfetch;
+		count = min(available, nfetch);
+
+		for (i = 0; i < count; i++) {
+			j = (from + i) % channel->group_count;
+			ret = put_user(channel->groups[j].user_offset,
+				       &consume.offsets[i]);
+			if (ret)
+				return -EFAULT;
+		}
+
+		ret = put_user(count, &uconsume->nfetch);
+		if (ret)
+			return -EFAULT;
+
+		break;
+	}
 	case POCH_IOC_GET_COUNTERS:
 		if (!access_ok(VERIFY_WRITE, argp, sizeof(struct poch_counters)))
 			return -EFAULT;
@@ -1073,7 +1048,6 @@ static void poch_irq_dma(struct channel_info *channel)
 	long groups_done;
 	unsigned long i, j;
 	struct poch_group_info *groups;
-	s32 *group_offsets;
 	u32 curr_group_reg;
 
 	if (!atomic_read(&channel->inited))
@@ -1093,19 +1067,23 @@ static void poch_irq_dma(struct channel_info *channel)
 	if (groups_done <= 0)
 		groups_done += channel->group_count;
 
-	group_offsets = channel->header->group_offsets;
 	groups = channel->groups;
 
 	spin_lock(&channel->group_offsets_lock);
 
 	for (i = 0; i < groups_done; i++) {
 		j = (prev_transfer + i) % channel->group_count;
-		group_offsets[j] = groups[j].user_offset;
+
+		channel->transfer += 1;
+		channel->transfer %= channel->group_count;
+
+		if (channel->transfer == channel->consumed) {
+			channel->consumed += 1;
+			channel->consumed %= channel->group_count;
+		}
 	}
 
 	spin_unlock(&channel->group_offsets_lock);
-
-	channel->transfer = curr_transfer;
 
 	wake_up_interruptible(&channel->wq);
 }

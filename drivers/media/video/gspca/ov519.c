@@ -2,14 +2,19 @@
  * OV519 driver
  *
  * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the ov51x-jpeg package, which itself
  * was adapted from the ov511 driver.
  *
  * Original copyright for the ov511 driver is:
  *
- * Copyright (c) 1999-2004 Mark W. McClelland
+ * Copyright (c) 1999-2006 Mark W. McClelland
  * Support for OV519, OV8610 Copyright (c) 2003 Joerg Heckenbach
+ * Many improvements by Bret Wallach <bwallac1@san.rr.com>
+ * Color fixes by by Orion Sky Lawlor <olawlor@acm.org> (2/26/2000)
+ * OV7620 fixes by Charl P. Botha <cpbotha@ieee.org>
+ * Changes by Claudio Matsuoka <claudio@conectiva.com>
  *
  * ov51x-jpeg original copyright is:
  *
@@ -58,6 +63,8 @@ struct sd {
 #define BRIDGE_OV518		2
 #define BRIDGE_OV518PLUS	3
 #define BRIDGE_OV519		4
+#define BRIDGE_OVFX2		5
+#define BRIDGE_W9968CF		6
 #define BRIDGE_MASK		7
 
 	char invert_led;
@@ -73,6 +80,10 @@ struct sd {
 	__u8 vflip;
 	__u8 autobrightness;
 	__u8 freq;
+	__u8 quality;
+#define QUALITY_MIN 50
+#define QUALITY_MAX 70
+#define QUALITY_DEF 50
 
 	__u8 stopped;		/* Streaming is temporarily paused */
 
@@ -81,16 +92,30 @@ struct sd {
 
 	char sensor;		/* Type of image sensor chip (SEN_*) */
 #define SEN_UNKNOWN 0
-#define SEN_OV6620 1
-#define SEN_OV6630 2
-#define SEN_OV66308AF 3
-#define SEN_OV7610 4
-#define SEN_OV7620 5
-#define SEN_OV7640 6
-#define SEN_OV7670 7
-#define SEN_OV76BE 8
-#define SEN_OV8610 9
+#define SEN_OV2610 1
+#define SEN_OV3610 2
+#define SEN_OV6620 3
+#define SEN_OV6630 4
+#define SEN_OV66308AF 5
+#define SEN_OV7610 6
+#define SEN_OV7620 7
+#define SEN_OV7640 8
+#define SEN_OV7670 9
+#define SEN_OV76BE 10
+#define SEN_OV8610 11
+
+	u8 sensor_addr;
+	int sensor_width;
+	int sensor_height;
+	int sensor_reg_cache[256];
+
+	u8 *jpeg_hdr;
 };
+
+/* Note this is a bit of a hack, but the w9968cf driver needs the code for all
+   the ov sensors which is already present here. When we have the time we
+   really should move the sensor drivers to v4l2 sub drivers. */
+#include "w996Xcf.c"
 
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
@@ -345,6 +370,75 @@ static const struct v4l2_pix_format ov511_sif_mode[] = {
 		.priv = 0},
 };
 
+static const struct v4l2_pix_format ovfx2_vga_mode[] = {
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+};
+static const struct v4l2_pix_format ovfx2_cif_mode[] = {
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 3},
+	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2},
+	{352, 288, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+};
+static const struct v4l2_pix_format ovfx2_ov2610_mode[] = {
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1600,
+		.sizeimage = 1600 * 1200,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+};
+static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
+	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 800,
+		.sizeimage = 800 * 600,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{1024, 768, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1024,
+		.sizeimage = 1024 * 768,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{1600, 1200, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 1600,
+		.sizeimage = 1600 * 1200,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+	{2048, 1536, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 2048,
+		.sizeimage = 2048 * 1536,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+};
+
+
 /* Registers common to OV511 / OV518 */
 #define R51x_FIFO_PSIZE			0x30	/* 2 bytes wide w/ OV518(+) */
 #define R51x_SYS_RESET          	0x50
@@ -406,6 +500,30 @@ static const struct v4l2_pix_format ov511_sif_mode[] = {
 
 #define OV511_ENDPOINT_ADDRESS  1	/* Isoc endpoint number */
 
+/*
+ * The FX2 chip does not give us a zero length read at end of frame.
+ * It does, however, give a short read at the end of a frame, if
+ * neccessary, rather than run two frames together.
+ *
+ * By choosing the right bulk transfer size, we are guaranteed to always
+ * get a short read for the last read of each frame.  Frame sizes are
+ * always a composite number (width * height, or a multiple) so if we
+ * choose a prime number, we are guaranteed that the last read of a
+ * frame will be short.
+ *
+ * But it isn't that easy: the 2.6 kernel requires a multiple of 4KB,
+ * otherwise EOVERFLOW "babbling" errors occur.  I have not been able
+ * to figure out why.  [PMiller]
+ *
+ * The constant (13 * 4096) is the largest "prime enough" number less than 64KB.
+ *
+ * It isn't enough to know the number of bytes per frame, in case we
+ * have data dropouts or buffer overruns (even though the FX2 double
+ * buffers, there are some pretty strict real time constraints for
+ * isochronous transfer for larger frame sizes).
+ */
+#define OVFX2_BULK_SIZE (13 * 4096)
+
 /* I2C registers */
 #define R51x_I2C_W_SID		0x41
 #define R51x_I2C_SADDR_3	0x42
@@ -413,9 +531,11 @@ static const struct v4l2_pix_format ov511_sif_mode[] = {
 #define R51x_I2C_R_SID		0x44
 #define R51x_I2C_DATA		0x45
 #define R518_I2C_CTL		0x47	/* OV518(+) only */
+#define OVFX2_I2C_ADDR		0x00
 
 /* I2C ADDRESSES */
 #define OV7xx0_SID   0x42
+#define OV_HIRES_SID 0x60		/* OV9xxx / OV2xxx / OV3xxx */
 #define OV8xx0_SID   0xa0
 #define OV6xx0_SID   0xc0
 
@@ -506,6 +626,696 @@ struct ov_regvals {
 struct ov_i2c_regvals {
 	__u8 reg;
 	__u8 val;
+};
+
+/* Settings for OV2610 camera chip */
+static const struct ov_i2c_regvals norm_2610[] =
+{
+	{ 0x12, 0x80 },	/* reset */
+};
+
+static const struct ov_i2c_regvals norm_3620b[] =
+{
+	/*
+	 * From the datasheet: "Note that after writing to register COMH
+	 * (0x12) to change the sensor mode, registers related to the
+	 * sensor’s cropping window will be reset back to their default
+	 * values."
+	 *
+	 * "wait 4096 external clock ... to make sure the sensor is
+	 * stable and ready to access registers" i.e. 160us at 24MHz
+	 */
+
+	{ 0x12, 0x80 }, /* COMH reset */
+	{ 0x12, 0x00 }, /* QXGA, master */
+
+	/*
+	 * 11 CLKRC "Clock Rate Control"
+	 * [7] internal frequency doublers: on
+	 * [6] video port mode: master
+	 * [5:0] clock divider: 1
+	 */
+	{ 0x11, 0x80 },
+
+	/*
+	 * 13 COMI "Common Control I"
+	 *                  = 192 (0xC0) 11000000
+	 *    COMI[7] "AEC speed selection"
+	 *                  =   1 (0x01) 1....... "Faster AEC correction"
+	 *    COMI[6] "AEC speed step selection"
+	 *                  =   1 (0x01) .1...... "Big steps, fast"
+	 *    COMI[5] "Banding filter on off"
+	 *                  =   0 (0x00) ..0..... "Off"
+	 *    COMI[4] "Banding filter option"
+	 *                  =   0 (0x00) ...0.... "Main clock is 48 MHz and
+	 *                                         the PLL is ON"
+	 *    COMI[3] "Reserved"
+	 *                  =   0 (0x00) ....0...
+	 *    COMI[2] "AGC auto manual control selection"
+	 *                  =   0 (0x00) .....0.. "Manual"
+	 *    COMI[1] "AWB auto manual control selection"
+	 *                  =   0 (0x00) ......0. "Manual"
+	 *    COMI[0] "Exposure control"
+	 *                  =   0 (0x00) .......0 "Manual"
+	 */
+	{ 0x13, 0xC0 },
+
+	/*
+	 * 09 COMC "Common Control C"
+	 *                  =   8 (0x08) 00001000
+	 *    COMC[7:5] "Reserved"
+	 *                  =   0 (0x00) 000.....
+	 *    COMC[4] "Sleep Mode Enable"
+	 *                  =   0 (0x00) ...0.... "Normal mode"
+	 *    COMC[3:2] "Sensor sampling reset timing selection"
+	 *                  =   2 (0x02) ....10.. "Longer reset time"
+	 *    COMC[1:0] "Output drive current select"
+	 *                  =   0 (0x00) ......00 "Weakest"
+	 */
+	{ 0x09, 0x08 },
+
+	/*
+	 * 0C COMD "Common Control D"
+	 *                  =   8 (0x08) 00001000
+	 *    COMD[7] "Reserved"
+	 *                  =   0 (0x00) 0.......
+	 *    COMD[6] "Swap MSB and LSB at the output port"
+	 *                  =   0 (0x00) .0...... "False"
+	 *    COMD[5:3] "Reserved"
+	 *                  =   1 (0x01) ..001...
+	 *    COMD[2] "Output Average On Off"
+	 *                  =   0 (0x00) .....0.. "Output Normal"
+	 *    COMD[1] "Sensor precharge voltage selection"
+	 *                  =   0 (0x00) ......0. "Selects internal
+	 *                                         reference precharge
+	 *                                         voltage"
+	 *    COMD[0] "Snapshot option"
+	 *                  =   0 (0x00) .......0 "Enable live video output
+	 *                                         after snapshot sequence"
+	 */
+	{ 0x0c, 0x08 },
+
+	/*
+	 * 0D COME "Common Control E"
+	 *                  = 161 (0xA1) 10100001
+	 *    COME[7] "Output average option"
+	 *                  =   1 (0x01) 1....... "Output average of 4 pixels"
+	 *    COME[6] "Anti-blooming control"
+	 *                  =   0 (0x00) .0...... "Off"
+	 *    COME[5:3] "Reserved"
+	 *                  =   4 (0x04) ..100...
+	 *    COME[2] "Clock output power down pin status"
+	 *                  =   0 (0x00) .....0.. "Tri-state data output pin
+	 *                                         on power down"
+	 *    COME[1] "Data output pin status selection at power down"
+	 *                  =   0 (0x00) ......0. "Tri-state VSYNC, PCLK,
+	 *                                         HREF, and CHSYNC pins on
+	 *                                         power down"
+	 *    COME[0] "Auto zero circuit select"
+	 *                  =   1 (0x01) .......1 "On"
+	 */
+	{ 0x0d, 0xA1 },
+
+	/*
+	 * 0E COMF "Common Control F"
+	 *                  = 112 (0x70) 01110000
+	 *    COMF[7] "System clock selection"
+	 *                  =   0 (0x00) 0....... "Use 24 MHz system clock"
+	 *    COMF[6:4] "Reserved"
+	 *                  =   7 (0x07) .111....
+	 *    COMF[3] "Manual auto negative offset canceling selection"
+	 *                  =   0 (0x00) ....0... "Auto detect negative
+	 *                                         offset and cancel it"
+	 *    COMF[2:0] "Reserved"
+	 *                  =   0 (0x00) .....000
+	 */
+	{ 0x0e, 0x70 },
+
+	/*
+	 * 0F COMG "Common Control G"
+	 *                  =  66 (0x42) 01000010
+	 *    COMG[7] "Optical black output selection"
+	 *                  =   0 (0x00) 0....... "Disable"
+	 *    COMG[6] "Black level calibrate selection"
+	 *                  =   1 (0x01) .1...... "Use optical black pixels
+	 *                                         to calibrate"
+	 *    COMG[5:4] "Reserved"
+	 *                  =   0 (0x00) ..00....
+	 *    COMG[3] "Channel offset adjustment"
+	 *                  =   0 (0x00) ....0... "Disable offset adjustment"
+	 *    COMG[2] "ADC black level calibration option"
+	 *                  =   0 (0x00) .....0.. "Use B/G line and G/R
+	 *                                         line to calibrate each
+	 *                                         channel's black level"
+	 *    COMG[1] "Reserved"
+	 *                  =   1 (0x01) ......1.
+	 *    COMG[0] "ADC black level calibration enable"
+	 *                  =   0 (0x00) .......0 "Disable"
+	 */
+	{ 0x0f, 0x42 },
+
+	/*
+	 * 14 COMJ "Common Control J"
+	 *                  = 198 (0xC6) 11000110
+	 *    COMJ[7:6] "AGC gain ceiling"
+	 *                  =   3 (0x03) 11...... "8x"
+	 *    COMJ[5:4] "Reserved"
+	 *                  =   0 (0x00) ..00....
+	 *    COMJ[3] "Auto banding filter"
+	 *                  =   0 (0x00) ....0... "Banding filter is always
+	 *                                         on off depending on
+	 *                                         COMI[5] setting"
+	 *    COMJ[2] "VSYNC drop option"
+	 *                  =   1 (0x01) .....1.. "SYNC is dropped if frame
+	 *                                         data is dropped"
+	 *    COMJ[1] "Frame data drop"
+	 *                  =   1 (0x01) ......1. "Drop frame data if
+	 *                                         exposure is not within
+	 *                                         tolerance.  In AEC mode,
+	 *                                         data is normally dropped
+	 *                                         when data is out of
+	 *                                         range."
+	 *    COMJ[0] "Reserved"
+	 *                  =   0 (0x00) .......0
+	 */
+	{ 0x14, 0xC6 },
+
+	/*
+	 * 15 COMK "Common Control K"
+	 *                  =   2 (0x02) 00000010
+	 *    COMK[7] "CHSYNC pin output swap"
+	 *                  =   0 (0x00) 0....... "CHSYNC"
+	 *    COMK[6] "HREF pin output swap"
+	 *                  =   0 (0x00) .0...... "HREF"
+	 *    COMK[5] "PCLK output selection"
+	 *                  =   0 (0x00) ..0..... "PCLK always output"
+	 *    COMK[4] "PCLK edge selection"
+	 *                  =   0 (0x00) ...0.... "Data valid on falling edge"
+	 *    COMK[3] "HREF output polarity"
+	 *                  =   0 (0x00) ....0... "positive"
+	 *    COMK[2] "Reserved"
+	 *                  =   0 (0x00) .....0..
+	 *    COMK[1] "VSYNC polarity"
+	 *                  =   1 (0x01) ......1. "negative"
+	 *    COMK[0] "HSYNC polarity"
+	 *                  =   0 (0x00) .......0 "positive"
+	 */
+	{ 0x15, 0x02 },
+
+	/*
+	 * 33 CHLF "Current Control"
+	 *                  =   9 (0x09) 00001001
+	 *    CHLF[7:6] "Sensor current control"
+	 *                  =   0 (0x00) 00......
+	 *    CHLF[5] "Sensor current range control"
+	 *                  =   0 (0x00) ..0..... "normal range"
+	 *    CHLF[4] "Sensor current"
+	 *                  =   0 (0x00) ...0.... "normal current"
+	 *    CHLF[3] "Sensor buffer current control"
+	 *                  =   1 (0x01) ....1... "half current"
+	 *    CHLF[2] "Column buffer current control"
+	 *                  =   0 (0x00) .....0.. "normal current"
+	 *    CHLF[1] "Analog DSP current control"
+	 *                  =   0 (0x00) ......0. "normal current"
+	 *    CHLF[1] "ADC current control"
+	 *                  =   0 (0x00) ......0. "normal current"
+	 */
+	{ 0x33, 0x09 },
+
+	/*
+	 * 34 VBLM "Blooming Control"
+	 *                  =  80 (0x50) 01010000
+	 *    VBLM[7] "Hard soft reset switch"
+	 *                  =   0 (0x00) 0....... "Hard reset"
+	 *    VBLM[6:4] "Blooming voltage selection"
+	 *                  =   5 (0x05) .101....
+	 *    VBLM[3:0] "Sensor current control"
+	 *                  =   0 (0x00) ....0000
+	 */
+	{ 0x34, 0x50 },
+
+	/*
+	 * 36 VCHG "Sensor Precharge Voltage Control"
+	 *                  =   0 (0x00) 00000000
+	 *    VCHG[7] "Reserved"
+	 *                  =   0 (0x00) 0.......
+	 *    VCHG[6:4] "Sensor precharge voltage control"
+	 *                  =   0 (0x00) .000....
+	 *    VCHG[3:0] "Sensor array common reference"
+	 *                  =   0 (0x00) ....0000
+	 */
+	{ 0x36, 0x00 },
+
+	/*
+	 * 37 ADC "ADC Reference Control"
+	 *                  =   4 (0x04) 00000100
+	 *    ADC[7:4] "Reserved"
+	 *                  =   0 (0x00) 0000....
+	 *    ADC[3] "ADC input signal range"
+	 *                  =   0 (0x00) ....0... "Input signal 1.0x"
+	 *    ADC[2:0] "ADC range control"
+	 *                  =   4 (0x04) .....100
+	 */
+	{ 0x37, 0x04 },
+
+	/*
+	 * 38 ACOM "Analog Common Ground"
+	 *                  =  82 (0x52) 01010010
+	 *    ACOM[7] "Analog gain control"
+	 *                  =   0 (0x00) 0....... "Gain 1x"
+	 *    ACOM[6] "Analog black level calibration"
+	 *                  =   1 (0x01) .1...... "On"
+	 *    ACOM[5:0] "Reserved"
+	 *                  =  18 (0x12) ..010010
+	 */
+	{ 0x38, 0x52 },
+
+	/*
+	 * 3A FREFA "Internal Reference Adjustment"
+	 *                  =   0 (0x00) 00000000
+	 *    FREFA[7:0] "Range"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x3a, 0x00 },
+
+	/*
+	 * 3C FVOPT "Internal Reference Adjustment"
+	 *                  =  31 (0x1F) 00011111
+	 *    FVOPT[7:0] "Range"
+	 *                  =  31 (0x1F) 00011111
+	 */
+	{ 0x3c, 0x1F },
+
+	/*
+	 * 44 Undocumented  =   0 (0x00) 00000000
+	 *    44[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x44, 0x00 },
+
+	/*
+	 * 40 Undocumented  =   0 (0x00) 00000000
+	 *    40[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x40, 0x00 },
+
+	/*
+	 * 41 Undocumented  =   0 (0x00) 00000000
+	 *    41[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x41, 0x00 },
+
+	/*
+	 * 42 Undocumented  =   0 (0x00) 00000000
+	 *    42[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x42, 0x00 },
+
+	/*
+	 * 43 Undocumented  =   0 (0x00) 00000000
+	 *    43[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x43, 0x00 },
+
+	/*
+	 * 45 Undocumented  = 128 (0x80) 10000000
+	 *    45[7:0] "It's a secret"
+	 *                  = 128 (0x80) 10000000
+	 */
+	{ 0x45, 0x80 },
+
+	/*
+	 * 48 Undocumented  = 192 (0xC0) 11000000
+	 *    48[7:0] "It's a secret"
+	 *                  = 192 (0xC0) 11000000
+	 */
+	{ 0x48, 0xC0 },
+
+	/*
+	 * 49 Undocumented  =  25 (0x19) 00011001
+	 *    49[7:0] "It's a secret"
+	 *                  =  25 (0x19) 00011001
+	 */
+	{ 0x49, 0x19 },
+
+	/*
+	 * 4B Undocumented  = 128 (0x80) 10000000
+	 *    4B[7:0] "It's a secret"
+	 *                  = 128 (0x80) 10000000
+	 */
+	{ 0x4B, 0x80 },
+
+	/*
+	 * 4D Undocumented  = 196 (0xC4) 11000100
+	 *    4D[7:0] "It's a secret"
+	 *                  = 196 (0xC4) 11000100
+	 */
+	{ 0x4D, 0xC4 },
+
+	/*
+	 * 35 VREF "Reference Voltage Control"
+	 *                  =  76 (0x4C) 01001100
+	 *    VREF[7:5] "Column high reference control"
+	 *                  =   2 (0x02) 010..... "higher voltage"
+	 *    VREF[4:2] "Column low reference control"
+	 *                  =   3 (0x03) ...011.. "Highest voltage"
+	 *    VREF[1:0] "Reserved"
+	 *                  =   0 (0x00) ......00
+	 */
+	{ 0x35, 0x4C },
+
+	/*
+	 * 3D Undocumented  =   0 (0x00) 00000000
+	 *    3D[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x3D, 0x00 },
+
+	/*
+	 * 3E Undocumented  =   0 (0x00) 00000000
+	 *    3E[7:0] "It's a secret"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x3E, 0x00 },
+
+	/*
+	 * 3B FREFB "Internal Reference Adjustment"
+	 *                  =  24 (0x18) 00011000
+	 *    FREFB[7:0] "Range"
+	 *                  =  24 (0x18) 00011000
+	 */
+	{ 0x3b, 0x18 },
+
+	/*
+	 * 33 CHLF "Current Control"
+	 *                  =  25 (0x19) 00011001
+	 *    CHLF[7:6] "Sensor current control"
+	 *                  =   0 (0x00) 00......
+	 *    CHLF[5] "Sensor current range control"
+	 *                  =   0 (0x00) ..0..... "normal range"
+	 *    CHLF[4] "Sensor current"
+	 *                  =   1 (0x01) ...1.... "double current"
+	 *    CHLF[3] "Sensor buffer current control"
+	 *                  =   1 (0x01) ....1... "half current"
+	 *    CHLF[2] "Column buffer current control"
+	 *                  =   0 (0x00) .....0.. "normal current"
+	 *    CHLF[1] "Analog DSP current control"
+	 *                  =   0 (0x00) ......0. "normal current"
+	 *    CHLF[1] "ADC current control"
+	 *                  =   0 (0x00) ......0. "normal current"
+	 */
+	{ 0x33, 0x19 },
+
+	/*
+	 * 34 VBLM "Blooming Control"
+	 *                  =  90 (0x5A) 01011010
+	 *    VBLM[7] "Hard soft reset switch"
+	 *                  =   0 (0x00) 0....... "Hard reset"
+	 *    VBLM[6:4] "Blooming voltage selection"
+	 *                  =   5 (0x05) .101....
+	 *    VBLM[3:0] "Sensor current control"
+	 *                  =  10 (0x0A) ....1010
+	 */
+	{ 0x34, 0x5A },
+
+	/*
+	 * 3B FREFB "Internal Reference Adjustment"
+	 *                  =   0 (0x00) 00000000
+	 *    FREFB[7:0] "Range"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x3b, 0x00 },
+
+	/*
+	 * 33 CHLF "Current Control"
+	 *                  =   9 (0x09) 00001001
+	 *    CHLF[7:6] "Sensor current control"
+	 *                  =   0 (0x00) 00......
+	 *    CHLF[5] "Sensor current range control"
+	 *                  =   0 (0x00) ..0..... "normal range"
+	 *    CHLF[4] "Sensor current"
+	 *                  =   0 (0x00) ...0.... "normal current"
+	 *    CHLF[3] "Sensor buffer current control"
+	 *                  =   1 (0x01) ....1... "half current"
+	 *    CHLF[2] "Column buffer current control"
+	 *                  =   0 (0x00) .....0.. "normal current"
+	 *    CHLF[1] "Analog DSP current control"
+	 *                  =   0 (0x00) ......0. "normal current"
+	 *    CHLF[1] "ADC current control"
+	 *                  =   0 (0x00) ......0. "normal current"
+	 */
+	{ 0x33, 0x09 },
+
+	/*
+	 * 34 VBLM "Blooming Control"
+	 *                  =  80 (0x50) 01010000
+	 *    VBLM[7] "Hard soft reset switch"
+	 *                  =   0 (0x00) 0....... "Hard reset"
+	 *    VBLM[6:4] "Blooming voltage selection"
+	 *                  =   5 (0x05) .101....
+	 *    VBLM[3:0] "Sensor current control"
+	 *                  =   0 (0x00) ....0000
+	 */
+	{ 0x34, 0x50 },
+
+	/*
+	 * 12 COMH "Common Control H"
+	 *                  =  64 (0x40) 01000000
+	 *    COMH[7] "SRST"
+	 *                  =   0 (0x00) 0....... "No-op"
+	 *    COMH[6:4] "Resolution selection"
+	 *                  =   4 (0x04) .100.... "XGA"
+	 *    COMH[3] "Master slave selection"
+	 *                  =   0 (0x00) ....0... "Master mode"
+	 *    COMH[2] "Internal B/R channel option"
+	 *                  =   0 (0x00) .....0.. "B/R use same channel"
+	 *    COMH[1] "Color bar test pattern"
+	 *                  =   0 (0x00) ......0. "Off"
+	 *    COMH[0] "Reserved"
+	 *                  =   0 (0x00) .......0
+	 */
+	{ 0x12, 0x40 },
+
+	/*
+	 * 17 HREFST "Horizontal window start"
+	 *                  =  31 (0x1F) 00011111
+	 *    HREFST[7:0] "Horizontal window start, 8 MSBs"
+	 *                  =  31 (0x1F) 00011111
+	 */
+	{ 0x17, 0x1F },
+
+	/*
+	 * 18 HREFEND "Horizontal window end"
+	 *                  =  95 (0x5F) 01011111
+	 *    HREFEND[7:0] "Horizontal Window End, 8 MSBs"
+	 *                  =  95 (0x5F) 01011111
+	 */
+	{ 0x18, 0x5F },
+
+	/*
+	 * 19 VSTRT "Vertical window start"
+	 *                  =   0 (0x00) 00000000
+	 *    VSTRT[7:0] "Vertical Window Start, 8 MSBs"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x19, 0x00 },
+
+	/*
+	 * 1A VEND "Vertical window end"
+	 *                  =  96 (0x60) 01100000
+	 *    VEND[7:0] "Vertical Window End, 8 MSBs"
+	 *                  =  96 (0x60) 01100000
+	 */
+	{ 0x1a, 0x60 },
+
+	/*
+	 * 32 COMM "Common Control M"
+	 *                  =  18 (0x12) 00010010
+	 *    COMM[7:6] "Pixel clock divide option"
+	 *                  =   0 (0x00) 00...... "/1"
+	 *    COMM[5:3] "Horizontal window end position, 3 LSBs"
+	 *                  =   2 (0x02) ..010...
+	 *    COMM[2:0] "Horizontal window start position, 3 LSBs"
+	 *                  =   2 (0x02) .....010
+	 */
+	{ 0x32, 0x12 },
+
+	/*
+	 * 03 COMA "Common Control A"
+	 *                  =  74 (0x4A) 01001010
+	 *    COMA[7:4] "AWB Update Threshold"
+	 *                  =   4 (0x04) 0100....
+	 *    COMA[3:2] "Vertical window end line control 2 LSBs"
+	 *                  =   2 (0x02) ....10..
+	 *    COMA[1:0] "Vertical window start line control 2 LSBs"
+	 *                  =   2 (0x02) ......10
+	 */
+	{ 0x03, 0x4A },
+
+	/*
+	 * 11 CLKRC "Clock Rate Control"
+	 *                  = 128 (0x80) 10000000
+	 *    CLKRC[7] "Internal frequency doublers on off seclection"
+	 *                  =   1 (0x01) 1....... "On"
+	 *    CLKRC[6] "Digital video master slave selection"
+	 *                  =   0 (0x00) .0...... "Master mode, sensor
+	 *                                         provides PCLK"
+	 *    CLKRC[5:0] "Clock divider { CLK = PCLK/(1+CLKRC[5:0]) }"
+	 *                  =   0 (0x00) ..000000
+	 */
+	{ 0x11, 0x80 },
+
+	/*
+	 * 12 COMH "Common Control H"
+	 *                  =   0 (0x00) 00000000
+	 *    COMH[7] "SRST"
+	 *                  =   0 (0x00) 0....... "No-op"
+	 *    COMH[6:4] "Resolution selection"
+	 *                  =   0 (0x00) .000.... "QXGA"
+	 *    COMH[3] "Master slave selection"
+	 *                  =   0 (0x00) ....0... "Master mode"
+	 *    COMH[2] "Internal B/R channel option"
+	 *                  =   0 (0x00) .....0.. "B/R use same channel"
+	 *    COMH[1] "Color bar test pattern"
+	 *                  =   0 (0x00) ......0. "Off"
+	 *    COMH[0] "Reserved"
+	 *                  =   0 (0x00) .......0
+	 */
+	{ 0x12, 0x00 },
+
+	/*
+	 * 12 COMH "Common Control H"
+	 *                  =  64 (0x40) 01000000
+	 *    COMH[7] "SRST"
+	 *                  =   0 (0x00) 0....... "No-op"
+	 *    COMH[6:4] "Resolution selection"
+	 *                  =   4 (0x04) .100.... "XGA"
+	 *    COMH[3] "Master slave selection"
+	 *                  =   0 (0x00) ....0... "Master mode"
+	 *    COMH[2] "Internal B/R channel option"
+	 *                  =   0 (0x00) .....0.. "B/R use same channel"
+	 *    COMH[1] "Color bar test pattern"
+	 *                  =   0 (0x00) ......0. "Off"
+	 *    COMH[0] "Reserved"
+	 *                  =   0 (0x00) .......0
+	 */
+	{ 0x12, 0x40 },
+
+	/*
+	 * 17 HREFST "Horizontal window start"
+	 *                  =  31 (0x1F) 00011111
+	 *    HREFST[7:0] "Horizontal window start, 8 MSBs"
+	 *                  =  31 (0x1F) 00011111
+	 */
+	{ 0x17, 0x1F },
+
+	/*
+	 * 18 HREFEND "Horizontal window end"
+	 *                  =  95 (0x5F) 01011111
+	 *    HREFEND[7:0] "Horizontal Window End, 8 MSBs"
+	 *                  =  95 (0x5F) 01011111
+	 */
+	{ 0x18, 0x5F },
+
+	/*
+	 * 19 VSTRT "Vertical window start"
+	 *                  =   0 (0x00) 00000000
+	 *    VSTRT[7:0] "Vertical Window Start, 8 MSBs"
+	 *                  =   0 (0x00) 00000000
+	 */
+	{ 0x19, 0x00 },
+
+	/*
+	 * 1A VEND "Vertical window end"
+	 *                  =  96 (0x60) 01100000
+	 *    VEND[7:0] "Vertical Window End, 8 MSBs"
+	 *                  =  96 (0x60) 01100000
+	 */
+	{ 0x1a, 0x60 },
+
+	/*
+	 * 32 COMM "Common Control M"
+	 *                  =  18 (0x12) 00010010
+	 *    COMM[7:6] "Pixel clock divide option"
+	 *                  =   0 (0x00) 00...... "/1"
+	 *    COMM[5:3] "Horizontal window end position, 3 LSBs"
+	 *                  =   2 (0x02) ..010...
+	 *    COMM[2:0] "Horizontal window start position, 3 LSBs"
+	 *                  =   2 (0x02) .....010
+	 */
+	{ 0x32, 0x12 },
+
+	/*
+	 * 03 COMA "Common Control A"
+	 *                  =  74 (0x4A) 01001010
+	 *    COMA[7:4] "AWB Update Threshold"
+	 *                  =   4 (0x04) 0100....
+	 *    COMA[3:2] "Vertical window end line control 2 LSBs"
+	 *                  =   2 (0x02) ....10..
+	 *    COMA[1:0] "Vertical window start line control 2 LSBs"
+	 *                  =   2 (0x02) ......10
+	 */
+	{ 0x03, 0x4A },
+
+	/*
+	 * 02 RED "Red Gain Control"
+	 *                  = 175 (0xAF) 10101111
+	 *    RED[7] "Action"
+	 *                  =   1 (0x01) 1....... "gain = 1/(1+bitrev([6:0]))"
+	 *    RED[6:0] "Value"
+	 *                  =  47 (0x2F) .0101111
+	 */
+	{ 0x02, 0xAF },
+
+	/*
+	 * 2D ADDVSL "VSYNC Pulse Width"
+	 *                  = 210 (0xD2) 11010010
+	 *    ADDVSL[7:0] "VSYNC pulse width, LSB"
+	 *                  = 210 (0xD2) 11010010
+	 */
+	{ 0x2d, 0xD2 },
+
+	/*
+	 * 00 GAIN          =  24 (0x18) 00011000
+	 *    GAIN[7:6] "Reserved"
+	 *                  =   0 (0x00) 00......
+	 *    GAIN[5] "Double"
+	 *                  =   0 (0x00) ..0..... "False"
+	 *    GAIN[4] "Double"
+	 *                  =   1 (0x01) ...1.... "True"
+	 *    GAIN[3:0] "Range"
+	 *                  =   8 (0x08) ....1000
+	 */
+	{ 0x00, 0x18 },
+
+	/*
+	 * 01 BLUE "Blue Gain Control"
+	 *                  = 240 (0xF0) 11110000
+	 *    BLUE[7] "Action"
+	 *                  =   1 (0x01) 1....... "gain = 1/(1+bitrev([6:0]))"
+	 *    BLUE[6:0] "Value"
+	 *                  = 112 (0x70) .1110000
+	 */
+	{ 0x01, 0xF0 },
+
+	/*
+	 * 10 AEC "Automatic Exposure Control"
+	 *                  =  10 (0x0A) 00001010
+	 *    AEC[7:0] "Automatic Exposure Control, 8 MSBs"
+	 *                  =  10 (0x0A) 00001010
+	 */
+	{ 0x10, 0x0A },
+
+	{ 0xE1, 0x67 },
+	{ 0xE3, 0x03 },
+	{ 0xE4, 0x26 },
+	{ 0xE5, 0x3E },
+	{ 0xF8, 0x01 },
+	{ 0xFF, 0x01 },
 };
 
 static const struct ov_i2c_regvals norm_6x20[] = {
@@ -678,6 +1488,7 @@ static const struct ov_i2c_regvals norm_7610[] = {
 };
 
 static const struct ov_i2c_regvals norm_7620[] = {
+	{ 0x12, 0x80 },		/* reset */
 	{ 0x00, 0x00 },		/* gain */
 	{ 0x01, 0x80 },		/* blue gain */
 	{ 0x02, 0x80 },		/* red gain */
@@ -1042,10 +1853,28 @@ static unsigned char ov7670_abs_to_sm(unsigned char v)
 }
 
 /* Write a OV519 register */
-static int reg_w(struct sd *sd, __u16 index, __u8 value)
+static int reg_w(struct sd *sd, __u16 index, __u16 value)
 {
-	int ret;
-	int req = (sd->bridge <= BRIDGE_OV511PLUS) ? 2 : 1;
+	int ret, req = 0;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		req = 2;
+		break;
+	case BRIDGE_OVFX2:
+		req = 0x0a;
+		/* fall through */
+	case BRIDGE_W9968CF:
+		ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
+			req,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			value, index, NULL, 0, 500);
+		goto leave;
+	default:
+		req = 1;
+	}
 
 	sd->gspca_dev.usb_buf[0] = value;
 	ret = usb_control_msg(sd->gspca_dev.dev,
@@ -1054,17 +1883,35 @@ static int reg_w(struct sd *sd, __u16 index, __u8 value)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			sd->gspca_dev.usb_buf, 1, 500);
-	if (ret < 0)
-		PDEBUG(D_ERR, "Write reg [%02x] %02x failed", index, value);
-	return ret;
+leave:
+	if (ret < 0) {
+		PDEBUG(D_ERR, "Write reg 0x%04x -> [0x%02x] failed",
+		       value, index);
+		return ret;
+	}
+
+	PDEBUG(D_USBO, "Write reg 0x%04x -> [0x%02x]", value, index);
+	return 0;
 }
 
-/* Read from a OV519 register */
+/* Read from a OV519 register, note not valid for the w9968cf!! */
 /* returns: negative is error, pos or zero is data */
 static int reg_r(struct sd *sd, __u16 index)
 {
 	int ret;
-	int req = (sd->bridge <= BRIDGE_OV511PLUS) ? 3 : 1;
+	int req;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		req = 3;
+		break;
+	case BRIDGE_OVFX2:
+		req = 0x0b;
+		break;
+	default:
+		req = 1;
+	}
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
@@ -1072,10 +1919,12 @@ static int reg_r(struct sd *sd, __u16 index)
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index, sd->gspca_dev.usb_buf, 1, 500);
 
-	if (ret >= 0)
+	if (ret >= 0) {
 		ret = sd->gspca_dev.usb_buf[0];
-	else
+		PDEBUG(D_USBI, "Read reg [0x%02X] -> 0x%04X", index, ret);
+	} else
 		PDEBUG(D_ERR, "Read reg [0x%02x] failed", index);
+
 	return ret;
 }
 
@@ -1095,6 +1944,7 @@ static int reg_r8(struct sd *sd,
 		ret = sd->gspca_dev.usb_buf[0];
 	else
 		PDEBUG(D_ERR, "Read reg 8 [0x%02x] failed", index);
+
 	return ret;
 }
 
@@ -1132,7 +1982,7 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 {
 	int ret;
 
-	*((u32 *)sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
+	*((__le32 *) sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
@@ -1140,9 +1990,12 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			0, index,
 			sd->gspca_dev.usb_buf, n, 500);
-	if (ret < 0)
+	if (ret < 0) {
 		PDEBUG(D_ERR, "Write reg32 [%02x] %08x failed", index, value);
-	return ret;
+		return ret;
+	}
+
+	return 0;
 }
 
 static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
@@ -1168,9 +2021,9 @@ static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 		if (rc < 0)
 			return rc;
 
-		do
+		do {
 			rc = reg_r(sd, R511_I2C_CTL);
-		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+		} while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
 
 		if (rc < 0)
 			return rc;
@@ -1202,9 +2055,9 @@ static int ov511_i2c_r(struct sd *sd, __u8 reg)
 		if (rc < 0)
 			return rc;
 
-		do
+		do {
 			rc = reg_r(sd, R511_I2C_CTL);
-		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+		} while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
 
 		if (rc < 0)
 			return rc;
@@ -1228,9 +2081,9 @@ static int ov511_i2c_r(struct sd *sd, __u8 reg)
 		if (rc < 0)
 			return rc;
 
-		do
+		do {
 			rc = reg_r(sd, R511_I2C_CTL);
-		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+		} while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
 
 		if (rc < 0)
 			return rc;
@@ -1324,32 +2177,110 @@ static int ov518_i2c_r(struct sd *sd, __u8 reg)
 	return value;
 }
 
+static int ovfx2_i2c_w(struct sd *sd, __u8 reg, __u8 value)
+{
+	int ret;
+
+	ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
+			0x02,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			(__u16)value, (__u16)reg, NULL, 0, 500);
+
+	if (ret < 0) {
+		PDEBUG(D_ERR, "i2c 0x%02x -> [0x%02x] failed", value, reg);
+		return ret;
+	}
+
+	PDEBUG(D_USBO, "i2c 0x%02x -> [0x%02x]", value, reg);
+	return 0;
+}
+
+static int ovfx2_i2c_r(struct sd *sd, __u8 reg)
+{
+	int ret;
+
+	ret = usb_control_msg(sd->gspca_dev.dev,
+			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
+			0x03,
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, (__u16)reg, sd->gspca_dev.usb_buf, 1, 500);
+
+	if (ret >= 0) {
+		ret = sd->gspca_dev.usb_buf[0];
+		PDEBUG(D_USBI, "i2c [0x%02X] -> 0x%02X", reg, ret);
+	} else
+		PDEBUG(D_ERR, "i2c read [0x%02x] failed", reg);
+
+	return ret;
+}
+
 static int i2c_w(struct sd *sd, __u8 reg, __u8 value)
 {
+	int ret = -1;
+
+	if (sd->sensor_reg_cache[reg] == value)
+		return 0;
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		return ov511_i2c_w(sd, reg, value);
+		ret = ov511_i2c_w(sd, reg, value);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 	case BRIDGE_OV519:
-		return ov518_i2c_w(sd, reg, value);
+		ret = ov518_i2c_w(sd, reg, value);
+		break;
+	case BRIDGE_OVFX2:
+		ret = ovfx2_i2c_w(sd, reg, value);
+		break;
+	case BRIDGE_W9968CF:
+		ret = w9968cf_i2c_w(sd, reg, value);
+		break;
 	}
-	return -1; /* Should never happen */
+
+	if (ret >= 0) {
+		/* Up on sensor reset empty the register cache */
+		if (reg == 0x12 && (value & 0x80))
+			memset(sd->sensor_reg_cache, -1,
+			       sizeof(sd->sensor_reg_cache));
+		else
+			sd->sensor_reg_cache[reg] = value;
+	}
+
+	return ret;
 }
 
 static int i2c_r(struct sd *sd, __u8 reg)
 {
+	int ret = -1;
+
+	if (sd->sensor_reg_cache[reg] != -1)
+		return sd->sensor_reg_cache[reg];
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		return ov511_i2c_r(sd, reg);
+		ret = ov511_i2c_r(sd, reg);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 	case BRIDGE_OV519:
-		return ov518_i2c_r(sd, reg);
+		ret = ov518_i2c_r(sd, reg);
+		break;
+	case BRIDGE_OVFX2:
+		ret = ovfx2_i2c_r(sd, reg);
+		break;
+	case BRIDGE_W9968CF:
+		ret = w9968cf_i2c_r(sd, reg);
+		break;
 	}
-	return -1; /* Should never happen */
+
+	if (ret >= 0)
+		sd->sensor_reg_cache[reg] = ret;
+
+	return ret;
 }
 
 /* Writes bits at positions specified by mask to an I2C reg. Bits that are in
@@ -1389,6 +2320,10 @@ static inline int ov51x_stop(struct sd *sd)
 		return reg_w_mask(sd, R51x_SYS_RESET, 0x3a, 0x3a);
 	case BRIDGE_OV519:
 		return reg_w(sd, OV519_SYS_RESET1, 0x0f);
+	case BRIDGE_OVFX2:
+		return reg_w_mask(sd, 0x0f, 0x00, 0x02);
+	case BRIDGE_W9968CF:
+		return reg_w(sd, 0x3c, 0x0a05); /* stop USB transfer */
 	}
 
 	return 0;
@@ -1418,17 +2353,26 @@ static inline int ov51x_restart(struct sd *sd)
 		return reg_w(sd, R51x_SYS_RESET, 0x00);
 	case BRIDGE_OV519:
 		return reg_w(sd, OV519_SYS_RESET1, 0x00);
+	case BRIDGE_OVFX2:
+		return reg_w_mask(sd, 0x0f, 0x02, 0x02);
+	case BRIDGE_W9968CF:
+		return reg_w(sd, 0x3c, 0x8a05); /* USB FIFO enable */
 	}
 
 	return 0;
 }
 
+static int ov51x_set_slave_ids(struct sd *sd, __u8 slave);
+
 /* This does an initial reset of an OmniVision sensor and ensures that I2C
  * is synchronized. Returns <0 on failure.
  */
-static int init_ov_sensor(struct sd *sd)
+static int init_ov_sensor(struct sd *sd, __u8 slave)
 {
 	int i;
+
+	if (ov51x_set_slave_ids(sd, slave) < 0)
+		return -EIO;
 
 	/* Reset the sensor */
 	if (i2c_w(sd, 0x12, 0x80) < 0)
@@ -1465,6 +2409,14 @@ static int ov51x_set_slave_ids(struct sd *sd,
 				__u8 slave)
 {
 	int rc;
+
+	switch (sd->bridge) {
+	case BRIDGE_OVFX2:
+		return reg_w(sd, OVFX2_I2C_ADDR, slave);
+	case BRIDGE_W9968CF:
+		sd->sensor_addr = slave;
+		return 0;
+	}
 
 	rc = reg_w(sd, R51x_I2C_W_SID, slave);
 	if (rc < 0)
@@ -1507,6 +2459,39 @@ static int write_i2c_regvals(struct sd *sd,
  * OV511 and sensor configuration
  *
  ***************************************************************************/
+
+/* This initializes the OV2x10 / OV3610 / OV3620 */
+static int ov_hires_configure(struct sd *sd)
+{
+	int high, low;
+
+	if (sd->bridge != BRIDGE_OVFX2) {
+		PDEBUG(D_ERR, "error hires sensors only supported with ovfx2");
+		return -1;
+	}
+
+	PDEBUG(D_PROBE, "starting ov hires configuration");
+
+	/* Detect sensor (sub)type */
+	high = i2c_r(sd, 0x0a);
+	low = i2c_r(sd, 0x0b);
+	/* info("%x, %x", high, low); */
+	if (high == 0x96 && low == 0x40) {
+		PDEBUG(D_PROBE, "Sensor is an OV2610");
+		sd->sensor = SEN_OV2610;
+	} else if (high == 0x36 && (low & 0x0f) == 0x00) {
+		PDEBUG(D_PROBE, "Sensor is an OV3610");
+		sd->sensor = SEN_OV3610;
+	} else {
+		PDEBUG(D_ERR, "Error unknown sensor type: 0x%02x%02x",
+		       high, low);
+		return -1;
+	}
+
+	/* Set sensor-specific vars */
+	return 0;
+}
+
 
 /* This initializes the OV8110, OV8610 sensor. The OV8110 uses
  * the same register settings as the OV8610, since they are very similar.
@@ -1966,12 +2951,29 @@ static int ov519_configure(struct sd *sd)
 	return write_regvals(sd, init_519, ARRAY_SIZE(init_519));
 }
 
+static int ovfx2_configure(struct sd *sd)
+{
+	static const struct ov_regvals init_fx2[] = {
+		{ 0x00, 0x60 },
+		{ 0x02, 0x01 },
+		{ 0x0f, 0x1d },
+		{ 0xe9, 0x82 },
+		{ 0xea, 0xc7 },
+		{ 0xeb, 0x10 },
+		{ 0xec, 0xf6 },
+	};
+
+	sd->stopped = 1;
+
+	return write_regvals(sd, init_fx2, ARRAY_SIZE(init_fx2));
+}
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam;
+	struct cam *cam = &gspca_dev->cam;
 	int ret = 0;
 
 	sd->bridge = id->driver_info & BRIDGE_MASK;
@@ -1989,6 +2991,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	case BRIDGE_OV519:
 		ret = ov519_configure(sd);
 		break;
+	case BRIDGE_OVFX2:
+		ret = ovfx2_configure(sd);
+		cam->bulk_size = OVFX2_BULK_SIZE;
+		cam->bulk_nurbs = MAX_NURBS;
+		cam->bulk = 1;
+		break;
+	case BRIDGE_W9968CF:
+		ret = w9968cf_configure(sd);
+		cam->reverse_alts = 1;
+		break;
 	}
 
 	if (ret)
@@ -1996,49 +3008,39 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	ov51x_led_control(sd, 0);	/* turn LED off */
 
-	/* Test for 76xx */
-	if (ov51x_set_slave_ids(sd, OV7xx0_SID) < 0)
-		goto error;
-
 	/* The OV519 must be more aggressive about sensor detection since
 	 * I2C write will never fail if the sensor is not present. We have
 	 * to try to initialize the sensor to detect its presence */
-	if (init_ov_sensor(sd) >= 0) {
+
+	/* Test for 76xx */
+	if (init_ov_sensor(sd, OV7xx0_SID) >= 0) {
 		if (ov7xx0_configure(sd) < 0) {
 			PDEBUG(D_ERR, "Failed to configure OV7xx0");
 			goto error;
 		}
-	} else {
-
-		/* Test for 6xx0 */
-		if (ov51x_set_slave_ids(sd, OV6xx0_SID) < 0)
+	/* Test for 6xx0 */
+	} else if (init_ov_sensor(sd, OV6xx0_SID) >= 0) {
+		if (ov6xx0_configure(sd) < 0) {
+			PDEBUG(D_ERR, "Failed to configure OV6xx0");
 			goto error;
-
-		if (init_ov_sensor(sd) >= 0) {
-			if (ov6xx0_configure(sd) < 0) {
-				PDEBUG(D_ERR, "Failed to configure OV6xx0");
-				goto error;
-			}
-		} else {
-
-			/* Test for 8xx0 */
-			if (ov51x_set_slave_ids(sd, OV8xx0_SID) < 0)
-				goto error;
-
-			if (init_ov_sensor(sd) < 0) {
-				PDEBUG(D_ERR,
-					"Can't determine sensor slave IDs");
-				goto error;
-			}
-			if (ov8xx0_configure(sd) < 0) {
-				PDEBUG(D_ERR,
-					"Failed to configure OV8xx0 sensor");
-				goto error;
-			}
 		}
+	/* Test for 8xx0 */
+	} else if (init_ov_sensor(sd, OV8xx0_SID) >= 0) {
+		if (ov8xx0_configure(sd) < 0) {
+			PDEBUG(D_ERR, "Failed to configure OV8xx0");
+			goto error;
+		}
+	/* Test for 3xxx / 2xxx */
+	} else if (init_ov_sensor(sd, OV_HIRES_SID) >= 0) {
+		if (ov_hires_configure(sd) < 0) {
+			PDEBUG(D_ERR, "Failed to configure high res OV");
+			goto error;
+		}
+	} else {
+		PDEBUG(D_ERR, "Can't determine sensor slave IDs");
+		goto error;
 	}
 
-	cam = &gspca_dev->cam;
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
@@ -2069,6 +3071,31 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
 		}
 		break;
+	case BRIDGE_OVFX2:
+		if (sd->sensor == SEN_OV2610) {
+			cam->cam_mode = ovfx2_ov2610_mode;
+			cam->nmodes = ARRAY_SIZE(ovfx2_ov2610_mode);
+		} else if (sd->sensor == SEN_OV3610) {
+			cam->cam_mode = ovfx2_ov3610_mode;
+			cam->nmodes = ARRAY_SIZE(ovfx2_ov3610_mode);
+		} else if (!sd->sif) {
+			cam->cam_mode = ov519_vga_mode;
+			cam->nmodes = ARRAY_SIZE(ov519_vga_mode);
+		} else {
+			cam->cam_mode = ov519_sif_mode;
+			cam->nmodes = ARRAY_SIZE(ov519_sif_mode);
+		}
+		break;
+	case BRIDGE_W9968CF:
+		cam->cam_mode = w9968cf_vga_mode;
+		cam->nmodes = ARRAY_SIZE(w9968cf_vga_mode);
+		if (sd->sif)
+			cam->nmodes--;
+
+		/* w9968cf needs initialisation once the sensor is known */
+		if (w9968cf_init(sd) < 0)
+			goto error;
+		break;
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	if (sd->sensor == SEN_OV6630 || sd->sensor == SEN_OV66308AF)
@@ -2087,11 +3114,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) |
 				      (1 << OV7670_FREQ_IDX);
 	}
+	sd->quality = QUALITY_DEF;
 	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670)
 		gspca_dev->ctrl_dis |= 1 << AUTOBRIGHT_IDX;
 	/* OV8610 Frequency filter control should work but needs testing */
 	if (sd->sensor == SEN_OV8610)
 		gspca_dev->ctrl_dis |= 1 << FREQ_IDX;
+	/* No controls for the OV2610/OV3610 */
+	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
+		gspca_dev->ctrl_dis |= 0xFF;
 
 	return 0;
 error:
@@ -2106,6 +3137,20 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	/* initialize the sensor */
 	switch (sd->sensor) {
+	case SEN_OV2610:
+		if (write_i2c_regvals(sd, norm_2610, ARRAY_SIZE(norm_2610)))
+			return -EIO;
+		/* Enable autogain, autoexpo, awb, bandfilter */
+		if (i2c_w_mask(sd, 0x13, 0x27, 0x27) < 0)
+			return -EIO;
+		break;
+	case SEN_OV3610:
+		if (write_i2c_regvals(sd, norm_3620b, ARRAY_SIZE(norm_3620b)))
+			return -EIO;
+		/* Enable autogain, autoexpo, awb, bandfilter */
+		if (i2c_w_mask(sd, 0x13, 0x27, 0x27) < 0)
+			return -EIO;
+		break;
 	case SEN_OV6620:
 		if (write_i2c_regvals(sd, norm_6x20, ARRAY_SIZE(norm_6x20)))
 			return -EIO;
@@ -2548,19 +3593,60 @@ static int ov519_mode_init_regs(struct sd *sd)
 static int mode_init_ov_sensor_regs(struct sd *sd)
 {
 	struct gspca_dev *gspca_dev;
-	int qvga;
+	int qvga, xstart, xend, ystart, yend;
+	__u8 v;
 
 	gspca_dev = &sd->gspca_dev;
 	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
 
 	/******** Mode (VGA/QVGA) and sensor specific regs ********/
 	switch (sd->sensor) {
+	case SEN_OV2610:
+		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x28, qvga ? 0x00 : 0x20, 0x20);
+		i2c_w(sd, 0x24, qvga ? 0x20 : 0x3a);
+		i2c_w(sd, 0x25, qvga ? 0x30 : 0x60);
+		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
+		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0);
+		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
+		return 0;
+	case SEN_OV3610:
+		if (qvga) {
+			xstart = (1040 - gspca_dev->width) / 2 + (0x1f << 4);
+			ystart = (776 - gspca_dev->height) / 2;
+		} else {
+			xstart = (2076 - gspca_dev->width) / 2 + (0x10 << 4);
+			ystart = (1544 - gspca_dev->height) / 2;
+		}
+		xend = xstart + gspca_dev->width;
+		yend = ystart + gspca_dev->height;
+		/* Writing to the COMH register resets the other windowing regs
+		   to their default values, so we must do this first. */
+		i2c_w_mask(sd, 0x12, qvga ? 0x40 : 0x00, 0xf0);
+		i2c_w_mask(sd, 0x32,
+			   (((xend >> 1) & 7) << 3) | ((xstart >> 1) & 7),
+			   0x3f);
+		i2c_w_mask(sd, 0x03,
+			   (((yend >> 1) & 3) << 2) | ((ystart >> 1) & 3),
+			   0x0f);
+		i2c_w(sd, 0x17, xstart >> 4);
+		i2c_w(sd, 0x18, xend >> 4);
+		i2c_w(sd, 0x19, ystart >> 3);
+		i2c_w(sd, 0x1a, yend >> 3);
+		return 0;
 	case SEN_OV8610:
 		/* For OV8610 qvga means qsvga */
 		i2c_w_mask(sd, OV7610_REG_COM_C, qvga ? (1 << 5) : 0, 1 << 5);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
+		i2c_w_mask(sd, 0x2d, 0x00, 0x40); /* from windrv 090403 */
+		i2c_w_mask(sd, 0x28, 0x20, 0x20); /* progressive mode on */
 		break;
 	case SEN_OV7610:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w(sd, 0x35, qvga?0x1e:0x9e);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
 	case SEN_OV7620:
 	case SEN_OV76BE:
@@ -2571,6 +3657,10 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40);
 		i2c_w_mask(sd, 0x67, qvga ? 0xb0 : 0x90, 0xf0);
 		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
+		if (sd->sensor == SEN_OV76BE)
+			i2c_w(sd, 0x35, qvga ? 0x1e : 0x9e);
 		break;
 	case SEN_OV7640:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
@@ -2580,6 +3670,7 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 /*		i2c_w_mask(sd, 0x2d, qvga ? 0x40 : 0x00, 0x40); */
 /*		i2c_w_mask(sd, 0x67, qvga ? 0xf0 : 0x90, 0xf0); */
 /*		i2c_w_mask(sd, 0x74, qvga ? 0x20 : 0x00, 0x20); */
+		i2c_w_mask(sd, 0x12, 0x04, 0x04); /* AWB: 1 */
 		break;
 	case SEN_OV7670:
 		/* set COM7_FMT_VGA or COM7_FMT_QVGA
@@ -2588,55 +3679,56 @@ static int mode_init_ov_sensor_regs(struct sd *sd)
 		i2c_w_mask(sd, OV7670_REG_COM7,
 			 qvga ? OV7670_COM7_FMT_QVGA : OV7670_COM7_FMT_VGA,
 			 OV7670_COM7_FMT_MASK);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_AWB,
+				OV7670_COM8_AWB);
+		if (qvga) {		/* QVGA from ov7670.c by
+					 * Jonathan Corbet */
+			xstart = 164;
+			xend = 28;
+			ystart = 14;
+			yend = 494;
+		} else {		/* VGA */
+			xstart = 158;
+			xend = 14;
+			ystart = 10;
+			yend = 490;
+		}
+		/* OV7670 hardware window registers are split across
+		 * multiple locations */
+		i2c_w(sd, OV7670_REG_HSTART, xstart >> 3);
+		i2c_w(sd, OV7670_REG_HSTOP, xend >> 3);
+		v = i2c_r(sd, OV7670_REG_HREF);
+		v = (v & 0xc0) | ((xend & 0x7) << 3) | (xstart & 0x07);
+		msleep(10);	/* need to sleep between read and write to
+				 * same reg! */
+		i2c_w(sd, OV7670_REG_HREF, v);
+
+		i2c_w(sd, OV7670_REG_VSTART, ystart >> 2);
+		i2c_w(sd, OV7670_REG_VSTOP, yend >> 2);
+		v = i2c_r(sd, OV7670_REG_VREF);
+		v = (v & 0xc0) | ((yend & 0x3) << 2) | (ystart & 0x03);
+		msleep(10);	/* need to sleep between read and write to
+				 * same reg! */
+		i2c_w(sd, OV7670_REG_VREF, v);
 		break;
 	case SEN_OV6620:
+		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x13, 0x00, 0x20); /* Select 16 bit data bus */
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
+		break;
 	case SEN_OV6630:
 	case SEN_OV66308AF:
 		i2c_w_mask(sd, 0x14, qvga ? 0x20 : 0x00, 0x20);
+		i2c_w_mask(sd, 0x12, 0x04, 0x06); /* AWB: 1 Test pattern: 0 */
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	/******** Palette-specific regs ********/
-
-	/* The OV518 needs special treatment. Although both the OV518
-	 * and the OV6630 support a 16-bit video bus, only the 8 bit Y
-	 * bus is actually used. The UV bus is tied to ground.
-	 * Therefore, the OV6630 needs to be in 8-bit multiplexed
-	 * output mode */
-
-	/* OV7640 is 8-bit only */
-
-	if (sd->sensor != SEN_OV6630 && sd->sensor != SEN_OV66308AF &&
-					sd->sensor != SEN_OV7640)
-		i2c_w_mask(sd, 0x13, 0x00, 0x20);
-
 	/******** Clock programming ********/
 	i2c_w(sd, 0x11, sd->clockdiv);
 
-	/******** Special Features ********/
-/* no evidence this is possible with OV7670, either */
-	/* Test Pattern */
-	if (sd->sensor != SEN_OV7640 && sd->sensor != SEN_OV7670)
-		i2c_w_mask(sd, 0x12, 0x00, 0x02);
-
-	/* Enable auto white balance */
-	if (sd->sensor == SEN_OV7670)
-		i2c_w_mask(sd, OV7670_REG_COM8, OV7670_COM8_AWB,
-				OV7670_COM8_AWB);
-	else
-		i2c_w_mask(sd, 0x12, 0x04, 0x04);
-
-	/* This will go away as soon as ov51x_mode_init_sensor_regs() */
-	/* is fully tested. */
-	/* 7620/6620/6630? don't have register 0x35, so play it safe */
-	if (sd->sensor == SEN_OV7610 || sd->sensor == SEN_OV76BE) {
-		if (!qvga)
-			i2c_w(sd, 0x35, 0x9e);
-		else
-			i2c_w(sd, 0x35, 0x1e);
-	}
 	return 0;
 }
 
@@ -2659,8 +3751,12 @@ static int set_ov_sensor_window(struct sd *sd)
 	struct gspca_dev *gspca_dev;
 	int qvga, crop;
 	int hwsbase, hwebase, vwsbase, vwebase, hwscale, vwscale;
-	int ret, hstart, hstop, vstop, vstart;
-	__u8 v;
+	int ret;
+
+	/* mode setup is fully handled in mode_init_ov_sensor_regs for these */
+	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610 ||
+	    sd->sensor == SEN_OV7670)
+		return mode_init_ov_sensor_regs(sd);
 
 	gspca_dev = &sd->gspca_dev;
 	qvga = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv & 1;
@@ -2708,11 +3804,6 @@ static int set_ov_sensor_window(struct sd *sd)
 		hwebase = 0x1a;
 		vwsbase = vwebase = 0x03;
 		break;
-	case SEN_OV7670:
-		/*handling of OV7670 hardware sensor start and stop values
-		 * is very odd, compared to the other OV sensors */
-		vwsbase = vwebase = hwebase = hwsbase = 0x00;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -2753,58 +3844,11 @@ static int set_ov_sensor_window(struct sd *sd)
 	if (ret < 0)
 		return ret;
 
-	if (sd->sensor == SEN_OV8610) {
-		i2c_w_mask(sd, 0x2d, 0x05, 0x40);
-				/* old 0x95, new 0x05 from windrv 090403 */
-						/* bits 5-7: reserved */
-		i2c_w_mask(sd, 0x28, 0x20, 0x20);
-					/* bit 5: progressive mode on */
-	}
+	i2c_w(sd, 0x17, hwsbase);
+	i2c_w(sd, 0x18, hwebase + (sd->sensor_width >> hwscale));
+	i2c_w(sd, 0x19, vwsbase);
+	i2c_w(sd, 0x1a, vwebase + (sd->sensor_height >> vwscale));
 
-	/* The below is wrong for OV7670s because their window registers
-	 * only store the high bits in 0x17 to 0x1a */
-
-	/* SRH Use sd->max values instead of requested win values */
-	/* SCS Since we're sticking with only the max hardware widths
-	 * for a given mode */
-	/* I can hard code this for OV7670s */
-	/* Yes, these numbers do look odd, but they're tested and work! */
-	if (sd->sensor == SEN_OV7670) {
-		if (qvga) {		/* QVGA from ov7670.c by
-					 * Jonathan Corbet */
-			hstart = 164;
-			hstop = 28;
-			vstart = 14;
-			vstop = 494;
-		} else {		/* VGA */
-			hstart = 158;
-			hstop = 14;
-			vstart = 10;
-			vstop = 490;
-		}
-		/* OV7670 hardware window registers are split across
-		 * multiple locations */
-		i2c_w(sd, OV7670_REG_HSTART, hstart >> 3);
-		i2c_w(sd, OV7670_REG_HSTOP, hstop >> 3);
-		v = i2c_r(sd, OV7670_REG_HREF);
-		v = (v & 0xc0) | ((hstop & 0x7) << 3) | (hstart & 0x07);
-		msleep(10);	/* need to sleep between read and write to
-				 * same reg! */
-		i2c_w(sd, OV7670_REG_HREF, v);
-
-		i2c_w(sd, OV7670_REG_VSTART, vstart >> 2);
-		i2c_w(sd, OV7670_REG_VSTOP, vstop >> 2);
-		v = i2c_r(sd, OV7670_REG_VREF);
-		v = (v & 0xc0) | ((vstop & 0x3) << 2) | (vstart & 0x03);
-		msleep(10);	/* need to sleep between read and write to
-				 * same reg! */
-		i2c_w(sd, OV7670_REG_VREF, v);
-	} else {
-		i2c_w(sd, 0x17, hwsbase);
-		i2c_w(sd, 0x18, hwebase + (sd->gspca_dev.width >> hwscale));
-		i2c_w(sd, 0x19, vwsbase);
-		i2c_w(sd, 0x1a, vwebase + (sd->gspca_dev.height >> vwscale));
-	}
 	return 0;
 }
 
@@ -2813,6 +3857,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret = 0;
+
+	/* Default for most bridges, allow bridge_mode_init_regs to override */
+	sd->sensor_width = sd->gspca_dev.width;
+	sd->sensor_height = sd->gspca_dev.height;
 
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
@@ -2825,6 +3873,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case BRIDGE_OV519:
 		ret = ov519_mode_init_regs(sd);
+		break;
+	/* case BRIDGE_OVFX2: nothing to do */
+	case BRIDGE_W9968CF:
+		ret = w9968cf_mode_init_regs(sd);
 		break;
 	}
 	if (ret < 0)
@@ -2859,10 +3911,17 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	ov51x_led_control(sd, 0);
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->bridge == BRIDGE_W9968CF)
+		w9968cf_stop0(sd);
+}
+
 static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *in,			/* isoc packet */
-			int len)			/* iso packet length */
+			u8 *in,			/* isoc packet */
+			int len)		/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -2893,11 +3952,11 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 				return;
 			}
 			/* Add 11 byte footer to frame, might be usefull */
-			gspca_frame_add(gspca_dev, LAST_PACKET, frame, in, 11);
+			gspca_frame_add(gspca_dev, LAST_PACKET, in, 11);
 			return;
 		} else {
 			/* Frame start */
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame, in, 0);
+			gspca_frame_add(gspca_dev, FIRST_PACKET, in, 0);
 			sd->packet_nr = 0;
 		}
 	}
@@ -2906,12 +3965,11 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 	len--;
 
 	/* intermediate packet */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, in, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, in, len);
 }
 
 static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -2919,8 +3977,8 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	/* A false positive here is likely, until OVT gives me
 	 * the definitive SOF/EOF format */
 	if ((!(data[0] | data[1] | data[2] | data[3] | data[5])) && data[6]) {
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame, data, 0);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame, data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		sd->packet_nr = 0;
 	}
 
@@ -2944,12 +4002,11 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	/* intermediate packet */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	/* Header of ov519 is 16 bytes:
@@ -2972,7 +4029,7 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 			len -= HDRSZ;
 #undef HDRSZ
 			if (data[0] == 0xff || data[1] == 0xd8)
-				gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+				gspca_frame_add(gspca_dev, FIRST_PACKET,
 						data, len);
 			else
 				gspca_dev->last_packet_type = DISCARD_PACKET;
@@ -2980,20 +4037,31 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 		case 0x51:		/* end of frame */
 			if (data[9] != 0)
 				gspca_dev->last_packet_type = DISCARD_PACKET;
-			gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-					data, 0);
+			gspca_frame_add(gspca_dev, LAST_PACKET,
+					NULL, 0);
 			return;
 		}
 	}
 
 	/* intermediate packet */
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-			data, len);
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+}
+
+static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	/* A short read signals EOF */
+	if (len < OVFX2_BULK_SIZE) {
+		gspca_frame_add(gspca_dev, LAST_PACKET, data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
+		return;
+	}
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
-			__u8 *data,			/* isoc packet */
+			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -3001,14 +4069,20 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
-		ov511_pkt_scan(gspca_dev, frame, data, len);
+		ov511_pkt_scan(gspca_dev, data, len);
 		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
-		ov518_pkt_scan(gspca_dev, frame, data, len);
+		ov518_pkt_scan(gspca_dev, data, len);
 		break;
 	case BRIDGE_OV519:
-		ov519_pkt_scan(gspca_dev, frame, data, len);
+		ov519_pkt_scan(gspca_dev, data, len);
+		break;
+	case BRIDGE_OVFX2:
+		ovfx2_pkt_scan(gspca_dev, data, len);
+		break;
+	case BRIDGE_W9968CF:
+		w9968cf_pkt_scan(gspca_dev, data, len);
 		break;
 	}
 }
@@ -3124,7 +4198,8 @@ static void setcolors(struct gspca_dev *gspca_dev)
 
 static void setautobrightness(struct sd *sd)
 {
-	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670)
+	if (sd->sensor == SEN_OV7640 || sd->sensor == SEN_OV7670 ||
+	    sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
 		return;
 
 	i2c_w_mask(sd, 0x2d, sd->autobrightness ? 0x10 : 0x00, 0x10);
@@ -3132,6 +4207,9 @@ static void setautobrightness(struct sd *sd)
 
 static void setfreq(struct sd *sd)
 {
+	if (sd->sensor == SEN_OV2610 || sd->sensor == SEN_OV3610)
+		return;
+
 	if (sd->sensor == SEN_OV7670) {
 		switch (sd->freq) {
 		case 0: /* Banding filter disabled */
@@ -3301,8 +4379,12 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->freq = val;
-	if (gspca_dev->streaming)
+	if (gspca_dev->streaming) {
 		setfreq(sd);
+		/* Ugly but necessary */
+		if (sd->bridge == BRIDGE_W9968CF)
+			w9968cf_set_crop_window(sd);
+	}
 	return 0;
 }
 
@@ -3343,6 +4425,45 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
+static int sd_get_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->bridge != BRIDGE_W9968CF)
+		return -EINVAL;
+
+	memset(jcomp, 0, sizeof *jcomp);
+	jcomp->quality = sd->quality;
+	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT | V4L2_JPEG_MARKER_DQT |
+			      V4L2_JPEG_MARKER_DRI;
+	return 0;
+}
+
+static int sd_set_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->bridge != BRIDGE_W9968CF)
+		return -EINVAL;
+
+	if (gspca_dev->streaming)
+		return -EBUSY;
+
+	if (jcomp->quality < QUALITY_MIN)
+		sd->quality = QUALITY_MIN;
+	else if (jcomp->quality > QUALITY_MAX)
+		sd->quality = QUALITY_MAX;
+	else
+		sd->quality = jcomp->quality;
+
+	/* Return resulting jcomp params to app */
+	sd_get_jcomp(gspca_dev, jcomp);
+
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -3352,18 +4473,23 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
+	.get_jcomp = sd_get_jcomp,
+	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */
 static const __devinitdata struct usb_device_id device_table[] = {
+	{USB_DEVICE(0x041e, 0x4003), .driver_info = BRIDGE_W9968CF },
 	{USB_DEVICE(0x041e, 0x4052), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x405f), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4061), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4064),
 	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
+	{USB_DEVICE(0x041e, 0x4067), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4068),
 	 .driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x045e, 0x028c), .driver_info = BRIDGE_OV519 },
@@ -3373,11 +4499,16 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x05a9, 0x0518), .driver_info = BRIDGE_OV518 },
 	{USB_DEVICE(0x05a9, 0x0519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x0530), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x05a9, 0x2800), .driver_info = BRIDGE_OVFX2 },
 	{USB_DEVICE(0x05a9, 0x4519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0x8519), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x05a9, 0xa511), .driver_info = BRIDGE_OV511PLUS },
 	{USB_DEVICE(0x05a9, 0xa518), .driver_info = BRIDGE_OV518PLUS },
 	{USB_DEVICE(0x0813, 0x0002), .driver_info = BRIDGE_OV511PLUS },
+	{USB_DEVICE(0x0b62, 0x0059), .driver_info = BRIDGE_OVFX2 },
+	{USB_DEVICE(0x0e96, 0xc001), .driver_info = BRIDGE_OVFX2 },
+	{USB_DEVICE(0x1046, 0x9967), .driver_info = BRIDGE_W9968CF },
+	{USB_DEVICE(0x8020, 0xEF04), .driver_info = BRIDGE_OVFX2 },
 	{}
 };
 

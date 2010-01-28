@@ -285,7 +285,7 @@ static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
 
 	if ((ccdcparam->med_filt_thres < 0) ||
 	   (ccdcparam->med_filt_thres > CCDC_MED_FILT_THRESH)) {
-		dev_dbg(dev, "Invalid value of median filter thresold\n");
+		dev_dbg(dev, "Invalid value of median filter threshold\n");
 		return -EINVAL;
 	}
 
@@ -959,7 +959,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int dm355_ccdc_init(void)
+static int __init dm355_ccdc_init(void)
 {
 	printk(KERN_NOTICE "dm355_ccdc_init\n");
 	if (vpfe_register_ccdc_device(&ccdc_hw_dev) < 0)
@@ -969,7 +969,7 @@ static int dm355_ccdc_init(void)
 	return 0;
 }
 
-static void dm355_ccdc_exit(void)
+static void __exit dm355_ccdc_exit(void)
 {
 	vpfe_unregister_ccdc_device(&ccdc_hw_dev);
 }

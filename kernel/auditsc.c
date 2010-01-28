@@ -250,7 +250,6 @@ struct audit_context {
 #endif
 };
 
-#define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
 static inline int open_arg(int flags, int mask)
 {
 	int n = ACC_MODE(flags);

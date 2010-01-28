@@ -21,7 +21,6 @@
 #include <asm/dma.h>
 #include <asm/abs_addr.h>
 
-int swiotlb __read_mostly;
 unsigned int ppc_swiotlb_enable;
 
 /*

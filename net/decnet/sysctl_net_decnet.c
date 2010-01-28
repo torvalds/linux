@@ -131,39 +131,6 @@ static int parse_addr(__le16 *addr, char *str)
 	return 0;
 }
 
-
-static int dn_node_address_strategy(ctl_table *table,
-				void __user *oldval, size_t __user *oldlenp,
-				void __user *newval, size_t newlen)
-{
-	size_t len;
-	__le16 addr;
-
-	if (oldval && oldlenp) {
-		if (get_user(len, oldlenp))
-			return -EFAULT;
-		if (len) {
-			if (len != sizeof(unsigned short))
-				return -EINVAL;
-			if (put_user(decnet_address, (__le16 __user *)oldval))
-				return -EFAULT;
-		}
-	}
-	if (newval && newlen) {
-		if (newlen != sizeof(unsigned short))
-			return -EINVAL;
-		if (get_user(addr, (__le16 __user *)newval))
-			return -EFAULT;
-
-		dn_dev_devices_off();
-
-		decnet_address = addr;
-
-		dn_dev_devices_on();
-	}
-	return 0;
-}
-
 static int dn_node_address_handler(ctl_table *table, int write,
 				void __user *buffer,
 				size_t *lenp, loff_t *ppos)
@@ -214,64 +181,6 @@ static int dn_node_address_handler(ctl_table *table, int write,
 
 	return 0;
 }
-
-
-static int dn_def_dev_strategy(ctl_table *table,
-				void __user *oldval, size_t __user *oldlenp,
-				void __user *newval, size_t newlen)
-{
-	size_t len;
-	struct net_device *dev;
-	char devname[17];
-	size_t namel;
-	int rv = 0;
-
-	devname[0] = 0;
-
-	if (oldval && oldlenp) {
-		if (get_user(len, oldlenp))
-			return -EFAULT;
-		if (len) {
-			dev = dn_dev_get_default();
-			if (dev) {
-				strcpy(devname, dev->name);
-				dev_put(dev);
-			}
-
-			namel = strlen(devname) + 1;
-			if (len > namel) len = namel;
-
-			if (copy_to_user(oldval, devname, len))
-				return -EFAULT;
-
-			if (put_user(len, oldlenp))
-				return -EFAULT;
-		}
-	}
-
-	if (newval && newlen) {
-		if (newlen > 16)
-			return -E2BIG;
-
-		if (copy_from_user(devname, newval, newlen))
-			return -EFAULT;
-
-		devname[newlen] = 0;
-
-		dev = dev_get_by_name(&init_net, devname);
-		if (dev == NULL)
-			return -ENODEV;
-
-		rv = -ENODEV;
-		if (dev->dn_ptr != NULL)
-			rv = dn_dev_set_default(dev, 1);
-		if (rv)
-			dev_put(dev);
-	}
-
-	return rv;
-}
-
 
 static int dn_def_dev_handler(ctl_table *table, int write,
 				void __user *buffer,
@@ -338,138 +247,112 @@ static int dn_def_dev_handler(ctl_table *table, int write,
 
 static ctl_table dn_table[] = {
 	{
-		.ctl_name = NET_DECNET_NODE_ADDRESS,
 		.procname = "node_address",
 		.maxlen = 7,
 		.mode = 0644,
 		.proc_handler = dn_node_address_handler,
-		.strategy = dn_node_address_strategy,
 	},
 	{
-		.ctl_name = NET_DECNET_NODE_NAME,
 		.procname = "node_name",
 		.data = node_name,
 		.maxlen = 7,
 		.mode = 0644,
 		.proc_handler = proc_dostring,
-		.strategy = sysctl_string,
 	},
 	{
-		.ctl_name = NET_DECNET_DEFAULT_DEVICE,
 		.procname = "default_device",
 		.maxlen = 16,
 		.mode = 0644,
 		.proc_handler = dn_def_dev_handler,
-		.strategy = dn_def_dev_strategy,
 	},
 	{
-		.ctl_name = NET_DECNET_TIME_WAIT,
 		.procname = "time_wait",
 		.data = &decnet_time_wait,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_decnet_time_wait,
 		.extra2 = &max_decnet_time_wait
 	},
 	{
-		.ctl_name = NET_DECNET_DN_COUNT,
 		.procname = "dn_count",
 		.data = &decnet_dn_count,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_state_count,
 		.extra2 = &max_state_count
 	},
 	{
-		.ctl_name = NET_DECNET_DI_COUNT,
 		.procname = "di_count",
 		.data = &decnet_di_count,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_state_count,
 		.extra2 = &max_state_count
 	},
 	{
-		.ctl_name = NET_DECNET_DR_COUNT,
 		.procname = "dr_count",
 		.data = &decnet_dr_count,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_state_count,
 		.extra2 = &max_state_count
 	},
 	{
-		.ctl_name = NET_DECNET_DST_GC_INTERVAL,
 		.procname = "dst_gc_interval",
 		.data = &decnet_dst_gc_interval,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_decnet_dst_gc_interval,
 		.extra2 = &max_decnet_dst_gc_interval
 	},
 	{
-		.ctl_name = NET_DECNET_NO_FC_MAX_CWND,
 		.procname = "no_fc_max_cwnd",
 		.data = &decnet_no_fc_max_cwnd,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_minmax,
-		.strategy = sysctl_intvec,
 		.extra1 = &min_decnet_no_fc_max_cwnd,
 		.extra2 = &max_decnet_no_fc_max_cwnd
 	},
        {
-		.ctl_name = NET_DECNET_MEM,
 		.procname = "decnet_mem",
 		.data = &sysctl_decnet_mem,
 		.maxlen = sizeof(sysctl_decnet_mem),
 		.mode = 0644,
 		.proc_handler = proc_dointvec,
-		.strategy = sysctl_intvec,
 	},
 	{
-		.ctl_name = NET_DECNET_RMEM,
 		.procname = "decnet_rmem",
 		.data = &sysctl_decnet_rmem,
 		.maxlen = sizeof(sysctl_decnet_rmem),
 		.mode = 0644,
 		.proc_handler = proc_dointvec,
-		.strategy = sysctl_intvec,
 	},
 	{
-		.ctl_name = NET_DECNET_WMEM,
 		.procname = "decnet_wmem",
 		.data = &sysctl_decnet_wmem,
 		.maxlen = sizeof(sysctl_decnet_wmem),
 		.mode = 0644,
 		.proc_handler = proc_dointvec,
-		.strategy = sysctl_intvec,
 	},
 	{
-		.ctl_name = NET_DECNET_DEBUG_LEVEL,
 		.procname = "debug",
 		.data = &decnet_debug_level,
 		.maxlen = sizeof(int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec,
-		.strategy = sysctl_intvec,
 	},
-	{0}
+	{ }
 };
 
 static struct ctl_path dn_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "decnet", .ctl_name = NET_DECNET, },
+	{ .procname = "net", },
+	{ .procname = "decnet", },
 	{ }
 };
 

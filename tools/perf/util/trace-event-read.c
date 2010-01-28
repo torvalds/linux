@@ -145,8 +145,9 @@ static void read_proc_kallsyms(void)
 	if (!size)
 		return;
 
-	buf = malloc_or_die(size);
+	buf = malloc_or_die(size + 1);
 	read_or_die(buf, size);
+	buf[size] = '\0';
 
 	parse_proc_kallsyms(buf, size);
 
@@ -458,9 +459,8 @@ struct record *trace_read_data(int cpu)
 	return data;
 }
 
-void trace_report(void)
+void trace_report(int fd)
 {
-	const char *input_file = "trace.info";
 	char buf[BUFSIZ];
 	char test[] = { 23, 8, 68 };
 	char *version;
@@ -468,17 +468,15 @@ void trace_report(void)
 	int show_funcs = 0;
 	int show_printk = 0;
 
-	input_fd = open(input_file, O_RDONLY);
-	if (input_fd < 0)
-		die("opening '%s'\n", input_file);
+	input_fd = fd;
 
 	read_or_die(buf, 3);
 	if (memcmp(buf, test, 3) != 0)
-		die("not an trace data file");
+		die("no trace data in the file");
 
 	read_or_die(buf, 7);
 	if (memcmp(buf, "tracing", 7) != 0)
-		die("not a trace file (missing tracing)");
+		die("not a trace file (missing 'tracing' tag)");
 
 	version = read_string();
 	if (show_version)

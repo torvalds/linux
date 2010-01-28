@@ -36,10 +36,10 @@
 #define PCI_DEVICE_ID_INTEL_82965GME_IG     0x2A12
 #define PCI_DEVICE_ID_INTEL_82945GME_HB     0x27AC
 #define PCI_DEVICE_ID_INTEL_82945GME_IG     0x27AE
-#define PCI_DEVICE_ID_INTEL_IGDGM_HB        0xA010
-#define PCI_DEVICE_ID_INTEL_IGDGM_IG        0xA011
-#define PCI_DEVICE_ID_INTEL_IGDG_HB         0xA000
-#define PCI_DEVICE_ID_INTEL_IGDG_IG         0xA001
+#define PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB        0xA010
+#define PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG        0xA011
+#define PCI_DEVICE_ID_INTEL_PINEVIEW_HB         0xA000
+#define PCI_DEVICE_ID_INTEL_PINEVIEW_IG         0xA001
 #define PCI_DEVICE_ID_INTEL_G33_HB          0x29C0
 #define PCI_DEVICE_ID_INTEL_G33_IG          0x29C2
 #define PCI_DEVICE_ID_INTEL_Q35_HB          0x29B0
@@ -50,19 +50,20 @@
 #define PCI_DEVICE_ID_INTEL_B43_IG          0x2E42
 #define PCI_DEVICE_ID_INTEL_GM45_HB         0x2A40
 #define PCI_DEVICE_ID_INTEL_GM45_IG         0x2A42
-#define PCI_DEVICE_ID_INTEL_IGD_E_HB        0x2E00
-#define PCI_DEVICE_ID_INTEL_IGD_E_IG        0x2E02
+#define PCI_DEVICE_ID_INTEL_EAGLELAKE_HB        0x2E00
+#define PCI_DEVICE_ID_INTEL_EAGLELAKE_IG        0x2E02
 #define PCI_DEVICE_ID_INTEL_Q45_HB          0x2E10
 #define PCI_DEVICE_ID_INTEL_Q45_IG          0x2E12
 #define PCI_DEVICE_ID_INTEL_G45_HB          0x2E20
 #define PCI_DEVICE_ID_INTEL_G45_IG          0x2E22
 #define PCI_DEVICE_ID_INTEL_G41_HB          0x2E30
 #define PCI_DEVICE_ID_INTEL_G41_IG          0x2E32
-#define PCI_DEVICE_ID_INTEL_IGDNG_D_HB	    0x0040
-#define PCI_DEVICE_ID_INTEL_IGDNG_D_IG	    0x0042
-#define PCI_DEVICE_ID_INTEL_IGDNG_M_HB	    0x0044
-#define PCI_DEVICE_ID_INTEL_IGDNG_MA_HB	    0x0062
-#define PCI_DEVICE_ID_INTEL_IGDNG_M_IG	    0x0046
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB	    0x0040
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG	    0x0042
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB	    0x0044
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB	    0x0062
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB    0x006a
+#define PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG	    0x0046
 
 /* cover 915 and 945 variants */
 #define IS_I915 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_E7221_HB || \
@@ -82,21 +83,22 @@
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q33_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDGM_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDG_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
 
-#define IS_IGD (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDGM_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDG_HB)
+#define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
 
-#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_E_HB || \
+#define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_GM45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G41_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_B43_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_D_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_M_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGDNG_MA_HB)
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB)
 
 extern int agp_memory_reserved;
 
@@ -176,6 +178,7 @@ static struct _intel_private {
 	 * popup and for the GTT.
 	 */
 	int gtt_entries;			/* i830+ */
+	int gtt_total_size;
 	union {
 		void __iomem *i9xx_flush_page;
 		void *i8xx_flush_page;
@@ -651,7 +654,7 @@ static void intel_i830_init_gtt_entries(void)
 			size = 512;
 		}
 		size += 4; /* add in BIOS popup space */
-	} else if (IS_G33 && !IS_IGD) {
+	} else if (IS_G33 && !IS_PINEVIEW) {
 	/* G33's GTT size defined in gmch_ctrl */
 		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
 		case G33_PGETBL_SIZE_1M:
@@ -667,7 +670,7 @@ static void intel_i830_init_gtt_entries(void)
 			size = 512;
 		}
 		size += 4;
-	} else if (IS_G4X || IS_IGD) {
+	} else if (IS_G4X || IS_PINEVIEW) {
 		/* On 4 series hardware, GTT stolen is separate from graphics
 		 * stolen, ignore it in stolen gtt entries counting.  However,
 		 * 4KB of the stolen memory doesn't get mapped to the GTT.
@@ -1151,7 +1154,7 @@ static int intel_i915_configure(void)
 	readl(intel_private.registers+I810_PGETBL_CTL);	/* PCI Posting. */
 
 	if (agp_bridge->driver->needs_scratch_page) {
-		for (i = intel_private.gtt_entries; i < current_size->num_entries; i++) {
+		for (i = intel_private.gtt_entries; i < intel_private.gtt_total_size; i++) {
 			writel(agp_bridge->scratch_page, intel_private.gtt+i);
 		}
 		readl(intel_private.gtt+i-1);	/* PCI Posting. */
@@ -1306,6 +1309,8 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	if (!intel_private.gtt)
 		return -ENOMEM;
 
+	intel_private.gtt_total_size = gtt_map_size / 4;
+
 	temp &= 0xfff80000;
 
 	intel_private.registers = ioremap(temp, 128 * 4096);
@@ -1350,14 +1355,15 @@ static void intel_i965_get_gtt_range(int *gtt_offset, int *gtt_size)
 {
 	switch (agp_bridge->dev->device) {
 	case PCI_DEVICE_ID_INTEL_GM45_HB:
-	case PCI_DEVICE_ID_INTEL_IGD_E_HB:
+	case PCI_DEVICE_ID_INTEL_EAGLELAKE_HB:
 	case PCI_DEVICE_ID_INTEL_Q45_HB:
 	case PCI_DEVICE_ID_INTEL_G45_HB:
 	case PCI_DEVICE_ID_INTEL_G41_HB:
 	case PCI_DEVICE_ID_INTEL_B43_HB:
-	case PCI_DEVICE_ID_INTEL_IGDNG_D_HB:
-	case PCI_DEVICE_ID_INTEL_IGDNG_M_HB:
-	case PCI_DEVICE_ID_INTEL_IGDNG_MA_HB:
+	case PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB:
+	case PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB:
+	case PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB:
+	case PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB:
 		*gtt_offset = *gtt_size = MB(2);
 		break;
 	default:
@@ -1391,6 +1397,8 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
 
 	if (!intel_private.gtt)
 		return -ENOMEM;
+
+	intel_private.gtt_total_size = gtt_size / 4;
 
 	intel_private.registers = ioremap(temp, 128 * 4096);
 	if (!intel_private.registers) {
@@ -2337,14 +2345,14 @@ static const struct intel_driver_description {
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
 		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_IGDGM_HB, PCI_DEVICE_ID_INTEL_IGDGM_IG, 0, "IGD",
+	{ PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_M_IG, 0, "Pineview",
 		NULL, &intel_g33_driver },
-	{ PCI_DEVICE_ID_INTEL_IGDG_HB, PCI_DEVICE_ID_INTEL_IGDG_IG, 0, "IGD",
+	{ PCI_DEVICE_ID_INTEL_PINEVIEW_HB, PCI_DEVICE_ID_INTEL_PINEVIEW_IG, 0, "Pineview",
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_GM45_HB, PCI_DEVICE_ID_INTEL_GM45_IG, 0,
-	    "Mobile Intel® GM45 Express", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IGD_E_HB, PCI_DEVICE_ID_INTEL_IGD_E_IG, 0,
-	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
+	    "GM45", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_EAGLELAKE_HB, PCI_DEVICE_ID_INTEL_EAGLELAKE_IG, 0,
+	    "Eaglelake", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_Q45_HB, PCI_DEVICE_ID_INTEL_Q45_IG, 0,
 	    "Q45/Q43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G45_HB, PCI_DEVICE_ID_INTEL_G45_IG, 0,
@@ -2353,12 +2361,14 @@ static const struct intel_driver_description {
 	    "B43", NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_G41_HB, PCI_DEVICE_ID_INTEL_G41_IG, 0,
 	    "G41", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IGDNG_D_HB, PCI_DEVICE_ID_INTEL_IGDNG_D_IG, 0,
-	    "IGDNG/D", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IGDNG_M_HB, PCI_DEVICE_ID_INTEL_IGDNG_M_IG, 0,
-	    "IGDNG/M", NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_IGDNG_MA_HB, PCI_DEVICE_ID_INTEL_IGDNG_M_IG, 0,
-	    "IGDNG/MA", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_D_IG, 0,
+	    "Ironlake/D", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
+	    "Ironlake/M", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
+	    "Ironlake/MA", NULL, &intel_i965_driver },
+	{ PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB, PCI_DEVICE_ID_INTEL_IRONLAKE_M_IG, 0,
+	    "Ironlake/MC2", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2450,10 +2460,14 @@ static int __devinit agp_intel_probe(struct pci_dev *pdev,
 				&bridge->mode);
 	}
 
-	if (bridge->driver->mask_memory == intel_i965_mask_memory)
+	if (bridge->driver->mask_memory == intel_i965_mask_memory) {
 		if (pci_set_dma_mask(intel_private.pcidev, DMA_BIT_MASK(36)))
 			dev_err(&intel_private.pcidev->dev,
 				"set gfx device dma mask 36bit failed!\n");
+		else
+			pci_set_consistent_dma_mask(intel_private.pcidev,
+						    DMA_BIT_MASK(36));
+	}
 
 	pci_set_drvdata(pdev, bridge);
 	return agp_add_bridge(bridge);
@@ -2540,8 +2554,8 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_82945G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945GM_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945GME_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGDGM_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGDG_HB),
+	ID(PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB),
+	ID(PCI_DEVICE_ID_INTEL_PINEVIEW_HB),
 	ID(PCI_DEVICE_ID_INTEL_82946GZ_HB),
 	ID(PCI_DEVICE_ID_INTEL_82G35_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965Q_HB),
@@ -2552,14 +2566,15 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_Q35_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q33_HB),
 	ID(PCI_DEVICE_ID_INTEL_GM45_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGD_E_HB),
+	ID(PCI_DEVICE_ID_INTEL_EAGLELAKE_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G45_HB),
 	ID(PCI_DEVICE_ID_INTEL_G41_HB),
 	ID(PCI_DEVICE_ID_INTEL_B43_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGDNG_D_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGDNG_M_HB),
-	ID(PCI_DEVICE_ID_INTEL_IGDNG_MA_HB),
+	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_D_HB),
+	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB),
+	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB),
+	ID(PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB),
 	{ }
 };
 

@@ -91,10 +91,15 @@ static int radio[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1 };
+static int i2c_clock_period[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
+					       -1, -1, -1, -1, -1, -1, -1, -1,
+					       -1, -1, -1, -1, -1, -1, -1, -1,
+					       -1, -1, -1, -1, -1, -1, -1, -1 };
 
 static unsigned int cardtype_c = 1;
 static unsigned int tuner_c = 1;
 static unsigned int radio_c = 1;
+static unsigned int i2c_clock_period_c = 1;
 static char pal[] = "---";
 static char secam[] = "--";
 static char ntsc[] = "-";
@@ -151,6 +156,7 @@ module_param(dec_vbi_buffers, int, 0644);
 
 module_param(tunertype, int, 0644);
 module_param(newi2c, int, 0644);
+module_param_array(i2c_clock_period, int, &i2c_clock_period_c, 0644);
 
 MODULE_PARM_DESC(tuner, "Tuner type selection,\n"
 			"\t\t\tsee tuner.h for values");
@@ -245,6 +251,10 @@ MODULE_PARM_DESC(newi2c,
 		 "Use new I2C implementation\n"
 		 "\t\t\t-1 is autodetect, 0 is off, 1 is on\n"
 		 "\t\t\tDefault is autodetect");
+MODULE_PARM_DESC(i2c_clock_period,
+		 "Period of SCL for the I2C bus controlled by the CX23415/6\n"
+		 "\t\t\tMin: 10 usec (100 kHz), Max: 4500 usec (222 Hz)\n"
+		 "\t\t\tDefault: " __stringify(IVTV_DEFAULT_I2C_CLOCK_PERIOD));
 
 MODULE_PARM_DESC(ivtv_first_minor, "Set device node number assigned to first card");
 
@@ -600,6 +610,15 @@ static void ivtv_process_options(struct ivtv *itv)
 	itv->options.cardtype = cardtype[itv->instance];
 	itv->options.tuner = tuner[itv->instance];
 	itv->options.radio = radio[itv->instance];
+
+	itv->options.i2c_clock_period = i2c_clock_period[itv->instance];
+	if (itv->options.i2c_clock_period == -1)
+		itv->options.i2c_clock_period = IVTV_DEFAULT_I2C_CLOCK_PERIOD;
+	else if (itv->options.i2c_clock_period < 10)
+		itv->options.i2c_clock_period = 10;
+	else if (itv->options.i2c_clock_period > 4500)
+		itv->options.i2c_clock_period = 4500;
+
 	itv->options.newi2c = newi2c;
 	if (tunertype < -1 || tunertype > 1) {
 		IVTV_WARN("Invalid tunertype argument, will autodetect instead\n");
@@ -864,6 +883,10 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 		if (ivtv_i2c_register(itv, i) == 0)
 			itv->hw_flags |= device;
 	}
+
+	/* probe for legacy IR controllers that aren't in card definitions */
+	if ((itv->hw_flags & IVTV_HW_IR_ANY) == 0)
+		ivtv_i2c_new_ir_legacy(itv);
 
 	if (itv->card->hw_all & IVTV_HW_CX25840)
 		itv->sd_video = ivtv_find_hw(itv, IVTV_HW_CX25840);
@@ -1361,7 +1384,7 @@ static struct pci_driver ivtv_pci_driver = {
       .remove =   ivtv_remove,
 };
 
-static int module_start(void)
+static int __init module_start(void)
 {
 	printk(KERN_INFO "ivtv: Start initialization, version %s\n", IVTV_VERSION);
 
@@ -1385,7 +1408,7 @@ static int module_start(void)
 	return 0;
 }
 
-static void module_cleanup(void)
+static void __exit module_cleanup(void)
 {
 	pci_unregister_driver(&ivtv_pci_driver);
 }

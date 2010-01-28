@@ -119,7 +119,7 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
-static int ipip_net_id;
+static int ipip_net_id __read_mostly;
 struct ipip_net {
 	struct ip_tunnel *tunnels_r_l[HASH_SIZE];
 	struct ip_tunnel *tunnels_r[HASH_SIZE];
@@ -134,7 +134,13 @@ static void ipip_fb_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_setup(struct net_device *dev);
 
-static DEFINE_RWLOCK(ipip_lock);
+/*
+ * Locking : hash tables are protected by RCU and a spinlock
+ */
+static DEFINE_SPINLOCK(ipip_lock);
+
+#define for_each_ip_tunnel_rcu(start) \
+	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
 static struct ip_tunnel * ipip_tunnel_lookup(struct net *net,
 		__be32 remote, __be32 local)
@@ -144,20 +150,21 @@ static struct ip_tunnel * ipip_tunnel_lookup(struct net *net,
 	struct ip_tunnel *t;
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 
-	for (t = ipn->tunnels_r_l[h0^h1]; t; t = t->next) {
+	for_each_ip_tunnel_rcu(ipn->tunnels_r_l[h0 ^ h1])
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
-	}
-	for (t = ipn->tunnels_r[h0]; t; t = t->next) {
+
+	for_each_ip_tunnel_rcu(ipn->tunnels_r[h0])
 		if (remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
-	}
-	for (t = ipn->tunnels_l[h1]; t; t = t->next) {
+
+	for_each_ip_tunnel_rcu(ipn->tunnels_l[h1])
 		if (local == t->parms.iph.saddr && (t->dev->flags&IFF_UP))
 			return t;
-	}
-	if ((t = ipn->tunnels_wc[0]) != NULL && (t->dev->flags&IFF_UP))
+
+	t = rcu_dereference(ipn->tunnels_wc[0]);
+	if (t && (t->dev->flags&IFF_UP))
 		return t;
 	return NULL;
 }
@@ -193,9 +200,9 @@ static void ipip_tunnel_unlink(struct ipip_net *ipn, struct ip_tunnel *t)
 
 	for (tp = ipip_bucket(ipn, t); *tp; tp = &(*tp)->next) {
 		if (t == *tp) {
-			write_lock_bh(&ipip_lock);
+			spin_lock_bh(&ipip_lock);
 			*tp = t->next;
-			write_unlock_bh(&ipip_lock);
+			spin_unlock_bh(&ipip_lock);
 			break;
 		}
 	}
@@ -205,10 +212,10 @@ static void ipip_tunnel_link(struct ipip_net *ipn, struct ip_tunnel *t)
 {
 	struct ip_tunnel **tp = ipip_bucket(ipn, t);
 
+	spin_lock_bh(&ipip_lock);
 	t->next = *tp;
-	write_lock_bh(&ipip_lock);
-	*tp = t;
-	write_unlock_bh(&ipip_lock);
+	rcu_assign_pointer(*tp, t);
+	spin_unlock_bh(&ipip_lock);
 }
 
 static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
@@ -267,9 +274,9 @@ static void ipip_tunnel_uninit(struct net_device *dev)
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 
 	if (dev == ipn->fb_tunnel_dev) {
-		write_lock_bh(&ipip_lock);
+		spin_lock_bh(&ipip_lock);
 		ipn->tunnels_wc[0] = NULL;
-		write_unlock_bh(&ipip_lock);
+		spin_unlock_bh(&ipip_lock);
 	} else
 		ipip_tunnel_unlink(ipn, netdev_priv(dev));
 	dev_put(dev);
@@ -318,7 +325,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 
 	err = -ENOENT;
 
-	read_lock(&ipip_lock);
+	rcu_read_lock();
 	t = ipip_tunnel_lookup(dev_net(skb->dev), iph->daddr, iph->saddr);
 	if (t == NULL || t->parms.iph.daddr == 0)
 		goto out;
@@ -333,7 +340,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 		t->err_count = 1;
 	t->err_time = jiffies;
 out:
-	read_unlock(&ipip_lock);
+	rcu_read_unlock();
 	return err;
 }
 
@@ -351,11 +358,11 @@ static int ipip_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph = ip_hdr(skb);
 
-	read_lock(&ipip_lock);
+	rcu_read_lock();
 	if ((tunnel = ipip_tunnel_lookup(dev_net(skb->dev),
 					iph->saddr, iph->daddr)) != NULL) {
 		if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
-			read_unlock(&ipip_lock);
+			rcu_read_unlock();
 			kfree_skb(skb);
 			return 0;
 		}
@@ -374,10 +381,10 @@ static int ipip_rcv(struct sk_buff *skb)
 		nf_reset(skb);
 		ipip_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
-		read_unlock(&ipip_lock);
+		rcu_read_unlock();
 		return 0;
 	}
-	read_unlock(&ipip_lock);
+	rcu_read_unlock();
 
 	return -1;
 }
@@ -390,7 +397,8 @@ static int ipip_rcv(struct sk_buff *skb)
 static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct net_device_stats *stats = &tunnel->dev->stats;
+	struct net_device_stats *stats = &dev->stats;
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, 0);
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	u8     tos = tunnel->parms.iph.tos;
 	__be16 df = tiph->frag_off;
@@ -480,7 +488,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
 		if (!new_skb) {
 			ip_rt_put(rt);
-			stats->tx_dropped++;
+			txq->tx_dropped++;
 			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
@@ -748,33 +756,27 @@ static struct xfrm_tunnel ipip_handler = {
 static const char banner[] __initconst =
 	KERN_INFO "IPv4 over IPv4 tunneling driver\n";
 
-static void ipip_destroy_tunnels(struct ipip_net *ipn)
+static void ipip_destroy_tunnels(struct ipip_net *ipn, struct list_head *head)
 {
 	int prio;
 
 	for (prio = 1; prio < 4; prio++) {
 		int h;
 		for (h = 0; h < HASH_SIZE; h++) {
-			struct ip_tunnel *t;
-			while ((t = ipn->tunnels[prio][h]) != NULL)
-				unregister_netdevice(t->dev);
+			struct ip_tunnel *t = ipn->tunnels[prio][h];
+
+			while (t != NULL) {
+				unregister_netdevice_queue(t->dev, head);
+				t = t->next;
+			}
 		}
 	}
 }
 
 static int ipip_init_net(struct net *net)
 {
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	int err;
-	struct ipip_net *ipn;
-
-	err = -ENOMEM;
-	ipn = kzalloc(sizeof(struct ipip_net), GFP_KERNEL);
-	if (ipn == NULL)
-		goto err_alloc;
-
-	err = net_assign_generic(net, ipip_net_id, ipn);
-	if (err < 0)
-		goto err_assign;
 
 	ipn->tunnels[0] = ipn->tunnels_wc;
 	ipn->tunnels[1] = ipn->tunnels_l;
@@ -801,27 +803,26 @@ err_reg_dev:
 	free_netdev(ipn->fb_tunnel_dev);
 err_alloc_dev:
 	/* nothing */
-err_assign:
-	kfree(ipn);
-err_alloc:
 	return err;
 }
 
 static void ipip_exit_net(struct net *net)
 {
-	struct ipip_net *ipn;
+	struct ipip_net *ipn = net_generic(net, ipip_net_id);
+	LIST_HEAD(list);
 
-	ipn = net_generic(net, ipip_net_id);
 	rtnl_lock();
-	ipip_destroy_tunnels(ipn);
-	unregister_netdevice(ipn->fb_tunnel_dev);
+	ipip_destroy_tunnels(ipn, &list);
+	unregister_netdevice_queue(ipn->fb_tunnel_dev, &list);
+	unregister_netdevice_many(&list);
 	rtnl_unlock();
-	kfree(ipn);
 }
 
 static struct pernet_operations ipip_net_ops = {
 	.init = ipip_init_net,
 	.exit = ipip_exit_net,
+	.id   = &ipip_net_id,
+	.size = sizeof(struct ipip_net),
 };
 
 static int __init ipip_init(void)
@@ -835,7 +836,7 @@ static int __init ipip_init(void)
 		return -EAGAIN;
 	}
 
-	err = register_pernet_gen_device(&ipip_net_id, &ipip_net_ops);
+	err = register_pernet_device(&ipip_net_ops);
 	if (err)
 		xfrm4_tunnel_deregister(&ipip_handler, AF_INET);
 
@@ -847,7 +848,7 @@ static void __exit ipip_fini(void)
 	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
 		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
 
-	unregister_pernet_gen_device(ipip_net_id, &ipip_net_ops);
+	unregister_pernet_device(&ipip_net_ops);
 }
 
 module_init(ipip_init);

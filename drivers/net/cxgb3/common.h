@@ -125,11 +125,9 @@ enum {				/* adapter interrupt-maintained statistics */
 	IRQ_NUM_STATS		/* keep last */
 };
 
-enum {
-	TP_VERSION_MAJOR	= 1,
-	TP_VERSION_MINOR	= 1,
-	TP_VERSION_MICRO	= 0
-};
+#define TP_VERSION_MAJOR	1
+#define TP_VERSION_MINOR	1
+#define TP_VERSION_MICRO	0
 
 #define S_TP_VERSION_MAJOR		16
 #define M_TP_VERSION_MAJOR		0xFF

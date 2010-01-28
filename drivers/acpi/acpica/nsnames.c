@@ -232,7 +232,7 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	ACPI_FUNCTION_TRACE_PTR(ns_handle_to_pathname, target_handle);
 
-	node = acpi_ns_map_handle_to_node(target_handle);
+	node = acpi_ns_validate_handle(target_handle);
 	if (!node) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}

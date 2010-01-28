@@ -1213,12 +1213,12 @@ static irqreturn_t ipwireless_handle_v2_v3_interrupt(int irq,
 
 irqreturn_t ipwireless_interrupt(int irq, void *dev_id)
 {
-	struct ipw_hardware *hw = dev_id;
+	struct ipw_dev *ipw = dev_id;
 
-	if (hw->hw_version == HW_VERSION_1)
-		return ipwireless_handle_v1_interrupt(irq, hw);
+	if (ipw->hardware->hw_version == HW_VERSION_1)
+		return ipwireless_handle_v1_interrupt(irq, ipw->hardware);
 	else
-		return ipwireless_handle_v2_v3_interrupt(irq, hw);
+		return ipwireless_handle_v2_v3_interrupt(irq, ipw->hardware);
 }
 
 static void flush_packets_to_hw(struct ipw_hardware *hw)

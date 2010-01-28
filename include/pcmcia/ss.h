@@ -107,15 +107,6 @@ typedef struct io_window_t {
 	struct resource		*res;
 } io_window_t;
 
-#define WINDOW_MAGIC	0xB35C
-typedef struct window_t {
-	u_short			magic;
-	u_short			index;
-	struct pcmcia_device	*handle;
-	struct pcmcia_socket 	*sock;
-	pccard_mem_map		ctl;
-} window_t;
-
 /* Maximum number of IO windows per socket */
 #define MAX_IO_WIN 2
 
@@ -155,7 +146,7 @@ struct pcmcia_socket {
 		u_int			Config;
 	} irq;
 	io_window_t			io[MAX_IO_WIN];
-	window_t			win[MAX_WIN];
+	pccard_mem_map			win[MAX_WIN];
 	struct list_head		cis_cache;
 	size_t				fake_cis_len;
 	u8				*fake_cis;
@@ -163,7 +154,7 @@ struct pcmcia_socket {
 	struct list_head		socket_list;
 	struct completion		socket_released;
 
- 	/* deprecated */
+	/* deprecated */
 	unsigned int			sock;		/* socket number */
 
 
@@ -172,8 +163,8 @@ struct pcmcia_socket {
 	u_int				irq_mask;
 	u_int				map_size;
 	u_int				io_offset;
-	u_char				pci_irq;
-	struct pci_dev *		cb_dev;
+	u_int				pci_irq;
+	struct pci_dev			*cb_dev;
 
 
 	/* socket setup is done so resources should be able to be allocated.
@@ -188,9 +179,9 @@ struct pcmcia_socket {
 	u8				reserved:5;
 
 	/* socket operations */
-	struct pccard_operations *	ops;
-	struct pccard_resource_ops *	resource_ops;
-	void *				resource_data;
+	struct pccard_operations	*ops;
+	struct pccard_resource_ops	*resource_ops;
+	void				*resource_data;
 
 	/* Zoom video behaviour is so chip specific its not worth adding
 	   this to _ops */
@@ -254,7 +245,7 @@ struct pcmcia_socket {
 
 	/* cardbus (32-bit) */
 #ifdef CONFIG_CARDBUS
-	struct resource *		cb_cis_res;
+	struct resource			*cb_cis_res;
 	void __iomem			*cb_cis_virt;
 #endif /* CONFIG_CARDBUS */
 

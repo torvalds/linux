@@ -83,6 +83,8 @@ struct vpfe_subdev_info {
 struct vpfe_config {
 	/* Number of sub devices connected to vpfe */
 	int num_subdevs;
+	/* i2c bus adapter no */
+	int i2c_adapter_id;
 	/* information about each subdev */
 	struct vpfe_subdev_info *sub_devs;
 	/* evm card info */

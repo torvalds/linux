@@ -159,7 +159,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 	 else if(zonetype == 0x02) { //Europe
              sZoneTypeCmd.ZoneType = ZoneType_Europe;
 	 }
-	 else { //Unknow ZoneType
+	 else { //Unknown ZoneType
 	        printk("Error:ZoneType[%x] Unknown ???\n",zonetype);
 	         result = -EFAULT;
 		break;
@@ -692,7 +692,7 @@ if(wpa_Result.authenticated==TRUE) {
      wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, pItemSSID->abySSID);
    }
    #endif
-         pDevice->fWPA_Authened = TRUE;           //is sucessful peer to wpa_Result.authenticated?
+         pDevice->fWPA_Authened = TRUE;           //is successful peer to wpa_Result.authenticated?
 }
 
         //printk("get private wpa_supplicant announce WPA SM\n");

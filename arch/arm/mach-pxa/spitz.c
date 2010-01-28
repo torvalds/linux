@@ -389,13 +389,13 @@ static struct gpio_keys_button spitz_gpio_keys[] = {
 		.type	= EV_SW,
 		.code	= 0,
 		.gpio	= SPITZ_GPIO_SWA,
-		.desc	= "﻿Display Down",
+		.desc	= "Display Down",
 	},
 	{
 		.type	= EV_SW,
 		.code	= 1,
 		.gpio	= SPITZ_GPIO_SWB,
-		.desc	= "﻿Lid Closed",
+		.desc	= "Lid Closed",
 	},
 };
 
@@ -768,6 +768,10 @@ static void __init common_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(spitz_pin_config));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
@@ -802,10 +806,12 @@ static void __init spitz_init(void)
 {
 	spitz_ficp_platform_data.gpio_pwdown = SPITZ_GPIO_IR_ON;
 
+#ifdef CONFIG_MACH_BORZOI
 	if (machine_is_borzoi()) {
 		sharpsl_nand_platform_data.badblock_pattern = &sharpsl_akita_bbt;
 		sharpsl_nand_platform_data.ecc_layout = &akita_oobinfo;
 	}
+#endif
 
 	platform_scoop_config = &spitz_pcmcia_config;
 

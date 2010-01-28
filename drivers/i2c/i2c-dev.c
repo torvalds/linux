@@ -34,7 +34,6 @@
 #include <linux/list.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
-#include <linux/smp_lock.h>
 #include <linux/jiffies.h>
 #include <asm/uaccess.h>
 
@@ -445,20 +444,14 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	struct i2c_client *client;
 	struct i2c_adapter *adap;
 	struct i2c_dev *i2c_dev;
-	int ret = 0;
 
-	lock_kernel();
 	i2c_dev = i2c_dev_get_by_minor(minor);
-	if (!i2c_dev) {
-		ret = -ENODEV;
-		goto out;
-	}
+	if (!i2c_dev)
+		return -ENODEV;
 
 	adap = i2c_get_adapter(i2c_dev->adap->nr);
-	if (!adap) {
-		ret = -ENODEV;
-		goto out;
-	}
+	if (!adap)
+		return -ENODEV;
 
 	/* This creates an anonymous i2c_client, which may later be
 	 * pointed to some address using I2C_SLAVE or I2C_SLAVE_FORCE.
@@ -470,8 +463,7 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
 		i2c_put_adapter(adap);
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 	snprintf(client->name, I2C_NAME_SIZE, "i2c-dev %d", adap->nr);
 	client->driver = &i2cdev_driver;
@@ -479,9 +471,7 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	client->adapter = adap;
 	file->private_data = client;
 
-out:
-	unlock_kernel();
-	return ret;
+	return 0;
 }
 
 static int i2cdev_release(struct inode *inode, struct file *file)

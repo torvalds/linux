@@ -1,7 +1,3 @@
-#
-# linux/drivers/mtd/onenand/Kconfig
-#
-
 menuconfig MTD_ONENAND
 	tristate "OneNAND Device Support"
 	depends on MTD

@@ -238,8 +238,8 @@ static int skge_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 
-	if ((wol->wolopts & ~wol_supported(hw))
-	    || !device_can_wakeup(&hw->pdev->dev))
+	if ((wol->wolopts & ~wol_supported(hw)) ||
+	    !device_can_wakeup(&hw->pdev->dev))
 		return -EOPNOTSUPP;
 
 	skge->wol = wol->wolopts;
@@ -576,9 +576,10 @@ static void skge_get_pauseparam(struct net_device *dev,
 {
 	struct skge_port *skge = netdev_priv(dev);
 
-	ecmd->rx_pause = (skge->flow_control == FLOW_MODE_SYMMETRIC)
-		|| (skge->flow_control == FLOW_MODE_SYM_OR_REM);
-	ecmd->tx_pause = ecmd->rx_pause || (skge->flow_control == FLOW_MODE_LOC_SEND);
+	ecmd->rx_pause = ((skge->flow_control == FLOW_MODE_SYMMETRIC) ||
+			  (skge->flow_control == FLOW_MODE_SYM_OR_REM));
+	ecmd->tx_pause = (ecmd->rx_pause ||
+			  (skge->flow_control == FLOW_MODE_LOC_SEND));
 
 	ecmd->autoneg = ecmd->rx_pause || ecmd->tx_pause;
 }
@@ -2779,8 +2780,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 		/* This seems backwards, but it is what the sk98lin
 		 * does.  Looks like hardware is wrong?
 		 */
-		if (ipip_hdr(skb)->protocol == IPPROTO_UDP
-	            && hw->chip_rev == 0 && hw->chip_id == CHIP_ID_YUKON)
+		if (ipip_hdr(skb)->protocol == IPPROTO_UDP &&
+	            hw->chip_rev == 0 && hw->chip_id == CHIP_ID_YUKON)
 			control = BMU_TCP_CHECK;
 		else
 			control = BMU_UDP_CHECK;
@@ -2948,8 +2949,8 @@ static void genesis_set_multicast(struct net_device *dev)
 	else {
 		memset(filter, 0, sizeof(filter));
 
-		if (skge->flow_status == FLOW_STAT_REM_SEND
-		    || skge->flow_status == FLOW_STAT_SYMMETRIC)
+		if (skge->flow_status == FLOW_STAT_REM_SEND ||
+		    skge->flow_status == FLOW_STAT_SYMMETRIC)
 			genesis_add_filter(filter, pause_mc_addr);
 
 		for (i = 0; list && i < count; i++, list = list->next)
@@ -2972,8 +2973,8 @@ static void yukon_set_multicast(struct net_device *dev)
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
 	struct dev_mc_list *list = dev->mc_list;
-	int rx_pause = (skge->flow_status == FLOW_STAT_REM_SEND
-			|| skge->flow_status == FLOW_STAT_SYMMETRIC);
+	int rx_pause = (skge->flow_status == FLOW_STAT_REM_SEND ||
+			skge->flow_status == FLOW_STAT_SYMMETRIC);
 	u16 reg;
 	u8 filter[8];
 
@@ -3071,11 +3072,10 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		goto error;
 
 	if (len < RX_COPY_THRESHOLD) {
-		skb = netdev_alloc_skb(dev, len + 2);
+		skb = netdev_alloc_skb_ip_align(dev, len);
 		if (!skb)
 			goto resubmit;
 
-		skb_reserve(skb, 2);
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
 					    pci_unmap_addr(e, mapaddr),
 					    len, PCI_DMA_FROMDEVICE);
@@ -3086,11 +3086,11 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
 		struct sk_buff *nskb;
-		nskb = netdev_alloc_skb(dev, skge->rx_buf_size + NET_IP_ALIGN);
+
+		nskb = netdev_alloc_skb_ip_align(dev, skge->rx_buf_size);
 		if (!nskb)
 			goto resubmit;
 
-		skb_reserve(nskb, NET_IP_ALIGN);
 		pci_unmap_single(skge->hw->pdev,
 				 pci_unmap_addr(e, mapaddr),
 				 pci_unmap_len(e, maplen),
@@ -3948,7 +3948,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	hw->pdev = pdev;
 	spin_lock_init(&hw->hw_lock);
 	spin_lock_init(&hw->phy_lock);
-	tasklet_init(&hw->phy_task, &skge_extirq, (unsigned long) hw);
+	tasklet_init(&hw->phy_task, skge_extirq, (unsigned long) hw);
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {

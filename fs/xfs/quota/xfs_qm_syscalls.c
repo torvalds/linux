@@ -49,6 +49,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_qm.h"
+#include "xfs_trace.h"
 
 #ifdef DEBUG
 # define qdprintk(s, args...)	cmn_err(CE_DEBUG, s, ## args)
@@ -496,7 +497,6 @@ xfs_qm_scall_setqlim(
 		ASSERT(error != ENOENT);
 		return (error);
 	}
-	xfs_dqtrace_entry(dqp, "Q_SETQLIM: AFT DQGET");
 	xfs_trans_dqjoin(tp, dqp);
 	ddq = &dqp->q_core;
 
@@ -602,7 +602,6 @@ xfs_qm_scall_setqlim(
 	dqp->dq_flags |= XFS_DQ_DIRTY;
 	xfs_trans_log_dquot(tp, dqp);
 
-	xfs_dqtrace_entry(dqp, "Q_SETQLIM: COMMIT");
 	error = xfs_trans_commit(tp, 0);
 	xfs_qm_dqprint(dqp);
 	xfs_qm_dqrele(dqp);
@@ -630,7 +629,6 @@ xfs_qm_scall_getquota(
 		return (error);
 	}
 
-	xfs_dqtrace_entry(dqp, "Q_GETQUOTA SUCCESS");
 	/*
 	 * If everything's NULL, this dquot doesn't quite exist as far as
 	 * our utility programs are concerned.
@@ -893,7 +891,7 @@ xfs_qm_dqrele_all_inodes(
 	uint		 flags)
 {
 	ASSERT(mp->m_quotainfo);
-	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags, XFS_ICI_NO_TAG);
+	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags, XFS_ICI_NO_TAG, 0);
 }
 
 /*------------------------------------------------------------------------*/

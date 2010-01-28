@@ -12,7 +12,6 @@
 #include "common.h"
 #include "tomoyo.h"
 #include "realpath.h"
-#define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
 
 /*
  * tomoyo_globally_readable_file_entry is a structure which is used for holding
@@ -1093,27 +1092,6 @@ static int tomoyo_check_single_path_permission2(struct tomoyo_domain_info *
 		goto next;
 	}
 	return error;
-}
-
-/**
- * tomoyo_check_file_perm - Check permission for sysctl()'s "read" and "write".
- *
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @filename:  Filename to check.
- * @perm:      Mode ("read" or "write" or "read/write").
- * Returns 0 on success, negative value otherwise.
- */
-int tomoyo_check_file_perm(struct tomoyo_domain_info *domain,
-			   const char *filename, const u8 perm)
-{
-	struct tomoyo_path_info name;
-	const u8 mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
-
-	if (!mode)
-		return 0;
-	name.name = filename;
-	tomoyo_fill_path_info(&name);
-	return tomoyo_check_file_perm2(domain, &name, perm, "sysctl", mode);
 }
 
 /**

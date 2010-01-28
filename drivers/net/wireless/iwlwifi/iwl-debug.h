@@ -84,9 +84,7 @@ struct iwl_debugfs {
 		struct dentry *file_interrupt;
 		struct dentry *file_qos;
 		struct dentry *file_thermal_throttling;
-#ifdef CONFIG_IWLWIFI_LEDS
 		struct dentry *file_led;
-#endif
 		struct dentry *file_disable_ht40;
 		struct dentry *file_sleep_level_override;
 		struct dentry *file_current_sleep_command;
@@ -108,6 +106,9 @@ struct iwl_debugfs {
 		struct dentry *file_sensitivity;
 		struct dentry *file_chain_noise;
 		struct dentry *file_tx_power;
+		struct dentry *file_power_save_status;
+		struct dentry *file_clear_ucode_statistics;
+		struct dentry *file_clear_traffic_statistics;
 	} dbgfs_debug_files;
 	u32 sram_offset;
 	u32 sram_len;

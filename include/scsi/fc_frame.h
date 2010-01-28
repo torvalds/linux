@@ -28,6 +28,8 @@
 #include <scsi/fc/fc_fcp.h>
 #include <scsi/fc/fc_encaps.h>
 
+#include <linux/if_ether.h>
+
 /*
  * The fc_frame interface is used to pass frame data between functions.
  * The frame includes the data buffer, length, and SOF / EOF delimiter types.
@@ -36,6 +38,9 @@
 
 #define	FC_FRAME_HEADROOM	32	/* headroom for VLAN + FCoE headers */
 #define	FC_FRAME_TAILROOM	8	/* trailer space for FCoE */
+
+/* Max number of skb frags allowed, reserving one for fcoe_crc_eof page */
+#define FC_FRAME_SG_LEN		(MAX_SKB_FRAGS - 1)
 
 #define fp_skb(fp)	(&((fp)->skb))
 #define fr_hdr(fp)	((fp)->skb.data)
@@ -64,6 +69,7 @@ struct fcoe_rcv_info {
 	enum fc_sof	fr_sof;		/* start of frame delimiter */
 	enum fc_eof	fr_eof;		/* end of frame delimiter */
 	u8		fr_flags;	/* flags - see below */
+	u8		granted_mac[ETH_ALEN]; /* FCoE MAC address */
 };
 
 
@@ -94,17 +100,7 @@ static inline void fc_frame_init(struct fc_frame *fp)
 }
 
 struct fc_frame *fc_frame_alloc_fill(struct fc_lport *, size_t payload_len);
-
-struct fc_frame *__fc_frame_alloc(size_t payload_len);
-
-/*
- * Get frame for sending via port.
- */
-static inline struct fc_frame *_fc_frame_alloc(struct fc_lport *dev,
-					       size_t payload_len)
-{
-	return __fc_frame_alloc(payload_len);
-}
+struct fc_frame *_fc_frame_alloc(size_t payload_len);
 
 /*
  * Allocate fc_frame structure and buffer.  Set the initial length to
@@ -118,10 +114,10 @@ static inline struct fc_frame *fc_frame_alloc(struct fc_lport *dev, size_t len)
 	 * Note: Since len will often be a constant multiple of 4,
 	 * this check will usually be evaluated and eliminated at compile time.
 	 */
-	if ((len % 4) != 0)
+	if (len && len % 4)
 		fp = fc_frame_alloc_fill(dev, len);
 	else
-		fp = _fc_frame_alloc(dev, len);
+		fp = _fc_frame_alloc(len);
 	return fp;
 }
 

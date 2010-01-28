@@ -1041,7 +1041,7 @@ static void rtl8192_tx_isr(struct net_device *dev, int prio)
         tx_desc_819x_pci *entry = &ring->desc[ring->idx];
         struct sk_buff *skb;
 
-        /* beacon packet will only use the first descriptor defautly,
+        /* beacon packet will only use the first descriptor defaultly,
          * and the OWN may not be cleared by the hardware
          * */
         if(prio != BEACON_QUEUE) {
@@ -2562,7 +2562,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		priv->bTXPowerDataReadFromEEPORM = false;
 	}
 
-	// 2007/11/15 MH 8190PCI Default=2T4R, 8192PCIE dafault=1T2R
+	// 2007/11/15 MH 8190PCI Default=2T4R, 8192PCIE default=1T2R
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE;
 
 	if(priv->card_8192_version > VERSION_8190_BD)
@@ -3554,7 +3554,7 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
 	//spin_lock_irqsave(&priv->tx_lock,flags);
 	/* prepare misc info for the beacon xmit */
 	tcb_desc->queue_index = BEACON_QUEUE;
-	/* IBSS does not support HT yet, use 1M defautly */
+	/* IBSS does not support HT yet, use 1M defaultly */
 	tcb_desc->data_rate = 2;
 	tcb_desc->RATRIndex = 7;
 	tcb_desc->bTxDisableRateFallBack = 1;
@@ -5795,7 +5795,7 @@ static void rtl8192_rx(struct net_device *dev)
                 stats.fragoffset = 0;
                 stats.ntotalfrag = 1;
 
-                if(!ieee80211_rx(priv->ieee80211, skb, &stats)){
+                if(!ieee80211_rtl_rx(priv->ieee80211, skb, &stats)){
                     dev_kfree_skb_any(skb);
                 } else {
                     priv->stats.rxok++;
@@ -5837,7 +5837,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_do_ioctl =			rtl8192_ioctl,
 	.ndo_set_multicast_list =	r8192_set_multicast,
 	.ndo_set_mac_address =		r8192_set_mac_adr,
-	.ndo_start_xmit = 		ieee80211_xmit,
+	.ndo_start_xmit = 		ieee80211_rtl_xmit,
 };
 
 /****************************************************************************
@@ -6121,14 +6121,14 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");
 }
 
-extern int ieee80211_init(void);
-extern void ieee80211_exit(void);
+extern int ieee80211_rtl_init(void);
+extern void ieee80211_rtl_exit(void);
 
 static int __init rtl8192_pci_module_init(void)
 {
 	int retval;
 
-	retval = ieee80211_init();
+	retval = ieee80211_rtl_init();
 	if (retval)
 		return retval;
 
@@ -6153,7 +6153,7 @@ static void __exit rtl8192_pci_module_exit(void)
 
 	RT_TRACE(COMP_DOWN, "Exiting");
 	rtl8192_proc_module_remove();
-	ieee80211_exit();
+	ieee80211_rtl_exit();
 }
 
 //warning message WB
@@ -6313,7 +6313,7 @@ void rtl8192_try_wake_queue(struct net_device *dev, int pri)
         spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 	if(enough_desc)
-		ieee80211_wake_queue(priv->ieee80211);
+		ieee80211_rtl_wake_queue(priv->ieee80211);
 #endif
 }
 

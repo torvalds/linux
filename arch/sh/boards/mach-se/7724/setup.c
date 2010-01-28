@@ -19,6 +19,7 @@
 #include <linux/smc91x.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
@@ -27,7 +28,7 @@
 #include <asm/heartbeat.h>
 #include <asm/sh_eth.h>
 #include <asm/clock.h>
-#include <asm/sh_keysc.h>
+#include <asm/suspend.h>
 #include <cpu/sh7724.h>
 #include <mach-se/mach/se7724.h>
 
@@ -313,6 +314,9 @@ static struct platform_device fsi_device = {
 	.dev	= {
 		.platform_data	= &fsi_info,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_SPU, /* FSI needs SPU hwblk */
+	},
 };
 
 /* KEYSC in SoC (Needs SW33-2 set to ON) */
@@ -448,6 +452,52 @@ static struct platform_device sh7724_usb1_gadget_device = {
 	.resource	= sh7724_usb1_gadget_resources,
 };
 
+static struct resource sdhi0_cn7_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start  = 0x04ce0000,
+		.end    = 0x04ce01ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 101,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi0_cn7_device = {
+	.name           = "sh_mobile_sdhi",
+	.id		= 0,
+	.num_resources  = ARRAY_SIZE(sdhi0_cn7_resources),
+	.resource       = sdhi0_cn7_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI0,
+	},
+};
+
+static struct resource sdhi1_cn8_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start  = 0x04cf0000,
+		.end    = 0x04cf01ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 24,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_cn8_device = {
+	.name           = "sh_mobile_sdhi",
+	.id		= 1,
+	.num_resources  = ARRAY_SIZE(sdhi1_cn8_resources),
+	.resource       = sdhi1_cn8_resources,
+	.archdata = {
+		.hwblk_id = HWBLK_SDHI1,
+	},
+};
+
 static struct platform_device *ms7724se_devices[] __initdata = {
 	&heartbeat_device,
 	&smc91x_eth_device,
@@ -460,6 +510,15 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&sh7724_usb0_host_device,
 	&sh7724_usb1_gadget_device,
 	&fsi_device,
+	&sdhi0_cn7_device,
+	&sdhi1_cn8_device,
+};
+
+/* I2C device */
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("ak4642", 0x12),
+	},
 };
 
 #define EEPROM_OP   0xBA206000
@@ -474,7 +533,7 @@ static int __init sh_eth_is_eeprom_ready(void)
 	while (t--) {
 		if (!ctrl_inw(EEPROM_STAT))
 			return 1;
-		cpu_relax();
+		udelay(1);
 	}
 
 	printk(KERN_ERR "ms7724se can not access to eeprom\n");
@@ -484,7 +543,7 @@ static int __init sh_eth_is_eeprom_ready(void)
 static void __init sh_eth_init(void)
 {
 	int i;
-	u16 mac[3];
+	u16 mac;
 
 	/* check EEPROM status */
 	if (!sh_eth_is_eeprom_ready())
@@ -498,16 +557,10 @@ static void __init sh_eth_init(void)
 		if (!sh_eth_is_eeprom_ready())
 			return;
 
-		mac[i] = ctrl_inw(EEPROM_DATA);
-		mac[i] = ((mac[i] & 0xFF) << 8) | (mac[i] >> 8); /* swap */
+		mac = ctrl_inw(EEPROM_DATA);
+		sh_eth_plat.mac_addr[i << 1] = mac & 0xff;
+		sh_eth_plat.mac_addr[(i << 1) + 1] = mac >> 8;
 	}
-
-	/* reset sh-eth */
-	ctrl_outl(0x1, SH_ETH_ADDR + 0x0);
-
-	/* set MAC addr */
-	ctrl_outl(((mac[0] << 16) | (mac[1])), SH_ETH_MAHR);
-	ctrl_outl((mac[2]), SH_ETH_MALR);
 }
 
 #define SW4140    0xBA201000
@@ -524,11 +577,32 @@ static void __init sh_eth_init(void)
 #define SW41_G    0x4000
 #define SW41_H    0x8000
 
+extern char ms7724se_sdram_enter_start;
+extern char ms7724se_sdram_enter_end;
+extern char ms7724se_sdram_leave_start;
+extern char ms7724se_sdram_leave_end;
+
+
+static int __init arch_setup(void)
+{
+	/* enable I2C device */
+	i2c_register_board_info(0, i2c0_devices,
+				ARRAY_SIZE(i2c0_devices));
+	return 0;
+}
+arch_initcall(arch_setup);
+
 static int __init devices_setup(void)
 {
 	u16 sw = ctrl_inw(SW4140); /* select camera, monitor */
 	struct clk *fsia_clk;
 
+	/* register board specific self-refresh code */
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+					&ms7724se_sdram_enter_start,
+					&ms7724se_sdram_enter_end,
+					&ms7724se_sdram_leave_start,
+					&ms7724se_sdram_leave_end);
 	/* Reset Release */
 	ctrl_outw(ctrl_inw(FPGA_OUT) &
 		  ~((1 << 1)  | /* LAN */
@@ -697,6 +771,26 @@ static int __init devices_setup(void)
 	clk_set_rate(fsia_clk, 11000);
 	clk_set_rate(&fsimcka_clk, 11000);
 	clk_put(fsia_clk);
+
+	/* SDHI0 connected to cn7 */
+	gpio_request(GPIO_FN_SDHI0CD, NULL);
+	gpio_request(GPIO_FN_SDHI0WP, NULL);
+	gpio_request(GPIO_FN_SDHI0D3, NULL);
+	gpio_request(GPIO_FN_SDHI0D2, NULL);
+	gpio_request(GPIO_FN_SDHI0D1, NULL);
+	gpio_request(GPIO_FN_SDHI0D0, NULL);
+	gpio_request(GPIO_FN_SDHI0CMD, NULL);
+	gpio_request(GPIO_FN_SDHI0CLK, NULL);
+
+	/* SDHI1 connected to cn8 */
+	gpio_request(GPIO_FN_SDHI1CD, NULL);
+	gpio_request(GPIO_FN_SDHI1WP, NULL);
+	gpio_request(GPIO_FN_SDHI1D3, NULL);
+	gpio_request(GPIO_FN_SDHI1D2, NULL);
+	gpio_request(GPIO_FN_SDHI1D1, NULL);
+	gpio_request(GPIO_FN_SDHI1D0, NULL);
+	gpio_request(GPIO_FN_SDHI1CMD, NULL);
+	gpio_request(GPIO_FN_SDHI1CLK, NULL);
 
 	/*
 	 * enable SH-Eth

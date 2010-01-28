@@ -198,32 +198,30 @@ typedef struct _GLOBAL_t {			/* Location: */
 /*
  * structure for txdma packet ring number of descriptor reg in txdma address
  * map.  Located at address 0x100C
+ *
+ * 31-10: unused
+ * 9-0: pr ndes
  */
-typedef union _TXDMA_PR_NUM_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;	/* bits 10-31 */
-		u32 pr_ndes:10;	/* bits 0-9 */
-#else
-		u32 pr_ndes:10;	/* bits 0-9 */
-		u32 unused:22;	/* bits 10-31 */
-#endif
-	} bits;
-} TXDMA_PR_NUM_DES_t, *PTXDMA_PR_NUM_DES_t;
 
+#define ET_DMA12_MASK		0x0FFF	/* 12 bit mask for DMA12W types */
+#define ET_DMA12_WRAP		0x1000
+#define ET_DMA10_MASK		0x03FF	/* 10 bit mask for DMA10W types */
+#define ET_DMA10_WRAP		0x0400
+#define ET_DMA4_MASK		0x000F	/* 4 bit mask for DMA4W types */
+#define ET_DMA4_WRAP		0x0010
 
-#define ET_DMA10_MASK		0x3FF	/* 10 bit mask for DMA10W types */
-#define ET_DMA10_WRAP		0x400
-#define ET_DMA4_MASK		0x00F	/* 4 bit mask for DMA4W types */
-#define ET_DMA4_WRAP		0x010
-
+#define INDEX12(x)	((x) & ET_DMA12_MASK)
 #define INDEX10(x)	((x) & ET_DMA10_MASK)
 #define INDEX4(x)	((x) & ET_DMA4_MASK)
 
 extern inline void add_10bit(u32 *v, int n)
 {
 	*v = INDEX10(*v + n) | (*v & ET_DMA10_WRAP);
+}
+
+extern inline void add_12bit(u32 *v, int n)
+{
+	*v = INDEX12(*v + n) | (*v & ET_DMA12_WRAP);
 }
 
 /*
@@ -261,7 +259,7 @@ typedef struct _TXDMA_t {		/* Location: */
 	u32 csr;			/*  0x1000 */
 	u32 pr_base_hi;			/*  0x1004 */
 	u32 pr_base_lo;			/*  0x1008 */
-	TXDMA_PR_NUM_DES_t pr_num_des;	/*  0x100C */
+	u32 pr_num_des;			/*  0x100C */
 	u32 txq_wr_addr;		/*  0x1010 */
 	u32 txq_wr_addr_ext;		/*  0x1014 */
 	u32 txq_rd_addr;		/*  0x1018 */
@@ -349,36 +347,18 @@ typedef union _RXDMA_CSR_t {
 /*
  * structure for number of packets done reg in rxdma address map
  * located at address 0x200C
+ *
+ * 31-8: unused
+ * 7-0: num done
  */
-typedef union _RXDMA_NUM_PKT_DONE_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:24;	/* bits 8-31 */
-		u32 num_done:8;	/* bits 0-7 */
-#else
-		u32 num_done:8;	/* bits 0-7 */
-		u32 unused:24;	/* bits 8-31 */
-#endif
-	} bits;
-} RXDMA_NUM_PKT_DONE_t, *PRXDMA_NUM_PKT_DONE_t;
 
 /*
  * structure for max packet time reg in rxdma address map
  * located at address 0x2010
+ *
+ * 31-18: unused
+ * 17-0: time done
  */
-typedef union _RXDMA_MAX_PKT_TIME_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:14;		/* bits 18-31 */
-		u32 time_done:18;	/* bits 0-17 */
-#else
-		u32 time_done:18;	/* bits 0-17 */
-		u32 unused:14;		/* bits 18-31 */
-#endif
-	} bits;
-} RXDMA_MAX_PKT_TIME_t, *PRXDMA_MAX_PKT_TIME_t;
 
 /*
  * structure for rx queue read address reg in rxdma address map
@@ -413,91 +393,44 @@ typedef union _RXDMA_MAX_PKT_TIME_t {
 /*
  * structure for packet status ring number of descriptors reg in rxdma address
  * map.  Located at address 0x2028
+ *
+ * 31-12: unused
+ * 11-0: psr ndes
  */
-typedef union _RXDMA_PSR_NUM_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;		/* bits 12-31 */
-		u32 psr_ndes:12;	/* bit 0-11 */
-#else
-		u32 psr_ndes:12;	/* bit 0-11 */
-		u32 unused:20;		/* bits 12-31 */
-#endif
-	} bits;
-} RXDMA_PSR_NUM_DES_t, *PRXDMA_PSR_NUM_DES_t;
 
 /*
  * structure for packet status ring available offset reg in rxdma address map
  * located at address 0x202C
+ *
+ * 31-13: unused
+ * 12: psr avail wrap
+ * 11-0: psr avail
  */
-typedef union _RXDMA_PSR_AVAIL_OFFSET_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:19;		/* bits 13-31 */
-		u32 psr_avail_wrap:1;	/* bit 12 */
-		u32 psr_avail:12;	/* bit 0-11 */
-#else
-		u32 psr_avail:12;	/* bit 0-11 */
-		u32 psr_avail_wrap:1;	/* bit 12 */
-		u32 unused:19;		/* bits 13-31 */
-#endif
-	} bits;
-} RXDMA_PSR_AVAIL_OFFSET_t, *PRXDMA_PSR_AVAIL_OFFSET_t;
 
 /*
  * structure for packet status ring full offset reg in rxdma address map
  * located at address 0x2030
+ *
+ * 31-13: unused
+ * 12: psr full wrap
+ * 11-0: psr full
  */
-typedef union _RXDMA_PSR_FULL_OFFSET_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:19;		/* bits 13-31 */
-		u32 psr_full_wrap:1;	/* bit 12 */
-		u32 psr_full:12;	/* bit 0-11 */
-#else
-		u32 psr_full:12;	/* bit 0-11 */
-		u32 psr_full_wrap:1;	/* bit 12 */
-		u32 unused:19;		/* bits 13-31 */
-#endif
-	} bits;
-} RXDMA_PSR_FULL_OFFSET_t, *PRXDMA_PSR_FULL_OFFSET_t;
 
 /*
  * structure for packet status ring access index reg in rxdma address map
  * located at address 0x2034
+ *
+ * 31-5: unused
+ * 4-0: psr_ai
  */
-typedef union _RXDMA_PSR_ACCESS_INDEX_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:27;	/* bits 5-31 */
-		u32 psr_ai:5;	/* bits 0-4 */
-#else
-		u32 psr_ai:5;	/* bits 0-4 */
-		u32 unused:27;	/* bits 5-31 */
-#endif
-	} bits;
-} RXDMA_PSR_ACCESS_INDEX_t, *PRXDMA_PSR_ACCESS_INDEX_t;
 
 /*
  * structure for packet status ring minimum descriptors reg in rxdma address
  * map.  Located at address 0x2038
+ *
+ * 31-12: unused
+ * 11-0: psr_min
  */
-typedef union _RXDMA_PSR_MIN_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;	/* bits 12-31 */
-		u32 psr_min:12;	/* bits 0-11 */
-#else
-		u32 psr_min:12;	/* bits 0-11 */
-		u32 unused:20;	/* bits 12-31 */
-#endif
-	} bits;
-} RXDMA_PSR_MIN_DES_t, *PRXDMA_PSR_MIN_DES_t;
 
 /*
  * structure for free buffer ring base lo address reg in rxdma address map
@@ -514,6 +447,9 @@ typedef union _RXDMA_PSR_MIN_DES_t {
 /*
  * structure for free buffer ring number of descriptors reg in rxdma address
  * map.  Located at address 0x2044
+ *
+ * 31-10: unused
+ * 9-0: fbr ndesc
  */
 typedef union _RXDMA_FBR_NUM_DES_t {
 	u32 value;
@@ -543,36 +479,18 @@ typedef union _RXDMA_FBR_NUM_DES_t {
 /*
  * structure for free buffer cache 0 full offset reg in rxdma address map
  * located at address 0x2050
+ *
+ * 31-5: unused
+ * 4-0: fbc rdi
  */
-typedef union _RXDMA_FBC_RD_INDEX_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:27;	/* bits 5-31 */
-		u32 fbc_rdi:5;	/* bit 0-4 */
-#else
-		u32 fbc_rdi:5;	/* bit 0-4 */
-		u32 unused:27;	/* bits 5-31 */
-#endif
-	} bits;
-} RXDMA_FBC_RD_INDEX_t, *PRXDMA_FBC_RD_INDEX_t;
 
 /*
  * structure for free buffer ring 0 minimum descriptor reg in rxdma address map
  * located at address 0x2054
+ *
+ * 31-10: unused
+ * 9-0: fbr min
  */
-typedef union _RXDMA_FBR_MIN_DES_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:22;	/* bits 10-31 */
-		u32 fbr_min:10;	/* bits 0-9 */
-#else
-		u32 fbr_min:10;	/* bits 0-9 */
-		u32 unused:22;	/* bits 10-31 */
-#endif
-	} bits;
-} RXDMA_FBR_MIN_DES_t, *PRXDMA_FBR_MIN_DES_t;
 
 /*
  * structure for free buffer ring 1 base address lo reg in rxdma address map
@@ -618,32 +536,32 @@ typedef struct _RXDMA_t {				/* Location: */
 	RXDMA_CSR_t csr;				/*  0x2000 */
 	u32 dma_wb_base_lo;				/*  0x2004 */
 	u32 dma_wb_base_hi;				/*  0x2008 */
-	RXDMA_NUM_PKT_DONE_t num_pkt_done;		/*  0x200C */
-	RXDMA_MAX_PKT_TIME_t max_pkt_time;		/*  0x2010 */
+	u32 num_pkt_done;				/*  0x200C */
+	u32 max_pkt_time;				/*  0x2010 */
 	u32 rxq_rd_addr;				/*  0x2014 */
-	u32 rxq_rd_addr_ext;			/*  0x2018 */
+	u32 rxq_rd_addr_ext;				/*  0x2018 */
 	u32 rxq_wr_addr;				/*  0x201C */
 	u32 psr_base_lo;				/*  0x2020 */
 	u32 psr_base_hi;				/*  0x2024 */
-	RXDMA_PSR_NUM_DES_t psr_num_des;		/*  0x2028 */
-	RXDMA_PSR_AVAIL_OFFSET_t psr_avail_offset;	/*  0x202C */
-	RXDMA_PSR_FULL_OFFSET_t psr_full_offset;	/*  0x2030 */
-	RXDMA_PSR_ACCESS_INDEX_t psr_access_index;	/*  0x2034 */
-	RXDMA_PSR_MIN_DES_t psr_min_des;		/*  0x2038 */
+	u32 psr_num_des;				/*  0x2028 */
+	u32 psr_avail_offset;				/*  0x202C */
+	u32 psr_full_offset;				/*  0x2030 */
+	u32 psr_access_index;				/*  0x2034 */
+	u32 psr_min_des;				/*  0x2038 */
 	u32 fbr0_base_lo;				/*  0x203C */
 	u32 fbr0_base_hi;				/*  0x2040 */
-	RXDMA_FBR_NUM_DES_t fbr0_num_des;		/*  0x2044 */
-	u32 fbr0_avail_offset;			/*  0x2048 */
-	u32 fbr0_full_offset;			/*  0x204C */
-	RXDMA_FBC_RD_INDEX_t fbr0_rd_index;		/*  0x2050 */
-	RXDMA_FBR_MIN_DES_t fbr0_min_des;		/*  0x2054 */
+	u32 fbr0_num_des;				/*  0x2044 */
+	u32 fbr0_avail_offset;				/*  0x2048 */
+	u32 fbr0_full_offset;				/*  0x204C */
+	u32 fbr0_rd_index;				/*  0x2050 */
+	u32 fbr0_min_des;				/*  0x2054 */
 	u32 fbr1_base_lo;				/*  0x2058 */
 	u32 fbr1_base_hi;				/*  0x205C */
-	RXDMA_FBR_NUM_DES_t fbr1_num_des;		/*  0x2060 */
-	u32 fbr1_avail_offset;			/*  0x2064 */
-	u32 fbr1_full_offset;			/*  0x2068 */
-	RXDMA_FBC_RD_INDEX_t fbr1_rd_index;		/*  0x206C */
-	RXDMA_FBR_MIN_DES_t fbr1_min_des;		/*  0x2070 */
+	u32 fbr1_num_des;				/*  0x2060 */
+	u32 fbr1_avail_offset;				/*  0x2064 */
+	u32 fbr1_full_offset;				/*  0x2068 */
+	u32 fbr1_rd_index;				/*  0x206C */
+	u32 fbr1_min_des;				/*  0x2070 */
 } RXDMA_t, *PRXDMA_t;
 
 /* END OF RXDMA REGISTER ADDRESS MAP */
@@ -685,23 +603,11 @@ typedef union _TXMAC_CTL_t {
 /*
  * structure for shadow pointer reg in txmac address map
  * located at address 0x3004
+ * 31-27: reserved
+ * 26-16: txq rd ptr
+ * 15-11: reserved
+ * 10-0: txq wr ptr
  */
-typedef union _TXMAC_SHADOW_PTR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:5;	/* bits 27-31 */
-		u32 txq_rd_ptr:11;	/* bits 16-26 */
-		u32 reserved:5;		/* bits 11-15 */
-		u32 txq_wr_ptr:11;	/* bits 0-10 */
-#else
-		u32 txq_wr_ptr:11;	/* bits 0-10 */
-		u32 reserved:5;		/* bits 11-15 */
-		u32 txq_rd_ptr:11;	/* bits 16-26 */
-		u32 reserved2:5;	/* bits 27-31 */
-#endif
-	} bits;
-} TXMAC_SHADOW_PTR_t, *PTXMAC_SHADOW_PTR_t;
 
 /*
  * structure for error count reg in txmac address map
@@ -727,59 +633,26 @@ typedef union _TXMAC_ERR_CNT_t {
 /*
  * structure for max fill reg in txmac address map
  * located at address 0x300C
+ * 31-12: unused
+ * 11-0: max fill
  */
-typedef union _TXMAC_MAX_FILL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:20;		/* bits 12-31 */
-		u32 max_fill:12;	/* bits 0-11 */
-#else
-		u32 max_fill:12;	/* bits 0-11 */
-		u32 unused:20;		/* bits 12-31 */
-#endif
-	} bits;
-} TXMAC_MAX_FILL_t, *PTXMAC_MAX_FILL_t;
 
 /*
  * structure for cf parameter reg in txmac address map
  * located at address 0x3010
+ * 31-16: cfep
+ * 15-0: cfpt
  */
-typedef union _TXMAC_CF_PARAM_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 cfep:16;	/* bits 16-31 */
-		u32 cfpt:16;	/* bits 0-15 */
-#else
-		u32 cfpt:16;	/* bits 0-15 */
-		u32 cfep:16;	/* bits 16-31 */
-#endif
-	} bits;
-} TXMAC_CF_PARAM_t, *PTXMAC_CF_PARAM_t;
 
 /*
  * structure for tx test reg in txmac address map
  * located at address 0x3014
+ * 31-17: unused
+ * 16: reserved1
+ * 15: txtest_en
+ * 14-11: unused
+ * 10-0: txq test pointer
  */
-typedef union _TXMAC_TXTEST_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused2:15;		/* bits 17-31 */
-		u32 reserved1:1;	/* bit 16 */
-		u32 txtest_en:1;	/* bit 15 */
-		u32 unused1:4;		/* bits 11-14 */
-		u32 txqtest_ptr:11;	/* bits 0-11 */
-#else
-		u32 txqtest_ptr:11;	/* bits 0-10 */
-		u32 unused1:4;		/* bits 11-14 */
-		u32 txtest_en:1;	/* bit 15 */
-		u32 reserved1:1;	/* bit 16 */
-		u32 unused2:15;		/* bits 17-31 */
-#endif
-	} bits;
-} TXMAC_TXTEST_t, *PTXMAC_TXTEST_t;
 
 /*
  * structure for error reg in txmac address map
@@ -846,35 +719,25 @@ typedef union _TXMAC_ERR_INT_t {
 /*
  * structure for error interrupt reg in txmac address map
  * located at address 0x3020
+ *
+ * 31-2: unused
+ * 1: bp_req
+ * 0: bp_xonxoff
  */
-typedef union _TXMAC_CP_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:30;		/* bits 2-31 */
-		u32 bp_req:1;		/* bit 1 */
-		u32 bp_xonxoff:1;	/* bit 0 */
-#else
-		u32 bp_xonxoff:1;	/* bit 0 */
-		u32 bp_req:1;		/* bit 1 */
-		u32 unused:30;		/* bits 2-31 */
-#endif
-	} bits;
-} TXMAC_BP_CTRL_t, *PTXMAC_BP_CTRL_t;
 
 /*
  * Tx MAC Module of JAGCore Address Mapping
  */
 typedef struct _TXMAC_t {		/* Location: */
 	TXMAC_CTL_t ctl;		/*  0x3000 */
-	TXMAC_SHADOW_PTR_t shadow_ptr;	/*  0x3004 */
+	u32 shadow_ptr;			/*  0x3004 */
 	TXMAC_ERR_CNT_t err_cnt;	/*  0x3008 */
-	TXMAC_MAX_FILL_t max_fill;	/*  0x300C */
-	TXMAC_CF_PARAM_t cf_param;	/*  0x3010 */
-	TXMAC_TXTEST_t tx_test;		/*  0x3014 */
+	u32 max_fill;			/*  0x300C */
+	u32 cf_param;			/*  0x3010 */
+	u32 tx_test;			/*  0x3014 */
 	TXMAC_ERR_t err;		/*  0x3018 */
 	TXMAC_ERR_INT_t err_int;	/*  0x301C */
-	TXMAC_BP_CTRL_t bp_ctrl;	/*  0x3020 */
+	u32 bp_ctrl;			/*  0x3020 */
 } TXMAC_t, *PTXMAC_t;
 
 /* END OF TXMAC REGISTER ADDRESS MAP */
@@ -1308,157 +1171,77 @@ typedef struct _RXMAC_t {				/* Location: */
 /*
  * structure for configuration #1 reg in mac address map.
  * located at address 0x5000
+ *
+ * 31: soft reset
+ * 30: sim reset
+ * 29-20: reserved
+ * 19: reset rx mc
+ * 18: reset tx mc
+ * 17: reset rx func
+ * 16: reset tx fnc
+ * 15-9: reserved
+ * 8: loopback
+ * 7-6: reserved
+ * 5: rx flow
+ * 4: tx flow
+ * 3: syncd rx en
+ * 2: rx enable
+ * 1: syncd tx en
+ * 0: tx enable
  */
-typedef union _MAC_CFG1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 soft_reset:1;		/* bit 31 */
-		u32 sim_reset:1;		/* bit 30 */
-		u32 reserved3:10;		/* bits 20-29 */
-		u32 reset_rx_mc:1;		/* bit 19 */
-		u32 reset_tx_mc:1;		/* bit 18 */
-		u32 reset_rx_fun:1;	/* bit 17 */
-		u32 reset_tx_fun:1;	/* bit 16 */
-		u32 reserved2:7;		/* bits 9-15 */
-		u32 loop_back:1;		/* bit 8 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 rx_flow:1;		/* bit 5 */
-		u32 tx_flow:1;		/* bit 4 */
-		u32 syncd_rx_en:1;		/* bit 3 */
-		u32 rx_enable:1;		/* bit 2 */
-		u32 syncd_tx_en:1;		/* bit 1 */
-		u32 tx_enable:1;		/* bit 0 */
-#else
-		u32 tx_enable:1;		/* bit 0 */
-		u32 syncd_tx_en:1;		/* bit 1 */
-		u32 rx_enable:1;		/* bit 2 */
-		u32 syncd_rx_en:1;		/* bit 3 */
-		u32 tx_flow:1;		/* bit 4 */
-		u32 rx_flow:1;		/* bit 5 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 loop_back:1;		/* bit 8 */
-		u32 reserved2:7;		/* bits 9-15 */
-		u32 reset_tx_fun:1;	/* bit 16 */
-		u32 reset_rx_fun:1;	/* bit 17 */
-		u32 reset_tx_mc:1;		/* bit 18 */
-		u32 reset_rx_mc:1;		/* bit 19 */
-		u32 reserved3:10;		/* bits 20-29 */
-		u32 sim_reset:1;		/* bit 30 */
-		u32 soft_reset:1;		/* bit 31 */
-#endif
-	} bits;
-} MAC_CFG1_t, *PMAC_CFG1_t;
+
+#define CFG1_LOOPBACK	0x00000100
+#define CFG1_RX_FLOW	0x00000020
+#define CFG1_TX_FLOW	0x00000010
+#define CFG1_RX_ENABLE	0x00000004
+#define CFG1_TX_ENABLE	0x00000001
+#define CFG1_WAIT	0x0000000A	/* RX & TX syncd */
 
 /*
  * structure for configuration #2 reg in mac address map.
  * located at address 0x5004
+ * 31-16: reserved
+ * 15-12: preamble
+ * 11-10: reserved
+ * 9-8: if mode
+ * 7-6: reserved
+ * 5: huge frame
+ * 4: length check
+ * 3: undefined
+ * 2: pad crc
+ * 1: crc enable
+ * 0: full duplex
  */
-typedef union _MAC_CFG2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved3:16;		/* bits 16-31 */
-		u32 preamble_len:4;	/* bits 12-15 */
-		u32 reserved2:2;		/* bits 10-11 */
-		u32 if_mode:2;		/* bits 8-9 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 huge_frame:1;		/* bit 5 */
-		u32 len_check:1;		/* bit 4 */
-		u32 undefined:1;		/* bit 3 */
-		u32 pad_crc:1;		/* bit 2 */
-		u32 crc_enable:1;		/* bit 1 */
-		u32 full_duplex:1;		/* bit 0 */
-#else
-		u32 full_duplex:1;		/* bit 0 */
-		u32 crc_enable:1;		/* bit 1 */
-		u32 pad_crc:1;		/* bit 2 */
-		u32 undefined:1;		/* bit 3 */
-		u32 len_check:1;		/* bit 4 */
-		u32 huge_frame:1;		/* bit 5 */
-		u32 reserved1:2;		/* bits 6-7 */
-		u32 if_mode:2;		/* bits 8-9 */
-		u32 reserved2:2;		/* bits 10-11 */
-		u32 preamble_len:4;	/* bits 12-15 */
-		u32 reserved3:16;		/* bits 16-31 */
-#endif
-	} bits;
-} MAC_CFG2_t, *PMAC_CFG2_t;
+
 
 /*
  * structure for Interpacket gap reg in mac address map.
  * located at address 0x5008
- */
-typedef union _MAC_IPG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:1;		/* bit 31 */
-		u32 non_B2B_ipg_1:7;	/* bits 24-30 */
-		u32 undefined2:1;		/* bit 23 */
-		u32 non_B2B_ipg_2:7;	/* bits 16-22 */
-		u32 min_ifg_enforce:8;	/* bits 8-15 */
-		u32 undefined1:1;		/* bit 7 */
-		u32 B2B_ipg:7;		/* bits 0-6 */
-#else
-		u32 B2B_ipg:7;		/* bits 0-6 */
-		u32 undefined1:1;		/* bit 7 */
-		u32 min_ifg_enforce:8;	/* bits 8-15 */
-		u32 non_B2B_ipg_2:7;	/* bits 16-22 */
-		u32 undefined2:1;		/* bit 23 */
-		u32 non_B2B_ipg_1:7;	/* bits 24-30 */
-		u32 reserved:1;		/* bit 31 */
-#endif
-	} bits;
-} MAC_IPG_t, *PMAC_IPG_t;
-
-/*
+ *
+ * 31: reserved
+ * 30-24: non B2B ipg 1
+ * 23: undefined
+ * 22-16: non B2B ipg 2
+ * 15-8: Min ifg enforce
+ * 7-0: B2B ipg
+ *
  * structure for half duplex reg in mac address map.
  * located at address 0x500C
+ * 31-24: reserved
+ * 23-20: Alt BEB trunc
+ * 19: Alt BEB enable
+ * 18: BP no backoff
+ * 17: no backoff
+ * 16: excess defer
+ * 15-12: re-xmit max
+ * 11-10: reserved
+ * 9-0: collision window
  */
-typedef union _MAC_HFDP_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:8;		/* bits 24-31 */
-		u32 alt_beb_trunc:4;	/* bits 23-20 */
-		u32 alt_beb_enable:1;	/* bit 19 */
-		u32 bp_no_backoff:1;	/* bit 18 */
-		u32 no_backoff:1;		/* bit 17 */
-		u32 excess_defer:1;	/* bit 16 */
-		u32 rexmit_max:4;		/* bits 12-15 */
-		u32 reserved1:2;		/* bits 10-11 */
-		u32 coll_window:10;	/* bits 0-9 */
-#else
-		u32 coll_window:10;	/* bits 0-9 */
-		u32 reserved1:2;		/* bits 10-11 */
-		u32 rexmit_max:4;		/* bits 12-15 */
-		u32 excess_defer:1;	/* bit 16 */
-		u32 no_backoff:1;		/* bit 17 */
-		u32 bp_no_backoff:1;	/* bit 18 */
-		u32 alt_beb_enable:1;	/* bit 19 */
-		u32 alt_beb_trunc:4;	/* bits 23-20 */
-		u32 reserved2:8;		/* bits 24-31 */
-#endif
-	} bits;
-} MAC_HFDP_t, *PMAC_HFDP_t;
 
 /*
  * structure for Maximum Frame Length reg in mac address map.
- * located at address 0x5010
+ * located at address 0x5010: bits 0-15 hold the length.
  */
-typedef union _MAC_MAX_FM_LEN_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 max_len:16;	/* bits 0-15 */
-#else
-		u32 max_len:16;	/* bits 0-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MAC_MAX_FM_LEN_t, *PMAC_MAX_FM_LEN_t;
 
 /*
  * structure for Reserve 1 reg in mac address map.
@@ -1469,186 +1252,87 @@ typedef union _MAC_MAX_FM_LEN_t {
 /*
  * structure for Test reg in mac address map.
  * located at address 0x501C
+ * test: bits 0-2, rest unused
  */
-typedef union _MAC_TEST_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:29;	/* bits 3-31 */
-		u32 mac_test:3;	/* bits 0-2 */
-#else
-		u32 mac_test:3;	/* bits 0-2 */
-		u32 unused:29;	/* bits 3-31 */
-#endif
-	} bits;
-} MAC_TEST_t, *PMAC_TEST_t;
 
 /*
  * structure for MII Management Configuration reg in mac address map.
  * located at address 0x5020
+ *
+ * 31: reset MII mgmt
+ * 30-6: unused
+ * 5: scan auto increment
+ * 4: preamble supress
+ * 3: undefined
+ * 2-0: mgmt clock reset
  */
-typedef union _MII_MGMT_CFG_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reset_mii_mgmt:1;	/* bit 31 */
-		u32 reserved:25;		/* bits 6-30 */
-		u32 scan_auto_incremt:1;	/* bit 5 */
-		u32 preamble_suppress:1;	/* bit 4 */
-		u32 undefined:1;		/* bit 3 */
-		u32 mgmt_clk_reset:3;	/* bits 0-2 */
-#else
-		u32 mgmt_clk_reset:3;	/* bits 0-2 */
-		u32 undefined:1;		/* bit 3 */
-		u32 preamble_suppress:1;	/* bit 4 */
-		u32 scan_auto_incremt:1;	/* bit 5 */
-		u32 reserved:25;		/* bits 6-30 */
-		u32 reset_mii_mgmt:1;	/* bit 31 */
-#endif
-	} bits;
-} MII_MGMT_CFG_t, *PMII_MGMT_CFG_t;
 
 /*
  * structure for MII Management Command reg in mac address map.
  * located at address 0x5024
+ * bit 1: scan cycle
+ * bit 0: read cycle
  */
-typedef union _MII_MGMT_CMD_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:30;	/* bits 2-31 */
-		u32 scan_cycle:1;	/* bit 1 */
-		u32 read_cycle:1;	/* bit 0 */
-#else
-		u32 read_cycle:1;	/* bit 0 */
-		u32 scan_cycle:1;	/* bit 1 */
-		u32 reserved:30;	/* bits 2-31 */
-#endif
-	} bits;
-} MII_MGMT_CMD_t, *PMII_MGMT_CMD_t;
 
 /*
  * structure for MII Management Address reg in mac address map.
  * located at address 0x5028
+ * 31-13: reserved
+ * 12-8: phy addr
+ * 7-5: reserved
+ * 4-0: register
  */
-typedef union _MII_MGMT_ADDR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved2:19;	/* bit 13-31 */
-		u32 phy_addr:5;	/* bits 8-12 */
-		u32 reserved1:3;	/* bits 5-7 */
-		u32 reg_addr:5;	/* bits 0-4 */
-#else
-		u32 reg_addr:5;	/* bits 0-4 */
-		u32 reserved1:3;	/* bits 5-7 */
-		u32 phy_addr:5;	/* bits 8-12 */
-		u32 reserved2:19;	/* bit 13-31 */
-#endif
-	} bits;
-} MII_MGMT_ADDR_t, *PMII_MGMT_ADDR_t;
+
+#define MII_ADDR(phy,reg)	((phy) << 8 | (reg))
 
 /*
  * structure for MII Management Control reg in mac address map.
  * located at address 0x502C
+ * 31-16: reserved
+ * 15-0: phy control
  */
-typedef union _MII_MGMT_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 phy_ctrl:16;	/* bits 0-15 */
-#else
-		u32 phy_ctrl:16;	/* bits 0-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MII_MGMT_CTRL_t, *PMII_MGMT_CTRL_t;
 
 /*
  * structure for MII Management Status reg in mac address map.
  * located at address 0x5030
+ * 31-16: reserved
+ * 15-0: phy control
  */
-typedef union _MII_MGMT_STAT_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:16;	/* bits 16-31 */
-		u32 phy_stat:16;	/* bits 0-15 */
-#else
-		u32 phy_stat:16;	/* bits 0-15 */
-		u32 reserved:16;	/* bits 16-31 */
-#endif
-	} bits;
-} MII_MGMT_STAT_t, *PMII_MGMT_STAT_t;
 
 /*
  * structure for MII Management Indicators reg in mac address map.
  * located at address 0x5034
+ * 31-3: reserved
+ * 2: not valid
+ * 1: scanning
+ * 0: busy
  */
-typedef union _MII_MGMT_INDICATOR_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reserved:29;	/* bits 3-31 */
-		u32 not_valid:1;	/* bit 2 */
-		u32 scanning:1;	/* bit 1 */
-		u32 busy:1;	/* bit 0 */
-#else
-		u32 busy:1;	/* bit 0 */
-		u32 scanning:1;	/* bit 1 */
-		u32 not_valid:1;	/* bit 2 */
-		u32 reserved:29;	/* bits 3-31 */
-#endif
-	} bits;
-} MII_MGMT_INDICATOR_t, *PMII_MGMT_INDICATOR_t;
+
+#define MGMT_BUSY	0x00000001	/* busy */
+#define MGMT_WAIT	0x00000005	/* busy | not valid */
 
 /*
  * structure for Interface Control reg in mac address map.
  * located at address 0x5038
+ *
+ * 31: reset if module
+ * 30-28: reserved
+ * 27: tbi mode
+ * 26: ghd mode
+ * 25: lhd mode
+ * 24: phy mode
+ * 23: reset per mii
+ * 22-17: reserved
+ * 16: speed
+ * 15: reset pe100x
+ * 14-11: reserved
+ * 10: force quiet
+ * 9: no cipher
+ * 8: disable link fail
+ * 7: reset gpsi
+ * 6-1: reserved
+ * 0: enable jabber protection
  */
-typedef union _MAC_IF_CTRL_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 reset_if_module:1;	/* bit 31 */
-		u32 reserved4:3;		/* bit 28-30 */
-		u32 tbi_mode:1;		/* bit 27 */
-		u32 ghd_mode:1;		/* bit 26 */
-		u32 lhd_mode:1;		/* bit 25 */
-		u32 phy_mode:1;		/* bit 24 */
-		u32 reset_per_mii:1;	/* bit 23 */
-		u32 reserved3:6;		/* bits 17-22 */
-		u32 speed:1;		/* bit 16 */
-		u32 reset_pe100x:1;	/* bit 15 */
-		u32 reserved2:4;		/* bits 11-14 */
-		u32 force_quiet:1;		/* bit 10 */
-		u32 no_cipher:1;		/* bit 9 */
-		u32 disable_link_fail:1;	/* bit 8 */
-		u32 reset_gpsi:1;		/* bit 7 */
-		u32 reserved1:6;		/* bits 1-6 */
-		u32 enab_jab_protect:1;	/* bit 0 */
-#else
-		u32 enab_jab_protect:1;	/* bit 0 */
-		u32 reserved1:6;		/* bits 1-6 */
-		u32 reset_gpsi:1;		/* bit 7 */
-		u32 disable_link_fail:1;	/* bit 8 */
-		u32 no_cipher:1;		/* bit 9 */
-		u32 force_quiet:1;		/* bit 10 */
-		u32 reserved2:4;		/* bits 11-14 */
-		u32 reset_pe100x:1;	/* bit 15 */
-		u32 speed:1;		/* bit 16 */
-		u32 reserved3:6;		/* bits 17-22 */
-		u32 reset_per_mii:1;	/* bit 23 */
-		u32 phy_mode:1;		/* bit 24 */
-		u32 lhd_mode:1;		/* bit 25 */
-		u32 ghd_mode:1;		/* bit 26 */
-		u32 tbi_mode:1;		/* bit 27 */
-		u32 reserved4:3;		/* bit 28-30 */
-		u32 reset_if_module:1;	/* bit 31 */
-#endif
-	} bits;
-} MAC_IF_CTRL_t, *PMAC_IF_CTRL_t;
 
 /*
  * structure for Interface Status reg in mac address map.
@@ -1729,21 +1413,21 @@ typedef union _MAC_STATION_ADDR2_t {
  * MAC Module of JAGCore Address Mapping
  */
 typedef struct _MAC_t {					/* Location: */
-	MAC_CFG1_t cfg1;				/*  0x5000 */
-	MAC_CFG2_t cfg2;				/*  0x5004 */
-	MAC_IPG_t ipg;					/*  0x5008 */
-	MAC_HFDP_t hfdp;				/*  0x500C */
-	MAC_MAX_FM_LEN_t max_fm_len;			/*  0x5010 */
+	u32 cfg1;					/*  0x5000 */
+	u32 cfg2;					/*  0x5004 */
+	u32 ipg;					/*  0x5008 */
+	u32 hfdp;					/*  0x500C */
+	u32 max_fm_len;					/*  0x5010 */
 	u32 rsv1;					/*  0x5014 */
 	u32 rsv2;					/*  0x5018 */
-	MAC_TEST_t mac_test;				/*  0x501C */
-	MII_MGMT_CFG_t mii_mgmt_cfg;			/*  0x5020 */
-	MII_MGMT_CMD_t mii_mgmt_cmd;			/*  0x5024 */
-	MII_MGMT_ADDR_t mii_mgmt_addr;			/*  0x5028 */
-	MII_MGMT_CTRL_t mii_mgmt_ctrl;			/*  0x502C */
-	MII_MGMT_STAT_t mii_mgmt_stat;			/*  0x5030 */
-	MII_MGMT_INDICATOR_t mii_mgmt_indicator;	/*  0x5034 */
-	MAC_IF_CTRL_t if_ctrl;				/*  0x5038 */
+	u32 mac_test;					/*  0x501C */
+	u32 mii_mgmt_cfg;				/*  0x5020 */
+	u32 mii_mgmt_cmd;				/*  0x5024 */
+	u32 mii_mgmt_addr;				/*  0x5028 */
+	u32 mii_mgmt_ctrl;				/*  0x502C */
+	u32 mii_mgmt_stat;				/*  0x5030 */
+	u32 mii_mgmt_indicator;				/*  0x5034 */
+	u32 if_ctrl;					/*  0x5038 */
 	MAC_IF_STAT_t if_stat;				/*  0x503C */
 	MAC_STATION_ADDR1_t station_addr_1;		/*  0x5040 */
 	MAC_STATION_ADDR2_t station_addr_2;		/*  0x5044 */
@@ -1756,120 +1440,60 @@ typedef struct _MAC_t {					/* Location: */
 /*
  * structure for Carry Register One and it's Mask Register reg located in mac
  * stat address map address 0x6130 and 0x6138.
+ *
+ * 31: tr64
+ * 30: tr127
+ * 29: tr255
+ * 28: tr511
+ * 27: tr1k
+ * 26: trmax
+ * 25: trmgv
+ * 24-17: unused
+ * 16: rbyt
+ * 15: rpkt
+ * 14: rfcs
+ * 13: rmca
+ * 12: rbca
+ * 11: rxcf
+ * 10: rxpf
+ * 9: rxuo
+ * 8: raln
+ * 7: rflr
+ * 6: rcde
+ * 5: rcse
+ * 4: rund
+ * 3: rovr
+ * 2: rfrg
+ * 1: rjbr
+ * 0: rdrp
  */
-typedef union _MAC_STAT_REG_1_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 tr64:1;	/* bit 31 */
-		u32 tr127:1;	/* bit 30 */
-		u32 tr255:1;	/* bit 29 */
-		u32 tr511:1;	/* bit 28 */
-		u32 tr1k:1;	/* bit 27 */
-		u32 trmax:1;	/* bit 26 */
-		u32 trmgv:1;	/* bit 25 */
-		u32 unused:8;	/* bits 17-24 */
-		u32 rbyt:1;	/* bit 16 */
-		u32 rpkt:1;	/* bit 15 */
-		u32 rfcs:1;	/* bit 14 */
-		u32 rmca:1;	/* bit 13 */
-		u32 rbca:1;	/* bit 12 */
-		u32 rxcf:1;	/* bit 11 */
-		u32 rxpf:1;	/* bit 10 */
-		u32 rxuo:1;	/* bit 9 */
-		u32 raln:1;	/* bit 8 */
-		u32 rflr:1;	/* bit 7 */
-		u32 rcde:1;	/* bit 6 */
-		u32 rcse:1;	/* bit 5 */
-		u32 rund:1;	/* bit 4 */
-		u32 rovr:1;	/* bit 3 */
-		u32 rfrg:1;	/* bit 2 */
-		u32 rjbr:1;	/* bit 1 */
-		u32 rdrp:1;	/* bit 0 */
-#else
-		u32 rdrp:1;	/* bit 0 */
-		u32 rjbr:1;	/* bit 1 */
-		u32 rfrg:1;	/* bit 2 */
-		u32 rovr:1;	/* bit 3 */
-		u32 rund:1;	/* bit 4 */
-		u32 rcse:1;	/* bit 5 */
-		u32 rcde:1;	/* bit 6 */
-		u32 rflr:1;	/* bit 7 */
-		u32 raln:1;	/* bit 8 */
-		u32 rxuo:1;	/* bit 9 */
-		u32 rxpf:1;	/* bit 10 */
-		u32 rxcf:1;	/* bit 11 */
-		u32 rbca:1;	/* bit 12 */
-		u32 rmca:1;	/* bit 13 */
-		u32 rfcs:1;	/* bit 14 */
-		u32 rpkt:1;	/* bit 15 */
-		u32 rbyt:1;	/* bit 16 */
-		u32 unused:8;	/* bits 17-24 */
-		u32 trmgv:1;	/* bit 25 */
-		u32 trmax:1;	/* bit 26 */
-		u32 tr1k:1;	/* bit 27 */
-		u32 tr511:1;	/* bit 28 */
-		u32 tr255:1;	/* bit 29 */
-		u32 tr127:1;	/* bit 30 */
-		u32 tr64:1;	/* bit 31 */
-#endif
-	} bits;
-} MAC_STAT_REG_1_t, *PMAC_STAT_REG_1_t;
 
 /*
  * structure for Carry Register Two Mask Register reg in mac stat address map.
  * located at address 0x613C
+ *
+ * 31-20: unused
+ * 19: tjbr
+ * 18: tfcs
+ * 17: txcf
+ * 16: tovr
+ * 15: tund
+ * 14: trfg
+ * 13: tbyt
+ * 12: tpkt
+ * 11: tmca
+ * 10: tbca
+ * 9: txpf
+ * 8: tdfr
+ * 7: tedf
+ * 6: tscl
+ * 5: tmcl
+ * 4: tlcl
+ * 3: txcl
+ * 2: tncl
+ * 1: tpfh
+ * 0: tdrp
  */
-typedef union _MAC_STAT_REG_2_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 unused:12;	/* bit 20-31 */
-		u32 tjbr:1;	/* bit 19 */
-		u32 tfcs:1;	/* bit 18 */
-		u32 txcf:1;	/* bit 17 */
-		u32 tovr:1;	/* bit 16 */
-		u32 tund:1;	/* bit 15 */
-		u32 tfrg:1;	/* bit 14 */
-		u32 tbyt:1;	/* bit 13 */
-		u32 tpkt:1;	/* bit 12 */
-		u32 tmca:1;	/* bit 11 */
-		u32 tbca:1;	/* bit 10 */
-		u32 txpf:1;	/* bit 9 */
-		u32 tdfr:1;	/* bit 8 */
-		u32 tedf:1;	/* bit 7 */
-		u32 tscl:1;	/* bit 6 */
-		u32 tmcl:1;	/* bit 5 */
-		u32 tlcl:1;	/* bit 4 */
-		u32 txcl:1;	/* bit 3 */
-		u32 tncl:1;	/* bit 2 */
-		u32 tpfh:1;	/* bit 1 */
-		u32 tdrp:1;	/* bit 0 */
-#else
-		u32 tdrp:1;	/* bit 0 */
-		u32 tpfh:1;	/* bit 1 */
-		u32 tncl:1;	/* bit 2 */
-		u32 txcl:1;	/* bit 3 */
-		u32 tlcl:1;	/* bit 4 */
-		u32 tmcl:1;	/* bit 5 */
-		u32 tscl:1;	/* bit 6 */
-		u32 tedf:1;	/* bit 7 */
-		u32 tdfr:1;	/* bit 8 */
-		u32 txpf:1;	/* bit 9 */
-		u32 tbca:1;	/* bit 10 */
-		u32 tmca:1;	/* bit 11 */
-		u32 tpkt:1;	/* bit 12 */
-		u32 tbyt:1;	/* bit 13 */
-		u32 tfrg:1;	/* bit 14 */
-		u32 tund:1;	/* bit 15 */
-		u32 tovr:1;	/* bit 16 */
-		u32 txcf:1;	/* bit 17 */
-		u32 tfcs:1;	/* bit 18 */
-		u32 tjbr:1;	/* bit 19 */
-		u32 unused:12;	/* bit 20-31 */
-#endif
-	} bits;
-} MAC_STAT_REG_2_t, *PMAC_STAT_REG_2_t;
 
 /*
  * MAC STATS Module of JAGCore Address Mapping
@@ -2010,16 +1634,16 @@ typedef struct _MAC_STAT_t {		/* Location: */
 	u32 TFrg;			/*  0x612C */
 
 	/* Carry Register One Register */
-	MAC_STAT_REG_1_t Carry1;	/*  0x6130 */
+	u32 Carry1;			/*  0x6130 */
 
 	/* Carry Register Two Register */
-	MAC_STAT_REG_2_t Carry2;	/*  0x6134 */
+	u32 Carry2;			/*  0x6134 */
 
 	/* Carry Register One Mask Register */
-	MAC_STAT_REG_1_t Carry1M;	/*  0x6138 */
+	u32 Carry1M;			/*  0x6138 */
 
 	/* Carry Register Two Mask Register */
-	MAC_STAT_REG_2_t Carry2M;	/*  0x613C */
+	u32 Carry2M;			/*  0x613C */
 } MAC_STAT_t, *PMAC_STAT_t;
 
 /* END OF MAC STAT REGISTER ADDRESS MAP */

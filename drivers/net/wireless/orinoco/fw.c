@@ -28,6 +28,12 @@ static const struct fw_info orinoco_fw[] = {
 	{ NULL, "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
 	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", NULL, 0x00003100, 512 }
 };
+MODULE_FIRMWARE("agere_sta_fw.bin");
+MODULE_FIRMWARE("agere_ap_fw.bin");
+MODULE_FIRMWARE("prism_sta_fw.bin");
+MODULE_FIRMWARE("prism_ap_fw.bin");
+MODULE_FIRMWARE("symbol_sp24t_prim_fw");
+MODULE_FIRMWARE("symbol_sp24t_sec_fw");
 
 /* Structure used to access fields in FW
  * Make sure LE decoding macros are used

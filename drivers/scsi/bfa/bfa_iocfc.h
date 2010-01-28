@@ -107,13 +107,13 @@ struct bfa_iocfc_s {
 
 #define bfa_lpuid(__bfa)		bfa_ioc_portid(&(__bfa)->ioc)
 #define bfa_msix_init(__bfa, __nvecs)	\
-	(__bfa)->iocfc.hwif.hw_msix_init(__bfa, __nvecs)
+	((__bfa)->iocfc.hwif.hw_msix_init(__bfa, __nvecs))
 #define bfa_msix_install(__bfa)	\
-	(__bfa)->iocfc.hwif.hw_msix_install(__bfa)
+	((__bfa)->iocfc.hwif.hw_msix_install(__bfa))
 #define bfa_msix_uninstall(__bfa)	\
-	(__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa)
+	((__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa))
 #define bfa_isr_mode_set(__bfa, __msix)	\
-	(__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix)
+	((__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix))
 #define bfa_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)	\
 	(__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)
 

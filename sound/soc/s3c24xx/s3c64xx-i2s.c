@@ -31,12 +31,11 @@
 #include <plat/gpio-bank-d.h>
 #include <plat/gpio-bank-e.h>
 #include <plat/gpio-cfg.h>
-#include <plat/audio.h>
 
 #include <mach/map.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c64xx-i2s.h"
 
 static struct s3c2410_dma_client s3c64xx_dma_client_out = {
@@ -47,7 +46,7 @@ static struct s3c2410_dma_client s3c64xx_dma_client_in = {
 	.name		= "I2S PCM Stereo in"
 };
 
-static struct s3c24xx_pcm_dma_params s3c64xx_i2s_pcm_stereo_out[2] = {
+static struct s3c_dma_params s3c64xx_i2s_pcm_stereo_out[2] = {
 	[0] = {
 		.channel	= DMACH_I2S0_OUT,
 		.client		= &s3c64xx_dma_client_out,
@@ -62,7 +61,7 @@ static struct s3c24xx_pcm_dma_params s3c64xx_i2s_pcm_stereo_out[2] = {
 	},
 };
 
-static struct s3c24xx_pcm_dma_params s3c64xx_i2s_pcm_stereo_in[2] = {
+static struct s3c_dma_params s3c64xx_i2s_pcm_stereo_in[2] = {
 	[0] = {
 		.channel	= DMACH_I2S0_IN,
 		.client		= &s3c64xx_dma_client_in,
@@ -99,6 +98,19 @@ static int s3c64xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 		iismod |= S3C64XX_IISMOD_IMS_SYSMUX;
 		break;
 
+	case S3C64XX_CLKSRC_CDCLK:
+		switch (dir) {
+		case SND_SOC_CLOCK_IN:
+			iismod |= S3C64XX_IISMOD_CDCLKCON;
+			break;
+		case SND_SOC_CLOCK_OUT:
+			iismod &= ~S3C64XX_IISMOD_CDCLKCON;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -111,8 +123,12 @@ static int s3c64xx_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 struct clk *s3c64xx_i2s_get_clock(struct snd_soc_dai *dai)
 {
 	struct s3c_i2sv2_info *i2s = to_info(dai);
+	u32 iismod = readl(i2s->regs + S3C2412_IISMOD);
 
-	return i2s->iis_cclk;
+	if (iismod & S3C64XX_IISMOD_IMS_SYSMUX)
+		return i2s->iis_cclk;
+	else
+		return i2s->iis_pclk;
 }
 EXPORT_SYMBOL_GPL(s3c64xx_i2s_get_clock);
 

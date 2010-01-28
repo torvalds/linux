@@ -8,6 +8,8 @@ config GFS2_FS
 	select FS_POSIX_ACL
 	select CRC32
 	select SLOW_WORK
+	select QUOTA
+	select QUOTACTL
 	help
 	  A cluster filesystem.
 

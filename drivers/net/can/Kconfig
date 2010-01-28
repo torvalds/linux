@@ -41,6 +41,30 @@ config CAN_AT91
 	---help---
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263.
 
+config CAN_TI_HECC
+	depends on CAN_DEV && ARCH_OMAP3
+	tristate "TI High End CAN Controller"
+	---help---
+	  Driver for TI HECC (High End CAN Controller) module found on many
+	  TI devices. The device specifications are available from www.ti.com
+
+config CAN_MCP251X
+	tristate "Microchip MCP251x SPI CAN controllers"
+	depends on CAN_DEV && SPI && HAS_DMA
+	---help---
+	  Driver for the Microchip MCP251x SPI CAN controllers.
+
+config CAN_BFIN
+	depends on CAN_DEV && (BF534 || BF536 || BF537 || BF538 || BF539 || BF54x)
+	tristate "Analog Devices Blackfin on-chip CAN"
+	---help---
+	  Driver for the Analog Devices Blackfin on-chip CAN controllers
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_can.
+
+source "drivers/net/can/mscan/Kconfig"
+
 source "drivers/net/can/sja1000/Kconfig"
 
 source "drivers/net/can/usb/Kconfig"

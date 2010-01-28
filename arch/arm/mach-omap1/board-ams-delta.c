@@ -25,13 +25,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/board-ams-delta.h>
+#include <plat/board-ams-delta.h>
 #include <mach/gpio.h>
-#include <mach/keypad.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/common.h>
+#include <plat/keypad.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/common.h>
 
 static u8 ams_delta_latch1_reg;
 static u16 ams_delta_latch2_reg;

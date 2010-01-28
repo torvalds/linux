@@ -798,6 +798,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     		setup before initializing the codecs.  This option is
 		available only when CONFIG_SND_HDA_PATCH_LOADER=y is set.
 		See HD-Audio.txt for details.
+    beep_mode	- Selects the beep registration mode (0=off, 1=on, 2=
+		dynamic registration via mute switch on/off); the default
+		value is set via CONFIG_SND_HDA_INPUT_BEEP_MODE kconfig.
     
     [Single (global) options]
     single_cmd  - Use single immediate commands to communicate with
@@ -1454,6 +1457,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for internal PC-Speaker.
 
+    nopcm	- Disable PC-Speaker PCM sound. Only beeps remain.
     nforce_wa	- enable NForce chipset workaround. Expect bad sound.
 
     This module supports system beeps, some kind of PCM playback and
@@ -1631,7 +1635,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-sscape
   -----------------
 
-    Module for ENSONIQ SoundScape PnP cards.
+    Module for ENSONIQ SoundScape cards.
 
     port	- Port # (PnP setup)
     wss_port	- WSS Port # (PnP setup)
@@ -1639,10 +1643,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     mpu_irq	- MPU-401 IRQ # (PnP setup)
     dma		- DMA # (PnP setup)
     dma2	- 2nd DMA # (PnP setup, -1 to disable)
+    joystick	- Enable gameport - 0 = disable (default), 1 = enable
 
-    This module supports multiple cards.  ISA PnP must be enabled.
-    You need sscape_ctl tool in alsa-tools package for loading
-    the microcode.
+    This module supports multiple cards.
+
+    The driver requires the firmware loader support on kernel.
 
   Module snd-sun-amd7930 (on sparc only)
   --------------------------------------

@@ -54,6 +54,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/perf_event.h>
+#include <asm/trace.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -268,6 +269,7 @@ void account_system_vtime(struct task_struct *tsk)
 	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(account_system_vtime);
 
 /*
  * Transfer the user and system times accumulated in the paca
@@ -571,6 +573,8 @@ void timer_interrupt(struct pt_regs * regs)
 	struct clock_event_device *evt = &decrementer->event;
 	u64 now;
 
+	trace_timer_interrupt_entry(regs);
+
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continuue to take decrementer exceptions */
 	set_dec(DECREMENTER_MAX);
@@ -590,6 +594,7 @@ void timer_interrupt(struct pt_regs * regs)
 		now = decrementer->next_tb - now;
 		if (now <= DECREMENTER_MAX)
 			set_dec((int)now);
+		trace_timer_interrupt_exit(regs);
 		return;
 	}
 	old_regs = set_irq_regs(regs);
@@ -620,6 +625,8 @@ void timer_interrupt(struct pt_regs * regs)
 
 	irq_exit();
 	set_irq_regs(old_regs);
+
+	trace_timer_interrupt_exit(regs);
 }
 
 void wakeup_decrementer(void)
@@ -828,7 +835,8 @@ static cycle_t timebase_read(struct clocksource *cs)
 	return (cycle_t)get_tb();
 }
 
-void update_vsyscall(struct timespec *wall_time, struct clocksource *clock)
+void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
+		     u32 mult)
 {
 	u64 t2x, stamp_xsec;
 
@@ -841,7 +849,7 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock)
 
 	/* XXX this assumes clock->shift == 22 */
 	/* 4611686018 ~= 2^(20+64-22) / 1e9 */
-	t2x = (u64) clock->mult * 4611686018ULL;
+	t2x = (u64) mult * 4611686018ULL;
 	stamp_xsec = (u64) xtime.tv_nsec * XSEC_PER_SEC;
 	do_div(stamp_xsec, 1000000000);
 	stamp_xsec += (u64) xtime.tv_sec * XSEC_PER_SEC;
@@ -895,12 +903,21 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 		decrementer_set_next_event(DECREMENTER_MAX, dev);
 }
 
+static inline uint64_t div_sc64(unsigned long ticks, unsigned long nsec,
+				int shift)
+{
+	uint64_t tmp = ((uint64_t)ticks) << shift;
+
+	do_div(tmp, nsec);
+	return tmp;
+}
+
 static void __init setup_clockevent_multiplier(unsigned long hz)
 {
 	u64 mult, shift = 32;
 
 	while (1) {
-		mult = div_sc(hz, NSEC_PER_SEC, shift);
+		mult = div_sc64(hz, NSEC_PER_SEC, shift);
 		if (mult && (mult >> 32UL) == 0UL)
 			break;
 
@@ -918,7 +935,7 @@ static void register_decrementer_clockevent(int cpu)
 	*dec = decrementer_clockevent;
 	dec->cpumask = cpumask_of(cpu);
 
-	printk(KERN_DEBUG "clockevent: %s mult[%lx] shift[%d] cpu[%d]\n",
+	printk(KERN_DEBUG "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
 	       dec->name, dec->mult, dec->shift, cpu);
 
 	clockevents_register_device(dec);

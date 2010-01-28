@@ -51,6 +51,8 @@ extern int dib7000p_i2c_enumeration(struct i2c_adapter *i2c,
 extern int dib7000p_set_gpio(struct dvb_frontend *, u8 num, u8 dir, u8 val);
 extern int dib7000p_set_wbd_ref(struct dvb_frontend *, u16 value);
 extern int dib7000pc_detection(struct i2c_adapter *i2c_adap);
+extern int dib7000p_pid_filter(struct dvb_frontend *, u8 id, u16 pid, u8 onoff);
+extern int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff);
 #else
 static inline
 struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr,
@@ -94,6 +96,17 @@ static inline int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
+}
+static inline int dib7000p_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
+{
+    printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+    return -ENODEV;
+}
+
+static inline int dib7000p_pid_filter_ctrl(struct dvb_frontend *fe, uint8_t onoff)
+{
+    printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+    return -ENODEV;
 }
 #endif
 

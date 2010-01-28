@@ -79,7 +79,7 @@ static void s3c_irq_timer_ack(unsigned int irq)
 {
 	u32 reg = __raw_readl(S3C64XX_TINT_CSTAT);
 
-	reg &= 0x1f;
+	reg &= 0x1f;  /* mask out pending interrupts */
 	reg |= (1 << 5) << (irq - IRQ_TIMER0);
 	__raw_writel(reg, S3C64XX_TINT_CSTAT);
 }

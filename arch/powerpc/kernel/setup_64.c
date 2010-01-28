@@ -356,11 +356,6 @@ void __init setup_system(void)
 	 */
 	initialize_cache_info();
 
-	/*
-	 * Initialize irq remapping subsystem
-	 */
-	irq_early_init();
-
 #ifdef CONFIG_PPC_RTAS
 	/*
 	 * Initialize RTAS if available
@@ -550,7 +545,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_SWIOTLB
 	if (ppc_swiotlb_enable)
-		swiotlb_init();
+		swiotlb_init(1);
 #endif
 
 	paging_init();

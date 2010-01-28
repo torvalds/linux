@@ -2987,7 +2987,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			struct gspca_frame *frame,	/* target */
 			u8 *data,			/* isoc packet */
 			int len)			/* iso pkt length */
 {
@@ -2996,21 +2995,29 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (data[0] == 0xff && data[1] == 0xd8) {
 		PDEBUG(D_PACK,
 			"vc032x header packet found len %d", len);
-		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-						data, 0);
+		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		data += sd->image_offset;
 		len -= sd->image_offset;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-				data, len);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
 		return;
 	}
 
 	/* The vc0321 sends some additional data after sending the complete
 	 * frame, we ignore this. */
-	if (sd->bridge == BRIDGE_VC0321
-	    && len > frame->v4l2_buf.length - (frame->data_end - frame->data))
-		len = frame->v4l2_buf.length - (frame->data_end - frame->data);
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
+	if (sd->bridge == BRIDGE_VC0321) {
+		struct gspca_frame *frame;
+		int l;
+
+		frame = gspca_get_i_frame(gspca_dev);
+		if (frame == NULL) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
+		l = frame->data_end - frame->data;
+		if (len > frame->v4l2_buf.length - l)
+			len = frame->v4l2_buf.length - l;
+	}
+	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
 static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
@@ -3092,6 +3099,8 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 
 	switch (menu->id) {
 	case V4L2_CID_POWER_LINE_FREQUENCY:
+		if (menu->index >= ARRAY_SIZE(freq_nm))
+			break;
 		strcpy((char *) menu->name, freq_nm[menu->index]);
 		return 0;
 	}

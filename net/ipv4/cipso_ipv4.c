@@ -2017,7 +2017,7 @@ req_setattr_failure:
  * values on failure.
  *
  */
-int cipso_v4_delopt(struct ip_options **opt_ptr)
+static int cipso_v4_delopt(struct ip_options **opt_ptr)
 {
 	int hdr_delta = 0;
 	struct ip_options *opt = *opt_ptr;

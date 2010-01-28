@@ -14,7 +14,7 @@
  *
  * Notes:
  *     This is a wm97xx extended touch driver to capture touch
- *     data in a continuous manner on the Intel XScale archictecture
+ *     data in a continuous manner on the Intel XScale architecture
  *
  *  Features:
  *       - codecs supported:- WM9705, WM9712, WM9713
@@ -131,7 +131,7 @@ static int wm97xx_acc_pen_down(struct wm97xx *wm)
 	/* When the AC97 queue has been drained we need to allow time
 	 * to buffer up samples otherwise we end up spinning polling
 	 * for samples.  The controller can't have a suitably low
-	 * threashold set to use the notifications it gives.
+	 * threshold set to use the notifications it gives.
 	 */
 	schedule_timeout_uninterruptible(1);
 

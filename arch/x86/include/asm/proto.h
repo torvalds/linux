@@ -5,18 +5,19 @@
 
 /* misc architecture specific prototypes */
 
-extern void early_idt_handler(void);
+void early_idt_handler(void);
 
-extern void system_call(void);
-extern void syscall_init(void);
+void system_call(void);
+void syscall_init(void);
 
-extern void ia32_syscall(void);
-extern void ia32_cstar_target(void);
-extern void ia32_sysenter_target(void);
+void ia32_syscall(void);
+void ia32_cstar_target(void);
+void ia32_sysenter_target(void);
 
-extern void syscall32_cpu_init(void);
+void syscall32_cpu_init(void);
 
-extern void check_efer(void);
+void x86_configure_nx(void);
+void x86_report_nx(void);
 
 extern int reboot_force;
 

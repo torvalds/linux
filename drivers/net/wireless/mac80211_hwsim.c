@@ -284,7 +284,7 @@ struct mac80211_hwsim_data {
 	struct ieee80211_channel *channel;
 	unsigned long beacon_int; /* in jiffies unit */
 	unsigned int rx_filter;
-	int started;
+	bool started, idle;
 	struct timer_list beacon_timer;
 	enum ps_mode {
 		PS_DISABLED, PS_ENABLED, PS_AUTO_POLL, PS_MANUAL_POLL
@@ -365,6 +365,49 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 }
 
 
+static void mac80211_hwsim_monitor_ack(struct ieee80211_hw *hw, const u8 *addr)
+{
+	struct mac80211_hwsim_data *data = hw->priv;
+	struct sk_buff *skb;
+	struct hwsim_radiotap_hdr *hdr;
+	u16 flags;
+	struct ieee80211_hdr *hdr11;
+
+	if (!netif_running(hwsim_mon))
+		return;
+
+	skb = dev_alloc_skb(100);
+	if (skb == NULL)
+		return;
+
+	hdr = (struct hwsim_radiotap_hdr *) skb_put(skb, sizeof(*hdr));
+	hdr->hdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	hdr->hdr.it_pad = 0;
+	hdr->hdr.it_len = cpu_to_le16(sizeof(*hdr));
+	hdr->hdr.it_present = cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
+					  (1 << IEEE80211_RADIOTAP_CHANNEL));
+	hdr->rt_flags = 0;
+	hdr->rt_rate = 0;
+	hdr->rt_channel = cpu_to_le16(data->channel->center_freq);
+	flags = IEEE80211_CHAN_2GHZ;
+	hdr->rt_chbitmask = cpu_to_le16(flags);
+
+	hdr11 = (struct ieee80211_hdr *) skb_put(skb, 10);
+	hdr11->frame_control = cpu_to_le16(IEEE80211_FTYPE_CTL |
+					   IEEE80211_STYPE_ACK);
+	hdr11->duration_id = cpu_to_le16(0);
+	memcpy(hdr11->addr1, addr, ETH_ALEN);
+
+	skb->dev = hwsim_mon;
+	skb_set_mac_header(skb, 0);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->pkt_type = PACKET_OTHERHOST;
+	skb->protocol = htons(ETH_P_802_2);
+	memset(skb->cb, 0, sizeof(skb->cb));
+	netif_rx(skb);
+}
+
+
 static bool hwsim_ps_rx_ok(struct mac80211_hwsim_data *data,
 			   struct sk_buff *skb)
 {
@@ -402,6 +445,12 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
 
+	if (data->idle) {
+		printk(KERN_DEBUG "%s: Trying to TX when idle - reject\n",
+		       wiphy_name(hw->wiphy));
+		return false;
+	}
+
 	memset(&rx_status, 0, sizeof(rx_status));
 	/* TODO: set mactime */
 	rx_status.freq = data->channel->center_freq;
@@ -428,7 +477,8 @@ static bool mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
 		if (data == data2)
 			continue;
 
-		if (!data2->started || !hwsim_ps_rx_ok(data2, skb) ||
+		if (data2->idle || !data2->started ||
+		    !hwsim_ps_rx_ok(data2, skb) ||
 		    !data->channel || !data2->channel ||
 		    data->channel->center_freq != data2->channel->center_freq ||
 		    !(data->group & data2->group))
@@ -464,6 +514,10 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	}
 
 	ack = mac80211_hwsim_tx_frame(hw, skb);
+	if (ack && skb->len >= 16) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		mac80211_hwsim_monitor_ack(hw, hdr->addr2);
+	}
 
 	txi = IEEE80211_SKB_CB(skb);
 
@@ -570,6 +624,8 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	       conf->channel->center_freq,
 	       !!(conf->flags & IEEE80211_CONF_IDLE),
 	       !!(conf->flags & IEEE80211_CONF_PS));
+
+	data->idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
 	data->channel = conf->channel;
 	if (!data->started || !data->beacon_int)
@@ -1045,18 +1101,19 @@ static int __init init_mac80211_hwsim(void)
 				sband->channels = data->channels_2ghz;
 				sband->n_channels =
 					ARRAY_SIZE(hwsim_channels_2ghz);
+				sband->bitrates = data->rates;
+				sband->n_bitrates = ARRAY_SIZE(hwsim_rates);
 				break;
 			case IEEE80211_BAND_5GHZ:
 				sband->channels = data->channels_5ghz;
 				sband->n_channels =
 					ARRAY_SIZE(hwsim_channels_5ghz);
+				sband->bitrates = data->rates + 4;
+				sband->n_bitrates = ARRAY_SIZE(hwsim_rates) - 4;
 				break;
 			default:
 				break;
 			}
-
-			sband->bitrates = data->rates;
-			sband->n_bitrates = ARRAY_SIZE(hwsim_rates);
 
 			sband->ht_cap.ht_supported = true;
 			sband->ht_cap.cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
@@ -1089,46 +1146,46 @@ static int __init init_mac80211_hwsim(void)
 			break;
 		case HWSIM_REGTEST_WORLD_ROAM:
 			if (i == 0) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_01);
 			}
 			break;
 		case HWSIM_REGTEST_CUSTOM_WORLD:
-			hw->wiphy->custom_regulatory = true;
+			hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 			wiphy_apply_custom_regulatory(hw->wiphy,
 				&hwsim_world_regdom_custom_01);
 			break;
 		case HWSIM_REGTEST_CUSTOM_WORLD_2:
 			if (i == 0) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_01);
 			} else if (i == 1) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_02);
 			}
 			break;
 		case HWSIM_REGTEST_STRICT_ALL:
-			hw->wiphy->strict_regulatory = true;
+			hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 			break;
 		case HWSIM_REGTEST_STRICT_FOLLOW:
 		case HWSIM_REGTEST_STRICT_AND_DRIVER_REG:
 			if (i == 0)
-				hw->wiphy->strict_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 			break;
 		case HWSIM_REGTEST_ALL:
 			if (i == 0) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_01);
 			} else if (i == 1) {
-				hw->wiphy->custom_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 				wiphy_apply_custom_regulatory(hw->wiphy,
 					&hwsim_world_regdom_custom_02);
 			} else if (i == 4)
-				hw->wiphy->strict_regulatory = true;
+				hw->wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;
 			break;
 		default:
 			break;

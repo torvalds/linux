@@ -45,7 +45,7 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_CLEAR_INTERRUPT_REGISTER	0x01ffffff
 #define PCAP_MASK_ALL_INTERRUPT		0x01ffffff
 
-/* registers acessible by both pcap ports */
+/* registers accessible by both pcap ports */
 #define PCAP_REG_ISR		0x0	/* Interrupt Status */
 #define PCAP_REG_MSR		0x1	/* Interrupt Mask */
 #define PCAP_REG_PSTAT		0x2	/* Processor Status */
@@ -67,7 +67,7 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_REG_VENDOR_TEST1	0x1e
 #define PCAP_REG_VENDOR_TEST2	0x1f
 
-/* registers acessible by pcap port 1 only (a1200, e2 & e6) */
+/* registers accessible by pcap port 1 only (a1200, e2 & e6) */
 #define PCAP_REG_INT_SEL	0x3	/* Interrupt Select */
 #define PCAP_REG_SWCTRL		0x4	/* Switching Regulator Control */
 #define PCAP_REG_VREG1		0x5	/* Regulator Bank 1 Control */
@@ -231,9 +231,6 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_LED_4MA		1
 #define PCAP_LED_5MA		2
 #define PCAP_LED_9MA		3
-#define PCAP_LED_GPIO_VAL_MASK	0x00ffffff
-#define PCAP_LED_GPIO_EN	0x01000000
-#define PCAP_LED_GPIO_INVERT	0x02000000
 #define PCAP_LED_T_MASK		0xf
 #define PCAP_LED_C_MASK		0x3
 #define PCAP_BL_MASK		0x1f

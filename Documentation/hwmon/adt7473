@@ -9,6 +9,8 @@ Supported chips:
 
 Author: Darrick J. Wong
 
+This driver is depreacted, please use the adt7475 driver instead.
+
 Description
 -----------
 

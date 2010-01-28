@@ -13,6 +13,7 @@
 #include <linux/buffer_head.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/bio.h>
+#include <linux/posix_acl.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -184,8 +185,10 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 	if (flags & DIO_METADATA) {
 		struct address_space *mapping = gl->gl_aspace->i_mapping;
 		truncate_inode_pages(mapping, 0);
-		if (ip)
+		if (ip) {
 			set_bit(GIF_INVALID, &ip->i_flags);
+			forget_all_cached_acls(&ip->i_inode);
+		}
 	}
 
 	if (ip == GFS2_I(gl->gl_sbd->sd_rindex))

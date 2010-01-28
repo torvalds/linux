@@ -299,4 +299,4 @@ Port Contributors
 Document Author
 ---------------
 
-Ben Dooks, (c) 2004-2005,2006 Simtec Electronics
+Ben Dooks, Copyright 2004-2006 Simtec Electronics

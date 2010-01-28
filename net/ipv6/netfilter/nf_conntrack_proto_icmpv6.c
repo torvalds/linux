@@ -244,18 +244,18 @@ static const struct nla_policy icmpv6_nla_policy[CTA_PROTO_MAX+1] = {
 static int icmpv6_nlattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *tuple)
 {
-	if (!tb[CTA_PROTO_ICMPV6_TYPE]
-	    || !tb[CTA_PROTO_ICMPV6_CODE]
-	    || !tb[CTA_PROTO_ICMPV6_ID])
+	if (!tb[CTA_PROTO_ICMPV6_TYPE] ||
+	    !tb[CTA_PROTO_ICMPV6_CODE] ||
+	    !tb[CTA_PROTO_ICMPV6_ID])
 		return -EINVAL;
 
 	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMPV6_TYPE]);
 	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMPV6_CODE]);
 	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMPV6_ID]);
 
-	if (tuple->dst.u.icmp.type < 128
-	    || tuple->dst.u.icmp.type - 128 >= sizeof(invmap)
-	    || !invmap[tuple->dst.u.icmp.type - 128])
+	if (tuple->dst.u.icmp.type < 128 ||
+	    tuple->dst.u.icmp.type - 128 >= sizeof(invmap) ||
+	    !invmap[tuple->dst.u.icmp.type - 128])
 		return -EINVAL;
 
 	return 0;
@@ -277,9 +277,7 @@ static struct ctl_table icmpv6_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
-	{
-		.ctl_name	= 0
-	}
+	{ }
 };
 #endif /* CONFIG_SYSCTL */
 

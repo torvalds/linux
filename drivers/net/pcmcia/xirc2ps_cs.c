@@ -211,20 +211,6 @@ enum xirc_cmd { 	    /* Commands */
 
 static const char *if_names[] = { "Auto", "10BaseT", "10Base2", "AUI", "100BaseT" };
 
-/****************
- * All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
- * you do not define PCMCIA_DEBUG at all, all the debug code will be
- * left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
- * be present but disabled -- but it can then be enabled for specific
- * modules at load time with a 'pc_debug=#' option to insmod.
- */
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KDBG_XIRC args)
-#else
-#define DEBUG(n, args...)
-#endif
 
 #define KDBG_XIRC KERN_DEBUG   "xirc2ps_cs: "
 #define KERR_XIRC KERN_ERR     "xirc2ps_cs: "
@@ -359,7 +345,7 @@ static void xirc_tx_timeout(struct net_device *dev);
 static void xirc2ps_tx_timeout_task(struct work_struct *work);
 static void set_addresses(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
-static int set_card_type(struct pcmcia_device *link, const void *s);
+static int set_card_type(struct pcmcia_device *link);
 static int do_config(struct net_device *dev, struct ifmap *map);
 static int do_open(struct net_device *dev);
 static int do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -371,28 +357,6 @@ static void do_powerdown(struct net_device *dev);
 static int do_stop(struct net_device *dev);
 
 /*=============== Helper functions =========================*/
-static int
-first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
-{
-	int err;
-
-	if ((err = pcmcia_get_first_tuple(handle, tuple)) == 0 &&
-			(err = pcmcia_get_tuple_data(handle, tuple)) == 0)
-		err = pcmcia_parse_tuple(tuple, parse);
-	return err;
-}
-
-static int
-next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
-{
-	int err;
-
-	if ((err = pcmcia_get_next_tuple(handle, tuple)) == 0 &&
-			(err = pcmcia_get_tuple_data(handle, tuple)) == 0)
-		err = pcmcia_parse_tuple(tuple, parse);
-	return err;
-}
-
 #define SelectPage(pgnr)   outb((pgnr), ioaddr + XIRCREG_PR)
 #define GetByte(reg)	   ((unsigned)inb(ioaddr + (reg)))
 #define GetWord(reg)	   ((unsigned)inw(ioaddr + (reg)))
@@ -400,7 +364,7 @@ next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 #define PutWord(reg,value) outw((value), ioaddr+(reg))
 
 /*====== Functions used for debugging =================================*/
-#if defined(PCMCIA_DEBUG) && 0 /* reading regs may change system status */
+#if 0 /* reading regs may change system status */
 static void
 PrintRegisters(struct net_device *dev)
 {
@@ -421,9 +385,9 @@ PrintRegisters(struct net_device *dev)
 	    printk("\n");
 	}
 	for (page=0x40 ; page <= 0x5f; page++) {
-	    if (page == 0x43 || (page >= 0x46 && page <= 0x4f)
-		|| (page >= 0x51 && page <=0x5e))
-		continue;
+		if (page == 0x43 || (page >= 0x46 && page <= 0x4f) ||
+		    (page >= 0x51 && page <=0x5e))
+			continue;
 	    printk(KDBG_XIRC "Register page %2x: ", page);
 	    SelectPage(page);
 	    for (i = 8; i < 16; i++)
@@ -432,7 +396,7 @@ PrintRegisters(struct net_device *dev)
 	}
     }
 }
-#endif /* PCMCIA_DEBUG */
+#endif /* 0 */
 
 /*============== MII Management functions ===============*/
 
@@ -576,7 +540,7 @@ xirc2ps_probe(struct pcmcia_device *link)
     struct net_device *dev;
     local_info_t *local;
 
-    DEBUG(0, "attach()\n");
+    dev_dbg(&link->dev, "attach()\n");
 
     /* Allocate the device structure */
     dev = alloc_etherdev(sizeof(local_info_t));
@@ -592,7 +556,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
     link->irq.Handler = xirc2ps_interrupt;
-    link->irq.Instance = dev;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;
@@ -615,7 +578,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
 
-    DEBUG(0, "detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "detach\n");
 
     if (link->dev_node)
 	unregister_netdev(dev);
@@ -644,17 +607,25 @@ xirc2ps_detach(struct pcmcia_device *link)
  *
  */
 static int
-set_card_type(struct pcmcia_device *link, const void *s)
+set_card_type(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
-  #ifdef PCMCIA_DEBUG
-    unsigned cisrev = ((const unsigned char *)s)[2];
-  #endif
-    unsigned mediaid= ((const unsigned char *)s)[3];
-    unsigned prodid = ((const unsigned char *)s)[4];
+    u8 *buf;
+    unsigned int cisrev, mediaid, prodid;
+    size_t len;
 
-    DEBUG(0, "cisrev=%02x mediaid=%02x prodid=%02x\n",
+    len = pcmcia_get_tuple(link, CISTPL_MANFID, &buf);
+    if (len < 5) {
+	    dev_err(&link->dev, "invalid CIS -- sorry\n");
+	    return 0;
+    }
+
+    cisrev = buf[2];
+    mediaid = buf[3];
+    prodid = buf[4];
+
+    dev_dbg(&link->dev, "cisrev=%02x mediaid=%02x prodid=%02x\n",
 	  cisrev, mediaid, prodid);
 
     local->mohawk = 0;
@@ -761,6 +732,26 @@ xirc2ps_config_check(struct pcmcia_device *p_dev,
 
 }
 
+
+static int pcmcia_get_mac_ce(struct pcmcia_device *p_dev,
+			     tuple_t *tuple,
+			     void *priv)
+{
+	struct net_device *dev = priv;
+	int i;
+
+	if (tuple->TupleDataLen != 13)
+		return -EINVAL;
+	if ((tuple->TupleData[0] != 2) || (tuple->TupleData[1] != 1) ||
+		(tuple->TupleData[2] != 6))
+		return -EINVAL;
+	/* another try	(James Lehmer's CE2 version 4.1)*/
+	for (i = 2; i < 6; i++)
+		dev->dev_addr[i] = tuple->TupleData[i+2];
+	return 0;
+};
+
+
 /****************
  * xirc2ps_config() is scheduled to run after a CARD_INSERTION event
  * is received, to configure the PCMCIA socket, and to make the
@@ -772,33 +763,21 @@ xirc2ps_config(struct pcmcia_device * link)
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
     unsigned int ioaddr;
-    tuple_t tuple;
-    cisparse_t parse;
-    int err, i;
-    u_char buf[64];
-    cistpl_lan_node_id_t *node_id = (cistpl_lan_node_id_t*)parse.funce.data;
+    int err;
+    u8 *buf;
+    size_t len;
 
     local->dingo_ccr = NULL;
 
-    DEBUG(0, "config(0x%p)\n", link);
-
-    /*
-     * This reads the card's CONFIG tuple to find its configuration
-     * registers.
-     */
-    tuple.Attributes = 0;
-    tuple.TupleData = buf;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
+    dev_dbg(&link->dev, "config\n");
 
     /* Is this a valid	card */
-    tuple.DesiredTuple = CISTPL_MANFID;
-    if ((err=first_tuple(link, &tuple, &parse))) {
+    if (link->has_manf_id == 0) {
 	printk(KNOT_XIRC "manfid not found in CIS\n");
 	goto failure;
     }
 
-    switch(parse.manfid.manf) {
+    switch (link->manf_id) {
       case MANFID_XIRCOM:
 	local->manf_str = "Xircom";
 	break;
@@ -817,65 +796,44 @@ xirc2ps_config(struct pcmcia_device * link)
 	break;
       default:
 	printk(KNOT_XIRC "Unknown Card Manufacturer ID: 0x%04x\n",
-	       (unsigned)parse.manfid.manf);
+	       (unsigned)link->manf_id);
 	goto failure;
     }
-    DEBUG(0, "found %s card\n", local->manf_str);
+    dev_dbg(&link->dev, "found %s card\n", local->manf_str);
 
-    if (!set_card_type(link, buf)) {
+    if (!set_card_type(link)) {
 	printk(KNOT_XIRC "this card is not supported\n");
 	goto failure;
     }
 
     /* get the ethernet address from the CIS */
-    tuple.DesiredTuple = CISTPL_FUNCE;
-    for (err = first_tuple(link, &tuple, &parse); !err;
-			     err = next_tuple(link, &tuple, &parse)) {
-	/* Once I saw two CISTPL_FUNCE_LAN_NODE_ID entries:
-	 * the first one with a length of zero the second correct -
-	 * so I skip all entries with length 0 */
-	if (parse.funce.type == CISTPL_FUNCE_LAN_NODE_ID
-	    && ((cistpl_lan_node_id_t *)parse.funce.data)->nb)
-	    break;
-    }
-    if (err) { /* not found: try to get the node-id from tuple 0x89 */
-	tuple.DesiredTuple = 0x89;  /* data layout looks like tuple 0x22 */
-	if ((err = pcmcia_get_first_tuple(link, &tuple)) == 0 &&
-		(err = pcmcia_get_tuple_data(link, &tuple)) == 0) {
-	    if (tuple.TupleDataLen == 8 && *buf == CISTPL_FUNCE_LAN_NODE_ID)
-		memcpy(&parse, buf, 8);
-	    else
-		err = -1;
-	}
-    }
-    if (err) { /* another try	(James Lehmer's CE2 version 4.1)*/
-	tuple.DesiredTuple = CISTPL_FUNCE;
-	for (err = first_tuple(link, &tuple, &parse); !err;
-				 err = next_tuple(link, &tuple, &parse)) {
-	    if (parse.funce.type == 0x02 && parse.funce.data[0] == 1
-		&& parse.funce.data[1] == 6 && tuple.TupleDataLen == 13) {
-		buf[1] = 4;
-		memcpy(&parse, buf+1, 8);
-		break;
+    err = pcmcia_get_mac_from_cis(link, dev);
+
+    /* not found: try to get the node-id from tuple 0x89 */
+    if (err) {
+	    len = pcmcia_get_tuple(link, 0x89, &buf);
+	    /* data layout looks like tuple 0x22 */
+	    if (buf && len == 8) {
+		    if (*buf == CISTPL_FUNCE_LAN_NODE_ID) {
+			    int i;
+			    for (i = 2; i < 6; i++)
+				    dev->dev_addr[i] = buf[i+2];
+		    } else
+			    err = -1;
 	    }
-	}
+	    kfree(buf);
     }
+
+    if (err)
+	err = pcmcia_loop_tuple(link, CISTPL_FUNCE, pcmcia_get_mac_ce, dev);
+
     if (err) {
 	printk(KNOT_XIRC "node-id not found in CIS\n");
 	goto failure;
     }
-    node_id = (cistpl_lan_node_id_t *)parse.funce.data;
-    if (node_id->nb != 6) {
-	printk(KNOT_XIRC "malformed node-id in CIS\n");
-	goto failure;
-    }
-    for (i=0; i < 6; i++)
-	dev->dev_addr[i] = node_id->id[i];
 
     link->io.IOAddrLines =10;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-    link->irq.Attributes = IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     if (local->modem) {
 	int pass;
 
@@ -883,7 +841,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status |= CCSR_AUDIO_ENA;
 	}
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED ;
+	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts2 = 8;
 	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
@@ -916,10 +874,8 @@ xirc2ps_config(struct pcmcia_device * link)
 		goto port_found;
 	}
 	link->io.BasePort1 = 0; /* let CS decide */
-	if ((err=pcmcia_request_io(link, &link->io))) {
-	    cs_error(link, RequestIO, err);
+	if ((err=pcmcia_request_io(link, &link->io)))
 	    goto config_error;
-	}
     }
   port_found:
     if (err)
@@ -929,19 +885,15 @@ xirc2ps_config(struct pcmcia_device * link)
      * Now allocate an interrupt line.	Note that this does not
      * actually assign a handler to the interrupt.
      */
-    if ((err=pcmcia_request_irq(link, &link->irq))) {
-	cs_error(link, RequestIRQ, err);
+    if ((err=pcmcia_request_irq(link, &link->irq)))
 	goto config_error;
-    }
 
     /****************
      * This actually configures the PCMCIA socket -- setting up
      * the I/O windows and the interrupt mapping.
      */
-    if ((err=pcmcia_request_configuration(link, &link->conf))) {
-	cs_error(link, RequestConfiguration, err);
+    if ((err=pcmcia_request_configuration(link, &link->conf)))
 	goto config_error;
-    }
 
     if (local->dingo) {
 	conf_reg_t reg;
@@ -956,17 +908,13 @@ xirc2ps_config(struct pcmcia_device * link)
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_0;
 	reg.Value = link->io.BasePort2 & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg))) {
-	    cs_error(link, AccessConfigurationRegister, err);
+	if ((err = pcmcia_access_configuration_register(link, &reg)))
 	    goto config_error;
-	}
 	reg.Action = CS_WRITE;
 	reg.Offset = CISREG_IOBASE_1;
 	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg))) {
-	    cs_error(link, AccessConfigurationRegister, err);
+	if ((err = pcmcia_access_configuration_register(link, &reg)))
 	    goto config_error;
-	}
 
 	/* There is no config entry for the Ethernet part which
 	 * is at 0x0800. So we allocate a window into the attribute
@@ -975,17 +923,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
 	req.Base = req.Size = 0;
 	req.AccessSpeed = 0;
-	if ((err = pcmcia_request_window(&link, &req, &link->win))) {
-	    cs_error(link, RequestWindow, err);
+	if ((err = pcmcia_request_window(link, &req, &link->win)))
 	    goto config_error;
-	}
+
 	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
 	mem.CardOffset = 0x0;
 	mem.Page = 0;
-	if ((err = pcmcia_map_mem_page(link->win, &mem))) {
-	    cs_error(link, MapMemPage, err);
+	if ((err = pcmcia_map_mem_page(link, link->win, &mem)))
 	    goto config_error;
-	}
 
 	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
 	 * part.
@@ -1044,7 +989,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
     link->dev_node = &local->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
@@ -1077,7 +1022,7 @@ xirc2ps_config(struct pcmcia_device * link)
 static void
 xirc2ps_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "release(0x%p)\n", link);
+	dev_dbg(&link->dev, "release\n");
 
 	if (link->win) {
 		struct net_device *dev = link->priv;
@@ -1144,7 +1089,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	PutByte(XIRCREG_CR, 0);
     }
 
-    DEBUG(6, "%s: interrupt %d at %#x.\n", dev->name, irq, ioaddr);
+    pr_debug("%s: interrupt %d at %#x.\n", dev->name, irq, ioaddr);
 
     saved_page = GetByte(XIRCREG_PR);
     /* Read the ISR to see whats the cause for the interrupt.
@@ -1154,7 +1099,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     bytes_rcvd = 0;
   loop_entry:
     if (int_status == 0xff) { /* card may be ejected */
-	DEBUG(3, "%s: interrupt %d for dead card\n", dev->name, irq);
+	pr_debug("%s: interrupt %d for dead card\n", dev->name, irq);
 	goto leave;
     }
     eth_status = GetByte(XIRCREG_ESR);
@@ -1167,7 +1112,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     PutByte(XIRCREG40_TXST0, 0);
     PutByte(XIRCREG40_TXST1, 0);
 
-    DEBUG(3, "%s: ISR=%#2.2x ESR=%#2.2x RSR=%#2.2x TSR=%#4.4x\n",
+    pr_debug("%s: ISR=%#2.2x ESR=%#2.2x RSR=%#2.2x TSR=%#4.4x\n",
 	  dev->name, int_status, eth_status, rx_status, tx_status);
 
     /***** receive section ******/
@@ -1178,14 +1123,14 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	    /* too many bytes received during this int, drop the rest of the
 	     * packets */
 	    dev->stats.rx_dropped++;
-	    DEBUG(2, "%s: RX drop, too much done\n", dev->name);
+	    pr_debug("%s: RX drop, too much done\n", dev->name);
 	} else if (rsr & PktRxOk) {
 	    struct sk_buff *skb;
 
 	    pktlen = GetWord(XIRCREG0_RBC);
 	    bytes_rcvd += pktlen;
 
-	    DEBUG(5, "rsr=%#02x packet_length=%u\n", rsr, pktlen);
+	    pr_debug("rsr=%#02x packet_length=%u\n", rsr, pktlen);
 
 	    skb = dev_alloc_skb(pktlen+3); /* 1 extra so we can use insw */
 	    if (!skb) {
@@ -1253,19 +1198,19 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		    dev->stats.multicast++;
 	    }
 	} else { /* bad packet */
-	    DEBUG(5, "rsr=%#02x\n", rsr);
+	    pr_debug("rsr=%#02x\n", rsr);
 	}
 	if (rsr & PktTooLong) {
 	    dev->stats.rx_frame_errors++;
-	    DEBUG(3, "%s: Packet too long\n", dev->name);
+	    pr_debug("%s: Packet too long\n", dev->name);
 	}
 	if (rsr & CRCErr) {
 	    dev->stats.rx_crc_errors++;
-	    DEBUG(3, "%s: CRC error\n", dev->name);
+	    pr_debug("%s: CRC error\n", dev->name);
 	}
 	if (rsr & AlignErr) {
 	    dev->stats.rx_fifo_errors++; /* okay ? */
-	    DEBUG(3, "%s: Alignment error\n", dev->name);
+	    pr_debug("%s: Alignment error\n", dev->name);
 	}
 
 	/* clear the received/dropped/error packet */
@@ -1277,7 +1222,7 @@ xirc2ps_interrupt(int irq, void *dev_id)
     if (rx_status & 0x10) { /* Receive overrun */
 	dev->stats.rx_over_errors++;
 	PutByte(XIRCREG_CR, ClearRxOvrun);
-	DEBUG(3, "receive overrun cleared\n");
+	pr_debug("receive overrun cleared\n");
     }
 
     /***** transmit section ******/
@@ -1290,13 +1235,13 @@ xirc2ps_interrupt(int irq, void *dev_id)
 	if (nn < n) /* rollover */
 	    dev->stats.tx_packets += 256 - n;
 	else if (n == nn) { /* happens sometimes - don't know why */
-	    DEBUG(0, "PTR not changed?\n");
+	    pr_debug("PTR not changed?\n");
 	} else
 	    dev->stats.tx_packets += lp->last_ptr_value - n;
 	netif_wake_queue(dev);
     }
     if (tx_status & 0x0002) {	/* Execessive collissions */
-	DEBUG(0, "tx restarted due to execssive collissions\n");
+	pr_debug("tx restarted due to execssive collissions\n");
 	PutByte(XIRCREG_CR, RestartTx);  /* restart transmitter process */
     }
     if (tx_status & 0x0040)
@@ -1315,14 +1260,14 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		maxrx_bytes = 2000;
 	    else if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
-	    DEBUG(1, "set maxrx=%u (rcvd=%u ticks=%lu)\n",
+	    pr_debug("set maxrx=%u (rcvd=%u ticks=%lu)\n",
 		  maxrx_bytes, bytes_rcvd, duration);
 	} else if (!duration && maxrx_bytes < 22000) {
 	    /* now much faster */
 	    maxrx_bytes += 2000;
 	    if (maxrx_bytes > 22000)
 		maxrx_bytes = 22000;
-	    DEBUG(1, "set maxrx=%u\n", maxrx_bytes);
+	    pr_debug("set maxrx=%u\n", maxrx_bytes);
 	}
     }
 
@@ -1372,7 +1317,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     unsigned freespace;
     unsigned pktlen = skb->len;
 
-    DEBUG(1, "do_start_xmit(skb=%p, dev=%p) len=%u\n",
+    pr_debug("do_start_xmit(skb=%p, dev=%p) len=%u\n",
 	  skb, dev, pktlen);
 
 
@@ -1398,7 +1343,7 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     freespace &= 0x7fff;
     /* TRS doesn't work - (indeed it is eliminated with sil-rev 1) */
     okay = pktlen +2 < freespace;
-    DEBUG(2 + (okay ? 2 : 0), "%s: avail. tx space=%u%s\n",
+    pr_debug("%s: avail. tx space=%u%s\n",
 	  dev->name, freespace, okay ? " (okay)":" (not enough)");
     if (!okay) { /* not enough space */
 	return NETDEV_TX_BUSY;  /* upper layer may decide to requeue this packet */
@@ -1500,7 +1445,7 @@ do_config(struct net_device *dev, struct ifmap *map)
 {
     local_info_t *local = netdev_priv(dev);
 
-    DEBUG(0, "do_config(%p)\n", dev);
+    pr_debug("do_config(%p)\n", dev);
     if (map->port != 255 && map->port != dev->if_port) {
 	if (map->port > 4)
 	    return -EINVAL;
@@ -1527,7 +1472,7 @@ do_open(struct net_device *dev)
     local_info_t *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
-    DEBUG(0, "do_open(%p)\n", dev);
+    dev_dbg(&link->dev, "do_open(%p)\n", dev);
 
     /* Check that the PCMCIA card is still here. */
     /* Physical device present signature. */
@@ -1561,7 +1506,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     unsigned int ioaddr = dev->base_addr;
     struct mii_ioctl_data *data = if_mii(rq);
 
-    DEBUG(1, "%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
+    pr_debug("%s: ioctl(%-.6s, %#04x) %04x %04x %04x %04x\n",
 	  dev->name, rq->ifr_ifrn.ifrn_name, cmd,
 	  data->phy_id, data->reg_num, data->val_in, data->val_out);
 
@@ -1610,7 +1555,7 @@ do_reset(struct net_device *dev, int full)
     unsigned int ioaddr = dev->base_addr;
     unsigned value;
 
-    DEBUG(0, "%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
+    pr_debug("%s: do_reset(%p,%d)\n", dev? dev->name:"eth?", dev, full);
 
     hardreset(dev);
     PutByte(XIRCREG_CR, SoftReset); /* set */
@@ -1648,8 +1593,8 @@ do_reset(struct net_device *dev, int full)
     }
     msleep(40);			     /* wait 40 msec to let it complete */
 
-  #ifdef PCMCIA_DEBUG
-    if (pc_debug) {
+  #if 0
+    {
 	SelectPage(0);
 	value = GetByte(XIRCREG_ESR);	 /* read the ESR */
 	printk(KERN_DEBUG "%s: ESR is: %#02x\n", dev->name, value);
@@ -1666,7 +1611,7 @@ do_reset(struct net_device *dev, int full)
 	value |= DisableLinkPulse;
     PutByte(XIRCREG1_ECR, value);
   #endif
-    DEBUG(0, "%s: ECR is: %#02x\n", dev->name, value);
+    pr_debug("%s: ECR is: %#02x\n", dev->name, value);
 
     SelectPage(0x42);
     PutByte(XIRCREG42_SWC0, 0x20); /* disable source insertion */
@@ -1844,7 +1789,7 @@ do_powerdown(struct net_device *dev)
 
     unsigned int ioaddr = dev->base_addr;
 
-    DEBUG(0, "do_powerdown(%p)\n", dev);
+    pr_debug("do_powerdown(%p)\n", dev);
 
     SelectPage(4);
     PutByte(XIRCREG4_GPR1, 0);	     /* clear bit 0: power down */
@@ -1858,7 +1803,7 @@ do_stop(struct net_device *dev)
     local_info_t *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
-    DEBUG(0, "do_stop(%p)\n", dev);
+    dev_dbg(&link->dev, "do_stop(%p)\n", dev);
 
     if (!link)
 	return -ENODEV;

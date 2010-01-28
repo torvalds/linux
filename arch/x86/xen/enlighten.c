@@ -27,7 +27,9 @@
 #include <linux/page-flags.h>
 #include <linux/highmem.h>
 #include <linux/console.h>
+#include <linux/pci.h>
 
+#include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
@@ -138,24 +140,23 @@ static void xen_vcpu_setup(int cpu)
  */
 void xen_vcpu_restore(void)
 {
-	if (have_vcpu_info_placement) {
-		int cpu;
+	int cpu;
 
-		for_each_online_cpu(cpu) {
-			bool other_cpu = (cpu != smp_processor_id());
+	for_each_online_cpu(cpu) {
+		bool other_cpu = (cpu != smp_processor_id());
 
-			if (other_cpu &&
-			    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
-				BUG();
+		if (other_cpu &&
+		    HYPERVISOR_vcpu_op(VCPUOP_down, cpu, NULL))
+			BUG();
 
+		xen_setup_runstate_info(cpu);
+
+		if (have_vcpu_info_placement)
 			xen_vcpu_setup(cpu);
 
-			if (other_cpu &&
-			    HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
-				BUG();
-		}
-
-		BUG_ON(!have_vcpu_info_placement);
+		if (other_cpu &&
+		    HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL))
+			BUG();
 	}
 }
 
@@ -1093,10 +1094,8 @@ asmlinkage void __init xen_start_kernel(void)
 
 	__supported_pte_mask |= _PAGE_IOMAP;
 
-#ifdef CONFIG_X86_64
 	/* Work out if we support NX */
-	check_efer();
-#endif
+	x86_configure_nx();
 
 	xen_setup_features();
 
@@ -1152,9 +1151,13 @@ asmlinkage void __init xen_start_kernel(void)
 
 	/* keep using Xen gdt for now; no urgent need to change it */
 
+#ifdef CONFIG_X86_32
 	pv_info.kernel_rpl = 1;
 	if (xen_feature(XENFEAT_supervisor_mode_kernel))
 		pv_info.kernel_rpl = 0;
+#else
+	pv_info.kernel_rpl = 0;
+#endif
 
 	/* set the limit of our address space */
 	xen_reserve_top();
@@ -1178,9 +1181,15 @@ asmlinkage void __init xen_start_kernel(void)
 		add_preferred_console("xenboot", 0, NULL);
 		add_preferred_console("tty", 0, NULL);
 		add_preferred_console("hvc", 0, NULL);
+	} else {
+		/* Make sure ACS will be enabled */
+		pci_request_acs();
 	}
+		
 
 	xen_raw_console_write("about to get started...\n");
+
+	xen_setup_runstate_info(0);
 
 	/* Start the world */
 #ifdef CONFIG_X86_32

@@ -38,19 +38,27 @@ struct labpc_board_struct {
 	int device_id;		/*  device id for pci and pcmcia boards */
 	int ai_speed;		/*  maximum input speed in nanoseconds */
 	enum labpc_bustype bustype;	/*  ISA/PCI/etc. */
-	enum labpc_register_layout register_layout;	/*  1200 has extra registers compared to pc+ */
+
+	/*  1200 has extra registers compared to pc+ */
+	enum labpc_register_layout register_layout;
 	int has_ao;		/*  has analog output true/false */
 	const struct comedi_lrange *ai_range_table;
 	const int *ai_range_code;
 	const int *ai_range_is_unipolar;
-	unsigned ai_scan_up:1;	/*  board can auto scan up in ai channels, not just down */
-	unsigned memory_mapped_io:1;	/* uses memory mapped io instead of ioports */
+
+	/*  board can auto scan up in ai channels, not just down */
+	unsigned ai_scan_up:1;
+
+	/* uses memory mapped io instead of ioports */
+	unsigned memory_mapped_io:1;
 };
 
 struct labpc_private {
 	struct mite_struct *mite;	/*  for mite chip on pci-1200 */
-	volatile unsigned long long count;	/* number of data points left to be taken */
-	unsigned int ao_value[NUM_AO_CHAN];	/*  software copy of analog output values */
+	/*  number of data points left to be taken */
+	volatile unsigned long long count;
+	/*  software copy of analog output values */
+	unsigned int ao_value[NUM_AO_CHAN];
 	/*  software copys of bits written to command registers */
 	volatile unsigned int command1_bits;
 	volatile unsigned int command2_bits;
@@ -61,16 +69,34 @@ struct labpc_private {
 	/*  store last read of board status registers */
 	volatile unsigned int status1_bits;
 	volatile unsigned int status2_bits;
-	unsigned int divisor_a0;	/* value to load into board's counter a0 (conversion pacing) for timed conversions */
-	unsigned int divisor_b0;	/* value to load into board's counter b0 (master) for timed conversions */
-	unsigned int divisor_b1;	/* value to load into board's counter b1 (scan pacing) for timed conversions */
+	/*
+	 * value to load into board's counter a0 (conversion pacing) for timed
+	 * conversions
+	 */
+	unsigned int divisor_a0;
+	/*
+	 * value to load into board's counter b0 (master) for timed conversions
+	 */
+	unsigned int divisor_b0;
+	/*
+	 * value to load into board's counter b1 (scan pacing) for timed
+	 * conversions
+	 */
+	unsigned int divisor_b1;
 	unsigned int dma_chan;	/*  dma channel to use */
 	u16 *dma_buffer;	/*  buffer ai will dma into */
-	unsigned int dma_transfer_size;	/*  transfer size in bytes for current transfer */
-	enum transfer_type current_transfer;	/*  we are using dma/fifo-half-full/etc. */
-	unsigned int eeprom_data[EEPROM_SIZE];	/*  stores contents of board's eeprom */
-	unsigned int caldac[16];	/*  stores settings of calibration dacs */
-	/*  function pointers so we can use inb/outb or readb/writeb as appropriate */
+	/* transfer size in bytes for current transfer */
+	unsigned int dma_transfer_size;
+	/* we are using dma/fifo-half-full/etc. */
+	enum transfer_type current_transfer;
+	/* stores contents of board's eeprom */
+	unsigned int eeprom_data[EEPROM_SIZE];
+	/* stores settings of calibration dacs */
+	unsigned int caldac[16];
+	/*
+	 * function pointers so we can use inb/outb or readb/writeb as
+	 * appropriate
+	 */
 	unsigned int (*read_byte) (unsigned long address);
 	void (*write_byte) (unsigned int byte, unsigned long address);
 };

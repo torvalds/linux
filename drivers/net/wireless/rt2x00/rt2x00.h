@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -112,6 +113,12 @@
 	(  ((unsigned long)((__skb)->data + (__header))) & 3 )
 
 /*
+ * Constants for extra TX headroom for alignment purposes.
+ */
+#define RT2X00_ALIGN_SIZE	4 /* Only whole frame needs alignment */
+#define RT2X00_L2PAD_SIZE	8 /* Both header & payload need alignment */
+
+/*
  * Standard timing and size defines.
  * These values should follow the ieee80211 specifications.
  */
@@ -144,6 +151,11 @@ struct avg_val {
 	int avg_weight;
 };
 
+enum rt2x00_chip_intf {
+	RT2X00_CHIP_INTF_PCI,
+	RT2X00_CHIP_INTF_USB,
+};
+
 /*
  * Chipset identification
  * The chipset on the device is composed of a RT and RF chip.
@@ -158,10 +170,20 @@ struct rt2x00_chip {
 #define RT2561		0x0302
 #define RT2661		0x0401
 #define RT2571		0x1300
+#define RT2860		0x0601	/* 2.4GHz PCI/CB */
+#define RT2860D		0x0681	/* 2.4GHz, 5GHz PCI/CB */
+#define RT2890		0x0701	/* 2.4GHz PCIe */
+#define RT2890D		0x0781	/* 2.4GHz, 5GHz PCIe */
+#define RT2880		0x2880	/* WSOC */
+#define RT3052		0x3052	/* WSOC */
+#define RT3090		0x3090	/* 2.4GHz PCIe */
 #define RT2870		0x1600
+#define RT3070		0x1800
 
 	u16 rf;
 	u32 rev;
+
+	enum rt2x00_chip_intf intf;
 };
 
 /*
@@ -297,13 +319,6 @@ struct link {
 	 * Currently active average RSSI value
 	 */
 	struct avg_val avg_rssi;
-
-	/*
-	 * Currently precalculated percentages of successful
-	 * TX and RX frames.
-	 */
-	int rx_percentage;
-	int tx_percentage;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.
@@ -579,6 +594,7 @@ struct rt2x00_ops {
 	const unsigned int eeprom_size;
 	const unsigned int rf_size;
 	const unsigned int tx_queues;
+	const unsigned int extra_tx_headroom;
 	const struct data_queue_desc *rx;
 	const struct data_queue_desc *tx;
 	const struct data_queue_desc *bcn;
@@ -835,7 +851,21 @@ struct rt2x00_dev {
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
+
+	/*
+	 * Driver specific data.
+	 */
+	void *priv;
 };
+
+/*
+ * Register defines.
+ * Some registers require multiple attempts before success,
+ * in those cases REGISTER_BUSY_COUNT attempts should be
+ * taken with a REGISTER_BUSY_DELAY interval.
+ */
+#define REGISTER_BUSY_COUNT	5
+#define REGISTER_BUSY_DELAY	100
 
 /*
  * Generic RF access.
@@ -883,10 +913,6 @@ static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,
 static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 				   const u16 rt, const u16 rf, const u32 rev)
 {
-	INFO(rt2x00dev,
-	     "Chipset detected - rt: %04x, rf: %04x, rev: %08x.\n",
-	     rt, rf, rev);
-
 	rt2x00dev->chip.rt = rt;
 	rt2x00dev->chip.rf = rf;
 	rt2x00dev->chip.rev = rev;
@@ -902,6 +928,13 @@ static inline void rt2x00_set_chip_rf(struct rt2x00_dev *rt2x00dev,
 				      const u16 rf, const u32 rev)
 {
 	rt2x00_set_chip(rt2x00dev, rt2x00dev->chip.rt, rf, rev);
+}
+
+static inline void rt2x00_print_chip(struct rt2x00_dev *rt2x00dev)
+{
+	INFO(rt2x00dev,
+	     "Chipset detected - rt: %04x, rf: %04x, rev: %08x.\n",
+	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
 }
 
 static inline char rt2x00_rt(const struct rt2x00_chip *chipset, const u16 chip)
@@ -923,6 +956,28 @@ static inline bool rt2x00_check_rev(const struct rt2x00_chip *chipset,
 				    const u32 mask, const u32 rev)
 {
 	return ((chipset->rev & mask) == rev);
+}
+
+static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,
+					enum rt2x00_chip_intf intf)
+{
+	rt2x00dev->chip.intf = intf;
+}
+
+static inline bool rt2x00_intf(const struct rt2x00_chip *chipset,
+			       enum rt2x00_chip_intf intf)
+{
+	return (chipset->intf == intf);
+}
+
+static inline bool rt2x00_intf_is_pci(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_intf(&rt2x00dev->chip, RT2X00_CHIP_INTF_PCI);
+}
+
+static inline bool rt2x00_intf_is_usb(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_intf(&rt2x00dev->chip, RT2X00_CHIP_INTF_USB);
 }
 
 /**

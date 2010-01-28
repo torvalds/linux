@@ -1710,11 +1710,16 @@ int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
 {
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_holder ri_gh, rgd_gh;
+	struct gfs2_inode *ip = GFS2_I(sdp->sd_rindex);
+	int ri_locked = 0;
 	int error;
 
-	error = gfs2_rindex_hold(sdp, &ri_gh);
-	if (error)
-		goto fail;
+	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
+		error = gfs2_rindex_hold(sdp, &ri_gh);
+		if (error)
+			goto fail;
+		ri_locked = 1;
+	}
 
 	error = -EINVAL;
 	rgd = gfs2_blk2rgrpd(sdp, no_addr);
@@ -1730,7 +1735,8 @@ int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr, unsigned int type)
 
 	gfs2_glock_dq_uninit(&rgd_gh);
 fail_rindex:
-	gfs2_glock_dq_uninit(&ri_gh);
+	if (ri_locked)
+		gfs2_glock_dq_uninit(&ri_gh);
 fail:
 	return error;
 }

@@ -88,7 +88,7 @@ static ctl_table mq_sysctls[] = {
 		.extra1		= &msg_maxsize_limit_min,
 		.extra2		= &msg_maxsize_limit_max,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 static ctl_table mq_sysctl_dir[] = {
@@ -97,17 +97,16 @@ static ctl_table mq_sysctl_dir[] = {
 		.mode		= 0555,
 		.child		= mq_sysctls,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 static ctl_table mq_sysctl_root[] = {
 	{
-		.ctl_name	= CTL_FS,
 		.procname	= "fs",
 		.mode		= 0555,
 		.child		= mq_sysctl_dir,
 	},
-	{ .ctl_name = 0 }
+	{}
 };
 
 struct ctl_table_header *mq_register_sysctl_table(void)

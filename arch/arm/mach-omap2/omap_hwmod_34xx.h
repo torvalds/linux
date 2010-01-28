@@ -14,10 +14,10 @@
 
 #ifdef CONFIG_ARCH_OMAP34XX
 
-#include <mach/omap_hwmod.h>
+#include <plat/omap_hwmod.h>
 #include <mach/irqs.h>
-#include <mach/cpu.h>
-#include <mach/dma.h>
+#include <plat/cpu.h>
+#include <plat/dma.h>
 
 #include "prm-regbits-34xx.h"
 

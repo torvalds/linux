@@ -5,8 +5,7 @@
 #include <linux/ktime.h>
 #include <net/sch_generic.h>
 
-struct qdisc_walker
-{
+struct qdisc_walker {
 	int	stop;
 	int	skip;
 	int	count;

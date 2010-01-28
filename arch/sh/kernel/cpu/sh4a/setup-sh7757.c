@@ -17,6 +17,51 @@
 #include <linux/mm.h>
 #include <linux/sh_timer.h>
 
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xfe4b0000,		/* SCIF2 */
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 40, 40, 40, 40 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
+	},
+};
+
+static struct plat_sci_port scif3_platform_data = {
+	.mapbase	= 0xfe4c0000,		/* SCIF3 */
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 76, 76, 76, 76 },
+};
+
+static struct platform_device scif3_device = {
+	.name		= "sh-sci",
+	.id		= 3,
+	.dev		= {
+		.platform_data	= &scif3_platform_data,
+	},
+};
+
+static struct plat_sci_port scif4_platform_data = {
+	.mapbase	= 0xfe4d0000,		/* SCIF4 */
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 104, 104, 104, 104 },
+};
+
+static struct platform_device scif4_device = {
+	.name		= "sh-sci",
+	.id		= 4,
+	.dev		= {
+		.platform_data	= &scif4_platform_data,
+	},
+};
+
 static struct sh_timer_config tmu0_platform_data = {
 	.name = "TMU0",
 	.channel_offset = 0x04,
@@ -79,39 +124,12 @@ static struct platform_device tmu1_device = {
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
 };
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xfe4b0000,		/* SCIF2 */
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 40, 40, 40, 40 },
-	}, {
-		.mapbase	= 0xfe4c0000,		/* SCIF3 */
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 76, 76, 76, 76 },
-	}, {
-		.mapbase	= 0xfe4d0000,		/* SCIF4 */
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 104, 104, 104, 104 },
-	}, {
-		.flags = 0,
-	}
-};
-
-static struct platform_device sci_device = {
-	.name		= "sh-sci",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= sci_platform_data,
-	},
-};
-
 static struct platform_device *sh7757_devices[] __initdata = {
+	&scif2_device,
+	&scif3_device,
+	&scif4_device,
 	&tmu0_device,
 	&tmu1_device,
-	&sci_device,
 };
 
 static int __init sh7757_devices_setup(void)
@@ -120,6 +138,20 @@ static int __init sh7757_devices_setup(void)
 				    ARRAY_SIZE(sh7757_devices));
 }
 arch_initcall(sh7757_devices_setup);
+
+static struct platform_device *sh7757_early_devices[] __initdata = {
+	&scif2_device,
+	&scif3_device,
+	&scif4_device,
+	&tmu0_device,
+	&tmu1_device,
+};
+
+void __init plat_early_device_setup(void)
+{
+	early_platform_add_devices(sh7757_early_devices,
+				   ARRAY_SIZE(sh7757_early_devices));
+}
 
 enum {
 	UNUSED = 0,

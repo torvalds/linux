@@ -451,7 +451,7 @@ static void snd_emu_proc_io_reg_write(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x", &reg, &val) != 2)
 			continue;
-		if ((reg < 0x40) && (reg >= 0) && (val <= 0xffffffff) ) {
+		if (reg < 0x40 && val <= 0xffffffff) {
 			spin_lock_irqsave(&emu->emu_lock, flags);
 			outl(val, emu->port + (reg & 0xfffffffc));
 			spin_unlock_irqrestore(&emu->emu_lock, flags);
@@ -527,7 +527,7 @@ static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
-		if ((reg < 0xa0) && (reg >= 0) && (val <= 0xffffffff) && (channel_id >= 0) && (channel_id <= 3) )
+		if (reg < 0xa0 && val <= 0xffffffff && channel_id <= 3)
 			snd_ptr_write(emu, iobase, reg, channel_id, val);
 	}
 }

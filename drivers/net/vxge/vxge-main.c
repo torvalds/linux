@@ -310,7 +310,7 @@ static int vxge_rx_map(void *dtrh, struct vxge_ring *ring)
 	dma_addr = pci_map_single(ring->pdev, rx_priv->skb_data,
 				rx_priv->data_size, PCI_DMA_FROMDEVICE);
 
-	if (dma_addr == 0) {
+	if (unlikely(pci_dma_mapping_error(ring->pdev, dma_addr))) {
 		ring->stats.pci_map_fail++;
 		return -EIO;
 	}
@@ -2435,7 +2435,6 @@ static int vxge_add_isr(struct vxgedev *vdev)
 	int ret = 0;
 #ifdef CONFIG_PCI_MSI
 	int vp_idx = 0, intr_idx = 0, intr_cnt = 0, msix_idx = 0, irq_req = 0;
-	u64 function_mode = vdev->config.device_hw_info.function_mode;
 	int pci_fun = PCI_FUNC(vdev->pdev->devfn);
 
 	if (vdev->config.intr_type == MSI_X)
@@ -2444,20 +2443,9 @@ static int vxge_add_isr(struct vxgedev *vdev)
 	if (ret) {
 		vxge_debug_init(VXGE_ERR,
 			"%s: Enabling MSI-X Failed", VXGE_DRIVER_NAME);
-		if ((function_mode == VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION) &&
-			test_and_set_bit(__VXGE_STATE_CARD_UP,
-				&driver_config->inta_dev_open))
-			return VXGE_HW_FAIL;
-		else {
-			vxge_debug_init(VXGE_ERR,
-				"%s: Defaulting to INTA", VXGE_DRIVER_NAME);
-			vdev->config.intr_type = INTA;
-			vxge_hw_device_set_intr_type(vdev->devh,
-				VXGE_HW_INTR_MODE_IRQLINE);
-			vxge_close_vpaths(vdev, 1);
-			vdev->no_of_vpath = 1;
-			vdev->stats.vpaths_open = 1;
-		}
+		vxge_debug_init(VXGE_ERR,
+			"%s: Defaulting to INTA", VXGE_DRIVER_NAME);
+		vdev->config.intr_type = INTA;
 	}
 
 	if (vdev->config.intr_type == MSI_X) {
@@ -2505,24 +2493,11 @@ static int vxge_add_isr(struct vxgedev *vdev)
 					"%s: MSIX - %d  Registration failed",
 					vdev->ndev->name, intr_cnt);
 				vxge_rem_msix_isr(vdev);
-				if ((function_mode ==
-					VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION) &&
-					test_and_set_bit(__VXGE_STATE_CARD_UP,
-						&driver_config->inta_dev_open))
-					return VXGE_HW_FAIL;
-				else {
-					vxge_hw_device_set_intr_type(
-						vdev->devh,
-						VXGE_HW_INTR_MODE_IRQLINE);
-						vdev->config.intr_type = INTA;
-					vxge_debug_init(VXGE_ERR,
-						"%s: Defaulting to INTA"
-						, vdev->ndev->name);
-					vxge_close_vpaths(vdev, 1);
-					vdev->no_of_vpath = 1;
-					vdev->stats.vpaths_open = 1;
+				vdev->config.intr_type = INTA;
+				vxge_debug_init(VXGE_ERR,
+					"%s: Defaulting to INTA"
+					, vdev->ndev->name);
 					goto INTA_MODE;
-				}
 			}
 
 			if (irq_req) {
@@ -2535,9 +2510,9 @@ static int vxge_add_isr(struct vxgedev *vdev)
 			}
 
 			/* Point to next vpath handler */
-			if (((intr_idx + 1) % VXGE_HW_VPATH_MSIX_ACTIVE == 0)
-				&& (vp_idx < (vdev->no_of_vpath - 1)))
-					vp_idx++;
+			if (((intr_idx + 1) % VXGE_HW_VPATH_MSIX_ACTIVE == 0) &&
+			    (vp_idx < (vdev->no_of_vpath - 1)))
+				vp_idx++;
 		}
 
 		intr_cnt = vdev->max_vpath_supported * 2;
@@ -2555,23 +2530,11 @@ static int vxge_add_isr(struct vxgedev *vdev)
 				"%s: MSIX - %d Registration failed",
 				vdev->ndev->name, intr_cnt);
 			vxge_rem_msix_isr(vdev);
-			if ((function_mode ==
-				VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION) &&
-				test_and_set_bit(__VXGE_STATE_CARD_UP,
-						&driver_config->inta_dev_open))
-				return VXGE_HW_FAIL;
-			else {
-				vxge_hw_device_set_intr_type(vdev->devh,
-						VXGE_HW_INTR_MODE_IRQLINE);
-				vdev->config.intr_type = INTA;
-				vxge_debug_init(VXGE_ERR,
-					"%s: Defaulting to INTA",
-					vdev->ndev->name);
-				vxge_close_vpaths(vdev, 1);
-				vdev->no_of_vpath = 1;
-				vdev->stats.vpaths_open = 1;
+			vdev->config.intr_type = INTA;
+			vxge_debug_init(VXGE_ERR,
+				"%s: Defaulting to INTA",
+				vdev->ndev->name);
 				goto INTA_MODE;
-			}
 		}
 
 		vxge_hw_vpath_msix_unmask(vdev->vpaths[vp_idx].handle,
@@ -2584,6 +2547,10 @@ INTA_MODE:
 	snprintf(vdev->desc[0], VXGE_INTR_STRLEN, "%s:vxge", vdev->ndev->name);
 
 	if (vdev->config.intr_type == INTA) {
+		vxge_hw_device_set_intr_type(vdev->devh,
+			VXGE_HW_INTR_MODE_IRQLINE);
+		vxge_hw_vpath_tti_ci_set(vdev->devh,
+			vdev->vpaths[0].device_id);
 		ret = request_irq((int) vdev->pdev->irq,
 			vxge_isr_napi,
 			IRQF_SHARED, vdev->desc[0], vdev);
@@ -2687,13 +2654,6 @@ vxge_open(struct net_device *dev)
 	/* make sure you have link off by default every time Nic is
 	 * initialized */
 	netif_carrier_off(dev);
-
-	/* Check for another device already opn with INTA */
-	if ((function_mode == VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION) &&
-		test_bit(__VXGE_STATE_CARD_UP, &driver_config->inta_dev_open)) {
-		ret = -EPERM;
-		goto out0;
-	}
 
 	/* Open VPATHs */
 	status = vxge_open_vpaths(vdev);
@@ -2983,7 +2943,6 @@ int do_vxge_close(struct net_device *dev, int do_io)
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d  Exiting...", dev->name, __func__, __LINE__);
 
-	clear_bit(__VXGE_STATE_CARD_UP, &driver_config->inta_dev_open);
 	clear_bit(__VXGE_STATE_RESET_CARD, &vdev->state);
 
 	return 0;
@@ -3653,11 +3612,12 @@ static int __devinit vxge_config_vpaths(
 		device_config->vp_config[i].fifo.enable =
 						VXGE_HW_FIFO_ENABLE;
 		device_config->vp_config[i].fifo.max_frags =
-				MAX_SKB_FRAGS;
+				MAX_SKB_FRAGS + 1;
 		device_config->vp_config[i].fifo.memblock_size =
 			VXGE_HW_MIN_FIFO_MEMBLOCK_SIZE;
 
-		txdl_size = MAX_SKB_FRAGS * sizeof(struct vxge_hw_fifo_txd);
+		txdl_size = device_config->vp_config[i].fifo.max_frags *
+				sizeof(struct vxge_hw_fifo_txd);
 		txdl_per_memblock = VXGE_HW_MIN_FIFO_MEMBLOCK_SIZE / txdl_size;
 
 		device_config->vp_config[i].fifo.fifo_blocks =
@@ -4088,8 +4048,9 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		driver_config->config_dev_cnt = 0;
 		driver_config->total_dev_cnt = 0;
 		driver_config->g_no_cpus = 0;
-		driver_config->vpath_per_dev = max_config_vpath;
 	}
+
+	driver_config->vpath_per_dev = max_config_vpath;
 
 	driver_config->total_dev_cnt++;
 	if (++driver_config->config_dev_cnt > max_config_dev) {
@@ -4126,21 +4087,21 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit0;
 	}
 
-	if (!pci_set_dma_mask(pdev, 0xffffffffffffffffULL)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s : using 64bit DMA", __func__);
 
 		high_dma = 1;
 
 		if (pci_set_consistent_dma_mask(pdev,
-						0xffffffffffffffffULL)) {
+						DMA_BIT_MASK(64))) {
 			vxge_debug_init(VXGE_ERR,
 				"%s : unable to obtain 64bit DMA for "
 				"consistent allocations", __func__);
 			ret = -ENOMEM;
 			goto _exit1;
 		}
-	} else if (!pci_set_dma_mask(pdev, 0xffffffffUL)) {
+	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s : using 32bit DMA", __func__);
 	} else {
@@ -4241,6 +4202,15 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			"Failed to initialize device (%d)", status);
 			ret = -EINVAL;
 			goto _exit3;
+	}
+
+	/* if FCS stripping is not disabled in MAC fail driver load */
+	if (vxge_hw_vpath_strip_fcs_check(hldev, vpath_mask) != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+			"%s: FCS stripping is not disabled in MAC"
+			" failing driver load", VXGE_DRIVER_NAME);
+		ret = -EINVAL;
+		goto _exit4;
 	}
 
 	vxge_hw_device_debug_set(hldev, VXGE_ERR, VXGE_COMPONENT_LL);
@@ -4387,6 +4357,27 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	}
 
 	kfree(device_config);
+
+	/*
+	 * INTA is shared in multi-function mode. This is unlike the INTA
+	 * implementation in MR mode, where each VH has its own INTA message.
+	 * - INTA is masked (disabled) as long as at least one function sets
+	 * its TITAN_MASK_ALL_INT.ALARM bit.
+	 * - INTA is unmasked (enabled) when all enabled functions have cleared
+	 * their own TITAN_MASK_ALL_INT.ALARM bit.
+	 * The TITAN_MASK_ALL_INT ALARM & TRAFFIC bits are cleared on power up.
+	 * Though this driver leaves the top level interrupts unmasked while
+	 * leaving the required module interrupt bits masked on exit, there
+	 * could be a rougue driver around that does not follow this procedure
+	 * resulting in a failure to generate interrupts. The following code is
+	 * present to prevent such a failure.
+	 */
+
+	if (ll_config.device_hw_info.function_mode ==
+		VXGE_HW_FUNCTION_MODE_MULTI_FUNCTION)
+		if (vdev->config.intr_type == INTA)
+			vxge_hw_device_unmask_all(hldev);
+
 	vxge_debug_entryexit(VXGE_TRACE, "%s: %s:%d  Exiting...",
 		vdev->ndev->name, __func__, __LINE__);
 

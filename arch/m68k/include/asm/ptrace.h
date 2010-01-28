@@ -71,6 +71,8 @@ struct switch_stack {
 #define PTRACE_GETFPREGS          14
 #define PTRACE_SETFPREGS          15
 
+#define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
+
 #ifdef __KERNEL__
 
 #ifndef PS_S
@@ -82,6 +84,21 @@ struct switch_stack {
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
+
+/*
+ * These are defined as per linux/ptrace.h.
+ */
+struct task_struct;
+
+#define arch_has_single_step()	(1)
+extern void user_enable_single_step(struct task_struct *);
+extern void user_disable_single_step(struct task_struct *);
+
+#ifdef CONFIG_MMU
+#define arch_has_block_step()	(1)
+extern void user_enable_block_step(struct task_struct *);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _M68K_PTRACE_H */

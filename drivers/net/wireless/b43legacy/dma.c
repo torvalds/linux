@@ -1240,8 +1240,9 @@ struct b43legacy_dmaring *parse_cookie(struct b43legacy_wldev *dev,
 }
 
 static int dma_tx_fragment(struct b43legacy_dmaring *ring,
-			    struct sk_buff *skb)
+			    struct sk_buff **in_skb)
 {
+	struct sk_buff *skb = *in_skb;
 	const struct b43legacy_dma_ops *ops = ring->ops;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	u8 *header;
@@ -1305,8 +1306,14 @@ static int dma_tx_fragment(struct b43legacy_dmaring *ring,
 		}
 
 		memcpy(skb_put(bounce_skb, skb->len), skb->data, skb->len);
+		memcpy(bounce_skb->cb, skb->cb, sizeof(skb->cb));
+		bounce_skb->dev = skb->dev;
+		skb_set_queue_mapping(bounce_skb, skb_get_queue_mapping(skb));
+		info = IEEE80211_SKB_CB(bounce_skb);
+
 		dev_kfree_skb_any(skb);
 		skb = bounce_skb;
+		*in_skb = bounce_skb;
 		meta->skb = skb;
 		meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 		if (b43legacy_dma_mapping_error(ring, meta->dmaaddr, skb->len, 1)) {
@@ -1360,8 +1367,10 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		     struct sk_buff *skb)
 {
 	struct b43legacy_dmaring *ring;
+	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ring = priority_to_txring(dev, skb_get_queue_mapping(skb));
 	spin_lock_irqsave(&ring->lock, flags);
@@ -1386,7 +1395,11 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		goto out_unlock;
 	}
 
-	err = dma_tx_fragment(ring, skb);
+	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
+	 * into the skb data or cb now. */
+	hdr = NULL;
+	info = NULL;
+	err = dma_tx_fragment(ring, &skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */

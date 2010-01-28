@@ -67,6 +67,8 @@
 #define S3C2412_IISMOD_BCLK_MASK	(3 << 1)
 #define S3C2412_IISMOD_8BIT		(1 << 0)
 
+#define S3C64XX_IISMOD_CDCLKCON		(1 << 12)
+
 #define S3C2412_IISPSR_PSREN		(1 << 15)
 
 #define S3C2412_IISFIC_TXFLUSH		(1 << 15)

@@ -76,6 +76,10 @@
 #define ATH9K_TXERR_FIFO           0x04
 #define ATH9K_TXERR_XTXOP          0x08
 #define ATH9K_TXERR_TIMER_EXPIRED  0x10
+#define ATH9K_TX_ACKED		   0x20
+#define ATH9K_TXERR_MASK						\
+	(ATH9K_TXERR_XRETRY | ATH9K_TXERR_FILT | ATH9K_TXERR_FIFO |	\
+	 ATH9K_TXERR_XTXOP | ATH9K_TXERR_TIMER_EXPIRED)
 
 #define ATH9K_TX_BA                0x01
 #define ATH9K_TX_PWRMGMT           0x02
@@ -85,9 +89,15 @@
 #define ATH9K_TX_SW_ABORTED        0x40
 #define ATH9K_TX_SW_FILTERED       0x80
 
+/* 64 bytes */
 #define MIN_TX_FIFO_THRESHOLD   0x1
+
+/*
+ * Single stream device AR9285 and AR9271 require 2 KB
+ * to work around a hardware issue, all other devices
+ * have can use the max 4 KB limit.
+ */
 #define MAX_TX_FIFO_THRESHOLD   ((4096 / 64) - 1)
-#define INIT_TX_FIFO_THRESHOLD  MIN_TX_FIFO_THRESHOLD
 
 struct ath_tx_status {
 	u32 ts_tstamp;
@@ -380,6 +390,11 @@ struct ar5416_desc {
 #define AR_TxBaStatus       0x40000000
 #define AR_TxStatusRsvd01   0x80000000
 
+/*
+ * AR_FrmXmitOK - Frame transmission success flag. If set, the frame was
+ * transmitted successfully. If clear, no ACK or BA was received to indicate
+ * successful transmission when we were expecting an ACK or BA.
+ */
 #define AR_FrmXmitOK            0x00000001
 #define AR_ExcessiveRetries     0x00000002
 #define AR_FIFOUnderrun         0x00000004
@@ -614,19 +629,8 @@ enum ath9k_cipher {
 	ATH9K_CIPHER_MIC = 127
 };
 
-enum ath9k_ht_macmode {
-	ATH9K_HT_MACMODE_20 = 0,
-	ATH9K_HT_MACMODE_2040 = 1,
-};
-
-enum ath9k_ht_extprotspacing {
-	ATH9K_HT_EXTPROTSPACING_20 = 0,
-	ATH9K_HT_EXTPROTSPACING_25 = 1,
-};
-
 struct ath_hw;
 struct ath9k_channel;
-struct ath_rate_table;
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
 void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
@@ -677,5 +681,6 @@ void ath9k_hw_rxena(struct ath_hw *ah);
 void ath9k_hw_startpcureceive(struct ath_hw *ah);
 void ath9k_hw_stoppcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
+int ath9k_hw_beaconq_setup(struct ath_hw *ah);
 
 #endif /* MAC_H */

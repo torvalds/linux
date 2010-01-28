@@ -259,7 +259,7 @@ int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *d,
 			*state = REMOTE_KEY_REPEAT;
 			break;
 		default:
-			deb_err("unkown type of remote status: %d\n",keybuf[0]);
+			deb_err("unknown type of remote status: %d\n",keybuf[0]);
 			break;
 	}
 	return 0;

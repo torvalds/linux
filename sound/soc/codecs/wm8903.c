@@ -607,7 +607,7 @@ SOC_SINGLE("Right Input PGA Common Mode Switch", WM8903_ANALOGUE_RIGHT_INPUT_1,
 SOC_SINGLE("DRC Switch", WM8903_DRC_0, 15, 1, 0),
 SOC_ENUM("DRC Compressor Slope R0", drc_slope_r0),
 SOC_ENUM("DRC Compressor Slope R1", drc_slope_r1),
-SOC_SINGLE_TLV("DRC Compressor Threashold Volume", WM8903_DRC_3, 5, 124, 1,
+SOC_SINGLE_TLV("DRC Compressor Threshold Volume", WM8903_DRC_3, 5, 124, 1,
 	       drc_tlv_thresh),
 SOC_SINGLE_TLV("DRC Volume", WM8903_DRC_3, 0, 30, 1, drc_tlv_amp),
 SOC_SINGLE_TLV("DRC Minimum Gain Volume", WM8903_DRC_1, 2, 3, 1, drc_tlv_min),
@@ -617,11 +617,11 @@ SOC_ENUM("DRC Decay Rate", drc_decay),
 SOC_ENUM("DRC FF Delay", drc_ff_delay),
 SOC_SINGLE("DRC Anticlip Switch", WM8903_DRC_0, 1, 1, 0),
 SOC_SINGLE("DRC QR Switch", WM8903_DRC_0, 2, 1, 0),
-SOC_SINGLE_TLV("DRC QR Threashold Volume", WM8903_DRC_0, 6, 3, 0, drc_tlv_max),
+SOC_SINGLE_TLV("DRC QR Threshold Volume", WM8903_DRC_0, 6, 3, 0, drc_tlv_max),
 SOC_ENUM("DRC QR Decay Rate", drc_qr_decay),
 SOC_SINGLE("DRC Smoothing Switch", WM8903_DRC_0, 3, 1, 0),
 SOC_SINGLE("DRC Smoothing Hysteresis Switch", WM8903_DRC_0, 0, 1, 0),
-SOC_ENUM("DRC Smoothing Threashold", drc_smoothing),
+SOC_ENUM("DRC Smoothing Threshold", drc_smoothing),
 SOC_SINGLE_TLV("DRC Startup Volume", WM8903_DRC_0, 6, 18, 0, drc_tlv_startup),
 
 SOC_DOUBLE_R_TLV("Digital Capture Volume", WM8903_ADC_DIGITAL_VOLUME_LEFT,
@@ -918,8 +918,6 @@ static int wm8903_add_widgets(struct snd_soc_codec *codec)
 				  ARRAY_SIZE(wm8903_dapm_widgets));
 
 	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
-
-	snd_soc_dapm_new_widgets(codec);
 
 	return 0;
 }
@@ -1655,21 +1653,6 @@ static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm8903_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int wm8903_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define wm8903_i2c_suspend NULL
-#define wm8903_i2c_resume NULL
-#endif
-
 /* i2c codec control layer */
 static const struct i2c_device_id wm8903_i2c_id[] = {
        { "wm8903", 0 },
@@ -1684,8 +1667,6 @@ static struct i2c_driver wm8903_i2c_driver = {
 	},
 	.probe    = wm8903_i2c_probe,
 	.remove   = __devexit_p(wm8903_i2c_remove),
-	.suspend  = wm8903_i2c_suspend,
-	.resume   = wm8903_i2c_resume,
 	.id_table = wm8903_i2c_id,
 };
 
@@ -1712,17 +1693,8 @@ static int wm8903_probe(struct platform_device *pdev)
 				ARRAY_SIZE(wm8903_snd_controls));
 	wm8903_add_widgets(socdev->card->codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "wm8903: failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 err:
 	return ret;
 }

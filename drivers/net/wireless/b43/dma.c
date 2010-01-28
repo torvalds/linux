@@ -770,7 +770,7 @@ static void free_all_descbuffers(struct b43_dmaring *ring)
 	for (i = 0; i < ring->nr_slots; i++) {
 		desc = ring->ops->idx2desc(ring, i, &meta);
 
-		if (!meta->skb) {
+		if (!meta->skb || b43_dma_ptr_is_poisoned(meta->skb)) {
 			B43_WARN_ON(!ring->tx);
 			continue;
 		}
@@ -822,7 +822,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 				      enum b43_dmatype type)
 {
 	struct b43_dmaring *ring;
-	int err;
+	int i, err;
 	dma_addr_t dma_test;
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
@@ -837,6 +837,8 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 			     GFP_KERNEL);
 	if (!ring->meta)
 		goto err_kfree_ring;
+	for (i = 0; i < ring->nr_slots; i++)
+		ring->meta->skb = B43_DMA_PTR_POISON;
 
 	ring->type = type;
 	ring->dev = dev;
@@ -1147,28 +1149,29 @@ struct b43_dmaring *parse_cookie(struct b43_wldev *dev, u16 cookie, int *slot)
 	case 0x5000:
 		ring = dma->tx_ring_mcast;
 		break;
-	default:
-		B43_WARN_ON(1);
 	}
 	*slot = (cookie & 0x0FFF);
-	B43_WARN_ON(!(ring && *slot >= 0 && *slot < ring->nr_slots));
+	if (unlikely(!ring || *slot < 0 || *slot >= ring->nr_slots)) {
+		b43dbg(dev->wl, "TX-status contains "
+		       "invalid cookie: 0x%04X\n", cookie);
+		return NULL;
+	}
 
 	return ring;
 }
 
 static int dma_tx_fragment(struct b43_dmaring *ring,
-			   struct sk_buff **in_skb)
+			   struct sk_buff *skb)
 {
-	struct sk_buff *skb = *in_skb;
 	const struct b43_dma_ops *ops = ring->ops;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct b43_private_tx_info *priv_info = b43_get_priv_tx_info(info);
 	u8 *header;
 	int slot, old_top_slot, old_used_slots;
 	int err;
 	struct b43_dmadesc_generic *desc;
 	struct b43_dmadesc_meta *meta;
 	struct b43_dmadesc_meta *meta_hdr;
-	struct sk_buff *bounce_skb;
 	u16 cookie;
 	size_t hdrsize = b43_txhdr_size(ring->dev);
 
@@ -1212,34 +1215,28 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 
 	meta->skb = skb;
 	meta->is_last_fragment = 1;
+	priv_info->bouncebuffer = NULL;
 
 	meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
 	/* create a bounce buffer in zone_dma on mapping failure. */
 	if (b43_dma_mapping_error(ring, meta->dmaaddr, skb->len, 1)) {
-		bounce_skb = __dev_alloc_skb(skb->len, GFP_ATOMIC | GFP_DMA);
-		if (!bounce_skb) {
+		priv_info->bouncebuffer = kmalloc(skb->len, GFP_ATOMIC | GFP_DMA);
+		if (!priv_info->bouncebuffer) {
 			ring->current_slot = old_top_slot;
 			ring->used_slots = old_used_slots;
 			err = -ENOMEM;
 			goto out_unmap_hdr;
 		}
+		memcpy(priv_info->bouncebuffer, skb->data, skb->len);
 
-		memcpy(skb_put(bounce_skb, skb->len), skb->data, skb->len);
-		memcpy(bounce_skb->cb, skb->cb, sizeof(skb->cb));
-		bounce_skb->dev = skb->dev;
-		skb_set_queue_mapping(bounce_skb, skb_get_queue_mapping(skb));
-		info = IEEE80211_SKB_CB(bounce_skb);
-
-		dev_kfree_skb_any(skb);
-		skb = bounce_skb;
-		*in_skb = bounce_skb;
-		meta->skb = skb;
-		meta->dmaaddr = map_descbuffer(ring, skb->data, skb->len, 1);
+		meta->dmaaddr = map_descbuffer(ring, priv_info->bouncebuffer, skb->len, 1);
 		if (b43_dma_mapping_error(ring, meta->dmaaddr, skb->len, 1)) {
+			kfree(priv_info->bouncebuffer);
+			priv_info->bouncebuffer = NULL;
 			ring->current_slot = old_top_slot;
 			ring->used_slots = old_used_slots;
 			err = -EIO;
-			goto out_free_bounce;
+			goto out_unmap_hdr;
 		}
 	}
 
@@ -1256,8 +1253,6 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	ops->poke_tx(ring, next_slot(ring, slot));
 	return 0;
 
-out_free_bounce:
-	dev_kfree_skb_any(skb);
 out_unmap_hdr:
 	unmap_descbuffer(ring, meta_hdr->dmaaddr,
 			 hdrsize, 1);
@@ -1362,11 +1357,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	 * static, so we don't need to store it per frame. */
 	ring->queue_prio = skb_get_queue_mapping(skb);
 
-	/* dma_tx_fragment might reallocate the skb, so invalidate pointers pointing
-	 * into the skb data or cb now. */
-	hdr = NULL;
-	info = NULL;
-	err = dma_tx_fragment(ring, &skb);
+	err = dma_tx_fragment(ring, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
@@ -1400,30 +1391,63 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	struct b43_dmaring *ring;
 	struct b43_dmadesc_generic *desc;
 	struct b43_dmadesc_meta *meta;
-	int slot;
+	int slot, firstused;
 	bool frame_succeed;
 
 	ring = parse_cookie(dev, status->cookie, &slot);
 	if (unlikely(!ring))
 		return;
-
 	B43_WARN_ON(!ring->tx);
+
+	/* Sanity check: TX packets are processed in-order on one ring.
+	 * Check if the slot deduced from the cookie really is the first
+	 * used slot. */
+	firstused = ring->current_slot - ring->used_slots + 1;
+	if (firstused < 0)
+		firstused = ring->nr_slots + firstused;
+	if (unlikely(slot != firstused)) {
+		/* This possibly is a firmware bug and will result in
+		 * malfunction, memory leaks and/or stall of DMA functionality. */
+		b43dbg(dev->wl, "Out of order TX status report on DMA ring %d. "
+		       "Expected %d, but got %d\n",
+		       ring->index, firstused, slot);
+		return;
+	}
+
 	ops = ring->ops;
 	while (1) {
-		B43_WARN_ON(!(slot >= 0 && slot < ring->nr_slots));
+		B43_WARN_ON(slot < 0 || slot >= ring->nr_slots);
 		desc = ops->idx2desc(ring, slot, &meta);
 
-		if (meta->skb)
-			unmap_descbuffer(ring, meta->dmaaddr, meta->skb->len,
-					 1);
-		else
+		if (b43_dma_ptr_is_poisoned(meta->skb)) {
+			b43dbg(dev->wl, "Poisoned TX slot %d (first=%d) "
+			       "on ring %d\n",
+			       slot, firstused, ring->index);
+			break;
+		}
+		if (meta->skb) {
+			struct b43_private_tx_info *priv_info =
+				b43_get_priv_tx_info(IEEE80211_SKB_CB(meta->skb));
+
+			unmap_descbuffer(ring, meta->dmaaddr, meta->skb->len, 1);
+			kfree(priv_info->bouncebuffer);
+			priv_info->bouncebuffer = NULL;
+		} else {
 			unmap_descbuffer(ring, meta->dmaaddr,
 					 b43_txhdr_size(dev), 1);
+		}
 
 		if (meta->is_last_fragment) {
 			struct ieee80211_tx_info *info;
 
-			BUG_ON(!meta->skb);
+			if (unlikely(!meta->skb)) {
+				/* This is a scatter-gather fragment of a frame, so
+				 * the skb pointer must not be NULL. */
+				b43dbg(dev->wl, "TX status unexpected NULL skb "
+				       "at slot %d (first=%d) on ring %d\n",
+				       slot, firstused, ring->index);
+				break;
+			}
 
 			info = IEEE80211_SKB_CB(meta->skb);
 
@@ -1441,20 +1465,29 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 #endif /* DEBUG */
 			ieee80211_tx_status(dev->wl->hw, meta->skb);
 
-			/* skb is freed by ieee80211_tx_status() */
-			meta->skb = NULL;
+			/* skb will be freed by ieee80211_tx_status().
+			 * Poison our pointer. */
+			meta->skb = B43_DMA_PTR_POISON;
 		} else {
 			/* No need to call free_descriptor_buffer here, as
 			 * this is only the txhdr, which is not allocated.
 			 */
-			B43_WARN_ON(meta->skb);
+			if (unlikely(meta->skb)) {
+				b43dbg(dev->wl, "TX status unexpected non-NULL skb "
+				       "at slot %d (first=%d) on ring %d\n",
+				       slot, firstused, ring->index);
+				break;
+			}
 		}
 
 		/* Everything unmapped and free'd. So it's not used anymore. */
 		ring->used_slots--;
 
-		if (meta->is_last_fragment)
+		if (meta->is_last_fragment) {
+			/* This is the last scatter-gather
+			 * fragment of the frame. We are done. */
 			break;
+		}
 		slot = next_slot(ring, slot);
 	}
 	if (ring->stopped) {

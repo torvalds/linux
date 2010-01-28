@@ -274,9 +274,6 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	conf_reg_t reg;
 	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
-	tuple_t tuple;
-	cisparse_t *parse = NULL;
-	u_char buf[64];
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	if (hw_priv->link->io.NumPorts1 < 0x42) {
@@ -285,28 +282,13 @@ static int sandisk_enable_wireless(struct net_device *dev)
 		goto done;
 	}
 
-	parse = kmalloc(sizeof(cisparse_t), GFP_KERNEL);
-	if (parse == NULL) {
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	tuple.Attributes = TUPLE_RETURN_COMMON;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-
 	if (hw_priv->link->manf_id != 0xd601 || hw_priv->link->card_id != 0x0101) {
 		/* No SanDisk manfid found */
 		ret = -ENODEV;
 		goto done;
 	}
 
-	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
-	if (pcmcia_get_first_tuple(hw_priv->link, &tuple) ||
-	    pcmcia_get_tuple_data(hw_priv->link, &tuple) ||
-	    pcmcia_parse_tuple(&tuple, parse) ||
-		parse->longlink_mfc.nfn < 2) {
+	if (hw_priv->link->socket->functions < 2) {
 		/* No multi-function links found */
 		ret = -ENODEV;
 		goto done;
@@ -354,7 +336,6 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	udelay(10);
 
 done:
-	kfree(parse);
 	return ret;
 }
 
@@ -529,10 +510,6 @@ static void prism2_detach(struct pcmcia_device *link)
 }
 
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
-
 /* run after a CARD_INSERTION event is received to configure the PCMCIA
  * socket and make the device available to the system */
 
@@ -624,7 +601,6 @@ static int prism2_config(struct pcmcia_device *link)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	int ret = 1;
-	int last_fn, last_ret;
 	struct hostap_cs_priv *hw_priv;
 
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
@@ -636,19 +612,18 @@ static int prism2_config(struct pcmcia_device *link)
 	}
 
 	/* Look for an appropriate configuration table entry in the CIS */
-	last_ret = pcmcia_loop_config(link, prism2_config_check, NULL);
-	if (last_ret) {
+	ret = pcmcia_loop_config(link, prism2_config_check, NULL);
+	if (ret) {
 		if (!ignore_cis_vcc)
 			printk(KERN_ERR "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
 			       "ignore_cis_vcc=1 parameter.\n");
-		cs_error(link, RequestIO, last_ret);
 		goto failed;
 	}
 
 	/* Need to allocate net_device before requesting IRQ handler */
 	dev = prism2_init_local_data(&prism2_pccard_funcs, 0,
-				     &handle_to_dev(link));
+				     &link->dev);
 	if (dev == NULL)
 		goto failed;
 	link->priv = dev;
@@ -666,13 +641,11 @@ static int prism2_config(struct pcmcia_device *link)
 	 * irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING |
-				       IRQ_HANDLE_PRESENT;
-		link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+		link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 		link->irq.Handler = prism2_interrupt;
-		link->irq.Instance = dev;
-		CS_CHECK(RequestIRQ,
-			 pcmcia_request_irq(link, &link->irq));
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
 	}
 
 	/*
@@ -680,8 +653,9 @@ static int prism2_config(struct pcmcia_device *link)
 	 * the I/O windows and the interrupt mapping, and putting the
 	 * card and host interface into "Memory and IO" mode.
 	 */
-	CS_CHECK(RequestConfiguration,
-		 pcmcia_request_configuration(link, &link->conf));
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
@@ -713,9 +687,6 @@ static int prism2_config(struct pcmcia_device *link)
 			strcpy(hw_priv->node.dev_name, local->ddev->name);
 	}
 	return ret;
-
- cs_failed:
-	cs_error(link, last_fn, last_ret);
 
  failed:
 	kfree(hw_priv);

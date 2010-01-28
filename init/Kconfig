@@ -115,10 +115,13 @@ config HAVE_KERNEL_BZIP2
 config HAVE_KERNEL_LZMA
 	bool
 
+config HAVE_KERNEL_LZO
+	bool
+
 choice
 	prompt "Kernel compression mode"
 	default KERNEL_GZIP
-	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA
+	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_LZO
 	help
 	  The linux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
@@ -141,9 +144,8 @@ config KERNEL_GZIP
 	bool "Gzip"
 	depends on HAVE_KERNEL_GZIP
 	help
-	  The old and tried gzip compression. Its compression ratio is
-	  the poorest among the 3 choices; however its speed (both
-	  compression and decompression) is the fastest.
+	  The old and tried gzip compression. It provides a good balance
+	  between compression ratio and decompression speed.
 
 config KERNEL_BZIP2
 	bool "Bzip2"
@@ -163,6 +165,14 @@ config KERNEL_LZMA
 	  Its ratio is best, decompression speed is between the other
 	  two. Compression is slowest.	The kernel size is about 33%
 	  smaller with LZMA in comparison to gzip.
+
+config KERNEL_LZO
+	bool "LZO"
+	depends on HAVE_KERNEL_LZO
+	help
+	  Its compression ratio is the poorest among the 4. The kernel
+	  size is about about 10% bigger than gzip; however its speed
+	  (both compression and decompression) is the fastest.
 
 endchoice
 
@@ -333,6 +343,15 @@ config TREE_PREEMPT_RCU
 	  thousands of CPUs, but for which real-time response
 	  is also required.  It also scales down nicely to
 	  smaller systems.
+
+config TINY_RCU
+	bool "UP-only small-memory-footprint RCU"
+	depends on !SMP
+	help
+	  This option selects the RCU implementation that is
+	  designed for UP systems from which real-time response
+	  is not required.  This option greatly reduces the
+	  memory footprint of RCU.
 
 endchoice
 
@@ -606,7 +625,7 @@ config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "remove sysfs features which may confuse old userspace tools"
+	bool "enable deprecated sysfs features to support old userspace tools"
 	depends on SYSFS
 	default n
 	select SYSFS_DEPRECATED
@@ -754,6 +773,7 @@ config UID16
 
 config SYSCTL_SYSCALL
 	bool "Sysctl syscall support" if EMBEDDED
+	depends on PROC_SYSCTL
 	default y
 	select SYSCTL
 	---help---
@@ -1069,6 +1089,28 @@ config SLOB
 
 endchoice
 
+config MMAP_ALLOW_UNINITIALIZED
+	bool "Allow mmapped anonymous memory to be uninitialized"
+	depends on EMBEDDED && !MMU
+	default n
+	help
+	  Normally, and according to the Linux spec, anonymous memory obtained
+	  from mmap() has it's contents cleared before it is passed to
+	  userspace.  Enabling this config option allows you to request that
+	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
+	  providing a huge performance boost.  If this option is not enabled,
+	  then the flag will be ignored.
+
+	  This is taken advantage of by uClibc's malloc(), and also by
+	  ELF-FDPIC binfmt's brk and stack allocator.
+
+	  Because of the obvious security issues, this option should only be
+	  enabled on embedded devices where you control what is run in
+	  userspace.  Since that isn't generally a problem on no-MMU systems,
+	  it is normally safe to say Y here.
+
+	  See Documentation/nommu-mmap.txt for more information.
+
 config PROFILING
 	bool "Profiling support (EXPERIMENTAL)"
 	help
@@ -1095,6 +1137,16 @@ config SLOW_WORK
 	  An example of this would be CacheFiles doing a path lookup followed
 	  by a series of mkdirs and a create call, all of which have to touch
 	  disk.
+
+	  See Documentation/slow-work.txt.
+
+config SLOW_WORK_DEBUG
+	bool "Slow work debugging through debugfs"
+	default n
+	depends on SLOW_WORK && DEBUG_FS
+	help
+	  Display the contents of the slow work run queue through debugfs,
+	  including items currently executing.
 
 	  See Documentation/slow-work.txt.
 
@@ -1210,3 +1262,4 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
+source "kernel/Kconfig.locks"

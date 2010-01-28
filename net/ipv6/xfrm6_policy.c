@@ -309,7 +309,6 @@ static void xfrm6_policy_fini(void)
 #ifdef CONFIG_SYSCTL
 static struct ctl_table xfrm6_policy_table[] = {
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "xfrm6_gc_thresh",
 		.data	   	= &xfrm6_dst_ops.gc_thresh,
 		.maxlen	 	= sizeof(int),

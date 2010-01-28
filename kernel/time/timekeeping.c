@@ -177,7 +177,7 @@ void timekeeping_leap_insert(int leapsecond)
 {
 	xtime.tv_sec += leapsecond;
 	wall_to_monotonic.tv_sec -= leapsecond;
-	update_vsyscall(&xtime, timekeeper.clock);
+	update_vsyscall(&xtime, timekeeper.clock, timekeeper.mult);
 }
 
 #ifdef CONFIG_GENERIC_TIME
@@ -337,7 +337,7 @@ int do_settimeofday(struct timespec *tv)
 	timekeeper.ntp_error = 0;
 	ntp_clear();
 
-	update_vsyscall(&xtime, timekeeper.clock);
+	update_vsyscall(&xtime, timekeeper.clock, timekeeper.mult);
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
@@ -485,6 +485,17 @@ int timekeeping_valid_for_hres(void)
 	} while (read_seqretry(&xtime_lock, seq));
 
 	return ret;
+}
+
+/**
+ * timekeeping_max_deferment - Returns max time the clocksource can be deferred
+ *
+ * Caller must observe xtime_lock via read_seqbegin/read_seqretry to
+ * ensure that the clocksource does not change!
+ */
+u64 timekeeping_max_deferment(void)
+{
+	return timekeeper.clock->max_idle_ns;
 }
 
 /**
@@ -722,6 +733,51 @@ static void timekeeping_adjust(s64 offset)
 				timekeeper.ntp_error_shift;
 }
 
+
+/**
+ * logarithmic_accumulation - shifted accumulation of cycles
+ *
+ * This functions accumulates a shifted interval of cycles into
+ * into a shifted interval nanoseconds. Allows for O(log) accumulation
+ * loop.
+ *
+ * Returns the unconsumed cycles.
+ */
+static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
+{
+	u64 nsecps = (u64)NSEC_PER_SEC << timekeeper.shift;
+
+	/* If the offset is smaller then a shifted interval, do nothing */
+	if (offset < timekeeper.cycle_interval<<shift)
+		return offset;
+
+	/* Accumulate one shifted interval */
+	offset -= timekeeper.cycle_interval << shift;
+	timekeeper.clock->cycle_last += timekeeper.cycle_interval << shift;
+
+	timekeeper.xtime_nsec += timekeeper.xtime_interval << shift;
+	while (timekeeper.xtime_nsec >= nsecps) {
+		timekeeper.xtime_nsec -= nsecps;
+		xtime.tv_sec++;
+		second_overflow();
+	}
+
+	/* Accumulate into raw time */
+	raw_time.tv_nsec += timekeeper.raw_interval << shift;;
+	while (raw_time.tv_nsec >= NSEC_PER_SEC) {
+		raw_time.tv_nsec -= NSEC_PER_SEC;
+		raw_time.tv_sec++;
+	}
+
+	/* Accumulate error between NTP and clock interval */
+	timekeeper.ntp_error += tick_length << shift;
+	timekeeper.ntp_error -= timekeeper.xtime_interval <<
+				(timekeeper.ntp_error_shift + shift);
+
+	return offset;
+}
+
+
 /**
  * update_wall_time - Uses the current clocksource to increment the wall time
  *
@@ -732,6 +788,7 @@ void update_wall_time(void)
 	struct clocksource *clock;
 	cycle_t offset;
 	u64 nsecs;
+	int shift = 0, maxshift;
 
 	/* Make sure we're fully resumed: */
 	if (unlikely(timekeeping_suspended))
@@ -745,33 +802,22 @@ void update_wall_time(void)
 #endif
 	timekeeper.xtime_nsec = (s64)xtime.tv_nsec << timekeeper.shift;
 
-	/* normally this loop will run just once, however in the
-	 * case of lost or late ticks, it will accumulate correctly.
+	/*
+	 * With NO_HZ we may have to accumulate many cycle_intervals
+	 * (think "ticks") worth of time at once. To do this efficiently,
+	 * we calculate the largest doubling multiple of cycle_intervals
+	 * that is smaller then the offset. We then accumulate that
+	 * chunk in one go, and then try to consume the next smaller
+	 * doubled multiple.
 	 */
+	shift = ilog2(offset) - ilog2(timekeeper.cycle_interval);
+	shift = max(0, shift);
+	/* Bound shift to one less then what overflows tick_length */
+	maxshift = (8*sizeof(tick_length) - (ilog2(tick_length)+1)) - 1;
+	shift = min(shift, maxshift);
 	while (offset >= timekeeper.cycle_interval) {
-		u64 nsecps = (u64)NSEC_PER_SEC << timekeeper.shift;
-
-		/* accumulate one interval */
-		offset -= timekeeper.cycle_interval;
-		clock->cycle_last += timekeeper.cycle_interval;
-
-		timekeeper.xtime_nsec += timekeeper.xtime_interval;
-		if (timekeeper.xtime_nsec >= nsecps) {
-			timekeeper.xtime_nsec -= nsecps;
-			xtime.tv_sec++;
-			second_overflow();
-		}
-
-		raw_time.tv_nsec += timekeeper.raw_interval;
-		if (raw_time.tv_nsec >= NSEC_PER_SEC) {
-			raw_time.tv_nsec -= NSEC_PER_SEC;
-			raw_time.tv_sec++;
-		}
-
-		/* accumulate error between NTP and clock interval */
-		timekeeper.ntp_error += tick_length;
-		timekeeper.ntp_error -= timekeeper.xtime_interval <<
-					timekeeper.ntp_error_shift;
+		offset = logarithmic_accumulation(offset, shift);
+		shift--;
 	}
 
 	/* correct the clock when NTP error is too big */
@@ -811,7 +857,7 @@ void update_wall_time(void)
 	update_xtime_cache(nsecs);
 
 	/* check to see if there is a new clocksource to use */
-	update_vsyscall(&xtime, timekeeper.clock);
+	update_vsyscall(&xtime, timekeeper.clock, timekeeper.mult);
 }
 
 /**

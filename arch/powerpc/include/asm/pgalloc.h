@@ -24,25 +24,6 @@ static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)
 	__free_page(ptepage);
 }
 
-typedef struct pgtable_free {
-	unsigned long val;
-} pgtable_free_t;
-
-/* This needs to be big enough to allow for MMU_PAGE_COUNT + 2 to be stored
- * and small enough to fit in the low bits of any naturally aligned page
- * table cache entry. Arbitrarily set to 0x1f, that should give us some
- * room to grow
- */
-#define PGF_CACHENUM_MASK	0x1f
-
-static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
-						unsigned long mask)
-{
-	BUG_ON(cachenum > PGF_CACHENUM_MASK);
-
-	return (pgtable_free_t){.val = ((unsigned long) p & ~mask) | cachenum};
-}
-
 #ifdef CONFIG_PPC64
 #include <asm/pgalloc-64.h>
 #else
@@ -50,12 +31,12 @@ static inline pgtable_free_t pgtable_free_cache(void *p, int cachenum,
 #endif
 
 #ifdef CONFIG_SMP
-extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
+extern void pgtable_free_tlb(struct mmu_gather *tlb, void *table, unsigned shift);
 extern void pte_free_finish(void);
 #else /* CONFIG_SMP */
-static inline void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
+static inline void pgtable_free_tlb(struct mmu_gather *tlb, void *table, unsigned shift)
 {
-	pgtable_free(pgf);
+	pgtable_free(table, shift);
 }
 static inline void pte_free_finish(void) { }
 #endif /* !CONFIG_SMP */
@@ -63,12 +44,9 @@ static inline void pte_free_finish(void) { }
 static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *ptepage,
 				  unsigned long address)
 {
-	pgtable_free_t pgf = pgtable_free_cache(page_address(ptepage),
-						PTE_NONCACHE_NUM,
-						PTE_TABLE_SIZE-1);
 	tlb_flush_pgtable(tlb, address);
 	pgtable_page_dtor(ptepage);
-	pgtable_free_tlb(tlb, pgf);
+	pgtable_free_tlb(tlb, page_address(ptepage), 0);
 }
 
 #endif /* __KERNEL__ */

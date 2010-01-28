@@ -89,48 +89,40 @@ static int xpc_disengage_max_timelimit = 120;
 
 static ctl_table xpc_sys_xpc_hb_dir[] = {
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "hb_interval",
 	 .data = &xpc_hb_interval,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = &proc_dointvec_minmax,
-	 .strategy = &sysctl_intvec,
+	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = &xpc_hb_min_interval,
 	 .extra2 = &xpc_hb_max_interval},
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "hb_check_interval",
 	 .data = &xpc_hb_check_interval,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = &proc_dointvec_minmax,
-	 .strategy = &sysctl_intvec,
+	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = &xpc_hb_check_min_interval,
 	 .extra2 = &xpc_hb_check_max_interval},
 	{}
 };
 static ctl_table xpc_sys_xpc_dir[] = {
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "hb",
 	 .mode = 0555,
 	 .child = xpc_sys_xpc_hb_dir},
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "disengage_timelimit",
 	 .data = &xpc_disengage_timelimit,
 	 .maxlen = sizeof(int),
 	 .mode = 0644,
-	 .proc_handler = &proc_dointvec_minmax,
-	 .strategy = &sysctl_intvec,
+	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = &xpc_disengage_min_timelimit,
 	 .extra2 = &xpc_disengage_max_timelimit},
 	{}
 };
 static ctl_table xpc_sys_dir[] = {
 	{
-	 .ctl_name = CTL_UNNUMBERED,
 	 .procname = "xpc",
 	 .mode = 0555,
 	 .child = xpc_sys_xpc_dir},

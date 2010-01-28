@@ -200,6 +200,9 @@ radix_tree_node_free(struct radix_tree_node *node)
  * ensure that the addition of a single element in the tree cannot fail.  On
  * success, return zero, with preemption disabled.  On error, return -ENOMEM
  * with preemption not disabled.
+ *
+ * To make use of this facility, the radix tree must be initialised without
+ * __GFP_WAIT being passed to INIT_RADIX_TREE().
  */
 int radix_tree_preload(gfp_t gfp_mask)
 {
@@ -543,7 +546,6 @@ out:
 }
 EXPORT_SYMBOL(radix_tree_tag_clear);
 
-#ifndef __KERNEL__	/* Only the test harness uses this at present */
 /**
  * radix_tree_tag_get - get a tag on a radix tree node
  * @root:		radix tree root
@@ -606,7 +608,6 @@ int radix_tree_tag_get(struct radix_tree_root *root,
 	}
 }
 EXPORT_SYMBOL(radix_tree_tag_get);
-#endif
 
 /**
  *	radix_tree_next_hole    -    find the next hole (not-present entry)

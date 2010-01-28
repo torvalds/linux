@@ -563,7 +563,7 @@ static void sh5_flush_cache_page(void *args)
 
 static void sh5_flush_dcache_page(void *page)
 {
-	sh64_dcache_purge_phy_page(page_to_phys(page));
+	sh64_dcache_purge_phy_page(page_to_phys((struct page *)page));
 	wmb();
 }
 

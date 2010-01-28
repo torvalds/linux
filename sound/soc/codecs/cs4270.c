@@ -520,6 +520,7 @@ static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 	SOC_SINGLE("Digital Sidetone Switch", CS4270_FORMAT, 5, 1, 0),
 	SOC_SINGLE("Soft Ramp Switch", CS4270_TRANS, 6, 1, 0),
 	SOC_SINGLE("Zero Cross Switch", CS4270_TRANS, 5, 1, 0),
+	SOC_SINGLE("De-emphasis filter", CS4270_TRANS, 0, 1, 0),
 	SOC_SINGLE("Popguard Switch", CS4270_MODE, 0, 1, 1),
 	SOC_SINGLE("Auto-Mute Switch", CS4270_MUTE, 5, 1, 0),
 	SOC_DOUBLE("Master Capture Switch", CS4270_MUTE, 3, 4, 1, 1),
@@ -595,13 +596,6 @@ static int cs4270_probe(struct platform_device *pdev)
 				ARRAY_SIZE(cs4270_snd_controls));
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to add controls\n");
-		goto error_free_pcms;
-	}
-
-	/* And finally, register the socdev */
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card\n");
 		goto error_free_pcms;
 	}
 
@@ -802,22 +796,6 @@ MODULE_DEVICE_TABLE(i2c, cs4270_id);
  * and all registers are written back to the hardware when resuming.
  */
 
-static int cs4270_i2c_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-	struct cs4270_private *cs4270 = i2c_get_clientdata(client);
-	struct snd_soc_codec *codec = &cs4270->codec;
-
-	return snd_soc_suspend_device(codec->dev);
-}
-
-static int cs4270_i2c_resume(struct i2c_client *client)
-{
-	struct cs4270_private *cs4270 = i2c_get_clientdata(client);
-	struct snd_soc_codec *codec = &cs4270->codec;
-
-	return snd_soc_resume_device(codec->dev);
-}
-
 static int cs4270_soc_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct snd_soc_codec *codec = cs4270_codec;
@@ -853,8 +831,6 @@ static int cs4270_soc_resume(struct platform_device *pdev)
 	return snd_soc_write(codec, CS4270_PWRCTL, reg);
 }
 #else
-#define cs4270_i2c_suspend	NULL
-#define cs4270_i2c_resume	NULL
 #define cs4270_soc_suspend	NULL
 #define cs4270_soc_resume	NULL
 #endif /* CONFIG_PM */
@@ -873,8 +849,6 @@ static struct i2c_driver cs4270_i2c_driver = {
 	.id_table = cs4270_id,
 	.probe = cs4270_i2c_probe,
 	.remove = cs4270_i2c_remove,
-	.suspend = cs4270_i2c_suspend,
-	.resume = cs4270_i2c_resume,
 };
 
 /*

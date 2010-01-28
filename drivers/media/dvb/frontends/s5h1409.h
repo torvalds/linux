@@ -57,6 +57,13 @@ struct s5h1409_config {
 #define S5H1409_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK    2
 #define S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK 3
 	u16 mpeg_timing;
+
+	/* HVR-1600 optimizations (to better work with MXL5005s)
+	   Note: some of these are likely to be folded into the generic driver
+	   after being regression tested with other boards */
+#define S5H1409_HVR1600_NOOPTIMIZE 0
+#define S5H1409_HVR1600_OPTIMIZE   1
+	u8 hvr1600_opt;
 };
 
 #if defined(CONFIG_DVB_S5H1409) || (defined(CONFIG_DVB_S5H1409_MODULE) \

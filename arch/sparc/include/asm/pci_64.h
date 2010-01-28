@@ -16,8 +16,6 @@
 
 #define PCI_IRQ_NONE		0xffffffff
 
-#define PCI_CACHE_LINE_BYTES	64
-
 static inline void pcibios_set_master(struct pci_dev *dev)
 {
 	/* No special bus mastering setup handling */

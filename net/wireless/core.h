@@ -72,17 +72,6 @@ struct cfg80211_registered_device {
 	/* current channel */
 	struct ieee80211_channel *channel;
 
-#ifdef CONFIG_CFG80211_DEBUGFS
-	/* Debugfs entries */
-	struct wiphy_debugfsdentries {
-		struct dentry *rts_threshold;
-		struct dentry *fragmentation_threshold;
-		struct dentry *short_retry_limit;
-		struct dentry *long_retry_limit;
-		struct dentry *ht40allow_map;
-	} debugfs;
-#endif
-
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __attribute__((__aligned__(NETDEV_ALIGN)));
@@ -102,6 +91,8 @@ bool wiphy_idx_valid(int wiphy_idx)
 	return (wiphy_idx >= 0);
 }
 
+
+extern struct workqueue_struct *cfg80211_wq;
 extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_rdev_list;
 extern int cfg80211_rdev_list_generation;
@@ -284,6 +275,8 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		       struct cfg80211_ibss_params *params,
 		       struct cfg80211_cached_keys *connkeys);
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
+int __cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
+			  struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
 void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);

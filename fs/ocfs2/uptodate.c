@@ -53,11 +53,6 @@
 #include <linux/highmem.h>
 #include <linux/buffer_head.h>
 #include <linux/rbtree.h>
-#ifndef CONFIG_OCFS2_COMPAT_JBD
-# include <linux/jbd2.h>
-#else
-# include <linux/jbd.h>
-#endif
 
 #define MLOG_MASK_PREFIX ML_UPTODATE
 

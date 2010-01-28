@@ -102,6 +102,12 @@ static int ac97_soc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
+	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
+	if (ret < 0) {
+		printk(KERN_ERR "ASoC: failed to init gen ac97 glue\n");
+		goto err;
+	}
+
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0)
@@ -117,9 +123,6 @@ static int ac97_soc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto bus_err;
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0)
-		goto bus_err;
 	return 0;
 
 bus_err:

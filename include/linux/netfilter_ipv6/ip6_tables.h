@@ -88,8 +88,7 @@ struct ip6t_ip6 {
 /* This structure defines each of the firewall rules.  Consists of 3
    parts which are 1) general IP header stuff 2) match specific
    stuff 3) the target to perform if the rule matches */
-struct ip6t_entry
-{
+struct ip6t_entry {
 	struct ip6t_ip6 ipv6;
 
 	/* Mark with fields that we care about. */
@@ -111,20 +110,17 @@ struct ip6t_entry
 };
 
 /* Standard entry */
-struct ip6t_standard
-{
+struct ip6t_standard {
 	struct ip6t_entry entry;
 	struct ip6t_standard_target target;
 };
 
-struct ip6t_error_target
-{
+struct ip6t_error_target {
 	struct ip6t_entry_target target;
 	char errorname[IP6T_FUNCTION_MAXNAMELEN];
 };
 
-struct ip6t_error
-{
+struct ip6t_error {
 	struct ip6t_entry entry;
 	struct ip6t_error_target target;
 };
@@ -195,8 +191,7 @@ struct ip6t_error
 #define IP6T_UDP_INV_MASK	XT_UDP_INV_MASK
 
 /* ICMP matching stuff */
-struct ip6t_icmp
-{
+struct ip6t_icmp {
 	u_int8_t type;				/* type to match */
 	u_int8_t code[2];			/* range of code */
 	u_int8_t invflags;			/* Inverse flags */
@@ -206,8 +201,7 @@ struct ip6t_icmp
 #define IP6T_ICMP_INV	0x01	/* Invert the sense of type/code test */
 
 /* The argument to IP6T_SO_GET_INFO */
-struct ip6t_getinfo
-{
+struct ip6t_getinfo {
 	/* Which table: caller fills this in. */
 	char name[IP6T_TABLE_MAXNAMELEN];
 
@@ -229,8 +223,7 @@ struct ip6t_getinfo
 };
 
 /* The argument to IP6T_SO_SET_REPLACE. */
-struct ip6t_replace
-{
+struct ip6t_replace {
 	/* Which table. */
 	char name[IP6T_TABLE_MAXNAMELEN];
 
@@ -264,8 +257,7 @@ struct ip6t_replace
 #define ip6t_counters_info xt_counters_info
 
 /* The argument to IP6T_SO_GET_ENTRIES. */
-struct ip6t_get_entries
-{
+struct ip6t_get_entries {
 	/* Which table: user fills this in. */
 	char name[IP6T_TABLE_MAXNAMELEN];
 
@@ -330,8 +322,7 @@ extern int ip6_masked_addrcmp(const struct in6_addr *addr1,
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
 
-struct compat_ip6t_entry
-{
+struct compat_ip6t_entry {
 	struct ip6t_ip6 ipv6;
 	compat_uint_t nfcache;
 	u_int16_t target_offset;

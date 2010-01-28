@@ -1,17 +1,7 @@
 config IWLWIFI
 	tristate "Intel Wireless Wifi"
-	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
-	select LIB80211
+	depends on PCI && MAC80211 && EXPERIMENTAL
 	select FW_LOADER
-	select MAC80211_LEDS if IWLWIFI_LEDS
-	select LEDS_CLASS if IWLWIFI_LEDS
-
-config IWLWIFI_LEDS
-	bool "Enable LED support in iwlagn and iwl3945 drivers"
-	depends on IWLWIFI
-	default y
-	---help---
-	  Select this if you want LED support.
 
 config IWLWIFI_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwlagn driver"
@@ -49,6 +39,24 @@ config IWLWIFI_DEBUGFS
         depends on IWLWIFI && IWLWIFI_DEBUG && MAC80211_DEBUGFS
         ---help---
 	  Enable creation of debugfs files for the iwlwifi drivers.
+
+config IWLWIFI_DEVICE_TRACING
+	bool "iwlwifi device access tracing"
+	depends on IWLWIFI
+	depends on EVENT_TRACING
+	help
+	  Say Y here to trace all commands, including TX frames and IO
+	  accesses, sent to the device. If you say yes, iwlwifi will
+	  register with the ftrace framework for event tracing and dump
+	  all this information to the ringbuffer, you may need to
+	  increase the ringbuffer size. See the ftrace documentation
+	  for more information.
+
+	  When tracing is not enabled, this option still has some
+	  (though rather small) overhead.
+
+	  If unsure, say Y so we can help you better when problems
+	  occur.
 
 config IWLAGN
 	tristate "Intel Wireless WiFi Next Gen AGN (iwlagn)"

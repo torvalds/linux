@@ -593,6 +593,123 @@ struct kvm_irqchip {
 	} chip;
 };
 
+4.27 KVM_XEN_HVM_CONFIG
+
+Capability: KVM_CAP_XEN_HVM
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_xen_hvm_config (in)
+Returns: 0 on success, -1 on error
+
+Sets the MSR that the Xen HVM guest uses to initialize its hypercall
+page, and provides the starting address and size of the hypercall
+blobs in userspace.  When the guest writes the MSR, kvm copies one
+page of a blob (32- or 64-bit, depending on the vcpu mode) to guest
+memory.
+
+struct kvm_xen_hvm_config {
+	__u32 flags;
+	__u32 msr;
+	__u64 blob_addr_32;
+	__u64 blob_addr_64;
+	__u8 blob_size_32;
+	__u8 blob_size_64;
+	__u8 pad2[30];
+};
+
+4.27 KVM_GET_CLOCK
+
+Capability: KVM_CAP_ADJUST_CLOCK
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_clock_data (out)
+Returns: 0 on success, -1 on error
+
+Gets the current timestamp of kvmclock as seen by the current guest. In
+conjunction with KVM_SET_CLOCK, it is used to ensure monotonicity on scenarios
+such as migration.
+
+struct kvm_clock_data {
+	__u64 clock;  /* kvmclock current value */
+	__u32 flags;
+	__u32 pad[9];
+};
+
+4.28 KVM_SET_CLOCK
+
+Capability: KVM_CAP_ADJUST_CLOCK
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_clock_data (in)
+Returns: 0 on success, -1 on error
+
+Sets the current timestamp of kvmclock to the valued specific in its parameter.
+In conjunction with KVM_GET_CLOCK, it is used to ensure monotonicity on scenarios
+such as migration.
+
+struct kvm_clock_data {
+	__u64 clock;  /* kvmclock current value */
+	__u32 flags;
+	__u32 pad[9];
+};
+
+4.29 KVM_GET_VCPU_EVENTS
+
+Capability: KVM_CAP_VCPU_EVENTS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_vcpu_event (out)
+Returns: 0 on success, -1 on error
+
+Gets currently pending exceptions, interrupts, and NMIs as well as related
+states of the vcpu.
+
+struct kvm_vcpu_events {
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 has_error_code;
+		__u8 pad;
+		__u32 error_code;
+	} exception;
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 soft;
+		__u8 pad;
+	} interrupt;
+	struct {
+		__u8 injected;
+		__u8 pending;
+		__u8 masked;
+		__u8 pad;
+	} nmi;
+	__u32 sipi_vector;
+	__u32 flags;
+};
+
+4.30 KVM_SET_VCPU_EVENTS
+
+Capability: KVM_CAP_VCPU_EVENTS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_vcpu_event (in)
+Returns: 0 on success, -1 on error
+
+Set pending exceptions, interrupts, and NMIs as well as related states of the
+vcpu.
+
+See KVM_GET_VCPU_EVENTS for the data structure.
+
+Fields that may be modified asynchronously by running VCPUs can be excluded
+from the update. These fields are nmi.pending and sipi_vector. Keep the
+corresponding bits in the flags field cleared to suppress overwriting the
+current in-kernel state. The bits are:
+
+KVM_VCPUEVENT_VALID_NMI_PENDING - transfer nmi.pending to the kernel
+KVM_VCPUEVENT_VALID_SIPI_VECTOR - transfer sipi_vector
+
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

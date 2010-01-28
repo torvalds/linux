@@ -716,6 +716,8 @@
 
 #define AVIVO_DVOA_BIT_DEPTH_CONTROL			0x7988
 
+#define AVIVO_DC_GPIO_HPD_A                 0x7e94
+
 #define AVIVO_GPIO_0                        0x7e30
 #define AVIVO_GPIO_1                        0x7e40
 #define AVIVO_GPIO_2                        0x7e50

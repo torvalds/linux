@@ -95,7 +95,8 @@ static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
 }
 
-static int inet6_create(struct net *net, struct socket *sock, int protocol)
+static int inet6_create(struct net *net, struct socket *sock, int protocol,
+			int kern)
 {
 	struct inet_sock *inet;
 	struct ipv6_pinfo *np;
@@ -158,7 +159,7 @@ lookup_protocol:
 	}
 
 	err = -EPERM;
-	if (answer->capability > 0 && !capable(answer->capability))
+	if (sock->type == SOCK_RAW && !kern && !capable(CAP_NET_RAW))
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
@@ -185,7 +186,7 @@ lookup_protocol:
 	inet->is_icsk = (INET_PROTOSW_ICSK & answer_flags) != 0;
 
 	if (SOCK_RAW == sock->type) {
-		inet->num = protocol;
+		inet->inet_num = protocol;
 		if (IPPROTO_RAW == protocol)
 			inet->hdrincl = 1;
 	}
@@ -228,12 +229,12 @@ lookup_protocol:
 	 */
 	sk_refcnt_debug_inc(sk);
 
-	if (inet->num) {
+	if (inet->inet_num) {
 		/* It assumes that any protocol which allows
 		 * the user to assign a number at socket
 		 * creation time automatically shares.
 		 */
-		inet->sport = htons(inet->num);
+		inet->inet_sport = htons(inet->inet_num);
 		sk->sk_prot->hash(sk);
 	}
 	if (sk->sk_prot->init) {
@@ -281,7 +282,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	lock_sock(sk);
 
 	/* Check these errors (active socket, double bind). */
-	if (sk->sk_state != TCP_CLOSE || inet->num) {
+	if (sk->sk_state != TCP_CLOSE || inet->inet_num) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -314,6 +315,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (addr_type != IPV6_ADDR_ANY) {
 			struct net_device *dev = NULL;
 
+			rcu_read_lock();
 			if (addr_type & IPV6_ADDR_LINKLOCAL) {
 				if (addr_len >= sizeof(struct sockaddr_in6) &&
 				    addr->sin6_scope_id) {
@@ -326,12 +328,12 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 				/* Binding to link-local address requires an interface */
 				if (!sk->sk_bound_dev_if) {
 					err = -EINVAL;
-					goto out;
+					goto out_unlock;
 				}
-				dev = dev_get_by_index(net, sk->sk_bound_dev_if);
+				dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
 				if (!dev) {
 					err = -ENODEV;
-					goto out;
+					goto out_unlock;
 				}
 			}
 
@@ -342,19 +344,16 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			if (!(addr_type & IPV6_ADDR_MULTICAST))	{
 				if (!ipv6_chk_addr(net, &addr->sin6_addr,
 						   dev, 0)) {
-					if (dev)
-						dev_put(dev);
 					err = -EADDRNOTAVAIL;
-					goto out;
+					goto out_unlock;
 				}
 			}
-			if (dev)
-				dev_put(dev);
+			rcu_read_unlock();
 		}
 	}
 
-	inet->rcv_saddr = v4addr;
-	inet->saddr = v4addr;
+	inet->inet_rcv_saddr = v4addr;
+	inet->inet_saddr = v4addr;
 
 	ipv6_addr_copy(&np->rcv_saddr, &addr->sin6_addr);
 
@@ -375,12 +374,15 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	}
 	if (snum)
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;
-	inet->sport = htons(inet->num);
-	inet->dport = 0;
-	inet->daddr = 0;
+	inet->inet_sport = htons(inet->inet_num);
+	inet->inet_dport = 0;
+	inet->inet_daddr = 0;
 out:
 	release_sock(sk);
 	return err;
+out_unlock:
+	rcu_read_unlock();
+	goto out;
 }
 
 EXPORT_SYMBOL(inet6_bind);
@@ -441,12 +443,12 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 	sin->sin6_flowinfo = 0;
 	sin->sin6_scope_id = 0;
 	if (peer) {
-		if (!inet->dport)
+		if (!inet->inet_dport)
 			return -ENOTCONN;
 		if (((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_SYN_SENT)) &&
 		    peer == 1)
 			return -ENOTCONN;
-		sin->sin6_port = inet->dport;
+		sin->sin6_port = inet->inet_dport;
 		ipv6_addr_copy(&sin->sin6_addr, &np->daddr);
 		if (np->sndflow)
 			sin->sin6_flowinfo = np->flow_label;
@@ -456,7 +458,7 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		else
 			ipv6_addr_copy(&sin->sin6_addr, &np->rcv_saddr);
 
-		sin->sin6_port = inet->sport;
+		sin->sin6_port = inet->inet_sport;
 	}
 	if (ipv6_addr_type(&sin->sin6_addr) & IPV6_ADDR_LINKLOCAL)
 		sin->sin6_scope_id = sk->sk_bound_dev_if;
@@ -552,7 +554,7 @@ const struct proto_ops inet6_dgram_ops = {
 #endif
 };
 
-static struct net_proto_family inet6_family_ops = {
+static const struct net_proto_family inet6_family_ops = {
 	.family = PF_INET6,
 	.create = inet6_create,
 	.owner	= THIS_MODULE,
@@ -654,8 +656,9 @@ int inet6_sk_rebuild_header(struct sock *sk)
 		ipv6_addr_copy(&fl.fl6_src, &np->saddr);
 		fl.fl6_flowlabel = np->flow_label;
 		fl.oif = sk->sk_bound_dev_if;
-		fl.fl_ip_dport = inet->dport;
-		fl.fl_ip_sport = inet->sport;
+		fl.mark = sk->sk_mark;
+		fl.fl_ip_dport = inet->inet_dport;
+		fl.fl_ip_sport = inet->inet_sport;
 		security_sk_classify_flow(sk, &fl);
 
 		if (np->opt && np->opt->srcrt) {

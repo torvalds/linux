@@ -33,7 +33,7 @@ ENTRY(empty_zero_page)
 	.long	1		/* LOADER_TYPE */
 	.long	0x00000000	/* INITRD_START */
 	.long	0x00000000	/* INITRD_SIZE */
-#ifdef CONFIG_32BIT
+#if defined(CONFIG_32BIT) && defined(CONFIG_PMB_FIXED)
 	.long	0x53453f00 + 32	/* "SE?" = 32 bit */
 #else
 	.long	0x53453f00 + 29	/* "SE?" = 29 bit */

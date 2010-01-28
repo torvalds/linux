@@ -49,6 +49,7 @@
 #define E1000_CTRL_EXT_PFRSTD    0x00004000
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_1000BASE_KX  0x00400000
 #define E1000_CTRL_EXT_LINK_MODE_SGMII   0x00800000
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_IRCA           0x00000001
@@ -329,6 +330,7 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_VMMB          0x00000100 /* VM MB event */
+#define E1000_ICR_DRSTA         0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_INT_ASSERTED  0x80000000
 /* LAN connected device generates an interrupt */
@@ -370,6 +372,7 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
+#define E1000_IMS_DRSTA     E1000_ICR_DRSTA     /* Device Reset Asserted */
 #define E1000_IMS_DOUTSYNC  E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
 
 /* Extended Interrupt Mask Set */
@@ -378,6 +381,7 @@
 /* Interrupt Cause Set */
 #define E1000_ICS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_ICS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
+#define E1000_ICS_DRSTA     E1000_ICR_DRSTA     /* Device Reset Aserted */
 
 /* Extended Interrupt Cause Set */
 
@@ -434,6 +438,39 @@
 
 /* Flow Control */
 #define E1000_FCRTL_XONE 0x80000000     /* Enable XON frame transmission */
+
+#define E1000_TSYNCTXCTL_VALID    0x00000001 /* tx timestamp valid */
+#define E1000_TSYNCTXCTL_ENABLED  0x00000010 /* enable tx timestampping */
+
+#define E1000_TSYNCRXCTL_VALID      0x00000001 /* rx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_MASK  0x0000000E /* rx type mask */
+#define E1000_TSYNCRXCTL_TYPE_L2_V2       0x00
+#define E1000_TSYNCRXCTL_TYPE_L4_V1       0x02
+#define E1000_TSYNCRXCTL_TYPE_L2_L4_V2    0x04
+#define E1000_TSYNCRXCTL_TYPE_ALL         0x08
+#define E1000_TSYNCRXCTL_TYPE_EVENT_V2    0x0A
+#define E1000_TSYNCRXCTL_ENABLED    0x00000010 /* enable rx timestampping */
+
+#define E1000_TSYNCRXCFG_PTP_V1_CTRLT_MASK   0x000000FF
+#define E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE       0x00
+#define E1000_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE  0x01
+#define E1000_TSYNCRXCFG_PTP_V1_FOLLOWUP_MESSAGE   0x02
+#define E1000_TSYNCRXCFG_PTP_V1_DELAY_RESP_MESSAGE 0x03
+#define E1000_TSYNCRXCFG_PTP_V1_MANAGEMENT_MESSAGE 0x04
+
+#define E1000_TSYNCRXCFG_PTP_V2_MSGID_MASK               0x00000F00
+#define E1000_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE                 0x0000
+#define E1000_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE            0x0100
+#define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_REQ_MESSAGE       0x0200
+#define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_RESP_MESSAGE      0x0300
+#define E1000_TSYNCRXCFG_PTP_V2_FOLLOWUP_MESSAGE             0x0800
+#define E1000_TSYNCRXCFG_PTP_V2_DELAY_RESP_MESSAGE           0x0900
+#define E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_FOLLOWUP_MESSAGE  0x0A00
+#define E1000_TSYNCRXCFG_PTP_V2_ANNOUNCE_MESSAGE             0x0B00
+#define E1000_TSYNCRXCFG_PTP_V2_SIGNALLING_MESSAGE           0x0C00
+#define E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE           0x0D00
+
+#define E1000_TIMINCA_16NS_SHIFT 24
 
 /* PCI Express Control */
 #define E1000_GCR_CMPL_TMOUT_MASK       0x0000F000
@@ -524,8 +561,12 @@
 #define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
 
-#define E1000_NVM_CFG_DONE_PORT_0  0x40000 /* MNG config cycle done */
-#define E1000_NVM_CFG_DONE_PORT_1  0x80000 /* ...for second port */
+#define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
+#define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */
+#define E1000_NVM_CFG_DONE_PORT_2  0x100000 /* ...for third port */
+#define E1000_NVM_CFG_DONE_PORT_3  0x200000 /* ...for fourth port */
+
+#define NVM_82580_LAN_FUNC_OFFSET(a) (a ? (0x40 + (0x40 * a)) : 0)
 
 /* Mask bits for fields in Word 0x0f of the NVM */
 #define NVM_WORD0F_PAUSE_MASK       0x3000
@@ -592,6 +633,7 @@
  */
 #define M88E1111_I_PHY_ID    0x01410CC0
 #define IGP03E1000_E_PHY_ID  0x02A80390
+#define I82580_I_PHY_ID      0x015403A0
 #define M88_VENDOR           0x0141
 
 /* M88E1000 Specific Registers */
@@ -677,5 +719,9 @@
 #define E1000_VFTA_ENTRY_SHIFT               5
 #define E1000_VFTA_ENTRY_MASK                0x7F
 #define E1000_VFTA_ENTRY_BIT_SHIFT_MASK      0x1F
+
+/* DMA Coalescing register fields */
+#define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision based
+                                                      on DMA coal */
 
 #endif

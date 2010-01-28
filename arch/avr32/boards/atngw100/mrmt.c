@@ -302,6 +302,7 @@ static int __init mrmt1_init(void)
 	at32_select_periph( GPIO_PIOB_BASE, 1 << (PB_EXTINT_BASE+TS_IRQ),
 			GPIO_PERIPH_A, AT32_GPIOF_DEGLITCH);
 	set_irq_type( AT32_EXTINT(TS_IRQ), IRQ_TYPE_EDGE_FALLING );
+	at32_spi_setup_slaves(0,spi01_board_info,ARRAY_SIZE(spi01_board_info));
 	spi_register_board_info(spi01_board_info,ARRAY_SIZE(spi01_board_info));
 #endif
 

@@ -2162,7 +2162,7 @@ static struct ioc3_submodule ioc3uart_ops = {
 /**
  * ioc3_detect - module init called,
  */
-static int __devinit ioc3uart_init(void)
+static int __init ioc3uart_init(void)
 {
 	int ret;
 
@@ -2179,7 +2179,7 @@ static int __devinit ioc3uart_init(void)
 	return ret;
 }
 
-static void __devexit ioc3uart_exit(void)
+static void __exit ioc3uart_exit(void)
 {
 	ioc3_unregister_submodule(&ioc3uart_ops);
 	uart_unregister_driver(&ioc3_uart);

@@ -214,7 +214,7 @@ int debugfs_i2400m_reset_set(void *data, u64 val)
 	case I2400M_RT_WARM:
 	case I2400M_RT_COLD:
 	case I2400M_RT_BUS:
-		result = i2400m->bus_reset(i2400m, rt);
+		result = i2400m_reset(i2400m, rt);
 		if (result >= 0)
 			result = 0;
 	default:

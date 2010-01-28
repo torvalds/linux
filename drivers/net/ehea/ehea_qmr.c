@@ -837,8 +837,8 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 		hret = ehea_h_register_rpage_mr(adapter->handle, mr->handle, 0,
 						0, pt_abs, EHEA_MAX_RPAGE);
 
-		if ((hret != H_SUCCESS)
-		    && (hret != H_PAGE_REGISTERED)) {
+		if ((hret != H_SUCCESS) &&
+		    (hret != H_PAGE_REGISTERED)) {
 			ehea_h_free_resource(adapter->handle, mr->handle,
 					     FORCE_FREE);
 			ehea_error("register_rpage_mr failed");

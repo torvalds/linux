@@ -28,7 +28,7 @@
 /* Multi-queue arrangement for fast-path FCP work queues */
 #define LPFC_FN_EQN_MAX       8
 #define LPFC_SP_EQN_DEF       1
-#define LPFC_FP_EQN_DEF       1
+#define LPFC_FP_EQN_DEF       4
 #define LPFC_FP_EQN_MIN       1
 #define LPFC_FP_EQN_MAX       (LPFC_FN_EQN_MAX - LPFC_SP_EQN_DEF)
 
@@ -57,6 +57,16 @@
 #define LPFC_FCOE_MAX_RCV_SIZE	0x5AC
 #define LPFC_FCOE_FKA_ADV_PER	0
 #define LPFC_FCOE_FIP_PRIORITY	0x80
+
+#define sli4_sid_from_fc_hdr(fc_hdr)  \
+	((fc_hdr)->fh_s_id[0] << 16 | \
+	 (fc_hdr)->fh_s_id[1] <<  8 | \
+	 (fc_hdr)->fh_s_id[2])
+
+#define sli4_fctl_from_fc_hdr(fc_hdr)  \
+	((fc_hdr)->fh_f_ctl[0] << 16 | \
+	 (fc_hdr)->fh_f_ctl[1] <<  8 | \
+	 (fc_hdr)->fh_f_ctl[2])
 
 enum lpfc_sli4_queue_type {
 	LPFC_EQ,
@@ -110,18 +120,6 @@ struct lpfc_queue {
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
 
-struct lpfc_cq_event {
-	struct list_head list;
-	union {
-		struct lpfc_mcqe		mcqe_cmpl;
-		struct lpfc_acqe_link		acqe_link;
-		struct lpfc_acqe_fcoe		acqe_fcoe;
-		struct lpfc_acqe_dcbx		acqe_dcbx;
-		struct lpfc_rcqe		rcqe_cmpl;
-		struct sli4_wcqe_xri_aborted	wcqe_axri;
-	} cqe;
-};
-
 struct lpfc_sli4_link {
 	uint8_t speed;
 	uint8_t duplex;
@@ -166,7 +164,7 @@ struct lpfc_fip_param_hdr {
 #define	lpfc_fip_param_hdr_fipp_mode_SHIFT	6
 #define	lpfc_fip_param_hdr_fipp_mode_MASK	0x3
 #define lpfc_fip_param_hdr_fipp_mode_WORD	parm_flags
-#define	FIPP_MODE_ON				0x2
+#define	FIPP_MODE_ON				0x1
 #define	FIPP_MODE_OFF				0x0
 #define FIPP_VLAN_VALID				0x1
 };
@@ -295,9 +293,8 @@ struct lpfc_sli4_hba {
 	/* BAR0 PCI config space register memory map */
 	void __iomem *UERRLOregaddr; /* Address to UERR_STATUS_LO register */
 	void __iomem *UERRHIregaddr; /* Address to UERR_STATUS_HI register */
-	void __iomem *ONLINE0regaddr; /* Address to components of internal UE */
-	void __iomem *ONLINE1regaddr; /* Address to components of internal UE */
-#define LPFC_ONLINE_NERR	0xFFFFFFFF
+	void __iomem *UEMASKLOregaddr; /* Address to UE_MASK_LO register */
+	void __iomem *UEMASKHIregaddr; /* Address to UE_MASK_HI register */
 	void __iomem *SCRATCHPADregaddr; /* Address to scratchpad register */
 	/* BAR1 FCoE function CSR register memory map */
 	void __iomem *STAregaddr;    /* Address to HST_STATE register */
@@ -311,6 +308,8 @@ struct lpfc_sli4_hba {
 	void __iomem *MQDBregaddr;   /* Address to MQ_DOORBELL register */
 	void __iomem *BMBXregaddr;   /* Address to BootStrap MBX register */
 
+	uint32_t ue_mask_lo;
+	uint32_t ue_mask_hi;
 	struct msix_entry *msix_entries;
 	uint32_t cfg_eqn;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
@@ -325,7 +324,6 @@ struct lpfc_sli4_hba {
 	struct lpfc_queue **fcp_cq;/* Fast-path FCP compl queue */
 	struct lpfc_queue *mbx_cq; /* Slow-path mailbox complete queue */
 	struct lpfc_queue *els_cq; /* Slow-path ELS response complete queue */
-	struct lpfc_queue *rxq_cq; /* Slow-path unsolicited complete queue */
 
 	/* Setup information for various queue parameters */
 	int eq_esize;
@@ -360,7 +358,7 @@ struct lpfc_sli4_hba {
 	unsigned long *rpi_bmask;
 	uint16_t rpi_count;
 	struct lpfc_sli4_flags sli4_flags;
-	struct list_head sp_rspiocb_work_queue;
+	struct list_head sp_queue_event;
 	struct list_head sp_cqe_event_pool;
 	struct list_head sp_asynce_work_queue;
 	struct list_head sp_fcp_xri_aborted_work_queue;

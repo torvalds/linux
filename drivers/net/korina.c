@@ -400,7 +400,7 @@ static int korina_rx(struct net_device *dev, int limit)
 			dma_cache_inv((unsigned long)pkt_buf, pkt_len - 4);
 
 			/* Malloc up new buffer. */
-			skb_new = netdev_alloc_skb(dev, KORINA_RBSIZE + 2);
+			skb_new = netdev_alloc_skb_ip_align(dev, KORINA_RBSIZE);
 
 			if (!skb_new)
 				break;
@@ -416,9 +416,6 @@ static int korina_rx(struct net_device *dev, int limit)
 			/* Update the mcast stats */
 			if (devcs & ETH_RX_MP)
 				dev->stats.multicast++;
-
-			/* 16 bit align */
-			skb_reserve(skb_new, 2);
 
 			lp->rx_skb[lp->rx_next_done] = skb_new;
 		}
@@ -1017,14 +1014,14 @@ static int korina_open(struct net_device *dev)
 	/* Install the interrupt handler
 	 * that handles the Done Finished
 	 * Ovr and Und Events */
-	ret = request_irq(lp->rx_irq, &korina_rx_dma_interrupt,
+	ret = request_irq(lp->rx_irq, korina_rx_dma_interrupt,
 			IRQF_DISABLED, "Korina ethernet Rx", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get Rx DMA IRQ %d\n",
 		    dev->name, lp->rx_irq);
 		goto err_release;
 	}
-	ret = request_irq(lp->tx_irq, &korina_tx_dma_interrupt,
+	ret = request_irq(lp->tx_irq, korina_tx_dma_interrupt,
 			IRQF_DISABLED, "Korina ethernet Tx", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get Tx DMA IRQ %d\n",
@@ -1033,7 +1030,7 @@ static int korina_open(struct net_device *dev)
 	}
 
 	/* Install handler for overrun error. */
-	ret = request_irq(lp->ovr_irq, &korina_ovr_interrupt,
+	ret = request_irq(lp->ovr_irq, korina_ovr_interrupt,
 			IRQF_DISABLED, "Ethernet Overflow", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get OVR IRQ %d\n",
@@ -1042,7 +1039,7 @@ static int korina_open(struct net_device *dev)
 	}
 
 	/* Install handler for underflow error. */
-	ret = request_irq(lp->und_irq, &korina_und_interrupt,
+	ret = request_irq(lp->und_irq, korina_und_interrupt,
 			IRQF_DISABLED, "Ethernet Underflow", dev);
 	if (ret < 0) {
 		printk(KERN_ERR "%s: unable to get UND IRQ %d\n",

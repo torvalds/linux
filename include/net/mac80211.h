@@ -219,7 +219,7 @@ struct ieee80211_bss_conf {
  *
  * These flags are used with the @flags member of &ieee80211_tx_info.
  *
- * @IEEE80211_TX_CTL_REQ_TX_STATUS: request TX status callback for this frame.
+ * @IEEE80211_TX_CTL_REQ_TX_STATUS: require TX status callback for this frame.
  * @IEEE80211_TX_CTL_ASSIGN_SEQ: The driver has to assign a sequence
  *	number to this frame, taking care of not overwriting the fragment
  *	number and increasing the sequence number only when the
@@ -390,9 +390,11 @@ struct ieee80211_tx_rate {
  * @control: union for control data
  * @status: union for status data
  * @driver_data: array of driver_data pointers
- * @ampdu_ack_len: number of aggregated frames.
+ * @ampdu_ack_len: number of acked aggregated frames.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ampdu_ack_map: block ack bit map for the aggregation.
+ * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * @ampdu_len: number of aggregated frames.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ack_signal: signal strength of the ACK frame
  */
@@ -428,7 +430,8 @@ struct ieee80211_tx_info {
 			u8 ampdu_ack_len;
 			u64 ampdu_ack_map;
 			int ack_signal;
-			/* 8 bytes free */
+			u8 ampdu_len;
+			/* 7 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -494,7 +497,6 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_MMIC_ERROR: Michael MIC error was reported on this frame.
  *	Use together with %RX_FLAG_MMIC_STRIPPED.
  * @RX_FLAG_DECRYPTED: This frame was decrypted in hardware.
- * @RX_FLAG_RADIOTAP: This frame starts with a radiotap header.
  * @RX_FLAG_MMIC_STRIPPED: the Michael MIC is stripped off this frame,
  *	verification has been done by the hardware.
  * @RX_FLAG_IV_STRIPPED: The IV/ICV are stripped from this frame.
@@ -511,11 +513,13 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
  * @RX_FLAG_SHORT_GI: Short guard interval was used
+ * @RX_FLAG_INTERNAL_CMTR: set internally after frame was reported
+ *	on cooked monitor to avoid double-reporting it for multiple
+ *	virtual interfaces
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
 	RX_FLAG_DECRYPTED	= 1<<1,
-	RX_FLAG_RADIOTAP	= 1<<2,
 	RX_FLAG_MMIC_STRIPPED	= 1<<3,
 	RX_FLAG_IV_STRIPPED	= 1<<4,
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
@@ -525,6 +529,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_HT		= 1<<9,
 	RX_FLAG_40MHZ		= 1<<10,
 	RX_FLAG_SHORT_GI	= 1<<11,
+	RX_FLAG_INTERNAL_CMTR	= 1<<12,
 };
 
 /**
@@ -542,7 +547,6 @@ enum mac80211_rx_flags {
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
  * @noise: noise when receiving this frame, in dBm.
- * @qual: overall signal quality indication, in percent (0-100).
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -554,7 +558,6 @@ struct ieee80211_rx_status {
 	int freq;
 	int signal;
 	int noise;
-	int qual;
 	int antenna;
 	int rate_idx;
 	int flag;
@@ -565,7 +568,9 @@ struct ieee80211_rx_status {
  *
  * Flags to define PHY configuration options
  *
- * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
+ * @IEEE80211_CONF_MONITOR: there's a monitor interface present -- use this
+ *	to determine for example whether to calculate timestamps for packets
+ *	or not, do not use instead of filter flags!
  * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
  * @IEEE80211_CONF_IDLE: The device is running, but idle; if the flag is set
  *	the driver should be prepared to handle configuration requests but
@@ -574,7 +579,7 @@ struct ieee80211_rx_status {
  *	it can also be unset in that case when monitor interfaces are active.
  */
 enum ieee80211_conf_flags {
-	IEEE80211_CONF_RADIOTAP		= (1<<0),
+	IEEE80211_CONF_MONITOR		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
 	IEEE80211_CONF_IDLE		= (1<<2),
 };
@@ -584,7 +589,7 @@ enum ieee80211_conf_flags {
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
- * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
+ * @IEEE80211_CONF_CHANGE_MONITOR: the monitor flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
@@ -593,7 +598,7 @@ enum ieee80211_conf_flags {
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
-	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
+	IEEE80211_CONF_CHANGE_MONITOR		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
 	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
@@ -852,6 +857,19 @@ enum ieee80211_tkip_key_type {
  * any particular flags. There are some exceptions to this rule,
  * however, so you are advised to review these flags carefully.
  *
+ * @IEEE80211_HW_HAS_RATE_CONTROL:
+ *	The hardware or firmware includes rate control, and cannot be
+ *	controlled by the stack. As such, no rate control algorithm
+ *	should be instantiated, and the TX rate reported to userspace
+ *	will be taken from the TX status instead of the rate control
+ *	algorithm.
+ *	Note that this requires that the driver implement a number of
+ *	callbacks so it has the correct information, it needs to have
+ *	the @set_rts_threshold callback and must look at the BSS config
+ *	@use_cts_prot for G/N protection, @use_short_slot for slot
+ *	timing in 2.4 GHz and @use_short_preamble for preambles for
+ *	CCK frames.
+ *
  * @IEEE80211_HW_RX_INCLUDES_FCS:
  *	Indicates that received frames passed to the stack include
  *	the FCS at the end.
@@ -910,6 +928,7 @@ enum ieee80211_tkip_key_type {
  *	avoid waking up cpu.
  */
 enum ieee80211_hw_flags {
+	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
 	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING	= 1<<2,
 	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
@@ -1283,6 +1302,12 @@ enum ieee80211_filter_flags {
  *
  * These flags are used with the ampdu_action() callback in
  * &struct ieee80211_ops to indicate which action is needed.
+ *
+ * Note that drivers MUST be able to deal with a TX aggregation
+ * session being stopped even before they OK'ed starting it by
+ * calling ieee80211_start_tx_ba_cb(_irqsafe), because the peer
+ * might receive the addBA frame and send a delBA right away!
+ *
  * @IEEE80211_AMPDU_RX_START: start Rx aggregation
  * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
  * @IEEE80211_AMPDU_TX_START: start Tx aggregation
@@ -1505,6 +1530,7 @@ struct ieee80211_ops {
 	void (*reset_tsf)(struct ieee80211_hw *hw);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
@@ -1661,15 +1687,14 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * ieee80211_rx - receive frame
  *
  * Use this function to hand received frames to mac80211. The receive
- * buffer in @skb must start with an IEEE 802.11 header or a radiotap
- * header if %RX_FLAG_RADIOTAP is set in the @status flags.
+ * buffer in @skb must start with an IEEE 802.11 header.
  *
  * This function may not be called in IRQ context. Calls to this function
- * for a single hardware must be synchronized against each other. Calls
- * to this function and ieee80211_rx_irqsafe() may not be mixed for a
- * single hardware.
+ * for a single hardware must be synchronized against each other. Calls to
+ * this function, ieee80211_rx_ni() and ieee80211_rx_irqsafe() may not be
+ * mixed for a single hardware.
  *
- * Note that right now, this function must be called with softirqs disabled.
+ * In process context use instead ieee80211_rx_ni().
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
@@ -1682,13 +1707,39 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
  * Like ieee80211_rx() but can be called in IRQ context
  * (internally defers to a tasklet.)
  *
- * Calls to this function and ieee80211_rx() may not be mixed for a
- * single hardware.
+ * Calls to this function, ieee80211_rx() or ieee80211_rx_ni() may not
+ * be mixed for a single hardware.
  *
  * @hw: the hardware this frame came in on
  * @skb: the buffer to receive, owned by mac80211 after this call
  */
 void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb);
+
+/**
+ * ieee80211_rx_ni - receive frame (in process context)
+ *
+ * Like ieee80211_rx() but can be called in process context
+ * (internally disables bottom halves).
+ *
+ * Calls to this function, ieee80211_rx() and ieee80211_rx_irqsafe() may
+ * not be mixed for a single hardware.
+ *
+ * @hw: the hardware this frame came in on
+ * @skb: the buffer to receive, owned by mac80211 after this call
+ */
+static inline void ieee80211_rx_ni(struct ieee80211_hw *hw,
+				   struct sk_buff *skb)
+{
+	local_bh_disable();
+	ieee80211_rx(hw, skb);
+	local_bh_enable();
+}
+
+/*
+ * The TX headroom reserved by mac80211 for its own tx_status functions.
+ * This is enough for the radiotap header.
+ */
+#define IEEE80211_TX_STATUS_HEADROOM	13
 
 /**
  * ieee80211_tx_status - transmit status callback
@@ -1724,19 +1775,45 @@ void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb);
 
 /**
+ * ieee80211_beacon_get_tim - beacon generation function
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ * @tim_offset: pointer to variable that will receive the TIM IE offset.
+ *	Set to 0 if invalid (in non-AP modes).
+ * @tim_length: pointer to variable that will receive the TIM IE length,
+ *	(including the ID and length bytes!).
+ *	Set to 0 if invalid (in non-AP modes).
+ *
+ * If the driver implements beaconing modes, it must use this function to
+ * obtain the beacon frame/template.
+ *
+ * If the beacon frames are generated by the host system (i.e., not in
+ * hardware/firmware), the driver uses this function to get each beacon
+ * frame from mac80211 -- it is responsible for calling this function
+ * before the beacon is needed (e.g. based on hardware interrupt).
+ *
+ * If the beacon frames are generated by the device, then the driver
+ * must use the returned beacon as the template and change the TIM IE
+ * according to the current DTIM parameters/TIM bitmap.
+ *
+ * The driver is responsible for freeing the returned skb.
+ */
+struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 u16 *tim_offset, u16 *tim_length);
+
+/**
  * ieee80211_beacon_get - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
  *
- * If the beacon frames are generated by the host system (i.e., not in
- * hardware/firmware), the low-level driver uses this function to receive
- * the next beacon frame from the 802.11 code. The low-level is responsible
- * for calling this function before beacon data is needed (e.g., based on
- * hardware interrupt). Returned skb is used only once and low-level driver
- * is responsible for freeing it.
+ * See ieee80211_beacon_get_tim().
  */
-struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif);
+static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
+						   struct ieee80211_vif *vif)
+{
+	return ieee80211_beacon_get_tim(hw, vif, NULL, NULL);
+}
 
 /**
  * ieee80211_rts_get - RTS frame generation function
@@ -1981,8 +2058,7 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 
 /**
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @ra: receiver address of the BA session recipient
+ * @sta: the station for which to start a BA session
  * @tid: the TID to BA on.
  *
  * Return: success if addBA request was sent, failure otherwise
@@ -1991,22 +2067,22 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
  * the need to start aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid);
+int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
  * ieee80211_start_tx_ba_cb - low level driver ready to aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
  * This function must be called by low level driver once it has
  * finished with preparations for the BA session.
  */
-void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid);
+void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
 
 /**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
@@ -2014,13 +2090,12 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid);
  * finished with preparations for the BA session.
  * This version of the function is IRQ-safe.
  */
-void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
+void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				      u16 tid);
 
 /**
  * ieee80211_stop_tx_ba_session - Stop a Block Ack session.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @ra: receiver address of the BA session recipient
+ * @sta: the station whose BA session to stop
  * @tid: the TID to stop BA.
  * @initiator: if indicates initiator DELBA frame will be sent.
  *
@@ -2030,24 +2105,23 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
  * the need to stop aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
-				 u8 *ra, u16 tid,
+int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
 				 enum ieee80211_back_parties initiator);
 
 /**
  * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
  * This function must be called by low level driver once it has
  * finished with preparations for the BA session tear down.
  */
-void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid);
+void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
 
 /**
  * ieee80211_stop_tx_ba_cb_irqsafe - low level driver ready to stop aggregate.
- * @hw: pointer as obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
@@ -2055,20 +2129,73 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid);
  * finished with preparations for the BA session tear down.
  * This version of the function is IRQ-safe.
  */
-void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
+void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				     u16 tid);
 
 /**
  * ieee80211_find_sta - find a station
+ *
+ * @vif: virtual interface to look for station on
+ * @addr: station's address
+ *
+ * This function must be called under RCU lock and the
+ * resulting pointer is only valid under RCU lock as well.
+ */
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
+					 const u8 *addr);
+
+/**
+ * ieee80211_find_sta_by_hw - find a station on hardware
  *
  * @hw: pointer as obtained from ieee80211_alloc_hw()
  * @addr: station's address
  *
  * This function must be called under RCU lock and the
  * resulting pointer is only valid under RCU lock as well.
+ *
+ * NOTE: This function should not be used! When mac80211 is converted
+ *	 internally to properly keep track of stations on multiple
+ *	 virtual interfaces, it will not always know which station to
+ *	 return here since a single address might be used by multiple
+ *	 logical stations (e.g. consider a station connecting to another
+ *	 BSSID on the same AP hardware without disconnecting first).
+ *
+ * DO NOT USE THIS FUNCTION.
  */
-struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
-					 const u8 *addr);
+struct ieee80211_sta *ieee80211_find_sta_by_hw(struct ieee80211_hw *hw,
+					       const u8 *addr);
+
+/**
+ * ieee80211_sta_block_awake - block station from waking up
+ * @hw: the hardware
+ * @pubsta: the station
+ * @block: whether to block or unblock
+ *
+ * Some devices require that all frames that are on the queues
+ * for a specific station that went to sleep are flushed before
+ * a poll response or frames after the station woke up can be
+ * delivered to that it. Note that such frames must be rejected
+ * by the driver as filtered, with the appropriate status flag.
+ *
+ * This function allows implementing this mode in a race-free
+ * manner.
+ *
+ * To do this, a driver must keep track of the number of frames
+ * still enqueued for a specific station. If this number is not
+ * zero when the station goes to sleep, the driver must call
+ * this function to force mac80211 to consider the station to
+ * be asleep regardless of the station's actual state. Once the
+ * number of outstanding frames reaches zero, the driver must
+ * call this function again to unblock the station. That will
+ * cause mac80211 to be able to send ps-poll responses, and if
+ * the station queried in the meantime then frames will also
+ * be sent out as a result of this. Additionally, the driver
+ * will be notified that the station woke up some time after
+ * it is unblocked, regardless of whether the station actually
+ * woke up while blocked or not.
+ */
+void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
+			       struct ieee80211_sta *pubsta, bool block);
 
 /**
  * ieee80211_beacon_loss - inform hardware does not receive beacons

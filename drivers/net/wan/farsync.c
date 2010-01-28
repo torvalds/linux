@@ -1346,8 +1346,8 @@ do_bottom_half_tx(struct fst_card_info *card)
 
 		dev = port_to_dev(port);
 		while (!(FST_RDB(card, txDescrRing[pi][port->txpos].bits) &
-			 DMA_OWN)
-		       && !(card->dmatx_in_progress)) {
+			 DMA_OWN) &&
+		       !(card->dmatx_in_progress)) {
 			/*
 			 * There doesn't seem to be a txdone event per-se
 			 * We seem to have to deduce it, by checking the DMA_OWN
@@ -1379,8 +1379,8 @@ do_bottom_half_tx(struct fst_card_info *card)
 				 */
 				FST_WRW(card, txDescrRing[pi][port->txpos].bcnt,
 					cnv_bcnt(skb->len));
-				if ((skb->len < FST_MIN_DMA_LEN)
-				    || (card->family == FST_FAMILY_TXP)) {
+				if ((skb->len < FST_MIN_DMA_LEN) ||
+				    (card->family == FST_FAMILY_TXP)) {
 					/* Enqueue the packet with normal io */
 					memcpy_toio(card->mem +
 						    BUF_OFFSET(txBuffer[pi]
@@ -2030,8 +2030,8 @@ fst_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		/* Sanity check the parameters. We don't support partial writes
 		 * when going over the top
 		 */
-		if (wrthdr.size > FST_MEMSIZE || wrthdr.offset > FST_MEMSIZE
-		    || wrthdr.size + wrthdr.offset > FST_MEMSIZE) {
+		if (wrthdr.size > FST_MEMSIZE || wrthdr.offset > FST_MEMSIZE ||
+		    wrthdr.size + wrthdr.offset > FST_MEMSIZE) {
 			return -ENXIO;
 		}
 

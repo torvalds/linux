@@ -2,8 +2,7 @@
 #define _IP6T_MH_H
 
 /* MH matching stuff */
-struct ip6t_mh
-{
+struct ip6t_mh {
 	u_int8_t types[2];	/* MH type range */
 	u_int8_t invflags;	/* Inverse flags */
 };

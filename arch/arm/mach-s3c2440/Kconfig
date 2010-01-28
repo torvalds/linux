@@ -1,5 +1,3 @@
-# arch/arm/mach-s3c2440/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -52,6 +50,19 @@ config MACH_OSIRIS
 	help
 	  Say Y here if you are using the Simtec IM2440D20 module, also
 	  known as the Osiris.
+
+config MACH_OSIRIS_DVS
+	tristate "Simtec IM2440D20 (OSIRIS) Dynamic Voltage Scaling driver"
+	depends on MACH_OSIRIS
+	select TPS65010
+	help
+	  Say Y/M here if you want to have dynamic voltage scaling support
+	  on the Simtec IM2440D20 (OSIRIS) module via the TPS65011.
+
+	  The DVS driver alters the voltage supplied to the ARM core
+	  depending on the frequency it is running at. The driver itself
+	  does not do any of the frequency alteration, which is left up
+	  to the cpufreq driver.
 
 config MACH_RX3715
 	bool "HP iPAQ rx3715"
@@ -109,4 +120,3 @@ config MACH_MINI2440
 	  available via various sources. It can come with a 3.5" or 7" touch LCD.
 
 endmenu
-

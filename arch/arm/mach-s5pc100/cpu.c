@@ -22,6 +22,8 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
+#include <asm/proc-fns.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -32,6 +34,7 @@
 
 #include <plat/cpu-freq.h>
 #include <plat/regs-serial.h>
+#include <plat/regs-power.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
@@ -45,6 +48,23 @@
 static struct map_desc s5pc100_iodesc[] __initdata = {
 };
 
+static void s5pc100_idle(void)
+{
+	unsigned long tmp;
+
+	tmp = __raw_readl(S5PC100_PWR_CFG);
+	tmp &= ~S5PC100_PWRCFG_CFG_DEEP_IDLE;
+	tmp &= ~S5PC100_PWRCFG_CFG_WFI_MASK;
+	tmp |= S5PC100_PWRCFG_CFG_WFI_DEEP_IDLE;
+	__raw_writel(tmp, S5PC100_PWR_CFG);
+
+	tmp = __raw_readl(S5PC100_OTHERS);
+	tmp |= S5PC100_PMU_INT_DISABLE;
+	__raw_writel(tmp, S5PC100_OTHERS);
+
+	cpu_do_idle();
+}
+
 /* s5pc100_map_io
  *
  * register the standard cpu IO areas
@@ -55,6 +75,13 @@ void __init s5pc100_map_io(void)
 	iotable_init(s5pc100_iodesc, ARRAY_SIZE(s5pc100_iodesc));
 
 	/* initialise device information early */
+	s5pc100_default_sdhci0();
+	s5pc100_default_sdhci1();
+	s5pc100_default_sdhci2();
+
+	/* the i2c devices are directly compatible with s3c2440 */
+	s3c_i2c0_setname("s3c2440-i2c");
+	s3c_i2c1_setname("s3c2440-i2c");
 }
 
 void __init s5pc100_init_clocks(int xtal)
@@ -92,6 +119,8 @@ core_initcall(s5pc100_core_init);
 int __init s5pc100_init(void)
 {
 	printk(KERN_DEBUG "S5PC100: Initialising architecture\n");
+
+	s5pc1xx_idle = s5pc100_idle;
 
 	return sysdev_register(&s5pc100_sysdev);
 }

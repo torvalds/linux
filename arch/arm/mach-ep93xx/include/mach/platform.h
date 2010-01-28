@@ -8,6 +8,7 @@ struct i2c_gpio_platform_data;
 struct i2c_board_info;
 struct platform_device;
 struct ep93xxfb_mach_info;
+struct ep93xx_keypad_platform_data;
 
 struct ep93xx_eth_data
 {
@@ -39,6 +40,9 @@ void ep93xx_register_fb(struct ep93xxfb_mach_info *data);
 void ep93xx_register_pwm(int pwm0, int pwm1);
 int ep93xx_pwm_acquire_gpio(struct platform_device *pdev);
 void ep93xx_pwm_release_gpio(struct platform_device *pdev);
+void ep93xx_register_keypad(struct ep93xx_keypad_platform_data *data);
+int ep93xx_keypad_acquire_gpio(struct platform_device *pdev);
+void ep93xx_keypad_release_gpio(struct platform_device *pdev);
 
 void ep93xx_init_devices(void);
 extern struct sys_timer ep93xx_timer;

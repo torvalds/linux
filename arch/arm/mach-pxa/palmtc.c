@@ -185,7 +185,7 @@ err:
 	return ret;
 }
 
-static int palmtc_backlight_notify(int brightness)
+static int palmtc_backlight_notify(struct device *dev, int brightness)
 {
 	/* backlight is on when GPIO16 AF0 is high */
 	gpio_set_value(GPIO_NR_PALMTC_BL_POWER, brightness);
@@ -415,6 +415,11 @@ static struct platform_device *devices[] __initdata = {
 static void __init palmtc_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtc_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+	pxa_set_hwuart_info(NULL);
 
 	set_pxa_fb_info(&palmtc_lcd_screen);
 	pxa_set_mci_info(&palmtc_mci_platform_data);

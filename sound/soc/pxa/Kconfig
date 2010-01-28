@@ -90,7 +90,8 @@ config SND_PXA2XX_SOC_E800
 
 config SND_PXA2XX_SOC_EM_X270
 	tristate "SoC Audio support for CompuLab EM-x270, eXeda and CM-X300"
-	depends on SND_PXA2XX_SOC && MACH_EM_X270
+	depends on SND_PXA2XX_SOC && (MACH_EM_X270 || MACH_EXEDA || \
+			MACH_CM_X300)
 	select SND_PXA2XX_SOC_AC97
 	select SND_SOC_WM9712
 	help
@@ -116,6 +117,15 @@ config SND_SOC_ZYLONITE
 	help
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell Zylonite reference platform.
+
+config SND_SOC_RAUMFELD
+	tristate "SoC Audio support Raumfeld audio adapter"
+	depends on SND_PXA2XX_SOC && (MACH_RAUMFELD_SPEAKER || MACH_RAUMFELD_CONNECTOR)
+	select SND_PXA_SOC_SSP
+	select SND_SOC_CS4270
+	select SND_SOC_AK4104
+	help
+	  Say Y if you want to add support for SoC audio on Raumfeld devices
 
 config SND_PXA2XX_SOC_MAGICIAN
 	tristate "SoC Audio support for HTC Magician"

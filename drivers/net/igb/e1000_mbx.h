@@ -58,10 +58,12 @@
 #define E1000_VT_MSGINFO_MASK     (0xFF << E1000_VT_MSGINFO_SHIFT)
 
 #define E1000_VF_RESET            0x01 /* VF requests reset */
-#define E1000_VF_SET_MAC_ADDR     0x02 /* VF requests PF to set MAC addr */
-#define E1000_VF_SET_MULTICAST    0x03 /* VF requests PF to set MC addr */
-#define E1000_VF_SET_VLAN         0x04 /* VF requests PF to set VLAN */
-#define E1000_VF_SET_LPE          0x05 /* VF requests PF to set VMOLR.LPE */
+#define E1000_VF_SET_MAC_ADDR     0x02 /* VF requests to set MAC addr */
+#define E1000_VF_SET_MULTICAST    0x03 /* VF requests to set MC addr */
+#define E1000_VF_SET_VLAN         0x04 /* VF requests to set VLAN */
+#define E1000_VF_SET_LPE          0x05 /* VF requests to set VMOLR.LPE */
+#define E1000_VF_SET_PROMISC      0x06 /*VF requests to clear VMOLR.ROPE/MPME*/
+#define E1000_VF_SET_PROMISC_MULTICAST    (0x02 << E1000_VT_MSGINFO_SHIFT)
 
 #define E1000_PF_CONTROL_MSG      0x0100 /* PF control message */
 

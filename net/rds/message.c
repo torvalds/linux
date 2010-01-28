@@ -122,8 +122,7 @@ int rds_message_add_extension(struct rds_header *hdr,
 	if (hdr->h_exthdr[0] != RDS_EXTHDR_NONE)
 		return 0;
 
-	if (type >= __RDS_EXTHDR_MAX
-	 || len != rds_exthdr_size[type])
+	if (type >= __RDS_EXTHDR_MAX || len != rds_exthdr_size[type])
 		return 0;
 
 	if (ext_len >= RDS_HEADER_EXT_SPACE)

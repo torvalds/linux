@@ -134,28 +134,6 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 	local_irq_restore(flags);
 }
 
-/* dump the entire TLB for debug purposes */
-
-#if 0
-void
-dump_tlb_all(void)
-{
-	int i;
-	unsigned long flags;
-
-	printk("TLB dump. LO is: pfn | reserved | global | valid | kernel | we  |\n");
-
-	local_save_flags(flags);
-	local_irq_disable();
-	for(i = 0; i < NUM_TLB_ENTRIES; i++) {
-		*R_TLB_SELECT = ( IO_FIELD(R_TLB_SELECT, index, i) );
-		printk("Entry %d: HI 0x%08lx, LO 0x%08lx\n",
-		       i, *R_TLB_HI, *R_TLB_LO);
-	}
-	local_irq_restore(flags);
-}
-#endif
-
 /*
  * Initialize the context related info for a new mm_struct
  * instance.

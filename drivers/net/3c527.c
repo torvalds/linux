@@ -443,7 +443,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	 *	Grab the IRQ
 	 */
 
-	err = request_irq(dev->irq, &mc32_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM, DRV_NAME, dev);
+	err = request_irq(dev->irq, mc32_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM, DRV_NAME, dev);
 	if (err) {
 		release_region(dev->base_addr, MC32_IO_EXTENT);
 		pr_err("%s: unable to get IRQ %d.\n", DRV_NAME, dev->irq);
@@ -1168,8 +1168,8 @@ static void mc32_rx_ring(struct net_device *dev)
 
 			/* Try to save time by avoiding a copy on big frames */
 
-			if ((length > RX_COPYBREAK)
-			    && ((newskb=dev_alloc_skb(1532)) != NULL))
+			if ((length > RX_COPYBREAK) &&
+			    ((newskb=dev_alloc_skb(1532)) != NULL))
 			{
 				skb=lp->rx_ring[rx_ring_tail].skb;
 				skb_put(skb, length);

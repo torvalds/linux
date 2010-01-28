@@ -478,7 +478,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 
 	DEB_EE(("VIDIOC_S_INPUT %d.\n", input));
 
-	if (input < 0 || input >= MXB_INPUTS)
+	if (input >= MXB_INPUTS)
 		return -EINVAL;
 
 	mxb->cur_input = input;

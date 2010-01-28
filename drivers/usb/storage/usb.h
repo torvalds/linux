@@ -132,6 +132,7 @@ struct us_data {
 	/* SCSI interfaces */
 	struct scsi_cmnd	*srb;		 /* current srb		*/
 	unsigned int		tag;		 /* current dCBWTag	*/
+	char			scsi_name[32];	 /* scsi_host name	*/
 
 	/* control and bulk communications data */
 	struct urb		*current_urb;	 /* USB requests	 */

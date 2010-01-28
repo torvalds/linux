@@ -154,14 +154,14 @@ enum rx_tx_priority_ratio {
 #define DMA_CONTROL_DT		0x04000000 /* Disable Drop TCP/IP csum error */
 #define DMA_CONTROL_RSF		0x02000000 /* Receive Store and Forward */
 #define DMA_CONTROL_DFF		0x01000000 /* Disaable flushing */
-/* Theshold for Activating the FC */
+/* Threshold for Activating the FC */
 enum rfa {
 	act_full_minus_1 = 0x00800000,
 	act_full_minus_2 = 0x00800200,
 	act_full_minus_3 = 0x00800400,
 	act_full_minus_4 = 0x00800600,
 };
-/* Theshold for Deactivating the FC */
+/* Threshold for Deactivating the FC */
 enum rfd {
 	deac_full_minus_1 = 0x00400000,
 	deac_full_minus_2 = 0x00400800,

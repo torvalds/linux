@@ -3807,7 +3807,7 @@ int i_APCI1710_EnableFrequencyMeasurement(struct comedi_device *dev,
 			s_ModuleInfo[b_ModulNbr].
 			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-			/* Test if frequency mesurement initialised */
+			/* Test if frequency measurement initialised */
 	      /********************************************/
 
 			if (devpriv->
@@ -3953,7 +3953,7 @@ int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device *dev, unsigned c
 			s_ModuleInfo[b_ModulNbr].
 			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-			/* Test if frequency mesurement initialised */
+			/* Test if frequency measurement initialised */
 	      /********************************************/
 
 			if (devpriv->
@@ -5166,7 +5166,7 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device *dev,
 			s_ModuleInfo[b_ModulNbr].
 			s_SiemensCounterInfo.s_InitFlag.b_CounterInit == 1) {
 	      /********************************************/
-			/* Test if frequency mesurement initialised */
+			/* Test if frequency measurement initialised */
 	      /********************************************/
 
 			if (devpriv->

@@ -33,15 +33,15 @@
 #include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/dma.h>
-#include <mach/tc.h>
-#include <mach/board.h>
-#include <mach/irda.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
-#include <mach/omap-alsa.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/dma.h>
+#include <plat/tc.h>
+#include <plat/board.h>
+#include <plat/irda.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
+#include <plat/omap-alsa.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>

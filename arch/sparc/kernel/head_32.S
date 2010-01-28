@@ -811,8 +811,30 @@ found_version:
 got_prop:
 #ifdef CONFIG_SPARC_LEON
 	        /* no cpu-type check is needed, it is a SPARC-LEON */
+#ifdef CONFIG_SMP
+		ba leon_smp_init
+		 nop
+
+		.global leon_smp_init
+leon_smp_init:
+		sethi	%hi(boot_cpu_id), %g1    ! master always 0
+		stb	%g0, [%g1 + %lo(boot_cpu_id)]
+		sethi	%hi(boot_cpu_id4), %g1   ! master always 0
+		stb	%g0, [%g1 + %lo(boot_cpu_id4)]
+
+		rd     %asr17,%g1
+		srl    %g1,28,%g1
+
+		cmp %g0,%g1
+		 beq sun4c_continue_boot         !continue with master
+		nop
+
+		ba leon_smp_cpu_startup
+		 nop
+#else
 		ba sun4c_continue_boot
 		 nop
+#endif
 #endif
 		set	cputypval, %o2
 		ldub	[%o2 + 0x4], %l1

@@ -41,32 +41,31 @@
 #define	__RT_CONFIG_H__
 
 #include    "rtmp_type.h"
-#ifdef LINUX
-#include	"rt_linux.h"
-#endif
-#include    "rtmp_def.h"
-#include    "rt28xx.h"
+#include "rtmp_os.h"
 
-#ifdef RT2860
-#include	"rt2860.h"
-#endif
-#ifdef RT2870
-#include	"../rt2870/rt2870.h"
-#endif // RT2870 //
+#include "rtmp_def.h"
+#include "rtmp_chip.h"
+#include "rtmp_timer.h"
 
 #include    "oid.h"
 #include    "mlme.h"
 #include    "wpa.h"
-#include    "md5.h"
+#include "crypt_md5.h"
+#include "crypt_sha2.h"
+#include "crypt_hmac.h"
 #include    "rtmp.h"
 #include	"ap.h"
 #include	"dfs.h"
 #include	"chlist.h"
 #include	"spectrum.h"
 
+#include "eeprom.h"
+#if defined(RTMP_PCI_SUPPORT) || defined(RTMP_USB_SUPPORT)
+#include "rtmp_mcu.h"
+#endif
+
 #ifdef IGMP_SNOOP_SUPPORT
 #include "igmp_snoop.h"
-#endif // IGMP_SNOOP_SUPPORT //
+#endif /* IGMP_SNOOP_SUPPORT // */
 
-#endif	// __RT_CONFIG_H__
-
+#endif /* __RT_CONFIG_H__ */

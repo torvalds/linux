@@ -384,11 +384,11 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 				|= ((1 << hook) | (1 << NF_ARP_NUMHOOKS));
 
 			/* Unconditional return/END. */
-			if ((e->target_offset == sizeof(struct arpt_entry)
-			    && (strcmp(t->target.u.user.name,
-				       ARPT_STANDARD_TARGET) == 0)
-			    && t->verdict < 0
-			    && unconditional(&e->arp)) || visited) {
+			if ((e->target_offset == sizeof(struct arpt_entry) &&
+			     (strcmp(t->target.u.user.name,
+				     ARPT_STANDARD_TARGET) == 0) &&
+			     t->verdict < 0 && unconditional(&e->arp)) ||
+			    visited) {
 				unsigned int oldpos, size;
 
 				if ((strcmp(t->target.u.user.name,
@@ -427,8 +427,8 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 				int newpos = t->verdict;
 
 				if (strcmp(t->target.u.user.name,
-					   ARPT_STANDARD_TARGET) == 0
-				    && newpos >= 0) {
+					   ARPT_STANDARD_TARGET) == 0 &&
+				    newpos >= 0) {
 					if (newpos > newinfo->size -
 						sizeof(struct arpt_entry)) {
 						duprintf("mark_source_chains: "
@@ -559,8 +559,8 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 {
 	unsigned int h;
 
-	if ((unsigned long)e % __alignof__(struct arpt_entry) != 0
-	    || (unsigned char *)e + sizeof(struct arpt_entry) >= limit) {
+	if ((unsigned long)e % __alignof__(struct arpt_entry) != 0 ||
+	    (unsigned char *)e + sizeof(struct arpt_entry) >= limit) {
 		duprintf("Bad offset %p\n", e);
 		return -EINVAL;
 	}
@@ -1251,8 +1251,8 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 	int ret, off, h;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);
-	if ((unsigned long)e % __alignof__(struct compat_arpt_entry) != 0
-	    || (unsigned char *)e + sizeof(struct compat_arpt_entry) >= limit) {
+	if ((unsigned long)e % __alignof__(struct compat_arpt_entry) != 0 ||
+	    (unsigned char *)e + sizeof(struct compat_arpt_entry) >= limit) {
 		duprintf("Bad offset %p, limit = %p\n", e, limit);
 		return -EINVAL;
 	}

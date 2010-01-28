@@ -4,6 +4,8 @@
 
 #include "ext4_jbd2.h"
 
+#include <trace/events/ext4.h>
+
 int __ext4_journal_get_undo_access(const char *where, handle_t *handle,
 				struct buffer_head *bh)
 {
@@ -32,35 +34,69 @@ int __ext4_journal_get_write_access(const char *where, handle_t *handle,
 	return err;
 }
 
-int __ext4_journal_forget(const char *where, handle_t *handle,
-				struct buffer_head *bh)
+/*
+ * The ext4 forget function must perform a revoke if we are freeing data
+ * which has been journaled.  Metadata (eg. indirect blocks) must be
+ * revoked in all cases.
+ *
+ * "bh" may be NULL: a metadata block may have been freed from memory
+ * but there may still be a record of it in the journal, and that record
+ * still needs to be revoked.
+ *
+ * If the handle isn't valid we're not journaling, but we still need to
+ * call into ext4_journal_revoke() to put the buffer head.
+ */
+int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
+		  struct inode *inode, struct buffer_head *bh,
+		  ext4_fsblk_t blocknr)
 {
-	int err = 0;
+	int err;
 
-	if (ext4_handle_valid(handle)) {
-		err = jbd2_journal_forget(handle, bh);
-		if (err)
-			ext4_journal_abort_handle(where, __func__, bh,
-						  handle, err);
-	}
-	else
+	might_sleep();
+
+	trace_ext4_forget(inode, is_metadata, blocknr);
+	BUFFER_TRACE(bh, "enter");
+
+	jbd_debug(4, "forgetting bh %p: is_metadata = %d, mode %o, "
+		  "data mode %x\n",
+		  bh, is_metadata, inode->i_mode,
+		  test_opt(inode->i_sb, DATA_FLAGS));
+
+	/* In the no journal case, we can just do a bforget and return */
+	if (!ext4_handle_valid(handle)) {
 		bforget(bh);
-	return err;
-}
-
-int __ext4_journal_revoke(const char *where, handle_t *handle,
-				ext4_fsblk_t blocknr, struct buffer_head *bh)
-{
-	int err = 0;
-
-	if (ext4_handle_valid(handle)) {
-		err = jbd2_journal_revoke(handle, blocknr, bh);
-		if (err)
-			ext4_journal_abort_handle(where, __func__, bh,
-						  handle, err);
+		return 0;
 	}
-	else
-		bforget(bh);
+
+	/* Never use the revoke function if we are doing full data
+	 * journaling: there is no need to, and a V1 superblock won't
+	 * support it.  Otherwise, only skip the revoke on un-journaled
+	 * data blocks. */
+
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
+	    (!is_metadata && !ext4_should_journal_data(inode))) {
+		if (bh) {
+			BUFFER_TRACE(bh, "call jbd2_journal_forget");
+			err = jbd2_journal_forget(handle, bh);
+			if (err)
+				ext4_journal_abort_handle(where, __func__, bh,
+							  handle, err);
+			return err;
+		}
+		return 0;
+	}
+
+	/*
+	 * data!=journal && (is_metadata || should_journal_data(inode))
+	 */
+	BUFFER_TRACE(bh, "call jbd2_journal_revoke");
+	err = jbd2_journal_revoke(handle, blocknr, bh);
+	if (err) {
+		ext4_journal_abort_handle(where, __func__, bh, handle, err);
+		ext4_abort(inode->i_sb, __func__,
+			   "error %d when attempting revoke", err);
+	}
+	BUFFER_TRACE(bh, "exit");
 	return err;
 }
 

@@ -27,17 +27,24 @@
 #include "calib.h"
 #include "reg.h"
 #include "phy.h"
+#include "btcoex.h"
 
 #include "../regd.h"
+#include "../debug.h"
 
 #define ATHEROS_VENDOR_ID	0x168c
+
 #define AR5416_DEVID_PCI	0x0023
 #define AR5416_DEVID_PCIE	0x0024
 #define AR9160_DEVID_PCI	0x0027
 #define AR9280_DEVID_PCI	0x0029
 #define AR9280_DEVID_PCIE	0x002a
 #define AR9285_DEVID_PCIE	0x002b
+
 #define AR5416_AR9100_DEVID	0x000b
+
+#define AR9271_USB             0x9271
+
 #define	AR_SUBVENDOR_ID_NOG	0x0e11
 #define AR_SUBVENDOR_ID_NEW_A	0x7065
 #define AR5416_MAGIC		0x19641014
@@ -49,9 +56,18 @@
 #define AT9285_COEX3WIRE_SA_SUBSYSID	0x30aa
 #define AT9285_COEX3WIRE_DA_SUBSYSID	0x30ab
 
+#define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
+
+#define	ATH_DEFAULT_NOISE_FLOOR -95
+
+#define ATH9K_RSSI_BAD			-128
+
 /* Register read/write primitives */
-#define REG_WRITE(_ah, _reg, _val) ath9k_iowrite32((_ah), (_reg), (_val))
-#define REG_READ(_ah, _reg) ath9k_ioread32((_ah), (_reg))
+#define REG_WRITE(_ah, _reg, _val) \
+	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))
+
+#define REG_READ(_ah, _reg) \
+	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
@@ -91,7 +107,7 @@
 #define AR_GPIO_BIT(_gpio)          (1 << (_gpio))
 
 #define BASE_ACTIVATE_DELAY         100
-#define RTC_PLL_SETTLE_DELAY        1000
+#define RTC_PLL_SETTLE_DELAY        100
 #define COEF_SCALE_S                24
 #define HT40_CHANNEL_CENTER_SHIFT   10
 
@@ -130,12 +146,6 @@ enum wireless_mode {
 	ATH9K_MODE_11NG_HT40PLUS,
 	ATH9K_MODE_11NG_HT40MINUS,
 	ATH9K_MODE_MAX,
-};
-
-enum ath9k_ant_setting {
-	ATH9K_ANT_VARIABLE = 0,
-	ATH9K_ANT_FIXED_A,
-	ATH9K_ANT_FIXED_B
 };
 
 enum ath9k_hw_caps {
@@ -201,8 +211,6 @@ struct ath9k_ops_config {
 	u32 cck_trig_high;
 	u32 cck_trig_low;
 	u32 enable_ani;
-	enum ath9k_ant_setting diversity_control;
-	u16 antenna_switch_swap;
 	int serialize_regmode;
 	bool intr_mitigation;
 #define SPUR_DISABLE        	0
@@ -218,6 +226,7 @@ struct ath9k_ops_config {
 #define AR_SPUR_FEEQ_BOUND_HT20 10
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
+	u8 max_txtrig_level;
 };
 
 enum ath9k_int {
@@ -407,7 +416,7 @@ struct ath9k_hw_version {
  * Using de Bruijin sequence to to look up 1's index in a 32 bit number
  * debruijn32 = 0000 0111 0111 1100 1011 0101 0011 0001
  */
-#define debruijn32 0x077CB531UL
+#define debruijn32 0x077CB531U
 
 struct ath_gen_timer_configuration {
 	u32 next_addr;
@@ -433,7 +442,8 @@ struct ath_gen_timer_table {
 };
 
 struct ath_hw {
-	struct ath_softc *ah_sc;
+	struct ieee80211_hw *hw;
+	struct ath_common common;
 	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config config;
 	struct ath9k_hw_capabilities caps;
@@ -450,7 +460,6 @@ struct ath_hw {
 
 	bool sw_mgmt_crypto;
 	bool is_pciexpress;
-	u8 macaddr[ETH_ALEN];
 	u16 tx_trig_level;
 	u16 rfsilent;
 	u32 rfkill_gpio;
@@ -523,7 +532,14 @@ struct ath_hw {
 		DONT_USE_32KHZ,
 	} enable_32kHz_clock;
 
-	/* RF */
+	/* Callback for radio frequency change */
+	int (*ath9k_hw_rf_set_freq)(struct ath_hw *ah, struct ath9k_channel *chan);
+
+	/* Callback for baseband spur frequency */
+	void (*ath9k_hw_spur_mitigate_freq)(struct ath_hw *ah,
+					    struct ath9k_channel *chan);
+
+	/* Used to program the radio on non single-chip devices */
 	u32 *analogBank0Data;
 	u32 *analogBank1Data;
 	u32 *analogBank2Data;
@@ -540,7 +556,6 @@ struct ath_hw {
 	u32 acktimeout;
 	u32 ctstimeout;
 	u32 globaltxtimeout;
-	u8 gbeacon_rate;
 
 	/* ANI */
 	u32 proc_phyerr;
@@ -553,8 +568,10 @@ struct ath_hw {
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
 
+	/* Bluetooth coexistance */
+	struct ath_btcoex_hw btcoex_hw;
+
 	u32 intr_txqs;
-	enum ath9k_ht_extprotspacing extprotspacing;
 	u8 txchainmask;
 	u8 rxchainmask;
 
@@ -578,20 +595,32 @@ struct ath_hw {
 	struct ar5416IniArray iniModesAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
+	struct ar5416IniArray iniModes_9271_1_0_only;
+	struct ar5416IniArray iniCckfirNormal;
+	struct ar5416IniArray iniCckfirJapan2484;
 
 	u32 intr_gen_timer_trigger;
 	u32 intr_gen_timer_thresh;
 	struct ath_gen_timer_table hw_gen_timers;
 };
 
+static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
+{
+	return &ah->common;
+}
+
+static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
+{
+	return &(ath9k_hw_common(ah)->regulatory);
+}
+
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_detach(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
-void ath9k_hw_rf_free(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
-void ath9k_hw_fill_cap_info(struct ath_hw *ah);
+int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result);
 bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
@@ -613,18 +642,13 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
-bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
-			       enum ath9k_ant_setting settings,
-			       struct ath9k_channel *chan,
-			       u8 *tx_chainmask, u8 *rx_chainmask,
-			       u8 *antenna_cfgd);
 
 /* General Operation */
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
-			   const struct ath_rate_table *rates,
+			   u8 phy, int kbps,
 			   u32 frameLen, u16 rateix, bool shortPreamble);
 void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
@@ -637,19 +661,21 @@ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit);
 void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac);
 void ath9k_hw_setopmode(struct ath_hw *ah);
 void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
-void ath9k_hw_setbssidmask(struct ath_softc *sc);
-void ath9k_hw_write_associd(struct ath_softc *sc);
+void ath9k_hw_setbssidmask(struct ath_hw *ah);
+void ath9k_hw_write_associd(struct ath_hw *ah);
 u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
+u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp);
 bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
-void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode);
+void ath9k_hw_set11nmac2040(struct ath_hw *ah);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
-bool ath9k_hw_setpower(struct ath_hw *ah,
-		       enum ath9k_power_mode mode);
+
+bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
+
 void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore, int power_off);
 
 /* Interrupt Handling */
@@ -663,16 +689,20 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 					  void (*overflow)(void *),
 					  void *arg,
 					  u8 timer_index);
-void ath_gen_timer_start(struct ath_hw *ah, struct ath_gen_timer *timer,
-			 u32 timer_next, u32 timer_period);
-void ath_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
+void ath9k_hw_gen_timer_start(struct ath_hw *ah,
+			      struct ath_gen_timer *timer,
+			      u32 timer_next,
+			      u32 timer_period);
+void ath9k_hw_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer);
+
 void ath_gen_timer_free(struct ath_hw *ah, struct ath_gen_timer *timer);
 void ath_gen_timer_isr(struct ath_hw *hw);
 u32 ath9k_hw_gettsf32(struct ath_hw *ah);
+
+void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1
 #define ATH_PCIE_CAP_LINK_L1	2
 
-void ath_pcie_aspm_disable(struct ath_softc *sc);
 #endif

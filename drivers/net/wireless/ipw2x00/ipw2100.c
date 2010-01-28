@@ -296,6 +296,33 @@ static const char *command_types[] = {
 };
 #endif
 
+#define WEXT_USECHANNELS 1
+
+static const long ipw2100_frequencies[] = {
+	2412, 2417, 2422, 2427,
+	2432, 2437, 2442, 2447,
+	2452, 2457, 2462, 2467,
+	2472, 2484
+};
+
+#define FREQ_COUNT	ARRAY_SIZE(ipw2100_frequencies)
+
+static const long ipw2100_rates_11b[] = {
+	1000000,
+	2000000,
+	5500000,
+	11000000
+};
+
+static struct ieee80211_rate ipw2100_bg_rates[] = {
+	{ .bitrate = 10 },
+	{ .bitrate = 20, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 55, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+	{ .bitrate = 110, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
+};
+
+#define RATE_COUNT ARRAY_SIZE(ipw2100_rates_11b)
+
 /* Pre-decl until we get the code solid and then we can clean it up */
 static void ipw2100_tx_send_commands(struct ipw2100_priv *priv);
 static void ipw2100_tx_send_data(struct ipw2100_priv *priv);
@@ -551,7 +578,7 @@ static int ipw2100_get_ordinal(struct ipw2100_priv *priv, u32 ord,
 		/* get number of entries */
 		field_count = *(((u16 *) & field_info) + 1);
 
-		/* abort if no enought memory */
+		/* abort if no enough memory */
 		total_length = field_len * field_count;
 		if (total_length > *len) {
 			*len = total_length;
@@ -1141,6 +1168,7 @@ static int rf_kill_active(struct ipw2100_priv *priv)
 	int i;
 
 	if (!(priv->hw_features & HW_FEATURE_RFKILL)) {
+		wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, false);
 		priv->status &= ~STATUS_RF_KILL_HW;
 		return 0;
 	}
@@ -1151,10 +1179,13 @@ static int rf_kill_active(struct ipw2100_priv *priv)
 		value = (value << 1) | ((reg & IPW_BIT_GPIO_RF_KILL) ? 0 : 1);
 	}
 
-	if (value == 0)
+	if (value == 0) {
+		wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, true);
 		priv->status |= STATUS_RF_KILL_HW;
-	else
+	} else {
+		wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, false);
 		priv->status &= ~STATUS_RF_KILL_HW;
+	}
 
 	return (value == 0);
 }
@@ -1814,13 +1845,6 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	return rc;
 }
 
-/* Called by register_netdev() */
-static int ipw2100_net_init(struct net_device *dev)
-{
-	struct ipw2100_priv *priv = libipw_priv(dev);
-	return ipw2100_up(priv, 1);
-}
-
 static void ipw2100_down(struct ipw2100_priv *priv)
 {
 	unsigned long flags;
@@ -1873,6 +1897,64 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	priv->status &= ~(STATUS_ASSOCIATED | STATUS_ASSOCIATING);
 	netif_carrier_off(priv->net_dev);
 	netif_stop_queue(priv->net_dev);
+}
+
+/* Called by register_netdev() */
+static int ipw2100_net_init(struct net_device *dev)
+{
+	struct ipw2100_priv *priv = libipw_priv(dev);
+	const struct libipw_geo *geo = libipw_get_geo(priv->ieee);
+	struct wireless_dev *wdev = &priv->ieee->wdev;
+	int ret;
+	int i;
+
+	ret = ipw2100_up(priv, 1);
+	if (ret)
+		return ret;
+
+	memcpy(wdev->wiphy->perm_addr, priv->mac_addr, ETH_ALEN);
+
+	/* fill-out priv->ieee->bg_band */
+	if (geo->bg_channels) {
+		struct ieee80211_supported_band *bg_band = &priv->ieee->bg_band;
+
+		bg_band->band = IEEE80211_BAND_2GHZ;
+		bg_band->n_channels = geo->bg_channels;
+		bg_band->channels =
+			kzalloc(geo->bg_channels *
+				sizeof(struct ieee80211_channel), GFP_KERNEL);
+		/* translate geo->bg to bg_band.channels */
+		for (i = 0; i < geo->bg_channels; i++) {
+			bg_band->channels[i].band = IEEE80211_BAND_2GHZ;
+			bg_band->channels[i].center_freq = geo->bg[i].freq;
+			bg_band->channels[i].hw_value = geo->bg[i].channel;
+			bg_band->channels[i].max_power = geo->bg[i].max_power;
+			if (geo->bg[i].flags & LIBIPW_CH_PASSIVE_ONLY)
+				bg_band->channels[i].flags |=
+					IEEE80211_CHAN_PASSIVE_SCAN;
+			if (geo->bg[i].flags & LIBIPW_CH_NO_IBSS)
+				bg_band->channels[i].flags |=
+					IEEE80211_CHAN_NO_IBSS;
+			if (geo->bg[i].flags & LIBIPW_CH_RADAR_DETECT)
+				bg_band->channels[i].flags |=
+					IEEE80211_CHAN_RADAR;
+			/* No equivalent for LIBIPW_CH_80211H_RULES,
+			   LIBIPW_CH_UNIFORM_SPREADING, or
+			   LIBIPW_CH_B_ONLY... */
+		}
+		/* point at bitrate info */
+		bg_band->bitrates = ipw2100_bg_rates;
+		bg_band->n_bitrates = RATE_COUNT;
+
+		wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = bg_band;
+	}
+
+	set_wiphy_dev(wdev->wiphy, &priv->pci_dev->dev);
+	if (wiphy_register(wdev->wiphy)) {
+		ipw2100_down(priv);
+		return -EIO;
+	}
+	return 0;
 }
 
 static void ipw2100_reset_adapter(struct work_struct *work)
@@ -2090,6 +2172,7 @@ static void isr_indicate_rf_kill(struct ipw2100_priv *priv, u32 status)
 		       priv->net_dev->name);
 
 	/* RF_KILL is now enabled (else we wouldn't be here) */
+	wiphy_rfkill_set_hw_state(priv->ieee->wdev.wiphy, true);
 	priv->status |= STATUS_RF_KILL_HW;
 
 	/* Make sure the RF Kill check timer is running */
@@ -3044,7 +3127,7 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 			     IPW_MAX_BDS)) {
 			/* TODO: Support merging buffers if more than
 			 * IPW_MAX_BDS are used */
-			IPW_DEBUG_INFO("%s: Maximum BD theshold exceeded.  "
+			IPW_DEBUG_INFO("%s: Maximum BD threshold exceeded.  "
 				       "Increase fragmentation level.\n",
 				       priv->net_dev->name);
 		}
@@ -6029,7 +6112,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	struct ipw2100_priv *priv;
 	struct net_device *dev;
 
-	dev = alloc_ieee80211(sizeof(struct ipw2100_priv));
+	dev = alloc_ieee80211(sizeof(struct ipw2100_priv), 0);
 	if (!dev)
 		return NULL;
 	priv = libipw_priv(dev);
@@ -6342,7 +6425,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 		sysfs_remove_group(&pci_dev->dev.kobj,
 				   &ipw2100_attribute_group);
 
-		free_ieee80211(dev);
+		free_ieee80211(dev, 0);
 		pci_set_drvdata(pci_dev, NULL);
 	}
 
@@ -6400,7 +6483,10 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 		if (dev->base_addr)
 			iounmap((void __iomem *)dev->base_addr);
 
-		free_ieee80211(dev);
+		/* wiphy_unregister needs to be here, before free_ieee80211 */
+		wiphy_unregister(priv->ieee->wdev.wiphy);
+		kfree(priv->ieee->bg_band.channels);
+		free_ieee80211(dev, 0);
 	}
 
 	pci_release_regions(pci_dev);
@@ -6487,6 +6573,16 @@ static int ipw2100_resume(struct pci_dev *pci_dev)
 }
 #endif
 
+static void ipw2100_shutdown(struct pci_dev *pci_dev)
+{
+	struct ipw2100_priv *priv = pci_get_drvdata(pci_dev);
+
+	/* Take down the device; powers it off, etc. */
+	ipw2100_down(priv);
+
+	pci_disable_device(pci_dev);
+}
+
 #define IPW2100_DEV_ID(x) { PCI_VENDOR_ID_INTEL, 0x1043, 0x8086, x }
 
 static struct pci_device_id ipw2100_pci_id_table[] __devinitdata = {
@@ -6550,6 +6646,7 @@ static struct pci_driver ipw2100_pci_driver = {
 	.suspend = ipw2100_suspend,
 	.resume = ipw2100_resume,
 #endif
+	.shutdown = ipw2100_shutdown,
 };
 
 /**
@@ -6600,26 +6697,6 @@ static void __exit ipw2100_exit(void)
 
 module_init(ipw2100_init);
 module_exit(ipw2100_exit);
-
-#define WEXT_USECHANNELS 1
-
-static const long ipw2100_frequencies[] = {
-	2412, 2417, 2422, 2427,
-	2432, 2437, 2442, 2447,
-	2452, 2457, 2462, 2467,
-	2472, 2484
-};
-
-#define FREQ_COUNT	ARRAY_SIZE(ipw2100_frequencies)
-
-static const long ipw2100_rates_11b[] = {
-	1000000,
-	2000000,
-	5500000,
-	11000000
-};
-
-#define RATE_COUNT ARRAY_SIZE(ipw2100_rates_11b)
 
 static int ipw2100_wx_get_name(struct net_device *dev,
 			       struct iw_request_info *info,
@@ -6820,7 +6897,7 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7;	/* Updated all three */
 
 	range->avg_qual.qual = 70;	/* > 8% missed beacons is 'bad' */
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + IPW2100_RSSI_TO_DBM;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7;	/* Updated all three */
@@ -8461,6 +8538,12 @@ static int ipw2100_get_firmware(struct ipw2100_priv *priv,
 
 	return 0;
 }
+
+MODULE_FIRMWARE(IPW2100_FW_NAME("-i"));
+#ifdef CONFIG_IPW2100_MONITOR
+MODULE_FIRMWARE(IPW2100_FW_NAME("-p"));
+#endif
+MODULE_FIRMWARE(IPW2100_FW_NAME(""));
 
 static void ipw2100_release_firmware(struct ipw2100_priv *priv,
 				     struct ipw2100_fw *fw)

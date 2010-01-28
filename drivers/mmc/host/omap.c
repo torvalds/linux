@@ -30,12 +30,12 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <mach/board.h>
-#include <mach/mmc.h>
+#include <plat/board.h>
+#include <plat/mmc.h>
 #include <mach/gpio.h>
-#include <mach/dma.h>
-#include <mach/mux.h>
-#include <mach/fpga.h>
+#include <plat/dma.h>
+#include <plat/mux.h>
+#include <plat/fpga.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x04
@@ -1459,8 +1459,10 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 		goto err_ioremap;
 
 	host->iclk = clk_get(&pdev->dev, "ick");
-	if (IS_ERR(host->iclk))
+	if (IS_ERR(host->iclk)) {
+		ret = PTR_ERR(host->iclk);
 		goto err_free_mmc_host;
+	}
 	clk_enable(host->iclk);
 
 	host->fclk = clk_get(&pdev->dev, "fck");
@@ -1500,10 +1502,8 @@ err_free_irq:
 err_free_fclk:
 	clk_put(host->fclk);
 err_free_iclk:
-	if (host->iclk != NULL) {
-		clk_disable(host->iclk);
-		clk_put(host->iclk);
-	}
+	clk_disable(host->iclk);
+	clk_put(host->iclk);
 err_free_mmc_host:
 	iounmap(host->virt_base);
 err_ioremap:

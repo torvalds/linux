@@ -189,6 +189,38 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
 
+int btmrvl_enable_ps(struct btmrvl_private *priv)
+{
+	struct sk_buff *skb;
+	struct btmrvl_cmd *cmd;
+
+	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
+	if (skb == NULL) {
+		BT_ERR("No free skb");
+		return -ENOMEM;
+	}
+
+	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
+	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF,
+					BT_CMD_AUTO_SLEEP_MODE));
+	cmd->length = 1;
+
+	if (priv->btmrvl_dev.psmode)
+		cmd->data[0] = BT_PS_ENABLE;
+	else
+		cmd->data[0] = BT_PS_DISABLE;
+
+	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+
+	skb->dev = (void *) priv->btmrvl_dev.hcidev;
+	skb_queue_head(&priv->adapter->tx_queue, skb);
+
+	BT_DBG("Queue PSMODE Command:%d", cmd->data[0]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btmrvl_enable_ps);
+
 static int btmrvl_enable_hs(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb;
@@ -258,28 +290,7 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 
 	if (priv->btmrvl_dev.pscmd) {
 		priv->btmrvl_dev.pscmd = 0;
-
-		skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-		if (skb == NULL) {
-			BT_ERR("No free skb");
-			return -ENOMEM;
-		}
-
-		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_AUTO_SLEEP_MODE));
-		cmd->length = 1;
-
-		if (priv->btmrvl_dev.psmode)
-			cmd->data[0] = BT_PS_ENABLE;
-		else
-			cmd->data[0] = BT_PS_DISABLE;
-
-		bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
-
-		skb->dev = (void *) priv->btmrvl_dev.hcidev;
-		skb_queue_head(&priv->adapter->tx_queue, skb);
-
-		BT_DBG("Queue PSMODE Command:%d", cmd->data[0]);
+		btmrvl_enable_ps(priv);
 	}
 
 	if (priv->btmrvl_dev.hscmd) {

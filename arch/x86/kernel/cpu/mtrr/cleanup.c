@@ -170,6 +170,41 @@ static int __init cmp_range(const void *x1, const void *x2)
 	return start1 - start2;
 }
 
+static int __init clean_sort_range(struct res_range *range, int az)
+{
+	int i, j, k = az - 1, nr_range = 0;
+
+	for (i = 0; i < k; i++) {
+		if (range[i].end)
+			continue;
+		for (j = k; j > i; j--) {
+			if (range[j].end) {
+				k = j;
+				break;
+			}
+		}
+		if (j == i)
+			break;
+		range[i].start = range[k].start;
+		range[i].end   = range[k].end;
+		range[k].start = 0;
+		range[k].end   = 0;
+		k--;
+	}
+	/* count it */
+	for (i = 0; i < az; i++) {
+		if (!range[i].end) {
+			nr_range = i;
+			break;
+		}
+	}
+
+	/* sort them */
+	sort(range, nr_range, sizeof(struct res_range), cmp_range, NULL);
+
+	return nr_range;
+}
+
 #define BIOS_BUG_MSG KERN_WARNING \
 	"WARNING: BIOS bug: VAR MTRR %d contains strange UC entry under 1M, check with your system vendor!\n"
 
@@ -223,22 +258,18 @@ x86_get_mtrr_mem_range(struct res_range *range, int nr_range,
 		subtract_range(range, extra_remove_base,
 				 extra_remove_base + extra_remove_size  - 1);
 
-	/* get new range num */
-	nr_range = 0;
-	for (i = 0; i < RANGE_NUM; i++) {
-		if (!range[i].end)
-			continue;
-		nr_range++;
-	}
 	if  (debug_print) {
 		printk(KERN_DEBUG "After UC checking\n");
-		for (i = 0; i < nr_range; i++)
+		for (i = 0; i < RANGE_NUM; i++) {
+			if (!range[i].end)
+				continue;
 			printk(KERN_DEBUG "MTRR MAP PFN: %016lx - %016lx\n",
 				 range[i].start, range[i].end + 1);
+		}
 	}
 
 	/* sort the ranges */
-	sort(range, nr_range, sizeof(struct res_range), cmp_range, NULL);
+	nr_range = clean_sort_range(range, RANGE_NUM);
 	if  (debug_print) {
 		printk(KERN_DEBUG "After sorting\n");
 		for (i = 0; i < nr_range; i++)
@@ -689,8 +720,6 @@ static int __init mtrr_need_cleanup(void)
 			continue;
 		if (!size)
 			type = MTRR_NUM_TYPES;
-		if (type == MTRR_TYPE_WRPROT)
-			type = MTRR_TYPE_UNCACHABLE;
 		num[type]++;
 	}
 

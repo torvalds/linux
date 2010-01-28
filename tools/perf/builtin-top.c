@@ -20,8 +20,10 @@
 
 #include "perf.h"
 
-#include "util/symbol.h"
 #include "util/color.h"
+#include "util/session.h"
+#include "util/symbol.h"
+#include "util/thread.h"
 #include "util/util.h"
 #include <linux/rbtree.h>
 #include "util/parse-options.h"
@@ -54,26 +56,30 @@
 
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static int			system_wide			=  0;
+static int			system_wide			=      0;
 
-static int			default_interval		= 100000;
+static int			default_interval		=      0;
 
-static int			count_filter			=  5;
-static int			print_entries			= 15;
+static int			count_filter			=      5;
+static int			print_entries;
 
-static int			target_pid			= -1;
-static int			inherit				=  0;
-static int			profile_cpu			= -1;
-static int			nr_cpus				=  0;
-static unsigned int		realtime_prio			=  0;
-static int			group				=  0;
+static int			target_pid			=     -1;
+static int			inherit				=      0;
+static int			profile_cpu			=     -1;
+static int			nr_cpus				=      0;
+static unsigned int		realtime_prio			=      0;
+static int			group				=      0;
 static unsigned int		page_size;
-static unsigned int		mmap_pages			= 16;
-static int			freq				=  0;
+static unsigned int		mmap_pages			=     16;
+static int			freq				=   1000; /* 1 KHz */
 
-static int			delay_secs			=  2;
-static int			zero;
-static int			dump_symtab;
+static int			delay_secs			=      2;
+static int			zero                            =      0;
+static int			dump_symtab                     =      0;
+
+static bool			hide_kernel_symbols		=  false;
+static bool			hide_user_symbols		=  false;
+static struct winsize		winsize;
 
 /*
  * Source
@@ -86,83 +92,126 @@ struct source_line {
 	struct source_line	*next;
 };
 
-static char			*sym_filter			=  NULL;
-struct sym_entry		*sym_filter_entry		=  NULL;
-static int			sym_pcnt_filter			=  5;
-static int			sym_counter			=  0;
-static int			display_weighted		= -1;
+static char			*sym_filter			=   NULL;
+struct sym_entry		*sym_filter_entry		=   NULL;
+static int			sym_pcnt_filter			=      5;
+static int			sym_counter			=      0;
+static int			display_weighted		=     -1;
 
 /*
  * Symbols
  */
 
-static u64			min_ip;
-static u64			max_ip = -1ll;
+struct sym_entry_source {
+	struct source_line	*source;
+	struct source_line	*lines;
+	struct source_line	**lines_tail;
+	pthread_mutex_t		lock;
+};
 
 struct sym_entry {
 	struct rb_node		rb_node;
 	struct list_head	node;
-	unsigned long		count[MAX_COUNTERS];
 	unsigned long		snap_count;
 	double			weight;
 	int			skip;
-	struct source_line	*source;
-	struct source_line	*lines;
-	struct source_line	**lines_tail;
-	pthread_mutex_t		source_lock;
+	u16			name_len;
+	u8			origin;
+	struct map		*map;
+	struct sym_entry_source	*src;
+	unsigned long		count[0];
 };
 
 /*
  * Source functions
  */
 
+static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
+{
+       return ((void *)self) + symbol_conf.priv_size;
+}
+
+static void get_term_dimensions(struct winsize *ws)
+{
+	char *s = getenv("LINES");
+
+	if (s != NULL) {
+		ws->ws_row = atoi(s);
+		s = getenv("COLUMNS");
+		if (s != NULL) {
+			ws->ws_col = atoi(s);
+			if (ws->ws_row && ws->ws_col)
+				return;
+		}
+	}
+#ifdef TIOCGWINSZ
+	if (ioctl(1, TIOCGWINSZ, ws) == 0 &&
+	    ws->ws_row && ws->ws_col)
+		return;
+#endif
+	ws->ws_row = 25;
+	ws->ws_col = 80;
+}
+
+static void update_print_entries(struct winsize *ws)
+{
+	print_entries = ws->ws_row;
+
+	if (print_entries > 9)
+		print_entries -= 9;
+}
+
+static void sig_winch_handler(int sig __used)
+{
+	get_term_dimensions(&winsize);
+	update_print_entries(&winsize);
+}
+
 static void parse_source(struct sym_entry *syme)
 {
 	struct symbol *sym;
-	struct module *module;
-	struct section *section = NULL;
+	struct sym_entry_source *source;
+	struct map *map;
 	FILE *file;
 	char command[PATH_MAX*2];
-	const char *path = vmlinux_name;
-	u64 start, end, len;
+	const char *path;
+	u64 len;
 
 	if (!syme)
 		return;
 
-	if (syme->lines) {
-		pthread_mutex_lock(&syme->source_lock);
+	if (syme->src == NULL) {
+		syme->src = zalloc(sizeof(*source));
+		if (syme->src == NULL)
+			return;
+		pthread_mutex_init(&syme->src->lock, NULL);
+	}
+
+	source = syme->src;
+
+	if (source->lines) {
+		pthread_mutex_lock(&source->lock);
 		goto out_assign;
 	}
 
-	sym = (struct symbol *)(syme + 1);
-	module = sym->module;
+	sym = sym_entry__symbol(syme);
+	map = syme->map;
+	path = map->dso->long_name;
 
-	if (module)
-		path = module->path;
-	if (!path)
-		return;
-
-	start = sym->obj_start;
-	if (!start)
-		start = sym->start;
-
-	if (module) {
-		section = module->sections->find_section(module->sections, ".text");
-		if (section)
-			start -= section->vma;
-	}
-
-	end = start + sym->end - sym->start + 1;
 	len = sym->end - sym->start;
 
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s", start, end, path);
+	sprintf(command,
+		"objdump --start-address=0x%016Lx "
+			 "--stop-address=0x%016Lx -dS %s",
+		map->unmap_ip(map, sym->start),
+		map->unmap_ip(map, sym->end), path);
 
 	file = popen(command, "r");
 	if (!file)
 		return;
 
-	pthread_mutex_lock(&syme->source_lock);
-	syme->lines_tail = &syme->lines;
+	pthread_mutex_lock(&source->lock);
+	source->lines_tail = &source->lines;
 	while (!feof(file)) {
 		struct source_line *src;
 		size_t dummy = 0;
@@ -182,24 +231,22 @@ static void parse_source(struct sym_entry *syme)
 			*c = 0;
 
 		src->next = NULL;
-		*syme->lines_tail = src;
-		syme->lines_tail = &src->next;
+		*source->lines_tail = src;
+		source->lines_tail = &src->next;
 
 		if (strlen(src->line)>8 && src->line[8] == ':') {
 			src->eip = strtoull(src->line, NULL, 16);
-			if (section)
-				src->eip += section->vma;
+			src->eip = map->unmap_ip(map, src->eip);
 		}
 		if (strlen(src->line)>8 && src->line[16] == ':') {
 			src->eip = strtoull(src->line, NULL, 16);
-			if (section)
-				src->eip += section->vma;
+			src->eip = map->unmap_ip(map, src->eip);
 		}
 	}
 	pclose(file);
 out_assign:
 	sym_filter_entry = syme;
-	pthread_mutex_unlock(&syme->source_lock);
+	pthread_mutex_unlock(&source->lock);
 }
 
 static void __zero_source_counters(struct sym_entry *syme)
@@ -207,7 +254,7 @@ static void __zero_source_counters(struct sym_entry *syme)
 	int i;
 	struct source_line *line;
 
-	line = syme->lines;
+	line = syme->src->lines;
 	while (line) {
 		for (i = 0; i < nr_counters; i++)
 			line->count[i] = 0;
@@ -222,13 +269,13 @@ static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 	if (syme != sym_filter_entry)
 		return;
 
-	if (pthread_mutex_trylock(&syme->source_lock))
+	if (pthread_mutex_trylock(&syme->src->lock))
 		return;
 
-	if (!syme->source)
+	if (syme->src == NULL || syme->src->source == NULL)
 		goto out_unlock;
 
-	for (line = syme->lines; line; line = line->next) {
+	for (line = syme->src->lines; line; line = line->next) {
 		if (line->eip == ip) {
 			line->count[counter]++;
 			break;
@@ -237,32 +284,25 @@ static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 			break;
 	}
 out_unlock:
-	pthread_mutex_unlock(&syme->source_lock);
+	pthread_mutex_unlock(&syme->src->lock);
 }
 
 static void lookup_sym_source(struct sym_entry *syme)
 {
-	struct symbol *symbol = (struct symbol *)(syme + 1);
+	struct symbol *symbol = sym_entry__symbol(syme);
 	struct source_line *line;
 	char pattern[PATH_MAX];
-	char *idx;
 
 	sprintf(pattern, "<%s>:", symbol->name);
 
-	if (symbol->module) {
-		idx = strstr(pattern, "\t");
-		if (idx)
-			*idx = 0;
-	}
-
-	pthread_mutex_lock(&syme->source_lock);
-	for (line = syme->lines; line; line = line->next) {
+	pthread_mutex_lock(&syme->src->lock);
+	for (line = syme->src->lines; line; line = line->next) {
 		if (strstr(line->line, pattern)) {
-			syme->source = line;
+			syme->src->source = line;
 			break;
 		}
 	}
-	pthread_mutex_unlock(&syme->source_lock);
+	pthread_mutex_unlock(&syme->src->lock);
 }
 
 static void show_lines(struct source_line *queue, int count, int total)
@@ -292,24 +332,24 @@ static void show_details(struct sym_entry *syme)
 	if (!syme)
 		return;
 
-	if (!syme->source)
+	if (!syme->src->source)
 		lookup_sym_source(syme);
 
-	if (!syme->source)
+	if (!syme->src->source)
 		return;
 
-	symbol = (struct symbol *)(syme + 1);
+	symbol = sym_entry__symbol(syme);
 	printf("Showing %s for %s\n", event_name(sym_counter), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", sym_pcnt_filter);
 
-	pthread_mutex_lock(&syme->source_lock);
-	line = syme->source;
+	pthread_mutex_lock(&syme->src->lock);
+	line = syme->src->source;
 	while (line) {
 		total += line->count[sym_counter];
 		line = line->next;
 	}
 
-	line = syme->source;
+	line = syme->src->source;
 	while (line) {
 		float pcnt = 0.0;
 
@@ -334,13 +374,13 @@ static void show_details(struct sym_entry *syme)
 		line->count[sym_counter] = zero ? 0 : line->count[sym_counter] * 7 / 8;
 		line = line->next;
 	}
-	pthread_mutex_unlock(&syme->source_lock);
+	pthread_mutex_unlock(&syme->src->lock);
 	if (more)
 		printf("%d lines not displayed, maybe increase display entries [e]\n", more);
 }
 
 /*
- * Symbols will be added here in record_ip and will get out
+ * Symbols will be added here in event__process_sample and will get out
  * after decayed.
  */
 static LIST_HEAD(active_symbols);
@@ -411,6 +451,8 @@ static void print_sym_table(void)
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *nd;
+	int sym_width = 0, dso_width = 0, max_dso_width;
+	const int win_width = winsize.ws_col - 1;
 
 	samples = userspace_samples = 0;
 
@@ -422,6 +464,14 @@ static void print_sym_table(void)
 	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
 		syme->snap_count = syme->count[snap];
 		if (syme->snap_count != 0) {
+
+			if ((hide_user_symbols &&
+			     syme->origin == PERF_RECORD_MISC_USER) ||
+			    (hide_kernel_symbols &&
+			     syme->origin == PERF_RECORD_MISC_KERNEL)) {
+				list_remove_active_sym(syme);
+				continue;
+			}
 			syme->weight = sym_weight(syme);
 			rb_insert_active_sym(&tmp, syme);
 			sum_ksamples += syme->snap_count;
@@ -434,8 +484,7 @@ static void print_sym_table(void)
 
 	puts(CONSOLE_CLEAR);
 
-	printf(
-"------------------------------------------------------------------------------\n");
+	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% [",
 		samples_per_sec,
 		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
@@ -473,33 +522,57 @@ static void print_sym_table(void)
 			printf(", %d CPUs)\n", nr_cpus);
 	}
 
-	printf("------------------------------------------------------------------------------\n\n");
+	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
 
 	if (sym_filter_entry) {
 		show_details(sym_filter_entry);
 		return;
 	}
 
+	/*
+	 * Find the longest symbol name that will be displayed
+	 */
+	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
+		syme = rb_entry(nd, struct sym_entry, rb_node);
+		if (++printed > print_entries ||
+		    (int)syme->snap_count < count_filter)
+			continue;
+
+		if (syme->map->dso->long_name_len > dso_width)
+			dso_width = syme->map->dso->long_name_len;
+
+		if (syme->name_len > sym_width)
+			sym_width = syme->name_len;
+	}
+
+	printed = 0;
+
+	max_dso_width = winsize.ws_col - sym_width - 29;
+	if (dso_width > max_dso_width)
+		dso_width = max_dso_width;
+	putchar('\n');
 	if (nr_counters == 1)
-		printf("             samples    pcnt");
+		printf("             samples  pcnt");
 	else
-		printf("   weight    samples    pcnt");
+		printf("   weight    samples  pcnt");
 
 	if (verbose)
 		printf("         RIP       ");
-	printf("   kernel function\n");
-	printf("   %s    _______   _____",
+	printf(" %-*.*s DSO\n", sym_width, sym_width, "function");
+	printf("   %s    _______ _____",
 	       nr_counters == 1 ? "      " : "______");
 	if (verbose)
-		printf("   ________________");
-	printf("   _______________\n\n");
+		printf(" ________________");
+	printf(" %-*.*s", sym_width, sym_width, graph_line);
+	printf(" %-*.*s", dso_width, dso_width, graph_line);
+	puts("\n");
 
 	for (nd = rb_first(&tmp); nd; nd = rb_next(nd)) {
 		struct symbol *sym;
 		double pcnt;
 
 		syme = rb_entry(nd, struct sym_entry, rb_node);
-		sym = (struct symbol *)(syme + 1);
+		sym = sym_entry__symbol(syme);
 
 		if (++printed > print_entries || (int)syme->snap_count < count_filter)
 			continue;
@@ -508,17 +581,18 @@ static void print_sym_table(void)
 					 sum_ksamples));
 
 		if (nr_counters == 1 || !display_weighted)
-			printf("%20.2f - ", syme->weight);
+			printf("%20.2f ", syme->weight);
 		else
-			printf("%9.1f %10ld - ", syme->weight, syme->snap_count);
+			printf("%9.1f %10ld ", syme->weight, syme->snap_count);
 
 		percent_color_fprintf(stdout, "%4.1f%%", pcnt);
 		if (verbose)
-			printf(" - %016llx", sym->start);
-		printf(" : %s", sym->name);
-		if (sym->module)
-			printf("\t[%s]", sym->module->name);
-		printf("\n");
+			printf(" %016llx", sym->start);
+		printf(" %-*.*s", sym_width, sym_width, sym->name);
+		printf(" %-*.*s\n", dso_width, dso_width,
+		       dso_width >= syme->map->dso->long_name_len ?
+					syme->map->dso->long_name :
+					syme->map->dso->short_name);
 	}
 }
 
@@ -565,10 +639,10 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 
 	/* zero counters of active symbol */
 	if (syme) {
-		pthread_mutex_lock(&syme->source_lock);
+		pthread_mutex_lock(&syme->src->lock);
 		__zero_source_counters(syme);
 		*target = NULL;
-		pthread_mutex_unlock(&syme->source_lock);
+		pthread_mutex_unlock(&syme->src->lock);
 	}
 
 	fprintf(stdout, "\n%s: ", msg);
@@ -584,7 +658,7 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 	pthread_mutex_unlock(&active_symbols_lock);
 
 	list_for_each_entry_safe_from(syme, n, &active_symbols, node) {
-		struct symbol *sym = (struct symbol *)(syme + 1);
+		struct symbol *sym = sym_entry__symbol(syme);
 
 		if (!strcmp(buf, sym->name)) {
 			found = syme;
@@ -608,7 +682,7 @@ static void print_mapped_keys(void)
 	char *name = NULL;
 
 	if (sym_filter_entry) {
-		struct symbol *sym = (struct symbol *)(sym_filter_entry+1);
+		struct symbol *sym = sym_entry__symbol(sym_filter_entry);
 		name = sym->name;
 	}
 
@@ -621,7 +695,7 @@ static void print_mapped_keys(void)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
-	if (vmlinux_name) {
+	if (symbol_conf.vmlinux_name) {
 		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
 		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
 		fprintf(stdout, "\t[S]     stop annotation.\n");
@@ -630,6 +704,12 @@ static void print_mapped_keys(void)
 	if (nr_counters > 1)
 		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
 
+	fprintf(stdout,
+		"\t[K]     hide kernel_symbols symbols.             \t(%s)\n",
+		hide_kernel_symbols ? "yes" : "no");
+	fprintf(stdout,
+		"\t[U]     hide user symbols.               \t(%s)\n",
+		hide_user_symbols ? "yes" : "no");
 	fprintf(stdout, "\t[z]     toggle sample zeroing.             \t(%d)\n", zero ? 1 : 0);
 	fprintf(stdout, "\t[qQ]    quit.\n");
 }
@@ -643,6 +723,8 @@ static int key_mapped(int c)
 		case 'z':
 		case 'q':
 		case 'Q':
+		case 'K':
+		case 'U':
 			return 1;
 		case 'E':
 		case 'w':
@@ -650,7 +732,7 @@ static int key_mapped(int c)
 		case 'F':
 		case 's':
 		case 'S':
-			return vmlinux_name ? 1 : 0;
+			return symbol_conf.vmlinux_name ? 1 : 0;
 		default:
 			break;
 	}
@@ -691,6 +773,11 @@ static void handle_keypress(int c)
 			break;
 		case 'e':
 			prompt_integer(&print_entries, "Enter display entries (lines)");
+			if (print_entries == 0) {
+				sig_winch_handler(SIGWINCH);
+				signal(SIGWINCH, sig_winch_handler);
+			} else
+				signal(SIGWINCH, SIG_DFL);
 			break;
 		case 'E':
 			if (nr_counters > 1) {
@@ -715,9 +802,14 @@ static void handle_keypress(int c)
 		case 'F':
 			prompt_percent(&sym_pcnt_filter, "Enter details display event filter (percent)");
 			break;
+		case 'K':
+			hide_kernel_symbols = !hide_kernel_symbols;
+			break;
 		case 'q':
 		case 'Q':
 			printf("exiting.\n");
+			if (dump_symtab)
+				dsos__fprintf(stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&sym_filter_entry, "Enter details symbol");
@@ -728,11 +820,14 @@ static void handle_keypress(int c)
 			else {
 				struct sym_entry *syme = sym_filter_entry;
 
-				pthread_mutex_lock(&syme->source_lock);
+				pthread_mutex_lock(&syme->src->lock);
 				sym_filter_entry = NULL;
 				__zero_source_counters(syme);
-				pthread_mutex_unlock(&syme->source_lock);
+				pthread_mutex_unlock(&syme->src->lock);
 			}
+			break;
+		case 'U':
+			hide_user_symbols = !hide_user_symbols;
 			break;
 		case 'w':
 			display_weighted = ~display_weighted;
@@ -790,7 +885,7 @@ static const char *skip_symbols[] = {
 	NULL
 };
 
-static int symbol_filter(struct dso *self, struct symbol *sym)
+static int symbol_filter(struct map *map, struct symbol *sym)
 {
 	struct sym_entry *syme;
 	const char *name = sym->name;
@@ -812,8 +907,9 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 	    strstr(name, "_text_end"))
 		return 1;
 
-	syme = dso__sym_priv(self, sym);
-	pthread_mutex_init(&syme->source_lock, NULL);
+	syme = symbol__priv(sym);
+	syme->map = map;
+	syme->src = NULL;
 	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter))
 		sym_filter_entry = syme;
 
@@ -824,75 +920,66 @@ static int symbol_filter(struct dso *self, struct symbol *sym)
 		}
 	}
 
+	if (!syme->skip)
+		syme->name_len = strlen(sym->name);
+
 	return 0;
 }
 
-static int parse_symbols(void)
+static void event__process_sample(const event_t *self,
+				 struct perf_session *session, int counter)
 {
-	struct rb_node *node;
-	struct symbol  *sym;
-	int use_modules = vmlinux_name ? 1 : 0;
+	u64 ip = self->ip.ip;
+	struct sym_entry *syme;
+	struct addr_location al;
+	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	kernel_dso = dso__new("[kernel]", sizeof(struct sym_entry));
-	if (kernel_dso == NULL)
-		return -1;
-
-	if (dso__load_kernel(kernel_dso, vmlinux_name, symbol_filter, verbose, use_modules) <= 0)
-		goto out_delete_dso;
-
-	node = rb_first(&kernel_dso->syms);
-	sym = rb_entry(node, struct symbol, rb_node);
-	min_ip = sym->start;
-
-	node = rb_last(&kernel_dso->syms);
-	sym = rb_entry(node, struct symbol, rb_node);
-	max_ip = sym->end;
-
-	if (dump_symtab)
-		dso__fprintf(kernel_dso, stderr);
-
-	return 0;
-
-out_delete_dso:
-	dso__delete(kernel_dso);
-	kernel_dso = NULL;
-	return -1;
-}
-
-/*
- * Binary search in the histogram table and record the hit:
- */
-static void record_ip(u64 ip, int counter)
-{
-	struct symbol *sym = dso__find_symbol(kernel_dso, ip);
-
-	if (sym != NULL) {
-		struct sym_entry *syme = dso__sym_priv(kernel_dso, sym);
-
-		if (!syme->skip) {
-			syme->count[counter]++;
-			record_precise_ip(syme, counter, ip);
-			pthread_mutex_lock(&active_symbols_lock);
-			if (list_empty(&syme->node) || !syme->node.next)
-				__list_insert_active_sym(syme);
-			pthread_mutex_unlock(&active_symbols_lock);
+	switch (origin) {
+	case PERF_RECORD_MISC_USER:
+		if (hide_user_symbols)
 			return;
-		}
-	}
-
-	samples--;
-}
-
-static void process_event(u64 ip, int counter, int user)
-{
-	samples++;
-
-	if (user) {
-		userspace_samples++;
+		break;
+	case PERF_RECORD_MISC_KERNEL:
+		if (hide_kernel_symbols)
+			return;
+		break;
+	default:
 		return;
 	}
 
-	record_ip(ip, counter);
+	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
+	    al.sym == NULL || al.filtered)
+		return;
+
+	syme = symbol__priv(al.sym);
+	if (!syme->skip) {
+		syme->count[counter]++;
+		syme->origin = origin;
+		record_precise_ip(syme, counter, ip);
+		pthread_mutex_lock(&active_symbols_lock);
+		if (list_empty(&syme->node) || !syme->node.next)
+			__list_insert_active_sym(syme);
+		pthread_mutex_unlock(&active_symbols_lock);
+		if (origin == PERF_RECORD_MISC_USER)
+			++userspace_samples;
+		++samples;
+	}
+}
+
+static int event__process(event_t *event, struct perf_session *session)
+{
+	switch (event->header.type) {
+	case PERF_RECORD_COMM:
+		event__process_comm(event, session);
+		break;
+	case PERF_RECORD_MMAP:
+		event__process_mmap(event, session);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
 }
 
 struct mmap_data {
@@ -913,16 +1000,13 @@ static unsigned int mmap_read_head(struct mmap_data *md)
 	return head;
 }
 
-struct timeval last_read, this_read;
-
-static void mmap_read_counter(struct mmap_data *md)
+static void perf_session__mmap_read_counter(struct perf_session *self,
+					    struct mmap_data *md)
 {
 	unsigned int head = mmap_read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
 	int diff;
-
-	gettimeofday(&this_read, NULL);
 
 	/*
 	 * If we're further behind than half the buffer, there's a chance
@@ -934,22 +1018,13 @@ static void mmap_read_counter(struct mmap_data *md)
 	 */
 	diff = head - old;
 	if (diff > md->mask / 2 || diff < 0) {
-		struct timeval iv;
-		unsigned long msecs;
-
-		timersub(&this_read, &last_read, &iv);
-		msecs = iv.tv_sec*1000 + iv.tv_usec/1000;
-
-		fprintf(stderr, "WARNING: failed to keep up with mmap data."
-				"  Last read %lu msecs ago.\n", msecs);
+		fprintf(stderr, "WARNING: failed to keep up with mmap data.\n");
 
 		/*
 		 * head points to a known good entry, start there.
 		 */
 		old = head;
 	}
-
-	last_read = this_read;
 
 	for (; old != head;) {
 		event_t *event = (event_t *)&data[old & md->mask];
@@ -978,13 +1053,11 @@ static void mmap_read_counter(struct mmap_data *md)
 			event = &event_copy;
 		}
 
+		if (event->header.type == PERF_RECORD_SAMPLE)
+			event__process_sample(event, self, md->counter);
+		else
+			event__process(event, self);
 		old += size;
-
-		if (event->header.type == PERF_RECORD_SAMPLE) {
-			int user =
-	(event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK) == PERF_RECORD_MISC_USER;
-			process_event(event->ip.ip, md->counter, user);
-		}
 	}
 
 	md->prev = old;
@@ -993,13 +1066,13 @@ static void mmap_read_counter(struct mmap_data *md)
 static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
-static void mmap_read(void)
+static void perf_session__mmap_read(struct perf_session *self)
 {
 	int i, counter;
 
 	for (i = 0; i < nr_cpus; i++) {
 		for (counter = 0; counter < nr_counters; counter++)
-			mmap_read_counter(&mmap_array[i][counter]);
+			perf_session__mmap_read_counter(self, &mmap_array[i][counter]);
 	}
 }
 
@@ -1018,8 +1091,15 @@ static void start_counter(int i, int counter)
 	attr = attrs + counter;
 
 	attr->sample_type	= PERF_SAMPLE_IP | PERF_SAMPLE_TID;
-	attr->freq		= freq;
+
+	if (freq) {
+		attr->sample_type	|= PERF_SAMPLE_PERIOD;
+		attr->freq		= 1;
+		attr->sample_freq	= freq;
+	}
+
 	attr->inherit		= (cpu < 0) && inherit;
+	attr->mmap		= 1;
 
 try_again:
 	fd[i][counter] = sys_perf_event_open(attr, target_pid, cpu, group_fd, 0);
@@ -1077,6 +1157,18 @@ static int __cmd_top(void)
 	pthread_t thread;
 	int i, counter;
 	int ret;
+	/*
+	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
+	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
+	 */
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false);
+	if (session == NULL)
+		return -ENOMEM;
+
+	if (target_pid != -1)
+		event__synthesize_thread(target_pid, event__process, session);
+	else
+		event__synthesize_threads(event__process, session);
 
 	for (i = 0; i < nr_cpus; i++) {
 		group_fd = -1;
@@ -1087,7 +1179,7 @@ static int __cmd_top(void)
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(event_array, nr_poll, 100);
 
-	mmap_read();
+	perf_session__mmap_read(session);
 
 	if (pthread_create(&thread, NULL, display_thread, NULL)) {
 		printf("Could not create display thread.\n");
@@ -1107,7 +1199,7 @@ static int __cmd_top(void)
 	while (1) {
 		int hits = samples;
 
-		mmap_read();
+		perf_session__mmap_read(session);
 
 		if (hits == samples)
 			ret = poll(event_array, nr_poll, 100);
@@ -1133,7 +1225,10 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
 		    "CPU to profile on"),
-	OPT_STRING('k', "vmlinux", &vmlinux_name, "file", "vmlinux pathname"),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_BOOLEAN('K', "hide_kernel_symbols", &hide_kernel_symbols,
+		    "hide kernel symbols"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
 		    "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
@@ -1156,6 +1251,8 @@ static const struct option options[] = {
 		    "profile at this frequency"),
 	OPT_INTEGER('E', "entries", &print_entries,
 		    "display this many functions"),
+	OPT_BOOLEAN('U', "hide_user_symbols", &hide_user_symbols,
+		    "hide user symbols"),
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
@@ -1165,18 +1262,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
 
-	symbol__init();
-
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	argc = parse_options(argc, argv, options, top_usage, 0);
 	if (argc)
 		usage_with_options(top_usage, options);
-
-	if (freq) {
-		default_interval = freq;
-		freq = 1;
-	}
 
 	/* CPU and PID are mutually exclusive */
 	if (target_pid != -1 && profile_cpu != -1) {
@@ -1188,11 +1278,29 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (!nr_counters)
 		nr_counters = 1;
 
+	symbol_conf.priv_size = (sizeof(struct sym_entry) +
+				 (nr_counters + 1) * sizeof(unsigned long));
+	if (symbol_conf.vmlinux_name == NULL)
+		symbol_conf.try_vmlinux_path = true;
+	if (symbol__init() < 0)
+		return -1;
+
 	if (delay_secs < 1)
 		delay_secs = 1;
 
-	parse_symbols();
 	parse_source(sym_filter_entry);
+
+	/*
+	 * User specified count overrides default frequency.
+	 */
+	if (default_interval)
+		freq = 0;
+	else if (freq) {
+		default_interval = freq;
+	} else {
+		fprintf(stderr, "frequency and count are zero, aborting\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/*
 	 * Fill in the ones not specifically initialized via -c:
@@ -1210,6 +1318,12 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
+
+	get_term_dimensions(&winsize);
+	if (print_entries == 0) {
+		update_print_entries(&winsize);
+		signal(SIGWINCH, sig_winch_handler);
+	}
 
 	return __cmd_top();
 }

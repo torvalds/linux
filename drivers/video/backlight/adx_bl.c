@@ -61,7 +61,7 @@ static int adx_backlight_check_fb(struct fb_info *fb)
 	return 1;
 }
 
-static struct backlight_ops adx_backlight_ops = {
+static const struct backlight_ops adx_backlight_ops = {
 	.options = 0,
 	.update_status = adx_backlight_update_status,
 	.get_brightness = adx_backlight_get_brightness,

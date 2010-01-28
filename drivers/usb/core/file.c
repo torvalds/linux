@@ -99,6 +99,7 @@ static int init_usb_class(void)
 		printk(KERN_ERR "class_create failed for usb devices\n");
 		kfree(usb_class);
 		usb_class = NULL;
+		goto exit;
 	}
 	usb_class->class->devnode = usb_devnode;
 

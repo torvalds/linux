@@ -54,7 +54,8 @@ enum {
 	/*
 	 * Largest possible UD header: send with GRH and immediate data.
 	 */
-	MLX4_IB_UD_HEADER_SIZE		= 72
+	MLX4_IB_UD_HEADER_SIZE		= 72,
+	MLX4_IB_LSO_HEADER_SPARE	= 128,
 };
 
 struct mlx4_ib_sqp {
@@ -67,7 +68,8 @@ struct mlx4_ib_sqp {
 };
 
 enum {
-	MLX4_IB_MIN_SQ_STRIDE = 6
+	MLX4_IB_MIN_SQ_STRIDE	= 6,
+	MLX4_IB_CACHE_LINE_SIZE	= 64,
 };
 
 static const __be32 mlx4_ib_opcode[] = {
@@ -261,7 +263,7 @@ static int send_wqe_overhead(enum ib_qp_type type, u32 flags)
 	case IB_QPT_UD:
 		return sizeof (struct mlx4_wqe_ctrl_seg) +
 			sizeof (struct mlx4_wqe_datagram_seg) +
-			((flags & MLX4_IB_QP_LSO) ? 64 : 0);
+			((flags & MLX4_IB_QP_LSO) ? MLX4_IB_LSO_HEADER_SPARE : 0);
 	case IB_QPT_UC:
 		return sizeof (struct mlx4_wqe_ctrl_seg) +
 			sizeof (struct mlx4_wqe_raddr_seg);
@@ -352,7 +354,7 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	 * anymore, so we do this only if selective signaling is off.
 	 *
 	 * Further, on 32-bit platforms, we can't use vmap() to make
-	 * the QP buffer virtually contigious.  Thus we have to use
+	 * the QP buffer virtually contiguous.  Thus we have to use
 	 * constant-sized WRs to make sure a WR is always fully within
 	 * a single page-sized chunk.
 	 *
@@ -897,7 +899,6 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 	context->flags = cpu_to_be32((to_mlx4_state(new_state) << 28) |
 				     (to_mlx4_st(ibqp->qp_type) << 16));
-	context->flags     |= cpu_to_be32(1 << 8); /* DE? */
 
 	if (!(attr_mask & IB_QP_PATH_MIG_STATE))
 		context->flags |= cpu_to_be32(MLX4_QP_PM_MIGRATED << 11);
@@ -1467,16 +1468,12 @@ static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
 
 static int build_lso_seg(struct mlx4_wqe_lso_seg *wqe, struct ib_send_wr *wr,
 			 struct mlx4_ib_qp *qp, unsigned *lso_seg_len,
-			 __be32 *lso_hdr_sz)
+			 __be32 *lso_hdr_sz, __be32 *blh)
 {
 	unsigned halign = ALIGN(sizeof *wqe + wr->wr.ud.hlen, 16);
 
-	/*
-	 * This is a temporary limitation and will be removed in
-	 * a forthcoming FW release:
-	 */
-	if (unlikely(halign > 64))
-		return -EINVAL;
+	if (unlikely(halign > MLX4_IB_CACHE_LINE_SIZE))
+		*blh = cpu_to_be32(1 << 6);
 
 	if (unlikely(!(qp->flags & MLX4_IB_QP_LSO) &&
 		     wr->num_sge > qp->sq.max_gs - (halign >> 4)))
@@ -1522,6 +1519,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	__be32 dummy;
 	__be32 *lso_wqe;
 	__be32 uninitialized_var(lso_hdr_sz);
+	__be32 blh;
 	int i;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
@@ -1530,6 +1528,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		lso_wqe = &dummy;
+		blh = 0;
 
 		if (mlx4_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)) {
 			err = -ENOMEM;
@@ -1616,7 +1615,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
 
 			if (wr->opcode == IB_WR_LSO) {
-				err = build_lso_seg(wqe, wr, qp, &seglen, &lso_hdr_sz);
+				err = build_lso_seg(wqe, wr, qp, &seglen, &lso_hdr_sz, &blh);
 				if (unlikely(err)) {
 					*bad_wr = wr;
 					goto out;
@@ -1687,7 +1686,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 
 		ctrl->owner_opcode = mlx4_ib_opcode[wr->opcode] |
-			(ind & qp->sq.wqe_cnt ? cpu_to_be32(1 << 31) : 0);
+			(ind & qp->sq.wqe_cnt ? cpu_to_be32(1 << 31) : 0) | blh;
 
 		stamp = ind + qp->sq_spare_wqes;
 		ind += DIV_ROUND_UP(size * 16, 1U << qp->sq.wqe_shift);
@@ -1753,7 +1752,7 @@ int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	ind = qp->rq.head & (qp->rq.wqe_cnt - 1);
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
-		if (mlx4_wq_overflow(&qp->rq, nreq, qp->ibqp.send_cq)) {
+		if (mlx4_wq_overflow(&qp->rq, nreq, qp->ibqp.recv_cq)) {
 			err = -ENOMEM;
 			*bad_wr = wr;
 			goto out;

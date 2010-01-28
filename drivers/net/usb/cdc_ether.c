@@ -37,23 +37,23 @@
 
 static int is_rndis(struct usb_interface_descriptor *desc)
 {
-	return desc->bInterfaceClass == USB_CLASS_COMM
-		&& desc->bInterfaceSubClass == 2
-		&& desc->bInterfaceProtocol == 0xff;
+	return (desc->bInterfaceClass == USB_CLASS_COMM &&
+		desc->bInterfaceSubClass == 2 &&
+		desc->bInterfaceProtocol == 0xff);
 }
 
 static int is_activesync(struct usb_interface_descriptor *desc)
 {
-	return desc->bInterfaceClass == USB_CLASS_MISC
-		&& desc->bInterfaceSubClass == 1
-		&& desc->bInterfaceProtocol == 1;
+	return (desc->bInterfaceClass == USB_CLASS_MISC &&
+		desc->bInterfaceSubClass == 1 &&
+		desc->bInterfaceProtocol == 1);
 }
 
 static int is_wireless_rndis(struct usb_interface_descriptor *desc)
 {
-	return desc->bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER
-		&& desc->bInterfaceSubClass == 1
-		&& desc->bInterfaceProtocol == 3;
+	return (desc->bInterfaceClass == USB_CLASS_WIRELESS_CONTROLLER &&
+		desc->bInterfaceSubClass == 1 &&
+		desc->bInterfaceProtocol == 3);
 }
 
 #else
@@ -116,9 +116,9 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* this assumes that if there's a non-RNDIS vendor variant
 	 * of cdc-acm, it'll fail RNDIS requests cleanly.
 	 */
-	rndis = is_rndis(&intf->cur_altsetting->desc)
-		|| is_activesync(&intf->cur_altsetting->desc)
-		|| is_wireless_rndis(&intf->cur_altsetting->desc);
+	rndis = (is_rndis(&intf->cur_altsetting->desc) ||
+		 is_activesync(&intf->cur_altsetting->desc) ||
+		 is_wireless_rndis(&intf->cur_altsetting->desc));
 
 	memset(info, 0, sizeof *info);
 	info->control = intf;
@@ -279,10 +279,10 @@ next_desc:
 
 		dev->status = &info->control->cur_altsetting->endpoint [0];
 		desc = &dev->status->desc;
-		if (!usb_endpoint_is_int_in(desc)
-				|| (le16_to_cpu(desc->wMaxPacketSize)
-					< sizeof(struct usb_cdc_notification))
-				|| !desc->bInterval) {
+		if (!usb_endpoint_is_int_in(desc) ||
+		    (le16_to_cpu(desc->wMaxPacketSize)
+		     < sizeof(struct usb_cdc_notification)) ||
+		    !desc->bInterval) {
 			dev_dbg(&intf->dev, "bad notification endpoint\n");
 			dev->status = NULL;
 		}
@@ -411,11 +411,26 @@ static int cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 	return 0;
 }
 
+static int cdc_manage_power(struct usbnet *dev, int on)
+{
+	dev->intf->needs_remote_wakeup = on;
+	return 0;
+}
+
 static const struct driver_info	cdc_info = {
 	.description =	"CDC Ethernet Device",
-	.flags =	FLAG_ETHER,
+	.flags =	FLAG_ETHER | FLAG_LINK_INTR,
 	// .check_connect = cdc_check_connect,
 	.bind =		cdc_bind,
+	.unbind =	usbnet_cdc_unbind,
+	.status =	cdc_status,
+	.manage_power =	cdc_manage_power,
+};
+
+static const struct driver_info mbm_info = {
+	.description =	"Mobile Broadband Network Device",
+	.flags =	FLAG_WWAN,
+	.bind = 	cdc_bind,
 	.unbind =	usbnet_cdc_unbind,
 	.status =	cdc_status,
 };
@@ -532,72 +547,72 @@ static const struct usb_device_id	products [] = {
 	/* Ericsson F3507g */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1900, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson F3507g ver. 2 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1902, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson F3607gw */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1904, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson F3607gw ver 2 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1905, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson F3607gw ver 3 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1906, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson F3307 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x190a, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson F3307 ver 2 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1909, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Ericsson C3607w */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0bdb, 0x1049, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Toshiba F3507g */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0930, 0x130b, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Toshiba F3607gw */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0930, 0x130c, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Toshiba F3607gw ver 2 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x0930, 0x1311, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Dell F3507g */
 	USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x8147, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Dell F3607gw */
 	USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x8183, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 }, {
 	/* Dell F3607gw ver 2 */
 	USB_DEVICE_AND_INTERFACE_INFO(0x413c, 0x8184, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
-	.driver_info = (unsigned long) &cdc_info,
+	.driver_info = (unsigned long) &mbm_info,
 },
 	{ },		// END
 };
@@ -610,6 +625,8 @@ static struct usb_driver cdc_driver = {
 	.disconnect =	usbnet_disconnect,
 	.suspend =	usbnet_suspend,
 	.resume =	usbnet_resume,
+	.reset_resume =	usbnet_resume,
+	.supports_autosuspend = 1,
 };
 
 

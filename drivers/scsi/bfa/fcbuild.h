@@ -32,8 +32,8 @@
  * Utility Macros/functions
  */
 
-#define fcif_sof_set(_ifhdr, _sof)	(_ifhdr)->sof = FC_ ## _sof
-#define fcif_eof_set(_ifhdr, _eof)	(_ifhdr)->eof = FC_ ## _eof
+#define fcif_sof_set(_ifhdr, _sof)	((_ifhdr)->sof = FC_ ## _sof)
+#define fcif_eof_set(_ifhdr, _eof)	((_ifhdr)->eof = FC_ ## _eof)
 
 #define wwn_is_equal(_wwn1, _wwn2)		\
 	(memcmp(&(_wwn1), &(_wwn2), sizeof(wwn_t)) == 0)
@@ -49,7 +49,7 @@
 static inline   u32
 fc_get_ctresp_pyld_len(u32 resp_len)
 {
-	return (resp_len - sizeof(struct ct_hdr_s));
+	return resp_len - sizeof(struct ct_hdr_s);
 }
 
 /*

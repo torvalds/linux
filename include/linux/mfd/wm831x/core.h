@@ -16,7 +16,6 @@
 #define __MFD_WM831X_CORE_H__
 
 #include <linux/interrupt.h>
-#include <linux/workqueue.h>
 
 /*
  * Register values.
@@ -117,6 +116,7 @@
 #define WM831X_DC3_SLEEP_CONTROL                0x4063
 #define WM831X_DC4_CONTROL                      0x4064
 #define WM831X_DC4_SLEEP_CONTROL                0x4065
+#define WM832X_DC4_SLEEP_CONTROL                0x4067
 #define WM831X_EPE1_CONTROL                     0x4066
 #define WM831X_EPE2_CONTROL                     0x4067
 #define WM831X_LDO1_CONTROL                     0x4068
@@ -235,6 +235,8 @@
 
 struct regulator_dev;
 
+#define WM831X_NUM_IRQ_REGS 5
+
 struct wm831x {
 	struct mutex io_lock;
 
@@ -248,10 +250,11 @@ struct wm831x {
 
 	int irq;  /* Our chip IRQ */
 	struct mutex irq_lock;
-	struct workqueue_struct *irq_wq;
-	struct work_struct irq_work;
 	unsigned int irq_base;
-	int irq_masks[5];
+	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
+	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
+
+	int num_gpio;
 
 	struct mutex auxadc_lock;
 
@@ -278,12 +281,30 @@ int wm831x_bulk_read(struct wm831x *wm831x, unsigned short reg,
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 
-int __must_check wm831x_request_irq(struct wm831x *wm831x,
-				    unsigned int irq, irq_handler_t handler,
-				    unsigned long flags, const char *name,
-				    void *dev);
-void wm831x_free_irq(struct wm831x *wm831x, unsigned int, void *);
-void wm831x_disable_irq(struct wm831x *wm831x, int irq);
-void wm831x_enable_irq(struct wm831x *wm831x, int irq);
+static inline int __must_check wm831x_request_irq(struct wm831x *wm831x,
+						  unsigned int irq,
+						  irq_handler_t handler,
+						  unsigned long flags,
+						  const char *name,
+						  void *dev)
+{
+	return request_threaded_irq(irq, NULL, handler, flags, name, dev);
+}
+
+static inline void wm831x_free_irq(struct wm831x *wm831x,
+				   unsigned int irq, void *dev)
+{
+	free_irq(irq, dev);
+}
+
+static inline void wm831x_disable_irq(struct wm831x *wm831x, int irq)
+{
+	disable_irq(irq);
+}
+
+static inline void wm831x_enable_irq(struct wm831x *wm831x, int irq)
+{
+	enable_irq(irq);
+}
 
 #endif

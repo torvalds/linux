@@ -40,4 +40,7 @@ int nilfs_cpfile_get_stat(struct inode *, struct nilfs_cpstat *);
 ssize_t nilfs_cpfile_get_cpinfo(struct inode *, __u64 *, int, void *, unsigned,
 				size_t);
 
+int nilfs_cpfile_read(struct inode *cpfile, struct nilfs_inode *raw_inode);
+struct inode *nilfs_cpfile_new(struct the_nilfs *nilfs, size_t cpsize);
+
 #endif	/* _NILFS_CPFILE_H */

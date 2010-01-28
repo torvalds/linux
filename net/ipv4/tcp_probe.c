@@ -94,8 +94,9 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	const struct inet_sock *inet = inet_sk(sk);
 
 	/* Only update if port matches */
-	if ((port == 0 || ntohs(inet->dport) == port || ntohs(inet->sport) == port)
-	    && (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
+	if ((port == 0 || ntohs(inet->inet_dport) == port ||
+	     ntohs(inet->inet_sport) == port) &&
+	    (full || tp->snd_cwnd != tcp_probe.lastcwnd)) {
 
 		spin_lock(&tcp_probe.lock);
 		/* If log fills, just silently drop */
@@ -103,10 +104,10 @@ static int jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			struct tcp_log *p = tcp_probe.log + tcp_probe.head;
 
 			p->tstamp = ktime_get();
-			p->saddr = inet->saddr;
-			p->sport = inet->sport;
-			p->daddr = inet->daddr;
-			p->dport = inet->dport;
+			p->saddr = inet->inet_saddr;
+			p->sport = inet->inet_sport;
+			p->daddr = inet->inet_daddr;
+			p->dport = inet->inet_dport;
 			p->length = skb->len;
 			p->snd_nxt = tp->snd_nxt;
 			p->snd_una = tp->snd_una;

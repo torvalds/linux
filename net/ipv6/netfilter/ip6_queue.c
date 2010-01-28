@@ -36,7 +36,6 @@
 
 #define IPQ_QMAX_DEFAULT 1024
 #define IPQ_PROC_FS_NAME "ip6_queue"
-#define NET_IPQ_QMAX 2088
 #define NET_IPQ_QMAX_NAME "ip6_queue_maxlen"
 
 typedef int (*ipq_cmpfn)(struct nf_queue_entry *, unsigned long);
@@ -499,10 +498,9 @@ ipq_rcv_nl_event(struct notifier_block *this,
 {
 	struct netlink_notify *n = ptr;
 
-	if (event == NETLINK_URELEASE &&
-	    n->protocol == NETLINK_IP6_FW && n->pid) {
+	if (event == NETLINK_URELEASE && n->protocol == NETLINK_IP6_FW) {
 		write_lock_bh(&queue_lock);
-		if ((n->net == &init_net) && (n->pid == peer_pid))
+		if ((net_eq(n->net, &init_net)) && (n->pid == peer_pid))
 			__ipq_reset();
 		write_unlock_bh(&queue_lock);
 	}
@@ -518,14 +516,13 @@ static struct ctl_table_header *ipq_sysctl_header;
 
 static ctl_table ipq_table[] = {
 	{
-		.ctl_name	= NET_IPQ_QMAX,
 		.procname	= NET_IPQ_QMAX_NAME,
 		.data		= &queue_maxlen,
 		.maxlen		= sizeof(queue_maxlen),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif
 
@@ -625,7 +622,7 @@ cleanup_netlink_notifier:
 static void __exit ip6_queue_fini(void)
 {
 	nf_unregister_queue_handlers(&nfqh);
-	synchronize_net();
+
 	ipq_flush(NULL, 0);
 
 #ifdef CONFIG_SYSCTL

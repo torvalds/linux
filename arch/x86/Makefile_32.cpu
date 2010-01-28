@@ -41,10 +41,17 @@ cflags-$(CONFIG_X86_ELAN)	+= -march=i486
 
 # Geode GX1 support
 cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
-
+cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
 # add at the end to overwrite eventual tuning options from earlier
 # cpu entries
 cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
+
+# Work around the pentium-mmx code generator madness of gcc4.4.x which
+# does stack alignment by generating horrible code _before_ the mcount
+# prologue (push %ebp, mov %esp, %ebp) which breaks the function graph
+# tracer assumptions. For i686, generic, core2 this is set by the
+# compiler anyway
+cflags-$(CONFIG_FUNCTION_GRAPH_TRACER) += $(call cc-option,-maccumulate-outgoing-args)
 
 # Bug fix for binutils: this option is required in order to keep
 # binutils from generating NOPL instructions against our will.

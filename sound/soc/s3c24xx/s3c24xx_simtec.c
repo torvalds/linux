@@ -21,7 +21,7 @@
 
 #include <plat/audio-simtec.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"
 
@@ -270,7 +270,7 @@ static int attach_gpio_amp(struct device *dev,
 		gpio_direction_output(pd->amp_gain[1], 0);
 	}
 
-	/* note, curently we assume GPA0 isn't valid amp */
+	/* note, currently we assume GPA0 isn't valid amp */
 	if (pdata->amp_gpio > 0) {
 		ret = gpio_request(pd->amp_gpio, "gpio-amp");
 		if (ret) {
@@ -312,7 +312,7 @@ int simtec_audio_resume(struct device *dev)
 	return 0;
 }
 
-struct dev_pm_ops simtec_audio_pmops = {
+const struct dev_pm_ops simtec_audio_pmops = {
 	.resume	= simtec_audio_resume,
 };
 EXPORT_SYMBOL_GPL(simtec_audio_pmops);

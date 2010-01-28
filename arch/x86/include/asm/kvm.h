@@ -19,6 +19,8 @@
 #define __KVM_HAVE_MSIX
 #define __KVM_HAVE_MCE
 #define __KVM_HAVE_PIT_STATE2
+#define __KVM_HAVE_XEN_HVM
+#define __KVM_HAVE_VCPU_EVENTS
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -79,6 +81,7 @@ struct kvm_ioapic_state {
 #define KVM_IRQCHIP_PIC_MASTER   0
 #define KVM_IRQCHIP_PIC_SLAVE    1
 #define KVM_IRQCHIP_IOAPIC       2
+#define KVM_NR_IRQCHIPS          3
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
@@ -250,4 +253,35 @@ struct kvm_reinject_control {
 	__u8 pit_reinject;
 	__u8 reserved[31];
 };
+
+/* When set in flags, include corresponding fields on KVM_SET_VCPU_EVENTS */
+#define KVM_VCPUEVENT_VALID_NMI_PENDING	0x00000001
+#define KVM_VCPUEVENT_VALID_SIPI_VECTOR	0x00000002
+
+/* for KVM_GET/SET_VCPU_EVENTS */
+struct kvm_vcpu_events {
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 has_error_code;
+		__u8 pad;
+		__u32 error_code;
+	} exception;
+	struct {
+		__u8 injected;
+		__u8 nr;
+		__u8 soft;
+		__u8 pad;
+	} interrupt;
+	struct {
+		__u8 injected;
+		__u8 pending;
+		__u8 masked;
+		__u8 pad;
+	} nmi;
+	__u32 sipi_vector;
+	__u32 flags;
+	__u32 reserved[10];
+};
+
 #endif /* _ASM_X86_KVM_H */

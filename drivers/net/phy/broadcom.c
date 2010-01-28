@@ -16,6 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/phy.h>
+#include <linux/brcmphy.h>
 
 #define PHY_ID_BCM50610		0x0143bd60
 #define PHY_ID_BCM50610M	0x0143bd70
@@ -23,6 +24,9 @@
 
 #define BRCM_PHY_MODEL(phydev) \
 	((phydev)->drv->phy_id & (phydev)->drv->phy_id_mask)
+
+#define BRCM_PHY_REV(phydev) \
+	((phydev)->drv->phy_id & ~((phydev)->drv->phy_id_mask))
 
 
 #define MII_BCM54XX_ECR		0x10	/* BCM54xx extended control register */
@@ -94,21 +98,34 @@
 #define BCM_LED_SRC_OFF		0xe	/* Tied high */
 #define BCM_LED_SRC_ON		0xf	/* Tied low */
 
+
 /*
  * BCM5482: Shadow registers
  * Shadow values go into bits [14:10] of register 0x1c to select a shadow
  * register to access.
  */
+/* 00101: Spare Control Register 3 */
+#define BCM54XX_SHD_SCR3		0x05
+#define  BCM54XX_SHD_SCR3_DEF_CLK125	0x0001
+#define  BCM54XX_SHD_SCR3_DLLAPD_DIS	0x0002
+#define  BCM54XX_SHD_SCR3_TRDDAPD	0x0004
+
+/* 01010: Auto Power-Down */
+#define BCM54XX_SHD_APD			0x0a
+#define  BCM54XX_SHD_APD_EN		0x0020
+
 #define BCM5482_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
 					/* LED3 / ~LINKSPD[2] selector */
 #define BCM5482_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
 					/* LED1 / ~LINKSPD[1] selector */
 #define BCM5482_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_RGMII_MODE	0x0b	/* 01011: RGMII Mode Selector */
 #define BCM5482_SHD_SSD		0x14	/* 10100: Secondary SerDes control */
 #define BCM5482_SHD_SSD_LEDM	0x0008	/* SSD LED Mode enable */
 #define BCM5482_SHD_SSD_EN	0x0001	/* SSD enable */
 #define BCM5482_SHD_MODE	0x1f	/* 11111: Mode Control Register */
 #define BCM5482_SHD_MODE_1000BX	0x0001	/* Enable 1000BASE-X registers */
+
 
 /*
  * EXPANSION SHADOW ACCESS REGISTERS.  (PHY REG 0x15, 0x16, and 0x17)
@@ -137,16 +154,6 @@
 #define BCM5482_SSD_SGMII_SLAVE		0x15	/* SGMII Slave Register */
 #define BCM5482_SSD_SGMII_SLAVE_EN	0x0002	/* Slave mode enable */
 #define BCM5482_SSD_SGMII_SLAVE_AD	0x0001	/* Slave auto-detection */
-
-/*
- * Device flags for PHYs that can be configured for different operating
- * modes.
- */
-#define PHY_BCM_FLAGS_VALID		0x80000000
-#define PHY_BCM_FLAGS_INTF_XAUI		0x00000020
-#define PHY_BCM_FLAGS_INTF_SGMII	0x00000010
-#define PHY_BCM_FLAGS_MODE_1000BX	0x00000002
-#define PHY_BCM_FLAGS_MODE_COPPER	0x00000001
 
 
 /*****************************************************************************/
@@ -237,10 +244,43 @@ static int bcm54xx_auxctl_write(struct phy_device *phydev, u16 regnum, u16 val)
 	return phy_write(phydev, MII_BCM54XX_AUX_CTL, regnum | val);
 }
 
+/* Needs SMDSP clock enabled via bcm54xx_phydsp_config() */
 static int bcm50610_a0_workaround(struct phy_device *phydev)
 {
 	int err;
 
+	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_AADJ1CH0,
+				MII_BCM54XX_EXP_AADJ1CH0_SWP_ABCD_OEN |
+				MII_BCM54XX_EXP_AADJ1CH0_SWSEL_THPF);
+	if (err < 0)
+		return err;
+
+	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_AADJ1CH3,
+					MII_BCM54XX_EXP_AADJ1CH3_ADCCKADJ);
+	if (err < 0)
+		return err;
+
+	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP75,
+				MII_BCM54XX_EXP_EXP75_VDACCTRL);
+	if (err < 0)
+		return err;
+
+	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP96,
+				MII_BCM54XX_EXP_EXP96_MYST);
+	if (err < 0)
+		return err;
+
+	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP97,
+				MII_BCM54XX_EXP_EXP97_MYST);
+
+	return err;
+}
+
+static int bcm54xx_phydsp_config(struct phy_device *phydev)
+{
+	int err, err2;
+
+	/* Enable the SMDSP clock */
 	err = bcm54xx_auxctl_write(phydev,
 				   MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
 				   MII_BCM54XX_AUXCTL_ACTL_SMDSP_ENA |
@@ -248,42 +288,102 @@ static int bcm50610_a0_workaround(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP08,
-				MII_BCM54XX_EXP_EXP08_RJCT_2MHZ	|
-				MII_BCM54XX_EXP_EXP08_EARLY_DAC_WAKE);
-	if (err < 0)
-		goto error;
+	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
+	    BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) {
+		/* Clear bit 9 to fix a phy interop issue. */
+		err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP08,
+					MII_BCM54XX_EXP_EXP08_RJCT_2MHZ);
+		if (err < 0)
+			goto error;
 
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_AADJ1CH0,
-				MII_BCM54XX_EXP_AADJ1CH0_SWP_ABCD_OEN |
-				MII_BCM54XX_EXP_AADJ1CH0_SWSEL_THPF);
-	if (err < 0)
-		goto error;
+		if (phydev->drv->phy_id == PHY_ID_BCM50610) {
+			err = bcm50610_a0_workaround(phydev);
+			if (err < 0)
+				goto error;
+		}
+	}
 
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_AADJ1CH3,
-					MII_BCM54XX_EXP_AADJ1CH3_ADCCKADJ);
-	if (err < 0)
-		goto error;
+	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM57780) {
+		int val;
 
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP75,
-				MII_BCM54XX_EXP_EXP75_VDACCTRL);
-	if (err < 0)
-		goto error;
+		val = bcm54xx_exp_read(phydev, MII_BCM54XX_EXP_EXP75);
+		if (val < 0)
+			goto error;
 
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP96,
-				MII_BCM54XX_EXP_EXP96_MYST);
-	if (err < 0)
-		goto error;
-
-	err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP97,
-				MII_BCM54XX_EXP_EXP97_MYST);
+		val |= MII_BCM54XX_EXP_EXP75_CM_OSC;
+		err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP75, val);
+	}
 
 error:
-	bcm54xx_auxctl_write(phydev,
-			     MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
-			     MII_BCM54XX_AUXCTL_ACTL_TX_6DB);
+	/* Disable the SMDSP clock */
+	err2 = bcm54xx_auxctl_write(phydev,
+				    MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
+				    MII_BCM54XX_AUXCTL_ACTL_TX_6DB);
 
-	return err;
+	/* Return the first error reported. */
+	return err ? err : err2;
+}
+
+static void bcm54xx_adjust_rxrefclk(struct phy_device *phydev)
+{
+	u32 orig;
+	int val;
+	bool clk125en = true;
+
+	/* Abort if we are using an untested phy. */
+	if (BRCM_PHY_MODEL(phydev) != PHY_ID_BCM57780 &&
+	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610 &&
+	    BRCM_PHY_MODEL(phydev) != PHY_ID_BCM50610M)
+		return;
+
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_SCR3);
+	if (val < 0)
+		return;
+
+	orig = val;
+
+	if ((BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
+	     BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) &&
+	    BRCM_PHY_REV(phydev) >= 0x3) {
+		/*
+		 * Here, bit 0 _disables_ CLK125 when set.
+		 * This bit is set by default.
+		 */
+		clk125en = false;
+	} else {
+		if (phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED) {
+			/* Here, bit 0 _enables_ CLK125 when set */
+			val &= ~BCM54XX_SHD_SCR3_DEF_CLK125;
+			clk125en = false;
+		}
+	}
+
+	if (clk125en == false ||
+	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
+		val &= ~BCM54XX_SHD_SCR3_DLLAPD_DIS;
+	else
+		val |= BCM54XX_SHD_SCR3_DLLAPD_DIS;
+
+	if (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY)
+		val |= BCM54XX_SHD_SCR3_TRDDAPD;
+
+	if (orig != val)
+		bcm54xx_shadow_write(phydev, BCM54XX_SHD_SCR3, val);
+
+	val = bcm54xx_shadow_read(phydev, BCM54XX_SHD_APD);
+	if (val < 0)
+		return;
+
+	orig = val;
+
+	if (clk125en == false ||
+	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
+		val |= BCM54XX_SHD_APD_EN;
+	else
+		val &= ~BCM54XX_SHD_APD_EN;
+
+	if (orig != val)
+		bcm54xx_shadow_write(phydev, BCM54XX_SHD_APD, val);
 }
 
 static int bcm54xx_config_init(struct phy_device *phydev)
@@ -308,38 +408,17 @@ static int bcm54xx_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	if (phydev->drv->phy_id == PHY_ID_BCM50610) {
-		err = bcm50610_a0_workaround(phydev);
-		if (err < 0)
-			return err;
-	}
+	if ((BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610 ||
+	     BRCM_PHY_MODEL(phydev) == PHY_ID_BCM50610M) &&
+	    (phydev->dev_flags & PHY_BRCM_CLEAR_RGMII_MODE))
+		bcm54xx_shadow_write(phydev, BCM54XX_SHD_RGMII_MODE, 0);
 
-	if (BRCM_PHY_MODEL(phydev) == PHY_ID_BCM57780) {
-		int err2;
+	if ((phydev->dev_flags & PHY_BRCM_RX_REFCLK_UNUSED) ||
+	    (phydev->dev_flags & PHY_BRCM_DIS_TXCRXC_NOENRGY) ||
+	    (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE))
+		bcm54xx_adjust_rxrefclk(phydev);
 
-		err = bcm54xx_auxctl_write(phydev,
-					   MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
-					   MII_BCM54XX_AUXCTL_ACTL_SMDSP_ENA |
-					   MII_BCM54XX_AUXCTL_ACTL_TX_6DB);
-		if (err < 0)
-			return err;
-
-		reg = bcm54xx_exp_read(phydev, MII_BCM54XX_EXP_EXP75);
-		if (reg < 0)
-			goto error;
-
-		reg |= MII_BCM54XX_EXP_EXP75_CM_OSC;
-		err = bcm54xx_exp_write(phydev, MII_BCM54XX_EXP_EXP75, reg);
-
-error:
-		err2 = bcm54xx_auxctl_write(phydev,
-					    MII_BCM54XX_AUXCTL_SHDWSEL_AUXCTL,
-					    MII_BCM54XX_AUXCTL_ACTL_TX_6DB);
-		if (err)
-			return err;
-		if (err2)
-			return err2;
-	}
+	bcm54xx_phydsp_config(phydev);
 
 	return 0;
 }
@@ -564,9 +643,11 @@ static int brcm_fet_config_init(struct phy_device *phydev)
 	if (err < 0)
 		goto done;
 
-	/* Enable auto power down */
-	err = brcm_phy_setbits(phydev, MII_BRCM_FET_SHDW_AUXSTAT2,
-				       MII_BRCM_FET_SHDW_AS2_APDE);
+	if (phydev->dev_flags & PHY_BRCM_AUTO_PWRDWN_ENABLE) {
+		/* Enable auto power down */
+		err = brcm_phy_setbits(phydev, MII_BRCM_FET_SHDW_AUXSTAT2,
+					       MII_BRCM_FET_SHDW_AS2_APDE);
+	}
 
 done:
 	/* Disable shadow register access */

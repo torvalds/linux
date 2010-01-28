@@ -11,6 +11,7 @@ config ARCH_OMAP850
 	depends on ARCH_OMAP1
 	bool "OMAP850 Based System"
 	select CPU_ARM926T
+	select ARCH_OMAP_OTG
 
 config ARCH_OMAP15XX
 	depends on ARCH_OMAP1
@@ -55,6 +56,12 @@ config MACH_OMAP_HTCWIZARD
 	depends on ARCH_OMAP850
 	help
 	  HTC Wizard smartphone support (AKA QTEK 9100, ...)
+
+config MACH_HERALD
+	bool "HTC Herald"
+	depends on ARCH_OMAP850
+	help
+	  HTC Herald smartphone support (AKA T-Mobile Wing, ...)
 
 config MACH_OMAP_OSK
 	bool "TI OSK Support"

@@ -45,10 +45,6 @@ MODULE_DESCRIPTION("NIU ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
-#ifndef DMA_44BIT_MASK
-#define DMA_44BIT_MASK	0x00000fffffffffffULL
-#endif
-
 #ifndef readq
 static u64 readq(void __iomem *reg)
 {
@@ -2848,7 +2844,7 @@ static int tcam_wait_bit(struct niu *np, u64 bit)
 			break;
 		udelay(1);
 	}
-	if (limit < 0)
+	if (limit <= 0)
 		return -ENODEV;
 
 	return 0;
@@ -7855,9 +7851,12 @@ static void niu_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
-static int niu_get_stats_count(struct net_device *dev)
+static int niu_get_sset_count(struct net_device *dev, int stringset)
 {
 	struct niu *np = netdev_priv(dev);
+
+	if (stringset != ETH_SS_STATS)
+		return -EINVAL;
 
 	return ((np->flags & NIU_FLAGS_XMAC ?
 		 NUM_XMAC_STAT_KEYS :
@@ -7978,7 +7977,7 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.get_settings		= niu_get_settings,
 	.set_settings		= niu_set_settings,
 	.get_strings		= niu_get_strings,
-	.get_stats_count	= niu_get_stats_count,
+	.get_sset_count		= niu_get_sset_count,
 	.get_ethtool_stats	= niu_get_ethtool_stats,
 	.phys_id		= niu_phys_id,
 	.get_rxnfc		= niu_get_nfc,
@@ -8144,7 +8143,7 @@ static void __devinit niu_vpd_parse_version(struct niu *np)
 	int i;
 
 	for (i = 0; i < len - 5; i++) {
-		if (!strncmp(s + i, "FCode ", 5))
+		if (!strncmp(s + i, "FCode ", 6))
 			break;
 	}
 	if (i >= len - 5)
@@ -9915,7 +9914,7 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 		  PCI_EXP_DEVCTL_RELAX_EN);
 	pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, val16);
 
-	dma_mask = DMA_44BIT_MASK;
+	dma_mask = DMA_BIT_MASK(44);
 	err = pci_set_dma_mask(pdev, dma_mask);
 	if (!err) {
 		dev->features |= NETIF_F_HIGHDMA;

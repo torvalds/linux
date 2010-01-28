@@ -32,8 +32,6 @@ Authors:
 Module Parameters
 -----------------
 
-* force_addr: int
-  Initialize the ISA address of the sensors
 * force_i2c: int
   Initialize the I2C address of the sensors
 * init: int
@@ -70,3 +68,30 @@ doesn't help, you may just ignore the bogus VID reading with no harm done.
 For further information on this driver see the w83781d driver documentation.
 
 [1] http://www.lm-sensors.org/browser/lm-sensors/trunk/doc/vid
+
+Forcing the address
+-------------------
+
+The driver used to have a module parameter named force_addr, which could
+be used to force the base I/O address of the hardware monitoring block.
+This was meant as a workaround for mainboards with a broken BIOS. This
+module parameter is gone for technical reasons. If you need this feature,
+you can obtain the same result by using the isaset tool (part of
+lm-sensors) before loading the driver:
+
+# Enter the Super I/O config space
+isaset -y -f 0x2e 0x87
+isaset -y -f 0x2e 0x87
+
+# Select the hwmon logical device
+isaset -y 0x2e 0x2f 0x07 0x0b
+
+# Set the base I/O address (to 0x290 in this example)
+isaset -y 0x2e 0x2f 0x60 0x02
+isaset -y 0x2e 0x2f 0x61 0x90
+
+# Exit the Super-I/O config space
+isaset -y -f 0x2e 0xaa
+
+The above sequence assumes a Super-I/O config space at 0x2e/0x2f, but
+0x4e/0x4f is also possible.

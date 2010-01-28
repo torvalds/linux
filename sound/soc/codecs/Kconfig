@@ -15,10 +15,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD1938 if SPI_MASTER
 	select SND_SOC_AD1980 if SND_SOC_AC97_BUS
+	select SND_SOC_ADS117X
 	select SND_SOC_AD73311 if I2C
 	select SND_SOC_AK4104 if SPI_MASTER
 	select SND_SOC_AK4535 if I2C
 	select SND_SOC_AK4642 if I2C
+	select SND_SOC_AK4671 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
@@ -28,6 +30,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC3X if I2C
+	select SND_SOC_TPA6130A2 if I2C
+	select SND_SOC_TLV320DAC33 if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
@@ -36,6 +40,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8523 if I2C
 	select SND_SOC_WM8580 if I2C
+	select SND_SOC_WM8711 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8727
 	select SND_SOC_WM8728 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8731 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8750 if SND_SOC_I2C_AND_SPI
@@ -86,6 +92,9 @@ config SND_SOC_AD1980
 
 config SND_SOC_AD73311
 	tristate
+	
+config SND_SOC_ADS117X
+	tristate
 
 config SND_SOC_AK4104
 	tristate
@@ -94,6 +103,9 @@ config SND_SOC_AK4535
 	tristate
 
 config SND_SOC_AK4642
+	tristate
+
+config SND_SOC_AK4671
 	tristate
 
 # Cirrus Logic CS4270 Codec
@@ -136,7 +148,11 @@ config SND_SOC_TLV320AIC26
 config SND_SOC_TLV320AIC3X
 	tristate
 
+config SND_SOC_TLV320DAC33
+	tristate
+
 config SND_SOC_TWL4030
+	select TWL4030_CODEC
 	tristate
 
 config SND_SOC_UDA134X
@@ -158,6 +174,12 @@ config SND_SOC_WM8523
 	tristate
 
 config SND_SOC_WM8580
+	tristate
+
+config SND_SOC_WM8711
+	tristate
+
+config SND_SOC_WM8727
 	tristate
 
 config SND_SOC_WM8728
@@ -219,4 +241,7 @@ config SND_SOC_WM9713
 
 # Amp
 config SND_SOC_MAX9877
+	tristate
+
+config SND_SOC_TPA6130A2
 	tristate

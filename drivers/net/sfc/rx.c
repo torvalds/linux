@@ -1,7 +1,7 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
- * Copyright 2005-2008 Solarflare Communications Inc.
+ * Copyright 2005-2009 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -16,9 +16,8 @@
 #include <net/ip.h>
 #include <net/checksum.h>
 #include "net_driver.h"
-#include "rx.h"
 #include "efx.h"
-#include "falcon.h"
+#include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
 
@@ -61,7 +60,7 @@
  *   rx_alloc_method = (rx_alloc_level > RX_ALLOC_LEVEL_LRO ?
  *                      RX_ALLOC_METHOD_PAGE : RX_ALLOC_METHOD_SKB)
  */
-static int rx_alloc_method = RX_ALLOC_METHOD_PAGE;
+static int rx_alloc_method = RX_ALLOC_METHOD_AUTO;
 
 #define RX_ALLOC_LEVEL_LRO 0x2000
 #define RX_ALLOC_LEVEL_MAX 0x3000
@@ -293,8 +292,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 	 * fill anyway.
 	 */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level >
-			    rx_queue->efx->type->rxd_ring_mask + 1);
+	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
 
 	/* Don't fill if we don't need to */
 	if (fill_level >= rx_queue->fast_fill_trigger)
@@ -316,8 +314,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
  retry:
 	/* Recalculate current fill level now that we have the lock */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level >
-			    rx_queue->efx->type->rxd_ring_mask + 1);
+	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
 	space = rx_queue->fast_fill_limit - fill_level;
 	if (space < EFX_RX_BATCH)
 		goto out_unlock;
@@ -329,8 +326,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 
 	do {
 		for (i = 0; i < EFX_RX_BATCH; ++i) {
-			index = (rx_queue->added_count &
-				 rx_queue->efx->type->rxd_ring_mask);
+			index = rx_queue->added_count & EFX_RXQ_MASK;
 			rx_buf = efx_rx_buffer(rx_queue, index);
 			rc = efx_init_rx_buffer(rx_queue, rx_buf);
 			if (unlikely(rc))
@@ -345,7 +341,7 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 
  out:
 	/* Send write pointer to card. */
-	falcon_notify_rx_desc(rx_queue);
+	efx_nic_notify_rx_desc(rx_queue);
 
 	/* If the fast fill is running inside from the refill tasklet, then
 	 * for SMP systems it may be running on a different CPU to
@@ -448,17 +444,23 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 			      bool checksummed)
 {
 	struct napi_struct *napi = &channel->napi_str;
+	gro_result_t gro_result;
 
 	/* Pass the skb/page into the LRO engine */
 	if (rx_buf->page) {
-		struct sk_buff *skb = napi_get_frags(napi);
+		struct page *page = rx_buf->page;
+		struct sk_buff *skb;
 
+		EFX_BUG_ON_PARANOID(rx_buf->skb);
+		rx_buf->page = NULL;
+
+		skb = napi_get_frags(napi);
 		if (!skb) {
-			put_page(rx_buf->page);
-			goto out;
+			put_page(page);
+			return;
 		}
 
-		skb_shinfo(skb)->frags[0].page = rx_buf->page;
+		skb_shinfo(skb)->frags[0].page = page;
 		skb_shinfo(skb)->frags[0].page_offset =
 			efx_rx_buf_offset(rx_buf);
 		skb_shinfo(skb)->frags[0].size = rx_buf->len;
@@ -470,17 +472,24 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 		skb->ip_summed =
 			checksummed ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 
-		napi_gro_frags(napi);
+		skb_record_rx_queue(skb, channel->channel);
 
-out:
-		EFX_BUG_ON_PARANOID(rx_buf->skb);
-		rx_buf->page = NULL;
+		gro_result = napi_gro_frags(napi);
 	} else {
-		EFX_BUG_ON_PARANOID(!rx_buf->skb);
-		EFX_BUG_ON_PARANOID(!checksummed);
+		struct sk_buff *skb = rx_buf->skb;
 
-		napi_gro_receive(napi, rx_buf->skb);
+		EFX_BUG_ON_PARANOID(!skb);
+		EFX_BUG_ON_PARANOID(!checksummed);
 		rx_buf->skb = NULL;
+
+		gro_result = napi_gro_receive(napi, skb);
+	}
+
+	if (gro_result == GRO_NORMAL) {
+		channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
+	} else if (gro_result != GRO_DROP) {
+		channel->rx_alloc_level += RX_ALLOC_FACTOR_LRO;
+		channel->irq_mod_score += 2;
 	}
 }
 
@@ -558,7 +567,7 @@ void __efx_rx_packet(struct efx_channel *channel,
 	if (unlikely(efx->loopback_selftest)) {
 		efx_loopback_rx_packet(efx, rx_buf->data, rx_buf->len);
 		efx_free_rx_buffer(efx, rx_buf);
-		goto done;
+		return;
 	}
 
 	if (rx_buf->skb) {
@@ -570,34 +579,28 @@ void __efx_rx_packet(struct efx_channel *channel,
 		 * at the ethernet header */
 		rx_buf->skb->protocol = eth_type_trans(rx_buf->skb,
 						       efx->net_dev);
+
+		skb_record_rx_queue(rx_buf->skb, channel->channel);
 	}
 
 	if (likely(checksummed || rx_buf->page)) {
 		efx_rx_packet_lro(channel, rx_buf, checksummed);
-		goto done;
+		return;
 	}
 
 	/* We now own the SKB */
 	skb = rx_buf->skb;
 	rx_buf->skb = NULL;
-
-	EFX_BUG_ON_PARANOID(rx_buf->page);
-	EFX_BUG_ON_PARANOID(rx_buf->skb);
 	EFX_BUG_ON_PARANOID(!skb);
 
 	/* Set the SKB flags */
 	skb->ip_summed = CHECKSUM_NONE;
-
-	skb_record_rx_queue(skb, channel->channel);
 
 	/* Pass the packet up */
 	netif_receive_skb(skb);
 
 	/* Update allocation strategy method */
 	channel->rx_alloc_level += RX_ALLOC_FACTOR_SKB;
-
-done:
-	;
 }
 
 void efx_rx_strategy(struct efx_channel *channel)
@@ -632,12 +635,12 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	EFX_LOG(efx, "creating RX queue %d\n", rx_queue->queue);
 
 	/* Allocate RX buffers */
-	rxq_size = (efx->type->rxd_ring_mask + 1) * sizeof(*rx_queue->buffer);
+	rxq_size = EFX_RXQ_SIZE * sizeof(*rx_queue->buffer);
 	rx_queue->buffer = kzalloc(rxq_size, GFP_KERNEL);
 	if (!rx_queue->buffer)
 		return -ENOMEM;
 
-	rc = falcon_probe_rx(rx_queue);
+	rc = efx_nic_probe_rx(rx_queue);
 	if (rc) {
 		kfree(rx_queue->buffer);
 		rx_queue->buffer = NULL;
@@ -647,7 +650,6 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 
 void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 {
-	struct efx_nic *efx = rx_queue->efx;
 	unsigned int max_fill, trigger, limit;
 
 	EFX_LOG(rx_queue->efx, "initialising RX queue %d\n", rx_queue->queue);
@@ -660,7 +662,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->min_overfill = -1U;
 
 	/* Initialise limit fields */
-	max_fill = efx->type->rxd_ring_mask + 1 - EFX_RXD_HEAD_ROOM;
+	max_fill = EFX_RXQ_SIZE - EFX_RXD_HEAD_ROOM;
 	trigger = max_fill * min(rx_refill_threshold, 100U) / 100U;
 	limit = max_fill * min(rx_refill_limit, 100U) / 100U;
 
@@ -669,7 +671,7 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	rx_queue->fast_fill_limit = limit;
 
 	/* Set up RX descriptor ring */
-	falcon_init_rx(rx_queue);
+	efx_nic_init_rx(rx_queue);
 }
 
 void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
@@ -679,11 +681,11 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 
 	EFX_LOG(rx_queue->efx, "shutting down RX queue %d\n", rx_queue->queue);
 
-	falcon_fini_rx(rx_queue);
+	efx_nic_fini_rx(rx_queue);
 
 	/* Release RX buffers NB start at index 0 not current HW ptr */
 	if (rx_queue->buffer) {
-		for (i = 0; i <= rx_queue->efx->type->rxd_ring_mask; i++) {
+		for (i = 0; i <= EFX_RXQ_MASK; i++) {
 			rx_buf = efx_rx_buffer(rx_queue, i);
 			efx_fini_rx_buffer(rx_queue, rx_buf);
 		}
@@ -704,7 +706,7 @@ void efx_remove_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	EFX_LOG(rx_queue->efx, "destroying RX queue %d\n", rx_queue->queue);
 
-	falcon_remove_rx(rx_queue);
+	efx_nic_remove_rx(rx_queue);
 
 	kfree(rx_queue->buffer);
 	rx_queue->buffer = NULL;

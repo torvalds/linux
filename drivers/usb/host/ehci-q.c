@@ -487,8 +487,20 @@ halt:
 			 * we must clear the TT buffer (11.17.5).
 			 */
 			if (unlikely(last_status != -EINPROGRESS &&
-					last_status != -EREMOTEIO))
-				ehci_clear_tt_buffer(ehci, qh, urb, token);
+					last_status != -EREMOTEIO)) {
+				/* The TT's in some hubs malfunction when they
+				 * receive this request following a STALL (they
+				 * stop sending isochronous packets).  Since a
+				 * STALL can't leave the TT buffer in a busy
+				 * state (if you believe Figures 11-48 - 11-51
+				 * in the USB 2.0 spec), we won't clear the TT
+				 * buffer in this case.  Strictly speaking this
+				 * is a violation of the spec.
+				 */
+				if (last_status != -EPIPE)
+					ehci_clear_tt_buffer(ehci, qh, urb,
+							token);
+			}
 		}
 
 		/* if we're removing something not at the queue head,
@@ -604,9 +616,11 @@ qh_urb_transaction (
 ) {
 	struct ehci_qtd		*qtd, *qtd_prev;
 	dma_addr_t		buf;
-	int			len, maxpacket;
+	int			len, this_sg_len, maxpacket;
 	int			is_input;
 	u32			token;
+	int			i;
+	struct scatterlist	*sg;
 
 	/*
 	 * URBs map to sequences of QTDs:  one logical transaction
@@ -647,7 +661,20 @@ qh_urb_transaction (
 	/*
 	 * data transfer stage:  buffer setup
 	 */
-	buf = urb->transfer_dma;
+	i = urb->num_sgs;
+	if (len > 0 && i > 0) {
+		sg = urb->sg->sg;
+		buf = sg_dma_address(sg);
+
+		/* urb->transfer_buffer_length may be smaller than the
+		 * size of the scatterlist (or vice versa)
+		 */
+		this_sg_len = min_t(int, sg_dma_len(sg), len);
+	} else {
+		sg = NULL;
+		buf = urb->transfer_dma;
+		this_sg_len = len;
+	}
 
 	if (is_input)
 		token |= (1 /* "in" */ << 8);
@@ -663,7 +690,9 @@ qh_urb_transaction (
 	for (;;) {
 		int this_qtd_len;
 
-		this_qtd_len = qtd_fill(ehci, qtd, buf, len, token, maxpacket);
+		this_qtd_len = qtd_fill(ehci, qtd, buf, this_sg_len, token,
+				maxpacket);
+		this_sg_len -= this_qtd_len;
 		len -= this_qtd_len;
 		buf += this_qtd_len;
 
@@ -679,8 +708,13 @@ qh_urb_transaction (
 		if ((maxpacket & (this_qtd_len + (maxpacket - 1))) == 0)
 			token ^= QTD_TOGGLE;
 
-		if (likely (len <= 0))
-			break;
+		if (likely(this_sg_len <= 0)) {
+			if (--i <= 0 || len <= 0)
+				break;
+			sg = sg_next(sg);
+			buf = sg_dma_address(sg);
+			this_sg_len = min_t(int, sg_dma_len(sg), len);
+		}
 
 		qtd_prev = qtd;
 		qtd = ehci_qtd_alloc (ehci, flags);
@@ -815,9 +849,10 @@ qh_make (
 				 * But interval 1 scheduling is simpler, and
 				 * includes high bandwidth.
 				 */
-				dbg ("intr period %d uframes, NYET!",
-						urb->interval);
-				goto done;
+				urb->interval = 1;
+			} else if (qh->period > ehci->periodic_size) {
+				qh->period = ehci->periodic_size;
+				urb->interval = qh->period << 3;
 			}
 		} else {
 			int		think_time;
@@ -840,6 +875,10 @@ qh_make (
 					usb_calc_bus_time (urb->dev->speed,
 					is_input, 0, max_packet (maxp)));
 			qh->period = urb->interval;
+			if (qh->period > ehci->periodic_size) {
+				qh->period = ehci->periodic_size;
+				urb->interval = qh->period;
+			}
 		}
 	}
 

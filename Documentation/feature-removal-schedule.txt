@@ -6,6 +6,21 @@ be removed from this file.
 
 ---------------------------
 
+What:	USER_SCHED
+When:	2.6.34
+
+Why:	USER_SCHED was implemented as a proof of concept for group scheduling.
+	The effect of USER_SCHED can already be achieved from userspace with
+	the help of libcgroup. The removal of USER_SCHED will also simplify
+	the scheduler code with the removal of one major ifdef. There are also
+	issues USER_SCHED has with USER_NS. A decision was taken not to fix
+	those and instead remove USER_SCHED. Also new group scheduling
+	features will not be implemented for USER_SCHED.
+
+Who:	Dhaval Giani <dhaval@linux.vnet.ibm.com>
+
+---------------------------
+
 What:	PRISM54
 When:	2.6.34
 
@@ -276,22 +291,6 @@ Who:	Michael Buesch <mb@bu3sch.de>
 
 ---------------------------
 
-What:	usedac i386 kernel parameter
-When:	2.6.27
-Why:	replaced by allowdac and no dac combination
-Who:	Glauber Costa <gcosta@redhat.com>
-
----------------------------
-
-What: print_fn_descriptor_symbol()
-When: October 2009
-Why:  The %pF vsprintf format provides the same functionality in a
-      simpler way.  print_fn_descriptor_symbol() is deprecated but
-      still present to give out-of-tree modules time to change.
-Who:  Bjorn Helgaas <bjorn.helgaas@hp.com>
-
----------------------------
-
 What:	/sys/o2cb symlink
 When:	January 2010
 Why:	/sys/fs/o2cb is the proper location for this information - /sys/o2cb
@@ -299,18 +298,6 @@ Why:	/sys/fs/o2cb is the proper location for this information - /sys/o2cb
 	ocfs2-tools. 2 years should be sufficient time to phase in new versions
 	which know to look in /sys/fs/o2cb.
 Who:	ocfs2-devel@oss.oracle.com
-
----------------------------
-
-What:	SCTP_GET_PEER_ADDRS_NUM_OLD, SCTP_GET_PEER_ADDRS_OLD,
-	SCTP_GET_LOCAL_ADDRS_NUM_OLD, SCTP_GET_LOCAL_ADDRS_OLD
-When: 	June 2009
-Why:    A newer version of the options have been introduced in 2005 that
-	removes the limitions of the old API.  The sctp library has been
-        converted to use these new options at the same time.  Any user
-	space app that directly uses the old options should convert to using
-	the new options.
-Who:	Vlad Yasevich <vladislav.yasevich@hp.com>
 
 ---------------------------
 
@@ -404,15 +391,6 @@ Who:	Alex Chiang <achiang@hp.com>
 
 ---------------------------
 
-What:	i2c-voodoo3 driver
-When:	October 2009
-Why:	Superseded by tdfxfb. I2C/DDC support used to live in a separate
-	driver but this caused driver conflicts.
-Who:	Jean Delvare <khali@linux-fr.org>
-	Krzysztof Helt <krzysztof.h1@wp.pl>
-
----------------------------
-
 What:	CONFIG_RFKILL_INPUT
 When:	2.6.33
 Why:	Should be implemented in userspace, policy daemon.
@@ -489,3 +467,78 @@ Why:	With the recent innovations in CPU hardware acceleration technologies
 Who:	Alok N Kataria <akataria@vmware.com>
 
 ----------------------------
+
+What:	adt7473 hardware monitoring driver
+When:	February 2010
+Why:	Obsoleted by the adt7475 driver.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+What:	Support for lcd_switch and display_get in asus-laptop driver
+When:	March 2010
+Why:	These two features use non-standard interfaces. There are the
+	only features that really need multiple path to guess what's
+	the right method name on a specific laptop.
+
+	Removing them will allow to remove a lot of code an significantly
+	clean the drivers.
+
+	This will affect the backlight code which won't be able to know
+	if the backlight is on or off. The platform display file will also be
+	write only (like the one in eeepc-laptop).
+
+	This should'nt affect a lot of user because they usually know
+	when their display is on or off.
+
+Who:	Corentin Chary <corentin.chary@gmail.com>
+
+----------------------------
+
+What:	usbvideo quickcam_messenger driver
+When:	2.6.35
+Files:	drivers/media/video/usbvideo/quickcam_messenger.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_stv06xx
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	ov511 v4l1 driver
+When:	2.6.35
+Files:	drivers/media/video/ov511.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_ov519
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	w9968cf v4l1 driver
+When:	2.6.35
+Files:	drivers/media/video/w9968cf*.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_ov519
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	ovcamchip sensor framework
+When:	2.6.35
+Files:	drivers/media/video/ovcamchip/*
+Why:	Only used by obsoleted v4l1 drivers
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	stv680 v4l1 driver
+When:	2.6.35
+Files:	drivers/media/video/stv680.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_stv0680
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	zc0301 v4l driver
+When:	2.6.35
+Files:	drivers/media/video/zc0301/*
+Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
+	supports 2 USB-ID's (because it only supports a limited set of
+	sensors) wich are also supported by the gspca_zc3xx driver
+	(which supports 53 USB-ID's in total)
+Who:	Hans de Goede <hdegoede@redhat.com>

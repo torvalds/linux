@@ -263,8 +263,17 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		if (0 == i)
 			frag |= SCTP_DATA_FIRST_FRAG;
 
-		if ((i == (whole - 1)) && !over)
+		if ((i == (whole - 1)) && !over) {
 			frag |= SCTP_DATA_LAST_FRAG;
+
+			/* The application requests to set the I-bit of the
+			 * last DATA chunk of a user message when providing
+			 * the user message to the SCTP implementation.
+			 */
+			if ((sinfo->sinfo_flags & SCTP_EOF) ||
+			    (sinfo->sinfo_flags & SCTP_SACK_IMMEDIATELY))
+				frag |= SCTP_DATA_SACK_IMM;
+		}
 
 		chunk = sctp_make_datafrag_empty(asoc, sinfo, len, frag, 0);
 
@@ -296,6 +305,10 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 			frag = SCTP_DATA_NOT_FRAG;
 		else
 			frag = SCTP_DATA_LAST_FRAG;
+
+		if ((sinfo->sinfo_flags & SCTP_EOF) ||
+		    (sinfo->sinfo_flags & SCTP_SACK_IMMEDIATELY))
+			frag |= SCTP_DATA_SACK_IMM;
 
 		chunk = sctp_make_datafrag_empty(asoc, sinfo, over, frag, 0);
 

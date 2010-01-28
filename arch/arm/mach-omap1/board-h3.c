@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c/tps65010.h>
+#include <linux/smc91x.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -40,13 +41,12 @@
 #include <asm/mach/map.h>
 
 #include <mach/irqs.h>
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <mach/nand.h>
-#include <mach/usb.h>
-#include <mach/keypad.h>
-#include <mach/dma.h>
-#include <mach/common.h>
+#include <plat/mux.h>
+#include <plat/tc.h>
+#include <plat/usb.h>
+#include <plat/keypad.h>
+#include <plat/dma.h>
+#include <plat/common.h>
 
 #include "board-h3.h"
 
@@ -181,11 +181,43 @@ static struct mtd_partition nand_partitions[] = {
 	},
 };
 
-/* dip switches control NAND chip access:  8 bit, 16 bit, or neither */
-static struct omap_nand_platform_data nand_data = {
-	.options	= NAND_SAMSUNG_LP_OPTIONS,
-	.parts		= nand_partitions,
-	.nr_parts	= ARRAY_SIZE(nand_partitions),
+static void nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+	unsigned long mask;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	mask = (ctrl & NAND_CLE) ? 0x02 : 0;
+	if (ctrl & NAND_ALE)
+		mask |= 0x04;
+	writeb(cmd, (unsigned long)this->IO_ADDR_W | mask);
+}
+
+#define H3_NAND_RB_GPIO_PIN	10
+
+static int nand_dev_ready(struct mtd_info *mtd)
+{
+	return gpio_get_value(H3_NAND_RB_GPIO_PIN);
+}
+
+static const char *part_probes[] = { "cmdlinepart", NULL };
+
+struct platform_nand_data nand_platdata = {
+	.chip	= {
+		.nr_chips		= 1,
+		.chip_offset		= 0,
+		.nr_partitions		= ARRAY_SIZE(nand_partitions),
+		.partitions		= nand_partitions,
+		.options		= NAND_SAMSUNG_LP_OPTIONS,
+		.part_probe_types	= part_probes,
+	},
+	.ctrl	= {
+		.cmd_ctrl	= nand_cmd_ctl,
+		.dev_ready	= nand_dev_ready,
+
+	},
 };
 
 static struct resource nand_resource = {
@@ -193,13 +225,19 @@ static struct resource nand_resource = {
 };
 
 static struct platform_device nand_device = {
-	.name		= "omapnand",
+	.name		= "gen_nand",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &nand_data,
+		.platform_data	= &nand_platdata,
 	},
 	.num_resources	= 1,
 	.resource	= &nand_resource,
+};
+
+static struct smc91x_platdata smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
 };
 
 static struct resource smc91x_resources[] = {
@@ -218,6 +256,9 @@ static struct resource smc91x_resources[] = {
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
+	.dev	= {
+		.platform_data	= &smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
 	.resource	= smc91x_resources,
 };
@@ -332,13 +373,6 @@ static struct i2c_board_info __initdata h3_i2c_board_info[] = {
 	},
 };
 
-#define H3_NAND_RB_GPIO_PIN	10
-
-static int nand_dev_ready(struct omap_nand_platform_data *data)
-{
-	return gpio_get_value(H3_NAND_RB_GPIO_PIN);
-}
-
 static void __init h3_init(void)
 {
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
@@ -356,7 +390,7 @@ static void __init h3_init(void)
 	nand_resource.end += SZ_4K - 1;
 	if (gpio_request(H3_NAND_RB_GPIO_PIN, "NAND ready") < 0)
 		BUG();
-	nand_data.dev_ready = nand_dev_ready;
+	gpio_direction_input(H3_NAND_RB_GPIO_PIN);
 
 	/* GPIO10 Func_MUX_CTRL reg bit 29:27, Configure V2 to mode1 as GPIO */
 	/* GPIO10 pullup/down register, Enable pullup on GPIO10 */

@@ -82,6 +82,7 @@
  *
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -434,7 +435,6 @@ static void initialize_dma_trm_ctx(struct dma_trm_ctx *d)
 /* Count the number of available iso contexts */
 static int get_nb_iso_ctx(struct ti_ohci *ohci, int reg)
 {
-	int i,ctx=0;
 	u32 tmp;
 
 	reg_write(ohci, reg, 0xffffffff);
@@ -443,11 +443,7 @@ static int get_nb_iso_ctx(struct ti_ohci *ohci, int reg)
 	DBGMSG("Iso contexts reg: %08x implemented: %08x", reg, tmp);
 
 	/* Count the number of contexts */
-	for (i=0; i<32; i++) {
-	    	if (tmp & 1) ctx++;
-		tmp >>= 1;
-	}
-	return ctx;
+	return hweight32(tmp);
 }
 
 /* Global initialization */

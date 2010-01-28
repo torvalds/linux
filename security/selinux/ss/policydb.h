@@ -254,7 +254,9 @@ struct policydb {
 
 	unsigned int reject_unknown : 1;
 	unsigned int allow_unknown : 1;
-	u32 *undefined_perms;
+
+	u16 process_class;
+	u32 process_trans_perms;
 };
 
 extern void policydb_destroy(struct policydb *p);
@@ -294,6 +296,9 @@ static inline int next_entry(void *buf, struct policy_file *fp, size_t bytes)
 	fp->len -= bytes;
 	return 0;
 }
+
+extern u16 string_to_security_class(struct policydb *p, const char *name);
+extern u32 string_to_av_perm(struct policydb *p, u16 tclass, const char *name);
 
 #endif	/* _SS_POLICYDB_H_ */
 

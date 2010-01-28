@@ -598,6 +598,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	icmp6h.icmp6_solicited = solicited;
 	icmp6h.icmp6_override = override;
 
+	inc_opt |= ifp->idev->cnf.force_tllao;
 	__ndisc_send(dev, neigh, daddr, src_addr,
 		     &icmp6h, solicited_addr,
 		     inc_opt ? ND_OPT_TARGET_LL_ADDR : 0);
@@ -1768,42 +1769,6 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, void __user *bu
 	return ret;
 }
 
-int ndisc_ifinfo_sysctl_strategy(ctl_table *ctl,
-				 void __user *oldval, size_t __user *oldlenp,
-				 void __user *newval, size_t newlen)
-{
-	struct net_device *dev = ctl->extra1;
-	struct inet6_dev *idev;
-	int ret;
-
-	if (ctl->ctl_name == NET_NEIGH_RETRANS_TIME ||
-	    ctl->ctl_name == NET_NEIGH_REACHABLE_TIME)
-		ndisc_warn_deprecated_sysctl(ctl, "procfs", dev ? dev->name : "default");
-
-	switch (ctl->ctl_name) {
-	case NET_NEIGH_REACHABLE_TIME:
-		ret = sysctl_jiffies(ctl, oldval, oldlenp, newval, newlen);
-		break;
-	case NET_NEIGH_RETRANS_TIME_MS:
-	case NET_NEIGH_REACHABLE_TIME_MS:
-		 ret = sysctl_ms_jiffies(ctl, oldval, oldlenp, newval, newlen);
-		 break;
-	default:
-		ret = 0;
-	}
-
-	if (newval && newlen && ret > 0 &&
-	    dev && (idev = in6_dev_get(dev)) != NULL) {
-		if (ctl->ctl_name == NET_NEIGH_REACHABLE_TIME ||
-		    ctl->ctl_name == NET_NEIGH_REACHABLE_TIME_MS)
-			idev->nd_parms->reachable_time = neigh_rand_reach_time(idev->nd_parms->base_reachable_time);
-		idev->tstamp = jiffies;
-		inet6_ifinfo_notify(RTM_NEWLINK, idev);
-		in6_dev_put(idev);
-	}
-
-	return ret;
-}
 
 #endif
 
@@ -1857,8 +1822,7 @@ int __init ndisc_init(void)
 #ifdef CONFIG_SYSCTL
 	err = neigh_sysctl_register(NULL, &nd_tbl.parms, NET_IPV6,
 				    NET_IPV6_NEIGH, "ipv6",
-				    &ndisc_ifinfo_sysctl_change,
-				    &ndisc_ifinfo_sysctl_strategy);
+				    &ndisc_ifinfo_sysctl_change);
 	if (err)
 		goto out_unregister_pernet;
 #endif

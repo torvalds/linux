@@ -126,4 +126,6 @@ struct hpet_info {
 #define	HPET_DPI	_IO('h', 0x05)	/* disable periodic */
 #define	HPET_IRQFREQ	_IOW('h', 0x6, unsigned long)	/* IRQFREQ usec */
 
+#define MAX_HPET_TBS	8		/* maximum hpet timer blocks */
+
 #endif				/* !__HPET__ */

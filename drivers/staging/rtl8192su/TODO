@@ -14,5 +14,4 @@ TODO:
 - sparse fixes
 - integrate with drivers/net/wireless/rtl818x
 
-Please send any patches to Greg Kroah-Hartman <greg@kroah.com> and
-Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>.
+Please send any patches to Greg Kroah-Hartman <greg@kroah.com>.

@@ -592,21 +592,9 @@ static int ad1938_probe(struct platform_device *pdev)
 	snd_soc_dapm_new_controls(codec, ad1938_dapm_widgets,
 				  ARRAY_SIZE(ad1938_dapm_widgets));
 	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
-	snd_soc_dapm_new_widgets(codec);
 
 	ad1938_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

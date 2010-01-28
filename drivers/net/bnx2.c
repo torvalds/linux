@@ -59,8 +59,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"2.0.2"
-#define DRV_MODULE_RELDATE	"Aug 21, 2009"
+#define DRV_MODULE_VERSION	"2.0.3"
+#define DRV_MODULE_RELDATE	"Dec 03, 2009"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-5.0.0.j3.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-5.0.0.j3.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-5.0.0.j3.fw"
@@ -653,12 +653,20 @@ static void
 bnx2_netif_stop(struct bnx2 *bp)
 {
 	bnx2_cnic_stop(bp);
-	bnx2_disable_int_sync(bp);
 	if (netif_running(bp->dev)) {
+		int i;
+
 		bnx2_napi_disable(bp);
 		netif_tx_disable(bp->dev);
-		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
+		/* prevent tx timeout */
+		for (i = 0; i <  bp->dev->num_tx_queues; i++) {
+			struct netdev_queue *txq;
+
+			txq = netdev_get_tx_queue(bp->dev, i);
+			txq->trans_start = jiffies;
+		}
 	}
+	bnx2_disable_int_sync(bp);
 }
 
 static void
@@ -1466,6 +1474,8 @@ bnx2_enable_forced_2g5(struct bnx2 *bp)
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5708) {
 		bnx2_read_phy(bp, bp->mii_bmcr, &bmcr);
 		bmcr |= BCM5708S_BMCR_FORCE_2500;
+	} else {
+		return;
 	}
 
 	if (bp->autoneg & AUTONEG_SPEED) {
@@ -1500,6 +1510,8 @@ bnx2_disable_forced_2g5(struct bnx2 *bp)
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5708) {
 		bnx2_read_phy(bp, bp->mii_bmcr, &bmcr);
 		bmcr &= ~BCM5708S_BMCR_FORCE_2500;
+	} else {
+		return;
 	}
 
 	if (bp->autoneg & AUTONEG_SPEED)
@@ -2811,13 +2823,21 @@ bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 			}
 		}
 
-		skb_dma_unmap(&bp->pdev->dev, skb, DMA_TO_DEVICE);
+		pci_unmap_single(bp->pdev, pci_unmap_addr(tx_buf, mapping),
+			skb_headlen(skb), PCI_DMA_TODEVICE);
 
 		tx_buf->skb = NULL;
 		last = tx_buf->nr_frags;
 
 		for (i = 0; i < last; i++) {
 			sw_cons = NEXT_TX_BD(sw_cons);
+
+			pci_unmap_page(bp->pdev,
+				pci_unmap_addr(
+					&txr->tx_buf_ring[TX_RING_IDX(sw_cons)],
+					mapping),
+				skb_shinfo(skb)->frags[i].size,
+				PCI_DMA_TODEVICE);
 		}
 
 		sw_cons = NEXT_TX_BD(sw_cons);
@@ -5146,8 +5166,12 @@ bnx2_init_rx_ring(struct bnx2 *bp, int ring_num)
 
 	ring_prod = prod = rxr->rx_pg_prod;
 	for (i = 0; i < bp->rx_pg_ring_size; i++) {
-		if (bnx2_alloc_rx_page(bp, rxr, ring_prod) < 0)
+		if (bnx2_alloc_rx_page(bp, rxr, ring_prod) < 0) {
+			printk(KERN_WARNING PFX "%s: init'ed rx page ring %d "
+						"with %d/%d pages only\n",
+			       bp->dev->name, ring_num, i, bp->rx_pg_ring_size);
 			break;
+		}
 		prod = NEXT_RX_BD(prod);
 		ring_prod = RX_PG_RING_IDX(prod);
 	}
@@ -5155,8 +5179,12 @@ bnx2_init_rx_ring(struct bnx2 *bp, int ring_num)
 
 	ring_prod = prod = rxr->rx_prod;
 	for (i = 0; i < bp->rx_ring_size; i++) {
-		if (bnx2_alloc_rx_skb(bp, rxr, ring_prod) < 0)
+		if (bnx2_alloc_rx_skb(bp, rxr, ring_prod) < 0) {
+			printk(KERN_WARNING PFX "%s: init'ed rx ring %d with "
+						"%d/%d skbs only\n",
+			       bp->dev->name, ring_num, i, bp->rx_ring_size);
 			break;
+		}
 		prod = NEXT_RX_BD(prod);
 		ring_prod = RX_RING_IDX(prod);
 	}
@@ -5291,17 +5319,29 @@ bnx2_free_tx_skbs(struct bnx2 *bp)
 		for (j = 0; j < TX_DESC_CNT; ) {
 			struct sw_tx_bd *tx_buf = &txr->tx_buf_ring[j];
 			struct sk_buff *skb = tx_buf->skb;
+			int k, last;
 
 			if (skb == NULL) {
 				j++;
 				continue;
 			}
 
-			skb_dma_unmap(&bp->pdev->dev, skb, DMA_TO_DEVICE);
+			pci_unmap_single(bp->pdev,
+					 pci_unmap_addr(tx_buf, mapping),
+					 skb_headlen(skb),
+					 PCI_DMA_TODEVICE);
 
 			tx_buf->skb = NULL;
 
-			j += skb_shinfo(skb)->nr_frags + 1;
+			last = tx_buf->nr_frags;
+			j++;
+			for (k = 0; k < last; k++, j++) {
+				tx_buf = &txr->tx_buf_ring[TX_RING_IDX(j)];
+				pci_unmap_page(bp->pdev,
+					pci_unmap_addr(tx_buf, mapping),
+					skb_shinfo(skb)->frags[k].size,
+					PCI_DMA_TODEVICE);
+			}
 			dev_kfree_skb(skb);
 		}
 	}
@@ -5680,11 +5720,12 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	for (i = 14; i < pkt_size; i++)
 		packet[i] = (unsigned char) (i & 0xff);
 
-	if (skb_dma_map(&bp->pdev->dev, skb, DMA_TO_DEVICE)) {
+	map = pci_map_single(bp->pdev, skb->data, pkt_size,
+		PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(bp->pdev, map)) {
 		dev_kfree_skb(skb);
 		return -EIO;
 	}
-	map = skb_shinfo(skb)->dma_head;
 
 	REG_WR(bp, BNX2_HC_COMMAND,
 	       bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW_WO_INT);
@@ -5719,7 +5760,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 
 	udelay(5);
 
-	skb_dma_unmap(&bp->pdev->dev, skb, DMA_TO_DEVICE);
+	pci_unmap_single(bp->pdev, map, pkt_size, PCI_DMA_TODEVICE);
 	dev_kfree_skb(skb);
 
 	if (bnx2_get_hw_tx_cons(tx_napi) != txr->tx_prod)
@@ -6238,8 +6279,11 @@ bnx2_reset_task(struct work_struct *work)
 {
 	struct bnx2 *bp = container_of(work, struct bnx2, reset_task);
 
-	if (!netif_running(bp->dev))
+	rtnl_lock();
+	if (!netif_running(bp->dev)) {
+		rtnl_unlock();
 		return;
+	}
 
 	bnx2_netif_stop(bp);
 
@@ -6247,12 +6291,36 @@ bnx2_reset_task(struct work_struct *work)
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp);
+	rtnl_unlock();
+}
+
+static void
+bnx2_dump_state(struct bnx2 *bp)
+{
+	struct net_device *dev = bp->dev;
+
+	printk(KERN_ERR PFX "%s DEBUG: intr_sem[%x]\n", dev->name,
+		atomic_read(&bp->intr_sem));
+	printk(KERN_ERR PFX "%s DEBUG: EMAC_TX_STATUS[%08x] "
+			    "RPM_MGMT_PKT_CTRL[%08x]\n", dev->name,
+		REG_RD(bp, BNX2_EMAC_TX_STATUS),
+		REG_RD(bp, BNX2_RPM_MGMT_PKT_CTRL));
+	printk(KERN_ERR PFX "%s DEBUG: MCP_STATE_P0[%08x] MCP_STATE_P1[%08x]\n",
+		dev->name, bnx2_reg_rd_ind(bp, BNX2_MCP_STATE_P0),
+		bnx2_reg_rd_ind(bp, BNX2_MCP_STATE_P1));
+	printk(KERN_ERR PFX "%s DEBUG: HC_STATS_INTERRUPT_STATUS[%08x]\n",
+		dev->name, REG_RD(bp, BNX2_HC_STATS_INTERRUPT_STATUS));
+	if (bp->flags & BNX2_FLAG_USING_MSIX)
+		printk(KERN_ERR PFX "%s DEBUG: PBA[%08x]\n", dev->name,
+			REG_RD(bp, BNX2_PCI_GRC_WINDOW3_BASE));
 }
 
 static void
 bnx2_tx_timeout(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
+
+	bnx2_dump_state(bp);
 
 	/* This allows the netif to be shutdown gracefully before resetting */
 	schedule_work(&bp->reset_task);
@@ -6298,7 +6366,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct bnx2_napi *bnapi;
 	struct bnx2_tx_ring_info *txr;
 	struct netdev_queue *txq;
-	struct skb_shared_info *sp;
 
 	/*  Determine which tx ring we will be placed on */
 	i = skb_get_queue_mapping(skb);
@@ -6363,16 +6430,15 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else
 		mss = 0;
 
-	if (skb_dma_map(&bp->pdev->dev, skb, DMA_TO_DEVICE)) {
+	mapping = pci_map_single(bp->pdev, skb->data, len, PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(bp->pdev, mapping)) {
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 
-	sp = skb_shinfo(skb);
-	mapping = sp->dma_head;
-
 	tx_buf = &txr->tx_buf_ring[ring_prod];
 	tx_buf->skb = skb;
+	pci_unmap_addr_set(tx_buf, mapping, mapping);
 
 	txbd = &txr->tx_desc_ring[ring_prod];
 
@@ -6393,7 +6459,12 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbd = &txr->tx_desc_ring[ring_prod];
 
 		len = frag->size;
-		mapping = sp->dma_maps[i];
+		mapping = pci_map_page(bp->pdev, frag->page, frag->page_offset,
+			len, PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(bp->pdev, mapping))
+			goto dma_error;
+		pci_unmap_addr_set(&txr->tx_buf_ring[ring_prod], mapping,
+				   mapping);
 
 		txbd->tx_bd_haddr_hi = (u64) mapping >> 32;
 		txbd->tx_bd_haddr_lo = (u64) mapping & 0xffffffff;
@@ -6419,6 +6490,30 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			netif_tx_wake_queue(txq);
 	}
 
+	return NETDEV_TX_OK;
+dma_error:
+	/* save value of frag that failed */
+	last_frag = i;
+
+	/* start back at beginning and unmap skb */
+	prod = txr->tx_prod;
+	ring_prod = TX_RING_IDX(prod);
+	tx_buf = &txr->tx_buf_ring[ring_prod];
+	tx_buf->skb = NULL;
+	pci_unmap_single(bp->pdev, pci_unmap_addr(tx_buf, mapping),
+			 skb_headlen(skb), PCI_DMA_TODEVICE);
+
+	/* unmap remaining mapped pages */
+	for (i = 0; i < last_frag; i++) {
+		prod = NEXT_TX_BD(prod);
+		ring_prod = TX_RING_IDX(prod);
+		tx_buf = &txr->tx_buf_ring[ring_prod];
+		pci_unmap_page(bp->pdev, pci_unmap_addr(tx_buf, mapping),
+			       skb_shinfo(skb)->frags[i].size,
+			       PCI_DMA_TODEVICE);
+	}
+
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -7635,6 +7730,86 @@ bnx2_get_pci_speed(struct bnx2 *bp)
 
 }
 
+static void __devinit
+bnx2_read_vpd_fw_ver(struct bnx2 *bp)
+{
+	int rc, i, v0_len = 0;
+	u8 *data;
+	u8 *v0_str = NULL;
+	bool mn_match = false;
+
+#define BNX2_VPD_NVRAM_OFFSET	0x300
+#define BNX2_VPD_LEN		128
+#define BNX2_MAX_VER_SLEN	30
+
+	data = kmalloc(256, GFP_KERNEL);
+	if (!data)
+		return;
+
+	rc = bnx2_nvram_read(bp, BNX2_VPD_NVRAM_OFFSET, data + BNX2_VPD_LEN,
+			     BNX2_VPD_LEN);
+	if (rc)
+		goto vpd_done;
+
+	for (i = 0; i < BNX2_VPD_LEN; i += 4) {
+		data[i] = data[i + BNX2_VPD_LEN + 3];
+		data[i + 1] = data[i + BNX2_VPD_LEN + 2];
+		data[i + 2] = data[i + BNX2_VPD_LEN + 1];
+		data[i + 3] = data[i + BNX2_VPD_LEN];
+	}
+
+	for (i = 0; i <= BNX2_VPD_LEN - 3; ) {
+		unsigned char val = data[i];
+		unsigned int block_end;
+
+		if (val == 0x82 || val == 0x91) {
+			i = (i + 3 + (data[i + 1] + (data[i + 2] << 8)));
+			continue;
+		}
+
+		if (val != 0x90)
+			goto vpd_done;
+
+		block_end = (i + 3 + (data[i + 1] + (data[i + 2] << 8)));
+		i += 3;
+
+		if (block_end > BNX2_VPD_LEN)
+			goto vpd_done;
+
+		while (i < (block_end - 2)) {
+			int len = data[i + 2];
+
+			if (i + 3 + len > block_end)
+				goto vpd_done;
+
+			if (data[i] == 'M' && data[i + 1] == 'N') {
+				if (len != 4 ||
+				    memcmp(&data[i + 3], "1028", 4))
+					goto vpd_done;
+				mn_match = true;
+
+			} else if (data[i] == 'V' && data[i + 1] == '0') {
+				if (len > BNX2_MAX_VER_SLEN)
+					goto vpd_done;
+
+				v0_len = len;
+				v0_str = &data[i + 3];
+			}
+			i += 3 + len;
+
+			if (mn_match && v0_str) {
+				memcpy(bp->fw_version, v0_str, v0_len);
+				bp->fw_version[v0_len] = ' ';
+				goto vpd_done;
+			}
+		}
+		goto vpd_done;
+	}
+
+vpd_done:
+	kfree(data);
+}
+
 static int __devinit
 bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 {
@@ -7808,10 +7983,18 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto err_out_unmap;
 	}
 
+	bnx2_read_vpd_fw_ver(bp);
+
+	j = strlen(bp->fw_version);
 	reg = bnx2_shmem_rd(bp, BNX2_DEV_INFO_BC_REV);
-	for (i = 0, j = 0; i < 3; i++) {
+	for (i = 0; i < 3 && j < 24; i++) {
 		u8 num, k, skip0;
 
+		if (i == 0) {
+			bp->fw_version[j++] = 'b';
+			bp->fw_version[j++] = 'c';
+			bp->fw_version[j++] = ' ';
+		}
 		num = (u8) (reg >> (24 - (i * 8)));
 		for (k = 100, skip0 = 1; k >= 1; num %= k, k /= 10) {
 			if (num >= k || !skip0 || k == 1) {
@@ -7842,8 +8025,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	    reg != BNX2_CONDITION_MFW_RUN_NONE) {
 		u32 addr = bnx2_shmem_rd(bp, BNX2_MFW_VER_PTR);
 
-		bp->fw_version[j++] = ' ';
-		for (i = 0; i < 3; i++) {
+		if (j < 32)
+			bp->fw_version[j++] = ' ';
+		for (i = 0; i < 3 && j < 28; i++) {
 			reg = bnx2_reg_rd_ind(bp, addr + i * 4);
 			reg = swab32(reg);
 			memcpy(&bp->fw_version[j], &reg, 4);
@@ -8264,6 +8448,7 @@ static pci_ers_result_t bnx2_io_slot_reset(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	if (netif_running(dev)) {
 		bnx2_set_power_state(bp, PCI_D0);

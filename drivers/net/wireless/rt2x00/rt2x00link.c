@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -34,24 +34,6 @@
  * tell the driver to tune the device to maximum sensitivity.
  */
 #define DEFAULT_RSSI		-128
-
-/*
- * When no TX/RX percentage could be calculated due to lack of
- * frames on the air, we fallback to a percentage of 50%.
- * This will assure we will get at least get some decent value
- * when the link tuner starts.
- * The value will be dropped and overwritten with the correct (measured)
- * value anyway during the first run of the link tuner.
- */
-#define DEFAULT_PERCENTAGE	50
-
-/*
- * Small helper macro for percentage calculation
- * This is a very simple macro with the only catch that it will
- * produce a default value in case no total value was provided.
- */
-#define PERCENTAGE(__value, __total) \
-	( (__total) ? (((__value) * 100) / (__total)) : (DEFAULT_PERCENTAGE) )
 
 /*
  * Helper struct and macro to work with moving/walking averages.
@@ -90,27 +72,6 @@
 	__new.avg = __new.avg_weight / (AVG_FACTOR); \
 	__new; \
 })
-
-/*
- * For calculating the Signal quality we have determined
- * the total number of success and failed RX and TX frames.
- * With the addition of the average RSSI value we can determine
- * the link quality using the following algorithm:
- *
- *         rssi_percentage = (avg_rssi * 100) / rssi_offset
- *         rx_percentage = (rx_success * 100) / rx_total
- *         tx_percentage = (tx_success * 100) / tx_total
- *         avg_signal = ((WEIGHT_RSSI * avg_rssi) +
- *                       (WEIGHT_TX * tx_percentage) +
- *                       (WEIGHT_RX * rx_percentage)) / 100
- *
- * This value should then be checked to not be greater then 100.
- * This means the values of WEIGHT_RSSI, WEIGHT_RX, WEIGHT_TX must
- * sum up to 100 as well.
- */
-#define WEIGHT_RSSI	20
-#define WEIGHT_RX	40
-#define WEIGHT_TX	40
 
 static int rt2x00link_antenna_get_link_rssi(struct rt2x00_dev *rt2x00dev)
 {
@@ -304,46 +265,6 @@ void rt2x00link_update_stats(struct rt2x00_dev *rt2x00dev,
 	ant->rssi_ant = MOVING_AVERAGE(ant->rssi_ant, rxdesc->rssi);
 }
 
-static void rt2x00link_precalculate_signal(struct rt2x00_dev *rt2x00dev)
-{
-	struct link *link = &rt2x00dev->link;
-	struct link_qual *qual = &rt2x00dev->link.qual;
-
-	link->rx_percentage =
-	    PERCENTAGE(qual->rx_success, qual->rx_failed + qual->rx_success);
-	link->tx_percentage =
-	    PERCENTAGE(qual->tx_success, qual->tx_failed + qual->tx_success);
-}
-
-int rt2x00link_calculate_signal(struct rt2x00_dev *rt2x00dev, int rssi)
-{
-	struct link *link = &rt2x00dev->link;
-	int rssi_percentage = 0;
-	int signal;
-
-	/*
-	 * We need a positive value for the RSSI.
-	 */
-	if (rssi < 0)
-		rssi += rt2x00dev->rssi_offset;
-
-	/*
-	 * Calculate the different percentages,
-	 * which will be used for the signal.
-	 */
-	rssi_percentage = PERCENTAGE(rssi, rt2x00dev->rssi_offset);
-
-	/*
-	 * Add the individual percentages and use the WEIGHT
-	 * defines to calculate the current link signal.
-	 */
-	signal = ((WEIGHT_RSSI * rssi_percentage) +
-		  (WEIGHT_TX * link->tx_percentage) +
-		  (WEIGHT_RX * link->rx_percentage)) / 100;
-
-	return max_t(int, signal, 100);
-}
-
 void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 {
 	struct link *link = &rt2x00dev->link;
@@ -356,9 +277,6 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 	 */
 	if (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count)
 		return;
-
-	link->rx_percentage = DEFAULT_PERCENTAGE;
-	link->tx_percentage = DEFAULT_PERCENTAGE;
 
 	rt2x00link_reset_tuner(rt2x00dev, false);
 
@@ -446,12 +364,6 @@ static void rt2x00link_tuner(struct work_struct *work)
 	 */
 	if (!test_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev, qual, link->count);
-
-	/*
-	 * Precalculate a portion of the link signal which is
-	 * in based on the tx/rx success/failure counters.
-	 */
-	rt2x00link_precalculate_signal(rt2x00dev);
 
 	/*
 	 * Send a signal to the led to update the led signal strength.

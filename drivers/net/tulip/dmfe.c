@@ -92,6 +92,10 @@
 #include <asm/uaccess.h>
 #include <asm/irq.h>
 
+#ifdef CONFIG_TULIP_DM910X
+#include <linux/of.h>
+#endif
+
 
 /* Board/System/Debug information/definition ---------------- */
 #define PCI_DM9132_ID   0x91321282      /* Davicom DM9132 ID */
@@ -377,6 +381,23 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	if (!printed_version++)
 		printk(version);
 
+	/*
+	 *	SPARC on-board DM910x chips should be handled by the main
+	 *	tulip driver, except for early DM9100s.
+	 */
+#ifdef CONFIG_TULIP_DM910X
+	if ((ent->driver_data == PCI_DM9100_ID && pdev->revision >= 0x30) ||
+	    ent->driver_data == PCI_DM9102_ID) {
+		struct device_node *dp = pci_device_to_OF_node(pdev);
+
+		if (dp && of_get_property(dp, "local-mac-address", NULL)) {
+			printk(KERN_INFO DRV_NAME
+			       ": skipping on-board DM910x (use tulip)\n");
+			return -ENODEV;
+		}
+	}
+#endif
+
 	/* Init network device */
 	dev = alloc_etherdev(sizeof(*db));
 	if (dev == NULL)
@@ -543,7 +564,7 @@ static int dmfe_open(struct DEVICE *dev)
 
 	DMFE_DBUG(0, "dmfe_open", 0);
 
-	ret = request_irq(dev->irq, &dmfe_interrupt,
+	ret = request_irq(dev->irq, dmfe_interrupt,
 			  IRQF_SHARED, dev->name, dev);
 	if (ret)
 		return ret;

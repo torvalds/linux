@@ -31,43 +31,7 @@
 #include <net/ipv6.h>
 #include "avc.h"
 #include "avc_ss.h"
-
-static const struct av_perm_to_string av_perm_to_string[] = {
-#define S_(c, v, s) { c, v, s },
-#include "av_perm_to_string.h"
-#undef S_
-};
-
-static const char *class_to_string[] = {
-#define S_(s) s,
-#include "class_to_string.h"
-#undef S_
-};
-
-#define TB_(s) static const char *s[] = {
-#define TE_(s) };
-#define S_(s) s,
-#include "common_perm_to_string.h"
-#undef TB_
-#undef TE_
-#undef S_
-
-static const struct av_inherit av_inherit[] = {
-#define S_(c, i, b) {	.tclass = c,\
-			.common_pts = common_##i##_perm_to_string,\
-			.common_base =  b },
-#include "av_inherit.h"
-#undef S_
-};
-
-const struct selinux_class_perm selinux_class_perm = {
-	.av_perm_to_string = av_perm_to_string,
-	.av_pts_len = ARRAY_SIZE(av_perm_to_string),
-	.class_to_string = class_to_string,
-	.cts_len = ARRAY_SIZE(class_to_string),
-	.av_inherit = av_inherit,
-	.av_inherit_len = ARRAY_SIZE(av_inherit)
-};
+#include "classmap.h"
 
 #define AVC_CACHE_SLOTS			512
 #define AVC_DEF_CACHE_THRESHOLD		512
@@ -139,47 +103,23 @@ static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
  */
 static void avc_dump_av(struct audit_buffer *ab, u16 tclass, u32 av)
 {
-	const char **common_pts = NULL;
-	u32 common_base = 0;
-	int i, i2, perm;
+	const char **perms;
+	int i, perm;
 
 	if (av == 0) {
 		audit_log_format(ab, " null");
 		return;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(av_inherit); i++) {
-		if (av_inherit[i].tclass == tclass) {
-			common_pts = av_inherit[i].common_pts;
-			common_base = av_inherit[i].common_base;
-			break;
-		}
-	}
+	perms = secclass_map[tclass-1].perms;
 
 	audit_log_format(ab, " {");
 	i = 0;
 	perm = 1;
-	while (perm < common_base) {
-		if (perm & av) {
-			audit_log_format(ab, " %s", common_pts[i]);
+	while (i < (sizeof(av) * 8)) {
+		if ((perm & av) && perms[i]) {
+			audit_log_format(ab, " %s", perms[i]);
 			av &= ~perm;
-		}
-		i++;
-		perm <<= 1;
-	}
-
-	while (i < sizeof(av) * 8) {
-		if (perm & av) {
-			for (i2 = 0; i2 < ARRAY_SIZE(av_perm_to_string); i2++) {
-				if ((av_perm_to_string[i2].tclass == tclass) &&
-				    (av_perm_to_string[i2].value == perm))
-					break;
-			}
-			if (i2 < ARRAY_SIZE(av_perm_to_string)) {
-				audit_log_format(ab, " %s",
-						 av_perm_to_string[i2].name);
-				av &= ~perm;
-			}
 		}
 		i++;
 		perm <<= 1;
@@ -219,8 +159,8 @@ static void avc_dump_query(struct audit_buffer *ab, u32 ssid, u32 tsid, u16 tcla
 		kfree(scontext);
 	}
 
-	BUG_ON(tclass >= ARRAY_SIZE(class_to_string) || !class_to_string[tclass]);
-	audit_log_format(ab, " tclass=%s", class_to_string[tclass]);
+	BUG_ON(tclass >= ARRAY_SIZE(secclass_map));
+	audit_log_format(ab, " tclass=%s", secclass_map[tclass-1].name);
 }
 
 /**

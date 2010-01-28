@@ -66,7 +66,7 @@ MODULE_PARM_DESC(no_sleep_autoadjust,
 
 struct iwl_power_vec_entry {
 	struct iwl_powertable_cmd cmd;
-	u8 no_dtim;
+	u8 no_dtim;	/* number of skip dtim */
 };
 
 #define IWL_DTIM_RANGE_0_MAX	2
@@ -83,8 +83,9 @@ struct iwl_power_vec_entry {
 				     cpu_to_le32(X4)}
 /* default power management (not Tx power) table values */
 /* for DTIM period 0 through IWL_DTIM_RANGE_0_MAX */
+/* DTIM 0 - 2 */
 static const struct iwl_power_vec_entry range_0[IWL_POWER_NUM] = {
-	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
+	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 1, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 2, 2, 2, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(25), SLP_VEC(2, 2, 4, 4, 0xFF)}, 1},
@@ -93,15 +94,17 @@ static const struct iwl_power_vec_entry range_0[IWL_POWER_NUM] = {
 
 
 /* for DTIM period IWL_DTIM_RANGE_0_MAX + 1 through IWL_DTIM_RANGE_1_MAX */
+/* DTIM 3 - 10 */
 static const struct iwl_power_vec_entry range_1[IWL_POWER_NUM] = {
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(1, 2, 3, 4, 7)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 4, 6, 7, 9)}, 0},
 	{{SLP, SLP_TOUT(50), SLP_TOUT(25), SLP_VEC(2, 4, 6, 9, 10)}, 1},
-	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(2, 4, 7, 10, 10)}, 2}
+	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(2, 4, 6, 10, 10)}, 2}
 };
 
 /* for DTIM period > IWL_DTIM_RANGE_1_MAX */
+/* DTIM 11 - */
 static const struct iwl_power_vec_entry range_2[IWL_POWER_NUM] = {
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
@@ -115,13 +118,15 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 				 enum iwl_power_level lvl, int period)
 {
 	const struct iwl_power_vec_entry *table;
-	int max_sleep, i;
-	bool skip;
+	int max_sleep[IWL_POWER_VEC_SIZE] = { 0 };
+	int i;
+	u8 skip;
+	u32 slp_itrvl;
 
 	table = range_2;
-	if (period < IWL_DTIM_RANGE_1_MAX)
+	if (period <= IWL_DTIM_RANGE_1_MAX)
 		table = range_1;
-	if (period < IWL_DTIM_RANGE_0_MAX)
+	if (period <= IWL_DTIM_RANGE_0_MAX)
 		table = range_0;
 
 	BUG_ON(lvl < 0 || lvl >= IWL_POWER_NUM);
@@ -129,34 +134,60 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	*cmd = table[lvl].cmd;
 
 	if (period == 0) {
-		skip = false;
+		skip = 0;
 		period = 1;
+		for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
+			max_sleep[i] =  1;
+
 	} else {
-		skip = !!table[lvl].no_dtim;
+		skip = table[lvl].no_dtim;
+		for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
+			max_sleep[i] = le32_to_cpu(cmd->sleep_interval[i]);
+		max_sleep[IWL_POWER_VEC_SIZE - 1] = skip + 1;
 	}
 
-	if (skip) {
-		__le32 slp_itrvl = cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1];
-		max_sleep = le32_to_cpu(slp_itrvl);
-		if (max_sleep == 0xFF)
-			max_sleep = period * (skip + 1);
-		else if (max_sleep > period)
-			max_sleep = (le32_to_cpu(slp_itrvl) / period) * period;
+	slp_itrvl = le32_to_cpu(cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1]);
+	/* figure out the listen interval based on dtim period and skip */
+	if (slp_itrvl == 0xFF)
+		cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1] =
+			cpu_to_le32(period * (skip + 1));
+
+	slp_itrvl = le32_to_cpu(cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1]);
+	if (slp_itrvl > period)
+		cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1] =
+			cpu_to_le32((slp_itrvl / period) * period);
+
+	if (skip)
 		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	} else {
-		max_sleep = period;
+	else
 		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	}
 
-	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
-		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
-			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
+	slp_itrvl = le32_to_cpu(cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1]);
+	if (slp_itrvl > IWL_CONN_MAX_LISTEN_INTERVAL)
+		cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1] =
+			cpu_to_le32(IWL_CONN_MAX_LISTEN_INTERVAL);
+
+	/* enforce max sleep interval */
+	for (i = IWL_POWER_VEC_SIZE - 1; i >= 0 ; i--) {
+		if (le32_to_cpu(cmd->sleep_interval[i]) >
+		    (max_sleep[i] * period))
+			cmd->sleep_interval[i] =
+				cpu_to_le32(max_sleep[i] * period);
+		if (i != (IWL_POWER_VEC_SIZE - 1)) {
+			if (le32_to_cpu(cmd->sleep_interval[i]) >
+			    le32_to_cpu(cmd->sleep_interval[i+1]))
+				cmd->sleep_interval[i] =
+					cmd->sleep_interval[i+1];
+		}
+	}
 
 	if (priv->power_data.pci_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
 	else
 		cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
 
+	IWL_DEBUG_POWER(priv, "numSkipDtim = %u, dtimPeriod = %d\n",
+			skip, period);
 	IWL_DEBUG_POWER(priv, "Sleep command for index %d\n", lvl + 1);
 }
 
@@ -165,26 +196,26 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
  *=============================================================================
  *                 Condition Nxt State  Condition Nxt State Condition Nxt State
  *-----------------------------------------------------------------------------
- *     IWL_TI_0     T >= 115   CT_KILL  115>T>=105   TI_1      N/A      N/A
- *     IWL_TI_1     T >= 115   CT_KILL  115>T>=110   TI_2     T<=95     TI_0
- *     IWL_TI_2     T >= 115   CT_KILL                        T<=100    TI_1
+ *     IWL_TI_0     T >= 114   CT_KILL  114>T>=105   TI_1      N/A      N/A
+ *     IWL_TI_1     T >= 114   CT_KILL  114>T>=110   TI_2     T<=95     TI_0
+ *     IWL_TI_2     T >= 114   CT_KILL                        T<=100    TI_1
  *    IWL_CT_KILL      N/A       N/A       N/A        N/A     T<=95     TI_0
  *=============================================================================
  */
 static const struct iwl_tt_trans tt_range_0[IWL_TI_STATE_MAX - 1] = {
 	{IWL_TI_0, IWL_ABSOLUTE_ZERO, 104},
-	{IWL_TI_1, 105, CT_KILL_THRESHOLD},
-	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD + 1, IWL_ABSOLUTE_MAX}
+	{IWL_TI_1, 105, CT_KILL_THRESHOLD - 1},
+	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD, IWL_ABSOLUTE_MAX}
 };
 static const struct iwl_tt_trans tt_range_1[IWL_TI_STATE_MAX - 1] = {
 	{IWL_TI_0, IWL_ABSOLUTE_ZERO, 95},
-	{IWL_TI_2, 110, CT_KILL_THRESHOLD},
-	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD + 1, IWL_ABSOLUTE_MAX}
+	{IWL_TI_2, 110, CT_KILL_THRESHOLD - 1},
+	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD, IWL_ABSOLUTE_MAX}
 };
 static const struct iwl_tt_trans tt_range_2[IWL_TI_STATE_MAX - 1] = {
 	{IWL_TI_1, IWL_ABSOLUTE_ZERO, 100},
-	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD + 1, IWL_ABSOLUTE_MAX},
-	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD + 1, IWL_ABSOLUTE_MAX}
+	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD, IWL_ABSOLUTE_MAX},
+	{IWL_TI_CT_KILL, CT_KILL_THRESHOLD, IWL_ABSOLUTE_MAX}
 };
 static const struct iwl_tt_trans tt_range_3[IWL_TI_STATE_MAX - 1] = {
 	{IWL_TI_0, IWL_ABSOLUTE_ZERO, CT_KILL_EXIT_THRESHOLD},
@@ -294,6 +325,9 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 
 	if (priv->cfg->broken_powersave)
 		iwl_power_sleep_cam_cmd(priv, &cmd);
+	else if (priv->cfg->supports_idle &&
+		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
+		iwl_static_sleep_cmd(priv, &cmd, IWL_POWER_INDEX_5, 20);
 	else if (tt->state >= IWL_TI_1)
 		iwl_static_sleep_cmd(priv, &cmd, tt->tt_power_mode, dtimper);
 	else if (!enabled)
@@ -348,6 +382,23 @@ bool iwl_ht_enabled(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_ht_enabled);
 
+bool iwl_within_ct_kill_margin(struct iwl_priv *priv)
+{
+	s32 temp = priv->temperature; /* degrees CELSIUS except 4965 */
+	bool within_margin = false;
+
+	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
+		temp = KELVIN_TO_CELSIUS(priv->temperature);
+
+	if (!priv->thermal_throttle.advanced_tt)
+		within_margin = ((temp + IWL_TT_CT_KILL_MARGIN) >=
+				CT_KILL_THRESHOLD_LEGACY) ? true : false;
+	else
+		within_margin = ((temp + IWL_TT_CT_KILL_MARGIN) >=
+				CT_KILL_THRESHOLD) ? true : false;
+	return within_margin;
+}
+
 enum iwl_antenna_ok iwl_tx_ant_restriction(struct iwl_priv *priv)
 {
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
@@ -372,6 +423,7 @@ enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv)
 }
 
 #define CT_KILL_EXIT_DURATION (5)	/* 5 seconds duration */
+#define CT_KILL_WAITING_DURATION (300)	/* 300ms duration */
 
 /*
  * toggle the bit to wake up uCode and check the temperature
@@ -409,6 +461,7 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 		/* Reschedule the ct_kill timer to occur in
 		 * CT_KILL_EXIT_DURATION seconds to ensure we get a
 		 * thermal update */
+		IWL_DEBUG_POWER(priv, "schedule ct_kill exit timer\n");
 		mod_timer(&priv->thermal_throttle.ct_kill_exit_tm, jiffies +
 			  CT_KILL_EXIT_DURATION * HZ);
 	}
@@ -432,6 +485,33 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
 	}
 }
 
+static void iwl_tt_ready_for_ct_kill(unsigned long data)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)data;
+	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	/* temperature timer expired, ready to go into CT_KILL state */
+	if (tt->state != IWL_TI_CT_KILL) {
+		IWL_DEBUG_POWER(priv, "entering CT_KILL state when temperature timer expired\n");
+		tt->state = IWL_TI_CT_KILL;
+		set_bit(STATUS_CT_KILL, &priv->status);
+		iwl_perform_ct_kill_task(priv, true);
+	}
+}
+
+static void iwl_prepare_ct_kill_task(struct iwl_priv *priv)
+{
+	IWL_DEBUG_POWER(priv, "Prepare to enter IWL_TI_CT_KILL\n");
+	/* make request to retrieve statistics information */
+	iwl_send_statistics_request(priv, CMD_SYNC, false);
+	/* Reschedule the ct_kill wait timer */
+	mod_timer(&priv->thermal_throttle.ct_kill_waiting_tm,
+		 jiffies + msecs_to_jiffies(CT_KILL_WAITING_DURATION));
+}
+
 #define IWL_MINIMAL_POWER_THRESHOLD		(CT_KILL_THRESHOLD_LEGACY)
 #define IWL_REDUCED_PERFORMANCE_THRESHOLD_2	(100)
 #define IWL_REDUCED_PERFORMANCE_THRESHOLD_1	(90)
@@ -445,7 +525,7 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
  *	Throttle early enough to lower the power consumption before
  *	drastic steps are needed
  */
-static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
+static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 {
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 	enum iwl_tt_state old_state;
@@ -474,6 +554,8 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 #ifdef CONFIG_IWLWIFI_DEBUG
 	tt->tt_previous_temp = temp;
 #endif
+	/* stop ct_kill_waiting_tm timer */
+	del_timer_sync(&priv->thermal_throttle.ct_kill_waiting_tm);
 	if (tt->state != old_state) {
 		switch (tt->state) {
 		case IWL_TI_0:
@@ -494,17 +576,28 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
 			break;
 		}
 		mutex_lock(&priv->mutex);
-		if (iwl_power_update_mode(priv, true)) {
+		if (old_state == IWL_TI_CT_KILL)
+			clear_bit(STATUS_CT_KILL, &priv->status);
+		if (tt->state != IWL_TI_CT_KILL &&
+		    iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
 			 * try again during next temperature read
 			 */
+			if (old_state == IWL_TI_CT_KILL)
+				set_bit(STATUS_CT_KILL, &priv->status);
 			tt->state = old_state;
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
 		} else {
-			if (tt->state == IWL_TI_CT_KILL)
-				iwl_perform_ct_kill_task(priv, true);
-			else if (old_state == IWL_TI_CT_KILL &&
+			if (tt->state == IWL_TI_CT_KILL) {
+				if (force) {
+					set_bit(STATUS_CT_KILL, &priv->status);
+					iwl_perform_ct_kill_task(priv, true);
+				} else {
+					iwl_prepare_ct_kill_task(priv);
+					tt->state = old_state;
+				}
+			} else if (old_state == IWL_TI_CT_KILL &&
 				 tt->state != IWL_TI_CT_KILL)
 				iwl_perform_ct_kill_task(priv, false);
 			IWL_DEBUG_POWER(priv, "Temperature state changed %u\n",
@@ -531,13 +624,13 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp)
  *=============================================================================
  *                 Condition Nxt State  Condition Nxt State Condition Nxt State
  *-----------------------------------------------------------------------------
- *     IWL_TI_0     T >= 115   CT_KILL  115>T>=105   TI_1      N/A      N/A
- *     IWL_TI_1     T >= 115   CT_KILL  115>T>=110   TI_2     T<=95     TI_0
- *     IWL_TI_2     T >= 115   CT_KILL                        T<=100    TI_1
+ *     IWL_TI_0     T >= 114   CT_KILL  114>T>=105   TI_1      N/A      N/A
+ *     IWL_TI_1     T >= 114   CT_KILL  114>T>=110   TI_2     T<=95     TI_0
+ *     IWL_TI_2     T >= 114   CT_KILL                        T<=100    TI_1
  *    IWL_CT_KILL      N/A       N/A       N/A        N/A     T<=95     TI_0
  *=============================================================================
  */
-static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
+static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 {
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 	int i;
@@ -582,6 +675,8 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 			break;
 		}
 	}
+	/* stop ct_kill_waiting_tm timer */
+	del_timer_sync(&priv->thermal_throttle.ct_kill_waiting_tm);
 	if (changed) {
 		struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
 
@@ -613,12 +708,17 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 			iwl_set_rxon_ht(priv, &priv->current_ht_config);
 		}
 		mutex_lock(&priv->mutex);
-		if (iwl_power_update_mode(priv, true)) {
+		if (old_state == IWL_TI_CT_KILL)
+			clear_bit(STATUS_CT_KILL, &priv->status);
+		if (tt->state != IWL_TI_CT_KILL &&
+		    iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
 			 * try again during next temperature read
 			 */
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
+			if (old_state == IWL_TI_CT_KILL)
+				set_bit(STATUS_CT_KILL, &priv->status);
 			tt->state = old_state;
 		} else {
 			IWL_DEBUG_POWER(priv,
@@ -626,9 +726,15 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp)
 					tt->state);
 			if (old_state != IWL_TI_CT_KILL &&
 			    tt->state == IWL_TI_CT_KILL) {
-				IWL_DEBUG_POWER(priv, "Enter IWL_TI_CT_KILL\n");
-				iwl_perform_ct_kill_task(priv, true);
-
+				if (force) {
+					IWL_DEBUG_POWER(priv,
+						"Enter IWL_TI_CT_KILL\n");
+					set_bit(STATUS_CT_KILL, &priv->status);
+					iwl_perform_ct_kill_task(priv, true);
+				} else {
+					iwl_prepare_ct_kill_task(priv);
+					tt->state = old_state;
+				}
 			} else if (old_state == IWL_TI_CT_KILL &&
 				  tt->state != IWL_TI_CT_KILL) {
 				IWL_DEBUG_POWER(priv, "Exit IWL_TI_CT_KILL\n");
@@ -665,10 +771,11 @@ static void iwl_bg_ct_enter(struct work_struct *work)
 			      "- ucode going to sleep!\n");
 		if (!priv->thermal_throttle.advanced_tt)
 			iwl_legacy_tt_handler(priv,
-					      IWL_MINIMAL_POWER_THRESHOLD);
+					      IWL_MINIMAL_POWER_THRESHOLD,
+					      true);
 		else
 			iwl_advance_tt_handler(priv,
-					       CT_KILL_THRESHOLD + 1);
+					       CT_KILL_THRESHOLD + 1, true);
 	}
 }
 
@@ -695,11 +802,18 @@ static void iwl_bg_ct_exit(struct work_struct *work)
 		IWL_ERR(priv,
 			"Device temperature below critical"
 			"- ucode awake!\n");
+		/*
+		 * exit from CT_KILL state
+		 * reset the current temperature reading
+		 */
+		priv->temperature = 0;
 		if (!priv->thermal_throttle.advanced_tt)
 			iwl_legacy_tt_handler(priv,
-					IWL_REDUCED_PERFORMANCE_THRESHOLD_2);
+					      IWL_REDUCED_PERFORMANCE_THRESHOLD_2,
+					      true);
 		else
-			iwl_advance_tt_handler(priv, CT_KILL_EXIT_THRESHOLD);
+			iwl_advance_tt_handler(priv, CT_KILL_EXIT_THRESHOLD,
+					       true);
 	}
 }
 
@@ -735,9 +849,9 @@ static void iwl_bg_tt_work(struct work_struct *work)
 		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
-		iwl_legacy_tt_handler(priv, temp);
+		iwl_legacy_tt_handler(priv, temp, false);
 	else
-		iwl_advance_tt_handler(priv, temp);
+		iwl_advance_tt_handler(priv, temp, false);
 }
 
 void iwl_tt_handler(struct iwl_priv *priv)
@@ -768,16 +882,18 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	tt->state = IWL_TI_0;
 	init_timer(&priv->thermal_throttle.ct_kill_exit_tm);
 	priv->thermal_throttle.ct_kill_exit_tm.data = (unsigned long)priv;
-	priv->thermal_throttle.ct_kill_exit_tm.function = iwl_tt_check_exit_ct_kill;
-
+	priv->thermal_throttle.ct_kill_exit_tm.function =
+		iwl_tt_check_exit_ct_kill;
+	init_timer(&priv->thermal_throttle.ct_kill_waiting_tm);
+	priv->thermal_throttle.ct_kill_waiting_tm.data = (unsigned long)priv;
+	priv->thermal_throttle.ct_kill_waiting_tm.function =
+		iwl_tt_ready_for_ct_kill;
 	/* setup deferred ct kill work */
 	INIT_WORK(&priv->tt_work, iwl_bg_tt_work);
 	INIT_WORK(&priv->ct_enter, iwl_bg_ct_enter);
 	INIT_WORK(&priv->ct_exit, iwl_bg_ct_exit);
 
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_6x00:
-	case CSR_HW_REV_TYPE_6x50:
+	if (priv->cfg->adv_thermal_throttle) {
 		IWL_DEBUG_POWER(priv, "Advanced Thermal Throttling\n");
 		tt->restriction = kzalloc(sizeof(struct iwl_tt_restriction) *
 					 IWL_TI_STATE_MAX, GFP_KERNEL);
@@ -810,11 +926,9 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 				&restriction_range[0], size);
 			priv->thermal_throttle.advanced_tt = true;
 		}
-		break;
-	default:
+	} else {
 		IWL_DEBUG_POWER(priv, "Legacy Thermal Throttling\n");
 		priv->thermal_throttle.advanced_tt = false;
-		break;
 	}
 }
 EXPORT_SYMBOL(iwl_tt_initialize);
@@ -826,6 +940,8 @@ void iwl_tt_exit(struct iwl_priv *priv)
 
 	/* stop ct_kill_exit_tm timer if activated */
 	del_timer_sync(&priv->thermal_throttle.ct_kill_exit_tm);
+	/* stop ct_kill_waiting_tm timer if activated */
+	del_timer_sync(&priv->thermal_throttle.ct_kill_waiting_tm);
 	cancel_work_sync(&priv->tt_work);
 	cancel_work_sync(&priv->ct_enter);
 	cancel_work_sync(&priv->ct_exit);

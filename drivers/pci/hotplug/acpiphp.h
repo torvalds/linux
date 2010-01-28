@@ -146,12 +146,6 @@ struct acpiphp_attention_info
 	struct module *owner;
 };
 
-struct acpiphp_ioapic {
-	struct pci_dev *dev;
-	u32 gsi_base;
-	struct list_head list;
-};
-
 /* PCI bus bridge HID */
 #define ACPI_PCI_HOST_HID		"PNP0A03"
 

@@ -1,5 +1,185 @@
 #include "qlge.h"
 
+
+static int ql_get_ets_regs(struct ql_adapter *qdev, u32 * buf)
+{
+	int status = 0;
+	int i;
+
+	for (i = 0; i < 8; i++, buf++) {
+		ql_write32(qdev, NIC_ETS, i << 29 | 0x08000000);
+		*buf = ql_read32(qdev, NIC_ETS);
+	}
+
+	for (i = 0; i < 2; i++, buf++) {
+		ql_write32(qdev, CNA_ETS, i << 29 | 0x08000000);
+		*buf = ql_read32(qdev, CNA_ETS);
+	}
+
+	return status;
+}
+
+static void ql_get_intr_states(struct ql_adapter *qdev, u32 * buf)
+{
+	int i;
+
+	for (i = 0; i < qdev->rx_ring_count; i++, buf++) {
+		ql_write32(qdev, INTR_EN,
+				qdev->intr_context[i].intr_read_mask);
+		*buf = ql_read32(qdev, INTR_EN);
+	}
+}
+
+static int ql_get_cam_entries(struct ql_adapter *qdev, u32 * buf)
+{
+	int i, status;
+	u32 value[3];
+
+	status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
+	if (status)
+		return status;
+
+	for (i = 0; i < 16; i++) {
+		status = ql_get_mac_addr_reg(qdev,
+					MAC_ADDR_TYPE_CAM_MAC, i, value);
+		if (status) {
+			QPRINTK(qdev, DRV, ERR,
+				"Failed read of mac index register.\n");
+			goto err;
+		}
+		*buf++ = value[0];	/* lower MAC address */
+		*buf++ = value[1];	/* upper MAC address */
+		*buf++ = value[2];	/* output */
+	}
+	for (i = 0; i < 32; i++) {
+		status = ql_get_mac_addr_reg(qdev,
+					MAC_ADDR_TYPE_MULTI_MAC, i, value);
+		if (status) {
+			QPRINTK(qdev, DRV, ERR,
+				"Failed read of mac index register.\n");
+			goto err;
+		}
+		*buf++ = value[0];	/* lower Mcast address */
+		*buf++ = value[1];	/* upper Mcast address */
+	}
+err:
+	ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
+	return status;
+}
+
+static int ql_get_routing_entries(struct ql_adapter *qdev, u32 * buf)
+{
+	int status;
+	u32 value, i;
+
+	status = ql_sem_spinlock(qdev, SEM_RT_IDX_MASK);
+	if (status)
+		return status;
+
+	for (i = 0; i < 16; i++) {
+		status = ql_get_routing_reg(qdev, i, &value);
+		if (status) {
+			QPRINTK(qdev, DRV, ERR,
+				"Failed read of routing index register.\n");
+			goto err;
+		} else {
+			*buf++ = value;
+		}
+	}
+err:
+	ql_sem_unlock(qdev, SEM_RT_IDX_MASK);
+	return status;
+}
+
+/* Create a coredump segment header */
+static void ql_build_coredump_seg_header(
+		struct mpi_coredump_segment_header *seg_hdr,
+		u32 seg_number, u32 seg_size, u8 *desc)
+{
+	memset(seg_hdr, 0, sizeof(struct mpi_coredump_segment_header));
+	seg_hdr->cookie = MPI_COREDUMP_COOKIE;
+	seg_hdr->segNum = seg_number;
+	seg_hdr->segSize = seg_size;
+	memcpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
+}
+
+void ql_gen_reg_dump(struct ql_adapter *qdev,
+			struct ql_reg_dump *mpi_coredump)
+{
+	int i, status;
+
+
+	memset(&(mpi_coredump->mpi_global_header), 0,
+		sizeof(struct mpi_coredump_global_header));
+	mpi_coredump->mpi_global_header.cookie = MPI_COREDUMP_COOKIE;
+	mpi_coredump->mpi_global_header.headerSize =
+		sizeof(struct mpi_coredump_global_header);
+	mpi_coredump->mpi_global_header.imageSize =
+		sizeof(struct ql_reg_dump);
+	memcpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
+		sizeof(mpi_coredump->mpi_global_header.idString));
+
+
+	/* segment 16 */
+	ql_build_coredump_seg_header(&mpi_coredump->misc_nic_seg_hdr,
+				MISC_NIC_INFO_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->misc_nic_info),
+				"MISC NIC INFO");
+	mpi_coredump->misc_nic_info.rx_ring_count = qdev->rx_ring_count;
+	mpi_coredump->misc_nic_info.tx_ring_count = qdev->tx_ring_count;
+	mpi_coredump->misc_nic_info.intr_count = qdev->intr_count;
+	mpi_coredump->misc_nic_info.function = qdev->func;
+
+	/* Segment 16, Rev C. Step 18 */
+	ql_build_coredump_seg_header(&mpi_coredump->nic_regs_seg_hdr,
+				NIC1_CONTROL_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->nic_regs),
+				"NIC Registers");
+	/* Get generic reg dump */
+	for (i = 0; i < 64; i++)
+		mpi_coredump->nic_regs[i] = ql_read32(qdev, i * sizeof(u32));
+
+	/* Segment 31 */
+	/* Get indexed register values. */
+	ql_build_coredump_seg_header(&mpi_coredump->intr_states_seg_hdr,
+				INTR_STATES_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->intr_states),
+				"INTR States");
+	ql_get_intr_states(qdev, &mpi_coredump->intr_states[0]);
+
+	ql_build_coredump_seg_header(&mpi_coredump->cam_entries_seg_hdr,
+				CAM_ENTRIES_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->cam_entries),
+				"CAM Entries");
+	status = ql_get_cam_entries(qdev, &mpi_coredump->cam_entries[0]);
+	if (status)
+		return;
+
+	ql_build_coredump_seg_header(&mpi_coredump->nic_routing_words_seg_hdr,
+				ROUTING_WORDS_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->nic_routing_words),
+				"Routing Words");
+	status = ql_get_routing_entries(qdev,
+			 &mpi_coredump->nic_routing_words[0]);
+	if (status)
+		return;
+
+	/* Segment 34 (Rev C. step 23) */
+	ql_build_coredump_seg_header(&mpi_coredump->ets_seg_hdr,
+				ETS_SEG_NUM,
+				sizeof(struct mpi_coredump_segment_header)
+				+ sizeof(mpi_coredump->ets),
+				"ETS Registers");
+	status = ql_get_ets_regs(qdev, &mpi_coredump->ets[0]);
+	if (status)
+		return;
+}
+
 #ifdef QL_REG_DUMP
 static void ql_dump_intr_states(struct ql_adapter *qdev)
 {

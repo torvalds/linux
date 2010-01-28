@@ -59,12 +59,14 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->readsect(dev, block, buf))
 				return -EIO;
+		rq_flush_dcache_pages(req);
 		return 0;
 
 	case WRITE:
 		if (!tr->writesect)
 			return -EIO;
 
+		rq_flush_dcache_pages(req);
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->writesect(dev, block, buf))
 				return -EIO;
@@ -81,9 +83,6 @@ static int mtd_blktrans_thread(void *arg)
 	struct mtd_blktrans_ops *tr = arg;
 	struct request_queue *rq = tr->blkcore_priv->rq;
 	struct request *req = NULL;
-
-	/* we might get involved when memory gets low, so use PF_MEMALLOC */
-	current->flags |= PF_MEMALLOC;
 
 	spin_lock_irq(rq->queue_lock);
 
@@ -379,7 +378,7 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	tr->blkcore_priv->thread = kthread_run(mtd_blktrans_thread, tr,
 			"%sd", tr->name);
 	if (IS_ERR(tr->blkcore_priv->thread)) {
-		int ret = PTR_ERR(tr->blkcore_priv->thread);
+		ret = PTR_ERR(tr->blkcore_priv->thread);
 		blk_cleanup_queue(tr->blkcore_priv->rq);
 		unregister_blkdev(tr->major, tr->name);
 		kfree(tr->blkcore_priv);

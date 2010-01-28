@@ -50,6 +50,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
+#include <media/ir-kbd-i2c.h>
 #include "cx18-mailbox.h"
 #include "cx18-av-core.h"
 #include "cx23418.h"
@@ -120,12 +121,16 @@
 /* Maximum firmware DMA buffers per stream */
 #define CX18_MAX_FW_MDLS_PER_STREAM 63
 
+/* YUV buffer sizes in bytes to ensure integer # of frames per buffer */
+#define CX18_UNIT_ENC_YUV_BUFSIZE	(720 *  32 * 3 / 2) /* bytes */
+#define CX18_625_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 576/32)
+#define CX18_525_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 480/32)
+
 /* DMA buffer, default size in kB allocated */
 #define CX18_DEFAULT_ENC_TS_BUFSIZE   32
 #define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
 #define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
-#define CX18_DEFAULT_ENC_YUV_BUFSIZE 128
-/* Default VBI bufsize based on standards supported by card tuner for now */
+#define CX18_DEFAULT_ENC_YUV_BUFSIZE  (CX18_UNIT_ENC_YUV_BUFSIZE * 3 / 1024 + 1)
 #define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
 
 /* i2c stuff */
@@ -246,8 +251,8 @@ struct cx18_options {
 	int radio;		/* enable/disable radio */
 };
 
-/* per-buffer bit flags */
-#define CX18_F_B_NEED_BUF_SWAP  0	/* this buffer should be byte swapped */
+/* per-mdl bit flags */
+#define CX18_F_M_NEED_SWAP  0	/* mdl buffer data must be endianess swapped */
 
 /* per-stream, s_flags */
 #define CX18_F_S_CLAIMED 	3	/* this stream is claimed */
@@ -274,10 +279,21 @@ struct cx18_options {
 struct cx18_buffer {
 	struct list_head list;
 	dma_addr_t dma_handle;
-	u32 id;
-	unsigned long b_flags;
-	unsigned skipped;
 	char *buf;
+
+	u32 bytesused;
+	u32 readpos;
+};
+
+struct cx18_mdl {
+	struct list_head list;
+	u32 id;		/* index into cx->scb->cpu_mdl[] of 1st cx18_mdl_ent */
+
+	unsigned int skipped;
+	unsigned long m_flags;
+
+	struct list_head buf_list;
+	struct cx18_buffer *curr_buf; /* current buffer in list for reading */
 
 	u32 bytesused;
 	u32 readpos;
@@ -285,7 +301,7 @@ struct cx18_buffer {
 
 struct cx18_queue {
 	struct list_head list;
-	atomic_t buffers;
+	atomic_t depth;
 	u32 bytesused;
 	spinlock_t lock;
 };
@@ -337,7 +353,7 @@ struct cx18_stream {
 	const char *name;		/* name of the stream */
 	int type;			/* stream type */
 	u32 handle;			/* task handle */
-	unsigned mdl_offset;
+	unsigned int mdl_base_idx;
 
 	u32 id;
 	unsigned long s_flags;	/* status flags, see above */
@@ -346,14 +362,20 @@ struct cx18_stream {
 				   PCI_DMA_NONE */
 	wait_queue_head_t waitq;
 
-	/* Buffer Stats */
-	u32 buffers;
-	u32 buf_size;
+	/* Buffers */
+	struct list_head buf_pool;	/* buffers not attached to an MDL */
+	u32 buffers;			/* total buffers owned by this stream */
+	u32 buf_size;			/* size in bytes of a single buffer */
 
-	/* Buffer Queues */
-	struct cx18_queue q_free;	/* free buffers */
-	struct cx18_queue q_busy;	/* busy buffers - in use by firmware */
-	struct cx18_queue q_full;	/* full buffers - data for user apps */
+	/* MDL sizes - all stream MDLs are the same size */
+	u32 bufs_per_mdl;
+	u32 mdl_size;		/* total bytes in all buffers in a mdl */
+
+	/* MDL Queues */
+	struct cx18_queue q_free;	/* free - in rotation, not committed */
+	struct cx18_queue q_busy;	/* busy - in use by firmware */
+	struct cx18_queue q_full;	/* full - data for user apps */
+	struct cx18_queue q_idle;	/* idle - not in rotation */
 
 	struct work_struct out_work_order;
 
@@ -481,10 +503,11 @@ struct vbi_info {
 	u32 inserted_frame;
 
 	/*
-	 * A dummy driver stream transfer buffer with a copy of the next
+	 * A dummy driver stream transfer mdl & buffer with a copy of the next
 	 * sliced_mpeg_data[] buffer for output to userland apps.
 	 * Only used in cx18-fileops.c, but its state needs to persist at times.
 	 */
+	struct cx18_mdl sliced_mpeg_mdl;
 	struct cx18_buffer sliced_mpeg_buf;
 };
 
@@ -511,10 +534,9 @@ struct cx18 {
 	u8 is_60hz;
 	u8 nof_inputs;		/* number of video inputs */
 	u8 nof_audio_inputs;	/* number of audio inputs */
-	u16 buffer_id;		/* buffer ID counter */
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
-	unsigned mdl_offset;
+	unsigned int free_mdl_idx;
 	struct cx18_scb __iomem *scb; /* pointer to SCB */
 	struct mutex epu2apu_mb_lock; /* protect driver to chip mailbox in SCB*/
 	struct mutex epu2cpu_mb_lock; /* protect driver to chip mailbox in SCB*/
@@ -584,6 +606,8 @@ struct cx18 {
 	struct i2c_adapter i2c_adap[2];
 	struct i2c_algo_bit_data i2c_algo[2];
 	struct cx18_i2c_algo_callback_data i2c_algo_cb_data[2];
+
+	struct IR_i2c_init_data ir_i2c_init_data;
 
 	/* gpio */
 	u32 gpio_dir;

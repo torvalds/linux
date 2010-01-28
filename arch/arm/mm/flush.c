@@ -35,14 +35,12 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 	    :
 	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES), "r" (zero)
 	    : "cc");
-	__flush_icache_all();
 }
 
 void flush_cache_mm(struct mm_struct *mm)
 {
 	if (cache_is_vivt()) {
-		if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm)))
-			__cpuc_flush_user_all();
+		vivt_flush_cache_mm(mm);
 		return;
 	}
 
@@ -52,16 +50,13 @@ void flush_cache_mm(struct mm_struct *mm)
 		    :
 		    : "r" (0)
 		    : "cc");
-		__flush_icache_all();
 	}
 }
 
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 	if (cache_is_vivt()) {
-		if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm)))
-			__cpuc_flush_user_range(start & PAGE_MASK, PAGE_ALIGN(end),
-						vma->vm_flags);
+		vivt_flush_cache_range(vma, start, end);
 		return;
 	}
 
@@ -71,22 +66,26 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned
 		    :
 		    : "r" (0)
 		    : "cc");
-		__flush_icache_all();
 	}
+
+	if (vma->vm_flags & VM_EXEC)
+		__flush_icache_all();
 }
 
 void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
 {
 	if (cache_is_vivt()) {
-		if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
-			unsigned long addr = user_addr & PAGE_MASK;
-			__cpuc_flush_user_range(addr, addr + PAGE_SIZE, vma->vm_flags);
-		}
+		vivt_flush_cache_page(vma, user_addr, pfn);
 		return;
 	}
 
-	if (cache_is_vipt_aliasing())
+	if (cache_is_vipt_aliasing()) {
 		flush_pfn_alias(pfn, user_addr);
+		__flush_icache_all();
+	}
+
+	if (vma->vm_flags & VM_EXEC && icache_is_vivt_asid_tagged())
+		__flush_icache_all();
 }
 
 void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
@@ -94,15 +93,13 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 			 unsigned long len, int write)
 {
 	if (cache_is_vivt()) {
-		if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
-			unsigned long addr = (unsigned long)kaddr;
-			__cpuc_coherent_kern_range(addr, addr + len);
-		}
+		vivt_flush_ptrace_access(vma, page, uaddr, kaddr, len, write);
 		return;
 	}
 
 	if (cache_is_vipt_aliasing()) {
 		flush_pfn_alias(page_to_pfn(page), uaddr);
+		__flush_icache_all();
 		return;
 	}
 
@@ -120,6 +117,8 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 
 void __flush_dcache_page(struct address_space *mapping, struct page *page)
 {
+	void *addr = page_address(page);
+
 	/*
 	 * Writeback any data associated with the kernel mapping of this
 	 * page.  This ensures that data in the physical page is mutually
@@ -130,9 +129,9 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 * kmap_atomic() doesn't set the page virtual address, and
 	 * kunmap_atomic() takes care of cache flushing already.
 	 */
-	if (page_address(page))
+	if (addr)
 #endif
-		__cpuc_flush_dcache_page(page_address(page));
+		__cpuc_flush_dcache_area(addr, PAGE_SIZE);
 
 	/*
 	 * If this is a page cache page, and we have an aliasing VIPT cache,
@@ -196,7 +195,16 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
  */
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping;
+
+	/*
+	 * The zero page is never written to, so never has any dirty
+	 * cache lines, and therefore never needs to be flushed.
+	 */
+	if (page == ZERO_PAGE(0))
+		return;
+
+	mapping = page_mapping(page);
 
 #ifndef CONFIG_SMP
 	if (!PageHighMem(page) && mapping && !mapping_mapped(mapping))
@@ -242,6 +250,7 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
 		 * userspace address only.
 		 */
 		flush_pfn_alias(pfn, vmaddr);
+		__flush_icache_all();
 	}
 
 	/*
@@ -249,5 +258,5 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
 	 * in this mapping of the page.  FIXME: this is overkill
 	 * since we actually ask for a write-back and invalidate.
 	 */
-	__cpuc_flush_dcache_page(page_address(page));
+	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
 }

@@ -10,8 +10,6 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -21,7 +19,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
-#include <video/da8xx-fb.h>
+#include <mach/cpuidle.h>
 
 #include "clock.h"
 
@@ -30,6 +28,7 @@
 #define DA8XX_TPTC1_BASE		0x01c08400
 #define DA8XX_WDOG_BASE			0x01c21000 /* DA8XX_TIMER64P1_BASE */
 #define DA8XX_I2C0_BASE			0x01c22000
+#define DA8XX_RTC_BASE			0x01C23000
 #define DA8XX_EMAC_CPPI_PORT_BASE	0x01e20000
 #define DA8XX_EMAC_CPGMACSS_BASE	0x01e22000
 #define DA8XX_EMAC_CPGMAC_BASE		0x01e23000
@@ -42,6 +41,8 @@
 #define DA8XX_EMAC_RAM_OFFSET		0x0000
 #define DA8XX_MDIO_REG_OFFSET		0x4000
 #define DA8XX_EMAC_CTRL_RAM_SIZE	SZ_8K
+
+void __iomem *da8xx_syscfg_base;
 
 static struct plat_serial8250_port da8xx_serial_pdata[] = {
 	{
@@ -282,6 +283,11 @@ static struct platform_device da8xx_emac_device = {
 	.resource	= da8xx_emac_resources,
 };
 
+int __init da8xx_register_emac(void)
+{
+	return platform_device_register(&da8xx_emac_device);
+}
+
 static struct resource da830_mcasp1_resources[] = {
 	{
 		.name	= "mcasp1",
@@ -338,12 +344,7 @@ static struct platform_device da850_mcasp_device = {
 	.resource	= da850_mcasp_resources,
 };
 
-int __init da8xx_register_emac(void)
-{
-	return platform_device_register(&da8xx_emac_device);
-}
-
-void __init da8xx_init_mcasp(int id, struct snd_platform_data *pdata)
+void __init da8xx_register_mcasp(int id, struct snd_platform_data *pdata)
 {
 	/* DA830/OMAP-L137 has 3 instances of McASP */
 	if (cpu_is_davinci_da830() && id == 1) {
@@ -379,10 +380,16 @@ static struct lcd_ctrl_config lcd_cfg = {
 	.raster_order		= 0,
 };
 
-static struct da8xx_lcdc_platform_data da850_evm_lcdc_pdata = {
-	.manu_name = "sharp",
-	.controller_data = &lcd_cfg,
-	.type = "Sharp_LK043T1DG01",
+struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {
+	.manu_name		= "sharp",
+	.controller_data	= &lcd_cfg,
+	.type			= "Sharp_LCD035Q3DG01",
+};
+
+struct da8xx_lcdc_platform_data sharp_lk043t1dg01_pdata = {
+	.manu_name		= "sharp",
+	.controller_data	= &lcd_cfg,
+	.type			= "Sharp_LK043T1DG01",
 };
 
 static struct resource da8xx_lcdc_resources[] = {
@@ -398,19 +405,17 @@ static struct resource da8xx_lcdc_resources[] = {
 	},
 };
 
-static struct platform_device da850_lcdc_device = {
+static struct platform_device da8xx_lcdc_device = {
 	.name		= "da8xx_lcdc",
 	.id		= 0,
 	.num_resources	= ARRAY_SIZE(da8xx_lcdc_resources),
 	.resource	= da8xx_lcdc_resources,
-	.dev = {
-		.platform_data = &da850_evm_lcdc_pdata,
-	}
 };
 
-int __init da8xx_register_lcdc(void)
+int __init da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata)
 {
-	return platform_device_register(&da850_lcdc_device);
+	da8xx_lcdc_device.dev.platform_data = pdata;
+	return platform_device_register(&da8xx_lcdc_device);
 }
 
 static struct resource da8xx_mmcsd0_resources[] = {
@@ -448,3 +453,73 @@ int __init da8xx_register_mmcsd0(struct davinci_mmc_config *config)
 	da8xx_mmcsd0_device.dev.platform_data = config;
 	return platform_device_register(&da8xx_mmcsd0_device);
 }
+
+static struct resource da8xx_rtc_resources[] = {
+	{
+		.start		= DA8XX_RTC_BASE,
+		.end		= DA8XX_RTC_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ /* timer irq */
+		.start		= IRQ_DA8XX_RTC,
+		.end		= IRQ_DA8XX_RTC,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{ /* alarm irq */
+		.start		= IRQ_DA8XX_RTC,
+		.end		= IRQ_DA8XX_RTC,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device da8xx_rtc_device = {
+	.name           = "omap_rtc",
+	.id             = -1,
+	.num_resources	= ARRAY_SIZE(da8xx_rtc_resources),
+	.resource	= da8xx_rtc_resources,
+};
+
+int da8xx_register_rtc(void)
+{
+	int ret;
+
+	/* Unlock the rtc's registers */
+	__raw_writel(0x83e70b13, IO_ADDRESS(DA8XX_RTC_BASE + 0x6c));
+	__raw_writel(0x95a4f1e0, IO_ADDRESS(DA8XX_RTC_BASE + 0x70));
+
+	ret = platform_device_register(&da8xx_rtc_device);
+	if (!ret)
+		/* Atleast on DA850, RTC is a wakeup source */
+		device_init_wakeup(&da8xx_rtc_device.dev, true);
+
+	return ret;
+}
+
+static struct resource da8xx_cpuidle_resources[] = {
+	{
+		.start		= DA8XX_DDR2_CTL_BASE,
+		.end		= DA8XX_DDR2_CTL_BASE + SZ_32K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+/* DA8XX devices support DDR2 power down */
+static struct davinci_cpuidle_config da8xx_cpuidle_pdata = {
+	.ddr2_pdown	= 1,
+};
+
+
+static struct platform_device da8xx_cpuidle_device = {
+	.name			= "cpuidle-davinci",
+	.num_resources		= ARRAY_SIZE(da8xx_cpuidle_resources),
+	.resource		= da8xx_cpuidle_resources,
+	.dev = {
+		.platform_data	= &da8xx_cpuidle_pdata,
+	},
+};
+
+int __init da8xx_register_cpuidle(void)
+{
+	return platform_device_register(&da8xx_cpuidle_device);
+}
+

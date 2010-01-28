@@ -26,8 +26,8 @@ static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int ix, ino;
 	int size;
 
-	QNX4DEBUG(("qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
-	QNX4DEBUG(("filp->f_pos         = %ld\n", (long) filp->f_pos));
+	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
+	QNX4DEBUG((KERN_INFO "filp->f_pos         = %ld\n", (long) filp->f_pos));
 
 	lock_kernel();
 
@@ -50,7 +50,7 @@ static int qnx4_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					size = QNX4_NAME_MAX;
 
 				if ( ( de->di_status & (QNX4_FILE_USED|QNX4_FILE_LINK) ) != 0 ) {
-					QNX4DEBUG(("qnx4_readdir:%.*s\n", size, de->di_fname));
+					QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, de->di_fname));
 					if ( ( de->di_status & QNX4_FILE_LINK ) == 0 )
 						ino = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
 					else {

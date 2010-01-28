@@ -5,6 +5,9 @@
 menu "Graphics support"
 	depends on HAS_IOMEM
 
+config HAVE_FB_ATMEL
+	bool
+
 source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
@@ -611,6 +614,21 @@ config FB_BFIN_T350MCQB
 	 This display is a QVGA 320x240 24-bit RGB display interfaced by an 8-bit wide PPI
 	 It uses PPI[0..7] PPI_FS1, PPI_FS2 and PPI_CLK.
 
+config FB_BFIN_LQ035Q1
+	tristate "SHARP LQ035Q1DH02 TFT LCD"
+	depends on FB && BLACKFIN && SPI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select BFIN_GPTIMERS
+	help
+	  This is the framebuffer device driver for a SHARP LQ035Q1DH02 TFT display found on
+	  the Blackfin Landscape LCD EZ-Extender Card.
+	  This display is a QVGA 320x240 18-bit RGB display interfaced by an 16-bit wide PPI
+	  It uses PPI[0..15] PPI_FS1, PPI_FS2 and PPI_CLK.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin-lq035q1-fb.
 
 config FB_STI
 	tristate "HP STI frame buffer device support"
@@ -937,7 +955,7 @@ config FB_S1D13XXX
 
 config FB_ATMEL
 	tristate "AT91/AT32 LCD Controller support"
-	depends on FB && (ARCH_AT91SAM9261 || ARCH_AT91SAM9G10 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91SAM9G45 || ARCH_AT91CAP9 || AVR32)
+	depends on FB && HAVE_FB_ATMEL
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -2063,6 +2081,7 @@ config XEN_FBDEV_FRONTEND
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
+	select XEN_XENBUS_FRONTEND
 	default y
 	help
 	  This driver implements the front-end of the Xen virtual
@@ -2127,7 +2146,7 @@ config FB_PRE_INIT_FB
 	  the bootloader.
 
 config FB_MSM
-	tristate
+	tristate "MSM Framebuffer support"
 	depends on FB && ARCH_MSM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -2161,6 +2180,7 @@ config FB_BROADSHEET
 	  a bridge adapter.
 
 source "drivers/video/omap/Kconfig"
+source "drivers/video/omap2/Kconfig"
 
 source "drivers/video/backlight/Kconfig"
 source "drivers/video/display/Kconfig"

@@ -69,10 +69,20 @@ config MXC_PWM
 	help
 	  Enable support for the i.MX PWM controller(s).
 
+config MXC_ULPI
+	bool
+
 config ARCH_HAS_RNGA
 	bool
 	depends on ARCH_MXC
 
 config ARCH_MXC_IOMUX_V3
 	bool
+
+config ARCH_MXC_AUDMUX_V1
+	bool
+
+config ARCH_MXC_AUDMUX_V2
+	bool
+
 endif

@@ -240,6 +240,8 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 {
 	struct terratec *tt = video_drvdata(file);
 
+	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
+		return -EINVAL;
 	tt_setfreq(tt, f->frequency);
 	return 0;
 }
@@ -249,6 +251,8 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 {
 	struct terratec *tt = video_drvdata(file);
 
+	if (f->tuner != 0)
+		return -EINVAL;
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = tt->curfreq;
 	return 0;

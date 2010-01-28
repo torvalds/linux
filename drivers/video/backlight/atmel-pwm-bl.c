@@ -113,7 +113,7 @@ static int atmel_pwm_bl_init_pwm(struct atmel_pwm_bl *pwmbl)
 	return pwm_channel_enable(&pwmbl->pwmc);
 }
 
-static struct backlight_ops atmel_pwm_bl_ops = {
+static const struct backlight_ops atmel_pwm_bl_ops = {
 	.get_brightness = atmel_pwm_bl_get_intensity,
 	.update_status  = atmel_pwm_bl_set_intensity,
 };
@@ -158,7 +158,7 @@ static int atmel_pwm_bl_probe(struct platform_device *pdev)
 			goto err_free_pwm;
 		}
 
-		/* Turn display off by defatult. */
+		/* Turn display off by default. */
 		retval = gpio_direction_output(pwmbl->gpio_on,
 				0 ^ pdata->on_active_low);
 		if (retval)

@@ -767,6 +767,9 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	/* set up the sysfs linkage to our parent device */
 	i801_adapter.dev.parent = &dev->dev;
 
+	/* Retry up to 3 times on lost arbitration */
+	i801_adapter.retries = 3;
+
 	snprintf(i801_adapter.name, sizeof(i801_adapter.name),
 		"SMBus I801 adapter at %04lx", i801_smba);
 	err = i2c_add_adapter(&i801_adapter);

@@ -18,25 +18,12 @@
 
 #include "ath9k.h"
 
-static unsigned int ath9k_debug = DBG_DEFAULT;
-module_param_named(debug, ath9k_debug, uint, 0);
+#define REG_WRITE_D(_ah, _reg, _val) \
+	ath9k_hw_common(_ah)->ops->write((_ah), (_val), (_reg))
+#define REG_READ_D(_ah, _reg) \
+	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
 static struct dentry *ath9k_debugfs_root;
-
-void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...)
-{
-	if (!sc)
-		return;
-
-	if (sc->debug.debug_mask & dbg_mask) {
-		va_list args;
-
-		va_start(args, fmt);
-		printk(KERN_DEBUG "ath9k: ");
-		vprintk(fmt, args);
-		va_end(args);
-	}
-}
 
 static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 {
@@ -44,14 +31,17 @@ static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_ATH_DEBUG
+
 static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	char buf[32];
 	unsigned int len;
 
-	len = snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.debug_mask);
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->debug_mask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -59,6 +49,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long mask;
 	char buf[32];
 	ssize_t len;
@@ -71,7 +62,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 	if (strict_strtoul(buf, 0, &mask))
 		return -EINVAL;
 
-	sc->debug.debug_mask = mask;
+	common->debug_mask = mask;
 	return count;
 }
 
@@ -81,6 +72,8 @@ static const struct file_operations fops_debug = {
 	.open = ath9k_debugfs_open,
 	.owner = THIS_MODULE
 };
+
+#endif
 
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
@@ -95,7 +88,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 
 	ath9k_ps_wakeup(sc);
 
-	REG_WRITE(ah, AR_MACMISC,
+	REG_WRITE_D(ah, AR_MACMISC,
 		  ((AR_MACMISC_DMA_OBS_LINE_8 << AR_MACMISC_DMA_OBS_S) |
 		   (AR_MACMISC_MISC_OBS_BUS_1 <<
 		    AR_MACMISC_MISC_OBS_BUS_MSB_S)));
@@ -107,7 +100,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 		if (i % 4 == 0)
 			len += snprintf(buf + len, sizeof(buf) - len, "\n");
 
-		val[i] = REG_READ(ah, AR_DMADBG_0 + (i * sizeof(u32)));
+		val[i] = REG_READ_D(ah, AR_DMADBG_0 + (i * sizeof(u32)));
 		len += snprintf(buf + len, sizeof(buf) - len, "%d: %08x ",
 				i, val[i]);
 	}
@@ -157,9 +150,9 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 		(val[6] & 0x0001e000) >> 13, (val[6] & 0x001e0000) >> 17);
 
 	len += snprintf(buf + len, sizeof(buf) - len, "pcu observe: 0x%x \n",
-			REG_READ(ah, AR_OBS_BUS_1));
+			REG_READ_D(ah, AR_OBS_BUS_1));
 	len += snprintf(buf + len, sizeof(buf) - len,
-			"AR_CR: 0x%x \n", REG_READ(ah, AR_CR));
+			"AR_CR: 0x%x \n", REG_READ_D(ah, AR_CR));
 
 	ath9k_ps_restore(sc);
 
@@ -266,18 +259,11 @@ static const struct file_operations fops_interrupt = {
 	.owner = THIS_MODULE
 };
 
-void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb)
+void ath_debug_stat_rc(struct ath_softc *sc, int final_rate)
 {
-	struct ath_tx_info_priv *tx_info_priv = NULL;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_rate *rates = tx_info->status.rates;
-	int final_ts_idx, idx;
 	struct ath_rc_stats *stats;
 
-	tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
-	final_ts_idx = tx_info_priv->tx.ts_rateindex;
-	idx = rates[final_ts_idx].idx;
-	stats = &sc->debug.stats.rcstats[idx];
+	stats = &sc->debug.stats.rcstats[final_rate];
 	stats->success++;
 }
 
@@ -376,12 +362,12 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 				aphy->chan_idx, aphy->chan_is_ht);
 	}
 
-	put_unaligned_le32(REG_READ(sc->sc_ah, AR_STA_ID0), addr);
-	put_unaligned_le16(REG_READ(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
+	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_STA_ID0), addr);
+	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_STA_ID1) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"addr: %pM\n", addr);
-	put_unaligned_le32(REG_READ(sc->sc_ah, AR_BSSMSKL), addr);
-	put_unaligned_le16(REG_READ(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
+	put_unaligned_le32(REG_READ_D(sc->sc_ah, AR_BSSMSKL), addr);
+	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"addrmask: %pM\n", addr);
 
@@ -568,9 +554,10 @@ static const struct file_operations fops_xmit = {
 	.owner = THIS_MODULE
 };
 
-int ath9k_init_debug(struct ath_softc *sc)
+int ath9k_init_debug(struct ath_hw *ah)
 {
-	sc->debug.debug_mask = ath9k_debug;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
 	if (!ath9k_debugfs_root)
 		return -ENOENT;
@@ -580,10 +567,12 @@ int ath9k_init_debug(struct ath_softc *sc)
 	if (!sc->debug.debugfs_phy)
 		goto err;
 
+#ifdef CONFIG_ATH_DEBUG
 	sc->debug.debugfs_debug = debugfs_create_file("debug",
 		S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
 	if (!sc->debug.debugfs_debug)
 		goto err;
+#endif
 
 	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUSR,
 				       sc->debug.debugfs_phy, sc, &fops_dma);
@@ -619,12 +608,15 @@ int ath9k_init_debug(struct ath_softc *sc)
 
 	return 0;
 err:
-	ath9k_exit_debug(sc);
+	ath9k_exit_debug(ah);
 	return -ENOMEM;
 }
 
-void ath9k_exit_debug(struct ath_softc *sc)
+void ath9k_exit_debug(struct ath_hw *ah)
 {
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+
 	debugfs_remove(sc->debug.debugfs_xmit);
 	debugfs_remove(sc->debug.debugfs_wiphy);
 	debugfs_remove(sc->debug.debugfs_rcstat);

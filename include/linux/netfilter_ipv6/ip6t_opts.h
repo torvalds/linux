@@ -3,8 +3,7 @@
 
 #define IP6T_OPTS_OPTSNR 16
 
-struct ip6t_opts
-{
+struct ip6t_opts {
 	u_int32_t hdrlen;			/* Header Length */
 	u_int8_t flags;				/*  */
 	u_int8_t invflags;			/* Inverse flags */

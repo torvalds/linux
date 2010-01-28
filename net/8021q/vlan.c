@@ -41,7 +41,7 @@
 
 /* Global VLAN variables */
 
-int vlan_net_id;
+int vlan_net_id __read_mostly;
 
 /* Our listing of VLAN group(s) */
 static struct hlist_head vlan_group_hash[VLAN_GRP_HASH_SIZE];
@@ -140,7 +140,7 @@ static void vlan_rcu_free(struct rcu_head *rcu)
 	vlan_group_free(container_of(rcu, struct vlan_group, rcu));
 }
 
-void unregister_vlan_dev(struct net_device *dev)
+void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 {
 	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
@@ -159,12 +159,13 @@ void unregister_vlan_dev(struct net_device *dev)
 	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
 		ops->ndo_vlan_rx_kill_vid(real_dev, vlan_id);
 
-	vlan_group_set_device(grp, vlan_id, NULL);
 	grp->nr_vlans--;
 
-	synchronize_net();
+	vlan_group_set_device(grp, vlan_id, NULL);
+	if (!grp->killall)
+		synchronize_net();
 
-	unregister_netdevice(dev);
+	unregister_netdevice_queue(dev, head);
 
 	/* If the group is now empty, kill off the group. */
 	if (grp->nr_vlans == 0) {
@@ -181,27 +182,6 @@ void unregister_vlan_dev(struct net_device *dev)
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
-}
-
-static void vlan_transfer_operstate(const struct net_device *dev,
-				    struct net_device *vlandev)
-{
-	/* Have to respect userspace enforced dormant state
-	 * of real device, also must allow supplicant running
-	 * on VLAN device
-	 */
-	if (dev->operstate == IF_OPER_DORMANT)
-		netif_dormant_on(vlandev);
-	else
-		netif_dormant_off(vlandev);
-
-	if (netif_carrier_ok(dev)) {
-		if (!netif_carrier_ok(vlandev))
-			netif_carrier_on(vlandev);
-	} else {
-		if (netif_carrier_ok(vlandev))
-			netif_carrier_off(vlandev);
-	}
 }
 
 int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
@@ -261,7 +241,7 @@ int register_vlan_dev(struct net_device *dev)
 	/* Account for reference in struct vlan_dev_info */
 	dev_hold(real_dev);
 
-	vlan_transfer_operstate(real_dev, dev);
+	netif_stacked_transfer_operstate(real_dev, dev);
 	linkwatch_fire_event(dev); /* _MUST_ call rfc2863_policy() */
 
 	/* So, got the sucker initialized, now lets place
@@ -430,6 +410,8 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	struct vlan_group *grp;
 	int i, flgs;
 	struct net_device *vlandev;
+	struct vlan_dev_info *vlan;
+	LIST_HEAD(list);
 
 	if (is_vlan_dev(dev))
 		__vlan_device_event(dev, event);
@@ -450,7 +432,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!vlandev)
 				continue;
 
-			vlan_transfer_operstate(dev, vlandev);
+			netif_stacked_transfer_operstate(dev, vlandev);
 		}
 		break;
 
@@ -505,8 +487,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!(flgs & IFF_UP))
 				continue;
 
-			dev_change_flags(vlandev, flgs & ~IFF_UP);
-			vlan_transfer_operstate(dev, vlandev);
+			vlan = vlan_dev_info(vlandev);
+			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
+				dev_change_flags(vlandev, flgs & ~IFF_UP);
+			netif_stacked_transfer_operstate(dev, vlandev);
 		}
 		break;
 
@@ -521,13 +505,17 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (flgs & IFF_UP)
 				continue;
 
-			dev_change_flags(vlandev, flgs | IFF_UP);
-			vlan_transfer_operstate(dev, vlandev);
+			vlan = vlan_dev_info(vlandev);
+			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
+				dev_change_flags(vlandev, flgs | IFF_UP);
+			netif_stacked_transfer_operstate(dev, vlandev);
 		}
 		break;
 
 	case NETDEV_UNREGISTER:
 		/* Delete all VLANs for this dev. */
+		grp->killall = 1;
+
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
 			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
@@ -538,8 +526,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (grp->nr_vlans == 1)
 				i = VLAN_GROUP_ARRAY_LEN;
 
-			unregister_vlan_dev(vlandev);
+			unregister_vlan_dev(vlandev, &list);
 		}
+		unregister_netdevice_many(&list);
 		break;
 	}
 
@@ -645,7 +634,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		err = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			break;
-		unregister_vlan_dev(dev);
+		unregister_vlan_dev(dev, NULL);
 		err = 0;
 		break;
 
@@ -676,47 +665,26 @@ out:
 
 static int vlan_init_net(struct net *net)
 {
+	struct vlan_net *vn = net_generic(net, vlan_net_id);
 	int err;
-	struct vlan_net *vn;
-
-	err = -ENOMEM;
-	vn = kzalloc(sizeof(struct vlan_net), GFP_KERNEL);
-	if (vn == NULL)
-		goto err_alloc;
-
-	err = net_assign_generic(net, vlan_net_id, vn);
-	if (err < 0)
-		goto err_assign;
 
 	vn->name_type = VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD;
 
 	err = vlan_proc_init(net);
-	if (err < 0)
-		goto err_proc;
 
-	return 0;
-
-err_proc:
-	/* nothing */
-err_assign:
-	kfree(vn);
-err_alloc:
 	return err;
 }
 
 static void vlan_exit_net(struct net *net)
 {
-	struct vlan_net *vn;
-
-	vn = net_generic(net, vlan_net_id);
-	rtnl_kill_links(net, &vlan_link_ops);
 	vlan_proc_cleanup(net);
-	kfree(vn);
 }
 
 static struct pernet_operations vlan_net_ops = {
 	.init = vlan_init_net,
 	.exit = vlan_exit_net,
+	.id   = &vlan_net_id,
+	.size = sizeof(struct vlan_net),
 };
 
 static int __init vlan_proto_init(void)
@@ -726,7 +694,7 @@ static int __init vlan_proto_init(void)
 	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
 	pr_info("All bugs added by %s\n", vlan_buggyright);
 
-	err = register_pernet_gen_device(&vlan_net_id, &vlan_net_ops);
+	err = register_pernet_subsys(&vlan_net_ops);
 	if (err < 0)
 		goto err0;
 
@@ -751,7 +719,7 @@ err4:
 err3:
 	unregister_netdevice_notifier(&vlan_notifier_block);
 err2:
-	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
+	unregister_pernet_subsys(&vlan_net_ops);
 err0:
 	return err;
 }
@@ -771,7 +739,7 @@ static void __exit vlan_cleanup_module(void)
 	for (i = 0; i < VLAN_GRP_HASH_SIZE; i++)
 		BUG_ON(!hlist_empty(&vlan_group_hash[i]));
 
-	unregister_pernet_gen_device(vlan_net_id, &vlan_net_ops);
+	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
 	vlan_gvrp_uninit();

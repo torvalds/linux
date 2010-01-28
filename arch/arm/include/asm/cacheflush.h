@@ -154,16 +154,16 @@
  *	Please note that the implementation of these, and the required
  *	effects are cache-type (VIVT/VIPT/PIPT) specific.
  *
- *	flush_cache_kern_all()
+ *	flush_kern_all()
  *
  *		Unconditionally clean and invalidate the entire cache.
  *
- *	flush_cache_user_mm(mm)
+ *	flush_user_all()
  *
  *		Clean and invalidate all user space cache entries
  *		before a change of page tables.
  *
- *	flush_cache_user_range(start, end, flags)
+ *	flush_user_range(start, end, flags)
  *
  *		Clean and invalidate a range of cache entries in the
  *		specified address space before a change of page tables.
@@ -178,6 +178,20 @@
  *		Harvard caches, you need to implement this function.
  *		- start  - virtual start address
  *		- end    - virtual end address
+ *
+ *	coherent_user_range(start, end)
+ *
+ *		Ensure coherency between the Icache and the Dcache in the
+ *		region described by start, end.  If you have non-snooping
+ *		Harvard caches, you need to implement this function.
+ *		- start  - virtual start address
+ *		- end    - virtual end address
+ *
+ *	flush_kern_dcache_area(kaddr, size)
+ *
+ *		Ensure that the data held in page is written back.
+ *		- kaddr  - page address
+ *		- size   - region size
  *
  *	DMA Cache Coherency
  *	===================
@@ -211,7 +225,7 @@ struct cpu_cache_fns {
 
 	void (*coherent_kern_range)(unsigned long, unsigned long);
 	void (*coherent_user_range)(unsigned long, unsigned long);
-	void (*flush_kern_dcache_page)(void *);
+	void (*flush_kern_dcache_area)(void *, size_t);
 
 	void (*dma_inv_range)(const void *, const void *);
 	void (*dma_clean_range)(const void *, const void *);
@@ -236,7 +250,7 @@ extern struct cpu_cache_fns cpu_cache;
 #define __cpuc_flush_user_range		cpu_cache.flush_user_range
 #define __cpuc_coherent_kern_range	cpu_cache.coherent_kern_range
 #define __cpuc_coherent_user_range	cpu_cache.coherent_user_range
-#define __cpuc_flush_dcache_page	cpu_cache.flush_kern_dcache_page
+#define __cpuc_flush_dcache_area	cpu_cache.flush_kern_dcache_area
 
 /*
  * These are private to the dma-mapping API.  Do not use directly.
@@ -255,14 +269,14 @@ extern struct cpu_cache_fns cpu_cache;
 #define __cpuc_flush_user_range		__glue(_CACHE,_flush_user_cache_range)
 #define __cpuc_coherent_kern_range	__glue(_CACHE,_coherent_kern_range)
 #define __cpuc_coherent_user_range	__glue(_CACHE,_coherent_user_range)
-#define __cpuc_flush_dcache_page	__glue(_CACHE,_flush_kern_dcache_page)
+#define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
 
 extern void __cpuc_flush_kern_all(void);
 extern void __cpuc_flush_user_all(void);
 extern void __cpuc_flush_user_range(unsigned long, unsigned long, unsigned int);
 extern void __cpuc_coherent_kern_range(unsigned long, unsigned long);
 extern void __cpuc_coherent_user_range(unsigned long, unsigned long);
-extern void __cpuc_flush_dcache_page(void *);
+extern void __cpuc_flush_dcache_area(void *, size_t);
 
 /*
  * These are private to the dma-mapping API.  Do not use directly.
@@ -331,15 +345,15 @@ static inline void outer_flush_range(unsigned long start, unsigned long end)
  * Convert calls to our calling convention.
  */
 #define flush_cache_all()		__cpuc_flush_kern_all()
-#ifndef CONFIG_CPU_CACHE_VIPT
-static inline void flush_cache_mm(struct mm_struct *mm)
+
+static inline void vivt_flush_cache_mm(struct mm_struct *mm)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm)))
 		__cpuc_flush_user_all();
 }
 
 static inline void
-flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+vivt_flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm)))
 		__cpuc_flush_user_range(start & PAGE_MASK, PAGE_ALIGN(end),
@@ -347,7 +361,7 @@ flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long
 }
 
 static inline void
-flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
+vivt_flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
 {
 	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
 		unsigned long addr = user_addr & PAGE_MASK;
@@ -356,7 +370,7 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned l
 }
 
 static inline void
-flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
+vivt_flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 			 unsigned long uaddr, void *kaddr,
 			 unsigned long len, int write)
 {
@@ -365,6 +379,16 @@ flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 		__cpuc_coherent_kern_range(addr, addr + len);
 	}
 }
+
+#ifndef CONFIG_CPU_CACHE_VIPT
+#define flush_cache_mm(mm) \
+		vivt_flush_cache_mm(mm)
+#define flush_cache_range(vma,start,end) \
+		vivt_flush_cache_range(vma,start,end)
+#define flush_cache_page(vma,addr,pfn) \
+		vivt_flush_cache_page(vma,addr,pfn)
+#define flush_ptrace_access(vma,page,ua,ka,len,write) \
+		vivt_flush_ptrace_access(vma,page,ua,ka,len,write)
 #else
 extern void flush_cache_mm(struct mm_struct *mm);
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
@@ -408,9 +432,8 @@ extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
  * about to change to user space.  This is the same method as used on SPARC64.
  * See update_mmu_cache for the user space part.
  */
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 extern void flush_dcache_page(struct page *);
-
-extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
 
 static inline void __flush_icache_all(void)
 {
@@ -439,7 +462,7 @@ static inline void flush_kernel_dcache_page(struct page *page)
 {
 	/* highmem pages are always flushed upon kunmap already */
 	if ((cache_is_vivt() || cache_is_vipt_aliasing()) && !PageHighMem(page))
-		__cpuc_flush_dcache_page(page_address(page));
+		__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
 }
 
 #define flush_dcache_mmap_lock(mapping) \
@@ -455,13 +478,6 @@ static inline void flush_kernel_dcache_page(struct page *page)
  * duplicate cache flushing elsewhere performed by flush_dcache_page().
  */
 #define flush_icache_page(vma,page)	do { } while (0)
-
-static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
-	unsigned offset, size_t size)
-{
-	const void *start = (void __force *)virt + offset;
-	dmac_inv_range(start, start + size);
-}
 
 /*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,

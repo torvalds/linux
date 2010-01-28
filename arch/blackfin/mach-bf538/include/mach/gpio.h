@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Analog Devices Inc.
+ * Copyright (C) 2008-2009 Analog Devices Inc.
  * Licensed under the GPL-2 or later.
  */
 
@@ -7,11 +7,8 @@
 #ifndef _MACH_GPIO_H_
 #define _MACH_GPIO_H_
 
-	/* FIXME:
-	 * For now only support PORTF GPIOs.
-	 * PORT C,D and E are for peripheral usage only
-	 */
 #define MAX_BLACKFIN_GPIOS 16
+#define BFIN_SPECIAL_GPIO_BANKS 3
 
 #define	GPIO_PF0	0	/* PF */
 #define	GPIO_PF1	1

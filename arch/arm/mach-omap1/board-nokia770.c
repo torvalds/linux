@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/clk.h>
+#include <linux/omapfb.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -26,17 +27,16 @@
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
-#include <mach/mux.h>
-#include <mach/usb.h>
-#include <mach/board.h>
-#include <mach/keypad.h>
-#include <mach/common.h>
-#include <mach/dsp_common.h>
-#include <mach/omapfb.h>
-#include <mach/hwa742.h>
-#include <mach/lcd_mipid.h>
-#include <mach/mmc.h>
-#include <mach/clock.h>
+#include <plat/mux.h>
+#include <plat/usb.h>
+#include <plat/board.h>
+#include <plat/keypad.h>
+#include <plat/common.h>
+#include <plat/dsp_common.h>
+#include <plat/hwa742.h>
+#include <plat/lcd_mipid.h>
+#include <plat/mmc.h>
+#include <plat/clock.h>
 
 #define ADS7846_PENDOWN_GPIO	15
 

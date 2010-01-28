@@ -86,6 +86,11 @@ config RTAS_ERROR_LOGGING
 	depends on PPC_RTAS
 	default n
 
+config PPC_RTAS_DAEMON
+	bool
+	depends on PPC_RTAS
+	default n
+
 config RTAS_PROC
 	bool "Proc interface to RTAS"
 	depends on PPC_RTAS
@@ -255,7 +260,7 @@ config QE_GPIO
 
 config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
-	depends on MPC85xx || 8260
+	depends on (FSL_SOC_BOOKE && PPC32) || 8260
 	select CPM
 	select PPC_LIB_RHEAP
 	select PPC_PCI_CHOICE
@@ -300,7 +305,7 @@ source "arch/powerpc/sysdev/bestcomm/Kconfig"
 
 config MPC8xxx_GPIO
 	bool "MPC8xxx GPIO support"
-	depends on PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || PPC_85xx || PPC_86xx
+	depends on PPC_MPC831x || PPC_MPC834x || PPC_MPC837x || FSL_SOC_BOOKE || PPC_86xx
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help

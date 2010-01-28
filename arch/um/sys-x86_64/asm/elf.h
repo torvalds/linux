@@ -104,7 +104,6 @@ extern int elf_core_copy_fpregs(struct task_struct *t, elf_fpregset_t *fpu);
         clear_thread_flag(TIF_IA32);
 #endif
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 4096
 
 #define ELF_ET_DYN_BASE (2 * TASK_SIZE / 3)

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -51,11 +51,11 @@
 		__func__ , ## args)))
 
 /* TX/RX descriptor defines */
-#define IXGBE_DEFAULT_TXD		   1024
+#define IXGBE_DEFAULT_TXD		    512
 #define IXGBE_MAX_TXD			   4096
 #define IXGBE_MIN_TXD			     64
 
-#define IXGBE_DEFAULT_RXD		   1024
+#define IXGBE_DEFAULT_RXD		    512
 #define IXGBE_MAX_RXD			   4096
 #define IXGBE_MIN_RXD			     64
 
@@ -106,6 +106,7 @@ struct ixgbe_tx_buffer {
 	unsigned long time_stamp;
 	u16 length;
 	u16 next_to_watch;
+	u16 mapped_as_page;
 };
 
 struct ixgbe_rx_buffer {
@@ -159,10 +160,13 @@ struct ixgbe_ring {
 	struct ixgbe_queue_stats stats;
 	unsigned long reinit_state;
 	u64 rsc_count;			/* stat for coalesced packets */
+	u64 rsc_flush;			/* stats for flushed packets */
+	u32 restart_queue;		/* track tx queue restarts */
+	u32 non_eop_descs;		/* track hardware descriptor chaining */
 
 	unsigned int size;		/* length in bytes */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
-};
+} ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
 	RING_F_NONE = 0,
@@ -187,7 +191,7 @@ enum ixgbe_ring_f_enum {
 struct ixgbe_ring_feature {
 	int indices;
 	int mask;
-};
+} ____cacheline_internodealigned_in_smp;
 
 #define MAX_RX_QUEUES 128
 #define MAX_TX_QUEUES 128
@@ -273,29 +277,25 @@ struct ixgbe_adapter {
 	u16 eitr_high;
 
 	/* TX */
-	struct ixgbe_ring *tx_ring;	/* One per active queue */
+	struct ixgbe_ring *tx_ring ____cacheline_aligned_in_smp; /* One per active queue */
 	int num_tx_queues;
-	u64 restart_queue;
-	u64 hw_csum_tx_good;
-	u64 lsc_int;
-	u64 hw_tso_ctxt;
-	u64 hw_tso6_ctxt;
 	u32 tx_timeout_count;
 	bool detect_tx_hung;
 
+	u64 restart_queue;
+	u64 lsc_int;
+
 	/* RX */
-	struct ixgbe_ring *rx_ring;	/* One per active queue */
+	struct ixgbe_ring *rx_ring ____cacheline_aligned_in_smp; /* One per active queue */
 	int num_rx_queues;
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
-	u64 hw_csum_rx_good;
 	u64 non_eop_descs;
 	int num_msix_vectors;
 	int max_msix_q_vectors;         /* true count of q_vectors for device */
 	struct ixgbe_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 	struct msix_entry *msix_entries;
 
-	u64 rx_hdr_split;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
@@ -340,7 +340,6 @@ struct ixgbe_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 
 	u32 test_icr;
 	struct ixgbe_ring test_tx_ring;
@@ -376,7 +375,8 @@ struct ixgbe_adapter {
 #ifdef IXGBE_FCOE
 	struct ixgbe_fcoe fcoe;
 #endif /* IXGBE_FCOE */
-	u64 rsc_count;
+	u64 rsc_total_count;
+	u64 rsc_total_flush;
 	u32 wol;
 	u16 eeprom_version;
 };
@@ -397,7 +397,7 @@ enum ixgbe_boards {
 extern struct ixgbe_info ixgbe_82598_info;
 extern struct ixgbe_info ixgbe_82599_info;
 #ifdef CONFIG_IXGBE_DCB
-extern struct dcbnl_rtnl_ops dcbnl_ops;
+extern const struct dcbnl_rtnl_ops dcbnl_ops;
 extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
                               struct ixgbe_dcb_config *dst_dcb_cfg,
                               int tc_max);
@@ -458,6 +458,7 @@ extern int ixgbe_fcoe_disable(struct net_device *netdev);
 extern u8 ixgbe_fcoe_getapp(struct ixgbe_adapter *adapter);
 extern u8 ixgbe_fcoe_setapp(struct ixgbe_adapter *adapter, u8 up);
 #endif /* CONFIG_IXGBE_DCB */
+extern int ixgbe_fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type);
 #endif /* IXGBE_FCOE */
 
 #endif /* _IXGBE_H_ */

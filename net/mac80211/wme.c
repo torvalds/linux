@@ -44,22 +44,69 @@ static int wme_downgrade_ac(struct sk_buff *skb)
 }
 
 
-/* Indicate which queue to use.  */
-static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
+/* Indicate which queue to use. */
+u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
+			   struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta = NULL;
+	u32 sta_flags = 0;
+	const u8 *ra = NULL;
+	bool qos = false;
 
-	if (!ieee80211_is_data(hdr->frame_control)) {
-		/* management frames go on AC_VO queue, but are sent
-		* without QoS control fields */
-		return 0;
+	if (local->hw.queues < 4 || skb->len < 6) {
+		skb->priority = 0; /* required for correct WPA/11i MIC */
+		return min_t(u16, local->hw.queues - 1,
+			     ieee802_1d_to_ac[skb->priority]);
 	}
 
-	if (0 /* injected */) {
-		/* use AC from radiotap */
+	rcu_read_lock();
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP_VLAN:
+		rcu_read_lock();
+		sta = rcu_dereference(sdata->u.vlan.sta);
+		if (sta)
+			sta_flags = get_sta_flags(sta);
+		rcu_read_unlock();
+		if (sta)
+			break;
+	case NL80211_IFTYPE_AP:
+		ra = skb->data;
+		break;
+	case NL80211_IFTYPE_WDS:
+		ra = sdata->u.wds.remote_addr;
+		break;
+#ifdef CONFIG_MAC80211_MESH
+	case NL80211_IFTYPE_MESH_POINT:
+		/*
+		 * XXX: This is clearly broken ... but already was before,
+		 * because ieee80211_fill_mesh_addresses() would clear A1
+		 * except for multicast addresses.
+		 */
+		break;
+#endif
+	case NL80211_IFTYPE_STATION:
+		ra = sdata->u.mgd.bssid;
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ra = skb->data;
+		break;
+	default:
+		break;
 	}
 
-	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+	if (!sta && ra && !is_multicast_ether_addr(ra)) {
+		sta = sta_info_get(local, ra);
+		if (sta)
+			sta_flags = get_sta_flags(sta);
+	}
+
+	if (sta_flags & WLAN_STA_WME)
+		qos = true;
+
+	rcu_read_unlock();
+
+	if (!qos) {
 		skb->priority = 0; /* required for correct WPA/11i MIC */
 		return ieee802_1d_to_ac[skb->priority];
 	}
@@ -68,6 +115,12 @@ static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
 	 * data frame has */
 	skb->priority = cfg80211_classify8021d(skb);
 
+	return ieee80211_downgrade_queue(local, skb);
+}
+
+u16 ieee80211_downgrade_queue(struct ieee80211_local *local,
+			      struct sk_buff *skb)
+{
 	/* in case we are a client verify acm is not set for this ac */
 	while (unlikely(local->wmm_acm & BIT(skb->priority))) {
 		if (wme_downgrade_ac(skb)) {
@@ -85,24 +138,17 @@ static u16 classify80211(struct ieee80211_local *local, struct sk_buff *skb)
 	return ieee802_1d_to_ac[skb->priority];
 }
 
-void ieee80211_select_queue(struct ieee80211_local *local, struct sk_buff *skb)
+void ieee80211_set_qos_hdr(struct ieee80211_local *local, struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 queue;
-	u8 tid;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 
-	queue = classify80211(local, skb);
-	if (unlikely(queue >= local->hw.queues))
-		queue = local->hw.queues - 1;
-
-	/*
-	 * Now we know the 1d priority, fill in the QoS header if
-	 * there is one (and we haven't done this before).
-	 */
+	/* Fill in the QoS header if there is one. */
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		u8 *p = ieee80211_get_qos_ctl(hdr);
-		u8 ack_policy = 0;
+		u8 ack_policy = 0, tid;
+
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
+
 		if (unlikely(local->wifi_wme_noack_test))
 			ack_policy |= QOS_CONTROL_ACK_POLICY_NOACK <<
 					QOS_CONTROL_ACK_POLICY_SHIFT;
@@ -110,6 +156,4 @@ void ieee80211_select_queue(struct ieee80211_local *local, struct sk_buff *skb)
 		*p++ = ack_policy | tid;
 		*p = 0;
 	}
-
-	skb_set_queue_mapping(skb, queue);
 }

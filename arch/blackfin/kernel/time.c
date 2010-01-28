@@ -184,11 +184,3 @@ void __init time_init(void)
 
 	time_sched_init(timer_interrupt);
 }
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	return (unsigned long long)jiffies *(NSEC_PER_SEC / HZ);
-}

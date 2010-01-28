@@ -15,6 +15,10 @@
 #ifndef _LINUX_CS_H
 #define _LINUX_CS_H
 
+#ifdef __KERNEL__
+#include <linux/interrupt.h>
+#endif
+
 /* For AccessConfigurationRegister */
 typedef struct conf_reg_t {
     u_char	Function;
@@ -111,11 +115,9 @@ typedef struct io_req_t {
 
 /* For RequestIRQ and ReleaseIRQ */
 typedef struct irq_req_t {
-    u_int	Attributes;
-    u_int	AssignedIRQ;
-    u_int	IRQInfo1, IRQInfo2; /* IRQInfo2 is ignored */
-    void	*Handler;
-    void	*Instance;
+	u_int		Attributes;
+	u_int		AssignedIRQ;
+	irq_handler_t	Handler;
 } irq_req_t;
 
 /* Attributes for RequestIRQ and ReleaseIRQ */
@@ -124,8 +126,8 @@ typedef struct irq_req_t {
 #define IRQ_TYPE_TIME			0x01
 #define IRQ_TYPE_DYNAMIC_SHARING	0x02
 #define IRQ_FORCED_PULSE		0x04
-#define IRQ_FIRST_SHARED		0x08
-#define IRQ_HANDLE_PRESENT		0x10
+#define IRQ_FIRST_SHARED		0x08 /* unused */
+#define IRQ_HANDLE_PRESENT		0x10 /* unused */
 #define IRQ_PULSE_ALLOCATED		0x100
 
 /* Bits in IRQInfo1 field */

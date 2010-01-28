@@ -112,12 +112,14 @@ struct be_mcc_mailbox {
 
 #define CMD_SUBSYSTEM_COMMON	0x1
 #define CMD_SUBSYSTEM_ETH 	0x3
+#define CMD_SUBSYSTEM_LOWLEVEL  0xb
 
 #define OPCODE_COMMON_NTWK_MAC_QUERY			1
 #define OPCODE_COMMON_NTWK_MAC_SET			2
 #define OPCODE_COMMON_NTWK_MULTICAST_SET		3
 #define OPCODE_COMMON_NTWK_VLAN_CONFIG  		4
 #define OPCODE_COMMON_NTWK_LINK_STATUS_QUERY		5
+#define OPCODE_COMMON_READ_FLASHROM			6
 #define OPCODE_COMMON_WRITE_FLASHROM			7
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
@@ -138,6 +140,9 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_NTWK_PMAC_ADD			59
 #define OPCODE_COMMON_NTWK_PMAC_DEL			60
 #define OPCODE_COMMON_FUNCTION_RESET			61
+#define OPCODE_COMMON_ENABLE_DISABLE_BEACON		69
+#define OPCODE_COMMON_GET_BEACON_STATE			70
+#define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 
 #define OPCODE_ETH_ACPI_CONFIG				2
 #define OPCODE_ETH_PROMISCUOUS				3
@@ -146,6 +151,11 @@ struct be_mcc_mailbox {
 #define OPCODE_ETH_RX_CREATE            		8
 #define OPCODE_ETH_TX_DESTROY           		9
 #define OPCODE_ETH_RX_DESTROY           		10
+#define OPCODE_ETH_ACPI_WOL_MAGIC_CONFIG		12
+
+#define OPCODE_LOWLEVEL_HOST_DDR_DMA                    17
+#define OPCODE_LOWLEVEL_LOOPBACK_TEST                   18
+#define OPCODE_LOWLEVEL_SET_LOOPBACK_MODE		19
 
 struct be_cmd_req_hdr {
 	u8 opcode;		/* dword 0 */
@@ -435,7 +445,7 @@ enum be_if_flags {
  * filtering capabilities. */
 struct be_cmd_req_if_create {
 	struct be_cmd_req_hdr hdr;
-	u32 version;		/* ignore currntly */
+	u32 version;		/* ignore currently */
 	u32 capability_flags;
 	u32 enable_flags;
 	u8 mac_addr[ETH_ALEN];
@@ -587,6 +597,8 @@ struct be_cmd_req_promiscuous_config {
 	u16 rsvd0;
 } __packed;
 
+/******************** Multicast MAC Config *******************/
+#define BE_MAX_MC		64 /* set mcast promisc if > 64 */
 struct macaddr {
 	u8 byte[ETH_ALEN];
 };
@@ -596,7 +608,7 @@ struct be_cmd_req_mcast_mac_config {
 	u16 num_mac;
 	u8 promiscuous;
 	u8 interface_id;
-	struct macaddr mac[32];
+	struct macaddr mac[BE_MAX_MC];
 } __packed;
 
 static inline struct be_hw_stats *
@@ -633,8 +645,46 @@ struct be_cmd_resp_link_status {
 	u8 mac_fault;
 	u8 mgmt_mac_duplex;
 	u8 mgmt_mac_speed;
-	u16 rsvd0;
+	u16 link_speed;
+	u32 rsvd0;
 } __packed;
+
+/******************** Port Identification ***************************/
+/*    Identifies the type of port attached to NIC     */
+struct be_cmd_req_port_type {
+	struct be_cmd_req_hdr hdr;
+	u32 page_num;
+	u32 port;
+};
+
+enum {
+	TR_PAGE_A0 = 0xa0,
+	TR_PAGE_A2 = 0xa2
+};
+
+struct be_cmd_resp_port_type {
+	struct be_cmd_resp_hdr hdr;
+	u32 page_num;
+	u32 port;
+	struct data {
+		u8 identifier;
+		u8 identifier_ext;
+		u8 connector;
+		u8 transceiver[8];
+		u8 rsvd0[3];
+		u8 length_km;
+		u8 length_hm;
+		u8 length_om1;
+		u8 length_om2;
+		u8 length_cu;
+		u8 length_cu_m;
+		u8 vendor_name[16];
+		u8 rsvd;
+		u8 vendor_oui[3];
+		u8 vendor_pn[16];
+		u8 vendor_rev[4];
+	} data;
+};
 
 /******************** Get FW Version *******************/
 struct be_cmd_req_get_fw_version {
@@ -699,6 +749,37 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 rsvd[26];
 };
 
+/******************** Port Beacon ***************************/
+
+#define BEACON_STATE_ENABLED		0x1
+#define BEACON_STATE_DISABLED		0x0
+
+struct be_cmd_req_enable_disable_beacon {
+	struct be_cmd_req_hdr hdr;
+	u8  port_num;
+	u8  beacon_state;
+	u8  beacon_duration;
+	u8  status_duration;
+} __packed;
+
+struct be_cmd_resp_enable_disable_beacon {
+	struct be_cmd_resp_hdr resp_hdr;
+	u32 rsvd0;
+} __packed;
+
+struct be_cmd_req_get_beacon_state {
+	struct be_cmd_req_hdr hdr;
+	u8  port_num;
+	u8  rsvd0;
+	u16 rsvd1;
+} __packed;
+
+struct be_cmd_resp_get_beacon_state {
+	struct be_cmd_resp_hdr resp_hdr;
+	u8 beacon_state;
+	u8 rsvd0[3];
+} __packed;
+
 /****************** Firmware Flash ******************/
 struct flashrom_params {
 	u32 op_code;
@@ -711,6 +792,66 @@ struct flashrom_params {
 struct be_cmd_write_flashrom {
 	struct be_cmd_req_hdr hdr;
 	struct flashrom_params params;
+};
+
+/************************ WOL *******************************/
+struct be_cmd_req_acpi_wol_magic_config{
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd0[145];
+	u8 magic_mac[6];
+	u8 rsvd2[2];
+} __packed;
+
+/********************** LoopBack test *********************/
+struct be_cmd_req_loopback_test {
+	struct be_cmd_req_hdr hdr;
+	u32 loopback_type;
+	u32 num_pkts;
+	u64 pattern;
+	u32 src_port;
+	u32 dest_port;
+	u32 pkt_size;
+};
+
+struct be_cmd_resp_loopback_test {
+	struct be_cmd_resp_hdr resp_hdr;
+	u32    status;
+	u32    num_txfer;
+	u32    num_rx;
+	u32    miscomp_off;
+	u32    ticks_compl;
+};
+
+struct be_cmd_req_set_lmode {
+	struct be_cmd_req_hdr hdr;
+	u8 src_port;
+	u8 dest_port;
+	u8 loopback_type;
+	u8 loopback_state;
+};
+
+struct be_cmd_resp_set_lmode {
+	struct be_cmd_resp_hdr resp_hdr;
+	u8 rsvd0[4];
+};
+
+/********************** DDR DMA test *********************/
+struct be_cmd_req_ddrdma_test {
+	struct be_cmd_req_hdr hdr;
+	u64 pattern;
+	u32 byte_count;
+	u32 rsvd0;
+	u8  snd_buff[4096];
+	u8  rsvd1[4096];
+};
+
+struct be_cmd_resp_ddrdma_test {
+	struct be_cmd_resp_hdr hdr;
+	u64 pattern;
+	u32 byte_cnt;
+	u32 snd_err;
+	u8  rsvd0[4096];
+	u8  rcv_buff[4096];
 };
 
 extern int be_pci_fnum_get(struct be_adapter *adapter);
@@ -743,7 +884,7 @@ extern int be_cmd_rxq_create(struct be_adapter *adapter,
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_link_status_query(struct be_adapter *adapter,
-			bool *link_up);
+			bool *link_up, u8 *mac_speed, u16 *link_speed);
 extern int be_cmd_reset(struct be_adapter *adapter);
 extern int be_cmd_get_stats(struct be_adapter *adapter,
 			struct be_dma_mem *nonemb_cmd);
@@ -756,7 +897,8 @@ extern int be_cmd_vlan_config(struct be_adapter *adapter, u32 if_id,
 extern int be_cmd_promiscuous_config(struct be_adapter *adapter,
 			u8 port_num, bool en);
 extern int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
-			struct dev_mc_list *mc_list, u32 mc_count);
+			struct dev_mc_list *mc_list, u32 mc_count,
+			struct be_dma_mem *mem);
 extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
@@ -765,6 +907,24 @@ extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
 			u32 *port_num, u32 *cap);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_process_mcc(struct be_adapter *adapter);
+extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
+			u8 port_num, u8 beacon, u8 status, u8 state);
+extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
+			u8 port_num, u32 *state);
+extern int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
+					u8 *connector);
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);
+extern int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc);
+extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
+				struct be_dma_mem *nonemb_cmd);
+extern int be_cmd_fw_init(struct be_adapter *adapter);
+extern int be_cmd_fw_clean(struct be_adapter *adapter);
+extern int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
+				u32 loopback_type, u32 pkt_size,
+				u32 num_pkts, u64 pattern);
+extern int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
+			u32 byte_cnt, struct be_dma_mem *cmd);
+extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
+				u8 loopback_type, u8 enable);

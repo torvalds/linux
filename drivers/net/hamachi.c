@@ -407,10 +407,9 @@ that case.
 /* A few values that may be tweaked. */
 /* Size of each temporary Rx buffer, calculated as:
  * 1518 bytes (ethernet packet) + 2 bytes (to get 8 byte alignment for
- * the card) + 8 bytes of status info + 8 bytes for the Rx Checksum +
- * 2 more because we use skb_reserve.
+ * the card) + 8 bytes of status info + 8 bytes for the Rx Checksum
  */
-#define PKT_BUF_SZ		1538
+#define PKT_BUF_SZ		1536
 
 /* For now, this is going to be set to the maximum size of an ethernet
  * packet.  Eventually, we may want to make it a variable that is
@@ -873,7 +872,7 @@ static int hamachi_open(struct net_device *dev)
 	u32 rx_int_var, tx_int_var;
 	u16 fifo_info;
 
-	i = request_irq(dev->irq, &hamachi_interrupt, IRQF_SHARED, dev->name, dev);
+	i = request_irq(dev->irq, hamachi_interrupt, IRQF_SHARED, dev->name, dev);
 	if (i)
 		return i;
 
@@ -1152,12 +1151,13 @@ static void hamachi_tx_timeout(struct net_device *dev)
 	}
 	/* Fill in the Rx buffers.  Handle allocation failure gracefully. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		struct sk_buff *skb = netdev_alloc_skb(dev, hmp->rx_buf_sz);
+		struct sk_buff *skb;
+
+		skb = netdev_alloc_skb_ip_align(dev, hmp->rx_buf_sz);
 		hmp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
 
-		skb_reserve(skb, 2); /* 16 byte align the IP header. */
                 hmp->rx_ring[i].addr = cpu_to_leXX(pci_map_single(hmp->pci_dev,
 			skb->data, hmp->rx_buf_sz, PCI_DMA_FROMDEVICE));
 		hmp->rx_ring[i].status_n_length = cpu_to_le32(DescOwn |
@@ -1196,7 +1196,7 @@ static void hamachi_init_ring(struct net_device *dev)
 	 * card.  -KDU
 	 */
 	hmp->rx_buf_sz = (dev->mtu <= 1492 ? PKT_BUF_SZ :
-		(((dev->mtu+26+7) & ~7) + 2 + 16));
+		(((dev->mtu+26+7) & ~7) + 16));
 
 	/* Initialize all Rx descriptors. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
@@ -1566,8 +1566,8 @@ static int hamachi_rx(struct net_device *dev)
 #endif
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
-			if (pkt_len < rx_copybreak
-				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 #ifdef RX_CHECKSUM
 				printk(KERN_ERR "%s: rx_copybreak non-zero "
 				  "not good with RX_CHECKSUM\n", dev->name);
@@ -1722,10 +1722,10 @@ static void hamachi_error(struct net_device *dev, int intr_status)
 		readl(ioaddr + 0x370);
 		readl(ioaddr + 0x3F0);
 	}
-	if ((intr_status & ~(LinkChange|StatsMax|NegotiationChange|IntrRxDone|IntrTxDone))
-		&& hamachi_debug)
+	if ((intr_status & ~(LinkChange|StatsMax|NegotiationChange|IntrRxDone|IntrTxDone)) &&
+	    hamachi_debug)
 		printk(KERN_ERR "%s: Something Wicked happened! %4.4x.\n",
-			   dev->name, intr_status);
+		       dev->name, intr_status);
 	/* Hmmmmm, it's not clear how to recover from PCI faults. */
 	if (intr_status & (IntrTxPCIErr | IntrTxPCIFault))
 		hmp->stats.tx_fifo_errors++;

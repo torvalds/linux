@@ -204,6 +204,7 @@
 			interrupt-parent = <&ipic>;
 			tbi-handle = <&tbi0>;
 			phy-handle = < &phy0 >;
+			fsl,magic-packet;
 
 			mdio@520 {
 				#address-cells = <1>;
@@ -246,6 +247,7 @@
 			interrupt-parent = <&ipic>;
 			tbi-handle = <&tbi1>;
 			phy-handle = < &phy1 >;
+			fsl,magic-packet;
 
 			mdio@520 {
 				#address-cells = <1>;
@@ -309,6 +311,22 @@
 			interrupt-parent = <&ipic>;
 		};
 
+		gtm1: timer@500 {
+			compatible = "fsl,mpc8315-gtm", "fsl,gtm";
+			reg = <0x500 0x100>;
+			interrupts = <90 8 78 8 84 8 72 8>;
+			interrupt-parent = <&ipic>;
+			clock-frequency = <133333333>;
+		};
+
+		timer@600 {
+			compatible = "fsl,mpc8315-gtm", "fsl,gtm";
+			reg = <0x600 0x100>;
+			interrupts = <91 8 79 8 85 8 73 8>;
+			interrupt-parent = <&ipic>;
+			clock-frequency = <133333333>;
+		};
+
 		/* IPIC
 		 * interrupts cell = <intr #, sense>
 		 * sense values match linux IORESOURCE_IRQ_* defines:
@@ -336,6 +354,15 @@
 				      0x58 0x8
 				      0x59 0x8>;
 			interrupt-parent = < &ipic >;
+		};
+
+		pmc: power@b00 {
+			compatible = "fsl,mpc8315-pmc", "fsl,mpc8313-pmc",
+				     "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 8>;
+			interrupt-parent = <&ipic>;
+			fsl,mpc8313-wakeup-timer = <&gtm1>;
 		};
 	};
 

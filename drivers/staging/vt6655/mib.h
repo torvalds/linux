@@ -325,10 +325,10 @@ typedef struct tagSStatCounter {
    #ifdef Calcu_LinkQual
        //Tx count:
     ULONG TxNoRetryOkCount;         //success tx no retry !
-    ULONG TxRetryOkCount;              //sucess tx but retry !
+    ULONG TxRetryOkCount;              //success tx but retry !
     ULONG TxFailCount;                      //fail tx ?
       //Rx count:
-    ULONG RxOkCnt;                          //sucess rx !
+    ULONG RxOkCnt;                          //success rx !
     ULONG RxFcsErrCnt;                    //fail rx ?
       //statistic
     ULONG SignalStren;

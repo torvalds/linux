@@ -426,7 +426,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
 	}
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 
@@ -458,10 +459,18 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
 
 	if (stype == IEEE80211_STYPE_DEAUTH)
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, cookie);
+		if (cookie)
+			__cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
+		else
+			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 	else
-		cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len, cookie);
-	ieee80211_tx_skb(sdata, skb, ifmgd->flags & IEEE80211_STA_MFP_ENABLED);
+		if (cookie)
+			__cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
+		else
+			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
+	if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
+		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_send_pspoll(struct ieee80211_local *local,
@@ -492,7 +501,8 @@ void ieee80211_send_pspoll(struct ieee80211_local *local,
 	memcpy(pspoll->bssid, ifmgd->bssid, ETH_ALEN);
 	memcpy(pspoll->ta, sdata->dev->dev_addr, ETH_ALEN);
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_send_nullfunc(struct ieee80211_local *local,
@@ -525,7 +535,8 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	memcpy(nullfunc->addr2, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
 }
 
 /* spectrum management related things */
@@ -904,6 +915,14 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	sdata->u.mgd.flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 				IEEE80211_STA_BEACON_POLL);
 
+	/*
+	 * Always handle WMM once after association regardless
+	 * of the first value the AP uses. Setting -1 here has
+	 * that effect because the AP values is an unsigned
+	 * 4-bit value.
+	 */
+	sdata->u.mgd.wmm_last_param_set = -1;
+
 	ieee80211_led_assoc(local, 1);
 
 	sdata->vif.bss_conf.assoc = 1;
@@ -1071,8 +1090,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.assoc = false;
 
 	ieee80211_set_wmm_default(sdata);
-
-	ieee80211_recalc_idle(local);
 
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
@@ -1359,6 +1376,7 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 
 	if (!wk) {
 		ieee80211_set_disassoc(sdata, true);
+		ieee80211_recalc_idle(sdata->local);
 	} else {
 		list_del(&wk->list);
 		kfree(wk);
@@ -1392,6 +1410,7 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 			sdata->dev->name, mgmt->sa, reason_code);
 
 	ieee80211_set_disassoc(sdata, false);
+	ieee80211_recalc_idle(sdata->local);
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
@@ -1892,7 +1911,6 @@ ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 	fc = le16_to_cpu(mgmt->frame_control);
 
 	switch (fc & IEEE80211_FCTL_STYPE) {
-	case IEEE80211_STYPE_PROBE_REQ:
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
 	case IEEE80211_STYPE_AUTH:
@@ -1945,7 +1963,9 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			rma = ieee80211_rx_mgmt_disassoc(sdata, mgmt, skb->len);
 			break;
 		case IEEE80211_STYPE_ACTION:
-			/* XXX: differentiate, can only happen for CSA now! */
+			if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
+				break;
+
 			ieee80211_sta_process_chanswitch(sdata,
 					&mgmt->u.action.u.chan_switch.sw_elem,
 					ifmgd->associated);
@@ -1958,12 +1978,10 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			/* no action */
 			break;
 		case RX_MGMT_CFG80211_DEAUTH:
-			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len,
-					     NULL);
+			cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 			break;
 		case RX_MGMT_CFG80211_DISASSOC:
-			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len,
-					       NULL);
+			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
 			break;
 		default:
 			WARN(1, "unexpected: %d", rma);
@@ -2018,7 +2036,7 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		cfg80211_send_rx_assoc(sdata->dev, (u8 *) mgmt, skb->len);
 		break;
 	case RX_MGMT_CFG80211_DEAUTH:
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len, NULL);
+		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
 		break;
 	default:
 		WARN(1, "unexpected: %d", rma);
@@ -2109,6 +2127,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 				" after %dms, disconnecting.\n",
 				bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
 			ieee80211_set_disassoc(sdata, true);
+			ieee80211_recalc_idle(local);
 			mutex_unlock(&ifmgd->mtx);
 			/*
 			 * must be outside lock due to cfg80211,
@@ -2500,6 +2519,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_work *wk;
 	const u8 *bssid = NULL;
+	bool not_auth_yet = false;
 
 	mutex_lock(&ifmgd->mtx);
 
@@ -2509,10 +2529,26 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	} else list_for_each_entry(wk, &ifmgd->work_list, list) {
 		if (&wk->bss->cbss == req->bss) {
 			bssid = req->bss->bssid;
+			if (wk->state == IEEE80211_MGD_STATE_PROBE)
+				not_auth_yet = true;
 			list_del(&wk->list);
 			kfree(wk);
 			break;
 		}
+	}
+
+	/*
+	 * If somebody requests authentication and we haven't
+	 * sent out an auth frame yet there's no need to send
+	 * out a deauth frame either. If the state was PROBE,
+	 * then this is the case. If it's AUTH we have sent a
+	 * frame, and if it's IDLE we have completed the auth
+	 * process already.
+	 */
+	if (not_auth_yet) {
+		mutex_unlock(&ifmgd->mtx);
+		__cfg80211_auth_canceled(sdata->dev, bssid);
+		return 0;
 	}
 
 	/*
@@ -2534,6 +2570,8 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_deauth_disassoc(sdata, bssid,
 			IEEE80211_STYPE_DEAUTH, req->reason_code,
 			cookie);
+
+	ieee80211_recalc_idle(sdata->local);
 
 	return 0;
 }
@@ -2567,5 +2605,8 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_deauth_disassoc(sdata, req->bss->bssid,
 			IEEE80211_STYPE_DISASSOC, req->reason_code,
 			cookie);
+
+	ieee80211_recalc_idle(sdata->local);
+
 	return 0;
 }

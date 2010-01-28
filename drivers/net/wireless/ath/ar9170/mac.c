@@ -35,6 +35,9 @@
  *    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  *    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#include <asm/unaligned.h>
+
 #include "ar9170.h"
 #include "cmd.h"
 
@@ -227,11 +230,8 @@ static int ar9170_set_mac_reg(struct ar9170 *ar, const u32 reg, const u8 *mac)
 
 	ar9170_regwrite_begin(ar);
 
-	ar9170_regwrite(reg,
-			(mac[3] << 24) | (mac[2] << 16) |
-			(mac[1] << 8) | mac[0]);
-
-	ar9170_regwrite(reg + 4, (mac[5] << 8) | mac[4]);
+	ar9170_regwrite(reg, get_unaligned_le32(mac));
+	ar9170_regwrite(reg + 4, get_unaligned_le16(mac + 4));
 
 	ar9170_regwrite_finish();
 
@@ -311,13 +311,14 @@ static int ar9170_set_promiscouous(struct ar9170 *ar)
 
 int ar9170_set_operating_mode(struct ar9170 *ar)
 {
+	struct ath_common *common = &ar->common;
 	u32 pm_mode = AR9170_MAC_REG_POWERMGT_DEFAULTS;
 	u8 *mac_addr, *bssid;
 	int err;
 
 	if (ar->vif) {
-		mac_addr = ar->mac_addr;
-		bssid = ar->bssid;
+		mac_addr = common->macaddr;
+		bssid = common->curbssid;
 
 		switch (ar->vif->type) {
 		case NL80211_IFTYPE_MESH_POINT:

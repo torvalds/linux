@@ -35,11 +35,13 @@
 
 #include <mach/regs-switch.h>
 #include <mach/regs-misc.h>
+#include <asm/mach/irq.h>
+#include <mach/regs-irq.h>
 
 #include "ks8695net.h"
 
 #define MODULENAME	"ks8695_ether"
-#define MODULEVERSION	"1.01"
+#define MODULEVERSION	"1.02"
 
 /*
  * Transmit and device reset timeout, default 5 seconds.
@@ -95,6 +97,9 @@ struct ks8695_skbuff {
 #define MAX_RX_DESC 16
 #define MAX_RX_DESC_MASK 0xf
 
+/*napi_weight have better more than rx DMA buffers*/
+#define NAPI_WEIGHT   64
+
 #define MAX_RXBUF_SIZE 0x700
 
 #define TX_RING_DMA_SIZE (sizeof(struct tx_ring_desc) * MAX_TX_DESC)
@@ -120,6 +125,7 @@ enum ks8695_dtype {
  *	@dev: The platform device object for this interface
  *	@dtype: The type of this device
  *	@io_regs: The ioremapped registers for this interface
+ *      @napi : Add support NAPI for Rx
  *	@rx_irq_name: The textual name of the RX IRQ from the platform data
  *	@tx_irq_name: The textual name of the TX IRQ from the platform data
  *	@link_irq_name: The textual name of the link IRQ from the
@@ -143,6 +149,7 @@ enum ks8695_dtype {
  *	@rx_ring_dma: The DMA mapped equivalent of rx_ring
  *	@rx_buffers: The sk_buff mappings for the RX ring
  *	@next_rx_desc_read: The next RX descriptor to read from on IRQ
+ *      @rx_lock: A lock to protect Rx irq function
  *	@msg_enable: The flags for which messages to emit
  */
 struct ks8695_priv {
@@ -151,6 +158,8 @@ struct ks8695_priv {
 	struct device *dev;
 	enum ks8695_dtype dtype;
 	void __iomem *io_regs;
+
+	struct napi_struct	napi;
 
 	const char *rx_irq_name, *tx_irq_name, *link_irq_name;
 	int rx_irq, tx_irq, link_irq;
@@ -172,6 +181,7 @@ struct ks8695_priv {
 	dma_addr_t rx_ring_dma;
 	struct ks8695_skbuff rx_buffers[MAX_RX_DESC];
 	int next_rx_desc_read;
+	spinlock_t rx_lock;
 
 	int msg_enable;
 };
@@ -392,29 +402,74 @@ ks8695_tx_irq(int irq, void *dev_id)
 }
 
 /**
+ *	ks8695_get_rx_enable_bit - Get rx interrupt enable/status bit
+ *	@ksp: Private data for the KS8695 Ethernet
+ *
+ *    For KS8695 document:
+ *    Interrupt Enable Register (offset 0xE204)
+ *        Bit29 : WAN MAC Receive Interrupt Enable
+ *        Bit16 : LAN MAC Receive Interrupt Enable
+ *    Interrupt Status Register (Offset 0xF208)
+ *        Bit29: WAN MAC Receive Status
+ *        Bit16: LAN MAC Receive Status
+ *    So, this Rx interrrupt enable/status bit number is equal
+ *    as Rx IRQ number.
+ */
+static inline u32 ks8695_get_rx_enable_bit(struct ks8695_priv *ksp)
+{
+	return ksp->rx_irq;
+}
+
+/**
  *	ks8695_rx_irq - Receive IRQ handler
  *	@irq: The IRQ which went off (ignored)
  *	@dev_id: The net_device for the interrupt
  *
- *	Process the RX ring, passing any received packets up to the
- *	host.  If we received anything other than errors, we then
- *	refill the ring.
+ *	Inform NAPI that packet reception needs to be scheduled
  */
+
 static irqreturn_t
 ks8695_rx_irq(int irq, void *dev_id)
 {
 	struct net_device *ndev = (struct net_device *)dev_id;
 	struct ks8695_priv *ksp = netdev_priv(ndev);
+
+	spin_lock(&ksp->rx_lock);
+
+	if (napi_schedule_prep(&ksp->napi)) {
+		unsigned long status = readl(KS8695_IRQ_VA + KS8695_INTEN);
+		unsigned long mask_bit = 1 << ks8695_get_rx_enable_bit(ksp);
+		/*disable rx interrupt*/
+		status &= ~mask_bit;
+		writel(status , KS8695_IRQ_VA + KS8695_INTEN);
+		__napi_schedule(&ksp->napi);
+	}
+
+	spin_unlock(&ksp->rx_lock);
+	return IRQ_HANDLED;
+}
+
+/**
+ *	ks8695_rx - Receive packets  called by NAPI poll method
+ *	@ksp: Private data for the KS8695 Ethernet
+ *	@budget: The max packets would be receive
+ */
+
+static int ks8695_rx(struct ks8695_priv *ksp, int budget)
+{
+	struct net_device *ndev = ksp->ndev;
 	struct sk_buff *skb;
 	int buff_n;
 	u32 flags;
 	int pktlen;
 	int last_rx_processed = -1;
+	int received = 0;
 
 	buff_n = ksp->next_rx_desc_read;
-	do {
-		if (ksp->rx_buffers[buff_n].skb &&
-		    !(ksp->rx_ring[buff_n].status & cpu_to_le32(RDES_OWN))) {
+	while (received < budget
+			&& ksp->rx_buffers[buff_n].skb
+			&& (!(ksp->rx_ring[buff_n].status &
+					cpu_to_le32(RDES_OWN)))) {
 			rmb();
 			flags = le32_to_cpu(ksp->rx_ring[buff_n].status);
 			/* Found an SKB which we own, this means we
@@ -464,7 +519,7 @@ ks8695_rx_irq(int irq, void *dev_id)
 			/* Relinquish the SKB to the network layer */
 			skb_put(skb, pktlen);
 			skb->protocol = eth_type_trans(skb, ndev);
-			netif_rx(skb);
+			netif_receive_skb(skb);
 
 			/* Record stats */
 			ndev->stats.rx_packets++;
@@ -478,29 +533,55 @@ rx_failure:
 			/* Give the ring entry back to the hardware */
 			ksp->rx_ring[buff_n].status = cpu_to_le32(RDES_OWN);
 rx_finished:
+			received++;
 			/* And note this as processed so we can start
 			 * from here next time
 			 */
 			last_rx_processed = buff_n;
-		} else {
-			/* Ran out of things to process, stop now */
-			break;
-		}
-		buff_n = (buff_n + 1) & MAX_RX_DESC_MASK;
-	} while (buff_n != ksp->next_rx_desc_read);
-
-	/* And note which RX descriptor we last did anything with */
-	if (likely(last_rx_processed != -1))
-		ksp->next_rx_desc_read =
-			(last_rx_processed + 1) & MAX_RX_DESC_MASK;
-
+			buff_n = (buff_n + 1) & MAX_RX_DESC_MASK;
+			/*And note which RX descriptor we last did */
+			if (likely(last_rx_processed != -1))
+				ksp->next_rx_desc_read =
+					(last_rx_processed + 1) &
+					MAX_RX_DESC_MASK;
+	}
 	/* And refill the buffers */
 	ks8695_refill_rxbuffers(ksp);
 
-	/* Kick the RX DMA engine, in case it became suspended */
+	/* Kick the RX DMA engine, in case it became
+	 *  suspended */
 	ks8695_writereg(ksp, KS8695_DRSC, 0);
+	return received;
+}
 
-	return IRQ_HANDLED;
+
+/**
+ *	ks8695_poll - Receive packet by NAPI poll method
+ *	@ksp: Private data for the KS8695 Ethernet
+ *	@budget: The remaining number packets for network subsystem
+ *
+ *     Invoked by the network core when it requests for new
+ *     packets from the driver
+ */
+static int ks8695_poll(struct napi_struct *napi, int budget)
+{
+	struct ks8695_priv *ksp = container_of(napi, struct ks8695_priv, napi);
+	unsigned long  work_done;
+
+	unsigned long isr = readl(KS8695_IRQ_VA + KS8695_INTEN);
+	unsigned long mask_bit = 1 << ks8695_get_rx_enable_bit(ksp);
+
+	work_done = ks8695_rx(ksp, budget);
+
+	if (work_done < budget) {
+		unsigned long flags;
+		spin_lock_irqsave(&ksp->rx_lock, flags);
+		/*enable rx interrupt*/
+		writel(isr | mask_bit, KS8695_IRQ_VA + KS8695_INTEN);
+		__napi_complete(napi);
+		spin_unlock_irqrestore(&ksp->rx_lock, flags);
+	}
+	return work_done;
 }
 
 /**
@@ -1253,6 +1334,7 @@ ks8695_stop(struct net_device *ndev)
 	struct ks8695_priv *ksp = netdev_priv(ndev);
 
 	netif_stop_queue(ndev);
+	napi_disable(&ksp->napi);
 	netif_carrier_off(ndev);
 
 	ks8695_shutdown(ksp);
@@ -1287,6 +1369,7 @@ ks8695_open(struct net_device *ndev)
 		return ret;
 	}
 
+	napi_enable(&ksp->napi);
 	netif_start_queue(ndev);
 
 	return 0;
@@ -1472,6 +1555,8 @@ ks8695_probe(struct platform_device *pdev)
 	SET_ETHTOOL_OPS(ndev, &ks8695_ethtool_ops);
 	ndev->watchdog_timeo	 = msecs_to_jiffies(watchdog);
 
+	netif_napi_add(ndev, &ksp->napi, ks8695_poll, NAPI_WEIGHT);
+
 	/* Retrieve the default MAC addr from the chip. */
 	/* The bootloader should have left it in there for us. */
 
@@ -1505,6 +1590,7 @@ ks8695_probe(struct platform_device *pdev)
 
 	/* And initialise the queue's lock */
 	spin_lock_init(&ksp->txq_lock);
+	spin_lock_init(&ksp->rx_lock);
 
 	/* Specify the RX DMA ring buffer */
 	ksp->rx_ring = ksp->ring_base + TX_RING_DMA_SIZE;
@@ -1626,6 +1712,7 @@ ks8695_drv_remove(struct platform_device *pdev)
 	struct ks8695_priv *ksp = netdev_priv(ndev);
 
 	platform_set_drvdata(pdev, NULL);
+	netif_napi_del(&ksp->napi);
 
 	unregister_netdev(ndev);
 	ks8695_release_device(ksp);

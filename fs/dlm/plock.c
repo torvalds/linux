@@ -82,7 +82,7 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (!ls)
 		return -EINVAL;
 
-	xop = kzalloc(sizeof(*xop), GFP_KERNEL);
+	xop = kzalloc(sizeof(*xop), GFP_NOFS);
 	if (!xop) {
 		rv = -ENOMEM;
 		goto out;
@@ -143,7 +143,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(dlm_posix_lock);
 
-/* Returns failure iff a succesful lock operation should be canceled */
+/* Returns failure iff a successful lock operation should be canceled */
 static int dlm_plock_callback(struct plock_op *op)
 {
 	struct file *file;
@@ -211,7 +211,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (!ls)
 		return -EINVAL;
 
-	op = kzalloc(sizeof(*op), GFP_KERNEL);
+	op = kzalloc(sizeof(*op), GFP_NOFS);
 	if (!op) {
 		rv = -ENOMEM;
 		goto out;
@@ -266,7 +266,7 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	if (!ls)
 		return -EINVAL;
 
-	op = kzalloc(sizeof(*op), GFP_KERNEL);
+	op = kzalloc(sizeof(*op), GFP_NOFS);
 	if (!op) {
 		rv = -ENOMEM;
 		goto out;

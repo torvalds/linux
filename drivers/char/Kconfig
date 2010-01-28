@@ -201,19 +201,6 @@ config DIGIEPCA
 	  To compile this driver as a module, choose M here: the
 	  module will be called epca.
 
-config ESPSERIAL
-	tristate "Hayes ESP serial port support"
-	depends on SERIAL_NONSTANDARD && ISA && ISA_DMA_API && BROKEN
-	help
-	  This is a driver which supports Hayes ESP serial ports.  Both single
-	  port cards and multiport cards are supported.  Make sure to read
-	  <file:Documentation/hayes-esp.txt>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called esp.
-
-	  If unsure, say N.
-
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
 	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
@@ -515,7 +502,7 @@ config BRIQ_PANEL
 
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
-	depends on BLACKFIN && (BF52x || BF54x)
+	depends on BLACKFIN && (BF51x || BF52x || BF54x)
 	default y
 	help
 	  If you say Y here, you will get support for a character device
@@ -682,7 +669,7 @@ config VIRTIO_CONSOLE
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
 	  firmware virtual consoles from one Linux partition by

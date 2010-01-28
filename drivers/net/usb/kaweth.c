@@ -471,16 +471,7 @@ static int kaweth_reset(struct kaweth_device *kaweth)
 	int result;
 
 	dbg("kaweth_reset(%p)", kaweth);
-	result = kaweth_control(kaweth,
-				usb_sndctrlpipe(kaweth->dev, 0),
-				USB_REQ_SET_CONFIGURATION,
-				0,
-				kaweth->dev->config[0].desc.bConfigurationValue,
-				0,
-				NULL,
-				0,
-				KAWETH_CONTROL_TIMEOUT);
-
+	result = usb_reset_configuration(kaweth->dev);
 	mdelay(10);
 
 	dbg("kaweth_reset() returns %d.",result);
@@ -725,7 +716,7 @@ static int kaweth_open(struct net_device *net)
 	return 0;
 
 err_out:
-	usb_autopm_enable(kaweth->intf);
+	usb_autopm_put_interface(kaweth->intf);
 	return -EIO;
 }
 
@@ -762,7 +753,7 @@ static int kaweth_close(struct net_device *net)
 
 	kaweth->status &= ~KAWETH_STATUS_CLOSING;
 
-	usb_autopm_enable(kaweth->intf);
+	usb_autopm_put_interface(kaweth->intf);
 
 	return 0;
 }

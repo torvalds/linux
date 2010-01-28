@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 static void ath9k_get_txgain_index(struct ath_hw *ah,
 		struct ath9k_channel *chan,
@@ -89,14 +89,15 @@ static int ath9k_hw_def_get_eeprom_rev(struct ath_hw *ah)
 static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 {
 #define SIZE_EEPROM_DEF (sizeof(struct ar5416_eeprom_def) / sizeof(u16))
+	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eep_data = (u16 *)&ah->eeprom.def;
 	int addr, ar5416_eep_start_loc = 0x100;
 
 	for (addr = 0; addr < SIZE_EEPROM_DEF; addr++) {
-		if (!ath9k_hw_nvram_read(ah, addr + ar5416_eep_start_loc,
+		if (!ath9k_hw_nvram_read(common, addr + ar5416_eep_start_loc,
 					 eep_data)) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Unable to read eeprom region\n");
+			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+				  "Unable to read eeprom region\n");
 			return false;
 		}
 		eep_data++;
@@ -109,19 +110,20 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 {
 	struct ar5416_eeprom_def *eep =
 		(struct ar5416_eeprom_def *) &ah->eeprom.def;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eepdata, temp, magic, magic2;
 	u32 sum = 0, el;
 	bool need_swap = false;
 	int i, addr, size;
 
-	if (!ath9k_hw_nvram_read(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL, "Reading Magic # failed\n");
+	if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+		ath_print(common, ATH_DBG_FATAL, "Reading Magic # failed\n");
 		return false;
 	}
 
 	if (!ath9k_hw_use_flash(ah)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"Read Magic = 0x%04X\n", magic);
+		ath_print(common, ATH_DBG_EEPROM,
+			  "Read Magic = 0x%04X\n", magic);
 
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
@@ -137,16 +139,16 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 					eepdata++;
 				}
 			} else {
-				DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-					"Invalid EEPROM Magic. "
-					"Endianness mismatch.\n");
+				ath_print(common, ATH_DBG_FATAL,
+					  "Invalid EEPROM Magic. "
+					  "Endianness mismatch.\n");
 				return -EINVAL;
 			}
 		}
 	}
 
-	DPRINTF(ah->ah_sc, ATH_DBG_EEPROM, "need_swap = %s.\n",
-		need_swap ? "True" : "False");
+	ath_print(common, ATH_DBG_EEPROM, "need_swap = %s.\n",
+		  need_swap ? "True" : "False");
 
 	if (need_swap)
 		el = swab16(ah->eeprom.def.baseEepHeader.length);
@@ -167,8 +169,8 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		u32 integer, j;
 		u16 word;
 
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"EEPROM Endianness is not native.. Changing.\n");
+		ath_print(common, ATH_DBG_EEPROM,
+			  "EEPROM Endianness is not native.. Changing.\n");
 
 		word = swab16(eep->baseEepHeader.length);
 		eep->baseEepHeader.length = word;
@@ -214,8 +216,8 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 
 	if (sum != 0xffff || ah->eep_ops->get_eeprom_ver(ah) != AR5416_EEP_VER ||
 	    ah->eep_ops->get_eeprom_rev(ah) < AR5416_EEP_NO_BACK_VER) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"Bad EEPROM checksum 0x%x or revision 0x%04x\n",
+		ath_print(common, ATH_DBG_FATAL,
+			  "Bad EEPROM checksum 0x%x or revision 0x%04x\n",
 			sum, ah->eep_ops->get_eeprom_ver(ah));
 		return -EINVAL;
 	}
@@ -289,6 +291,11 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 			return pBase->frac_n_5g;
 		else
 			return 0;
+	case EEP_PWR_TABLE_OFFSET:
+		if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_21)
+			return pBase->pwr_table_offset;
+		else
+			return AR5416_PWR_TABLE_OFFSET_DB;
 	default:
 		return 0;
 	}
@@ -739,6 +746,76 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 	return;
 }
 
+static int16_t ath9k_change_gain_boundary_setting(struct ath_hw *ah,
+				u16 *gb,
+				u16 numXpdGain,
+				u16 pdGainOverlap_t2,
+				int8_t pwr_table_offset,
+				int16_t *diff)
+
+{
+	u16 k;
+
+	/* Prior to writing the boundaries or the pdadc vs. power table
+	 * into the chip registers the default starting point on the pdadc
+	 * vs. power table needs to be checked and the curve boundaries
+	 * adjusted accordingly
+	 */
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
+		u16 gb_limit;
+
+		if (AR5416_PWR_TABLE_OFFSET_DB != pwr_table_offset) {
+			/* get the difference in dB */
+			*diff = (u16)(pwr_table_offset - AR5416_PWR_TABLE_OFFSET_DB);
+			/* get the number of half dB steps */
+			*diff *= 2;
+			/* change the original gain boundary settings
+			 * by the number of half dB steps
+			 */
+			for (k = 0; k < numXpdGain; k++)
+				gb[k] = (u16)(gb[k] - *diff);
+		}
+		/* Because of a hardware limitation, ensure the gain boundary
+		 * is not larger than (63 - overlap)
+		 */
+		gb_limit = (u16)(AR5416_MAX_RATE_POWER - pdGainOverlap_t2);
+
+		for (k = 0; k < numXpdGain; k++)
+			gb[k] = (u16)min(gb_limit, gb[k]);
+	}
+
+	return *diff;
+}
+
+static void ath9k_adjust_pdadc_values(struct ath_hw *ah,
+				      int8_t pwr_table_offset,
+				      int16_t diff,
+				      u8 *pdadcValues)
+{
+#define NUM_PDADC(diff) (AR5416_NUM_PDADC_VALUES - diff)
+	u16 k;
+
+	/* If this is a board that has a pwrTableOffset that differs from
+	 * the default AR5416_PWR_TABLE_OFFSET_DB then the start of the
+	 * pdadc vs pwr table needs to be adjusted prior to writing to the
+	 * chip.
+	 */
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
+		if (AR5416_PWR_TABLE_OFFSET_DB != pwr_table_offset) {
+			/* shift the table to start at the new offset */
+			for (k = 0; k < (u16)NUM_PDADC(diff); k++ ) {
+				pdadcValues[k] = pdadcValues[k + diff];
+			}
+
+			/* fill the back of the table */
+			for (k = (u16)NUM_PDADC(diff); k < NUM_PDADC(0); k++) {
+				pdadcValues[k] = pdadcValues[NUM_PDADC(diff)];
+			}
+		}
+	}
+#undef NUM_PDADC
+}
+
 static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
 				  int16_t *pTxPowerIndexOffset)
@@ -746,7 +823,7 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 #define SM_PD_GAIN(x) SM(0x38, AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_##x)
 #define SM_PDGAIN_B(x, y) \
 		SM((gainBoundaries[x]), AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_##y)
-
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar5416_eeprom_def *pEepData = &ah->eeprom.def;
 	struct cal_data_per_freq *pRawDataset;
 	u8 *pCalBChans = NULL;
@@ -754,14 +831,17 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 	static u8 pdadcValues[AR5416_NUM_PDADC_VALUES];
 	u16 gainBoundaries[AR5416_PD_GAINS_IN_MASK];
 	u16 numPiers, i, j;
-	int16_t tMinCalPower;
+	int16_t tMinCalPower, diff = 0;
 	u16 numXpdGain, xpdMask;
 	u16 xpdGainValues[AR5416_NUM_PD_GAINS] = { 0, 0, 0, 0 };
 	u32 reg32, regOffset, regChainOffset;
 	int16_t modalIdx;
+	int8_t pwr_table_offset;
 
 	modalIdx = IS_CHAN_2GHZ(chan) ? 1 : 0;
 	xpdMask = pEepData->modalHeader[modalIdx].xpdGain;
+
+	pwr_table_offset = ah->eep_ops->get_eeprom(ah, EEP_PWR_TABLE_OFFSET);
 
 	if ((pEepData->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
 	    AR5416_EEP_MINOR_VER_2) {
@@ -842,6 +922,13 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 							numXpdGain);
 			}
 
+			diff = ath9k_change_gain_boundary_setting(ah,
+							   gainBoundaries,
+							   numXpdGain,
+							   pdGainOverlap_t2,
+							   pwr_table_offset,
+							   &diff);
+
 			if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 				if (OLC_FOR_AR9280_20_LATER) {
 					REG_WRITE(ah,
@@ -862,6 +949,10 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 				}
 			}
 
+
+			ath9k_adjust_pdadc_values(ah, pwr_table_offset,
+						  diff, pdadcValues);
+
 			regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
 			for (j = 0; j < 32; j++) {
 				reg32 = ((pdadcValues[4 * j + 0] & 0xFF) << 0) |
@@ -870,20 +961,20 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 					((pdadcValues[4 * j + 3] & 0xFF) << 24);
 				REG_WRITE(ah, regOffset, reg32);
 
-				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-					"PDADC (%d,%4x): %4.4x %8.8x\n",
-					i, regChainOffset, regOffset,
-					reg32);
-				DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-					"PDADC: Chain %d | PDADC %3d "
-					"Value %3d | PDADC %3d Value %3d | "
-					"PDADC %3d Value %3d | PDADC %3d "
-					"Value %3d |\n",
-					i, 4 * j, pdadcValues[4 * j],
-					4 * j + 1, pdadcValues[4 * j + 1],
-					4 * j + 2, pdadcValues[4 * j + 2],
-					4 * j + 3,
-					pdadcValues[4 * j + 3]);
+				ath_print(common, ATH_DBG_EEPROM,
+					  "PDADC (%d,%4x): %4.4x %8.8x\n",
+					  i, regChainOffset, regOffset,
+					  reg32);
+				ath_print(common, ATH_DBG_EEPROM,
+					  "PDADC: Chain %d | PDADC %3d "
+					  "Value %3d | PDADC %3d Value %3d | "
+					  "PDADC %3d Value %3d | PDADC %3d "
+					  "Value %3d |\n",
+					  i, 4 * j, pdadcValues[4 * j],
+					  4 * j + 1, pdadcValues[4 * j + 1],
+					  4 * j + 2, pdadcValues[4 * j + 2],
+					  4 * j + 3,
+					  pdadcValues[4 * j + 3]);
 
 				regOffset += 4;
 			}
@@ -1197,8 +1288,13 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 	}
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		for (i = 0; i < Ar5416RateSize; i++)
-			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET * 2;
+		for (i = 0; i < Ar5416RateSize; i++) {
+			int8_t pwr_table_offset;
+
+			pwr_table_offset = ah->eep_ops->get_eeprom(ah,
+							EEP_PWR_TABLE_OFFSET);
+			ratesArray[i] -= pwr_table_offset * 2;
+		}
 	}
 
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
@@ -1297,7 +1393,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		regulatory->max_power_level =
-			ratesArray[i] + AR5416_PWR_TABLE_OFFSET * 2;
+			ratesArray[i] + AR5416_PWR_TABLE_OFFSET_DB * 2;
 	else
 		regulatory->max_power_level = ratesArray[i];
 
@@ -1311,8 +1407,8 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
 		break;
 	default:
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"Invalid chainmask configuration\n");
+		ath_print(ath9k_hw_common(ah), ATH_DBG_EEPROM,
+			  "Invalid chainmask configuration\n");
 		break;
 	}
 }
@@ -1349,20 +1445,21 @@ static u16 ath9k_hw_def_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 {
 #define EEP_DEF_SPURCHAN \
 	(ah->eeprom.def.modalHeader[is2GHz].spurChans[i].spurChan)
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	u16 spur_val = AR_NO_SPUR;
 
-	DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-		"Getting spur idx %d is2Ghz. %d val %x\n",
-		i, is2GHz, ah->config.spurchans[i][is2GHz]);
+	ath_print(common, ATH_DBG_ANI,
+		  "Getting spur idx %d is2Ghz. %d val %x\n",
+		  i, is2GHz, ah->config.spurchans[i][is2GHz]);
 
 	switch (ah->config.spurmode) {
 	case SPUR_DISABLE:
 		break;
 	case SPUR_ENABLE_IOCTL:
 		spur_val = ah->config.spurchans[i][is2GHz];
-		DPRINTF(ah->ah_sc, ATH_DBG_ANI,
-			"Getting spur val from new loc. %d\n", spur_val);
+		ath_print(common, ATH_DBG_ANI,
+			  "Getting spur val from new loc. %d\n", spur_val);
 		break;
 	case SPUR_ENABLE_EEPROM:
 		spur_val = EEP_DEF_SPURCHAN;

@@ -82,8 +82,7 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 	int bus, slot;
 	int ret;
 
-	printk("comedi: attempt to attach...\n");
-	printk("comedi%d: adl_pci7432\n", dev->minor);
+	printk(KERN_INFO "comedi%d: attach adl_pci7432\n", dev->minor);
 
 	dev->board_name = "pci7432";
 	bus = it->options[0];
@@ -110,14 +109,14 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 			}
 			devpriv->pci_dev = pcidev;
 			if (comedi_pci_enable(pcidev, "adl_pci7296") < 0) {
-				printk
-				    ("comedi%d: Failed to enable PCI device and request regions\n",
+				printk(KERN_ERR "comedi%d: Failed to enable PCI device and request regions\n",
 				     dev->minor);
 				return -EIO;
 			}
 
 			dev->iobase = pci_resource_start(pcidev, 2);
-			printk("comedi: base addr %4lx\n", dev->iobase);
+			printk(KERN_INFO "comedi: base addr %4lx\n",
+				dev->iobase);
 
 			/*  four 8255 digital io subdevices */
 			s = dev->subdevices + 0;
@@ -145,25 +144,25 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 			if (ret < 0)
 				return ret;
 
-			printk("attached\n");
+			printk(KERN_DEBUG "comedi%d: adl_pci7432 attached\n",
+				dev->minor);
 
 			return 1;
 		}
 	}
 
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+	printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
 	       dev->minor, bus, slot);
 	return -EIO;
 }
 
 static int adl_pci7296_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: pci7432: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: pci7432: remove\n", dev->minor);
 
 	if (devpriv && devpriv->pci_dev) {
-		if (dev->iobase) {
+		if (dev->iobase)
 			comedi_pci_disable(devpriv->pci_dev);
-		}
 		pci_dev_put(devpriv->pci_dev);
 	}
 	/*  detach four 8255 digital io subdevices */

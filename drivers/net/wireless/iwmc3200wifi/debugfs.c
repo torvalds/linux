@@ -158,6 +158,29 @@ static ssize_t iwm_debugfs_txq_read(struct file *filp, char __user *buffer,
 		}
 
 		spin_unlock_irqrestore(&txq->queue.lock, flags);
+
+		spin_lock_irqsave(&txq->stopped_queue.lock, flags);
+
+		len += snprintf(buf + len, buf_len - len,
+				"\tStopped Queue len:   %d\n",
+				skb_queue_len(&txq->stopped_queue));
+		for (j = 0; j < skb_queue_len(&txq->stopped_queue); j++) {
+			struct iwm_tx_info *tx_info;
+
+			skb = skb->next;
+			tx_info = skb_to_tx_info(skb);
+
+			len += snprintf(buf + len, buf_len - len,
+					"\tSKB #%d\n", j);
+			len += snprintf(buf + len, buf_len - len,
+					"\t\tsta:   %d\n", tx_info->sta);
+			len += snprintf(buf + len, buf_len - len,
+					"\t\tcolor: %d\n", tx_info->color);
+			len += snprintf(buf + len, buf_len - len,
+					"\t\ttid:   %d\n", tx_info->tid);
+		}
+
+		spin_unlock_irqrestore(&txq->stopped_queue.lock, flags);
 	}
 
 	ret = simple_read_from_buffer(buffer, len, ppos, buf, buf_len);

@@ -263,6 +263,7 @@ int fscache_add_cache(struct fscache_cache *cache,
 	spin_lock(&cache->object_list_lock);
 	list_add_tail(&ifsdef->cache_link, &cache->object_list);
 	spin_unlock(&cache->object_list_lock);
+	fscache_objlist_add(ifsdef);
 
 	/* add the cache's netfs definition index object to the top level index
 	 * cookie as a known backing object */
@@ -380,11 +381,15 @@ void fscache_withdraw_cache(struct fscache_cache *cache)
 
 	/* make sure all pages pinned by operations on behalf of the netfs are
 	 * written to disk */
+	fscache_stat(&fscache_n_cop_sync_cache);
 	cache->ops->sync_cache(cache);
+	fscache_stat_d(&fscache_n_cop_sync_cache);
 
 	/* dissociate all the netfs pages backed by this cache from the block
 	 * mappings in the cache */
+	fscache_stat(&fscache_n_cop_dissociate_pages);
 	cache->ops->dissociate_pages(cache);
+	fscache_stat_d(&fscache_n_cop_dissociate_pages);
 
 	/* we now have to destroy all the active objects pertaining to this
 	 * cache - which we do by passing them off to thread pool to be

@@ -109,7 +109,7 @@ static struct flash_platform_data pleb_flash_data = {
 
 static void __init pleb_init(void)
 {
-	sa11x0_set_flash_data(&pleb_flash_data, pleb_flash_resources,
+	sa11x0_register_mtd(&pleb_flash_data, pleb_flash_resources,
 			      ARRAY_SIZE(pleb_flash_resources));
 
 

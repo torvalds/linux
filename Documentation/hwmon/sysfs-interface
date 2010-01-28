@@ -225,8 +225,6 @@ pwm[1-*]_auto_point[1-*]_temp_hyst
 		to PWM output channels.
 		RW
 
-OR
-
 temp[1-*]_auto_point[1-*]_pwm
 temp[1-*]_auto_point[1-*]_temp
 temp[1-*]_auto_point[1-*]_temp_hyst
@@ -234,6 +232,15 @@ temp[1-*]_auto_point[1-*]_temp_hyst
 		chip-dependent. Use this for chips which associate trip points
 		to temperature channels.
 		RW
+
+There is a third case where trip points are associated to both PWM output
+channels and temperature channels: the PWM values are associated to PWM
+output channels while the temperature values are associated to temperature
+channels. In that case, the result is determined by the mapping between
+temperature inputs and PWM outputs. When several temperature inputs are
+mapped to a given PWM output, this leads to several candidate PWM values.
+The actual result is up to the chip, but in general the highest candidate
+value (fastest fan speed) wins.
 
 
 ****************

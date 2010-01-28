@@ -75,6 +75,7 @@ struct uvc_xu_control {
 
 #define UVC_TERM_INPUT			0x0000
 #define UVC_TERM_OUTPUT			0x8000
+#define UVC_TERM_DIRECTION(term)	((term)->type & 0x8000)
 
 #define UVC_ENTITY_TYPE(entity)		((entity)->type & 0x7fff)
 #define UVC_ENTITY_IS_UNIT(entity)	(((entity)->type & 0xff00) == 0)
@@ -148,7 +149,7 @@ struct uvc_xu_control {
 #define UVC_MAX_STATUS_SIZE	16
 
 #define UVC_CTRL_CONTROL_TIMEOUT	300
-#define UVC_CTRL_STREAMING_TIMEOUT	1000
+#define UVC_CTRL_STREAMING_TIMEOUT	3000
 
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
@@ -292,11 +293,9 @@ struct uvc_entity {
 		} media;
 
 		struct {
-			__u8  bSourceID;
 		} output;
 
 		struct {
-			__u8  bSourceID;
 			__u16 wMaxMultiplier;
 			__u8  bControlSize;
 			__u8  *bmControls;
@@ -304,20 +303,19 @@ struct uvc_entity {
 		} processing;
 
 		struct {
-			__u8  bNrInPins;
-			__u8  *baSourceID;
 		} selector;
 
 		struct {
 			__u8  guidExtensionCode[16];
 			__u8  bNumControls;
-			__u8  bNrInPins;
-			__u8  *baSourceID;
 			__u8  bControlSize;
 			__u8  *bmControls;
 			__u8  *bmControlsType;
 		} extension;
 	};
+
+	__u8 bNrInPins;
+	__u8 *baSourceID;
 
 	unsigned int ncontrols;
 	struct uvc_control *controls;
@@ -367,8 +365,9 @@ enum uvc_buffer_state {
 	UVC_BUF_STATE_IDLE	= 0,
 	UVC_BUF_STATE_QUEUED	= 1,
 	UVC_BUF_STATE_ACTIVE	= 2,
-	UVC_BUF_STATE_DONE	= 3,
-	UVC_BUF_STATE_ERROR	= 4,
+	UVC_BUF_STATE_READY	= 3,
+	UVC_BUF_STATE_DONE	= 4,
+	UVC_BUF_STATE_ERROR	= 5,
 };
 
 struct uvc_buffer {
@@ -408,11 +407,9 @@ struct uvc_video_chain {
 	struct uvc_device *dev;
 	struct list_head list;
 
-	struct list_head iterms;		/* Input terminals */
-	struct list_head oterms;		/* Output terminals */
+	struct list_head entities;		/* All entities */
 	struct uvc_entity *processing;		/* Processing unit */
 	struct uvc_entity *selector;		/* Selector unit */
-	struct list_head extensions;		/* Extension units */
 
 	struct mutex ctrl_mutex;
 };
@@ -475,7 +472,6 @@ struct uvc_device {
 	char name[32];
 
 	enum uvc_device_state state;
-	struct kref kref;
 	struct list_head list;
 	atomic_t users;
 
@@ -488,6 +484,7 @@ struct uvc_device {
 
 	/* Video Streaming interfaces */
 	struct list_head streams;
+	atomic_t nstreams;
 
 	/* Status Interrupt Endpoint */
 	struct usb_host_endpoint *int_ep;
@@ -511,8 +508,6 @@ struct uvc_fh {
 struct uvc_driver {
 	struct usb_driver driver;
 
-	struct mutex open_mutex;	/* protects from open/disconnect race */
-
 	struct list_head devices;	/* struct uvc_device list */
 	struct list_head controls;	/* struct uvc_control_info list */
 	struct mutex ctrl_mutex;	/* protects controls and devices
@@ -533,12 +528,14 @@ struct uvc_driver {
 #define UVC_TRACE_FRAME		(1 << 7)
 #define UVC_TRACE_SUSPEND	(1 << 8)
 #define UVC_TRACE_STATUS	(1 << 9)
+#define UVC_TRACE_VIDEO		(1 << 10)
 
 #define UVC_WARN_MINMAX		0
 #define UVC_WARN_PROBE_DEF	1
 
 extern unsigned int uvc_no_drop_param;
 extern unsigned int uvc_trace_param;
+extern unsigned int uvc_timeout_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
@@ -571,7 +568,6 @@ extern unsigned int uvc_trace_param;
 
 /* Core driver */
 extern struct uvc_driver uvc_driver;
-extern void uvc_delete(struct kref *kref);
 
 /* Video buffers queue management. */
 extern void uvc_queue_init(struct uvc_video_queue *queue,

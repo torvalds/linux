@@ -96,7 +96,7 @@
  *
  *      Change by Mike Sullivan et al.:
  *      + added turbo card support. No need to use lanaid to configure
- *      the adapter into isa compatiblity mode.
+ *      the adapter into isa compatibility mode.
  *
  *      Changes by Burt Silverman to allow the computer to behave nicely when
  *	a cable is pulled or not in place, or a PCMCIA card is removed hot.
@@ -680,7 +680,7 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 
 	/* The PCMCIA has already got the interrupt line and the io port, 
 	   so no chance of anybody else getting it - MLP */
-	if (request_irq(dev->irq = irq, &tok_interrupt, 0, "ibmtr", dev) != 0) {
+	if (request_irq(dev->irq = irq, tok_interrupt, 0, "ibmtr", dev) != 0) {
 		DPRINTK("Could not grab irq %d.  Halting Token Ring driver.\n",
 					irq);
 		iounmap(t_mmio);

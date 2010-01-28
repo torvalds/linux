@@ -141,6 +141,7 @@ static const struct value_name_pair serv_out12_arr[] = {
 static const struct value_name_pair serv_in16_arr[] = {
 	{0x10, "Read capacity(16)"},
 	{0x11, "Read long(16)"},
+	{0x12, "Get LBA status"},
 };
 #define SERV_IN16_SZ ARRAY_SIZE(serv_in16_arr)
 

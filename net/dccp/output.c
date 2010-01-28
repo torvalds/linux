@@ -99,8 +99,8 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		/* Build DCCP header and checksum it. */
 		dh = dccp_zeroed_hdr(skb, dccp_header_size);
 		dh->dccph_type	= dcb->dccpd_type;
-		dh->dccph_sport	= inet->sport;
-		dh->dccph_dport	= inet->dport;
+		dh->dccph_sport	= inet->inet_sport;
+		dh->dccph_dport	= inet->inet_dport;
 		dh->dccph_doff	= (dccp_header_size + dcb->dccpd_opt_len) / 4;
 		dh->dccph_ccval	= dcb->dccpd_ccval;
 		dh->dccph_cscov = dp->dccps_pcslen;

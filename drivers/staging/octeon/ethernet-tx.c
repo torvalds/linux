@@ -624,7 +624,7 @@ int cvm_oct_transmit_qos(struct net_device *dev, void *work_queue_entry,
 EXPORT_SYMBOL(cvm_oct_transmit_qos);
 
 /**
- * This function frees all skb that are currenty queued for TX.
+ * This function frees all skb that are currently queued for TX.
  *
  * @dev:    Device being shutdown
  */

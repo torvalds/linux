@@ -23,7 +23,6 @@ config SND_SOC_SH4_SSI
 config SND_SOC_SH4_FSI
 	tristate "SH4 FSI support"
 	depends on CPU_SUBTYPE_SH7724
-        select SH_DMA
 	help
 	  This option enables FSI sound support
 

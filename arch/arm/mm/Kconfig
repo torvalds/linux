@@ -1,9 +1,5 @@
 comment "Processor Type"
 
-config CPU_32
-	bool
-	default y
-
 # Select CPU types depending on the architecture selected.  This selects
 # which CPUs we support in the kernel image, and the compiler instruction
 # optimiser behaviour.
@@ -388,7 +384,7 @@ config CPU_FEROCEON_OLD_ID
 
 # ARMv6
 config CPU_V6
-	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
+	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX || ARCH_DOVE
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_PABRT_V6
@@ -764,6 +760,15 @@ config CACHE_L2X0
 	help
 	  This option enables the L2x0 PrimeCell.
 
+config CACHE_TAUROS2
+	bool "Enable the Tauros2 L2 cache controller"
+	depends on ARCH_DOVE
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the Tauros2 L2 cache controller (as
+	  found on PJ1/PJ4).
+
 config CACHE_XSC3L2
 	bool "Enable the L2 cache on XScale3"
 	depends on CPU_XSC3
@@ -774,5 +779,5 @@ config CACHE_XSC3L2
 
 config ARM_L1_CACHE_SHIFT
 	int
-	default 6 if ARCH_OMAP3
+	default 6 if ARCH_OMAP3 || ARCH_S5PC1XX
 	default 5

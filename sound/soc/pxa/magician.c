@@ -213,7 +213,7 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* set SSP audio pll clock */
-	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, acps);
+	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, 0, acps);
 	if (ret < 0)
 		return ret;
 

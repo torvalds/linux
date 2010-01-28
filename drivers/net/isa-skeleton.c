@@ -214,9 +214,9 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 	 * contains the manufacturer's unique code. That might be a good probe
 	 * method. Ideally you would add additional checks.
 	 */
-	if (inb(ioaddr + 0) != SA_ADDR0
-		||	 inb(ioaddr + 1) != SA_ADDR1
-		||	 inb(ioaddr + 2) != SA_ADDR2)
+	if (inb(ioaddr + 0) != SA_ADDR0 ||
+	    inb(ioaddr + 1) != SA_ADDR1 ||
+	    inb(ioaddr + 2) != SA_ADDR2)
 		goto out;
 
 	if (net_debug  &&  version_printed++ == 0)
@@ -260,7 +260,7 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 		dev->irq = 9;
 
 	{
-		int irqval = request_irq(dev->irq, &net_interrupt, 0, cardname, dev);
+		int irqval = request_irq(dev->irq, net_interrupt, 0, cardname, dev);
 		if (irqval) {
 			printk("%s: unable to get IRQ %d (irqval=%d).\n",
 				   dev->name, dev->irq, irqval);
@@ -378,7 +378,7 @@ net_open(struct net_device *dev)
 	 * This is used if the interrupt line can turned off (shared).
 	 * See 3c503.c for an example of selecting the IRQ at config-time.
 	 */
-	if (request_irq(dev->irq, &net_interrupt, 0, cardname, dev)) {
+	if (request_irq(dev->irq, net_interrupt, 0, cardname, dev)) {
 		return -EAGAIN;
 	}
 	/*

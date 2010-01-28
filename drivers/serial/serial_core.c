@@ -342,11 +342,11 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 
 	if (flags == UPF_SPD_HI)
 		altbaud = 57600;
-	if (flags == UPF_SPD_VHI)
+	else if (flags == UPF_SPD_VHI)
 		altbaud = 115200;
-	if (flags == UPF_SPD_SHI)
+	else if (flags == UPF_SPD_SHI)
 		altbaud = 230400;
-	if (flags == UPF_SPD_WARP)
+	else if (flags == UPF_SPD_WARP)
 		altbaud = 460800;
 
 	for (try = 0; try < 2; try++) {
@@ -385,13 +385,20 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 		}
 
 		/*
-		 * As a last resort, if the quotient is zero,
-		 * default to 9600 bps
+		 * As a last resort, if the range cannot be met then clip to
+		 * the nearest chip supported rate.
 		 */
-		if (!hung_up)
-			tty_termios_encode_baud_rate(termios, 9600, 9600);
+		if (!hung_up) {
+			if (baud <= min)
+				tty_termios_encode_baud_rate(termios,
+							min + 1, min + 1);
+			else
+				tty_termios_encode_baud_rate(termios,
+							max - 1, max - 1);
+		}
 	}
-
+	/* Should never happen */
+	WARN_ON(1);
 	return 0;
 }
 
@@ -1217,9 +1224,8 @@ static void uart_set_termios(struct tty_struct *tty,
 	/* Handle transition to B0 status */
 	if ((old_termios->c_cflag & CBAUD) && !(cflag & CBAUD))
 		uart_clear_mctrl(state->uart_port, TIOCM_RTS | TIOCM_DTR);
-
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
+	else if (!(old_termios->c_cflag & CBAUD) && (cflag & CBAUD)) {
 		unsigned int mask = TIOCM_DTR;
 		if (!(cflag & CRTSCTS) ||
 		    !test_bit(TTY_THROTTLED, &tty->flags))
@@ -1234,9 +1240,8 @@ static void uart_set_termios(struct tty_struct *tty,
 		__uart_start(tty);
 		spin_unlock_irqrestore(&state->uart_port->lock, flags);
 	}
-
 	/* Handle turning on CRTSCTS */
-	if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
+	else if (!(old_termios->c_cflag & CRTSCTS) && (cflag & CRTSCTS)) {
 		spin_lock_irqsave(&state->uart_port->lock, flags);
 		if (!(state->uart_port->ops->get_mctrl(state->uart_port) & TIOCM_CTS)) {
 			tty->hw_stopped = 1;
@@ -2008,12 +2013,6 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 
 	mutex_lock(&port->mutex);
 
-	if (!console_suspend_enabled && uart_console(uport)) {
-		/* we're going to avoid suspending serial console */
-		mutex_unlock(&port->mutex);
-		return 0;
-	}
-
 	tty_dev = device_find_child(uport->dev, &match, serial_match_port);
 	if (device_may_wakeup(tty_dev)) {
 		enable_irq_wake(uport->irq);
@@ -2021,20 +2020,23 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		mutex_unlock(&port->mutex);
 		return 0;
 	}
-	uport->suspended = 1;
+	if (console_suspend_enabled || !uart_console(uport))
+		uport->suspended = 1;
 
 	if (port->flags & ASYNC_INITIALIZED) {
 		const struct uart_ops *ops = uport->ops;
 		int tries;
 
-		set_bit(ASYNCB_SUSPENDED, &port->flags);
-		clear_bit(ASYNCB_INITIALIZED, &port->flags);
+		if (console_suspend_enabled || !uart_console(uport)) {
+			set_bit(ASYNCB_SUSPENDED, &port->flags);
+			clear_bit(ASYNCB_INITIALIZED, &port->flags);
 
-		spin_lock_irq(&uport->lock);
-		ops->stop_tx(uport);
-		ops->set_mctrl(uport, 0);
-		ops->stop_rx(uport);
-		spin_unlock_irq(&uport->lock);
+			spin_lock_irq(&uport->lock);
+			ops->stop_tx(uport);
+			ops->set_mctrl(uport, 0);
+			ops->stop_rx(uport);
+			spin_unlock_irq(&uport->lock);
+		}
 
 		/*
 		 * Wait for the transmitter to empty.
@@ -2049,16 +2051,18 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 			       drv->dev_name,
 			       drv->tty_driver->name_base + uport->line);
 
-		ops->shutdown(uport);
+		if (console_suspend_enabled || !uart_console(uport))
+			ops->shutdown(uport);
 	}
 
 	/*
 	 * Disable the console device before suspending.
 	 */
-	if (uart_console(uport))
+	if (console_suspend_enabled && uart_console(uport))
 		console_stop(uport->cons);
 
-	uart_change_pm(state, 3);
+	if (console_suspend_enabled || !uart_console(uport))
+		uart_change_pm(state, 3);
 
 	mutex_unlock(&port->mutex);
 
@@ -2074,29 +2078,6 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 	struct ktermios termios;
 
 	mutex_lock(&port->mutex);
-
-	if (!console_suspend_enabled && uart_console(uport)) {
-		/* no need to resume serial console, it wasn't suspended */
-		/*
-		 * First try to use the console cflag setting.
-		 */
-		memset(&termios, 0, sizeof(struct ktermios));
-		termios.c_cflag = uport->cons->cflag;
-		/*
-		 * If that's unset, use the tty termios setting.
-		 */
-		if (termios.c_cflag == 0)
-			termios = *state->port.tty->termios;
-		else {
-			termios.c_ispeed = termios.c_ospeed =
-				tty_termios_input_baud_rate(&termios);
-			termios.c_ispeed = termios.c_ospeed =
-				tty_termios_baud_rate(&termios);
-		}
-		uport->ops->set_termios(uport, &termios, NULL);
-		mutex_unlock(&port->mutex);
-		return 0;
-	}
 
 	tty_dev = device_find_child(uport->dev, &match, serial_match_port);
 	if (!uport->suspended && device_may_wakeup(tty_dev)) {
@@ -2123,21 +2104,23 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		spin_lock_irq(&uport->lock);
 		ops->set_mctrl(uport, 0);
 		spin_unlock_irq(&uport->lock);
-		ret = ops->startup(uport);
-		if (ret == 0) {
-			uart_change_speed(state, NULL);
-			spin_lock_irq(&uport->lock);
-			ops->set_mctrl(uport, uport->mctrl);
-			ops->start_tx(uport);
-			spin_unlock_irq(&uport->lock);
-			set_bit(ASYNCB_INITIALIZED, &port->flags);
-		} else {
-			/*
-			 * Failed to resume - maybe hardware went away?
-			 * Clear the "initialized" flag so we won't try
-			 * to call the low level drivers shutdown method.
-			 */
-			uart_shutdown(state);
+		if (console_suspend_enabled || !uart_console(uport)) {
+			ret = ops->startup(uport);
+			if (ret == 0) {
+				uart_change_speed(state, NULL);
+				spin_lock_irq(&uport->lock);
+				ops->set_mctrl(uport, uport->mctrl);
+				ops->start_tx(uport);
+				spin_unlock_irq(&uport->lock);
+				set_bit(ASYNCB_INITIALIZED, &port->flags);
+			} else {
+				/*
+				 * Failed to resume - maybe hardware went away?
+				 * Clear the "initialized" flag so we won't try
+				 * to call the low level drivers shutdown method.
+				 */
+				uart_shutdown(state);
+			}
 		}
 
 		clear_bit(ASYNCB_SUSPENDED, &port->flags);
@@ -2344,7 +2327,7 @@ static const struct tty_operations uart_ops = {
  */
 int uart_register_driver(struct uart_driver *drv)
 {
-	struct tty_driver *normal = NULL;
+	struct tty_driver *normal;
 	int i, retval;
 
 	BUG_ON(drv->state);
@@ -2354,13 +2337,12 @@ int uart_register_driver(struct uart_driver *drv)
 	 * we have a large number of ports to handle.
 	 */
 	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
-	retval = -ENOMEM;
 	if (!drv->state)
 		goto out;
 
-	normal  = alloc_tty_driver(drv->nr);
+	normal = alloc_tty_driver(drv->nr);
 	if (!normal)
-		goto out;
+		goto out_kfree;
 
 	drv->tty_driver = normal;
 
@@ -2393,12 +2375,14 @@ int uart_register_driver(struct uart_driver *drv)
 	}
 
 	retval = tty_register_driver(normal);
- out:
-	if (retval < 0) {
-		put_tty_driver(normal);
-		kfree(drv->state);
-	}
-	return retval;
+	if (retval >= 0)
+		return retval;
+
+	put_tty_driver(normal);
+out_kfree:
+	kfree(drv->state);
+out:
+	return -ENOMEM;
 }
 
 /**

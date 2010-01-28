@@ -119,7 +119,7 @@ static inline void ReleaseVmbusChannel(void *context)
  */
 void FreeVmbusChannel(struct vmbus_channel *Channel)
 {
-	del_timer(&Channel->poll_timer);
+	del_timer_sync(&Channel->poll_timer);
 
 	/*
 	 * We have to release the channel's workqueue/thread in the vmbus's

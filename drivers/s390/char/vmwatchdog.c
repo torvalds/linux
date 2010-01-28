@@ -19,7 +19,6 @@
 #include <linux/moduleparam.h>
 #include <linux/suspend.h>
 #include <linux/watchdog.h>
-#include <linux/smp_lock.h>
 
 #include <asm/ebcdic.h>
 #include <asm/io.h>
@@ -48,6 +47,8 @@ MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 static unsigned int vmwdt_interval = 60;
 static unsigned long vmwdt_is_open;
 static int vmwdt_expect_close;
+
+static DEFINE_MUTEX(vmwdt_mutex);
 
 #define VMWDT_OPEN	0	/* devnode is open or suspend in progress */
 #define VMWDT_RUNNING	1	/* The watchdog is armed */
@@ -133,15 +134,11 @@ static int __init vmwdt_probe(void)
 static int vmwdt_open(struct inode *i, struct file *f)
 {
 	int ret;
-	lock_kernel();
-	if (test_and_set_bit(VMWDT_OPEN, &vmwdt_is_open)) {
-		unlock_kernel();
+	if (test_and_set_bit(VMWDT_OPEN, &vmwdt_is_open))
 		return -EBUSY;
-	}
 	ret = vmwdt_keepalive();
 	if (ret)
 		clear_bit(VMWDT_OPEN, &vmwdt_is_open);
-	unlock_kernel();
 	return ret ? ret : nonseekable_open(i, f);
 }
 
@@ -160,8 +157,7 @@ static struct watchdog_info vmwdt_info = {
 	.identity = "z/VM Watchdog Timer",
 };
 
-static int vmwdt_ioctl(struct inode *i, struct file *f,
-			  unsigned int cmd, unsigned long arg)
+static int __vmwdt_ioctl(unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
@@ -205,8 +201,17 @@ static int vmwdt_ioctl(struct inode *i, struct file *f,
 	case WDIOC_KEEPALIVE:
 		return vmwdt_keepalive();
 	}
-
 	return -EINVAL;
+}
+
+static long vmwdt_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+{
+	int rc;
+
+	mutex_lock(&vmwdt_mutex);
+	rc = __vmwdt_ioctl(cmd, arg);
+	mutex_unlock(&vmwdt_mutex);
+	return (long) rc;
 }
 
 static ssize_t vmwdt_write(struct file *f, const char __user *buf,
@@ -288,7 +293,7 @@ static struct notifier_block vmwdt_power_notifier = {
 static const struct file_operations vmwdt_fops = {
 	.open    = &vmwdt_open,
 	.release = &vmwdt_close,
-	.ioctl   = &vmwdt_ioctl,
+	.unlocked_ioctl = &vmwdt_ioctl,
 	.write   = &vmwdt_write,
 	.owner   = THIS_MODULE,
 };
@@ -309,6 +314,10 @@ static int __init vmwdt_init(void)
 	ret = register_pm_notifier(&vmwdt_power_notifier);
 	if (ret)
 		return ret;
+	/*
+	 * misc_register() has to be the last action in module_init(), because
+	 * file operations will be available right after this.
+	 */
 	ret = misc_register(&vmwdt_dev);
 	if (ret) {
 		unregister_pm_notifier(&vmwdt_power_notifier);

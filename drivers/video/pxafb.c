@@ -80,7 +80,8 @@
 static int pxafb_activate_var(struct fb_var_screeninfo *var,
 				struct pxafb_info *);
 static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
-static void setup_base_frame(struct pxafb_info *fbi, int branch);
+static void setup_base_frame(struct pxafb_info *fbi,
+                             struct fb_var_screeninfo *var, int branch);
 static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 			   unsigned long offset, size_t size);
 
@@ -397,6 +398,7 @@ static void pxafb_setmode(struct fb_var_screeninfo *var,
 	var->lower_margin	= mode->lower_margin;
 	var->sync		= mode->sync;
 	var->grayscale		= mode->cmap_greyscale;
+	var->transp.length	= mode->transparency;
 
 	/* set the initial RGBA bitfields */
 	pxafb_set_pixfmt(var, mode->depth);
@@ -531,12 +533,22 @@ static int pxafb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
+	struct fb_var_screeninfo newvar;
 	int dma = DMA_MAX + DMA_BASE;
 
 	if (fbi->state != C_ENABLE)
 		return 0;
 
-	setup_base_frame(fbi, 1);
+	/* Only take .xoffset, .yoffset and .vmode & FB_VMODE_YWRAP from what
+	 * was passed in and copy the rest from the old screeninfo.
+	 */
+	memcpy(&newvar, &fbi->fb.var, sizeof(newvar));
+	newvar.xoffset = var->xoffset;
+	newvar.yoffset = var->yoffset;
+	newvar.vmode &= ~FB_VMODE_YWRAP;
+	newvar.vmode |= var->vmode & FB_VMODE_YWRAP;
+
+	setup_base_frame(fbi, &newvar, 1);
 
 	if (fbi->lccr0 & LCCR0_SDS)
 		lcd_writel(fbi, FBR1, fbi->fdadr[dma + 1] | 0x1);
@@ -1052,9 +1064,10 @@ static int setup_frame_dma(struct pxafb_info *fbi, int dma, int pal,
 	return 0;
 }
 
-static void setup_base_frame(struct pxafb_info *fbi, int branch)
+static void setup_base_frame(struct pxafb_info *fbi,
+                             struct fb_var_screeninfo *var,
+                             int branch)
 {
-	struct fb_var_screeninfo *var = &fbi->fb.var;
 	struct fb_fix_screeninfo *fix = &fbi->fb.fix;
 	int nbytes, dma, pal, bpp = var->bits_per_pixel;
 	unsigned long offset;
@@ -1210,11 +1223,12 @@ static int pxafb_smart_thread(void *arg)
 	struct pxafb_info *fbi = arg;
 	struct pxafb_mach_info *inf = fbi->dev->platform_data;
 
-	if (!fbi || !inf->smart_update) {
+	if (!inf->smart_update) {
 		pr_err("%s: not properly initialized, thread terminated\n",
 				__func__);
 		return -EINVAL;
 	}
+	inf = fbi->dev->platform_data;
 
 	pr_debug("%s(): task starting\n", __func__);
 
@@ -1332,7 +1346,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 #endif
 		setup_parallel_timing(fbi, var);
 
-	setup_base_frame(fbi, 0);
+	setup_base_frame(fbi, var, 0);
 
 	fbi->reg_lccr0 = fbi->lccr0 |
 		(LCCR0_LDM | LCCR0_SFM | LCCR0_IUM | LCCR0_EFM |
@@ -1654,7 +1668,7 @@ static int pxafb_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops pxafb_pm_ops = {
+static const struct dev_pm_ops pxafb_pm_ops = {
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
 };

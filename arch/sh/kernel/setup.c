@@ -423,6 +423,9 @@ void __init setup_arch(char **cmdline_p)
 
 	plat_early_device_setup();
 
+	/* Let earlyprintk output early console messages */
+	early_platform_driver_probe("earlyprintk", 1, 1);
+
 	sh_mv_setup();
 
 	/*
@@ -452,6 +455,10 @@ void __init setup_arch(char **cmdline_p)
 		sh_mv.mv_setup(cmdline_p);
 
 	paging_init();
+
+#ifdef CONFIG_PMB_ENABLE
+	pmb_init();
+#endif
 
 #ifdef CONFIG_SMP
 	plat_smp_setup();

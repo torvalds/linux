@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -1382,10 +1382,10 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
 	hw->addr_ctrl.overflow_promisc = 0;
 
 	/* Zero out the other receive addresses */
-	hw_dbg(hw, "Clearing RAR[1-%d]\n", uc_addr_in_use);
-	for (i = 1; i <= uc_addr_in_use; i++) {
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(i), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(i), 0);
+	hw_dbg(hw, "Clearing RAR[1-%d]\n", uc_addr_in_use + 1);
+	for (i = 0; i < uc_addr_in_use; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_RAL(1+i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_RAH(1+i), 0);
 	}
 
 	/* Add the new addresses */
@@ -1755,16 +1755,23 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	/*
 	 * On backplane, bail out if
 	 * - backplane autoneg was not completed, or if
-	 * - link partner is not AN enabled
+	 * - we are 82599 and link partner is not AN enabled
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
 		links = IXGBE_READ_REG(hw, IXGBE_LINKS);
-		links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
-		if (((links & IXGBE_LINKS_KX_AN_COMP) == 0) ||
-		    ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0)) {
+		if ((links & IXGBE_LINKS_KX_AN_COMP) == 0) {
 			hw->fc.fc_was_autonegged = false;
 			hw->fc.current_mode = hw->fc.requested_mode;
 			goto out;
+		}
+
+		if (hw->mac.type == ixgbe_mac_82599EB) {
+			links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
+			if ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0) {
+				hw->fc.fc_was_autonegged = false;
+				hw->fc.current_mode = hw->fc.requested_mode;
+				goto out;
+			}
 		}
 	}
 
@@ -1781,6 +1788,20 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 			hw->fc.current_mode = hw->fc.requested_mode;
 			goto out;
 		}
+	}
+
+	/*
+	 * Bail out on
+	 * - copper or CX4 adapters
+	 * - fiber adapters running at 10gig
+	 */
+	if ((hw->phy.media_type == ixgbe_media_type_copper) ||
+	     (hw->phy.media_type == ixgbe_media_type_cx4) ||
+	     ((hw->phy.media_type == ixgbe_media_type_fiber) &&
+	     (speed == IXGBE_LINK_SPEED_10GB_FULL))) {
+		hw->fc.fc_was_autonegged = false;
+		hw->fc.current_mode = hw->fc.requested_mode;
+		goto out;
 	}
 
 	/*

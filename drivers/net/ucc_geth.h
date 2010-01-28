@@ -80,16 +80,16 @@ struct ucc_geth {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in succesfull
+				   that where involved in successfull
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
 	u8 res4[0x2];
 	u32 tmca;		/* Total number of frames that were transmitted
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
 	u32 tbca;		/* Total number of frames transmitted
-				   succesfully that had destination address
+				   successfully that had destination address
 				   field equal to the broadcast address */
 	u32 rxfok;		/* Total number of frames received OK */
 	u32 rxbok;		/* Total number of octets received OK */
@@ -98,9 +98,9 @@ struct ucc_geth {
 				   HW because it includes octets in frames that
 				   never even reach the UCC */
 	u32 rmca;		/* Total number of frames that were received
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
-	u32 rbca;		/* Total number of frames received succesfully
+	u32 rbca;		/* Total number of frames received successfully
 				   that had destination address equal to the
 				   broadcast address */
 	u32 scar;		/* Statistics carry register */
@@ -759,15 +759,15 @@ struct ucc_geth_hardware_statistics {
 				   frames) received that were between 128
 				   (Including FCS length==4) and 255 octets */
 	u32 txok;		/* Total number of octets residing in frames
-				   that where involved in succesfull
+				   that where involved in successfull
 				   transmission */
 	u16 txcf;		/* Total number of PAUSE control frames
 				   transmitted by this MAC */
 	u32 tmca;		/* Total number of frames that were transmitted
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
 	u32 tbca;		/* Total number of frames transmitted
-				   succesfully that had destination address
+				   successfully that had destination address
 				   field equal to the broadcast address */
 	u32 rxfok;		/* Total number of frames received OK */
 	u32 rxbok;		/* Total number of octets received OK */
@@ -776,9 +776,9 @@ struct ucc_geth_hardware_statistics {
 				   HW because it includes octets in frames that
 				   never even reach the UCC */
 	u32 rmca;		/* Total number of frames that were received
-				   succesfully with the group address bit set
+				   successfully with the group address bit set
 				   that are not broadcast frames */
-	u32 rbca;		/* Total number of frames received succesfully
+	u32 rbca;		/* Total number of frames received successfully
 				   that had destination address equal to the
 				   broadcast address */
 } __attribute__ ((packed));
@@ -838,13 +838,13 @@ struct ucc_geth_hardware_statistics {
 							   using the maximum is
 							   easier */
 #define UCC_GETH_SEND_QUEUE_QUEUE_DESCRIPTOR_ALIGNMENT	32
-#define UCC_GETH_SCHEDULER_ALIGNMENT		4	/* This is a guess */
+#define UCC_GETH_SCHEDULER_ALIGNMENT		8	/* This is a guess */
 #define UCC_GETH_TX_STATISTICS_ALIGNMENT	4	/* This is a guess */
 #define UCC_GETH_RX_STATISTICS_ALIGNMENT	4	/* This is a guess */
 #define UCC_GETH_RX_INTERRUPT_COALESCING_ALIGNMENT	64
 #define UCC_GETH_RX_BD_QUEUES_ALIGNMENT		8	/* This is a guess */
 #define UCC_GETH_RX_PREFETCHED_BDS_ALIGNMENT	128	/* This is a guess */
-#define UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT 4	/* This
+#define UCC_GETH_RX_EXTENDED_FILTERING_GLOBAL_PARAMETERS_ALIGNMENT 8	/* This
 									   is a
 									   guess
 									 */
@@ -899,16 +899,17 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_UTFS_INIT                      512	/* Tx virtual FIFO size
 							 */
 #define UCC_GETH_UTFET_INIT                     256	/* 1/2 utfs */
-#define UCC_GETH_UTFTT_INIT                     128
+#define UCC_GETH_UTFTT_INIT                     512
 /* Gigabit Ethernet (1000 Mbps) */
 #define UCC_GETH_URFS_GIGA_INIT                 4096/*2048*/	/* Rx virtual
 								   FIFO size */
 #define UCC_GETH_URFET_GIGA_INIT                2048/*1024*/	/* 1/2 urfs */
 #define UCC_GETH_URFSET_GIGA_INIT               3072/*1536*/	/* 3/4 urfs */
-#define UCC_GETH_UTFS_GIGA_INIT                 8192/*2048*/	/* Tx virtual
+#define UCC_GETH_UTFS_GIGA_INIT                 4096/*2048*/	/* Tx virtual
 								   FIFO size */
-#define UCC_GETH_UTFET_GIGA_INIT                4096/*1024*/	/* 1/2 utfs */
-#define UCC_GETH_UTFTT_GIGA_INIT                0x400/*0x40*/	/* */
+#define UCC_GETH_UTFET_GIGA_INIT                2048/*1024*/	/* 1/2 utfs */
+#define UCC_GETH_UTFTT_GIGA_INIT                4096/*0x40*/	/* Tx virtual
+								   FIFO size */
 
 #define UCC_GETH_REMODER_INIT                   0	/* bits that must be
 							   set */

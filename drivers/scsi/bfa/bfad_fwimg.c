@@ -65,10 +65,10 @@ bfad_read_firmware(struct pci_dev *pdev, u32 **bfi_image,
 	memcpy(*bfi_image, fw->data, fw->size);
 	*bfi_image_size = fw->size/sizeof(u32);
 
-	return(*bfi_image);
+	return *bfi_image;
 
 error:
-	return(NULL);
+	return NULL;
 }
 
 u32 *
@@ -78,12 +78,12 @@ bfad_get_firmware_buf(struct pci_dev *pdev)
 		if (bfi_image_ct_size == 0)
 			bfad_read_firmware(pdev, &bfi_image_ct,
 				&bfi_image_ct_size, BFAD_FW_FILE_CT);
-		return(bfi_image_ct);
+		return bfi_image_ct;
 	} else {
 		if (bfi_image_cb_size == 0)
 			bfad_read_firmware(pdev, &bfi_image_cb,
 				&bfi_image_cb_size, BFAD_FW_FILE_CB);
-		return(bfi_image_cb);
+		return bfi_image_cb;
 	}
 }
 

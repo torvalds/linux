@@ -102,7 +102,6 @@ typedef elf_fpreg_t elf_fpregset_t;
  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->r0 = 0
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /*

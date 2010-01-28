@@ -75,47 +75,14 @@ char *pnp_resource_type_name(struct resource *res)
 
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 {
-	char buf[128];
-	int len;
 	struct pnp_resource *pnp_res;
-	struct resource *res;
 
-	if (list_empty(&dev->resources)) {
+	if (list_empty(&dev->resources))
 		pnp_dbg(&dev->dev, "%s: no current resources\n", desc);
-		return;
-	}
-
-	pnp_dbg(&dev->dev, "%s: current resources:\n", desc);
-	list_for_each_entry(pnp_res, &dev->resources, list) {
-		res = &pnp_res->res;
-		len = 0;
-
-		len += scnprintf(buf + len, sizeof(buf) - len, "  %-3s ",
-				 pnp_resource_type_name(res));
-
-		if (res->flags & IORESOURCE_DISABLED) {
-			pnp_dbg(&dev->dev, "%sdisabled\n", buf);
-			continue;
-		}
-
-		switch (pnp_resource_type(res)) {
-		case IORESOURCE_IO:
-		case IORESOURCE_MEM:
-			len += scnprintf(buf + len, sizeof(buf) - len,
-					 "%#llx-%#llx flags %#lx",
-					 (unsigned long long) res->start,
-					 (unsigned long long) res->end,
-					 res->flags);
-			break;
-		case IORESOURCE_IRQ:
-		case IORESOURCE_DMA:
-			len += scnprintf(buf + len, sizeof(buf) - len,
-					 "%lld flags %#lx",
-					 (unsigned long long) res->start,
-					 res->flags);
-			break;
-		}
-		pnp_dbg(&dev->dev, "%s\n", buf);
+	else {
+		pnp_dbg(&dev->dev, "%s: current resources:\n", desc);
+		list_for_each_entry(pnp_res, &dev->resources, list)
+			pnp_dbg(&dev->dev, "%pr\n", &pnp_res->res);
 	}
 }
 

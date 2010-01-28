@@ -34,9 +34,28 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 
 	ht_cap->ht_supported = true;
 
-	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) & sband->ht_cap.cap;
-	ht_cap->cap &= ~IEEE80211_HT_CAP_SM_PS;
-	ht_cap->cap |= sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS;
+	/*
+	 * The bits listed in this expression should be
+	 * the same for the peer and us, if the station
+	 * advertises more then we can't use those thus
+	 * we mask them out.
+	 */
+	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) &
+		(sband->ht_cap.cap |
+		 ~(IEEE80211_HT_CAP_LDPC_CODING |
+		   IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+		   IEEE80211_HT_CAP_GRN_FLD |
+		   IEEE80211_HT_CAP_SGI_20 |
+		   IEEE80211_HT_CAP_SGI_40 |
+		   IEEE80211_HT_CAP_DSSSCCK40));
+	/*
+	 * The STBC bits are asymmetric -- if we don't have
+	 * TX then mask out the peer's RX and vice versa.
+	 */
+	if (!(sband->ht_cap.cap & IEEE80211_HT_CAP_TX_STBC))
+		ht_cap->cap &= ~IEEE80211_HT_CAP_RX_STBC;
+	if (!(sband->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC))
+		ht_cap->cap &= ~IEEE80211_HT_CAP_TX_STBC;
 
 	ampdu_info = ht_cap_ie->ampdu_params_info;
 	ht_cap->ampdu_factor =
@@ -134,14 +153,13 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.action.u.delba.params = cpu_to_le16(params);
 	mgmt->u.action.u.delba.reason_code = cpu_to_le16(reason_code);
 
-	ieee80211_tx_skb(sdata, skb, 1);
+	ieee80211_tx_skb(sdata, skb);
 }
 
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 			     struct sta_info *sta,
 			     struct ieee80211_mgmt *mgmt, size_t len)
 {
-	struct ieee80211_local *local = sdata->local;
 	u16 tid, params;
 	u16 initiator;
 
@@ -161,10 +179,9 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 						 WLAN_BACK_INITIATOR, 0);
 	else { /* WLAN_BACK_RECIPIENT */
 		spin_lock_bh(&sta->lock);
-		sta->ampdu_mlme.tid_state_tx[tid] =
-				HT_AGG_STATE_OPERATIONAL;
+		if (sta->ampdu_mlme.tid_state_tx[tid] & HT_ADDBA_REQUESTED_MSK)
+			___ieee80211_stop_tx_ba_session(sta, tid,
+							WLAN_BACK_RECIPIENT);
 		spin_unlock_bh(&sta->lock);
-		ieee80211_stop_tx_ba_session(&local->hw, sta->sta.addr, tid,
-					     WLAN_BACK_RECIPIENT);
 	}
 }

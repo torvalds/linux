@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/bitrev.h>
 #include <asm/unaligned.h>
 #include <sound/core.h>
 #include <sound/control.h>
@@ -54,18 +55,6 @@ struct cs8427 {
 	struct cs8427_stream playback;
 	struct cs8427_stream capture;
 };
-
-static unsigned char swapbits(unsigned char val)
-{
-	int bit;
-	unsigned char res = 0;
-	for (bit = 0; bit < 8; bit++) {
-		res <<= 1;
-		res |= val & 1;
-		val >>= 1;
-	}
-	return res;
-}
 
 int snd_cs8427_reg_write(struct snd_i2c_device *device, unsigned char reg,
 			 unsigned char val)
@@ -149,7 +138,7 @@ static int snd_cs8427_send_corudata(struct snd_i2c_device *device,
 	}
 	data[0] = CS8427_REG_AUTOINC | CS8427_REG_CORU_DATABUF;
 	for (idx = 0; idx < count; idx++)
-		data[idx + 1] = swapbits(ndata[idx]);
+		data[idx + 1] = bitrev8(ndata[idx]);
 	if (snd_i2c_sendbytes(device, data, count + 1) != count + 1)
 		return -EIO;
 	return 1;

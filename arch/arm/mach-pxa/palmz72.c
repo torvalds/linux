@@ -196,7 +196,7 @@ err:
 	return ret;
 }
 
-static int palmz72_backlight_notify(int brightness)
+static int palmz72_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_PALMZ72_BL_POWER, brightness);
 	gpio_set_value(GPIO_NR_PALMZ72_LCD_POWER, brightness);
@@ -490,6 +490,10 @@ static void __init palmz72_udc_init(void)
 static void __init palmz72_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmz72_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	set_pxa_fb_info(&palmz72_lcd_screen);
 	pxa_set_mci_info(&palmz72_mci_platform_data);

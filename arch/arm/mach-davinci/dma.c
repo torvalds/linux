@@ -18,22 +18,13 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/compiler.h>
 #include <linux/io.h>
 
-#include <mach/cputype.h>
-#include <mach/memory.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <mach/edma.h>
-#include <mach/mux.h>
-
 
 /* Offsets matching "struct edmacc_param" */
 #define PARM_OPT		0x00
@@ -509,43 +500,59 @@ static irqreturn_t dma_tc1err_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int reserve_contiguous_params(int ctlr, unsigned int id,
-				     unsigned int num_params,
-				     unsigned int start_param)
+static int reserve_contiguous_slots(int ctlr, unsigned int id,
+				     unsigned int num_slots,
+				     unsigned int start_slot)
 {
 	int i, j;
-	unsigned int count = num_params;
+	unsigned int count = num_slots;
+	int stop_slot = start_slot;
+	DECLARE_BITMAP(tmp_inuse, EDMA_MAX_PARAMENTRY);
 
-	for (i = start_param; i < edma_info[ctlr]->num_slots; ++i) {
+	for (i = start_slot; i < edma_info[ctlr]->num_slots; ++i) {
 		j = EDMA_CHAN_SLOT(i);
-		if (!test_and_set_bit(j, edma_info[ctlr]->edma_inuse))
+		if (!test_and_set_bit(j, edma_info[ctlr]->edma_inuse)) {
+			/* Record our current beginning slot */
+			if (count == num_slots)
+				stop_slot = i;
+
 			count--;
+			set_bit(j, tmp_inuse);
+
 			if (count == 0)
 				break;
-		else if (id == EDMA_CONT_PARAMS_FIXED_EXACT)
-			break;
-		else
-			count = num_params;
+		} else {
+			clear_bit(j, tmp_inuse);
+
+			if (id == EDMA_CONT_PARAMS_FIXED_EXACT) {
+				stop_slot = i;
+				break;
+			} else
+				count = num_slots;
+		}
 	}
 
 	/*
 	 * We have to clear any bits that we set
-	 * if we run out parameter RAMs, i.e we do find a set
-	 * of contiguous parameter RAMs but do not find the exact number
-	 * requested as we may reach the total number of parameter RAMs
+	 * if we run out parameter RAM slots, i.e we do find a set
+	 * of contiguous parameter RAM slots but do not find the exact number
+	 * requested as we may reach the total number of parameter RAM slots
 	 */
-	if (count) {
-		for (j = i - num_params + count + 1; j <= i ; ++j)
+	if (i == edma_info[ctlr]->num_slots)
+		stop_slot = i;
+
+	for (j = start_slot; j < stop_slot; j++)
+		if (test_bit(j, tmp_inuse))
 			clear_bit(j, edma_info[ctlr]->edma_inuse);
 
+	if (count)
 		return -EBUSY;
-	}
 
-	for (j = i - num_params + 1; j <= i; ++j)
+	for (j = i - num_slots + 1; j <= i; ++j)
 		memcpy_toio(edmacc_regs_base[ctlr] + PARM_OFFSET(j),
 			&dummy_paramset, PARM_SIZE);
 
-	return EDMA_CTLR_CHAN(ctlr, i - num_params + 1);
+	return EDMA_CTLR_CHAN(ctlr, i - num_slots + 1);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -743,26 +750,27 @@ EXPORT_SYMBOL(edma_free_slot);
 /**
  * edma_alloc_cont_slots- alloc contiguous parameter RAM slots
  * The API will return the starting point of a set of
- * contiguous PARAM's that have been requested
+ * contiguous parameter RAM slots that have been requested
  *
  * @id: can only be EDMA_CONT_PARAMS_ANY or EDMA_CONT_PARAMS_FIXED_EXACT
  * or EDMA_CONT_PARAMS_FIXED_NOT_EXACT
- * @count: number of contiguous Paramter RAM's
- * @param  - the start value of Parameter RAM that should be passed if id
+ * @count: number of contiguous Paramter RAM slots
+ * @slot  - the start value of Parameter RAM slot that should be passed if id
  * is EDMA_CONT_PARAMS_FIXED_EXACT or EDMA_CONT_PARAMS_FIXED_NOT_EXACT
  *
  * If id is EDMA_CONT_PARAMS_ANY then the API starts looking for a set of
- * contiguous Parameter RAMs from parameter RAM 64 in the case of DaVinci SOCs
- * and 32 in the case of Primus
+ * contiguous Parameter RAM slots from parameter RAM 64 in the case of
+ * DaVinci SOCs and 32 in the case of DA8xx SOCs.
  *
  * If id is EDMA_CONT_PARAMS_FIXED_EXACT then the API starts looking for a
- * set of contiguous parameter RAMs from the "param" that is passed as an
+ * set of contiguous parameter RAM slots from the "slot" that is passed as an
  * argument to the API.
  *
  * If id is EDMA_CONT_PARAMS_FIXED_NOT_EXACT then the API initially tries
- * starts looking for a set of contiguous parameter RAMs from the "param"
+ * starts looking for a set of contiguous parameter RAMs from the "slot"
  * that is passed as an argument to the API. On failure the API will try to
- * find a set of contiguous Parameter RAMs in the remaining Parameter RAMs
+ * find a set of contiguous Parameter RAM slots from the remaining Parameter
+ * RAM slots
  */
 int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count)
 {
@@ -771,12 +779,13 @@ int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count)
 	 * the number of channels and lesser than the total number
 	 * of slots
 	 */
-	if (slot < edma_info[ctlr]->num_channels ||
-		slot >= edma_info[ctlr]->num_slots)
+	if ((id != EDMA_CONT_PARAMS_ANY) &&
+		(slot < edma_info[ctlr]->num_channels ||
+		slot >= edma_info[ctlr]->num_slots))
 		return -EINVAL;
 
 	/*
-	 * The number of parameter RAMs requested cannot be less than 1
+	 * The number of parameter RAM slots requested cannot be less than 1
 	 * and cannot be more than the number of slots minus the number of
 	 * channels
 	 */
@@ -786,11 +795,11 @@ int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count)
 
 	switch (id) {
 	case EDMA_CONT_PARAMS_ANY:
-		return reserve_contiguous_params(ctlr, id, count,
+		return reserve_contiguous_slots(ctlr, id, count,
 						 edma_info[ctlr]->num_channels);
 	case EDMA_CONT_PARAMS_FIXED_EXACT:
 	case EDMA_CONT_PARAMS_FIXED_NOT_EXACT:
-		return reserve_contiguous_params(ctlr, id, count, slot);
+		return reserve_contiguous_slots(ctlr, id, count, slot);
 	default:
 		return -EINVAL;
 	}
@@ -799,21 +808,21 @@ int edma_alloc_cont_slots(unsigned ctlr, unsigned int id, int slot, int count)
 EXPORT_SYMBOL(edma_alloc_cont_slots);
 
 /**
- * edma_free_cont_slots - deallocate DMA parameter RAMs
- * @slot: first parameter RAM of a set of parameter RAMs to be freed
- * @count: the number of contiguous parameter RAMs to be freed
+ * edma_free_cont_slots - deallocate DMA parameter RAM slots
+ * @slot: first parameter RAM of a set of parameter RAM slots to be freed
+ * @count: the number of contiguous parameter RAM slots to be freed
  *
  * This deallocates the parameter RAM slots allocated by
  * edma_alloc_cont_slots.
  * Callers/applications need to keep track of sets of contiguous
- * parameter RAMs that have been allocated using the edma_alloc_cont_slots
+ * parameter RAM slots that have been allocated using the edma_alloc_cont_slots
  * API.
  * Callers are responsible for ensuring the slots are inactive, and will
  * not be activated.
  */
 int edma_free_cont_slots(unsigned slot, int count)
 {
-	unsigned ctlr;
+	unsigned ctlr, slot_to_free;
 	int i;
 
 	ctlr = EDMA_CTLR(slot);
@@ -826,11 +835,11 @@ int edma_free_cont_slots(unsigned slot, int count)
 
 	for (i = slot; i < slot + count; ++i) {
 		ctlr = EDMA_CTLR(i);
-		slot = EDMA_CHAN_SLOT(i);
+		slot_to_free = EDMA_CHAN_SLOT(i);
 
-		memcpy_toio(edmacc_regs_base[ctlr] + PARM_OFFSET(slot),
+		memcpy_toio(edmacc_regs_base[ctlr] + PARM_OFFSET(slot_to_free),
 			&dummy_paramset, PARM_SIZE);
-		clear_bit(slot, edma_info[ctlr]->edma_inuse);
+		clear_bit(slot_to_free, edma_info[ctlr]->edma_inuse);
 	}
 
 	return 0;

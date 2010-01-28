@@ -33,7 +33,7 @@
 #include <net/dn_dev.h>
 #include <net/dn_route.h>
 
-static struct fib_rules_ops dn_fib_rules_ops;
+static struct fib_rules_ops *dn_fib_rules_ops;
 
 struct dn_fib_rule
 {
@@ -56,7 +56,7 @@ int dn_fib_lookup(struct flowi *flp, struct dn_fib_res *res)
 	};
 	int err;
 
-	err = fib_rules_lookup(&dn_fib_rules_ops, flp, 0, &arg);
+	err = fib_rules_lookup(dn_fib_rules_ops, flp, 0, &arg);
 	res->r = arg.rule;
 
 	return err;
@@ -217,9 +217,9 @@ static u32 dn_fib_rule_default_pref(struct fib_rules_ops *ops)
 	struct list_head *pos;
 	struct fib_rule *rule;
 
-	if (!list_empty(&dn_fib_rules_ops.rules_list)) {
-		pos = dn_fib_rules_ops.rules_list.next;
-		if (pos->next != &dn_fib_rules_ops.rules_list) {
+	if (!list_empty(&dn_fib_rules_ops->rules_list)) {
+		pos = dn_fib_rules_ops->rules_list.next;
+		if (pos->next != &dn_fib_rules_ops->rules_list) {
 			rule = list_entry(pos->next, struct fib_rule, list);
 			if (rule->pref)
 				return rule->pref - 1;
@@ -234,7 +234,7 @@ static void dn_fib_rule_flush_cache(struct fib_rules_ops *ops)
 	dn_rt_cache_flush(-1);
 }
 
-static struct fib_rules_ops dn_fib_rules_ops = {
+static struct fib_rules_ops dn_fib_rules_ops_template = {
 	.family		= AF_DECnet,
 	.rule_size	= sizeof(struct dn_fib_rule),
 	.addr_size	= sizeof(u16),
@@ -247,21 +247,23 @@ static struct fib_rules_ops dn_fib_rules_ops = {
 	.flush_cache	= dn_fib_rule_flush_cache,
 	.nlgroup	= RTNLGRP_DECnet_RULE,
 	.policy		= dn_fib_rule_policy,
-	.rules_list	= LIST_HEAD_INIT(dn_fib_rules_ops.rules_list),
 	.owner		= THIS_MODULE,
 	.fro_net	= &init_net,
 };
 
 void __init dn_fib_rules_init(void)
 {
-	BUG_ON(fib_default_rule_add(&dn_fib_rules_ops, 0x7fff,
+	dn_fib_rules_ops =
+		fib_rules_register(&dn_fib_rules_ops_template, &init_net);
+	BUG_ON(IS_ERR(dn_fib_rules_ops));
+	BUG_ON(fib_default_rule_add(dn_fib_rules_ops, 0x7fff,
 			            RT_TABLE_MAIN, 0));
-	fib_rules_register(&dn_fib_rules_ops);
 }
 
 void __exit dn_fib_rules_cleanup(void)
 {
-	fib_rules_unregister(&dn_fib_rules_ops);
+	fib_rules_unregister(dn_fib_rules_ops);
+	rcu_barrier();
 }
 
 

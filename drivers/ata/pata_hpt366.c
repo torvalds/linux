@@ -27,7 +27,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt366"
-#define DRV_VERSION	"0.6.2"
+#define DRV_VERSION	"0.6.7"
 
 struct hpt_clock {
 	u8	xfer_mode;
@@ -36,24 +36,22 @@ struct hpt_clock {
 
 /* key for bus clock timings
  * bit
- * 0:3    data_high_time. inactive time of DIOW_/DIOR_ for PIO and MW
- *        DMA. cycles = value + 1
- * 4:8    data_low_time. active time of DIOW_/DIOR_ for PIO and MW
- *        DMA. cycles = value + 1
- * 9:12   cmd_high_time. inactive time of DIOW_/DIOR_ during task file
+ * 0:3    data_high_time. Inactive time of DIOW_/DIOR_ for PIO and MW DMA.
+ *        cycles = value + 1
+ * 4:7    data_low_time. Active time of DIOW_/DIOR_ for PIO and MW DMA.
+ *        cycles = value + 1
+ * 8:11   cmd_high_time. Inactive time of DIOW_/DIOR_ during task file
  *        register access.
- * 13:17  cmd_low_time. active time of DIOW_/DIOR_ during task file
+ * 12:15  cmd_low_time. Active time of DIOW_/DIOR_ during task file
  *        register access.
- * 18:21  udma_cycle_time. clock freq and clock cycles for UDMA xfer.
- *        during task file register access.
- * 22:24  pre_high_time. time to initialize 1st cycle for PIO and MW DMA
- *        xfer.
- * 25:27  cmd_pre_high_time. time to initialize 1st PIO cycle for task
+ * 16:18  udma_cycle_time. Clock cycles for UDMA xfer?
+ * 19:21  pre_high_time. Time to initialize 1st cycle for PIO and MW DMA xfer.
+ * 22:24  cmd_pre_high_time. Time to initialize 1st PIO cycle for task file
  *        register access.
- * 28     UDMA enable
- * 29     DMA enable
- * 30     PIO_MST enable. if set, the chip is in bus master mode during
- *        PIO.
+ * 28     UDMA enable.
+ * 29     DMA  enable.
+ * 30     PIO_MST enable. If set, the chip is in bus master mode during
+ *        PIO xfer.
  * 31     FIFO enable.
  */
 
@@ -344,7 +342,6 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	const struct ata_port_info *ppi[] = { &info_hpt366, NULL };
 
 	void *hpriv = NULL;
-	u32 class_rev;
 	u32 reg1;
 	int rc;
 
@@ -352,13 +349,10 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xFF;
-
 	/* May be a later chip in disguise. Check */
 	/* Newer chips are not in the HPT36x driver. Ignore them */
-	if (class_rev > 2)
-			return -ENODEV;
+	if (dev->revision > 2)
+		return -ENODEV;
 
 	hpt36x_init_chipset(dev);
 

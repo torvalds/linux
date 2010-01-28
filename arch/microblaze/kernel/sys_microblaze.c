@@ -62,46 +62,14 @@ out:
 	return error;
 }
 
-asmlinkage long
-sys_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	struct file *file = NULL;
-	int ret = -EBADF;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file) {
-			printk(KERN_INFO "no fd in mmap\r\n");
-			goto out;
-		}
-	}
-
-	down_write(&current->mm->mmap_sem);
-	ret = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-	if (file)
-		fput(file);
-out:
-	return ret;
-}
-
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, off_t pgoff)
 {
-	int err = -EINVAL;
+	if (pgoff & ~PAGE_MASK)
+		return -EINVAL;
 
-	if (pgoff & ~PAGE_MASK) {
-		printk(KERN_INFO "no pagemask in mmap\r\n");
-		goto out;
-	}
-
-	err = sys_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
-out:
-	return err;
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
 }
 
 /*

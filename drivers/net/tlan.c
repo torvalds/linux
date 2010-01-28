@@ -1549,7 +1549,8 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 		if (tmpCStat & TLAN_CSTAT_EOC)
 			eoc = 1;
 
-		new_skb = netdev_alloc_skb(dev, TLAN_MAX_FRAME_SIZE + 7 );
+		new_skb = netdev_alloc_skb_ip_align(dev,
+						    TLAN_MAX_FRAME_SIZE + 5);
 		if ( !new_skb )
 			goto drop_and_reuse;
 
@@ -1563,7 +1564,6 @@ static u32 TLan_HandleRxEOF( struct net_device *dev, u16 host_int )
 		skb->protocol = eth_type_trans( skb, dev );
 		netif_rx( skb );
 
-		skb_reserve( new_skb, NET_IP_ALIGN );
 		head_list->buffer[0].address = pci_map_single(priv->pciDev,
 							      new_skb->data,
 							      TLAN_MAX_FRAME_SIZE,
@@ -1755,8 +1755,8 @@ static u32 TLan_HandleStatusCheck( struct net_device *dev, u16 host_int )
 			     ! ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
                 		tlphy_ctl |= TLAN_TC_SWAPOL;
                 		TLan_MiiWriteReg( dev, phy, TLAN_TLPHY_CTL, tlphy_ctl);
-        		} else if ( ( tlphy_sts & TLAN_TS_POLOK )
-				    && ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
+			} else if ( ( tlphy_sts & TLAN_TS_POLOK ) &&
+				    ( tlphy_ctl & TLAN_TC_SWAPOL ) ) {
                 		tlphy_ctl &= ~TLAN_TC_SWAPOL;
                 		TLan_MiiWriteReg( dev, phy, TLAN_TLPHY_CTL, tlphy_ctl);
         		}
@@ -1967,13 +1967,12 @@ static void TLan_ResetLists( struct net_device *dev )
 		list->cStat = TLAN_CSTAT_READY;
 		list->frameSize = TLAN_MAX_FRAME_SIZE;
 		list->buffer[0].count = TLAN_MAX_FRAME_SIZE | TLAN_LAST_BUFFER;
-		skb = netdev_alloc_skb(dev, TLAN_MAX_FRAME_SIZE + 7 );
+		skb = netdev_alloc_skb_ip_align(dev, TLAN_MAX_FRAME_SIZE + 5);
 		if ( !skb ) {
 			pr_err("TLAN: out of memory for received data.\n" );
 			break;
 		}
 
-		skb_reserve( skb, NET_IP_ALIGN );
 		list->buffer[0].address = pci_map_single(priv->pciDev,
 							 skb->data,
 							 TLAN_MAX_FRAME_SIZE,

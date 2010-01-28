@@ -671,7 +671,6 @@ ssize_t afs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
-	int ret;
 
 	_enter("{%x.%u},{%zu},%lu,",
 	       vnode->fid.vid, vnode->fid.vnode, count, nr_segs);
@@ -689,13 +688,6 @@ ssize_t afs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	if (IS_ERR_VALUE(result)) {
 		_leave(" = %zd", result);
 		return result;
-	}
-
-	/* return error values for O_SYNC and IS_SYNC() */
-	if (IS_SYNC(&vnode->vfs_inode) || iocb->ki_filp->f_flags & O_SYNC) {
-		ret = afs_fsync(iocb->ki_filp, dentry, 1);
-		if (ret < 0)
-			result = ret;
 	}
 
 	_leave(" = %zd", result);

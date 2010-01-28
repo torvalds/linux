@@ -29,10 +29,14 @@
 
 #define HW_ACCESS_MEMORY_MAX_RANGE		0x1FFC0
 
-#define HW_ACCESS_PART0_SIZE_ADDR           0x1FFC0
-#define HW_ACCESS_PART0_START_ADDR          0x1FFC4
-#define HW_ACCESS_PART1_SIZE_ADDR           0x1FFC8
-#define HW_ACCESS_PART1_START_ADDR          0x1FFCC
+#define HW_PARTITION_REGISTERS_ADDR         0x1ffc0
+#define HW_PART0_SIZE_ADDR                  (HW_PARTITION_REGISTERS_ADDR)
+#define HW_PART0_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 4)
+#define HW_PART1_SIZE_ADDR                  (HW_PARTITION_REGISTERS_ADDR + 8)
+#define HW_PART1_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 12)
+#define HW_PART2_SIZE_ADDR                  (HW_PARTITION_REGISTERS_ADDR + 16)
+#define HW_PART2_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 20)
+#define HW_PART3_START_ADDR                 (HW_PARTITION_REGISTERS_ADDR + 24)
 
 #define HW_ACCESS_REGISTER_SIZE             4
 
@@ -67,47 +71,56 @@
 		((WL1271_BUSY_WORD_LEN - 4) / sizeof(u32))
 #define HW_ACCESS_WSPI_INIT_CMD_MASK  0
 
+#define OCP_CMD_LOOP  32
+
+#define OCP_CMD_WRITE 0x1
+#define OCP_CMD_READ  0x2
+
+#define OCP_READY_MASK  BIT(18)
+#define OCP_STATUS_MASK (BIT(16) | BIT(17))
+
+#define OCP_STATUS_NO_RESP    0x00000
+#define OCP_STATUS_OK         0x10000
+#define OCP_STATUS_REQ_FAILED 0x20000
+#define OCP_STATUS_RESP_ERROR 0x30000
 
 /* Raw target IO, address is not translated */
-void wl1271_spi_write(struct wl1271 *wl, int addr, void *buf,
+void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 		      size_t len, bool fixed);
-void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf,
+void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 		     size_t len, bool fixed);
 
-/* Memory target IO, address is tranlated to partition 0 */
-void wl1271_spi_mem_read(struct wl1271 *wl, int addr, void *buf, size_t len);
-void wl1271_spi_mem_write(struct wl1271 *wl, int addr, void *buf, size_t len);
-u32 wl1271_mem_read32(struct wl1271 *wl, int addr);
-void wl1271_mem_write32(struct wl1271 *wl, int addr, u32 val);
+/* Translated target IO */
+void wl1271_spi_read(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+void wl1271_spi_write(struct wl1271 *wl, int addr, void *buf, size_t len,
+		      bool fixed);
+u32 wl1271_spi_read32(struct wl1271 *wl, int addr);
+void wl1271_spi_write32(struct wl1271 *wl, int addr, u32 val);
 
-/* Registers IO */
-void wl1271_spi_reg_read(struct wl1271 *wl, int addr, void *buf, size_t len,
-			 bool fixed);
-void wl1271_spi_reg_write(struct wl1271 *wl, int addr, void *buf, size_t len,
-			  bool fixed);
-u32 wl1271_reg_read32(struct wl1271 *wl, int addr);
-void wl1271_reg_write32(struct wl1271 *wl, int addr, u32 val);
+/* Top Register IO */
+void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
+u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
 
 /* INIT and RESET words */
 void wl1271_spi_reset(struct wl1271 *wl);
 void wl1271_spi_init(struct wl1271 *wl);
 int wl1271_set_partition(struct wl1271 *wl,
-			 u32 part_start, u32 part_size,
-			 u32 reg_start,  u32 reg_size);
+			 struct wl1271_partition_set *p);
 
-static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
+static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
 {
-	wl1271_spi_read(wl, addr, &wl->buffer_32,
-			sizeof(wl->buffer_32), false);
+	wl1271_spi_raw_read(wl, addr, &wl->buffer_32,
+			    sizeof(wl->buffer_32), false);
 
 	return wl->buffer_32;
 }
 
-static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
+static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
 {
 	wl->buffer_32 = val;
-	wl1271_spi_write(wl, addr, &wl->buffer_32,
-			 sizeof(wl->buffer_32), false);
+	wl1271_spi_raw_write(wl, addr, &wl->buffer_32,
+			     sizeof(wl->buffer_32), false);
 }
 
 #endif /* __WL1271_SPI_H__ */

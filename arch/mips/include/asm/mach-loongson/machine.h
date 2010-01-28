@@ -13,9 +13,14 @@
 
 #ifdef CONFIG_LEMOTE_FULOONG2E
 
-#define LOONGSON_UART_BASE (BONITO_PCIIO_BASE + 0x3f8)
-
 #define LOONGSON_MACHTYPE MACH_LEMOTE_FL2E
+
+#endif
+
+/* use fuloong2f as the default machine of LEMOTE_MACH2F */
+#ifdef CONFIG_LEMOTE_MACH2F
+
+#define LOONGSON_MACHTYPE MACH_LEMOTE_FL2F
 
 #endif
 

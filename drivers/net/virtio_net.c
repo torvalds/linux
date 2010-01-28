@@ -282,13 +282,12 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 	do {
 		struct skb_vnet_hdr *hdr;
 
-		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
 		if (unlikely(!skb)) {
 			oom = true;
 			break;
 		}
 
-		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, MAX_PACKET_LEN);
 
 		hdr = skb_vnet_hdr(skb);
@@ -343,13 +342,11 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 	do {
 		skb_frag_t *f;
 
-		skb = netdev_alloc_skb(vi->dev, GOOD_COPY_LEN + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(vi->dev, GOOD_COPY_LEN);
 		if (unlikely(!skb)) {
 			oom = true;
 			break;
 		}
-
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		f = &skb_shinfo(skb)->frags[0];
 		f->page = get_a_page(vi, gfp);
@@ -431,8 +428,8 @@ again:
 	/* Out of packets? */
 	if (received < budget) {
 		napi_complete(napi);
-		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq))
-		    && napi_schedule_prep(napi)) {
+		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq)) &&
+		    napi_schedule_prep(napi)) {
 			vi->rvq->vq_ops->disable_cb(vi->rvq);
 			__napi_schedule(napi);
 			goto again;
@@ -893,9 +890,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
 
 	/* If we can receive ANY GSO packets, we must allocate large ones. */
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4)
-	    || virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6)
-	    || virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ECN))
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4) ||
+	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6) ||
+	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ECN))
 		vi->big_packets = true;
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_MRG_RXBUF))

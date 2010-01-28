@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/smsc911x.h>
+#include <linux/regulator/fixed.h>
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #include <linux/mfd/wm8350/core.h>
@@ -184,6 +185,44 @@ static struct platform_device smdk6410_smsc911x = {
 	},
 };
 
+#ifdef CONFIG_REGULATOR
+static struct regulator_consumer_supply smdk6410_b_pwr_5v_consumers[] = {
+	{
+		/* WM8580 */
+		.supply = "PVDD",
+		.dev_name = "0-001b",
+	},
+	{
+		/* WM8580 */
+		.supply = "AVDD",
+		.dev_name = "0-001b",
+	},
+};
+
+static struct regulator_init_data smdk6410_b_pwr_5v_data = {
+	.constraints = {
+		.always_on = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(smdk6410_b_pwr_5v_consumers),
+	.consumer_supplies = smdk6410_b_pwr_5v_consumers,
+};
+
+static struct fixed_voltage_config smdk6410_b_pwr_5v_pdata = {
+	.supply_name = "B_PWR_5V",
+	.microvolts = 5000000,
+	.init_data = &smdk6410_b_pwr_5v_data,
+	.gpio = -EINVAL,
+};
+
+static struct platform_device smdk6410_b_pwr_5v = {
+	.name          = "reg-fixed-voltage",
+	.id            = -1,
+	.dev = {
+		.platform_data = &smdk6410_b_pwr_5v_pdata,
+	},
+};
+#endif
+
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
@@ -198,6 +237,10 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&s3c_device_usb,
 	&s3c_device_usb_hsotg,
+
+#ifdef CONFIG_REGULATOR
+	&smdk6410_b_pwr_5v,
+#endif
 	&smdk6410_lcd_powerdev,
 
 	&smdk6410_smsc911x,
@@ -232,6 +275,14 @@ static struct regulator_init_data wm8350_dcdc3_data = {
 };
 
 /* USB, EXT, PCM, ADC/DAC, USB, MMC */
+static struct regulator_consumer_supply wm8350_dcdc4_consumers[] = {
+	{
+		/* WM8580 */
+		.supply = "DVDD",
+		.dev_name = "0-001b",
+	},
+};
+
 static struct regulator_init_data wm8350_dcdc4_data = {
 	.constraints = {
 		.name = "PVDD_HI/PVDD_EXT/PVDD_SYS/PVCCM2MTV",
@@ -239,6 +290,8 @@ static struct regulator_init_data wm8350_dcdc4_data = {
 		.max_uV = 3000000,
 		.always_on = 1,
 	},
+	.num_consumer_supplies = ARRAY_SIZE(wm8350_dcdc4_consumers),
+	.consumer_supplies = wm8350_dcdc4_consumers,
 };
 
 /* ARM core */

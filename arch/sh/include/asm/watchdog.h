@@ -2,6 +2,8 @@
  * include/asm-sh/watchdog.h
  *
  * Copyright (C) 2002, 2003 Paul Mundt
+ * Copyright (C) 2009 Siemens AG
+ * Copyright (C) 2009 Valentin Sitdikov
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -61,6 +63,61 @@
 #define WTCSR_CKS_2048	0x06
 #define WTCSR_CKS_4096	0x07
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7785) || defined(CONFIG_CPU_SUBTYPE_SH7780)
+/**
+ * 	sh_wdt_read_cnt - Read from Counter
+ * 	Reads back the WTCNT value.
+ */
+static inline __u32 sh_wdt_read_cnt(void)
+{
+	return ctrl_inl(WTCNT_R);
+}
+
+/**
+ *	sh_wdt_write_cnt - Write to Counter
+ *	@val: Value to write
+ *
+ *	Writes the given value @val to the lower byte of the timer counter.
+ *	The upper byte is set manually on each write.
+ */
+static inline void sh_wdt_write_cnt(__u32 val)
+{
+	ctrl_outl((WTCNT_HIGH << 24) | (__u32)val, WTCNT);
+}
+
+/**
+ *	sh_wdt_write_bst - Write to Counter
+ *	@val: Value to write
+ *
+ *	Writes the given value @val to the lower byte of the timer counter.
+ *	The upper byte is set manually on each write.
+ */
+static inline void sh_wdt_write_bst(__u32 val)
+{
+	ctrl_outl((WTBST_HIGH << 24) | (__u32)val, WTBST);
+}
+/**
+ * 	sh_wdt_read_csr - Read from Control/Status Register
+ *
+ *	Reads back the WTCSR value.
+ */
+static inline __u32 sh_wdt_read_csr(void)
+{
+	return ctrl_inl(WTCSR_R);
+}
+
+/**
+ * 	sh_wdt_write_csr - Write to Control/Status Register
+ * 	@val: Value to write
+ *
+ * 	Writes the given value @val to the lower byte of the control/status
+ * 	register. The upper byte is set manually on each write.
+ */
+static inline void sh_wdt_write_csr(__u32 val)
+{
+	ctrl_outl((WTCSR_HIGH << 24) | (__u32)val, WTCSR);
+}
+#else
 /**
  * 	sh_wdt_read_cnt - Read from Counter
  * 	Reads back the WTCNT value.
@@ -103,6 +160,6 @@ static inline void sh_wdt_write_csr(__u8 val)
 {
 	ctrl_outw((WTCSR_HIGH << 8) | (__u16)val, WTCSR);
 }
-
+#endif /* CONFIG_CPU_SUBTYPE_SH7785 || CONFIG_CPU_SUBTYPE_SH7780 */
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_WATCHDOG_H */
