@@ -50,8 +50,6 @@ static int fixed_voltage_enable(struct regulator_dev *dev)
 	if (gpio_is_valid(data->gpio)) {
 		gpio_set_value_cansleep(data->gpio, data->enable_high);
 		data->is_enabled = 1;
-		if (data->startup_delay)
-			udelay(data->startup_delay);
 	}
 
 	return 0;
@@ -67,6 +65,13 @@ static int fixed_voltage_disable(struct regulator_dev *dev)
 	}
 
 	return 0;
+}
+
+static int fixed_voltage_enable_time(struct regulator_dev *dev)
+{
+	struct fixed_voltage_data *data = rdev_get_drvdata(dev);
+
+	return data->startup_delay;
 }
 
 static int fixed_voltage_get_voltage(struct regulator_dev *dev)
@@ -91,6 +96,7 @@ static struct regulator_ops fixed_voltage_ops = {
 	.is_enabled = fixed_voltage_is_enabled,
 	.enable = fixed_voltage_enable,
 	.disable = fixed_voltage_disable,
+	.enable_time = fixed_voltage_enable_time,
 	.get_voltage = fixed_voltage_get_voltage,
 	.list_voltage = fixed_voltage_list_voltage,
 };
