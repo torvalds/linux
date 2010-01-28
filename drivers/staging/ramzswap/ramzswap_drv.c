@@ -1000,6 +1000,9 @@ static void reset_device(struct ramzswap *rzs)
 	unsigned entries_per_page;
 	unsigned long num_table_pages, entry = 0;
 
+	/* Do not accept any new I/O request */
+	rzs->init_done = 0;
+
 	if (rzs->backing_swap && !rzs->num_extents)
 		is_backing_blkdev = 1;
 
@@ -1073,9 +1076,6 @@ static void reset_device(struct ramzswap *rzs)
 
 	rzs->disksize = 0;
 	rzs->memlimit = 0;
-
-	/* Back to uninitialized state */
-	rzs->init_done = 0;
 }
 
 static int ramzswap_ioctl_init_device(struct ramzswap *rzs)
@@ -1276,6 +1276,11 @@ static int ramzswap_ioctl(struct block_device *bdev, fmode_t mode,
 			ret = -EBUSY;
 			goto out;
 		}
+
+		/* Make sure all pending I/O is finished */
+		if (bdev)
+			fsync_bdev(bdev);
+
 		ret = ramzswap_ioctl_reset_device(rzs);
 		break;
 
