@@ -19,26 +19,6 @@ static void __init init_titan_irq(void)
 }
 
 static struct sh_machine_vector mv_titan __initmv = {
-	.mv_name =	"Titan",
-
-	.mv_inb =	titan_inb,
-	.mv_inw =	titan_inw,
-	.mv_inl =	titan_inl,
-	.mv_outb =	titan_outb,
-	.mv_outw =	titan_outw,
-	.mv_outl =	titan_outl,
-
-	.mv_inb_p =	titan_inb_p,
-	.mv_inw_p =	titan_inw,
-	.mv_inl_p =	titan_inl,
-	.mv_outb_p =	titan_outb_p,
-	.mv_outw_p =	titan_outw,
-	.mv_outl_p =	titan_outl,
-
-	.mv_insl =	titan_insl,
-	.mv_outsl =	titan_outsl,
-
-	.mv_ioport_map = titan_ioport_map,
-
-	.mv_init_irq =	init_titan_irq,
+	.mv_name	= "Titan",
+	.mv_init_irq	= init_titan_irq,
 };
