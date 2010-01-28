@@ -1368,6 +1368,7 @@ int snd_soc_new_ac97_codec(struct snd_soc_codec *codec,
 
 	codec->ac97->bus->ops = ops;
 	codec->ac97->num = num;
+	codec->dev = &codec->ac97->dev;
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
