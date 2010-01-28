@@ -5,6 +5,8 @@
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
  *
  * Separated from Pixart PAC7311 library by M�rton N�meth <nm127@freemail.hu>
+ * Camera button input handling by Márton Németh <nm127@freemail.hu>
+ * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,6 +70,7 @@
 
 #define MODULE_NAME "pac7302"
 
+#include <linux/input.h>
 #include <media/v4l2-chip-ident.h>
 #include "gspca.h"
 
@@ -1143,6 +1146,37 @@ static int sd_chip_ident(struct gspca_dev *gspca_dev,
 }
 #endif
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet data */
+			int len)		/* interrput packet length */
+{
+	int ret = -EINVAL;
+	u8 data0, data1;
+
+	if (len == 2) {
+		data0 = data[0];
+		data1 = data[1];
+		if ((data0 == 0x00 && data1 == 0x11) ||
+		    (data0 == 0x22 && data1 == 0x33) ||
+		    (data0 == 0x44 && data1 == 0x55) ||
+		    (data0 == 0x66 && data1 == 0x77) ||
+		    (data0 == 0x88 && data1 == 0x99) ||
+		    (data0 == 0xaa && data1 == 0xbb) ||
+		    (data0 == 0xcc && data1 == 0xdd) ||
+		    (data0 == 0xee && data1 == 0xff)) {
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+			input_sync(gspca_dev->input_dev);
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+			input_sync(gspca_dev->input_dev);
+			ret = 0;
+		}
+	}
+
+	return ret;
+}
+#endif
+
 /* sub-driver description for pac7302 */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -1158,6 +1192,9 @@ static const struct sd_desc sd_desc = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
 	.get_chip_ident = sd_chip_ident,
+#endif
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
 #endif
 };
 
