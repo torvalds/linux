@@ -19,8 +19,7 @@
 #include <asm/inst.h>
 #include <asm/elf.h>
 #include <asm/bugs.h>
-
-#include "uasm.h"
+#include <asm/uasm.h>
 
 enum fields {
 	RS = 0x001,

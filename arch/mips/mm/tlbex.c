@@ -29,8 +29,7 @@
 
 #include <asm/mmu_context.h>
 #include <asm/war.h>
-
-#include "uasm.h"
+#include <asm/uasm.h>
 
 static inline int r45k_bvahwbug(void)
 {
