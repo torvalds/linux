@@ -859,6 +859,15 @@ int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 	return error;
 }
 
+static const struct osd_attr g_attr_inode_file_layout = ATTR_DEF(
+	EXOFS_APAGE_FS_DATA,
+	EXOFS_ATTR_INODE_FILE_LAYOUT,
+	0);
+static const struct osd_attr g_attr_inode_dir_layout = ATTR_DEF(
+	EXOFS_APAGE_FS_DATA,
+	EXOFS_ATTR_INODE_DIR_LAYOUT,
+	0);
+
 /*
  * Read an inode from the OSD, and return it as is.  We also return the size
  * attribute in the 'obj_size' argument.
@@ -867,11 +876,16 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 		    struct exofs_fcb *inode, uint64_t *obj_size)
 {
 	struct exofs_sb_info *sbi = sb->s_fs_info;
-	struct osd_attr attrs[2];
+	struct osd_attr attrs[] = {
+		[0] = g_attr_inode_data,
+		[1] = g_attr_inode_file_layout,
+		[2] = g_attr_inode_dir_layout,
+		[3] = g_attr_logical_length,
+	};
 	struct exofs_io_state *ios;
+	struct exofs_on_disk_inode_layout *layout;
 	int ret;
 
-	*obj_size = ~0;
 	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (unlikely(ret)) {
 		EXOFS_ERR("%s: exofs_get_io_state failed.\n", __func__);
@@ -882,8 +896,9 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 	exofs_make_credential(oi->i_cred, &ios->obj);
 	ios->cred = oi->i_cred;
 
-	attrs[0] = g_attr_inode_data;
-	attrs[1] = g_attr_logical_length;
+	attrs[1].len = exofs_on_disk_inode_layout_size(sbi->layout.s_numdevs);
+	attrs[2].len = exofs_on_disk_inode_layout_size(sbi->layout.s_numdevs);
+
 	ios->in_attr = attrs;
 	ios->in_attr_len = ARRAY_SIZE(attrs);
 
@@ -901,11 +916,42 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 
 	ret = extract_attr_from_ios(ios, &attrs[1]);
 	if (ret) {
+		EXOFS_ERR("%s: extract_attr of inode_data failed\n", __func__);
+		goto out;
+	}
+	if (attrs[1].len) {
+		layout = attrs[1].val_ptr;
+		if (layout->gen_func != cpu_to_le16(LAYOUT_MOVING_WINDOW)) {
+			EXOFS_ERR("%s: unsupported files layout %d\n",
+				__func__, layout->gen_func);
+			ret = -ENOTSUPP;
+			goto out;
+		}
+	}
+
+	ret = extract_attr_from_ios(ios, &attrs[2]);
+	if (ret) {
+		EXOFS_ERR("%s: extract_attr of inode_data failed\n", __func__);
+		goto out;
+	}
+	if (attrs[2].len) {
+		layout = attrs[2].val_ptr;
+		if (layout->gen_func != cpu_to_le16(LAYOUT_MOVING_WINDOW)) {
+			EXOFS_ERR("%s: unsupported meta-data layout %d\n",
+				__func__, layout->gen_func);
+			ret = -ENOTSUPP;
+			goto out;
+		}
+	}
+
+	*obj_size = ~0;
+	ret = extract_attr_from_ios(ios, &attrs[3]);
+	if (ret) {
 		EXOFS_ERR("%s: extract_attr of logical_length failed\n",
 			  __func__);
 		goto out;
 	}
-	*obj_size = get_unaligned_be64(attrs[1].val_ptr);
+	*obj_size = get_unaligned_be64(attrs[3].val_ptr);
 
 out:
 	exofs_put_io_state(ios);

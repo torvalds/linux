@@ -186,6 +186,12 @@ static inline struct exofs_i_info *exofs_i(struct inode *inode)
 }
 
 /*
+ * Given a layout, object_number and stripe_index return the associated global
+ * dev_index
+ */
+unsigned exofs_layout_od_id(struct exofs_layout *layout,
+			    osd_id obj_no, unsigned layout_index);
+/*
  * Maximum count of links to a file
  */
 #define EXOFS_LINK_MAX           32000

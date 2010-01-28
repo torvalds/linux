@@ -107,6 +107,19 @@ void exofs_put_io_state(struct exofs_io_state *ios)
 	}
 }
 
+unsigned exofs_layout_od_id(struct exofs_layout *layout,
+			    osd_id obj_no, unsigned layout_index)
+{
+	return layout_index;
+}
+
+static inline struct osd_dev *exofs_ios_od(struct exofs_io_state *ios,
+					   unsigned layout_index)
+{
+	return ios->layout->s_ods[
+		exofs_layout_od_id(ios->layout, ios->obj.id, layout_index)];
+}
+
 static void _sync_done(struct exofs_io_state *ios, void *p)
 {
 	struct completion *waiting = p;
@@ -242,7 +255,7 @@ int exofs_sbi_create(struct exofs_io_state *ios)
 	for (i = 0; i < ios->layout->s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(ios->layout->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(exofs_ios_od(ios, i), GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -266,7 +279,7 @@ int exofs_sbi_remove(struct exofs_io_state *ios)
 	for (i = 0; i < ios->layout->s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(ios->layout->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(exofs_ios_od(ios, i), GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -290,7 +303,7 @@ int exofs_sbi_write(struct exofs_io_state *ios)
 	for (i = 0; i < ios->layout->s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(ios->layout->s_ods[i], GFP_KERNEL);
+		or = osd_start_request(exofs_ios_od(ios, i), GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
@@ -361,7 +374,7 @@ int exofs_sbi_read(struct exofs_io_state *ios)
 	unsigned first_dev = (unsigned)ios->obj.id;
 
 	first_dev %= ios->layout->s_numdevs;
-	or = osd_start_request(ios->layout->s_ods[first_dev], GFP_KERNEL);
+	or = osd_start_request(exofs_ios_od(ios, first_dev), GFP_KERNEL);
 	if (unlikely(!or)) {
 		EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 		return -ENOMEM;
@@ -442,7 +455,7 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 	for (i = 0; i < sbi->layout.s_numdevs; i++) {
 		struct osd_request *or;
 
-		or = osd_start_request(sbi->layout.s_ods[i], GFP_KERNEL);
+		or = osd_start_request(exofs_ios_od(ios, i), GFP_KERNEL);
 		if (unlikely(!or)) {
 			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
 			ret = -ENOMEM;
