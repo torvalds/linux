@@ -273,24 +273,6 @@ void __iomem *__ioremap_caller(unsigned long offset, unsigned long size,
 			       pgprot_t prot, void *caller);
 void __iounmap(void __iomem *addr);
 
-#ifdef CONFIG_IOREMAP_FIXED
-extern void __iomem *ioremap_fixed(resource_size_t, unsigned long,
-				   unsigned long, pgprot_t);
-extern int iounmap_fixed(void __iomem *);
-extern void ioremap_fixed_init(void);
-#else
-static inline void __iomem *
-ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
-	      unsigned long size, pgprot_t prot)
-{
-	BUG();
-	return NULL;
-}
-
-static inline void ioremap_fixed_init(void) { }
-static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
-#endif
-
 static inline void __iomem *
 __ioremap(unsigned long offset, unsigned long size, pgprot_t prot)
 {
@@ -363,6 +345,24 @@ ioremap_prot(resource_size_t offset, unsigned long size, unsigned long flags)
 {
 	return __ioremap_mode(offset, size, __pgprot(flags));
 }
+#endif
+
+#ifdef CONFIG_IOREMAP_FIXED
+extern void __iomem *ioremap_fixed(resource_size_t, unsigned long,
+				   unsigned long, pgprot_t);
+extern int iounmap_fixed(void __iomem *);
+extern void ioremap_fixed_init(void);
+#else
+static inline void __iomem *
+ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
+	      unsigned long size, pgprot_t prot)
+{
+	BUG();
+	return NULL;
+}
+
+static inline void ioremap_fixed_init(void) { }
+static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 #endif
 
 #define ioremap_nocache	ioremap
