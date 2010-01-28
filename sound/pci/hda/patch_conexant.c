@@ -1832,7 +1832,7 @@ static struct hda_verb cxt5051_lenovo_x200_init_verbs[] = {
 
 static struct hda_verb cxt5051_f700_init_verbs[] = {
 	/* Line in, Mic */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1) | 0x03},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x03},
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0},
 	{0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0},
