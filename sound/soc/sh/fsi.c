@@ -110,6 +110,7 @@ struct fsi_master {
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
 	struct sh_fsi_platform_info *info;
+	spinlock_t lock;
 };
 
 /************************************************************************
@@ -168,30 +169,51 @@ static int fsi_reg_mask_set(struct fsi_priv *fsi, u32 reg, u32 mask, u32 data)
 
 static int fsi_master_write(struct fsi_master *master, u32 reg, u32 data)
 {
+	int ret;
+	unsigned long flags;
+
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
 		return -1;
 
-	return __fsi_reg_write((u32)(master->base + reg), data);
+	spin_lock_irqsave(&master->lock, flags);
+	ret = __fsi_reg_write((u32)(master->base + reg), data);
+	spin_unlock_irqrestore(&master->lock, flags);
+
+	return ret;
 }
 
 static u32 fsi_master_read(struct fsi_master *master, u32 reg)
 {
+	u32 ret;
+	unsigned long flags;
+
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
 		return 0;
 
-	return __fsi_reg_read((u32)(master->base + reg));
+	spin_lock_irqsave(&master->lock, flags);
+	ret = __fsi_reg_read((u32)(master->base + reg));
+	spin_unlock_irqrestore(&master->lock, flags);
+
+	return ret;
 }
 
 static int fsi_master_mask_set(struct fsi_master *master,
 			       u32 reg, u32 mask, u32 data)
 {
+	int ret;
+	unsigned long flags;
+
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
 		return -1;
 
-	return __fsi_reg_mask_set((u32)(master->base + reg), mask, data);
+	spin_lock_irqsave(&master->lock, flags);
+	ret = __fsi_reg_mask_set((u32)(master->base + reg), mask, data);
+	spin_unlock_irqrestore(&master->lock, flags);
+
+	return ret;
 }
 
 /************************************************************************
@@ -929,6 +951,7 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.master	= master;
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
+	spin_lock_init(&master->lock);
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
