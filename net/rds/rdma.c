@@ -462,6 +462,22 @@ void rds_rdma_free_op(struct rds_rdma_op *ro)
 	ro->r_active = 0;
 }
 
+void rds_atomic_free_op(struct rm_atomic_op *ao)
+{
+	struct page *page = sg_page(ao->op_sg);
+
+	/* Mark page dirty if it was possibly modified, which
+	 * is the case for a RDMA_READ which copies from remote
+	 * to local memory */
+	set_page_dirty(page);
+	put_page(page);
+
+	kfree(ao->op_notifier);
+	ao->op_notifier = NULL;
+	ao->op_active = 0;
+}
+
+
 /*
  * Count the number of pages needed to describe an incoming iovec.
  */
