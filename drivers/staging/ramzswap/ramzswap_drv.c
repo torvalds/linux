@@ -220,7 +220,7 @@ out:
 	return ret;
 }
 
-void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
+static void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 			struct ramzswap_ioctl_stats *s)
 {
 	strncpy(s->backing_swap_name, rzs->backing_swap_name,
@@ -502,6 +502,14 @@ static int setup_backing_swap(struct ramzswap *rzs)
 			goto bad_param;
 		}
 		disksize = i_size_read(inode);
+		/*
+		 * Can happen if user gives an extended partition as
+		 * backing swap or simply a bad disk.
+		 */
+		if (!disksize) {
+			pr_err("Error reading backing swap size.\n");
+			goto bad_param;
+		}
 	} else if (S_ISREG(inode->i_mode)) {
 		bdev = inode->i_sb->s_bdev;
 		if (IS_SWAPFILE(inode)) {
@@ -519,7 +527,6 @@ static int setup_backing_swap(struct ramzswap *rzs)
 	rzs->swap_file = swap_file;
 	rzs->backing_swap = bdev;
 	rzs->disksize = disksize;
-	BUG_ON(!rzs->disksize);
 
 	return 0;
 
@@ -537,7 +544,7 @@ out:
  * Map logical page number 'pagenum' to physical page number
  * on backing swap device. For block device, this is a nop.
  */
-u32 map_backing_swap_page(struct ramzswap *rzs, u32 pagenum)
+static u32 map_backing_swap_page(struct ramzswap *rzs, u32 pagenum)
 {
 	u32 skip_pages, entries_per_page;
 	size_t delta, se_offset, skipped;
@@ -667,7 +674,6 @@ static int handle_uncompressed_page(struct ramzswap *rzs, struct bio *bio)
 	bio_endio(bio, 0);
 	return 0;
 }
-
 
 /*
  * Called when request page is not present in ramzswap.
@@ -936,7 +942,6 @@ out:
 	return 0;
 }
 
-
 /*
  * Check if request is within bounds and page aligned.
  */
@@ -1064,6 +1069,7 @@ static void reset_device(struct ramzswap *rzs)
 			bd_release(rzs->backing_swap);
 		filp_close(rzs->swap_file, NULL);
 		rzs->backing_swap = NULL;
+		memset(rzs->backing_swap_name, 0, MAX_SWAP_NAME_LEN);
 	}
 
 	/* Reset stats */
