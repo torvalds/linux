@@ -4,7 +4,7 @@
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
  *
- * Separated from Pixart PAC7311 library by M�rton N�meth <nm127@freemail.hu>
+ * Separated from Pixart PAC7311 library by Márton Németh
  * Camera button input handling by Márton Németh <nm127@freemail.hu>
  * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
  *
