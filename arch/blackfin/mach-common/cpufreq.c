@@ -16,8 +16,6 @@
 #include <asm/time.h>
 #include <asm/dpmc.h>
 
-#define CPUFREQ_CPU 0
-
 /* this is the table of CCLK frequencies, in Hz */
 /* .index is the entry in the auxillary dpm_state_table[] */
 static struct cpufreq_frequency_table bfin_freq_table[] = {
