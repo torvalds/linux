@@ -248,8 +248,27 @@ MODULE_LICENSE("GPL");
 
 MODULE_VERSION(CX18_VERSION);
 
-/* Forward Declaration */
-static void request_modules(struct cx18 *dev);
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct cx18 *dev = container_of(work, struct cx18, request_module_wk);
+
+	/* Make sure cx18-alsa module is loaded */
+	request_module("cx18-alsa");
+
+	/* Initialize cx18-alsa for this instance of the cx18 device */
+	if (cx18_ext_init != NULL)
+		cx18_ext_init(dev);
+}
+
+static void request_modules(struct cx18 *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
 
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
@@ -1249,28 +1268,6 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	kfree(cx);
 }
 
-
-#if defined(CONFIG_MODULES) && defined(MODULE)
-static void request_module_async(struct work_struct *work)
-{
-	struct cx18 *dev = container_of(work, struct cx18, request_module_wk);
-
-	/* Make sure cx18-alsa module is loaded */
-	request_module("cx18-alsa");
-
-	/* Initialize cx18-alsa for this instance of the cx18 device */
-	if (cx18_ext_init != NULL)
-		cx18_ext_init(dev);
-}
-
-static void request_modules(struct cx18 *dev)
-{
-	INIT_WORK(&dev->request_module_wk, request_module_async);
-	schedule_work(&dev->request_module_wk);
-}
-#else
-#define request_modules(dev)
-#endif /* CONFIG_MODULES */
 
 /* define a pci_driver for card detection */
 static struct pci_driver cx18_pci_driver = {
