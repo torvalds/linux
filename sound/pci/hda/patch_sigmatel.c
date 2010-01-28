@@ -5332,6 +5332,11 @@ again:
 	if (spec->board_config == STAC_92HD83XXX_HP)
 		spec->gpio_led = 0x01;
 
+	if (find_mute_led_gpio(codec))
+		snd_printd("mute LED gpio %d polarity %d\n",
+				spec->gpio_led,
+				spec->gpio_led_polarity);
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
 		spec->gpio_mask |= spec->gpio_led;
