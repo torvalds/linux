@@ -58,10 +58,10 @@ static s64			time_offset;
 static long			time_constant = 2;
 
 /* maximum error (usecs):						*/
-long				time_maxerror = NTP_PHASE_LIMIT;
+static long			time_maxerror = NTP_PHASE_LIMIT;
 
 /* estimated error (usecs):						*/
-long				time_esterror = NTP_PHASE_LIMIT;
+static long			time_esterror = NTP_PHASE_LIMIT;
 
 /* frequency offset (scaled nsecs/secs):				*/
 static s64			time_freq;
