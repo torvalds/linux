@@ -497,12 +497,13 @@ int rds_rdma_extra_size(struct rds_rdma_args *args)
 }
 
 /*
- * args is a pointer to an in-kernel copy in the sendmsg cmsg.
+ * The application asks for a RDMA transfer.
+ * Extract all arguments and set up the rdma_op
  */
-static int rds_rdma_prepare(struct rds_message *rm,
-			    struct rds_sock *rs,
-			    struct rds_rdma_args *args)
+int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
+			  struct cmsghdr *cmsg)
 {
+	struct rds_rdma_args *args;
 	struct rds_iovec vec;
 	struct rds_rdma_op *op = &rm->rdma.m_rdma_op;
 	unsigned int nr_pages;
@@ -513,6 +514,11 @@ static int rds_rdma_prepare(struct rds_message *rm,
 	unsigned int i, j;
 	int ret = 0;
 
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args))
+	    || rm->rdma.m_rdma_op.r_active)
+		return -EINVAL;
+
+	args = CMSG_DATA(cmsg);
 
 	if (rs->rs_bound_addr == 0) {
 		ret = -ENOTCONN; /* XXX not a great errno */
@@ -623,7 +629,6 @@ static int rds_rdma_prepare(struct rds_message *rm,
 		op->r_nents += nr;
 	}
 
-
 	if (nr_bytes > args->remote_vec.bytes) {
 		rdsdebug("RDS nr_bytes %u remote_bytes %u do not match\n",
 				nr_bytes,
@@ -639,28 +644,9 @@ out:
 	if (ret)
 		rds_rdma_free_op(op);
 
-	return ret;
-}
-
-/*
- * The application asks for a RDMA transfer.
- * Extract all arguments and set up the rdma_op
- */
-int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
-			  struct cmsghdr *cmsg)
-{
-	int ret;
-
-	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args)) ||
-	    rm->rdma.m_rdma_op.r_active)
-		return -EINVAL;
-
-	ret = rds_rdma_prepare(rm, rs, CMSG_DATA(cmsg));
-	if (ret)
-		return ret;
-
 	rds_stats_inc(s_send_rdma);
-	return 0;
+
+	return ret;
 }
 
 /*
