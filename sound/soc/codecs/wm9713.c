@@ -28,8 +28,6 @@
 
 #include "wm9713.h"
 
-#define WM9713_VERSION "0.15"
-
 struct wm9713_priv {
 	u32 pll_in; /* PLL input frequency */
 };
@@ -1185,8 +1183,6 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
 	int ret = 0, reg;
-
-	printk(KERN_INFO "WM9713/WM9714 SoC Audio Codec %s\n", WM9713_VERSION);
 
 	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec),
 				      GFP_KERNEL);
