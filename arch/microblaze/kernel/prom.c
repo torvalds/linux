@@ -342,7 +342,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 
 	read_lock(&devtree_lock);
 	for (np = allnodes; np != NULL; np = np->allnext)
-		if (np->linux_phandle == handle)
+		if (np->phandle == handle)
 			break;
 	of_node_get(np);
 	read_unlock(&devtree_lock);

@@ -310,12 +310,11 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 					__alignof__(struct property));
 		if (allnextpp) {
 			if (strcmp(pname, "linux,phandle") == 0) {
-				np->node = *((u32 *)*p);
-				if (np->linux_phandle == 0)
-					np->linux_phandle = np->node;
+				if (np->phandle == 0)
+					np->phandle = *((u32 *)*p);
 			}
 			if (strcmp(pname, "ibm,phandle") == 0)
-				np->linux_phandle = *((u32 *)*p);
+				np->phandle = *((u32 *)*p);
 			pp->name = pname;
 			pp->length = sz;
 			pp->value = (void *)*p;

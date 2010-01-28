@@ -214,7 +214,7 @@ EXPORT_SYMBOL(of_find_device_by_node);
 static int of_dev_phandle_match(struct device *dev, void *data)
 {
 	phandle *ph = data;
-	return to_of_device(dev)->node->linux_phandle == *ph;
+	return to_of_device(dev)->node->phandle == *ph;
 }
 
 struct of_device *of_find_device_by_phandle(phandle ph)

@@ -3104,7 +3104,7 @@ static int __devinit atyfb_setup_sparc(struct pci_dev *pdev,
 	}
 
 	dp = pci_device_to_OF_node(pdev);
-	if (node == dp->node) {
+	if (node == dp->phandle) {
 		struct fb_var_screeninfo *var = &default_var;
 		unsigned int N, P, Q, M, T, R;
 		u32 v_total, h_total;

@@ -778,7 +778,7 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 
 	read_lock(&devtree_lock);
 	for (np = allnodes; np != 0; np = np->allnext)
-		if (np->linux_phandle == handle)
+		if (np->phandle == handle)
 			break;
 	of_node_get(np);
 	read_unlock(&devtree_lock);
@@ -907,9 +907,9 @@ static int of_finish_dynamic_node(struct device_node *node)
 	if (machine_is(powermac))
 		return -ENODEV;
 
-	/* fix up new node's linux_phandle field */
+	/* fix up new node's phandle field */
 	if ((ibm_phandle = of_get_property(node, "ibm,phandle", NULL)))
-		node->linux_phandle = *ibm_phandle;
+		node->phandle = *ibm_phandle;
 
 out:
 	of_node_put(parent);

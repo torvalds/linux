@@ -39,10 +39,7 @@ struct of_irq_controller;
 struct device_node {
 	const char *name;
 	const char *type;
-	phandle	node;
-#if !defined(CONFIG_SPARC)
-	phandle linux_phandle;
-#endif
+	phandle phandle;
 	char	*full_name;
 
 	struct	property *properties;
