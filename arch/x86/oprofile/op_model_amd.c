@@ -386,16 +386,6 @@ static int init_ibs_nmi(void)
 		return 1;
 	}
 
-#ifdef CONFIG_NUMA
-	/* Sanity check */
-	/* Works only for 64bit with proper numa implementation. */
-	if (nodes != num_possible_nodes()) {
-		printk(KERN_DEBUG "Failed to setup CPU node(s) for IBS, "
-			"found: %d, expected %d",
-			nodes, num_possible_nodes());
-		return 1;
-	}
-#endif
 	return 0;
 }
 
