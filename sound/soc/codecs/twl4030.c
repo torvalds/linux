@@ -64,12 +64,12 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x00, /* REG_VRXPGA		(0x14)	*/
 	0x00, /* REG_VSTPGA		(0x15)	*/
 	0x00, /* REG_VRX2ARXPGA		(0x16)	*/
-	0x0c, /* REG_AVDAC_CTL		(0x17)	*/
+	0x00, /* REG_AVDAC_CTL		(0x17)	*/
 	0x00, /* REG_ARX2VTXPGA		(0x18)	*/
 	0x00, /* REG_ARXL1_APGA_CTL	(0x19)	*/
 	0x00, /* REG_ARXR1_APGA_CTL	(0x1A)	*/
-	0x4b, /* REG_ARXL2_APGA_CTL	(0x1B)	*/
-	0x4b, /* REG_ARXR2_APGA_CTL	(0x1C)	*/
+	0x4a, /* REG_ARXL2_APGA_CTL	(0x1B)	*/
+	0x4a, /* REG_ARXR2_APGA_CTL	(0x1C)	*/
 	0x00, /* REG_ATX2ARXPGA		(0x1D)	*/
 	0x00, /* REG_BT_IF		(0x1E)	*/
 	0x00, /* REG_BTPGA		(0x1F)	*/
@@ -99,7 +99,7 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x00, /* REG_I2S_RX_SCRAMBLE_H	(0x37)	*/
 	0x00, /* REG_I2S_RX_SCRAMBLE_M	(0x38)	*/
 	0x00, /* REG_I2S_RX_SCRAMBLE_L	(0x39)	*/
-	0x16, /* REG_APLL_CTL		(0x3A)	*/
+	0x06, /* REG_APLL_CTL		(0x3A)	*/
 	0x00, /* REG_DTMF_CTL		(0x3B)	*/
 	0x00, /* REG_DTMF_PGA_CTL2	(0x3C)	*/
 	0x00, /* REG_DTMF_PGA_CTL1	(0x3D)	*/
