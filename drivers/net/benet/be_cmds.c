@@ -286,7 +286,7 @@ static void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 				MCC_WRB_SGE_CNT_SHIFT;
 	wrb->payload_length = payload_len;
 	wrb->tag0 = opcode;
-	be_dws_cpu_to_le(wrb, 20);
+	be_dws_cpu_to_le(wrb, 8);
 }
 
 /* Don't touch the hdr after it's prepared */

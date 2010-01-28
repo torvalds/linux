@@ -854,8 +854,8 @@ static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
 
 static irqreturn_t ks_irq(int irq, void *pw)
 {
-	struct ks_net *ks = pw;
-	struct net_device *netdev = ks->netdev;
+	struct net_device *netdev = pw;
+	struct ks_net *ks = netdev_priv(netdev);
 	u16 status;
 
 	/*this should be the first in IRQ handler */
