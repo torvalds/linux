@@ -91,6 +91,9 @@ typedef int (*cam_qmnu_op) (struct gspca_dev *,
 typedef void (*cam_pkt_op) (struct gspca_dev *gspca_dev,
 				u8 *data,
 				int len);
+typedef int (*cam_int_pkt_op) (struct gspca_dev *gspca_dev,
+				u8 *data,
+				int len);
 
 struct ctrl {
 	struct v4l2_queryctrl qctrl;
@@ -126,6 +129,9 @@ struct sd_desc {
 	cam_reg_op get_register;
 #endif
 	cam_ident_op get_chip_ident;
+#ifdef CONFIG_INPUT
+	cam_int_pkt_op int_pkt_scan;
+#endif
 };
 
 /* packet types when moving from iso buf to frame buf */
@@ -148,6 +154,10 @@ struct gspca_dev {
 	struct module *module;		/* subdriver handling the device */
 	struct usb_device *dev;
 	struct file *capt_file;		/* file doing video capture */
+#ifdef CONFIG_INPUT
+	struct input_dev *input_dev;
+	char phys[64];			/* physical device path */
+#endif
 
 	struct cam cam;				/* device information */
 	const struct sd_desc *sd_desc;		/* subdriver description */
@@ -157,6 +167,9 @@ struct gspca_dev {
 #define USB_BUF_SZ 64
 	__u8 *usb_buf;				/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
+#ifdef CONFIG_INPUT
+	struct urb *int_urb;
+#endif
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
