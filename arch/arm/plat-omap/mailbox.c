@@ -146,7 +146,8 @@ static void mbox_rx_work(struct work_struct *work)
 
 		msg = (mbox_msg_t)rq->special;
 		blk_end_request_all(rq, 0);
-		mbox->rxq->callback((void *)msg);
+		if (mbox->rxq->callback)
+			mbox->rxq->callback((void *)msg);
 	}
 }
 
