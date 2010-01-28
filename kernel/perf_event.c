@@ -1573,11 +1573,7 @@ static void rotate_ctx(struct perf_event_context *ctx)
 	raw_spin_lock(&ctx->lock);
 
 	/* Rotate the first entry last of non-pinned groups */
-	perf_disable();
-
 	list_rotate_left(&ctx->flexible_groups);
-
-	perf_enable();
 
 	raw_spin_unlock(&ctx->lock);
 }
@@ -1592,6 +1588,8 @@ void perf_event_task_tick(struct task_struct *curr)
 
 	cpuctx = &__get_cpu_var(perf_cpu_context);
 	ctx = curr->perf_event_ctxp;
+
+	perf_disable();
 
 	perf_ctx_adjust_freq(&cpuctx->ctx);
 	if (ctx)
@@ -1608,6 +1606,8 @@ void perf_event_task_tick(struct task_struct *curr)
 	cpu_ctx_sched_in(cpuctx, EVENT_FLEXIBLE);
 	if (ctx)
 		task_ctx_sched_in(curr, EVENT_FLEXIBLE);
+
+	perf_enable();
 }
 
 static int event_enable_on_exec(struct perf_event *event,
