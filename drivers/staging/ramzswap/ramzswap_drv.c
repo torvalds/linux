@@ -24,7 +24,6 @@
 #include <linux/genhd.h>
 #include <linux/highmem.h>
 #include <linux/lzo.h>
-#include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
@@ -239,7 +238,8 @@ void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 
 	mem_used = xv_get_total_size_bytes(rzs->mem_pool)
 			+ (rs->pages_expand << PAGE_SHIFT);
-	succ_writes = rs->num_writes - rs->failed_writes;
+	succ_writes = rzs_stat64_read(rzs, &rs->num_writes) -
+			rzs_stat64_read(rzs, &rs->failed_writes);
 
 	if (succ_writes && rs->pages_stored) {
 		good_compress_perc = rs->good_compress * 100
@@ -248,11 +248,12 @@ void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 					/ rs->pages_stored;
 	}
 
-	s->num_reads = rs->num_reads;
-	s->num_writes = rs->num_writes;
-	s->failed_reads = rs->failed_reads;
-	s->failed_writes = rs->failed_writes;
-	s->invalid_io = rs->invalid_io;
+	s->num_reads = rzs_stat64_read(rzs, &rs->num_reads);
+	s->num_writes = rzs_stat64_read(rzs, &rs->num_writes);
+	s->failed_reads = rzs_stat64_read(rzs, &rs->failed_reads);
+	s->failed_writes = rzs_stat64_read(rzs, &rs->failed_writes);
+	s->invalid_io = rzs_stat64_read(rzs, &rs->invalid_io);
+	s->notify_free = rzs_stat64_read(rzs, &rs->notify_free);
 	s->pages_zero = rs->pages_zero;
 
 	s->good_compress_pct = good_compress_perc;
@@ -264,8 +265,8 @@ void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 	s->compr_data_size = rs->compr_size;
 	s->mem_used_total = mem_used;
 
-	s->bdev_num_reads = rs->bdev_num_reads;
-	s->bdev_num_writes = rs->bdev_num_writes;
+	s->bdev_num_reads = rzs_stat64_read(rzs, &rs->bdev_num_reads);
+	s->bdev_num_writes = rzs_stat64_read(rzs, &rs->bdev_num_writes);
 	}
 #endif /* CONFIG_RAMZSWAP_STATS */
 }
@@ -594,7 +595,7 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 	if (unlikely(!page)) {
 		if (rzs_test_flag(rzs, index, RZS_ZERO)) {
 			rzs_clear_flag(rzs, index, RZS_ZERO);
-			stat_dec(rzs->stats.pages_zero);
+			rzs_stat_dec(&rzs->stats.pages_zero);
 		}
 		return;
 	}
@@ -603,7 +604,7 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 		clen = PAGE_SIZE;
 		__free_page(page);
 		rzs_clear_flag(rzs, index, RZS_UNCOMPRESSED);
-		stat_dec(rzs->stats.pages_expand);
+		rzs_stat_dec(&rzs->stats.pages_expand);
 		goto out;
 	}
 
@@ -613,11 +614,11 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 
 	xv_free(rzs->mem_pool, page, offset);
 	if (clen <= PAGE_SIZE / 2)
-		stat_dec(rzs->stats.good_compress);
+		rzs_stat_dec(&rzs->stats.good_compress);
 
 out:
 	rzs->stats.compr_size -= clen;
-	stat_dec(rzs->stats.pages_stored);
+	rzs_stat_dec(&rzs->stats.pages_stored);
 
 	rzs->table[index].page = NULL;
 	rzs->table[index].offset = 0;
@@ -679,8 +680,8 @@ static int handle_ramzswap_fault(struct ramzswap *rzs, struct bio *bio)
 	 */
 	if (rzs->backing_swap) {
 		u32 pagenum;
-		stat_dec(rzs->stats.num_reads);
-		stat_inc(rzs->stats.bdev_num_reads);
+		rzs_stat64_dec(rzs, &rzs->stats.num_reads);
+		rzs_stat64_inc(rzs, &rzs->stats.bdev_num_reads);
 		bio->bi_bdev = rzs->backing_swap;
 
 		/*
@@ -718,7 +719,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 	struct zobj_header *zheader;
 	unsigned char *user_mem, *cmem;
 
-	stat_inc(rzs->stats.num_reads);
+	rzs_stat64_inc(rzs, &rzs->stats.num_reads);
 
 	page = bio->bi_io_vec[0].bv_page;
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
@@ -752,7 +753,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 	if (unlikely(ret != LZO_E_OK)) {
 		pr_err("Decompression failed! err=%d, page=%u\n",
 			ret, index);
-		stat_inc(rzs->stats.failed_reads);
+		rzs_stat64_inc(rzs, &rzs->stats.failed_reads);
 		goto out;
 	}
 
@@ -776,7 +777,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	struct page *page, *page_store;
 	unsigned char *user_mem, *cmem, *src;
 
-	stat_inc(rzs->stats.num_writes);
+	rzs_stat64_inc(rzs, &rzs->stats.num_writes);
 
 	page = bio->bi_io_vec[0].bv_page;
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
@@ -796,7 +797,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	 * Simply clear zero page flag.
 	 */
 	if (rzs_test_flag(rzs, index, RZS_ZERO)) {
-		stat_dec(rzs->stats.pages_zero);
+		rzs_stat_dec(&rzs->stats.pages_zero);
 		rzs_clear_flag(rzs, index, RZS_ZERO);
 	}
 
@@ -806,7 +807,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	if (page_zero_filled(user_mem)) {
 		kunmap_atomic(user_mem, KM_USER0);
 		mutex_unlock(&rzs->lock);
-		stat_inc(rzs->stats.pages_zero);
+		rzs_stat_inc(&rzs->stats.pages_zero);
 		rzs_set_flag(rzs, index, RZS_ZERO);
 
 		set_bit(BIO_UPTODATE, &bio->bi_flags);
@@ -830,7 +831,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	if (unlikely(ret != LZO_E_OK)) {
 		mutex_unlock(&rzs->lock);
 		pr_err("Compression failed! err=%d\n", ret);
-		stat_inc(rzs->stats.failed_writes);
+		rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 		goto out;
 	}
 
@@ -853,13 +854,13 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 			mutex_unlock(&rzs->lock);
 			pr_info("Error allocating memory for incompressible "
 				"page: %u\n", index);
-			stat_inc(rzs->stats.failed_writes);
+			rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 			goto out;
 		}
 
 		offset = 0;
 		rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
-		stat_inc(rzs->stats.pages_expand);
+		rzs_stat_inc(&rzs->stats.pages_expand);
 		rzs->table[index].page = page_store;
 		src = kmap_atomic(page, KM_USER0);
 		goto memstore;
@@ -871,7 +872,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 		mutex_unlock(&rzs->lock);
 		pr_info("Error allocating memory for compressed "
 			"page: %u, size=%zu\n", index, clen);
-		stat_inc(rzs->stats.failed_writes);
+		rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 		if (rzs->backing_swap)
 			fwd_write_request = 1;
 		goto out;
@@ -900,9 +901,9 @@ memstore:
 
 	/* Update stats */
 	rzs->stats.compr_size += clen;
-	stat_inc(rzs->stats.pages_stored);
+	rzs_stat_inc(&rzs->stats.pages_stored);
 	if (clen <= PAGE_SIZE / 2)
-		stat_inc(rzs->stats.good_compress);
+		rzs_stat_inc(&rzs->stats.good_compress);
 
 	mutex_unlock(&rzs->lock);
 
@@ -912,7 +913,7 @@ memstore:
 
 out:
 	if (fwd_write_request) {
-		stat_inc(rzs->stats.bdev_num_writes);
+		rzs_stat64_inc(rzs, &rzs->stats.bdev_num_writes);
 		bio->bi_bdev = rzs->backing_swap;
 #if 0
 		/*
@@ -974,7 +975,7 @@ static int ramzswap_make_request(struct request_queue *queue, struct bio *bio)
 	}
 
 	if (!valid_swap_request(rzs, bio)) {
-		stat_inc(rzs->stats.invalid_io);
+		rzs_stat64_inc(rzs, &rzs->stats.invalid_io);
 		bio_io_error(bio);
 		return 0;
 	}
@@ -1295,6 +1296,7 @@ static struct block_device_operations ramzswap_devops = {
 static int create_device(struct ramzswap *rzs, int device_id)
 {
 	mutex_init(&rzs->lock);
+	spin_lock_init(&rzs->stat64_lock);
 	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
 
 	rzs->queue = blk_alloc_queue(GFP_KERNEL);
