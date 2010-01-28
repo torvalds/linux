@@ -52,7 +52,9 @@ enum ni_660x_constants {
 };
 
 #define NUM_PFI_CHANNELS 40
-/* really there are only up to 3 dma channels, but the register layout allows for 4 */
+/* really there are only up to 3 dma channels, but the register layout allows
+for 4 */
+
 #define MAX_DMA_CHANNEL 4
 
 /* See Register-Level Programmer Manual page 3.1 */
@@ -198,7 +200,7 @@ struct NI_660xRegisterData {
 	const char *name;	/*  Register Name */
 	int offset;		/*  Offset from base address from GPCT chip */
 	enum ni_660x_register_direction direction;
-	enum ni_660x_register_width size;	/*  1 byte, 2 bytes, or 4 bytes */
+	enum ni_660x_register_width size; /*  1 byte, 2 bytes, or 4 bytes */
 };
 
 static const struct NI_660xRegisterData registerData[NumRegisters] = {
@@ -382,8 +384,8 @@ enum global_interrupt_config_register_bits {
 };
 
 /* Offset of the GPCT chips from the base-adress of the card */
-static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };	/* First chip is at base-address +
-							   0x00, etc. */
+/* First chip is at base-address + 0x00, etc. */
+static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };
 
 /* Board description*/
 struct ni_660x_board {
@@ -712,7 +714,7 @@ static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 		ni_660x_register = G3InterruptEnable;
 		break;
 	default:
-		printk("%s: unhandled register 0x%x in switch.\n",
+		printk(KERN_WARNING "%s: unhandled register 0x%x in switch.\n",
 		       __func__, reg);
 		BUG();
 		return 0;
@@ -737,7 +739,7 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 		writel(bits, write_address);
 		break;
 	default:
-		printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
+		printk(KERN_WARNING "%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
 		       __FILE__, __func__, reg);
 		BUG();
 		break;
@@ -760,7 +762,7 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 		return readl(read_address);
 		break;
 	default:
-		printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
+		printk(KERN_WARNING "%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
 		       __FILE__, __func__, reg);
 		BUG();
 		break;
@@ -993,9 +995,9 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 	spin_lock_init(&private(dev)->mite_channel_lock);
 	spin_lock_init(&private(dev)->interrupt_lock);
 	spin_lock_init(&private(dev)->soft_reg_copy_lock);
-	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
+	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
 		private(dev)->pfi_output_selects[i] = pfi_output_select_counter;
-	}
+
 	return 0;
 }
 
@@ -1008,9 +1010,8 @@ static int ni_660x_alloc_mite_rings(struct comedi_device *dev)
 		for (j = 0; j < counters_per_chip; ++j) {
 			private(dev)->mite_rings[i][j] =
 			    mite_alloc_ring(private(dev)->mite);
-			if (private(dev)->mite_rings[i][j] == NULL) {
+			if (private(dev)->mite_rings[i][j] == NULL)
 				return -ENOMEM;
-			}
 		}
 	}
 	return 0;
@@ -1022,9 +1023,8 @@ static void ni_660x_free_mite_rings(struct comedi_device *dev)
 	unsigned j;
 
 	for (i = 0; i < board(dev)->n_chips; ++i) {
-		for (j = 0; j < counters_per_chip; ++j) {
+		for (j = 0; j < counters_per_chip; ++j)
 			mite_free_ring(private(dev)->mite_rings[i][j]);
-		}
 	}
 }
 
@@ -1036,7 +1036,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 	unsigned i;
 	unsigned global_interrupt_config_bits;
 
-	printk("comedi%d: ni_660x: ", dev->minor);
+	printk(KERN_INFO "comedi%d: ni_660x: ", dev->minor);
 
 	ret = ni_660x_allocate_private(dev);
 	if (ret < 0)
@@ -1049,7 +1049,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 
 	ret = mite_setup2(private(dev)->mite, 1);
 	if (ret < 0) {
-		printk("error setting up mite\n");
+		printk(KERN_WARNING "error setting up mite\n");
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &private(dev)->mite->pcidev->dev);
@@ -1057,7 +1057,7 @@ static int ni_660x_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	printk(" %s ", dev->board_name);
+	printk(KERN_INFO " %s ", dev->board_name);
 
 	dev->n_subdevices = 2 + NI_660X_MAX_NUM_COUNTERS;
 
@@ -1078,15 +1078,17 @@ static int ni_660x_attach(struct comedi_device *dev,
 	s->insn_bits = ni_660x_dio_insn_bits;
 	s->insn_config = ni_660x_dio_insn_config;
 	s->io_bits = 0;		/* all bits default to input */
-	/*  we use the ioconfig registers to control dio direction, so zero output enables in stc dio control reg */
+	/*  we use the ioconfig registers to control dio direction, so zero
+	output enables in stc dio control reg */
 	ni_660x_write_register(dev, 0, 0, STCDIOControl);
 
-	private(dev)->counter_dev = ni_gpct_device_construct(dev,
-							     &ni_gpct_write_register,
-							     &ni_gpct_read_register,
-							     ni_gpct_variant_660x,
-							     ni_660x_num_counters
-							     (dev));
+	private(dev)->counter_dev
+		= ni_gpct_device_construct(dev,
+					   &ni_gpct_write_register,
+					   &ni_gpct_read_register,
+					   ni_gpct_variant_660x,
+					   ni_660x_num_counters
+					   (dev));
 	if (private(dev)->counter_dev == NULL)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
@@ -1118,12 +1120,12 @@ static int ni_660x_attach(struct comedi_device *dev,
 			s->type = COMEDI_SUBD_UNUSED;
 		}
 	}
-	for (i = 0; i < board(dev)->n_chips; ++i) {
+	for (i = 0; i < board(dev)->n_chips; ++i)
 		init_tio_chip(dev, i);
-	}
-	for (i = 0; i < ni_660x_num_counters(dev); ++i) {
+
+	for (i = 0; i < ni_660x_num_counters(dev); ++i)
 		ni_tio_init_counter(&private(dev)->counter_dev->counters[i]);
-	}
+
 	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
 		if (i < min_counter_pfi_chan)
 			ni_660x_set_pfi_routing(dev, i, pfi_output_select_do);
@@ -1134,13 +1136,13 @@ static int ni_660x_attach(struct comedi_device *dev,
 	}
 	/* to be safe, set counterswap bits on tio chips after all the counter
 	   outputs have been set to high impedance mode */
-	for (i = 0; i < board(dev)->n_chips; ++i) {
+	for (i = 0; i < board(dev)->n_chips; ++i)
 		set_tio_counterswap(dev, i);
-	}
+
 	ret = request_irq(mite_irq(private(dev)->mite), ni_660x_interrupt,
 			  IRQF_SHARED, "ni_660x", dev);
 	if (ret < 0) {
-		printk(" irq not available\n");
+		printk(KERN_WARNING " irq not available\n");
 		return ret;
 	}
 	dev->irq = mite_irq(private(dev)->mite);
@@ -1149,13 +1151,13 @@ static int ni_660x_attach(struct comedi_device *dev,
 		global_interrupt_config_bits |= Cascade_Int_Enable_Bit;
 	ni_660x_write_register(dev, 0, global_interrupt_config_bits,
 			       GlobalInterruptConfigRegister);
-	printk("attached\n");
+	printk(KERN_INFO "attached\n");
 	return 0;
 }
 
 static int ni_660x_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: ni_660x: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: ni_660x: remove\n", dev->minor);
 
 	/* Free irq */
 	if (dev->irq)
@@ -1193,9 +1195,8 @@ static void init_tio_chip(struct comedi_device *dev, int chipset)
 			       private(dev)->
 			       dma_configuration_soft_copies[chipset],
 			       DMAConfigRegister);
-	for (i = 0; i < NUM_PFI_CHANNELS; ++i) {
+	for (i = 0; i < NUM_PFI_CHANNELS; ++i)
 		ni_660x_write_register(dev, chipset, 0, IOConfigReg(i));
-	}
 }
 
 static int
@@ -1234,7 +1235,7 @@ static int ni_660x_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_WARNING "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
