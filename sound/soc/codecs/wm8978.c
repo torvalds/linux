@@ -873,8 +873,6 @@ static int wm8978_suspend(struct platform_device *pdev, pm_message_t state)
 	wm8978_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	/* Also switch PLL off */
 	snd_soc_write(codec, WM8978_POWER_MANAGEMENT_1, 0);
-	/* Put to sleep */
-	snd_soc_write(codec, WM8978_POWER_MANAGEMENT_2, 0x40);
 
 	return 0;
 }
@@ -886,9 +884,6 @@ static int wm8978_resume(struct platform_device *pdev)
 	struct wm8978_priv *wm8978 = codec->private_data;
 	int i;
 	u16 *cache = codec->reg_cache;
-
-	/* Wake up the codec */
-	snd_soc_write(codec, WM8978_POWER_MANAGEMENT_2, 0);
 
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < ARRAY_SIZE(wm8978_reg); i++) {
