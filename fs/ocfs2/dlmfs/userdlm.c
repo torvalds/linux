@@ -39,7 +39,7 @@
 #include "cluster/heartbeat.h"
 #include "cluster/tcp.h"
 
-#include "dlmapi.h"
+#include "dlm/dlmapi.h"
 
 #include "userdlm.h"
 
