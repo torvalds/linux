@@ -941,6 +941,10 @@ void omap3_pm_off_mode_enable(int enable)
 	else
 		state = PWRDM_POWER_RET;
 
+#ifdef CONFIG_CPU_IDLE
+	omap3_cpuidle_update_states();
+#endif
+
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state = state;
 		set_pwrdm_state(pwrst->pwrdm, state);

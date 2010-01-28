@@ -37,6 +37,10 @@ extern int omap2_pm_debug;
 #define omap2_pm_debug				0
 #endif
 
+#if defined(CONFIG_CPU_IDLE)
+extern void omap3_cpuidle_update_states(void);
+#endif
+
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 extern void pm_dbg_update_time(struct powerdomain *pwrdm, int prev);
 extern int pm_dbg_regset_save(int reg_set);

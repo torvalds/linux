@@ -45,6 +45,8 @@
 #define OMAP3_STATE_C6 5 /* C6 - MPU OFF + Core RET */
 #define OMAP3_STATE_C7 6 /* C7 - MPU OFF + Core OFF */
 
+#define OMAP3_STATE_MAX OMAP3_STATE_C7
+
 struct omap3_processor_cx {
 	u8 valid;
 	u8 type;
@@ -104,13 +106,6 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	local_irq_disable();
 	local_fiq_disable();
 
-	if (!enable_off_mode) {
-		if (mpu_state < PWRDM_POWER_RET)
-			mpu_state = PWRDM_POWER_RET;
-		if (core_state < PWRDM_POWER_RET)
-			core_state = PWRDM_POWER_RET;
-	}
-
 	pwrdm_set_next_pwrst(mpu_pd, mpu_state);
 	pwrdm_set_next_pwrst(core_pd, core_state);
 
@@ -141,6 +136,67 @@ return_sleep_time:
 }
 
 /**
+ * next_valid_state - Find next valid c-state
+ * @dev: cpuidle device
+ * @state: Currently selected c-state
+ *
+ * If the current state is valid, it is returned back to the caller.
+ * Else, this function searches for a lower c-state which is still
+ * valid (as defined in omap3_power_states[]).
+ */
+static struct cpuidle_state *next_valid_state(struct cpuidle_device *dev,
+						struct cpuidle_state *curr)
+{
+	struct cpuidle_state *next = NULL;
+	struct omap3_processor_cx *cx;
+
+	cx = (struct omap3_processor_cx *)cpuidle_get_statedata(curr);
+
+	/* Check if current state is valid */
+	if (cx->valid) {
+		return curr;
+	} else {
+		u8 idx = OMAP3_STATE_MAX;
+
+		/*
+		 * Reach the current state starting at highest C-state
+		 */
+		for (; idx >= OMAP3_STATE_C1; idx--) {
+			if (&dev->states[idx] == curr) {
+				next = &dev->states[idx];
+				break;
+			}
+		}
+
+		/*
+		 * Should never hit this condition.
+		 */
+		WARN_ON(next == NULL);
+
+		/*
+		 * Drop to next valid state.
+		 * Start search from the next (lower) state.
+		 */
+		idx--;
+		for (; idx >= OMAP3_STATE_C1; idx--) {
+			struct omap3_processor_cx *cx;
+
+			cx = cpuidle_get_statedata(&dev->states[idx]);
+			if (cx->valid) {
+				next = &dev->states[idx];
+				break;
+			}
+		}
+		/*
+		 * C1 and C2 are always valid.
+		 * So, no need to check for 'next==NULL' outside this loop.
+		 */
+	}
+
+	return next;
+}
+
+/**
  * omap3_enter_idle_bm - Checks for any bus activity
  * @dev: cpuidle device
  * @state: The target state to be programmed
@@ -152,7 +208,7 @@ return_sleep_time:
 static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 			       struct cpuidle_state *state)
 {
-	struct cpuidle_state *new_state = state;
+	struct cpuidle_state *new_state = next_valid_state(dev, state);
 
 	if ((state->flags & CPUIDLE_FLAG_CHECK_BM) && omap3_idle_bm_check()) {
 		BUG_ON(!dev->safe_state);
@@ -164,6 +220,30 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 }
 
 DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
+
+/**
+ * omap3_cpuidle_update_states - Update the cpuidle states.
+ *
+ * Currently, this function toggles the validity of idle states based upon
+ * the flag 'enable_off_mode'. When the flag is set all states are valid.
+ * Else, states leading to OFF state set to be invalid.
+ */
+void omap3_cpuidle_update_states(void)
+{
+	int i;
+
+	for (i = OMAP3_STATE_C1; i < OMAP3_MAX_STATES; i++) {
+		struct omap3_processor_cx *cx = &omap3_power_states[i];
+
+		if (enable_off_mode) {
+			cx->valid = 1;
+		} else {
+			if ((cx->mpu_state == PWRDM_POWER_OFF) ||
+				(cx->core_state	== PWRDM_POWER_OFF))
+				cx->valid = 0;
+		}
+	}
+}
 
 /* omap3_init_power_states - Initialises the OMAP3 specific C states.
  *
@@ -301,6 +381,8 @@ int __init omap3_idle_init(void)
 	if (!count)
 		return -EINVAL;
 	dev->state_count = count;
+
+	omap3_cpuidle_update_states();
 
 	if (cpuidle_register_device(dev)) {
 		printk(KERN_ERR "%s: CPUidle register device failed\n",
