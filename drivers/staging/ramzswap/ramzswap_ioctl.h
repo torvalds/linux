@@ -1,7 +1,7 @@
 /*
  * Compressed RAM based swap device
  *
- * Copyright (C) 2008, 2009  Nitin Gupta
+ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
  *
  * This code is released using a dual license strategy: BSD/GPL
  * You can choose the licence that better fits your requirements.
