@@ -3275,6 +3275,8 @@ const char *snd_hda_pcm_type_name[HDA_PCM_NTYPES] = {
 
 /*
  * get the empty PCM device number to assign
+ *
+ * note the max device number is limited by HDA_MAX_PCMS, currently 10
  */
 static int get_empty_pcm_device(struct hda_bus *bus, int type)
 {

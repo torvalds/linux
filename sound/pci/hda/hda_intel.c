@@ -260,8 +260,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_MAX_FRAG		32
 /* max buffer size - no h/w limit, you can increase as you like */
 #define AZX_MAX_BUF_SIZE	(1024*1024*1024)
-/* max number of PCM devics per card */
-#define AZX_MAX_PCMS		10
 
 /* RIRB int mask: overrun[2], response[0] */
 #define RIRB_INT_RESPONSE	0x01
@@ -409,7 +407,7 @@ struct azx {
 	struct azx_dev *azx_dev;
 
 	/* PCM */
-	struct snd_pcm *pcm[AZX_MAX_PCMS];
+	struct snd_pcm *pcm[HDA_MAX_PCMS];
 
 	/* HD codec */
 	unsigned short codec_mask;
@@ -1336,7 +1334,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 	if (chip->initialized) {
 		int i;
 
-		for (i = 0; i < AZX_MAX_PCMS; i++)
+		for (i = 0; i < HDA_MAX_PCMS; i++)
 			snd_pcm_suspend_all(chip->pcm[i]);
 		snd_hda_suspend(chip->bus);
 		snd_hda_resume(chip->bus);
@@ -1966,7 +1964,7 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	int pcm_dev = cpcm->device;
 	int s, err;
 
-	if (pcm_dev >= AZX_MAX_PCMS) {
+	if (pcm_dev >= HDA_MAX_PCMS) {
 		snd_printk(KERN_ERR SFX "Invalid PCM device number %d\n",
 			   pcm_dev);
 		return -EINVAL;
@@ -2122,7 +2120,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
-	for (i = 0; i < AZX_MAX_PCMS; i++)
+	for (i = 0; i < HDA_MAX_PCMS; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->initialized)
 		snd_hda_suspend(chip->bus);
