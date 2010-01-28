@@ -1300,6 +1300,8 @@ static struct block_device_operations ramzswap_devops = {
 
 static int create_device(struct ramzswap *rzs, int device_id)
 {
+	int ret = 0;
+
 	mutex_init(&rzs->lock);
 	spin_lock_init(&rzs->stat64_lock);
 	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
@@ -1308,7 +1310,8 @@ static int create_device(struct ramzswap *rzs, int device_id)
 	if (!rzs->queue) {
 		pr_err("Error allocating disk queue for device %d\n",
 			device_id);
-		return 0;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	blk_queue_make_request(rzs->queue, ramzswap_make_request);
@@ -1320,7 +1323,8 @@ static int create_device(struct ramzswap *rzs, int device_id)
 		blk_cleanup_queue(rzs->queue);
 		pr_warning("Error allocating disk structure for device %d\n",
 			device_id);
-		return 0;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	rzs->disk->major = ramzswap_major;
@@ -1342,7 +1346,9 @@ static int create_device(struct ramzswap *rzs, int device_id)
 	add_disk(rzs->disk);
 
 	rzs->init_done = 0;
-	return 1;
+
+out:
+	return ret;
 }
 
 static void destroy_device(struct ramzswap *rzs)
@@ -1358,18 +1364,20 @@ static void destroy_device(struct ramzswap *rzs)
 
 static int __init ramzswap_init(void)
 {
-	int i, ret;
+	int ret, dev_id;
 
 	if (num_devices > max_num_devices) {
 		pr_warning("Invalid value for num_devices: %u\n",
 				num_devices);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ramzswap_major = register_blkdev(0, "ramzswap");
 	if (ramzswap_major <= 0) {
 		pr_warning("Unable to get major number\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	if (!num_devices) {
@@ -1380,21 +1388,25 @@ static int __init ramzswap_init(void)
 	/* Allocate the device array and initialize each one */
 	pr_info("Creating %u devices ...\n", num_devices);
 	devices = kzalloc(num_devices * sizeof(struct ramzswap), GFP_KERNEL);
-	if (!devices)
-		goto out;
+	if (!devices) {
+		ret = -ENOMEM;
+		goto unregister;
+	}
 
-	for (i = 0; i < num_devices; i++)
-		if (!create_device(&devices[i], i)) {
-			ret = i;
+	for (dev_id = 0; dev_id < num_devices; dev_id++) {
+		ret = create_device(&devices[dev_id], dev_id);
+		if (ret)
 			goto free_devices;
-		}
+	}
+
 	return 0;
+
 free_devices:
-	for (i = 0; i < ret; i++)
-		destroy_device(&devices[i]);
-out:
-	ret = -ENOMEM;
+	while (dev_id)
+		destroy_device(&devices[--dev_id]);
+unregister:
 	unregister_blkdev(ramzswap_major, "ramzswap");
+out:
 	return ret;
 }
 
