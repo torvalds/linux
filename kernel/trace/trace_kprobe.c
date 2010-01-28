@@ -942,7 +942,7 @@ static const struct file_operations kprobe_profile_ops = {
 };
 
 /* Kprobe handler */
-static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
+static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct kprobe_trace_entry *entry;
@@ -962,7 +962,7 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
 						  irq_flags, pc);
 	if (!event)
-		return 0;
+		return;
 
 	entry = ring_buffer_event_data(event);
 	entry->nargs = tp->nr_args;
@@ -972,11 +972,10 @@ static __kprobes int kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
 		trace_nowake_buffer_unlock_commit(buffer, event, irq_flags, pc);
-	return 0;
 }
 
 /* Kretprobe handler */
-static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
+static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 					  struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
@@ -995,7 +994,7 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
 						  irq_flags, pc);
 	if (!event)
-		return 0;
+		return;
 
 	entry = ring_buffer_event_data(event);
 	entry->nargs = tp->nr_args;
@@ -1006,8 +1005,6 @@ static __kprobes int kretprobe_trace_func(struct kretprobe_instance *ri,
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
 		trace_nowake_buffer_unlock_commit(buffer, event, irq_flags, pc);
-
-	return 0;
 }
 
 /* Event entry printers */
@@ -1237,7 +1234,7 @@ static int kretprobe_event_show_format(struct ftrace_event_call *call,
 #ifdef CONFIG_PERF_EVENTS
 
 /* Kprobe profile handler */
-static __kprobes int kprobe_profile_func(struct kprobe *kp,
+static __kprobes void kprobe_profile_func(struct kprobe *kp,
 					 struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
@@ -1252,11 +1249,11 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 	size -= sizeof(u32);
 	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
 		     "profile buffer not large enough"))
-		return 0;
+		return;
 
 	entry = ftrace_perf_buf_prepare(size, call->id, &rctx, &irq_flags);
 	if (!entry)
-		return 0;
+		return;
 
 	entry->nargs = tp->nr_args;
 	entry->ip = (unsigned long)kp->addr;
@@ -1264,12 +1261,10 @@ static __kprobes int kprobe_profile_func(struct kprobe *kp,
 		entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
 
 	ftrace_perf_buf_submit(entry, size, rctx, entry->ip, 1, irq_flags);
-
-	return 0;
 }
 
 /* Kretprobe profile handler */
-static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
+static __kprobes void kretprobe_profile_func(struct kretprobe_instance *ri,
 					    struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
@@ -1284,11 +1279,11 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 	size -= sizeof(u32);
 	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
 		     "profile buffer not large enough"))
-		return 0;
+		return;
 
 	entry = ftrace_perf_buf_prepare(size, call->id, &rctx, &irq_flags);
 	if (!entry)
-		return 0;
+		return;
 
 	entry->nargs = tp->nr_args;
 	entry->func = (unsigned long)tp->rp.kp.addr;
@@ -1297,8 +1292,6 @@ static __kprobes int kretprobe_profile_func(struct kretprobe_instance *ri,
 		entry->args[i] = call_fetch(&tp->args[i].fetch, regs);
 
 	ftrace_perf_buf_submit(entry, size, rctx, entry->ret_ip, 1, irq_flags);
-
-	return 0;
 }
 
 static int probe_profile_enable(struct ftrace_event_call *call)
