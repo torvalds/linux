@@ -668,7 +668,7 @@ static int __init init_pmc551(void)
 {
 	struct pci_dev *PCI_Device = NULL;
 	struct mypriv *priv;
-	int count, found = 0;
+	int found = 0;
 	struct mtd_info *mtd;
 	u32 length = 0;
 
@@ -695,7 +695,7 @@ static int __init init_pmc551(void)
 	/*
 	 * PCU-bus chipset probe.
 	 */
-	for (count = 0; count < MAX_MTD_DEVICES; count++) {
+	for (;;) {
 
 		if ((PCI_Device = pci_get_device(PCI_VENDOR_ID_V3_SEMI,
 						  PCI_DEVICE_ID_V3_SEMI_V370PDC,

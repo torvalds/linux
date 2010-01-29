@@ -67,9 +67,6 @@ static int mtd_open(struct inode *inode, struct file *file)
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_open\n");
 
-	if (devnum >= MAX_MTD_DEVICES)
-		return -ENODEV;
-
 	/* You can't open the RO devices RW */
 	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
 		return -EACCES;
