@@ -149,6 +149,10 @@ pseries)
     platformo=$object/of.o
     link_address='0x4000000'
     ;;
+maple)
+    platformo=$object/of.o
+    link_address='0x400000'
+    ;;
 pmac|chrp)
     platformo=$object/of.o
     ;;
@@ -321,7 +325,7 @@ fi
 
 # post-processing needed for some platforms
 case "$platform" in
-pseries|chrp)
+pseries|chrp|maple)
     $objbin/addnote "$ofile"
     ;;
 coff)
