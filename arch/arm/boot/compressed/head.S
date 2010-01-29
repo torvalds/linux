@@ -315,7 +315,7 @@ LC0:		.word	LC0			@ r1
 		.word	_image_size		@ r6
 		.word	_got_start		@ r11
 		.word	_got_end		@ ip
-		.word	user_stack+4096		@ sp
+		.word	user_stack_end		@ sp
 LC1:		.word	reloc_end - reloc_start
 		.size	LC0, . - LC0
 
@@ -1070,3 +1070,4 @@ reloc_end:
 		.align
 		.section ".stack", "w"
 user_stack:	.space	4096
+user_stack_end:
