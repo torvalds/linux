@@ -286,7 +286,7 @@ MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
 	.phys_io        = MX21_AIPI_BASE_ADDR,
 	.io_pg_offst    = ((MX21_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params    = PHYS_OFFSET + 0x100,
+	.boot_params    = MX21_PHYS_OFFSET + 0x100,
 	.map_io         = mx21ads_map_io,
 	.init_irq       = mx21_init_irq,
 	.init_machine   = mx21ads_board_init,

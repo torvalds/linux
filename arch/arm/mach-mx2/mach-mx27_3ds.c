@@ -87,7 +87,7 @@ MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	/* maintainer: Freescale Semiconductor, Inc. */
 	.phys_io        = MX27_AIPI_BASE_ADDR,
 	.io_pg_offst    = ((MX27_AIPI_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params    = PHYS_OFFSET + 0x100,
+	.boot_params    = MX27_PHYS_OFFSET + 0x100,
 	.map_io         = mx27_map_io,
 	.init_irq       = mx27_init_irq,
 	.init_machine   = mx27pdk_init,
