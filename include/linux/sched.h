@@ -1369,7 +1369,7 @@ struct task_struct {
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
 				     - access with [gs]et_task_comm (which lock
 				       it with task_lock())
-				     - initialized normally by flush_old_exec */
+				     - initialized normally by setup_new_exec */
 /* file system info */
 	int link_count, total_link_count;
 #ifdef CONFIG_SYSVIPC
