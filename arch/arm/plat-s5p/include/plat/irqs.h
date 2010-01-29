@@ -28,11 +28,13 @@
 
 #define S5P_VIC0_BASE		S5P_IRQ(0)
 #define S5P_VIC1_BASE		S5P_IRQ(32)
+#define S5P_VIC2_BASE		S5P_IRQ(64)
 
 #define VIC_BASE(x)		(S5P_VIC0_BASE + ((x)*32))
 
 #define IRQ_VIC0_BASE		S5P_VIC0_BASE
 #define IRQ_VIC1_BASE		S5P_VIC1_BASE
+#define IRQ_VIC2_BASE		S5P_VIC2_BASE
 
 /* UART interrupts, each UART has 4 intterupts per channel so
  * use the space between the ISA and S3C main interrupts. Note, these
@@ -73,6 +75,7 @@
 
 #define S5P_IRQ_VIC0(x)		(S5P_VIC0_BASE + (x))
 #define S5P_IRQ_VIC1(x)		(S5P_VIC1_BASE + (x))
+#define S5P_IRQ_VIC2(x)		(S5P_VIC2_BASE + (x))
 
 #define S5P_TIMER_IRQ(x)	S5P_IRQ(11 + (x))
 
