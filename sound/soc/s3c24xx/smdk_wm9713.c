@@ -29,24 +29,15 @@ static struct snd_soc_card smdk;
 
 /*
  Playback (HeadPhone):-
-	Headphone Playback Switch - On
-	$ amixer cset numid=4 1
-
-	Right Headphone Out Mux - Headphone
-	$ amixer cset numid=92 2
-	Left Headphone Out Mux - Headphone
-	$ amixer cset numid=93 2
-
-	Right HP Mixer PCM Playback Switch - On
-	$ amixer cset numid=75 1
-	Left HP Mixer PCM Playback Switch - On
-	$ amixer cset numid=81 1
+	$ amixer sset 'Headphone' unmute
+	$ amixer sset 'Right Headphone Out Mux' 'Headphone'
+	$ amixer sset 'Left Headphone Out Mux' 'Headphone'
+	$ amixer sset 'Right HP Mixer PCM' unmute
+	$ amixer sset 'Left HP Mixer PCM' unmute
 
  Capture (LineIn):-
-	Right Capture Source - Line
-	$ amixer cset numid=86 2
-	Left Capture Source - Line
-	$ amixer cset numid=87 2
+	$ amixer sset 'Right Capture Source' 'Line'
+	$ amixer sset 'Left Capture Source' 'Line'
 */
 
 static struct snd_soc_dai_link smdk_dai = {
