@@ -99,20 +99,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 }
 #endif
 
-#ifdef CONFIG_SUPERH32
-/*
- * If we're on an SH7751 or SH7780 PCI controller, PCI memory is mapped
- * at the end of the address space in a special non-translatable area.
- */
-#define PCI_MEM_FIXED_START	0xfd000000
-#define PCI_MEM_FIXED_END	(PCI_MEM_FIXED_START + 0x01000000)
-
-#define is_pci_memory_fixed_range(s, e)	\
-	((s) >= PCI_MEM_FIXED_START && (e) < PCI_MEM_FIXED_END)
-#else
-#define is_pci_memory_fixed_range(s, e)	(0)
-#endif
-
 /* Board-specific fixup routines. */
 int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
 

@@ -46,18 +46,6 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 		return NULL;
 
 	/*
-	 * If we're in the fixed PCI memory range, mapping through page
-	 * tables is not only pointless, but also fundamentally broken.
-	 * Just return the physical address instead.
-	 *
-	 * For boards that map a small PCI memory aperture somewhere in
-	 * P1/P2 space, ioremap() will already do the right thing,
-	 * and we'll never get this far.
-	 */
-	if (is_pci_memory_fixed_range(phys_addr, size))
-		return (void __iomem *)phys_addr;
-
-	/*
 	 * Mappings have to be page-aligned
 	 */
 	offset = phys_addr & ~PAGE_MASK;
@@ -124,9 +112,6 @@ static inline int iomapping_nontranslatable(unsigned long offset)
 	if (PXSEG(offset) < P3SEG || offset >= P3_ADDR_MAX)
 		return 1;
 #endif
-
-	if (is_pci_memory_fixed_range(offset, 0))
-		return 1;
 
 	return 0;
 }
