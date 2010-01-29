@@ -242,9 +242,12 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	if (new->devnum == -1)
 		new->devnum = last_devnum+1;
 
-	if ((new->devnum << tr->part_bits) > 256) {
+	/* Check that the device and any partitions will get valid
+	 * minor numbers and that the disk naming code below can cope
+	 * with this number. */
+	if (new->devnum > (MINORMASK >> tr->part_bits) ||
+	    (tr->part_bits && new->devnum >= 27 * 26))
 		return -EBUSY;
-	}
 
 	list_add_tail(&new->list, &tr->devs);
  added:
