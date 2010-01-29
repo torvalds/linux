@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/regs-fb.h
+/* arch/arm/plat-samsung/include/plat/regs-fb.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics

@@ -1,4 +1,4 @@
-/* arch/arm/mach-s3c2410/include/mach/regs-serial.h
+/* arch/arm/plat-samsung/include/plat/regs-serial.h
  *
  *  From linux/include/asm-arm/hardware/serial_s3c2410.h
  *

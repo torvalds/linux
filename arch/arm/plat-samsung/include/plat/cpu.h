@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c/include/plat/cpu.h
+/* linux/arch/arm/plat-samsung/include/plat/cpu.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

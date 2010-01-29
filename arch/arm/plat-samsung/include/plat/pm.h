@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/plat-s3c24xx/pm.h
+/* arch/arm/plat-samsung/include/plat/pm.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *	http://armlinux.simtec.co.uk/

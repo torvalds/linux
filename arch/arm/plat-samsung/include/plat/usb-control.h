@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/usb-control.h
+/* arch/arm/plat-samsung/include/plat/usb-control.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

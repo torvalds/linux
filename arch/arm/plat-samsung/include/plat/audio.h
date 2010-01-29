@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/audio.h
+/* arch/arm/plat-samsung/include/plat/audio.h
  *
  * Copyright (c) 2009 Samsung Electronics Co. Ltd
  * Author: Jaswinder Singh <jassi.brar@samsung.com>
