@@ -66,7 +66,7 @@ struct drbd_bitmap {
 	size_t   bm_words;
 	size_t   bm_number_of_pages;
 	sector_t bm_dev_capacity;
-	struct semaphore bm_change; /* serializes resize operations */
+	struct mutex bm_change; /* serializes resize operations */
 
 	atomic_t bm_async_io;
 	wait_queue_head_t bm_io_wait;
@@ -114,7 +114,7 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why)
 		return;
 	}
 
-	trylock_failed = down_trylock(&b->bm_change);
+	trylock_failed = !mutex_trylock(&b->bm_change);
 
 	if (trylock_failed) {
 		dev_warn(DEV, "%s going to '%s' but bitmap already locked for '%s' by %s\n",
@@ -125,7 +125,7 @@ void drbd_bm_lock(struct drbd_conf *mdev, char *why)
 		    b->bm_task == mdev->receiver.task ? "receiver" :
 		    b->bm_task == mdev->asender.task  ? "asender"  :
 		    b->bm_task == mdev->worker.task   ? "worker"   : "?");
-		down(&b->bm_change);
+		mutex_lock(&b->bm_change);
 	}
 	if (__test_and_set_bit(BM_LOCKED, &b->bm_flags))
 		dev_err(DEV, "FIXME bitmap already locked in bm_lock\n");
@@ -147,7 +147,7 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 
 	b->bm_why  = NULL;
 	b->bm_task = NULL;
-	up(&b->bm_change);
+	mutex_unlock(&b->bm_change);
 }
 
 /* word offset to long pointer */
@@ -295,7 +295,7 @@ int drbd_bm_init(struct drbd_conf *mdev)
 	if (!b)
 		return -ENOMEM;
 	spin_lock_init(&b->bm_lock);
-	init_MUTEX(&b->bm_change);
+	mutex_init(&b->bm_change);
 	init_waitqueue_head(&b->bm_io_wait);
 
 	mdev->bitmap = b;
