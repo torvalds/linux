@@ -3445,6 +3445,19 @@ recheck:
 	if (lockres->l_flags & OCFS2_LOCK_UPCONVERT_FINISHING)
 		goto leave_requeue;
 
+	/*
+	 * How can we block and yet be at NL?  We were trying to upconvert
+	 * from NL and got canceled.  The code comes back here, and now
+	 * we notice and clear BLOCKING.
+	 */
+	if (lockres->l_level == DLM_LOCK_NL) {
+		BUG_ON(lockres->l_ex_holders || lockres->l_ro_holders);
+		lockres->l_blocking = DLM_LOCK_NL;
+		lockres_clear_flags(lockres, OCFS2_LOCK_BLOCKED);
+		spin_unlock_irqrestore(&lockres->l_lock, flags);
+		goto leave;
+	}
+
 	/* if we're blocking an exclusive and we have *any* holders,
 	 * then requeue. */
 	if ((lockres->l_blocking == DLM_LOCK_EX)
