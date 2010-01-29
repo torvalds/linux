@@ -605,8 +605,14 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 	musb_writeb(ep->regs, MUSB_RXTYPE, qh->type_reg);
 	musb_writeb(ep->regs, MUSB_RXINTERVAL, qh->intv_reg);
 	/* NOTE: bulk combining rewrites high bits of maxpacket */
-	musb_writew(ep->regs, MUSB_RXMAXP,
-			qh->maxpacket | ((qh->hb_mult - 1) << 11));
+	/* Set RXMAXP with the FIFO size of the endpoint
+	 * to disable double buffer mode.
+	 */
+	if (musb->hwvers < MUSB_HWVERS_2000)
+		musb_writew(ep->regs, MUSB_RXMAXP, ep->max_packet_sz_rx);
+	else
+		musb_writew(ep->regs, MUSB_RXMAXP,
+				qh->maxpacket | ((qh->hb_mult - 1) << 11));
 
 	ep->rx_reinit = 0;
 }
