@@ -976,6 +976,10 @@ struct b43_phy_n {
 	s32 preamble_override;
 	u32 bb_mult_save;
 
+	bool gain_boost;
+	bool elna_gain_config;
+	bool band5g_pwrgain;
+
 	u8 mphase_cal_phase_id;
 	u16 mphase_txcal_cmdidx;
 	u16 mphase_txcal_numcmds;
