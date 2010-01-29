@@ -106,7 +106,8 @@ int kvm_assign_device(struct kvm *kvm,
 
 	r = iommu_attach_device(domain, &pdev->dev);
 	if (r) {
-		printk(KERN_ERR "assign device %x:%x.%x failed",
+		printk(KERN_ERR "assign device %x:%x:%x.%x failed",
+			pci_domain_nr(pdev->bus),
 			pdev->bus->number,
 			PCI_SLOT(pdev->devfn),
 			PCI_FUNC(pdev->devfn));
@@ -127,7 +128,8 @@ int kvm_assign_device(struct kvm *kvm,
 			goto out_unmap;
 	}
 
-	printk(KERN_DEBUG "assign device: host bdf = %x:%x:%x\n",
+	printk(KERN_DEBUG "assign device %x:%x:%x.%x\n",
+		assigned_dev->host_segnr,
 		assigned_dev->host_busnr,
 		PCI_SLOT(assigned_dev->host_devfn),
 		PCI_FUNC(assigned_dev->host_devfn));
@@ -154,7 +156,8 @@ int kvm_deassign_device(struct kvm *kvm,
 
 	iommu_detach_device(domain, &pdev->dev);
 
-	printk(KERN_DEBUG "deassign device: host bdf = %x:%x:%x\n",
+	printk(KERN_DEBUG "deassign device %x:%x:%x.%x\n",
+		assigned_dev->host_segnr,
 		assigned_dev->host_busnr,
 		PCI_SLOT(assigned_dev->host_devfn),
 		PCI_FUNC(assigned_dev->host_devfn));

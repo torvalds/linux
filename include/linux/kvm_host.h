@@ -400,6 +400,7 @@ struct kvm_assigned_dev_kernel {
 	struct work_struct interrupt_work;
 	struct list_head list;
 	int assigned_dev_id;
+	int host_segnr;
 	int host_busnr;
 	int host_devfn;
 	unsigned int entries_nr;

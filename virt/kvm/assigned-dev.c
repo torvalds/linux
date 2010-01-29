@@ -526,7 +526,8 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 		r = -ENOMEM;
 		goto out;
 	}
-	dev = pci_get_bus_and_slot(assigned_dev->busnr,
+	dev = pci_get_domain_bus_and_slot(assigned_dev->segnr,
+				   assigned_dev->busnr,
 				   assigned_dev->devfn);
 	if (!dev) {
 		printk(KERN_INFO "%s: host device not found\n", __func__);
@@ -548,6 +549,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	pci_reset_function(dev);
 
 	match->assigned_dev_id = assigned_dev->assigned_dev_id;
+	match->host_segnr = assigned_dev->segnr;
 	match->host_busnr = assigned_dev->busnr;
 	match->host_devfn = assigned_dev->devfn;
 	match->flags = assigned_dev->flags;
