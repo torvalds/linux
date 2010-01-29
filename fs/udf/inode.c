@@ -102,7 +102,7 @@ void udf_clear_inode(struct inode *inode)
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_size != iinfo->i_lenExtents) {
 		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
-			"inode size %llu different from extent lenght %llu. "
+			"inode size %llu different from extent length %llu. "
 			"Filesystem need not be standards compliant.\n",
 			inode->i_sb->s_id, inode->i_ino, inode->i_mode,
 			(unsigned long long)inode->i_size,

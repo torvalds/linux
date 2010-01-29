@@ -549,7 +549,7 @@ static inline int ftrace_trace_task(struct task_struct *task)
  * struct trace_parser - servers for reading the user input separated by spaces
  * @cont: set if the input is not complete - no final space char was found
  * @buffer: holds the parsed user input
- * @idx: user input lenght
+ * @idx: user input length
  * @size: buffer size
  */
 struct trace_parser {

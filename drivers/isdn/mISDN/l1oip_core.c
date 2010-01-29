@@ -477,7 +477,7 @@ l1oip_socket_parse(struct l1oip *hc, struct sockaddr_in *sin, u8 *buf, int len)
 		printk(KERN_DEBUG "%s: received frame, parsing... (%d)\n",
 			__func__, len);
 
-	/* check lenght */
+	/* check length */
 	if (len < 1+1+2) {
 		printk(KERN_WARNING "%s: packet error - length %d below "
 			"4 bytes\n", __func__, len);
