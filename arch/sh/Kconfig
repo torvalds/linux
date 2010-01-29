@@ -826,10 +826,14 @@ config MAPLE
 config PCI
 	bool "PCI support"
 	depends on SYS_SUPPORTS_PCI
+	select PCI_DOMAINS
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
 	  your box. If you have PCI, say Y, otherwise N.
+
+config PCI_DOMAINS
+	bool
 
 source "drivers/pci/pcie/Kconfig"
 

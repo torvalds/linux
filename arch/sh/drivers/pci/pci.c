@@ -33,15 +33,22 @@ static int pci_initialized;
 static void __devinit pcibios_scanbus(struct pci_channel *hose)
 {
 	static int next_busno;
+	static int need_domain_info;
 	struct pci_bus *bus;
 
 	bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
+	hose->bus = bus;
+
+	need_domain_info = need_domain_info || hose->index;
+	hose->need_domain_info = need_domain_info;
 	if (bus) {
 		next_busno = bus->subordinate + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
 		   reserve some space for bridges. */
-		if (next_busno > 224)
+		if (next_busno > 224) {
 			next_busno = 0;
+			need_domain_info = 1;
+		}
 
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
@@ -307,8 +314,14 @@ static void __iomem *ioport_map_pci(struct pci_dev *dev,
 {
 	struct pci_channel *chan = dev->sysdata;
 
-	if (!chan->io_map_base)
+	if (unlikely(!chan->io_map_base)) {
 		chan->io_map_base = generic_io_base;
+
+		if (pci_domains_supported)
+			panic("To avoid data corruption io_map_base MUST be "
+			      "set with multiple PCI domains.");
+	}
+
 
 	return (void __iomem *)(chan->io_map_base + port);
 }
