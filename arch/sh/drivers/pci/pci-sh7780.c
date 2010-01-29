@@ -1,7 +1,7 @@
 /*
  * Low-Level PCI Support for the SH7780
  *
- *  Copyright (C) 2005 - 2009  Paul Mundt
+ *  Copyright (C) 2005 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -14,11 +14,13 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include "pci-sh4.h"
+#include <asm/mmu.h>
+#include <asm/sizes.h>
 
 static struct resource sh7785_io_resource = {
 	.name	= "SH7785_IO",
-	.start	= SH7780_PCI_IO_BASE,
-	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
+	.start	= 0x1000,
+	.end	= SH7780_PCI_IO_SIZE - 1,
 	.flags	= IORESOURCE_IO
 };
 
@@ -38,25 +40,14 @@ static struct pci_channel sh7780_pci_controller = {
 	.io_map_base	= SH7780_PCI_IO_BASE,
 };
 
-static struct sh4_pci_address_map sh7780_pci_map = {
-	.window0	= {
-#if defined(CONFIG_32BIT)
-		.base	= SH7780_32BIT_DDR_BASE_ADDR,
-		.size	= 0x40000000,
-#else
-		.base	= SH7780_CS0_BASE_ADDR,
-		.size	= 0x20000000,
-#endif
-	},
-};
-
 static int __init sh7780_pci_init(void)
 {
 	struct pci_channel *chan = &sh7780_pci_controller;
+	phys_addr_t memphys;
+	size_t memsize;
 	unsigned int id;
-	const char *type = NULL;
+	const char *type;
 	int ret;
-	u32 word;
 
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
@@ -65,17 +56,24 @@ static int __init sh7780_pci_init(void)
 	/* Enable CPU access to the PCIC registers. */
 	__raw_writel(PCIECR_ENBL, PCIECR);
 
-	id = __raw_readw(chan->reg_base + SH7780_PCIVID);
-	if (id != SH7780_VENDOR_ID) {
+	/* Reset */
+	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_PRST,
+		     chan->reg_base + SH4_PCICR);
+
+	/* Wait for it to come back up.. */
+	mdelay(100);
+
+	id = __raw_readw(chan->reg_base + PCI_VENDOR_ID);
+	if (id != PCI_VENDOR_ID_RENESAS) {
 		printk(KERN_ERR "PCI: Unknown vendor ID 0x%04x.\n", id);
 		return -ENODEV;
 	}
 
-	id = __raw_readw(chan->reg_base + SH7780_PCIDID);
-	type = (id == SH7763_DEVICE_ID)	? "SH7763" :
-	       (id == SH7780_DEVICE_ID) ? "SH7780" :
-	       (id == SH7781_DEVICE_ID) ? "SH7781" :
-	       (id == SH7785_DEVICE_ID) ? "SH7785" :
+	id = __raw_readw(chan->reg_base + PCI_DEVICE_ID);
+	type = (id == PCI_DEVICE_ID_RENESAS_SH7763) ? "SH7763" :
+	       (id == PCI_DEVICE_ID_RENESAS_SH7780) ? "SH7780" :
+	       (id == PCI_DEVICE_ID_RENESAS_SH7781) ? "SH7781" :
+	       (id == PCI_DEVICE_ID_RENESAS_SH7785) ? "SH7785" :
 					  NULL;
 	if (unlikely(!type)) {
 		printk(KERN_ERR "PCI: Found an unsupported Renesas host "
@@ -85,59 +83,78 @@ static int __init sh7780_pci_init(void)
 
 	printk(KERN_NOTICE "PCI: Found a Renesas %s host "
 	       "controller, revision %d.\n", type,
-	       __raw_readb(chan->reg_base + SH7780_PCIRID));
+	       __raw_readb(chan->reg_base + PCI_REVISION_ID));
 
 	if ((ret = sh4_pci_check_direct(chan)) != 0)
 		return ret;
 
 	/*
-	 * Set the class and sub-class codes.
+	 * Now throw it in to register initialization mode and
+	 * start the real work.
 	 */
-	__raw_writeb(PCI_CLASS_BRIDGE_HOST >> 8,
-		     chan->reg_base + SH7780_PCIBCC);
-	__raw_writeb(PCI_CLASS_BRIDGE_HOST & 0xff,
-		     chan->reg_base + SH7780_PCISUB);
+	__raw_writel(SH4_PCICR_PREFIX, chan->reg_base + SH4_PCICR);
+
+	memphys = __pa(memory_start);
+	memsize = memory_end - memory_start;
 
 	/*
 	 * Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
 	 */
-	pci_write_reg(chan, sh7780_pci_map.window0.size - 0xfffff, SH4_PCILSR0);
-	/* Set the values on window 0 PCI config registers */
-	pci_write_reg(chan, sh7780_pci_map.window0.base, SH4_PCILAR0);
-	pci_write_reg(chan, sh7780_pci_map.window0.base, SH7780_PCIMBAR0);
+	__raw_writel(0, chan->reg_base + PCI_BASE_ADDRESS_0);
 
-	pci_write_reg(chan, 0x0000380f, SH4_PCIAINTM);
+	__raw_writel(memphys, chan->reg_base + SH4_PCILAR0);
+	__raw_writel((memsize - 1) << 9 | 1,
+		     chan->reg_base + SH4_PCILSR0);
 
-	/* Set up standard PCI config registers */
-	__raw_writew(0xFB00, chan->reg_base + SH7780_PCISTATUS);
-	__raw_writew(0x0047, chan->reg_base + SH7780_PCICMD);
-	__raw_writew(0x1912, chan->reg_base + SH7780_PCISVID);
-	__raw_writew(0x0001, chan->reg_base + SH7780_PCISID);
+	/* Clear out PCI arbiter IRQs */
+	__raw_writel(0, chan->reg_base + SH4_PCIAINT);
 
-	__raw_writeb(0x00, chan->reg_base + SH7780_PCIPIF);
+	/* Unmask all of the arbiter IRQs. */
+	__raw_writel(SH4_PCIAINT_MBKN | SH4_PCIAINT_TBTO | SH4_PCIAINT_MBTO | \
+		     SH4_PCIAINT_TABT | SH4_PCIAINT_MABT | SH4_PCIAINT_RDPE | \
+		     SH4_PCIAINT_WDPE, chan->reg_base + SH4_PCIAINTM);
 
-	/* Apply any last-minute PCIC fixups */
-	pci_fixup_pcic(chan);
+	/* Clear all error conditions */
+	__raw_writew(PCI_STATUS_DETECTED_PARITY  | \
+		     PCI_STATUS_SIG_SYSTEM_ERROR | \
+		     PCI_STATUS_REC_MASTER_ABORT | \
+		     PCI_STATUS_REC_TARGET_ABORT | \
+		     PCI_STATUS_SIG_TARGET_ABORT | \
+		     PCI_STATUS_PARITY, chan->reg_base + PCI_STATUS);
 
-	pci_write_reg(chan, 0xfd000000, SH7780_PCIMBR0);
-	pci_write_reg(chan, 0x00fc0000, SH7780_PCIMBMR0);
+	__raw_writew(PCI_COMMAND_SERR | PCI_COMMAND_WAIT | \
+		     PCI_COMMAND_PARITY | PCI_COMMAND_MASTER | \
+		     PCI_COMMAND_MEMORY, chan->reg_base + PCI_COMMAND);
 
-#ifdef CONFIG_32BIT
-	pci_write_reg(chan, 0xc0000000, SH7780_PCIMBR2);
-	pci_write_reg(chan, 0x20000000 - SH7780_PCI_IO_SIZE, SH7780_PCIMBMR2);
-#endif
+	/* Unmask all of the PCI IRQs */
+	__raw_writel(SH4_PCIINTM_TTADIM  | SH4_PCIINTM_TMTOIM  | \
+		     SH4_PCIINTM_MDEIM   | SH4_PCIINTM_APEDIM  | \
+		     SH4_PCIINTM_SDIM    | SH4_PCIINTM_DPEITWM | \
+		     SH4_PCIINTM_PEDITRM | SH4_PCIINTM_TADIMM  | \
+		     SH4_PCIINTM_MADIMM  | SH4_PCIINTM_MWPDIM  | \
+		     SH4_PCIINTM_MRDPEIM, chan->reg_base + SH4_PCIINTM);
 
-	/* Set IOBR for windows containing area specified in pci.h */
-	pci_write_reg(chan, chan->io_resource->start & ~(SH7780_PCI_IO_SIZE-1),
-		      SH7780_PCIIOBR);
-	pci_write_reg(chan, ((SH7780_PCI_IO_SIZE-1) & (7<<18)),
-		      SH7780_PCIIOBMR);
+	/*
+	 * Disable the cache snoop controller for non-coherent DMA.
+	 */
+	__raw_writel(0, chan->reg_base + SH7780_PCICSCR0);
+	__raw_writel(0, chan->reg_base + SH7780_PCICSAR0);
+	__raw_writel(0, chan->reg_base + SH7780_PCICSCR1);
+	__raw_writel(0, chan->reg_base + SH7780_PCICSAR1);
 
-	/* SH7780 init done, set central function init complete */
-	/* use round robin mode to stop a device starving/overruning */
-	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO;
-	pci_write_reg(chan, word, SH4_PCICR);
+	__raw_writel(0xfd000000, chan->reg_base + SH7780_PCIMBR0);
+	__raw_writel(0x00fc0000, chan->reg_base + SH7780_PCIMBMR0);
+
+	__raw_writel(0, chan->reg_base + SH7780_PCIIOBR);
+	__raw_writel(0, chan->reg_base + SH7780_PCIIOBMR);
+
+	/*
+	 * Initialization mode complete, release the control register and
+	 * enable round robin mode to stop device overruns/starvation.
+	 */
+	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO,
+		     chan->reg_base + SH4_PCICR);
 
 	register_pci_controller(chan);
 
