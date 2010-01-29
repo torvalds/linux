@@ -2726,11 +2726,9 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"utmi_p2_gfclk_ck",		&utmi_p2_gfclk_ck,	CK_443X),
 };
 
-int __init omap2_clk_init(void)
+int __init omap4xxx_clk_init(void)
 {
-	/* struct prcm_config *prcm; */
 	struct omap_clk *c;
-	/* u32 clkrate; */
 	u32 cpu_clkflg;
 
 	if (cpu_is_omap44xx()) {
@@ -2749,9 +2747,7 @@ int __init omap2_clk_init(void)
 		if (c->cpu & cpu_clkflg) {
 			clkdev_add(&c->lk);
 			clk_register(c->lk.clk);
-			/* TODO
 			omap2_init_clk_clkdm(c->lk.clk);
-			*/
 		}
 
 	recalculate_root_clocks();

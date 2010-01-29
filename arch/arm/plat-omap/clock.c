@@ -173,7 +173,7 @@ EXPORT_SYMBOL(clk_get_parent);
  * OMAP specific clock functions shared between omap1 and omap2
  *-------------------------------------------------------------------------*/
 
-unsigned int __initdata mpurate;
+int __initdata mpurate;
 
 /*
  * By default we use the rate set by the bootloader.
@@ -197,6 +197,17 @@ __setup("mpurate=", omap_clk_setup);
 unsigned long followparent_recalc(struct clk *clk)
 {
 	return clk->parent->rate;
+}
+
+/*
+ * Used for clocks that have the same value as the parent clock,
+ * divided by some factor
+ */
+unsigned long omap_fixed_divisor_recalc(struct clk *clk)
+{
+	WARN_ON(!clk->fixed_div);
+
+	return clk->parent->rate / clk->fixed_div;
 }
 
 void clk_reparent(struct clk *child, struct clk *parent)

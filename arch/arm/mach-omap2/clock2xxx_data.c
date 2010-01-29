@@ -79,7 +79,7 @@ static struct clk sys_ck = {		/* (*12, *13, 19.2, 26, 38.4)MHz */
 	.ops		= &clkops_null,
 	.parent		= &osc_ck,
 	.clkdm_name	= "wkup_clkdm",
-	.recalc		= &omap2_sys_clk_recalc,
+	.recalc		= &omap2xxx_sys_clk_recalc,
 };
 
 static struct clk alt_ck = {		/* Typical 54M or 48M, may not exist */
@@ -261,7 +261,7 @@ static struct clk func_12m_ck = {
 	.parent		= &func_48m_ck,
 	.fixed_div	= 4,
 	.clkdm_name	= "wkup_clkdm",
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /* Secure timer, only available in secure mode */
@@ -557,7 +557,7 @@ static struct clk iva1_mpu_int_ifck = {
 	.enable_reg	= OMAP_CM_REGADDR(OMAP24XX_DSP_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP2420_EN_IVA_MPU_SHIFT,
 	.fixed_div	= 2,
-	.recalc		= &omap2_fixed_divisor_recalc,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /*
@@ -2238,7 +2238,7 @@ static struct omap_clk omap24xx_clks[] = {
  * init code
  */
 
-int __init omap2_clk_init(void)
+int __init omap2xxx_clk_init(void)
 {
 	const struct prcm_config *prcm;
 	struct omap_clk *c;
@@ -2264,7 +2264,7 @@ int __init omap2_clk_init(void)
 
 	osc_ck.rate = omap2_osc_clk_recalc(&osc_ck);
 	propagate_rate(&osc_ck);
-	sys_ck.rate = omap2_sys_clk_recalc(&sys_ck);
+	sys_ck.rate = omap2xxx_sys_clk_recalc(&sys_ck);
 	propagate_rate(&sys_ck);
 
 	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)

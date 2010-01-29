@@ -44,17 +44,7 @@
 
 #define MAX_DPLL_WAIT_TRIES		1000000
 
-
-/**
- * omap3_dpll_recalc - recalculate DPLL rate
- * @clk: DPLL struct clk
- *
- * Recalculate and propagate the DPLL rate.
- */
-unsigned long omap3_dpll_recalc(struct clk *clk)
-{
-	return omap2_get_dpll_rate(clk);
-}
+/* Private functions */
 
 /* _omap3_dpll_write_clken - write clken_bits arg to a DPLL's enable bits */
 static void _omap3_dpll_write_clken(struct clk *clk, u8 clken_bits)
@@ -135,8 +125,6 @@ static u16 _omap3_dpll_compute_freqsel(struct clk *clk, u8 n)
 
 	return f;
 }
-
-/* Non-CORE DPLL (e.g., DPLLs that do not control SDRC) clock functions */
 
 /*
  * _omap3_noncore_dpll_lock - instruct a DPLL to lock and wait for readiness
@@ -237,6 +225,63 @@ static int _omap3_noncore_dpll_stop(struct clk *clk)
 	return 0;
 }
 
+/*
+ * _omap3_noncore_dpll_program - set non-core DPLL M,N values directly
+ * @clk: struct clk * of DPLL to set
+ * @m: DPLL multiplier to set
+ * @n: DPLL divider to set
+ * @freqsel: FREQSEL value to set
+ *
+ * Program the DPLL with the supplied M, N values, and wait for the DPLL to
+ * lock..  Returns -EINVAL upon error, or 0 upon success.
+ */
+static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	u32 v;
+
+	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
+	_omap3_noncore_dpll_bypass(clk);
+
+	/* Set jitter correction */
+	if (!cpu_is_omap44xx()) {
+		v = __raw_readl(dd->control_reg);
+		v &= ~dd->freqsel_mask;
+		v |= freqsel << __ffs(dd->freqsel_mask);
+		__raw_writel(v, dd->control_reg);
+	}
+
+	/* Set DPLL multiplier, divider */
+	v = __raw_readl(dd->mult_div1_reg);
+	v &= ~(dd->mult_mask | dd->div1_mask);
+	v |= m << __ffs(dd->mult_mask);
+	v |= (n - 1) << __ffs(dd->div1_mask);
+	__raw_writel(v, dd->mult_div1_reg);
+
+	/* We let the clock framework set the other output dividers later */
+
+	/* REVISIT: Set ramp-up delay? */
+
+	_omap3_noncore_dpll_lock(clk);
+
+	return 0;
+}
+
+/* Public functions */
+
+/**
+ * omap3_dpll_recalc - recalculate DPLL rate
+ * @clk: DPLL struct clk
+ *
+ * Recalculate and propagate the DPLL rate.
+ */
+unsigned long omap3_dpll_recalc(struct clk *clk)
+{
+	return omap2_get_dpll_rate(clk);
+}
+
+/* Non-CORE DPLL (e.g., DPLLs that do not control SDRC) clock functions */
+
 /**
  * omap3_noncore_dpll_enable - instruct a DPLL to enter bypass or lock mode
  * @clk: pointer to a DPLL struct clk
@@ -291,48 +336,6 @@ void omap3_noncore_dpll_disable(struct clk *clk)
 
 
 /* Non-CORE DPLL rate set code */
-
-/*
- * omap3_noncore_dpll_program - set non-core DPLL M,N values directly
- * @clk: struct clk * of DPLL to set
- * @m: DPLL multiplier to set
- * @n: DPLL divider to set
- * @freqsel: FREQSEL value to set
- *
- * Program the DPLL with the supplied M, N values, and wait for the DPLL to
- * lock..  Returns -EINVAL upon error, or 0 upon success.
- */
-int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
-{
-	struct dpll_data *dd = clk->dpll_data;
-	u32 v;
-
-	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
-	_omap3_noncore_dpll_bypass(clk);
-
-	/* Set jitter correction */
-	if (!cpu_is_omap44xx()) {
-		v = __raw_readl(dd->control_reg);
-		v &= ~dd->freqsel_mask;
-		v |= freqsel << __ffs(dd->freqsel_mask);
-		__raw_writel(v, dd->control_reg);
-	}
-
-	/* Set DPLL multiplier, divider */
-	v = __raw_readl(dd->mult_div1_reg);
-	v &= ~(dd->mult_mask | dd->div1_mask);
-	v |= m << __ffs(dd->mult_mask);
-	v |= (n - 1) << __ffs(dd->div1_mask);
-	__raw_writel(v, dd->mult_div1_reg);
-
-	/* We let the clock framework set the other output dividers later */
-
-	/* REVISIT: Set ramp-up delay? */
-
-	_omap3_noncore_dpll_lock(clk);
-
-	return 0;
-}
 
 /**
  * omap3_noncore_dpll_set_rate - set non-core DPLL rate

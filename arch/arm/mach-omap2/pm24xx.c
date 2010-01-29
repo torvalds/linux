@@ -57,11 +57,8 @@ static void (*omap2_sram_idle)(void);
 static void (*omap2_sram_suspend)(u32 dllctrl, void __iomem *sdrc_dlla_ctrl,
 				  void __iomem *sdrc_power);
 
-static struct powerdomain *mpu_pwrdm;
-static struct powerdomain *core_pwrdm;
-
-static struct clockdomain *dsp_clkdm;
-static struct clockdomain *gfx_clkdm;
+static struct powerdomain *mpu_pwrdm, *core_pwrdm;
+static struct clockdomain *dsp_clkdm, *mpu_clkdm, *wkup_clkdm, *gfx_clkdm;
 
 static struct clk *osc_ck, *emul_ck;
 
@@ -219,11 +216,12 @@ static void omap2_enter_mpu_retention(void)
 		/* Try to enter MPU retention */
 		prm_write_mod_reg((0x01 << OMAP_POWERSTATE_SHIFT) |
 				  OMAP_LOGICRETSTATE,
-				  MPU_MOD, PM_PWSTCTRL);
+				  MPU_MOD, OMAP2_PM_PWSTCTRL);
 	} else {
 		/* Block MPU retention */
 
-		prm_write_mod_reg(OMAP_LOGICRETSTATE, MPU_MOD, PM_PWSTCTRL);
+		prm_write_mod_reg(OMAP_LOGICRETSTATE, MPU_MOD,
+						 OMAP2_PM_PWSTCTRL);
 		only_idle = 1;
 	}
 
@@ -333,9 +331,17 @@ static struct platform_suspend_ops omap_pm_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
-static int _pm_clkdm_enable_hwsup(struct clockdomain *clkdm, void *unused)
+/* XXX This function should be shareable between OMAP2xxx and OMAP3 */
+static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
-	omap2_clkdm_allow_idle(clkdm);
+	clkdm_clear_all_wkdeps(clkdm);
+	clkdm_clear_all_sleepdeps(clkdm);
+
+	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
+		omap2_clkdm_allow_idle(clkdm);
+	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
+		 atomic_read(&clkdm->usecount) == 0)
+		omap2_clkdm_sleep(clkdm);
 	return 0;
 }
 
@@ -347,14 +353,6 @@ static void __init prcm_setup_regs(void)
 	/* Enable autoidle */
 	prm_write_mod_reg(OMAP24XX_AUTOIDLE, OCP_MOD,
 			  OMAP2_PRCM_SYSCONFIG_OFFSET);
-
-	/* Set all domain wakeup dependencies */
-	prm_write_mod_reg(OMAP_EN_WKUP_MASK, MPU_MOD, PM_WKDEP);
-	prm_write_mod_reg(0, OMAP24XX_DSP_MOD, PM_WKDEP);
-	prm_write_mod_reg(0, GFX_MOD, PM_WKDEP);
-	prm_write_mod_reg(0, CORE_MOD, PM_WKDEP);
-	if (cpu_is_omap2430())
-		prm_write_mod_reg(0, OMAP2430_MDM_MOD, PM_WKDEP);
 
 	/*
 	 * Set CORE powerdomain memory banks to retain their contents
@@ -384,8 +382,12 @@ static void __init prcm_setup_regs(void)
 	pwrdm_set_next_pwrst(pwrdm, PWRDM_POWER_OFF);
 	omap2_clkdm_sleep(gfx_clkdm);
 
-	/* Enable clockdomain hardware-supervised control for all clkdms */
-	clkdm_for_each(_pm_clkdm_enable_hwsup, NULL);
+	/*
+	 * Clear clockdomain wakeup dependencies and enable
+	 * hardware-supervised idle for all clkdms
+	 */
+	clkdm_for_each(clkdms_setup, NULL);
+	clkdm_add_wkdep(mpu_clkdm, wkup_clkdm);
 
 	/* Enable clock autoidle for all domains */
 	cm_write_mod_reg(OMAP24XX_AUTO_CAM |
@@ -481,7 +483,7 @@ static int __init omap2_pm_init(void)
 	l = prm_read_mod_reg(OCP_MOD, OMAP2_PRCM_REVISION_OFFSET);
 	printk(KERN_INFO "PRCM revision %d.%d\n", (l >> 4) & 0x0f, l & 0x0f);
 
-	/* Look up important powerdomains, clockdomains */
+	/* Look up important powerdomains */
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (!mpu_pwrdm)
@@ -491,9 +493,19 @@ static int __init omap2_pm_init(void)
 	if (!core_pwrdm)
 		pr_err("PM: core_pwrdm not found\n");
 
+	/* Look up important clockdomains */
+
+	mpu_clkdm = clkdm_lookup("mpu_clkdm");
+	if (!mpu_clkdm)
+		pr_err("PM: mpu_clkdm not found\n");
+
+	wkup_clkdm = clkdm_lookup("wkup_clkdm");
+	if (!wkup_clkdm)
+		pr_err("PM: wkup_clkdm not found\n");
+
 	dsp_clkdm = clkdm_lookup("dsp_clkdm");
 	if (!dsp_clkdm)
-		pr_err("PM: mpu_clkdm not found\n");
+		pr_err("PM: dsp_clkdm not found\n");
 
 	gfx_clkdm = clkdm_lookup("gfx_clkdm");
 	if (!gfx_clkdm)

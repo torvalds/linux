@@ -35,7 +35,9 @@
 #include <plat/serial.h>
 #include <plat/vram.h>
 
-#include "clock.h"
+#include "clock2xxx.h"
+#include "clock34xx.h"
+#include "clock44xx.h"
 
 #include <plat/omap-pm.h>
 #include <plat/powerdomain.h>
@@ -312,15 +314,24 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	else if (cpu_is_omap34xx())
 		hwmods = omap34xx_hwmods;
 
+	pwrdm_init(powerdomains_omap);
+	clkdm_init(clockdomains_omap, clkdm_autodeps);
 #ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
 	/* The OPP tables have to be registered before a clk init */
 	omap_hwmod_init(hwmods);
 	omap2_mux_init();
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
-	pwrdm_init(powerdomains_omap);
-	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
 #endif
-	omap2_clk_init();
+
+	if (cpu_is_omap24xx())
+		omap2xxx_clk_init();
+	else if (cpu_is_omap34xx())
+		omap3xxx_clk_init();
+	else if (cpu_is_omap44xx())
+		omap4xxx_clk_init();
+	else
+		pr_err("Could not init clock framework - unknown CPU\n");
+
 	omap_serial_early_init();
 #ifndef CONFIG_ARCH_OMAP4
 	omap_hwmod_late_init();

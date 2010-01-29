@@ -10,6 +10,8 @@
 #define OMAP4430_MAX_DPLL_MULT	2048
 #define OMAP4430_MAX_DPLL_DIV	128
 
+int omap4xxx_clk_init(void);
+
 extern const struct clkops clkops_noncore_dpll_ops;
 
 #endif

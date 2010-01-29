@@ -52,12 +52,6 @@ const struct clkops clkops_dummy = {
 	.disable	= clk_omap1_dummy_disable,
 };
 
-/* XXX can be replaced with a fixed_divisor_recalc */
-unsigned long omap1_watchdog_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 14;
-}
-
 unsigned long omap1_uart_recalc(struct clk *clk)
 {
 	unsigned int val = __raw_readl(clk->enable_reg);

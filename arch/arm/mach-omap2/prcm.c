@@ -11,6 +11,7 @@
  * Rajendra Nayak <rnayak@ti.com>
  *
  * Some pieces of code Copyright (C) 2005 Texas Instruments, Inc.
+ * Upgraded with OMAP4 support by Abhijit Pagare <abhijitpagare@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,6 +29,7 @@
 #include <plat/control.h>
 
 #include "clock.h"
+#include "clock2xxx.h"
 #include "cm.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"
@@ -121,7 +123,10 @@ struct omap3_prcm_regs prcm_context;
 u32 omap_prcm_get_reset_sources(void)
 {
 	/* XXX This presumably needs modification for 34XX */
-	return prm_read_mod_reg(WKUP_MOD, RM_RSTST) & 0x7f;
+	if (cpu_is_omap24xx() | cpu_is_omap34xx())
+		return prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
+	if (cpu_is_omap44xx())
+		return prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
 }
 EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 
@@ -129,11 +134,12 @@ EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 void omap_prcm_arch_reset(char mode)
 {
 	s16 prcm_offs;
-	omap2_clk_prepare_for_reboot();
 
-	if (cpu_is_omap24xx())
+	if (cpu_is_omap24xx()) {
+		omap2xxx_clk_prepare_for_reboot();
+
 		prcm_offs = WKUP_MOD;
-	else if (cpu_is_omap34xx()) {
+	} else if (cpu_is_omap34xx()) {
 		u32 l;
 
 		prcm_offs = OMAP3430_GR_MOD;
@@ -144,10 +150,17 @@ void omap_prcm_arch_reset(char mode)
 		 * cf. OMAP34xx TRM, Initialization / Software Booting
 		 * Configuration. */
 		omap_writel(l, OMAP343X_SCRATCHPAD + 4);
-	} else
+	} else if (cpu_is_omap44xx())
+		prcm_offs = OMAP4430_PRM_DEVICE_MOD;
+	else
 		WARN_ON(1);
 
-	prm_set_mod_reg_bits(OMAP_RST_DPLL3, prcm_offs, RM_RSTCTRL);
+	if (cpu_is_omap24xx() | cpu_is_omap34xx())
+		prm_set_mod_reg_bits(OMAP_RST_DPLL3, prcm_offs,
+						 OMAP2_RM_RSTCTRL);
+	if (cpu_is_omap44xx())
+		prm_set_mod_reg_bits(OMAP_RST_DPLL3, prcm_offs,
+						 OMAP4_RM_RSTCTRL);
 }
 
 static inline u32 __omap_prcm_read(void __iomem *base, s16 module, u16 reg)
@@ -184,6 +197,18 @@ u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 	v &= ~mask;
 	v |= bits;
 	prm_write_mod_reg(v, module, idx);
+
+	return v;
+}
+
+/* Read a PRM register, AND it, and shift the result down to bit 0 */
+u32 prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
+{
+	u32 v;
+
+	v = prm_read_mod_reg(domain, idx);
+	v &= mask;
+	v >>= __ffs(mask);
 
 	return v;
 }
@@ -280,7 +305,7 @@ void omap3_prcm_save_context(void)
 	prcm_context.emu_cm_clksel =
 			 cm_read_mod_reg(OMAP3430_EMU_MOD, CM_CLKSEL1);
 	prcm_context.emu_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_EMU_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_EMU_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.pll_cm_autoidle2 =
 			 cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE2);
 	prcm_context.pll_cm_clksel4 =
@@ -333,23 +358,25 @@ void omap3_prcm_save_context(void)
 	prcm_context.mpu_cm_autoidle2 =
 			 cm_read_mod_reg(MPU_MOD, CM_AUTOIDLE2);
 	prcm_context.iva2_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_IVA2_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.mpu_cm_clkstctrl =
-			 cm_read_mod_reg(MPU_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(MPU_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.core_cm_clkstctrl =
-			 cm_read_mod_reg(CORE_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(CORE_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.sgx_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430ES2_SGX_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430ES2_SGX_MOD,
+						OMAP2_CM_CLKSTCTRL);
 	prcm_context.dss_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_DSS_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_DSS_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.cam_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_CAM_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_CAM_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.per_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_PER_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_PER_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.neon_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430_NEON_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430_NEON_MOD, OMAP2_CM_CLKSTCTRL);
 	prcm_context.usbhost_cm_clkstctrl =
-			 cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD, CM_CLKSTCTRL);
+			 cm_read_mod_reg(OMAP3430ES2_USBHOST_MOD,
+						OMAP2_CM_CLKSTCTRL);
 	prcm_context.core_cm_autoidle1 =
 			 cm_read_mod_reg(CORE_MOD, CM_AUTOIDLE1);
 	prcm_context.core_cm_autoidle2 =
@@ -432,7 +459,7 @@ void omap3_prcm_restore_context(void)
 	cm_write_mod_reg(prcm_context.emu_cm_clksel, OMAP3430_EMU_MOD,
 					 CM_CLKSEL1);
 	cm_write_mod_reg(prcm_context.emu_cm_clkstctrl, OMAP3430_EMU_MOD,
-					 CM_CLKSTCTRL);
+					 OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.pll_cm_autoidle2, PLL_MOD,
 					 CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.pll_cm_clksel4, PLL_MOD,
@@ -478,22 +505,23 @@ void omap3_prcm_restore_context(void)
 					CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.mpu_cm_autoidle2, MPU_MOD, CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.iva2_cm_clkstctrl, OMAP3430_IVA2_MOD,
-					CM_CLKSTCTRL);
-	cm_write_mod_reg(prcm_context.mpu_cm_clkstctrl, MPU_MOD, CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
+	cm_write_mod_reg(prcm_context.mpu_cm_clkstctrl, MPU_MOD,
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.core_cm_clkstctrl, CORE_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.sgx_cm_clkstctrl, OMAP3430ES2_SGX_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.dss_cm_clkstctrl, OMAP3430_DSS_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.cam_cm_clkstctrl, OMAP3430_CAM_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.per_cm_clkstctrl, OMAP3430_PER_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.neon_cm_clkstctrl, OMAP3430_NEON_MOD,
-					CM_CLKSTCTRL);
+					OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.usbhost_cm_clkstctrl,
-					OMAP3430ES2_USBHOST_MOD, CM_CLKSTCTRL);
+				OMAP3430ES2_USBHOST_MOD, OMAP2_CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.core_cm_autoidle1, CORE_MOD,
 					CM_AUTOIDLE1);
 	cm_write_mod_reg(prcm_context.core_cm_autoidle2, CORE_MOD,

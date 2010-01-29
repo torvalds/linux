@@ -2,10 +2,10 @@
  * OMAP3-specific clock framework functions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2010 Nokia Corporation
  *
- * Written by Paul Walmsley
- * Testing and integration fixes by Jouni Högander
+ * Paul Walmsley
+ * Jouni Högander
  *
  * Parts of this code are based on code written by
  * Richard Woodruff, Tony Lindgren, Tuukka Tikkanen, Karthik Dasu
@@ -16,33 +16,21 @@
  */
 #undef DEBUG
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/limits.h>
-#include <linux/bitops.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
-#include <plat/sram.h>
-#include <plat/sdrc.h>
-#include <asm/div64.h>
-#include <asm/clkdev.h>
 
 #include "clock.h"
 #include "clock34xx.h"
-#include "sdrc.h"
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 #include "cm.h"
 #include "cm-regbits-34xx.h"
-
-#define CYCLES_PER_MHZ			1000000
 
 /*
  * DPLL5_FREQ_FOR_USBHOST: USBHOST and USBTLL are the only clocks
@@ -162,129 +150,7 @@ int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 	return omap3_noncore_dpll_set_rate(clk, rate);
 }
 
-
-/*
- * CORE DPLL (DPLL3) rate programming functions
- *
- * These call into SRAM code to do the actual CM writes, since the SDRAM
- * is clocked from DPLL3.
- */
-
-/**
- * omap3_core_dpll_m2_set_rate - set CORE DPLL M2 divider
- * @clk: struct clk * of DPLL to set
- * @rate: rounded target rate
- *
- * Program the DPLL M2 divider with the rounded target rate.  Returns
- * -EINVAL upon error, or 0 upon success.
- */
-int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
-{
-	u32 new_div = 0;
-	u32 unlock_dll = 0;
-	u32 c;
-	unsigned long validrate, sdrcrate, _mpurate;
-	struct omap_sdrc_params *sdrc_cs0;
-	struct omap_sdrc_params *sdrc_cs1;
-	int ret;
-
-	if (!clk || !rate)
-		return -EINVAL;
-
-	validrate = omap2_clksel_round_rate_div(clk, rate, &new_div);
-	if (validrate != rate)
-		return -EINVAL;
-
-	sdrcrate = sdrc_ick_p->rate;
-	if (rate > clk->rate)
-		sdrcrate <<= ((rate / clk->rate) >> 1);
-	else
-		sdrcrate >>= ((clk->rate / rate) >> 1);
-
-	ret = omap2_sdrc_get_params(sdrcrate, &sdrc_cs0, &sdrc_cs1);
-	if (ret)
-		return -EINVAL;
-
-	if (sdrcrate < MIN_SDRC_DLL_LOCK_FREQ) {
-		pr_debug("clock: will unlock SDRC DLL\n");
-		unlock_dll = 1;
-	}
-
-	/*
-	 * XXX This only needs to be done when the CPU frequency changes
-	 */
-	_mpurate = arm_fck_p->rate / CYCLES_PER_MHZ;
-	c = (_mpurate << SDRC_MPURATE_SCALE) >> SDRC_MPURATE_BASE_SHIFT;
-	c += 1;  /* for safety */
-	c *= SDRC_MPURATE_LOOPS;
-	c >>= SDRC_MPURATE_SCALE;
-	if (c == 0)
-		c = 1;
-
-	pr_debug("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
-		 validrate);
-	pr_debug("clock: SDRC CS0 timing params used:"
-		 " RFR %08x CTRLA %08x CTRLB %08x MR %08x\n",
-		 sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
-		 sdrc_cs0->actim_ctrlb, sdrc_cs0->mr);
-	if (sdrc_cs1)
-		pr_debug("clock: SDRC CS1 timing params used: "
-		 " RFR %08x CTRLA %08x CTRLB %08x MR %08x\n",
-		 sdrc_cs1->rfr_ctrl, sdrc_cs1->actim_ctrla,
-		 sdrc_cs1->actim_ctrlb, sdrc_cs1->mr);
-
-	if (sdrc_cs1)
-		omap3_configure_core_dpll(
-				  new_div, unlock_dll, c, rate > clk->rate,
-				  sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
-				  sdrc_cs0->actim_ctrlb, sdrc_cs0->mr,
-				  sdrc_cs1->rfr_ctrl, sdrc_cs1->actim_ctrla,
-				  sdrc_cs1->actim_ctrlb, sdrc_cs1->mr);
-	else
-		omap3_configure_core_dpll(
-				  new_div, unlock_dll, c, rate > clk->rate,
-				  sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
-				  sdrc_cs0->actim_ctrlb, sdrc_cs0->mr,
-				  0, 0, 0, 0);
-
-	return 0;
-}
-
-/* Common clock code */
-
-/*
- * As it is structured now, this will prevent an OMAP2/3 multiboot
- * kernel from compiling.  This will need further attention.
- */
-#if defined(CONFIG_ARCH_OMAP3)
-
-struct clk_functions omap2_clk_functions = {
-	.clk_enable		= omap2_clk_enable,
-	.clk_disable		= omap2_clk_disable,
-	.clk_round_rate		= omap2_clk_round_rate,
-	.clk_set_rate		= omap2_clk_set_rate,
-	.clk_set_parent		= omap2_clk_set_parent,
-	.clk_disable_unused	= omap2_clk_disable_unused,
-};
-
-/*
- * Set clocks for bypass mode for reboot to work.
- */
-void omap2_clk_prepare_for_reboot(void)
-{
-	/* REVISIT: Not ready for 343x */
-#if 0
-	u32 rate;
-
-	if (vclk == NULL || sclk == NULL)
-		return;
-
-	rate = clk_get_rate(sclk);
-	clk_set_rate(vclk, rate);
-#endif
-}
-
-void omap3_clk_lock_dpll5(void)
+void __init omap3_clk_lock_dpll5(void)
 {
 	struct clk *dpll5_clk;
 	struct clk *dpll5_m2_clk;
@@ -306,16 +172,21 @@ void omap3_clk_lock_dpll5(void)
 	return;
 }
 
+/* Common clock code */
+
 /* REVISIT: Move this init stuff out into clock.c */
 
 /*
  * Switch the MPU rate if specified on cmdline.
  * We cannot do this early until cmdline is parsed.
  */
-static int __init omap2_clk_arch_init(void)
+static int __init omap3xxx_clk_arch_init(void)
 {
 	struct clk *osc_sys_ck, *dpll1_ck, *arm_fck, *core_ck;
 	unsigned long osc_sys_rate;
+
+	if (!cpu_is_omap34xx())
+		return 0;
 
 	if (!mpurate)
 		return -EINVAL;
@@ -345,9 +216,6 @@ static int __init omap2_clk_arch_init(void)
 
 	return 0;
 }
-arch_initcall(omap2_clk_arch_init);
-
-
-#endif
+arch_initcall(omap3xxx_clk_arch_init);
 
 
