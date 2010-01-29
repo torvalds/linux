@@ -591,6 +591,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	u64 rgrp_count = ip->i_disksize;
 	int error;
 
+	do_div(rgrp_count, sizeof(struct gfs2_rindex));
 	clear_rgrpdi(sdp);
 
 	file_ra_state_init(&ra_state, inode->i_mapping);
