@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/time.c
+/* linux/arch/arm/plat-samsung/time.c
  *
  * Copyright (C) 2003-2005 Simtec Electronics
  *	Ben Dooks, <ben@simtec.co.uk>

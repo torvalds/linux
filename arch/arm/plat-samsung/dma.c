@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c/dma.c
+/* linux/arch/arm/plat-samsung/dma.c
  *
  * Copyright (c) 2003-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
