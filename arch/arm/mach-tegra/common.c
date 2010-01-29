@@ -25,6 +25,21 @@
 #include <mach/iomap.h>
 
 #include "board.h"
+#include "clock.h"
+
+static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
+	/* name		parent		rate		enabled */
+	{ "clk_m",	NULL,		0,		true },
+	{ "pll_p",	"clk_m",	216000000,	true },
+	{ "pll_p_out1",	"pll_p",	28800000,	true },
+	{ "pll_p_out2",	"pll_p",	48000000,	true },
+	{ "pll_p_out3",	"pll_p",	72000000,	true },
+	{ "pll_p_out4",	"pll_p",	108000000,	true },
+	{ "sys",	"pll_p_out4",	108000000,	true },
+	{ "hclk",	"sys",		108000000,	true },
+	{ "pclk",	"hclk",		54000000,	true },
+	{ NULL,		NULL,		0,		0},
+};
 
 void __init tegra_init_cache(void)
 {
@@ -40,5 +55,7 @@ void __init tegra_init_cache(void)
 
 void __init tegra_common_init(void)
 {
+	tegra_init_clock();
+	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_cache();
 }
