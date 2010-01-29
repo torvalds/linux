@@ -551,7 +551,7 @@ config SERIAL_S5PC100
 
 config SERIAL_S5PV210
 	tristate "Samsung S5PV210 Serial port support"
-	depends on SERIAL_SAMSUNG && CPU_S5PV210
+	depends on SERIAL_SAMSUNG && (CPU_S5PV210 || CPU_S5P6442)
 	select SERIAL_SAMSUNG_UARTS_4
 	default y
 	help
