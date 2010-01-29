@@ -52,6 +52,15 @@ struct musb;
 struct musb_hw_ep;
 struct musb_ep;
 
+/* Helper defines for struct musb->hwvers */
+#define MUSB_HWVERS_MAJOR(x)	((x >> 10) & 0x1f)
+#define MUSB_HWVERS_MINOR(x)	(x & 0x3ff)
+#define MUSB_HWVERS_RC		0x8000
+#define MUSB_HWVERS_1300	0x52C
+#define MUSB_HWVERS_1400	0x590
+#define MUSB_HWVERS_1800	0x720
+#define MUSB_HWVERS_1900	0x784
+#define MUSB_HWVERS_2000	0x800
 
 #include "musb_debug.h"
 #include "musb_dma.h"
@@ -322,13 +331,6 @@ struct musb {
 	struct clk		*clock;
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
-#define MUSB_HWVERS_MAJOR(x)	((x >> 10) & 0x1f)
-#define MUSB_HWVERS_MINOR(x)	(x & 0x3ff)
-#define MUSB_HWVERS_RC		0x8000
-#define MUSB_HWVERS_1300	0x52C
-#define MUSB_HWVERS_1400	0x590
-#define MUSB_HWVERS_1800	0x720
-#define MUSB_HWVERS_2000	0x800
 	u16			hwvers;
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
