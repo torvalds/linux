@@ -961,7 +961,7 @@ static int section_mismatch(const char *fromsec, const char *tosec)
  * Pattern 2:
  *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
- *   These functions may often be marked __init and we do not want to
+ *   These functions may often be marked __devinit and we do not want to
  *   warn here.
  *   the pattern is identified by:
  *   tosec   = init or exit section
