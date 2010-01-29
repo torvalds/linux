@@ -93,12 +93,15 @@ struct cpu_hw_events {
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
 };
 
-#define EVENT_CONSTRAINT(c, n, m) {	\
+#define __EVENT_CONSTRAINT(c, n, m, w) {\
 	{ .idxmsk64[0] = (n) },		\
 	.code = (c),			\
 	.cmask = (m),			\
-	.weight = HWEIGHT64((u64)(n)),	\
+	.weight = (w),			\
 }
+
+#define EVENT_CONSTRAINT(c, n, m)	\
+	__EVENT_CONSTRAINT(c, n, m, HWEIGHT(n))
 
 #define INTEL_EVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVTSEL_MASK)
@@ -2622,7 +2625,8 @@ void __init init_hw_perf_events(void)
 	register_die_notifier(&perf_event_nmi_notifier);
 
 	unconstrained = (struct event_constraint)
-		EVENT_CONSTRAINT(0, (1ULL << x86_pmu.num_events) - 1, 0);
+		__EVENT_CONSTRAINT(0, (1ULL << x86_pmu.num_events) - 1,
+				   0, x86_pmu.num_events);
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.event_bits);
