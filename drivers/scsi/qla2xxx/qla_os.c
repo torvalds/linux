@@ -1258,7 +1258,7 @@ qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 		qla2x00_adjust_sdev_qdepth_up(sdev, qdepth);
 		break;
 	default:
-		return EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return sdev->queue_depth;
