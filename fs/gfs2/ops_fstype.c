@@ -985,9 +985,17 @@ static const match_table_t nolock_tokens = {
 	{ Opt_err, NULL },
 };
 
+static void nolock_put_lock(struct kmem_cache *cachep, struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	kmem_cache_free(cachep, gl);
+	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
+		wake_up(&sdp->sd_glock_wait);
+}
+
 static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
-	.lm_put_lock = kmem_cache_free,
+	.lm_put_lock = nolock_put_lock,
 	.lm_tokens = &nolock_tokens,
 };
 

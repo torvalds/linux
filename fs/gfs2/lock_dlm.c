@@ -167,15 +167,16 @@ static unsigned int gdlm_lock(struct gfs2_glock *gl,
 	return LM_OUT_ASYNC;
 }
 
-static void gdlm_put_lock(struct kmem_cache *cachep, void *ptr)
+static void gdlm_put_lock(struct kmem_cache *cachep, struct gfs2_glock *gl)
 {
-	struct gfs2_glock *gl = ptr;
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int error;
 
 	if (gl->gl_lksb.sb_lkid == 0) {
 		kmem_cache_free(cachep, gl);
+		if (atomic_dec_and_test(&sdp->sd_glock_disposal))
+			wake_up(&sdp->sd_glock_wait);
 		return;
 	}
 
@@ -187,7 +188,6 @@ static void gdlm_put_lock(struct kmem_cache *cachep, void *ptr)
 		       (unsigned long long)gl->gl_name.ln_number, error);
 		return;
 	}
-	atomic_inc(&sdp->sd_glock_disposal);
 }
 
 static void gdlm_cancel(struct gfs2_glock *gl)
