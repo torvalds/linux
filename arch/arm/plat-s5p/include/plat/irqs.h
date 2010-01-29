@@ -74,7 +74,7 @@
 #define S5P_IRQ_VIC0(x)		(S5P_VIC0_BASE + (x))
 #define S5P_IRQ_VIC1(x)		(S5P_VIC1_BASE + (x))
 
-#define S5P_TIMER_IRQ(x)	S5P_IRQ(64 + (x))
+#define S5P_TIMER_IRQ(x)	S5P_IRQ(11 + (x))
 
 #define IRQ_TIMER0		S5P_TIMER_IRQ(0)
 #define IRQ_TIMER1		S5P_TIMER_IRQ(1)
