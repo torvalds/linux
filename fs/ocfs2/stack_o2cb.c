@@ -161,20 +161,26 @@ static int dlm_status_to_errno(enum dlm_status status)
 
 static void o2dlm_lock_ast_wrapper(void *astarg)
 {
+	union ocfs2_dlm_lksb *lksb = astarg;
+
 	BUG_ON(o2cb_stack.sp_proto == NULL);
 
-	o2cb_stack.sp_proto->lp_lock_ast(astarg);
+	o2cb_stack.sp_proto->lp_lock_ast(lksb);
 }
 
 static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 {
+	union ocfs2_dlm_lksb *lksb = astarg;
+
 	BUG_ON(o2cb_stack.sp_proto == NULL);
 
-	o2cb_stack.sp_proto->lp_blocking_ast(astarg, level);
+	o2cb_stack.sp_proto->lp_blocking_ast(lksb, level);
 }
 
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
+	union ocfs2_dlm_lksb *lksb = astarg;
+
 	int error = dlm_status_to_errno(status);
 
 	BUG_ON(o2cb_stack.sp_proto == NULL);
@@ -193,7 +199,7 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 	if (status == DLM_CANCELGRANT)
 		return;
 
-	o2cb_stack.sp_proto->lp_unlock_ast(astarg, error);
+	o2cb_stack.sp_proto->lp_unlock_ast(lksb, error);
 }
 
 static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
@@ -201,8 +207,7 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 union ocfs2_dlm_lksb *lksb,
 			 u32 flags,
 			 void *name,
-			 unsigned int namelen,
-			 void *astarg)
+			 unsigned int namelen)
 {
 	enum dlm_status status;
 	int o2dlm_mode = mode_to_o2dlm(mode);
@@ -211,7 +216,7 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 
 	status = dlmlock(conn->cc_lockspace, o2dlm_mode, &lksb->lksb_o2dlm,
 			 o2dlm_flags, name, namelen,
-			 o2dlm_lock_ast_wrapper, astarg,
+			 o2dlm_lock_ast_wrapper, lksb,
 			 o2dlm_blocking_ast_wrapper);
 	ret = dlm_status_to_errno(status);
 	return ret;
@@ -219,15 +224,14 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 
 static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
 			   union ocfs2_dlm_lksb *lksb,
-			   u32 flags,
-			   void *astarg)
+			   u32 flags)
 {
 	enum dlm_status status;
 	int o2dlm_flags = flags_to_o2dlm(flags);
 	int ret;
 
 	status = dlmunlock(conn->cc_lockspace, &lksb->lksb_o2dlm,
-			   o2dlm_flags, o2dlm_unlock_ast_wrapper, astarg);
+			   o2dlm_flags, o2dlm_unlock_ast_wrapper, lksb);
 	ret = dlm_status_to_errno(status);
 	return ret;
 }

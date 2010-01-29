@@ -25,7 +25,6 @@
 #include <linux/reboot.h>
 #include <asm/uaccess.h>
 
-#include "ocfs2.h"  /* For struct ocfs2_lock_res */
 #include "stackglue.h"
 
 #include <linux/dlm_plock.h>
@@ -664,16 +663,10 @@ static void ocfs2_control_exit(void)
 		       -rc);
 }
 
-static struct dlm_lksb *fsdlm_astarg_to_lksb(void *astarg)
-{
-	struct ocfs2_lock_res *res = astarg;
-	return &res->l_lksb.lksb_fsdlm;
-}
-
 static void fsdlm_lock_ast_wrapper(void *astarg)
 {
-	struct dlm_lksb *lksb = fsdlm_astarg_to_lksb(astarg);
-	int status = lksb->sb_status;
+	union ocfs2_dlm_lksb *lksb = astarg;
+	int status = lksb->lksb_fsdlm.sb_status;
 
 	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
 
@@ -688,16 +681,18 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	 */
 
 	if (status == -DLM_EUNLOCK || status == -DLM_ECANCEL)
-		ocfs2_user_plugin.sp_proto->lp_unlock_ast(astarg, 0);
+		ocfs2_user_plugin.sp_proto->lp_unlock_ast(lksb, 0);
 	else
-		ocfs2_user_plugin.sp_proto->lp_lock_ast(astarg);
+		ocfs2_user_plugin.sp_proto->lp_lock_ast(lksb);
 }
 
 static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
 {
+	union ocfs2_dlm_lksb *lksb = astarg;
+
 	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
 
-	ocfs2_user_plugin.sp_proto->lp_blocking_ast(astarg, level);
+	ocfs2_user_plugin.sp_proto->lp_blocking_ast(lksb, level);
 }
 
 static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
@@ -705,8 +700,7 @@ static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 union ocfs2_dlm_lksb *lksb,
 			 u32 flags,
 			 void *name,
-			 unsigned int namelen,
-			 void *astarg)
+			 unsigned int namelen)
 {
 	int ret;
 
@@ -716,20 +710,19 @@ static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 
 	ret = dlm_lock(conn->cc_lockspace, mode, &lksb->lksb_fsdlm,
 		       flags|DLM_LKF_NODLCKWT, name, namelen, 0,
-		       fsdlm_lock_ast_wrapper, astarg,
+		       fsdlm_lock_ast_wrapper, lksb,
 		       fsdlm_blocking_ast_wrapper);
 	return ret;
 }
 
 static int user_dlm_unlock(struct ocfs2_cluster_connection *conn,
 			   union ocfs2_dlm_lksb *lksb,
-			   u32 flags,
-			   void *astarg)
+			   u32 flags)
 {
 	int ret;
 
 	ret = dlm_unlock(conn->cc_lockspace, lksb->lksb_fsdlm.sb_lkid,
-			 flags, &lksb->lksb_fsdlm, astarg);
+			 flags, &lksb->lksb_fsdlm, lksb);
 	return ret;
 }
 

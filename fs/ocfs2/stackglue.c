@@ -233,35 +233,32 @@ EXPORT_SYMBOL_GPL(ocfs2_stack_glue_set_locking_protocol);
 
 
 /*
- * The ocfs2_dlm_lock() and ocfs2_dlm_unlock() functions take
- * "struct ocfs2_lock_res *astarg" instead of "void *astarg" because the
- * underlying stack plugins need to pilfer the lksb off of the lock_res.
- * If some other structure needs to be passed as an astarg, the plugins
- * will need to be given a different avenue to the lksb.
+ * The ocfs2_dlm_lock() and ocfs2_dlm_unlock() functions take no argument
+ * for the ast and bast functions.  They will pass the lksb to the ast
+ * and bast.  The caller can wrap the lksb with their own structure to
+ * get more information.
  */
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 		   int mode,
 		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
-		   unsigned int namelen,
-		   struct ocfs2_lock_res *astarg)
+		   unsigned int namelen)
 {
 	BUG_ON(lproto == NULL);
 
 	return active_stack->sp_ops->dlm_lock(conn, mode, lksb, flags,
-					      name, namelen, astarg);
+					      name, namelen);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_lock);
 
 int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     union ocfs2_dlm_lksb *lksb,
-		     u32 flags,
-		     struct ocfs2_lock_res *astarg)
+		     u32 flags)
 {
 	BUG_ON(lproto == NULL);
 
-	return active_stack->sp_ops->dlm_unlock(conn, lksb, flags, astarg);
+	return active_stack->sp_ops->dlm_unlock(conn, lksb, flags);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_unlock);
 

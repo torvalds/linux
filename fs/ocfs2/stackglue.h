@@ -56,17 +56,6 @@ struct ocfs2_protocol_version {
 };
 
 /*
- * The ocfs2_locking_protocol defines the handlers called on ocfs2's behalf.
- */
-struct ocfs2_locking_protocol {
-	struct ocfs2_protocol_version lp_max_version;
-	void (*lp_lock_ast)(void *astarg);
-	void (*lp_blocking_ast)(void *astarg, int level);
-	void (*lp_unlock_ast)(void *astarg, int error);
-};
-
-
-/*
  * The dlm_lockstatus struct includes lvb space, but the dlm_lksb struct only
  * has a pointer to separately allocated lvb space.  This struct exists only to
  * include in the lksb union to make space for a combined dlm_lksb and lvb.
@@ -86,6 +75,17 @@ union ocfs2_dlm_lksb {
 	struct dlm_lksb lksb_fsdlm;
 	struct fsdlm_lksb_plus_lvb padding;
 };
+
+/*
+ * The ocfs2_locking_protocol defines the handlers called on ocfs2's behalf.
+ */
+struct ocfs2_locking_protocol {
+	struct ocfs2_protocol_version lp_max_version;
+	void (*lp_lock_ast)(union ocfs2_dlm_lksb *lksb);
+	void (*lp_blocking_ast)(union ocfs2_dlm_lksb *lksb, int level);
+	void (*lp_unlock_ast)(union ocfs2_dlm_lksb *lksb, int error);
+};
+
 
 /*
  * A cluster connection.  Mostly opaque to ocfs2, the connection holds
@@ -155,27 +155,29 @@ struct ocfs2_stack_operations {
 	 *
 	 * ast and bast functions are not part of the call because the
 	 * stack will likely want to wrap ast and bast calls before passing
-	 * them to stack->sp_proto.
+	 * them to stack->sp_proto.  There is no astarg.  The lksb will
+	 * be passed back to the ast and bast functions.  The caller can
+	 * use this to find their object.
 	 */
 	int (*dlm_lock)(struct ocfs2_cluster_connection *conn,
 			int mode,
 			union ocfs2_dlm_lksb *lksb,
 			u32 flags,
 			void *name,
-			unsigned int namelen,
-			void *astarg);
+			unsigned int namelen);
 
 	/*
 	 * Call the underlying dlm unlock function.  The ->dlm_unlock()
 	 * function should convert the flags as appropriate.
 	 *
 	 * The unlock ast is not passed, as the stack will want to wrap
-	 * it before calling stack->sp_proto->lp_unlock_ast().
+	 * it before calling stack->sp_proto->lp_unlock_ast().  There is
+	 * no astarg.  The lksb will be passed back to the unlock ast
+	 * function.  The caller can use this to find their object.
 	 */
 	int (*dlm_unlock)(struct ocfs2_cluster_connection *conn,
 			  union ocfs2_dlm_lksb *lksb,
-			  u32 flags,
-			  void *astarg);
+			  u32 flags);
 
 	/*
 	 * Return the status of the current lock status block.  The fs
@@ -249,12 +251,10 @@ int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 		   union ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
-		   unsigned int namelen,
-		   struct ocfs2_lock_res *astarg);
+		   unsigned int namelen);
 int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
 		     union ocfs2_dlm_lksb *lksb,
-		     u32 flags,
-		     struct ocfs2_lock_res *astarg);
+		     u32 flags);
 
 int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb);
 int ocfs2_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb);

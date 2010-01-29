@@ -297,6 +297,11 @@ static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 		lockres->l_type == OCFS2_LOCK_TYPE_OPEN;
 }
 
+static inline struct ocfs2_lock_res *ocfs2_lksb_to_lock_res(union ocfs2_dlm_lksb *lksb)
+{
+	return container_of(lksb, struct ocfs2_lock_res, l_lksb);
+}
+
 static inline struct inode *ocfs2_lock_res_inode(struct ocfs2_lock_res *lockres)
 {
 	BUG_ON(!ocfs2_is_inode_lock(lockres));
@@ -1041,9 +1046,9 @@ static unsigned int lockres_set_pending(struct ocfs2_lock_res *lockres)
 }
 
 
-static void ocfs2_blocking_ast(void *opaque, int level)
+static void ocfs2_blocking_ast(union ocfs2_dlm_lksb *lksb, int level)
 {
-	struct ocfs2_lock_res *lockres = opaque;
+	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
 	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
 	int needs_downconvert;
 	unsigned long flags;
@@ -1072,9 +1077,9 @@ static void ocfs2_blocking_ast(void *opaque, int level)
 	ocfs2_wake_downconvert_thread(osb);
 }
 
-static void ocfs2_locking_ast(void *opaque)
+static void ocfs2_locking_ast(union ocfs2_dlm_lksb *lksb)
 {
-	struct ocfs2_lock_res *lockres = opaque;
+	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
 	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
 	unsigned long flags;
 	int status;
@@ -1189,8 +1194,7 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 			     &lockres->l_lksb,
 			     dlm_flags,
 			     lockres->l_name,
-			     OCFS2_LOCK_ID_MAX_LEN - 1,
-			     lockres);
+			     OCFS2_LOCK_ID_MAX_LEN - 1);
 	lockres_clear_pending(lockres, gen, osb);
 	if (ret) {
 		ocfs2_log_dlm_error("ocfs2_dlm_lock", ret, lockres);
@@ -1421,8 +1425,7 @@ again:
 				     &lockres->l_lksb,
 				     lkm_flags,
 				     lockres->l_name,
-				     OCFS2_LOCK_ID_MAX_LEN - 1,
-				     lockres);
+				     OCFS2_LOCK_ID_MAX_LEN - 1);
 		lockres_clear_pending(lockres, gen, osb);
 		if (ret) {
 			if (!(lkm_flags & DLM_LKF_NOQUEUE) ||
@@ -1859,8 +1862,7 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock)
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	ret = ocfs2_dlm_lock(osb->cconn, level, &lockres->l_lksb, lkm_flags,
-			     lockres->l_name, OCFS2_LOCK_ID_MAX_LEN - 1,
-			     lockres);
+			     lockres->l_name, OCFS2_LOCK_ID_MAX_LEN - 1);
 	if (ret) {
 		if (!trylock || (ret != -EAGAIN)) {
 			ocfs2_log_dlm_error("ocfs2_dlm_lock", ret, lockres);
@@ -3056,9 +3058,9 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
 	mlog_exit_void();
 }
 
-static void ocfs2_unlock_ast(void *opaque, int error)
+static void ocfs2_unlock_ast(union ocfs2_dlm_lksb *lksb, int error)
 {
-	struct ocfs2_lock_res *lockres = opaque;
+	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
 	unsigned long flags;
 
 	mlog_entry_void();
@@ -3167,8 +3169,7 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 
 	mlog(0, "lock %s\n", lockres->l_name);
 
-	ret = ocfs2_dlm_unlock(osb->cconn, &lockres->l_lksb, lkm_flags,
-			       lockres);
+	ret = ocfs2_dlm_unlock(osb->cconn, &lockres->l_lksb, lkm_flags);
 	if (ret) {
 		ocfs2_log_dlm_error("ocfs2_dlm_unlock", ret, lockres);
 		mlog(ML_ERROR, "lockres flags: %lu\n", lockres->l_flags);
@@ -3309,8 +3310,7 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 			     &lockres->l_lksb,
 			     dlm_flags,
 			     lockres->l_name,
-			     OCFS2_LOCK_ID_MAX_LEN - 1,
-			     lockres);
+			     OCFS2_LOCK_ID_MAX_LEN - 1);
 	lockres_clear_pending(lockres, generation, osb);
 	if (ret) {
 		ocfs2_log_dlm_error("ocfs2_dlm_lock", ret, lockres);
@@ -3365,7 +3365,7 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 	mlog(0, "lock %s\n", lockres->l_name);
 
 	ret = ocfs2_dlm_unlock(osb->cconn, &lockres->l_lksb,
-			       DLM_LKF_CANCEL, lockres);
+			       DLM_LKF_CANCEL);
 	if (ret) {
 		ocfs2_log_dlm_error("ocfs2_dlm_unlock", ret, lockres);
 		ocfs2_recover_from_dlm_error(lockres, 0);
