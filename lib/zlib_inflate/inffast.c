@@ -4,11 +4,24 @@
  */
 
 #include <linux/zutil.h>
-#include <asm/unaligned.h>
-#include <asm/byteorder.h>
 #include "inftrees.h"
 #include "inflate.h"
 #include "inffast.h"
+
+/* Only do the unaligned "Faster" variant when
+ * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS is set
+ *
+ * On powerpc, it won't be as we don't include autoconf.h
+ * automatically for the boot wrapper, which is intended as
+ * we run in an environment where we may not be able to deal
+ * with (even rare) alignment faults. In addition, we do not
+ * define __KERNEL__ for arch/powerpc/boot unlike x86
+ */
+
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+#include <asm/unaligned.h>
+#include <asm/byteorder.h>
+#endif
 
 #ifndef ASMINF
 
@@ -243,6 +256,7 @@ void inflate_fast(z_streamp strm, unsigned start)
                     }
                 }
                 else {
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 		    unsigned short *sout;
 		    unsigned long loops;
 
@@ -284,6 +298,20 @@ void inflate_fast(z_streamp strm, unsigned start)
 		    }
 		    if (len & 1)
 			PUP(out) = PUP(from);
+#else /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
+                    from = out - dist;          /* copy direct from output */
+                    do {                        /* minimum length is three */
+			 PUP(out) = PUP(from);
+			 PUP(out) = PUP(from);
+			 PUP(out) = PUP(from);
+			 len -= 3;
+                    } while (len > 2);
+                    if (len) {
+			 PUP(out) = PUP(from);
+			 if (len > 1)
+			     PUP(out) = PUP(from);
+                    }
+#endif /* !CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
                 }
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */

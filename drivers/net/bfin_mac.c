@@ -33,6 +33,7 @@
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 
+#include <asm/dpmc.h>
 #include <asm/blackfin.h>
 #include <asm/cacheflush.h>
 #include <asm/portmux.h>
@@ -386,8 +387,8 @@ static int mii_probe(struct net_device *dev)
 	u32 sclk, mdc_div;
 
 	/* Enable PHY output early */
-	if (!(bfin_read_VR_CTL() & PHYCLKOE))
-		bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
+	if (!(bfin_read_VR_CTL() & CLKBUFOE))
+		bfin_write_VR_CTL(bfin_read_VR_CTL() | CLKBUFOE);
 
 	sclk = get_sclk();
 	mdc_div = ((sclk / MDC_CLK) / 2) - 1;

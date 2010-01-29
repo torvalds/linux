@@ -366,7 +366,7 @@ ENTRY(sys_call_table)
 	.long sys_shutdown
 	.long sys_sendmsg		/* 360 */
 	.long sys_recvmsg
-	.long sys_ni_syscall
+	.long sys_accept4
 	.long sys_ni_syscall
 	.long sys_ni_syscall
 	.long sys_rt_tgsigqueueinfo	/* 365 */

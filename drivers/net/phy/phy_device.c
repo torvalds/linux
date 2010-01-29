@@ -177,6 +177,7 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 	dev->state = PHY_DOWN;
 
 	mutex_init(&dev->lock);
+	INIT_DELAYED_WORK(&dev->state_queue, phy_state_machine);
 
 	return dev;
 }

@@ -280,7 +280,7 @@ static u64 cpus_pstate_state[MAX_CPUS];
 
 static int process_comm_event(event_t *event, struct perf_session *session __used)
 {
-	pid_set_comm(event->comm.pid, event->comm.comm);
+	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 

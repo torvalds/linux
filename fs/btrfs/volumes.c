@@ -2649,8 +2649,10 @@ again:
 	em = lookup_extent_mapping(em_tree, logical, *length);
 	read_unlock(&em_tree->lock);
 
-	if (!em && unplug_page)
+	if (!em && unplug_page) {
+		kfree(multi);
 		return 0;
+	}
 
 	if (!em) {
 		printk(KERN_CRIT "unable to find logical %llu len %llu\n",

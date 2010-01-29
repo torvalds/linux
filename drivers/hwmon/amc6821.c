@@ -686,7 +686,6 @@ static ssize_t set_fan1_div(
 		data->fan1_div = 4;
 		break;
 	default:
-		mutex_unlock(&data->update_lock);
 		count = -EINVAL;
 		goto EXIT;
 	}

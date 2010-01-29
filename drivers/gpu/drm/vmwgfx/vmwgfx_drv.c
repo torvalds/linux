@@ -147,6 +147,8 @@ static char *vmw_devname = "vmwgfx";
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
+static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
+			      void *ptr);
 
 static void vmw_print_capabilities(uint32_t capabilities)
 {
@@ -217,6 +219,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
+	dev_priv->last_read_sequence = (uint32_t) -100;
 	mutex_init(&dev_priv->hw_mutex);
 	mutex_init(&dev_priv->cmdbuf_mutex);
 	rwlock_init(&dev_priv->resource_lock);
@@ -351,6 +354,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		vmw_fb_init(dev_priv);
 	}
 
+	dev_priv->pm_nb.notifier_call = vmwgfx_pm_notifier;
+	register_pm_notifier(&dev_priv->pm_nb);
+
 	return 0;
 
 out_no_device:
@@ -384,6 +390,8 @@ static int vmw_driver_unload(struct drm_device *dev)
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
 	DRM_INFO(VMWGFX_DRIVER_NAME " unload.\n");
+
+	unregister_pm_notifier(&dev_priv->pm_nb);
 
 	if (!dev_priv->stealth) {
 		vmw_fb_close(dev_priv);
@@ -650,6 +658,57 @@ static void vmw_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
+static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
+			      void *ptr)
+{
+	struct vmw_private *dev_priv =
+		container_of(nb, struct vmw_private, pm_nb);
+	struct vmw_master *vmaster = dev_priv->active_master;
+
+	switch (val) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		ttm_suspend_lock(&vmaster->lock);
+
+		/**
+		 * This empties VRAM and unbinds all GMR bindings.
+		 * Buffer contents is moved to swappable memory.
+		 */
+		ttm_bo_swapout_all(&dev_priv->bdev);
+		break;
+	case PM_POST_HIBERNATION:
+	case PM_POST_SUSPEND:
+		ttm_suspend_unlock(&vmaster->lock);
+		break;
+	case PM_RESTORE_PREPARE:
+		break;
+	case PM_POST_RESTORE:
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+/**
+ * These might not be needed with the virtual SVGA device.
+ */
+
+int vmw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+	return 0;
+}
+
+int vmw_pci_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	return pci_enable_device(pdev);
+}
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
 	DRIVER_MODESET,
@@ -689,7 +748,9 @@ static struct drm_driver driver = {
 		       .name = VMWGFX_DRIVER_NAME,
 		       .id_table = vmw_pci_id_list,
 		       .probe = vmw_probe,
-		       .remove = vmw_remove
+		       .remove = vmw_remove,
+		       .suspend = vmw_pci_suspend,
+		       .resume = vmw_pci_resume
 		       },
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,

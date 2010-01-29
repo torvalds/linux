@@ -33,11 +33,11 @@ struct ath_node;
 
 /* Macro to expand scalars to 64-bit objects */
 
-#define	ito64(x) (sizeof(x) == 8) ?			\
+#define	ito64(x) (sizeof(x) == 1) ?			\
 	(((unsigned long long int)(x)) & (0xff)) :	\
-	(sizeof(x) == 16) ?				\
+	(sizeof(x) == 2) ?				\
 	(((unsigned long long int)(x)) & 0xffff) :	\
-	((sizeof(x) == 32) ?				\
+	((sizeof(x) == 4) ?				\
 	 (((unsigned long long int)(x)) & 0xffffffff) : \
 	 (unsigned long long int)(x))
 

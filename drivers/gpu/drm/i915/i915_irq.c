@@ -274,7 +274,6 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir;
-	u32 new_de_iir, new_gt_iir, new_pch_iir;
 	struct drm_i915_master_private *master_priv;
 
 	/* disable master interrupt before clearing iir  */
@@ -286,51 +285,42 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	gt_iir = I915_READ(GTIIR);
 	pch_iir = I915_READ(SDEIIR);
 
-	for (;;) {
-		if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
-			break;
+	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
+		goto done;
 
-		ret = IRQ_HANDLED;
+	ret = IRQ_HANDLED;
 
-		/* should clear PCH hotplug event before clear CPU irq */
-		I915_WRITE(SDEIIR, pch_iir);
-		new_pch_iir = I915_READ(SDEIIR);
-
-		I915_WRITE(DEIIR, de_iir);
-		new_de_iir = I915_READ(DEIIR);
-		I915_WRITE(GTIIR, gt_iir);
-		new_gt_iir = I915_READ(GTIIR);
-
-		if (dev->primary->master) {
-			master_priv = dev->primary->master->driver_priv;
-			if (master_priv->sarea_priv)
-				master_priv->sarea_priv->last_dispatch =
-					READ_BREADCRUMB(dev_priv);
-		}
-
-		if (gt_iir & GT_USER_INTERRUPT) {
-			u32 seqno = i915_get_gem_seqno(dev);
-			dev_priv->mm.irq_gem_seqno = seqno;
-			trace_i915_gem_request_complete(dev, seqno);
-			DRM_WAKEUP(&dev_priv->irq_queue);
-			dev_priv->hangcheck_count = 0;
-			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
-		}
-
-		if (de_iir & DE_GSE)
-			ironlake_opregion_gse_intr(dev);
-
-		/* check event from PCH */
-		if ((de_iir & DE_PCH_EVENT) &&
-			(pch_iir & SDE_HOTPLUG_MASK)) {
-			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		}
-
-		de_iir = new_de_iir;
-		gt_iir = new_gt_iir;
-		pch_iir = new_pch_iir;
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
 	}
 
+	if (gt_iir & GT_USER_INTERRUPT) {
+		u32 seqno = i915_get_gem_seqno(dev);
+		dev_priv->mm.irq_gem_seqno = seqno;
+		trace_i915_gem_request_complete(dev, seqno);
+		DRM_WAKEUP(&dev_priv->irq_queue);
+		dev_priv->hangcheck_count = 0;
+		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+	}
+
+	if (de_iir & DE_GSE)
+		ironlake_opregion_gse_intr(dev);
+
+	/* check event from PCH */
+	if ((de_iir & DE_PCH_EVENT) &&
+	    (pch_iir & SDE_HOTPLUG_MASK)) {
+		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+	}
+
+	/* should clear PCH hotplug event before clear CPU irq */
+	I915_WRITE(SDEIIR, pch_iir);
+	I915_WRITE(GTIIR, gt_iir);
+	I915_WRITE(DEIIR, de_iir);
+
+done:
 	I915_WRITE(DEIER, de_ier);
 	(void)I915_READ(DEIER);
 

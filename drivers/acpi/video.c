@@ -78,6 +78,13 @@ MODULE_LICENSE("GPL");
 static int brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
+/*
+ * By default, we don't allow duplicate ACPI video bus devices
+ * under the same VGA controller
+ */
+static int allow_duplicates;
+module_param(allow_duplicates, bool, 0644);
+
 static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
@@ -2239,11 +2246,47 @@ static int acpi_video_resume(struct acpi_device *device)
 	return AE_OK;
 }
 
+static acpi_status
+acpi_video_bus_match(acpi_handle handle, u32 level, void *context,
+			void **return_value)
+{
+	struct acpi_device *device = context;
+	struct acpi_device *sibling;
+	int result;
+
+	if (handle == device->handle)
+		return AE_CTRL_TERMINATE;
+
+	result = acpi_bus_get_device(handle, &sibling);
+	if (result)
+		return AE_OK;
+
+	if (!strcmp(acpi_device_name(sibling), ACPI_VIDEO_BUS_NAME))
+			return AE_ALREADY_EXISTS;
+
+	return AE_OK;
+}
+
 static int acpi_video_bus_add(struct acpi_device *device)
 {
 	struct acpi_video_bus *video;
 	struct input_dev *input;
 	int error;
+	acpi_status status;
+
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE,
+				device->parent->handle, 1,
+				acpi_video_bus_match, NULL,
+				device, NULL);
+	if (status == AE_ALREADY_EXISTS) {
+		printk(KERN_WARNING FW_BUG
+			"Duplicate ACPI video bus devices for the"
+			" same VGA controller, please try module "
+			"parameter \"video.allow_duplicates=1\""
+			"if the current driver doesn't work.\n");
+		if (!allow_duplicates)
+			return -ENODEV;
+	}
 
 	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)

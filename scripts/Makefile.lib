@@ -219,8 +219,13 @@ for F in $1; do								\
 	fsize=$$(stat -c "%s" $$F);					\
 	dec_size=$$(expr $$dec_size + $$fsize);				\
 done;									\
-printf "%08x" $$dec_size |						\
-	sed 's/\(..\)\(..\)\(..\)\(..\)/\\\\x\4\\\\x\3\\\\x\2\\\\x\1/g'	\
+printf "%08x\n" $$dec_size |						\
+	sed 's/\(..\)/\1 /g' | {					\
+		read ch0 ch1 ch2 ch3;					\
+		for ch in $$ch3 $$ch2 $$ch1 $$ch0; do			\
+			printf '%s%03o' '\\' $$((0x$$ch)); 		\
+		done;							\
+	}								\
 )
 
 quiet_cmd_bzip2 = BZIP2   $@

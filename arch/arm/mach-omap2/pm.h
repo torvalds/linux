@@ -32,12 +32,16 @@ extern struct omap_dm_timer *gptimer_wakeup;
 #ifdef CONFIG_PM_DEBUG
 extern void omap2_pm_dump(int mode, int resume, unsigned int us);
 extern int omap2_pm_debug;
+#else
+#define omap2_pm_dump(mode, resume, us)		do {} while (0);
+#define omap2_pm_debug				0
+#endif
+
+#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 extern void pm_dbg_update_time(struct powerdomain *pwrdm, int prev);
 extern int pm_dbg_regset_save(int reg_set);
 extern int pm_dbg_regset_init(int reg_set);
 #else
-#define omap2_pm_dump(mode, resume, us)		do {} while (0);
-#define omap2_pm_debug				0
 #define pm_dbg_update_time(pwrdm, prev) do {} while (0);
 #define pm_dbg_regset_save(reg_set) do {} while (0);
 #define pm_dbg_regset_init(reg_set) do {} while (0);
