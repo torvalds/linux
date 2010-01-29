@@ -17,7 +17,3 @@ obj-y				+= time.o
 # DMA support
 
 obj-$(CONFIG_S3C_DMA)		+= dma.o
-
-# PM support
-
-obj-$(CONFIG_PM)		+= pm.o
