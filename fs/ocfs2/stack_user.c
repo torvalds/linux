@@ -668,8 +668,6 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	struct ocfs2_dlm_lksb *lksb = astarg;
 	int status = lksb->lksb_fsdlm.sb_status;
 
-	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
-
 	/*
 	 * For now we're punting on the issue of other non-standard errors
 	 * where we can't tell if the unlock_ast or lock_ast should be called.
@@ -681,18 +679,16 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 	 */
 
 	if (status == -DLM_EUNLOCK || status == -DLM_ECANCEL)
-		ocfs2_user_plugin.sp_proto->lp_unlock_ast(lksb, 0);
+		lksb->lksb_conn->cc_proto->lp_unlock_ast(lksb, 0);
 	else
-		ocfs2_user_plugin.sp_proto->lp_lock_ast(lksb);
+		lksb->lksb_conn->cc_proto->lp_lock_ast(lksb);
 }
 
 static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
 {
 	struct ocfs2_dlm_lksb *lksb = astarg;
 
-	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
-
-	ocfs2_user_plugin.sp_proto->lp_blocking_ast(lksb, level);
+	lksb->lksb_conn->cc_proto->lp_blocking_ast(lksb, level);
 }
 
 static int user_dlm_lock(struct ocfs2_cluster_connection *conn,

@@ -163,27 +163,20 @@ static void o2dlm_lock_ast_wrapper(void *astarg)
 {
 	struct ocfs2_dlm_lksb *lksb = astarg;
 
-	BUG_ON(o2cb_stack.sp_proto == NULL);
-
-	o2cb_stack.sp_proto->lp_lock_ast(lksb);
+	lksb->lksb_conn->cc_proto->lp_lock_ast(lksb);
 }
 
 static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 {
 	struct ocfs2_dlm_lksb *lksb = astarg;
 
-	BUG_ON(o2cb_stack.sp_proto == NULL);
-
-	o2cb_stack.sp_proto->lp_blocking_ast(lksb, level);
+	lksb->lksb_conn->cc_proto->lp_blocking_ast(lksb, level);
 }
 
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
 	struct ocfs2_dlm_lksb *lksb = astarg;
-
 	int error = dlm_status_to_errno(status);
-
-	BUG_ON(o2cb_stack.sp_proto == NULL);
 
 	/*
 	 * In o2dlm, you can get both the lock_ast() for the lock being
@@ -199,7 +192,7 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 	if (status == DLM_CANCELGRANT)
 		return;
 
-	o2cb_stack.sp_proto->lp_unlock_ast(lksb, error);
+	lksb->lksb_conn->cc_proto->lp_unlock_ast(lksb, error);
 }
 
 static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
@@ -284,7 +277,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	struct dlm_protocol_version fs_version;
 
 	BUG_ON(conn == NULL);
-	BUG_ON(o2cb_stack.sp_proto == NULL);
+	BUG_ON(conn->cc_proto == NULL);
 
 	/* for now we only have one cluster/node, make sure we see it
 	 * in the heartbeat universe */

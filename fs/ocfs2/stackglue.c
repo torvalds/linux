@@ -343,6 +343,7 @@ int ocfs2_cluster_connect(const char *stack_name,
 	new_conn->cc_recovery_handler = recovery_handler;
 	new_conn->cc_recovery_data = recovery_data;
 
+	new_conn->cc_proto = lproto;
 	/* Start the new connection at our maximum compatibility level */
 	new_conn->cc_version = lproto->lp_max_version;
 

@@ -100,6 +100,7 @@ struct ocfs2_cluster_connection {
 	char cc_name[GROUP_NAME_MAX];
 	int cc_namelen;
 	struct ocfs2_protocol_version cc_version;
+	struct ocfs2_locking_protocol *cc_proto;
 	void (*cc_recovery_handler)(int node_num, void *recovery_data);
 	void *cc_recovery_data;
 	void *cc_lockspace;
