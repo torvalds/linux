@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/audio-simtec.h
+/* arch/arm/plat-s3c24xx/include/plat/audio-simtec.h
  *
  * Copyright 2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
