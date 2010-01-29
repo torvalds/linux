@@ -1141,8 +1141,9 @@ out:
 #ifdef CONFIG_NFSD_V3
 /*
  * Commit all pending writes to stable storage.
- * Strictly speaking, we could sync just the indicated file region here,
- * but there's currently no way we can ask the VFS to do so.
+ *
+ * Note: we only guarantee that data that lies within the range specified
+ * by the 'offset' and 'count' parameters will be synced.
  *
  * Unfortunately we cannot lock the file to make sure we return full WCC
  * data to the client, as locking happens lower down in the filesystem.
@@ -1152,23 +1153,32 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
                loff_t offset, unsigned long count)
 {
 	struct file	*file;
-	__be32		err;
+	loff_t		end = LLONG_MAX;
+	__be32		err = nfserr_inval;
 
-	if ((u64)count > ~(u64)offset)
-		return nfserr_inval;
+	if (offset < 0)
+		goto out;
+	if (count != 0) {
+		end = offset + (loff_t)count - 1;
+		if (end < offset)
+			goto out;
+	}
 
 	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
 	if (err)
-		return err;
+		goto out;
 	if (EX_ISSYNC(fhp->fh_export)) {
-		if (file->f_op && file->f_op->fsync) {
-			err = nfserrno(vfs_fsync(file, file->f_path.dentry, 0));
-		} else {
+		int err2 = vfs_fsync_range(file, file->f_path.dentry,
+				offset, end, 0);
+
+		if (err2 != -EINVAL)
+			err = nfserrno(err2);
+		else
 			err = nfserr_notsupp;
-		}
 	}
 
 	nfsd_close(file);
+out:
 	return err;
 }
 #endif /* CONFIG_NFSD_V3 */
