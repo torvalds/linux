@@ -447,7 +447,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on ARM && PLAT_S3C
+	depends on ARM && PLAT_SAMSUNG
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -464,7 +464,7 @@ config SERIAL_SAMSUNG_UARTS_4
 
 config SERIAL_SAMSUNG_UARTS
 	int
-	depends on ARM && PLAT_S3C
+	depends on ARM && PLAT_SAMSUNG
 	default 2 if ARCH_S3C2400
 	default 4 if SERIAL_SAMSUNG_UARTS_4
 	default 3
