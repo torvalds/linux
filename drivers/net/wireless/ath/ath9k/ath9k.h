@@ -480,6 +480,7 @@ struct ath_softc {
 	u8 nbcnvifs;
 	u16 nvifs;
 	bool ps_enabled;
+	bool ps_idle;
 	unsigned long ps_usecount;
 	enum ath9k_int imask;
 
