@@ -627,7 +627,7 @@ config ARCH_S3C2410
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
-	select PLAT_S3C
+	select PLAT_SAMSUNG
 	select CPU_V6
 	select GENERIC_GPIO
 	select ARM_VIC

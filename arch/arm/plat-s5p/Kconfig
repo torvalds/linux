@@ -9,7 +9,6 @@ config PLAT_S5P
 	bool
 	depends on ARCH_S5P6440
 	default y
-	select PLAT_S3C
 	select ARM_VIC
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
