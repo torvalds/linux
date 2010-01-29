@@ -335,7 +335,8 @@ static struct mtd_notifier blktrans_notifier = {
 
 int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 {
-	int ret, i;
+	struct mtd_info *mtd;
+	int ret;
 
 	/* Register the notifier if/when the first device type is
 	   registered, to prevent the link/init ordering from fucking
@@ -389,10 +390,9 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	INIT_LIST_HEAD(&tr->devs);
 	list_add(&tr->list, &blktrans_majors);
 
-	for (i=0; i<MAX_MTD_DEVICES; i++) {
-		if (mtd_table[i] && mtd_table[i]->type != MTD_ABSENT)
-			tr->add_mtd(tr, mtd_table[i]);
-	}
+	mtd_for_each_device(mtd)
+		if (mtd->type != MTD_ABSENT)
+			tr->add_mtd(tr, mtd);
 
 	mutex_unlock(&mtd_table_mutex);
 
