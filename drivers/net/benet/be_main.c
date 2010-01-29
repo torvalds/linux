@@ -2168,7 +2168,7 @@ static int be_stats_init(struct be_adapter *adapter)
 	cmd->va = pci_alloc_consistent(adapter->pdev, cmd->size, &cmd->dma);
 	if (cmd->va == NULL)
 		return -1;
-	memset(cmd->va, cmd->size, 0);
+	memset(cmd->va, 0, cmd->size);
 	return 0;
 }
 
