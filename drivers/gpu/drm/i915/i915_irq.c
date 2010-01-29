@@ -309,11 +309,21 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	if (de_iir & DE_GSE)
 		ironlake_opregion_gse_intr(dev);
 
-	if (de_iir & DE_PIPEA_VBLANK)
-		drm_handle_vblank(dev, 0);
+	if (de_iir & DE_PLANEA_FLIP_DONE)
+		intel_prepare_page_flip(dev, 0);
 
-	if (de_iir & DE_PIPEB_VBLANK)
+	if (de_iir & DE_PLANEB_FLIP_DONE)
+		intel_prepare_page_flip(dev, 1);
+
+	if (de_iir & DE_PIPEA_VBLANK) {
+		drm_handle_vblank(dev, 0);
+		intel_finish_page_flip(dev, 0);
+	}
+
+	if (de_iir & DE_PIPEB_VBLANK) {
 		drm_handle_vblank(dev, 1);
+		intel_finish_page_flip(dev, 1);
+	}
 
 	/* check event from PCH */
 	if ((de_iir & DE_PCH_EVENT) &&
@@ -1022,7 +1032,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
-	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT;
+	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
+			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
 	u32 render_mask = GT_USER_INTERRUPT;
 	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
