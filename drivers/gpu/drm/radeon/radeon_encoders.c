@@ -202,7 +202,7 @@ radeon_get_connector_for_encoder(struct drm_encoder *encoder)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		radeon_connector = to_radeon_connector(connector);
-		if (radeon_encoder->devices & radeon_connector->devices)
+		if (radeon_encoder->active_device & radeon_connector->devices)
 			return connector;
 	}
 	return NULL;
