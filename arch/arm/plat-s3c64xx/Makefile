@@ -43,10 +43,13 @@ obj-$(CONFIG_S3C_ADC)		+= dev-adc.o
 # SPI support
 obj-$(CONFIG_S3C64XX_DEV_SPI) += dev-spi.o
 
+# Device support
+obj-y				+= dev-audio.o
+
 # Device setup
 
 obj-$(CONFIG_S3C64XX_SETUP_I2C0) += setup-i2c0.o
 obj-$(CONFIG_S3C64XX_SETUP_I2C1) += setup-i2c1.o
 obj-$(CONFIG_S3C64XX_SETUP_FB_24BPP) += setup-fb-24bpp.o
 obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO) += setup-sdhci-gpio.o
-obj-$(CONFIG_SND_S3C24XX_SOC) += dev-audio.o
+
