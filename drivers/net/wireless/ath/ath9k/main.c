@@ -206,7 +206,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	r = ath9k_hw_reset(ah, hchan, fastcc);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel (%u Mhz) "
+			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
 		spin_unlock_bh(&sc->sc_resetlock);
@@ -869,7 +869,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel %u (%uMhz) ",
+			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
 	}
@@ -924,7 +924,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Unable to reset channel %u (%uMhz) "
+			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
 	}

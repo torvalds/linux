@@ -1857,7 +1857,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		sc->ps_flags &= ~PS_WAIT_FOR_TX_ACK;
 		ath_print(common, ATH_DBG_PS,
 			  "Going back to sleep after having "
-			  "received TX status (0x%x)\n",
+			  "received TX status (0x%lx)\n",
 			sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					PS_WAIT_FOR_CAB |
 					PS_WAIT_FOR_PSPOLL_DATA |
