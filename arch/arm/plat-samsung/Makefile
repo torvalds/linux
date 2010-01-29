@@ -39,6 +39,10 @@ obj-$(CONFIG_S3C_DEV_USB_HOST)	+= dev-usb.o
 obj-$(CONFIG_S3C_DEV_USB_HSOTG)	+= dev-usb-hsotg.o
 obj-$(CONFIG_S3C_DEV_NAND)	+= dev-nand.o
 
+# DMA support
+
+obj-$(CONFIG_S3C_DMA)		+= dma.o
+
 # PM support
 
 obj-$(CONFIG_PM)		+= pm.o

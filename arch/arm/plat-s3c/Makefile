@@ -13,7 +13,3 @@ obj-				:=
 
 obj-y				+= init.o
 obj-y				+= time.o
-
-# DMA support
-
-obj-$(CONFIG_S3C_DMA)		+= dma.o
