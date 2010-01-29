@@ -69,24 +69,32 @@ static void smd_diag(void);
 
 static unsigned last_heap_free = 0xffffffff;
 
-#define MSM_A2M_INT(n) (MSM_CSR_BASE + 0x400 + (n) * 4)
+static inline void msm_a2m_int(uint32_t irq)
+{
+#if defined(CONFIG_ARCH_MSM7X30)
+	writel(1 << irq, MSM_GCC_BASE + 0x8);
+#else
+	writel(1, MSM_CSR_BASE + 0x400 + (irq * 4));
+#endif
+}
+
 
 static inline void notify_other_smsm(void)
 {
-	writel(1, MSM_A2M_INT(5));
+	msm_a2m_int(5);
 #ifdef CONFIG_QDSP6
-	writel(1, MSM_A2M_INT(8));
+	msm_a2m_int(8);
 #endif
 }
 
 static inline void notify_modem_smd(void)
 {
-	writel(1, MSM_A2M_INT(0));
+	msm_a2m_int(0);
 }
 
 static inline void notify_dsp_smd(void)
 {
-	writel(1, MSM_A2M_INT(8));
+	msm_a2m_int(8);
 }
 
 static void smd_diag(void)
