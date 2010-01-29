@@ -911,7 +911,7 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
 {
 	BUG_ON(ip->i_alloc != NULL);
-	ip->i_alloc = kzalloc(sizeof(struct gfs2_alloc), GFP_KERNEL);
+	ip->i_alloc = kzalloc(sizeof(struct gfs2_alloc), GFP_NOFS);
 	return ip->i_alloc;
 }
 
