@@ -11,6 +11,18 @@
 
 #include <plat/regs-serial.h>
 
+/* The S5PV210/S5PC110 and S5P6442 implementations are as belows. */
+
+	.macro fifo_level_s5pv210 rd, rx
+		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
+		and	\rd, \rd, #S5PV210_UFSTAT_TXMASK
+	.endm
+
+	.macro  fifo_full_s5pv210 rd, rx
+		ldr	\rd, [ \rx, # S3C2410_UFSTAT ]
+		tst	\rd, #S5PV210_UFSTAT_TXFULL
+	.endm
+
 /* The S3C2440 implementations are used by default as they are the
  * most widely re-used */
 

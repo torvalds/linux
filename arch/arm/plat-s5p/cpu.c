@@ -18,10 +18,12 @@
 #include <mach/regs-clock.h>
 #include <plat/cpu.h>
 #include <plat/s5p6440.h>
+#include <plat/s5p6442.h>
 
 /* table of supported CPUs */
 
 static const char name_s5p6440[] = "S5P6440";
+static const char name_s5p6442[] = "S5P6442";
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
@@ -32,6 +34,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s5p6440_init_uarts,
 		.init		= s5p6440_init,
 		.name		= name_s5p6440,
+	}, {
+		.idcode		= 0x36442000,
+		.idmask		= 0xffffff00,
+		.map_io		= s5p6442_map_io,
+		.init_clocks	= s5p6442_init_clocks,
+		.init_uarts	= s5p6442_init_uarts,
+		.init		= s5p6442_init,
+		.name		= name_s5p6442,
 	},
 };
 
