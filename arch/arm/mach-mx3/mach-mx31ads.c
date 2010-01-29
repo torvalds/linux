@@ -173,6 +173,7 @@ static void expio_unmask_irq(u32 irq)
 }
 
 static struct irq_chip expio_irq_chip = {
+	.name = "EXPIO(CPLD)",
 	.ack = expio_ack_irq,
 	.mask = expio_mask_irq,
 	.unmask = expio_unmask_irq,
@@ -451,6 +452,7 @@ static int mx31_wm8350_init(struct wm8350 *wm8350)
 
 static struct wm8350_platform_data __initdata mx31_wm8350_pdata = {
 	.init = mx31_wm8350_init,
+	.irq_base = MXC_BOARD_IRQ_START + MXC_MAX_EXP_IO_LINES,
 };
 #endif
 
