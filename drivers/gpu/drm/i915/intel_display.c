@@ -886,7 +886,7 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		int lvds_reg;
 
-		if (IS_IRONLAKE(dev))
+		if (HAS_PCH_SPLIT(dev))
 			lvds_reg = PCH_LVDS;
 		else
 			lvds_reg = LVDS;
@@ -3320,12 +3320,12 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		/* set the dithering flag */
 		if (IS_I965G(dev)) {
 			if (dev_priv->lvds_dither) {
-				if (IS_IRONLAKE(dev))
+				if (HAS_PCH_SPLIT(dev))
 					pipeconf |= PIPE_ENABLE_DITHER;
 				else
 					lvds |= LVDS_ENABLE_DITHER;
 			} else {
-				if (IS_IRONLAKE(dev))
+				if (HAS_PCH_SPLIT(dev))
 					pipeconf &= ~PIPE_ENABLE_DITHER;
 				else
 					lvds &= ~LVDS_ENABLE_DITHER;

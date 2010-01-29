@@ -82,7 +82,7 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
 	 * we do this anyway which shows more stable in testing.
 	 */
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(hdmi_priv->sdvox_reg, temp & ~SDVO_ENABLE);
 		POSTING_READ(hdmi_priv->sdvox_reg);
 	}
@@ -99,7 +99,7 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	/* HW workaround, need to write this twice for issue that may result
 	 * in first write getting masked.
 	 */
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(hdmi_priv->sdvox_reg, temp);
 		POSTING_READ(hdmi_priv->sdvox_reg);
 	}

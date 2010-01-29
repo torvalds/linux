@@ -166,7 +166,7 @@ void intel_enable_asle (struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		ironlake_enable_display_irq(dev_priv, DE_GSE);
 	else
 		i915_enable_pipestat(dev_priv, 1,
