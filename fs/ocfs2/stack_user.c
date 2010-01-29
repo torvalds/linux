@@ -665,7 +665,7 @@ static void ocfs2_control_exit(void)
 
 static void fsdlm_lock_ast_wrapper(void *astarg)
 {
-	union ocfs2_dlm_lksb *lksb = astarg;
+	struct ocfs2_dlm_lksb *lksb = astarg;
 	int status = lksb->lksb_fsdlm.sb_status;
 
 	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
@@ -688,7 +688,7 @@ static void fsdlm_lock_ast_wrapper(void *astarg)
 
 static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
 {
-	union ocfs2_dlm_lksb *lksb = astarg;
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
 	BUG_ON(ocfs2_user_plugin.sp_proto == NULL);
 
@@ -697,7 +697,7 @@ static void fsdlm_blocking_ast_wrapper(void *astarg, int level)
 
 static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 int mode,
-			 union ocfs2_dlm_lksb *lksb,
+			 struct ocfs2_dlm_lksb *lksb,
 			 u32 flags,
 			 void *name,
 			 unsigned int namelen)
@@ -716,7 +716,7 @@ static int user_dlm_lock(struct ocfs2_cluster_connection *conn,
 }
 
 static int user_dlm_unlock(struct ocfs2_cluster_connection *conn,
-			   union ocfs2_dlm_lksb *lksb,
+			   struct ocfs2_dlm_lksb *lksb,
 			   u32 flags)
 {
 	int ret;
@@ -726,19 +726,19 @@ static int user_dlm_unlock(struct ocfs2_cluster_connection *conn,
 	return ret;
 }
 
-static int user_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+static int user_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
 	return lksb->lksb_fsdlm.sb_status;
 }
 
-static int user_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+static int user_dlm_lvb_valid(struct ocfs2_dlm_lksb *lksb)
 {
 	int invalid = lksb->lksb_fsdlm.sb_flags & DLM_SBF_VALNOTVALID;
 
 	return !invalid;
 }
 
-static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+static void *user_dlm_lvb(struct ocfs2_dlm_lksb *lksb)
 {
 	if (!lksb->lksb_fsdlm.sb_lvbptr)
 		lksb->lksb_fsdlm.sb_lvbptr = (char *)lksb +
@@ -746,7 +746,7 @@ static void *user_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 	return (void *)(lksb->lksb_fsdlm.sb_lvbptr);
 }
 
-static void user_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+static void user_dlm_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 {
 }
 

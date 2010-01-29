@@ -161,7 +161,7 @@ static int dlm_status_to_errno(enum dlm_status status)
 
 static void o2dlm_lock_ast_wrapper(void *astarg)
 {
-	union ocfs2_dlm_lksb *lksb = astarg;
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
 	BUG_ON(o2cb_stack.sp_proto == NULL);
 
@@ -170,7 +170,7 @@ static void o2dlm_lock_ast_wrapper(void *astarg)
 
 static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 {
-	union ocfs2_dlm_lksb *lksb = astarg;
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
 	BUG_ON(o2cb_stack.sp_proto == NULL);
 
@@ -179,7 +179,7 @@ static void o2dlm_blocking_ast_wrapper(void *astarg, int level)
 
 static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 {
-	union ocfs2_dlm_lksb *lksb = astarg;
+	struct ocfs2_dlm_lksb *lksb = astarg;
 
 	int error = dlm_status_to_errno(status);
 
@@ -204,7 +204,7 @@ static void o2dlm_unlock_ast_wrapper(void *astarg, enum dlm_status status)
 
 static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 			 int mode,
-			 union ocfs2_dlm_lksb *lksb,
+			 struct ocfs2_dlm_lksb *lksb,
 			 u32 flags,
 			 void *name,
 			 unsigned int namelen)
@@ -223,7 +223,7 @@ static int o2cb_dlm_lock(struct ocfs2_cluster_connection *conn,
 }
 
 static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
-			   union ocfs2_dlm_lksb *lksb,
+			   struct ocfs2_dlm_lksb *lksb,
 			   u32 flags)
 {
 	enum dlm_status status;
@@ -236,7 +236,7 @@ static int o2cb_dlm_unlock(struct ocfs2_cluster_connection *conn,
 	return ret;
 }
 
-static int o2cb_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+static int o2cb_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
 	return dlm_status_to_errno(lksb->lksb_o2dlm.status);
 }
@@ -246,17 +246,17 @@ static int o2cb_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
  * contents, it will zero out the LVB.  Thus the caller can always trust
  * the contents.
  */
-static int o2cb_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+static int o2cb_dlm_lvb_valid(struct ocfs2_dlm_lksb *lksb)
 {
 	return 1;
 }
 
-static void *o2cb_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+static void *o2cb_dlm_lvb(struct ocfs2_dlm_lksb *lksb)
 {
 	return (void *)(lksb->lksb_o2dlm.lvb);
 }
 
-static void o2cb_dump_lksb(union ocfs2_dlm_lksb *lksb)
+static void o2cb_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 {
 	dlm_print_one_lock(lksb->lksb_o2dlm.lockid);
 }

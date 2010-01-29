@@ -297,7 +297,7 @@ static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 		lockres->l_type == OCFS2_LOCK_TYPE_OPEN;
 }
 
-static inline struct ocfs2_lock_res *ocfs2_lksb_to_lock_res(union ocfs2_dlm_lksb *lksb)
+static inline struct ocfs2_lock_res *ocfs2_lksb_to_lock_res(struct ocfs2_dlm_lksb *lksb)
 {
 	return container_of(lksb, struct ocfs2_lock_res, l_lksb);
 }
@@ -1046,7 +1046,7 @@ static unsigned int lockres_set_pending(struct ocfs2_lock_res *lockres)
 }
 
 
-static void ocfs2_blocking_ast(union ocfs2_dlm_lksb *lksb, int level)
+static void ocfs2_blocking_ast(struct ocfs2_dlm_lksb *lksb, int level)
 {
 	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
 	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
@@ -1077,7 +1077,7 @@ static void ocfs2_blocking_ast(union ocfs2_dlm_lksb *lksb, int level)
 	ocfs2_wake_downconvert_thread(osb);
 }
 
-static void ocfs2_locking_ast(union ocfs2_dlm_lksb *lksb)
+static void ocfs2_locking_ast(struct ocfs2_dlm_lksb *lksb)
 {
 	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
 	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
@@ -3058,7 +3058,7 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
 	mlog_exit_void();
 }
 
-static void ocfs2_unlock_ast(union ocfs2_dlm_lksb *lksb, int error)
+static void ocfs2_unlock_ast(struct ocfs2_dlm_lksb *lksb, int error)
 {
 	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
 	unsigned long flags;

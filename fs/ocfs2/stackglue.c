@@ -240,47 +240,52 @@ EXPORT_SYMBOL_GPL(ocfs2_stack_glue_set_locking_protocol);
  */
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,
 		   int mode,
-		   union ocfs2_dlm_lksb *lksb,
+		   struct ocfs2_dlm_lksb *lksb,
 		   u32 flags,
 		   void *name,
 		   unsigned int namelen)
 {
 	BUG_ON(lproto == NULL);
 
+	if (!lksb->lksb_conn)
+		lksb->lksb_conn = conn;
+	else
+		BUG_ON(lksb->lksb_conn != conn);
 	return active_stack->sp_ops->dlm_lock(conn, mode, lksb, flags,
 					      name, namelen);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_lock);
 
 int ocfs2_dlm_unlock(struct ocfs2_cluster_connection *conn,
-		     union ocfs2_dlm_lksb *lksb,
+		     struct ocfs2_dlm_lksb *lksb,
 		     u32 flags)
 {
 	BUG_ON(lproto == NULL);
+	BUG_ON(lksb->lksb_conn == NULL);
 
 	return active_stack->sp_ops->dlm_unlock(conn, lksb, flags);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_unlock);
 
-int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb)
+int ocfs2_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 {
 	return active_stack->sp_ops->lock_status(lksb);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_lock_status);
 
-int ocfs2_dlm_lvb_valid(union ocfs2_dlm_lksb *lksb)
+int ocfs2_dlm_lvb_valid(struct ocfs2_dlm_lksb *lksb)
 {
 	return active_stack->sp_ops->lvb_valid(lksb);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_lvb_valid);
 
-void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb)
+void *ocfs2_dlm_lvb(struct ocfs2_dlm_lksb *lksb)
 {
 	return active_stack->sp_ops->lock_lvb(lksb);
 }
 EXPORT_SYMBOL_GPL(ocfs2_dlm_lvb);
 
-void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+void ocfs2_dlm_dump_lksb(struct ocfs2_dlm_lksb *lksb)
 {
 	active_stack->sp_ops->dump_lksb(lksb);
 }

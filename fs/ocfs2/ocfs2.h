@@ -159,7 +159,7 @@ struct ocfs2_lock_res {
 	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	union ocfs2_dlm_lksb     l_lksb;
+	struct ocfs2_dlm_lksb    l_lksb;
 
 	/* used from AST/BAST funcs. */
 	enum ocfs2_ast_action    l_action;
