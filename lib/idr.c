@@ -621,7 +621,7 @@ void *idr_get_next(struct idr *idp, int *nextidp)
 	}
 	return NULL;
 }
-
+EXPORT_SYMBOL(idr_get_next);
 
 
 /**
