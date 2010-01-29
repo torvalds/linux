@@ -1256,11 +1256,16 @@ static void __clear_irq_vector(int irq, struct irq_cfg *cfg)
 void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
-	/* This function must be called with vector_lock held */
 	int irq, vector;
 	struct irq_cfg *cfg;
 	struct irq_desc *desc;
 
+	/*
+	 * vector_lock will make sure that we don't run into irq vector
+	 * assignments that might be happening on another cpu in parallel,
+	 * while we setup our initial vector to irq mappings.
+	 */
+	spin_lock(&vector_lock);
 	/* Mark the inuse vectors */
 	for_each_irq_desc(irq, desc) {
 		cfg = desc->chip_data;
@@ -1279,6 +1284,7 @@ void __setup_vector_irq(int cpu)
 		if (!cpumask_test_cpu(cpu, cfg->domain))
 			per_cpu(vector_irq, cpu)[vector] = -1;
 	}
+	spin_unlock(&vector_lock);
 }
 
 static struct irq_chip ioapic_chip;
