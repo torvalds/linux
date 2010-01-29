@@ -79,7 +79,6 @@ static int __init sh7751_pci_init(void)
 	struct pci_channel *chan = &sh7751_pci_controller;
 	unsigned int id;
 	u32 word, reg;
-	int ret;
 
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
@@ -92,9 +91,6 @@ static int __init sh7751_pci_init(void)
 		pr_debug("PCI: This is not an SH7751(R) (%x)\n", id);
 		return -ENODEV;
 	}
-
-	if ((ret = sh4_pci_check_direct(chan)) != 0)
-		return ret;
 
 	/* Set the BCR's to enable PCI access */
 	reg = __raw_readl(SH7751_BCR1);

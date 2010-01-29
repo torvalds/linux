@@ -162,7 +162,6 @@
 
 /* arch/sh/kernel/drivers/pci/ops-sh4.c */
 extern struct pci_ops sh4_pci_ops;
-int sh4_pci_check_direct(struct pci_channel *chan);
 int pci_fixup_pcic(struct pci_channel *chan);
 
 struct sh4_pci_address_space {

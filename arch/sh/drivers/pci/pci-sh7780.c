@@ -47,7 +47,6 @@ static int __init sh7780_pci_init(void)
 	size_t memsize;
 	unsigned int id;
 	const char *type;
-	int ret;
 
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
@@ -84,9 +83,6 @@ static int __init sh7780_pci_init(void)
 	printk(KERN_NOTICE "PCI: Found a Renesas %s host "
 	       "controller, revision %d.\n", type,
 	       __raw_readb(chan->reg_base + PCI_REVISION_ID));
-
-	if ((ret = sh4_pci_check_direct(chan)) != 0)
-		return ret;
 
 	/*
 	 * Now throw it in to register initialization mode and
