@@ -452,6 +452,7 @@ typedef struct drm_i915_private {
 	u32 savePIPEB_DATA_N1;
 	u32 savePIPEB_LINK_M1;
 	u32 savePIPEB_LINK_N1;
+	u32 saveRSTDBYCTL;
 
 	struct {
 		struct drm_mm gtt_space;
@@ -590,7 +591,12 @@ typedef struct drm_i915_private {
 	int child_dev_num;
 	struct child_device_config *child_dev;
 	struct drm_connector *int_lvds_connector;
+
 	bool mchbar_need_disable;
+
+	u8 cur_delay;
+	u8 min_delay;
+	u8 max_delay;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
