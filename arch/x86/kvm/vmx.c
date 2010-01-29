@@ -358,9 +358,7 @@ static inline int cpu_has_vmx_ple(void)
 
 static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
 {
-	return flexpriority_enabled &&
-		(cpu_has_vmx_virtualize_apic_accesses()) &&
-		(irqchip_in_kernel(kvm));
+	return flexpriority_enabled && irqchip_in_kernel(kvm);
 }
 
 static inline int cpu_has_vmx_vpid(void)
