@@ -468,7 +468,7 @@ void radeon_dp_set_link_config(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
 
-	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
 	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
@@ -583,7 +583,7 @@ void dp_link_train(struct drm_encoder *encoder,
 	u8 train_set[4];
 	int i;
 
-	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
 	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
