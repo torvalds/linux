@@ -955,7 +955,8 @@ static int __init init_mtdchar(void)
 {
 	int status;
 
-	status = register_chrdev(MTD_CHAR_MAJOR, "mtd", &mtd_fops);
+	status = __register_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS,
+				   "mtd", &mtd_fops);
 	if (status < 0) {
 		printk(KERN_NOTICE "Can't allocate major number %d for Memory Technology Devices.\n",
 		       MTD_CHAR_MAJOR);
@@ -966,7 +967,7 @@ static int __init init_mtdchar(void)
 
 static void __exit cleanup_mtdchar(void)
 {
-	unregister_chrdev(MTD_CHAR_MAJOR, "mtd");
+	__unregister_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS, "mtd");
 }
 
 module_init(init_mtdchar);
