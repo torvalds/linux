@@ -3086,7 +3086,7 @@ L:	autofs@linux.kernel.org
 S:	Maintained
 F:	fs/autofs4/
 
-KERNEL BUILD
+KERNEL BUILD + files below scripts/ (unless maintained elsewhere)
 M:	Michal Marek <mmarek@suse.cz>
 T:	git git://repo.or.cz/linux-kbuild.git for-next
 T:	git git://repo.or.cz/linux-kbuild.git for-linus
@@ -3095,6 +3095,9 @@ S:	Maintained
 F:	Documentation/kbuild/
 F:	Makefile
 F:	scripts/Makefile.*
+F:	scripts/basic/
+F:	scripts/mk*
+F:	scripts/package/
 
 KERNEL JANITORS
 L:	kernel-janitors@vger.kernel.org
