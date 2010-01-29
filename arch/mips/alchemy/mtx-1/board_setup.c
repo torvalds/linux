@@ -67,16 +67,6 @@ static void mtx1_power_off(void)
 
 void __init board_setup(void)
 {
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	char *argptr;
-	argptr = prom_getcmdline();
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-
 	alchemy_gpio2_enable();
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)

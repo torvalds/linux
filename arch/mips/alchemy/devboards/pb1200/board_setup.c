@@ -56,23 +56,9 @@ void board_reset(void)
 
 void __init board_setup(void)
 {
-	char *argptr;
-
 	printk(KERN_INFO "AMD Alchemy Pb1200 Board\n");
 	bcsr_init(PB1200_BCSR_PHYS_ADDR,
 		  PB1200_BCSR_PHYS_ADDR + PB1200_BCSR_HEXLED_OFS);
-
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-#ifdef CONFIG_FB_AU1200
-	strcat(argptr, " video=au1200fb:panel:bs");
-#endif
 
 #if 0
 	{

@@ -54,25 +54,9 @@ void __init board_setup(void)
 {
 	u32 pin_func;
 	u32 sys_freqctrl, sys_clksrc;
-	char *argptr;
 
 	bcsr_init(DB1000_BCSR_PHYS_ADDR,
 		  DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS);
-
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-
-#if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
-	/* au1000 does not support vra, au1500 and au1100 do */
-	strcat(argptr, " au1000_audio=vra");
-	argptr = prom_getcmdline();
-#endif
 
 	sys_clksrc = sys_freqctrl = pin_func = 0;
 	/* Set AUX clock to 12 MHz * 8 = 96 MHz */

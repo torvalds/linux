@@ -125,7 +125,6 @@ void __init board_setup(void)
 {
 	unsigned long bcsr1, bcsr2;
 	u32 pin_func;
-	char *argptr;
 
 	bcsr1 = DB1000_BCSR_PHYS_ADDR;
 	bcsr2 = DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS;
@@ -158,30 +157,6 @@ void __init board_setup(void)
 
 	/* initialize board register space */
 	bcsr_init(bcsr1, bcsr2);
-
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-
-#ifdef CONFIG_FB_AU1100
-	argptr = strstr(argptr, "video=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		/* default panel */
-		/*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
-	}
-#endif
-
-#if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
-	/* au1000 does not support vra, au1500 and au1100 do */
-	strcat(argptr, " au1000_audio=vra");
-	argptr = prom_getcmdline();
-#endif
 
 	/* Not valid for Au1550 */
 #if defined(CONFIG_IRDA) && \

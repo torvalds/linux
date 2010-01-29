@@ -51,16 +51,6 @@ void __init board_setup(void)
 {
 	u32 pin_func;
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	char *argptr;
-	argptr = prom_getcmdline();
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
-
 	pm_power_off = xxs1500_power_off;
 	_machine_halt = xxs1500_power_off;
 	_machine_restart = xxs1500_reset;
