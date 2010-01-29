@@ -311,7 +311,6 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	/* OK, This is the point of no return */
 	set_personality(PER_LINUX);
 	set_thread_flag(TIF_IA32);
-	clear_thread_flag(TIF_ABI_PENDING);
 
 	setup_new_exec(bprm);
 
