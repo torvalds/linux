@@ -210,6 +210,10 @@ static const struct snd_kcontrol_new wm8978_snd_controls[] = {
 	/* Speaker */
 	SOC_DOUBLE_R("Speaker Switch",
 		WM8978_LOUT2_SPK_CONTROL, WM8978_ROUT2_SPK_CONTROL, 6, 1, 1),
+
+	/* DAC / ADC oversampling */
+	SOC_SINGLE("DAC 128x Oversampling Switch", WM8978_DAC_CONTROL, 8, 1, 0),
+	SOC_SINGLE("ADC 128x Oversampling Switch", WM8978_ADC_CONTROL, 8, 1, 0),
 };
 
 /* Mixer #1: Output (OUT1, OUT2) Mixer: mix AUX, Input mixer output and DAC */
@@ -512,21 +516,6 @@ static int wm8978_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 		if (wm8978->f_mclk)
 			ret = wm8978_configure_pll(codec);
-		break;
-	case WM8978_MCLKDIV:
-		if (div & ~0xe0)
-			return -EINVAL;
-		snd_soc_update_bits(codec, WM8978_CLOCKING, 0xe0, div);
-		break;
-	case WM8978_ADCCLK:
-		if (div & ~8)
-			return -EINVAL;
-		snd_soc_update_bits(codec, WM8978_ADC_CONTROL, 8, div);
-		break;
-	case WM8978_DACCLK:
-		if (div & ~8)
-			return -EINVAL;
-		snd_soc_update_bits(codec, WM8978_DAC_CONTROL, 8, div);
 		break;
 	case WM8978_BCLKDIV:
 		if (div & ~0x1c)

@@ -59,10 +59,6 @@ static int migor_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8978_DACCLK, 8);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8978_OPCLKRATE, rate * 512);
 	if (ret < 0)
 		return ret;

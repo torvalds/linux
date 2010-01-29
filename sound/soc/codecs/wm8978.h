@@ -72,9 +72,6 @@
 /* Clock divider Id's */
 enum wm8978_clk_id {
 	WM8978_OPCLKRATE,
-	WM8978_MCLKDIV,
-	WM8978_ADCCLK,
-	WM8978_DACCLK,
 	WM8978_BCLKDIV,
 };
 
