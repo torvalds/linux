@@ -1428,6 +1428,14 @@ static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq
 
 	cfg = desc->chip_data;
 
+	/*
+	 * For legacy irqs, cfg->domain starts with cpu 0 for legacy
+	 * controllers like 8259. Now that IO-APIC can handle this irq, update
+	 * the cfg->domain.
+	 */
+	if (irq < nr_legacy_irqs && cpumask_test_cpu(0, cfg->domain))
+		apic->vector_allocation_domain(0, cfg->domain);
+
 	if (assign_irq_vector(irq, cfg, apic->target_cpus()))
 		return;
 
