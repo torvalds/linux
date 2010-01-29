@@ -568,6 +568,11 @@ static hda_nid_t stac92hd83xxx_pin_nids[10] = {
 	0x0f, 0x10, 0x11, 0x1f, 0x20,
 };
 
+static hda_nid_t stac92hd88xxx_pin_nids[10] = {
+	0x0a, 0x0b, 0x0c, 0x0d,
+	0x0f, 0x11, 0x1f, 0x20,
+};
+
 #define STAC92HD71BXX_NUM_PINS 13
 static hda_nid_t stac92hd71bxx_pin_nids_4port[STAC92HD71BXX_NUM_PINS] = {
 	0x0a, 0x0b, 0x0c, 0x0d, 0x00,
@@ -2873,6 +2878,13 @@ static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid)
 
 	conn_len = snd_hda_get_connections(codec, nid, conn,
 					   HDA_MAX_CONNECTIONS);
+	/* 92HD88: trace back up the link of nids to find the DAC */
+	while (conn_len == 1 && (get_wcaps_type(get_wcaps(codec, conn[0]))
+					!= AC_WID_AUD_OUT)) {
+		nid = conn[0];
+		conn_len = snd_hda_get_connections(codec, nid, conn,
+			HDA_MAX_CONNECTIONS);
+	}
 	for (j = 0; j < conn_len; j++) {
 		wcaps = get_wcaps(codec, conn[j]);
 		wtype = get_wcaps_type(wcaps);
@@ -5318,6 +5330,16 @@ again:
 				stac92hd83xxx_brd_tbl[spec->board_config]);
 
 	switch (codec->vendor_id) {
+	case 0x111d7666:
+	case 0x111d7667:
+	case 0x111d7668:
+	case 0x111d7669:
+		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
+		spec->pin_nids = stac92hd88xxx_pin_nids;
+		spec->mono_nid = 0;
+		spec->digbeep_nid = 0;
+		spec->num_pwrs = 0;
+		break;
 	case 0x111d7604:
 	case 0x111d7605:
 	case 0x111d76d5:
@@ -6243,6 +6265,10 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d7604, .name = "92HD83C1X5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d7666, .name = "92HD88B3", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d7667, .name = "92HD88B1", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d7668, .name = "92HD88B2", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d7669, .name = "92HD88B4", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7608, .name = "92HD75B2X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },
