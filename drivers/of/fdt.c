@@ -384,28 +384,23 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
  */
 void __init early_init_dt_check_for_initrd(unsigned long node)
 {
-	unsigned long len;
+	unsigned long start, end, len;
 	u32 *prop;
 
 	pr_debug("Looking for initrd properties... ");
 
 	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &len);
-	if (prop) {
-		initrd_start = (unsigned long)
-				__va(of_read_ulong(prop, len/4));
+	if (!prop)
+		return;
+	start = of_read_ulong(prop, len/4);
 
-		prop = of_get_flat_dt_prop(node, "linux,initrd-end", &len);
-		if (prop) {
-			initrd_end = (unsigned long)
-				__va(of_read_ulong(prop, len/4));
-			initrd_below_start_ok = 1;
-		} else {
-			initrd_start = 0;
-		}
-	}
+	prop = of_get_flat_dt_prop(node, "linux,initrd-end", &len);
+	if (!prop)
+		return;
+	end = of_read_ulong(prop, len/4);
 
-	pr_debug("initrd_start=0x%lx  initrd_end=0x%lx\n",
-		 initrd_start, initrd_end);
+	early_init_dt_setup_initrd_arch(start, end);
+	pr_debug("initrd_start=0x%lx  initrd_end=0x%lx\n", start, end);
 }
 #else
 inline void early_init_dt_check_for_initrd(unsigned long node)
