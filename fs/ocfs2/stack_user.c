@@ -62,8 +62,8 @@
  * negotiated by the client.  The client negotiates based on the maximum
  * version advertised in /sys/fs/ocfs2/max_locking_protocol.  The major
  * number from the "SETV" message must match
- * ocfs2_user_plugin.sp_proto->lp_max_version.pv_major, and the minor number
- * must be less than or equal to ...->lp_max_version.pv_minor.
+ * ocfs2_user_plugin.sp_max_proto.pv_major, and the minor number
+ * must be less than or equal to ...sp_max_version.pv_minor.
  *
  * Once this information has been set, mounts will be allowed.  From this
  * point on, the "DOWN" message can be sent for node down notification.
@@ -400,7 +400,7 @@ static int ocfs2_control_do_setversion_msg(struct file *file,
 	char *ptr = NULL;
 	struct ocfs2_control_private *p = file->private_data;
 	struct ocfs2_protocol_version *max =
-		&ocfs2_user_plugin.sp_proto->lp_max_version;
+		&ocfs2_user_plugin.sp_max_proto;
 
 	if (ocfs2_control_get_handshake_state(file) !=
 	    OCFS2_CONTROL_HANDSHAKE_PROTOCOL)

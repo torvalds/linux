@@ -233,7 +233,7 @@ struct ocfs2_stack_plugin {
 	/* These are managed by the stackglue code. */
 	struct list_head sp_list;
 	unsigned int sp_count;
-	struct ocfs2_locking_protocol *sp_proto;
+	struct ocfs2_protocol_version sp_max_proto;
 };
 
 

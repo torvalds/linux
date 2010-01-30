@@ -176,7 +176,7 @@ int ocfs2_stack_glue_register(struct ocfs2_stack_plugin *plugin)
 	spin_lock(&ocfs2_stack_lock);
 	if (!ocfs2_stack_lookup(plugin->sp_name)) {
 		plugin->sp_count = 0;
-		plugin->sp_proto = lproto;
+		plugin->sp_max_proto = lproto->lp_max_version;
 		list_add(&plugin->sp_list, &ocfs2_stack_list);
 		printk(KERN_INFO "ocfs2: Registered cluster interface %s\n",
 		       plugin->sp_name);
@@ -224,7 +224,7 @@ void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto)
 
 	lproto = proto;
 	list_for_each_entry(p, &ocfs2_stack_list, sp_list) {
-		p->sp_proto = lproto;
+		p->sp_max_proto = lproto->lp_max_version;
 	}
 
 	spin_unlock(&ocfs2_stack_lock);
