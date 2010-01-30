@@ -1185,11 +1185,6 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 
 	rep = (down == 2);
 
-#ifdef CONFIG_MAC_EMUMOUSEBTN
-	if (mac_hid_mouse_emulate_buttons(1, keycode, down))
-		return;
-#endif /* CONFIG_MAC_EMUMOUSEBTN */
-
 	if ((raw_mode = (kbd->kbdmode == VC_RAW)) && !hw_raw)
 		if (emulate_raw(vc, keycode, !down << 7))
 			if (keycode < BTN_MISC && printk_ratelimit())
