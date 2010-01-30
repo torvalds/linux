@@ -52,6 +52,7 @@ struct sd {
 #define SENSOR_OM6802 0
 #define SENSOR_OTHER 1
 #define SENSOR_TAS5130A 2
+#define SENSOR_LT168G 3     /* must verify if this is the actual model */
 };
 
 /* V4L2 controls supported by the driver */
@@ -306,6 +307,17 @@ static const u8 n4_tas5130a[] = {
 	0xbe, 0x36, 0xbf, 0xff, 0xc2, 0x88, 0xc5, 0xc8,
 	0xc6, 0xda
 };
+static const u8 n4_lt168g[] = {
+	0x66, 0x01, 0x7f, 0x00, 0x80, 0x7c, 0x81, 0x28,
+	0x83, 0x44, 0x84, 0x20, 0x86, 0x20, 0x8a, 0x70,
+	0x8b, 0x58, 0x8c, 0x88, 0x8d, 0xa0, 0x8e, 0xb3,
+	0x8f, 0x24, 0xa1, 0xb0, 0xa2, 0x38, 0xa5, 0x20,
+	0xa6, 0x4a, 0xa8, 0xe8, 0xaf, 0x38, 0xb0, 0x68,
+	0xb1, 0x44, 0xb2, 0x88, 0xbb, 0x86, 0xbd, 0x40,
+	0xbe, 0x26, 0xc1, 0x05, 0xc2, 0x88, 0xc5, 0xc0,
+	0xda, 0x8e, 0xdb, 0xca, 0xdc, 0xa8, 0xdd, 0x8c,
+	0xde, 0x44, 0xdf, 0x0c, 0xe9, 0x80
+};
 
 static const struct additional_sensor_data sensor_data[] = {
     {				/* 0: OM6802 */
@@ -379,6 +391,23 @@ static const struct additional_sensor_data sensor_data[] = {
 		{0x0c, 0x03, 0xab, 0x10, 0x81, 0x20},
 	.stream =
 		{0x0b, 0x04, 0x0a, 0x40},
+    },
+    {				/* 3: LT168G */
+	.n3 = {0x61, 0xc2, 0x65, 0x68, 0x60, 0x00},
+	.n4 = n4_lt168g,
+	.n4sz = sizeof n4_lt168g,
+	.reg80 = 0x7c,
+	.reg8e = 0xb3,
+	.nset8 = {0xa8, 0xf0, 0xc6, 0xba, 0xc0, 0x00},
+	.data1 = {0xc0, 0x38, 0x08, 0x10, 0xc0, 0x30, 0x10, 0x40,
+		 0xb0, 0xf4},
+	.data2 = {0x40, 0x80, 0xc0, 0x50, 0xa0, 0xf0, 0x53, 0xa6,
+		 0xff},
+	.data3 = {0x40, 0x80, 0xc0, 0x50, 0xa0, 0xf0, 0x53, 0xa6,
+		 0xff},
+	.data4 = {0x66, 0x41, 0xa8, 0xf0},
+	.data5 = {0x0c, 0x03, 0xab, 0x4b, 0x81, 0x2b},
+	.stream = {0x0b, 0x04, 0x0a, 0x28},
     },
 };
 
@@ -716,6 +745,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		PDEBUG(D_PROBE, "sensor tas5130a");
 		sd->sensor = SENSOR_TAS5130A;
 		break;
+	case 0x0802:
+		PDEBUG(D_PROBE, "sensor lt168g");
+		sd->sensor = SENSOR_LT168G;
+		break;
 	case 0x0803:
 		PDEBUG(D_PROBE, "sensor 'other'");
 		sd->sensor = SENSOR_OTHER;
@@ -758,6 +791,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, sensor->n3, sizeof sensor->n3);
 	reg_w_buf(gspca_dev, sensor->n4, sensor->n4sz);
 
+	if (sd->sensor == SENSOR_LT168G) {
+		test_byte = reg_r(gspca_dev, 0x80);
+		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", 0x80,
+		       test_byte);
+		reg_w(gspca_dev, 0x6c80);
+	}
+
 	reg_w_ixbuf(gspca_dev, 0xd0, sensor->data1, sizeof sensor->data1);
 	reg_w_ixbuf(gspca_dev, 0xc7, sensor->data2, sizeof sensor->data2);
 	reg_w_ixbuf(gspca_dev, 0xe0, sensor->data3, sizeof sensor->data3);
@@ -781,6 +821,13 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w_buf(gspca_dev, sensor->data5, sizeof sensor->data5);
 	reg_w_buf(gspca_dev, sensor->nset8, sizeof sensor->nset8);
 	reg_w_buf(gspca_dev, sensor->stream, sizeof sensor->stream);
+
+	if (sd->sensor == SENSOR_LT168G) {
+		test_byte = reg_r(gspca_dev, 0x80);
+		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", 0x80,
+		       test_byte);
+		reg_w(gspca_dev, 0x6c80);
+	}
 
 	reg_w_ixbuf(gspca_dev, 0xd0, sensor->data1, sizeof sensor->data1);
 	reg_w_ixbuf(gspca_dev, 0xc7, sensor->data2, sizeof sensor->data2);
@@ -887,6 +934,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_OM6802:
 		om6802_sensor_init(gspca_dev);
+		break;
+	case SENSOR_LT168G:
 		break;
 	case SENSOR_OTHER:
 		break;
