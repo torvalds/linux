@@ -130,5 +130,3 @@ int __init bcm63xx_gpio_init(void)
 
 	return gpiochip_add(&bcm63xx_gpio_chip);
 }
-
-arch_initcall(bcm63xx_gpio_init);
