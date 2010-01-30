@@ -1045,7 +1045,6 @@ static unsigned int lockres_set_pending(struct ocfs2_lock_res *lockres)
 	return lockres->l_pending_gen;
 }
 
-
 static void ocfs2_blocking_ast(struct ocfs2_dlm_lksb *lksb, int level)
 {
 	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
@@ -1137,6 +1136,88 @@ out:
 
 	wake_up(&lockres->l_event);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
+}
+
+static void ocfs2_unlock_ast(struct ocfs2_dlm_lksb *lksb, int error)
+{
+	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
+	unsigned long flags;
+
+	mlog_entry_void();
+
+	mlog(0, "UNLOCK AST called on lock %s, action = %d\n", lockres->l_name,
+	     lockres->l_unlock_action);
+
+	spin_lock_irqsave(&lockres->l_lock, flags);
+	if (error) {
+		mlog(ML_ERROR, "Dlm passes error %d for lock %s, "
+		     "unlock_action %d\n", error, lockres->l_name,
+		     lockres->l_unlock_action);
+		spin_unlock_irqrestore(&lockres->l_lock, flags);
+		mlog_exit_void();
+		return;
+	}
+
+	switch(lockres->l_unlock_action) {
+	case OCFS2_UNLOCK_CANCEL_CONVERT:
+		mlog(0, "Cancel convert success for %s\n", lockres->l_name);
+		lockres->l_action = OCFS2_AST_INVALID;
+		/* Downconvert thread may have requeued this lock, we
+		 * need to wake it. */
+		if (lockres->l_flags & OCFS2_LOCK_BLOCKED)
+			ocfs2_wake_downconvert_thread(ocfs2_get_lockres_osb(lockres));
+		break;
+	case OCFS2_UNLOCK_DROP_LOCK:
+		lockres->l_level = DLM_LOCK_IV;
+		break;
+	default:
+		BUG();
+	}
+
+	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
+	lockres->l_unlock_action = OCFS2_UNLOCK_INVALID;
+	wake_up(&lockres->l_event);
+	spin_unlock_irqrestore(&lockres->l_lock, flags);
+
+	mlog_exit_void();
+}
+
+/*
+ * This is the filesystem locking protocol.  It provides the lock handling
+ * hooks for the underlying DLM.  It has a maximum version number.
+ * The version number allows interoperability with systems running at
+ * the same major number and an equal or smaller minor number.
+ *
+ * Whenever the filesystem does new things with locks (adds or removes a
+ * lock, orders them differently, does different things underneath a lock),
+ * the version must be changed.  The protocol is negotiated when joining
+ * the dlm domain.  A node may join the domain if its major version is
+ * identical to all other nodes and its minor version is greater than
+ * or equal to all other nodes.  When its minor version is greater than
+ * the other nodes, it will run at the minor version specified by the
+ * other nodes.
+ *
+ * If a locking change is made that will not be compatible with older
+ * versions, the major number must be increased and the minor version set
+ * to zero.  If a change merely adds a behavior that can be disabled when
+ * speaking to older versions, the minor version must be increased.  If a
+ * change adds a fully backwards compatible change (eg, LVB changes that
+ * are just ignored by older versions), the version does not need to be
+ * updated.
+ */
+static struct ocfs2_locking_protocol lproto = {
+	.lp_max_version = {
+		.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
+		.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
+	},
+	.lp_lock_ast		= ocfs2_locking_ast,
+	.lp_blocking_ast	= ocfs2_blocking_ast,
+	.lp_unlock_ast		= ocfs2_unlock_ast,
+};
+
+void ocfs2_set_locking_protocol(void)
+{
+	ocfs2_stack_glue_set_max_proto_version(&lproto.lp_max_version);
 }
 
 static inline void ocfs2_recover_from_dlm_error(struct ocfs2_lock_res *lockres,
@@ -2991,7 +3072,7 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 	status = ocfs2_cluster_connect(osb->osb_cluster_stack,
 				       osb->uuid_str,
 				       strlen(osb->uuid_str),
-				       ocfs2_do_node_down, osb,
+				       &lproto, ocfs2_do_node_down, osb,
 				       &conn);
 	if (status) {
 		mlog_errno(status);
@@ -3054,50 +3135,6 @@ void ocfs2_dlm_shutdown(struct ocfs2_super *osb,
 	osb->cconn = NULL;
 
 	ocfs2_dlm_shutdown_debug(osb);
-
-	mlog_exit_void();
-}
-
-static void ocfs2_unlock_ast(struct ocfs2_dlm_lksb *lksb, int error)
-{
-	struct ocfs2_lock_res *lockres = ocfs2_lksb_to_lock_res(lksb);
-	unsigned long flags;
-
-	mlog_entry_void();
-
-	mlog(0, "UNLOCK AST called on lock %s, action = %d\n", lockres->l_name,
-	     lockres->l_unlock_action);
-
-	spin_lock_irqsave(&lockres->l_lock, flags);
-	if (error) {
-		mlog(ML_ERROR, "Dlm passes error %d for lock %s, "
-		     "unlock_action %d\n", error, lockres->l_name,
-		     lockres->l_unlock_action);
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-		mlog_exit_void();
-		return;
-	}
-
-	switch(lockres->l_unlock_action) {
-	case OCFS2_UNLOCK_CANCEL_CONVERT:
-		mlog(0, "Cancel convert success for %s\n", lockres->l_name);
-		lockres->l_action = OCFS2_AST_INVALID;
-		/* Downconvert thread may have requeued this lock, we
-		 * need to wake it. */
-		if (lockres->l_flags & OCFS2_LOCK_BLOCKED)
-			ocfs2_wake_downconvert_thread(ocfs2_get_lockres_osb(lockres));
-		break;
-	case OCFS2_UNLOCK_DROP_LOCK:
-		lockres->l_level = DLM_LOCK_IV;
-		break;
-	default:
-		BUG();
-	}
-
-	lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
-	lockres->l_unlock_action = OCFS2_UNLOCK_INVALID;
-	wake_up(&lockres->l_event);
-	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	mlog_exit_void();
 }
@@ -3909,45 +3946,6 @@ void ocfs2_refcount_unlock(struct ocfs2_refcount_tree *ref_tree, int ex)
 	if (!ocfs2_mount_local(osb))
 		ocfs2_cluster_unlock(osb, lockres, level);
 }
-
-/*
- * This is the filesystem locking protocol.  It provides the lock handling
- * hooks for the underlying DLM.  It has a maximum version number.
- * The version number allows interoperability with systems running at
- * the same major number and an equal or smaller minor number.
- *
- * Whenever the filesystem does new things with locks (adds or removes a
- * lock, orders them differently, does different things underneath a lock),
- * the version must be changed.  The protocol is negotiated when joining
- * the dlm domain.  A node may join the domain if its major version is
- * identical to all other nodes and its minor version is greater than
- * or equal to all other nodes.  When its minor version is greater than
- * the other nodes, it will run at the minor version specified by the
- * other nodes.
- *
- * If a locking change is made that will not be compatible with older
- * versions, the major number must be increased and the minor version set
- * to zero.  If a change merely adds a behavior that can be disabled when
- * speaking to older versions, the minor version must be increased.  If a
- * change adds a fully backwards compatible change (eg, LVB changes that
- * are just ignored by older versions), the version does not need to be
- * updated.
- */
-static struct ocfs2_locking_protocol lproto = {
-	.lp_max_version = {
-		.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
-		.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
-	},
-	.lp_lock_ast		= ocfs2_locking_ast,
-	.lp_blocking_ast	= ocfs2_blocking_ast,
-	.lp_unlock_ast		= ocfs2_unlock_ast,
-};
-
-void ocfs2_set_locking_protocol(void)
-{
-	ocfs2_stack_glue_set_locking_protocol(&lproto);
-}
-
 
 static void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 				       struct ocfs2_lock_res *lockres)

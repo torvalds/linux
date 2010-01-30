@@ -241,6 +241,7 @@ struct ocfs2_stack_plugin {
 int ocfs2_cluster_connect(const char *stack_name,
 			  const char *group,
 			  int grouplen,
+			  struct ocfs2_locking_protocol *lproto,
 			  void (*recovery_handler)(int node_num,
 						   void *recovery_data),
 			  void *recovery_data,
@@ -270,7 +271,7 @@ int ocfs2_stack_supports_plocks(void);
 int ocfs2_plock(struct ocfs2_cluster_connection *conn, u64 ino,
 		struct file *file, int cmd, struct file_lock *fl);
 
-void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto);
+void ocfs2_stack_glue_set_max_proto_version(struct ocfs2_protocol_version *max_proto);
 
 
 /* Used by stack plugins */
