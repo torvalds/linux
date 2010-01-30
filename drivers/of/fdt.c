@@ -28,7 +28,7 @@ struct boot_param_header *initial_boot_params;
 char *find_flat_dt_string(u32 offset)
 {
 	return ((char *)initial_boot_params) +
-		initial_boot_params->off_dt_strings + offset;
+		be32_to_cpu(initial_boot_params->off_dt_strings) + offset;
 }
 
 /**
@@ -46,7 +46,7 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 			   void *data)
 {
 	unsigned long p = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
+		be32_to_cpu(initial_boot_params->off_dt_struct);
 	int rc = 0;
 	int depth = -1;
 
@@ -66,7 +66,7 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 		if (tag == OF_DT_PROP) {
 			u32 sz = be32_to_cpup((__be32 *)p);
 			p += 8;
-			if (initial_boot_params->version < 0x10)
+			if (be32_to_cpu(initial_boot_params->version) < 0x10)
 				p = _ALIGN(p, sz >= 8 ? 8 : 4);
 			p += sz;
 			p = _ALIGN(p, 4);
@@ -101,7 +101,7 @@ int __init of_scan_flat_dt(int (*it)(unsigned long node,
 unsigned long __init of_get_flat_dt_root(void)
 {
 	unsigned long p = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
+		be32_to_cpu(initial_boot_params->off_dt_struct);
 
 	while (be32_to_cpup((__be32 *)p) == OF_DT_NOP)
 		p += 4;
@@ -135,7 +135,7 @@ void *__init of_get_flat_dt_prop(unsigned long node, const char *name,
 		sz = be32_to_cpup((__be32 *)p);
 		noff = be32_to_cpup((__be32 *)(p + 4));
 		p += 8;
-		if (initial_boot_params->version < 0x10)
+		if (be32_to_cpu(initial_boot_params->version) < 0x10)
 			p = _ALIGN(p, sz >= 8 ? 8 : 4);
 
 		nstr = find_flat_dt_string(noff);
@@ -296,7 +296,7 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		sz = be32_to_cpup((__be32 *)(*p));
 		noff = be32_to_cpup((__be32 *)((*p) + 4));
 		*p += 8;
-		if (initial_boot_params->version < 0x10)
+		if (be32_to_cpu(initial_boot_params->version) < 0x10)
 			*p = _ALIGN(*p, sz >= 8 ? 8 : 4);
 
 		pname = find_flat_dt_string(noff);
@@ -544,7 +544,7 @@ void __init unflatten_device_tree(void)
 
 	/* First pass, scan for size */
 	start = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
+		be32_to_cpu(initial_boot_params->off_dt_struct);
 	size = unflatten_dt_node(0, &start, NULL, NULL, 0);
 	size = (size | 3) + 1;
 
@@ -560,7 +560,7 @@ void __init unflatten_device_tree(void)
 
 	/* Second pass, do actual unflattening */
 	start = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
+		be32_to_cpu(initial_boot_params->off_dt_struct);
 	unflatten_dt_node(mem, &start, NULL, &allnextp, 0);
 	if (be32_to_cpup((__be32 *)start) != OF_DT_END)
 		pr_warning("Weird tag at end of tree: %08x\n", *((u32 *)start));

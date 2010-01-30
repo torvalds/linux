@@ -42,19 +42,19 @@
  * ends when size is 0
  */
 struct boot_param_header {
-	u32	magic;			/* magic word OF_DT_HEADER */
-	u32	totalsize;		/* total size of DT block */
-	u32	off_dt_struct;		/* offset to structure */
-	u32	off_dt_strings;		/* offset to strings */
-	u32	off_mem_rsvmap;		/* offset to memory reserve map */
-	u32	version;		/* format version */
-	u32	last_comp_version;	/* last compatible version */
+	__be32	magic;			/* magic word OF_DT_HEADER */
+	__be32	totalsize;		/* total size of DT block */
+	__be32	off_dt_struct;		/* offset to structure */
+	__be32	off_dt_strings;		/* offset to strings */
+	__be32	off_mem_rsvmap;		/* offset to memory reserve map */
+	__be32	version;		/* format version */
+	__be32	last_comp_version;	/* last compatible version */
 	/* version 2 fields below */
-	u32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
+	__be32	boot_cpuid_phys;	/* Physical CPU id we're booting on */
 	/* version 3 fields below */
-	u32	dt_strings_size;	/* size of the DT strings block */
+	__be32	dt_strings_size;	/* size of the DT strings block */
 	/* version 17 fields below */
-	u32	dt_struct_size;		/* size of the DT structure block */
+	__be32	dt_struct_size;		/* size of the DT structure block */
 };
 
 /* TBD: Temporary export of fdt globals - remove when code fully merged */
