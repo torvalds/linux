@@ -36,22 +36,6 @@
 #include "cx18-driver.h"
 
 /*
- * Mixer manipulations are like v4l2 ioctl() calls to manipulate controls,
- * just use the same lock we use for ioctl()s for now
- */
-static inline void snd_cx18_mixer_lock(struct snd_cx18_card *cxsc)
-{
-	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
-	mutex_lock(&cx->serialize_lock);
-}
-
-static inline void snd_cx18_mixer_unlock(struct snd_cx18_card *cxsc)
-{
-	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
-	mutex_unlock(&cx->serialize_lock);
-}
-
-/*
  * Note the cx18-av-core volume scale is funny, due to the alignment of the
  * scale with another chip's range:
  *
@@ -108,9 +92,9 @@ static int snd_cx18_mixer_tv_vol_get(struct snd_kcontrol *kctl,
 	vctrl.id = V4L2_CID_AUDIO_VOLUME;
 	vctrl.value = dB_to_cx18_av_vol(uctl->value.integer.value[0]);
 
-	snd_cx18_mixer_lock(cxsc);
+	snd_cx18_lock(cxsc);
 	ret = v4l2_subdev_call(cx->sd_av, core, g_ctrl, &vctrl);
-	snd_cx18_mixer_unlock(cxsc);
+	snd_cx18_unlock(cxsc);
 
 	if (!ret)
 		uctl->value.integer.value[0] = cx18_av_vol_to_dB(vctrl.value);
@@ -128,7 +112,7 @@ static int snd_cx18_mixer_tv_vol_put(struct snd_kcontrol *kctl,
 	vctrl.id = V4L2_CID_AUDIO_VOLUME;
 	vctrl.value = dB_to_cx18_av_vol(uctl->value.integer.value[0]);
 
-	snd_cx18_mixer_lock(cxsc);
+	snd_cx18_lock(cxsc);
 
 	/* Fetch current state */
 	ret = v4l2_subdev_call(cx->sd_av, core, g_ctrl, &vctrl);
@@ -142,7 +126,7 @@ static int snd_cx18_mixer_tv_vol_put(struct snd_kcontrol *kctl,
 		if (!ret)
 			ret = 1; /* Indicate control was changed w/o error */
 	}
-	snd_cx18_mixer_unlock(cxsc);
+	snd_cx18_unlock(cxsc);
 
 	return ret;
 }

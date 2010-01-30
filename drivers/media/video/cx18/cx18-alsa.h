@@ -32,6 +32,22 @@ struct snd_cx18_card {
 
 extern int cx18_alsa_debug;
 
+/*
+ * File operations that manipulate the encoder or video or audio subdevices
+ * need to be serialized.  Use the same lock we use for v4l2 file ops.
+ */
+static inline void snd_cx18_lock(struct snd_cx18_card *cxsc)
+{
+	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
+	mutex_lock(&cx->serialize_lock);
+}
+
+static inline void snd_cx18_unlock(struct snd_cx18_card *cxsc)
+{
+	struct cx18 *cx = to_cx18(cxsc->v4l2_dev);
+	mutex_unlock(&cx->serialize_lock);
+}
+
 #define CX18_ALSA_DBGFLG_WARN  (1 << 0)
 #define CX18_ALSA_DBGFLG_WARN  (1 << 0)
 #define CX18_ALSA_DBGFLG_INFO  (1 << 1)
