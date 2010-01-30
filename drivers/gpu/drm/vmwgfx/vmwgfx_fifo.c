@@ -29,6 +29,25 @@
 #include "drmP.h"
 #include "ttm/ttm_placement.h"
 
+bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
+{
+	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	uint32_t fifo_min, hwversion;
+
+	fifo_min = ioread32(fifo_mem  + SVGA_FIFO_MIN);
+	if (fifo_min <= SVGA_FIFO_3D_HWVERSION * sizeof(unsigned int))
+		return false;
+
+	hwversion = ioread32(fifo_mem + SVGA_FIFO_3D_HWVERSION);
+	if (hwversion == 0)
+		return false;
+
+	if (hwversion < SVGA3D_HWVERSION_WS65_B1)
+		return false;
+
+	return true;
+}
+
 int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;

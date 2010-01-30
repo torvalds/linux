@@ -389,6 +389,7 @@ extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *sequence);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma);
+extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
