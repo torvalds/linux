@@ -431,9 +431,9 @@ int __init early_init_dt_scan_root(unsigned long node, const char *uname,
 	return 1;
 }
 
-u64 __init dt_mem_next_cell(int s, u32 **cellp)
+u64 __init dt_mem_next_cell(int s, __be32 **cellp)
 {
-	u32 *p = *cellp;
+	__be32 *p = *cellp;
 
 	*cellp = p + s;
 	return of_read_number(p, s);

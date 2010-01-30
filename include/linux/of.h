@@ -20,6 +20,8 @@
 #include <linux/kref.h>
 #include <linux/mod_devicetable.h>
 
+#include <asm/byteorder.h>
+
 typedef u32 phandle;
 typedef u32 ihandle;
 
@@ -95,16 +97,16 @@ extern void of_node_put(struct device_node *node);
  */
 
 /* Helper to read a big number; size is in cells (not bytes) */
-static inline u64 of_read_number(const u32 *cell, int size)
+static inline u64 of_read_number(const __be32 *cell, int size)
 {
 	u64 r = 0;
 	while (size--)
-		r = (r << 32) | *(cell++);
+		r = (r << 32) | be32_to_cpu(*(cell++));
 	return r;
 }
 
 /* Like of_read_number, but we want an unsigned long result */
-static inline unsigned long of_read_ulong(const u32 *cell, int size)
+static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 {
 	/* toss away upper bits if unsigned long is smaller than u64 */
 	return of_read_number(cell, size);
