@@ -2945,7 +2945,7 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = (page_index + 1) << PAGE_CACHE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
@@ -3170,7 +3170,7 @@ static int ocfs2_cow_sync_writeback(struct super_block *sb,
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = (page_index + 1) << PAGE_CACHE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
