@@ -53,55 +53,33 @@
  * set the correct muxing at initialisation
 */
 
-static int s3c2443_clkcon_enable_h(struct clk *clk, int enable)
+static int s3c2443_gate(void __iomem *reg, struct clk *clk, int enable)
 {
-	unsigned int clocks = clk->ctrlbit;
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2443_HCLKCON);
+	u32 ctrlbit = clk->ctrlbit;
+	u32 con = __raw_readl(reg);
 
 	if (enable)
-		clkcon |= clocks;
+		con |= ctrlbit;
 	else
-		clkcon &= ~clocks;
+		con &= ~ctrlbit;
 
-	__raw_writel(clkcon, S3C2443_HCLKCON);
-
+	__raw_writel(con, reg);
 	return 0;
+}
+
+static int s3c2443_clkcon_enable_h(struct clk *clk, int enable)
+{
+	return s3c2443_gate(S3C2443_HCLKCON, clk, enable);
 }
 
 static int s3c2443_clkcon_enable_p(struct clk *clk, int enable)
 {
-	unsigned int clocks = clk->ctrlbit;
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2443_PCLKCON);
-
-	if (enable)
-		clkcon |= clocks;
-	else
-		clkcon &= ~clocks;
-
-	__raw_writel(clkcon, S3C2443_PCLKCON);
-
-	return 0;
+	return s3c2443_gate(S3C2443_PCLKCON, clk, enable);
 }
 
 static int s3c2443_clkcon_enable_s(struct clk *clk, int enable)
 {
-	unsigned int clocks = clk->ctrlbit;
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2443_SCLKCON);
-
-	if (enable)
-		clkcon |= clocks;
-	else
-		clkcon &= ~clocks;
-
-	__raw_writel(clkcon, S3C2443_SCLKCON);
-
-	return 0;
+	return s3c2443_gate(S3C2443_SCLKCON, clk, enable);
 }
 
 static unsigned long s3c2443_roundrate_clksrc(struct clk *clk,
