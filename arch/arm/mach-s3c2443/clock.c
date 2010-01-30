@@ -83,10 +83,12 @@ static int s3c2443_clkcon_enable_s(struct clk *clk, int enable)
 	return s3c2443_gate(S3C2443_SCLKCON, clk, enable);
 }
 
-/* s3c2443_roundate_clksrc is close enough to s3c_roundate_clksrc */
-
 /* clock selections */
 
+/* mpllref is a direct descendant of clk_xtal by default, but it is not
+ * elided as the EPLL can be either sourced by the XTAL or EXTCLK and as
+ * such directly equating the two source clocks is impossible.
+ */
 static struct clk clk_mpllref = {
 	.name		= "mpllref",
 	.parent		= &clk_xtal,
