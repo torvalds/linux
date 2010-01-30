@@ -132,7 +132,6 @@ ENTRY(tlb_protection_violation_store)
 	 mov	#1, r5
 
 call_handle_tlbmiss:
-	setup_frame_reg
 	mov.l	1f, r0
 	mov	r5, r8
 	mov.l	@r0, r6
