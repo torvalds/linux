@@ -35,6 +35,11 @@
 #define VMW_RES_SURFACE ttm_driver_type1
 #define VMW_RES_STREAM ttm_driver_type2
 
+/* XXX: This isn't a real hardware flag, but just a hack for kernel to
+ * know about primary surfaces. Find a better way to accomplish this.
+ */
+#define SVGA3D_SURFACE_HINT_SCANOUT (1 << 9)
+
 struct vmw_user_context {
 	struct ttm_base_object base;
 	struct vmw_resource res;
@@ -599,8 +604,17 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		goto out_err1;
 
+	if (srf->flags & SVGA3D_SURFACE_HINT_SCANOUT) {
+		/* we should not send this flag down to hardware since
+		 * its not a official one
+		 */
+		srf->flags &= ~SVGA3D_SURFACE_HINT_SCANOUT;
+		srf->scanout = true;
+	} else {
+		srf->scanout = false;
+	}
 
-	if (srf->flags & (1 << 9) &&
+	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
 	    srf->sizes[0].width == 64 &&
 	    srf->sizes[0].height == 64 &&

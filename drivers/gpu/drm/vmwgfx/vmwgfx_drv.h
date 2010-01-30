@@ -96,6 +96,8 @@ struct vmw_surface {
 	struct drm_vmw_size *sizes;
 	uint32_t num_sizes;
 
+	bool scanout;
+
 	/* TODO so far just a extra pointer */
 	struct vmw_cursor_snooper snooper;
 };
