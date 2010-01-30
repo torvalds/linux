@@ -2191,6 +2191,30 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 	return result;
 }
 
+int path_is_under(struct path *path1, struct path *path2)
+{
+	struct vfsmount *mnt = path1->mnt;
+	struct dentry *dentry = path1->dentry;
+	int res;
+	spin_lock(&vfsmount_lock);
+	if (mnt != path2->mnt) {
+		for (;;) {
+			if (mnt->mnt_parent == mnt) {
+				spin_unlock(&vfsmount_lock);
+				return 0;
+			}
+			if (mnt->mnt_parent == path2->mnt)
+				break;
+			mnt = mnt->mnt_parent;
+		}
+		dentry = mnt->mnt_mountpoint;
+	}
+	res = is_subdir(dentry, path2->dentry);
+	spin_unlock(&vfsmount_lock);
+	return res;
+}
+EXPORT_SYMBOL(path_is_under);
+
 void d_genocide(struct dentry *root)
 {
 	struct dentry *this_parent = root;
