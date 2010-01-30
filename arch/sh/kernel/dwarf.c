@@ -892,18 +892,18 @@ static struct unwinder dwarf_unwinder = {
 
 static void dwarf_unwinder_cleanup(void)
 {
-	struct dwarf_cie *cie;
-	struct dwarf_fde *fde;
+	struct dwarf_cie *cie, *cie_tmp;
+	struct dwarf_fde *fde, *fde_tmp;
 
 	/*
 	 * Deallocate all the memory allocated for the DWARF unwinder.
 	 * Traverse all the FDE/CIE lists and remove and free all the
 	 * memory associated with those data structures.
 	 */
-	list_for_each_entry(cie, &dwarf_cie_list, link)
+	list_for_each_entry_safe(cie, cie_tmp, &dwarf_cie_list, link)
 		kfree(cie);
 
-	list_for_each_entry(fde, &dwarf_fde_list, link)
+	list_for_each_entry_safe(fde, fde_tmp, &dwarf_fde_list, link)
 		kfree(fde);
 
 	kmem_cache_destroy(dwarf_reg_cachep);
