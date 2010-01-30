@@ -31,5 +31,6 @@ extern int cmd_trace(int argc, const char **argv, const char *prefix);
 extern int cmd_version(int argc, const char **argv, const char *prefix);
 extern int cmd_probe(int argc, const char **argv, const char *prefix);
 extern int cmd_kmem(int argc, const char **argv, const char *prefix);
+extern int cmd_lock(int argc, const char **argv, const char *prefix);
 
 #endif
