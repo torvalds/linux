@@ -38,7 +38,7 @@ int of_n_addr_cells(struct device_node *np)
 			np = np->parent;
 		ip = of_get_property(np, "#address-cells", NULL);
 		if (ip)
-			return *ip;
+			return be32_to_cpup(ip);
 	} while (np->parent);
 	/* No #address-cells property for the root node */
 	return OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
@@ -54,7 +54,7 @@ int of_n_size_cells(struct device_node *np)
 			np = np->parent;
 		ip = of_get_property(np, "#size-cells", NULL);
 		if (ip)
-			return *ip;
+			return be32_to_cpup(ip);
 	} while (np->parent);
 	/* No #size-cells property for the root node */
 	return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
@@ -696,8 +696,8 @@ int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
 				const void **out_args)
 {
 	int ret = -EINVAL;
-	const u32 *list;
-	const u32 *list_end;
+	const __be32 *list;
+	const __be32 *list_end;
 	int size;
 	int cur_index = 0;
 	struct device_node *node = NULL;
@@ -711,7 +711,7 @@ int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
 	list_end = list + size / sizeof(*list);
 
 	while (list < list_end) {
-		const u32 *cells;
+		const __be32 *cells;
 		const phandle *phandle;
 
 		phandle = list++;
@@ -735,7 +735,7 @@ int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
 			goto err1;
 		}
 
-		list += *cells;
+		list += be32_to_cpup(cells);
 		if (list > list_end) {
 			pr_debug("%s: insufficient arguments length\n",
 				 np->full_name);
