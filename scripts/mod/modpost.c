@@ -835,7 +835,6 @@ static const char *linker_symbols[] =
 	{ "__init_begin", "_sinittext", "_einittext", NULL };
 
 enum mismatch {
-	NO_MISMATCH,
 	TEXT_TO_ANY_INIT,
 	DATA_TO_ANY_INIT,
 	TEXT_TO_ANY_EXIT,
@@ -1280,8 +1279,6 @@ static void report_sec_mismatch(const char *modname,
 		"Fix this by removing the %sannotation of %s "
 		"or drop the export.\n",
 		tosym, sec2annotation(tosec), sec2annotation(tosec), tosym);
-	case NO_MISMATCH:
-		/* To get warnings on missing members */
 		break;
 	}
 	fprintf(stderr, "\n");
