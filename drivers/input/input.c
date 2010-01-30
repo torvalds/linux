@@ -86,12 +86,14 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 }
 
 /*
- * Pass event through all open handles. This function is called with
+ * Pass event first through all filters and then, if event has not been
+ * filtered out, through all open handles. This function is called with
  * dev->event_lock held and interrupts disabled.
  */
 static void input_pass_event(struct input_dev *dev,
 			     unsigned int type, unsigned int code, int value)
 {
+	struct input_handler *handler;
 	struct input_handle *handle;
 
 	rcu_read_lock();
@@ -99,11 +101,25 @@ static void input_pass_event(struct input_dev *dev,
 	handle = rcu_dereference(dev->grab);
 	if (handle)
 		handle->handler->event(handle, type, code, value);
-	else
-		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
-			if (handle->open)
-				handle->handler->event(handle,
-							type, code, value);
+	else {
+		bool filtered = false;
+
+		list_for_each_entry_rcu(handle, &dev->h_list, d_node) {
+			if (!handle->open)
+				continue;
+
+			handler = handle->handler;
+			if (!handler->filter) {
+				if (filtered)
+					break;
+
+				handler->event(handle, type, code, value);
+
+			} else if (handler->filter(handle, type, code, value))
+				filtered = true;
+		}
+	}
+
 	rcu_read_unlock();
 }
 
@@ -990,6 +1006,8 @@ static int input_handlers_seq_show(struct seq_file *seq, void *v)
 	union input_seq_state *state = (union input_seq_state *)&seq->private;
 
 	seq_printf(seq, "N: Number=%u Name=%s", state->pos, handler->name);
+	if (handler->filter)
+		seq_puts(seq, " (filter)");
 	if (handler->fops)
 		seq_printf(seq, " Minor=%d", handler->minor);
 	seq_putc(seq, '\n');
@@ -1803,7 +1821,16 @@ int input_register_handle(struct input_handle *handle)
 	error = mutex_lock_interruptible(&dev->mutex);
 	if (error)
 		return error;
-	list_add_tail_rcu(&handle->d_node, &dev->h_list);
+
+	/*
+	 * Filters go to the head of the list, normal handlers
+	 * to the tail.
+	 */
+	if (handler->filter)
+		list_add_rcu(&handle->d_node, &dev->h_list);
+	else
+		list_add_tail_rcu(&handle->d_node, &dev->h_list);
+
 	mutex_unlock(&dev->mutex);
 
 	/*
