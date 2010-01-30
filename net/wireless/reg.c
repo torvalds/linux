@@ -134,6 +134,7 @@ static const struct ieee80211_regdomain *cfg80211_world_regdom =
 	&world_regdom;
 
 static char *ieee80211_regdom = "00";
+static char user_alpha2[2];
 
 module_param(ieee80211_regdom, charp, 0444);
 MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
@@ -249,6 +250,27 @@ static bool regdom_changes(const char *alpha2)
 		return true;
 	if (alpha2_equal(cfg80211_regdomain->alpha2, alpha2))
 		return false;
+	return true;
+}
+
+/*
+ * The NL80211_REGDOM_SET_BY_USER regdom alpha2 is cached, this lets
+ * you know if a valid regulatory hint with NL80211_REGDOM_SET_BY_USER
+ * has ever been issued.
+ */
+static bool is_user_regdom_saved(void)
+{
+	if (user_alpha2[0] == '9' && user_alpha2[1] == '7')
+		return false;
+
+	/* This would indicate a mistake on the design */
+	if (WARN((!is_world_regdom(user_alpha2) &&
+		  !is_an_alpha2(user_alpha2)),
+		 "Unexpected user alpha2: %c%c\n",
+		 user_alpha2[0],
+	         user_alpha2[1]))
+		return false;
+
 	return true;
 }
 
@@ -1646,7 +1668,7 @@ static int ignore_request(struct wiphy *wiphy,
 
 	switch (pending_request->initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
-		return -EINVAL;
+		return 0;
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
 
 		last_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
@@ -1785,6 +1807,11 @@ new_request:
 
 	pending_request = NULL;
 
+	if (last_request->initiator == NL80211_REGDOM_SET_BY_USER) {
+		user_alpha2[0] = last_request->alpha2[0];
+		user_alpha2[1] = last_request->alpha2[1];
+	}
+
 	/* When r == REG_INTERSECT we do need to call CRDA */
 	if (r < 0) {
 		/*
@@ -1904,12 +1931,16 @@ static void queue_regulatory_request(struct regulatory_request *request)
 	schedule_work(&reg_work);
 }
 
-/* Core regulatory hint -- happens once during cfg80211_init() */
+/*
+ * Core regulatory hint -- happens during cfg80211_init()
+ * and when we restore regulatory settings.
+ */
 static int regulatory_hint_core(const char *alpha2)
 {
 	struct regulatory_request *request;
 
-	BUG_ON(last_request);
+	kfree(last_request);
+	last_request = NULL;
 
 	request = kzalloc(sizeof(struct regulatory_request),
 			  GFP_KERNEL);
@@ -2105,6 +2136,123 @@ free_rd_out:
 	kfree(rd);
 out:
 	mutex_unlock(&reg_mutex);
+}
+
+static void restore_alpha2(char *alpha2, bool reset_user)
+{
+	/* indicates there is no alpha2 to consider for restoration */
+	alpha2[0] = '9';
+	alpha2[1] = '7';
+
+	/* The user setting has precedence over the module parameter */
+	if (is_user_regdom_saved()) {
+		/* Unless we're asked to ignore it and reset it */
+		if (reset_user) {
+			REG_DBG_PRINT("cfg80211: Restoring regulatory settings "
+			       "including user preference\n");
+			user_alpha2[0] = '9';
+			user_alpha2[1] = '7';
+
+			/*
+			 * If we're ignoring user settings, we still need to
+			 * check the module parameter to ensure we put things
+			 * back as they were for a full restore.
+			 */
+			if (!is_world_regdom(ieee80211_regdom)) {
+				REG_DBG_PRINT("cfg80211: Keeping preference on "
+				       "module parameter ieee80211_regdom: %c%c\n",
+				       ieee80211_regdom[0],
+				       ieee80211_regdom[1]);
+				alpha2[0] = ieee80211_regdom[0];
+				alpha2[1] = ieee80211_regdom[1];
+			}
+		} else {
+			REG_DBG_PRINT("cfg80211: Restoring regulatory settings "
+			       "while preserving user preference for: %c%c\n",
+			       user_alpha2[0],
+			       user_alpha2[1]);
+			alpha2[0] = user_alpha2[0];
+			alpha2[1] = user_alpha2[1];
+		}
+	} else if (!is_world_regdom(ieee80211_regdom)) {
+		REG_DBG_PRINT("cfg80211: Keeping preference on "
+		       "module parameter ieee80211_regdom: %c%c\n",
+		       ieee80211_regdom[0],
+		       ieee80211_regdom[1]);
+		alpha2[0] = ieee80211_regdom[0];
+		alpha2[1] = ieee80211_regdom[1];
+	} else
+		REG_DBG_PRINT("cfg80211: Restoring regulatory settings\n");
+}
+
+/*
+ * Restoring regulatory settings involves ingoring any
+ * possibly stale country IE information and user regulatory
+ * settings if so desired, this includes any beacon hints
+ * learned as we could have traveled outside to another country
+ * after disconnection. To restore regulatory settings we do
+ * exactly what we did at bootup:
+ *
+ *   - send a core regulatory hint
+ *   - send a user regulatory hint if applicable
+ *
+ * Device drivers that send a regulatory hint for a specific country
+ * keep their own regulatory domain on wiphy->regd so that does does
+ * not need to be remembered.
+ */
+static void restore_regulatory_settings(bool reset_user)
+{
+	char alpha2[2];
+	struct reg_beacon *reg_beacon, *btmp;
+
+	mutex_lock(&cfg80211_mutex);
+	mutex_lock(&reg_mutex);
+
+	reset_regdomains();
+	restore_alpha2(alpha2, reset_user);
+
+	/* Clear beacon hints */
+	spin_lock_bh(&reg_pending_beacons_lock);
+	if (!list_empty(&reg_pending_beacons)) {
+		list_for_each_entry_safe(reg_beacon, btmp,
+					 &reg_pending_beacons, list) {
+			list_del(&reg_beacon->list);
+			kfree(reg_beacon);
+		}
+	}
+	spin_unlock_bh(&reg_pending_beacons_lock);
+
+	if (!list_empty(&reg_beacon_list)) {
+		list_for_each_entry_safe(reg_beacon, btmp,
+					 &reg_beacon_list, list) {
+			list_del(&reg_beacon->list);
+			kfree(reg_beacon);
+		}
+	}
+
+	/* First restore to the basic regulatory settings */
+	cfg80211_regdomain = cfg80211_world_regdom;
+
+	mutex_unlock(&reg_mutex);
+	mutex_unlock(&cfg80211_mutex);
+
+	regulatory_hint_core(cfg80211_regdomain->alpha2);
+
+	/*
+	 * This restores the ieee80211_regdom module parameter
+	 * preference or the last user requested regulatory
+	 * settings, user regulatory settings takes precedence.
+	 */
+	if (is_an_alpha2(alpha2))
+		regulatory_hint_user(user_alpha2);
+}
+
+
+void regulatory_hint_disconnect(void)
+{
+	REG_DBG_PRINT("cfg80211: All devices are disconnected, going to "
+		      "restore regulatory settings\n");
+	restore_regulatory_settings(false);
 }
 
 static bool freq_is_chan_12_13_14(u16 freq)
@@ -2495,6 +2643,9 @@ int regulatory_init(void)
 	spin_lock_init(&reg_pending_beacons_lock);
 
 	cfg80211_regdomain = cfg80211_world_regdom;
+
+	user_alpha2[0] = '9';
+	user_alpha2[1] = '7';
 
 	/* We always try to get an update for the static regdomain */
 	err = regulatory_hint_core(cfg80211_regdomain->alpha2);

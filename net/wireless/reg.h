@@ -63,4 +63,22 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 			 u8 *country_ie,
 			 u8 country_ie_len);
 
+/**
+ * regulatory_hint_disconnect - informs all devices have been disconneted
+ *
+ * Regulotory rules can be enhanced further upon scanning and upon
+ * connection to an AP. These rules become stale if we disconnect
+ * and go to another country, whether or not we suspend and resume.
+ * If we suspend, go to another country and resume we'll automatically
+ * get disconnected shortly after resuming and things will be reset as well.
+ * This routine is a helper to restore regulatory settings to how they were
+ * prior to our first connect attempt. This includes ignoring country IE and
+ * beacon regulatory hints. The ieee80211_regdom module parameter will always
+ * be respected but if a user had set the regulatory domain that will take
+ * precedence.
+ *
+ * Must be called from process context.
+ */
+void regulatory_hint_disconnect(void);
+
 #endif  /* __NET_WIRELESS_REG_H */
