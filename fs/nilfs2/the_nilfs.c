@@ -646,6 +646,44 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 	goto out;
 }
 
+int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
+			    size_t nsegs)
+{
+	sector_t seg_start, seg_end;
+	sector_t start = 0, nblocks = 0;
+	unsigned int sects_per_block;
+	__u64 *sn;
+	int ret = 0;
+
+	sects_per_block = (1 << nilfs->ns_blocksize_bits) /
+		bdev_logical_block_size(nilfs->ns_bdev);
+	for (sn = segnump; sn < segnump + nsegs; sn++) {
+		nilfs_get_segment_range(nilfs, *sn, &seg_start, &seg_end);
+
+		if (!nblocks) {
+			start = seg_start;
+			nblocks = seg_end - seg_start + 1;
+		} else if (start + nblocks == seg_start) {
+			nblocks += seg_end - seg_start + 1;
+		} else {
+			ret = blkdev_issue_discard(nilfs->ns_bdev,
+						   start * sects_per_block,
+						   nblocks * sects_per_block,
+						   GFP_NOFS,
+						   DISCARD_FL_BARRIER);
+			if (ret < 0)
+				return ret;
+			nblocks = 0;
+		}
+	}
+	if (nblocks)
+		ret = blkdev_issue_discard(nilfs->ns_bdev,
+					   start * sects_per_block,
+					   nblocks * sects_per_block,
+					   GFP_NOFS, DISCARD_FL_BARRIER);
+	return ret;
+}
+
 int nilfs_count_free_blocks(struct the_nilfs *nilfs, sector_t *nblocks)
 {
 	struct inode *dat = nilfs_dat_inode(nilfs);

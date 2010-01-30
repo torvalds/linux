@@ -481,6 +481,8 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",order=strict");
 	if (nilfs_test_opt(sbi, NORECOVERY))
 		seq_printf(seq, ",norecovery");
+	if (nilfs_test_opt(sbi, DISCARD))
+		seq_printf(seq, ",discard");
 
 	return 0;
 }
@@ -550,7 +552,7 @@ static const struct export_operations nilfs_export_ops = {
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
 	Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
-	Opt_err,
+	Opt_discard, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -561,6 +563,7 @@ static match_table_t tokens = {
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
 	{Opt_norecovery, "norecovery"},
+	{Opt_discard, "discard"},
 	{Opt_err, NULL}
 };
 
@@ -613,6 +616,9 @@ static int parse_options(char *options, struct super_block *sb)
 			break;
 		case Opt_norecovery:
 			nilfs_set_opt(sbi, NORECOVERY);
+			break;
+		case Opt_discard:
+			nilfs_set_opt(sbi, DISCARD);
 			break;
 		default:
 			printk(KERN_ERR

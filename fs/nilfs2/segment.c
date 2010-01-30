@@ -2560,6 +2560,16 @@ int nilfs_clean_segments(struct super_block *sb, struct nilfs_argv *argv,
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(sci->sc_interval);
 	}
+	if (nilfs_test_opt(sbi, DISCARD)) {
+		int ret = nilfs_discard_segments(nilfs, sci->sc_freesegs,
+						 sci->sc_nfreesegs);
+		if (ret) {
+			printk(KERN_WARNING
+			       "NILFS warning: error %d on discard request, "
+			       "turning discards off for the device\n", ret);
+			nilfs_clear_opt(sbi, DISCARD);
+		}
+	}
 
  out_unlock:
 	sci->sc_freesegs = NULL;
