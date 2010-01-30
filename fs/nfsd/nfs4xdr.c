@@ -2129,9 +2129,15 @@ out_acl:
 		 * and this is the root of a cross-mounted filesystem.
 		 */
 		if (ignore_crossmnt == 0 &&
-		    exp->ex_path.mnt->mnt_root->d_inode == dentry->d_inode) {
-			err = vfs_getattr(exp->ex_path.mnt->mnt_parent,
-				exp->ex_path.mnt->mnt_mountpoint, &stat);
+		    dentry == exp->ex_path.mnt->mnt_root) {
+			struct path path = exp->ex_path;
+			path_get(&path);
+			while (follow_up(&path)) {
+				if (path.dentry != path.mnt->mnt_root)
+					break;
+			}
+			err = vfs_getattr(path.mnt, path.dentry, &stat);
+			path_put(&path);
 			if (err)
 				goto out_nfserr;
 		}
