@@ -2229,7 +2229,17 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 		(dev->phy.rev == 5 && nphy->ipa2g_on &&
 		b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ);
 	if (phy6or5x) {
-		/* TODO */
+		if (dev->phy.is_40mhz) {
+			b43_ntab_write_bulk(dev, B43_NTAB16(15, 0), 18,
+					tbl_tx_iqlo_cal_loft_ladder_40);
+			b43_ntab_write_bulk(dev, B43_NTAB16(15, 32), 18,
+					tbl_tx_iqlo_cal_iqimb_ladder_40);
+		} else {
+			b43_ntab_write_bulk(dev, B43_NTAB16(15, 0), 18,
+					tbl_tx_iqlo_cal_loft_ladder_20);
+			b43_ntab_write_bulk(dev, B43_NTAB16(15, 32), 18,
+					tbl_tx_iqlo_cal_iqimb_ladder_20);
+		}
 	}
 
 	b43_phy_write(dev, B43_NPHY_IQLOCAL_CMDGCTL, 0x8AA9);
