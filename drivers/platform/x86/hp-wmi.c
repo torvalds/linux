@@ -377,6 +377,8 @@ static void hp_wmi_notify(u32 value, void *context)
 			       eventcode);
 	} else
 		printk(KERN_INFO "HP WMI: Unknown response received\n");
+
+	kfree(obj);
 }
 
 static int __init hp_wmi_input_setup(void)

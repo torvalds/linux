@@ -180,6 +180,7 @@ static void dell_wmi_notify(u32 value, void *context)
 			printk(KERN_INFO "dell-wmi: Unknown key %x pressed\n",
 			       buffer[1] & 0xFFFF);
 	}
+	kfree(obj);
 }
 
 static int __init dell_wmi_input_setup(void)
