@@ -211,6 +211,20 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 								get + 4);
 		}
 
+		if (status & NV_PFIFO_INTR_SEMAPHORE) {
+			uint32_t sem;
+
+			status &= ~NV_PFIFO_INTR_SEMAPHORE;
+			nv_wr32(dev, NV03_PFIFO_INTR_0,
+				NV_PFIFO_INTR_SEMAPHORE);
+
+			sem = nv_rd32(dev, NV10_PFIFO_CACHE1_SEMAPHORE);
+			nv_wr32(dev, NV10_PFIFO_CACHE1_SEMAPHORE, sem | 0x1);
+
+			nv_wr32(dev, NV03_PFIFO_CACHE1_GET, get + 4);
+			nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
+		}
+
 		if (status) {
 			NV_INFO(dev, "PFIFO_INTR 0x%08x - Ch %d\n",
 				status, chid);
