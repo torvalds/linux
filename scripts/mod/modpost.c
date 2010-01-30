@@ -933,7 +933,8 @@ const struct sectioncheck sectioncheck[] = {
 }
 };
 
-static int section_mismatch(const char *fromsec, const char *tosec)
+static const struct sectioncheck *section_mismatch(
+		const char *fromsec, const char *tosec)
 {
 	int i;
 	int elems = sizeof(sectioncheck) / sizeof(struct sectioncheck);
@@ -942,10 +943,10 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 	for (i = 0; i < elems; i++) {
 		if (match(fromsec, check->fromsec) &&
 		    match(tosec, check->tosec))
-			return check->mismatch;
+			return check;
 		check++;
 	}
-	return NO_MISMATCH;
+	return NULL;
 }
 
 /**
@@ -1158,7 +1159,8 @@ static int is_function(Elf_Sym *sym)
  * Try to find symbols near it so user can find it.
  * Check whitelist before warning - it may be a false positive.
  */
-static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
+static void report_sec_mismatch(const char *modname,
+				const struct sectioncheck *mismatch,
                                 const char *fromsec,
                                 unsigned long long fromaddr,
                                 const char *fromsym,
@@ -1189,7 +1191,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 	     modname, fromsec, fromaddr, from, fromsym, from_p, to, tosec,
 	     tosym, to_p);
 
-	switch (mismatch) {
+	switch (mismatch->mismatch) {
 	case TEXT_TO_ANY_INIT:
 		fprintf(stderr,
 		"The function %s%s() references\n"
@@ -1289,11 +1291,11 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
                                    Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
 {
 	const char *tosec;
-	enum mismatch mismatch;
+	const struct sectioncheck *mismatch;
 
 	tosec = sec_name(elf, sym->st_shndx);
 	mismatch = section_mismatch(fromsec, tosec);
-	if (mismatch != NO_MISMATCH) {
+	if (mismatch) {
 		Elf_Sym *to;
 		Elf_Sym *from;
 		const char *tosym;
