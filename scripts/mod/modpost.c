@@ -836,14 +836,14 @@ static const char *linker_symbols[] =
 
 enum mismatch {
 	NO_MISMATCH,
-	TEXT_TO_INIT,
-	DATA_TO_INIT,
-	TEXT_TO_EXIT,
-	DATA_TO_EXIT,
-	XXXINIT_TO_INIT,
-	XXXEXIT_TO_EXIT,
-	INIT_TO_EXIT,
-	EXIT_TO_INIT,
+	TEXT_TO_ANY_INIT,
+	DATA_TO_ANY_INIT,
+	TEXT_TO_ANY_EXIT,
+	DATA_TO_ANY_EXIT,
+	XXXINIT_TO_SOME_INIT,
+	XXXEXIT_TO_SOME_EXIT,
+	ANY_INIT_TO_ANY_EXIT,
+	ANY_EXIT_TO_ANY_INIT,
 	EXPORT_TO_INIT_EXIT,
 };
 
@@ -860,70 +860,70 @@ const struct sectioncheck sectioncheck[] = {
 {
 	.fromsec = { TEXT_SECTIONS, NULL },
 	.tosec   = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = TEXT_TO_INIT,
+	.mismatch = TEXT_TO_ANY_INIT,
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
 	.tosec   = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = DATA_TO_INIT,
+	.mismatch = DATA_TO_ANY_INIT,
 },
 {
 	.fromsec = { TEXT_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = TEXT_TO_EXIT,
+	.mismatch = TEXT_TO_ANY_EXIT,
 },
 {
 	.fromsec = { DATA_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = DATA_TO_EXIT,
+	.mismatch = DATA_TO_ANY_EXIT,
 },
 /* Do not reference init code/data from devinit/cpuinit/meminit code/data */
 {
 	.fromsec = { ALL_XXXINIT_SECTIONS, NULL },
 	.tosec   = { INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_INIT,
+	.mismatch = XXXINIT_TO_SOME_INIT,
 },
 /* Do not reference cpuinit code/data from meminit code/data */
 {
 	.fromsec = { MEM_INIT_SECTIONS, NULL },
 	.tosec   = { CPU_INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_INIT,
+	.mismatch = XXXINIT_TO_SOME_INIT,
 },
 /* Do not reference meminit code/data from cpuinit code/data */
 {
 	.fromsec = { CPU_INIT_SECTIONS, NULL },
 	.tosec   = { MEM_INIT_SECTIONS, NULL },
-	.mismatch = XXXINIT_TO_INIT,
+	.mismatch = XXXINIT_TO_SOME_INIT,
 },
 /* Do not reference exit code/data from devexit/cpuexit/memexit code/data */
 {
 	.fromsec = { ALL_XXXEXIT_SECTIONS, NULL },
 	.tosec   = { EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_EXIT,
+	.mismatch = XXXEXIT_TO_SOME_EXIT,
 },
 /* Do not reference cpuexit code/data from memexit code/data */
 {
 	.fromsec = { MEM_EXIT_SECTIONS, NULL },
 	.tosec   = { CPU_EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_EXIT,
+	.mismatch = XXXEXIT_TO_SOME_EXIT,
 },
 /* Do not reference memexit code/data from cpuexit code/data */
 {
 	.fromsec = { CPU_EXIT_SECTIONS, NULL },
 	.tosec   = { MEM_EXIT_SECTIONS, NULL },
-	.mismatch = XXXEXIT_TO_EXIT,
+	.mismatch = XXXEXIT_TO_SOME_EXIT,
 },
 /* Do not use exit code/data from init code */
 {
 	.fromsec = { ALL_INIT_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
-	.mismatch = INIT_TO_EXIT,
+	.mismatch = ANY_INIT_TO_ANY_EXIT,
 },
 /* Do not use init code/data from exit code */
 {
 	.fromsec = { ALL_EXIT_SECTIONS, NULL },
 	.tosec   = { ALL_INIT_SECTIONS, NULL },
-	.mismatch = EXIT_TO_INIT,
+	.mismatch = ANY_EXIT_TO_ANY_INIT,
 },
 /* Do not export init/exit functions or data */
 {
@@ -1190,7 +1190,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 	     tosym, to_p);
 
 	switch (mismatch) {
-	case TEXT_TO_INIT:
+	case TEXT_TO_ANY_INIT:
 		fprintf(stderr,
 		"The function %s%s() references\n"
 		"the %s %s%s%s.\n"
@@ -1200,7 +1200,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		to, sec2annotation(tosec), tosym, to_p,
 		fromsym, sec2annotation(tosec), tosym);
 		break;
-	case DATA_TO_INIT: {
+	case DATA_TO_ANY_INIT: {
 		const char **s = symbol_white_list;
 		fprintf(stderr,
 		"The variable %s references\n"
@@ -1214,14 +1214,14 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		fprintf(stderr, "\n");
 		break;
 	}
-	case TEXT_TO_EXIT:
+	case TEXT_TO_ANY_EXIT:
 		fprintf(stderr,
 		"The function %s() references a %s in an exit section.\n"
 		"Often the %s %s%s has valid usage outside the exit section\n"
 		"and the fix is to remove the %sannotation of %s.\n",
 		fromsym, to, to, tosym, to_p, sec2annotation(tosec), tosym);
 		break;
-	case DATA_TO_EXIT: {
+	case DATA_TO_ANY_EXIT: {
 		const char **s = symbol_white_list;
 		fprintf(stderr,
 		"The variable %s references\n"
@@ -1235,8 +1235,8 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		fprintf(stderr, "\n");
 		break;
 	}
-	case XXXINIT_TO_INIT:
-	case XXXEXIT_TO_EXIT:
+	case XXXINIT_TO_SOME_INIT:
+	case XXXEXIT_TO_SOME_EXIT:
 		fprintf(stderr,
 		"The %s %s%s%s references\n"
 		"a %s %s%s%s.\n"
@@ -1246,7 +1246,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		to, sec2annotation(tosec), tosym, to_p,
 		tosym, fromsym, tosym);
 		break;
-	case INIT_TO_EXIT:
+	case ANY_INIT_TO_ANY_EXIT:
 		fprintf(stderr,
 		"The %s %s%s%s references\n"
 		"a %s %s%s%s.\n"
@@ -1259,7 +1259,7 @@ static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
 		to, sec2annotation(tosec), tosym, to_p,
 		sec2annotation(tosec), tosym, to_p);
 		break;
-	case EXIT_TO_INIT:
+	case ANY_EXIT_TO_ANY_INIT:
 		fprintf(stderr,
 		"The %s %s%s%s references\n"
 		"a %s %s%s%s.\n"
