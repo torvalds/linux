@@ -165,10 +165,83 @@ static struct clksrc_clk clk_msysclk = {
  * divider values applied to it to then be fed into armclk.
 */
 
+/* armdiv divisor table */
+
+static unsigned int armdiv[16] = {
+	[S3C2443_CLKDIV0_ARMDIV_1 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 1,
+	[S3C2443_CLKDIV0_ARMDIV_2 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 2,
+	[S3C2443_CLKDIV0_ARMDIV_3 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 3,
+	[S3C2443_CLKDIV0_ARMDIV_4 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 4,
+	[S3C2443_CLKDIV0_ARMDIV_6 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 6,
+	[S3C2443_CLKDIV0_ARMDIV_8 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 8,
+	[S3C2443_CLKDIV0_ARMDIV_12 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 12,
+	[S3C2443_CLKDIV0_ARMDIV_16 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 16,
+};
+
+static inline unsigned int s3c2443_fclk_div(unsigned long clkcon0)
+{
+	clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
+
+	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
+}
+
+static unsigned long s3c2443_armclk_roundrate(struct clk *clk,
+					      unsigned long rate)
+{
+	unsigned long parent = clk_get_rate(clk->parent);
+	unsigned long calc;
+	unsigned best = 256; /* bigger than any value */
+	unsigned div;
+	int ptr;
+
+	for (ptr = 0; ptr < ARRAY_SIZE(armdiv); ptr++) {
+		div = armdiv[ptr];
+		calc = parent / div;
+		if (calc <= rate && div < best)
+			best = div;
+	}
+
+	return parent / best;
+}
+
+static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
+{
+	unsigned long parent = clk_get_rate(clk->parent);
+	unsigned long calc;
+	unsigned div;
+	unsigned best = 256; /* bigger than any value */
+	int ptr;
+	int val = -1;
+
+	for (ptr = 0; ptr < ARRAY_SIZE(armdiv); ptr++) {
+		div = armdiv[ptr];
+		calc = parent / div;
+		if (calc <= rate && div < best) {
+			best = div;
+			val = ptr;
+		}
+	}
+
+	if (val >= 0) {
+		unsigned long clkcon0;
+
+		clkcon0 = __raw_readl(S3C2443_CLKDIV0);
+		clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
+		clkcon0 |= val << S3C2443_CLKDIV0_ARMDIV_SHIFT;
+		__raw_writel(clkcon0, S3C2443_CLKDIV0);
+	}
+
+	return (val == -1) ? -EINVAL : 0;
+}
+
 static struct clk clk_armdiv = {
 	.name		= "armdiv",
 	.id		= -1,
 	.parent		= &clk_msysclk.clk,
+	.ops		= &(struct clk_ops) {
+		.round_rate = s3c2443_armclk_roundrate,
+		.set_rate = s3c2443_armclk_setrate,
+	},
 };
 
 /* armclk
@@ -617,26 +690,6 @@ static void __init s3c2443_clk_initparents(void)
 
 	for (ptr = 0; ptr < ARRAY_SIZE(init_list); ptr++)
 		s3c_set_clksrc(init_list[ptr], true);
-}
-
-/* armdiv divisor table */
-
-static unsigned int armdiv[16] = {
-	[S3C2443_CLKDIV0_ARMDIV_1 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 1,
-	[S3C2443_CLKDIV0_ARMDIV_2 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 2,
-	[S3C2443_CLKDIV0_ARMDIV_3 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 3,
-	[S3C2443_CLKDIV0_ARMDIV_4 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 4,
-	[S3C2443_CLKDIV0_ARMDIV_6 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 6,
-	[S3C2443_CLKDIV0_ARMDIV_8 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 8,
-	[S3C2443_CLKDIV0_ARMDIV_12 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 12,
-	[S3C2443_CLKDIV0_ARMDIV_16 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 16,
-};
-
-static inline unsigned int s3c2443_fclk_div(unsigned long clkcon0)
-{
-	clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
-
-	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
 }
 
 static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
