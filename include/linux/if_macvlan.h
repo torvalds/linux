@@ -34,6 +34,7 @@ struct macvlan_dev {
 	enum macvlan_mode	mode;
 	int (*receive)(struct sk_buff *skb);
 	int (*forward)(struct net_device *dev, struct sk_buff *skb);
+	struct macvtap_queue	*tap;
 };
 
 static inline void macvlan_count_rx(const struct macvlan_dev *vlan,

@@ -90,6 +90,18 @@ config MACVLAN
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvlan.
 
+config MACVTAP
+	tristate "MAC-VLAN based tap driver (EXPERIMENTAL)"
+	depends on MACVLAN
+	help
+	  This adds a specialized tap character device driver that is based
+	  on the MAC-VLAN network interface, called macvtap. A macvtap device
+	  can be added in the same way as a macvlan device, using 'type
+	  macvlan', and then be accessed through the tap user space interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macvtap.
+
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
 	---help---
