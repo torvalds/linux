@@ -1316,64 +1316,67 @@ static void b43_nphy_scale_offset_rssi(struct b43_wldev *dev, u16 scale,
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_TSSI, tmp);
 }
 
-/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSISel */
-static void b43_nphy_rssi_select(struct b43_wldev *dev, u8 code, u8 type)
+static void b43_nphy_rev2_rssi_select(struct b43_wldev *dev, u8 code, u8 type)
 {
 	u16 val;
 
-	if (dev->phy.rev >= 3) {
-		/* TODO */
-	} else {
-		if (type < 3)
-			val = 0;
-		else if (type == 6)
-			val = 1;
-		else if (type == 3)
-			val = 2;
-		else
-			val = 3;
+	if (type < 3)
+		val = 0;
+	else if (type == 6)
+		val = 1;
+	else if (type == 3)
+		val = 2;
+	else
+		val = 3;
 
-		val = (val << 12) | (val << 14);
-		b43_phy_maskset(dev, B43_NPHY_AFECTL_C1, 0x0FFF, val);
-		b43_phy_maskset(dev, B43_NPHY_AFECTL_C2, 0x0FFF, val);
+	val = (val << 12) | (val << 14);
+	b43_phy_maskset(dev, B43_NPHY_AFECTL_C1, 0x0FFF, val);
+	b43_phy_maskset(dev, B43_NPHY_AFECTL_C2, 0x0FFF, val);
 
+	if (type < 3) {
+		b43_phy_maskset(dev, B43_NPHY_RFCTL_RSSIO1, 0xFFCF,
+				(type + 1) << 4);
+		b43_phy_maskset(dev, B43_NPHY_RFCTL_RSSIO2, 0xFFCF,
+				(type + 1) << 4);
+	}
+
+	/* TODO use some definitions */
+	if (code == 0) {
+		b43_phy_maskset(dev, B43_NPHY_AFECTL_OVER, 0xCFFF, 0);
 		if (type < 3) {
-			b43_phy_maskset(dev, B43_NPHY_RFCTL_RSSIO1, 0xFFCF,
-					(type + 1) << 4);
-			b43_phy_maskset(dev, B43_NPHY_RFCTL_RSSIO2, 0xFFCF,
-					(type + 1) << 4);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD, 0xFEC7, 0);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER, 0xEFDC, 0);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD, 0xFFFE, 0);
+			udelay(20);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER, 0xFFFE, 0);
 		}
-
-		/* TODO use some definitions */
-		if (code == 0) {
-			b43_phy_maskset(dev, B43_NPHY_AFECTL_OVER, 0xCFFF, 0);
-			if (type < 3) {
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
-						0xFEC7, 0);
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
-						0xEFDC, 0);
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
-						0xFFFE, 0);
-				udelay(20);
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
-						0xFFFE, 0);
-			}
-		} else {
-			b43_phy_maskset(dev, B43_NPHY_AFECTL_OVER, 0xCFFF,
-					0x3000);
-			if (type < 3) {
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
-						0xFEC7, 0x0180);
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
-						0xEFDC, (code << 1 | 0x1021));
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
-						0xFFFE, 0x0001);
-				udelay(20);
-				b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
-						0xFFFE, 0);
-			}
+	} else {
+		b43_phy_maskset(dev, B43_NPHY_AFECTL_OVER, 0xCFFF,
+				0x3000);
+		if (type < 3) {
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD,
+					0xFEC7, 0x0180);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER,
+					0xEFDC, (code << 1 | 0x1021));
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_CMD, 0xFFFE, 0x1);
+			udelay(20);
+			b43_phy_maskset(dev, B43_NPHY_RFCTL_OVER, 0xFFFE, 0);
 		}
 	}
+}
+
+static void b43_nphy_rev3_rssi_select(struct b43_wldev *dev, u8 code, u8 type)
+{
+	/* TODO */
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSISel */
+static void b43_nphy_rssi_select(struct b43_wldev *dev, u8 code, u8 type)
+{
+	if (dev->phy.rev >= 3)
+		b43_nphy_rev3_rssi_select(dev, code, type);
+	else
+		b43_nphy_rev2_rssi_select(dev, code, type);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SetRssi2055Vcm */
