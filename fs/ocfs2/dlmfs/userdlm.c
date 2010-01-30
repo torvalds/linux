@@ -34,17 +34,18 @@
 #include <linux/types.h>
 #include <linux/crc32.h>
 
-
-#include "cluster/nodemanager.h"
-#include "cluster/heartbeat.h"
-#include "cluster/tcp.h"
-
-#include "dlm/dlmapi.h"
-
+#include "ocfs2_lockingver.h"
+#include "stackglue.h"
 #include "userdlm.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
 #include "cluster/masklog.h"
+
+
+static inline struct user_lock_res *user_lksb_to_lock_res(struct ocfs2_dlm_lksb *lksb)
+{
+	return container_of(lksb, struct user_lock_res, l_lksb);
+}
 
 static inline int user_check_wait_flag(struct user_lock_res *lockres,
 				       int flag)
@@ -73,15 +74,15 @@ static inline void user_wait_on_blocked_lock(struct user_lock_res *lockres)
 }
 
 /* I heart container_of... */
-static inline struct dlm_ctxt *
-dlm_ctxt_from_user_lockres(struct user_lock_res *lockres)
+static inline struct ocfs2_cluster_connection *
+cluster_connection_from_user_lockres(struct user_lock_res *lockres)
 {
 	struct dlmfs_inode_private *ip;
 
 	ip = container_of(lockres,
 			  struct dlmfs_inode_private,
 			  ip_lockres);
-	return ip->ip_dlm;
+	return ip->ip_conn;
 }
 
 static struct inode *
@@ -103,9 +104,9 @@ static inline void user_recover_from_dlm_error(struct user_lock_res *lockres)
 }
 
 #define user_log_dlm_error(_func, _stat, _lockres) do {			\
-	mlog(ML_ERROR, "Dlm error \"%s\" while calling %s on "		\
-		"resource %.*s: %s\n", dlm_errname(_stat), _func,	\
-		_lockres->l_namelen, _lockres->l_name, dlm_errmsg(_stat)); \
+	mlog(ML_ERROR, "Dlm error %d while calling %s on "		\
+		"resource %.*s\n", _stat, _func,			\
+		_lockres->l_namelen, _lockres->l_name); 		\
 } while (0)
 
 /* WARNING: This function lives in a world where the only three lock
@@ -113,34 +114,34 @@ static inline void user_recover_from_dlm_error(struct user_lock_res *lockres)
  * lock types are added. */
 static inline int user_highest_compat_lock_level(int level)
 {
-	int new_level = LKM_EXMODE;
+	int new_level = DLM_LOCK_EX;
 
-	if (level == LKM_EXMODE)
-		new_level = LKM_NLMODE;
-	else if (level == LKM_PRMODE)
-		new_level = LKM_PRMODE;
+	if (level == DLM_LOCK_EX)
+		new_level = DLM_LOCK_NL;
+	else if (level == DLM_LOCK_PR)
+		new_level = DLM_LOCK_PR;
 	return new_level;
 }
 
-static void user_ast(void *opaque)
+static void user_ast(struct ocfs2_dlm_lksb *lksb)
 {
-	struct user_lock_res *lockres = opaque;
-	struct dlm_lockstatus *lksb;
+	struct user_lock_res *lockres = user_lksb_to_lock_res(lksb);
+	int status;
 
 	mlog(0, "AST fired for lockres %.*s\n", lockres->l_namelen,
 	     lockres->l_name);
 
 	spin_lock(&lockres->l_lock);
 
-	lksb = &(lockres->l_lksb);
-	if (lksb->status != DLM_NORMAL) {
+	status = ocfs2_dlm_lock_status(&lockres->l_lksb);
+	if (status) {
 		mlog(ML_ERROR, "lksb status value of %u on lockres %.*s\n",
-		     lksb->status, lockres->l_namelen, lockres->l_name);
+		     status, lockres->l_namelen, lockres->l_name);
 		spin_unlock(&lockres->l_lock);
 		return;
 	}
 
-	mlog_bug_on_msg(lockres->l_requested == LKM_IVMODE,
+	mlog_bug_on_msg(lockres->l_requested == DLM_LOCK_IV,
 			"Lockres %.*s, requested ivmode. flags 0x%x\n",
 			lockres->l_namelen, lockres->l_name, lockres->l_flags);
 
@@ -148,13 +149,13 @@ static void user_ast(void *opaque)
 	if (lockres->l_requested < lockres->l_level) {
 		if (lockres->l_requested <=
 		    user_highest_compat_lock_level(lockres->l_blocking)) {
-			lockres->l_blocking = LKM_NLMODE;
+			lockres->l_blocking = DLM_LOCK_NL;
 			lockres->l_flags &= ~USER_LOCK_BLOCKED;
 		}
 	}
 
 	lockres->l_level = lockres->l_requested;
-	lockres->l_requested = LKM_IVMODE;
+	lockres->l_requested = DLM_LOCK_IV;
 	lockres->l_flags |= USER_LOCK_ATTACHED;
 	lockres->l_flags &= ~USER_LOCK_BUSY;
 
@@ -193,11 +194,11 @@ static void __user_dlm_cond_queue_lockres(struct user_lock_res *lockres)
 		return;
 
 	switch (lockres->l_blocking) {
-	case LKM_EXMODE:
+	case DLM_LOCK_EX:
 		if (!lockres->l_ex_holders && !lockres->l_ro_holders)
 			queue = 1;
 		break;
-	case LKM_PRMODE:
+	case DLM_LOCK_PR:
 		if (!lockres->l_ex_holders)
 			queue = 1;
 		break;
@@ -209,9 +210,9 @@ static void __user_dlm_cond_queue_lockres(struct user_lock_res *lockres)
 		__user_dlm_queue_lockres(lockres);
 }
 
-static void user_bast(void *opaque, int level)
+static void user_bast(struct ocfs2_dlm_lksb *lksb, int level)
 {
-	struct user_lock_res *lockres = opaque;
+	struct user_lock_res *lockres = user_lksb_to_lock_res(lksb);
 
 	mlog(0, "Blocking AST fired for lockres %.*s. Blocking level %d\n",
 	     lockres->l_namelen, lockres->l_name, level);
@@ -227,15 +228,15 @@ static void user_bast(void *opaque, int level)
 	wake_up(&lockres->l_event);
 }
 
-static void user_unlock_ast(void *opaque, enum dlm_status status)
+static void user_unlock_ast(struct ocfs2_dlm_lksb *lksb, int status)
 {
-	struct user_lock_res *lockres = opaque;
+	struct user_lock_res *lockres = user_lksb_to_lock_res(lksb);
 
 	mlog(0, "UNLOCK AST called on lock %.*s\n", lockres->l_namelen,
 	     lockres->l_name);
 
-	if (status != DLM_NORMAL && status != DLM_CANCELGRANT)
-		mlog(ML_ERROR, "Dlm returns status %d\n", status);
+	if (status)
+		mlog(ML_ERROR, "dlm returns status %d\n", status);
 
 	spin_lock(&lockres->l_lock);
 	/* The teardown flag gets set early during the unlock process,
@@ -243,7 +244,7 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 	 * for a concurrent cancel. */
 	if (lockres->l_flags & USER_LOCK_IN_TEARDOWN
 	    && !(lockres->l_flags & USER_LOCK_IN_CANCEL)) {
-		lockres->l_level = LKM_IVMODE;
+		lockres->l_level = DLM_LOCK_IV;
 	} else if (status == DLM_CANCELGRANT) {
 		/* We tried to cancel a convert request, but it was
 		 * already granted. Don't clear the busy flag - the
@@ -254,7 +255,7 @@ static void user_unlock_ast(void *opaque, enum dlm_status status)
 	} else {
 		BUG_ON(!(lockres->l_flags & USER_LOCK_IN_CANCEL));
 		/* Cancel succeeded, we want to re-queue */
-		lockres->l_requested = LKM_IVMODE; /* cancel an
+		lockres->l_requested = DLM_LOCK_IV; /* cancel an
 						    * upconvert
 						    * request. */
 		lockres->l_flags &= ~USER_LOCK_IN_CANCEL;
@@ -271,6 +272,21 @@ out_noclear:
 	wake_up(&lockres->l_event);
 }
 
+/*
+ * This is the userdlmfs locking protocol version.
+ *
+ * See fs/ocfs2/dlmglue.c for more details on locking versions.
+ */
+static struct ocfs2_locking_protocol user_dlm_lproto = {
+	.lp_max_version = {
+		.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
+		.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
+	},
+	.lp_lock_ast		= user_ast,
+	.lp_blocking_ast	= user_bast,
+	.lp_unlock_ast		= user_unlock_ast,
+};
+
 static inline void user_dlm_drop_inode_ref(struct user_lock_res *lockres)
 {
 	struct inode *inode;
@@ -283,7 +299,8 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 	int new_level, status;
 	struct user_lock_res *lockres =
 		container_of(work, struct user_lock_res, l_work);
-	struct dlm_ctxt *dlm = dlm_ctxt_from_user_lockres(lockres);
+	struct ocfs2_cluster_connection *conn =
+		cluster_connection_from_user_lockres(lockres);
 
 	mlog(0, "processing lockres %.*s\n", lockres->l_namelen,
 	     lockres->l_name);
@@ -322,20 +339,17 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 		lockres->l_flags |= USER_LOCK_IN_CANCEL;
 		spin_unlock(&lockres->l_lock);
 
-		status = dlmunlock(dlm,
-				   &lockres->l_lksb,
-				   LKM_CANCEL,
-				   user_unlock_ast,
-				   lockres);
-		if (status != DLM_NORMAL)
-			user_log_dlm_error("dlmunlock", status, lockres);
+		status = ocfs2_dlm_unlock(conn, &lockres->l_lksb,
+					  DLM_LKF_CANCEL);
+		if (status)
+			user_log_dlm_error("ocfs2_dlm_unlock", status, lockres);
 		goto drop_ref;
 	}
 
 	/* If there are still incompat holders, we can exit safely
 	 * without worrying about re-queueing this lock as that will
 	 * happen on the last call to user_cluster_unlock. */
-	if ((lockres->l_blocking == LKM_EXMODE)
+	if ((lockres->l_blocking == DLM_LOCK_EX)
 	    && (lockres->l_ex_holders || lockres->l_ro_holders)) {
 		spin_unlock(&lockres->l_lock);
 		mlog(0, "can't downconvert for ex: ro = %u, ex = %u\n",
@@ -343,7 +357,7 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 		goto drop_ref;
 	}
 
-	if ((lockres->l_blocking == LKM_PRMODE)
+	if ((lockres->l_blocking == DLM_LOCK_PR)
 	    && lockres->l_ex_holders) {
 		spin_unlock(&lockres->l_lock);
 		mlog(0, "can't downconvert for pr: ex = %u\n",
@@ -360,17 +374,12 @@ static void user_dlm_unblock_lock(struct work_struct *work)
 	spin_unlock(&lockres->l_lock);
 
 	/* need lock downconvert request now... */
-	status = dlmlock(dlm,
-			 new_level,
-			 &lockres->l_lksb,
-			 LKM_CONVERT|LKM_VALBLK,
-			 lockres->l_name,
-			 lockres->l_namelen,
-			 user_ast,
-			 lockres,
-			 user_bast);
-	if (status != DLM_NORMAL) {
-		user_log_dlm_error("dlmlock", status, lockres);
+	status = ocfs2_dlm_lock(conn, new_level, &lockres->l_lksb,
+				DLM_LKF_CONVERT|DLM_LKF_VALBLK,
+				lockres->l_name,
+				lockres->l_namelen);
+	if (status) {
+		user_log_dlm_error("ocfs2_dlm_lock", status, lockres);
 		user_recover_from_dlm_error(lockres);
 	}
 
@@ -382,10 +391,10 @@ static inline void user_dlm_inc_holders(struct user_lock_res *lockres,
 					int level)
 {
 	switch(level) {
-	case LKM_EXMODE:
+	case DLM_LOCK_EX:
 		lockres->l_ex_holders++;
 		break;
-	case LKM_PRMODE:
+	case DLM_LOCK_PR:
 		lockres->l_ro_holders++;
 		break;
 	default:
@@ -410,10 +419,11 @@ int user_dlm_cluster_lock(struct user_lock_res *lockres,
 			  int lkm_flags)
 {
 	int status, local_flags;
-	struct dlm_ctxt *dlm = dlm_ctxt_from_user_lockres(lockres);
+	struct ocfs2_cluster_connection *conn =
+		cluster_connection_from_user_lockres(lockres);
 
-	if (level != LKM_EXMODE &&
-	    level != LKM_PRMODE) {
+	if (level != DLM_LOCK_EX &&
+	    level != DLM_LOCK_PR) {
 		mlog(ML_ERROR, "lockres %.*s: invalid request!\n",
 		     lockres->l_namelen, lockres->l_name);
 		status = -EINVAL;
@@ -422,7 +432,7 @@ int user_dlm_cluster_lock(struct user_lock_res *lockres,
 
 	mlog(0, "lockres %.*s: asking for %s lock, passed flags = 0x%x\n",
 	     lockres->l_namelen, lockres->l_name,
-	     (level == LKM_EXMODE) ? "LKM_EXMODE" : "LKM_PRMODE",
+	     (level == DLM_LOCK_EX) ? "DLM_LOCK_EX" : "DLM_LOCK_PR",
 	     lkm_flags);
 
 again:
@@ -457,35 +467,26 @@ again:
 	}
 
 	if (level > lockres->l_level) {
-		local_flags = lkm_flags | LKM_VALBLK;
-		if (lockres->l_level != LKM_IVMODE)
-			local_flags |= LKM_CONVERT;
+		local_flags = lkm_flags | DLM_LKF_VALBLK;
+		if (lockres->l_level != DLM_LOCK_IV)
+			local_flags |= DLM_LKF_CONVERT;
 
 		lockres->l_requested = level;
 		lockres->l_flags |= USER_LOCK_BUSY;
 		spin_unlock(&lockres->l_lock);
 
-		BUG_ON(level == LKM_IVMODE);
-		BUG_ON(level == LKM_NLMODE);
+		BUG_ON(level == DLM_LOCK_IV);
+		BUG_ON(level == DLM_LOCK_NL);
 
 		/* call dlm_lock to upgrade lock now */
-		status = dlmlock(dlm,
-				 level,
-				 &lockres->l_lksb,
-				 local_flags,
-				 lockres->l_name,
-				 lockres->l_namelen,
-				 user_ast,
-				 lockres,
-				 user_bast);
-		if (status != DLM_NORMAL) {
-			if ((lkm_flags & LKM_NOQUEUE) &&
-			    (status == DLM_NOTQUEUED))
-				status = -EAGAIN;
-			else {
-				user_log_dlm_error("dlmlock", status, lockres);
-				status = -EINVAL;
-			}
+		status = ocfs2_dlm_lock(conn, level, &lockres->l_lksb,
+					local_flags, lockres->l_name,
+					lockres->l_namelen);
+		if (status) {
+			if ((lkm_flags & DLM_LKF_NOQUEUE) &&
+			    (status != -EAGAIN))
+				user_log_dlm_error("ocfs2_dlm_lock",
+						   status, lockres);
 			user_recover_from_dlm_error(lockres);
 			goto bail;
 		}
@@ -506,11 +507,11 @@ static inline void user_dlm_dec_holders(struct user_lock_res *lockres,
 					int level)
 {
 	switch(level) {
-	case LKM_EXMODE:
+	case DLM_LOCK_EX:
 		BUG_ON(!lockres->l_ex_holders);
 		lockres->l_ex_holders--;
 		break;
-	case LKM_PRMODE:
+	case DLM_LOCK_PR:
 		BUG_ON(!lockres->l_ro_holders);
 		lockres->l_ro_holders--;
 		break;
@@ -522,8 +523,8 @@ static inline void user_dlm_dec_holders(struct user_lock_res *lockres,
 void user_dlm_cluster_unlock(struct user_lock_res *lockres,
 			     int level)
 {
-	if (level != LKM_EXMODE &&
-	    level != LKM_PRMODE) {
+	if (level != DLM_LOCK_EX &&
+	    level != DLM_LOCK_PR) {
 		mlog(ML_ERROR, "lockres %.*s: invalid request!\n",
 		     lockres->l_namelen, lockres->l_name);
 		return;
@@ -540,33 +541,40 @@ void user_dlm_write_lvb(struct inode *inode,
 			unsigned int len)
 {
 	struct user_lock_res *lockres = &DLMFS_I(inode)->ip_lockres;
-	char *lvb = lockres->l_lksb.lvb;
+	char *lvb;
 
 	BUG_ON(len > DLM_LVB_LEN);
 
 	spin_lock(&lockres->l_lock);
 
-	BUG_ON(lockres->l_level < LKM_EXMODE);
+	BUG_ON(lockres->l_level < DLM_LOCK_EX);
+	lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
 	memcpy(lvb, val, len);
 
 	spin_unlock(&lockres->l_lock);
 }
 
-void user_dlm_read_lvb(struct inode *inode,
-		       char *val,
-		       unsigned int len)
+ssize_t user_dlm_read_lvb(struct inode *inode,
+			  char *val,
+			  unsigned int len)
 {
 	struct user_lock_res *lockres = &DLMFS_I(inode)->ip_lockres;
-	char *lvb = lockres->l_lksb.lvb;
+	char *lvb;
+	ssize_t ret = len;
 
 	BUG_ON(len > DLM_LVB_LEN);
 
 	spin_lock(&lockres->l_lock);
 
-	BUG_ON(lockres->l_level < LKM_PRMODE);
-	memcpy(val, lvb, len);
+	BUG_ON(lockres->l_level < DLM_LOCK_PR);
+	if (ocfs2_dlm_lvb_valid(&lockres->l_lksb)) {
+		lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+		memcpy(val, lvb, len);
+	} else
+		ret = 0;
 
 	spin_unlock(&lockres->l_lock);
+	return ret;
 }
 
 void user_dlm_lock_res_init(struct user_lock_res *lockres,
@@ -576,9 +584,9 @@ void user_dlm_lock_res_init(struct user_lock_res *lockres,
 
 	spin_lock_init(&lockres->l_lock);
 	init_waitqueue_head(&lockres->l_event);
-	lockres->l_level = LKM_IVMODE;
-	lockres->l_requested = LKM_IVMODE;
-	lockres->l_blocking = LKM_IVMODE;
+	lockres->l_level = DLM_LOCK_IV;
+	lockres->l_requested = DLM_LOCK_IV;
+	lockres->l_blocking = DLM_LOCK_IV;
 
 	/* should have been checked before getting here. */
 	BUG_ON(dentry->d_name.len >= USER_DLM_LOCK_ID_MAX_LEN);
@@ -592,7 +600,8 @@ void user_dlm_lock_res_init(struct user_lock_res *lockres,
 int user_dlm_destroy_lock(struct user_lock_res *lockres)
 {
 	int status = -EBUSY;
-	struct dlm_ctxt *dlm = dlm_ctxt_from_user_lockres(lockres);
+	struct ocfs2_cluster_connection *conn =
+		cluster_connection_from_user_lockres(lockres);
 
 	mlog(0, "asked to destroy %.*s\n", lockres->l_namelen, lockres->l_name);
 
@@ -627,14 +636,9 @@ int user_dlm_destroy_lock(struct user_lock_res *lockres)
 	lockres->l_flags |= USER_LOCK_BUSY;
 	spin_unlock(&lockres->l_lock);
 
-	status = dlmunlock(dlm,
-			   &lockres->l_lksb,
-			   LKM_VALBLK,
-			   user_unlock_ast,
-			   lockres);
-	if (status != DLM_NORMAL) {
-		user_log_dlm_error("dlmunlock", status, lockres);
-		status = -EINVAL;
+	status = ocfs2_dlm_unlock(conn, &lockres->l_lksb, DLM_LKF_VALBLK);
+	if (status) {
+		user_log_dlm_error("ocfs2_dlm_unlock", status, lockres);
 		goto bail;
 	}
 
@@ -645,32 +649,34 @@ bail:
 	return status;
 }
 
-struct dlm_ctxt *user_dlm_register_context(struct qstr *name,
-					   struct dlm_protocol_version *proto)
+static void user_dlm_recovery_handler_noop(int node_num,
+					   void *recovery_data)
 {
-	struct dlm_ctxt *dlm;
-	u32 dlm_key;
-	char *domain;
-
-	domain = kmalloc(name->len + 1, GFP_NOFS);
-	if (!domain) {
-		mlog_errno(-ENOMEM);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	dlm_key = crc32_le(0, name->name, name->len);
-
-	snprintf(domain, name->len + 1, "%.*s", name->len, name->name);
-
-	dlm = dlm_register_domain(domain, dlm_key, proto);
-	if (IS_ERR(dlm))
-		mlog_errno(PTR_ERR(dlm));
-
-	kfree(domain);
-	return dlm;
+	/* We ignore recovery events */
+	return;
 }
 
-void user_dlm_unregister_context(struct dlm_ctxt *dlm)
+void user_dlm_set_locking_protocol(void)
 {
-	dlm_unregister_domain(dlm);
+	ocfs2_stack_glue_set_max_proto_version(&user_dlm_lproto.lp_max_version);
+}
+
+struct ocfs2_cluster_connection *user_dlm_register(struct qstr *name)
+{
+	int rc;
+	struct ocfs2_cluster_connection *conn;
+
+	rc = ocfs2_cluster_connect("o2cb", name->name, name->len,
+				   &user_dlm_lproto,
+				   user_dlm_recovery_handler_noop,
+				   NULL, &conn);
+	if (rc)
+		mlog_errno(rc);
+
+	return rc ? ERR_PTR(rc) : conn;
+}
+
+void user_dlm_unregister(struct ocfs2_cluster_connection *conn)
+{
+	ocfs2_cluster_disconnect(conn, 0);
 }

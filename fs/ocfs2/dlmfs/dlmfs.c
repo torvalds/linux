@@ -47,21 +47,13 @@
 
 #include <asm/uaccess.h>
 
-
-#include "cluster/nodemanager.h"
-#include "cluster/heartbeat.h"
-#include "cluster/tcp.h"
-
-#include "dlm/dlmapi.h"
-
+#include "stackglue.h"
 #include "userdlm.h"
-
 #include "dlmfsver.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
 #include "cluster/masklog.h"
 
-#include "ocfs2_lockingver.h"
 
 static const struct super_operations dlmfs_ops;
 static const struct file_operations dlmfs_file_operations;
@@ -72,15 +64,6 @@ static struct kmem_cache *dlmfs_inode_cache;
 
 struct workqueue_struct *user_dlm_worker;
 
-/*
- * This is the userdlmfs locking protocol version.
- *
- * See fs/ocfs2/dlmglue.c for more details on locking versions.
- */
-static const struct dlm_protocol_version user_locking_protocol = {
-	.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
-	.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
-};
 
 
 /*
@@ -259,7 +242,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 			       loff_t *ppos)
 {
 	int bytes_left;
-	ssize_t readlen;
+	ssize_t readlen, got;
 	char *lvb_buf;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 
@@ -285,9 +268,13 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!lvb_buf)
 		return -ENOMEM;
 
-	user_dlm_read_lvb(inode, lvb_buf, readlen);
-	bytes_left = __copy_to_user(buf, lvb_buf, readlen);
-	readlen -= bytes_left;
+	got = user_dlm_read_lvb(inode, lvb_buf, readlen);
+	if (got) {
+		BUG_ON(got != readlen);
+		bytes_left = __copy_to_user(buf, lvb_buf, readlen);
+		readlen -= bytes_left;
+	} else
+		readlen = 0;
 
 	kfree(lvb_buf);
 
@@ -346,7 +333,7 @@ static void dlmfs_init_once(void *foo)
 	struct dlmfs_inode_private *ip =
 		(struct dlmfs_inode_private *) foo;
 
-	ip->ip_dlm = NULL;
+	ip->ip_conn = NULL;
 	ip->ip_parent = NULL;
 
 	inode_init_once(&ip->ip_vfs_inode);
@@ -388,14 +375,14 @@ static void dlmfs_clear_inode(struct inode *inode)
 		goto clear_fields;
 	}
 
-	mlog(0, "we're a directory, ip->ip_dlm = 0x%p\n", ip->ip_dlm);
+	mlog(0, "we're a directory, ip->ip_conn = 0x%p\n", ip->ip_conn);
 	/* we must be a directory. If required, lets unregister the
 	 * dlm context now. */
-	if (ip->ip_dlm)
-		user_dlm_unregister_context(ip->ip_dlm);
+	if (ip->ip_conn)
+		user_dlm_unregister(ip->ip_conn);
 clear_fields:
 	ip->ip_parent = NULL;
-	ip->ip_dlm = NULL;
+	ip->ip_conn = NULL;
 }
 
 static struct backing_dev_info dlmfs_backing_dev_info = {
@@ -445,7 +432,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
 	ip = DLMFS_I(inode);
-	ip->ip_dlm = DLMFS_I(parent)->ip_dlm;
+	ip->ip_conn = DLMFS_I(parent)->ip_conn;
 
 	switch (mode & S_IFMT) {
 	default:
@@ -499,13 +486,12 @@ static int dlmfs_mkdir(struct inode * dir,
 	struct inode *inode = NULL;
 	struct qstr *domain = &dentry->d_name;
 	struct dlmfs_inode_private *ip;
-	struct dlm_ctxt *dlm;
-	struct dlm_protocol_version proto = user_locking_protocol;
+	struct ocfs2_cluster_connection *conn;
 
 	mlog(0, "mkdir %.*s\n", domain->len, domain->name);
 
 	/* verify that we have a proper domain */
-	if (domain->len >= O2NM_MAX_NAME_LEN) {
+	if (domain->len >= GROUP_NAME_MAX) {
 		status = -EINVAL;
 		mlog(ML_ERROR, "invalid domain name for directory.\n");
 		goto bail;
@@ -520,14 +506,14 @@ static int dlmfs_mkdir(struct inode * dir,
 
 	ip = DLMFS_I(inode);
 
-	dlm = user_dlm_register_context(domain, &proto);
-	if (IS_ERR(dlm)) {
-		status = PTR_ERR(dlm);
+	conn = user_dlm_register(domain);
+	if (IS_ERR(conn)) {
+		status = PTR_ERR(conn);
 		mlog(ML_ERROR, "Error %d could not register domain \"%.*s\"\n",
 		     status, domain->len, domain->name);
 		goto bail;
 	}
-	ip->ip_dlm = dlm;
+	ip->ip_conn = conn;
 
 	inc_nlink(dir);
 	d_instantiate(dentry, inode);
@@ -696,6 +682,7 @@ static int __init init_dlmfs_fs(void)
 	}
 	cleanup_worker = 1;
 
+	user_dlm_set_locking_protocol();
 	status = register_filesystem(&dlmfs_fs_type);
 bail:
 	if (status) {
