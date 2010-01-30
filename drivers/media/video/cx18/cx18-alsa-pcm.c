@@ -152,28 +152,20 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	struct v4l2_device *v4l2_dev = cxsc->v4l2_dev;
 	struct cx18 *cx = to_cx18(v4l2_dev);
 	struct cx18_stream *s;
-	struct cx18_open_id *item;
+	struct cx18_open_id item;
 	int ret;
 
 	/* Instruct the cx18 to start sending packets */
 	snd_cx18_lock(cxsc);
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
 
-	/* Allocate memory */
-	item = kmalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
-	if (NULL == item) {
-		snd_cx18_unlock(cxsc);
-		return -ENOMEM;
-	}
-
-	item->cx = cx;
-	item->type = s->type;
-	item->open_id = cx->open_id++;
+	item.cx = cx;
+	item.type = s->type;
+	item.open_id = cx->open_id++;
 
 	/* See if the stream is available */
-	if (cx18_claim_stream(item, item->type)) {
+	if (cx18_claim_stream(&item, item.type)) {
 		/* No, it's already in use */
-		kfree(item);
 		snd_cx18_unlock(cxsc);
 		return -EBUSY;
 	}
