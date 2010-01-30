@@ -830,7 +830,7 @@ static int __devinit bcm_uart_probe(struct platform_device *pdev)
 
 	ret = uart_add_one_port(&bcm_uart_driver, port);
 	if (ret) {
-		kfree(port);
+		ports[pdev->id].membase = 0;
 		return ret;
 	}
 	platform_set_drvdata(pdev, port);
