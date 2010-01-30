@@ -156,12 +156,15 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	int ret;
 
 	/* Instruct the cx18 to start sending packets */
+	snd_cx18_lock(cxsc);
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
 
 	/* Allocate memory */
 	item = kmalloc(sizeof(struct cx18_open_id), GFP_KERNEL);
-	if (NULL == item)
+	if (NULL == item) {
+		snd_cx18_unlock(cxsc);
 		return -ENOMEM;
+	}
 
 	item->cx = cx;
 	item->type = s->type;
@@ -171,12 +174,14 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	if (cx18_claim_stream(item, item->type)) {
 		/* No, it's already in use */
 		kfree(item);
+		snd_cx18_unlock(cxsc);
 		return -EBUSY;
 	}
 
 	if (test_bit(CX18_F_S_STREAMOFF, &s->s_flags) ||
 	    test_and_set_bit(CX18_F_S_STREAMING, &s->s_flags)) {
 		/* We're already streaming.  No additional action required */
+		snd_cx18_unlock(cxsc);
 		return 0;
 	}
 
@@ -191,6 +196,7 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	/* Not currently streaming, so start it up */
 	set_bit(CX18_F_S_STREAMING, &s->s_flags);
 	ret = cx18_start_v4l2_encode_stream(s);
+	snd_cx18_unlock(cxsc);
 
 	return 0;
 }
@@ -204,6 +210,7 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 	int ret;
 
 	/* Instruct the cx18 to stop sending packets */
+	snd_cx18_lock(cxsc);
 	s = &cx->streams[CX18_ENC_STREAM_TYPE_PCM];
 	ret = cx18_stop_v4l2_encode_stream(s, 0);
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
@@ -211,6 +218,7 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 	cx18_release_stream(s);
 
 	cx->pcm_announce_callback = NULL;
+	snd_cx18_unlock(cxsc);
 
 	return 0;
 }
