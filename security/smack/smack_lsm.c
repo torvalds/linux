@@ -387,7 +387,7 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
 	struct smk_audit_info ad;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_FS);
-	smk_ad_setfield_u_fs_path_dentry(&ad, mnt->mnt_mountpoint);
+	smk_ad_setfield_u_fs_path_dentry(&ad, mnt->mnt_root);
 	smk_ad_setfield_u_fs_path_mnt(&ad, mnt);
 
 	sbp = mnt->mnt_sb->s_security;
