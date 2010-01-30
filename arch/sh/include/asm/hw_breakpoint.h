@@ -1,11 +1,11 @@
 #ifndef __ASM_SH_HW_BREAKPOINT_H
 #define __ASM_SH_HW_BREAKPOINT_H
 
-#include <linux/kdebug.h>
-#include <linux/types.h>
-
 #ifdef __KERNEL__
 #define __ARCH_HW_BREAKPOINT_H
+
+#include <linux/kdebug.h>
+#include <linux/types.h>
 
 struct arch_hw_breakpoint {
 	char		*name; /* Contains name of the symbol to set bkpt */
