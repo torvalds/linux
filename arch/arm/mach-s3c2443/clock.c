@@ -95,14 +95,6 @@ static struct clk clk_mpllref = {
 	.id		= -1,
 };
 
-#if 0
-static struct clk clk_mpll = {
-	.name		= "mpll",
-	.parent		= &clk_mpllref,
-	.id		= -1,
-};
-#endif
-
 static struct clk clk_i2s_ext = {
 	.name		= "i2s-ext",
 	.id		= -1,
