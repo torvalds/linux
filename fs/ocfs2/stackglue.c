@@ -373,6 +373,24 @@ out:
 }
 EXPORT_SYMBOL_GPL(ocfs2_cluster_connect);
 
+/* The caller will ensure all nodes have the same cluster stack */
+int ocfs2_cluster_connect_agnostic(const char *group,
+				   int grouplen,
+				   struct ocfs2_locking_protocol *lproto,
+				   void (*recovery_handler)(int node_num,
+							    void *recovery_data),
+				   void *recovery_data,
+				   struct ocfs2_cluster_connection **conn)
+{
+	char *stack_name = NULL;
+
+	if (cluster_stack_name[0])
+		stack_name = cluster_stack_name;
+	return ocfs2_cluster_connect(stack_name, group, grouplen, lproto,
+				     recovery_handler, recovery_data, conn);
+}
+EXPORT_SYMBOL_GPL(ocfs2_cluster_connect_agnostic);
+
 /* If hangup_pending is 0, the stack driver will be dropped */
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 			     int hangup_pending)

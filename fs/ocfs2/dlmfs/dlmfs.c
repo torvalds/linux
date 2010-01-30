@@ -87,7 +87,7 @@ struct workqueue_struct *user_dlm_worker;
  * - bast	: POLLIN against the file descriptor of a held lock
  *		  signifies a bast fired on the lock.
  */
-#define DLMFS_CAPABILITIES "bast"
+#define DLMFS_CAPABILITIES "bast stackglue"
 extern int param_set_dlmfs_capabilities(const char *val,
 					struct kernel_param *kp)
 {

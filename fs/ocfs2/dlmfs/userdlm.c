@@ -666,10 +666,10 @@ struct ocfs2_cluster_connection *user_dlm_register(struct qstr *name)
 	int rc;
 	struct ocfs2_cluster_connection *conn;
 
-	rc = ocfs2_cluster_connect("o2cb", name->name, name->len,
-				   &user_dlm_lproto,
-				   user_dlm_recovery_handler_noop,
-				   NULL, &conn);
+	rc = ocfs2_cluster_connect_agnostic(name->name, name->len,
+					    &user_dlm_lproto,
+					    user_dlm_recovery_handler_noop,
+					    NULL, &conn);
 	if (rc)
 		mlog_errno(rc);
 

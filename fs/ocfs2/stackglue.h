@@ -246,6 +246,17 @@ int ocfs2_cluster_connect(const char *stack_name,
 						   void *recovery_data),
 			  void *recovery_data,
 			  struct ocfs2_cluster_connection **conn);
+/*
+ * Used by callers that don't store their stack name.  They must ensure
+ * all nodes have the same stack.
+ */
+int ocfs2_cluster_connect_agnostic(const char *group,
+				   int grouplen,
+				   struct ocfs2_locking_protocol *lproto,
+				   void (*recovery_handler)(int node_num,
+							    void *recovery_data),
+				   void *recovery_data,
+				   struct ocfs2_cluster_connection **conn);
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn,
 			     int hangup_pending);
 void ocfs2_cluster_hangup(const char *group, int grouplen);
