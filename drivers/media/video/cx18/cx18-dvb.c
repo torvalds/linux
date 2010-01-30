@@ -260,6 +260,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 	mutex_lock(&stream->dvb.feedlock);
 	if (stream->dvb.feeding++ == 0) {
 		CX18_DEBUG_INFO("Starting Transport DMA\n");
+		mutex_lock(&cx->serialize_lock);
 		set_bit(CX18_F_S_STREAMING, &stream->s_flags);
 		ret = cx18_start_v4l2_encode_stream(stream);
 		if (ret < 0) {
@@ -268,6 +269,7 @@ static int cx18_dvb_start_feed(struct dvb_demux_feed *feed)
 			if (stream->dvb.feeding == 0)
 				clear_bit(CX18_F_S_STREAMING, &stream->s_flags);
 		}
+		mutex_unlock(&cx->serialize_lock);
 	} else
 		ret = 0;
 	mutex_unlock(&stream->dvb.feedlock);
@@ -291,7 +293,9 @@ static int cx18_dvb_stop_feed(struct dvb_demux_feed *feed)
 		mutex_lock(&stream->dvb.feedlock);
 		if (--stream->dvb.feeding == 0) {
 			CX18_DEBUG_INFO("Stopping Transport DMA\n");
+			mutex_lock(&cx->serialize_lock);
 			ret = cx18_stop_v4l2_encode_stream(stream, 0);
+			mutex_unlock(&cx->serialize_lock);
 		} else
 			ret = 0;
 		mutex_unlock(&stream->dvb.feedlock);
