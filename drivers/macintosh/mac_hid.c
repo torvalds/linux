@@ -14,6 +14,8 @@
 #include <linux/input.h>
 #include <linux/module.h>
 
+MODULE_LICENSE("GPL");
+
 static int mouse_emulate_buttons;
 static int mouse_button2_keycode = KEY_RIGHTCTRL;	/* right control key */
 static int mouse_button3_keycode = KEY_RIGHTALT;	/* right option key */
@@ -252,7 +254,6 @@ static ctl_table mac_hid_root_dir[] = {
 
 static struct ctl_table_header *mac_hid_sysctl_header;
 
-
 static int __init mac_hid_init(void)
 {
 	mac_hid_sysctl_header = register_sysctl_table(mac_hid_root_dir);
@@ -261,5 +262,13 @@ static int __init mac_hid_init(void)
 
 	return 0;
 }
+module_init(mac_hid_init);
 
-device_initcall(mac_hid_init);
+static void __exit mac_hid_exit(void)
+{
+	unregister_sysctl_table(mac_hid_sysctl_header);
+
+	if (mouse_emulate_buttons)
+		mac_hid_stop_emulation();
+}
+module_exit(mac_hid_exit);
