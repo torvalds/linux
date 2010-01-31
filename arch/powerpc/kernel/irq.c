@@ -77,7 +77,6 @@ DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
 int __irq_offset_value;
-static int ppc_spurious_interrupts;
 
 #ifdef CONFIG_PPC32
 EXPORT_SYMBOL(__irq_offset_value);
@@ -201,6 +200,11 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs);
         seq_printf(p, "  Local timer interrupts\n");
 
+	seq_printf(p, "%*s: ", prec, "SPU");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).spurious_irqs);
+	seq_printf(p, "  Spurious interrupts\n");
+
 	seq_printf(p, "%*s: ", prec, "CNT");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).pmu_irqs);
@@ -210,8 +214,6 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
 	seq_printf(p, "  Machine check exceptions\n");
-
-	seq_printf(p, "%*s: %10u\n", prec, "BAD", ppc_spurious_interrupts);
 
 	return 0;
 }
@@ -282,13 +284,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 
 	sum += per_cpu(irq_stat, cpu).pmu_irqs;
 	sum += per_cpu(irq_stat, cpu).mce_exceptions;
-
-	return sum;
-}
-
-u64 arch_irq_stat(void)
-{
-	u64 sum = ppc_spurious_interrupts;
+	sum += per_cpu(irq_stat, cpu).spurious_irqs;
 
 	return sum;
 }
@@ -404,8 +400,7 @@ void do_IRQ(struct pt_regs *regs)
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE)
 		handle_one_irq(irq);
 	else if (irq != NO_IRQ_IGNORE)
-		/* That's not SMP safe ... but who cares ? */
-		ppc_spurious_interrupts++;
+		__get_cpu_var(irq_stat).spurious_irqs++;
 
 	irq_exit();
 	set_irq_regs(old_regs);
