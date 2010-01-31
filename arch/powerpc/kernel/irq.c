@@ -183,30 +183,46 @@ notrace void raw_local_irq_restore(unsigned long en)
 EXPORT_SYMBOL(raw_local_irq_restore);
 #endif /* CONFIG_PPC64 */
 
+static int show_other_interrupts(struct seq_file *p, int prec)
+{
+	int j;
+
+#if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
+	if (tau_initialized) {
+		seq_printf(p, "%*s: ", prec, "TAU");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", tau_interrupts(j));
+		seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
+	}
+#endif /* CONFIG_PPC32 && CONFIG_TAU_INT */
+
+	seq_printf(p, "%*s: %10u\n", prec, "BAD", ppc_spurious_interrupts);
+
+	return 0;
+}
+
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *)v, j;
+	unsigned long flags, any_count = 0;
+	int i = *(loff_t *) v, j, prec;
 	struct irqaction *action;
 	struct irq_desc *desc;
-	unsigned long flags;
 
-	if (i == 0) {
-		seq_puts(p, "           ");
-		for_each_online_cpu(j)
-			seq_printf(p, "CPU%d       ", j);
-		seq_putc(p, '\n');
-	} else if (i == nr_irqs) {
-#if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
-		if (tau_initialized){
-			seq_puts(p, "TAU: ");
-			for_each_online_cpu(j)
-				seq_printf(p, "%10u ", tau_interrupts(j));
-			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
-		}
-#endif /* CONFIG_PPC32 && CONFIG_TAU_INT*/
-		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
-
+	if (i > nr_irqs)
 		return 0;
+
+	for (prec = 3, j = 1000; prec < 10 && j <= nr_irqs; ++prec)
+		j *= 10;
+
+	if (i == nr_irqs)
+		return show_other_interrupts(p, prec);
+
+	/* print header */
+	if (i == 0) {
+		seq_printf(p, "%*s", prec + 8, "");
+		for_each_online_cpu(j)
+			seq_printf(p, "CPU%-8d", j);
+		seq_putc(p, '\n');
 	}
 
 	desc = irq_to_desc(i);
@@ -214,34 +230,31 @@ int show_interrupts(struct seq_file *p, void *v)
 		return 0;
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
-
+	for_each_online_cpu(j)
+		any_count |= kstat_irqs_cpu(i, j);
 	action = desc->action;
-	if (!action || !action->handler)
-		goto skip;
+	if (!action && !any_count)
+		goto out;
 
-	seq_printf(p, "%3d: ", i);
-#ifdef CONFIG_SMP
+	seq_printf(p, "%*d: ", prec, i);
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-#else
-	seq_printf(p, "%10u ", kstat_irqs(i));
-#endif /* CONFIG_SMP */
 
 	if (desc->chip)
-		seq_printf(p, " %s ", desc->chip->name);
+		seq_printf(p, "  %-16s", desc->chip->name);
 	else
-		seq_puts(p, "  None      ");
+		seq_printf(p, "  %-16s", "None");
+	seq_printf(p, " %-8s", (desc->status & IRQ_LEVEL) ? "Level" : "Edge");
 
-	seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
-	seq_printf(p, "    %s", action->name);
+	if (action) {
+		seq_printf(p, "     %s", action->name);
+		while ((action = action->next) != NULL)
+			seq_printf(p, ", %s", action->name);
+	}
 
-	for (action = action->next; action; action = action->next)
-		seq_printf(p, ", %s", action->name);
 	seq_putc(p, '\n');
-
-skip:
+out:
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
-
 	return 0;
 }
 
