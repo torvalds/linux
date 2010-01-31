@@ -1794,7 +1794,8 @@ extern int may_umount(struct vfsmount *);
 extern long do_mount(char *, char *, char *, unsigned long, void *);
 extern struct vfsmount *collect_mounts(struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
-
+extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
+			  struct vfsmount *);
 extern int vfs_statfs(struct dentry *, struct kstatfs *);
 
 extern int current_umask(void);

@@ -1246,6 +1246,21 @@ void drop_collected_mounts(struct vfsmount *mnt)
 	release_mounts(&umount_list);
 }
 
+int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
+		   struct vfsmount *root)
+{
+	struct vfsmount *mnt;
+	int res = f(root, arg);
+	if (res)
+		return res;
+	list_for_each_entry(mnt, &root->mnt_list, mnt_list) {
+		res = f(mnt, arg);
+		if (res)
+			return res;
+	}
+	return 0;
+}
+
 static void cleanup_group_ids(struct vfsmount *mnt, struct vfsmount *end)
 {
 	struct vfsmount *p;
