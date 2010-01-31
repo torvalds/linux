@@ -195,7 +195,7 @@ static int pmac_retrigger(unsigned int virq)
 }
 
 static struct irq_chip pmac_pic = {
-	.name		= " PMAC-PIC ",
+	.name		= "PMAC-PIC",
 	.startup	= pmac_startup_irq,
 	.mask		= pmac_mask_irq,
 	.ack		= pmac_ack_irq,

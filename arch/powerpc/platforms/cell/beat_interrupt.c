@@ -110,7 +110,7 @@ static void beatic_end_irq(unsigned int irq_plug)
 }
 
 static struct irq_chip beatic_pic = {
-	.name = " CELL-BEAT ",
+	.name = "CELL-BEAT",
 	.unmask = beatic_unmask_irq,
 	.mask = beatic_mask_irq,
 	.eoi = beatic_end_irq,

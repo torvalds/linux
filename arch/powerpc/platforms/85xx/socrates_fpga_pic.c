@@ -232,7 +232,7 @@ static int socrates_fpga_pic_set_type(unsigned int virq,
 }
 
 static struct irq_chip socrates_fpga_pic_chip = {
-	.name		= " FPGA-PIC ",
+	.name		= "FPGA-PIC",
 	.ack		= socrates_fpga_pic_ack,
 	.mask           = socrates_fpga_pic_mask,
 	.mask_ack       = socrates_fpga_pic_mask_ack,
