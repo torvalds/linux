@@ -73,6 +73,9 @@
 #define CREATE_TRACE_POINTS
 #include <asm/trace.h>
 
+DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
+EXPORT_PER_CPU_SYMBOL(irq_stat);
+
 int __irq_offset_value;
 static int ppc_spurious_interrupts;
 
