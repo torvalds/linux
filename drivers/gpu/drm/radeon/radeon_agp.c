@@ -134,7 +134,7 @@ int radeon_agp_init(struct radeon_device *rdev)
 	int ret;
 
 	if (rdev->ddev->agp->agp_info.aper_size < 32) {
-		dev_warn(rdev->dev, "AGP aperture to small (%dM) "
+		dev_warn(rdev->dev, "AGP aperture too small (%zuM) "
 			"need at least 32M, disabling AGP\n",
 			rdev->ddev->agp->agp_info.aper_size);
 		return -EINVAL;
