@@ -529,115 +529,130 @@ static struct platform_device ar7_wdt = {
 /*****************************************************************************
  * Init
  ****************************************************************************/
-static int __init ar7_register_devices(void)
+static int __init ar7_register_uarts(void)
 {
-	u16 chip_id;
-	int res;
-	u32 *bootcr, val;
 #ifdef CONFIG_SERIAL_8250
-	static struct uart_port uart_port[2] __initdata;
+	static struct uart_port uart_port __initdata;
 	struct clk *bus_clk;
+	int res;
 
-	memset(uart_port, 0, sizeof(struct uart_port) * 2);
+	memset(&uart_port, 0, sizeof(struct uart_port));
 
 	bus_clk = clk_get(NULL, "bus");
 	if (IS_ERR(bus_clk))
 		panic("unable to get bus clk\n");
 
-	uart_port[0].type	= PORT_16550A;
-	uart_port[0].line	= 0;
-	uart_port[0].irq	= AR7_IRQ_UART0;
-	uart_port[0].uartclk	= clk_get_rate(bus_clk) / 2;
-	uart_port[0].iotype	= UPIO_MEM32;
-	uart_port[0].mapbase	= AR7_REGS_UART0;
-	uart_port[0].membase	= ioremap(uart_port[0].mapbase, 256);
-	uart_port[0].regshift	= 2;
-	res = early_serial_setup(&uart_port[0]);
+	uart_port.type		= PORT_16550A;
+	uart_port.uartclk	= clk_get_rate(bus_clk) / 2;
+	uart_port.iotype	= UPIO_MEM32;
+	uart_port.regshift	= 2;
+
+	uart_port.line		= 0;
+	uart_port.irq		= AR7_IRQ_UART0;
+	uart_port.mapbase	= AR7_REGS_UART0;
+	uart_port.membase	= ioremap(uart_port.mapbase, 256);
+
+	res = early_serial_setup(&uart_port);
 	if (res)
 		return res;
 
 	/* Only TNETD73xx have a second serial port */
 	if (ar7_has_second_uart()) {
-		uart_port[1].type	= PORT_16550A;
-		uart_port[1].line	= 1;
-		uart_port[1].irq	= AR7_IRQ_UART1;
-		uart_port[1].uartclk	= clk_get_rate(bus_clk) / 2;
-		uart_port[1].iotype	= UPIO_MEM32;
-		uart_port[1].mapbase	= UR8_REGS_UART1;
-		uart_port[1].membase 	= ioremap(uart_port[1].mapbase, 256);
-		uart_port[1].regshift	= 2;
-		res = early_serial_setup(&uart_port[1]);
+		uart_port.line		= 1;
+		uart_port.irq		= AR7_IRQ_UART1;
+		uart_port.mapbase	= UR8_REGS_UART1;
+		uart_port.membase	= ioremap(uart_port.mapbase, 256);
+
+		res = early_serial_setup(&uart_port);
 		if (res)
 			return res;
 	}
-#endif /* CONFIG_SERIAL_8250 */
+#endif
+
+	return 0;
+}
+
+static int __init ar7_register_devices(void)
+{
+	void __iomem *bootcr;
+	u32 val;
+	u16 chip_id;
+	int res;
+
+	res = ar7_register_uarts();
+	if (res)
+		pr_err("unable to setup uart(s): %d\n", res);
+
 	res = platform_device_register(&physmap_flash);
 	if (res)
-		return res;
+		pr_warning("unable to register physmap-flash: %d\n", res);
 
 	ar7_device_disable(vlynq_low_data.reset_bit);
 	res = platform_device_register(&vlynq_low);
 	if (res)
-		return res;
+		pr_warning("unable to register vlynq-low: %d\n", res);
 
 	if (ar7_has_high_vlynq()) {
 		ar7_device_disable(vlynq_high_data.reset_bit);
 		res = platform_device_register(&vlynq_high);
 		if (res)
-			return res;
+			pr_warning("unable to register vlynq-high: %d\n", res);
 	}
 
 	if (ar7_has_high_cpmac()) {
-		res = fixed_phy_add(PHY_POLL, cpmac_high.id, &fixed_phy_status);
-		if (res && res != -ENODEV)
-			return res;
-		cpmac_get_mac(1, cpmac_high_data.dev_addr);
-		res = platform_device_register(&cpmac_high);
-		if (res)
-			return res;
-	} else {
+		if (!res) {
+			cpmac_get_mac(1, cpmac_high_data.dev_addr);
+
+			res = platform_device_register(&cpmac_high);
+			if (res)
+				pr_warning("unable to register cpmac-high: %d\n", res);
+		} else
+			pr_warning("unable to add cpmac-high phy: %d\n", res);
+	} else
 		cpmac_low_data.phy_mask = 0xffffffff;
-	}
 
 	res = fixed_phy_add(PHY_POLL, cpmac_low.id, &fixed_phy_status);
-	if (res && res != -ENODEV)
-		return res;
-
-	cpmac_get_mac(0, cpmac_low_data.dev_addr);
-	res = platform_device_register(&cpmac_low);
-	if (res)
-		return res;
+	if (!res) {
+		cpmac_get_mac(0, cpmac_low_data.dev_addr);
+		res = platform_device_register(&cpmac_low);
+		if (res)
+			pr_warning("unable to register cpmac-low: %d\n", res);
+	} else
+		pr_warning("unable to add cpmac-low phy: %d\n", res);
 
 	detect_leds();
 	res = platform_device_register(&ar7_gpio_leds);
 	if (res)
-		return res;
+		pr_warning("unable to register leds: %d\n", res);
 
 	res = platform_device_register(&ar7_udc);
-
-	chip_id = ar7_chip_id();
-	switch (chip_id) {
-	case AR7_CHIP_7100:
-	case AR7_CHIP_7200:
-		ar7_wdt_res.start = AR7_REGS_WDT;
-		break;
-	case AR7_CHIP_7300:
-		ar7_wdt_res.start = UR8_REGS_WDT;
-		break;
-	default:
-		break;
-	}
-
-	ar7_wdt_res.end = ar7_wdt_res.start + 0x20;
-
-	bootcr = (u32 *)ioremap_nocache(AR7_REGS_DCL, 4);
-	val = *bootcr;
-	iounmap(bootcr);
+	if (res)
+		pr_warning("unable to register usb slave: %d\n", res);
 
 	/* Register watchdog only if enabled in hardware */
-	if (val & AR7_WDT_HW_ENA)
-		res = platform_device_register(&ar7_wdt);
+	bootcr = ioremap_nocache(AR7_REGS_DCL, 4);
+	val = readl(bootcr);
+	iounmap(bootcr);
+	if (val & AR7_WDT_HW_ENA) {
+		chip_id = ar7_chip_id();
+		switch (chip_id) {
+		case AR7_CHIP_7100:
+		case AR7_CHIP_7200:
+			ar7_wdt_res.start = AR7_REGS_WDT;
+			break;
+		case AR7_CHIP_7300:
+			ar7_wdt_res.start = UR8_REGS_WDT;
+			break;
+		default:
+			break;
+		}
 
-	return res;
+		ar7_wdt_res.end = ar7_wdt_res.start + 0x20;
+		res = platform_device_register(&ar7_wdt);
+		if (res)
+			pr_warning("unable to register watchdog: %d\n", res);
+	}
+
+	return 0;
 }
 arch_initcall(ar7_register_devices);
