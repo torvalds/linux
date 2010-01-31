@@ -24,8 +24,8 @@
 #include <asm/mach-ar7/gpio.h>
 
 struct ar7_gpio_chip {
-	void __iomem	*regs;
-	struct gpio_chip chip;
+	void __iomem		*regs;
+	struct gpio_chip	chip;
 };
 
 static int ar7_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
@@ -77,7 +77,7 @@ static int ar7_gpio_direction_output(struct gpio_chip *chip,
 
 static struct ar7_gpio_chip ar7_gpio_chip = {
 	.chip = {
-		.label		= "ar7-gpio",
+		.label			= "ar7-gpio",
 		.direction_input	= ar7_gpio_direction_input,
 		.direction_output	= ar7_gpio_direction_output,
 		.set			= ar7_gpio_set_value,

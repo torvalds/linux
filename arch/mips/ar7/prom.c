@@ -32,8 +32,8 @@
 #define MAX_ENTRY 80
 
 struct env_var {
-	char *name;
-	char *value;
+	char	*name;
+	char	*value;
 };
 
 static struct env_var adam2_env[MAX_ENTRY];
@@ -41,6 +41,7 @@ static struct env_var adam2_env[MAX_ENTRY];
 char *prom_getenv(const char *name)
 {
 	int i;
+
 	for (i = 0; (i < MAX_ENTRY) && adam2_env[i].name; i++)
 		if (!strcmp(name, adam2_env[i].name))
 			return adam2_env[i].value;
@@ -61,38 +62,38 @@ static void  __init ar7_init_cmdline(int argc, char *argv[])
 }
 
 struct psbl_rec {
-	u32 psbl_size;
-	u32 env_base;
-	u32 env_size;
-	u32 ffs_base;
-	u32 ffs_size;
+	u32	psbl_size;
+	u32	env_base;
+	u32	env_size;
+	u32	ffs_base;
+	u32	ffs_size;
 };
 
 static __initdata char psp_env_version[] = "TIENV0.8";
 
 struct psp_env_chunk {
-	u8 num;
-	u8 ctrl;
-	u16 csum;
-	u8 len;
-	char data[11];
+	u8	num;
+	u8	ctrl;
+	u16	csum;
+	u8	len;
+	char	data[11];
 } __attribute__ ((packed));
 
 struct psp_var_map_entry {
-	u8 num;
-	char *value;
+	u8	num;
+	char	*value;
 };
 
 static struct psp_var_map_entry psp_var_map[] = {
-	{ 1, "cpufrequency" },
-	{ 2, "memsize" },
-	{ 3, "flashsize" },
-	{ 4, "modetty0" },
-	{ 5, "modetty1" },
-	{ 8, "maca" },
-	{ 9, "macb" },
-	{ 28, "sysfrequency" },
-	{ 38, "mipsfrequency" },
+	{  1,	"cpufrequency" },
+	{  2,	"memsize" },
+	{  3,	"flashsize" },
+	{  4,	"modetty0" },
+	{  5,	"modetty1" },
+	{  8,	"maca" },
+	{  9,	"macb" },
+	{ 28,	"sysfrequency" },
+	{ 38,	"mipsfrequency" },
 };
 
 /*
@@ -139,6 +140,7 @@ static char * __init lookup_psp_var_map(u8 num)
 static void __init add_adam2_var(char *name, char *value)
 {
 	int i;
+
 	for (i = 0; i < MAX_ENTRY; i++) {
 		if (!adam2_env[i].name) {
 			adam2_env[i].name = name;
