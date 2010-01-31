@@ -1108,7 +1108,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	tx->flags |= IEEE80211_TX_FRAGMENTED;
 
 	/* process and remove the injection radiotap header */
-	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED)) {
+	if (unlikely(info->flags & IEEE80211_TX_INTFL_HAS_RADIOTAP)) {
 		if (!__ieee80211_parse_tx_radiotap(tx, skb))
 			return TX_DROP;
 
@@ -1117,6 +1117,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		 * the radiotap header that was present and pre-filled
 		 * 'tx' with tx control information.
 		 */
+		info->flags &= ~IEEE80211_TX_INTFL_HAS_RADIOTAP;
 	}
 
 	/*
@@ -1499,7 +1500,8 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		int hdrlen;
 		u16 len_rthdr;
 
-		info->flags |= IEEE80211_TX_CTL_INJECTED;
+		info->flags |= IEEE80211_TX_CTL_INJECTED |
+			       IEEE80211_TX_INTFL_HAS_RADIOTAP;
 
 		len_rthdr = ieee80211_get_radiotap_len(skb->data);
 		hdr = (struct ieee80211_hdr *)(skb->data + len_rthdr);
