@@ -58,7 +58,7 @@ config IRQ_PER_CPU
 
 config NR_IRQS
 	int "Number of virtual interrupt numbers"
-	range 32 512
+	range 32 32768
 	default "512"
 	help
 	  This defines the number of virtual interrupt numbers the kernel
