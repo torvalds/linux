@@ -1,5 +1,5 @@
 /*
- * MosChips MCS7830 based USB 2.0 Ethernet Devices
+ * MOSCHIP MCS7830 based USB 2.0 Ethernet Devices
  *
  * based on usbnet.c, asix.c and the vendor provided mcs7830 driver
  *
@@ -71,7 +71,7 @@
 				 ADVERTISE_100HALF | ADVERTISE_10FULL | \
 				 ADVERTISE_10HALF | ADVERTISE_CSMA)
 
-/* HIF_REG_XX coressponding index value */
+/* HIF_REG_XX corresponding index value */
 enum {
 	HIF_REG_MULTICAST_HASH			= 0x00,
 	HIF_REG_PACKET_GAP1			= 0x08,
@@ -92,7 +92,7 @@ enum {
 	   HIF_REG_CONFIG_TXENABLE		= 0x08,
 	   HIF_REG_CONFIG_SLEEPMODE		= 0x04,
 	   HIF_REG_CONFIG_ALLMULTICAST		= 0x02,
-	   HIF_REG_CONFIG_PROMISCIOUS		= 0x01,
+	   HIF_REG_CONFIG_PROMISCUOUS		= 0x01,
 	HIF_REG_ETHERNET_ADDR			= 0x0f,
 	HIF_REG_22				= 0x15,
 	HIF_REG_PAUSE_THRESHOLD			= 0x16,
@@ -417,7 +417,7 @@ static void mcs7830_set_multicast(struct net_device *net)
 	data->config |= HIF_REG_CONFIG_ALLMULTICAST;
 
 	if (net->flags & IFF_PROMISC) {
-		data->config |= HIF_REG_CONFIG_PROMISCIOUS;
+		data->config |= HIF_REG_CONFIG_PROMISCUOUS;
 	} else if (net->flags & IFF_ALLMULTI ||
 		   net->mc_count > MCS7830_MAX_MCAST) {
 		data->config |= HIF_REG_CONFIG_ALLMULTICAST;
@@ -522,7 +522,7 @@ static const struct net_device_ops mcs7830_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl 		= mcs7830_ioctl,
 	.ndo_set_multicast_list = mcs7830_set_multicast,
-	.ndo_set_mac_address	 = mcs7830_set_mac_address,
+	.ndo_set_mac_address	= mcs7830_set_mac_address,
 };
 
 static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
@@ -553,7 +553,7 @@ out:
 	return ret;
 }
 
-/* The chip always appends a status bytes that we need to strip */
+/* The chip always appends a status byte that we need to strip */
 static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	u8 status;
