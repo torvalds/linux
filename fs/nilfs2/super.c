@@ -96,9 +96,6 @@ void nilfs_error(struct super_block *sb, const char *function,
 	if (!(sb->s_flags & MS_RDONLY)) {
 		struct the_nilfs *nilfs = sbi->s_nilfs;
 
-		if (!nilfs_test_opt(sbi, ERRORS_CONT))
-			nilfs_detach_segment_constructor(sbi);
-
 		down_write(&nilfs->ns_sem);
 		if (!(nilfs->ns_mount_state & NILFS_ERROR_FS)) {
 			nilfs->ns_mount_state |= NILFS_ERROR_FS;
