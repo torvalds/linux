@@ -384,8 +384,7 @@ static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 	   shared area */
 	if ((vma->vm_end - vma->vm_start) > SEP_DRIVER_MMMAP_AREA_SIZE) {
 		edbg("SEP Driver mmap requested size is more than allowed\n");
-		printk(KERN_WARNING "SEP Driver mmap requested size is more \
-			than allowed\n");
+		printk(KERN_WARNING "SEP Driver mmap requested size is more than allowed\n");
 		printk(KERN_WARNING "SEP Driver vma->vm_end is %08lx\n", vma->vm_end);
 		printk(KERN_WARNING "SEP Driver vma->vm_end is %08lx\n", vma->vm_start);
 		return -EAGAIN;

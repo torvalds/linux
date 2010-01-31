@@ -3813,8 +3813,7 @@ static int __init rtl8180_pci_module_init(void)
 		return ret;
 	}
 
-	printk(KERN_INFO "\nLinux kernel driver for RTL8180 \
-/ RTL8185 based WLAN cards\n");
+	printk(KERN_INFO "\nLinux kernel driver for RTL8180 / RTL8185 based WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2004-2005, Andrea Merello\n");
 	DMESG("Initializing module");
 	DMESG("Wireless extensions version %d", WIRELESS_EXT);
