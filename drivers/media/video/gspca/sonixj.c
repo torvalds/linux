@@ -21,6 +21,7 @@
 
 #define MODULE_NAME "sonixj"
 
+#include <linux/input.h>
 #include "gspca.h"
 #include "jpeg.h"
 
@@ -1344,7 +1345,8 @@ static void bridge_init(struct gspca_dev *gspca_dev,
 		{0x00, 0x40, 0x38, 0x30, 0x00, 0x20};
 	static const u8 regd4[] = {0x60, 0x00, 0x00};
 
-	reg_w1(gspca_dev, 0xf1, 0x00);
+	/* sensor clock already enabled in sd_init */
+	/* reg_w1(gspca_dev, 0xf1, 0x00); */
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 
 	/* configure gpio */
@@ -1536,7 +1538,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	reg_w1(gspca_dev, 0xf1, 0x01);
+	/* Note we do not disable the sensor clock here (power saving mode),
+	   as that also disables the button on the cam. */
+	reg_w1(gspca_dev, 0xf1, 0x00);
 
 	/* set the i2c address */
 	sn9c1xx = sn_tb[sd->sensor];
@@ -2197,7 +2201,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, sn9c1xx[0x17]);
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 	reg_w1(gspca_dev, 0x01, data);
-	reg_w1(gspca_dev, 0xf1, 0x00);
+	/* Don't disable sensor clock as that disables the button on the cam */
+	/* reg_w1(gspca_dev, 0xf1, 0x01); */
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -2550,6 +2555,25 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet data */
+			int len)		/* interrupt packet length */
+{
+	int ret = -EINVAL;
+
+	if (len == 1 && data[0] == 1) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+		input_sync(gspca_dev->input_dev);
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -2565,6 +2589,9 @@ static const struct sd_desc sd_desc = {
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
 	.querymenu = sd_querymenu,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 };
 
 /* -- module initialisation -- */
