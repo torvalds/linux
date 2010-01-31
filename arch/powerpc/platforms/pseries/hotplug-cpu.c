@@ -397,12 +397,12 @@ static int parse_cede_parameters(void)
 				CEDE_LATENCY_PARAM_MAX_LENGTH);
 
 	if (call_status != 0)
-		printk(KERN_INFO "CEDE_LATENCY: \
-			%s %s Error calling get-system-parameter(0x%x)\n",
+		printk(KERN_INFO "CEDE_LATENCY: "
+			"%s %s Error calling get-system-parameter(0x%x)\n",
 			__FILE__, __func__, call_status);
 	else
-		printk(KERN_INFO "CEDE_LATENCY: \
-			get-system-parameter successful.\n");
+		printk(KERN_INFO "CEDE_LATENCY: "
+			"get-system-parameter successful.\n");
 
 	return call_status;
 }
