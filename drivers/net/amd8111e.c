@@ -1176,8 +1176,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 			/* Schedule a polling routine */
 			__napi_schedule(&lp->napi);
 		} else if (intren0 & RINTEN0) {
-			printk("************Driver bug! \
-				interrupt while in poll\n");
+			printk("************Driver bug! interrupt while in poll\n");
 			/* Fix by disable receive interrupts */
 			writel(RINTEN0, mmio + INTEN0);
 		}
