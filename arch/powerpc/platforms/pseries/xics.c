@@ -510,15 +510,13 @@ static void __init xics_init_host(void)
 /*
  * XICS only has a single IPI, so encode the messages per CPU
  */
-struct xics_ipi_struct {
-        unsigned long value;
-	} ____cacheline_aligned;
-
-static struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
+static DEFINE_PER_CPU_SHARED_ALIGNED(unsigned long, xics_ipi_message);
 
 static inline void smp_xics_do_message(int cpu, int msg)
 {
-	set_bit(msg, &xics_ipi_message[cpu].value);
+	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
+
+	set_bit(msg, tgt);
 	mb();
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		lpar_qirr_info(cpu, IPI_PRIORITY);
@@ -544,25 +542,23 @@ void smp_xics_message_pass(int target, int msg)
 
 static irqreturn_t xics_ipi_dispatch(int cpu)
 {
+	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
+
 	WARN_ON(cpu_is_offline(cpu));
 
 	mb();	/* order mmio clearing qirr */
-	while (xics_ipi_message[cpu].value) {
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION,
-				       &xics_ipi_message[cpu].value)) {
+	while (*tgt) {
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt)) {
 			smp_message_recv(PPC_MSG_CALL_FUNCTION);
 		}
-		if (test_and_clear_bit(PPC_MSG_RESCHEDULE,
-				       &xics_ipi_message[cpu].value)) {
+		if (test_and_clear_bit(PPC_MSG_RESCHEDULE, tgt)) {
 			smp_message_recv(PPC_MSG_RESCHEDULE);
 		}
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE,
-				       &xics_ipi_message[cpu].value)) {
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE, tgt)) {
 			smp_message_recv(PPC_MSG_CALL_FUNC_SINGLE);
 		}
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
-		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
-				       &xics_ipi_message[cpu].value)) {
+		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK, tgt)) {
 			smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
 		}
 #endif
