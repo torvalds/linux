@@ -85,6 +85,7 @@ enum {
 	   HIF_REG_PHY_CMD2_PEND_FLAG_BIT	= 0x80,
 	   HIF_REG_PHY_CMD2_READY_FLAG_BIT	= 0x40,
 	HIF_REG_CONFIG				= 0x0e,
+	/* hmm, spec sez: "R/W", "Except bit 3" (likely TXENABLE). */
 	   HIF_REG_CONFIG_CFG			= 0x80,
 	   HIF_REG_CONFIG_SPEED100		= 0x40,
 	   HIF_REG_CONFIG_FULLDUPLEX_ENABLE	= 0x20,
@@ -94,7 +95,7 @@ enum {
 	   HIF_REG_CONFIG_ALLMULTICAST		= 0x02,
 	   HIF_REG_CONFIG_PROMISCUOUS		= 0x01,
 	HIF_REG_ETHERNET_ADDR			= 0x0f,
-	HIF_REG_22				= 0x15,
+	HIF_REG_FRAME_DROP_COUNTER		= 0x15, /* 0..ff; reset: 0 */
 	HIF_REG_PAUSE_THRESHOLD			= 0x16,
 	   HIF_REG_PAUSE_THRESHOLD_DEFAULT	= 0,
 };
@@ -334,7 +335,7 @@ static int mcs7830_get_rev(struct usbnet *dev)
 {
 	u8 dummy[2];
 	int ret;
-	ret = mcs7830_get_reg(dev, HIF_REG_22, 2, dummy);
+	ret = mcs7830_get_reg(dev, HIF_REG_FRAME_DROP_COUNTER, 2, dummy);
 	if (ret > 0)
 		return 2; /* Rev C or later */
 	return 1; /* earlier revision */
