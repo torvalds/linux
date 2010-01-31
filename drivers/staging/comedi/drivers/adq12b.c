@@ -201,15 +201,16 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unipolar = it->options[1];
 	differential = it->options[2];
 
-	printk("comedi%d: adq12b called with options base=0x%03lx, %s and %s\n",
-	       dev->minor, iobase, (unipolar == 1) ? "unipolar" : "bipolar",
+	printk(KERN_INFO "comedi%d: adq12b called with options base=0x%03lx, "
+	       "%s and %s\n", dev->minor, iobase,
+	       (unipolar == 1) ? "unipolar" : "bipolar",
 	       (differential == 1) ? "differential" : "single-ended");
 
 	/* if no address was specified, try the default 0x300 */
 	if (iobase == 0) {
-		printk
-		    ("comedi%d: adq12b warning: I/O base address not specified. Trying the default 0x300.\n",
-		     dev->minor);
+		printk(KERN_WARNING "comedi%d: adq12b warning: I/O base "
+		       "address not specified. Trying the default 0x300.\n",
+		       dev->minor);
 		iobase = 0x300;
 	}
 
@@ -289,7 +290,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_do_insn_bits;
 
-	printk("attached\n");
+	printk(KERN_INFO "attached\n");
 
 	return 0;
 }
@@ -309,7 +310,7 @@ static int adq12b_detach(struct comedi_device *dev)
 
 	kfree(devpriv);
 
-	printk("comedi%d: adq12b: removed\n", dev->minor);
+	printk(KERN_INFO "comedi%d: adq12b: removed\n", dev->minor);
 
 	return 0;
 }
@@ -354,7 +355,8 @@ static int adq12b_ai_rinsn(struct comedi_device *dev,
 		hi = inb(dev->iobase + ADQ12B_ADHIG);
 		lo = inb(dev->iobase + ADQ12B_ADLOW);
 
-		/* printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n", channel, range, status,  hi, lo); */
+		/* printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n",
+		       channel, range, status,  hi, lo); */
 		data[n] = (hi << 8) | lo;
 
 	}
