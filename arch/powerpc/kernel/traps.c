@@ -483,6 +483,8 @@ void machine_check_exception(struct pt_regs *regs)
 {
 	int recover = 0;
 
+	__get_cpu_var(irq_stat).mce_exceptions++;
+
 	/* See if any machine dependent calls. In theory, we would want
 	 * to call the CPU first, and call the ppc_md. one if the CPU
 	 * one returns a positive number. However there is existing code
@@ -965,6 +967,8 @@ void vsx_unavailable_exception(struct pt_regs *regs)
 
 void performance_monitor_exception(struct pt_regs *regs)
 {
+	__get_cpu_var(irq_stat).pmu_irqs++;
+
 	perf_irq(regs);
 }
 

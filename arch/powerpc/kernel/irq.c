@@ -196,6 +196,21 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	}
 #endif /* CONFIG_PPC32 && CONFIG_TAU_INT */
 
+	seq_printf(p, "%*s: ", prec, "LOC");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs);
+        seq_printf(p, "  Local timer interrupts\n");
+
+	seq_printf(p, "%*s: ", prec, "CNT");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).pmu_irqs);
+	seq_printf(p, "  Performance monitoring interrupts\n");
+
+	seq_printf(p, "%*s: ", prec, "MCE");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
+	seq_printf(p, "  Machine check exceptions\n");
+
 	seq_printf(p, "%*s: %10u\n", prec, "BAD", ppc_spurious_interrupts);
 
 	return 0;
@@ -256,6 +271,26 @@ int show_interrupts(struct seq_file *p, void *v)
 out:
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
+}
+
+/*
+ * /proc/stat helpers
+ */
+u64 arch_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = per_cpu(irq_stat, cpu).timer_irqs;
+
+	sum += per_cpu(irq_stat, cpu).pmu_irqs;
+	sum += per_cpu(irq_stat, cpu).mce_exceptions;
+
+	return sum;
+}
+
+u64 arch_irq_stat(void)
+{
+	u64 sum = ppc_spurious_interrupts;
+
+	return sum;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

@@ -575,6 +575,8 @@ void timer_interrupt(struct pt_regs * regs)
 
 	trace_timer_interrupt_entry(regs);
 
+	__get_cpu_var(irq_stat).timer_irqs++;
+
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continuue to take decrementer exceptions */
 	set_dec(DECREMENTER_MAX);
