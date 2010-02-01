@@ -349,6 +349,11 @@ static void atombios_crtc_set_timing(struct drm_crtc *crtc,
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+union atom_enable_ss {
+	ENABLE_LVDS_SS_PARAMETERS legacy;
+	ENABLE_SPREAD_SPECTRUM_ON_PPLL_PS_ALLOCATION v1;
+};
+
 static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
@@ -358,8 +363,7 @@ static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 	struct radeon_encoder *radeon_encoder = NULL;
 	struct radeon_encoder_atom_dig *dig = NULL;
 	int index = GetIndexIntoMasterTable(COMMAND, EnableSpreadSpectrumOnPPLL);
-	ENABLE_SPREAD_SPECTRUM_ON_PPLL_PS_ALLOCATION args;
-	ENABLE_LVDS_SS_PARAMETERS legacy_args;
+	union atom_enable_ss args;
 	uint16_t percentage = 0;
 	uint8_t type = 0, step = 0, delay = 0, range = 0;
 
@@ -386,25 +390,23 @@ static void atombios_set_ss(struct drm_crtc *crtc, int enable)
 	if (!radeon_encoder)
 		return;
 
+	memset(&args, 0, sizeof(args));
 	if (ASIC_IS_AVIVO(rdev)) {
-		memset(&args, 0, sizeof(args));
-		args.usSpreadSpectrumPercentage = cpu_to_le16(percentage);
-		args.ucSpreadSpectrumType = type;
-		args.ucSpreadSpectrumStep = step;
-		args.ucSpreadSpectrumDelay = delay;
-		args.ucSpreadSpectrumRange = range;
-		args.ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
-		args.ucEnable = enable;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		args.v1.usSpreadSpectrumPercentage = cpu_to_le16(percentage);
+		args.v1.ucSpreadSpectrumType = type;
+		args.v1.ucSpreadSpectrumStep = step;
+		args.v1.ucSpreadSpectrumDelay = delay;
+		args.v1.ucSpreadSpectrumRange = range;
+		args.v1.ucPpll = radeon_crtc->crtc_id ? ATOM_PPLL2 : ATOM_PPLL1;
+		args.v1.ucEnable = enable;
 	} else {
-		memset(&legacy_args, 0, sizeof(legacy_args));
-		legacy_args.usSpreadSpectrumPercentage = cpu_to_le16(percentage);
-		legacy_args.ucSpreadSpectrumType = type;
-		legacy_args.ucSpreadSpectrumStepSize_Delay = (step & 3) << 2;
-		legacy_args.ucSpreadSpectrumStepSize_Delay |= (delay & 7) << 4;
-		legacy_args.ucEnable = enable;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&legacy_args);
+		args.legacy.usSpreadSpectrumPercentage = cpu_to_le16(percentage);
+		args.legacy.ucSpreadSpectrumType = type;
+		args.legacy.ucSpreadSpectrumStepSize_Delay = (step & 3) << 2;
+		args.legacy.ucSpreadSpectrumStepSize_Delay |= (delay & 7) << 4;
+		args.legacy.ucEnable = enable;
 	}
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
 union adjust_pixel_clock {
