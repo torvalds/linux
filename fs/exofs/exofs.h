@@ -58,6 +58,14 @@
 struct exofs_layout {
 	osd_id		s_pid;			/* partition ID of file system*/
 
+	/* Our way of looking at the data_map */
+	unsigned stripe_unit;
+	unsigned mirrors_p1;
+
+	unsigned group_width;
+
+	enum exofs_inode_layout_gen_functions lay_func;
+
 	unsigned	s_numdevs;		/* Num of devices in array    */
 	struct osd_dev	*s_ods[0];		/* Variable length            */
 };
@@ -133,6 +141,9 @@ struct exofs_io_state {
 	struct exofs_per_dev_state {
 		struct osd_request *or;
 		struct bio *bio;
+		loff_t offset;
+		unsigned length;
+		unsigned dev;
 	} per_dev[];
 };
 

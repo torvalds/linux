@@ -869,18 +869,17 @@ static const struct osd_attr g_attr_inode_dir_layout = ATTR_DEF(
 	0);
 
 /*
- * Read an inode from the OSD, and return it as is.  We also return the size
- * attribute in the 'obj_size' argument.
+ * Read the Linux inode info from the OSD, and return it as is. In exofs the
+ * inode info is in an application specific page/attribute of the osd-object.
  */
 static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
-		    struct exofs_fcb *inode, uint64_t *obj_size)
+		    struct exofs_fcb *inode)
 {
 	struct exofs_sb_info *sbi = sb->s_fs_info;
 	struct osd_attr attrs[] = {
 		[0] = g_attr_inode_data,
 		[1] = g_attr_inode_file_layout,
 		[2] = g_attr_inode_dir_layout,
-		[3] = g_attr_logical_length,
 	};
 	struct exofs_io_state *ios;
 	struct exofs_on_disk_inode_layout *layout;
@@ -944,15 +943,6 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 		}
 	}
 
-	*obj_size = ~0;
-	ret = extract_attr_from_ios(ios, &attrs[3]);
-	if (ret) {
-		EXOFS_ERR("%s: extract_attr of logical_length failed\n",
-			  __func__);
-		goto out;
-	}
-	*obj_size = get_unaligned_be64(attrs[3].val_ptr);
-
 out:
 	exofs_put_io_state(ios);
 	return ret;
@@ -971,7 +961,6 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 	struct exofs_i_info *oi;
 	struct exofs_fcb fcb;
 	struct inode *inode;
-	uint64_t obj_size;
 	int ret;
 
 	inode = iget_locked(sb, ino);
@@ -983,7 +972,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 	__oi_init(oi);
 
 	/* read the inode from the osd */
-	ret = exofs_get_inode(sb, oi, &fcb, &obj_size);
+	ret = exofs_get_inode(sb, oi, &fcb);
 	if (ret)
 		goto bad_inode;
 
@@ -1003,13 +992,6 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 	i_size_write(inode, oi->i_commit_size);
 	inode->i_blkbits = EXOFS_BLKSHIFT;
 	inode->i_generation = le32_to_cpu(fcb.i_generation);
-
-	if ((inode->i_size != obj_size) &&
-		(!exofs_inode_is_fast_symlink(inode))) {
-		EXOFS_ERR("WARNING: Size of inode=%llu != object=%llu\n",
-			  inode->i_size, _LLU(obj_size));
-		/* FIXME: call exofs_inode_recovery() */
-	}
 
 	oi->i_dir_start_lookup = 0;
 
