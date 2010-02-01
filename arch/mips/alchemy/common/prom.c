@@ -43,11 +43,6 @@ int prom_argc;
 char **prom_argv;
 char **prom_envp;
 
-char * __init_or_module prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
-}
-
 void prom_init_cmdline(void)
 {
 	char *cp;
@@ -121,14 +116,12 @@ static inline void str2eaddr(unsigned char *ea, unsigned char *str)
 int prom_get_ethernet_addr(char *ethernet_addr)
 {
 	char *ethaddr_str;
-	char *argptr;
 
 	/* Check the environment variables first */
 	ethaddr_str = prom_getenv("ethaddr");
 	if (!ethaddr_str) {
 		/* Check command line */
-		argptr = prom_getcmdline();
-		ethaddr_str = strstr(argptr, "ethaddr=");
+		ethaddr_str = strstr(arcs_cmdline, "ethaddr=");
 		if (!ethaddr_str)
 			return -1;
 
