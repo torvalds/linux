@@ -486,7 +486,7 @@ int __init omap_mux_init_signal(char *muxname, int val)
 static inline void omap_mux_decode(struct seq_file *s, u16 val)
 {
 	char *flags[OMAP_MUX_MAX_NR_FLAGS];
-	char mode[14];
+	char mode[sizeof("OMAP_MUX_MODE") + 1];
 	int i = -1;
 
 	sprintf(mode, "OMAP_MUX_MODE%d", val & 0x7);
@@ -553,6 +553,7 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 		if (!m0_name)
 			continue;
 
+		/* REVISIT: Needs to be updated if mode0 names get longer */
 		for (i = 0; i < OMAP_MUX_DEFNAME_LEN; i++) {
 			if (m0_name[i] == '\0') {
 				m0_def[i] = m0_name[i];
