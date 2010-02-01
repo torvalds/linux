@@ -243,6 +243,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramfc = NULL;
+	unsigned long flags;
 	int ret;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
@@ -278,6 +279,8 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 			return ret;
 	}
 
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+
 	dev_priv->engine.instmem.prepare_access(dev, true);
 
 	nv_wo32(dev, ramfc, 0x08/4, chan->pushbuf_base);
@@ -306,10 +309,12 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	ret = nv50_fifo_channel_enable(dev, chan->id, false);
 	if (ret) {
 		NV_ERROR(dev, "error enabling ch%d: %d\n", chan->id, ret);
+		spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 		nouveau_gpuobj_ref_del(dev, &chan->ramfc);
 		return ret;
 	}
 
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
 

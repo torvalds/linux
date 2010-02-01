@@ -533,6 +533,9 @@ struct drm_nouveau_private {
 	struct nouveau_engine engine;
 	struct nouveau_channel *channel;
 
+	/* For PFIFO and PGRAPH. */
+	spinlock_t context_switch_lock;
+
 	/* RAMIN configuration, RAMFC, RAMHT and RAMRO offsets */
 	struct nouveau_gpuobj *ramht;
 	uint32_t ramin_rsvd_vram;

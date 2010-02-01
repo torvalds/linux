@@ -117,6 +117,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 	int ret;
 
 	ret = nouveau_gpuobj_new_fake(dev, NV04_RAMFC(chan->id), ~0,
@@ -126,6 +127,8 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 						NULL, &chan->ramfc);
 	if (ret)
 		return ret;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	/* Setup initial state */
 	dev_priv->engine.instmem.prepare_access(dev, true);
@@ -144,6 +147,8 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	/* enable the fifo dma operation */
 	nv_wr32(dev, NV04_PFIFO_MODE,
 		nv_rd32(dev, NV04_PFIFO_MODE) | (1 << chan->id));
+
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
 
