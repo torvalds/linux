@@ -5402,15 +5402,15 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 	int ret;
 
 	while (level >= 0) {
-		if (path->slots[level] >=
-		    btrfs_header_nritems(path->nodes[level]))
-			break;
-
 		ret = walk_down_proc(trans, root, path, wc, lookup_info);
 		if (ret > 0)
 			break;
 
 		if (level == 0)
+			break;
+
+		if (path->slots[level] >=
+		    btrfs_header_nritems(path->nodes[level]))
 			break;
 
 		ret = do_walk_down(trans, root, path, wc, &lookup_info);
