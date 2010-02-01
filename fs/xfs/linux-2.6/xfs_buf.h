@@ -266,6 +266,7 @@ extern int xfs_buf_ispin(xfs_buf_t *);
 
 /* Delayed Write Buffer Routines */
 extern void xfs_buf_delwri_dequeue(xfs_buf_t *);
+extern void xfs_buf_delwri_promote(xfs_buf_t *);
 
 /* Buffer Daemon Setup Routines */
 extern int xfs_buf_init(void);
@@ -395,6 +396,7 @@ extern void xfs_free_buftarg(struct xfs_mount *, struct xfs_buftarg *);
 extern void xfs_wait_buftarg(xfs_buftarg_t *);
 extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int, unsigned int);
 extern int xfs_flush_buftarg(xfs_buftarg_t *, int);
+
 #ifdef CONFIG_KDB_MODULES
 extern struct list_head *xfs_get_buftarg_list(void);
 #endif

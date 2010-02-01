@@ -467,8 +467,10 @@ xfs_buf_item_unpin_remove(
 /*
  * This is called to attempt to lock the buffer associated with this
  * buf log item.  Don't sleep on the buffer lock.  If we can't get
- * the lock right away, return 0.  If we can get the lock, pull the
- * buffer from the free list, mark it busy, and return 1.
+ * the lock right away, return 0.  If we can get the lock, take a
+ * reference to the buffer. If this is a delayed write buffer that
+ * needs AIL help to be written back, invoke the pushbuf routine
+ * rather than the normal success path.
  */
 STATIC uint
 xfs_buf_item_trylock(
@@ -477,24 +479,18 @@ xfs_buf_item_trylock(
 	xfs_buf_t	*bp;
 
 	bp = bip->bli_buf;
-
-	if (XFS_BUF_ISPINNED(bp)) {
+	if (XFS_BUF_ISPINNED(bp))
 		return XFS_ITEM_PINNED;
-	}
-
-	if (!XFS_BUF_CPSEMA(bp)) {
+	if (!XFS_BUF_CPSEMA(bp))
 		return XFS_ITEM_LOCKED;
-	}
 
-	/*
-	 * Remove the buffer from the free list.  Only do this
-	 * if it's on the free list.  Private buffers like the
-	 * superblock buffer are not.
-	 */
+	/* take a reference to the buffer.  */
 	XFS_BUF_HOLD(bp);
 
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
 	trace_xfs_buf_item_trylock(bip);
+	if (XFS_BUF_ISDELAYWRITE(bp))
+		return XFS_ITEM_PUSHBUF;
 	return XFS_ITEM_SUCCESS;
 }
 
@@ -626,11 +622,9 @@ xfs_buf_item_committed(
 }
 
 /*
- * This is called to asynchronously write the buffer associated with this
- * buf log item out to disk. The buffer will already have been locked by
- * a successful call to xfs_buf_item_trylock().  If the buffer still has
- * B_DELWRI set, then get it going out to disk with a call to bawrite().
- * If not, then just release the buffer.
+ * The buffer is locked, but is not a delayed write buffer. This happens
+ * if we race with IO completion and hence we don't want to try to write it
+ * again. Just release the buffer.
  */
 STATIC void
 xfs_buf_item_push(
@@ -642,17 +636,29 @@ xfs_buf_item_push(
 	trace_xfs_buf_item_push(bip);
 
 	bp = bip->bli_buf;
+	ASSERT(!XFS_BUF_ISDELAYWRITE(bp));
+	xfs_buf_relse(bp);
+}
 
-	if (XFS_BUF_ISDELAYWRITE(bp)) {
-		int	error;
-		error = xfs_bawrite(bip->bli_item.li_mountp, bp);
-		if (error)
-			xfs_fs_cmn_err(CE_WARN, bip->bli_item.li_mountp,
-			"xfs_buf_item_push: pushbuf error %d on bip %p, bp %p",
-					error, bip, bp);
-	} else {
-		xfs_buf_relse(bp);
-	}
+/*
+ * The buffer is locked and is a delayed write buffer. Promote the buffer
+ * in the delayed write queue as the caller knows that they must invoke
+ * the xfsbufd to get this buffer written. We have to unlock the buffer
+ * to allow the xfsbufd to write it, too.
+ */
+STATIC void
+xfs_buf_item_pushbuf(
+	xfs_buf_log_item_t	*bip)
+{
+	xfs_buf_t	*bp;
+
+	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
+	trace_xfs_buf_item_pushbuf(bip);
+
+	bp = bip->bli_buf;
+	ASSERT(XFS_BUF_ISDELAYWRITE(bp));
+	xfs_buf_delwri_promote(bp);
+	xfs_buf_relse(bp);
 }
 
 /* ARGSUSED */
@@ -677,7 +683,7 @@ static struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_buf_item_committed,
 	.iop_push	= (void(*)(xfs_log_item_t*))xfs_buf_item_push,
-	.iop_pushbuf	= NULL,
+	.iop_pushbuf	= (void(*)(xfs_log_item_t*))xfs_buf_item_pushbuf,
 	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
 					xfs_buf_item_committing
 };

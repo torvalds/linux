@@ -253,6 +253,7 @@ xfsaild_push(
 	int		flush_log, count, stuck;
 	xfs_mount_t	*mp = ailp->xa_mount;
 	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
+	int		push_xfsbufd = 0;
 
 	spin_lock(&ailp->xa_lock);
 	xfs_trans_ail_cursor_init(ailp, cur);
@@ -308,6 +309,7 @@ xfsaild_push(
 			XFS_STATS_INC(xs_push_ail_pushbuf);
 			IOP_PUSHBUF(lip);
 			last_pushed_lsn = lsn;
+			push_xfsbufd = 1;
 			break;
 
 		case XFS_ITEM_PINNED:
@@ -318,12 +320,6 @@ xfsaild_push(
 
 		case XFS_ITEM_LOCKED:
 			XFS_STATS_INC(xs_push_ail_locked);
-			last_pushed_lsn = lsn;
-			stuck++;
-			break;
-
-		case XFS_ITEM_FLUSHING:
-			XFS_STATS_INC(xs_push_ail_flushing);
 			last_pushed_lsn = lsn;
 			stuck++;
 			break;
@@ -372,6 +368,11 @@ xfsaild_push(
 		 */
 		XFS_STATS_INC(xs_push_ail_flush);
 		xfs_log_force(mp, 0);
+	}
+
+	if (push_xfsbufd) {
+		/* we've got delayed write buffers to flush */
+		wake_up_process(mp->m_ddev_targp->bt_task);
 	}
 
 	if (!count) {
