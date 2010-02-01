@@ -356,59 +356,48 @@ out:
 
 int exofs_sbi_read(struct exofs_io_state *ios)
 {
-	int i, ret;
+	struct osd_request *or;
+	struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
+	unsigned first_dev = (unsigned)ios->obj.id;
 
-	for (i = 0; i < 1; i++) {
-		struct osd_request *or;
-		unsigned first_dev = (unsigned)ios->obj.id;
-
-		first_dev %= ios->layout->s_numdevs;
-		or = osd_start_request(ios->layout->s_ods[first_dev],
-				       GFP_KERNEL);
-		if (unlikely(!or)) {
-			EXOFS_ERR("%s: osd_start_request failed\n", __func__);
-			ret = -ENOMEM;
-			goto out;
-		}
-		ios->per_dev[i].or = or;
-		ios->numdevs++;
-
-		if (ios->bio) {
-			osd_req_read(or, &ios->obj, ios->offset, ios->bio,
-				     ios->length);
-			EXOFS_DBGMSG("read(0x%llx) offset=0x%llx length=0x%llx"
-				      " dev=%d\n", _LLU(ios->obj.id),
-				     _LLU(ios->offset),
-				     _LLU(ios->length),
-				     first_dev);
-		} else if (ios->kern_buff) {
-			osd_req_read_kern(or, &ios->obj, ios->offset,
-					   ios->kern_buff, ios->length);
-			EXOFS_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
-				      "length=0x%llx dev=%d\n",
-				     _LLU(ios->obj.id),
-				     _LLU(ios->offset),
-				     _LLU(ios->length),
-				     first_dev);
-		} else {
-			osd_req_get_attributes(or, &ios->obj);
-			EXOFS_DBGMSG2("obj(0x%llx) get_attributes=%d dev=%d\n",
-				     _LLU(ios->obj.id), ios->in_attr_len,
-				     first_dev);
-		}
-
-		if (ios->out_attr)
-			osd_req_add_set_attr_list(or, ios->out_attr,
-						  ios->out_attr_len);
-
-		if (ios->in_attr)
-			osd_req_add_get_attr_list(or, ios->in_attr,
-						  ios->in_attr_len);
+	first_dev %= ios->layout->s_numdevs;
+	or = osd_start_request(ios->layout->s_ods[first_dev], GFP_KERNEL);
+	if (unlikely(!or)) {
+		EXOFS_ERR("%s: osd_start_request failed\n", __func__);
+		return -ENOMEM;
 	}
-	ret = exofs_io_execute(ios);
+	per_dev->or = or;
+	ios->numdevs++;
 
-out:
-	return ret;
+	if (ios->bio) {
+		osd_req_read(or, &ios->obj, ios->offset, ios->bio, ios->length);
+		EXOFS_DBGMSG("read(0x%llx) offset=0x%llx length=0x%llx"
+			     " dev=%d\n", _LLU(ios->obj.id),
+			     _LLU(ios->offset), _LLU(ios->length),
+			     first_dev);
+	} else if (ios->kern_buff) {
+		int ret = osd_req_read_kern(or, &ios->obj, ios->offset,
+					    ios->kern_buff, ios->length);
+
+		EXOFS_DBGMSG2("read_kern(0x%llx) offset=0x%llx "
+			      "length=0x%llx dev=%d ret=>%d\n",
+			      _LLU(ios->obj.id), _LLU(ios->offset),
+			      _LLU(ios->length), first_dev, ret);
+		if (unlikely(ret))
+			return ret;
+	} else {
+		osd_req_get_attributes(or, &ios->obj);
+		EXOFS_DBGMSG2("obj(0x%llx) get_attributes=%d dev=%d\n",
+			      _LLU(ios->obj.id), ios->in_attr_len, first_dev);
+	}
+
+	if (ios->out_attr)
+		osd_req_add_set_attr_list(or, ios->out_attr, ios->out_attr_len);
+
+	if (ios->in_attr)
+		osd_req_add_get_attr_list(or, ios->in_attr, ios->in_attr_len);
+
+	return exofs_io_execute(ios);
 }
 
 int extract_attr_from_ios(struct exofs_io_state *ios, struct osd_attr *attr)
