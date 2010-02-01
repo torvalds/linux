@@ -54,9 +54,11 @@ struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 	atomic_t avg_lum;
 	int prev_avg_lum;
+	int exp_too_low_cnt;
+	int exp_too_high_cnt;
 
+	unsigned short exposure;
 	unsigned char gain;
-	unsigned char exposure;
 	unsigned char brightness;
 	unsigned char autogain;
 	unsigned char autogain_ignore_frames;
@@ -97,13 +99,15 @@ struct sensor_data {
 /* sensor_data flags */
 #define F_GAIN 0x01		/* has gain */
 #define F_SIF  0x02		/* sif or vga */
+#define F_COARSE_EXPO 0x04	/* exposure control is coarse */
 
 /* priv field of struct v4l2_pix_format flags (do not use low nibble!) */
 #define MODE_RAW 0x10		/* raw bayer mode */
 #define MODE_REDUCED_SIF 0x20	/* vga mode (320x240 / 160x120) on sif cam */
 
 /* ctrl_dis helper macros */
-#define NO_EXPO ((1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX))
+#define NO_EXPO ((1 << EXPOSURE_IDX) | (1 << COARSE_EXPOSURE_IDX) | \
+		 (1 << AUTOGAIN_IDX))
 #define NO_FREQ (1 << FREQ_IDX)
 #define NO_BRIGHTNESS (1 << BRIGHTNESS_IDX)
 
@@ -129,11 +133,10 @@ struct sensor_data {
 }
 
 /* We calculate the autogain at the end of the transfer of a frame, at this
-   moment a frame with the old settings is being transmitted, and a frame is
-   being captured with the old settings. So if we adjust the autogain we must
-   ignore atleast the 2 next frames for the new settings to come into effect
-   before doing any other adjustments */
-#define AUTOGAIN_IGNORE_FRAMES 3
+   moment a frame with the old settings is being captured and transmitted. So
+   if we adjust the gain or exposure we must ignore atleast the next frame for
+   the new settings to come into effect before doing any other adjustments. */
+#define AUTOGAIN_IGNORE_FRAMES 1
 
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
@@ -185,10 +188,10 @@ static const struct ctrl sd_ctrls[] = {
 			.id = V4L2_CID_EXPOSURE,
 			.type = V4L2_CTRL_TYPE_INTEGER,
 			.name = "Exposure",
-#define EXPOSURE_DEF  16 /*  32 ms / 30 fps */
-#define EXPOSURE_KNEE 50 /* 100 ms / 10 fps */
+#define EXPOSURE_DEF  33 /*  33 ms / 30 fps */
+#define EXPOSURE_KNEE 100 /* 100 ms / 10 fps */
 			.minimum = 0,
-			.maximum = 255,
+			.maximum = 511,
 			.step = 1,
 			.default_value = EXPOSURE_DEF,
 			.flags = 0,
@@ -196,7 +199,23 @@ static const struct ctrl sd_ctrls[] = {
 		.set = sd_setexposure,
 		.get = sd_getexposure,
 	},
-#define AUTOGAIN_IDX 3
+#define COARSE_EXPOSURE_IDX 3
+	{
+		{
+			.id = V4L2_CID_EXPOSURE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Exposure",
+#define COARSE_EXPOSURE_DEF  2 /* 30 fps */
+			.minimum = 2,
+			.maximum = 15,
+			.step = 1,
+			.default_value = COARSE_EXPOSURE_DEF,
+			.flags = 0,
+		},
+		.set = sd_setexposure,
+		.get = sd_getexposure,
+	},
+#define AUTOGAIN_IDX 4
 	{
 		{
 			.id = V4L2_CID_AUTOGAIN,
@@ -212,7 +231,7 @@ static const struct ctrl sd_ctrls[] = {
 		.set = sd_setautogain,
 		.get = sd_getautogain,
 	},
-#define FREQ_IDX 4
+#define FREQ_IDX 5
 	{
 		{
 			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -507,10 +526,10 @@ SENS(initPas106, NULL, pas106_sensor_init, NULL, NULL, F_SIF, NO_EXPO|NO_FREQ,
 	0),
 SENS(initPas202, initPas202, pas202_sensor_init, NULL, NULL, 0,
 	NO_EXPO|NO_FREQ, 0),
-SENS(initTas5110c, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF,
-	NO_BRIGHTNESS|NO_FREQ, 0),
-SENS(initTas5110d, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF,
-	NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initTas5110c, NULL, tas5110_sensor_init, NULL, NULL,
+	F_GAIN|F_SIF|F_COARSE_EXPO, NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initTas5110d, NULL, tas5110_sensor_init, NULL, NULL,
+	F_GAIN|F_SIF|F_COARSE_EXPO, NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initTas5130, NULL, tas5130_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ,
 	0),
 };
@@ -721,16 +740,10 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
-		__u8 reg;
-
 		/* register 19's high nibble contains the sn9c10x clock divider
 		   The high nibble configures the no fps according to the
 		   formula: 60 / high_nibble. With a maximum of 30 fps */
-		reg = 120 * sd->exposure / 1000;
-		if (reg < 2)
-			reg = 2;
-		else if (reg > 15)
-			reg = 15;
+		__u8 reg = sd->exposure;
 		reg = (reg << 4) | 0x0b;
 		reg_w(gspca_dev, 0x19, &reg, 1);
 		break;
@@ -766,7 +779,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		} else
 			reg10_max = 0x41;
 
-		reg11 = (60 * sd->exposure + 999) / 1000;
+		reg11 = (30 * sd->exposure + 999) / 1000;
 		if (reg11 < 1)
 			reg11 = 1;
 		else if (reg11 > 16)
@@ -778,8 +791,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 			reg11 = 3;
 
 		/* frame exposure time in ms = 1000 * reg11 / 30    ->
-		reg10 = sd->exposure * 2 * reg10_max / (1000 * reg11 / 30) */
-		reg10 = (sd->exposure * 60 * reg10_max) / (1000 * reg11);
+		reg10 = sd->exposure * reg10_max / (1000 * reg11 / 30) */
+		reg10 = (sd->exposure * 30 * reg10_max) / (1000 * reg11);
 
 		/* Don't allow this to get below 10 when using autogain, the
 		   steps become very large (relatively) when below 10 causing
@@ -839,30 +852,43 @@ static void setfreq(struct gspca_dev *gspca_dev)
 	}
 }
 
+#include "coarse_expo_autogain.h"
+
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
-	int deadzone, desired_avg_lum;
+	int deadzone, desired_avg_lum, result;
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum = atomic_read(&sd->avg_lum);
 
-	if (avg_lum == -1)
+	if (avg_lum == -1 || !sd->autogain)
 		return;
+
+	if (sd->autogain_ignore_frames > 0) {
+		sd->autogain_ignore_frames--;
+		return;
+	}
 
 	/* SIF / VGA sensors have a different autoexposure area and thus
 	   different avg_lum values for the same picture brightness */
 	if (sensor_data[sd->sensor].flags & F_SIF) {
-		deadzone = 1000;
-		desired_avg_lum = 7000;
+		deadzone = 500;
+		/* SIF sensors tend to overexpose, so keep this small */
+		desired_avg_lum = 5000;
 	} else {
-		deadzone = 3000;
+		deadzone = 1500;
 		desired_avg_lum = 23000;
 	}
 
-	if (sd->autogain_ignore_frames > 0)
-		sd->autogain_ignore_frames--;
-	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
-			sd->brightness * desired_avg_lum / 127,
-			deadzone, GAIN_KNEE, EXPOSURE_KNEE)) {
+	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO)
+		result = gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
+				sd->brightness * desired_avg_lum / 127,
+				deadzone);
+	else
+		result = gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
+				sd->brightness * desired_avg_lum / 127,
+				deadzone, GAIN_KNEE, EXPOSURE_KNEE);
+
+	if (result) {
 		PDEBUG(D_FRAM, "autogain: gain changed: gain: %d expo: %d",
 			(int)sd->gain, (int)sd->exposure);
 		sd->autogain_ignore_frames = AUTOGAIN_IGNORE_FRAMES;
@@ -897,7 +923,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->gain = GAIN_DEF;
-	sd->exposure = EXPOSURE_DEF;
+	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO) {
+		sd->exposure = COARSE_EXPOSURE_DEF;
+		gspca_dev->ctrl_dis |= (1 << EXPOSURE_IDX);
+	} else {
+		sd->exposure = EXPOSURE_DEF;
+		gspca_dev->ctrl_dis |= (1 << COARSE_EXPOSURE_IDX);
+	}
 	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN_IDX))
 		sd->autogain = 0; /* Disable do_autogain callback */
 	else
@@ -1001,6 +1033,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	sd->frames_to_drop = 0;
 	sd->autogain_ignore_frames = 0;
+	sd->exp_too_high_cnt = 0;
+	sd->exp_too_low_cnt = 0;
 	atomic_set(&sd->avg_lum, -1);
 	return 0;
 }
@@ -1159,11 +1193,14 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
+	sd->exp_too_high_cnt = 0;
+	sd->exp_too_low_cnt = 0;
+
 	/* when switching to autogain set defaults to make sure
 	   we are on a valid point of the autogain gain /
 	   exposure knee graph, and give this change time to
 	   take effect before doing autogain. */
-	if (sd->autogain) {
+	if (sd->autogain && !(sensor_data[sd->sensor].flags & F_COARSE_EXPO)) {
 		sd->exposure = EXPOSURE_DEF;
 		sd->gain = GAIN_DEF;
 		if (gspca_dev->streaming) {

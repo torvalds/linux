@@ -2417,6 +2417,8 @@ int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
 	int retval = 0;
 
 	for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
+		if (gspca_dev->ctrl_dis & (1 << i))
+			continue;
 		if (gspca_dev->sd_desc->ctrls[i].qctrl.id == V4L2_CID_GAIN)
 			gain_ctrl = &gspca_dev->sd_desc->ctrls[i];
 		if (gspca_dev->sd_desc->ctrls[i].qctrl.id == V4L2_CID_EXPOSURE)
