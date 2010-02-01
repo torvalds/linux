@@ -1008,11 +1008,8 @@ static void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
 static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2, u16 *slot)
 {
 	struct sky2_tx_le *le = sky2->tx_le + *slot;
-	struct tx_ring_info *re = sky2->tx_ring + *slot;
 
 	*slot = RING_NEXT(*slot, sky2->tx_ring_size);
-	re->flags = 0;
-	re->skb = NULL;
 	le->ctrl = 0;
 	return le;
 }
@@ -1580,8 +1577,7 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 	return count;
 }
 
-static void sky2_tx_unmap(struct pci_dev *pdev,
-			  const struct tx_ring_info *re)
+static void sky2_tx_unmap(struct pci_dev *pdev, struct tx_ring_info *re)
 {
 	if (re->flags & TX_MAP_SINGLE)
 		pci_unmap_single(pdev, pci_unmap_addr(re, mapaddr),
@@ -1591,6 +1587,7 @@ static void sky2_tx_unmap(struct pci_dev *pdev,
 		pci_unmap_page(pdev, pci_unmap_addr(re, mapaddr),
 			       pci_unmap_len(re, maplen),
 			       PCI_DMA_TODEVICE);
+	re->flags = 0;
 }
 
 /*
@@ -1797,6 +1794,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
 
+			re->skb = NULL;
 			dev_kfree_skb_any(skb);
 
 			sky2->tx_next = RING_NEXT(idx, sky2->tx_ring_size);
