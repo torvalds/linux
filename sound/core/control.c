@@ -237,8 +237,9 @@ struct snd_kcontrol *snd_ctl_new1(const struct snd_kcontrol_new *ncontrol,
 	access = ncontrol->access == 0 ? SNDRV_CTL_ELEM_ACCESS_READWRITE :
 		 (ncontrol->access & (SNDRV_CTL_ELEM_ACCESS_READWRITE|
 				      SNDRV_CTL_ELEM_ACCESS_INACTIVE|
-		 		      SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE|
-		 		      SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK));
+				      SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE|
+				      SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND|
+				      SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK));
 	kctl.info = ncontrol->info;
 	kctl.get = ncontrol->get;
 	kctl.put = ncontrol->put;
@@ -1099,7 +1100,7 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 
 	if (copy_from_user(&tlv, _tlv, sizeof(tlv)))
 		return -EFAULT;
-	if (tlv.length < sizeof(unsigned int) * 3)
+	if (tlv.length < sizeof(unsigned int) * 2)
 		return -EINVAL;
 	down_read(&card->controls_rwsem);
 	kctl = snd_ctl_find_numid(card, tlv.numid);
