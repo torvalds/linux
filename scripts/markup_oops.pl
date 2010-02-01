@@ -23,10 +23,10 @@ my $modulefile = "";
 # Get options
 Getopt::Long::GetOptions(
 	'cross-compile|c=s'	=> \$cross_compile,
-	'module|m=s'	=> \$modulefile,
+	'module|m=s'		=> \$modulefile,
 	'help|h'		=> \&usage,
-);
-my $vmlinux_name = $ARGV[$#ARGV];
+) || usage ();
+my $vmlinux_name = $ARGV[0];
 if (!defined($vmlinux_name)) {
 	my $kerver = `uname -r`;
 	chomp($kerver);
@@ -193,7 +193,7 @@ if ($target eq "0") {
 # if it's a module, we need to find the .ko file and calculate a load offset
 if ($module ne "") {
 	if ($modulefile eq "") {
-		my $modulefile = `modinfo $module | grep '^filename:' | awk '{ print \$2 }'`;
+		$modulefile = `modinfo -F filename $module`;
 		chomp($modulefile);
 	}
 	$filename = $modulefile;
@@ -362,7 +362,7 @@ Usage:
 
 OPTION:
   -c, --cross-compile CROSS_COMPILE	Specify the prefix used for toolchain.
-  -m, --module MODULE_DIRNAME		Specify the module directory name.
+  -m, --module MODULE_DIRNAME		Specify the module filename.
   -h, --help				Help.
 EOT
 	exit;
