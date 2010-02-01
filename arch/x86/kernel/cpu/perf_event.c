@@ -90,6 +90,7 @@ struct cpu_hw_events {
 	int			n_events;
 	int			n_added;
 	int			assign[X86_PMC_IDX_MAX]; /* event to counter assignment */
+	u64			tags[X86_PMC_IDX_MAX];
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
 };
 
@@ -1142,6 +1143,8 @@ static int __hw_perf_event_init(struct perf_event *event)
 	hwc->config = ARCH_PERFMON_EVENTSEL_INT;
 
 	hwc->idx = -1;
+	hwc->last_cpu = -1;
+	hwc->last_tag = ~0ULL;
 
 	/*
 	 * Count user and OS events unless requested not to.
@@ -1457,11 +1460,14 @@ static int collect_events(struct cpu_hw_events *cpuc, struct perf_event *leader,
 	return n;
 }
 
-
 static inline void x86_assign_hw_event(struct perf_event *event,
-				struct hw_perf_event *hwc, int idx)
+				struct cpu_hw_events *cpuc, int i)
 {
-	hwc->idx = idx;
+	struct hw_perf_event *hwc = &event->hw;
+
+	hwc->idx = cpuc->assign[i];
+	hwc->last_cpu = smp_processor_id();
+	hwc->last_tag = ++cpuc->tags[i];
 
 	if (hwc->idx == X86_PMC_IDX_FIXED_BTS) {
 		hwc->config_base = 0;
@@ -1478,6 +1484,15 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 		hwc->config_base = x86_pmu.eventsel;
 		hwc->event_base  = x86_pmu.perfctr;
 	}
+}
+
+static inline int match_prev_assignment(struct hw_perf_event *hwc,
+					struct cpu_hw_events *cpuc,
+					int i)
+{
+	return hwc->idx == cpuc->assign[i] &&
+		hwc->last_cpu == smp_processor_id() &&
+		hwc->last_tag == cpuc->tags[i];
 }
 
 static void __x86_pmu_disable(struct perf_event *event, struct cpu_hw_events *cpuc);
@@ -1508,7 +1523,14 @@ void hw_perf_enable(void)
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
-			if (hwc->idx == -1 || hwc->idx == cpuc->assign[i])
+			/*
+			 * we can avoid reprogramming counter if:
+			 * - assigned same counter as last time
+			 * - running on same CPU as last time
+			 * - no other event has used the counter since
+			 */
+			if (hwc->idx == -1 ||
+			    match_prev_assignment(hwc, cpuc, i))
 				continue;
 
 			__x86_pmu_disable(event, cpuc);
@@ -1522,12 +1544,12 @@ void hw_perf_enable(void)
 			hwc = &event->hw;
 
 			if (hwc->idx == -1) {
-				x86_assign_hw_event(event, hwc, cpuc->assign[i]);
+				x86_assign_hw_event(event, cpuc, i);
 				x86_perf_event_set_period(event, hwc, hwc->idx);
 			}
 			/*
 			 * need to mark as active because x86_pmu_disable()
-			 * clear active_mask and eventsp[] yet it preserves
+			 * clear active_mask and events[] yet it preserves
 			 * idx
 			 */
 			set_bit(hwc->idx, cpuc->active_mask);
