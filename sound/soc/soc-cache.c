@@ -39,8 +39,10 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
 
-	if (codec->cache_only)
+	if (codec->cache_only) {
+		codec->cache_sync = 1;
 		return 0;
+	}
 
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
@@ -105,8 +107,10 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
 
-	if (codec->cache_only)
+	if (codec->cache_only) {
+		codec->cache_sync = 1;
 		return 0;
+	}
 
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
@@ -161,8 +165,10 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
 
-	if (codec->cache_only)
+	if (codec->cache_only) {
+		codec->cache_sync = 1;
 		return 0;
+	}
 
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
@@ -192,8 +198,10 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (!snd_soc_codec_volatile_register(codec, reg))
 		reg_cache[reg] = value;
 
-	if (codec->cache_only)
+	if (codec->cache_only) {
+		codec->cache_sync = 1;
 		return 0;
+	}
 
 	if (codec->hw_write(codec->control_data, data, 3) == 3)
 		return 0;
@@ -313,8 +321,10 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
 
-	if (codec->cache_only)
+	if (codec->cache_only) {
+		codec->cache_sync = 1;
 		return 0;
+	}
 
 	ret = codec->hw_write(codec->control_data, data, 3);
 	if (ret == 3)
