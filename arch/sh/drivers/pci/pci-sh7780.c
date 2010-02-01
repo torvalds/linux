@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 #include "pci-sh4.h"
 #include <asm/mmu.h>
 #include <asm/sizes.h>
@@ -59,7 +60,11 @@ static int __init sh7780_pci_init(void)
 	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_PRST,
 		     chan->reg_base + SH4_PCICR);
 
-	/* Wait for it to come back up.. */
+	/*
+	 * Wait for it to come back up. The spec says to allow for up to
+	 * 1 second after toggling the reset pin, but in practice 100ms
+	 * is more than enough.
+	 */
 	mdelay(100);
 
 	id = __raw_readw(chan->reg_base + PCI_VENDOR_ID);
@@ -90,17 +95,34 @@ static int __init sh7780_pci_init(void)
 	 */
 	__raw_writel(SH4_PCICR_PREFIX, chan->reg_base + SH4_PCICR);
 
-	memphys = __pa(memory_start);
-	memsize = memory_end - memory_start;
-
-	/*
-	 * Set IO and Mem windows to local address
-	 * Make PCI and local address the same for easy 1 to 1 mapping
-	 */
 	__raw_writel(0, chan->reg_base + PCI_BASE_ADDRESS_0);
 
+	memphys = __pa(memory_start);
+	memsize = roundup_pow_of_two(memory_end - memory_start);
+
+	/*
+	 * If there's more than 512MB of memory, we need to roll over to
+	 * LAR1/LSR1.
+	 */
+	if (memsize > SZ_512M) {
+		__raw_writel(memphys + SZ_512M, chan->reg_base + SH4_PCILAR1);
+		__raw_writel((((memsize - SZ_512M) - SZ_1M) & 0x1ff00000) | 1,
+			     chan->reg_base + SH4_PCILSR1);
+		memsize = SZ_512M;
+	} else {
+		/*
+		 * Otherwise just zero it out and disable it.
+		 */
+		__raw_writel(0, chan->reg_base + SH4_PCILAR1);
+		__raw_writel(0, chan->reg_base + SH4_PCILSR1);
+	}
+
+	/*
+	 * LAR0/LSR0 covers up to the first 512MB, which is enough to
+	 * cover all of lowmem on most platforms.
+	 */
 	__raw_writel(memphys, chan->reg_base + SH4_PCILAR0);
-	__raw_writel((memsize - 1) << 9 | 1,
+	__raw_writel(((memsize - SZ_1M) & 0x1ff00000) | 1,
 		     chan->reg_base + SH4_PCILSR0);
 
 	/* Clear out PCI arbiter IRQs */
