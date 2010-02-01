@@ -2544,6 +2544,12 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE)
 		return 0;
 
+	/* If we've changed tiling, GTT-mappings of the object
+	 * need to re-fault to ensure that the correct fence register
+	 * setup is in place.
+	 */
+	i915_gem_release_mmap(obj);
+
 	/* On the i915, GPU access to tiled buffers is via a fence,
 	 * therefore we must wait for any outstanding access to complete
 	 * before clearing the fence.
