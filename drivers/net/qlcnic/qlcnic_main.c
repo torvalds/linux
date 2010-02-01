@@ -102,7 +102,7 @@ static void qlcnic_config_indev_addr(struct net_device *dev, unsigned long);
 
 #define PCI_DEVICE_ID_QLOGIC_QLE824X  0x8020
 
-static const struct pci_device_id qlcnic_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(qlcnic_pci_tbl) = {
 	ENTRY(PCI_DEVICE_ID_QLOGIC_QLE824X),
 	{0,}
 };
