@@ -968,6 +968,13 @@ static void __init omap_mux_init_list(struct omap_mux *superset)
 		}
 #endif
 
+#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)
+		if (!superset->muxnames || !superset->muxnames[0]) {
+			superset++;
+			continue;
+		}
+#endif
+
 		entry = omap_mux_list_add(superset);
 		if (!entry) {
 			printk(KERN_ERR "mux: Could not add entry\n");
