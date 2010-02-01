@@ -45,22 +45,13 @@ char **prom_envp;
 
 void prom_init_cmdline(void)
 {
-	char *cp;
-	int actr;
+	int i;
 
-	actr = 1; /* Always ignore argv[0] */
-
-	cp = &(arcs_cmdline[0]);
-	while (actr < prom_argc) {
-		strcpy(cp, prom_argv[actr]);
-		cp += strlen(prom_argv[actr]);
-		*cp++ = ' ';
-		actr++;
+	for (i = 1; i < prom_argc; i++) {
+		strlcat(arcs_cmdline, prom_argv[i], COMMAND_LINE_SIZE);
+		if (i < (prom_argc - 1))
+			strlcat(arcs_cmdline, " ", COMMAND_LINE_SIZE);
 	}
-	if (cp != &(arcs_cmdline[0])) /* get rid of trailing space */
-		--cp;
-	if (prom_argc > 1)
-		*cp = '\0';
 }
 
 char *prom_getenv(char *envname)
