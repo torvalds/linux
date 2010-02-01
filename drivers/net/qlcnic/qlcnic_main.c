@@ -1866,6 +1866,23 @@ qlcnic_set_drv_state(struct qlcnic_adapter *adapter, int state)
 	qlcnic_api_unlock(adapter);
 }
 
+static int
+qlcnic_clr_drv_state(struct qlcnic_adapter *adapter)
+{
+	u32  val;
+
+	if (qlcnic_api_lock(adapter))
+		return -EBUSY;
+
+	val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
+	val &= ~((u32)0x3 << (adapter->portnum * 4));
+	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
+
+	qlcnic_api_unlock(adapter);
+
+	return 0;
+}
+
 static void
 qlcnic_clr_all_drv_state(struct qlcnic_adapter *adapter)
 {
@@ -2119,7 +2136,10 @@ qlcnic_attach_work(struct work_struct *work)
 done:
 	adapter->fw_fail_cnt = 0;
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
+
+	if (!qlcnic_clr_drv_state(adapter))
+		qlcnic_schedule_work(adapter, qlcnic_fw_poll_work,
+							FW_POLL_DELAY);
 }
 
 static int
