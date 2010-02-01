@@ -71,6 +71,7 @@ static int __init sh7780_pci_init(void)
 	size_t memsize;
 	unsigned int id;
 	const char *type;
+	int ret;
 
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
@@ -197,7 +198,9 @@ static int __init sh7780_pci_init(void)
 	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO,
 		     chan->reg_base + SH4_PCICR);
 
-	register_pci_controller(chan);
+	ret = register_pci_controller(chan);
+	if (unlikely(ret))
+		return ret;
 
 	sh7780_pci66_init(chan);
 

@@ -216,8 +216,6 @@ static int __init sh5pci_init(void)
 	sh5_mem_resource.start = memStart;
 	sh5_mem_resource.end = memStart + memSize;
 
-	register_pci_controller(&sh5pci_controller);
-
-	return 0;
+	return register_pci_controller(&sh5pci_controller);
 }
 arch_initcall(sh5pci_init);

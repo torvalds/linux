@@ -176,8 +176,6 @@ static int __init sh7751_pci_init(void)
 	word = SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_ARBM;
 	pci_write_reg(chan, word, SH4_PCICR);
 
-	register_pci_controller(chan);
-
-	return 0;
+	return register_pci_controller(chan);
 }
 arch_initcall(sh7751_pci_init);

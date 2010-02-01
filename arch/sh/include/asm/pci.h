@@ -31,7 +31,7 @@ struct pci_channel {
 	unsigned int		need_domain_info;
 };
 
-extern void register_pci_controller(struct pci_channel *hose);
+extern int register_pci_controller(struct pci_channel *hose);
 extern int pci_is_66mhz_capable(struct pci_channel *hose,
 				int top_bus, int current_bus);
 

@@ -95,8 +95,6 @@ static int __init gapspci_init(void)
 	outl(0x00002001, GAPSPCI_BBA_CONFIG+0x10);
 	outl(0x01000000, GAPSPCI_BBA_CONFIG+0x14);
 
-	register_pci_controller(&dreamcast_pci_controller);
-
-	return 0;
+	return register_pci_controller(&dreamcast_pci_controller);
 }
 arch_initcall(gapspci_init);

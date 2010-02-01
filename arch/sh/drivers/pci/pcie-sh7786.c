@@ -296,9 +296,7 @@ static int __devinit sh7786_pcie_init_hw(struct sh7786_pcie_port *port)
 	if (unlikely(ret < 0))
 		return ret;
 
-	register_pci_controller(port->hose);
-
-	return 0;
+	return register_pci_controller(port->hose);
 }
 
 static struct sh7786_pcie_hwops sh7786_65nm_pcie_hwops __initdata = {

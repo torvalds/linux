@@ -58,7 +58,7 @@ static void __devinit pcibios_scanbus(struct pci_channel *hose)
 
 static DEFINE_MUTEX(pci_scan_mutex);
 
-void __devinit register_pci_controller(struct pci_channel *hose)
+int __devinit register_pci_controller(struct pci_channel *hose)
 {
 	if (request_resource(&iomem_resource, hose->mem_resource) < 0)
 		goto out;
@@ -88,10 +88,11 @@ void __devinit register_pci_controller(struct pci_channel *hose)
 		mutex_unlock(&pci_scan_mutex);
 	}
 
-	return;
+	return 0;
 
 out:
 	printk(KERN_WARNING "Skipping PCI bus scan due to resource conflict\n");
+	return -1;
 }
 
 static int __init pcibios_init(void)
