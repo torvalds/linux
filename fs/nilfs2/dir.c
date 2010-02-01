@@ -349,11 +349,11 @@ done:
  * Entry is guaranteed to be valid.
  */
 struct nilfs_dir_entry *
-nilfs_find_entry(struct inode *dir, struct dentry *dentry,
+nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
 		 struct page **res_page)
 {
-	const char *name = dentry->d_name.name;
-	int namelen = dentry->d_name.len;
+	const unsigned char *name = qstr->name;
+	int namelen = qstr->len;
 	unsigned reclen = NILFS_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
@@ -424,13 +424,13 @@ struct nilfs_dir_entry *nilfs_dotdot(struct inode *dir, struct page **p)
 	return de;
 }
 
-ino_t nilfs_inode_by_name(struct inode *dir, struct dentry *dentry)
+ino_t nilfs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 {
 	ino_t res = 0;
 	struct nilfs_dir_entry *de;
 	struct page *page;
 
-	de = nilfs_find_entry(dir, dentry, &page);
+	de = nilfs_find_entry(dir, qstr, &page);
 	if (de) {
 		res = le64_to_cpu(de->inode);
 		kunmap(page);
