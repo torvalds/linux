@@ -1246,6 +1246,7 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 	dvbdemux->feed = vmalloc(dvbdemux->feednum * sizeof(struct dvb_demux_feed));
 	if (!dvbdemux->feed) {
 		vfree(dvbdemux->filter);
+		dvbdemux->filter = NULL;
 		return -ENOMEM;
 	}
 	for (i = 0; i < dvbdemux->filternum; i++) {
