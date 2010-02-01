@@ -30,6 +30,8 @@
 #include "radeon.h"
 #include "radeon_drm.h"
 
+#include <linux/vga_switcheroo.h>
+
 int radeon_driver_unload_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -136,6 +138,7 @@ int radeon_driver_firstopen_kms(struct drm_device *dev)
 
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {
+	vga_switcheroo_process_delayed_switch();
 }
 
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)

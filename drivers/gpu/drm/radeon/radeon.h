@@ -118,6 +118,10 @@ struct radeon_device;
 /*
  * BIOS.
  */
+#define ATRM_BIOS_PAGE 4096
+
+bool radeon_atrm_supported(struct pci_dev *pdev);
+int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len);
 bool radeon_get_bios(struct radeon_device *rdev);
 
 
@@ -838,6 +842,8 @@ struct radeon_device {
 	int			audio_bits_per_sample;
 	uint8_t			audio_status_bits;
 	uint8_t			audio_category_code;
+
+	bool powered_down;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1042,6 +1048,8 @@ extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enabl
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
+extern int radeon_resume_kms(struct drm_device *dev);
+extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 struct r100_mc_save {

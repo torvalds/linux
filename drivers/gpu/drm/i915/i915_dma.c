@@ -35,6 +35,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
@@ -1199,6 +1200,32 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
+static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
+	if (state == VGA_SWITCHEROO_ON) {
+		printk(KERN_INFO "i915: switched off\n");
+		/* i915 resume handler doesn't set to D0 */
+		pci_set_power_state(dev->pdev, PCI_D0);
+		i915_resume(dev);
+	} else {
+		printk(KERN_ERR "i915: switched off\n");
+		i915_suspend(dev, pmm);
+	}
+}
+
+static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	bool can_switch;
+
+	spin_lock(&dev->count_lock);
+	can_switch = (dev->open_count == 0);
+	spin_unlock(&dev->count_lock);
+	return can_switch;
+}
+
 static int i915_load_modeset_init(struct drm_device *dev,
 				  unsigned long prealloc_start,
 				  unsigned long prealloc_size,
@@ -1257,6 +1284,12 @@ static int i915_load_modeset_init(struct drm_device *dev,
 
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
 	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
+	if (ret)
+		goto destroy_ringbuffer;
+
+	ret = vga_switcheroo_register_client(dev->pdev,
+					     i915_switcheroo_set_state,
+					     i915_switcheroo_can_switch);
 	if (ret)
 		goto destroy_ringbuffer;
 
@@ -1544,6 +1577,7 @@ int i915_driver_unload(struct drm_device *dev)
 			dev_priv->child_dev_num = 0;
 		}
 		drm_irq_uninstall(dev);
+		vga_switcheroo_unregister_client(dev->pdev);
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
 
@@ -1611,6 +1645,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 	if (!dev_priv || drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_fb_helper_restore();
+		vga_switcheroo_process_delayed_switch();
 		return;
 	}
 

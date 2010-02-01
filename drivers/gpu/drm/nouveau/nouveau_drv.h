@@ -614,7 +614,6 @@ struct drm_nouveau_private {
 	} susres;
 
 	struct backlight_device *backlight;
-	bool acpi_dsm;
 
 	struct nouveau_channel *evo;
 
@@ -681,6 +680,9 @@ extern int nouveau_ctxfw;
 extern int nouveau_ignorelid;
 extern int nouveau_nofbaccel;
 extern int nouveau_noaccel;
+
+extern int nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state);
+extern int nouveau_pci_resume(struct pci_dev *pdev);
 
 /* nouveau_state.c */
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);
@@ -848,19 +850,8 @@ extern int  nouveau_dma_init(struct nouveau_channel *);
 extern int  nouveau_dma_wait(struct nouveau_channel *, int size);
 
 /* nouveau_acpi.c */
-#ifdef CONFIG_ACPI
-extern int nouveau_hybrid_setup(struct drm_device *dev);
-extern bool nouveau_dsm_probe(struct drm_device *dev);
-#else
-static inline int nouveau_hybrid_setup(struct drm_device *dev)
-{
-	return 0;
-}
-static inline bool nouveau_dsm_probe(struct drm_device *dev)
-{
-	return false;
-}
-#endif
+void nouveau_register_dsm_handler(void);
+void nouveau_unregister_dsm_handler(void);
 
 /* nouveau_backlight.c */
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT

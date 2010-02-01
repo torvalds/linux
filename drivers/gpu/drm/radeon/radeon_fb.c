@@ -39,6 +39,8 @@
 
 #include "drm_fb_helper.h"
 
+#include <linux/vga_switcheroo.h>
+
 struct radeon_fb_device {
 	struct drm_fb_helper helper;
 	struct radeon_framebuffer	*rfb;
@@ -291,6 +293,7 @@ int radeonfb_create(struct drm_device *dev,
 	rfbdev->rdev = rdev;
 
 	mutex_unlock(&rdev->ddev->struct_mutex);
+	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
 	return 0;
 
 out_unref:

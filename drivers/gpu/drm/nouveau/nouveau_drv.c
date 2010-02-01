@@ -135,7 +135,7 @@ nouveau_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int
+int
 nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -233,7 +233,7 @@ out_abort:
 	return ret;
 }
 
-static int
+int
 nouveau_pci_resume(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -402,8 +402,10 @@ static int __init nouveau_init(void)
 			nouveau_modeset = 1;
 	}
 
-	if (nouveau_modeset == 1)
+	if (nouveau_modeset == 1) {
 		driver.driver_features |= DRIVER_MODESET;
+		nouveau_register_dsm_handler();
+	}
 
 	return drm_init(&driver);
 }
@@ -411,6 +413,7 @@ static int __init nouveau_init(void)
 static void __exit nouveau_exit(void)
 {
 	drm_exit(&driver);
+	nouveau_unregister_dsm_handler();
 }
 
 module_init(nouveau_init);
