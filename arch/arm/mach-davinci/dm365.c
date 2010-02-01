@@ -1008,6 +1008,97 @@ void __init dm365_init(void)
 	davinci_common_init(&davinci_soc_info_dm365);
 }
 
+static struct resource dm365_vpss_resources[] = {
+	{
+		/* VPSS ISP5 Base address */
+		.name           = "isp5",
+		.start          = 0x01c70000,
+		.end            = 0x01c70000 + 0xff,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		/* VPSS CLK Base address */
+		.name           = "vpss",
+		.start          = 0x01c70200,
+		.end            = 0x01c70200 + 0xff,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm365_vpss_device = {
+       .name                   = "vpss",
+       .id                     = -1,
+       .dev.platform_data      = "dm365_vpss",
+       .num_resources          = ARRAY_SIZE(dm365_vpss_resources),
+       .resource               = dm365_vpss_resources,
+};
+
+static struct resource vpfe_resources[] = {
+	{
+		.start          = IRQ_VDINT0,
+		.end            = IRQ_VDINT0,
+		.flags          = IORESOURCE_IRQ,
+	},
+	{
+		.start          = IRQ_VDINT1,
+		.end            = IRQ_VDINT1,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static struct platform_device vpfe_capture_dev = {
+	.name           = CAPTURE_DRV_NAME,
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(vpfe_resources),
+	.resource       = vpfe_resources,
+	.dev = {
+		.dma_mask               = &vpfe_capture_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+};
+
+static void dm365_isif_setup_pinmux(void)
+{
+	davinci_cfg_reg(DM365_VIN_CAM_WEN);
+	davinci_cfg_reg(DM365_VIN_CAM_VD);
+	davinci_cfg_reg(DM365_VIN_CAM_HD);
+	davinci_cfg_reg(DM365_VIN_YIN4_7_EN);
+	davinci_cfg_reg(DM365_VIN_YIN0_3_EN);
+}
+
+static struct resource isif_resource[] = {
+	/* ISIF Base address */
+	{
+		.start          = 0x01c71000,
+		.end            = 0x01c71000 + 0x1ff,
+		.flags          = IORESOURCE_MEM,
+	},
+	/* ISIF Linearization table 0 */
+	{
+		.start          = 0x1C7C000,
+		.end            = 0x1C7C000 + 0x2ff,
+		.flags          = IORESOURCE_MEM,
+	},
+	/* ISIF Linearization table 1 */
+	{
+		.start          = 0x1C7C400,
+		.end            = 0x1C7C400 + 0x2ff,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+static struct platform_device dm365_isif_dev = {
+	.name           = "isif",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(isif_resource),
+	.resource       = isif_resource,
+	.dev = {
+		.dma_mask               = &vpfe_capture_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+		.platform_data		= dm365_isif_setup_pinmux,
+	},
+};
+
 static int __init dm365_init_devices(void)
 {
 	if (!cpu_is_davinci_dm365())
@@ -1016,7 +1107,16 @@ static int __init dm365_init_devices(void)
 	davinci_cfg_reg(DM365_INT_EDMA_CC);
 	platform_device_register(&dm365_edma_device);
 	platform_device_register(&dm365_emac_device);
-
+	/* Add isif clock alias */
+	clk_add_alias("master", dm365_isif_dev.name, "vpss_master", NULL);
+	platform_device_register(&dm365_vpss_device);
+	platform_device_register(&dm365_isif_dev);
+	platform_device_register(&vpfe_capture_dev);
 	return 0;
 }
 postcore_initcall(dm365_init_devices);
+
+void dm365_set_vpfe_config(struct vpfe_config *cfg)
+{
+       vpfe_capture_dev.dev.platform_data = cfg;
+}
