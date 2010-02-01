@@ -1464,3 +1464,78 @@ qlcnic_post_rx_buffers_nodb(struct qlcnic_adapter *adapter,
 	spin_unlock(&rds_ring->lock);
 }
 
+static struct qlcnic_rx_buffer *
+qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
+		struct qlcnic_host_sds_ring *sds_ring,
+		int ring, u64 sts_data0)
+{
+	struct qlcnic_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct qlcnic_rx_buffer *buffer;
+	struct sk_buff *skb;
+	struct qlcnic_host_rds_ring *rds_ring;
+	int index, length, cksum, pkt_offset;
+
+	if (unlikely(ring >= adapter->max_rds_rings))
+		return NULL;
+
+	rds_ring = &recv_ctx->rds_rings[ring];
+
+	index = qlcnic_get_sts_refhandle(sts_data0);
+	if (unlikely(index >= rds_ring->num_desc))
+		return NULL;
+
+	buffer = &rds_ring->rx_buf_arr[index];
+
+	length = qlcnic_get_sts_totallength(sts_data0);
+	cksum  = qlcnic_get_sts_status(sts_data0);
+	pkt_offset = qlcnic_get_sts_pkt_offset(sts_data0);
+
+	skb = qlcnic_process_rxbuf(adapter, rds_ring, index, cksum);
+	if (!skb)
+		return buffer;
+
+	skb_put(skb, rds_ring->skb_size);
+
+	if (pkt_offset)
+		skb_pull(skb, pkt_offset);
+
+	skb->truesize = skb->len + sizeof(struct sk_buff);
+
+	if (!qlcnic_check_loopback_buff(skb->data))
+		adapter->diag_cnt++;
+
+	dev_kfree_skb_any(skb);
+
+	return buffer;
+}
+
+void
+qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
+{
+	struct qlcnic_adapter *adapter = sds_ring->adapter;
+	struct status_desc *desc;
+	struct qlcnic_rx_buffer *rxbuf;
+	u64 sts_data0;
+
+	int opcode, ring, desc_cnt;
+	u32 consumer = sds_ring->consumer;
+
+	desc = &sds_ring->desc_head[consumer];
+	sts_data0 = le64_to_cpu(desc->status_desc_data[0]);
+
+	if (!(sts_data0 & STATUS_OWNER_HOST))
+		return;
+
+	desc_cnt = qlcnic_get_sts_desc_cnt(sts_data0);
+	opcode = qlcnic_get_sts_opcode(sts_data0);
+
+	ring = qlcnic_get_sts_type(sts_data0);
+	rxbuf = qlcnic_process_rcv_diag(adapter, sds_ring,
+					ring, sts_data0);
+
+	desc->status_desc_data[0] = cpu_to_le64(STATUS_OWNER_PHANTOM);
+	consumer = get_next_index(consumer, sds_ring->num_desc);
+
+	sds_ring->consumer = consumer;
+	writel(consumer, sds_ring->crb_sts_consumer);
+}

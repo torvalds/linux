@@ -897,6 +897,7 @@ struct qlcnic_mac_req {
 #define __QLCNIC_START_FW 		4
 
 #define QLCNIC_INTERRUPT_TEST		1
+#define QLCNIC_LOOPBACK_TEST		2
 
 struct qlcnic_adapter {
 	struct qlcnic_hardware_context ahw;
@@ -1066,6 +1067,8 @@ int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_tx_ring *tx_ring);
 int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u64 *mac);
+void qlcnic_clear_ilb_mode(struct qlcnic_adapter *adapter);
+int qlcnic_set_ilb_mode(struct qlcnic_adapter *adapter);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
@@ -1073,6 +1076,9 @@ u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
+int qlcnic_check_loopback_buff(unsigned char *data);
+netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
+void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 
 /*
  * QLOGIC Board information

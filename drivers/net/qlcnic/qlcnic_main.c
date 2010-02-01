@@ -65,8 +65,6 @@ static int __devinit qlcnic_probe(struct pci_dev *pdev,
 static void __devexit qlcnic_remove(struct pci_dev *pdev);
 static int qlcnic_open(struct net_device *netdev);
 static int qlcnic_close(struct net_device *netdev);
-static netdev_tx_t qlcnic_xmit_frame(struct sk_buff *,
-					       struct net_device *);
 static void qlcnic_tx_timeout(struct net_device *netdev);
 static void qlcnic_tx_timeout_task(struct work_struct *work);
 static void qlcnic_attach_work(struct work_struct *work);
@@ -937,9 +935,11 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 	struct qlcnic_host_sds_ring *sds_ring;
 	int ring;
 
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
-		sds_ring = &adapter->recv_ctx.sds_rings[ring];
-		qlcnic_disable_int(sds_ring);
+	if (adapter->diag_test == QLCNIC_INTERRUPT_TEST) {
+		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+			sds_ring = &adapter->recv_ctx.sds_rings[ring];
+			qlcnic_disable_int(sds_ring);
+		}
 	}
 
 	qlcnic_detach(adapter);
@@ -977,9 +977,11 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	if (ret)
 		return ret;
 
-	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
-		sds_ring = &adapter->recv_ctx.sds_rings[ring];
-		qlcnic_enable_int(sds_ring);
+	if (adapter->diag_test == QLCNIC_INTERRUPT_TEST) {
+		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+			sds_ring = &adapter->recv_ctx.sds_rings[ring];
+			qlcnic_enable_int(sds_ring);
+		}
 	}
 
 	return 0;
@@ -1549,7 +1551,7 @@ qlcnic_clear_cmddesc(u64 *desc)
 	desc[2] = 0ULL;
 }
 
-static netdev_tx_t
+netdev_tx_t
 qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
