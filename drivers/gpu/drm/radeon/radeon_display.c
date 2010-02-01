@@ -831,7 +831,7 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 
 int radeon_modeset_init(struct radeon_device *rdev)
 {
-	int num_crtc = 2, i;
+	int i;
 	int ret;
 
 	drm_mode_config_init(rdev->ddev);
@@ -861,10 +861,12 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	}
 
 	if (rdev->flags & RADEON_SINGLE_CRTC)
-		num_crtc = 1;
+		rdev->num_crtc = 1;
+	else
+		rdev->num_crtc = 2;
 
 	/* allocate crtcs */
-	for (i = 0; i < num_crtc; i++) {
+	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
 	}
 
