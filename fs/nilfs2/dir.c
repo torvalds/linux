@@ -224,7 +224,7 @@ fail:
  * len <= NILFS_NAME_LEN and de != NULL are guaranteed by caller.
  */
 static int
-nilfs_match(int len, const char * const name, struct nilfs_dir_entry *de)
+nilfs_match(int len, const unsigned char *name, struct nilfs_dir_entry *de)
 {
 	if (len != de->name_len)
 		return 0;
@@ -465,7 +465,7 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 {
 	struct inode *dir = dentry->d_parent->d_inode;
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	unsigned chunk_size = nilfs_chunk_size(dir);
 	unsigned reclen = NILFS_DIR_REC_LEN(namelen);
