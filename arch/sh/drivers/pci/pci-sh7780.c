@@ -21,27 +21,40 @@
 #include <asm/mmu.h>
 #include <asm/sizes.h>
 
-static struct resource sh7785_io_resource = {
-	.name	= "SH7785_IO",
-	.start	= 0x1000,
-	.end	= SH7780_PCI_IO_SIZE - 1,
-	.flags	= IORESOURCE_IO
-};
-
-static struct resource sh7785_mem_resource = {
-	.name	= "SH7785_mem",
-	.start	= SH7780_PCI_MEMORY_BASE,
-	.end	= SH7780_PCI_MEMORY_BASE + SH7780_PCI_MEM_SIZE - 1,
-	.flags	= IORESOURCE_MEM
+static struct resource sh7785_pci_resources[] = {
+	{
+		.name	= "SH7785_IO",
+		.start	= 0x1000,
+		.end	= SZ_4M - 1,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= "PCI MEM 0",
+		.start	= 0xfd000000,
+		.end	= 0xfd000000 + SZ_16M - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "PCI MEM 1",
+		.start	= 0x10000000,
+		.end	= 0x10000000 + SZ_64M - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		/*
+		 * 32-bit only resources must be last.
+		 */
+		.name	= "PCI MEM 2",
+		.start	= 0xc0000000,
+		.end	= 0xc0000000 + SZ_512M - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
+	},
 };
 
 static struct pci_channel sh7780_pci_controller = {
 	.pci_ops	= &sh4_pci_ops,
-	.mem_resource	= &sh7785_mem_resource,
-	.mem_offset	= 0x00000000,
-	.io_resource	= &sh7785_io_resource,
-	.io_offset	= 0x00000000,
-	.io_map_base	= SH7780_PCI_IO_BASE,
+	.resources	= sh7785_pci_resources,
+	.nr_resources	= ARRAY_SIZE(sh7785_pci_resources),
+	.io_offset	= 0,
+	.mem_offset	= 0,
+	.io_map_base	= 0xfe200000,
 	.serr_irq	= evt2irq(0xa00),
 	.err_irq	= evt2irq(0xaa0),
 };
@@ -231,7 +244,7 @@ static int __init sh7780_pci_init(void)
 	size_t memsize;
 	unsigned int id;
 	const char *type;
-	int ret;
+	int ret, i;
 
 	printk(KERN_NOTICE "PCI: Starting intialization.\n");
 
@@ -279,8 +292,6 @@ static int __init sh7780_pci_init(void)
 	 */
 	__raw_writel(SH4_PCICR_PREFIX, chan->reg_base + SH4_PCICR);
 
-	__raw_writel(0, chan->reg_base + PCI_BASE_ADDRESS_0);
-
 	memphys = __pa(memory_start);
 	memsize = roundup_pow_of_two(memory_end - memory_start);
 
@@ -324,9 +335,40 @@ static int __init sh7780_pci_init(void)
 	__raw_writel(0, chan->reg_base + SH7780_PCICSCR1);
 	__raw_writel(0, chan->reg_base + SH7780_PCICSAR1);
 
-	__raw_writel(0xfd000000, chan->reg_base + SH7780_PCIMBR0);
-	__raw_writel(0x00fc0000, chan->reg_base + SH7780_PCIMBMR0);
+	/*
+	 * Setup the memory BARs
+	 */
+	for (i = 0; i < chan->nr_resources; i++) {
+		struct resource *res = chan->resources + (i + 1);
+		resource_size_t size;
 
+		if (unlikely(res->flags & IORESOURCE_IO))
+			continue;
+
+		/*
+		 * Make sure we're in the right physical addressing mode
+		 * for dealing with the resource.
+		 */
+		if ((res->flags & IORESOURCE_MEM_32BIT) && __in_29bit_mode()) {
+			chan->nr_resources--;
+			continue;
+		}
+
+		size = resource_size(res);
+
+		/*
+		 * The MBMR mask is calculated in units of 256kB, which
+		 * keeps things pretty simple.
+		 */
+		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
+			     chan->reg_base + SH7780_PCIMBMR(i));
+		__raw_writel(res->start, chan->reg_base + SH7780_PCIMBR(i));
+	}
+
+	/*
+	 * And I/O.
+	 */
+	__raw_writel(0, chan->reg_base + PCI_BASE_ADDRESS_0);
 	__raw_writel(0, chan->reg_base + SH7780_PCIIOBR);
 	__raw_writel(0, chan->reg_base + SH7780_PCIIOBMR);
 

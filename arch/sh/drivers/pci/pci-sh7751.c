@@ -44,25 +44,25 @@ static int __init __area_sdram_check(struct pci_channel *chan,
 	return 1;
 }
 
-static struct resource sh7751_io_resource = {
-	.name	= "SH7751_IO",
-	.start	= SH7751_PCI_IO_BASE,
-	.end	= SH7751_PCI_IO_BASE + SH7751_PCI_IO_SIZE - 1,
-	.flags	= IORESOURCE_IO
-};
-
-static struct resource sh7751_mem_resource = {
-	.name	= "SH7751_mem",
-	.start	= SH7751_PCI_MEMORY_BASE,
-	.end	= SH7751_PCI_MEMORY_BASE + SH7751_PCI_MEM_SIZE - 1,
-	.flags	= IORESOURCE_MEM
+static struct resource sh7751_pci_resources[] = {
+	{
+		.name	= "SH7751_IO",
+		.start	= SH7751_PCI_IO_BASE,
+		.end	= SH7751_PCI_IO_BASE + SH7751_PCI_IO_SIZE - 1,
+		.flags	= IORESOURCE_IO
+	}, {
+		.name	= "SH7751_mem",
+		.start	= SH7751_PCI_MEMORY_BASE,
+		.end	= SH7751_PCI_MEMORY_BASE + SH7751_PCI_MEM_SIZE - 1,
+		.flags	= IORESOURCE_MEM
+	},
 };
 
 static struct pci_channel sh7751_pci_controller = {
 	.pci_ops	= &sh4_pci_ops,
-	.mem_resource	= &sh7751_mem_resource,
+	.resources	= sh7751_pci_resources,
+	.nr_resources	= ARRAY_SIZE(sh7751_pci_resources),
 	.mem_offset	= 0x00000000,
-	.io_resource	= &sh7751_io_resource,
 	.io_offset	= 0x00000000,
 	.io_map_base	= SH7751_PCI_IO_BASE,
 };
@@ -128,13 +128,13 @@ static int __init sh7751_pci_init(void)
 	/* Set the local 16MB PCI memory space window to
 	 * the lowest PCI mapped address
 	 */
-	word = chan->mem_resource->start & SH4_PCIMBR_MASK;
+	word = chan->resources[1].start & SH4_PCIMBR_MASK;
 	pr_debug("PCI: Setting upper bits of Memory window to 0x%x\n", word);
 	pci_write_reg(chan, word , SH4_PCIMBR);
 
 	/* Make sure the MSB's of IO window are set to access PCI space
 	 * correctly */
-	word = chan->io_resource->start & SH4_PCIIOBR_MASK;
+	word = chan->resources[0].start & SH4_PCIIOBR_MASK;
 	pr_debug("PCI: Setting upper bits of IO window to 0x%x\n", word);
 	pci_write_reg(chan, word, SH4_PCIIOBR);
 

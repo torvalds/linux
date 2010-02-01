@@ -26,12 +26,6 @@
 #define SH7780_PCI_CONFIG_BASE	0xFD000000	/* Config space base addr */
 #define SH7780_PCI_CONFIG_SIZE	0x01000000	/* Config space size */
 
-#define SH7780_PCI_MEMORY_BASE	0xFD000000	/* Memory space base addr */
-#define SH7780_PCI_MEM_SIZE	0x01000000	/* Size of Memory window */
-
-#define SH7780_PCI_IO_BASE	0xFE200000	/* IO space base address */
-#define SH7780_PCI_IO_SIZE	0x00400000	/* Size of IO window */
-
 #define SH7780_PCIREG_BASE	0xFE040000	/* PCI regs base address */
 
 /* SH7780 PCI Config Registers */
@@ -46,12 +40,8 @@
 #define SH7780_PCIPINT		0x1CC		/* Power Mgmnt Int. Register */
 #define SH7780_PCIPINTM		0x1D0		/* Power Mgmnt Mask Register */
 
-#define SH7780_PCIMBR0		0x1E0
-#define SH7780_PCIMBMR0		0x1E4
-#define SH7780_PCIMBR1		0x1E8
-#define SH7780_PCIMBMR1		0x1EC
-#define SH7780_PCIMBR2		0x1F0
-#define SH7780_PCIMBMR2		0x1F4
+#define SH7780_PCIMBR(x)	(0x1E0 + ((x) * 8))
+#define SH7780_PCIMBMR(x)	(0x1E4 + ((x) * 8))
 #define SH7780_PCIIOBR		0x1F8
 #define SH7780_PCIIOBMR		0x1FC
 #define SH7780_PCICSCR0		0x210		/* Cache Snoop1 Cnt. Register */

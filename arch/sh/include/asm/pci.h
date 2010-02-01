@@ -18,8 +18,9 @@ struct pci_channel {
 	struct pci_bus		*bus;
 
 	struct pci_ops		*pci_ops;
-	struct resource		*io_resource;
-	struct resource		*mem_resource;
+
+	struct resource		*resources;
+	unsigned int		nr_resources;
 
 	unsigned long		io_offset;
 	unsigned long		mem_offset;
