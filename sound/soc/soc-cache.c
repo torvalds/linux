@@ -38,6 +38,10 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
+
+	if (codec->cache_only)
+		return 0;
+
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
 		return 0;
@@ -100,6 +104,10 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
+
+	if (codec->cache_only)
+		return 0;
+
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
 		return 0;
@@ -153,6 +161,9 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
 
+	if (codec->cache_only)
+		return 0;
+
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
 	else
@@ -181,6 +192,9 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (!snd_soc_codec_volatile_register(codec, reg))
 		reg_cache[reg] = value;
 
+	if (codec->cache_only)
+		return 0;
+
 	if (codec->hw_write(codec->control_data, data, 3) == 3)
 		return 0;
 	else
@@ -193,10 +207,14 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 	u16 *cache = codec->reg_cache;
 
 	if (reg >= codec->reg_cache_size ||
-	    snd_soc_codec_volatile_register(codec, reg))
+	    snd_soc_codec_volatile_register(codec, reg)) {
+		if (codec->cache_only)
+			return -EINVAL;
+
 		return codec->hw_read(codec, reg);
-	else
+	} else {
 		return cache[reg];
+	}
 }
 
 #if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
@@ -294,6 +312,10 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 	reg &= 0xff;
 	if (reg < codec->reg_cache_size)
 		cache[reg] = value;
+
+	if (codec->cache_only)
+		return 0;
+
 	ret = codec->hw_write(codec->control_data, data, 3);
 	if (ret == 3)
 		return 0;
