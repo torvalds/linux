@@ -1199,3 +1199,25 @@ qlcnic_wol_supported(struct qlcnic_adapter *adapter)
 
 	return 0;
 }
+
+int qlcnic_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
+{
+	struct qlcnic_nic_req   req;
+	int rv;
+	u64 word;
+
+	memset(&req, 0, sizeof(struct qlcnic_nic_req));
+	req.qhdr = cpu_to_le64(QLCNIC_HOST_REQUEST << 23);
+
+	word = QLCNIC_H2C_OPCODE_CONFIG_LED | ((u64)adapter->portnum << 16);
+	req.req_hdr = cpu_to_le64(word);
+
+	req.words[0] = cpu_to_le64((u64)rate << 32);
+	req.words[1] = cpu_to_le64(state);
+
+	rv = qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
+	if (rv)
+		dev_err(&adapter->pdev->dev, "LED configuration failed.\n");
+
+	return rv;
+}

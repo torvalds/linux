@@ -1015,6 +1015,7 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 
 int qlcnic_get_board_info(struct qlcnic_adapter *adapter);
 int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
+int qlcnic_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate);
 
 /* Functions from qlcnic_init.c */
 int qlcnic_phantom_init(struct qlcnic_adapter *adapter);

@@ -618,6 +618,7 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		     u64 *data)
 {
 	memset(data, 0, sizeof(u64) * QLCNIC_TEST_LEN);
+
 	data[0] = qlcnic_reg_test(dev);
 	if (data[0])
 		eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -689,6 +690,30 @@ static int qlcnic_set_tso(struct net_device *dev, u32 data)
 		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
 	else
 		dev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
+
+	return 0;
+}
+
+static int qlcnic_blink_led(struct net_device *dev, u32 val)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	int ret;
+
+	ret = qlcnic_config_led(adapter, 1, 0xf);
+	if (ret) {
+		dev_err(&adapter->pdev->dev,
+			"Failed to set LED blink state.\n");
+		return ret;
+	}
+
+	msleep_interruptible(val * 1000);
+
+	ret = qlcnic_config_led(adapter, 0, 0xf);
+	if (ret) {
+		dev_err(&adapter->pdev->dev,
+			"Failed to reset LED blink state.\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -867,4 +892,5 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.set_coalesce = qlcnic_set_intr_coalesce,
 	.get_flags = ethtool_op_get_flags,
 	.set_flags = qlcnic_set_flags,
+	.phys_id = qlcnic_blink_led,
 };
