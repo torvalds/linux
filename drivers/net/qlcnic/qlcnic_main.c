@@ -2051,7 +2051,9 @@ qlcnic_detach_work(struct work_struct *work)
 
 	qlcnic_down(adapter, netdev);
 
+	rtnl_lock();
 	qlcnic_detach(adapter);
+	rtnl_unlock();
 
 	status = QLCRD32(adapter, QLCNIC_PEG_HALT_STATUS1);
 

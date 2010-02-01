@@ -326,11 +326,11 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	regs->version = (1 << 24) | (adapter->ahw.revision_id << 16) |
 	    (adapter->pdev)->device;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
-		return;
-
 	for (i = 0; diag_registers[i] != -1; i++)
 		regs_buff[i] = QLCRD32(adapter, diag_registers[i]);
+
+	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+		return;
 
 	regs_buff[i++] = 0xFFEFCDAB; /* Marker btw regs and ring count*/
 
