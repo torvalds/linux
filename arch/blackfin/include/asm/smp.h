@@ -24,6 +24,13 @@ struct corelock_slot {
 };
 extern struct corelock_slot corelock;
 
+#ifdef __ARCH_SYNC_CORE_ICACHE
+extern unsigned long icache_invld_count[NR_CPUS];
+#endif
+#ifdef __ARCH_SYNC_CORE_DCACHE
+extern unsigned long dcache_invld_count[NR_CPUS];
+#endif
+
 void smp_icache_flush_range_others(unsigned long start,
 				   unsigned long end);
 #ifdef CONFIG_HOTPLUG_CPU

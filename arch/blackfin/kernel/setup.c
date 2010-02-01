@@ -1239,10 +1239,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
-	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
+	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", dcache_invld_count[cpu_num]);
 #endif
 #ifdef __ARCH_SYNC_CORE_ICACHE
-	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
+	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", icache_invld_count[cpu_num]);
 #endif
 
 	if (cpu_num != num_possible_cpus() - 1)
