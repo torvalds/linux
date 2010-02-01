@@ -1068,7 +1068,7 @@ int qlcnic_reset_context(struct qlcnic_adapter *);
  * QLOGIC Board information
  */
 
-#define QLCNIC_MAX_BOARD_NAME_LEN 64
+#define QLCNIC_MAX_BOARD_NAME_LEN 100
 struct qlcnic_brdinfo {
 	unsigned short  vendor;
 	unsigned short  device;
@@ -1078,8 +1078,12 @@ struct qlcnic_brdinfo {
 };
 
 static const struct qlcnic_brdinfo qlcnic_boards[] = {
-	{0x1077, 0x8020, 0x1077, 0x203, "8200 Series Single Port 10GbE CNA"},
-	{0x1077, 0x8020, 0x1077, 0x207, "8200 Series Dual Port 10GbE CNA"},
+	{0x1077, 0x8020, 0x1077, 0x203,
+		"8200 Series Single Port 10GbE Converged Network Adapter \
+		(TCP/IP Networking)"},
+	{0x1077, 0x8020, 0x1077, 0x207,
+		"8200 Series Dual Port 10GbE Converged Network Adapter \
+		(TCP/IP Networking)"},
 	{0x1077, 0x8020, 0x1077, 0x20b,
 		"3200 Series Dual Port 10Gb Intelligent Ethernet Adapter"},
 	{0x1077, 0x8020, 0x1077, 0x20c,
