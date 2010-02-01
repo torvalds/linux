@@ -1449,8 +1449,7 @@ static int gelic_wl_start_scan(struct gelic_wl_info *wl, int always_scan,
 	void *buf = NULL;
 	size_t len;
 
-	pr_debug("%s: <- always=%d essid_len=%z\n", __func__,
-		 always_scan, essid_len);
+	pr_debug("%s: <- always=%d\n", __func__, always_scan);
 	if (mutex_lock_interruptible(&wl->scan_lock))
 		return -ERESTARTSYS;
 
