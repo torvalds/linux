@@ -79,6 +79,11 @@ int __devinit register_pci_controller(struct pci_channel *hose)
 	}
 
 	/*
+	 * Setup the ERR/PERR and SERR timers, if available.
+	 */
+	pcibios_enable_timers(hose);
+
+	/*
 	 * Scan the bus if it is register after the PCI subsystem
 	 * initialization.
 	 */
@@ -287,6 +292,52 @@ void __init pcibios_update_irq(struct pci_dev *dev, int irq)
 char * __devinit pcibios_setup(char *str)
 {
 	return str;
+}
+
+/*
+ * We can't use pci_find_device() here since we are
+ * called from interrupt context.
+ */
+static void pcibios_bus_report_status(struct pci_bus *bus,
+		unsigned int status_mask, int warn)
+{
+	struct pci_dev *dev;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		u16 status;
+
+		/*
+		 * ignore host bridge - we handle
+		 * that separately
+		 */
+		if (dev->bus->number == 0 && dev->devfn == 0)
+			continue;
+
+		pci_read_config_word(dev, PCI_STATUS, &status);
+		if (status == 0xffff)
+			continue;
+
+		if ((status & status_mask) == 0)
+			continue;
+
+		/* clear the status errors */
+		pci_write_config_word(dev, PCI_STATUS, status & status_mask);
+
+		if (warn)
+			printk("(%s: %04X) ", pci_name(dev), status);
+	}
+
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		if (dev->subordinate)
+			pcibios_bus_report_status(dev->subordinate, status_mask, warn);
+}
+
+void pcibios_report_status(unsigned int status_mask, int warn)
+{
+	struct pci_channel *hose;
+
+	for (hose = hose_head; hose; hose = hose->next)
+		pcibios_bus_report_status(hose->bus, status_mask, warn);
 }
 
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,

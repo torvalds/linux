@@ -11,6 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+#include <linux/timer.h>
+#include <linux/irq.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
@@ -39,7 +42,164 @@ static struct pci_channel sh7780_pci_controller = {
 	.io_resource	= &sh7785_io_resource,
 	.io_offset	= 0x00000000,
 	.io_map_base	= SH7780_PCI_IO_BASE,
+	.serr_irq	= evt2irq(0xa00),
+	.err_irq	= evt2irq(0xaa0),
 };
+
+struct pci_errors {
+	unsigned int	mask;
+	const char	*str;
+} pci_arbiter_errors[] = {
+	{ SH4_PCIAINT_MBKN,	"master broken" },
+	{ SH4_PCIAINT_TBTO,	"target bus time out" },
+	{ SH4_PCIAINT_MBTO,	"master bus time out" },
+	{ SH4_PCIAINT_TABT,	"target abort" },
+	{ SH4_PCIAINT_MABT,	"master abort" },
+	{ SH4_PCIAINT_RDPE,	"read data parity error" },
+	{ SH4_PCIAINT_WDPE,	"write data parity error" },
+}, pci_interrupt_errors[] = {
+	{ SH4_PCIINT_MLCK,	"master lock error" },
+	{ SH4_PCIINT_TABT,	"target-target abort" },
+	{ SH4_PCIINT_TRET,	"target retry time out" },
+	{ SH4_PCIINT_MFDE,	"master function disable erorr" },
+	{ SH4_PCIINT_PRTY,	"address parity error" },
+	{ SH4_PCIINT_SERR,	"SERR" },
+	{ SH4_PCIINT_TWDP,	"data parity error for target write" },
+	{ SH4_PCIINT_TRDP,	"PERR detected for target read" },
+	{ SH4_PCIINT_MTABT,	"target abort for master" },
+	{ SH4_PCIINT_MMABT,	"master abort for master" },
+	{ SH4_PCIINT_MWPD,	"master write data parity error" },
+	{ SH4_PCIINT_MRPD,	"master read data parity error" },
+};
+
+static irqreturn_t sh7780_pci_err_irq(int irq, void *dev_id)
+{
+	struct pci_channel *hose = dev_id;
+	unsigned long addr;
+	unsigned int status;
+	unsigned int cmd;
+	int i;
+
+	addr = __raw_readl(hose->reg_base + SH4_PCIALR);
+
+	/*
+	 * Handle status errors.
+	 */
+	status = __raw_readw(hose->reg_base + PCI_STATUS);
+	if (status & (PCI_STATUS_PARITY |
+		      PCI_STATUS_DETECTED_PARITY |
+		      PCI_STATUS_SIG_TARGET_ABORT |
+		      PCI_STATUS_REC_TARGET_ABORT |
+		      PCI_STATUS_REC_MASTER_ABORT)) {
+		cmd = pcibios_handle_status_errors(addr, status, hose);
+		if (likely(cmd))
+			__raw_writew(cmd, hose->reg_base + PCI_STATUS);
+	}
+
+	/*
+	 * Handle arbiter errors.
+	 */
+	status = __raw_readl(hose->reg_base + SH4_PCIAINT);
+	for (i = cmd = 0; i < ARRAY_SIZE(pci_arbiter_errors); i++) {
+		if (status & pci_arbiter_errors[i].mask) {
+			printk(KERN_DEBUG "PCI: %s, addr=%08lx\n",
+			       pci_arbiter_errors[i].str, addr);
+			cmd |= pci_arbiter_errors[i].mask;
+		}
+	}
+	__raw_writel(cmd, hose->reg_base + SH4_PCIAINT);
+
+	/*
+	 * Handle the remaining PCI errors.
+	 */
+	status = __raw_readl(hose->reg_base + SH4_PCIINT);
+	for (i = cmd = 0; i < ARRAY_SIZE(pci_interrupt_errors); i++) {
+		if (status & pci_interrupt_errors[i].mask) {
+			printk(KERN_DEBUG "PCI: %s, addr=%08lx\n",
+			       pci_interrupt_errors[i].str, addr);
+			cmd |= pci_interrupt_errors[i].mask;
+		}
+	}
+	__raw_writel(cmd, hose->reg_base + SH4_PCIINT);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t sh7780_pci_serr_irq(int irq, void *dev_id)
+{
+	struct pci_channel *hose = dev_id;
+
+	printk(KERN_DEBUG "PCI: system error received: ");
+	pcibios_report_status(PCI_STATUS_SIG_SYSTEM_ERROR, 1);
+	printk("\n");
+
+	/* Deassert SERR */
+	__raw_writel(SH4_PCIINTM_SDIM, hose->reg_base + SH4_PCIINTM);
+
+	/* Back off the IRQ for awhile */
+	disable_irq(irq);
+	hose->serr_timer.expires = jiffies + HZ;
+	add_timer(&hose->serr_timer);
+
+	return IRQ_HANDLED;
+}
+
+static int __init sh7780_pci_setup_irqs(struct pci_channel *hose)
+{
+	int ret;
+
+	/* Clear out PCI arbiter IRQs */
+	__raw_writel(0, hose->reg_base + SH4_PCIAINT);
+
+	/* Clear all error conditions */
+	__raw_writew(PCI_STATUS_DETECTED_PARITY  | \
+		     PCI_STATUS_SIG_SYSTEM_ERROR | \
+		     PCI_STATUS_REC_MASTER_ABORT | \
+		     PCI_STATUS_REC_TARGET_ABORT | \
+		     PCI_STATUS_SIG_TARGET_ABORT | \
+		     PCI_STATUS_PARITY, hose->reg_base + PCI_STATUS);
+
+	ret = request_irq(hose->serr_irq, sh7780_pci_serr_irq, IRQF_DISABLED,
+			  "PCI SERR interrupt", hose);
+	if (unlikely(ret)) {
+		printk(KERN_ERR "PCI: Failed hooking SERR IRQ\n");
+		return ret;
+	}
+
+	/*
+	 * The PCI ERR IRQ needs to be IRQF_SHARED since all of the power
+	 * down IRQ vectors are routed through the ERR IRQ vector. We
+	 * only request_irq() once as there is only a single masking
+	 * source for multiple events.
+	 */
+	ret = request_irq(hose->err_irq, sh7780_pci_err_irq, IRQF_SHARED,
+			  "PCI ERR interrupt", hose);
+	if (unlikely(ret)) {
+		free_irq(hose->serr_irq, hose);
+		return ret;
+	}
+
+	/* Unmask all of the arbiter IRQs. */
+	__raw_writel(SH4_PCIAINT_MBKN | SH4_PCIAINT_TBTO | SH4_PCIAINT_MBTO | \
+		     SH4_PCIAINT_TABT | SH4_PCIAINT_MABT | SH4_PCIAINT_RDPE | \
+		     SH4_PCIAINT_WDPE, hose->reg_base + SH4_PCIAINTM);
+
+	/* Unmask all of the PCI IRQs */
+	__raw_writel(SH4_PCIINTM_TTADIM  | SH4_PCIINTM_TMTOIM  | \
+		     SH4_PCIINTM_MDEIM   | SH4_PCIINTM_APEDIM  | \
+		     SH4_PCIINTM_SDIM    | SH4_PCIINTM_DPEITWM | \
+		     SH4_PCIINTM_PEDITRM | SH4_PCIINTM_TADIMM  | \
+		     SH4_PCIINTM_MADIMM  | SH4_PCIINTM_MWPDIM  | \
+		     SH4_PCIINTM_MRDPEIM, hose->reg_base + SH4_PCIINTM);
+
+	return ret;
+}
+
+static inline void __init sh7780_pci_teardown_irqs(struct pci_channel *hose)
+{
+	free_irq(hose->err_irq, hose);
+	free_irq(hose->serr_irq, hose);
+}
 
 static void __init sh7780_pci66_init(struct pci_channel *hose)
 {
@@ -149,33 +309,12 @@ static int __init sh7780_pci_init(void)
 	__raw_writel(((memsize - SZ_1M) & 0x1ff00000) | 1,
 		     chan->reg_base + SH4_PCILSR0);
 
-	/* Clear out PCI arbiter IRQs */
-	__raw_writel(0, chan->reg_base + SH4_PCIAINT);
-
-	/* Unmask all of the arbiter IRQs. */
-	__raw_writel(SH4_PCIAINT_MBKN | SH4_PCIAINT_TBTO | SH4_PCIAINT_MBTO | \
-		     SH4_PCIAINT_TABT | SH4_PCIAINT_MABT | SH4_PCIAINT_RDPE | \
-		     SH4_PCIAINT_WDPE, chan->reg_base + SH4_PCIAINTM);
-
-	/* Clear all error conditions */
-	__raw_writew(PCI_STATUS_DETECTED_PARITY  | \
-		     PCI_STATUS_SIG_SYSTEM_ERROR | \
-		     PCI_STATUS_REC_MASTER_ABORT | \
-		     PCI_STATUS_REC_TARGET_ABORT | \
-		     PCI_STATUS_SIG_TARGET_ABORT | \
-		     PCI_STATUS_PARITY, chan->reg_base + PCI_STATUS);
-
-	__raw_writew(PCI_COMMAND_SERR | PCI_COMMAND_WAIT | \
-		     PCI_COMMAND_PARITY | PCI_COMMAND_MASTER | \
-		     PCI_COMMAND_MEMORY, chan->reg_base + PCI_COMMAND);
-
-	/* Unmask all of the PCI IRQs */
-	__raw_writel(SH4_PCIINTM_TTADIM  | SH4_PCIINTM_TMTOIM  | \
-		     SH4_PCIINTM_MDEIM   | SH4_PCIINTM_APEDIM  | \
-		     SH4_PCIINTM_SDIM    | SH4_PCIINTM_DPEITWM | \
-		     SH4_PCIINTM_PEDITRM | SH4_PCIINTM_TADIMM  | \
-		     SH4_PCIINTM_MADIMM  | SH4_PCIINTM_MWPDIM  | \
-		     SH4_PCIINTM_MRDPEIM, chan->reg_base + SH4_PCIINTM);
+	/*
+	 * Hook up the ERR and SERR IRQs.
+	 */
+	ret = sh7780_pci_setup_irqs(chan);
+	if (unlikely(ret))
+		return ret;
 
 	/*
 	 * Disable the cache snoop controller for non-coherent DMA.
@@ -191,6 +330,10 @@ static int __init sh7780_pci_init(void)
 	__raw_writel(0, chan->reg_base + SH7780_PCIIOBR);
 	__raw_writel(0, chan->reg_base + SH7780_PCIIOBMR);
 
+	__raw_writew(PCI_COMMAND_SERR   | PCI_COMMAND_WAIT   | \
+		     PCI_COMMAND_PARITY | PCI_COMMAND_MASTER | \
+		     PCI_COMMAND_MEMORY, chan->reg_base + PCI_COMMAND);
+
 	/*
 	 * Initialization mode complete, release the control register and
 	 * enable round robin mode to stop device overruns/starvation.
@@ -200,7 +343,7 @@ static int __init sh7780_pci_init(void)
 
 	ret = register_pci_controller(chan);
 	if (unlikely(ret))
-		return ret;
+		goto err;
 
 	sh7780_pci66_init(chan);
 
@@ -209,5 +352,9 @@ static int __init sh7780_pci_init(void)
 	       66 : 33);
 
 	return 0;
+
+err:
+	sh7780_pci_teardown_irqs(chan);
+	return ret;
 }
 arch_initcall(sh7780_pci_init);

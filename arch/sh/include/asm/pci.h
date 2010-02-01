@@ -29,9 +29,20 @@ struct pci_channel {
 
 	unsigned int		index;
 	unsigned int		need_domain_info;
+
+	/* Optional error handling */
+	struct timer_list	err_timer, serr_timer;
+	unsigned int		err_irq, serr_irq;
 };
 
+/* arch/sh/drivers/pci/pci.c */
 extern int register_pci_controller(struct pci_channel *hose);
+extern void pcibios_report_status(unsigned int status_mask, int warn);
+
+/* arch/sh/drivers/pci/common.c */
+extern void pcibios_enable_timers(struct pci_channel *hose);
+extern unsigned int pcibios_handle_status_errors(unsigned long addr,
+				 unsigned int status, struct pci_channel *hose);
 extern int pci_is_66mhz_capable(struct pci_channel *hose,
 				int top_bus, int current_bus);
 

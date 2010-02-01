@@ -16,7 +16,7 @@
  * Direct access to PCI hardware...
  */
 #define CONFIG_CMD(bus, devfn, where) \
-	(P1SEG | (bus->number << 16) | (devfn << 8) | (where & ~3))
+	(0x80000000 | (bus->number << 16) | (devfn << 8) | (where & ~3))
 
 static DEFINE_SPINLOCK(sh4_pci_lock);
 
