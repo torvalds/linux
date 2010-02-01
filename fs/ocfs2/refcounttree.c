@@ -2957,8 +2957,12 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 		page = grab_cache_page(mapping, page_index);
 
-		/* This page can't be dirtied before we CoW it out. */
-		BUG_ON(PageDirty(page));
+		/*
+		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
+		 * can't be dirtied before we CoW it out.
+		 */
+		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
+			BUG_ON(PageDirty(page));
 
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
