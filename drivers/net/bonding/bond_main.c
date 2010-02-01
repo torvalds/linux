@@ -3742,7 +3742,7 @@ static int bond_close(struct net_device *bond_dev)
 static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device_stats *stats = &bond->stats;
+	struct net_device_stats *stats = &bond_dev->stats;
 	struct net_device_stats local_stats;
 	struct slave *slave;
 	int i;
