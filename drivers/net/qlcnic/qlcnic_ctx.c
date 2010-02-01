@@ -24,8 +24,6 @@
 
 #include "qlcnic.h"
 
-#define QLCHAL_VERSION	1
-
 static u32
 qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 {
@@ -45,7 +43,7 @@ qlcnic_poll_rsp(struct qlcnic_adapter *adapter)
 	return rsp;
 }
 
-static u32
+u32
 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd)
 {

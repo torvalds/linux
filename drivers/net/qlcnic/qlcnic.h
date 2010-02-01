@@ -560,6 +560,8 @@ struct qlcnic_recv_context {
 /*
  * Context state
  */
+#define QLCHAL_VERSION	1
+
 #define QLCNIC_HOST_CTX_STATE_ACTIVE	2
 
 /*
@@ -894,6 +896,8 @@ struct qlcnic_mac_req {
 #define __QLCNIC_RESETTING		2
 #define __QLCNIC_START_FW 		4
 
+#define QLCNIC_INTERRUPT_TEST		1
+
 struct qlcnic_adapter {
 	struct qlcnic_hardware_context ahw;
 
@@ -946,9 +950,10 @@ struct qlcnic_adapter {
 	u32 heartbit;
 
 	u8 dev_state;
+	u8 diag_test;
+	u8 diag_cnt;
 	u8 rsrd1;
-	u32 rsrd2;
-
+	u16 rsrd2;
 
 	u8 mac_addr[ETH_ALEN];
 
@@ -1064,6 +1069,10 @@ int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u64 *mac);
 
 /* Functions from qlcnic_main.c */
 int qlcnic_reset_context(struct qlcnic_adapter *);
+u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
+	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd);
+void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
+int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
 
 /*
  * QLOGIC Board information

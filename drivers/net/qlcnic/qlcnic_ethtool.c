@@ -65,7 +65,8 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 
 static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register_Test_on_offline",
-	"Link_Test_on_offline"
+	"Link_Test_on_offline",
+	"Interrupt_Test_offline"
 };
 
 #define QLCNIC_TEST_LEN	ARRAY_SIZE(qlcnic_gstrings_test)
@@ -613,11 +614,49 @@ static int qlcnic_get_sset_count(struct net_device *dev, int sset)
 	}
 }
 
+static int qlcnic_irq_test(struct net_device *netdev)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int max_sds_rings = adapter->max_sds_rings;
+	int ret;
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EIO;
+
+	ret = qlcnic_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST);
+	if (ret)
+		goto clear_it;
+
+	adapter->diag_cnt = 0;
+	ret = qlcnic_issue_cmd(adapter, adapter->ahw.pci_func,
+			QLCHAL_VERSION, adapter->portnum, 0, 0, 0x00000011);
+	if (ret)
+		goto done;
+
+	msleep(10);
+
+	ret = !adapter->diag_cnt;
+
+done:
+	qlcnic_diag_free_res(netdev, max_sds_rings);
+
+clear_it:
+	adapter->max_sds_rings = max_sds_rings;
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return ret;
+}
+
 static void
 qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		     u64 *data)
 {
 	memset(data, 0, sizeof(u64) * QLCNIC_TEST_LEN);
+
+	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
+		data[2] = qlcnic_irq_test(dev);
+		if (data[2])
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+	}
 
 	data[0] = qlcnic_reg_test(dev);
 	if (data[0])
