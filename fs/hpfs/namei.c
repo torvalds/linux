@@ -413,22 +413,25 @@ again:
 
 		mutex_unlock(&hpfs_i(dir)->i_mutex);
 		mutex_unlock(&hpfs_i(inode)->i_parent_mutex);
-		d_drop(dentry);
-		spin_lock(&dentry->d_lock);
-		if (atomic_read(&dentry->d_count) > 1 ||
-		    generic_permission(inode, MAY_WRITE, NULL) ||
+		dentry_unhash(dentry);
+		if (!d_unhashed(dentry)) {
+			dput(dentry);
+			unlock_kernel();
+			return -ENOSPC;
+		}
+		if (generic_permission(inode, MAY_WRITE, NULL) ||
 		    !S_ISREG(inode->i_mode) ||
 		    get_write_access(inode)) {
-			spin_unlock(&dentry->d_lock);
 			d_rehash(dentry);
+			dput(dentry);
 		} else {
 			struct iattr newattrs;
-			spin_unlock(&dentry->d_lock);
 			/*printk("HPFS: truncating file before delete.\n");*/
 			newattrs.ia_size = 0;
 			newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
 			err = notify_change(dentry, &newattrs);
 			put_write_access(inode);
+			dput(dentry);
 			if (!err)
 				goto again;
 		}
