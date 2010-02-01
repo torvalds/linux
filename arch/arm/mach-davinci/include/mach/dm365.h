@@ -41,6 +41,8 @@ void __init dm365_init_asp(struct snd_platform_data *pdata);
 void __init dm365_init_vc(struct snd_platform_data *pdata);
 void __init dm365_init_ks(struct davinci_ks_platform_data *pdata);
 void __init dm365_init_rtc(void);
+void dm365_init_spi0(unsigned chipselect_mask,
+			struct spi_board_info *info, unsigned len);
 
 void dm365_set_vpfe_config(struct vpfe_config *cfg);
 #endif /* __ASM_ARCH_DM365_H */

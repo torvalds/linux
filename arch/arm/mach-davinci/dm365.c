@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/spi/spi.h>
 
 #include <asm/mach/map.h>
 
@@ -32,6 +33,8 @@
 #include <mach/common.h>
 #include <mach/asp.h>
 #include <mach/keyscan.h>
+#include <mach/spi.h>
+
 
 #include "clock.h"
 #include "mux.h"
@@ -610,6 +613,73 @@ EVT_CFG(DM365,	EVT2_VC_TX,          0,     1,    1,     false)
 EVT_CFG(DM365,	EVT3_VC_RX,          1,     1,    1,     false)
 #endif
 };
+
+static u64 dm365_spi0_dma_mask = DMA_BIT_MASK(32);
+
+static struct davinci_spi_platform_data dm365_spi0_pdata = {
+	.version 	= SPI_VERSION_1,
+	.num_chipselect = 2,
+	.clk_internal	= 1,
+	.cs_hold	= 1,
+	.intr_level	= 0,
+	.poll_mode	= 1,	/* 0 -> interrupt mode 1-> polling mode */
+	.c2tdelay	= 0,
+	.t2cdelay	= 0,
+};
+
+static struct resource dm365_spi0_resources[] = {
+	{
+		.start = 0x01c66000,
+		.end   = 0x01c667ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_DM365_SPIINT0_0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = 17,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = 16,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = EVENTQ_3,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm365_spi0_device = {
+	.name = "spi_davinci",
+	.id = 0,
+	.dev = {
+		.dma_mask = &dm365_spi0_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &dm365_spi0_pdata,
+	},
+	.num_resources = ARRAY_SIZE(dm365_spi0_resources),
+	.resource = dm365_spi0_resources,
+};
+
+void __init dm365_init_spi0(unsigned chipselect_mask,
+		struct spi_board_info *info, unsigned len)
+{
+	davinci_cfg_reg(DM365_SPI0_SCLK);
+	davinci_cfg_reg(DM365_SPI0_SDI);
+	davinci_cfg_reg(DM365_SPI0_SDO);
+
+	/* not all slaves will be wired up */
+	if (chipselect_mask & BIT(0))
+		davinci_cfg_reg(DM365_SPI0_SDENA0);
+	if (chipselect_mask & BIT(1))
+		davinci_cfg_reg(DM365_SPI0_SDENA1);
+
+	spi_register_board_info(info, len);
+
+	platform_device_register(&dm365_spi0_device);
+}
 
 static struct emac_platform_data dm365_emac_pdata = {
 	.ctrl_reg_offset	= DM365_EMAC_CNTRL_OFFSET,
