@@ -707,6 +707,9 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (ret)
 		goto try_dmabuf;
 
+	if (!surface->scanout)
+		goto err_not_scanout;
+
 	ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
 					      mode_cmd->width, mode_cmd->height);
 
@@ -740,6 +743,13 @@ try_dmabuf:
 	}
 
 	return &vfb->base;
+
+err_not_scanout:
+	DRM_ERROR("surface not marked as scanout\n");
+	/* vmw_user_surface_lookup takes one ref */
+	vmw_surface_unreference(&surface);
+
+	return NULL;
 }
 
 static int vmw_kms_fb_changed(struct drm_device *dev)

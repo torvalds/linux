@@ -1788,23 +1788,24 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, RB_INT_STAT);
 }
 
-int r600_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset,
-		  uint64_t dst_offset,
-		  unsigned num_pages,
-		  struct radeon_fence *fence)
-{
-	/* FIXME: implement */
-	return 0;
-}
-
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_pages, struct radeon_fence *fence)
 {
-	r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	int r;
+
+	mutex_lock(&rdev->r600_blit.mutex);
+	rdev->r600_blit.vb_ib = NULL;
+	r = r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	if (r) {
+		if (rdev->r600_blit.vb_ib)
+			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
+		mutex_unlock(&rdev->r600_blit.mutex);
+		return r;
+	}
 	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
 	r600_blit_done_copy(rdev, fence);
+	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;
 }
 
@@ -1860,26 +1861,19 @@ int r600_startup(struct radeon_device *rdev)
 			return r;
 	}
 	r600_gpu_init(rdev);
-
-	if (!rdev->r600_blit.shader_obj) {
-		r = r600_blit_init(rdev);
+	/* pin copy shader into vram */
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+				&rdev->r600_blit.shader_gpu_addr);
+		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 		if (r) {
-			DRM_ERROR("radeon: failed blitter (%d).\n", r);
+			dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
 			return r;
 		}
 	}
-
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-			&rdev->r600_blit.shader_gpu_addr);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-	if (r) {
-		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
-		return r;
-	}
-
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -2051,6 +2045,12 @@ int r600_init(struct radeon_device *rdev)
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
+	r = r600_blit_init(rdev);
+	if (r) {
+		r600_blit_fini(rdev);
+		rdev->asic->copy = NULL;
+		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
 
 	rdev->accel_working = true;
 	r = r600_startup(rdev);

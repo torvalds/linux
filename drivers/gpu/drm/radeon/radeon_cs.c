@@ -189,7 +189,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 {
 	unsigned i;
 
-	if (error) {
+	if (error && parser->ib) {
 		radeon_bo_list_unvalidate(&parser->validated,
 						parser->ib->fence);
 	} else {

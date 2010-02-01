@@ -209,6 +209,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
 	int ret;
+	uint32_t svga_id;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (unlikely(dev_priv == NULL)) {
@@ -239,6 +240,16 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->mmio_start = pci_resource_start(dev->pdev, 2);
 
 	mutex_lock(&dev_priv->hw_mutex);
+
+	vmw_write(dev_priv, SVGA_REG_ID, SVGA_ID_2);
+	svga_id = vmw_read(dev_priv, SVGA_REG_ID);
+	if (svga_id != SVGA_ID_2) {
+		ret = -ENOSYS;
+		DRM_ERROR("Unsuported SVGA ID 0x%x\n", svga_id);
+		mutex_unlock(&dev_priv->hw_mutex);
+		goto out_err0;
+	}
+
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
 
 	if (dev_priv->capabilities & SVGA_CAP_GMR) {
@@ -356,6 +367,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv->pm_nb.notifier_call = vmwgfx_pm_notifier;
 	register_pm_notifier(&dev_priv->pm_nb);
+
+	DRM_INFO("%s", vmw_fifo_have_3d(dev_priv) ? "Have 3D\n" : "No 3D\n");
 
 	return 0;
 

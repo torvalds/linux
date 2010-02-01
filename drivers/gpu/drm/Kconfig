@@ -66,6 +66,8 @@ config DRM_RADEON
 
 	  If M is selected, the module will be called radeon.
 
+source "drivers/gpu/drm/radeon/Kconfig"
+
 config DRM_I810
 	tristate "Intel I810"
 	depends on DRM && AGP && AGP_INTEL
