@@ -627,7 +627,6 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver i2c_imx_driver = {
-	.probe		= i2c_imx_probe,
 	.remove		= __exit_p(i2c_imx_remove),
 	.driver	= {
 		.name	= DRIVER_NAME,
