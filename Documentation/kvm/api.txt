@@ -593,6 +593,42 @@ struct kvm_irqchip {
 	} chip;
 };
 
+4.27 KVM_GET_CLOCK
+
+Capability: KVM_CAP_ADJUST_CLOCK
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_clock_data (out)
+Returns: 0 on success, -1 on error
+
+Gets the current timestamp of kvmclock as seen by the current guest. In
+conjunction with KVM_SET_CLOCK, it is used to ensure monotonicity on scenarios
+such as migration.
+
+struct kvm_clock_data {
+	__u64 clock;  /* kvmclock current value */
+	__u32 flags;
+	__u32 pad[9];
+};
+
+4.28 KVM_SET_CLOCK
+
+Capability: KVM_CAP_ADJUST_CLOCK
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_clock_data (in)
+Returns: 0 on success, -1 on error
+
+Sets the current timestamp of kvmclock to the valued specific in its parameter.
+In conjunction with KVM_GET_CLOCK, it is used to ensure monotonicity on scenarios
+such as migration.
+
+struct kvm_clock_data {
+	__u64 clock;  /* kvmclock current value */
+	__u32 flags;
+	__u32 pad[9];
+};
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

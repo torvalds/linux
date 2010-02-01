@@ -680,7 +680,8 @@ static void kvm_write_guest_time(struct kvm_vcpu *v)
 	/* With all the info we got, fill in the values */
 
 	vcpu->hv_clock.system_time = ts.tv_nsec +
-				     (NSEC_PER_SEC * (u64)ts.tv_sec);
+				     (NSEC_PER_SEC * (u64)ts.tv_sec) + v->kvm->arch.kvmclock_offset;
+
 	/*
 	 * The interface expects us to write an even number signaling that the
 	 * update is finished. Since the guest won't see the intermediate
@@ -1227,6 +1228,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PIT2:
 	case KVM_CAP_PIT_STATE2:
 	case KVM_CAP_SET_IDENTITY_MAP_ADDR:
+	case KVM_CAP_ADJUST_CLOCK:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -2424,6 +2426,44 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = 0;
 		break;
 	}
+	case KVM_SET_CLOCK: {
+		struct timespec now;
+		struct kvm_clock_data user_ns;
+		u64 now_ns;
+		s64 delta;
+
+		r = -EFAULT;
+		if (copy_from_user(&user_ns, argp, sizeof(user_ns)))
+			goto out;
+
+		r = -EINVAL;
+		if (user_ns.flags)
+			goto out;
+
+		r = 0;
+		ktime_get_ts(&now);
+		now_ns = timespec_to_ns(&now);
+		delta = user_ns.clock - now_ns;
+		kvm->arch.kvmclock_offset = delta;
+		break;
+	}
+	case KVM_GET_CLOCK: {
+		struct timespec now;
+		struct kvm_clock_data user_ns;
+		u64 now_ns;
+
+		ktime_get_ts(&now);
+		now_ns = timespec_to_ns(&now);
+		user_ns.clock = kvm->arch.kvmclock_offset + now_ns;
+		user_ns.flags = 0;
+
+		r = -EFAULT;
+		if (copy_to_user(argp, &user_ns, sizeof(user_ns)))
+			goto out;
+		r = 0;
+		break;
+	}
+
 	default:
 		;
 	}

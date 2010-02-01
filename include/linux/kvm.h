@@ -439,6 +439,7 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_IOEVENTFD 36
 #define KVM_CAP_SET_IDENTITY_MAP_ADDR 37
+#define KVM_CAP_ADJUST_CLOCK 39
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -501,6 +502,12 @@ struct kvm_irqfd {
 	__u8  pad[20];
 };
 
+struct kvm_clock_data {
+	__u64 clock;
+	__u32 flags;
+	__u32 pad[9];
+};
+
 /*
  * ioctls for VM fds
  */
@@ -550,6 +557,8 @@ struct kvm_irqfd {
 #define KVM_CREATE_PIT2		   _IOW(KVMIO, 0x77, struct kvm_pit_config)
 #define KVM_SET_BOOT_CPU_ID        _IO(KVMIO, 0x78)
 #define KVM_IOEVENTFD             _IOW(KVMIO, 0x79, struct kvm_ioeventfd)
+#define KVM_SET_CLOCK             _IOW(KVMIO, 0x7b, struct kvm_clock_data)
+#define KVM_GET_CLOCK             _IOR(KVMIO, 0x7c, struct kvm_clock_data)
 
 /*
  * ioctls for vcpu fds
