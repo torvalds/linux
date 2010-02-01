@@ -292,6 +292,15 @@ config KEYBOARD_MAX7359
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
 
+config KEYBOARD_IMX
+	tristate "IMX keypad support"
+	depends on ARCH_MXC
+	help
+	  Enable support for IMX keypad port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_keypad.
+
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
 	select SERIO
