@@ -685,7 +685,7 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 	int i, r;
 
 	/* Make sure data written is seen before log. */
-	wmb();
+	smp_wmb();
 	for (i = 0; i < log_num; ++i) {
 		u64 l = min(log[i].len, len);
 		r = log_write(vq->log_base, log[i].addr, l);
@@ -884,7 +884,7 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 		return vq->num;
 
 	/* Only get avail ring entries after they have been exposed by guest. */
-	rmb();
+	smp_rmb();
 
 	/* Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen. */
@@ -996,14 +996,14 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 		return -EFAULT;
 	}
 	/* Make sure buffer is written before we update index. */
-	wmb();
+	smp_wmb();
 	if (put_user(vq->last_used_idx + 1, &vq->used->idx)) {
 		vq_err(vq, "Failed to increment used idx");
 		return -EFAULT;
 	}
 	if (unlikely(vq->log_used)) {
 		/* Make sure data is seen before log. */
-		wmb();
+		smp_wmb();
 		log_write(vq->log_base, vq->log_addr + sizeof *vq->used->ring *
 			  (vq->last_used_idx % vq->num),
 			  sizeof *vq->used->ring);
@@ -1060,7 +1060,7 @@ bool vhost_enable_notify(struct vhost_virtqueue *vq)
 	}
 	/* They could have slipped one in as we were doing that: make
 	 * sure it's written, then check again. */
-	mb();
+	smp_mb();
 	r = get_user(avail_idx, &vq->avail->idx);
 	if (r) {
 		vq_err(vq, "Failed to check avail idx at %p: %d\n",
