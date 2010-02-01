@@ -32,6 +32,8 @@ struct pci_channel {
 };
 
 extern void register_pci_controller(struct pci_channel *hose);
+extern int pci_is_66mhz_capable(struct pci_channel *hose,
+				int top_bus, int current_bus);
 
 extern unsigned long PCIBIOS_MIN_IO, PCIBIOS_MIN_MEM;
 

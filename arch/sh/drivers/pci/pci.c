@@ -88,6 +88,8 @@ void __devinit register_pci_controller(struct pci_channel *hose)
 		mutex_unlock(&pci_scan_mutex);
 	}
 
+	return;
+
 out:
 	printk(KERN_WARNING "Skipping PCI bus scan due to resource conflict\n");
 }

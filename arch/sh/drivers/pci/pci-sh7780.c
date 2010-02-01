@@ -41,6 +41,29 @@ static struct pci_channel sh7780_pci_controller = {
 	.io_map_base	= SH7780_PCI_IO_BASE,
 };
 
+static void __init sh7780_pci66_init(struct pci_channel *hose)
+{
+	unsigned int tmp;
+
+	if (!pci_is_66mhz_capable(hose, 0, 0))
+		return;
+
+	/* Enable register access */
+	tmp = __raw_readl(hose->reg_base + SH4_PCICR);
+	tmp |= SH4_PCICR_PREFIX;
+	__raw_writel(tmp, hose->reg_base + SH4_PCICR);
+
+	/* Enable 66MHz operation */
+	tmp = __raw_readw(hose->reg_base + PCI_STATUS);
+	tmp |= PCI_STATUS_66MHZ;
+	__raw_writew(tmp, hose->reg_base + PCI_STATUS);
+
+	/* Done */
+	tmp = __raw_readl(hose->reg_base + SH4_PCICR);
+	tmp |= SH4_PCICR_PREFIX | SH4_PCICR_CFIN;
+	__raw_writel(tmp, hose->reg_base + SH4_PCICR);
+}
+
 static int __init sh7780_pci_init(void)
 {
 	struct pci_channel *chan = &sh7780_pci_controller;
@@ -175,6 +198,12 @@ static int __init sh7780_pci_init(void)
 		     chan->reg_base + SH4_PCICR);
 
 	register_pci_controller(chan);
+
+	sh7780_pci66_init(chan);
+
+	printk(KERN_NOTICE "PCI: Running at %dMHz.\n",
+	       (__raw_readw(chan->reg_base + PCI_STATUS) & PCI_STATUS_66MHZ) ?
+	       66 : 33);
 
 	return 0;
 }
