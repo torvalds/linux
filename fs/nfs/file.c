@@ -601,6 +601,7 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct dentry * dentry = iocb->ki_filp->f_path.dentry;
 	struct inode * inode = dentry->d_inode;
+	unsigned long written = 0;
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
 
@@ -627,14 +628,18 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	if (!count)
 		goto out;
 
-	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, count);
 	result = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	if (result > 0)
+		written = result;
+
 	/* Return error values for O_DSYNC and IS_SYNC() */
 	if (result >= 0 && nfs_need_sync_write(iocb->ki_filp, inode)) {
 		int err = nfs_do_fsync(nfs_file_open_context(iocb->ki_filp), inode);
 		if (err < 0)
 			result = err;
 	}
+	if (result > 0)
+		nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
 out:
 	return result;
 
@@ -649,6 +654,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
+	unsigned long written = 0;
 	ssize_t ret;
 
 	dprintk("NFS splice_write(%s/%s, %lu@%llu)\n",
@@ -659,14 +665,17 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 	 * The combination of splice and an O_APPEND destination is disallowed.
 	 */
 
-	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, count);
-
 	ret = generic_file_splice_write(pipe, filp, ppos, count, flags);
+	if (ret > 0)
+		written = ret;
+
 	if (ret >= 0 && nfs_need_sync_write(filp, inode)) {
 		int err = nfs_do_fsync(nfs_file_open_context(filp), inode);
 		if (err < 0)
 			ret = err;
 	}
+	if (ret > 0)
+		nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
 	return ret;
 }
 
