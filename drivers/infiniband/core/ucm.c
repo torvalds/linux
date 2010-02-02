@@ -1223,10 +1223,10 @@ static void ib_ucm_release_dev(struct device *dev)
 }
 
 static const struct file_operations ucm_fops = {
-	.owner 	 = THIS_MODULE,
-	.open 	 = ib_ucm_open,
+	.owner	 = THIS_MODULE,
+	.open	 = ib_ucm_open,
 	.release = ib_ucm_close,
-	.write 	 = ib_ucm_write,
+	.write	 = ib_ucm_write,
 	.poll    = ib_ucm_poll,
 };
 
