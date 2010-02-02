@@ -232,11 +232,12 @@ int btrfs_add_ordered_sum(struct inode *inode,
  * to make sure this function only returns 1 once for a given ordered extent.
  */
 int btrfs_dec_test_ordered_pending(struct inode *inode,
+				   struct btrfs_ordered_extent **cached,
 				   u64 file_offset, u64 io_size)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
-	struct btrfs_ordered_extent *entry;
+	struct btrfs_ordered_extent *entry = NULL;
 	int ret;
 
 	tree = &BTRFS_I(inode)->ordered_tree;
@@ -264,6 +265,10 @@ int btrfs_dec_test_ordered_pending(struct inode *inode,
 	else
 		ret = 1;
 out:
+	if (!ret && cached && entry) {
+		*cached = entry;
+		atomic_inc(&entry->refs);
+	}
 	spin_unlock(&tree->lock);
 	return ret == 0;
 }

@@ -1698,11 +1698,10 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	int compressed = 0;
 	int ret;
 
-	ret = btrfs_dec_test_ordered_pending(inode, start, end - start + 1);
+	ret = btrfs_dec_test_ordered_pending(inode, &ordered_extent, start,
+					     end - start + 1);
 	if (!ret)
 		return 0;
-
-	ordered_extent = btrfs_lookup_ordered_extent(inode, start);
 	BUG_ON(!ordered_extent);
 
 	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {

@@ -137,7 +137,8 @@ int btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry);
 int btrfs_remove_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry);
 int btrfs_dec_test_ordered_pending(struct inode *inode,
-				       u64 file_offset, u64 io_size);
+				   struct btrfs_ordered_extent **cached,
+				   u64 file_offset, u64 io_size);
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 			     u64 start, u64 len, u64 disk_len, int tyep);
 int btrfs_add_ordered_sum(struct inode *inode,
