@@ -269,6 +269,7 @@ void account_system_vtime(struct task_struct *tsk)
 	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(account_system_vtime);
 
 /*
  * Transfer the user and system times accumulated in the paca
@@ -902,12 +903,21 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 		decrementer_set_next_event(DECREMENTER_MAX, dev);
 }
 
+static inline uint64_t div_sc64(unsigned long ticks, unsigned long nsec,
+				int shift)
+{
+	uint64_t tmp = ((uint64_t)ticks) << shift;
+
+	do_div(tmp, nsec);
+	return tmp;
+}
+
 static void __init setup_clockevent_multiplier(unsigned long hz)
 {
 	u64 mult, shift = 32;
 
 	while (1) {
-		mult = div_sc(hz, NSEC_PER_SEC, shift);
+		mult = div_sc64(hz, NSEC_PER_SEC, shift);
 		if (mult && (mult >> 32UL) == 0UL)
 			break;
 

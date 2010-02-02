@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.5.1-1.451"
+#define MYRI10GE_VERSION_STR "1.5.1-1.453"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -347,7 +347,7 @@ static int myri10ge_max_slices = 1;
 module_param(myri10ge_max_slices, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_max_slices, "Max tx/rx queues");
 
-static int myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
+static int myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT;
 module_param(myri10ge_rss_hash, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_rss_hash, "Type of RSS hashing to do");
 

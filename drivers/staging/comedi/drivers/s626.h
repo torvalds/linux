@@ -76,14 +76,6 @@
 #define FALSE   (0)
 #endif
 
-#if !defined(EXTERN)
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-#else
-#define EXTERN extern
-#endif
-#endif
-
 #if !defined(INLINE)
 #define INLINE static __inline
 #endif

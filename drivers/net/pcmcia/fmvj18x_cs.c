@@ -426,7 +426,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     if (link->io.NumPorts2 != 0) {
     	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+		IRQ_TYPE_DYNAMIC_SHARING;
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {
@@ -717,6 +717,7 @@ static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "NEC", "PK-UG-J001" ,0x18df0ba0 ,0x831b1064),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0d0a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0e0a),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0e01),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0a05),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x1101),
 	PCMCIA_DEVICE_NULL,

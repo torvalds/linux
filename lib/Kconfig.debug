@@ -298,6 +298,14 @@ config DEBUG_OBJECTS_TIMERS
 	  timer routines to track the life time of timer objects and
 	  validate the timer operations.
 
+config DEBUG_OBJECTS_WORK
+	bool "Debug work objects"
+	depends on DEBUG_OBJECTS
+	help
+	  If you say Y here, additional code will be inserted into the
+	  work queue routines to track the life time of work objects and
+	  validate the work operations.
+
 config DEBUG_OBJECTS_ENABLE_DEFAULT
 	int "debug_objects bootup default value (0-1)"
         range 0 1
@@ -352,6 +360,7 @@ config DEBUG_KMEMLEAK
 	select DEBUG_FS if SYSFS
 	select STACKTRACE if STACKTRACE_SUPPORT
 	select KALLSYMS
+	select CRC32
 	help
 	  Say Y here if you want to enable the memory leak
 	  detector. The memory allocation/freeing is traced in a way
@@ -567,7 +576,7 @@ config DEBUG_BUGVERBOSE
 	depends on BUG
 	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
 		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300
-	default !EMBEDDED
+	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number
 	  of the BUG call as well as the EIP and oops trace.  This aids

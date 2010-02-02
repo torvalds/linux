@@ -1245,9 +1245,15 @@ static void bcm_enet_get_drvinfo(struct net_device *netdev,
 	drvinfo->n_stats = BCM_ENET_STATS_LEN;
 }
 
-static int bcm_enet_get_stats_count(struct net_device *netdev)
+static int bcm_enet_get_sset_count(struct net_device *netdev,
+					int string_set)
 {
-	return BCM_ENET_STATS_LEN;
+	switch (string_set) {
+	case ETH_SS_STATS:
+		return BCM_ENET_STATS_LEN;
+	default:
+		return -EINVAL;
+	}
 }
 
 static void bcm_enet_get_strings(struct net_device *netdev,
@@ -1473,7 +1479,7 @@ static int bcm_enet_set_pauseparam(struct net_device *dev,
 
 static struct ethtool_ops bcm_enet_ethtool_ops = {
 	.get_strings		= bcm_enet_get_strings,
-	.get_stats_count	= bcm_enet_get_stats_count,
+	.get_sset_count		= bcm_enet_get_sset_count,
 	.get_ethtool_stats      = bcm_enet_get_ethtool_stats,
 	.get_settings		= bcm_enet_get_settings,
 	.set_settings		= bcm_enet_set_settings,

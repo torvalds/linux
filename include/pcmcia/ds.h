@@ -82,7 +82,7 @@ struct pcmcia_device {
 	/* the hardware "function" device; certain subdevices can
 	 * share one hardware "function" device. */
 	u8			func;
-	struct config_t*	function_config;
+	struct config_t		*function_config;
 
 	struct list_head	socket_device_list;
 
@@ -121,14 +121,14 @@ struct pcmcia_device {
 	u16			manf_id;
 	u16			card_id;
 
-	char *			prod_id[4];
+	char			*prod_id[4];
 
 	u64			dma_mask;
 	struct device		dev;
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	/* device driver wanted by cardmgr */
-	struct pcmcia_driver *	cardmgr;
+	struct pcmcia_driver	*cardmgr;
 #endif
 
 	/* data private to drivers */

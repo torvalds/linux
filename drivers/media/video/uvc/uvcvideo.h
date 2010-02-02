@@ -365,8 +365,9 @@ enum uvc_buffer_state {
 	UVC_BUF_STATE_IDLE	= 0,
 	UVC_BUF_STATE_QUEUED	= 1,
 	UVC_BUF_STATE_ACTIVE	= 2,
-	UVC_BUF_STATE_DONE	= 3,
-	UVC_BUF_STATE_ERROR	= 4,
+	UVC_BUF_STATE_READY	= 3,
+	UVC_BUF_STATE_DONE	= 4,
+	UVC_BUF_STATE_ERROR	= 5,
 };
 
 struct uvc_buffer {

@@ -74,7 +74,12 @@ static ssize_t local_cpus_show(struct device *dev,
 	const struct cpumask *mask;
 	int len;
 
+#ifdef CONFIG_NUMA
+	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
+					  cpumask_of_node(dev_to_node(dev));
+#else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
+#endif
 	len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
 	buf[len++] = '\n';
 	buf[len] = '\0';
@@ -88,7 +93,12 @@ static ssize_t local_cpulist_show(struct device *dev,
 	const struct cpumask *mask;
 	int len;
 
+#ifdef CONFIG_NUMA
+	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
+					  cpumask_of_node(dev_to_node(dev));
+#else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
+#endif
 	len = cpulist_scnprintf(buf, PAGE_SIZE-2, mask);
 	buf[len++] = '\n';
 	buf[len] = '\0';
@@ -174,6 +184,21 @@ numa_node_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf (buf, "%d\n", dev->numa_node);
 }
 #endif
+
+static ssize_t
+dma_mask_bits_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+
+	return sprintf (buf, "%d\n", fls64(pdev->dma_mask));
+}
+
+static ssize_t
+consistent_dma_mask_bits_show(struct device *dev, struct device_attribute *attr,
+				 char *buf)
+{
+	return sprintf (buf, "%d\n", fls64(dev->coherent_dma_mask));
+}
 
 static ssize_t
 msi_bus_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -306,6 +331,8 @@ struct device_attribute pci_dev_attrs[] = {
 #ifdef CONFIG_NUMA
 	__ATTR_RO(numa_node),
 #endif
+	__ATTR_RO(dma_mask_bits),
+	__ATTR_RO(consistent_dma_mask_bits),
 	__ATTR(enable, 0600, is_enabled_show, is_enabled_store),
 	__ATTR(broken_parity_status,(S_IRUGO|S_IWUSR),
 		broken_parity_status_show,broken_parity_status_store),

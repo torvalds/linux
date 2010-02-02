@@ -273,7 +273,8 @@ static dma_addr_t sep_shared_virt_to_bus(struct sep_device *sep,
 						void *virt_address)
 {
 	dma_addr_t pa = sep->shared_bus + (virt_address - sep->shared_addr);
-	edbg("sep: virt to bus b %08llx v %p\n", pa, virt_address);
+	edbg("sep: virt to bus b %08llx v %p\n",
+		(unsigned long long)pa, virt_address);
 	return pa;
 }
 
@@ -1788,6 +1789,7 @@ static int sep_create_flow_dma_tables_handler(struct sep_device *sep,
 	first_table_data.physical_address = 0xffffffff;
 
 	/* find the free structure for flow data */
+	error = -EINVAL;
 	flow_context_ptr = sep_find_flow_context(sep, SEP_FREE_FLOW_ID);
 	if (flow_context_ptr == NULL)
 		goto end_function;
@@ -2447,7 +2449,7 @@ static void sep_configure_dma_burst(struct sep_device *sep)
 #endif
 
 /*
-  Function that is activaed on the succesful probe of the SEP device
+  Function that is activated on the successful probe of the SEP device
 */
 static int __devinit sep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {

@@ -29,8 +29,8 @@
 void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 			   unsigned sdomain, unsigned ddomain)
 {
-	struct radeon_object *dobj = NULL;
-	struct radeon_object *sobj = NULL;
+	struct radeon_bo *dobj = NULL;
+	struct radeon_bo *sobj = NULL;
 	struct radeon_fence *fence = NULL;
 	uint64_t saddr, daddr;
 	unsigned long start_jiffies;
@@ -41,19 +41,27 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 
 	size = bsize;
 	n = 1024;
-	r = radeon_object_create(rdev, NULL, size, true, sdomain, false, &sobj);
+	r = radeon_bo_create(rdev, NULL, size, true, sdomain, &sobj);
 	if (r) {
 		goto out_cleanup;
 	}
-	r = radeon_object_pin(sobj, sdomain, &saddr);
+	r = radeon_bo_reserve(sobj, false);
+	if (unlikely(r != 0))
+		goto out_cleanup;
+	r = radeon_bo_pin(sobj, sdomain, &saddr);
+	radeon_bo_unreserve(sobj);
 	if (r) {
 		goto out_cleanup;
 	}
-	r = radeon_object_create(rdev, NULL, size, true, ddomain, false, &dobj);
+	r = radeon_bo_create(rdev, NULL, size, true, ddomain, &dobj);
 	if (r) {
 		goto out_cleanup;
 	}
-	r = radeon_object_pin(dobj, ddomain, &daddr);
+	r = radeon_bo_reserve(dobj, false);
+	if (unlikely(r != 0))
+		goto out_cleanup;
+	r = radeon_bo_pin(dobj, ddomain, &daddr);
+	radeon_bo_unreserve(dobj);
 	if (r) {
 		goto out_cleanup;
 	}
@@ -109,12 +117,20 @@ void radeon_benchmark_move(struct radeon_device *rdev, unsigned bsize,
 	}
 out_cleanup:
 	if (sobj) {
-		radeon_object_unpin(sobj);
-		radeon_object_unref(&sobj);
+		r = radeon_bo_reserve(sobj, false);
+		if (likely(r == 0)) {
+			radeon_bo_unpin(sobj);
+			radeon_bo_unreserve(sobj);
+		}
+		radeon_bo_unref(&sobj);
 	}
 	if (dobj) {
-		radeon_object_unpin(dobj);
-		radeon_object_unref(&dobj);
+		r = radeon_bo_reserve(dobj, false);
+		if (likely(r == 0)) {
+			radeon_bo_unpin(dobj);
+			radeon_bo_unreserve(dobj);
+		}
+		radeon_bo_unref(&dobj);
 	}
 	if (fence) {
 		radeon_fence_unref(&fence);

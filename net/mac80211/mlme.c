@@ -915,6 +915,14 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	sdata->u.mgd.flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 				IEEE80211_STA_BEACON_POLL);
 
+	/*
+	 * Always handle WMM once after association regardless
+	 * of the first value the AP uses. Setting -1 here has
+	 * that effect because the AP values is an unsigned
+	 * 4-bit value.
+	 */
+	sdata->u.mgd.wmm_last_param_set = -1;
+
 	ieee80211_led_assoc(local, 1);
 
 	sdata->vif.bss_conf.assoc = 1;
@@ -934,7 +942,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local, -1);
 	mutex_unlock(&local->iflist_mtx);
 
-	netif_start_queue(sdata->dev);
+	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
 
@@ -1066,7 +1074,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * time -- we don't want the scan code to enable queues.
 	 */
 
-	netif_stop_queue(sdata->dev);
+	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
 	rcu_read_lock();
@@ -1082,8 +1090,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.assoc = false;
 
 	ieee80211_set_wmm_default(sdata);
-
-	ieee80211_recalc_idle(local);
 
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
@@ -1370,6 +1376,7 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 
 	if (!wk) {
 		ieee80211_set_disassoc(sdata, true);
+		ieee80211_recalc_idle(sdata->local);
 	} else {
 		list_del(&wk->list);
 		kfree(wk);
@@ -1403,6 +1410,7 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 			sdata->dev->name, mgmt->sa, reason_code);
 
 	ieee80211_set_disassoc(sdata, false);
+	ieee80211_recalc_idle(sdata->local);
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
@@ -1955,7 +1963,9 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			rma = ieee80211_rx_mgmt_disassoc(sdata, mgmt, skb->len);
 			break;
 		case IEEE80211_STYPE_ACTION:
-			/* XXX: differentiate, can only happen for CSA now! */
+			if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
+				break;
+
 			ieee80211_sta_process_chanswitch(sdata,
 					&mgmt->u.action.u.chan_switch.sw_elem,
 					ifmgd->associated);
@@ -2117,6 +2127,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 				" after %dms, disconnecting.\n",
 				bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
 			ieee80211_set_disassoc(sdata, true);
+			ieee80211_recalc_idle(local);
 			mutex_unlock(&ifmgd->mtx);
 			/*
 			 * must be outside lock due to cfg80211,
@@ -2560,6 +2571,8 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			IEEE80211_STYPE_DEAUTH, req->reason_code,
 			cookie);
 
+	ieee80211_recalc_idle(sdata->local);
+
 	return 0;
 }
 
@@ -2592,5 +2605,8 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_deauth_disassoc(sdata, req->bss->bssid,
 			IEEE80211_STYPE_DISASSOC, req->reason_code,
 			cookie);
+
+	ieee80211_recalc_idle(sdata->local);
+
 	return 0;
 }

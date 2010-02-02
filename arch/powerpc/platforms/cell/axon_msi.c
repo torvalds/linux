@@ -312,7 +312,7 @@ static struct irq_chip msic_irq_chip = {
 	.mask		= mask_msi_irq,
 	.unmask		= unmask_msi_irq,
 	.shutdown	= unmask_msi_irq,
-	.typename	= "AXON-MSI",
+	.name		= "AXON-MSI",
 };
 
 static int msic_host_map(struct irq_host *h, unsigned int virq,

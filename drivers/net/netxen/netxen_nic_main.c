@@ -57,7 +57,9 @@ static int use_msi = 1;
 
 static int use_msi_x = 1;
 
-static unsigned long auto_fw_reset = AUTO_FW_RESET_ENABLED;
+static int auto_fw_reset = AUTO_FW_RESET_ENABLED;
+module_param(auto_fw_reset, int, 0644);
+MODULE_PARM_DESC(auto_fw_reset,"Auto firmware reset (0=disabled, 1=enabled");
 
 static int __devinit netxen_nic_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent);
@@ -338,7 +340,7 @@ netxen_check_hw_init(struct netxen_adapter *adapter, int first_boot)
 		if (!(first_boot & 0x4)) {
 			first_boot |= 0x4;
 			NXWR32(adapter, NETXEN_PCIE_REG(0x4), first_boot);
-			first_boot = NXRD32(adapter, NETXEN_PCIE_REG(0x4));
+			NXRD32(adapter, NETXEN_PCIE_REG(0x4));
 		}
 
 		/* This is the first boot after power up */
@@ -946,8 +948,9 @@ netxen_nic_init_coalesce_defaults(struct netxen_adapter *adapter)
 		NETXEN_DEFAULT_INTR_COALESCE_TX_PACKETS;
 }
 
+/* with rtnl_lock */
 static int
-netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
+__netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	int err;
 
@@ -988,14 +991,32 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	return 0;
 }
 
+/* Usage: During resume and firmware recovery module.*/
+
+static inline int
+netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
+{
+	int err = 0;
+
+	rtnl_lock();
+	if (netif_running(netdev))
+		err = __netxen_nic_up(adapter, netdev);
+	rtnl_unlock();
+
+	return err;
+}
+
+/* with rtnl_lock */
 static void
-netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
+__netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
 		return;
 
-	clear_bit(__NX_DEV_UP, &adapter->state);
+	if (!test_and_clear_bit(__NX_DEV_UP, &adapter->state))
+		return;
 
+	smp_mb();
 	spin_lock(&adapter->tx_clean_lock);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
@@ -1014,6 +1035,17 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	spin_unlock(&adapter->tx_clean_lock);
 }
 
+/* Usage: During suspend and firmware recovery module */
+
+static inline void
+netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
+{
+	rtnl_lock();
+	if (netif_running(netdev))
+		__netxen_nic_down(adapter, netdev);
+	rtnl_unlock();
+
+}
 
 static int
 netxen_nic_attach(struct netxen_adapter *adapter)
@@ -1122,14 +1154,14 @@ netxen_nic_reset_context(struct netxen_adapter *adapter)
 		netif_device_detach(netdev);
 
 		if (netif_running(netdev))
-			netxen_nic_down(adapter, netdev);
+			__netxen_nic_down(adapter, netdev);
 
 		netxen_nic_detach(adapter);
 
 		if (netif_running(netdev)) {
 			err = netxen_nic_attach(adapter);
 			if (!err)
-				err = netxen_nic_up(adapter, netdev);
+				err = __netxen_nic_up(adapter, netdev);
 
 			if (err)
 				goto done;
@@ -1499,7 +1531,7 @@ static int netxen_nic_open(struct net_device *netdev)
 	if (err)
 		return err;
 
-	err = netxen_nic_up(adapter, netdev);
+	err = __netxen_nic_up(adapter, netdev);
 	if (err)
 		goto err_out;
 
@@ -1519,7 +1551,7 @@ static int netxen_nic_close(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 
-	netxen_nic_down(adapter, netdev);
+	__netxen_nic_down(adapter, netdev);
 	return 0;
 }
 
@@ -1866,12 +1898,8 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 		linkup = (val == XG_LINK_UP_P3);
 	} else {
 		val = NXRD32(adapter, CRB_XG_STATE);
-		if (adapter->ahw.port_type == NETXEN_NIC_GBE)
-			linkup = (val >> port) & 1;
-		else {
-			val = (val >> port*8) & 0xff;
-			linkup = (val == XG_LINK_UP);
-		}
+		val = (val >> port*8) & 0xff;
+		linkup = (val == XG_LINK_UP);
 	}
 
 	netxen_advert_link_change(adapter, linkup);
@@ -2025,7 +2053,7 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 
 	if ((work_done < budget) && tx_complete) {
 		napi_complete(&sds_ring->napi);
-		if (netif_running(adapter->netdev))
+		if (test_bit(__NX_DEV_UP, &adapter->state))
 			netxen_nic_enable_int(sds_ring);
 	}
 
@@ -2210,8 +2238,7 @@ netxen_detach_work(struct work_struct *work)
 
 	netif_device_detach(netdev);
 
-	if (netif_running(netdev))
-		netxen_nic_down(adapter, netdev);
+	netxen_nic_down(adapter, netdev);
 
 	netxen_nic_detach(adapter);
 
@@ -2505,42 +2532,6 @@ static struct bin_attribute bin_attr_mem = {
 	.write = netxen_sysfs_write_mem,
 };
 
-#ifdef CONFIG_MODULES
-static ssize_t
-netxen_store_auto_fw_reset(struct module_attribute *mattr,
-		struct module *mod, const char *buf, size_t count)
-
-{
-	unsigned long new;
-
-	if (strict_strtoul(buf, 16, &new))
-		return -EINVAL;
-
-	if ((new == AUTO_FW_RESET_ENABLED) || (new == AUTO_FW_RESET_DISABLED)) {
-		auto_fw_reset = new;
-		return count;
-	}
-
-	return -EINVAL;
-}
-
-static ssize_t
-netxen_show_auto_fw_reset(struct module_attribute *mattr,
-		struct module *mod, char *buf)
-
-{
-	if (auto_fw_reset == AUTO_FW_RESET_ENABLED)
-		return sprintf(buf, "enabled\n");
-	else
-		return sprintf(buf, "disabled\n");
-}
-
-static struct module_attribute mod_attr_fw_reset = {
-	.attr = {.name = "auto_fw_reset", .mode = (S_IRUGO | S_IWUSR)},
-	.show = netxen_show_auto_fw_reset,
-	.store = netxen_store_auto_fw_reset,
-};
-#endif
 
 static void
 netxen_create_sysfs_entries(struct netxen_adapter *adapter)
@@ -2746,23 +2737,12 @@ static struct pci_driver netxen_driver = {
 
 static int __init netxen_init_module(void)
 {
-#ifdef CONFIG_MODULES
-	struct module *mod = THIS_MODULE;
-#endif
-
 	printk(KERN_INFO "%s\n", netxen_nic_driver_string);
 
 #ifdef CONFIG_INET
 	register_netdevice_notifier(&netxen_netdev_cb);
 	register_inetaddr_notifier(&netxen_inetaddr_cb);
 #endif
-
-#ifdef CONFIG_MODULES
-	if (sysfs_create_file(&mod->mkobj.kobj, &mod_attr_fw_reset.attr))
-		printk(KERN_ERR "%s: Failed to create auto_fw_reset "
-				"sysfs entry.", netxen_nic_driver_name);
-#endif
-
 	return pci_register_driver(&netxen_driver);
 }
 
@@ -2770,12 +2750,6 @@ module_init(netxen_init_module);
 
 static void __exit netxen_exit_module(void)
 {
-#ifdef CONFIG_MODULES
-	struct module *mod = THIS_MODULE;
-
-	sysfs_remove_file(&mod->mkobj.kobj, &mod_attr_fw_reset.attr);
-#endif
-
 	pci_unregister_driver(&netxen_driver);
 
 #ifdef CONFIG_INET

@@ -32,9 +32,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2C, 0x2D, 0x2E, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7473);
-
 /* ADT7473 registers */
 #define ADT7473_REG_BASE_ADDR			0x20
 
@@ -166,12 +163,12 @@ struct adt7473_data {
 
 static int adt7473_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adt7473_detect(struct i2c_client *client, int kind,
+static int adt7473_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adt7473_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7473_id[] = {
-	{ "adt7473", adt7473 },
+	{ "adt7473", 0 },
 	{ }
 };
 
@@ -184,7 +181,7 @@ static struct i2c_driver adt7473_driver = {
 	.remove		= adt7473_remove,
 	.id_table	= adt7473_id,
 	.detect		= adt7473_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -1085,7 +1082,7 @@ static struct attribute *adt7473_attr[] =
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adt7473_detect(struct i2c_client *client, int kind,
+static int adt7473_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

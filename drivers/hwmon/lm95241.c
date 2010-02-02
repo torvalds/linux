@@ -39,9 +39,6 @@
 static const unsigned short normal_i2c[] = {
 	0x19, 0x2a, 0x2b, I2C_CLIENT_END};
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm95241);
-
 /* LM95241 registers */
 #define LM95241_REG_R_MAN_ID		0xFE
 #define LM95241_REG_R_CHIP_ID		0xFF
@@ -310,7 +307,7 @@ static const struct attribute_group lm95241_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm95241_detect(struct i2c_client *new_client, int kind,
+static int lm95241_detect(struct i2c_client *new_client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;
@@ -446,7 +443,7 @@ static struct lm95241_data *lm95241_update_device(struct device *dev)
 
 /* Driver data (common to all clients) */
 static const struct i2c_device_id lm95241_id[] = {
-	{ "lm95241", lm95241 },
+	{ "lm95241", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm95241_id);
@@ -460,7 +457,7 @@ static struct i2c_driver lm95241_driver = {
 	.remove		= lm95241_remove,
 	.id_table	= lm95241_id,
 	.detect		= lm95241_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init sensors_lm95241_init(void)

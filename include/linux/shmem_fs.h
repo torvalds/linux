@@ -41,20 +41,4 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
 extern int init_tmpfs(void);
 extern int shmem_fill_super(struct super_block *sb, void *data, int silent);
 
-#ifdef CONFIG_TMPFS_POSIX_ACL
-int shmem_check_acl(struct inode *, int);
-int shmem_acl_init(struct inode *, struct inode *);
-
-extern struct xattr_handler shmem_xattr_acl_access_handler;
-extern struct xattr_handler shmem_xattr_acl_default_handler;
-
-extern struct generic_acl_operations shmem_acl_ops;
-
-#else
-static inline int shmem_acl_init(struct inode *inode, struct inode *dir)
-{
-	return 0;
-}
-#endif  /* CONFIG_TMPFS_POSIX_ACL */
-
 #endif

@@ -424,6 +424,8 @@ __writeq (unsigned long val, volatile void __iomem *addr)
 extern void __iomem * ioremap(unsigned long offset, unsigned long size);
 extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
 extern void iounmap (volatile void __iomem *addr);
+extern void __iomem * early_ioremap (unsigned long phys_addr, unsigned long size);
+extern void early_iounmap (volatile void __iomem *addr, unsigned long size);
 
 /*
  * String version of IO memory access ops:

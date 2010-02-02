@@ -28,7 +28,7 @@ described in the man pages included in the package.
 Project web page:    http://www.nilfs.org/en/
 Download page:       http://www.nilfs.org/en/download.html
 Git tree web page:   http://www.nilfs.org/git/
-NILFS mailing lists: http://www.nilfs.org/mailman/listinfo/users
+List info:           http://vger.kernel.org/vger-lists.html#linux-nilfs
 
 Caveats
 =======
@@ -49,8 +49,7 @@ Mount options
 NILFS2 supports the following mount options:
 (*) == default
 
-barrier=on(*)		This enables/disables barriers. barrier=off disables
-			it, barrier=on enables it.
+nobarrier		Disables barriers.
 errors=continue(*)	Keep going on a filesystem error.
 errors=remount-ro	Remount the filesystem read-only on an error.
 errors=panic		Panic and halt the machine if an error occurs.
@@ -71,6 +70,10 @@ order=strict		Apply strict in-order semantics that preserves sequence
 			blocks.  That means, it is guaranteed that no
 			overtaking of events occurs in the recovered file
 			system after a crash.
+norecovery		Disable recovery of the filesystem on mount.
+			This disables every write access on the device for
+			read-only mounts or snapshots.  This option will fail
+			for r/w mounts on an unclean volume.
 
 NILFS2 usage
 ============

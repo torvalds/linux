@@ -472,7 +472,7 @@ __sync_single_inode) to check if ->writepages has been successful in
 writing out the whole address_space.
 
 The Writeback tag is used by filemap*wait* and sync_page* functions,
-via wait_on_page_writeback_range, to wait for all writeback to
+via filemap_fdatawait_range, to wait for all writeback to
 complete.  While waiting ->sync_page (if defined) will be called on
 each page that is found to require writeback.
 

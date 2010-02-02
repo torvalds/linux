@@ -1306,13 +1306,8 @@ void igb_reset(struct igb_adapter *adapter)
 	hwm = min(((pba << 10) * 9 / 10),
 			((pba << 10) - 2 * adapter->max_frame_size));
 
-	if (mac->type < e1000_82576) {
-		fc->high_water = hwm & 0xFFF8;	/* 8-byte granularity */
-		fc->low_water = fc->high_water - 8;
-	} else {
-		fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
-		fc->low_water = fc->high_water - 16;
-	}
+	fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
+	fc->low_water = fc->high_water - 16;
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;
 	fc->current_mode = fc->requested_mode;
@@ -3427,7 +3422,7 @@ static inline int igb_tso_adv(struct igb_ring *tx_ring,
 							 iph->daddr, 0,
 							 IPPROTO_TCP,
 							 0);
-	} else if (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6) {
+	} else if (skb_is_gso_v6(skb)) {
 		ipv6_hdr(skb)->payload_len = 0;
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						       &ipv6_hdr(skb)->daddr,
@@ -3589,6 +3584,7 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
 		struct skb_frag_struct *frag;
 
+		count++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
@@ -3610,7 +3606,6 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 		if (pci_dma_mapping_error(pdev, buffer_info->dma))
 			goto dma_error;
 
-		count++;
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
@@ -4608,8 +4603,14 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 
 	retval = igb_read_mbx(hw, msgbuf, E1000_VFMAILBOX_SIZE, vf);
 
-	if (retval)
+	if (retval) {
+		/* if receive failed revoke VF CTS stats and restart init */
 		dev_err(&pdev->dev, "Error receiving message from VF\n");
+		vf_data->flags &= ~IGB_VF_FLAG_CTS;
+		if (!time_after(jiffies, vf_data->last_nack + (2 * HZ)))
+			return;
+		goto out;
+	}
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (E1000_VT_MSGTYPE_ACK | E1000_VT_MSGTYPE_NACK))
@@ -4626,12 +4627,10 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 	}
 
 	if (!(vf_data->flags & IGB_VF_FLAG_CTS)) {
-		msgbuf[0] = E1000_VT_MSGTYPE_NACK;
-		if (time_after(jiffies, vf_data->last_nack + (2 * HZ))) {
-			igb_write_mbx(hw, msgbuf, 1, vf);
-			vf_data->last_nack = jiffies;
-		}
-		return;
+		if (!time_after(jiffies, vf_data->last_nack + (2 * HZ)))
+			return;
+		retval = -1;
+		goto out;
 	}
 
 	switch ((msgbuf[0] & 0xFFFF)) {
@@ -4656,13 +4655,13 @@ static void igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
 		break;
 	}
 
+	msgbuf[0] |= E1000_VT_MSGTYPE_CTS;
+out:
 	/* notify the VF of the results of what it sent us */
 	if (retval)
 		msgbuf[0] |= E1000_VT_MSGTYPE_NACK;
 	else
 		msgbuf[0] |= E1000_VT_MSGTYPE_ACK;
-
-	msgbuf[0] |= E1000_VT_MSGTYPE_CTS;
 
 	igb_write_mbx(hw, msgbuf, 1, vf);
 }

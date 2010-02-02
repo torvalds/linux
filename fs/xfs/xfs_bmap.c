@@ -54,6 +54,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_filestream.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
 
 #ifdef DEBUG
@@ -272,71 +273,6 @@ xfs_bmap_isaeof(
 	int             whichfork,	/* data or attribute fork */
 	char		*aeof);		/* return value */
 
-#ifdef XFS_BMAP_TRACE
-/*
- * Add bmap trace entry prior to a call to xfs_iext_remove.
- */
-STATIC void
-xfs_bmap_trace_delete(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry(entries) deleted */
-	xfs_extnum_t	cnt,		/* count of entries deleted, 1 or 2 */
-	int		whichfork);	/* data or attr fork */
-
-/*
- * Add bmap trace entry prior to a call to xfs_iext_insert, or
- * reading in the extents list from the disk (in the btree).
- */
-STATIC void
-xfs_bmap_trace_insert(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry(entries) inserted */
-	xfs_extnum_t	cnt,		/* count of entries inserted, 1 or 2 */
-	xfs_bmbt_irec_t	*r1,		/* inserted record 1 */
-	xfs_bmbt_irec_t	*r2,		/* inserted record 2 or null */
-	int		whichfork);	/* data or attr fork */
-
-/*
- * Add bmap trace entry after updating an extent record in place.
- */
-STATIC void
-xfs_bmap_trace_post_update(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry updated */
-	int		whichfork);	/* data or attr fork */
-
-/*
- * Add bmap trace entry prior to updating an extent record in place.
- */
-STATIC void
-xfs_bmap_trace_pre_update(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry to be updated */
-	int		whichfork);	/* data or attr fork */
-
-#define	XFS_BMAP_TRACE_DELETE(d,ip,i,c,w)	\
-	xfs_bmap_trace_delete(__func__,d,ip,i,c,w)
-#define	XFS_BMAP_TRACE_INSERT(d,ip,i,c,r1,r2,w)	\
-	xfs_bmap_trace_insert(__func__,d,ip,i,c,r1,r2,w)
-#define	XFS_BMAP_TRACE_POST_UPDATE(d,ip,i,w)	\
-	xfs_bmap_trace_post_update(__func__,d,ip,i,w)
-#define	XFS_BMAP_TRACE_PRE_UPDATE(d,ip,i,w)	\
-	xfs_bmap_trace_pre_update(__func__,d,ip,i,w)
-#else
-#define	XFS_BMAP_TRACE_DELETE(d,ip,i,c,w)
-#define	XFS_BMAP_TRACE_INSERT(d,ip,i,c,r1,r2,w)
-#define	XFS_BMAP_TRACE_POST_UPDATE(d,ip,i,w)
-#define	XFS_BMAP_TRACE_PRE_UPDATE(d,ip,i,w)
-#endif	/* XFS_BMAP_TRACE */
-
 /*
  * Compute the worst-case number of indirect blocks that will be used
  * for ip's delayed extent of length "len".
@@ -362,18 +298,6 @@ xfs_bmap_validate_ret(
 #else
 #define	xfs_bmap_validate_ret(bno,len,flags,mval,onmap,nmap)
 #endif /* DEBUG */
-
-#if defined(XFS_RW_TRACE)
-STATIC void
-xfs_bunmap_trace(
-	xfs_inode_t		*ip,
-	xfs_fileoff_t		bno,
-	xfs_filblks_t		len,
-	int			flags,
-	inst_t			*ra);
-#else
-#define	xfs_bunmap_trace(ip, bno, len, flags, ra)
-#endif	/* XFS_RW_TRACE */
 
 STATIC int
 xfs_bmap_count_tree(
@@ -590,9 +514,9 @@ xfs_bmap_add_extent(
 	 * already extents in the list.
 	 */
 	if (nextents == 0) {
-		XFS_BMAP_TRACE_INSERT("insert empty", ip, 0, 1, new, NULL,
-			whichfork);
-		xfs_iext_insert(ifp, 0, 1, new);
+		xfs_iext_insert(ip, 0, 1, new,
+				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0);
+
 		ASSERT(cur == NULL);
 		ifp->if_lastex = 0;
 		if (!isnullstartblock(new->br_startblock)) {
@@ -759,26 +683,10 @@ xfs_bmap_add_extent_delay_real(
 	xfs_filblks_t		temp=0;	/* value for dnew calculations */
 	xfs_filblks_t		temp2=0;/* value for dnew calculations */
 	int			tmp_rval;	/* partial logging flags */
-	enum {				/* bit number definitions for state */
-		LEFT_CONTIG,	RIGHT_CONTIG,
-		LEFT_FILLING,	RIGHT_FILLING,
-		LEFT_DELAY,	RIGHT_DELAY,
-		LEFT_VALID,	RIGHT_VALID
-	};
 
 #define	LEFT		r[0]
 #define	RIGHT		r[1]
 #define	PREV		r[2]
-#define	MASK(b)		(1 << (b))
-#define	MASK2(a,b)	(MASK(a) | MASK(b))
-#define	MASK3(a,b,c)	(MASK2(a,b) | MASK(c))
-#define	MASK4(a,b,c,d)	(MASK3(a,b,c) | MASK(d))
-#define	STATE_SET(b,v)	((v) ? (state |= MASK(b)) : (state &= ~MASK(b)))
-#define	STATE_TEST(b)	(state & MASK(b))
-#define	STATE_SET_TEST(b,v)	((v) ? ((state |= MASK(b)), 1) : \
-				       ((state &= ~MASK(b)), 0))
-#define	SWITCH_STATE		\
-	(state & MASK4(LEFT_FILLING, RIGHT_FILLING, LEFT_CONTIG, RIGHT_CONTIG))
 
 	/*
 	 * Set up a bunch of variables to make the tests simpler.
@@ -790,69 +698,80 @@ xfs_bmap_add_extent_delay_real(
 	new_endoff = new->br_startoff + new->br_blockcount;
 	ASSERT(PREV.br_startoff <= new->br_startoff);
 	ASSERT(PREV.br_startoff + PREV.br_blockcount >= new_endoff);
+
 	/*
 	 * Set flags determining what part of the previous delayed allocation
 	 * extent is being replaced by a real allocation.
 	 */
-	STATE_SET(LEFT_FILLING, PREV.br_startoff == new->br_startoff);
-	STATE_SET(RIGHT_FILLING,
-		PREV.br_startoff + PREV.br_blockcount == new_endoff);
+	if (PREV.br_startoff == new->br_startoff)
+		state |= BMAP_LEFT_FILLING;
+	if (PREV.br_startoff + PREV.br_blockcount == new_endoff)
+		state |= BMAP_RIGHT_FILLING;
+
 	/*
 	 * Check and set flags if this segment has a left neighbor.
 	 * Don't set contiguous if the combined extent would be too large.
 	 */
-	if (STATE_SET_TEST(LEFT_VALID, idx > 0)) {
+	if (idx > 0) {
+		state |= BMAP_LEFT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx - 1), &LEFT);
-		STATE_SET(LEFT_DELAY, isnullstartblock(LEFT.br_startblock));
+
+		if (isnullstartblock(LEFT.br_startblock))
+			state |= BMAP_LEFT_DELAY;
 	}
-	STATE_SET(LEFT_CONTIG,
-		STATE_TEST(LEFT_VALID) && !STATE_TEST(LEFT_DELAY) &&
-		LEFT.br_startoff + LEFT.br_blockcount == new->br_startoff &&
-		LEFT.br_startblock + LEFT.br_blockcount == new->br_startblock &&
-		LEFT.br_state == new->br_state &&
-		LEFT.br_blockcount + new->br_blockcount <= MAXEXTLEN);
+
+	if ((state & BMAP_LEFT_VALID) && !(state & BMAP_LEFT_DELAY) &&
+	    LEFT.br_startoff + LEFT.br_blockcount == new->br_startoff &&
+	    LEFT.br_startblock + LEFT.br_blockcount == new->br_startblock &&
+	    LEFT.br_state == new->br_state &&
+	    LEFT.br_blockcount + new->br_blockcount <= MAXEXTLEN)
+		state |= BMAP_LEFT_CONTIG;
+
 	/*
 	 * Check and set flags if this segment has a right neighbor.
 	 * Don't set contiguous if the combined extent would be too large.
 	 * Also check for all-three-contiguous being too large.
 	 */
-	if (STATE_SET_TEST(RIGHT_VALID,
-			idx <
-			ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t) - 1)) {
+	if (idx < ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t) - 1) {
+		state |= BMAP_RIGHT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx + 1), &RIGHT);
-		STATE_SET(RIGHT_DELAY, isnullstartblock(RIGHT.br_startblock));
+
+		if (isnullstartblock(RIGHT.br_startblock))
+			state |= BMAP_RIGHT_DELAY;
 	}
-	STATE_SET(RIGHT_CONTIG,
-		STATE_TEST(RIGHT_VALID) && !STATE_TEST(RIGHT_DELAY) &&
-		new_endoff == RIGHT.br_startoff &&
-		new->br_startblock + new->br_blockcount ==
-		    RIGHT.br_startblock &&
-		new->br_state == RIGHT.br_state &&
-		new->br_blockcount + RIGHT.br_blockcount <= MAXEXTLEN &&
-		((state & MASK3(LEFT_CONTIG, LEFT_FILLING, RIGHT_FILLING)) !=
-		  MASK3(LEFT_CONTIG, LEFT_FILLING, RIGHT_FILLING) ||
-		 LEFT.br_blockcount + new->br_blockcount + RIGHT.br_blockcount
-		     <= MAXEXTLEN));
+
+	if ((state & BMAP_RIGHT_VALID) && !(state & BMAP_RIGHT_DELAY) &&
+	    new_endoff == RIGHT.br_startoff &&
+	    new->br_startblock + new->br_blockcount == RIGHT.br_startblock &&
+	    new->br_state == RIGHT.br_state &&
+	    new->br_blockcount + RIGHT.br_blockcount <= MAXEXTLEN &&
+	    ((state & (BMAP_LEFT_CONTIG | BMAP_LEFT_FILLING |
+		       BMAP_RIGHT_FILLING)) !=
+		      (BMAP_LEFT_CONTIG | BMAP_LEFT_FILLING |
+		       BMAP_RIGHT_FILLING) ||
+	     LEFT.br_blockcount + new->br_blockcount + RIGHT.br_blockcount
+			<= MAXEXTLEN))
+		state |= BMAP_RIGHT_CONTIG;
+
 	error = 0;
 	/*
 	 * Switch out based on the FILLING and CONTIG state bits.
 	 */
-	switch (SWITCH_STATE) {
-
-	case MASK4(LEFT_FILLING, RIGHT_FILLING, LEFT_CONTIG, RIGHT_CONTIG):
+	switch (state & (BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG |
+			 BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG)) {
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG |
+	     BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Filling in all of a previously delayed allocation extent.
 		 * The left and right neighbors are both contiguous with new.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF|LC|RC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			LEFT.br_blockcount + PREV.br_blockcount +
 			RIGHT.br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|LC|RC", ip, idx - 1,
-			XFS_DATA_FORK);
-		XFS_BMAP_TRACE_DELETE("LF|RF|LC|RC", ip, idx, 2, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 2);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
+		xfs_iext_remove(ip, idx, 2, state);
 		ip->i_df.if_lastex = idx - 1;
 		ip->i_d.di_nextents--;
 		if (cur == NULL)
@@ -885,20 +804,18 @@ xfs_bmap_add_extent_delay_real(
 			RIGHT.br_blockcount;
 		break;
 
-	case MASK3(LEFT_FILLING, RIGHT_FILLING, LEFT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING | BMAP_LEFT_CONTIG:
 		/*
 		 * Filling in all of a previously delayed allocation extent.
 		 * The left neighbor is contiguous, the right is not.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF|LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			LEFT.br_blockcount + PREV.br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx - 1;
-		XFS_BMAP_TRACE_DELETE("LF|RF|LC", ip, idx, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1, state);
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
 		else {
@@ -921,19 +838,19 @@ xfs_bmap_add_extent_delay_real(
 			PREV.br_blockcount;
 		break;
 
-	case MASK3(LEFT_FILLING, RIGHT_FILLING, RIGHT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Filling in all of a previously delayed allocation extent.
 		 * The right neighbor is contiguous, the left is not.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF|RC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_startblock(ep, new->br_startblock);
 		xfs_bmbt_set_blockcount(ep,
 			PREV.br_blockcount + RIGHT.br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|RC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx;
-		XFS_BMAP_TRACE_DELETE("LF|RF|RC", ip, idx + 1, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx + 1, 1);
+		xfs_iext_remove(ip, idx + 1, 1, state);
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
 		else {
@@ -956,15 +873,16 @@ xfs_bmap_add_extent_delay_real(
 			RIGHT.br_blockcount;
 		break;
 
-	case MASK2(LEFT_FILLING, RIGHT_FILLING):
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING:
 		/*
 		 * Filling in all of a previously delayed allocation extent.
 		 * Neither the left nor right neighbors are contiguous with
 		 * the new one.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_startblock(ep, new->br_startblock);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -987,19 +905,20 @@ xfs_bmap_add_extent_delay_real(
 		temp2 = new->br_blockcount;
 		break;
 
-	case MASK2(LEFT_FILLING, LEFT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG:
 		/*
 		 * Filling in the first part of a previous delayed allocation.
 		 * The left neighbor is contiguous.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|LC", ip, idx - 1, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			LEFT.br_blockcount + new->br_blockcount);
 		xfs_bmbt_set_startoff(ep,
 			PREV.br_startoff + new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|LC", ip, idx - 1, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
 		temp = PREV.br_blockcount - new->br_blockcount;
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|LC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep, temp);
 		ip->i_df.if_lastex = idx - 1;
 		if (cur == NULL)
@@ -1021,7 +940,7 @@ xfs_bmap_add_extent_delay_real(
 		temp = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 			startblockval(PREV.br_startblock));
 		xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-		XFS_BMAP_TRACE_POST_UPDATE("LF|LC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		*dnew = temp;
 		/* DELTA: The boundary between two in-core extents moved. */
 		temp = LEFT.br_startoff;
@@ -1029,18 +948,16 @@ xfs_bmap_add_extent_delay_real(
 			PREV.br_blockcount;
 		break;
 
-	case MASK(LEFT_FILLING):
+	case BMAP_LEFT_FILLING:
 		/*
 		 * Filling in the first part of a previous delayed allocation.
 		 * The left neighbor is not contiguous.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_startoff(ep, new_endoff);
 		temp = PREV.br_blockcount - new->br_blockcount;
 		xfs_bmbt_set_blockcount(ep, temp);
-		XFS_BMAP_TRACE_INSERT("LF", ip, idx, 1, new, NULL,
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ip->i_df.if_lastex = idx;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1071,27 +988,27 @@ xfs_bmap_add_extent_delay_real(
 			(cur ? cur->bc_private.b.allocated : 0));
 		ep = xfs_iext_get_ext(ifp, idx + 1);
 		xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-		XFS_BMAP_TRACE_POST_UPDATE("LF", ip, idx + 1, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx + 1, state, _THIS_IP_);
 		*dnew = temp;
 		/* DELTA: One in-core extent is split in two. */
 		temp = PREV.br_startoff;
 		temp2 = PREV.br_blockcount;
 		break;
 
-	case MASK2(RIGHT_FILLING, RIGHT_CONTIG):
+	case BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Filling in the last part of a previous delayed allocation.
 		 * The right neighbor is contiguous with the new allocation.
 		 */
 		temp = PREV.br_blockcount - new->br_blockcount;
-		XFS_BMAP_TRACE_PRE_UPDATE("RF|RC", ip, idx, XFS_DATA_FORK);
-		XFS_BMAP_TRACE_PRE_UPDATE("RF|RC", ip, idx + 1, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
+		trace_xfs_bmap_pre_update(ip, idx + 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep, temp);
 		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, idx + 1),
 			new->br_startoff, new->br_startblock,
 			new->br_blockcount + RIGHT.br_blockcount,
 			RIGHT.br_state);
-		XFS_BMAP_TRACE_POST_UPDATE("RF|RC", ip, idx + 1, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx + 1, state, _THIS_IP_);
 		ip->i_df.if_lastex = idx + 1;
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
@@ -1112,7 +1029,7 @@ xfs_bmap_add_extent_delay_real(
 		temp = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 			startblockval(PREV.br_startblock));
 		xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-		XFS_BMAP_TRACE_POST_UPDATE("RF|RC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		*dnew = temp;
 		/* DELTA: The boundary between two in-core extents moved. */
 		temp = PREV.br_startoff;
@@ -1120,17 +1037,15 @@ xfs_bmap_add_extent_delay_real(
 			RIGHT.br_blockcount;
 		break;
 
-	case MASK(RIGHT_FILLING):
+	case BMAP_RIGHT_FILLING:
 		/*
 		 * Filling in the last part of a previous delayed allocation.
 		 * The right neighbor is not contiguous.
 		 */
 		temp = PREV.br_blockcount - new->br_blockcount;
-		XFS_BMAP_TRACE_PRE_UPDATE("RF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep, temp);
-		XFS_BMAP_TRACE_INSERT("RF", ip, idx + 1, 1, new, NULL,
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 1, new);
+		xfs_iext_insert(ip, idx + 1, 1, new, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1161,7 +1076,7 @@ xfs_bmap_add_extent_delay_real(
 			(cur ? cur->bc_private.b.allocated : 0));
 		ep = xfs_iext_get_ext(ifp, idx);
 		xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-		XFS_BMAP_TRACE_POST_UPDATE("RF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		*dnew = temp;
 		/* DELTA: One in-core extent is split in two. */
 		temp = PREV.br_startoff;
@@ -1175,7 +1090,7 @@ xfs_bmap_add_extent_delay_real(
 		 * This case is avoided almost all the time.
 		 */
 		temp = new->br_startoff - PREV.br_startoff;
-		XFS_BMAP_TRACE_PRE_UPDATE("0", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, 0, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep, temp);
 		r[0] = *new;
 		r[1].br_state = PREV.br_state;
@@ -1183,9 +1098,7 @@ xfs_bmap_add_extent_delay_real(
 		r[1].br_startoff = new_endoff;
 		temp2 = PREV.br_startoff + PREV.br_blockcount - new_endoff;
 		r[1].br_blockcount = temp2;
-		XFS_BMAP_TRACE_INSERT("0", ip, idx + 1, 2, &r[0], &r[1],
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 2, &r[0]);
+		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1242,24 +1155,24 @@ xfs_bmap_add_extent_delay_real(
 		}
 		ep = xfs_iext_get_ext(ifp, idx);
 		xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-		XFS_BMAP_TRACE_POST_UPDATE("0", ip, idx, XFS_DATA_FORK);
-		XFS_BMAP_TRACE_PRE_UPDATE("0", ip, idx + 2, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+		trace_xfs_bmap_pre_update(ip, idx + 2, state, _THIS_IP_);
 		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, idx + 2),
 			nullstartblock((int)temp2));
-		XFS_BMAP_TRACE_POST_UPDATE("0", ip, idx + 2, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx + 2, state, _THIS_IP_);
 		*dnew = temp + temp2;
 		/* DELTA: One in-core extent is split in three. */
 		temp = PREV.br_startoff;
 		temp2 = PREV.br_blockcount;
 		break;
 
-	case MASK3(LEFT_FILLING, LEFT_CONTIG, RIGHT_CONTIG):
-	case MASK3(RIGHT_FILLING, LEFT_CONTIG, RIGHT_CONTIG):
-	case MASK2(LEFT_FILLING, RIGHT_CONTIG):
-	case MASK2(RIGHT_FILLING, LEFT_CONTIG):
-	case MASK2(LEFT_CONTIG, RIGHT_CONTIG):
-	case MASK(LEFT_CONTIG):
-	case MASK(RIGHT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
+	case BMAP_RIGHT_FILLING | BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_CONTIG:
+	case BMAP_RIGHT_FILLING | BMAP_LEFT_CONTIG:
+	case BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
+	case BMAP_LEFT_CONTIG:
+	case BMAP_RIGHT_CONTIG:
 		/*
 		 * These cases are all impossible.
 		 */
@@ -1279,14 +1192,6 @@ done:
 #undef	LEFT
 #undef	RIGHT
 #undef	PREV
-#undef	MASK
-#undef	MASK2
-#undef	MASK3
-#undef	MASK4
-#undef	STATE_SET
-#undef	STATE_TEST
-#undef	STATE_SET_TEST
-#undef	SWITCH_STATE
 }
 
 /*
@@ -1316,27 +1221,10 @@ xfs_bmap_add_extent_unwritten_real(
 	int			state = 0;/* state bits, accessed thru macros */
 	xfs_filblks_t		temp=0;
 	xfs_filblks_t		temp2=0;
-	enum {				/* bit number definitions for state */
-		LEFT_CONTIG,	RIGHT_CONTIG,
-		LEFT_FILLING,	RIGHT_FILLING,
-		LEFT_DELAY,	RIGHT_DELAY,
-		LEFT_VALID,	RIGHT_VALID
-	};
 
 #define	LEFT		r[0]
 #define	RIGHT		r[1]
 #define	PREV		r[2]
-#define	MASK(b)		(1 << (b))
-#define	MASK2(a,b)	(MASK(a) | MASK(b))
-#define	MASK3(a,b,c)	(MASK2(a,b) | MASK(c))
-#define	MASK4(a,b,c,d)	(MASK3(a,b,c) | MASK(d))
-#define	STATE_SET(b,v)	((v) ? (state |= MASK(b)) : (state &= ~MASK(b)))
-#define	STATE_TEST(b)	(state & MASK(b))
-#define	STATE_SET_TEST(b,v)	((v) ? ((state |= MASK(b)), 1) : \
-				       ((state &= ~MASK(b)), 0))
-#define	SWITCH_STATE		\
-	(state & MASK4(LEFT_FILLING, RIGHT_FILLING, LEFT_CONTIG, RIGHT_CONTIG))
-
 	/*
 	 * Set up a bunch of variables to make the tests simpler.
 	 */
@@ -1352,68 +1240,78 @@ xfs_bmap_add_extent_unwritten_real(
 	new_endoff = new->br_startoff + new->br_blockcount;
 	ASSERT(PREV.br_startoff <= new->br_startoff);
 	ASSERT(PREV.br_startoff + PREV.br_blockcount >= new_endoff);
+
 	/*
 	 * Set flags determining what part of the previous oldext allocation
 	 * extent is being replaced by a newext allocation.
 	 */
-	STATE_SET(LEFT_FILLING, PREV.br_startoff == new->br_startoff);
-	STATE_SET(RIGHT_FILLING,
-		PREV.br_startoff + PREV.br_blockcount == new_endoff);
+	if (PREV.br_startoff == new->br_startoff)
+		state |= BMAP_LEFT_FILLING;
+	if (PREV.br_startoff + PREV.br_blockcount == new_endoff)
+		state |= BMAP_RIGHT_FILLING;
+
 	/*
 	 * Check and set flags if this segment has a left neighbor.
 	 * Don't set contiguous if the combined extent would be too large.
 	 */
-	if (STATE_SET_TEST(LEFT_VALID, idx > 0)) {
+	if (idx > 0) {
+		state |= BMAP_LEFT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx - 1), &LEFT);
-		STATE_SET(LEFT_DELAY, isnullstartblock(LEFT.br_startblock));
+
+		if (isnullstartblock(LEFT.br_startblock))
+			state |= BMAP_LEFT_DELAY;
 	}
-	STATE_SET(LEFT_CONTIG,
-		STATE_TEST(LEFT_VALID) && !STATE_TEST(LEFT_DELAY) &&
-		LEFT.br_startoff + LEFT.br_blockcount == new->br_startoff &&
-		LEFT.br_startblock + LEFT.br_blockcount == new->br_startblock &&
-		LEFT.br_state == newext &&
-		LEFT.br_blockcount + new->br_blockcount <= MAXEXTLEN);
+
+	if ((state & BMAP_LEFT_VALID) && !(state & BMAP_LEFT_DELAY) &&
+	    LEFT.br_startoff + LEFT.br_blockcount == new->br_startoff &&
+	    LEFT.br_startblock + LEFT.br_blockcount == new->br_startblock &&
+	    LEFT.br_state == newext &&
+	    LEFT.br_blockcount + new->br_blockcount <= MAXEXTLEN)
+		state |= BMAP_LEFT_CONTIG;
+
 	/*
 	 * Check and set flags if this segment has a right neighbor.
 	 * Don't set contiguous if the combined extent would be too large.
 	 * Also check for all-three-contiguous being too large.
 	 */
-	if (STATE_SET_TEST(RIGHT_VALID,
-			idx <
-			ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t) - 1)) {
+	if (idx < ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t) - 1) {
+		state |= BMAP_RIGHT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx + 1), &RIGHT);
-		STATE_SET(RIGHT_DELAY, isnullstartblock(RIGHT.br_startblock));
+		if (isnullstartblock(RIGHT.br_startblock))
+			state |= BMAP_RIGHT_DELAY;
 	}
-	STATE_SET(RIGHT_CONTIG,
-		STATE_TEST(RIGHT_VALID) && !STATE_TEST(RIGHT_DELAY) &&
-		new_endoff == RIGHT.br_startoff &&
-		new->br_startblock + new->br_blockcount ==
-		    RIGHT.br_startblock &&
-		newext == RIGHT.br_state &&
-		new->br_blockcount + RIGHT.br_blockcount <= MAXEXTLEN &&
-		((state & MASK3(LEFT_CONTIG, LEFT_FILLING, RIGHT_FILLING)) !=
-		  MASK3(LEFT_CONTIG, LEFT_FILLING, RIGHT_FILLING) ||
-		 LEFT.br_blockcount + new->br_blockcount + RIGHT.br_blockcount
-		     <= MAXEXTLEN));
+
+	if ((state & BMAP_RIGHT_VALID) && !(state & BMAP_RIGHT_DELAY) &&
+	    new_endoff == RIGHT.br_startoff &&
+	    new->br_startblock + new->br_blockcount == RIGHT.br_startblock &&
+	    newext == RIGHT.br_state &&
+	    new->br_blockcount + RIGHT.br_blockcount <= MAXEXTLEN &&
+	    ((state & (BMAP_LEFT_CONTIG | BMAP_LEFT_FILLING |
+		       BMAP_RIGHT_FILLING)) !=
+		      (BMAP_LEFT_CONTIG | BMAP_LEFT_FILLING |
+		       BMAP_RIGHT_FILLING) ||
+	     LEFT.br_blockcount + new->br_blockcount + RIGHT.br_blockcount
+			<= MAXEXTLEN))
+		state |= BMAP_RIGHT_CONTIG;
+
 	/*
 	 * Switch out based on the FILLING and CONTIG state bits.
 	 */
-	switch (SWITCH_STATE) {
-
-	case MASK4(LEFT_FILLING, RIGHT_FILLING, LEFT_CONTIG, RIGHT_CONTIG):
+	switch (state & (BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG |
+			 BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG)) {
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG |
+	     BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Setting all of a previous oldext extent to newext.
 		 * The left and right neighbors are both contiguous with new.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF|LC|RC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			LEFT.br_blockcount + PREV.br_blockcount +
 			RIGHT.br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|LC|RC", ip, idx - 1,
-			XFS_DATA_FORK);
-		XFS_BMAP_TRACE_DELETE("LF|RF|LC|RC", ip, idx, 2, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 2);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
+		xfs_iext_remove(ip, idx, 2, state);
 		ip->i_df.if_lastex = idx - 1;
 		ip->i_d.di_nextents -= 2;
 		if (cur == NULL)
@@ -1450,20 +1348,18 @@ xfs_bmap_add_extent_unwritten_real(
 			RIGHT.br_blockcount;
 		break;
 
-	case MASK3(LEFT_FILLING, RIGHT_FILLING, LEFT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING | BMAP_LEFT_CONTIG:
 		/*
 		 * Setting all of a previous oldext extent to newext.
 		 * The left neighbor is contiguous, the right is not.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF|LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			LEFT.br_blockcount + PREV.br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx - 1;
-		XFS_BMAP_TRACE_DELETE("LF|RF|LC", ip, idx, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1, state);
 		ip->i_d.di_nextents--;
 		if (cur == NULL)
 			rval = XFS_ILOG_CORE | XFS_ILOG_DEXT;
@@ -1492,21 +1388,18 @@ xfs_bmap_add_extent_unwritten_real(
 			PREV.br_blockcount;
 		break;
 
-	case MASK3(LEFT_FILLING, RIGHT_FILLING, RIGHT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Setting all of a previous oldext extent to newext.
 		 * The right neighbor is contiguous, the left is not.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF|RC", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep,
 			PREV.br_blockcount + RIGHT.br_blockcount);
 		xfs_bmbt_set_state(ep, newext);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF|RC", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		ip->i_df.if_lastex = idx;
-		XFS_BMAP_TRACE_DELETE("LF|RF|RC", ip, idx + 1, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx + 1, 1);
+		xfs_iext_remove(ip, idx + 1, 1, state);
 		ip->i_d.di_nextents--;
 		if (cur == NULL)
 			rval = XFS_ILOG_CORE | XFS_ILOG_DEXT;
@@ -1535,17 +1428,16 @@ xfs_bmap_add_extent_unwritten_real(
 			RIGHT.br_blockcount;
 		break;
 
-	case MASK2(LEFT_FILLING, RIGHT_FILLING):
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_FILLING:
 		/*
 		 * Setting all of a previous oldext extent to newext.
 		 * Neither the left nor right neighbors are contiguous with
 		 * the new one.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|RF", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_state(ep, newext);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|RF", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx;
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
@@ -1566,27 +1458,25 @@ xfs_bmap_add_extent_unwritten_real(
 		temp2 = new->br_blockcount;
 		break;
 
-	case MASK2(LEFT_FILLING, LEFT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG:
 		/*
 		 * Setting the first part of a previous oldext extent to newext.
 		 * The left neighbor is contiguous.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			LEFT.br_blockcount + new->br_blockcount);
 		xfs_bmbt_set_startoff(ep,
 			PREV.br_startoff + new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|LC", ip, idx - 1,
-			XFS_DATA_FORK);
-		XFS_BMAP_TRACE_PRE_UPDATE("LF|LC", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_startblock(ep,
 			new->br_startblock + new->br_blockcount);
 		xfs_bmbt_set_blockcount(ep,
 			PREV.br_blockcount - new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF|LC", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx - 1;
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
@@ -1617,22 +1507,21 @@ xfs_bmap_add_extent_unwritten_real(
 			PREV.br_blockcount;
 		break;
 
-	case MASK(LEFT_FILLING):
+	case BMAP_LEFT_FILLING:
 		/*
 		 * Setting the first part of a previous oldext extent to newext.
 		 * The left neighbor is not contiguous.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		ASSERT(ep && xfs_bmbt_get_state(ep) == oldext);
 		xfs_bmbt_set_startoff(ep, new_endoff);
 		xfs_bmbt_set_blockcount(ep,
 			PREV.br_blockcount - new->br_blockcount);
 		xfs_bmbt_set_startblock(ep,
 			new->br_startblock + new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LF", ip, idx, XFS_DATA_FORK);
-		XFS_BMAP_TRACE_INSERT("LF", ip, idx, 1, new, NULL,
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx, 1, new);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ip->i_df.if_lastex = idx;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1660,24 +1549,21 @@ xfs_bmap_add_extent_unwritten_real(
 		temp2 = PREV.br_blockcount;
 		break;
 
-	case MASK2(RIGHT_FILLING, RIGHT_CONTIG):
+	case BMAP_RIGHT_FILLING | BMAP_RIGHT_CONTIG:
 		/*
 		 * Setting the last part of a previous oldext extent to newext.
 		 * The right neighbor is contiguous with the new allocation.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("RF|RC", ip, idx,
-			XFS_DATA_FORK);
-		XFS_BMAP_TRACE_PRE_UPDATE("RF|RC", ip, idx + 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
+		trace_xfs_bmap_pre_update(ip, idx + 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep,
 			PREV.br_blockcount - new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("RF|RC", ip, idx,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_allf(xfs_iext_get_ext(ifp, idx + 1),
 			new->br_startoff, new->br_startblock,
 			new->br_blockcount + RIGHT.br_blockcount, newext);
-		XFS_BMAP_TRACE_POST_UPDATE("RF|RC", ip, idx + 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx + 1, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx + 1;
 		if (cur == NULL)
 			rval = XFS_ILOG_DEXT;
@@ -1707,18 +1593,17 @@ xfs_bmap_add_extent_unwritten_real(
 			RIGHT.br_blockcount;
 		break;
 
-	case MASK(RIGHT_FILLING):
+	case BMAP_RIGHT_FILLING:
 		/*
 		 * Setting the last part of a previous oldext extent to newext.
 		 * The right neighbor is not contiguous.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("RF", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep,
 			PREV.br_blockcount - new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("RF", ip, idx, XFS_DATA_FORK);
-		XFS_BMAP_TRACE_INSERT("RF", ip, idx + 1, 1, new, NULL,
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 1, new);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
+		xfs_iext_insert(ip, idx + 1, 1, new, state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents++;
 		if (cur == NULL)
@@ -1756,19 +1641,18 @@ xfs_bmap_add_extent_unwritten_real(
 		 * newext.  Contiguity is impossible here.
 		 * One extent becomes three extents.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("0", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep,
 			new->br_startoff - PREV.br_startoff);
-		XFS_BMAP_TRACE_POST_UPDATE("0", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		r[0] = *new;
 		r[1].br_startoff = new_endoff;
 		r[1].br_blockcount =
 			PREV.br_startoff + PREV.br_blockcount - new_endoff;
 		r[1].br_startblock = new->br_startblock + new->br_blockcount;
 		r[1].br_state = oldext;
-		XFS_BMAP_TRACE_INSERT("0", ip, idx + 1, 2, &r[0], &r[1],
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx + 1, 2, &r[0]);
+		xfs_iext_insert(ip, idx + 1, 2, &r[0], state);
 		ip->i_df.if_lastex = idx + 1;
 		ip->i_d.di_nextents += 2;
 		if (cur == NULL)
@@ -1813,13 +1697,13 @@ xfs_bmap_add_extent_unwritten_real(
 		temp2 = PREV.br_blockcount;
 		break;
 
-	case MASK3(LEFT_FILLING, LEFT_CONTIG, RIGHT_CONTIG):
-	case MASK3(RIGHT_FILLING, LEFT_CONTIG, RIGHT_CONTIG):
-	case MASK2(LEFT_FILLING, RIGHT_CONTIG):
-	case MASK2(RIGHT_FILLING, LEFT_CONTIG):
-	case MASK2(LEFT_CONTIG, RIGHT_CONTIG):
-	case MASK(LEFT_CONTIG):
-	case MASK(RIGHT_CONTIG):
+	case BMAP_LEFT_FILLING | BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
+	case BMAP_RIGHT_FILLING | BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
+	case BMAP_LEFT_FILLING | BMAP_RIGHT_CONTIG:
+	case BMAP_RIGHT_FILLING | BMAP_LEFT_CONTIG:
+	case BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
+	case BMAP_LEFT_CONTIG:
+	case BMAP_RIGHT_CONTIG:
 		/*
 		 * These cases are all impossible.
 		 */
@@ -1839,14 +1723,6 @@ done:
 #undef	LEFT
 #undef	RIGHT
 #undef	PREV
-#undef	MASK
-#undef	MASK2
-#undef	MASK3
-#undef	MASK4
-#undef	STATE_SET
-#undef	STATE_TEST
-#undef	STATE_SET_TEST
-#undef	SWITCH_STATE
 }
 
 /*
@@ -1872,62 +1748,57 @@ xfs_bmap_add_extent_hole_delay(
 	int			state;  /* state bits, accessed thru macros */
 	xfs_filblks_t		temp=0;	/* temp for indirect calculations */
 	xfs_filblks_t		temp2=0;
-	enum {				/* bit number definitions for state */
-		LEFT_CONTIG,	RIGHT_CONTIG,
-		LEFT_DELAY,	RIGHT_DELAY,
-		LEFT_VALID,	RIGHT_VALID
-	};
-
-#define	MASK(b)			(1 << (b))
-#define	MASK2(a,b)		(MASK(a) | MASK(b))
-#define	STATE_SET(b,v)		((v) ? (state |= MASK(b)) : (state &= ~MASK(b)))
-#define	STATE_TEST(b)		(state & MASK(b))
-#define	STATE_SET_TEST(b,v)	((v) ? ((state |= MASK(b)), 1) : \
-				       ((state &= ~MASK(b)), 0))
-#define	SWITCH_STATE		(state & MASK2(LEFT_CONTIG, RIGHT_CONTIG))
 
 	ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
 	ep = xfs_iext_get_ext(ifp, idx);
 	state = 0;
 	ASSERT(isnullstartblock(new->br_startblock));
+
 	/*
 	 * Check and set flags if this segment has a left neighbor
 	 */
-	if (STATE_SET_TEST(LEFT_VALID, idx > 0)) {
+	if (idx > 0) {
+		state |= BMAP_LEFT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx - 1), &left);
-		STATE_SET(LEFT_DELAY, isnullstartblock(left.br_startblock));
+
+		if (isnullstartblock(left.br_startblock))
+			state |= BMAP_LEFT_DELAY;
 	}
+
 	/*
 	 * Check and set flags if the current (right) segment exists.
 	 * If it doesn't exist, we're converting the hole at end-of-file.
 	 */
-	if (STATE_SET_TEST(RIGHT_VALID,
-			   idx <
-			   ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t))) {
+	if (idx < ip->i_df.if_bytes / (uint)sizeof(xfs_bmbt_rec_t)) {
+		state |= BMAP_RIGHT_VALID;
 		xfs_bmbt_get_all(ep, &right);
-		STATE_SET(RIGHT_DELAY, isnullstartblock(right.br_startblock));
+
+		if (isnullstartblock(right.br_startblock))
+			state |= BMAP_RIGHT_DELAY;
 	}
+
 	/*
 	 * Set contiguity flags on the left and right neighbors.
 	 * Don't let extents get too large, even if the pieces are contiguous.
 	 */
-	STATE_SET(LEFT_CONTIG,
-		STATE_TEST(LEFT_VALID) && STATE_TEST(LEFT_DELAY) &&
-		left.br_startoff + left.br_blockcount == new->br_startoff &&
-		left.br_blockcount + new->br_blockcount <= MAXEXTLEN);
-	STATE_SET(RIGHT_CONTIG,
-		STATE_TEST(RIGHT_VALID) && STATE_TEST(RIGHT_DELAY) &&
-		new->br_startoff + new->br_blockcount == right.br_startoff &&
-		new->br_blockcount + right.br_blockcount <= MAXEXTLEN &&
-		(!STATE_TEST(LEFT_CONTIG) ||
-		 (left.br_blockcount + new->br_blockcount +
-		     right.br_blockcount <= MAXEXTLEN)));
+	if ((state & BMAP_LEFT_VALID) && (state & BMAP_LEFT_DELAY) &&
+	    left.br_startoff + left.br_blockcount == new->br_startoff &&
+	    left.br_blockcount + new->br_blockcount <= MAXEXTLEN)
+		state |= BMAP_LEFT_CONTIG;
+
+	if ((state & BMAP_RIGHT_VALID) && (state & BMAP_RIGHT_DELAY) &&
+	    new->br_startoff + new->br_blockcount == right.br_startoff &&
+	    new->br_blockcount + right.br_blockcount <= MAXEXTLEN &&
+	    (!(state & BMAP_LEFT_CONTIG) ||
+	     (left.br_blockcount + new->br_blockcount +
+	      right.br_blockcount <= MAXEXTLEN)))
+		state |= BMAP_RIGHT_CONTIG;
+
 	/*
 	 * Switch out based on the contiguity flags.
 	 */
-	switch (SWITCH_STATE) {
-
-	case MASK2(LEFT_CONTIG, RIGHT_CONTIG):
+	switch (state & (BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG)) {
+	case BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
 		/*
 		 * New allocation is contiguous with delayed allocations
 		 * on the left and on the right.
@@ -1935,8 +1806,8 @@ xfs_bmap_add_extent_hole_delay(
 		 */
 		temp = left.br_blockcount + new->br_blockcount +
 			right.br_blockcount;
-		XFS_BMAP_TRACE_PRE_UPDATE("LC|RC", ip, idx - 1,
-			XFS_DATA_FORK);
+
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1), temp);
 		oldlen = startblockval(left.br_startblock) +
 			startblockval(new->br_startblock) +
@@ -1944,53 +1815,52 @@ xfs_bmap_add_extent_hole_delay(
 		newlen = xfs_bmap_worst_indlen(ip, temp);
 		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, idx - 1),
 			nullstartblock((int)newlen));
-		XFS_BMAP_TRACE_POST_UPDATE("LC|RC", ip, idx - 1,
-			XFS_DATA_FORK);
-		XFS_BMAP_TRACE_DELETE("LC|RC", ip, idx, 1, XFS_DATA_FORK);
-		xfs_iext_remove(ifp, idx, 1);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
+		xfs_iext_remove(ip, idx, 1, state);
 		ip->i_df.if_lastex = idx - 1;
 		/* DELTA: Two in-core extents were replaced by one. */
 		temp2 = temp;
 		temp = left.br_startoff;
 		break;
 
-	case MASK(LEFT_CONTIG):
+	case BMAP_LEFT_CONTIG:
 		/*
 		 * New allocation is contiguous with a delayed allocation
 		 * on the left.
 		 * Merge the new allocation with the left neighbor.
 		 */
 		temp = left.br_blockcount + new->br_blockcount;
-		XFS_BMAP_TRACE_PRE_UPDATE("LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1), temp);
 		oldlen = startblockval(left.br_startblock) +
 			startblockval(new->br_startblock);
 		newlen = xfs_bmap_worst_indlen(ip, temp);
 		xfs_bmbt_set_startblock(xfs_iext_get_ext(ifp, idx - 1),
 			nullstartblock((int)newlen));
-		XFS_BMAP_TRACE_POST_UPDATE("LC", ip, idx - 1,
-			XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx - 1;
 		/* DELTA: One in-core extent grew into a hole. */
 		temp2 = temp;
 		temp = left.br_startoff;
 		break;
 
-	case MASK(RIGHT_CONTIG):
+	case BMAP_RIGHT_CONTIG:
 		/*
 		 * New allocation is contiguous with a delayed allocation
 		 * on the right.
 		 * Merge the new allocation with the right neighbor.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("RC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		temp = new->br_blockcount + right.br_blockcount;
 		oldlen = startblockval(new->br_startblock) +
 			startblockval(right.br_startblock);
 		newlen = xfs_bmap_worst_indlen(ip, temp);
 		xfs_bmbt_set_allf(ep, new->br_startoff,
 			nullstartblock((int)newlen), temp, right.br_state);
-		XFS_BMAP_TRACE_POST_UPDATE("RC", ip, idx, XFS_DATA_FORK);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		ip->i_df.if_lastex = idx;
 		/* DELTA: One in-core extent grew into a hole. */
 		temp2 = temp;
@@ -2004,9 +1874,7 @@ xfs_bmap_add_extent_hole_delay(
 		 * Insert a new entry.
 		 */
 		oldlen = newlen = 0;
-		XFS_BMAP_TRACE_INSERT("0", ip, idx, 1, new, NULL,
-			XFS_DATA_FORK);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ip->i_df.if_lastex = idx;
 		/* DELTA: A new in-core extent was added in a hole. */
 		temp2 = new->br_blockcount;
@@ -2030,12 +1898,6 @@ xfs_bmap_add_extent_hole_delay(
 	}
 	*logflagsp = 0;
 	return 0;
-#undef	MASK
-#undef	MASK2
-#undef	STATE_SET
-#undef	STATE_TEST
-#undef	STATE_SET_TEST
-#undef	SWITCH_STATE
 }
 
 /*
@@ -2062,83 +1924,75 @@ xfs_bmap_add_extent_hole_real(
 	int			state;	/* state bits, accessed thru macros */
 	xfs_filblks_t		temp=0;
 	xfs_filblks_t		temp2=0;
-	enum {				/* bit number definitions for state */
-		LEFT_CONTIG,	RIGHT_CONTIG,
-		LEFT_DELAY,	RIGHT_DELAY,
-		LEFT_VALID,	RIGHT_VALID
-	};
-
-#define	MASK(b)			(1 << (b))
-#define	MASK2(a,b)		(MASK(a) | MASK(b))
-#define	STATE_SET(b,v)		((v) ? (state |= MASK(b)) : (state &= ~MASK(b)))
-#define	STATE_TEST(b)		(state & MASK(b))
-#define	STATE_SET_TEST(b,v)	((v) ? ((state |= MASK(b)), 1) : \
-				       ((state &= ~MASK(b)), 0))
-#define	SWITCH_STATE		(state & MASK2(LEFT_CONTIG, RIGHT_CONTIG))
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(idx <= ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t));
 	ep = xfs_iext_get_ext(ifp, idx);
 	state = 0;
+
+	if (whichfork == XFS_ATTR_FORK)
+		state |= BMAP_ATTRFORK;
+
 	/*
 	 * Check and set flags if this segment has a left neighbor.
 	 */
-	if (STATE_SET_TEST(LEFT_VALID, idx > 0)) {
+	if (idx > 0) {
+		state |= BMAP_LEFT_VALID;
 		xfs_bmbt_get_all(xfs_iext_get_ext(ifp, idx - 1), &left);
-		STATE_SET(LEFT_DELAY, isnullstartblock(left.br_startblock));
+		if (isnullstartblock(left.br_startblock))
+			state |= BMAP_LEFT_DELAY;
 	}
+
 	/*
 	 * Check and set flags if this segment has a current value.
 	 * Not true if we're inserting into the "hole" at eof.
 	 */
-	if (STATE_SET_TEST(RIGHT_VALID,
-			   idx <
-			   ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t))) {
+	if (idx < ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t)) {
+		state |= BMAP_RIGHT_VALID;
 		xfs_bmbt_get_all(ep, &right);
-		STATE_SET(RIGHT_DELAY, isnullstartblock(right.br_startblock));
+		if (isnullstartblock(right.br_startblock))
+			state |= BMAP_RIGHT_DELAY;
 	}
+
 	/*
 	 * We're inserting a real allocation between "left" and "right".
 	 * Set the contiguity flags.  Don't let extents get too large.
 	 */
-	STATE_SET(LEFT_CONTIG,
-		STATE_TEST(LEFT_VALID) && !STATE_TEST(LEFT_DELAY) &&
-		left.br_startoff + left.br_blockcount == new->br_startoff &&
-		left.br_startblock + left.br_blockcount == new->br_startblock &&
-		left.br_state == new->br_state &&
-		left.br_blockcount + new->br_blockcount <= MAXEXTLEN);
-	STATE_SET(RIGHT_CONTIG,
-		STATE_TEST(RIGHT_VALID) && !STATE_TEST(RIGHT_DELAY) &&
-		new->br_startoff + new->br_blockcount == right.br_startoff &&
-		new->br_startblock + new->br_blockcount ==
-		    right.br_startblock &&
-		new->br_state == right.br_state &&
-		new->br_blockcount + right.br_blockcount <= MAXEXTLEN &&
-		(!STATE_TEST(LEFT_CONTIG) ||
-		 left.br_blockcount + new->br_blockcount +
-		     right.br_blockcount <= MAXEXTLEN));
+	if ((state & BMAP_LEFT_VALID) && !(state & BMAP_LEFT_DELAY) &&
+	    left.br_startoff + left.br_blockcount == new->br_startoff &&
+	    left.br_startblock + left.br_blockcount == new->br_startblock &&
+	    left.br_state == new->br_state &&
+	    left.br_blockcount + new->br_blockcount <= MAXEXTLEN)
+		state |= BMAP_LEFT_CONTIG;
+
+	if ((state & BMAP_RIGHT_VALID) && !(state & BMAP_RIGHT_DELAY) &&
+	    new->br_startoff + new->br_blockcount == right.br_startoff &&
+	    new->br_startblock + new->br_blockcount == right.br_startblock &&
+	    new->br_state == right.br_state &&
+	    new->br_blockcount + right.br_blockcount <= MAXEXTLEN &&
+	    (!(state & BMAP_LEFT_CONTIG) ||
+	     left.br_blockcount + new->br_blockcount +
+	     right.br_blockcount <= MAXEXTLEN))
+		state |= BMAP_RIGHT_CONTIG;
 
 	error = 0;
 	/*
 	 * Select which case we're in here, and implement it.
 	 */
-	switch (SWITCH_STATE) {
-
-	case MASK2(LEFT_CONTIG, RIGHT_CONTIG):
+	switch (state & (BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG)) {
+	case BMAP_LEFT_CONTIG | BMAP_RIGHT_CONTIG:
 		/*
 		 * New allocation is contiguous with real allocations on the
 		 * left and on the right.
 		 * Merge all three into a single extent record.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LC|RC", ip, idx - 1,
-			whichfork);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			left.br_blockcount + new->br_blockcount +
 			right.br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LC|RC", ip, idx - 1,
-			whichfork);
-		XFS_BMAP_TRACE_DELETE("LC|RC", ip, idx, 1, whichfork);
-		xfs_iext_remove(ifp, idx, 1);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
+		xfs_iext_remove(ip, idx, 1, state);
 		ifp->if_lastex = idx - 1;
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 			XFS_IFORK_NEXTENTS(ip, whichfork) - 1);
@@ -2173,16 +2027,17 @@ xfs_bmap_add_extent_hole_real(
 			right.br_blockcount;
 		break;
 
-	case MASK(LEFT_CONTIG):
+	case BMAP_LEFT_CONTIG:
 		/*
 		 * New allocation is contiguous with a real allocation
 		 * on the left.
 		 * Merge the new allocation with the left neighbor.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("LC", ip, idx - 1, whichfork);
+		trace_xfs_bmap_pre_update(ip, idx - 1, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(xfs_iext_get_ext(ifp, idx - 1),
 			left.br_blockcount + new->br_blockcount);
-		XFS_BMAP_TRACE_POST_UPDATE("LC", ip, idx - 1, whichfork);
+		trace_xfs_bmap_post_update(ip, idx - 1, state, _THIS_IP_);
+
 		ifp->if_lastex = idx - 1;
 		if (cur == NULL) {
 			rval = xfs_ilog_fext(whichfork);
@@ -2207,17 +2062,18 @@ xfs_bmap_add_extent_hole_real(
 			new->br_blockcount;
 		break;
 
-	case MASK(RIGHT_CONTIG):
+	case BMAP_RIGHT_CONTIG:
 		/*
 		 * New allocation is contiguous with a real allocation
 		 * on the right.
 		 * Merge the new allocation with the right neighbor.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("RC", ip, idx, whichfork);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_allf(ep, new->br_startoff, new->br_startblock,
 			new->br_blockcount + right.br_blockcount,
 			right.br_state);
-		XFS_BMAP_TRACE_POST_UPDATE("RC", ip, idx, whichfork);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+
 		ifp->if_lastex = idx;
 		if (cur == NULL) {
 			rval = xfs_ilog_fext(whichfork);
@@ -2248,8 +2104,7 @@ xfs_bmap_add_extent_hole_real(
 		 * real allocation.
 		 * Insert a new entry.
 		 */
-		XFS_BMAP_TRACE_INSERT("0", ip, idx, 1, new, NULL, whichfork);
-		xfs_iext_insert(ifp, idx, 1, new);
+		xfs_iext_insert(ip, idx, 1, new, state);
 		ifp->if_lastex = idx;
 		XFS_IFORK_NEXT_SET(ip, whichfork,
 			XFS_IFORK_NEXTENTS(ip, whichfork) + 1);
@@ -2283,12 +2138,6 @@ xfs_bmap_add_extent_hole_real(
 done:
 	*logflagsp = rval;
 	return error;
-#undef	MASK
-#undef	MASK2
-#undef	STATE_SET
-#undef	STATE_TEST
-#undef	STATE_SET_TEST
-#undef	SWITCH_STATE
 }
 
 /*
@@ -3115,8 +2964,13 @@ xfs_bmap_del_extent(
 	uint			qfield;	/* quota field to update */
 	xfs_filblks_t		temp;	/* for indirect length calculations */
 	xfs_filblks_t		temp2;	/* for indirect length calculations */
+	int			state = 0;
 
 	XFS_STATS_INC(xs_del_exlist);
+
+	if (whichfork == XFS_ATTR_FORK)
+		state |= BMAP_ATTRFORK;
+
 	mp = ip->i_mount;
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT((idx >= 0) && (idx < ifp->if_bytes /
@@ -3196,8 +3050,8 @@ xfs_bmap_del_extent(
 		/*
 		 * Matches the whole extent.  Delete the entry.
 		 */
-		XFS_BMAP_TRACE_DELETE("3", ip, idx, 1, whichfork);
-		xfs_iext_remove(ifp, idx, 1);
+		xfs_iext_remove(ip, idx, 1,
+				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0);
 		ifp->if_lastex = idx;
 		if (delay)
 			break;
@@ -3217,7 +3071,7 @@ xfs_bmap_del_extent(
 		/*
 		 * Deleting the first part of the extent.
 		 */
-		XFS_BMAP_TRACE_PRE_UPDATE("2", ip, idx, whichfork);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_startoff(ep, del_endoff);
 		temp = got.br_blockcount - del->br_blockcount;
 		xfs_bmbt_set_blockcount(ep, temp);
@@ -3226,13 +3080,12 @@ xfs_bmap_del_extent(
 			temp = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 				da_old);
 			xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-			XFS_BMAP_TRACE_POST_UPDATE("2", ip, idx,
-				whichfork);
+			trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 			da_new = temp;
 			break;
 		}
 		xfs_bmbt_set_startblock(ep, del_endblock);
-		XFS_BMAP_TRACE_POST_UPDATE("2", ip, idx, whichfork);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		if (!cur) {
 			flags |= xfs_ilog_fext(whichfork);
 			break;
@@ -3248,19 +3101,18 @@ xfs_bmap_del_extent(
 		 * Deleting the last part of the extent.
 		 */
 		temp = got.br_blockcount - del->br_blockcount;
-		XFS_BMAP_TRACE_PRE_UPDATE("1", ip, idx, whichfork);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep, temp);
 		ifp->if_lastex = idx;
 		if (delay) {
 			temp = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(ip, temp),
 				da_old);
 			xfs_bmbt_set_startblock(ep, nullstartblock((int)temp));
-			XFS_BMAP_TRACE_POST_UPDATE("1", ip, idx,
-				whichfork);
+			trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 			da_new = temp;
 			break;
 		}
-		XFS_BMAP_TRACE_POST_UPDATE("1", ip, idx, whichfork);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
 		if (!cur) {
 			flags |= xfs_ilog_fext(whichfork);
 			break;
@@ -3277,7 +3129,7 @@ xfs_bmap_del_extent(
 		 * Deleting the middle of the extent.
 		 */
 		temp = del->br_startoff - got.br_startoff;
-		XFS_BMAP_TRACE_PRE_UPDATE("0", ip, idx, whichfork);
+		trace_xfs_bmap_pre_update(ip, idx, state, _THIS_IP_);
 		xfs_bmbt_set_blockcount(ep, temp);
 		new.br_startoff = del_endoff;
 		temp2 = got_endoff - del_endoff;
@@ -3364,10 +3216,8 @@ xfs_bmap_del_extent(
 				}
 			}
 		}
-		XFS_BMAP_TRACE_POST_UPDATE("0", ip, idx, whichfork);
-		XFS_BMAP_TRACE_INSERT("0", ip, idx + 1, 1, &new, NULL,
-			whichfork);
-		xfs_iext_insert(ifp, idx + 1, 1, &new);
+		trace_xfs_bmap_post_update(ip, idx, state, _THIS_IP_);
+		xfs_iext_insert(ip, idx + 1, 1, &new, state);
 		ifp->if_lastex = idx + 1;
 		break;
 	}
@@ -3687,7 +3537,9 @@ xfs_bmap_local_to_extents(
 		xfs_iext_add(ifp, 0, 1);
 		ep = xfs_iext_get_ext(ifp, 0);
 		xfs_bmbt_set_allf(ep, 0, args.fsbno, 1, XFS_EXT_NORM);
-		XFS_BMAP_TRACE_POST_UPDATE("new", ip, 0, whichfork);
+		trace_xfs_bmap_post_update(ip, 0,
+				whichfork == XFS_ATTR_FORK ? BMAP_ATTRFORK : 0,
+				_THIS_IP_);
 		XFS_IFORK_NEXT_SET(ip, whichfork, 1);
 		ip->i_d.di_nblocks = 1;
 		xfs_trans_mod_dquot_byino(tp, ip,
@@ -3800,158 +3652,6 @@ xfs_bmap_search_extents(
 	return ep;
 }
 
-
-#ifdef XFS_BMAP_TRACE
-ktrace_t	*xfs_bmap_trace_buf;
-
-/*
- * Add a bmap trace buffer entry.  Base routine for the others.
- */
-STATIC void
-xfs_bmap_trace_addentry(
-	int		opcode,		/* operation */
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry(ies) */
-	xfs_extnum_t	cnt,		/* count of entries, 1 or 2 */
-	xfs_bmbt_rec_host_t *r1,	/* first record */
-	xfs_bmbt_rec_host_t *r2,	/* second record or null */
-	int		whichfork)	/* data or attr fork */
-{
-	xfs_bmbt_rec_host_t tr2;
-
-	ASSERT(cnt == 1 || cnt == 2);
-	ASSERT(r1 != NULL);
-	if (cnt == 1) {
-		ASSERT(r2 == NULL);
-		r2 = &tr2;
-		memset(&tr2, 0, sizeof(tr2));
-	} else
-		ASSERT(r2 != NULL);
-	ktrace_enter(xfs_bmap_trace_buf,
-		(void *)(__psint_t)(opcode | (whichfork << 16)),
-		(void *)fname, (void *)desc, (void *)ip,
-		(void *)(__psint_t)idx,
-		(void *)(__psint_t)cnt,
-		(void *)(__psunsigned_t)(ip->i_ino >> 32),
-		(void *)(__psunsigned_t)(unsigned)ip->i_ino,
-		(void *)(__psunsigned_t)(r1->l0 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r1->l0),
-		(void *)(__psunsigned_t)(r1->l1 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r1->l1),
-		(void *)(__psunsigned_t)(r2->l0 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r2->l0),
-		(void *)(__psunsigned_t)(r2->l1 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r2->l1)
-		);
-	ASSERT(ip->i_xtrace);
-	ktrace_enter(ip->i_xtrace,
-		(void *)(__psint_t)(opcode | (whichfork << 16)),
-		(void *)fname, (void *)desc, (void *)ip,
-		(void *)(__psint_t)idx,
-		(void *)(__psint_t)cnt,
-		(void *)(__psunsigned_t)(ip->i_ino >> 32),
-		(void *)(__psunsigned_t)(unsigned)ip->i_ino,
-		(void *)(__psunsigned_t)(r1->l0 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r1->l0),
-		(void *)(__psunsigned_t)(r1->l1 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r1->l1),
-		(void *)(__psunsigned_t)(r2->l0 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r2->l0),
-		(void *)(__psunsigned_t)(r2->l1 >> 32),
-		(void *)(__psunsigned_t)(unsigned)(r2->l1)
-		);
-}
-
-/*
- * Add bmap trace entry prior to a call to xfs_iext_remove.
- */
-STATIC void
-xfs_bmap_trace_delete(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry(entries) deleted */
-	xfs_extnum_t	cnt,		/* count of entries deleted, 1 or 2 */
-	int		whichfork)	/* data or attr fork */
-{
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
-
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	xfs_bmap_trace_addentry(XFS_BMAP_KTRACE_DELETE, fname, desc, ip, idx,
-		cnt, xfs_iext_get_ext(ifp, idx),
-		cnt == 2 ? xfs_iext_get_ext(ifp, idx + 1) : NULL,
-		whichfork);
-}
-
-/*
- * Add bmap trace entry prior to a call to xfs_iext_insert, or
- * reading in the extents list from the disk (in the btree).
- */
-STATIC void
-xfs_bmap_trace_insert(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry(entries) inserted */
-	xfs_extnum_t	cnt,		/* count of entries inserted, 1 or 2 */
-	xfs_bmbt_irec_t	*r1,		/* inserted record 1 */
-	xfs_bmbt_irec_t	*r2,		/* inserted record 2 or null */
-	int		whichfork)	/* data or attr fork */
-{
-	xfs_bmbt_rec_host_t tr1;	/* compressed record 1 */
-	xfs_bmbt_rec_host_t tr2;	/* compressed record 2 if needed */
-
-	xfs_bmbt_set_all(&tr1, r1);
-	if (cnt == 2) {
-		ASSERT(r2 != NULL);
-		xfs_bmbt_set_all(&tr2, r2);
-	} else {
-		ASSERT(cnt == 1);
-		ASSERT(r2 == NULL);
-	}
-	xfs_bmap_trace_addentry(XFS_BMAP_KTRACE_INSERT, fname, desc, ip, idx,
-		cnt, &tr1, cnt == 2 ? &tr2 : NULL, whichfork);
-}
-
-/*
- * Add bmap trace entry after updating an extent record in place.
- */
-STATIC void
-xfs_bmap_trace_post_update(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry updated */
-	int		whichfork)	/* data or attr fork */
-{
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
-
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	xfs_bmap_trace_addentry(XFS_BMAP_KTRACE_POST_UP, fname, desc, ip, idx,
-		1, xfs_iext_get_ext(ifp, idx), NULL, whichfork);
-}
-
-/*
- * Add bmap trace entry prior to updating an extent record in place.
- */
-STATIC void
-xfs_bmap_trace_pre_update(
-	const char	*fname,		/* function name */
-	char		*desc,		/* operation description */
-	xfs_inode_t	*ip,		/* incore inode pointer */
-	xfs_extnum_t	idx,		/* index of entry to be updated */
-	int		whichfork)	/* data or attr fork */
-{
-	xfs_ifork_t	*ifp;		/* inode fork pointer */
-
-	ifp = XFS_IFORK_PTR(ip, whichfork);
-	xfs_bmap_trace_addentry(XFS_BMAP_KTRACE_PRE_UP, fname, desc, ip, idx, 1,
-		xfs_iext_get_ext(ifp, idx), NULL, whichfork);
-}
-#endif	/* XFS_BMAP_TRACE */
-
 /*
  * Compute the worst-case number of indirect blocks that will be used
  * for ip's delayed extent of length "len".
@@ -3982,37 +3682,6 @@ xfs_bmap_worst_indlen(
 	}
 	return rval;
 }
-
-#if defined(XFS_RW_TRACE)
-STATIC void
-xfs_bunmap_trace(
-	xfs_inode_t		*ip,
-	xfs_fileoff_t		bno,
-	xfs_filblks_t		len,
-	int			flags,
-	inst_t			*ra)
-{
-	if (ip->i_rwtrace == NULL)
-		return;
-	ktrace_enter(ip->i_rwtrace,
-		(void *)(__psint_t)XFS_BUNMAP,
-		(void *)ip,
-		(void *)(__psint_t)((ip->i_d.di_size >> 32) & 0xffffffff),
-		(void *)(__psint_t)(ip->i_d.di_size & 0xffffffff),
-		(void *)(__psint_t)(((xfs_dfiloff_t)bno >> 32) & 0xffffffff),
-		(void *)(__psint_t)((xfs_dfiloff_t)bno & 0xffffffff),
-		(void *)(__psint_t)len,
-		(void *)(__psint_t)flags,
-		(void *)(unsigned long)current_cpu(),
-		(void *)ra,
-		(void *)0,
-		(void *)0,
-		(void *)0,
-		(void *)0,
-		(void *)0,
-		(void *)0);
-}
-#endif
 
 /*
  * Convert inode from non-attributed to attributed.
@@ -4702,34 +4371,30 @@ error0:
 	return XFS_ERROR(EFSCORRUPTED);
 }
 
-#ifdef XFS_BMAP_TRACE
+#ifdef DEBUG
 /*
  * Add bmap trace insert entries for all the contents of the extent records.
  */
 void
 xfs_bmap_trace_exlist(
-	const char	*fname,		/* function name */
 	xfs_inode_t	*ip,		/* incore inode pointer */
 	xfs_extnum_t	cnt,		/* count of entries in the list */
-	int		whichfork)	/* data or attr fork */
+	int		whichfork,	/* data or attr fork */
+	unsigned long	caller_ip)
 {
-	xfs_bmbt_rec_host_t *ep;	/* current extent record */
 	xfs_extnum_t	idx;		/* extent record index */
 	xfs_ifork_t	*ifp;		/* inode fork pointer */
-	xfs_bmbt_irec_t	s;		/* file extent record */
+	int		state = 0;
+
+	if (whichfork == XFS_ATTR_FORK)
+		state |= BMAP_ATTRFORK;
 
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(cnt == (ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t)));
-	for (idx = 0; idx < cnt; idx++) {
-		ep = xfs_iext_get_ext(ifp, idx);
-		xfs_bmbt_get_all(ep, &s);
-		XFS_BMAP_TRACE_INSERT("exlist", ip, idx, 1, &s, NULL,
-			whichfork);
-	}
+	for (idx = 0; idx < cnt; idx++)
+		trace_xfs_extlist(ip, idx, whichfork, caller_ip);
 }
-#endif
 
-#ifdef DEBUG
 /*
  * Validate that the bmbt_irecs being returned from bmapi are valid
  * given the callers original parameters.  Specifically check the
@@ -5478,7 +5143,8 @@ xfs_bunmapi(
 	int			rsvd;		/* OK to allocate reserved blocks */
 	xfs_fsblock_t		sum;
 
-	xfs_bunmap_trace(ip, bno, len, flags, (inst_t *)__return_address);
+	trace_xfs_bunmap(ip, bno, len, flags, _RET_IP_);
+
 	whichfork = (flags & XFS_BMAPI_ATTRFORK) ?
 		XFS_ATTR_FORK : XFS_DATA_FORK;
 	ifp = XFS_IFORK_PTR(ip, whichfork);

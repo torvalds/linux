@@ -29,7 +29,7 @@
 #endif
 
 /* Module parameters */
-int gigaset_debuglevel = DEBUG_DEFAULT;
+int gigaset_debuglevel;
 EXPORT_SYMBOL_GPL(gigaset_debuglevel);
 module_param_named(debug, gigaset_debuglevel, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(debug, "debug level");

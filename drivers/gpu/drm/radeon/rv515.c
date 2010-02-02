@@ -478,8 +478,8 @@ static int rv515_startup(struct radeon_device *rdev)
 			return r;
 	}
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	rs600_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -514,6 +514,8 @@ int rv515_resume(struct radeon_device *rdev)
 	atom_asic_init(rdev->mode_info.atom_context);
 	/* Resume clock after posting */
 	rv515_clock_startup(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return rv515_startup(rdev);
 }
 
@@ -540,11 +542,11 @@ void rv515_fini(struct radeon_device *rdev)
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
-    rv370_pcie_gart_fini(rdev);
+	rv370_pcie_gart_fini(rdev);
 	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
 	rdev->bios = NULL;
@@ -580,10 +582,8 @@ int rv515_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		atom_asic_init(rdev->mode_info.atom_context);
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
@@ -603,7 +603,7 @@ int rv515_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r)
 		return r;
 	r = rv370_pcie_gart_init(rdev);
@@ -892,8 +892,9 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 
 	b.full = rfixed_const(mode->crtc_hdisplay);
 	c.full = rfixed_const(256);
-	a.full = rfixed_mul(wm->num_line_pair, b);
-	request_fifo_depth.full = rfixed_div(a, c);
+	a.full = rfixed_div(b, c);
+	request_fifo_depth.full = rfixed_mul(a, wm->num_line_pair);
+	request_fifo_depth.full = rfixed_ceil(request_fifo_depth);
 	if (a.full < rfixed_const(4)) {
 		wm->lb_request_fifo_depth = 4;
 	} else {
@@ -995,15 +996,17 @@ void rv515_crtc_bandwidth_compute(struct radeon_device *rdev,
 	a.full = rfixed_const(16);
 	wm->priority_mark_max.full = rfixed_const(crtc->base.mode.crtc_hdisplay);
 	wm->priority_mark_max.full = rfixed_div(wm->priority_mark_max, a);
+	wm->priority_mark_max.full = rfixed_ceil(wm->priority_mark_max);
 
 	/* Determine estimated width */
 	estimated_width.full = tolerable_latency.full - wm->worst_case_latency.full;
 	estimated_width.full = rfixed_div(estimated_width, consumption_time);
 	if (rfixed_trunc(estimated_width) > crtc->base.mode.crtc_hdisplay) {
-		wm->priority_mark.full = rfixed_const(10);
+		wm->priority_mark.full = wm->priority_mark_max.full;
 	} else {
 		a.full = rfixed_const(16);
 		wm->priority_mark.full = rfixed_div(estimated_width, a);
+		wm->priority_mark.full = rfixed_ceil(wm->priority_mark);
 		wm->priority_mark.full = wm->priority_mark_max.full - wm->priority_mark.full;
 	}
 }

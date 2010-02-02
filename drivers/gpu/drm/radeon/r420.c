@@ -30,7 +30,15 @@
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "atom.h"
+#include "r100d.h"
 #include "r420d.h"
+#include "r420_reg_safe.h"
+
+static void r420_set_reg_safe(struct radeon_device *rdev)
+{
+	rdev->config.r300.reg_safe_bm = r420_reg_safe_bm;
+	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r420_reg_safe_bm);
+}
 
 int r420_mc_init(struct radeon_device *rdev)
 {
@@ -42,9 +50,7 @@ int r420_mc_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
 		if (r) {
-			printk(KERN_WARNING "[drm] Disabling AGP\n");
-			rdev->flags &= ~RADEON_IS_AGP;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+			radeon_agp_disable(rdev);
 		} else {
 			rdev->mc.gtt_location = rdev->mc.agp_base;
 		}
@@ -165,10 +171,41 @@ static void r420_clock_resume(struct radeon_device *rdev)
 	WREG32_PLL(R_00000D_SCLK_CNTL, sclk_cntl);
 }
 
+static void r420_cp_errata_init(struct radeon_device *rdev)
+{
+	/* RV410 and R420 can lock up if CP DMA to host memory happens
+	 * while the 2D engine is busy.
+	 *
+	 * The proper workaround is to queue a RESYNC at the beginning
+	 * of the CP init, apparently.
+	 */
+	radeon_scratch_get(rdev, &rdev->config.r300.resync_scratch);
+	radeon_ring_lock(rdev, 8);
+	radeon_ring_write(rdev, PACKET0(R300_CP_RESYNC_ADDR, 1));
+	radeon_ring_write(rdev, rdev->config.r300.resync_scratch);
+	radeon_ring_write(rdev, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev);
+}
+
+static void r420_cp_errata_fini(struct radeon_device *rdev)
+{
+	/* Catch the RESYNC we dispatched all the way back,
+	 * at the very beginning of the CP init.
+	 */
+	radeon_ring_lock(rdev, 8);
+	radeon_ring_write(rdev, PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, R300_RB3D_DC_FINISH);
+	radeon_ring_unlock_commit(rdev);
+	radeon_scratch_free(rdev, rdev->config.r300.resync_scratch);
+}
+
 static int r420_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	/* set common regs */
+	r100_set_common_regs(rdev);
+	/* program mc */
 	r300_mc_program(rdev);
 	/* Resume clock */
 	r420_clock_resume(rdev);
@@ -186,14 +223,15 @@ static int r420_startup(struct radeon_device *rdev)
 	}
 	r420_pipes_init(rdev);
 	/* Enable IRQ */
-	rdev->irq.sw_int = true;
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
 		return r;
 	}
+	r420_cp_errata_init(rdev);
 	r = r100_wb_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
@@ -229,12 +267,14 @@ int r420_resume(struct radeon_device *rdev)
 	}
 	/* Resume clock after posting */
 	r420_clock_resume(rdev);
-
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
 	return r420_startup(rdev);
 }
 
 int r420_suspend(struct radeon_device *rdev)
 {
+	r420_cp_errata_fini(rdev);
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	r100_irq_disable(rdev);
@@ -258,7 +298,7 @@ void r420_fini(struct radeon_device *rdev)
 	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
-	radeon_object_fini(rdev);
+	radeon_bo_fini(rdev);
 	if (rdev->is_atom_bios) {
 		radeon_atombios_fini(rdev);
 	} else {
@@ -301,14 +341,9 @@ int r420_init(struct radeon_device *rdev)
 			RREG32(R_0007C0_CP_STAT));
 	}
 	/* check if cards are posted or not */
-	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
-		if (rdev->is_atom_bios) {
-			atom_asic_init(rdev->mode_info.atom_context);
-		} else {
-			radeon_combios_asic_init(rdev->ddev);
-		}
-	}
+	if (radeon_boot_test_post_card(rdev) == false)
+		return -EINVAL;
+
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
@@ -331,10 +366,13 @@ int r420_init(struct radeon_device *rdev)
 		return r;
 	}
 	/* Memory manager */
-	r = radeon_object_init(rdev);
+	r = radeon_bo_init(rdev);
 	if (r) {
 		return r;
 	}
+	if (rdev->family == CHIP_R420)
+		r100_enable_bm(rdev);
+
 	if (rdev->flags & RADEON_IS_PCIE) {
 		r = rv370_pcie_gart_init(rdev);
 		if (r)
@@ -345,7 +383,7 @@ int r420_init(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
-	r300_set_reg_safe(rdev);
+	r420_set_reg_safe(rdev);
 	rdev->accel_working = true;
 	r = r420_startup(rdev);
 	if (r) {

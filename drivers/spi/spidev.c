@@ -53,7 +53,7 @@
 #define SPIDEV_MAJOR			153	/* assigned */
 #define N_SPI_MINORS			32	/* ... up to 256 */
 
-static unsigned long	minors[N_SPI_MINORS / BITS_PER_LONG];
+static DECLARE_BITMAP(minors, N_SPI_MINORS);
 
 
 /* Bit masks for spi_device.mode management.  Note that incorrect
@@ -266,15 +266,15 @@ static int spidev_message(struct spidev_data *spidev,
 		k_tmp->delay_usecs = u_tmp->delay_usecs;
 		k_tmp->speed_hz = u_tmp->speed_hz;
 #ifdef VERBOSE
-		dev_dbg(&spi->dev,
+		dev_dbg(&spidev->spi->dev,
 			"  xfer len %zd %s%s%s%dbits %u usec %uHz\n",
 			u_tmp->len,
 			u_tmp->rx_buf ? "rx " : "",
 			u_tmp->tx_buf ? "tx " : "",
 			u_tmp->cs_change ? "cs " : "",
-			u_tmp->bits_per_word ? : spi->bits_per_word,
+			u_tmp->bits_per_word ? : spidev->spi->bits_per_word,
 			u_tmp->delay_usecs,
-			u_tmp->speed_hz ? : spi->max_speed_hz);
+			u_tmp->speed_hz ? : spidev->spi->max_speed_hz);
 #endif
 		spi_message_add_tail(k_tmp, &msg);
 	}
@@ -558,7 +558,7 @@ static struct class *spidev_class;
 
 /*-------------------------------------------------------------------------*/
 
-static int spidev_probe(struct spi_device *spi)
+static int __devinit spidev_probe(struct spi_device *spi)
 {
 	struct spidev_data	*spidev;
 	int			status;
@@ -607,7 +607,7 @@ static int spidev_probe(struct spi_device *spi)
 	return status;
 }
 
-static int spidev_remove(struct spi_device *spi)
+static int __devexit spidev_remove(struct spi_device *spi)
 {
 	struct spidev_data	*spidev = spi_get_drvdata(spi);
 
@@ -629,7 +629,7 @@ static int spidev_remove(struct spi_device *spi)
 	return 0;
 }
 
-static struct spi_driver spidev_spi = {
+static struct spi_driver spidev_spi_driver = {
 	.driver = {
 		.name =		"spidev",
 		.owner =	THIS_MODULE,
@@ -661,14 +661,14 @@ static int __init spidev_init(void)
 
 	spidev_class = class_create(THIS_MODULE, "spidev");
 	if (IS_ERR(spidev_class)) {
-		unregister_chrdev(SPIDEV_MAJOR, spidev_spi.driver.name);
+		unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
 		return PTR_ERR(spidev_class);
 	}
 
-	status = spi_register_driver(&spidev_spi);
+	status = spi_register_driver(&spidev_spi_driver);
 	if (status < 0) {
 		class_destroy(spidev_class);
-		unregister_chrdev(SPIDEV_MAJOR, spidev_spi.driver.name);
+		unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
 	}
 	return status;
 }
@@ -676,9 +676,9 @@ module_init(spidev_init);
 
 static void __exit spidev_exit(void)
 {
-	spi_unregister_driver(&spidev_spi);
+	spi_unregister_driver(&spidev_spi_driver);
 	class_destroy(spidev_class);
-	unregister_chrdev(SPIDEV_MAJOR, spidev_spi.driver.name);
+	unregister_chrdev(SPIDEV_MAJOR, spidev_spi_driver.driver.name);
 }
 module_exit(spidev_exit);
 

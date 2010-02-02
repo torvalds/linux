@@ -82,7 +82,7 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
 	 * we do this anyway which shows more stable in testing.
 	 */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(hdmi_priv->sdvox_reg, temp & ~SDVO_ENABLE);
 		POSTING_READ(hdmi_priv->sdvox_reg);
 	}
@@ -99,7 +99,7 @@ static void intel_hdmi_dpms(struct drm_encoder *encoder, int mode)
 	/* HW workaround, need to write this twice for issue that may result
 	 * in first write getting masked.
 	 */
-	if (IS_IGDNG(dev)) {
+	if (IS_IRONLAKE(dev)) {
 		I915_WRITE(hdmi_priv->sdvox_reg, temp);
 		POSTING_READ(hdmi_priv->sdvox_reg);
 	}
@@ -225,7 +225,6 @@ static const struct drm_encoder_funcs intel_hdmi_enc_funcs = {
 	.destroy = intel_hdmi_enc_destroy,
 };
 
-
 void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -254,21 +253,26 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	if (sdvox_reg == SDVOB) {
 		intel_output->clone_mask = (1 << INTEL_HDMIB_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "HDMIB");
+		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == SDVOC) {
 		intel_output->clone_mask = (1 << INTEL_HDMIC_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOD, "HDMIC");
+		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == HDMIB) {
 		intel_output->clone_mask = (1 << INTEL_HDMID_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOE,
 								"HDMIB");
+		dev_priv->hotplug_supported_mask |= HDMIB_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == HDMIC) {
 		intel_output->clone_mask = (1 << INTEL_HDMIE_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOD,
 								"HDMIC");
+		dev_priv->hotplug_supported_mask |= HDMIC_HOTPLUG_INT_STATUS;
 	} else if (sdvox_reg == HDMID) {
 		intel_output->clone_mask = (1 << INTEL_HDMIF_CLONE_BIT);
 		intel_output->ddc_bus = intel_i2c_create(dev, PCH_GPIOF,
 								"HDMID");
+		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;
 	}
 	if (!intel_output->ddc_bus)
 		goto err_connector;

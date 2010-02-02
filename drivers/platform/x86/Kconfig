@@ -231,7 +231,35 @@ config THINKPAD_ACPI
 
 	  This driver was formerly known as ibm-acpi.
 
+	  Extra functionality will be available if the rfkill (CONFIG_RFKILL)
+	  and/or ALSA (CONFIG_SND) subsystems are available in the kernel.
+	  Note that if you want ThinkPad-ACPI to be built-in instead of
+	  modular, ALSA and rfkill will also have to be built-in.
+
 	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+
+config THINKPAD_ACPI_ALSA_SUPPORT
+	bool "Console audio control ALSA interface"
+	depends on THINKPAD_ACPI
+	depends on SND
+	depends on SND = y || THINKPAD_ACPI = SND
+	default y
+	---help---
+	  Enables monitoring of the built-in console audio output control
+	  (headphone and speakers), which is operated by the mute and (in
+	  some ThinkPad models) volume hotkeys.
+
+	  If this option is enabled, ThinkPad-ACPI will export an ALSA card
+	  with a single read-only mixer control, which should be used for
+	  on-screen-display feedback purposes by the Desktop Environment.
+
+	  Optionally, the driver will also allow software control (the
+	  ALSA mixer will be made read-write).  Please refer to the driver
+	  documentation for details.
+
+	  All IBM models have both volume and mute control.  Newer Lenovo
+	  models only have mute control (the volume hotkeys are just normal
+	  keys and volume control is done through the main HDA mixer).
 
 config THINKPAD_ACPI_DEBUGFACILITIES
 	bool "Maintainer debug facilities"
@@ -334,6 +362,9 @@ config EEEPC_LAPTOP
 	depends on HOTPLUG_PCI
 	select BACKLIGHT_CLASS_DEVICE
 	select HWMON
+	select LEDS_CLASS
+	select NEW_LEDS
+	select INPUT_SPARSEKMAP
 	---help---
 	  This driver supports the Fn-Fx keys on Eee PC laptops.
 
@@ -364,6 +395,18 @@ config ACPI_WMI
 
 	  It is safe to enable this driver even if your DSDT doesn't define
 	  any ACPI-WMI devices.
+
+config MSI_WMI
+	tristate "MSI WMI extras"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
+	help
+	 Say Y here if you want to support WMI-based hotkeys on MSI laptops.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called msi-wmi.
 
 config ACPI_ASUS
 	tristate "ASUS/Medion Laptop Extras (DEPRECATED)"
@@ -435,4 +478,31 @@ config ACPI_TOSHIBA
 
 	  If you have a legacy free Toshiba laptop (such as the Libretto L1
 	  series), say Y.
+
+config TOSHIBA_BT_RFKILL
+	tristate "Toshiba Bluetooth RFKill switch support"
+	depends on ACPI
+	---help---
+	  This driver adds support for Bluetooth events for the RFKill
+	  switch on modern Toshiba laptops with full ACPI support and
+	  an RFKill switch.
+
+	  This driver handles RFKill events for the TOS6205 Bluetooth,
+	  and re-enables it when the switch is set back to the 'on'
+	  position.
+
+	  If you have a modern Toshiba laptop with a Bluetooth and an
+	  RFKill switch (such as the Portege R500), say Y.
+
+config ACPI_CMPC
+	tristate "CMPC Laptop Extras"
+	depends on X86 && ACPI
+	select INPUT
+	select BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  Support for Intel Classmate PC ACPI devices, including some
+	  keys as input device, backlight device, tablet and accelerometer
+	  devices.
+
 endif # X86_PLATFORM_DEVICES

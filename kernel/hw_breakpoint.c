@@ -40,6 +40,7 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/init.h>
+#include <linux/cpu.h>
 #include <linux/smp.h>
 
 #include <linux/hw_breakpoint.h>
@@ -52,7 +53,7 @@
 static DEFINE_PER_CPU(unsigned int, nr_cpu_bp_pinned);
 
 /* Number of pinned task breakpoints in a cpu */
-static DEFINE_PER_CPU(unsigned int, task_bp_pinned[HBP_NUM]);
+static DEFINE_PER_CPU(unsigned int, nr_task_bp_pinned[HBP_NUM]);
 
 /* Number of non-pinned cpu/task breakpoints in a cpu */
 static DEFINE_PER_CPU(unsigned int, nr_bp_flexible);
@@ -73,7 +74,7 @@ static DEFINE_MUTEX(nr_bp_mutex);
 static unsigned int max_task_bp_pinned(int cpu)
 {
 	int i;
-	unsigned int *tsk_pinned = per_cpu(task_bp_pinned, cpu);
+	unsigned int *tsk_pinned = per_cpu(nr_task_bp_pinned, cpu);
 
 	for (i = HBP_NUM -1; i >= 0; i--) {
 		if (tsk_pinned[i] > 0)
@@ -83,15 +84,51 @@ static unsigned int max_task_bp_pinned(int cpu)
 	return 0;
 }
 
+static int task_bp_pinned(struct task_struct *tsk)
+{
+	struct perf_event_context *ctx = tsk->perf_event_ctxp;
+	struct list_head *list;
+	struct perf_event *bp;
+	unsigned long flags;
+	int count = 0;
+
+	if (WARN_ONCE(!ctx, "No perf context for this task"))
+		return 0;
+
+	list = &ctx->event_list;
+
+	raw_spin_lock_irqsave(&ctx->lock, flags);
+
+	/*
+	 * The current breakpoint counter is not included in the list
+	 * at the open() callback time
+	 */
+	list_for_each_entry(bp, list, event_entry) {
+		if (bp->attr.type == PERF_TYPE_BREAKPOINT)
+			count++;
+	}
+
+	raw_spin_unlock_irqrestore(&ctx->lock, flags);
+
+	return count;
+}
+
 /*
  * Report the number of pinned/un-pinned breakpoints we have in
  * a given cpu (cpu > -1) or in all of them (cpu = -1).
  */
-static void fetch_bp_busy_slots(struct bp_busy_slots *slots, int cpu)
+static void
+fetch_bp_busy_slots(struct bp_busy_slots *slots, struct perf_event *bp)
 {
+	int cpu = bp->cpu;
+	struct task_struct *tsk = bp->ctx->task;
+
 	if (cpu >= 0) {
 		slots->pinned = per_cpu(nr_cpu_bp_pinned, cpu);
-		slots->pinned += max_task_bp_pinned(cpu);
+		if (!tsk)
+			slots->pinned += max_task_bp_pinned(cpu);
+		else
+			slots->pinned += task_bp_pinned(tsk);
 		slots->flexible = per_cpu(nr_bp_flexible, cpu);
 
 		return;
@@ -101,7 +138,10 @@ static void fetch_bp_busy_slots(struct bp_busy_slots *slots, int cpu)
 		unsigned int nr;
 
 		nr = per_cpu(nr_cpu_bp_pinned, cpu);
-		nr += max_task_bp_pinned(cpu);
+		if (!tsk)
+			nr += max_task_bp_pinned(cpu);
+		else
+			nr += task_bp_pinned(tsk);
 
 		if (nr > slots->pinned)
 			slots->pinned = nr;
@@ -118,35 +158,12 @@ static void fetch_bp_busy_slots(struct bp_busy_slots *slots, int cpu)
  */
 static void toggle_bp_task_slot(struct task_struct *tsk, int cpu, bool enable)
 {
-	int count = 0;
-	struct perf_event *bp;
-	struct perf_event_context *ctx = tsk->perf_event_ctxp;
 	unsigned int *tsk_pinned;
-	struct list_head *list;
-	unsigned long flags;
+	int count = 0;
 
-	if (WARN_ONCE(!ctx, "No perf context for this task"))
-		return;
+	count = task_bp_pinned(tsk);
 
-	list = &ctx->event_list;
-
-	spin_lock_irqsave(&ctx->lock, flags);
-
-	/*
-	 * The current breakpoint counter is not included in the list
-	 * at the open() callback time
-	 */
-	list_for_each_entry(bp, list, event_entry) {
-		if (bp->attr.type == PERF_TYPE_BREAKPOINT)
-			count++;
-	}
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
-
-	if (WARN_ONCE(count < 0, "No breakpoint counter found in the counter list"))
-		return;
-
-	tsk_pinned = per_cpu(task_bp_pinned, cpu);
+	tsk_pinned = per_cpu(nr_task_bp_pinned, cpu);
 	if (enable) {
 		tsk_pinned[count]++;
 		if (count > 0)
@@ -193,7 +210,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to a single cpu, check:
  *
  *       (per_cpu(nr_bp_flexible, cpu) || (per_cpu(nr_cpu_bp_pinned, cpu)
- *           + max(per_cpu(task_bp_pinned, cpu)))) < HBP_NUM
+ *           + max(per_cpu(nr_task_bp_pinned, cpu)))) < HBP_NUM
  *
  *       -> If there are already non-pinned counters in this cpu, it means
  *          there is already a free slot for them.
@@ -204,7 +221,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to every cpus, check:
  *
  *       (per_cpu(nr_bp_flexible, *) || (max(per_cpu(nr_cpu_bp_pinned, *))
- *           + max(per_cpu(task_bp_pinned, *)))) < HBP_NUM
+ *           + max(per_cpu(nr_task_bp_pinned, *)))) < HBP_NUM
  *
  *       -> This is roughly the same, except we check the number of per cpu
  *          bp for every cpu and we keep the max one. Same for the per tasks
@@ -216,7 +233,7 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to a single cpu, check:
  *
  *       ((per_cpu(nr_bp_flexible, cpu) > 1) + per_cpu(nr_cpu_bp_pinned, cpu)
- *            + max(per_cpu(task_bp_pinned, cpu))) < HBP_NUM
+ *            + max(per_cpu(nr_task_bp_pinned, cpu))) < HBP_NUM
  *
  *       -> Same checks as before. But now the nr_bp_flexible, if any, must keep
  *          one register at least (or they will never be fed).
@@ -224,42 +241,74 @@ static void toggle_bp_slot(struct perf_event *bp, bool enable)
  *   - If attached to every cpus, check:
  *
  *       ((per_cpu(nr_bp_flexible, *) > 1) + max(per_cpu(nr_cpu_bp_pinned, *))
- *            + max(per_cpu(task_bp_pinned, *))) < HBP_NUM
+ *            + max(per_cpu(nr_task_bp_pinned, *))) < HBP_NUM
  */
-int reserve_bp_slot(struct perf_event *bp)
+static int __reserve_bp_slot(struct perf_event *bp)
 {
 	struct bp_busy_slots slots = {0};
-	int ret = 0;
 
-	mutex_lock(&nr_bp_mutex);
-
-	fetch_bp_busy_slots(&slots, bp->cpu);
+	fetch_bp_busy_slots(&slots, bp);
 
 	/* Flexible counters need to keep at least one slot */
-	if (slots.pinned + (!!slots.flexible) == HBP_NUM) {
-		ret = -ENOSPC;
-		goto end;
-	}
+	if (slots.pinned + (!!slots.flexible) == HBP_NUM)
+		return -ENOSPC;
 
 	toggle_bp_slot(bp, true);
 
-end:
+	return 0;
+}
+
+int reserve_bp_slot(struct perf_event *bp)
+{
+	int ret;
+
+	mutex_lock(&nr_bp_mutex);
+
+	ret = __reserve_bp_slot(bp);
+
 	mutex_unlock(&nr_bp_mutex);
 
 	return ret;
+}
+
+static void __release_bp_slot(struct perf_event *bp)
+{
+	toggle_bp_slot(bp, false);
 }
 
 void release_bp_slot(struct perf_event *bp)
 {
 	mutex_lock(&nr_bp_mutex);
 
-	toggle_bp_slot(bp, false);
+	__release_bp_slot(bp);
 
 	mutex_unlock(&nr_bp_mutex);
 }
 
+/*
+ * Allow the kernel debugger to reserve breakpoint slots without
+ * taking a lock using the dbg_* variant of for the reserve and
+ * release breakpoint slots.
+ */
+int dbg_reserve_bp_slot(struct perf_event *bp)
+{
+	if (mutex_is_locked(&nr_bp_mutex))
+		return -1;
 
-int __register_perf_hw_breakpoint(struct perf_event *bp)
+	return __reserve_bp_slot(bp);
+}
+
+int dbg_release_bp_slot(struct perf_event *bp)
+{
+	if (mutex_is_locked(&nr_bp_mutex))
+		return -1;
+
+	__release_bp_slot(bp);
+
+	return 0;
+}
+
+int register_perf_hw_breakpoint(struct perf_event *bp)
 {
 	int ret;
 
@@ -276,17 +325,14 @@ int __register_perf_hw_breakpoint(struct perf_event *bp)
 	 * This is a quick hack that will be removed soon, once we remove
 	 * the tmp breakpoints from ptrace
 	 */
-	if (!bp->attr.disabled || bp->callback == perf_bp_event)
+	if (!bp->attr.disabled || !bp->overflow_handler)
 		ret = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
 
+	/* if arch_validate_hwbkpt_settings() fails then release bp slot */
+	if (ret)
+		release_bp_slot(bp);
+
 	return ret;
-}
-
-int register_perf_hw_breakpoint(struct perf_event *bp)
-{
-	bp->callback = perf_bp_event;
-
-	return __register_perf_hw_breakpoint(bp);
 }
 
 /**
@@ -297,7 +343,7 @@ int register_perf_hw_breakpoint(struct perf_event *bp)
  */
 struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_callback_t triggered,
+			    perf_overflow_handler_t triggered,
 			    struct task_struct *tsk)
 {
 	return perf_event_create_kernel_counter(attr, -1, tsk->pid, triggered);
@@ -311,19 +357,40 @@ EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
  * @triggered: callback to trigger when we hit the breakpoint
  * @tsk: pointer to 'task_struct' of the process to which the address belongs
  */
-struct perf_event *
-modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr,
-			  perf_callback_t triggered,
-			  struct task_struct *tsk)
+int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
-	/*
-	 * FIXME: do it without unregistering
-	 * - We don't want to lose our slot
-	 * - If the new bp is incorrect, don't lose the older one
-	 */
-	unregister_hw_breakpoint(bp);
+	u64 old_addr = bp->attr.bp_addr;
+	int old_type = bp->attr.bp_type;
+	int old_len = bp->attr.bp_len;
+	int err = 0;
 
-	return perf_event_create_kernel_counter(attr, -1, tsk->pid, triggered);
+	perf_event_disable(bp);
+
+	bp->attr.bp_addr = attr->bp_addr;
+	bp->attr.bp_type = attr->bp_type;
+	bp->attr.bp_len = attr->bp_len;
+
+	if (attr->disabled)
+		goto end;
+
+	err = arch_validate_hwbkpt_settings(bp, bp->ctx->task);
+	if (!err)
+		perf_event_enable(bp);
+
+	if (err) {
+		bp->attr.bp_addr = old_addr;
+		bp->attr.bp_type = old_type;
+		bp->attr.bp_len = old_len;
+		if (!bp->attr.disabled)
+			perf_event_enable(bp);
+
+		return err;
+	}
+
+end:
+	bp->attr.disabled = attr->disabled;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);
 
@@ -348,7 +415,7 @@ EXPORT_SYMBOL_GPL(unregister_hw_breakpoint);
  */
 struct perf_event **
 register_wide_hw_breakpoint(struct perf_event_attr *attr,
-			    perf_callback_t triggered)
+			    perf_overflow_handler_t triggered)
 {
 	struct perf_event **cpu_events, **pevent, *bp;
 	long err;
@@ -358,7 +425,8 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 	if (!cpu_events)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_possible_cpu(cpu) {
+	get_online_cpus();
+	for_each_online_cpu(cpu) {
 		pevent = per_cpu_ptr(cpu_events, cpu);
 		bp = perf_event_create_kernel_counter(attr, cpu, -1, triggered);
 
@@ -369,18 +437,20 @@ register_wide_hw_breakpoint(struct perf_event_attr *attr,
 			goto fail;
 		}
 	}
+	put_online_cpus();
 
 	return cpu_events;
 
 fail:
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		pevent = per_cpu_ptr(cpu_events, cpu);
 		if (IS_ERR(*pevent))
 			break;
 		unregister_hw_breakpoint(*pevent);
 	}
+	put_online_cpus();
+
 	free_percpu(cpu_events);
-	/* return the error if any */
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(register_wide_hw_breakpoint);

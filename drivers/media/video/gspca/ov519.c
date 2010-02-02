@@ -1982,7 +1982,7 @@ static int ov518_reg_w32(struct sd *sd, __u16 index, u32 value, int n)
 {
 	int ret;
 
-	*((u32 *)sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
+	*((__le32 *) sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
 
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
@@ -2021,9 +2021,9 @@ static int ov511_i2c_w(struct sd *sd, __u8 reg, __u8 value)
 		if (rc < 0)
 			return rc;
 
-		do
+		do {
 			rc = reg_r(sd, R511_I2C_CTL);
-		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+		} while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
 
 		if (rc < 0)
 			return rc;
@@ -2055,9 +2055,9 @@ static int ov511_i2c_r(struct sd *sd, __u8 reg)
 		if (rc < 0)
 			return rc;
 
-		do
+		do {
 			rc = reg_r(sd, R511_I2C_CTL);
-		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+		} while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
 
 		if (rc < 0)
 			return rc;
@@ -2081,9 +2081,9 @@ static int ov511_i2c_r(struct sd *sd, __u8 reg)
 		if (rc < 0)
 			return rc;
 
-		do
+		do {
 			rc = reg_r(sd, R511_I2C_CTL);
-		while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
+		} while (rc > 0 && ((rc & 1) == 0)); /* Retry until idle */
 
 		if (rc < 0)
 			return rc;

@@ -55,8 +55,8 @@ struct perf_header {
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
-struct perf_header *perf_header__new(void);
-void perf_header__delete(struct perf_header *self);
+int perf_header__init(struct perf_header *self);
+void perf_header__exit(struct perf_header *self);
 
 int perf_header__read(struct perf_header *self, int fd);
 int perf_header__write(struct perf_header *self, int fd, bool at_exit);

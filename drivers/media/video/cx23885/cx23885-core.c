@@ -55,9 +55,6 @@ MODULE_PARM_DESC(card, "card type");
 
 static unsigned int cx23885_devcount;
 
-static DEFINE_MUTEX(devlist);
-LIST_HEAD(cx23885_devlist);
-
 #define NO_SYNC_LINE (-1U)
 
 /* FIXME, these allocations will change when
@@ -784,10 +781,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	dev->nr = cx23885_devcount++;
 	sprintf(dev->name, "cx23885[%d]", dev->nr);
-
-	mutex_lock(&devlist);
-	list_add_tail(&dev->devlist, &cx23885_devlist);
-	mutex_unlock(&devlist);
 
 	/* Configure the internal memory */
 	if (dev->pci->device == 0x8880) {
@@ -2007,10 +2000,6 @@ static void __devexit cx23885_finidev(struct pci_dev *pci_dev)
 
 	/* unregister stuff */
 	free_irq(pci_dev->irq, dev);
-
-	mutex_lock(&devlist);
-	list_del(&dev->devlist);
-	mutex_unlock(&devlist);
 
 	cx23885_dev_unregister(dev);
 	v4l2_device_unregister(v4l2_dev);

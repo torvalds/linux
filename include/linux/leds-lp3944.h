@@ -12,9 +12,6 @@
 #ifndef __LINUX_LEDS_LP3944_H
 #define __LINUX_LEDS_LP3944_H
 
-#include <linux/leds.h>
-#include <linux/workqueue.h>
-
 #define LP3944_LED0 0
 #define LP3944_LED1 1
 #define LP3944_LED2 2

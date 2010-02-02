@@ -33,6 +33,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/smc91x.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -115,6 +116,12 @@ static struct platform_device osk5912_flash_device = {
 	.resource	= &osk_flash_resource,
 };
 
+static struct smc91x_platdata osk5912_smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
+	.leda	= RPC_LED_100_10,
+	.ledb	= RPC_LED_TX_RX,
+};
+
 static struct resource osk5912_smc91x_resources[] = {
 	[0] = {
 		.start	= OMAP_OSK_ETHR_START,		/* Physical */
@@ -131,6 +138,9 @@ static struct resource osk5912_smc91x_resources[] = {
 static struct platform_device osk5912_smc91x_device = {
 	.name		= "smc91x",
 	.id		= -1,
+	.dev	= {
+		.platform_data	= &osk5912_smc91x_info,
+	},
 	.num_resources	= ARRAY_SIZE(osk5912_smc91x_resources),
 	.resource	= osk5912_smc91x_resources,
 };

@@ -109,9 +109,6 @@ void et131x_enable_interrupts(struct et131x_adapter *adapter)
 	else
 		mask = INT_MASK_ENABLE_NO_FLOW;
 
-	if (adapter->DriverNoPhyAccess)
-		mask |= ET_INTR_PHY;
-
 	adapter->CachedMaskValue = mask;
 	writel(mask, &adapter->regs->global.int_mask);
 }
@@ -182,15 +179,15 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 	/* This is our interrupt, so process accordingly */
 
 	if (status & ET_INTR_WATCHDOG) {
-		PMP_TCB pMpTcb = adapter->TxRing.CurrSendHead;
+		struct tcb *tcb = adapter->tx_ring.send_head;
 
-		if (pMpTcb)
-			if (++pMpTcb->PacketStaleCount > 1)
+		if (tcb)
+			if (++tcb->stale > 1)
 				status |= ET_INTR_TXDMA_ISR;
 
 		if (adapter->RxRing.UnfinishedReceives)
 			status |= ET_INTR_RXDMA_XFR_DONE;
-		else if (pMpTcb == NULL)
+		else if (tcb == NULL)
 			writel(0, &adapter->regs->global.watchdog_timer);
 
 		status &= ~ET_INTR_WATCHDOG;
@@ -290,17 +287,12 @@ void et131x_isr_handler(struct work_struct *work)
 				u32 pm_csr;
 
 				/* Tell the device to send a pause packet via
-				 * the back pressure register
+				 * the back pressure register (bp req  and
+				 * bp xon/xoff)
 				 */
 				pm_csr = readl(&iomem->global.pm_csr);
-				if ((pm_csr & ET_PM_PHY_SW_COMA) == 0) {
-					TXMAC_BP_CTRL_t bp_ctrl = { 0 };
-
-					bp_ctrl.bits.bp_req = 1;
-					bp_ctrl.bits.bp_xonxoff = 1;
-					writel(bp_ctrl.value,
-					       &iomem->txmac.bp_ctrl.value);
-				}
+				if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
+					writel(3, &iomem->txmac.bp_ctrl);
 			}
 		}
 
@@ -340,11 +332,9 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			/* TRAP();*/
 
-			etdev->TxMacTest.value =
-				readl(&iomem->txmac.tx_test.value);
 			dev_warn(&etdev->pdev->dev,
 				    "RxDMA_ERR interrupt, error %x\n",
-				    etdev->TxMacTest.value);
+				    readl(&iomem->txmac.tx_test));
 		}
 
 		/* Handle the Wake on LAN Event */
@@ -400,8 +390,7 @@ void et131x_isr_handler(struct work_struct *work)
 
 		/* Let's move on to the TxMac */
 		if (status & ET_INTR_TXMAC) {
-			etdev->TxRing.TxMacErr.value =
-				readl(&iomem->txmac.err.value);
+			u32 err = readl(&iomem->txmac.err.value);
 
 			/*
 			 * When any of the errors occur and TXMAC generates
@@ -415,7 +404,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 */
 			dev_warn(&etdev->pdev->dev,
 				    "TXMAC interrupt, error 0x%08x\n",
-				    etdev->TxRing.TxMacErr.value);
+				    err);
 
 			/* If we are debugging, we want to see this error,
 			 * otherwise we just want the device to be reset and

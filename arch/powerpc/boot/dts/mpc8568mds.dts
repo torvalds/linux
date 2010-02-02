@@ -40,6 +40,8 @@
 			i-cache-line-size = <32>;	// 32 bytes
 			d-cache-size = <0x8000>;		// L1, 32K
 			i-cache-size = <0x8000>;		// L1, 32K
+			sleep = <&pmc 0x00008000	// core
+				 &pmc 0x00004000>;	// timebase
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
@@ -94,31 +96,41 @@
 			interrupts = <16 2>;
 		};
 
-		i2c@3000 {
+		i2c-sleep-nexus {
 			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <0>;
-			compatible = "fsl-i2c";
-			reg = <0x3000 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
-			dfsrr;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x00000004>;
+			ranges;
 
-			rtc@68 {
-				compatible = "dallas,ds1374";
-				reg = <0x68>;
+			i2c@3000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <0>;
+				compatible = "fsl-i2c";
+				reg = <0x3000 0x100>;
+				interrupts = <43 2>;
+				interrupt-parent = <&mpic>;
+				dfsrr;
+
+				rtc@68 {
+					compatible = "dallas,ds1374";
+					reg = <0x68>;
+					interrupts = <3 1>;
+					interrupt-parent = <&mpic>;
+				};
 			};
-		};
 
-		i2c@3100 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			cell-index = <1>;
-			compatible = "fsl-i2c";
-			reg = <0x3100 0x100>;
-			interrupts = <43 2>;
-			interrupt-parent = <&mpic>;
-			dfsrr;
+			i2c@3100 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				cell-index = <1>;
+				compatible = "fsl-i2c";
+				reg = <0x3100 0x100>;
+				interrupts = <43 2>;
+				interrupt-parent = <&mpic>;
+				dfsrr;
+			};
 		};
 
 		dma@21300 {
@@ -128,6 +140,8 @@
 			reg = <0x21300 0x4>;
 			ranges = <0x0 0x21100 0x200>;
 			cell-index = <0>;
+			sleep = <&pmc 0x00000400>;
+
 			dma-channel@0 {
 				compatible = "fsl,mpc8568-dma-channel",
 						"fsl,eloplus-dma-channel";
@@ -176,6 +190,7 @@
 			interrupt-parent = <&mpic>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy2>;
+			sleep = <&pmc 0x00000080>;
 
 			mdio@520 {
 				#address-cells = <1>;
@@ -228,6 +243,7 @@
 			interrupt-parent = <&mpic>;
 			tbi-handle = <&tbi1>;
 			phy-handle = <&phy3>;
+			sleep = <&pmc 0x00000040>;
 
 			mdio@520 {
 				#address-cells = <1>;
@@ -242,30 +258,47 @@
 			};
 		};
 
-		serial0: serial@4500 {
-			cell-index = <0>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4500 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
+		duart-sleep-nexus {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			sleep = <&pmc 0x00000002>;
+			ranges;
+
+			serial0: serial@4500 {
+				cell-index = <0>;
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4500 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+				interrupt-parent = <&mpic>;
+			};
+
+			serial1: serial@4600 {
+				cell-index = <1>;
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4600 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+				interrupt-parent = <&mpic>;
+			};
 		};
 
-		global-utilities@e0000 {	//global utilities block
-			compatible = "fsl,mpc8548-guts";
+		global-utilities@e0000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8568-guts", "fsl,mpc8548-guts";
 			reg = <0xe0000 0x1000>;
+			ranges = <0 0xe0000 0x1000>;
 			fsl,has-rstcr;
-		};
 
-		serial1: serial@4600 {
-			cell-index = <1>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4600 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
+			pmc: power@70 {
+				compatible = "fsl,mpc8568-pmc",
+					     "fsl,mpc8548-pmc";
+				reg = <0x70 0x20>;
+			};
 		};
 
 		crypto@30000 {
@@ -277,6 +310,7 @@
 			fsl,channel-fifo-len = <24>;
 			fsl,exec-units-mask = <0xfe>;
 			fsl,descriptor-types-mask = <0x12b0ebf>;
+			sleep = <&pmc 0x01000000>;
 		};
 
 		mpic: pic@40000 {
@@ -376,6 +410,7 @@
 		compatible = "fsl,qe";
 		ranges = <0x0 0xe0080000 0x40000>;
 		reg = <0xe0080000 0x480>;
+		sleep = <&pmc 0x00000800>;
 		brg-frequency = <0>;
 		bus-frequency = <396000000>;
 		fsl,qe-num-riscs = <2>;
@@ -509,6 +544,7 @@
 		bus-range = <0 255>;
 		ranges = <0x2000000 0x0 0x80000000 0x80000000 0x0 0x20000000
 			  0x1000000 0x0 0x0 0xe2000000 0x0 0x800000>;
+		sleep = <&pmc 0x80000000>;
 		clock-frequency = <66666666>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
@@ -534,6 +570,7 @@
 		bus-range = <0 255>;
 		ranges = <0x2000000 0x0 0xa0000000 0xa0000000 0x0 0x10000000
 			  0x1000000 0x0 0x0 0xe2800000 0x0 0x800000>;
+		sleep = <&pmc 0x20000000>;
 		clock-frequency = <33333333>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
@@ -570,5 +607,7 @@
 			      55 2 /* msg2_tx   */
 			      56 2 /* msg2_rx   */>;
 		interrupt-parent = <&mpic>;
+		sleep = <&pmc 0x00080000   /* controller */
+			 &pmc 0x00040000>; /* message unit */
 	};
 };

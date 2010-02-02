@@ -16,6 +16,7 @@
 #include <linux/compat.h>
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
+#include <linux/scatterlist.h>
 
 #include <asm/uaccess.h>
 
@@ -221,7 +222,7 @@ static void mon_free_buff(struct mon_pgmap *map, int npages);
 /*
  * This is a "chunked memcpy". It does not manipulate any counters.
  */
-static void mon_copy_to_buff(const struct mon_reader_bin *this,
+static unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
     unsigned int off, const unsigned char *from, unsigned int length)
 {
 	unsigned int step_len;
@@ -246,6 +247,7 @@ static void mon_copy_to_buff(const struct mon_reader_bin *this,
 		from += step_len;
 		length -= step_len;
 	}
+	return off;
 }
 
 /*
@@ -394,14 +396,44 @@ static inline char mon_bin_get_setup(unsigned char *setupb,
 	return 0;
 }
 
-static char mon_bin_get_data(const struct mon_reader_bin *rp,
-    unsigned int offset, struct urb *urb, unsigned int length)
+static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
+    unsigned int offset, struct urb *urb, unsigned int length,
+    char *flag)
 {
+	int i;
+	struct scatterlist *sg;
+	unsigned int this_len;
 
-	if (urb->transfer_buffer == NULL)
-		return 'Z';
-	mon_copy_to_buff(rp, offset, urb->transfer_buffer, length);
-	return 0;
+	*flag = 0;
+	if (urb->num_sgs == 0) {
+		if (urb->transfer_buffer == NULL) {
+			*flag = 'Z';
+			return length;
+		}
+		mon_copy_to_buff(rp, offset, urb->transfer_buffer, length);
+		length = 0;
+
+	} else {
+		/* If IOMMU coalescing occurred, we cannot trust sg_page */
+		if (urb->sg->nents != urb->num_sgs) {
+			*flag = 'D';
+			return length;
+		}
+
+		/* Copy up to the first non-addressable segment */
+		for_each_sg(urb->sg->sg, sg, urb->num_sgs, i) {
+			if (length == 0 || PageHighMem(sg_page(sg)))
+				break;
+			this_len = min_t(unsigned int, sg->length, length);
+			offset = mon_copy_to_buff(rp, offset, sg_virt(sg),
+					this_len);
+			length -= this_len;
+		}
+		if (i == 0)
+			*flag = 'D';
+	}
+
+	return length;
 }
 
 static void mon_bin_get_isodesc(const struct mon_reader_bin *rp,
@@ -536,8 +568,9 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	}
 
 	if (length != 0) {
-		ep->flag_data = mon_bin_get_data(rp, offset, urb, length);
-		if (ep->flag_data != 0) {	/* Yes, it's 0x00, not '0' */
+		length = mon_bin_get_data(rp, offset, urb, length,
+				&ep->flag_data);
+		if (length > 0) {
 			delta = (ep->len_cap + PKT_ALIGN-1) & ~(PKT_ALIGN-1);
 			ep->len_cap -= length;
 			delta -= (ep->len_cap + PKT_ALIGN-1) & ~(PKT_ALIGN-1);

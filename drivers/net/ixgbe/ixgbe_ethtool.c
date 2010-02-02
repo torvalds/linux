@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -990,6 +990,7 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	char *p = NULL;
 
 	ixgbe_update_stats(adapter);
+	dev_get_stats(netdev);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
 		switch (ixgbe_gstrings_stats[i].type) {
 		case NETDEV_STATS:

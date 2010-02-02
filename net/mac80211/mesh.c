@@ -427,7 +427,7 @@ int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 		char *addr5, char *addr6)
 {
 	int aelen = 0;
-	memset(meshhdr, 0, sizeof(meshhdr));
+	memset(meshhdr, 0, sizeof(*meshhdr));
 	meshhdr->ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
 	put_unaligned(cpu_to_le32(sdata->u.mesh.mesh_seqnum), &meshhdr->seqnum);
 	sdata->u.mesh.mesh_seqnum++;

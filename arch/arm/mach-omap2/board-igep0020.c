@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 
 #include <linux/regulator/machine.h>
-#include <linux/i2c/twl4030.h>
+#include <linux/i2c/twl.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -27,9 +27,9 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/gpmc.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 
+#include "mux.h"
 #include "mmc-twl4030.h"
 
 #define IGEP2_SMSC911X_CS       5
@@ -203,8 +203,17 @@ static int __init igep2_i2c_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init igep2_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	igep2_i2c_init();
 	omap_serial_init();
 	usb_musb_init();

@@ -27,7 +27,8 @@
 
 #include <plat/board-ams-delta.h>
 #include <mach/hardware.h>
-#include <plat/omapfb.h>
+
+#include "omapfb.h"
 
 #define AMS_DELTA_DEFAULT_CONTRAST	112
 

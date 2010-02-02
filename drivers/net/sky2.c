@@ -1848,7 +1848,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	sky2->tx_cons = idx;
 	smp_mb();
 
-	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4)
+	/* Wake unless it's detached, and called e.g. from sky2_down() */
+	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4 && netif_device_present(dev))
 		netif_wake_queue(dev);
 }
 
@@ -2152,7 +2153,9 @@ static void sky2_qlink_intr(struct sky2_hw *hw)
 
 	/* reset PHY Link Detect */
 	phy = sky2_pci_read16(hw, PSM_CONFIG_REG4);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	sky2_pci_write16(hw, PSM_CONFIG_REG4, phy | 1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 	sky2_link_up(sky2);
 }
@@ -2968,8 +2971,13 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		break;
 
 	case CHIP_ID_YUKON_UL_2:
+		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_ADV_POWER_CTL;
+		break;
+
 	case CHIP_ID_YUKON_OPT:
 		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_NEW_LE
 			| SKY2_HW_ADV_POWER_CTL;
 		break;
 
@@ -3077,6 +3085,7 @@ static void sky2_reset(struct sky2_hw *hw)
 		reg <<= PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_BASE;
 
 		/* reset PHY Link Detect */
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4,
 				 reg | PSM_CONFIG_REG4_RST_PHY_LINK_DETECT);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4, reg);
@@ -3094,6 +3103,7 @@ static void sky2_reset(struct sky2_hw *hw)
 			/* restore the PCIe Link Control register */
 			sky2_pci_write16(hw, cap + PCI_EXP_LNKCTL, reg);
 		}
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
 		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
@@ -3231,6 +3241,27 @@ static inline u8 sky2_wol_supported(const struct sky2_hw *hw)
 	return sky2_is_copper(hw) ? (WAKE_PHY | WAKE_MAGIC) : 0;
 }
 
+static void sky2_hw_set_wol(struct sky2_hw *hw)
+{
+	int wol = 0;
+	int i;
+
+	for (i = 0; i < hw->ports; i++) {
+		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
+
+		if (sky2->wol)
+			wol = 1;
+	}
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
+	    hw->chip_id == CHIP_ID_YUKON_EX ||
+	    hw->chip_id == CHIP_ID_YUKON_FE_P)
+		sky2_write32(hw, B0_CTST, wol ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
+
+	device_set_wakeup_enable(&hw->pdev->dev, wol);
+}
+
 static void sky2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
@@ -3250,13 +3281,7 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	sky2->wol = wol->wolopts;
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
-	    hw->chip_id == CHIP_ID_YUKON_EX ||
-	    hw->chip_id == CHIP_ID_YUKON_FE_P)
-		sky2_write32(hw, B0_CTST, sky2->wol
-			     ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
-
-	device_set_wakeup_enable(&hw->pdev->dev, sky2->wol);
+	sky2_hw_set_wol(hw);
 
 	if (!netif_running(dev))
 		sky2_wol_init(sky2);
@@ -4521,7 +4546,7 @@ static const char *sky2_name(u8 chipid, char *buf, int sz)
 		"Optima",	/* 0xbc */
 	};
 
-	if (chipid >= CHIP_ID_YUKON_XL && chipid < CHIP_ID_YUKON_OPT)
+	if (chipid >= CHIP_ID_YUKON_XL && chipid <= CHIP_ID_YUKON_OPT)
 		strncpy(buf, name[chipid - CHIP_ID_YUKON_XL], sz);
 	else
 		snprintf(buf, sz, "(chip %#x)", chipid);
@@ -4688,6 +4713,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	INIT_WORK(&hw->restart_work, sky2_restart);
 
 	pci_set_drvdata(pdev, hw);
+	pdev->d3_delay = 150;
 
 	return 0;
 

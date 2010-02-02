@@ -732,6 +732,24 @@ config USB_FILE_STORAGE_TEST
 	  behavior of USB Mass Storage hosts.  Not needed for
 	  normal operation.
 
+config USB_MASS_STORAGE
+	tristate "Mass Storage Gadget"
+	depends on BLOCK
+	help
+	  The Mass Storage Gadget acts as a USB Mass Storage disk drive.
+	  As its storage repository it can use a regular file or a block
+	  device (in much the same way as the "loop" device driver),
+	  specified as a module parameter or sysfs option.
+
+	  This is heavily based on File-backed Storage Gadget and in most
+	  cases you will want to use FSG instead.  This gadget is mostly
+	  here to test the functionality of the Mass Storage Function
+	  which may be used with composite framework.
+
+	  Say "y" to link the driver statically, or "m" to build
+	  a dynamically linked module called "g_file_storage".  If unsure,
+	  consider File-backed Storage Gadget.
+
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
 	help
@@ -793,6 +811,48 @@ config USB_CDC_COMPOSITE
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module.
+
+config USB_G_MULTI
+	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"
+	depends on BLOCK && NET
+	help
+	  The Multifunction Composite Gadget provides Ethernet (RNDIS
+	  and/or CDC Ethernet), mass storage and ACM serial link
+	  interfaces.
+
+	  You will be asked to choose which of the two configurations is
+	  to be available in the gadget.  At least one configuration must
+	  be chosen to make the gadget usable.  Selecting more than one
+	  configuration will prevent Windows from automatically detecting
+	  the gadget as a composite gadget, so an INF file will be needed to
+	  use the gadget.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_multi".
+
+config USB_G_MULTI_RNDIS
+	bool "RNDIS + CDC Serial + Storage configuration"
+	depends on USB_G_MULTI
+	default y
+	help
+	  This option enables a configuration with RNDIS, CDC Serial and
+	  Mass Storage functions available in the Multifunction Composite
+	  Gadget.  This is the configuration dedicated for Windows since RNDIS
+	  is Microsoft's protocol.
+
+	  If unsure, say "y".
+
+config USB_G_MULTI_CDC
+	bool "CDC Ethernet + CDC Serial + Storage configuration"
+	depends on USB_G_MULTI
+	default n
+	help
+	  This option enables a configuration with CDC Ethernet (ECM), CDC
+	  Serial and Mass Storage functions available in the Multifunction
+	  Composite Gadget.
+
+	  If unsure, say "y".
+
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.

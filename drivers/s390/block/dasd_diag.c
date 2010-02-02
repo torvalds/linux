@@ -8,7 +8,7 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd-diag"
+#define KMSG_COMPONENT "dasd"
 
 #include <linux/stddef.h>
 #include <linux/kernel.h>
@@ -146,16 +146,16 @@ dasd_diag_erp(struct dasd_device *device)
 	rc = mdsk_init_io(device, device->block->bp_block, 0, NULL);
 	if (rc == 4) {
 		if (!(device->features & DASD_FEATURE_READONLY)) {
-			dev_warn(&device->cdev->dev,
-				 "The access mode of a DIAG device changed"
-				 " to read-only");
+			pr_warning("%s: The access mode of a DIAG device "
+				   "changed to read-only\n",
+				   dev_name(&device->cdev->dev));
 			device->features |= DASD_FEATURE_READONLY;
 		}
 		rc = 0;
 	}
 	if (rc)
-		dev_warn(&device->cdev->dev, "DIAG ERP failed with "
-			    "rc=%d\n", rc);
+		pr_warning("%s: DIAG ERP failed with "
+			    "rc=%d\n", dev_name(&device->cdev->dev), rc);
 }
 
 /* Start a given request at the device. Return zero on success, non-zero
@@ -371,8 +371,9 @@ dasd_diag_check_device(struct dasd_device *device)
 		private->pt_block = 2;
 		break;
 	default:
-		dev_warn(&device->cdev->dev, "Device type %d is not supported "
-			    "in DIAG mode\n", private->rdc_data.vdev_class);
+		pr_warning("%s: Device type %d is not supported "
+			   "in DIAG mode\n", dev_name(&device->cdev->dev),
+			   private->rdc_data.vdev_class);
 		rc = -EOPNOTSUPP;
 		goto out;
 	}
@@ -413,8 +414,8 @@ dasd_diag_check_device(struct dasd_device *device)
 		private->iob.flaga = DASD_DIAG_FLAGA_DEFAULT;
 		rc = dia250(&private->iob, RW_BIO);
 		if (rc == 3) {
-			dev_warn(&device->cdev->dev,
-				"A 64-bit DIAG call failed\n");
+			pr_warning("%s: A 64-bit DIAG call failed\n",
+				   dev_name(&device->cdev->dev));
 			rc = -EOPNOTSUPP;
 			goto out_label;
 		}
@@ -423,8 +424,9 @@ dasd_diag_check_device(struct dasd_device *device)
 			break;
 	}
 	if (bsize > PAGE_SIZE) {
-		dev_warn(&device->cdev->dev, "Accessing the DASD failed because"
-			 " of an incorrect format (rc=%d)\n", rc);
+		pr_warning("%s: Accessing the DASD failed because of an "
+			   "incorrect format (rc=%d)\n",
+			   dev_name(&device->cdev->dev), rc);
 		rc = -EIO;
 		goto out_label;
 	}
@@ -442,18 +444,18 @@ dasd_diag_check_device(struct dasd_device *device)
 		block->s2b_shift++;
 	rc = mdsk_init_io(device, block->bp_block, 0, NULL);
 	if (rc && (rc != 4)) {
-		dev_warn(&device->cdev->dev, "DIAG initialization "
-			"failed with rc=%d\n", rc);
+		pr_warning("%s: DIAG initialization failed with rc=%d\n",
+			   dev_name(&device->cdev->dev), rc);
 		rc = -EIO;
 	} else {
 		if (rc == 4)
 			device->features |= DASD_FEATURE_READONLY;
-		dev_info(&device->cdev->dev,
-			 "New DASD with %ld byte/block, total size %ld KB%s\n",
-			 (unsigned long) block->bp_block,
-			 (unsigned long) (block->blocks <<
-					  block->s2b_shift) >> 1,
-			 (rc == 4) ? ", read-only device" : "");
+		pr_info("%s: New DASD with %ld byte/block, total size %ld "
+			"KB%s\n", dev_name(&device->cdev->dev),
+			(unsigned long) block->bp_block,
+			(unsigned long) (block->blocks <<
+					 block->s2b_shift) >> 1,
+			(rc == 4) ? ", read-only device" : "");
 		rc = 0;
 	}
 out_label:

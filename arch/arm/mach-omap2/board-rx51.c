@@ -23,12 +23,13 @@
 #include <asm/mach/map.h>
 
 #include <plat/mcspi.h>
-#include <plat/mux.h>
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 #include <plat/usb.h>
+
+#include "mux.h"
 
 struct omap_sdrc_params *rx51_get_sdram_timings(void);
 
@@ -69,15 +70,24 @@ static void __init rx51_init_irq(void)
 
 extern void __init rx51_peripherals_init(void);
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init rx51_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap_serial_init();
 	usb_musb_init();
 	rx51_peripherals_init();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
-	omap_cfg_reg(H16_34XX_SDRC_CKE0);
-	omap_cfg_reg(H17_34XX_SDRC_CKE1);
+	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
+	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 }
 
 static void __init rx51_map_io(void)

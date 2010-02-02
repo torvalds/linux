@@ -190,6 +190,7 @@ static struct powerdomain mpu_34xx_pwrdm = {
 	.wkdep_srcs	  = mpu_34xx_wkdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRSTS_OFF_RET,
+	.flags		  = PWRDM_HAS_MPU_QUIRK,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
 		[0] = PWRSTS_OFF_RET,

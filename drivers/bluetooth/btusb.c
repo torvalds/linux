@@ -307,6 +307,7 @@ static void btusb_bulk_complete(struct urb *urb)
 		return;
 
 	usb_anchor_urb(urb, &data->bulk_anchor);
+	usb_mark_last_busy(data->udev);
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
@@ -1066,7 +1067,7 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 
 	spin_lock_irq(&data->txlock);
-	if (!(interface_to_usbdev(intf)->auto_pm && data->tx_in_flight)) {
+	if (!((message.event & PM_EVENT_AUTO) && data->tx_in_flight)) {
 		set_bit(BTUSB_SUSPENDING, &data->flags);
 		spin_unlock_irq(&data->txlock);
 	} else {

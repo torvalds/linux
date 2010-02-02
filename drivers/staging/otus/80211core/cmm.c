@@ -1428,7 +1428,7 @@ void zfProcessManagement(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* AddInf
         {
                 /* Beacon */
             case ZM_WLAN_FRAME_TYPE_BEACON :
-                /* if enable 802.11h and current chanel is silent but receive beacon from other AP */
+                /* if enable 802.11h and current channel is silent but receive beacon from other AP */
                 if (((wd->regulationTable.allowChannel[wd->regulationTable.CurChIndex].channelFlags
                         & ZM_REG_FLAG_CHANNEL_CSA) != 0) && wd->sta.DFSEnable)
                 {
@@ -1469,7 +1469,7 @@ void zfProcessManagement(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* AddInf
                 break;
                 /* Probe response */
             case ZM_WLAN_FRAME_TYPE_PROBERSP :
-                /* if enable 802.11h and current chanel is silent but receive probe response from other AP */
+                /* if enable 802.11h and current channel is silent but receive probe response from other AP */
                 if (((wd->regulationTable.allowChannel[wd->regulationTable.CurChIndex].channelFlags
                         & ZM_REG_FLAG_CHANNEL_CSA) != 0) && wd->sta.DFSEnable)
                 {

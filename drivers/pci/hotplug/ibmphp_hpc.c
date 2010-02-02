@@ -890,7 +890,7 @@ static int poll_hpc(void *data)
 			msleep(POLL_INTERVAL_SEC * 1000);
 
 			if (kthread_should_stop())
-				break;
+				goto out_sleep;
 			
 			down (&semOperations);
 			
@@ -904,6 +904,7 @@ static int poll_hpc(void *data)
 		/* give up the hardware semaphore */
 		up (&semOperations);
 		/* sleep for a short time just for good measure */
+out_sleep:
 		msleep(100);
 	}
 	up (&sem_exit);

@@ -120,7 +120,7 @@ extern int olpc_ec_mask_unset(uint8_t bits);
 
 /* GPIO assignments */
 
-#define OLPC_GPIO_MIC_AC	geode_gpio(1)
+#define OLPC_GPIO_MIC_AC	1
 #define OLPC_GPIO_DCON_IRQ	geode_gpio(7)
 #define OLPC_GPIO_THRM_ALRM	geode_gpio(10)
 #define OLPC_GPIO_SMB_CLK	geode_gpio(14)

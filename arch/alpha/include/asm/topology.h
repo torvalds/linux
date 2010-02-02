@@ -28,6 +28,9 @@ static const struct cpumask *cpumask_of_node(int node)
 {
 	int cpu;
 
+	if (node == -1)
+		return cpu_all_mask;
+
 	cpumask_clear(&node_to_cpumask_map[node]);
 
 	for_each_online_cpu(cpu) {

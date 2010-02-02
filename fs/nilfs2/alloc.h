@@ -69,4 +69,25 @@ int nilfs_palloc_freev(struct inode *, __u64 *, size_t);
 #define nilfs_clear_bit_atomic		ext2_clear_bit_atomic
 #define nilfs_find_next_zero_bit	ext2_find_next_zero_bit
 
+/*
+ * persistent object allocator cache
+ */
+
+struct nilfs_bh_assoc {
+	unsigned long blkoff;
+	struct buffer_head *bh;
+};
+
+struct nilfs_palloc_cache {
+	spinlock_t lock;
+	struct nilfs_bh_assoc prev_desc;
+	struct nilfs_bh_assoc prev_bitmap;
+	struct nilfs_bh_assoc prev_entry;
+};
+
+void nilfs_palloc_setup_cache(struct inode *inode,
+			      struct nilfs_palloc_cache *cache);
+void nilfs_palloc_clear_cache(struct inode *inode);
+void nilfs_palloc_destroy_cache(struct inode *inode);
+
 #endif	/* _NILFS_ALLOC_H */

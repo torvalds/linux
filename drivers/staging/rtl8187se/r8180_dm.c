@@ -36,7 +36,7 @@ bool CheckHighPower(struct net_device *dev)
 //
 //	Note:
 //		The reason why we udpate Tx power level here instead of DoRxHighPower()
-//		is the number of IO to change Tx power is much more than chane TR switch
+//		is the number of IO to change Tx power is much more than channel TR switch
 //		and they are related to OFDM and MAC registers.
 //		So, we don't want to update it so frequently in per-Rx packet base.
 //
@@ -197,7 +197,6 @@ DIG_Zebra(
 	{ // Advised from SD3 DZ
 		priv->InitialGain = 4; // In 87B, m74dBm means State 4 (m82dBm)
 	}
-	//if(pHalData->VersionID != VERSION_8187B_B)
 	{ // Advised from SD3 DZ
 		OfdmFA1 =  0x20;
 	}
@@ -1326,7 +1325,7 @@ SetAntenna8185(
 			break;
 
 		default:
-			printk("SetAntenna8185: unkown RFChipID(%d)\n", priv->rf_chip);
+			printk("SetAntenna8185: unknown RFChipID(%d)\n", priv->rf_chip);
 			break;
 		}
 		break;
@@ -1346,13 +1345,13 @@ SetAntenna8185(
 			break;
 
 		default:
-			printk("SetAntenna8185: unkown RFChipID(%d)\n", priv->rf_chip);
+			printk("SetAntenna8185: unknown RFChipID(%d)\n", priv->rf_chip);
 			break;
 		}
 		break;
 
 	default:
-		printk("SetAntenna8185: unkown u1bAntennaIndex(%d)\n", u1bAntennaIndex);
+		printk("SetAntenna8185: unknown u1bAntennaIndex(%d)\n", u1bAntennaIndex);
 		break;
 	}
 
@@ -1448,7 +1447,7 @@ SwAntennaDiversity(
 
 		priv->bAdSwitchedChecking = false;
 
-		// Adjust Rx signal strength threashold.
+		// Adjust Rx signal strength threshold.
 		priv->AdRxSsThreshold = (priv->AdRxSignalStrength + priv->AdRxSsBeforeSwitched) / 2;
 
 		priv->AdRxSsThreshold = (priv->AdRxSsThreshold > priv->AdMaxRxSsThreshold) ?
@@ -1562,7 +1561,7 @@ SwAntennaDiversity(
 //				priv->AdRxSignalStrength, priv->AdRxSsThreshold);
 
 			priv->bAdSwitchedChecking = false;
-			// Increase Rx signal strength threashold if necessary.
+			// Increase Rx signal strength threshold if necessary.
 			if(	(priv->AdRxSignalStrength > (priv->AdRxSsThreshold + 10)) && // Signal is much stronger than current threshold
 				priv->AdRxSsThreshold <= priv->AdMaxRxSsThreshold) // Current threhold is not yet reach upper limit.
 			{

@@ -311,4 +311,14 @@ static inline int pci_resource_alignment(struct pci_dev *dev,
 	return resource_alignment(res);
 }
 
+extern void pci_enable_acs(struct pci_dev *dev);
+
+struct pci_dev_reset_methods {
+	u16 vendor;
+	u16 device;
+	int (*reset)(struct pci_dev *dev, int probe);
+};
+
+extern int pci_dev_specific_reset(struct pci_dev *dev, int probe);
+
 #endif /* DRIVERS_PCI_H */

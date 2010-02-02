@@ -21,7 +21,7 @@ sys_call_table32:
 /*0*/	.word sys_restart_syscall, sys32_exit, sys_fork, sys_read, sys_write
 /*5*/	.word sys32_open, sys_close, sys32_wait4, sys32_creat, sys_link
 /*10*/  .word sys_unlink, sunos_execv, sys_chdir, sys_chown16, sys32_mknod
-/*15*/	.word sys_chmod, sys_lchown16, sys_sparc_brk, sys32_perfctr, sys32_lseek
+/*15*/	.word sys_chmod, sys_lchown16, sys_brk, sys32_perfctr, sys32_lseek
 /*20*/	.word sys_getpid, sys_capget, sys_capset, sys_setuid16, sys_getuid16
 /*25*/	.word sys32_vmsplice, compat_sys_ptrace, sys_alarm, sys32_sigaltstack, sys_pause
 /*30*/	.word compat_sys_utime, sys_lchown, sys_fchown, sys32_access, sys32_nice
@@ -68,7 +68,7 @@ sys_call_table32:
 	.word compat_sys_fstatfs64, sys_llseek, sys_mlock, sys_munlock, sys32_mlockall
 /*240*/	.word sys_munlockall, sys32_sched_setparam, sys32_sched_getparam, sys32_sched_setscheduler, sys32_sched_getscheduler
 	.word sys_sched_yield, sys32_sched_get_priority_max, sys32_sched_get_priority_min, sys32_sched_rr_get_interval, compat_sys_nanosleep
-/*250*/	.word sys32_mremap, compat_sys_sysctl, sys32_getsid, sys_fdatasync, sys32_nfsservctl
+/*250*/	.word sys_mremap, compat_sys_sysctl, sys32_getsid, sys_fdatasync, sys32_nfsservctl
 	.word sys32_sync_file_range, compat_sys_clock_settime, compat_sys_clock_gettime, compat_sys_clock_getres, sys32_clock_nanosleep
 /*260*/	.word compat_sys_sched_getaffinity, compat_sys_sched_setaffinity, sys32_timer_settime, compat_sys_timer_gettime, sys_timer_getoverrun
 	.word sys_timer_delete, compat_sys_timer_create, sys_ni_syscall, compat_sys_io_setup, sys_io_destroy
@@ -96,7 +96,7 @@ sys_call_table:
 /*0*/	.word sys_restart_syscall, sparc_exit, sys_fork, sys_read, sys_write
 /*5*/	.word sys_open, sys_close, sys_wait4, sys_creat, sys_link
 /*10*/  .word sys_unlink, sys_nis_syscall, sys_chdir, sys_chown, sys_mknod
-/*15*/	.word sys_chmod, sys_lchown, sys_sparc_brk, sys_perfctr, sys_lseek
+/*15*/	.word sys_chmod, sys_lchown, sys_brk, sys_perfctr, sys_lseek
 /*20*/	.word sys_getpid, sys_capget, sys_capset, sys_setuid, sys_getuid
 /*25*/	.word sys_vmsplice, sys_ptrace, sys_alarm, sys_sigaltstack, sys_nis_syscall
 /*30*/	.word sys_utime, sys_nis_syscall, sys_nis_syscall, sys_access, sys_nice

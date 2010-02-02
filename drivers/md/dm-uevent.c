@@ -139,14 +139,13 @@ void dm_send_uevents(struct list_head *events, struct kobject *kobj)
 		list_del_init(&event->elist);
 
 		/*
-		 * Need to call dm_copy_name_and_uuid from here for now.
-		 * Context of previous var adds and locking used for
-		 * hash_cell not compatable.
+		 * When a device is being removed this copy fails and we
+		 * discard these unsent events.
 		 */
 		if (dm_copy_name_and_uuid(event->md, event->name,
 					  event->uuid)) {
-			DMERR("%s: dm_copy_name_and_uuid() failed",
-			      __func__);
+			DMINFO("%s: skipping sending uevent for lost device",
+			       __func__);
 			goto uevent_free;
 		}
 

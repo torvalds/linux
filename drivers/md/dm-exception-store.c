@@ -172,7 +172,8 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 	}
 
 	/* Validate the chunk size against the device block size */
-	if (chunk_size % (bdev_logical_block_size(store->cow->bdev) >> 9)) {
+	if (chunk_size %
+	    (bdev_logical_block_size(dm_snap_cow(store->snap)->bdev) >> 9)) {
 		*error = "Chunk size is not a multiple of device blocksize";
 		return -EINVAL;
 	}
@@ -190,6 +191,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 }
 
 int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
+			      struct dm_snapshot *snap,
 			      unsigned *args_used,
 			      struct dm_exception_store **store)
 {
@@ -198,7 +200,7 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 	struct dm_exception_store *tmp_store;
 	char persistent;
 
-	if (argc < 3) {
+	if (argc < 2) {
 		ti->error = "Insufficient exception store arguments";
 		return -EINVAL;
 	}
@@ -209,14 +211,15 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 		return -ENOMEM;
 	}
 
-	persistent = toupper(*argv[1]);
+	persistent = toupper(*argv[0]);
 	if (persistent == 'P')
 		type = get_type("P");
 	else if (persistent == 'N')
 		type = get_type("N");
 	else {
 		ti->error = "Persistent flag is not P or N";
-		return -EINVAL;
+		r = -EINVAL;
+		goto bad_type;
 	}
 
 	if (!type) {
@@ -226,32 +229,23 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 	}
 
 	tmp_store->type = type;
-	tmp_store->ti = ti;
+	tmp_store->snap = snap;
 
-	r = dm_get_device(ti, argv[0], 0, 0,
-			  FMODE_READ | FMODE_WRITE, &tmp_store->cow);
-	if (r) {
-		ti->error = "Cannot get COW device";
-		goto bad_cow;
-	}
-
-	r = set_chunk_size(tmp_store, argv[2], &ti->error);
+	r = set_chunk_size(tmp_store, argv[1], &ti->error);
 	if (r)
-		goto bad_ctr;
+		goto bad;
 
 	r = type->ctr(tmp_store, 0, NULL);
 	if (r) {
 		ti->error = "Exception store type constructor failed";
-		goto bad_ctr;
+		goto bad;
 	}
 
-	*args_used = 3;
+	*args_used = 2;
 	*store = tmp_store;
 	return 0;
 
-bad_ctr:
-	dm_put_device(ti, tmp_store->cow);
-bad_cow:
+bad:
 	put_type(type);
 bad_type:
 	kfree(tmp_store);
@@ -262,7 +256,6 @@ EXPORT_SYMBOL(dm_exception_store_create);
 void dm_exception_store_destroy(struct dm_exception_store *store)
 {
 	store->type->dtr(store);
-	dm_put_device(store->ti, store->cow);
 	put_type(store->type);
 	kfree(store);
 }

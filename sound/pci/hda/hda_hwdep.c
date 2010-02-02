@@ -24,6 +24,7 @@
 #include <linux/compat.h>
 #include <linux/mutex.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/firmware.h>
 #include <sound/core.h>
 #include "hda_codec.h"
@@ -428,8 +429,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 	char *key, *val;
 	struct hda_hint *hint;
 
-	while (isspace(*buf))
-		buf++;
+	buf = skip_spaces(buf);
 	if (!*buf || *buf == '#' || *buf == '\n')
 		return 0;
 	if (*buf == '=')
@@ -444,8 +444,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return -EINVAL;
 	}
 	*val++ = 0;
-	while (isspace(*val))
-		val++;
+	val = skip_spaces(val);
 	remove_trail_spaces(key);
 	remove_trail_spaces(val);
 	hint = get_hint(codec, key);

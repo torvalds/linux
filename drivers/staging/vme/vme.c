@@ -13,7 +13,6 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
@@ -644,7 +643,7 @@ EXPORT_SYMBOL(vme_master_free);
  * Request a DMA controller with specific attributes, return some unique
  * identifier.
  */
-struct vme_resource *vme_request_dma(struct device *dev)
+struct vme_resource *vme_dma_request(struct device *dev)
 {
 	struct vme_bridge *bridge;
 	struct list_head *dma_pos = NULL;
@@ -705,7 +704,7 @@ err_ctrlr:
 err_bus:
 	return NULL;
 }
-EXPORT_SYMBOL(vme_request_dma);
+EXPORT_SYMBOL(vme_dma_request);
 
 /*
  * Start new list
@@ -880,7 +879,7 @@ int vme_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		return -EINVAL;
 	}
 
-	if (mutex_trylock(&(list->mtx))) {
+	if (!mutex_trylock(&(list->mtx))) {
 		printk("Link List already submitted\n");
 		return -EINVAL;
 	}
@@ -923,7 +922,7 @@ int vme_dma_list_free(struct vme_dma_list *list)
 		return -EINVAL;
 	}
 
-	if (mutex_trylock(&(list->mtx))) {
+	if (!mutex_trylock(&(list->mtx))) {
 		printk("Link List in use\n");
 		return -EINVAL;
 	}
@@ -956,7 +955,7 @@ int vme_dma_free(struct vme_resource *resource)
 
 	ctrlr = list_entry(resource->entry, struct vme_dma_resource, list);
 
-	if (mutex_trylock(&(ctrlr->mtx))) {
+	if (!mutex_trylock(&(ctrlr->mtx))) {
 		printk("Resource busy, can't free\n");
 		return -EBUSY;
 	}
@@ -975,7 +974,23 @@ int vme_dma_free(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_dma_free);
 
-int vme_request_irq(struct device *dev, int level, int statid,
+void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
+{
+	void (*call)(int, int, void *);
+	void *priv_data;
+
+	call = bridge->irq[level - 1].callback[statid].func;
+	priv_data = bridge->irq[level - 1].callback[statid].priv_data;
+
+	if (call != NULL)
+		call(level, statid, priv_data);
+	else
+		printk(KERN_WARNING "Spurilous VME interrupt, level:%x, "
+			"vector:%x\n", level, statid);
+}
+EXPORT_SYMBOL(vme_irq_handler);
+
+int vme_irq_request(struct device *dev, int level, int statid,
 	void (*callback)(int level, int vector, void *priv_data),
 	void *priv_data)
 {
@@ -988,20 +1003,37 @@ int vme_request_irq(struct device *dev, int level, int statid,
 	}
 
 	if((level < 1) || (level > 7)) {
-		printk(KERN_WARNING "Invalid interrupt level\n");
+		printk(KERN_ERR "Invalid interrupt level\n");
 		return -EINVAL;
 	}
 
-	if (bridge->request_irq == NULL) {
-		printk("Registering interrupts not supported\n");
+	if (bridge->irq_set == NULL) {
+		printk(KERN_ERR "Configuring interrupts not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->request_irq(level, statid, callback, priv_data);
+	mutex_lock(&(bridge->irq_mtx));
+
+	if (bridge->irq[level - 1].callback[statid].func) {
+		mutex_unlock(&(bridge->irq_mtx));
+		printk(KERN_WARNING "VME Interrupt already taken\n");
+		return -EBUSY;
+	}
+
+	bridge->irq[level - 1].count++;
+	bridge->irq[level - 1].callback[statid].priv_data = priv_data;
+	bridge->irq[level - 1].callback[statid].func = callback;
+
+	/* Enable IRQ level */
+	bridge->irq_set(level, 1, 1);
+
+	mutex_unlock(&(bridge->irq_mtx));
+
+	return 0;
 }
-EXPORT_SYMBOL(vme_request_irq);
+EXPORT_SYMBOL(vme_irq_request);
 
-void vme_free_irq(struct device *dev, int level, int statid)
+void vme_irq_free(struct device *dev, int level, int statid)
 {
 	struct vme_bridge *bridge;
 
@@ -1012,20 +1044,31 @@ void vme_free_irq(struct device *dev, int level, int statid)
 	}
 
 	if((level < 1) || (level > 7)) {
-		printk(KERN_WARNING "Invalid interrupt level\n");
+		printk(KERN_ERR "Invalid interrupt level\n");
 		return;
 	}
 
-	if (bridge->free_irq == NULL) {
-		printk("Freeing interrupts not supported\n");
+	if (bridge->irq_set == NULL) {
+		printk(KERN_ERR "Configuring interrupts not supported\n");
 		return;
 	}
 
-	bridge->free_irq(level, statid);
+	mutex_lock(&(bridge->irq_mtx));
+
+	bridge->irq[level - 1].count--;
+
+	/* Disable IRQ level if no more interrupts attached at this level*/
+	if (bridge->irq[level - 1].count == 0)
+		bridge->irq_set(level, 0, 1);
+
+	bridge->irq[level - 1].callback[statid].func = NULL;
+	bridge->irq[level - 1].callback[statid].priv_data = NULL;
+
+	mutex_unlock(&(bridge->irq_mtx));
 }
-EXPORT_SYMBOL(vme_free_irq);
+EXPORT_SYMBOL(vme_irq_free);
 
-int vme_generate_irq(struct device *dev, int level, int statid)
+int vme_irq_generate(struct device *dev, int level, int statid)
 {
 	struct vme_bridge *bridge;
 
@@ -1040,14 +1083,14 @@ int vme_generate_irq(struct device *dev, int level, int statid)
 		return -EINVAL;
 	}
 
-	if (bridge->generate_irq == NULL) {
+	if (bridge->irq_generate == NULL) {
 		printk("Interrupt generation not supported\n");
 		return -EINVAL;
 	}
 
-	return bridge->generate_irq(level, statid);
+	return bridge->irq_generate(level, statid);
 }
-EXPORT_SYMBOL(vme_generate_irq);
+EXPORT_SYMBOL(vme_irq_generate);
 
 /*
  * Request the location monitor, return resource or NULL
@@ -1148,7 +1191,7 @@ int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
 
 	/* XXX Check parameters */
 
-	return lm->parent->lm_set(lm, lm_base, aspace, cycle);
+	return bridge->lm_set(lm, lm_base, aspace, cycle);
 }
 EXPORT_SYMBOL(vme_lm_set);
 
@@ -1228,16 +1271,18 @@ void vme_lm_free(struct vme_resource *resource)
 
 	lm = list_entry(resource->entry, struct vme_lm_resource, list);
 
-	if (mutex_trylock(&(lm->mtx))) {
-		printk(KERN_ERR "Resource busy, can't free\n");
-		return;
-	}
+	mutex_lock(&(lm->mtx));
 
-	/* XXX Check to see that there aren't any callbacks still attached */
+	/* XXX
+	 * Check to see that there aren't any callbacks still attached, if
+	 * there are we should probably be detaching them!
+	 */
 
 	lm->locked = 0;
 
 	mutex_unlock(&(lm->mtx));
+
+	kfree(resource);
 }
 EXPORT_SYMBOL(vme_lm_free);
 

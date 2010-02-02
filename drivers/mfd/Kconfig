@@ -103,10 +103,10 @@ config MENELAUS
 	  cell phones and PDAs.
 
 config TWL4030_CORE
-	bool "Texas Instruments TWL4030/TPS659x0 Support"
+	bool "Texas Instruments TWL4030/TWL5030/TWL6030/TPS659x0 Support"
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
-	  Say yes here if you have TWL4030 family chip on your board.
+	  Say yes here if you have TWL4030 / TWL6030 family chip on your board.
 	  This core driver provides register access and IRQ handling
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
@@ -174,6 +174,16 @@ config PMIC_DA903X
 	  individual components like LCD backlight, voltage regulators,
 	  LEDs and battery-charger under the corresponding menus.
 
+config PMIC_ADP5520
+	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
+	depends on I2C=y
+	help
+	  Say yes here to add support for Analog Devices AD5520 and ADP5501,
+	  Multifunction Power Management IC. This includes
+	  the I2C driver and the core APIs _only_, you have to select
+	  individual components like LCD backlight, LEDs, GPIOs and Kepad
+	  under the corresponding menus.
+
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
@@ -185,12 +195,12 @@ config MFD_WM8400
 	  the functionality of the device.
 
 config MFD_WM831X
-	tristate "Support Wolfson Microelectronics WM831x PMICs"
+	bool "Support Wolfson Microelectronics WM831x/2x PMICs"
 	select MFD_CORE
-	depends on I2C
+	depends on I2C=y
 	help
-	  Support for the Wolfson Microelecronics WM831x PMICs.  This
-	  driver provides common support for accessing the device,
+	  Support for the Wolfson Microelecronics WM831x and WM832x PMICs.
+	  This driver provides common support for accessing the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
 
@@ -318,6 +328,25 @@ config EZX_PCAP
 	help
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
+
+config MFD_88PM8607
+	bool "Support Marvell 88PM8607"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  This supports for Marvell 88PM8607 Power Management IC. This includes
+	  the I2C driver and the core APIs _only_, you have to select
+	  individual components like voltage regulators, RTC and
+	  battery-charger under the corresponding menus.
+
+config AB4500_CORE
+	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"
+	depends on SPI
+	help
+	  Select this option to enable access to AB4500 power management
+	  chip. This connects to U8500 on the SSP/SPI bus and exports
+	  read/write functions for the devices to get access to this chip.
+	  This chip embeds various other multimedia funtionalities as well.
 
 endmenu
 

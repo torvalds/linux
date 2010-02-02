@@ -449,6 +449,7 @@ int r600_blit_init(struct radeon_device *rdev)
 	u32 packet2s[16];
 	int num_packet2s = 0;
 
+	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 
 	if (rdev->family >= CHIP_RV770)
@@ -473,9 +474,8 @@ int r600_blit_init(struct radeon_device *rdev)
 	obj_size += r6xx_ps_size * 4;
 	obj_size = ALIGN(obj_size, 256);
 
-	r = radeon_object_create(rdev, NULL, obj_size,
-				 true, RADEON_GEM_DOMAIN_VRAM,
-				 false, &rdev->r600_blit.shader_obj);
+	r = radeon_bo_create(rdev, NULL, obj_size, true, RADEON_GEM_DOMAIN_VRAM,
+				&rdev->r600_blit.shader_obj);
 	if (r) {
 		DRM_ERROR("r600 failed to allocate shader\n");
 		return r;
@@ -485,12 +485,14 @@ int r600_blit_init(struct radeon_device *rdev)
 		  obj_size,
 		  rdev->r600_blit.vs_offset, rdev->r600_blit.ps_offset);
 
-	r = radeon_object_kmap(rdev->r600_blit.shader_obj, &ptr);
+	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_kmap(rdev->r600_blit.shader_obj, &ptr);
 	if (r) {
 		DRM_ERROR("failed to map blit object %d\n", r);
 		return r;
 	}
-
 	if (rdev->family >= CHIP_RV770)
 		memcpy_toio(ptr + rdev->r600_blit.state_offset,
 			    r7xx_default_state, rdev->r600_blit.state_len * 4);
@@ -500,19 +502,28 @@ int r600_blit_init(struct radeon_device *rdev)
 	if (num_packet2s)
 		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
 			    packet2s, num_packet2s * 4);
-
-
 	memcpy(ptr + rdev->r600_blit.vs_offset, r6xx_vs, r6xx_vs_size * 4);
 	memcpy(ptr + rdev->r600_blit.ps_offset, r6xx_ps, r6xx_ps_size * 4);
-
-	radeon_object_kunmap(rdev->r600_blit.shader_obj);
+	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
+	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 	return 0;
 }
 
 void r600_blit_fini(struct radeon_device *rdev)
 {
-	radeon_object_unpin(rdev->r600_blit.shader_obj);
-	radeon_object_unref(&rdev->r600_blit.shader_obj);
+	int r;
+
+	if (rdev->r600_blit.shader_obj == NULL)
+		return;
+	/* If we can't reserve the bo, unref should be enough to destroy
+	 * it when it becomes idle.
+	 */
+	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+	if (!r) {
+		radeon_bo_unpin(rdev->r600_blit.shader_obj);
+		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	}
+	radeon_bo_unref(&rdev->r600_blit.shader_obj);
 }
 
 int r600_vb_ib_get(struct radeon_device *rdev)
@@ -547,7 +558,8 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	int dwords_per_loop = 76, num_loops;
 
 	r = r600_vb_ib_get(rdev);
-	WARN_ON(r);
+	if (r)
+		return r;
 
 	/* set_render_target emits 2 extra dwords on rv6xx */
 	if (rdev->family > CHIP_R600 && rdev->family < CHIP_RV770)
@@ -569,11 +581,12 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
 	ring_size += 40; /* shaders + def state */
-	ring_size += 3; /* fence emit for VB IB */
+	ring_size += 7; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
-	ring_size += 3; /* fence emit for done copy */
+	ring_size += 7; /* fence emit for done copy */
 	r = radeon_ring_lock(rdev, ring_size);
-	WARN_ON(r);
+	if (r)
+		return r;
 
 	set_default_state(rdev); /* 14 */
 	set_shaders(rdev); /* 26 */

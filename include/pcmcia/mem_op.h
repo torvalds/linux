@@ -15,8 +15,8 @@
 #ifndef _LINUX_MEM_OP_H
 #define _LINUX_MEM_OP_H
 
+#include <linux/io.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
 
 /*
    If UNSAFE_MEMCPY is defined, we use the (optimized) system routines

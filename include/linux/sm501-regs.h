@@ -31,6 +31,8 @@
 #define SM501_SYSCTRL_PCI_SUBSYS_LOCK	(1<<11)
 #define SM501_SYSCTRL_PCI_BURST_READ_EN	(1<<15)
 
+#define SM501_SYSCTRL_2D_ENGINE_STATUS	(1<<19)
+
 /* miscellaneous control */
 
 #define SM501_MISC_CONTROL		(0x000004)

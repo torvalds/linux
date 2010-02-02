@@ -265,9 +265,13 @@ config DVB_USB_DW2102
 	select DVB_TDA10021 if !DVB_FE_CUSTOMISE
 	select DVB_MT312 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10039 if !DVB_FE_CUSTOMISE
+	select DVB_DS3000 if !DVB_FE_CUSTOMISE
+	select DVB_STB6100 if !DVB_FE_CUSTOMISE
+	select DVB_STV6110 if !DVB_FE_CUSTOMISE
+	select DVB_STV0900 if !DVB_FE_CUSTOMISE
 	help
-	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
-	  and the TeVii S650, S630.
+	  Say Y here to support the DvbWorld, TeVii, Prof DVB-S/S2 USB2.0
+	  receivers.
 
 config DVB_USB_CINERGY_T2
 	tristate "Terratec CinergyT2/qanu USB 2.0 DVB-T receiver"

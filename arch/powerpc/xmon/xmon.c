@@ -1641,7 +1641,8 @@ static void super_regs(void)
 			       ptrLpPaca->saved_srr0, ptrLpPaca->saved_srr1);
 			printf("    Saved Gpr3=%.16lx  Saved Gpr4=%.16lx \n",
 			       ptrLpPaca->saved_gpr3, ptrLpPaca->saved_gpr4);
-			printf("    Saved Gpr5=%.16lx \n", ptrLpPaca->saved_gpr5);
+			printf("    Saved Gpr5=%.16lx \n",
+				ptrLpPaca->gpr5_dword.saved_gpr5);
 		}
 #endif
 

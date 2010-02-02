@@ -66,7 +66,7 @@ static int __init rar_init_handler(void);
 static void __exit rar_exit_handler(void);
 
 /*
-  function that is activated on the succesfull probe of the RAR device
+  function that is activated on the successfull probe of the RAR device
 */
 static int __devinit rar_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
@@ -319,7 +319,7 @@ static int memrar_init_rar_params(struct pci_dev *pdev)
 }
 
 /*
-  function that is activaed on the succesfull probe of the RAR device
+  function that is activated on the successfull probe of the RAR device
 */
 static int __devinit rar_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {

@@ -250,6 +250,7 @@ static int whc_probe(struct umc_dev *umc)
 	}
 
 	usb_hcd->wireless = 1;
+	usb_hcd->self.sg_tablesize = 2048; /* somewhat arbitrary */
 
 	wusbhc = usb_hcd_to_wusbhc(usb_hcd);
 	whc = wusbhc_to_whc(wusbhc);

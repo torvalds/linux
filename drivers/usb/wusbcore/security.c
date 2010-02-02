@@ -205,15 +205,15 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 	const void *itr, *top;
 	char buf[64];
 
-	secd = kmalloc(sizeof(struct usb_security_descriptor), GFP_KERNEL);
+	secd = kmalloc(sizeof(*secd), GFP_KERNEL);
 	if (secd == NULL) {
 		result = -ENOMEM;
 		goto out;
 	}
 
 	result = usb_get_descriptor(usb_dev, USB_DT_SECURITY,
-				    0, secd, sizeof(struct usb_security_descriptor));
-	if (result < sizeof(secd)) {
+				    0, secd, sizeof(*secd));
+	if (result < sizeof(*secd)) {
 		dev_err(dev, "Can't read security descriptor or "
 			"not enough data: %d\n", result);
 		goto out;

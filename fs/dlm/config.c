@@ -410,10 +410,10 @@ static struct config_group *make_cluster(struct config_group *g,
 	struct dlm_comms *cms = NULL;
 	void *gps = NULL;
 
-	cl = kzalloc(sizeof(struct dlm_cluster), GFP_KERNEL);
-	gps = kcalloc(3, sizeof(struct config_group *), GFP_KERNEL);
-	sps = kzalloc(sizeof(struct dlm_spaces), GFP_KERNEL);
-	cms = kzalloc(sizeof(struct dlm_comms), GFP_KERNEL);
+	cl = kzalloc(sizeof(struct dlm_cluster), GFP_NOFS);
+	gps = kcalloc(3, sizeof(struct config_group *), GFP_NOFS);
+	sps = kzalloc(sizeof(struct dlm_spaces), GFP_NOFS);
+	cms = kzalloc(sizeof(struct dlm_comms), GFP_NOFS);
 
 	if (!cl || !gps || !sps || !cms)
 		goto fail;
@@ -482,9 +482,9 @@ static struct config_group *make_space(struct config_group *g, const char *name)
 	struct dlm_nodes *nds = NULL;
 	void *gps = NULL;
 
-	sp = kzalloc(sizeof(struct dlm_space), GFP_KERNEL);
-	gps = kcalloc(2, sizeof(struct config_group *), GFP_KERNEL);
-	nds = kzalloc(sizeof(struct dlm_nodes), GFP_KERNEL);
+	sp = kzalloc(sizeof(struct dlm_space), GFP_NOFS);
+	gps = kcalloc(2, sizeof(struct config_group *), GFP_NOFS);
+	nds = kzalloc(sizeof(struct dlm_nodes), GFP_NOFS);
 
 	if (!sp || !gps || !nds)
 		goto fail;
@@ -536,7 +536,7 @@ static struct config_item *make_comm(struct config_group *g, const char *name)
 {
 	struct dlm_comm *cm;
 
-	cm = kzalloc(sizeof(struct dlm_comm), GFP_KERNEL);
+	cm = kzalloc(sizeof(struct dlm_comm), GFP_NOFS);
 	if (!cm)
 		return ERR_PTR(-ENOMEM);
 
@@ -569,7 +569,7 @@ static struct config_item *make_node(struct config_group *g, const char *name)
 	struct dlm_space *sp = config_item_to_space(g->cg_item.ci_parent);
 	struct dlm_node *nd;
 
-	nd = kzalloc(sizeof(struct dlm_node), GFP_KERNEL);
+	nd = kzalloc(sizeof(struct dlm_node), GFP_NOFS);
 	if (!nd)
 		return ERR_PTR(-ENOMEM);
 
@@ -705,7 +705,7 @@ static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 	if (cm->addr_count >= DLM_MAX_ADDR_COUNT)
 		return -ENOSPC;
 
-	addr = kzalloc(sizeof(*addr), GFP_KERNEL);
+	addr = kzalloc(sizeof(*addr), GFP_NOFS);
 	if (!addr)
 		return -ENOMEM;
 
@@ -868,7 +868,7 @@ int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
 
 	ids_count = sp->members_count;
 
-	ids = kcalloc(ids_count, sizeof(int), GFP_KERNEL);
+	ids = kcalloc(ids_count, sizeof(int), GFP_NOFS);
 	if (!ids) {
 		rv = -ENOMEM;
 		goto out;
@@ -886,7 +886,7 @@ int dlm_nodeid_list(char *lsname, int **ids_out, int *ids_count_out,
 	if (!new_count)
 		goto out_ids;
 
-	new = kcalloc(new_count, sizeof(int), GFP_KERNEL);
+	new = kcalloc(new_count, sizeof(int), GFP_NOFS);
 	if (!new) {
 		kfree(ids);
 		rv = -ENOMEM;

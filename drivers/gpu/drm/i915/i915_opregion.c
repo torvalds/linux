@@ -118,6 +118,10 @@ struct opregion_asle {
 #define ASLE_BACKLIGHT_FAIL    (2<<12)
 #define ASLE_PFIT_FAIL         (2<<14)
 #define ASLE_PWM_FREQ_FAIL     (2<<16)
+#define ASLE_ALS_ILLUM_FAILED	(1<<10)
+#define ASLE_BACKLIGHT_FAILED	(1<<12)
+#define ASLE_PFIT_FAILED	(1<<14)
+#define ASLE_PWM_FREQ_FAILED	(1<<16)
 
 /* ASLE backlight brightness to set */
 #define ASLE_BCLP_VALID                (1<<31)
@@ -163,7 +167,7 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (IS_I965G(dev) && (blc_pwm_ctl2 & BLM_COMBINATION_MODE))
 		pci_write_config_dword(dev->pdev, PCI_LBPC, bclp);
 	else {
-		if (IS_IGD(dev)) {
+		if (IS_PINEVIEW(dev)) {
 			blc_pwm_ctl &= ~(BACKLIGHT_DUTY_CYCLE_MASK - 1);
 			max_backlight = (blc_pwm_ctl & BACKLIGHT_MODULATION_FREQ_MASK) >> 
 					BACKLIGHT_MODULATION_FREQ_SHIFT;
@@ -224,7 +228,7 @@ void opregion_asle_intr(struct drm_device *dev)
 	asle_req = asle->aslc & ASLE_REQ_MSK;
 
 	if (!asle_req) {
-		DRM_DEBUG("non asle set request??\n");
+		DRM_DEBUG_DRIVER("non asle set request??\n");
 		return;
 	}
 
@@ -243,6 +247,73 @@ void opregion_asle_intr(struct drm_device *dev)
 	asle->aslc = asle_stat;
 }
 
+static u32 asle_set_backlight_ironlake(struct drm_device *dev, u32 bclp)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct opregion_asle *asle = dev_priv->opregion.asle;
+	u32 cpu_pwm_ctl, pch_pwm_ctl2;
+	u32 max_backlight, level;
+
+	if (!(bclp & ASLE_BCLP_VALID))
+		return ASLE_BACKLIGHT_FAILED;
+
+	bclp &= ASLE_BCLP_MSK;
+	if (bclp < 0 || bclp > 255)
+		return ASLE_BACKLIGHT_FAILED;
+
+	cpu_pwm_ctl = I915_READ(BLC_PWM_CPU_CTL);
+	pch_pwm_ctl2 = I915_READ(BLC_PWM_PCH_CTL2);
+	/* get the max PWM frequency */
+	max_backlight = (pch_pwm_ctl2 >> 16) & BACKLIGHT_DUTY_CYCLE_MASK;
+	/* calculate the expected PMW frequency */
+	level = (bclp * max_backlight) / 255;
+	/* reserve the high 16 bits */
+	cpu_pwm_ctl &= ~(BACKLIGHT_DUTY_CYCLE_MASK);
+	/* write the updated PWM frequency */
+	I915_WRITE(BLC_PWM_CPU_CTL, cpu_pwm_ctl | level);
+
+	asle->cblv = (bclp*0x64)/0xff | ASLE_CBLV_VALID;
+
+	return 0;
+}
+
+void ironlake_opregion_gse_intr(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct opregion_asle *asle = dev_priv->opregion.asle;
+	u32 asle_stat = 0;
+	u32 asle_req;
+
+	if (!asle)
+		return;
+
+	asle_req = asle->aslc & ASLE_REQ_MSK;
+
+	if (!asle_req) {
+		DRM_DEBUG_DRIVER("non asle set request??\n");
+		return;
+	}
+
+	if (asle_req & ASLE_SET_ALS_ILLUM) {
+		DRM_DEBUG_DRIVER("Illum is not supported\n");
+		asle_stat |= ASLE_ALS_ILLUM_FAILED;
+	}
+
+	if (asle_req & ASLE_SET_BACKLIGHT)
+		asle_stat |= asle_set_backlight_ironlake(dev, asle->bclp);
+
+	if (asle_req & ASLE_SET_PFIT) {
+		DRM_DEBUG_DRIVER("Pfit is not supported\n");
+		asle_stat |= ASLE_PFIT_FAILED;
+	}
+
+	if (asle_req & ASLE_SET_PWM_FREQ) {
+		DRM_DEBUG_DRIVER("PWM freq is not supported\n");
+		asle_stat |= ASLE_PWM_FREQ_FAILED;
+	}
+
+	asle->aslc = asle_stat;
+}
 #define ASLE_ALS_EN    (1<<0)
 #define ASLE_BLC_EN    (1<<1)
 #define ASLE_PFIT_EN   (1<<2)
@@ -258,8 +329,7 @@ void opregion_enable_asle(struct drm_device *dev)
 			unsigned long irqflags;
 
 			spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-			i915_enable_pipestat(dev_priv, 1,
-					     I915_LEGACY_BLC_EVENT_ENABLE);
+			intel_enable_asle(dev);
 			spin_unlock_irqrestore(&dev_priv->user_irq_lock,
 					       irqflags);
 		}
@@ -361,9 +431,9 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	int err = 0;
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
-	DRM_DEBUG("graphic opregion physical addr: 0x%x\n", asls);
+	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
-		DRM_DEBUG("ACPI OpRegion not supported!\n");
+		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
 		return -ENOTSUPP;
 	}
 
@@ -373,30 +443,30 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 
 	opregion->header = base;
 	if (memcmp(opregion->header->signature, OPREGION_SIGNATURE, 16)) {
-		DRM_DEBUG("opregion signature mismatch\n");
+		DRM_DEBUG_DRIVER("opregion signature mismatch\n");
 		err = -EINVAL;
 		goto err_out;
 	}
 
 	mboxes = opregion->header->mboxes;
 	if (mboxes & MBOX_ACPI) {
-		DRM_DEBUG("Public ACPI methods supported\n");
+		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
 		if (drm_core_check_feature(dev, DRIVER_MODESET))
 			intel_didl_outputs(dev);
 	} else {
-		DRM_DEBUG("Public ACPI methods not supported\n");
+		DRM_DEBUG_DRIVER("Public ACPI methods not supported\n");
 		err = -ENOTSUPP;
 		goto err_out;
 	}
 	opregion->enabled = 1;
 
 	if (mboxes & MBOX_SWSCI) {
-		DRM_DEBUG("SWSCI supported\n");
+		DRM_DEBUG_DRIVER("SWSCI supported\n");
 		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
 	}
 	if (mboxes & MBOX_ASLE) {
-		DRM_DEBUG("ASLE supported\n");
+		DRM_DEBUG_DRIVER("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
 		opregion_enable_asle(dev);
 	}

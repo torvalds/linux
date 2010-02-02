@@ -34,6 +34,7 @@
 
 static void __iomem *prm_base;
 static void __iomem *cm_base;
+static void __iomem *cm2_base;
 
 #define MAX_MODULE_ENABLE_WAIT		100000
 
@@ -43,7 +44,6 @@ struct omap3_prcm_regs {
 	u32 iva2_cm_clksel2;
 	u32 cm_sysconfig;
 	u32 sgx_cm_clksel;
-	u32 wkup_cm_clksel;
 	u32 dss_cm_clksel;
 	u32 cam_cm_clksel;
 	u32 per_cm_clksel;
@@ -52,7 +52,6 @@ struct omap3_prcm_regs {
 	u32 pll_cm_autoidle2;
 	u32 pll_cm_clksel4;
 	u32 pll_cm_clksel5;
-	u32 pll_cm_clken;
 	u32 pll_cm_clken2;
 	u32 cm_polctrl;
 	u32 iva2_cm_fclken;
@@ -76,7 +75,6 @@ struct omap3_prcm_regs {
 	u32 usbhost_cm_iclken;
 	u32 iva2_cm_autiidle2;
 	u32 mpu_cm_autoidle2;
-	u32 pll_cm_autoidle;
 	u32 iva2_cm_clkstctrl;
 	u32 mpu_cm_clkstctrl;
 	u32 core_cm_clkstctrl;
@@ -170,14 +168,12 @@ u32 prm_read_mod_reg(s16 module, u16 idx)
 {
 	return __omap_prcm_read(prm_base, module, idx);
 }
-EXPORT_SYMBOL(prm_read_mod_reg);
 
 /* Write into a register in a PRM module */
 void prm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
 	__omap_prcm_write(val, prm_base, module, idx);
 }
-EXPORT_SYMBOL(prm_write_mod_reg);
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
 u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
@@ -191,21 +187,18 @@ u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 
 	return v;
 }
-EXPORT_SYMBOL(prm_rmw_mod_reg_bits);
 
 /* Read a register in a CM module */
 u32 cm_read_mod_reg(s16 module, u16 idx)
 {
 	return __omap_prcm_read(cm_base, module, idx);
 }
-EXPORT_SYMBOL(cm_read_mod_reg);
 
 /* Write into a register in a CM module */
 void cm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
 	__omap_prcm_write(val, cm_base, module, idx);
 }
-EXPORT_SYMBOL(cm_write_mod_reg);
 
 /* Read-modify-write a register in a CM module. Caller must lock */
 u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
@@ -219,7 +212,6 @@ u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 
 	return v;
 }
-EXPORT_SYMBOL(cm_rmw_mod_reg_bits);
 
 /**
  * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness
@@ -247,9 +239,8 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name)
 		BUG();
 
 	/* Wait for lock */
-	while (((__raw_readl(reg) & mask) != ena) &&
-	       (i++ < MAX_MODULE_ENABLE_WAIT))
-		udelay(1);
+	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
+			  MAX_MODULE_ENABLE_WAIT, i);
 
 	if (i < MAX_MODULE_ENABLE_WAIT)
 		pr_debug("cm: Module associated with clock %s ready after %d "
@@ -265,6 +256,7 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 {
 	prm_base = omap2_globals->prm;
 	cm_base = omap2_globals->cm;
+	cm2_base = omap2_globals->cm2;
 }
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -279,7 +271,6 @@ void omap3_prcm_save_context(void)
 	prcm_context.cm_sysconfig = __raw_readl(OMAP3430_CM_SYSCONFIG);
 	prcm_context.sgx_cm_clksel =
 			 cm_read_mod_reg(OMAP3430ES2_SGX_MOD, CM_CLKSEL);
-	prcm_context.wkup_cm_clksel = cm_read_mod_reg(WKUP_MOD, CM_CLKSEL);
 	prcm_context.dss_cm_clksel =
 			 cm_read_mod_reg(OMAP3430_DSS_MOD, CM_CLKSEL);
 	prcm_context.cam_cm_clksel =
@@ -296,8 +287,6 @@ void omap3_prcm_save_context(void)
 			cm_read_mod_reg(PLL_MOD, OMAP3430ES2_CM_CLKSEL4);
 	prcm_context.pll_cm_clksel5 =
 			 cm_read_mod_reg(PLL_MOD, OMAP3430ES2_CM_CLKSEL5);
-	prcm_context.pll_cm_clken =
-			cm_read_mod_reg(PLL_MOD, CM_CLKEN);
 	prcm_context.pll_cm_clken2 =
 			cm_read_mod_reg(PLL_MOD, OMAP3430ES2_CM_CLKEN2);
 	prcm_context.cm_polctrl = __raw_readl(OMAP3430_CM_POLCTRL);
@@ -343,8 +332,6 @@ void omap3_prcm_save_context(void)
 			 cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_AUTOIDLE2);
 	prcm_context.mpu_cm_autoidle2 =
 			 cm_read_mod_reg(MPU_MOD, CM_AUTOIDLE2);
-	prcm_context.pll_cm_autoidle =
-			 cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE);
 	prcm_context.iva2_cm_clkstctrl =
 			 cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_CLKSTCTRL);
 	prcm_context.mpu_cm_clkstctrl =
@@ -436,7 +423,6 @@ void omap3_prcm_restore_context(void)
 	__raw_writel(prcm_context.cm_sysconfig, OMAP3430_CM_SYSCONFIG);
 	cm_write_mod_reg(prcm_context.sgx_cm_clksel, OMAP3430ES2_SGX_MOD,
 					 CM_CLKSEL);
-	cm_write_mod_reg(prcm_context.wkup_cm_clksel, WKUP_MOD, CM_CLKSEL);
 	cm_write_mod_reg(prcm_context.dss_cm_clksel, OMAP3430_DSS_MOD,
 					 CM_CLKSEL);
 	cm_write_mod_reg(prcm_context.cam_cm_clksel, OMAP3430_CAM_MOD,
@@ -453,7 +439,6 @@ void omap3_prcm_restore_context(void)
 					OMAP3430ES2_CM_CLKSEL4);
 	cm_write_mod_reg(prcm_context.pll_cm_clksel5, PLL_MOD,
 					 OMAP3430ES2_CM_CLKSEL5);
-	cm_write_mod_reg(prcm_context.pll_cm_clken, PLL_MOD, CM_CLKEN);
 	cm_write_mod_reg(prcm_context.pll_cm_clken2, PLL_MOD,
 					OMAP3430ES2_CM_CLKEN2);
 	__raw_writel(prcm_context.cm_polctrl, OMAP3430_CM_POLCTRL);
@@ -492,7 +477,6 @@ void omap3_prcm_restore_context(void)
 	cm_write_mod_reg(prcm_context.iva2_cm_autiidle2, OMAP3430_IVA2_MOD,
 					CM_AUTOIDLE2);
 	cm_write_mod_reg(prcm_context.mpu_cm_autoidle2, MPU_MOD, CM_AUTOIDLE2);
-	cm_write_mod_reg(prcm_context.pll_cm_autoidle, PLL_MOD, CM_AUTOIDLE);
 	cm_write_mod_reg(prcm_context.iva2_cm_clkstctrl, OMAP3430_IVA2_MOD,
 					CM_CLKSTCTRL);
 	cm_write_mod_reg(prcm_context.mpu_cm_clkstctrl, MPU_MOD, CM_CLKSTCTRL);

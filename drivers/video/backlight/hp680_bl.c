@@ -98,7 +98,7 @@ static int hp680bl_get_intensity(struct backlight_device *bd)
 	return current_intensity;
 }
 
-static struct backlight_ops hp680bl_ops = {
+static const struct backlight_ops hp680bl_ops = {
 	.get_brightness = hp680bl_get_intensity,
 	.update_status  = hp680bl_set_intensity,
 };

@@ -359,12 +359,6 @@ config MTD_SA1100
 	  the SA1100 and SA1110, including the Assabet and the Compaq iPAQ.
 	  If you have such a board, say 'Y'.
 
-config MTD_IPAQ
-	tristate "CFI Flash device mapped on Compaq/HP iPAQ"
-	depends on IPAQ_HANDHELD && MTD_CFI
-	help
-	  This provides a driver for the on-board flash of the iPAQ.
-
 config MTD_DC21285
 	tristate "CFI Flash device mapped on DC21285 Footbridge"
 	depends on MTD_CFI && ARCH_FOOTBRIDGE && MTD_COMPLEX_MAPPINGS
@@ -554,5 +548,22 @@ config MTD_VMU
 
 	  To build this as a module select M here, the module will be called
 	  vmu-flash.
+
+config MTD_PISMO
+	tristate "MTD discovery driver for PISMO modules"
+	depends on I2C
+	depends on ARCH_VERSATILE
+	help
+	  This driver allows for discovery of PISMO modules - see
+	  <http://www.pismoworld.org/>.  These are small modules containing
+	  up to five memory devices (eg, SRAM, flash, DOC) described by an
+	  I2C EEPROM.
+
+	  This driver does not create any MTD maps itself; instead it
+	  creates MTD physmap and MTD SRAM platform devices.  If you
+	  enable this option, you should consider enabling MTD_PHYSMAP
+	  and/or MTD_PLATRAM according to the devices on your module.
+
+	  When built as a module, it will be called pismo.ko
 
 endmenu

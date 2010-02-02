@@ -818,6 +818,13 @@ UNUSUAL_DEV( 0x066f, 0x8000, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Daniel Kukula <daniel.kuku@gmail.com> */
+UNUSUAL_DEV( 0x067b, 0x1063, 0x0100, 0x0100,
+		"Prolific Technology, Inc.",
+		"Prolific Storage Gadget",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_BAD_SENSE ),
+
 /* Reported by Rogerio Brito <rbrito@ime.usp.br> */
 UNUSUAL_DEV( 0x067b, 0x2317, 0x0001, 0x001,
 		"Prolific Technology, Inc.",
@@ -1799,13 +1806,6 @@ UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		"HS200",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
-
-/* Reported by Rohan Hart <rohan.hart17@gmail.com> */
-UNUSUAL_DEV(  0x2770, 0x915d, 0x0010, 0x0010,
-		"INTOVA",
-		"Pixtreme",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
 
 /* Reported by Frederic Marchal <frederic.marchal@wowcompany.com>
  * Mio Moov 330

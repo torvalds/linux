@@ -40,39 +40,27 @@
 #ifndef __AP_H__
 #define __AP_H__
 
-// ap_mlme.c
+/* ap_wpa.c */
+void WpaStateMachineInit(struct rt_rtmp_adapter *pAd,
+			 struct rt_state_machine *Sm, OUT STATE_MACHINE_FUNC Trans[]);
 
-#ifdef RT2870
-VOID BeaconUpdateExec(
-    IN PVOID SystemSpecific1,
-    IN PVOID FunctionContext,
-    IN PVOID SystemSpecific2,
-    IN PVOID SystemSpecific3);
-#endif // RT2870 //
+#ifdef RTMP_MAC_USB
+void BeaconUpdateExec(void *SystemSpecific1,
+		      void *FunctionContext,
+		      void *SystemSpecific2, void *SystemSpecific3);
+#endif /* RTMP_MAC_USB // */
 
-VOID RTMPSetPiggyBack(
-	IN PRTMP_ADAPTER	pAd,
-	IN BOOLEAN			bPiggyBack);
+void RTMPSetPiggyBack(struct rt_rtmp_adapter *pAd, IN BOOLEAN bPiggyBack);
 
-// ap.c
+void MacTableReset(struct rt_rtmp_adapter *pAd);
 
-VOID MacTableReset(
-    IN  PRTMP_ADAPTER   pAd);
+struct rt_mac_table_entry *MacTableInsertEntry(struct rt_rtmp_adapter *pAd,
+				     u8 *pAddr,
+				     u8 apidx, IN BOOLEAN CleanAll);
 
-MAC_TABLE_ENTRY *MacTableInsertEntry(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          pAddr,
-	IN	UCHAR			apidx,
-	IN BOOLEAN	CleanAll);
+BOOLEAN MacTableDeleteEntry(struct rt_rtmp_adapter *pAd,
+			    u16 wcid, u8 *pAddr);
 
-BOOLEAN MacTableDeleteEntry(
-    IN  PRTMP_ADAPTER   pAd,
-	IN USHORT wcid,
-    IN  PUCHAR          pAddr);
+struct rt_mac_table_entry *MacTableLookup(struct rt_rtmp_adapter *pAd, u8 *pAddr);
 
-MAC_TABLE_ENTRY *MacTableLookup(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          pAddr);
-
-#endif  // __AP_H__
-
+#endif /* __AP_H__ */

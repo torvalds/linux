@@ -23,6 +23,7 @@
 
 #include <mach/board-zoom.h>
 
+#include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 
 static void __init omap_zoom2_init_irq(void)
@@ -68,8 +69,17 @@ static struct twl4030_platform_data zoom2_twldata = {
 
 #endif
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_zoom2_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	zoom_peripherals_init();
 	zoom_debugboard_init();
 }

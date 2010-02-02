@@ -700,6 +700,10 @@ void xprt_connect(struct rpc_task *task)
 	}
 	if (!xprt_lock_write(xprt, task))
 		return;
+
+	if (test_and_clear_bit(XPRT_CLOSE_WAIT, &xprt->state))
+		xprt->ops->close(xprt);
+
 	if (xprt_connected(xprt))
 		xprt_release_write(xprt, task);
 	else {

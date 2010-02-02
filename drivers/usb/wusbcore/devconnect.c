@@ -119,19 +119,18 @@ static struct wusb_dev *wusb_dev_alloc(struct wusbhc *wusbhc)
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (urb == NULL)
 		goto err;
+	wusb_dev->set_gtk_urb = urb;
 
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_KERNEL);
+	req = kmalloc(sizeof(*req), GFP_KERNEL);
 	if (req == NULL)
 		goto err;
+	wusb_dev->set_gtk_req = req;
 
 	req->bRequestType = USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE;
 	req->bRequest = USB_REQ_SET_DESCRIPTOR;
 	req->wValue = cpu_to_le16(USB_DT_KEY << 8 | wusbhc->gtk_index);
 	req->wIndex = 0;
 	req->wLength = cpu_to_le16(wusbhc->gtk.descr.bLength);
-
-	wusb_dev->set_gtk_urb = urb;
-	wusb_dev->set_gtk_req = req;
 
 	return wusb_dev;
 err:

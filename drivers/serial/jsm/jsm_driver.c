@@ -48,6 +48,17 @@ struct uart_driver jsm_uart_driver = {
 	.nr		= NR_PORTS,
 };
 
+static pci_ers_result_t jsm_io_error_detected(struct pci_dev *pdev,
+                                       pci_channel_state_t state);
+static pci_ers_result_t jsm_io_slot_reset(struct pci_dev *pdev);
+static void jsm_io_resume(struct pci_dev *pdev);
+
+static struct pci_error_handlers jsm_err_handler = {
+	.error_detected = jsm_io_error_detected,
+	.slot_reset = jsm_io_slot_reset,
+	.resume = jsm_io_resume,
+};
+
 int jsm_debug;
 module_param(jsm_debug, int, 0);
 MODULE_PARM_DESC(jsm_debug, "Driver debugging level");
@@ -123,7 +134,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 	}
 
 	rc = request_irq(brd->irq, brd->bd_ops->intr,
-			IRQF_DISABLED|IRQF_SHARED, "JSM", brd);
+			IRQF_SHARED, "JSM", brd);
 	if (rc) {
 		printk(KERN_WARNING "Failed to hook IRQ %d\n",brd->irq);
 		goto out_iounmap;
@@ -164,6 +175,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 	}
 
 	pci_set_drvdata(pdev, brd);
+	pci_save_state(pdev);
 
 	return 0;
  out_free_irq:
@@ -222,7 +234,41 @@ static struct pci_driver jsm_driver = {
 	.id_table	= jsm_pci_tbl,
 	.probe		= jsm_probe_one,
 	.remove		= __devexit_p(jsm_remove_one),
+	.err_handler    = &jsm_err_handler,
 };
+
+static pci_ers_result_t jsm_io_error_detected(struct pci_dev *pdev,
+					pci_channel_state_t state)
+{
+	struct jsm_board *brd = pci_get_drvdata(pdev);
+
+	jsm_remove_uart_port(brd);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t jsm_io_slot_reset(struct pci_dev *pdev)
+{
+	int rc;
+
+	rc = pci_enable_device(pdev);
+
+	if (rc)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_set_master(pdev);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void jsm_io_resume(struct pci_dev *pdev)
+{
+	struct jsm_board *brd = pci_get_drvdata(pdev);
+
+	pci_restore_state(pdev);
+
+	jsm_uart_port_init(brd);
+}
 
 static int __init jsm_init_module(void)
 {

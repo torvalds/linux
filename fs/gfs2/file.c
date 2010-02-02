@@ -569,6 +569,40 @@ static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
 	return ret;
 }
 
+/**
+ * gfs2_file_aio_write - Perform a write to a file
+ * @iocb: The io context
+ * @iov: The data to write
+ * @nr_segs: Number of @iov segments
+ * @pos: The file position
+ *
+ * We have to do a lock/unlock here to refresh the inode size for
+ * O_APPEND writes, otherwise we can land up writing at the wrong
+ * offset. There is still a race, but provided the app is using its
+ * own file locking, this will make O_APPEND work as expected.
+ *
+ */
+
+static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+				   unsigned long nr_segs, loff_t pos)
+{
+	struct file *file = iocb->ki_filp;
+
+	if (file->f_flags & O_APPEND) {
+		struct dentry *dentry = file->f_dentry;
+		struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
+		struct gfs2_holder gh;
+		int ret;
+
+		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+		if (ret)
+			return ret;
+		gfs2_glock_dq_uninit(&gh);
+	}
+
+	return generic_file_aio_write(iocb, iov, nr_segs, pos);
+}
+
 #ifdef CONFIG_GFS2_FS_LOCKING_DLM
 
 /**
@@ -711,7 +745,7 @@ const struct file_operations gfs2_file_fops = {
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.write		= do_sync_write,
-	.aio_write	= generic_file_aio_write,
+	.aio_write	= gfs2_file_aio_write,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,
@@ -741,7 +775,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.write		= do_sync_write,
-	.aio_write	= generic_file_aio_write,
+	.aio_write	= gfs2_file_aio_write,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
 	.open		= gfs2_open,

@@ -887,6 +887,7 @@
 #       define RADEON_FP_PANEL_FORMAT          (1 <<  3)
 #       define RADEON_FP_EN_TMDS               (1 <<  7)
 #       define RADEON_FP_DETECT_SENSE          (1 <<  8)
+#       define RADEON_FP_DETECT_INT_POL        (1 <<  9)
 #       define R200_FP_SOURCE_SEL_MASK         (3 <<  10)
 #       define R200_FP_SOURCE_SEL_CRTC1        (0 <<  10)
 #       define R200_FP_SOURCE_SEL_CRTC2        (1 <<  10)
@@ -894,6 +895,7 @@
 #       define R200_FP_SOURCE_SEL_TRANS        (3 <<  10)
 #       define RADEON_FP_SEL_CRTC1             (0 << 13)
 #       define RADEON_FP_SEL_CRTC2             (1 << 13)
+#       define R300_HPD_SEL(x)                 ((x) << 13)
 #       define RADEON_FP_CRTC_DONT_SHADOW_HPAR (1 << 15)
 #       define RADEON_FP_CRTC_DONT_SHADOW_VPAR (1 << 16)
 #       define RADEON_FP_CRTC_DONT_SHADOW_HEND (1 << 17)
@@ -909,6 +911,7 @@
 #       define RADEON_FP2_ON                   (1 <<  2)
 #       define RADEON_FP2_PANEL_FORMAT         (1 <<  3)
 #       define RADEON_FP2_DETECT_SENSE         (1 <<  8)
+#       define RADEON_FP2_DETECT_INT_POL       (1 <<  9)
 #       define R200_FP2_SOURCE_SEL_MASK        (3 << 10)
 #       define R200_FP2_SOURCE_SEL_CRTC1       (0 << 10)
 #       define R200_FP2_SOURCE_SEL_CRTC2       (1 << 10)
@@ -988,14 +991,20 @@
 
 #define RADEON_GEN_INT_CNTL                 0x0040
 #	define RADEON_CRTC_VBLANK_MASK		(1 << 0)
+#	define RADEON_FP_DETECT_MASK		(1 << 4)
 #	define RADEON_CRTC2_VBLANK_MASK		(1 << 9)
+#	define RADEON_FP2_DETECT_MASK		(1 << 10)
 #	define RADEON_SW_INT_ENABLE		(1 << 25)
 #define RADEON_GEN_INT_STATUS               0x0044
 #	define AVIVO_DISPLAY_INT_STATUS		(1 << 0)
 #	define RADEON_CRTC_VBLANK_STAT		(1 << 0)
 #	define RADEON_CRTC_VBLANK_STAT_ACK	(1 << 0)
+#	define RADEON_FP_DETECT_STAT		(1 << 4)
+#	define RADEON_FP_DETECT_STAT_ACK	(1 << 4)
 #	define RADEON_CRTC2_VBLANK_STAT		(1 << 9)
 #	define RADEON_CRTC2_VBLANK_STAT_ACK	(1 << 9)
+#	define RADEON_FP2_DETECT_STAT		(1 << 10)
+#	define RADEON_FP2_DETECT_STAT_ACK	(1 << 10)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
 #	define RADEON_SW_INT_TEST		(1 << 25)
 #	define RADEON_SW_INT_TEST_ACK		(1 << 25)
@@ -1051,20 +1060,25 @@
 
        /* Multimedia I2C bus */
 #define RADEON_I2C_CNTL_0		    0x0090
-#define RADEON_I2C_DONE (1<<0)
-#define RADEON_I2C_NACK (1<<1)
-#define RADEON_I2C_HALT (1<<2)
-#define RADEON_I2C_SOFT_RST (1<<5)
-#define RADEON_I2C_DRIVE_EN (1<<6)
-#define RADEON_I2C_DRIVE_SEL (1<<7)
-#define RADEON_I2C_START (1<<8)
-#define RADEON_I2C_STOP (1<<9)
-#define RADEON_I2C_RECEIVE (1<<10)
-#define RADEON_I2C_ABORT (1<<11)
-#define RADEON_I2C_GO (1<<12)
+#define RADEON_I2C_DONE                     (1 << 0)
+#define RADEON_I2C_NACK                     (1 << 1)
+#define RADEON_I2C_HALT                     (1 << 2)
+#define RADEON_I2C_SOFT_RST                 (1 << 5)
+#define RADEON_I2C_DRIVE_EN                 (1 << 6)
+#define RADEON_I2C_DRIVE_SEL                (1 << 7)
+#define RADEON_I2C_START                    (1 << 8)
+#define RADEON_I2C_STOP                     (1 << 9)
+#define RADEON_I2C_RECEIVE                  (1 << 10)
+#define RADEON_I2C_ABORT                    (1 << 11)
+#define RADEON_I2C_GO                       (1 << 12)
+#define RADEON_I2C_PRESCALE_SHIFT           16
 #define RADEON_I2C_CNTL_1                   0x0094
-#define RADEON_I2C_SEL         (1<<16)
-#define RADEON_I2C_EN          (1<<17)
+#define RADEON_I2C_DATA_COUNT_SHIFT         0
+#define RADEON_I2C_ADDR_COUNT_SHIFT         4
+#define RADEON_I2C_INTRA_BYTE_DELAY_SHIFT   8
+#define RADEON_I2C_SEL                      (1 << 16)
+#define RADEON_I2C_EN                       (1 << 17)
+#define RADEON_I2C_TIME_LIMIT_SHIFT         24
 #define RADEON_I2C_DATA			    0x0098
 
 #define RADEON_DVI_I2C_CNTL_0		    0x02e0
@@ -1072,7 +1086,7 @@
 #       define R200_SEL_DDC1                0 /* 0x60 - VGA_DDC */
 #       define R200_SEL_DDC2                1 /* 0x64 - DVI_DDC */
 #       define R200_SEL_DDC3                2 /* 0x68 - MONID_DDC */
-#define RADEON_DVI_I2C_CNTL_1               0x02e4 /* ? */
+#define RADEON_DVI_I2C_CNTL_1               0x02e4
 #define RADEON_DVI_I2C_DATA		    0x02e8
 
 #define RADEON_INTERRUPT_LINE               0x0f3c /* PCI */
@@ -1143,15 +1157,16 @@
 #       define RADEON_IO_MCLK_MAX_DYN_STOP_LAT (1 << 13)
 #       define RADEON_MC_MCLK_DYN_ENABLE    (1 << 14)
 #       define RADEON_IO_MCLK_DYN_ENABLE    (1 << 15)
-#define RADEON_LCD_GPIO_MASK                0x01a0
-#define RADEON_GPIOPAD_EN                   0x01a0
-#define RADEON_LCD_GPIO_Y_REG               0x01a4
-#define RADEON_MDGPIO_A_REG                 0x01ac
-#define RADEON_MDGPIO_EN_REG                0x01b0
-#define RADEON_MDGPIO_MASK                  0x0198
+
 #define RADEON_GPIOPAD_MASK                 0x0198
 #define RADEON_GPIOPAD_A		    0x019c
-#define RADEON_MDGPIO_Y_REG                 0x01b4
+#define RADEON_GPIOPAD_EN                   0x01a0
+#define RADEON_GPIOPAD_Y                    0x01a4
+#define RADEON_MDGPIO_MASK                  0x01a8
+#define RADEON_MDGPIO_A                     0x01ac
+#define RADEON_MDGPIO_EN                    0x01b0
+#define RADEON_MDGPIO_Y                     0x01b4
+
 #define RADEON_MEM_ADDR_CONFIG              0x0148
 #define RADEON_MEM_BASE                     0x0f10 /* PCI */
 #define RADEON_MEM_CNTL                     0x0140
@@ -1360,6 +1375,9 @@
 #define RADEON_OVR_CLR                      0x0230
 #define RADEON_OVR_WID_LEFT_RIGHT           0x0234
 #define RADEON_OVR_WID_TOP_BOTTOM           0x0238
+#define RADEON_OVR2_CLR                     0x0330
+#define RADEON_OVR2_WID_LEFT_RIGHT          0x0334
+#define RADEON_OVR2_WID_TOP_BOTTOM          0x0338
 
 /* first capture unit */
 

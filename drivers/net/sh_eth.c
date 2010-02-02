@@ -84,6 +84,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.mpr		= 1,
 	.tpauser	= 1,
 	.hw_swap	= 1,
+	.rpadir		= 1,
+	.rpadir_value	= 0x00020000, /* NET_IP_ALIGN assumed to be 2 */
 };
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7763)
@@ -108,7 +110,7 @@ static void sh_eth_reset(struct net_device *ndev)
 		mdelay(1);
 		cnt--;
 	}
-	if (cnt < 0)
+	if (cnt == 0)
 		printk(KERN_ERR "Device reset fail\n");
 
 	/* Table Init */
@@ -175,7 +177,6 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.bculr		= 1,
 	.hw_swap	= 1,
-	.rpadir		= 1,
 	.no_trimd	= 1,
 	.no_ade		= 1,
 };
@@ -501,6 +502,8 @@ static int sh_eth_ring_init(struct net_device *ndev)
 	 */
 	mdp->rx_buf_sz = (ndev->mtu <= 1492 ? PKT_BUF_SZ :
 			  (((ndev->mtu + 26 + 7) & ~7) + 2 + 16));
+	if (mdp->cd->rpadir)
+		mdp->rx_buf_sz += NET_IP_ALIGN;
 
 	/* Allocate RX and TX skb rings */
 	mdp->rx_skbuff = kmalloc(sizeof(*mdp->rx_skbuff) * RX_RING_SIZE,
@@ -715,6 +718,8 @@ static int sh_eth_rx(struct net_device *ndev)
 					pkt_len + 2);
 			skb = mdp->rx_skbuff[entry];
 			mdp->rx_skbuff[entry] = NULL;
+			if (mdp->cd->rpadir)
+				skb_reserve(skb, NET_IP_ALIGN);
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
 			netif_rx(skb);

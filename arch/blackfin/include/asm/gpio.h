@@ -159,6 +159,11 @@ struct gpio_port_t {
 };
 #endif
 
+#ifdef BFIN_SPECIAL_GPIO_BANKS
+void bfin_special_gpio_free(unsigned gpio);
+int bfin_special_gpio_request(unsigned gpio, const char *label);
+#endif
+
 #ifdef CONFIG_PM
 
 unsigned int bfin_pm_standby_setup(void);

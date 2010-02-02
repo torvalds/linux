@@ -21,6 +21,7 @@
 #include <plat/common.h>
 #include <plat/board.h>
 
+#include "mux.h"
 #include "sdram-hynix-h8mbx00u0mer-0em.h"
 
 static void __init omap_zoom_map_io(void)
@@ -42,8 +43,17 @@ static void __init omap_zoom_init_irq(void)
 	omap_gpio_init();
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_zoom_init(void)
 {
+	omap3_mux_init(board_mux, OMAP_PACKAGE_CBP);
 	zoom_peripherals_init();
 	zoom_debugboard_init();
 }

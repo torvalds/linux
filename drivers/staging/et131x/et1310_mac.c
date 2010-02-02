@@ -101,41 +101,27 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
 	MAC_STATION_ADDR1_t station1;
 	MAC_STATION_ADDR2_t station2;
-	MAC_IPG_t ipg;
-	MAC_HFDP_t hfdp;
-	MII_MGMT_CFG_t mii_mgmt_cfg;
+	u32 ipg;
 
 	/* First we need to reset everything.  Write to MAC configuration
 	 * register 1 to perform reset.
 	 */
-	writel(0xC00F0000, &pMac->cfg1.value);
+	writel(0xC00F0000, &pMac->cfg1);
 
 	/* Next lets configure the MAC Inter-packet gap register */
-	ipg.bits.non_B2B_ipg_1 = 0x38;		/* 58d */
-	ipg.bits.non_B2B_ipg_2 = 0x58;		/* 88d */
-	ipg.bits.min_ifg_enforce = 0x50;	/* 80d */
-	ipg.bits.B2B_ipg = 0x60;		/* 96d */
-	writel(ipg.value, &pMac->ipg.value);
+	ipg = 0x38005860;		/* IPG1 0x38 IPG2 0x58 B2B 0x60 */
+	ipg |= 0x50 << 8;		/* ifg enforce 0x50 */
+	writel(ipg, &pMac->ipg);
 
 	/* Next lets configure the MAC Half Duplex register */
-	hfdp.bits.alt_beb_trunc = 0xA;
-	hfdp.bits.alt_beb_enable = 0x0;
-	hfdp.bits.bp_no_backoff = 0x0;
-	hfdp.bits.no_backoff = 0x0;
-	hfdp.bits.excess_defer = 0x1;
-	hfdp.bits.rexmit_max = 0xF;
-	hfdp.bits.coll_window = 0x37;		/* 55d */
-	writel(hfdp.value, &pMac->hfdp.value);
+	/* BEB trunc 0xA, Ex Defer, Rexmit 0xF Coll 0x37 */
+	writel(0x00A1F037, &pMac->hfdp);
 
 	/* Next lets configure the MAC Interface Control register */
-	writel(0, &pMac->if_ctrl.value);
+	writel(0, &pMac->if_ctrl);
 
 	/* Let's move on to setting up the mii management configuration */
-	mii_mgmt_cfg.bits.reset_mii_mgmt = 0;
-	mii_mgmt_cfg.bits.scan_auto_incremt = 0;
-	mii_mgmt_cfg.bits.preamble_suppress = 0;
-	mii_mgmt_cfg.bits.mgmt_clk_reset = 0x7;
-	writel(mii_mgmt_cfg.value, &pMac->mii_mgmt_cfg.value);
+	writel(0x07, &pMac->mii_mgmt_cfg);	/* Clock reset 0x7 */
 
 	/* Next lets configure the MAC Station Address register.  These
 	 * values are read from the EEPROM during initialization and stored
@@ -160,10 +146,10 @@ void ConfigMACRegs1(struct et131x_adapter *etdev)
 	 * Packets larger than (RegistryJumboPacket) that do not contain a
 	 * VLAN ID will be dropped by the Rx function.
 	 */
-	writel(etdev->RegistryJumboPacket + 4, &pMac->max_fm_len.value);
+	writel(etdev->RegistryJumboPacket + 4, &pMac->max_fm_len);
 
 	/* clear out MAC config reset */
-	writel(0, &pMac->cfg1.value);
+	writel(0, &pMac->cfg1);
 }
 
 /**
@@ -174,79 +160,62 @@ void ConfigMACRegs2(struct et131x_adapter *etdev)
 {
 	int32_t delay = 0;
 	struct _MAC_t __iomem *pMac = &etdev->regs->mac;
-	MAC_CFG1_t cfg1;
-	MAC_CFG2_t cfg2;
-	MAC_IF_CTRL_t ifctrl;
+	u32 cfg1;
+	u32 cfg2;
+	u32 ifctrl;
 	TXMAC_CTL_t ctl;
 
 	ctl.value = readl(&etdev->regs->txmac.ctl.value);
-	cfg1.value = readl(&pMac->cfg1.value);
-	cfg2.value = readl(&pMac->cfg2.value);
-	ifctrl.value = readl(&pMac->if_ctrl.value);
+	cfg1 = readl(&pMac->cfg1);
+	cfg2 = readl(&pMac->cfg2);
+	ifctrl = readl(&pMac->if_ctrl);
 
+	/* Set up the if mode bits */
+	cfg2 &= ~0x300;
 	if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS) {
-		cfg2.bits.if_mode = 0x2;
-		ifctrl.bits.phy_mode = 0x0;
+		cfg2 |= 0x200;
+		/* Phy mode bit */
+		ifctrl &= ~(1 << 24);
 	} else {
-		cfg2.bits.if_mode = 0x1;
-		ifctrl.bits.phy_mode = 0x1;
+		cfg2 |= 0x100;
+		ifctrl |= (1 << 24);
 	}
 
 	/* We need to enable Rx/Tx */
-	cfg1.bits.rx_enable = 0x1;
-	cfg1.bits.tx_enable = 0x1;
-
-	/* Set up flow control */
-	cfg1.bits.tx_flow = 0x1;
-
-	if ((etdev->FlowControl == RxOnly) ||
-	    (etdev->FlowControl == Both)) {
-		cfg1.bits.rx_flow = 0x1;
-	} else {
-		cfg1.bits.rx_flow = 0x0;
-	}
-
+	cfg1 |= CFG1_RX_ENABLE|CFG1_TX_ENABLE|CFG1_TX_FLOW;
 	/* Initialize loop back to off */
-	cfg1.bits.loop_back = 0;
-
-	writel(cfg1.value, &pMac->cfg1.value);
+	cfg1 &= ~(CFG1_LOOPBACK|CFG1_RX_FLOW);
+	if (etdev->FlowControl == RxOnly || etdev->FlowControl == Both)
+		cfg1 |= CFG1_RX_FLOW;
+	writel(cfg1, &pMac->cfg1);
 
 	/* Now we need to initialize the MAC Configuration 2 register */
-	cfg2.bits.preamble_len = 0x7;
-	cfg2.bits.huge_frame = 0x0;
-	/* LENGTH FIELD CHECKING bit4: Set this bit to cause the MAC to check
-	 * the frame's length field to ensure it matches the actual data
-	 * field length. Clear this bit if no length field checking is
-	 * desired. Its default is 0.
-	 */
-	cfg2.bits.len_check = 0x1;
+	/* preamble 7, check length, huge frame off, pad crc, crc enable
+	   full duplex off */
+	cfg2 |= 0x7016;
+	cfg2 &= ~0x0021;
 
-	if (etdev->RegistryPhyLoopbk == false) {
-		cfg2.bits.pad_crc = 0x1;
-		cfg2.bits.crc_enable = 0x1;
-	} else {
-		cfg2.bits.pad_crc = 0;
-		cfg2.bits.crc_enable = 0;
-	}
+	/* Turn on duplex if needed */
+	if (etdev->duplex_mode)
+		cfg2 |= 0x01;
 
-	/* 1 - full duplex, 0 - half-duplex */
-	cfg2.bits.full_duplex = etdev->duplex_mode;
-	ifctrl.bits.ghd_mode = !etdev->duplex_mode;
+	ifctrl &= ~(1 << 26);
+	if (!etdev->duplex_mode)
+		ifctrl |= (1<<26);	/* Enable ghd */
 
-	writel(ifctrl.value, &pMac->if_ctrl.value);
-	writel(cfg2.value, &pMac->cfg2.value);
+	writel(ifctrl, &pMac->if_ctrl);
+	writel(cfg2, &pMac->cfg2);
 
 	do {
 		udelay(10);
 		delay++;
-		cfg1.value = readl(&pMac->cfg1.value);
-	} while ((!cfg1.bits.syncd_rx_en || !cfg1.bits.syncd_tx_en) &&
-								 delay < 100);
+		cfg1 = readl(&pMac->cfg1);
+	} while ((cfg1 & CFG1_WAIT) != CFG1_WAIT && delay < 100);
 
 	if (delay == 100) {
 		dev_warn(&etdev->pdev->dev,
 		    "Syncd bits did not respond correctly cfg1 word 0x%08x\n",
-			cfg1.value);
+			cfg1);
 	}
 
 	/* Enable TXMAC */
@@ -402,106 +371,47 @@ void ConfigRxMacRegs(struct et131x_adapter *etdev)
 void ConfigTxMacRegs(struct et131x_adapter *etdev)
 {
 	struct _TXMAC_t __iomem *pTxMac = &etdev->regs->txmac;
-	TXMAC_CF_PARAM_t Local;
 
 	/* We need to update the Control Frame Parameters
 	 * cfpt - control frame pause timer set to 64 (0x40)
 	 * cfep - control frame extended pause timer set to 0x0
 	 */
-	if (etdev->FlowControl == None) {
-		writel(0, &pTxMac->cf_param.value);
-	} else {
-		Local.bits.cfpt = 0x40;
-		Local.bits.cfep = 0x0;
-		writel(Local.value, &pTxMac->cf_param.value);
-	}
+	if (etdev->FlowControl == None)
+		writel(0, &pTxMac->cf_param);
+	else
+		writel(0x40, &pTxMac->cf_param);
 }
 
 void ConfigMacStatRegs(struct et131x_adapter *etdev)
 {
-	struct _MAC_STAT_t __iomem *pDevMacStat =
+	struct _MAC_STAT_t __iomem *macstat =
 		&etdev->regs->macStat;
 
 	/* Next we need to initialize all the MAC_STAT registers to zero on
 	 * the device.
 	 */
-	writel(0, &pDevMacStat->RFcs);
-	writel(0, &pDevMacStat->RAln);
-	writel(0, &pDevMacStat->RFlr);
-	writel(0, &pDevMacStat->RDrp);
-	writel(0, &pDevMacStat->RCde);
-	writel(0, &pDevMacStat->ROvr);
-	writel(0, &pDevMacStat->RFrg);
+	writel(0, &macstat->RFcs);
+	writel(0, &macstat->RAln);
+	writel(0, &macstat->RFlr);
+	writel(0, &macstat->RDrp);
+	writel(0, &macstat->RCde);
+	writel(0, &macstat->ROvr);
+	writel(0, &macstat->RFrg);
 
-	writel(0, &pDevMacStat->TScl);
-	writel(0, &pDevMacStat->TDfr);
-	writel(0, &pDevMacStat->TMcl);
-	writel(0, &pDevMacStat->TLcl);
-	writel(0, &pDevMacStat->TNcl);
-	writel(0, &pDevMacStat->TOvr);
-	writel(0, &pDevMacStat->TUnd);
+	writel(0, &macstat->TScl);
+	writel(0, &macstat->TDfr);
+	writel(0, &macstat->TMcl);
+	writel(0, &macstat->TLcl);
+	writel(0, &macstat->TNcl);
+	writel(0, &macstat->TOvr);
+	writel(0, &macstat->TUnd);
 
 	/* Unmask any counters that we want to track the overflow of.
 	 * Initially this will be all counters.  It may become clear later
 	 * that we do not need to track all counters.
 	 */
-	{
-		MAC_STAT_REG_1_t Carry1M = { 0xffffffff };
-
-		Carry1M.bits.rdrp = 0;
-		Carry1M.bits.rjbr = 1;
-		Carry1M.bits.rfrg = 0;
-		Carry1M.bits.rovr = 0;
-		Carry1M.bits.rund = 1;
-		Carry1M.bits.rcse = 1;
-		Carry1M.bits.rcde = 0;
-		Carry1M.bits.rflr = 0;
-		Carry1M.bits.raln = 0;
-		Carry1M.bits.rxuo = 1;
-		Carry1M.bits.rxpf = 1;
-		Carry1M.bits.rxcf = 1;
-		Carry1M.bits.rbca = 1;
-		Carry1M.bits.rmca = 1;
-		Carry1M.bits.rfcs = 0;
-		Carry1M.bits.rpkt = 1;
-		Carry1M.bits.rbyt = 1;
-		Carry1M.bits.trmgv = 1;
-		Carry1M.bits.trmax = 1;
-		Carry1M.bits.tr1k = 1;
-		Carry1M.bits.tr511 = 1;
-		Carry1M.bits.tr255 = 1;
-		Carry1M.bits.tr127 = 1;
-		Carry1M.bits.tr64 = 1;
-
-		writel(Carry1M.value, &pDevMacStat->Carry1M.value);
-	}
-
-	{
-		MAC_STAT_REG_2_t Carry2M = { 0xffffffff };
-
-		Carry2M.bits.tdrp = 1;
-		Carry2M.bits.tpfh = 1;
-		Carry2M.bits.tncl = 0;
-		Carry2M.bits.txcl = 1;
-		Carry2M.bits.tlcl = 0;
-		Carry2M.bits.tmcl = 0;
-		Carry2M.bits.tscl = 0;
-		Carry2M.bits.tedf = 1;
-		Carry2M.bits.tdfr = 0;
-		Carry2M.bits.txpf = 1;
-		Carry2M.bits.tbca = 1;
-		Carry2M.bits.tmca = 1;
-		Carry2M.bits.tpkt = 1;
-		Carry2M.bits.tbyt = 1;
-		Carry2M.bits.tfrg = 1;
-		Carry2M.bits.tund = 0;
-		Carry2M.bits.tovr = 0;
-		Carry2M.bits.txcf = 1;
-		Carry2M.bits.tfcs = 1;
-		Carry2M.bits.tjbr = 1;
-
-		writel(Carry2M.value, &pDevMacStat->Carry2M.value);
-	}
+	writel(0xFFFFBE32, &macstat->Carry1M);
+	writel(0xFFFE7E8B, &macstat->Carry2M);
 }
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
@@ -509,28 +419,28 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 	if (etdev->duplex_mode == 0) {
 		etdev->FlowControl = None;
 	} else {
-		char RemotePause, RemoteAsyncPause;
+		char remote_pause, remote_async_pause;
 
 		ET1310_PhyAccessMiBit(etdev,
-				      TRUEPHY_BIT_READ, 5, 10, &RemotePause);
+				      TRUEPHY_BIT_READ, 5, 10, &remote_pause);
 		ET1310_PhyAccessMiBit(etdev,
 				      TRUEPHY_BIT_READ, 5, 11,
-				      &RemoteAsyncPause);
+				      &remote_async_pause);
 
-		if ((RemotePause == TRUEPHY_BIT_SET) &&
-		    (RemoteAsyncPause == TRUEPHY_BIT_SET)) {
+		if ((remote_pause == TRUEPHY_BIT_SET) &&
+		    (remote_async_pause == TRUEPHY_BIT_SET)) {
 			etdev->FlowControl = etdev->RegistryFlowControl;
-		} else if ((RemotePause == TRUEPHY_BIT_SET) &&
-			   (RemoteAsyncPause == TRUEPHY_BIT_CLEAR)) {
+		} else if ((remote_pause == TRUEPHY_BIT_SET) &&
+			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
 			if (etdev->RegistryFlowControl == Both)
 				etdev->FlowControl = Both;
 			else
 				etdev->FlowControl = None;
-		} else if ((RemotePause == TRUEPHY_BIT_CLEAR) &&
-			   (RemoteAsyncPause == TRUEPHY_BIT_CLEAR)) {
+		} else if ((remote_pause == TRUEPHY_BIT_CLEAR) &&
+			   (remote_async_pause == TRUEPHY_BIT_CLEAR)) {
 			etdev->FlowControl = None;
-		} else {/* if (RemotePause == TRUEPHY_CLEAR_BIT &&
-			       RemoteAsyncPause == TRUEPHY_SET_BIT) */
+		} else {/* if (remote_pause == TRUEPHY_CLEAR_BIT &&
+			       remote_async_pause == TRUEPHY_SET_BIT) */
 			if (etdev->RegistryFlowControl == Both)
 				etdev->FlowControl = RxOnly;
 			else
@@ -546,25 +456,25 @@ void ConfigFlowControl(struct et131x_adapter *etdev)
 void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 {
 	struct _ce_stats_t *stats = &etdev->Stats;
-	struct _MAC_STAT_t __iomem *pDevMacStat =
+	struct _MAC_STAT_t __iomem *macstat =
 		&etdev->regs->macStat;
 
-	stats->collisions += readl(&pDevMacStat->TNcl);
-	stats->first_collision += readl(&pDevMacStat->TScl);
-	stats->tx_deferred += readl(&pDevMacStat->TDfr);
-	stats->excessive_collisions += readl(&pDevMacStat->TMcl);
-	stats->late_collisions += readl(&pDevMacStat->TLcl);
-	stats->tx_uflo += readl(&pDevMacStat->TUnd);
-	stats->max_pkt_error += readl(&pDevMacStat->TOvr);
+	stats->collisions += readl(&macstat->TNcl);
+	stats->first_collision += readl(&macstat->TScl);
+	stats->tx_deferred += readl(&macstat->TDfr);
+	stats->excessive_collisions += readl(&macstat->TMcl);
+	stats->late_collisions += readl(&macstat->TLcl);
+	stats->tx_uflo += readl(&macstat->TUnd);
+	stats->max_pkt_error += readl(&macstat->TOvr);
 
-	stats->alignment_err += readl(&pDevMacStat->RAln);
-	stats->crc_err += readl(&pDevMacStat->RCde);
-	stats->norcvbuf += readl(&pDevMacStat->RDrp);
-	stats->rx_ov_flow += readl(&pDevMacStat->ROvr);
-	stats->code_violations += readl(&pDevMacStat->RFcs);
-	stats->length_err += readl(&pDevMacStat->RFlr);
+	stats->alignment_err += readl(&macstat->RAln);
+	stats->crc_err += readl(&macstat->RCde);
+	stats->norcvbuf += readl(&macstat->RDrp);
+	stats->rx_ov_flow += readl(&macstat->ROvr);
+	stats->code_violations += readl(&macstat->RFcs);
+	stats->length_err += readl(&macstat->RFlr);
 
-	stats->other_errors += readl(&pDevMacStat->RFrg);
+	stats->other_errors += readl(&macstat->RFrg);
 }
 
 /**
@@ -577,17 +487,17 @@ void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
  */
 void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 {
-	MAC_STAT_REG_1_t Carry1;
-	MAC_STAT_REG_2_t Carry2;
+	u32 Carry1;
+	u32 Carry2;
 
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1.value = readl(&etdev->regs->macStat.Carry1.value);
-	Carry2.value = readl(&etdev->regs->macStat.Carry2.value);
+	Carry1 = readl(&etdev->regs->macStat.Carry1);
+	Carry2 = readl(&etdev->regs->macStat.Carry2);
 
-	writel(Carry1.value, &etdev->regs->macStat.Carry1.value);
-	writel(Carry2.value, &etdev->regs->macStat.Carry2.value);
+	writel(Carry1, &etdev->regs->macStat.Carry1);
+	writel(Carry2, &etdev->regs->macStat.Carry2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
@@ -595,33 +505,33 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	 * revolution of the counter.  This routine is called when the counter
 	 * block indicates that one of the counters has wrapped.
 	 */
-	if (Carry1.bits.rfcs)
+	if (Carry1 & (1 << 14))
 		etdev->Stats.code_violations += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.raln)
+	if (Carry1 & (1 << 8))
 		etdev->Stats.alignment_err += COUNTER_WRAP_12_BIT;
-	if (Carry1.bits.rflr)
+	if (Carry1 & (1 << 7))
 		etdev->Stats.length_err += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rfrg)
+	if (Carry1 & (1 << 2))
 		etdev->Stats.other_errors += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rcde)
+	if (Carry1 & (1 << 6))
 		etdev->Stats.crc_err += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rovr)
+	if (Carry1 & (1 << 3))
 		etdev->Stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
-	if (Carry1.bits.rdrp)
+	if (Carry1 & (1 << 0))
 		etdev->Stats.norcvbuf += COUNTER_WRAP_16_BIT;
-	if (Carry2.bits.tovr)
+	if (Carry2 & (1 << 16))
 		etdev->Stats.max_pkt_error += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tund)
+	if (Carry2 & (1 << 15))
 		etdev->Stats.tx_uflo += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tscl)
+	if (Carry2 & (1 << 6))
 		etdev->Stats.first_collision += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tdfr)
+	if (Carry2 & (1 << 8))
 		etdev->Stats.tx_deferred += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tmcl)
+	if (Carry2 & (1 << 5))
 		etdev->Stats.excessive_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tlcl)
+	if (Carry2 & (1 << 4))
 		etdev->Stats.late_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2.bits.tncl)
+	if (Carry2 & (1 << 2))
 		etdev->Stats.collisions += COUNTER_WRAP_12_BIT;
 }
 

@@ -214,7 +214,8 @@ static void pxa2xx_configure_sockets(struct device *dev)
 	MECR |= MECR_CIT;
 
 	/* Set MECR:NOS (Number Of Sockets) */
-	if ((ops->first + ops->nr) > 1 || machine_is_viper())
+	if ((ops->first + ops->nr) > 1 ||
+	    machine_is_viper() || machine_is_arcom_zeus())
 		MECR |= MECR_NOS;
 	else
 		MECR &= ~MECR_NOS;
@@ -252,6 +253,7 @@ int pxa2xx_drv_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 
 	return soc_pcmcia_add_one(skt);
 }
+EXPORT_SYMBOL(pxa2xx_drv_pcmcia_add_one);
 
 void pxa2xx_drv_pcmcia_ops(struct pcmcia_low_level *ops)
 {
@@ -261,18 +263,18 @@ void pxa2xx_drv_pcmcia_ops(struct pcmcia_low_level *ops)
 	ops->frequency_change = pxa2xx_pcmcia_frequency_change;
 #endif
 }
+EXPORT_SYMBOL(pxa2xx_drv_pcmcia_ops);
 
-int __pxa2xx_drv_pcmcia_probe(struct device *dev)
+static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 {
 	int i, ret = 0;
 	struct pcmcia_low_level *ops;
 	struct skt_dev_info *sinfo;
 	struct soc_pcmcia_socket *skt;
 
-	if (!dev || !dev->platform_data)
+	ops = (struct pcmcia_low_level *)dev->dev.platform_data;
+	if (!ops)
 		return -ENODEV;
-
-	ops = (struct pcmcia_low_level *)dev->platform_data;
 
 	pxa2xx_drv_pcmcia_ops(ops);
 
@@ -289,7 +291,7 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 		skt->nr = ops->first + i;
 		skt->ops = ops;
 		skt->socket.owner = ops->owner;
-		skt->socket.dev.parent = dev;
+		skt->socket.dev.parent = &dev->dev;
 		skt->socket.pci_irq = NO_IRQ;
 
 		ret = pxa2xx_drv_pcmcia_add_one(skt);
@@ -302,18 +304,11 @@ int __pxa2xx_drv_pcmcia_probe(struct device *dev)
 			soc_pcmcia_remove_one(&sinfo->skt[i]);
 		kfree(sinfo);
 	} else {
-		pxa2xx_configure_sockets(dev);
-		dev_set_drvdata(dev, sinfo);
+		pxa2xx_configure_sockets(&dev->dev);
+		dev_set_drvdata(&dev->dev, sinfo);
 	}
 
 	return ret;
-}
-EXPORT_SYMBOL(__pxa2xx_drv_pcmcia_probe);
-
-
-static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
-{
-	return __pxa2xx_drv_pcmcia_probe(&dev->dev);
 }
 
 static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
@@ -341,7 +336,7 @@ static int pxa2xx_drv_pcmcia_resume(struct device *dev)
 	return pcmcia_socket_dev_resume(dev);
 }
 
-static struct dev_pm_ops  pxa2xx_drv_pcmcia_pm_ops = {
+static const struct dev_pm_ops pxa2xx_drv_pcmcia_pm_ops = {
 	.suspend	= pxa2xx_drv_pcmcia_suspend,
 	.resume		= pxa2xx_drv_pcmcia_resume,
 };

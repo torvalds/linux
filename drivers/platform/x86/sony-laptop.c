@@ -131,6 +131,7 @@ enum sony_nc_rfkill {
 	N_SONY_RFKILL,
 };
 
+static int sony_rfkill_handle;
 static struct rfkill *sony_rfkill_devices[N_SONY_RFKILL];
 static int sony_rfkill_address[N_SONY_RFKILL] = {0x300, 0x500, 0x700, 0x900};
 static void sony_nc_rfkill_update(void);
@@ -142,7 +143,7 @@ struct sony_laptop_input_s {
 	atomic_t		users;
 	struct input_dev	*jog_dev;
 	struct input_dev	*key_dev;
-	struct kfifo		*fifo;
+	struct kfifo		fifo;
 	spinlock_t		fifo_lock;
 	struct workqueue_struct	*wq;
 };
@@ -232,6 +233,7 @@ static int sony_laptop_input_index[] = {
 	56,	/* 69 SONYPI_EVENT_VOLUME_INC_PRESSED */
 	57,	/* 70 SONYPI_EVENT_VOLUME_DEC_PRESSED */
 	-1,	/* 71 SONYPI_EVENT_BRIGHTNESS_PRESSED */
+	58,	/* 72 SONYPI_EVENT_MEDIA_PRESSED */
 };
 
 static int sony_laptop_input_keycode_map[] = {
@@ -293,6 +295,7 @@ static int sony_laptop_input_keycode_map[] = {
 	KEY_F15,	/* 55 SONYPI_EVENT_SETTINGKEY_PRESSED */
 	KEY_VOLUMEUP,	/* 56 SONYPI_EVENT_VOLUME_INC_PRESSED */
 	KEY_VOLUMEDOWN,	/* 57 SONYPI_EVENT_VOLUME_DEC_PRESSED */
+	KEY_MEDIA,	/* 58 SONYPI_EVENT_MEDIA_PRESSED */
 };
 
 /* release buttons after a short delay if pressed */
@@ -300,8 +303,9 @@ static void do_sony_laptop_release_key(struct work_struct *work)
 {
 	struct sony_laptop_keypress kp;
 
-	while (kfifo_get(sony_laptop_input.fifo, (unsigned char *)&kp,
-			 sizeof(kp)) == sizeof(kp)) {
+	while (kfifo_out_locked(&sony_laptop_input.fifo, (unsigned char *)&kp,
+			sizeof(kp), &sony_laptop_input.fifo_lock)
+			== sizeof(kp)) {
 		msleep(10);
 		input_report_key(kp.dev, kp.key, 0);
 		input_sync(kp.dev);
@@ -362,8 +366,9 @@ static void sony_laptop_report_input_event(u8 event)
 		/* we emit the scancode so we can always remap the key */
 		input_event(kp.dev, EV_MSC, MSC_SCAN, event);
 		input_sync(kp.dev);
-		kfifo_put(sony_laptop_input.fifo,
-			  (unsigned char *)&kp, sizeof(kp));
+		kfifo_in_locked(&sony_laptop_input.fifo,
+			  (unsigned char *)&kp, sizeof(kp),
+			  &sony_laptop_input.fifo_lock);
 
 		if (!work_pending(&sony_laptop_release_key_work))
 			queue_work(sony_laptop_input.wq,
@@ -385,12 +390,10 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 
 	/* kfifo */
 	spin_lock_init(&sony_laptop_input.fifo_lock);
-	sony_laptop_input.fifo =
-		kfifo_alloc(SONY_LAPTOP_BUF_SIZE, GFP_KERNEL,
-			    &sony_laptop_input.fifo_lock);
-	if (IS_ERR(sony_laptop_input.fifo)) {
+	error =
+	 kfifo_alloc(&sony_laptop_input.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL);
+	if (error) {
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
-		error = PTR_ERR(sony_laptop_input.fifo);
 		goto err_dec_users;
 	}
 
@@ -474,7 +477,7 @@ err_destroy_wq:
 	destroy_workqueue(sony_laptop_input.wq);
 
 err_free_kfifo:
-	kfifo_free(sony_laptop_input.fifo);
+	kfifo_free(&sony_laptop_input.fifo);
 
 err_dec_users:
 	atomic_dec(&sony_laptop_input.users);
@@ -500,7 +503,7 @@ static void sony_laptop_remove_input(void)
 	}
 
 	destroy_workqueue(sony_laptop_input.wq);
-	kfifo_free(sony_laptop_input.fifo);
+	kfifo_free(&sony_laptop_input.fifo);
 }
 
 /*********** Platform Device ***********/
@@ -890,6 +893,8 @@ static struct sony_nc_event sony_100_events[] = {
 	{ 0x0C, SONYPI_EVENT_FNKEY_RELEASED },
 	{ 0x9f, SONYPI_EVENT_CD_EJECT_PRESSED },
 	{ 0x1f, SONYPI_EVENT_ANYBUTTON_RELEASED },
+	{ 0xa1, SONYPI_EVENT_MEDIA_PRESSED },
+	{ 0x21, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0, 0 },
 };
 
@@ -961,7 +966,7 @@ static void sony_nc_notify(struct acpi_device *device, u32 event)
 				else
 					sony_laptop_report_input_event(ev);
 			}
-		} else if (sony_find_snc_handle(0x124) == ev) {
+		} else if (sony_find_snc_handle(sony_rfkill_handle) == ev) {
 			sony_nc_rfkill_update();
 			return;
 		}
@@ -1067,7 +1072,7 @@ static int sony_nc_rfkill_set(void *data, bool blocked)
 	if (!blocked)
 		argument |= 0xff0000;
 
-	return sony_call_snc_handle(0x124, argument, &result);
+	return sony_call_snc_handle(sony_rfkill_handle, argument, &result);
 }
 
 static const struct rfkill_ops sony_rfkill_ops = {
@@ -1110,7 +1115,7 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	if (!rfk)
 		return -ENOMEM;
 
-	sony_call_snc_handle(0x124, 0x200, &result);
+	sony_call_snc_handle(sony_rfkill_handle, 0x200, &result);
 	hwblock = !(result & 0x1);
 	rfkill_set_hw_state(rfk, hwblock);
 
@@ -1129,7 +1134,7 @@ static void sony_nc_rfkill_update()
 	int result;
 	bool hwblock;
 
-	sony_call_snc_handle(0x124, 0x200, &result);
+	sony_call_snc_handle(sony_rfkill_handle, 0x200, &result);
 	hwblock = !(result & 0x1);
 
 	for (i = 0; i < N_SONY_RFKILL; i++) {
@@ -1145,36 +1150,82 @@ static void sony_nc_rfkill_update()
 			continue;
 		}
 
-		sony_call_snc_handle(0x124, argument, &result);
+		sony_call_snc_handle(sony_rfkill_handle, argument, &result);
 		rfkill_set_states(sony_rfkill_devices[i],
 				  !(result & 0xf), false);
 	}
 }
 
-static int sony_nc_rfkill_setup(struct acpi_device *device)
+static void sony_nc_rfkill_setup(struct acpi_device *device)
 {
-	int result, ret;
+	int offset;
+	u8 dev_code, i;
+	acpi_status status;
+	struct acpi_object_list params;
+	union acpi_object in_obj;
+	union acpi_object *device_enum;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	if (sony_find_snc_handle(0x124) == -1)
-		return -1;
+	offset = sony_find_snc_handle(0x124);
+	if (offset == -1) {
+		offset = sony_find_snc_handle(0x135);
+		if (offset == -1)
+			return;
+		else
+			sony_rfkill_handle = 0x135;
+	} else
+		sony_rfkill_handle = 0x124;
+	dprintk("Found rkfill handle: 0x%.4x\n", sony_rfkill_handle);
 
-	ret = sony_call_snc_handle(0x124, 0xb00, &result);
-	if (ret) {
-		printk(KERN_INFO DRV_PFX
-		       "Unable to enumerate rfkill devices: %x\n", ret);
-		return ret;
+	/* need to read the whole buffer returned by the acpi call to SN06
+	 * here otherwise we may miss some features
+	 */
+	params.count = 1;
+	params.pointer = &in_obj;
+	in_obj.type = ACPI_TYPE_INTEGER;
+	in_obj.integer.value = offset;
+	status = acpi_evaluate_object(sony_nc_acpi_handle, "SN06", &params,
+			&buffer);
+	if (ACPI_FAILURE(status)) {
+		dprintk("Radio device enumeration failed\n");
+		return;
 	}
 
-	if (result & 0x1)
-		sony_nc_setup_rfkill(device, SONY_WIFI);
-	if (result & 0x2)
-		sony_nc_setup_rfkill(device, SONY_BLUETOOTH);
-	if (result & 0x1c)
-		sony_nc_setup_rfkill(device, SONY_WWAN);
-	if (result & 0x20)
-		sony_nc_setup_rfkill(device, SONY_WIMAX);
+	device_enum = (union acpi_object *) buffer.pointer;
+	if (!device_enum || device_enum->type != ACPI_TYPE_BUFFER) {
+		printk(KERN_ERR "Invalid SN06 return object 0x%.2x\n",
+				device_enum->type);
+		goto out_no_enum;
+	}
 
-	return 0;
+	/* the buffer is filled with magic numbers describing the devices
+	 * available, 0xff terminates the enumeration
+	 */
+	for (i = 0; i < device_enum->buffer.length; i++) {
+
+		dev_code = *(device_enum->buffer.pointer + i);
+		if (dev_code == 0xff)
+			break;
+
+		dprintk("Radio devices, looking at 0x%.2x\n", dev_code);
+
+		if (dev_code == 0 && !sony_rfkill_devices[SONY_WIFI])
+			sony_nc_setup_rfkill(device, SONY_WIFI);
+
+		if (dev_code == 0x10 && !sony_rfkill_devices[SONY_BLUETOOTH])
+			sony_nc_setup_rfkill(device, SONY_BLUETOOTH);
+
+		if ((0xf0 & dev_code) == 0x20 &&
+				!sony_rfkill_devices[SONY_WWAN])
+			sony_nc_setup_rfkill(device, SONY_WWAN);
+
+		if (dev_code == 0x30 && !sony_rfkill_devices[SONY_WIMAX])
+			sony_nc_setup_rfkill(device, SONY_WIMAX);
+	}
+
+out_no_enum:
+	kfree(buffer.pointer);
+	return;
 }
 
 static int sony_nc_add(struct acpi_device *device)
@@ -2079,7 +2130,7 @@ static struct attribute_group spic_attribute_group = {
 
 struct sonypi_compat_s {
 	struct fasync_struct	*fifo_async;
-	struct kfifo		*fifo;
+	struct kfifo		fifo;
 	spinlock_t		fifo_lock;
 	wait_queue_head_t	fifo_proc_list;
 	atomic_t		open_count;
@@ -2104,12 +2155,12 @@ static int sonypi_misc_open(struct inode *inode, struct file *file)
 	/* Flush input queue on first open */
 	unsigned long flags;
 
-	spin_lock_irqsave(sonypi_compat.fifo->lock, flags);
+	spin_lock_irqsave(&sonypi_compat.fifo_lock, flags);
 
 	if (atomic_inc_return(&sonypi_compat.open_count) == 1)
-		__kfifo_reset(sonypi_compat.fifo);
+		kfifo_reset(&sonypi_compat.fifo);
 
-	spin_unlock_irqrestore(sonypi_compat.fifo->lock, flags);
+	spin_unlock_irqrestore(&sonypi_compat.fifo_lock, flags);
 
 	return 0;
 }
@@ -2120,17 +2171,18 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	ssize_t ret;
 	unsigned char c;
 
-	if ((kfifo_len(sonypi_compat.fifo) == 0) &&
+	if ((kfifo_len(&sonypi_compat.fifo) == 0) &&
 	    (file->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
 	ret = wait_event_interruptible(sonypi_compat.fifo_proc_list,
-				       kfifo_len(sonypi_compat.fifo) != 0);
+				       kfifo_len(&sonypi_compat.fifo) != 0);
 	if (ret)
 		return ret;
 
 	while (ret < count &&
-	       (kfifo_get(sonypi_compat.fifo, &c, sizeof(c)) == sizeof(c))) {
+	       (kfifo_out_locked(&sonypi_compat.fifo, &c, sizeof(c),
+			  &sonypi_compat.fifo_lock) == sizeof(c))) {
 		if (put_user(c, buf++))
 			return -EFAULT;
 		ret++;
@@ -2147,7 +2199,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 static unsigned int sonypi_misc_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &sonypi_compat.fifo_proc_list, wait);
-	if (kfifo_len(sonypi_compat.fifo))
+	if (kfifo_len(&sonypi_compat.fifo))
 		return POLLIN | POLLRDNORM;
 	return 0;
 }
@@ -2309,7 +2361,8 @@ static struct miscdevice sonypi_misc_device = {
 
 static void sonypi_compat_report_event(u8 event)
 {
-	kfifo_put(sonypi_compat.fifo, (unsigned char *)&event, sizeof(event));
+	kfifo_in_locked(&sonypi_compat.fifo, (unsigned char *)&event,
+			sizeof(event), &sonypi_compat.fifo_lock);
 	kill_fasync(&sonypi_compat.fifo_async, SIGIO, POLL_IN);
 	wake_up_interruptible(&sonypi_compat.fifo_proc_list);
 }
@@ -2319,11 +2372,11 @@ static int sonypi_compat_init(void)
 	int error;
 
 	spin_lock_init(&sonypi_compat.fifo_lock);
-	sonypi_compat.fifo = kfifo_alloc(SONY_LAPTOP_BUF_SIZE, GFP_KERNEL,
-					 &sonypi_compat.fifo_lock);
-	if (IS_ERR(sonypi_compat.fifo)) {
+	error =
+	 kfifo_alloc(&sonypi_compat.fifo, SONY_LAPTOP_BUF_SIZE, GFP_KERNEL);
+	if (error) {
 		printk(KERN_ERR DRV_PFX "kfifo_alloc failed\n");
-		return PTR_ERR(sonypi_compat.fifo);
+		return error;
 	}
 
 	init_waitqueue_head(&sonypi_compat.fifo_proc_list);
@@ -2342,14 +2395,14 @@ static int sonypi_compat_init(void)
 	return 0;
 
 err_free_kfifo:
-	kfifo_free(sonypi_compat.fifo);
+	kfifo_free(&sonypi_compat.fifo);
 	return error;
 }
 
 static void sonypi_compat_exit(void)
 {
 	misc_deregister(&sonypi_misc_device);
-	kfifo_free(sonypi_compat.fifo);
+	kfifo_free(&sonypi_compat.fifo);
 }
 #else
 static int sonypi_compat_init(void) { return 0; }

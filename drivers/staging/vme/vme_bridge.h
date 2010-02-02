@@ -120,6 +120,8 @@ struct vme_bridge {
 
 	/* Interrupt callbacks */
 	struct vme_irq irq[7];
+	/* Locking for VME irq callback configuration */
+	struct mutex irq_mtx;
 
 	/* Slave Functions */
 	int (*slave_get) (struct vme_slave_resource *, int *,
@@ -149,9 +151,8 @@ struct vme_bridge {
 	int (*dma_list_empty) (struct vme_dma_list *);
 
 	/* Interrupt Functions */
-	int (*request_irq) (int, int, void (*cback)(int, int, void*), void *);
-	void (*free_irq) (int, int);
-	int (*generate_irq) (int, int);
+	void (*irq_set) (int, int, int);
+	int (*irq_generate) (int, int);
 
 	/* Location monitor functions */
 	int (*lm_set) (struct vme_lm_resource *, unsigned long long,
@@ -174,6 +175,8 @@ struct vme_bridge {
 	int (*get_requestor) (void);
 #endif
 };
+
+void vme_irq_handler(struct vme_bridge *, int, int);
 
 int vme_register_bridge (struct vme_bridge *);
 void vme_unregister_bridge (struct vme_bridge *);

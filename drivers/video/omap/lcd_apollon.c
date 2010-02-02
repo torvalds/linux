@@ -26,7 +26,8 @@
 
 #include <mach/gpio.h>
 #include <plat/mux.h>
-#include <plat/omapfb.h>
+
+#include "omapfb.h"
 
 /* #define USE_35INCH_LCD 1 */
 

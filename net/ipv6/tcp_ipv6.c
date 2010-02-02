@@ -96,7 +96,7 @@ static void tcp_v6_hash(struct sock *sk)
 			return;
 		}
 		local_bh_disable();
-		__inet6_hash(sk);
+		__inet6_hash(sk, NULL);
 		local_bh_enable();
 	}
 }
@@ -1169,7 +1169,6 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct inet6_request_sock *treq;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct dst_entry *dst = __sk_dst_get(sk);
 	__u32 isn = TCP_SKB_CB(skb)->when;
 #ifdef CONFIG_SYN_COOKIES
 	int want_cookie = 0;
@@ -1208,7 +1207,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = IPV6_MIN_MTU - sizeof(struct tcphdr) - sizeof(struct ipv6hdr);
 	tmp_opt.user_mss = tp->rx_opt.user_mss;
-	tcp_parse_options(skb, &tmp_opt, &hash_location, 0, dst);
+	tcp_parse_options(skb, &tmp_opt, &hash_location, 0);
 
 	if (tmp_opt.cookie_plus > 0 &&
 	    tmp_opt.saw_tstamp &&
@@ -1496,7 +1495,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
-	__inet6_hash(newsk);
+	__inet6_hash(newsk, NULL);
 	__inet_inherit_port(sk, newsk);
 
 	return newsk;

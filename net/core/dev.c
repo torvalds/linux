@@ -4771,21 +4771,23 @@ static void net_set_todo(struct net_device *dev)
 
 static void rollback_registered_many(struct list_head *head)
 {
-	struct net_device *dev;
+	struct net_device *dev, *tmp;
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
 
-	list_for_each_entry(dev, head, unreg_list) {
+	list_for_each_entry_safe(dev, tmp, head, unreg_list) {
 		/* Some devices call without registering
-		 * for initialization unwind.
+		 * for initialization unwind. Remove those
+		 * devices and proceed with the remaining.
 		 */
 		if (dev->reg_state == NETREG_UNINITIALIZED) {
 			pr_debug("unregister_netdevice: device %s/%p never "
 				 "was registered\n", dev->name, dev);
 
 			WARN_ON(1);
-			return;
+			list_del(&dev->unreg_list);
+			continue;
 		}
 
 		BUG_ON(dev->reg_state != NETREG_REGISTERED);
@@ -5033,6 +5035,11 @@ int register_netdevice(struct net_device *dev)
 		rollback_registered(dev);
 		dev->reg_state = NETREG_UNREGISTERED;
 	}
+	/*
+	 *	Prevent userspace races by waiting until the network
+	 *	device is fully setup before sending notifications.
+	 */
+	rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U);
 
 out:
 	return ret;
@@ -5594,6 +5601,12 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 
 	/* Notify protocols, that a new device appeared. */
 	call_netdevice_notifiers(NETDEV_REGISTER, dev);
+
+	/*
+	 *	Prevent userspace races by waiting until the network
+	 *	device is fully setup before sending notifications.
+	 */
+	rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U);
 
 	synchronize_net();
 	err = 0;

@@ -59,6 +59,13 @@
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;	/* Filled in by U-Boot */
 
+		pmc: power@b00 {
+			compatible = "fsl,mpc8360-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;

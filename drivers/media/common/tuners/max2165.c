@@ -193,7 +193,7 @@ static int max2165_set_rf(struct max2165_priv *priv, u32 freq)
 {
 	u8 tf;
 	u8 tf_ntch;
-	double t;
+	u32 t;
 	u32 quotient, fraction;
 
 	/* Set PLL divider according to RF frequency */

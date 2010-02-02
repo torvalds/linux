@@ -35,6 +35,7 @@
 #include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/time.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -595,14 +596,22 @@ static int ioctl_send_request(struct client *client, void *buffer)
 			    client->device->max_speed);
 }
 
+static inline bool is_fcp_request(struct fw_request *request)
+{
+	return request == NULL;
+}
+
 static void release_request(struct client *client,
 			    struct client_resource *resource)
 {
 	struct inbound_transaction_resource *r = container_of(resource,
 			struct inbound_transaction_resource, resource);
 
-	fw_send_response(client->device->card, r->request,
-			 RCODE_CONFLICT_ERROR);
+	if (is_fcp_request(r->request))
+		kfree(r->data);
+	else
+		fw_send_response(client->device->card, r->request,
+				 RCODE_CONFLICT_ERROR);
 	kfree(r);
 }
 
@@ -615,6 +624,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	struct address_handler_resource *handler = callback_data;
 	struct inbound_transaction_resource *r;
 	struct inbound_transaction_event *e;
+	void *fcp_frame = NULL;
 	int ret;
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
@@ -625,6 +635,18 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	r->request = request;
 	r->data    = payload;
 	r->length  = length;
+
+	if (is_fcp_request(request)) {
+		/*
+		 * FIXME: Let core-transaction.c manage a
+		 * single reference-counted copy?
+		 */
+		fcp_frame = kmemdup(payload, length, GFP_ATOMIC);
+		if (fcp_frame == NULL)
+			goto failed;
+
+		r->data = fcp_frame;
+	}
 
 	r->resource.release = release_request;
 	ret = add_client_resource(handler->client, &r->resource, GFP_ATOMIC);
@@ -639,13 +661,16 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	e->request.closure = handler->closure;
 
 	queue_event(handler->client, &e->event,
-		    &e->request, sizeof(e->request), payload, length);
+		    &e->request, sizeof(e->request), r->data, length);
 	return;
 
  failed:
 	kfree(r);
 	kfree(e);
-	fw_send_response(card, request, RCODE_CONFLICT_ERROR);
+	kfree(fcp_frame);
+
+	if (!is_fcp_request(request))
+		fw_send_response(card, request, RCODE_CONFLICT_ERROR);
 }
 
 static void release_address_handler(struct client *client,
@@ -715,14 +740,16 @@ static int ioctl_send_response(struct client *client, void *buffer)
 
 	r = container_of(resource, struct inbound_transaction_resource,
 			 resource);
+	if (is_fcp_request(r->request))
+		goto out;
+
 	if (request->length < r->length)
 		r->length = request->length;
-
 	if (copy_from_user(r->data, u64_to_uptr(request->data), r->length)) {
 		ret = -EFAULT;
+		kfree(r->request);
 		goto out;
 	}
-
 	fw_send_response(client->device->card, r->request, request->rcode);
  out:
 	kfree(r);

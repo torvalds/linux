@@ -560,7 +560,7 @@ __csum_partial_copy_end:
 	 mov	%i0, %o1
 	mov	%i1, %o0
 5:
-	call	__memcpy
+	call	memcpy
 	 mov	%i2, %o2
 	tst	%o0
 	bne,a	2f

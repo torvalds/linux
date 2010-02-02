@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/time.h>
+#include <linux/ftrace.h>
 
 #include <asm/cpu.h>
 #include <asm/mipsregs.h>
@@ -115,7 +116,7 @@ __init void plat_time_init(void)
 }
 
 /* Generic SGI handler for (spurious) 8254 interrupts */
-void indy_8254timer_irq(void)
+void __irq_entry indy_8254timer_irq(void)
 {
 	int irq = SGI_8254_0_IRQ;
 	ULONG cnt;

@@ -181,14 +181,8 @@ do {							\
 void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp);
 #define compat_start_thread start_thread_ia32
 
-#define COMPAT_SET_PERSONALITY(ex)			\
-do {							\
-	if (test_thread_flag(TIF_IA32))			\
-		clear_thread_flag(TIF_ABI_PENDING);	\
-	else						\
-		set_thread_flag(TIF_ABI_PENDING);	\
-	current->personality |= force_personality32;	\
-} while (0)
+void set_personality_ia32(void);
+#define COMPAT_SET_PERSONALITY(ex) set_personality_ia32()
 
 #define COMPAT_ELF_PLATFORM			("i686")
 
@@ -239,7 +233,6 @@ extern int force_personality32;
 #endif /* !CONFIG_X86_32 */
 
 #define CORE_DUMP_USE_REGSET
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical

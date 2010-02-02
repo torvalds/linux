@@ -517,7 +517,7 @@ void __init gpmc_init(void)
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
 	} else if (cpu_is_omap44xx()) {
-		ck = "gpmc_fck";
+		ck = "gpmc_ck";
 		l = OMAP44XX_GPMC_BASE;
 	}
 
@@ -533,6 +533,8 @@ void __init gpmc_init(void)
 		printk(KERN_ERR "Could not get GPMC register memory\n");
 		BUG();
 	}
+
+	clk_enable(gpmc_l3_clk);
 
 	l = gpmc_read_reg(GPMC_REVISION);
 	printk(KERN_INFO "GPMC revision %d.%d\n", (l >> 4) & 0x0f, l & 0x0f);

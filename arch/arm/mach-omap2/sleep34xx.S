@@ -245,7 +245,8 @@ restore:
 	mov	r1, #0		@ set task id for ROM code in r1
 	mov	r2, #4		@ set some flags in r2, r6
 	mov	r6, #0xff
-	adr	r3, write_aux_control_params	@ r3 points to parameters
+	ldr	r4, scratchpad_base
+	ldr	r3, [r4, #0xBC]	@ r3 points to parameters
 	mcr	p15, 0, r0, c7, c10, 4	@ data write barrier
 	mcr	p15, 0, r0, c7, c10, 5	@ data memory barrier
 	.word	0xE1600071		@ call SMI monitor (smi #1)
@@ -253,14 +254,14 @@ restore:
 	b	logic_l1_restore
 l2_inv_api_params:
 	.word   0x1, 0x00
-write_aux_control_params:
-	.word   0x1, 0x72
 l2_inv_gp:
 	/* Execute smi to invalidate L2 cache */
 	mov r12, #0x1                         @ set up to invalide L2
 smi:    .word 0xE1600070		@ Call SMI monitor (smieq)
 	/* Write to Aux control register to set some bits */
-	mov	r0, #0x72
+	ldr	r4, scratchpad_base
+	ldr	r3, [r4,#0xBC]
+	ldr	r0, [r3,#4]
 	mov	r12, #0x3
 	.word 0xE1600070	@ Call SMI monitor (smieq)
 logic_l1_restore:
@@ -271,6 +272,7 @@ logic_l1_restore:
 
 	ldr	r4, scratchpad_base
 	ldr	r3, [r4,#0xBC]
+	adds	r3, r3, #8
 	ldmia	r3!, {r4-r6}
 	mov	sp, r4
 	msr	spsr_cxsf, r5
@@ -387,6 +389,9 @@ usettbr0:
 save_context_wfi:
 	/*b	save_context_wfi*/	@ enable to debug save code
 	mov	r8, r0 /* Store SDRAM address in r8 */
+	mrc	p15, 0, r5, c1, c0, 1	@ Read Auxiliary Control Register
+	mov	r4, #0x1		@ Number of parameters for restore call
+	stmia	r8!, {r4-r5}
         /* Check what that target sleep state is:stored in r1*/
         /* 1 - Only L1 and logic lost */
         /* 2 - Only L2 lost */

@@ -111,6 +111,24 @@ config SH_DMAE
 	help
 	  Enable support for the Renesas SuperH DMA controllers.
 
+config COH901318
+	bool "ST-Ericsson COH901318 DMA support"
+	select DMA_ENGINE
+	depends on ARCH_U300
+	help
+	  Enable support for ST-Ericsson COH 901 318 DMA.
+
+config AMCC_PPC440SPE_ADMA
+	tristate "AMCC PPC440SPe ADMA support"
+	depends on 440SPe || 440SP
+	select DMA_ENGINE
+	select ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+	help
+	  Enable support for the AMCC PPC440SPe RAID engines.
+
+config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
+	bool
+
 config DMA_ENGINE
 	bool
 

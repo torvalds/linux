@@ -151,6 +151,8 @@ struct nilfs_super_root {
 #define NILFS_MOUNT_BARRIER		0x1000  /* Use block barriers */
 #define NILFS_MOUNT_STRICT_ORDER	0x2000  /* Apply strict in-order
 						   semantics also for data */
+#define NILFS_MOUNT_NORECOVERY		0x4000  /* Disable write access during
+						   mount-time recovery */
 
 
 /**
@@ -401,6 +403,28 @@ struct nilfs_segment_summary {
 #define NILFS_SS_SR     0x0004  /* has super root */
 #define NILFS_SS_SYNDT  0x0008  /* includes data only updates */
 #define NILFS_SS_GC     0x0010  /* segment written for cleaner operation */
+
+/**
+ * struct nilfs_btree_node - B-tree node
+ * @bn_flags: flags
+ * @bn_level: level
+ * @bn_nchildren: number of children
+ * @bn_pad: padding
+ */
+struct nilfs_btree_node {
+	__u8 bn_flags;
+	__u8 bn_level;
+	__le16 bn_nchildren;
+	__le32 bn_pad;
+};
+
+/* flags */
+#define NILFS_BTREE_NODE_ROOT   0x01
+
+/* level */
+#define NILFS_BTREE_LEVEL_DATA          0
+#define NILFS_BTREE_LEVEL_NODE_MIN      (NILFS_BTREE_LEVEL_DATA + 1)
+#define NILFS_BTREE_LEVEL_MAX           14
 
 /**
  * struct nilfs_palloc_group_desc - block group descriptor

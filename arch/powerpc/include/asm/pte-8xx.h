@@ -33,21 +33,21 @@
 #define _PAGE_NO_CACHE	0x0002	/* I: cache inhibit */
 #define _PAGE_SHARED	0x0004	/* No ASID (context) compare */
 #define _PAGE_SPECIAL	0x0008	/* SW entry, forced to 0 by the TLB miss */
+#define _PAGE_DIRTY	0x0100	/* C: page changed */
 
-/* These five software bits must be masked out when the entry is loaded
- * into the TLB.
+/* These 4 software bits must be masked out when the entry is loaded
+ * into the TLB, 1 SW bit left(0x0080).
  */
 #define _PAGE_GUARDED	0x0010	/* software: guarded access */
-#define _PAGE_DIRTY	0x0020	/* software: page changed */
-#define _PAGE_RW	0x0040	/* software: user write access allowed */
-#define _PAGE_ACCESSED	0x0080	/* software: page referenced */
+#define _PAGE_ACCESSED	0x0020	/* software: page referenced */
+#define _PAGE_WRITETHRU	0x0040	/* software: caching is write through */
 
 /* Setting any bits in the nibble with the follow two controls will
  * require a TLB exception handler change.  It is assumed unused bits
  * are always zero.
  */
-#define _PAGE_HWWRITE	0x0100	/* h/w write enable: never set in Linux PTE */
-#define _PAGE_USER	0x0800	/* One of the PP bits, the other is USER&~RW */
+#define _PAGE_RW	0x0400	/* lsb PP bits, inverted in HW */
+#define _PAGE_USER	0x0800	/* msb PP bits */
 
 #define _PMD_PRESENT	0x0001
 #define _PMD_BAD	0x0ff0

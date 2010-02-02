@@ -41,12 +41,6 @@ static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
 /*
- * Insmod parameters
- */
-
-I2C_CLIENT_INSMOD_1(max1619);
-
-/*
  * The MAX1619 registers
  */
 
@@ -88,7 +82,7 @@ static int temp_to_reg(int val)
 
 static int max1619_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int max1619_detect(struct i2c_client *client, int kind,
+static int max1619_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void max1619_init_client(struct i2c_client *client);
 static int max1619_remove(struct i2c_client *client);
@@ -99,7 +93,7 @@ static struct max1619_data *max1619_update_device(struct device *dev);
  */
 
 static const struct i2c_device_id max1619_id[] = {
-	{ "max1619", max1619 },
+	{ "max1619", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max1619_id);
@@ -113,7 +107,7 @@ static struct i2c_driver max1619_driver = {
 	.remove		= max1619_remove,
 	.id_table	= max1619_id,
 	.detect		= max1619_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -226,7 +220,7 @@ static const struct attribute_group max1619_group = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int max1619_detect(struct i2c_client *client, int kind,
+static int max1619_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;

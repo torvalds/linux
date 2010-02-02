@@ -993,7 +993,6 @@ void __init dm365_init_asp(struct snd_platform_data *pdata)
 
 void __init dm365_init_ks(struct davinci_ks_platform_data *pdata)
 {
-	davinci_cfg_reg(DM365_KEYSCAN);
 	dm365_ks_device.dev.platform_data = pdata;
 	platform_device_register(&dm365_ks_device);
 }

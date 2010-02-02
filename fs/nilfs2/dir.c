@@ -99,9 +99,9 @@ static int nilfs_prepare_chunk(struct page *page,
 				 NULL, nilfs_get_block);
 }
 
-static int nilfs_commit_chunk(struct page *page,
-			      struct address_space *mapping,
-			      unsigned from, unsigned to)
+static void nilfs_commit_chunk(struct page *page,
+			       struct address_space *mapping,
+			       unsigned from, unsigned to)
 {
 	struct inode *dir = mapping->host;
 	struct nilfs_sb_info *sbi = NILFS_SB(dir->i_sb);
@@ -112,15 +112,13 @@ static int nilfs_commit_chunk(struct page *page,
 
 	nr_dirty = nilfs_page_count_clean_buffers(page, from, to);
 	copied = block_write_end(NULL, mapping, pos, len, len, page, NULL);
-	if (pos + copied > dir->i_size) {
+	if (pos + copied > dir->i_size)
 		i_size_write(dir, pos + copied);
-		mark_inode_dirty(dir);
-	}
 	if (IS_DIRSYNC(dir))
 		nilfs_set_transaction_flag(NILFS_TI_SYNC);
 	err = nilfs_set_file_dirty(sbi, dir, nr_dirty);
+	WARN_ON(err); /* do not happen */
 	unlock_page(page);
-	return err;
 }
 
 static void nilfs_check_page(struct page *page)
@@ -455,11 +453,10 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 	BUG_ON(err);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
-	err = nilfs_commit_chunk(page, mapping, from, to);
+	nilfs_commit_chunk(page, mapping, from, to);
 	nilfs_put_page(page);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 /*	NILFS_I(dir)->i_flags &= ~NILFS_BTREE_FL; */
-	mark_inode_dirty(dir);
 }
 
 /*
@@ -548,10 +545,10 @@ got_it:
 	memcpy(de->name, name, namelen);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
-	err = nilfs_commit_chunk(page, page->mapping, from, to);
+	nilfs_commit_chunk(page, page->mapping, from, to);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 /*	NILFS_I(dir)->i_flags &= ~NILFS_BTREE_FL; */
-	mark_inode_dirty(dir);
+	nilfs_mark_inode_dirty(dir);
 	/* OFFSET_CACHE */
 out_put:
 	nilfs_put_page(page);
@@ -595,10 +592,9 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	if (pde)
 		pde->rec_len = cpu_to_le16(to - from);
 	dir->inode = 0;
-	err = nilfs_commit_chunk(page, mapping, from, to);
+	nilfs_commit_chunk(page, mapping, from, to);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 /*	NILFS_I(inode)->i_flags &= ~NILFS_BTREE_FL; */
-	mark_inode_dirty(inode);
 out:
 	nilfs_put_page(page);
 	return err;
@@ -640,7 +636,7 @@ int nilfs_make_empty(struct inode *inode, struct inode *parent)
 	memcpy(de->name, "..\0", 4);
 	nilfs_set_de_type(de, inode);
 	kunmap_atomic(kaddr, KM_USER0);
-	err = nilfs_commit_chunk(page, mapping, 0, chunk_size);
+	nilfs_commit_chunk(page, mapping, 0, chunk_size);
 fail:
 	page_cache_release(page);
 	return err;

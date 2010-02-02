@@ -164,7 +164,7 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	/* cpuinfo and default policy values */
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	policy->cpuinfo.transition_latency = 200000;
 	policy->cur = busfreq * max_multiplier;
 
 	result = cpufreq_frequency_table_cpuinfo(policy, clock_ratio);

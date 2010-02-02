@@ -90,6 +90,9 @@ struct sd {
 	unsigned char autogain;
 	__u8 hflip;
 	__u8 vflip;
+	u8 flags;
+#define FL_HFLIP 0x01		/* mirrored by default */
+#define FL_VFLIP 0x02		/* vertical flipped by default */
 
 	u8 sof_read;
 	u8 autogain_ignore_frames;
@@ -552,6 +555,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autogain = AUTOGAIN_DEF;
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
+	sd->flags = id->driver_info;
 	return 0;
 }
 
@@ -708,10 +712,17 @@ static int sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
-	__u8 data;
+	u8 data, hflip, vflip;
+
+	hflip = sd->hflip;
+	if (sd->flags & FL_HFLIP)
+		hflip = !hflip;
+	vflip = sd->vflip;
+	if (sd->flags & FL_VFLIP)
+		vflip = !vflip;
 
 	ret = reg_w(gspca_dev, 0xff, 0x03);		/* page 3 */
-	data = (sd->hflip ? 0x08 : 0x00) | (sd->vflip ? 0x04 : 0x00);
+	data = (hflip ? 0x08 : 0x00) | (vflip ? 0x04 : 0x00);
 	if (0 <= ret)
 		ret = reg_w(gspca_dev, 0x21, data);
 	/* load registers to sensor (Bit 0, auto clear) */
@@ -1218,15 +1229,15 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-static __devinitdata struct usb_device_id device_table[] = {
+static const struct usb_device_id device_table[] __devinitconst = {
 	{USB_DEVICE(0x06f8, 0x3009)},
 	{USB_DEVICE(0x093a, 0x2620)},
 	{USB_DEVICE(0x093a, 0x2621)},
-	{USB_DEVICE(0x093a, 0x2622)},
-	{USB_DEVICE(0x093a, 0x2624)},
+	{USB_DEVICE(0x093a, 0x2622), .driver_info = FL_VFLIP},
+	{USB_DEVICE(0x093a, 0x2624), .driver_info = FL_VFLIP},
 	{USB_DEVICE(0x093a, 0x2626)},
 	{USB_DEVICE(0x093a, 0x2628)},
-	{USB_DEVICE(0x093a, 0x2629)},
+	{USB_DEVICE(0x093a, 0x2629), .driver_info = FL_VFLIP},
 	{USB_DEVICE(0x093a, 0x262a)},
 	{USB_DEVICE(0x093a, 0x262c)},
 	{}
@@ -1234,7 +1245,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 MODULE_DEVICE_TABLE(usb, device_table);
 
 /* -- device connect -- */
-static int sd_probe(struct usb_interface *intf,
+static int __devinit sd_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	return gspca_dev_probe(intf, id, &sd_desc, sizeof(struct sd),

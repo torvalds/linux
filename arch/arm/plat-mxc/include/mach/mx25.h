@@ -41,4 +41,8 @@
 #define UART1_BASE_ADDR			0x43f90000
 #define UART2_BASE_ADDR			0x43f94000
 
+#define MX25_FEC_BASE_ADDR		0x50038000
+
+#define MX25_INT_FEC	57
+
 #endif /* __MACH_MX25_H__ */

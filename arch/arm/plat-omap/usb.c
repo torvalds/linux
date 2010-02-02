@@ -137,7 +137,13 @@ static u32 __init omap_usb0_init(unsigned nwires, unsigned is_device)
 	if (is_device) {
 		if (cpu_is_omap24xx())
 			omap_cfg_reg(J20_24XX_USB0_PUEN);
-		else
+		else if (cpu_is_omap7xx()) {
+			omap_cfg_reg(AA17_7XX_USB_DM);
+			omap_cfg_reg(W16_7XX_USB_PU_EN);
+			omap_cfg_reg(W17_7XX_USB_VBUSI);
+			omap_cfg_reg(W18_7XX_USB_DMCK_OUT);
+			omap_cfg_reg(W19_7XX_USB_DCRST);
+		} else
 			omap_cfg_reg(W4_USB_PUEN);
 	}
 

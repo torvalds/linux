@@ -407,13 +407,14 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 	int txq_id;
 
 	/* Tx queues */
-	if (priv->txq)
+	if (priv->txq) {
 		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num;
 		     txq_id++)
 			if (txq_id == IWL_CMD_QUEUE_NUM)
 				iwl_cmd_queue_free(priv);
 			else
 				iwl_tx_queue_free(priv, txq_id);
+	}
 	iwl_free_dma_ptr(priv, &priv->kw);
 
 	iwl_free_dma_ptr(priv, &priv->scd_bc_tbls);
@@ -1353,7 +1354,7 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 	if (priv->stations[sta_id].tid[tid].agg.state ==
 				IWL_EMPTYING_HW_QUEUE_ADDBA) {
 		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
-		ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, ra, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(priv->vif, ra, tid);
 		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 		return 0;
 	}

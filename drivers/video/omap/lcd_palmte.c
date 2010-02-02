@@ -24,7 +24,7 @@
 #include <linux/io.h>
 
 #include <plat/fpga.h>
-#include <plat/omapfb.h>
+#include "omapfb.h"
 
 static int palmte_panel_init(struct lcd_panel *panel,
 				struct omapfb_device *fbdev)

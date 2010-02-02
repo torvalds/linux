@@ -46,7 +46,7 @@ extern asmlinkage long compat_sys_sendmsg(int,struct compat_msghdr __user *,unsi
 extern asmlinkage long compat_sys_recvmsg(int,struct compat_msghdr __user *,unsigned);
 extern asmlinkage long compat_sys_recvmmsg(int, struct compat_mmsghdr __user *,
 					   unsigned, unsigned,
-					   struct timespec __user *);
+					   struct compat_timespec __user *);
 extern asmlinkage long compat_sys_getsockopt(int, int, int, char __user *, int __user *);
 extern int put_cmsg_compat(struct msghdr*, int, int, int, void *);
 

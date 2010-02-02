@@ -795,7 +795,7 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_INT)
 		err++;
 	if (cmd->scan_begin_src != TRIG_TIMER &&

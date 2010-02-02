@@ -27,20 +27,39 @@
  * OMAP4 specific entry point for secondary CPU to jump from ROM
  * code.  This routine also provides a holding flag into which
  * secondary core is held until we're ready for it to initialise.
- * The primary core will update the this flag using a hardware
- * register AuxCoreBoot1.
+ * The primary core will update this flag using a hardware
+ * register AuxCoreBoot0.
  */
 ENTRY(omap_secondary_startup)
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, r0, #0x0f
-hold:	ldr	r1, =OMAP4_AUX_CORE_BOOT1_PA	@ read from AuxCoreBoot1
-	ldr	r2, [r1]
-	cmp	r2, r0
+hold:	ldr	r12,=0x103
+	dsb
+	smc				@ read from AuxCoreBoot0
+	mov	r0, r0, lsr #9
+	mrc	p15, 0, r4, c0, c0, 5
+	and	r4, r4, #0x0f
+	cmp	r0, r4
 	bne	hold
 
 	/*
-	 * we've been released from the cpu_release,secondary_stack
+	 * we've been released from the wait loop,secondary_stack
 	 * should now contain the SVC stack for this core
 	 */
 	b	secondary_startup
+END(omap_secondary_startup)
 
+
+ENTRY(omap_modify_auxcoreboot0)
+	stmfd   sp!, {r1-r12, lr}
+	ldr	r12, =0x104
+	dsb
+	smc
+	ldmfd   sp!, {r1-r12, pc}
+END(omap_modify_auxcoreboot0)
+
+ENTRY(omap_auxcoreboot_addr)
+	stmfd   sp!, {r2-r12, lr}
+	ldr	r12, =0x105
+	dsb
+	smc
+	ldmfd   sp!, {r2-r12, pc}
+END(omap_auxcoreboot_addr)

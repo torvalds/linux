@@ -429,7 +429,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 			unsigned int ino;
 
 			ino = de->low_ino;
-			de_get(de);
+			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
 			error = -EINVAL;
 			inode = proc_get_inode(dir->i_sb, ino, de);
@@ -445,7 +445,7 @@ out_unlock:
 		return NULL;
 	}
 	if (de)
-		de_put(de);
+		pde_put(de);
 	return ERR_PTR(error);
 }
 
@@ -509,17 +509,17 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 				struct proc_dir_entry *next;
 
 				/* filldir passes info to user space */
-				de_get(de);
+				pde_get(de);
 				spin_unlock(&proc_subdir_lock);
 				if (filldir(dirent, de->name, de->namelen, filp->f_pos,
 					    de->low_ino, de->mode >> 12) < 0) {
-					de_put(de);
+					pde_put(de);
 					goto out;
 				}
 				spin_lock(&proc_subdir_lock);
 				filp->f_pos++;
 				next = de->next;
-				de_put(de);
+				pde_put(de);
 				de = next;
 			} while (de);
 			spin_unlock(&proc_subdir_lock);
@@ -763,7 +763,7 @@ out:
 	return NULL;
 }
 
-void free_proc_entry(struct proc_dir_entry *de)
+static void free_proc_entry(struct proc_dir_entry *de)
 {
 	unsigned int ino = de->low_ino;
 
@@ -775,6 +775,12 @@ void free_proc_entry(struct proc_dir_entry *de)
 	if (S_ISLNK(de->mode))
 		kfree(de->data);
 	kfree(de);
+}
+
+void pde_put(struct proc_dir_entry *pde)
+{
+	if (atomic_dec_and_test(&pde->count))
+		free_proc_entry(pde);
 }
 
 /*
@@ -845,6 +851,5 @@ continue_removing:
 	WARN(de->subdir, KERN_WARNING "%s: removing non-empty directory "
 			"'%s/%s', leaking at least '%s'\n", __func__,
 			de->parent->name, de->name, de->subdir->name);
-	if (atomic_dec_and_test(&de->count))
-		free_proc_entry(de);
+	pde_put(de);
 }

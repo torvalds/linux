@@ -667,12 +667,12 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 	else
 		uea_info(usb, "firmware uploaded\n");
 
-	uea_leaves(usb);
-	return;
+	goto err;
 
 err_fw_corrupted:
 	uea_err(usb, "firmware is corrupted\n");
 err:
+	release_firmware(fw_entry);
 	uea_leaves(usb);
 }
 
@@ -705,7 +705,8 @@ static int uea_load_firmware(struct usb_device *usb, unsigned int ver)
 		break;
 	}
 
-	ret = request_firmware_nowait(THIS_MODULE, 1, fw_name, &usb->dev, usb, uea_upload_pre_firmware);
+	ret = request_firmware_nowait(THIS_MODULE, 1, fw_name, &usb->dev,
+				      GFP_KERNEL, usb, uea_upload_pre_firmware);
 	if (ret)
 		uea_err(usb, "firmware %s is not available\n", fw_name);
 	else

@@ -327,7 +327,7 @@ static void zfcp_dbf_hba_view_response(char **p,
 			break;
 		zfcp_dbf_out(p, "scsi_cmnd", "0x%0Lx", r->u.fcp.cmnd);
 		zfcp_dbf_out(p, "scsi_serial", "0x%016Lx", r->u.fcp.serial);
-		p += sprintf(*p, "\n");
+		*p += sprintf(*p, "\n");
 		break;
 
 	case FSF_QTCB_OPEN_PORT_WITH_DID:

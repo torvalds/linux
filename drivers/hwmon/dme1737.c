@@ -57,11 +57,7 @@ MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(dme1737, sch5027);
-
-/* ISA chip types */
-enum isa_chips { sch311x = sch5027 + 1 };
+enum chips { dme1737, sch5027, sch311x };
 
 /* ---------------------------------------------------------------------
  * Registers
@@ -2208,7 +2204,7 @@ exit:
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int dme1737_i2c_detect(struct i2c_client *client, int kind,
+static int dme1737_i2c_detect(struct i2c_client *client,
 			      struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -2318,7 +2314,7 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.remove = dme1737_i2c_remove,
 	.id_table = dme1737_id,
 	.detect = dme1737_i2c_detect,
-	.address_data = &addr_data,
+	.address_list = normal_i2c,
 };
 
 /* ---------------------------------------------------------------------

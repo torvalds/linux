@@ -69,7 +69,6 @@ static void pq2ads_pci_unmask_irq(unsigned int virq)
 }
 
 static struct irq_chip pq2ads_pci_ic = {
-	.typename = "PQ2 ADS PCI",
 	.name = "PQ2 ADS PCI",
 	.end = pq2ads_pci_unmask_irq,
 	.mask = pq2ads_pci_mask_irq,
@@ -107,7 +106,7 @@ static void pq2ads_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 static int pci_pic_host_map(struct irq_host *h, unsigned int virq,
 			    irq_hw_number_t hw)
 {
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_data(virq, h->host_data);
 	set_irq_chip_and_handler(virq, &pq2ads_pci_ic, handle_level_irq);
 	return 0;

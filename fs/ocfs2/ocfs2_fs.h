@@ -1202,7 +1202,7 @@ struct ocfs2_local_disk_dqinfo {
 /* Header of one chunk of a quota file */
 struct ocfs2_local_disk_chunk {
 	__le32 dqc_free;	/* Number of free entries in the bitmap */
-	u8 dqc_bitmap[0];	/* Bitmap of entries in the corresponding
+	__u8 dqc_bitmap[0];	/* Bitmap of entries in the corresponding
 				 * chunk of quota file */
 };
 

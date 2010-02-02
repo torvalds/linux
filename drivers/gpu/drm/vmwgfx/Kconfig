@@ -1,0 +1,13 @@
+config DRM_VMWGFX
+	tristate "DRM driver for VMware Virtual GPU"
+	depends on DRM && PCI
+	select FB_DEFERRED_IO
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select DRM_TTM
+	help
+	  KMS enabled DRM driver for SVGA2 virtual hardware.
+
+	  If unsure say n. The compiled module will be
+	  called vmwgfx.ko

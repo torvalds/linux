@@ -216,8 +216,17 @@ static void disable_controller(struct r8a66597 *r8a66597)
 {
 	int port;
 
+	/* disable interrupts */
 	r8a66597_write(r8a66597, 0, INTENB0);
-	r8a66597_write(r8a66597, 0, INTSTS0);
+	r8a66597_write(r8a66597, 0, INTENB1);
+	r8a66597_write(r8a66597, 0, BRDYENB);
+	r8a66597_write(r8a66597, 0, BEMPENB);
+	r8a66597_write(r8a66597, 0, NRDYENB);
+
+	/* clear status */
+	r8a66597_write(r8a66597, 0, BRDYSTS);
+	r8a66597_write(r8a66597, 0, NRDYSTS);
+	r8a66597_write(r8a66597, 0, BEMPSTS);
 
 	for (port = 0; port < r8a66597->max_root_hub; port++)
 		r8a66597_disable_port(r8a66597, port);
@@ -822,8 +831,6 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 		return;
 
 	list_for_each_entry_safe(td, next, list, queue) {
-		if (!td)
-			continue;
 		if (td->address != address)
 			continue;
 
@@ -2025,8 +2032,6 @@ static struct r8a66597_device *get_r8a66597_device(struct r8a66597 *r8a66597,
 	struct list_head *list = &r8a66597->child_device;
 
 	list_for_each_entry(dev, list, device_list) {
-		if (!dev)
-			continue;
 		if (dev->usb_address != addr)
 			continue;
 
@@ -2357,7 +2362,7 @@ static int r8a66597_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops r8a66597_dev_pm_ops = {
+static const struct dev_pm_ops r8a66597_dev_pm_ops = {
 	.suspend = r8a66597_suspend,
 	.resume = r8a66597_resume,
 	.poweroff = r8a66597_suspend,
@@ -2469,6 +2474,12 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	r8a66597->rh_timer.function = r8a66597_timer;
 	r8a66597->rh_timer.data = (unsigned long)r8a66597;
 	r8a66597->reg = (unsigned long)reg;
+
+	/* make sure no interrupts are pending */
+	ret = r8a66597_clock_enable(r8a66597);
+	if (ret < 0)
+		goto clean_up3;
+	disable_controller(r8a66597);
 
 	for (i = 0; i < R8A66597_MAX_NUM_PIPE; i++) {
 		INIT_LIST_HEAD(&r8a66597->pipe_queue[i]);

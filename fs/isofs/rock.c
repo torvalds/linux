@@ -518,8 +518,7 @@ repeat:
 			if (algo == SIG('p', 'z')) {
 				int block_shift =
 					isonum_711(&rr->u.ZF.parms[1]);
-				if (block_shift < PAGE_CACHE_SHIFT
-						|| block_shift > 17) {
+				if (block_shift > 17) {
 					printk(KERN_WARNING "isofs: "
 						"Can't handle ZF block "
 						"size of 2^%d\n",

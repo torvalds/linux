@@ -172,6 +172,32 @@ unsigned long long sched_clock(void)
 				  clocksource_32k.mult, clocksource_32k.shift);
 }
 
+/**
+ * read_persistent_clock -  Return time from a persistent clock.
+ *
+ * Reads the time from a source which isn't disabled during PM, the
+ * 32k sync timer.  Convert the cycles elapsed since last read into
+ * nsecs and adds to a monotonically increasing timespec.
+ */
+static struct timespec persistent_ts;
+static cycles_t cycles, last_cycles;
+void read_persistent_clock(struct timespec *ts)
+{
+	unsigned long long nsecs;
+	cycles_t delta;
+	struct timespec *tsp = &persistent_ts;
+
+	last_cycles = cycles;
+	cycles = clocksource_32k.read(&clocksource_32k);
+	delta = cycles - last_cycles;
+
+	nsecs = clocksource_cyc2ns(delta,
+				   clocksource_32k.mult, clocksource_32k.shift);
+
+	timespec_add_ns(tsp, nsecs);
+	*ts = *tsp;
+}
+
 static int __init omap_init_clocksource_32k(void)
 {
 	static char err[] __initdata = KERN_ERR
@@ -280,16 +306,18 @@ void __init omap2_set_globals_343x(void)
 #if defined(CONFIG_ARCH_OMAP4)
 static struct omap_globals omap4_globals = {
 	.class	= OMAP443X_CLASS,
-	.tap	= OMAP2_L4_IO_ADDRESS(0x4830a000),
+	.tap	= OMAP2_L4_IO_ADDRESS(OMAP443X_SCM_BASE),
 	.ctrl	= OMAP2_L4_IO_ADDRESS(OMAP443X_CTRL_BASE),
 	.prm	= OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE),
 	.cm	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM_BASE),
+	.cm2	= OMAP2_L4_IO_ADDRESS(OMAP4430_CM2_BASE),
 };
 
 void __init omap2_set_globals_443x(void)
 {
 	omap2_set_globals_tap(&omap4_globals);
 	omap2_set_globals_control(&omap4_globals);
+	omap2_set_globals_prcm(&omap4_globals);
 }
 #endif
 

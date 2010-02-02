@@ -333,14 +333,15 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 static int iwl5000_set_Xtal_calib(struct iwl_priv *priv)
 {
 	struct iwl_calib_xtal_freq_cmd cmd;
-	u16 *xtal_calib = (u16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
+	__le16 *xtal_calib =
+		(__le16 *)iwl_eeprom_query_addr(priv, EEPROM_5000_XTAL);
 
 	cmd.hdr.op_code = IWL_PHY_CALIBRATE_CRYSTAL_FRQ_CMD;
 	cmd.hdr.first_group = 0;
 	cmd.hdr.groups_num = 1;
 	cmd.hdr.data_valid = 1;
-	cmd.cap_pin1 = (u8)xtal_calib[0];
-	cmd.cap_pin2 = (u8)xtal_calib[1];
+	cmd.cap_pin1 = le16_to_cpu(xtal_calib[0]);
+	cmd.cap_pin2 = le16_to_cpu(xtal_calib[1]);
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_XTAL],
 			     (u8 *)&cmd, sizeof(cmd));
 }
@@ -1597,6 +1598,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
@@ -1621,6 +1623,7 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 };
 
@@ -1666,6 +1669,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
@@ -1690,6 +1694,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };
@@ -1714,6 +1719,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.sm_ps_mode = WLAN_HT_CAP_SM_PS_DISABLED,
 };

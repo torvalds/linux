@@ -578,7 +578,7 @@ ENTRY(sys_call_table)
 	.long sys_ni_syscall	/* reserved for streams2 */
 	.long sys_vfork		/* 190 */
 	.long sys_getrlimit
-	.long sys_mmap2
+	.long sys_mmap_pgoff
 	.long sys_truncate64
 	.long sys_ftruncate64
 	.long sys_stat64	/* 195 */
@@ -724,6 +724,7 @@ ENTRY(sys_call_table)
 	.long sys_pwritev		/* 335 */
 	.long sys_rt_tgsigqueueinfo
 	.long sys_perf_event_open
+	.long sys_recvmmsg
 
 
 nr_syscalls=(.-sys_call_table)/4

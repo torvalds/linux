@@ -213,7 +213,7 @@ static int handle_instruction_and_prog(struct kvm_vcpu *vcpu)
 	return rc2;
 }
 
-static const intercept_handler_t intercept_funcs[0x48 >> 2] = {
+static const intercept_handler_t intercept_funcs[] = {
 	[0x00 >> 2] = handle_noop,
 	[0x04 >> 2] = handle_instruction,
 	[0x08 >> 2] = handle_prog,
@@ -230,7 +230,7 @@ int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu)
 	intercept_handler_t func;
 	u8 code = vcpu->arch.sie_block->icptcode;
 
-	if (code & 3 || code > 0x48)
+	if (code & 3 || (code >> 2) >= ARRAY_SIZE(intercept_funcs))
 		return -ENOTSUPP;
 	func = intercept_funcs[code >> 2];
 	if (func)

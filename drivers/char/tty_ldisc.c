@@ -34,6 +34,8 @@
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 
+#include <linux/smp_lock.h>	/* For the moment */
+
 #include <linux/kmod.h>
 #include <linux/nsproxy.h>
 
@@ -443,8 +445,14 @@ static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
 static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 {
 	WARN_ON(test_and_set_bit(TTY_LDISC_OPEN, &tty->flags));
-	if (ld->ops->open)
-		return ld->ops->open(tty);
+	if (ld->ops->open) {
+		int ret;
+                /* BKL here locks verus a hangup event */
+		lock_kernel();
+		ret = ld->ops->open(tty);
+		unlock_kernel();
+		return ret;
+	}
 	return 0;
 }
 
@@ -545,6 +553,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
+	lock_kernel();
 	/*
 	 *	We need to look at the tty locking here for pty/tty pairs
 	 *	when both sides try to change in parallel.
@@ -558,10 +567,12 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	 */
 
 	if (tty->ldisc->ops->num == ldisc) {
+		unlock_kernel();
 		tty_ldisc_put(new_ldisc);
 		return 0;
 	}
 
+	unlock_kernel();
 	/*
 	 *	Problem: What do we do if this blocks ?
 	 *	We could deadlock here
@@ -582,6 +593,9 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 			test_bit(TTY_LDISC_CHANGING, &tty->flags) == 0);
 		mutex_lock(&tty->ldisc_mutex);
 	}
+
+	lock_kernel();
+
 	set_bit(TTY_LDISC_CHANGING, &tty->flags);
 
 	/*
@@ -592,6 +606,8 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	tty->receive_room = 0;
 
 	o_ldisc = tty->ldisc;
+
+	unlock_kernel();
 	/*
 	 *	Make sure we don't change while someone holds a
 	 *	reference to the line discipline. The TTY_LDISC bit
@@ -617,12 +633,14 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	flush_scheduled_work();
 
 	mutex_lock(&tty->ldisc_mutex);
+	lock_kernel();
 	if (test_bit(TTY_HUPPED, &tty->flags)) {
 		/* We were raced by the hangup method. It will have stomped
 		   the ldisc data and closed the ldisc down */
 		clear_bit(TTY_LDISC_CHANGING, &tty->flags);
 		mutex_unlock(&tty->ldisc_mutex);
 		tty_ldisc_put(new_ldisc);
+		unlock_kernel();
 		return -EIO;
 	}
 
@@ -664,6 +682,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (o_work)
 		schedule_delayed_work(&o_tty->buf.work, 1);
 	mutex_unlock(&tty->ldisc_mutex);
+	unlock_kernel();
 	return retval;
 }
 

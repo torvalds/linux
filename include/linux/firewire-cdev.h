@@ -340,6 +340,9 @@ struct fw_cdev_send_response {
  * The @closure field is passed back to userspace in the response event.
  * The @handle field is an out parameter, returning a handle to the allocated
  * range to be used for later deallocation of the range.
+ *
+ * The address range is allocated on all local nodes.  The address allocation
+ * is exclusive except for the FCP command and response registers.
  */
 struct fw_cdev_allocate {
 	__u64 offset;
@@ -377,7 +380,7 @@ struct fw_cdev_initiate_bus_reset {
  * @immediate:	If non-zero, immediate key to insert before pointer
  * @key:	Upper 8 bits of root directory pointer
  * @data:	Userspace pointer to contents of descriptor block
- * @length:	Length of descriptor block data, in bytes
+ * @length:	Length of descriptor block data, in quadlets
  * @handle:	Handle to the descriptor, written by the kernel
  *
  * Add a descriptor block and optionally a preceding immediate key to the local
@@ -390,6 +393,8 @@ struct fw_cdev_initiate_bus_reset {
  *
  * If not 0, the @immediate field specifies an immediate key which will be
  * inserted before the root directory pointer.
+ *
+ * @immediate, @key, and @data array elements are CPU-endian quadlets.
  *
  * If successful, the kernel adds the descriptor and writes back a handle to the
  * kernel-side object to be used for later removal of the descriptor block and

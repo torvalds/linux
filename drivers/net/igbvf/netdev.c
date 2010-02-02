@@ -1469,6 +1469,8 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 		memcpy(netdev->perm_addr, adapter->hw.mac.addr,
 		       netdev->addr_len);
 	}
+
+	adapter->last_reset = jiffies;
 }
 
 int igbvf_up(struct igbvf_adapter *adapter)
@@ -1812,11 +1814,15 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 	s32 ret_val = E1000_SUCCESS;
 	bool link_active;
 
+	/* If interface is down, stay link down */
+	if (test_bit(__IGBVF_DOWN, &adapter->state))
+		return false;
+
 	ret_val = hw->mac.ops.check_for_link(hw);
 	link_active = !hw->mac.get_link_status;
 
 	/* if check for link returns error we will need to reset */
-	if (ret_val)
+	if (ret_val && time_after(jiffies, adapter->last_reset + (10 * HZ)))
 		schedule_work(&adapter->reset_task);
 
 	return link_active;
@@ -1957,7 +1963,7 @@ static int igbvf_tso(struct igbvf_adapter *adapter,
 		                                         iph->daddr, 0,
 		                                         IPPROTO_TCP,
 		                                         0);
-	} else if (skb_shinfo(skb)->gso_type == SKB_GSO_TCPV6) {
+	} else if (skb_is_gso_v6(skb)) {
 		ipv6_hdr(skb)->payload_len = 0;
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 		                                       &ipv6_hdr(skb)->daddr,
@@ -2120,6 +2126,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++) {
 		struct skb_frag_struct *frag;
 
+		count++;
 		i++;
 		if (i == tx_ring->count)
 			i = 0;
@@ -2140,7 +2147,6 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 						PCI_DMA_TODEVICE);
 		if (pci_dma_mapping_error(pdev, buffer_info->dma))
 			goto dma_error;
-		count++;
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
@@ -2157,14 +2163,14 @@ dma_error:
 	buffer_info->length = 0;
 	buffer_info->next_to_watch = 0;
 	buffer_info->mapped_as_page = false;
-	count--;
+	if (count)
+		count--;
 
 	/* clear timestamp and dma mappings for remaining portion of packet */
-	while (count >= 0) {
-		count--;
-		i--;
-		if (i < 0)
+	while (count--) {
+		if (i==0)
 			i += tx_ring->count;
+		i--;
 		buffer_info = &tx_ring->buffer_info[i];
 		igbvf_put_txbuf(adapter, buffer_info);
 	}
@@ -2757,7 +2763,8 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
-		         "PF still in reset state, assigning new address\n");
+			 "PF still in reset state, assigning new address."
+			 " Is the PF interface up?\n");
 		random_ether_addr(hw->mac.addr);
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);

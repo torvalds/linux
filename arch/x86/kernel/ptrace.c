@@ -509,14 +509,14 @@ static int genregs_get(struct task_struct *target,
 {
 	if (kbuf) {
 		unsigned long *k = kbuf;
-		while (count > 0) {
+		while (count >= sizeof(*k)) {
 			*k++ = getreg(target, pos);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		unsigned long __user *u = ubuf;
-		while (count > 0) {
+		while (count >= sizeof(*u)) {
 			if (__put_user(getreg(target, pos), u++))
 				return -EFAULT;
 			count -= sizeof(*u);
@@ -535,14 +535,14 @@ static int genregs_set(struct task_struct *target,
 	int ret = 0;
 	if (kbuf) {
 		const unsigned long *k = kbuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*k) && !ret) {
 			ret = putreg(target, pos, *k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		const unsigned long  __user *u = ubuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*u) && !ret) {
 			unsigned long word;
 			ret = __get_user(word, u++);
 			if (ret)
@@ -555,7 +555,9 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
-static void ptrace_triggered(struct perf_event *bp, void *data)
+static void ptrace_triggered(struct perf_event *bp, int nmi,
+			     struct perf_sample_data *data,
+			     struct pt_regs *regs)
 {
 	int i;
 	struct thread_struct *thread = &(current->thread);
@@ -593,13 +595,13 @@ static unsigned long ptrace_get_dr7(struct perf_event *bp[])
 	return dr7;
 }
 
-static struct perf_event *
+static int
 ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 			 struct task_struct *tsk, int disabled)
 {
 	int err;
 	int gen_len, gen_type;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	/*
 	 * We shoud have at least an inactive breakpoint at this
@@ -607,18 +609,18 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	 * written the address register first
 	 */
 	if (!bp)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	err = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	attr = bp->attr;
 	attr.bp_len = gen_len;
 	attr.bp_type = gen_type;
 	attr.disabled = disabled;
 
-	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+	return modify_user_hw_breakpoint(bp, &attr);
 }
 
 /*
@@ -656,28 +658,17 @@ restore:
 				if (!second_pass)
 					continue;
 
-				thread->ptrace_bps[i] = NULL;
-				bp = ptrace_modify_breakpoint(bp, len, type,
+				rc = ptrace_modify_breakpoint(bp, len, type,
 							      tsk, 1);
-				if (IS_ERR(bp)) {
-					rc = PTR_ERR(bp);
-					thread->ptrace_bps[i] = NULL;
+				if (rc)
 					break;
-				}
-				thread->ptrace_bps[i] = bp;
 			}
 			continue;
 		}
 
-		bp = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
-
-		/* Incorrect bp, or we have a bug in bp API */
-		if (IS_ERR(bp)) {
-			rc = PTR_ERR(bp);
-			thread->ptrace_bps[i] = NULL;
+		rc = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
+		if (rc)
 			break;
-		}
-		thread->ptrace_bps[i] = bp;
 	}
 	/*
 	 * Make a second pass to free the remaining unused breakpoints
@@ -721,9 +712,10 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 {
 	struct perf_event *bp;
 	struct thread_struct *t = &tsk->thread;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	if (!t->ptrace_bps[nr]) {
+		hw_breakpoint_init(&attr);
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
@@ -734,26 +726,32 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 		attr.disabled = 1;
 
 		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+
+		/*
+		 * CHECKME: the previous code returned -EIO if the addr wasn't
+		 * a valid task virtual addr. The new one will return -EINVAL in
+		 *  this case.
+		 * -EINVAL may be what we want for in-kernel breakpoints users,
+		 * but -EIO looks better for ptrace, since we refuse a register
+		 * writing for the user. And anyway this is the previous
+		 * behaviour.
+		 */
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+
+		t->ptrace_bps[nr] = bp;
 	} else {
+		int err;
+
 		bp = t->ptrace_bps[nr];
-		t->ptrace_bps[nr] = NULL;
 
 		attr = bp->attr;
 		attr.bp_addr = addr;
-		bp = modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+		err = modify_user_hw_breakpoint(bp, &attr);
+		if (err)
+			return err;
 	}
-	/*
-	 * CHECKME: the previous code returned -EIO if the addr wasn't a
-	 * valid task virtual addr. The new one will return -EINVAL in this
-	 * case.
-	 * -EINVAL may be what we want for in-kernel breakpoints users, but
-	 * -EIO looks better for ptrace, since we refuse a register writing
-	 * for the user. And anyway this is the previous behaviour.
-	 */
-	if (IS_ERR(bp))
-		return PTR_ERR(bp);
 
-	t->ptrace_bps[nr] = bp;
 
 	return 0;
 }
@@ -1460,14 +1458,14 @@ static int genregs32_get(struct task_struct *target,
 {
 	if (kbuf) {
 		compat_ulong_t *k = kbuf;
-		while (count > 0) {
+		while (count >= sizeof(*k)) {
 			getreg32(target, pos, k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		compat_ulong_t __user *u = ubuf;
-		while (count > 0) {
+		while (count >= sizeof(*u)) {
 			compat_ulong_t word;
 			getreg32(target, pos, &word);
 			if (__put_user(word, u++))
@@ -1488,14 +1486,14 @@ static int genregs32_set(struct task_struct *target,
 	int ret = 0;
 	if (kbuf) {
 		const compat_ulong_t *k = kbuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*k) && !ret) {
 			ret = putreg32(target, pos, *k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		const compat_ulong_t __user *u = ubuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*u) && !ret) {
 			compat_ulong_t word;
 			ret = __get_user(word, u++);
 			if (ret)
@@ -1678,21 +1676,33 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
+static void fill_sigtrap_info(struct task_struct *tsk,
+				struct pt_regs *regs,
+				int error_code, int si_code,
+				struct siginfo *info)
+{
+	tsk->thread.trap_no = 1;
+	tsk->thread.error_code = error_code;
+
+	memset(info, 0, sizeof(*info));
+	info->si_signo = SIGTRAP;
+	info->si_code = si_code;
+	info->si_addr = user_mode_vm(regs) ? (void __user *)regs->ip : NULL;
+}
+
+void user_single_step_siginfo(struct task_struct *tsk,
+				struct pt_regs *regs,
+				struct siginfo *info)
+{
+	fill_sigtrap_info(tsk, regs, 0, TRAP_BRKPT, info);
+}
+
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 					 int error_code, int si_code)
 {
 	struct siginfo info;
 
-	tsk->thread.trap_no = 1;
-	tsk->thread.error_code = error_code;
-
-	memset(&info, 0, sizeof(info));
-	info.si_signo = SIGTRAP;
-	info.si_code = si_code;
-
-	/* User-mode ip? */
-	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->ip : NULL;
-
+	fill_sigtrap_info(tsk, regs, error_code, si_code, &info);
 	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
 }
@@ -1757,29 +1767,22 @@ asmregparm long syscall_trace_enter(struct pt_regs *regs)
 
 asmregparm void syscall_trace_leave(struct pt_regs *regs)
 {
+	bool step;
+
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_exit(regs, regs->ax);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
-
 	/*
 	 * If TIF_SYSCALL_EMU is set, we only get here because of
 	 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
 	 * We already reported this syscall instruction in
-	 * syscall_trace_enter(), so don't do any more now.
+	 * syscall_trace_enter().
 	 */
-	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
-		return;
-
-	/*
-	 * If we are single-stepping, synthesize a trap to follow the
-	 * system call instruction.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP) &&
-	    tracehook_consider_fatal_signal(current, SIGTRAP))
-		send_sigtrap(current, regs, 0, TRAP_BRKPT);
+	step = unlikely(test_thread_flag(TIF_SINGLESTEP)) &&
+			!test_thread_flag(TIF_SYSCALL_EMU);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }

@@ -534,9 +534,9 @@ static inline void  smc_rcv(struct net_device *dev)
 #define smc_special_lock(lock, flags)		spin_lock_irqsave(lock, flags)
 #define smc_special_unlock(lock, flags) 	spin_unlock_irqrestore(lock, flags)
 #else
-#define smc_special_trylock(lock, flags)	(1)
-#define smc_special_lock(lock, flags)   	do { } while (0)
-#define smc_special_unlock(lock, flags)	do { } while (0)
+#define smc_special_trylock(lock, flags)	(flags == flags)
+#define smc_special_lock(lock, flags)   	do { flags = 0; } while (0)
+#define smc_special_unlock(lock, flags)	do { flags = 0; } while (0)
 #endif
 
 /*
@@ -2387,7 +2387,7 @@ static int smc_drv_resume(struct device *dev)
 
 	if (ndev) {
 		struct smc_local *lp = netdev_priv(ndev);
-		smc_enable_device(dev);
+		smc_enable_device(pdev);
 		if (netif_running(ndev)) {
 			smc_reset(ndev);
 			smc_enable(ndev);

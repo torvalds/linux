@@ -206,6 +206,8 @@ MachineCheck:
 	EXCEPTION_PROLOG
 	mfspr r4,SPRN_DAR
 	stw r4,_DAR(r11)
+	li r5,0x00f0
+	mtspr SPRN_DAR,r5	/* Tag DAR, to be used in DTLB Error */
 	mfspr r5,SPRN_DSISR
 	stw r5,_DSISR(r11)
 	addi r3,r1,STACK_FRAME_OVERHEAD
@@ -222,6 +224,8 @@ DataAccess:
 	stw	r10,_DSISR(r11)
 	mr	r5,r10
 	mfspr	r4,SPRN_DAR
+	li	r10,0x00f0
+	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
 	EXC_XFER_EE_LITE(0x300, handle_page_fault)
 
 /* Instruction access exception.
@@ -244,6 +248,8 @@ Alignment:
 	EXCEPTION_PROLOG
 	mfspr	r4,SPRN_DAR
 	stw	r4,_DAR(r11)
+	li	r5,0x00f0
+	mtspr	SPRN_DAR,r5	/* Tag DAR, to be used in DTLB Error */
 	mfspr	r5,SPRN_DSISR
 	stw	r5,_DSISR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -333,26 +339,20 @@ InstructionTLBMiss:
 	mfspr	r11, SPRN_MD_TWC	/* ....and get the pte address */
 	lwz	r10, 0(r11)	/* Get the pte */
 
-#ifdef CONFIG_SWAP
-	/* do not set the _PAGE_ACCESSED bit of a non-present page */
-	andi.	r11, r10, _PAGE_PRESENT
-	beq	4f
-	ori	r10, r10, _PAGE_ACCESSED
-	mfspr	r11, SPRN_MD_TWC	/* get the pte address again */
-	stw	r10, 0(r11)
-4:
-#else
-	ori	r10, r10, _PAGE_ACCESSED
-	stw	r10, 0(r11)
-#endif
+	andi.	r11, r10, _PAGE_ACCESSED | _PAGE_PRESENT
+	cmpwi	cr0, r11, _PAGE_ACCESSED | _PAGE_PRESENT
+	bne-	cr0, 2f
+
+	/* Clear PP lsb, 0x400 */
+	rlwinm 	r10, r10, 0, 22, 20
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21, 22 and 28 must be clear.
+	 * Software indicator bits 22 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
-2:	li	r11, 0x00f0
+	li	r11, 0x00f0
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
 	DO_8xx_CPU6(0x2d80, r3)
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
@@ -365,6 +365,22 @@ InstructionTLBMiss:
 	lwz	r3, 8(r0)
 #endif
 	rfi
+2:
+	mfspr	r11, SPRN_SRR1
+	/* clear all error bits as TLB Miss
+	 * sets a few unconditionally
+	*/
+	rlwinm	r11, r11, 0, 0xffff
+	mtspr	SPRN_SRR1, r11
+
+	mfspr	r10, SPRN_M_TW	/* Restore registers */
+	lwz	r11, 0(r0)
+	mtcr	r11
+	lwz	r11, 4(r0)
+#ifdef CONFIG_8xx_CPU6
+	lwz	r3, 8(r0)
+#endif
+	b	InstructionAccess
 
 	. = 0x1200
 DataStoreTLBMiss:
@@ -406,29 +422,45 @@ DataStoreTLBMiss:
 	 * above.
 	 */
 	rlwimi	r11, r10, 0, 27, 27
+	/* Insert the WriteThru flag into the TWC from the Linux PTE.
+	 * It is bit 25 in the Linux PTE and bit 30 in the TWC
+	 */
+	rlwimi	r11, r10, 32-5, 30, 30
 	DO_8xx_CPU6(0x3b80, r3)
 	mtspr	SPRN_MD_TWC, r11
 
-#ifdef CONFIG_SWAP
-	/* do not set the _PAGE_ACCESSED bit of a non-present page */
-	andi.	r11, r10, _PAGE_PRESENT
-	beq	4f
-	ori	r10, r10, _PAGE_ACCESSED
-4:
-	/* and update pte in table */
-#else
-	ori	r10, r10, _PAGE_ACCESSED
-#endif
-	mfspr	r11, SPRN_MD_TWC	/* get the pte address again */
-	stw	r10, 0(r11)
+	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
+	 * We also need to know if the insn is a load/store, so:
+	 * Clear _PAGE_PRESENT and load that which will
+	 * trap into DTLB Error with store bit set accordinly.
+	 */
+	/* PRESENT=0x1, ACCESSED=0x20
+	 * r11 = ((r10 & PRESENT) & ((r10 & ACCESSED) >> 5));
+	 * r10 = (r10 & ~PRESENT) | r11;
+	 */
+	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
+	and	r11, r11, r10
+	rlwimi	r10, r11, 0, _PAGE_PRESENT
+
+	/* Honour kernel RO, User NA */
+	/* 0x200 == Extended encoding, bit 22 */
+	/* r11 =  (r10 & _PAGE_USER) >> 2 */
+	rlwinm	r11, r10, 32-2, 0x200
+	or	r10, r11, r10
+	/* r11 =  (r10 & _PAGE_RW) >> 1 */
+	rlwinm	r11, r10, 32-1, 0x200
+	or	r10, r11, r10
+	/* invert RW and 0x200 bits */
+	xori	r10, r10, _PAGE_RW | 0x200
 
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21, 22 and 28 must be clear.
+	 * Software indicator bits 22 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
 2:	li	r11, 0x00f0
+	mtspr	SPRN_DAR,r11	/* Tag DAR */
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
 	DO_8xx_CPU6(0x3d80, r3)
 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
@@ -469,97 +501,10 @@ DataTLBError:
 	stw	r10, 0(r0)
 	stw	r11, 4(r0)
 
-	/* First, make sure this was a store operation.
-	*/
-	mfspr	r10, SPRN_DSISR
-	andis.	r11, r10, 0x0200	/* If set, indicates store op */
-	beq	2f
-
-	/* The EA of a data TLB miss is automatically stored in the MD_EPN
-	 * register.  The EA of a data TLB error is automatically stored in
-	 * the DAR, but not the MD_EPN register.  We must copy the 20 most
-	 * significant bits of the EA from the DAR to MD_EPN before we
-	 * start walking the page tables.  We also need to copy the CASID
-	 * value from the M_CASID register.
-	 * Addendum:  The EA of a data TLB error is _supposed_ to be stored
-	 * in DAR, but it seems that this doesn't happen in some cases, such
-	 * as when the error is due to a dcbi instruction to a page with a
-	 * TLB that doesn't have the changed bit set.  In such cases, there
-	 * does not appear to be any way  to recover the EA of the error
-	 * since it is neither in DAR nor MD_EPN.  As a workaround, the
-	 * _PAGE_HWWRITE bit is set for all kernel data pages when the PTEs
-	 * are initialized in mapin_ram().  This will avoid the problem,
-	 * assuming we only use the dcbi instruction on kernel addresses.
-	 */
 	mfspr	r10, SPRN_DAR
-	rlwinm	r11, r10, 0, 0, 19
-	ori	r11, r11, MD_EVALID
-	mfspr	r10, SPRN_M_CASID
-	rlwimi	r11, r10, 0, 28, 31
-	DO_8xx_CPU6(0x3780, r3)
-	mtspr	SPRN_MD_EPN, r11
-
-	mfspr	r10, SPRN_M_TWB	/* Get level 1 table entry address */
-
-	/* If we are faulting a kernel address, we have to use the
-	 * kernel page tables.
-	 */
-	andi.	r11, r10, 0x0800
-	beq	3f
-	lis	r11, swapper_pg_dir@h
-	ori	r11, r11, swapper_pg_dir@l
-	rlwimi	r10, r11, 0, 2, 19
-3:
-	lwz	r11, 0(r10)	/* Get the level 1 entry */
-	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
-	beq	2f		/* If zero, bail */
-
-	/* We have a pte table, so fetch the pte from the table.
-	 */
-	ori	r11, r11, 1		/* Set valid bit in physical L2 page */
-	DO_8xx_CPU6(0x3b80, r3)
-	mtspr	SPRN_MD_TWC, r11		/* Load pte table base address */
-	mfspr	r11, SPRN_MD_TWC		/* ....and get the pte address */
-	lwz	r10, 0(r11)		/* Get the pte */
-
-	andi.	r11, r10, _PAGE_RW	/* Is it writeable? */
-	beq	2f			/* Bail out if not */
-
-	/* Update 'changed', among others.
-	*/
-#ifdef CONFIG_SWAP
-	ori	r10, r10, _PAGE_DIRTY|_PAGE_HWWRITE
-	/* do not set the _PAGE_ACCESSED bit of a non-present page */
-	andi.	r11, r10, _PAGE_PRESENT
-	beq	4f
-	ori	r10, r10, _PAGE_ACCESSED
-4:
-#else
-	ori	r10, r10, _PAGE_DIRTY|_PAGE_ACCESSED|_PAGE_HWWRITE
-#endif
-	mfspr	r11, SPRN_MD_TWC		/* Get pte address again */
-	stw	r10, 0(r11)		/* and update pte in table */
-
-	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 21, 22 and 28 must be clear.
-	 * Software indicator bits 24, 25, 26, and 27 must be
-	 * set.  All other Linux PTE bits control the behavior
-	 * of the MMU.
-	 */
-	li	r11, 0x00f0
-	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
-	DO_8xx_CPU6(0x3d80, r3)
-	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
-
-	mfspr	r10, SPRN_M_TW	/* Restore registers */
-	lwz	r11, 0(r0)
-	mtcr	r11
-	lwz	r11, 4(r0)
-#ifdef CONFIG_8xx_CPU6
-	lwz	r3, 8(r0)
-#endif
-	rfi
-2:
+	cmpwi	cr0, r10, 0x00f0
+	beq-	FixupDAR	/* must be a buggy dcbX, icbi insn. */
+DARFixed:/* Return from dcbx instruction bug workaround, r10 holds value of DAR */
 	mfspr	r10, SPRN_M_TW	/* Restore registers */
 	lwz	r11, 0(r0)
 	mtcr	r11
@@ -587,6 +532,140 @@ DataTLBError:
 	EXCEPTION(0x1f00, Trap_1f, unknown_exception, EXC_XFER_EE)
 
 	. = 0x2000
+
+/* This is the procedure to calculate the data EA for buggy dcbx,dcbi instructions
+ * by decoding the registers used by the dcbx instruction and adding them.
+ * DAR is set to the calculated address and r10 also holds the EA on exit.
+ */
+ /* define if you don't want to use self modifying code */
+#define NO_SELF_MODIFYING_CODE
+FixupDAR:/* Entry point for dcbx workaround. */
+	/* fetch instruction from memory. */
+	mfspr	r10, SPRN_SRR0
+	andis.	r11, r10, 0x8000	/* Address >= 0x80000000 */
+	DO_8xx_CPU6(0x3780, r3)
+	mtspr	SPRN_MD_EPN, r10
+	mfspr	r11, SPRN_M_TWB	/* Get level 1 table entry address */
+	beq-	3f		/* Branch if user space */
+	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
+	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
+	rlwimi	r11, r10, 32-20, 0xffc /* r11 = r11&~0xffc|(r10>>20)&0xffc */
+3:	lwz	r11, 0(r11)	/* Get the level 1 entry */
+	DO_8xx_CPU6(0x3b80, r3)
+	mtspr	SPRN_MD_TWC, r11	/* Load pte table base address */
+	mfspr	r11, SPRN_MD_TWC	/* ....and get the pte address */
+	lwz	r11, 0(r11)	/* Get the pte */
+	/* concat physical page address(r11) and page offset(r10) */
+	rlwimi	r11, r10, 0, 20, 31
+	lwz	r11,0(r11)
+/* Check if it really is a dcbx instruction. */
+/* dcbt and dcbtst does not generate DTLB Misses/Errors,
+ * no need to include them here */
+	srwi	r10, r11, 26	/* check if major OP code is 31 */
+	cmpwi	cr0, r10, 31
+	bne-	141f
+	rlwinm	r10, r11, 0, 21, 30
+	cmpwi	cr0, r10, 2028	/* Is dcbz? */
+	beq+	142f
+	cmpwi	cr0, r10, 940	/* Is dcbi? */
+	beq+	142f
+	cmpwi	cr0, r10, 108	/* Is dcbst? */
+	beq+	144f		/* Fix up store bit! */
+	cmpwi	cr0, r10, 172	/* Is dcbf? */
+	beq+	142f
+	cmpwi	cr0, r10, 1964	/* Is icbi? */
+	beq+	142f
+141:	mfspr	r10, SPRN_DAR	/* r10 must hold DAR at exit */
+	b	DARFixed	/* Nope, go back to normal TLB processing */
+
+144:	mfspr	r10, SPRN_DSISR
+	rlwinm	r10, r10,0,7,5	/* Clear store bit for buggy dcbst insn */
+	mtspr	SPRN_DSISR, r10
+142:	/* continue, it was a dcbx, dcbi instruction. */
+#ifdef CONFIG_8xx_CPU6
+	lwz	r3, 8(r0)	/* restore r3 from memory */
+#endif
+#ifndef NO_SELF_MODIFYING_CODE
+	andis.	r10,r11,0x1f	/* test if reg RA is r0 */
+	li	r10,modified_instr@l
+	dcbtst	r0,r10		/* touch for store */
+	rlwinm	r11,r11,0,0,20	/* Zero lower 10 bits */
+	oris	r11,r11,640	/* Transform instr. to a "add r10,RA,RB" */
+	ori	r11,r11,532
+	stw	r11,0(r10)	/* store add/and instruction */
+	dcbf	0,r10		/* flush new instr. to memory. */
+	icbi	0,r10		/* invalidate instr. cache line */
+	lwz	r11, 4(r0)	/* restore r11 from memory */
+	mfspr	r10, SPRN_M_TW	/* restore r10 from M_TW */
+	isync			/* Wait until new instr is loaded from memory */
+modified_instr:
+	.space	4		/* this is where the add instr. is stored */
+	bne+	143f
+	subf	r10,r0,r10	/* r10=r10-r0, only if reg RA is r0 */
+143:	mtdar	r10		/* store faulting EA in DAR */
+	b	DARFixed	/* Go back to normal TLB handling */
+#else
+	mfctr	r10
+	mtdar	r10			/* save ctr reg in DAR */
+	rlwinm	r10, r11, 24, 24, 28	/* offset into jump table for reg RB */
+	addi	r10, r10, 150f@l	/* add start of table */
+	mtctr	r10			/* load ctr with jump address */
+	xor	r10, r10, r10		/* sum starts at zero */
+	bctr				/* jump into table */
+150:
+	add	r10, r10, r0	;b	151f
+	add	r10, r10, r1	;b	151f
+	add	r10, r10, r2	;b	151f
+	add	r10, r10, r3	;b	151f
+	add	r10, r10, r4	;b	151f
+	add	r10, r10, r5	;b	151f
+	add	r10, r10, r6	;b	151f
+	add	r10, r10, r7	;b	151f
+	add	r10, r10, r8	;b	151f
+	add	r10, r10, r9	;b	151f
+	mtctr	r11	;b	154f	/* r10 needs special handling */
+	mtctr	r11	;b	153f	/* r11 needs special handling */
+	add	r10, r10, r12	;b	151f
+	add	r10, r10, r13	;b	151f
+	add	r10, r10, r14	;b	151f
+	add	r10, r10, r15	;b	151f
+	add	r10, r10, r16	;b	151f
+	add	r10, r10, r17	;b	151f
+	add	r10, r10, r18	;b	151f
+	add	r10, r10, r19	;b	151f
+	add	r10, r10, r20	;b	151f
+	add	r10, r10, r21	;b	151f
+	add	r10, r10, r22	;b	151f
+	add	r10, r10, r23	;b	151f
+	add	r10, r10, r24	;b	151f
+	add	r10, r10, r25	;b	151f
+	add	r10, r10, r26	;b	151f
+	add	r10, r10, r27	;b	151f
+	add	r10, r10, r28	;b	151f
+	add	r10, r10, r29	;b	151f
+	add	r10, r10, r30	;b	151f
+	add	r10, r10, r31
+151:
+	rlwinm. r11,r11,19,24,28	/* offset into jump table for reg RA */
+	beq	152f			/* if reg RA is zero, don't add it */
+	addi	r11, r11, 150b@l	/* add start of table */
+	mtctr	r11			/* load ctr with jump address */
+	rlwinm	r11,r11,0,16,10		/* make sure we don't execute this more than once */
+	bctr				/* jump into table */
+152:
+	mfdar	r11
+	mtctr	r11			/* restore ctr reg from DAR */
+	mtdar	r10			/* save fault EA to DAR */
+	b	DARFixed		/* Go back to normal TLB handling */
+
+	/* special handling for r10,r11 since these are modified already */
+153:	lwz	r11, 4(r0)	/* load r11 from memory */
+	b	155f
+154:	mfspr	r11, SPRN_M_TW	/* load r10 from M_TW */
+155:	add	r10, r10, r11	/* add it */
+	mfctr	r11		/* restore r11 */
+	b	151b
+#endif
 
 	.globl	giveup_fpu
 giveup_fpu:
@@ -689,12 +768,12 @@ start_here:
  */
 initial_mmu:
 	tlbia			/* Invalidate all TLB entries */
-#ifdef CONFIG_PIN_TLB
+/* Always pin the first 8 MB ITLB to prevent ITLB
+   misses while mucking around with SRR0/SRR1 in asm
+*/
 	lis	r8, MI_RSV4I@h
 	ori	r8, r8, 0x1c00
-#else
-	li	r8, 0
-#endif
+
 	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
 
 #ifdef CONFIG_PIN_TLB

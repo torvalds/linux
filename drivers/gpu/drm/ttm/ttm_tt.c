@@ -192,22 +192,32 @@ int ttm_tt_populate(struct ttm_tt *ttm)
 	ttm->state = tt_unbound;
 	return 0;
 }
+EXPORT_SYMBOL(ttm_tt_populate);
 
 #ifdef CONFIG_X86
 static inline int ttm_tt_set_page_caching(struct page *p,
 					  enum ttm_caching_state c_state)
 {
+	int ret = 0;
+
 	if (PageHighMem(p))
 		return 0;
 
-	switch (c_state) {
-	case tt_cached:
-		return set_pages_wb(p, 1);
-	case tt_wc:
-	    return set_memory_wc((unsigned long) page_address(p), 1);
-	default:
-		return set_pages_uc(p, 1);
+	if (get_page_memtype(p) != -1) {
+		/* p isn't in the default caching state, set it to
+		 * writeback first to free its current memtype. */
+
+		ret = set_pages_wb(p, 1);
+		if (ret)
+			return ret;
 	}
+
+	if (c_state == tt_wc)
+		ret = set_memory_wc((unsigned long) page_address(p), 1);
+	else if (c_state == tt_uncached)
+		ret = set_pages_uc(p, 1);
+
+	return ret;
 }
 #else /* CONFIG_X86 */
 static inline int ttm_tt_set_page_caching(struct page *p,

@@ -456,7 +456,215 @@
 #define         WAIT_2D_IDLECLEAN_bit                           (1 << 16)
 #define         WAIT_3D_IDLECLEAN_bit                           (1 << 17)
 
+#define IH_RB_CNTL                                        0x3e00
+#       define IH_RB_ENABLE                               (1 << 0)
+#       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
+#       define IH_RB_FULL_DRAIN_ENABLE                    (1 << 6)
+#       define IH_WPTR_WRITEBACK_ENABLE                   (1 << 8)
+#       define IH_WPTR_WRITEBACK_TIMER(x)                 ((x) << 9) /* log2 */
+#       define IH_WPTR_OVERFLOW_ENABLE                    (1 << 16)
+#       define IH_WPTR_OVERFLOW_CLEAR                     (1 << 31)
+#define IH_RB_BASE                                        0x3e04
+#define IH_RB_RPTR                                        0x3e08
+#define IH_RB_WPTR                                        0x3e0c
+#       define RB_OVERFLOW                                (1 << 0)
+#       define WPTR_OFFSET_MASK                           0x3fffc
+#define IH_RB_WPTR_ADDR_HI                                0x3e10
+#define IH_RB_WPTR_ADDR_LO                                0x3e14
+#define IH_CNTL                                           0x3e18
+#       define ENABLE_INTR                                (1 << 0)
+#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP_NONE                            0
+#       define IH_MC_SWAP_16BIT                           1
+#       define IH_MC_SWAP_32BIT                           2
+#       define IH_MC_SWAP_64BIT                           3
+#       define RPTR_REARM                                 (1 << 4)
+#       define MC_WRREQ_CREDIT(x)                         ((x) << 15)
+#       define MC_WR_CLEAN_CNT(x)                         ((x) << 20)
 
+#define RLC_CNTL                                          0x3f00
+#       define RLC_ENABLE                                 (1 << 0)
+#define RLC_HB_BASE                                       0x3f10
+#define RLC_HB_CNTL                                       0x3f0c
+#define RLC_HB_RPTR                                       0x3f20
+#define RLC_HB_WPTR                                       0x3f1c
+#define RLC_HB_WPTR_LSB_ADDR                              0x3f14
+#define RLC_HB_WPTR_MSB_ADDR                              0x3f18
+#define RLC_MC_CNTL                                       0x3f44
+#define RLC_UCODE_CNTL                                    0x3f48
+#define RLC_UCODE_ADDR                                    0x3f2c
+#define RLC_UCODE_DATA                                    0x3f30
+
+#define SRBM_SOFT_RESET                                   0xe60
+#       define SOFT_RESET_RLC                             (1 << 13)
+
+#define CP_INT_CNTL                                       0xc124
+#       define CNTX_BUSY_INT_ENABLE                       (1 << 19)
+#       define CNTX_EMPTY_INT_ENABLE                      (1 << 20)
+#       define SCRATCH_INT_ENABLE                         (1 << 25)
+#       define TIME_STAMP_INT_ENABLE                      (1 << 26)
+#       define IB2_INT_ENABLE                             (1 << 29)
+#       define IB1_INT_ENABLE                             (1 << 30)
+#       define RB_INT_ENABLE                              (1 << 31)
+#define CP_INT_STATUS                                     0xc128
+#       define SCRATCH_INT_STAT                           (1 << 25)
+#       define TIME_STAMP_INT_STAT                        (1 << 26)
+#       define IB2_INT_STAT                               (1 << 29)
+#       define IB1_INT_STAT                               (1 << 30)
+#       define RB_INT_STAT                                (1 << 31)
+
+#define GRBM_INT_CNTL                                     0x8060
+#       define RDERR_INT_ENABLE                           (1 << 0)
+#       define WAIT_COUNT_TIMEOUT_INT_ENABLE              (1 << 1)
+#       define GUI_IDLE_INT_ENABLE                        (1 << 19)
+
+#define INTERRUPT_CNTL                                    0x5468
+#       define IH_DUMMY_RD_OVERRIDE                       (1 << 0)
+#       define IH_DUMMY_RD_EN                             (1 << 1)
+#       define IH_REQ_NONSNOOP_EN                         (1 << 3)
+#       define GEN_IH_INT_EN                              (1 << 8)
+#define INTERRUPT_CNTL2                                   0x546c
+
+#define D1MODE_VBLANK_STATUS                              0x6534
+#define D2MODE_VBLANK_STATUS                              0x6d34
+#       define DxMODE_VBLANK_OCCURRED                     (1 << 0)
+#       define DxMODE_VBLANK_ACK                          (1 << 4)
+#       define DxMODE_VBLANK_STAT                         (1 << 12)
+#       define DxMODE_VBLANK_INTERRUPT                    (1 << 16)
+#       define DxMODE_VBLANK_INTERRUPT_TYPE               (1 << 17)
+#define D1MODE_VLINE_STATUS                               0x653c
+#define D2MODE_VLINE_STATUS                               0x6d3c
+#       define DxMODE_VLINE_OCCURRED                      (1 << 0)
+#       define DxMODE_VLINE_ACK                           (1 << 4)
+#       define DxMODE_VLINE_STAT                          (1 << 12)
+#       define DxMODE_VLINE_INTERRUPT                     (1 << 16)
+#       define DxMODE_VLINE_INTERRUPT_TYPE                (1 << 17)
+#define DxMODE_INT_MASK                                   0x6540
+#       define D1MODE_VBLANK_INT_MASK                     (1 << 0)
+#       define D1MODE_VLINE_INT_MASK                      (1 << 4)
+#       define D2MODE_VBLANK_INT_MASK                     (1 << 8)
+#       define D2MODE_VLINE_INT_MASK                      (1 << 12)
+#define DCE3_DISP_INTERRUPT_STATUS                        0x7ddc
+#       define DC_HPD1_INTERRUPT                          (1 << 18)
+#       define DC_HPD2_INTERRUPT                          (1 << 19)
+#define DISP_INTERRUPT_STATUS                             0x7edc
+#       define LB_D1_VLINE_INTERRUPT                      (1 << 2)
+#       define LB_D2_VLINE_INTERRUPT                      (1 << 3)
+#       define LB_D1_VBLANK_INTERRUPT                     (1 << 4)
+#       define LB_D2_VBLANK_INTERRUPT                     (1 << 5)
+#       define DACA_AUTODETECT_INTERRUPT                  (1 << 16)
+#       define DACB_AUTODETECT_INTERRUPT                  (1 << 17)
+#       define DC_HOT_PLUG_DETECT1_INTERRUPT              (1 << 18)
+#       define DC_HOT_PLUG_DETECT2_INTERRUPT              (1 << 19)
+#       define DC_I2C_SW_DONE_INTERRUPT                   (1 << 20)
+#       define DC_I2C_HW_DONE_INTERRUPT                   (1 << 21)
+#define DISP_INTERRUPT_STATUS_CONTINUE                    0x7ee8
+#define DCE3_DISP_INTERRUPT_STATUS_CONTINUE               0x7de8
+#       define DC_HPD4_INTERRUPT                          (1 << 14)
+#       define DC_HPD4_RX_INTERRUPT                       (1 << 15)
+#       define DC_HPD3_INTERRUPT                          (1 << 28)
+#       define DC_HPD1_RX_INTERRUPT                       (1 << 29)
+#       define DC_HPD2_RX_INTERRUPT                       (1 << 30)
+#define DCE3_DISP_INTERRUPT_STATUS_CONTINUE2              0x7dec
+#       define DC_HPD3_RX_INTERRUPT                       (1 << 0)
+#       define DIGA_DP_VID_STREAM_DISABLE_INTERRUPT       (1 << 1)
+#       define DIGA_DP_STEER_FIFO_OVERFLOW_INTERRUPT      (1 << 2)
+#       define DIGB_DP_VID_STREAM_DISABLE_INTERRUPT       (1 << 3)
+#       define DIGB_DP_STEER_FIFO_OVERFLOW_INTERRUPT      (1 << 4)
+#       define AUX1_SW_DONE_INTERRUPT                     (1 << 5)
+#       define AUX1_LS_DONE_INTERRUPT                     (1 << 6)
+#       define AUX2_SW_DONE_INTERRUPT                     (1 << 7)
+#       define AUX2_LS_DONE_INTERRUPT                     (1 << 8)
+#       define AUX3_SW_DONE_INTERRUPT                     (1 << 9)
+#       define AUX3_LS_DONE_INTERRUPT                     (1 << 10)
+#       define AUX4_SW_DONE_INTERRUPT                     (1 << 11)
+#       define AUX4_LS_DONE_INTERRUPT                     (1 << 12)
+#       define DIGA_DP_FAST_TRAINING_COMPLETE_INTERRUPT   (1 << 13)
+#       define DIGB_DP_FAST_TRAINING_COMPLETE_INTERRUPT   (1 << 14)
+/* DCE 3.2 */
+#       define AUX5_SW_DONE_INTERRUPT                     (1 << 15)
+#       define AUX5_LS_DONE_INTERRUPT                     (1 << 16)
+#       define AUX6_SW_DONE_INTERRUPT                     (1 << 17)
+#       define AUX6_LS_DONE_INTERRUPT                     (1 << 18)
+#       define DC_HPD5_INTERRUPT                          (1 << 19)
+#       define DC_HPD5_RX_INTERRUPT                       (1 << 20)
+#       define DC_HPD6_INTERRUPT                          (1 << 21)
+#       define DC_HPD6_RX_INTERRUPT                       (1 << 22)
+
+#define DACA_AUTO_DETECT_CONTROL                          0x7828
+#define DACB_AUTO_DETECT_CONTROL                          0x7a28
+#define DCE3_DACA_AUTO_DETECT_CONTROL                     0x7028
+#define DCE3_DACB_AUTO_DETECT_CONTROL                     0x7128
+#       define DACx_AUTODETECT_MODE(x)                    ((x) << 0)
+#       define DACx_AUTODETECT_MODE_NONE                  0
+#       define DACx_AUTODETECT_MODE_CONNECT               1
+#       define DACx_AUTODETECT_MODE_DISCONNECT            2
+#       define DACx_AUTODETECT_FRAME_TIME_COUNTER(x)      ((x) << 8)
+/* bit 18 = R/C, 17 = G/Y, 16 = B/Comp */
+#       define DACx_AUTODETECT_CHECK_MASK(x)              ((x) << 16)
+
+#define DCE3_DACA_AUTODETECT_INT_CONTROL                  0x7038
+#define DCE3_DACB_AUTODETECT_INT_CONTROL                  0x7138
+#define DACA_AUTODETECT_INT_CONTROL                       0x7838
+#define DACB_AUTODETECT_INT_CONTROL                       0x7a38
+#       define DACx_AUTODETECT_ACK                        (1 << 0)
+#       define DACx_AUTODETECT_INT_ENABLE                 (1 << 16)
+
+#define DC_HOT_PLUG_DETECT1_CONTROL                       0x7d00
+#define DC_HOT_PLUG_DETECT2_CONTROL                       0x7d10
+#define DC_HOT_PLUG_DETECT3_CONTROL                       0x7d24
+#       define DC_HOT_PLUG_DETECTx_EN                     (1 << 0)
+
+#define DC_HOT_PLUG_DETECT1_INT_STATUS                    0x7d04
+#define DC_HOT_PLUG_DETECT2_INT_STATUS                    0x7d14
+#define DC_HOT_PLUG_DETECT3_INT_STATUS                    0x7d28
+#       define DC_HOT_PLUG_DETECTx_INT_STATUS             (1 << 0)
+#       define DC_HOT_PLUG_DETECTx_SENSE                  (1 << 1)
+
+/* DCE 3.0 */
+#define DC_HPD1_INT_STATUS                                0x7d00
+#define DC_HPD2_INT_STATUS                                0x7d0c
+#define DC_HPD3_INT_STATUS                                0x7d18
+#define DC_HPD4_INT_STATUS                                0x7d24
+/* DCE 3.2 */
+#define DC_HPD5_INT_STATUS                                0x7dc0
+#define DC_HPD6_INT_STATUS                                0x7df4
+#       define DC_HPDx_INT_STATUS                         (1 << 0)
+#       define DC_HPDx_SENSE                              (1 << 1)
+#       define DC_HPDx_RX_INT_STATUS                      (1 << 8)
+
+#define DC_HOT_PLUG_DETECT1_INT_CONTROL                   0x7d08
+#define DC_HOT_PLUG_DETECT2_INT_CONTROL                   0x7d18
+#define DC_HOT_PLUG_DETECT3_INT_CONTROL                   0x7d2c
+#       define DC_HOT_PLUG_DETECTx_INT_ACK                (1 << 0)
+#       define DC_HOT_PLUG_DETECTx_INT_POLARITY           (1 << 8)
+#       define DC_HOT_PLUG_DETECTx_INT_EN                 (1 << 16)
+/* DCE 3.0 */
+#define DC_HPD1_INT_CONTROL                               0x7d04
+#define DC_HPD2_INT_CONTROL                               0x7d10
+#define DC_HPD3_INT_CONTROL                               0x7d1c
+#define DC_HPD4_INT_CONTROL                               0x7d28
+/* DCE 3.2 */
+#define DC_HPD5_INT_CONTROL                               0x7dc4
+#define DC_HPD6_INT_CONTROL                               0x7df8
+#       define DC_HPDx_INT_ACK                            (1 << 0)
+#       define DC_HPDx_INT_POLARITY                       (1 << 8)
+#       define DC_HPDx_INT_EN                             (1 << 16)
+#       define DC_HPDx_RX_INT_ACK                         (1 << 20)
+#       define DC_HPDx_RX_INT_EN                          (1 << 24)
+
+/* DCE 3.0 */
+#define DC_HPD1_CONTROL                                   0x7d08
+#define DC_HPD2_CONTROL                                   0x7d14
+#define DC_HPD3_CONTROL                                   0x7d20
+#define DC_HPD4_CONTROL                                   0x7d2c
+/* DCE 3.2 */
+#define DC_HPD5_CONTROL                                   0x7dc8
+#define DC_HPD6_CONTROL                                   0x7dfc
+#       define DC_HPDx_CONNECTION_TIMER(x)                ((x) << 0)
+#       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
+/* DCE 3.2 */
+#       define DC_HPDx_EN                                 (1 << 28)
 
 /*
  * PM4
@@ -500,7 +708,6 @@
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_INDIRECT_BUFFER				0x32
-#define	PACKET3_CP_INTERRUPT				0x40
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_TC_ACTION_ENA        (1 << 23)
@@ -673,5 +880,31 @@
 #define		S_000E60_SOFT_RESET_SEM(x)		(((x) & 1) << 15)
 #define		S_000E60_SOFT_RESET_TSC(x)		(((x) & 1) << 16)
 #define		S_000E60_SOFT_RESET_VMC(x)		(((x) & 1) << 17)
+
+#define R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL		0x5480
+
+#define R_0280E0_CB_COLOR0_FRAG                      0x0280E0
+#define   S_0280E0_BASE_256B(x)                        (((x) & 0xFFFFFFFF) << 0)
+#define   G_0280E0_BASE_256B(x)                        (((x) >> 0) & 0xFFFFFFFF)
+#define   C_0280E0_BASE_256B                           0x00000000
+#define R_0280E4_CB_COLOR1_FRAG                      0x0280E4
+#define R_0280E8_CB_COLOR2_FRAG                      0x0280E8
+#define R_0280EC_CB_COLOR3_FRAG                      0x0280EC
+#define R_0280F0_CB_COLOR4_FRAG                      0x0280F0
+#define R_0280F4_CB_COLOR5_FRAG                      0x0280F4
+#define R_0280F8_CB_COLOR6_FRAG                      0x0280F8
+#define R_0280FC_CB_COLOR7_FRAG                      0x0280FC
+#define R_0280C0_CB_COLOR0_TILE                      0x0280C0
+#define   S_0280C0_BASE_256B(x)                        (((x) & 0xFFFFFFFF) << 0)
+#define   G_0280C0_BASE_256B(x)                        (((x) >> 0) & 0xFFFFFFFF)
+#define   C_0280C0_BASE_256B                           0x00000000
+#define R_0280C4_CB_COLOR1_TILE                      0x0280C4
+#define R_0280C8_CB_COLOR2_TILE                      0x0280C8
+#define R_0280CC_CB_COLOR3_TILE                      0x0280CC
+#define R_0280D0_CB_COLOR4_TILE                      0x0280D0
+#define R_0280D4_CB_COLOR5_TILE                      0x0280D4
+#define R_0280D8_CB_COLOR6_TILE                      0x0280D8
+#define R_0280DC_CB_COLOR7_TILE                      0x0280DC
+
 
 #endif

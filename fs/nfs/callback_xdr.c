@@ -23,6 +23,7 @@
 #if defined(CONFIG_NFS_V4_1)
 #define CB_OP_SEQUENCE_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ + \
 					4 + 1 + 3)
+#define CB_OP_RECALLANY_RES_MAXSZ	(CB_OP_HDR_RES_MAXSZ)
 #endif /* CONFIG_NFS_V4_1 */
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
@@ -326,6 +327,25 @@ out_free:
 	goto out;
 }
 
+static unsigned decode_recallany_args(struct svc_rqst *rqstp,
+				      struct xdr_stream *xdr,
+				      struct cb_recallanyargs *args)
+{
+	uint32_t *p;
+
+	args->craa_addr = svc_addr(rqstp);
+	p = read_buf(xdr, 4);
+	if (unlikely(p == NULL))
+		return htonl(NFS4ERR_BADXDR);
+	args->craa_objs_to_keep = ntohl(*p++);
+	p = read_buf(xdr, 4);
+	if (unlikely(p == NULL))
+		return htonl(NFS4ERR_BADXDR);
+	args->craa_type_mask = ntohl(*p);
+
+	return 0;
+}
+
 #endif /* CONFIG_NFS_V4_1 */
 
 static __be32 encode_string(struct xdr_stream *xdr, unsigned int len, const char *str)
@@ -533,6 +553,7 @@ preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
 	case OP_CB_GETATTR:
 	case OP_CB_RECALL:
 	case OP_CB_SEQUENCE:
+	case OP_CB_RECALL_ANY:
 		*op = &callback_ops[op_nr];
 		break;
 
@@ -540,7 +561,6 @@ preprocess_nfs41_op(int nop, unsigned int op_nr, struct callback_op **op)
 	case OP_CB_NOTIFY_DEVICEID:
 	case OP_CB_NOTIFY:
 	case OP_CB_PUSH_DELEG:
-	case OP_CB_RECALL_ANY:
 	case OP_CB_RECALLABLE_OBJ_AVAIL:
 	case OP_CB_RECALL_SLOT:
 	case OP_CB_WANTS_CANCELLED:
@@ -688,6 +708,11 @@ static struct callback_op callback_ops[] = {
 		.encode_res = (callback_encode_res_t)encode_cb_sequence_res,
 		.res_maxsize = CB_OP_SEQUENCE_RES_MAXSZ,
 	},
+	[OP_CB_RECALL_ANY] = {
+		.process_op = (callback_process_op_t)nfs4_callback_recallany,
+		.decode_args = (callback_decode_arg_t)decode_recallany_args,
+		.res_maxsize = CB_OP_RECALLANY_RES_MAXSZ,
+	},
 #endif /* CONFIG_NFS_V4_1 */
 };
 
@@ -718,3 +743,10 @@ struct svc_version nfs4_callback_version1 = {
 	.vs_dispatch = NULL,
 };
 
+struct svc_version nfs4_callback_version4 = {
+	.vs_vers = 4,
+	.vs_nproc = ARRAY_SIZE(nfs4_callback_procedures1),
+	.vs_proc = nfs4_callback_procedures1,
+	.vs_xdrsize = NFS4_CALLBACK_XDRSIZE,
+	.vs_dispatch = NULL,
+};

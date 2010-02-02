@@ -13,6 +13,8 @@
 #ifndef __ARCH_ARM_OMAP_CLOCK_H
 #define __ARCH_ARM_OMAP_CLOCK_H
 
+#include <linux/list.h>
+
 struct module;
 struct clk;
 struct clockdomain;
@@ -117,6 +119,7 @@ struct clk_functions {
 	void		(*clk_disable_unused)(struct clk *clk);
 #ifdef CONFIG_CPU_FREQ
 	void		(*clk_init_cpufreq_table)(struct cpufreq_frequency_table **);
+	void		(*clk_exit_cpufreq_table)(struct cpufreq_frequency_table **);
 #endif
 };
 
@@ -133,6 +136,7 @@ extern unsigned long followparent_recalc(struct clk *clk);
 extern void clk_enable_init_clocks(void);
 #ifdef CONFIG_CPU_FREQ
 extern void clk_init_cpufreq_table(struct cpufreq_frequency_table **table);
+extern void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table);
 #endif
 
 extern const struct clkops clkops_null;
@@ -148,6 +152,8 @@ extern const struct clkops clkops_null;
 #define CONFIG_PARTICIPANT	(1 << 10)	/* Fundamental clock */
 #define ENABLE_ON_INIT		(1 << 11)	/* Enable upon framework init */
 #define INVERT_ENABLE           (1 << 12)       /* 0 enables, 1 disables */
+#define CLOCK_IN_OMAP4430	(1 << 13)
+#define ALWAYS_ENABLED		(1 << 14)
 /* bits 13-31 are currently free */
 
 /* Clksel_rate flags */
@@ -156,6 +162,7 @@ extern const struct clkops clkops_null;
 #define RATE_IN_243X		(1 << 2)
 #define RATE_IN_343X		(1 << 3)	/* rates common to all 343X */
 #define RATE_IN_3430ES2		(1 << 4)	/* 3430ES2 rates only */
+#define RATE_IN_4430            (1 << 5)
 
 #define RATE_IN_24XX		(RATE_IN_242X | RATE_IN_243X)
 

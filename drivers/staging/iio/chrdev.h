@@ -75,10 +75,12 @@ struct iio_shared_ev_pointer {
  * @current_events:	number of events in detected list
  * @id:			indentifier to allow the event interface to know which
  *			physical line it corresponds to
+ * @attr:		this chrdev's minor number sysfs attribute
  * @owner:		ensure the driver module owns the file, not iio
  * @private:		driver specific data
  * @_name:		used internally to store the sysfs name for minor id
  *			attribute
+ * @_attrname:		the event interface's attribute name
  */
 struct iio_event_interface {
 	struct device				dev;
@@ -105,7 +107,7 @@ struct iio_event_interface {
  * @handler:		event handler function - called on event if this
  *			event_handler is enabled.
  *
- * Each device has one list of these per interrupt line
+ * Each device has one list of these per interrupt line.
  **/
 struct iio_event_handler_list {
 	struct list_head	list;

@@ -154,19 +154,10 @@ static const struct ov9640_reg ov9640_regs_rgb[] = {
 	{ OV9640_MTXS,	0x65 },
 };
 
-/*
- * TODO: this sensor also supports RGB555 and RGB565 formats, but support for
- * them has not yet been sufficiently tested and so it is not included with
- * this version of the driver. To test and debug these formats add two entries
- * to the below array, see ov722x.c for an example.
- */
-static const struct soc_camera_data_format ov9640_fmt_lists[] = {
-	{
-		.name		= "UYVY",
-		.fourcc		= V4L2_PIX_FMT_UYVY,
-		.depth		= 16,
-		.colorspace	= V4L2_COLORSPACE_JPEG,
-	},
+static enum v4l2_mbus_pixelcode ov9640_codes[] = {
+	V4L2_MBUS_FMT_YUYV8_2X8_BE,
+	V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
+	V4L2_MBUS_FMT_RGB565_2X8_LE,
 };
 
 static const struct v4l2_queryctrl ov9640_controls[] = {
@@ -434,20 +425,22 @@ static void ov9640_res_roundup(u32 *width, u32 *height)
 }
 
 /* Prepare necessary register changes depending on color encoding */
-static void ov9640_alter_regs(u32 pixfmt, struct ov9640_reg_alt *alt)
+static void ov9640_alter_regs(enum v4l2_mbus_pixelcode code,
+			      struct ov9640_reg_alt *alt)
 {
-	switch (pixfmt) {
-	case V4L2_PIX_FMT_UYVY:
+	switch (code) {
+	default:
+	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
 		alt->com12	= OV9640_COM12_YUV_AVG;
 		alt->com13	= OV9640_COM13_Y_DELAY_EN |
 					OV9640_COM13_YUV_DLY(0x01);
 		break;
-	case V4L2_PIX_FMT_RGB555:
+	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
 		alt->com7	= OV9640_COM7_RGB;
 		alt->com13	= OV9640_COM13_RGB_AVG;
 		alt->com15	= OV9640_COM15_RGB_555;
 		break;
-	case V4L2_PIX_FMT_RGB565:
+	case V4L2_MBUS_FMT_RGB565_2X8_LE:
 		alt->com7	= OV9640_COM7_RGB;
 		alt->com13	= OV9640_COM13_RGB_AVG;
 		alt->com15	= OV9640_COM15_RGB_565;
@@ -456,8 +449,8 @@ static void ov9640_alter_regs(u32 pixfmt, struct ov9640_reg_alt *alt)
 }
 
 /* Setup registers according to resolution and color encoding */
-static int ov9640_write_regs(struct i2c_client *client,
-		u32 width, u32 pixfmt, struct ov9640_reg_alt *alts)
+static int ov9640_write_regs(struct i2c_client *client, u32 width,
+		enum v4l2_mbus_pixelcode code, struct ov9640_reg_alt *alts)
 {
 	const struct ov9640_reg	*ov9640_regs, *matrix_regs;
 	int			ov9640_regs_len, matrix_regs_len;
@@ -500,7 +493,7 @@ static int ov9640_write_regs(struct i2c_client *client,
 	}
 
 	/* select color matrix configuration for given color encoding */
-	if (pixfmt == V4L2_PIX_FMT_UYVY) {
+	if (code == V4L2_MBUS_FMT_YUYV8_2X8_BE) {
 		matrix_regs	= ov9640_regs_yuv;
 		matrix_regs_len	= ARRAY_SIZE(ov9640_regs_yuv);
 	} else {
@@ -562,15 +555,17 @@ static int ov9640_prog_dflt(struct i2c_client *client)
 }
 
 /* set the format we will capture in */
-static int ov9640_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int ov9640_s_fmt(struct v4l2_subdev *sd,
+			struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = sd->priv;
-	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct ov9640_reg_alt alts = {0};
+	enum v4l2_colorspace cspace;
+	enum v4l2_mbus_pixelcode code = mf->code;
 	int ret;
 
-	ov9640_res_roundup(&pix->width, &pix->height);
-	ov9640_alter_regs(pix->pixelformat, &alts);
+	ov9640_res_roundup(&mf->width, &mf->height);
+	ov9640_alter_regs(mf->code, &alts);
 
 	ov9640_reset(client);
 
@@ -578,16 +573,54 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	if (ret)
 		return ret;
 
-	return ov9640_write_regs(client, pix->width, pix->pixelformat, &alts);
+	switch (code) {
+	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
+	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+		cspace = V4L2_COLORSPACE_SRGB;
+		break;
+	default:
+		code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
+	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+		cspace = V4L2_COLORSPACE_JPEG;
+	}
+
+	ret = ov9640_write_regs(client, mf->width, code, &alts);
+	if (!ret) {
+		mf->code	= code;
+		mf->colorspace	= cspace;
+	}
+
+	return ret;
 }
 
-static int ov9640_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int ov9640_try_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_mbus_framefmt *mf)
 {
-	struct v4l2_pix_format *pix = &f->fmt.pix;
+	ov9640_res_roundup(&mf->width, &mf->height);
 
-	ov9640_res_roundup(&pix->width, &pix->height);
-	pix->field  = V4L2_FIELD_NONE;
+	mf->field = V4L2_FIELD_NONE;
 
+	switch (mf->code) {
+	case V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE:
+	case V4L2_MBUS_FMT_RGB565_2X8_LE:
+		mf->colorspace = V4L2_COLORSPACE_SRGB;
+		break;
+	default:
+		mf->code = V4L2_MBUS_FMT_YUYV8_2X8_BE;
+	case V4L2_MBUS_FMT_YUYV8_2X8_BE:
+		mf->colorspace = V4L2_COLORSPACE_JPEG;
+	}
+
+	return 0;
+}
+
+static int ov9640_enum_fmt(struct v4l2_subdev *sd, int index,
+			   enum v4l2_mbus_pixelcode *code)
+{
+	if ((unsigned int)index >= ARRAY_SIZE(ov9640_codes))
+		return -EINVAL;
+
+	*code = ov9640_codes[index];
 	return 0;
 }
 
@@ -636,9 +669,6 @@ static int ov9640_video_probe(struct soc_camera_device *icd,
 		ret = -ENODEV;
 		goto err;
 	}
-
-	icd->formats		= ov9640_fmt_lists;
-	icd->num_formats	= ARRAY_SIZE(ov9640_fmt_lists);
 
 	/*
 	 * check and show product ID and manufacturer ID
@@ -702,11 +732,12 @@ static struct v4l2_subdev_core_ops ov9640_core_ops = {
 };
 
 static struct v4l2_subdev_video_ops ov9640_video_ops = {
-	.s_stream		= ov9640_s_stream,
-	.s_fmt			= ov9640_s_fmt,
-	.try_fmt		= ov9640_try_fmt,
-	.cropcap		= ov9640_cropcap,
-	.g_crop			= ov9640_g_crop,
+	.s_stream	= ov9640_s_stream,
+	.s_mbus_fmt	= ov9640_s_fmt,
+	.try_mbus_fmt	= ov9640_try_fmt,
+	.enum_mbus_fmt	= ov9640_enum_fmt,
+	.cropcap	= ov9640_cropcap,
+	.g_crop		= ov9640_g_crop,
 
 };
 

@@ -87,12 +87,12 @@ static struct pci_driver phison_pci_driver = {
 #endif
 };
 
-static int phison_ide_init(void)
+static int __init phison_ide_init(void)
 {
 	return pci_register_driver(&phison_pci_driver);
 }
 
-static void phison_ide_exit(void)
+static void __exit phison_ide_exit(void)
 {
 	pci_unregister_driver(&phison_pci_driver);
 }

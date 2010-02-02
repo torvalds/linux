@@ -1,0 +1,641 @@
+==============================================================================
+Agere Systems Inc.                                                   July 2004
+Readme for Linux Driver Source for Wavelan                   Version: 7.22-abg
+==============================================================================
+
+This text file includes update information, installation instructions,
+limitations to the current version of the product, and suggestions to solve
+known issues or problems.
+
+
+TABLE OF CONTENTS.
+
+1.  DESCRIPTION
+2.  SYSTEM REQUIREMENTS
+3.  NEW IN THIS RELEASE
+4.  INSTALLATION NOTES
+5.  TECHNICAL CONSTRAINTS
+6.  KNOWN ISSUES
+7.  TECHNICAL SUPPORT
+
+------------------------------------------------------------------------------
+1.  DESCRIPTION
+
+    With this package, you can build and install a Wireless driver for a
+    specific Linux kernel.
+
+    The driver in this package supports the network interface cards based on:
+     - WL60010, a.k.a. Hermes-II
+     - WL60040, a.k.a. Hermes-II.5
+
+    Although derived from the Hermes-I/II Linux driver, this release ONLY
+    Supports Hermes-II/II.5 chipsets.  Hermes-I is no longer supported.
+
+    The software is distributed in a compressed source file archive:
+     - wl_lkm_7_22_abg.tar.gz
+
+    Because this release supports more than one Hermes CPU and bus
+    architecture, a naming convention is used for the resulting binaries that
+    can be built from this source code. Driver binaries are named as follows:
+
+    wlags49_<hermes_type>_<bus_arch>.o
+
+    where 'wlags49' denotes an Agere WaveLan Linux build,
+
+    <hermes_type> is: 'h2' for Hermes-II, 'h25' for Hermes-II.5
+
+    <bus_arch> is: 'cs' for Card Services (PCMCIA, Compact Flash), PCI for
+    PCI or MiniPCI.
+
+    For example, a driver built for Hermes-II Card Services (PCMCIA/Compact
+    Flash) is named wlags49_h2_cs.o, whereas a driver built for Hermes-II
+    MiniPCI is named wlags49_h2_pci.o.
+    The following software is included with this distribution:
+
+    General information:
+    * README.wlags49              This file
+    * LICENSE.wlags49             License
+    * wlags49.mk                  Top level Makefile
+    * Build                       Script to build driver
+    * Install                     Script to install driver
+
+    Driver source:
+    * wireless/                   MSF source
+    * hcf/                        HCF and F/W source
+    * wireless/wlags49_cs.mk      Driver Makefile, PC Card
+    * wireless/wlags49_pci.mk     Driver Makefile, PCI
+    * include/hcf/debug.h         Driver debug support
+    * include/hcf/hcfcfg.h        Header to configure HCF
+    * include/wireless/*.h        Driver source headers
+
+    Driver online manual page:
+    * man/wlags49.4               Driver manual page
+
+    PCMCIA configuration update:
+    * etc/wlags49.conf            Add-on config file
+    * etc/wlags49.mk              config update Makefile
+    * etc/wlags49.patch           config update patch file
+
+    The driver is build up of 2 modules:
+     - a higher module called Module Specific Functions (MSF), which contains
+       the functions of the driver that are network driver interface and
+       Operating System specific.
+     - a lower module called Hardware Control Functions (HCF), which contains
+       the functions to interface to the Network Interface Card (NIC).  The HCF
+       provides for all WaveLAN NIC types one standard interface to the MSF.
+       This I/F is called the Wireless Connection Interface (WCI) and is the
+       subject of a seperate document (025726).
+
+    The HCF directory contains firmware images to allow the card to operate in
+    either station (STA) or Access Point (AP) mode. In the build process, the
+    files fw_h2.c and fw_h25.c are used for Hermes-II and Hermes-II.5
+    respectively. The firmware images in this release are identified as:
+	 - HII Station F/W:      fw_h2.c.sta
+	 - HII.5 Station F/W:    fw_h25.c.sta
+	 - HII AccesPoint F/W:   fw_h2.c.ap
+	 - HII.5 AccesPoint F/W: fw_h25.c.ap
+	To build a STA or AP mode driver, the suffix .sta or .ap must be removed.
+	The files as distributed by this release build STA drivers by default.
+
+------------------------------------------------------------------------------
+2.  SYSTEM REQUIREMENTS
+
+2.1 Operating System
+
+    This software can be compiled and installed with Linux kernel versions
+    2.4.x. Although this driver should compile for other CPUs as well, as of
+    the date of this release, no CPU architectures other than x86 have been
+    verified.
+
+    wl_lkm_7_22_abg is tested with the following Linux Distributions:
+    * Red Hat version 9.0
+    * Suse    version 9.0
+
+    If you're building for PC Card or Compact Flash, you need the Card Services
+    from David Hinds.
+
+    wl_lkm_7_22_abg is tested with:
+    * pcmcia-cs-3.2.7.tar.gz
+
+2.2 Free Disk Space
+
+    To compile the software you need to have the full set of Linux kernel
+    source files installed, as well as a sane build environment which includes
+    all tools necessary for compiling and linking code. Depending on the exact
+    version of the kernel, you need approximately 150 MB of free disk space.
+    Once compiled, the driver uses about 150-200 KB.  Please note, this size is
+    approximate and can vary depending on which version of the driver is built.
+    In addition, adding debug tracing support increases this size.
+
+------------------------------------------------------------------------------
+3.  NEW IN THIS RELEASE
+
+Version 7.22 abg - July 28, 2004
+
+------------------------------------------------------------------------------
+4.  INSTALLATION NOTES
+
+    The driver files for the Linux driver are not "ready" for direct
+    installation onto any Linux computer.  To build and install the driver you
+    need some expertise on the Linux operating system in general and the type
+    and version installed of the kernel installed on your computer.  With this
+    knowledge you can use the driver source files provided to build your own
+    Linux driver for your specific computer and kernel.
+
+4.1 Before you start
+
+    1) Determine the type and version of the Linux kernel of your computer and
+    check whether it meets the system requirements listed in section 2 of this
+    README.
+
+    2) If you're building for PC Card or Compact Flash, read the Linux
+    PCMCIA-HOWTO by David Hinds. This document is probably provided on the
+    CD-ROM of your Linux distribution. You can download the latest version
+    from:
+
+        http://pcmcia-cs.sourceforge.net
+
+   Please read the section titled "Prerequisites and kernel setup" of the
+   PCMCIA-HOWTO.
+
+4.2 Build the driver for PC Card / Compact Flash
+
+    1) Obtain a copy of the Linux PCMCIA package from a CD-ROM of your Linux
+    distribution or download the latest version.
+    For your convenience, the Agere Systems Wireless CD-ROM contains a copy of
+    the PCMCIA package in sub-directory: Xtras/Linux/PCMCIA
+
+    2) To unpack the Linux PCMCIA package, copy it to the current working
+    directory and type:
+       % tar xzvf pcmcia-cs-x.y.z.tar.gz
+       % mv pcmcia-cs-x.y.z pcmcia-cs
+
+    Note: If you use the archive supplied on the CDROM, use archive name
+    "pc3_2_1.tgz" instead of "pcmcia-cs-3.2.7.tar.gz".
+
+    Note: even though PCMCIA code exists in the kernel source tree, the PCMCIA
+    Card Services package needs to be unpacked locally to build drivers based
+    on it.
+
+    3) Extract the wlags49 distribution archive on top of the Linux PCMCIA
+    package.
+       % cd pcmcia-cs
+       % tar xzvf ../wl_lkm_7_22_abg.tar.gz
+
+    4) To build and install the driver, follow the procedure below:
+       % ./Configure
+
+    Answer the presented questions. Usually the default answers are OK and
+    pressing "Enter" is enough.
+    On newer RedHat systems, however, you should specify "/usr/src/linux-2.4"
+    as the Linux source directory instead of the default "/usr/src/linux".
+
+    For more detailed information on configuration, building and installing,
+    see the PCMCIA-HOWTO.
+
+    To build the default drivers, which support Hermes-II in station mode, run
+    the Build script:
+       % ./Build
+
+    This script determines whether your system uses in-kernel PCMCIA and either
+    builds the full PCMCIA package or just the driver.
+
+    Before installing the driver with the Install script, you must become
+    'root':
+       % su
+       ..
+       % ./Install
+
+    This script determines whether your system uses in-kernel PCMCIA and either
+    installs the full PCMCIA package or just the driver.
+
+    5) If it becomes necessary to clean the build, issue the following
+    commands:
+       % make clean
+       % make -C lib clean
+
+4.3 Build the driver for PCI
+
+    1) Extract the wlags49 to the current working directory.
+       % tar xzvf wl_lkm_7_22.tar.gz
+
+    Note: there is no need to unpack the driver source into a PCMCIA build
+    directory.
+
+    2) To build the PCI driver:
+       % make -f wlags49.mk wlags49_h2_pci
+       or
+       % make -f wlags49.mk wlags49_h25_pci
+
+    3) Install the driver.
+       % insmod ./wireless/wlags49_h25.o
+
+    4) If it becomes necessary to clean the build.
+       % make -f wlags49.mk pci_clean
+
+4.4 Configure your Wireless PC Card
+
+    There are 3 ways to configure the driver
+    - module parameters (/etc/pcmcia/config.opts)
+    - wireless extension (/etc/pcmcia/wireless.opts)
+    - Agere configuration file (/etc/agere/iwconfig-eth#)
+
+
+4.4.1 Configure through /etc/pcmcia/config.opts
+
+    To use this method, make sure that /etc/pcmcia/wireless.opts file is either
+    absent or contains blank parameter values as shown below.
+
+    *,*,*,00:60:1D:*|*,*,*,00:02:2D:*)
+        INFO=""
+        ESSID=""
+        MODE=""
+        KEY=""
+    ;;
+
+    1) To configure the Wireless PC Card, please refer to:
+       * The online manual page (wlags49.4)
+         % man wlags49
+       * The network adapter sections of the PCMCIA documentation.
+         % more PCMCIA-HOWTO
+
+    2) Use an editor to configure the module parameters:
+       # vi /etc/pcmcia/config.opts
+
+       a) To connect your computer to a wireless infrastructure that includes
+       access points such as the AP-1000 or AP-500, you need to identify the
+       network name of the wireless infrastructure.
+
+       For example if your infrastructure uses the network name "My Network",
+       edit the config.opts file to include the following:
+
+       module "<driver_name>" opts "network_name=My\ Network"
+
+       Notice that the space character needs to be escaped with a backslash.
+
+       b) To connect your computer to a Residential Gateway RG-1000, you need
+       to know the RG ID (=network_name) and the encryption key.  You can find
+       the RG ID on a small label on the rear of the unit.
+
+       For example if your RG-1000 has ID 225ccf and you did not change the
+       encryption key yet, edit the config.opts file to include the following:
+
+       module "<driver_name>" opts "network_name=\"225ccf\" key_1=\"25ccf\"
+       enable_encryption=Y"
+
+       If you changed your encryption key, you should specify this key as key_1
+       on the parameter line.
+
+       c) To connect your computer to a peer-to-peer network, in an environment
+       without access points, the IBSS mode is recommended.
+
+       For example to connect to a peer-to-peer network called "My Network",
+       enter the following in the config.opts file:
+
+       module "<driver_name>" opts "create_ibss=Y network_name=My\ Network"
+
+       d) Optionally you can also include a "Station Name" value that can be
+       used to indentify your computer on the wireless network.
+
+       For example if you wish to name your computer "Wave1" when connecting it
+       to a wireless infrastructure,  edit the config.opts file to include the
+       following:
+
+       module "<driver_name>" opts "network_name=Ocean station_name=Wave1"
+
+       e) To connect your computer to an Ad-Hoc workgroup of wireless
+       computers, enter the following in the config.opts file:
+
+       module "<driver_name>" opts "port_type=3"
+
+       Note that the "Ad-Hoc Demo Mode" is not the recommended mode for a
+       peer-to-peer network.  The configuration of this  non-interoperable mode
+       is only explained here for special applications (e.g. research, or
+       compatibility with other / previous WaveLAN/IEEE products).
+
+       The IBSS mode described in c) is the preferred and interoperable mode
+       for creating a peer-to-peer network.
+
+    3) Use an editor to modify the network options for your adapter.
+       # vi /etc/pcmcia/network.opts
+
+       The parameters need to be correct for the connected network. Check with
+       your system administrator for the correct network information.  Refer to
+       the PCMCIA-HOWTO for more configuration information.
+
+       For example:
+            *,*,*,*)
+                IF_PORT=""
+                BOOTP="n"
+                IPADDR="10.0.0.5"
+                NETMASK="255.255.255.0"
+                NETWORK="10.0.0.0"
+                BROADCAST="10.0.0.255"
+                GATEWAY="10.0.0.1"
+                DOMAIN="domain.org"
+                DNS_1="dns1.domain.org"
+                ;;
+
+       RedHat and Suse do not use the network.opts to configure the driver.
+       Instead RedHat uses a GUI-based tool called 'neat' ('net.cfg' in older
+       versions) and SuSE Linux uses 'YaST'. These tools creates scripts, like
+       ifcfg-eth0, in the directory /etc/sysconfig/network-scripts. Using the
+       default GNOME menu, you can start netcfg from: Programs->System->Network
+       Configuration.
+
+    4) Restart the PCMCIA services.
+       # /etc/rc.d/rc.pcmcia restart
+         or
+       # /etc/rc.d/init.d/pcmcia restart
+
+
+    For a more detailed description about the various configuration options and
+    definitions, please consult the Wireless documentation.
+
+4.4.2 Configure through /etc/pcmcia/wireless.opts
+
+    This driver has support for the "Wireless Extensions".  This interface
+    allows the "Wireless Tools" to get statistics from the driver and allows to
+    change the configuration of the driver on the fly.
+
+    The latest versions of the PCMCIA package contain scripts that use the
+    wireless extension to configure the driver as an alternative to the
+    configuration through module parameters as described in section 4.4.1.
+    Read the /etc/pcmcia/wireless.opts file for the theory of operation.  When
+    the driver is configured, go to section 4.4.1 step 3 to configure the
+    network parameters.
+
+    For more information, refer to the following WEB pages:
+    http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Linux.Wireless.Extensions.html
+    http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html
+
+4.4.3 Configure through /etc/agere/iwconfig-eth#
+
+    In addition to using either the module options or the wireless extensions
+    methods to configure a wireless device, this version of the software also
+    supports an Agere specific implementation. This was done because:
+    * Module options configures multiple devices the same.
+    * Wireless extensions parameters do not cover all of the available options
+      in the driver.
+
+    For each wireless ethernet device (identified by eth<n>, where n is a
+    positive integer), a file /etc/agere/iwconfig-eth<n> can be created which
+    contains configuration information for a wireless device. For example, the
+    file /etc/agere/iwconfig-eth1 is the config file for eth1. This file should
+    contain Key/Value pairs in the format:
+
+    <Key>=<Value>
+
+    where <Key> is the parameter to configure and <Value> is the value to
+    assign it. For example, if the config file /etc/agere/iwconfig-eth1
+    described above contains the following:
+
+    DesiredSSID=some_network
+    EnableEncryption=Y
+    Key1=net01
+    TxKey=1
+
+    this configures eth1 to associate to the ESSID 'some_network' with
+    encryption on, where the the first encryption key is 'net01' and the key to
+    use for encryption is Key 1.
+
+    Note that this only works on Agere hardware which uses this driver. For
+    other wireless drivers, or non-wireless devices, this file can be present,
+    but has no effect.
+
+    Please refer to the man page for more information on this configuration
+    file and the parameters that can be set.
+
+
+4.5 Configuring your Wireless PCI card
+
+    Note that the above method of configuring the card using
+    /etc/pcmcia/config.opts is only valid for PCMCIA/CF cards. For [mini]PCI
+    and CardBus cards, refer to your system's documentation on modules.conf to
+    load the driver with the proper options for a given wireless ethernet
+    interface. In addition, network configuration tools like 'netcfg', 'neat',
+    or 'YaST' (see Section 4.4.1, Step 3) can be used to configure the miniPCI
+    card. Lastly, the Agere configuration file described in Section 4.4.3 may
+    also be used for [mini]PCI and CardBus devices.
+
+4.6 Troubleshooting
+
+    When the Wireless PC Card is inserted, the card manager emit beeps in
+    different tones to indicate success or failure of particular configuration
+    steps.
+      a) Two high beeps
+         - The card was identified and configured successfully.
+      b) One high beep followed by a low beep
+         - The card was identified, but could not be configured.
+         - Examine the system log (dmesg) for PCMCIA error or warning messages.
+      c) One low beep
+         - The card could not be identified.
+         - Execute "cardctl ident" to display the adapter PnP information.
+           Verify the PnP information matches an entry in the PCMCIA
+           configuration file (/etc/pcmcia/config).
+         - Examine the system log (dmesg) for PCMCIA error or warning messages.
+
+    The Wireless PC Card has two LEDs that indicate the state of the adapter
+    and network.
+      * Power LED (toward the middle of the adapter)
+    	- This LED indicates power has been applied, and the card is
+    	  functional. In normal operation mode with Card Power Management
+    	  disabled, it is steady-on. With Card Power Management enabled, it
+    	  blinks rapidly (several times per second).
+      * Transmit/Receive LED (closer to the edge of the adapter)
+        - This LED flashes when it detects transmit or receive packets.
+
+      * Both LEDs blink at the same time every 10 seconds.
+    	- The adapter was unable to make contact with the named wireless
+    	  network. Verify the network_name, in the config.opts file matches the
+    	  network name of the access point.
+      * LEDs indicate normal operation with the Power LED
+    	steady-on or blinking rapidly and Transmit/Receive LED flashing, but no
+    	traffic.
+    	- If the network is operating in normal mode (ie.  port_type = 0 or not
+    	  specified), and a network_name has been specified, verify the
+    	  workstation network parameters (ifconfig, route, etc.) are correct
+    	  for the wireless network.
+    	- If the network is operating in Ad-Hoc (peer-to-peer) mode (ie.
+    	  port_type = 3), the adapter needs another workstation/adapter to
+    	  communicate with.  Verify the network parameters on both of the
+    	  workstations (ifconfig, route, etc.) are correct.
+
+    Refer to the online manual page for additional configuration, feature and
+    support information.
+       % man wlags49
+         or
+       % man 4 wlags49
+         or
+       % nroff -man wlags49.4 | more
+
+4.7 Identifying the software
+
+    This section explains how to identify the version of this software once it
+    is unpacked or installed.
+
+    The Linux Driver Source/Library distribution consist of two main
+    components, the driver source and the HCF module.
+
+    * To quickly identify the version of the source, type:
+      % grep DRV.*VERSION include/wireless/wl_version.h
+      #define DRV_MAJOR_VERSION   7
+      #define DRV_MINOR_VERSION   22
+
+    * To identify the revision of the HCF library contained in the driver,
+      type:
+      % grep HCF.Revision hcf/hcf.c
+      #define HCF_VERSION  TEXT( "HCF$Revision: 1.8 $" )
+
+    To identify a compiled wlags49 driver, go to the directory where the driver
+    is located. Card Services drivers (wlags49_h2_cs.o and wlags49_h25_cs.o)
+    are located in:
+    /lib/modules/<kernel-version>/pcmcia
+
+    PCI drivers (wlags49_h2.o) are located in:
+    /lib/modules/<kernel-version>/kernel/drivers/net
+
+    * To retrieve the version of the source used to compile the driver, type:
+      % strings <driver_name>.o | grep Agere
+      <driver_name> v7.22-abg-Beta for PCMCIA
+      <driver_name> v7.22-abg-Beta for PCI
+
+    * Likewise, to retrieve the revision of the HCF used to compile the driver,
+      type:
+      % strings <driver_name>.o | grep Revision
+      HCF$Revision: 5.15
+
+    At startup the wlags49 driver reports its version in the system log file
+    (/var/log/messages).
+
+------------------------------------------------------------------------------
+5.  TECHNICAL CONSTRAINTS
+
+    At the time of release of this software, the following constraints are
+    identified:
+
+5.1 Using the ISA adapter
+
+    Description: To allow operation in desktop computers Agere also provides an
+    optional ISA bus to PC Card adapter (also referred to as "swapbox").
+
+    This ISA Adapter can be configured for two different I/O Address values:
+      * 3E2 (factory-set default)
+      * 3E0
+
+    Impact: By default the i82365 module of the Linux pcmcia package only
+    probes at 3E0.
+
+    Actions:
+    1) Read the manual page on the probing of the i82365 module, by typing the
+    command:
+        man i82365
+
+    2) Apply one of the two following options:
+       a) Change the I/O address strapping of the ISA adapter by replacing the
+          jumper on the ISA adapter.  The correct jumper setting is pictured in
+          the electronic "Wireless ISA Adapter, Getting Started Guide" provided
+          on the Wireless Software CD-ROM. This guide is provided in Adobe's
+          Acrobat PDF format.
+
+       b) Alternatively, you can load the i82365 module with the
+          "extra_sockets" parameter set to 1.
+
+          On a RedHat 5.x thru 7.x, system, put this in the file
+          "/etc/sysconfig/pcmcia":
+             PCMCIA=yes
+             PCIC=i82365
+             PCIC_OPTS="extra_sockets=1"
+             CORE_OPTS=
+             CARDMGR_OPTS=
+
+          For other Linux distributions, you are advised to consult the
+          "PCMCIA-HOWTO" notes for information about changing the I/O Address
+          probing.
+
+5.2 Using the PCI Adapter
+
+    Description: To allow operation in desktop computers Agere also provides an
+    optional PCI bus to PC Card adapter (also referred to as "swapbox").
+
+    For correct interrupt assignment, the system should support PCIBIOS 2.2.
+    It is recommended to use PCMCIA package version 3.2.7 or higher.
+
+    The default configuration of the interrupt routing method of the PCI
+    Adapter's TI CardBus Controller is incorrect.
+
+    Actions:
+    1) Read the manual page on the "Options specific for TI CardBus
+    Controllers" of the i82365 module, by typing the command:
+        man i82365
+
+    2) Load the i82365 module with the "irq_mode" parameter set to 0.
+       On a RedHat 5.x thru 7.x system, put this in the file
+       "/etc/sysconfig/pcmcia":
+           PCMCIA=yes
+           PCIC=i82365
+           PCIC_OPTS="irq_mode=0"
+           CORE_OPTS=
+           CARDMGR_OPTS=
+
+   For the location of the PCMCIA scripts on other Linux distributions, you
+   are advised to consult the "PCMCIA-HOWTO", "Notes about specific Linux
+   distributions".
+
+------------------------------------------------------------------------------
+6.  KNOWN ISSUES
+
+    This is the current list of known issues for this release, and will be
+    addressed in the near future:
+
+    1. This driver release contains a version of Hermes-II.5 firmware which
+    REQUIRES calibrated cards. If there is no calibration data present in the
+    PDA of the hardware, the firmware does not operate.
+
+    2. WDS is not yet supported.
+
+    3. DMA is not yet supported.
+
+    4. WPA is not yet supported.
+
+    5. 32-bits I/O is not yet supported.
+
+    6. The current Build script also builds the PCI drivers.
+
+    7. The current Install script also copies the PCI drivers to the lib
+    directory.
+
+	8. If F/W files are required from outside this release, the entry points
+	inside these F/W files have to be renamed from "ap" and "station" to
+	"fw_image" and they have to be renamed to fw_h2.c and fw_h25.c for
+	Hermes-II and Hermes-II.5.
+
+------------------------------------------------------------------------------
+7.  TECHNICAL SUPPORT
+
+7.1 Finding Information
+
+    On the Agere Systems Web Site you can find the most recent device drivers,
+    software updates and user documentation.
+
+    World Wide Web:    http://www.agere.com
+
+7.2 Contact Technical Support
+
+    If you encounter problems when installing or using this product, or would
+    like information about our other "Wireless" products, please contact your
+    local Authorized "Wireless" Reseller or Agere Systems sales office.
+
+    Addresses and telephone numbers of the Agere Systems sales offices are
+    listed on our Agere Systems web site.
+
+    When contacting Technical Support, please use the Problem Report Form and
+    send it to us by Fax or E-Mail.  The Problem Report Form 'REPORT.TXT'
+    (Plain text format) is included on the disk. Alternatively, you can
+    download the Problem Report Form from the Agere Systems web site.
+
+    Include Product Name, Serial Number and software version number with each
+    request to help the Support Group helping you.
+
+==============================================================================
+                          END OF FILE

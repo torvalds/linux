@@ -73,7 +73,8 @@
 
 static const char* host_info(struct Scsi_Host *host)
 {
-	return "SCSI emulation for USB Mass Storage devices";
+	struct us_data *us = host_to_us(host);
+	return us->scsi_name;
 }
 
 static int slave_alloc (struct scsi_device *sdev)

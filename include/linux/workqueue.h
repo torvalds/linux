@@ -25,6 +25,7 @@ typedef void (*work_func_t)(struct work_struct *work);
 struct work_struct {
 	atomic_long_t data;
 #define WORK_STRUCT_PENDING 0		/* T if work item pending execution */
+#define WORK_STRUCT_STATIC  1		/* static initializer (debugobjects) */
 #define WORK_STRUCT_FLAG_MASK (3UL)
 #define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
 	struct list_head entry;
@@ -35,6 +36,7 @@ struct work_struct {
 };
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT(0)
+#define WORK_DATA_STATIC_INIT()	ATOMIC_LONG_INIT(2)
 
 struct delayed_work {
 	struct work_struct work;
@@ -63,7 +65,7 @@ struct execute_work {
 #endif
 
 #define __WORK_INITIALIZER(n, f) {				\
-	.data = WORK_DATA_INIT(),				\
+	.data = WORK_DATA_STATIC_INIT(),			\
 	.entry	= { &(n).entry, &(n).entry },			\
 	.func = (f),						\
 	__WORK_INIT_LOCKDEP_MAP(#n, &(n))			\
@@ -91,6 +93,14 @@ struct execute_work {
 #define PREPARE_DELAYED_WORK(_work, _func)			\
 	PREPARE_WORK(&(_work)->work, (_func))
 
+#ifdef CONFIG_DEBUG_OBJECTS_WORK
+extern void __init_work(struct work_struct *work, int onstack);
+extern void destroy_work_on_stack(struct work_struct *work);
+#else
+static inline void __init_work(struct work_struct *work, int onstack) { }
+static inline void destroy_work_on_stack(struct work_struct *work) { }
+#endif
+
 /*
  * initialize all of a work item in one go
  *
@@ -99,23 +109,35 @@ struct execute_work {
  * to generate better code.
  */
 #ifdef CONFIG_LOCKDEP
-#define INIT_WORK(_work, _func)						\
+#define __INIT_WORK(_work, _func, _onstack)				\
 	do {								\
 		static struct lock_class_key __key;			\
 									\
+		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
 		lockdep_init_map(&(_work)->lockdep_map, #_work, &__key, 0);\
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		PREPARE_WORK((_work), (_func));				\
 	} while (0)
 #else
-#define INIT_WORK(_work, _func)						\
+#define __INIT_WORK(_work, _func, _onstack)				\
 	do {								\
+		__init_work((_work), _onstack);				\
 		(_work)->data = (atomic_long_t) WORK_DATA_INIT();	\
 		INIT_LIST_HEAD(&(_work)->entry);			\
 		PREPARE_WORK((_work), (_func));				\
 	} while (0)
 #endif
+
+#define INIT_WORK(_work, _func)					\
+	do {							\
+		__INIT_WORK((_work), (_func), 0);		\
+	} while (0)
+
+#define INIT_WORK_ON_STACK(_work, _func)			\
+	do {							\
+		__INIT_WORK((_work), (_func), 1);		\
+	} while (0)
 
 #define INIT_DELAYED_WORK(_work, _func)				\
 	do {							\
@@ -125,20 +147,14 @@ struct execute_work {
 
 #define INIT_DELAYED_WORK_ON_STACK(_work, _func)		\
 	do {							\
-		INIT_WORK(&(_work)->work, (_func));		\
+		INIT_WORK_ON_STACK(&(_work)->work, (_func));	\
 		init_timer_on_stack(&(_work)->timer);		\
 	} while (0)
 
-#define INIT_DELAYED_WORK_DEFERRABLE(_work, _func)			\
+#define INIT_DELAYED_WORK_DEFERRABLE(_work, _func)		\
 	do {							\
 		INIT_WORK(&(_work)->work, (_func));		\
 		init_timer_deferrable(&(_work)->timer);		\
-	} while (0)
-
-#define INIT_DELAYED_WORK_ON_STACK(_work, _func)		\
-	do {							\
-		INIT_WORK(&(_work)->work, (_func));		\
-		init_timer_on_stack(&(_work)->timer);		\
 	} while (0)
 
 /**

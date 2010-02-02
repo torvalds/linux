@@ -89,6 +89,8 @@ static int pmu_bat_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		if (pbi->flags & PMU_BATT_CHARGING)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+		else if (pmu_power_flags & PMU_PWR_AC_PRESENT)
+			val->intval = POWER_SUPPLY_STATUS_FULL;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;

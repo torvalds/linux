@@ -19,7 +19,7 @@ CCDIR	:= $(strip $(patsubst %/specs,%,$(CCSPECS)))
 KBUILD_CPPFLAGS += -nostdinc -I$(CCDIR)/include
 
 LDFLAGS		:=
-OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
+OBJCOPYFLAGS	:= -O binary -R .note -R .comment -R .GCC-command-line -R .note.gnu.build-id -S
 #LDFLAGS_vmlinux := -Map linkmap.txt
 CHECKFLAGS	+=
 

@@ -272,6 +272,7 @@ struct tracer_flags {
  * @pipe_open: called when the trace_pipe file is opened
  * @wait_pipe: override how the user waits for traces on trace_pipe
  * @close: called when the trace file is released
+ * @pipe_close: called when the trace_pipe file is released
  * @read: override the default read callback on trace_pipe
  * @splice_read: override the default splice_read callback on trace_pipe
  * @selftest: selftest to run on boot (see trace_selftest.c)
@@ -290,6 +291,7 @@ struct tracer {
 	void			(*pipe_open)(struct trace_iterator *iter);
 	void			(*wait_pipe)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);
+	void			(*pipe_close)(struct trace_iterator *iter);
 	ssize_t			(*read)(struct trace_iterator *iter,
 					struct file *filp, char __user *ubuf,
 					size_t cnt, loff_t *ppos);
@@ -441,7 +443,7 @@ extern int DYN_FTRACE_TEST_NAME(void);
 
 extern int ring_buffer_expanded;
 extern bool tracing_selftest_disabled;
-DECLARE_PER_CPU(local_t, ftrace_cpu_disabled);
+DECLARE_PER_CPU(int, ftrace_cpu_disabled);
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 extern int trace_selftest_startup_function(struct tracer *trace,
@@ -595,18 +597,17 @@ enum trace_iterator_flags {
 	TRACE_ITER_BIN			= 0x40,
 	TRACE_ITER_BLOCK		= 0x80,
 	TRACE_ITER_STACKTRACE		= 0x100,
-	TRACE_ITER_SCHED_TREE		= 0x200,
-	TRACE_ITER_PRINTK		= 0x400,
-	TRACE_ITER_PREEMPTONLY		= 0x800,
-	TRACE_ITER_BRANCH		= 0x1000,
-	TRACE_ITER_ANNOTATE		= 0x2000,
-	TRACE_ITER_USERSTACKTRACE       = 0x4000,
-	TRACE_ITER_SYM_USEROBJ          = 0x8000,
-	TRACE_ITER_PRINTK_MSGONLY	= 0x10000,
-	TRACE_ITER_CONTEXT_INFO		= 0x20000, /* Print pid/cpu/time */
-	TRACE_ITER_LATENCY_FMT		= 0x40000,
-	TRACE_ITER_SLEEP_TIME		= 0x80000,
-	TRACE_ITER_GRAPH_TIME		= 0x100000,
+	TRACE_ITER_PRINTK		= 0x200,
+	TRACE_ITER_PREEMPTONLY		= 0x400,
+	TRACE_ITER_BRANCH		= 0x800,
+	TRACE_ITER_ANNOTATE		= 0x1000,
+	TRACE_ITER_USERSTACKTRACE       = 0x2000,
+	TRACE_ITER_SYM_USEROBJ          = 0x4000,
+	TRACE_ITER_PRINTK_MSGONLY	= 0x8000,
+	TRACE_ITER_CONTEXT_INFO		= 0x10000, /* Print pid/cpu/time */
+	TRACE_ITER_LATENCY_FMT		= 0x20000,
+	TRACE_ITER_SLEEP_TIME		= 0x40000,
+	TRACE_ITER_GRAPH_TIME		= 0x80000,
 };
 
 /*

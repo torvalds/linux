@@ -44,6 +44,10 @@ uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)
 
 	ref_div =
 	    RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) & RADEON_M_SPLL_REF_DIV_MASK;
+
+	if (ref_div == 0)
+		return 0;
+
 	sclk = fb_div / ref_div;
 
 	post_div = RREG32_PLL(RADEON_SCLK_CNTL) & RADEON_SCLK_SRC_SEL_MASK;
@@ -52,13 +56,13 @@ uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)
 	else if (post_div == 3)
 		sclk >>= 2;
 	else if (post_div == 4)
-		sclk >>= 4;
+		sclk >>= 3;
 
 	return sclk;
 }
 
 /* 10 khz */
-static uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
+uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 {
 	struct radeon_pll *mpll = &rdev->clock.mpll;
 	uint32_t fb_div, ref_div, post_div, mclk;
@@ -70,6 +74,10 @@ static uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 
 	ref_div =
 	    RREG32_PLL(RADEON_M_SPLL_REF_FB_DIV) & RADEON_M_SPLL_REF_DIV_MASK;
+
+	if (ref_div == 0)
+		return 0;
+
 	mclk = fb_div / ref_div;
 
 	post_div = RREG32_PLL(RADEON_MCLK_CNTL) & 0x7;
@@ -78,7 +86,7 @@ static uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 	else if (post_div == 3)
 		mclk >>= 2;
 	else if (post_div == 4)
-		mclk >>= 4;
+		mclk >>= 3;
 
 	return mclk;
 }
@@ -98,8 +106,19 @@ void radeon_get_clock_info(struct drm_device *dev)
 		ret = radeon_combios_get_clock_info(dev);
 
 	if (ret) {
-		if (p1pll->reference_div < 2)
-			p1pll->reference_div = 12;
+		if (p1pll->reference_div < 2) {
+			if (!ASIC_IS_AVIVO(rdev)) {
+				u32 tmp = RREG32_PLL(RADEON_PPLL_REF_DIV);
+				if (ASIC_IS_R300(rdev))
+					p1pll->reference_div =
+						(tmp & R300_PPLL_REF_DIV_ACC_MASK) >> R300_PPLL_REF_DIV_ACC_SHIFT;
+				else
+					p1pll->reference_div = tmp & RADEON_PPLL_REF_DIV_MASK;
+				if (p1pll->reference_div < 2)
+					p1pll->reference_div = 12;
+			} else
+				p1pll->reference_div = 12;
+		}
 		if (p2pll->reference_div < 2)
 			p2pll->reference_div = 12;
 		if (rdev->family < CHIP_RS600) {

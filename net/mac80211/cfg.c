@@ -354,7 +354,8 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	sinfo->rx_packets = sta->rx_packets;
 	sinfo->tx_packets = sta->tx_packets;
 
-	if (sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+	if ((sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) ||
+	    (sta->local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)) {
 		sinfo->filled |= STATION_INFO_SIGNAL;
 		sinfo->signal = (s8)sta->last_signal;
 	}
@@ -1329,6 +1330,9 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_conf *conf = &local->hw.conf;
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
 		return -EOPNOTSUPP;

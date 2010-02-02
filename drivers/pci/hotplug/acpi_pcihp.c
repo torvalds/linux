@@ -362,6 +362,8 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 		status = acpi_pci_osc_control_set(handle, flags);
 		if (ACPI_SUCCESS(status))
 			goto got_one;
+		if (status == AE_SUPPORT)
+			goto no_control;
 		kfree(string.pointer);
 		string = (struct acpi_buffer){ ACPI_ALLOCATE_BUFFER, NULL };
 	}
@@ -394,10 +396,9 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 		if (ACPI_FAILURE(status))
 			break;
 	}
-
+no_control:
 	dbg("Cannot get control of hotplug hardware for pci %s\n",
 	    pci_name(pdev));
-
 	kfree(string.pointer);
 	return -ENODEV;
 got_one:

@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/swap.h>
 #include <linux/pagemap.h>
-#include <linux/version.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include "ext4.h"
@@ -160,7 +159,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 		if (ext4_bg_has_super(sb, i) &&
 		    ((i < 5) || ((i % flex_size) == 0)))
 			add_system_zone(sbi, ext4_group_first_block_no(sb, i),
-					sbi->s_gdb_count + 1);
+					ext4_bg_num_gdb(sb, i) + 1);
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		ret = add_system_zone(sbi, ext4_block_bitmap(sb, gdp), 1);
 		if (ret)
@@ -228,6 +227,7 @@ int ext4_data_block_valid(struct ext4_sb_info *sbi, ext4_fsblk_t start_blk,
 	struct rb_node *n = sbi->system_blks.rb_node;
 
 	if ((start_blk <= le32_to_cpu(sbi->s_es->s_first_data_block)) ||
+	    (start_blk + count < start_blk) ||
 	    (start_blk + count > ext4_blocks_count(sbi->s_es)))
 		return 0;
 	while (n) {

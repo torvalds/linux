@@ -1032,7 +1032,7 @@ int __devinit ioat_probe(struct ioatdma_device *device)
 	dma->dev = &pdev->dev;
 
 	if (!dma->chancnt) {
-		dev_err(dev, "zero channels detected\n");
+		dev_err(dev, "channel enumeration error\n");
 		goto err_setup_interrupts;
 	}
 

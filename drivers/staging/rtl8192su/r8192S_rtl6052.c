@@ -326,7 +326,7 @@ extern void PHY_RF6052SetOFDMTxPower(struct net_device* dev, u8 powerlevel)
 
 		//
 		// If path A and Path B coexist, we must limit Path A tx power.
-		// Protect Path B pwr over or under flow. We need to calculate upper and
+		// Protect Path B pwr over or underflow. We need to calculate upper and
 		// lower bound of path A tx power.
 		//
 		if (priv->rf_type == RF_2T2R)
@@ -354,7 +354,7 @@ extern void PHY_RF6052SetOFDMTxPower(struct net_device* dev, u8 powerlevel)
 
 			//
 			// If path A and Path B coexist, we must limit Path A tx power.
-			// Protect Path B pwr over or under flow. We need to calculate upper and
+			// Protect Path B pwr under/over flow. We need to calculate upper and
 			// lower bound of path A tx power.
 			//
 			if (priv->rf_type == RF_2T2R)

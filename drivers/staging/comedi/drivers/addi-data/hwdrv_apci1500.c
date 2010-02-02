@@ -968,7 +968,7 @@ int i_APCI1500_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 
 	switch (data[0]) {
 	case 0:
-		if (ui_Channel >= 0 && ui_Channel <= 15) {
+		if (ui_Channel <= 15) {
 			ui_TmpValue =
 				(unsigned int) inw(devpriv->i_IobaseAddon +
 				APCI1500_DIGITAL_IP);

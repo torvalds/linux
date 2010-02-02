@@ -58,8 +58,8 @@ static int __init s3c_nand_copy_set(struct s3c2410_nand_set *set)
 			return -ENOMEM;
 	}
 	
-	size = sizeof(int) * set->nr_chips;
-	if (size) {
+	if (set->nr_map && set->nr_chips) {
+		size = sizeof(int) * set->nr_chips;
 		ptr = kmemdup(set->nr_map, size, GFP_KERNEL);
 		set->nr_map = ptr;
 
@@ -114,7 +114,7 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 		
 		for (i = 0; i < npd->nr_sets; i++) {
 			ret = s3c_nand_copy_set(to);
-			if (!ret) {
+			if (ret) {
 				printk(KERN_ERR "%s: failed to copy set %d\n",
 				__func__, i);
 				return;
@@ -122,6 +122,8 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 			to++;
 		}
 	}
+
+	s3c_device_nand.dev.platform_data = npd;
 }
 
 EXPORT_SYMBOL_GPL(s3c_nand_set_platdata);
