@@ -3827,7 +3827,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * wait on when trying to clear up gtt space).
 	 */
 	seqno = i915_add_request(dev, file_priv, ring);
-	BUG_ON(seqno == 0);
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
 		obj_priv = to_intel_bo(obj);
