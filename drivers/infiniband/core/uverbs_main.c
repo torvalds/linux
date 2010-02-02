@@ -74,7 +74,6 @@ DEFINE_IDR(ib_uverbs_qp_idr);
 DEFINE_IDR(ib_uverbs_srq_idr);
 
 static DEFINE_SPINLOCK(map_lock);
-static struct ib_uverbs_device *dev_table[IB_UVERBS_MAX_DEVICES];
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 
 static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
@@ -616,14 +615,12 @@ static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 /*
  * ib_uverbs_open() does not need the BKL:
  *
- *  - dev_table[] accesses are protected by map_lock, the
- *    ib_uverbs_device structures are properly reference counted, and
+ *  - the ib_uverbs_device structures are properly reference counted and
  *    everything else is purely local to the file being created, so
  *    races against other open calls are not a problem;
  *  - there is no ioctl method to race against;
- *  - the device is added to dev_table[] as the last part of module
- *    initialization, the open method will either immediately run
- *    -ENXIO, or all required initialization will be done.
+ *  - the open method will either immediately run -ENXIO, or all
+ *    required initialization will be done.
  */
 static int ib_uverbs_open(struct inode *inode, struct file *filp)
 {
@@ -631,13 +628,10 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	struct ib_uverbs_file *file;
 	int ret;
 
-	spin_lock(&map_lock);
-	dev = dev_table[iminor(inode) - IB_UVERBS_BASE_MINOR];
+	dev = container_of(inode->i_cdev, struct ib_uverbs_device, cdev);
 	if (dev)
 		kref_get(&dev->ref);
-	spin_unlock(&map_lock);
-
-	if (!dev)
+	else
 		return -ENXIO;
 
 	if (!try_module_get(dev->ib_dev->owner)) {
@@ -778,10 +772,6 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
 
-	spin_lock(&map_lock);
-	dev_table[uverbs_dev->devnum] = uverbs_dev;
-	spin_unlock(&map_lock);
-
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 
 	return;
@@ -810,10 +800,6 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	dev_set_drvdata(uverbs_dev->dev, NULL);
 	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
 	cdev_del(&uverbs_dev->cdev);
-
-	spin_lock(&map_lock);
-	dev_table[uverbs_dev->devnum] = NULL;
-	spin_unlock(&map_lock);
 
 	clear_bit(uverbs_dev->devnum, dev_map);
 
