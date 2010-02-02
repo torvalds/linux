@@ -337,6 +337,9 @@ static void __kprobes arch_copy_kprobe(struct kprobe *p)
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
+	if (alternatives_text_reserved(p->addr, p->addr))
+		return -EINVAL;
+
 	if (!can_probe((unsigned long)p->addr))
 		return -EILSEQ;
 	/* insn: must be on special executable page on x86. */

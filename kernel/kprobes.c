@@ -44,6 +44,7 @@
 #include <linux/debugfs.h>
 #include <linux/kdebug.h>
 #include <linux/memory.h>
+#include <linux/ftrace.h>
 
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
@@ -703,7 +704,8 @@ int __kprobes register_kprobe(struct kprobe *p)
 
 	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
-	    in_kprobes_functions((unsigned long) p->addr)) {
+	    in_kprobes_functions((unsigned long) p->addr) ||
+	    ftrace_text_reserved(p->addr, p->addr)) {
 		preempt_enable();
 		return -EINVAL;
 	}
