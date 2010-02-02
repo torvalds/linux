@@ -1470,9 +1470,12 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 }
 
 static uint32_t
-i915_gem_next_request_seqno(struct drm_device *dev)
+i915_gem_next_request_seqno(struct drm_device *dev,
+			    struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	ring->outstanding_lazy_request = true;
 
 	return dev_priv->next_seqno;
 }
@@ -1495,7 +1498,7 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno,
 
 	/* Take the seqno of the next request if none is given */
 	if (seqno == 0)
-		seqno = i915_gem_next_request_seqno(dev);
+		seqno = i915_gem_next_request_seqno(dev, ring);
 
 	/* Move from whatever list we were on to the tail of execution. */
 	spin_lock(&dev_priv->mm.active_list_lock);
@@ -2979,7 +2982,6 @@ static void
 i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 {
 	struct drm_device		*dev = obj->dev;
-	drm_i915_private_t		*dev_priv = dev->dev_private;
 	struct drm_i915_gem_object	*obj_priv = to_intel_bo(obj);
 	uint32_t			invalidate_domains = 0;
 	uint32_t			flush_domains = 0;
@@ -3041,13 +3043,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 	if (flush_domains == 0 && obj->pending_write_domain == 0)
 		obj->pending_write_domain = obj->write_domain;
 	obj->read_domains = obj->pending_read_domains;
-
-	if (flush_domains & I915_GEM_GPU_DOMAINS) {
-		if (obj_priv->ring == &dev_priv->render_ring)
-			dev_priv->flush_rings |= FLUSH_RENDER_RING;
-		else if (obj_priv->ring == &dev_priv->bsd_ring)
-			dev_priv->flush_rings |= FLUSH_BSD_RING;
-	}
 
 	dev->invalidate_domains |= invalidate_domains;
 	dev->flush_domains |= flush_domains;
@@ -3762,7 +3757,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 */
 	dev->invalidate_domains = 0;
 	dev->flush_domains = 0;
-	dev_priv->flush_rings = 0;
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
@@ -3783,12 +3777,17 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		i915_gem_flush(dev,
 			       dev->invalidate_domains,
 			       dev->flush_domains);
-		if (dev_priv->flush_rings & FLUSH_RENDER_RING)
-			(void)i915_add_request(dev, file_priv, 0,
-					       &dev_priv->render_ring);
-		if (dev_priv->flush_rings & FLUSH_BSD_RING)
-			(void)i915_add_request(dev, file_priv, 0,
-					       &dev_priv->bsd_ring);
+	}
+
+	if (dev_priv->render_ring.outstanding_lazy_request) {
+		(void)i915_add_request(dev, file_priv, 0,
+				       &dev_priv->render_ring);
+		dev_priv->render_ring.outstanding_lazy_request = false;
+	}
+	if (dev_priv->bsd_ring.outstanding_lazy_request) {
+		(void)i915_add_request(dev, file_priv, 0,
+				       &dev_priv->bsd_ring);
+		dev_priv->bsd_ring.outstanding_lazy_request = false;
 	}
 
 	for (i = 0; i < args->buffer_count; i++) {
