@@ -384,9 +384,8 @@ static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if ((lib80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
 		return -1;
 
-	icv = skb_put(skb, 4);
-
 	crc = ~crc32_le(~0, pos, len);
+	icv = skb_put(skb, 4);
 	icv[0] = crc;
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;
