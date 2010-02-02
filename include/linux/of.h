@@ -73,12 +73,6 @@ static inline void of_node_set_flag(struct device_node *n, unsigned long flag)
 	set_bit(flag, &n->_flags);
 }
 
-static inline void
-set_node_proc_entry(struct device_node *dn, struct proc_dir_entry *de)
-{
-	dn->pde = de;
-}
-
 extern struct device_node *of_find_all_nodes(struct device_node *prev);
 
 #if defined(CONFIG_SPARC)
