@@ -3,12 +3,37 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 
+void
+nv40_fb_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			  uint32_t size, uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t limit = max(1u, addr + size) - 1;
+
+	if (pitch)
+		addr |= 1;
+
+	switch (dev_priv->chipset) {
+	case 0x40:
+		nv_wr32(dev, NV10_PFB_TLIMIT(i), limit);
+		nv_wr32(dev, NV10_PFB_TSIZE(i), pitch);
+		nv_wr32(dev, NV10_PFB_TILE(i), addr);
+		break;
+
+	default:
+		nv_wr32(dev, NV40_PFB_TLIMIT(i), limit);
+		nv_wr32(dev, NV40_PFB_TSIZE(i), pitch);
+		nv_wr32(dev, NV40_PFB_TILE(i), addr);
+		break;
+	}
+}
+
 int
 nv40_fb_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t fb_bar_size, tmp;
-	int num_tiles;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	uint32_t tmp;
 	int i;
 
 	/* This is strictly a NV4x register (don't know about NV5x). */
@@ -23,35 +48,23 @@ nv40_fb_init(struct drm_device *dev)
 	case 0x45:
 		tmp = nv_rd32(dev, NV10_PFB_CLOSE_PAGE2);
 		nv_wr32(dev, NV10_PFB_CLOSE_PAGE2, tmp & ~(1 << 15));
-		num_tiles = NV10_PFB_TILE__SIZE;
+		pfb->num_tiles = NV10_PFB_TILE__SIZE;
 		break;
 	case 0x46: /* G72 */
 	case 0x47: /* G70 */
 	case 0x49: /* G71 */
 	case 0x4b: /* G73 */
 	case 0x4c: /* C51 (G7X version) */
-		num_tiles = NV40_PFB_TILE__SIZE_1;
+		pfb->num_tiles = NV40_PFB_TILE__SIZE_1;
 		break;
 	default:
-		num_tiles = NV40_PFB_TILE__SIZE_0;
+		pfb->num_tiles = NV40_PFB_TILE__SIZE_0;
 		break;
 	}
 
-	fb_bar_size = drm_get_resource_len(dev, 0) - 1;
-	switch (dev_priv->chipset) {
-	case 0x40:
-		for (i = 0; i < num_tiles; i++) {
-			nv_wr32(dev, NV10_PFB_TILE(i), 0);
-			nv_wr32(dev, NV10_PFB_TLIMIT(i), fb_bar_size);
-		}
-		break;
-	default:
-		for (i = 0; i < num_tiles; i++) {
-			nv_wr32(dev, NV40_PFB_TILE(i), 0);
-			nv_wr32(dev, NV40_PFB_TLIMIT(i), fb_bar_size);
-		}
-		break;
-	}
+	/* Turn all the tiling regions off. */
+	for (i = 0; i < pfb->num_tiles; i++)
+		pfb->set_region_tiling(dev, i, 0, 0, 0);
 
 	return 0;
 }

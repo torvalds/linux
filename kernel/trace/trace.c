@@ -951,6 +951,11 @@ void trace_find_cmdline(int pid, char comm[])
 		return;
 	}
 
+	if (WARN_ON_ONCE(pid < 0)) {
+		strcpy(comm, "<XXX>");
+		return;
+	}
+
 	if (pid > PID_MAX_DEFAULT) {
 		strcpy(comm, "<...>");
 		return;

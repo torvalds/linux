@@ -725,13 +725,9 @@ static struct pci_driver agp_amd64_pci_driver = {
 int __init agp_amd64_init(void)
 {
 	int err = 0;
-	static int done = 0;
 
 	if (agp_off)
 		return -EINVAL;
-
-	if (done++)
-		return agp_bridges_found ? 0 : -ENODEV;
 
 	err = pci_register_driver(&agp_amd64_pci_driver);
 	if (err < 0)
@@ -769,14 +765,24 @@ int __init agp_amd64_init(void)
 	return err;
 }
 
+static int __init agp_amd64_mod_init(void)
+{
+	if (gart_iommu_aperture)
+		return agp_bridges_found ? 0 : -ENODEV;
+
+	return agp_amd64_init();
+}
+
 static void __exit agp_amd64_cleanup(void)
 {
+	if (gart_iommu_aperture)
+		return;
 	if (aperture_resource)
 		release_resource(aperture_resource);
 	pci_unregister_driver(&agp_amd64_pci_driver);
 }
 
-module_init(agp_amd64_init);
+module_init(agp_amd64_mod_init);
 module_exit(agp_amd64_cleanup);
 
 MODULE_AUTHOR("Dave Jones <davej@redhat.com>, Andi Kleen");

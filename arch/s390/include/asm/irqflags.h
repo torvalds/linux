@@ -1,14 +1,12 @@
 /*
- *  include/asm-s390/irqflags.h
- *
- *    Copyright (C) IBM Corp. 2006
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
+ *    Copyright IBM Corp. 2006,2010
+ *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #ifndef __ASM_IRQFLAGS_H
 #define __ASM_IRQFLAGS_H
 
-#ifdef __KERNEL__
+#include <linux/types.h>
 
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 
@@ -102,5 +100,4 @@ static inline int raw_irqs_disabled_flags(unsigned long flags)
 /* For spinlocks etc */
 #define raw_local_irq_save(x)	((x) = raw_local_irq_disable())
 
-#endif /* __KERNEL__ */
 #endif /* __ASM_IRQFLAGS_H */

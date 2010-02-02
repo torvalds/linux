@@ -319,10 +319,12 @@ struct radeon_mc {
 	u64			real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
+	bool                    igp_sideport_enabled;
 };
 
 int radeon_mc_setup(struct radeon_device *rdev);
-
+bool radeon_combios_sideport_present(struct radeon_device *rdev);
+bool radeon_atombios_sideport_present(struct radeon_device *rdev);
 
 /*
  * GPU scratch registers structures, functions & helpers
@@ -408,13 +410,13 @@ struct r600_ih {
 	unsigned		wptr_old;
 	unsigned		ring_size;
 	uint64_t		gpu_addr;
-	uint32_t		align_mask;
 	uint32_t		ptr_mask;
 	spinlock_t              lock;
 	bool                    enabled;
 };
 
 struct r600_blit {
+	struct mutex		mutex;
 	struct radeon_bo	*shader_obj;
 	u64 shader_gpu_addr;
 	u32 vs_offset, ps_offset;
@@ -463,6 +465,7 @@ struct radeon_cs_chunk {
 };
 
 struct radeon_cs_parser {
+	struct device		*dev;
 	struct radeon_device	*rdev;
 	struct drm_file		*filp;
 	/* chunks */
@@ -654,7 +657,6 @@ struct radeon_asic {
 			       uint32_t offset, uint32_t obj_size);
 	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
-	void (*hdp_flush)(struct radeon_device *rdev);
 	void (*hpd_init)(struct radeon_device *rdev);
 	void (*hpd_fini)(struct radeon_device *rdev);
 	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -667,11 +669,14 @@ struct radeon_asic {
 struct r100_asic {
 	const unsigned	*reg_safe_bm;
 	unsigned	reg_safe_bm_size;
+	u32		hdp_cntl;
 };
 
 struct r300_asic {
 	const unsigned	*reg_safe_bm;
 	unsigned	reg_safe_bm_size;
+	u32		resync_scratch;
+	u32		hdp_cntl;
 };
 
 struct r600_asic {
@@ -843,7 +848,7 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
-	if (reg < 0x10000)
+	if (reg < rdev->rmmio_size)
 		return readl(((void __iomem *)rdev->rmmio) + reg);
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
@@ -853,7 +858,7 @@ static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 
 static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
-	if (reg < 0x10000)
+	if (reg < rdev->rmmio_size)
 		writel(v, ((void __iomem *)rdev->rmmio) + reg);
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
@@ -1007,13 +1012,14 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
-#define radeon_hdp_flush(rdev) (rdev)->asic->hdp_flush((rdev))
 #define radeon_hpd_init(rdev) (rdev)->asic->hpd_init((rdev))
 #define radeon_hpd_fini(rdev) (rdev)->asic->hpd_fini((rdev))
 #define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 
 /* Common functions */
+/* AGP */
+extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
@@ -1157,7 +1163,8 @@ extern int r600_irq_init(struct radeon_device *rdev);
 extern void r600_irq_fini(struct radeon_device *rdev);
 extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_irq_set(struct radeon_device *rdev);
-
+extern void r600_irq_suspend(struct radeon_device *rdev);
+/* r600 audio */
 extern int r600_audio_init(struct radeon_device *rdev);
 extern int r600_audio_tmds_index(struct drm_encoder *encoder);
 extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);

@@ -119,6 +119,7 @@ struct clk_functions {
 	void		(*clk_disable_unused)(struct clk *clk);
 #ifdef CONFIG_CPU_FREQ
 	void		(*clk_init_cpufreq_table)(struct cpufreq_frequency_table **);
+	void		(*clk_exit_cpufreq_table)(struct cpufreq_frequency_table **);
 #endif
 };
 
@@ -135,6 +136,7 @@ extern unsigned long followparent_recalc(struct clk *clk);
 extern void clk_enable_init_clocks(void);
 #ifdef CONFIG_CPU_FREQ
 extern void clk_init_cpufreq_table(struct cpufreq_frequency_table **table);
+extern void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table);
 #endif
 
 extern const struct clkops clkops_null;

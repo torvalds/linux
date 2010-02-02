@@ -779,7 +779,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
-	int r;
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
@@ -822,9 +821,6 @@ int rv770_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 
 	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r)
-			return r;
 		/* gtt_size is setup by radeon_agp_init */
 		rdev->mc.gtt_location = rdev->mc.agp_base;
 		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
@@ -891,26 +887,19 @@ static int rv770_startup(struct radeon_device *rdev)
 			return r;
 	}
 	rv770_gpu_init(rdev);
-
-	if (!rdev->r600_blit.shader_obj) {
-		r = r600_blit_init(rdev);
+	/* pin copy shader into vram */
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+				&rdev->r600_blit.shader_gpu_addr);
+		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 		if (r) {
-			DRM_ERROR("radeon: failed blitter (%d).\n", r);
+			DRM_ERROR("failed to pin blit object %d\n", r);
 			return r;
 		}
 	}
-
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-			&rdev->r600_blit.shader_gpu_addr);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-	if (r) {
-		DRM_ERROR("failed to pin blit object %d\n", r);
-		return r;
-	}
-
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -972,13 +961,16 @@ int rv770_suspend(struct radeon_device *rdev)
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
+	r600_irq_suspend(rdev);
 	r600_wb_disable(rdev);
 	rv770_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (likely(r == 0)) {
-		radeon_bo_unpin(rdev->r600_blit.shader_obj);
-		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (likely(r == 0)) {
+			radeon_bo_unpin(rdev->r600_blit.shader_obj);
+			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		}
 	}
 	return 0;
 }
@@ -1037,6 +1029,11 @@ int rv770_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r)
+			radeon_agp_disable(rdev);
+	}
 	r = rv770_mc_init(rdev);
 	if (r)
 		return r;
@@ -1058,6 +1055,12 @@ int rv770_init(struct radeon_device *rdev)
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
+	r = r600_blit_init(rdev);
+	if (r) {
+		r600_blit_fini(rdev);
+		rdev->asic->copy = NULL;
+		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
 
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
@@ -1071,13 +1074,14 @@ int rv770_init(struct radeon_device *rdev)
 	if (rdev->accel_working) {
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
-			DRM_ERROR("radeon: failed initializing IB pool (%d).\n", r);
+			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 			rdev->accel_working = false;
-		}
-		r = r600_ib_test(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-			rdev->accel_working = false;
+		} else {
+			r = r600_ib_test(rdev);
+			if (r) {
+				dev_err(rdev->dev, "IB test failed (%d).\n", r);
+				rdev->accel_working = false;
+			}
 		}
 	}
 	return 0;
@@ -1096,8 +1100,7 @@ void rv770_fini(struct radeon_device *rdev)
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-	if (rdev->flags & RADEON_IS_AGP)
-		radeon_agp_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);

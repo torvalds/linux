@@ -67,7 +67,7 @@ struct kfifo {
 /**
  * DECLARE_KFIFO - macro to declare a kfifo and the associated buffer
  * @name: name of the declared kfifo datatype
- * @size: size of the fifo buffer
+ * @size: size of the fifo buffer. Must be a power of two.
  *
  * Note1: the macro can be used inside struct or union declaration
  * Note2: the macro creates two objects:
@@ -91,7 +91,7 @@ union { \
 /**
  * DEFINE_KFIFO - macro to define and initialize a kfifo
  * @name: name of the declared kfifo datatype
- * @size: size of the fifo buffer
+ * @size: size of the fifo buffer. Must be a power of two.
  *
  * Note1: the macro can be used for global and local kfifo data type variables
  * Note2: the macro creates two objects:
@@ -104,15 +104,28 @@ union { \
 
 #undef __kfifo_initializer
 
-extern void kfifo_init(struct kfifo *fifo, unsigned char *buffer,
+extern void kfifo_init(struct kfifo *fifo, void *buffer,
 			unsigned int size);
 extern __must_check int kfifo_alloc(struct kfifo *fifo, unsigned int size,
 			gfp_t gfp_mask);
 extern void kfifo_free(struct kfifo *fifo);
 extern unsigned int kfifo_in(struct kfifo *fifo,
-				const unsigned char *from, unsigned int len);
+				const void *from, unsigned int len);
 extern __must_check unsigned int kfifo_out(struct kfifo *fifo,
-				unsigned char *to, unsigned int len);
+				void *to, unsigned int len);
+extern __must_check unsigned int kfifo_out_peek(struct kfifo *fifo,
+				void *to, unsigned int len, unsigned offset);
+
+/**
+ * kfifo_initialized - Check if kfifo is initialized.
+ * @fifo: fifo to check
+ * Return %true if FIFO is initialized, otherwise %false.
+ * Assumes the fifo was 0 before.
+ */
+static inline bool kfifo_initialized(struct kfifo *fifo)
+{
+	return fifo->buffer != 0;
+}
 
 /**
  * kfifo_reset - removes the entire FIFO contents
@@ -194,7 +207,7 @@ static inline __must_check unsigned int kfifo_avail(struct kfifo *fifo)
  * bytes copied.
  */
 static inline unsigned int kfifo_in_locked(struct kfifo *fifo,
-		const unsigned char *from, unsigned int n, spinlock_t *lock)
+		const void *from, unsigned int n, spinlock_t *lock)
 {
 	unsigned long flags;
 	unsigned int ret;
@@ -219,7 +232,7 @@ static inline unsigned int kfifo_in_locked(struct kfifo *fifo,
  * @to buffer and returns the number of copied bytes.
  */
 static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
-	unsigned char *to, unsigned int n, spinlock_t *lock)
+	void *to, unsigned int n, spinlock_t *lock)
 {
 	unsigned long flags;
 	unsigned int ret;
@@ -228,13 +241,6 @@ static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
 
 	ret = kfifo_out(fifo, to, n);
 
-	/*
-	 * optimization: if the FIFO is empty, set the indices to 0
-	 * so we don't wrap the next time
-	 */
-	if (kfifo_is_empty(fifo))
-		kfifo_reset(fifo);
-
 	spin_unlock_irqrestore(lock, flags);
 
 	return ret;
@@ -242,11 +248,11 @@ static inline __must_check unsigned int kfifo_out_locked(struct kfifo *fifo,
 
 extern void kfifo_skip(struct kfifo *fifo, unsigned int len);
 
-extern __must_check unsigned int kfifo_from_user(struct kfifo *fifo,
-	const void __user *from, unsigned int n);
+extern __must_check int kfifo_from_user(struct kfifo *fifo,
+	const void __user *from, unsigned int n, unsigned *lenout);
 
-extern __must_check unsigned int kfifo_to_user(struct kfifo *fifo,
-	void __user *to, unsigned int n);
+extern __must_check int kfifo_to_user(struct kfifo *fifo,
+	void __user *to, unsigned int n, unsigned *lenout);
 
 /*
  * __kfifo_add_out internal helper function for updating the out offset

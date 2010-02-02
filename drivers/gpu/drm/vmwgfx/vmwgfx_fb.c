@@ -649,14 +649,6 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 	if (unlikely(ret != 0))
 		goto err_unlock;
 
-	if (vmw_bo->gmr_bound) {
-		vmw_gmr_unbind(vmw_priv, vmw_bo->gmr_id);
-		spin_lock(&bo->glob->lru_lock);
-		ida_remove(&vmw_priv->gmr_ida, vmw_bo->gmr_id);
-		spin_unlock(&bo->glob->lru_lock);
-		vmw_bo->gmr_bound = NULL;
-	}
-
 	ret = ttm_bo_validate(bo, &ne_placement, false, false);
 	ttm_bo_unreserve(bo);
 err_unlock:

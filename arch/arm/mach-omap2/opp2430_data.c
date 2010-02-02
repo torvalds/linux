@@ -1,5 +1,5 @@
 /*
- * opp2420_data.c - old-style "OPP" table for OMAP2420
+ * opp2430_data.c - old-style "OPP" table for OMAP2430
  *
  * Copyright (C) 2005-2009 Texas Instruments, Inc.
  * Copyright (C) 2004-2009 Nokia Corporation
@@ -9,16 +9,16 @@
  * The OMAP2 processor can be run at several discrete 'PRCM configurations'.
  * These configurations are characterized by voltage and speed for clocks.
  * The device is only validated for certain combinations. One way to express
- * these combinations is via the 'ratio's' which the clocks operate with
+ * these combinations is via the 'ratios' which the clocks operate with
  * respect to each other. These ratio sets are for a given voltage/DPLL
- * setting. All configurations can be described by a DPLL setting and a ratio
- * There are 3 ratio sets for the 2430 and X ratio sets for 2420.
+ * setting. All configurations can be described by a DPLL setting and a ratio.
  *
  * 2430 differs from 2420 in that there are no more phase synchronizers used.
  * They both have a slightly different clock domain setup. 2420(iva1,dsp) vs
  * 2430 (iva2.1, NOdsp, mdm)
  *
  * XXX Missing voltage data.
+ * XXX Missing 19.2MHz sys_clk rate sets.
  *
  * THe format described in this file is deprecated.  Once a reasonable
  * OPP API exists, the data in this file should be converted to use it.
@@ -30,24 +30,24 @@
 #include "sdrc.h"
 #include "clock.h"
 
-/*-------------------------------------------------------------------------
- * Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
+/*
+ * Key dividers which make up a PRCM set. Ratios for a PRCM are mandated.
  * xtal_speed, dpll_speed, mpu_speed, CM_CLKSEL_MPU,
  * CM_CLKSEL_DSP, CM_CLKSEL_GFX, CM_CLKSEL1_CORE, CM_CLKSEL1_PLL,
  * CM_CLKSEL2_PLL, CM_CLKSEL_MDM
  *
- * Filling in table based on H4 boards and 2430-SDPs variants available.
- * There are quite a few more rates combinations which could be defined.
+ * Filling in table based on 2430-SDPs variants available.  There are
+ * quite a few more rate combinations which could be defined.
  *
- * When multiple values are defined the start up will try and choose the
- * fastest one. If a 'fast' value is defined, then automatically, the /2
- * one should be included as it can be used.	Generally having more that
- * one fast set does not make sense, as static timings need to be changed
- * to change the set.	 The exception is the bypass setting which is
- * availble for low power bypass.
+ * When multiple values are defined the start up will try and choose
+ * the fastest one. If a 'fast' value is defined, then automatically,
+ * the /2 one should be included as it can be used.  Generally having
+ * more than one fast set does not make sense, as static timings need
+ * to be changed to change the set.  The exception is the bypass
+ * setting which is available for low power bypass.
  *
  * Note: This table needs to be sorted, fastest to slowest.
- *-------------------------------------------------------------------------*/
+ */
 const struct prcm_config omap2430_rate_table[] = {
 	/* PRCM #4 - ratio2 (ES2.1) - FAST */
 	{S13M, S798M, S399M, R2_CM_CLKSEL_MPU_VAL,		/* 399MHz ARM */
