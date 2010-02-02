@@ -489,17 +489,14 @@ void avc_audit(u32 ssid, u32 tsid,
 	struct common_audit_data stack_data;
 	u32 denied, audited;
 	denied = requested & ~avd->allowed;
-	if (denied) {
-		audited = denied;
-		if (!(audited & avd->auditdeny))
-			return;
-	} else if (result) {
+	if (denied)
+		audited = denied & avd->auditdeny;
+	else if (result)
 		audited = denied = requested;
-	} else {
-		audited = requested;
-		if (!(audited & avd->auditallow))
-			return;
-	}
+	else
+		audited = requested & avd->auditallow;
+	if (!audited)
+		return;
 	if (!a) {
 		a = &stack_data;
 		memset(a, 0, sizeof(*a));
