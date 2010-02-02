@@ -312,11 +312,11 @@ static inline int jffs2_blocks_use_vmalloc(struct jffs2_sb_info *c)
 static inline int jffs2_encode_dev(union jffs2_device_node *jdev, dev_t rdev)
 {
 	if (old_valid_dev(rdev)) {
-		jdev->old = cpu_to_je16(old_encode_dev(rdev));
-		return sizeof(jdev->old);
+		jdev->old_id = cpu_to_je16(old_encode_dev(rdev));
+		return sizeof(jdev->old_id);
 	} else {
-		jdev->new = cpu_to_je32(new_encode_dev(rdev));
-		return sizeof(jdev->new);
+		jdev->new_id = cpu_to_je32(new_encode_dev(rdev));
+		return sizeof(jdev->new_id);
 	}
 }
 

@@ -313,8 +313,8 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	case S_IFBLK:
 	case S_IFCHR:
 		/* Read the device numbers from the media */
-		if (f->metadata->size != sizeof(jdev.old) &&
-		    f->metadata->size != sizeof(jdev.new)) {
+		if (f->metadata->size != sizeof(jdev.old_id) &&
+		    f->metadata->size != sizeof(jdev.new_id)) {
 			printk(KERN_NOTICE "Device node has strange size %d\n", f->metadata->size);
 			goto error_io;
 		}
@@ -325,10 +325,10 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 			printk(KERN_NOTICE "Read device numbers for inode %lu failed\n", (unsigned long)inode->i_ino);
 			goto error;
 		}
-		if (f->metadata->size == sizeof(jdev.old))
-			rdev = old_decode_dev(je16_to_cpu(jdev.old));
+		if (f->metadata->size == sizeof(jdev.old_id))
+			rdev = old_decode_dev(je16_to_cpu(jdev.old_id));
 		else
-			rdev = new_decode_dev(je32_to_cpu(jdev.new));
+			rdev = new_decode_dev(je32_to_cpu(jdev.new_id));
 
 	case S_IFSOCK:
 	case S_IFIFO:
