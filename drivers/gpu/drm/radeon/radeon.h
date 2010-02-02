@@ -1150,6 +1150,7 @@ extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
 extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_cp_resume(struct radeon_device *rdev);
+extern void r600_cp_fini(struct radeon_device *rdev);
 extern int r600_count_pipe_bits(uint32_t val);
 extern int r600_gart_clear_page(struct radeon_device *rdev, int i);
 extern int r600_mc_wait_for_idle(struct radeon_device *rdev);

@@ -1065,9 +1065,11 @@ int rv770_init(struct radeon_device *rdev)
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
 	if (r) {
-		rv770_suspend(rdev);
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		r600_cp_fini(rdev);
 		r600_wb_fini(rdev);
-		radeon_ring_fini(rdev);
+		r600_irq_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
@@ -1089,13 +1091,11 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
-	rv770_suspend(rdev);
-
 	r600_blit_fini(rdev);
+	r600_cp_fini(rdev);
+	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	radeon_ring_fini(rdev);
-	r600_wb_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);

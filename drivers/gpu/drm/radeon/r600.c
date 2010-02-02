@@ -1654,6 +1654,12 @@ void r600_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->cp.align_mask = 16 - 1;
 }
 
+void r600_cp_fini(struct radeon_device *rdev)
+{
+	r600_cp_stop(rdev);
+	radeon_ring_fini(rdev);
+}
+
 
 /*
  * GPU scratch registers helpers function.
@@ -2055,9 +2061,11 @@ int r600_init(struct radeon_device *rdev)
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
-		r600_suspend(rdev);
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		r600_cp_fini(rdev);
 		r600_wb_fini(rdev);
-		radeon_ring_fini(rdev);
+		r600_irq_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		r600_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
@@ -2083,20 +2091,17 @@ int r600_init(struct radeon_device *rdev)
 
 void r600_fini(struct radeon_device *rdev)
 {
-	/* Suspend operations */
-	r600_suspend(rdev);
-
 	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
+	r600_cp_fini(rdev);
+	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	radeon_ring_fini(rdev);
-	r600_wb_fini(rdev);
 	r600_pcie_gart_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
