@@ -740,7 +740,7 @@ static cycle_t __vsyscall_fn vread_tsc(void)
 }
 #endif
 
-static void resume_tsc(void)
+static void resume_tsc(struct clocksource *cs)
 {
 	clocksource_tsc.cycle_last = 0;
 }
