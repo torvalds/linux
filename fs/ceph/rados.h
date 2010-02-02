@@ -304,15 +304,13 @@ struct ceph_osd_op {
 	union {
 		struct {
 			__le64 offset, length;
+			__le64 truncate_size;
+			__le32 truncate_seq;
 		} __attribute__ ((packed)) extent;
 		struct {
 			__le32 name_len;
 			__le32 value_len;
 		} __attribute__ ((packed)) xattr;
-		struct {
-			__le64 truncate_size;
-			__le32 truncate_seq;
-		} __attribute__ ((packed)) trunc;
 		struct {
 			__u8 class_len;
 			__u8 method_len;

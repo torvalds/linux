@@ -199,11 +199,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	struct ceph_osd_request_head *head;
 	struct ceph_osd_op *op;
 	void *p;
-	int do_trunc = truncate_seq && (off + *plen > truncate_size);
-	int num_op = 1 + do_sync + do_trunc;
+	int num_op = 1 + do_sync;
 	size_t msg_size = sizeof(*head) + num_op*sizeof(*op);
 	int err, i;
-	u64 prevofs;
 
 	if (use_mempool) {
 		req = mempool_alloc(osdc->req_mempool, GFP_NOFS);
@@ -268,22 +266,14 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		req->r_request->hdr.data_len = cpu_to_le32(*plen);
 		op->payload_len = cpu_to_le32(*plen);
 	}
+	op->extent.truncate_size = cpu_to_le64(truncate_size);
+	op->extent.truncate_seq = cpu_to_le32(truncate_seq);
 
 	/* fill in oid */
 	head->object_len = cpu_to_le32(req->r_oid_len);
 	memcpy(p, req->r_oid, req->r_oid_len);
 	p += req->r_oid_len;
 
-	/* additional ops */
-	if (do_trunc) {
-		op++;
-		op->op = cpu_to_le16(opcode == CEPH_OSD_OP_READ ?
-			     CEPH_OSD_OP_MASKTRUNC : CEPH_OSD_OP_SETTRUNC);
-		op->trunc.truncate_seq = cpu_to_le32(truncate_seq);
-		prevofs = le64_to_cpu((op-1)->extent.offset);
-		op->trunc.truncate_size = cpu_to_le64(truncate_size -
-						      (off-prevofs));
-	}
 	if (do_sync) {
 		op++;
 		op->op = cpu_to_le16(CEPH_OSD_OP_STARTSYNC);
