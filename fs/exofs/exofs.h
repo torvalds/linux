@@ -36,12 +36,8 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/backing-dev.h>
+#include <linux/pnfs_osd_xdr.h>
 #include "common.h"
-
-/* FIXME: Remove once pnfs hits mainline
- * #include <linux/exportfs/pnfs_osd_xdr.h>
- */
-#include "pnfs.h"
 
 #define EXOFS_ERR(fmt, a...) printk(KERN_ERR "exofs: " fmt, ##a)
 
