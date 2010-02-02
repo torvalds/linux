@@ -45,61 +45,14 @@
 /* export that to outside world */
 struct device_node *of_chosen;
 
-#define early_init_dt_scan_drconf_memory(node) 0
-
 void __init early_init_dt_scan_chosen_arch(unsigned long node)
 {
 	/* No Microblaze specific code here */
 }
 
-static int __init early_init_dt_scan_memory(unsigned long node,
-				const char *uname, int depth, void *data)
+void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be32 *reg, *endp;
-	unsigned long l;
-
-	/* Look for the ibm,dynamic-reconfiguration-memory node */
-/*	if (depth == 1 &&
-		strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0)
-		return early_init_dt_scan_drconf_memory(node);
-*/
-	/* We are scanning "memory" nodes only */
-	if (type == NULL) {
-		/*
-		 * The longtrail doesn't have a device_type on the
-		 * /memory node, so look for the node called /memory@0.
-		 */
-		if (depth != 1 || strcmp(uname, "memory@0") != 0)
-			return 0;
-	} else if (strcmp(type, "memory") != 0)
-		return 0;
-
-	reg = (__be32 *)of_get_flat_dt_prop(node, "linux,usable-memory", &l);
-	if (reg == NULL)
-		reg = (__be32 *)of_get_flat_dt_prop(node, "reg", &l);
-	if (reg == NULL)
-		return 0;
-
-	endp = reg + (l / sizeof(__be32));
-
-	pr_debug("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
-		uname, l, reg[0], reg[1], reg[2], reg[3]);
-
-	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-		u64 base, size;
-
-		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-		size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-		if (size == 0)
-			continue;
-		pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
-			(unsigned long long)size);
-
-		lmb_add(base, size);
-	}
-	return 0;
+	lmb_add(base, size);
 }
 
 #ifdef CONFIG_EARLY_PRINTK

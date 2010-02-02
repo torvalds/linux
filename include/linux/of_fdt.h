@@ -75,6 +75,9 @@ extern void early_init_dt_scan_chosen_arch(unsigned long node);
 extern int early_init_dt_scan_chosen(unsigned long node, const char *uname,
 				     int depth, void *data);
 extern void early_init_dt_check_for_initrd(unsigned long node);
+extern int early_init_dt_scan_memory(unsigned long node, const char *uname,
+				     int depth, void *data);
+extern void early_init_dt_add_memory_arch(u64 base, u64 size);
 extern u64 dt_mem_next_cell(int s, u32 **cellp);
 
 /* Early flat tree scan hooks */

@@ -483,64 +483,31 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 #define early_init_dt_scan_drconf_memory(node)	0
 #endif /* CONFIG_PPC_PSERIES */
 
-static int __init early_init_dt_scan_memory(unsigned long node,
-					    const char *uname, int depth, void *data)
+static int __init early_init_dt_scan_memory_ppc(unsigned long node,
+						const char *uname,
+						int depth, void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	__be32 *reg, *endp;
-	unsigned long l;
-
-	/* Look for the ibm,dynamic-reconfiguration-memory node */
 	if (depth == 1 &&
 	    strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0)
 		return early_init_dt_scan_drconf_memory(node);
+	
+	return early_init_dt_scan_memory(node, uname, depth, data);
+}
 
-	/* We are scanning "memory" nodes only */
-	if (type == NULL) {
-		/*
-		 * The longtrail doesn't have a device_type on the
-		 * /memory node, so look for the node called /memory@0.
-		 */
-		if (depth != 1 || strcmp(uname, "memory@0") != 0)
-			return 0;
-	} else if (strcmp(type, "memory") != 0)
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
-	if (reg == NULL)
-		reg = of_get_flat_dt_prop(node, "reg", &l);
-	if (reg == NULL)
-		return 0;
-
-	endp = reg + (l / sizeof(__be32));
-
-	DBG("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
-	    uname, l, reg[0], reg[1], reg[2], reg[3]);
-
-	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-		u64 base, size;
-
-		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-		size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-		if (size == 0)
-			continue;
-		DBG(" - %llx ,  %llx\n", (unsigned long long)base,
-		    (unsigned long long)size);
-#ifdef CONFIG_PPC64
-		if (iommu_is_off) {
-			if (base >= 0x80000000ul)
-				continue;
-			if ((base + size) > 0x80000000ul)
-				size = 0x80000000ul - base;
-		}
-#endif
-		lmb_add(base, size);
-
-		memstart_addr = min((u64)memstart_addr, base);
+void __init early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+#if defined(CONFIG_PPC64)
+	if (iommu_is_off) {
+		if (base >= 0x80000000ul)
+			return;
+		if ((base + size) > 0x80000000ul)
+			size = 0x80000000ul - base;
 	}
+#endif
 
-	return 0;
+	lmb_add(base, size);
+
+	memstart_addr = min((u64)memstart_addr, base);
 }
 
 static void __init early_reserve_mem(void)
@@ -706,7 +673,7 @@ void __init early_init_devtree(void *params)
 	/* Scan memory nodes and rebuild LMBs */
 	lmb_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 
 	/* Save command line for /proc/cmdline and then parse parameters */
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);

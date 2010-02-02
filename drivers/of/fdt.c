@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 
+
 #ifdef CONFIG_PPC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC */
@@ -441,6 +442,55 @@ u64 __init dt_mem_next_cell(int s, u32 **cellp)
 
 	*cellp = p + s;
 	return of_read_number(p, s);
+}
+
+/**
+ * early_init_dt_scan_memory - Look for an parse memory nodes
+ */
+int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
+				     int depth, void *data)
+{
+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	__be32 *reg, *endp;
+	unsigned long l;
+
+	/* We are scanning "memory" nodes only */
+	if (type == NULL) {
+		/*
+		 * The longtrail doesn't have a device_type on the
+		 * /memory node, so look for the node called /memory@0.
+		 */
+		if (depth != 1 || strcmp(uname, "memory@0") != 0)
+			return 0;
+	} else if (strcmp(type, "memory") != 0)
+		return 0;
+
+	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	if (reg == NULL)
+		reg = of_get_flat_dt_prop(node, "reg", &l);
+	if (reg == NULL)
+		return 0;
+
+	endp = reg + (l / sizeof(__be32));
+
+	pr_debug("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
+	    uname, l, reg[0], reg[1], reg[2], reg[3]);
+
+	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
+		u64 base, size;
+
+		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
+		size = dt_mem_next_cell(dt_root_size_cells, &reg);
+
+		if (size == 0)
+			continue;
+		pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
+		    (unsigned long long)size);
+
+		early_init_dt_add_memory_arch(base, size);
+	}
+
+	return 0;
 }
 
 int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
