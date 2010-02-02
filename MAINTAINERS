@@ -4676,6 +4676,14 @@ F:	drivers/media/common/saa7146*
 F:	drivers/media/video/*7146*
 F:	include/media/*7146*
 
+TLG2300 VIDEO4LINUX-2 DRIVER
+M 	Huang Shijie	<shijie8@gmail.com>
+M 	Kang Yong	<kangyong@telegent.com>
+M 	Zhang Xiaobing	<xbzhang@telegent.com>
+S:	Supported
+F:	drivers/media/video/tlg2300
+
+
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwane@arm.linux.org.uk>
 S:	Maintained
