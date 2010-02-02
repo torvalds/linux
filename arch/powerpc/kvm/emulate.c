@@ -151,10 +151,10 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case OP_TRAP:
 #ifdef CONFIG_PPC64
 	case OP_TRAP_64:
-#else
-		vcpu->arch.esr |= ESR_PTR;
-#endif
 		kvmppc_core_queue_program(vcpu, SRR1_PROGTRAP);
+#else
+		kvmppc_core_queue_program(vcpu, vcpu->arch.esr | ESR_PTR);
+#endif
 		advance = 0;
 		break;
 

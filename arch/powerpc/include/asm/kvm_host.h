@@ -259,6 +259,8 @@ struct kvm_vcpu_arch {
 #endif
 	ulong fault_dear;
 	ulong fault_esr;
+	ulong queued_dear;
+	ulong queued_esr;
 	gpa_t paddr_accessed;
 
 	u8 io_gpr; /* GPR used as IO source/target */
