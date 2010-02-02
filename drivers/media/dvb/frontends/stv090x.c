@@ -1964,7 +1964,8 @@ static int stv090x_blind_search(struct stv090x_state *state)
 	u32 agc2, reg, srate_coarse;
 	s32 cpt_fail, agc2_ovflw, i;
 	u8 k_ref, k_max, k_min;
-	int coarse_fail, lock;
+	int coarse_fail = 0;
+	int lock;
 
 	k_max = 110;
 	k_min = 10;
