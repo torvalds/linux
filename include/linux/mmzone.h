@@ -301,7 +301,7 @@ struct zone {
 	unsigned long		min_unmapped_pages;
 	unsigned long		min_slab_pages;
 #endif
-	struct per_cpu_pageset	*pageset;
+	struct per_cpu_pageset __percpu *pageset;
 	/*
 	 * free areas of different sizes
 	 */

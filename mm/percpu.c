@@ -80,13 +80,15 @@
 /* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
 #ifndef __addr_to_pcpu_ptr
 #define __addr_to_pcpu_ptr(addr)					\
-	(void *)((unsigned long)(addr) - (unsigned long)pcpu_base_addr	\
-		 + (unsigned long)__per_cpu_start)
+	(void __percpu *)((unsigned long)(addr) -			\
+			  (unsigned long)pcpu_base_addr	+		\
+			  (unsigned long)__per_cpu_start)
 #endif
 #ifndef __pcpu_ptr_to_addr
 #define __pcpu_ptr_to_addr(ptr)						\
-	(void *)((unsigned long)(ptr) + (unsigned long)pcpu_base_addr	\
-		 - (unsigned long)__per_cpu_start)
+	(void __force *)((unsigned long)(ptr) +				\
+			 (unsigned long)pcpu_base_addr -		\
+			 (unsigned long)__per_cpu_start)
 #endif
 
 struct pcpu_chunk {
@@ -1065,7 +1067,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.
  */
-static void *pcpu_alloc(size_t size, size_t align, bool reserved)
+static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
 {
 	static int warn_limit = 10;
 	struct pcpu_chunk *chunk;
@@ -1194,7 +1196,7 @@ fail_unlock_mutex:
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.
  */
-void *__alloc_percpu(size_t size, size_t align)
+void __percpu *__alloc_percpu(size_t size, size_t align)
 {
 	return pcpu_alloc(size, align, false);
 }
@@ -1215,7 +1217,7 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
  * RETURNS:
  * Percpu pointer to the allocated area on success, NULL on failure.
  */
-void *__alloc_reserved_percpu(size_t size, size_t align)
+void __percpu *__alloc_reserved_percpu(size_t size, size_t align)
 {
 	return pcpu_alloc(size, align, true);
 }
@@ -1267,7 +1269,7 @@ static void pcpu_reclaim(struct work_struct *work)
  * CONTEXT:
  * Can be called from atomic context.
  */
-void free_percpu(void *ptr)
+void free_percpu(void __percpu *ptr)
 {
 	void *addr;
 	struct pcpu_chunk *chunk;

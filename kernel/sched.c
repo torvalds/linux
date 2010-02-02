@@ -1566,7 +1566,7 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
-static __read_mostly unsigned long *update_shares_data;
+static __read_mostly unsigned long __percpu *update_shares_data;
 
 static void __set_se_shares(struct sched_entity *se, unsigned long shares);
 
@@ -10683,7 +10683,7 @@ struct cgroup_subsys cpu_cgroup_subsys = {
 struct cpuacct {
 	struct cgroup_subsys_state css;
 	/* cpuusage holds pointer to a u64-type object on every cpu */
-	u64 *cpuusage;
+	u64 __percpu *cpuusage;
 	struct percpu_counter cpustat[CPUACCT_STAT_NSTATS];
 	struct cpuacct *parent;
 };
