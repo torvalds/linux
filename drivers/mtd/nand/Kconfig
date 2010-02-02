@@ -457,10 +457,10 @@ config MTD_NAND_NOMADIK
 
 config MTD_NAND_SH_FLCTL
 	tristate "Support for NAND on Renesas SuperH FLCTL"
-	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+	depends on MTD_NAND && SUPERH
 	help
 	  Several Renesas SuperH CPU has FLCTL. This option enables support
-	  for NAND Flash using FLCTL. This driver support SH7723.
+	  for NAND Flash using FLCTL.
 
 config MTD_NAND_DAVINCI
         tristate "Support NAND on DaVinci SoC"

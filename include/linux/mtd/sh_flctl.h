@@ -96,6 +96,7 @@
 struct sh_flctl {
 	struct mtd_info		mtd;
 	struct nand_chip	chip;
+	struct platform_device	*pdev;
 	void __iomem		*reg;
 
 	uint8_t	done_buff[2048 + 64];	/* max size 2048 + 64 */

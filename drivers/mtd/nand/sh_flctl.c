@@ -1,10 +1,10 @@
 /*
  * SuperH FLCTL nand controller
  *
- * Copyright © 2008 Renesas Solutions Corp.
- * Copyright © 2008 Atom Create Engineering Co., Ltd.
+ * Copyright (c) 2008 Renesas Solutions Corp.
+ * Copyright (c) 2008 Atom Create Engineering Co., Ltd.
  *
- * Based on fsl_elbc_nand.c, Copyright © 2006-2007 Freescale Semiconductor
+ * Based on fsl_elbc_nand.c, Copyright (c) 2006-2007 Freescale Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,6 +75,11 @@ static void start_translation(struct sh_flctl *flctl)
 	writeb(TRSTRT, FLTRCR(flctl));
 }
 
+static void timeout_error(struct sh_flctl *flctl, const char *str)
+{
+	dev_err(&flctl->pdev->dev, "Timeout occured in %s\n", str);
+}
+
 static void wait_completion(struct sh_flctl *flctl)
 {
 	uint32_t timeout = LOOP_TIMEOUT_MAX;
@@ -87,7 +92,7 @@ static void wait_completion(struct sh_flctl *flctl)
 		udelay(1);
 	}
 
-	printk(KERN_ERR "wait_completion(): Timeout occured \n");
+	timeout_error(flctl, __func__);
 	writeb(0x0, FLTRCR(flctl));
 }
 
@@ -132,7 +137,7 @@ static void wait_rfifo_ready(struct sh_flctl *flctl)
 			return;
 		udelay(1);
 	}
-	printk(KERN_ERR "wait_rfifo_ready(): Timeout occured \n");
+	timeout_error(flctl, __func__);
 }
 
 static void wait_wfifo_ready(struct sh_flctl *flctl)
@@ -146,7 +151,7 @@ static void wait_wfifo_ready(struct sh_flctl *flctl)
 			return;
 		udelay(1);
 	}
-	printk(KERN_ERR "wait_wfifo_ready(): Timeout occured \n");
+	timeout_error(flctl, __func__);
 }
 
 static int wait_recfifo_ready(struct sh_flctl *flctl, int sector_number)
@@ -198,7 +203,7 @@ static int wait_recfifo_ready(struct sh_flctl *flctl, int sector_number)
 		writel(0, FL4ECCCR(flctl));
 	}
 
-	printk(KERN_ERR "wait_recfifo_ready(): Timeout occured \n");
+	timeout_error(flctl, __func__);
 	return 1;	/* timeout */
 }
 
@@ -214,7 +219,7 @@ static void wait_wecfifo_ready(struct sh_flctl *flctl)
 			return;
 		udelay(1);
 	}
-	printk(KERN_ERR "wait_wecfifo_ready(): Timeout occured \n");
+	timeout_error(flctl, __func__);
 }
 
 static void read_datareg(struct sh_flctl *flctl, int offset)
@@ -769,38 +774,36 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 	return 0;
 }
 
-static int __init flctl_probe(struct platform_device *pdev)
+static int __devinit flctl_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct sh_flctl *flctl;
 	struct mtd_info *flctl_mtd;
 	struct nand_chip *nand;
 	struct sh_flctl_platform_data *pdata;
-	int ret;
+	int ret = -ENXIO;
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
-		printk(KERN_ERR "sh_flctl platform_data not found.\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "no platform data defined\n");
+		return -EINVAL;
 	}
 
 	flctl = kzalloc(sizeof(struct sh_flctl), GFP_KERNEL);
 	if (!flctl) {
-		printk(KERN_ERR "Unable to allocate NAND MTD dev structure.\n");
+		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		printk(KERN_ERR "%s: resource not found.\n", __func__);
-		ret = -ENODEV;
+		dev_err(&pdev->dev, "failed to get I/O memory\n");
 		goto err;
 	}
 
-	flctl->reg = ioremap(res->start, res->end - res->start + 1);
+	flctl->reg = ioremap(res->start, resource_size(res));
 	if (flctl->reg == NULL) {
-		printk(KERN_ERR "%s: ioremap error.\n", __func__);
-		ret = -ENOMEM;
+		dev_err(&pdev->dev, "failed to remap I/O memory\n");
 		goto err;
 	}
 
@@ -808,6 +811,7 @@ static int __init flctl_probe(struct platform_device *pdev)
 	flctl_mtd = &flctl->mtd;
 	nand = &flctl->chip;
 	flctl_mtd->priv = nand;
+	flctl->pdev = pdev;
 	flctl->hwecc = pdata->has_hwecc;
 
 	flctl_register_init(flctl, pdata->flcmncr_val);
@@ -846,7 +850,7 @@ err:
 	return ret;
 }
 
-static int __exit flctl_remove(struct platform_device *pdev)
+static int __devexit flctl_remove(struct platform_device *pdev)
 {
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 
