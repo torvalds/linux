@@ -21,7 +21,7 @@
 
 /* one of these per inode */
 struct btrfs_ordered_inode_tree {
-	struct mutex mutex;
+	spinlock_t lock;
 	struct rb_root tree;
 	struct rb_node *last;
 };
@@ -128,7 +128,7 @@ static inline int btrfs_ordered_sum_size(struct btrfs_root *root,
 static inline void
 btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 {
-	mutex_init(&t->mutex);
+	spin_lock_init(&t->lock);
 	t->tree = RB_ROOT;
 	t->last = NULL;
 }
