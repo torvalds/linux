@@ -80,13 +80,13 @@ struct ib_uverbs_device {
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
+	int					is_async;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
+	int					is_closed;
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
-	int					is_async;
-	int					is_closed;
 };
 
 struct ib_uverbs_file {
