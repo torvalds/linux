@@ -1240,6 +1240,7 @@ static DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
 static void ib_ucm_add_one(struct ib_device *device)
 {
 	int devnum;
+	dev_t base;
 	struct ib_ucm_device *ucm_dev;
 
 	if (!device->alloc_ucontext ||
@@ -1257,12 +1258,13 @@ static void ib_ucm_add_one(struct ib_device *device)
 		goto err;
 
 	ucm_dev->devnum = devnum;
+	base = devnum + IB_UCM_BASE_DEV;
 	set_bit(devnum, dev_map);
 
 	cdev_init(&ucm_dev->cdev, &ucm_fops);
 	ucm_dev->cdev.owner = THIS_MODULE;
 	kobject_set_name(&ucm_dev->cdev.kobj, "ucm%d", ucm_dev->devnum);
-	if (cdev_add(&ucm_dev->cdev, IB_UCM_BASE_DEV + devnum, 1))
+	if (cdev_add(&ucm_dev->cdev, base, 1))
 		goto err;
 
 	ucm_dev->dev.class = &cm_class;
