@@ -202,7 +202,7 @@ static struct resource usb_res[] = {
 		.name = "mem",
 		.flags = IORESOURCE_MEM,
 		.start = 0x03400000,
-		.end = 0x034001fff,
+		.end = 0x03401fff,
 	},
 };
 
