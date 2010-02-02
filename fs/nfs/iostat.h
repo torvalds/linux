@@ -57,12 +57,12 @@ static inline void nfs_add_fscache_stats(struct inode *inode,
 }
 #endif
 
-static inline struct nfs_iostats *nfs_alloc_iostats(void)
+static inline struct nfs_iostats __percpu *nfs_alloc_iostats(void)
 {
 	return alloc_percpu(struct nfs_iostats);
 }
 
-static inline void nfs_free_iostats(struct nfs_iostats *stats)
+static inline void nfs_free_iostats(struct nfs_iostats __percpu *stats)
 {
 	if (stats != NULL)
 		free_percpu(stats);
