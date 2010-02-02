@@ -1073,6 +1073,21 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 	return ss;
 }
 
+static void radeon_atom_apply_lvds_quirks(struct drm_device *dev,
+					  struct radeon_encoder_atom_dig *lvds)
+{
+
+	/* Toshiba A300-1BU laptop panel doesn't like new pll divider algo */
+	if ((dev->pdev->device == 0x95c4) &&
+	    (dev->pdev->subsystem_vendor == 0x1179) &&
+	    (dev->pdev->subsystem_device == 0xff50)) {
+		if ((lvds->native_mode.hdisplay == 1280) &&
+		    (lvds->native_mode.vdisplay == 800))
+			lvds->pll_algo = PLL_ALGO_LEGACY;
+	}
+
+}
+
 union lvds_info {
 	struct _ATOM_LVDS_INFO info;
 	struct _ATOM_LVDS_INFO_V12 info_12;
@@ -1150,6 +1165,9 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 				lvds->pll_algo = PLL_ALGO_LEGACY;
 		} else
 			lvds->pll_algo = PLL_ALGO_LEGACY;
+
+		/* LVDS quirks */
+		radeon_atom_apply_lvds_quirks(dev, lvds);
 
 		encoder->native_mode = lvds->native_mode;
 	}
