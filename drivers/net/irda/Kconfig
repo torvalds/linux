@@ -64,6 +64,16 @@ endchoice
 
 comment "Dongle support"
 
+config SH_SIR
+	tristate "SuperH SIR on UART"
+	depends on IRDA && SUPERH && \
+		(CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7723 || \
+		 CPU_SUBTYPE_SH7724)
+	default n
+	help
+	  Say Y here if your want to enable SIR function on SuperH UART
+	  devices.
+
 config DONGLE
 	bool "Serial dongle support"
 	depends on IRTTY_SIR
