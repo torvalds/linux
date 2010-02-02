@@ -33,12 +33,12 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/serial.h>
@@ -92,6 +92,7 @@ struct ftdi_private {
 	unsigned long tx_outstanding_bytes;
 	unsigned long tx_outstanding_urbs;
 	unsigned short max_packet_size;
+	struct mutex cfg_lock; /* Avoid mess by parallel calls of config ioctl() */
 };
 
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
@@ -1218,7 +1219,7 @@ static int set_serial_info(struct tty_struct *tty,
 	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
 		return -EFAULT;
 
-	lock_kernel();
+	mutex_lock(&priv->cfg_lock);
 	old_priv = *priv;
 
 	/* Do error checking and permission checking */
@@ -1226,7 +1227,7 @@ static int set_serial_info(struct tty_struct *tty,
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (((new_serial.flags & ~ASYNC_USR_MASK) !=
 		     (priv->flags & ~ASYNC_USR_MASK))) {
-			unlock_kernel();
+			mutex_unlock(&priv->cfg_lock);
 			return -EPERM;
 		}
 		priv->flags = ((priv->flags & ~ASYNC_USR_MASK) |
@@ -1237,7 +1238,7 @@ static int set_serial_info(struct tty_struct *tty,
 
 	if ((new_serial.baud_base != priv->baud_base) &&
 	    (new_serial.baud_base < 9600)) {
-	    	unlock_kernel();
+		mutex_unlock(&priv->cfg_lock);
 		return -EINVAL;
 	}
 
@@ -1267,11 +1268,11 @@ check_and_exit:
 	     (priv->flags & ASYNC_SPD_MASK)) ||
 	    (((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) &&
 	     (old_priv.custom_divisor != priv->custom_divisor))) {
-		unlock_kernel();
+		mutex_unlock(&priv->cfg_lock);
 		change_speed(tty, port);
 	}
 	else
-		unlock_kernel();
+		mutex_unlock(&priv->cfg_lock);
 	return 0;
 
 } /* set_serial_info */
@@ -1538,6 +1539,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	kref_init(&priv->kref);
 	spin_lock_init(&priv->tx_lock);
+	mutex_init(&priv->cfg_lock);
 	init_waitqueue_head(&priv->delta_msr_wait);
 
 	priv->flags = ASYNC_LOW_LATENCY;
