@@ -162,7 +162,7 @@ struct dma_chan {
 	struct dma_chan_dev *dev;
 
 	struct list_head device_node;
-	struct dma_chan_percpu *local;
+	struct dma_chan_percpu __percpu *local;
 	int client_count;
 	int table_count;
 	void *private;
