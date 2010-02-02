@@ -623,6 +623,13 @@ static const struct dmi_system_id bad_lid_status[] = {
 		},
 	},
 	{
+		.ident = "Aspire 1810T",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1810T"),
+		},
+	},
+	{
 		.ident = "PC-81005",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MALATA"),
@@ -643,7 +650,7 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 {
 	enum drm_connector_status status = connector_status_connected;
 
-	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
+	if (!dmi_check_system(bad_lid_status) && !acpi_lid_open())
 		status = connector_status_disconnected;
 
 	return status;
