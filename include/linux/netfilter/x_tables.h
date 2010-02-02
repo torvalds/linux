@@ -283,11 +283,11 @@ struct xt_match {
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_mtdtor_param *);
-
+#ifdef CONFIG_COMPAT
 	/* Called when userspace align differs from kernel space one */
 	void (*compat_from_user)(void *dst, void *src);
 	int (*compat_to_user)(void __user *dst, void *src);
-
+#endif
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
@@ -296,7 +296,9 @@ struct xt_match {
 
 	const char *table;
 	unsigned int matchsize;
+#ifdef CONFIG_COMPAT
 	unsigned int compatsize;
+#endif
 	unsigned int hooks;
 	unsigned short proto;
 
@@ -323,17 +325,19 @@ struct xt_target {
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_tgdtor_param *);
-
+#ifdef CONFIG_COMPAT
 	/* Called when userspace align differs from kernel space one */
 	void (*compat_from_user)(void *dst, void *src);
 	int (*compat_to_user)(void __user *dst, void *src);
-
+#endif
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
 	const char *table;
 	unsigned int targetsize;
+#ifdef CONFIG_COMPAT
 	unsigned int compatsize;
+#endif
 	unsigned int hooks;
 	unsigned short proto;
 
