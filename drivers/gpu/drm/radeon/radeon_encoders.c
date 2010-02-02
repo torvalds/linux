@@ -228,6 +228,32 @@ radeon_get_connector_for_encoder(struct drm_encoder *encoder)
 	return NULL;
 }
 
+static struct radeon_connector_atom_dig *
+radeon_get_atom_connector_priv_from_encoder(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector;
+	struct radeon_connector_atom_dig *dig_connector;
+
+	if (!rdev->is_atom_bios)
+		return NULL;
+
+	connector = radeon_get_connector_for_encoder(encoder);
+	if (!connector)
+		return NULL;
+
+	radeon_connector = to_radeon_connector(connector);
+
+	if (!radeon_connector->con_priv)
+		return NULL;
+
+	dig_connector = radeon_connector->con_priv;
+
+	return dig_connector;
+}
+
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
@@ -458,33 +484,19 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct radeon_connector_atom_dig *dig_connector =
+		radeon_get_atom_connector_priv_from_encoder(encoder);
 	union lvds_encoder_control args;
 	int index = 0;
 	int hdmi_detected = 0;
 	uint8_t frev, crev;
-	struct radeon_encoder_atom_dig *dig;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector;
-	struct radeon_connector_atom_dig *dig_connector;
 
-	connector = radeon_get_connector_for_encoder(encoder);
-	if (!connector)
+	if (!dig || !dig_connector)
 		return;
 
-	radeon_connector = to_radeon_connector(connector);
-
-	if (!radeon_encoder->enc_priv)
-		return;
-
-	dig = radeon_encoder->enc_priv;
-
-	if (!radeon_connector->con_priv)
-		return;
-
-	if (drm_detect_hdmi_monitor(radeon_connector->edid))
+	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI)
 		hdmi_detected = 1;
-
-	dig_connector = radeon_connector->con_priv;
 
 	memset(&args, 0, sizeof(args));
 
@@ -586,7 +598,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 {
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
-	struct radeon_connector_atom_dig *radeon_dig_connector;
+	struct radeon_connector_atom_dig *dig_connector;
 
 	connector = radeon_get_connector_for_encoder(encoder);
 	if (!connector)
@@ -617,9 +629,9 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 	case DRM_MODE_CONNECTOR_eDP:
-		radeon_dig_connector = radeon_connector->con_priv;
-		if ((radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
-		    (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
+		dig_connector = radeon_connector->con_priv;
+		if ((dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) ||
+		    (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_eDP))
 			return ATOM_ENCODER_MODE_DP;
 		else if (drm_detect_hdmi_monitor(radeon_connector->edid))
 			return ATOM_ENCODER_MODE_HDMI;
@@ -670,29 +682,15 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct radeon_connector_atom_dig *dig_connector =
+		radeon_get_atom_connector_priv_from_encoder(encoder);
 	DIG_ENCODER_CONTROL_PS_ALLOCATION args;
 	int index = 0, num = 0;
 	uint8_t frev, crev;
-	struct radeon_encoder_atom_dig *dig;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector;
-	struct radeon_connector_atom_dig *dig_connector;
 
-	connector = radeon_get_connector_for_encoder(encoder);
-	if (!connector)
+	if (!dig || !dig_connector)
 		return;
-
-	radeon_connector = to_radeon_connector(connector);
-
-	if (!radeon_connector->con_priv)
-		return;
-
-	dig_connector = radeon_connector->con_priv;
-
-	if (!radeon_encoder->enc_priv)
-		return;
-
-	dig = radeon_encoder->enc_priv;
 
 	memset(&args, 0, sizeof(args));
 
@@ -761,30 +759,21 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct radeon_connector_atom_dig *dig_connector =
+		radeon_get_atom_connector_priv_from_encoder(encoder);
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector;
 	union dig_transmitter_control args;
 	int index = 0, num = 0;
 	uint8_t frev, crev;
-	struct radeon_encoder_atom_dig *dig;
-	struct drm_connector *connector;
-	struct radeon_connector *radeon_connector;
-	struct radeon_connector_atom_dig *dig_connector;
 	bool is_dp = false;
 
+	if (!dig || !dig_connector)
+		return;
+
 	connector = radeon_get_connector_for_encoder(encoder);
-	if (!connector)
-		return;
-
 	radeon_connector = to_radeon_connector(connector);
-
-	if (!radeon_encoder->enc_priv)
-		return;
-
-	dig = radeon_encoder->enc_priv;
-
-	if (!radeon_connector->con_priv)
-		return;
-
-	dig_connector = radeon_connector->con_priv;
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_DP)
 		is_dp = true;
@@ -1026,7 +1015,7 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 }
 
-union crtc_sourc_param {
+union crtc_source_param {
 	SELECT_CRTC_SOURCE_PS_ALLOCATION v1;
 	SELECT_CRTC_SOURCE_PARAMETERS_V2 v2;
 };
@@ -1038,7 +1027,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
-	union crtc_sourc_param args;
+	union crtc_source_param args;
 	int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
 	uint8_t frev, crev;
 	struct radeon_encoder_atom_dig *dig;
