@@ -944,8 +944,9 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			dbg("data_size is %lu\n", data_size);
 			while (1);
 		}
-		edbg("lli_array[%lu].physical_address is %08lx, \
-		lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
+		edbg("lli_array[%lu].physical_address is %08lx, lli_array[%lu].block_size is %lu\n",
+		     count, lli_array[count].physical_address,
+		     count, lli_array[count].block_size);
 	}
 
 	/* set output params */

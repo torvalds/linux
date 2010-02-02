@@ -658,8 +658,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 			if (copy_from_user(data, rq->ifr_data, 28)) {
 				PRINT_ERROR
-				    ("slic: copy_from_user FAILED getting \
-				     initial simba param\n");
+				    ("slic: copy_from_user FAILED getting initial simba param\n");
 				return -EFAULT;
 			}
 
@@ -674,8 +673,7 @@ static int slic_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				   (tracemon_request ==
 				    SLIC_DUMP_IN_PROGRESS)) {
 				PRINT_ERROR
-				    ("ATK Diagnostic Trace Dump Requested but \
-				     already in progress... ignore\n");
+				    ("ATK Diagnostic Trace Dump Requested but already in progress... ignore\n");
 			} else {
 				PRINT_ERROR
 				    ("ATK Diagnostic Trace Dump Requested\n");
