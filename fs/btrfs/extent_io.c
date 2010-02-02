@@ -1171,7 +1171,8 @@ out:
  * 1 is returned if we find something, 0 if nothing was in the tree
  */
 static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
-					u64 *start, u64 *end, u64 max_bytes)
+					u64 *start, u64 *end, u64 max_bytes,
+					struct extent_state **cached_state)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -1203,8 +1204,11 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 				*end = state->end;
 			goto out;
 		}
-		if (!found)
+		if (!found) {
 			*start = state->start;
+			*cached_state = state;
+			atomic_inc(&state->refs);
+		}
 		found++;
 		*end = state->end;
 		cur_start = state->end + 1;
@@ -1336,10 +1340,11 @@ again:
 	delalloc_start = *start;
 	delalloc_end = 0;
 	found = find_delalloc_range(tree, &delalloc_start, &delalloc_end,
-				    max_bytes);
+				    max_bytes, &cached_state);
 	if (!found || delalloc_end <= *start) {
 		*start = delalloc_start;
 		*end = delalloc_end;
+		free_extent_state(cached_state);
 		return found;
 	}
 
