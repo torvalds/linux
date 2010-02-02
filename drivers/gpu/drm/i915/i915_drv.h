@@ -452,7 +452,7 @@ typedef struct drm_i915_private {
 	u32 savePIPEB_DATA_N1;
 	u32 savePIPEB_LINK_M1;
 	u32 savePIPEB_LINK_N1;
-	u32 saveRSTDBYCTL;
+	u32 saveMCHBAR_RENDER_STANDBY;
 
 	struct {
 		struct drm_mm gtt_space;

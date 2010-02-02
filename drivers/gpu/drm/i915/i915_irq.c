@@ -272,23 +272,23 @@ static void i915_hotplug_work_func(struct work_struct *work)
 static void i915_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 slow_up, slow_down, max_avg, min_avg;
+	u32 busy_up, busy_down, max_avg, min_avg;
 	u16 rgvswctl;
 	u8 new_delay = dev_priv->cur_delay;
 
 	I915_WRITE(MEMINTRSTS, I915_READ(MEMINTRSTS) & ~MEMINT_EVAL_CHG);
-	slow_up = I915_READ(RCPREVBSYTUPAVG);
-	slow_down = I915_READ(RCPREVBSYTDNAVG);
+	busy_up = I915_READ(RCPREVBSYTUPAVG);
+	busy_down = I915_READ(RCPREVBSYTDNAVG);
 	max_avg = I915_READ(RCBMAXAVG);
 	min_avg = I915_READ(RCBMINAVG);
 
 	/* Handle RCS change request from hw */
-	if (slow_up > max_avg) {
+	if (busy_up > max_avg) {
 		if (dev_priv->cur_delay != dev_priv->max_delay)
 			new_delay = dev_priv->cur_delay - 1;
 		if (new_delay < dev_priv->max_delay)
 			new_delay = dev_priv->max_delay;
-	} else if (slow_down < min_avg) {
+	} else if (busy_down < min_avg) {
 		if (dev_priv->cur_delay != dev_priv->min_delay)
 			new_delay = dev_priv->cur_delay + 1;
 		if (new_delay > dev_priv->min_delay)
@@ -300,8 +300,8 @@ static void i915_handle_rps_change(struct drm_device *dev)
 
 	rgvswctl = I915_READ(MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
-		DRM_ERROR("gpu slow, RCS change rejected\n");
-		return; /* still slow with another command */
+		DRM_ERROR("gpu busy, RCS change rejected\n");
+		return; /* still busy with another command */
 	}
 
 	/* Program the new state */

@@ -907,7 +907,7 @@
 #define RCBMINAVG		0x111a0
 #define RCUPEI			0x111b0
 #define RCDNEI			0x111b4
-#define RSTDBYCTL		0x111b8
+#define MCHBAR_RENDER_STANDBY		0x111b8
 #define   RCX_SW_EXIT		(1<<23)
 #define   RSX_STATUS_MASK	0x00700000
 #define VIDCTL			0x111c0

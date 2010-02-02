@@ -4770,8 +4770,8 @@ void intel_init_clock_gating(struct drm_device *dev)
 
 		if (obj_priv) {
 			I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
-			I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) &
-				   ~RCX_SW_EXIT);
+			I915_WRITE(MCHBAR_RENDER_STANDBY,
+				   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
 		}
 	}
 }
