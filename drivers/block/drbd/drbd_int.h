@@ -443,13 +443,18 @@ struct p_rs_param_89 {
 	char csums_alg[SHARED_SECRET_MAX];
 } __packed;
 
+enum drbd_conn_flags {
+	CF_WANT_LOSE = 1,
+	CF_DRY_RUN = 2,
+};
+
 struct p_protocol {
 	struct p_header head;
 	u32 protocol;
 	u32 after_sb_0p;
 	u32 after_sb_1p;
 	u32 after_sb_2p;
-	u32 want_lose;
+	u32 conn_flags;
 	u32 two_primaries;
 
               /* Since protocol version 87 and higher. */
@@ -791,6 +796,7 @@ enum {
 				 * while this is set. */
 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
 				 * the peer, if it changed there as well. */
+	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */
