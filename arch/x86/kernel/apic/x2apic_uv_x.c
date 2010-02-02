@@ -20,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/pci.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -33,6 +34,8 @@
 #include <asm/x86_init.h>
 
 DEFINE_PER_CPU(int, x2apic_extra_bits);
+
+#define PR_DEVEL(fmt, args...)	pr_devel("%s: " fmt, __func__, args)
 
 static enum uv_system_type uv_system_type;
 static u64 gru_start_paddr, gru_end_paddr;
@@ -553,6 +556,30 @@ late_initcall(uv_init_heartbeat);
 
 #endif /* !CONFIG_HOTPLUG_CPU */
 
+/* Direct Legacy VGA I/O traffic to designated IOH */
+int uv_set_vga_state(struct pci_dev *pdev, bool decode,
+		      unsigned int command_bits, bool change_bridge)
+{
+	int domain, bus, rc;
+
+	PR_DEVEL("devfn %x decode %d cmd %x chg_brdg %d\n",
+			pdev->devfn, decode, command_bits, change_bridge);
+
+	if (!change_bridge)
+		return 0;
+
+	if ((command_bits & PCI_COMMAND_IO) == 0)
+		return 0;
+
+	domain = pci_domain_nr(pdev->bus);
+	bus = pdev->bus->number;
+
+	rc = uv_bios_set_legacy_vga_target(decode, domain, bus);
+	PR_DEVEL("vga decode %d %x:%x, rc: %d\n", decode, domain, bus, rc);
+
+	return rc;
+}
+
 /*
  * Called on each cpu to initialize the per_cpu UV data area.
  * FIXME: hotplug not supported yet
@@ -691,4 +718,7 @@ void __init uv_system_init(void)
 	uv_cpu_init();
 	uv_scir_register_cpu_notifier();
 	proc_mkdir("sgi_uv", NULL);
+
+	/* register Legacy VGA I/O redirection handler */
+	pci_register_set_vga_state(uv_set_vga_state);
 }
