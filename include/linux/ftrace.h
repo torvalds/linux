@@ -143,7 +143,6 @@ enum {
 	FTRACE_FL_ENABLED	= (1 << 3),
 	FTRACE_FL_NOTRACE	= (1 << 4),
 	FTRACE_FL_CONVERTED	= (1 << 5),
-	FTRACE_FL_FROZEN	= (1 << 6),
 };
 
 struct dyn_ftrace {
