@@ -693,9 +693,9 @@ static void __init smp_core99_setup(int ncpus)
 #ifdef CONFIG_PPC64
 
 	/* i2c based HW sync on some G5s */
-	if (machine_is_compatible("PowerMac7,2") ||
-	    machine_is_compatible("PowerMac7,3") ||
-	    machine_is_compatible("RackMac3,1"))
+	if (of_machine_is_compatible("PowerMac7,2") ||
+	    of_machine_is_compatible("PowerMac7,3") ||
+	    of_machine_is_compatible("RackMac3,1"))
 		smp_core99_setup_i2c_hwsync(ncpus);
 
 	/* pfunc based HW sync on recent G5s */
@@ -713,7 +713,7 @@ static void __init smp_core99_setup(int ncpus)
 #else /* CONFIG_PPC64 */
 
 	/* GPIO based HW sync on ppc32 Core99 */
-	if (pmac_tb_freeze == NULL && !machine_is_compatible("MacRISC4")) {
+	if (pmac_tb_freeze == NULL && !of_machine_is_compatible("MacRISC4")) {
 		struct device_node *cpu;
 		const u32 *tbprop = NULL;
 
@@ -750,7 +750,7 @@ static void __init smp_core99_setup(int ncpus)
 #endif
 
 	/* 32 bits SMP can't NAP */
-	if (!machine_is_compatible("MacRISC4"))
+	if (!of_machine_is_compatible("MacRISC4"))
 		powersave_nap = 0;
 }
 
@@ -852,7 +852,7 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 		/* If we didn't start the second CPU, we must take
 		 * it off the bus
 		 */
-		if (machine_is_compatible("MacRISC4") &&
+		if (of_machine_is_compatible("MacRISC4") &&
 		    num_online_cpus() < 2)		
 			g5_phy_disable_cpu1();
 #endif /* CONFIG_PPC64 */

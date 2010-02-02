@@ -676,7 +676,7 @@ static int __init wf_pm112_init(void)
 {
 	struct device_node *cpu;
 
-	if (!machine_is_compatible("PowerMac11,2"))
+	if (!of_machine_is_compatible("PowerMac11,2"))
 		return -ENODEV;
 
 	/* Count the number of CPU cores */

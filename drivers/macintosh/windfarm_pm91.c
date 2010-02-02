@@ -711,7 +711,7 @@ static int __init wf_smu_init(void)
 {
 	int rc = -ENODEV;
 
-	if (machine_is_compatible("PowerMac9,1"))
+	if (of_machine_is_compatible("PowerMac9,1"))
 		rc = wf_init_pm();
 
 	if (rc == 0) {

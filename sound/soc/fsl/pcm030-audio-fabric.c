@@ -55,7 +55,7 @@ static __init int pcm030_fabric_init(void)
 	struct platform_device *pdev;
 	int rc;
 
-	if (!machine_is_compatible("phytec,pcm030"))
+	if (!of_machine_is_compatible("phytec,pcm030"))
 		return -ENODEV;
 
 	card.platform = &mpc5200_audio_dma_platform;

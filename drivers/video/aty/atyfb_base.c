@@ -2439,7 +2439,7 @@ static int __devinit aty_init(struct fb_info *info)
 	 * The Apple iBook1 uses non-standard memory frequencies.
 	 * We detect it and set the frequency manually.
 	 */
-	if (machine_is_compatible("PowerBook2,1")) {
+	if (of_machine_is_compatible("PowerBook2,1")) {
 		par->pll_limits.mclk = 70;
 		par->pll_limits.xclk = 53;
 	}
@@ -2659,7 +2659,7 @@ static int __devinit aty_init(struct fb_info *info)
 		      FBINFO_HWACCEL_YPAN;
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (M64_HAS(G3_PB_1_1) && machine_is_compatible("PowerBook1,1")) {
+	if (M64_HAS(G3_PB_1_1) && of_machine_is_compatible("PowerBook1,1")) {
 		/*
 		 * these bits let the 101 powerbook
 		 * wake up from sleep -- paulus
@@ -2690,9 +2690,9 @@ static int __devinit aty_init(struct fb_info *info)
 				if (M64_HAS(G3_PB_1024x768))
 					/* G3 PowerBook with 1024x768 LCD */
 					default_vmode = VMODE_1024_768_60;
-				else if (machine_is_compatible("iMac"))
+				else if (of_machine_is_compatible("iMac"))
 					default_vmode = VMODE_1024_768_75;
-				else if (machine_is_compatible("PowerBook2,1"))
+				else if (of_machine_is_compatible("PowerBook2,1"))
 					/* iBook with 800x600 LCD */
 					default_vmode = VMODE_800_600_60;
 				else

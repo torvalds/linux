@@ -1931,22 +1931,22 @@ static int __devinit aty128_init(struct pci_dev *pdev, const struct pci_device_i
 			 * PowerMac2,2 summer 2000 iMacs
 			 * PowerMac4,1 january 2001 iMacs "flower power"
 			 */
-			if (machine_is_compatible("PowerMac2,1") ||
-			    machine_is_compatible("PowerMac2,2") ||
-			    machine_is_compatible("PowerMac4,1"))
+			if (of_machine_is_compatible("PowerMac2,1") ||
+			    of_machine_is_compatible("PowerMac2,2") ||
+			    of_machine_is_compatible("PowerMac4,1"))
 				default_vmode = VMODE_1024_768_75;
 
 			/* iBook SE */
-			if (machine_is_compatible("PowerBook2,2"))
+			if (of_machine_is_compatible("PowerBook2,2"))
 				default_vmode = VMODE_800_600_60;
 
 			/* PowerBook Firewire (Pismo), iBook Dual USB */
-			if (machine_is_compatible("PowerBook3,1") ||
-			    machine_is_compatible("PowerBook4,1"))
+			if (of_machine_is_compatible("PowerBook3,1") ||
+			    of_machine_is_compatible("PowerBook4,1"))
 				default_vmode = VMODE_1024_768_60;
 
 			/* PowerBook Titanium */
-			if (machine_is_compatible("PowerBook3,2"))
+			if (of_machine_is_compatible("PowerBook3,2"))
 				default_vmode = VMODE_1152_768_60;
 	
 			if (default_cmode > 16) 

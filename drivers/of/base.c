@@ -219,13 +219,13 @@ int of_device_is_compatible(const struct device_node *device,
 EXPORT_SYMBOL(of_device_is_compatible);
 
 /**
- * machine_is_compatible - Test root of device tree for a given compatible value
+ * of_machine_is_compatible - Test root of device tree for a given compatible value
  * @compat: compatible string to look for in root node's compatible property.
  *
  * Returns true if the root node has the given value in its
  * compatible property.
  */
-int machine_is_compatible(const char *compat)
+int of_machine_is_compatible(const char *compat)
 {
 	struct device_node *root;
 	int rc = 0;
@@ -237,7 +237,7 @@ int machine_is_compatible(const char *compat)
 	}
 	return rc;
 }
-EXPORT_SYMBOL(machine_is_compatible);
+EXPORT_SYMBOL(of_machine_is_compatible);
 
 /**
  *  of_device_is_available - check if a device is available for use

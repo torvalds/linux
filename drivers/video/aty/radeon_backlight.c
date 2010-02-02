@@ -175,9 +175,9 @@ void radeonfb_bl_init(struct radeonfb_info *rinfo)
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	pdata->negative = pdata->negative ||
-		machine_is_compatible("PowerBook4,3") ||
-		machine_is_compatible("PowerBook6,3") ||
-		machine_is_compatible("PowerBook6,5");
+		of_machine_is_compatible("PowerBook4,3") ||
+		of_machine_is_compatible("PowerBook6,3") ||
+		of_machine_is_compatible("PowerBook6,5");
 #endif
 
 	rinfo->info->bl_dev = bd;

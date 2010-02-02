@@ -2426,7 +2426,7 @@ static int __init probe_motherboard(void)
 	    }
 	}
 	for(i=0; i<ARRAY_SIZE(pmac_mb_defs); i++) {
-	    if (machine_is_compatible(pmac_mb_defs[i].model_string)) {
+	    if (of_machine_is_compatible(pmac_mb_defs[i].model_string)) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
 	    }

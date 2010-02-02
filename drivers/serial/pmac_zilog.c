@@ -2031,9 +2031,9 @@ static int __init pmz_console_setup(struct console *co, char *options)
 	/*
 	 * XServe's default to 57600 bps
 	 */
-	if (machine_is_compatible("RackMac1,1")
-	    || machine_is_compatible("RackMac1,2")
-	    || machine_is_compatible("MacRISC4"))
+	if (of_machine_is_compatible("RackMac1,1")
+	    || of_machine_is_compatible("RackMac1,2")
+	    || of_machine_is_compatible("MacRISC4"))
 	 	baud = 57600;
 
 	/*
