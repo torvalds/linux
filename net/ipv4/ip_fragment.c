@@ -234,10 +234,9 @@ static void ip_expire(unsigned long arg)
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
 		icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
-	}
-
 out_rcu_unlock:
-	rcu_read_unlock();
+		rcu_read_unlock();
+	}
 out:
 	spin_unlock(&qp->q.lock);
 	ipq_put(qp);
