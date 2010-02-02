@@ -731,6 +731,7 @@ static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 static void ib_uverbs_add_one(struct ib_device *device)
 {
 	int devnum;
+	dev_t base;
 	struct ib_uverbs_device *uverbs_dev;
 
 	if (!device->alloc_ucontext)
@@ -750,6 +751,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 		goto err;
 	}
 	uverbs_dev->devnum = devnum;
+	base = devnum + IB_UVERBS_BASE_DEV;
 	set_bit(devnum, dev_map);
 	spin_unlock(&map_lock);
 
@@ -760,7 +762,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	uverbs_dev->cdev.owner = THIS_MODULE;
 	uverbs_dev->cdev.ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
 	kobject_set_name(&uverbs_dev->cdev.kobj, "uverbs%d", uverbs_dev->devnum);
-	if (cdev_add(&uverbs_dev->cdev, IB_UVERBS_BASE_DEV + devnum, 1))
+	if (cdev_add(&uverbs_dev->cdev, base, 1))
 		goto err_cdev;
 
 	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
