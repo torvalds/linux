@@ -961,6 +961,11 @@ int flush_old_exec(struct linux_binprm * bprm)
 		goto out;
 
 	bprm->mm = NULL;		/* We're using it now */
+
+	current->flags &= ~PF_RANDOMIZE;
+	flush_thread();
+	current->personality &= ~bprm->per_clear;
+
 	return 0;
 
 out:
@@ -997,9 +1002,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 	tcomm[i] = '\0';
 	set_task_comm(current, tcomm);
 
-	current->flags &= ~PF_RANDOMIZE;
-	flush_thread();
-
 	/* Set the new mm task size. We have to do that late because it may
 	 * depend on TIF_32BIT which is only updated in flush_thread() on
 	 * some architectures like powerpc
@@ -1014,8 +1016,6 @@ void setup_new_exec(struct linux_binprm * bprm)
 		   bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP) {
 		set_dumpable(current->mm, suid_dumpable);
 	}
-
-	current->personality &= ~bprm->per_clear;
 
 	/*
 	 * Flush performance counters when crossing a
