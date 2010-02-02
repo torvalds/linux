@@ -43,7 +43,6 @@
 #include <linux/sched.h>
 #include <linux/file.h>
 #include <linux/mount.h>
-#include <linux/cdev.h>
 
 #include <asm/uaccess.h>
 
@@ -761,17 +760,15 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	uverbs_dev->ib_dev           = device;
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
-	uverbs_dev->cdev = cdev_alloc();
-	if (!uverbs_dev->cdev)
-		goto err;
-	uverbs_dev->cdev->owner = THIS_MODULE;
-	uverbs_dev->cdev->ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
-	kobject_set_name(&uverbs_dev->cdev->kobj, "uverbs%d", uverbs_dev->devnum);
-	if (cdev_add(uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
+	cdev_init(&uverbs_dev->cdev, NULL);
+	uverbs_dev->cdev.owner = THIS_MODULE;
+	uverbs_dev->cdev.ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
+	kobject_set_name(&uverbs_dev->cdev.kobj, "uverbs%d", uverbs_dev->devnum);
+	if (cdev_add(&uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
 		goto err_cdev;
 
 	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
-					uverbs_dev->cdev->dev, uverbs_dev,
+					uverbs_dev->cdev.dev, uverbs_dev,
 					"uverbs%d", uverbs_dev->devnum);
 	if (IS_ERR(uverbs_dev->dev))
 		goto err_cdev;
@@ -790,10 +787,10 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	return;
 
 err_class:
-	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
+	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
 
 err_cdev:
-	cdev_del(uverbs_dev->cdev);
+	cdev_del(&uverbs_dev->cdev);
 	clear_bit(uverbs_dev->devnum, dev_map);
 
 err:
@@ -811,8 +808,8 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 		return;
 
 	dev_set_drvdata(uverbs_dev->dev, NULL);
-	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
-	cdev_del(uverbs_dev->cdev);
+	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
+	cdev_del(&uverbs_dev->cdev);
 
 	spin_lock(&map_lock);
 	dev_table[uverbs_dev->devnum] = NULL;

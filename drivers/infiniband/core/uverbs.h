@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/cdev.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
@@ -69,12 +70,12 @@
 
 struct ib_uverbs_device {
 	struct kref				ref;
+	int					num_comp_vectors;
 	struct completion			comp;
-	int					devnum;
-	struct cdev			       *cdev;
 	struct device			       *dev;
 	struct ib_device		       *ib_dev;
-	int					num_comp_vectors;
+	int					devnum;
+	struct cdev			        cdev;
 };
 
 struct ib_uverbs_event_file {
