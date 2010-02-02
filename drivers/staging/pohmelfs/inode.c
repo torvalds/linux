@@ -36,6 +36,7 @@
 #define POHMELFS_MAGIC_NUM	0x504f482e
 
 static struct kmem_cache *pohmelfs_inode_cache;
+static atomic_t psb_bdi_num = ATOMIC_INIT(0);
 
 /*
  * Removes inode from all trees, drops local name cache and removes all queued
@@ -1331,6 +1332,8 @@ static void pohmelfs_put_super(struct super_block *sb)
 	pohmelfs_crypto_exit(psb);
 	pohmelfs_state_exit(psb);
 
+	bdi_destroy(&psb->bdi);
+
 	kfree(psb);
 	sb->s_fs_info = NULL;
 }
@@ -1814,11 +1817,22 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!psb)
 		goto err_out_exit;
 
+	err = bdi_init(&psb->bdi);
+	if (err)
+		goto err_out_free_sb;
+
+	err = bdi_register(&psb->bdi, NULL, "pfs-%d", atomic_inc_return(&psb_bdi_num));
+	if (err) {
+		bdi_destroy(&psb->bdi);
+		goto err_out_free_sb;
+	}
+
 	sb->s_fs_info = psb;
 	sb->s_op = &pohmelfs_sb_ops;
 	sb->s_magic = POHMELFS_MAGIC_NUM;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_SIZE;
+	sb->s_bdi = &psb->bdi;
 
 	psb->sb = sb;
 
@@ -1862,11 +1876,11 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = pohmelfs_parse_options((char *) data, psb, 0);
 	if (err)
-		goto err_out_free_sb;
+		goto err_out_free_bdi;
 
 	err = pohmelfs_copy_crypto(psb);
 	if (err)
-		goto err_out_free_sb;
+		goto err_out_free_bdi;
 
 	err = pohmelfs_state_init(psb);
 	if (err)
@@ -1915,6 +1929,8 @@ err_out_state_exit:
 err_out_free_strings:
 	kfree(psb->cipher_string);
 	kfree(psb->hash_string);
+err_out_free_bdi:
+	bdi_destroy(&psb->bdi);
 err_out_free_sb:
 	kfree(psb);
 err_out_exit:
