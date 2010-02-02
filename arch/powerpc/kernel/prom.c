@@ -766,27 +766,6 @@ void __init early_init_devtree(void *params)
  *******/
 
 /**
- *	of_find_node_by_phandle - Find a node given a phandle
- *	@handle:	phandle of the node to find
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_node_by_phandle(phandle handle)
-{
-	struct device_node *np;
-
-	read_lock(&devtree_lock);
-	for (np = allnodes; np != 0; np = np->allnext)
-		if (np->phandle == handle)
-			break;
-	of_node_get(np);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_phandle);
-
-/**
  *	of_find_next_cache_node - Find a node's subsidiary cache
  *	@np:	node of type "cpu" or "cache"
  *

@@ -37,18 +37,6 @@ EXPORT_SYMBOL(of_console_path);
 char *of_console_options;
 EXPORT_SYMBOL(of_console_options);
 
-struct device_node *of_find_node_by_phandle(phandle handle)
-{
-	struct device_node *np;
-
-	for (np = allnodes; np; np = np->allnext)
-		if (np->phandle == handle)
-			break;
-
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_phandle);
-
 int of_getintprop_default(struct device_node *np, const char *name, int def)
 {
 	struct property *prop;
