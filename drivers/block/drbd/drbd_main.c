@@ -1298,6 +1298,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				dev_err(DEV, "Sending state in drbd_io_error() failed\n");
 		}
 
+		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 		lc_destroy(mdev->resync);
 		mdev->resync = NULL;
 		lc_destroy(mdev->act_log);

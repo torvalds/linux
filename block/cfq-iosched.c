@@ -3077,6 +3077,12 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 		return true;
 
 	/*
+	 * Don't allow a non-RT request to preempt an ongoing RT cfqq timeslice.
+	 */
+	if (cfq_class_rt(cfqq) && !cfq_class_rt(new_cfqq))
+		return false;
+
+	/*
 	 * if the new request is sync, but the currently running queue is
 	 * not, let the sync request have priority.
 	 */

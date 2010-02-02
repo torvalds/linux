@@ -468,7 +468,7 @@ void radeon_dp_set_link_config(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
 
-	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
 	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
@@ -583,7 +583,7 @@ void dp_link_train(struct drm_encoder *encoder,
 	u8 train_set[4];
 	int i;
 
-	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) ||
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
 	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
@@ -596,21 +596,14 @@ void dp_link_train(struct drm_encoder *encoder,
 		return;
 	dig_connector = radeon_connector->con_priv;
 
-	if (ASIC_IS_DCE32(rdev)) {
-		if (dig->dig_block)
-			enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER;
-		else
-			enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER;
-		if (dig_connector->linkb)
-			enc_id |= ATOM_DP_CONFIG_LINK_B;
-		else
-			enc_id |= ATOM_DP_CONFIG_LINK_A;
-	} else {
-		if (dig_connector->linkb)
-			enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER | ATOM_DP_CONFIG_LINK_B;
-		else
-			enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER | ATOM_DP_CONFIG_LINK_A;
-	}
+	if (dig->dig_encoder)
+		enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER;
+	else
+		enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER;
+	if (dig_connector->linkb)
+		enc_id |= ATOM_DP_CONFIG_LINK_B;
+	else
+		enc_id |= ATOM_DP_CONFIG_LINK_A;
 
 	memset(link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
 	if (dig_connector->dp_clock == 270000)

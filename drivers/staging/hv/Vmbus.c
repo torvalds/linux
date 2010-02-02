@@ -129,7 +129,7 @@ static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
 
 	/* strcpy(dev->name, "vmbus"); */
 	/* SynIC setup... */
-	ret = HvSynicInit(*irqvector);
+	on_each_cpu(HvSynicInit, (void *)irqvector, 1);
 
 	/* Connect to VMBus in the root partition */
 	ret = VmbusConnect();
@@ -150,7 +150,7 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 	DPRINT_ENTER(VMBUS);
 	VmbusChannelReleaseUnattachedChannels();
 	VmbusDisconnect();
-	HvSynicCleanup();
+	on_each_cpu(HvSynicCleanup, NULL, 1);
 	DPRINT_EXIT(VMBUS);
 
 	return ret;
@@ -173,7 +173,8 @@ static void VmbusOnCleanup(struct hv_driver *drv)
  */
 static void VmbusOnMsgDPC(struct hv_driver *drv)
 {
-	void *page_addr = gHvContext.synICMessagePage[0];
+	int cpu = smp_processor_id();
+	void *page_addr = gHvContext.synICMessagePage[cpu];
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
 	struct hv_message *copied;
@@ -230,11 +231,12 @@ static void VmbusOnEventDPC(struct hv_driver *drv)
 static int VmbusOnISR(struct hv_driver *drv)
 {
 	int ret = 0;
+	int cpu = smp_processor_id();
 	void *page_addr;
 	struct hv_message *msg;
 	union hv_synic_event_flags *event;
 
-	page_addr = gHvContext.synICMessagePage[0];
+	page_addr = gHvContext.synICMessagePage[cpu];
 	msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
 
 	DPRINT_ENTER(VMBUS);
@@ -248,7 +250,7 @@ static int VmbusOnISR(struct hv_driver *drv)
 	}
 
 	/* TODO: Check if there are events to be process */
-	page_addr = gHvContext.synICEventPage[0];
+	page_addr = gHvContext.synICEventPage[cpu];
 	event = (union hv_synic_event_flags *)page_addr + VMBUS_MESSAGE_SINT;
 
 	/* Since we are a child, we only need to check bit 0 */

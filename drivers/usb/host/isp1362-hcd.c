@@ -2270,10 +2270,10 @@ static int isp1362_mem_config(struct usb_hcd *hcd)
 	dev_info(hcd->self.controller, "ISP1362 Memory usage:\n");
 	dev_info(hcd->self.controller, "  ISTL:    2 * %4d:     %4d @ $%04x:$%04x\n",
 		 istl_size / 2, istl_size, 0, istl_size / 2);
-	dev_info(hcd->self.controller, "  INTL: %4d * (%3lu+8):  %4d @ $%04x\n",
+	dev_info(hcd->self.controller, "  INTL: %4d * (%3zu+8):  %4d @ $%04x\n",
 		 ISP1362_INTL_BUFFERS, intl_blksize - PTD_HEADER_SIZE,
 		 intl_size, istl_size);
-	dev_info(hcd->self.controller, "  ATL : %4d * (%3lu+8):  %4d @ $%04x\n",
+	dev_info(hcd->self.controller, "  ATL : %4d * (%3zu+8):  %4d @ $%04x\n",
 		 atl_buffers, atl_blksize - PTD_HEADER_SIZE,
 		 atl_size, istl_size + intl_size);
 	dev_info(hcd->self.controller, "  USED/FREE:   %4d      %4d\n", total,
@@ -2697,6 +2697,8 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	void __iomem *data_reg;
 	int irq;
 	int retval = 0;
+	struct resource *irq_res;
+	unsigned int irq_flags = 0;
 
 	/* basic sanity checks first.  board-specific init logic should
 	 * have initialized this the three resources and probably board
@@ -2710,11 +2712,12 @@ static int __init isp1362_probe(struct platform_device *pdev)
 
 	data = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	irq = platform_get_irq(pdev, 0);
-	if (!addr || !data || irq < 0) {
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!addr || !data || !irq_res) {
 		retval = -ENODEV;
 		goto err1;
 	}
+	irq = irq_res->start;
 
 #ifdef CONFIG_USB_HCD_DMA
 	if (pdev->dev.dma_mask) {
@@ -2781,12 +2784,16 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	}
 #endif
 
-#ifdef CONFIG_ARM
-	if (isp1362_hcd->board)
-		set_irq_type(irq, isp1362_hcd->board->int_act_high ? IRQT_RISING : IRQT_FALLING);
-#endif
+	if (irq_res->flags & IORESOURCE_IRQ_HIGHEDGE)
+		irq_flags |= IRQF_TRIGGER_RISING;
+	if (irq_res->flags & IORESOURCE_IRQ_LOWEDGE)
+		irq_flags |= IRQF_TRIGGER_FALLING;
+	if (irq_res->flags & IORESOURCE_IRQ_HIGHLEVEL)
+		irq_flags |= IRQF_TRIGGER_HIGH;
+	if (irq_res->flags & IORESOURCE_IRQ_LOWLEVEL)
+		irq_flags |= IRQF_TRIGGER_LOW;
 
-	retval = usb_add_hcd(hcd, irq, IRQF_TRIGGER_LOW | IRQF_DISABLED | IRQF_SHARED);
+	retval = usb_add_hcd(hcd, irq, irq_flags | IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
 		goto err6;
 	pr_info("%s, irq %d\n", hcd->product_desc, irq);

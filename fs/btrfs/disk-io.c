@@ -1993,6 +1993,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!fs_info->fs_root)
 		goto fail_trans_kthread;
 
+	if (!(sb->s_flags & MS_RDONLY)) {
+		down_read(&fs_info->cleanup_work_sem);
+		btrfs_orphan_cleanup(fs_info->fs_root);
+		up_read(&fs_info->cleanup_work_sem);
+	}
+
 	return tree_root;
 
 fail_trans_kthread:

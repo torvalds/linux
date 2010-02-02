@@ -860,10 +860,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 
 	ret_val = medusa_set_videostandard(dev);
 
-	if (ret_val < 0) {
-		mutex_unlock(&dev->lock);
+	if (ret_val < 0)
 		return -EINVAL;
-	}
 
 	return 1;
 }

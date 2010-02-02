@@ -1467,6 +1467,7 @@ EXPORT_SYMBOL_GPL(kmsg_dump_unregister);
 static const char const *kmsg_reasons[] = {
 	[KMSG_DUMP_OOPS]	= "oops",
 	[KMSG_DUMP_PANIC]	= "panic",
+	[KMSG_DUMP_KEXEC]	= "kexec",
 };
 
 static const char *kmsg_to_str(enum kmsg_dump_reason reason)

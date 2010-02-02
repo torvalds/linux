@@ -28,8 +28,12 @@ struct ad7879_platform_data {
 	 * 1 = 4, 2 = 8, 3 = 16 (median > averaging)
 	 */
 	u8	median;
-	/* 1 = AUX/VBAT/GPIO set to GPIO Output */
-	u8	gpio_output;
-	/* Initial GPIO pin state (valid if gpio_output = 1) */
-	u8	gpio_default;
+	/* 1 = AUX/VBAT/GPIO export GPIO to gpiolib
+	 * requires CONFIG_GPIOLIB
+	 */
+	bool	gpio_export;
+	/* identifies the first GPIO number handled by this chip;
+	 * or, if negative, requests dynamic ID allocation.
+	 */
+	s32	gpio_base;
 };

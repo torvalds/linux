@@ -524,7 +524,7 @@ static int __init sh_eth_is_eeprom_ready(void)
 	while (t--) {
 		if (!__raw_readw(EEPROM_STAT))
 			return 1;
-		cpu_relax();
+		udelay(1);
 	}
 
 	printk(KERN_ERR "ms7724se can not access to eeprom\n");

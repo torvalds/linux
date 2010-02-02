@@ -46,7 +46,7 @@ static int acpi_pci_root_add(struct acpi_device *device);
 static int acpi_pci_root_remove(struct acpi_device *device, int type);
 static int acpi_pci_root_start(struct acpi_device *device);
 
-static struct acpi_device_id root_device_ids[] = {
+static const struct acpi_device_id root_device_ids[] = {
 	{"PNP0A03", 0},
 	{"", 0},
 };

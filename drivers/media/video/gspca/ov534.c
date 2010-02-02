@@ -1533,7 +1533,7 @@ static void setexposure_96(struct gspca_dev *gspca_dev)
 static void setsharpness_96(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 val;
+	s8 val;
 
 	val = sd->sharpness;
 	if (val < 0) {				/* auto */
