@@ -971,6 +971,28 @@ static ssize_t show_abi_version(struct class *class, char *buf)
 }
 static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
+static dev_t overflow_maj;
+static DECLARE_BITMAP(overflow_map, IB_UMAD_MAX_PORTS);
+static int find_overflow_devnum(void)
+{
+	int ret;
+
+	if (!overflow_maj) {
+		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UMAD_MAX_PORTS * 2,
+					  "infiniband_mad");
+		if (ret) {
+			printk(KERN_ERR "user_mad: couldn't register dynamic device number\n");
+			return ret;
+		}
+	}
+
+	ret = find_first_zero_bit(overflow_map, IB_UMAD_MAX_PORTS);
+	if (ret >= IB_UMAD_MAX_PORTS)
+		return -1;
+
+	return ret;
+}
+
 static int ib_umad_init_port(struct ib_device *device, int port_num,
 			     struct ib_umad_port *port)
 {
@@ -981,11 +1003,19 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
 	if (devnum >= IB_UMAD_MAX_PORTS) {
 		spin_unlock(&port_lock);
-		return -1;
+		devnum = find_overflow_devnum();
+		if (devnum < 0)
+			return -1;
+
+		spin_lock(&port_lock);
+		port->dev_num = devnum + IB_UMAD_MAX_PORTS;
+		base = devnum + overflow_maj;
+		set_bit(devnum, overflow_map);
+	} else {
+		port->dev_num = devnum;
+		base = devnum + base_dev;
+		set_bit(devnum, dev_map);
 	}
-	port->dev_num = devnum;
-	base = devnum + base_dev;
-	set_bit(devnum, dev_map);
 	spin_unlock(&port_lock);
 
 	port->ib_dev   = device;
@@ -1042,7 +1072,10 @@ err_dev:
 
 err_cdev:
 	cdev_del(&port->cdev);
-	clear_bit(devnum, dev_map);
+	if (port->dev_num < IB_UMAD_MAX_PORTS)
+		clear_bit(devnum, dev_map);
+	else
+		clear_bit(devnum, overflow_map);
 
 	return -1;
 }
@@ -1079,7 +1112,10 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 
 	mutex_unlock(&port->file_mutex);
 
-	clear_bit(port->dev_num, dev_map);
+	if (port->dev_num < IB_UMAD_MAX_PORTS)
+		clear_bit(port->dev_num, dev_map);
+	else
+		clear_bit(port->dev_num - IB_UMAD_MAX_PORTS, overflow_map);
 }
 
 static void ib_umad_add_one(struct ib_device *device)
@@ -1187,6 +1223,8 @@ static void __exit ib_umad_cleanup(void)
 	ib_unregister_client(&umad_client);
 	class_destroy(umad_class);
 	unregister_chrdev_region(base_dev, IB_UMAD_MAX_PORTS * 2);
+	if (overflow_maj)
+		unregister_chrdev_region(overflow_maj, IB_UMAD_MAX_PORTS * 2);
 }
 
 module_init(ib_umad_init);
