@@ -405,13 +405,13 @@ static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 	return n;
 }
 
-void radeon_compute_pll(struct radeon_pll *pll,
-			uint64_t freq,
-			uint32_t *dot_clock_p,
-			uint32_t *fb_div_p,
-			uint32_t *frac_fb_div_p,
-			uint32_t *ref_div_p,
-			uint32_t *post_div_p)
+static void radeon_compute_pll_legacy(struct radeon_pll *pll,
+				      uint64_t freq,
+				      uint32_t *dot_clock_p,
+				      uint32_t *fb_div_p,
+				      uint32_t *frac_fb_div_p,
+				      uint32_t *ref_div_p,
+				      uint32_t *post_div_p)
 {
 	uint32_t min_ref_div = pll->min_ref_div;
 	uint32_t max_ref_div = pll->max_ref_div;
@@ -571,13 +571,13 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	*post_div_p = best_post_div;
 }
 
-void radeon_compute_pll_avivo(struct radeon_pll *pll,
-			      uint64_t freq,
-			      uint32_t *dot_clock_p,
-			      uint32_t *fb_div_p,
-			      uint32_t *frac_fb_div_p,
-			      uint32_t *ref_div_p,
-			      uint32_t *post_div_p)
+static void radeon_compute_pll_avivo(struct radeon_pll *pll,
+				     uint64_t freq,
+				     uint32_t *dot_clock_p,
+				     uint32_t *fb_div_p,
+				     uint32_t *frac_fb_div_p,
+				     uint32_t *ref_div_p,
+				     uint32_t *post_div_p)
 {
 	fixed20_12 m, n, frac_n, p, f_vco, f_pclk, best_freq;
 	fixed20_12 pll_out_max, pll_out_min;
@@ -660,6 +660,27 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 	*post_div_p = rfixed_trunc(p);
 
 	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
+}
+
+void radeon_compute_pll(struct radeon_pll *pll,
+			uint64_t freq,
+			uint32_t *dot_clock_p,
+			uint32_t *fb_div_p,
+			uint32_t *frac_fb_div_p,
+			uint32_t *ref_div_p,
+			uint32_t *post_div_p)
+{
+	switch (pll->algo) {
+	case PLL_ALGO_AVIVO:
+		radeon_compute_pll_avivo(pll, freq, dot_clock_p, fb_div_p,
+					 frac_fb_div_p, ref_div_p, post_div_p);
+		break;
+	case PLL_ALGO_LEGACY:
+	default:
+		radeon_compute_pll_legacy(pll, freq, dot_clock_p, fb_div_p,
+					  frac_fb_div_p, ref_div_p, post_div_p);
+		break;
+	}
 }
 
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)

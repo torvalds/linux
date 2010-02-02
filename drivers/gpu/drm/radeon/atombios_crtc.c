@@ -424,6 +424,15 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 	/* reset the pll flags */
 	pll->flags = 0;
 
+	/* select the PLL algo */
+	if (ASIC_IS_AVIVO(rdev)) {
+		if (radeon_new_pll)
+			pll->algo = PLL_ALGO_AVIVO;
+		else
+			pll->algo = PLL_ALGO_LEGACY;
+	} else
+		pll->algo = PLL_ALGO_LEGACY;
+
 	if (ASIC_IS_AVIVO(rdev)) {
 		if ((rdev->family == CHIP_RS600) ||
 		    (rdev->family == CHIP_RS690) ||
@@ -452,6 +461,11 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
 				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)
 					adjusted_clock = mode->clock * 2;
+				/* LVDS PLL quirks */
+				if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
+					struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+					pll->algo = dig->pll_algo;
+				}
 			} else {
 				if (encoder->encoder_type != DRM_MODE_ENCODER_DAC)
 					pll->flags |= RADEON_PLL_NO_ODD_POST_DIV;
@@ -550,18 +564,8 @@ void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	/* adjust pixel clock as needed */
 	adjusted_clock = atombios_adjust_pll(crtc, mode, pll);
 
-	if (ASIC_IS_AVIVO(rdev)) {
-		if (radeon_new_pll)
-			radeon_compute_pll_avivo(pll, adjusted_clock, &pll_clock,
-						 &fb_div, &frac_fb_div,
-						 &ref_div, &post_div);
-		else
-			radeon_compute_pll(pll, adjusted_clock, &pll_clock,
-					   &fb_div, &frac_fb_div,
-					   &ref_div, &post_div);
-	} else
-		radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
-				   &ref_div, &post_div);
+	radeon_compute_pll(pll, adjusted_clock, &pll_clock, &fb_div, &frac_fb_div,
+			   &ref_div, &post_div);
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,

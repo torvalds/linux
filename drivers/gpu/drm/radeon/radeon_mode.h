@@ -113,6 +113,7 @@ struct radeon_tmds_pll {
 
 #define RADEON_MAX_BIOS_CONNECTOR 16
 
+/* pll flags */
 #define RADEON_PLL_USE_BIOS_DIVS        (1 << 0)
 #define RADEON_PLL_NO_ODD_POST_DIV      (1 << 1)
 #define RADEON_PLL_USE_REF_DIV          (1 << 2)
@@ -126,6 +127,12 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
 #define RADEON_PLL_USE_POST_DIV         (1 << 12)
+
+/* pll algo */
+enum radeon_pll_algo {
+	PLL_ALGO_LEGACY,
+	PLL_ALGO_AVIVO
+};
 
 struct radeon_pll {
 	/* reference frequency */
@@ -157,6 +164,8 @@ struct radeon_pll {
 
 	/* pll id */
 	uint32_t id;
+	/* pll algo */
+	enum radeon_pll_algo algo;
 };
 
 struct i2c_algo_radeon_data {
@@ -309,6 +318,7 @@ struct radeon_encoder_atom_dig {
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
+	enum radeon_pll_algo pll_algo;
 	struct radeon_atom_ss *ss;
 	/* panel mode */
 	struct drm_display_mode native_mode;
@@ -438,14 +448,6 @@ extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint32_t *frac_fb_div_p,
 			       uint32_t *ref_div_p,
 			       uint32_t *post_div_p);
-
-extern void radeon_compute_pll_avivo(struct radeon_pll *pll,
-				     uint64_t freq,
-				     uint32_t *dot_clock_p,
-				     uint32_t *fb_div_p,
-				     uint32_t *frac_fb_div_p,
-				     uint32_t *ref_div_p,
-				     uint32_t *post_div_p);
 
 extern void radeon_setup_encoder_clones(struct drm_device *dev);
 

@@ -1143,6 +1143,14 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 
 		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
 
+		if (ASIC_IS_AVIVO(rdev)) {
+			if (radeon_new_pll)
+				lvds->pll_algo = PLL_ALGO_AVIVO;
+			else
+				lvds->pll_algo = PLL_ALGO_LEGACY;
+		} else
+			lvds->pll_algo = PLL_ALGO_LEGACY;
+
 		encoder->native_mode = lvds->native_mode;
 	}
 	return lvds;
