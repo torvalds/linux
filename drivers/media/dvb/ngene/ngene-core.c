@@ -1853,7 +1853,6 @@ static struct stv090x_config fe_mps2 = {
 
 	.xtal           = 27000000,
 	.address        = 0x68,
-//	.ref_clk        = 27000000,
 
 	.ts1_mode       = STV090x_TSMODE_SERIAL_PUNCTURED,
 	.ts2_mode       = STV090x_TSMODE_SERIAL_PUNCTURED,
@@ -1861,27 +1860,18 @@ static struct stv090x_config fe_mps2 = {
 	.repeater_level = STV090x_RPTLEVEL_16,
 
 	.diseqc_envelope_mode = true,
-
-	.tuner_init           = NULL,
-	.tuner_set_mode       = NULL,
-	.tuner_set_frequency  = NULL,
-	.tuner_get_frequency  = NULL,
-	.tuner_set_bandwidth  = NULL,
-	.tuner_get_bandwidth  = NULL,
-	.tuner_set_bbgain     = NULL,
-	.tuner_get_bbgain     = NULL,
-	.tuner_set_refclk     = NULL,
-	.tuner_get_status     = NULL,
 };
 
 static struct stv6110x_config tuner_mps2_0 = {
 	.addr	= 0x60,
 	.refclk	= 27000000,
+	.clk_div = 1,
 };
 
 static struct stv6110x_config tuner_mps2_1 = {
 	.addr	= 0x63,
 	.refclk	= 27000000,
+	.clk_div = 1,
 };
 
 static struct ngene_info ngene_info_mps2 = {
