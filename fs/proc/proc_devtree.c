@@ -10,6 +10,7 @@
 #include <linux/seq_file.h>
 #include <linux/stat.h>
 #include <linux/string.h>
+#include <linux/of.h>
 #include <asm/prom.h>
 #include <asm/uaccess.h>
 #include "internal.h"
