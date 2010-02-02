@@ -87,6 +87,10 @@ config GENERIC_IRQ_PROBE
 config IRQ_PER_CPU
 	def_bool y
 
+config SPARSE_IRQ
+	def_bool y
+	depends on SUPERH32
+
 config GENERIC_GPIO
 	def_bool n
 
@@ -727,18 +731,6 @@ config GUSA_RB
 	  store-conditional (LLSC). On machines which do not have hardware
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
-
-config SPARSE_IRQ
-	def_bool y
-	depends on SUPERH32 && !SH_HIGHLANDER && !SH_RTS7751R2D
-	help
-	  This enables support for sparse irqs. This is useful in general
-	  as most CPUs have a fairly sparse array of IRQ vectors, which
-	  the irq_desc then maps directly on to. Systems with a high
-	  number of off-chip IRQs will want to treat this as
-	  experimental until they have been independently verified.
-
-	  If you don't know what to do here, say N.
 
 endmenu
 
