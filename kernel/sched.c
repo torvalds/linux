@@ -2647,7 +2647,7 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 {
 	unsigned long flags;
 	struct rq *rq;
-	int cpu = get_cpu();
+	int cpu __maybe_unused = get_cpu();
 
 #ifdef CONFIG_SMP
 	/*
