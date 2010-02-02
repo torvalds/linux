@@ -2243,7 +2243,12 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 		mlog(0, "%s:%.*s: freed %u locks for dead node %u, "
 		     "dropping ref from lockres\n", dlm->name,
 		     res->lockname.len, res->lockname.name, freed, dead_node);
-		BUG_ON(!test_bit(dead_node, res->refmap));
+		if(!test_bit(dead_node, res->refmap)) {
+			mlog(ML_ERROR, "%s:%.*s: freed %u locks for dead node %u, "
+			     "but ref was not set\n", dlm->name,
+			     res->lockname.len, res->lockname.name, freed, dead_node);
+			__dlm_print_one_lock_resource(res);
+		}
 		dlm_lockres_clear_refmap_bit(dead_node, res);
 	} else if (test_bit(dead_node, res->refmap)) {
 		mlog(0, "%s:%.*s: dead node %u had a ref, but had "
