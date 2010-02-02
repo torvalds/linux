@@ -3267,15 +3267,12 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 	 */
 	best = 0;
 	for (i = 0; i < ARRAY_SIZE(bclk_divs); i++) {
-		if (bclk_divs[i] < 0)
-			continue;
-		cur_val = (wm8994->aifclk[id] * 10 / bclk_divs[i])
-			- bclk_rate * 10;
+		cur_val = (wm8994->aifclk[id] * 10 / bclk_divs[i]) - bclk_rate;
 		if (cur_val < 0) /* BCLK table is sorted */
 			break;
 		best = i;
 	}
-	bclk_rate = wm8994->aifclk[id] / bclk_divs[best];
+	bclk_rate = wm8994->aifclk[id] * 10 / bclk_divs[best];
 	dev_dbg(dai->dev, "Using BCLK_DIV %d for actual BCLK %dHz\n",
 		bclk_divs[best], bclk_rate);
 	bclk |= best << WM8994_AIF1_BCLK_DIV_SHIFT;
