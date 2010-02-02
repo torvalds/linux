@@ -17,12 +17,14 @@
 /* #define DEBUG */
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
 #include <asm/cputype.h>
+#include <asm/pmu.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"
@@ -32,17 +34,6 @@
 #define	CCNT_RESET	0x004	/* Reset clock counter */
 #define	PMU_RESET	(CCNT_RESET | PMN_RESET)
 #define PMU_CNT64	0x008	/* Make CCNT count every 64th cycle */
-
-/* TODO do runtime detection */
-#ifdef CONFIG_ARCH_IOP32X
-#define XSCALE_PMU_IRQ  IRQ_IOP32X_CORE_PMU
-#endif
-#ifdef CONFIG_ARCH_IOP33X
-#define XSCALE_PMU_IRQ  IRQ_IOP33X_CORE_PMU
-#endif
-#ifdef CONFIG_ARCH_PXA
-#define XSCALE_PMU_IRQ  IRQ_PMU
-#endif
 
 /*
  * Different types of events that can be counted by the XScale PMU
@@ -367,6 +358,8 @@ static irqreturn_t xscale_pmu_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static const struct pmu_irqs *pmu_irqs;
+
 static void xscale_pmu_stop(void)
 {
 	u32 pmnc = read_pmnc();
@@ -374,20 +367,30 @@ static void xscale_pmu_stop(void)
 	pmnc &= ~PMU_ENABLE;
 	write_pmnc(pmnc);
 
-	free_irq(XSCALE_PMU_IRQ, results);
+	free_irq(pmu_irqs->irqs[0], results);
+	release_pmu(pmu_irqs);
+	pmu_irqs = NULL;
 }
 
 static int xscale_pmu_start(void)
 {
 	int ret;
-	u32 pmnc = read_pmnc();
+	u32 pmnc;
 
-	ret = request_irq(XSCALE_PMU_IRQ, xscale_pmu_interrupt, IRQF_DISABLED,
-			"XScale PMU", (void *)results);
+	pmu_irqs = reserve_pmu();
+	if (IS_ERR(pmu_irqs))
+		return PTR_ERR(pmu_irqs);
+
+	pmnc = read_pmnc();
+
+	ret = request_irq(pmu_irqs->irqs[0], xscale_pmu_interrupt,
+			  IRQF_DISABLED, "XScale PMU", (void *)results);
 
 	if (ret < 0) {
 		printk(KERN_ERR "oprofile: unable to request IRQ%d for XScale PMU\n",
-			XSCALE_PMU_IRQ);
+		       pmu_irqs->irqs[0]);
+		release_pmu(pmu_irqs);
+		pmu_irqs = NULL;
 		return ret;
 	}
 
