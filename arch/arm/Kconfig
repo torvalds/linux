@@ -1174,6 +1174,14 @@ config HIGHPTE
 	depends on HIGHMEM
 	depends on !OUTER_CACHE
 
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && CPU_HAS_PMU && CPU_V6
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
+
 source "mm/Kconfig"
 
 config LEDS
