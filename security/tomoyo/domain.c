@@ -130,28 +130,6 @@ struct tomoyo_alias_entry {
 };
 
 /**
- * tomoyo_set_domain_flag - Set or clear domain's attribute flags.
- *
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
- * @flags:     Flags to set or clear.
- *
- * Returns nothing.
- */
-void tomoyo_set_domain_flag(struct tomoyo_domain_info *domain,
-			    const bool is_delete, const u8 flags)
-{
-	/* We need to serialize because this is bitfield operation. */
-	static DEFINE_SPINLOCK(lock);
-	spin_lock(&lock);
-	if (!is_delete)
-		domain->flags |= flags;
-	else
-		domain->flags &= ~flags;
-	spin_unlock(&lock);
-}
-
-/**
  * tomoyo_get_last_name - Get last component of a domainname.
  *
  * @domain: Pointer to "struct tomoyo_domain_info".
@@ -896,8 +874,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (is_enforce)
 		retval = -EPERM;
 	else
-		tomoyo_set_domain_flag(old_domain, false,
-				       TOMOYO_DOMAIN_FLAGS_TRANSITION_FAILED);
+		old_domain->transition_failed = true;
  out:
 	if (!domain)
 		domain = old_domain;

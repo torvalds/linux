@@ -101,11 +101,9 @@ struct tomoyo_path_info_with_data {
  *
  *  (1) "list" which is linked to the ->acl_info_list of
  *      "struct tomoyo_domain_info"
- *  (2) "type" which tells
- *      (a) type & 0x7F : type of the entry (either
- *          "struct tomoyo_single_path_acl_record" or
- *          "struct tomoyo_double_path_acl_record")
- *      (b) type & 0x80 : whether the entry is marked as "deleted".
+ *  (2) "type" which tells type of the entry (either
+ *      "struct tomoyo_single_path_acl_record" or
+ *      "struct tomoyo_double_path_acl_record").
  *
  * Packing "struct tomoyo_acl_info" allows
  * "struct tomoyo_single_path_acl_record" to embed "u8" + "u16" and
@@ -114,16 +112,8 @@ struct tomoyo_path_info_with_data {
  */
 struct tomoyo_acl_info {
 	struct list_head list;
-	/*
-	 * Type of this ACL entry.
-	 *
-	 * MSB is is_deleted flag.
-	 */
 	u8 type;
 } __packed;
-
-/* This ACL entry is deleted.           */
-#define TOMOYO_ACL_DELETED        0x80
 
 /*
  * tomoyo_domain_info is a structure which is used for holding permissions
@@ -138,7 +128,13 @@ struct tomoyo_acl_info {
  *      "deleted", false otherwise.
  *  (6) "quota_warned" is a bool which is used for suppressing warning message
  *      when learning mode learned too much entries.
- *  (7) "flags" which remembers this domain's attributes.
+ *  (7) "ignore_global_allow_read" is a bool which is true if this domain
+ *      should ignore "allow_read" directive in exception policy.
+ *  (8) "transition_failed" is a bool which is set to true when this domain was
+ *      unable to create a new domain at tomoyo_find_next_domain() because the
+ *      name of the domain to be created was too long or it could not allocate
+ *      memory. If set to true, more than one process continued execve()
+ *      without domain transition.
  *
  * A domain's lifecycle is an analogy of files on / directory.
  * Multiple domains with the same domainname cannot be created (as with
@@ -155,22 +151,12 @@ struct tomoyo_domain_info {
 	u8 profile;        /* Profile number to use. */
 	bool is_deleted;   /* Delete flag.           */
 	bool quota_warned; /* Quota warnning flag.   */
-	/* DOMAIN_FLAGS_*. Use tomoyo_set_domain_flag() to modify. */
-	u8 flags;
+	bool ignore_global_allow_read; /* Ignore "allow_read" flag. */
+	bool transition_failed; /* Domain transition failed flag. */
 };
 
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
-
-/* Ignore "allow_read" directive in exception policy. */
-#define TOMOYO_DOMAIN_FLAGS_IGNORE_GLOBAL_ALLOW_READ 1
-/*
- * This domain was unable to create a new domain at tomoyo_find_next_domain()
- * because the name of the domain to be created was too long or
- * it could not allocate memory.
- * More than one process continued execve() without domain transition.
- */
-#define TOMOYO_DOMAIN_FLAGS_TRANSITION_FAILED        2
 
 /*
  * tomoyo_single_path_acl_record is a structure which is used for holding an
@@ -380,27 +366,12 @@ unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 /* Run policy loader when /sbin/init starts. */
 void tomoyo_load_policy(const char *filename);
-/* Change "struct tomoyo_domain_info"->flags. */
-void tomoyo_set_domain_flag(struct tomoyo_domain_info *domain,
-			    const bool is_delete, const u8 flags);
 
 /* strcmp() for "struct tomoyo_path_info" structure. */
 static inline bool tomoyo_pathcmp(const struct tomoyo_path_info *a,
 				  const struct tomoyo_path_info *b)
 {
 	return a->hash != b->hash || strcmp(a->name, b->name);
-}
-
-/* Get type of an ACL entry. */
-static inline u8 tomoyo_acl_type1(struct tomoyo_acl_info *ptr)
-{
-	return ptr->type & ~TOMOYO_ACL_DELETED;
-}
-
-/* Get type of an ACL entry. */
-static inline u8 tomoyo_acl_type2(struct tomoyo_acl_info *ptr)
-{
-	return ptr->type;
 }
 
 /**

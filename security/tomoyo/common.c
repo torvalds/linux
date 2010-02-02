@@ -842,9 +842,7 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain)
 	if (!domain)
 		return true;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		if (ptr->type & TOMOYO_ACL_DELETED)
-			continue;
-		switch (tomoyo_acl_type2(ptr)) {
+		switch (ptr->type) {
 			struct tomoyo_single_path_acl_record *acl;
 			u32 perm;
 			u8 i;
@@ -1384,8 +1382,7 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 		return 0;
 	}
 	if (!strcmp(data, TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ)) {
-		tomoyo_set_domain_flag(domain, is_delete,
-			       TOMOYO_DOMAIN_FLAGS_IGNORE_GLOBAL_ALLOW_READ);
+		domain->ignore_global_allow_read = !is_delete;
 		return 0;
 	}
 	return tomoyo_write_file_policy(data, domain, is_delete);
@@ -1486,10 +1483,8 @@ static bool tomoyo_print_double_path_acl(struct tomoyo_io_buffer *head,
 static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 			       struct tomoyo_acl_info *ptr)
 {
-	const u8 acl_type = tomoyo_acl_type2(ptr);
+	const u8 acl_type = ptr->type;
 
-	if (acl_type & TOMOYO_ACL_DELETED)
-		return true;
 	if (acl_type == TOMOYO_TYPE_SINGLE_PATH_ACL) {
 		struct tomoyo_single_path_acl_record *acl
 			= container_of(ptr,
@@ -1540,10 +1535,9 @@ static int tomoyo_read_domain_policy(struct tomoyo_io_buffer *head)
 		/* Print domainname and flags. */
 		if (domain->quota_warned)
 			quota_exceeded = "quota_exceeded\n";
-		if (domain->flags & TOMOYO_DOMAIN_FLAGS_TRANSITION_FAILED)
+		if (domain->transition_failed)
 			transition_failed = "transition_failed\n";
-		if (domain->flags &
-		    TOMOYO_DOMAIN_FLAGS_IGNORE_GLOBAL_ALLOW_READ)
+		if (domain->ignore_global_allow_read)
 			ignore_global_allow_read
 				= TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ "\n";
 		done = tomoyo_io_printf(head, "%s\n" TOMOYO_KEYWORD_USE_PROFILE
