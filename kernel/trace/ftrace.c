@@ -1025,6 +1025,21 @@ static void ftrace_bug(int failed, unsigned long ip)
 }
 
 
+/* Return 1 if the address range is reserved for ftrace */
+int ftrace_text_reserved(void *start, void *end)
+{
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+
+	do_for_each_ftrace_rec(pg, rec) {
+		if (rec->ip <= (unsigned long)end &&
+		    rec->ip + MCOUNT_INSN_SIZE > (unsigned long)start)
+			return 1;
+	} while_for_each_ftrace_rec();
+	return 0;
+}
+
+
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {

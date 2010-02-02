@@ -390,6 +390,22 @@ void alternatives_smp_switch(int smp)
 	mutex_unlock(&smp_alt);
 }
 
+/* Return 1 if the address range is reserved for smp-alternatives */
+int alternatives_text_reserved(void *start, void *end)
+{
+	struct smp_alt_module *mod;
+	u8 **ptr;
+
+	list_for_each_entry(mod, &smp_alt_modules, next) {
+		if (mod->text > end || mod->text_end < start)
+			continue;
+		for (ptr = mod->locks; ptr < mod->locks_end; ptr++)
+			if (start <= *ptr && end >= *ptr)
+				return 1;
+	}
+
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PARAVIRT
