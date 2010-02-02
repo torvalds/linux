@@ -3392,9 +3392,17 @@ static int ocfs2_unblock_lock(struct ocfs2_super *osb,
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 
-	BUG_ON(!(lockres->l_flags & OCFS2_LOCK_BLOCKED));
-
 recheck:
+	/*
+	 * Is it still blocking? If not, we have no more work to do.
+	 */
+	if (!(lockres->l_flags & OCFS2_LOCK_BLOCKED)) {
+		BUG_ON(lockres->l_blocking != DLM_LOCK_NL);
+		spin_unlock_irqrestore(&lockres->l_lock, flags);
+		ret = 0;
+		goto leave;
+	}
+
 	if (lockres->l_flags & OCFS2_LOCK_BUSY) {
 		/* XXX
 		 * This is a *big* race.  The OCFS2_LOCK_PENDING flag
