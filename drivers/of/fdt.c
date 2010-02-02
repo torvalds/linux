@@ -310,10 +310,19 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 		pp = unflatten_dt_alloc(&mem, sizeof(struct property),
 					__alignof__(struct property));
 		if (allnextpp) {
-			if (strcmp(pname, "linux,phandle") == 0) {
+			/* We accept flattened tree phandles either in
+			 * ePAPR-style "phandle" properties, or the
+			 * legacy "linux,phandle" properties.  If both
+			 * appear and have different values, things
+			 * will get weird.  Don't do that. */
+			if ((strcmp(pname, "phandle") == 0) ||
+			    (strcmp(pname, "linux,phandle") == 0)) {
 				if (np->phandle == 0)
 					np->phandle = *((u32 *)*p);
 			}
+			/* And we process the "ibm,phandle" property
+			 * used in pSeries dynamic device tree
+			 * stuff */
 			if (strcmp(pname, "ibm,phandle") == 0)
 				np->phandle = *((u32 *)*p);
 			pp->name = pname;
