@@ -974,13 +974,16 @@ static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 static int ib_umad_init_port(struct ib_device *device, int port_num,
 			     struct ib_umad_port *port)
 {
+	int devnum;
+
 	spin_lock(&port_lock);
-	port->dev_num = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
-	if (port->dev_num >= IB_UMAD_MAX_PORTS) {
+	devnum = find_first_zero_bit(dev_map, IB_UMAD_MAX_PORTS);
+	if (devnum >= IB_UMAD_MAX_PORTS) {
 		spin_unlock(&port_lock);
 		return -1;
 	}
-	set_bit(port->dev_num, dev_map);
+	port->dev_num = devnum;
+	set_bit(devnum, dev_map);
 	spin_unlock(&port_lock);
 
 	port->ib_dev   = device;
@@ -992,7 +995,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	cdev_init(&port->cdev, &umad_fops);
 	port->cdev.owner = THIS_MODULE;
 	kobject_set_name(&port->cdev.kobj, "umad%d", port->dev_num);
-	if (cdev_add(&port->cdev, base_dev + port->dev_num, 1))
+	if (cdev_add(&port->cdev, base_dev + devnum, 1))
 		goto err_cdev;
 
 	port->dev = device_create(umad_class, device->dma_device,
@@ -1009,7 +1012,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	cdev_init(&port->sm_cdev, &umad_sm_fops);
 	port->sm_cdev.owner = THIS_MODULE;
 	kobject_set_name(&port->sm_cdev.kobj, "issm%d", port->dev_num);
-	if (cdev_add(&port->sm_cdev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
+	if (cdev_add(&port->sm_cdev, base_dev + devnum + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
 	port->sm_dev = device_create(umad_class, device->dma_device,
@@ -1036,7 +1039,7 @@ err_dev:
 
 err_cdev:
 	cdev_del(&port->cdev);
-	clear_bit(port->dev_num, dev_map);
+	clear_bit(devnum, dev_map);
 
 	return -1;
 }
