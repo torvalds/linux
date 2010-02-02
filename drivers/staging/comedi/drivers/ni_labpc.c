@@ -483,12 +483,10 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	printk("comedi%d: ni_labpc: %s, io 0x%lx", dev->minor, thisboard->name,
 	       iobase);
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
-	if (dma_chan) {
+	if (dma_chan)
 		printk(", dma %u", dma_chan);
-	}
 	printk("\n");
 
 	if (iobase == 0) {
@@ -585,8 +583,9 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/* analog output */
 	s = dev->subdevices + 1;
 	if (thisboard->has_ao) {
-/* Could provide command support, except it only has a one sample
- * hardware buffer for analog output and no underrun flag. */
+		/* Could provide command support, except it only has a
+		 * one sample hardware buffer for analog output and no
+		 * underrun flag. */
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = NUM_AO_CHAN;
@@ -608,7 +607,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/* 8255 dio */
 	s = dev->subdevices + 2;
-	/*  if board uses io memory we have to give a custom callback function to the 8255 driver */
+	/*  if board uses io memory we have to give a custom callback
+	 * function to the 8255 driver */
 	if (thisboard->memory_mapped_io)
 		subdev_8255_init(dev, s, labpc_dio_mem_callback,
 				 (unsigned long)(dev->iobase + DIO_BASE_REG));
@@ -640,14 +640,12 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		s->insn_read = labpc_eeprom_read_insn;
 		s->insn_write = labpc_eeprom_write_insn;
 
-		for (i = 0; i < EEPROM_SIZE; i++) {
+		for (i = 0; i < EEPROM_SIZE; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
-		}
 #ifdef LABPC_DEBUG
 		printk(" eeprom:");
-		for (i = 0; i < EEPROM_SIZE; i++) {
+		for (i = 0; i < EEPROM_SIZE; i++)
 			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
-		}
 		printk("\n");
 #endif
 	} else
@@ -679,9 +677,8 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	case pci_bustype:
 #ifdef CONFIG_COMEDI_PCI
 		retval = labpc_find_device(dev, it->options[0], it->options[1]);
-		if (retval < 0) {
+		if (retval < 0)
 			return retval;
-		}
 		retval = mite_setup(devpriv->mite);
 		if (retval < 0)
 			return retval;
@@ -1008,9 +1005,9 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 		err++;
 	}
 
-	if (!cmd->chanlist_len) {
+	if (!cmd->chanlist_len)
 		err++;
-	}
+
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -1105,9 +1102,8 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
 	/*  initialize software conversion count */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
-	}
 	/*  setup hardware conversion counter */
 	if (cmd->stop_src == TRIG_EXT) {
 		/*  load counter a1 with count of 3 (pc+ manual says this is minimum allowed) using mode 0 */
@@ -1479,9 +1475,8 @@ static void labpc_drain_dma(struct comedi_device *dev)
 	}
 
 	/* write data to comedi buffer */
-	for (i = 0; i < num_points; i++) {
+	for (i = 0; i < num_points; i++)
 		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
-	}
 	if (async->cmd.stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
 
@@ -1864,9 +1859,8 @@ static unsigned int labpc_serial_in(struct comedi_device *dev)
 		udelay(1);
 		devpriv->status2_bits =
 		    devpriv->read_byte(dev->iobase + STATUS2_REG);
-		if (devpriv->status2_bits & EEPROM_OUT_BIT) {
+		if (devpriv->status2_bits & EEPROM_OUT_BIT)
 			value |= 1 << (value_width - i);
-		}
 	}
 
 	return value;
