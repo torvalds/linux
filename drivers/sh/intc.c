@@ -872,7 +872,7 @@ device_initcall(register_intc_sysdevs);
 /*
  * Dynamic IRQ allocation and deallocation
  */
-static unsigned int create_irq_on_node(unsigned int irq_want, int node)
+unsigned int create_irq_nr(unsigned int irq_want, int node)
 {
 	unsigned int irq = 0, new;
 	unsigned long flags;
@@ -881,23 +881,27 @@ static unsigned int create_irq_on_node(unsigned int irq_want, int node)
 	spin_lock_irqsave(&vector_lock, flags);
 
 	/*
-	 * First try the wanted IRQ, then scan.
+	 * First try the wanted IRQ
 	 */
-	if (test_and_set_bit(irq_want, intc_irq_map)) {
+	if (test_and_set_bit(irq_want, intc_irq_map) == 0) {
+		new = irq_want;
+	} else {
+		/* .. then fall back to scanning. */
 		new = find_first_zero_bit(intc_irq_map, nr_irqs);
 		if (unlikely(new == nr_irqs))
 			goto out_unlock;
 
-		desc = irq_to_desc_alloc_node(new, node);
-		if (unlikely(!desc)) {
-			pr_info("can't get irq_desc for %d\n", new);
-			goto out_unlock;
-		}
-
-		desc = move_irq_desc(desc, node);
 		__set_bit(new, intc_irq_map);
-		irq = new;
 	}
+
+	desc = irq_to_desc_alloc_node(new, node);
+	if (unlikely(!desc)) {
+		pr_info("can't get irq_desc for %d\n", new);
+		goto out_unlock;
+	}
+
+	desc = move_irq_desc(desc, node);
+	irq = new;
 
 out_unlock:
 	spin_unlock_irqrestore(&vector_lock, flags);
@@ -913,7 +917,7 @@ int create_irq(void)
 	int nid = cpu_to_node(smp_processor_id());
 	int irq;
 
-	irq = create_irq_on_node(NR_IRQS_LEGACY, nid);
+	irq = create_irq_nr(NR_IRQS_LEGACY, nid);
 	if (irq == 0)
 		irq = -1;
 
