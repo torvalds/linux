@@ -3,7 +3,7 @@
 #
 
 comment "DRBD disabled because PROC_FS, INET or CONNECTOR not selected"
-	depends on !PROC_FS || !INET || !CONNECTOR
+	depends on PROC_FS='n' || INET='n' || CONNECTOR='n'
 
 config BLK_DEV_DRBD
 	tristate "DRBD Distributed Replicated Block Device support"

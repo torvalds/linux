@@ -50,9 +50,7 @@ int r420_mc_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
 		if (r) {
-			printk(KERN_WARNING "[drm] Disabling AGP\n");
-			rdev->flags &= ~RADEON_IS_AGP;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+			radeon_agp_disable(rdev);
 		} else {
 			rdev->mc.gtt_location = rdev->mc.agp_base;
 		}

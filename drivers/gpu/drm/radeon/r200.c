@@ -371,13 +371,16 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case 5:
 		case 6:
 		case 7:
+			/* 1D/2D */
 			track->textures[i].tex_coord_type = 0;
 			break;
 		case 1:
-			track->textures[i].tex_coord_type = 1;
+			/* CUBE */
+			track->textures[i].tex_coord_type = 2;
 			break;
 		case 2:
-			track->textures[i].tex_coord_type = 2;
+			/* 3D */
+			track->textures[i].tex_coord_type = 1;
 			break;
 		}
 		break;

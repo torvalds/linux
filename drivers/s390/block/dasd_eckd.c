@@ -23,6 +23,7 @@
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
+#include <asm/compat.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/cio.h>
@@ -2844,13 +2845,16 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	rc = -EFAULT;
 	if (copy_from_user(&usrparm, argp, sizeof(usrparm)))
 		goto out;
-#ifndef CONFIG_64BIT
-	/* Make sure pointers are sane even on 31 bit. */
-	if ((usrparm.psf_data >> 32) != 0 || (usrparm.rssd_result >> 32) != 0) {
+	if (is_compat_task() || sizeof(long) == 4) {
+		/* Make sure pointers are sane even on 31 bit. */
 		rc = -EINVAL;
-		goto out;
+		if ((usrparm.psf_data >> 32) != 0)
+			goto out;
+		if ((usrparm.rssd_result >> 32) != 0)
+			goto out;
+		usrparm.psf_data &= 0x7fffffffULL;
+		usrparm.rssd_result &= 0x7fffffffULL;
 	}
-#endif
 	/* alloc I/O data area */
 	psf_data = kzalloc(usrparm.psf_data_len, GFP_KERNEL | GFP_DMA);
 	rssd_result = kzalloc(usrparm.rssd_result_len, GFP_KERNEL | GFP_DMA);
@@ -3029,7 +3033,7 @@ static void dasd_eckd_dump_sense_ccw(struct dasd_device *device,
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " in req: %p CS: 0x%02X DS: 0x%02X CC: 0x%02X RC: %d\n",
 		       req, scsw_cstat(&irb->scsw), scsw_dstat(&irb->scsw),
-		       scsw_cc(&irb->scsw), req->intrc);
+		       scsw_cc(&irb->scsw), req ? req->intrc : 0);
 	len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 		       " device %s: Failing CCW: %p\n",
 		       dev_name(&device->cdev->dev),

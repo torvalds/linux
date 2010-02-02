@@ -938,6 +938,8 @@ extern void blk_queue_io_opt(struct request_queue *q, unsigned int opt);
 extern void blk_set_default_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			    sector_t offset);
+extern int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
+			    sector_t offset);
 extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 			      sector_t offset);
 extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
@@ -1148,8 +1150,11 @@ static inline int queue_discard_alignment(struct request_queue *q)
 static inline int queue_sector_discard_alignment(struct request_queue *q,
 						 sector_t sector)
 {
-	return ((sector << 9) - q->limits.discard_alignment)
-		& (q->limits.discard_granularity - 1);
+	struct queue_limits *lim = &q->limits;
+	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
+
+	return (lim->discard_granularity + lim->discard_alignment - alignment)
+		& (lim->discard_granularity - 1);
 }
 
 static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)

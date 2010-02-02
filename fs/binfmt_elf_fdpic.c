@@ -321,6 +321,9 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	set_personality(PER_LINUX_FDPIC);
 	if (elf_read_implies_exec(&exec_params.hdr, executable_stack))
 		current->personality |= READ_IMPLIES_EXEC;
+
+	setup_new_exec(bprm);
+
 	set_binfmt(&elf_fdpic_format);
 
 	current->mm->start_code = 0;

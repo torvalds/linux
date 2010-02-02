@@ -53,6 +53,18 @@ static void icedcc_putc(int ch)
 
 	asm("mcr p14, 0, %0, c0, c5, 0" : : "r" (ch));
 }
+
+#elif defined(CONFIG_CPU_V7)
+
+static void icedcc_putc(int ch)
+{
+	asm(
+	"wait:	mrc	p14, 0, pc, c0, c1, 0			\n\
+		bcs	wait					\n\
+		mcr     p14, 0, %0, c0, c5, 0			"
+	: : "r" (ch));
+}
+
 #elif defined(CONFIG_CPU_XSCALE)
 
 static void icedcc_putc(int ch)
@@ -88,7 +100,6 @@ static void icedcc_putc(int ch)
 #endif
 
 #define putc(ch)	icedcc_putc(ch)
-#define flush()	do { } while (0)
 #endif
 
 static void putstr(const char *ptr)

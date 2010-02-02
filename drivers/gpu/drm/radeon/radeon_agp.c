@@ -133,6 +133,13 @@ int radeon_agp_init(struct radeon_device *rdev)
 	bool is_v3;
 	int ret;
 
+	if (rdev->ddev->agp->agp_info.aper_size < 32) {
+		dev_warn(rdev->dev, "AGP aperture to small (%dM) "
+			"need at least 32M, disabling AGP\n",
+			rdev->ddev->agp->agp_info.aper_size);
+		return -EINVAL;
+	}
+
 	/* Acquire AGP. */
 	if (!rdev->ddev->agp->acquired) {
 		ret = drm_agp_acquire(rdev->ddev);

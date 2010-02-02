@@ -32,6 +32,7 @@
 #include "drmP.h"
 #include "vmwgfx_drm.h"
 #include "drm_hashtab.h"
+#include "linux/suspend.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_object.h"
 #include "ttm/ttm_lock.h"
@@ -258,6 +259,7 @@ struct vmw_private {
 
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
+	struct notifier_block pm_nb;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
@@ -353,6 +355,7 @@ extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 				       struct vmw_dma_buffer *bo);
 extern int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
 				struct vmw_dma_buffer *bo);
+extern void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -401,6 +404,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
 extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
+extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);

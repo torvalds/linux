@@ -24,6 +24,8 @@
 		OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
 #define OMAP44XX_PRM_REGADDR(module, reg)				\
 		OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE + (module) + (reg))
+#define OMAP44XX_CHIRONSS_REGADDR(module, reg)				\
+		OMAP2_L4_IO_ADDRESS(OMAP4430_CHIRONSS_BASE + (module) + (reg))
 
 #include "prm44xx.h"
 

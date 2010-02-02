@@ -1393,7 +1393,7 @@ uvc_ctrl_prune_entity(struct uvc_device *dev, struct uvc_entity *entity)
 	size = entity->processing.bControlSize;
 
 	for (i = 0; i < ARRAY_SIZE(blacklist); ++i) {
-		if (!usb_match_id(dev->intf, &blacklist[i].id))
+		if (!usb_match_one_id(dev->intf, &blacklist[i].id))
 			continue;
 
 		if (blacklist[i].index >= 8 * size ||

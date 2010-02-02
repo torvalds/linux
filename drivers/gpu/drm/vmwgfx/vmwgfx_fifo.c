@@ -98,8 +98,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 		 (unsigned int) min,
 		 (unsigned int) fifo->capabilities);
 
-	dev_priv->fence_seq = (uint32_t) -100;
-	dev_priv->last_read_sequence = (uint32_t) -100;
+	dev_priv->fence_seq = dev_priv->last_read_sequence;
 	iowrite32(dev_priv->last_read_sequence, fifo_mem + SVGA_FIFO_FENCE);
 
 	return vmw_fifo_send_fence(dev_priv, &dummy);

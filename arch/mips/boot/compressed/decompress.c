@@ -77,6 +77,10 @@ void *memset(void *s, int c, size_t n)
 #include "../../../../lib/decompress_unlzma.c"
 #endif
 
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
+#endif
+
 void decompress_kernel(unsigned long boot_heap_start)
 {
 	int zimage_size;
