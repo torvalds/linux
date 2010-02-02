@@ -420,11 +420,11 @@ int __init early_init_dt_scan_root(unsigned long node, const char *uname,
 		return 0;
 
 	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
-	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
+	dt_root_size_cells = prop ? *prop : OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
 	pr_debug("dt_root_size_cells = %x\n", dt_root_size_cells);
 
 	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
+	dt_root_addr_cells = prop ? *prop : OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
 	pr_debug("dt_root_addr_cells = %x\n", dt_root_addr_cells);
 
 	/* break now */
