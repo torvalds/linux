@@ -87,10 +87,10 @@ enum {
  */
 
 struct ib_umad_port {
-	struct cdev           *cdev;
+	struct cdev           cdev;
 	struct device	      *dev;
 
-	struct cdev           *sm_cdev;
+	struct cdev           sm_cdev;
 	struct device	      *sm_dev;
 	struct semaphore       sm_sem;
 
@@ -1008,17 +1008,14 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	mutex_init(&port->file_mutex);
 	INIT_LIST_HEAD(&port->file_list);
 
-	port->cdev = cdev_alloc();
-	if (!port->cdev)
-		return -1;
-	port->cdev->owner = THIS_MODULE;
-	port->cdev->ops   = &umad_fops;
-	kobject_set_name(&port->cdev->kobj, "umad%d", port->dev_num);
-	if (cdev_add(port->cdev, base_dev + port->dev_num, 1))
+	cdev_init(&port->cdev, &umad_fops);
+	port->cdev.owner = THIS_MODULE;
+	kobject_set_name(&port->cdev.kobj, "umad%d", port->dev_num);
+	if (cdev_add(&port->cdev, base_dev + port->dev_num, 1))
 		goto err_cdev;
 
 	port->dev = device_create(umad_class, device->dma_device,
-				  port->cdev->dev, port,
+				  port->cdev.dev, port,
 				  "umad%d", port->dev_num);
 	if (IS_ERR(port->dev))
 		goto err_cdev;
@@ -1028,17 +1025,14 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	if (device_create_file(port->dev, &dev_attr_port))
 		goto err_dev;
 
-	port->sm_cdev = cdev_alloc();
-	if (!port->sm_cdev)
-		goto err_dev;
-	port->sm_cdev->owner = THIS_MODULE;
-	port->sm_cdev->ops   = &umad_sm_fops;
-	kobject_set_name(&port->sm_cdev->kobj, "issm%d", port->dev_num);
-	if (cdev_add(port->sm_cdev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
+	cdev_init(&port->sm_cdev, &umad_sm_fops);
+	port->sm_cdev.owner = THIS_MODULE;
+	kobject_set_name(&port->sm_cdev.kobj, "issm%d", port->dev_num);
+	if (cdev_add(&port->sm_cdev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
 	port->sm_dev = device_create(umad_class, device->dma_device,
-				     port->sm_cdev->dev, port,
+				     port->sm_cdev.dev, port,
 				     "issm%d", port->dev_num);
 	if (IS_ERR(port->sm_dev))
 		goto err_sm_cdev;
@@ -1055,16 +1049,16 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 	return 0;
 
 err_sm_dev:
-	device_destroy(umad_class, port->sm_cdev->dev);
+	device_destroy(umad_class, port->sm_cdev.dev);
 
 err_sm_cdev:
-	cdev_del(port->sm_cdev);
+	cdev_del(&port->sm_cdev);
 
 err_dev:
-	device_destroy(umad_class, port->cdev->dev);
+	device_destroy(umad_class, port->cdev.dev);
 
 err_cdev:
-	cdev_del(port->cdev);
+	cdev_del(&port->cdev);
 	clear_bit(port->dev_num, dev_map);
 
 	return -1;
@@ -1079,11 +1073,11 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 	dev_set_drvdata(port->dev,    NULL);
 	dev_set_drvdata(port->sm_dev, NULL);
 
-	device_destroy(umad_class, port->cdev->dev);
-	device_destroy(umad_class, port->sm_cdev->dev);
+	device_destroy(umad_class, port->cdev.dev);
+	device_destroy(umad_class, port->sm_cdev.dev);
 
-	cdev_del(port->cdev);
-	cdev_del(port->sm_cdev);
+	cdev_del(&port->cdev);
+	cdev_del(&port->sm_cdev);
 
 	spin_lock(&port_lock);
 	umad_port[port->dev_num] = NULL;
