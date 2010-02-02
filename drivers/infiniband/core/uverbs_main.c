@@ -730,6 +730,7 @@ static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
 static void ib_uverbs_add_one(struct ib_device *device)
 {
+	int devnum;
 	struct ib_uverbs_device *uverbs_dev;
 
 	if (!device->alloc_ucontext)
@@ -743,12 +744,13 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	init_completion(&uverbs_dev->comp);
 
 	spin_lock(&map_lock);
-	uverbs_dev->devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
-	if (uverbs_dev->devnum >= IB_UVERBS_MAX_DEVICES) {
+	devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
+	if (devnum >= IB_UVERBS_MAX_DEVICES) {
 		spin_unlock(&map_lock);
 		goto err;
 	}
-	set_bit(uverbs_dev->devnum, dev_map);
+	uverbs_dev->devnum = devnum;
+	set_bit(devnum, dev_map);
 	spin_unlock(&map_lock);
 
 	uverbs_dev->ib_dev           = device;
@@ -758,7 +760,7 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	uverbs_dev->cdev.owner = THIS_MODULE;
 	uverbs_dev->cdev.ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
 	kobject_set_name(&uverbs_dev->cdev.kobj, "uverbs%d", uverbs_dev->devnum);
-	if (cdev_add(&uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
+	if (cdev_add(&uverbs_dev->cdev, IB_UVERBS_BASE_DEV + devnum, 1))
 		goto err_cdev;
 
 	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
@@ -781,7 +783,7 @@ err_class:
 
 err_cdev:
 	cdev_del(&uverbs_dev->cdev);
-	clear_bit(uverbs_dev->devnum, dev_map);
+	clear_bit(devnum, dev_map);
 
 err:
 	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
