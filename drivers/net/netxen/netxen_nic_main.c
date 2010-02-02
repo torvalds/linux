@@ -1941,7 +1941,7 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 		netif_wake_queue(adapter->netdev);
 
 		clear_bit(__NX_RESETTING, &adapter->state);
-
+		return;
 	} else {
 		clear_bit(__NX_RESETTING, &adapter->state);
 		if (!netxen_nic_reset_context(adapter)) {
