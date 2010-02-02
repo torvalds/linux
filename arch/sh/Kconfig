@@ -731,7 +731,7 @@ config GUSA_RB
 config SPARSE_IRQ
 	def_bool y
 	depends on SUPERH32 && !SH_DREAMCAST && !SH_HIGHLANDER && \
-		   !SH_RTS7751R2D && !HD64461
+		   !SH_RTS7751R2D
 	help
 	  This enables support for sparse irqs. This is useful in general
 	  as most CPUs have a fairly sparse array of IRQ vectors, which
