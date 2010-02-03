@@ -1249,7 +1249,7 @@ ctnetlink_create_conntrack(struct net *net,
 		}
 	} else {
 		/* try an implicit helper assignation */
-		err = __nf_ct_try_assign_helper(ct, GFP_ATOMIC);
+		err = __nf_ct_try_assign_helper(ct, NULL, GFP_ATOMIC);
 		if (err < 0)
 			goto err2;
 	}

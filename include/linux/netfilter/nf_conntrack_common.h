@@ -72,6 +72,10 @@ enum ip_conntrack_status {
 	/* Connection has fixed timeout. */
 	IPS_FIXED_TIMEOUT_BIT = 10,
 	IPS_FIXED_TIMEOUT = (1 << IPS_FIXED_TIMEOUT_BIT),
+
+	/* Conntrack is a template */
+	IPS_TEMPLATE_BIT = 11,
+	IPS_TEMPLATE = (1 << IPS_TEMPLATE_BIT),
 };
 
 /* Connection tracking event types */

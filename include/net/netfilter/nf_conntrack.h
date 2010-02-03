@@ -272,6 +272,11 @@ nf_conntrack_alloc(struct net *net,
 		   const struct nf_conntrack_tuple *repl,
 		   gfp_t gfp);
 
+static inline int nf_ct_is_template(const struct nf_conn *ct)
+{
+	return test_bit(IPS_TEMPLATE_BIT, &ct->status);
+}
+
 /* It's confirmed if it is, or has been in the hash table. */
 static inline int nf_ct_is_confirmed(struct nf_conn *ct)
 {

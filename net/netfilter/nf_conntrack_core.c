@@ -618,7 +618,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_free);
 /* Allocate a new conntrack: we return -ENOMEM if classification
    failed due to stress.  Otherwise it really is unclassifiable. */
 static struct nf_conntrack_tuple_hash *
-init_conntrack(struct net *net,
+init_conntrack(struct net *net, struct nf_conn *tmpl,
 	       const struct nf_conntrack_tuple *tuple,
 	       struct nf_conntrack_l3proto *l3proto,
 	       struct nf_conntrack_l4proto *l4proto,
@@ -628,6 +628,7 @@ init_conntrack(struct net *net,
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
 	struct nf_conntrack_tuple repl_tuple;
+	struct nf_conntrack_ecache *ecache;
 	struct nf_conntrack_expect *exp;
 
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
@@ -648,7 +649,11 @@ init_conntrack(struct net *net,
 	}
 
 	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
-	nf_ct_ecache_ext_add(ct, 0, 0, GFP_ATOMIC);
+
+	ecache = tmpl ? nf_ct_ecache_find(tmpl) : NULL;
+	nf_ct_ecache_ext_add(ct, ecache ? ecache->ctmask : 0,
+				 ecache ? ecache->expmask : 0,
+			     GFP_ATOMIC);
 
 	spin_lock_bh(&nf_conntrack_lock);
 	exp = nf_ct_find_expectation(net, tuple);
@@ -673,7 +678,7 @@ init_conntrack(struct net *net,
 		nf_conntrack_get(&ct->master->ct_general);
 		NF_CT_STAT_INC(net, expect_new);
 	} else {
-		__nf_ct_try_assign_helper(ct, GFP_ATOMIC);
+		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 		NF_CT_STAT_INC(net, new);
 	}
 
@@ -694,7 +699,7 @@ init_conntrack(struct net *net,
 
 /* On success, returns conntrack ptr, sets skb->nfct and ctinfo */
 static inline struct nf_conn *
-resolve_normal_ct(struct net *net,
+resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		  struct sk_buff *skb,
 		  unsigned int dataoff,
 		  u_int16_t l3num,
@@ -718,7 +723,8 @@ resolve_normal_ct(struct net *net,
 	/* look for tuple match */
 	h = nf_conntrack_find_get(net, &tuple);
 	if (!h) {
-		h = init_conntrack(net, &tuple, l3proto, l4proto, skb, dataoff);
+		h = init_conntrack(net, tmpl, &tuple, l3proto, l4proto,
+				   skb, dataoff);
 		if (!h)
 			return NULL;
 		if (IS_ERR(h))
@@ -755,7 +761,7 @@ unsigned int
 nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		struct sk_buff *skb)
 {
-	struct nf_conn *ct;
+	struct nf_conn *ct, *tmpl = NULL;
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
@@ -764,10 +770,14 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	int set_reply = 0;
 	int ret;
 
-	/* Previously seen (loopback or untracked)?  Ignore. */
 	if (skb->nfct) {
-		NF_CT_STAT_INC_ATOMIC(net, ignore);
-		return NF_ACCEPT;
+		/* Previously seen (loopback or untracked)?  Ignore. */
+		tmpl = (struct nf_conn *)skb->nfct;
+		if (!nf_ct_is_template(tmpl)) {
+			NF_CT_STAT_INC_ATOMIC(net, ignore);
+			return NF_ACCEPT;
+		}
+		skb->nfct = NULL;
 	}
 
 	/* rcu_read_lock()ed by nf_hook_slow */
@@ -778,7 +788,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		pr_debug("not prepared to track yet or error occured\n");
 		NF_CT_STAT_INC_ATOMIC(net, error);
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
-		return -ret;
+		ret = -ret;
+		goto out;
 	}
 
 	l4proto = __nf_ct_l4proto_find(pf, protonum);
@@ -791,22 +802,25 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (ret <= 0) {
 			NF_CT_STAT_INC_ATOMIC(net, error);
 			NF_CT_STAT_INC_ATOMIC(net, invalid);
-			return -ret;
+			ret = -ret;
+			goto out;
 		}
 	}
 
-	ct = resolve_normal_ct(net, skb, dataoff, pf, protonum,
+	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
 		/* Not valid part of a connection */
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
-		return NF_ACCEPT;
+		ret = NF_ACCEPT;
+		goto out;
 	}
 
 	if (IS_ERR(ct)) {
 		/* Too stressed to deal. */
 		NF_CT_STAT_INC_ATOMIC(net, drop);
-		return NF_DROP;
+		ret = NF_DROP;
+		goto out;
 	}
 
 	NF_CT_ASSERT(skb->nfct);
@@ -821,11 +835,15 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
 		if (ret == -NF_DROP)
 			NF_CT_STAT_INC_ATOMIC(net, drop);
-		return -ret;
+		ret = -ret;
+		goto out;
 	}
 
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
+out:
+	if (tmpl)
+		nf_ct_put(tmpl);
 
 	return ret;
 }
@@ -864,7 +882,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 		return;
 
 	rcu_read_lock();
-	__nf_ct_try_assign_helper(ct, GFP_ATOMIC);
+	__nf_ct_try_assign_helper(ct, NULL, GFP_ATOMIC);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);

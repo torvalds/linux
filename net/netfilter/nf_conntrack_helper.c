@@ -96,13 +96,22 @@ struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper_ext_add);
 
-int __nf_ct_try_assign_helper(struct nf_conn *ct, gfp_t flags)
+int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
+			      gfp_t flags)
 {
+	struct nf_conntrack_helper *helper = NULL;
+	struct nf_conn_help *help;
 	int ret = 0;
-	struct nf_conntrack_helper *helper;
-	struct nf_conn_help *help = nfct_help(ct);
 
-	helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+	if (tmpl != NULL) {
+		help = nfct_help(tmpl);
+		if (help != NULL)
+			helper = help->helper;
+	}
+
+	help = nfct_help(ct);
+	if (helper == NULL)
+		helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 	if (helper == NULL) {
 		if (help)
 			rcu_assign_pointer(help->helper, NULL);
