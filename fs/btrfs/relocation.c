@@ -2659,7 +2659,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 					EXTENT_BOUNDARY, GFP_NOFS);
 			nr++;
 		}
-		btrfs_set_extent_delalloc(inode, page_start, page_end);
+		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
 
 		set_page_dirty(page);
 		dirty_page++;

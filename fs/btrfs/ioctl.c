@@ -673,7 +673,7 @@ again:
 				  page_end, EXTENT_DIRTY | EXTENT_DELALLOC |
 				  EXTENT_DO_ACCOUNTING, GFP_NOFS);
 
-		btrfs_set_extent_delalloc(inode, page_start, page_end);
+		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
 		ClearPageChecked(page);
 		set_page_dirty(page);
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);

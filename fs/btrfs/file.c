@@ -123,7 +123,8 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
 	end_of_last_block = start_pos + num_bytes - 1;
-	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
+	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
+					NULL);
 	if (err)
 		return err;
 
@@ -753,6 +754,7 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 			 loff_t pos, unsigned long first_index,
 			 unsigned long last_index, size_t write_bytes)
 {
+	struct extent_state *cached_state = NULL;
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
 	struct inode *inode = fdentry(file)->d_inode;
@@ -781,16 +783,18 @@ again:
 	}
 	if (start_pos < inode->i_size) {
 		struct btrfs_ordered_extent *ordered;
-		lock_extent(&BTRFS_I(inode)->io_tree,
-			    start_pos, last_pos - 1, GFP_NOFS);
+		lock_extent_bits(&BTRFS_I(inode)->io_tree,
+				 start_pos, last_pos - 1, 0, &cached_state,
+				 GFP_NOFS);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
 							    last_pos - 1);
 		if (ordered &&
 		    ordered->file_offset + ordered->len > start_pos &&
 		    ordered->file_offset < last_pos) {
 			btrfs_put_ordered_extent(ordered);
-			unlock_extent(&BTRFS_I(inode)->io_tree,
-				      start_pos, last_pos - 1, GFP_NOFS);
+			unlock_extent_cached(&BTRFS_I(inode)->io_tree,
+					     start_pos, last_pos - 1,
+					     &cached_state, GFP_NOFS);
 			for (i = 0; i < num_pages; i++) {
 				unlock_page(pages[i]);
 				page_cache_release(pages[i]);
@@ -802,12 +806,13 @@ again:
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
 
-		clear_extent_bits(&BTRFS_I(inode)->io_tree, start_pos,
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, start_pos,
 				  last_pos - 1, EXTENT_DIRTY | EXTENT_DELALLOC |
-				  EXTENT_DO_ACCOUNTING,
+				  EXTENT_DO_ACCOUNTING, 0, 0, &cached_state,
 				  GFP_NOFS);
-		unlock_extent(&BTRFS_I(inode)->io_tree,
-			      start_pos, last_pos - 1, GFP_NOFS);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree,
+				     start_pos, last_pos - 1, &cached_state,
+				     GFP_NOFS);
 	}
 	for (i = 0; i < num_pages; i++) {
 		clear_page_dirty_for_io(pages[i]);
