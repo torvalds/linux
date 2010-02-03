@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -28,6 +29,16 @@
 
 #include "wm8993.h"
 #include "wm_hubs.h"
+
+#define WM8993_NUM_SUPPLIES 6
+static const char *wm8993_supply_names[WM8993_NUM_SUPPLIES] = {
+	"DCVDD",
+	"DBVDD",
+	"AVDD1",
+	"AVDD2",
+	"CPVDD",
+	"SPKVDD",
+};
 
 static u16 wm8993_reg_defaults[WM8993_REGISTER_COUNT] = {
 	0x8993,     /* R0   - Software Reset */
@@ -215,6 +226,7 @@ static struct {
 struct wm8993_priv {
 	struct wm_hubs_data hubs_data;
 	u16 reg_cache[WM8993_REGISTER_COUNT];
+	struct regulator_bulk_data supplies[WM8993_NUM_SUPPLIES];
 	struct wm8993_platform_data pdata;
 	struct snd_soc_codec codec;
 	int master;
@@ -1496,6 +1508,7 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	struct snd_soc_codec *codec;
 	unsigned int val;
 	int ret;
+	int i;
 
 	if (wm8993_codec) {
 		dev_err(&i2c->dev, "A WM8993 is already registered\n");
@@ -1543,16 +1556,33 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 
 	codec->dev = &i2c->dev;
 
+	for (i = 0; i < ARRAY_SIZE(wm8993->supplies); i++)
+		wm8993->supplies[i].supply = wm8993_supply_names[i];
+
+	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8993->supplies),
+				 wm8993->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		goto err;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
+				    wm8993->supplies);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
+		goto err_get;
+	}
+
 	val = snd_soc_read(codec, WM8993_SOFTWARE_RESET);
 	if (val != wm8993_reg_defaults[WM8993_SOFTWARE_RESET]) {
 		dev_err(codec->dev, "Invalid ID register value %x\n", val);
 		ret = -EINVAL;
-		goto err;
+		goto err_enable;
 	}
 
 	ret = snd_soc_write(codec, WM8993_SOFTWARE_RESET, 0xffff);
 	if (ret != 0)
-		goto err;
+		goto err_enable;
 
 	/* By default we're using the output mixers */
 	wm8993->class_w_users = 2;
@@ -1582,7 +1612,7 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 			     
 	ret = wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret != 0)
-		goto err;
+		goto err_enable;
 
 	wm8993_dai.dev = codec->dev;
 
@@ -1596,6 +1626,10 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 
 err_bias:
 	wm8993_set_bias_level(codec, SND_SOC_BIAS_OFF);
+err_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
+err_get:
+	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
 err:
 	wm8993_codec = NULL;
 	kfree(wm8993);
@@ -1610,6 +1644,7 @@ static int wm8993_i2c_remove(struct i2c_client *client)
 	snd_soc_unregister_dai(&wm8993_dai);
 
 	wm8993_set_bias_level(&wm8993->codec, SND_SOC_BIAS_OFF);
+	regulator_bulk_free(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
 	kfree(wm8993);
 
 	return 0;
