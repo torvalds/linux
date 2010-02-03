@@ -204,7 +204,7 @@ void pcibios_align_resource(void *data, struct resource *res,
 }
 
 void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res)
+			     struct resource *res)
 {
 	struct pci_channel *hose = dev->sysdata;
 	unsigned long offset = 0;
@@ -218,9 +218,8 @@ void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 	region->end = res->end - offset;
 }
 
-void __devinit
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region)
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			     struct pci_bus_region *region)
 {
 	struct pci_channel *hose = dev->sysdata;
 	unsigned long offset = 0;
@@ -303,12 +302,41 @@ char * __devinit pcibios_setup(char *str)
 	return str;
 }
 
+static void __init
+pcibios_bus_report_status_early(struct pci_channel *hose,
+				int top_bus, int current_bus,
+				unsigned int status_mask, int warn)
+{
+	unsigned int pci_devfn;
+	u16 status;
+	int ret;
+
+	for (pci_devfn = 0; pci_devfn < 0xff; pci_devfn++) {
+		if (PCI_FUNC(pci_devfn))
+			continue;
+		ret = early_read_config_word(hose, top_bus, current_bus,
+					     pci_devfn, PCI_STATUS, &status);
+		if (ret != PCIBIOS_SUCCESSFUL)
+			continue;
+		if (status == 0xffff)
+			continue;
+
+		early_write_config_word(hose, top_bus, current_bus,
+					pci_devfn, PCI_STATUS,
+					status & status_mask);
+		if (warn)
+			printk("(%02x:%02x: %04X) ", current_bus,
+			       pci_devfn, status);
+	}
+}
+
 /*
  * We can't use pci_find_device() here since we are
  * called from interrupt context.
  */
-static void pcibios_bus_report_status(struct pci_bus *bus,
-		unsigned int status_mask, int warn)
+static void __init_refok
+pcibios_bus_report_status(struct pci_bus *bus, unsigned int status_mask,
+			  int warn)
 {
 	struct pci_dev *dev;
 
@@ -341,12 +369,17 @@ static void pcibios_bus_report_status(struct pci_bus *bus,
 			pcibios_bus_report_status(dev->subordinate, status_mask, warn);
 }
 
-void pcibios_report_status(unsigned int status_mask, int warn)
+void __init_refok pcibios_report_status(unsigned int status_mask, int warn)
 {
 	struct pci_channel *hose;
 
-	for (hose = hose_head; hose; hose = hose->next)
-		pcibios_bus_report_status(hose->bus, status_mask, warn);
+	for (hose = hose_head; hose; hose = hose->next) {
+		if (unlikely(!hose->bus))
+			pcibios_bus_report_status_early(hose, hose_head->index,
+					hose->index, status_mask, warn);
+		else
+			pcibios_bus_report_status(hose->bus, status_mask, warn);
+	}
 }
 
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,

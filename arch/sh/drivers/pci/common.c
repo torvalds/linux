@@ -3,28 +3,47 @@
 #include <linux/timer.h>
 #include <linux/kernel.h>
 
-static int __init
-early_read_config_word(struct pci_channel *hose,
-		       int top_bus, int bus, int devfn, int offset, u16 *value)
+/*
+ * These functions are used early on before PCI scanning is done
+ * and all of the pci_dev and pci_bus structures have been created.
+ */
+static struct pci_dev *fake_pci_dev(struct pci_channel *hose,
+	int top_bus, int busnr, int devfn)
 {
-	struct pci_dev fake_dev;
-	struct pci_bus fake_bus;
+	static struct pci_dev dev;
+	static struct pci_bus bus;
 
-	fake_dev.bus = &fake_bus;
-	fake_dev.sysdata = hose;
-	fake_dev.devfn = devfn;
-	fake_bus.number = bus;
-	fake_bus.sysdata = hose;
-	fake_bus.ops = hose->pci_ops;
+	dev.bus = &bus;
+	dev.sysdata = hose;
+	dev.devfn = devfn;
+	bus.number = busnr;
+	bus.sysdata = hose;
+	bus.ops = hose->pci_ops;
 
-	if (bus != top_bus)
+	if(busnr != top_bus)
 		/* Fake a parent bus structure. */
-		fake_bus.parent = &fake_bus;
+		bus.parent = &bus;
 	else
-		fake_bus.parent = NULL;
+		bus.parent = NULL;
 
-	return pci_read_config_word(&fake_dev, offset, value);
+	return &dev;
 }
+
+#define EARLY_PCI_OP(rw, size, type)					\
+int __init early_##rw##_config_##size(struct pci_channel *hose,		\
+	int top_bus, int bus, int devfn, int offset, type value)	\
+{									\
+	return pci_##rw##_config_##size(				\
+		fake_pci_dev(hose, top_bus, bus, devfn),		\
+		offset, value);						\
+}
+
+EARLY_PCI_OP(read, byte, u8 *)
+EARLY_PCI_OP(read, word, u16 *)
+EARLY_PCI_OP(read, dword, u32 *)
+EARLY_PCI_OP(write, byte, u8)
+EARLY_PCI_OP(write, word, u16)
+EARLY_PCI_OP(write, dword, u32)
 
 int __init pci_is_66mhz_capable(struct pci_channel *hose,
 				int top_bus, int current_bus)
@@ -133,7 +152,7 @@ unsigned int pcibios_handle_status_errors(unsigned long addr,
 
 		/* Now back off of the IRQ for awhile */
 		if (hose->err_irq) {
-			disable_irq(hose->err_irq);
+			disable_irq_nosync(hose->err_irq);
 			hose->err_timer.expires = jiffies + HZ;
 			add_timer(&hose->err_timer);
 		}

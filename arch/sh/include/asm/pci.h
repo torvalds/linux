@@ -41,6 +41,18 @@ extern int register_pci_controller(struct pci_channel *hose);
 extern void pcibios_report_status(unsigned int status_mask, int warn);
 
 /* arch/sh/drivers/pci/common.c */
+extern int early_read_config_byte(struct pci_channel *hose, int top_bus,
+				  int bus, int devfn, int offset, u8 *value);
+extern int early_read_config_word(struct pci_channel *hose, int top_bus,
+				  int bus, int devfn, int offset, u16 *value);
+extern int early_read_config_dword(struct pci_channel *hose, int top_bus,
+				   int bus, int devfn, int offset, u32 *value);
+extern int early_write_config_byte(struct pci_channel *hose, int top_bus,
+				   int bus, int devfn, int offset, u8 value);
+extern int early_write_config_word(struct pci_channel *hose, int top_bus,
+				   int bus, int devfn, int offset, u16 value);
+extern int early_write_config_dword(struct pci_channel *hose, int top_bus,
+				    int bus, int devfn, int offset, u32 value);
 extern void pcibios_enable_timers(struct pci_channel *hose);
 extern unsigned int pcibios_handle_status_errors(unsigned long addr,
 				 unsigned int status, struct pci_channel *hose);
