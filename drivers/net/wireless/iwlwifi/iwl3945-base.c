@@ -4039,6 +4039,13 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	spin_lock_init(&priv->reg_lock);
 	spin_lock_init(&priv->lock);
 
+	/*
+	 * stop and reset the on-board processor just in case it is in a
+	 * strange state ... like being left stranded by a primary kernel
+	 * and this is now the kdump kernel trying to start up
+	 */
+	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+
 	/***********************
 	 * 4. Read EEPROM
 	 * ********************/
