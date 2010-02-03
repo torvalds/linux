@@ -40,6 +40,8 @@
 #include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
 #include <mach/spi.h>
+#include <mach/mxc_ehci.h>
+#include <mach/ulpi.h>
 
 #include "devices.h"
 
@@ -96,6 +98,19 @@ static int pcm038_pins[] = {
 	PC17_PF_SSI4_RXD,
 	PC18_PF_SSI4_TXD,
 	PC19_PF_SSI4_CLK,
+	/* USB host */
+	PA0_PF_USBH2_CLK,
+	PA1_PF_USBH2_DIR,
+	PA2_PF_USBH2_DATA7,
+	PA3_PF_USBH2_NXT,
+	PA4_PF_USBH2_STP,
+	PD19_AF_USBH2_DATA4,
+	PD20_AF_USBH2_DATA3,
+	PD21_AF_USBH2_DATA6,
+	PD22_AF_USBH2_DATA0,
+	PD23_AF_USBH2_DATA2,
+	PD24_AF_USBH2_DATA1,
+	PD26_AF_USBH2_DATA5,
 };
 
 /*
@@ -277,6 +292,11 @@ static struct spi_board_info pcm038_spi_board_info[] __initdata = {
 	}
 };
 
+static struct mxc_usbh_platform_data usbh2_pdata = {
+	.portsc	= MXC_EHCI_MODE_ULPI,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_DIFF_UNI,
+};
+
 static void __init pcm038_init(void)
 {
 	mxc_gpio_setup_multiple_pins(pcm038_pins, ARRAY_SIZE(pcm038_pins),
@@ -308,6 +328,8 @@ static void __init pcm038_init(void)
 	mxc_register_device(&mxc_spi_device0, &pcm038_spi_0_data);
 	spi_register_board_info(pcm038_spi_board_info,
 				ARRAY_SIZE(pcm038_spi_board_info));
+
+	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
