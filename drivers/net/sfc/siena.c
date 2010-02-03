@@ -134,7 +134,7 @@ void siena_remove_port(struct efx_nic *efx)
 
 static const struct efx_nic_register_test siena_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
-	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_CZ_USR_EV_CFG,
 	  EFX_OWORD32(0x000103FF, 0x00000000, 0x00000000, 0x00000000) },
 	{ FR_AZ_RX_CFG,
