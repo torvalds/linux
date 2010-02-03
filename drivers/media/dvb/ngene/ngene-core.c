@@ -32,7 +32,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/div64.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
@@ -267,11 +267,13 @@ static void dump_command_io(struct ngene *dev)
 
 	ngcpyfrom(buf, HOST_TO_NGENE, 8);
 	printk(KERN_ERR "host_to_ngene (%04x): %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		HOST_TO_NGENE, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+		HOST_TO_NGENE, buf[0], buf[1], buf[2], buf[3],
+		buf[4], buf[5], buf[6], buf[7]);
 
 	ngcpyfrom(buf, NGENE_TO_HOST, 8);
 	printk(KERN_ERR "ngene_to_host (%04x): %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		NGENE_TO_HOST, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
+		NGENE_TO_HOST, buf[0], buf[1], buf[2], buf[3],
+		buf[4], buf[5], buf[6], buf[7]);
 
 	b = dev->hosttongene;
 	printk(KERN_ERR "dev->hosttongene (%p): %02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -1198,7 +1200,7 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 		* sizeof(struct HW_SCATTER_GATHER_ELEMENT);
 
 	u64 PASCListMem;
-	PHW_SCATTER_GATHER_ELEMENT SCListEntry;
+	struct HW_SCATTER_GATHER_ELEMENT *SCListEntry;
 	u64 PASCListEntry;
 	struct SBufferHeader *Cur;
 	void *SCListMem;
@@ -1220,7 +1222,7 @@ static int AllocateRingBuffers(struct pci_dev *pci_dev,
 	pRingBuffer->Buffer1Length = Buffer1Length;
 	pRingBuffer->Buffer2Length = Buffer2Length;
 
-	SCListEntry = (PHW_SCATTER_GATHER_ELEMENT) SCListMem;
+	SCListEntry = SCListMem;
 	PASCListEntry = PASCListMem;
 	Cur = pRingBuffer->Head;
 
@@ -1611,10 +1613,10 @@ static int ngene_start(struct ngene *dev)
 		goto fail;
 
 	if (dev->card_info->fw_version == 17) {
-		u8 tsin4_config[6] =
-			{3072 / 64, 3072 / 64, 0, 3072 / 64, 3072 / 64, 0};
-		u8 default_config[6] =
-			{4096 / 64, 4096 / 64, 0, 2048 / 64, 2048 / 64, 0};
+		u8 tsin4_config[6] = {
+			3072 / 64, 3072 / 64, 0, 3072 / 64, 3072 / 64, 0};
+		u8 default_config[6] = {
+			4096 / 64, 4096 / 64, 0, 2048 / 64, 2048 / 64, 0};
 		u8 *bconf = default_config;
 
 		if (dev->card_info->io_type[3] == NGENE_IO_TSIN)

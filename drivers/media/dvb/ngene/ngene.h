@@ -29,7 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <asm/dma.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <linux/dvb/frontend.h>
 
@@ -199,8 +199,6 @@ struct EVENT_BUFFER {
 	u8     EventStatus;
 	u32    Reserved[2];
 } __attribute__ ((__packed__));
-
-typedef struct EVENT_BUFFER *PEVENT_BUFFER;
 
 /* Firmware commands. */
 
@@ -488,18 +486,15 @@ struct ngene_command {
 
 #define EVENT_QUEUE_SIZE    16
 
-typedef struct HW_SCATTER_GATHER_ELEMENT *PHW_SCATTER_GATHER_ELEMENT;
-typedef struct FWRB *PFWRB;
-
 /* Gathers the current state of a single channel. */
 
 struct SBufferHeader {
 	struct BUFFER_HEADER   ngeneBuffer; /* Physical descriptor */
 	struct SBufferHeader  *Next;
 	void                  *Buffer1;
-	PHW_SCATTER_GATHER_ELEMENT scList1;
+	struct HW_SCATTER_GATHER_ELEMENT *scList1;
 	void                  *Buffer2;
-	PHW_SCATTER_GATHER_ELEMENT scList2;
+	struct HW_SCATTER_GATHER_ELEMENT *scList2;
 };
 
 /* Sizeof SBufferHeader aligned to next 64 Bit boundary (hw restriction) */
@@ -554,7 +549,7 @@ enum BufferExchangeFlags {
 
 typedef void *(IBufferExchange)(void *, void *, u32, u32, u32);
 
-typedef struct {
+struct MICI_STREAMINFO {
 	IBufferExchange    *pExchange;
 	IBufferExchange    *pExchangeVBI;     /* Secondary (VBI, ancillary) */
 	u8  Stream;
@@ -566,7 +561,7 @@ typedef struct {
 	u16 nLinesVBI;
 	u16 nBytesPerLineVBI;
 	u32 CaptureLength;    /* Used for audio and transport stream */
-} MICI_STREAMINFO, *PMICI_STREAMINFO;
+};
 
 /****************************************************************************/
 /* STRUCTS ******************************************************************/
