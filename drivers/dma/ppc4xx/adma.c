@@ -4940,7 +4940,7 @@ out_free:
 	return ret;
 }
 
-static struct of_device_id __devinitdata ppc440spe_adma_of_match[] = {
+static const struct of_device_id ppc440spe_adma_of_match[] __devinitconst = {
 	{ .compatible	= "ibm,dma-440spe", },
 	{ .compatible	= "amcc,xor-accelerator", },
 	{},

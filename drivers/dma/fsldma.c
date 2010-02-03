@@ -1398,7 +1398,7 @@ static int fsldma_of_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id fsldma_of_ids[] = {
+static const struct of_device_id fsldma_of_ids[] = {
 	{ .compatible = "fsl,eloplus-dma", },
 	{ .compatible = "fsl,elo-dma", },
 	{}
