@@ -94,6 +94,7 @@ struct source_line {
 
 static char			*sym_filter			=   NULL;
 struct sym_entry		*sym_filter_entry		=   NULL;
+struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 static int			sym_counter			=      0;
 static int			display_weighted		=     -1;
@@ -695,11 +696,9 @@ static void print_mapped_keys(void)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
-	if (symbol_conf.vmlinux_name) {
-		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
-		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
-		fprintf(stdout, "\t[S]     stop annotation.\n");
-	}
+	fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
+	fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
+	fprintf(stdout, "\t[S]     stop annotation.\n");
 
 	if (nr_counters > 1)
 		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
@@ -725,14 +724,13 @@ static int key_mapped(int c)
 		case 'Q':
 		case 'K':
 		case 'U':
+		case 'F':
+		case 's':
+		case 'S':
 			return 1;
 		case 'E':
 		case 'w':
 			return nr_counters > 1 ? 1 : 0;
-		case 'F':
-		case 's':
-		case 'S':
-			return symbol_conf.vmlinux_name ? 1 : 0;
 		default:
 			break;
 	}
@@ -910,8 +908,12 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	syme = symbol__priv(sym);
 	syme->map = map;
 	syme->src = NULL;
-	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter))
-		sym_filter_entry = syme;
+
+	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
+		/* schedule initial sym_filter_entry setup */
+		sym_filter_entry_sched = syme;
+		sym_filter = NULL;
+	}
 
 	for (i = 0; skip_symbols[i]; i++) {
 		if (!strcmp(skip_symbols[i], name)) {
@@ -974,6 +976,13 @@ static void event__process_sample(const event_t *self,
 		}
 
 		return;
+	}
+
+	/* let's see, whether we need to install initial sym_filter_entry */
+	if (sym_filter_entry_sched) {
+		sym_filter_entry = sym_filter_entry_sched;
+		sym_filter_entry_sched = NULL;
+		parse_source(sym_filter_entry);
 	}
 
 	syme = symbol__priv(al.sym);
@@ -1270,7 +1279,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
 	OPT_STRING('s', "sym-annotate", &sym_filter, "symbol name",
-		    "symbol to annotate - requires -k option"),
+		    "symbol to annotate"),
 	OPT_BOOLEAN('z', "zero", &zero,
 		    "zero history across updates"),
 	OPT_INTEGER('F', "freq", &freq,
@@ -1306,15 +1315,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	symbol_conf.priv_size = (sizeof(struct sym_entry) +
 				 (nr_counters + 1) * sizeof(unsigned long));
-	if (symbol_conf.vmlinux_name == NULL)
-		symbol_conf.try_vmlinux_path = true;
+
+	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init() < 0)
 		return -1;
 
 	if (delay_secs < 1)
 		delay_secs = 1;
-
-	parse_source(sym_filter_entry);
 
 	/*
 	 * User specified count overrides default frequency.
