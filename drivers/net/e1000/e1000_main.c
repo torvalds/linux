@@ -2246,7 +2246,7 @@ static void e1000_82547_tx_fifo_stall(unsigned long data)
 	}
 }
 
-static bool e1000_has_link(struct e1000_adapter *adapter)
+bool e1000_has_link(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
