@@ -1750,7 +1750,8 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 static void end_bio_extent_readpage(struct bio *bio, int err)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec_end = bio->bi_io_vec + bio->bi_vcnt - 1;
+	struct bio_vec *bvec = bio->bi_io_vec;
 	struct extent_io_tree *tree;
 	u64 start;
 	u64 end;
@@ -1773,7 +1774,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		else
 			whole_page = 0;
 
-		if (--bvec >= bio->bi_io_vec)
+		if (++bvec <= bvec_end)
 			prefetchw(&bvec->bv_page->flags);
 
 		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
@@ -1818,7 +1819,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			}
 			check_page_locked(tree, page);
 		}
-	} while (bvec >= bio->bi_io_vec);
+	} while (bvec <= bvec_end);
 
 	bio_put(bio);
 }
