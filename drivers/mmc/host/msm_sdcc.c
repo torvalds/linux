@@ -616,7 +616,7 @@ msmsdcc_spin_on_status(struct msmsdcc_host *host, uint32_t mask, int maxspin)
 	return -ETIMEDOUT;
 }
 
-static int
+static irqreturn_t
 msmsdcc_pio_irq(int irq, void *dev_id)
 {
 	struct msmsdcc_host	*host = dev_id;
@@ -801,7 +801,6 @@ msmsdcc_irq(int irq, void *dev_id)
 	spin_lock(&host->lock);
 
 	do {
-		struct mmc_data *data;
 		status = msmsdcc_readl(host, MMCISTATUS);
 		status &= (msmsdcc_readl(host, MMCIMASK0) |
 					      MCI_DATABLOCKENDMASK);
@@ -1144,6 +1143,15 @@ msmsdcc_probe(struct platform_device *pdev)
 	host->memres = memres;
 	host->dmares = dmares;
 	spin_lock_init(&host->lock);
+
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (plat->embedded_sdio)
+		mmc_set_embedded_sdio_data(mmc,
+					   &plat->embedded_sdio->cis,
+					   &plat->embedded_sdio->cccr,
+					   plat->embedded_sdio->funcs,
+					   plat->embedded_sdio->num_funcs);
+#endif
 
 	/*
 	 * Setup DMA
