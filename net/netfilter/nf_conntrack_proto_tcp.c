@@ -1045,7 +1045,7 @@ static int tcp_packet(struct nf_conn *ct,
 		   after SYN_RECV or a valid answer for a picked up
 		   connection. */
 		set_bit(IPS_ASSURED_BIT, &ct->status);
-		nf_conntrack_event_cache(IPCT_STATUS, ct);
+		nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	}
 	nf_ct_refresh_acct(ct, ctinfo, skb, timeout);
 

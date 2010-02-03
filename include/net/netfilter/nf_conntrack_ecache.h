@@ -14,19 +14,20 @@
 
 /* Connection tracking event types */
 enum ip_conntrack_events {
-	IPCT_NEW		= 0,	/* new conntrack */
-	IPCT_RELATED		= 1,	/* related conntrack */
-	IPCT_DESTROY		= 2,	/* destroyed conntrack */
-	IPCT_STATUS		= 3,	/* status has changed */
-	IPCT_PROTOINFO		= 4,	/* protocol information has changed */
-	IPCT_HELPER		= 5,	/* new helper has been set */
-	IPCT_MARK		= 6,	/* new mark has been set */
-	IPCT_NATSEQADJ		= 7,	/* NAT is doing sequence adjustment */
-	IPCT_SECMARK		= 8,	/* new security mark has been set */
+	IPCT_NEW,		/* new conntrack */
+	IPCT_RELATED,		/* related conntrack */
+	IPCT_DESTROY,		/* destroyed conntrack */
+	IPCT_REPLY,		/* connection has seen two-way traffic */
+	IPCT_ASSURED,		/* connection status has changed to assured */
+	IPCT_PROTOINFO,		/* protocol information has changed */
+	IPCT_HELPER,		/* new helper has been set */
+	IPCT_MARK,		/* new mark has been set */
+	IPCT_NATSEQADJ,		/* NAT is doing sequence adjustment */
+	IPCT_SECMARK,		/* new security mark has been set */
 };
 
 enum ip_conntrack_expect_events {
-	IPEXP_NEW		= 0,	/* new expectation */
+	IPEXP_NEW,		/* new expectation */
 };
 
 struct nf_conntrack_ecache {
