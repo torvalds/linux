@@ -1078,25 +1078,6 @@ xfs_bwrite(
 	return error;
 }
 
-int
-xfs_bawrite(
-	void			*mp,
-	struct xfs_buf		*bp)
-{
-	trace_xfs_buf_bawrite(bp, _RET_IP_);
-
-	ASSERT(bp->b_bn != XFS_BUF_DADDR_NULL);
-
-	xfs_buf_delwri_dequeue(bp);
-
-	bp->b_flags &= ~(XBF_READ | XBF_DELWRI | XBF_READ_AHEAD);
-	bp->b_flags |= (XBF_WRITE | XBF_ASYNC | _XBF_RUN_QUEUES);
-
-	bp->b_mount = mp;
-	bp->b_strat = xfs_bdstrat_cb;
-	return xfs_bdstrat_cb(bp);
-}
-
 void
 xfs_bdwrite(
 	void			*mp,
