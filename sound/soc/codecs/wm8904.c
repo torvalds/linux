@@ -33,6 +33,11 @@
 static struct snd_soc_codec *wm8904_codec;
 struct snd_soc_codec_device soc_codec_dev_wm8904;
 
+enum wm8904_type {
+	WM8904,
+	WM8912,
+};
+
 #define WM8904_NUM_DCS_CHANNELS 4
 
 #define WM8904_NUM_SUPPLIES 5
@@ -48,6 +53,8 @@ static const char *wm8904_supply_names[WM8904_NUM_SUPPLIES] = {
 struct wm8904_priv {
 	struct snd_soc_codec codec;
 	u16 reg_cache[WM8904_MAX_REGISTER + 1];
+
+	enum wm8904_type devtype;
 
 	struct regulator_bulk_data supplies[WM8904_NUM_SUPPLIES];
 
@@ -1411,30 +1418,62 @@ static const struct snd_soc_dapm_route wm8904_intercon[] = {
 	{ "LINER PGA", NULL, "LINER Mux" },
 };
 
+static const struct snd_soc_dapm_route wm8912_intercon[] = {
+	{ "HPL PGA", NULL, "DACL" },
+	{ "HPR PGA", NULL, "DACR" },
+
+	{ "LINEL PGA", NULL, "DACL" },
+	{ "LINER PGA", NULL, "DACR" },
+};
+
 static int wm8904_add_widgets(struct snd_soc_codec *codec)
 {
-	snd_soc_add_controls(codec, wm8904_adc_snd_controls,
-			     ARRAY_SIZE(wm8904_adc_snd_controls));
-	snd_soc_add_controls(codec, wm8904_dac_snd_controls,
-			     ARRAY_SIZE(wm8904_dac_snd_controls));
-	snd_soc_add_controls(codec, wm8904_snd_controls,
-			     ARRAY_SIZE(wm8904_snd_controls));
+	struct wm8904_priv *wm8904 = codec->private_data;
 
 	snd_soc_dapm_new_controls(codec, wm8904_core_dapm_widgets,
 				  ARRAY_SIZE(wm8904_core_dapm_widgets));
-	snd_soc_dapm_new_controls(codec, wm8904_adc_dapm_widgets,
-				  ARRAY_SIZE(wm8904_adc_dapm_widgets));
-	snd_soc_dapm_new_controls(codec, wm8904_dac_dapm_widgets,
-				  ARRAY_SIZE(wm8904_dac_dapm_widgets));
-	snd_soc_dapm_new_controls(codec, wm8904_dapm_widgets,
-				  ARRAY_SIZE(wm8904_dapm_widgets));
-
 	snd_soc_dapm_add_routes(codec, core_intercon,
 				ARRAY_SIZE(core_intercon));
-	snd_soc_dapm_add_routes(codec, adc_intercon, ARRAY_SIZE(adc_intercon));
-	snd_soc_dapm_add_routes(codec, dac_intercon, ARRAY_SIZE(dac_intercon));
-	snd_soc_dapm_add_routes(codec, wm8904_intercon,
-				ARRAY_SIZE(wm8904_intercon));
+
+	switch (wm8904->devtype) {
+	case WM8904:
+		snd_soc_add_controls(codec, wm8904_adc_snd_controls,
+				     ARRAY_SIZE(wm8904_adc_snd_controls));
+		snd_soc_add_controls(codec, wm8904_dac_snd_controls,
+				     ARRAY_SIZE(wm8904_dac_snd_controls));
+		snd_soc_add_controls(codec, wm8904_snd_controls,
+				     ARRAY_SIZE(wm8904_snd_controls));
+
+		snd_soc_dapm_new_controls(codec, wm8904_adc_dapm_widgets,
+					  ARRAY_SIZE(wm8904_adc_dapm_widgets));
+		snd_soc_dapm_new_controls(codec, wm8904_dac_dapm_widgets,
+					  ARRAY_SIZE(wm8904_dac_dapm_widgets));
+		snd_soc_dapm_new_controls(codec, wm8904_dapm_widgets,
+					  ARRAY_SIZE(wm8904_dapm_widgets));
+
+		snd_soc_dapm_add_routes(codec, core_intercon,
+					ARRAY_SIZE(core_intercon));
+		snd_soc_dapm_add_routes(codec, adc_intercon,
+					ARRAY_SIZE(adc_intercon));
+		snd_soc_dapm_add_routes(codec, dac_intercon,
+					ARRAY_SIZE(dac_intercon));
+		snd_soc_dapm_add_routes(codec, wm8904_intercon,
+					ARRAY_SIZE(wm8904_intercon));
+		break;
+
+	case WM8912:
+		snd_soc_add_controls(codec, wm8904_dac_snd_controls,
+				     ARRAY_SIZE(wm8904_dac_snd_controls));
+
+		snd_soc_dapm_new_controls(codec, wm8904_dac_dapm_widgets,
+					  ARRAY_SIZE(wm8904_dac_dapm_widgets));
+
+		snd_soc_dapm_add_routes(codec, dac_intercon,
+					ARRAY_SIZE(dac_intercon));
+		snd_soc_dapm_add_routes(codec, wm8912_intercon,
+					ARRAY_SIZE(wm8912_intercon));
+		break;
+	}
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;
@@ -2412,6 +2451,18 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	codec->cache_sync = 1;
 	codec->idle_bias_off = 1;
 
+	switch (wm8904->devtype) {
+	case WM8904:
+		break;
+	case WM8912:
+		memset(&wm8904_dai.capture, 0, sizeof(wm8904_dai.capture));
+		break;
+	default:
+		dev_err(codec->dev, "Unknown device type %d\n",
+			wm8904->devtype);
+		return -EINVAL;
+	}
+
 	memcpy(codec->reg_cache, wm8904_reg, sizeof(wm8904_reg));
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, control);
@@ -2542,6 +2593,8 @@ static __devinit int wm8904_i2c_probe(struct i2c_client *i2c,
 	codec = &wm8904->codec;
 	codec->hw_write = (hw_write_t)i2c_master_send;
 
+	wm8904->devtype = id->driver_data;
+
 	i2c_set_clientdata(i2c, wm8904);
 	codec->control_data = i2c;
 	wm8904->pdata = i2c->dev.platform_data;
@@ -2559,7 +2612,8 @@ static __devexit int wm8904_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id wm8904_i2c_id[] = {
-	{ "wm8904", 0 },
+	{ "wm8904", WM8904 },
+	{ "wm8912", WM8912 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8904_i2c_id);
