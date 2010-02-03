@@ -212,9 +212,8 @@ config HID_MONTEREY
 	Support for Monterey Genius KB29E.
 
 config HID_NTRIG
-	tristate "NTrig" if EMBEDDED
+	tristate "NTrig"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for N-Trig touch screen.
 
@@ -338,9 +337,8 @@ config THRUSTMASTER_FF
 	  Rumble Force or Force Feedback Wheel.
 
 config HID_WACOM
-	tristate "Wacom Bluetooth devices support" if EMBEDDED
+	tristate "Wacom Bluetooth devices support"
 	depends on BT_HIDP
-	default !EMBEDDED
 	---help---
 	Support for Wacom Graphire Bluetooth tablet.
 
