@@ -113,6 +113,7 @@ find_config;
 # Get the build source and top level Kconfig file (passed in)
 my $ksource = $ARGV[0];
 my $kconfig = $ARGV[1];
+my $lsmod_file = $ARGV[2];
 
 my @makefiles = `find $ksource -name Makefile`;
 my %depends;
@@ -263,21 +264,36 @@ foreach my $makefile (@makefiles) {
 
 my %modules;
 
-# see what modules are loaded on this system
-my $lsmod;
-
-foreach $dir ( ("/sbin", "/bin", "/usr/sbin", "/usr/bin") ) {
-    if ( -x "$dir/lsmod" ) {
-	$lsmod = "$dir/lsmod";
-	last;
+if (defined($lsmod_file)) {
+    if ( ! -f $lsmod_file) {
+	die "$lsmod_file not found";
     }
+    if ( -x $lsmod_file) {
+	# the file is executable, run it
+	open(LIN, "$lsmod_file|");
+    } else {
+	# Just read the contents
+	open(LIN, "$lsmod_file");
+    }
+} else {
+
+    # see what modules are loaded on this system
+    my $lsmod;
+
+    foreach $dir ( ("/sbin", "/bin", "/usr/sbin", "/usr/bin") ) {
+	if ( -x "$dir/lsmod" ) {
+	    $lsmod = "$dir/lsmod";
+	    last;
+	}
 }
-if (!defined($lsmod)) {
-    # try just the path
-    $lsmod = "lsmod";
+    if (!defined($lsmod)) {
+	# try just the path
+	$lsmod = "lsmod";
+    }
+
+    open(LIN,"$lsmod|") || die "Can not call lsmod with $lsmod";
 }
 
-open(LIN,"$lsmod|") || die "Can not call lsmod with $lsmod";
 while (<LIN>) {
 	next if (/^Module/);  # Skip the first line.
 	if (/^(\S+)/) {
