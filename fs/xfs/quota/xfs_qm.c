@@ -450,7 +450,7 @@ xfs_qm_unmount_quotas(
 STATIC int
 xfs_qm_dqflush_all(
 	xfs_mount_t	*mp,
-	int		flags)
+	int		sync_mode)
 {
 	int		recl;
 	xfs_dquot_t	*dqp;
@@ -486,7 +486,7 @@ again:
 		 * across a disk write.
 		 */
 		xfs_qm_mplist_unlock(mp);
-		error = xfs_qm_dqflush(dqp, flags);
+		error = xfs_qm_dqflush(dqp, sync_mode);
 		xfs_dqunlock(dqp);
 		if (error)
 			return error;
@@ -926,13 +926,11 @@ xfs_qm_sync(
 {
 	int		recl, restarts;
 	xfs_dquot_t	*dqp;
-	uint		flush_flags;
 	int		error;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
 
-	flush_flags = (flags & SYNC_WAIT) ? XFS_QMOPT_SYNC : XFS_QMOPT_DELWRI;
 	restarts = 0;
 
   again:
@@ -992,7 +990,7 @@ xfs_qm_sync(
 		 * across a disk write
 		 */
 		xfs_qm_mplist_unlock(mp);
-		error = xfs_qm_dqflush(dqp, flush_flags);
+		error = xfs_qm_dqflush(dqp, flags);
 		xfs_dqunlock(dqp);
 		if (error && XFS_FORCED_SHUTDOWN(mp))
 			return 0;	/* Need to prevent umount failure */
@@ -1796,7 +1794,7 @@ xfs_qm_quotacheck(
 	 * successfully.
 	 */
 	if (!error)
-		error = xfs_qm_dqflush_all(mp, XFS_QMOPT_DELWRI);
+		error = xfs_qm_dqflush_all(mp, 0);
 
 	/*
 	 * We can get this error if we couldn't do a dquot allocation inside
@@ -2018,7 +2016,7 @@ xfs_qm_shake_freelist(
 			 * We flush it delayed write, so don't bother
 			 * releasing the mplock.
 			 */
-			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, 0);
 			if (error) {
 				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
 			"xfs_qm_dqflush_all: dquot %p flush failed", dqp);
@@ -2201,7 +2199,7 @@ xfs_qm_dqreclaim_one(void)
 			 * We flush it delayed write, so don't bother
 			 * releasing the freelist lock.
 			 */
-			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, 0);
 			if (error) {
 				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
 			"xfs_qm_dqreclaim: dquot %p flush failed", dqp);

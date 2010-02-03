@@ -1187,7 +1187,7 @@ xfs_qm_dqflush(
 	 * block, nada.
 	 */
 	if (!XFS_DQ_IS_DIRTY(dqp) ||
-	    (!(flags & XFS_QMOPT_SYNC) && atomic_read(&dqp->q_pincount) > 0)) {
+	    (!(flags & SYNC_WAIT) && atomic_read(&dqp->q_pincount) > 0)) {
 		xfs_dqfunlock(dqp);
 		return 0;
 	}
@@ -1251,18 +1251,17 @@ xfs_qm_dqflush(
 		xfs_log_force(mp, 0);
 	}
 
-	if (flags & XFS_QMOPT_DELWRI) {
-		xfs_bdwrite(mp, bp);
-	} else {
+	if (flags & SYNC_WAIT)
 		error = xfs_bwrite(mp, bp);
-	}
+	else
+		xfs_bdwrite(mp, bp);
 
 	trace_xfs_dqflush_done(dqp);
 
 	/*
 	 * dqp is still locked, but caller is free to unlock it now.
 	 */
-	return (error);
+	return error;
 
 }
 
@@ -1443,7 +1442,7 @@ xfs_qm_dqpurge(
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
-		error = xfs_qm_dqflush(dqp, XFS_QMOPT_SYNC);
+		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
 		if (error)
 			xfs_fs_cmn_err(CE_WARN, mp,
 				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
