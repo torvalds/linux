@@ -106,15 +106,10 @@ static int siena_probe_port(struct efx_nic *efx)
 	efx->mdio.mdio_read = siena_mdio_read;
 	efx->mdio.mdio_write = siena_mdio_write;
 
-	/* Fill out MDIO structure and loopback modes */
+	/* Fill out MDIO structure, loopback modes, and initial link state */
 	rc = efx->phy_op->probe(efx);
 	if (rc != 0)
 		return rc;
-
-	/* Initial assumption */
-	efx->link_state.speed = 10000;
-	efx->link_state.fd = true;
-	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,

@@ -381,6 +381,18 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 	 * but by convention we don't */
 	efx->loopback_modes &= ~(1 << LOOPBACK_NONE);
 
+	/* Set the initial link mode */
+	efx_mcdi_phy_decode_link(
+		efx, &efx->link_state,
+		MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
+		MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
+		MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
+
+	/* Default to Autonegotiated flow control if the PHY supports it */
+	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
+	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
+		efx->wanted_fc |= EFX_FC_AUTO;
+
 	return 0;
 
 fail:
@@ -436,7 +448,7 @@ void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 
 	/* The link partner capabilities are only relevent if the
 	 * link supports flow control autonegotiation */
-	if (~phy_cfg->supported_cap & (1 << MC_CMD_PHY_CAP_ASYM_LBN))
+	if (~phy_cfg->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		return;
 
 	/* If flow control autoneg is supported and enabled, then fine */

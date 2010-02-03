@@ -909,6 +909,8 @@ static int falcon_probe_port(struct efx_nic *efx)
 		efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	else
 		efx->wanted_fc = EFX_FC_RX;
+	if (efx->mdio.mmds & MDIO_DEVS_AN)
+		efx->wanted_fc |= EFX_FC_AUTO;
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
