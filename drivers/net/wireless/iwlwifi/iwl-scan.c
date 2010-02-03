@@ -250,8 +250,6 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 
 	if (!priv->is_internal_short_scan)
 		priv->next_scan_jiffies = 0;
-	else
-		priv->last_internal_scan_jiffies = jiffies;
 
 	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
 
@@ -551,8 +549,6 @@ EXPORT_SYMBOL(iwl_mac_hw_scan);
  * internal short scan, this function should only been called while associated.
  * It will reset and tune the radio to prevent possible RF related problem
  */
-#define IWL_DELAY_NEXT_INTERNAL_SCAN (HZ*1)
-
 int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 {
 	int ret = 0;
@@ -570,12 +566,6 @@ int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
 		ret = -EAGAIN;
-		goto out;
-	}
-	if (priv->last_internal_scan_jiffies &&
-	    time_after(priv->last_internal_scan_jiffies +
-		       IWL_DELAY_NEXT_INTERNAL_SCAN, jiffies)) {
-		IWL_DEBUG_SCAN(priv, "internal scan rejected\n");
 		goto out;
 	}
 

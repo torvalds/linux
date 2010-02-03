@@ -3334,7 +3334,7 @@ int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display)
 }
 EXPORT_SYMBOL(iwl_dump_fh);
 
-void iwl_force_rf_reset(struct iwl_priv *priv)
+static void iwl_force_rf_reset(struct iwl_priv *priv)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -3356,7 +3356,47 @@ void iwl_force_rf_reset(struct iwl_priv *priv)
 	iwl_internal_short_hw_scan(priv);
 	return;
 }
-EXPORT_SYMBOL(iwl_force_rf_reset);
+
+#define IWL_DELAY_NEXT_FORCE_RESET (HZ*3)
+
+int iwl_force_reset(struct iwl_priv *priv, int mode)
+{
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return -EINVAL;
+
+	if (priv->last_force_reset_jiffies &&
+	    time_after(priv->last_force_reset_jiffies +
+		       IWL_DELAY_NEXT_FORCE_RESET, jiffies)) {
+		IWL_DEBUG_INFO(priv, "force reset rejected\n");
+		return -EAGAIN;
+	}
+
+	IWL_DEBUG_INFO(priv, "perform force reset (%d)\n", mode);
+
+	switch (mode) {
+	case IWL_RF_RESET:
+		iwl_force_rf_reset(priv);
+		break;
+	case IWL_FW_RESET:
+		IWL_ERR(priv, "On demand firmware reload\n");
+		/* Set the FW error flag -- cleared on iwl_down */
+		set_bit(STATUS_FW_ERROR, &priv->status);
+		wake_up_interruptible(&priv->wait_command_queue);
+		/*
+		 * Keep the restart process from trying to send host
+		 * commands by clearing the INIT status bit
+		 */
+		clear_bit(STATUS_READY, &priv->status);
+		queue_work(priv->workqueue, &priv->restart);
+		break;
+	default:
+		IWL_DEBUG_INFO(priv, "invalid reset request.\n");
+		return -EINVAL;
+	}
+	priv->last_force_reset_jiffies = jiffies;
+
+	return 0;
+}
 
 #ifdef CONFIG_PM
 

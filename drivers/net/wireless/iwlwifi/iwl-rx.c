@@ -689,7 +689,7 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 			 * Reset the RF radio due to the high plcp
 			 * error rate
 			 */
-			iwl_force_rf_reset(priv);
+			iwl_force_reset(priv, IWL_RF_RESET);
 		}
 	}
 
