@@ -577,6 +577,13 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	u64 tsf;
 	int num_beacons, offset, dtim_dec_count, cfp_dec_count;
 
+	/* No need to configure beacon if we are not associated */
+	if (!common->curaid) {
+		ath_print(common, ATH_DBG_BEACON,
+			 "STA is not yet associated..skipping beacon config\n");
+		return;
+	}
+
 	memset(&bs, 0, sizeof(bs));
 	intval = conf->beacon_interval & ATH9K_BEACON_PERIOD;
 
@@ -739,7 +746,6 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 	enum nl80211_iftype iftype;
 
 	/* Setup the beacon configuration parameters */
-
 	if (vif) {
 		struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
