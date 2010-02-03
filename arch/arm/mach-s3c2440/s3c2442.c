@@ -1,10 +1,10 @@
-/* linux/arch/arm/mach-s3c2442/clock.c
+/* linux/arch/arm/mach-s3c2442/s3c2442.c
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2442 Clock support
+ * S3C2442 core and lock support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -151,3 +151,15 @@ static __init int s3c2442_clk_init(void)
 }
 
 arch_initcall(s3c2442_clk_init);
+
+
+static struct sys_device s3c2442_sysdev = {
+	.cls		= &s3c2442_sysclass,
+};
+
+int __init s3c2442_init(void)
+{
+	printk("S3C2442: Initialising architecture\n");
+
+	return sysdev_register(&s3c2442_sysdev);
+}

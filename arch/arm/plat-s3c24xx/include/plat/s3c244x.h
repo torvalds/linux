@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/s3c244x.h
+/* linux/arch/arm/plat-s3c24xx/include/plat/s3c244x.h
  *
  * Copyright (c) 2004-2005 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
@@ -22,4 +22,16 @@ extern void s3c244x_init_clocks(int xtal);
 #define s3c244x_init_clocks NULL
 #define s3c244x_init_uarts NULL
 #define s3c244x_map_io NULL
+#endif
+
+#ifdef CONFIG_CPU_S3C2440
+extern  int s3c2440_init(void);
+#else
+#define s3c2440_init NULL
+#endif
+
+#ifdef CONFIG_CPU_S3C2442
+extern  int s3c2442_init(void);
+#else
+#define s3c2442_init NULL
 #endif
