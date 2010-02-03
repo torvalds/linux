@@ -181,6 +181,11 @@ static int wacom_probe(struct hid_device *hdev,
 		goto err_free;
 	}
 
+	/*
+	 * Note that if the raw queries fail, it's not a hard failure and it
+	 * is safe to continue
+	 */
+
 	/* Set Wacom mode2 */
 	rep_data[0] = 0x03; rep_data[1] = 0x00;
 	limit = 3;
@@ -188,10 +193,8 @@ static int wacom_probe(struct hid_device *hdev,
 		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
 				HID_FEATURE_REPORT);
 	} while (ret < 0 && limit-- > 0);
-	if (ret < 0) {
-		dev_err(&hdev->dev, "failed to poke device #1, %d\n", ret);
-		goto err_free;
-	}
+	if (ret < 0)
+		dev_warn(&hdev->dev, "failed to poke device #1, %d\n", ret);
 
 	/* 0x06 - high reporting speed, 0x05 - low speed */
 	rep_data[0] = 0x06; rep_data[1] = 0x00;
@@ -200,10 +203,8 @@ static int wacom_probe(struct hid_device *hdev,
 		ret = hdev->hid_output_raw_report(hdev, rep_data, 2,
 				HID_FEATURE_REPORT);
 	} while (ret < 0 && limit-- > 0);
-	if (ret < 0) {
-		dev_err(&hdev->dev, "failed to poke device #2, %d\n", ret);
-		goto err_free;
-	}
+	if (ret < 0)
+		dev_warn(&hdev->dev, "failed to poke device #2, %d\n", ret);
 
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
 	input = hidinput->input;
