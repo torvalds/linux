@@ -5,6 +5,7 @@
 
 #include "types.h"
 #include "auth_none.h"
+#include "auth_x.h"
 #include "decode.h"
 #include "super.h"
 
@@ -14,7 +15,8 @@
  * get protocol handler
  */
 static u32 supported_protocols[] = {
-	CEPH_AUTH_NONE
+	CEPH_AUTH_NONE,
+	CEPH_AUTH_CEPHX
 };
 
 int ceph_auth_init_protocol(struct ceph_auth_client *ac, int protocol)
@@ -22,6 +24,8 @@ int ceph_auth_init_protocol(struct ceph_auth_client *ac, int protocol)
 	switch (protocol) {
 	case CEPH_AUTH_NONE:
 		return ceph_auth_none_init(ac);
+	case CEPH_AUTH_CEPHX:
+		return ceph_x_init(ac);
 	default:
 		return -ENOENT;
 	}
