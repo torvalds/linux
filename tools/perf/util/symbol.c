@@ -1076,25 +1076,28 @@ static bool dso__build_id_equal(const struct dso *self, u8 *build_id)
 	return memcmp(self->build_id, build_id, sizeof(self->build_id)) == 0;
 }
 
-static bool __dsos__read_build_ids(struct list_head *head)
+static bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 {
 	bool have_build_id = false;
 	struct dso *pos;
 
-	list_for_each_entry(pos, head, node)
+	list_for_each_entry(pos, head, node) {
+		if (with_hits && !pos->hit)
+			continue;
 		if (filename__read_build_id(pos->long_name, pos->build_id,
 					    sizeof(pos->build_id)) > 0) {
 			have_build_id	  = true;
 			pos->has_build_id = true;
 		}
+	}
 
 	return have_build_id;
 }
 
-bool dsos__read_build_ids(void)
+bool dsos__read_build_ids(bool with_hits)
 {
-	bool kbuildids = __dsos__read_build_ids(&dsos__kernel),
-	     ubuildids = __dsos__read_build_ids(&dsos__user);
+	bool kbuildids = __dsos__read_build_ids(&dsos__kernel, with_hits),
+	     ubuildids = __dsos__read_build_ids(&dsos__user, with_hits);
 	return kbuildids || ubuildids;
 }
 

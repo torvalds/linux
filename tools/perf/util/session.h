@@ -50,6 +50,9 @@ void perf_session__delete(struct perf_session *self);
 
 void perf_event_header__bswap(struct perf_event_header *self);
 
+int __perf_session__process_events(struct perf_session *self,
+				   u64 data_offset, u64 data_size, u64 size,
+				   struct perf_event_ops *ops);
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_event_ops *event_ops);
 

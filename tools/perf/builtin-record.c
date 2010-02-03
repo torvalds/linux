@@ -12,6 +12,7 @@
 
 #include "perf.h"
 
+#include "util/build-id.h"
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
@@ -65,6 +66,7 @@ static int			nr_poll				=      0;
 static int			nr_cpu				=      0;
 
 static int			file_new			=      1;
+static off_t			post_processing_offset;
 
 static struct perf_session	*session;
 
@@ -114,26 +116,10 @@ static void write_output(void *buf, size_t size)
 	}
 }
 
-static void write_event(event_t *buf, size_t size)
-{
-	/*
-	* Add it to the list of DSOs, so that when we finish this
-	 * record session we can pick the available build-ids.
-	 */
-	if (buf->header.type == PERF_RECORD_MMAP) {
-		struct list_head *head = &dsos__user;
-		if (buf->mmap.header.misc == 1)
-			head = &dsos__kernel;
-		__dsos__findnew(head, buf->mmap.filename);
-	}
-
-	write_output(buf, size);
-}
-
 static int process_synthesized_event(event_t *event,
 				     struct perf_session *self __used)
 {
-	write_event(event, event->header.size);
+	write_output(event, event->header.size);
 	return 0;
 }
 
@@ -185,14 +171,14 @@ static void mmap_read(struct mmap_data *md)
 		size = md->mask + 1 - (old & md->mask);
 		old += size;
 
-		write_event(buf, size);
+		write_output(buf, size);
 	}
 
 	buf = &data[old & md->mask];
 	size = head - old;
 	old += size;
 
-	write_event(buf, size);
+	write_output(buf, size);
 
 	md->prev = old;
 	mmap_write_tail(md, old);
@@ -402,10 +388,21 @@ static void open_counters(int cpu, pid_t pid)
 	nr_cpu++;
 }
 
+static int process_buildids(void)
+{
+	u64 size = lseek(output, 0, SEEK_CUR);
+
+	session->fd = output;
+	return __perf_session__process_events(session, post_processing_offset,
+					      size - post_processing_offset,
+					      size, &build_id__mark_dso_hit_ops);
+}
+
 static void atexit_header(void)
 {
 	session->header.data_size += bytes_written;
 
+	process_buildids();
 	perf_header__write(&session->header, output, true);
 }
 
@@ -557,6 +554,8 @@ static int __cmd_record(int argc, const char **argv)
 		if (err < 0)
 			return err;
 	}
+
+	post_processing_offset = lseek(output, 0, SEEK_CUR);
 
 	err = event__synthesize_kernel_mmap(process_synthesized_event,
 					    session, "_text");

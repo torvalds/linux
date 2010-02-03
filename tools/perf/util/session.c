@@ -385,8 +385,9 @@ static struct thread *perf_session__register_idle_thread(struct perf_session *se
 	return thread;
 }
 
-int perf_session__process_events(struct perf_session *self,
-				 struct perf_event_ops *ops)
+int __perf_session__process_events(struct perf_session *self,
+				   u64 data_offset, u64 data_size,
+				   u64 file_size, struct perf_event_ops *ops)
 {
 	int err, mmap_prot, mmap_flags;
 	u64 head, shift;
@@ -396,32 +397,11 @@ int perf_session__process_events(struct perf_session *self,
 	uint32_t size;
 	char *buf;
 
-	if (perf_session__register_idle_thread(self) == NULL)
-		return -ENOMEM;
-
 	perf_event_ops__fill_defaults(ops);
 
 	page_size = sysconf(_SC_PAGESIZE);
 
-	head = self->header.data_offset;
-
-	if (!symbol_conf.full_paths) {
-		char bf[PATH_MAX];
-
-		if (getcwd(bf, sizeof(bf)) == NULL) {
-			err = -errno;
-out_getcwd_err:
-			pr_err("failed to get the current directory\n");
-			goto out_err;
-		}
-		self->cwd = strdup(bf);
-		if (self->cwd == NULL) {
-			err = -ENOMEM;
-			goto out_getcwd_err;
-		}
-		self->cwdlen = strlen(self->cwd);
-	}
-
+	head = data_offset;
 	shift = page_size * (head / page_size);
 	offset += shift;
 	head -= shift;
@@ -486,13 +466,45 @@ more:
 
 	head += size;
 
-	if (offset + head >= self->header.data_offset + self->header.data_size)
+	if (offset + head >= data_offset + data_size)
 		goto done;
 
-	if (offset + head < self->size)
+	if (offset + head < file_size)
 		goto more;
 done:
 	err = 0;
+out_err:
+	return err;
+}
+
+int perf_session__process_events(struct perf_session *self,
+				 struct perf_event_ops *ops)
+{
+	int err;
+
+	if (perf_session__register_idle_thread(self) == NULL)
+		return -ENOMEM;
+
+	if (!symbol_conf.full_paths) {
+		char bf[PATH_MAX];
+
+		if (getcwd(bf, sizeof(bf)) == NULL) {
+			err = -errno;
+out_getcwd_err:
+			pr_err("failed to get the current directory\n");
+			goto out_err;
+		}
+		self->cwd = strdup(bf);
+		if (self->cwd == NULL) {
+			err = -ENOMEM;
+			goto out_getcwd_err;
+		}
+		self->cwdlen = strlen(self->cwd);
+	}
+
+	err = __perf_session__process_events(self, self->header.data_offset,
+					     self->header.data_size,
+					     self->size, ops);
 out_err:
 	return err;
 }

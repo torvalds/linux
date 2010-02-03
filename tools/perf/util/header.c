@@ -205,8 +205,11 @@ static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
 	dsos__for_each_with_build_id(pos, head) {
 		int err;
 		struct build_id_event b;
-		size_t len = pos->long_name_len + 1;
+		size_t len;
 
+		if (!pos->hit)
+			continue;
+		len = pos->long_name_len + 1;
 		len = ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
@@ -371,7 +374,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 	u64 sec_start;
 	int idx = 0, err;
 
-	if (dsos__read_build_ids())
+	if (dsos__read_build_ids(true))
 		perf_header__set_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
