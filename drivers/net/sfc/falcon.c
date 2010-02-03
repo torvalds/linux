@@ -1730,7 +1730,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
 
 /**************************************************************************
  *
- * Revision-dependent attributes used by efx.c
+ * Revision-dependent attributes used by efx.c and nic.c
  *
  **************************************************************************
  */

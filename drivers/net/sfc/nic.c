@@ -623,10 +623,6 @@ void efx_nic_remove_rx(struct efx_rx_queue *rx_queue)
  *
  * This writes the EVQ_RPTR_REG register for the specified channel's
  * event queue.
- *
- * Note that EVQ_RPTR_REG contains the index of the "last read" event,
- * whereas channel->eventq_read_ptr contains the index of the "next to
- * read" event.
  */
 void efx_nic_eventq_read_ack(struct efx_channel *channel)
 {

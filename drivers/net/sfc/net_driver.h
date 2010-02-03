@@ -101,9 +101,6 @@ do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
  * Special buffers are used for the event queues and the TX and RX
  * descriptor queues for each channel.  They are *not* used for the
  * actual transmit and receive buffers.
- *
- * Note that for Falcon, TX and RX descriptor queues live in host memory.
- * Allocation and freeing procedures must take this into account.
  */
 struct efx_special_buffer {
 	void *addr;
@@ -300,7 +297,7 @@ struct efx_rx_queue {
  * @dma_addr: DMA base address of the buffer
  * @len: Buffer length, in bytes
  *
- * Falcon uses these buffers for its interrupt status registers and
+ * The NIC uses these buffers for its interrupt status registers and
  * MAC stats dumps.
  */
 struct efx_buffer {
@@ -674,7 +671,7 @@ union efx_multicast_hash {
  * @irq_status: Interrupt status buffer
  * @last_irq_cpu: Last CPU to handle interrupt.
  *	This register is written with the SMP processor ID whenever an
- *	interrupt is handled.  It is used by falcon_test_interrupt()
+ *	interrupt is handled.  It is used by efx_nic_test_interrupt()
  *	to verify that an interrupt has occurred.
  * @spi_flash: SPI flash device
  *	This field will be %NULL if no flash device is present (or for Siena).
@@ -723,8 +720,7 @@ union efx_multicast_hash {
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
  *
- * The @priv field of the corresponding &struct net_device points to
- * this.
+ * This is stored in the private area of the &struct net_device.
  */
 struct efx_nic {
 	char name[IFNAMSIZ];
@@ -997,7 +993,7 @@ static inline void clear_bit_le(unsigned nr, unsigned char *addr)
  * that the net driver will program into the MAC as the maximum frame
  * length.
  *
- * The 10G MAC used in Falcon requires 8-byte alignment on the frame
+ * The 10G MAC requires 8-byte alignment on the frame
  * length, so we round up to the nearest 8.
  *
  * Re-clocking by the XGXS on RX can reduce an IPG to 32 bits (half an
