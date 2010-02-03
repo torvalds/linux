@@ -1200,6 +1200,8 @@ struct input_handle;
  *	it may not sleep
  * @filter: similar to @event; separates normal event handlers from
  *	"filters".
+ * @match: called after comparing device's id with handler's id_table
+ *	to perform fine-grained matching between device and handler
  * @connect: called when attaching a handler to an input device
  * @disconnect: disconnects a handler from input device
  * @start: starts handler for given handle. This function is called by
@@ -1211,8 +1213,6 @@ struct input_handle;
  * @name: name of the handler, to be shown in /proc/bus/input/handlers
  * @id_table: pointer to a table of input_device_ids this driver can
  *	handle
- * @blacklist: pointer to a table of input_device_ids this driver should
- *	ignore even if they match @id_table
  * @h_list: list of input handles associated with the handler
  * @node: for placing the driver onto input_handler_list
  *
@@ -1235,6 +1235,7 @@ struct input_handler {
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
+	bool (*match)(struct input_handler *handler, struct input_dev *dev);
 	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
@@ -1244,7 +1245,6 @@ struct input_handler {
 	const char *name;
 
 	const struct input_device_id *id_table;
-	const struct input_device_id *blacklist;
 
 	struct list_head	h_list;
 	struct list_head	node;

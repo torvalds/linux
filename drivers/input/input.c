@@ -723,12 +723,13 @@ EXPORT_SYMBOL(input_set_keycode);
 		if (i != BITS_TO_LONGS(max)) \
 			continue;
 
-static const struct input_device_id *input_match_device(const struct input_device_id *id,
+static const struct input_device_id *input_match_device(struct input_handler *handler,
 							struct input_dev *dev)
 {
+	const struct input_device_id *id;
 	int i;
 
-	for (; id->flags || id->driver_info; id++) {
+	for (id = handler->id_table; id->flags || id->driver_info; id++) {
 
 		if (id->flags & INPUT_DEVICE_ID_MATCH_BUS)
 			if (id->bustype != dev->id.bustype)
@@ -756,7 +757,8 @@ static const struct input_device_id *input_match_device(const struct input_devic
 		MATCH_BIT(ffbit,  FF_MAX);
 		MATCH_BIT(swbit,  SW_MAX);
 
-		return id;
+		if (!handler->match || handler->match(handler, dev))
+			return id;
 	}
 
 	return NULL;
@@ -767,10 +769,7 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 	const struct input_device_id *id;
 	int error;
 
-	if (handler->blacklist && input_match_device(handler->blacklist, dev))
-		return -ENODEV;
-
-	id = input_match_device(handler->id_table, dev);
+	id = input_match_device(handler, dev);
 	if (!id)
 		return -ENODEV;
 
