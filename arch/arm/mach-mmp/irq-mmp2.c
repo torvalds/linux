@@ -42,6 +42,12 @@ static struct irq_chip icu_irq_chip = {
 	.unmask		= icu_unmask_irq,
 };
 
+static void pmic_irq_ack(unsigned int irq)
+{
+	if (irq == IRQ_MMP2_PMIC)
+		mmp2_clear_pmic_int();
+}
+
 #define SECOND_IRQ_MASK(_name_, irq_base, prefix)			\
 static void _name_##_mask_irq(unsigned int irq)				\
 {									\
@@ -82,7 +88,6 @@ SECOND_IRQ_DEMUX(_name_, irq_base, prefix)				\
 static struct irq_chip _name_##_irq_chip = {				\
 	.name		= #_name_,					\
 	.mask		= _name_##_mask_irq,				\
-	.mask_ack	= _name_##_mask_irq,				\
 	.unmask		= _name_##_unmask_irq,				\
 }
 
@@ -125,6 +130,11 @@ void __init mmp2_init_icu(void)
 			break;
 		}
 	}
+
+	/* NOTE: IRQ_MMP2_PMIC requires the PMIC MFPR register
+	 * to be written to clear the interrupt
+	 */
+	pmic_irq_chip.ack = pmic_irq_ack;
 
 	init_mux_irq(&pmic_irq_chip, IRQ_MMP2_PMIC_BASE, 2);
 	init_mux_irq(&rtc_irq_chip, IRQ_MMP2_RTC_BASE, 2);

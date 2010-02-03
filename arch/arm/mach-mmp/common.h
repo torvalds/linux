@@ -3,6 +3,7 @@
 struct sys_timer;
 
 extern void timer_init(int irq);
+extern void mmp2_clear_pmic_int(void);
 
 extern struct sys_timer pxa168_timer;
 extern struct sys_timer pxa910_timer;
