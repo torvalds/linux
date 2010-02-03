@@ -108,6 +108,35 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
  */
 DEFINE_LED_TRIGGER(nand_led_trigger);
 
+static int check_offs_len(struct mtd_info *mtd,
+					loff_t ofs, uint64_t len)
+{
+	struct nand_chip *chip = mtd->priv;
+	int ret = 0;
+
+	/* Start address must align on block boundary */
+	if (ofs & ((1 << chip->phys_erase_shift) - 1)) {
+		DEBUG(MTD_DEBUG_LEVEL0, "%s: Unaligned address\n", __func__);
+		ret = -EINVAL;
+	}
+
+	/* Length must align on block boundary */
+	if (len & ((1 << chip->phys_erase_shift) - 1)) {
+		DEBUG(MTD_DEBUG_LEVEL0, "%s: Length not block aligned\n",
+					__func__);
+		ret = -EINVAL;
+	}
+
+	/* Do not allow past end of device */
+	if (ofs + len > mtd->size) {
+		DEBUG(MTD_DEBUG_LEVEL0, "%s: Past end of device\n",
+					__func__);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 /**
  * nand_release_device - [GENERIC] release chip
  * @mtd:	MTD device structure
@@ -2293,25 +2322,8 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 				__func__, (unsigned long long)instr->addr,
 				(unsigned long long)instr->len);
 
-	/* Start address must align on block boundary */
-	if (instr->addr & ((1 << chip->phys_erase_shift) - 1)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Unaligned address\n", __func__);
+	if (check_offs_len(mtd, instr->addr, instr->len))
 		return -EINVAL;
-	}
-
-	/* Length must align on block boundary */
-	if (instr->len & ((1 << chip->phys_erase_shift) - 1)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Length not block aligned\n",
-					__func__);
-		return -EINVAL;
-	}
-
-	/* Do not allow erase past end of device */
-	if ((instr->len + instr->addr) > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Erase past end of device\n",
-					__func__);
-		return -EINVAL;
-	}
 
 	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
