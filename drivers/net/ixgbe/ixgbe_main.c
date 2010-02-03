@@ -3946,7 +3946,11 @@ static int ixgbe_alloc_q_vectors(struct ixgbe_adapter *adapter)
 	}
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
-		q_vector = kzalloc(sizeof(struct ixgbe_q_vector), GFP_KERNEL);
+		q_vector = kzalloc_node(sizeof(struct ixgbe_q_vector),
+		                        GFP_KERNEL, adapter->node);
+		if (!q_vector)
+			q_vector = kzalloc(sizeof(struct ixgbe_q_vector),
+			                   GFP_KERNEL);
 		if (!q_vector)
 			goto err_out;
 		q_vector->adapter = adapter;
@@ -4246,6 +4250,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* enable rx csum by default */
 	adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
 
+	/* get assigned NUMA node */
+	adapter->node = dev_to_node(&pdev->dev);
+
 	set_bit(__IXGBE_DOWN, &adapter->state);
 
 	return 0;
@@ -4265,7 +4272,9 @@ int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
 	int size;
 
 	size = sizeof(struct ixgbe_tx_buffer) * tx_ring->count;
-	tx_ring->tx_buffer_info = vmalloc(size);
+	tx_ring->tx_buffer_info = vmalloc_node(size, adapter->node);
+	if (!tx_ring->tx_buffer_info)
+		tx_ring->tx_buffer_info = vmalloc(size);
 	if (!tx_ring->tx_buffer_info)
 		goto err;
 	memset(tx_ring->tx_buffer_info, 0, size);
@@ -4305,14 +4314,24 @@ err:
 static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 {
 	int i, err = 0;
+	int orig_node = adapter->node;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
+		if (orig_node == -1) {
+			int cur_node = next_online_node(adapter->node);
+			if (cur_node == MAX_NUMNODES)
+				cur_node = first_online_node;
+			adapter->node = cur_node;
+		}
 		err = ixgbe_setup_tx_resources(adapter, &adapter->tx_ring[i]);
 		if (!err)
 			continue;
 		DPRINTK(PROBE, ERR, "Allocation for Tx Queue %u failed\n", i);
 		break;
 	}
+
+	/* reset the node back to its starting value */
+	adapter->node = orig_node;
 
 	return err;
 }
@@ -4331,7 +4350,9 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	int size;
 
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vmalloc(size);
+	rx_ring->rx_buffer_info = vmalloc_node(size, adapter->node);
+	if (!rx_ring->rx_buffer_info)
+		rx_ring->rx_buffer_info = vmalloc(size);
 	if (!rx_ring->rx_buffer_info) {
 		DPRINTK(PROBE, ERR,
 		        "vmalloc allocation failed for the rx desc ring\n");
@@ -4375,14 +4396,24 @@ alloc_failed:
 static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 {
 	int i, err = 0;
+	int orig_node = adapter->node;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
+		if (orig_node == -1) {
+			int cur_node = next_online_node(adapter->node);
+			if (cur_node == MAX_NUMNODES)
+				cur_node = first_online_node;
+			adapter->node = cur_node;
+		}
 		err = ixgbe_setup_rx_resources(adapter, &adapter->rx_ring[i]);
 		if (!err)
 			continue;
 		DPRINTK(PROBE, ERR, "Allocation for Rx Queue %u failed\n", i);
 		break;
 	}
+
+	/* reset the node back to its starting value */
+	adapter->node = orig_node;
 
 	return err;
 }

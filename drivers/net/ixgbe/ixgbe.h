@@ -399,6 +399,8 @@ struct ixgbe_adapter {
 	u32 wol;
 	u16 eeprom_version;
 
+	int node;
+
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
 	unsigned int num_vfs;
