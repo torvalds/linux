@@ -2,6 +2,7 @@
 #define __CEPH_DECODE_H
 
 #include <asm/unaligned.h>
+#include <linux/time.h>
 
 #include "types.h"
 
@@ -64,6 +65,11 @@ static inline void ceph_decode_copy(void **p, void *pv, size_t n)
 	do {							\
 		ceph_decode_need(p, end, sizeof(u16), bad);	\
 		v = ceph_decode_16(p);				\
+	} while (0)
+#define ceph_decode_8_safe(p, end, v, bad)			\
+	do {							\
+		ceph_decode_need(p, end, sizeof(u8), bad);	\
+		v = ceph_decode_8(p);				\
 	} while (0)
 
 #define ceph_decode_copy_safe(p, end, pv, n, bad)		\
@@ -155,6 +161,34 @@ static inline void ceph_encode_string(void **p, void *end,
 		memcpy(*p, s, len);
 	*p += len;
 }
+
+#define ceph_encode_need(p, end, n, bad)		\
+	do {						\
+		if (unlikely(*(p) + (n) > (end))) 	\
+			goto bad;			\
+	} while (0)
+
+#define ceph_encode_64_safe(p, end, v, bad)			\
+	do {							\
+		ceph_encode_need(p, end, sizeof(u64), bad);	\
+		ceph_encode_64(p, v);				\
+	} while (0)
+#define ceph_encode_32_safe(p, end, v, bad)			\
+	do {							\
+		ceph_encode_need(p, end, sizeof(u32), bad);	\
+		ceph_encode_32(p, v);			\
+	} while (0)
+#define ceph_encode_16_safe(p, end, v, bad)			\
+	do {							\
+		ceph_encode_need(p, end, sizeof(u16), bad);	\
+		ceph_encode_16(p, v);			\
+	} while (0)
+
+#define ceph_encode_copy_safe(p, end, pv, n, bad)		\
+	do {							\
+		ceph_encode_need(p, end, n, bad);		\
+		ceph_encode_copy(p, pv, n);			\
+	} while (0)
 
 
 #endif
