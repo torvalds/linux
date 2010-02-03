@@ -5179,7 +5179,7 @@ dma_error:
 		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
 	}
 
-	return count;
+	return 0;
 }
 
 static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
