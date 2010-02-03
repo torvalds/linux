@@ -441,4 +441,14 @@ config RADIO_TEF6862
 	  To compile this driver as a module, choose M here: the
 	  module will be called TEF6862.
 
+config RADIO_TIMBERDALE
+	tristate "Enable the Timberdale radio driver"
+	depends on MFD_TIMBERDALE && VIDEO_V4L2
+	select RADIO_TEF6862
+	select RADIO_SAA7706H
+	---help---
+	  This is a kind of umbrella driver for the Radio Tuner and DSP
+	  found behind the Timberdale FPGA on the Russellville board.
+	  Enabling this driver will automatically select the DSP and tuner.
+
 endif # RADIO_ADAPTERS
