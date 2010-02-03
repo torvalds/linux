@@ -8,6 +8,7 @@
  */
 #include "builtin.h"
 #include "perf.h"
+#include "util/build-id.h"
 #include "util/cache.h"
 #include "util/debug.h"
 #include "util/parse-options.h"
@@ -33,34 +34,6 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-static int build_id_list__process_event(event_t *event,
-					struct perf_session *session)
-{
-	struct addr_location al;
-	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	struct thread *thread = perf_session__findnew(session, event->ip.pid);
-
-	if (thread == NULL) {
-		pr_err("problem processing %d event, skipping it.\n",
-			event->header.type);
-		return -1;
-	}
-
-	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
-			      event->ip.ip, &al);
-
-	if (al.map != NULL)
-		al.map->dso->hit = 1;
-
-	return 0;
-}
-
-static struct perf_event_ops build_id_list__event_ops = {
-	.sample	= build_id_list__process_event,
-	.mmap	= event__process_mmap,
-	.fork	= event__process_task,
-};
-
 static int __cmd_buildid_list(void)
 {
 	int err = -1;
@@ -71,7 +44,7 @@ static int __cmd_buildid_list(void)
 		return -1;
 
 	if (with_hits)
-		perf_session__process_events(session, &build_id_list__event_ops);
+		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
 
 	dsos__fprintf_buildid(stdout, with_hits);
 

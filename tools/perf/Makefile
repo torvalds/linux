@@ -357,6 +357,7 @@ LIB_H += util/include/asm/uaccess.h
 LIB_H += perf.h
 LIB_H += util/cache.h
 LIB_H += util/callchain.h
+LIB_H += util/build-id.h
 LIB_H += util/debug.h
 LIB_H += util/debugfs.h
 LIB_H += util/event.h
@@ -390,6 +391,7 @@ LIB_H += util/probe-event.h
 
 LIB_OBJS += util/abspath.o
 LIB_OBJS += util/alias.o
+LIB_OBJS += util/build-id.o
 LIB_OBJS += util/config.o
 LIB_OBJS += util/ctype.o
 LIB_OBJS += util/debugfs.o
