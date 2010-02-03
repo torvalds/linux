@@ -24,8 +24,6 @@
 #include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
-#include "spi.h"
-#include "io.h"
 
 /*
  * Loopback test packet structure
