@@ -132,6 +132,12 @@ config S3C_DEV_NAND
 	help
 	  Compile in platform device definition for NAND controller
 
+config S3C64XX_DEV_SPI
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controllers.
+
 comment "Power management"
 
 config SAMSUNG_PM_DEBUG
