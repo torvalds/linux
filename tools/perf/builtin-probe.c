@@ -41,7 +41,6 @@
 #include "util/debugfs.h"
 #include "util/symbol.h"
 #include "util/thread.h"
-#include "util/session.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
@@ -59,8 +58,8 @@ static struct {
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
-	struct perf_session *psession;
-	struct map *kmap;
+	struct map_groups kmap_groups;
+	struct map *kmaps[MAP__NR_TYPES];
 	struct line_range line_range;
 } session;
 
@@ -122,7 +121,8 @@ static int opt_del_probe_event(const struct option *opt __used,
 static void evaluate_probe_point(struct probe_point *pp)
 {
 	struct symbol *sym;
-	sym = map__find_symbol_by_name(session.kmap, pp->function, NULL);
+	sym = map__find_symbol_by_name(session.kmaps[MAP__FUNCTION],
+				       pp->function, NULL);
 	if (!sym)
 		die("Kernel symbol \'%s\' not found - probe not added.",
 		    pp->function);
@@ -131,12 +131,13 @@ static void evaluate_probe_point(struct probe_point *pp)
 #ifndef NO_LIBDWARF
 static int open_vmlinux(void)
 {
-	if (map__load(session.kmap, NULL) < 0) {
+	if (map__load(session.kmaps[MAP__FUNCTION], NULL) < 0) {
 		pr_debug("Failed to load kernel map.\n");
 		return -EINVAL;
 	}
-	pr_debug("Try to open %s\n", session.kmap->dso->long_name);
-	return open(session.kmap->dso->long_name, O_RDONLY);
+	pr_debug("Try to open %s\n",
+		 session.kmaps[MAP__FUNCTION]->dso->long_name);
+	return open(session.kmaps[MAP__FUNCTION]->dso->long_name, O_RDONLY);
 }
 
 static int opt_show_lines(const struct option *opt __used,
@@ -212,12 +213,11 @@ static void init_vmlinux(void)
 		pr_debug("Use vmlinux: %s\n", symbol_conf.vmlinux_name);
 	if (symbol__init() < 0)
 		die("Failed to init symbol map.");
-	session.psession = perf_session__new(NULL, O_WRONLY, false);
-	if (session.psession == NULL)
-		die("Failed to init perf_session.");
-	session.kmap = session.psession->vmlinux_maps[MAP__FUNCTION];
-	if (!session.kmap)
-		die("Could not find kernel map.\n");
+
+	map_groups__init(&session.kmap_groups);
+	if (map_groups__create_kernel_maps(&session.kmap_groups,
+					   session.kmaps) < 0)
+		die("Failed to create kernel maps.");
 }
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
