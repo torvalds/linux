@@ -923,10 +923,33 @@ static const struct snd_soc_dapm_route routes[] = {
 	{ "Right Headphone Mux", "DAC", "DACR" },
 };
 
+static void wm8993_cache_restore(struct snd_soc_codec *codec)
+{
+	u16 *cache = codec->reg_cache;
+	int i;
+
+	if (!codec->cache_sync)
+		return;
+
+	/* Reenable hardware writes */
+	codec->cache_only = 0;
+
+	/* Restore the register settings */
+	for (i = 1; i < WM8993_MAX_REGISTER; i++) {
+		if (cache[i] == wm8993_reg_defaults[i])
+			continue;
+		snd_soc_write(codec, i, cache[i]);
+	}
+
+	/* We're in sync again */
+	codec->cache_sync = 0;
+}
+
 static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8993_priv *wm8993 = codec->private_data;
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -940,6 +963,13 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+			ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
+						    wm8993->supplies);
+			if (ret != 0)
+				return ret;
+
+			wm8993_cache_restore(codec);
+
 			/* Tune DC servo configuration */
 			snd_soc_write(codec, 0x44, 3);
 			snd_soc_write(codec, 0x56, 3);
@@ -992,6 +1022,18 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_VMID_SEL_MASK | WM8993_BIAS_ENA,
 				    0);
+
+#ifdef CONFIG_REGULATOR
+               /* Post 2.6.34 we will be able to get a callback when
+                * the regulators are disabled which we can use but
+		* for now just assume that the power will be cut if
+		* the regulator API is in use.
+		*/
+		codec->cache_sync = 1;
+#endif
+
+		regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies),
+				       wm8993->supplies);
 		break;
 	}
 
@@ -1460,15 +1502,7 @@ static int wm8993_resume(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8993_priv *wm8993 = codec->private_data;
-	u16 *cache = wm8993->reg_cache;
-	int i, ret;
-
-	/* Restore the register settings */
-	for (i = 1; i < WM8993_MAX_REGISTER; i++) {
-		if (cache[i] == wm8993_reg_defaults[i])
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
+	int ret;
 
 	wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1583,6 +1617,8 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_write(codec, WM8993_SOFTWARE_RESET, 0xffff);
 	if (ret != 0)
 		goto err_enable;
+
+	codec->cache_only = 1;
 
 	/* By default we're using the output mixers */
 	wm8993->class_w_users = 2;
