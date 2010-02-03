@@ -337,40 +337,6 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	EXIT_CRITICAL(flags);
 }
 
-#if 0
-static void r4k_update_mmu_cache_hwbug(struct vm_area_struct * vma,
-				       unsigned long address, pte_t pte)
-{
-	unsigned long flags;
-	unsigned int asid;
-	pgd_t *pgdp;
-	pmd_t *pmdp;
-	pte_t *ptep;
-	int idx;
-
-	ENTER_CRITICAL(flags);
-	address &= (PAGE_MASK << 1);
-	asid = read_c0_entryhi() & ASID_MASK;
-	write_c0_entryhi(address | asid);
-	pgdp = pgd_offset(vma->vm_mm, address);
-	mtc0_tlbw_hazard();
-	tlb_probe();
-	tlb_probe_hazard();
-	pmdp = pmd_offset(pgdp, address);
-	idx = read_c0_index();
-	ptep = pte_offset_map(pmdp, address);
-	write_c0_entrylo0(pte_val(*ptep++) >> 6);
-	write_c0_entrylo1(pte_val(*ptep) >> 6);
-	mtc0_tlbw_hazard();
-	if (idx < 0)
-		tlb_write_random();
-	else
-		tlb_write_indexed();
-	tlbw_use_hazard();
-	EXIT_CRITICAL(flags);
-}
-#endif
-
 void __init add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 	unsigned long entryhi, unsigned long pagemask)
 {
