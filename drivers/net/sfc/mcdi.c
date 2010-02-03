@@ -896,29 +896,27 @@ fail:
 	return rc;
 }
 
-int efx_mcdi_handle_assertion(struct efx_nic *efx)
+static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
-	union {
-		u8 asserts[MC_CMD_GET_ASSERTS_IN_LEN];
-		u8 reboot[MC_CMD_REBOOT_IN_LEN];
-	} inbuf;
-	u8 assertion[MC_CMD_GET_ASSERTS_OUT_LEN];
+	u8 inbuf[MC_CMD_GET_ASSERTS_IN_LEN];
+	u8 outbuf[MC_CMD_GET_ASSERTS_OUT_LEN];
 	unsigned int flags, index, ofst;
 	const char *reason;
 	size_t outlen;
 	int retry;
 	int rc;
 
-	/* Check if the MC is in the assertion handler, retrying twice. Once
+	/* Attempt to read any stored assertion state before we reboot
+	 * the mcfw out of the assertion handler. Retry twice, once
 	 * because a boot-time assertion might cause this command to fail
 	 * with EINTR. And once again because GET_ASSERTS can race with
 	 * MC_CMD_REBOOT running on the other port. */
 	retry = 2;
 	do {
-		MCDI_SET_DWORD(inbuf.asserts, GET_ASSERTS_IN_CLEAR, 0);
+		MCDI_SET_DWORD(inbuf, GET_ASSERTS_IN_CLEAR, 1);
 		rc = efx_mcdi_rpc(efx, MC_CMD_GET_ASSERTS,
-				  inbuf.asserts, MC_CMD_GET_ASSERTS_IN_LEN,
-				  assertion, sizeof(assertion), &outlen);
+				  inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
+				  outbuf, sizeof(outbuf), &outlen);
 	} while ((rc == -EINTR || rc == -EIO) && retry-- > 0);
 
 	if (rc)
@@ -926,21 +924,11 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 	if (outlen < MC_CMD_GET_ASSERTS_OUT_LEN)
 		return -EINVAL;
 
-	flags = MCDI_DWORD(assertion, GET_ASSERTS_OUT_GLOBAL_FLAGS);
+	/* Print out any recorded assertion state */
+	flags = MCDI_DWORD(outbuf, GET_ASSERTS_OUT_GLOBAL_FLAGS);
 	if (flags == MC_CMD_GET_ASSERTS_FLAGS_NO_FAILS)
 		return 0;
 
-	/* Reset the hardware atomically such that only one port with succeed.
-	 * This command will succeed if a reboot is no longer required (because
-	 * the other port did it first), but fail with EIO if it succeeds.
-	 */
-	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
-	MCDI_SET_DWORD(inbuf.reboot, REBOOT_IN_FLAGS,
-		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
-	efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf.reboot, MC_CMD_REBOOT_IN_LEN,
-		     NULL, 0, NULL);
-
-	/* Print out the assertion */
 	reason = (flags == MC_CMD_GET_ASSERTS_FLAGS_SYS_FAIL)
 		? "system-level assertion"
 		: (flags == MC_CMD_GET_ASSERTS_FLAGS_THR_FAIL)
@@ -949,16 +937,41 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 		? "watchdog reset"
 		: "unknown assertion";
 	EFX_ERR(efx, "MCPU %s at PC = 0x%.8x in thread 0x%.8x\n", reason,
-		MCDI_DWORD(assertion, GET_ASSERTS_OUT_SAVED_PC_OFFS),
-		MCDI_DWORD(assertion, GET_ASSERTS_OUT_THREAD_OFFS));
+		MCDI_DWORD(outbuf, GET_ASSERTS_OUT_SAVED_PC_OFFS),
+		MCDI_DWORD(outbuf, GET_ASSERTS_OUT_THREAD_OFFS));
 
 	/* Print out the registers */
 	ofst = MC_CMD_GET_ASSERTS_OUT_GP_REGS_OFFS_OFST;
 	for (index = 1; index < 32; index++) {
 		EFX_ERR(efx, "R%.2d (?): 0x%.8x\n", index,
-			MCDI_DWORD2(assertion, ofst));
+			MCDI_DWORD2(outbuf, ofst));
 		ofst += sizeof(efx_dword_t);
 	}
+
+	return 0;
+}
+
+static void efx_mcdi_exit_assertion(struct efx_nic *efx)
+{
+	u8 inbuf[MC_CMD_REBOOT_IN_LEN];
+
+	/* Atomically reboot the mcfw out of the assertion handler */
+	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
+	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS,
+		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
+	efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
+		     NULL, 0, NULL);
+}
+
+int efx_mcdi_handle_assertion(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = efx_mcdi_read_assertion(efx);
+	if (rc)
+		return rc;
+
+	efx_mcdi_exit_assertion(efx);
 
 	return 0;
 }

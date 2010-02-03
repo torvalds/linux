@@ -181,6 +181,12 @@ static int siena_test_registers(struct efx_nic *efx)
 
 static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
+	int rc;
+
+	/* Recover from a failed assertion pre-reset */
+	rc = efx_mcdi_handle_assertion(efx);
+	if (rc)
+		return rc;
 
 	if (method == RESET_TYPE_WORLD)
 		return efx_mcdi_reset_mc(efx);
