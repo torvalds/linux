@@ -524,9 +524,13 @@ static void writepages_finish(struct ceph_osd_request *req,
 	bytes = le64_to_cpu(op->extent.length);
 
 	if (rc >= 0) {
-		wrote = (bytes + (offset & ~PAGE_CACHE_MASK) + ~PAGE_CACHE_MASK)
-			>> PAGE_CACHE_SHIFT;
-		WARN_ON(wrote != req->r_num_pages);
+		/*
+		 * Assume we wrote the pages we originally sent.  The
+		 * osd might reply with fewer pages if our writeback
+		 * raced with a truncation and was adjusted at the osd,
+		 * so don't believe the reply.
+		 */
+		wrote = req->r_num_pages;
 	} else {
 		wrote = 0;
 		mapping_set_error(mapping, rc);
