@@ -1433,6 +1433,7 @@ uvc_ctrl_prune_entity(struct uvc_device *dev, struct uvc_entity *entity)
 		struct usb_device_id id;
 		u8 index;
 	} blacklist[] = {
+		{ { USB_DEVICE(0x13d3, 0x509b) }, 9 }, /* Gain */
 		{ { USB_DEVICE(0x1c4f, 0x3000) }, 6 }, /* WB Temperature */
 		{ { USB_DEVICE(0x5986, 0x0241) }, 2 }, /* Hue */
 	};
