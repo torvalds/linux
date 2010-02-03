@@ -3987,6 +3987,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	}
 
 	/* We are ready to run. */
+	ieee80211_wake_queues(dev->wl->hw);
 	b43_set_status(dev, B43_STAT_STARTED);
 
 	/* Start data flow (TX/RX). */
@@ -4393,8 +4394,6 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	ssb_bus_powerup(bus, !(sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW));
 	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
-
-	ieee80211_wake_queues(dev->wl->hw);
 
 	ieee80211_wake_queues(dev->wl->hw);
 

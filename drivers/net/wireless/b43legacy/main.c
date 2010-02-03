@@ -2923,6 +2923,7 @@ static int b43legacy_wireless_core_start(struct b43legacy_wldev *dev)
 		goto out;
 	}
 	/* We are ready to run. */
+	ieee80211_wake_queues(dev->wl->hw);
 	b43legacy_set_status(dev, B43legacy_STAT_STARTED);
 
 	/* Start data flow (TX/RX) */
@@ -3343,6 +3344,7 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
 	b43legacy_security_init(dev);
 	b43legacy_rng_init(wl);
 
+	ieee80211_wake_queues(dev->wl->hw);
 	b43legacy_set_status(dev, B43legacy_STAT_INITIALIZED);
 
 	b43legacy_leds_init(dev);
