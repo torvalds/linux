@@ -59,7 +59,7 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 				       struct cache_head *key, int hash)
 {
 	struct cache_head **head,  **hp;
-	struct cache_head *new = NULL;
+	struct cache_head *new = NULL, *freeme = NULL;
 
 	head = &detail->hash_table[hash];
 
@@ -68,6 +68,9 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	for (hp=head; *hp != NULL ; hp = &(*hp)->next) {
 		struct cache_head *tmp = *hp;
 		if (detail->match(tmp, key)) {
+			if (cache_is_expired(detail, tmp))
+				/* This entry is expired, we will discard it. */
+				break;
 			cache_get(tmp);
 			read_unlock(&detail->hash_lock);
 			return tmp;
@@ -92,6 +95,13 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	for (hp=head; *hp != NULL ; hp = &(*hp)->next) {
 		struct cache_head *tmp = *hp;
 		if (detail->match(tmp, key)) {
+			if (cache_is_expired(detail, tmp)) {
+				*hp = tmp->next;
+				tmp->next = NULL;
+				detail->entries --;
+				freeme = tmp;
+				break;
+			}
 			cache_get(tmp);
 			write_unlock(&detail->hash_lock);
 			cache_put(new, detail);
@@ -104,6 +114,8 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 	cache_get(new);
 	write_unlock(&detail->hash_lock);
 
+	if (freeme)
+		cache_put(freeme, detail);
 	return new;
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
@@ -189,8 +201,7 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 
 static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
 {
-	if (!test_bit(CACHE_VALID, &h->flags) ||
-	    cache_is_expired(detail, h))
+	if (!test_bit(CACHE_VALID, &h->flags))
 		return -EAGAIN;
 	else {
 		/* entry is valid */
