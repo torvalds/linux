@@ -26,8 +26,12 @@ struct map {
 	u64			end;
 	enum map_type		type;
 	u64			pgoff;
+
+	/* ip -> dso rip */
 	u64			(*map_ip)(struct map *, u64);
+	/* dso rip -> ip */
 	u64			(*unmap_ip)(struct map *, u64);
+
 	struct dso		*dso;
 };
 
@@ -55,6 +59,11 @@ static inline u64 identity__map_ip(struct map *map __used, u64 ip)
 {
 	return ip;
 }
+
+
+/* rip -> addr suitable for passing to `objdump --start-address=` */
+u64 map__rip_2objdump(struct map *map, u64 rip);
+
 
 struct symbol;
 struct mmap_event;

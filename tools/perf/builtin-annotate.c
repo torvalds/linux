@@ -189,7 +189,7 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 			line_ip = -1;
 	}
 
-	start = he->map->unmap_ip(he->map, sym->start);
+	start = map__rip_2objdump(he->map, sym->start);
 
 	if (line_ip != -1) {
 		const char *path = NULL;
@@ -397,7 +397,8 @@ static void annotate_sym(struct hist_entry *he)
 		       dso, dso->long_name, sym, sym->name);
 
 	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
-		map->unmap_ip(map, sym->start), map->unmap_ip(map, sym->end),
+		map__rip_2objdump(map, sym->start),
+		map__rip_2objdump(map, sym->end),
 		filename, filename);
 
 	if (verbose >= 3)

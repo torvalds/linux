@@ -210,3 +210,15 @@ size_t map__fprintf(struct map *self, FILE *fp)
 	return fprintf(fp, " %Lx-%Lx %Lx %s\n",
 		       self->start, self->end, self->pgoff, self->dso->name);
 }
+
+/*
+ * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
+ * map->dso->adjust_symbols==1 for ET_EXEC-like cases.
+ */
+u64 map__rip_2objdump(struct map *map, u64 rip)
+{
+	u64 addr = map->dso->adjust_symbols ?
+			map->unmap_ip(map, rip) :	/* RIP -> IP */
+			rip;
+	return addr;
+}
