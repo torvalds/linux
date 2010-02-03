@@ -116,14 +116,16 @@ int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 	int i;
 	unsigned gpio;
 	unsigned mode;
-	int ret = -EINVAL;
+	int ret;
 
 	for (i = 0; i < count; i++) {
 		gpio = *p & (GPIO_PIN_MASK | GPIO_PORT_MASK);
 		mode = *p & ~(GPIO_PIN_MASK | GPIO_PORT_MASK);
 
-		if (gpio >= (GPIO_PORT_MAX + 1) * 32)
+		if (gpio >= (GPIO_PORT_MAX + 1) * 32) {
+			ret = -EINVAL;
 			goto setup_error;
+		}
 
 		ret = gpio_request(gpio, label);
 		if (ret)
