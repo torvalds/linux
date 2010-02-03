@@ -258,10 +258,9 @@ static struct cache_detail svc_expkey_cache = {
 	.alloc		= expkey_alloc,
 };
 
-static struct svc_expkey *
-svc_expkey_lookup(struct svc_expkey *item)
+static int
+svc_expkey_hash(struct svc_expkey *item)
 {
-	struct cache_head *ch;
 	int hash = item->ek_fsidtype;
 	char * cp = (char*)item->ek_fsid;
 	int len = key_len(item->ek_fsidtype);
@@ -269,6 +268,14 @@ svc_expkey_lookup(struct svc_expkey *item)
 	hash ^= hash_mem(cp, len, EXPKEY_HASHBITS);
 	hash ^= hash_ptr(item->ek_client, EXPKEY_HASHBITS);
 	hash &= EXPKEY_HASHMASK;
+	return hash;
+}
+
+static struct svc_expkey *
+svc_expkey_lookup(struct svc_expkey *item)
+{
+	struct cache_head *ch;
+	int hash = svc_expkey_hash(item);
 
 	ch = sunrpc_cache_lookup(&svc_expkey_cache, &item->h,
 				 hash);
@@ -282,13 +289,7 @@ static struct svc_expkey *
 svc_expkey_update(struct svc_expkey *new, struct svc_expkey *old)
 {
 	struct cache_head *ch;
-	int hash = new->ek_fsidtype;
-	char * cp = (char*)new->ek_fsid;
-	int len = key_len(new->ek_fsidtype);
-
-	hash ^= hash_mem(cp, len, EXPKEY_HASHBITS);
-	hash ^= hash_ptr(new->ek_client, EXPKEY_HASHBITS);
-	hash &= EXPKEY_HASHMASK;
+	int hash = svc_expkey_hash(new);
 
 	ch = sunrpc_cache_update(&svc_expkey_cache, &new->h,
 				 &old->h, hash);
@@ -737,14 +738,22 @@ struct cache_detail svc_export_cache = {
 	.alloc		= svc_export_alloc,
 };
 
+static int
+svc_export_hash(struct svc_export *exp)
+{
+	int hash;
+
+	hash = hash_ptr(exp->ex_client, EXPORT_HASHBITS);
+	hash ^= hash_ptr(exp->ex_path.dentry, EXPORT_HASHBITS);
+	hash ^= hash_ptr(exp->ex_path.mnt, EXPORT_HASHBITS);
+	return hash;
+}
+
 static struct svc_export *
 svc_export_lookup(struct svc_export *exp)
 {
 	struct cache_head *ch;
-	int hash;
-	hash = hash_ptr(exp->ex_client, EXPORT_HASHBITS);
-	hash ^= hash_ptr(exp->ex_path.dentry, EXPORT_HASHBITS);
-	hash ^= hash_ptr(exp->ex_path.mnt, EXPORT_HASHBITS);
+	int hash = svc_export_hash(exp);
 
 	ch = sunrpc_cache_lookup(&svc_export_cache, &exp->h,
 				 hash);
@@ -758,10 +767,7 @@ static struct svc_export *
 svc_export_update(struct svc_export *new, struct svc_export *old)
 {
 	struct cache_head *ch;
-	int hash;
-	hash = hash_ptr(old->ex_client, EXPORT_HASHBITS);
-	hash ^= hash_ptr(old->ex_path.dentry, EXPORT_HASHBITS);
-	hash ^= hash_ptr(old->ex_path.mnt, EXPORT_HASHBITS);
+	int hash = svc_export_hash(old);
 
 	ch = sunrpc_cache_update(&svc_export_cache, &new->h,
 				 &old->h,
