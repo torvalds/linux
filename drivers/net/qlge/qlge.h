@@ -2005,6 +2005,7 @@ enum {
 	QL_SELFTEST = 9,
 	QL_LB_LINK_UP = 10,
 	QL_FRC_COREDUMP = 11,
+	QL_EEH_FATAL = 12,
 };
 
 /* link_status bit definitions */
