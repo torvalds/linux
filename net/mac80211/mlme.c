@@ -27,10 +27,6 @@
 #include "rate.h"
 #include "led.h"
 
-#define IEEE80211_AUTH_TIMEOUT (HZ / 5)
-#define IEEE80211_AUTH_MAX_TRIES 3
-#define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
-#define IEEE80211_ASSOC_MAX_TRIES 3
 #define IEEE80211_MAX_PROBE_TRIES 5
 
 /*
@@ -1844,7 +1840,11 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	wk->probe_auth.algorithm = auth_alg;
 	wk->probe_auth.privacy = req->bss->capability & WLAN_CAPABILITY_PRIVACY;
 
-	wk->type = IEEE80211_WORK_DIRECT_PROBE;
+	/* if we already have a probe, don't probe again */
+	if (req->bss->proberesp_ies)
+		wk->type = IEEE80211_WORK_AUTH;
+	else
+		wk->type = IEEE80211_WORK_DIRECT_PROBE;
 	wk->chan = req->bss->channel;
 	wk->sdata = sdata;
 	wk->done = ieee80211_probe_auth_done;
