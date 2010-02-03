@@ -3384,6 +3384,7 @@ static int ocfs2_unblock_lock(struct ocfs2_super *osb,
 	unsigned long flags;
 	int blocking;
 	int new_level;
+	int level;
 	int ret = 0;
 	int set_lvb = 0;
 	unsigned int gen;
@@ -3503,6 +3504,7 @@ recheck:
 	 * may sleep, so we save off a copy of what we're blocking as
 	 * it may change while we're not holding the spin lock. */
 	blocking = lockres->l_blocking;
+	level = lockres->l_level;
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	ctl->unblock_action = lockres->l_ops->downconvert_worker(lockres, blocking);
@@ -3511,7 +3513,7 @@ recheck:
 		goto leave;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
-	if (blocking != lockres->l_blocking) {
+	if ((blocking != lockres->l_blocking) || (level != lockres->l_level)) {
 		/* If this changed underneath us, then we can't drop
 		 * it just yet. */
 		goto recheck;
