@@ -83,6 +83,25 @@ __nf_conntrack_helper_find(const char *name, u16 l3num, u8 protonum)
 }
 EXPORT_SYMBOL_GPL(__nf_conntrack_helper_find);
 
+struct nf_conntrack_helper *
+nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
+{
+	struct nf_conntrack_helper *h;
+
+	h = __nf_conntrack_helper_find(name, l3num, protonum);
+#ifdef CONFIG_MODULES
+	if (h == NULL) {
+		if (request_module("nfct-helper-%s", name) == 0)
+			h = __nf_conntrack_helper_find(name, l3num, protonum);
+	}
+#endif
+	if (h != NULL && !try_module_get(h->me))
+		h = NULL;
+
+	return h;
+}
+EXPORT_SYMBOL_GPL(nf_conntrack_helper_try_module_get);
+
 struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 {
 	struct nf_conn_help *help;
