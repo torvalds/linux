@@ -1879,7 +1879,7 @@ fail0:
 /* Card configs *************************************************************/
 /****************************************************************************/
 
-static struct stv090x_config fe_mps2 = {
+static struct stv090x_config fe_cineS2 = {
 	.device         = STV0900,
 	.demod_mode     = STV090x_DUAL,
 	.clk_mode       = STV090x_CLK_EXT,
@@ -1898,26 +1898,26 @@ static struct stv090x_config fe_mps2 = {
 	.diseqc_envelope_mode = true,
 };
 
-static struct stv6110x_config tuner_mps2_0 = {
+static struct stv6110x_config tuner_cineS2_0 = {
 	.addr	= 0x60,
 	.refclk	= 27000000,
 	.clk_div = 1,
 };
 
-static struct stv6110x_config tuner_mps2_1 = {
+static struct stv6110x_config tuner_cineS2_1 = {
 	.addr	= 0x63,
 	.refclk	= 27000000,
 	.clk_div = 1,
 };
 
-static struct ngene_info ngene_info_mps2 = {
+static struct ngene_info ngene_info_cineS2 = {
 	.type		= NGENE_SIDEWINDER,
-	.name		= "Media-Pointer MP-S2/CineS2 DVB-S2 Twin Tuner",
+	.name		= "Linux4Media cineS2 DVB-S2 Twin Tuner",
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
 	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900},
 	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110},
-	.fe_config	= {&fe_mps2, &fe_mps2},
-	.tuner_config	= {&tuner_mps2_0, &tuner_mps2_1},
+	.fe_config	= {&fe_cineS2, &fe_cineS2},
+	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1},
 	.lnb		= {0x0b, 0x08},
 	.tsf		= {3, 3},
 	.fw_version	= 15,
@@ -1929,8 +1929,8 @@ static struct ngene_info ngene_info_satixs2 = {
 	.io_type	= {NGENE_IO_TSIN, NGENE_IO_TSIN},
 	.demod_attach	= {demod_attach_stv0900, demod_attach_stv0900},
 	.tuner_attach	= {tuner_attach_stv6110, tuner_attach_stv6110},
-	.fe_config	= {&fe_mps2, &fe_mps2},
-	.tuner_config	= {&tuner_mps2_0, &tuner_mps2_1},
+	.fe_config	= {&fe_cineS2, &fe_cineS2},
+	.tuner_config	= {&tuner_cineS2_0, &tuner_cineS2_1},
 	.lnb		= {0x0b, 0x08},
 	.tsf		= {3, 3},
 	.fw_version	= 15,
@@ -1952,8 +1952,8 @@ static struct ngene_info ngene_info_satixs2 = {
 /****************************************************************************/
 
 static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
-	NGENE_ID(0x18c3, 0xabc3, ngene_info_mps2),
-	NGENE_ID(0x18c3, 0xabc4, ngene_info_mps2),
+	NGENE_ID(0x18c3, 0xabc3, ngene_info_cineS2),
+	NGENE_ID(0x18c3, 0xabc4, ngene_info_cineS2),
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixs2),
 	{0}
 };
