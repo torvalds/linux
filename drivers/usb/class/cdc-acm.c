@@ -553,7 +553,7 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	acm = acm_table[tty->index];
 	if (!acm || !acm->dev)
-		goto err_out;
+		goto out;
 	else
 		rv = 0;
 
@@ -569,8 +569,9 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 
 	mutex_lock(&acm->mutex);
 	if (acm->port.count++) {
+		mutex_unlock(&acm->mutex);
 		usb_autopm_put_interface(acm->control);
-		goto done;
+		goto out;
 	}
 
 	acm->ctrlurb->dev = acm->dev;
@@ -599,18 +600,18 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	set_bit(ASYNCB_INITIALIZED, &acm->port.flags);
 	rv = tty_port_block_til_ready(&acm->port, tty, filp);
 	tasklet_schedule(&acm->urb_task);
-done:
+
 	mutex_unlock(&acm->mutex);
-err_out:
+out:
 	mutex_unlock(&open_mutex);
 	return rv;
 
 full_bailout:
 	usb_kill_urb(acm->ctrlurb);
 bail_out:
-	usb_autopm_put_interface(acm->control);
 	acm->port.count--;
 	mutex_unlock(&acm->mutex);
+	usb_autopm_put_interface(acm->control);
 early_bail:
 	mutex_unlock(&open_mutex);
 	tty_port_tty_set(&acm->port, NULL);
