@@ -120,35 +120,35 @@ struct fsi_master {
 
 
 ************************************************************************/
-static int __fsi_reg_write(u32 reg, u32 data)
+static void __fsi_reg_write(u32 reg, u32 data)
 {
 	/* valid data area is 24bit */
 	data &= 0x00ffffff;
 
-	return ctrl_outl(data, reg);
+	__raw_writel(data, reg);
 }
 
 static u32 __fsi_reg_read(u32 reg)
 {
-	return ctrl_inl(reg);
+	return __raw_readl(reg);
 }
 
-static int __fsi_reg_mask_set(u32 reg, u32 mask, u32 data)
+static void __fsi_reg_mask_set(u32 reg, u32 mask, u32 data)
 {
 	u32 val = __fsi_reg_read(reg);
 
 	val &= ~mask;
 	val |= data & mask;
 
-	return __fsi_reg_write(reg, val);
+	__fsi_reg_write(reg, val);
 }
 
-static int fsi_reg_write(struct fsi_priv *fsi, u32 reg, u32 data)
+static void fsi_reg_write(struct fsi_priv *fsi, u32 reg, u32 data)
 {
 	if (reg > REG_END)
-		return -1;
+		return;
 
-	return __fsi_reg_write((u32)(fsi->base + reg), data);
+	__fsi_reg_write((u32)(fsi->base + reg), data);
 }
 
 static u32 fsi_reg_read(struct fsi_priv *fsi, u32 reg)
@@ -159,28 +159,25 @@ static u32 fsi_reg_read(struct fsi_priv *fsi, u32 reg)
 	return __fsi_reg_read((u32)(fsi->base + reg));
 }
 
-static int fsi_reg_mask_set(struct fsi_priv *fsi, u32 reg, u32 mask, u32 data)
+static void fsi_reg_mask_set(struct fsi_priv *fsi, u32 reg, u32 mask, u32 data)
 {
 	if (reg > REG_END)
-		return -1;
+		return;
 
-	return __fsi_reg_mask_set((u32)(fsi->base + reg), mask, data);
+	__fsi_reg_mask_set((u32)(fsi->base + reg), mask, data);
 }
 
-static int fsi_master_write(struct fsi_master *master, u32 reg, u32 data)
+static void fsi_master_write(struct fsi_master *master, u32 reg, u32 data)
 {
-	int ret;
 	unsigned long flags;
 
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
-		return -1;
+		return;
 
 	spin_lock_irqsave(&master->lock, flags);
-	ret = __fsi_reg_write((u32)(master->base + reg), data);
+	__fsi_reg_write((u32)(master->base + reg), data);
 	spin_unlock_irqrestore(&master->lock, flags);
-
-	return ret;
 }
 
 static u32 fsi_master_read(struct fsi_master *master, u32 reg)
@@ -199,21 +196,18 @@ static u32 fsi_master_read(struct fsi_master *master, u32 reg)
 	return ret;
 }
 
-static int fsi_master_mask_set(struct fsi_master *master,
+static void fsi_master_mask_set(struct fsi_master *master,
 			       u32 reg, u32 mask, u32 data)
 {
-	int ret;
 	unsigned long flags;
 
 	if ((reg < MREG_START) ||
 	    (reg > MREG_END))
-		return -1;
+		return;
 
 	spin_lock_irqsave(&master->lock, flags);
-	ret = __fsi_reg_mask_set((u32)(master->base + reg), mask, data);
+	__fsi_reg_mask_set((u32)(master->base + reg), mask, data);
 	spin_unlock_irqrestore(&master->lock, flags);
-
-	return ret;
 }
 
 /************************************************************************
