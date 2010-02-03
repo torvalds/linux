@@ -397,31 +397,28 @@ static int cache_clean(void)
 		/* Ok, now to clean this strand */
 
 		cp = & current_detail->hash_table[current_index];
-		ch = *cp;
-		for (; ch; cp= & ch->next, ch= *cp) {
+		for (ch = *cp ; ch ; cp = & ch->next, ch = *cp) {
 			if (current_detail->nextcheck > ch->expiry_time)
 				current_detail->nextcheck = ch->expiry_time+1;
 			if (ch->expiry_time >= get_seconds() &&
 			    ch->last_refresh >= current_detail->flush_time)
 				continue;
-			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
-				cache_dequeue(current_detail, ch);
 
-			if (atomic_read(&ch->ref.refcount) == 1)
-				break;
-		}
-		if (ch) {
 			*cp = ch->next;
 			ch->next = NULL;
 			current_detail->entries--;
 			rv = 1;
+			break;
 		}
+
 		write_unlock(&current_detail->hash_lock);
 		d = current_detail;
 		if (!ch)
 			current_index ++;
 		spin_unlock(&cache_list_lock);
 		if (ch) {
+			if (test_and_clear_bit(CACHE_PENDING, &ch->flags))
+				cache_dequeue(current_detail, ch);
 			cache_revisit_request(ch);
 			cache_put(ch, d);
 		}
