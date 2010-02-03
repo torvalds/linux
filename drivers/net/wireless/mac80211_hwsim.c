@@ -32,6 +32,10 @@ static int radios = 2;
 module_param(radios, int, 0444);
 MODULE_PARM_DESC(radios, "Number of simulated radios");
 
+static bool fake_hw_scan;
+module_param(fake_hw_scan, bool, 0444);
+MODULE_PARM_DESC(fake_hw_scan, "Install fake (no-op) hw-scan handler");
+
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
@@ -908,8 +912,43 @@ static void mac80211_hwsim_flush(struct ieee80211_hw *hw, bool drop)
 	 */
 }
 
+struct hw_scan_done {
+	struct delayed_work w;
+	struct ieee80211_hw *hw;
+};
 
-static const struct ieee80211_ops mac80211_hwsim_ops =
+static void hw_scan_done(struct work_struct *work)
+{
+	struct hw_scan_done *hsd =
+		container_of(work, struct hw_scan_done, w.work);
+
+	ieee80211_scan_completed(hsd->hw, false);
+	kfree(hsd);
+}
+
+static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
+				  struct cfg80211_scan_request *req)
+{
+	struct hw_scan_done *hsd = kzalloc(sizeof(*hsd), GFP_KERNEL);
+	int i;
+
+	if (!hsd)
+		return -ENOMEM;
+
+	hsd->hw = hw;
+	INIT_DELAYED_WORK(&hsd->w, hw_scan_done);
+
+	printk(KERN_DEBUG "hwsim scan request\n");
+	for (i = 0; i < req->n_channels; i++)
+		printk(KERN_DEBUG "hwsim scan freq %d\n",
+			req->channels[i]->center_freq);
+
+	ieee80211_queue_delayed_work(hw, &hsd->w, 2 * HZ);
+
+	return 0;
+}
+
+static struct ieee80211_ops mac80211_hwsim_ops =
 {
 	.tx = mac80211_hwsim_tx,
 	.start = mac80211_hwsim_start,
@@ -1118,6 +1157,9 @@ static int __init init_mac80211_hwsim(void)
 
 	if (radios < 1 || radios > 100)
 		return -EINVAL;
+
+	if (fake_hw_scan)
+		mac80211_hwsim_ops.hw_scan = mac80211_hwsim_hw_scan;
 
 	spin_lock_init(&hwsim_radio_lock);
 	INIT_LIST_HEAD(&hwsim_radios);
