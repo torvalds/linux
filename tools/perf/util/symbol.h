@@ -121,6 +121,11 @@ void dso__delete(struct dso *self);
 bool dso__loaded(const struct dso *self, enum map_type type);
 bool dso__sorted_by_name(const struct dso *self, enum map_type type);
 
+static inline void dso__set_loaded(struct dso *self, enum map_type type)
+{
+	self->loaded |= (1 << type);
+}
+
 void dso__sort_by_name(struct dso *self, enum map_type type);
 
 extern struct list_head dsos__user, dsos__kernel;
@@ -161,5 +166,4 @@ int kallsyms__parse(const char *filename, void *arg,
 int symbol__init(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
-extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

@@ -68,8 +68,13 @@ struct map *map__new(struct mmap_event *event, enum map_type type,
 		map__init(self, type, event->start, event->start + event->len,
 			  event->pgoff, dso);
 
-		if (self->dso == vdso || anon)
+		if (anon) {
+set_identity:
 			self->map_ip = self->unmap_ip = identity__map_ip;
+		} else if (strcmp(filename, "[vdso]") == 0) {
+			dso__set_loaded(dso, self->type);
+			goto set_identity;
+		}
 	}
 	return self;
 out_delete:

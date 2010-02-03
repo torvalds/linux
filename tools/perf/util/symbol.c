@@ -53,11 +53,6 @@ bool dso__sorted_by_name(const struct dso *self, enum map_type type)
 	return self->sorted_by_name & (1 << type);
 }
 
-static void dso__set_loaded(struct dso *self, enum map_type type)
-{
-	self->loaded |= (1 << type);
-}
-
 static void dso__set_sorted_by_name(struct dso *self, enum map_type type)
 {
 	self->sorted_by_name |= (1 << type);
@@ -1697,7 +1692,6 @@ out_fixup:
 
 LIST_HEAD(dsos__user);
 LIST_HEAD(dsos__kernel);
-struct dso *vdso;
 
 static void dsos__add(struct list_head *head, struct dso *dso)
 {
@@ -1790,24 +1784,12 @@ static struct dso *dsos__create_kernel(const char *vmlinux)
 {
 	struct dso *kernel = dso__new_kernel(vmlinux);
 
-	if (kernel == NULL)
-		return NULL;
-
-	vdso = dso__new("[vdso]");
-	if (vdso == NULL)
-		goto out_delete_kernel_dso;
-	dso__set_loaded(vdso, MAP__FUNCTION);
-
-	dso__read_running_kernel_build_id(kernel);
-
-	dsos__add(&dsos__kernel, kernel);
-	dsos__add(&dsos__user, vdso);
+	if (kernel != NULL) {
+		dso__read_running_kernel_build_id(kernel);
+		dsos__add(&dsos__kernel, kernel);
+	}
 
 	return kernel;
-
-out_delete_kernel_dso:
-	dso__delete(kernel);
-	return NULL;
 }
 
 int __map_groups__create_kernel_maps(struct map_groups *self,
