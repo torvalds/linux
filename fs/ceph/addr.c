@@ -505,7 +505,6 @@ static void writepages_finish(struct ceph_osd_request *req,
 	struct ceph_osd_op *op;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	unsigned wrote;
-	loff_t offset = req->r_pages[0]->index << PAGE_CACHE_SHIFT;
 	struct page *page;
 	int i;
 	struct ceph_snap_context *snapc = req->r_snapc;
