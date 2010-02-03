@@ -100,6 +100,7 @@ config MACH_IMX27LITE
 config MACH_PCA100
 	bool "Phytec phyCARD-s (pca100)"
 	depends on MACH_MX27
+	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for phyCARD-s (aka pca100) platform. This
 	  includes specific configurations for the module and its peripherals.
