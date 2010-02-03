@@ -53,6 +53,7 @@ struct ceph_mount_args {
 	struct ceph_entity_addr *mon_addr;
 	int flags;
 	int mount_timeout;
+	int osd_idle_ttl;
 	int caps_wanted_delay_min, caps_wanted_delay_max;
 	struct ceph_fsid fsid;
 	struct ceph_entity_addr my_addr;
@@ -71,6 +72,7 @@ struct ceph_mount_args {
  * defaults
  */
 #define CEPH_MOUNT_TIMEOUT_DEFAULT  60
+#define CEPH_OSD_IDLE_TTL_DEFAULT    60
 #define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)

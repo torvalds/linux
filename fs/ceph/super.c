@@ -293,6 +293,7 @@ enum {
 	Opt_rsize,
 	Opt_osdtimeout,
 	Opt_mount_timeout,
+	Opt_osd_idle_ttl,
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
 	Opt_readdir_max_entries,
@@ -322,6 +323,7 @@ static match_table_t arg_tokens = {
 	{Opt_rsize, "rsize=%d"},
 	{Opt_osdtimeout, "osdtimeout=%d"},
 	{Opt_mount_timeout, "mount_timeout=%d"},
+	{Opt_osd_idle_ttl, "osd_idle_ttl=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
@@ -367,6 +369,7 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	args->flags = CEPH_OPT_DEFAULT;
 	args->osd_timeout = 5;    /* seconds */
 	args->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT; /* seconds */
+	args->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;   /* seconds */
 	args->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
 	args->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
 	args->rsize = CEPH_MOUNT_RSIZE_DEFAULT;

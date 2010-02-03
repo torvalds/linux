@@ -31,9 +31,11 @@ struct ceph_osd {
 	struct rb_node o_node;
 	struct ceph_connection o_con;
 	struct list_head o_requests;
+	struct list_head o_osd_lru;
 	struct ceph_authorizer *o_authorizer;
 	void *o_authorizer_buf, *o_authorizer_reply_buf;
 	size_t o_authorizer_buf_len, o_authorizer_reply_buf_len;
+	unsigned long lru_ttl;
 };
 
 /* an in-flight request */
@@ -90,11 +92,13 @@ struct ceph_osd_client {
 
 	struct mutex           request_mutex;
 	struct rb_root         osds;          /* osds */
+	struct list_head       osd_lru;       /* idle osds */
 	u64                    timeout_tid;   /* tid of timeout triggering rq */
 	u64                    last_tid;      /* tid of last request */
 	struct rb_root         requests;      /* pending requests */
 	int                    num_requests;
 	struct delayed_work    timeout_work;
+	struct delayed_work    osds_timeout_work;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry 	       *debugfs_file;
 #endif
