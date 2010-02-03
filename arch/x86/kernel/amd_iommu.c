@@ -2083,6 +2083,11 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 	.dma_supported = amd_iommu_dma_supported,
 };
 
+void __init amd_iommu_init_api(void)
+{
+	register_iommu(&amd_iommu_ops);
+}
+
 /*
  * The function which clues the AMD IOMMU driver into dma_ops.
  */
@@ -2123,8 +2128,6 @@ int __init amd_iommu_init_dma_ops(void)
 
 	/* Make the driver finally visible to the drivers */
 	dma_ops = &amd_iommu_dma_ops;
-
-	register_iommu(&amd_iommu_ops);
 
 	bus_register_notifier(&pci_bus_type, &device_nb);
 

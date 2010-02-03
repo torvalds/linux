@@ -1288,8 +1288,11 @@ int __init amd_iommu_init(void)
 		ret = amd_iommu_init_passthrough();
 	else
 		ret = amd_iommu_init_dma_ops();
+
 	if (ret)
 		goto free;
+
+	amd_iommu_init_api();
 
 	enable_iommus();
 
