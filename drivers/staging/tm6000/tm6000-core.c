@@ -219,33 +219,53 @@ int tm6000_init_analog_mode (struct tm6000_core *dev)
 
 int tm6000_init_digital_mode (struct tm6000_core *dev)
 {
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00ff, 0x08);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00ff, 0x00);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x003f, 0x01);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00df, 0x08);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e2, 0x0c);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e8, 0xff);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00eb, 0xd8);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c0, 0x40);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c1, 0xd0);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c3, 0x09);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00da, 0x37);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d1, 0xd8);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d2, 0xc0);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d6, 0x60);
+	if (dev->dev_type == TM6010) {
+		int val;
+		u8 buf[2];
 
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e2, 0x0c);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e8, 0xff);
-	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00eb, 0x08);
-	msleep(50);
+		/* digital init */
+		val = tm6000_get_reg(dev, REQ_07_SET_GET_AVREG, 0xcc, 0);
+		val &= ~0x60;
+		tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0xcc, val);
+		val = tm6000_get_reg(dev, REQ_07_SET_GET_AVREG, 0xc0, 0);
+		val |= 0x40;
+		tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0xc0, val);
+		tm6000_set_reg(dev, REQ_07_SET_GET_AVREG, 0xfe, 0x28);
+		tm6000_set_reg(dev, REQ_08_SET_GET_AVREG_BIT, 0xe2, 0xfc);
+		tm6000_set_reg(dev, REQ_08_SET_GET_AVREG_BIT, 0xe6, 0xff);
+		tm6000_set_reg(dev, REQ_08_SET_GET_AVREG_BIT, 0xf1, 0xfe);
+		tm6000_read_write_usb (dev, 0xc0, 0x0e, 0x00c2, 0x0008, buf, 2);
+		printk (KERN_INFO "buf %#x %#x \n", buf[0], buf[1]);
 
-	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
-	msleep(50);
-	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x01);
-	msleep(50);
-	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
-	msleep(100);
 
+	} else  {
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00ff, 0x08);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00ff, 0x00);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x003f, 0x01);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00df, 0x08);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e2, 0x0c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e8, 0xff);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00eb, 0xd8);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c0, 0x40);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c1, 0xd0);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c3, 0x09);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00da, 0x37);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d1, 0xd8);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d2, 0xc0);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d6, 0x60);
+
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e2, 0x0c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e8, 0xff);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00eb, 0x08);
+		msleep(50);
+
+		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
+		msleep(50);
+		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x01);
+		msleep(50);
+		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
+		msleep(100);
+	}
 	return 0;
 }
 
