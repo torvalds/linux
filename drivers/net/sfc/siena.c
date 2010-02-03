@@ -583,6 +583,7 @@ struct efx_nic_type siena_a0_nic_type = {
 	.set_wol = siena_set_wol,
 	.resume_wol = siena_init_wol,
 	.test_registers = siena_test_registers,
+	.test_nvram = efx_mcdi_nvram_test_all,
 	.default_mac_ops = &efx_mcdi_mac_operations,
 
 	.revision = EFX_REV_SIENA_A0,

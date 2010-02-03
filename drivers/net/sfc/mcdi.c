@@ -896,6 +896,52 @@ fail:
 	return rc;
 }
 
+static int efx_mcdi_nvram_test(struct efx_nic *efx, unsigned int type)
+{
+	u8 inbuf[MC_CMD_NVRAM_TEST_IN_LEN];
+	u8 outbuf[MC_CMD_NVRAM_TEST_OUT_LEN];
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, NVRAM_TEST_IN_TYPE, type);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_TEST, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), NULL);
+	if (rc)
+		return rc;
+
+	switch (MCDI_DWORD(outbuf, NVRAM_TEST_OUT_RESULT)) {
+	case MC_CMD_NVRAM_TEST_PASS:
+	case MC_CMD_NVRAM_TEST_NOTSUPP:
+		return 0;
+	default:
+		return -EIO;
+	}
+}
+
+int efx_mcdi_nvram_test_all(struct efx_nic *efx)
+{
+	u32 nvram_types;
+	unsigned int type;
+	int rc;
+
+	rc = efx_mcdi_nvram_types(efx, &nvram_types);
+	if (rc)
+		return rc;
+
+	type = 0;
+	while (nvram_types != 0) {
+		if (nvram_types & 1) {
+			rc = efx_mcdi_nvram_test(efx, type);
+			if (rc)
+				return rc;
+		}
+		type++;
+		nvram_types >>= 1;
+	}
+
+	return 0;
+}
+
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
 	u8 inbuf[MC_CMD_GET_ASSERTS_IN_LEN];
