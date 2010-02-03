@@ -125,6 +125,30 @@ bad:
 	return -ERANGE;
 }
 
+int ceph_build_auth_request(struct ceph_auth_client *ac,
+			   void *msg_buf, size_t msg_len)
+{
+	struct ceph_mon_request_header *monhdr = msg_buf;
+	void *p = monhdr + 1;
+	void *end = msg_buf + msg_len;
+	int ret;
+
+	monhdr->have_version = 0;
+	monhdr->session_mon = cpu_to_le16(-1);
+	monhdr->session_mon_tid = 0;
+
+	ceph_encode_32(&p, ac->protocol);
+
+	ret = ac->ops->build_request(ac, p + sizeof(u32), end);
+	if (ret < 0) {
+		pr_err("error %d building request\n", ret);
+		return ret;
+	}
+	dout(" built request %d bytes\n", ret);
+	ceph_encode_32(&p, ret);
+	return p + ret - msg_buf;
+}
+
 /*
  * Handle auth message from monitor.
  */
@@ -188,28 +212,13 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 				goto out;
 			}
 		}
+
+		ac->negotiating = false;
 	}
 
 	ret = ac->ops->handle_reply(ac, result, payload, payload_end);
 	if (ret == -EAGAIN) {
-		struct ceph_mon_request_header *monhdr = reply_buf;
-		void *p = reply_buf + 1;
-		void *end = reply_buf + reply_len;
-
-		monhdr->have_version = 0;
-		monhdr->session_mon = cpu_to_le16(-1);
-		monhdr->session_mon_tid = 0;
-
-		ceph_encode_32(&p, ac->protocol);
-
-		ret = ac->ops->build_request(ac, p + sizeof(u32), end);
-		if (ret < 0) {
-			pr_err("error %d building request\n", ret);
-			goto out;
-		}
-		dout(" built request %d bytes\n", ret);
-		ceph_encode_32(&p, ret);
-		return p + ret - reply_buf;
+		return ceph_build_auth_request(ac, reply_buf, reply_len);
 	} else if (ret) {
 		pr_err("authentication error %d\n", ret);
 		return ret;
@@ -222,4 +231,20 @@ out:
 	return ret;
 }
 
+int ceph_build_auth(struct ceph_auth_client *ac,
+		    void *msg_buf, size_t msg_len)
+{
+	if (!ac->protocol)
+		return ceph_auth_build_hello(ac, msg_buf, msg_len);
+	BUG_ON(!ac->ops);
+	if (!ac->ops->is_authenticated(ac))
+		return ceph_build_auth_request(ac, msg_buf, msg_len);
+	return 0;
+}
 
+int ceph_auth_is_authenticated(struct ceph_auth_client *ac)
+{
+	if (!ac->ops)
+		return 0;
+	return ac->ops->is_authenticated(ac);
+}

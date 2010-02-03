@@ -542,7 +542,7 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 
 	mutex_init(&client->mount_mutex);
 
-	init_waitqueue_head(&client->mount_wq);
+	init_waitqueue_head(&client->auth_wq);
 
 	client->sb = NULL;
 	client->mount_state = CEPH_MOUNT_MOUNTING;
@@ -550,7 +550,7 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 
 	client->msgr = NULL;
 
-	client->mount_err = 0;
+	client->auth_err = 0;
 	atomic_long_set(&client->writeback_count, 0);
 
 	err = bdi_init(&client->backing_dev_info);
@@ -742,13 +742,13 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 
 		/* wait */
 		dout("mount waiting for mon_map\n");
-		err = wait_event_interruptible_timeout(client->mount_wq, /* FIXME */
-			       have_mon_map(client) || (client->mount_err < 0),
+		err = wait_event_interruptible_timeout(client->auth_wq,
+			       have_mon_map(client) || (client->auth_err < 0),
 			       timeout);
 		if (err == -EINTR || err == -ERESTARTSYS)
 			goto out;
-		if (client->mount_err < 0) {
-			err = client->mount_err;
+		if (client->auth_err < 0) {
+			err = client->auth_err;
 			goto out;
 		}
 	}

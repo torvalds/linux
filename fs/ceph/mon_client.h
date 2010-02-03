@@ -61,6 +61,7 @@ struct ceph_mon_client {
 
 	struct ceph_auth_client *auth;
 	struct ceph_msg *m_auth;
+	int pending_auth;
 
 	bool hunting;
 	int cur_mon;                       /* last monitor i contacted */
@@ -109,6 +110,8 @@ extern int ceph_monc_do_statfs(struct ceph_mon_client *monc,
 			       struct ceph_statfs *buf);
 
 extern int ceph_monc_open_session(struct ceph_mon_client *monc);
+
+extern int ceph_monc_validate_auth(struct ceph_mon_client *monc);
 
 
 

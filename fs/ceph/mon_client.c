@@ -29,6 +29,8 @@
 
 const static struct ceph_connection_operations mon_con_ops;
 
+static int __validate_auth(struct ceph_mon_client *monc);
+
 /*
  * Decode a monmap blob (e.g., during mount).
  */
@@ -103,6 +105,7 @@ static void __close_session(struct ceph_mon_client *monc)
 		ceph_con_revoke(monc->con, monc->m_auth);
 		ceph_con_close(monc->con);
 		monc->cur_mon = -1;
+		monc->pending_auth = 0;
 		ceph_auth_reset(monc->auth);
 	}
 }
@@ -334,7 +337,7 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 
 out:
 	mutex_unlock(&monc->mutex);
-	wake_up(&client->mount_wq);
+	wake_up(&client->auth_wq);
 }
 
 /*
@@ -477,6 +480,11 @@ static void delayed_work(struct work_struct *work)
 		__open_session(monc);  /* continue hunting */
 	} else {
 		ceph_con_keepalive(monc->con);
+		mutex_unlock(&monc->mutex);
+
+		__validate_auth(monc);
+
+		mutex_lock(&monc->mutex);
 		if (monc->auth->ops->is_authenticated(monc->auth))
 			__send_subscribe(monc);
 	}
@@ -557,6 +565,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		goto out_pool2;
 
 	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, 0, 0, NULL);
+	monc->pending_auth = 0;
 	if (IS_ERR(monc->m_auth)) {
 		err = PTR_ERR(monc->m_auth);
 		monc->m_auth = NULL;
@@ -614,6 +623,15 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 	kfree(monc->monmap);
 }
 
+static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
+{
+	monc->pending_auth = 1;
+	monc->m_auth->front.iov_len = len;
+	monc->m_auth->hdr.front_len = cpu_to_le32(len);
+	ceph_msg_get(monc->m_auth);  /* keep our ref */
+	ceph_con_send(monc->con, monc->m_auth);
+}
+
 
 static void handle_auth_reply(struct ceph_mon_client *monc,
 			      struct ceph_msg *msg)
@@ -621,18 +639,16 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 	int ret;
 
 	mutex_lock(&monc->mutex);
+	monc->pending_auth = 0;
 	ret = ceph_handle_auth_reply(monc->auth, msg->front.iov_base,
 				     msg->front.iov_len,
 				     monc->m_auth->front.iov_base,
 				     monc->m_auth->front_max);
 	if (ret < 0) {
-		monc->client->mount_err = ret;
-		wake_up(&monc->client->mount_wq);
+		monc->client->auth_err = ret;
+		wake_up(&monc->client->auth_wq);
 	} else if (ret > 0) {
-		monc->m_auth->front.iov_len = ret;
-		monc->m_auth->hdr.front_len = cpu_to_le32(ret);
-		ceph_msg_get(monc->m_auth);  /* keep our ref */
-		ceph_con_send(monc->con, monc->m_auth);
+		__send_prepared_auth_request(monc, ret);
 	} else if (monc->auth->ops->is_authenticated(monc->auth)) {
 		dout("authenticated, starting session\n");
 
@@ -643,6 +659,31 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		__resend_statfs(monc);
 	}
 	mutex_unlock(&monc->mutex);
+}
+
+static int __validate_auth(struct ceph_mon_client *monc)
+{
+	int ret;
+
+	if (monc->pending_auth)
+		return 0;
+
+	ret = ceph_build_auth(monc->auth, monc->m_auth->front.iov_base,
+			      monc->m_auth->front_max);
+	if (ret <= 0)
+		return ret; /* either an error, or no need to authenticate */
+	__send_prepared_auth_request(monc, ret);
+	return 0;
+}
+
+int ceph_monc_validate_auth(struct ceph_mon_client *monc)
+{
+	int ret;
+
+	mutex_lock(&monc->mutex);
+	ret = __validate_auth(monc);
+	mutex_unlock(&monc->mutex);
+	return ret;
 }
 
 /*

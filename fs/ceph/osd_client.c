@@ -1448,6 +1448,17 @@ static int verify_authorizer_reply(struct ceph_connection *con, int len)
 	return ac->ops->verify_authorizer_reply(ac, o->o_authorizer, len);
 }
 
+static int invalidate_authorizer(struct ceph_connection *con)
+{
+	struct ceph_osd *o = con->private;
+	struct ceph_osd_client *osdc = o->o_osdc;
+	struct ceph_auth_client *ac = osdc->client->monc.auth;
+
+	if (ac->ops->invalidate_authorizer)
+		ac->ops->invalidate_authorizer(ac, CEPH_ENTITY_TYPE_OSD);
+
+	return ceph_monc_validate_auth(&osdc->client->monc);
+}
 
 const static struct ceph_connection_operations osd_con_ops = {
 	.get = get_osd_con,
@@ -1455,6 +1466,7 @@ const static struct ceph_connection_operations osd_con_ops = {
 	.dispatch = dispatch,
 	.get_authorizer = get_authorizer,
 	.verify_authorizer_reply = verify_authorizer_reply,
+	.invalidate_authorizer = invalidate_authorizer,
 	.alloc_msg = alloc_msg,
 	.fault = osd_reset,
 };

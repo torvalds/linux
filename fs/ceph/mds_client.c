@@ -2946,12 +2946,25 @@ static int verify_authorizer_reply(struct ceph_connection *con, int len)
 	return ac->ops->verify_authorizer_reply(ac, s->s_authorizer, len);
 }
 
+static int invalidate_authorizer(struct ceph_connection *con)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_mds_client *mdsc = s->s_mdsc;
+	struct ceph_auth_client *ac = mdsc->client->monc.auth;
+
+	if (ac->ops->invalidate_authorizer)
+		ac->ops->invalidate_authorizer(ac, CEPH_ENTITY_TYPE_MDS);
+
+	return ceph_monc_validate_auth(&mdsc->client->monc);
+}
+
 const static struct ceph_connection_operations mds_con_ops = {
 	.get = con_get,
 	.put = con_put,
 	.dispatch = dispatch,
 	.get_authorizer = get_authorizer,
 	.verify_authorizer_reply = verify_authorizer_reply,
+	.invalidate_authorizer = invalidate_authorizer,
 	.peer_reset = peer_reset,
 };
 

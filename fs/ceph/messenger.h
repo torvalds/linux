@@ -32,6 +32,7 @@ struct ceph_connection_operations {
 			       void **buf, int *len, int *proto,
 			       void **reply_buf, int *reply_len, int force_new);
 	int (*verify_authorizer_reply) (struct ceph_connection *con, int len);
+	int (*invalidate_authorizer)(struct ceph_connection *con);
 
 	/* protocol version mismatch */
 	void (*bad_proto) (struct ceph_connection *con);

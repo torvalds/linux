@@ -123,9 +123,9 @@ struct ceph_client {
 	struct super_block *sb;
 
 	unsigned long mount_state;
-	wait_queue_head_t mount_wq;
+	wait_queue_head_t auth_wq;
 
-	int mount_err;
+	int auth_err;
 
 	struct ceph_messenger *msgr;   /* messenger instance */
 	struct ceph_mon_client monc;
