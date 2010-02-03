@@ -102,7 +102,11 @@ static void init_mux_irq(struct irq_chip *chip, int start, int num)
 	int irq;
 
 	for (irq = start; num > 0; irq++, num--) {
-		chip->mask_ack(irq);
+		/* mask and clear the IRQ */
+		chip->mask(irq);
+		if (chip->ack)
+			chip->ack(irq);
+
 		set_irq_chip(irq, chip);
 		set_irq_flags(irq, IRQF_VALID);
 		set_irq_handler(irq, handle_level_irq);
