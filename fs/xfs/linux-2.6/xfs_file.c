@@ -203,9 +203,9 @@ xfs_file_readdir(
 	 *
 	 * Try to give it an estimate that's good enough, maybe at some
 	 * point we can change the ->readdir prototype to include the
-	 * buffer size.
+	 * buffer size.  For now we use the current glibc buffer size.
 	 */
-	bufsize = (size_t)min_t(loff_t, PAGE_SIZE, ip->i_d.di_size);
+	bufsize = (size_t)min_t(loff_t, 32768, ip->i_d.di_size);
 
 	error = xfs_readdir(ip, dirent, bufsize,
 				(xfs_off_t *)&filp->f_pos, filldir);
