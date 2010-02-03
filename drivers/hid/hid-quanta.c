@@ -224,6 +224,8 @@ static void quanta_remove(struct hid_device *hdev)
 static const struct hid_device_id quanta_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_QUANTA,
 			USB_DEVICE_ID_QUANTA_OPTICAL_TOUCH) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_QUANTA,
+			USB_DEVICE_ID_PIXART_IMAGING_INC_OPTICAL_TOUCH_SCREEN) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, quanta_devices);
