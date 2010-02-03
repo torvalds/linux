@@ -83,7 +83,7 @@ static char *read_string(void)
 	char *str = NULL;
 	int size = 0;
 	int i;
-	int r;
+	s64 r;
 
 	for (;;) {
 		r = read(input_fd, buf, BUFSIZ);
@@ -117,7 +117,7 @@ static char *read_string(void)
 	i++;
 
 	/* move the file descriptor to the end of the string */
-	r = lseek(input_fd, -(r - i), SEEK_CUR);
+	r = lseek64(input_fd, -(r - i), SEEK_CUR);
 	if (r < 0)
 		die("lseek");
 

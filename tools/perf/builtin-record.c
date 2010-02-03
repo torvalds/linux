@@ -5,6 +5,9 @@
  * (or a CPU, or a PID) into the perf.data output file - for
  * later analysis via perf report.
  */
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include "builtin.h"
 
 #include "perf.h"
@@ -451,7 +454,7 @@ static int __cmd_record(int argc, const char **argv)
 		append_file = 0;
 	}
 
-	flags = O_CREAT|O_RDWR;
+	flags = O_CREAT|O_RDWR|O_LARGEFILE;
 	if (append_file)
 		file_new = 0;
 	else

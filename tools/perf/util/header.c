@@ -1,3 +1,6 @@
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include <sys/types.h>
 #include <byteswap.h>
 #include <unistd.h>
@@ -382,7 +385,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 	sec_size = sizeof(*feat_sec) * nr_sections;
 
 	sec_start = self->data_offset + self->data_size;
-	lseek(fd, sec_start + sec_size, SEEK_SET);
+	lseek64(fd, sec_start + sec_size, SEEK_SET);
 
 	if (perf_header__has_feat(self, HEADER_TRACE_INFO)) {
 		struct perf_file_section *trace_sec;
@@ -390,9 +393,9 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		trace_sec = &feat_sec[idx++];
 
 		/* Write trace info */
-		trace_sec->offset = lseek(fd, 0, SEEK_CUR);
+		trace_sec->offset = lseek64(fd, 0, SEEK_CUR);
 		read_tracing_data(fd, attrs, nr_counters);
-		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
+		trace_sec->size = lseek64(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
 
@@ -402,17 +405,18 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		buildid_sec = &feat_sec[idx++];
 
 		/* Write build-ids */
-		buildid_sec->offset = lseek(fd, 0, SEEK_CUR);
+		buildid_sec->offset = lseek64(fd, 0, SEEK_CUR);
 		err = dsos__write_buildid_table(fd);
 		if (err < 0) {
 			pr_debug("failed to write buildid table\n");
 			goto out_free;
 		}
-		buildid_sec->size = lseek(fd, 0, SEEK_CUR) - buildid_sec->offset;
+		buildid_sec->size = lseek64(fd, 0, SEEK_CUR) -
+					    buildid_sec->offset;
 		dsos__cache_build_ids();
 	}
 
-	lseek(fd, sec_start, SEEK_SET);
+	lseek64(fd, sec_start, SEEK_SET);
 	err = do_write(fd, feat_sec, sec_size);
 	if (err < 0)
 		pr_debug("failed to write feature section\n");
@@ -506,7 +510,7 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 		pr_debug("failed to write perf header\n");
 		return err;
 	}
-	lseek(fd, self->data_offset + self->data_size, SEEK_SET);
+	lseek64(fd, self->data_offset + self->data_size, SEEK_SET);
 
 	self->frozen = 1;
 	return 0;
@@ -560,7 +564,7 @@ int perf_header__process_sections(struct perf_header *self, int fd,
 
 	sec_size = sizeof(*feat_sec) * nr_sections;
 
-	lseek(fd, self->data_offset + self->data_size, SEEK_SET);
+	lseek64(fd, self->data_offset + self->data_size, SEEK_SET);
 
 	if (perf_header__getbuffer64(self, fd, feat_sec, sec_size))
 		goto out_free;
@@ -634,7 +638,7 @@ static int perf_file_section__process(struct perf_file_section *self,
 				      struct perf_header *ph,
 				      int feat, int fd)
 {
-	if (lseek(fd, self->offset, SEEK_SET) < 0) {
+	if (lseek64(fd, self->offset, SEEK_SET) < 0) {
 		pr_debug("Failed to lseek to %Ld offset for feature %d, "
 			 "continuing...\n", self->offset, feat);
 		return 0;

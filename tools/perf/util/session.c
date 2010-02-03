@@ -1,3 +1,6 @@
+#define _LARGEFILE64_SOURCE
+#define _FILE_OFFSET_BITS 64
+
 #include <linux/kernel.h>
 
 #include <byteswap.h>
@@ -12,7 +15,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;
 
-	self->fd = open(self->filename, O_RDONLY);
+	self->fd = open(self->filename, O_RDONLY|O_LARGEFILE);
 	if (self->fd < 0) {
 		pr_err("failed to open file: %s", self->filename);
 		if (!strcmp(self->filename, "perf.data"))
