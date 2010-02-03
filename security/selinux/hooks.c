@@ -76,6 +76,7 @@
 #include <linux/selinux.h>
 #include <linux/mutex.h>
 #include <linux/posix-timers.h>
+#include <linux/syslog.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -2049,11 +2050,11 @@ static int selinux_quota_on(struct dentry *dentry)
 	return dentry_has_perm(cred, NULL, dentry, FILE__QUOTAON);
 }
 
-static int selinux_syslog(int type)
+static int selinux_syslog(int type, bool from_file)
 {
 	int rc;
 
-	rc = cap_syslog(type);
+	rc = cap_syslog(type, from_file);
 	if (rc)
 		return rc;
 
