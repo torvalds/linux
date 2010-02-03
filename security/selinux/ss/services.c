@@ -1506,7 +1506,10 @@ static int clone_sid(u32 sid,
 {
 	struct sidtab *s = arg;
 
-	return sidtab_insert(s, sid, context);
+	if (sid > SECINITSID_NUM)
+		return sidtab_insert(s, sid, context);
+	else
+		return 0;
 }
 
 static inline int convert_context_handle_invalid_context(struct context *context)
@@ -1552,7 +1555,10 @@ static int convert_context(u32 key,
 	struct user_datum *usrdatum;
 	char *s;
 	u32 len;
-	int rc;
+	int rc = 0;
+
+	if (key <= SECINITSID_NUM)
+		goto out;
 
 	args = p;
 
@@ -1712,9 +1718,11 @@ int security_load_policy(void *data, size_t len)
 	if (policydb_read(&newpolicydb, fp))
 		return -EINVAL;
 
-	if (sidtab_init(&newsidtab)) {
+	rc = policydb_load_isids(&newpolicydb, &newsidtab);
+	if (rc) {
+		printk(KERN_ERR "SELinux:  unable to load the initial SIDs\n");
 		policydb_destroy(&newpolicydb);
-		return -ENOMEM;
+		return rc;
 	}
 
 	if (selinux_set_mapping(&newpolicydb, secclass_map,
