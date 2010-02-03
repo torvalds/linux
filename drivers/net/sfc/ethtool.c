@@ -342,8 +342,8 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	unsigned int n = 0, i;
 	enum efx_loopback_mode mode;
 
-	efx_fill_test(n++, strings, data, &tests->mdio,
-		      "core", 0, "mdio", NULL);
+	efx_fill_test(n++, strings, data, &tests->phy_alive,
+		      "phy", 0, "alive", NULL);
 	efx_fill_test(n++, strings, data, &tests->nvram,
 		      "core", 0, "nvram", NULL);
 	efx_fill_test(n++, strings, data, &tests->interrupt,
@@ -379,7 +379,7 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			if (name == NULL)
 				break;
 
-			efx_fill_test(n++, strings, data, &tests->phy[i],
+			efx_fill_test(n++, strings, data, &tests->phy_ext[i],
 				      "phy", 0, name, NULL);
 		}
 	}

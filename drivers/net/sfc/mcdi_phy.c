@@ -572,6 +572,27 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 	return 0;
 }
 
+static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
+{
+	u8 outbuf[MC_CMD_GET_PHY_STATE_OUT_LEN];
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_GET_PHY_STATE_IN_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_STATE, NULL, 0,
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+
+	if (outlen < MC_CMD_GET_PHY_STATE_OUT_LEN)
+		return -EMSGSIZE;
+	if (MCDI_DWORD(outbuf, GET_PHY_STATE_STATE) != MC_CMD_PHY_STATE_OK)
+		return -EINVAL;
+
+	return 0;
+}
+
 struct efx_phy_operations efx_mcdi_phy_ops = {
 	.probe		= efx_mcdi_phy_probe,
 	.init 	 	= efx_port_dummy_op_int,
@@ -581,6 +602,7 @@ struct efx_phy_operations efx_mcdi_phy_ops = {
 	.remove		= efx_mcdi_phy_remove,
 	.get_settings	= efx_mcdi_phy_get_settings,
 	.set_settings	= efx_mcdi_phy_set_settings,
+	.test_alive	= efx_mcdi_phy_test_alive,
 	.run_tests	= NULL,
 	.test_name	= NULL,
 };

@@ -516,8 +516,9 @@ struct efx_mac_operations {
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
+ * @test_alive: Test that PHY is 'alive' (online)
  * @test_name: Get the name of a PHY-specific test/result
- * @run_tests: Run tests and record results as appropriate.
+ * @run_tests: Run tests and record results as appropriate (offline).
  *	Flags are the ethtool tests flags.
  */
 struct efx_phy_operations {
@@ -532,6 +533,7 @@ struct efx_phy_operations {
 	int (*set_settings) (struct efx_nic *efx,
 			     struct ethtool_cmd *ecmd);
 	void (*set_npage_adv) (struct efx_nic *efx, u32);
+	int (*test_alive) (struct efx_nic *efx);
 	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
 	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
 };
