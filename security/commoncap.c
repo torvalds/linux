@@ -897,9 +897,10 @@ error:
 int cap_syslog(int type, bool from_file)
 {
 	/* /proc/kmsg can open be opened by CAP_SYS_ADMIN */
-	if (type != 1 && from_file)
+	if (type != SYSLOG_ACTION_OPEN && from_file)
 		return 0;
-	if ((type != 3 && type != 10) && !capable(CAP_SYS_ADMIN))
+	if ((type != SYSLOG_ACTION_READ_ALL &&
+	     type != SYSLOG_ACTION_SIZE_BUFFER) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	return 0;
 }
