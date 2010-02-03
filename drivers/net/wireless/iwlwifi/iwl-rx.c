@@ -123,12 +123,11 @@ EXPORT_SYMBOL(iwl_rx_queue_space);
 /**
  * iwl_rx_queue_update_write_ptr - Update the write pointer for the RX queue
  */
-int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
+void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 {
 	unsigned long flags;
 	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
 	u32 reg;
-	int ret = 0;
 
 	spin_lock_irqsave(&q->lock, flags);
 
@@ -161,7 +160,6 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 
  exit_unlock:
 	spin_unlock_irqrestore(&q->lock, flags);
-	return ret;
 }
 EXPORT_SYMBOL(iwl_rx_queue_update_write_ptr);
 /**
@@ -184,14 +182,13 @@ static inline __le32 iwl_dma_addr2rbd_ptr(struct iwl_priv *priv,
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
-int iwl_rx_queue_restock(struct iwl_priv *priv)
+void iwl_rx_queue_restock(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
 	int write;
-	int ret = 0;
 
 	spin_lock_irqsave(&rxq->lock, flags);
 	write = rxq->write & ~0x7;
@@ -220,10 +217,8 @@ int iwl_rx_queue_restock(struct iwl_priv *priv)
 		spin_lock_irqsave(&rxq->lock, flags);
 		rxq->need_update = 1;
 		spin_unlock_irqrestore(&rxq->lock, flags);
-		ret = iwl_rx_queue_update_write_ptr(priv, rxq);
+		iwl_rx_queue_update_write_ptr(priv, rxq);
 	}
-
-	return ret;
 }
 EXPORT_SYMBOL(iwl_rx_queue_restock);
 
