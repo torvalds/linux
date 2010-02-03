@@ -814,7 +814,7 @@ enum set_key_cmd {
  * mac80211, any ieee80211_sta pointer you get access to must
  * either be protected by rcu_read_lock() explicitly or implicitly,
  * or you must take good care to not use such a pointer after a
- * call to your sta_notify callback that removed it.
+ * call to your sta_remove callback that removed it.
  *
  * @addr: MAC address
  * @aid: AID we assigned to the station if we're an AP
@@ -840,8 +840,8 @@ struct ieee80211_sta {
  * indicates addition and removal of a station to station table,
  * or if a associated station made a power state transition.
  *
- * @STA_NOTIFY_ADD: a station was added to the station table
- * @STA_NOTIFY_REMOVE: a station being removed from the station table
+ * @STA_NOTIFY_ADD: (DEPRECATED) a station was added to the station table
+ * @STA_NOTIFY_REMOVE: (DEPRECATED) a station being removed from the station table
  * @STA_NOTIFY_SLEEP: a station is now sleeping
  * @STA_NOTIFY_AWAKE: a sleeping station woke up
  */
@@ -1534,9 +1534,14 @@ enum ieee80211_ampdu_mlme_action {
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *	The callback can sleep.
  *
- * @sta_notify: Notifies low level driver about addition, removal or power
- *	state transition of an associated station, AP,  IBSS/WDS/mesh peer etc.
- *	Must be atomic.
+ * @sta_add: Notifies low level driver about addition of an associated station,
+ *	AP, IBSS/WDS/mesh peer etc. This callback can sleep.
+ *
+ * @sta_remove: Notifies low level driver about removal of an associated
+ *	station, AP, IBSS/WDS/mesh peer etc. This callback can sleep.
+ *
+ * @sta_notify: Notifies low level driver about power state transition of an
+ *	associated station, AP,  IBSS/WDS/mesh peer etc. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -1635,6 +1640,10 @@ struct ieee80211_ops {
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
+	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,

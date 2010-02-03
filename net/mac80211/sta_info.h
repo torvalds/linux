@@ -162,11 +162,6 @@ struct sta_ampdu_mlme {
 };
 
 
-/* see __sta_info_unlink */
-#define STA_INFO_PIN_STAT_NORMAL	0
-#define STA_INFO_PIN_STAT_PINNED	1
-#define STA_INFO_PIN_STAT_DESTROY	2
-
 /**
  * struct sta_info - STA information
  *
@@ -187,7 +182,6 @@ struct sta_ampdu_mlme {
  * @flaglock: spinlock for flags accesses
  * @drv_unblock_wk: used for driver PS unblocking
  * @listen_interval: listen interval of this station, when we're acting as AP
- * @pin_status: used internally for pinning a STA struct into memory
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
  * @ps_tx_buf: buffer of frames to transmit to this station
  *	when it leaves power saving state
@@ -226,6 +220,7 @@ struct sta_ampdu_mlme {
  * @debugfs: debug filesystem info
  * @sta: station information we share with the driver
  * @dead: set to true when sta is unlinked
+ * @uploaded: set to true when sta is uploaded to the driver
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -245,11 +240,7 @@ struct sta_info {
 
 	bool dead;
 
-	/*
-	 * for use by the internal lifetime management,
-	 * see __sta_info_unlink
-	 */
-	u8 pin_status;
+	bool uploaded;
 
 	/*
 	 * frequently updated, locked with own spinlock (flaglock),
@@ -449,18 +440,19 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
  * Insert STA info into hash table/list, returns zero or a
  * -EEXIST if (if the same MAC address is already present).
  *
- * Calling this without RCU protection makes the caller
- * relinquish its reference to @sta.
+ * Calling the non-rcu version makes the caller relinquish,
+ * the _rcu version calls read_lock_rcu() and must be called
+ * without it held.
  */
 int sta_info_insert(struct sta_info *sta);
-/*
- * Unlink a STA info from the hash table/list.
- * This can NULL the STA pointer if somebody else
- * has already unlinked it.
- */
-void sta_info_unlink(struct sta_info **sta);
+int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU);
+int sta_info_insert_atomic(struct sta_info *sta);
 
-void sta_info_destroy(struct sta_info *sta);
+int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,
+			  const u8 *addr);
+int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
+			      const u8 *addr);
+
 void sta_info_set_tim_bit(struct sta_info *sta);
 void sta_info_clear_tim_bit(struct sta_info *sta);
 

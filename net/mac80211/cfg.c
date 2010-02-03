@@ -747,9 +747,7 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	layer2_update = sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
 		sdata->vif.type == NL80211_IFTYPE_AP;
 
-	rcu_read_lock();
-
-	err = sta_info_insert(sta);
+	err = sta_info_insert_rcu(sta);
 	if (err) {
 		rcu_read_unlock();
 		return err;
@@ -768,26 +766,13 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *sta;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (mac) {
-		rcu_read_lock();
+	if (mac)
+		return sta_info_destroy_addr_bss(sdata, mac);
 
-		sta = sta_info_get_bss(sdata, mac);
-		if (!sta) {
-			rcu_read_unlock();
-			return -ENOENT;
-		}
-
-		sta_info_unlink(&sta);
-		rcu_read_unlock();
-
-		sta_info_destroy(sta);
-	} else
-		sta_info_flush(local, sdata);
-
+	sta_info_flush(local, sdata);
 	return 0;
 }
 

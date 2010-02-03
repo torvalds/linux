@@ -688,15 +688,18 @@ struct ieee80211_local {
 
 	/* Station data */
 	/*
-	 * The lock only protects the list, hash, timer and counter
-	 * against manipulation, reads are done in RCU. Additionally,
-	 * the lock protects each BSS's TIM bitmap.
+	 * The mutex only protects the list and counter,
+	 * reads are done in RCU.
+	 * Additionally, the lock protects the hash table,
+	 * the pending list and each BSS's TIM bitmap.
 	 */
+	struct mutex sta_mtx;
 	spinlock_t sta_lock;
 	unsigned long num_sta;
-	struct list_head sta_list;
+	struct list_head sta_list, sta_pending_list;
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
+	struct work_struct sta_finish_work;
 	int sta_generation;
 
 	struct sk_buff_head pending[IEEE80211_MAX_QUEUES];
@@ -768,10 +771,6 @@ struct ieee80211_local {
 	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
 	char tx_led_name[32], rx_led_name[32],
 	     assoc_led_name[32], radio_led_name[32];
-#endif
-
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct work_struct sta_debugfs_add;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
@@ -985,7 +984,8 @@ void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata);
 ieee80211_rx_result
 ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					u8 *bssid, u8 *addr, u32 supp_rates);
+					u8 *bssid, u8 *addr, u32 supp_rates,
+					gfp_t gfp);
 int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_ibss_params *params);
 int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);

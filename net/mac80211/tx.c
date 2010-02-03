@@ -571,7 +571,7 @@ ieee80211_tx_h_sta(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 
-	if (tx->sta)
+	if (tx->sta && tx->sta->uploaded)
 		info->control.sta = &tx->sta->sta;
 
 	return TX_CONTINUE;

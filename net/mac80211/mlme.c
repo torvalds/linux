@@ -822,19 +822,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 	changed |= BSS_CHANGED_BSSID;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
-	rcu_read_lock();
-
-	sta = sta_info_get(sdata, bssid);
-	if (!sta) {
-		rcu_read_unlock();
-		return;
-	}
-
-	sta_info_unlink(&sta);
-
-	rcu_read_unlock();
-
-	sta_info_destroy(sta);
+	sta_info_destroy_addr(sdata, bssid);
 }
 
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
