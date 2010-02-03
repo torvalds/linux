@@ -579,13 +579,14 @@ ebt_cleanup_match(struct ebt_entry_match *m, struct net *net, unsigned int *i)
 }
 
 static inline int
-ebt_cleanup_watcher(struct ebt_entry_watcher *w, unsigned int *i)
+ebt_cleanup_watcher(struct ebt_entry_watcher *w, struct net *net, unsigned int *i)
 {
 	struct xt_tgdtor_param par;
 
 	if (i && (*i)-- == 0)
 		return 1;
 
+	par.net      = net;
 	par.target   = w->u.watcher;
 	par.targinfo = w->data;
 	par.family   = NFPROTO_BRIDGE;
@@ -606,10 +607,11 @@ ebt_cleanup_entry(struct ebt_entry *e, struct net *net, unsigned int *cnt)
 	/* we're done */
 	if (cnt && (*cnt)-- == 0)
 		return 1;
-	EBT_WATCHER_ITERATE(e, ebt_cleanup_watcher, NULL);
+	EBT_WATCHER_ITERATE(e, ebt_cleanup_watcher, net, NULL);
 	EBT_MATCH_ITERATE(e, ebt_cleanup_match, net, NULL);
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
 
+	par.net      = net;
 	par.target   = t->u.target;
 	par.targinfo = t->data;
 	par.family   = NFPROTO_BRIDGE;
@@ -674,7 +676,7 @@ ebt_check_entry(struct ebt_entry *e,
 	}
 	i = 0;
 
-	mtpar.net	= net;
+	mtpar.net	= tgpar.net       = net;
 	mtpar.table     = tgpar.table     = name;
 	mtpar.entryinfo = tgpar.entryinfo = e;
 	mtpar.hook_mask = tgpar.hook_mask = hookmask;
@@ -730,7 +732,7 @@ ebt_check_entry(struct ebt_entry *e,
 	(*cnt)++;
 	return 0;
 cleanup_watchers:
-	EBT_WATCHER_ITERATE(e, ebt_cleanup_watcher, &j);
+	EBT_WATCHER_ITERATE(e, ebt_cleanup_watcher, net, &j);
 cleanup_matches:
 	EBT_MATCH_ITERATE(e, ebt_cleanup_match, net, &i);
 	return ret;

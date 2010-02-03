@@ -249,6 +249,7 @@ struct xt_target_param {
  * Other fields see above.
  */
 struct xt_tgchk_param {
+	struct net *net;
 	const char *table;
 	const void *entryinfo;
 	const struct xt_target *target;
@@ -259,6 +260,7 @@ struct xt_tgchk_param {
 
 /* Target destructor parameters */
 struct xt_tgdtor_param {
+	struct net *net;
 	const struct xt_target *target;
 	void *targinfo;
 	u_int8_t family;
