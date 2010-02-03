@@ -592,7 +592,7 @@ static const unsigned char saa7115_init_misc[] = {
 	R_5D_DID, 0xbd,
 	R_5E_SDID, 0x35,
 
-	R_02_INPUT_CNTL_1, 0x84,		/* input tuner -> input 4, amplifier active */
+	R_02_INPUT_CNTL_1, 0xc4, /* input tuner -> input 4, amplifier active */
 
 	R_80_GLOBAL_CNTL_1, 0x20,		/* enable task B */
 	R_88_POWER_SAVE_ADC_PORT_CNTL, 0xd0,
