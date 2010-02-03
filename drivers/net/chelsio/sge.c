@@ -248,7 +248,7 @@ static void restart_sched(unsigned long);
  *
  * Interrupts are handled by a single CPU and it is likely that on a MP system
  * the application is migrated to another CPU. In that scenario, we try to
- * seperate the RX(in irq context) and TX state in order to decrease memory
+ * separate the RX(in irq context) and TX state in order to decrease memory
  * contention.
  */
 struct sge {

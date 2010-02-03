@@ -492,7 +492,7 @@ static void init_alloc_map(struct orc_host * host)
  *	init_orchid		-	initialise the host adapter
  *	@host:host adapter to initialise
  *
- *	Initialise the controller and if neccessary load the firmware.
+ *	Initialise the controller and if necessary load the firmware.
  *
  *	Returns -1 if the initialisation fails.
  */

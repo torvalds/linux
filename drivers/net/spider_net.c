@@ -474,7 +474,7 @@ spider_net_prepare_rx_descr(struct spider_net_card *card,
  * spider_net_enable_rxchtails - sets RX dmac chain tail addresses
  * @card: card structure
  *
- * spider_net_enable_rxchtails sets the RX DMAC chain tail adresses in the
+ * spider_net_enable_rxchtails sets the RX DMAC chain tail addresses in the
  * chip by writing to the appropriate register. DMA is enabled in
  * spider_net_enable_rxdmac.
  */
@@ -1820,7 +1820,7 @@ spider_net_enable_card(struct spider_net_card *card)
 
 	spider_net_write_reg(card, SPIDER_NET_ECMODE, SPIDER_NET_ECMODE_VALUE);
 
-	/* set chain tail adress for RX chains and
+	/* set chain tail address for RX chains and
 	 * enable DMA */
 	spider_net_enable_rxchtails(card);
 	spider_net_enable_rxdmac(card);

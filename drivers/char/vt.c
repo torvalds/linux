@@ -821,7 +821,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *
  *	Resize a virtual console, clipping according to the actual constraints.
  *	If the caller passes a tty structure then update the termios winsize
- *	information and perform any neccessary signal handling.
+ *	information and perform any necessary signal handling.
  *
  *	Caller must hold the console semaphore. Takes the termios mutex and
  *	ctrl_lock of the tty IFF a tty is passed.

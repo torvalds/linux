@@ -46,7 +46,7 @@
 
 #include "ehca_tools.h"
 
-/* virtual scatter gather entry to specify remote adresses with length */
+/* virtual scatter gather entry to specify remote addresses with length */
 struct ehca_vsgentry {
 	u64 vaddr;
 	u32 lkey;
@@ -148,7 +148,7 @@ struct ehca_wqe {
 	u32 immediate_data;
 	union {
 		struct {
-			u64 remote_virtual_adress;
+			u64 remote_virtual_address;
 			u32 rkey;
 			u32 reserved;
 			u64 atomic_1st_op_dma_len;

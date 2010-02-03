@@ -1347,7 +1347,7 @@ isdn_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg)
 /*
  * isdn net devices manage lots of configuration variables as linked lists.
  * Those lists must only be manipulated from user space. Some of the ioctl's
- * service routines access user space and are not atomic. Therefor, ioctl's
+ * service routines access user space and are not atomic. Therefore, ioctl's
  * manipulating the lists and ioctl's sleeping while accessing the lists
  * are serialized by means of a semaphore.
  */

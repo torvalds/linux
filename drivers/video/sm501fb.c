@@ -411,7 +411,7 @@ static int sm501fb_set_par_common(struct fb_info *info,
 	struct sm501fb_par  *par = info->par;
 	struct sm501fb_info *fbi = par->info;
 	unsigned long pixclock;      /* pixelclock in Hz */
-	unsigned long sm501pixclock; /* pixelclock the 501 can achive in Hz */
+	unsigned long sm501pixclock; /* pixelclock the 501 can achieve in Hz */
 	unsigned int mem_type;
 	unsigned int clock_type;
 	unsigned int head_addr;

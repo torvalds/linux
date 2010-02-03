@@ -304,7 +304,7 @@ error_kzalloc:
  *
  * The device will be fully reset internally, but won't be
  * disconnected from the bus (so no reenumeration will
- * happen). Firmware upload will be neccessary.
+ * happen). Firmware upload will be necessary.
  *
  * The device will send a reboot barker that will trigger the driver
  * to reinitialize the state via __i2400m_dev_reset_handle.
@@ -314,7 +314,7 @@ error_kzalloc:
  *
  * The device will be fully reset internally, disconnected from the
  * bus an a reenumeration will happen. Firmware upload will be
- * neccessary. Thus, we don't do any locking or struct
+ * necessary. Thus, we don't do any locking or struct
  * reinitialization, as we are going to be fully disconnected and
  * reenumerated.
  *

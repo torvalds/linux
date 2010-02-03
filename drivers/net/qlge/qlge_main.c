@@ -3517,7 +3517,7 @@ int ql_wol(struct ql_adapter *qdev)
 		wol |= MB_WOL_MODE_ON;
 		status = ql_mb_wol_mode(qdev, wol);
 		QPRINTK(qdev, DRV, ERR, "WOL %s (wol code 0x%x) on %s\n",
-			(status == 0) ? "Sucessfully set" : "Failed", wol,
+			(status == 0) ? "Successfully set" : "Failed", wol,
 			qdev->ndev->name);
 	}
 
