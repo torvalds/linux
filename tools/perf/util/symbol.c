@@ -1011,7 +1011,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				if (curr_dso == NULL)
 					goto out_elf_end;
 				curr_map = map__new2(start, curr_dso,
-						     MAP__FUNCTION);
+						     map->type);
 				if (curr_map == NULL) {
 					dso__delete(curr_dso);
 					goto out_elf_end;
@@ -1021,6 +1021,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				curr_dso->origin = DSO__ORIG_KERNEL;
 				map_groups__insert(kmap->kmaps, curr_map);
 				dsos__add(&dsos__kernel, curr_dso);
+				dso__set_loaded(curr_dso, map->type);
 			} else
 				curr_dso = curr_map->dso;
 
@@ -1058,8 +1059,16 @@ new_symbol:
 	/*
 	 * For misannotated, zeroed, ASM function sizes.
 	 */
-	if (nr > 0)
+	if (nr > 0) {
 		symbols__fixup_end(&self->symbols[map->type]);
+		if (kmap) {
+			/*
+			 * We need to fixup this here too because we create new
+			 * maps here, for things like vsyscall sections.
+			 */
+			__map_groups__fixup_end(kmap->kmaps, map->type);
+		}
+	}
 	err = nr;
 out_elf_end:
 	elf_end(elf);
