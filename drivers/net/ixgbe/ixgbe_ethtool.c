@@ -834,8 +834,8 @@ static void ixgbe_get_ringparam(struct net_device *netdev,
                                 struct ethtool_ringparam *ring)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_ring *tx_ring = adapter->tx_ring;
-	struct ixgbe_ring *rx_ring = adapter->rx_ring;
+	struct ixgbe_ring *tx_ring = adapter->tx_ring[0];
+	struct ixgbe_ring *rx_ring = adapter->rx_ring[0];
 
 	ring->rx_max_pending = IXGBE_MAX_RXD;
 	ring->tx_max_pending = IXGBE_MAX_TXD;
@@ -867,8 +867,8 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	new_tx_count = min(new_tx_count, (u32)IXGBE_MAX_TXD);
 	new_tx_count = ALIGN(new_tx_count, IXGBE_REQ_TX_DESCRIPTOR_MULTIPLE);
 
-	if ((new_tx_count == adapter->tx_ring->count) &&
-	    (new_rx_count == adapter->rx_ring->count)) {
+	if ((new_tx_count == adapter->tx_ring[0]->count) &&
+	    (new_rx_count == adapter->rx_ring[0]->count)) {
 		/* nothing to do */
 		return 0;
 	}
@@ -878,25 +878,24 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].count = new_tx_count;
+			adapter->tx_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].count = new_rx_count;
+			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
-		goto err_setup;
+		goto clear_reset;
 	}
 
-	temp_tx_ring = kcalloc(adapter->num_tx_queues,
-	                       sizeof(struct ixgbe_ring), GFP_KERNEL);
+	temp_tx_ring = vmalloc(adapter->num_tx_queues * sizeof(struct ixgbe_ring));
 	if (!temp_tx_ring) {
 		err = -ENOMEM;
-		goto err_setup;
+		goto clear_reset;
 	}
 
 	if (new_tx_count != adapter->tx_ring_count) {
-		memcpy(temp_tx_ring, adapter->tx_ring,
-		       adapter->num_tx_queues * sizeof(struct ixgbe_ring));
 		for (i = 0; i < adapter->num_tx_queues; i++) {
+			memcpy(&temp_tx_ring[i], adapter->tx_ring[i],
+			       sizeof(struct ixgbe_ring));
 			temp_tx_ring[i].count = new_tx_count;
 			err = ixgbe_setup_tx_resources(adapter,
 			                               &temp_tx_ring[i]);
@@ -904,28 +903,24 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 				while (i) {
 					i--;
 					ixgbe_free_tx_resources(adapter,
-					                        &temp_tx_ring[i]);
+					                      &temp_tx_ring[i]);
 				}
-				goto err_setup;
+				goto clear_reset;
 			}
 		}
 		need_update = true;
 	}
 
-	temp_rx_ring = kcalloc(adapter->num_rx_queues,
-	                       sizeof(struct ixgbe_ring), GFP_KERNEL);
-	if ((!temp_rx_ring) && (need_update)) {
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			ixgbe_free_tx_resources(adapter, &temp_tx_ring[i]);
-		kfree(temp_tx_ring);
+	temp_rx_ring = vmalloc(adapter->num_rx_queues * sizeof(struct ixgbe_ring));
+	if (!temp_rx_ring) {
 		err = -ENOMEM;
 		goto err_setup;
 	}
 
 	if (new_rx_count != adapter->rx_ring_count) {
-		memcpy(temp_rx_ring, adapter->rx_ring,
-		       adapter->num_rx_queues * sizeof(struct ixgbe_ring));
 		for (i = 0; i < adapter->num_rx_queues; i++) {
+			memcpy(&temp_rx_ring[i], adapter->rx_ring[i],
+			       sizeof(struct ixgbe_ring));
 			temp_rx_ring[i].count = new_rx_count;
 			err = ixgbe_setup_rx_resources(adapter,
 			                               &temp_rx_ring[i]);
@@ -947,22 +942,32 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 
 		/* tx */
 		if (new_tx_count != adapter->tx_ring_count) {
-			kfree(adapter->tx_ring);
-			adapter->tx_ring = temp_tx_ring;
-			temp_tx_ring = NULL;
+			for (i = 0; i < adapter->num_tx_queues; i++) {
+				ixgbe_free_tx_resources(adapter,
+				                        adapter->tx_ring[i]);
+				memcpy(adapter->tx_ring[i], &temp_tx_ring[i],
+				       sizeof(struct ixgbe_ring));
+			}
 			adapter->tx_ring_count = new_tx_count;
 		}
 
 		/* rx */
 		if (new_rx_count != adapter->rx_ring_count) {
-			kfree(adapter->rx_ring);
-			adapter->rx_ring = temp_rx_ring;
-			temp_rx_ring = NULL;
+			for (i = 0; i < adapter->num_rx_queues; i++) {
+				ixgbe_free_rx_resources(adapter,
+				                        adapter->rx_ring[i]);
+				memcpy(adapter->rx_ring[i], &temp_rx_ring[i],
+				       sizeof(struct ixgbe_ring));
+			}
 			adapter->rx_ring_count = new_rx_count;
 		}
 		ixgbe_up(adapter);
 	}
+
+	vfree(temp_rx_ring);
 err_setup:
+	vfree(temp_tx_ring);
+clear_reset:
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 	return err;
 }
@@ -1007,13 +1012,13 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 		           sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (u64 *)&adapter->tx_ring[j].stats;
+		queue_stat = (u64 *)&adapter->tx_ring[j]->stats;
 		for (k = 0; k < stat_count; k++)
 			data[i + k] = queue_stat[k];
 		i += k;
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
-		queue_stat = (u64 *)&adapter->rx_ring[j].stats;
+		queue_stat = (u64 *)&adapter->rx_ring[j]->stats;
 		for (k = 0; k < stat_count; k++)
 			data[i + k] = queue_stat[k];
 		i += k;
@@ -1627,7 +1632,7 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 	reg_data |= IXGBE_RXDCTL_ENABLE;
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_RXDCTL(0), reg_data);
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		int j = adapter->rx_ring[0].reg_idx;
+		int j = adapter->rx_ring[0]->reg_idx;
 		u32 k;
 		for (k = 0; k < 10; k++) {
 			if (IXGBE_READ_REG(&adapter->hw,
@@ -2011,7 +2016,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0].work_limit;
+	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0]->work_limit;
 
 	/* only valid if in constant ITR mode */
 	switch (adapter->rx_itr_setting) {
@@ -2064,7 +2069,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
-		adapter->tx_ring[0].work_limit = ec->tx_max_coalesced_frames_irq;
+		adapter->tx_ring[0]->work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (ec->rx_coalesce_usecs > 1) {
 		/* check the limits */
