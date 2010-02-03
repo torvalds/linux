@@ -27,6 +27,8 @@
 #include "symtab.h"
 #include "avtab.h"
 #include "sidtab.h"
+#include "ebitmap.h"
+#include "mls_types.h"
 #include "context.h"
 #include "constraint.h"
 
@@ -185,6 +187,8 @@ struct genfs {
 
 /* The policy database */
 struct policydb {
+	int mls_enabled;
+
 	/* symbol tables */
 	struct symtab symtab[SYM_NUM];
 #define p_commons symtab[SYM_COMMONS]

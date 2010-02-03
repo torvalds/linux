@@ -57,7 +57,6 @@
 struct netlbl_lsm_secattr;
 
 extern int selinux_enabled;
-extern int selinux_mls_enabled;
 
 /* Policy capabilities */
 enum {
@@ -79,6 +78,8 @@ extern int selinux_policycap_openperm;
 
 /* limitation of boundary depth  */
 #define POLICYDB_BOUNDS_MAXDEPTH	4
+
+int security_mls_enabled(void);
 
 int security_load_policy(void *data, size_t len);
 

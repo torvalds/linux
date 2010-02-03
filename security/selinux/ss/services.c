@@ -26,6 +26,10 @@
  *
  *  Added support for bounds domain and audit messaged on masked permissions
  *
+ * Updated: Guido Trentalancia <guido@trentalancia.com>
+ *
+ *  Added support for runtime switching of the policy type
+ *
  * Copyright (C) 2008, 2009 NEC Corporation
  * Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
@@ -232,6 +236,10 @@ static void map_decision(u16 tclass, struct av_decision *avd,
 	}
 }
 
+int security_mls_enabled(void)
+{
+	return policydb.mls_enabled;
+}
 
 /*
  * Return the boolean value of a constraint expression
@@ -1550,6 +1558,8 @@ static int convert_context(u32 key,
 {
 	struct convert_context_args *args;
 	struct context oldc;
+	struct ocontext *oc;
+	struct mls_range *range;
 	struct role_datum *role;
 	struct type_datum *typdatum;
 	struct user_datum *usrdatum;
@@ -1620,9 +1630,39 @@ static int convert_context(u32 key,
 		goto bad;
 	c->type = typdatum->value;
 
-	rc = mls_convert_context(args->oldp, args->newp, c);
-	if (rc)
-		goto bad;
+	/* Convert the MLS fields if dealing with MLS policies */
+	if (args->oldp->mls_enabled && args->newp->mls_enabled) {
+		rc = mls_convert_context(args->oldp, args->newp, c);
+		if (rc)
+			goto bad;
+	} else if (args->oldp->mls_enabled && !args->newp->mls_enabled) {
+		/*
+		 * Switching between MLS and non-MLS policy:
+		 * free any storage used by the MLS fields in the
+		 * context for all existing entries in the sidtab.
+		 */
+		mls_context_destroy(c);
+	} else if (!args->oldp->mls_enabled && args->newp->mls_enabled) {
+		/*
+		 * Switching between non-MLS and MLS policy:
+		 * ensure that the MLS fields of the context for all
+		 * existing entries in the sidtab are filled in with a
+		 * suitable default value, likely taken from one of the
+		 * initial SIDs.
+		 */
+		oc = args->newp->ocontexts[OCON_ISID];
+		while (oc && oc->sid[0] != SECINITSID_UNLABELED)
+			oc = oc->next;
+		if (!oc) {
+			printk(KERN_ERR "SELinux:  unable to look up"
+				" the initial SIDs list\n");
+			goto bad;
+		}
+		range = &oc->context[0].range;
+		rc = mls_range_set(c, range);
+		if (rc)
+			goto bad;
+	}
 
 	/* Check the validity of the new context. */
 	if (!policydb_context_isvalid(args->newp, c)) {
@@ -1718,6 +1758,12 @@ int security_load_policy(void *data, size_t len)
 	if (policydb_read(&newpolicydb, fp))
 		return -EINVAL;
 
+	/* If switching between different policy types, log MLS status */
+	if (policydb.mls_enabled && !newpolicydb.mls_enabled)
+		printk(KERN_INFO "SELinux: Disabling MLS support...\n");
+	else if (!policydb.mls_enabled && newpolicydb.mls_enabled)
+		printk(KERN_INFO "SELinux: Enabling MLS support...\n");
+
 	rc = policydb_load_isids(&newpolicydb, &newsidtab);
 	if (rc) {
 		printk(KERN_ERR "SELinux:  unable to load the initial SIDs\n");
@@ -1749,8 +1795,12 @@ int security_load_policy(void *data, size_t len)
 	args.oldp = &policydb;
 	args.newp = &newpolicydb;
 	rc = sidtab_map(&newsidtab, convert_context, &args);
-	if (rc)
+	if (rc) {
+		printk(KERN_ERR "SELinux:  unable to convert the internal"
+			" representation of contexts in the new SID"
+			" table\n");
 		goto err;
+	}
 
 	/* Save the old policydb and SID table to free later. */
 	memcpy(&oldpolicydb, &policydb, sizeof policydb);
@@ -2346,7 +2396,7 @@ int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid)
 	u32 len;
 	int rc = 0;
 
-	if (!ss_initialized || !selinux_mls_enabled) {
+	if (!ss_initialized || !policydb.mls_enabled) {
 		*new_sid = sid;
 		goto out;
 	}
@@ -2447,7 +2497,7 @@ int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
 	/* we don't need to check ss_initialized here since the only way both
 	 * nlbl_sid and xfrm_sid are not equal to SECSID_NULL would be if the
 	 * security server was initialized and ss_initialized was true */
-	if (!selinux_mls_enabled) {
+	if (!policydb.mls_enabled) {
 		*peer_sid = SECSID_NULL;
 		return 0;
 	}

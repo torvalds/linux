@@ -52,8 +52,6 @@ static char *symtab_name[SYM_NUM] = {
 };
 #endif
 
-int selinux_mls_enabled;
-
 static unsigned int symtab_sizes[SYM_NUM] = {
 	2,
 	32,
@@ -455,7 +453,7 @@ static int policydb_index_others(struct policydb *p)
 
 	printk(KERN_DEBUG "SELinux:  %d users, %d roles, %d types, %d bools",
 	       p->p_users.nprim, p->p_roles.nprim, p->p_types.nprim, p->p_bools.nprim);
-	if (selinux_mls_enabled)
+	if (p->mls_enabled)
 		printk(", %d sens, %d cats", p->p_levels.nprim,
 		       p->p_cats.nprim);
 	printk("\n");
@@ -1717,13 +1715,11 @@ int policydb_read(struct policydb *p, void *fp)
 	int i, j, rc;
 	__le32 buf[4];
 	u32 nodebuf[8];
-	u32 len, len2, config, nprim, nel, nel2;
+	u32 len, len2, nprim, nel, nel2;
 	char *policydb_str;
 	struct policydb_compat_info *info;
 	struct range_trans *rt;
 	struct mls_range *r;
-
-	config = 0;
 
 	rc = policydb_init(p);
 	if (rc)
@@ -1772,7 +1768,7 @@ int policydb_read(struct policydb *p, void *fp)
 	kfree(policydb_str);
 	policydb_str = NULL;
 
-	/* Read the version, config, and table sizes. */
+	/* Read the version and table sizes. */
 	rc = next_entry(buf, fp, sizeof(u32)*4);
 	if (rc < 0)
 		goto bad;
@@ -1787,24 +1783,12 @@ int policydb_read(struct policydb *p, void *fp)
 	}
 
 	if ((le32_to_cpu(buf[1]) & POLICYDB_CONFIG_MLS)) {
-		if (ss_initialized && !selinux_mls_enabled) {
-			printk(KERN_ERR "SELinux: Cannot switch between non-MLS"
-				" and MLS policies\n");
-			goto bad;
-		}
-		selinux_mls_enabled = 1;
-		config |= POLICYDB_CONFIG_MLS;
+		p->mls_enabled = 1;
 
 		if (p->policyvers < POLICYDB_VERSION_MLS) {
 			printk(KERN_ERR "SELinux: security policydb version %d "
 				"(MLS) not backwards compatible\n",
 				p->policyvers);
-			goto bad;
-		}
-	} else {
-		if (ss_initialized && selinux_mls_enabled) {
-			printk(KERN_ERR "SELinux: Cannot switch between MLS and"
-				" non-MLS policies\n");
 			goto bad;
 		}
 	}
