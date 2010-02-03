@@ -491,7 +491,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	    pdn->eeh_mode & EEH_MODE_NOCHECK) {
 		ignored_check++;
 		pr_debug("EEH: Ignored check (%x) for %s %s\n",
-			 pdn->eeh_mode, pci_name (dev), dn->full_name);
+			 pdn->eeh_mode, eeh_pci_name(dev), dn->full_name);
 		return 0;
 	}
 
@@ -515,7 +515,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 			printk (KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
 				pdn->eeh_check_count, location,
-				dev->driver->name, pci_name(dev));
+				dev->driver->name, eeh_pci_name(dev));
 			printk (KERN_ERR "EEH: Might be infinite loop in %s driver\n",
 				dev->driver->name);
 			dump_stack();
