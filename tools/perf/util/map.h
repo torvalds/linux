@@ -14,6 +14,8 @@ enum map_type {
 #define MAP__NR_TYPES (MAP__VARIABLE + 1)
 
 struct dso;
+struct ref_reloc_sym;
+struct map_groups;
 
 struct map {
 	union {
@@ -28,6 +30,16 @@ struct map {
 	u64			(*unmap_ip)(struct map *, u64);
 	struct dso		*dso;
 };
+
+struct kmap {
+	struct ref_reloc_sym	*ref_reloc_sym;
+	struct map_groups	*kmaps;
+};
+
+static inline struct kmap *map__kmap(struct map *self)
+{
+	return (struct kmap *)(self + 1);
+}
 
 static inline u64 map__map_ip(struct map *map, u64 ip)
 {
@@ -58,16 +70,14 @@ struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);
 
-struct perf_session;
-
-int map__load(struct map *self, struct perf_session *session,
-	      symbol_filter_t filter);
-struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
+int map__load(struct map *self, symbol_filter_t filter);
+struct symbol *map__find_symbol(struct map *self,
 				u64 addr, symbol_filter_t filter);
 struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
-					struct perf_session *session,
 					symbol_filter_t filter);
 void map__fixup_start(struct map *self);
 void map__fixup_end(struct map *self);
+
+void map__reloc_vmlinux(struct map *self);
 
 #endif /* __PERF_MAP_H */

@@ -282,14 +282,13 @@ size_t perf_session__fprintf(struct perf_session *self, FILE *fp)
 }
 
 struct symbol *map_groups__find_symbol(struct map_groups *self,
-				       struct perf_session *session,
 				       enum map_type type, u64 addr,
 				       symbol_filter_t filter)
 {
 	struct map *map = map_groups__find(self, type, addr);
 
 	if (map != NULL)
-		return map__find_symbol(map, session, map->map_ip(map, addr), filter);
+		return map__find_symbol(map, map->map_ip(map, addr), filter);
 
 	return NULL;
 }

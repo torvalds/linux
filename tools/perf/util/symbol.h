@@ -80,6 +80,12 @@ static inline void *symbol__priv(struct symbol *self)
 	return ((void *)self) - symbol_conf.priv_size;
 }
 
+struct ref_reloc_sym {
+	const char	*name;
+	u64		addr;
+	u64		unrelocated_addr;
+};
+
 struct addr_location {
 	struct thread *thread;
 	struct map    *map;
@@ -126,12 +132,11 @@ static inline struct dso *dsos__findnew(const char *name)
 	return __dsos__findnew(&dsos__user, name);
 }
 
-struct perf_session;
-
-int dso__load(struct dso *self, struct map *map, struct perf_session *session,
-	      symbol_filter_t filter);
+int dso__load(struct dso *self, struct map *map, symbol_filter_t filter);
 int dso__load_vmlinux_path(struct dso *self, struct map *map,
-			   struct perf_session *session, symbol_filter_t filter);
+			   symbol_filter_t filter);
+int dso__load_kallsyms(struct dso *self, const char *filename, struct map *map,
+		       symbol_filter_t filter);
 void dsos__fprintf(FILE *fp);
 size_t dsos__fprintf_buildid(FILE *fp, bool with_hits);
 
@@ -156,9 +161,5 @@ int kallsyms__parse(const char *filename, void *arg,
 int symbol__init(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
-int perf_session__create_kernel_maps(struct perf_session *self);
-
-struct map *perf_session__new_module_map(struct perf_session *self, u64 start,
-					 const char *filename);
 extern struct dso *vdso;
 #endif /* __PERF_SYMBOL */

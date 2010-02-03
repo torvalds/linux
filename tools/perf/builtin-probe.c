@@ -122,8 +122,7 @@ static int opt_del_probe_event(const struct option *opt __used,
 static void evaluate_probe_point(struct probe_point *pp)
 {
 	struct symbol *sym;
-	sym = map__find_symbol_by_name(session.kmap, pp->function,
-				       session.psession, NULL);
+	sym = map__find_symbol_by_name(session.kmap, pp->function, NULL);
 	if (!sym)
 		die("Kernel symbol \'%s\' not found - probe not added.",
 		    pp->function);
@@ -132,7 +131,7 @@ static void evaluate_probe_point(struct probe_point *pp)
 #ifndef NO_LIBDWARF
 static int open_vmlinux(void)
 {
-	if (map__load(session.kmap, session.psession, NULL) < 0) {
+	if (map__load(session.kmap, NULL) < 0) {
 		pr_debug("Failed to load kernel map.\n");
 		return -EINVAL;
 	}

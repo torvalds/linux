@@ -374,9 +374,7 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 				goto out_problem;
 
 			kernel->kernel = 1;
-			if (__map_groups__create_kernel_maps(&session->kmaps,
-							     session->vmlinux_maps,
-							     kernel) < 0)
+			if (__perf_session__create_kernel_maps(session, kernel) < 0)
 				goto out_problem;
 
 			session->vmlinux_maps[MAP__FUNCTION]->start = self->mmap.start;
@@ -476,7 +474,7 @@ void thread__find_addr_location(struct thread *self,
 {
 	thread__find_addr_map(self, session, cpumode, type, addr, al);
 	if (al->map != NULL)
-		al->sym = map__find_symbol(al->map, session, al->addr, filter);
+		al->sym = map__find_symbol(al->map, al->addr, filter);
 	else
 		al->sym = NULL;
 }

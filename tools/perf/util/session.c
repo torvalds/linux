@@ -53,6 +53,11 @@ out_close:
 	return -1;
 }
 
+static inline int perf_session__create_kernel_maps(struct perf_session *self)
+{
+	return map_groups__create_kernel_maps(&self->kmaps, self->vmlinux_maps);
+}
+
 struct perf_session *perf_session__new(const char *filename, int mode, bool force)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
@@ -507,6 +512,7 @@ int perf_session__set_kallsyms_ref_reloc_sym(struct perf_session *self,
 					     u64 addr)
 {
 	char *bracket;
+	enum map_type i;
 
 	self->ref_reloc_sym.name = strdup(symbol_name);
 	if (self->ref_reloc_sym.name == NULL)
@@ -517,6 +523,12 @@ int perf_session__set_kallsyms_ref_reloc_sym(struct perf_session *self,
 		*bracket = '\0';
 
 	self->ref_reloc_sym.addr = addr;
+
+	for (i = 0; i < MAP__NR_TYPES; ++i) {
+		struct kmap *kmap = map__kmap(self->vmlinux_maps[i]);
+		kmap->ref_reloc_sym = &self->ref_reloc_sym;
+	}
+
 	return 0;
 }
 
@@ -530,20 +542,21 @@ static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
 	return ip - (s64)map->pgoff;
 }
 
-void perf_session__reloc_vmlinux_maps(struct perf_session *self,
-				      u64 unrelocated_addr)
+void map__reloc_vmlinux(struct map *self)
 {
-	enum map_type type;
-	s64 reloc = unrelocated_addr - self->ref_reloc_sym.addr;
+	struct kmap *kmap = map__kmap(self);
+	s64 reloc;
+
+	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
+		return;
+
+	reloc = (kmap->ref_reloc_sym->unrelocated_addr -
+		 kmap->ref_reloc_sym->addr);
 
 	if (!reloc)
 		return;
 
-	for (type = 0; type < MAP__NR_TYPES; ++type) {
-		struct map *map = self->vmlinux_maps[type];
-
-		map->map_ip = map__reloc_map_ip;
-		map->unmap_ip = map__reloc_unmap_ip;
-		map->pgoff = reloc;
-	}
+	self->map_ip   = map__reloc_map_ip;
+	self->unmap_ip = map__reloc_unmap_ip;
+	self->pgoff    = reloc;
 }

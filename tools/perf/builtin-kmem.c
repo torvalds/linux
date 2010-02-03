@@ -369,7 +369,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = map_groups__find_function(&session->kmaps, session, addr, NULL);
+				sym = map_groups__find_function(&session->kmaps, addr, NULL);
 		} else
 			addr = data->ptr;
 
