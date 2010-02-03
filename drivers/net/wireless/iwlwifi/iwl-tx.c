@@ -791,8 +791,10 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
-		if (info->flags & IEEE80211_TX_CTL_AMPDU)
+		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
+		    priv->stations[sta_id].tid[tid].agg.state == IWL_AGG_ON) {
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
+		}
 	}
 
 	txq = &priv->txq[txq_id];
@@ -1273,7 +1275,7 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 {
 	int tx_fifo_id, txq_id, sta_id, ssn = -1;
 	struct iwl_tid_data *tid_data;
-	int ret, write_ptr, read_ptr;
+	int write_ptr, read_ptr;
 	unsigned long flags;
 
 	if (!ra) {
@@ -1325,12 +1327,16 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	ret = priv->cfg->ops->lib->txq_agg_disable(priv, txq_id, ssn,
+	/*
+	 * the only reason this call can fail is queue number out of range,
+	 * which can happen if uCode is reloaded and all the station
+	 * information are lost. if it is outside the range, there is no need
+	 * to deactivate the uCode queue, just return "success" to allow
+	 *  mac80211 to clean up it own data.
+	 */
+	priv->cfg->ops->lib->txq_agg_disable(priv, txq_id, ssn,
 						   tx_fifo_id);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (ret)
-		return ret;
 
 	ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, ra, tid);
 
