@@ -4717,6 +4717,12 @@ static pci_ers_result_t qlge_io_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
+
+	if (ql_adapter_reset(qdev)) {
+		QPRINTK(qdev, DRV, ERR, "reset FAILED!\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
@@ -4726,8 +4732,6 @@ static void qlge_io_resume(struct pci_dev *pdev)
 	struct ql_adapter *qdev = netdev_priv(ndev);
 	int err = 0;
 
-	if (ql_adapter_reset(qdev))
-		QPRINTK(qdev, DRV, ERR, "reset FAILED!\n");
 	if (netif_running(ndev)) {
 		err = qlge_open(ndev);
 		if (err) {
