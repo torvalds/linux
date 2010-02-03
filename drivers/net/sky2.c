@@ -2404,6 +2404,9 @@ okay:
 		skb = receive_copy(sky2, re, length);
 	else
 		skb = receive_new(sky2, re, length);
+
+	dev->stats.rx_dropped += (skb == NULL);
+
 resubmit:
 	sky2_rx_submit(sky2, re);
 
@@ -2515,11 +2518,10 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 		case OP_RXSTAT:
 			total_packets[port]++;
 			total_bytes[port] += length;
+
 			skb = sky2_receive(dev, length, status);
-			if (unlikely(!skb)) {
-				dev->stats.rx_dropped++;
+			if (!skb)
 				break;
-			}
 
 			/* This chip reports checksum status differently */
 			if (hw->flags & SKY2_HW_NEW_LE) {
