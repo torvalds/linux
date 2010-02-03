@@ -20,8 +20,10 @@
 #define TS_32		0x00000010
 #define TS_128		0x00000018
 
-#define CHCR_TS_MASK	0x18
-#define CHCR_TS_SHIFT	3
+#define CHCR_TS_LOW_MASK	0x18
+#define CHCR_TS_LOW_SHIFT	3
+#define CHCR_TS_HIGH_MASK	0
+#define CHCR_TS_HIGH_SHIFT	0
 
 #define DMAOR_INIT	DMAOR_DME
 
@@ -36,11 +38,13 @@ enum {
 	XMIT_SZ_128BIT,
 };
 
-static unsigned int ts_shift[] __maybe_unused = {
-	[XMIT_SZ_8BIT]		= 0,
-	[XMIT_SZ_16BIT]		= 1,
-	[XMIT_SZ_32BIT]		= 2,
-	[XMIT_SZ_128BIT]	= 4,
-};
+#define TS_SHIFT {			\
+	[XMIT_SZ_8BIT]		= 0,	\
+	[XMIT_SZ_16BIT]		= 1,	\
+	[XMIT_SZ_32BIT]		= 2,	\
+	[XMIT_SZ_128BIT]	= 4,	\
+}
+
+#define TS_INDEX2VAL(i)	(((i) & 3) << CHCR_TS_LOW_SHIFT)
 
 #endif /* __ASM_CPU_SH3_DMA_H */

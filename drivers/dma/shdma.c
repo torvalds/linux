@@ -105,10 +105,14 @@ static bool dmae_is_busy(struct sh_dmae_chan *sh_chan)
 	return false; /* waiting */
 }
 
+static unsigned int ts_shift[] = TS_SHIFT;
 static inline unsigned int calc_xmit_shift(struct sh_dmae_chan *sh_chan)
 {
 	u32 chcr = sh_dmae_readl(sh_chan, CHCR);
-	return ts_shift[(chcr & CHCR_TS_MASK) >> CHCR_TS_SHIFT];
+	int cnt = ((chcr & CHCR_TS_LOW_MASK) >> CHCR_TS_LOW_SHIFT) |
+		((chcr & CHCR_TS_HIGH_MASK) >> CHCR_TS_HIGH_SHIFT);
+
+	return ts_shift[cnt];
 }
 
 static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)

@@ -83,7 +83,7 @@ static int dmte_irq_map[] __maybe_unused = {
  * Define the default configuration for dual address memory-memory transfer.
  * The 0x400 value represents auto-request, external->external.
  */
-#define RS_DUAL	(DM_INC | SM_INC | 0x400 | TS_32)
+#define RS_DUAL	(DM_INC | SM_INC | 0x400 | TS_INDEX2VAL(XMIT_SZ_32BIT))
 
 /* DMA base address */
 static u32 dma_base_addr[] __maybe_unused = {
