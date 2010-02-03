@@ -1010,7 +1010,8 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 		(struct ieee80211_radiotap_header *) skb->data;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len);
+	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
+						   NULL);
 
 	sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
@@ -1046,7 +1047,7 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 				 * because it will be recomputed and added
 				 * on transmission
 				 */
-				if (skb->len < (iterator.max_length + FCS_LEN))
+				if (skb->len < (iterator._max_length + FCS_LEN))
 					return false;
 
 				skb_trim(skb, skb->len - FCS_LEN);
@@ -1073,10 +1074,10 @@ static bool __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 
 	/*
 	 * remove the radiotap header
-	 * iterator->max_length was sanity-checked against
+	 * iterator->_max_length was sanity-checked against
 	 * skb->len by iterator init
 	 */
-	skb_pull(skb, iterator.max_length);
+	skb_pull(skb, iterator._max_length);
 
 	return true;
 }
