@@ -408,6 +408,16 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		return -EBUSY;
 
+	if (req != local->int_scan_req &&
+	    sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    !list_empty(&ifmgd->work_list)) {
+		/* actually wait for the work it's doing to finish/time out */
+		set_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request);
+		local->scan_req = req;
+		local->scan_sdata = sdata;
+		return 0;
+	}
+
 	if (local->ops->hw_scan) {
 		u8 *ies;
 		int ielen;
@@ -427,14 +437,6 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 
 	local->scan_req = req;
 	local->scan_sdata = sdata;
-
-	if (req != local->int_scan_req &&
-	    sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    !list_empty(&ifmgd->work_list)) {
-		/* actually wait for the work it's doing to finish/time out */
-		set_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request);
-		return 0;
-	}
 
 	if (local->ops->hw_scan)
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
