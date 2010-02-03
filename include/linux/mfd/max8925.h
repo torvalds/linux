@@ -158,11 +158,6 @@ enum {
 #define TSC_IRQ_MASK			(0x03)
 #define RTC_IRQ_MASK			(0x0c)
 
-#define MAX8925_GPM_NUM_IRQ		(40)
-#define MAX8925_ADC_NUM_IRQ		(8)
-#define MAX8925_NUM_IRQ			(MAX8925_GPM_NUM_IRQ	\
-					+ MAX8925_ADC_NUM_IRQ)
-
 #define MAX8925_MAX_REGULATOR		(23)
 
 #define MAX8925_NAME_SIZE		(32)
@@ -200,17 +195,11 @@ enum {
 	MAX8925_NR_IRQS,
 };
 
-struct max8925_irq {
-	irq_handler_t		handler;
-	void			*data;
-};
-
 struct max8925_chip {
 	struct device		*dev;
 	struct i2c_client	*i2c;
 	struct i2c_client	*adc;
 	struct i2c_client	*rtc;
-	struct max8925_irq	irqs[MAX8925_NUM_IRQ];
 	struct mutex		io_lock;
 	struct mutex		irq_lock;
 
@@ -256,12 +245,6 @@ extern int max8925_bulk_read(struct i2c_client *, int, int, unsigned char *);
 extern int max8925_bulk_write(struct i2c_client *, int, int, unsigned char *);
 extern int max8925_set_bits(struct i2c_client *, int, unsigned char,
 			unsigned char);
-
-extern int max8925_request_irq(struct max8925_chip *, int,
-			irq_handler_t, void *);
-extern int max8925_free_irq(struct max8925_chip *, int);
-extern int max8925_mask_irq(struct max8925_chip *, int);
-extern int max8925_unmask_irq(struct max8925_chip *, int);
 
 extern int max8925_device_init(struct max8925_chip *,
 				struct max8925_platform_data *);
