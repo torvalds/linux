@@ -49,6 +49,12 @@ static void cache_init(struct cache_head *h)
 	h->last_refresh = now;
 }
 
+static inline int cache_is_expired(struct cache_detail *detail, struct cache_head *h)
+{
+	return  (h->expiry_time < get_seconds()) ||
+		(detail->flush_time > h->last_refresh);
+}
+
 struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 				       struct cache_head *key, int hash)
 {
@@ -184,9 +190,7 @@ static int cache_make_upcall(struct cache_detail *cd, struct cache_head *h)
 static inline int cache_is_valid(struct cache_detail *detail, struct cache_head *h)
 {
 	if (!test_bit(CACHE_VALID, &h->flags) ||
-	    h->expiry_time < get_seconds())
-		return -EAGAIN;
-	else if (detail->flush_time > h->last_refresh)
+	    cache_is_expired(detail, h))
 		return -EAGAIN;
 	else {
 		/* entry is valid */
@@ -400,8 +404,7 @@ static int cache_clean(void)
 		for (ch = *cp ; ch ; cp = & ch->next, ch = *cp) {
 			if (current_detail->nextcheck > ch->expiry_time)
 				current_detail->nextcheck = ch->expiry_time+1;
-			if (ch->expiry_time >= get_seconds() &&
-			    ch->last_refresh >= current_detail->flush_time)
+			if (!cache_is_expired(current_detail, ch))
 				continue;
 
 			*cp = ch->next;
