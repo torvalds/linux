@@ -12,5 +12,6 @@ obj-$(CONFIG_MACH_TS41X)		+= ts41x-setup.o tsx1x-common.o
 obj-$(CONFIG_MACH_OPENRD)		+= openrd-setup.o
 obj-$(CONFIG_MACH_NETSPACE_V2)		+= netspace_v2-setup.o
 obj-$(CONFIG_MACH_INETSPACE_V2)		+= netspace_v2-setup.o
+obj-$(CONFIG_MACH_NET2BIG_V2)		+= net2big_v2-setup.o
 
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
