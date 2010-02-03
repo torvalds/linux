@@ -97,9 +97,7 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	sym_size = sym->end - sym->start;
 	offset = ip - sym->start;
 
-	if (verbose)
-		fprintf(stderr, "%s: ip=%Lx\n", __func__,
-			he->map->unmap_ip(he->map, ip));
+	pr_debug3("%s: ip=%#Lx\n", __func__, he->map->unmap_ip(he->map, ip));
 
 	if (offset >= sym_size)
 		return;
@@ -108,12 +106,8 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	h->sum++;
 	h->ip[offset]++;
 
-	if (verbose >= 3)
-		printf("%p %s: count++ [ip: %p, %08Lx] => %Ld\n",
-			(void *)(unsigned long)he->sym->start,
-			he->sym->name,
-			(void *)(unsigned long)ip, ip - he->sym->start,
-			h->ip[offset]);
+	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->sym->start,
+		  he->sym->name, ip, ip - he->sym->start, h->ip[offset]);
 }
 
 static int perf_session__add_hist_entry(struct perf_session *self,
@@ -136,14 +130,14 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		    event->ip.pid, event->ip.ip);
 
 	if (event__preprocess_sample(event, session, &al, symbol_filter) < 0) {
-		fprintf(stderr, "problem processing %d event, skipping it.\n",
-			event->header.type);
+		pr_warning("problem processing %d event, skipping it.\n",
+			   event->header.type);
 		return -1;
 	}
 
 	if (!al.filtered && perf_session__add_hist_entry(session, &al, 1)) {
-		fprintf(stderr, "problem incrementing symbol count, "
-				"skipping event\n");
+		pr_warning("problem incrementing symbol count, "
+			   "skipping event\n");
 		return -1;
 	}
 
@@ -378,11 +372,9 @@ static void annotate_sym(struct hist_entry *he)
 	if (!filename)
 		return;
 
-	if (verbose)
-		fprintf(stderr, "%s: filename=%s, sym=%s, start=%Lx, end=%Lx\n",
-			__func__, filename, sym->name,
-			map->unmap_ip(map, sym->start),
-			map->unmap_ip(map, sym->end));
+	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
+		 filename, sym->name, map->unmap_ip(map, sym->start),
+		 map->unmap_ip(map, sym->end));
 
 	if (full_paths)
 		d_filename = filename;
@@ -542,9 +534,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 	setup_pager();
 
 	if (field_sep && *field_sep == '.') {
-		fputs("'.' is the only non valid --field-separator argument\n",
-				stderr);
-		exit(129);
+		pr_err("'.' is the only non valid --field-separator argument\n");
+		return -1;
 	}
 
 	return __cmd_annotate();

@@ -137,7 +137,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 	self->start = start;
 	self->end   = len ? start + len - 1 : start;
 
-	pr_debug3("%s: %s %#Lx-%#Lx\n", __func__, name, start, self->end);
+	pr_debug4("%s: %s %#Lx-%#Lx\n", __func__, name, start, self->end);
 
 	memcpy(self->name, name, namelen);
 
@@ -1024,9 +1024,10 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		}
 
 		if (curr_dso->adjust_symbols) {
-			pr_debug2("adjusting symbol: st_value: %Lx sh_addr: "
-				  "%Lx sh_offset: %Lx\n", (u64)sym.st_value,
-				  (u64)shdr.sh_addr, (u64)shdr.sh_offset);
+			pr_debug4("%s: adjusting symbol: st_value: %#Lx "
+				  "sh_addr: %#Lx sh_offset: %#Lx\n", __func__,
+				  (u64)sym.st_value, (u64)shdr.sh_addr,
+				  (u64)shdr.sh_offset);
 			sym.st_value -= shdr.sh_addr - shdr.sh_offset;
 		}
 		/*
