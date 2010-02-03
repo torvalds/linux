@@ -979,6 +979,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 	int dcs_l, dcs_r;
 	int dcs_l_reg, dcs_r_reg;
 	int timeout;
+	int pwr_reg;
 
 	/* This code is shared between HP and LINEOUT; we do all our
 	 * power management in stereo pairs to avoid latency issues so
@@ -988,6 +989,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 
 	switch (reg) {
 	case WM8904_ANALOGUE_HP_0:
+		pwr_reg = WM8904_POWER_MANAGEMENT_2;
 		dcs_mask = WM8904_DCS_ENA_CHAN_0 | WM8904_DCS_ENA_CHAN_1;
 		dcs_r_reg = WM8904_DC_SERVO_8;
 		dcs_l_reg = WM8904_DC_SERVO_9;
@@ -995,6 +997,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		dcs_r = 1;
 		break;
 	case WM8904_ANALOGUE_LINEOUT_0:
+		pwr_reg = WM8904_POWER_MANAGEMENT_3;
 		dcs_mask = WM8904_DCS_ENA_CHAN_2 | WM8904_DCS_ENA_CHAN_3;
 		dcs_r_reg = WM8904_DC_SERVO_6;
 		dcs_l_reg = WM8904_DC_SERVO_7;
@@ -1007,11 +1010,17 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 	}
 
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Power on the PGAs */
+		snd_soc_update_bits(codec, pwr_reg,
+				    WM8904_HPL_PGA_ENA | WM8904_HPR_PGA_ENA,
+				    WM8904_HPL_PGA_ENA | WM8904_HPR_PGA_ENA);
+
 		/* Power on the amplifier */
 		snd_soc_update_bits(codec, reg,
 				    WM8904_HPL_ENA | WM8904_HPR_ENA,
 				    WM8904_HPL_ENA | WM8904_HPR_ENA);
+
 
 		/* Enable the first stage */
 		snd_soc_update_bits(codec, reg,
@@ -1064,7 +1073,9 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, reg,
 				    WM8904_HPL_ENA_OUTP | WM8904_HPR_ENA_OUTP,
 				    WM8904_HPL_ENA_OUTP | WM8904_HPR_ENA_OUTP);
+		break;
 
+	case SND_SOC_DAPM_POST_PMU:
 		/* Unshort the output itself */
 		snd_soc_update_bits(codec, reg,
 				    WM8904_HPL_RMV_SHORT |
@@ -1079,7 +1090,9 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 		snd_soc_update_bits(codec, reg,
 				    WM8904_HPL_RMV_SHORT |
 				    WM8904_HPR_RMV_SHORT, 0);
+		break;
 
+	case SND_SOC_DAPM_POST_PMD:
 		/* Cache the DC servo configuration; this will be
 		 * invalidated if we change the configuration. */
 		wm8904->dcs_state[dcs_l] = snd_soc_read(codec, dcs_l_reg);
@@ -1093,6 +1106,11 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 				    WM8904_HPL_ENA | WM8904_HPR_ENA |
 				    WM8904_HPL_ENA_DLY | WM8904_HPR_ENA_DLY |
 				    WM8904_HPL_ENA_OUTP | WM8904_HPR_ENA_OUTP,
+				    0);
+
+		/* PGAs too */
+		snd_soc_update_bits(codec, pwr_reg,
+				    WM8904_HPL_PGA_ENA | WM8904_HPR_PGA_ENA,
 				    0);
 		break;
 	}
@@ -1212,18 +1230,20 @@ SND_SOC_DAPM_DAC("DACR", NULL, WM8904_POWER_MANAGEMENT_6, 2, 0),
 SND_SOC_DAPM_SUPPLY("Charge pump", WM8904_CHARGE_PUMP_0, 0, 0, cp_event,
 		    SND_SOC_DAPM_POST_PMU),
 
-SND_SOC_DAPM_PGA("HPL PGA", WM8904_POWER_MANAGEMENT_2, 1, 0, NULL, 0),
-SND_SOC_DAPM_PGA("HPR PGA", WM8904_POWER_MANAGEMENT_2, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("HPL PGA", SND_SOC_NOPM, 1, 0, NULL, 0),
+SND_SOC_DAPM_PGA("HPR PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
 
-SND_SOC_DAPM_PGA("LINEL PGA", WM8904_POWER_MANAGEMENT_3, 1, 0, NULL, 0),
-SND_SOC_DAPM_PGA("LINER PGA", WM8904_POWER_MANAGEMENT_3, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("LINEL PGA", SND_SOC_NOPM, 1, 0, NULL, 0),
+SND_SOC_DAPM_PGA("LINER PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_PGA_E("Headphone Output", SND_SOC_NOPM, WM8904_ANALOGUE_HP_0,
 		   0, NULL, 0, out_pga_event,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_PGA_E("Line Output", SND_SOC_NOPM, WM8904_ANALOGUE_LINEOUT_0,
 		   0, NULL, 0, out_pga_event,
-		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+		   SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD),
 
 SND_SOC_DAPM_OUTPUT("HPOUTL"),
 SND_SOC_DAPM_OUTPUT("HPOUTR"),
