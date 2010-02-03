@@ -620,7 +620,7 @@ static int fsg_setup(struct usb_function *f,
 		*(u8 *) req->buf = fsg->common->nluns - 1;
 
 		/* Respond with data/status */
-		req->length = min(1, w_length);
+		req->length = min((u16)1, w_length);
 		fsg->common->ep0req_name =
 			ctrl->bRequestType & USB_DIR_IN ? "ep0-in" : "ep0-out";
 		return ep0_queue(fsg->common);
