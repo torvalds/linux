@@ -1001,7 +1001,8 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 		return 0;
 	}
 
-	helper = __nf_conntrack_helper_find_byname(helpname);
+	helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
+					    nf_ct_protonum(ct));
 	if (helper == NULL) {
 #ifdef CONFIG_MODULES
 		spin_unlock_bh(&nf_conntrack_lock);
@@ -1012,7 +1013,8 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 		}
 
 		spin_lock_bh(&nf_conntrack_lock);
-		helper = __nf_conntrack_helper_find_byname(helpname);
+		helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
+						    nf_ct_protonum(ct));
 		if (helper)
 			return -EAGAIN;
 #endif
@@ -1211,7 +1213,8 @@ ctnetlink_create_conntrack(struct net *net,
  		if (err < 0)
 			goto err2;
 
-		helper = __nf_conntrack_helper_find_byname(helpname);
+		helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
+						    nf_ct_protonum(ct));
 		if (helper == NULL) {
 			rcu_read_unlock();
 #ifdef CONFIG_MODULES
@@ -1221,7 +1224,9 @@ ctnetlink_create_conntrack(struct net *net,
 			}
 
 			rcu_read_lock();
-			helper = __nf_conntrack_helper_find_byname(helpname);
+			helper = __nf_conntrack_helper_find(helpname,
+							    nf_ct_l3num(ct),
+							    nf_ct_protonum(ct));
 			if (helper) {
 				err = -EAGAIN;
 				goto err2;
@@ -1714,7 +1719,6 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 	struct net *net = sock_net(ctnl);
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple tuple;
-	struct nf_conntrack_helper *h;
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	struct hlist_node *n, *next;
 	u_int8_t u3 = nfmsg->nfgen_family;
@@ -1751,18 +1755,13 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 
 		/* delete all expectations for this helper */
 		spin_lock_bh(&nf_conntrack_lock);
-		h = __nf_conntrack_helper_find_byname(name);
-		if (!h) {
-			spin_unlock_bh(&nf_conntrack_lock);
-			return -EOPNOTSUPP;
-		}
 		for (i = 0; i < nf_ct_expect_hsize; i++) {
 			hlist_for_each_entry_safe(exp, n, next,
 						  &net->ct.expect_hash[i],
 						  hnode) {
 				m_help = nfct_help(exp->master);
-				if (m_help->helper == h
-				    && del_timer(&exp->timeout)) {
+				if (!strcmp(m_help->helper->name, name) &&
+				    del_timer(&exp->timeout)) {
 					nf_ct_unlink_expect(exp);
 					nf_ct_expect_put(exp);
 				}

@@ -65,7 +65,7 @@ __nf_ct_helper_find(const struct nf_conntrack_tuple *tuple)
 }
 
 struct nf_conntrack_helper *
-__nf_conntrack_helper_find_byname(const char *name)
+__nf_conntrack_helper_find(const char *name, u16 l3num, u8 protonum)
 {
 	struct nf_conntrack_helper *h;
 	struct hlist_node *n;
@@ -73,13 +73,15 @@ __nf_conntrack_helper_find_byname(const char *name)
 
 	for (i = 0; i < nf_ct_helper_hsize; i++) {
 		hlist_for_each_entry_rcu(h, n, &nf_ct_helper_hash[i], hnode) {
-			if (!strcmp(h->name, name))
+			if (!strcmp(h->name, name) &&
+			    h->tuple.src.l3num == l3num &&
+			    h->tuple.dst.protonum == protonum)
 				return h;
 		}
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(__nf_conntrack_helper_find_byname);
+EXPORT_SYMBOL_GPL(__nf_conntrack_helper_find);
 
 struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
 {
