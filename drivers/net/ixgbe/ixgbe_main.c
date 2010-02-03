@@ -4996,6 +4996,8 @@ static void ixgbe_fdir_reinit_task(struct work_struct *work)
 	netif_tx_start_all_queues(adapter->netdev);
 }
 
+static DEFINE_MUTEX(ixgbe_watchdog_lock);
+
 /**
  * ixgbe_watchdog_task - worker thread to bring link up
  * @work: pointer to work_struct containing our data
@@ -5007,13 +5009,16 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 	                                             watchdog_task);
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 link_speed = adapter->link_speed;
-	bool link_up = adapter->link_up;
+	u32 link_speed;
+	bool link_up;
 	int i;
 	struct ixgbe_ring *tx_ring;
 	int some_tx_pending = 0;
 
-	adapter->flags |= IXGBE_FLAG_IN_WATCHDOG_TASK;
+	mutex_lock(&ixgbe_watchdog_lock);
+
+	link_up = adapter->link_up;
+	link_speed = adapter->link_speed;
 
 	if (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE) {
 		hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
@@ -5102,7 +5107,7 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 	}
 
 	ixgbe_update_stats(adapter);
-	adapter->flags &= ~IXGBE_FLAG_IN_WATCHDOG_TASK;
+	mutex_unlock(&ixgbe_watchdog_lock);
 }
 
 static int ixgbe_tso(struct ixgbe_adapter *adapter,
