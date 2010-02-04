@@ -107,13 +107,13 @@
 #define CFGTBL_BusType_Fibre1G  0x00000100l
 #define CFGTBL_BusType_Fibre2G  0x00000200l
 struct vals32 {
-	__u32   lower;
-	__u32   upper;
+	u32   lower;
+	u32   upper;
 };
 
 union u64bit {
 	struct vals32 val32;
-	__u64 val;
+	u64 val;
 };
 
 /* FIXME this is a per controller value (barf!) */
@@ -126,34 +126,34 @@ union u64bit {
 
 #define HPSA_INQUIRY 0x12
 struct InquiryData {
-	__u8 data_byte[36];
+	u8 data_byte[36];
 };
 
 #define HPSA_REPORT_LOG 0xc2    /* Report Logical LUNs */
 #define HPSA_REPORT_PHYS 0xc3   /* Report Physical LUNs */
 struct ReportLUNdata {
-	__u8 LUNListLength[4];
-	__u32 reserved;
-	__u8 LUN[HPSA_MAX_LUN][8];
+	u8 LUNListLength[4];
+	u32 reserved;
+	u8 LUN[HPSA_MAX_LUN][8];
 };
 
 struct ReportExtendedLUNdata {
-	__u8 LUNListLength[4];
-	__u8 extended_response_flag;
-	__u8 reserved[3];
-	__u8 LUN[HPSA_MAX_LUN][24];
+	u8 LUNListLength[4];
+	u8 extended_response_flag;
+	u8 reserved[3];
+	u8 LUN[HPSA_MAX_LUN][24];
 };
 
 struct SenseSubsystem_info {
-	__u8 reserved[36];
-	__u8 portname[8];
-	__u8 reserved1[1108];
+	u8 reserved[36];
+	u8 portname[8];
+	u8 reserved1[1108];
 };
 
 #define HPSA_READ_CAPACITY 0x25 /* Read Capacity */
 struct ReadCapdata {
-	__u8 total_size[4];	/* Total size in blocks */
-	__u8 block_size[4];	/* Size of blocks in bytes */
+	u8 total_size[4];	/* Total size in blocks */
+	u8 block_size[4];	/* Size of blocks in bytes */
 };
 
 #if 0
@@ -174,94 +174,94 @@ struct ReadCapdata {
 /* Command List Structure */
 union SCSI3Addr {
 	struct {
-		__u8 Dev;
-		__u8 Bus:6;
-		__u8 Mode:2;        /* b00 */
+		u8 Dev;
+		u8 Bus:6;
+		u8 Mode:2;        /* b00 */
 	} PeripDev;
 	struct {
-		__u8 DevLSB;
-		__u8 DevMSB:6;
-		__u8 Mode:2;        /* b01 */
+		u8 DevLSB;
+		u8 DevMSB:6;
+		u8 Mode:2;        /* b01 */
 	} LogDev;
 	struct {
-		__u8 Dev:5;
-		__u8 Bus:3;
-		__u8 Targ:6;
-		__u8 Mode:2;        /* b10 */
+		u8 Dev:5;
+		u8 Bus:3;
+		u8 Targ:6;
+		u8 Mode:2;        /* b10 */
 	} LogUnit;
 };
 
 struct PhysDevAddr {
-	__u32             TargetId:24;
-	__u32             Bus:6;
-	__u32             Mode:2;
+	u32             TargetId:24;
+	u32             Bus:6;
+	u32             Mode:2;
 	/* 2 level target device addr */
 	union SCSI3Addr  Target[2];
 };
 
 struct LogDevAddr {
-	__u32            VolId:30;
-	__u32            Mode:2;
-	__u8             reserved[4];
+	u32            VolId:30;
+	u32            Mode:2;
+	u8             reserved[4];
 };
 
 union LUNAddr {
-	__u8               LunAddrBytes[8];
+	u8               LunAddrBytes[8];
 	union SCSI3Addr    SCSI3Lun[4];
 	struct PhysDevAddr PhysDev;
 	struct LogDevAddr  LogDev;
 };
 
 struct CommandListHeader {
-	__u8              ReplyQueue;
-	__u8              SGList;
-	__u16             SGTotal;
+	u8              ReplyQueue;
+	u8              SGList;
+	u16             SGTotal;
 	struct vals32     Tag;
 	union LUNAddr     LUN;
 };
 
 struct RequestBlock {
-	__u8   CDBLen;
+	u8   CDBLen;
 	struct {
-		__u8 Type:3;
-		__u8 Attribute:3;
-		__u8 Direction:2;
+		u8 Type:3;
+		u8 Attribute:3;
+		u8 Direction:2;
 	} Type;
-	__u16  Timeout;
-	__u8   CDB[16];
+	u16  Timeout;
+	u8   CDB[16];
 };
 
 struct ErrDescriptor {
 	struct vals32 Addr;
-	__u32  Len;
+	u32  Len;
 };
 
 struct SGDescriptor {
 	struct vals32 Addr;
-	__u32  Len;
-	__u32  Ext;
+	u32  Len;
+	u32  Ext;
 };
 
 union MoreErrInfo {
 	struct {
-		__u8  Reserved[3];
-		__u8  Type;
-		__u32 ErrorInfo;
+		u8  Reserved[3];
+		u8  Type;
+		u32 ErrorInfo;
 	} Common_Info;
 	struct {
-		__u8  Reserved[2];
-		__u8  offense_size; /* size of offending entry */
-		__u8  offense_num;  /* byte # of offense 0-base */
-		__u32 offense_value;
+		u8  Reserved[2];
+		u8  offense_size; /* size of offending entry */
+		u8  offense_num;  /* byte # of offense 0-base */
+		u32 offense_value;
 	} Invalid_Cmd;
 };
 struct ErrorInfo {
-	__u8               ScsiStatus;
-	__u8               SenseLen;
-	__u16              CommandStatus;
-	__u32              ResidualCnt;
+	u8               ScsiStatus;
+	u8               SenseLen;
+	u16              CommandStatus;
+	u32              ResidualCnt;
 	union MoreErrInfo  MoreErrInfo;
-	__u8               SenseInfo[SENSEINFOBYTES];
+	u8               SenseInfo[SENSEINFOBYTES];
 };
 /* Command types */
 #define CMD_IOCTL_PEND  0x01
@@ -279,7 +279,7 @@ struct CommandList {
 	struct ErrDescriptor     ErrDesc;
 	struct SGDescriptor      SG[MAXSGENTRIES];
 	/* information associated with the command */
-	__u32			   busaddr; /* physical addr of this record */
+	u32			   busaddr; /* physical addr of this record */
 	struct ErrorInfo *err_info; /* pointer to the allocated mem */
 	struct ctlr_info	   *h;
 	int			   cmd_type;
@@ -295,31 +295,31 @@ struct CommandList {
 
 /* Configuration Table Structure */
 struct HostWrite {
-	__u32 TransportRequest;
-	__u32 Reserved;
-	__u32 CoalIntDelay;
-	__u32 CoalIntCount;
+	u32 TransportRequest;
+	u32 Reserved;
+	u32 CoalIntDelay;
+	u32 CoalIntCount;
 };
 
 struct CfgTable {
-	__u8             Signature[4];
-	__u32            SpecValence;
-	__u32            TransportSupport;
-	__u32            TransportActive;
+	u8             Signature[4];
+	u32            SpecValence;
+	u32            TransportSupport;
+	u32            TransportActive;
 	struct HostWrite HostWrite;
-	__u32            CmdsOutMax;
-	__u32            BusTypes;
-	__u32            Reserved;
-	__u8             ServerName[16];
-	__u32            HeartBeat;
-	__u32            SCSI_Prefetch;
+	u32            CmdsOutMax;
+	u32            BusTypes;
+	u32            Reserved;
+	u8             ServerName[16];
+	u32            HeartBeat;
+	u32            SCSI_Prefetch;
 };
 
 struct hpsa_pci_info {
 	unsigned char	bus;
 	unsigned char	dev_fn;
 	unsigned short	domain;
-	__u32		board_id;
+	u32		board_id;
 };
 
 #pragma pack()

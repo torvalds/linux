@@ -126,8 +126,8 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c);
 static void cmd_special_free(struct ctlr_info *h, struct CommandList *c);
 static struct CommandList *cmd_alloc(struct ctlr_info *h);
 static struct CommandList *cmd_special_alloc(struct ctlr_info *h);
-static void fill_cmd(struct CommandList *c, __u8 cmd, struct ctlr_info *h,
-	void *buff, size_t size, __u8 page_code, unsigned char *scsi3addr,
+static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
+	void *buff, size_t size, u8 page_code, unsigned char *scsi3addr,
 	int cmd_type);
 
 static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
@@ -912,7 +912,7 @@ static void hpsa_scsi_setup(struct ctlr_info *h)
 }
 
 static void complete_scsi_command(struct CommandList *cp,
-	int timeout, __u32 tag)
+	int timeout, u32 tag)
 {
 	struct scsi_cmnd *cmd;
 	struct ctlr_info *h;
@@ -1160,7 +1160,7 @@ static void hpsa_map_one(struct pci_dev *pdev,
 		size_t buflen,
 		int data_direction)
 {
-	__u64 addr64;
+	u64 addr64;
 
 	if (buflen == 0 || data_direction == PCI_DMA_NONE) {
 		cp->Header.SGList = 0;
@@ -1168,14 +1168,14 @@ static void hpsa_map_one(struct pci_dev *pdev,
 		return;
 	}
 
-	addr64 = (__u64) pci_map_single(pdev, buf, buflen, data_direction);
+	addr64 = (u64) pci_map_single(pdev, buf, buflen, data_direction);
 	cp->SG[0].Addr.lower =
-	  (__u32) (addr64 & (__u64) 0x00000000FFFFFFFF);
+	  (u32) (addr64 & (u64) 0x00000000FFFFFFFF);
 	cp->SG[0].Addr.upper =
-	  (__u32) ((addr64 >> 32) & (__u64) 0x00000000FFFFFFFF);
+	  (u32) ((addr64 >> 32) & (u64) 0x00000000FFFFFFFF);
 	cp->SG[0].Len = buflen;
-	cp->Header.SGList = (__u8) 1;   /* no. SGs contig in this cmd */
-	cp->Header.SGTotal = (__u16) 1; /* total sgs in this cmd list */
+	cp->Header.SGList = (u8) 1;   /* no. SGs contig in this cmd */
+	cp->Header.SGTotal = (u16) 1; /* total sgs in this cmd list */
 }
 
 static inline void hpsa_scsi_do_simple_cmd_core(struct ctlr_info *h,
@@ -1485,11 +1485,11 @@ static int is_msa2xxx(struct ctlr_info *h, struct hpsa_scsi_dev_t *device)
  * in hpsa_find_target_lun, called by hpsa_scsi_add_entry.)
  */
 static void figure_bus_target_lun(struct ctlr_info *h,
-	__u8 *lunaddrbytes, int *bus, int *target, int *lun,
+	u8 *lunaddrbytes, int *bus, int *target, int *lun,
 	struct hpsa_scsi_dev_t *device)
 {
 
-	__u32 lunid;
+	u32 lunid;
 
 	if (is_logical_dev_addr_mode(lunaddrbytes)) {
 		/* logical device */
@@ -1529,7 +1529,7 @@ static void figure_bus_target_lun(struct ctlr_info *h,
  */
 static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
 	struct hpsa_scsi_dev_t *tmpdevice,
-	struct hpsa_scsi_dev_t *this_device, __u8 *lunaddrbytes,
+	struct hpsa_scsi_dev_t *this_device, u8 *lunaddrbytes,
 	int bus, int target, int lun, unsigned long lunzerobits[],
 	int *nmsa2xxx_enclosures)
 {
@@ -1576,8 +1576,8 @@ static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
  */
 static int hpsa_gather_lun_info(struct ctlr_info *h,
 	int reportlunsize,
-	struct ReportLUNdata *physdev, __u32 *nphysicals,
-	struct ReportLUNdata *logdev, __u32 *nlogicals)
+	struct ReportLUNdata *physdev, u32 *nphysicals,
+	struct ReportLUNdata *logdev, u32 *nlogicals)
 {
 	if (hpsa_scsi_do_report_phys_luns(h, physdev, reportlunsize, 0)) {
 		dev_err(&h->pdev->dev, "report physical LUNs failed.\n");
@@ -1636,9 +1636,9 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	struct ReportLUNdata *physdev_list = NULL;
 	struct ReportLUNdata *logdev_list = NULL;
 	unsigned char *inq_buff = NULL;
-	__u32 nphysicals = 0;
-	__u32 nlogicals = 0;
-	__u32 ndev_allocated = 0;
+	u32 nphysicals = 0;
+	u32 nlogicals = 0;
+	u32 ndev_allocated = 0;
 	struct hpsa_scsi_dev_t **currentsd, *this_device, *tmpdevice;
 	int ncurrent = 0;
 	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 8;
@@ -1684,7 +1684,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	/* adjust our table of devices */
 	nmsa2xxx_enclosures = 0;
 	for (i = 0; i < nphysicals + nlogicals + 1; i++) {
-		__u8 *lunaddrbytes;
+		u8 *lunaddrbytes;
 
 		/* Figure out where the LUN ID info is coming from */
 		if (i < nphysicals)
@@ -1790,7 +1790,7 @@ static int hpsa_scatter_gather(struct pci_dev *pdev,
 {
 	unsigned int len;
 	struct scatterlist *sg;
-	__u64 addr64;
+	u64 addr64;
 	int use_sg, i;
 
 	BUG_ON(scsi_sg_count(cmd) > MAXSGENTRIES);
@@ -1803,20 +1803,20 @@ static int hpsa_scatter_gather(struct pci_dev *pdev,
 		goto sglist_finished;
 
 	scsi_for_each_sg(cmd, sg, use_sg, i) {
-		addr64 = (__u64) sg_dma_address(sg);
+		addr64 = (u64) sg_dma_address(sg);
 		len  = sg_dma_len(sg);
 		cp->SG[i].Addr.lower =
-			(__u32) (addr64 & (__u64) 0x00000000FFFFFFFF);
+			(u32) (addr64 & (u64) 0x00000000FFFFFFFF);
 		cp->SG[i].Addr.upper =
-			(__u32) ((addr64 >> 32) & (__u64) 0x00000000FFFFFFFF);
+			(u32) ((addr64 >> 32) & (u64) 0x00000000FFFFFFFF);
 		cp->SG[i].Len = len;
 		cp->SG[i].Ext = 0;  /* we are not chaining */
 	}
 
 sglist_finished:
 
-	cp->Header.SGList = (__u8) use_sg;   /* no. SGs contig in this cmd */
-	cp->Header.SGTotal = (__u16) use_sg; /* total sgs in this cmd list */
+	cp->Header.SGList = (u8) use_sg;   /* no. SGs contig in this cmd */
+	cp->Header.SGTotal = (u16) use_sg; /* total sgs in this cmd list */
 	return 0;
 }
 
@@ -2053,8 +2053,8 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 	c->cmdindex = i;
 
 	INIT_HLIST_NODE(&c->list);
-	c->busaddr = (__u32) cmd_dma_handle;
-	temp64.val = (__u64) err_dma_handle;
+	c->busaddr = (u32) cmd_dma_handle;
+	temp64.val = (u64) err_dma_handle;
 	c->ErrDesc.Addr.lower = temp64.val32.lower;
 	c->ErrDesc.Addr.upper = temp64.val32.upper;
 	c->ErrDesc.Len = sizeof(*c->err_info);
@@ -2091,8 +2091,8 @@ static struct CommandList *cmd_special_alloc(struct ctlr_info *h)
 	memset(c->err_info, 0, sizeof(*c->err_info));
 
 	INIT_HLIST_NODE(&c->list);
-	c->busaddr = (__u32) cmd_dma_handle;
-	temp64.val = (__u64) err_dma_handle;
+	c->busaddr = (u32) cmd_dma_handle;
+	temp64.val = (u64) err_dma_handle;
 	c->ErrDesc.Addr.lower = temp64.val32.lower;
 	c->ErrDesc.Addr.upper = temp64.val32.upper;
 	c->ErrDesc.Len = sizeof(*c->err_info);
@@ -2378,8 +2378,8 @@ static int hpsa_big_passthru_ioctl(struct ctlr_info *h, void __user *argp)
 	BYTE sg_used = 0;
 	int status = 0;
 	int i;
-	__u32 left;
-	__u32 sz;
+	u32 left;
+	u32 sz;
 	BYTE __user *data_ptr;
 
 	if (!argp)
@@ -2542,8 +2542,8 @@ static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
 	}
 }
 
-static void fill_cmd(struct CommandList *c, __u8 cmd, struct ctlr_info *h,
-	void *buff, size_t size, __u8 page_code, unsigned char *scsi3addr,
+static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
+	void *buff, size_t size, u8 page_code, unsigned char *scsi3addr,
 	int cmd_type)
 {
 	int pci_dir = XFER_NONE;
@@ -2721,8 +2721,8 @@ static inline long interrupt_not_for_us(struct ctlr_info *h)
 		 (h->interrupts_enabled == 0));
 }
 
-static inline int bad_tag(struct ctlr_info *h, __u32 tag_index,
-	__u32 raw_tag)
+static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
+	u32 raw_tag)
 {
 	if (unlikely(tag_index >= h->nr_cmds)) {
 		dev_warn(&h->pdev->dev, "bad tag 0x%08x ignored.\n", raw_tag);
@@ -2731,7 +2731,7 @@ static inline int bad_tag(struct ctlr_info *h, __u32 tag_index,
 	return 0;
 }
 
-static inline void finish_cmd(struct CommandList *c, __u32 raw_tag)
+static inline void finish_cmd(struct CommandList *c, u32 raw_tag)
 {
 	removeQ(c);
 	if (likely(c->cmd_type == CMD_SCSI))
@@ -2745,7 +2745,7 @@ static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 	struct ctlr_info *h = dev_id;
 	struct CommandList *c;
 	unsigned long flags;
-	__u32 raw_tag, tag, tag_index;
+	u32 raw_tag, tag, tag_index;
 	struct hlist_node *tmp;
 
 	if (interrupt_not_for_us(h))
@@ -3063,7 +3063,7 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
  */
 
 static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
-					   struct pci_dev *pdev, __u32 board_id)
+					   struct pci_dev *pdev, u32 board_id)
 {
 #ifdef CONFIG_PCI_MSI
 	int err;
@@ -3114,15 +3114,15 @@ default_int_mode:
 static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 {
 	ushort subsystem_vendor_id, subsystem_device_id, command;
-	__u32 board_id, scratchpad = 0;
-	__u64 cfg_offset;
-	__u32 cfg_base_addr;
-	__u64 cfg_base_addr_index;
+	u32 board_id, scratchpad = 0;
+	u64 cfg_offset;
+	u32 cfg_base_addr;
+	u64 cfg_base_addr_index;
 	int i, prod_index, err;
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
 	subsystem_device_id = pdev->subsystem_device;
-	board_id = (((__u32) (subsystem_device_id << 16) & 0xffff0000) |
+	board_id = (((u32) (subsystem_device_id << 16) & 0xffff0000) |
 		    subsystem_vendor_id);
 
 	for (i = 0; i < ARRAY_SIZE(products); i++)
@@ -3199,7 +3199,7 @@ static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 
 	/* get the address index number */
 	cfg_base_addr = readl(h->vaddr + SA5_CTCFG_OFFSET);
-	cfg_base_addr &= (__u32) 0x0000ffff;
+	cfg_base_addr &= (u32) 0x0000ffff;
 	cfg_base_addr_index = find_PCI_BAR_index(pdev, cfg_base_addr);
 	if (cfg_base_addr_index == -1) {
 		dev_warn(&pdev->dev, "cannot find cfg_base_addr_index\n");
@@ -3232,7 +3232,7 @@ static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 #ifdef CONFIG_X86
 	{
 		/* Need to enable prefetch in the SCSI core for 6400 in x86 */
-		__u32 prefetch;
+		u32 prefetch;
 		prefetch = readl(&(h->cfgtable->SCSI_Prefetch));
 		prefetch |= 0x100;
 		writel(prefetch, &(h->cfgtable->SCSI_Prefetch));
@@ -3244,7 +3244,7 @@ static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	 * physical memory.
 	 */
 	if (board_id == 0x3225103C) {
-		__u32 dma_prefetch;
+		u32 dma_prefetch;
 		dma_prefetch = readl(h->vaddr + I2O_DMA1_CFG);
 		dma_prefetch |= 0x8000;
 		writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);

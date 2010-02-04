@@ -55,7 +55,7 @@ struct ctlr_info {
 	char    *product_name;
 	char	firm_ver[4]; /* Firmware version */
 	struct pci_dev *pdev;
-	__u32	board_id;
+	u32	board_id;
 	void __iomem *vaddr;
 	unsigned long paddr;
 	int 	nr_cmds; /* Number of commands allowed on this controller */
@@ -261,7 +261,7 @@ static struct access_method SA5_access = {
 };
 
 struct board_type {
-	__u32	board_id;
+	u32	board_id;
 	char	*product_name;
 	struct access_method *access;
 };
