@@ -395,23 +395,22 @@ static void zero_page_vector_range(int off, int len, struct page **pages)
 {
 	int i = off >> PAGE_CACHE_SHIFT;
 
+	off &= ~PAGE_CACHE_MASK;
+
 	dout("zero_page_vector_page %u~%u\n", off, len);
-	BUG_ON(len < PAGE_CACHE_SIZE);
 
 	/* leading partial page? */
-	if (off & ~PAGE_CACHE_MASK) {
+	if (off) {
+		int end = min((int)PAGE_CACHE_SIZE, off + len);
 		dout("zeroing %d %p head from %d\n", i, pages[i],
-		     (int)(off & ~PAGE_CACHE_MASK));
-		zero_user_segment(pages[i], off & ~PAGE_CACHE_MASK,
-				  PAGE_CACHE_SIZE);
-		off += PAGE_CACHE_SIZE;
-		off &= PAGE_CACHE_MASK;
+		     (int)off);
+		zero_user_segment(pages[i], off, end);
+		len -= (end - off);
 		i++;
 	}
 	while (len >= PAGE_CACHE_SIZE) {
 		dout("zeroing %d %p\n", i, pages[i]);
 		zero_user_segment(pages[i], 0, PAGE_CACHE_SIZE);
-		off += PAGE_CACHE_SIZE;
 		len -= PAGE_CACHE_SIZE;
 		i++;
 	}
@@ -437,7 +436,7 @@ static int striped_read(struct inode *inode,
 	struct ceph_client *client = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 pos, this_len;
-	int page_off = off & ~PAGE_CACHE_SIZE; /* first byte's offset in page */
+	int page_off = off & ~PAGE_CACHE_MASK; /* first byte's offset in page */
 	int left, pages_left;
 	int read;
 	struct page **page_pos;
@@ -493,6 +492,7 @@ more:
 			dout("zero tail\n");
 			zero_page_vector_range(page_off + read, len - read,
 					       pages);
+			read = len;
 			goto out;
 		}
 
