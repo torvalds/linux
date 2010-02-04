@@ -197,6 +197,12 @@ static inline struct ctlr_info *sdev_to_hba(struct scsi_device *sdev)
 	return (struct ctlr_info *) *priv;
 }
 
+static inline struct ctlr_info *shost_to_hba(struct Scsi_Host *sh)
+{
+	unsigned long *priv = shost_priv(sh);
+	return (struct ctlr_info *) *priv;
+}
+
 static struct task_struct *hpsa_scan_thread;
 static DEFINE_MUTEX(hpsa_scan_mutex);
 static LIST_HEAD(hpsa_scan_q);
@@ -381,8 +387,7 @@ static ssize_t host_store_rescan(struct device *dev,
 {
 	struct ctlr_info *h;
 	struct Scsi_Host *shost = class_to_shost(dev);
-	unsigned long *priv = shost_priv(shost);
-	h = (struct ctlr_info *) *priv;
+	h = shost_to_hba(shost);
 	if (add_to_scan_list(h)) {
 		wake_up_process(hpsa_scan_thread);
 		wait_for_completion_interruptible(&h->scan_wait);
