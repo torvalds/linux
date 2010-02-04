@@ -458,6 +458,15 @@ static inline int is_logical_dev_addr_mode(unsigned char scsi3addr[])
 	return (scsi3addr[3] & 0xC0) == 0x40;
 }
 
+static inline int is_scsi_rev_5(struct ctlr_info *h)
+{
+	if (!h->hba_inquiry_data)
+		return 0;
+	if ((h->hba_inquiry_data[2] & 0x07) == 5)
+		return 1;
+	return 0;
+}
+
 static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 	"UNKNOWN"
 };
@@ -1525,22 +1534,44 @@ static void figure_bus_target_lun(struct ctlr_info *h,
 
 	if (is_logical_dev_addr_mode(lunaddrbytes)) {
 		/* logical device */
-		lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
-		if (is_msa2xxx(h, device)) {
-			*bus = 1;
-			*target = (lunid >> 16) & 0x3fff;
-			*lun = lunid & 0x00ff;
-		} else {
+		if (unlikely(is_scsi_rev_5(h))) {
+			/* p1210m, logical drives lun assignments
+			 * match SCSI REPORT LUNS data.
+			 */
+			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
 			*bus = 0;
-			*lun = 0;
-			*target = lunid & 0x3fff;
+			*target = 0;
+			*lun = (lunid & 0x3fff) + 1;
+		} else {
+			/* not p1210m... */
+			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
+			if (is_msa2xxx(h, device)) {
+				/* msa2xxx way, put logicals on bus 1
+				 * and match target/lun numbers box
+				 * reports.
+				 */
+				*bus = 1;
+				*target = (lunid >> 16) & 0x3fff;
+				*lun = lunid & 0x00ff;
+			} else {
+				/* Traditional smart array way. */
+				*bus = 0;
+				*lun = 0;
+				*target = lunid & 0x3fff;
+			}
 		}
 	} else {
 		/* physical device */
 		if (is_hba_lunid(lunaddrbytes))
-			*bus = 3;
+			if (unlikely(is_scsi_rev_5(h))) {
+				*bus = 0; /* put p1210m ctlr at 0,0,0 */
+				*target = 0;
+				*lun = 0;
+				return;
+			} else
+				*bus = 3; /* traditional smartarray */
 		else
-			*bus = 2;
+			*bus = 2; /* physical disk */
 		*target = -1;
 		*lun = -1; /* we will fill these in later. */
 	}
@@ -1579,6 +1610,9 @@ static int add_msa2xxx_enclosure_device(struct ctlr_info *h,
 
 	if (is_hba_lunid(scsi3addr))
 		return 0; /* Don't add the RAID controller here. */
+
+	if (is_scsi_rev_5(h))
+		return 0; /* p1210m doesn't need to do this. */
 
 #define MAX_MSA2XXX_ENCLOSURES 32
 	if (*nmsa2xxx_enclosures >= MAX_MSA2XXX_ENCLOSURES) {
@@ -1643,6 +1677,31 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	return 0;
 }
 
+u8 *figure_lunaddrbytes(struct ctlr_info *h, int raid_ctlr_position, int i,
+	int nphysicals, int nlogicals, struct ReportLUNdata *physdev_list,
+	struct ReportLUNdata *logdev_list)
+{
+	/* Helper function, figure out where the LUN ID info is coming from
+	 * given index i, lists of physical and logical devices, where in
+	 * the list the raid controller is supposed to appear (first or last)
+	 */
+
+	int logicals_start = nphysicals + (raid_ctlr_position == 0);
+	int last_device = nphysicals + nlogicals + (raid_ctlr_position == 0);
+
+	if (i == raid_ctlr_position)
+		return RAID_CTLR_LUNID;
+
+	if (i < logicals_start)
+		return &physdev_list->LUN[i - (raid_ctlr_position == 0)][0];
+
+	if (i < last_device)
+		return &logdev_list->LUN[i - nphysicals -
+			(raid_ctlr_position == 0)][0];
+	BUG();
+	return NULL;
+}
+
 static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 {
 	/* the idea here is we could get notified
@@ -1666,6 +1725,7 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 	int reportlunsize = sizeof(*physdev_list) + HPSA_MAX_PHYS_LUN * 8;
 	int i, nmsa2xxx_enclosures, ndevs_to_allocate;
 	int bus, target, lun;
+	int raid_ctlr_position;
 	DECLARE_BITMAP(lunzerobits, HPSA_MAX_TARGETS_PER_CTLR);
 
 	currentsd = kzalloc(sizeof(*currentsd) * HPSA_MAX_SCSI_DEVS_PER_HBA,
@@ -1703,23 +1763,22 @@ static void hpsa_update_scsi_devices(struct ctlr_info *h, int hostno)
 		ndev_allocated++;
 	}
 
+	if (unlikely(is_scsi_rev_5(h)))
+		raid_ctlr_position = 0;
+	else
+		raid_ctlr_position = nphysicals + nlogicals;
+
 	/* adjust our table of devices */
 	nmsa2xxx_enclosures = 0;
 	for (i = 0; i < nphysicals + nlogicals + 1; i++) {
 		u8 *lunaddrbytes;
 
 		/* Figure out where the LUN ID info is coming from */
-		if (i < nphysicals)
-			lunaddrbytes = &physdev_list->LUN[i][0];
-		else
-			if (i < nphysicals + nlogicals)
-				lunaddrbytes =
-					&logdev_list->LUN[i-nphysicals][0];
-			else /* jam in the RAID controller at the end */
-				lunaddrbytes = RAID_CTLR_LUNID;
-
+		lunaddrbytes = figure_lunaddrbytes(h, raid_ctlr_position,
+			i, nphysicals, nlogicals, physdev_list, logdev_list);
 		/* skip masked physical devices. */
-		if (lunaddrbytes[3] & 0xC0 && i < nphysicals)
+		if (lunaddrbytes[3] & 0xC0 &&
+			i < nphysicals + (raid_ctlr_position == 0))
 			continue;
 
 		/* Get device type, vendor, model, device id */
@@ -3349,6 +3408,22 @@ err_out_free_res:
 	return err;
 }
 
+static void __devinit hpsa_hba_inquiry(struct ctlr_info *h)
+{
+	int rc;
+
+#define HBA_INQUIRY_BYTE_COUNT 64
+	h->hba_inquiry_data = kmalloc(HBA_INQUIRY_BYTE_COUNT, GFP_KERNEL);
+	if (!h->hba_inquiry_data)
+		return;
+	rc = hpsa_scsi_do_inquiry(h, RAID_CTLR_LUNID, 0,
+		h->hba_inquiry_data, HBA_INQUIRY_BYTE_COUNT);
+	if (rc != 0) {
+		kfree(h->hba_inquiry_data);
+		h->hba_inquiry_data = NULL;
+	}
+}
+
 static int __devinit hpsa_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -3458,6 +3533,7 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	h->access.set_intr_mask(h, HPSA_INTR_ON);
 
 	hpsa_put_ctlr_into_performant_mode(h);
+	hpsa_hba_inquiry(h);
 	hpsa_register_scsi(h);	/* hook ourselves into SCSI subsystem */
 	h->busy_initializing = 0;
 	return 1;
@@ -3550,6 +3626,7 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 		h->reply_pool, h->reply_pool_dhandle);
 	kfree(h->cmd_pool_bits);
 	kfree(h->blockFetchTable);
+	kfree(h->hba_inquiry_data);
 	/*
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo

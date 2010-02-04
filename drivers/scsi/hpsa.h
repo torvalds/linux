@@ -120,6 +120,7 @@ struct ctlr_info {
 	size_t reply_pool_size;
 	unsigned char reply_pool_wraparound;
 	u32 *blockFetchTable;
+	unsigned char *hba_inquiry_data;
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
