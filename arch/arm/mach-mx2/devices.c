@@ -78,104 +78,34 @@ DEFINE_IMX_SPI_DEVICE(2, MX27_CSPI3_BASE_ADDR, MX27_INT_CSPI3);
  * - i.MX21: 3 timers
  * - i.MX27: 6 timers
  */
-
-/* We use gpt0 as system timer, so do not add a device for this one */
-
-static struct resource timer1_resources[] = {
-	{
-		.start	= GPT2_BASE_ADDR,
-		.end	= GPT2_BASE_ADDR + 0x17,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = MXC_INT_GPT2,
-		.end     = MXC_INT_GPT2,
-		.flags   = IORESOURCE_IRQ,
+#define DEFINE_IMX_GPT_DEVICE(n, baseaddr, irq)				\
+	static struct resource timer ## n ##_resources[] = {		\
+		{							\
+			.start = baseaddr,				\
+			.end = baseaddr + SZ_4K - 1,			\
+			.flags = IORESOURCE_MEM,			\
+		}, {							\
+			.start = irq,					\
+			.end = irq,					\
+			.flags = IORESOURCE_IRQ,			\
+		}							\
+	};								\
+									\
+	struct platform_device mxc_gpt ## n = {				\
+		.name = "imx_gpt",					\
+		.id = n,						\
+		.num_resources = ARRAY_SIZE(timer ## n ## _resources),	\
+		.resource = timer ## n ## _resources,			\
 	}
-};
 
-struct platform_device mxc_gpt1 = {
-	.name = "imx_gpt",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(timer1_resources),
-	.resource = timer1_resources,
-};
-
-static struct resource timer2_resources[] = {
-	{
-		.start	= GPT3_BASE_ADDR,
-		.end	= GPT3_BASE_ADDR + 0x17,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = MXC_INT_GPT3,
-		.end     = MXC_INT_GPT3,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_gpt2 = {
-	.name = "imx_gpt",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(timer2_resources),
-	.resource = timer2_resources,
-};
+/* We use gpt1 as system timer, so do not add a device for this one */
+DEFINE_IMX_GPT_DEVICE(1, MX2x_GPT2_BASE_ADDR, MX2x_INT_GPT2);
+DEFINE_IMX_GPT_DEVICE(2, MX2x_GPT3_BASE_ADDR, MX2x_INT_GPT3);
 
 #ifdef CONFIG_MACH_MX27
-static struct resource timer3_resources[] = {
-	{
-		.start	= GPT4_BASE_ADDR,
-		.end	= GPT4_BASE_ADDR + 0x17,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = MXC_INT_GPT4,
-		.end     = MXC_INT_GPT4,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_gpt3 = {
-	.name = "imx_gpt",
-	.id = 3,
-	.num_resources = ARRAY_SIZE(timer3_resources),
-	.resource = timer3_resources,
-};
-
-static struct resource timer4_resources[] = {
-	{
-		.start	= GPT5_BASE_ADDR,
-		.end	= GPT5_BASE_ADDR + 0x17,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = MXC_INT_GPT5,
-		.end     = MXC_INT_GPT5,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_gpt4 = {
-	.name = "imx_gpt",
-	.id = 4,
-	.num_resources = ARRAY_SIZE(timer4_resources),
-	.resource = timer4_resources,
-};
-
-static struct resource timer5_resources[] = {
-	{
-		.start	= GPT6_BASE_ADDR,
-		.end	= GPT6_BASE_ADDR + 0x17,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start   = MXC_INT_GPT6,
-		.end     = MXC_INT_GPT6,
-		.flags   = IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_gpt5 = {
-	.name = "imx_gpt",
-	.id = 5,
-	.num_resources = ARRAY_SIZE(timer5_resources),
-	.resource = timer5_resources,
-};
+DEFINE_IMX_GPT_DEVICE(3, MX27_GPT4_BASE_ADDR, MX27_INT_GPT4);
+DEFINE_IMX_GPT_DEVICE(4, MX27_GPT5_BASE_ADDR, MX27_INT_GPT5);
+DEFINE_IMX_GPT_DEVICE(5, MX27_GPT6_BASE_ADDR, MX27_INT_GPT6);
 #endif
 
 /*
