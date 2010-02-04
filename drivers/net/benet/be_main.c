@@ -1350,7 +1350,7 @@ static irqreturn_t be_intx(int irq, void *dev)
 	int isr;
 
 	isr = ioread32(adapter->csr + CEV_ISR0_OFFSET +
-			be_pci_func(adapter) * CEV_ISR_SIZE);
+		(adapter->tx_eq.q.id/ 8) * CEV_ISR_SIZE);
 	if (!isr)
 		return IRQ_NONE;
 
@@ -2168,7 +2168,7 @@ static int be_stats_init(struct be_adapter *adapter)
 	cmd->va = pci_alloc_consistent(adapter->pdev, cmd->size, &cmd->dma);
 	if (cmd->va == NULL)
 		return -1;
-	memset(cmd->va, cmd->size, 0);
+	memset(cmd->va, 0, cmd->size);
 	return 0;
 }
 

@@ -5384,7 +5384,7 @@ dma_error:
 		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
 	}
 
-	return count;
+	return 0;
 }
 
 static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
@@ -5534,8 +5534,11 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int txq = smp_processor_id();
 
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
+		while (unlikely(txq >= dev->real_num_tx_queues))
+			txq -= dev->real_num_tx_queues;
 		return txq;
+	}
 
 #ifdef IXGBE_FCOE
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
