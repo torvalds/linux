@@ -62,7 +62,7 @@ static const struct  stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(rx_toolong),
 	STMMAC_STAT(rx_collision),
 	STMMAC_STAT(rx_crc),
-	STMMAC_STAT(rx_lenght),
+	STMMAC_STAT(rx_length),
 	STMMAC_STAT(rx_mii),
 	STMMAC_STAT(rx_multicast),
 	STMMAC_STAT(rx_gmac_overflow),

@@ -44,7 +44,7 @@ struct stmmac_extra_stats {
 	unsigned long rx_toolong;
 	unsigned long rx_collision;
 	unsigned long rx_crc;
-	unsigned long rx_lenght;
+	unsigned long rx_length;
 	unsigned long rx_mii;
 	unsigned long rx_multicast;
 	unsigned long rx_gmac_overflow;

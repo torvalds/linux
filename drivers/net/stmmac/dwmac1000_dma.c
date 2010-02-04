@@ -230,7 +230,7 @@ static int dwmac1000_coe_rdes0(int ipc_err, int type, int payload_err)
 
 	/* bits 5 7 0 | Frame status
 	 * ----------------------------------------------------------
-	 *      0 0 0 | IEEE 802.3 Type frame (lenght < 1536 octects)
+	 *      0 0 0 | IEEE 802.3 Type frame (length < 1536 octects)
 	 *      1 0 0 | IPv4/6 No CSUM errorS.
 	 *      1 0 1 | IPv4/6 CSUM PAYLOAD error
 	 *      1 1 0 | IPv4/6 CSUM IP HR error
@@ -331,7 +331,7 @@ static int dwmac1000_get_rx_frame_status(void *data,
 	}
 	if (unlikely(p->des01.erx.length_error)) {
 		DBG(KERN_ERR "GMAC RX: length_error error\n");
-		x->rx_lenght++;
+		x->rx_length++;
 		ret = discard_frame;
 	}
 #ifdef STMMAC_VLAN_TAG_USED
