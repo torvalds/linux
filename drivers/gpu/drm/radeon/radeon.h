@@ -661,6 +661,13 @@ struct radeon_asic {
 	void (*hpd_fini)(struct radeon_device *rdev);
 	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 	void (*hpd_set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+	/* ioctl hw specific callback. Some hw might want to perform special
+	 * operation on specific ioctl. For instance on wait idle some hw
+	 * might want to perform and HDP flush through MMIO as it seems that
+	 * some R6XX/R7XX hw doesn't take HDP flush into account if programmed
+	 * through ring.
+	 */
+	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 };
 
 /*

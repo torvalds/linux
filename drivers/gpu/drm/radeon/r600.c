@@ -2900,3 +2900,18 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
 	return 0;
 #endif
 }
+
+/**
+ * r600_ioctl_wait_idle - flush host path cache on wait idle ioctl
+ * rdev: radeon device structure
+ * bo: buffer object struct which userspace is waiting for idle
+ *
+ * Some R6XX/R7XX doesn't seems to take into account HDP flush performed
+ * through ring buffer, this leads to corruption in rendering, see
+ * http://bugzilla.kernel.org/show_bug.cgi?id=15186 to avoid this we
+ * directly perform HDP flush by writing register through MMIO.
+ */
+void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
+{
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+}
