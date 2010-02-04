@@ -2865,7 +2865,6 @@ error_release:
 	/* Call fsg_common_release() directly, ref might be not
 	 * initialised */
 	fsg_common_release(&common->ref);
-	complete(&common->thread_notifier);
 	return ERR_PTR(rc);
 }
 
