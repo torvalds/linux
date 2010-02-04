@@ -1128,7 +1128,7 @@ static void complete_scsi_command(struct CommandList *cp,
 		dev_warn(&h->pdev->dev, "cp %p reports abort failed\n", cp);
 		break;
 	case CMD_UNSOLICITED_ABORT:
-		cmd->result = DID_ABORT << 16;
+		cmd->result = DID_RESET << 16;
 		dev_warn(&h->pdev->dev, "cp %p aborted do to an unsolicited "
 			"abort\n", cp);
 		break;
