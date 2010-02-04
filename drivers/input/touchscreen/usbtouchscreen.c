@@ -1050,13 +1050,23 @@ static void usbtouch_free_buffers(struct usb_device *udev,
 	kfree(usbtouch->buffer);
 }
 
+static struct usb_endpoint_descriptor *
+usbtouch_get_input_endpoint(struct usb_host_interface *interface)
+{
+	int i;
+
+	for (i = 0; i < interface->desc.bNumEndpoints; i++)
+		if (usb_endpoint_dir_in(&interface->endpoint[i].desc))
+			return &interface->endpoint[i].desc;
+
+	return NULL;
+}
 
 static int usbtouch_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
 	struct usbtouch_usb *usbtouch;
 	struct input_dev *input_dev;
-	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usbtouch_device_info *type;
@@ -1066,8 +1076,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (id->driver_info == DEVTYPE_IGNORE)
 		return -ENODEV;
 
-	interface = intf->cur_altsetting;
-	endpoint = &interface->endpoint[0].desc;
+	endpoint = usbtouch_get_input_endpoint(intf->cur_altsetting);
+	if (!endpoint)
+		return -ENXIO;
 
 	usbtouch = kzalloc(sizeof(struct usbtouch_usb), GFP_KERNEL);
 	input_dev = input_allocate_device();
