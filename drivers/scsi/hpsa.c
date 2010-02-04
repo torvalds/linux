@@ -2287,40 +2287,6 @@ static void cmd_special_free(struct ctlr_info *h, struct CommandList *c)
 
 #ifdef CONFIG_COMPAT
 
-static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg);
-static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
-	int cmd, void *arg);
-
-static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg)
-{
-	switch (cmd) {
-	case CCISS_GETPCIINFO:
-	case CCISS_GETINTINFO:
-	case CCISS_SETINTINFO:
-	case CCISS_GETNODENAME:
-	case CCISS_SETNODENAME:
-	case CCISS_GETHEARTBEAT:
-	case CCISS_GETBUSTYPES:
-	case CCISS_GETFIRMVER:
-	case CCISS_GETDRIVVER:
-	case CCISS_REVALIDVOLS:
-	case CCISS_DEREGDISK:
-	case CCISS_REGNEWDISK:
-	case CCISS_REGNEWD:
-	case CCISS_RESCANDISK:
-	case CCISS_GETLUNINFO:
-		return hpsa_ioctl(dev, cmd, arg);
-
-	case CCISS_PASSTHRU32:
-		return hpsa_ioctl32_passthru(dev, cmd, arg);
-	case CCISS_BIG_PASSTHRU32:
-		return hpsa_ioctl32_big_passthru(dev, cmd, arg);
-
-	default:
-		return -ENOIOCTLCMD;
-	}
-}
-
 static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
 {
 	IOCTL32_Command_struct __user *arg32 =
@@ -2390,6 +2356,36 @@ static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	if (err)
 		return -EFAULT;
 	return err;
+}
+
+static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg)
+{
+	switch (cmd) {
+	case CCISS_GETPCIINFO:
+	case CCISS_GETINTINFO:
+	case CCISS_SETINTINFO:
+	case CCISS_GETNODENAME:
+	case CCISS_SETNODENAME:
+	case CCISS_GETHEARTBEAT:
+	case CCISS_GETBUSTYPES:
+	case CCISS_GETFIRMVER:
+	case CCISS_GETDRIVVER:
+	case CCISS_REVALIDVOLS:
+	case CCISS_DEREGDISK:
+	case CCISS_REGNEWDISK:
+	case CCISS_REGNEWD:
+	case CCISS_RESCANDISK:
+	case CCISS_GETLUNINFO:
+		return hpsa_ioctl(dev, cmd, arg);
+
+	case CCISS_PASSTHRU32:
+		return hpsa_ioctl32_passthru(dev, cmd, arg);
+	case CCISS_BIG_PASSTHRU32:
+		return hpsa_ioctl32_big_passthru(dev, cmd, arg);
+
+	default:
+		return -ENOIOCTLCMD;
+	}
 }
 #endif
 
