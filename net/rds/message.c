@@ -240,6 +240,7 @@ struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents)
 	struct scatterlist *sg_ret;
 
 	WARN_ON(rm->m_used_sgs + nents > rm->m_total_sgs);
+	WARN_ON(!nents);
 
 	sg_ret = &sg_first[rm->m_used_sgs];
 	sg_init_table(sg_ret, nents);
