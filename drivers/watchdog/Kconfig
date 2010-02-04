@@ -55,6 +55,11 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config MAX63XX_WATCHDOG
+       tristate "Max63xx watchdog"
+       help
+         Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
+
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
