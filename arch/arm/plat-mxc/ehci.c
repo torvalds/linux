@@ -41,7 +41,7 @@
 int mxc_set_usbcontrol(int port, unsigned int flags)
 {
 	unsigned int v;
-
+#ifdef CONFIG_ARCH_MX3
 	if (cpu_is_mx31()) {
 		v = readl(MX31_IO_ADDRESS(MX31_OTG_BASE_ADDR +
 				     USBCTRL_OTGBASE_OFFSET));
@@ -85,7 +85,52 @@ int mxc_set_usbcontrol(int port, unsigned int flags)
 				     USBCTRL_OTGBASE_OFFSET));
 		return 0;
 	}
+#endif /* CONFIG_ARCH_MX3 */
+#ifdef CONFIG_MACH_MX27
+	if (cpu_is_mx27()) {
+		/* On i.MX27 we can use the i.MX31 USBCTRL bits, they
+		 * are identical
+		 */
+		v = readl(MX27_IO_ADDRESS(MX27_OTG_BASE_ADDR +
+				     USBCTRL_OTGBASE_OFFSET));
+		switch (port) {
+		case 0:	/* OTG port */
+			v &= ~(MX31_OTG_SIC_MASK | MX31_OTG_PM_BIT);
+			v |= (flags & MXC_EHCI_INTERFACE_MASK)
+					<< MX31_OTG_SIC_SHIFT;
+			if (!(flags & MXC_EHCI_POWER_PINS_ENABLED))
+				v |= MX31_OTG_PM_BIT;
+			break;
+		case 1: /* H1 port */
+			v &= ~(MX31_H1_SIC_MASK | MX31_H1_PM_BIT | MX31_H1_DT_BIT);
+			v |= (flags & MXC_EHCI_INTERFACE_MASK)
+						<< MX31_H1_SIC_SHIFT;
+			if (!(flags & MXC_EHCI_POWER_PINS_ENABLED))
+				v |= MX31_H1_PM_BIT;
 
+			if (!(flags & MXC_EHCI_TTL_ENABLED))
+				v |= MX31_H1_DT_BIT;
+
+			break;
+		case 2:	/* H2 port */
+			v &= ~(MX31_H2_SIC_MASK | MX31_H2_PM_BIT | MX31_H2_DT_BIT);
+			v |= (flags & MXC_EHCI_INTERFACE_MASK)
+						<< MX31_H2_SIC_SHIFT;
+			if (!(flags & MXC_EHCI_POWER_PINS_ENABLED))
+				v |= MX31_H2_PM_BIT;
+
+			if (!(flags & MXC_EHCI_TTL_ENABLED))
+				v |= MX31_H2_DT_BIT;
+
+			break;
+		default:
+			return -EINVAL;
+		}
+		writel(v, MX27_IO_ADDRESS(MX27_OTG_BASE_ADDR +
+				     USBCTRL_OTGBASE_OFFSET));
+		return 0;
+	}
+#endif /* CONFIG_MACH_MX27 */
 	printk(KERN_WARNING
 		"%s() unable to setup USBCONTROL for this CPU\n", __func__);
 	return -EINVAL;
