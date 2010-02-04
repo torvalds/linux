@@ -141,7 +141,7 @@ static int geode_setkey_cip(struct crypto_tfm *tfm, const u8 *key,
 	ret = crypto_cipher_setkey(op->fallback.cip, key, len);
 	if (ret) {
 		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-		tfm->crt_flags |= (op->fallback.blk->base.crt_flags & CRYPTO_TFM_RES_MASK);
+		tfm->crt_flags |= (op->fallback.cip->base.crt_flags & CRYPTO_TFM_RES_MASK);
 	}
 	return ret;
 }
