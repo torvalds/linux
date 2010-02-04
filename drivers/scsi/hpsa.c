@@ -1580,9 +1580,6 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	}
 	memcpy(nphysicals, &physdev->LUNListLength[0], sizeof(*nphysicals));
 	*nphysicals = be32_to_cpu(*nphysicals) / 8;
-#ifdef DEBUG
-	dev_info(&h->pdev->dev, "number of physical luns is %d\n", *nphysicals);
-#endif
 	if (*nphysicals > HPSA_MAX_PHYS_LUN) {
 		dev_warn(&h->pdev->dev, "maximum physical LUNs (%d) exceeded."
 			"  %d LUNs ignored.\n", HPSA_MAX_PHYS_LUN,
@@ -1595,9 +1592,6 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 	}
 	memcpy(nlogicals, &logdev->LUNListLength[0], sizeof(*nlogicals));
 	*nlogicals = be32_to_cpu(*nlogicals) / 8;
-#ifdef DEBUG
-	dev_info(&h->pdev->dev, "number of logical luns is %d\n", *nlogicals);
-#endif
 	/* Reject Logicals in excess of our max capability. */
 	if (*nlogicals > HPSA_MAX_LUN) {
 		dev_warn(&h->pdev->dev,
