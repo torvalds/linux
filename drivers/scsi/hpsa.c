@@ -1363,9 +1363,8 @@ static int hpsa_scsi_do_report_luns(struct ctlr_info *h, int logical,
 		dev_err(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
 		return -1;
 	}
-
-	memset(&scsi3addr[0], 0, 8); /* address the controller */
-
+	/* address the controller */
+	memset(scsi3addr, 0, sizeof(scsi3addr));
 	fill_cmd(c, logical ? HPSA_REPORT_LOG : HPSA_REPORT_PHYS, h,
 		buf, bufsize, 0, scsi3addr, TYPE_CMD);
 	if (extended_response)
