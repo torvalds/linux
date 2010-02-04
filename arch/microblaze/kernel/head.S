@@ -99,8 +99,8 @@ no_fdt_arg:
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	lbu	r7, r5, r6 /* r7=r5+r6 - r5 contain pointer to command line */
-	sb	r7, r4, r6		/* addr[r4+r6]= r7*/
+	lbu	r2, r5, r6 /* r7=r5+r6 - r5 contain pointer to command line */
+	sb	r2, r4, r6		/* addr[r4+r6]= r7*/
 	addik	r6, r6, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
 	addik	r3, r3, -1		/* descrement loop */
@@ -136,6 +136,11 @@ _invalidate:
 	addik	r3, r3, -1
 	/* sync */
 
+	/* Setup the kernel PID */
+	mts	rpid,r0			/* Load the kernel PID */
+	nop
+	bri	4
+
 	/*
 	 * We should still be executing code at physical address area
 	 * RAM_BASEADDR at this point. However, kernel code is at
@@ -145,10 +150,6 @@ _invalidate:
 
 	addik	r3,r0, CONFIG_KERNEL_START /* Load the kernel virtual address */
 	tophys(r4,r3)			/* Load the kernel physical address */
-
-	mts	rpid,r0			/* Load the kernel PID */
-	nop
-	bri	4
 
 	/*
 	 * Configure and load two entries into TLB slots 0 and 1.
