@@ -299,8 +299,8 @@ static int auide_dma_test_irq(ide_drive_t *drive)
 	 */
 	drive->waiting_for_dma++;
 	if (drive->waiting_for_dma >= DMA_WAIT_TIMEOUT) {
-		printk(KERN_WARNING "%s: timeout waiting for ddma to \
-                                     complete\n", drive->name);
+		printk(KERN_WARNING "%s: timeout waiting for ddma to complete\n",
+		       drive->name);
 		return 1;
 	}
 	udelay(10);
