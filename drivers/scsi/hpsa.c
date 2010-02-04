@@ -1483,14 +1483,11 @@ static void figure_bus_target_lun(struct ctlr_info *h,
 	u8 *lunaddrbytes, int *bus, int *target, int *lun,
 	struct hpsa_scsi_dev_t *device)
 {
-
 	u32 lunid;
 
 	if (is_logical_dev_addr_mode(lunaddrbytes)) {
 		/* logical device */
-		memcpy(&lunid, lunaddrbytes, sizeof(lunid));
-		lunid = le32_to_cpu(lunid);
-
+		lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
 		if (is_msa2xxx(h, device)) {
 			*bus = 1;
 			*target = (lunid >> 16) & 0x3fff;
@@ -1578,8 +1575,7 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 		dev_err(&h->pdev->dev, "report physical LUNs failed.\n");
 		return -1;
 	}
-	memcpy(nphysicals, &physdev->LUNListLength[0], sizeof(*nphysicals));
-	*nphysicals = be32_to_cpu(*nphysicals) / 8;
+	*nphysicals = be32_to_cpu(*((__be32 *)physdev->LUNListLength)) / 8;
 	if (*nphysicals > HPSA_MAX_PHYS_LUN) {
 		dev_warn(&h->pdev->dev, "maximum physical LUNs (%d) exceeded."
 			"  %d LUNs ignored.\n", HPSA_MAX_PHYS_LUN,
@@ -1590,8 +1586,7 @@ static int hpsa_gather_lun_info(struct ctlr_info *h,
 		dev_err(&h->pdev->dev, "report logical LUNs failed.\n");
 		return -1;
 	}
-	memcpy(nlogicals, &logdev->LUNListLength[0], sizeof(*nlogicals));
-	*nlogicals = be32_to_cpu(*nlogicals) / 8;
+	*nlogicals = be32_to_cpu(*((__be32 *) logdev->LUNListLength)) / 8;
 	/* Reject Logicals in excess of our max capability. */
 	if (*nlogicals > HPSA_MAX_LUN) {
 		dev_warn(&h->pdev->dev,
