@@ -431,7 +431,7 @@ static ssize_t raid_level_show(struct device *dev,
 	     struct device_attribute *attr, char *buf)
 {
 	ssize_t l = 0;
-	int rlevel;
+	unsigned char rlevel;
 	struct ctlr_info *h;
 	struct scsi_device *sdev;
 	struct hpsa_scsi_dev_t *hdev;
@@ -455,7 +455,7 @@ static ssize_t raid_level_show(struct device *dev,
 
 	rlevel = hdev->raid_level;
 	spin_unlock_irqrestore(&h->lock, flags);
-	if (rlevel < 0 || rlevel > RAID_UNKNOWN)
+	if (rlevel > RAID_UNKNOWN)
 		rlevel = RAID_UNKNOWN;
 	l = snprintf(buf, PAGE_SIZE, "RAID %s\n", raid_label[rlevel]);
 	return l;
