@@ -30,6 +30,8 @@
 #define MXC_GPIO_IRQS		(32 * 3)
 #elif defined CONFIG_ARCH_MX25
 #define MXC_GPIO_IRQS		(32 * 4)
+#elif defined CONFIG_ARCH_MX5
+#define MXC_GPIO_IRQS		(32 * 4)
 #elif defined CONFIG_ARCH_MXC91231
 #define MXC_GPIO_IRQS		(32 * 4)
 #endif
@@ -55,6 +57,7 @@
 #else
 #define MX3_IPU_IRQS 0
 #endif
+/* REVISIT: Add IPU irqs on IMX51 */
 
 #define NR_IRQS			(MXC_IPU_IRQ_START + MX3_IPU_IRQS)
 
