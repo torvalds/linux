@@ -12,7 +12,7 @@ obj-				:=
 
 # Core support for S5P6442 system
 
-obj-$(CONFIG_CPU_S5P6442)	+= cpu.o init.o
+obj-$(CONFIG_CPU_S5P6442)	+= cpu.o init.o clock.o
 
 # machine support
 
