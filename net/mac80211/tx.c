@@ -529,6 +529,8 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 		tx->key = NULL;
 
 	if (tx->key) {
+		bool skip_hw = false;
+
 		tx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
 
@@ -545,16 +547,32 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			    !ieee80211_use_mfp(hdr->frame_control, tx->sta,
 					       tx->skb))
 				tx->key = NULL;
+			else
+				skip_hw = (tx->key->conf.flags &
+					   IEEE80211_KEY_FLAG_SW_MGMT) &&
+					ieee80211_is_mgmt(hdr->frame_control);
 			break;
 		case ALG_AES_CMAC:
 			if (!ieee80211_is_mgmt(hdr->frame_control))
 				tx->key = NULL;
 			break;
 		}
+
+		if (!skip_hw && tx->key &&
+		    tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
+			info->control.hw_key = &tx->key->conf;
 	}
 
-	if (!tx->key || !(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
-		info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	return TX_CONTINUE;
+}
+
+static ieee80211_tx_result debug_noinline
+ieee80211_tx_h_sta(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
+
+	if (tx->sta)
+		info->control.sta = &tx->sta->sta;
 
 	return TX_CONTINUE;
 }
@@ -729,17 +747,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 			info->control.rates[i].flags |=
 				IEEE80211_TX_RC_USE_CTS_PROTECT;
 	}
-
-	return TX_CONTINUE;
-}
-
-static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-
-	if (tx->sta)
-		info->control.sta = &tx->sta->sta;
 
 	return TX_CONTINUE;
 }
@@ -1101,7 +1108,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 	tx->flags |= IEEE80211_TX_FRAGMENTED;
 
 	/* process and remove the injection radiotap header */
-	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED)) {
+	if (unlikely(info->flags & IEEE80211_TX_INTFL_HAS_RADIOTAP)) {
 		if (!__ieee80211_parse_tx_radiotap(tx, skb))
 			return TX_DROP;
 
@@ -1110,6 +1117,7 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		 * the radiotap header that was present and pre-filled
 		 * 'tx' with tx control information.
 		 */
+		info->flags &= ~IEEE80211_TX_INTFL_HAS_RADIOTAP;
 	}
 
 	/*
@@ -1125,6 +1133,8 @@ ieee80211_tx_prepare(struct ieee80211_sub_if_data *sdata,
 		tx->sta = rcu_dereference(sdata->u.vlan.sta);
 		if (!tx->sta && sdata->dev->ieee80211_ptr->use_4addr)
 			return TX_DROP;
+	} else if (info->flags & IEEE80211_TX_CTL_INJECTED) {
+		tx->sta = sta_info_get_bss(sdata, hdr->addr1);
 	}
 	if (!tx->sta)
 		tx->sta = sta_info_get(sdata, hdr->addr1);
@@ -1279,6 +1289,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	ieee80211_tx_result res = TX_DROP;
 
 #define CALL_TXH(txh) \
@@ -1292,10 +1303,14 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_check_assoc);
 	CALL_TXH(ieee80211_tx_h_ps_buf);
 	CALL_TXH(ieee80211_tx_h_select_key);
-	CALL_TXH(ieee80211_tx_h_michael_mic_add);
+	CALL_TXH(ieee80211_tx_h_sta);
 	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
-	CALL_TXH(ieee80211_tx_h_misc);
+
+	if (unlikely(info->flags & IEEE80211_TX_INTFL_RETRANSMISSION))
+		goto txh_done;
+
+	CALL_TXH(ieee80211_tx_h_michael_mic_add);
 	CALL_TXH(ieee80211_tx_h_sequence);
 	CALL_TXH(ieee80211_tx_h_fragment);
 	/* handlers after fragment must be aware of tx info fragmentation! */
@@ -1487,7 +1502,8 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		int hdrlen;
 		u16 len_rthdr;
 
-		info->flags |= IEEE80211_TX_CTL_INJECTED;
+		info->flags |= IEEE80211_TX_CTL_INJECTED |
+			       IEEE80211_TX_INTFL_HAS_RADIOTAP;
 
 		len_rthdr = ieee80211_get_radiotap_len(skb->data);
 		hdr = (struct ieee80211_hdr *)(skb->data + len_rthdr);

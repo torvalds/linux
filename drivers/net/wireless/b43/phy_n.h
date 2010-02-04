@@ -973,6 +973,12 @@ struct b43_phy_n {
 	bool hang_avoid;
 	bool mute;
 	u16 papd_epsilon_offset[2];
+	s32 preamble_override;
+	u32 bb_mult_save;
+
+	bool gain_boost;
+	bool elna_gain_config;
+	bool band5g_pwrgain;
 
 	u8 mphase_cal_phase_id;
 	u16 mphase_txcal_cmdidx;
@@ -985,6 +991,7 @@ struct b43_phy_n {
 	bool txiqlocal_coeffsvalid;
 	struct b43_phy_n_txpwrindex txpwrindex[2];
 
+	u8 txrx_chain;
 	u16 tx_rx_cal_phy_saveregs[11];
 	u16 tx_rx_cal_radio_saveregs[22];
 

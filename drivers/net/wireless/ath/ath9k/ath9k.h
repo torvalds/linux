@@ -364,6 +364,7 @@ struct ath_btcoex {
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
+	u32 btscan_no_stomp; /* in usec */
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 };
 
@@ -429,6 +430,7 @@ void ath_deinit_leds(struct ath_softc *sc);
 #define SC_OP_SCANNING               BIT(10)
 #define SC_OP_TSF_RESET              BIT(11)
 #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
+#define SC_OP_BT_SCAN		     BIT(13)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)
@@ -478,6 +480,7 @@ struct ath_softc {
 	u8 nbcnvifs;
 	u16 nvifs;
 	bool ps_enabled;
+	bool ps_idle;
 	unsigned long ps_usecount;
 	enum ath9k_int imask;
 
@@ -533,11 +536,6 @@ int ath_cabq_update(struct ath_softc *);
 static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 {
 	common->bus_ops->read_cachesize(common, csz);
-}
-
-static inline void ath_bus_cleanup(struct ath_common *common)
-{
-	common->bus_ops->cleanup(common);
 }
 
 extern struct ieee80211_ops ath9k_ops;

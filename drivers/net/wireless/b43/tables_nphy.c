@@ -2883,6 +2883,67 @@ const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[] = {
 	0x9084, 0x9267, 0x9056, 0x9234
 };
 
+const s16 tbl_tx_filter_coef_rev4[7][15] = {
+	{  -377,   137,  -407,   208, -1527,
+	    956,    93,   186,    93,   230,
+	    -44,   230,    20,  -191,   201 },
+	{   -77,    20,   -98,    49,   -93,
+	     60,    56,   111,    56,    26,
+	     -5,    26,    34,   -32,    34 },
+	{  -360,   164,  -376,   164, -1533,
+	    576,   308,  -314,   308,   121,
+	    -73,   121,    91,   124,    91 },
+	{  -295,   200,  -363,   142, -1391,
+	    826,   151,   301,   151,   151,
+	    301,   151,   602,  -752,   602 },
+	{   -92,    58,   -96,    49,  -104,
+	     44,    17,    35,    17,    12,
+	     25,    12,    13,    27,    13 },
+	{  -375,   136,  -399,   209, -1479,
+	    949,   130,   260,   130,   230,
+	    -44,   230,   201,  -191,   201 },
+	{ 0xed9,  0xc8, 0xe95,  0x8e, 0xa91,
+	  0x33a,  0x97, 0x12d,  0x97,  0x97,
+	  0x12d,  0x97, 0x25a, 0xd10, 0x25a }
+};
+
+/* addr0,  addr1,  bmask,  shift */
+const struct nphy_rf_control_override_rev2 tbl_rf_control_override_rev2[] = {
+	{ 0x78, 0x78, 0x0038,  3 }, /* for field == 0x0002 (fls == 2) */
+	{ 0x7A, 0x7D, 0x0001,  0 }, /* for field == 0x0004 (fls == 3) */
+	{ 0x7A, 0x7D, 0x0002,  1 }, /* for field == 0x0008 (fls == 4) */
+	{ 0x7A, 0x7D, 0x0004,  2 }, /* for field == 0x0010 (fls == 5) */
+	{ 0x7A, 0x7D, 0x0030,  4 }, /* for field == 0x0020 (fls == 6) */
+	{ 0x7A, 0x7D, 0x00C0,  6 }, /* for field == 0x0040 (fls == 7) */
+	{ 0x7A, 0x7D, 0x0100,  8 }, /* for field == 0x0080 (fls == 8) */
+	{ 0x7A, 0x7D, 0x0200,  9 }, /* for field == 0x0100 (fls == 9) */
+	{ 0x78, 0x78, 0x0004,  2 }, /* for field == 0x0200 (fls == 10) */
+	{ 0x7B, 0x7E, 0x01FF,  0 }, /* for field == 0x0400 (fls == 11) */
+	{ 0x7C, 0x7F, 0x01FF,  0 }, /* for field == 0x0800 (fls == 12) */
+	{ 0x78, 0x78, 0x0100,  8 }, /* for field == 0x1000 (fls == 13) */
+	{ 0x78, 0x78, 0x0200,  9 }, /* for field == 0x2000 (fls == 14) */
+	{ 0x78, 0x78, 0xF000, 12 }  /* for field == 0x4000 (fls == 15) */
+};
+
+/* val_mask, val_shift, en_addr0, val_addr0, en_addr1, val_addr1 */
+const struct nphy_rf_control_override_rev3 tbl_rf_control_override_rev3[] = {
+	{ 0x8000, 15, 0xE5, 0xF9, 0xE6, 0xFB }, /* field == 0x0001 (fls 1) */
+	{ 0x0001,  0, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0002 (fls 2) */
+	{ 0x0002,  1, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0004 (fls 3) */
+	{ 0x0004,  2, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0008 (fls 4) */
+	{ 0x0016,  4, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0010 (fls 5) */
+	{ 0x0020,  5, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0020 (fls 6) */
+	{ 0x0040,  6, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0040 (fls 7) */
+	{ 0x0080,  6, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0080 (fls 8) */
+	{ 0x0100,  7, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0100 (fls 9) */
+	{ 0x0007,  0, 0xE7, 0xF8, 0xEC, 0xFA }, /* field == 0x0200 (fls 10) */
+	{ 0x0070,  4, 0xE7, 0xF8, 0xEC, 0xFA }, /* field == 0x0400 (fls 11) */
+	{ 0xE000, 13, 0xE7, 0x7A, 0xEC, 0x7D }, /* field == 0x0800 (fls 12) */
+	{ 0xFFFF,  0, 0xE7, 0x7B, 0xEC, 0x7E }, /* field == 0x1000 (fls 13) */
+	{ 0xFFFF,  0, 0xE7, 0x7C, 0xEC, 0x7F }, /* field == 0x2000 (fls 14) */
+	{ 0x00C0,  6, 0xE7, 0xF9, 0xEC, 0xFB }  /* field == 0x4000 (fls 15) */
+};
+
 static inline void assert_ntab_array_sizes(void)
 {
 #undef check
@@ -2919,6 +2980,72 @@ static inline void assert_ntab_array_sizes(void)
 #undef check
 }
 
+u32 b43_ntab_read(struct b43_wldev *dev, u32 offset)
+{
+	u32 type, value;
+
+	type = offset & B43_NTAB_TYPEMASK;
+	offset &= ~B43_NTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	switch (type) {
+	case B43_NTAB_8BIT:
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO) & 0xFF;
+		break;
+	case B43_NTAB_16BIT:
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		break;
+	case B43_NTAB_32BIT:
+		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
+		value <<= 16;
+		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		break;
+	default:
+		B43_WARN_ON(1);
+		value = 0;
+	}
+
+	return value;
+}
+
+void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
+			 unsigned int nr_elements, void *_data)
+{
+	u32 type;
+	u8 *data = _data;
+	unsigned int i;
+
+	type = offset & B43_NTAB_TYPEMASK;
+	offset &= ~B43_NTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+
+	for (i = 0; i < nr_elements; i++) {
+		switch (type) {
+		case B43_NTAB_8BIT:
+			*data = b43_phy_read(dev, B43_NPHY_TABLE_DATALO) & 0xFF;
+			data++;
+			break;
+		case B43_NTAB_16BIT:
+			*((u16 *)data) = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			data += 2;
+			break;
+		case B43_NTAB_32BIT:
+			*((u32 *)data) = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
+			*((u32 *)data) <<= 16;
+			*((u32 *)data) |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			data += 4;
+			break;
+		default:
+			B43_WARN_ON(1);
+		}
+	}
+}
+
 void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value)
 {
 	u32 type;
@@ -2950,6 +3077,46 @@ void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value)
 
 	/* Some compiletime assertions... */
 	assert_ntab_array_sizes();
+}
+
+void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
+			  unsigned int nr_elements, const void *_data)
+{
+	u32 type, value;
+	const u8 *data = _data;
+	unsigned int i;
+
+	type = offset & B43_NTAB_TYPEMASK;
+	offset &= ~B43_NTAB_TYPEMASK;
+	B43_WARN_ON(offset > 0xFFFF);
+
+	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
+
+	for (i = 0; i < nr_elements; i++) {
+		switch (type) {
+		case B43_NTAB_8BIT:
+			value = *data;
+			data++;
+			B43_WARN_ON(value & ~0xFF);
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, value);
+			break;
+		case B43_NTAB_16BIT:
+			value = *((u16 *)data);
+			data += 2;
+			B43_WARN_ON(value & ~0xFFFF);
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, value);
+			break;
+		case B43_NTAB_32BIT:
+			value = *((u32 *)data);
+			data += 4;
+			b43_phy_write(dev, B43_NPHY_TABLE_DATAHI, value >> 16);
+			b43_phy_write(dev, B43_NPHY_TABLE_DATALO,
+					value & 0xFFFF);
+			break;
+		default:
+			B43_WARN_ON(1);
+		}
+	}
 }
 
 #define ntab_upload(dev, offset, data) do { \

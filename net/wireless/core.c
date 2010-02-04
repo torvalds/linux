@@ -1,7 +1,7 @@
 /*
  * This is the linux wireless configuration interface.
  *
- * Copyright 2006-2009		Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/if.h>
@@ -31,15 +31,10 @@ MODULE_AUTHOR("Johannes Berg");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("wireless configuration support");
 
-/* RCU might be appropriate here since we usually
- * only read the list, and that can happen quite
- * often because we need to do it for each command */
+/* RCU-protected (and cfg80211_mutex for writers) */
 LIST_HEAD(cfg80211_rdev_list);
 int cfg80211_rdev_list_generation;
 
-/*
- * This is used to protect the cfg80211_rdev_list
- */
 DEFINE_MUTEX(cfg80211_mutex);
 
 /* for debugfs */
@@ -418,6 +413,18 @@ int wiphy_register(struct wiphy *wiphy)
 	int i;
 	u16 ifmodes = wiphy->interface_modes;
 
+	if (WARN_ON(wiphy->addresses && !wiphy->n_addresses))
+		return -EINVAL;
+
+	if (WARN_ON(wiphy->addresses &&
+		    !is_zero_ether_addr(wiphy->perm_addr) &&
+		    memcmp(wiphy->perm_addr, wiphy->addresses[0].addr,
+			   ETH_ALEN)))
+		return -EINVAL;
+
+	if (wiphy->addresses)
+		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
+
 	/* sanity check ifmodes */
 	WARN_ON(!ifmodes);
 	ifmodes &= ((1 << __NL80211_IFTYPE_AFTER_LAST) - 1) & ~1;
@@ -477,7 +484,7 @@ int wiphy_register(struct wiphy *wiphy)
 	/* set up regulatory info */
 	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
 
-	list_add(&rdev->list, &cfg80211_rdev_list);
+	list_add_rcu(&rdev->list, &cfg80211_rdev_list);
 	cfg80211_rdev_list_generation++;
 
 	mutex_unlock(&cfg80211_mutex);
@@ -554,7 +561,8 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * it impossible to find from userspace.
 	 */
 	debugfs_remove_recursive(rdev->wiphy.debugfsdir);
-	list_del(&rdev->list);
+	list_del_rcu(&rdev->list);
+	synchronize_rcu();
 
 	/*
 	 * Try to grab rdev->mtx. If a command is still in progress,
@@ -670,7 +678,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
 		mutex_lock(&rdev->devlist_mtx);
-		list_add(&wdev->list, &rdev->netdev_list);
+		list_add_rcu(&wdev->list, &rdev->netdev_list);
 		rdev->devlist_generation++;
 		/* can only change netns with wiphy */
 		dev->features |= NETIF_F_NETNS_LOCAL;
@@ -782,13 +790,21 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		 */
 		if (!list_empty(&wdev->list)) {
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
-			list_del_init(&wdev->list);
+			list_del_rcu(&wdev->list);
 			rdev->devlist_generation++;
 #ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.keys);
 #endif
 		}
 		mutex_unlock(&rdev->devlist_mtx);
+		/*
+		 * synchronise (so that we won't find this netdev
+		 * from other code any more) and then clear the list
+		 * head so that the above code can safely check for
+		 * !list_empty() to avoid double-cleanup.
+		 */
+		synchronize_rcu();
+		INIT_LIST_HEAD(&wdev->list);
 		break;
 	case NETDEV_PRE_UP:
 		if (!(wdev->wiphy->interface_modes & BIT(wdev->iftype)))

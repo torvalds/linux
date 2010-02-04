@@ -535,8 +535,7 @@ ieee80211_remain_on_channel_timeout(struct ieee80211_work *wk)
 	 * First time we run, do nothing -- the generic code will
 	 * have switched to the right channel etc.
 	 */
-	if (!wk->remain.started) {
-		wk->remain.started = true;
+	if (!wk->started) {
 		wk->timeout = jiffies + msecs_to_jiffies(wk->remain.duration);
 
 		cfg80211_ready_on_channel(wk->sdata->dev, (unsigned long) wk,
@@ -821,15 +820,17 @@ static void ieee80211_work_work(struct work_struct *work)
 	mutex_lock(&local->work_mtx);
 
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
+		bool started = wk->started;
+
 		/* mark work as started if it's on the current off-channel */
-		if (!wk->started && local->tmp_channel &&
+		if (!started && local->tmp_channel &&
 		    wk->chan == local->tmp_channel &&
 		    wk->chan_type == local->tmp_channel_type) {
-			wk->started = true;
+			started = true;
 			wk->timeout = jiffies;
 		}
 
-		if (!wk->started && !local->tmp_channel) {
+		if (!started && !local->tmp_channel) {
 			/*
 			 * TODO: could optimize this by leaving the
 			 *	 station vifs in awake mode if they
@@ -842,12 +843,12 @@ static void ieee80211_work_work(struct work_struct *work)
 			local->tmp_channel = wk->chan;
 			local->tmp_channel_type = wk->chan_type;
 			ieee80211_hw_config(local, 0);
-			wk->started = true;
+			started = true;
 			wk->timeout = jiffies;
 		}
 
 		/* don't try to work with items that aren't started */
-		if (!wk->started)
+		if (!started)
 			continue;
 
 		if (time_is_after_jiffies(wk->timeout)) {
@@ -881,6 +882,8 @@ static void ieee80211_work_work(struct work_struct *work)
 			rma = ieee80211_remain_on_channel_timeout(wk);
 			break;
 		}
+
+		wk->started = started;
 
 		switch (rma) {
 		case WORK_ACT_NONE:
@@ -1022,8 +1025,6 @@ ieee80211_rx_result ieee80211_work_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 		case IEEE80211_STYPE_PROBE_RESP:
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:
-		case IEEE80211_STYPE_DEAUTH:
-		case IEEE80211_STYPE_DISASSOC:
 			skb_queue_tail(&local->work_skb_queue, skb);
 			ieee80211_queue_work(&local->hw, &local->work_work);
 			return RX_QUEUED;

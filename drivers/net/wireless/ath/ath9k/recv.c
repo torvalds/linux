@@ -429,7 +429,7 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		sc->ps_flags &= ~PS_WAIT_FOR_PSPOLL_DATA;
 		ath_print(common, ATH_DBG_PS,
 			  "Going back to sleep after having received "
-			  "PS-Poll data (0x%x)\n",
+			  "PS-Poll data (0x%lx)\n",
 			sc->ps_flags & (PS_WAIT_FOR_BEACON |
 					PS_WAIT_FOR_CAB |
 					PS_WAIT_FOR_PSPOLL_DATA |

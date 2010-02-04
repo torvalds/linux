@@ -143,8 +143,10 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_enabled &&
-	    !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
+	if (sc->ps_idle)
+		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
+	else if (sc->ps_enabled &&
+		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 			      PS_WAIT_FOR_CAB |
 			      PS_WAIT_FOR_PSPOLL_DATA |
 			      PS_WAIT_FOR_TX_ACK)))
@@ -204,7 +206,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	r = ath9k_hw_reset(ah, hchan, fastcc);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel (%u Mhz) "
+			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
 		spin_unlock_bh(&sc->sc_resetlock);
@@ -867,7 +869,7 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
 		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel %u (%uMhz) ",
+			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
 	}
@@ -922,7 +924,7 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	r = ath9k_hw_reset(ah, ah->curchan, false);
 	if (r) {
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Unable to reset channel %u (%uMhz) "
+			  "Unable to reset channel (%u MHz), "
 			  "reset status %d\n",
 			  channel->center_freq, r);
 	}
@@ -1528,6 +1530,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		spin_unlock_bh(&sc->wiphy_lock);
 
 		if (enable_radio) {
+			sc->ps_idle = false;
 			ath_radio_enable(sc, hw);
 			ath_print(common, ATH_DBG_CONFIG,
 				  "not-idle: enabling radio\n");
@@ -1624,8 +1627,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 skip_chan_change:
-	if (changed & IEEE80211_CONF_CHANGE_POWER)
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		sc->config.txpowlimit = 2 * conf->power_level;
+		ath_update_txpow(sc);
+	}
 
 	spin_lock_bh(&sc->wiphy_lock);
 	disable_radio = ath9k_all_wiphys_idle(sc);
@@ -1633,6 +1638,7 @@ skip_chan_change:
 
 	if (disable_radio) {
 		ath_print(common, ATH_DBG_CONFIG, "idle: disabling radio\n");
+		sc->ps_idle = true;
 		ath_radio_disable(sc, hw);
 	}
 

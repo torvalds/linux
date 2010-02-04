@@ -25,6 +25,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0029) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002A) }, /* PCI-E */
 	{ PCI_VDEVICE(ATHEROS, 0x002B) }, /* PCI-E */
+	{ PCI_VDEVICE(ATHEROS, 0x002C) }, /* PCI-E 802.11n bonded out */
 	{ PCI_VDEVICE(ATHEROS, 0x002D) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002E) }, /* PCI-E */
 	{ 0 }
@@ -47,16 +48,6 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 
 	if (*csz == 0)
 		*csz = DEFAULT_CACHELINE >> 2;   /* Use the default size */
-}
-
-static void ath_pci_cleanup(struct ath_common *common)
-{
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	struct pci_dev *pdev = to_pci_dev(sc->dev);
-
-	pci_iounmap(pdev, sc->mem);
-	pci_disable_device(pdev);
-	pci_release_region(pdev, 0);
 }
 
 static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
@@ -98,7 +89,6 @@ static void ath_pci_bt_coex_prep(struct ath_common *common)
 
 static const struct ath_bus_ops ath_pci_bus_ops = {
 	.read_cachesize = ath_pci_read_cachesize,
-	.cleanup = ath_pci_cleanup,
 	.eeprom_read = ath_pci_eeprom_read,
 	.bt_coex_prep = ath_pci_bt_coex_prep,
 };
@@ -245,12 +235,15 @@ static void ath_pci_remove(struct pci_dev *pdev)
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	void __iomem *mem = sc->mem;
 
 	ath9k_deinit_device(sc);
 	free_irq(sc->irq, sc);
 	ieee80211_free_hw(sc->hw);
-	ath_bus_cleanup(common);
+
+	pci_iounmap(pdev, mem);
+	pci_disable_device(pdev);
+	pci_release_region(pdev, 0);
 }
 
 #ifdef CONFIG_PM

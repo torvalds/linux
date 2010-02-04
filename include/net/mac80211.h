@@ -186,7 +186,8 @@ enum ieee80211_bss_change {
  * @use_short_slot: use short slot time (only relevant for ERP);
  *	if the hardware cannot handle this it must set the
  *	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE hardware flag
- * @dtim_period: num of beacons before the next DTIM, for PSM
+ * @dtim_period: num of beacons before the next DTIM, for beaconing,
+ *	not valid in station mode (cf. hw conf ps_dtim_period)
  * @timestamp: beacon timestamp
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
@@ -271,6 +272,11 @@ struct ieee80211_bss_conf {
  *	transmit function after the current frame, this can be used
  *	by drivers to kick the DMA queue only if unset or when the
  *	queue gets full.
+ * @IEEE80211_TX_INTFL_RETRANSMISSION: This frame is being retransmitted
+ *	after TX status because the destination was asleep, it must not
+ *	be modified again (no seqno assignment, crypto, etc.)
+ * @IEEE80211_TX_INTFL_HAS_RADIOTAP: This frame was injected and still
+ *	has a radiotap header at skb->data.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -291,6 +297,8 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
 	IEEE80211_TX_CTL_PSPOLL_RESPONSE	= BIT(17),
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
+	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
+	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
 };
 
 /**
@@ -644,6 +652,9 @@ enum ieee80211_smps_mode {
  *	value will be only achievable between DTIM frames, the hardware
  *	needs to check for the multicast traffic bit in DTIM beacons.
  *	This variable is valid only when the CONF_PS flag is set.
+ * @ps_dtim_period: The DTIM period of the AP we're connected to, for use
+ *	in power saving. Power saving will not be enabled until a beacon
+ *	has been received and the DTIM period is known.
  * @dynamic_ps_timeout: The dynamic powersave timeout (in ms), see the
  *	powersave documentation below. This variable is valid only when
  *	the CONF_PS flag is set.
@@ -670,6 +681,7 @@ struct ieee80211_conf {
 	int max_sleep_period;
 
 	u16 listen_interval;
+	u8 ps_dtim_period;
 
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
@@ -1485,7 +1497,7 @@ enum ieee80211_ampdu_mlme_action {
  * @update_tkip_key: See the section "Hardware crypto acceleration"
  * 	This callback will be called in the context of Rx. Called for drivers
  * 	which set IEEE80211_KEY_FLAG_TKIP_REQ_RX_P1_KEY.
- *	The callback can sleep.
+ *	The callback must be atomic.
  *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
@@ -1610,8 +1622,10 @@ struct ieee80211_ops {
 		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key);
 	void (*update_tkip_key)(struct ieee80211_hw *hw,
-			struct ieee80211_key_conf *conf, const u8 *address,
-			u32 iv32, u16 *phase1key);
+				struct ieee80211_vif *vif,
+				struct ieee80211_key_conf *conf,
+				struct ieee80211_sta *sta,
+				u32 iv32, u16 *phase1key);
 	int (*hw_scan)(struct ieee80211_hw *hw,
 		       struct cfg80211_scan_request *req);
 	void (*sw_scan_start)(struct ieee80211_hw *hw);

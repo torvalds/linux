@@ -1214,7 +1214,7 @@ int cfg80211_wext_siwrate(struct net_device *dev,
 
 	memset(&mask, 0, sizeof(mask));
 	fixed = 0;
-	maxrate = 0;
+	maxrate = (u32)-1;
 
 	if (rate->value < 0) {
 		/* nothing */

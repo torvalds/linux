@@ -695,8 +695,12 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 
 	hdr = (void *)((u8 *)skb->data + le16_to_cpu(rtap->it_len));
 
-	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+	if (!ieee80211_is_data(hdr->frame_control)) {
 		skb->priority = 7;
+		return ieee802_1d_to_ac[skb->priority];
+	}
+	if (!ieee80211_is_data_qos(hdr->frame_control)) {
+		skb->priority = 0;
 		return ieee802_1d_to_ac[skb->priority];
 	}
 

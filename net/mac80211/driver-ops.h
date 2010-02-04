@@ -137,16 +137,20 @@ static inline int drv_set_key(struct ieee80211_local *local,
 }
 
 static inline void drv_update_tkip_key(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_key_conf *conf,
-				       const u8 *address, u32 iv32,
+				       struct sta_info *sta, u32 iv32,
 				       u16 *phase1key)
 {
-	might_sleep();
+	struct ieee80211_sta *ista = NULL;
+
+	if (sta)
+		ista = &sta->sta;
 
 	if (local->ops->update_tkip_key)
-		local->ops->update_tkip_key(&local->hw, conf, address,
-					    iv32, phase1key);
-	trace_drv_update_tkip_key(local, conf, address, iv32);
+		local->ops->update_tkip_key(&local->hw, &sdata->vif, conf,
+					    ista, iv32, phase1key);
+	trace_drv_update_tkip_key(local, sdata, conf, ista, iv32);
 }
 
 static inline int drv_hw_scan(struct ieee80211_local *local,

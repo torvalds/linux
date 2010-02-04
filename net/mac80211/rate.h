@@ -44,6 +44,10 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
+
+	if (!ref)
+		return;
+
 	ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
 }
 

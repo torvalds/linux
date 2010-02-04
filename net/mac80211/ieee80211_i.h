@@ -299,7 +299,6 @@ struct ieee80211_work {
 		} assoc;
 		struct {
 			u32 duration;
-			bool started;
 		} remain;
 	};
 

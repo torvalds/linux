@@ -51,6 +51,22 @@ struct nphy_txiqcal_ladder {
 	u8 g_env;
 };
 
+struct nphy_rf_control_override_rev2 {
+	u8 addr0;
+	u8 addr1;
+	u16 bmask;
+	u8 shift;
+};
+
+struct nphy_rf_control_override_rev3 {
+	u16 val_mask;
+	u8 val_shift;
+	u8 en_addr0;
+	u8 val_addr0;
+	u8 en_addr1;
+	u8 val_addr1;
+};
+
 /* Upload the default register value table.
  * If "ghz5" is true, we upload the 5Ghz table. Otherwise the 2.4Ghz
  * table is uploaded. If "ignore_uploadflag" is true, we upload any value
@@ -142,7 +158,12 @@ b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel);
 #define B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL		10
 #define B43_NTAB_TX_IQLO_CAL_CMDS_FULLCAL_REV3		12
 
+u32 b43_ntab_read(struct b43_wldev *dev, u32 offset);
+void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
+			 unsigned int nr_elements, void *_data);
 void b43_ntab_write(struct b43_wldev *dev, u32 offset, u32 value);
+void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
+			  unsigned int nr_elements, const void *_data);
 
 void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev);
 void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
@@ -172,5 +193,11 @@ extern const u16 tbl_tx_iqlo_cal_cmds_recal_nphyrev3[];
 extern const u16 tbl_tx_iqlo_cal_cmds_recal[];
 extern const u16 tbl_tx_iqlo_cal_cmds_fullcal[];
 extern const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[];
+extern const s16 tbl_tx_filter_coef_rev4[7][15];
+
+extern const struct nphy_rf_control_override_rev2
+	tbl_rf_control_override_rev2[];
+extern const struct nphy_rf_control_override_rev3
+	tbl_rf_control_override_rev3[];
 
 #endif /* B43_TABLES_NPHY_H_ */

@@ -138,6 +138,8 @@
 #define IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK	0x03
 #define IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT	5
 
+#define IEEE80211_HT_CTL_LEN		4
+
 struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;

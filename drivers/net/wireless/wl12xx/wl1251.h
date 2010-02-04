@@ -341,9 +341,6 @@ struct wl1251 {
 	/* Are we currently scanning */
 	bool scanning;
 
-	/* Our association ID */
-	u16 aid;
-
 	/* Default key (for WEP) */
 	u32 default_key;
 

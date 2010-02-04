@@ -27,12 +27,6 @@ static void ath_ahb_read_cachesize(struct ath_common *common, int *csz)
 	*csz = L1_CACHE_BYTES >> 2;
 }
 
-static void ath_ahb_cleanup(struct ath_common *common)
-{
-	struct ath_softc *sc = (struct ath_softc *)common->priv;
-	iounmap(sc->mem);
-}
-
 static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
 	struct ath_softc *sc = (struct ath_softc *)common->priv;
@@ -54,8 +48,6 @@ static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 
 static struct ath_bus_ops ath_ahb_bus_ops  = {
 	.read_cachesize = ath_ahb_read_cachesize,
-	.cleanup = ath_ahb_cleanup,
-
 	.eeprom_read = ath_ahb_eeprom_read,
 };
 
@@ -164,12 +156,12 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	if (hw) {
 		struct ath_wiphy *aphy = hw->priv;
 		struct ath_softc *sc = aphy->sc;
-		struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+		void __iomem *mem = sc->mem;
 
 		ath9k_deinit_device(sc);
 		free_irq(sc->irq, sc);
 		ieee80211_free_hw(sc->hw);
-		ath_bus_cleanup(common);
+		iounmap(mem);
 		platform_set_drvdata(pdev, NULL);
 	}
 

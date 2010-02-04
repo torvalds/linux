@@ -617,10 +617,13 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		wl->psm_requested = true;
 
+		wl->dtim_period = conf->ps_dtim_period;
+
+		ret = wl1251_acx_wr_tbtt_and_dtim(wl, wl->beacon_int,
+						  wl->dtim_period);
+
 		/*
-		 * We enter PSM only if we're already associated.
-		 * If we're not, we'll enter it when joining an SSID,
-		 * through the bss_info_changed() hook.
+		 * mac80211 enables PSM only if we're already associated.
 		 */
 		ret = wl1251_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
 		if (ret < 0)
@@ -943,7 +946,6 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_bss_conf *bss_conf,
 				       u32 changed)
 {
-	enum wl1251_cmd_ps_mode mode;
 	struct wl1251 *wl = hw->priv;
 	struct sk_buff *beacon, *skb;
 	int ret;
@@ -984,11 +986,6 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->beacon_int = bss_conf->beacon_int;
-			wl->dtim_period = bss_conf->dtim_period;
-
-			ret = wl1251_acx_wr_tbtt_and_dtim(wl, wl->beacon_int,
-							  wl->dtim_period);
-			wl->aid = bss_conf->aid;
 
 			skb = ieee80211_pspoll_get(wl->hw, wl->vif);
 			if (!skb)
@@ -1001,17 +998,9 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 
-			ret = wl1251_acx_aid(wl, wl->aid);
+			ret = wl1251_acx_aid(wl, bss_conf->aid);
 			if (ret < 0)
 				goto out_sleep;
-
-			/* If we want to go in PSM but we're not there yet */
-			if (wl->psm_requested && !wl->psm) {
-				mode = STATION_POWER_SAVE_MODE;
-				ret = wl1251_ps_set_mode(wl, mode);
-				if (ret < 0)
-					goto out_sleep;
-			}
 		} else {
 			/* use defaults when not associated */
 			wl->beacon_int = WL1251_DEFAULT_BEACON_INT;

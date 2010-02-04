@@ -143,9 +143,9 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 		dev->bss_generation++;
 }
 
-static u8 *find_ie(u8 num, u8 *ies, int len)
+const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len)
 {
-	while (len > 2 && ies[0] != num) {
+	while (len > 2 && ies[0] != eid) {
 		len -= ies[1] + 2;
 		ies += ies[1] + 2;
 	}
@@ -155,11 +155,12 @@ static u8 *find_ie(u8 num, u8 *ies, int len)
 		return NULL;
 	return ies;
 }
+EXPORT_SYMBOL(cfg80211_find_ie);
 
 static int cmp_ies(u8 num, u8 *ies1, size_t len1, u8 *ies2, size_t len2)
 {
-	const u8 *ie1 = find_ie(num, ies1, len1);
-	const u8 *ie2 = find_ie(num, ies2, len2);
+	const u8 *ie1 = cfg80211_find_ie(num, ies1, len1);
+	const u8 *ie2 = cfg80211_find_ie(num, ies2, len2);
 	int r;
 
 	if (!ie1 && !ie2)
@@ -185,9 +186,9 @@ static bool is_bss(struct cfg80211_bss *a,
 	if (!ssid)
 		return true;
 
-	ssidie = find_ie(WLAN_EID_SSID,
-			 a->information_elements,
-			 a->len_information_elements);
+	ssidie = cfg80211_find_ie(WLAN_EID_SSID,
+				  a->information_elements,
+				  a->len_information_elements);
 	if (!ssidie)
 		return false;
 	if (ssidie[1] != ssid_len)
@@ -204,9 +205,9 @@ static bool is_mesh(struct cfg80211_bss *a,
 	if (!is_zero_ether_addr(a->bssid))
 		return false;
 
-	ie = find_ie(WLAN_EID_MESH_ID,
-		     a->information_elements,
-		     a->len_information_elements);
+	ie = cfg80211_find_ie(WLAN_EID_MESH_ID,
+			      a->information_elements,
+			      a->len_information_elements);
 	if (!ie)
 		return false;
 	if (ie[1] != meshidlen)
@@ -214,9 +215,9 @@ static bool is_mesh(struct cfg80211_bss *a,
 	if (memcmp(ie + 2, meshid, meshidlen))
 		return false;
 
-	ie = find_ie(WLAN_EID_MESH_CONFIG,
-		     a->information_elements,
-		     a->len_information_elements);
+	ie = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
+			      a->information_elements,
+			      a->len_information_elements);
 	if (!ie)
 		return false;
 	if (ie[1] != sizeof(struct ieee80211_meshconf_ie))
@@ -395,11 +396,12 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 
 	if (is_zero_ether_addr(res->pub.bssid)) {
 		/* must be mesh, verify */
-		meshid = find_ie(WLAN_EID_MESH_ID, res->pub.information_elements,
-				 res->pub.len_information_elements);
-		meshcfg = find_ie(WLAN_EID_MESH_CONFIG,
-				  res->pub.information_elements,
-				  res->pub.len_information_elements);
+		meshid = cfg80211_find_ie(WLAN_EID_MESH_ID,
+					  res->pub.information_elements,
+					  res->pub.len_information_elements);
+		meshcfg = cfg80211_find_ie(WLAN_EID_MESH_CONFIG,
+					   res->pub.information_elements,
+					   res->pub.len_information_elements);
 		if (!meshid || !meshcfg ||
 		    meshcfg[1] != sizeof(struct ieee80211_meshconf_ie)) {
 			/* bogus mesh */
