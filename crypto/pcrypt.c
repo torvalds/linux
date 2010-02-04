@@ -114,7 +114,7 @@ static void pcrypt_aead_enc(struct padata_priv *padata)
 
 	padata->info = crypto_aead_encrypt(req);
 
-	if (padata->info)
+	if (padata->info == -EINPROGRESS)
 		return;
 
 	padata_do_serial(padata);
@@ -158,7 +158,7 @@ static void pcrypt_aead_dec(struct padata_priv *padata)
 
 	padata->info = crypto_aead_decrypt(req);
 
-	if (padata->info)
+	if (padata->info == -EINPROGRESS)
 		return;
 
 	padata_do_serial(padata);
@@ -202,7 +202,7 @@ static void pcrypt_aead_givenc(struct padata_priv *padata)
 
 	padata->info = crypto_aead_givencrypt(req);
 
-	if (padata->info)
+	if (padata->info == -EINPROGRESS)
 		return;
 
 	padata_do_serial(padata);
