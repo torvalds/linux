@@ -101,6 +101,7 @@
 #define CFGTBL_AccCmds          0x00000001l
 
 #define CFGTBL_Trans_Simple     0x00000002l
+#define CFGTBL_Trans_Performant 0x00000004l
 
 #define CFGTBL_BusType_Ultra2   0x00000001l
 #define CFGTBL_BusType_Ultra3   0x00000002l
@@ -267,12 +268,31 @@ struct ErrorInfo {
 #define CMD_IOCTL_PEND  0x01
 #define CMD_SCSI	0x03
 
-struct ctlr_info; /* defined in hpsa.h */
-/* The size of this structure needs to be divisible by 8
- * on all architectures, because the controller uses 2
- * lower bits of the address, and the driver uses 1 lower
- * bit (3 bits total.)
+/* This structure needs to be divisible by 32 for new
+ * indexing method and performant mode.
  */
+#define PAD32 32
+#define PAD64DIFF 0
+#define USEEXTRA ((sizeof(void *) - 4)/4)
+#define PADSIZE (PAD32 + PAD64DIFF * USEEXTRA)
+
+#define DIRECT_LOOKUP_SHIFT 5
+#define DIRECT_LOOKUP_BIT 0x10
+
+#define HPSA_ERROR_BIT          0x02
+struct ctlr_info; /* defined in hpsa.h */
+/* The size of this structure needs to be divisible by 32
+ * on all architectures because low 5 bits of the addresses
+ * are used as follows:
+ *
+ * bit 0: to device, used to indicate "performant mode" command
+ *        from device, indidcates error status.
+ * bit 1-3: to device, indicates block fetch table entry for
+ *          reducing DMA in fetching commands from host memory.
+ * bit 4: used to indicate whether tag is "direct lookup" (index),
+ *        or a bus address.
+ */
+
 struct CommandList {
 	struct CommandListHeader Header;
 	struct RequestBlock      Request;
@@ -291,6 +311,14 @@ struct CommandList {
 	struct completion *waiting;
 	int	 retry_count;
 	void   *scsi_cmd;
+
+/* on 64 bit architectures, to get this to be 32-byte-aligned
+ * it so happens we need no padding, on 32 bit systems,
+ * we need 8 bytes of padding.   This does that.
+ */
+#define COMMANDLIST_PAD ((8 - sizeof(long))/4 * 8)
+	u8 pad[COMMANDLIST_PAD];
+
 };
 
 /* Configuration Table Structure */
@@ -301,18 +329,38 @@ struct HostWrite {
 	u32 CoalIntCount;
 };
 
+#define SIMPLE_MODE     0x02
+#define PERFORMANT_MODE 0x04
+#define MEMQ_MODE       0x08
+
 struct CfgTable {
-	u8             Signature[4];
-	u32            SpecValence;
-	u32            TransportSupport;
-	u32            TransportActive;
-	struct HostWrite HostWrite;
-	u32            CmdsOutMax;
-	u32            BusTypes;
-	u32            Reserved;
-	u8             ServerName[16];
-	u32            HeartBeat;
-	u32            SCSI_Prefetch;
+	u8            Signature[4];
+	u32		SpecValence;
+	u32           TransportSupport;
+	u32           TransportActive;
+	struct 		HostWrite HostWrite;
+	u32           CmdsOutMax;
+	u32           BusTypes;
+	u32           TransMethodOffset;
+	u8            ServerName[16];
+	u32           HeartBeat;
+	u32           SCSI_Prefetch;
+	u32	 	MaxScatterGatherElements;
+	u32		MaxLogicalUnits;
+	u32		MaxPhysicalDevices;
+	u32		MaxPhysicalDrivesPerLogicalUnit;
+	u32		MaxPerformantModeCommands;
+};
+
+#define NUM_BLOCKFETCH_ENTRIES 8
+struct TransTable_struct {
+	u32            BlockFetch[NUM_BLOCKFETCH_ENTRIES];
+	u32            RepQSize;
+	u32            RepQCount;
+	u32            RepQCtrAddrLow32;
+	u32            RepQCtrAddrHigh32;
+	u32            RepQAddr0Low32;
+	u32            RepQAddr0High32;
 };
 
 struct hpsa_pci_info {

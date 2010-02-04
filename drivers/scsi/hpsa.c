@@ -150,6 +150,11 @@ static int check_for_unit_attention(struct ctlr_info *h,
 	struct CommandList *c);
 static void check_ioctl_unit_attention(struct ctlr_info *h,
 	struct CommandList *c);
+/* performant mode helper functions */
+static void calc_bucket_map(int *bucket, int num_buckets,
+	int nsgs, int *bucket_map);
+static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h);
+static inline u32 next_command(struct ctlr_info *h);
 
 static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
 static DEVICE_ATTR(lunid, S_IRUGO, lunid_show, NULL);
@@ -173,10 +178,8 @@ static struct scsi_host_template hpsa_driver_template = {
 	.name			= "hpsa",
 	.proc_name		= "hpsa",
 	.queuecommand		= hpsa_scsi_queue_command,
-	.can_queue		= 512,
 	.this_id		= -1,
 	.sg_tablesize		= MAXSGENTRIES,
-	.cmd_per_lun		= 512,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
@@ -394,10 +397,44 @@ static inline void addQ(struct hlist_head *list, struct CommandList *c)
 	hlist_add_head(&c->list, list);
 }
 
+static inline u32 next_command(struct ctlr_info *h)
+{
+	u32 a;
+
+	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+		return h->access.command_completed(h);
+
+	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
+		a = *(h->reply_pool_head); /* Next cmd in ring buffer */
+		(h->reply_pool_head)++;
+		h->commands_outstanding--;
+	} else {
+		a = FIFO_EMPTY;
+	}
+	/* Check for wraparound */
+	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
+		h->reply_pool_head = h->reply_pool;
+		h->reply_pool_wraparound ^= 1;
+	}
+	return a;
+}
+
+/* set_performant_mode: Modify the tag for cciss performant
+ * set bit 0 for pull model, bits 3-1 for block fetch
+ * register number
+ */
+static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
+{
+	if (likely(h->transMethod == CFGTBL_Trans_Performant))
+		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
+}
+
 static void enqueue_cmd_and_start_io(struct ctlr_info *h,
 	struct CommandList *c)
 {
 	unsigned long flags;
+
+	set_performant_mode(h, c);
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
 	h->Qdepth++;
@@ -1116,9 +1153,11 @@ static int hpsa_scsi_detect(struct ctlr_info *h)
 	sh->max_cmd_len = MAX_COMMAND_SIZE;
 	sh->max_lun = HPSA_MAX_LUN;
 	sh->max_id = HPSA_MAX_LUN;
+	sh->can_queue = h->nr_cmds;
+	sh->cmd_per_lun = h->nr_cmds;
 	h->scsi_host = sh;
 	sh->hostdata[0] = (unsigned long) h;
-	sh->irq = h->intr[SIMPLE_MODE_INT];
+	sh->irq = h->intr[PERF_MODE_INT];
 	sh->unique_id = sh->irq;
 	error = scsi_add_host(sh, &h->pdev->dev);
 	if (error)
@@ -1843,7 +1882,8 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 	c->scsi_cmd = cmd;
 	c->Header.ReplyQueue = 0;  /* unused in simple mode */
 	memcpy(&c->Header.LUN.LunAddrBytes[0], &scsi3addr[0], 8);
-	c->Header.Tag.lower = c->busaddr;  /* Use k. address of cmd as tag */
+	c->Header.Tag.lower = (c->cmdindex << DIRECT_LOOKUP_SHIFT);
+	c->Header.Tag.lower |= DIRECT_LOOKUP_BIT;
 
 	/* Fill in the request block... */
 
@@ -2700,8 +2740,9 @@ static inline bool interrupt_pending(struct ctlr_info *h)
 
 static inline long interrupt_not_for_us(struct ctlr_info *h)
 {
-	return ((h->access.intr_pending(h) == 0) ||
-		 (h->interrupts_enabled == 0));
+	return !(h->msi_vector || h->msix_vector) &&
+		((h->access.intr_pending(h) == 0) ||
+		(h->interrupts_enabled == 0));
 }
 
 static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
@@ -2725,13 +2766,13 @@ static inline void finish_cmd(struct CommandList *c, u32 raw_tag)
 
 static inline u32 hpsa_tag_contains_index(u32 tag)
 {
-#define DIRECT_LOOKUP_BIT 0x04
+#define DIRECT_LOOKUP_BIT 0x10
 	return tag & DIRECT_LOOKUP_BIT;
 }
 
 static inline u32 hpsa_tag_to_index(u32 tag)
 {
-#define DIRECT_LOOKUP_SHIFT 3
+#define DIRECT_LOOKUP_SHIFT 5
 	return tag >> DIRECT_LOOKUP_SHIFT;
 }
 
@@ -2741,42 +2782,61 @@ static inline u32 hpsa_tag_discard_error_bits(u32 tag)
 	return tag & ~HPSA_ERROR_BITS;
 }
 
+/* process completion of an indexed ("direct lookup") command */
+static inline u32 process_indexed_cmd(struct ctlr_info *h,
+	u32 raw_tag)
+{
+	u32 tag_index;
+	struct CommandList *c;
+
+	tag_index = hpsa_tag_to_index(raw_tag);
+	if (bad_tag(h, tag_index, raw_tag))
+		return next_command(h);
+	c = h->cmd_pool + tag_index;
+	finish_cmd(c, raw_tag);
+	return next_command(h);
+}
+
+/* process completion of a non-indexed command */
+static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
+	u32 raw_tag)
+{
+	u32 tag;
+	struct CommandList *c = NULL;
+	struct hlist_node *tmp;
+
+	tag = hpsa_tag_discard_error_bits(raw_tag);
+	hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
+		if ((c->busaddr & 0xFFFFFFE0) == (tag & 0xFFFFFFE0)) {
+			finish_cmd(c, raw_tag);
+			return next_command(h);
+		}
+	}
+	bad_tag(h, h->nr_cmds + 1, raw_tag);
+	return next_command(h);
+}
+
 static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 {
 	struct ctlr_info *h = dev_id;
-	struct CommandList *c;
 	unsigned long flags;
-	u32 raw_tag, tag, tag_index;
-	struct hlist_node *tmp;
+	u32 raw_tag;
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
 	spin_lock_irqsave(&h->lock, flags);
-	while (interrupt_pending(h)) {
-		while ((raw_tag = get_next_completion(h)) != FIFO_EMPTY) {
-			if (likely(hpsa_tag_contains_index(raw_tag))) {
-				tag_index = hpsa_tag_to_index(raw_tag);
-				if (bad_tag(h, tag_index, raw_tag))
-					return IRQ_HANDLED;
-				c = h->cmd_pool + tag_index;
-				finish_cmd(c, raw_tag);
-				continue;
-			}
-			tag = hpsa_tag_discard_error_bits(raw_tag);
-			c = NULL;
-			hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
-				if (c->busaddr == tag) {
-					finish_cmd(c, raw_tag);
-					break;
-				}
-			}
-		}
+	raw_tag = get_next_completion(h);
+	while (raw_tag != FIFO_EMPTY) {
+		if (hpsa_tag_contains_index(raw_tag))
+			raw_tag = process_indexed_cmd(h, raw_tag);
+		else
+			raw_tag = process_nonindexed_cmd(h, raw_tag);
 	}
 	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
-/* Send a message CDB to the firmware. */
+/* Send a message CDB to the firmwart. */
 static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 						unsigned char type)
 {
@@ -3108,7 +3168,7 @@ static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
 default_int_mode:
 #endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
-	h->intr[SIMPLE_MODE_INT] = pdev->irq;
+	h->intr[PERF_MODE_INT] = pdev->irq;
 }
 
 static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
@@ -3118,6 +3178,7 @@ static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
+	u32 trans_offset;
 	int i, prod_index, err;
 
 	subsystem_vendor_id = pdev->subsystem_vendor;
@@ -3211,11 +3272,14 @@ static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	h->cfgtable = remap_pci_mem(pci_resource_start(pdev,
 			       cfg_base_addr_index) + cfg_offset,
 				sizeof(h->cfgtable));
+	/* Find performant mode table. */
+	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
+	h->transtable = remap_pci_mem(pci_resource_start(pdev,
+				cfg_base_addr_index)+cfg_offset+trans_offset,
+				sizeof(*h->transtable));
+
 	h->board_id = board_id;
-
-	/* Query controller for max supported commands: */
-	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
-
+	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
 	/* Allow room for some ioctls */
@@ -3314,7 +3378,12 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 		}
 	}
 
-	BUILD_BUG_ON(sizeof(struct CommandList) % 8);
+	/* Command structures must be aligned on a 32-byte boundary because
+	 * the 5 lower bits of the address are used by the hardware. and by
+	 * the driver.  See comments in hpsa.h for more info.
+	 */
+#define COMMANDLIST_ALIGNMENT 32
+	BUILD_BUG_ON(sizeof(struct CommandList) % COMMANDLIST_ALIGNMENT);
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
 		return -ENOMEM;
@@ -3349,17 +3418,17 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 
 	/* make sure the board interrupts are off */
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
-	rc = request_irq(h->intr[SIMPLE_MODE_INT], do_hpsa_intr,
-			IRQF_DISABLED | IRQF_SHARED, h->devname, h);
+	rc = request_irq(h->intr[PERF_MODE_INT], do_hpsa_intr,
+			IRQF_DISABLED, h->devname, h);
 	if (rc) {
 		dev_err(&pdev->dev, "unable to get irq %d for %s\n",
-		       h->intr[SIMPLE_MODE_INT], h->devname);
+		       h->intr[PERF_MODE_INT], h->devname);
 		goto clean2;
 	}
 
-	dev_info(&pdev->dev, "%s: <0x%x> at PCI %s IRQ %d%s using DAC\n",
-	       h->devname, pdev->device, pci_name(pdev),
-	       h->intr[SIMPLE_MODE_INT], dac ? "" : " not");
+	dev_info(&pdev->dev, "%s: <0x%x> at IRQ %d%s using DAC\n",
+	       h->devname, pdev->device,
+	       h->intr[PERF_MODE_INT], dac ? "" : " not");
 
 	h->cmd_pool_bits =
 	    kmalloc(((h->nr_cmds + BITS_PER_LONG -
@@ -3389,6 +3458,7 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	/* Turn the interrupts on so we can service requests */
 	h->access.set_intr_mask(h, HPSA_INTR_ON);
 
+	hpsa_put_ctlr_into_performant_mode(h);
 	hpsa_register_scsi(h);	/* hook ourselves into SCSI subsystem */
 	h->busy_initializing = 0;
 	return 1;
@@ -3404,7 +3474,7 @@ clean4:
 			    h->nr_cmds * sizeof(struct ErrorInfo),
 			    h->errinfo_pool,
 			    h->errinfo_pool_dhandle);
-	free_irq(h->intr[SIMPLE_MODE_INT], h);
+	free_irq(h->intr[PERF_MODE_INT], h);
 clean2:
 clean1:
 	h->busy_initializing = 0;
@@ -3448,7 +3518,7 @@ static void hpsa_shutdown(struct pci_dev *pdev)
 	 */
 	hpsa_flush_cache(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
-	free_irq(h->intr[2], h);
+	free_irq(h->intr[PERF_MODE_INT], h);
 #ifdef CONFIG_PCI_MSI
 	if (h->msix_vector)
 		pci_disable_msix(h->pdev);
@@ -3477,7 +3547,10 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	pci_free_consistent(h->pdev,
 		h->nr_cmds * sizeof(struct ErrorInfo),
 		h->errinfo_pool, h->errinfo_pool_dhandle);
+	pci_free_consistent(h->pdev, h->reply_pool_size,
+		h->reply_pool, h->reply_pool_dhandle);
 	kfree(h->cmd_pool_bits);
+	kfree(h->blockFetchTable);
 	/*
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
@@ -3508,6 +3581,129 @@ static struct pci_driver hpsa_pci_driver = {
 	.suspend = hpsa_suspend,
 	.resume = hpsa_resume,
 };
+
+/* Fill in bucket_map[], given nsgs (the max number of
+ * scatter gather elements supported) and bucket[],
+ * which is an array of 8 integers.  The bucket[] array
+ * contains 8 different DMA transfer sizes (in 16
+ * byte increments) which the controller uses to fetch
+ * commands.  This function fills in bucket_map[], which
+ * maps a given number of scatter gather elements to one of
+ * the 8 DMA transfer sizes.  The point of it is to allow the
+ * controller to only do as much DMA as needed to fetch the
+ * command, with the DMA transfer size encoded in the lower
+ * bits of the command address.
+ */
+static void  calc_bucket_map(int bucket[], int num_buckets,
+	int nsgs, int *bucket_map)
+{
+	int i, j, b, size;
+
+	/* even a command with 0 SGs requires 4 blocks */
+#define MINIMUM_TRANSFER_BLOCKS 4
+#define NUM_BUCKETS 8
+	/* Note, bucket_map must have nsgs+1 entries. */
+	for (i = 0; i <= nsgs; i++) {
+		/* Compute size of a command with i SG entries */
+		size = i + MINIMUM_TRANSFER_BLOCKS;
+		b = num_buckets; /* Assume the biggest bucket */
+		/* Find the bucket that is just big enough */
+		for (j = 0; j < 8; j++) {
+			if (bucket[j] >= size) {
+				b = j;
+				break;
+			}
+		}
+		/* for a command with i SG entries, use bucket b. */
+		bucket_map[i] = b;
+	}
+}
+
+static void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
+{
+	u32 trans_support;
+	u64 trans_offset;
+	/*  5 = 1 s/g entry or 4k
+	 *  6 = 2 s/g entry or 8k
+	 *  8 = 4 s/g entry or 16k
+	 * 10 = 6 s/g entry or 24k
+	 */
+	int bft[8] = {5, 6, 8, 10, 12, 20, 28, 35}; /* for scatter/gathers */
+	int i = 0;
+	int l = 0;
+	unsigned long register_value;
+
+	trans_support = readl(&(h->cfgtable->TransportSupport));
+	if (!(trans_support & PERFORMANT_MODE))
+		return;
+
+	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	h->max_sg_entries = 32;
+	/* Performant mode ring buffer and supporting data structures */
+	h->reply_pool_size = h->max_commands * sizeof(u64);
+	h->reply_pool = pci_alloc_consistent(h->pdev, h->reply_pool_size,
+				&(h->reply_pool_dhandle));
+
+	/* Need a block fetch table for performant mode */
+	h->blockFetchTable = kmalloc(((h->max_sg_entries+1) *
+				sizeof(u32)), GFP_KERNEL);
+
+	if ((h->reply_pool == NULL)
+		|| (h->blockFetchTable == NULL))
+		goto clean_up;
+
+	h->reply_pool_wraparound = 1; /* spec: init to 1 */
+
+	/* Controller spec: zero out this buffer. */
+	memset(h->reply_pool, 0, h->reply_pool_size);
+	h->reply_pool_head = h->reply_pool;
+
+	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
+	bft[7] = h->max_sg_entries + 4;
+	calc_bucket_map(bft, ARRAY_SIZE(bft), 32, h->blockFetchTable);
+	for (i = 0; i < 8; i++)
+		writel(bft[i], &h->transtable->BlockFetch[i]);
+
+	/* size of controller ring buffer */
+	writel(h->max_commands, &h->transtable->RepQSize);
+	writel(1, &h->transtable->RepQCount);
+	writel(0, &h->transtable->RepQCtrAddrLow32);
+	writel(0, &h->transtable->RepQCtrAddrHigh32);
+	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
+	writel(0, &h->transtable->RepQAddr0High32);
+	writel(CFGTBL_Trans_Performant,
+		&(h->cfgtable->HostWrite.TransportRequest));
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+	/* under certain very rare conditions, this can take awhile.
+	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
+	 * as we enter this code.) */
+	for (l = 0; l < MAX_CONFIG_WAIT; l++) {
+		register_value = readl(h->vaddr + SA5_DOORBELL);
+		if (!(register_value & CFGTBL_ChangeReq))
+			break;
+		/* delay and try again */
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(10);
+	}
+	register_value = readl(&(h->cfgtable->TransportActive));
+	if (!(register_value & CFGTBL_Trans_Performant)) {
+		dev_warn(&h->pdev->dev, "unable to get board into"
+					" performant mode\n");
+		return;
+	}
+
+	/* Change the access methods to the performant access methods */
+	h->access = SA5_performant_access;
+	h->transMethod = CFGTBL_Trans_Performant;
+
+	return;
+
+clean_up:
+	if (h->reply_pool)
+		pci_free_consistent(h->pdev, h->reply_pool_size,
+			h->reply_pool, h->reply_pool_dhandle);
+	kfree(h->blockFetchTable);
+}
 
 /*
  *  This is it.  Register the PCI driver information for the cards we control
