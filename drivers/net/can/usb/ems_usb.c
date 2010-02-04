@@ -1024,8 +1024,6 @@ static int ems_usb_probe(struct usb_interface *intf,
 	dev->can.do_set_mode = ems_usb_set_mode;
 	dev->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
-	netdev->flags |= IFF_ECHO; /* we support local echo */
-
 	netdev->netdev_ops = &ems_usb_netdev_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support local echo */
