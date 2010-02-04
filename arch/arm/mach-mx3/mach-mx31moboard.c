@@ -571,7 +571,7 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	/* Maintainer: Valentin Longchamp, EPFL Mobots group */
 	.phys_io	= MX31_AIPS1_BASE_ADDR,
 	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
-	.boot_params    = PHYS_OFFSET + 0x100,
+	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
 	.map_io         = mx31_map_io,
 	.init_irq       = mx31_init_irq,
 	.init_machine   = mxc_board_init,

@@ -265,7 +265,7 @@ static struct sys_timer kzm_timer = {
 MACHINE_START(KZM_ARM11_01, "Kyoto Microcomputer Co., Ltd. KZM-ARM11-01")
 	.phys_io        = MX31_AIPS1_BASE_ADDR,
 	.io_pg_offst    = (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
-	.boot_params    = PHYS_OFFSET + 0x100,
+	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
 	.map_io         = kzm_map_io,
 	.init_irq       = mx31_init_irq,
 	.init_machine   = kzm_board_init,

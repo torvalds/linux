@@ -110,7 +110,7 @@ MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.phys_io	= MX25_AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((MX25_AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params    = PHYS_OFFSET + 0x100,
+	.boot_params    = MX25_PHYS_OFFSET + 0x100,
 	.map_io         = mx25_map_io,
 	.init_irq       = mx25_init_irq,
 	.init_machine   = mx25pdk_init,

@@ -7,7 +7,6 @@
 obj-y	:=  generic.o devices.o serial.o
 CFLAGS_generic.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
 CFLAGS_devices.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
-CFLAGS_serial.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
 
 obj-$(CONFIG_MACH_MX21) += clock_imx21.o
 

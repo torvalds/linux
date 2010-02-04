@@ -4,6 +4,7 @@
 
 # Object file lists.
 
+EXTRA_CFLAGS += -DIMX_NEEDS_DEPRECATED_SYMBOLS
 obj-y			+= generic.o clock.o devices.o
 
 # Support for CMOS sensor interface
