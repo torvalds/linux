@@ -1029,7 +1029,6 @@ static void complete_scsi_command(struct CommandList *cp,
 				 * required
 				 */
 				if ((asc == 0x04) && (ascq == 0x03)) {
-					cmd->result = DID_NO_CONNECT << 16;
 					dev_warn(&h->pdev->dev, "cp %p "
 						"has check condition: unit "
 						"not ready, manual "
