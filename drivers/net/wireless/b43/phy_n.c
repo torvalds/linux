@@ -1069,6 +1069,10 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 	}
 
 	samples = kzalloc(len * sizeof(struct b43_c32), GFP_KERNEL);
+	if (!samples) {
+		b43err(dev->wl, "allocation for samples generation failed\n");
+		return 0;
+	}
 	rot = (((freq * 36) / bw) << 16) / 100;
 	angle = 0;
 
