@@ -23,6 +23,8 @@
 #include <asm/msr.h>
 #include <asm/nmi.h>
 #include <asm/apic.h>
+#include <asm/processor.h>
+#include <asm/cpufeature.h>
 
 #include "op_x86_model.h"
 #include "op_counter.h"
@@ -58,7 +60,7 @@ static unsigned long reset_value[NUM_VIRT_COUNTERS];
 #define IBS_FETCH_SIZE			6
 #define IBS_OP_SIZE			12
 
-static int has_ibs;	/* AMD Family10h and later */
+static u32 ibs_caps;
 
 struct op_ibs_config {
 	unsigned long op_enabled;
@@ -70,6 +72,40 @@ struct op_ibs_config {
 };
 
 static struct op_ibs_config ibs_config;
+
+/*
+ * IBS cpuid feature detection
+ */
+
+#define IBS_CPUID_FEATURES      0x8000001b
+
+/*
+ * Same bit mask as for IBS cpuid feature flags (Fn8000_001B_EAX), but
+ * bit 0 is used to indicate the existence of IBS.
+ */
+#define IBS_CAPS_AVAIL			(1LL<<0)
+#define IBS_CAPS_OPCNT			(1LL<<4)
+
+static u32 get_ibs_caps(void)
+{
+	u32 ibs_caps;
+	unsigned int max_level;
+
+	if (!boot_cpu_has(X86_FEATURE_IBS))
+		return 0;
+
+	/* check IBS cpuid feature flags */
+	max_level = cpuid_eax(0x80000000);
+	if (max_level < IBS_CPUID_FEATURES)
+		return IBS_CAPS_AVAIL;
+
+	ibs_caps = cpuid_eax(IBS_CPUID_FEATURES);
+	if (!(ibs_caps & IBS_CAPS_AVAIL))
+		/* cpuid flags not valid */
+		return IBS_CAPS_AVAIL;
+
+	return ibs_caps;
+}
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
@@ -189,7 +225,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 	u64 val, ctl;
 	struct op_entry entry;
 
-	if (!has_ibs)
+	if (!ibs_caps)
 		return;
 
 	if (ibs_config.fetch_enabled) {
@@ -241,16 +277,21 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 static inline void op_amd_start_ibs(void)
 {
 	u64 val;
-	if (has_ibs && ibs_config.fetch_enabled) {
+
+	if (!ibs_caps)
+		return;
+
+	if (ibs_config.fetch_enabled) {
 		val = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
 		val |= ibs_config.rand_en ? IBS_FETCH_RAND_EN : 0;
 		val |= IBS_FETCH_ENABLE;
 		wrmsrl(MSR_AMD64_IBSFETCHCTL, val);
 	}
 
-	if (has_ibs && ibs_config.op_enabled) {
+	if (ibs_config.op_enabled) {
 		val = (ibs_config.max_cnt_op >> 4) & 0xFFFF;
-		val |= ibs_config.dispatched_ops ? IBS_OP_CNT_CTL : 0;
+		if (ibs_caps & IBS_CAPS_OPCNT && ibs_config.dispatched_ops)
+			val |= IBS_OP_CNT_CTL;
 		val |= IBS_OP_ENABLE;
 		wrmsrl(MSR_AMD64_IBSOPCTL, val);
 	}
@@ -258,11 +299,14 @@ static inline void op_amd_start_ibs(void)
 
 static void op_amd_stop_ibs(void)
 {
-	if (has_ibs && ibs_config.fetch_enabled)
+	if (!ibs_caps)
+		return;
+
+	if (ibs_config.fetch_enabled)
 		/* clear max count and enable */
 		wrmsrl(MSR_AMD64_IBSFETCHCTL, 0);
 
-	if (has_ibs && ibs_config.op_enabled)
+	if (ibs_config.op_enabled)
 		/* clear max count and enable */
 		wrmsrl(MSR_AMD64_IBSOPCTL, 0);
 }
@@ -395,29 +439,30 @@ static int init_ibs_nmi(void)
 /* uninitialize the APIC for the IBS interrupts if needed */
 static void clear_ibs_nmi(void)
 {
-	if (has_ibs)
+	if (ibs_caps)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
 /* initialize the APIC for the IBS interrupts if available */
 static void ibs_init(void)
 {
-	has_ibs = boot_cpu_has(X86_FEATURE_IBS);
+	ibs_caps = get_ibs_caps();
 
-	if (!has_ibs)
+	if (!ibs_caps)
 		return;
 
 	if (init_ibs_nmi()) {
-		has_ibs = 0;
+		ibs_caps = 0;
 		return;
 	}
 
-	printk(KERN_INFO "oprofile: AMD IBS detected\n");
+	printk(KERN_INFO "oprofile: AMD IBS detected (0x%08x)\n",
+	       (unsigned)ibs_caps);
 }
 
 static void ibs_exit(void)
 {
-	if (!has_ibs)
+	if (!ibs_caps)
 		return;
 
 	clear_ibs_nmi();
@@ -437,7 +482,7 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	if (ret)
 		return ret;
 
-	if (!has_ibs)
+	if (!ibs_caps)
 		return ret;
 
 	/* model specific files */
@@ -447,7 +492,7 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 	ibs_config.fetch_enabled = 0;
 	ibs_config.max_cnt_op = 250000;
 	ibs_config.op_enabled = 0;
-	ibs_config.dispatched_ops = 1;
+	ibs_config.dispatched_ops = 0;
 
 	dir = oprofilefs_mkdir(sb, root, "ibs_fetch");
 	oprofilefs_create_ulong(sb, dir, "enable",
@@ -462,8 +507,9 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 				&ibs_config.op_enabled);
 	oprofilefs_create_ulong(sb, dir, "max_count",
 				&ibs_config.max_cnt_op);
-	oprofilefs_create_ulong(sb, dir, "dispatched_ops",
-				&ibs_config.dispatched_ops);
+	if (ibs_caps & IBS_CAPS_OPCNT)
+		oprofilefs_create_ulong(sb, dir, "dispatched_ops",
+					&ibs_config.dispatched_ops);
 
 	return 0;
 }
