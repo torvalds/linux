@@ -269,7 +269,7 @@ struct ErrorInfo {
 
 struct ctlr_info; /* defined in hpsa.h */
 /* The size of this structure needs to be divisible by 8
- * od on all architectures, because the controller uses 2
+ * on all architectures, because the controller uses 2
  * lower bits of the address, and the driver uses 1 lower
  * bit (3 bits total.)
  */
