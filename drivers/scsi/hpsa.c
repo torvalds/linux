@@ -628,8 +628,7 @@ static void hpsa_scsi_remove_entry(struct ctlr_info *h, int hostno, int entry,
 	int i;
 	struct hpsa_scsi_dev_t *sd;
 
-	if (entry < 0 || entry >= HPSA_MAX_SCSI_DEVS_PER_HBA)
-		BUG();
+	BUG_ON(entry < 0 || entry >= HPSA_MAX_SCSI_DEVS_PER_HBA);
 
 	sd = h->dev[entry];
 	removed[*nremoved] = h->dev[entry];
