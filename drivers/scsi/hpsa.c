@@ -898,7 +898,7 @@ static int hpsa_slave_alloc(struct scsi_device *sdev)
 
 static void hpsa_slave_destroy(struct scsi_device *sdev)
 {
-	return; /* nothing to do. */
+	/* nothing to do. */
 }
 
 static void hpsa_scsi_setup(struct ctlr_info *h)
@@ -906,7 +906,6 @@ static void hpsa_scsi_setup(struct ctlr_info *h)
 	h->ndevices = 0;
 	h->scsi_host = NULL;
 	spin_lock_init(&h->devlock);
-	return;
 }
 
 static void complete_scsi_command(struct CommandList *cp,
@@ -1775,7 +1774,6 @@ out:
 	kfree(inq_buff);
 	kfree(physdev_list);
 	kfree(logdev_list);
-	return;
 }
 
 /* hpsa_scatter_gather takes a struct scsi_cmnd, (cmd), and does the pci
@@ -3106,7 +3104,6 @@ default_int_mode:
 #endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
 	h->intr[SIMPLE_MODE_INT] = pdev->irq;
-	return;
 }
 
 static int hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
