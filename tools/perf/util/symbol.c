@@ -1937,7 +1937,7 @@ int map_groups__create_kernel_maps(struct map_groups *self,
 		return -1;
 
 	if (symbol_conf.use_modules && map_groups__create_modules(self) < 0)
-		return -1;
+		return 0;
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
