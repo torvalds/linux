@@ -2295,6 +2295,55 @@ static void b43_nphy_tx_cal_phy_setup(struct b43_wldev *dev)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SaveCal */
+static void b43_nphy_save_cal(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	struct b43_phy_n_iq_comp *rxcal_coeffs = NULL;
+	u16 *txcal_radio_regs = NULL;
+	u8 *iqcal_chanspec;
+	u16 *table = NULL;
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 1);
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		rxcal_coeffs = &nphy->cal_cache.rxcal_coeffs_2G;
+		txcal_radio_regs = nphy->cal_cache.txcal_radio_regs_2G;
+		iqcal_chanspec = &nphy->iqcal_chanspec_2G;
+		table = nphy->cal_cache.txcal_coeffs_2G;
+	} else {
+		rxcal_coeffs = &nphy->cal_cache.rxcal_coeffs_5G;
+		txcal_radio_regs = nphy->cal_cache.txcal_radio_regs_5G;
+		iqcal_chanspec = &nphy->iqcal_chanspec_5G;
+		table = nphy->cal_cache.txcal_coeffs_5G;
+	}
+
+	b43_nphy_rx_iq_coeffs(dev, false, rxcal_coeffs);
+	/* TODO use some definitions */
+	if (dev->phy.rev >= 3) {
+		txcal_radio_regs[0] = b43_radio_read(dev, 0x2021);
+		txcal_radio_regs[1] = b43_radio_read(dev, 0x2022);
+		txcal_radio_regs[2] = b43_radio_read(dev, 0x3021);
+		txcal_radio_regs[3] = b43_radio_read(dev, 0x3022);
+		txcal_radio_regs[4] = b43_radio_read(dev, 0x2023);
+		txcal_radio_regs[5] = b43_radio_read(dev, 0x2024);
+		txcal_radio_regs[6] = b43_radio_read(dev, 0x3023);
+		txcal_radio_regs[7] = b43_radio_read(dev, 0x3024);
+	} else {
+		txcal_radio_regs[0] = b43_radio_read(dev, 0x8B);
+		txcal_radio_regs[1] = b43_radio_read(dev, 0xBA);
+		txcal_radio_regs[2] = b43_radio_read(dev, 0x8D);
+		txcal_radio_regs[3] = b43_radio_read(dev, 0xBC);
+	}
+	*iqcal_chanspec = nphy->radio_chanspec;
+	b43_ntab_write_bulk(dev, B43_NTAB16(15, 80), 8, table);
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 0);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RestoreCal */
 static void b43_nphy_restore_cal(struct b43_wldev *dev)
 {
@@ -2992,7 +3041,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 
 	if (!b43_nphy_cal_tx_iq_lo(dev, target, true, false)) {
 		if (b43_nphy_cal_rx_iq(dev, target, 2, 0) == 0)
-			;/* Call N PHY Save Cal */
+			b43_nphy_save_cal(dev);
 		else if (nphy->mphase_cal_phase_id == 0)
 			;/* N PHY Periodic Calibration with argument 3 */
 	} else {

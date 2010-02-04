@@ -975,6 +975,7 @@ struct b43_phy_n {
 	u16 papd_epsilon_offset[2];
 	s32 preamble_override;
 	u32 bb_mult_save;
+	u16 radio_chanspec;
 
 	bool gain_boost;
 	bool elna_gain_config;
