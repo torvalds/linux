@@ -1017,6 +1017,33 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/LoadSampleTable */
+static int b43_nphy_load_samples(struct b43_wldev *dev,
+					struct b43_c32 *samples, u16 len) {
+	struct b43_phy_n *nphy = dev->phy.n;
+	u16 i;
+	u32 *data;
+
+	data = kzalloc(len * sizeof(u32), GFP_KERNEL);
+	if (!data) {
+		b43err(dev->wl, "allocation for samples loading failed\n");
+		return -ENOMEM;
+	}
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 1);
+
+	for (i = 0; i < len; i++) {
+		data[i] = (samples[i].i & 0x3FF << 10);
+		data[i] |= samples[i].q & 0x3FF;
+	}
+	b43_ntab_write_bulk(dev, B43_NTAB32(17, 0), len, data);
+
+	kfree(data);
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 0);
+	return 0;
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GenLoadSamples */
 static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 					bool test)
@@ -1052,9 +1079,9 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 		samples[i].i = CORDIC_CONVERT(samples[i].i * max);
 	}
 
-	/* TODO: Call N PHY Load Sample Table with buffer, len as arguments */
+	i = b43_nphy_load_samples(dev, samples, len);
 	kfree(samples);
-	return len;
+	return (i < 0) ? 0 : len;
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RunSamples */
