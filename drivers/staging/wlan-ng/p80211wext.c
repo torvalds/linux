@@ -1744,11 +1744,7 @@ static iw_handler p80211wext_handlers[] = {
 
 struct iw_handler_def p80211wext_handler_def = {
 	.num_standard = ARRAY_SIZE(p80211wext_handlers),
-	.num_private = 0,
-	.num_private_args = 0,
 	.standard = p80211wext_handlers,
-	.private = NULL,
-	.private_args = NULL,
 	.get_wireless_stats = p80211wext_get_wireless_stats
 };
 
