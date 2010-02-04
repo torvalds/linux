@@ -4129,12 +4129,12 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 	queue_delayed_work(qdev->workqueue,
 			&qdev->mpi_port_cfg_work, 3*HZ);
 
+	ndev->mtu = new_mtu;
+
 	if (!netif_running(qdev->ndev)) {
-		ndev->mtu = new_mtu;
 		return 0;
 	}
 
-	ndev->mtu = new_mtu;
 	status = ql_change_rx_buffers(qdev);
 	if (status) {
 		QPRINTK(qdev, IFUP, ERR,
