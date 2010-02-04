@@ -1405,13 +1405,12 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 	unsigned char scsi3addr[], struct hpsa_scsi_dev_t *this_device)
 {
 #define OBDR_TAPE_INQ_SIZE 49
-	unsigned char *inq_buff = NULL;
+	unsigned char *inq_buff;
 
-	inq_buff = kmalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
+	inq_buff = kzalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
 	if (!inq_buff)
 		goto bail_out;
 
-	memset(inq_buff, 0, OBDR_TAPE_INQ_SIZE);
 	/* Do an inquiry to the device to see what it is. */
 	if (hpsa_scsi_do_inquiry(h, scsi3addr, 0, inq_buff,
 		(unsigned char) OBDR_TAPE_INQ_SIZE) != 0) {
