@@ -173,10 +173,7 @@ struct ctlr_info {
 static void SA5_submit_command(struct ctlr_info *h,
 	struct CommandList *c)
 {
-#ifdef HPSA_DEBUG
-	 printk(KERN_WARNING "hpsa: Sending %x - down to controller\n",
-		c->busaddr);
-#endif /* HPSA_DEBUG */
+	dev_dbg(&h->pdev->dev, "Sending %x\n", c->busaddr);
 	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
 	h->commands_outstanding++;
 	if (h->commands_outstanding > h->max_outstanding)
@@ -225,10 +222,10 @@ static unsigned long SA5_completed(struct ctlr_info *h)
 
 #ifdef HPSA_DEBUG
 	if (register_value != FIFO_EMPTY)
-		printk(KERN_INFO "hpsa:  Read %lx back from board\n",
+		dev_dbg(&h->pdev->dev, "Read %lx back from board\n",
 			register_value);
 	else
-		printk(KERN_INFO "hpsa:  FIFO Empty read\n");
+		dev_dbg(&h->pdev->dev, "hpsa: FIFO Empty read\n");
 #endif
 
 	return register_value;
@@ -240,9 +237,7 @@ static unsigned long SA5_intr_pending(struct ctlr_info *h)
 {
 	unsigned long register_value  =
 		readl(h->vaddr + SA5_INTR_STATUS);
-#ifdef HPSA_DEBUG
-	printk(KERN_INFO "hpsa: intr_pending %lx\n", register_value);
-#endif  /* HPSA_DEBUG */
+	dev_dbg(&h->pdev->dev, "intr_pending %lx\n", register_value);
 	if (register_value &  SA5_INTR_PENDING)
 		return  1;
 	return 0 ;
