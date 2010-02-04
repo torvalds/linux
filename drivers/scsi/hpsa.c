@@ -1061,6 +1061,7 @@ static void complete_scsi_command(struct CommandList *cp,
 					"Sense: 0x%x, ASC: 0x%x, ASCQ: 0x%x, "
 					"Returning result: 0x%x, "
 					"cmd=[%02x %02x %02x %02x %02x "
+					"%02x %02x %02x %02x %02x %02x "
 					"%02x %02x %02x %02x %02x]\n",
 					cp, sense_key, asc, ascq,
 					cmd->result,
@@ -1068,7 +1069,10 @@ static void complete_scsi_command(struct CommandList *cp,
 					cmd->cmnd[2], cmd->cmnd[3],
 					cmd->cmnd[4], cmd->cmnd[5],
 					cmd->cmnd[6], cmd->cmnd[7],
-					cmd->cmnd[8], cmd->cmnd[9]);
+					cmd->cmnd[8], cmd->cmnd[9],
+					cmd->cmnd[10], cmd->cmnd[11],
+					cmd->cmnd[12], cmd->cmnd[13],
+					cmd->cmnd[14], cmd->cmnd[15]);
 			break;
 		}
 
