@@ -52,7 +52,7 @@
 #include "hpsa.h"
 
 /* HPSA_DRIVER_VERSION must be 3 byte values (0-255) separated by '.' */
-#define HPSA_DRIVER_VERSION "1.0.0"
+#define HPSA_DRIVER_VERSION "2.0.1-3"
 #define DRIVER_NAME "HP HPSA Driver (v " HPSA_DRIVER_VERSION ")"
 
 /* How long to wait (in milliseconds) for board to go into simple mode */
