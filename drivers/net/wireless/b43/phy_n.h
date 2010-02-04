@@ -1002,6 +1002,9 @@ struct b43_phy_n {
 	u16 classifier_state;
 	u16 clip_state[2];
 
+	bool aband_spurwar_en;
+	bool gband_spurwar_en;
+
 	bool ipa2g_on;
 	u8 iqcal_chanspec_2G;
 	u8 rssical_chanspec_2G;

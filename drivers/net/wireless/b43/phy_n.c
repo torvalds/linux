@@ -717,6 +717,67 @@ static void b43_nphy_stop_playback(struct b43_wldev *dev)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SpurWar */
+static void b43_nphy_spur_workaround(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	unsigned int channel;
+	int tone[2] = { 57, 58 };
+	u32 noise[2] = { 0x3FF, 0x3FF };
+
+	B43_WARN_ON(dev->phy.rev < 3);
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 1);
+
+	/* FIXME: channel = radio_chanspec */
+
+	if (nphy->gband_spurwar_en) {
+		/* TODO: N PHY Adjust Analog Pfbw (7) */
+		if (channel == 11 && dev->phy.is_40mhz)
+			; /* TODO: N PHY Adjust Min Noise Var(2, tone, noise)*/
+		else
+			; /* TODO: N PHY Adjust Min Noise Var(0, NULL, NULL)*/
+		/* TODO: N PHY Adjust CRS Min Power (0x1E) */
+	}
+
+	if (nphy->aband_spurwar_en) {
+		if (channel == 54) {
+			tone[0] = 0x20;
+			noise[0] = 0x25F;
+		} else if (channel == 38 || channel == 102 || channel == 118) {
+			if (0 /* FIXME */) {
+				tone[0] = 0x20;
+				noise[0] = 0x21F;
+			} else {
+				tone[0] = 0;
+				noise[0] = 0;
+			}
+		} else if (channel == 134) {
+			tone[0] = 0x20;
+			noise[0] = 0x21F;
+		} else if (channel == 151) {
+			tone[0] = 0x10;
+			noise[0] = 0x23F;
+		} else if (channel == 153 || channel == 161) {
+			tone[0] = 0x30;
+			noise[0] = 0x23F;
+		} else {
+			tone[0] = 0;
+			noise[0] = 0;
+		}
+
+		if (!tone[0] && !noise[0])
+			; /* TODO: N PHY Adjust Min Noise Var(1, tone, noise)*/
+		else
+			; /* TODO: N PHY Adjust Min Noise Var(0, NULL, NULL)*/
+	}
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 0);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/WorkaroundsGainCtrl */
 static void b43_nphy_gain_crtl_workarounds(struct b43_wldev *dev)
 {
@@ -3055,7 +3116,8 @@ int b43_phy_initn(struct b43_wldev *dev)
 	if (phy->rev >= 3 && phy->rev <= 6)
 		b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 0x0014);
 	b43_nphy_tx_lp_fbw(dev);
-	/* TODO N PHY Spur Workaround */
+	if (phy->rev >= 3)
+		b43_nphy_spur_workaround(dev);
 
 	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
 	return 0;
