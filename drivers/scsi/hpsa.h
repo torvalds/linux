@@ -164,9 +164,6 @@ struct ctlr_info {
 #define HPSA_FIRMWARE_READY	0xffff0000 /* value in scratchpad register */
 
 #define HPSA_ERROR_BIT		0x02
-#define HPSA_TAG_CONTAINS_INDEX(tag) ((tag) & 0x04)
-#define HPSA_TAG_TO_INDEX(tag) ((tag) >> 3)
-#define HPSA_TAG_DISCARD_ERROR_BITS(tag) ((tag) & ~3)
 
 #define HPSA_INTR_ON 	1
 #define HPSA_INTR_OFF	0

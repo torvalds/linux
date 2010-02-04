@@ -2723,6 +2723,24 @@ static inline void finish_cmd(struct CommandList *c, u32 raw_tag)
 		complete(c->waiting);
 }
 
+static inline u32 hpsa_tag_contains_index(u32 tag)
+{
+#define DIRECT_LOOKUP_BIT 0x04
+	return tag & DIRECT_LOOKUP_BIT;
+}
+
+static inline u32 hpsa_tag_to_index(u32 tag)
+{
+#define DIRECT_LOOKUP_SHIFT 3
+	return tag >> DIRECT_LOOKUP_SHIFT;
+}
+
+static inline u32 hpsa_tag_discard_error_bits(u32 tag)
+{
+#define HPSA_ERROR_BITS 0x03
+	return tag & ~HPSA_ERROR_BITS;
+}
+
 static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 {
 	struct ctlr_info *h = dev_id;
@@ -2736,15 +2754,15 @@ static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 	spin_lock_irqsave(&h->lock, flags);
 	while (interrupt_pending(h)) {
 		while ((raw_tag = get_next_completion(h)) != FIFO_EMPTY) {
-			if (likely(HPSA_TAG_CONTAINS_INDEX(raw_tag))) {
-				tag_index = HPSA_TAG_TO_INDEX(raw_tag);
+			if (likely(hpsa_tag_contains_index(raw_tag))) {
+				tag_index = hpsa_tag_to_index(raw_tag);
 				if (bad_tag(h, tag_index, raw_tag))
 					return IRQ_HANDLED;
 				c = h->cmd_pool + tag_index;
 				finish_cmd(c, raw_tag);
 				continue;
 			}
-			tag = HPSA_TAG_DISCARD_ERROR_BITS(raw_tag);
+			tag = hpsa_tag_discard_error_bits(raw_tag);
 			c = NULL;
 			hlist_for_each_entry(c, tmp, &h->cmpQ, list) {
 				if (c->busaddr == tag) {
@@ -2824,7 +2842,7 @@ static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 
 	for (i = 0; i < HPSA_MSG_SEND_RETRY_LIMIT; i++) {
 		tag = readl(vaddr + SA5_REPLY_PORT_OFFSET);
-		if (HPSA_TAG_DISCARD_ERROR_BITS(tag) == paddr32)
+		if (hpsa_tag_discard_error_bits(tag) == paddr32)
 			break;
 		msleep(HPSA_MSG_SEND_RETRY_INTERVAL_MSECS);
 	}
