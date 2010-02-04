@@ -354,11 +354,17 @@ u32 r100_get_vblank_counter(struct radeon_device *rdev, int crtc)
 		return RREG32(RADEON_CRTC2_CRNT_FRAME);
 }
 
+/* Who ever call radeon_fence_emit should call ring_lock and ask
+ * for enough space (today caller are ib schedule and buffer move) */
 void r100_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
-	/* Who ever call radeon_fence_emit should call ring_lock and ask
-	 * for enough space (today caller are ib schedule and buffer move) */
+	/* We have to make sure that caches are flushed before
+	 * CPU might read something from VRAM. */
+	radeon_ring_write(rdev, PACKET0(RADEON_RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, RADEON_RB3D_DC_FLUSH_ALL);
+	radeon_ring_write(rdev, PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, RADEON_RB3D_ZC_FLUSH_ALL);
 	/* Wait until IDLE & CLEAN */
 	radeon_ring_write(rdev, PACKET0(0x1720, 0));
 	radeon_ring_write(rdev, (1 << 16) | (1 << 17));
