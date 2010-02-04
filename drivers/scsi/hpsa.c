@@ -838,7 +838,11 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 			(void) hpsa_scsi_add_entry(h, hostno, sd[entry],
 				added, &nadded);
 			/* add can't fail, we just removed one. */
-			sd[entry] = NULL; /* prevent it from being freed */
+
+			/* Set it to NULL to prevent it from being freed
+			 * at the bottom of hpsa_update_scsi_devices()
+			 */
+			sd[entry] = NULL;
 		}
 		i++;
 	}
