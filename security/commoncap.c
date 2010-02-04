@@ -896,7 +896,6 @@ error:
  */
 int cap_syslog(int type, bool from_file)
 {
-	/* /proc/kmsg can open be opened by CAP_SYS_ADMIN */
 	if (type != SYSLOG_ACTION_OPEN && from_file)
 		return 0;
 	if ((type != SYSLOG_ACTION_READ_ALL &&
