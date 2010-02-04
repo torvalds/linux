@@ -33,7 +33,7 @@ struct access_method {
 		struct CommandList *c);
 	void (*set_intr_mask)(struct ctlr_info *h, unsigned long val);
 	unsigned long (*fifo_full)(struct ctlr_info *h);
-	unsigned long (*intr_pending)(struct ctlr_info *h);
+	bool (*intr_pending)(struct ctlr_info *h);
 	unsigned long (*command_completed)(struct ctlr_info *h);
 };
 
@@ -233,14 +233,12 @@ static unsigned long SA5_completed(struct ctlr_info *h)
 /*
  *	Returns true if an interrupt is pending..
  */
-static unsigned long SA5_intr_pending(struct ctlr_info *h)
+static bool SA5_intr_pending(struct ctlr_info *h)
 {
 	unsigned long register_value  =
 		readl(h->vaddr + SA5_INTR_STATUS);
 	dev_dbg(&h->pdev->dev, "intr_pending %lx\n", register_value);
-	if (register_value &  SA5_INTR_PENDING)
-		return  1;
-	return 0 ;
+	return register_value & SA5_INTR_PENDING;
 }
 
 

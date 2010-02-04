@@ -2693,7 +2693,7 @@ static inline unsigned long get_next_completion(struct ctlr_info *h)
 	return h->access.command_completed(h);
 }
 
-static inline int interrupt_pending(struct ctlr_info *h)
+static inline bool interrupt_pending(struct ctlr_info *h)
 {
 	return h->access.intr_pending(h);
 }
