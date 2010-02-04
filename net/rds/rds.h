@@ -96,8 +96,9 @@ struct rds_connection {
 	unsigned long		c_xmit_sg;
 	unsigned int		c_xmit_hdr_off;
 	unsigned int		c_xmit_data_off;
-	unsigned int		c_xmit_rdma_sent;
 	unsigned int		c_xmit_atomic_sent;
+	unsigned int		c_xmit_rdma_sent;
+	unsigned int		c_xmit_data_sent;
 
 	spinlock_t		c_lock;		/* protect msg queues */
 	u64			c_next_tx_seq;
@@ -120,8 +121,6 @@ struct rds_connection {
 
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
-	unsigned long		c_map_offset;
-	unsigned long		c_map_bytes;
 
 	unsigned int		c_unacked_packets;
 	unsigned int		c_unacked_bytes;
