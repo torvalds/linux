@@ -348,6 +348,16 @@ config AB4500_CORE
 	  read/write functions for the devices to get access to this chip.
 	  This chip embeds various other multimedia funtionalities as well.
 
+config MFD_TIMBERDALE
+	tristate "Support for the Timberdale FPGA"
+	select MFD_CORE
+	depends on PCI
+	---help---
+	This is the core driver for the timberdale FPGA. This device is a
+	multifunction device which exposes numerous platform devices.
+
+	The timberdale FPGA can be found on the Intel Atom development board
+	for in-vehicle infontainment, called Russellville.
 endmenu
 
 menu "Multimedia Capabilities Port drivers"
