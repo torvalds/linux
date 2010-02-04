@@ -204,8 +204,8 @@ static void parse_source(struct sym_entry *syme)
 	sprintf(command,
 		"objdump --start-address=0x%016Lx "
 			 "--stop-address=0x%016Lx -dS %s",
-		map->unmap_ip(map, sym->start),
-		map->unmap_ip(map, sym->end), path);
+		map__rip_2objdump(map, sym->start),
+		map__rip_2objdump(map, sym->end), path);
 
 	file = popen(command, "r");
 	if (!file)
