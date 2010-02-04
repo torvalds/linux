@@ -131,6 +131,9 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 
 static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 		void (*done)(struct scsi_cmnd *));
+static void hpsa_scan_start(struct Scsi_Host *);
+static int hpsa_scan_finished(struct Scsi_Host *sh,
+	unsigned long elapsed_time);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_slave_alloc(struct scsi_device *sdev);
@@ -177,6 +180,8 @@ static struct scsi_host_template hpsa_driver_template = {
 	.name			= "hpsa",
 	.proc_name		= "hpsa",
 	.queuecommand		= hpsa_scsi_queue_command,
+	.scan_start		= hpsa_scan_start,
+	.scan_finished		= hpsa_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= MAXSGENTRIES,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -320,7 +325,7 @@ static int hpsa_scan_func(__attribute__((unused)) void *data)
 			h->busy_scanning = 1;
 			mutex_unlock(&hpsa_scan_mutex);
 			host_no = h->scsi_host ?  h->scsi_host->host_no : -1;
-			hpsa_update_scsi_devices(h, host_no);
+			hpsa_scan_start(h->scsi_host);
 			complete_all(&h->scan_wait);
 			mutex_lock(&hpsa_scan_mutex);
 			h->busy_scanning = 0;
@@ -2006,6 +2011,48 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 	return 0;
 }
 
+static void hpsa_scan_start(struct Scsi_Host *sh)
+{
+	struct ctlr_info *h = shost_to_hba(sh);
+	unsigned long flags;
+
+	/* wait until any scan already in progress is finished. */
+	while (1) {
+		spin_lock_irqsave(&h->scan_lock, flags);
+		if (h->scan_finished)
+			break;
+		spin_unlock_irqrestore(&h->scan_lock, flags);
+		wait_event(h->scan_wait_queue, h->scan_finished);
+		/* Note: We don't need to worry about a race between this
+		 * thread and driver unload because the midlayer will
+		 * have incremented the reference count, so unload won't
+		 * happen if we're in here.
+		 */
+	}
+	h->scan_finished = 0; /* mark scan as in progress */
+	spin_unlock_irqrestore(&h->scan_lock, flags);
+
+	hpsa_update_scsi_devices(h, h->scsi_host->host_no);
+
+	spin_lock_irqsave(&h->scan_lock, flags);
+	h->scan_finished = 1; /* mark scan as finished. */
+	wake_up_all(&h->scan_wait_queue);
+	spin_unlock_irqrestore(&h->scan_lock, flags);
+}
+
+static int hpsa_scan_finished(struct Scsi_Host *sh,
+	unsigned long elapsed_time)
+{
+	struct ctlr_info *h = shost_to_hba(sh);
+	unsigned long flags;
+	int finished;
+
+	spin_lock_irqsave(&h->scan_lock, flags);
+	finished = h->scan_finished;
+	spin_unlock_irqrestore(&h->scan_lock, flags);
+	return finished;
+}
+
 static void hpsa_unregister_scsi(struct ctlr_info *h)
 {
 	/* we are being forcibly unloaded, and may not refuse. */
@@ -2018,7 +2065,6 @@ static int hpsa_register_scsi(struct ctlr_info *h)
 {
 	int rc;
 
-	hpsa_update_scsi_devices(h, -1);
 	rc = hpsa_scsi_detect(h);
 	if (rc != 0)
 		dev_err(&h->pdev->dev, "hpsa_register_scsi: failed"
@@ -2619,7 +2665,7 @@ static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg)
 	case CCISS_DEREGDISK:
 	case CCISS_REGNEWDISK:
 	case CCISS_REGNEWD:
-		hpsa_update_scsi_devices(h, dev->host->host_no);
+		hpsa_scan_start(h->scsi_host);
 		return 0;
 	case CCISS_GETPCIINFO:
 		return hpsa_getpciinfo_ioctl(h, argp);
@@ -3532,6 +3578,9 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 		goto clean4;
 	}
 	spin_lock_init(&h->lock);
+	spin_lock_init(&h->scan_lock);
+	init_waitqueue_head(&h->scan_wait_queue);
+	h->scan_finished = 1; /* no scan currently in progress */
 
 	pci_set_drvdata(pdev, h);
 	memset(h->cmd_pool_bits, 0,

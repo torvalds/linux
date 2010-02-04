@@ -94,6 +94,9 @@ struct ctlr_info {
 	int			nr_frees;
 	int			busy_initializing;
 	int			busy_scanning;
+	int			scan_finished;
+	spinlock_t		scan_lock;
+	wait_queue_head_t	scan_wait_queue;
 	struct mutex		busy_shutting_down;
 	struct list_head	scan_list;
 	struct completion	scan_wait;
