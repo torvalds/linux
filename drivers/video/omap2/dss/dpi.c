@@ -25,7 +25,10 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #include <plat/display.h>
 #include <plat/cpu.h>
@@ -34,6 +37,7 @@
 
 static struct {
 	int update_enabled;
+	struct regulator *vdds_dsi_reg;
 } dpi;
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
@@ -166,21 +170,27 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
+	if (cpu_is_omap34xx()) {
+		r = regulator_enable(dpi.vdds_dsi_reg);
+		if (r)
+			goto err2;
+	}
+
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
 	r = dpi_basic_init(dssdev);
 	if (r)
-		goto err2;
+		goto err3;
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dss_clk_enable(DSS_CLK_FCK2);
 	r = dsi_pll_init(dssdev, 0, 1);
 	if (r)
-		goto err3;
+		goto err4;
 #endif
 	r = dpi_set_mode(dssdev);
 	if (r)
-		goto err4;
+		goto err5;
 
 	mdelay(2);
 
@@ -188,22 +198,25 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	r = dssdev->driver->enable(dssdev);
 	if (r)
-		goto err5;
+		goto err6;
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return 0;
 
-err5:
+err6:
 	dispc_enable_lcd_out(0);
-err4:
+err5:
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
 	dsi_pll_uninit();
-err3:
+err4:
 	dss_clk_disable(DSS_CLK_FCK2);
 #endif
-err2:
+err3:
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+err2:
+	if (cpu_is_omap34xx())
+		regulator_disable(dpi.vdds_dsi_reg);
 err1:
 	omap_dss_stop_device(dssdev);
 err0:
@@ -232,6 +245,9 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
+	if (cpu_is_omap34xx())
+		regulator_disable(dpi.vdds_dsi_reg);
+
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
 	omap_dss_stop_device(dssdev);
@@ -251,6 +267,9 @@ static int dpi_display_suspend(struct omap_dss_device *dssdev)
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
+	if (cpu_is_omap34xx())
+		regulator_disable(dpi.vdds_dsi_reg);
+
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 
 	return 0;
@@ -258,10 +277,18 @@ static int dpi_display_suspend(struct omap_dss_device *dssdev)
 
 static int dpi_display_resume(struct omap_dss_device *dssdev)
 {
+	int r;
+
 	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED)
 		return -EINVAL;
 
 	DSSDBG("dpi_display_resume\n");
+
+	if (cpu_is_omap34xx()) {
+		r = regulator_enable(dpi.vdds_dsi_reg);
+		if (r)
+			goto err0;
+	}
 
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
@@ -273,6 +300,8 @@ static int dpi_display_resume(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 	return 0;
+err0:
+	return r;
 }
 
 static void dpi_set_timings(struct omap_dss_device *dssdev,
@@ -388,8 +417,16 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-int dpi_init(void)
+int dpi_init(struct platform_device *pdev)
 {
+	if (cpu_is_omap34xx()) {
+		dpi.vdds_dsi_reg = dss_get_vdds_dsi();
+		if (IS_ERR(dpi.vdds_dsi_reg)) {
+			DSSERR("can't get VDDS_DSI regulator\n");
+			return PTR_ERR(dpi.vdds_dsi_reg);
+		}
+	}
+
 	return 0;
 }
 

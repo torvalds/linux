@@ -169,6 +169,9 @@ unsigned long dss_clk_get_rate(enum dss_clock clk);
 int dss_need_ctx_restore(void);
 void dss_dump_clocks(struct seq_file *s);
 struct bus_type *dss_get_bus(void);
+struct regulator *dss_get_vdds_dsi(void);
+struct regulator *dss_get_vdds_sdi(void);
+struct regulator *dss_get_vdda_dac(void);
 
 /* display */
 int dss_suspend_all_devices(void);
@@ -261,7 +264,7 @@ void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high);
 
 /* DPI */
-int dpi_init(void);
+int dpi_init(struct platform_device *pdev);
 void dpi_exit(void);
 int dpi_init_display(struct omap_dss_device *dssdev);
 

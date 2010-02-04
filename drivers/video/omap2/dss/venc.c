@@ -482,7 +482,7 @@ int venc_init(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	venc.vdda_dac_reg = regulator_get(&pdev->dev, "vdda_dac");
+	venc.vdda_dac_reg = dss_get_vdda_dac();
 	if (IS_ERR(venc.vdda_dac_reg)) {
 		iounmap(venc.base);
 		DSSERR("can't get VDDA_DAC regulator\n");
@@ -502,8 +502,6 @@ int venc_init(struct platform_device *pdev)
 void venc_exit(void)
 {
 	omap_dss_unregister_driver(&venc_driver);
-
-	regulator_put(venc.vdda_dac_reg);
 
 	iounmap(venc.base);
 }

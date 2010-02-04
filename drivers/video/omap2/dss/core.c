@@ -31,6 +31,7 @@
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/device.h>
+#include <linux/regulator/consumer.h>
 
 #include <plat/display.h>
 #include <plat/clock.h>
@@ -47,6 +48,10 @@ static struct {
 	struct clk      *dss_54m_fck;
 	struct clk	*dss_96m_fck;
 	unsigned	num_clks_enabled;
+
+	struct regulator *vdds_dsi_reg;
+	struct regulator *vdds_sdi_reg;
+	struct regulator *vdda_dac_reg;
 } core;
 
 static void dss_clk_enable_all_no_ctx(void);
@@ -352,6 +357,50 @@ static void dss_clk_disable_all(void)
 	dss_clk_disable(clks);
 }
 
+/* REGULATORS */
+
+struct regulator *dss_get_vdds_dsi(void)
+{
+	struct regulator *reg;
+
+	if (core.vdds_dsi_reg != NULL)
+		return core.vdds_dsi_reg;
+
+	reg = regulator_get(&core.pdev->dev, "vdds_dsi");
+	if (!IS_ERR(reg))
+		core.vdds_dsi_reg = reg;
+
+	return reg;
+}
+
+struct regulator *dss_get_vdds_sdi(void)
+{
+	struct regulator *reg;
+
+	if (core.vdds_sdi_reg != NULL)
+		return core.vdds_sdi_reg;
+
+	reg = regulator_get(&core.pdev->dev, "vdds_sdi");
+	if (!IS_ERR(reg))
+		core.vdds_sdi_reg = reg;
+
+	return reg;
+}
+
+struct regulator *dss_get_vdda_dac(void)
+{
+	struct regulator *reg;
+
+	if (core.vdda_dac_reg != NULL)
+		return core.vdda_dac_reg;
+
+	reg = regulator_get(&core.pdev->dev, "vdda_dac");
+	if (!IS_ERR(reg))
+		core.vdda_dac_reg = reg;
+
+	return reg;
+}
+
 /* DEBUGFS */
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 static void dss_debug_dump_clocks(struct seq_file *s)
@@ -473,7 +522,7 @@ static int omap_dss_probe(struct platform_device *pdev)
 	}
 #endif
 
-	r = dpi_init();
+	r = dpi_init(pdev);
 	if (r) {
 		DSSERR("Failed to initialize dpi\n");
 		goto fail0;
@@ -901,6 +950,21 @@ static int __init omap_dss_init(void)
 
 static void __exit omap_dss_exit(void)
 {
+	if (core.vdds_dsi_reg != NULL) {
+		regulator_put(core.vdds_dsi_reg);
+		core.vdds_dsi_reg = NULL;
+	}
+
+	if (core.vdds_sdi_reg != NULL) {
+		regulator_put(core.vdds_sdi_reg);
+		core.vdds_sdi_reg = NULL;
+	}
+
+	if (core.vdda_dac_reg != NULL) {
+		regulator_put(core.vdda_dac_reg);
+		core.vdda_dac_reg = NULL;
+	}
+
 	platform_driver_unregister(&omap_dss_driver);
 
 	omap_dss_bus_unregister();

@@ -3799,7 +3799,7 @@ int dsi_init(struct platform_device *pdev)
 		goto err1;
 	}
 
-	dsi.vdds_dsi_reg = regulator_get(&pdev->dev, "vdds_dsi");
+	dsi.vdds_dsi_reg = dss_get_vdds_dsi();
 	if (IS_ERR(dsi.vdds_dsi_reg)) {
 		iounmap(dsi.base);
 		DSSERR("can't get VDDS_DSI regulator\n");
@@ -3829,8 +3829,6 @@ err0:
 void dsi_exit(void)
 {
 	kthread_stop(dsi.thread);
-
-	regulator_put(dsi.vdds_dsi_reg);
 
 	iounmap(dsi.base);
 
