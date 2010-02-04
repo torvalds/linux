@@ -847,11 +847,7 @@ static int ngene_i2c_init(struct ngene *dev, int dev_nr)
 	struct i2c_adapter *adap = &(dev->channel[dev_nr].i2c_adapter);
 
 	i2c_set_adapdata(adap, &(dev->channel[dev_nr]));
-#ifdef I2C_ADAP_CLASS_TV_DIGITAL
-	adap->class = I2C_ADAP_CLASS_TV_DIGITAL | I2C_CLASS_TV_ANALOG;
-#else
-	adap->class = I2C_CLASS_TV_ANALOG;
-#endif
+	adap->class = I2C_CLASS_TV_DIGITAL | I2C_CLASS_TV_ANALOG;
 
 	strcpy(adap->name, "nGene");
 
@@ -859,7 +855,6 @@ static int ngene_i2c_init(struct ngene *dev, int dev_nr)
 	adap->algo_data = (void *)&(dev->channel[dev_nr]);
 	adap->dev.parent = &dev->pci_dev->dev;
 
-	mutex_init(&adap->bus_lock);
 	return i2c_add_adapter(adap);
 }
 
