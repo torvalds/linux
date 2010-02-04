@@ -1022,6 +1022,8 @@ static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port,
 /* this function must be called with interrupt disabled */
 static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
 					u16 syssts)
+__releases(r8a66597->lock)
+__acquires(r8a66597->lock)
 {
 	if (syssts == SE0) {
 		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
@@ -1039,7 +1041,9 @@ static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
 			usb_hcd_resume_root_hub(r8a66597_to_hcd(r8a66597));
 	}
 
+	spin_unlock(&r8a66597->lock);
 	usb_hcd_poll_rh_status(r8a66597_to_hcd(r8a66597));
+	spin_lock(&r8a66597->lock);
 }
 
 /* this function must be called with interrupt disabled */
