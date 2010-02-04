@@ -168,8 +168,14 @@
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 #define smp_mb__before_llsc() smp_wmb()
+/* Cause previous writes to become visible on all CPUs as soon as possible */
+#define nudge_writes() __asm__ __volatile__(".set push\n\t"		\
+					    ".set arch=octeon\n\t"	\
+					    "syncw\n\t"			\
+					    ".set pop" : : : "memory")
 #else
 #define smp_mb__before_llsc() smp_llsc_mb()
+#define nudge_writes() mb()
 #endif
 
 #endif /* __ASM_BARRIER_H */
