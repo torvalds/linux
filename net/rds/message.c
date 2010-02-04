@@ -330,8 +330,6 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iovec *first_iov,
 			sg++;
 	}
 
-	rm->data.op_active = 1;
-
 out:
 	return ret;
 }
