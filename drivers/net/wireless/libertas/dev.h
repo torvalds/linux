@@ -109,7 +109,6 @@ struct lbs_private {
 	struct list_head cmdpendingq; /* pending command buffers */
 	wait_queue_head_t cmd_pending;
 	struct timer_list command_timer;
-	int nr_retries;
 	int cmd_timed_out;
 
 	/* Command responses sent from the hardware to the driver */

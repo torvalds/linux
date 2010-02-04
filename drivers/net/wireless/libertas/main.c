@@ -533,30 +533,13 @@ static int lbs_thread(void *data)
 		if (priv->cmd_timed_out && priv->cur_cmd) {
 			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
 
-			if (++priv->nr_retries > 3) {
-				lbs_pr_info("Excessive timeouts submitting "
-					"command 0x%04x\n",
-					le16_to_cpu(cmdnode->cmdbuf->command));
-				lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
-				priv->nr_retries = 0;
-				if (priv->reset_card)
-					priv->reset_card(priv);
-			} else {
-				priv->cur_cmd = NULL;
-				priv->dnld_sent = DNLD_RES_RECEIVED;
-				lbs_pr_info("requeueing command 0x%04x due "
-					"to timeout (#%d)\n",
-					le16_to_cpu(cmdnode->cmdbuf->command),
-					priv->nr_retries);
-
-				/* Stick it back at the _top_ of the pending queue
-				   for immediate resubmission */
-				list_add(&cmdnode->list, &priv->cmdpendingq);
-			}
+			lbs_pr_info("Timeout submitting command 0x%04x\n",
+				le16_to_cpu(cmdnode->cmdbuf->command));
+			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
+			if (priv->reset_card)
+				priv->reset_card(priv);
 		}
 		priv->cmd_timed_out = 0;
-
-
 
 		if (!priv->fw_ready)
 			continue;
@@ -729,7 +712,7 @@ done:
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
  */
-static void command_timer_fn(unsigned long data)
+static void lbs_cmd_timeout_handler(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
 	unsigned long flags;
@@ -848,7 +831,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 
 	mutex_init(&priv->lock);
 
-	setup_timer(&priv->command_timer, command_timer_fn,
+	setup_timer(&priv->command_timer, lbs_cmd_timeout_handler,
 		(unsigned long)priv);
 	setup_timer(&priv->auto_deepsleep_timer, auto_deepsleep_timer_fn,
 			(unsigned long)priv);

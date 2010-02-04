@@ -240,11 +240,6 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	/* Now we got response from FW, cancel the command timer */
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
-	if (priv->nr_retries) {
-		lbs_pr_info("Received result %x to command %x after %d retries\n",
-			    result, curcmd, priv->nr_retries);
-		priv->nr_retries = 0;
-	}
 
 	/* Store the response code to cur_cmd_retcode. */
 	priv->cur_cmd_retcode = result;
