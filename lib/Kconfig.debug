@@ -520,6 +520,12 @@ config LOCK_STAT
 
 	 For more details, see Documentation/lockstat.txt
 
+	 You can analyze lock events with "perf lock", subcommand of perf.
+	 If you want to use "perf lock", you need to turn on CONFIG_EVENT_TRACING.
+
+	 CONFIG_LOCK_STAT defines "contended" and "acquired" lock events.
+ 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
+
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
 	depends on DEBUG_KERNEL && LOCKDEP
