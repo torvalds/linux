@@ -62,6 +62,7 @@ static int ceph_auth_none_create_authorizer(
 	if (!ai->built_authorizer) {
 		p = au->buf;
 		end = p + sizeof(au->buf);
+		ceph_encode_8(&p, 1);
 		ret = ceph_entity_name_encode(ac->name, &p, end - 8);
 		if (ret < 0)
 			goto bad;
