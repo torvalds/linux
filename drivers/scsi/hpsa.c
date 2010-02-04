@@ -2287,16 +2287,6 @@ static void cmd_special_free(struct ctlr_info *h, struct CommandList *c)
 
 #ifdef CONFIG_COMPAT
 
-static int do_ioctl(struct scsi_device *dev, int cmd, void *arg)
-{
-	int ret;
-
-	lock_kernel();
-	ret = hpsa_ioctl(dev, cmd, arg);
-	unlock_kernel();
-	return ret;
-}
-
 static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg);
 static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	int cmd, void *arg);
@@ -2319,7 +2309,7 @@ static int hpsa_compat_ioctl(struct scsi_device *dev, int cmd, void *arg)
 	case CCISS_REGNEWD:
 	case CCISS_RESCANDISK:
 	case CCISS_GETLUNINFO:
-		return do_ioctl(dev, cmd, arg);
+		return hpsa_ioctl(dev, cmd, arg);
 
 	case CCISS_PASSTHRU32:
 		return hpsa_ioctl32_passthru(dev, cmd, arg);
@@ -2355,7 +2345,7 @@ static int hpsa_ioctl32_passthru(struct scsi_device *dev, int cmd, void *arg)
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(dev, CCISS_PASSTHRU, (void *)p);
+	err = hpsa_ioctl(dev, CCISS_PASSTHRU, (void *)p);
 	if (err)
 		return err;
 	err |= copy_in_user(&arg32->error_info, &p->error_info,
@@ -2392,7 +2382,7 @@ static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	if (err)
 		return -EFAULT;
 
-	err = do_ioctl(dev, CCISS_BIG_PASSTHRU, (void *)p);
+	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, (void *)p);
 	if (err)
 		return err;
 	err |= copy_in_user(&arg32->error_info, &p->error_info,
