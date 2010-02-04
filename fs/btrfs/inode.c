@@ -5799,7 +5799,9 @@ static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
 		inode->i_ctime = CURRENT_TIME;
 		BTRFS_I(inode)->flags |= BTRFS_INODE_PREALLOC;
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-		    cur_offset > inode->i_size) {
+			(actual_len > inode->i_size) &&
+			(cur_offset > inode->i_size)) {
+
 			if (cur_offset > actual_len)
 				i_size  = actual_len;
 			else
