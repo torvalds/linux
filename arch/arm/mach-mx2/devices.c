@@ -46,65 +46,31 @@
  * - i.MX21: 2 channel
  * - i.MX27: 3 channel
  */
-static struct resource mxc_spi_resources0[] = {
-	{
-	       .start = CSPI1_BASE_ADDR,
-	       .end = CSPI1_BASE_ADDR + SZ_4K - 1,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = MXC_INT_CSPI1,
-	       .end = MXC_INT_CSPI1,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
+#define DEFINE_IMX_SPI_DEVICE(n, baseaddr, irq)					\
+	static struct resource mxc_spi_resources ## n[] = {			\
+		{								\
+			.start = baseaddr,					\
+			.end = baseaddr + SZ_4K - 1,				\
+			.flags = IORESOURCE_MEM,				\
+		}, {								\
+			.start = irq,						\
+			.end = irq,						\
+			.flags = IORESOURCE_IRQ,				\
+		},								\
+	};									\
+										\
+	struct platform_device mxc_spi_device ## n = {				\
+		.name = "spi_imx",						\
+		.id = n,							\
+		.num_resources = ARRAY_SIZE(mxc_spi_resources ## n),		\
+		.resource = mxc_spi_resources ## n,				\
+	}
 
-static struct resource mxc_spi_resources1[] = {
-	{
-		.start = CSPI2_BASE_ADDR,
-		.end = CSPI2_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_CSPI2,
-		.end = MXC_INT_CSPI2,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-#ifdef CONFIG_MACH_MX27
-static struct resource mxc_spi_resources2[] = {
-	{
-		.start = CSPI3_BASE_ADDR,
-		.end = CSPI3_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_CSPI3,
-		.end = MXC_INT_CSPI3,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-#endif
-
-struct platform_device mxc_spi_device0 = {
-	.name = "spi_imx",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources0),
-	.resource = mxc_spi_resources0,
-};
-
-struct platform_device mxc_spi_device1 = {
-	.name = "spi_imx",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources1),
-	.resource = mxc_spi_resources1,
-};
+DEFINE_IMX_SPI_DEVICE(0, MX2x_CSPI1_BASE_ADDR, MX2x_INT_CSPI1);
+DEFINE_IMX_SPI_DEVICE(1, MX2x_CSPI2_BASE_ADDR, MX2x_INT_CSPI2);
 
 #ifdef CONFIG_MACH_MX27
-struct platform_device mxc_spi_device2 = {
-	.name = "spi_imx",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources2),
-	.resource = mxc_spi_resources2,
-};
+DEFINE_IMX_SPI_DEVICE(2, MX27_CSPI3_BASE_ADDR, MX27_INT_CSPI3);
 #endif
 
 /*
