@@ -766,6 +766,8 @@ source "arch/arm/plat-pxa/Kconfig"
 
 source "arch/arm/mach-mmp/Kconfig"
 
+source "arch/arm/mach-nuc93x/Kconfig"
+
 source "arch/arm/mach-sa1100/Kconfig"
 
 source "arch/arm/plat-omap/Kconfig"
@@ -836,8 +838,6 @@ source "arch/arm/mach-msm/Kconfig"
 source "arch/arm/mach-u300/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
-
-source "arch/arm/mach-nuc93x/Kconfig"
 
 source "arch/arm/mach-bcmring/Kconfig"
 
