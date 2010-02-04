@@ -776,6 +776,8 @@ static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 #define DEVICE_CHANGED 1
 #define DEVICE_SAME 2
 	for (i = 0; i < haystack_size; i++) {
+		if (haystack[i] == NULL) /* previously removed. */
+			continue;
 		if (SCSI3ADDR_EQ(needle->scsi3addr, haystack[i]->scsi3addr)) {
 			*index = i;
 			if (device_is_the_same(needle, haystack[i]))
