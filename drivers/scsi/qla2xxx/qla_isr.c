@@ -2018,7 +2018,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 
 	spin_lock_irq(&ha->hardware_lock);
 
-	vha = qla25xx_get_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, rsp);
 	if (!ha->mqenable) {
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
@@ -2356,31 +2356,4 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->have_irq = 1;
 	msix->rsp = rsp;
 	return ret;
-}
-
-struct scsi_qla_host *
-qla25xx_get_host(struct rsp_que *rsp)
-{
-	srb_t *sp;
-	struct qla_hw_data *ha = rsp->hw;
-	struct scsi_qla_host *vha = NULL;
-	struct sts_entry_24xx *pkt;
-	struct req_que *req;
-	uint16_t que;
-	uint32_t handle;
-
-	pkt = (struct sts_entry_24xx *) rsp->ring_ptr;
-	que = MSW(pkt->handle);
-	handle = (uint32_t) LSW(pkt->handle);
-	req = ha->req_q_map[que];
-	if (handle < MAX_OUTSTANDING_COMMANDS) {
-		sp = req->outstanding_cmds[handle];
-		if (sp)
-			return  sp->fcport->vha;
-		else
-			goto base_que;
-	}
-base_que:
-	vha = pci_get_drvdata(ha->pdev);
-	return vha;
 }
