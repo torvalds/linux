@@ -4123,9 +4123,6 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 		QPRINTK(qdev, IFUP, ERR, "Changing to jumbo MTU.\n");
 	} else if (ndev->mtu == 9000 && new_mtu == 1500) {
 		QPRINTK(qdev, IFUP, ERR, "Changing to normal MTU.\n");
-	} else if ((ndev->mtu == 1500 && new_mtu == 1500) ||
-		   (ndev->mtu == 9000 && new_mtu == 9000)) {
-		return 0;
 	} else
 		return -EINVAL;
 
