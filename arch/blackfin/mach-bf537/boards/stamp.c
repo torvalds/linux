@@ -825,6 +825,29 @@ static inline void adf702x_mac_init(void)
 static inline void adf702x_mac_init(void) {}
 #endif
 
+#if defined(CONFIG_TOUCHSCREEN_ADS7846) || defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
+#include <linux/spi/ads7846.h>
+static struct bfin5xx_spi_chip ad7873_spi_chip_info = {
+	.bits_per_word	= 8,
+};
+
+static int ads7873_get_pendown_state(void)
+{
+	return gpio_get_value(GPIO_PF6);
+}
+
+static struct ads7846_platform_data __initdata ad7873_pdata = {
+	.model		= 7873,		/* AD7873 */
+	.x_max		= 0xfff,
+	.y_max		= 0xfff,
+	.x_plate_ohms	= 620,
+	.debounce_max	= 1,
+	.debounce_rep	= 0,
+	.debounce_tol	= (~0),
+	.get_pendown_state = ads7873_get_pendown_state,
+};
+#endif
+
 #if defined(CONFIG_MTD_DATAFLASH) \
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
 
@@ -1026,7 +1049,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_0,
 	},
 #endif
-
+#if defined(CONFIG_TOUCHSCREEN_ADS7846) || defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
+	{
+		.modalias = "ads7846",
+		.max_speed_hz = 2000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.irq = IRQ_PF6,
+		.chip_select = GPIO_PF10 + MAX_CTRL_CS,	/* GPIO controlled SSEL */
+		.controller_data = &ad7873_spi_chip_info,
+		.platform_data = &ad7873_pdata,
+		.mode = SPI_MODE_0,
+	},
+#endif
 };
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
