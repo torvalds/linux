@@ -733,7 +733,7 @@ static int hpsa_scsi_find_entry(struct hpsa_scsi_dev_t *needle,
 	return DEVICE_NOT_FOUND;
 }
 
-static int adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
+static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 	struct hpsa_scsi_dev_t *sd[], int nsds)
 {
 	/* sd contains scsi3 addresses and devtypes, and inquiry
@@ -859,7 +859,6 @@ static int adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 free_and_out:
 	kfree(added);
 	kfree(removed);
-	return 0;
 }
 
 /*
