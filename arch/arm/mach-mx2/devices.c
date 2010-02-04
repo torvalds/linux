@@ -213,44 +213,30 @@ struct platform_device mxc_fec_device = {
 };
 #endif
 
-static struct resource mxc_i2c_1_resources[] = {
-	{
-		.start	= I2C_BASE_ADDR,
-		.end	= I2C_BASE_ADDR + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MXC_INT_I2C,
-		.end	= MXC_INT_I2C,
-		.flags	= IORESOURCE_IRQ,
+#define DEFINE_IMX_I2C_DEVICE(n, baseaddr, irq)				\
+	static struct resource mxc_i2c_resources ## n[] = {		\
+		{							\
+			.start = baseaddr,				\
+			.end = baseaddr + SZ_4K - 1,			\
+			.flags = IORESOURCE_MEM,			\
+		}, {							\
+			.start = irq,					\
+			.end = irq,					\
+			.flags = IORESOURCE_IRQ,			\
+		}							\
+	};								\
+									\
+	struct platform_device mxc_i2c_device ## n = {			\
+		.name = "imx-i2c",					\
+		.id = n,						\
+		.num_resources = ARRAY_SIZE(mxc_i2c_resources ## n),	\
+		.resource = mxc_i2c_resources ## n,			\
 	}
-};
 
-struct platform_device mxc_i2c_device0 = {
-	.name = "imx-i2c",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_i2c_1_resources),
-	.resource = mxc_i2c_1_resources,
-};
+DEFINE_IMX_I2C_DEVICE(0, MX2x_I2C_BASE_ADDR, MX2x_INT_I2C);
 
 #ifdef CONFIG_MACH_MX27
-static struct resource mxc_i2c_2_resources[] = {
-	{
-		.start	= I2C2_BASE_ADDR,
-		.end	= I2C2_BASE_ADDR + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MXC_INT_I2C2,
-		.end	= MXC_INT_I2C2,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device1 = {
-	.name = "imx-i2c",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_i2c_2_resources),
-	.resource = mxc_i2c_2_resources,
-};
+DEFINE_IMX_I2C_DEVICE(1, MX27_I2C2_BASE_ADDR, MX27_INT_I2C2);
 #endif
 
 static struct resource mxc_pwm_resources[] = {
