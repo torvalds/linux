@@ -1412,7 +1412,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		err = type->init(usbtouch);
 		if (err) {
 			dbg("%s - type->init() failed, err: %d", __func__, err);
-			goto out_free_buffers;
+			goto out_free_urb;
 		}
 	}
 
@@ -1424,14 +1424,25 @@ static int usbtouch_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, usbtouch);
 
-	if (usbtouch->type->irq_always)
-		usb_submit_urb(usbtouch->irq, GFP_KERNEL);
+	if (usbtouch->type->irq_always) {
+		err = usb_submit_urb(usbtouch->irq, GFP_KERNEL);
+		if (err) {
+			err("%s - usb_submit_urb failed with result: %d",
+			    __func__, err);
+			goto out_unregister_input;
+		}
+	}
 
 	return 0;
 
+out_unregister_input:
+	input_unregister_device(input_dev);
+	input_dev = NULL;
 out_do_exit:
 	if (type->exit)
 		type->exit(usbtouch);
+out_free_urb:
+	usb_free_urb(usbtouch->irq);
 out_free_buffers:
 	usbtouch_free_buffers(udev, usbtouch);
 out_free:
