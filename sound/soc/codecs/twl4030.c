@@ -2152,8 +2152,6 @@ static int twl4030_soc_remove(struct platform_device *pdev)
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-	kfree(codec->private_data);
-	kfree(codec);
 
 	return 0;
 }
@@ -2237,6 +2235,9 @@ static int __devexit twl4030_codec_remove(struct platform_device *pdev)
 {
 	struct twl4030_priv *twl4030 = platform_get_drvdata(pdev);
 
+	snd_soc_unregister_dais(&twl4030_dai[0], ARRAY_SIZE(twl4030_dai));
+	snd_soc_unregister_codec(&twl4030->codec);
+	kfree(twl4030->codec.reg_cache);
 	kfree(twl4030);
 
 	twl4030_codec = NULL;
