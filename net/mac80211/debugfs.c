@@ -250,6 +250,38 @@ static const struct file_operations uapsd_max_sp_len_ops = {
 	.open = mac80211_open_file_generic
 };
 
+static ssize_t channel_type_read(struct file *file, char __user *user_buf,
+		       size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	const char *buf;
+
+	switch (local->hw.conf.channel_type) {
+	case NL80211_CHAN_NO_HT:
+		buf = "no ht\n";
+		break;
+	case NL80211_CHAN_HT20:
+		buf = "ht20\n";
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		buf = "ht40-\n";
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		buf = "ht40+\n";
+		break;
+	default:
+		buf = "???";
+		break;
+	}
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+}
+
+static const struct file_operations channel_type_ops = {
+	.read = channel_type_read,
+	.open = mac80211_open_file_generic
+};
+
 static ssize_t queues_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
@@ -408,6 +440,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(noack);
 	DEBUGFS_ADD(uapsd_queues);
 	DEBUGFS_ADD(uapsd_max_sp_len);
+	DEBUGFS_ADD(channel_type);
 
 	statsd = debugfs_create_dir("statistics", phyd);
 
