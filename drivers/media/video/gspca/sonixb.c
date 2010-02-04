@@ -809,10 +809,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		else if (reg11 > 16)
 			reg11 = 16;
 
-		/* In 640x480, if the reg11 has less than 3, the image is
-		   unstable (not enough bandwidth). */
-		if (gspca_dev->width == 640 && reg11 < 3)
-			reg11 = 3;
+		/* In 640x480, if the reg11 has less than 4, the image is
+		   unstable (the bridge goes into a higher compression mode
+		   which we have not reverse engineered yet). */
+		if (gspca_dev->width == 640 && reg11 < 4)
+			reg11 = 4;
 
 		/* frame exposure time in ms = 1000 * reg11 / 30    ->
 		reg10 = (sd->exposure / 2) * reg10_max / (1000 * reg11 / 30) */
