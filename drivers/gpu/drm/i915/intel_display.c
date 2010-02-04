@@ -4699,7 +4699,7 @@ void ironlake_disable_drps(struct drm_device *dev)
 	fstart = (I915_READ(MEMMODECTL) & MEMMODE_FSTART_MASK) >>
 		MEMMODE_FSTART_SHIFT;
 	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
-		(fstart << MEMCTL_FREQ_SHIFT);
+		(fstart << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
 	I915_WRITE(MEMSWCTL, rgvswctl);
 	msleep(1);
 	rgvswctl |= MEMCTL_CMD_STS;
