@@ -2004,12 +2004,10 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (async->cb_mask & s->async->events) {
 		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
 			wake_up_interruptible(&async->wait_head);
-			if (s->subdev_flags & SDF_CMD_READ) {
+			if (s->subdev_flags & SDF_CMD_READ)
 				kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
-			}
-			if (s->subdev_flags & SDF_CMD_WRITE) {
+			if (s->subdev_flags & SDF_CMD_WRITE)
 				kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
-			}
 		} else {
 			if (async->cb_func)
 				async->cb_func(s->async->events, async->cb_arg);
