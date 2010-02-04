@@ -675,6 +675,24 @@ lun_assigned:
 	return 0;
 }
 
+/* Replace an entry from h->dev[] array. */
+static void hpsa_scsi_replace_entry(struct ctlr_info *h, int hostno,
+	int entry, struct hpsa_scsi_dev_t *new_entry,
+	struct hpsa_scsi_dev_t *added[], int *nadded,
+	struct hpsa_scsi_dev_t *removed[], int *nremoved)
+{
+	/* assumes h->devlock is held */
+	BUG_ON(entry < 0 || entry >= HPSA_MAX_SCSI_DEVS_PER_HBA);
+	removed[*nremoved] = h->dev[entry];
+	(*nremoved)++;
+	h->dev[entry] = new_entry;
+	added[*nadded] = new_entry;
+	(*nadded)++;
+	dev_info(&h->pdev->dev, "%s device c%db%dt%dl%d changed.\n",
+		scsi_device_type(new_entry->devtype), hostno, new_entry->bus,
+			new_entry->target, new_entry->lun);
+}
+
 /* Remove an entry from h->dev[] array. */
 static void hpsa_scsi_remove_entry(struct ctlr_info *h, int hostno, int entry,
 	struct hpsa_scsi_dev_t *removed[], int *nremoved)
@@ -835,12 +853,8 @@ static void adjust_hpsa_scsi_table(struct ctlr_info *h, int hostno,
 			continue; /* remove ^^^, hence i not incremented */
 		} else if (device_change == DEVICE_CHANGED) {
 			changes++;
-			hpsa_scsi_remove_entry(h, hostno, i,
-				removed, &nremoved);
-			(void) hpsa_scsi_add_entry(h, hostno, sd[entry],
-				added, &nadded);
-			/* add can't fail, we just removed one. */
-
+			hpsa_scsi_replace_entry(h, hostno, i, sd[entry],
+				added, &nadded, removed, &nremoved);
 			/* Set it to NULL to prevent it from being freed
 			 * at the bottom of hpsa_update_scsi_devices()
 			 */
