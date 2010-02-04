@@ -1130,11 +1130,11 @@ static int hpsa_scsi_detect(struct ctlr_info *h)
 	dev_err(&h->pdev->dev, "hpsa_scsi_detect: scsi_add_host"
 		" failed for controller %d\n", h->ctlr);
 	scsi_host_put(sh);
-	return -1;
+	return error;
  fail:
 	dev_err(&h->pdev->dev, "hpsa_scsi_detect: scsi_host_alloc"
 		" failed for controller %d\n", h->ctlr);
-	return -1;
+	return -ENOMEM;
 }
 
 static void hpsa_pci_unmap(struct pci_dev *pdev,
@@ -1271,7 +1271,7 @@ static int hpsa_scsi_do_inquiry(struct ctlr_info *h, unsigned char *scsi3addr,
 
 	if (c == NULL) {			/* trouble... */
 		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	fill_cmd(c, HPSA_INQUIRY, h, buf, bufsize, page, scsi3addr, TYPE_CMD);
@@ -3284,7 +3284,7 @@ err_out_free_res:
 static int __devinit hpsa_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
-	int i;
+	int i, rc;
 	int dac;
 	struct ctlr_info *h;
 
@@ -3312,14 +3312,15 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	BUILD_BUG_ON(sizeof(struct CommandList) % 8);
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
-		return -1;
+		return -ENOMEM;
 
 	h->busy_initializing = 1;
 	INIT_HLIST_HEAD(&h->cmpQ);
 	INIT_HLIST_HEAD(&h->reqQ);
 	mutex_init(&h->busy_shutting_down);
 	init_completion(&h->scan_wait);
-	if (hpsa_pci_init(h, pdev) != 0)
+	rc = hpsa_pci_init(h, pdev);
+	if (rc != 0)
 		goto clean1;
 
 	sprintf(h->devname, "hpsa%d", number_of_controllers);
@@ -3328,19 +3329,24 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	h->pdev = pdev;
 
 	/* configure PCI DMA stuff */
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64)))
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	if (rc == 0) {
 		dac = 1;
-	else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32)))
-		dac = 0;
-	else {
-		dev_err(&pdev->dev, "no suitable DMA available\n");
-		goto clean1;
+	} else {
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (rc == 0) {
+			dac = 0;
+		} else {
+			dev_err(&pdev->dev, "no suitable DMA available\n");
+			goto clean1;
+		}
 	}
 
 	/* make sure the board interrupts are off */
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
-	if (request_irq(h->intr[SIMPLE_MODE_INT], do_hpsa_intr,
-			IRQF_DISABLED | IRQF_SHARED, h->devname, h)) {
+	rc = request_irq(h->intr[SIMPLE_MODE_INT], do_hpsa_intr,
+			IRQF_DISABLED | IRQF_SHARED, h->devname, h);
+	if (rc) {
 		dev_err(&pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[SIMPLE_MODE_INT], h->devname);
 		goto clean2;
@@ -3363,6 +3369,7 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	    || (h->cmd_pool == NULL)
 	    || (h->errinfo_pool == NULL)) {
 		dev_err(&pdev->dev, "out of memory");
+		rc = -ENOMEM;
 		goto clean4;
 	}
 	spin_lock_init(&h->lock);
@@ -3397,7 +3404,7 @@ clean2:
 clean1:
 	h->busy_initializing = 0;
 	kfree(h);
-	return -1;
+	return rc;
 }
 
 static void hpsa_flush_cache(struct ctlr_info *h)
