@@ -2145,6 +2145,7 @@ struct ql_adapter {
 	struct completion ide_completion;
 	struct nic_operations *nic_ops;
 	u16 device_id;
+	struct timer_list timer;
 	atomic_t lb_count;
 };
 
