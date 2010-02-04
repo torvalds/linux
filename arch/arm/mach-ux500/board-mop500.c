@@ -108,11 +108,24 @@ static struct amba_device pl022_device = {
 	.periphid = SSP_PER_ID,
 };
 
+static struct amba_device pl031_device = {
+	.dev = {
+		.init_name = "pl031",
+	},
+	.res = {
+		.start = U8500_RTC_BASE,
+		.end = U8500_RTC_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	.irq = {IRQ_RTC_RTT, NO_IRQ},
+};
+
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
 	&uart1_device,
 	&uart2_device,
 	&pl022_device,
+	&pl031_device,
 };
 
 static void __init u8500_timer_init(void)
