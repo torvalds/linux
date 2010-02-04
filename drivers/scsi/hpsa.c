@@ -2141,14 +2141,14 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	h = sdev_to_hba(scsicmd->device);
 	if (h == NULL) /* paranoia */
 		return FAILED;
-	dev_warn(&h->pdev->dev, "resetting drive\n");
-
 	dev = scsicmd->device->hostdata;
 	if (!dev) {
 		dev_err(&h->pdev->dev, "hpsa_eh_device_reset_handler: "
 			"device lookup failed.\n");
 		return FAILED;
 	}
+	dev_warn(&h->pdev->dev, "resetting device %d:%d:%d:%d\n",
+		h->scsi_host->host_no, dev->bus, dev->target, dev->lun);
 	/* send a reset to the SCSI LUN which the command was sent to */
 	rc = hpsa_send_reset(h, dev->scsi3addr);
 	if (rc == 0 && wait_for_device_to_become_ready(h, dev->scsi3addr) == 0)
