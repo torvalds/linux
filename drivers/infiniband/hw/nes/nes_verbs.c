@@ -228,7 +228,7 @@ static int nes_bind_mw(struct ib_qp *ibqp, struct ib_mw *ibmw,
 	/* Check for SQ overflow */
 	if (((head + (2 * qsize) - nesqp->hwqp.sq_tail) % qsize) == (qsize - 1)) {
 		spin_unlock_irqrestore(&nesqp->lock, flags);
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	wqe = &nesqp->hwqp.sq_vbase[head];
@@ -3294,7 +3294,7 @@ static int nes_post_send(struct ib_qp *ibqp, struct ib_send_wr *ib_wr,
 
 		/* Check for SQ overflow */
 		if (((head + (2 * qsize) - nesqp->hwqp.sq_tail) % qsize) == (qsize - 1)) {
-			err = -EINVAL;
+			err = -ENOMEM;
 			break;
 		}
 
@@ -3577,7 +3577,7 @@ static int nes_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *ib_wr,
 		}
 		/* Check for RQ overflow */
 		if (((head + (2 * qsize) - nesqp->hwqp.rq_tail) % qsize) == (qsize - 1)) {
-			err = -EINVAL;
+			err = -ENOMEM;
 			break;
 		}
 
