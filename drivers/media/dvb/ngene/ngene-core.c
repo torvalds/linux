@@ -41,6 +41,7 @@
 #include <linux/version.h>
 #include <linux/byteorder/generic.h>
 #include <linux/firmware.h>
+#include <linux/vmalloc.h>
 
 #include "ngene.h"
 
