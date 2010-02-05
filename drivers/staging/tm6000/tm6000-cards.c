@@ -479,7 +479,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	/* Check to see next free device and mark as used */
 	nr=find_first_zero_bit(&tm6000_devused,TM6000_MAXBOARDS);
 	if (nr >= TM6000_MAXBOARDS) {
-		printk ("tm6000: Supports only %i em28xx boards.\n",TM6000_MAXBOARDS);
+		printk ("tm6000: Supports only %i tm60xx boards.\n",TM6000_MAXBOARDS);
 		usb_put_dev(usbdev);
 		return -ENOMEM;
 	}
