@@ -206,8 +206,6 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 
 	br_netfilter_rtable_init(br);
 
-	INIT_LIST_HEAD(&br->age_list);
-
 	br_stp_timer_init(br);
 
 	return dev;

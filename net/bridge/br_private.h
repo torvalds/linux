@@ -93,7 +93,6 @@ struct net_bridge
 	struct net_device		*dev;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
-	struct list_head		age_list;
 	unsigned long			feature_mask;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct rtable 			fake_rtable;
