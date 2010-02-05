@@ -136,8 +136,8 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* check if io addresses are available */
 	if (!request_region(iobase, iosize, "dac02")) {
 		printk
-		    ("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-		     iobase, iobase + iosize - 1);
+		    ("I/O port conflict: failed to allocate ports 0x%lx to "
+					"0x%lx\n", iobase, iobase + iosize - 1);
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -156,9 +156,8 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = this_board->winsn;
 	s->insn_read = this_board->rinsn;
 	s->insn_bits = this_board->insnbits;
-	if (s->type == COMEDI_SUBD_AO || s->type == COMEDI_SUBD_DO) {
+	if (s->type == COMEDI_SUBD_AO || s->type == COMEDI_SUBD_DO)
 		s->subdev_flags = SDF_WRITABLE;
-	}
 
 	return 0;
 }
