@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_IO_64_H
 #define _ASM_X86_IO_64_H
 
+#include <linux/string.h>
+#include <linux/compiler.h>
 
 /*
  * This file contains the definitions for the x86 IO instructions
@@ -46,20 +48,22 @@
  */
 #define xlate_dev_kmem_ptr(p)	p
 
-void memset_io(volatile void __iomem *a, int b, size_t c);
-
-void __memcpy_fromio(void *, unsigned long, unsigned);
-static inline void memcpy_fromio(void *to, const volatile void __iomem *from,
-				 unsigned len)
+static inline void
+memset_io(volatile void __iomem *addr, unsigned char val, size_t count)
 {
-	__memcpy_fromio(to, (unsigned long)from, len);
+	memset((void __force *)addr, val, count);
 }
 
-void __memcpy_toio(unsigned long, const void *, unsigned);
-static inline void memcpy_toio(volatile void __iomem *to, const void *from,
-			       unsigned len)
+static inline void
+memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count)
 {
-	__memcpy_toio((unsigned long)to, from, len);
+	memcpy(dst, (const void __force *)src, count);
+}
+
+static inline void
+memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
+{
+	memcpy((void __force *)dst, src, count);
 }
 
 /*

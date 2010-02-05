@@ -49,21 +49,21 @@
 #define xlate_dev_kmem_ptr(p)	p
 
 static inline void
-memset_io(volatile void __iomem *addr, unsigned char val, int count)
+memset_io(volatile void __iomem *addr, unsigned char val, size_t count)
 {
 	memset((void __force *)addr, val, count);
 }
 
 static inline void
-memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
+memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count)
 {
-	__memcpy(dst, (const void __force *)src, count);
+	memcpy(dst, (const void __force *)src, count);
 }
 
 static inline void
-memcpy_toio(volatile void __iomem *dst, const void *src, int count)
+memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
 {
-	__memcpy((void __force *)dst, src, count);
+	memcpy((void __force *)dst, src, count);
 }
 
 /*
