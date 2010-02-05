@@ -83,7 +83,13 @@ memcpy_toio(volatile void __iomem *dst, const void *src, size_t count)
  *	1. Out of order aware processors
  *	2. Accidentally out of order processors (PPro errata #51)
  */
-#define flush_write_buffers() do { } while (0)
+
+static inline void flush_write_buffers(void)
+{
+#if defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE)
+	asm volatile("lock; addl $0,0(%%esp)": : :"memory");
+#endif
+}
 
 #endif /* __KERNEL__ */
 
