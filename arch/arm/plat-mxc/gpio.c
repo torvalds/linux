@@ -140,16 +140,13 @@ static void mxc_flip_edge(struct mxc_gpio_port *port, u32 gpio)
 	val = __raw_readl(reg);
 	edge = (val >> (bit << 1)) & 3;
 	val &= ~(0x3 << (bit << 1));
-	switch (edge) {
-	case GPIO_INT_HIGH_LEV:
+	if (edge == GPIO_INT_HIGH_LEV) {
 		edge = GPIO_INT_LOW_LEV;
 		pr_debug("mxc: switch GPIO %d to low trigger\n", gpio);
-		break;
-	case GPIO_INT_LOW_LEV:
+	} else if (edge == GPIO_INT_LOW_LEV) {
 		edge = GPIO_INT_HIGH_LEV;
 		pr_debug("mxc: switch GPIO %d to high trigger\n", gpio);
-		break;
-	default:
+	} else {
 		pr_err("mxc: invalid configuration for GPIO %d: %x\n",
 		       gpio, edge);
 		return;
