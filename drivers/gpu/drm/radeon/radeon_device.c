@@ -238,6 +238,8 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
 
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
+	if (rdev->dummy_page.page)
+		return 0;
 	rdev->dummy_page.page = alloc_page(GFP_DMA32 | GFP_KERNEL | __GFP_ZERO);
 	if (rdev->dummy_page.page == NULL)
 		return -ENOMEM;
