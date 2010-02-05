@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c24xx/include/plat/pll.h
+/* linux/arch/arm/mach-s3c2410/include/pm-core.h
  *
  * Copyright 2008 Simtec Electronics
  *      Ben Dooks <ben@simtec.co.uk>

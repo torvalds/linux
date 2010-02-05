@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c64xx/include/plat/pm-core.h
+/* linux/arch/arm/mach-s3c64xx/include/mach/pm-core.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics

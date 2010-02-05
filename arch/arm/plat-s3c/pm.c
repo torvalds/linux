@@ -29,7 +29,7 @@
 #include <asm/irq.h>
 
 #include <plat/pm.h>
-#include <plat/pm-core.h>
+#include <mach/pm-core.h>
 
 /* for external use */
 
