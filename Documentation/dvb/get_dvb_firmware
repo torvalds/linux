@@ -39,7 +39,7 @@ for ($i=0; $i < scalar(@components); $i++) {
 	die $@ if $@;
 	print STDERR <<EOF;
 Firmware(s) $outfile extracted successfully.
-Now copy it(they) to either /usr/lib/hotplug/firmware or /lib/firmware
+Now copy it(them) to either /usr/lib/hotplug/firmware or /lib/firmware
 (depending on configuration of firmware hotplug).
 EOF
 	exit(0);
@@ -685,6 +685,7 @@ sub delzero{
 sub syntax() {
     print STDERR "syntax: get_dvb_firmware <component>\n";
     print STDERR "Supported components:\n";
+    @components = sort @components;
     for($i=0; $i < scalar(@components); $i++) {
 	print STDERR "\t" . $components[$i] . "\n";
     }
