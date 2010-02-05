@@ -15,7 +15,7 @@
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
-#include "rar_driver.h"
+#include "rar_register.h"
 
 /* The following defines are for the IPC process to retrieve RAR in */
 
