@@ -96,7 +96,7 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
 		sp = __d_path(path, &ns_root, newname, newname_len);
 		spin_unlock(&dcache_lock);
 		/* Prepend "/proc" prefix if using internal proc vfs mount. */
-		if (!IS_ERR(sp) && (path->mnt->mnt_parent == path->mnt) &&
+		if (!IS_ERR(sp) && (path->mnt->mnt_flags & MNT_INTERNAL) &&
 		    (strcmp(path->mnt->mnt_sb->s_type->name, "proc") == 0)) {
 			sp -= 5;
 			if (sp >= newname)
