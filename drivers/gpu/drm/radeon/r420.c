@@ -69,7 +69,8 @@ void r420_pipes_init(struct radeon_device *rdev)
 	unsigned num_pipes;
 
 	/* GA_ENHANCE workaround TCL deadlock issue */
-	WREG32(0x4274, (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3));
+	WREG32(R300_GA_ENHANCE, R300_GA_DEADLOCK_CNTL | R300_GA_FASTSYNC_CNTL |
+	       (1 << 2) | (1 << 3));
 	/* add idle wait as per freedesktop.org bug 24041 */
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
@@ -97,17 +98,17 @@ void r420_pipes_init(struct radeon_device *rdev)
 		tmp = (7 << 1);
 		break;
 	}
-	WREG32(0x42C8, (1 << num_pipes) - 1);
+	WREG32(R500_SU_REG_DEST, (1 << num_pipes) - 1);
 	/* Sub pixel 1/12 so we can have 4K rendering according to doc */
-	tmp |= (1 << 4) | (1 << 0);
-	WREG32(0x4018, tmp);
+	tmp |= R300_TILE_SIZE_16 | R300_ENABLE_TILING;
+	WREG32(R300_GB_TILE_CONFIG, tmp);
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = RREG32(0x170C);
-	WREG32(0x170C, tmp | (1 << 31));
+	tmp = RREG32(R300_DST_PIPE_CONFIG);
+	WREG32(R300_DST_PIPE_CONFIG, tmp | R300_PIPE_AUTO_CONFIG);
 
 	WREG32(R300_RB2D_DSTCACHE_MODE,
 	       RREG32(R300_RB2D_DSTCACHE_MODE) |

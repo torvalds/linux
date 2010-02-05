@@ -174,18 +174,20 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 	/* Who ever call radeon_fence_emit should call ring_lock and ask
 	 * for enough space (today caller are ib schedule and buffer move) */
 	/* Write SC register so SC & US assert idle */
-	radeon_ring_write(rdev, PACKET0(0x43E0, 0));
+	radeon_ring_write(rdev, PACKET0(R300_RE_SCISSORS_TL, 0));
 	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, PACKET0(0x43E4, 0));
+	radeon_ring_write(rdev, PACKET0(R300_RE_SCISSORS_BR, 0));
 	radeon_ring_write(rdev, 0);
 	/* Flush 3D cache */
-	radeon_ring_write(rdev, PACKET0(0x4E4C, 0));
-	radeon_ring_write(rdev, (2 << 0));
-	radeon_ring_write(rdev, PACKET0(0x4F18, 0));
-	radeon_ring_write(rdev, (1 << 0));
+	radeon_ring_write(rdev, PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, R300_RB3D_DC_FLUSH);
+	radeon_ring_write(rdev, PACKET0(R300_RB3D_ZCACHE_CTLSTAT, 0));
+	radeon_ring_write(rdev, R300_ZC_FLUSH);
 	/* Wait until IDLE & CLEAN */
-	radeon_ring_write(rdev, PACKET0(0x1720, 0));
-	radeon_ring_write(rdev, (1 << 17) | (1 << 16)  | (1 << 9));
+	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(rdev, (RADEON_WAIT_3D_IDLECLEAN |
+				 RADEON_WAIT_2D_IDLECLEAN |
+				 RADEON_WAIT_DMA_GUI_IDLE));
 	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
 	radeon_ring_write(rdev, rdev->config.r300.hdp_cntl |
 				RADEON_HDP_READ_BUFFER_INVALIDATE);
@@ -219,7 +221,7 @@ int r300_copy_dma(struct radeon_device *rdev,
 	}
 	/* Must wait for 2D idle & clean before DMA or hangs might happen */
 	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0 ));
-	radeon_ring_write(rdev, (1 << 16));
+	radeon_ring_write(rdev, RADEON_WAIT_2D_IDLECLEAN);
 	for (i = 0; i < num_loops; i++) {
 		cur_size = size;
 		if (cur_size > 0x1FFFFF) {
@@ -281,8 +283,8 @@ void r300_ring_start(struct radeon_device *rdev)
 	radeon_ring_write(rdev,
 			  RADEON_WAIT_2D_IDLECLEAN |
 			  RADEON_WAIT_3D_IDLECLEAN);
-	radeon_ring_write(rdev, PACKET0(0x170C, 0));
-	radeon_ring_write(rdev, 1 << 31);
+	radeon_ring_write(rdev, PACKET0(R300_DST_PIPE_CONFIG, 0));
+	radeon_ring_write(rdev, R300_PIPE_AUTO_CONFIG);
 	radeon_ring_write(rdev, PACKET0(R300_GB_SELECT, 0));
 	radeon_ring_write(rdev, 0);
 	radeon_ring_write(rdev, PACKET0(R300_GB_ENABLE, 0));
@@ -349,8 +351,8 @@ int r300_mc_wait_for_idle(struct radeon_device *rdev)
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		/* read MC_STATUS */
-		tmp = RREG32(0x0150);
-		if (tmp & (1 << 4)) {
+		tmp = RREG32(RADEON_MC_STATUS);
+		if (tmp & R300_MC_IDLE) {
 			return 0;
 		}
 		DRM_UDELAY(1);
@@ -395,8 +397,8 @@ void r300_gpu_init(struct radeon_device *rdev)
 		       "programming pipes. Bad things might happen.\n");
 	}
 
-	tmp = RREG32(0x170C);
-	WREG32(0x170C, tmp | (1 << 31));
+	tmp = RREG32(R300_DST_PIPE_CONFIG);
+	WREG32(R300_DST_PIPE_CONFIG, tmp | R300_PIPE_AUTO_CONFIG);
 
 	WREG32(R300_RB2D_DSTCACHE_MODE,
 	       R300_DC_AUTOFLUSH_ENABLE |
@@ -437,8 +439,8 @@ int r300_ga_reset(struct radeon_device *rdev)
 			/* GA still busy soft reset it */
 			WREG32(0x429C, 0x200);
 			WREG32(R300_VAP_PVS_STATE_FLUSH_REG, 0);
-			WREG32(0x43E0, 0);
-			WREG32(0x43E4, 0);
+			WREG32(R300_RE_SCISSORS_TL, 0);
+			WREG32(R300_RE_SCISSORS_BR, 0);
 			WREG32(0x24AC, 0);
 		}
 		/* Wait to prevent race in RBBM_STATUS */
@@ -488,7 +490,7 @@ int r300_gpu_reset(struct radeon_device *rdev)
 	}
 	/* Check if GPU is idle */
 	status = RREG32(RADEON_RBBM_STATUS);
-	if (status & (1 << 31)) {
+	if (status & RADEON_RBBM_ACTIVE) {
 		DRM_ERROR("Failed to reset GPU (RBBM_STATUS=0x%08X)\n", status);
 		return -1;
 	}

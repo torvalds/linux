@@ -366,8 +366,8 @@ void r100_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, PACKET0(RADEON_RB3D_ZCACHE_CTLSTAT, 0));
 	radeon_ring_write(rdev, RADEON_RB3D_ZC_FLUSH_ALL);
 	/* Wait until IDLE & CLEAN */
-	radeon_ring_write(rdev, PACKET0(0x1720, 0));
-	radeon_ring_write(rdev, (1 << 16) | (1 << 17));
+	radeon_ring_write(rdev, PACKET0(RADEON_WAIT_UNTIL, 0));
+	radeon_ring_write(rdev, RADEON_WAIT_2D_IDLECLEAN | RADEON_WAIT_3D_IDLECLEAN);
 	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
 	radeon_ring_write(rdev, rdev->config.r100.hdp_cntl |
 				RADEON_HDP_READ_BUFFER_INVALIDATE);
@@ -1701,7 +1701,7 @@ int r100_gui_wait_for_idle(struct radeon_device *rdev)
 	}
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(RADEON_RBBM_STATUS);
-		if (!(tmp & (1 << 31))) {
+		if (!(tmp & RADEON_RBBM_ACTIVE)) {
 			return 0;
 		}
 		DRM_UDELAY(1);
@@ -1716,8 +1716,8 @@ int r100_mc_wait_for_idle(struct radeon_device *rdev)
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		/* read MC_STATUS */
-		tmp = RREG32(0x0150);
-		if (tmp & (1 << 2)) {
+		tmp = RREG32(RADEON_MC_STATUS);
+		if (tmp & RADEON_MC_IDLE) {
 			return 0;
 		}
 		DRM_UDELAY(1);
@@ -1790,7 +1790,7 @@ int r100_gpu_reset(struct radeon_device *rdev)
 	}
 	/* Check if GPU is idle */
 	status = RREG32(RADEON_RBBM_STATUS);
-	if (status & (1 << 31)) {
+	if (status & RADEON_RBBM_ACTIVE) {
 		DRM_ERROR("Failed to reset GPU (RBBM_STATUS=0x%08X)\n", status);
 		return -1;
 	}
