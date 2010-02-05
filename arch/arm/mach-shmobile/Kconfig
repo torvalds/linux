@@ -10,11 +10,23 @@ config ARCH_SH7367
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
+config ARCH_SH7377
+	bool "SH-Mobile G4 (SH7377)"
+	select CPU_V7
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
 comment "SH-Mobile Board Type"
 
 config MACH_G3EVM
 	bool "G3EVM board"
 	depends on ARCH_SH7367
+
+config MACH_G4EVM
+	bool "G4EVM board"
+	depends on ARCH_SH7377
 
 comment "SH-Mobile System Configuration"
 
@@ -23,6 +35,7 @@ menu "Memory configuration"
 config MEMORY_START
 	hex "Physical memory start address"
 	default "0x50000000" if MACH_G3EVM
+	default "0x40000000" if MACH_G4EVM
 	default "0x00000000"
 	---help---
 	  Tweak this only when porting to a new machine which does not
@@ -32,6 +45,7 @@ config MEMORY_START
 config MEMORY_SIZE
 	hex "Physical memory size"
 	default "0x08000000" if MACH_G3EVM
+	default "0x08000000" if MACH_G4EVM
 	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your kernel. It can
