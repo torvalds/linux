@@ -132,7 +132,6 @@ extern int do_add_mount(struct vfsmount *newmnt, struct path *path,
 
 extern void mark_mounts_for_expiry(struct list_head *mounts);
 
-extern spinlock_t vfsmount_lock;
 extern dev_t name_to_dev_t(char *name);
 
 #endif /* _LINUX_MOUNT_H */
