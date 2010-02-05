@@ -76,7 +76,7 @@ static const struct firmware card_fw[] = {
 	{0, "layla20_asic.fw"}
 };
 
-static struct pci_device_id snd_echo_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_echo_ids) = {
 	{0x1057, 0x1801, 0xECC0, 0x0030, 0, 0, 0},	/* DSP 56301 Layla20 rev.0 */
 	{0x1057, 0x1801, 0xECC0, 0x0031, 0, 0, 0},	/* DSP 56301 Layla20 rev.1 */
 	{0,}
