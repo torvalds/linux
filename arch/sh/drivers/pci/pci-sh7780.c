@@ -23,7 +23,7 @@
 
 static struct resource sh7785_pci_resources[] = {
 	{
-		.name	= "SH7785_IO",
+		.name	= "PCI IO",
 		.start	= 0x1000,
 		.end	= SZ_4M - 1,
 		.flags	= IORESOURCE_IO,
@@ -338,8 +338,8 @@ static int __init sh7780_pci_init(void)
 	/*
 	 * Setup the memory BARs
 	 */
-	for (i = 0; i < chan->nr_resources; i++) {
-		struct resource *res = chan->resources + (i + 1);
+	for (i = 1; i < chan->nr_resources; i++) {
+		struct resource *res = chan->resources + i;
 		resource_size_t size;
 
 		if (unlikely(res->flags & IORESOURCE_IO))
@@ -361,8 +361,8 @@ static int __init sh7780_pci_init(void)
 		 * keeps things pretty simple.
 		 */
 		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
-			     chan->reg_base + SH7780_PCIMBMR(i));
-		__raw_writel(res->start, chan->reg_base + SH7780_PCIMBR(i));
+			     chan->reg_base + SH7780_PCIMBMR(i - 1));
+		__raw_writel(res->start, chan->reg_base + SH7780_PCIMBR(i - 1));
 	}
 
 	/*
