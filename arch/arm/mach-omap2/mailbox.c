@@ -41,6 +41,8 @@
 #define SOFTRESET	(1 << 1)
 #define SMARTIDLE	(2 << 3)
 #define OMAP4_SOFTRESET	(1 << 0)
+#define OMAP4_NOIDLE	(1 << 2)
+#define OMAP4_SMARTIDLE	(2 << 2)
 
 /* SYSSTATUS: register bit definition */
 #define RESETDONE	(1 << 0)
@@ -131,7 +133,10 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 	l = mbox_read_reg(MAILBOX_REVISION);
 	pr_info("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
 
-	l = SMARTIDLE | AUTOIDLE;
+	if (cpu_is_omap44xx())
+		l = OMAP4_SMARTIDLE;
+	else
+		l = SMARTIDLE | AUTOIDLE;
 	mbox_write_reg(l, MAILBOX_SYSCONFIG);
 
 	omap2_mbox_enable_irq(mbox, IRQ_RX);
