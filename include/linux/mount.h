@@ -45,6 +45,8 @@ struct mnt_namespace;
 #define MNT_PROPAGATION_MASK	(MNT_SHARED | MNT_UNBINDABLE)
 
 
+#define MNT_INTERNAL	0x4000
+
 struct vfsmount {
 	struct list_head mnt_hash;
 	struct vfsmount *mnt_parent;	/* fs we are mounted on */

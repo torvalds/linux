@@ -937,6 +937,9 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 	if (!mnt)
 		goto out;
 
+	if (flags & MS_KERNMOUNT)
+		mnt->mnt_flags = MNT_INTERNAL;
+
 	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
 		secdata = alloc_secdata();
 		if (!secdata)
