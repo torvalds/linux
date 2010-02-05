@@ -3152,7 +3152,9 @@ static void nfs4_renew_release(void *data)
 {
 	struct nfs_client *clp = data;
 
-	nfs4_schedule_state_renewal(clp);
+	if (atomic_read(&clp->cl_count) > 1)
+		nfs4_schedule_state_renewal(clp);
+	nfs_put_client(clp);
 }
 
 static void nfs4_renew_done(struct rpc_task *task, void *data)
@@ -3185,6 +3187,8 @@ int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred)
 		.rpc_cred	= cred,
 	};
 
+	if (!atomic_inc_not_zero(&clp->cl_count))
+		return -EIO;
 	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_SOFT,
 			&nfs4_renew_ops, clp);
 }
