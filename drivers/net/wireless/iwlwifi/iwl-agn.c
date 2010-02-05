@@ -2631,7 +2631,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv)
 	 */
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
-	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
+	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX + 1;
 	/* we create the 802.11 header and a zero-length SSID element */
 	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
 
