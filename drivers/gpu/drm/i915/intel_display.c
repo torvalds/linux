@@ -240,33 +240,86 @@ struct intel_limit {
 #define IRONLAKE_DOT_MAX         350000
 #define IRONLAKE_VCO_MIN         1760000
 #define IRONLAKE_VCO_MAX         3510000
-#define IRONLAKE_N_MIN           1
-#define IRONLAKE_N_MAX           6
-#define IRONLAKE_M_MIN           79
-#define IRONLAKE_M_MAX           127
 #define IRONLAKE_M1_MIN          12
 #define IRONLAKE_M1_MAX          22
 #define IRONLAKE_M2_MIN          5
 #define IRONLAKE_M2_MAX          9
-#define IRONLAKE_P_SDVO_DAC_MIN  5
-#define IRONLAKE_P_SDVO_DAC_MAX  80
-#define IRONLAKE_P_LVDS_MIN      28
-#define IRONLAKE_P_LVDS_MAX      112
-#define IRONLAKE_P1_MIN          1
-#define IRONLAKE_P1_MAX          8
-#define IRONLAKE_P2_SDVO_DAC_SLOW 10
-#define IRONLAKE_P2_SDVO_DAC_FAST 5
-#define IRONLAKE_P2_LVDS_SLOW    14 /* single channel */
-#define IRONLAKE_P2_LVDS_FAST    7  /* double channel */
 #define IRONLAKE_P2_DOT_LIMIT    225000 /* 225Mhz */
 
-#define IRONLAKE_P_DISPLAY_PORT_MIN	10
-#define IRONLAKE_P_DISPLAY_PORT_MAX	20
-#define IRONLAKE_P2_DISPLAY_PORT_FAST	10
-#define IRONLAKE_P2_DISPLAY_PORT_SLOW	10
-#define IRONLAKE_P2_DISPLAY_PORT_LIMIT	0
-#define IRONLAKE_P1_DISPLAY_PORT_MIN	1
-#define IRONLAKE_P1_DISPLAY_PORT_MAX	2
+/* We have parameter ranges for different type of outputs. */
+
+/* DAC & HDMI Refclk 120Mhz */
+#define IRONLAKE_DAC_N_MIN	1
+#define IRONLAKE_DAC_N_MAX	5
+#define IRONLAKE_DAC_M_MIN	79
+#define IRONLAKE_DAC_M_MAX	127
+#define IRONLAKE_DAC_P_MIN	5
+#define IRONLAKE_DAC_P_MAX	80
+#define IRONLAKE_DAC_P1_MIN	1
+#define IRONLAKE_DAC_P1_MAX	8
+#define IRONLAKE_DAC_P2_SLOW	10
+#define IRONLAKE_DAC_P2_FAST	5
+
+/* LVDS single-channel 120Mhz refclk */
+#define IRONLAKE_LVDS_S_N_MIN	1
+#define IRONLAKE_LVDS_S_N_MAX	3
+#define IRONLAKE_LVDS_S_M_MIN	79
+#define IRONLAKE_LVDS_S_M_MAX	118
+#define IRONLAKE_LVDS_S_P_MIN	28
+#define IRONLAKE_LVDS_S_P_MAX	112
+#define IRONLAKE_LVDS_S_P1_MIN	2
+#define IRONLAKE_LVDS_S_P1_MAX	8
+#define IRONLAKE_LVDS_S_P2_SLOW	14
+#define IRONLAKE_LVDS_S_P2_FAST	14
+
+/* LVDS dual-channel 120Mhz refclk */
+#define IRONLAKE_LVDS_D_N_MIN	1
+#define IRONLAKE_LVDS_D_N_MAX	3
+#define IRONLAKE_LVDS_D_M_MIN	79
+#define IRONLAKE_LVDS_D_M_MAX	127
+#define IRONLAKE_LVDS_D_P_MIN	14
+#define IRONLAKE_LVDS_D_P_MAX	56
+#define IRONLAKE_LVDS_D_P1_MIN	2
+#define IRONLAKE_LVDS_D_P1_MAX	8
+#define IRONLAKE_LVDS_D_P2_SLOW	7
+#define IRONLAKE_LVDS_D_P2_FAST	7
+
+/* LVDS single-channel 100Mhz refclk */
+#define IRONLAKE_LVDS_S_SSC_N_MIN	1
+#define IRONLAKE_LVDS_S_SSC_N_MAX	2
+#define IRONLAKE_LVDS_S_SSC_M_MIN	79
+#define IRONLAKE_LVDS_S_SSC_M_MAX	126
+#define IRONLAKE_LVDS_S_SSC_P_MIN	28
+#define IRONLAKE_LVDS_S_SSC_P_MAX	112
+#define IRONLAKE_LVDS_S_SSC_P1_MIN	2
+#define IRONLAKE_LVDS_S_SSC_P1_MAX	8
+#define IRONLAKE_LVDS_S_SSC_P2_SLOW	14
+#define IRONLAKE_LVDS_S_SSC_P2_FAST	14
+
+/* LVDS dual-channel 100Mhz refclk */
+#define IRONLAKE_LVDS_D_SSC_N_MIN	1
+#define IRONLAKE_LVDS_D_SSC_N_MAX	3
+#define IRONLAKE_LVDS_D_SSC_M_MIN	79
+#define IRONLAKE_LVDS_D_SSC_M_MAX	126
+#define IRONLAKE_LVDS_D_SSC_P_MIN	14
+#define IRONLAKE_LVDS_D_SSC_P_MAX	42
+#define IRONLAKE_LVDS_D_SSC_P1_MIN	2
+#define IRONLAKE_LVDS_D_SSC_P1_MAX	6
+#define IRONLAKE_LVDS_D_SSC_P2_SLOW	7
+#define IRONLAKE_LVDS_D_SSC_P2_FAST	7
+
+/* DisplayPort */
+#define IRONLAKE_DP_N_MIN		1
+#define IRONLAKE_DP_N_MAX		2
+#define IRONLAKE_DP_M_MIN		81
+#define IRONLAKE_DP_M_MAX		90
+#define IRONLAKE_DP_P_MIN		10
+#define IRONLAKE_DP_P_MAX		20
+#define IRONLAKE_DP_P2_FAST		10
+#define IRONLAKE_DP_P2_SLOW		10
+#define IRONLAKE_DP_P2_LIMIT		0
+#define IRONLAKE_DP_P1_MIN		1
+#define IRONLAKE_DP_P1_MAX		2
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
@@ -474,33 +527,78 @@ static const intel_limit_t intel_limits_pineview_lvds = {
 	.find_pll = intel_find_best_PLL,
 };
 
-static const intel_limit_t intel_limits_ironlake_sdvo = {
+static const intel_limit_t intel_limits_ironlake_dac = {
 	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
 	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_N_MIN,            .max = IRONLAKE_N_MAX },
-	.m   = { .min = IRONLAKE_M_MIN,            .max = IRONLAKE_M_MAX },
+	.n   = { .min = IRONLAKE_DAC_N_MIN,        .max = IRONLAKE_DAC_N_MAX },
+	.m   = { .min = IRONLAKE_DAC_M_MIN,        .max = IRONLAKE_DAC_M_MAX },
 	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
 	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_P_SDVO_DAC_MIN,   .max = IRONLAKE_P_SDVO_DAC_MAX },
-	.p1  = { .min = IRONLAKE_P1_MIN,           .max = IRONLAKE_P1_MAX },
+	.p   = { .min = IRONLAKE_DAC_P_MIN,	   .max = IRONLAKE_DAC_P_MAX },
+	.p1  = { .min = IRONLAKE_DAC_P1_MIN,       .max = IRONLAKE_DAC_P1_MAX },
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_P2_SDVO_DAC_SLOW,
-		 .p2_fast = IRONLAKE_P2_SDVO_DAC_FAST },
+		 .p2_slow = IRONLAKE_DAC_P2_SLOW,
+		 .p2_fast = IRONLAKE_DAC_P2_FAST },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
-static const intel_limit_t intel_limits_ironlake_lvds = {
+static const intel_limit_t intel_limits_ironlake_single_lvds = {
 	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
 	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_N_MIN,            .max = IRONLAKE_N_MAX },
-	.m   = { .min = IRONLAKE_M_MIN,            .max = IRONLAKE_M_MAX },
+	.n   = { .min = IRONLAKE_LVDS_S_N_MIN,     .max = IRONLAKE_LVDS_S_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_S_M_MIN,     .max = IRONLAKE_LVDS_S_M_MAX },
 	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
 	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_P_LVDS_MIN,       .max = IRONLAKE_P_LVDS_MAX },
-	.p1  = { .min = IRONLAKE_P1_MIN,           .max = IRONLAKE_P1_MAX },
+	.p   = { .min = IRONLAKE_LVDS_S_P_MIN,     .max = IRONLAKE_LVDS_S_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_S_P1_MIN,    .max = IRONLAKE_LVDS_S_P1_MAX },
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_P2_LVDS_SLOW,
-		 .p2_fast = IRONLAKE_P2_LVDS_FAST },
+		 .p2_slow = IRONLAKE_LVDS_S_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_S_P2_FAST },
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_dual_lvds = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_LVDS_D_N_MIN,     .max = IRONLAKE_LVDS_D_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_D_M_MIN,     .max = IRONLAKE_LVDS_D_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_LVDS_D_P_MIN,     .max = IRONLAKE_LVDS_D_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_D_P1_MIN,    .max = IRONLAKE_LVDS_D_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_LVDS_D_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_D_P2_FAST },
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_LVDS_S_SSC_N_MIN, .max = IRONLAKE_LVDS_S_SSC_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_S_SSC_M_MIN, .max = IRONLAKE_LVDS_S_SSC_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_LVDS_S_SSC_P_MIN, .max = IRONLAKE_LVDS_S_SSC_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_S_SSC_P1_MIN,.max = IRONLAKE_LVDS_S_SSC_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_LVDS_S_SSC_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_S_SSC_P2_FAST },
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_LVDS_D_SSC_N_MIN, .max = IRONLAKE_LVDS_D_SSC_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_D_SSC_M_MIN, .max = IRONLAKE_LVDS_D_SSC_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_LVDS_D_SSC_P_MIN, .max = IRONLAKE_LVDS_D_SSC_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_D_SSC_P1_MIN,.max = IRONLAKE_LVDS_D_SSC_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_LVDS_D_SSC_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_D_SSC_P2_FAST },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
@@ -509,34 +607,53 @@ static const intel_limit_t intel_limits_ironlake_display_port = {
                  .max = IRONLAKE_DOT_MAX },
         .vco = { .min = IRONLAKE_VCO_MIN,
                  .max = IRONLAKE_VCO_MAX},
-        .n   = { .min = IRONLAKE_N_MIN,
-                 .max = IRONLAKE_N_MAX },
-        .m   = { .min = IRONLAKE_M_MIN,
-                 .max = IRONLAKE_M_MAX },
+        .n   = { .min = IRONLAKE_DP_N_MIN,
+                 .max = IRONLAKE_DP_N_MAX },
+        .m   = { .min = IRONLAKE_DP_M_MIN,
+                 .max = IRONLAKE_DP_M_MAX },
         .m1  = { .min = IRONLAKE_M1_MIN,
                  .max = IRONLAKE_M1_MAX },
         .m2  = { .min = IRONLAKE_M2_MIN,
                  .max = IRONLAKE_M2_MAX },
-        .p   = { .min = IRONLAKE_P_DISPLAY_PORT_MIN,
-                 .max = IRONLAKE_P_DISPLAY_PORT_MAX },
-        .p1  = { .min = IRONLAKE_P1_DISPLAY_PORT_MIN,
-                 .max = IRONLAKE_P1_DISPLAY_PORT_MAX},
-        .p2  = { .dot_limit = IRONLAKE_P2_DISPLAY_PORT_LIMIT,
-                 .p2_slow = IRONLAKE_P2_DISPLAY_PORT_SLOW,
-                 .p2_fast = IRONLAKE_P2_DISPLAY_PORT_FAST },
+        .p   = { .min = IRONLAKE_DP_P_MIN,
+                 .max = IRONLAKE_DP_P_MAX },
+        .p1  = { .min = IRONLAKE_DP_P1_MIN,
+                 .max = IRONLAKE_DP_P1_MAX},
+        .p2  = { .dot_limit = IRONLAKE_DP_P2_LIMIT,
+                 .p2_slow = IRONLAKE_DP_P2_SLOW,
+                 .p2_fast = IRONLAKE_DP_P2_FAST },
         .find_pll = intel_find_pll_ironlake_dp,
 };
 
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	const intel_limit_t *limit;
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		limit = &intel_limits_ironlake_lvds;
-	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+	int refclk = 120;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		if (dev_priv->lvds_use_ssc && dev_priv->lvds_ssc_freq == 100)
+			refclk = 100;
+
+		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
+		    LVDS_CLKB_POWER_UP) {
+			/* LVDS dual channel */
+			if (refclk == 100)
+				limit = &intel_limits_ironlake_dual_lvds_100m;
+			else
+				limit = &intel_limits_ironlake_dual_lvds;
+		} else {
+			if (refclk == 100)
+				limit = &intel_limits_ironlake_single_lvds_100m;
+			else
+				limit = &intel_limits_ironlake_single_lvds;
+		}
+	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
 			HAS_eDP)
 		limit = &intel_limits_ironlake_display_port;
 	else
-		limit = &intel_limits_ironlake_sdvo;
+		limit = &intel_limits_ironlake_dac;
 
 	return limit;
 }
