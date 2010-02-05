@@ -801,4 +801,6 @@ extern struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
 				bool interlaced, int margins);
 extern int drm_add_modes_noedid(struct drm_connector *connector,
 				int hdisplay, int vdisplay);
+
+extern bool drm_edid_is_valid(struct edid *edid);
 #endif /* __DRM_CRTC_H__ */

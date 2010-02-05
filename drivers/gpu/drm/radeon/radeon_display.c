@@ -352,6 +352,8 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 
 int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
+	struct drm_device *dev = radeon_connector->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	int ret = 0;
 
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
@@ -366,7 +368,9 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->edid) {
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
 	}
-
+	/* some servers provide a hardcoded edid in rom for KVMs */
+	if (!radeon_connector->edid)
+		radeon_connector->edid = radeon_combios_get_hardcoded_edid(rdev);
 	if (radeon_connector->edid) {
 		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
@@ -829,6 +833,12 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		return ret;
 	}
 
+	/* check combios for a valid hardcoded EDID - Sun servers */
+	if (!rdev->is_atom_bios) {
+		/* check for hardcoded EDID in BIOS */
+		radeon_combios_check_hardcoded_edid(rdev);
+	}
+
 	if (rdev->flags & RADEON_SINGLE_CRTC)
 		num_crtc = 1;
 
@@ -850,6 +860,8 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
+	kfree(rdev->mode_info.bios_hardcoded_edid);
+
 	if (rdev->mode_info.mode_config_initialized) {
 		radeon_hpd_fini(rdev);
 		drm_mode_config_cleanup(rdev->ddev);

@@ -207,7 +207,8 @@ struct radeon_mode_info {
 	struct drm_property *tv_std_property;
 	/* legacy TMDS PLL detect */
 	struct drm_property *tmds_pll_property;
-
+	/* hardcoded DFP edid from BIOS */
+	struct edid *bios_hardcoded_edid;
 };
 
 #define MAX_H_CODE_TIMING_LEN 32
@@ -479,6 +480,9 @@ extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
 
+extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
+extern struct edid *
+radeon_combios_get_hardcoded_edid(struct radeon_device *rdev);
 extern bool radeon_atom_get_clock_info(struct drm_device *dev);
 extern bool radeon_combios_get_clock_info(struct drm_device *dev);
 extern struct radeon_encoder_atom_dig *

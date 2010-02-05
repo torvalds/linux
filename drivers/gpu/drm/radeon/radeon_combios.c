@@ -443,6 +443,39 @@ static uint16_t combios_get_table_offset(struct drm_device *dev,
 
 }
 
+bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
+{
+	int edid_info;
+	struct edid *edid;
+	edid_info = combios_get_table_offset(rdev->ddev, COMBIOS_HARDCODED_EDID_TABLE);
+	if (!edid_info)
+		return false;
+
+	edid = kmalloc(EDID_LENGTH * (DRM_MAX_EDID_EXT_NUM + 1),
+		       GFP_KERNEL);
+	if (edid == NULL)
+		return false;
+
+	memcpy((unsigned char *)edid,
+	       (unsigned char *)(rdev->bios + edid_info), EDID_LENGTH);
+
+	if (!drm_edid_is_valid(edid)) {
+		kfree(edid);
+		return false;
+	}
+
+	rdev->mode_info.bios_hardcoded_edid = edid;
+	return true;
+}
+
+struct edid *
+radeon_combios_get_hardcoded_edid(struct radeon_device *rdev)
+{
+	if (rdev->mode_info.bios_hardcoded_edid)
+		return rdev->mode_info.bios_hardcoded_edid;
+	return NULL;
+}
+
 static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rdev,
 						       int ddc_line)
 {
