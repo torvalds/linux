@@ -846,8 +846,10 @@ int radeon_static_clocks_init(struct drm_device *dev)
 	/* XXX make sure engine is idle */
 
 	if (radeon_dynclks != -1) {
-		if (radeon_dynclks)
-			radeon_set_clock_gating(rdev, 1);
+		if (radeon_dynclks) {
+			if (rdev->asic->set_clock_gating)
+				radeon_set_clock_gating(rdev, 1);
+		}
 	}
 	radeon_apply_clock_quirks(rdev);
 	return 0;

@@ -1780,16 +1780,6 @@ void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
-void radeon_atom_static_pwrmgt_setup(struct radeon_device *rdev, int enable)
-{
-	ENABLE_ASIC_STATIC_PWR_MGT_PS_ALLOCATION args;
-	int index = GetIndexIntoMasterTable(COMMAND, EnableASIC_StaticPwrMgt);
-
-	args.ucEnable = enable;
-
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-}
-
 uint32_t radeon_atom_get_engine_clock(struct radeon_device *rdev)
 {
 	GET_ENGINE_CLOCK_PS_ALLOCATION args;
