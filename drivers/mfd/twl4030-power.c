@@ -405,7 +405,7 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 
 	if (rconfig->remap_sleep != TWL4030_RESCONFIG_UNDEF) {
 		remap &= ~SLEEP_STATE_MASK;
-		remap |= rconfig->remap_off << SLEEP_STATE_SHIFT;
+		remap |= rconfig->remap_sleep << SLEEP_STATE_SHIFT;
 	}
 
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,
