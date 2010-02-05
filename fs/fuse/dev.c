@@ -865,13 +865,10 @@ static int fuse_notify_inval_inode(struct fuse_conn *fc, unsigned int size,
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
-	if (!fc->sb)
-		goto err_unlock;
-
-	err = fuse_reverse_inval_inode(fc->sb, outarg.ino,
-				       outarg.off, outarg.len);
-
-err_unlock:
+	if (fc->sb) {
+		err = fuse_reverse_inval_inode(fc->sb, outarg.ino,
+					       outarg.off, outarg.len);
+	}
 	up_read(&fc->killsb);
 	return err;
 
@@ -910,12 +907,8 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
-	if (!fc->sb)
-		goto err_unlock;
-
-	err = fuse_reverse_inval_entry(fc->sb, outarg.parent, &name);
-
-err_unlock:
+	if (fc->sb)
+		err = fuse_reverse_inval_entry(fc->sb, outarg.parent, &name);
 	up_read(&fc->killsb);
 	return err;
 
