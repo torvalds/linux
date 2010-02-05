@@ -308,7 +308,7 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 	memset(&tun_setup, 0, sizeof(tun_setup));
 	tun_setup.type   = dev->tuner_type;
 	tun_setup.addr   = dev->tuner_addr;
-	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO | T_DIGITAL_TV;
 	tun_setup.tuner_callback = tm6000_tuner_callback;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_type_addr, &tun_setup);
@@ -320,10 +320,12 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 		memset(&xc2028_cfg, 0, sizeof(xc2028_cfg));
 		memset (&ctl,0,sizeof(ctl));
 
-		ctl.mts   = 1;
-		ctl.read_not_reliable = 1;
+		ctl.input1 = 1;
+		ctl.read_not_reliable = 0;
 		ctl.msleep = 10;
-
+		ctl.demod = XC3028_FE_ZARLINK456;
+		ctl.vhfbw7 = 1;
+		ctl.uhfbw8 = 1;
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
 
