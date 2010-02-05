@@ -582,29 +582,6 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				   ? RADEON_CRTC_V_SYNC_POL
 				   : 0));
 
-	/* TODO -> Dell Server */
-	if (0) {
-		uint32_t disp_hw_debug = RREG32(RADEON_DISP_HW_DEBUG);
-		uint32_t tv_dac_cntl = RREG32(RADEON_TV_DAC_CNTL);
-		uint32_t dac2_cntl = RREG32(RADEON_DAC_CNTL2);
-		uint32_t crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
-
-		dac2_cntl &= ~RADEON_DAC2_DAC_CLK_SEL;
-		dac2_cntl |= RADEON_DAC2_DAC2_CLK_SEL;
-
-		/* For CRT on DAC2, don't turn it on if BIOS didn't
-		   enable it, even it's detected.
-		*/
-		disp_hw_debug |= RADEON_CRT2_DISP1_SEL;
-		tv_dac_cntl &= ~((1<<2) | (3<<8) | (7<<24) | (0xff<<16));
-		tv_dac_cntl |= (0x03 | (2<<8) | (0x58<<16));
-
-		WREG32(RADEON_TV_DAC_CNTL, tv_dac_cntl);
-		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
-		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
-		WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
-	}
-
 	if (radeon_crtc->crtc_id) {
 		uint32_t crtc2_gen_cntl;
 		uint32_t disp2_merge_cntl;
