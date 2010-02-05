@@ -528,9 +528,9 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
 		sdp->sd_log_num_databuf++;
-		list_add(&le->le_list, &sdp->sd_log_le_databuf);
+		list_add_tail(&le->le_list, &sdp->sd_log_le_databuf);
 	} else {
-		list_add(&le->le_list, &sdp->sd_log_le_ordered);
+		list_add_tail(&le->le_list, &sdp->sd_log_le_ordered);
 	}
 out:
 	gfs2_log_unlock(sdp);
