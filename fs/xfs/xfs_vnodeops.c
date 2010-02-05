@@ -629,8 +629,14 @@ xfs_fsync(
 		 */
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		if (xfs_ipincount(ip)) {
-			error = _xfs_log_force(ip->i_mount, XFS_LOG_SYNC,
-					       &log_flushed);
+			if (ip->i_itemp->ili_last_lsn) {
+				error = _xfs_log_force_lsn(ip->i_mount,
+						ip->i_itemp->ili_last_lsn,
+						XFS_LOG_SYNC, &log_flushed);
+			} else {
+				error = _xfs_log_force(ip->i_mount,
+						XFS_LOG_SYNC, &log_flushed);
+			}
 		}
 	} else	{
 		/*
