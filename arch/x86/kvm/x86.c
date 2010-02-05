@@ -3551,8 +3551,10 @@ int kvm_emulate_pio(struct kvm_vcpu *vcpu, int in, int size, unsigned port)
 	trace_kvm_pio(vcpu->run->io.direction == KVM_EXIT_IO_OUT, port,
 		      size, 1);
 
-	val = kvm_register_read(vcpu, VCPU_REGS_RAX);
-	memcpy(vcpu->arch.pio_data, &val, 4);
+	if (!vcpu->arch.pio.in) {
+		val = kvm_register_read(vcpu, VCPU_REGS_RAX);
+		memcpy(vcpu->arch.pio_data, &val, 4);
+	}
 
 	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
 		complete_pio(vcpu);
