@@ -525,6 +525,26 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_sr_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	bool sr_enabled = false;
+
+	if (IS_I965G(dev) || IS_I945G(dev) || IS_I945GM(dev))
+		sr_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
+	else if (IS_I915GM(dev))
+		sr_enabled = I915_READ(INSTPM) & INSTPM_SELF_EN;
+	else if (IS_PINEVIEW(dev))
+		sr_enabled = I915_READ(DSPFW3) & PINEVIEW_SELF_REFRESH_EN;
+
+	seq_printf(m, "self-refresh: %s\n", sr_enabled ? "enabled" :
+		   "disabled");
+
+	return 0;
+}
+
 static int
 i915_wedged_open(struct inode *inode,
 		 struct file *filp)
@@ -648,6 +668,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_inttoext_table", i915_inttoext_table, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
+	{"i915_sr_status", i915_sr_status, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
