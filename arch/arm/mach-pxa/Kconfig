@@ -115,6 +115,11 @@ config MACH_CM_X300
 	select CPU_PXA310
 	select HAVE_PWM
 
+config MACH_CAPC7117
+	bool "Embedian CAPC-7117 evaluation kit based on the MXM-8x10 CoM"
+	select CPU_PXA320
+	select PXA3xx
+
 config ARCH_GUMSTIX
 	bool "Gumstix XScale 255 boards"
 	select PXA25x
@@ -510,6 +515,11 @@ config MACH_TOSA
 	depends on PXA_SHARPSL
 	select PXA25x
 	select PXA_HAVE_BOARD_IRQS
+
+config MACH_ICONTROL
+	bool "TMT iControl/SafeTCam based on the MXM-8x10 CoM"
+	select CPU_PXA320
+	select PXA3xx
 
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
