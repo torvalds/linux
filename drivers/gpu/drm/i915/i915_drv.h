@@ -192,6 +192,14 @@ struct intel_device_info {
 	u8 cursor_needs_physical : 1;
 };
 
+enum no_fbc_reason {
+	FBC_STOLEN_TOO_SMALL, /* not enough space to hold compressed buffers */
+	FBC_UNSUPPORTED_MODE, /* interlace or doublescanned mode */
+	FBC_MODE_TOO_LARGE, /* mode too large for compression */
+	FBC_BAD_PLANE, /* fbc not supported on plane */
+	FBC_NOT_TILED, /* buffer not tiled */
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -597,6 +605,8 @@ typedef struct drm_i915_private {
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
+
+	enum no_fbc_reason no_fbc_reason;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */

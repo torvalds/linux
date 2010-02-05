@@ -1249,6 +1249,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	/* Leave 1M for line length buffer & misc. */
 	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
 	if (!compressed_fb) {
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		i915_warn_stolen(dev);
 		return;
 	}
@@ -1256,6 +1257,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
 	if (!compressed_fb) {
 		i915_warn_stolen(dev);
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		return;
 	}
 

@@ -1188,25 +1188,30 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	if (intel_fb->obj->size > dev_priv->cfb_size) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling "
 				"compression\n");
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 	    (mode->flags & DRM_MODE_FLAG_DBLSCAN)) {
 		DRM_DEBUG_KMS("mode incompatible with compression, "
 				"disabling\n");
+		dev_priv->no_fbc_reason = FBC_UNSUPPORTED_MODE;
 		goto out_disable;
 	}
 	if ((mode->hdisplay > 2048) ||
 	    (mode->vdisplay > 1536)) {
 		DRM_DEBUG_KMS("mode too large for compression, disabling\n");
+		dev_priv->no_fbc_reason = FBC_MODE_TOO_LARGE;
 		goto out_disable;
 	}
 	if ((IS_I915GM(dev) || IS_I945GM(dev)) && plane != 0) {
 		DRM_DEBUG_KMS("plane not 0, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_BAD_PLANE;
 		goto out_disable;
 	}
 	if (obj_priv->tiling_mode != I915_TILING_X) {
 		DRM_DEBUG_KMS("framebuffer not tiled, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_NOT_TILED;
 		goto out_disable;
 	}
 
