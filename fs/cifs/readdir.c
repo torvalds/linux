@@ -77,6 +77,11 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 
 	cFYI(1, ("For %s", name->name));
 
+	if (parent->d_op && parent->d_op->d_hash)
+		parent->d_op->d_hash(parent, name);
+	else
+		name->hash = full_name_hash(name->name, name->len);
+
 	dentry = d_lookup(parent, name);
 	if (dentry) {
 		/* FIXME: check for inode number changes? */
@@ -671,8 +676,6 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 		pqst->name = filename;
 		pqst->len = len;
 	}
-	pqst->hash = full_name_hash(pqst->name, pqst->len);
-/*	cFYI(1, ("filldir on %s",pqst->name));  */
 	return rc;
 }
 
