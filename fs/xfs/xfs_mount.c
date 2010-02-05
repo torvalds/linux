@@ -1091,6 +1091,22 @@ xfs_mount_reset_sbqflags(
 	return xfs_trans_commit(tp, 0);
 }
 
+__uint64_t
+xfs_default_resblks(xfs_mount_t *mp)
+{
+	__uint64_t resblks;
+
+	/*
+	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
+	 * This may drive us straight to ENOSPC on mount, but that implies
+	 * we were already there on the last unmount. Warn if this occurs.
+	 */
+	resblks = mp->m_sb.sb_dblocks;
+	do_div(resblks, 20);
+	resblks = min_t(__uint64_t, resblks, 1024);
+	return resblks;
+}
+
 /*
  * This function does the following on an initial mount of a file system:
  *	- reads the superblock from disk and init the mount struct
@@ -1401,18 +1417,14 @@ xfs_mountfs(
 	 * when at ENOSPC. This is needed for operations like create with
 	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
 	 * are not allowed to use this reserved space.
-	 *
-	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
-	 * This may drive us straight to ENOSPC on mount, but that implies
-	 * we were already there on the last unmount. Warn if this occurs.
 	 */
-	resblks = mp->m_sb.sb_dblocks;
-	do_div(resblks, 20);
-	resblks = min_t(__uint64_t, resblks, 1024);
-	error = xfs_reserve_blocks(mp, &resblks, NULL);
-	if (error)
-		cmn_err(CE_WARN, "XFS: Unable to allocate reserve blocks. "
-				"Continuing without a reserve pool.");
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		resblks = xfs_default_resblks(mp);
+		error = xfs_reserve_blocks(mp, &resblks, NULL);
+		if (error)
+			cmn_err(CE_WARN, "XFS: Unable to allocate reserve "
+				"blocks. Continuing without a reserve pool.");
+	}
 
 	return 0;
 
