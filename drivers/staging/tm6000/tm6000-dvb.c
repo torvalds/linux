@@ -236,6 +236,7 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 			.i2c_addr = dev->tuner_addr,
 		};
 
+		dvb->frontend->callback = tm6000_tuner_callback;
 		ret = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 		if (ret < 0) {
 			printk(KERN_ERR

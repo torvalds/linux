@@ -244,7 +244,7 @@ struct usb_device_id tm6000_id_table [] = {
 
 /* Tuner callback to provide the proper gpio changes needed for xc2028 */
 
-static int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
+int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 {
 	int rc=0;
 	struct tm6000_core *dev = ptr;

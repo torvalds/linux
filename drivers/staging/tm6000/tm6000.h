@@ -203,6 +203,9 @@ struct tm6000_fh {
 			V4L2_STD_PAL_M|V4L2_STD_PAL_60|V4L2_STD_NTSC_M| \
 			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM
 
+/* In tm6000-cards.c */
+
+int tm6000_tuner_callback (void *ptr, int component, int command, int arg);
 /* In tm6000-core.c */
 
 int tm6000_read_write_usb (struct tm6000_core *dev, u8 reqtype, u8 req,
