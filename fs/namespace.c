@@ -2344,17 +2344,13 @@ void __init mnt_init(void)
 
 void put_mnt_ns(struct mnt_namespace *ns)
 {
-	struct vfsmount *root;
 	LIST_HEAD(umount_list);
 
-	if (!atomic_dec_and_lock(&ns->count, &vfsmount_lock))
+	if (!atomic_dec_and_test(&ns->count))
 		return;
-	root = ns->root;
-	ns->root = NULL;
-	spin_unlock(&vfsmount_lock);
 	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
-	umount_tree(root, 0, &umount_list);
+	umount_tree(ns->root, 0, &umount_list);
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
