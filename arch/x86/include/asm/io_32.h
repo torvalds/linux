@@ -120,46 +120,20 @@ static inline void slow_down_io(void)
 
 #endif
 
-#define __BUILDIO(bwl, bw, type)				\
-static inline void out##bwl(unsigned type value, int port)	\
-{								\
-	out##bwl##_local(value, port);				\
-}								\
-								\
-static inline unsigned type in##bwl(int port)			\
-{								\
-	return in##bwl##_local(port);				\
-}
-
 #define BUILDIO(bwl, bw, type)						\
-static inline void out##bwl##_local(unsigned type value, int port)	\
+static inline void out##bwl(unsigned type value, int port)		\
 {									\
-	asm volatile("out" #bwl " %" #bw "0, %w1"		\
+	asm volatile("out" #bwl " %" #bw "0, %w1"			\
 		     : : "a"(value), "Nd"(port));			\
 }									\
 									\
-static inline unsigned type in##bwl##_local(int port)			\
+static inline unsigned type in##bwl(int port)				\
 {									\
 	unsigned type value;						\
-	asm volatile("in" #bwl " %w1, %" #bw "0"		\
+	asm volatile("in" #bwl " %w1, %" #bw "0"			\
 		     : "=a"(value) : "Nd"(port));			\
 	return value;							\
 }									\
-									\
-static inline void out##bwl##_local_p(unsigned type value, int port)	\
-{									\
-	out##bwl##_local(value, port);					\
-	slow_down_io();							\
-}									\
-									\
-static inline unsigned type in##bwl##_local_p(int port)			\
-{									\
-	unsigned type value = in##bwl##_local(port);			\
-	slow_down_io();							\
-	return value;							\
-}									\
-									\
-__BUILDIO(bwl, bw, type)						\
 									\
 static inline void out##bwl##_p(unsigned type value, int port)		\
 {									\
