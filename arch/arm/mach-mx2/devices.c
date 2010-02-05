@@ -144,24 +144,33 @@ struct platform_device mxc_w1_master_device = {
 	.resource = mxc_w1_master_resources,
 };
 
-static struct resource mxc_nand_resources[] = {
-	{
-		.start = NFC_BASE_ADDR,
-		.end = NFC_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX2x_INT_NANDFC,
-		.end = MX2x_INT_NANDFC,
-		.flags = IORESOURCE_IRQ,
-	},
-};
+#define DEFINE_MXC_NAND_DEVICE(pfx, baseaddr, irq)			\
+	static struct resource pfx ## _nand_resources[] = {		\
+		{							\
+			.start = baseaddr,				\
+			.end = baseaddr + SZ_4K - 1,			\
+			.flags = IORESOURCE_MEM,			\
+		}, {							\
+			.start = irq,					\
+			.end = irq,					\
+			.flags = IORESOURCE_IRQ,			\
+		},							\
+	};								\
+									\
+	struct platform_device pfx ## _nand_device = {			\
+		.name = "mxc_nand",					\
+		.id = 0,						\
+		.num_resources = ARRAY_SIZE(pfx ## _nand_resources),	\
+		.resource = pfx ## _nand_resources,			\
+	}
 
-struct platform_device mxc_nand_device = {
-	.name = "mxc_nand",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_nand_resources),
-	.resource = mxc_nand_resources,
-};
+#ifdef CONFIG_MACH_MX21
+DEFINE_MXC_NAND_DEVICE(imx21, MX21_NFC_BASE_ADDR, MX21_INT_NANDFC);
+#endif
+
+#ifdef CONFIG_MACH_MX27
+DEFINE_MXC_NAND_DEVICE(imx27, MX27_NFC_BASE_ADDR, MX27_INT_NANDFC);
+#endif
 
 /*
  * lcdc:
