@@ -395,12 +395,14 @@ int alternatives_text_reserved(void *start, void *end)
 {
 	struct smp_alt_module *mod;
 	u8 **ptr;
+	u8 *text_start = start;
+	u8 *text_end = end;
 
 	list_for_each_entry(mod, &smp_alt_modules, next) {
-		if (mod->text > end || mod->text_end < start)
+		if (mod->text > text_end || mod->text_end < text_start)
 			continue;
 		for (ptr = mod->locks; ptr < mod->locks_end; ptr++)
-			if (start <= *ptr && end >= *ptr)
+			if (text_start <= *ptr && text_end >= *ptr)
 				return 1;
 	}
 
