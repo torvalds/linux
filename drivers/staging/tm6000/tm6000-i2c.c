@@ -86,6 +86,11 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				msgs[i].len == 1 ? 0 : msgs[i].buf[1],
 				msgs[i + 1].buf, msgs[i + 1].len);
 			i++;
+
+			if ((dev->dev_type == TM6010) && (addr == 0xc2)) {
+				tm6000_set_reg(dev, 0x32, 0,0);
+				tm6000_set_reg(dev, 0x33, 0,0);
+			}
 			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
@@ -99,6 +104,11 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				REQ_16_SET_GET_I2C_WR1_RDN,
 				addr | msgs[i].buf[0] << 8, 0,
 				msgs[i].buf + 1, msgs[i].len - 1);
+
+			if ((dev->dev_type == TM6010) && (addr == 0xc2)) {
+				tm6000_set_reg(dev, 0x32, 0,0);
+				tm6000_set_reg(dev, 0x33, 0,0);
+			}
 		}
 		if (i2c_debug >= 2)
 			printk("\n");
@@ -198,7 +208,7 @@ static struct i2c_algorithm tm6000_algo = {
 
 static struct i2c_adapter tm6000_adap_template = {
 	.owner = THIS_MODULE,
-	.class = I2C_CLASS_TV_ANALOG,
+	.class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.name = "tm6000",
 	.id = I2C_HW_B_TM6000,
 	.algo = &tm6000_algo,
