@@ -109,7 +109,7 @@ source "drivers/staging/hv/Kconfig"
 
 source "drivers/staging/vme/Kconfig"
 
-source "drivers/staging/rar/Kconfig"
+source "drivers/staging/rar_register/Kconfig"
 
 source "drivers/staging/sep/Kconfig"
 
