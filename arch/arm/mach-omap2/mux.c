@@ -486,7 +486,7 @@ int __init omap_mux_init_signal(char *muxname, int val)
 static inline void omap_mux_decode(struct seq_file *s, u16 val)
 {
 	char *flags[OMAP_MUX_MAX_NR_FLAGS];
-	char mode[14];
+	char mode[sizeof("OMAP_MUX_MODE") + 1];
 	int i = -1;
 
 	sprintf(mode, "OMAP_MUX_MODE%d", val & 0x7);
@@ -553,6 +553,7 @@ static int omap_mux_dbg_board_show(struct seq_file *s, void *unused)
 		if (!m0_name)
 			continue;
 
+		/* REVISIT: Needs to be updated if mode0 names get longer */
 		for (i = 0; i < OMAP_MUX_DEFNAME_LEN; i++) {
 			if (m0_name[i] == '\0') {
 				m0_def[i] = m0_name[i];
@@ -963,6 +964,13 @@ static void __init omap_mux_init_list(struct omap_mux *superset)
 #ifndef CONFIG_OMAP_MUX
 		/* Skip pins that are not muxed as GPIO by bootloader */
 		if (!OMAP_MODE_GPIO(omap_mux_read(superset->reg_offset))) {
+			superset++;
+			continue;
+		}
+#endif
+
+#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)
+		if (!superset->muxnames || !superset->muxnames[0]) {
 			superset++;
 			continue;
 		}

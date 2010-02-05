@@ -1333,9 +1333,9 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 
 	DEB_CAP(("vbuf:%p\n",vb));
 
-	release_all_pagetables(dev, buf);
-
 	saa7146_dma_free(dev,q,buf);
+
+	release_all_pagetables(dev, buf);
 }
 
 static struct videobuf_queue_ops video_qops = {
