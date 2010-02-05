@@ -737,6 +737,21 @@ static void m_stop(struct seq_file *m, void *v)
 	up_read(&namespace_sem);
 }
 
+int mnt_had_events(struct proc_mounts *p)
+{
+	struct mnt_namespace *ns = p->ns;
+	int res = 0;
+
+	spin_lock(&vfsmount_lock);
+	if (p->event != ns->event) {
+		p->event = ns->event;
+		res = 1;
+	}
+	spin_unlock(&vfsmount_lock);
+
+	return res;
+}
+
 struct proc_fs_info {
 	int flag;
 	const char *str;
