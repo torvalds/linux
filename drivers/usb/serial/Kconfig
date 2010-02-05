@@ -600,6 +600,14 @@ config USB_SERIAL_OPTICON
 	  To compile this driver as a module, choose M here: the
 	  module will be called opticon.
 
+config USB_SERIAL_VIVOPAY_SERIAL
+        tristate "USB ViVOpay serial interface driver"
+        help
+          Say Y here if you want to use a ViVOtech ViVOpay USB device.
+
+          To compile this driver as a module, choose M here: the
+          module will be called vivopay-serial.
+
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"
 	help
