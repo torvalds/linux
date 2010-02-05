@@ -261,63 +261,38 @@ struct platform_device mxc_pwm_device = {
 /*
  * Resource definition for the MXC SDHC
  */
-static struct resource mxc_sdhc1_resources[] = {
-	{
-		.start = SDHC1_BASE_ADDR,
-		.end   = SDHC1_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_SDHC1,
-		.end   = MXC_INT_SDHC1,
-		.flags = IORESOURCE_IRQ,
-	}, {
-		.start  = DMA_REQ_SDHC1,
-		.end    = DMA_REQ_SDHC1,
-		.flags  = IORESOURCE_DMA,
-	},
-};
+#define DEFINE_MXC_MMC_DEVICE(n, baseaddr, irq, dmareq)			\
+	static struct resource mxc_sdhc_resources ## n[] = {		\
+		{							\
+			.start = baseaddr,				\
+			.end = baseaddr + SZ_4K - 1,			\
+			.flags = IORESOURCE_MEM,			\
+		}, {							\
+			.start = irq,					\
+			.end = irq,					\
+			.flags = IORESOURCE_IRQ,			\
+		}, {							\
+			.start = dmareq,				\
+			.end = dmareq,					\
+			.flags = IORESOURCE_DMA,			\
+		},							\
+	};								\
+									\
+	static u64 mxc_sdhc ## n ## _dmamask = 0xffffffffUL;		\
+									\
+	struct platform_device mxc_sdhc_device ## n = {			\
+		.name = "mxc-mmc",					\
+		.id = n,						\
+		.dev = {						\
+			.dma_mask = &mxc_sdhc ## n ## _dmamask,		\
+			.coherent_dma_mask = 0xffffffff,		\
+		},							\
+		.num_resources = ARRAY_SIZE(mxc_sdhc_resources ## n),	\
+		.resource = mxc_sdhc_resources ## n,		\
+	}
 
-static u64 mxc_sdhc1_dmamask = 0xffffffffUL;
-
-struct platform_device mxc_sdhc_device0 = {
-       .name           = "mxc-mmc",
-       .id             = 0,
-       .dev            = {
-               .dma_mask = &mxc_sdhc1_dmamask,
-               .coherent_dma_mask = 0xffffffff,
-       },
-       .num_resources  = ARRAY_SIZE(mxc_sdhc1_resources),
-       .resource       = mxc_sdhc1_resources,
-};
-
-static struct resource mxc_sdhc2_resources[] = {
-	{
-		.start = SDHC2_BASE_ADDR,
-		.end   = SDHC2_BASE_ADDR + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_SDHC2,
-		.end   = MXC_INT_SDHC2,
-		.flags = IORESOURCE_IRQ,
-	}, {
-		.start  = DMA_REQ_SDHC2,
-		.end    = DMA_REQ_SDHC2,
-		.flags  = IORESOURCE_DMA,
-	},
-};
-
-static u64 mxc_sdhc2_dmamask = 0xffffffffUL;
-
-struct platform_device mxc_sdhc_device1 = {
-       .name           = "mxc-mmc",
-       .id             = 1,
-       .dev            = {
-               .dma_mask = &mxc_sdhc2_dmamask,
-               .coherent_dma_mask = 0xffffffff,
-       },
-       .num_resources  = ARRAY_SIZE(mxc_sdhc2_resources),
-       .resource       = mxc_sdhc2_resources,
-};
+DEFINE_MXC_MMC_DEVICE(0, MX2x_SDHC1_BASE_ADDR, MX2x_INT_SDHC1, MX2x_DMA_REQ_SDHC1);
+DEFINE_MXC_MMC_DEVICE(1, MX2x_SDHC2_BASE_ADDR, MX2x_INT_SDHC2, MX2x_DMA_REQ_SDHC2);
 
 #ifdef CONFIG_MACH_MX27
 static struct resource otg_resources[] = {
