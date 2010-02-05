@@ -584,6 +584,11 @@ config ARCH_MSM
 	  interface to the ARM9 modem processor which runs the baseband stack
 	  and controls some vital subsystems (clock and power control, etc).
 
+config ARCH_SHMOBILE
+	bool "Renesas SH-Mobile"
+	help
+	  Support for Renesas's SH-Mobile ARM platforms
+
 config ARCH_RPC
 	bool "RiscPC"
 	select ARCH_ACORN
@@ -821,6 +826,8 @@ if ARCH_S3C64XX
 source "arch/arm/mach-s3c6400/Kconfig"
 source "arch/arm/mach-s3c6410/Kconfig"
 endif
+
+source "arch/arm/mach-shmobile/Kconfig"
 
 source "arch/arm/plat-stmp3xxx/Kconfig"
 
