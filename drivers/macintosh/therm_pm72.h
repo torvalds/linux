@@ -269,7 +269,7 @@ struct slots_pid_state
 #define CPU_TEMP_HISTORY_SIZE		2
 #define CPU_POWER_HISTORY_SIZE		10
 #define CPU_PID_INTERVAL		1
-#define CPU_MAX_OVERTEMP		30
+#define CPU_MAX_OVERTEMP		90
 
 #define CPUA_PUMP_RPM_INDEX		7
 #define CPUB_PUMP_RPM_INDEX		8
