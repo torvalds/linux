@@ -35,6 +35,19 @@
 # include <linux/efi.h>
 #endif
 
+static inline unsigned long size_inside_page(unsigned long start,
+					     unsigned long size)
+{
+	unsigned long sz;
+
+	if (-start & (PAGE_SIZE - 1))
+		sz = -start & (PAGE_SIZE - 1);
+	else
+		sz = PAGE_SIZE;
+
+	return min_t(unsigned long, sz, size);
+}
+
 /*
  * Architectures vary in how they handle caching for addresses
  * outside of main memory.
@@ -430,15 +443,7 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 		}
 #endif
 		while (low_count > 0) {
-			/*
-			 * Handle first page in case it's not aligned
-			 */
-			if (-p & (PAGE_SIZE - 1))
-				sz = -p & (PAGE_SIZE - 1);
-			else
-				sz = PAGE_SIZE;
-
-			sz = min_t(unsigned long, sz, low_count);
+			sz = size_inside_page(p, low_count);
 
 			/*
 			 * On ia64 if a page has been mapped somewhere as
@@ -462,10 +467,8 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 		if (!kbuf)
 			return -ENOMEM;
 		while (count > 0) {
-			int len = count;
+			int len = size_inside_page(p, count);
 
-			if (len > PAGE_SIZE)
-				len = PAGE_SIZE;
 			len = vread(kbuf, (char *)p, len);
 			if (!len)
 				break;
@@ -510,15 +513,8 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 
 	while (count > 0) {
 		char *ptr;
-		/*
-		 * Handle first page in case it's not aligned
-		 */
-		if (-realp & (PAGE_SIZE - 1))
-			sz = -realp & (PAGE_SIZE - 1);
-		else
-			sz = PAGE_SIZE;
 
-		sz = min_t(unsigned long, sz, count);
+		sz = size_inside_page(realp, count);
 
 		/*
 		 * On ia64 if a page has been mapped somewhere as
@@ -578,10 +574,8 @@ static ssize_t write_kmem(struct file * file, const char __user * buf,
 		if (!kbuf)
 			return wrote ? wrote : -ENOMEM;
 		while (count > 0) {
-			int len = count;
+			int len = size_inside_page(p, count);
 
-			if (len > PAGE_SIZE)
-				len = PAGE_SIZE;
 			if (len) {
 				written = copy_from_user(kbuf, buf, len);
 				if (written) {
