@@ -421,6 +421,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 		}
 #endif
 	}
+	return 0;
 
 err2:
 	v4l2_device_unregister(&dev->v4l2_dev);
