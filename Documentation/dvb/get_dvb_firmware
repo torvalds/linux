@@ -26,7 +26,7 @@ use IO::Handle;
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
-		"af9015");
+		"af9015", "ngene");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -547,6 +547,24 @@ sub af9015 {
 
 	close OUTFILE;
 	close INFILE;
+}
+
+sub ngene {
+    my $url = "http://www.digitaldevices.de/download/";
+    my $file1 = "ngene_15.fw";
+    my $hash1 = "d798d5a757121174f0dbc5f2833c0c85";
+    my $file2 = "ngene_17.fw";
+    my $hash2 = "26b687136e127b8ac24b81e0eeafc20b";
+
+    checkstandard();
+
+    wgetfile($file1, $url . $file1);
+    verify($file1, $hash1);
+
+    wgetfile($file2, $url . $file2);
+    verify($file2, $hash2);
+
+    "$file1, $file2";
 }
 
 # ---------------------------------------------------------------
