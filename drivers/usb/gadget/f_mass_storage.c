@@ -2776,10 +2776,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	if (cfg->release != 0xffff) {
 		i = cfg->release;
 	} else {
-		/* The sa1100 controller is not supported */
-		i = gadget_is_sa1100(gadget)
-			? -1
-			: usb_gadget_controller_number(gadget);
+		i = usb_gadget_controller_number(gadget);
 		if (i >= 0) {
 			i = 0x0300 + i;
 		} else {
@@ -2804,8 +2801,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	 * disable stalls.
 	 */
 	common->can_stall = cfg->can_stall &&
-		!(gadget_is_sh(common->gadget) ||
-		  gadget_is_at91(common->gadget));
+		!(gadget_is_at91(common->gadget));
 
 
 	spin_lock_init(&common->lock);

@@ -265,17 +265,6 @@ struct usb_ep * __init usb_ep_autoconfig (
 				return ep;
 		}
 
-	} else if (gadget_is_sh (gadget) && USB_ENDPOINT_XFER_INT == type) {
-		/* single buffering is enough; maybe 8 byte fifo is too */
-		ep = find_ep (gadget, "ep3in-bulk");
-		if (ep && ep_matches (gadget, ep, desc))
-			return ep;
-
-	} else if (gadget_is_mq11xx (gadget) && USB_ENDPOINT_XFER_INT == type) {
-		ep = find_ep (gadget, "ep1-bulk");
-		if (ep && ep_matches (gadget, ep, desc))
-			return ep;
-
 #ifdef CONFIG_BLACKFIN
 	} else if (gadget_is_musbhsfc(gadget) || gadget_is_musbhdrc(gadget)) {
 		if ((USB_ENDPOINT_XFER_BULK == type) ||
