@@ -213,7 +213,6 @@ int tm6000_read_write_usb (struct tm6000_core *dev, u8 reqtype, u8 req,
 int tm6000_get_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_init (struct tm6000_core *dev);
-int tm6000_init_after_firmware (struct tm6000_core *dev);
 
 int tm6000_init_analog_mode (struct tm6000_core *dev);
 int tm6000_init_digital_mode (struct tm6000_core *dev);
