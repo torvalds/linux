@@ -2300,6 +2300,10 @@ void em28xx_register_i2c_ir(struct em28xx *dev)
 		dev->init_data.ir_codes = &ir_codes_rc5_hauppauge_new_table;
 		dev->init_data.get_key = em28xx_get_key_em_haup;
 		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
+	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
+		dev->init_data.ir_codes = &ir_codes_winfast_usbii_deluxe_table;;
+		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
+		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
 		break;
 	}
 
@@ -2355,11 +2359,6 @@ void em28xx_card_setup(struct em28xx *dev)
 			dev->i2s_speed = 2048000;
 			dev->board.has_msp34xx = 1;
 		}
-		break;
-	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
-		dev->init_data.ir_codes = &ir_codes_winfast_usbii_deluxe_table;;
-		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
-		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
 		break;
 	}
 	case EM2882_BOARD_KWORLD_ATSC_315U:
