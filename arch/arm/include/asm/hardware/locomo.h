@@ -214,4 +214,8 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 /* Frontlight control */
 void locomo_frontlight_set(struct locomo_dev *dev, int duty, int vr, int bpwf);
 
+struct locomo_platform_data {
+	int	irq_base;	/* IRQ base for cascaded on-chip IRQs */
+};
+
 #endif

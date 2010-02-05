@@ -32,6 +32,12 @@
 
 #include <asm/hardware/locomo.h>
 
+/* LoCoMo Interrupts */
+#define IRQ_LOCOMO_KEY		(0)
+#define IRQ_LOCOMO_GPIO		(1)
+#define IRQ_LOCOMO_LT		(2)
+#define IRQ_LOCOMO_SPI		(3)
+
 /* M62332 output channel selection */
 #define M62332_EVR_CH	1	/* M62332 volume channel number  */
 				/*   0 : CH.1 , 1 : CH. 2        */
@@ -58,6 +64,7 @@ struct locomo {
 	struct device *dev;
 	unsigned long phys;
 	unsigned int irq;
+	int irq_base;
 	spinlock_t lock;
 	void __iomem *base;
 #ifdef CONFIG_PM
@@ -81,9 +88,7 @@ struct locomo_dev_info {
 static struct locomo_dev_info locomo_devices[] = {
 	{
 		.devid 		= LOCOMO_DEVID_KEYBOARD,
-		.irq = {
-			IRQ_LOCOMO_KEY,
-		},
+		.irq		= { IRQ_LOCOMO_KEY },
 		.name		= "locomo-keyboard",
 		.offset		= LOCOMO_KEYBOARD,
 		.length		= 16,
@@ -135,18 +140,18 @@ static struct locomo_dev_info locomo_devices[] = {
 
 static void locomo_handler(unsigned int irq, struct irq_desc *desc)
 {
+	struct locomo *lchip = get_irq_chip_data(irq);
 	int req, i;
-	void __iomem *mapbase = get_irq_chip_data(irq);
 
 	/* Acknowledge the parent IRQ */
 	desc->chip->ack(irq);
 
 	/* check why this interrupt was generated */
-	req = locomo_readl(mapbase + LOCOMO_ICR) & 0x0f00;
+	req = locomo_readl(lchip->base + LOCOMO_ICR) & 0x0f00;
 
 	if (req) {
 		/* generate the next interrupt(s) */
-		irq = IRQ_LOCOMO_KEY;
+		irq = lchip->irq_base;
 		for (i = 0; i <= 3; i++, irq++) {
 			if (req & (0x0100 << i)) {
 				generic_handle_irq(irq);
@@ -162,20 +167,20 @@ static void locomo_ack_irq(unsigned int irq)
 
 static void locomo_mask_irq(unsigned int irq)
 {
-	void __iomem *mapbase = get_irq_chip_data(irq);
+	struct locomo *lchip = get_irq_chip_data(irq);
 	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_ICR);
-	r &= ~(0x0010 << (irq - IRQ_LOCOMO_KEY));
-	locomo_writel(r, mapbase + LOCOMO_ICR);
+	r = locomo_readl(lchip->base + LOCOMO_ICR);
+	r &= ~(0x0010 << (irq - lchip->irq_base));
+	locomo_writel(r, lchip->base + LOCOMO_ICR);
 }
 
 static void locomo_unmask_irq(unsigned int irq)
 {
-	void __iomem *mapbase = get_irq_chip_data(irq);
+	struct locomo *lchip = get_irq_chip_data(irq);
 	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_ICR);
-	r |= (0x0010 << (irq - IRQ_LOCOMO_KEY));
-	locomo_writel(r, mapbase + LOCOMO_ICR);
+	r = locomo_readl(lchip->base + LOCOMO_ICR);
+	r |= (0x0010 << (irq - lchip->irq_base));
+	locomo_writel(r, lchip->base + LOCOMO_ICR);
 }
 
 static struct irq_chip locomo_chip = {
@@ -187,21 +192,20 @@ static struct irq_chip locomo_chip = {
 
 static void locomo_setup_irq(struct locomo *lchip)
 {
-	int irq;
-	void __iomem *irqbase = lchip->base;
+	int irq = lchip->irq_base;
 
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
 	 */
 	set_irq_type(lchip->irq, IRQ_TYPE_EDGE_FALLING);
-	set_irq_chip_data(lchip->irq, irqbase);
+	set_irq_chip_data(lchip->irq, lchip);
 	set_irq_chained_handler(lchip->irq, locomo_handler);
 
-	/* install handlers for IRQ_LOCOMO_* */
-	for (irq = IRQ_LOCOMO_KEY; irq < IRQ_LOCOMO_KEY + 4; irq++) {
+	/* Install handlers for IRQ_LOCOMO_* */
+	for ( ; irq <= lchip->irq_base + 3; irq++) {
 		set_irq_chip(irq, &locomo_chip);
-		set_irq_chip_data(irq, irqbase);
-		set_irq_handler(irq, handle_edge_irq);
+		set_irq_chip_data(irq, lchip);
+		set_irq_handler(irq, handle_level_irq);
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 }
@@ -248,7 +252,8 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 		dev->mapbase = 0;
 	dev->length = info->length;
 
-	memmove(dev->irq, info->irq, sizeof(dev->irq));
+	dev->irq[0] = (lchip->irq_base == NO_IRQ) ?
+			NO_IRQ : lchip->irq_base + info->irq[0];
 
 	ret = device_register(&dev->dev);
 	if (ret) {
@@ -365,6 +370,7 @@ static int locomo_resume(struct platform_device *dev)
 static int
 __locomo_probe(struct device *me, struct resource *mem, int irq)
 {
+	struct locomo_platform_data *pdata = me->platform_data;
 	struct locomo *lchip;
 	unsigned long r;
 	int i, ret = -ENODEV;
@@ -380,6 +386,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	lchip->phys = mem->start;
 	lchip->irq = irq;
+	lchip->irq_base = (pdata) ? pdata->irq_base : NO_IRQ;
 
 	/*
 	 * Map the whole region.  This also maps the
@@ -446,7 +453,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	 * The interrupt controller must be initialised before any
 	 * other device to ensure that the interrupts are available.
 	 */
-	if (lchip->irq != NO_IRQ)
+	if (lchip->irq != NO_IRQ && lchip->irq_base != NO_IRQ)
 		locomo_setup_irq(lchip);
 
 	for (i = 0; i < ARRAY_SIZE(locomo_devices); i++)

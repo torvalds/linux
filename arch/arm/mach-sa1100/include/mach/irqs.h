@@ -124,13 +124,13 @@
  * Figure out the MAX IRQ number.
  *
  * If we have an SA1111, the max IRQ is S1_BVD1_STSCHG+1.
- * If we have an LoCoMo, the max IRQ is IRQ_LOCOMO_SPI_TEND+1
+ * If we have an LoCoMo, the max IRQ is IRQ_BOARD_START + 4
  * Otherwise, we have the standard IRQs only.
  */
 #ifdef CONFIG_SA1111
 #define NR_IRQS			(IRQ_S1_BVD1_STSCHG + 1)
-#elif defined(CONFIG_SHARP_LOCOMO)
-#define NR_IRQS			(IRQ_LOCOMO_SPI + 1)
+#elif defined(CONFIG_SHARPSL_LOCOMO)
+#define NR_IRQS			(IRQ_BOARD_START + 4)
 #else
 #define NR_IRQS			(IRQ_BOARD_START)
 #endif
@@ -142,10 +142,3 @@
 #define IRQ_NEPONSET_SMC9196	(IRQ_BOARD_START + 0)
 #define IRQ_NEPONSET_USAR	(IRQ_BOARD_START + 1)
 #define IRQ_NEPONSET_SA1111	(IRQ_BOARD_START + 2)
-
-/* LoCoMo Interrupts (CONFIG_SHARP_LOCOMO) */
-#define IRQ_LOCOMO_KEY		(IRQ_BOARD_START + 0)
-#define IRQ_LOCOMO_GPIO_BASE	(IRQ_BOARD_START + 1)
-#define IRQ_LOCOMO_LT_BASE	(IRQ_BOARD_START + 2)
-#define IRQ_LOCOMO_SPI_BASE	(IRQ_BOARD_START + 3)
-
