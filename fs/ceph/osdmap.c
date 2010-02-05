@@ -426,6 +426,11 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	map->pg_temp = RB_ROOT;
 
 	ceph_decode_16_safe(p, end, version, bad);
+	if (version > CEPH_OSDMAP_VERSION) {
+		pr_warning("got unknown v %d > %d of osdmap\n", version,
+			   CEPH_OSDMAP_VERSION);
+		goto bad;
+	}
 
 	ceph_decode_need(p, end, 2*sizeof(u64)+6*sizeof(u32), bad);
 	ceph_decode_copy(p, &map->fsid, sizeof(map->fsid));
@@ -447,6 +452,11 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		if (i >= map->num_pools)
 			goto bad;
 		ev = ceph_decode_8(p); /* encoding version */
+		if (ev > CEPH_PG_POOL_VERSION) {
+			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
+				   ev, CEPH_PG_POOL_VERSION);
+			goto bad;
+		}
 		ceph_decode_copy(p, &map->pg_pool[i].v,
 				 sizeof(map->pg_pool->v));
 		calc_pg_masks(&map->pg_pool[i]);
@@ -552,6 +562,11 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	struct rb_node *rbp;
 
 	ceph_decode_16_safe(p, end, version, bad);
+	if (version > CEPH_OSDMAP_INC_VERSION) {
+		pr_warning("got unknown v %d > %d of inc osdmap\n", version,
+			   CEPH_OSDMAP_INC_VERSION);
+		goto bad;
+	}
 
 	ceph_decode_need(p, end, sizeof(fsid)+sizeof(modified)+2*sizeof(u32),
 			 bad);
@@ -624,6 +639,11 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		}
 		ceph_decode_need(p, end, 1 + sizeof(map->pg_pool->v), bad);
 		ev = ceph_decode_8(p);  /* encoding version */
+		if (ev > CEPH_PG_POOL_VERSION) {
+			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
+				   ev, CEPH_PG_POOL_VERSION);
+			goto bad;
+		}
 		ceph_decode_copy(p, &map->pg_pool[pool].v,
 				 sizeof(map->pg_pool->v));
 		calc_pg_masks(&map->pg_pool[pool]);

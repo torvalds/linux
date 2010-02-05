@@ -9,6 +9,12 @@
 #include "msgr.h"
 
 /*
+ * osdmap encoding versions
+ */
+#define CEPH_OSDMAP_INC_VERSION 3
+#define CEPH_OSDMAP_VERSION     3
+
+/*
  * fs id
  */
 struct ceph_fsid {
@@ -80,6 +86,7 @@ struct ceph_pg {
  */
 #define CEPH_PG_TYPE_REP     1
 #define CEPH_PG_TYPE_RAID4   2
+#define CEPH_PG_POOL_VERSION 2
 struct ceph_pg_pool {
 	__u8 type;                /* CEPH_PG_TYPE_* */
 	__u8 size;                /* number of osds in each pg */
@@ -92,6 +99,7 @@ struct ceph_pg_pool {
 	__le32 snap_epoch;        /* epoch of last snap */
 	__le32 num_snaps;
 	__le32 num_removed_snap_intervals;
+	__le64 uid;
 } __attribute__ ((packed));
 
 /*
