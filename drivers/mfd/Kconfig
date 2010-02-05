@@ -204,8 +204,8 @@ config PMIC_ADP5520
 	  under the corresponding menus.
 
 config MFD_MAX8925
-	tristate "Maxim Semiconductor MAX8925 PMIC Support"
-	depends on I2C
+	bool "Maxim Semiconductor MAX8925 PMIC Support"
+	depends on I2C=y
 	select MFD_CORE
 	help
 	  Say yes here to support for Maxim Semiconductor MAX8925. This is

@@ -12,6 +12,7 @@
 #ifndef __LINUX_MFD_MAX8925_H
 #define __LINUX_MFD_MAX8925_H
 
+#include <linux/mutex.h>
 #include <linux/interrupt.h>
 
 /* Unified sub device IDs for MAX8925 */
@@ -39,6 +40,30 @@ enum {
 	MAX8925_ID_LDO18,
 	MAX8925_ID_LDO19,
 	MAX8925_ID_LDO20,
+	MAX8925_ID_MAX,
+};
+
+enum {
+	/*
+	 * Charging current threshold trigger going from fast charge
+	 * to TOPOFF charge. From 5% to 20% of fasting charging current.
+	 */
+	MAX8925_TOPOFF_THR_5PER,
+	MAX8925_TOPOFF_THR_10PER,
+	MAX8925_TOPOFF_THR_15PER,
+	MAX8925_TOPOFF_THR_20PER,
+};
+
+enum {
+	/* Fast charging current */
+	MAX8925_FCHG_85MA,
+	MAX8925_FCHG_300MA,
+	MAX8925_FCHG_460MA,
+	MAX8925_FCHG_600MA,
+	MAX8925_FCHG_700MA,
+	MAX8925_FCHG_800MA,
+	MAX8925_FCHG_900MA,
+	MAX8925_FCHG_1000MA,
 };
 
 /* Charger registers */
@@ -46,12 +71,13 @@ enum {
 #define MAX8925_CHG_IRQ2		(0x7f)
 #define MAX8925_CHG_IRQ1_MASK		(0x80)
 #define MAX8925_CHG_IRQ2_MASK		(0x81)
+#define MAX8925_CHG_STATUS		(0x82)
 
 /* GPM registers */
 #define MAX8925_SYSENSEL		(0x00)
 #define MAX8925_ON_OFF_IRQ1		(0x01)
 #define MAX8925_ON_OFF_IRQ1_MASK	(0x02)
-#define MAX8925_ON_OFF_STAT		(0x03)
+#define MAX8925_ON_OFF_STATUS		(0x03)
 #define MAX8925_ON_OFF_IRQ2		(0x0d)
 #define MAX8925_ON_OFF_IRQ2_MASK	(0x0e)
 #define MAX8925_RESET_CNFG		(0x0f)
@@ -59,12 +85,18 @@ enum {
 /* Touch registers */
 #define MAX8925_TSC_IRQ			(0x00)
 #define MAX8925_TSC_IRQ_MASK		(0x01)
+#define MAX8925_TSC_CNFG1		(0x02)
+#define MAX8925_ADC_SCHED		(0x10)
 #define MAX8925_ADC_RES_END		(0x6f)
 
+#define MAX8925_NREF_OK			(1 << 4)
+
 /* RTC registers */
-#define MAX8925_RTC_STATUS		(0x1a)
+#define MAX8925_ALARM0_CNTL		(0x18)
+#define MAX8925_ALARM1_CNTL		(0x19)
 #define MAX8925_RTC_IRQ			(0x1c)
 #define MAX8925_RTC_IRQ_MASK		(0x1d)
+#define MAX8925_MPL_CNTL		(0x1e)
 
 /* WLED registers */
 #define MAX8925_WLED_MODE_CNTL		(0x84)
@@ -126,44 +158,47 @@ enum {
 #define TSC_IRQ_MASK			(0x03)
 #define RTC_IRQ_MASK			(0x0c)
 
-#define MAX8925_NUM_IRQ			(32)
+#define MAX8925_GPM_NUM_IRQ		(40)
+#define MAX8925_ADC_NUM_IRQ		(8)
+#define MAX8925_NUM_IRQ			(MAX8925_GPM_NUM_IRQ	\
+					+ MAX8925_ADC_NUM_IRQ)
+
+#define MAX8925_MAX_REGULATOR		(23)
 
 #define MAX8925_NAME_SIZE		(32)
 
+/* IRQ definitions */
 enum {
-	MAX8925_INVALID = 0,
-	MAX8925_RTC,
-	MAX8925_ADC,
-	MAX8925_GPM,	/* general power management */
-	MAX8925_MAX,
+	MAX8925_IRQ_VCHG_DC_OVP,
+	MAX8925_IRQ_VCHG_DC_F,
+	MAX8925_IRQ_VCHG_DC_R,
+	MAX8925_IRQ_VCHG_USB_OVP,
+	MAX8925_IRQ_VCHG_USB_F,
+	MAX8925_IRQ_VCHG_USB_R,
+	MAX8925_IRQ_VCHG_THM_OK_R,
+	MAX8925_IRQ_VCHG_THM_OK_F,
+	MAX8925_IRQ_VCHG_SYSLOW_F,
+	MAX8925_IRQ_VCHG_SYSLOW_R,
+	MAX8925_IRQ_VCHG_RST,
+	MAX8925_IRQ_VCHG_DONE,
+	MAX8925_IRQ_VCHG_TOPOFF,
+	MAX8925_IRQ_VCHG_TMR_FAULT,
+	MAX8925_IRQ_GPM_RSTIN,
+	MAX8925_IRQ_GPM_MPL,
+	MAX8925_IRQ_GPM_SW_3SEC,
+	MAX8925_IRQ_GPM_EXTON_F,
+	MAX8925_IRQ_GPM_EXTON_R,
+	MAX8925_IRQ_GPM_SW_1SEC,
+	MAX8925_IRQ_GPM_SW_F,
+	MAX8925_IRQ_GPM_SW_R,
+	MAX8925_IRQ_GPM_SYSCKEN_F,
+	MAX8925_IRQ_GPM_SYSCKEN_R,
+	MAX8925_IRQ_RTC_ALARM1,
+	MAX8925_IRQ_RTC_ALARM0,
+	MAX8925_IRQ_TSC_STICK,
+	MAX8925_IRQ_TSC_NSTICK,
+	MAX8925_NR_IRQS,
 };
-
-#define MAX8925_IRQ_VCHG_OVP		(0)
-#define MAX8925_IRQ_VCHG_F		(1)
-#define MAX8925_IRQ_VCHG_R		(2)
-#define MAX8925_IRQ_VCHG_THM_OK_R	(8)
-#define MAX8925_IRQ_VCHG_THM_OK_F	(9)
-#define MAX8925_IRQ_VCHG_BATTLOW_F	(10)
-#define MAX8925_IRQ_VCHG_BATTLOW_R	(11)
-#define MAX8925_IRQ_VCHG_RST		(12)
-#define MAX8925_IRQ_VCHG_DONE		(13)
-#define MAX8925_IRQ_VCHG_TOPOFF		(14)
-#define MAX8925_IRQ_VCHG_TMR_FAULT	(15)
-#define MAX8925_IRQ_GPM_RSTIN		(16)
-#define MAX8925_IRQ_GPM_MPL		(17)
-#define MAX8925_IRQ_GPM_SW_3SEC		(18)
-#define MAX8925_IRQ_GPM_EXTON_F		(19)
-#define MAX8925_IRQ_GPM_EXTON_R		(20)
-#define MAX8925_IRQ_GPM_SW_1SEC		(21)
-#define MAX8925_IRQ_GPM_SW_F		(22)
-#define MAX8925_IRQ_GPM_SW_R		(23)
-#define MAX8925_IRQ_GPM_SYSCKEN_F	(24)
-#define MAX8925_IRQ_GPM_SYSCKEN_R	(25)
-
-#define MAX8925_IRQ_TSC_STICK		(0)
-#define MAX8925_IRQ_TSC_NSTICK		(1)
-
-#define MAX8925_MAX_REGULATOR		(23)
 
 struct max8925_irq {
 	irq_handler_t		handler;
@@ -172,14 +207,16 @@ struct max8925_irq {
 
 struct max8925_chip {
 	struct device		*dev;
+	struct i2c_client	*i2c;
+	struct i2c_client	*adc;
+	struct i2c_client	*rtc;
+	struct max8925_irq	irqs[MAX8925_NUM_IRQ];
 	struct mutex		io_lock;
 	struct mutex		irq_lock;
-	struct i2c_client	*i2c;
-	struct max8925_irq	irq[MAX8925_NUM_IRQ];
 
-	const char		*name;
-	int			chip_id;
-	int			chip_irq;
+	int			irq_base;
+	int			core_irq;
+	int			tsc_irq;
 };
 
 struct max8925_backlight_pdata {
@@ -192,13 +229,25 @@ struct max8925_touch_pdata {
 	unsigned int		flags;
 };
 
+struct max8925_power_pdata {
+	int		(*set_charger)(int);
+	unsigned	batt_detect:1;
+	unsigned	topoff_threshold:2;
+	unsigned	fast_charge:3;	/* charge current */
+};
+
+/*
+ * irq_base: stores IRQ base number of MAX8925 in platform
+ * tsc_irq: stores IRQ number of MAX8925 TSC
+ */
 struct max8925_platform_data {
 	struct max8925_backlight_pdata	*backlight;
 	struct max8925_touch_pdata	*touch;
+	struct max8925_power_pdata	*power;
 	struct regulator_init_data	*regulator[MAX8925_MAX_REGULATOR];
 
-	int	chip_id;
-	int	chip_irq;
+	int		irq_base;
+	int		tsc_irq;
 };
 
 extern int max8925_reg_read(struct i2c_client *, int);
@@ -207,6 +256,12 @@ extern int max8925_bulk_read(struct i2c_client *, int, int, unsigned char *);
 extern int max8925_bulk_write(struct i2c_client *, int, int, unsigned char *);
 extern int max8925_set_bits(struct i2c_client *, int, unsigned char,
 			unsigned char);
+
+extern int max8925_request_irq(struct max8925_chip *, int,
+			irq_handler_t, void *);
+extern int max8925_free_irq(struct max8925_chip *, int);
+extern int max8925_mask_irq(struct max8925_chip *, int);
+extern int max8925_unmask_irq(struct max8925_chip *, int);
 
 extern int max8925_device_init(struct max8925_chip *,
 				struct max8925_platform_data *);
