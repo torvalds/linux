@@ -506,6 +506,17 @@ int register_rar(int (*callback)(void *yourparameter), void *yourparameter)
 }
 EXPORT_SYMBOL(register_rar);
 
+/* Suspend - returns -ENOSYS */
+static int rar_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	return -ENOSYS;
+}
+
+static int rar_resume(struct pci_dev *dev)
+{
+	return -ENOSYS;
+}
+
 /*
  * This function registers the driver with the device subsystem (
  * either PCI, USB, etc).
@@ -582,7 +593,9 @@ const struct pci_device_id *my_id_table = rar_pci_id_tbl;
 static struct pci_driver rar_pci_driver = {
 	.name = "rar_register_driver",
 	.id_table = rar_pci_id_tbl,
-	.probe = rar_probe
+	.probe = rar_probe,
+	.suspend = rar_suspend,
+	.resume = rar_resume
 };
 
 static int __init rar_init_handler(void)
