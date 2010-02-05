@@ -1760,24 +1760,6 @@ static int dsi_force_tx_stop_mode_io(void)
 	return 0;
 }
 
-static void dsi_vc_print_status(int channel)
-{
-	u32 r;
-
-	r = dsi_read_reg(DSI_VC_CTRL(channel));
-	DSSDBG("vc %d: TX_FIFO_NOT_EMPTY %d, BTA_EN %d, VC_BUSY %d, "
-			"TX_FIFO_FULL %d, RX_FIFO_NOT_EMPTY %d, ",
-			channel,
-			FLD_GET(r, 5, 5),
-			FLD_GET(r, 6, 6),
-			FLD_GET(r, 15, 15),
-			FLD_GET(r, 16, 16),
-			FLD_GET(r, 20, 20));
-
-	r = dsi_read_reg(DSI_TX_FIFO_VC_EMPTINESS);
-	DSSDBG("EMPTINESS %d\n", (r >> (8 * channel)) & 0xff);
-}
-
 static int dsi_vc_enable(int channel, bool enable)
 {
 	if (dsi.update_mode != OMAP_DSS_UPDATE_AUTO)
@@ -2062,13 +2044,10 @@ static int dsi_vc_send_long(int channel, u8 data_type, u8 *data, u16 len,
 
 	dsi_vc_write_long_header(channel, data_type, len, ecc);
 
-	/*dsi_vc_print_status(0); */
-
 	p = data;
 	for (i = 0; i < len >> 2; i++) {
 		if (dsi.debug_write)
 			DSSDBG("\tsending full packet %d\n", i);
-		/*dsi_vc_print_status(0); */
 
 		b1 = *p++;
 		b2 = *p++;
