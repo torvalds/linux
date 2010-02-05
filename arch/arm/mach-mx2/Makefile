@@ -4,13 +4,12 @@
 
 # Object file lists.
 
-obj-y	:=  generic.o devices.o serial.o
-CFLAGS_generic.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
+obj-y	:=  devices.o serial.o
 
-obj-$(CONFIG_MACH_MX21) += clock_imx21.o
+obj-$(CONFIG_MACH_MX21) += clock_imx21.o mm-imx21.o
 
 obj-$(CONFIG_MACH_MX27) += cpu_imx27.o
-obj-$(CONFIG_MACH_MX27) += clock_imx27.o
+obj-$(CONFIG_MACH_MX27) += clock_imx27.o mm-imx27.o
 
 obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
 obj-$(CONFIG_MACH_MX27ADS) += mach-mx27ads.o
