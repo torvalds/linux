@@ -570,7 +570,7 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide && profile_cpu == -1)
-		event__synthesize_thread(pid, process_synthesized_event,
+		event__synthesize_thread(target_pid, process_synthesized_event,
 					 session);
 	else
 		event__synthesize_threads(process_synthesized_event, session);
