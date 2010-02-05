@@ -293,6 +293,7 @@ struct iwl_cfg {
 	bool support_ct_kill_exit;
 	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
+	s32 chain_noise_scale;
 };
 
 /***************************
