@@ -14,4 +14,17 @@ config RAR_REGISTER
 		contents of the restricted access region control
 		registers.
 
+		The restricted access region control registers
+		(rar_registers) are used to pass address and
+		locking information on restricted access regions
+		to other drivers that use restricted access regions
+
+		The restricted access regions are regions of memory
+		on the Intel MID Platform that are not accessible to
+		the x86 processor, but are accessible to dedicated
+		processors on board peripheral devices.
+
+		The purpose of the restricted access regions is to
+		protect sensitive data from compromise by unauthorized
+		programs running on the x86 processor.
 endmenu
