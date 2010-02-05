@@ -3147,10 +3147,17 @@ static void nfs4_proc_commit_setup(struct nfs_write_data *data, struct rpc_messa
  * nfs4_proc_async_renew(): This is not one of the nfs_rpc_ops; it is a special
  * standalone procedure for queueing an asynchronous RENEW.
  */
+static void nfs4_renew_release(void *data)
+{
+	struct nfs_client *clp = data;
+
+	nfs4_schedule_state_renewal(clp);
+}
+
 static void nfs4_renew_done(struct rpc_task *task, void *data)
 {
-	struct nfs_client *clp = (struct nfs_client *)task->tk_msg.rpc_argp;
-	unsigned long timestamp = (unsigned long)data;
+	struct nfs_client *clp = data;
+	unsigned long timestamp = task->tk_start;
 
 	if (task->tk_status < 0) {
 		/* Unless we're shutting down, schedule state recovery! */
@@ -3166,6 +3173,7 @@ static void nfs4_renew_done(struct rpc_task *task, void *data)
 
 static const struct rpc_call_ops nfs4_renew_ops = {
 	.rpc_call_done = nfs4_renew_done,
+	.rpc_release = nfs4_renew_release,
 };
 
 int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred)
@@ -3177,7 +3185,7 @@ int nfs4_proc_async_renew(struct nfs_client *clp, struct rpc_cred *cred)
 	};
 
 	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_SOFT,
-			&nfs4_renew_ops, (void *)jiffies);
+			&nfs4_renew_ops, clp);
 }
 
 int nfs4_proc_renew(struct nfs_client *clp, struct rpc_cred *cred)
@@ -5023,7 +5031,14 @@ static int nfs4_proc_sequence(struct nfs_client *clp, struct rpc_cred *cred)
 				       &res, args.sa_cache_this, 1);
 }
 
-void nfs41_sequence_call_done(struct rpc_task *task, void *data)
+static void nfs41_sequence_release(void *data)
+{
+	struct nfs_client *clp = (struct nfs_client *)data;
+
+	nfs4_schedule_state_renewal(clp);
+}
+
+static void nfs41_sequence_call_done(struct rpc_task *task, void *data)
 {
 	struct nfs_client *clp = (struct nfs_client *)data;
 
@@ -5064,6 +5079,7 @@ static void nfs41_sequence_prepare(struct rpc_task *task, void *data)
 static const struct rpc_call_ops nfs41_sequence_ops = {
 	.rpc_call_done = nfs41_sequence_call_done,
 	.rpc_call_prepare = nfs41_sequence_prepare,
+	.rpc_release = nfs41_sequence_release,
 };
 
 static int nfs41_proc_async_sequence(struct nfs_client *clp,
