@@ -515,6 +515,8 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 		if (old)
 			memcpy(new->tail, old->tail, new_tail_len);
 
+	sdata->vif.bss_conf.dtim_period = new->dtim_period;
+
 	rcu_assign_pointer(sdata->u.ap.beacon, new);
 
 	synchronize_rcu();
