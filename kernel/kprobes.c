@@ -93,6 +93,7 @@ static struct kprobe_blackpoint kprobe_blacklist[] = {
 	{"native_get_debugreg",},
 	{"irq_entries_start",},
 	{"common_interrupt",},
+	{"mcount",},	/* mcount can be called from everywhere */
 	{NULL}    /* Terminator */
 };
 
