@@ -143,11 +143,6 @@ static struct irq_cfg irq_cfgx[NR_IRQS_LEGACY];
 static struct irq_cfg irq_cfgx[NR_IRQS];
 #endif
 
-void __init io_apic_disable_legacy(void)
-{
-	nr_irqs_gsi = 0;
-}
-
 int __init arch_early_irq_init(void)
 {
 	struct irq_cfg *cfg;
@@ -155,6 +150,11 @@ int __init arch_early_irq_init(void)
 	int count;
 	int node;
 	int i;
+
+	if (!legacy_pic->nr_legacy_irqs) {
+		nr_irqs_gsi = 0;
+		io_apic_irqs = ~0UL;
+	}
 
 	cfg = irq_cfgx;
 	count = ARRAY_SIZE(irq_cfgx);
