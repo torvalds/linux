@@ -539,7 +539,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		xctrl.id = ctrl->id;
 		xctrl.value = ctrl->value;
 
-		uvc_ctrl_begin(chain);
+		ret = uvc_ctrl_begin(chain);
 		if (ret < 0)
 			return ret;
 
