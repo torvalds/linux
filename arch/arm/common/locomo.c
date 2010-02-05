@@ -143,12 +143,10 @@ static struct locomo_dev_info locomo_devices[] = {
  * IRQ_LOCOMO_*_BASE and those handlers generate more interrupts
  *
  * hardware irq reads LOCOMO_ICR & 0x0f00
- *   IRQ_LOCOMO_KEY_BASE
+ *   IRQ_LOCOMO_KEY
  *   IRQ_LOCOMO_GPIO_BASE
  *   IRQ_LOCOMO_LT_BASE
  *   IRQ_LOCOMO_SPI_BASE
- * IRQ_LOCOMO_KEY_BASE reads LOCOMO_KIC & 0x0001
- *   IRQ_LOCOMO_KEY
  * IRQ_LOCOMO_GPIO_BASE reads LOCOMO_GIR & LOCOMO_GPD & 0xffff
  *   IRQ_LOCOMO_GPIO[0-15]
  * IRQ_LOCOMO_LT_BASE reads LOCOMO_LTINT & 0x0001
@@ -160,8 +158,7 @@ static struct locomo_dev_info locomo_devices[] = {
  *   IRQ_LOCOMO_SPI_TEND
  */
 
-#define LOCOMO_IRQ_START	(IRQ_LOCOMO_KEY_BASE)
-#define LOCOMO_IRQ_KEY_START	(IRQ_LOCOMO_KEY)
+#define LOCOMO_IRQ_START	(IRQ_LOCOMO_KEY)
 #define	LOCOMO_IRQ_GPIO_START	(IRQ_LOCOMO_GPIO0)
 #define	LOCOMO_IRQ_LT_START	(IRQ_LOCOMO_LT)
 #define	LOCOMO_IRQ_SPI_START	(IRQ_LOCOMO_SPI_RFR)
@@ -216,49 +213,6 @@ static struct irq_chip locomo_chip = {
 	.ack	= locomo_ack_irq,
 	.mask	= locomo_mask_irq,
 	.unmask	= locomo_unmask_irq,
-};
-
-static void locomo_key_handler(unsigned int irq, struct irq_desc *desc)
-{
-	void __iomem *mapbase = get_irq_chip_data(irq);
-
-	if (locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC) & 0x0001) {
-		generic_handle_irq(LOCOMO_IRQ_KEY_START);
-	}
-}
-
-static void locomo_key_ack_irq(unsigned int irq)
-{
-	void __iomem *mapbase = get_irq_chip_data(irq);
-	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
-	r &= ~(0x0100 << (irq - LOCOMO_IRQ_KEY_START));
-	locomo_writel(r, mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
-}
-
-static void locomo_key_mask_irq(unsigned int irq)
-{
-	void __iomem *mapbase = get_irq_chip_data(irq);
-	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
-	r &= ~(0x0010 << (irq - LOCOMO_IRQ_KEY_START));
-	locomo_writel(r, mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
-}
-
-static void locomo_key_unmask_irq(unsigned int irq)
-{
-	void __iomem *mapbase = get_irq_chip_data(irq);
-	unsigned int r;
-	r = locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
-	r |= (0x0010 << (irq - LOCOMO_IRQ_KEY_START));
-	locomo_writel(r, mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
-}
-
-static struct irq_chip locomo_key_chip = {
-	.name	= "LOCOMO-key",
-	.ack	= locomo_key_ack_irq,
-	.mask	= locomo_key_mask_irq,
-	.unmask	= locomo_key_unmask_irq,
 };
 
 static void locomo_gpio_handler(unsigned int irq, struct irq_desc *desc)
@@ -468,9 +422,10 @@ static void locomo_setup_irq(struct locomo *lchip)
 	set_irq_chained_handler(lchip->irq, locomo_handler);
 
 	/* Install handlers for IRQ_LOCOMO_*_BASE */
-	set_irq_chip(IRQ_LOCOMO_KEY_BASE, &locomo_chip);
-	set_irq_chip_data(IRQ_LOCOMO_KEY_BASE, irqbase);
-	set_irq_chained_handler(IRQ_LOCOMO_KEY_BASE, locomo_key_handler);
+	set_irq_chip(IRQ_LOCOMO_KEY, &locomo_chip);
+	set_irq_chip_data(IRQ_LOCOMO_KEY, irqbase);
+	set_irq_handler(IRQ_LOCOMO_KEY, handle_edge_irq);
+	set_irq_flags(IRQ_LOCOMO_KEY, IRQF_VALID | IRQF_PROBE);
 
 	set_irq_chip(IRQ_LOCOMO_GPIO_BASE, &locomo_chip);
 	set_irq_chip_data(IRQ_LOCOMO_GPIO_BASE, irqbase);
@@ -483,12 +438,6 @@ static void locomo_setup_irq(struct locomo *lchip)
 	set_irq_chip(IRQ_LOCOMO_SPI_BASE, &locomo_chip);
 	set_irq_chip_data(IRQ_LOCOMO_SPI_BASE, irqbase);
 	set_irq_chained_handler(IRQ_LOCOMO_SPI_BASE, locomo_spi_handler);
-
-	/* install handlers for IRQ_LOCOMO_KEY_BASE generated interrupts */
-	set_irq_chip(LOCOMO_IRQ_KEY_START, &locomo_key_chip);
-	set_irq_chip_data(LOCOMO_IRQ_KEY_START, irqbase);
-	set_irq_handler(LOCOMO_IRQ_KEY_START, handle_edge_irq);
-	set_irq_flags(LOCOMO_IRQ_KEY_START, IRQF_VALID | IRQF_PROBE);
 
 	/* install handlers for IRQ_LOCOMO_GPIO_BASE generated interrupts */
 	for (irq = LOCOMO_IRQ_GPIO_START; irq < LOCOMO_IRQ_GPIO_START + 16; irq++) {
