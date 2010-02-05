@@ -89,27 +89,12 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
 		sp = dentry->d_op->d_dname(dentry, newname + offset,
 					   newname_len - offset);
 	} else {
-		/* Taken from d_namespace_path(). */
-		struct path root;
-		struct path ns_root = { };
-		struct path tmp;
+		struct path ns_root = {.mnt = NULL, .dentry = NULL};
 
-		read_lock(&current->fs->lock);
-		root = current->fs->root;
-		path_get(&root);
-		read_unlock(&current->fs->lock);
-		spin_lock(&vfsmount_lock);
-		if (root.mnt && root.mnt->mnt_ns)
-			ns_root.mnt = mntget(root.mnt->mnt_ns->root);
-		if (ns_root.mnt)
-			ns_root.dentry = dget(ns_root.mnt->mnt_root);
-		spin_unlock(&vfsmount_lock);
 		spin_lock(&dcache_lock);
-		tmp = ns_root;
-		sp = __d_path(path, &tmp, newname, newname_len);
+		/* go to whatever namespace root we are under */
+		sp = __d_path(path, &ns_root, newname, newname_len);
 		spin_unlock(&dcache_lock);
-		path_put(&root);
-		path_put(&ns_root);
 		/* Prepend "/proc" prefix if using internal proc vfs mount. */
 		if (!IS_ERR(sp) && (path->mnt->mnt_parent == path->mnt) &&
 		    (strcmp(path->mnt->mnt_sb->s_type->name, "proc") == 0)) {
