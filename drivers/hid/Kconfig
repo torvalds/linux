@@ -183,6 +183,16 @@ config LOGIRUMBLEPAD2_FF
 	  Say Y here if you want to enable force feedback support for Logitech
 	  Rumblepad 2 devices.
 
+config HID_MAGICMOUSE
+	tristate "Apple" if EMBEDDED
+	depends on BT_HIDP
+	default !EMBEDDED
+	---help---
+	Support for the Apple Magic Mouse.
+
+	Say Y here if you want support for the multi-touch features of the
+	Apple Wireless "Magic" Mouse.
+
 config HID_MICROSOFT
 	tristate "Microsoft" if EMBEDDED
 	depends on USB_HID
