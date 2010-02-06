@@ -1417,11 +1417,6 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 		return error;
 	}
 
-	if (state->internal == NULL) {
-		error = STV0900_INVALID_HANDLE;
-		return error;
-	}
-
 	intp = state->internal;
 
 	intp->demod_mode = p_init->demod_mode;
