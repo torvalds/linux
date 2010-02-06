@@ -120,7 +120,7 @@ const static struct intel_device_info intel_gm45_info = {
 
 const static struct intel_device_info intel_pineview_info = {
 	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
-	.has_pipe_cxsr = 1,
+	.need_gfx_hws = 1,
 	.has_hotplug = 1,
 };
 
