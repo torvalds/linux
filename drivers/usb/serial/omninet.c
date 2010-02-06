@@ -218,8 +218,8 @@ static void omninet_read_bulk_callback(struct urb *urb)
 
 	if (debug && header->oh_xxx != 0x30) {
 		if (urb->actual_length) {
-			printk(KERN_DEBUG __FILE__
-					": omninet_read %d: ", header->oh_len);
+			printk(KERN_DEBUG "%s: omninet_read %d: ",
+			       __FILE__, header->oh_len);
 			for (i = 0; i < (header->oh_len +
 						OMNINET_HEADERLEN); i++)
 				printk("%.2x ", data[i]);

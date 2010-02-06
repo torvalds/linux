@@ -95,8 +95,11 @@
 
 /* Use our own dbg macro */
 #undef dbg
-#define dbg(lvl, format, arg...) do { if (debug >= lvl) printk(KERN_DEBUG  __FILE__ ": " format "\n", ## arg); } while (0)
-
+#define dbg(lvl, format, arg...)					\
+do {									\
+	if (debug >= lvl)						\
+		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
+} while (0)
 
 /* Version Information */
 #define DRIVER_VERSION "v0.96"
@@ -302,7 +305,7 @@ static inline void lego_usb_tower_debug_data (int level, const char *function, i
 	if (debug < level)
 		return;
 
-	printk (KERN_DEBUG __FILE__": %s - length = %d, data = ", function, size);
+	printk (KERN_DEBUG "%s: %s - length = %d, data = ", __FILE__, function, size);
 	for (i = 0; i < size; ++i) {
 		printk ("%.2x ", data[i]);
 	}
@@ -1055,7 +1058,7 @@ static int __init lego_usb_tower_init(void)
 	/* register this driver with the USB subsystem */
 	result = usb_register(&tower_driver);
 	if (result < 0) {
-		err("usb_register failed for the "__FILE__" driver. Error number %d", result);
+		err("usb_register failed for the %s driver. Error number %d", __FILE__, result);
 		retval = -1;
 		goto exit;
 	}
