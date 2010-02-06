@@ -493,7 +493,7 @@ const struct scache wt_nomsr_noirq = {
 #define CPUVER_7_20_A	0x0c
 #define CPUVER_7_20_D	0x0f
 
-#define INFO(s)	printk(KERN_INFO "cache: " s " \n");
+#define INFO(s)	printk(KERN_INFO "cache: " s "\n");
 
 void microblaze_cache_init(void)
 {
