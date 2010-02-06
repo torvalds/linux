@@ -743,24 +743,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret;
 
 	switch (request) {
-		/*
-		 * read word at location "addr" in the child process.
-		 */
-		case PTRACE_PEEKTEXT:
-		case PTRACE_PEEKDATA:
-			ret = generic_ptrace_peekdata(child, addr, data);
-			break;
-
 		case PTRACE_PEEKUSR:
 			ret = ptrace_read_user(child, addr, (unsigned long __user *)data);
-			break;
-
-		/*
-		 * write the word at location addr.
-		 */
-		case PTRACE_POKETEXT:
-		case PTRACE_POKEDATA:
-			ret = generic_ptrace_pokedata(child, addr, data);
 			break;
 
 		case PTRACE_POKEUSR:
