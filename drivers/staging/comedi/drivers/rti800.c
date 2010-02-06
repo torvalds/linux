@@ -225,7 +225,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 		for (t = RTI800_TIMEOUT; t; t--) {
 			status = inb(dev->iobase + RTI800_CSR);
 			if (status & RTI800_OVERRUN) {
-				printk("rti800: a/d overrun\n");
+				printk(KERN_WARNING "rti800: a/d overrun\n");
 				outb(0, dev->iobase + RTI800_CLRFLAGS);
 				return -EIO;
 			}
@@ -234,7 +234,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev,
 			udelay(1);
 		}
 		if (t == 0) {
-			printk("rti800: timeout\n");
+			printk(KERN_WARNING "rti800: timeout\n");
 			return -ETIME;
 		}
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
@@ -335,15 +335,15 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 
 	iobase = it->options[0];
-	printk("comedi%d: rti800: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: rti800: 0x%04lx\n", dev->minor, iobase);
 	if (!request_region(iobase, RTI800_SIZE, "rti800")) {
-		printk("I/O port conflict\n");
+		printk(KERN_WARNING "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 #ifdef DEBUG
-	printk("fingerprint=%x,%x,%x,%x,%x ",
+	printk(KERN_DEBUG "fingerprint=%x,%x,%x,%x,%x ",
 	       inb(dev->iobase + 0),
 	       inb(dev->iobase + 1),
 	       inb(dev->iobase + 2),
@@ -356,15 +356,15 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	irq = it->options[1];
 	if (irq) {
-		printk("( irq = %u )", irq);
+		printk(KERN_INFO "( irq = %u )\n", irq);
 		ret = request_irq(irq, rti800_interrupt, 0, "rti800", dev);
 		if (ret < 0) {
-			printk(" Failed to allocate IRQ\n");
+			printk(KERN_WARNING " Failed to allocate IRQ\n");
 			return ret;
 		}
 		dev->irq = irq;
 	} else {
-		printk("( no irq )");
+		printk(KERN_INFO "( no irq )\n");
 	}
 
 	dev->board_name = this_board->name;
@@ -460,14 +460,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_TIMER;
 #endif
 
-	printk("\n");
-
 	return 0;
 }
 
 static int rti800_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: rti800: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: rti800: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, RTI800_SIZE);
