@@ -1230,6 +1230,9 @@ fe_stv0900_signal_type stv0900_get_signal_params(struct dvb_frontend *fe)
 	result->pilot = stv0900_get_bits(intp, DEMOD_TYPE) & 0x01;
 	result->frame_len = ((u32)stv0900_get_bits(intp, DEMOD_TYPE)) >> 1;
 	result->rolloff = stv0900_get_bits(intp, ROLLOFF_STATUS);
+
+	dprintk("%s: modcode=0x%x \n", __func__, result->modcode);
+
 	switch (result->standard) {
 	case STV0900_DVBS2_STANDARD:
 		result->spectrum = stv0900_get_bits(intp, SPECINV_DEMOD);
@@ -1634,7 +1637,8 @@ static int stv0900_blind_search_algo(struct dvb_frontend *fe)
 
 	agc2_int = stv0900_blind_check_agc2_min_level(intp, demod);
 
-	if (agc2_int > STV0900_BLIND_SEARCH_AGC2_TH)
+	dprintk("%s agc2_int=%d agc2_th=%d \n", __func__, agc2_int, agc2_th);
+	if (agc2_int > agc2_th)
 		return FALSE;
 
 	if (intp->chip_id == 0x10)
