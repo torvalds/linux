@@ -332,7 +332,7 @@ static void omninet_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port 	*port   =  urb->context;
 	int status = urb->status;
 
-	dbg("%s - port %0x\n", __func__, port->number);
+	dbg("%s - port %0x", __func__, port->number);
 
 	port->write_urb_busy = 0;
 	if (status) {

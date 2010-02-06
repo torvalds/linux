@@ -1028,7 +1028,7 @@ static void option_instat_callback(struct urb *urb)
 				(struct usb_ctrlrequest *)urb->transfer_buffer;
 
 		if (!req_pkt) {
-			dbg("%s: NULL req_pkt\n", __func__);
+			dbg("%s: NULL req_pkt", __func__);
 			return;
 		}
 		if ((req_pkt->bRequestType == 0xA1) &&
@@ -1452,7 +1452,7 @@ static int option_resume(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 		if (!port->interrupt_in_urb) {
-			dbg("%s: No interrupt URB for port %d\n", __func__, i);
+			dbg("%s: No interrupt URB for port %d", __func__, i);
 			continue;
 		}
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);

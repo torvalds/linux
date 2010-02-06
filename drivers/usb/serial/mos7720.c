@@ -109,7 +109,7 @@ static void mos7720_interrupt_callback(struct urb *urb)
 	__u8 sp1;
 	__u8 sp2;
 
-	dbg("%s", " : Entering\n");
+	dbg(" : Entering");
 
 	switch (status) {
 	case 0:
@@ -278,7 +278,7 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 
 	mos7720_port = urb->context;
 	if (!mos7720_port) {
-		dbg("%s", "NULL mos7720_port pointer \n");
+		dbg("NULL mos7720_port pointer");
 		return ;
 	}
 
@@ -386,7 +386,7 @@ static int send_mos_cmd(struct usb_serial *serial, __u8 request, __u16 value,
 	}
 out:
 	if (status < 0)
-		dbg("Command Write failed Value %x index %x\n", value, index);
+		dbg("Command Write failed Value %x index %x", value, index);
 
 	return status;
 }
@@ -491,7 +491,7 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 	  */
 	port_number = port->number - port->serial->minor;
 	send_mos_cmd(port->serial, MOS_READ, port_number, UART_LSR, &data);
-	dbg("SS::%p LSR:%x\n", mos7720_port, data);
+	dbg("SS::%p LSR:%x", mos7720_port, data);
 
 	dbg("Check:Sending Command ..........");
 
@@ -830,7 +830,7 @@ static void mos7720_throttle(struct tty_struct *tty)
 	struct moschip_port *mos7720_port;
 	int status;
 
-	dbg("%s- port %d\n", __func__, port->number);
+	dbg("%s- port %d", __func__, port->number);
 
 	mos7720_port = usb_get_serial_port_data(port);
 
@@ -1309,7 +1309,7 @@ static void mos7720_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	dbg("%s\n", "setting termios - ASPIRE");
+	dbg("setting termios - ASPIRE");
 
 	cflag = tty->termios->c_cflag;
 
@@ -1327,7 +1327,7 @@ static void mos7720_set_termios(struct tty_struct *tty,
 	change_port_settings(tty, mos7720_port, old_termios);
 
 	if (!port->read_urb) {
-		dbg("%s", "URB KILLED !!!!!\n");
+		dbg("URB KILLED !!!!!");
 		return;
 	}
 

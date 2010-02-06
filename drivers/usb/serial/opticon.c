@@ -217,7 +217,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	priv->outstanding_urbs++;
@@ -288,7 +288,7 @@ static int opticon_write_room(struct tty_struct *tty)
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT * 2 / 3) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);

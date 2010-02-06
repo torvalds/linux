@@ -1971,7 +1971,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 			return;
 
 		case IOSP_EXT_STATUS_RX_CHECK_RSP:
-			dbg("%s ========== Port %u CHECK_RSP Sequence = %02x =============\n", __func__, edge_serial->rxPort, byte3);
+			dbg("%s ========== Port %u CHECK_RSP Sequence = %02x =============", __func__, edge_serial->rxPort, byte3);
 			/* Port->RxCheckRsp = true; */
 			return;
 		}
@@ -2039,7 +2039,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 		break;
 
 	default:
-		dbg("%s - Unrecognized IOSP status code %u\n", __func__, code);
+		dbg("%s - Unrecognized IOSP status code %u", __func__, code);
 		break;
 	}
 	return;
@@ -2494,7 +2494,7 @@ static int calc_baud_rate_divisor(int baudrate, int *divisor)
 
 		*divisor = custom;
 
-		dbg("%s - Baud %d = %d\n", __func__, baudrate, custom);
+		dbg("%s - Baud %d = %d", __func__, baudrate, custom);
 		return 0;
 	}
 
@@ -2879,7 +2879,7 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 			break;
 
 		case EDGE_DOWNLOAD_FILE_NONE:
-			dbg     ("No download file specified, skipping download\n");
+			dbg("No download file specified, skipping download");
 			return;
 
 		default:

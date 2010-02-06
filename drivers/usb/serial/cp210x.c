@@ -612,7 +612,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 				baud);
 		if (cp210x_set_config_single(port, CP210X_SET_BAUDDIV,
 					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
-			dbg("Baud rate requested not supported by device\n");
+			dbg("Baud rate requested not supported by device");
 			baud = tty_termios_baud_rate(old_termios);
 		}
 	}

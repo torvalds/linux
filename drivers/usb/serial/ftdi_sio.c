@@ -1836,7 +1836,7 @@ static int ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if (priv->tx_outstanding_urbs > URB_UPPER_LIMIT) {
 		spin_unlock_irqrestore(&priv->tx_lock, flags);
-		dbg("%s - write limit hit\n", __func__);
+		dbg("%s - write limit hit", __func__);
 		return 0;
 	}
 	priv->tx_outstanding_urbs++;

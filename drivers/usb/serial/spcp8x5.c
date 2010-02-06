@@ -609,7 +609,7 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	if (i < 0)
 		dev_err(&port->dev, "Set UART format %#x failed (error = %d)\n",
 			uartdata, i);
-	dbg("0x21:0x40:0:0  %d\n", i);
+	dbg("0x21:0x40:0:0  %d", i);
 
 	if (cflag & CRTSCTS) {
 		/* enable hardware flow control */

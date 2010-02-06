@@ -1716,7 +1716,7 @@ static void edge_interrupt_callback(struct urb *urb)
 	case TIUMP_INTERRUPT_CODE_MSR:	/* MSR */
 		/* Copy MSR from UMP */
 		msr = data[1];
-		dbg("%s - ===== Port %u MSR Status = %02x ======\n",
+		dbg("%s - ===== Port %u MSR Status = %02x ======",
 		     __func__, port_number, msr);
 		handle_new_msr(edge_port, msr);
 		break;

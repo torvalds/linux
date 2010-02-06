@@ -194,7 +194,7 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 		if (port->urbs_in_flight >
 		    port->serial->type->max_in_flight_urbs) {
 			spin_unlock_irqrestore(&port->lock, flags);
-			dbg("%s - write limit hit\n", __func__);
+			dbg("%s - write limit hit", __func__);
 			return bwrite;
 		}
 		port->tx_bytes_flight += towrite;

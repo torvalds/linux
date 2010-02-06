@@ -391,7 +391,7 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
-		dbg("%s - ignoring since device not open\n", __func__);
+		dbg("%s - ignoring since device not open", __func__);
 		return;
 	}
 	if (urb->actual_length) {
