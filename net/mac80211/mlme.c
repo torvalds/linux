@@ -1995,12 +1995,18 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 		mutex_lock(&local->work_mtx);
 		list_for_each_entry(wk, &local->work_list, list) {
-			if (wk->type != IEEE80211_WORK_DIRECT_PROBE)
+			if (wk->sdata != sdata)
 				continue;
+
+			if (wk->type != IEEE80211_WORK_DIRECT_PROBE &&
+			    wk->type != IEEE80211_WORK_AUTH)
+				continue;
+
 			if (memcmp(req->bss->bssid, wk->filter_ta, ETH_ALEN))
 				continue;
-			not_auth_yet = true;
-			list_del(&wk->list);
+
+			not_auth_yet = wk->type == IEEE80211_WORK_DIRECT_PROBE;
+			list_del_rcu(&wk->list);
 			free_work(wk);
 			break;
 		}
