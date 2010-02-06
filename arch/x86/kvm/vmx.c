@@ -1602,8 +1602,6 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	 */
 	vmx_load_host_state(to_vmx(vcpu));
 	vcpu->arch.efer = efer;
-	if (!msr)
-		return;
 	if (efer & EFER_LMA) {
 		vmcs_write32(VM_ENTRY_CONTROLS,
 			     vmcs_read32(VM_ENTRY_CONTROLS) |
