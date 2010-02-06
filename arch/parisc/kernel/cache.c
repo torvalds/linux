@@ -171,14 +171,14 @@ parisc_cache_init(void)
 		cache_info.ic_conf.cc_cst,
 		cache_info.ic_conf.cc_hv);
 
-	printk("D-TLB conf: sh %d page %d cst %d aid %d pad1 %d \n",
+	printk("D-TLB conf: sh %d page %d cst %d aid %d pad1 %d\n",
 		cache_info.dt_conf.tc_sh,
 		cache_info.dt_conf.tc_page,
 		cache_info.dt_conf.tc_cst,
 		cache_info.dt_conf.tc_aid,
 		cache_info.dt_conf.tc_pad1);
 
-	printk("I-TLB conf: sh %d page %d cst %d aid %d pad1 %d \n",
+	printk("I-TLB conf: sh %d page %d cst %d aid %d pad1 %d\n",
 		cache_info.it_conf.tc_sh,
 		cache_info.it_conf.tc_page,
 		cache_info.it_conf.tc_cst,
