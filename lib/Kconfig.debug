@@ -170,6 +170,19 @@ config DETECT_SOFTLOCKUP
 	   can be detected via the NMI-watchdog, on platforms that
 	   support it.)
 
+config NMI_WATCHDOG
+	bool "Detect Hard Lockups with an NMI Watchdog"
+	depends on DEBUG_KERNEL && PERF_EVENTS
+	default y
+	help
+	  Say Y here to enable the kernel to use the NMI as a watchdog
+	  to detect hard lockups.  This is useful when a cpu hangs for no
+	  reason but can still respond to NMIs.  A backtrace is displayed
+	  for reviewing and reporting.
+
+	  The overhead should be minimal, just an extra NMI every few
+	  seconds.
+
 config BOOTPARAM_SOFTLOCKUP_PANIC
 	bool "Panic (Reboot) On Soft Lockups"
 	depends on DETECT_SOFTLOCKUP

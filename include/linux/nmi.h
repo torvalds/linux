@@ -47,4 +47,8 @@ static inline bool trigger_all_cpu_backtrace(void)
 }
 #endif
 
+#ifdef CONFIG_NMI_WATCHDOG
+int hw_nmi_is_cpu_stuck(struct pt_regs *);
+#endif
+
 #endif
