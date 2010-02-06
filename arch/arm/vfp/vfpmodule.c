@@ -444,32 +444,28 @@ void vfp_sync_state(struct thread_info *thread)
 void vfp_sync_state(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
-	u32 fpexc = fmrx(FPEXC);
 
 	/*
-	 * If VFP is enabled, the previous state was already saved and
-	 * last_VFP_context updated.
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
 	 */
-	if (fpexc & FPEXC_EN)
-		goto out;
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
 
-	if (!last_VFP_context[cpu])
-		goto out;
+		/*
+		 * Save the last VFP state on this CPU.
+		 */
+		fmxr(FPEXC, fpexc | FPEXC_EN);
+		vfp_save_state(&thread->vfpstate, fpexc | FPEXC_EN);
+		fmxr(FPEXC, fpexc & ~FPEXC_EN);
 
-	/*
-	 * Save the last VFP state on this CPU.
-	 */
-	fmxr(FPEXC, fpexc | FPEXC_EN);
-	vfp_save_state(last_VFP_context[cpu], fpexc);
-	fmxr(FPEXC, fpexc);
+		/*
+		 * Set the context to NULL to force a reload the next time
+		 * the thread uses the VFP.
+		 */
+		last_VFP_context[cpu] = NULL;
+	}
 
-	/*
-	 * Set the context to NULL to force a reload the next time the thread
-	 * uses the VFP.
-	 */
-	last_VFP_context[cpu] = NULL;
-
-out:
 	put_cpu();
 }
 #endif
