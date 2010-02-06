@@ -2493,7 +2493,7 @@ __xfs_iunpin_wait(
 		wait_event(ip->i_ipin_wait, (atomic_read(&ip->i_pincount) == 0));
 }
 
-static inline void
+void
 xfs_iunpin_wait(
 	xfs_inode_t	*ip)
 {
@@ -2847,15 +2847,6 @@ xfs_iflush(
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;
-
-	/*
-	 * If the inode isn't dirty, then just release the inode flush lock and
-	 * do nothing.
-	 */
-	if (xfs_inode_clean(ip)) {
-		xfs_ifunlock(ip);
-		return 0;
-	}
 
 	/*
 	 * We can't flush the inode until it is unpinned, so wait for it if we

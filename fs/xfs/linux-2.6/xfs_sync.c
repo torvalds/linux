@@ -706,12 +706,43 @@ __xfs_inode_clear_reclaim_tag(
 			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
 }
 
+/*
+ * Inodes in different states need to be treated differently, and the return
+ * value of xfs_iflush is not sufficient to get this right. The following table
+ * lists the inode states and the reclaim actions necessary for non-blocking
+ * reclaim:
+ *
+ *
+ *	inode state	     iflush ret		required action
+ *      ---------------      ----------         ---------------
+ *	bad			-		reclaim
+ *	shutdown		EIO		unpin and reclaim
+ *	clean, unpinned		0		reclaim
+ *	stale, unpinned		0		reclaim
+ *	clean, pinned(*)	0		unpin and reclaim
+ *	stale, pinned		0		unpin and reclaim
+ *	dirty, async		0		block on flush lock, reclaim
+ *	dirty, sync flush	0		block on flush lock, reclaim
+ *
+ * (*) dgc: I don't think the clean, pinned state is possible but it gets
+ * handled anyway given the order of checks implemented.
+ *
+ * Hence the order of actions after gaining the locks should be:
+ *	bad		=> reclaim
+ *	shutdown	=> unpin and reclaim
+ *	pinned		=> unpin
+ *	stale		=> reclaim
+ *	clean		=> reclaim
+ *	dirty		=> flush, wait and reclaim
+ */
 STATIC int
 xfs_reclaim_inode(
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag,
 	int			sync_mode)
 {
+	int	error;
+
 	/*
 	 * The radix tree lock here protects a thread in xfs_iget from racing
 	 * with us starting reclaim on the inode.  Once we have the
@@ -729,30 +760,42 @@ xfs_reclaim_inode(
 	spin_unlock(&ip->i_flags_lock);
 	write_unlock(&pag->pag_ici_lock);
 
-	/*
-	 * If the inode is still dirty, then flush it out.  If the inode
-	 * is not in the AIL, then it will be OK to flush it delwri as
-	 * long as xfs_iflush() does not keep any references to the inode.
-	 * We leave that decision up to xfs_iflush() since it has the
-	 * knowledge of whether it's OK to simply do a delwri flush of
-	 * the inode or whether we need to wait until the inode is
-	 * pulled from the AIL.
-	 * We get the flush lock regardless, though, just to make sure
-	 * we don't free it while it is being flushed.
-	 */
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_iflock(ip);
 
-	/*
-	 * In the case of a forced shutdown we rely on xfs_iflush() to
-	 * wait for the inode to be unpinned before returning an error.
-	 */
-	if (!is_bad_inode(VFS_I(ip)) && xfs_iflush(ip, sync_mode) == 0) {
-		/* synchronize with xfs_iflush_done */
-		xfs_iflock(ip);
-		xfs_ifunlock(ip);
+	if (is_bad_inode(VFS_I(ip)))
+		goto reclaim;
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		xfs_iunpin_wait(ip);
+		goto reclaim;
+	}
+	if (xfs_ipincount(ip))
+		xfs_iunpin_wait(ip);
+	if (xfs_iflags_test(ip, XFS_ISTALE))
+		goto reclaim;
+	if (xfs_inode_clean(ip))
+		goto reclaim;
+
+	/* Now we have an inode that needs flushing */
+	error = xfs_iflush(ip, sync_mode);
+	if (!error) {
+		switch(sync_mode) {
+		case XFS_IFLUSH_DELWRI_ELSE_ASYNC:
+		case XFS_IFLUSH_DELWRI:
+		case XFS_IFLUSH_ASYNC:
+		case XFS_IFLUSH_DELWRI_ELSE_SYNC:
+		case XFS_IFLUSH_SYNC:
+			/* IO issued, synchronise with IO completion */
+			xfs_iflock(ip);
+			break;
+		default:
+			ASSERT(0);
+			break;
+		}
 	}
 
+reclaim:
+	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_ireclaim(ip);
 	return 0;
