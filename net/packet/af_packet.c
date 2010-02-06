@@ -157,7 +157,6 @@ struct packet_mreq_max {
 	unsigned char	mr_address[MAX_ADDR_LEN];
 };
 
-#ifdef CONFIG_PACKET_MMAP
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req,
 		int closing, int tx_ring);
 
@@ -177,7 +176,6 @@ struct packet_ring_buffer {
 
 struct packet_sock;
 static int tpacket_snd(struct packet_sock *po, struct msghdr *msg);
-#endif
 
 static void packet_flush_mclist(struct sock *sk);
 
@@ -185,11 +183,9 @@ struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
 	struct sock		sk;
 	struct tpacket_stats	stats;
-#ifdef CONFIG_PACKET_MMAP
 	struct packet_ring_buffer	rx_ring;
 	struct packet_ring_buffer	tx_ring;
 	int			copy_thresh;
-#endif
 	spinlock_t		bind_lock;
 	struct mutex		pg_vec_lock;
 	unsigned int		running:1,	/* prot_hook is attached*/
@@ -199,13 +195,11 @@ struct packet_sock {
 	int			ifindex;	/* bound device		*/
 	__be16			num;
 	struct packet_mclist	*mclist;
-#ifdef CONFIG_PACKET_MMAP
 	atomic_t		mapped;
 	enum tpacket_versions	tp_version;
 	unsigned int		tp_hdrlen;
 	unsigned int		tp_reserve;
 	unsigned int		tp_loss:1;
-#endif
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };
 
@@ -218,8 +212,6 @@ struct packet_skb_cb {
 };
 
 #define PACKET_SKB_CB(__skb)	((struct packet_skb_cb *)((__skb)->cb))
-
-#ifdef CONFIG_PACKET_MMAP
 
 static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 {
@@ -314,8 +306,6 @@ static inline void packet_increment_head(struct packet_ring_buffer *buff)
 {
 	buff->head = buff->head != buff->frame_max ? buff->head+1 : 0;
 }
-
-#endif
 
 static inline struct packet_sock *pkt_sk(struct sock *sk)
 {
@@ -640,7 +630,6 @@ drop:
 	return 0;
 }
 
-#ifdef CONFIG_PACKET_MMAP
 static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		       struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -1056,7 +1045,6 @@ out:
 	mutex_unlock(&po->pg_vec_lock);
 	return err;
 }
-#endif
 
 static inline struct sk_buff *packet_alloc_skb(struct sock *sk, size_t prepad,
 					       size_t reserve, size_t len,
@@ -1248,13 +1236,11 @@ out:
 static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		struct msghdr *msg, size_t len)
 {
-#ifdef CONFIG_PACKET_MMAP
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
 	if (po->tx_ring.pg_vec)
 		return tpacket_snd(po, msg);
 	else
-#endif
 		return packet_snd(sock, msg, len);
 }
 
@@ -1268,9 +1254,7 @@ static int packet_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct packet_sock *po;
 	struct net *net;
-#ifdef CONFIG_PACKET_MMAP
 	struct tpacket_req req;
-#endif
 
 	if (!sk)
 		return 0;
@@ -1299,7 +1283,6 @@ static int packet_release(struct socket *sock)
 
 	packet_flush_mclist(sk);
 
-#ifdef CONFIG_PACKET_MMAP
 	memset(&req, 0, sizeof(req));
 
 	if (po->rx_ring.pg_vec)
@@ -1307,7 +1290,6 @@ static int packet_release(struct socket *sock)
 
 	if (po->tx_ring.pg_vec)
 		packet_set_ring(sk, &req, 1, 1);
-#endif
 
 	/*
 	 *	Now the socket is dead. No more input will appear.
@@ -1872,7 +1854,6 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		return ret;
 	}
 
-#ifdef CONFIG_PACKET_MMAP
 	case PACKET_RX_RING:
 	case PACKET_TX_RING:
 	{
@@ -1943,7 +1924,6 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		po->tp_loss = !!val;
 		return 0;
 	}
-#endif
 	case PACKET_AUXDATA:
 	{
 		int val;
@@ -2041,7 +2021,6 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 
 		data = &val;
 		break;
-#ifdef CONFIG_PACKET_MMAP
 	case PACKET_VERSION:
 		if (len > sizeof(int))
 			len = sizeof(int);
@@ -2077,7 +2056,6 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		val = po->tp_loss;
 		data = &val;
 		break;
-#endif
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -2196,11 +2174,6 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 	}
 	return 0;
 }
-
-#ifndef CONFIG_PACKET_MMAP
-#define packet_mmap sock_no_mmap
-#define packet_poll datagram_poll
-#else
 
 static unsigned int packet_poll(struct file *file, struct socket *sock,
 				poll_table *wait)
@@ -2483,8 +2456,6 @@ out:
 	mutex_unlock(&po->pg_vec_lock);
 	return err;
 }
-#endif
-
 
 static const struct proto_ops packet_ops_spkt = {
 	.family =	PF_PACKET,
