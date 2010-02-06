@@ -613,8 +613,6 @@ static void dma_tasklet(unsigned long data)
 	cohd_fin->pending_irqs--;
 	cohc->completed = cohd_fin->desc.cookie;
 
-	BUG_ON(cohc->nbr_active_done && cohd_fin == NULL);
-
 	if (cohc->nbr_active_done == 0)
 		return;
 
