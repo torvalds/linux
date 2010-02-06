@@ -1468,7 +1468,18 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
-	xfs_reclaim_inodes(mp, XFS_IFLUSH_ASYNC);
+
+	/*
+	 * Do a delwri reclaim pass first so that as many dirty inodes are
+	 * queued up for IO as possible. Then flush the buffers before making
+	 * a synchronous path to catch all the remaining inodes are reclaimed.
+	 * This makes the reclaim process as quick as possible by avoiding
+	 * synchronous writeout and blocking on inodes already in the delwri
+	 * state as much as possible.
+	 */
+	xfs_reclaim_inodes(mp, 0);
+	XFS_bflush(mp->m_ddev_targp);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	xfs_qm_unmount(mp);
 

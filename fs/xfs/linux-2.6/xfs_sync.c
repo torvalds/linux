@@ -270,8 +270,7 @@ xfs_sync_inode_attr(
 		goto out_unlock;
 	}
 
-	error = xfs_iflush(ip, (flags & SYNC_WAIT) ?
-			   XFS_IFLUSH_SYNC : XFS_IFLUSH_DELWRI);
+	error = xfs_iflush(ip, flags);
 
  out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -460,16 +459,18 @@ xfs_quiesce_fs(
 {
 	int	count = 0, pincount;
 
+	xfs_reclaim_inodes(mp, 0);
 	xfs_flush_buftarg(mp->m_ddev_targp, 0);
-	xfs_reclaim_inodes(mp, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
 
 	/*
 	 * This loop must run at least twice.  The first instance of the loop
 	 * will flush most meta data but that will generate more meta data
 	 * (typically directory updates).  Which then must be flushed and
-	 * logged before we can write the unmount record.
+	 * logged before we can write the unmount record. We also so sync
+	 * reclaim of inodes to catch any that the above delwri flush skipped.
 	 */
 	do {
+		xfs_reclaim_inodes(mp, SYNC_WAIT);
 		xfs_sync_attr(mp, SYNC_WAIT);
 		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
 		if (!pincount) {
@@ -585,7 +586,7 @@ xfs_sync_worker(
 
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		xfs_log_force(mp, 0);
-		xfs_reclaim_inodes(mp, XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+		xfs_reclaim_inodes(mp, 0);
 		/* dgc: errors ignored here */
 		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
 		error = xfs_sync_fsdata(mp, SYNC_TRYLOCK);
@@ -719,21 +720,42 @@ __xfs_inode_clear_reclaim_tag(
  *	shutdown		EIO		unpin and reclaim
  *	clean, unpinned		0		reclaim
  *	stale, unpinned		0		reclaim
- *	clean, pinned(*)	0		unpin and reclaim
- *	stale, pinned		0		unpin and reclaim
- *	dirty, async		0		block on flush lock, reclaim
- *	dirty, sync flush	0		block on flush lock, reclaim
+ *	clean, pinned(*)	0		requeue
+ *	stale, pinned		EAGAIN		requeue
+ *	dirty, delwri ok	0		requeue
+ *	dirty, delwri blocked	EAGAIN		requeue
+ *	dirty, sync flush	0		reclaim
  *
  * (*) dgc: I don't think the clean, pinned state is possible but it gets
  * handled anyway given the order of checks implemented.
  *
+ * As can be seen from the table, the return value of xfs_iflush() is not
+ * sufficient to correctly decide the reclaim action here. The checks in
+ * xfs_iflush() might look like duplicates, but they are not.
+ *
+ * Also, because we get the flush lock first, we know that any inode that has
+ * been flushed delwri has had the flush completed by the time we check that
+ * the inode is clean. The clean inode check needs to be done before flushing
+ * the inode delwri otherwise we would loop forever requeuing clean inodes as
+ * we cannot tell apart a successful delwri flush and a clean inode from the
+ * return value of xfs_iflush().
+ *
+ * Note that because the inode is flushed delayed write by background
+ * writeback, the flush lock may already be held here and waiting on it can
+ * result in very long latencies. Hence for sync reclaims, where we wait on the
+ * flush lock, the caller should push out delayed write inodes first before
+ * trying to reclaim them to minimise the amount of time spent waiting. For
+ * background relaim, we just requeue the inode for the next pass.
+ *
  * Hence the order of actions after gaining the locks should be:
  *	bad		=> reclaim
  *	shutdown	=> unpin and reclaim
- *	pinned		=> unpin
+ *	pinned, delwri	=> requeue
+ *	pinned, sync	=> unpin
  *	stale		=> reclaim
  *	clean		=> reclaim
- *	dirty		=> flush, wait and reclaim
+ *	dirty, delwri	=> flush and requeue
+ *	dirty, sync	=> flush, wait and reclaim
  */
 STATIC int
 xfs_reclaim_inode(
@@ -741,7 +763,7 @@ xfs_reclaim_inode(
 	struct xfs_perag	*pag,
 	int			sync_mode)
 {
-	int	error;
+	int	error = 0;
 
 	/*
 	 * The radix tree lock here protects a thread in xfs_iget from racing
@@ -761,7 +783,11 @@ xfs_reclaim_inode(
 	write_unlock(&pag->pag_ici_lock);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_iflock(ip);
+	if (!xfs_iflock_nowait(ip)) {
+		if (!(sync_mode & SYNC_WAIT))
+			goto out;
+		xfs_iflock(ip);
+	}
 
 	if (is_bad_inode(VFS_I(ip)))
 		goto reclaim;
@@ -769,8 +795,13 @@ xfs_reclaim_inode(
 		xfs_iunpin_wait(ip);
 		goto reclaim;
 	}
-	if (xfs_ipincount(ip))
+	if (xfs_ipincount(ip)) {
+		if (!(sync_mode & SYNC_WAIT)) {
+			xfs_ifunlock(ip);
+			goto out;
+		}
 		xfs_iunpin_wait(ip);
+	}
 	if (xfs_iflags_test(ip, XFS_ISTALE))
 		goto reclaim;
 	if (xfs_inode_clean(ip))
@@ -778,27 +809,43 @@ xfs_reclaim_inode(
 
 	/* Now we have an inode that needs flushing */
 	error = xfs_iflush(ip, sync_mode);
-	if (!error) {
-		switch(sync_mode) {
-		case XFS_IFLUSH_DELWRI_ELSE_ASYNC:
-		case XFS_IFLUSH_DELWRI:
-		case XFS_IFLUSH_ASYNC:
-		case XFS_IFLUSH_DELWRI_ELSE_SYNC:
-		case XFS_IFLUSH_SYNC:
-			/* IO issued, synchronise with IO completion */
-			xfs_iflock(ip);
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
+	if (sync_mode & SYNC_WAIT) {
+		xfs_iflock(ip);
+		goto reclaim;
 	}
+
+	/*
+	 * When we have to flush an inode but don't have SYNC_WAIT set, we
+	 * flush the inode out using a delwri buffer and wait for the next
+	 * call into reclaim to find it in a clean state instead of waiting for
+	 * it now. We also don't return errors here - if the error is transient
+	 * then the next reclaim pass will flush the inode, and if the error
+	 * is permanent then the next sync reclaim will relcaim the inode and
+	 * pass on the error.
+	 */
+	if (error && !XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
+			"inode 0x%llx background reclaim flush failed with %d",
+			(long long)ip->i_ino, error);
+	}
+out:
+	xfs_iflags_clear(ip, XFS_IRECLAIM);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	/*
+	 * We could return EAGAIN here to make reclaim rescan the inode tree in
+	 * a short while. However, this just burns CPU time scanning the tree
+	 * waiting for IO to complete and xfssyncd never goes back to the idle
+	 * state. Instead, return 0 to let the next scheduled background reclaim
+	 * attempt to reclaim the inode again.
+	 */
+	return 0;
 
 reclaim:
 	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_ireclaim(ip);
-	return 0;
+	return error;
+
 }
 
 int

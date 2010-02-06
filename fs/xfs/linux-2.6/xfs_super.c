@@ -1064,7 +1064,7 @@ xfs_fs_write_inode(
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 		xfs_iflock(ip);
 
-		error = xfs_iflush(ip, XFS_IFLUSH_SYNC);
+		error = xfs_iflush(ip, SYNC_WAIT);
 	} else {
 		error = EAGAIN;
 		if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
@@ -1072,7 +1072,7 @@ xfs_fs_write_inode(
 		if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
 			goto out_unlock;
 
-		error = xfs_iflush(ip, XFS_IFLUSH_ASYNC_NOBLOCK);
+		error = xfs_iflush(ip, 0);
 	}
 
  out_unlock:
