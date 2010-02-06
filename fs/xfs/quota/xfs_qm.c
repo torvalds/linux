@@ -123,7 +123,7 @@ xfs_Gqm_init(void)
 		goto out;
 
 	gdqhash = kmem_zalloc_large(hsize);
-	if (!udqhash)
+	if (!gdqhash)
 		goto out_free_udqhash;
 
 	hsize /= sizeof(xfs_dqhash_t);
