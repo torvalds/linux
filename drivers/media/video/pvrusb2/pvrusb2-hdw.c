@@ -4625,10 +4625,15 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 		hdw->state_decoder_quiescent = 0;
 		hdw->state_decoder_ready = 0;
 		hdw->state_decoder_run = !0;
-		hdw->decoder_stabilization_timer.expires =
-			jiffies +
-			(HZ * TIME_MSEC_DECODER_STABILIZATION_WAIT / 1000);
-		add_timer(&hdw->decoder_stabilization_timer);
+		if (hdw->decoder_client_id == PVR2_CLIENT_ID_SAA7115) {
+			hdw->decoder_stabilization_timer.expires =
+				jiffies +
+				(HZ * TIME_MSEC_DECODER_STABILIZATION_WAIT /
+				 1000);
+			add_timer(&hdw->decoder_stabilization_timer);
+		} else {
+			hdw->state_decoder_ready = !0;
+		}
 	}
 	trace_stbit("state_decoder_quiescent",hdw->state_decoder_quiescent);
 	trace_stbit("state_decoder_run",hdw->state_decoder_run);
