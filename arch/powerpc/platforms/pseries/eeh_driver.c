@@ -478,9 +478,9 @@ excess_failures:
 	 * due to actual, failed cards.
 	 */
 	printk(KERN_ERR
-	   "EEH: PCI device at location=%s driver=%s pci addr=%s \n"
+	   "EEH: PCI device at location=%s driver=%s pci addr=%s\n"
 		"has failed %d times in the last hour "
-		"and has been permanently disabled. \n"
+		"and has been permanently disabled.\n"
 		"Please try reseating this device or replacing it.\n",
 		location, drv_str, pci_str, frozen_pdn->eeh_freeze_count);
 	goto perm_error;
@@ -488,7 +488,7 @@ excess_failures:
 hard_fail:
 	printk(KERN_ERR
 	   "EEH: Unable to recover from failure of PCI device "
-	   "at location=%s driver=%s pci addr=%s \n"
+	   "at location=%s driver=%s pci addr=%s\n"
 	   "Please try reseating this device or replacing it.\n",
 		location, drv_str, pci_str);
 

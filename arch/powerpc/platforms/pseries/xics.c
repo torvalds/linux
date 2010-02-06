@@ -127,7 +127,7 @@ static inline unsigned int lpar_xirr_info_get(void)
 
 	lpar_rc = plpar_xirr(&return_value);
 	if (lpar_rc != H_SUCCESS)
-		panic(" bad return code xirr - rc = %lx \n", lpar_rc);
+		panic(" bad return code xirr - rc = %lx\n", lpar_rc);
 	return (unsigned int)return_value;
 }
 

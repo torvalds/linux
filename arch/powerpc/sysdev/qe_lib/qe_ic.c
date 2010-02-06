@@ -256,7 +256,7 @@ static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
 	struct irq_chip *chip;
 
 	if (qe_ic_info[hw].mask == 0) {
-		printk(KERN_ERR "Can't map reserved IRQ \n");
+		printk(KERN_ERR "Can't map reserved IRQ\n");
 		return -EINVAL;
 	}
 	/* Default chip */

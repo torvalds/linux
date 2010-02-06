@@ -316,7 +316,7 @@ static void update_fans_speed (struct thermostat *th)
 
 			if (verbose)
 				printk(KERN_DEBUG "adt746x: Setting fans speed to %d "
-						 "(limit exceeded by %d on %s) \n",
+						 "(limit exceeded by %d on %s)\n",
 						new_speed, var,
 						sensor_location[fan_number+1]);
 			write_both_fan_speed(th, new_speed);
