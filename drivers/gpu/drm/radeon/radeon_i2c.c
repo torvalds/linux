@@ -192,12 +192,16 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	struct i2c_msg *p;
 	int i, j, k, ret = num;
-	/* XXX: use get_engine_clock() to get the current sclk */
-	u32 prescale = (((rdev->clock.default_sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
+	u32 sclk, prescale;
 	u32 i2c_cntl_0, i2c_cntl_1, i2c_data;
 	u32 tmp, reg;
 
 	mutex_lock(&rdev->dc_hw_i2c_mutex);
+	/* take the pm lock since we need a constant sclk */
+	mutex_lock(&rdev->pm.mutex);
+
+	sclk = radeon_get_engine_clock(rdev);
+	prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
 
 	reg = ((prescale << RADEON_I2C_PRESCALE_SHIFT) |
 	       RADEON_I2C_START |
@@ -424,6 +428,7 @@ done:
 		WREG32(RADEON_BIOS_6_SCRATCH, tmp);
 	}
 
+	mutex_unlock(&rdev->pm.mutex);
 	mutex_unlock(&rdev->dc_hw_i2c_mutex);
 
 	return ret;
@@ -441,12 +446,19 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct i2c_msg *p;
 	int i2c_clock = 50;
 	int i, j, remaining, current_count, buffer_offset, ret = num;
-	/* XXX: use get_engine_clock() to get the current sclk */
-	u32 prescale;
+	u32 sclk, prescale;
 	u32 tmp, reg;
 	u32 saved1, saved2;
 
 	mutex_lock(&rdev->dc_hw_i2c_mutex);
+	/* take the pm lock since we need a constant sclk */
+	mutex_lock(&rdev->pm.mutex);
+
+	sclk = radeon_get_engine_clock(rdev);
+	if (rdev->family == CHIP_R520)
+		prescale = (127 << 8) + ((sclk * 10) / (4 * 127 * i2c_clock));
+	else
+		prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
 
 	/* clear gpio mask bits */
 	tmp = RREG32(rec->mask_clk_reg);
@@ -499,11 +511,6 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 		ret = -EBUSY;
 		goto done;
 	}
-
-	if (rdev->family == CHIP_R520)
-		prescale = (127 << 8) + ((rdev->clock.default_sclk * 10) / (4 * 127 * i2c_clock));
-	else
-		prescale = (((rdev->clock.default_sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
 
 	reg = AVIVO_DC_I2C_START | AVIVO_DC_I2C_STOP | AVIVO_DC_I2C_EN;
 	switch (rec->mask_clk_reg) {
@@ -662,6 +669,7 @@ done:
 	tmp &= ~ATOM_S6_HW_I2C_BUSY_STATE;
 	WREG32(RADEON_BIOS_6_SCRATCH, tmp);
 
+	mutex_unlock(&rdev->pm.mutex);
 	mutex_unlock(&rdev->dc_hw_i2c_mutex);
 
 	return ret;
