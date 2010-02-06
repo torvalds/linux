@@ -1116,7 +1116,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 			/* And the last RETI points to the current userspace context */
 			if ((fp + 1)->pc >= current->mm->start_code &&
 			    (fp + 1)->pc <= current->mm->end_code) {
-				verbose_printk(KERN_NOTICE "It might be better to look around here : \n");
+				verbose_printk(KERN_NOTICE "It might be better to look around here :\n");
 				verbose_printk(KERN_NOTICE "-------------------------------------------\n");
 				show_regs(fp + 1);
 				verbose_printk(KERN_NOTICE "-------------------------------------------\n");
