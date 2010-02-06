@@ -430,7 +430,11 @@ static inline void vfp_pm_init(void) { }
  * saved one. This function is used by the ptrace mechanism.
  */
 #ifdef CONFIG_SMP
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
+{
+}
+
+void vfp_flush_hwstate(struct thread_info *thread)
 {
 	/*
 	 * On SMP systems, the VFP state is automatically saved at every
@@ -441,7 +445,7 @@ void vfp_sync_state(struct thread_info *thread)
 	thread->vfpstate.hard.cpu = NR_CPUS;
 }
 #else
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
 
@@ -457,6 +461,23 @@ void vfp_sync_state(struct thread_info *thread)
 		 */
 		fmxr(FPEXC, fpexc | FPEXC_EN);
 		vfp_save_state(&thread->vfpstate, fpexc | FPEXC_EN);
+		fmxr(FPEXC, fpexc);
+	}
+
+	put_cpu();
+}
+
+void vfp_flush_hwstate(struct thread_info *thread)
+{
+	unsigned int cpu = get_cpu();
+
+	/*
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
+	 */
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
+
 		fmxr(FPEXC, fpexc & ~FPEXC_EN);
 
 		/*
