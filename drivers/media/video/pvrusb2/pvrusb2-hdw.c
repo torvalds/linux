@@ -53,10 +53,8 @@
 #define TIME_MSEC_DECODER_STABILIZATION_WAIT 300
 
 /* This defines a minimum interval that the encoder must remain quiet
-   before we are allowed to configure it.  I had this originally set to
-   50msec, but Martin Dauskardt <martin.dauskardt@gmx.de> reports that
-   things work better when it's set to 100msec. */
-#define TIME_MSEC_ENCODER_WAIT 100
+   before we are allowed to configure it. */
+#define TIME_MSEC_ENCODER_WAIT 50
 
 /* This defines the minimum interval that the encoder must successfully run
    before we consider that the encoder has run at least once since its
