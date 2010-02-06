@@ -77,8 +77,8 @@
 #define I365_VPP2_5V	0x04	/* Vpp2 = 5.0v */
 #define I365_VPP2_12V	0x08	/* Vpp2 = 12.0v */
 #define I365_VPP1_MASK	0x03	/* Mask for turning off Vpp1 */
-#define I365_VPP1_5V	0x01	/* Vpp2 = 5.0v */
-#define I365_VPP1_12V	0x02	/* Vpp2 = 12.0v */
+#define I365_VPP1_5V	0x01	/* Vpp1 = 5.0v */
+#define I365_VPP1_12V	0x02	/* Vpp1 = 12.0v */
 
 /* Flags for I365_INTCTL */
 #define I365_RING_ENA	0x80
