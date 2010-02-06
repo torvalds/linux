@@ -328,7 +328,7 @@ static int apply_microcode(int cpu)
 		       cpu_num, mc_intel->hdr.rev);
 		return -1;
 	}
-	pr_info("CPU%d updated to revision 0x%x, date = %04x-%02x-%02x \n",
+	pr_info("CPU%d updated to revision 0x%x, date = %04x-%02x-%02x\n",
 		cpu_num, val[1],
 		mc_intel->hdr.date & 0xffff,
 		mc_intel->hdr.date >> 24,
