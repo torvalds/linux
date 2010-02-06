@@ -66,7 +66,6 @@ static int stantum_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_DEVICEINDEX:
 		case HID_DG_CONTACTCOUNT:
 		case HID_DG_CONTACTMAX:
-		case HID_DG_TIPPRESSURE:
 			return -1;
 
 		case HID_DG_TIPSWITCH:
@@ -84,6 +83,11 @@ static int stantum_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
 					1, 1, 0, 0);
 			return 1;
+		case HID_DG_TIPPRESSURE:
+			hid_map_usage(hi, usage, bit, max,
+					EV_ABS, ABS_MT_PRESSURE);
+			return 1;
+
 		case HID_DG_CONTACTID:
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TRACKING_ID);
@@ -140,10 +144,7 @@ static void stantum_filter_event(struct stantum_data *sd,
 	input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, wide ? sd->w : sd->h);
 	input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, wide ? sd->h : sd->w);
 
-#if 0
-	/* MT_PRESSURE does not exist yet */
 	input_event(input, EV_ABS, ABS_MT_PRESSURE, sd->z);
-#endif
 
 	input_mt_sync(input);
 	sd->valid = false;
