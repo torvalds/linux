@@ -90,9 +90,6 @@ struct b43_pio_txqueue {
 	struct b43_pio_txpacket packets[B43_PIO_MAX_NR_TXPACKETS];
 	struct list_head packets_list;
 
-	/* Total number of transmitted packets. */
-	unsigned int nr_tx_packets;
-
 	/* Shortcut to the 802.11 core revision. This is to
 	 * avoid horrible pointer dereferencing in the fastpaths. */
 	u8 rev;
@@ -160,8 +157,6 @@ void b43_pio_free(struct b43_wldev *dev);
 int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb);
 void b43_pio_handle_txstatus(struct b43_wldev *dev,
 			     const struct b43_txstatus *status);
-void b43_pio_get_tx_stats(struct b43_wldev *dev,
-			  struct ieee80211_tx_queue_stats *stats);
 void b43_pio_rx(struct b43_pio_rxqueue *q);
 
 void b43_pio_tx_suspend(struct b43_wldev *dev);
