@@ -946,7 +946,6 @@ int igmp_rcv(struct sk_buff *skb)
 		break;
 	case IGMP_HOST_MEMBERSHIP_REPORT:
 	case IGMPV2_HOST_MEMBERSHIP_REPORT:
-	case IGMPV3_HOST_MEMBERSHIP_REPORT:
 		/* Is it our report looped back? */
 		if (skb_rtable(skb)->fl.iif == 0)
 			break;
@@ -960,6 +959,7 @@ int igmp_rcv(struct sk_buff *skb)
 		in_dev_put(in_dev);
 		return pim_rcv_v1(skb);
 #endif
+	case IGMPV3_HOST_MEMBERSHIP_REPORT:
 	case IGMP_DVMRP:
 	case IGMP_TRACE:
 	case IGMP_HOST_LEAVE_MESSAGE:
