@@ -666,8 +666,6 @@ int security_file_alloc(struct file *file)
 void security_file_free(struct file *file)
 {
 	security_ops->file_free_security(file);
-	if (file->f_dentry)
-		ima_file_free(file);
 }
 
 int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
