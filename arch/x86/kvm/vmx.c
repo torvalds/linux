@@ -4137,6 +4137,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.cache_reg = vmx_cache_reg,
 	.get_rflags = vmx_get_rflags,
 	.set_rflags = vmx_set_rflags,
+	.fpu_activate = vmx_fpu_activate,
 	.fpu_deactivate = vmx_fpu_deactivate,
 
 	.tlb_flush = vmx_flush_tlb,
