@@ -137,6 +137,7 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
+	struct device			*dev;
 };
 
 int usb_add_function(struct usb_configuration *, struct usb_function *);
@@ -282,6 +283,9 @@ struct usb_composite_driver {
 	struct usb_gadget_strings		**strings;
 	unsigned		needs_serial:1;
 
+	struct class		*class;
+	atomic_t		function_count;
+
 	int			(*unbind)(struct usb_composite_dev *);
 
 	void			(*disconnect)(struct usb_composite_dev *);
@@ -289,6 +293,8 @@ struct usb_composite_driver {
 	/* global suspend hooks */
 	void			(*suspend)(struct usb_composite_dev *);
 	void			(*resume)(struct usb_composite_dev *);
+
+	void			(*enable_function)(struct usb_function *f, int enable);
 };
 
 extern int usb_composite_probe(struct usb_composite_driver *driver,
