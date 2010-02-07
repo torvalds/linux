@@ -290,14 +290,6 @@ static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
 	return ret;
 }
 
-static inline int drv_get_tx_stats(struct ieee80211_local *local,
-				   struct ieee80211_tx_queue_stats *stats)
-{
-	int ret = local->ops->get_tx_stats(&local->hw, stats);
-	trace_drv_get_tx_stats(local, stats, ret);
-	return ret;
-}
-
 static inline u64 drv_get_tsf(struct ieee80211_local *local)
 {
 	u64 ret = -1ULL;

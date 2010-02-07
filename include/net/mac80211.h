@@ -117,19 +117,6 @@ struct ieee80211_tx_queue_params {
 	bool uapsd;
 };
 
-/**
- * struct ieee80211_tx_queue_stats - transmit queue statistics
- *
- * @len: number of packets in queue
- * @limit: queue length limit
- * @count: number of frames sent
- */
-struct ieee80211_tx_queue_stats {
-	unsigned int len;
-	unsigned int limit;
-	unsigned int count;
-};
-
 struct ieee80211_low_level_stats {
 	unsigned int dot11ACKFailureCount;
 	unsigned int dot11RTSFailureCount;
@@ -1548,13 +1535,6 @@ enum ieee80211_ampdu_mlme_action {
  *	Returns a negative error code on failure.
  *	The callback can sleep.
  *
- * @get_tx_stats: Get statistics of the current TX queue status. This is used
- *	to get number of currently queued packets (queue length), maximum queue
- *	size (limit), and total number of packets sent using each TX queue
- *	(count). The 'stats' pointer points to an array that has hw->queues
- *	items.
- *	The callback must be atomic.
- *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
  *	this is only used for IBSS mode BSSID merging and debugging. Is not a
  *	required function.
@@ -1648,8 +1628,6 @@ struct ieee80211_ops {
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
-	int (*get_tx_stats)(struct ieee80211_hw *hw,
-			    struct ieee80211_tx_queue_stats *stats);
 	u64 (*get_tsf)(struct ieee80211_hw *hw);
 	void (*set_tsf)(struct ieee80211_hw *hw, u64 tsf);
 	void (*reset_tsf)(struct ieee80211_hw *hw);

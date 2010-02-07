@@ -630,29 +630,6 @@ TRACE_EVENT(drv_conf_tx,
 	)
 );
 
-TRACE_EVENT(drv_get_tx_stats,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_tx_queue_stats *stats,
-		 int ret),
-
-	TP_ARGS(local, stats, ret),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		__field(int, ret)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		__entry->ret = ret;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT " ret:%d",
-		LOCAL_PR_ARG, __entry->ret
-	)
-);
-
 TRACE_EVENT(drv_get_tsf,
 	TP_PROTO(struct ieee80211_local *local, u64 ret),
 
