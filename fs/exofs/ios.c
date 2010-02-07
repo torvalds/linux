@@ -259,28 +259,46 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 	return acumulated_lin_err;
 }
 
-/* REMOVEME: After review
-   Some quoteing from the standard
+/*
+ * L - logical offset into the file
+ *
+ * U - The number of bytes in a full stripe
+ *
+ *	U = stripe_unit * group_width
+ *
+ * N - The stripe number
+ *
+ *	N = L / U
+ *
+ * C - The component index coresponding to L
+ *
+ *	C = (L - (N*U)) / stripe_unit
+ *
+ * O - The component offset coresponding to L
+ *
+ *	(N*stripe_unit)+(L%stripe_unit)
+ */
 
-   L = logical offset into the file
-   W = number of data components in a stripe
-   S = W * stripe_unit (S is Stripe length)
-   N = L / S (N is the stripe Number)
-   C = (L-(N*S)) / stripe_unit (C is the component)
-   O = (N*stripe_unit)+(L%stripe_unit) (O is the object's offset)
-*/
+struct _striping_info {
+	u64 obj_offset;
+	unsigned dev;
+	unsigned unit_off;
+};
 
-static void _offset_dev_unit_off(struct exofs_io_state *ios, u64 file_offset,
-			u64 *obj_offset, unsigned *dev, unsigned *unit_off)
+static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
+			      struct _striping_info *si)
 {
-	unsigned stripe_unit = ios->layout->stripe_unit;
-	unsigned stripe_length = stripe_unit * ios->layout->group_width;
-	u64 stripe_no = file_offset;
-	unsigned stripe_mod = do_div(stripe_no, stripe_length);
+	u32	stripe_unit = ios->layout->stripe_unit;
+	u32	group_width = ios->layout->group_width;
+	u32	U = stripe_unit * group_width;
 
-	*unit_off = stripe_mod % stripe_unit;
-	*obj_offset = stripe_no * stripe_unit + *unit_off;
-	*dev = stripe_mod / stripe_unit * ios->layout->mirrors_p1;
+	u32	LmodU;
+	u64 	N = div_u64_rem(file_offset, U, &LmodU);
+
+	si->unit_off = LmodU % stripe_unit;
+	si->obj_offset = N * stripe_unit + si->unit_off;
+	si->dev = LmodU / stripe_unit;
+	si->dev *= ios->layout->mirrors_p1;
 }
 
 static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
@@ -327,63 +345,86 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
 	return 0;
 }
 
-static int _prepare_for_striping(struct exofs_io_state *ios)
+static int _prepare_pages(struct exofs_io_state *ios,
+			  struct _striping_info *si)
 {
 	u64 length = ios->length;
-	u64 offset = ios->offset;
 	unsigned stripe_unit = ios->layout->stripe_unit;
+	unsigned mirrors_p1 = ios->layout->mirrors_p1;
+	unsigned dev = si->dev;
 	unsigned comp = 0;
 	unsigned stripes = 0;
 	unsigned cur_pg = 0;
 	int ret = 0;
 
-	if (!ios->pages) {
-		if (ios->kern_buff) {
-			struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
-			unsigned unit_off;
-
-			_offset_dev_unit_off(ios, offset, &per_dev->offset,
-					     &per_dev->dev, &unit_off);
-			/* no cross device without page array */
-			BUG_ON((ios->layout->group_width > 1) &&
-			       (unit_off + length > stripe_unit));
-		}
-		ios->numdevs = ios->layout->mirrors_p1;
-		return 0;
-	}
-
 	while (length) {
 		struct exofs_per_dev_state *per_dev = &ios->per_dev[comp];
-		unsigned cur_len, page_off;
+		unsigned cur_len, page_off = 0;
 
 		if (!per_dev->length) {
-			unsigned unit_off;
+			per_dev->dev = dev;
+			if (dev < si->dev) {
+				per_dev->offset = si->obj_offset + stripe_unit -
+								   si->unit_off;
+				cur_len = stripe_unit;
+			} else if (dev == si->dev) {
+				per_dev->offset = si->obj_offset;
+				cur_len = stripe_unit - si->unit_off;
+				page_off = si->unit_off & ~PAGE_MASK;
+				BUG_ON(page_off && (page_off != ios->pgbase));
+			} else { /* dev > si->dev */
+				per_dev->offset = si->obj_offset - si->unit_off;
+				cur_len = stripe_unit;
+			}
 
-			_offset_dev_unit_off(ios, offset, &per_dev->offset,
-					     &per_dev->dev, &unit_off);
 			stripes++;
-			cur_len = min_t(u64, stripe_unit - unit_off, length);
-			offset += cur_len;
-			page_off = unit_off & ~PAGE_MASK;
-			BUG_ON(page_off != ios->pgbase);
+
+			dev += mirrors_p1;
+			dev %= ios->layout->s_numdevs;
 		} else {
-			cur_len = min_t(u64, stripe_unit, length);
-			page_off = 0;
+			cur_len = stripe_unit;
 		}
+		if (cur_len >= length)
+			cur_len = length;
 
 		ret = _add_stripe_unit(ios, &cur_pg, page_off , per_dev,
 				       cur_len);
 		if (unlikely(ret))
 			goto out;
 
-		comp += ios->layout->mirrors_p1;
+		comp += mirrors_p1;
 		comp %= ios->layout->s_numdevs;
 
 		length -= cur_len;
 	}
 out:
-	ios->numdevs = stripes * ios->layout->mirrors_p1;
+	ios->numdevs = stripes * mirrors_p1;
 	return ret;
+}
+
+static int _prepare_for_striping(struct exofs_io_state *ios)
+{
+	struct _striping_info si;
+
+	_calc_stripe_info(ios, ios->offset, &si);
+
+	if (!ios->pages) {
+		if (ios->kern_buff) {
+			struct exofs_per_dev_state *per_dev = &ios->per_dev[0];
+
+			per_dev->offset = si.obj_offset;
+			per_dev->dev = si.dev;
+
+			/* no cross device without page array */
+			BUG_ON((ios->layout->group_width > 1) &&
+			       (si.unit_off + ios->length >
+				ios->layout->stripe_unit));
+		}
+		ios->numdevs = ios->layout->mirrors_p1;
+		return 0;
+	}
+
+	return _prepare_pages(ios, &si);
 }
 
 int exofs_sbi_create(struct exofs_io_state *ios)
@@ -648,9 +689,7 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 		struct osd_attr attr;
 		__be64 newsize;
 	} *size_attrs;
-	u64 this_obj_size;
-	unsigned dev;
-	unsigned unit_off;
+	struct _striping_info si;
 	int i, ret;
 
 	ret = exofs_get_io_state(&sbi->layout, &ios);
@@ -668,19 +707,19 @@ int exofs_oi_truncate(struct exofs_i_info *oi, u64 size)
 	ios->cred = oi->i_cred;
 
 	ios->numdevs = ios->layout->s_numdevs;
-	_offset_dev_unit_off(ios, size, &this_obj_size, &dev, &unit_off);
+	_calc_stripe_info(ios, size, &si);
 
 	for (i = 0; i < ios->layout->group_width; ++i) {
 		struct exofs_trunc_attr *size_attr = &size_attrs[i];
 		u64 obj_size;
 
-		if (i < dev)
-			obj_size = this_obj_size +
-					ios->layout->stripe_unit - unit_off;
-		else if (i == dev)
-			obj_size = this_obj_size;
-		else /* i > dev */
-			obj_size = this_obj_size - unit_off;
+		if (i < si.dev)
+			obj_size = si.obj_offset +
+					ios->layout->stripe_unit - si.unit_off;
+		else if (i == si.dev)
+			obj_size = si.obj_offset;
+		else /* i > si.dev */
+			obj_size = si.obj_offset - si.unit_off;
 
 		size_attr->newsize = cpu_to_be64(obj_size);
 		size_attr->attr = g_attr_logical_length;
