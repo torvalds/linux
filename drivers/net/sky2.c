@@ -2484,6 +2484,32 @@ static inline void sky2_rx_done(struct sky2_hw *hw, unsigned port,
 	}
 }
 
+static void sky2_rx_checksum(struct sky2_port *sky2, u32 status)
+{
+	/* If this happens then driver assuming wrong format for chip type */
+	BUG_ON(sky2->hw->flags & SKY2_HW_NEW_LE);
+
+	/* Both checksum counters are programmed to start at
+	 * the same offset, so unless there is a problem they
+	 * should match. This failure is an early indication that
+	 * hardware receive checksumming won't work.
+	 */
+	if (likely((u16)(status >> 16) == (u16)status)) {
+		struct sk_buff *skb = sky2->rx_ring[sky2->rx_next].skb;
+		skb->ip_summed = CHECKSUM_COMPLETE;
+		skb->csum = le16_to_cpu(status);
+	} else {
+		dev_notice(&sky2->hw->pdev->dev,
+			   "%s: receive checksum problem (status = %#x)\n",
+			   sky2->netdev->name, status);
+
+		/* Disable checksum offload */
+		sky2->flags &= ~SKY2_FLAG_RX_CHECKSUM;
+		sky2_write32(sky2->hw, Q_ADDR(rxqaddr[sky2->port], Q_CSR),
+			     BMU_DIS_RX_CHKSUM);
+	}
+}
+
 /* Process status response ring */
 static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 {
@@ -2552,37 +2578,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 			/* fall through */
 #endif
 		case OP_RXCHKS:
-			if (!(sky2->flags & SKY2_FLAG_RX_CHECKSUM))
-				break;
-
-			/* If this happens then driver assuming wrong format */
-			if (unlikely(hw->flags & SKY2_HW_NEW_LE)) {
-				if (net_ratelimit())
-					printk(KERN_NOTICE "%s: unexpected"
-					       " checksum status\n",
-					       dev->name);
-				break;
-			}
-
-			/* Both checksum counters are programmed to start at
-			 * the same offset, so unless there is a problem they
-			 * should match. This failure is an early indication that
-			 * hardware receive checksumming won't work.
-			 */
-			if (likely(status >> 16 == (status & 0xffff))) {
-				skb = sky2->rx_ring[sky2->rx_next].skb;
-				skb->ip_summed = CHECKSUM_COMPLETE;
-				skb->csum = le16_to_cpu(status);
-			} else {
-				printk(KERN_NOTICE PFX "%s: hardware receive "
-				       "checksum problem (status = %#x)\n",
-				       dev->name, status);
-				sky2->flags &= ~SKY2_FLAG_RX_CHECKSUM;
-
-				sky2_write32(sky2->hw,
-					     Q_ADDR(rxqaddr[port], Q_CSR),
-					     BMU_DIS_RX_CHKSUM);
-			}
+			if (likely(sky2->flags & SKY2_FLAG_RX_CHECKSUM))
+				sky2_rx_checksum(sky2, status);
 			break;
 
 		case OP_TXINDEXLE:
