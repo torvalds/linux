@@ -202,10 +202,9 @@ static void parse_source(struct sym_entry *syme)
 	len = sym->end - sym->start;
 
 	sprintf(command,
-		"objdump --start-address=0x%016Lx "
-			 "--stop-address=0x%016Lx -dS %s",
-		map__rip_2objdump(map, sym->start),
-		map__rip_2objdump(map, sym->end), path);
+		"objdump --start-address=%#0*Lx --stop-address=%#0*Lx -dS %s",
+		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->start),
+		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->end), path);
 
 	file = popen(command, "r");
 	if (!file)
@@ -292,13 +291,15 @@ static void lookup_sym_source(struct sym_entry *syme)
 {
 	struct symbol *symbol = sym_entry__symbol(syme);
 	struct source_line *line;
-	char pattern[PATH_MAX];
+	const size_t pattern_len = BITS_PER_LONG / 4 + 2;
+	char pattern[pattern_len + 1];
 
-	sprintf(pattern, "<%s>:", symbol->name);
+	sprintf(pattern, "%0*Lx <", BITS_PER_LONG / 4,
+		map__rip_2objdump(syme->map, symbol->start));
 
 	pthread_mutex_lock(&syme->src->lock);
 	for (line = syme->src->lines; line; line = line->next) {
-		if (strstr(line->line, pattern)) {
+		if (memcmp(line->line, pattern, pattern_len) == 0) {
 			syme->src->source = line;
 			break;
 		}
