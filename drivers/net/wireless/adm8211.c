@@ -302,18 +302,6 @@ static int adm8211_get_stats(struct ieee80211_hw *dev,
 	return 0;
 }
 
-static int adm8211_get_tx_stats(struct ieee80211_hw *dev,
-				struct ieee80211_tx_queue_stats *stats)
-{
-	struct adm8211_priv *priv = dev->priv;
-
-	stats[0].len = priv->cur_tx - priv->dirty_tx;
-	stats[0].limit = priv->tx_ring_size - 2;
-	stats[0].count = priv->dirty_tx;
-
-	return 0;
-}
-
 static void adm8211_interrupt_tci(struct ieee80211_hw *dev)
 {
 	struct adm8211_priv *priv = dev->priv;
@@ -1773,7 +1761,6 @@ static const struct ieee80211_ops adm8211_ops = {
 	.prepare_multicast	= adm8211_prepare_multicast,
 	.configure_filter	= adm8211_configure_filter,
 	.get_stats		= adm8211_get_stats,
-	.get_tx_stats		= adm8211_get_tx_stats,
 	.get_tsf		= adm8211_get_tsft
 };
 
