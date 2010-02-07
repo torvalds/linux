@@ -3035,11 +3035,20 @@ static void sky2_reset(struct sky2_hw *hw)
 	u32 hwe_mask = Y2_HWE_ALL_MASK;
 
 	/* disable ASF */
-	if (hw->chip_id == CHIP_ID_YUKON_EX) {
+	if (hw->chip_id == CHIP_ID_YUKON_EX
+	    || hw->chip_id == CHIP_ID_YUKON_SUPR) {
+		sky2_write32(hw, CPU_WDOG, 0);
 		status = sky2_read16(hw, HCU_CCSR);
 		status &= ~(HCU_CCSR_AHB_RST | HCU_CCSR_CPU_RST_MODE |
 			    HCU_CCSR_UC_STATE_MSK);
+		/*
+		 * CPU clock divider shouldn't be used because
+		 * - ASF firmware may malfunction
+		 * - Yukon-Supreme: Parallel FLASH doesn't support divided clocks
+		 */
+		status &= ~HCU_CCSR_CPU_CLK_DIVIDE_MSK;
 		sky2_write16(hw, HCU_CCSR, status);
+		sky2_write32(hw, CPU_WDOG, 0);
 	} else
 		sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
 	sky2_write16(hw, B0_CTST, Y2_ASF_DISABLE);
