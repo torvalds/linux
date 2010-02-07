@@ -201,11 +201,11 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 						  const bool is_not,
 						  const bool is_delete)
 {
-	struct tomoyo_domain_initializer_entry *new_entry;
+	struct tomoyo_domain_initializer_entry *entry = NULL;
 	struct tomoyo_domain_initializer_entry *ptr;
 	const struct tomoyo_path_info *saved_program;
 	const struct tomoyo_path_info *saved_domainname = NULL;
-	int error = -ENOMEM;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 	bool is_last_name = false;
 
 	if (!tomoyo_is_correct_path(program, 1, -1, -1, __func__))
@@ -218,12 +218,13 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 			return -EINVAL;
 		saved_domainname = tomoyo_save_name(domainname);
 		if (!saved_domainname)
-			return -ENOMEM;
+			goto out;
 	}
 	saved_program = tomoyo_save_name(program);
 	if (!saved_program)
-		return -ENOMEM;
-	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
+		goto out;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
 		if (ptr->is_not != is_not ||
@@ -232,24 +233,21 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
-		goto out;
+		break;
 	}
-	if (is_delete) {
-		error = -ENOENT;
-		goto out;
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->domainname = saved_domainname;
+		entry->program = saved_program;
+		entry->is_not = is_not;
+		entry->is_last_name = is_last_name;
+		list_add_tail_rcu(&entry->list,
+				  &tomoyo_domain_initializer_list);
+		entry = NULL;
+		error = 0;
 	}
-	if (!tomoyo_memory_ok(new_entry))
-		goto out;
-	new_entry->domainname = saved_domainname;
-	new_entry->program = saved_program;
-	new_entry->is_not = is_not;
-	new_entry->is_last_name = is_last_name;
-	list_add_tail_rcu(&new_entry->list, &tomoyo_domain_initializer_list);
-	new_entry = NULL;
-	error = 0;
- out:
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(new_entry);
+ out:
+	kfree(entry);
 	return error;
 }
 
@@ -419,11 +417,11 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 					     const bool is_not,
 					     const bool is_delete)
 {
-	struct tomoyo_domain_keeper_entry *new_entry;
+	struct tomoyo_domain_keeper_entry *entry = NULL;
 	struct tomoyo_domain_keeper_entry *ptr;
 	const struct tomoyo_path_info *saved_domainname;
 	const struct tomoyo_path_info *saved_program = NULL;
-	int error = -ENOMEM;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 	bool is_last_name = false;
 
 	if (!tomoyo_is_domain_def(domainname) &&
@@ -436,12 +434,13 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 			return -EINVAL;
 		saved_program = tomoyo_save_name(program);
 		if (!saved_program)
-			return -ENOMEM;
+			goto out;
 	}
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
-		return -ENOMEM;
-	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
+		goto out;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
 		if (ptr->is_not != is_not ||
@@ -450,24 +449,20 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
-		goto out;
+		break;
 	}
-	if (is_delete) {
-		error = -ENOENT;
-		goto out;
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->domainname = saved_domainname;
+		entry->program = saved_program;
+		entry->is_not = is_not;
+		entry->is_last_name = is_last_name;
+		list_add_tail_rcu(&entry->list, &tomoyo_domain_keeper_list);
+		entry = NULL;
+		error = 0;
 	}
-	if (!tomoyo_memory_ok(new_entry))
-		goto out;
-	new_entry->domainname = saved_domainname;
-	new_entry->program = saved_program;
-	new_entry->is_not = is_not;
-	new_entry->is_last_name = is_last_name;
-	list_add_tail_rcu(&new_entry->list, &tomoyo_domain_keeper_list);
-	new_entry = NULL;
-	error = 0;
- out:
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(new_entry);
+ out:
+	kfree(entry);
 	return error;
 }
 
@@ -619,11 +614,11 @@ static int tomoyo_update_alias_entry(const char *original_name,
 				     const char *aliased_name,
 				     const bool is_delete)
 {
-	struct tomoyo_alias_entry *new_entry;
+	struct tomoyo_alias_entry *entry = NULL;
 	struct tomoyo_alias_entry *ptr;
 	const struct tomoyo_path_info *saved_original_name;
 	const struct tomoyo_path_info *saved_aliased_name;
-	int error = -ENOMEM;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_correct_path(original_name, 1, -1, -1, __func__) ||
 	    !tomoyo_is_correct_path(aliased_name, 1, -1, -1, __func__))
@@ -631,8 +626,9 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	saved_original_name = tomoyo_save_name(original_name);
 	saved_aliased_name = tomoyo_save_name(aliased_name);
 	if (!saved_original_name || !saved_aliased_name)
-		return -ENOMEM;
-	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
+		goto out;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 		if (ptr->original_name != saved_original_name ||
@@ -640,22 +636,18 @@ static int tomoyo_update_alias_entry(const char *original_name,
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
-		goto out;
+		break;
 	}
-	if (is_delete) {
-		error = -ENOENT;
-		goto out;
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->original_name = saved_original_name;
+		entry->aliased_name = saved_aliased_name;
+		list_add_tail_rcu(&entry->list, &tomoyo_alias_list);
+		entry = NULL;
+		error = 0;
 	}
-	if (!tomoyo_memory_ok(new_entry))
-		goto out;
-	new_entry->original_name = saved_original_name;
-	new_entry->aliased_name = saved_aliased_name;
-	list_add_tail_rcu(&new_entry->list, &tomoyo_alias_list);
-	new_entry = NULL;
-	error = 0;
- out:
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(new_entry);
+ out:
+	kfree(entry);
 	return error;
 }
 
@@ -722,32 +714,37 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile)
 {
+	struct tomoyo_domain_info *entry;
 	struct tomoyo_domain_info *domain;
 	const struct tomoyo_path_info *saved_domainname;
+	bool found = false;
 
-	mutex_lock(&tomoyo_policy_lock);
-	domain = tomoyo_find_domain(domainname);
-	if (domain)
-		goto out;
 	if (!tomoyo_is_correct_domain(domainname, __func__))
-		goto out;
+		return NULL;
 	saved_domainname = tomoyo_save_name(domainname);
 	if (!saved_domainname)
-		goto out;
-	domain = kmalloc(sizeof(*domain), GFP_KERNEL);
-	if (tomoyo_memory_ok(domain)) {
-		INIT_LIST_HEAD(&domain->acl_info_list);
-		domain->domainname = saved_domainname;
-		domain->profile = profile;
-		list_add_tail_rcu(&domain->list, &tomoyo_domain_list);
-	} else {
-		kfree(domain);
-		domain = NULL;
+		return NULL;
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+	mutex_lock(&tomoyo_policy_lock);
+	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
+		if (domain->is_deleted ||
+		    tomoyo_pathcmp(saved_domainname, domain->domainname))
+			continue;
+		found = true;
+		break;
 	}
-
- out:
+	if (!found && tomoyo_memory_ok(entry)) {
+		INIT_LIST_HEAD(&entry->acl_info_list);
+		entry->domainname = saved_domainname;
+		entry->profile = profile;
+		list_add_tail_rcu(&entry->list, &tomoyo_domain_list);
+		domain = entry;
+		entry = NULL;
+		found = true;
+	}
 	mutex_unlock(&tomoyo_policy_lock);
-	return domain;
+	kfree(entry);
+	return found ? domain : NULL;
 }
 
 /**

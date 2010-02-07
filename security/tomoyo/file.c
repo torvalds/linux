@@ -215,38 +215,34 @@ static LIST_HEAD(tomoyo_globally_readable_list);
 static int tomoyo_update_globally_readable_entry(const char *filename,
 						 const bool is_delete)
 {
-	struct tomoyo_globally_readable_file_entry *new_entry;
+	struct tomoyo_globally_readable_file_entry *entry = NULL;
 	struct tomoyo_globally_readable_file_entry *ptr;
 	const struct tomoyo_path_info *saved_filename;
-	int error = -ENOMEM;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_correct_path(filename, 1, 0, -1, __func__))
 		return -EINVAL;
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
-	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
 		if (ptr->filename != saved_filename)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
-		goto out;
+		break;
 	}
-	if (is_delete) {
-		error = -ENOENT;
-		goto out;
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->filename = saved_filename;
+		list_add_tail_rcu(&entry->list, &tomoyo_globally_readable_list);
+		entry = NULL;
+		error = 0;
 	}
-	if (!tomoyo_memory_ok(new_entry))
-		goto out;
-	new_entry->filename = saved_filename;
-	list_add_tail_rcu(&new_entry->list, &tomoyo_globally_readable_list);
-	new_entry = NULL;
-	error = 0;
- out:
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(new_entry);
+	kfree(entry);
 	return error;
 }
 
@@ -364,38 +360,35 @@ static LIST_HEAD(tomoyo_pattern_list);
 static int tomoyo_update_file_pattern_entry(const char *pattern,
 					    const bool is_delete)
 {
-	struct tomoyo_pattern_entry *new_entry;
+	struct tomoyo_pattern_entry *entry = NULL;
 	struct tomoyo_pattern_entry *ptr;
 	const struct tomoyo_path_info *saved_pattern;
-	int error = -ENOMEM;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(pattern, 0, 1, 0, __func__))
-		return -EINVAL;
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
-		return -ENOMEM;
-	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
+		return error;
+	if (!saved_pattern->is_patterned)
+		goto out;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
 		if (saved_pattern != ptr->pattern)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
-		goto out;
+		break;
 	}
-	if (is_delete) {
-		error = -ENOENT;
-		goto out;
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->pattern = saved_pattern;
+		list_add_tail_rcu(&entry->list, &tomoyo_pattern_list);
+		entry = NULL;
+		error = 0;
 	}
-	if (!tomoyo_memory_ok(new_entry))
-		goto out;
-	new_entry->pattern = saved_pattern;
-	list_add_tail_rcu(&new_entry->list, &tomoyo_pattern_list);
-	new_entry = NULL;
-	error = 0;
- out:
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(new_entry);
+ out:
+	kfree(entry);
 	return error;
 }
 
@@ -518,37 +511,34 @@ static LIST_HEAD(tomoyo_no_rewrite_list);
 static int tomoyo_update_no_rewrite_entry(const char *pattern,
 					  const bool is_delete)
 {
-	struct tomoyo_no_rewrite_entry *new_entry, *ptr;
+	struct tomoyo_no_rewrite_entry *entry = NULL;
+	struct tomoyo_no_rewrite_entry *ptr;
 	const struct tomoyo_path_info *saved_pattern;
-	int error = -ENOMEM;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_correct_path(pattern, 0, 0, 0, __func__))
 		return -EINVAL;
 	saved_pattern = tomoyo_save_name(pattern);
 	if (!saved_pattern)
-		return -ENOMEM;
-	new_entry = kmalloc(sizeof(*new_entry), GFP_KERNEL);
+		return error;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
 		if (ptr->pattern != saved_pattern)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
-		goto out;
+		break;
 	}
-	if (is_delete) {
-		error = -ENOENT;
-		goto out;
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->pattern = saved_pattern;
+		list_add_tail_rcu(&entry->list, &tomoyo_no_rewrite_list);
+		entry = NULL;
+		error = 0;
 	}
-	if (!tomoyo_memory_ok(new_entry))
-		goto out;
-	new_entry->pattern = saved_pattern;
-	list_add_tail_rcu(&new_entry->list, &tomoyo_no_rewrite_list);
-	new_entry = NULL;
-	error = 0;
- out:
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(new_entry);
+	kfree(entry);
 	return error;
 }
 
@@ -869,8 +859,8 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 		(1 << TOMOYO_TYPE_READ_ACL) | (1 << TOMOYO_TYPE_WRITE_ACL);
 	const struct tomoyo_path_info *saved_filename;
 	struct tomoyo_acl_info *ptr;
-	struct tomoyo_single_path_acl_record *acl;
-	int error = -ENOMEM;
+	struct tomoyo_single_path_acl_record *entry = NULL;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 	const u32 perm = 1 << type;
 
 	if (!domain)
@@ -880,67 +870,55 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 	saved_filename = tomoyo_save_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
-	if (is_delete)
-		goto delete;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+		struct tomoyo_single_path_acl_record *acl =
+			container_of(ptr, struct tomoyo_single_path_acl_record,
+				     head);
 		if (ptr->type != TOMOYO_TYPE_SINGLE_PATH_ACL)
 			continue;
-		acl = container_of(ptr, struct tomoyo_single_path_acl_record,
-				   head);
 		if (acl->filename != saved_filename)
 			continue;
-		if (perm <= 0xFFFF)
-			acl->perm |= perm;
-		else
-			acl->perm_high |= (perm >> 16);
-		if ((acl->perm & rw_mask) == rw_mask)
-			acl->perm |= 1 << TOMOYO_TYPE_READ_WRITE_ACL;
-		else if (acl->perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL))
-			acl->perm |= rw_mask;
-		error = 0;
-		goto out;
-	}
-	/* Not found. Append it to the tail. */
-	acl = kmalloc(sizeof(*acl), GFP_KERNEL);
-	if (!tomoyo_memory_ok(acl)) {
-		kfree(acl);
-		acl = NULL;
-		goto out;
-	}
-	acl->head.type = TOMOYO_TYPE_SINGLE_PATH_ACL;
-	if (perm <= 0xFFFF)
-		acl->perm = perm;
-	else
-		acl->perm_high = (perm >> 16);
-	if (perm == (1 << TOMOYO_TYPE_READ_WRITE_ACL))
-		acl->perm |= rw_mask;
-	acl->filename = saved_filename;
-	list_add_tail_rcu(&acl->head.list, &domain->acl_info_list);
-	error = 0;
-	goto out;
- delete:
-	error = -ENOENT;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		if (ptr->type != TOMOYO_TYPE_SINGLE_PATH_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_single_path_acl_record,
-				   head);
-		if (acl->filename != saved_filename)
-			continue;
-		if (perm <= 0xFFFF)
-			acl->perm &= ~perm;
-		else
-			acl->perm_high &= ~(perm >> 16);
-		if ((acl->perm & rw_mask) != rw_mask)
-			acl->perm &= ~(1 << TOMOYO_TYPE_READ_WRITE_ACL);
-		else if (!(acl->perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL)))
-			acl->perm &= ~rw_mask;
+		if (is_delete) {
+			if (perm <= 0xFFFF)
+				acl->perm &= ~perm;
+			else
+				acl->perm_high &= ~(perm >> 16);
+			if ((acl->perm & rw_mask) != rw_mask)
+				acl->perm &= ~(1 << TOMOYO_TYPE_READ_WRITE_ACL);
+			else if (!(acl->perm &
+				   (1 << TOMOYO_TYPE_READ_WRITE_ACL)))
+				acl->perm &= ~rw_mask;
+		} else {
+			if (perm <= 0xFFFF)
+				acl->perm |= perm;
+			else
+				acl->perm_high |= (perm >> 16);
+			if ((acl->perm & rw_mask) == rw_mask)
+				acl->perm |= 1 << TOMOYO_TYPE_READ_WRITE_ACL;
+			else if (acl->perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL))
+				acl->perm |= rw_mask;
+		}
 		error = 0;
 		break;
 	}
- out:
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->head.type = TOMOYO_TYPE_SINGLE_PATH_ACL;
+		if (perm <= 0xFFFF)
+			entry->perm = perm;
+		else
+			entry->perm_high = (perm >> 16);
+		if (perm == (1 << TOMOYO_TYPE_READ_WRITE_ACL))
+			entry->perm |= rw_mask;
+		entry->filename = saved_filename;
+		list_add_tail_rcu(&entry->head.list, &domain->acl_info_list);
+		entry = NULL;
+		error = 0;
+	}
 	mutex_unlock(&tomoyo_policy_lock);
+	kfree(entry);
 	return error;
 }
 
@@ -965,8 +943,8 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	const struct tomoyo_path_info *saved_filename1;
 	const struct tomoyo_path_info *saved_filename2;
 	struct tomoyo_acl_info *ptr;
-	struct tomoyo_double_path_acl_record *acl;
-	int error = -ENOMEM;
+	struct tomoyo_double_path_acl_record *entry = NULL;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 	const u8 perm = 1 << type;
 
 	if (!domain)
@@ -977,52 +955,38 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	saved_filename1 = tomoyo_save_name(filename1);
 	saved_filename2 = tomoyo_save_name(filename2);
 	if (!saved_filename1 || !saved_filename2)
-		return -ENOMEM;
+		goto out;
+	if (!is_delete)
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
-	if (is_delete)
-		goto delete;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+		struct tomoyo_double_path_acl_record *acl =
+			container_of(ptr, struct tomoyo_double_path_acl_record,
+				     head);
 		if (ptr->type != TOMOYO_TYPE_DOUBLE_PATH_ACL)
 			continue;
-		acl = container_of(ptr, struct tomoyo_double_path_acl_record,
-				   head);
 		if (acl->filename1 != saved_filename1 ||
 		    acl->filename2 != saved_filename2)
 			continue;
-		acl->perm |= perm;
-		error = 0;
-		goto out;
-	}
-	/* Not found. Append it to the tail. */
-	acl = kmalloc(sizeof(*acl), GFP_KERNEL);
-	if (!tomoyo_memory_ok(acl)) {
-		kfree(acl);
-		acl = NULL;
-		goto out;
-	}
-	acl->head.type = TOMOYO_TYPE_DOUBLE_PATH_ACL;
-	acl->perm = perm;
-	acl->filename1 = saved_filename1;
-	acl->filename2 = saved_filename2;
-	list_add_tail_rcu(&acl->head.list, &domain->acl_info_list);
-	error = 0;
-	goto out;
- delete:
-	error = -ENOENT;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		if (ptr->type != TOMOYO_TYPE_DOUBLE_PATH_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_double_path_acl_record,
-				   head);
-		if (acl->filename1 != saved_filename1 ||
-		    acl->filename2 != saved_filename2)
-			continue;
-		acl->perm &= ~perm;
+		if (is_delete)
+			acl->perm &= ~perm;
+		else
+			acl->perm |= perm;
 		error = 0;
 		break;
 	}
- out:
+	if (!is_delete && error && tomoyo_memory_ok(entry)) {
+		entry->head.type = TOMOYO_TYPE_DOUBLE_PATH_ACL;
+		entry->perm = perm;
+		entry->filename1 = saved_filename1;
+		entry->filename2 = saved_filename2;
+		list_add_tail_rcu(&entry->head.list, &domain->acl_info_list);
+		entry = NULL;
+		error = 0;
+	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
+	kfree(entry);
 	return error;
 }
 
