@@ -686,6 +686,23 @@ void __init mem_init(void)
 #undef MLM
 #undef MLK_ROUNDUP
 
+	/*
+	 * Check boundaries twice: Some fundamental inconsistencies can
+	 * be detected at build time already.
+	 */
+#ifdef CONFIG_MMU
+	BUILD_BUG_ON(VMALLOC_END			> CONSISTENT_BASE);
+	BUG_ON(VMALLOC_END				> CONSISTENT_BASE);
+
+	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
+	BUG_ON(TASK_SIZE 				> MODULES_VADDR);
+#endif
+
+#ifdef CONFIG_HIGHMEM
+	BUILD_BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE > PAGE_OFFSET);
+	BUG_ON(PKMAP_BASE + LAST_PKMAP * PAGE_SIZE	> PAGE_OFFSET);
+#endif
+
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
 		extern int sysctl_overcommit_memory;
 		/*
