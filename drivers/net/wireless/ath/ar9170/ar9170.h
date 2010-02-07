@@ -144,6 +144,12 @@ struct ar9170_sta_tid {
 	bool active;
 };
 
+struct ar9170_tx_queue_stats {
+	unsigned int len;
+	unsigned int limit;
+	unsigned int count;
+};
+
 #define AR9170_QUEUE_TIMEOUT		64
 #define AR9170_TX_TIMEOUT		8
 #define AR9170_BA_TIMEOUT		4
@@ -211,7 +217,7 @@ struct ar9170 {
 
 	/* qos queue settings */
 	spinlock_t tx_stats_lock;
-	struct ieee80211_tx_queue_stats tx_stats[5];
+	struct ar9170_tx_queue_stats tx_stats[5];
 	struct ieee80211_tx_queue_params edcf[5];
 
 	spinlock_t cmdlock;

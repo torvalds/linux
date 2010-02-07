@@ -2396,18 +2396,6 @@ static int ar9170_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int ar9170_get_tx_stats(struct ieee80211_hw *hw,
-			       struct ieee80211_tx_queue_stats *tx_stats)
-{
-	struct ar9170 *ar = hw->priv;
-
-	spin_lock_bh(&ar->tx_stats_lock);
-	memcpy(tx_stats, ar->tx_stats, sizeof(tx_stats[0]) * hw->queues);
-	spin_unlock_bh(&ar->tx_stats_lock);
-
-	return 0;
-}
-
 static int ar9170_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			  const struct ieee80211_tx_queue_params *param)
 {
@@ -2509,7 +2497,6 @@ static const struct ieee80211_ops ar9170_ops = {
 	.set_key		= ar9170_set_key,
 	.sta_notify		= ar9170_sta_notify,
 	.get_stats		= ar9170_get_stats,
-	.get_tx_stats		= ar9170_get_tx_stats,
 	.ampdu_action		= ar9170_ampdu_action,
 };
 
