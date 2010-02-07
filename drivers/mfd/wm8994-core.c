@@ -305,14 +305,14 @@ static int wm8994_device_init(struct wm8994 *wm8994, unsigned long id, int irq)
 				 wm8994->supplies);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to get supplies: %d\n", ret);
-		goto err_get;
+		goto err_supplies;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8994_main_supplies),
 				    wm8994->supplies);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_supplies;
+		goto err_get;
 	}
 
 	ret = wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET);
