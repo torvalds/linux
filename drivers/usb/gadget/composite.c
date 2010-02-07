@@ -71,6 +71,33 @@ MODULE_PARM_DESC(iSerialNumber, "SerialNumber string");
 
 /*-------------------------------------------------------------------------*/
 
+static ssize_t enable_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct usb_function *f = dev_get_drvdata(dev);
+	return sprintf(buf, "%d\n", !f->hidden);
+}
+
+static ssize_t enable_store(
+		struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	struct usb_function *f = dev_get_drvdata(dev);
+	struct usb_composite_driver	*driver = f->config->cdev->driver;
+	int value;
+
+	sscanf(buf, "%d", &value);
+	if (driver->enable_function)
+		driver->enable_function(f, value);
+	else
+		f->hidden = !value;
+
+	return size;
+}
+
+static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, enable_show, enable_store);
+
+
 /**
  * usb_add_function() - add a function to a configuration
  * @config: the configuration
@@ -88,14 +115,29 @@ MODULE_PARM_DESC(iSerialNumber, "SerialNumber string");
 int usb_add_function(struct usb_configuration *config,
 		struct usb_function *function)
 {
+	struct usb_composite_dev	*cdev = config->cdev;
 	int	value = -EINVAL;
+	int index;
 
-	DBG(config->cdev, "adding '%s'/%p to config '%s'/%p\n",
+	DBG(cdev, "adding '%s'/%p to config '%s'/%p\n",
 			function->name, function,
 			config->label, config);
 
 	if (!function->set_alt || !function->disable)
 		goto done;
+
+	index = atomic_inc_return(&cdev->driver->function_count);
+	function->dev = device_create(cdev->driver->class, NULL,
+		MKDEV(0, index), NULL, function->name);
+	if (IS_ERR(function->dev))
+		return PTR_ERR(function->dev);
+
+	value = device_create_file(function->dev, &dev_attr_enable);
+	if (value < 0) {
+		device_destroy(cdev->driver->class, MKDEV(0, index));
+		return value;
+	}
+	dev_set_drvdata(function->dev, function);
 
 	function->config = config;
 	list_add_tail(&function->list, &config->functions);
@@ -122,7 +164,7 @@ int usb_add_function(struct usb_configuration *config,
 
 done:
 	if (value)
-		DBG(config->cdev, "adding '%s'/%p --> %d\n",
+		DBG(cdev, "adding '%s'/%p --> %d\n",
 				function->name, function, value);
 	return value;
 }
@@ -1247,6 +1289,10 @@ int usb_composite_register(struct usb_composite_driver *driver)
 	composite_driver.function =  (char *) driver->name;
 	composite_driver.driver.name = driver->name;
 	composite = driver;
+
+	driver->class = class_create(THIS_MODULE, "usb_composite");
+	if (IS_ERR(driver->class))
+		return PTR_ERR(driver->class);
 
 	return usb_gadget_register_driver(&composite_driver);
 }

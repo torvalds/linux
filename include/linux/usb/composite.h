@@ -129,6 +129,7 @@ struct usb_function {
 	/* internals */
 	struct list_head		list;
 	DECLARE_BITMAP(endpoints, 32);
+	struct device			*dev;
 };
 
 int usb_add_function(struct usb_configuration *, struct usb_function *);
@@ -270,6 +271,9 @@ struct usb_composite_driver {
 	const struct usb_device_descriptor	*dev;
 	struct usb_gadget_strings		**strings;
 
+	struct class		*class;
+	atomic_t		function_count;
+
 	/* REVISIT:  bind() functions can be marked __init, which
 	 * makes trouble for section mismatch analysis.  See if
 	 * we can't restructure things to avoid mismatching...
@@ -283,6 +287,8 @@ struct usb_composite_driver {
 	/* global suspend hooks */
 	void			(*suspend)(struct usb_composite_dev *);
 	void			(*resume)(struct usb_composite_dev *);
+
+	void			(*enable_function)(struct usb_function *f, int enable);
 };
 
 extern int usb_composite_register(struct usb_composite_driver *);
