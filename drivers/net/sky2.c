@@ -4859,10 +4859,11 @@ static int sky2_resume(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* Re-enable all clocks */
-	if (hw->chip_id == CHIP_ID_YUKON_EX ||
-	    hw->chip_id == CHIP_ID_YUKON_EC_U ||
-	    hw->chip_id == CHIP_ID_YUKON_FE_P)
-		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
+	err = pci_write_config_dword(pdev, PCI_DEV_REG3, 0);
+	if (err) {
+		dev_err(&pdev->dev, "PCI write config failed\n");
+		goto out;
+	}
 
 	sky2_reset(hw);
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
