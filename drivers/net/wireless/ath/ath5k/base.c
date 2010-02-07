@@ -241,8 +241,6 @@ static int ath5k_set_key(struct ieee80211_hw *hw,
 		struct ieee80211_key_conf *key);
 static int ath5k_get_stats(struct ieee80211_hw *hw,
 		struct ieee80211_low_level_stats *stats);
-static int ath5k_get_tx_stats(struct ieee80211_hw *hw,
-		struct ieee80211_tx_queue_stats *stats);
 static u64 ath5k_get_tsf(struct ieee80211_hw *hw);
 static void ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf);
 static void ath5k_reset_tsf(struct ieee80211_hw *hw);
@@ -269,7 +267,6 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
 	.conf_tx 	= NULL,
-	.get_tx_stats 	= ath5k_get_tx_stats,
 	.get_tsf 	= ath5k_get_tsf,
 	.set_tsf 	= ath5k_set_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
@@ -1332,7 +1329,6 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 
 	spin_lock_bh(&txq->lock);
 	list_add_tail(&bf->list, &txq->q);
-	sc->tx_stats[txq->qnum].len++;
 	if (txq->link == NULL) /* is this first packet? */
 		ath5k_hw_set_txdp(ah, txq->qnum, bf->daddr);
 	else /* no, so only link it */
@@ -1581,7 +1577,6 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		ath5k_txbuf_free(sc, bf);
 
 		spin_lock_bh(&sc->txbuflock);
-		sc->tx_stats[txq->qnum].len--;
 		list_move_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock_bh(&sc->txbuflock);
@@ -2011,10 +2006,8 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		}
 
 		ieee80211_tx_status(sc->hw, skb);
-		sc->tx_stats[txq->qnum].count++;
 
 		spin_lock(&sc->txbuflock);
-		sc->tx_stats[txq->qnum].len--;
 		list_move_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock(&sc->txbuflock);
@@ -3112,17 +3105,6 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 	ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 
 	memcpy(stats, &sc->ll_stats, sizeof(sc->ll_stats));
-
-	return 0;
-}
-
-static int
-ath5k_get_tx_stats(struct ieee80211_hw *hw,
-		struct ieee80211_tx_queue_stats *stats)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	memcpy(stats, &sc->tx_stats, sizeof(sc->tx_stats));
 
 	return 0;
 }
