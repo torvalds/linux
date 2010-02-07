@@ -3278,12 +3278,9 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 	}
 	spin_unlock_irqrestore(&vector_lock, flags);
 
-	if (irq > 0) {
-		dynamic_irq_init(irq);
-		/* restore it, in case dynamic_irq_init clear it */
-		if (desc_new)
-			desc_new->chip_data = cfg_new;
-	}
+	if (irq > 0)
+		dynamic_irq_init_keep_chip_data(irq);
+
 	return irq;
 }
 
@@ -3305,19 +3302,12 @@ int create_irq(void)
 void destroy_irq(unsigned int irq)
 {
 	unsigned long flags;
-	struct irq_cfg *cfg;
-	struct irq_desc *desc;
 
-	/* store it, in case dynamic_irq_cleanup clear it */
-	desc = irq_to_desc(irq);
-	cfg = desc->chip_data;
-	dynamic_irq_cleanup(irq);
-	/* connect back irq_cfg */
-	desc->chip_data = cfg;
+	dynamic_irq_cleanup_keep_chip_data(irq);
 
 	free_irte(irq);
 	spin_lock_irqsave(&vector_lock, flags);
-	__clear_irq_vector(irq, cfg);
+	__clear_irq_vector(irq, get_irq_chip_data(irq));
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
