@@ -216,7 +216,7 @@ static void parse_source(struct sym_entry *syme)
 	while (!feof(file)) {
 		struct source_line *src;
 		size_t dummy = 0;
-		char *c;
+		char *c, *sep;
 
 		src = malloc(sizeof(struct source_line));
 		assert(src != NULL);
@@ -235,14 +235,11 @@ static void parse_source(struct sym_entry *syme)
 		*source->lines_tail = src;
 		source->lines_tail = &src->next;
 
-		if (strlen(src->line)>8 && src->line[8] == ':') {
-			src->eip = strtoull(src->line, NULL, 16);
-			src->eip = map->unmap_ip(map, src->eip);
-		}
-		if (strlen(src->line)>8 && src->line[16] == ':') {
-			src->eip = strtoull(src->line, NULL, 16);
-			src->eip = map->unmap_ip(map, src->eip);
-		}
+		src->eip = strtoull(src->line, &sep, 16);
+		if (*sep == ':')
+			src->eip = map__objdump_2ip(map, src->eip);
+		else /* this line has no ip info (e.g. source line) */
+			src->eip = 0;
 	}
 	pclose(file);
 out_assign:
@@ -277,6 +274,9 @@ static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 		goto out_unlock;
 
 	for (line = syme->src->lines; line; line = line->next) {
+		/* skip lines without IP info */
+		if (line->eip == 0)
+			continue;
 		if (line->eip == ip) {
 			line->count[counter]++;
 			break;
