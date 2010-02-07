@@ -104,11 +104,11 @@
 #endif
 
 #ifndef PHYS_OFFSET
-#define PHYS_OFFSET 		(CONFIG_DRAM_BASE)
+#define PHYS_OFFSET 		UL(CONFIG_DRAM_BASE)
 #endif
 
 #ifndef END_MEM
-#define END_MEM     		(CONFIG_DRAM_BASE + CONFIG_DRAM_SIZE)
+#define END_MEM     		(UL(CONFIG_DRAM_BASE) + CONFIG_DRAM_SIZE)
 #endif
 
 #ifndef PAGE_OFFSET

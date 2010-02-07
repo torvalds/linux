@@ -670,7 +670,7 @@ void __init mem_init(void)
 #ifdef CONFIG_MMU
 			MLM(CONSISTENT_BASE, CONSISTENT_END),
 #endif
-			MLM(VMALLOC_START, (unsigned long)VMALLOC_END),
+			MLM(VMALLOC_START, VMALLOC_END),
 			MLM(PAGE_OFFSET, (unsigned long)high_memory),
 #ifdef CONFIG_HIGHMEM
 			MLM(PKMAP_BASE, (PKMAP_BASE) + (LAST_PKMAP) *
