@@ -30,7 +30,7 @@ enum {
 };
 
 extern struct list_head capi_drivers;
-extern rwlock_t capi_drivers_list_lock;
+extern struct mutex capi_drivers_lock;
 
 extern struct capi20_appl *capi_applications[CAPI_MAXAPPL];
 extern struct capi_ctr *capi_controller[CAPI_MAXCONTR];

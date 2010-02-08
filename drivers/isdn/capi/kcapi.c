@@ -61,7 +61,7 @@ static char capi_manufakturer[64] = "AVM Berlin";
 #define NCCI2CTRL(ncci)    (((ncci) >> 24) & 0x7f)
 
 LIST_HEAD(capi_drivers);
-DEFINE_RWLOCK(capi_drivers_list_lock);
+DEFINE_MUTEX(capi_drivers_lock);
 
 static DEFINE_RWLOCK(application_lock);
 static DEFINE_MUTEX(controller_mutex);
@@ -540,11 +540,9 @@ EXPORT_SYMBOL(detach_capi_ctr);
 
 void register_capi_driver(struct capi_driver *driver)
 {
-	unsigned long flags;
-
-	write_lock_irqsave(&capi_drivers_list_lock, flags);
+	mutex_lock(&capi_drivers_lock);
 	list_add_tail(&driver->list, &capi_drivers);
-	write_unlock_irqrestore(&capi_drivers_list_lock, flags);
+	mutex_unlock(&capi_drivers_lock);
 }
 
 EXPORT_SYMBOL(register_capi_driver);
@@ -558,11 +556,9 @@ EXPORT_SYMBOL(register_capi_driver);
 
 void unregister_capi_driver(struct capi_driver *driver)
 {
-	unsigned long flags;
-
-	write_lock_irqsave(&capi_drivers_list_lock, flags);
+	mutex_lock(&capi_drivers_lock);
 	list_del(&driver->list);
-	write_unlock_irqrestore(&capi_drivers_list_lock, flags);
+	mutex_unlock(&capi_drivers_lock);
 }
 
 EXPORT_SYMBOL(unregister_capi_driver);
@@ -899,7 +895,6 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 	struct capi_driver *driver = NULL;
 	capiloaddata ldata;
 	struct list_head *l;
-	unsigned long flags;
 	int retval;
 
 	switch (cmd) {
@@ -919,7 +914,8 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		cparams.irq = cdef.irq;
 		cparams.cardnr = cdef.cardnr;
 
-		read_lock_irqsave(&capi_drivers_list_lock, flags);
+		mutex_lock(&capi_drivers_lock);
+
                 switch (cdef.cardtype) {
 			case AVM_CARDTYPE_B1:
 				list_for_each(l, &capi_drivers) {
@@ -940,18 +936,15 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 				break;
 		}
 		if (!driver) {
-			read_unlock_irqrestore(&capi_drivers_list_lock, flags);
 			printk(KERN_ERR "kcapi: driver not loaded.\n");
-			return -EIO;
-		}
-		if (!driver->add_card) {
-			read_unlock_irqrestore(&capi_drivers_list_lock, flags);
+			retval = -EIO;
+		} else if (!driver->add_card) {
 			printk(KERN_ERR "kcapi: driver has no add card function.\n");
-			return -EIO;
-		}
+			retval = -EIO;
+		} else
+			retval = driver->add_card(driver, &cparams);
 
-		retval = driver->add_card(driver, &cparams);
-		read_unlock_irqrestore(&capi_drivers_list_lock, flags);
+		mutex_unlock(&capi_drivers_lock);
 		return retval;
 
 	case AVMB1_LOAD:
@@ -1107,6 +1100,8 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 		cparams.cardtype = 0;
 		cdef.driver[sizeof(cdef.driver)-1] = 0;
 
+		mutex_lock(&capi_drivers_lock);
+
 		list_for_each(l, &capi_drivers) {
 			driver = list_entry(l, struct capi_driver, list);
 			if (strcmp(driver->name, cdef.driver) == 0)
@@ -1115,15 +1110,15 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 		if (driver == NULL) {
 			printk(KERN_ERR "kcapi: driver \"%s\" not loaded.\n",
 					cdef.driver);
-			return -ESRCH;
-		}
-
-		if (!driver->add_card) {
+			retval = -ESRCH;
+		} else if (!driver->add_card) {
 			printk(KERN_ERR "kcapi: driver \"%s\" has no add card function.\n", cdef.driver);
-			return -EIO;
-		}
+			retval = -EIO;
+		} else
+			retval = driver->add_card(driver, &cparams);
 
-		return driver->add_card(driver, &cparams);
+		mutex_unlock(&capi_drivers_lock);
+		return retval;
 	}
 
 	default:

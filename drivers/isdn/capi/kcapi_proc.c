@@ -238,9 +238,9 @@ static const struct file_operations proc_applstats_ops = {
 // ---------------------------------------------------------------------------
 
 static void *capi_driver_start(struct seq_file *seq, loff_t *pos)
-	__acquires(&capi_drivers_list_lock)
+	__acquires(&capi_drivers_lock)
 {
-	read_lock(&capi_drivers_list_lock);
+	mutex_lock(&capi_drivers_lock);
 	return seq_list_start(&capi_drivers, *pos);
 }
 
@@ -250,9 +250,9 @@ static void *capi_driver_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void capi_driver_stop(struct seq_file *seq, void *v)
-	__releases(&capi_drivers_list_lock)
+	__releases(&capi_drivers_lock)
 {
-	read_unlock(&capi_drivers_list_lock);
+	mutex_unlock(&capi_drivers_lock);
 }
 
 static int capi_driver_show(struct seq_file *seq, void *v)
