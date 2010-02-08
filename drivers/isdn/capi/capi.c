@@ -1104,7 +1104,6 @@ static int capinc_tty_write(struct tty_struct *tty,
 	skb_queue_tail(&mp->outqueue, skb);
 	mp->outbytes += skb->len;
 	(void)handle_minor_send(mp);
-	(void)handle_minor_recv(mp);
 	spin_unlock_irqrestore(&workaround_lock, flags);
 	return count;
 }
