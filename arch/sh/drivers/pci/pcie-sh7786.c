@@ -1,7 +1,7 @@
 /*
  * Low-Level PCI Express Support for the SH7786
  *
- *  Copyright (C) 2009  Paul Mundt
+ *  Copyright (C) 2009 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -30,60 +30,84 @@ static struct sh7786_pcie_hwops {
 	int (*port_init_hw)(struct sh7786_pcie_port *port);
 } *sh7786_pcie_hwops;
 
-static struct resource sh7786_pci_32bit_mem_resources[] = {
+static struct resource sh7786_pci0_resources[] = {
 	{
-		.name	= "pci0_mem",
-		.start	= SH4A_PCIMEM_BASEA,
-		.end	= SH4A_PCIMEM_BASEA + SZ_64M - 1,
+		.name	= "PCIe0 IO",
+		.start	= 0xfd000000,
+		.end	= 0xfd000000 + SZ_8M - 1,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= "PCIe0 MEM 0",
+		.start	= 0xc0000000,
+		.end	= 0xc0000000 + SZ_512M - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
+	}, {
+		.name	= "PCIe0 MEM 1",
+		.start	= 0x10000000,
+		.end	= 0x10000000 + SZ_64M - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "pci1_mem",
-		.start	= SH4A_PCIMEM_BASEA1,
-		.end	= SH4A_PCIMEM_BASEA1 + SZ_64M - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.name	= "pci2_mem",
-		.start	= SH4A_PCIMEM_BASEA2,
-		.end	= SH4A_PCIMEM_BASEA2 + SZ_64M - 1,
-		.flags	= IORESOURCE_MEM,
+		.name	= "PCIe0 MEM 2",
+		.start	= 0xfe100000,
+		.end	= 0xfe100000 + SZ_1M - 1,
 	},
 };
 
-static struct resource sh7786_pci_29bit_mem_resource = {
-	.start	= SH4A_PCIMEM_BASE,
-	.end	= SH4A_PCIMEM_BASE + SZ_64M - 1,
-	.flags	= IORESOURCE_MEM,
+static struct resource sh7786_pci1_resources[] = {
+	{
+		.name	= "PCIe1 IO",
+		.start	= 0xfd800000,
+		.end	= 0xfd800000 + SZ_8M - 1,
+		.flags	= IORESOURCE_IO,
+	}, {
+		.name	= "PCIe1 MEM 0",
+		.start	= 0xa0000000,
+		.end	= 0xa0000000 + SZ_512M - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
+	}, {
+		.name	= "PCIe1 MEM 1",
+		.start	= 0x30000000,
+		.end	= 0x30000000 + SZ_256M - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
+	}, {
+		.name	= "PCIe1 MEM 2",
+		.start	= 0xfe300000,
+		.end	= 0xfe300000 + SZ_1M - 1,
+	},
 };
 
-static struct resource sh7786_pci_io_resources[] = {
+static struct resource sh7786_pci2_resources[] = {
 	{
-		.name	= "pci0_io",
-		.start	= SH4A_PCIIO_BASE,
-		.end	= SH4A_PCIIO_BASE + SZ_8M - 1,
-		.flags	= IORESOURCE_IO,
+		.name	= "PCIe2 IO",
+		.start	= 0xfc800000,
+		.end	= 0xfc800000 + SZ_4M - 1,
 	}, {
-		.name	= "pci1_io",
-		.start	= SH4A_PCIIO_BASE1,
-		.end	= SH4A_PCIIO_BASE1 + SZ_8M - 1,
-		.flags	= IORESOURCE_IO,
+		.name	= "PCIe2 MEM 0",
+		.start	= 0x80000000,
+		.end	= 0x80000000 + SZ_512M - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "pci2_io",
-		.start	= SH4A_PCIIO_BASE2,
-		.end	= SH4A_PCIIO_BASE2 + SZ_4M - 1,
-		.flags	= IORESOURCE_IO,
+		.name	= "PCIe2 MEM 1",
+		.start	= 0x20000000,
+		.end	= 0x20000000 + SZ_256M - 1,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
+	}, {
+		.name	= "PCIe2 MEM 2",
+		.start	= 0xfcd00000,
+		.end	= 0xfcd00000 + SZ_1M - 1,
 	},
 };
 
 extern struct pci_ops sh7786_pci_ops;
 
-#define DEFINE_CONTROLLER(start, idx)				\
-{								\
-	.pci_ops	= &sh7786_pci_ops,			\
-	.reg_base	= start,				\
-	/* mem_resource filled in at probe time */		\
-	.mem_offset	= 0,					\
-	.io_resource	= &sh7786_pci_io_resources[idx],	\
-	.io_offset	= 0,					\
+#define DEFINE_CONTROLLER(start, idx)					\
+{									\
+	.pci_ops	= &sh7786_pci_ops,				\
+	.resources	= sh7786_pci##idx##_resources,			\
+	.nr_resources	= ARRAY_SIZE(sh7786_pci##idx##_resources),	\
+	.reg_base	= start,					\
+	.mem_offset	= 0,						\
+	.io_offset	= 0,						\
 }
 
 static struct pci_channel sh7786_pci_channels[] = {
@@ -330,17 +354,7 @@ static int __init sh7786_pcie_init(void)
 
 		port->index		= i;
 		port->hose		= sh7786_pci_channels + i;
-		port->hose->io_map_base	= port->hose->io_resource->start;
-
-		/*
-		 * Check if we are booting in 29 or 32-bit mode
-		 *
-		 * 32-bit mode provides each controller with its own
-		 * memory window, while 29-bit mode uses a shared one.
-		 */
-		port->hose->mem_resource = test_mode_pin(MODE_PIN10) ?
-			&sh7786_pci_32bit_mem_resources[i] :
-			&sh7786_pci_29bit_mem_resource;
+		port->hose->io_map_base	= port->hose->resources[0].start;
 
 		ret |= sh7786_pcie_hwops->port_init_hw(port);
 	}

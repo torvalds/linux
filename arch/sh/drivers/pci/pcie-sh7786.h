@@ -30,46 +30,8 @@
  * for other(Max Payload Size=4096B,PCIIO_SIZE=8M)
  */
 
-/* PCI0-0: PCI I/O space */
-#define SH4A_PCIIO_BASE		0xFD000000	/* PCI I/O for controller 0 */
-#define SH4A_PCIIO_BASE1	0xFD800000	/* PCI I/O for controller 1 (Rev1.14)*/
-#define SH4A_PCIIO_BASE2	0xFC800000	/* PCI I/O for controller 2 (Rev1.171)*/
-
-#define SH4A_PCIIO_SIZE64	0x00010000	/* PLX allows only 64K */
-#define SH4A_PCIIO_SIZE		0x00800000	/* 8M */
-#define SH4A_PCIIO_SIZE2	0x00400000	/* 4M (Rev1.171)*/
-
-/* PCI0-1: PCI memory space 29-bit address */
-#define SH4A_PCIMEM_BASE	0x10000000
-#define SH4A_PCIMEM_SIZE	0x04000000	/* 64M */
-
-/* PCI0-2: PCI memory space 32-bit address */
-#define SH4A_PCIMEM_BASEA	0xC0000000	/*  for controller 0 */
-#define SH4A_PCIMEM_BASEA1	0xA0000000	/*  for controller 1 (Rev1.14)*/
-#define SH4A_PCIMEM_BASEA2	0x80000000	/*  for controller 2 (Rev1.171)*/
-#define SH4A_PCIMEM_SIZEA	0x20000000	/* 512M */
-
 /* PCI0: PCI memory target transfer 32-bit address translation value(Rev1.11T)*/
 #define SH4A_PCIBMSTR_TRANSLATION	0x20000000
-
-#define SH4A_PCI_DEVICE_ID		0x0002
-#define SH4A_PCI_VENDOR_ID		0x1912
-
-// PCI compatible 000-03f
-#define PCI_CMD		0x004
-#define PCI_RID		0x008
-#define PCI_IBAR	0x010
-#define PCI_MBAR0	0x014
-#define PCI_MBAR1	0x018
-
-/* PCI power management/MSI/capablity 040-0ff */
-/* PCIE extended 100-fff */
-
-/* SH7786 device identification */	// Rev1.171
-#define SH4A_PVR		(0xFF000030)
-#define SH4A_PVR_SHX3		(0x10400000)
-#define SH4A_PRR		(0xFF000044)
-#define SH4A_PRR_SH7786		(0x00000400)	// Rev1.171
 
 /*	SPVCR0		*/
 #define	SH4A_PCIEVCR0		(0x000000)	/* R - 0x0000 0000 32 */
