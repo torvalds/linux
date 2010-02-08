@@ -247,7 +247,8 @@ struct iser_rx_desc {
 struct iser_device {
 	struct ib_device             *ib_device;
 	struct ib_pd	             *pd;
-	struct ib_cq	             *cq;
+	struct ib_cq	             *rx_cq;
+	struct ib_cq	             *tx_cq;
 	struct ib_mr	             *mr;
 	struct tasklet_struct	     cq_tasklet;
 	struct list_head             ig_list; /* entry in ig devices list */
