@@ -1343,7 +1343,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 				radeon_connector->dac_load_detect = false;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
-						      1);
+						      radeon_connector->dac_load_detect);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
 						      radeon_combios_get_tv_info(rdev));

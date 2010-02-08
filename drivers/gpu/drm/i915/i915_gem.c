@@ -3564,6 +3564,9 @@ i915_gem_put_relocs_to_user(struct drm_i915_gem_exec_object2 *exec_list,
 	uint32_t reloc_count = 0, i;
 	int ret = 0;
 
+	if (relocs == NULL)
+	    return 0;
+
 	for (i = 0; i < buffer_count; i++) {
 		struct drm_i915_gem_relocation_entry __user *user_relocs;
 		int unwritten;
@@ -3653,7 +3656,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_gem_object *batch_obj;
 	struct drm_i915_gem_object *obj_priv;
 	struct drm_clip_rect *cliprects = NULL;
-	struct drm_i915_gem_relocation_entry *relocs;
+	struct drm_i915_gem_relocation_entry *relocs = NULL;
 	int ret = 0, ret2, i, pinned = 0;
 	uint64_t exec_offset;
 	uint32_t seqno, flush_domains, reloc_index;
@@ -3722,6 +3725,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (object_list[i] == NULL) {
 			DRM_ERROR("Invalid object handle %d at index %d\n",
 				   exec_list[i].handle, i);
+			/* prevent error path from reading uninitialized data */
+			args->buffer_count = i + 1;
 			ret = -EBADF;
 			goto err;
 		}
@@ -3730,6 +3735,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (obj_priv->in_execbuffer) {
 			DRM_ERROR("Object %p appears more than once in object list\n",
 				   object_list[i]);
+			/* prevent error path from reading uninitialized data */
+			args->buffer_count = i + 1;
 			ret = -EBADF;
 			goto err;
 		}
@@ -3926,6 +3933,7 @@ err:
 
 	mutex_unlock(&dev->struct_mutex);
 
+pre_mutex_err:
 	/* Copy the updated relocations out regardless of current error
 	 * state.  Failure to update the relocs would mean that the next
 	 * time userland calls execbuf, it would do so with presumed offset
@@ -3940,7 +3948,6 @@ err:
 			ret = ret2;
 	}
 
-pre_mutex_err:
 	drm_free_large(object_list);
 	kfree(cliprects);
 

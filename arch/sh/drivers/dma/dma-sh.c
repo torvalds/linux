@@ -52,11 +52,14 @@ static inline unsigned int get_dmte_irq(unsigned int chan)
  *
  * iterations to complete the transfer.
  */
+static unsigned int ts_shift[] = TS_SHIFT;
 static inline unsigned int calc_xmit_shift(struct dma_channel *chan)
 {
 	u32 chcr = __raw_readl(dma_base_addr[chan->chan] + CHCR);
+	int cnt = ((chcr & CHCR_TS_LOW_MASK) >> CHCR_TS_LOW_SHIFT) |
+		((chcr & CHCR_TS_HIGH_MASK) >> CHCR_TS_HIGH_SHIFT);
 
-	return ts_shift[(chcr & CHCR_TS_MASK)>>CHCR_TS_SHIFT];
+	return ts_shift[cnt];
 }
 
 /*

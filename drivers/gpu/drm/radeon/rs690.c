@@ -676,7 +676,6 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
-	rs690_suspend(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -756,7 +755,6 @@ int rs690_init(struct radeon_device *rdev)
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		rs690_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);
