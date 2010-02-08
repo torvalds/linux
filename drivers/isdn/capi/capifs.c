@@ -152,22 +152,33 @@ static struct dentry *get_node(int num)
 void capifs_new_ncci(unsigned int number, dev_t device)
 {
 	struct dentry *dentry;
-	struct inode *inode = new_inode(capifs_mnt->mnt_sb);
-	if (!inode)
-		return;
-	inode->i_ino = number+2;
+	struct inode *inode;
 
 	dentry = get_node(number);
+	if (IS_ERR(dentry))
+		goto unlock_out;
+
+	if (dentry->d_inode) {
+		dput(dentry);
+		goto unlock_out;
+	}
+
+	inode = new_inode(capifs_mnt->mnt_sb);
+	if (!inode) {
+		dput(dentry);
+		goto unlock_out;
+	}
 
 	/* config contents is protected by root's i_mutex */
 	inode->i_uid = config.setuid ? config.uid : current_fsuid();
 	inode->i_gid = config.setgid ? config.gid : current_fsgid();
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_ino = number + 2;
 	init_special_inode(inode, S_IFCHR|config.mode, device);
-	//inode->i_op = &capifs_file_inode_operations;
 
-	if (!IS_ERR(dentry) && !dentry->d_inode)
-		d_instantiate(dentry, inode);
+	d_instantiate(dentry, inode);
+
+unlock_out:
 	mutex_unlock(&capifs_root->d_inode->i_mutex);
 }
 
