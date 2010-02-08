@@ -70,7 +70,7 @@ struct hci_dev {
 	char		name[8];
 	unsigned long	flags;
 	__u16		id;
-	__u8		type;
+	__u8		bus;
 	bdaddr_t	bdaddr;
 	__u8		dev_name[248];
 	__u8		dev_class[3];

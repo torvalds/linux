@@ -797,7 +797,7 @@ int hci_get_dev_info(void __user *arg)
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
-	di.type     = hdev->type;
+	di.type     = hdev->bus;
 	di.flags    = hdev->flags;
 	di.pkt_type = hdev->pkt_type;
 	di.acl_mtu  = hdev->acl_mtu;
@@ -869,8 +869,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	struct list_head *head = &hci_dev_list, *p;
 	int i, id = 0;
 
-	BT_DBG("%p name %s type %d owner %p", hdev, hdev->name,
-						hdev->type, hdev->owner);
+	BT_DBG("%p name %s bus %d owner %p", hdev, hdev->name,
+						hdev->bus, hdev->owner);
 
 	if (!hdev->open || !hdev->close || !hdev->destruct)
 		return -EINVAL;
@@ -946,7 +946,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 {
 	int i;
 
-	BT_DBG("%p name %s type %d", hdev, hdev->name, hdev->type);
+	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
 	write_lock_bh(&hci_dev_list_lock);
 	list_del(&hdev->list);

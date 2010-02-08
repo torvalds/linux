@@ -43,7 +43,7 @@
 #define HCI_NOTIFY_CONN_DEL		2
 #define HCI_NOTIFY_VOICE_SETTING	3
 
-/* HCI device types */
+/* HCI bus types */
 #define HCI_VIRTUAL	0
 #define HCI_USB		1
 #define HCI_PCCARD	2
