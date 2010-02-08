@@ -851,6 +851,11 @@ rndis_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	rndis->port.func.setup = rndis_setup;
 	rndis->port.func.disable = rndis_disable;
 
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	/* start disabled */
+	rndis->port.func.hidden = 1;
+#endif
+
 	status = usb_add_function(c, &rndis->port.func);
 	if (status) {
 		kfree(rndis);
