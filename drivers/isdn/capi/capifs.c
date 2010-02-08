@@ -32,6 +32,7 @@ static char *revision = "$Revision: 1.1.2.3 $";
 #define CAPIFS_SUPER_MAGIC (('C'<<8)|'N')
 
 static struct vfsmount *capifs_mnt;
+static int capifs_mnt_count;
 
 static struct {
 	int setuid;
@@ -140,7 +141,7 @@ static struct file_system_type capifs_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
+static struct dentry *new_ncci(unsigned int number, dev_t device)
 {
 	struct super_block *s = capifs_mnt->mnt_sb;
 	struct dentry *root = s->s_root;
@@ -187,6 +188,20 @@ unlock_out:
 	return dentry;
 }
 
+struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
+{
+	struct dentry *dentry;
+
+	if (simple_pin_fs(&capifs_fs_type, &capifs_mnt, &capifs_mnt_count) < 0)
+		return NULL;
+
+	dentry = new_ncci(number, device);
+	if (!dentry)
+		simple_release_fs(&capifs_mnt, &capifs_mnt_count);
+
+	return dentry;
+}
+
 void capifs_free_ncci(struct dentry *dentry)
 {
 	struct dentry *root = capifs_mnt->mnt_sb->s_root;
@@ -206,6 +221,8 @@ void capifs_free_ncci(struct dentry *dentry)
 	dput(dentry);
 
 	mutex_unlock(&root->d_inode->i_mutex);
+
+	simple_release_fs(&capifs_mnt, &capifs_mnt_count);
 }
 
 static int __init capifs_init(void)
@@ -222,13 +239,6 @@ static int __init capifs_init(void)
 		strcpy(rev, "1.0");
 
 	err = register_filesystem(&capifs_fs_type);
-	if (!err) {
-		capifs_mnt = kern_mount(&capifs_fs_type);
-		if (IS_ERR(capifs_mnt)) {
-			err = PTR_ERR(capifs_mnt);
-			unregister_filesystem(&capifs_fs_type);
-		}
-	}
 	if (!err)
 		printk(KERN_NOTICE "capifs: Rev %s\n", rev);
 	return err;
@@ -237,7 +247,6 @@ static int __init capifs_init(void)
 static void __exit capifs_exit(void)
 {
 	unregister_filesystem(&capifs_fs_type);
-	mntput(capifs_mnt);
 }
 
 EXPORT_SYMBOL(capifs_new_ncci);
