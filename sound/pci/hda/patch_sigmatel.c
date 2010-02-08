@@ -4754,19 +4754,14 @@ static int hp_blike_system(u32 subsystem_id);
 static void set_hp_led_gpio(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	switch (codec->vendor_id) {
-	case 0x111d7608:
-		/* GPIO 0 */
-		spec->gpio_led = 0x01;
-		break;
-	case 0x111d7600:
-	case 0x111d7601:
-	case 0x111d7602:
-	case 0x111d7603:
-		/* GPIO 3 */
-		spec->gpio_led = 0x08;
-		break;
-	}
+	unsigned int gpio;
+
+	gpio = snd_hda_param_read(codec, codec->afg, AC_PAR_GPIO_CAP);
+	gpio &= AC_GPIO_IO_COUNT;
+	if (gpio > 3)
+		spec->gpio_led = 0x08; /* GPIO 3 */
+	else
+		spec->gpio_led = 0x01; /* GPIO 0 */
 }
 
 /*
