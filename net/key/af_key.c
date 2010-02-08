@@ -3654,9 +3654,8 @@ static const struct net_proto_family pfkey_family_ops = {
 #ifdef CONFIG_PROC_FS
 static int pfkey_seq_show(struct seq_file *f, void *v)
 {
-	struct sock *s;
+	struct sock *s = sk_entry(v);
 
-	s = (struct sock *)v;
 	if (v == SEQ_START_TOKEN)
 		seq_printf(f ,"sk       RefCnt Rmem   Wmem   User   Inode\n");
 	else
@@ -3675,19 +3674,9 @@ static void *pfkey_seq_start(struct seq_file *f, loff_t *ppos)
 {
 	struct net *net = seq_file_net(f);
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
-	struct sock *s;
-	struct hlist_node *node;
-	loff_t pos = *ppos;
 
 	read_lock(&pfkey_table_lock);
-	if (pos == 0)
-		return SEQ_START_TOKEN;
-
-	sk_for_each(s, node, &net_pfkey->table)
-		if (pos-- == 1)
-			return s;
-
-	return NULL;
+	return seq_hlist_start_head(&net_pfkey->table, *ppos);
 }
 
 static void *pfkey_seq_next(struct seq_file *f, void *v, loff_t *ppos)
@@ -3695,10 +3684,7 @@ static void *pfkey_seq_next(struct seq_file *f, void *v, loff_t *ppos)
 	struct net *net = seq_file_net(f);
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 
-	++*ppos;
-	return (v == SEQ_START_TOKEN) ?
-		sk_head(&net_pfkey->table) :
-			sk_next((struct sock *)v);
+	return seq_hlist_next(v, &net_pfkey->table, ppos);
 }
 
 static void pfkey_seq_stop(struct seq_file *f, void *v)
