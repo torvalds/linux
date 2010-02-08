@@ -351,7 +351,7 @@ static void capincci_free_minor(struct capincci *np)
 #ifdef _DEBUG_REFCOUNT
 			printk(KERN_DEBUG "reset mp->nccip\n");
 #endif
-			tty_hangup(tty);
+			tty_vhangup(tty);
 			tty_kref_put(tty);
 		}
 
