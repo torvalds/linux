@@ -310,6 +310,14 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
+	struct drm_device *dev = priv;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->chipset >= 0x40)
+		nv_wr32(dev, 0x88054, state);
+	else
+		nv_wr32(dev, 0x1854, state);
+
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
