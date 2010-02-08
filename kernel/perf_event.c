@@ -98,6 +98,7 @@ void __weak hw_perf_enable(void)		{ barrier(); }
 
 void __weak hw_perf_event_setup(int cpu)	{ barrier(); }
 void __weak hw_perf_event_setup_online(int cpu)	{ barrier(); }
+void __weak hw_perf_event_setup_offline(int cpu)	{ barrier(); }
 
 int __weak
 hw_perf_group_sched_in(struct perf_event *group_leader,
@@ -5460,6 +5461,10 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		perf_event_exit_cpu(cpu);
+		break;
+
+	case CPU_DEAD:
+		hw_perf_event_setup_offline(cpu);
 		break;
 
 	default:
