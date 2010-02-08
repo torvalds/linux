@@ -1228,7 +1228,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	for (i = 0; i < wr->num_sge; ++i)
 		send_size += wr->sg_list[i].length;
 
-	ib_ud_header_init(send_size, mlx4_ib_ah_grh_present(ah), &sqp->ud_header);
+	ib_ud_header_init(send_size, mlx4_ib_ah_grh_present(ah), 0, &sqp->ud_header);
 
 	sqp->ud_header.lrh.service_level   =
 		be32_to_cpu(ah->av.sl_tclass_flowlabel) >> 28;
