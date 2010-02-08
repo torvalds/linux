@@ -17,8 +17,7 @@ config CAPI_TRACE
 	  If unsure, say Y.
 
 config ISDN_CAPI_MIDDLEWARE
-	bool "CAPI2.0 Middleware support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "CAPI2.0 Middleware support"
 	help
 	  This option will enhance the capabilities of the /dev/capi20
 	  interface.  It will provide a means of moving a data connection,
