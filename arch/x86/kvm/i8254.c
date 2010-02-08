@@ -663,8 +663,9 @@ fail_unregister:
 	kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
 
 fail:
-	if (pit->irq_source_id >= 0)
-		kvm_free_irq_source_id(kvm, pit->irq_source_id);
+	kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+	kvm_unregister_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
+	kvm_free_irq_source_id(kvm, pit->irq_source_id);
 
 	kfree(pit);
 	return NULL;
