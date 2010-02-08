@@ -98,7 +98,6 @@ struct capiminor {
 	struct sk_buff    *ttyskb;
 
 	struct sk_buff_head inqueue;
-	int                 inbytes;
 	struct sk_buff_head outqueue;
 	int                 outbytes;
 
@@ -520,15 +519,12 @@ deref_tty:
 static void handle_minor_recv(struct capiminor *mp)
 {
 	struct sk_buff *skb;
-	while ((skb = skb_dequeue(&mp->inqueue)) != NULL) {
-		unsigned int len = skb->len;
-		mp->inbytes -= len;
+
+	while ((skb = skb_dequeue(&mp->inqueue)) != NULL)
 		if (handle_recv_skb(mp, skb) < 0) {
 			skb_queue_head(&mp->inqueue, skb);
-			mp->inbytes += len;
 			return;
 		}
-	}
 }
 
 static int handle_minor_send(struct capiminor *mp)
@@ -659,7 +655,7 @@ static void capi_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 				datahandle, skb->len-CAPIMSG_LEN(skb->data));
 #endif
 		skb_queue_tail(&mp->inqueue, skb);
-		mp->inbytes += skb->len;
+
 		handle_minor_recv(mp);
 
 	} else if (CAPIMSG_SUBCOMMAND(skb->data) == CAPI_CONF) {
