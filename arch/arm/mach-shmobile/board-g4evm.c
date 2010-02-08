@@ -105,9 +105,10 @@ static void __init g4evm_map_io(void)
 {
 	iotable_init(g4evm_io_desc, ARRAY_SIZE(g4evm_io_desc));
 
-	/* setup early devices and clocks here as well */
+	/* setup early devices, clocks and console here as well */
 	sh7377_add_early_devices();
 	sh7367_clock_init(); /* use g3 clocks for now */
+	shmobile_setup_console();
 }
 
 static void __init g4evm_init(void)

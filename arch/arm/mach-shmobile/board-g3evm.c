@@ -105,9 +105,10 @@ static void __init g3evm_map_io(void)
 {
 	iotable_init(g3evm_io_desc, ARRAY_SIZE(g3evm_io_desc));
 
-	/* setup early devices and clocks here as well */
+	/* setup early devices, clocks and console here as well */
 	sh7367_add_early_devices();
 	sh7367_clock_init();
+	shmobile_setup_console();
 }
 
 static void __init g3evm_init(void)

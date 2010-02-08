@@ -2,6 +2,7 @@
 #define __ARCH_MACH_COMMON_H
 
 extern struct sys_timer shmobile_timer;
+extern void shmobile_setup_console(void);
 
 extern void sh7367_init_irq(void);
 extern void sh7367_add_early_devices(void);
