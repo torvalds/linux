@@ -1214,7 +1214,7 @@ static void tms380tr_set_multicast_list(struct net_device *dev)
 		{
 			int i;
 			struct dev_mc_list *mclist = dev->mc_list;
-			for (i=0; i< dev->mc_count; i++)
+			for (i=0; i< netdev_mc_count(dev); i++)
 			{
 				((char *)(&tp->ocpl.FunctAddr))[0] |=
 					mclist->dmi_addr[2];

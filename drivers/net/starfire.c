@@ -1796,15 +1796,15 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
 		rx_mode |= AcceptAll;
-	} else if ((dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		rx_mode |= AcceptBroadcast|AcceptAllMulticast|PerfectFilter;
-	} else if (dev->mc_count <= 14) {
+	} else if (netdev_mc_count(dev) <= 14) {
 		/* Use the 16 element perfect filter, skip first two entries. */
 		void __iomem *filter_addr = ioaddr + PerfFilterTable + 2 * 16;
 		__be16 *eaddrs;
-		for (i = 2, mclist = dev->mc_list; mclist && i < dev->mc_count + 2;
+		for (i = 2, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev) + 2;
 		     i++, mclist = mclist->next) {
 			eaddrs = (__be16 *)mclist->dmi_addr;
 			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 4;
@@ -1825,7 +1825,7 @@ static void set_rx_mode(struct net_device *dev)
 		__le16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 		     i++, mclist = mclist->next) {
 			/* The chip uses the upper 9 CRC bits
 			   as index into the hash table */

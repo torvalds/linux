@@ -1128,17 +1128,17 @@ set_multicast (struct net_device *dev)
 		/* Receive all frames promiscuously. */
 		rx_mode = ReceiveAllFrames;
 	} else if ((dev->flags & IFF_ALLMULTI) ||
-			(dev->mc_count > multicast_filter_limit)) {
+			(netdev_mc_count(dev) > multicast_filter_limit)) {
 		/* Receive broadcast and multicast frames */
 		rx_mode = ReceiveBroadcast | ReceiveMulticast | ReceiveUnicast;
-	} else if (dev->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev)) {
 		int i;
 		struct dev_mc_list *mclist;
 		/* Receive broadcast frames and multicast frames filtering
 		   by Hashtable */
 		rx_mode =
 		    ReceiveBroadcast | ReceiveMulticastHash | ReceiveUnicast;
-		for (i=0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i=0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 				i++, mclist=mclist->next)
 		{
 			int bit, index = 0;

@@ -808,7 +808,7 @@ static void bdx_setmulti(struct net_device *ndev)
 		/* set IMF to accept all multicast frmaes */
 		for (i = 0; i < MAC_MCST_HASH_NUM; i++)
 			WRITE_REG(priv, regRX_MCST_HASH0 + i * 4, ~0);
-	} else if (ndev->mc_count) {
+	} else if (!netdev_mc_empty(ndev)) {
 		u8 hash;
 		struct dev_mc_list *mclist;
 		u32 reg, val;
@@ -840,7 +840,7 @@ static void bdx_setmulti(struct net_device *ndev)
 		}
 
 	} else {
-		DBG("only own mac %d\n", ndev->mc_count);
+		DBG("only own mac %d\n", netdev_mc_count(ndev));
 		rxf_val |= GMAC_RX_FILTER_AB;
 	}
 	WRITE_REG(priv, regGMAC_RXF_A, rxf_val);

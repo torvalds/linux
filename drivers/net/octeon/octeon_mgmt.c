@@ -493,8 +493,8 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	}
 
 	if (netdev->flags & IFF_MULTICAST) {
-		if (cam_mode == 0 || (netdev->flags & IFF_ALLMULTI)
-		    || netdev->mc_count  > available_cam_entries)
+		if (cam_mode == 0 || (netdev->flags & IFF_ALLMULTI) ||
+		    netdev_mc_count(netdev) > available_cam_entries)
 			multicast_mode = 2; /* 1 - Accept all multicast.  */
 		else
 			multicast_mode = 0; /* 0 - Use CAM.  */
@@ -511,7 +511,7 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 		}
 	}
 	if (multicast_mode == 0) {
-		i = netdev->mc_count;
+		i = netdev_mc_count(netdev);
 		list = netdev->mc_list;
 		while (i--) {
 			octeon_mgmt_cam_state_add(&cam_state, list->da_addr);

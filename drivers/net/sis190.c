@@ -841,7 +841,7 @@ static void sis190_set_rx_mode(struct net_device *dev)
 			AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 			AcceptAllPhys;
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
-	} else if ((dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter perfectly -- accept all multicasts. */
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
@@ -852,7 +852,7 @@ static void sis190_set_rx_mode(struct net_device *dev)
 
 		rx_mode = AcceptBroadcast | AcceptMyPhys;
 		mc_filter[1] = mc_filter[0] = 0;
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 		     i++, mclist = mclist->next) {
 			int bit_nr =
 				ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3f;

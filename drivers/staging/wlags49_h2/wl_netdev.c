@@ -1070,9 +1070,9 @@ void wl_multicast( struct net_device *dev )
             ( dev->flags & IFF_MULTICAST ) ? "Multicast " : "",
             ( dev->flags & IFF_ALLMULTI ) ? "All-Multicast" : "" );
 
-        DBG_PRINT( "  mc_count: %d\n", dev->mc_count );
+        DBG_PRINT( "  mc_count: %d\n", netdev_mc_count(dev));
 
-        for( x = 0, mclist = dev->mc_list; mclist && x < dev->mc_count;
+        for( x = 0, mclist = dev->mc_list; mclist && x < netdev_mc_count(dev);
              x++, mclist = mclist->next ) {
             DBG_PRINT( "    %s (%d)\n", DbgHwAddr(mclist->dmi_addr),
                        mclist->dmi_addrlen );
@@ -1103,7 +1103,7 @@ void wl_multicast( struct net_device *dev )
                 DBG_PRINT( "Enabling Promiscuous mode (IFF_PROMISC)\n" );
                 hcf_put_info( &( lp->hcfCtx ), (LTVP)&( lp->ltvRecord ));
             }
-            else if(( dev->mc_count > HCF_MAX_MULTICAST ) ||
+            else if ((netdev_mc_count(dev) > HCF_MAX_MULTICAST) ||
                     ( dev->flags & IFF_ALLMULTI )) {
                 /* Shutting off this filter will enable all multicast frames to
                    be sent up from the device; however, this is a static RID, so
@@ -1115,13 +1115,13 @@ void wl_multicast( struct net_device *dev )
                 hcf_put_info( &( lp->hcfCtx ), (LTVP)&( lp->ltvRecord ));
                 wl_apply( lp );
             }
-            else if( dev->mc_count != 0 ) {
+            else if (!netdev_mc_empty(dev)) {
                 /* Set the multicast addresses */
-                lp->ltvRecord.len = ( dev->mc_count * 3 ) + 1;
+                lp->ltvRecord.len = ( netdev_mc_count(dev) * 3 ) + 1;
                 lp->ltvRecord.typ = CFG_GROUP_ADDR;
 
                 for( x = 0, mclist = dev->mc_list;
-                ( x < dev->mc_count ) && ( mclist != NULL );
+                ( x < netdev_mc_count(dev)) && ( mclist != NULL );
                     x++, mclist = mclist->next ) {
                     memcpy( &( lp->ltvRecord.u.u8[x * ETH_ALEN] ),
                             mclist->dmi_addr, ETH_ALEN );

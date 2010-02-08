@@ -1941,18 +1941,18 @@ tc35815_set_multicast_list(struct net_device *dev)
 		/* Enable promiscuous mode */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc | CAM_StationAcc, &tr->CAM_Ctl);
 	} else if ((dev->flags & IFF_ALLMULTI) ||
-		  dev->mc_count > CAM_ENTRY_MAX - 3) {
+		  netdev_mc_count(dev) > CAM_ENTRY_MAX - 3) {
 		/* CAM 0, 1, 20 are reserved. */
 		/* Disable promiscuous mode, use normal mode. */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc, &tr->CAM_Ctl);
-	} else if (dev->mc_count) {
+	} else if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *cur_addr = dev->mc_list;
 		int i;
 		int ena_bits = CAM_Ena_Bit(CAM_ENTRY_SOURCE);
 
 		tc_writel(0, &tr->CAM_Ctl);
 		/* Walk the address list, and load the filter */
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
+		for (i = 0; i < netdev_mc_count(dev); i++, cur_addr = cur_addr->next) {
 			if (!cur_addr)
 				break;
 			/* entry 0,1 is reserved. */

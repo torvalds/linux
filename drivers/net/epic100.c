@@ -1390,20 +1390,20 @@ static void set_rx_mode(struct net_device *dev)
 		outl(0x002C, ioaddr + RxCtrl);
 		/* Unconditionally log net taps. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
-	} else if ((dev->mc_count > 0)  ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if ((!netdev_mc_empty(dev)) || (dev->flags & IFF_ALLMULTI)) {
 		/* There is apparently a chip bug, so the multicast filter
 		   is never enabled. */
 		/* Too many to filter perfectly -- accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		outl(0x000C, ioaddr + RxCtrl);
-	} else if (dev->mc_count == 0) {
+	} else if (netdev_mc_empty(dev)) {
 		outl(0x0004, ioaddr + RxCtrl);
 		return;
 	} else {					/* Never executed, for now. */
 		struct dev_mc_list *mclist;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 			 i++, mclist = mclist->next) {
 			unsigned int bit_nr =
 				ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;

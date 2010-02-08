@@ -1516,7 +1516,7 @@ static int happy_meal_init(struct happy_meal *hp)
 
 	HMD(("htable, "));
 	if ((hp->dev->flags & IFF_ALLMULTI) ||
-	    (hp->dev->mc_count > 64)) {
+	    (netdev_mc_count(hp->dev) > 64)) {
 		hme_write32(hp, bregs + BMAC_HTABLE0, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE1, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE2, 0xffff);
@@ -1531,7 +1531,7 @@ static int happy_meal_init(struct happy_meal *hp)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < hp->dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(hp->dev); i++) {
 			addrs = dmi->dmi_addr;
 			dmi = dmi->next;
 
@@ -2373,7 +2373,7 @@ static void happy_meal_set_multicast(struct net_device *dev)
 
 	spin_lock_irq(&hp->happy_lock);
 
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		hme_write32(hp, bregs + BMAC_HTABLE0, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE1, 0xffff);
 		hme_write32(hp, bregs + BMAC_HTABLE2, 0xffff);
@@ -2387,7 +2387,7 @@ static void happy_meal_set_multicast(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(dev); i++) {
 			addrs = dmi->dmi_addr;
 			dmi = dmi->next;
 

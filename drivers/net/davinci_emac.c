@@ -956,11 +956,11 @@ static void emac_dev_mcast_set(struct net_device *ndev)
 	} else {
 		mbp_enable = (mbp_enable & ~EMAC_MBP_RXPROMISC);
 		if ((ndev->flags & IFF_ALLMULTI) ||
-		    (ndev->mc_count > EMAC_DEF_MAX_MULTICAST_ADDRESSES)) {
+		    netdev_mc_count(ndev) > EMAC_DEF_MAX_MULTICAST_ADDRESSES) {
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_SET, NULL);
 		}
-		if (ndev->mc_count > 0) {
+		if (!netdev_mc_empty(ndev)) {
 			struct dev_mc_list *mc_ptr;
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_CLR, NULL);

@@ -1184,7 +1184,7 @@ static void tsi108_set_rx_mode(struct net_device *dev)
 
 	rxcfg &= ~(TSI108_EC_RXCFG_UFE | TSI108_EC_RXCFG_MFE);
 
-	if (dev->flags & IFF_ALLMULTI || dev->mc_count) {
+	if (dev->flags & IFF_ALLMULTI || !netdev_mc_empty(dev)) {
 		int i;
 		struct dev_mc_list *mc = dev->mc_list;
 		rxcfg |= TSI108_EC_RXCFG_MFE | TSI108_EC_RXCFG_MC_HASH;

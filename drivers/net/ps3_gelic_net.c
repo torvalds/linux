@@ -568,7 +568,7 @@ void gelic_net_set_multi(struct net_device *netdev)
 			status);
 
 	if ((netdev->flags & IFF_ALLMULTI) ||
-	    (netdev->mc_count > GELIC_NET_MC_COUNT_MAX)) {
+	    (netdev_mc_count(netdev) > GELIC_NET_MC_COUNT_MAX)) {
 		status = lv1_net_add_multicast_address(bus_id(card),
 						       dev_id(card),
 						       0, 1);

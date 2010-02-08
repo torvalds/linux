@@ -1229,8 +1229,8 @@ static void elp_set_mc_list(struct net_device *dev)
 		/* send a "load multicast list" command to the board, max 10 addrs/cmd */
 		/* if num_addrs==0 the list will be cleared */
 		adapter->tx_pcb.command = CMD_LOAD_MULTICAST_LIST;
-		adapter->tx_pcb.length = 6 * dev->mc_count;
-		for (i = 0; i < dev->mc_count; i++) {
+		adapter->tx_pcb.length = 6 * netdev_mc_count(dev);
+		for (i = 0; i < netdev_mc_count(dev); i++) {
 			memcpy(adapter->tx_pcb.data.multicast[i], dmi->dmi_addr, 6);
 			dmi = dmi->next;
 		}
@@ -1244,7 +1244,7 @@ static void elp_set_mc_list(struct net_device *dev)
 				TIMEOUT_MSG(__LINE__);
 			}
 		}
-		if (dev->mc_count)
+		if (!netdev_mc_empty(dev))
 			adapter->tx_pcb.data.configure = NO_LOOPBACK | RECV_BROAD | RECV_MULTI;
 		else		/* num_addrs == 0 */
 			adapter->tx_pcb.data.configure = NO_LOOPBACK | RECV_BROAD;

@@ -554,7 +554,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 		return;
 	}
 
-	if (netdev->mc_count == 0) {
+	if (netdev_mc_empty(netdev)) {
 		adapter->set_promisc(adapter,
 				NETXEN_NIU_NON_PROMISC_MODE);
 		netxen_nic_disable_mcast_filter(adapter);
@@ -563,7 +563,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 
 	adapter->set_promisc(adapter, NETXEN_NIU_ALLMULTI_MODE);
 	if (netdev->flags & IFF_ALLMULTI ||
-			netdev->mc_count > adapter->max_mc_count) {
+			netdev_mc_count(netdev) > adapter->max_mc_count) {
 		netxen_nic_disable_mcast_filter(adapter);
 		return;
 	}
@@ -573,7 +573,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next, index++)
 		netxen_nic_set_mcast_addr(adapter, index, mc_ptr->dmi_addr);
 
-	if (index != netdev->mc_count)
+	if (index != netdev_mc_count(netdev))
 		printk(KERN_WARNING "%s: %s multicast address count mismatch\n",
 			netxen_nic_driver_name, netdev->name);
 
@@ -704,12 +704,12 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 
 	if ((netdev->flags & IFF_ALLMULTI) ||
-			(netdev->mc_count > adapter->max_mc_count)) {
+			(netdev_mc_count(netdev) > adapter->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 		goto send_fw_cmd;
 	}
 
-	if (netdev->mc_count > 0) {
+	if (!netdev_mc_empty(netdev)) {
 		for (mc_ptr = netdev->mc_list; mc_ptr;
 		     mc_ptr = mc_ptr->next) {
 			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr, &del_list);

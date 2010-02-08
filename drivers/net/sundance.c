@@ -1517,18 +1517,18 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptAll | AcceptMyPhys;
-	} else if ((dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
-	} else if (dev->mc_count) {
+	} else if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *mclist;
 		int bit;
 		int index;
 		int crc;
 		memset (mc_filter, 0, sizeof (mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 		     i++, mclist = mclist->next) {
 			crc = ether_crc_le (ETH_ALEN, mclist->dmi_addr);
 			for (index=0, bit=0; bit < 6; bit++, crc <<= 1)

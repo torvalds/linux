@@ -1403,8 +1403,8 @@ static void igbvf_set_multi(struct net_device *netdev)
 	u8  *mta_list = NULL;
 	int i;
 
-	if (netdev->mc_count) {
-		mta_list = kmalloc(netdev->mc_count * 6, GFP_ATOMIC);
+	if (!netdev_mc_empty(netdev)) {
+		mta_list = kmalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
 		if (!mta_list) {
 			dev_err(&adapter->pdev->dev,
 			        "failed to allocate multicast filter list\n");
@@ -1415,7 +1415,7 @@ static void igbvf_set_multi(struct net_device *netdev)
 	/* prepare a packed array of only addresses. */
 	mc_ptr = netdev->mc_list;
 
-	for (i = 0; i < netdev->mc_count; i++) {
+	for (i = 0; i < netdev_mc_count(netdev); i++) {
 		if (!mc_ptr)
 			break;
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr,

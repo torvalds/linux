@@ -1638,8 +1638,8 @@ static void set_rx_mode(struct net_device *dev)
     } else if (dev->flags & IFF_ALLMULTI)
 	rx_cfg_setting = RxStripCRC | RxEnable | RxAllMulti;
     else {
-	if (dev->mc_count)  {
-	    fill_multicast_tbl(dev->mc_count, dev->mc_list,
+	if (!netdev_mc_empty(dev)) {
+	    fill_multicast_tbl(netdev_mc_count(dev), dev->mc_list,
 			       (u_char *)multicast_table);
 	}
 	rx_cfg_setting = RxStripCRC | RxEnable;

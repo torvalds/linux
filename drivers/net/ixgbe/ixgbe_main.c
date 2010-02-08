@@ -2571,7 +2571,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	hw->mac.ops.update_uc_addr_list(hw, netdev);
 
 	/* reprogram multicast list */
-	addr_count = netdev->mc_count;
+	addr_count = netdev_mc_count(netdev);
 	if (addr_count)
 		addr_list = netdev->mc_list->dmi_addr;
 	hw->mac.ops.update_mc_addr_list(hw, addr_list, addr_count,

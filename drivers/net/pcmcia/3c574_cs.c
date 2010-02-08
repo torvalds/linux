@@ -1148,7 +1148,7 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
 			 ioaddr + EL3_CMD);
-	else if (dev->mc_count || (dev->flags & IFF_ALLMULTI))
+	else if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI))
 		outw(SetRxFilter|RxStation|RxMulticast|RxBroadcast, ioaddr + EL3_CMD);
 	else
 		outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);

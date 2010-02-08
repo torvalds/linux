@@ -1384,7 +1384,7 @@ set_addresses(struct net_device *dev)
 	    if (++n > 9)
 		break;
 	    i = 0;
-	    if (n > 1 && n <= dev->mc_count && dmi) {
+	    if (n > 1 && n <= netdev_mc_count(dev) && dmi) {
 	   	 dmi = dmi->next;
 	    }
 	}
@@ -1394,7 +1394,7 @@ set_addresses(struct net_device *dev)
 	    SelectPage(k);
 	}
 
-	if (n && n <= dev->mc_count && dmi)
+	if (n && n <= netdev_mc_count(dev) && dmi)
 	    addr = dmi->dmi_addr;
 	else
 	    addr = dev->dev_addr;
@@ -1424,9 +1424,9 @@ set_multicast_list(struct net_device *dev)
 
     if (dev->flags & IFF_PROMISC) { /* snoop */
 	PutByte(XIRCREG42_SWC1, value | 0x06); /* set MPE and PME */
-    } else if (dev->mc_count > 9 || (dev->flags & IFF_ALLMULTI)) {
+    } else if (netdev_mc_count(dev) > 9 || (dev->flags & IFF_ALLMULTI)) {
 	PutByte(XIRCREG42_SWC1, value | 0x02); /* set MPE */
-    } else if (dev->mc_count) {
+    } else if (!netdev_mc_empty(dev)) {
 	/* the chip can filter 9 addresses perfectly */
 	PutByte(XIRCREG42_SWC1, value | 0x01);
 	SelectPage(0x40);

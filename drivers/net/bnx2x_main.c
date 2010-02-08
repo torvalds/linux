@@ -11471,7 +11471,8 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 		rx_mode = BNX2X_RX_MODE_PROMISC;
 
 	else if ((dev->flags & IFF_ALLMULTI) ||
-		 ((dev->mc_count > BNX2X_MAX_MULTICAST) && CHIP_IS_E1(bp)))
+		 ((netdev_mc_count(dev) > BNX2X_MAX_MULTICAST) &&
+		  CHIP_IS_E1(bp)))
 		rx_mode = BNX2X_RX_MODE_ALLMULTI;
 
 	else { /* some multicasts */
@@ -11482,7 +11483,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 						bnx2x_sp(bp, mcast_config);
 
 			for (i = 0, mclist = dev->mc_list;
-			     mclist && (i < dev->mc_count);
+			     mclist && (i < netdev_mc_count(dev));
 			     i++, mclist = mclist->next) {
 
 				config->config_table[i].
@@ -11554,7 +11555,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
 
 			for (i = 0, mclist = dev->mc_list;
-			     mclist && (i < dev->mc_count);
+			     mclist && (i < netdev_mc_count(dev));
 			     i++, mclist = mclist->next) {
 
 				DP(NETIF_MSG_IFUP, "Adding mcast MAC: %pM\n",

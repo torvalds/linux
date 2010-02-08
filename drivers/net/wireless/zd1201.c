@@ -879,16 +879,15 @@ static void zd1201_set_multicast(struct net_device *dev)
 	unsigned char reqbuf[ETH_ALEN*ZD1201_MAXMULTI];
 	int i;
 
-	if (dev->mc_count > ZD1201_MAXMULTI)
+	if (netdev_mc_count(dev) > ZD1201_MAXMULTI)
 		return;
 
-	for (i=0; i<dev->mc_count; i++) {
+	for (i=0; i<netdev_mc_count(dev); i++) {
 		memcpy(reqbuf+i*ETH_ALEN, mc->dmi_addr, ETH_ALEN);
 		mc = mc->next;
 	}
 	zd1201_setconfig(zd, ZD1201_RID_CNFGROUPADDRESS, reqbuf,
-	    dev->mc_count*ETH_ALEN, 0);
-	
+			 netdev_mc_count(dev) * ETH_ALEN, 0);
 }
 
 static int zd1201_config_commit(struct net_device *dev, 

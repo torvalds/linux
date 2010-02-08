@@ -1691,7 +1691,7 @@ static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)
 	struct dev_mc_list *mclist;
 	int i, num_ents;
 
-	num_ents = min_t(int, dev->mc_count, B44_MCAST_TABLE_SIZE);
+	num_ents = min_t(int, netdev_mc_count(dev), B44_MCAST_TABLE_SIZE);
 	mclist = dev->mc_list;
 	for (i = 0; mclist && i < num_ents; i++, mclist = mclist->next) {
 		__b44_cam_write(bp, mclist->dmi_addr, i + 1);
@@ -1716,7 +1716,7 @@ static void __b44_set_rx_mode(struct net_device *dev)
 		__b44_set_mac_addr(bp);
 
 		if ((dev->flags & IFF_ALLMULTI) ||
-		    (dev->mc_count > B44_MCAST_TABLE_SIZE))
+		    (netdev_mc_count(dev) > B44_MCAST_TABLE_SIZE))
 			val |= RXCONFIG_ALLMULTI;
 		else
 			i = __b44_load_mcast(bp, dev);

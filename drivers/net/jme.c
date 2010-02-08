@@ -2013,7 +2013,7 @@ jme_set_multi(struct net_device *netdev)
 
 		jme->reg_rxmcs |= RXMCS_MULFRAME | RXMCS_MULFILTERED;
 		for (i = 0, mclist = netdev->mc_list;
-			mclist && i < netdev->mc_count;
+			mclist && i < netdev_mc_count(netdev);
 			++i, mclist = mclist->next) {
 
 			bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3F;

@@ -305,13 +305,13 @@ static void dwmac100_set_filter(struct net_device *dev)
 		value |= MAC_CONTROL_PR;
 		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_IF | MAC_CONTROL_HO |
 			   MAC_CONTROL_HP);
-	} else if ((dev->mc_count > HASH_TABLE_SIZE)
+	} else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
 		   || (dev->flags & IFF_ALLMULTI)) {
 		value |= MAC_CONTROL_PM;
 		value &= ~(MAC_CONTROL_PR | MAC_CONTROL_IF | MAC_CONTROL_HO);
 		writel(0xffffffff, ioaddr + MAC_HASH_HIGH);
 		writel(0xffffffff, ioaddr + MAC_HASH_LOW);
-	} else if (dev->mc_count == 0) {	/* no multicast */
+	} else if (netdev_mc_empty(dev)) {	/* no multicast */
 		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR | MAC_CONTROL_IF |
 			   MAC_CONTROL_HO | MAC_CONTROL_HP);
 	} else {
@@ -327,7 +327,7 @@ static void dwmac100_set_filter(struct net_device *dev)
 
 		memset(mc_filter, 0, sizeof(mc_filter));
 		for (i = 0, mclist = dev->mc_list;
-		     mclist && i < dev->mc_count; i++, mclist = mclist->next) {
+		     mclist && i < netdev_mc_count(dev); i++, mclist = mclist->next) {
 			/* The upper 6 bits of the calculated CRC are used to
 			 * index the contens of the hash table */
 			int bit_nr =

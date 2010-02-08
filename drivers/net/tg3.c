@@ -9430,7 +9430,7 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 	} else if (dev->flags & IFF_ALLMULTI) {
 		/* Accept all multicast. */
 		tg3_set_multi (tp, 1);
-	} else if (dev->mc_count < 1) {
+	} else if (netdev_mc_empty(dev)) {
 		/* Reject all multicast. */
 		tg3_set_multi (tp, 0);
 	} else {
@@ -9442,7 +9442,7 @@ static void __tg3_set_rx_mode(struct net_device *dev)
 		u32 bit;
 		u32 crc;
 
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 		     i++, mclist = mclist->next) {
 
 			crc = calc_crc (mclist->dmi_addr, ETH_ALEN);

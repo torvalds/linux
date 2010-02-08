@@ -1854,13 +1854,13 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		writew(0x000F, ioaddr + AddrMode);
-	} else if ((dev->mc_count > 63)  ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev_mc_count(dev) > 63) || (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		writew(0x000B, ioaddr + AddrMode);
-	} else if (dev->mc_count > 0) { /* Must use the CAM filter. */
+	} else if (!netdev_mc_empty(dev)) { /* Must use the CAM filter. */
 		struct dev_mc_list *mclist;
 		int i;
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 			 i++, mclist = mclist->next) {
 			writel(*(u32*)(mclist->dmi_addr), ioaddr + 0x100 + i*8);
 			writel(0x20000 | (*(u16*)&mclist->dmi_addr[4]),

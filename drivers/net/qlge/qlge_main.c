@@ -4221,7 +4221,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 	 * transition is taking place.
 	 */
 	if ((ndev->flags & IFF_ALLMULTI) ||
-	    (ndev->mc_count > MAX_MULTICAST_ENTRIES)) {
+	    (netdev_mc_count(ndev) > MAX_MULTICAST_ENTRIES)) {
 		if (!test_bit(QL_ALLMULTI, &qdev->flags)) {
 			if (ql_set_routing_reg
 			    (qdev, RT_IDX_ALLMULTI_SLOT, RT_IDX_MCAST, 1)) {
@@ -4243,7 +4243,7 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 		}
 	}
 
-	if (ndev->mc_count) {
+	if (!netdev_mc_empty(ndev)) {
 		status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 		if (status)
 			goto exit;

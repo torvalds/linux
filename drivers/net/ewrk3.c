@@ -1213,7 +1213,7 @@ static void SetMulticastFilter(struct net_device *dev)
 		}
 
 		/* Update table */
-		for (i = 0; i < dev->mc_count; i++) {	/* for each address in the list */
+		for (i = 0; i < netdev_mc_count(dev); i++) {	/* for each address in the list */
 			addrs = dmi->dmi_addr;
 			dmi = dmi->next;
 			if ((*addrs & 0x01) == 1) {	/* multicast address? */

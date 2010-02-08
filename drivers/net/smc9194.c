@@ -1542,7 +1542,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	/* We just get all multicast packets even if we only want them
 	 . from one source.  This will be changed at some future
 	 . point. */
-	else if (dev->mc_count )  {
+	else if (!netdev_mc_empty(dev)) {
 		/* support hardware multicasting */
 
 		/* be sure I get rid of flags I might have set */
@@ -1550,7 +1550,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 			ioaddr + RCR );
 		/* NOTE: this has to set the bank, so make sure it is the
 		   last thing called.  The bank is set to zero at the top */
-		smc_setmulticast( ioaddr, dev->mc_count, dev->mc_list );
+		smc_setmulticast(ioaddr, netdev_mc_count(dev), dev->mc_list);
 	}
 	else  {
 		outw( inw( ioaddr + RCR ) & ~(RCR_PROMISC | RCR_ALMUL),

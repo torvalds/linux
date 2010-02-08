@@ -1207,7 +1207,7 @@ ks8695_set_multicast(struct net_device *ndev)
 	if (ndev->flags & IFF_ALLMULTI) {
 		/* enable all multicast mode */
 		ctrl |= DRXC_RM;
-	} else if (ndev->mc_count > KS8695_NR_ADDRESSES) {
+	} else if (netdev_mc_count(ndev) > KS8695_NR_ADDRESSES) {
 		/* more specific multicast addresses than can be
 		 * handled in hardware
 		 */
@@ -1216,7 +1216,7 @@ ks8695_set_multicast(struct net_device *ndev)
 		/* enable specific multicasts */
 		ctrl &= ~DRXC_RM;
 		ks8695_init_partial_multicast(ksp, ndev->mc_list,
-					      ndev->mc_count);
+					      netdev_mc_count(ndev));
 	}
 
 	ks8695_writereg(ksp, KS8695_DRXC, ctrl);

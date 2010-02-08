@@ -655,14 +655,15 @@ set_multicast_list(struct net_device *dev)
 		/* Enable promiscuous mode */
 		outw(MULTICAST|PROMISC, ioaddr);
 	}
-	else if((dev->flags&IFF_ALLMULTI) || dev->mc_count > HW_MAX_ADDRS)
+	else if ((dev->flags&IFF_ALLMULTI) ||
+		 netdev_mc_count(dev) > HW_MAX_ADDRS)
 	{
 		/* Disable promiscuous mode, use normal mode. */
 		hardware_set_filter(NULL);
 
 		outw(MULTICAST, ioaddr);
 	}
-	else if(dev->mc_count)
+	else if (!netdev_mc_empty(dev))
 	{
 		/* Walk the address list, and load the filter */
 		hardware_set_filter(dev->mc_list);

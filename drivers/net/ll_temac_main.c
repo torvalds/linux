@@ -232,7 +232,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 
 	mutex_lock(&lp->indirect_mutex);
 	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
-	    ndev->mc_count > MULTICAST_CAM_TABLE_NUM) {
+	    netdev_mc_count(ndev) > MULTICAST_CAM_TABLE_NUM) {
 		/*
 		 *	We must make the kernel realise we had to move
 		 *	into promisc mode or we start all out war on
@@ -242,9 +242,9 @@ static void temac_set_multicast_list(struct net_device *ndev)
 		ndev->flags |= IFF_PROMISC;
 		temac_indirect_out32(lp, XTE_AFM_OFFSET, XTE_AFM_EPPRM_MASK);
 		dev_info(&ndev->dev, "Promiscuous mode enabled.\n");
-	} else if (ndev->mc_count) {
+	} else if (!netdev_mc_empty(ndev)) {
 		struct dev_mc_list *mclist = ndev->mc_list;
-		for (i = 0; mclist && i < ndev->mc_count; i++) {
+		for (i = 0; mclist && i < netdev_mc_count(ndev); i++) {
 
 			if (i >= MULTICAST_CAM_TABLE_NUM)
 				break;

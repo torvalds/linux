@@ -1178,11 +1178,11 @@ static void vxge_set_multicast(struct net_device *dev)
 
 	memset(&mac_info, 0, sizeof(struct macInfo));
 	/* Update individual M_CAST address list */
-	if ((!vdev->all_multi_flg) && dev->mc_count) {
+	if ((!vdev->all_multi_flg) && netdev_mc_count(dev)) {
 
 		mcast_cnt = vdev->vpaths[0].mcast_addr_cnt;
 		list_head = &vdev->vpaths[0].mac_addr_list;
-		if ((dev->mc_count +
+		if ((netdev_mc_count(dev) +
 			(vdev->vpaths[0].mac_addr_cnt - mcast_cnt)) >
 				vdev->vpaths[0].max_mac_addr_cnt)
 			goto _set_all_mcast;
@@ -1217,7 +1217,7 @@ static void vxge_set_multicast(struct net_device *dev)
 		}
 
 		/* Add new ones */
-		for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; i < netdev_mc_count(dev);
 			i++, mclist = mclist->next) {
 
 			memcpy(mac_info.macaddr, mclist->dmi_addr, ETH_ALEN);

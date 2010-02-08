@@ -819,7 +819,7 @@ static void set_multicast_list(struct net_device *dev)
 	lance->RDP = PROM;		/* Set promiscuous mode */
     } else {
 	short multicast_table[4];
-	int num_addrs = dev->mc_count;
+	int num_addrs = netdev_mc_count(dev);
 	int i;
 	/* We don't use the multicast table, but rely on upper-layer filtering. */
 	memset(multicast_table, (num_addrs == 0) ? 0 : -1,

@@ -1062,7 +1062,7 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 		mac_cr &= (~MAC_CR_PRMS_);
 		mac_cr |= MAC_CR_MCPAS_;
 		mac_cr &= (~MAC_CR_HPFILT_);
-	} else if (dev->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *mc_list = dev->mc_list;
 		u32 hash_lo = 0, hash_hi = 0;
 

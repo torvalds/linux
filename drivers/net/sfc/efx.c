@@ -1615,7 +1615,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 		memset(mc_hash, 0xff, sizeof(*mc_hash));
 	} else {
 		memset(mc_hash, 0x00, sizeof(*mc_hash));
-		for (i = 0; i < net_dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(net_dev); i++) {
 			crc = ether_crc_le(ETH_ALEN, mc_list->dmi_addr);
 			bit = crc & (EFX_MCAST_HASH_ENTRIES - 1);
 			set_bit_le(bit, mc_hash->byte);

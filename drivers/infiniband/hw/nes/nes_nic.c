@@ -862,7 +862,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 	}
 
 	nes_debug(NES_DBG_NIC_RX, "Number of MC entries = %d, Promiscous = %d, All Multicast = %d.\n",
-		  netdev->mc_count, !!(netdev->flags & IFF_PROMISC),
+		  netdev_mc_count(netdev), !!(netdev->flags & IFF_PROMISC),
 		  !!(netdev->flags & IFF_ALLMULTI));
 	if (!mc_all_on) {
 		multicast_addr = netdev->mc_list;

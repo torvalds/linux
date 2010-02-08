@@ -585,11 +585,11 @@ static void ipg_nic_set_multicast_list(struct net_device *dev)
 		receivemode = IPG_RM_RECEIVEALLFRAMES;
 	} else if ((dev->flags & IFF_ALLMULTI) ||
 		   ((dev->flags & IFF_MULTICAST) &&
-		    (dev->mc_count > IPG_MULTICAST_HASHTABLE_SIZE))) {
+		    (netdev_mc_count(dev) > IPG_MULTICAST_HASHTABLE_SIZE))) {
 		/* NIC to be configured to receive all multicast
 		 * frames. */
 		receivemode |= IPG_RM_RECEIVEMULTICAST;
-	} else if ((dev->flags & IFF_MULTICAST) && (dev->mc_count > 0)) {
+	} else if ((dev->flags & IFF_MULTICAST) && !netdev_mc_empty(dev)) {
 		/* NIC to be configured to receive selected
 		 * multicast addresses. */
 		receivemode |= IPG_RM_RECEIVEMULTICASTHASH;

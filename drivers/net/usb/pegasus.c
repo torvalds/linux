@@ -1232,7 +1232,7 @@ static void pegasus_set_multicast(struct net_device *net)
 		pegasus->eth_regs[EthCtrl2] |= RX_PROMISCUOUS;
 		if (netif_msg_link(pegasus))
 			pr_info("%s: Promiscuous mode enabled.\n", net->name);
-	} else if (net->mc_count || (net->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(net) || (net->flags & IFF_ALLMULTI)) {
 		pegasus->eth_regs[EthCtrl0] |= RX_MULTICAST;
 		pegasus->eth_regs[EthCtrl2] &= ~RX_PROMISCUOUS;
 		if (netif_msg_link(pegasus))

@@ -2848,14 +2848,14 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 	u32 vmolr = 0;
 	int i;
 
-	if (!netdev->mc_count) {
+	if (netdev_mc_empty(netdev)) {
 		/* nothing to program, so clear mc list */
 		igb_update_mc_addr_list(hw, NULL, 0);
 		igb_restore_vf_multicasts(adapter);
 		return 0;
 	}
 
-	mta_list = kzalloc(netdev->mc_count * 6, GFP_ATOMIC);
+	mta_list = kzalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
 	if (!mta_list)
 		return -ENOMEM;
 
@@ -2865,7 +2865,7 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 	/* The shared function expects a packed array of only addresses. */
 	mc_ptr = netdev->mc_list;
 
-	for (i = 0; i < netdev->mc_count; i++) {
+	for (i = 0; i < netdev_mc_count(netdev); i++) {
 		if (!mc_ptr)
 			break;
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
@@ -2874,7 +2874,7 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 	igb_update_mc_addr_list(hw, mta_list, i);
 	kfree(mta_list);
 
-	return netdev->mc_count;
+	return netdev_mc_count(netdev);
 }
 
 /**

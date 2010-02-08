@@ -827,11 +827,11 @@ static void enic_set_multicast_list(struct net_device *netdev)
 	int multicast = (netdev->flags & IFF_MULTICAST) ? 1 : 0;
 	int broadcast = (netdev->flags & IFF_BROADCAST) ? 1 : 0;
 	int promisc = (netdev->flags & IFF_PROMISC) ? 1 : 0;
+	unsigned int mc_count = netdev_mc_count(netdev);
 	int allmulti = (netdev->flags & IFF_ALLMULTI) ||
-	    (netdev->mc_count > ENIC_MULTICAST_PERFECT_FILTERS);
+		       mc_count > ENIC_MULTICAST_PERFECT_FILTERS;
 	unsigned int flags = netdev->flags | (allmulti ? IFF_ALLMULTI : 0);
 	u8 mc_addr[ENIC_MULTICAST_PERFECT_FILTERS][ETH_ALEN];
-	unsigned int mc_count = netdev->mc_count;
 	unsigned int i, j;
 
 	if (mc_count > ENIC_MULTICAST_PERFECT_FILTERS)

@@ -1111,12 +1111,14 @@ set_multicast_list(struct net_device *dev)
 	unsigned long flags;
 	struct el3_private *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
+	int mc_count = netdev_mc_count(dev);
 
 	if (el3_debug > 1) {
 		static int old;
-		if (old != dev->mc_count) {
-			old = dev->mc_count;
-			pr_debug("%s: Setting Rx mode to %d addresses.\n", dev->name, dev->mc_count);
+		if (old != mc_count) {
+			old = mc_count;
+			pr_debug("%s: Setting Rx mode to %d addresses.\n",
+				 dev->name, mc_count);
 		}
 	}
 	spin_lock_irqsave(&lp->lock, flags);
@@ -1124,7 +1126,7 @@ set_multicast_list(struct net_device *dev)
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
 			 ioaddr + EL3_CMD);
 	}
-	else if (dev->mc_count || (dev->flags&IFF_ALLMULTI)) {
+	else if (mc_count || (dev->flags&IFF_ALLMULTI)) {
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast, ioaddr + EL3_CMD);
 	}
 	else

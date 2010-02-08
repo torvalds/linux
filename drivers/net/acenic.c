@@ -2845,7 +2845,7 @@ static void ace_set_multicast_list(struct net_device *dev)
 	 * set the entire multicast list at a time and keeping track of
 	 * it here is going to be messy.
 	 */
-	if ((dev->mc_count) && !(ap->mcast_all)) {
+	if (!netdev_mc_empty(dev) && !ap->mcast_all) {
 		cmd.evt = C_SET_MULTICAST_MODE;
 		cmd.code = C_C_MCAST_ENABLE;
 		cmd.idx = 0;

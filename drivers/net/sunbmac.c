@@ -1013,7 +1013,7 @@ static void bigmac_set_multicast(struct net_device *dev)
 	while ((sbus_readl(bregs + BMAC_RXCFG) & BIGMAC_RXCFG_ENABLE) != 0)
 		udelay(20);
 
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		sbus_writel(0xffff, bregs + BMAC_HTABLE0);
 		sbus_writel(0xffff, bregs + BMAC_HTABLE1);
 		sbus_writel(0xffff, bregs + BMAC_HTABLE2);
@@ -1028,7 +1028,7 @@ static void bigmac_set_multicast(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(dev); i++) {
 			addrs = dmi->dmi_addr;
 			dmi = dmi->next;
 

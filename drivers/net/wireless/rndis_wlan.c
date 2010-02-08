@@ -1492,10 +1492,10 @@ static void set_multicast_list(struct usbnet *usbdev)
 		filter |= RNDIS_PACKET_TYPE_PROMISCUOUS |
 			RNDIS_PACKET_TYPE_ALL_LOCAL;
 	} else if (usbdev->net->flags & IFF_ALLMULTI ||
-		   usbdev->net->mc_count > priv->multicast_size) {
+		   netdev_mc_count(usbdev->net) > priv->multicast_size) {
 		filter |= RNDIS_PACKET_TYPE_ALL_MULTICAST;
-	} else if (usbdev->net->mc_count > 0) {
-		size = min(priv->multicast_size, usbdev->net->mc_count);
+	} else if (!netdev_mc_empty(usbdev->net)) {
+		size = min(priv->multicast_size, netdev_mc_count(usbdev->net));
 		buf = kmalloc(size * ETH_ALEN, GFP_KERNEL);
 		if (!buf) {
 			devwarn(usbdev,

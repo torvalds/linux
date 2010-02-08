@@ -1668,7 +1668,7 @@ static u8 *
 vmxnet3_copy_mc(struct net_device *netdev)
 {
 	u8 *buf = NULL;
-	u32 sz = netdev->mc_count * ETH_ALEN;
+	u32 sz = netdev_mc_count(netdev) * ETH_ALEN;
 
 	/* struct Vmxnet3_RxFilterConf.mfTableLen is u16. */
 	if (sz <= 0xffff) {
@@ -1678,7 +1678,7 @@ vmxnet3_copy_mc(struct net_device *netdev)
 			int i;
 			struct dev_mc_list *mc = netdev->mc_list;
 
-			for (i = 0; i < netdev->mc_count; i++) {
+			for (i = 0; i < netdev_mc_count(netdev); i++) {
 				BUG_ON(!mc);
 				memcpy(buf + i * ETH_ALEN, mc->dmi_addr,
 				       ETH_ALEN);
@@ -1708,12 +1708,12 @@ vmxnet3_set_mc(struct net_device *netdev)
 	if (netdev->flags & IFF_ALLMULTI)
 		new_mode |= VMXNET3_RXM_ALL_MULTI;
 	else
-		if (netdev->mc_count > 0) {
+		if (!netdev_mc_empty(netdev)) {
 			new_table = vmxnet3_copy_mc(netdev);
 			if (new_table) {
 				new_mode |= VMXNET3_RXM_MCAST;
 				rxConf->mfTableLen = cpu_to_le16(
-						netdev->mc_count * ETH_ALEN);
+					netdev_mc_count(netdev) * ETH_ALEN);
 				rxConf->mfTablePA = cpu_to_le64(virt_to_phys(
 						    new_table));
 			} else {

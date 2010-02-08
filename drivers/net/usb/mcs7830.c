@@ -443,9 +443,9 @@ static void mcs7830_data_set_multicast(struct net_device *net)
 	if (net->flags & IFF_PROMISC) {
 		data->config |= HIF_REG_CONFIG_PROMISCUOUS;
 	} else if (net->flags & IFF_ALLMULTI ||
-		   net->mc_count > MCS7830_MAX_MCAST) {
+		   netdev_mc_count(net) > MCS7830_MAX_MCAST) {
 		data->config |= HIF_REG_CONFIG_ALLMULTICAST;
-	} else if (net->mc_count == 0) {
+	} else if (netdev_mc_empty(net)) {
 		/* just broadcast and directed */
 	} else {
 		/* We use the 20 byte dev->data
@@ -457,7 +457,7 @@ static void mcs7830_data_set_multicast(struct net_device *net)
 		int i;
 
 		/* Build the multicast hash filter. */
-		for (i = 0; i < net->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(net); i++) {
 			crc_bits = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |= 1 << (crc_bits & 7);
 			mc_list = mc_list->next;

@@ -490,19 +490,19 @@ static void korina_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		recognise |= ETH_ARC_PRO;
 
-	else if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 4))
+	else if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 4))
 		/* All multicast and broadcast */
 		recognise |= ETH_ARC_AM;
 
 	/* Build the hash table */
-	if (dev->mc_count > 4) {
+	if (netdev_mc_count(dev) > 4) {
 		u16 hash_table[4];
 		u32 crc;
 
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(dev); i++) {
 			char *addrs = dmi->dmi_addr;
 
 			dmi = dmi->next;

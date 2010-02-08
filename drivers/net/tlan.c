@@ -1335,7 +1335,7 @@ static void TLan_SetMulticastList( struct net_device *dev )
 			TLan_DioWrite32( dev->base_addr, TLAN_HASH_1, 0xFFFFFFFF );
 			TLan_DioWrite32( dev->base_addr, TLAN_HASH_2, 0xFFFFFFFF );
 		} else {
-			for ( i = 0; i < dev->mc_count; i++ ) {
+			for ( i = 0; i < netdev_mc_count(dev); i++ ) {
 				if ( i < 3 ) {
 					TLan_SetMac( dev, i + 1,
 						     (char *) &dmi->dmi_addr );

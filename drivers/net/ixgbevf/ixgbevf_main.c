@@ -1527,7 +1527,7 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 	int addr_count = 0;
 
 	/* reprogram multicast list */
-	addr_count = netdev->mc_count;
+	addr_count = netdev_mc_count(netdev);
 	if (addr_count)
 		addr_list = netdev->mc_list->dmi_addr;
 	if (hw->mac.ops.update_mc_addr_list)

@@ -2227,7 +2227,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		 *		 perfect filtering will be used.
 		 */
 
-		if (dev->mc_count > (PI_CMD_ADDR_FILTER_K_SIZE - bp->uc_count))
+		if (netdev_mc_count(dev) > (PI_CMD_ADDR_FILTER_K_SIZE - bp->uc_count))
 			{
 			bp->group_prom	= PI_FSTATE_K_PASS;		/* Enable LLC group prom mode */
 			bp->mc_count	= 0;					/* Don't add mc addrs to CAM */
@@ -2235,7 +2235,7 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 		else
 			{
 			bp->group_prom	= PI_FSTATE_K_BLOCK;	/* Disable LLC group prom mode */
-			bp->mc_count	= dev->mc_count;		/* Add mc addrs to CAM */
+			bp->mc_count	= netdev_mc_count(dev);		/* Add mc addrs to CAM */
 			}
 
 		/* Copy addresses to multicast address table, then update adapter CAM */

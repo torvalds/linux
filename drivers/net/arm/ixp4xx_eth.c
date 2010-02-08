@@ -737,7 +737,7 @@ static void eth_set_mcast_list(struct net_device *dev)
 	struct port *port = netdev_priv(dev);
 	struct dev_mc_list *mclist = dev->mc_list;
 	u8 diffs[ETH_ALEN], *addr;
-	int cnt = dev->mc_count, i;
+	int cnt = netdev_mc_count(dev), i;
 
 	if ((dev->flags & IFF_PROMISC) || !mclist || !cnt) {
 		__raw_writel(DEFAULT_RX_CNTRL0 & ~RX_CNTRL0_ADDR_FLTR_EN,

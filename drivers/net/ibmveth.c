@@ -1062,7 +1062,8 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	unsigned long lpar_rc;
 
-	if((netdev->flags & IFF_PROMISC) || (netdev->mc_count > adapter->mcastFilterSize)) {
+	if ((netdev->flags & IFF_PROMISC) ||
+	    (netdev_mc_count(netdev) > adapter->mcastFilterSize)) {
 		lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 					   IbmVethMcastEnableRecv |
 					   IbmVethMcastDisableFiltering,
@@ -1083,7 +1084,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when attempting to clear filter table\n", lpar_rc);
 		}
 		/* add the addresses to the filter table */
-		for(i = 0; i < netdev->mc_count; ++i, mclist = mclist->next) {
+		for(i = 0; i < netdev_mc_count(netdev); ++i, mclist = mclist->next) {
 			// add the multicast address to the filter table
 			unsigned long mcast_addr = 0;
 			memcpy(((char *)&mcast_addr)+2, mclist->dmi_addr, 6);

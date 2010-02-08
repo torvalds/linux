@@ -1950,7 +1950,7 @@ static void set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_ALLMULTI)
 		ray_update_multi_list(dev, 1);
 	else {
-		if (local->num_multi != dev->mc_count)
+		if (local->num_multi != netdev_mc_count(dev))
 			ray_update_multi_list(dev, 0);
 	}
 } /* end set_multicast_list */

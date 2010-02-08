@@ -1538,7 +1538,7 @@ static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct net_device *netdev = nic->netdev;
 	struct dev_mc_list *list = netdev->mc_list;
-	u16 i, count = min(netdev->mc_count, E100_MAX_MULTICAST_ADDRS);
+	u16 i, count = min(netdev_mc_count(netdev), E100_MAX_MULTICAST_ADDRS);
 
 	cb->command = cpu_to_le16(cb_multi);
 	cb->u.multi.count = cpu_to_le16(count * ETH_ALEN);
@@ -1552,7 +1552,7 @@ static void e100_set_multicast_list(struct net_device *netdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	DPRINTK(HW, DEBUG, "mc_count=%d, flags=0x%04X\n",
-		netdev->mc_count, netdev->flags);
+		netdev_mc_count(netdev), netdev->flags);
 
 	if (netdev->flags & IFF_PROMISC)
 		nic->flags |= promiscuous;
@@ -1560,7 +1560,7 @@ static void e100_set_multicast_list(struct net_device *netdev)
 		nic->flags &= ~promiscuous;
 
 	if (netdev->flags & IFF_ALLMULTI ||
-		netdev->mc_count > E100_MAX_MULTICAST_ADDRS)
+		netdev_mc_count(netdev) > E100_MAX_MULTICAST_ADDRS)
 		nic->flags |= multicast_all;
 	else
 		nic->flags &= ~multicast_all;

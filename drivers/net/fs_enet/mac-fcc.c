@@ -218,7 +218,7 @@ static void set_multicast_finish(struct net_device *dev)
 
 	/* if all multi or too many multicasts; just enable all */
 	if ((dev->flags & IFF_ALLMULTI) != 0 ||
-	    dev->mc_count > FCC_MAX_MULTICAST_ADDRS) {
+	    netdev_mc_count(dev) > FCC_MAX_MULTICAST_ADDRS) {
 
 		W32(ep, fen_gaddrh, 0xffffffff);
 		W32(ep, fen_gaddrl, 0xffffffff);

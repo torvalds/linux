@@ -1681,14 +1681,15 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 		ioc3_w_emcr(ip->emcr);			/* Clear promiscuous. */
 		(void) ioc3_r_emcr();
 
-		if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+		if ((dev->flags & IFF_ALLMULTI) ||
+		    (netdev_mc_count(dev) > 64)) {
 			/* Too many for hashing to make sense or we want all
 			   multicast packets anyway,  so skip computing all the
 			   hashes and just accept all packets.  */
 			ip->ehar_h = 0xffffffff;
 			ip->ehar_l = 0xffffffff;
 		} else {
-			for (i = 0; i < dev->mc_count; i++) {
+			for (i = 0; i < netdev_mc_count(dev); i++) {
 				char *addr = dmi->dmi_addr;
 				dmi = dmi->next;
 

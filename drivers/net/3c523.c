@@ -626,7 +626,7 @@ static int init586(struct net_device *dev)
 	volatile struct tdr_cmd_struct *tdr_cmd;
 	volatile struct mcsetup_cmd_struct *mc_cmd;
 	struct dev_mc_list *dmi = dev->mc_list;
-	int num_addrs = dev->mc_count;
+	int num_addrs = netdev_mc_count(dev);
 
 	ptr = (void *) ((char *) p->scb + sizeof(struct scb_struct));
 
@@ -771,7 +771,7 @@ static int init586(struct net_device *dev)
 	 * Multicast setup
 	 */
 
-	if (dev->mc_count) {
+	if (num_addrs) {
 		/* I don't understand this: do we really need memory after the init? */
 		int len = ((char *) p->iscp - (char *) ptr - 8) / 6;
 		if (len <= 0) {

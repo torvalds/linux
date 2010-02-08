@@ -1138,18 +1138,18 @@ static void wq_set_multicast_list (struct work_struct *work)
 	} else if ((dev->flags & IFF_ALLMULTI)) {
 		dprintk("%s: allmulti mode\n", dev->name);
 		priv->rx_mode = RX_MODE_ALL_MULTI;
-	} else if (dev->mc_count) {
+	} else if (!netdev_mc_empty(dev)) {
 		int mci;
 		struct dev_mc_list *mc;
 
 		dprintk("%s: set_mc_list, %d entries\n",
-			dev->name, dev->mc_count);
+			dev->name, netdev_mc_count(dev));
 
 		priv->rx_mode = RX_MODE_MULTI;
 		priv->multi_num = 0;
 
 		for (mci = 0, mc=dev->mc_list;
-		     mci < dev->mc_count;
+		     mci < netdev_mc_count(dev);
 		     mc = mc->next, mci++) {
 			dvb_set_mc_filter(dev, mc);
 		}
@@ -1236,7 +1236,6 @@ static void dvb_net_setup(struct net_device *dev)
 	dev->header_ops		= &dvb_header_ops;
 	dev->netdev_ops		= &dvb_netdev_ops;
 	dev->mtu		= 4096;
-	dev->mc_count           = 0;
 
 	dev->flags |= IFF_NOARP;
 }

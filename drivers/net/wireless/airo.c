@@ -2310,7 +2310,7 @@ static void airo_set_multicast_list(struct net_device *dev) {
 			airo_set_promisc(ai);
 	}
 
-	if ((dev->flags&IFF_ALLMULTI)||dev->mc_count>0) {
+	if ((dev->flags&IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		/* Turn on multicast.  (Should be already setup...) */
 	}
 }

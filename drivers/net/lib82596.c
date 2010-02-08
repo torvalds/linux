@@ -1380,21 +1380,21 @@ static void set_multicast_list(struct net_device *dev)
 		}
 	}
 
-	cnt = dev->mc_count;
+	cnt = netdev_mc_count(dev);
 	if (cnt > MAX_MC_CNT) {
 		cnt = MAX_MC_CNT;
 		printk(KERN_NOTICE "%s: Only %d multicast addresses supported",
 			dev->name, cnt);
 	}
 
-	if (dev->mc_count > 0) {
+	if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
 
 		cmd = &dma->mc_cmd;
 		cmd->cmd.command = SWAP16(CmdMulticastList);
-		cmd->mc_cnt = SWAP16(dev->mc_count * 6);
+		cmd->mc_cnt = SWAP16(netdev_mc_count(dev) * 6);
 		cp = cmd->mc_addrs;
 		for (dmi = dev->mc_list;
 		     cnt && dmi != NULL;

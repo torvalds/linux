@@ -139,7 +139,7 @@ static void int51x1_set_multicast(struct net_device *netdev)
 		/* do not expect to see traffic of other PLCs */
 		filter |= PACKET_TYPE_PROMISCUOUS;
 		devinfo(dev, "promiscuous mode enabled");
-	} else if (netdev->mc_count ||
+	} else if (!netdev_mc_empty(netdev) ||
 		  (netdev->flags & IFF_ALLMULTI)) {
 		filter |= PACKET_TYPE_ALL_MULTICAST;
 		devdbg(dev, "receive all multicast enabled");

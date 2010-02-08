@@ -660,7 +660,7 @@ static void sgiseeq_set_multicast(struct net_device *dev)
 
 	if(dev->flags & IFF_PROMISC)
 		sp->mode = SEEQ_RCMD_RANY;
-	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count)
+	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
 		sp->mode = SEEQ_RCMD_RBMCAST;
 	else
 		sp->mode = SEEQ_RCMD_RBCAST;

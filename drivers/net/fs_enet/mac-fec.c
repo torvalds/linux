@@ -220,7 +220,7 @@ static void set_multicast_finish(struct net_device *dev)
 
 	/* if all multi or too many multicasts; just enable all */
 	if ((dev->flags & IFF_ALLMULTI) != 0 ||
-	    dev->mc_count > FEC_MAX_MULTICAST_ADDRS) {
+	    netdev_mc_count(dev) > FEC_MAX_MULTICAST_ADDRS) {
 		fep->fec.hthi = 0xffffffffU;
 		fep->fec.htlo = 0xffffffffU;
 	}

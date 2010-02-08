@@ -1367,7 +1367,7 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 #ifdef DEBUG_IOCTL_INFO
 	printk(KERN_DEBUG
 	       "%s: wavelan_set_multicast_list(): setting Rx mode %02X to %d addresses.\n",
-	       dev->name, dev->flags, dev->mc_count);
+	       dev->name, dev->flags, netdev_mc_count(dev));
 #endif
 
 	/* Are we asking for promiscuous mode,
@@ -1375,7 +1375,7 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 	 * or too many multicast addresses for the hardware filter? */
 	if ((dev->flags & IFF_PROMISC) ||
 	    (dev->flags & IFF_ALLMULTI) ||
-	    (dev->mc_count > I82586_MAX_MULTICAST_ADDRESSES)) {
+	    (netdev_mc_count(dev) > I82586_MAX_MULTICAST_ADDRESSES)) {
 		/*
 		 * Enable promiscuous mode: receive all packets.
 		 */
@@ -1393,11 +1393,11 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 		 * in multicast list
 		 */
 #ifdef MULTICAST_AVOID
-		if (lp->promiscuous || (dev->mc_count != lp->mc_count))
+		if (lp->promiscuous || (netdev_mc_count(dev) != lp->mc_count))
 #endif
 		{
 			lp->promiscuous = 0;
-			lp->mc_count = dev->mc_count;
+			lp->mc_count = netdev_mc_count(dev);
 
 			wv_82586_reconfig(dev);
 		}

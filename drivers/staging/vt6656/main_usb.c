@@ -1619,7 +1619,8 @@ static void device_set_multi(struct net_device *dev) {
         // Unconditionally log net taps.
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
     }
-    else if ((dev->mc_count > pDevice->multicast_limit) || (dev->flags & IFF_ALLMULTI)) {
+    else if ((netdev_mc_count(dev) > pDevice->multicast_limit) ||
+	     (dev->flags & IFF_ALLMULTI)) {
         CONTROLnsRequestOut(pDevice,
                             MESSAGE_TYPE_WRITE,
                             MAC_REG_MAR0,
@@ -1631,7 +1632,7 @@ static void device_set_multi(struct net_device *dev) {
     }
     else {
         memset(mc_filter, 0, sizeof(mc_filter));
-        for (ii = 0, mclist = dev->mc_list; mclist && ii < dev->mc_count;
+        for (ii = 0, mclist = dev->mc_list; mclist && ii < netdev_mc_count(dev);
              ii++, mclist = mclist->next) {
             int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
             mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));

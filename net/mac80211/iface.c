@@ -413,7 +413,7 @@ static int ieee80211_stop(struct net_device *dev)
 	netif_addr_lock_bh(dev);
 	spin_lock_bh(&local->filter_lock);
 	__dev_addr_unsync(&local->mc_list, &local->mc_count,
-			  &dev->mc_list, &dev->mc_count);
+			  &dev->mc_list, dev->mc_count);
 	spin_unlock_bh(&local->filter_lock);
 	netif_addr_unlock_bh(dev);
 

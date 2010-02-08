@@ -677,7 +677,7 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	memset(hash_table, 0, sizeof(hash_table));
 	set_bit_le(255, hash_table); 			/* Broadcast entry */
 	/* This should work on big-endian machines as well. */
-	for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+	for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 	     i++, mclist = mclist->next) {
 		int index = ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x1ff;
 
@@ -706,7 +706,7 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
-	for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
+	for (i = 0, mclist = dev->mc_list; i < netdev_mc_count(dev);
 	     i++, mclist = mclist->next) {
 		eaddrs = (u16 *)mclist->dmi_addr;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
@@ -741,7 +741,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 		goto out;
 	}
 
-	if ((dev->mc_count > 1000) || (dev->flags & IFF_ALLMULTI)) {
+	if ((netdev_mc_count(dev) > 1000) || (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter well -- accept all multicasts. */
 		macmode |= AcceptAllMulticast;
 		goto out;
@@ -749,7 +749,7 @@ static void __de_set_rx_mode (struct net_device *dev)
 
 	/* Note that only the low-address shortword of setup_frame is valid!
 	   The values are doubled for big-endian architectures. */
-	if (dev->mc_count > 14)	/* Must use a multicast hash table. */
+	if (netdev_mc_count(dev) > 14)	/* Must use a multicast hash table. */
 		build_setup_frame_hash (de->setup_frame, dev);
 	else
 		build_setup_frame_perfect (de->setup_frame, dev);

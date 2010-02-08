@@ -213,7 +213,7 @@ static void set_multicast_finish(struct net_device *dev)
 
 	/* if all multi or too many multicasts; just enable all */
 	if ((dev->flags & IFF_ALLMULTI) != 0 ||
-	    dev->mc_count > SCC_MAX_MULTICAST_ADDRS) {
+	    netdev_mc_count(dev) > SCC_MAX_MULTICAST_ADDRS) {
 
 		W16(ep, sen_gaddr1, 0xffff);
 		W16(ep, sen_gaddr2, 0xffff);

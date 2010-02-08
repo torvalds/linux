@@ -1303,7 +1303,7 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	writel(streamer_priv->srb,streamer_mmio+LAPA);
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ; 
   
-	for (i=0,dmi=dev->mc_list;i < dev->mc_count; i++,dmi = dmi->next) 
+	for (i=0,dmi=dev->mc_list;i < netdev_mc_count(dev); i++,dmi = dmi->next)
 	{ 
    	        dev_mc_address[0] |= dmi->dmi_addr[2] ; 
 		dev_mc_address[1] |= dmi->dmi_addr[3] ; 

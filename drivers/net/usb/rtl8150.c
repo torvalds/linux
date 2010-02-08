@@ -711,7 +711,7 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	if (netdev->flags & IFF_PROMISC) {
 		dev->rx_creg |= cpu_to_le16(0x0001);
 		dev_info(&netdev->dev, "%s: promiscuous mode\n", netdev->name);
-	} else if (netdev->mc_count ||
+	} else if (!netdev_mc_empty(netdev) ||
 		   (netdev->flags & IFF_ALLMULTI)) {
 		dev->rx_creg &= cpu_to_le16(0xfffe);
 		dev->rx_creg |= cpu_to_le16(0x0002);

@@ -1132,7 +1132,7 @@ static void velocity_set_multi(struct net_device *dev)
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
 		rx_mode = (RCR_AM | RCR_AB | RCR_PROM);
-	} else if ((dev->mc_count > vptr->multicast_limit) ||
+	} else if ((netdev_mc_count(dev) > vptr->multicast_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
@@ -1141,7 +1141,9 @@ static void velocity_set_multi(struct net_device *dev)
 		int offset = MCAM_SIZE - vptr->multicast_limit;
 		mac_get_cam_mask(regs, vptr->mCAMmask);
 
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count; i++, mclist = mclist->next) {
+		for (i = 0, mclist = dev->mc_list;
+		     mclist && i < netdev_mc_count(dev);
+		     i++, mclist = mclist->next) {
 			mac_set_cam(regs, i + offset, mclist->dmi_addr);
 			vptr->mCAMmask[(offset + i) / 8] |= 1 << ((offset + i) & 7);
 		}

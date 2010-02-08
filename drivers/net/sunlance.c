@@ -1196,7 +1196,7 @@ static void lance_load_multicast(struct net_device *dev)
 		return;
 
 	/* Add addresses */
-	for (i = 0; i < dev->mc_count; i++) {
+	for (i = 0; i < netdev_mc_count(dev); i++) {
 		addrs = dmi->dmi_addr;
 		dmi   = dmi->next;
 

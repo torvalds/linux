@@ -1395,7 +1395,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	 * I don't need to zero the multicast table, because the flag is
 	 * checked before the table is
 	 */
-	else if (dev->flags & IFF_ALLMULTI || dev->mc_count > 16) {
+	else if (dev->flags & IFF_ALLMULTI || netdev_mc_count(dev) > 16) {
 		DBG(2, "%s: RCR_ALMUL\n", dev->name);
 		lp->rcr_cur_mode |= RCR_ALMUL;
 	}
@@ -1412,7 +1412,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 	 * the number of the 8 bit register, while the low 3 bits are the bit
 	 * within that register.
 	 */
-	else if (dev->mc_count)  {
+	else if (!netdev_mc_empty(dev)) {
 		int i;
 		struct dev_mc_list *cur_addr;
 
@@ -1423,7 +1423,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 		memset(multicast_table, 0, sizeof(multicast_table));
 
 		cur_addr = dev->mc_list;
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
+		for (i = 0; i < netdev_mc_count(dev); i++, cur_addr = cur_addr->next) {
 			int position;
 
 			/* do we have a pointer here? */

@@ -444,11 +444,11 @@ void et131x_multicast(struct net_device *netdev)
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
 	}
 
-	if (netdev->mc_count > NIC_MAX_MCAST_LIST) {
+	if (netdev_mc_count(netdev) > NIC_MAX_MCAST_LIST) {
 		adapter->PacketFilter |= ET131X_PACKET_TYPE_ALL_MULTICAST;
 	}
 
-	if (netdev->mc_count < 1) {
+	if (netdev_mc_count(netdev) < 1) {
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_ALL_MULTICAST;
 		adapter->PacketFilter &= ~ET131X_PACKET_TYPE_MULTICAST;
 	} else {
@@ -456,10 +456,10 @@ void et131x_multicast(struct net_device *netdev)
 	}
 
 	/* Set values in the private adapter struct */
-	adapter->MCAddressCount = netdev->mc_count;
+	adapter->MCAddressCount = netdev_mc_count(netdev);
 
-	if (netdev->mc_count) {
-		count = netdev->mc_count - 1;
+	if (!netdev_mc_empty(netdev)) {
+		count = netdev_mc_count(netdev) - 1;
 		memcpy(adapter->MCList[count], mclist->dmi_addr, ETH_ALEN);
 	}
 

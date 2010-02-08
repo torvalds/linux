@@ -2288,7 +2288,7 @@ static void set_rx_mode(struct net_device *net_dev)
 		rx_mode = RFPromiscuous;
 		for (i = 0; i < table_entries; i++)
 			mc_filter[i] = 0xffff;
-	} else if ((net_dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(net_dev) > multicast_filter_limit) ||
 		   (net_dev->flags & IFF_ALLMULTI)) {
 		/* too many multicast addresses or accept all multicast packet */
 		rx_mode = RFAAB | RFAAM;
@@ -2301,7 +2301,7 @@ static void set_rx_mode(struct net_device *net_dev)
 		struct dev_mc_list *mclist;
 		rx_mode = RFAAB;
 		for (i = 0, mclist = net_dev->mc_list;
-			mclist && i < net_dev->mc_count;
+			mclist && i < netdev_mc_count(net_dev);
 			i++, mclist = mclist->next) {
 			unsigned int bit_nr =
 				sis900_mcast_bitnr(mclist->dmi_addr, sis_priv->chipset_rev);

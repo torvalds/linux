@@ -542,9 +542,9 @@ static void asix_set_multicast(struct net_device *net)
 	if (net->flags & IFF_PROMISC) {
 		rx_ctl |= AX_RX_CTL_PRO;
 	} else if (net->flags & IFF_ALLMULTI ||
-		   net->mc_count > AX_MAX_MCAST) {
+		   netdev_mc_count(net) > AX_MAX_MCAST) {
 		rx_ctl |= AX_RX_CTL_AMALL;
-	} else if (net->mc_count == 0) {
+	} else if (netdev_mc_empty(net)) {
 		/* just broadcast and directed */
 	} else {
 		/* We use the 20 byte dev->data
@@ -558,7 +558,7 @@ static void asix_set_multicast(struct net_device *net)
 		memset(data->multi_filter, 0, AX_MCAST_FILTER_SIZE);
 
 		/* Build the multicast hash filter. */
-		for (i = 0; i < net->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(net); i++) {
 			crc_bits =
 			    ether_crc(ETH_ALEN,
 				      mc_list->dmi_addr) >> 26;
@@ -754,9 +754,9 @@ static void ax88172_set_multicast(struct net_device *net)
 	if (net->flags & IFF_PROMISC) {
 		rx_ctl |= 0x01;
 	} else if (net->flags & IFF_ALLMULTI ||
-		   net->mc_count > AX_MAX_MCAST) {
+		   netdev_mc_count(net) > AX_MAX_MCAST) {
 		rx_ctl |= 0x02;
-	} else if (net->mc_count == 0) {
+	} else if (netdev_mc_empty(net)) {
 		/* just broadcast and directed */
 	} else {
 		/* We use the 20 byte dev->data
@@ -770,7 +770,7 @@ static void ax88172_set_multicast(struct net_device *net)
 		memset(data->multi_filter, 0, AX_MCAST_FILTER_SIZE);
 
 		/* Build the multicast hash filter. */
-		for (i = 0; i < net->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(net); i++) {
 			crc_bits =
 			    ether_crc(ETH_ALEN,
 				      mc_list->dmi_addr) >> 26;

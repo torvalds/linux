@@ -83,16 +83,16 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	unsigned int value = 0;
 
 	DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
-	    __func__, dev->mc_count, netdev_uc_count(dev));
+	    __func__, netdev_mc_count(dev), netdev_uc_count(dev));
 
 	if (dev->flags & IFF_PROMISC)
 		value = GMAC_FRAME_FILTER_PR;
-	else if ((dev->mc_count > HASH_TABLE_SIZE)
+	else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
 		   || (dev->flags & IFF_ALLMULTI)) {
 		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
 		writel(0xffffffff, ioaddr + GMAC_HASH_HIGH);
 		writel(0xffffffff, ioaddr + GMAC_HASH_LOW);
-	} else if (dev->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev)) {
 		int i;
 		u32 mc_filter[2];
 		struct dev_mc_list *mclist;
@@ -102,7 +102,7 @@ static void dwmac1000_set_filter(struct net_device *dev)
 
 		memset(mc_filter, 0, sizeof(mc_filter));
 		for (i = 0, mclist = dev->mc_list;
-		     mclist && i < dev->mc_count; i++, mclist = mclist->next) {
+		     mclist && i < netdev_mc_count(dev); i++, mclist = mclist->next) {
 			/* The upper 6 bits of the calculated CRC are used to
 			   index the contens of the hash table */
 			int bit_nr =

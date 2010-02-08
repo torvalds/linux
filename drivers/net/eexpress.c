@@ -1578,7 +1578,7 @@ static void eexp_setup_filter(struct net_device *dev)
 {
 	struct dev_mc_list *dmi;
 	unsigned short ioaddr = dev->base_addr;
-	int count = dev->mc_count;
+	int count = netdev_mc_count(dev);
 	int i;
 	if (count > 8) {
 		printk(KERN_INFO "%s: too many multicast addresses (%d)\n",
@@ -1627,9 +1627,9 @@ eexp_set_multicast(struct net_device *dev)
         }
         if (!(dev->flags & IFF_PROMISC)) {
                 eexp_setup_filter(dev);
-                if (lp->old_mc_count != dev->mc_count) {
+                if (lp->old_mc_count != netdev_mc_count(dev)) {
                         kick = 1;
-                        lp->old_mc_count = dev->mc_count;
+                        lp->old_mc_count = netdev_mc_count(dev);
                 }
         }
         if (kick) {

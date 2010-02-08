@@ -725,7 +725,7 @@ dm9000_hash_table(struct net_device *dev)
 {
 	board_info_t *db = netdev_priv(dev);
 	struct dev_mc_list *mcptr = dev->mc_list;
-	int mc_cnt = dev->mc_count;
+	int mc_cnt = netdev_mc_count(dev);
 	int i, oft;
 	u32 hash_val;
 	u16 hash_table[4];

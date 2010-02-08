@@ -1564,7 +1564,7 @@ static void
 set_multicast_list(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
-	int num_addr = dev->mc_count;
+	int num_addr = netdev_mc_count(dev);
 	unsigned long int lo_bits;
 	unsigned long int hi_bits;
 

@@ -2932,7 +2932,7 @@ static void genesis_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	int i, count = dev->mc_count;
+	int i, count = netdev_mc_count(dev);
 	struct dev_mc_list *list = dev->mc_list;
 	u32 mode;
 	u8 filter[8];
@@ -2987,7 +2987,7 @@ static void yukon_set_multicast(struct net_device *dev)
 		reg &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
 	else if (dev->flags & IFF_ALLMULTI)	/* all multicast */
 		memset(filter, 0xff, sizeof(filter));
-	else if (dev->mc_count == 0 && !rx_pause)/* no multicast */
+	else if (netdev_mc_empty(dev) && !rx_pause)/* no multicast */
 		reg &= ~GM_RXCR_MCF_ENA;
 	else {
 		int i;
@@ -2996,7 +2996,7 @@ static void yukon_set_multicast(struct net_device *dev)
 		if (rx_pause)
 			yukon_add_filter(filter, pause_mc_addr);
 
-		for (i = 0; list && i < dev->mc_count; i++, list = list->next)
+		for (i = 0; list && i < netdev_mc_count(dev); i++, list = list->next)
 			yukon_add_filter(filter, list->dmi_addr);
 	}
 

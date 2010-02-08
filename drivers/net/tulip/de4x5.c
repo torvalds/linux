@@ -1963,10 +1963,10 @@ SetMulticastFilter(struct net_device *dev)
     omr &= ~(OMR_PR | OMR_PM);
     pa = build_setup_frame(dev, ALL);        /* Build the basic frame */
 
-    if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 14)) {
+    if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 14)) {
 	omr |= OMR_PM;                       /* Pass all multicasts */
     } else if (lp->setup_f == HASH_PERF) {   /* Hash Filtering */
-	for (i=0;i<dev->mc_count;i++) {      /* for each address in the list */
+	for (i = 0; i < netdev_mc_count(dev) ;i++) {
 	    addrs=dmi->dmi_addr;
 	    dmi=dmi->next;
 	    if ((*addrs & 0x01) == 1) {      /* multicast address? */
@@ -1984,7 +1984,7 @@ SetMulticastFilter(struct net_device *dev)
 	    }
 	}
     } else {                                 /* Perfect filtering */
-	for (j=0; j<dev->mc_count; j++) {
+	for (j=0; j<netdev_mc_count(dev); j++) {
 	    addrs=dmi->dmi_addr;
 	    dmi=dmi->next;
 	    for (i=0; i<ETH_ALEN; i++) {

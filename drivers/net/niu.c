@@ -6369,7 +6369,7 @@ static void niu_set_rx_mode(struct net_device *dev)
 	np->flags &= ~(NIU_FLAGS_MCAST | NIU_FLAGS_PROMISC);
 	if (dev->flags & IFF_PROMISC)
 		np->flags |= NIU_FLAGS_PROMISC;
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 0))
+	if ((dev->flags & IFF_ALLMULTI) || (!netdev_mc_empty(dev)))
 		np->flags |= NIU_FLAGS_MCAST;
 
 	alt_cnt = netdev_uc_count(dev);
@@ -6412,7 +6412,7 @@ static void niu_set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_ALLMULTI) {
 		for (i = 0; i < 16; i++)
 			hash[i] = 0xffff;
-	} else if (dev->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev)) {
 		for (addr = dev->mc_list; addr; addr = addr->next) {
 			u32 crc = ether_crc_le(ETH_ALEN, addr->da_addr);
 

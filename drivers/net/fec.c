@@ -1606,7 +1606,7 @@ static void set_multicast_list(struct net_device *dev)
 
 	dmi = dev->mc_list;
 
-	for (j = 0; j < dev->mc_count; j++, dmi = dmi->next) {
+	for (j = 0; j < netdev_mc_count(dev); j++, dmi = dmi->next) {
 		/* Only support group multicast for now */
 		if (!(dmi->dmi_addr[0] & 1))
 			continue;

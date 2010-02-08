@@ -636,7 +636,7 @@ static void qe_set_multicast(struct net_device *dev)
 	/* Lock out others. */
 	netif_stop_queue(dev);
 
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		sbus_writeb(MREGS_IACONFIG_ACHNGE | MREGS_IACONFIG_LARESET,
 			    qep->mregs + MREGS_IACONFIG);
 		while ((sbus_readb(qep->mregs + MREGS_IACONFIG) & MREGS_IACONFIG_ACHNGE) != 0)
@@ -653,7 +653,7 @@ static void qe_set_multicast(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(dev); i++) {
 			addrs = dmi->dmi_addr;
 			dmi = dmi->next;
 

@@ -597,7 +597,7 @@ static int init586(struct net_device *dev)
 	struct tdr_cmd_struct __iomem *tdr_cmd;
 	struct mcsetup_cmd_struct __iomem *mc_cmd;
 	struct dev_mc_list *dmi = dev->mc_list;
-	int num_addrs = dev->mc_count;
+	int num_addrs = netdev_mc_count(dev);
 
 	ptr = p->scb + 1;
 

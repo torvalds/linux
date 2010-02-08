@@ -1013,7 +1013,7 @@ static void au1000_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		aup->mac->control |= MAC_PROMISCUOUS;
 	} else if ((dev->flags & IFF_ALLMULTI)  ||
-			   dev->mc_count > MULTICAST_FILTER_LIMIT) {
+			   netdev_mc_count(dev) > MULTICAST_FILTER_LIMIT) {
 		aup->mac->control |= MAC_PASS_ALL_MULTI;
 		aup->mac->control &= ~MAC_PROMISCUOUS;
 		printk(KERN_INFO "%s: Pass all multicast\n", dev->name);
@@ -1023,7 +1023,7 @@ static void au1000_multicast_list(struct net_device *dev)
 		u32 mc_filter[2];	/* Multicast hash filter */
 
 		mc_filter[1] = mc_filter[0] = 0;
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 			 i++, mclist = mclist->next) {
 			set_bit(ether_crc(ETH_ALEN, mclist->dmi_addr)>>26,
 					(long *)mc_filter);

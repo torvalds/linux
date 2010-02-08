@@ -541,13 +541,15 @@ static void sonic_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {	/* set promiscuous mode */
 		rcr |= SONIC_RCR_PRO;
 	} else {
-		if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 15)) {
+		if ((dev->flags & IFF_ALLMULTI) ||
+		    (netdev_mc_count(dev) > 15)) {
 			rcr |= SONIC_RCR_AMC;
 		} else {
 			if (sonic_debug > 2)
-				printk("sonic_multicast_list: mc_count %d\n", dev->mc_count);
+				printk("sonic_multicast_list: mc_count %d\n",
+				       netdev_mc_count(dev));
 			sonic_set_cam_enable(dev, 1);  /* always enable our own address */
-			for (i = 1; i <= dev->mc_count; i++) {
+			for (i = 1; i <= netdev_mc_count(dev); i++) {
 				addr = dmi->dmi_addr;
 				dmi = dmi->next;
 				sonic_cda_put(dev, i, SONIC_CD_CAP0, addr[1] << 8 | addr[0]);

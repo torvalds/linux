@@ -2488,7 +2488,7 @@ static void __set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) { /* Set promiscuous. */
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptAllMulticast | AcceptAllPhys | AcceptMyPhys;
-	} else if ((dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptAllMulticast | AcceptMyPhys;
@@ -2496,7 +2496,7 @@ static void __set_rx_mode(struct net_device *dev)
 		struct dev_mc_list *mclist;
 		int i;
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
+		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
 			 i++, mclist = mclist->next) {
 			int b = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 23) & 0x1ff;
 			mc_filter[b/8] |= (1 << (b & 0x07));

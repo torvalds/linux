@@ -996,7 +996,7 @@ static void tok_set_multicast_list(struct net_device *dev)
 	if (/*BMSHELPdev->start == 0 ||*/ ti->open_status != OPEN) return;
 	address[0] = address[1] = address[2] = address[3] = 0;
 	mclist = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++) {
+	for (i = 0; i < netdev_mc_count(dev); i++) {
 		address[0] |= mclist->dmi_addr[2];
 		address[1] |= mclist->dmi_addr[3];
 		address[2] |= mclist->dmi_addr[4];

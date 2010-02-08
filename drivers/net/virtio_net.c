@@ -735,6 +735,7 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	struct dev_addr_list *addr;
 	struct netdev_hw_addr *ha;
 	int uc_count;
+	int mc_count;
 	void *buf;
 	int i;
 
@@ -762,9 +763,11 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 			 allmulti ? "en" : "dis");
 
 	uc_count = netdev_uc_count(dev);
+	mc_count = netdev_mc_count(dev);
 	/* MAC filter - use one buffer for both lists */
-	mac_data = buf = kzalloc(((uc_count + dev->mc_count) * ETH_ALEN) +
-				 (2 * sizeof(mac_data->entries)), GFP_ATOMIC);
+	buf = kzalloc(((uc_count + mc_count) * ETH_ALEN) +
+		      (2 * sizeof(mac_data->entries)), GFP_ATOMIC);
+	mac_data = buf;
 	if (!buf) {
 		dev_warn(&dev->dev, "No memory for MAC address buffer\n");
 		return;
@@ -784,13 +787,13 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	/* multicast list and count fill the end */
 	mac_data = (void *)&mac_data->macs[uc_count][0];
 
-	mac_data->entries = dev->mc_count;
+	mac_data->entries = mc_count;
 	addr = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++, addr = addr->next)
+	for (i = 0; i < mc_count; i++, addr = addr->next)
 		memcpy(&mac_data->macs[i][0], addr->da_addr, ETH_ALEN);
 
 	sg_set_buf(&sg[1], mac_data,
-		   sizeof(mac_data->entries) + (dev->mc_count * ETH_ALEN));
+		   sizeof(mac_data->entries) + (mc_count * ETH_ALEN));
 
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_MAC,
 				  VIRTIO_NET_CTRL_MAC_TABLE_SET,

@@ -384,7 +384,7 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 			devdbg(dev, "receive all multicast enabled");
 		pdata->mac_cr |= MAC_CR_MCPAS_;
 		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_HPFILT_);
-	} else if (dev->net->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev->net)) {
 		struct dev_mc_list *mc_list = dev->net->mc_list;
 		int count = 0;
 
@@ -406,7 +406,7 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 			mc_list = mc_list->next;
 		}
 
-		if (count != ((u32)dev->net->mc_count))
+		if (count != ((u32) netdev_mc_count(dev->net)))
 			devwarn(dev, "mc_count != dev->mc_count");
 
 		if (netif_msg_drv(dev))

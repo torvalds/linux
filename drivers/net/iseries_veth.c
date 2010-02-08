@@ -958,7 +958,7 @@ static void veth_set_multicast_list(struct net_device *dev)
 	write_lock_irqsave(&port->mcast_gate, flags);
 
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI) ||
-			(dev->mc_count > VETH_MAX_MCAST)) {
+			(netdev_mc_count(dev) > VETH_MAX_MCAST)) {
 		port->promiscuous = 1;
 	} else {
 		struct dev_mc_list *dmi = dev->mc_list;
@@ -969,7 +969,7 @@ static void veth_set_multicast_list(struct net_device *dev)
 		/* Update table */
 		port->num_mcast = 0;
 
-		for (i = 0; i < dev->mc_count; i++) {
+		for (i = 0; i < netdev_mc_count(dev); i++) {
 			u8 *addr = dmi->dmi_addr;
 			u64 xaddr = 0;
 

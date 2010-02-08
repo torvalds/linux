@@ -557,7 +557,7 @@ static void uli526x_init(struct net_device *dev)
 	update_cr6(db->cr6_data, ioaddr);
 
 	/* Send setup frame */
-	send_filter_frame(dev, dev->mc_count);	/* M5261/M5263 */
+	send_filter_frame(dev, netdev_mc_count(dev));	/* M5261/M5263 */
 
 	/* Init CR7, interrupt active bit */
 	db->cr7_data = CR7_DEFAULT;
@@ -906,16 +906,18 @@ static void uli526x_set_filter_mode(struct net_device * dev)
 		return;
 	}
 
-	if (dev->flags & IFF_ALLMULTI || dev->mc_count > ULI5261_MAX_MULTICAST) {
-		ULI526X_DBUG(0, "Pass all multicast address", dev->mc_count);
+	if (dev->flags & IFF_ALLMULTI ||
+	    netdev_mc_count(dev) > ULI5261_MAX_MULTICAST) {
+		ULI526X_DBUG(0, "Pass all multicast address",
+			     netdev_mc_count(dev));
 		db->cr6_data &= ~(CR6_PM | CR6_PBF);
 		db->cr6_data |= CR6_PAM;
 		spin_unlock_irqrestore(&db->lock, flags);
 		return;
 	}
 
-	ULI526X_DBUG(0, "Set multicast address", dev->mc_count);
-	send_filter_frame(dev, dev->mc_count); 	/* M5261/M5263 */
+	ULI526X_DBUG(0, "Set multicast address", netdev_mc_count(dev));
+	send_filter_frame(dev, netdev_mc_count(dev)); 	/* M5261/M5263 */
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 

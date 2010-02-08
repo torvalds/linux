@@ -648,7 +648,9 @@ static void catc_set_multicast_list(struct net_device *netdev)
 	if (netdev->flags & IFF_ALLMULTI) {
 		memset(catc->multicast, 0xff, 64);
 	} else {
-		for (i = 0, mc = netdev->mc_list; mc && i < netdev->mc_count; i++, mc = mc->next) {
+		for (i = 0, mc = netdev->mc_list;
+		     mc && i < netdev_mc_count(netdev);
+		     i++, mc = mc->next) {
 			u32 crc = ether_crc_le(6, mc->dmi_addr);
 			if (!catc->is_f5u011) {
 				catc->multicast[(crc >> 3) & 0x3f] |= 1 << (crc & 7);

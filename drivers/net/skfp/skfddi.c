@@ -872,14 +872,14 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 		if (dev->flags & IFF_ALLMULTI) {
 			mac_drv_rx_mode(smc, RX_ENABLE_ALLMULTI);
 			pr_debug(KERN_INFO "ENABLE ALL MC ADDRESSES\n");
-		} else if (dev->mc_count > 0) {
-			if (dev->mc_count <= FPMAX_MULTICAST) {
+		} else if (!netdev_mc_empty(dev)) {
+			if (netdev_mc_count(dev) <= FPMAX_MULTICAST) {
 				/* use exact filtering */
 
 				// point to first multicast addr
 				dmi = dev->mc_list;
 
-				for (i = 0; i < dev->mc_count; i++) {
+				for (i = 0; i < netdev_mc_count(dev); i++) {
 					mac_add_multicast(smc, 
 							  (struct fddi_addr *)dmi->dmi_addr, 
 							  1);

@@ -2090,7 +2090,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		lp->mac2_mode = HP100_MAC2MODE6;	/* promiscuous mode = get all good */
 		lp->mac1_mode = HP100_MAC1MODE6;	/* packets on the net */
 		memset(&lp->hash_bytes, 0xff, 8);
-	} else if (dev->mc_count || (dev->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI)) {
 		lp->mac2_mode = HP100_MAC2MODE5;	/* multicast mode = get packets for */
 		lp->mac1_mode = HP100_MAC1MODE5;	/* me, broadcasts and all multicasts */
 #ifdef HP100_MULTICAST_FILTER	/* doesn't work!!! */
@@ -2104,9 +2104,10 @@ static void hp100_set_multicast_list(struct net_device *dev)
 
 			memset(&lp->hash_bytes, 0x00, 8);
 #ifdef HP100_DEBUG
-			printk("hp100: %s: computing hash filter - mc_count = %i\n", dev->name, dev->mc_count);
+			printk("hp100: %s: computing hash filter - mc_count = %i\n",
+			       dev->name, netdev_mc_count(dev));
 #endif
-			for (i = 0, dmi = dev->mc_list; i < dev->mc_count; i++, dmi = dmi->next) {
+			for (i = 0, dmi = dev->mc_list; i < netdev_mc_count(dev); i++, dmi = dmi->next) {
 				addrs = dmi->dmi_addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG

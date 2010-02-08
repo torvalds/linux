@@ -1365,7 +1365,7 @@ static void slic_mcast_set_list(struct net_device *dev)
 	int i;
 	char *addresses;
 	struct dev_mc_list *mc_list = dev->mc_list;
-	int mc_count = dev->mc_count;
+	int mc_count = netdev_mc_count(dev);
 
 	ASSERT(adapter);
 

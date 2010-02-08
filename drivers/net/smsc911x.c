@@ -1383,7 +1383,7 @@ static void smsc911x_set_multicast_list(struct net_device *dev)
 		pdata->clear_bits_mask = (MAC_CR_PRMS_ | MAC_CR_HPFILT_);
 		pdata->hashhi = 0;
 		pdata->hashlo = 0;
-	} else if (dev->mc_count > 0) {
+	} else if (!netdev_mc_empty(dev)) {
 		/* Enabling specific multicast addresses */
 		unsigned int hash_high = 0;
 		unsigned int hash_low = 0;
@@ -1408,7 +1408,7 @@ static void smsc911x_set_multicast_list(struct net_device *dev)
 			}
 			mc_list = mc_list->next;
 		}
-		if (count != (unsigned int)dev->mc_count)
+		if (count != (unsigned int)netdev_mc_count(dev))
 			SMSC_WARNING(DRV, "mc_count != dev->mc_count");
 
 		pdata->hashhi = hash_high;

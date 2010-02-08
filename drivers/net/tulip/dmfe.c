@@ -658,9 +658,9 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 
 	/* Send setup frame */
 	if (db->chip_id == PCI_DM9132_ID)
-		dm9132_id_table(dev, dev->mc_count);	/* DM9132 */
+		dm9132_id_table(dev, netdev_mc_count(dev));	/* DM9132 */
 	else
-		send_filter_frame(dev, dev->mc_count);	/* DM9102/DM9102A */
+		send_filter_frame(dev, netdev_mc_count(dev));	/* DM9102/DM9102A */
 
 	/* Init CR7, interrupt active bit */
 	db->cr7_data = CR7_DEFAULT;
@@ -1052,6 +1052,7 @@ static void dmfe_set_filter_mode(struct DEVICE * dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	unsigned long flags;
+	int mc_count = netdev_mc_count(dev);
 
 	DMFE_DBUG(0, "dmfe_set_filter_mode()", 0);
 	spin_lock_irqsave(&db->lock, flags);
@@ -1064,19 +1065,19 @@ static void dmfe_set_filter_mode(struct DEVICE * dev)
 		return;
 	}
 
-	if (dev->flags & IFF_ALLMULTI || dev->mc_count > DMFE_MAX_MULTICAST) {
-		DMFE_DBUG(0, "Pass all multicast address", dev->mc_count);
+	if (dev->flags & IFF_ALLMULTI || mc_count > DMFE_MAX_MULTICAST) {
+		DMFE_DBUG(0, "Pass all multicast address", mc_count);
 		db->cr6_data &= ~(CR6_PM | CR6_PBF);
 		db->cr6_data |= CR6_PAM;
 		spin_unlock_irqrestore(&db->lock, flags);
 		return;
 	}
 
-	DMFE_DBUG(0, "Set multicast address", dev->mc_count);
+	DMFE_DBUG(0, "Set multicast address", mc_count);
 	if (db->chip_id == PCI_DM9132_ID)
-		dm9132_id_table(dev, dev->mc_count);	/* DM9132 */
+		dm9132_id_table(dev, mc_count);		/* DM9132 */
 	else
-		send_filter_frame(dev, dev->mc_count); 	/* DM9102/DM9102A */
+		send_filter_frame(dev, mc_count);	/* DM9102/DM9102A */
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 

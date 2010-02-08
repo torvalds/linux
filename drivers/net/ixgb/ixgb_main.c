@@ -1077,7 +1077,7 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_VFE;
 	}
 
-	if (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES) {
+	if (netdev_mc_count(netdev) > IXGB_MAX_NUM_MULTICAST_ADDRESSES) {
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
@@ -1092,7 +1092,7 @@ ixgb_set_multi(struct net_device *netdev)
 			memcpy(&mta[i * IXGB_ETH_LENGTH_OF_ADDRESS],
 			       mc_ptr->dmi_addr, IXGB_ETH_LENGTH_OF_ADDRESS);
 
-		ixgb_mc_addr_list_update(hw, mta, netdev->mc_count, 0);
+		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);
 	}
 }
 
@@ -1616,7 +1616,7 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 		return;
 
 	if ((netdev->flags & IFF_PROMISC) || (netdev->flags & IFF_ALLMULTI) ||
-	   (netdev->mc_count > IXGB_MAX_NUM_MULTICAST_ADDRESSES)) {
+	   (netdev_mc_count(netdev) > IXGB_MAX_NUM_MULTICAST_ADDRESSES)) {
 		u64 multi = IXGB_READ_REG(&adapter->hw, MPRCL);
 		u32 bcast_l = IXGB_READ_REG(&adapter->hw, BPRCL);
 		u32 bcast_h = IXGB_READ_REG(&adapter->hw, BPRCH);

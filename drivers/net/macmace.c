@@ -518,7 +518,7 @@ static void mace_set_multicast(struct net_device *dev)
 		} else {
 			for (i = 0; i < 8; i++)
 				multicast_filter[i] = 0;
-			for (i = 0; i < dev->mc_count; i++) {
+			for (i = 0; i < netdev_mc_count(dev); i++) {
 				crc = ether_crc_le(6, dmi->dmi_addr);
 				j = crc >> 26;	/* bit number in multicast_filter */
 				multicast_filter[j >> 3] |= 1 << (j & 7);

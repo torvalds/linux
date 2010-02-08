@@ -1288,7 +1288,7 @@ static void set_multicast_list(struct net_device *dev)
 	} else {
 		short multicast_table[4];
 		int i;
-		int num_addrs=dev->mc_count;
+		int num_addrs=netdev_mc_count(dev);
 		if(dev->flags&IFF_ALLMULTI)
 			num_addrs=1;
 		/* FIXIT: We don't use the multicast table, but rely on upper-layer filtering. */

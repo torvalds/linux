@@ -447,12 +447,12 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 	if ((netdev->flags & IFF_ALLMULTI) ||
-			(netdev->mc_count > adapter->max_mc_count)) {
+	    (netdev_mc_count(netdev) > adapter->max_mc_count)) {
 		mode = VPORT_MISS_MODE_ACCEPT_MULTI;
 		goto send_fw_cmd;
 	}
 
-	if (netdev->mc_count > 0) {
+	if (!netdev_mc_empty(netdev)) {
 		for (mc_ptr = netdev->mc_list; mc_ptr;
 				     mc_ptr = mc_ptr->next) {
 			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr,

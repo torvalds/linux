@@ -2863,7 +2863,7 @@ static void gfar_set_multi(struct net_device *dev)
 			em_num = 0;
 		}
 
-		if (dev->mc_count == 0)
+		if (netdev_mc_empty(dev))
 			return;
 
 		/* Parse the list, and set the appropriate bits */

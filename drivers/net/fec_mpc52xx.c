@@ -581,7 +581,7 @@ static void mpc52xx_fec_set_multicast_list(struct net_device *dev)
 			u32 gaddr2 = 0x00000000;
 
 			dmi = dev->mc_list;
-			for (i=0; i<dev->mc_count; i++) {
+			for (i=0; i<netdev_mc_count(dev); i++) {
 				crc = ether_crc_le(6, dmi->dmi_addr) >> 26;
 				if (crc >= 32)
 					gaddr1 |= 1 << (crc-32);
