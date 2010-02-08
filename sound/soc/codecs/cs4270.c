@@ -629,7 +629,16 @@ static int cs4270_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_free_pcms;
 
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
+				    cs4270->supplies);
+	if (ret < 0)
+		goto error_free_regulators;
+
 	return 0;
+
+error_free_regulators:
+	regulator_bulk_free(ARRAY_SIZE(cs4270->supplies),
+			    cs4270->supplies);
 
 error_free_pcms:
 	snd_soc_free_pcms(socdev);
@@ -650,6 +659,7 @@ static int cs4270_remove(struct platform_device *pdev)
 	struct cs4270_private *cs4270 = codec->private_data;
 
 	snd_soc_free_pcms(socdev);
+	regulator_bulk_disable(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
 	regulator_bulk_free(ARRAY_SIZE(cs4270->supplies), cs4270->supplies);
 
 	return 0;
