@@ -521,3 +521,13 @@ Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
 	sensors) wich are also supported by the gspca_zc3xx driver
 	(which supports 53 USB-ID's in total)
 Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	capifs
+When:	February 2011
+Files:	drivers/isdn/capi/capifs.*
+Why:	udev fully replaces this special file system that only contains CAPI
+	NCCI TTY device nodes. User space (pppdcapiplugin) works without
+	noticing the difference.
+Who:	Jan Kiszka <jan.kiszka@web.de>
