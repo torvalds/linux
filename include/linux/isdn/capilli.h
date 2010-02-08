@@ -66,9 +66,10 @@ struct capi_ctr {
 	unsigned long nsentdatapkt;
 
 	int cnr;				/* controller number */
-	volatile unsigned short state;		/* controller state */
-	volatile int blocked;			/* output blocked */
+	unsigned short state;			/* controller state */
+	int blocked;				/* output blocked */
 	int traceflag;				/* capi trace */
+	wait_queue_head_t state_wait_queue;
 
 	struct proc_dir_entry *procent;
         char procfn[128];

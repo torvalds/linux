@@ -35,7 +35,10 @@ static char *state2str(unsigned short state)
 // ---------------------------------------------------------------------------
 
 static void *controller_start(struct seq_file *seq, loff_t *pos)
+	__acquires(capi_controller_lock)
 {
+	mutex_lock(&capi_controller_lock);
+
 	if (*pos < CAPI_MAXCONTR)
 		return &capi_controller[*pos];
 
@@ -52,7 +55,9 @@ static void *controller_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void controller_stop(struct seq_file *seq, void *v)
+	__releases(capi_controller_lock)
 {
+	mutex_unlock(&capi_controller_lock);
 }
 
 static int controller_show(struct seq_file *seq, void *v)
