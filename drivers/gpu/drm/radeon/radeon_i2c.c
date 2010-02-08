@@ -181,6 +181,87 @@ static void set_data(void *i2c_priv, int data)
 	WREG32(rec->en_data_reg, val);
 }
 
+static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
+{
+	struct radeon_pll *spll = &rdev->clock.spll;
+	u32 sclk = radeon_get_engine_clock(rdev);
+	u32 prescale = 0;
+	u32 n, m;
+	u8 loop;
+	int i2c_clock;
+
+	switch (rdev->family) {
+	case CHIP_R100:
+	case CHIP_RV100:
+	case CHIP_RS100:
+	case CHIP_RV200:
+	case CHIP_RS200:
+	case CHIP_R200:
+	case CHIP_RV250:
+	case CHIP_RS300:
+	case CHIP_RV280:
+	case CHIP_R300:
+	case CHIP_R350:
+	case CHIP_RV350:
+		n = (spll->reference_freq) / (4 * 6);
+		for (loop = 1; loop < 255; loop++) {
+			if ((loop * (loop - 1)) > n)
+				break;
+		}
+		m = loop - 1;
+		prescale = m | (loop << 8);
+		break;
+	case CHIP_RV380:
+	case CHIP_RS400:
+	case CHIP_RS480:
+	case CHIP_R420:
+	case CHIP_R423:
+	case CHIP_RV410:
+		sclk = radeon_get_engine_clock(rdev);
+		prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
+		break;
+	case CHIP_RS600:
+	case CHIP_RS690:
+	case CHIP_RS740:
+		/* todo */
+		break;
+	case CHIP_RV515:
+	case CHIP_R520:
+	case CHIP_RV530:
+	case CHIP_RV560:
+	case CHIP_RV570:
+	case CHIP_R580:
+		i2c_clock = 50;
+		sclk = radeon_get_engine_clock(rdev);
+		if (rdev->family == CHIP_R520)
+			prescale = (127 << 8) + ((sclk * 10) / (4 * 127 * i2c_clock));
+		else
+			prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
+		break;
+	case CHIP_R600:
+	case CHIP_RV610:
+	case CHIP_RV630:
+	case CHIP_RV670:
+		/* todo */
+		break;
+	case CHIP_RV620:
+	case CHIP_RV635:
+	case CHIP_RS780:
+	case CHIP_RS880:
+	case CHIP_RV770:
+	case CHIP_RV730:
+	case CHIP_RV710:
+	case CHIP_RV740:
+		/* todo */
+		break;
+	default:
+		DRM_ERROR("i2c: unhandled radeon chip\n");
+		break;
+	}
+	return prescale;
+}
+
+
 /* hw i2c engine for r1xx-4xx hardware
  * hw can buffer up to 15 bytes
  */
@@ -192,7 +273,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	struct i2c_msg *p;
 	int i, j, k, ret = num;
-	u32 sclk, prescale;
+	u32 prescale;
 	u32 i2c_cntl_0, i2c_cntl_1, i2c_data;
 	u32 tmp, reg;
 
@@ -200,8 +281,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	/* take the pm lock since we need a constant sclk */
 	mutex_lock(&rdev->pm.mutex);
 
-	sclk = radeon_get_engine_clock(rdev);
-	prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
+	prescale = radeon_get_i2c_prescale(rdev);
 
 	reg = ((prescale << RADEON_I2C_PRESCALE_SHIFT) |
 	       RADEON_I2C_START |
@@ -444,9 +524,8 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct radeon_device *rdev = i2c->dev->dev_private;
 	struct radeon_i2c_bus_rec *rec = &i2c->rec;
 	struct i2c_msg *p;
-	int i2c_clock = 50;
 	int i, j, remaining, current_count, buffer_offset, ret = num;
-	u32 sclk, prescale;
+	u32 prescale;
 	u32 tmp, reg;
 	u32 saved1, saved2;
 
@@ -454,11 +533,7 @@ static int r500_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	/* take the pm lock since we need a constant sclk */
 	mutex_lock(&rdev->pm.mutex);
 
-	sclk = radeon_get_engine_clock(rdev);
-	if (rdev->family == CHIP_R520)
-		prescale = (127 << 8) + ((sclk * 10) / (4 * 127 * i2c_clock));
-	else
-		prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
+	prescale = radeon_get_i2c_prescale(rdev);
 
 	/* clear gpio mask bits */
 	tmp = RREG32(rec->mask_clk_reg);
