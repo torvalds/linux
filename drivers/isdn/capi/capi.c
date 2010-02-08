@@ -153,6 +153,8 @@ static LIST_HEAD(capidev_list);
 static DEFINE_RWLOCK(capiminors_lock);
 static struct capiminor **capiminors;
 
+static struct tty_driver *capinc_tty_driver;
+
 /* -------- datahandles --------------------------------------------- */
 
 static int capiminor_add_ack(struct capiminor *mp, u16 datahandle)
@@ -213,6 +215,7 @@ static void capiminor_del_all_ack(struct capiminor *mp)
 static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 {
 	struct capiminor *mp;
+	struct device *dev;
 	unsigned int minor;
 	unsigned long flags;
 
@@ -243,18 +246,32 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 
 	if (minor == capi_ttyminors) {
 		printk(KERN_NOTICE "capi: out of minors\n");
-		kfree(mp);
-		return NULL;
+		goto err_out1;
 	}
 
 	mp->minor = minor;
 
+	dev = tty_register_device(capinc_tty_driver, minor, NULL);
+	if (IS_ERR(dev))
+		goto err_out2;
+
 	return mp;
+
+err_out2:
+	write_lock_irqsave(&capiminors_lock, flags);
+	capiminors[minor] = NULL;
+	write_unlock_irqrestore(&capiminors_lock, flags);
+
+err_out1:
+	kfree(mp);
+	return NULL;
 }
 
 static void capiminor_free(struct capiminor *mp)
 {
 	unsigned long flags;
+
+	tty_unregister_device(capinc_tty_driver, mp->minor);
 
 	write_lock_irqsave(&capiminors_lock, flags);
 	capiminors[mp->minor] = NULL;
@@ -268,12 +285,9 @@ static void capiminor_free(struct capiminor *mp)
 	kfree(mp);
 }
 
-static struct capiminor *capiminor_find(unsigned int minor)
+static struct capiminor *capiminor_get(unsigned int minor)
 {
 	struct capiminor *mp;
-
-	if (minor >= capi_ttyminors)
-		return NULL;
 
 	read_lock(&capiminors_lock);
 	mp = capiminors[minor];
@@ -981,8 +995,7 @@ static int capinc_tty_open(struct tty_struct * tty, struct file * file)
 	struct capiminor *mp;
 	unsigned long flags;
 
-	if ((mp = capiminor_find(iminor(file->f_path.dentry->d_inode))) == NULL)
-		return -ENXIO;
+	mp = capiminor_get(iminor(file->f_path.dentry->d_inode));
 	if (mp->nccip == NULL)
 		return -ENXIO;
 
@@ -1284,8 +1297,6 @@ static void capinc_tty_send_xchar(struct tty_struct *tty, char ch)
 #endif
 }
 
-static struct tty_driver *capinc_tty_driver;
-
 static const struct tty_operations capinc_ops = {
 	.open = capinc_tty_open,
 	.close = capinc_tty_close,
@@ -1339,7 +1350,9 @@ static int __init capinc_tty_init(void)
 	drv->init_termios.c_oflag = OPOST | ONLCR;
 	drv->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	drv->init_termios.c_lflag = 0;
-	drv->flags = TTY_DRIVER_REAL_RAW|TTY_DRIVER_RESET_TERMIOS;
+	drv->flags =
+		TTY_DRIVER_REAL_RAW | TTY_DRIVER_RESET_TERMIOS |
+		TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(drv, &capinc_ops);
 
 	err = tty_register_driver(drv);
