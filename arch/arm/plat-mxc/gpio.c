@@ -171,8 +171,7 @@ static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 		if (port->both_edges & (1 << (gpio & 31)))
 			mxc_flip_edge(port, gpio);
 
-		irq_desc[gpio_irq_no].handle_irq(gpio_irq_no,
-				&irq_desc[gpio_irq_no]);
+		generic_handle_irq(gpio_irq_no);
 	}
 }
 
