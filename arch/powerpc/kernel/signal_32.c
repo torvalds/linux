@@ -1092,8 +1092,12 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 				new_msr |= MSR_DE;
 				new_dbcr0 |= (DBCR0_IDM | DBCR0_IC);
 			} else {
-				new_msr &= ~MSR_DE;
-				new_dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
+				new_dbcr0 &= ~DBCR0_IC;
+				if (!DBCR_ACTIVE_EVENTS(new_dbcr0,
+						current->thread.dbcr1)) {
+					new_msr &= ~MSR_DE;
+					new_dbcr0 &= ~DBCR0_IDM;
+				}
 			}
 #else
 			if (op.dbg_value)
