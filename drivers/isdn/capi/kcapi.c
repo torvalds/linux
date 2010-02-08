@@ -35,10 +35,6 @@
 #endif
 #include <linux/mutex.h>
 
-static char *revision = "$Revision: 1.1.2.8 $";
-
-/* ------------------------------------------------------------- */
-
 static int showcapimsgs = 0;
 
 MODULE_DESCRIPTION("CAPI4Linux: kernel CAPI layer");
@@ -1165,25 +1161,12 @@ EXPORT_SYMBOL(capi20_set_callback);
 
 static int __init kcapi_init(void)
 {
-	char *p;
-	char rev[32];
-	int ret;
+	int err;
 
-	ret = cdebug_init();
-	if (ret)
-		return ret;
-        kcapi_proc_init();
-
-	if ((p = strchr(revision, ':')) != NULL && p[1]) {
-		strlcpy(rev, p + 2, sizeof(rev));
-		if ((p = strchr(rev, '$')) != NULL && p > rev)
-		   *(p-1) = 0;
-	} else
-		strcpy(rev, "1.0");
-
-        printk(KERN_NOTICE "CAPI Subsystem Rev %s\n", rev);
-
-	return 0;
+	err = cdebug_init();
+	if (!err)
+		kcapi_proc_init();
+	return err;
 }
 
 static void __exit kcapi_exit(void)

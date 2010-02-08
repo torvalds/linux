@@ -45,8 +45,6 @@
 
 #include "capifs.h"
 
-static char *revision = "$Revision: 1.1.2.7 $";
-
 MODULE_DESCRIPTION("CAPI4Linux: Userspace /dev/capi20 interface");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
@@ -1489,20 +1487,10 @@ static void __exit proc_exit(void)
 /* -------- init function and module interface ---------------------- */
 
 
-static char rev[32];
-
 static int __init capi_init(void)
 {
-	char *p;
-	char *compileinfo;
+	const char *compileinfo;
 	int major_ret;
-
-	if ((p = strchr(revision, ':')) != NULL && p[1]) {
-		strlcpy(rev, p + 2, sizeof(rev));
-		if ((p = strchr(rev, '$')) != NULL && p > rev)
-		   *(p-1) = 0;
-	} else
-		strcpy(rev, "1.0");
 
 	major_ret = register_chrdev(capi_major, "capi20", &capi_fops);
 	if (major_ret < 0) {
@@ -1537,8 +1525,8 @@ static int __init capi_init(void)
 #else
         compileinfo = " (no middleware)";
 #endif
-	printk(KERN_NOTICE "capi20: Rev %s: started up with major %d%s\n",
-				rev, capi_major, compileinfo);
+	printk(KERN_NOTICE "CAPI 2.0 started up with major %d%s\n",
+	       capi_major, compileinfo);
 
 	return 0;
 }
@@ -1554,7 +1542,6 @@ static void __exit capi_exit(void)
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 	capinc_tty_exit();
 #endif
-	printk(KERN_NOTICE "capi: Rev %s: unloaded\n", rev);
 }
 
 module_init(capi_init);

@@ -25,10 +25,6 @@ MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
 
-static char *revision = "$Revision: 1.1.2.3 $";
-
-/* ------------------------------------------------------------------ */
-
 #define CAPIFS_SUPER_MAGIC (('C'<<8)|'N')
 
 static struct vfsmount *capifs_mnt;
@@ -227,21 +223,7 @@ void capifs_free_ncci(struct dentry *dentry)
 
 static int __init capifs_init(void)
 {
-	char rev[32];
-	char *p;
-	int err;
-
-	if ((p = strchr(revision, ':')) != NULL && p[1]) {
-		strlcpy(rev, p + 2, sizeof(rev));
-		if ((p = strchr(rev, '$')) != NULL && p > rev)
-		   *(p-1) = 0;
-	} else
-		strcpy(rev, "1.0");
-
-	err = register_filesystem(&capifs_fs_type);
-	if (!err)
-		printk(KERN_NOTICE "capifs: Rev %s\n", rev);
-	return err;
+	return register_filesystem(&capifs_fs_type);
 }
 
 static void __exit capifs_exit(void)
