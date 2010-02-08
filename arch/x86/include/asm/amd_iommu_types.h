@@ -21,6 +21,7 @@
 #define _ASM_X86_AMD_IOMMU_TYPES_H
 
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
@@ -237,6 +238,7 @@ struct protection_domain {
 	struct list_head list;  /* for list of all protection domains */
 	struct list_head dev_list; /* List of all devices in this domain */
 	spinlock_t lock;	/* mostly used to lock the page table*/
+	struct mutex api_lock;	/* protect page tables in the iommu-api path */
 	u16 id;			/* the domain id written to the device table */
 	int mode;		/* paging mode (0-6 levels) */
 	u64 *pt_root;		/* page table root pointer */

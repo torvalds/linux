@@ -2327,6 +2327,7 @@ static struct protection_domain *protection_domain_alloc(void)
 		return NULL;
 
 	spin_lock_init(&domain->lock);
+	mutex_init(&domain->api_lock);
 	domain->id = domain_id_alloc();
 	if (!domain->id)
 		goto out_err;
@@ -2456,6 +2457,8 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 	iova  &= PAGE_MASK;
 	paddr &= PAGE_MASK;
 
+	mutex_lock(&domain->api_lock);
+
 	for (i = 0; i < npages; ++i) {
 		ret = iommu_map_page(domain, iova, paddr, prot, PM_MAP_4k);
 		if (ret)
@@ -2464,6 +2467,8 @@ static int amd_iommu_map_range(struct iommu_domain *dom,
 		iova  += PAGE_SIZE;
 		paddr += PAGE_SIZE;
 	}
+
+	mutex_unlock(&domain->api_lock);
 
 	return 0;
 }
@@ -2477,12 +2482,16 @@ static void amd_iommu_unmap_range(struct iommu_domain *dom,
 
 	iova  &= PAGE_MASK;
 
+	mutex_lock(&domain->api_lock);
+
 	for (i = 0; i < npages; ++i) {
 		iommu_unmap_page(domain, iova, PM_MAP_4k);
 		iova  += PAGE_SIZE;
 	}
 
 	iommu_flush_tlb_pde(domain);
+
+	mutex_unlock(&domain->api_lock);
 }
 
 static phys_addr_t amd_iommu_iova_to_phys(struct iommu_domain *dom,
