@@ -76,7 +76,7 @@ struct capidev;
 struct capincci;
 struct capiminor;
 
-struct datahandle_queue {
+struct ackqueue_entry {
 	struct list_head	list;
 	u16			datahandle;
 };
@@ -156,7 +156,7 @@ static struct tty_driver *capinc_tty_driver;
 
 static int capiminor_add_ack(struct capiminor *mp, u16 datahandle)
 {
-	struct datahandle_queue *n;
+	struct ackqueue_entry *n;
 	unsigned long flags;
 
 	n = kmalloc(sizeof(*n), GFP_ATOMIC);
@@ -175,7 +175,7 @@ static int capiminor_add_ack(struct capiminor *mp, u16 datahandle)
 
 static int capiminor_del_ack(struct capiminor *mp, u16 datahandle)
 {
-	struct datahandle_queue *p, *tmp;
+	struct ackqueue_entry *p, *tmp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mp->ackqlock, flags);
@@ -194,7 +194,7 @@ static int capiminor_del_ack(struct capiminor *mp, u16 datahandle)
 
 static void capiminor_del_all_ack(struct capiminor *mp)
 {
-	struct datahandle_queue *p, *tmp;
+	struct ackqueue_entry *p, *tmp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&mp->ackqlock, flags);
