@@ -34,6 +34,7 @@
 #include <linux/b1lli.h>
 #endif
 #include <linux/mutex.h>
+#include <linux/rcupdate.h>
 
 static int showcapimsgs = 0;
 
@@ -63,8 +64,6 @@ DEFINE_MUTEX(capi_drivers_lock);
 
 struct capi_ctr *capi_controller[CAPI_MAXCONTR];
 DEFINE_MUTEX(capi_controller_lock);
-
-static DEFINE_RWLOCK(application_lock);
 
 struct capi20_appl *capi_applications[CAPI_MAXAPPL];
 
@@ -103,7 +102,7 @@ static inline struct capi20_appl *get_capi_appl_by_nr(u16 applid)
 	if (applid - 1 >= CAPI_MAXAPPL)
 		return NULL;
 
-	return capi_applications[applid - 1];
+	return rcu_dereference(capi_applications[applid - 1]);
 }
 
 /* -------- util functions ------------------------------------ */
@@ -186,7 +185,7 @@ static void notify_up(u32 contr)
 
 		for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
 			ap = get_capi_appl_by_nr(applid);
-			if (!ap || ap->release_in_progress)
+			if (!ap)
 				continue;
 			register_appl(ctr, applid, &ap->rparam);
 		}
@@ -216,7 +215,7 @@ static void ctr_down(struct capi_ctr *ctr, int new_state)
 
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
 		ap = get_capi_appl_by_nr(applid);
-		if (ap && !ap->release_in_progress)
+		if (ap)
 			capi_ctr_put(ctr);
 	}
 
@@ -336,7 +335,6 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 	struct capi20_appl *ap;
 	int showctl = 0;
 	u8 cmd, subcmd;
-	unsigned long flags;
 	_cdebbuf *cdb;
 
 	if (ctr->state != CAPI_CTR_RUNNING) {
@@ -384,10 +382,10 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 
 	}
 
-	read_lock_irqsave(&application_lock, flags);
+	rcu_read_lock();
 	ap = get_capi_appl_by_nr(CAPIMSG_APPID(skb->data));
-	if ((!ap) || (ap->release_in_progress)) {
-		read_unlock_irqrestore(&application_lock, flags);
+	if (!ap) {
+		rcu_read_unlock();
 		cdb = capi_message2str(skb->data);
 		if (cdb) {
 			printk(KERN_ERR "kcapi: handle_message: applid %d state released (%s)\n",
@@ -401,7 +399,7 @@ void capi_ctr_handle_message(struct capi_ctr *ctr, u16 appl,
 	}
 	skb_queue_tail(&ap->recv_queue, skb);
 	schedule_work(&ap->recv_work);
-	read_unlock_irqrestore(&application_lock, flags);
+	rcu_read_unlock();
 
 	return;
 
@@ -656,26 +654,11 @@ u16 capi20_register(struct capi20_appl *ap)
 {
 	int i;
 	u16 applid;
-	unsigned long flags;
 
 	DBG("");
 
 	if (ap->rparam.datablklen < 128)
 		return CAPI_LOGBLKSIZETOSMALL;
-
-	write_lock_irqsave(&application_lock, flags);
-
-	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
-		if (capi_applications[applid - 1] == NULL)
-			break;
-	}
-	if (applid > CAPI_MAXAPPL) {
-		write_unlock_irqrestore(&application_lock, flags);
-		return CAPI_TOOMANYAPPLS;
-	}
-
-	ap->applid = applid;
-	capi_applications[applid - 1] = ap;
 
 	ap->nrecvctlpkt = 0;
 	ap->nrecvdatapkt = 0;
@@ -686,9 +669,19 @@ u16 capi20_register(struct capi20_appl *ap)
 	INIT_WORK(&ap->recv_work, recv_handler);
 	ap->release_in_progress = 0;
 
-	write_unlock_irqrestore(&application_lock, flags);
-	
 	mutex_lock(&capi_controller_lock);
+
+	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
+		if (capi_applications[applid - 1] == NULL)
+			break;
+	}
+	if (applid > CAPI_MAXAPPL) {
+		mutex_unlock(&capi_controller_lock);
+		return CAPI_TOOMANYAPPLS;
+	}
+
+	ap->applid = applid;
+	capi_applications[applid - 1] = ap;
 
 	for (i = 0; i < CAPI_MAXCONTR; i++) {
 		if (!capi_controller[i] ||
@@ -721,16 +714,15 @@ EXPORT_SYMBOL(capi20_register);
 u16 capi20_release(struct capi20_appl *ap)
 {
 	int i;
-	unsigned long flags;
 
 	DBG("applid %#x", ap->applid);
 
-	write_lock_irqsave(&application_lock, flags);
+	mutex_lock(&capi_controller_lock);
+
 	ap->release_in_progress = 1;
 	capi_applications[ap->applid - 1] = NULL;
-	write_unlock_irqrestore(&application_lock, flags);
 
-	mutex_lock(&capi_controller_lock);
+	synchronize_rcu();
 
 	for (i = 0; i < CAPI_MAXCONTR; i++) {
 		if (!capi_controller[i] ||
