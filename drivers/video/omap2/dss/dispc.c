@@ -2301,8 +2301,6 @@ void dispc_dump_irqs(struct seq_file *s)
 	PIS(WAKEUP);
 #undef PIS
 }
-#else
-void dispc_dump_irqs(struct seq_file *s) { }
 #endif
 
 void dispc_dump_regs(struct seq_file *s)
