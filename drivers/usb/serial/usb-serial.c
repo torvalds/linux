@@ -358,10 +358,6 @@ static int serial_write(struct tty_struct *tty, const unsigned char *buf,
 
 	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
 
-	/* count is managed under the mutex lock for the tty so cannot
-	   drop to zero until after the last close completes */
-	WARN_ON(!port->port.count);
-
 	/* pass on to the driver specific version of this function */
 	retval = port->serial->type->write(tty, port, buf, count);
 
@@ -373,7 +369,6 @@ static int serial_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s - port %d", __func__, port->number);
-	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function */
 	return port->serial->type->write_room(tty);
 }
@@ -396,7 +391,6 @@ static void serial_throttle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s - port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function */
 	if (port->serial->type->throttle)
 		port->serial->type->throttle(tty);
@@ -407,7 +401,6 @@ static void serial_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s - port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function */
 	if (port->serial->type->unthrottle)
 		port->serial->type->unthrottle(tty);
@@ -420,8 +413,6 @@ static int serial_ioctl(struct tty_struct *tty, struct file *file,
 	int retval = -ENODEV;
 
 	dbg("%s - port %d, cmd 0x%.4x", __func__, port->number, cmd);
-
-	WARN_ON(!port->port.count);
 
 	/* pass on to the driver specific version of this function
 	   if it is available */
@@ -437,7 +428,6 @@ static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s - port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function
 	   if it is available */
 	if (port->serial->type->set_termios)
@@ -452,7 +442,6 @@ static int serial_break(struct tty_struct *tty, int break_state)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	/* pass on to the driver specific version of this function
 	   if it is available */
 	if (port->serial->type->break_ctl)
@@ -513,7 +502,6 @@ static int serial_tiocmget(struct tty_struct *tty, struct file *file)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	if (port->serial->type->tiocmget)
 		return port->serial->type->tiocmget(tty, file);
 	return -EINVAL;
@@ -526,7 +514,6 @@ static int serial_tiocmset(struct tty_struct *tty, struct file *file,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	WARN_ON(!port->port.count);
 	if (port->serial->type->tiocmset)
 		return port->serial->type->tiocmset(tty, file, set, clear);
 	return -EINVAL;
