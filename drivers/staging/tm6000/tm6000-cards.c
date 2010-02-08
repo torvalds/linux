@@ -46,6 +46,7 @@
 #define TM6010_BOARD_HAUPPAUGE_900H		9
 #define TM6010_BOARD_BEHOLD_WANDER		10
 #define TM6010_BOARD_BEHOLD_VOYAGER		11
+#define TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE	12
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -210,7 +211,21 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio_addr_tun_reset = TM6000_GPIO_2,
 	},
-
+	[TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE] = {
+		.name         = "Terratec Cinergy Hybrid XE",
+		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
+		.tuner_addr   = 0xc2 >> 1,
+		.demod_addr   = 0x1e >> 1,
+		.type         = TM6010,
+		.caps = {
+			.has_tuner    = 1,
+			.has_dvb      = 1,
+			.has_zl10353  = 1,
+			.has_eeprom   = 1,
+			.has_remote   = 1,
+		},
+		.gpio_addr_tun_reset = TM6010_GPIO_2,
+	}
 };
 
 /* table of devices that work with this driver */
@@ -223,6 +238,7 @@ struct usb_device_id tm6000_id_table [] = {
 	{ USB_DEVICE(0x2040, 0x6600), .driver_info = TM6010_BOARD_HAUPPAUGE_900H },
 	{ USB_DEVICE(0x6000, 0xdec0), .driver_info = TM6010_BOARD_BEHOLD_WANDER },
 	{ USB_DEVICE(0x6000, 0xdec1), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER },
+	{ USB_DEVICE(0x0ccd, 0x0086), .driver_info = TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE },
 	{ },
 };
 
@@ -313,6 +329,7 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 
 		switch(dev->model) {
 		case TM6010_BOARD_HAUPPAUGE_900H:
+		case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
 			ctl.fname = "xc3028L-v36.fw";
 			break;
 		default:
