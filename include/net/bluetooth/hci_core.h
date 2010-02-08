@@ -134,6 +134,8 @@ struct hci_dev {
 
 	atomic_t 		promisc;
 
+	struct dentry		*debugfs;
+
 	struct device		*parent;
 	struct device		dev;
 
