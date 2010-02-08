@@ -102,7 +102,8 @@ static void p9_virtio_close(struct p9_client *client)
 	struct virtio_chan *chan = client->trans;
 
 	mutex_lock(&virtio_9p_lock);
-	chan->inuse = false;
+	if (chan)
+		chan->inuse = false;
 	mutex_unlock(&virtio_9p_lock);
 }
 
