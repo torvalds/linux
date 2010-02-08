@@ -194,7 +194,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	init_attr.recv_cq	= device->rx_cq;
 	init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS;
 	init_attr.cap.max_recv_wr  = ISER_QP_MAX_RECV_DTOS;
-	init_attr.cap.max_send_sge = MAX_REGD_BUF_VECTOR_LEN;
+	init_attr.cap.max_send_sge = 2;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.sq_sig_type	= IB_SIGNAL_REQ_WR;
 	init_attr.qp_type	= IB_QPT_RC;
@@ -702,85 +702,36 @@ int iser_post_recvm(struct iser_conn *ib_conn, int count)
 
 
 /**
- * iser_dto_to_iov - builds IOV from a dto descriptor
- */
-static void iser_dto_to_iov(struct iser_dto *dto, struct ib_sge *iov, int iov_len)
-{
-	int		     i;
-	struct ib_sge	     *sge;
-	struct iser_regd_buf *regd_buf;
-
-	if (dto->regd_vector_len > iov_len) {
-		iser_err("iov size %d too small for posting dto of len %d\n",
-			 iov_len, dto->regd_vector_len);
-		BUG();
-	}
-
-	for (i = 0; i < dto->regd_vector_len; i++) {
-		sge	    = &iov[i];
-		regd_buf  = dto->regd[i];
-
-		sge->addr   = regd_buf->reg.va;
-		sge->length = regd_buf->reg.len;
-		sge->lkey   = regd_buf->reg.lkey;
-
-		if (dto->used_sz[i] > 0)  /* Adjust size */
-			sge->length = dto->used_sz[i];
-
-		/* offset and length should not exceed the regd buf length */
-		if (sge->length + dto->offset[i] > regd_buf->reg.len) {
-			iser_err("Used len:%ld + offset:%d, exceed reg.buf.len:"
-				 "%ld in dto:0x%p [%d], va:0x%08lX\n",
-				 (unsigned long)sge->length, dto->offset[i],
-				 (unsigned long)regd_buf->reg.len, dto, i,
-				 (unsigned long)sge->addr);
-			BUG();
-		}
-
-		sge->addr += dto->offset[i]; /* Adjust offset */
-	}
-}
-
-
-/**
  * iser_start_send - Initiate a Send DTO operation
  *
  * returns 0 on success, -1 on failure
  */
-int iser_post_send(struct iser_desc *tx_desc)
+int iser_post_send(struct iser_conn *ib_conn, struct iser_tx_desc *tx_desc)
 {
-	int		  ib_ret, ret_val = 0;
+	int		  ib_ret;
 	struct ib_send_wr send_wr, *send_wr_failed;
-	struct ib_sge	  iov[MAX_REGD_BUF_VECTOR_LEN];
-	struct iser_conn  *ib_conn;
-	struct iser_dto   *dto = &tx_desc->dto;
 
-	ib_conn = dto->ib_conn;
-
-	iser_dto_to_iov(dto, iov, MAX_REGD_BUF_VECTOR_LEN);
+	ib_dma_sync_single_for_device(ib_conn->device->ib_device,
+		tx_desc->dma_addr, ISER_HEADERS_LEN, DMA_TO_DEVICE);
 
 	send_wr.next	   = NULL;
 	send_wr.wr_id	   = (unsigned long)tx_desc;
-	send_wr.sg_list	   = iov;
-	send_wr.num_sge	   = dto->regd_vector_len;
+	send_wr.sg_list	   = tx_desc->tx_sg;
+	send_wr.num_sge	   = tx_desc->num_sge;
 	send_wr.opcode	   = IB_WR_SEND;
-	send_wr.send_flags = dto->notify_enable ? IB_SEND_SIGNALED : 0;
+	send_wr.send_flags = IB_SEND_SIGNALED;
 
 	atomic_inc(&ib_conn->post_send_buf_count);
 
 	ib_ret = ib_post_send(ib_conn->qp, &send_wr, &send_wr_failed);
 	if (ib_ret) {
-		iser_err("Failed to start SEND DTO, dto: 0x%p, IOV len: %d\n",
-			 dto, dto->regd_vector_len);
 		iser_err("ib_post_send failed, ret:%d\n", ib_ret);
 		atomic_dec(&ib_conn->post_send_buf_count);
-		ret_val = -1;
 	}
-
-	return ret_val;
+	return ib_ret;
 }
 
-static void iser_handle_comp_error(struct iser_desc *desc,
+static void iser_handle_comp_error(struct iser_tx_desc *desc,
 				struct iser_conn *ib_conn)
 {
 	if (desc && desc->type == ISCSI_TX_DATAOUT)
@@ -809,16 +760,16 @@ static int iser_drain_tx_cq(struct iser_device  *device)
 {
 	struct ib_cq  *cq = device->tx_cq;
 	struct ib_wc  wc;
-	struct iser_desc *tx_desc;
+	struct iser_tx_desc *tx_desc;
 	struct iser_conn *ib_conn;
 	int completed_tx = 0;
 
 	while (ib_poll_cq(cq, 1, &wc) == 1) {
-		tx_desc	= (struct iser_desc *) (unsigned long) wc.wr_id;
+		tx_desc	= (struct iser_tx_desc *) (unsigned long) wc.wr_id;
 		ib_conn = wc.qp->qp_context;
 		if (wc.status == IB_WC_SUCCESS) {
 			if (wc.opcode == IB_WC_SEND)
-				iser_snd_completion(tx_desc);
+				iser_snd_completion(tx_desc, ib_conn);
 			else
 				iser_err("expected opcode %d got %d\n",
 					IB_WC_SEND, wc.opcode);
