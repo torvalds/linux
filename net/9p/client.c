@@ -69,7 +69,7 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
 
 static int parse_opts(char *opts, struct p9_client *clnt)
 {
-	char *options;
+	char *options, *tmp_options;
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
@@ -81,12 +81,13 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	if (!opts)
 		return 0;
 
-	options = kstrdup(opts, GFP_KERNEL);
-	if (!options) {
+	tmp_options = kstrdup(opts, GFP_KERNEL);
+	if (!tmp_options) {
 		P9_DPRINTK(P9_DEBUG_ERROR,
 				"failed to allocate copy of option string\n");
 		return -ENOMEM;
 	}
+	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -125,7 +126,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	}
 
 free_and_return:
-	kfree(options);
+	kfree(tmp_options);
 	return ret;
 }
 

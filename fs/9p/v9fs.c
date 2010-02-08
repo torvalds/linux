@@ -84,7 +84,7 @@ static const match_table_t tokens = {
 
 static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 {
-	char *options;
+	char *options, *tmp_options;
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 	int option = 0;
@@ -102,9 +102,10 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	if (!opts)
 		return 0;
 
-	options = kstrdup(opts, GFP_KERNEL);
-	if (!options)
+	tmp_options = kstrdup(opts, GFP_KERNEL);
+	if (!tmp_options)
 		goto fail_option_alloc;
+	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -194,7 +195,8 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			continue;
 		}
 	}
-	kfree(options);
+
+	kfree(tmp_options);
 	return ret;
 
 fail_option_alloc:
