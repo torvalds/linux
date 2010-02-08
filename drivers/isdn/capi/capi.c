@@ -1307,10 +1307,11 @@ static const struct tty_operations capinc_ops = {
 	.send_xchar = capinc_tty_send_xchar,
 };
 
-static int capinc_tty_init(void)
+static int __init capinc_tty_init(void)
 {
 	struct tty_driver *drv;
-	
+	int err;
+
 	if (capi_ttyminors > CAPINC_MAX_PORTS)
 		capi_ttyminors = CAPINC_MAX_PORTS;
 	if (capi_ttyminors <= 0)
@@ -1340,23 +1341,22 @@ static int capinc_tty_init(void)
 	drv->init_termios.c_lflag = 0;
 	drv->flags = TTY_DRIVER_REAL_RAW|TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(drv, &capinc_ops);
-	if (tty_register_driver(drv)) {
+
+	err = tty_register_driver(drv);
+	if (err) {
 		put_tty_driver(drv);
 		kfree(capiminors);
 		printk(KERN_ERR "Couldn't register capi_nc driver\n");
-		return -1;
+		return err;
 	}
 	capinc_tty_driver = drv;
 	return 0;
 }
 
-static void capinc_tty_exit(void)
+static void __exit capinc_tty_exit(void)
 {
-	struct tty_driver *drv = capinc_tty_driver;
-	int retval;
-	if ((retval = tty_unregister_driver(drv)))
-		printk(KERN_ERR "capi: failed to unregister capi_nc driver (%d)\n", retval);
-	put_tty_driver(drv);
+	tty_unregister_driver(capinc_tty_driver);
+	put_tty_driver(capinc_tty_driver);
 	kfree(capiminors);
 }
 
