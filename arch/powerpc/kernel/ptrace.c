@@ -835,6 +835,52 @@ void ptrace_disable(struct task_struct *child)
 	user_disable_single_step(child);
 }
 
+static long ppc_set_hwdebug(struct task_struct *child,
+		     struct ppc_hw_breakpoint *bp_info)
+{
+	/*
+	 * We currently support one data breakpoint
+	 */
+	if (((bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_RW) == 0) ||
+	    ((bp_info->trigger_type & ~PPC_BREAKPOINT_TRIGGER_RW) != 0) ||
+	    (bp_info->trigger_type != PPC_BREAKPOINT_TRIGGER_WRITE) ||
+	    (bp_info->addr_mode != PPC_BREAKPOINT_MODE_EXACT) ||
+	    (bp_info->condition_mode != PPC_BREAKPOINT_CONDITION_NONE))
+		return -EINVAL;
+
+	if (child->thread.dabr)
+		return -ENOSPC;
+
+	if ((unsigned long)bp_info->addr >= TASK_SIZE)
+		return -EIO;
+
+	child->thread.dabr = (unsigned long)bp_info->addr;
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+	child->thread.dbcr0 = DBCR0_IDM;
+	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_READ)
+		child->thread.dbcr0 |= DBSR_DAC1R;
+	if (bp_info->trigger_type & PPC_BREAKPOINT_TRIGGER_WRITE)
+		child->thread.dbcr0 |= DBSR_DAC1W;
+	child->thread.regs->msr |= MSR_DE;
+#endif
+	return 1;
+}
+
+static long ppc_del_hwdebug(struct task_struct *child, long addr, long data)
+{
+	if (data != 1)
+		return -EINVAL;
+	if (child->thread.dabr == 0)
+		return -ENOENT;
+
+	child->thread.dabr = 0;
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+	child->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W | DBCR0_IDM);
+	child->thread.regs->msr &= ~MSR_DE;
+#endif
+	return 0;
+}
+
 /*
  * Here are the old "legacy" powerpc specific getregs/setregs ptrace calls,
  * we mark them as obsolete now, they will be removed in a future version
@@ -925,6 +971,50 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				[TS_FPRWIDTH * (index - PT_FPR0)] = data;
 			ret = 0;
 		}
+		break;
+	}
+
+	case PPC_PTRACE_GETHWDBGINFO: {
+		struct ppc_debug_info dbginfo;
+
+		dbginfo.version = 1;
+		dbginfo.num_instruction_bps = 0;
+		dbginfo.num_data_bps = 1;
+		dbginfo.num_condition_regs = 0;
+#ifdef CONFIG_PPC64
+		dbginfo.data_bp_alignment = 8;
+#else
+		dbginfo.data_bp_alignment = 4;
+#endif
+		dbginfo.sizeof_condition = 0;
+		dbginfo.features = 0;
+
+		if (!access_ok(VERIFY_WRITE, data,
+			       sizeof(struct ppc_debug_info)))
+			return -EFAULT;
+		ret = __copy_to_user((struct ppc_debug_info __user *)data,
+				     &dbginfo, sizeof(struct ppc_debug_info)) ?
+		      -EFAULT : 0;
+		break;
+	}
+
+	case PPC_PTRACE_SETHWDEBUG: {
+		struct ppc_hw_breakpoint bp_info;
+
+		if (!access_ok(VERIFY_READ, data,
+			       sizeof(struct ppc_hw_breakpoint)))
+			return -EFAULT;
+		ret = __copy_from_user(&bp_info,
+				       (struct ppc_hw_breakpoint __user *)data,
+				       sizeof(struct ppc_hw_breakpoint)) ?
+		      -EFAULT : 0;
+		if (!ret)
+			ret = ppc_set_hwdebug(child, &bp_info);
+		break;
+	}
+
+	case PPC_PTRACE_DELHWDEBUG: {
+		ret = ppc_del_hwdebug(child, addr, data);
 		break;
 	}
 
