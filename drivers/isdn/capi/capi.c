@@ -60,10 +60,8 @@ module_param_named(major, capi_major, uint, 0);
 #define CAPINC_NR_PORTS		32
 #define CAPINC_MAX_PORTS	256
 
-static int capi_ttymajor = 191;
 static int capi_ttyminors = CAPINC_NR_PORTS;
 
-module_param_named(ttymajor, capi_ttymajor, uint, 0);
 module_param_named(ttyminors, capi_ttyminors, uint, 0);
 #endif /* CONFIG_ISDN_CAPI_MIDDLEWARE */
 
@@ -301,6 +299,7 @@ static struct capiminor *capiminor_get(unsigned int minor)
 static void capincci_alloc_minor(struct capidev *cdev, struct capincci *np)
 {
 	struct capiminor *mp;
+	dev_t device;
 
 	if (!(cdev->userflags & CAPIFLAG_HIGHJACKING))
 		return;
@@ -311,9 +310,8 @@ static void capincci_alloc_minor(struct capidev *cdev, struct capincci *np)
 #ifdef _DEBUG_REFCOUNT
 		printk(KERN_DEBUG "set mp->nccip\n");
 #endif
-		mp->capifs_dentry =
-			capifs_new_ncci(mp->minor,
-					MKDEV(capi_ttymajor, mp->minor));
+		device = MKDEV(capinc_tty_driver->major, mp->minor);
+		mp->capifs_dentry = capifs_new_ncci(mp->minor, device);
 	}
 }
 
@@ -1341,7 +1339,7 @@ static int __init capinc_tty_init(void)
 	drv->owner = THIS_MODULE;
 	drv->driver_name = "capi_nc";
 	drv->name = "capi";
-	drv->major = capi_ttymajor;
+	drv->major = 0;
 	drv->minor_start = 0;
 	drv->type = TTY_DRIVER_TYPE_SERIAL;
 	drv->subtype = SERIAL_TYPE_NORMAL;
