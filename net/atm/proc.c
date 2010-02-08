@@ -238,7 +238,7 @@ static int atm_dev_seq_show(struct seq_file *seq, void *v)
 		"Itf Type    ESI/\"MAC\"addr "
 		"AAL(TX,err,RX,err,drop) ...               [refcnt]\n";
 
-	if (v == SEQ_START_TOKEN)
+	if (v == &atm_devs)
 		seq_puts(seq, atm_dev_banner);
 	else {
 		struct atm_dev *dev = list_entry(v, struct atm_dev, dev_list);
