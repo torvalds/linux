@@ -26,10 +26,6 @@ struct rate_control_ref {
 	struct kref kref;
 };
 
-/* Get a reference to the rate control algorithm. If `name' is NULL, get the
- * first available algorithm. */
-struct rate_control_ref *rate_control_alloc(const char *name,
-					    struct ieee80211_local *local);
 void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 			   struct sta_info *sta,
 			   struct ieee80211_tx_rate_control *txrc);
@@ -116,7 +112,8 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 #endif
 }
 
-/* functions for rate control related to a device */
+/* Get a reference to the rate control algorithm. If `name' is NULL, get the
+ * first available algorithm. */
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 				 const char *name);
 void rate_control_deinitialize(struct ieee80211_local *local);
