@@ -373,7 +373,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	iser_dbg("%s itt %d dseg_len %d offset %d\n",
 		 __func__,(int)itt,(int)data_seg_len,(int)buf_offset);
 
-	tx_desc = kmem_cache_zalloc(ig.desc_cache, GFP_NOIO);
+	tx_desc = kmem_cache_zalloc(ig.desc_cache, GFP_ATOMIC);
 	if (tx_desc == NULL) {
 		iser_err("Failed to alloc desc for post dataout\n");
 		return -ENOMEM;

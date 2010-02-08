@@ -53,10 +53,10 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_task *iser_task,
 	unsigned long  cmd_data_len = data->data_len;
 
 	if (cmd_data_len > ISER_KMALLOC_THRESHOLD)
-		mem = (void *)__get_free_pages(GFP_NOIO,
+		mem = (void *)__get_free_pages(GFP_ATOMIC,
 		      ilog2(roundup_pow_of_two(cmd_data_len)) - PAGE_SHIFT);
 	else
-		mem = kmalloc(cmd_data_len, GFP_NOIO);
+		mem = kmalloc(cmd_data_len, GFP_ATOMIC);
 
 	if (mem == NULL) {
 		iser_err("Failed to allocate mem size %d %d for copying sglist\n",
