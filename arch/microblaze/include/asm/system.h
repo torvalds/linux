@@ -83,6 +83,7 @@ void default_idle(void);
 void free_init_pages(char *what, unsigned long begin, unsigned long end);
 void free_initmem(void);
 extern char *klimit;
+extern unsigned long kernel_tlb;
 extern void ret_from_fork(void);
 
 extern void *alloc_maybe_bootmem(size_t size, gfp_t mask);

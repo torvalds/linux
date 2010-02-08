@@ -398,10 +398,16 @@ asmlinkage void __init mmu_init(void)
 		machine_restart(NULL);
 	}
 
-	if ((u32) memblock.memory.regions[0].size < 0x1000000) {
-		printk(KERN_EMERG "Memory must be greater than 16MB\n");
+	if ((u32) memblock.memory.regions[0].size < 0x400000) {
+		printk(KERN_EMERG "Memory must be greater than 4MB\n");
 		machine_restart(NULL);
 	}
+
+	if ((u32) memblock.memory.regions[0].size < kernel_tlb) {
+		printk(KERN_EMERG "Kernel size is greater than memory node\n");
+		machine_restart(NULL);
+	}
+
 	/* Find main memory where the kernel is */
 	memory_start = (u32) memblock.memory.regions[0].base;
 	lowmem_size = memory_size = (u32) memblock.memory.regions[0].size;
@@ -462,11 +468,11 @@ void __init *early_get_page(void)
 		p = alloc_bootmem_pages(PAGE_SIZE);
 	} else {
 		/*
-		 * Mem start + 32MB -> here is limit
+		 * Mem start + kernel_tlb -> here is limit
 		 * because of mem mapping from head.S
 		 */
 		p = __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
-					memory_start + 0x2000000));
+					memory_start + kernel_tlb));
 	}
 	return p;
 }

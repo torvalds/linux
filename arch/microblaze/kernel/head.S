@@ -168,6 +168,53 @@ _invalidate:
 	addik	r3,r0, CONFIG_KERNEL_START /* Load the kernel virtual address */
 	tophys(r4,r3)			/* Load the kernel physical address */
 
+	/* start to do TLB calculation */
+	addik	r12, r0, _end
+	rsub	r12, r3, r12
+	addik	r12, r12, CONFIG_KERNEL_PAD /* that's the pad */
+
+	or r9, r0, r0 /* TLB0 = 0 */
+	or r10, r0, r0 /* TLB1 = 0 */
+
+	addik	r11, r12, -0x1000000
+	bgei	r11, GT16 /* size is greater than 16MB */
+	addik	r11, r12, -0x0800000
+	bgei	r11, GT8 /* size is greater than 8MB */
+	addik	r11, r12, -0x0400000
+	bgei	r11, GT4 /* size is greater than 4MB */
+	/* size is less than 4MB */
+	addik	r11, r12, -0x0200000
+	bgei	r11, GT2 /* size is greater than 2MB */
+	addik	r9, r0, 0x0100000 /* TLB0 must be 1MB */
+	addik	r11, r12, -0x0100000
+	bgei	r11, GT1 /* size is greater than 1MB */
+	/* TLB1 is 0 which is setup above */
+	bri tlb_end
+GT4: /* r11 contains the rest - will be either 1 or 4 */
+	ori r9, r0, 0x400000 /* TLB0 is 4MB */
+	bri TLB1
+GT16: /* TLB0 is 16MB */
+	addik	r9, r0, 0x1000000 /* means TLB0 is 16MB */
+TLB1:
+	/* must be used r2 because of substract if failed */
+	addik	r2, r11, -0x0400000
+	bgei	r2, GT20 /* size is greater than 16MB */
+	/* size is >16MB and <20MB */
+	addik	r11, r11, -0x0100000
+	bgei	r11, GT17 /* size is greater than 17MB */
+	/* kernel is >16MB and < 17MB */
+GT1:
+	addik	r10, r0, 0x0100000 /* means TLB1 is 1MB */
+	bri tlb_end
+GT2: /* TLB0 is 0 and TLB1 will be 4MB */
+GT17: /* TLB1 is 4MB - kernel size <20MB */
+	addik	r10, r0, 0x0400000 /* means TLB1 is 4MB */
+	bri tlb_end
+GT8: /* TLB0 is still zero that's why I can use only TLB1 */
+GT20: /* TLB1 is 16MB - kernel size >20MB */
+	addik	r10, r0, 0x1000000 /* means TLB1 is 16MB */
+tlb_end:
+
 	/*
 	 * Configure and load two entries into TLB slots 0 and 1.
 	 * In case we are pinning TLBs, these are reserved in by the
@@ -177,16 +224,56 @@ _invalidate:
 	andi	r4,r4,0xfffffc00	/* Mask off the real page number */
 	ori	r4,r4,(TLB_WR | TLB_EX)	/* Set the write and execute bits */
 
+	/* TLB0 can be zeroes that's why we not setup it */
+	beqi	r9, jump_over
+
+	/* look at the code below */
+	ori	r30, r0, 0x200
+	andi	r29, r9, 0x100000
+	bneid	r29, 1f
+	addik	r30, r30, 0x80
+	andi	r29, r9, 0x400000
+	bneid	r29, 1f
+	addik	r30, r30, 0x80
+	andi	r29, r9, 0x1000000
+	bneid	r29, 1f
+	addik	r30, r30, 0x80
+1:
+	ori r11, r30, 0
+
 	andi	r3,r3,0xfffffc00	/* Mask off the effective page number */
-	ori	r3,r3,(TLB_VALID | TLB_PAGESZ(PAGESZ_16M))
+	ori	r3,r3,(TLB_VALID)
+	or	r3, r3, r11
 
 	mts     rtlbx,r0		/* TLB slow 0 */
 
 	mts	rtlblo,r4		/* Load the data portion of the entry */
 	mts	rtlbhi,r3		/* Load the tag portion of the entry */
 
-	addik	r4, r4, 0x01000000	/* Map next 16 M entries */
-	addik	r3, r3, 0x01000000
+jump_over:
+	/* TLB1 can be zeroes that's why we not setup it */
+	beqi	r10, jump_over2
+
+	/* look at the code below */
+	ori	r30, r0, 0x200
+	andi	r29, r10, 0x100000
+	bneid	r29, 1f
+	addik	r30, r30, 0x80
+	andi	r29, r10, 0x400000
+	bneid	r29, 1f
+	addik	r30, r30, 0x80
+	andi	r29, r10, 0x1000000
+	bneid	r29, 1f
+	addik	r30, r30, 0x80
+1:
+	ori r12, r30, 0
+
+	addk	r4, r4, r9	/* previous addr + TLB0 size */
+	addk	r3, r3, r9
+
+	andi	r3,r3,0xfffffc00	/* Mask off the effective page number */
+	ori	r3,r3,(TLB_VALID)
+	or	r3, r3, r12
 
 	ori	r6,r0,1			/* TLB slot 1 */
 	mts     rtlbx,r6
@@ -194,6 +281,7 @@ _invalidate:
 	mts	rtlblo,r4		/* Load the data portion of the entry */
 	mts	rtlbhi,r3		/* Load the tag portion of the entry */
 
+jump_over2:
 	/*
 	 * Load a TLB entry for LMB, since we need access to
 	 * the exception vectors, using a 4k real==virtual mapping.
@@ -237,8 +325,8 @@ start_here:
 	 * Please see $(ARCH)/mach-$(SUBARCH)/setup.c for
 	 * the function.
 	 */
-	addik	r9, r0, machine_early_init
-	brald	r15, r9
+	addik	r11, r0, machine_early_init
+	brald	r15, r11
 	nop
 
 #ifndef CONFIG_MMU
