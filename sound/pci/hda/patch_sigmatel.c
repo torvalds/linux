@@ -5343,9 +5343,6 @@ again:
 
 	codec->patch_ops = stac92xx_patch_ops;
 
-	if (spec->board_config == STAC_92HD83XXX_HP)
-		spec->gpio_led = 0x01;
-
 	if (find_mute_led_gpio(codec))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
@@ -5673,7 +5670,6 @@ again:
 		 */
 		spec->num_smuxes = 1;
 		spec->num_dmuxes = 1;
-		spec->gpio_led = 0x01;
 		/* fallthrough */
 	case STAC_HP_DV5:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
@@ -5688,8 +5684,6 @@ again:
 		spec->num_dmics = 1;
 		spec->num_dmuxes = 1;
 		spec->num_smuxes = 1;
-		/* orange/white mute led on GPIO3, orange=0, white=1 */
-		spec->gpio_led = 0x08;
 		break;
 	}
 
