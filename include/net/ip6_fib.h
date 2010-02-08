@@ -129,6 +129,8 @@ struct fib6_walker_t {
 	struct rt6_info *leaf;
 	unsigned char state;
 	unsigned char prune;
+	unsigned int skip;
+	unsigned int count;
 	int (*func)(struct fib6_walker_t *);
 	void *args;
 };
