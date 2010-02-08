@@ -1493,6 +1493,22 @@ do {					\
 	return div64_u64(dividend, divisor);
 }
 
+static void perf_event_stop(struct perf_event *event)
+{
+	if (!event->pmu->stop)
+		return event->pmu->disable(event);
+
+	return event->pmu->stop(event);
+}
+
+static int perf_event_start(struct perf_event *event)
+{
+	if (!event->pmu->start)
+		return event->pmu->enable(event);
+
+	return event->pmu->start(event);
+}
+
 static void perf_adjust_period(struct perf_event *event, u64 nsec, u64 count)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -1513,9 +1529,9 @@ static void perf_adjust_period(struct perf_event *event, u64 nsec, u64 count)
 
 	if (atomic64_read(&hwc->period_left) > 8*sample_period) {
 		perf_disable();
-		event->pmu->disable(event);
+		perf_event_stop(event);
 		atomic64_set(&hwc->period_left, 0);
-		event->pmu->enable(event);
+		perf_event_start(event);
 		perf_enable();
 	}
 }

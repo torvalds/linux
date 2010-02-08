@@ -1495,7 +1495,7 @@ static inline int match_prev_assignment(struct hw_perf_event *hwc,
 		hwc->last_tag == cpuc->tags[i];
 }
 
-static void __x86_pmu_disable(struct perf_event *event, struct cpu_hw_events *cpuc);
+static void x86_pmu_stop(struct perf_event *event);
 
 void hw_perf_enable(void)
 {
@@ -1533,7 +1533,7 @@ void hw_perf_enable(void)
 			    match_prev_assignment(hwc, cpuc, i))
 				continue;
 
-			__x86_pmu_disable(event, cpuc);
+			x86_pmu_stop(event);
 
 			hwc->idx = -1;
 		}
@@ -1801,6 +1801,19 @@ static int x86_pmu_enable(struct perf_event *event)
 	return 0;
 }
 
+static int x86_pmu_start(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (hwc->idx == -1)
+		return -EAGAIN;
+
+	x86_perf_event_set_period(event, hwc, hwc->idx);
+	x86_pmu.enable(hwc, hwc->idx);
+
+	return 0;
+}
+
 static void x86_pmu_unthrottle(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
@@ -1924,8 +1937,9 @@ static void intel_pmu_drain_bts_buffer(struct cpu_hw_events *cpuc)
 	event->pending_kill = POLL_IN;
 }
 
-static void __x86_pmu_disable(struct perf_event *event, struct cpu_hw_events *cpuc)
+static void x86_pmu_stop(struct perf_event *event)
 {
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
@@ -1954,7 +1968,7 @@ static void x86_pmu_disable(struct perf_event *event)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int i;
 
-	__x86_pmu_disable(event, cpuc);
+	x86_pmu_stop(event);
 
 	for (i = 0; i < cpuc->n_events; i++) {
 		if (event == cpuc->event_list[i]) {
@@ -2667,6 +2681,8 @@ static inline void x86_pmu_read(struct perf_event *event)
 static const struct pmu pmu = {
 	.enable		= x86_pmu_enable,
 	.disable	= x86_pmu_disable,
+	.start		= x86_pmu_start,
+	.stop		= x86_pmu_stop,
 	.read		= x86_pmu_read,
 	.unthrottle	= x86_pmu_unthrottle,
 };

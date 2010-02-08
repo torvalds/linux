@@ -513,6 +513,8 @@ struct perf_event;
 struct pmu {
 	int (*enable)			(struct perf_event *event);
 	void (*disable)			(struct perf_event *event);
+	int (*start)			(struct perf_event *event);
+	void (*stop)			(struct perf_event *event);
 	void (*read)			(struct perf_event *event);
 	void (*unthrottle)		(struct perf_event *event);
 };
