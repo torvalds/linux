@@ -614,7 +614,7 @@ be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
 
 	if (!status) {
 		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
-		memcpy(data, resp->seeprom_data, eeprom->len);
+		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
 	}
 	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
 			eeprom_cmd.dma);
