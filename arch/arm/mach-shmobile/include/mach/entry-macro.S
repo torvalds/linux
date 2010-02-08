@@ -21,13 +21,13 @@
 	.endm
 
 	.macro  get_irqnr_preamble, base, tmp
+	ldr     \base, =INTFLGA
 	.endm
 
 	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm
 
 	.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-	ldr     \base, =INTFLGA
 	ldr     \irqnr, [\base]
 	cmp	\irqnr, #0
 	beq	1000f
