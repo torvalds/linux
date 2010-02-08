@@ -34,7 +34,6 @@
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
-#include <plat/sdrc.h>
 #include "clock.h"
 #include "clock34xx.h"
 #include "sdrc.h"

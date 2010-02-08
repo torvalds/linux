@@ -51,11 +51,11 @@ static int nilfs_direct_lookup(const struct nilfs_bmap *bmap,
 	struct nilfs_direct *direct;
 	__u64 ptr;
 
-	direct = (struct nilfs_direct *)bmap;
-	if ((key > NILFS_DIRECT_KEY_MAX) ||
-	    (level != 1) ||	/* XXX: use macro for level 1 */
-	    ((ptr = nilfs_direct_get_ptr(direct, key)) ==
-	     NILFS_BMAP_INVALID_PTR))
+	direct = (struct nilfs_direct *)bmap;  /* XXX: use macro for level 1 */
+	if (key > NILFS_DIRECT_KEY_MAX || level != 1)
+		return -ENOENT;
+	ptr = nilfs_direct_get_ptr(direct, key);
+	if (ptr == NILFS_BMAP_INVALID_PTR)
 		return -ENOENT;
 
 	if (ptrp != NULL)
@@ -73,9 +73,10 @@ static int nilfs_direct_lookup_contig(const struct nilfs_bmap *bmap,
 	sector_t blocknr;
 	int ret, cnt;
 
-	if (key > NILFS_DIRECT_KEY_MAX ||
-	    (ptr = nilfs_direct_get_ptr(direct, key)) ==
-	    NILFS_BMAP_INVALID_PTR)
+	if (key > NILFS_DIRECT_KEY_MAX)
+		return -ENOENT;
+	ptr = nilfs_direct_get_ptr(direct, key);
+	if (ptr == NILFS_BMAP_INVALID_PTR)
 		return -ENOENT;
 
 	if (NILFS_BMAP_USE_VBN(bmap)) {

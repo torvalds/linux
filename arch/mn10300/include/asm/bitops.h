@@ -165,7 +165,7 @@ static inline __attribute__((const))
 unsigned long __ffs(unsigned long x)
 {
 	int bit;
-	asm("bsch %2,%0" : "=r"(bit) : "0"(0), "r"(x & -x));
+	asm("bsch %2,%0" : "=r"(bit) : "0"(0), "r"(x & -x) : "cc");
 	return bit;
 }
 
@@ -177,7 +177,7 @@ static inline __attribute__((const))
 int __ilog2_u32(u32 n)
 {
 	int bit;
-	asm("bsch %2,%0" : "=r"(bit) : "0"(0), "r"(n));
+	asm("bsch %2,%0" : "=r"(bit) : "0"(0), "r"(n) : "cc");
 	return bit;
 }
 

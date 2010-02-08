@@ -144,6 +144,29 @@ void acpi_processor_set_pdc(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_processor_set_pdc);
 
+static int early_pdc_optin;
+static int set_early_pdc_optin(const struct dmi_system_id *id)
+{
+	early_pdc_optin = 1;
+	return 0;
+}
+
+static struct dmi_system_id __cpuinitdata early_pdc_optin_table[] = {
+	{
+	set_early_pdc_optin, "HP Envy", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "Hewlett-Packard"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "HP Envy") }, NULL},
+	{
+	set_early_pdc_optin, "HP Pavilion dv6", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "Hewlett-Packard"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv6") }, NULL},
+	{
+	set_early_pdc_optin, "HP Pavilion dv7", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "Hewlett-Packard"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv7") }, NULL},
+	{},
+};
+
 static acpi_status
 early_init_pdc(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
@@ -151,13 +174,20 @@ early_init_pdc(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-void acpi_early_processor_set_pdc(void)
+void __init acpi_early_processor_set_pdc(void)
 {
 	/*
 	 * Check whether the system is DMI table. If yes, OSPM
 	 * should not use mwait for CPU-states.
 	 */
 	dmi_check_system(processor_idle_dmi_table);
+
+	/*
+	 * Allow systems to opt-in to early _PDC evaluation.
+	 */
+	dmi_check_system(early_pdc_optin_table);
+	if (!early_pdc_optin)
+		return;
 
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
 			    ACPI_UINT32_MAX,

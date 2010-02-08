@@ -633,13 +633,13 @@ static int misalignment_addr(unsigned long *registers, unsigned long sp,
 			goto displace_or_inc;
 		case SD24:
 			tmp = disp << 8;
-			asm("asr 8,%0" : "=r"(tmp) : "0"(tmp));
+			asm("asr 8,%0" : "=r"(tmp) : "0"(tmp) : "cc");
 			disp = (long) tmp;
 			goto displace_or_inc;
 		case SIMM4_2:
 			tmp = opcode >> 4 & 0x0f;
 			tmp <<= 28;
-			asm("asr 28,%0" : "=r"(tmp) : "0"(tmp));
+			asm("asr 28,%0" : "=r"(tmp) : "0"(tmp) : "cc");
 			disp = (long) tmp;
 			goto displace_or_inc;
 		case IMM8:

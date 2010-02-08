@@ -781,7 +781,8 @@ static inline size_t xfrm_spdinfo_msgsize(void)
 	       + nla_total_size(sizeof(struct xfrmu_spdhinfo));
 }
 
-static int build_spdinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
+static int build_spdinfo(struct sk_buff *skb, struct net *net,
+			 u32 pid, u32 seq, u32 flags)
 {
 	struct xfrmk_spdinfo si;
 	struct xfrmu_spdinfo spc;
@@ -795,7 +796,7 @@ static int build_spdinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 
 	f = nlmsg_data(nlh);
 	*f = flags;
-	xfrm_spd_getinfo(&si);
+	xfrm_spd_getinfo(net, &si);
 	spc.incnt = si.incnt;
 	spc.outcnt = si.outcnt;
 	spc.fwdcnt = si.fwdcnt;
@@ -828,7 +829,7 @@ static int xfrm_get_spdinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (r_skb == NULL)
 		return -ENOMEM;
 
-	if (build_spdinfo(r_skb, spid, seq, *flags) < 0)
+	if (build_spdinfo(r_skb, net, spid, seq, *flags) < 0)
 		BUG();
 
 	return nlmsg_unicast(net->xfrm.nlsk, r_skb, spid);
@@ -841,7 +842,8 @@ static inline size_t xfrm_sadinfo_msgsize(void)
 	       + nla_total_size(4); /* XFRMA_SAD_CNT */
 }
 
-static int build_sadinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
+static int build_sadinfo(struct sk_buff *skb, struct net *net,
+			 u32 pid, u32 seq, u32 flags)
 {
 	struct xfrmk_sadinfo si;
 	struct xfrmu_sadhinfo sh;
@@ -854,7 +856,7 @@ static int build_sadinfo(struct sk_buff *skb, u32 pid, u32 seq, u32 flags)
 
 	f = nlmsg_data(nlh);
 	*f = flags;
-	xfrm_sad_getinfo(&si);
+	xfrm_sad_getinfo(net, &si);
 
 	sh.sadhmcnt = si.sadhmcnt;
 	sh.sadhcnt = si.sadhcnt;
@@ -882,7 +884,7 @@ static int xfrm_get_sadinfo(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (r_skb == NULL)
 		return -ENOMEM;
 
-	if (build_sadinfo(r_skb, spid, seq, *flags) < 0)
+	if (build_sadinfo(r_skb, net, spid, seq, *flags) < 0)
 		BUG();
 
 	return nlmsg_unicast(net->xfrm.nlsk, r_skb, spid);

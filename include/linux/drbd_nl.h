@@ -69,6 +69,7 @@ NL_PACKET(disconnect, 6, )
 
 NL_PACKET(resize, 7,
 	NL_INT64(		29,	T_MAY_IGNORE,	resize_size)
+	NL_BIT(			68,	T_MAY_IGNORE,	resize_force)
 )
 
 NL_PACKET(syncer_conf, 8,

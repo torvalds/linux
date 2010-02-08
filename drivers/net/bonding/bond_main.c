@@ -3639,7 +3639,7 @@ static int bond_open(struct net_device *bond_dev)
 		 */
 		if (bond_alb_initialize(bond, (bond->params.mode == BOND_MODE_ALB))) {
 			/* something went wrong - fail the open operation */
-			return -1;
+			return -ENOMEM;
 		}
 
 		INIT_DELAYED_WORK(&bond->alb_work, bond_alb_monitor);

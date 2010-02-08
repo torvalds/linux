@@ -1068,20 +1068,20 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 				 struct scatterlist *sg_req,
 				 struct scatterlist *sg_resp,
-				 int max_sbals)
+				 int max_sbals, unsigned int timeout)
 {
 	int ret;
-	unsigned int fcp_chan_timeout;
 
 	ret = zfcp_fsf_setup_ct_els_sbals(req, sg_req, sg_resp, max_sbals);
 	if (ret)
 		return ret;
 
 	/* common settings for ct/gs and els requests */
-	fcp_chan_timeout = 2 * FC_DEF_R_A_TOV / 1000;
+	if (timeout > 255)
+		timeout = 255; /* max value accepted by hardware */
 	req->qtcb->bottom.support.service_class = FSF_CLASS_3;
-	req->qtcb->bottom.support.timeout = fcp_chan_timeout;
-	zfcp_fsf_start_timer(req, (fcp_chan_timeout + 10) * HZ);
+	req->qtcb->bottom.support.timeout = timeout;
+	zfcp_fsf_start_timer(req, (timeout + 10) * HZ);
 
 	return 0;
 }
@@ -1092,7 +1092,8 @@ static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
  * @pool: if non-null this mempool is used to allocate struct zfcp_fsf_req
  */
 int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
-		     struct zfcp_fsf_ct_els *ct, mempool_t *pool)
+		     struct zfcp_fsf_ct_els *ct, mempool_t *pool,
+		     unsigned int timeout)
 {
 	struct zfcp_qdio *qdio = wka_port->adapter->qdio;
 	struct zfcp_fsf_req *req;
@@ -1111,7 +1112,7 @@ int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
 	ret = zfcp_fsf_setup_ct_els(req, ct->req, ct->resp,
-				    FSF_MAX_SBALS_PER_REQ);
+				    FSF_MAX_SBALS_PER_REQ, timeout);
 	if (ret)
 		goto failed_send;
 
@@ -1188,7 +1189,7 @@ skip_fsfstatus:
  * @els: pointer to struct zfcp_send_els with data for the command
  */
 int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
-		      struct zfcp_fsf_ct_els *els)
+		      struct zfcp_fsf_ct_els *els, unsigned int timeout)
 {
 	struct zfcp_fsf_req *req;
 	struct zfcp_qdio *qdio = adapter->qdio;
@@ -1206,7 +1207,7 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, 2);
+	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, 2, timeout);
 
 	if (ret)
 		goto failed_send;

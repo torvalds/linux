@@ -185,6 +185,8 @@ bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
 void __ioat2_issue_pending(struct ioat2_dma_chan *ioat);
 void ioat2_cleanup_tasklet(unsigned long data);
 void ioat2_timer_event(unsigned long data);
+int ioat2_quiesce(struct ioat_chan_common *chan, unsigned long tmo);
+int ioat2_reset_sync(struct ioat_chan_common *chan, unsigned long tmo);
 extern struct kobj_type ioat2_ktype;
 extern struct kmem_cache *ioat2_cache;
 #endif /* IOATDMA_V2_H */

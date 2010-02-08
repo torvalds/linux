@@ -483,6 +483,13 @@ nouveau_pgraph_intr_error(struct drm_device *dev, uint32_t nsource)
 	if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
 		if (nouveau_pgraph_intr_swmthd(dev, &trap))
 			unhandled = 1;
+	} else if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
+		uint32_t v = nv_rd32(dev, 0x402000);
+		nv_wr32(dev, 0x402000, v);
+
+		/* dump the error anyway for now: it's useful for
+		   Gallium development */
+		unhandled = 1;
 	} else {
 		unhandled = 1;
 	}
@@ -635,6 +642,7 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 
 		if ((nv_rd32(dev, 0x400500) & isb) != isb)
 			nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) | isb);
+		nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
 	}
 
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);

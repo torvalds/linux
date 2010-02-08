@@ -274,7 +274,7 @@ static inline unsigned long copy_from_user(void *to, const void __user *from, un
 
 	if (unlikely(sz != -1 && sz < n)) {
 		copy_from_user_overflow();
-		return -EFAULT;
+		return n;
 	}
 
 	if (n && __access_ok((unsigned long) from, n))

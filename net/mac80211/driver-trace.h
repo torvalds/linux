@@ -680,7 +680,7 @@ TRACE_EVENT(drv_ampdu_action,
 		__entry->ret = ret;
 		__entry->action = action;
 		__entry->tid = tid;
-		__entry->ssn = *ssn;
+		__entry->ssn = ssn ? *ssn : 0;
 	),
 
 	TP_printk(

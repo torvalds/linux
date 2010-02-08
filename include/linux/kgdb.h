@@ -29,8 +29,7 @@ struct pt_regs;
  *
  *	On some architectures it is required to skip a breakpoint
  *	exception when it occurs after a breakpoint has been removed.
- *	This can be implemented in the architecture specific portion of
- *	for kgdb.
+ *	This can be implemented in the architecture specific portion of kgdb.
  */
 extern int kgdb_skipexception(int exception, struct pt_regs *regs);
 
@@ -65,7 +64,7 @@ struct uart_port;
 /**
  *	kgdb_breakpoint - compiled in breakpoint
  *
- *	This will be impelmented a static inline per architecture.  This
+ *	This will be implemented as a static inline per architecture.  This
  *	function is called by the kgdb core to execute an architecture
  *	specific trap to cause kgdb to enter the exception processing.
  *
@@ -190,7 +189,7 @@ kgdb_arch_handle_exception(int vector, int signo, int err_code,
  *	@flags: Current IRQ state
  *
  *	On SMP systems, we need to get the attention of the other CPUs
- *	and get them be in a known state.  This should do what is needed
+ *	and get them into a known state.  This should do what is needed
  *	to get the other CPUs to call kgdb_wait(). Note that on some arches,
  *	the NMI approach is not used for rounding up all the CPUs. For example,
  *	in case of MIPS, smp_call_function() is used to roundup CPUs. In

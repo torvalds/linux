@@ -36,7 +36,15 @@
 #include "rv350d.h"
 #include "r300_reg_safe.h"
 
-/* This files gather functions specifics to: r300,r350,rv350,rv370,rv380 */
+/* This files gather functions specifics to: r300,r350,rv350,rv370,rv380
+ *
+ * GPU Errata:
+ * - HOST_PATH_CNTL: r300 family seems to dislike write to HOST_PATH_CNTL
+ *   using MMIO to flush host path read cache, this lead to HARDLOCKUP.
+ *   However, scheduling such write to the ring seems harmless, i suspect
+ *   the CP read collide with the flush somehow, or maybe the MC, hard to
+ *   tell. (Jerome Glisse)
+ */
 
 /*
  * rv370,rv380 PCIE GART
@@ -178,6 +186,11 @@ void r300_fence_ring_emit(struct radeon_device *rdev,
 	/* Wait until IDLE & CLEAN */
 	radeon_ring_write(rdev, PACKET0(0x1720, 0));
 	radeon_ring_write(rdev, (1 << 17) | (1 << 16)  | (1 << 9));
+	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
+	radeon_ring_write(rdev, rdev->config.r300.hdp_cntl |
+				RADEON_HDP_READ_BUFFER_INVALIDATE);
+	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
+	radeon_ring_write(rdev, rdev->config.r300.hdp_cntl);
 	/* Emit fence sequence & fire IRQ */
 	radeon_ring_write(rdev, PACKET0(rdev->fence_drv.scratch_reg, 0));
 	radeon_ring_write(rdev, fence->seq);
@@ -493,11 +506,14 @@ void r300_vram_info(struct radeon_device *rdev)
 
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
+
 	tmp = RREG32(RADEON_MEM_CNTL);
-	if (tmp & R300_MEM_NUM_CHANNELS_MASK) {
-		rdev->mc.vram_width = 128;
-	} else {
-		rdev->mc.vram_width = 64;
+	tmp &= R300_MEM_NUM_CHANNELS_MASK;
+	switch (tmp) {
+	case 0: rdev->mc.vram_width = 64; break;
+	case 1: rdev->mc.vram_width = 128; break;
+	case 2: rdev->mc.vram_width = 256; break;
+	default:  rdev->mc.vram_width = 128; break;
 	}
 
 	r100_vram_init_sizes(rdev);
@@ -1258,6 +1274,7 @@ static int r300_startup(struct radeon_device *rdev)
 	}
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -1313,7 +1330,6 @@ int r300_suspend(struct radeon_device *rdev)
 
 void r300_fini(struct radeon_device *rdev)
 {
-	r300_suspend(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -1322,6 +1338,7 @@ void r300_fini(struct radeon_device *rdev)
 		rv370_pcie_gart_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);
@@ -1403,15 +1420,15 @@ int r300_init(struct radeon_device *rdev)
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		r300_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCIE)
 			rv370_pcie_gart_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCI)
 			r100_pci_gart_fini(rdev);
-		radeon_irq_kms_fini(rdev);
+		radeon_agp_fini(rdev);
 		rdev->accel_working = false;
 	}
 	return 0;

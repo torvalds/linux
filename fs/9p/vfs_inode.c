@@ -1001,44 +1001,6 @@ done:
 }
 
 /**
- * v9fs_vfs_readlink - read a symlink's location
- * @dentry: dentry for symlink
- * @buffer: buffer to load symlink location into
- * @buflen: length of buffer
- *
- */
-
-static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
-			     int buflen)
-{
-	int retval;
-	int ret;
-	char *link = __getname();
-
-	if (unlikely(!link))
-		return -ENOMEM;
-
-	if (buflen > PATH_MAX)
-		buflen = PATH_MAX;
-
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
-									dentry);
-
-	retval = v9fs_readlink(dentry, link, buflen);
-
-	if (retval > 0) {
-		if ((ret = copy_to_user(buffer, link, retval)) != 0) {
-			P9_DPRINTK(P9_DEBUG_ERROR,
-					"problem copying to user: %d\n", ret);
-			retval = ret;
-		}
-	}
-
-	__putname(link);
-	return retval;
-}
-
-/**
  * v9fs_vfs_follow_link - follow a symlink path
  * @dentry: dentry for symlink
  * @nd: nameidata
@@ -1230,7 +1192,6 @@ static const struct inode_operations v9fs_dir_inode_operations_ext = {
 	.rmdir = v9fs_vfs_rmdir,
 	.mknod = v9fs_vfs_mknod,
 	.rename = v9fs_vfs_rename,
-	.readlink = v9fs_vfs_readlink,
 	.getattr = v9fs_vfs_getattr,
 	.setattr = v9fs_vfs_setattr,
 };
@@ -1253,7 +1214,7 @@ static const struct inode_operations v9fs_file_inode_operations = {
 };
 
 static const struct inode_operations v9fs_symlink_inode_operations = {
-	.readlink = v9fs_vfs_readlink,
+	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link,
 	.put_link = v9fs_vfs_put_link,
 	.getattr = v9fs_vfs_getattr,

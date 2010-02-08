@@ -272,7 +272,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 			return ret;
 		ramfc = chan->ramfc->gpuobj;
 
-		ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 4096, 256,
+		ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 4096, 1024,
 					     0, &chan->cache);
 		if (ret)
 			return ret;
@@ -384,8 +384,8 @@ nv50_fifo_load_context(struct nouveau_channel *chan)
 		nv_wr32(dev, NV40_PFIFO_CACHE1_DATA(ptr),
 			nv_ro32(dev, cache, (ptr * 2) + 1));
 	}
-	nv_wr32(dev, 0x3210, cnt << 2);
-	nv_wr32(dev, 0x3270, 0);
+	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, cnt << 2);
+	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 
 	/* guessing that all the 0x34xx regs aren't on NV50 */
 	if (!IS_G80) {
@@ -398,8 +398,6 @@ nv50_fifo_load_context(struct nouveau_channel *chan)
 
 	dev_priv->engine.instmem.finish_access(dev);
 
-	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
-	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, 0);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, chan->id | (1<<16));
 	return 0;
 }

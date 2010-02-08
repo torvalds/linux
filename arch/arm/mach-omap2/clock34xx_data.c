@@ -671,7 +671,6 @@ static struct clk dpll4_m3x2_ck = {
 	.name		= "dpll4_m3x2_ck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dpll4_m3_ck,
-	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_bit	= OMAP3430_PWRDN_TV_SHIFT,
 	.flags		= INVERT_ENABLE,
@@ -776,6 +775,8 @@ static struct clk dpll4_m5_ck = {
 	.clksel_mask	= OMAP3430_CLKSEL_CAM_MASK,
 	.clksel		= div16_dpll4_clksel,
 	.clkdm_name	= "dpll4_clkdm",
+	.set_rate	= &omap2_clksel_set_rate,
+	.round_rate	= &omap2_clksel_round_rate,
 	.recalc		= &omap2_clksel_recalc,
 };
 
@@ -809,7 +810,6 @@ static struct clk dpll4_m6x2_ck = {
 	.name		= "dpll4_m6x2_ck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dpll4_m6_ck,
-	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_bit	= OMAP3430_PWRDN_EMU_PERIPH_SHIFT,
 	.flags		= INVERT_ENABLE,
@@ -1045,7 +1045,6 @@ static struct clk iva2_ck = {
 	.name		= "iva2_ck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &dpll2_m2_ck,
-	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD, CM_FCLKEN),
 	.enable_bit	= OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_SHIFT,
 	.clkdm_name	= "iva2_clkdm",
@@ -1119,7 +1118,6 @@ static struct clk gfx_l3_ck = {
 	.name		= "gfx_l3_ck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &l3_ick,
-	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(GFX_MOD, CM_ICLKEN),
 	.enable_bit	= OMAP_EN_GFX_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -1500,6 +1498,7 @@ static struct clk uart2_fck = {
 	.parent		= &core_48m_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_UART2_SHIFT,
+	.clkdm_name	= "core_l4_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -1509,6 +1508,7 @@ static struct clk uart1_fck = {
 	.parent		= &core_48m_fck,
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_UART1_SHIFT,
+	.clkdm_name	= "core_l4_clkdm",
 	.recalc		= &followparent_recalc,
 };
 
@@ -2745,7 +2745,7 @@ static struct clk mcbsp4_ick = {
 };
 
 static const struct clksel mcbsp_234_clksel[] = {
-	{ .parent = &core_96m_fck, .rates = common_mcbsp_96m_rates },
+	{ .parent = &per_96m_fck,  .rates = common_mcbsp_96m_rates },
 	{ .parent = &mcbsp_clks,   .rates = common_mcbsp_mcbsp_rates },
 	{ .parent = NULL }
 };

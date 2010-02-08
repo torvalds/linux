@@ -123,7 +123,7 @@ static int i915_init_phys_hws(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	/* Program Hardware Status Page */
 	dev_priv->status_page_dmah =
-		drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
+		drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE);
 
 	if (!dev_priv->status_page_dmah) {
 		DRM_ERROR("Can not allocate hardware status page\n");
@@ -133,6 +133,10 @@ static int i915_init_phys_hws(struct drm_device *dev)
 	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
 
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
+
+	if (IS_I965G(dev))
+		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
+					     0xf0;
 
 	I915_WRITE(HWS_PGA, dev_priv->dma_status_page);
 	DRM_DEBUG_DRIVER("Enabled hardware status page\n");
@@ -813,9 +817,13 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_PAGEFLIPPING:
 		value = 1;
 		break;
+	case I915_PARAM_HAS_EXECBUF2:
+		/* depends on GEM */
+		value = dev_priv->has_gem;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
-					param->param);
+				 param->param);
 		return -EINVAL;
 	}
 
@@ -1117,7 +1125,8 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mm_node *compressed_fb, *compressed_llb;
-	unsigned long cfb_base, ll_base;
+	unsigned long cfb_base;
+	unsigned long ll_base = 0;
 
 	/* Leave 1M for line length buffer & misc. */
 	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
@@ -1200,14 +1209,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
 		0xff000000;
 
-	if (IS_MOBILE(dev) || IS_I9XX(dev))
-		dev_priv->cursor_needs_physical = true;
-	else
-		dev_priv->cursor_needs_physical = false;
-
-	if (IS_I965G(dev) || IS_G33(dev))
-		dev_priv->cursor_needs_physical = false;
-
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
 	DRM_INFO("set up %ldM of stolen space\n", prealloc_size / (1024*1024));
@@ -1257,6 +1258,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	if (ret)
 		goto destroy_ringbuffer;
 
+	intel_modeset_init(dev);
+
 	ret = drm_irq_install(dev);
 	if (ret)
 		goto destroy_ringbuffer;
@@ -1270,8 +1273,6 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	 */
 
 	I915_WRITE(INSTPM, (1 << 5) | (1 << 21));
-
-	intel_modeset_init(dev);
 
 	drm_helper_initial_config(dev);
 
@@ -1360,7 +1361,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	resource_size_t base, size;
-	int ret = 0, mmio_bar = IS_I9XX(dev) ? 0 : 1;
+	int ret = 0, mmio_bar;
 	uint32_t agp_size, prealloc_size, prealloc_start;
 
 	/* i915 has 4 more counters */
@@ -1376,8 +1377,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
+	dev_priv->info = (struct intel_device_info *) flags;
 
 	/* Add register map (needed for suspend/resume) */
+	mmio_bar = IS_I9XX(dev) ? 0 : 1;
 	base = drm_get_resource_start(dev, mmio_bar);
 	size = drm_get_resource_len(dev, mmio_bar);
 
@@ -1652,6 +1655,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_HWS_ADDR, i915_set_status_page, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_INIT, i915_gem_init_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_EXECBUFFER, i915_gem_execbuffer, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_I915_GEM_EXECBUFFER2, i915_gem_execbuffer2, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_GEM_PIN, i915_gem_pin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_UNPIN, i915_gem_unpin_ioctl, DRM_AUTH|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_I915_GEM_BUSY, i915_gem_busy_ioctl, DRM_AUTH),
