@@ -15,13 +15,12 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 
-static char *
-cardstate2str(unsigned short cardstate)
+static char *state2str(unsigned short state)
 {
-	switch (cardstate) {
-	case CARD_DETECTED:	return "detected";
-	case CARD_LOADING:	return "loading";
-	case CARD_RUNNING:	return "running";
+	switch (state) {
+	case CAPI_CTR_DETECTED:	return "detected";
+	case CAPI_CTR_LOADING:	return "loading";
+	case CAPI_CTR_RUNNING:	return "running";
 	default:	        return "???";
 	}
 }
@@ -38,7 +37,7 @@ cardstate2str(unsigned short cardstate)
 static void *controller_start(struct seq_file *seq, loff_t *pos)
 {
 	if (*pos < CAPI_MAXCONTR)
-		return &capi_cards[*pos];
+		return &capi_controller[*pos];
 
 	return NULL;
 }
@@ -47,7 +46,7 @@ static void *controller_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	++*pos;
 	if (*pos < CAPI_MAXCONTR)
-		return &capi_cards[*pos];
+		return &capi_controller[*pos];
 
 	return NULL;
 }
@@ -65,7 +64,7 @@ static int controller_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "%d %-10s %-8s %-16s %s\n",
 		   ctr->cnr, ctr->driver_name,
-		   cardstate2str(ctr->cardstate),
+		   state2str(ctr->state),
 		   ctr->name,
 		   ctr->procinfo ?  ctr->procinfo(ctr) : "");
 

@@ -66,7 +66,7 @@ struct capi_ctr {
 	unsigned long nsentdatapkt;
 
 	int cnr;				/* controller number */
-	volatile unsigned short cardstate;	/* controller state */
+	volatile unsigned short state;		/* controller state */
 	volatile int blocked;			/* output blocked */
 	int traceflag;				/* capi trace */
 
