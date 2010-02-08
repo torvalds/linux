@@ -149,6 +149,7 @@ _copy_bram:
 _invalidate:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0			/* flush: ensure V is clear   */
+	mts	rtlblo, r0
 	bgtid	r3, _invalidate		/* loop for all entries       */
 	addik	r3, r3, -1
 	/* sync */
@@ -224,8 +225,14 @@ tlb_end:
 	andi	r4,r4,0xfffffc00	/* Mask off the real page number */
 	ori	r4,r4,(TLB_WR | TLB_EX)	/* Set the write and execute bits */
 
-	/* TLB0 can be zeroes that's why we not setup it */
-	beqi	r9, jump_over
+	/*
+	 * TLB0 is always used - check if is not zero (r9 stores TLB0 value)
+	 * if is use TLB1 value and clear it (r10 stores TLB1 value)
+	 */
+	bnei	r9, tlb0_not_zero
+	add	r9, r10, r0
+	add	r10, r0, r0
+tlb0_not_zero:
 
 	/* look at the code below */
 	ori	r30, r0, 0x200
@@ -239,18 +246,21 @@ tlb_end:
 	bneid	r29, 1f
 	addik	r30, r30, 0x80
 1:
-	ori r11, r30, 0
-
 	andi	r3,r3,0xfffffc00	/* Mask off the effective page number */
 	ori	r3,r3,(TLB_VALID)
-	or	r3, r3, r11
+	or	r3, r3, r30
 
-	mts     rtlbx,r0		/* TLB slow 0 */
+	/* Load tlb_skip size value which is index to first unused TLB entry */
+	lwi	r11, r0, TOPHYS(tlb_skip)
+	mts     rtlbx,r11		/* TLB slow 0 */
 
 	mts	rtlblo,r4		/* Load the data portion of the entry */
 	mts	rtlbhi,r3		/* Load the tag portion of the entry */
 
-jump_over:
+	/* Increase tlb_skip size */
+	addik	r11, r11, 1
+	swi	r11, r0, TOPHYS(tlb_skip)
+
 	/* TLB1 can be zeroes that's why we not setup it */
 	beqi	r10, jump_over2
 
@@ -266,27 +276,30 @@ jump_over:
 	bneid	r29, 1f
 	addik	r30, r30, 0x80
 1:
-	ori r12, r30, 0
-
 	addk	r4, r4, r9	/* previous addr + TLB0 size */
 	addk	r3, r3, r9
 
 	andi	r3,r3,0xfffffc00	/* Mask off the effective page number */
 	ori	r3,r3,(TLB_VALID)
-	or	r3, r3, r12
+	or	r3, r3, r30
 
-	ori	r6,r0,1			/* TLB slot 1 */
-	mts     rtlbx,r6
+	lwi	r11, r0, TOPHYS(tlb_skip)
+	mts     rtlbx, r11		/* r11 is used from TLB0 */
 
 	mts	rtlblo,r4		/* Load the data portion of the entry */
 	mts	rtlbhi,r3		/* Load the tag portion of the entry */
+
+	/* Increase tlb_skip size */
+	addik	r11, r11, 1
+	swi	r11, r0, TOPHYS(tlb_skip)
 
 jump_over2:
 	/*
 	 * Load a TLB entry for LMB, since we need access to
 	 * the exception vectors, using a 4k real==virtual mapping.
 	 */
-	ori	r6,r0,3			/* TLB slot 3 */
+	/* Use temporary TLB_ID for LMB - clear this temporary mapping later */
+	ori	r6, r0, MICROBLAZE_LMB_TLB_ID
 	mts     rtlbx,r6
 
 	ori	r4,r0,(TLB_WR | TLB_EX)
@@ -355,8 +368,7 @@ start_here:
 
 	/* Load up the kernel context */
 kernel_load_context:
-	# Keep entry 0 and 1 valid. Entry 3 mapped to LMB can go away.
-	ori	r5,r0,3
+	ori	r5, r0, MICROBLAZE_LMB_TLB_ID
 	mts     rtlbx,r5
 	nop
 	mts	rtlbhi,r0

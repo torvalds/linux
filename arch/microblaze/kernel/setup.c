@@ -208,6 +208,19 @@ static int microblaze_debugfs_init(void)
 	return of_debugfs_root == NULL;
 }
 arch_initcall(microblaze_debugfs_init);
+
+static int __init debugfs_tlb(void)
+{
+	struct dentry *d;
+
+	if (!of_debugfs_root)
+		return -ENODEV;
+
+	d = debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
+	if (!d)
+		return -ENOMEM;
+}
+device_initcall(debugfs_tlb);
 #endif
 
 static int dflt_bus_notify(struct notifier_block *nb,
