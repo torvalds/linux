@@ -85,7 +85,6 @@ struct datahandle_queue {
 };
 
 struct capiminor {
-	struct list_head list;
 	struct capincci  *nccip;
 	unsigned int      minor;
 	struct dentry *capifs_dentry;
@@ -151,8 +150,8 @@ static LIST_HEAD(capidev_list);
 
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 
-static DEFINE_RWLOCK(capiminor_list_lock);
-static LIST_HEAD(capiminor_list);
+static DEFINE_RWLOCK(capiminors_lock);
+static struct capiminor **capiminors;
 
 /* -------- datahandles --------------------------------------------- */
 
@@ -213,8 +212,8 @@ static void capiminor_del_all_ack(struct capiminor *mp)
 
 static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 {
-	struct capiminor *mp, *p;
-	unsigned int minor = 0;
+	struct capiminor *mp;
+	unsigned int minor;
 	unsigned long flags;
 
 	mp = kzalloc(sizeof(*mp), GFP_KERNEL);
@@ -233,30 +232,22 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 	skb_queue_head_init(&mp->inqueue);
 	skb_queue_head_init(&mp->outqueue);
 
-	/* Allocate the least unused minor number.
-	 */
-	write_lock_irqsave(&capiminor_list_lock, flags);
-	if (list_empty(&capiminor_list))
-		list_add(&mp->list, &capiminor_list);
-	else {
-		list_for_each_entry(p, &capiminor_list, list) {
-			if (p->minor > minor)
-				break;
-			minor++;
+	/* Allocate the least unused minor number. */
+	write_lock_irqsave(&capiminors_lock, flags);
+	for (minor = 0; minor < capi_ttyminors; minor++)
+		if (!capiminors[minor]) {
+			capiminors[minor] = mp;
+			break;
 		}
-		
-		if (minor < capi_ttyminors) {
-			mp->minor = minor;
-			list_add(&mp->list, p->list.prev);
-		}
-	}
-		write_unlock_irqrestore(&capiminor_list_lock, flags);
+	write_unlock_irqrestore(&capiminors_lock, flags);
 
-	if (!(minor < capi_ttyminors)) {
+	if (minor == capi_ttyminors) {
 		printk(KERN_NOTICE "capi: out of minors\n");
-			kfree(mp);
+		kfree(mp);
 		return NULL;
 	}
+
+	mp->minor = minor;
 
 	return mp;
 }
@@ -265,9 +256,9 @@ static void capiminor_free(struct capiminor *mp)
 {
 	unsigned long flags;
 
-	write_lock_irqsave(&capiminor_list_lock, flags);
-	list_del(&mp->list);
-	write_unlock_irqrestore(&capiminor_list_lock, flags);
+	write_lock_irqsave(&capiminors_lock, flags);
+	capiminors[mp->minor] = NULL;
+	write_unlock_irqrestore(&capiminors_lock, flags);
 
 	kfree_skb(mp->ttyskb);
 	mp->ttyskb = NULL;
@@ -279,20 +270,16 @@ static void capiminor_free(struct capiminor *mp)
 
 static struct capiminor *capiminor_find(unsigned int minor)
 {
-	struct list_head *l;
-	struct capiminor *p = NULL;
+	struct capiminor *mp;
 
-	read_lock(&capiminor_list_lock);
-	list_for_each(l, &capiminor_list) {
-		p = list_entry(l, struct capiminor, list);
-		if (p->minor == minor)
-			break;
-	}
-	read_unlock(&capiminor_list_lock);
-	if (l == &capiminor_list)
+	if (minor >= capi_ttyminors)
 		return NULL;
 
-	return p;
+	read_lock(&capiminors_lock);
+	mp = capiminors[minor];
+	read_unlock(&capiminors_lock);
+
+	return mp;
 }
 
 /* -------- struct capincci ----------------------------------------- */
@@ -1329,10 +1316,16 @@ static int capinc_tty_init(void)
 	if (capi_ttyminors <= 0)
 		capi_ttyminors = CAPINC_NR_PORTS;
 
-	drv = alloc_tty_driver(capi_ttyminors);
-	if (!drv)
+	capiminors = kzalloc(sizeof(struct capi_minor *) * capi_ttyminors,
+			     GFP_KERNEL);
+	if (!capiminors)
 		return -ENOMEM;
 
+	drv = alloc_tty_driver(capi_ttyminors);
+	if (!drv) {
+		kfree(capiminors);
+		return -ENOMEM;
+	}
 	drv->owner = THIS_MODULE;
 	drv->driver_name = "capi_nc";
 	drv->name = "capi";
@@ -1349,6 +1342,7 @@ static int capinc_tty_init(void)
 	tty_set_operations(drv, &capinc_ops);
 	if (tty_register_driver(drv)) {
 		put_tty_driver(drv);
+		kfree(capiminors);
 		printk(KERN_ERR "Couldn't register capi_nc driver\n");
 		return -1;
 	}
@@ -1363,6 +1357,7 @@ static void capinc_tty_exit(void)
 	if ((retval = tty_unregister_driver(drv)))
 		printk(KERN_ERR "capi: failed to unregister capi_nc driver (%d)\n", retval);
 	put_tty_driver(drv);
+	kfree(capiminors);
 }
 
 #else /* !CONFIG_ISDN_CAPI_MIDDLEWARE */
