@@ -2646,7 +2646,8 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 		write_lock_bh(&addrconf_hash_lock);
 		while ((ifa = *bifa) != NULL) {
-			if (ifa->idev == idev) {
+			if (ifa->idev == idev &&
+			    (how || !(ifa->flags&IFA_F_PERMANENT))) {
 				*bifa = ifa->lst_next;
 				ifa->lst_next = NULL;
 				addrconf_del_timer(ifa);
@@ -2686,18 +2687,30 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		write_lock_bh(&idev->lock);
 	}
 #endif
-	while ((ifa = idev->addr_list) != NULL) {
-		idev->addr_list = ifa->if_next;
-		ifa->if_next = NULL;
-		ifa->dead = 1;
-		addrconf_del_timer(ifa);
-		write_unlock_bh(&idev->lock);
+	bifa = &idev->addr_list;
+	while ((ifa = *bifa) != NULL) {
+		if (how == 0 && (ifa->flags&IFA_F_PERMANENT)) {
+			/* Retain permanent address on admin down */
+			bifa = &ifa->if_next;
 
-		__ipv6_ifa_notify(RTM_DELADDR, ifa);
-		atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifa);
-		in6_ifa_put(ifa);
+			/* Restart DAD if needed when link comes back up */
+			if ( !((dev->flags&(IFF_NOARP|IFF_LOOPBACK)) ||
+			       idev->cnf.accept_dad <= 0 ||
+			       (ifa->flags & IFA_F_NODAD)))
+				ifa->flags |= IFA_F_TENTATIVE;
+		} else {
+			*bifa = ifa->if_next;
+			ifa->if_next = NULL;
 
-		write_lock_bh(&idev->lock);
+			ifa->dead = 1;
+			write_unlock_bh(&idev->lock);
+
+			__ipv6_ifa_notify(RTM_DELADDR, ifa);
+			atomic_notifier_call_chain(&inet6addr_chain, NETDEV_DOWN, ifa);
+			in6_ifa_put(ifa);
+
+			write_lock_bh(&idev->lock);
+		}
 	}
 	write_unlock_bh(&idev->lock);
 
