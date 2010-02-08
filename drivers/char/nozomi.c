@@ -136,10 +136,6 @@ static int debug;
 #define RECEIVE_BUF_MAX		4
 
 
-/* Define all types of vendors and devices to support */
-#define VENDOR1		0x1931	/* Vendor Option */
-#define DEVICE1		0x000c	/* HSDPA card */
-
 #define R_IIR		0x0000	/* Interrupt Identity Register */
 #define R_FCR		0x0000	/* Flow Control Register */
 #define R_IER		0x0004	/* Interrupt Enable Register */
@@ -407,7 +403,7 @@ struct buffer {
 
 /*    Global variables */
 static const struct pci_device_id nozomi_pci_tbl[] __devinitconst = {
-	{PCI_DEVICE(VENDOR1, DEVICE1)},
+	{PCI_DEVICE(0x1931, 0x000c)},	/* Nozomi HSDPA */
 	{},
 };
 
