@@ -577,7 +577,7 @@ int nf_conntrack_expect_init(struct net *net)
 
 	if (net_eq(net, &init_net)) {
 		if (!nf_ct_expect_hsize) {
-			nf_ct_expect_hsize = nf_conntrack_htable_size / 256;
+			nf_ct_expect_hsize = net->ct.htable_size / 256;
 			if (!nf_ct_expect_hsize)
 				nf_ct_expect_hsize = 1;
 		}
