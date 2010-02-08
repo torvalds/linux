@@ -19,7 +19,6 @@
 
 #include <linux/kernel.h>
 #include <linux/usb.h>
-#include <compat.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
@@ -72,12 +71,7 @@ static void inline print_err_status (struct tm6000_core *dev,
 	}
 }
 
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19)
-static void tm6000_urb_received(struct urb *urb, struct pt_regs *ptregs)
-#else
 static void tm6000_urb_received(struct urb *urb)
-#endif
 {
 	int ret;
 	struct tm6000_core* dev = urb->context;
@@ -226,7 +220,6 @@ int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 				     .parallel_ts = 1,
 				     .if2 = 45700,
 				     .disable_i2c_gate_ctrl = 1,
-				     .tm6000 = 1,
 				    };
 
 		dvb->frontend = pseudo_zl10353_attach(dev, &config,
