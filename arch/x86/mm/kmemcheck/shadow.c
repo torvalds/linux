@@ -125,12 +125,12 @@ void kmemcheck_mark_initialized_pages(struct page *p, unsigned int n)
 
 enum kmemcheck_shadow kmemcheck_shadow_test(void *shadow, unsigned int size)
 {
+#ifdef CONFIG_KMEMCHECK_PARTIAL_OK
 	uint8_t *x;
 	unsigned int i;
 
 	x = shadow;
 
-#ifdef CONFIG_KMEMCHECK_PARTIAL_OK
 	/*
 	 * Make sure _some_ bytes are initialized. Gcc frequently generates
 	 * code to access neighboring bytes.
@@ -139,13 +139,25 @@ enum kmemcheck_shadow kmemcheck_shadow_test(void *shadow, unsigned int size)
 		if (x[i] == KMEMCHECK_SHADOW_INITIALIZED)
 			return x[i];
 	}
+
+	return x[0];
 #else
+	return kmemcheck_shadow_test_all(shadow, size);
+#endif
+}
+
+enum kmemcheck_shadow kmemcheck_shadow_test_all(void *shadow, unsigned int size)
+{
+	uint8_t *x;
+	unsigned int i;
+
+	x = shadow;
+
 	/* All bytes must be initialized. */
 	for (i = 0; i < size; ++i) {
 		if (x[i] != KMEMCHECK_SHADOW_INITIALIZED)
 			return x[i];
 	}
-#endif
 
 	return x[0];
 }
