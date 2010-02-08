@@ -266,7 +266,7 @@ struct iser_conn {
 	struct ib_fmr_pool           *fmr_pool;     /* pool of IB FMRs         */
 	int                          disc_evt_flag; /* disconn event delivered */
 	wait_queue_head_t	     wait;          /* waitq for conn/disconn  */
-	atomic_t                     post_recv_buf_count; /* posted rx count   */
+	int                          post_recv_buf_count; /* posted rx count  */
 	atomic_t                     post_send_buf_count; /* posted tx count   */
 	char 			     name[ISER_OBJECT_NAME_SIZE];
 	struct iser_page_vec         *page_vec;     /* represents SG to fmr maps*

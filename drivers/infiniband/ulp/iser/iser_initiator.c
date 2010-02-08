@@ -268,7 +268,7 @@ int iser_conn_set_full_featured_mode(struct iscsi_conn *conn)
 
 	/* Check that there is no posted recv or send buffers left - */
 	/* they must be consumed during the login phase */
-	BUG_ON(atomic_read(&iser_conn->ib_conn->post_recv_buf_count) != 0);
+	BUG_ON(iser_conn->ib_conn->post_recv_buf_count != 0);
 	BUG_ON(atomic_read(&iser_conn->ib_conn->post_send_buf_count) != 0);
 
 	if (iser_alloc_rx_descriptors(iser_conn->ib_conn))
@@ -569,12 +569,12 @@ void iser_rcv_completion(struct iser_rx_desc *rx_desc,
 	 * task eliminates the need to worry on tasks which are completed in   *
 	 * parallel to the execution of iser_conn_term. So the code that waits *
 	 * for the posted rx bufs refcount to become zero handles everything   */
-	atomic_dec(&conn->ib_conn->post_recv_buf_count);
+	conn->ib_conn->post_recv_buf_count--;
 
 	if (rx_dma == ib_conn->login_dma)
 		return;
 
-	outstanding = atomic_read(&ib_conn->post_recv_buf_count);
+	outstanding = ib_conn->post_recv_buf_count;
 	if (outstanding + ISER_MIN_POSTED_RX <= ISER_QP_MAX_RECV_DTOS) {
 		count = min(ISER_QP_MAX_RECV_DTOS - outstanding,
 						ISER_MIN_POSTED_RX);

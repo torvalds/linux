@@ -453,7 +453,7 @@ static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 				   ISCSI_ERR_CONN_FAILED);
 
 	/* Complete the termination process if no posts are pending */
-	if ((atomic_read(&ib_conn->post_recv_buf_count) == 0) &&
+	if (ib_conn->post_recv_buf_count == 0 &&
 	    (atomic_read(&ib_conn->post_send_buf_count) == 0)) {
 		ib_conn->state = ISER_CONN_DOWN;
 		wake_up_interruptible(&ib_conn->wait);
@@ -500,7 +500,7 @@ void iser_conn_init(struct iser_conn *ib_conn)
 {
 	ib_conn->state = ISER_CONN_INIT;
 	init_waitqueue_head(&ib_conn->wait);
-	atomic_set(&ib_conn->post_recv_buf_count, 0);
+	ib_conn->post_recv_buf_count = 0;
 	atomic_set(&ib_conn->post_send_buf_count, 0);
 	atomic_set(&ib_conn->refcount, 1);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
@@ -651,11 +651,11 @@ int iser_post_recvl(struct iser_conn *ib_conn)
 	rx_wr.num_sge = 1;
 	rx_wr.next    = NULL;
 
-	atomic_inc(&ib_conn->post_recv_buf_count);
+	ib_conn->post_recv_buf_count++;
 	ib_ret	= ib_post_recv(ib_conn->qp, &rx_wr, &rx_wr_failed);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
-		atomic_dec(&ib_conn->post_recv_buf_count);
+		ib_conn->post_recv_buf_count--;
 	}
 	return ib_ret;
 }
@@ -679,11 +679,11 @@ int iser_post_recvm(struct iser_conn *ib_conn, int count)
 	rx_wr--;
 	rx_wr->next = NULL; /* mark end of work requests list */
 
-	atomic_add(count, &ib_conn->post_recv_buf_count);
+	ib_conn->post_recv_buf_count += count;
 	ib_ret	= ib_post_recv(ib_conn->qp, ib_conn->rx_wr, &rx_wr_failed);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
-		atomic_sub(count, &ib_conn->post_recv_buf_count);
+		ib_conn->post_recv_buf_count -= count;
 	} else
 		ib_conn->rx_desc_head = my_rx_head;
 	return ib_ret;
@@ -778,14 +778,14 @@ static void iser_handle_comp_error(struct iser_desc *desc,
 
 	if ((char *)desc == ib_conn->login_buf ||
 			(rx_first <= rx && rx <= rx_last))
-		atomic_dec(&ib_conn->post_recv_buf_count);
+		ib_conn->post_recv_buf_count--;
 	 else { /* type is TX control/command/dataout */
 		if (desc->type == ISCSI_TX_DATAOUT)
 			kmem_cache_free(ig.desc_cache, desc);
 		atomic_dec(&ib_conn->post_send_buf_count);
 	}
 
-	if (atomic_read(&ib_conn->post_recv_buf_count) == 0 &&
+	if (ib_conn->post_recv_buf_count == 0 &&
 	    atomic_read(&ib_conn->post_send_buf_count) == 0) {
 		/* getting here when the state is UP means that the conn is *
 		 * being terminated asynchronously from the iSCSI layer's   *
