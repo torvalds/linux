@@ -193,12 +193,6 @@ void free_initmem(void)
 			(unsigned long)(&__init_end));
 }
 
-/* FIXME from arch/powerpc/mm/mem.c*/
-void show_mem(void)
-{
-	printk(KERN_NOTICE "%s\n", __func__);
-}
-
 void __init mem_init(void)
 {
 	high_memory = (void *)__va(memory_end);
