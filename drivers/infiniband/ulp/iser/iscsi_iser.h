@@ -357,9 +357,6 @@ int  iser_post_recvl(struct iser_conn *ib_conn);
 int  iser_post_recvm(struct iser_conn *ib_conn, int count);
 int  iser_post_send(struct iser_conn *ib_conn, struct iser_tx_desc *tx_desc);
 
-int iser_conn_state_comp(struct iser_conn *ib_conn,
-			 enum iser_ib_conn_state comp);
-
 int iser_dma_map_task_data(struct iscsi_iser_task *iser_task,
 			    struct iser_data_buf       *data,
 			    enum   iser_data_dir       iser_dir,

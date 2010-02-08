@@ -260,20 +260,6 @@ int iser_conn_set_full_featured_mode(struct iscsi_conn *conn)
 	return 0;
 }
 
-static int
-iser_check_xmit(struct iscsi_conn *conn, void *task)
-{
-	struct iscsi_iser_conn *iser_conn = conn->dd_data;
-
-	if (atomic_read(&iser_conn->ib_conn->post_send_buf_count) ==
-	    ISER_QP_MAX_REQ_DTOS) {
-		iser_dbg("%ld can't xmit task %p\n",jiffies,task);
-		return -ENOBUFS;
-	}
-	return 0;
-}
-
-
 /**
  * iser_send_command - send command PDU
  */
@@ -288,13 +274,6 @@ int iser_send_command(struct iscsi_conn *conn,
 	struct iscsi_cmd *hdr =  (struct iscsi_cmd *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
 	struct iser_tx_desc *tx_desc = &iser_task->desc;
-
-	if (!iser_conn_state_comp(iser_conn->ib_conn, ISER_CONN_UP)) {
-		iser_err("Failed to send, conn: 0x%p is not up\n", iser_conn->ib_conn);
-		return -EPERM;
-	}
-	if (iser_check_xmit(conn, task))
-		return -ENOBUFS;
 
 	edtl = ntohl(hdr->data_length);
 
@@ -357,15 +336,6 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	int err = 0;
 	struct ib_sge *tx_dsg;
 
-
-	if (!iser_conn_state_comp(iser_conn->ib_conn, ISER_CONN_UP)) {
-		iser_err("Failed to send, conn: 0x%p is not up\n", iser_conn->ib_conn);
-		return -EPERM;
-	}
-
-	if (iser_check_xmit(conn, task))
-		return -ENOBUFS;
-
 	itt = (__force uint32_t)hdr->itt;
 	data_seg_len = ntoh24(hdr->dlength);
 	buf_offset   = ntohl(hdr->offset);
@@ -424,14 +394,6 @@ int iser_send_control(struct iscsi_conn *conn,
 	unsigned long data_seg_len;
 	int err = 0;
 	struct iser_device *device;
-
-	if (!iser_conn_state_comp(iser_conn->ib_conn, ISER_CONN_UP)) {
-		iser_err("Failed to send, conn: 0x%p is not up\n", iser_conn->ib_conn);
-		return -EPERM;
-	}
-
-	if (iser_check_xmit(conn, task))
-		return -ENOBUFS;
 
 	/* build the tx desc regd header and add it to the tx desc dto */
 	mdesc->type = ISCSI_TX_CONTROL;

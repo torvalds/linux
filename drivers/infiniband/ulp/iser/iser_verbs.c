@@ -300,17 +300,6 @@ static void iser_device_try_release(struct iser_device *device)
 	mutex_unlock(&ig.device_list_mutex);
 }
 
-int iser_conn_state_comp(struct iser_conn *ib_conn,
-			enum iser_ib_conn_state comp)
-{
-	int ret;
-
-	spin_lock_bh(&ib_conn->lock);
-	ret = (ib_conn->state == comp);
-	spin_unlock_bh(&ib_conn->lock);
-	return ret;
-}
-
 static int iser_conn_state_comp_exch(struct iser_conn *ib_conn,
 				     enum iser_ib_conn_state comp,
 				     enum iser_ib_conn_state exch)
