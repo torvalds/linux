@@ -87,10 +87,10 @@ struct capiminor {
 	unsigned int      minor;
 	struct dentry *capifs_dentry;
 
-	struct capi20_appl *ap;
-	u32		 ncci;
-	u16		 datahandle;
-	u16		 msgid;
+	struct capi20_appl	*ap;
+	u32			ncci;
+	atomic_t		datahandle;
+	atomic_t		msgid;
 
 	struct tty_port port;
 	int                ttyinstop;
@@ -227,7 +227,6 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 
 	mp->ap = ap;
 	mp->ncci = ncci;
-	mp->msgid = 0;
 	INIT_LIST_HEAD(&mp->ackqueue);
 	spin_lock_init(&mp->ackqlock);
 
@@ -427,7 +426,7 @@ gen_data_b3_resp_for(struct capiminor *mp, struct sk_buff *skb)
 		capimsg_setu16(s, 2, mp->ap->applid);
 		capimsg_setu8 (s, 4, CAPI_DATA_B3);
 		capimsg_setu8 (s, 5, CAPI_RESP);
-		capimsg_setu16(s, 6, mp->msgid++);
+		capimsg_setu16(s, 6, atomic_inc_return(&mp->msgid));
 		capimsg_setu32(s, 8, mp->ncci);
 		capimsg_setu16(s, 12, datahandle);
 	}
@@ -554,7 +553,7 @@ static int handle_minor_send(struct capiminor *mp)
 	}
 
 	while ((skb = skb_dequeue(&mp->outqueue)) != NULL) {
-		datahandle = mp->datahandle;
+		datahandle = atomic_inc_return(&mp->datahandle);
 		len = (u16)skb->len;
 		skb_push(skb, CAPI_DATA_B3_REQ_LEN);
 		memset(skb->data, 0, CAPI_DATA_B3_REQ_LEN);
@@ -562,7 +561,7 @@ static int handle_minor_send(struct capiminor *mp)
 		capimsg_setu16(skb->data, 2, mp->ap->applid);
 		capimsg_setu8 (skb->data, 4, CAPI_DATA_B3);
 		capimsg_setu8 (skb->data, 5, CAPI_REQ);
-		capimsg_setu16(skb->data, 6, mp->msgid++);
+		capimsg_setu16(skb->data, 6, atomic_inc_return(&mp->msgid));
 		capimsg_setu32(skb->data, 8, mp->ncci);	/* NCCI */
 		capimsg_setu32(skb->data, 12, (u32)(long)skb->data);/* Data32 */
 		capimsg_setu16(skb->data, 16, len);	/* Data length */
@@ -577,7 +576,6 @@ static int handle_minor_send(struct capiminor *mp)
 		}
 		errcode = capi20_put_message(mp->ap, skb);
 		if (errcode == CAPI_NOERROR) {
-			mp->datahandle++;
 			count++;
 			mp->outbytes -= len;
 #ifdef _DEBUG_DATAFLOW
