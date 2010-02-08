@@ -135,4 +135,15 @@ extern struct list_head *seq_list_start_head(struct list_head *head,
 extern struct list_head *seq_list_next(void *v, struct list_head *head,
 		loff_t *ppos);
 
+/*
+ * Helpers for iteration over hlist_head-s in seq_files
+ */
+
+extern struct hlist_node *seq_hlist_start(struct hlist_head *head,
+		loff_t pos);
+extern struct hlist_node *seq_hlist_start_head(struct hlist_head *head,
+		loff_t pos);
+extern struct hlist_node *seq_hlist_next(void *v, struct hlist_head *head,
+		loff_t *ppos);
+
 #endif
