@@ -657,24 +657,19 @@ capi_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	struct capidev *cdev = (struct capidev *)file->private_data;
 	struct sk_buff *skb;
 	size_t copied;
+	int err;
 
 	if (!cdev->ap.applid)
 		return -ENODEV;
 
-	if ((skb = skb_dequeue(&cdev->recvqueue)) == NULL) {
-
+	skb = skb_dequeue(&cdev->recvqueue);
+	if (!skb) {
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
-
-		for (;;) {
-			interruptible_sleep_on(&cdev->recvwait);
-			if ((skb = skb_dequeue(&cdev->recvqueue)) != NULL)
-				break;
-			if (signal_pending(current))
-				break;
-		}
-		if (skb == NULL)
-			return -ERESTARTNOHAND;
+		err = wait_event_interruptible(cdev->recvwait,
+				(skb = skb_dequeue(&cdev->recvqueue)));
+		if (err)
+			return err;
 	}
 	if (skb->len > count) {
 		skb_queue_head(&cdev->recvqueue, skb);
