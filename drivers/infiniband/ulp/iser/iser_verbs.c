@@ -129,12 +129,22 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 {
 	struct iser_device	*device;
 	struct ib_qp_init_attr	init_attr;
-	int			ret;
+	int			ret = -ENOMEM;
 	struct ib_fmr_pool_param params;
 
 	BUG_ON(ib_conn->device == NULL);
 
 	device = ib_conn->device;
+
+	ib_conn->login_buf = kmalloc(ISER_RX_LOGIN_SIZE, GFP_KERNEL);
+	if (!ib_conn->login_buf) {
+		goto alloc_err;
+		ret = -ENOMEM;
+	}
+
+	ib_conn->login_dma = ib_dma_map_single(ib_conn->device->ib_device,
+				(void *)ib_conn->login_buf, ISER_RX_LOGIN_SIZE,
+				DMA_FROM_DEVICE);
 
 	ib_conn->page_vec = kmalloc(sizeof(struct iser_page_vec) +
 				    (sizeof(u64) * (ISCSI_ISER_SG_TABLESIZE +1)),
@@ -174,7 +184,7 @@ static int iser_create_ib_conn_res(struct iser_conn *ib_conn)
 	init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS;
 	init_attr.cap.max_recv_wr  = ISER_QP_MAX_RECV_DTOS;
 	init_attr.cap.max_send_sge = MAX_REGD_BUF_VECTOR_LEN;
-	init_attr.cap.max_recv_sge = 2;
+	init_attr.cap.max_recv_sge = 1;
 	init_attr.sq_sig_type	= IB_SIGNAL_REQ_WR;
 	init_attr.qp_type	= IB_QPT_RC;
 
@@ -192,6 +202,7 @@ qp_err:
 	(void)ib_destroy_fmr_pool(ib_conn->fmr_pool);
 fmr_pool_err:
 	kfree(ib_conn->page_vec);
+	kfree(ib_conn->login_buf);
 alloc_err:
 	iser_err("unable to alloc mem or create resource, err %d\n", ret);
 	return ret;
@@ -314,7 +325,7 @@ static void iser_conn_release(struct iser_conn *ib_conn)
 	mutex_lock(&ig.connlist_mutex);
 	list_del(&ib_conn->conn_list);
 	mutex_unlock(&ig.connlist_mutex);
-
+	iser_free_rx_descriptors(ib_conn);
 	iser_free_ib_conn_res(ib_conn);
 	ib_conn->device = NULL;
 	/* on EVENT_ADDR_ERROR there's no device yet for this conn */
@@ -625,6 +636,60 @@ void iser_unreg_mem(struct iser_mem_reg *reg)
 	reg->mem_h = NULL;
 }
 
+int iser_post_recvl(struct iser_conn *ib_conn)
+{
+	struct ib_recv_wr rx_wr, *rx_wr_failed;
+	struct ib_sge	  sge;
+	int ib_ret;
+
+	sge.addr   = ib_conn->login_dma;
+	sge.length = ISER_RX_LOGIN_SIZE;
+	sge.lkey   = ib_conn->device->mr->lkey;
+
+	rx_wr.wr_id   = (unsigned long)ib_conn->login_buf;
+	rx_wr.sg_list = &sge;
+	rx_wr.num_sge = 1;
+	rx_wr.next    = NULL;
+
+	atomic_inc(&ib_conn->post_recv_buf_count);
+	ib_ret	= ib_post_recv(ib_conn->qp, &rx_wr, &rx_wr_failed);
+	if (ib_ret) {
+		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
+		atomic_dec(&ib_conn->post_recv_buf_count);
+	}
+	return ib_ret;
+}
+
+int iser_post_recvm(struct iser_conn *ib_conn, int count)
+{
+	struct ib_recv_wr *rx_wr, *rx_wr_failed;
+	int i, ib_ret;
+	unsigned int my_rx_head = ib_conn->rx_desc_head;
+	struct iser_rx_desc *rx_desc;
+
+	for (rx_wr = ib_conn->rx_wr, i = 0; i < count; i++, rx_wr++) {
+		rx_desc		= &ib_conn->rx_descs[my_rx_head];
+		rx_wr->wr_id	= (unsigned long)rx_desc;
+		rx_wr->sg_list	= &rx_desc->rx_sg;
+		rx_wr->num_sge	= 1;
+		rx_wr->next	= rx_wr + 1;
+		my_rx_head = (my_rx_head + 1) & (ISER_QP_MAX_RECV_DTOS - 1);
+	}
+
+	rx_wr--;
+	rx_wr->next = NULL; /* mark end of work requests list */
+
+	atomic_add(count, &ib_conn->post_recv_buf_count);
+	ib_ret	= ib_post_recv(ib_conn->qp, ib_conn->rx_wr, &rx_wr_failed);
+	if (ib_ret) {
+		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
+		atomic_sub(count, &ib_conn->post_recv_buf_count);
+	} else
+		ib_conn->rx_desc_head = my_rx_head;
+	return ib_ret;
+}
+
+
 /**
  * iser_dto_to_iov - builds IOV from a dto descriptor
  */
@@ -665,39 +730,6 @@ static void iser_dto_to_iov(struct iser_dto *dto, struct ib_sge *iov, int iov_le
 	}
 }
 
-/**
- * iser_post_recv - Posts a receive buffer.
- *
- * returns 0 on success, -1 on failure
- */
-int iser_post_recv(struct iser_desc *rx_desc)
-{
-	int		  ib_ret, ret_val = 0;
-	struct ib_recv_wr recv_wr, *recv_wr_failed;
-	struct ib_sge	  iov[2];
-	struct iser_conn  *ib_conn;
-	struct iser_dto   *recv_dto = &rx_desc->dto;
-
-	/* Retrieve conn */
-	ib_conn = recv_dto->ib_conn;
-
-	iser_dto_to_iov(recv_dto, iov, 2);
-
-	recv_wr.next	= NULL;
-	recv_wr.sg_list = iov;
-	recv_wr.num_sge = recv_dto->regd_vector_len;
-	recv_wr.wr_id	= (unsigned long)rx_desc;
-
-	atomic_inc(&ib_conn->post_recv_buf_count);
-	ib_ret	= ib_post_recv(ib_conn->qp, &recv_wr, &recv_wr_failed);
-	if (ib_ret) {
-		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
-		atomic_dec(&ib_conn->post_recv_buf_count);
-		ret_val = -1;
-	}
-
-	return ret_val;
-}
 
 /**
  * iser_start_send - Initiate a Send DTO operation
@@ -737,18 +769,17 @@ int iser_post_send(struct iser_desc *tx_desc)
 	return ret_val;
 }
 
-static void iser_handle_comp_error(struct iser_desc *desc)
+static void iser_handle_comp_error(struct iser_desc *desc,
+				struct iser_conn *ib_conn)
 {
-	struct iser_dto  *dto     = &desc->dto;
-	struct iser_conn *ib_conn = dto->ib_conn;
+	struct iser_rx_desc *rx       = (struct iser_rx_desc *)desc;
+	struct iser_rx_desc *rx_first = ib_conn->rx_descs;
+	struct iser_rx_desc *rx_last  = rx_first + (ISER_QP_MAX_RECV_DTOS - 1);
 
-	iser_dto_buffs_release(dto);
-
-	if (desc->type == ISCSI_RX) {
-		kfree(desc->data);
-		kmem_cache_free(ig.desc_cache, desc);
+	if ((char *)desc == ib_conn->login_buf ||
+			(rx_first <= rx && rx <= rx_last))
 		atomic_dec(&ib_conn->post_recv_buf_count);
-	} else { /* type is TX control/command/dataout */
+	 else { /* type is TX control/command/dataout */
 		if (desc->type == ISCSI_TX_DATAOUT)
 			kmem_cache_free(ig.desc_cache, desc);
 		atomic_dec(&ib_conn->post_send_buf_count);
@@ -780,20 +811,25 @@ static void iser_cq_tasklet_fn(unsigned long data)
 	 struct ib_wc	     wc;
 	 struct iser_desc    *desc;
 	 unsigned long	     xfer_len;
+	struct iser_conn *ib_conn;
 
 	while (ib_poll_cq(cq, 1, &wc) == 1) {
 		desc	 = (struct iser_desc *) (unsigned long) wc.wr_id;
 		BUG_ON(desc == NULL);
+		ib_conn = wc.qp->qp_context;
 
 		if (wc.status == IB_WC_SUCCESS) {
-			if (desc->type == ISCSI_RX) {
+			if (wc.opcode == IB_WC_RECV) {
 				xfer_len = (unsigned long)wc.byte_len;
-				iser_rcv_completion(desc, xfer_len);
+				iser_rcv_completion((struct iser_rx_desc *)desc,
+							xfer_len, ib_conn);
 			} else /* type == ISCSI_TX_CONTROL/SCSI_CMD/DOUT */
 				iser_snd_completion(desc);
 		} else {
-			iser_err("comp w. error op %d status %d\n",desc->type,wc.status);
-			iser_handle_comp_error(desc);
+			if (wc.status != IB_WC_WR_FLUSH_ERR)
+				iser_err("id %llx status %d vend_err %x\n",
+					wc.wr_id, wc.status, wc.vendor_err);
+			iser_handle_comp_error(desc, ib_conn);
 		}
 	}
 	/* #warning "it is assumed here that arming CQ only once its empty" *

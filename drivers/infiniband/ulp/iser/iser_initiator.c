@@ -39,9 +39,6 @@
 
 #include "iscsi_iser.h"
 
-/* Constant PDU lengths calculations */
-#define ISER_TOTAL_HEADERS_LEN  (sizeof (struct iser_hdr) + \
-				 sizeof (struct iscsi_hdr))
 
 /* iser_dto_add_regd_buff - increments the reference count for *
  * the registered buffer & adds it to the DTO object           */
@@ -172,78 +169,6 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 	return 0;
 }
 
-/**
- * iser_post_receive_control - allocates, initializes and posts receive DTO.
- */
-static int iser_post_receive_control(struct iscsi_conn *conn)
-{
-	struct iscsi_iser_conn *iser_conn = conn->dd_data;
-	struct iser_desc     *rx_desc;
-	struct iser_regd_buf *regd_hdr;
-	struct iser_regd_buf *regd_data;
-	struct iser_dto      *recv_dto = NULL;
-	struct iser_device  *device = iser_conn->ib_conn->device;
-	int rx_data_size, err = 0;
-
-	rx_desc = kmem_cache_alloc(ig.desc_cache, GFP_NOIO);
-	if (rx_desc == NULL) {
-		iser_err("Failed to alloc desc for post recv\n");
-		return -ENOMEM;
-	}
-	rx_desc->type = ISCSI_RX;
-
-	/* for the login sequence we must support rx of upto 8K; login is done
-	 * after conn create/bind (connect) and conn stop/bind (reconnect),
-	 * what's common for both schemes is that the connection is not started
-	 */
-	if (conn->c_stage != ISCSI_CONN_STARTED)
-		rx_data_size = ISCSI_DEF_MAX_RECV_SEG_LEN;
-	else /* FIXME till user space sets conn->max_recv_dlength correctly */
-		rx_data_size = 128;
-
-	rx_desc->data = kmalloc(rx_data_size, GFP_NOIO);
-	if (rx_desc->data == NULL) {
-		iser_err("Failed to alloc data buf for post recv\n");
-		err = -ENOMEM;
-		goto post_rx_kmalloc_failure;
-	}
-
-	recv_dto = &rx_desc->dto;
-	recv_dto->ib_conn = iser_conn->ib_conn;
-	recv_dto->regd_vector_len = 0;
-
-	regd_hdr = &rx_desc->hdr_regd_buf;
-	memset(regd_hdr, 0, sizeof(struct iser_regd_buf));
-	regd_hdr->device  = device;
-	regd_hdr->virt_addr  = rx_desc; /* == &rx_desc->iser_header */
-	regd_hdr->data_size  = ISER_TOTAL_HEADERS_LEN;
-
-	iser_reg_single(device, regd_hdr, DMA_FROM_DEVICE);
-
-	iser_dto_add_regd_buff(recv_dto, regd_hdr, 0, 0);
-
-	regd_data = &rx_desc->data_regd_buf;
-	memset(regd_data, 0, sizeof(struct iser_regd_buf));
-	regd_data->device  = device;
-	regd_data->virt_addr  = rx_desc->data;
-	regd_data->data_size  = rx_data_size;
-
-	iser_reg_single(device, regd_data, DMA_FROM_DEVICE);
-
-	iser_dto_add_regd_buff(recv_dto, regd_data, 0, 0);
-
-	err = iser_post_recv(rx_desc);
-	if (!err)
-		return 0;
-
-	/* iser_post_recv failed */
-	iser_dto_buffs_release(recv_dto);
-	kfree(rx_desc->data);
-post_rx_kmalloc_failure:
-	kmem_cache_free(ig.desc_cache, rx_desc);
-	return err;
-}
-
 /* creates a new tx descriptor and adds header regd buffer */
 static void iser_create_send_desc(struct iscsi_iser_conn *iser_conn,
 				  struct iser_desc       *tx_desc)
@@ -254,7 +179,7 @@ static void iser_create_send_desc(struct iscsi_iser_conn *iser_conn,
 	memset(regd_hdr, 0, sizeof(struct iser_regd_buf));
 	regd_hdr->device  = iser_conn->ib_conn->device;
 	regd_hdr->virt_addr  = tx_desc; /* == &tx_desc->iser_header */
-	regd_hdr->data_size  = ISER_TOTAL_HEADERS_LEN;
+	regd_hdr->data_size  = ISER_HEADERS_LEN;
 
 	send_dto->ib_conn         = iser_conn->ib_conn;
 	send_dto->notify_enable   = 1;
@@ -266,6 +191,72 @@ static void iser_create_send_desc(struct iscsi_iser_conn *iser_conn,
 	iser_dto_add_regd_buff(send_dto, regd_hdr, 0, 0);
 }
 
+int iser_alloc_rx_descriptors(struct iser_conn *ib_conn)
+{
+	int i, j;
+	u64 dma_addr;
+	struct iser_rx_desc *rx_desc;
+	struct ib_sge       *rx_sg;
+	struct iser_device  *device = ib_conn->device;
+
+	ib_conn->rx_descs = kmalloc(ISER_QP_MAX_RECV_DTOS *
+				sizeof(struct iser_rx_desc), GFP_KERNEL);
+	if (!ib_conn->rx_descs)
+		goto rx_desc_alloc_fail;
+
+	rx_desc = ib_conn->rx_descs;
+
+	for (i = 0; i < ISER_QP_MAX_RECV_DTOS; i++, rx_desc++)  {
+		dma_addr = ib_dma_map_single(device->ib_device, (void *)rx_desc,
+					ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
+		if (ib_dma_mapping_error(device->ib_device, dma_addr))
+			goto rx_desc_dma_map_failed;
+
+		rx_desc->dma_addr = dma_addr;
+
+		rx_sg = &rx_desc->rx_sg;
+		rx_sg->addr   = rx_desc->dma_addr;
+		rx_sg->length = ISER_RX_PAYLOAD_SIZE;
+		rx_sg->lkey   = device->mr->lkey;
+	}
+
+	ib_conn->rx_desc_head = 0;
+	return 0;
+
+rx_desc_dma_map_failed:
+	rx_desc = ib_conn->rx_descs;
+	for (j = 0; j < i; j++, rx_desc++)
+		ib_dma_unmap_single(device->ib_device, rx_desc->dma_addr,
+			ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
+	kfree(ib_conn->rx_descs);
+	ib_conn->rx_descs = NULL;
+rx_desc_alloc_fail:
+	iser_err("failed allocating rx descriptors / data buffers\n");
+	return -ENOMEM;
+}
+
+void iser_free_rx_descriptors(struct iser_conn *ib_conn)
+{
+	int i;
+	struct iser_rx_desc *rx_desc;
+	struct iser_device *device = ib_conn->device;
+
+	if (ib_conn->login_buf) {
+		ib_dma_unmap_single(device->ib_device, ib_conn->login_dma,
+			ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
+		kfree(ib_conn->login_buf);
+	}
+
+	if (!ib_conn->rx_descs)
+		return;
+
+	rx_desc = ib_conn->rx_descs;
+	for (i = 0; i < ISER_QP_MAX_RECV_DTOS; i++, rx_desc++)
+		ib_dma_unmap_single(device->ib_device, rx_desc->dma_addr,
+			ISER_RX_PAYLOAD_SIZE, DMA_FROM_DEVICE);
+	kfree(ib_conn->rx_descs);
+}
+
 /**
  *  iser_conn_set_full_featured_mode - (iSER API)
  */
@@ -273,27 +264,20 @@ int iser_conn_set_full_featured_mode(struct iscsi_conn *conn)
 {
 	struct iscsi_iser_conn *iser_conn = conn->dd_data;
 
-	int i;
-	/* no need to keep it in a var, we are after login so if this should
-	 * be negotiated, by now the result should be available here */
-	int initial_post_recv_bufs_num = ISER_MAX_RX_MISC_PDUS;
-
-	iser_dbg("Initially post: %d\n", initial_post_recv_bufs_num);
+	iser_dbg("Initially post: %d\n", ISER_MIN_POSTED_RX);
 
 	/* Check that there is no posted recv or send buffers left - */
 	/* they must be consumed during the login phase */
 	BUG_ON(atomic_read(&iser_conn->ib_conn->post_recv_buf_count) != 0);
 	BUG_ON(atomic_read(&iser_conn->ib_conn->post_send_buf_count) != 0);
 
+	if (iser_alloc_rx_descriptors(iser_conn->ib_conn))
+		return -ENOMEM;
+
 	/* Initial post receive buffers */
-	for (i = 0; i < initial_post_recv_bufs_num; i++) {
-		if (iser_post_receive_control(conn) != 0) {
-			iser_err("Failed to post recv bufs at:%d conn:0x%p\n",
-				 i, conn);
-			return -ENOMEM;
-		}
-	}
-	iser_dbg("Posted %d post recv bufs, conn:0x%p\n", i, conn);
+	if (iser_post_recvm(iser_conn->ib_conn, ISER_MIN_POSTED_RX))
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -321,7 +305,7 @@ int iser_send_command(struct iscsi_conn *conn,
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_dto *send_dto = NULL;
 	unsigned long edtl;
-	int err = 0;
+	int err;
 	struct iser_data_buf *data_buf;
 	struct iscsi_cmd *hdr =  (struct iscsi_cmd *)task->hdr;
 	struct scsi_cmnd *sc  =  task->sc;
@@ -370,12 +354,6 @@ int iser_send_command(struct iscsi_conn *conn,
 
 	iser_reg_single(iser_conn->ib_conn->device,
 			send_dto->regd[0], DMA_TO_DEVICE);
-
-	if (iser_post_receive_control(conn) != 0) {
-		iser_err("post_recv failed!\n");
-		err = -ENOMEM;
-		goto send_command_error;
-	}
 
 	iser_task->status = ISER_TASK_STATUS_STARTED;
 
@@ -474,7 +452,7 @@ int iser_send_control(struct iscsi_conn *conn,
 	struct iser_desc *mdesc = &iser_task->desc;
 	struct iser_dto *send_dto = NULL;
 	unsigned long data_seg_len;
-	int err = 0;
+	int err;
 	struct iser_regd_buf *regd_buf;
 	struct iser_device *device;
 
@@ -511,10 +489,10 @@ int iser_send_control(struct iscsi_conn *conn,
 				       data_seg_len);
 	}
 
-	if (iser_post_receive_control(conn) != 0) {
-		iser_err("post_rcv_buff failed!\n");
-		err = -ENOMEM;
-		goto send_control_error;
+	if (task == conn->login_task) {
+		err = iser_post_recvl(iser_conn->ib_conn);
+		if (err)
+			goto send_control_error;
 	}
 
 	err = iser_post_send(mdesc);
@@ -530,27 +508,34 @@ send_control_error:
 /**
  * iser_rcv_dto_completion - recv DTO completion
  */
-void iser_rcv_completion(struct iser_desc *rx_desc,
-			 unsigned long dto_xfer_len)
+void iser_rcv_completion(struct iser_rx_desc *rx_desc,
+			 unsigned long rx_xfer_len,
+			 struct iser_conn *ib_conn)
 {
-	struct iser_dto *dto = &rx_desc->dto;
-	struct iscsi_iser_conn *conn = dto->ib_conn->iser_conn;
+	struct iscsi_iser_conn *conn = ib_conn->iser_conn;
 	struct iscsi_task *task;
 	struct iscsi_iser_task *iser_task;
 	struct iscsi_hdr *hdr;
-	char   *rx_data = NULL;
-	int     rx_data_len = 0;
 	unsigned char opcode;
+	u64 rx_dma;
+	int rx_buflen, outstanding, count, err;
+
+	/* differentiate between login to all other PDUs */
+	if ((char *)rx_desc == ib_conn->login_buf) {
+		rx_dma = ib_conn->login_dma;
+		rx_buflen = ISER_RX_LOGIN_SIZE;
+	} else {
+		rx_dma = rx_desc->dma_addr;
+		rx_buflen = ISER_RX_PAYLOAD_SIZE;
+	}
+
+	ib_dma_sync_single_for_cpu(ib_conn->device->ib_device, rx_dma,
+			rx_buflen, DMA_FROM_DEVICE);
 
 	hdr = &rx_desc->iscsi_header;
 
-	iser_dbg("op 0x%x itt 0x%x\n", hdr->opcode,hdr->itt);
-
-	if (dto_xfer_len > ISER_TOTAL_HEADERS_LEN) { /* we have data */
-		rx_data_len = dto_xfer_len - ISER_TOTAL_HEADERS_LEN;
-		rx_data     = dto->regd[1]->virt_addr;
-		rx_data    += dto->offset[1];
-	}
+	iser_dbg("op 0x%x itt 0x%x dlen %d\n", hdr->opcode,
+			hdr->itt, (int)(rx_xfer_len - ISER_HEADERS_LEN));
 
 	opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
@@ -573,18 +558,30 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 			iscsi_put_task(task);
 		}
 	}
-	iser_dto_buffs_release(dto);
 
-	iscsi_iser_recv(conn->iscsi_conn, hdr, rx_data, rx_data_len);
+	iscsi_iser_recv(conn->iscsi_conn, hdr,
+		rx_desc->data, rx_xfer_len - ISER_HEADERS_LEN);
 
-	kfree(rx_desc->data);
-	kmem_cache_free(ig.desc_cache, rx_desc);
+	ib_dma_sync_single_for_device(ib_conn->device->ib_device, rx_dma,
+			rx_buflen, DMA_FROM_DEVICE);
 
 	/* decrementing conn->post_recv_buf_count only --after-- freeing the   *
 	 * task eliminates the need to worry on tasks which are completed in   *
 	 * parallel to the execution of iser_conn_term. So the code that waits *
 	 * for the posted rx bufs refcount to become zero handles everything   */
 	atomic_dec(&conn->ib_conn->post_recv_buf_count);
+
+	if (rx_dma == ib_conn->login_dma)
+		return;
+
+	outstanding = atomic_read(&ib_conn->post_recv_buf_count);
+	if (outstanding + ISER_MIN_POSTED_RX <= ISER_QP_MAX_RECV_DTOS) {
+		count = min(ISER_QP_MAX_RECV_DTOS - outstanding,
+						ISER_MIN_POSTED_RX);
+		err = iser_post_recvm(ib_conn, count);
+		if (err)
+			iser_err("posting %d rx bufs err %d\n", count, err);
+	}
 }
 
 void iser_snd_completion(struct iser_desc *tx_desc)
