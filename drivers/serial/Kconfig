@@ -1449,7 +1449,6 @@ config SERIAL_BFIN_SPORT3_UART
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
-	depends on MFD_TIMBERDALE
 	select SERIAL_CORE
 	---help---
 	Add support for UART controller on timberdale.
