@@ -141,31 +141,32 @@ static struct file_system_type capifs_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-static struct dentry *get_node(int num)
-{
-	char s[10];
-	struct dentry *root = capifs_root;
-	mutex_lock(&root->d_inode->i_mutex);
-	return lookup_one_len(s, root, sprintf(s, "%d", num));
-}
-
-void capifs_new_ncci(unsigned int number, dev_t device)
+struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
 {
 	struct dentry *dentry;
 	struct inode *inode;
+	char name[10];
+	int namelen;
 
-	dentry = get_node(number);
-	if (IS_ERR(dentry))
+	mutex_lock(&capifs_root->d_inode->i_mutex);
+
+	namelen = sprintf(name, "%d", number);
+	dentry = lookup_one_len(name, capifs_root, namelen);
+	if (IS_ERR(dentry)) {
+		dentry = NULL;
 		goto unlock_out;
+	}
 
 	if (dentry->d_inode) {
 		dput(dentry);
+		dentry = NULL;
 		goto unlock_out;
 	}
 
 	inode = new_inode(capifs_mnt->mnt_sb);
 	if (!inode) {
 		dput(dentry);
+		dentry = NULL;
 		goto unlock_out;
 	}
 
@@ -177,24 +178,31 @@ void capifs_new_ncci(unsigned int number, dev_t device)
 	init_special_inode(inode, S_IFCHR|config.mode, device);
 
 	d_instantiate(dentry, inode);
+	dget(dentry);
 
 unlock_out:
 	mutex_unlock(&capifs_root->d_inode->i_mutex);
+
+	return dentry;
 }
 
-void capifs_free_ncci(unsigned int number)
+void capifs_free_ncci(struct dentry *dentry)
 {
-	struct dentry *dentry = get_node(number);
+	struct inode *inode;
 
-	if (!IS_ERR(dentry)) {
-		struct inode *inode = dentry->d_inode;
-		if (inode) {
-			inode->i_nlink--;
-			d_delete(dentry);
-			dput(dentry);
-		}
+	if (!dentry)
+		return;
+
+	mutex_lock(&capifs_root->d_inode->i_mutex);
+
+	inode = dentry->d_inode;
+	if (inode) {
+		drop_nlink(inode);
+		d_delete(dentry);
 		dput(dentry);
 	}
+	dput(dentry);
+
 	mutex_unlock(&capifs_root->d_inode->i_mutex);
 }
 

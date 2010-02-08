@@ -42,9 +42,8 @@
 #include <linux/moduleparam.h>
 #include <linux/isdn/capiutil.h>
 #include <linux/isdn/capicmd.h>
-#if defined(CONFIG_ISDN_CAPI_CAPIFS) || defined(CONFIG_ISDN_CAPI_CAPIFS_MODULE)
+
 #include "capifs.h"
-#endif
 
 static char *revision = "$Revision: 1.1.2.7 $";
 
@@ -96,6 +95,7 @@ struct capiminor {
 	struct list_head list;
 	struct capincci  *nccip;
 	unsigned int      minor;
+	struct dentry *capifs_dentry;
 
 	struct capi20_appl *ap;
 	u32		 ncci;
@@ -328,9 +328,9 @@ static struct capincci *capincci_alloc(struct capidev *cdev, u32 ncci)
 #ifdef _DEBUG_REFCOUNT
 		printk(KERN_DEBUG "set mp->nccip\n");
 #endif
-#if defined(CONFIG_ISDN_CAPI_CAPIFS) || defined(CONFIG_ISDN_CAPI_CAPIFS_MODULE)
-		capifs_new_ncci(mp->minor, MKDEV(capi_ttymajor, mp->minor));
-#endif
+		mp->capifs_dentry =
+			capifs_new_ncci(mp->minor,
+					MKDEV(capi_ttymajor, mp->minor));
 	}
 #endif /* CONFIG_ISDN_CAPI_MIDDLEWARE */
 	for (pp=&cdev->nccis; *pp; pp = &(*pp)->next)
@@ -353,9 +353,7 @@ static void capincci_free(struct capidev *cdev, u32 ncci)
 			*pp = (*pp)->next;
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 			if ((mp = np->minorp) != NULL) {
-#if defined(CONFIG_ISDN_CAPI_CAPIFS) || defined(CONFIG_ISDN_CAPI_CAPIFS_MODULE)
-				capifs_free_ncci(mp->minor);
-#endif
+				capifs_free_ncci(mp->capifs_dentry);
 				if (mp->tty) {
 					mp->nccip = NULL;
 #ifdef _DEBUG_REFCOUNT
