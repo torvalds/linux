@@ -49,7 +49,6 @@
 
 #include <asm/asmmacro.h>
 #include <asm/break.h>
-#include <asm/ia32.h>
 #include <asm/kregs.h>
 #include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
@@ -1386,28 +1385,6 @@ END(ia32_exception)
 // 0x6a00 Entry 46 (size 16 bundles) IA-32 Intercept  (30,31,59,70,71)
 ENTRY(ia32_intercept)
 	DBG_FAULT(46)
-#ifdef	CONFIG_IA32_SUPPORT
-	mov r31=pr
-	MOV_FROM_ISR(r16)
-	;;
-	extr.u r17=r16,16,8	// get ISR.code
-	mov r18=ar.eflag
-	MOV_FROM_IIM(r19)	// old eflag value
-	;;
-	cmp.ne p6,p0=2,r17
-(p6)	br.cond.spnt 1f		// not a system flag fault
-	xor r16=r18,r19
-	;;
-	extr.u r17=r16,18,1	// get the eflags.ac bit
-	;;
-	cmp.eq p6,p0=0,r17
-(p6)	br.cond.spnt 1f		// eflags.ac bit didn't change
-	;;
-	mov pr=r31,-1		// restore predicate registers
-	RFI
-
-1:
-#endif	// CONFIG_IA32_SUPPORT
 	FAULT(46)
 END(ia32_intercept)
 
@@ -1416,12 +1393,7 @@ END(ia32_intercept)
 // 0x6b00 Entry 47 (size 16 bundles) IA-32 Interrupt  (74)
 ENTRY(ia32_interrupt)
 	DBG_FAULT(47)
-#ifdef CONFIG_IA32_SUPPORT
-	mov r31=pr
-	br.sptk.many dispatch_to_ia32_handler
-#else
 	FAULT(47)
-#endif
 END(ia32_interrupt)
 
 	.org ia64_ivt+0x6c00
@@ -1715,89 +1687,3 @@ ENTRY(dispatch_illegal_op_fault)
 (p6)	br.call.dpnt.many b6=b6		// call returns to ia64_leave_kernel
 	br.sptk.many ia64_leave_kernel
 END(dispatch_illegal_op_fault)
-
-#ifdef CONFIG_IA32_SUPPORT
-
-	/*
-	 * There is no particular reason for this code to be here, other than that
-	 * there happens to be space here that would go unused otherwise.  If this
-	 * fault ever gets "unreserved", simply moved the following code to a more
-	 * suitable spot...
-	 */
-
-	// IA32 interrupt entry point
-
-ENTRY(dispatch_to_ia32_handler)
-	SAVE_MIN
-	;;
-	MOV_FROM_ISR(r14)
-	SSM_PSR_IC_AND_DEFAULT_BITS_AND_SRLZ_I(r3, r24)
-				// guarantee that interruption collection is on
-	;;
-	SSM_PSR_I(p15, p15, r3)
-	adds r3=8,r2		// Base pointer for SAVE_REST
-	;;
-	SAVE_REST
-	;;
-	mov r15=0x80
-	shr r14=r14,16		// Get interrupt number
-	;;
-	cmp.ne p6,p0=r14,r15
-(p6)	br.call.dpnt.many b6=non_ia32_syscall
-
-	adds r14=IA64_PT_REGS_R8_OFFSET + 16,sp	// 16 byte hole per SW conventions
-	adds r15=IA64_PT_REGS_R1_OFFSET + 16,sp
-	;;
-	cmp.eq pSys,pNonSys=r0,r0 // set pSys=1, pNonSys=0
-	ld8 r8=[r14]		// get r8
-	;;
-	st8 [r15]=r8		// save original EAX in r1 (IA32 procs don't use the GP)
-	;;
-	alloc r15=ar.pfs,0,0,6,0	// must first in an insn group
-	;;
-	ld4 r8=[r14],8		// r8 == eax (syscall number)
-	mov r15=IA32_NR_syscalls
-	;;
-	cmp.ltu.unc p6,p7=r8,r15
-	ld4 out1=[r14],8	// r9 == ecx
-	;;
-	ld4 out2=[r14],8	// r10 == edx
-	;;
-	ld4 out0=[r14]		// r11 == ebx
-	adds r14=(IA64_PT_REGS_R13_OFFSET) + 16,sp
-	;;
-	ld4 out5=[r14],PT(R14)-PT(R13)	// r13 == ebp
-	;;
-	ld4 out3=[r14],PT(R15)-PT(R14)	// r14 == esi
-	adds r2=TI_FLAGS+IA64_TASK_SIZE,r13
-	;;
-	ld4 out4=[r14]		// r15 == edi
-	movl r16=ia32_syscall_table
-	;;
-(p6)	shladd r16=r8,3,r16	// force ni_syscall if not valid syscall number
-	ld4 r2=[r2]		// r2 = current_thread_info()->flags
-	;;
-	ld8 r16=[r16]
-	and r2=_TIF_SYSCALL_TRACEAUDIT,r2	// mask trace or audit
-	;;
-	mov b6=r16
-	movl r15=ia32_ret_from_syscall
-	cmp.eq p8,p0=r2,r0
-	;;
-	mov rp=r15
-(p8)	br.call.sptk.many b6=b6
-	br.cond.sptk ia32_trace_syscall
-
-non_ia32_syscall:
-	alloc r15=ar.pfs,0,0,2,0
-	mov out0=r14				// interrupt #
-	add out1=16,sp				// pointer to pt_regs
-	;;			// avoid WAW on CFM
-	br.call.sptk.many rp=ia32_bad_interrupt
-.ret1:	movl r15=ia64_leave_kernel
-	;;
-	mov rp=r15
-	br.ret.sptk.many rp
-END(dispatch_to_ia32_handler)
-
-#endif /* CONFIG_IA32_SUPPORT */

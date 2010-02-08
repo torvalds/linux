@@ -46,7 +46,6 @@
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
 
-#include <asm/ia32.h>
 #include <asm/machvec.h>
 #include <asm/mca.h>
 #include <asm/meminit.h>
@@ -1015,10 +1014,6 @@ cpu_init (void)
 
 	ia64_mmu_init(ia64_imva(cpu_data));
 	ia64_mca_cpu_init(ia64_imva(cpu_data));
-
-#ifdef CONFIG_IA32_SUPPORT
-	ia32_cpu_init();
-#endif
 
 	/* Clear ITC to eliminate sched_clock() overflows in human time.  */
 	ia64_set_itc(0);

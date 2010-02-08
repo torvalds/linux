@@ -499,23 +499,6 @@ config ARCH_PROC_KCORE_TEXT
 	def_bool y
 	depends on PROC_KCORE
 
-config IA32_SUPPORT
-	bool "Support for Linux/x86 binaries"
-	help
-	  IA-64 processors can execute IA-32 (X86) instructions.  By
-	  saying Y here, the kernel will include IA-32 system call
-	  emulation support which makes it possible to transparently
-	  run IA-32 Linux binaries on an IA-64 Linux system.
-	  If in doubt, say Y.
-
-config COMPAT
-	bool
-	depends on IA32_SUPPORT
-	default y
-
-config COMPAT_FOR_U64_ALIGNMENT
-	def_bool COMPAT
-
 config IA64_MCA_RECOVERY
 	tristate "MCA recovery from errors other than TLB."
 
