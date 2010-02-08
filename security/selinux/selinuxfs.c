@@ -977,6 +977,8 @@ static int sel_make_bools(void)
 	u32 sid;
 
 	/* remove any existing files */
+	for (i = 0; i < bool_num; i++)
+		kfree(bool_pending_names[i]);
 	kfree(bool_pending_names);
 	kfree(bool_pending_values);
 	bool_pending_names = NULL;
