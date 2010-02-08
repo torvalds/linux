@@ -62,12 +62,6 @@ extern unsigned int __page_offset;
 #define PAGE_OFFSET	CONFIG_KERNEL_START
 
 /*
- * MAP_NR -- given an address, calculate the index of the page struct which
- * points to the address's page.
- */
-#define MAP_NR(addr) (((unsigned long)(addr) - PAGE_OFFSET) >> PAGE_SHIFT)
-
-/*
  * The basic type of a PTE - 32 bit physical addressing.
  */
 typedef unsigned long pte_basic_t;
@@ -154,7 +148,11 @@ extern int page_is_ram(unsigned long pfn);
 # define pfn_to_virt(pfn)	__va(pfn_to_phys((pfn)))
 
 #  ifdef CONFIG_MMU
-#  define virt_to_page(kaddr) 	(mem_map +  MAP_NR(kaddr))
+
+#  define virt_to_page(kaddr)	(pfn_to_page(__pa(kaddr) >> PAGE_SHIFT))
+#  define page_to_virt(page)   __va(page_to_pfn(page) << PAGE_SHIFT)
+#  define page_to_phys(page)     (page_to_pfn(page) << PAGE_SHIFT)
+
 #  else /* CONFIG_MMU */
 #  define virt_to_page(vaddr)	(pfn_to_page(virt_to_pfn(vaddr)))
 #  define page_to_virt(page)	(pfn_to_virt(page_to_pfn(page)))

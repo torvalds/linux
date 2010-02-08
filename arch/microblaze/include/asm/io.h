@@ -140,9 +140,6 @@ static inline void writel(unsigned int v, volatile void __iomem *addr)
 #define virt_to_phys(addr)	((unsigned long)__virt_to_phys(addr))
 #define virt_to_bus(addr)	((unsigned long)__virt_to_phys(addr))
 
-#define __page_address(page) \
-		(PAGE_OFFSET + (((page) - mem_map) << PAGE_SHIFT))
-#define page_to_phys(page)	virt_to_phys((void *)__page_address(page))
 #define page_to_bus(page)	(page_to_phys(page))
 #define bus_to_virt(addr)	(phys_to_virt(addr))
 
