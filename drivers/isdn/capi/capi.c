@@ -401,46 +401,6 @@ static struct capincci *capincci_find(struct capidev *cdev, u32 ncci)
 	return p;
 }
 
-/* -------- struct capidev ------------------------------------------ */
-
-static struct capidev *capidev_alloc(void)
-{
-	struct capidev *cdev;
-
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
-		return NULL;
-
-	mutex_init(&cdev->ncci_list_mtx);
-	skb_queue_head_init(&cdev->recvqueue);
-	init_waitqueue_head(&cdev->recvwait);
-
-	mutex_lock(&capidev_list_lock);
-	list_add_tail(&cdev->list, &capidev_list);
-	mutex_unlock(&capidev_list_lock);
-
-        return cdev;
-}
-
-static void capidev_free(struct capidev *cdev)
-{
-	mutex_lock(&capidev_list_lock);
-	list_del(&cdev->list);
-	mutex_unlock(&capidev_list_lock);
-
-	if (cdev->ap.applid) {
-		capi20_release(&cdev->ap);
-		cdev->ap.applid = 0;
-	}
-	skb_queue_purge(&cdev->recvqueue);
-
-	mutex_lock(&cdev->ncci_list_mtx);
-	capincci_free(cdev, 0xffffffff);
-	mutex_unlock(&cdev->ncci_list_mtx);
-
-	kfree(cdev);
-}
-
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 /* -------- handle data queue --------------------------------------- */
 
@@ -991,30 +951,45 @@ capi_ioctl(struct inode *inode, struct file *file,
 	return -EINVAL;
 }
 
-static int
-capi_open(struct inode *inode, struct file *file)
+static int capi_open(struct inode *inode, struct file *file)
 {
-	int ret;
-	
-	lock_kernel();
-	if (file->private_data)
-		ret = -EEXIST;
-	else if ((file->private_data = capidev_alloc()) == NULL)
-		ret = -ENOMEM;
-	else
-		ret = nonseekable_open(inode, file);
-	unlock_kernel();
-	return ret;
+	struct capidev *cdev;
+
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	if (!cdev)
+		return -ENOMEM;
+
+	mutex_init(&cdev->ncci_list_mtx);
+	skb_queue_head_init(&cdev->recvqueue);
+	init_waitqueue_head(&cdev->recvwait);
+	file->private_data = cdev;
+
+	mutex_lock(&capidev_list_lock);
+	list_add_tail(&cdev->list, &capidev_list);
+	mutex_unlock(&capidev_list_lock);
+
+	return nonseekable_open(inode, file);
 }
 
-static int
-capi_release(struct inode *inode, struct file *file)
+static int capi_release(struct inode *inode, struct file *file)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 
-	capidev_free(cdev);
-	file->private_data = NULL;
-	
+	mutex_lock(&capidev_list_lock);
+	list_del(&cdev->list);
+	mutex_unlock(&capidev_list_lock);
+
+	if (cdev->ap.applid) {
+		capi20_release(&cdev->ap);
+		cdev->ap.applid = 0;
+	}
+	skb_queue_purge(&cdev->recvqueue);
+
+	mutex_lock(&cdev->ncci_list_mtx);
+	capincci_free(cdev, 0xffffffff);
+	mutex_unlock(&cdev->ncci_list_mtx);
+
+	kfree(cdev);
 	return 0;
 }
 
