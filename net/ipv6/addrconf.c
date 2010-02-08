@@ -2802,14 +2802,14 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 	read_lock_bh(&idev->lock);
 	if (ifp->dead)
 		goto out;
-	spin_lock_bh(&ifp->lock);
 
+	spin_lock(&ifp->lock);
 	if (dev->flags&(IFF_NOARP|IFF_LOOPBACK) ||
 	    idev->cnf.accept_dad < 1 ||
 	    !(ifp->flags&IFA_F_TENTATIVE) ||
 	    ifp->flags & IFA_F_NODAD) {
 		ifp->flags &= ~(IFA_F_TENTATIVE|IFA_F_OPTIMISTIC|IFA_F_DADFAILED);
-		spin_unlock_bh(&ifp->lock);
+		spin_unlock(&ifp->lock);
 		read_unlock_bh(&idev->lock);
 
 		addrconf_dad_completed(ifp);
@@ -2817,7 +2817,7 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 	}
 
 	if (!(idev->if_flags & IF_READY)) {
-		spin_unlock_bh(&ifp->lock);
+		spin_unlock(&ifp->lock);
 		read_unlock_bh(&idev->lock);
 		/*
 		 * If the device is not ready:
@@ -2837,7 +2837,7 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		ip6_ins_rt(ifp->rt);
 
 	addrconf_dad_kick(ifp);
-	spin_unlock_bh(&ifp->lock);
+	spin_unlock(&ifp->lock);
 out:
 	read_unlock_bh(&idev->lock);
 }
@@ -2853,14 +2853,15 @@ static void addrconf_dad_timer(unsigned long data)
 		read_unlock_bh(&idev->lock);
 		goto out;
 	}
-	spin_lock_bh(&ifp->lock);
+
+	spin_lock(&ifp->lock);
 	if (ifp->probes == 0) {
 		/*
 		 * DAD was successful
 		 */
 
 		ifp->flags &= ~(IFA_F_TENTATIVE|IFA_F_OPTIMISTIC|IFA_F_DADFAILED);
-		spin_unlock_bh(&ifp->lock);
+		spin_unlock(&ifp->lock);
 		read_unlock_bh(&idev->lock);
 
 		addrconf_dad_completed(ifp);
@@ -2870,7 +2871,7 @@ static void addrconf_dad_timer(unsigned long data)
 
 	ifp->probes--;
 	addrconf_mod_timer(ifp, AC_DAD, ifp->idev->nd_parms->retrans_time);
-	spin_unlock_bh(&ifp->lock);
+	spin_unlock(&ifp->lock);
 	read_unlock_bh(&idev->lock);
 
 	/* send a neighbour solicitation for our addr */
@@ -2918,12 +2919,12 @@ static void addrconf_dad_run(struct inet6_dev *idev) {
 
 	read_lock_bh(&idev->lock);
 	for (ifp = idev->addr_list; ifp; ifp = ifp->if_next) {
-		spin_lock_bh(&ifp->lock);
+		spin_lock(&ifp->lock);
 		if (!(ifp->flags & IFA_F_TENTATIVE)) {
-			spin_unlock_bh(&ifp->lock);
+			spin_unlock(&ifp->lock);
 			continue;
 		}
-		spin_unlock_bh(&ifp->lock);
+		spin_unlock(&ifp->lock);
 		addrconf_dad_kick(ifp);
 	}
 	read_unlock_bh(&idev->lock);
