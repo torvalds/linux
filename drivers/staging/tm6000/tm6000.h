@@ -206,11 +206,14 @@ struct tm6000_fh {
 /* In tm6000-cards.c */
 
 int tm6000_tuner_callback (void *ptr, int component, int command, int arg);
+int tm6000_cards_setup(struct tm6000_core *dev);
+
 /* In tm6000-core.c */
 
 int tm6000_read_write_usb (struct tm6000_core *dev, u8 reqtype, u8 req,
 			   u16 value, u16 index, u8 *buf, u16 len);
 int tm6000_get_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
+int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_init (struct tm6000_core *dev);
 

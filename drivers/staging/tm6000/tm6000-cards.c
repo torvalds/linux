@@ -297,6 +297,78 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 	return (rc);
 }
 
+int tm6000_cards_setup(struct tm6000_core *dev)
+{
+	int i, rc;
+
+	/*
+	 * Board-specific initialization sequence. Handles all GPIO
+	 * initialization sequences that are board-specific.
+	 * Up to now, all found devices use GPIO1 and GPIO4 at the same way.
+	 * Probably, they're all based on some reference device. Due to that,
+	 * there's a common routine at the end to handle those GPIO's. Devices
+	 * that use different pinups or init sequences can just return at
+	 * the board-specific session.
+	 */
+	switch (dev->model) {
+	case TM6010_BOARD_HAUPPAUGE_900H:
+		/* Turn xceive 3028 on */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_3, 0x01);
+		msleep(11);
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * Default initialization. Most of the devices seem to use GPIO1
+	 * and GPIO4.on the same way, so, this handles the common sequence
+	 * used by most devices.
+	 * If a device uses a different sequence or different GPIO pins for
+	 * reset, just add the code at the board-specific part
+	 */
+	for (i = 0; i < 2; i++) {
+		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					dev->tuner_reset_gpio, 0x00);
+		if (rc < 0) {
+			printk(KERN_ERR "Error %i doing GPIO1 reset\n", rc);
+			return rc;
+		}
+
+		msleep(10); /* Just to be conservative */
+		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					dev->tuner_reset_gpio, 0x01);
+		if (rc < 0) {
+			printk(KERN_ERR "Error %i doing GPIO1 reset\n", rc);
+			return rc;
+		}
+
+		msleep(10);
+		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_4, 0);
+		if (rc < 0) {
+			printk(KERN_ERR "Error %i doing GPIO4 reset\n", rc);
+			return rc;
+		}
+
+		msleep(10);
+		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_4, 1);
+		if (rc < 0) {
+			printk(KERN_ERR "Error %i doing GPIO4 reset\n", rc);
+			return rc;
+		}
+
+		if (!i) {
+			rc = tm6000_get_reg16(dev, 0x40, 0, 0);
+			if (rc >= 0)
+				printk(KERN_DEBUG "board=%d\n", rc);
+		}
+	}
+
+	msleep(50);
+
+	return 0;
+};
+
 static void tm6000_config_tuner (struct tm6000_core *dev)
 {
 	struct tuner_setup           tun_setup;

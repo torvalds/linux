@@ -453,54 +453,9 @@ int tm6000_init (struct tm6000_core *dev)
 		printk (KERN_ERR "Error %i while retrieving board version\n",board);
 	}
 
-	if (dev->dev_type == TM6010) {
-		/* Turn xceive 3028 on */
-		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_3, 0x01);
-		msleep(11);
-	}
+	rc = tm6000_cards_setup(dev);
 
-	/* Reset GPIO1 and GPIO4. */
-	for (i=0; i< 2; i++) {
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x00);
-		if (rc<0) {
-			printk (KERN_ERR "Error %i doing GPIO1 reset\n",rc);
-			return rc;
-		}
-
-		msleep(10); /* Just to be conservative */
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x01);
-		if (rc<0) {
-			printk (KERN_ERR "Error %i doing GPIO1 reset\n",rc);
-			return rc;
-		}
-
-		msleep(10);
-		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_4, 0);
-		if (rc<0) {
-			printk (KERN_ERR "Error %i doing GPIO4 reset\n",rc);
-			return rc;
-		}
-
-		msleep(10);
-		rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_4, 1);
-		if (rc<0) {
-			printk (KERN_ERR "Error %i doing GPIO4 reset\n",rc);
-			return rc;
-		}
-
-		if (!i) {
-			rc=tm6000_get_reg16(dev, 0x40,0,0);
-			if (rc>=0) {
-				printk ("board=%d\n", rc);
-			}
-		}
-	}
-
-	msleep(50);
-
-	return 0;
+	return rc;
 }
 
 int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
