@@ -220,7 +220,7 @@ struct fsnotify_event {
 	__u32 mask;		/* the type of access, bitwise OR for FS_* event types */
 
 	u32 sync_cookie;	/* used to corrolate events, namely inotify mv events */
-	char *file_name;
+	const unsigned char *file_name;
 	size_t name_len;
 	struct pid *tgid;
 
@@ -283,7 +283,7 @@ struct fsnotify_mark {
 
 /* main fsnotify call to send events */
 extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
-		     const char *name, u32 cookie);
+		     const unsigned char *name, u32 cookie);
 extern void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
@@ -402,7 +402,8 @@ extern void fsnotify_unmount_inodes(struct list_head *list);
 
 /* put here because inotify does some weird stuff when destroying watches */
 extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
-						    void *data, int data_is, const char *name,
+						    void *data, int data_is,
+						    const unsigned char *name,
 						    u32 cookie, gfp_t gfp);
 
 /* fanotify likes to change events after they are on lists... */
@@ -413,7 +414,7 @@ extern int fsnotify_replace_event(struct fsnotify_event_holder *old_holder,
 #else
 
 static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
-			    const char *name, u32 cookie)
+			    const unsigned char *name, u32 cookie)
 {}
 
 static inline void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)

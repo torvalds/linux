@@ -59,14 +59,14 @@ static inline void fsnotify_link_count(struct inode *inode)
  * fsnotify_move - file old_name at old_dir was moved to new_name at new_dir
  */
 static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
-				 const char *old_name,
+				 const unsigned char *old_name,
 				 int isdir, struct inode *target, struct dentry *moved)
 {
 	struct inode *source = moved->d_inode;
 	u32 fs_cookie = fsnotify_get_cookie();
 	__u32 old_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_FROM);
 	__u32 new_dir_mask = (FS_EVENT_ON_CHILD | FS_MOVED_TO);
-	const char *new_name = moved->d_name.name;
+	const unsigned char *new_name = moved->d_name.name;
 
 	if (old_dir == new_dir)
 		old_dir_mask |= FS_DN_RENAME;
@@ -290,7 +290,7 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 /*
  * fsnotify_oldname_init - save off the old filename before we change it
  */
-static inline const char *fsnotify_oldname_init(const char *name)
+static inline const unsigned char *fsnotify_oldname_init(const unsigned char *name)
 {
 	return kstrdup(name, GFP_KERNEL);
 }
@@ -298,19 +298,19 @@ static inline const char *fsnotify_oldname_init(const char *name)
 /*
  * fsnotify_oldname_free - free the name we got from fsnotify_oldname_init
  */
-static inline void fsnotify_oldname_free(const char *old_name)
+static inline void fsnotify_oldname_free(const unsigned char *old_name)
 {
 	kfree(old_name);
 }
 
 #else	/* CONFIG_FSNOTIFY */
 
-static inline const char *fsnotify_oldname_init(const char *name)
+static inline const char *fsnotify_oldname_init(const unsigned char *name)
 {
 	return NULL;
 }
 
-static inline void fsnotify_oldname_free(const char *old_name)
+static inline void fsnotify_oldname_free(const unsigned char *old_name)
 {
 }
 

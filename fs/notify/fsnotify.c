@@ -171,7 +171,7 @@ void __fsnotify_flush_ignored_mask(struct inode *inode, void *data, int data_is)
 
 static void send_to_group(struct fsnotify_group *group, struct inode *to_tell,
 			  struct vfsmount *mnt, __u32 mask, void *data,
-			  int data_is, u32 cookie, const char *file_name,
+			  int data_is, u32 cookie, const unsigned char *file_name,
 			  struct fsnotify_event **event)
 {
 	if (!group->ops->should_send_event(group, to_tell, mnt, mask,
@@ -206,7 +206,8 @@ static bool needed_by_vfsmount(__u32 test_mask, struct vfsmount *mnt)
  * out to all of the registered fsnotify_group.  Those groups can then use the
  * notification event in whatever means they feel necessary.
  */
-void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const char *file_name, u32 cookie)
+void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+	      const unsigned char *file_name, u32 cookie)
 {
 	struct fsnotify_group *group;
 	struct fsnotify_event *event = NULL;

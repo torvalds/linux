@@ -370,8 +370,8 @@ struct fsnotify_event *fsnotify_clone_event(struct fsnotify_event *old_event)
  * @name the filename, if available
  */
 struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, void *data,
-					     int data_type, const char *name, u32 cookie,
-					     gfp_t gfp)
+					     int data_type, const unsigned char *name,
+					     u32 cookie, gfp_t gfp)
 {
 	struct fsnotify_event *event;
 
