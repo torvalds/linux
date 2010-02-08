@@ -103,8 +103,10 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		return 0;
 
 	tmp_options = kstrdup(opts, GFP_KERNEL);
-	if (!tmp_options)
+	if (!tmp_options) {
+		ret = -ENOMEM;
 		goto fail_option_alloc;
+	}
 	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
@@ -160,8 +162,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			break;
 		case Opt_cache:
 			s = match_strdup(&args[0]);
-			if (!s)
-				goto fail_option_alloc;
+			if (!s) {
+				ret = -ENOMEM;
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				  "problem allocating copy of cache arg\n");
+				goto free_and_return;
+			}
 
 			if (strcmp(s, "loose") == 0)
 				v9ses->cache = CACHE_LOOSE;
@@ -174,8 +180,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 
 		case Opt_access:
 			s = match_strdup(&args[0]);
-			if (!s)
-				goto fail_option_alloc;
+			if (!s) {
+				ret = -ENOMEM;
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				  "problem allocating copy of access arg\n");
+				goto free_and_return;
+			}
 
 			v9ses->flags &= ~V9FS_ACCESS_MASK;
 			if (strcmp(s, "user") == 0)
@@ -196,13 +206,10 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 		}
 	}
 
+free_and_return:
 	kfree(tmp_options);
-	return ret;
-
 fail_option_alloc:
-	P9_DPRINTK(P9_DEBUG_ERROR,
-		   "failed to allocate copy of option argument\n");
-	return -ENOMEM;
+	return ret;
 }
 
 /**
