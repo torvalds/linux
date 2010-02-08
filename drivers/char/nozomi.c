@@ -1693,15 +1693,7 @@ static int ntty_write(struct tty_struct *tty, const unsigned char *buffer,
 	if (!dc || !port)
 		return -ENODEV;
 
-	if (unlikely(!mutex_trylock(&port->tty_sem))) {
-		/*
-		 * must test lock as tty layer wraps calls
-		 * to this function with BKL
-		 */
-		dev_err(&dc->pdev->dev, "Would have deadlocked - "
-			"return EAGAIN\n");
-		return -EAGAIN;
-	}
+	mutex_lock(&port->tty_sem);
 
 	if (unlikely(!port->port.count)) {
 		DBG1(" ");
@@ -1741,25 +1733,23 @@ exit:
  * This method is called by the upper tty layer.
  *   #according to sources N_TTY.c it expects a value >= 0 and
  *    does not check for negative values.
+ *
+ * If the port is unplugged report lots of room and let the bits
+ * dribble away so we don't block anything.
  */
 static int ntty_write_room(struct tty_struct *tty)
 {
 	struct port *port = tty->driver_data;
-	int room = 0;
+	int room = 4096;
 	const struct nozomi *dc = get_dc_by_tty(tty);
 
-	if (!dc || !port)
-		return 0;
-	if (!mutex_trylock(&port->tty_sem))
-		return 0;
-
-	if (!port->port.count)
-		goto exit;
-
-	room = port->fifo_ul.size - kfifo_len(&port->fifo_ul);
-
-exit:
-	mutex_unlock(&port->tty_sem);
+	if (dc) {
+		mutex_lock(&port->tty_sem);
+		if (port->port.count)
+			room = port->fifo_ul.size -
+					kfifo_len(&port->fifo_ul);
+		mutex_unlock(&port->tty_sem);
+	}
 	return room;
 }
 
