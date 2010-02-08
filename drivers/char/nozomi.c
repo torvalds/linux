@@ -371,6 +371,8 @@ struct port {
 	struct mutex tty_sem;
 	wait_queue_head_t tty_wait;
 	struct async_icount tty_icount;
+
+	struct nozomi *dc;
 };
 
 /* Private data one for each card in the system */
@@ -413,6 +415,8 @@ MODULE_DEVICE_TABLE(pci, nozomi_pci_tbl);
 
 static struct nozomi *ndevs[NOZOMI_MAX_CARDS];
 static struct tty_driver *ntty_driver;
+
+static const struct tty_port_operations noz_tty_port_ops;
 
 /*
  * find card by tty_index
@@ -1473,9 +1477,11 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 
 	for (i = 0; i < MAX_PORT; i++) {
 		struct device *tty_dev;
-
-		mutex_init(&dc->port[i].tty_sem);
-		tty_port_init(&dc->port[i].port);
+		struct port *port = &dc->port[i];
+		port->dc = dc;
+		mutex_init(&port->tty_sem);
+		tty_port_init(&port->port);
+		port->port.ops = &noz_tty_port_ops;
 		tty_dev = tty_register_device(ntty_driver, dc->index_start + i,
 							&pdev->dev);
 
@@ -1600,67 +1606,74 @@ static void set_dtr(const struct tty_struct *tty, int dtr)
  * ----------------------------------------------------------------------------
  */
 
-/* Called when the userspace process opens the tty, /dev/noz*.  */
-static int ntty_open(struct tty_struct *tty, struct file *file)
+static int ntty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct port *port = get_port_by_tty(tty);
 	struct nozomi *dc = get_dc_by_tty(tty);
-	unsigned long flags;
-
+	int ret;
 	if (!port || !dc || dc->state != NOZOMI_STATE_READY)
 		return -ENODEV;
-
-	if (mutex_lock_interruptible(&port->tty_sem))
-		return -ERESTARTSYS;
-
-	port->port.count++;
-	dc->open_ttys++;
-
-	/* Enable interrupt downlink for channel */
-	if (port->port.count == 1) {
-		tty->driver_data = port;
-		tty_port_tty_set(&port->port, tty);
-		DBG1("open: %d", port->token_dl);
-		spin_lock_irqsave(&dc->spin_mutex, flags);
-		dc->last_ier = dc->last_ier | port->token_dl;
-		writew(dc->last_ier, dc->reg_ier);
-		spin_unlock_irqrestore(&dc->spin_mutex, flags);
+	ret = tty_init_termios(tty);
+	if (ret == 0) {
+		tty_driver_kref_get(driver);
+		driver->ttys[tty->index] = tty;
 	}
-	mutex_unlock(&port->tty_sem);
+	return ret;
+}
+
+static void ntty_cleanup(struct tty_struct *tty)
+{
+	tty->driver_data = NULL;
+}
+
+static int ntty_activate(struct tty_port *tport, struct tty_struct *tty)
+{
+	struct port *port = container_of(tport, struct port, port);
+	struct nozomi *dc = port->dc;
+	unsigned long flags;
+
+	DBG1("open: %d", port->token_dl);
+	spin_lock_irqsave(&dc->spin_mutex, flags);
+	dc->last_ier = dc->last_ier | port->token_dl;
+	writew(dc->last_ier, dc->reg_ier);
+	dc->open_ttys++;
+	spin_unlock_irqrestore(&dc->spin_mutex, flags);
+	printk("noz: activated %d: %p\n", tty->index, tport);
 	return 0;
 }
 
-/* Called when the userspace process close the tty, /dev/noz*. Also
-   called immediately if ntty_open fails in which case tty->driver_data
-   will be NULL an we exit by the first return */
-
-static void ntty_close(struct tty_struct *tty, struct file *file)
+static int ntty_open(struct tty_struct *tty, struct file *filp)
 {
-	struct nozomi *dc = get_dc_by_tty(tty);
-	struct port *nport = tty->driver_data;
-	struct tty_port *port = &nport->port;
+	struct port *port = get_port_by_tty(tty);
+	return tty_port_open(&port->port, tty, filp);
+}
+
+static void ntty_shutdown(struct tty_port *tport)
+{
+	struct port *port = container_of(tport, struct port, port);
+	struct nozomi *dc = port->dc;
 	unsigned long flags;
 
-	if (!dc || !nport)
-		return;
-
-	/* Users cannot interrupt a close */
-	mutex_lock(&nport->tty_sem);
-
-	WARN_ON(!port->count);
-
+	DBG1("close: %d", port->token_dl);
+	spin_lock_irqsave(&dc->spin_mutex, flags);
+	dc->last_ier &= ~(port->token_dl);
+	writew(dc->last_ier, dc->reg_ier);
 	dc->open_ttys--;
-	port->count--;
+	spin_unlock_irqrestore(&dc->spin_mutex, flags);
+	printk("noz: shutdown %p\n", tport);
+}
 
-	if (port->count == 0) {
-		DBG1("close: %d", nport->token_dl);
-		tty_port_tty_set(port, NULL);
-		spin_lock_irqsave(&dc->spin_mutex, flags);
-		dc->last_ier &= ~(nport->token_dl);
-		writew(dc->last_ier, dc->reg_ier);
-		spin_unlock_irqrestore(&dc->spin_mutex, flags);
-	}
-	mutex_unlock(&nport->tty_sem);
+static void ntty_close(struct tty_struct *tty, struct file *filp)
+{
+	struct port *port = tty->driver_data;
+	if (port)
+		tty_port_close(&port->port, tty, filp);
+}
+
+static void ntty_hangup(struct tty_struct *tty)
+{
+	struct port *port = tty->driver_data;
+	tty_port_hangup(&port->port);
 }
 
 /*
@@ -1906,10 +1919,16 @@ exit_in_buffer:
 	return rval;
 }
 
+static const struct tty_port_operations noz_tty_port_ops = {
+	.activate = ntty_activate,
+	.shutdown = ntty_shutdown,
+};
+
 static const struct tty_operations tty_ops = {
 	.ioctl = ntty_ioctl,
 	.open = ntty_open,
 	.close = ntty_close,
+	.hangup = ntty_hangup,
 	.write = ntty_write,
 	.write_room = ntty_write_room,
 	.unthrottle = ntty_unthrottle,
@@ -1917,6 +1936,8 @@ static const struct tty_operations tty_ops = {
 	.chars_in_buffer = ntty_chars_in_buffer,
 	.tiocmget = ntty_tiocmget,
 	.tiocmset = ntty_tiocmset,
+	.install = ntty_install,
+	.cleanup = ntty_cleanup,
 };
 
 /* Module initialization */
