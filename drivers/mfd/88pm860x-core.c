@@ -12,10 +12,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
+
+#define INT_STATUS_NUM			3
 
 char pm860x_backlight_name[][MFD_NAME_SIZE] = {
 	"backlight-0",
@@ -119,6 +122,42 @@ static struct mfd_cell touch_devs[] = {
 	.flags	= IORESOURCE_IO,			\
 }
 
+static struct resource power_supply_resources[] = {
+	{
+		.name		= "88pm860x-power",
+		.start		= PM8607_IRQ_CHG,
+		.end		= PM8607_IRQ_CHG,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell power_devs[] = {
+	{
+		.name		= "88pm860x-power",
+		.num_resources	= 1,
+		.resources	= &power_supply_resources[0],
+		.id		= -1,
+	},
+};
+
+static struct resource onkey_resources[] = {
+	{
+		.name		= "88pm860x-onkey",
+		.start		= PM8607_IRQ_ONKEY,
+		.end		= PM8607_IRQ_ONKEY,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell onkey_devs[] = {
+	{
+		.name		= "88pm860x-onkey",
+		.num_resources	= 1,
+		.resources	= &onkey_resources[0],
+		.id		= -1,
+	},
+};
+
 static struct resource regulator_resources[] = {
 	PM8607_REG_RESOURCE(BUCK1, BUCK1),
 	PM8607_REG_RESOURCE(BUCK2, BUCK2),
@@ -163,129 +202,224 @@ static struct mfd_cell regulator_devs[] = {
 	PM8607_REG_DEVS(ldo14, LDO14),
 };
 
-#define CHECK_IRQ(irq)					\
-do {							\
-	if ((irq < 0) || (irq >= PM860X_NUM_IRQ))	\
-		return -EINVAL;				\
-} while (0)
+struct pm860x_irq_data {
+	int	reg;
+	int	mask_reg;
+	int	enable;		/* enable or not */
+	int	offs;		/* bit offset in mask register */
+};
 
-/* IRQs only occur on 88PM8607 */
-int pm860x_mask_irq(struct pm860x_chip *chip, int irq)
+static struct pm860x_irq_data pm860x_irqs[] = {
+	[PM8607_IRQ_ONKEY] = {
+		.reg		= PM8607_INT_STATUS1,
+		.mask_reg	= PM8607_INT_MASK_1,
+		.offs		= 1 << 0,
+	},
+	[PM8607_IRQ_EXTON] = {
+		.reg		= PM8607_INT_STATUS1,
+		.mask_reg	= PM8607_INT_MASK_1,
+		.offs		= 1 << 1,
+	},
+	[PM8607_IRQ_CHG] = {
+		.reg		= PM8607_INT_STATUS1,
+		.mask_reg	= PM8607_INT_MASK_1,
+		.offs		= 1 << 2,
+	},
+	[PM8607_IRQ_BAT] = {
+		.reg		= PM8607_INT_STATUS1,
+		.mask_reg	= PM8607_INT_MASK_1,
+		.offs		= 1 << 3,
+	},
+	[PM8607_IRQ_RTC] = {
+		.reg		= PM8607_INT_STATUS1,
+		.mask_reg	= PM8607_INT_MASK_1,
+		.offs		= 1 << 4,
+	},
+	[PM8607_IRQ_CC] = {
+		.reg		= PM8607_INT_STATUS1,
+		.mask_reg	= PM8607_INT_MASK_1,
+		.offs		= 1 << 5,
+	},
+	[PM8607_IRQ_VBAT] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 0,
+	},
+	[PM8607_IRQ_VCHG] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 1,
+	},
+	[PM8607_IRQ_VSYS] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 2,
+	},
+	[PM8607_IRQ_TINT] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 3,
+	},
+	[PM8607_IRQ_GPADC0] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 4,
+	},
+	[PM8607_IRQ_GPADC1] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 5,
+	},
+	[PM8607_IRQ_GPADC2] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 6,
+	},
+	[PM8607_IRQ_GPADC3] = {
+		.reg		= PM8607_INT_STATUS2,
+		.mask_reg	= PM8607_INT_MASK_2,
+		.offs		= 1 << 7,
+	},
+	[PM8607_IRQ_AUDIO_SHORT] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 0,
+	},
+	[PM8607_IRQ_PEN] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 1,
+	},
+	[PM8607_IRQ_HEADSET] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 2,
+	},
+	[PM8607_IRQ_HOOK] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 3,
+	},
+	[PM8607_IRQ_MICIN] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 4,
+	},
+	[PM8607_IRQ_CHG_FAIL] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 5,
+	},
+	[PM8607_IRQ_CHG_DONE] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 6,
+	},
+	[PM8607_IRQ_CHG_FAULT] = {
+		.reg		= PM8607_INT_STATUS3,
+		.mask_reg	= PM8607_INT_MASK_3,
+		.offs		= 1 << 7,
+	},
+};
+
+static inline struct pm860x_irq_data *irq_to_pm860x(struct pm860x_chip *chip,
+						    int irq)
 {
-	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
-				: chip->companion;
-	int offset, data, ret;
-
-	CHECK_IRQ(irq);
-
-	offset = (irq >> 3) + PM8607_INT_MASK_1;
-	data = 1 << (irq % 8);
-	ret = pm860x_set_bits(i2c, offset, data, 0);
-
-	return ret;
+	return &pm860x_irqs[irq - chip->irq_base];
 }
-EXPORT_SYMBOL(pm860x_mask_irq);
 
-int pm860x_unmask_irq(struct pm860x_chip *chip, int irq)
+static irqreturn_t pm860x_irq(int irq, void *data)
 {
-	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
-				: chip->companion;
-	int offset, data, ret;
-
-	CHECK_IRQ(irq);
-
-	offset = (irq >> 3) + PM8607_INT_MASK_1;
-	data = 1 << (irq % 8);
-	ret = pm860x_set_bits(i2c, offset, data, data);
-
-	return ret;
-}
-EXPORT_SYMBOL(pm860x_unmask_irq);
-
-#define INT_STATUS_NUM		(3)
-
-static irqreturn_t pm8607_irq_thread(int irq, void *data)
-{
-	DECLARE_BITMAP(irq_status, PM860X_NUM_IRQ);
 	struct pm860x_chip *chip = data;
-	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
-				: chip->companion;
-	unsigned char status_buf[INT_STATUS_NUM << 1];
-	unsigned long value;
-	int i, ret;
+	struct pm860x_irq_data *irq_data;
+	struct i2c_client *i2c;
+	int read_reg = -1, value = 0;
+	int i;
 
-	irq_status[0] = 0;
-
-	/* read out status register */
-	ret = pm860x_bulk_read(i2c, PM8607_INT_STATUS1,
-				INT_STATUS_NUM << 1, status_buf);
-	if (ret < 0)
-		goto out;
-	if (chip->irq_mode) {
-		/* 0, clear by read. 1, clear by write */
-		ret = pm860x_bulk_write(i2c, PM8607_INT_STATUS1,
-					INT_STATUS_NUM, status_buf);
-		if (ret < 0)
-			goto out;
-	}
-
-	/* clear masked interrupt status */
-	for (i = 0, value = 0; i < INT_STATUS_NUM; i++) {
-		status_buf[i] &= status_buf[i + INT_STATUS_NUM];
-		irq_status[0] |= status_buf[i] << (i * 8);
-	}
-
-	while (!bitmap_empty(irq_status, PM860X_NUM_IRQ)) {
-		irq = find_first_bit(irq_status, PM860X_NUM_IRQ);
-		clear_bit(irq, irq_status);
-		dev_dbg(chip->dev, "Servicing IRQ #%d\n", irq);
-
-		mutex_lock(&chip->irq_lock);
-		if (chip->irq[irq].handler)
-			chip->irq[irq].handler(irq, chip->irq[irq].data);
-		else {
-			pm860x_mask_irq(chip, irq);
-			dev_err(chip->dev, "Nobody cares IRQ %d. "
-				"Now mask it.\n", irq);
-			for (i = 0; i < (INT_STATUS_NUM << 1); i++) {
-				dev_err(chip->dev, "status[%d]:%x\n", i,
-					status_buf[i]);
-			}
+	i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
+	for (i = 0; i < ARRAY_SIZE(pm860x_irqs); i++) {
+		irq_data = &pm860x_irqs[i];
+		if (read_reg != irq_data->reg) {
+			read_reg = irq_data->reg;
+			value = pm860x_reg_read(i2c, irq_data->reg);
 		}
-		mutex_unlock(&chip->irq_lock);
+		if (value & irq_data->enable)
+			handle_nested_irq(chip->irq_base + i);
 	}
-out:
 	return IRQ_HANDLED;
 }
 
-int pm860x_request_irq(struct pm860x_chip *chip, int irq,
-		       irq_handler_t handler, void *data)
+static void pm860x_irq_lock(unsigned int irq)
 {
-	CHECK_IRQ(irq);
-	if (!handler)
-		return -EINVAL;
+	struct pm860x_chip *chip = get_irq_chip_data(irq);
 
 	mutex_lock(&chip->irq_lock);
-	chip->irq[irq].handler = handler;
-	chip->irq[irq].data = data;
-	mutex_unlock(&chip->irq_lock);
-
-	return 0;
 }
-EXPORT_SYMBOL(pm860x_request_irq);
 
-int pm860x_free_irq(struct pm860x_chip *chip, int irq)
+static void pm860x_irq_sync_unlock(unsigned int irq)
 {
-	CHECK_IRQ(irq);
+	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	struct pm860x_irq_data *irq_data;
+	struct i2c_client *i2c;
+	static unsigned char cached[3] = {0x0, 0x0, 0x0};
+	unsigned char mask[3];
+	int i;
 
-	mutex_lock(&chip->irq_lock);
-	chip->irq[irq].handler = NULL;
-	chip->irq[irq].data = NULL;
+	i2c = (chip->id == CHIP_PM8607) ? chip->client : chip->companion;
+	/* Load cached value. In initial, all IRQs are masked */
+	for (i = 0; i < 3; i++)
+		mask[i] = cached[i];
+	for (i = 0; i < ARRAY_SIZE(pm860x_irqs); i++) {
+		irq_data = &pm860x_irqs[i];
+		switch (irq_data->mask_reg) {
+		case PM8607_INT_MASK_1:
+			mask[0] &= ~irq_data->offs;
+			mask[0] |= irq_data->enable;
+			break;
+		case PM8607_INT_MASK_2:
+			mask[1] &= ~irq_data->offs;
+			mask[1] |= irq_data->enable;
+			break;
+		case PM8607_INT_MASK_3:
+			mask[2] &= ~irq_data->offs;
+			mask[2] |= irq_data->enable;
+			break;
+		default:
+			dev_err(chip->dev, "wrong IRQ\n");
+			break;
+		}
+	}
+	/* update mask into registers */
+	for (i = 0; i < 3; i++) {
+		if (mask[i] != cached[i]) {
+			cached[i] = mask[i];
+			pm860x_reg_write(i2c, PM8607_INT_MASK_1 + i, mask[i]);
+		}
+	}
+
 	mutex_unlock(&chip->irq_lock);
-
-	return 0;
 }
-EXPORT_SYMBOL(pm860x_free_irq);
+
+static void pm860x_irq_enable(unsigned int irq)
+{
+	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	pm860x_irqs[irq - chip->irq_base].enable
+		= pm860x_irqs[irq - chip->irq_base].offs;
+}
+
+static void pm860x_irq_disable(unsigned int irq)
+{
+	struct pm860x_chip *chip = get_irq_chip_data(irq);
+	pm860x_irqs[irq - chip->irq_base].enable = 0;
+}
+
+static struct irq_chip pm860x_irq_chip = {
+	.name		= "88pm860x",
+	.bus_lock	= pm860x_irq_lock,
+	.bus_sync_unlock = pm860x_irq_sync_unlock,
+	.enable		= pm860x_irq_enable,
+	.disable	= pm860x_irq_disable,
+};
 
 static int __devinit device_gpadc_init(struct pm860x_chip *chip,
 				       struct pm860x_platform_data *pdata)
@@ -348,9 +482,15 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
 				: chip->companion;
 	unsigned char status_buf[INT_STATUS_NUM];
-	int data, mask, ret = -EINVAL;
+	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
+	struct irq_desc *desc;
+	int i, data, mask, ret = -EINVAL;
+	int __irq;
 
-	mutex_init(&chip->irq_lock);
+	if (!pdata || !pdata->irq_base) {
+		dev_warn(chip->dev, "No interrupt support on IRQ base\n");
+		return -EINVAL;
+	}
 
 	mask = PM8607_B0_MISC1_INV_INT | PM8607_B0_MISC1_INT_CLEAR
 		| PM8607_B0_MISC1_INT_MASK;
@@ -389,25 +529,45 @@ static int __devinit device_irq_init(struct pm860x_chip *chip,
 	if (ret < 0)
 		goto out;
 
-	memset(chip->irq, 0, sizeof(struct pm860x_irq) * PM860X_NUM_IRQ);
-
-	ret = request_threaded_irq(i2c->irq, NULL, pm8607_irq_thread,
-				IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-				"88PM8607", chip);
-	if (ret < 0) {
-		dev_err(chip->dev, "Failed to request IRQ #%d.\n", i2c->irq);
+	mutex_init(&chip->irq_lock);
+	chip->irq_base = pdata->irq_base;
+	chip->core_irq = i2c->irq;
+	if (!chip->core_irq)
 		goto out;
+
+	desc = irq_to_desc(chip->core_irq);
+
+	/* register IRQ by genirq */
+	for (i = 0; i < ARRAY_SIZE(pm860x_irqs); i++) {
+		__irq = i + chip->irq_base;
+		set_irq_chip_data(__irq, chip);
+		set_irq_chip_and_handler(__irq, &pm860x_irq_chip,
+					 handle_edge_irq);
+		set_irq_nested_thread(__irq, 1);
+#ifdef CONFIG_ARM
+		set_irq_flags(__irq, IRQF_VALID);
+#else
+		set_irq_noprobe(__irq);
+#endif
 	}
-	chip->chip_irq = i2c->irq;
+
+	ret = request_threaded_irq(chip->core_irq, NULL, pm860x_irq, flags,
+				   "88pm860x", chip);
+	if (ret) {
+		dev_err(chip->dev, "Failed to request IRQ: %d\n", ret);
+		chip->core_irq = 0;
+	}
+
 	return 0;
 out:
+	chip->core_irq = 0;
 	return ret;
 }
 
 static void __devexit device_irq_exit(struct pm860x_chip *chip)
 {
-	if (chip->chip_irq >= 0)
-		free_irq(chip->chip_irq, chip);
+	if (chip->core_irq)
+		free_irq(chip->core_irq, chip);
 }
 
 static void __devinit device_8606_init(struct pm860x_chip *chip,
@@ -513,6 +673,26 @@ static void __devinit device_8607_init(struct pm860x_chip *chip,
 			goto out_dev;
 		}
 	}
+
+	if (pdata && pdata->power) {
+		ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
+				      ARRAY_SIZE(power_devs),
+				      &power_supply_resources[0], 0);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to add power supply "
+				"subdev\n");
+			goto out_dev;
+		}
+	}
+
+	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
+			      ARRAY_SIZE(onkey_devs),
+			      &onkey_resources[0], 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add onkey subdev\n");
+		goto out_dev;
+	}
+
 	return;
 out_dev:
 	mfd_remove_devices(chip->dev);
@@ -524,7 +704,7 @@ out:
 int pm860x_device_init(struct pm860x_chip *chip,
 		       struct pm860x_platform_data *pdata)
 {
-	chip->chip_irq = -EINVAL;
+	chip->core_irq = 0;
 
 	switch (chip->id) {
 	case CHIP_PM8606:

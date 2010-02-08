@@ -262,12 +262,13 @@ enum {
 
 /* Interrupt Number in 88PM8607 */
 enum {
-	PM8607_IRQ_ONKEY = 0,
+	PM8607_IRQ_ONKEY,
 	PM8607_IRQ_EXTON,
 	PM8607_IRQ_CHG,
 	PM8607_IRQ_BAT,
 	PM8607_IRQ_RTC,
-	PM8607_IRQ_VBAT = 8,
+	PM8607_IRQ_CC,
+	PM8607_IRQ_VBAT,
 	PM8607_IRQ_VCHG,
 	PM8607_IRQ_VSYS,
 	PM8607_IRQ_TINT,
@@ -275,7 +276,7 @@ enum {
 	PM8607_IRQ_GPADC1,
 	PM8607_IRQ_GPADC2,
 	PM8607_IRQ_GPADC3,
-	PM8607_IRQ_AUDIO_SHORT = 16,
+	PM8607_IRQ_AUDIO_SHORT,
 	PM8607_IRQ_PEN,
 	PM8607_IRQ_HEADSET,
 	PM8607_IRQ_HOOK,
@@ -291,26 +292,19 @@ enum {
 	PM8607_CHIP_B0 = 0x48,
 };
 
-#define PM860X_NUM_IRQ		24
-
-struct pm860x_irq {
-	irq_handler_t		handler;
-	void			*data;
-};
-
 struct pm860x_chip {
 	struct device		*dev;
 	struct mutex		io_lock;
 	struct mutex		irq_lock;
 	struct i2c_client	*client;
 	struct i2c_client	*companion;	/* companion chip client */
-	struct pm860x_irq	irq[PM860X_NUM_IRQ];
 
 	int			buck3_double;	/* DVC ramp slope double */
 	unsigned short		companion_addr;
 	int			id;
 	int			irq_mode;
-	int			chip_irq;
+	int			irq_base;
+	int			core_irq;
 	unsigned char		chip_version;
 
 };
@@ -347,14 +341,20 @@ struct pm860x_touch_pdata {
 	unsigned long	flags;
 };
 
+struct pm860x_power_pdata {
+	unsigned	fast_charge;	/* charge current */
+};
+
 struct pm860x_platform_data {
 	struct pm860x_backlight_pdata	*backlight;
 	struct pm860x_led_pdata		*led;
 	struct pm860x_touch_pdata	*touch;
+	struct pm860x_power_pdata	*power;
 
 	unsigned short	companion_addr;	/* I2C address of companion chip */
 	int		i2c_port;	/* Controlled by GI2C or PI2C */
 	int		irq_mode;	/* Clear interrupt by read/write(0/1) */
+	int		irq_base;	/* IRQ base number of 88pm860x */
 	struct regulator_init_data *regulator[PM8607_MAX_REGULATOR];
 };
 
@@ -367,12 +367,6 @@ extern int pm860x_bulk_read(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_bulk_write(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
-
-extern int pm860x_mask_irq(struct pm860x_chip *, int);
-extern int pm860x_unmask_irq(struct pm860x_chip *, int);
-extern int pm860x_request_irq(struct pm860x_chip *, int,
-			      irq_handler_t handler, void *);
-extern int pm860x_free_irq(struct pm860x_chip *, int);
 
 extern int pm860x_device_init(struct pm860x_chip *chip,
 			      struct pm860x_platform_data *pdata);
