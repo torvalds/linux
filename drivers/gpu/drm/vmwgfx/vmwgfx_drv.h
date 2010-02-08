@@ -113,6 +113,7 @@ struct vmw_fifo_state {
 	unsigned long static_buffer_size;
 	bool using_bounce_buffer;
 	uint32_t capabilities;
+	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
 };
 
@@ -213,7 +214,7 @@ struct vmw_private {
 	 * Fencing and IRQs.
 	 */
 
-	uint32_t fence_seq;
+	atomic_t fence_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
 	atomic_t fence_queue_waiters;
