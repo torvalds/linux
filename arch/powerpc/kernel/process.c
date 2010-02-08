@@ -258,7 +258,7 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 		return;
 
 	/* Clear the DAC and struct entries.  One shot trigger */
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~(DBSR_DAC1R | DBSR_DAC1W
 							| DBCR0_IDM));
 #endif
@@ -284,7 +284,7 @@ int set_dabr(unsigned long dabr)
 		return ppc_md.set_dabr(dabr);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	mtspr(SPRN_DAC1, dabr);
 #elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
@@ -371,7 +371,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	/* If new thread DAC (HW breakpoint) is the same then leave it */
 	if (new->thread.dabr)
 		set_dabr(new->thread.dabr);
@@ -514,7 +514,7 @@ void show_regs(struct pt_regs * regs)
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
 #else
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
@@ -560,7 +560,7 @@ void flush_thread(void)
 		current->thread.dabr = 0;
 		set_dabr(0);
 
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		current->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W);
 #endif
 	}

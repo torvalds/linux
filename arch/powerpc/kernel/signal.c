@@ -147,7 +147,7 @@ static int do_signal_pending(sigset_t *oldset, struct pt_regs *regs)
 	 */
 	if (current->thread.dabr) {
 		set_dabr(current->thread.dabr);
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		mtspr(SPRN_DBCR0, current->thread.dbcr0);
 #endif
 	}

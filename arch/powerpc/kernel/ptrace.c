@@ -46,7 +46,7 @@
 /*
  * Set of msr bits that gdb can change on behalf of a process.
  */
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 #define MSR_DEBUGCHANGE	0
 #else
 #define MSR_DEBUGCHANGE	(MSR_SE | MSR_BE)
@@ -703,7 +703,7 @@ void user_enable_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		task->thread.dbcr0 &= ~DBCR0_BT;
 		task->thread.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 		regs->msr |= MSR_DE;
@@ -720,7 +720,7 @@ void user_enable_block_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		task->thread.dbcr0 &= ~DBCR0_IC;
 		task->thread.dbcr0 = DBCR0_IDM | DBCR0_BT;
 		regs->msr |= MSR_DE;
@@ -737,7 +737,7 @@ void user_disable_single_step(struct task_struct *task)
 	struct pt_regs *regs = task->thread.regs;
 
 	if (regs != NULL) {
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		/* If DAC don't clear DBCRO_IDM or MSR_DE */
 		if (task->thread.dabr)
 			task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT);
@@ -745,9 +745,6 @@ void user_disable_single_step(struct task_struct *task)
 			task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT | DBCR0_IDM);
 			regs->msr &= ~MSR_DE;
 		}
-#elif defined(CONFIG_40x)
-		task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_BT | DBCR0_IDM);
-		regs->msr &= ~MSR_DE;
 #else
 		regs->msr &= ~(MSR_SE | MSR_BE);
 #endif
@@ -769,7 +766,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	if ((data & ~0x7UL) >= TASK_SIZE)
 		return -EIO;
 
-#ifndef CONFIG_BOOKE
+#ifndef CONFIG_PPC_ADV_DEBUG_REGS
 
 	/* For processors using DABR (i.e. 970), the bottom 3 bits are flags.
 	 *  It was assumed, on previous implementations, that 3 bits were
@@ -790,8 +787,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	/* Move contents to the DABR register */
 	task->thread.dabr = data;
 
-#endif
-#if defined(CONFIG_BOOKE)
+#else /* CONFIG_PPC_ADV_DEBUG_REGS */
 
 	/* As described above, it was assumed 3 bits were passed with the data
 	 *  address, but we will assume only the mode bits will be passed
@@ -824,7 +820,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		task->thread.dbcr0 |= DBSR_DAC1W;
 
 	task->thread.regs->msr |= MSR_DE;
-#endif
+#endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 	return 0;
 }
 

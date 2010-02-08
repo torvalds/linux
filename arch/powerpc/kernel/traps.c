@@ -299,7 +299,7 @@ static inline int check_io_access(struct pt_regs *regs)
 	return 0;
 }
 
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 /* On 4xx, the reason for the machine check or program exception
    is in the ESR. */
 #define get_reason(regs)	((regs)->dsisr)
@@ -1033,7 +1033,7 @@ void SoftwareEmulation(struct pt_regs *regs)
 }
 #endif /* CONFIG_8xx */
 
-#if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 
 void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 {
@@ -1102,7 +1102,7 @@ void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 		do_dabr(regs, mfspr(SPRN_DAC1), debug_status);
 	}
 }
-#endif /* CONFIG_4xx || CONFIG_BOOKE */
+#endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
 #if !defined(CONFIG_TAU_INT)
 void TAUException(struct pt_regs *regs)
