@@ -146,6 +146,7 @@ config MIPS_COBALT
 	select CSRC_R4K
 	select CEVT_GT641XX
 	select DMA_NONCOHERENT
+	select EARLY_PRINTK_8250 if EARLY_PRINTK
 	select HW_HAS_PCI
 	select I8253
 	select I8259
