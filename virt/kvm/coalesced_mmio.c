@@ -133,7 +133,7 @@ void kvm_coalesced_mmio_free(struct kvm *kvm)
 }
 
 int kvm_vm_ioctl_register_coalesced_mmio(struct kvm *kvm,
-				         struct kvm_coalesced_mmio_zone *zone)
+					 struct kvm_coalesced_mmio_zone *zone)
 {
 	struct kvm_coalesced_mmio_dev *dev = kvm->coalesced_mmio_dev;
 
@@ -166,7 +166,7 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 	mutex_lock(&kvm->slots_lock);
 
 	i = dev->nb_zones;
-	while(i) {
+	while (i) {
 		z = &dev->zone[i - 1];
 
 		/* unregister all zones
