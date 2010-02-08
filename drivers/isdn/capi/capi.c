@@ -149,7 +149,6 @@ static struct tty_driver *capinc_tty_driver;
 static int capiminor_add_ack(struct capiminor *mp, u16 datahandle)
 {
 	struct ackqueue_entry *n;
-	unsigned long flags;
 
 	n = kmalloc(sizeof(*n), GFP_ATOMIC);
 	if (unlikely(!n)) {
@@ -158,44 +157,40 @@ static int capiminor_add_ack(struct capiminor *mp, u16 datahandle)
 	}
 	n->datahandle = datahandle;
 	INIT_LIST_HEAD(&n->list);
-	spin_lock_irqsave(&mp->ackqlock, flags);
+	spin_lock_bh(&mp->ackqlock);
 	list_add_tail(&n->list, &mp->ackqueue);
 	mp->nack++;
-	spin_unlock_irqrestore(&mp->ackqlock, flags);
+	spin_unlock_bh(&mp->ackqlock);
 	return 0;
 }
 
 static int capiminor_del_ack(struct capiminor *mp, u16 datahandle)
 {
 	struct ackqueue_entry *p, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mp->ackqlock, flags);
+	spin_lock_bh(&mp->ackqlock);
 	list_for_each_entry_safe(p, tmp, &mp->ackqueue, list) {
  		if (p->datahandle == datahandle) {
 			list_del(&p->list);
-			kfree(p);
 			mp->nack--;
-			spin_unlock_irqrestore(&mp->ackqlock, flags);
+			spin_unlock_bh(&mp->ackqlock);
+			kfree(p);
 			return 0;
 		}
 	}
-	spin_unlock_irqrestore(&mp->ackqlock, flags);
+	spin_unlock_bh(&mp->ackqlock);
 	return -1;
 }
 
 static void capiminor_del_all_ack(struct capiminor *mp)
 {
 	struct ackqueue_entry *p, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mp->ackqlock, flags);
 	list_for_each_entry_safe(p, tmp, &mp->ackqueue, list) {
 		list_del(&p->list);
 		kfree(p);
 		mp->nack--;
 	}
-	spin_unlock_irqrestore(&mp->ackqlock, flags);
 }
 
 
@@ -676,7 +671,7 @@ static void capi_recv_message(struct capi20_appl *ap, struct sk_buff *skb)
 				CAPIMSG_U16(skb->data, CAPIMSG_BASELEN+4+2));
 #endif
 		kfree_skb(skb);
-		(void)capiminor_del_ack(mp, datahandle);
+		capiminor_del_ack(mp, datahandle);
 		tty = tty_port_tty_get(&mp->port);
 		if (tty) {
 			tty_wakeup(tty);
