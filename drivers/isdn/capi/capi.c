@@ -1005,16 +1005,34 @@ static const struct file_operations capi_fops =
 #ifdef CONFIG_ISDN_CAPI_MIDDLEWARE
 /* -------- tty_operations for capincci ----------------------------- */
 
+static int
+capinc_tty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	int idx = tty->index;
+	struct capiminor *mp = capiminor_get(idx);
+	int ret = tty_init_termios(tty);
+
+	if (ret == 0) {
+		tty_driver_kref_get(driver);
+		tty->count++;
+		tty->driver_data = mp;
+		driver->ttys[idx] = tty;
+	} else
+		capiminor_put(mp);
+	return ret;
+}
+
+static void capinc_tty_cleanup(struct tty_struct *tty)
+{
+	struct capiminor *mp = tty->driver_data;
+	tty->driver_data = NULL;
+	capiminor_put(mp);
+}
+
 static int capinc_tty_open(struct tty_struct * tty, struct file * file)
 {
-	struct capiminor *mp;
+	struct capiminor *mp = tty->driver_data;
 	unsigned long flags;
-
-	mp = capiminor_get(iminor(file->f_path.dentry->d_inode));
-	if (mp->nccip == NULL)
-		return -ENXIO;
-
-	tty->driver_data = (void *)mp;
 
 	spin_lock_irqsave(&workaround_lock, flags);
 	if (atomic_read(&mp->ttyopencount) == 0)
@@ -1030,15 +1048,12 @@ static int capinc_tty_open(struct tty_struct * tty, struct file * file)
 
 static void capinc_tty_close(struct tty_struct * tty, struct file * file)
 {
-	struct capiminor *mp;
+	struct capiminor *mp = tty->driver_data;
 
-	mp = (struct capiminor *)tty->driver_data;
-	if (mp)	{
 		if (atomic_dec_and_test(&mp->ttyopencount)) {
 #ifdef _DEBUG_REFCOUNT
 			printk(KERN_DEBUG "capinc_tty_close lastclose\n");
 #endif
-			tty->driver_data = NULL;
 			mp->tty = NULL;
 		}
 #ifdef _DEBUG_REFCOUNT
@@ -1046,9 +1061,6 @@ static void capinc_tty_close(struct tty_struct * tty, struct file * file)
 #endif
 		if (mp->nccip == NULL)
 			capiminor_free(mp);
-
-		capiminor_put(mp);
-	}
 
 #ifdef _DEBUG_REFCOUNT
 	printk(KERN_DEBUG "capinc_tty_close\n");
@@ -1333,6 +1345,8 @@ static const struct tty_operations capinc_ops = {
 	.flush_buffer = capinc_tty_flush_buffer,
 	.set_ldisc = capinc_tty_set_ldisc,
 	.send_xchar = capinc_tty_send_xchar,
+	.install = capinc_tty_install,
+	.cleanup = capinc_tty_cleanup,
 };
 
 static int __init capinc_tty_init(void)
