@@ -2210,19 +2210,24 @@ static int capidrv_delcontr(u16 contr)
 }
 
 
-static void lower_callback(unsigned int cmd, u32 contr, void *data)
+static int
+lower_callback(struct notifier_block *nb, unsigned long val, void *v)
 {
+	capi_profile profile;
+	u32 contr = (long)v;
 
-	switch (cmd) {
-	case KCI_CONTRUP:
+	switch (val) {
+	case CAPICTR_UP:
 		printk(KERN_INFO "capidrv: controller %hu up\n", contr);
-		(void) capidrv_addcontr(contr, (capi_profile *) data);
+		if (capi20_get_profile(contr, &profile) == CAPI_NOERROR)
+			(void) capidrv_addcontr(contr, &profile);
 		break;
-	case KCI_CONTRDOWN:
+	case CAPICTR_DOWN:
 		printk(KERN_INFO "capidrv: controller %hu down\n", contr);
 		(void) capidrv_delcontr(contr);
 		break;
 	}
+	return NOTIFY_OK;
 }
 
 /*
@@ -2262,6 +2267,10 @@ static void __exit proc_exit(void)
 	remove_proc_entry("capi/capidrv", NULL);
 }
 
+static struct notifier_block capictr_nb = {
+	.notifier_call = lower_callback,
+};
+
 static int __init capidrv_init(void)
 {
 	capi_profile profile;
@@ -2278,7 +2287,7 @@ static int __init capidrv_init(void)
 		return -EIO;
 	}
 
-	capi20_set_callback(&global.ap, lower_callback);
+	register_capictr_notifier(&capictr_nb);
 
 	errcode = capi20_get_profile(0, &profile);
 	if (errcode != CAPI_NOERROR) {
@@ -2300,6 +2309,7 @@ static int __init capidrv_init(void)
 
 static void __exit capidrv_exit(void)
 {
+	unregister_capictr_notifier(&capictr_nb);
 	capi20_release(&global.ap);
 
 	proc_exit();

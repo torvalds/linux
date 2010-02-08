@@ -44,12 +44,10 @@ module_param(showcapimsgs, uint, 0);
 
 /* ------------------------------------------------------------- */
 
-struct capi_notifier {
+struct capictr_event {
 	struct work_struct work;
-	unsigned int cmd;
+	unsigned int type;
 	u32 controller;
-	u16 applid;
-	u32 ncci;
 };
 
 /* ------------------------------------------------------------- */
@@ -70,6 +68,8 @@ struct capi20_appl *capi_applications[CAPI_MAXAPPL];
 struct capi_ctr *capi_controller[CAPI_MAXCONTR];
 
 static int ncontrollers;
+
+static BLOCKING_NOTIFIER_HEAD(ctr_notifier_list);
 
 /* -------- controller ref counting -------------------------------------- */
 
@@ -165,8 +165,6 @@ static void release_appl(struct capi_ctr *ctr, u16 applid)
 	capi_ctr_put(ctr);
 }
 
-/* -------- KCI_CONTRUP --------------------------------------- */
-
 static void notify_up(u32 contr)
 {
 	struct capi20_appl *ap;
@@ -188,15 +186,10 @@ static void notify_up(u32 contr)
 			if (!ap || ap->release_in_progress)
 				continue;
 			register_appl(ctr, applid, &ap->rparam);
-			if (ap->callback && !ap->release_in_progress)
-				ap->callback(KCI_CONTRUP, contr,
-					     &ctr->profile);
 		}
 	} else
 		printk(KERN_WARNING "%s: invalid contr %d\n", __func__, contr);
 }
-
-/* -------- KCI_CONTRDOWN ------------------------------------- */
 
 static void ctr_down(struct capi_ctr *ctr)
 {
@@ -215,11 +208,8 @@ static void ctr_down(struct capi_ctr *ctr)
 
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
 		ap = get_capi_appl_by_nr(applid);
-		if (ap && !ap->release_in_progress) {
-			if (ap->callback)
-				ap->callback(KCI_CONTRDOWN, ctr->cnr, NULL);
+		if (ap && !ap->release_in_progress)
 			capi_ctr_put(ctr);
-		}
 	}
 }
 
@@ -237,45 +227,63 @@ static void notify_down(u32 contr)
 		printk(KERN_WARNING "%s: invalid contr %d\n", __func__, contr);
 }
 
-static void notify_handler(struct work_struct *work)
+static int
+notify_handler(struct notifier_block *nb, unsigned long val, void *v)
 {
-	struct capi_notifier *np =
-		container_of(work, struct capi_notifier, work);
+	u32 contr = (long)v;
 
-	switch (np->cmd) {
-	case KCI_CONTRUP:
-		notify_up(np->controller);
+	switch (val) {
+	case CAPICTR_UP:
+		notify_up(contr);
 		break;
-	case KCI_CONTRDOWN:
-		notify_down(np->controller);
+	case CAPICTR_DOWN:
+		notify_down(contr);
 		break;
 	}
+	return NOTIFY_OK;
+}
 
-	kfree(np);
+static void do_notify_work(struct work_struct *work)
+{
+	struct capictr_event *event =
+		container_of(work, struct capictr_event, work);
+
+	blocking_notifier_call_chain(&ctr_notifier_list, event->type,
+				     (void *)(long)event->controller);
+	kfree(event);
 }
 
 /*
  * The notifier will result in adding/deleteing of devices. Devices can
  * only removed in user process, not in bh.
  */
-static int notify_push(unsigned int cmd, u32 controller, u16 applid, u32 ncci)
+static int notify_push(unsigned int event_type, u32 controller)
 {
-	struct capi_notifier *np = kmalloc(sizeof(*np), GFP_ATOMIC);
+	struct capictr_event *event = kmalloc(sizeof(*event), GFP_ATOMIC);
 
-	if (!np)
+	if (!event)
 		return -ENOMEM;
 
-	INIT_WORK(&np->work, notify_handler);
-	np->cmd = cmd;
-	np->controller = controller;
-	np->applid = applid;
-	np->ncci = ncci;
+	INIT_WORK(&event->work, do_notify_work);
+	event->type = event_type;
+	event->controller = controller;
 
-	schedule_work(&np->work);
+	schedule_work(&event->work);
 	return 0;
 }
 
-	
+int register_capictr_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&ctr_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(register_capictr_notifier);
+
+int unregister_capictr_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&ctr_notifier_list, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_capictr_notifier);
+
 /* -------- Receiver ------------------------------------------ */
 
 static void recv_handler(struct work_struct *work)
@@ -401,7 +409,7 @@ void capi_ctr_ready(struct capi_ctr *ctr)
 	printk(KERN_NOTICE "kcapi: controller [%03d] \"%s\" ready.\n",
 	       ctr->cnr, ctr->name);
 
-	notify_push(KCI_CONTRUP, ctr->cnr, 0, 0);
+	notify_push(CAPICTR_UP, ctr->cnr);
 }
 
 EXPORT_SYMBOL(capi_ctr_ready);
@@ -418,7 +426,7 @@ void capi_ctr_down(struct capi_ctr *ctr)
 {
 	printk(KERN_NOTICE "kcapi: controller [%03d] down.\n", ctr->cnr);
 
-	notify_push(KCI_CONTRDOWN, ctr->cnr, 0, 0);
+	notify_push(CAPICTR_DOWN, ctr->cnr);
 }
 
 EXPORT_SYMBOL(capi_ctr_down);
@@ -633,7 +641,6 @@ u16 capi20_register(struct capi20_appl *ap)
 	ap->nrecvdatapkt = 0;
 	ap->nsentctlpkt = 0;
 	ap->nsentdatapkt = 0;
-	ap->callback = NULL;
 	mutex_init(&ap->recv_mtx);
 	skb_queue_head_init(&ap->recv_queue);
 	INIT_WORK(&ap->recv_work, recv_handler);
@@ -1137,30 +1144,6 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 
 EXPORT_SYMBOL(capi20_manufacturer);
 
-/* temporary hack */
-
-/**
- * capi20_set_callback() - set CAPI application notification callback function
- * @ap:		CAPI application descriptor structure.
- * @callback:	callback function (NULL to remove).
- *
- * If not NULL, the callback function will be called to notify the
- * application of the addition or removal of a controller.
- * The first argument (cmd) will tell whether the controller was added
- * (KCI_CONTRUP) or removed (KCI_CONTRDOWN).
- * The second argument (contr) will be the controller number.
- * For cmd==KCI_CONTRUP the third argument (data) will be a pointer to the
- * new controller's capability profile structure.
- */
-
-void capi20_set_callback(struct capi20_appl *ap,
-			 void (*callback) (unsigned int cmd, __u32 contr, void *data))
-{
-	ap->callback = callback;
-}
-
-EXPORT_SYMBOL(capi20_set_callback);
-
 /* ------------------------------------------------------------- */
 /* -------- Init & Cleanup ------------------------------------- */
 /* ------------------------------------------------------------- */
@@ -1169,9 +1152,16 @@ EXPORT_SYMBOL(capi20_set_callback);
  * init / exit functions
  */
 
+static struct notifier_block capictr_nb = {
+	.notifier_call = notify_handler,
+	.priority = INT_MAX,
+};
+
 static int __init kcapi_init(void)
 {
 	int err;
+
+	register_capictr_notifier(&capictr_nb);
 
 	err = cdebug_init();
 	if (!err)
