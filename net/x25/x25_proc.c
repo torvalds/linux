@@ -93,40 +93,16 @@ out:
 	return 0;
 }
 
-static __inline__ struct sock *x25_get_socket_idx(loff_t pos)
-{
-	struct sock *s;
-	struct hlist_node *node;
-
-	sk_for_each(s, node, &x25_list)
-		if (!pos--)
-			goto found;
-	s = NULL;
-found:
-	return s;
-}
-
 static void *x25_seq_socket_start(struct seq_file *seq, loff_t *pos)
 	__acquires(x25_list_lock)
 {
-	loff_t l = *pos;
-
 	read_lock_bh(&x25_list_lock);
-	return l ? x25_get_socket_idx(--l) : SEQ_START_TOKEN;
+	return seq_hlist_start_head(&x25_list, *pos);
 }
 
 static void *x25_seq_socket_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct sock *s;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN) {
-		s = sk_head(&x25_list);
-		goto out;
-	}
-	s = sk_next(v);
-out:
-	return s;
+	return seq_hlist_next(v, &x25_list, pos);
 }
 
 static void x25_seq_socket_stop(struct seq_file *seq, void *v)
@@ -148,7 +124,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 		goto out;
 	}
 
-	s = v;
+	s = sk_entry(v);
 	x25 = x25_sk(s);
 
 	if (!x25->neighbour || (dev = x25->neighbour->dev) == NULL)
