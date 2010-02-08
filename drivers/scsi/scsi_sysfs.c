@@ -847,6 +847,8 @@ static int scsi_target_add(struct scsi_target *starget)
 	if (starget->state != STARGET_CREATED)
 		return 0;
 
+	device_enable_async_suspend(&starget->dev);
+
 	error = device_add(&starget->dev);
 	if (error) {
 		dev_err(&starget->dev, "target device_add failed, error %d\n", error);
@@ -886,11 +888,13 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 		return error;
 
 	transport_configure_device(&starget->dev);
+	device_enable_async_suspend(&sdev->sdev_gendev);
 	error = device_add(&sdev->sdev_gendev);
 	if (error) {
 		printk(KERN_INFO "error 1\n");
 		goto out_remove;
 	}
+	device_enable_async_suspend(&sdev->sdev_dev);
 	error = device_add(&sdev->sdev_dev);
 	if (error) {
 		printk(KERN_INFO "error 2\n");
