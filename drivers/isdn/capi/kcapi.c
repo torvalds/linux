@@ -777,11 +777,8 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 	 * synchronizes this service with capi20_release.
 	 */
 	ctr = get_capi_ctr_by_nr(CAPIMSG_CONTROLLER(skb->data));
-	if (!ctr || ctr->state != CAPI_CTR_RUNNING) {
-		ctr = get_capi_ctr_by_nr(1); /* XXX why? */
-		if (!ctr || ctr->state != CAPI_CTR_RUNNING)
-			return CAPI_REGNOTINSTALLED;
-	}
+	if (!ctr || ctr->state != CAPI_CTR_RUNNING)
+		return CAPI_REGNOTINSTALLED;
 	if (ctr->blocked)
 		return CAPI_SENDQUEUEFULL;
 
