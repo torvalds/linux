@@ -83,6 +83,8 @@ struct datahandle_queue {
 };
 
 struct capiminor {
+	struct kref kref;
+
 	struct capincci  *nccip;
 	unsigned int      minor;
 	struct dentry *capifs_dentry;
@@ -223,6 +225,8 @@ static struct capiminor *capiminor_alloc(struct capi20_appl *ap, u32 ncci)
 		return NULL;
 	}
 
+	kref_init(&mp->kref);
+
 	mp->ap = ap;
 	mp->ncci = ncci;
 	mp->msgid = 0;
@@ -265,18 +269,11 @@ err_out1:
 	return NULL;
 }
 
-static void capiminor_free(struct capiminor *mp)
+static void capiminor_destroy(struct kref *kref)
 {
-	unsigned long flags;
-
-	tty_unregister_device(capinc_tty_driver, mp->minor);
-
-	write_lock_irqsave(&capiminors_lock, flags);
-	capiminors[mp->minor] = NULL;
-	write_unlock_irqrestore(&capiminors_lock, flags);
+	struct capiminor *mp = container_of(kref, struct capiminor, kref);
 
 	kfree_skb(mp->ttyskb);
-	mp->ttyskb = NULL;
 	skb_queue_purge(&mp->inqueue);
 	skb_queue_purge(&mp->outqueue);
 	capiminor_del_all_ack(mp);
@@ -289,9 +286,29 @@ static struct capiminor *capiminor_get(unsigned int minor)
 
 	read_lock(&capiminors_lock);
 	mp = capiminors[minor];
+	if (mp)
+		kref_get(&mp->kref);
 	read_unlock(&capiminors_lock);
 
 	return mp;
+}
+
+static inline void capiminor_put(struct capiminor *mp)
+{
+	kref_put(&mp->kref, capiminor_destroy);
+}
+
+static void capiminor_free(struct capiminor *mp)
+{
+	unsigned long flags;
+
+	tty_unregister_device(capinc_tty_driver, mp->minor);
+
+	write_lock_irqsave(&capiminors_lock, flags);
+	capiminors[mp->minor] = NULL;
+	write_unlock_irqrestore(&capiminors_lock, flags);
+
+	capiminor_put(mp);
 }
 
 /* -------- struct capincci ----------------------------------------- */
@@ -1029,6 +1046,8 @@ static void capinc_tty_close(struct tty_struct * tty, struct file * file)
 #endif
 		if (mp->nccip == NULL)
 			capiminor_free(mp);
+
+		capiminor_put(mp);
 	}
 
 #ifdef _DEBUG_REFCOUNT
