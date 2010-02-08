@@ -32,7 +32,6 @@ static char *revision = "$Revision: 1.1.2.3 $";
 #define CAPIFS_SUPER_MAGIC (('C'<<8)|'N')
 
 static struct vfsmount *capifs_mnt;
-static struct dentry *capifs_root;
 
 static struct {
 	int setuid;
@@ -118,7 +117,7 @@ capifs_fill_super(struct super_block *s, void *data, int silent)
 	inode->i_fop = &simple_dir_operations;
 	inode->i_nlink = 2;
 
-	capifs_root = s->s_root = d_alloc_root(inode);
+	s->s_root = d_alloc_root(inode);
 	if (s->s_root)
 		return 0;
 	
@@ -143,15 +142,17 @@ static struct file_system_type capifs_fs_type = {
 
 struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
 {
+	struct super_block *s = capifs_mnt->mnt_sb;
+	struct dentry *root = s->s_root;
 	struct dentry *dentry;
 	struct inode *inode;
 	char name[10];
 	int namelen;
 
-	mutex_lock(&capifs_root->d_inode->i_mutex);
+	mutex_lock(&root->d_inode->i_mutex);
 
 	namelen = sprintf(name, "%d", number);
-	dentry = lookup_one_len(name, capifs_root, namelen);
+	dentry = lookup_one_len(name, root, namelen);
 	if (IS_ERR(dentry)) {
 		dentry = NULL;
 		goto unlock_out;
@@ -163,7 +164,7 @@ struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
 		goto unlock_out;
 	}
 
-	inode = new_inode(capifs_mnt->mnt_sb);
+	inode = new_inode(s);
 	if (!inode) {
 		dput(dentry);
 		dentry = NULL;
@@ -181,19 +182,20 @@ struct dentry *capifs_new_ncci(unsigned int number, dev_t device)
 	dget(dentry);
 
 unlock_out:
-	mutex_unlock(&capifs_root->d_inode->i_mutex);
+	mutex_unlock(&root->d_inode->i_mutex);
 
 	return dentry;
 }
 
 void capifs_free_ncci(struct dentry *dentry)
 {
+	struct dentry *root = capifs_mnt->mnt_sb->s_root;
 	struct inode *inode;
 
 	if (!dentry)
 		return;
 
-	mutex_lock(&capifs_root->d_inode->i_mutex);
+	mutex_lock(&root->d_inode->i_mutex);
 
 	inode = dentry->d_inode;
 	if (inode) {
@@ -203,7 +205,7 @@ void capifs_free_ncci(struct dentry *dentry)
 	}
 	dput(dentry);
 
-	mutex_unlock(&capifs_root->d_inode->i_mutex);
+	mutex_unlock(&root->d_inode->i_mutex);
 }
 
 static int __init capifs_init(void)
