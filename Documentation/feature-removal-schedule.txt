@@ -542,3 +542,14 @@ Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
 	sensors) wich are also supported by the gspca_zc3xx driver
 	(which supports 53 USB-ID's in total)
 Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	corgikbd, spitzkbd, tosakbd driver
+When:	2.6.35
+Files:	drivers/input/keyboard/{corgi,spitz,tosa}kbd.c
+Why:	We now have a generic GPIO based matrix keyboard driver that
+	are fully capable of handling all the keys on these devices.
+	The original drivers manipulate the GPIO registers directly
+	and so are difficult to maintain.
+Who:	Eric Miao <eric.y.miao@gmail.com>

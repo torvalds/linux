@@ -144,12 +144,14 @@ config KEYBOARD_BFIN
 	  module will be called bf54x-keys.
 
 config KEYBOARD_CORGI
-	tristate "Corgi keyboard"
+	tristate "Corgi keyboard (deprecated)"
 	depends on PXA_SHARPSL
-	default y
 	help
 	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C7xx
 	  series of PDAs.
+
+	  This driver is now deprecated, use generic GPIO based matrix
+	  keyboard driver instead.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called corgikbd.
@@ -338,12 +340,14 @@ config KEYBOARD_PXA930_ROTARY
 	  module will be called pxa930_rotary.
 
 config KEYBOARD_SPITZ
-	tristate "Spitz keyboard"
+	tristate "Spitz keyboard (deprecated)"
 	depends on PXA_SHARPSL
-	default y
 	help
 	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
 	  SL-C3000 and Sl-C3100 series of PDAs.
+
+	  This driver is now deprecated, use generic GPIO based matrix
+	  keyboard driver instead.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called spitzkbd.
@@ -411,11 +415,13 @@ config KEYBOARD_TWL4030
 	  module will be called twl4030_keypad.
 
 config KEYBOARD_TOSA
-	tristate "Tosa keyboard"
+	tristate "Tosa keyboard (deprecated)"
 	depends on MACH_TOSA
-	default y
 	help
 	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
+
+	  This driver is now deprecated, use generic GPIO based matrix
+	  keyboard driver instead.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tosakbd.
