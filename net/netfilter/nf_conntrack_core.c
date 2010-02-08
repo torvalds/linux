@@ -63,8 +63,6 @@ EXPORT_SYMBOL_GPL(nf_conntrack_max);
 struct nf_conn nf_conntrack_untracked __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_untracked);
 
-static struct kmem_cache *nf_conntrack_cachep __read_mostly;
-
 static int nf_conntrack_hash_rnd_initted;
 static unsigned int nf_conntrack_hash_rnd;
 
@@ -566,7 +564,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 	 * Do not use kmem_cache_zalloc(), as this cache uses
 	 * SLAB_DESTROY_BY_RCU.
 	 */
-	ct = kmem_cache_alloc(nf_conntrack_cachep, gfp);
+	ct = kmem_cache_alloc(net->ct.nf_conntrack_cachep, gfp);
 	if (ct == NULL) {
 		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
 		atomic_dec(&net->ct.count);
@@ -605,7 +603,7 @@ void nf_conntrack_free(struct nf_conn *ct)
 	nf_ct_ext_destroy(ct);
 	atomic_dec(&net->ct.count);
 	nf_ct_ext_free(ct);
-	kmem_cache_free(nf_conntrack_cachep, ct);
+	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
@@ -1113,7 +1111,6 @@ static void nf_conntrack_cleanup_init_net(void)
 
 	nf_conntrack_helper_fini();
 	nf_conntrack_proto_fini();
-	kmem_cache_destroy(nf_conntrack_cachep);
 }
 
 static void nf_conntrack_cleanup_net(struct net *net)
@@ -1131,6 +1128,8 @@ static void nf_conntrack_cleanup_net(struct net *net)
 	nf_conntrack_ecache_fini(net);
 	nf_conntrack_acct_fini(net);
 	nf_conntrack_expect_fini(net);
+	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
+	kfree(net->ct.slabname);
 	free_percpu(net->ct.stat);
 }
 
@@ -1266,15 +1265,6 @@ static int nf_conntrack_init_init_net(void)
 	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
 	       nf_conntrack_max);
 
-	nf_conntrack_cachep = kmem_cache_create("nf_conntrack",
-						sizeof(struct nf_conn),
-						0, SLAB_DESTROY_BY_RCU, NULL);
-	if (!nf_conntrack_cachep) {
-		printk(KERN_ERR "Unable to create nf_conn slab cache\n");
-		ret = -ENOMEM;
-		goto err_cache;
-	}
-
 	ret = nf_conntrack_proto_init();
 	if (ret < 0)
 		goto err_proto;
@@ -1296,8 +1286,6 @@ static int nf_conntrack_init_init_net(void)
 err_helper:
 	nf_conntrack_proto_fini();
 err_proto:
-	kmem_cache_destroy(nf_conntrack_cachep);
-err_cache:
 	return ret;
 }
 
@@ -1318,6 +1306,21 @@ static int nf_conntrack_init_net(struct net *net)
 	if (!net->ct.stat) {
 		ret = -ENOMEM;
 		goto err_stat;
+	}
+
+	net->ct.slabname = kasprintf(GFP_KERNEL, "nf_conntrack_%p", net);
+	if (!net->ct.slabname) {
+		ret = -ENOMEM;
+		goto err_slabname;
+	}
+
+	net->ct.nf_conntrack_cachep = kmem_cache_create(net->ct.slabname,
+							sizeof(struct nf_conn), 0,
+							SLAB_DESTROY_BY_RCU, NULL);
+	if (!net->ct.nf_conntrack_cachep) {
+		printk(KERN_ERR "Unable to create nf_conn slab cache\n");
+		ret = -ENOMEM;
+		goto err_cache;
 	}
 	net->ct.hash = nf_ct_alloc_hashtable(&nf_conntrack_htable_size,
 					     &net->ct.hash_vmalloc, 1);
@@ -1346,6 +1349,10 @@ err_expect:
 	nf_ct_free_hashtable(net->ct.hash, net->ct.hash_vmalloc,
 			     nf_conntrack_htable_size);
 err_hash:
+	kmem_cache_destroy(net->ct.nf_conntrack_cachep);
+err_cache:
+	kfree(net->ct.slabname);
+err_slabname:
 	free_percpu(net->ct.stat);
 err_stat:
 	return ret;
