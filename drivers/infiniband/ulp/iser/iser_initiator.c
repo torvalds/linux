@@ -514,10 +514,7 @@ void iser_rcv_completion(struct iser_rx_desc *rx_desc,
 void iser_snd_completion(struct iser_tx_desc *tx_desc,
 			struct iser_conn *ib_conn)
 {
-	struct iscsi_iser_conn *iser_conn = ib_conn->iser_conn;
-	struct iscsi_conn      *conn = iser_conn->iscsi_conn;
 	struct iscsi_task *task;
-	int resume_tx = 0;
 	struct iser_device *device = ib_conn->device;
 
 	if (tx_desc->type == ISCSI_TX_DATAOUT) {
@@ -526,16 +523,7 @@ void iser_snd_completion(struct iser_tx_desc *tx_desc,
 		kmem_cache_free(ig.desc_cache, tx_desc);
 	}
 
-	if (atomic_read(&iser_conn->ib_conn->post_send_buf_count) ==
-	    ISER_QP_MAX_REQ_DTOS)
-		resume_tx = 1;
-
 	atomic_dec(&ib_conn->post_send_buf_count);
-
-	if (resume_tx) {
-		iser_dbg("%ld resuming tx\n",jiffies);
-		iscsi_conn_queue_work(conn);
-	}
 
 	if (tx_desc->type == ISCSI_TX_CONTROL) {
 		/* this arithmetic is legal by libiscsi dd_data allocation */
