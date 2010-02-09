@@ -182,8 +182,14 @@ static struct platform_device netspace_v2_gpio_buttons = {
 
 static struct gpio_led netspace_v2_gpio_led_pins[] = {
 	{
-		.name	= "ns_v2:red:fail",
-		.gpio	= NETSPACE_V2_GPIO_RED_LED,
+		.name			= "ns_v2:blue:sata",
+		.default_trigger	= "default-on",
+		.gpio			= NETSPACE_V2_GPIO_BLUE_LED_CMD,
+		.active_low		= 1,
+	},
+	{
+		.name			= "ns_v2:red:fail",
+		.gpio			= NETSPACE_V2_GPIO_RED_LED,
 	},
 };
 
@@ -202,30 +208,19 @@ static struct platform_device netspace_v2_gpio_leds = {
 
 static void __init netspace_v2_gpio_leds_init(void)
 {
+	int err;
+
+	/* Configure register slow_led to allow SATA activity LED blinking */
+	err = gpio_request(NETSPACE_V2_GPIO_BLUE_LED_SLOW, "blue LED slow");
+	if (err == 0) {
+		err = gpio_direction_output(NETSPACE_V2_GPIO_BLUE_LED_SLOW, 0);
+		if (err)
+			gpio_free(NETSPACE_V2_GPIO_BLUE_LED_SLOW);
+	}
+	if (err)
+		pr_err("netspace_v2: failed to configure blue LED slow GPIO\n");
+
 	platform_device_register(&netspace_v2_gpio_leds);
-
-	/*
-	 * Configure the front blue LED to blink in relation with the SATA
-	 * activity.
-	 */
-	if (gpio_request(NETSPACE_V2_GPIO_BLUE_LED_SLOW,
-			 "SATA blue LED slow") != 0)
-		return;
-	if (gpio_direction_output(NETSPACE_V2_GPIO_BLUE_LED_SLOW, 0) != 0)
-		goto err_free_1;
-	if (gpio_request(NETSPACE_V2_GPIO_BLUE_LED_CMD,
-			 "SATA blue LED command") != 0)
-		goto err_free_1;
-	if (gpio_direction_output(NETSPACE_V2_GPIO_BLUE_LED_CMD, 0) != 0)
-		goto err_free_2;
-
-	return;
-
-err_free_2:
-	gpio_free(NETSPACE_V2_GPIO_BLUE_LED_CMD);
-err_free_1:
-	gpio_free(NETSPACE_V2_GPIO_BLUE_LED_SLOW);
-	pr_err("netspace_v2: failed to configure SATA blue LED\n");
 }
 
 /*****************************************************************************
