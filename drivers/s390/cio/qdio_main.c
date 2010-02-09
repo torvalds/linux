@@ -960,6 +960,8 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 			qdio_handle_activate_check(cdev, intparm, cstat,
 						   dstat);
 		break;
+	case QDIO_IRQ_STATE_STOPPED:
+		break;
 	default:
 		WARN_ON(1);
 	}
