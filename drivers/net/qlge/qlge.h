@@ -19,14 +19,6 @@
 #define DRV_VERSION	"v1.00.00.23.00.00-01"
 
 #define PFX "qlge: "
-#define QPRINTK(qdev, nlevel, klevel, fmt, args...)     \
-       do {       \
-	if (!((qdev)->msg_enable & NETIF_MSG_##nlevel))		\
-		;						\
-	else							\
-		dev_printk(KERN_##klevel, &((qdev)->pdev->dev),	\
-			   "%s: " fmt, __func__, ##args);  \
-       } while (0)
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 

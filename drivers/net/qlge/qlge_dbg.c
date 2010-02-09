@@ -443,8 +443,8 @@ static int ql_get_cam_entries(struct ql_adapter *qdev, u32 * buf)
 		status = ql_get_mac_addr_reg(qdev,
 					MAC_ADDR_TYPE_CAM_MAC, i, value);
 		if (status) {
-			QPRINTK(qdev, DRV, ERR,
-				"Failed read of mac index register.\n");
+			netif_err(qdev, drv, qdev->ndev,
+				  "Failed read of mac index register.\n");
 			goto err;
 		}
 		*buf++ = value[0];	/* lower MAC address */
@@ -455,8 +455,8 @@ static int ql_get_cam_entries(struct ql_adapter *qdev, u32 * buf)
 		status = ql_get_mac_addr_reg(qdev,
 					MAC_ADDR_TYPE_MULTI_MAC, i, value);
 		if (status) {
-			QPRINTK(qdev, DRV, ERR,
-				"Failed read of mac index register.\n");
+			netif_err(qdev, drv, qdev->ndev,
+				  "Failed read of mac index register.\n");
 			goto err;
 		}
 		*buf++ = value[0];	/* lower Mcast address */
@@ -479,8 +479,8 @@ static int ql_get_routing_entries(struct ql_adapter *qdev, u32 * buf)
 	for (i = 0; i < 16; i++) {
 		status = ql_get_routing_reg(qdev, i, &value);
 		if (status) {
-			QPRINTK(qdev, DRV, ERR,
-				"Failed read of routing index register.\n");
+			netif_err(qdev, drv, qdev->ndev,
+				  "Failed read of routing index register.\n");
 			goto err;
 		} else {
 			*buf++ = value;
@@ -736,8 +736,7 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	int i;
 
 	if (!mpi_coredump) {
-		QPRINTK(qdev, DRV, ERR,
-			"No memory available.\n");
+		netif_err(qdev, drv, qdev->ndev, "No memory available.\n");
 		return -ENOMEM;
 	}
 
@@ -749,8 +748,8 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 
 	status = ql_pause_mpi_risc(qdev);
 	if (status) {
-		QPRINTK(qdev, DRV, ERR,
-			"Failed RISC pause. Status = 0x%.08x\n", status);
+		netif_err(qdev, drv, qdev->ndev,
+			  "Failed RISC pause. Status = 0x%.08x\n", status);
 		goto err;
 	}
 
@@ -911,9 +910,9 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 
 	status = ql_get_serdes_regs(qdev, mpi_coredump);
 	if (status) {
-		QPRINTK(qdev, DRV, ERR,
-			"Failed Dump of Serdes Registers. Status = 0x%.08x\n",
-			status);
+		netif_err(qdev, drv, qdev->ndev,
+			  "Failed Dump of Serdes Registers. Status = 0x%.08x\n",
+			  status);
 		goto err;
 	}
 
@@ -1177,16 +1176,16 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	/* clear the pause */
 	status = ql_unpause_mpi_risc(qdev);
 	if (status) {
-		QPRINTK(qdev, DRV, ERR,
-			"Failed RISC unpause. Status = 0x%.08x\n", status);
+		netif_err(qdev, drv, qdev->ndev,
+			  "Failed RISC unpause. Status = 0x%.08x\n", status);
 		goto err;
 	}
 
 	/* Reset the RISC so we can dump RAM */
 	status = ql_hard_reset_mpi_risc(qdev);
 	if (status) {
-		QPRINTK(qdev, DRV, ERR,
-			"Failed RISC reset. Status = 0x%.08x\n", status);
+		netif_err(qdev, drv, qdev->ndev,
+			  "Failed RISC reset. Status = 0x%.08x\n", status);
 		goto err;
 	}
 
@@ -1198,8 +1197,9 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	status = ql_dump_risc_ram_area(qdev, &mpi_coredump->code_ram[0],
 					CODE_RAM_ADDR, CODE_RAM_CNT);
 	if (status) {
-		QPRINTK(qdev, DRV, ERR,
-			"Failed Dump of CODE RAM. Status = 0x%.08x\n", status);
+		netif_err(qdev, drv, qdev->ndev,
+			  "Failed Dump of CODE RAM. Status = 0x%.08x\n",
+			  status);
 		goto err;
 	}
 
@@ -1212,8 +1212,9 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 	status = ql_dump_risc_ram_area(qdev, &mpi_coredump->memc_ram[0],
 					MEMC_RAM_ADDR, MEMC_RAM_CNT);
 	if (status) {
-		QPRINTK(qdev, DRV, ERR,
-			"Failed Dump of MEMC RAM. Status = 0x%.08x\n", status);
+		netif_err(qdev, drv, qdev->ndev,
+			  "Failed Dump of MEMC RAM. Status = 0x%.08x\n",
+			  status);
 		goto err;
 	}
 err:
@@ -1225,21 +1226,19 @@ err:
 static void ql_get_core_dump(struct ql_adapter *qdev)
 {
 	if (!ql_own_firmware(qdev)) {
-		QPRINTK(qdev, DRV, ERR, "%s: Don't own firmware!\n",
-					qdev->ndev->name);
+		netif_err(qdev, drv, qdev->ndev, "Don't own firmware!\n");
 		return;
 	}
 
 	if (!netif_running(qdev->ndev)) {
-		QPRINTK(qdev, IFUP, ERR,
-			"Force Coredump can only be done from interface "
-			"that is up.\n");
+		netif_err(qdev, ifup, qdev->ndev,
+			  "Force Coredump can only be done from interface that is up.\n");
 		return;
 	}
 
 	if (ql_mb_sys_err(qdev)) {
-		QPRINTK(qdev, IFUP, ERR,
-			"Fail force coredump with ql_mb_sys_err().\n");
+		netif_err(qdev, ifup, qdev->ndev,
+			  "Fail force coredump with ql_mb_sys_err().\n");
 		return;
 	}
 }
@@ -1334,7 +1333,8 @@ void ql_mpi_core_to_log(struct work_struct *work)
 
 	count = sizeof(struct ql_mpi_coredump) / sizeof(u32);
 	tmp = (u32 *)qdev->mpi_coredump;
-	QPRINTK(qdev, DRV, DEBUG, "Core is dumping to log file!\n");
+	netif_printk(qdev, drv, KERN_DEBUG, qdev->ndev,
+		     "Core is dumping to log file!\n");
 
 	for (i = 0; i < count; i += 8) {
 		printk(KERN_ERR "%.08x: %.08x %.08x %.08x %.08x %.08x "
