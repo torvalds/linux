@@ -1602,8 +1602,7 @@ ack:
 	spin_unlock(&inode->i_lock);
 
 	if (queue_invalidate)
-		if (ceph_queue_page_invalidation(inode))
-			igrab(inode);
+		ceph_queue_invalidate(inode);
 
 	if (session && drop_session_lock)
 		mutex_unlock(&session->s_mutex);
@@ -2178,7 +2177,7 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int wake = 0;
 	int writeback = 0;
 	int revoked_rdcache = 0;
-	int invalidate_async = 0;
+	int queue_invalidate = 0;
 	int tried_invalidate = 0;
 	int ret;
 
@@ -2205,7 +2204,7 @@ restart:
 			/* there were locked pages.. invalidate later
 			   in a separate thread. */
 			if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
-				invalidate_async = 1;
+				queue_invalidate = 1;
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			}
 		} else {
@@ -2319,21 +2318,15 @@ restart:
 	}
 
 	spin_unlock(&inode->i_lock);
-	if (writeback) {
+	if (writeback)
 		/*
 		 * queue inode for writeback: we can't actually call
 		 * filemap_write_and_wait, etc. from message handler
 		 * context.
 		 */
-		dout("queueing %p for writeback\n", inode);
-		if (ceph_queue_writeback(inode))
-			igrab(inode);
-	}
-	if (invalidate_async) {
-		dout("queueing %p for page invalidation\n", inode);
-		if (ceph_queue_page_invalidation(inode))
-			igrab(inode);
-	}
+		ceph_queue_writeback(inode);
+	if (queue_invalidate)
+		ceph_queue_invalidate(inode);
 	if (wake)
 		wake_up(&ci->i_cap_wq);
 	return reply;
@@ -2479,9 +2472,7 @@ static void handle_cap_trunc(struct inode *inode,
 	spin_unlock(&inode->i_lock);
 
 	if (queue_trunc)
-		if (queue_work(ceph_client(inode->i_sb)->trunc_wq,
-			       &ci->i_vmtruncate_work))
-			igrab(inode);
+		ceph_queue_vmtruncate(inode);
 }
 
 /*

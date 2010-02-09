@@ -28,7 +28,9 @@
 
 static const struct inode_operations ceph_symlink_iops;
 
-static void ceph_inode_invalidate_pages(struct work_struct *work);
+static void ceph_invalidate_work(struct work_struct *work);
+static void ceph_writeback_work(struct work_struct *work);
+static void ceph_vmtruncate_work(struct work_struct *work);
 
 /*
  * find or create an inode, given the ceph ino number
@@ -357,8 +359,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	INIT_LIST_HEAD(&ci->i_snap_realm_item);
 	INIT_LIST_HEAD(&ci->i_snap_flush_item);
 
-	INIT_WORK(&ci->i_wb_work, ceph_inode_writeback);
-	INIT_WORK(&ci->i_pg_inv_work, ceph_inode_invalidate_pages);
+	INIT_WORK(&ci->i_wb_work, ceph_writeback_work);
+	INIT_WORK(&ci->i_pg_inv_work, ceph_invalidate_work);
 
 	INIT_WORK(&ci->i_vmtruncate_work, ceph_vmtruncate_work);
 
@@ -675,9 +677,7 @@ no_change:
 
 	/* queue truncate if we saw i_size decrease */
 	if (queue_trunc)
-		if (queue_work(ceph_client(inode->i_sb)->trunc_wq,
-			       &ci->i_vmtruncate_work))
-			igrab(inode);
+		ceph_queue_vmtruncate(inode);
 
 	/* populate frag tree */
 	/* FIXME: move me up, if/when version reflects fragtree changes */
@@ -1243,7 +1243,18 @@ int ceph_inode_set_size(struct inode *inode, loff_t size)
  * Write back inode data in a worker thread.  (This can't be done
  * in the message handler context.)
  */
-void ceph_inode_writeback(struct work_struct *work)
+void ceph_queue_writeback(struct inode *inode)
+{
+	if (queue_work(ceph_inode_to_client(inode)->wb_wq,
+		       &ceph_inode(inode)->i_wb_work)) {
+		dout("ceph_queue_invalidate %p\n", inode);
+		igrab(inode);
+	} else {
+		dout("ceph_queue_invalidate %p failed\n", inode);
+	}
+}
+
+static void ceph_writeback_work(struct work_struct *work)
 {
 	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
 						  i_wb_work);
@@ -1255,10 +1266,24 @@ void ceph_inode_writeback(struct work_struct *work)
 }
 
 /*
+ * queue an async invalidation
+ */
+void ceph_queue_invalidate(struct inode *inode)
+{
+	if (queue_work(ceph_inode_to_client(inode)->pg_inv_wq,
+		       &ceph_inode(inode)->i_pg_inv_work)) {
+		dout("ceph_queue_invalidate %p\n", inode);
+		igrab(inode);
+	} else {
+		dout("ceph_queue_invalidate %p failed\n", inode);
+	}
+}
+
+/*
  * Invalidate inode pages in a worker thread.  (This can't be done
  * in the message handler context.)
  */
-static void ceph_inode_invalidate_pages(struct work_struct *work)
+static void ceph_invalidate_work(struct work_struct *work)
 {
 	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
 						  i_pg_inv_work);
@@ -1307,7 +1332,7 @@ out:
  *
  * We also truncate in a separate thread as well.
  */
-void ceph_vmtruncate_work(struct work_struct *work)
+static void ceph_vmtruncate_work(struct work_struct *work)
 {
 	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
 						  i_vmtruncate_work);
@@ -1318,6 +1343,24 @@ void ceph_vmtruncate_work(struct work_struct *work)
 	__ceph_do_pending_vmtruncate(inode);
 	mutex_unlock(&inode->i_mutex);
 	iput(inode);
+}
+
+/*
+ * Queue an async vmtruncate.  If we fail to queue work, we will handle
+ * the truncation the next time we call __ceph_do_pending_vmtruncate.
+ */
+void ceph_queue_vmtruncate(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	if (queue_work(ceph_client(inode->i_sb)->trunc_wq,
+		       &ci->i_vmtruncate_work)) {
+		dout("ceph_queue_vmtruncate %p\n", inode);
+		igrab(inode);
+	} else {
+		dout("ceph_queue_vmtruncate %p failed, pending=%d\n",
+		     inode, ci->i_truncate_pending);
+	}
 }
 
 /*

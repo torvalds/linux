@@ -947,8 +947,7 @@ retry_locked:
 			 */
 			snapc = ceph_get_snap_context((void *)page->private);
 			unlock_page(page);
-			if (ceph_queue_writeback(inode))
-				igrab(inode);
+			ceph_queue_writeback(inode);
 			wait_event_interruptible(ci->i_cap_wq,
 			       context_is_writeable_or_written(inode, snapc));
 			ceph_put_snap_context(snapc);
