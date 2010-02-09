@@ -262,7 +262,7 @@ static const struct omap_video_timings tpo_td043_timings = {
 	.vbp		= 34,
 };
 
-static int generic_panel_power_on(struct omap_dss_device *dssdev)
+static int tpo_td043_power_on(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
 	int nreset_gpio = dssdev->reset_gpio;
@@ -302,7 +302,7 @@ err0:
 	return r;
 }
 
-static void generic_panel_power_off(struct omap_dss_device *dssdev)
+static void tpo_td043_power_off(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
 	int nreset_gpio = dssdev->reset_gpio;
@@ -332,7 +332,7 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 
 	dev_dbg(&dssdev->dev, "enable\n");
 
-	ret = generic_panel_power_on(dssdev);
+	ret = tpo_td043_power_on(dssdev);
 	if (ret)
 		return ret;
 
@@ -345,14 +345,14 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 {
 	dev_dbg(&dssdev->dev, "disable\n");
 
-	generic_panel_power_off(dssdev);
+	tpo_td043_power_off(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int tpo_td043_suspend(struct omap_dss_device *dssdev)
 {
-	generic_panel_power_off(dssdev);
+	tpo_td043_power_off(dssdev);
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
 	return 0;
 }
@@ -361,7 +361,7 @@ static int tpo_td043_resume(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
-	r = generic_panel_power_on(dssdev);
+	r = tpo_td043_power_on(dssdev);
 	if (r)
 		return r;
 
