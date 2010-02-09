@@ -416,9 +416,17 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			dout("truncate_seq %u -> %u\n",
 			     ci->i_truncate_seq, truncate_seq);
 			ci->i_truncate_seq = truncate_seq;
-			if (issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_RD|
+			/*
+			 * If we hold relevant caps, or in the case where we're
+			 * not the only client referencing this file and we
+			 * don't hold those caps, then we need to check whether
+			 * the file is either opened or mmaped
+			 */
+			if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_RD|
 				      CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
-				      CEPH_CAP_FILE_EXCL)) {
+				      CEPH_CAP_FILE_EXCL)) ||
+			    mapping_mapped(inode->i_mapping) ||
+			    __ceph_caps_file_wanted(ci)) {
 				ci->i_truncate_pending++;
 				queue_trunc = 1;
 			}
