@@ -1145,22 +1145,22 @@ void radeon_atombios_init_crtc(struct drm_device *dev,
 		switch (radeon_crtc->crtc_id) {
 		case 0:
 		default:
-			radeon_crtc->crtc_id = EVERGREEN_CRTC0_REGISTER_OFFSET;
+			radeon_crtc->crtc_offset = EVERGREEN_CRTC0_REGISTER_OFFSET;
 			break;
 		case 1:
-			radeon_crtc->crtc_id = EVERGREEN_CRTC1_REGISTER_OFFSET;
+			radeon_crtc->crtc_offset = EVERGREEN_CRTC1_REGISTER_OFFSET;
 			break;
 		case 2:
-			radeon_crtc->crtc_id = EVERGREEN_CRTC2_REGISTER_OFFSET;
+			radeon_crtc->crtc_offset = EVERGREEN_CRTC2_REGISTER_OFFSET;
 			break;
 		case 3:
-			radeon_crtc->crtc_id = EVERGREEN_CRTC3_REGISTER_OFFSET;
+			radeon_crtc->crtc_offset = EVERGREEN_CRTC3_REGISTER_OFFSET;
 			break;
 		case 4:
-			radeon_crtc->crtc_id = EVERGREEN_CRTC4_REGISTER_OFFSET;
+			radeon_crtc->crtc_offset = EVERGREEN_CRTC4_REGISTER_OFFSET;
 			break;
 		case 5:
-			radeon_crtc->crtc_id = EVERGREEN_CRTC5_REGISTER_OFFSET;
+			radeon_crtc->crtc_offset = EVERGREEN_CRTC5_REGISTER_OFFSET;
 			break;
 		}
 	} else {
