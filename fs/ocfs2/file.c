@@ -1836,6 +1836,8 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 							       &meta_level);
 			if (has_refcount)
 				*has_refcount = 1;
+			if (direct_io)
+				*direct_io = 0;
 		}
 
 		if (ret < 0) {
@@ -1859,10 +1861,6 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 			break;
 		}
 
-		if (has_refcount && *has_refcount == 1) {
-			*direct_io = 0;
-			break;
-		}
 		/*
 		 * Allowing concurrent direct writes means
 		 * i_size changes wouldn't be synchronized, so
