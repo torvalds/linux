@@ -18,7 +18,7 @@ obj-$(CONFIG_MACH_PCM037_EET)	+= mach-pcm037_eet.o
 obj-$(CONFIG_MACH_MX31_3DS)	+= mach-mx31_3ds.o
 CFLAGS_mach-mx31_3ds.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
 obj-$(CONFIG_MACH_MX31MOBOARD)	+= mach-mx31moboard.o mx31moboard-devboard.o \
-				   mx31moboard-marxbot.o
+				   mx31moboard-marxbot.o mx31moboard-smartbot.o
 obj-$(CONFIG_MACH_QONG)		+= mach-qong.o
 obj-$(CONFIG_MACH_PCM043)	+= mach-pcm043.o
 obj-$(CONFIG_MACH_ARMADILLO5X0) += mach-armadillo5x0.o
