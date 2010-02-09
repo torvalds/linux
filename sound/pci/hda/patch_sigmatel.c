@@ -4790,7 +4790,7 @@ static void set_hp_led_gpio(struct hda_codec *codec)
  * Need more information on whether it is true across the entire series.
  * -- kunal
  */
-static int find_mute_led_gpio(struct hda_codec *codec)
+static int find_mute_led_gpio(struct hda_codec *codec, int default_polarity)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	const struct dmi_device *dev = NULL;
@@ -4817,7 +4817,7 @@ static int find_mute_led_gpio(struct hda_codec *codec)
 		 */
 		if (!hp_blike_system(codec->subsystem_id)) {
 			set_hp_led_gpio(codec);
-			spec->gpio_led_polarity = 1;
+			spec->gpio_led_polarity = default_polarity;
 			return 1;
 		}
 	}
@@ -5343,7 +5343,7 @@ again:
 
 	codec->patch_ops = stac92xx_patch_ops;
 
-	if (find_mute_led_gpio(codec))
+	if (find_mute_led_gpio(codec, 0))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
@@ -5705,7 +5705,7 @@ again:
 		}
 	}
 
-	if (find_mute_led_gpio(codec))
+	if (find_mute_led_gpio(codec, 1))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
