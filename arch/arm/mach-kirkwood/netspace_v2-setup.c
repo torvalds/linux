@@ -314,6 +314,7 @@ static void __init netspace_v2_init(void)
 		pr_err("netspace_v2: failed to configure power-off GPIO\n");
 }
 
+#ifdef CONFIG_MACH_NETSPACE_V2
 MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
 	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
 	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
@@ -323,3 +324,16 @@ MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &netspace_v2_timer,
 MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_INETSPACE_V2
+MACHINE_START(INETSPACE_V2, "LaCie Internet Space v2")
+	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
+	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.init_machine	= netspace_v2_init,
+	.map_io		= kirkwood_map_io,
+	.init_irq	= kirkwood_init_irq,
+	.timer		= &netspace_v2_timer,
+MACHINE_END
+#endif
