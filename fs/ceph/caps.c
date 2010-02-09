@@ -1042,10 +1042,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	struct ceph_inode_info *ci = cap->ci;
 	struct inode *inode = &ci->vfs_inode;
 	u64 cap_id = cap->cap_id;
-	int held = cap->issued | cap->implemented;
-	int revoking = cap->implemented & ~cap->issued;
-	int dropping = cap->issued & ~retain;
-	int keep;
+	int held, revoking, dropping, keep;
 	u64 seq, issue_seq, mseq, time_warp_seq, follows;
 	u64 size, max_size;
 	struct timespec mtime, atime;
@@ -1059,6 +1056,11 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	u64 flush_tid = 0;
 	int i;
 	int ret;
+
+	held = cap->issued | cap->implemented;
+	revoking = cap->implemented & ~cap->issued;
+	retain &= ~revoking;
+	dropping = cap->issued & ~retain;
 
 	dout("__send_cap %p cap %p session %p %s -> %s (revoking %s)\n",
 	     inode, cap, cap->session,
