@@ -393,8 +393,10 @@ int kvm_ioapic_init(struct kvm *kvm)
 	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, &ioapic->dev);
 	mutex_unlock(&kvm->slots_lock);
-	if (ret < 0)
+	if (ret < 0) {
+		kvm->arch.vioapic = NULL;
 		kfree(ioapic);
+	}
 
 	return ret;
 }
