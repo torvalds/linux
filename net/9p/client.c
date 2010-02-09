@@ -676,18 +676,12 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	clnt->trans = NULL;
 	spin_lock_init(&clnt->lock);
 	INIT_LIST_HEAD(&clnt->fidlist);
-	clnt->fidpool = p9_idpool_create();
-	if (IS_ERR(clnt->fidpool)) {
-		err = PTR_ERR(clnt->fidpool);
-		clnt->fidpool = NULL;
-		goto error;
-	}
 
 	p9_tag_init(clnt);
 
 	err = parse_opts(options, clnt);
 	if (err < 0)
-		goto error;
+		goto free_client;
 
 	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();
@@ -696,7 +690,14 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		err = -EPROTONOSUPPORT;
 		P9_DPRINTK(P9_DEBUG_ERROR,
 				"No transport defined or default transport\n");
-		goto error;
+		goto free_client;
+	}
+
+	clnt->fidpool = p9_idpool_create();
+	if (IS_ERR(clnt->fidpool)) {
+		err = PTR_ERR(clnt->fidpool);
+		clnt->fidpool = NULL;
+		goto put_trans;
 	}
 
 	P9_DPRINTK(P9_DEBUG_MUX, "clnt %p trans %p msize %d dotu %d\n",
@@ -704,19 +705,25 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 
 	err = clnt->trans_mod->create(clnt, dev_name, options);
 	if (err)
-		goto error;
+		goto destroy_fidpool;
 
 	if ((clnt->msize+P9_IOHDRSZ) > clnt->trans_mod->maxsize)
 		clnt->msize = clnt->trans_mod->maxsize-P9_IOHDRSZ;
 
 	err = p9_client_version(clnt);
 	if (err)
-		goto error;
+		goto close_trans;
 
 	return clnt;
 
-error:
-	p9_client_destroy(clnt);
+close_trans:
+	clnt->trans_mod->close(clnt);
+destroy_fidpool:
+	p9_idpool_destroy(clnt->fidpool);
+put_trans:
+	v9fs_put_trans(clnt->trans_mod);
+free_client:
+	kfree(clnt);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(p9_client_create);
