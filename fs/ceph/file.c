@@ -431,7 +431,8 @@ static void zero_page_vector_range(int off, int len, struct page **pages)
  */
 static int striped_read(struct inode *inode,
 			u64 off, u64 len,
-			struct page **pages, int num_pages)
+			struct page **pages, int num_pages,
+			int *checkeof)
 {
 	struct ceph_client *client = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -497,15 +498,7 @@ more:
 		}
 
 		/* check i_size */
-		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
-		if (ret < 0)
-			goto out;
-
-		/* hit EOF? */
-		if (pos >= inode->i_size)
-			goto out;
-
-		goto more;
+		*checkeof = 1;
 	}
 
 out:
@@ -522,7 +515,7 @@ out:
  * If the read spans object boundary, just do multiple reads.
  */
 static ssize_t ceph_sync_read(struct file *file, char __user *data,
-			      unsigned len, loff_t *poff)
+			      unsigned len, loff_t *poff, int *checkeof)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct page **pages;
@@ -552,7 +545,7 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 	if (ret < 0)
 		goto done;
 
-	ret = striped_read(inode, off, len, pages, num_pages);
+	ret = striped_read(inode, off, len, pages, num_pages, checkeof);
 
 	if (ret >= 0 && (file->f_flags & O_DIRECT) == 0)
 		ret = copy_page_vector_to_user(pages, data, off, ret);
@@ -746,11 +739,14 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	size_t len = iov->iov_len;
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	void *base = iov->iov_base;
 	ssize_t ret;
 	int got = 0;
+	int checkeof = 0, read = 0;
 
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)len, inode);
+again:
 	__ceph_do_pending_vmtruncate(inode);
 	ret = ceph_get_caps(ci, CEPH_CAP_FILE_RD, CEPH_CAP_FILE_CACHE,
 			    &got, -1);
@@ -764,7 +760,7 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	    (iocb->ki_filp->f_flags & O_DIRECT) ||
 	    (inode->i_sb->s_flags & MS_SYNCHRONOUS))
 		/* hmm, this isn't really async... */
-		ret = ceph_sync_read(filp, iov->iov_base, len, ppos);
+		ret = ceph_sync_read(filp, base, len, ppos, &checkeof);
 	else
 		ret = generic_file_aio_read(iocb, iov, nr_segs, pos);
 
@@ -772,6 +768,23 @@ out:
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
 	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);
 	ceph_put_cap_refs(ci, got);
+
+	if (checkeof && ret >= 0) {
+		int statret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
+
+		/* hit EOF or hole? */
+		if (statret == 0 && *ppos < inode->i_size) {
+			dout("aio_read sync_read hit hole, reading more\n");
+			read += ret;
+			base += ret;
+			len -= ret;
+			checkeof = 0;
+			goto again;
+		}
+	}
+	if (ret >= 0)
+		ret += read;
+
 	return ret;
 }
 
