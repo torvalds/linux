@@ -303,15 +303,23 @@ union drm_vmw_surface_reference_arg {
  * to the nearest kernel tick.
  * @fence_rep: User-space address of a struct drm_vmw_fence_rep cast to an
  * uint64_t.
+ * @version: Allows expanding the execbuf ioctl parameters without breaking
+ * backwards compatibility, since user-space will always tell the kernel
+ * which version it uses.
+ * @flags: Execbuf flags. None currently.
  *
  * Argument to the DRM_VMW_EXECBUF Ioctl.
  */
+
+#define DRM_VMW_EXECBUF_VERSION 0
 
 struct drm_vmw_execbuf_arg {
 	uint64_t commands;
 	uint32_t command_size;
 	uint32_t throttle_us;
 	uint64_t fence_rep;
+	 uint32_t version;
+	 uint32_t flags;
 };
 
 /**
