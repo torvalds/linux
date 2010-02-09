@@ -38,7 +38,7 @@ extern wait_queue_head_t dt3155_read_wait_queue[MAXBOARDS];
 #endif
 
 /* number of devices */
-extern u_int ndevices;
+extern u32 ndevices;
 
 extern int dt3155_errno;
 

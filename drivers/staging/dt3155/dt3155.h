@@ -35,7 +35,7 @@ MA 02111-1307 USA
 #define _DT3155_INC
 
 #ifdef __KERNEL__
-#include <linux/types.h>	/* u_int etc. */
+#include <linux/types.h>
 #include <linux/time.h>		/* struct timeval */
 #else
 #include <sys/ioctl.h>
@@ -71,16 +71,16 @@ MA 02111-1307 USA
 
 /* Configuration structure */
 struct dt3155_config_s {
-	u_int acq_mode;
-	u_int cols, rows;
-	u_int continuous;
+	u32 acq_mode;
+	u32 cols, rows;
+	u32 continuous;
 };
 
 
 /* hold data for each frame */
 typedef struct {
-	u_long addr;		/* address of the buffer with the frame */
-	u_long tag;		/* unique number for the frame */
+	u64 addr;		/* address of the buffer with the frame */
+	u64 tag;		/* unique number for the frame */
 	struct timeval time;	/* time that capture took place */
 } frame_info_t;
 
@@ -101,14 +101,14 @@ struct dt3155_fbuffer_s {
 	int locked_buf;			/* Buffers used by user */
 
 	int ready_que[BOARD_MAX_BUFFS];
-	u_long ready_head;	/* The most recent buffer located here */
-	u_long ready_len;	/* The number of ready buffers */
+	u64 ready_head;	/* The most recent buffer located here */
+	u64 ready_len;	/* The number of ready buffers */
 
 	int even_happened;
 	int even_stopped;
 
 	int stop_acquire;	/* Flag to stop interrupts */
-	u_long frame_count;	/* Counter for frames acquired by this card */
+	u64 frame_count;	/* Counter for frames acquired by this card */
 };
 
 
@@ -122,14 +122,14 @@ struct dt3155_fbuffer_s {
 /* There is one status structure for each card. */
 typedef struct dt3155_status_s {
 	int fixed_mode;		/* if 1, we are in fixed frame mode */
-	u_long reg_addr;	/* Register address for a single card */
-	u_long mem_addr;	/* Buffer start addr for this card */
-	u_long mem_size;	/* This is the amount of mem available  */
-	u_int irq;		/* this card's irq */
+	u64 reg_addr;	/* Register address for a single card */
+	u64 mem_addr;	/* Buffer start addr for this card */
+	u64 mem_size;	/* This is the amount of mem available  */
+	u32 irq;		/* this card's irq */
 	struct dt3155_config_s config;		/* configuration struct */
 	struct dt3155_fbuffer_s fbuffer;	/* frame buffer state struct */
-	u_long state;		/* this card's state */
-	u_int device_installed;	/* Flag if installed. 1=installed */
+	u64 state;		/* this card's state */
+	u32 device_installed;	/* Flag if installed. 1=installed */
 } dt3155_status_t;
 
 /* Reference to global status structure */
@@ -161,9 +161,9 @@ extern struct dt3155_status_s dt3155_status[MAXBOARDS];
 
 /* User code will probably want to declare one of these for each card */
 typedef struct dt3155_read_s {
-	u_long offset;
-	u_long frame_seq;
-	u_long state;
+	u64 offset;
+	u64 frame_seq;
+	u64 state;
 
 	frame_info_t frame_info;
 } dt3155_read_t;

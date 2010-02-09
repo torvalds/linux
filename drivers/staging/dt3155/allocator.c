@@ -27,7 +27,7 @@
   -------------------------------------------------------------------
   02-Aug-2002 NJC         allocator now steps in 1MB increments, rather
 			  than doubling its size each time.
-			  Also, allocator_init(u_int *) now returns
+			  Also, allocator_init(u32 *) now returns
 			  (in the first arg) the size of the free
 			  space.  This is no longer consistent with
 			  using the allocator as a module, and some changes
@@ -195,7 +195,7 @@ int allocator_free_dma(unsigned long address)
  * On cleanup everything is released. If the list is not empty, that a
  * problem of our clients
  */
-int allocator_init(u_long *allocator_max)
+int allocator_init(u64 *allocator_max)
 {
 	/* check how much free memory is there */
 	void *remapped;

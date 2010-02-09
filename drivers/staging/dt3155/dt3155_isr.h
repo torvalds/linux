@@ -42,7 +42,7 @@ extern struct dt3155_fbuffer_s *dt3155_fbuffer[MAXBOARDS];
 /* Initialize the buffering system.  This should */
 /* be called prior to enabling interrupts */
 
-u_long dt3155_setup_buffers(u_long *allocatorAddr);
+u64 dt3155_setup_buffers(u64 *allocatorAddr);
 
 /* Get the next frame of data if it is ready.  Returns */
 /* zero if no data is ready.  If there is data but */
