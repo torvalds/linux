@@ -71,6 +71,7 @@ struct intc_hw_desc {
 
 struct intc_desc {
 	char *name;
+	intc_enum force_enable;
 	struct intc_hw_desc hw;
 };
 
