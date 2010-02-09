@@ -1877,13 +1877,12 @@ static void velocity_error(struct velocity_info *vptr, int status)
 /**
  *	tx_srv		-	transmit interrupt service
  *	@vptr; Velocity
- *	@status:
  *
  *	Scan the queues looking for transmitted packets that
  *	we can complete and clean up. Update any statistics as
  *	necessary/
  */
-static int velocity_tx_srv(struct velocity_info *vptr, u32 status)
+static int velocity_tx_srv(struct velocity_info *vptr)
 {
 	struct tx_desc *td;
 	int qnum;
@@ -2090,14 +2089,12 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 /**
  *	velocity_rx_srv		-	service RX interrupt
  *	@vptr: velocity
- *	@status: adapter status (unused)
  *
  *	Walk the receive ring of the velocity adapter and remove
  *	any received packets from the receive queue. Hand the ring
  *	slots back to the adapter for reuse.
  */
-static int velocity_rx_srv(struct velocity_info *vptr, int status,
-		int budget_left)
+static int velocity_rx_srv(struct velocity_info *vptr, int budget_left)
 {
 	struct net_device_stats *stats = &vptr->dev->stats;
 	int rd_curr = vptr->rx.curr;
@@ -2165,10 +2162,10 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	 * Do rx and tx twice for performance (taken from the VIA
 	 * out-of-tree driver).
 	 */
-	rx_done = velocity_rx_srv(vptr, isr_status, budget / 2);
-	velocity_tx_srv(vptr, isr_status);
-	rx_done += velocity_rx_srv(vptr, isr_status, budget - rx_done);
-	velocity_tx_srv(vptr, isr_status);
+	rx_done = velocity_rx_srv(vptr, budget / 2);
+	velocity_tx_srv(vptr);
+	rx_done += velocity_rx_srv(vptr, budget - rx_done);
+	velocity_tx_srv(vptr);
 
 	spin_unlock(&vptr->lock);
 
@@ -3100,7 +3097,7 @@ static int velocity_resume(struct pci_dev *pdev)
 	velocity_init_registers(vptr, VELOCITY_INIT_WOL);
 	mac_disable_int(vptr->mac_regs);
 
-	velocity_tx_srv(vptr, 0);
+	velocity_tx_srv(vptr);
 
 	for (i = 0; i < vptr->tx.numq; i++) {
 		if (vptr->tx.used[i])
