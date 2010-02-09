@@ -968,7 +968,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
-			kfree(kvm->arch.vioapic);
+			kvm_ioapic_destroy(kvm);
 			goto out;
 		}
 		break;
