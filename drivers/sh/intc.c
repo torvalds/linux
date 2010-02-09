@@ -896,8 +896,8 @@ void __init register_intc_controller(struct intc_desc *desc)
 			vect2->enum_id = 0;
 
 			/* redirect this interrupts to the first one */
-			set_irq_chip_and_handler_name(irq2, &d->chip,
-					intc_redirect_irq, "redirect");
+			set_irq_chained_handler(irq2, intc_redirect_irq);
+			set_irq_chip(irq2, &d->chip);
 			set_irq_data(irq2, (void *)irq);
 		}
 	}
