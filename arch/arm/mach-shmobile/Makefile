@@ -6,7 +6,7 @@
 obj-y				:= timer.o console.o
 
 # CPU objects
-obj-$(CONFIG_ARCH_SH7367)	+= setup-sh7367.o clock-sh7367.o
+obj-$(CONFIG_ARCH_SH7367)	+= setup-sh7367.o clock-sh7367.o intc-sh7367.o
 obj-$(CONFIG_ARCH_SH7377)	+= setup-sh7377.o clock-sh7367.o
 obj-$(CONFIG_ARCH_SH7372)	+= setup-sh7372.o clock-sh7367.o
 

@@ -26,7 +26,6 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/serial_sci.h>
-#include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -196,46 +195,4 @@ void __init sh7367_add_early_devices(void)
 
 	early_platform_add_devices(sh7367_early_devices,
 				   ARRAY_SIZE(sh7367_early_devices));
-}
-
-enum {
-	UNUSED = 0,
-
-	/* interrupt sources INTCA */
-
-	SCIFA0, SCIFA1, SCIFA2, SCIFA3, SCIFA4, SCIFA5, SCIFB,
-	CMT10,
-};
-
-static struct intc_vect vectors[] = {
-	INTC_VECT(CMT10, 0xb00),
-	INTC_VECT(SCIFA0, 0xc00), INTC_VECT(SCIFA1, 0xc20),
-	INTC_VECT(SCIFA2, 0xc40), INTC_VECT(SCIFA3, 0xc60),
-	INTC_VECT(SCIFA4, 0xd20), INTC_VECT(SCIFA5, 0xd40),
-	INTC_VECT(SCIFB, 0xd60),
-};
-
-static struct intc_mask_reg mask_registers[] = {
-	{ 0xe6940094, 0xe69400d4, 8, /* IMR5A / IMCR5A */
-	  { 0, 0, 0, 0, SCIFA3, SCIFA2, SCIFA1, SCIFA0 } },
-	{ 0xe6940098, 0xe69400d8, 8, /* IMR6A / IMCR6A */
-	  { SCIFB, SCIFA5, SCIFA4, 0, 0, 0, 0, 0 } },
-	{ 0xe69400a4, 0xe69400e4, 8, /* IMR9A / IMCR9A */
-	  { 0, 0, 0, CMT10, 0, 0, 0, 0 } },
-};
-
-static struct intc_prio_reg prio_registers[] = {
-	{ 0xe6940014, 0, 16, 4, /* IPRFA */ { 0, 0, 0, CMT10 } },
-	{ 0xe6940018, 0, 16, 4, /* IPRGA */ { SCIFA0, SCIFA1,
-					      SCIFA2, SCIFA3 } },
-	{ 0xe6940020, 0, 16, 4, /* IPRIA */ { 0, SCIFA4, 0, 0 } },
-	{ 0xe6940034, 0, 16, 4, /* IPRNA */ { SCIFB, SCIFA5, 0, 0 } },
-};
-
-static DECLARE_INTC_DESC(intc_desc, "sh7367", vectors, NULL, mask_registers,
-			 prio_registers, NULL);
-
-void __init sh7367_init_irq(void)
-{
-	register_intc_controller(&intc_desc);
 }
