@@ -458,6 +458,7 @@ config SHARPSL_PM
 config CORGI_SSP_DEPRECATED
 	bool
 	select PXA_SSP
+	select PXA_SSP_LEGACY
 	help
 	  This option will include corgi_ssp.c and corgi_lcd.c
 	  that corgi_ts.c and other legacy drivers (corgi_bl.c
@@ -657,6 +658,11 @@ config PXA_SSP
 	tristate
 	help
 	  Enable support for PXA2xx SSP ports
+
+config PXA_SSP_LEGACY
+	bool
+	help
+	  Support of legacy SSP API
 
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"

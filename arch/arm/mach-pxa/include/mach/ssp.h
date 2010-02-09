@@ -46,6 +46,7 @@ struct ssp_device {
 	int		drcmr_tx;
 };
 
+#ifdef CONFIG_PXA_SSP_LEGACY
 /*
  * SSP initialisation flags
  */
@@ -78,6 +79,7 @@ void ssp_restore_state(struct ssp_dev *dev, struct ssp_state *ssp);
 int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags);
 int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 speed);
 void ssp_exit(struct ssp_dev *dev);
+#endif /* CONFIG_PXA_SSP_LEGACY */
 
 /**
  * ssp_write_reg - Write to a SSP register
