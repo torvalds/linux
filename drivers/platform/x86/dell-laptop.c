@@ -474,6 +474,10 @@ static void __exit dell_exit(void)
 	i8042_remove_filter(dell_laptop_i8042_filter);
 	backlight_device_unregister(dell_backlight_device);
 	dell_cleanup_rfkill();
+	if (platform_device) {
+		platform_device_del(platform_device);
+		platform_driver_unregister(&platform_driver);
+	}
 }
 
 module_init(dell_init);
