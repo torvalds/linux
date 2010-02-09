@@ -35,6 +35,11 @@
 #include <asm/reboot.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
+#ifdef CONFIG_REGULATOR_AD5398
+#include <linux/regulator/ad5398.h>
+#endif
+#include <linux/regulator/consumer.h>
+#include <linux/regulator/userspace-consumer.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -1634,6 +1639,59 @@ static struct adp8870_backlight_platform_data adp8870_pdata = {
 };
 #endif
 
+#if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
+static struct regulator_consumer_supply ad5398_consumer = {
+	.supply = "current",
+};
+
+static struct regulator_init_data ad5398_regulator_data = {
+	.constraints = {
+		.name = "current range",
+		.max_uA = 120000,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = 1,
+	.consumer_supplies     = &ad5398_consumer,
+};
+
+static struct ad5398_platform_data ad5398_i2c_platform_data = {
+	.current_bits = 10,
+	.current_offset = 4,
+	.regulator_data = &ad5398_regulator_data,
+};
+
+#if defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER) || \
+	defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER_MODULE)
+static struct platform_device ad5398_virt_consumer_device = {
+	.name = "reg-virt-consumer",
+	.id = 0,
+	.dev = {
+		.platform_data = "current", /* Passed to driver */
+	},
+};
+#endif
+#if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
+	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
+static struct regulator_bulk_data ad5398_bulk_data = {
+	.supply = "current",
+};
+
+static struct regulator_userspace_consumer_data ad5398_userspace_comsumer_data = {
+	.name = "ad5398",
+	.num_supplies = 1,
+	.supplies = &ad5398_bulk_data,
+};
+
+static struct platform_device ad5398_userspace_consumer_device = {
+	.name = "reg-userspace-consumer",
+	.id = 0,
+	.dev = {
+		.platform_data = &ad5398_userspace_comsumer_data,
+	},
+};
+#endif
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 	{
@@ -1741,6 +1799,12 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_SND_SOC_SSM2602) || defined(CONFIG_SND_SOC_SSM2602_MODULE)
 	{
 		I2C_BOARD_INFO("ssm2602", 0x1b),
+	},
+#endif
+#if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
+	{
+		I2C_BOARD_INFO("ad5398", 0xC),
+		.platform_data = (void *)&ad5398_i2c_platform_data,
 	},
 #endif
 };
@@ -2046,6 +2110,16 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
 	&bfin_ac97,
+#endif
+#if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
+#if defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER) || \
+	defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER_MODULE)
+	&ad5398_virt_consumer_device,
+#endif
+#if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
+	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
+	&ad5398_userspace_consumer_device,
+#endif
 #endif
 };
 
