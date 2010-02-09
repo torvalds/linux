@@ -1444,7 +1444,6 @@ retry_locked:
 	    ci->i_rdcache_gen &&                     /* may have cached pages */
 	    (file_wanted == 0 ||                     /* no open files */
 	     (revoking & CEPH_CAP_FILE_CACHE)) &&     /*  or revoking cache */
-	    !ci->i_truncate_pending &&
 	    !tried_invalidate) {
 		u32 invalidating_gen = ci->i_rdcache_gen;
 		int ret;
