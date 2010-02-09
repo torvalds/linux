@@ -352,9 +352,7 @@ static struct fsl_usb2_platform_data usb_pdata = {
 
 static int moboard_usbh2_hw_init(struct platform_device *pdev)
 {
-	int ret = gpio_request(USBH2_EN_B, "usbh2-en");
-	if (ret)
-		return ret;
+	int ret;
 
 	mxc_iomux_set_gpr(MUX_PGP_UH2, true);
 
@@ -371,6 +369,9 @@ static int moboard_usbh2_hw_init(struct platform_device *pdev)
 	mxc_iomux_set_pad(MX31_PIN_SRXD3, USB_PAD_CFG);
 	mxc_iomux_set_pad(MX31_PIN_STXD3, USB_PAD_CFG);
 
+	ret = gpio_request(USBH2_EN_B, "usbh2-en");
+	if (ret)
+		return ret;
 	gpio_direction_output(USBH2_EN_B, 0);
 
 	return 0;
