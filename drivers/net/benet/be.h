@@ -44,16 +44,14 @@
 #define BE_DEVICE_ID1		0x211
 #define BE_DEVICE_ID2		0x221
 #define OC_DEVICE_ID1		0x700
-#define OC_DEVICE_ID2		0x701
-#define OC_DEVICE_ID3		0x710
+#define OC_DEVICE_ID2		0x710
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
 	case OC_DEVICE_ID1:
-	case OC_DEVICE_ID2:
 		return OC_NAME;
-	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID2:
 		return OC_NAME1;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
