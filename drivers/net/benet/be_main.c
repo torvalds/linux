@@ -636,9 +636,11 @@ get_rx_page_info(struct be_adapter *adapter, u16 frag_idx)
 	rx_page_info = &adapter->rx_obj.page_info_tbl[frag_idx];
 	BUG_ON(!rx_page_info->page);
 
-	if (rx_page_info->last_page_user)
+	if (rx_page_info->last_page_user) {
 		pci_unmap_page(adapter->pdev, pci_unmap_addr(rx_page_info, bus),
 			adapter->big_page_size, PCI_DMA_FROMDEVICE);
+		rx_page_info->last_page_user = false;
+	}
 
 	atomic_dec(&rxq->used);
 	return rx_page_info;
@@ -706,7 +708,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		skb->data_len = curr_frag_len - hdr_len;
 		skb->tail += hdr_len;
 	}
-	memset(page_info, 0, sizeof(*page_info));
+	page_info->page = NULL;
 
 	if (pktsize <= rx_frag_size) {
 		BUG_ON(num_rcvd != 1);
@@ -739,7 +741,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
 
-		memset(page_info, 0, sizeof(*page_info));
+		page_info->page = NULL;
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
 
