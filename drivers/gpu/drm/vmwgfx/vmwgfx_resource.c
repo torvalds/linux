@@ -610,9 +610,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		 */
 		srf->flags &= ~SVGA3D_SURFACE_HINT_SCANOUT;
 		srf->scanout = true;
-	} else {
+	} else if (req->scanout)
+		srf->scanout = true;
+	else
 		srf->scanout = false;
-	}
 
 	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
