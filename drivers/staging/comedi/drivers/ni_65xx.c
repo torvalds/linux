@@ -26,12 +26,13 @@
 /*
 Driver: ni_65xx
 Description: National Instruments 65xx static dio boards
-Author: Jon Grierson <jd@renko.co.uk>, Frank Mori Hess <fmhess@users.sourceforge.net>
+Author: Jon Grierson <jd@renko.co.uk>,
+        Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: testing
-Devices: [National Instruments] PCI-6509 (ni_65xx), PXI-6509, PCI-6510, PCI-6511,
-  PXI-6511, PCI-6512, PXI-6512, PCI-6513, PXI-6513, PCI-6514, PXI-6514, PCI-6515,
-  PXI-6515, PCI-6516, PCI-6517, PCI-6518, PCI-6519, PCI-6520, PCI-6521, PXI-6521,
-  PCI-6528, PXI-6528
+Devices: [National Instruments] PCI-6509 (ni_65xx), PXI-6509, PCI-6510,
+  PCI-6511, PXI-6511, PCI-6512, PXI-6512, PCI-6513, PXI-6513, PCI-6514,
+  PXI-6514, PCI-6515, PXI-6515, PCI-6516, PCI-6517, PCI-6518, PCI-6519,
+  PCI-6520, PCI-6521, PXI-6521, PCI-6528, PXI-6528
 Updated: Wed Oct 18 08:59:11 EDT 2006
 
 Based on the PCI-6527 driver by ds.
@@ -418,7 +419,8 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		return -EINVAL;
 	base_bitfield_channel = CR_CHAN(insn->chanspec);
 	for (j = 0; j < max_ports_per_bitfield; ++j) {
-		const unsigned port_offset = ni_65xx_port_by_channel(base_bitfield_channel) + j;
+		const unsigned port_offset =
+		    ni_65xx_port_by_channel(base_bitfield_channel) + j;
 		const unsigned port =
 		    sprivate(s)->base_port + port_offset;
 		unsigned base_port_channel;
@@ -463,11 +465,11 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			 * subdevice.) */
 			port_read_bits ^= 0xFF;
 		}
-		if (bitshift > 0) {
+		if (bitshift > 0)
 			port_read_bits <<= bitshift;
-		} else {
+		else
 			port_read_bits >>= -bitshift;
-		}
+
 		read_bits |= port_read_bits;
 	}
 	data[1] = read_bits;
@@ -532,7 +534,8 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually
+	compatible */
 
 	if (err)
 		return 2;
@@ -790,9 +793,9 @@ static int ni_65xx_detach(struct comedi_device *dev)
 		       Master_Interrupt_Control);
 	}
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
+
 
 	if (private(dev)) {
 		unsigned i;
@@ -802,9 +805,9 @@ static int ni_65xx_detach(struct comedi_device *dev)
 				dev->subdevices[i].private = NULL;
 			}
 		}
-		if (private(dev)->mite) {
+		if (private(dev)->mite)
 			mite_unsetup(private(dev)->mite);
-		}
+
 	}
 	return 0;
 }
