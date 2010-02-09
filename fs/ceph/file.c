@@ -409,7 +409,7 @@ static void zero_page_vector_range(int off, int len, struct page **pages)
 		i++;
 	}
 	while (len >= PAGE_CACHE_SIZE) {
-		dout("zeroing %d %p\n", i, pages[i]);
+		dout("zeroing %d %p len=%d\n", i, pages[i], len);
 		zero_user_segment(pages[i], 0, PAGE_CACHE_SIZE);
 		len -= PAGE_CACHE_SIZE;
 		i++;
@@ -542,12 +542,15 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 		 * but it will at least behave sensibly when they are
 		 * in sequence.
 		 */
-		filemap_write_and_wait(inode->i_mapping);
 	} else {
 		pages = alloc_page_vector(num_pages);
 	}
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
+
+	ret = filemap_write_and_wait(inode->i_mapping);
+	if (ret < 0)
+		goto done;
 
 	ret = striped_read(inode, off, len, pages, num_pages);
 
@@ -556,6 +559,7 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 	if (ret >= 0)
 		*poff = off + ret;
 
+done:
 	if (file->f_flags & O_DIRECT)
 		put_page_vector(pages, num_pages);
 	else
@@ -616,6 +620,16 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 		pos = i_size_read(inode);
 	else
 		pos = *offset;
+
+	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + left);
+	if (ret < 0)
+		return ret;
+
+	ret = invalidate_inode_pages2_range(inode->i_mapping,
+					    pos >> PAGE_CACHE_SHIFT,
+					    (pos + left) >> PAGE_CACHE_SHIFT);
+	if (ret < 0)
+		dout("invalidate_inode_pages2_range returned %d\n", ret);
 
 	flags = CEPH_OSD_FLAG_ORDERSNAP |
 		CEPH_OSD_FLAG_ONDISK |
