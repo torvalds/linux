@@ -94,4 +94,15 @@ config UIO_PCI_GENERIC
 	  primarily, for virtualization scenarios.
 	  If you compile this as a module, it will be called uio_pci_generic.
 
+config UIO_NETX
+	tristate "Hilscher NetX Card driver"
+	depends on PCI
+	help
+	  Driver for Hilscher NetX based fieldbus cards (cifX, comX).
+	  This driver requires a userspace component that comes with the card
+	  or is available from Hilscher (http://www.hilscher.com).
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called uio_netx.
+
 endif
