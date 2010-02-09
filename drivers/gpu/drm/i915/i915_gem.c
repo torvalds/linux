@@ -3688,8 +3688,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->num_cliprects != 0) {
 		cliprects = kcalloc(args->num_cliprects, sizeof(*cliprects),
 				    GFP_KERNEL);
-		if (cliprects == NULL)
+		if (cliprects == NULL) {
+			ret = -ENOMEM;
 			goto pre_mutex_err;
+		}
 
 		ret = copy_from_user(cliprects,
 				     (struct drm_clip_rect __user *)
