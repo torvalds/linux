@@ -478,6 +478,7 @@ static void __exit dell_exit(void)
 		platform_device_del(platform_device);
 		platform_driver_unregister(&platform_driver);
 	}
+	kfree(da_tokens);
 }
 
 module_init(dell_init);
