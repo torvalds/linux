@@ -232,6 +232,12 @@ static struct em28xx_reg_seq vc211a_enable[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+static struct em28xx_reg_seq dikom_dk300_digital[] = {
+	{EM28XX_R08_GPIO,	0x6e,	~EM_GPIO_4,	10},
+	{EM2880_R04_GPO,	0x08,	0xff,		10},
+	{ -1,			-1,	-1,		-1},
+};
+
 
 /*
  *  Board definitions
@@ -1440,6 +1446,21 @@ struct em28xx_board em28xx_boards[] = {
 			.gpio     = hauppauge_wintv_hvr_900_analog,
 		} },
 	},
+	[EM2882_BOARD_DIKOM_DK300] = {
+		.name         = "Dikom DK300",
+		.tuner_type   = TUNER_XC2028,
+		.tuner_gpio   = default_tuner_gpio,
+		.decoder      = EM28XX_TVP5150,
+		.mts_firmware = 1,
+		.has_dvb      = 1,
+		.dvb_gpio     = dikom_dk300_digital,
+		.input        = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = EM28XX_AMUX_VIDEO,
+			.gpio     = default_analog,
+		} },
+	},
 	[EM2883_BOARD_KWORLD_HYBRID_330U] = {
 		.name         = "Kworld PlusTV HD Hybrid 330",
 		.tuner_type   = TUNER_XC2028,
@@ -1760,6 +1781,7 @@ static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	{0xcee44a99, EM2882_BOARD_EVGA_INDTUBE, TUNER_XC2028},
 	{0xb8846b20, EM2881_BOARD_PINNACLE_HYBRID_PRO, TUNER_XC2028},
 	{0x63f653bd, EM2870_BOARD_REDDO_DVB_C_USB_BOX, TUNER_ABSENT},
+	{0x4e913442, EM2882_BOARD_DIKOM_DK300, TUNER_XC2028},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
@@ -2112,6 +2134,7 @@ static void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl)
 		ctl->demod = XC3028_FE_DEFAULT;
 		break;
 	case EM2883_BOARD_KWORLD_HYBRID_330U:
+	case EM2882_BOARD_DIKOM_DK300:
 		ctl->demod = XC3028_FE_CHINA;
 		ctl->fname = XC2028_DEFAULT_FIRMWARE;
 		break;
@@ -2387,6 +2410,31 @@ void em28xx_card_setup(struct em28xx *dev)
 		 * hash identities which has not been determined as yet.
 		 */
 	case EM2880_BOARD_MSI_DIGIVOX_AD:
+		if (!em28xx_hint_board(dev))
+			em28xx_set_model(dev);
+
+		/* In cases where we had to use a board hint, the call to
+		   em28xx_set_mode() in em28xx_pre_card_setup() was a no-op,
+		   so make the call now so the analog GPIOs are set properly
+		   before probing the i2c bus. */
+		em28xx_gpio_set(dev, dev->board.tuner_gpio);
+		em28xx_set_mode(dev, EM28XX_ANALOG_MODE);
+		break;
+
+/*
+		 * The Dikom DK300 is detected as an Kworld VS-DVB-T 323UR.
+		 *
+		 * This occurs because they share identical USB vendor and
+		 * product IDs.
+		 *
+		 * What we do here is look up the EEPROM hash of the Dikom
+		 * and if it is found then we decide that we do not have
+		 * a Kworld and reset the device to the Dikom instead.
+		 *
+		 * This solution is only valid if they do not share eeprom
+		 * hash identities which has not been determined as yet.
+		 */
+	case EM2882_BOARD_KWORLD_VS_DVBT:
 		if (!em28xx_hint_board(dev))
 			em28xx_set_model(dev);
 

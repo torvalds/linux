@@ -111,6 +111,7 @@
 #define EM2861_BOARD_GADMEI_UTV330PLUS           72
 #define EM2870_BOARD_REDDO_DVB_C_USB_BOX          73
 #define EM2800_BOARD_VC211A			  74
+#define EM2882_BOARD_DIKOM_DK300		  75
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
