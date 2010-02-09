@@ -318,7 +318,7 @@ u_long dt3155_setup_buffers(u_long *allocatorAddr)
 
       /* Make sure the buffering variables are consistent */
       {
-	u_char *ptr = (u_char *) dt3155_fbuffer[ m ];
+	u8 *ptr = (u8 *) dt3155_fbuffer[ m ];
 	for( index = 0; index < sizeof(struct dt3155_fbuffer_s); index++)
 	  *(ptr++)=0;
       }

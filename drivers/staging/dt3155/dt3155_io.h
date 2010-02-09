@@ -261,71 +261,71 @@ extern DMA_UPPER_LMT_R		odd_dma_upper_lmt_r;
 /******** Assignments and Typedefs for 8 bit I2C Registers********************/
 
 typedef union i2c_csr2_tag {
-	u_char reg;
+	u8 reg;
 	struct {
-		u_char CHROM_FIL:1;
-		u_char SYNC_SNTL:1;
-		u_char HZ50:1;
-		u_char SYNC_PRESENT:1;
-		u_char BUSY_EVE:1;
-		u_char BUSY_ODD:1;
-		u_char DISP_PASS:1;
+		u8 CHROM_FIL:1;
+		u8 SYNC_SNTL:1;
+		u8 HZ50:1;
+		u8 SYNC_PRESENT:1;
+		u8 BUSY_EVE:1;
+		u8 BUSY_ODD:1;
+		u8 DISP_PASS:1;
 	} fld;
 } I2C_CSR2;
 
 typedef union i2c_even_csr_tag {
-	u_char    reg;
+	u8    reg;
 	struct {
-		u_char DONE_EVE :1;
-		u_char SNGL_EVE :1;
-		u_char ERROR_EVE:1;
-		u_char          :5;
+		u8 DONE_EVE :1;
+		u8 SNGL_EVE :1;
+		u8 ERROR_EVE:1;
+		u8          :5;
 	} fld;
 } I2C_EVEN_CSR;
 
 typedef union i2c_odd_csr_tag {
-	u_char reg;
+	u8 reg;
 	struct {
-		u_char DONE_ODD:1;
-		u_char SNGL_ODD:1;
-		u_char ERROR_ODD:1;
-		u_char :5;
+		u8 DONE_ODD:1;
+		u8 SNGL_ODD:1;
+		u8 ERROR_ODD:1;
+		u8 :5;
 	} fld;
 } I2C_ODD_CSR;
 
 typedef union i2c_config_tag {
-	u_char reg;
+	u8 reg;
 	struct {
-		u_char ACQ_MODE:2;
-		u_char EXT_TRIG_EN:1;
-		u_char EXT_TRIG_POL:1;
-		u_char H_SCALE:1;
-		u_char CLIP:1;
-		u_char PM_LUT_SEL:1;
-		u_char PM_LUT_PGM:1;
+		u8 ACQ_MODE:2;
+		u8 EXT_TRIG_EN:1;
+		u8 EXT_TRIG_POL:1;
+		u8 H_SCALE:1;
+		u8 CLIP:1;
+		u8 PM_LUT_SEL:1;
+		u8 PM_LUT_PGM:1;
 	} fld;
 } I2C_CONFIG;
 
 
 typedef union i2c_ad_cmd_tag {
 	/* bits can have 3 different meanings depending on value of AD_ADDR */
-	u_char reg;
+	u8 reg;
 	/* Bt252 Command Register if AD_ADDR = 00h */
 	struct {
-		u_char             :2;
-		u_char SYNC_LVL_SEL:2;
-		u_char SYNC_CNL_SEL:2;
-		u_char DIGITIZE_CNL_SEL1:2;
+		u8             :2;
+		u8 SYNC_LVL_SEL:2;
+		u8 SYNC_CNL_SEL:2;
+		u8 DIGITIZE_CNL_SEL1:2;
 		} bt252_command;
 
 	/* Bt252 IOUT0 register if AD_ADDR = 01h */
 	struct {
-		u_char IOUT_DATA:8;
+		u8 IOUT_DATA:8;
 	} bt252_iout0;
 
 	/* BT252 IOUT1 register if AD_ADDR = 02h */
 	struct {
-		u_char IOUT_DATA:8;
+		u8 IOUT_DATA:8;
 	} bt252_iout1;
 } I2C_AD_CMD;
 
@@ -336,23 +336,23 @@ extern I2C_CSR2			i2c_csr2;
 extern I2C_EVEN_CSR		i2c_even_csr;
 extern I2C_ODD_CSR		i2c_odd_csr;
 extern I2C_CONFIG		i2c_config;
-extern u_char			i2c_dt_id;
-extern u_char			i2c_x_clip_start;
-extern u_char			i2c_y_clip_start;
-extern u_char			i2c_x_clip_end;
-extern u_char			i2c_y_clip_end;
-extern u_char			i2c_ad_addr;
-extern u_char			i2c_ad_lut;
+extern u8			i2c_dt_id;
+extern u8			i2c_x_clip_start;
+extern u8			i2c_y_clip_start;
+extern u8			i2c_x_clip_end;
+extern u8			i2c_y_clip_end;
+extern u8			i2c_ad_addr;
+extern u8			i2c_ad_lut;
 extern I2C_AD_CMD		i2c_ad_cmd;
-extern u_char			i2c_dig_out;
-extern u_char			i2c_pm_lut_addr;
-extern u_char			i2c_pm_lut_data;
+extern u8			i2c_dig_out;
+extern u8			i2c_pm_lut_addr;
+extern u8			i2c_pm_lut_data;
 
 /* Functions for Global use */
 
 /* access 8-bit IIC registers */
 
-extern int ReadI2C(u_char *lpReg, u_short wIregIndex, u_char *byVal);
-extern int WriteI2C(u_char *lpReg, u_short wIregIndex, u_char byVal);
+extern int ReadI2C(u8 *lpReg, u_short wIregIndex, u8 *byVal);
+extern int WriteI2C(u8 *lpReg, u_short wIregIndex, u8 byVal);
 
 #endif

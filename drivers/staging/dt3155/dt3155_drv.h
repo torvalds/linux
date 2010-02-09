@@ -25,10 +25,10 @@ MA 02111-1307 USA
 #define DT3155_DRV_INC
 
 /* kernel logical address of the frame grabbers */
-extern u_char *dt3155_lbase[MAXBOARDS];
+extern u8 *dt3155_lbase[MAXBOARDS];
 
 /* kernel logical address of ram buffer */
-extern u_char *dt3155_bbase;
+extern u8 *dt3155_bbase;
 
 #ifdef __KERNEL__
 #include <linux/wait.h>

@@ -86,17 +86,17 @@ I2C_CSR2               i2c_csr2;
 I2C_EVEN_CSR           i2c_even_csr;
 I2C_ODD_CSR            i2c_odd_csr;
 I2C_CONFIG             i2c_config;
-u_char                 i2c_dt_id;
-u_char                 i2c_x_clip_start;
-u_char                 i2c_y_clip_start;
-u_char                 i2c_x_clip_end;
-u_char                 i2c_y_clip_end;
-u_char                 i2c_ad_addr;
-u_char                 i2c_ad_lut;
+u8                 i2c_dt_id;
+u8                 i2c_x_clip_start;
+u8                 i2c_y_clip_start;
+u8                 i2c_x_clip_end;
+u8                 i2c_y_clip_end;
+u8                 i2c_ad_addr;
+u8                 i2c_ad_lut;
 I2C_AD_CMD             i2c_ad_cmd;
-u_char                 i2c_dig_out;
-u_char                 i2c_pm_lut_addr;
-u_char                 i2c_pm_lut_data;
+u8                 i2c_dig_out;
+u8                 i2c_pm_lut_addr;
+u8                 i2c_pm_lut_data;
 
 
 // return the time difference (in microseconds) b/w <a> & <b>.
@@ -117,7 +117,7 @@ long elapsed2 (const struct timeval *pStart, const struct timeval *pEnd)
              otherwise returns 0
 
 ***********************************************************************/
-int wait_ibsyclr(u_char * lpReg)
+int wait_ibsyclr(u8 * lpReg)
 {
   /* wait 100 microseconds */
 
@@ -168,7 +168,7 @@ int wait_ibsyclr(u_char * lpReg)
    Returns    TRUE   -  Successful completion
               FALSE  -  Timeout error - cycle did not complete!
 ***********************************************************************/
-int WriteI2C (u_char * lpReg, u_short wIregIndex, u_char byVal)
+int WriteI2C (u8 * lpReg, u_short wIregIndex, u8 byVal)
 {
     int writestat;     /* status for return */
 
@@ -203,7 +203,7 @@ int WriteI2C (u_char * lpReg, u_short wIregIndex, u_char byVal)
    Returns    TRUE   -  Successful completion
               FALSE  -  Timeout error - cycle did not complete!
 ***********************************************************************/
-int ReadI2C (u_char * lpReg, u_short wIregIndex, u_char * byVal)
+int ReadI2C (u8 * lpReg, u_short wIregIndex, u8 * byVal)
 {
   int writestat;     /* status for return */
 
@@ -229,8 +229,8 @@ int ReadI2C (u_char * lpReg, u_short wIregIndex, u_char * byVal)
   /* first read data is in IIC_CSR1 */
   ReadMReg((lpReg + IIC_CSR1), iic_csr1_r.reg);
 
-  /* now get data u_char out of register */
-  *byVal = (u_char) iic_csr1_r.fld.RD_DATA;
+  /* now get data u8 out of register */
+  *byVal = (u8) iic_csr1_r.fld.RD_DATA;
 
   return writestat;   /*  return with status */
 }

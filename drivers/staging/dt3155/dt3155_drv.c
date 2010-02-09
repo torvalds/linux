@@ -122,13 +122,13 @@ int dt3155_major = 0;
 struct dt3155_status_s dt3155_status[ MAXBOARDS ];
 
 /* kernel logical address of the board */
-u_char *dt3155_lbase[ MAXBOARDS ] = { NULL
+u8 *dt3155_lbase[ MAXBOARDS ] = { NULL
 #if MAXBOARDS == 2
 				      , NULL
 #endif
 };
 /* DT3155 registers              */
-u_char *dt3155_bbase = NULL;		  /* kernel logical address of the *
+u8 *dt3155_bbase = NULL;		  /* kernel logical address of the *
 					   * buffer region                 */
 u_int  dt3155_dev_open[ MAXBOARDS ] = {0
 #if MAXBOARDS == 2
