@@ -4001,7 +4001,7 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	 *   b. VT-d with snooping control feature: snooping control feature of
 	 *	VT-d engine can guarantee the cache correctness. Just set it
 	 *	to WB to keep consistent with host. So the same as item 3.
-	 * 3. EPT without VT-d: always map as WB and set IGMT=1 to keep
+	 * 3. EPT without VT-d: always map as WB and set IPAT=1 to keep
 	 *    consistent with host MTRR
 	 */
 	if (is_mmio)
@@ -4012,7 +4012,7 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 		      VMX_EPT_MT_EPTE_SHIFT;
 	else
 		ret = (MTRR_TYPE_WRBACK << VMX_EPT_MT_EPTE_SHIFT)
-			| VMX_EPT_IGMT_BIT;
+			| VMX_EPT_IPAT_BIT;
 
 	return ret;
 }
