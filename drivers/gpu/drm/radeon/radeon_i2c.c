@@ -254,6 +254,13 @@ static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 	case CHIP_RV740:
 		/* todo */
 		break;
+	case CHIP_CEDAR:
+	case CHIP_REDWOOD:
+	case CHIP_JUNIPER:
+	case CHIP_CYPRESS:
+	case CHIP_HEMLOCK:
+		/* todo */
+		break;
 	default:
 		DRM_ERROR("i2c: unhandled radeon chip\n");
 		break;
@@ -830,6 +837,14 @@ static int radeon_i2c_xfer(struct i2c_adapter *i2c_adap,
 	case CHIP_RV730:
 	case CHIP_RV710:
 	case CHIP_RV740:
+		/* XXX fill in hw i2c implementation */
+		ret = radeon_sw_i2c_xfer(i2c_adap, msgs, num);
+		break;
+	case CHIP_CEDAR:
+	case CHIP_REDWOOD:
+	case CHIP_JUNIPER:
+	case CHIP_CYPRESS:
+	case CHIP_HEMLOCK:
 		/* XXX fill in hw i2c implementation */
 		ret = radeon_sw_i2c_xfer(i2c_adap, msgs, num);
 		break;
