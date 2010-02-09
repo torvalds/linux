@@ -81,7 +81,7 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	sc = kzalloc(sizeof(*sc), GFP_KERNEL);
 	if (sc == NULL) {
-		dev_err(&hdev->dev, "can't alloc apple descriptor\n");
+		dev_err(&hdev->dev, "can't alloc sony descriptor\n");
 		return -ENOMEM;
 	}
 
