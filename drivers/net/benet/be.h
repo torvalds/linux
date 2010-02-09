@@ -250,7 +250,8 @@ struct be_adapter {
 	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
 
 	struct vlan_group *vlan_grp;
-	u16 num_vlans;
+	u16 vlans_added;
+	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_GROUP_ARRAY_LEN];
 	struct be_dma_mem mc_cmd_mem;
 

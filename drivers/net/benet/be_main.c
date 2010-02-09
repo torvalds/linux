@@ -488,17 +488,16 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /*
- * if there are BE_NUM_VLANS_SUPPORTED or lesser number of VLANS configured,
- * program them in BE.  If more than BE_NUM_VLANS_SUPPORTED are configured,
- * set the BE in promiscuous VLAN mode.
+ * A max of 64 (BE_NUM_VLANS_SUPPORTED) vlans can be configured in BE.
+ * If the user configures more, place BE in vlan promiscuous mode.
  */
 static int be_vid_config(struct be_adapter *adapter)
 {
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
 	u16 ntags = 0, i;
-	int status;
+	int status = 0;
 
-	if (adapter->num_vlans <= BE_NUM_VLANS_SUPPORTED)  {
+	if (adapter->vlans_added <= adapter->max_vlans)  {
 		/* Construct VLAN Table to give to HW */
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
 			if (adapter->vlan_tag[i]) {
@@ -532,21 +531,21 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	adapter->num_vlans++;
 	adapter->vlan_tag[vid] = 1;
-
-	be_vid_config(adapter);
+	adapter->vlans_added++;
+	if (adapter->vlans_added <= (adapter->max_vlans + 1))
+		be_vid_config(adapter);
 }
 
 static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	adapter->num_vlans--;
 	adapter->vlan_tag[vid] = 0;
-
 	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	be_vid_config(adapter);
+	adapter->vlans_added--;
+	if (adapter->vlans_added <= adapter->max_vlans)
+		be_vid_config(adapter);
 }
 
 static void be_set_multicast_list(struct net_device *netdev)
@@ -786,7 +785,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->dev = adapter->netdev;
 
 	if (vlanf) {
-		if (!adapter->vlan_grp || adapter->num_vlans == 0) {
+		if (!adapter->vlan_grp || adapter->vlans_added == 0) {
 			kfree_skb(skb);
 			return;
 		}
@@ -866,7 +865,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
 		vid = be16_to_cpu(vid);
 
-		if (!adapter->vlan_grp || adapter->num_vlans == 0)
+		if (!adapter->vlan_grp || adapter->vlans_added == 0)
 			return;
 
 		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, vid);
@@ -2240,6 +2239,11 @@ static int be_get_config(struct be_adapter *adapter)
 
 	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
 	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+
+	if (adapter->cap & 0x400)
+		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/4;
+	else
+		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
 
 	return 0;
 }
