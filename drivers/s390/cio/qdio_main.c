@@ -531,7 +531,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	qdio_siga_sync_q(q);
 	get_buf_state(q, q->first_to_check, &state, 0);
 
-	if (state == SLSB_P_INPUT_PRIMED)
+	if (state == SLSB_P_INPUT_PRIMED || state == SLSB_P_INPUT_ERROR)
 		/* more work coming */
 		return 0;
 
