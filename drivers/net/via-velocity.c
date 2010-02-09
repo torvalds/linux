@@ -2148,16 +2148,9 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	struct velocity_info *vptr = container_of(napi,
 			struct velocity_info, napi);
 	unsigned int rx_done;
-	u32 isr_status;
+	unsigned long flags;
 
-	spin_lock(&vptr->lock);
-	isr_status = mac_read_isr(vptr->mac_regs);
-
-	/* Ack the interrupt */
-	mac_write_isr(vptr->mac_regs, isr_status);
-	if (isr_status & (~(ISR_PRXI | ISR_PPRXI | ISR_PTXI | ISR_PPTXI)))
-		velocity_error(vptr, isr_status);
-
+	spin_lock_irqsave(&vptr->lock, flags);
 	/*
 	 * Do rx and tx twice for performance (taken from the VIA
 	 * out-of-tree driver).
@@ -2167,13 +2160,12 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	rx_done += velocity_rx_srv(vptr, budget - rx_done);
 	velocity_tx_srv(vptr);
 
-	spin_unlock(&vptr->lock);
-
 	/* If budget not fully consumed, exit the polling mode */
 	if (rx_done < budget) {
 		napi_complete(napi);
 		mac_enable_int(vptr->mac_regs);
 	}
+	spin_unlock_irqrestore(&vptr->lock, flags);
 
 	return rx_done;
 }
@@ -2203,10 +2195,17 @@ static irqreturn_t velocity_intr(int irq, void *dev_instance)
 		return IRQ_NONE;
 	}
 
+	/* Ack the interrupt */
+	mac_write_isr(vptr->mac_regs, isr_status);
+
 	if (likely(napi_schedule_prep(&vptr->napi))) {
 		mac_disable_int(vptr->mac_regs);
 		__napi_schedule(&vptr->napi);
 	}
+
+	if (isr_status & (~(ISR_PRXI | ISR_PPRXI | ISR_PTXI | ISR_PPTXI)))
+		velocity_error(vptr, isr_status);
+
 	spin_unlock(&vptr->lock);
 
 	return IRQ_HANDLED;
