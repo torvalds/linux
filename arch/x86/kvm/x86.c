@@ -2771,6 +2771,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (vpic) {
 			r = kvm_ioapic_init(kvm);
 			if (r) {
+				kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS,
+							  &vpic->dev);
 				kfree(vpic);
 				goto create_irqchip_unlock;
 			}
@@ -2782,10 +2784,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
 			mutex_lock(&kvm->irq_lock);
-			kfree(kvm->arch.vpic);
-			kfree(kvm->arch.vioapic);
-			kvm->arch.vpic = NULL;
-			kvm->arch.vioapic = NULL;
+			kvm_ioapic_destroy(kvm);
+			kvm_destroy_pic(kvm);
 			mutex_unlock(&kvm->irq_lock);
 		}
 	create_irqchip_unlock:

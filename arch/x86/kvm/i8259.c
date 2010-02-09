@@ -543,3 +543,14 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 
 	return s;
 }
+
+void kvm_destroy_pic(struct kvm *kvm)
+{
+	struct kvm_pic *vpic = kvm->arch.vpic;
+
+	if (vpic) {
+		kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &vpic->dev);
+		kvm->arch.vpic = NULL;
+		kfree(vpic);
+	}
+}
