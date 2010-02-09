@@ -301,6 +301,8 @@ static struct orion5x_mpp_mode d2net_mpp_modes[] __initdata = {
 	/* 24: Inhibit board power off (0 = Disabled, 1 = Enabled) */
 };
 
+#define D2NET_GPIO_INHIBIT_POWER_OFF    24
+
 static void __init d2net_init(void)
 {
 	/*
@@ -333,6 +335,8 @@ static void __init d2net_init(void)
 
 	i2c_register_board_info(0, d2net_i2c_devices,
 				ARRAY_SIZE(d2net_i2c_devices));
+
+	orion_gpio_set_valid(D2NET_GPIO_INHIBIT_POWER_OFF, 1);
 }
 
 /* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */
