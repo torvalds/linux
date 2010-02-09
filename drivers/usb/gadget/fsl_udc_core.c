@@ -48,13 +48,21 @@
 
 #include "fsl_usb2_udc.h"
 
+#ifdef CONFIG_ARCH_TEGRA
+#define	DRIVER_DESC	"NVidia Tegra High-Speed USB SOC Device Controller driver"
+#else
 #define	DRIVER_DESC	"Freescale High-Speed USB SOC Device Controller driver"
+#endif
 #define	DRIVER_AUTHOR	"Li Yang/Jiang Bo"
 #define	DRIVER_VERSION	"Apr 20, 2007"
 
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
+#ifdef CONFIG_ARCH_TEGRA
+static const char driver_name[] = "fsl-tegra-udc";
+#else
 static const char driver_name[] = "fsl-usb2-udc";
+#endif
 static const char driver_desc[] = DRIVER_DESC;
 
 static struct usb_dr_device *dr_regs;
@@ -178,7 +186,7 @@ static void nuke(struct fsl_ep *ep, int status)
 static int dr_controller_setup(struct fsl_udc *udc)
 {
 	unsigned int tmp, portctrl;
-#ifndef CONFIG_ARCH_MXC
+#if !defined(CONFIG_ARCH_MXC) && !defined(CONFIG_ARCH_TEGRA)
 	unsigned int ctrl;
 #endif
 	unsigned long timeout;
@@ -231,6 +239,19 @@ static int dr_controller_setup(struct fsl_udc *udc)
 	tmp |= USB_MODE_SETUP_LOCK_OFF;
 	fsl_writel(tmp, &dr_regs->usbmode);
 
+#ifdef CONFIG_ARCH_TEGRA
+	/* Wait for controller to switch to device mode */
+	timeout = jiffies + FSL_UDC_RESET_TIMEOUT;
+	while ((fsl_readl(&dr_regs->usbmode) & USB_MODE_CTRL_MODE_DEVICE) !=
+	       USB_MODE_CTRL_MODE_DEVICE) {
+		if (time_after(jiffies, timeout)) {
+			ERR("udc device mode setup timeout!\n");
+			return -ETIMEDOUT;
+		}
+		cpu_relax();
+	}
+#endif
+
 	/* Clear the setup status */
 	fsl_writel(0, &dr_regs->usbsts);
 
@@ -243,7 +264,7 @@ static int dr_controller_setup(struct fsl_udc *udc)
 		fsl_readl(&dr_regs->endpointlistaddr));
 
 	/* Config control enable i/o output, cpu endian register */
-#ifndef CONFIG_ARCH_MXC
+#if !defined(CONFIG_ARCH_MXC) && !defined(CONFIG_ARCH_TEGRA)
 	ctrl = __raw_readl(&usb_sys_regs->control);
 	ctrl |= USB_CTRL_IOENB;
 	__raw_writel(ctrl, &usb_sys_regs->control);
@@ -267,6 +288,20 @@ static int dr_controller_setup(struct fsl_udc *udc)
 static void dr_controller_run(struct fsl_udc *udc)
 {
 	u32 temp;
+#ifdef CONFIG_ARCH_TEGRA
+	unsigned long timeout;
+#define FSL_UDC_RUN_TIMEOUT 1000
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA
+	/* Enable cable detection interrupt, without setting the
+	 * USB_SYS_VBUS_WAKEUP_INT bit. USB_SYS_VBUS_WAKEUP_INT is
+	 * clear on write */
+	temp = fsl_readl(&usb_sys_regs->vbus_wakeup);
+	temp |= (USB_SYS_VBUS_WAKEUP_INT_ENABLE | USB_SYS_VBUS_WAKEUP_ENABLE);
+	temp &= ~USB_SYS_VBUS_WAKEUP_INT_STATUS;
+	fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
+#endif
 
 	/* Enable DR irq reg */
 	temp = USB_INTR_INT_EN | USB_INTR_ERR_INT_EN
@@ -287,6 +322,19 @@ static void dr_controller_run(struct fsl_udc *udc)
 	temp = fsl_readl(&dr_regs->usbcmd);
 	temp |= USB_CMD_RUN_STOP;
 	fsl_writel(temp, &dr_regs->usbcmd);
+
+#ifdef CONFIG_ARCH_TEGRA
+	/* Wait for controller to start */
+	timeout = jiffies + FSL_UDC_RUN_TIMEOUT;
+	while ((fsl_readl(&dr_regs->usbcmd) & USB_CMD_RUN_STOP) !=
+	       USB_CMD_RUN_STOP) {
+		if (time_after(jiffies, timeout)) {
+			ERR("udc start timeout!\n");
+			return;
+		}
+		cpu_relax();
+	}
+#endif
 
 	return;
 }
@@ -550,13 +598,19 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 	}
 
 	/* disable ep on controller */
-	ep_num = ep_index(ep);
-	epctrl = fsl_readl(&dr_regs->endptctrl[ep_num]);
-	if (ep_is_in(ep))
-		epctrl &= ~EPCTRL_TX_ENABLE;
-	else
-		epctrl &= ~EPCTRL_RX_ENABLE;
-	fsl_writel(epctrl, &dr_regs->endptctrl[ep_num]);
+#ifdef CONFIG_ARCH_TEGRA
+	/* Touch the registers if cable is connected and phy is on */
+	if (fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS)
+#endif
+	{
+		ep_num = ep_index(ep);
+		epctrl = fsl_readl(&dr_regs->endptctrl[ep_num]);
+		if (ep_is_in(ep))
+			epctrl &= ~EPCTRL_TX_ENABLE;
+		else
+			epctrl &= ~EPCTRL_RX_ENABLE;
+		fsl_writel(epctrl, &dr_regs->endptctrl[ep_num]);
+	}
 
 	udc = (struct fsl_udc *)ep->udc;
 	spin_lock_irqsave(&udc->lock, flags);
@@ -977,6 +1031,12 @@ static void fsl_ep_fifo_flush(struct usb_ep *_ep)
 	u32 bits;
 	unsigned long timeout;
 #define FSL_UDC_FLUSH_TIMEOUT 1000
+
+#ifdef CONFIG_ARCH_TEGRA
+	/* Touch the registers if cable is connected and phy is on */
+	if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS))
+		return;
+#endif
 
 	if (!_ep) {
 		return;
@@ -1516,7 +1576,12 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 	if (!bit_pos)
 		return;
 
+#ifdef CONFIG_ARCH_TEGRA
+	/* XXX what's going on here */
+	for (i = 0; i < udc->max_ep; i++) {
+#else
 	for (i = 0; i < udc->max_ep * 2; i++) {
+#endif
 		ep_num = i >> 1;
 		direction = i % 2;
 
@@ -1664,6 +1729,15 @@ static void reset_irq(struct fsl_udc *udc)
 	/* Write 1s to the flush register */
 	fsl_writel(0xffffffff, &dr_regs->endptflush);
 
+#if defined(CONFIG_ARCH_TEGRA)
+	/* When the bus reset is seen on Tegra, the PORTSCX_PORT_RESET bit
+	 * is not set */
+	VDBG("Bus reset");
+	/* Reset all the queues, include XD, dTD, EP queue
+	 * head and TR Queue */
+	reset_queues(udc);
+	udc->usb_state = USB_STATE_DEFAULT;
+#else
 	if (fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET) {
 		VDBG("Bus reset");
 		/* Reset all the queues, include XD, dTD, EP queue
@@ -1685,6 +1759,7 @@ static void reset_irq(struct fsl_udc *udc)
 		dr_controller_run(udc);
 		udc->usb_state = USB_STATE_ATTACHED;
 	}
+#endif
 }
 
 /*
@@ -1696,6 +1771,9 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 	u32 irq_src;
 	irqreturn_t status = IRQ_NONE;
 	unsigned long flags;
+#if defined(CONFIG_ARCH_TEGRA)
+	u32 temp;
+#endif
 
 	/* Disable ISR for OTG host mode */
 	if (udc->stopped)
@@ -1706,6 +1784,34 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 	fsl_writel(irq_src, &dr_regs->usbsts);
 
 	/* VDBG("irq_src [0x%8x]", irq_src); */
+#if defined(CONFIG_ARCH_TEGRA)
+	/* VBUS A session detection interrupts. When the interrupt is received,
+	 * the mark the vbus active shadow.
+	 */
+	temp = fsl_readl(&usb_sys_regs->vbus_sensors);
+	if (temp & USB_SYS_VBUS_ASESSION_CHANGED) {
+		if (temp & USB_SYS_VBUS_ASESSION) {
+			udc->vbus_active = 1;
+		} else {
+			reset_queues(udc);
+			udc->vbus_active = 0;
+			udc->usb_state = USB_STATE_DEFAULT;
+		}
+		/* write back the register to clear the interrupt */
+		fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
+
+#if 0
+		/* XXX */
+		if (udc->vbus_active) {
+			fsl_udc_clk_resume();
+		} else {
+			fsl_udc_clk_suspend();
+		}
+#endif
+
+		status = IRQ_HANDLED;
+	}
+#endif
 
 	/* Need to resume? */
 	if (udc->usb_state == USB_STATE_SUSPENDED)
@@ -1869,7 +1975,11 @@ EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 #include <linux/seq_file.h>
 
+#ifdef CONFIG_ARCH_TEGRA
+static const char proc_filename[] = "driver/fsl_tegra_udc";
+#else
 static const char proc_filename[] = "driver/fsl_usb2_udc";
+#endif
 
 static int fsl_proc_read(char *page, char **start, off_t off, int count,
 		int *eof, void *_dev)
@@ -2051,7 +2161,7 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 	size -= t;
 	next += t;
 
-#ifndef CONFIG_ARCH_MXC
+#if !defined(CONFIG_ARCH_MXC) && !defined(CONFIG_ARCH_TEGRA)
 	tmp_reg = usb_sys_regs->snoop1;
 	t = scnprintf(next, size, "Snoop1 Reg : = [0x%x]\n\n", tmp_reg);
 	size -= t;
@@ -2166,6 +2276,13 @@ static int __init struct_udc_setup(struct fsl_udc *udc,
 		return -1;
 	}
 
+#ifdef CONFIG_ARCH_TEGRA
+	/* Tegra uses hardware queue heads */
+	size = udc->max_ep * sizeof(struct ep_queue_head);
+	udc->ep_qh = (struct ep_queue_head *)((u8 *)dr_regs + QH_OFFSET);
+	udc->ep_qh_dma = platform_get_resource(pdev, IORESOURCE_MEM, 0)->start +
+		QH_OFFSET;
+#else
 	/* initialized QHs, take care of alignment */
 	size = udc->max_ep * sizeof(struct ep_queue_head);
 	if (size < QH_ALIGNMENT)
@@ -2181,6 +2298,7 @@ static int __init struct_udc_setup(struct fsl_udc *udc,
 		kfree(udc->eps);
 		return -1;
 	}
+#endif
 
 	udc->ep_qh_size = size;
 
@@ -2245,6 +2363,9 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 	unsigned int i;
 	u32 dccparams;
+#if defined(CONFIG_ARCH_TEGRA)
+	struct resource *res_sys = NULL;
+#endif
 
 	if (strcmp(pdev->name, driver_name)) {
 		VDBG("Wrong device");
@@ -2279,7 +2400,21 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err_release_mem_region;
 	}
 
-#ifndef CONFIG_ARCH_MXC
+#if defined(CONFIG_ARCH_TEGRA)
+	/* If the PHY registers are NOT provided as a seperate aperture, then
+	 * we should be using the registers inside the controller aperture. */
+	res_sys = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res_sys)  {
+		usb_sys_regs = ioremap(res_sys->start, resource_size(res_sys));
+		if (!usb_sys_regs)
+			goto err_release_mem_region;
+	} else {
+		usb_sys_regs = (struct usb_sys_interface *)
+			((u32)dr_regs + USB_DR_SYS_OFFSET);
+	}
+#endif
+
+#if !defined(CONFIG_ARCH_MXC) && !defined(CONFIG_ARCH_TEGRA)
 	usb_sys_regs = (struct usb_sys_interface *)
 			((u32)dr_regs + USB_DR_SYS_OFFSET);
 #endif
@@ -2374,6 +2509,16 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err_unregister;
 	}
 	create_proc_file();
+
+#if 0
+/* XXX */
+#ifdef CONFIG_ARCH_TEGRA
+	/* Power down the phy if cable is not connected */
+	if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS))
+		platform_udc_clk_suspend();
+#endif
+#endif
+
 	return 0;
 
 err_unregister:

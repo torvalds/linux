@@ -22,6 +22,9 @@ fsl_usb2_udc-objs		:= fsl_udc_core.o
 ifeq ($(CONFIG_ARCH_MXC),y)
 fsl_usb2_udc-objs		+= fsl_mxc_udc.o
 endif
+ifeq ($(CONFIG_ARCH_TEGRA),y)
+fsl_usb2_udc-objs		+= fsl_tegra_udc.o
+endif
 obj-$(CONFIG_USB_M66592)	+= m66592-udc.o
 obj-$(CONFIG_USB_R8A66597)	+= r8a66597-udc.o
 obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
