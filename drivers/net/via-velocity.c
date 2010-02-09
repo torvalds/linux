@@ -3341,6 +3341,7 @@ static int velocity_set_coalesce(struct net_device *dev,
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int max_us = 0x3f * 64;
+	unsigned long flags;
 
 	/* 6 bits of  */
 	if (ecmd->tx_coalesce_usecs > max_us)
@@ -3362,6 +3363,7 @@ static int velocity_set_coalesce(struct net_device *dev,
 			ecmd->tx_coalesce_usecs);
 
 	/* Setup the interrupt suppression and queue timers */
+	spin_lock_irqsave(&vptr->lock, flags);
 	mac_disable_int(vptr->mac_regs);
 	setup_adaptive_interrupts(vptr);
 	setup_queue_timers(vptr);
@@ -3369,6 +3371,7 @@ static int velocity_set_coalesce(struct net_device *dev,
 	mac_write_int_mask(vptr->int_mask, vptr->mac_regs);
 	mac_clear_isr(vptr->mac_regs);
 	mac_enable_int(vptr->mac_regs);
+	spin_unlock_irqrestore(&vptr->lock, flags);
 
 	return 0;
 }
