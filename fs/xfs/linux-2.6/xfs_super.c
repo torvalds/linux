@@ -1021,12 +1021,45 @@ xfs_fs_dirty_inode(
 	XFS_I(inode)->i_update_core = 1;
 }
 
-/*
- * Attempt to flush the inode, this will actually fail
- * if the inode is pinned, but we dirty the inode again
- * at the point when it is unpinned after a log write,
- * since this is when the inode itself becomes flushable.
- */
+STATIC int
+xfs_log_inode(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
+	error = xfs_trans_reserve(tp, 0, XFS_FSYNC_TS_LOG_RES(mp), 0, 0, 0);
+
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		/* we need to return with the lock hold shared */
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
+		return error;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+	/*
+	 * Note - it's possible that we might have pushed ourselves out of the
+	 * way during trans_reserve which would flush the inode.  But there's
+	 * no guarantee that the inode buffer has actually gone out yet (it's
+	 * delwri).  Plus the buffer could be pinned anyway if it's part of
+	 * an inode in another recent transaction.  So we play it safe and
+	 * fire off the transaction anyway.
+	 */
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	xfs_trans_ihold(tp, ip);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp, 0);
+	xfs_ilock_demote(ip, XFS_ILOCK_EXCL);
+
+	return error;
+}
+
 STATIC int
 xfs_fs_write_inode(
 	struct inode		*inode,
@@ -1034,7 +1067,7 @@ xfs_fs_write_inode(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	int			error = 0;
+	int			error = EAGAIN;
 
 	xfs_itrace_entry(ip);
 
@@ -1045,35 +1078,55 @@ xfs_fs_write_inode(
 		error = xfs_wait_on_pages(ip, 0, -1);
 		if (error)
 			goto out;
-	}
 
-	/*
-	 * Bypass inodes which have already been cleaned by
-	 * the inode flush clustering code inside xfs_iflush
-	 */
-	if (xfs_inode_clean(ip))
-		goto out;
-
-	/*
-	 * We make this non-blocking if the inode is contended, return
-	 * EAGAIN to indicate to the caller that they did not succeed.
-	 * This prevents the flush path from blocking on inodes inside
-	 * another operation right now, they get caught later by xfs_sync.
-	 */
-	if (sync) {
+		/*
+		 * Make sure the inode has hit stable storage.  By using the
+		 * log and the fsync transactions we reduce the IOs we have
+		 * to do here from two (log and inode) to just the log.
+		 *
+		 * Note: We still need to do a delwri write of the inode after
+		 * this to flush it to the backing buffer so that bulkstat
+		 * works properly if this is the first time the inode has been
+		 * written.  Because we hold the ilock atomically over the
+		 * transaction commit and the inode flush we are guaranteed
+		 * that the inode is not pinned when it returns. If the flush
+		 * lock is already held, then the inode has already been
+		 * flushed once and we don't need to flush it again.  Hence
+		 * the code will only flush the inode if it isn't already
+		 * being flushed.
+		 */
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
-		xfs_iflock(ip);
-
-		error = xfs_iflush(ip, SYNC_WAIT);
+		if (ip->i_update_core) {
+			error = xfs_log_inode(ip);
+			if (error)
+				goto out_unlock;
+		}
 	} else {
-		error = EAGAIN;
+		/*
+		 * We make this non-blocking if the inode is contended, return
+		 * EAGAIN to indicate to the caller that they did not succeed.
+		 * This prevents the flush path from blocking on inodes inside
+		 * another operation right now, they get caught later by xfs_sync.
+		 */
 		if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
 			goto out;
-		if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
-			goto out_unlock;
-
-		error = xfs_iflush(ip, 0);
 	}
+
+	if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
+		goto out_unlock;
+
+	/*
+	 * Now we have the flush lock and the inode is not pinned, we can check
+	 * if the inode is really clean as we know that there are no pending
+	 * transaction completions, it is not waiting on the delayed write
+	 * queue and there is no IO in progress.
+	 */
+	if (xfs_inode_clean(ip)) {
+		xfs_ifunlock(ip);
+		error = 0;
+		goto out_unlock;
+	}
+	error = xfs_iflush(ip, 0);
 
  out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
