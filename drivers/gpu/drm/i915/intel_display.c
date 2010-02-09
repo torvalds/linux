@@ -3434,11 +3434,10 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	intel_crtc->cursor_bo = bo;
 
 	return 0;
-fail:
-	mutex_lock(&dev->struct_mutex);
 fail_locked:
-	drm_gem_object_unreference(bo);
 	mutex_unlock(&dev->struct_mutex);
+fail:
+	drm_gem_object_unreference_unlocked(bo);
 	return ret;
 }
 
@@ -4351,9 +4350,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 		intelfb_remove(dev, fb);
 
 	drm_framebuffer_cleanup(fb);
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(intel_fb->obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(intel_fb->obj);
 
 	kfree(intel_fb);
 }
@@ -4416,9 +4413,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 	ret = intel_framebuffer_create(dev, mode_cmd, &fb, obj);
 	if (ret) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
+		drm_gem_object_unreference_unlocked(obj);
 		return NULL;
 	}
 

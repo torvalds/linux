@@ -128,9 +128,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_handle_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	if (ret)
 		return ret;
@@ -488,7 +486,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	 */
 	if (args->offset > obj->size || args->size > obj->size ||
 	    args->offset + args->size > obj->size) {
-		drm_gem_object_unreference(obj);
+		drm_gem_object_unreference_unlocked(obj);
 		return -EINVAL;
 	}
 
@@ -501,7 +499,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 							file_priv);
 	}
 
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return ret;
 }
@@ -961,7 +959,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	 */
 	if (args->offset > obj->size || args->size > obj->size ||
 	    args->offset + args->size > obj->size) {
-		drm_gem_object_unreference(obj);
+		drm_gem_object_unreference_unlocked(obj);
 		return -EINVAL;
 	}
 
@@ -995,7 +993,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		DRM_INFO("pwrite failed %d\n", ret);
 #endif
 
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return ret;
 }
@@ -1138,9 +1136,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		       PROT_READ | PROT_WRITE, MAP_SHARED,
 		       args->offset);
 	up_write(&current->mm->mmap_sem);
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	if (IS_ERR((void *)addr))
 		return addr;
 

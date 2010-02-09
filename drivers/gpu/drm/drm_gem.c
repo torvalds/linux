@@ -192,9 +192,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
 
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_handle_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	return 0;
 }
@@ -325,9 +323,7 @@ again:
 	}
 
 err:
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
 
@@ -358,9 +354,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	if (ret)
 		return ret;
 
@@ -390,7 +384,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 {
 	struct drm_gem_object *obj = ptr;
 
-	drm_gem_object_handle_unreference(obj);
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	return 0;
 }
@@ -403,12 +397,10 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 void
 drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 {
-	mutex_lock(&dev->struct_mutex);
 	idr_for_each(&file_private->object_idr,
 		     &drm_gem_object_release_handle, NULL);
 
 	idr_destroy(&file_private->object_idr);
-	mutex_unlock(&dev->struct_mutex);
 }
 
 static void
@@ -516,11 +508,8 @@ EXPORT_SYMBOL(drm_gem_vm_open);
 void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
-	struct drm_device *dev = obj->dev;
 
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
 
