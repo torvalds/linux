@@ -4060,18 +4060,17 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	if (IS_I945G(dev) || IS_I945GM(dev)) {
-		u32 fw_blc_self;
+	if (!dev_priv->busy) {
+		if (IS_I945G(dev) || IS_I945GM(dev)) {
+			u32 fw_blc_self;
 
-		DRM_DEBUG_DRIVER("disable memory self refresh on 945\n");
-		fw_blc_self = I915_READ(FW_BLC_SELF);
-		fw_blc_self &= ~FW_BLC_SELF_EN;
-		I915_WRITE(FW_BLC_SELF, fw_blc_self | FW_BLC_SELF_EN_MASK);
-	}
-
-	if (!dev_priv->busy)
+			DRM_DEBUG_DRIVER("disable memory self refresh on 945\n");
+			fw_blc_self = I915_READ(FW_BLC_SELF);
+			fw_blc_self &= ~FW_BLC_SELF_EN;
+			I915_WRITE(FW_BLC_SELF, fw_blc_self | FW_BLC_SELF_EN_MASK);
+		}
 		dev_priv->busy = true;
-	else
+	} else
 		mod_timer(&dev_priv->idle_timer, jiffies +
 			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
 
@@ -4083,6 +4082,14 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 		intel_fb = to_intel_framebuffer(crtc->fb);
 		if (intel_fb->obj == obj) {
 			if (!intel_crtc->busy) {
+				if (IS_I945G(dev) || IS_I945GM(dev)) {
+					u32 fw_blc_self;
+
+					DRM_DEBUG_DRIVER("disable memory self refresh on 945\n");
+					fw_blc_self = I915_READ(FW_BLC_SELF);
+					fw_blc_self &= ~FW_BLC_SELF_EN;
+					I915_WRITE(FW_BLC_SELF, fw_blc_self | FW_BLC_SELF_EN_MASK);
+				}
 				/* Non-busy -> busy, upclock */
 				intel_increase_pllclock(crtc, true);
 				intel_crtc->busy = true;
