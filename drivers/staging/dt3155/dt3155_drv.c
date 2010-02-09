@@ -538,8 +538,11 @@ static int dt3155_ioctl (
     {
       printk("DT3155: invalid IOCTL(0x%x)\n",cmd);
       printk("DT3155: Valid commands (0x%x), (0x%x), (0x%x), (0x%x), (0x%x)\n",
-	     DT3155_GET_CONFIG, DT3155_SET_CONFIG,
-	     DT3155_START, DT3155_STOP, DT3155_FLUSH);
+	     (unsigned int)DT3155_GET_CONFIG,
+	     (unsigned int)DT3155_SET_CONFIG,
+	     (unsigned int)DT3155_START,
+	     (unsigned int)DT3155_STOP,
+	     (unsigned int)DT3155_FLUSH);
       return -EINVAL;
     }
 
@@ -624,7 +627,8 @@ static int dt3155_ioctl (
       {
 	printk("DT3155: invalid IOCTL(0x%x)\n",cmd);
       printk("DT3155: Valid commands (0x%x), (0x%x), (0x%x), (0x%x), (0x%x)\n",
-	     DT3155_GET_CONFIG, DT3155_SET_CONFIG,
+	     (unsigned int)DT3155_GET_CONFIG,
+	     (unsigned int)DT3155_SET_CONFIG,
 	     DT3155_START, DT3155_STOP, DT3155_FLUSH);
 	return -ENOSYS;
       }
@@ -754,11 +758,8 @@ static int dt3155_close( struct inode *inode, struct file *filep)
  * read()
  *
  *****************************************************/
-static int dt3155_read (
-			struct file	*filep,
-			char		*buf,
-			size_t		count,
-			loff_t		*ppos)
+static ssize_t dt3155_read(struct file *filep, char __user *buf,
+			   size_t count, loff_t *ppos)
 {
   /* which device are we reading from? */
   int		minor = MINOR(filep->f_dentry->d_inode->i_rdev);
@@ -911,8 +912,8 @@ static int find_PCI (void)
        * can access it. */
       dt3155_lbase[ pci_index - 1 ] = ioremap(base,PCI_PAGE_SIZE);
       dt3155_status[ pci_index - 1 ].reg_addr = base;
-      DT_3155_DEBUG_MSG("DT3155: New logical address is x%x \n",
-			(u_int)dt3155_lbase[pci_index-1]);
+      DT_3155_DEBUG_MSG("DT3155: New logical address is %p \n",
+			dt3155_lbase[pci_index-1]);
       if ( !dt3155_lbase[pci_index-1] )
 	{
 	  printk("DT3155: Unable to remap control registers\n");
@@ -929,10 +930,10 @@ static int find_PCI (void)
       dt3155_status[ pci_index-1 ].irq = irq;
       /* Set flag: kth device found! */
       dt3155_status[ pci_index-1 ].device_installed = 1;
-      printk("DT3155: Installing device %d w/irq %d and address 0x%x\n",
+      printk("DT3155: Installing device %d w/irq %d and address %p\n",
 	     pci_index,
 	     (u_int)dt3155_status[pci_index-1].irq,
-	     (u_int)dt3155_lbase[pci_index-1]);
+	     dt3155_lbase[pci_index-1]);
 
     }
   ndevices = pci_index;
