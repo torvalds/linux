@@ -365,6 +365,7 @@ static noinline int device_list_add(const char *path,
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *fs_devices;
 	u64 found_transid = btrfs_super_generation(disk_super);
+	char *name;
 
 	fs_devices = find_fsid(disk_super->fsid);
 	if (!fs_devices) {
@@ -411,6 +412,12 @@ static noinline int device_list_add(const char *path,
 
 		device->fs_devices = fs_devices;
 		fs_devices->num_devices++;
+	} else if (strcmp(device->name, path)) {
+		name = kstrdup(path, GFP_NOFS);
+		if (!name)
+			return -ENOMEM;
+		kfree(device->name);
+		device->name = name;
 	}
 
 	if (found_transid > fs_devices->latest_trans) {
