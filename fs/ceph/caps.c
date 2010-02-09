@@ -1374,12 +1374,13 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	int file_wanted, used;
 	int took_snap_rwsem = 0;             /* true if mdsc->snap_rwsem held */
 	int drop_session_lock = session ? 0 : 1;
-	int want, retain, revoking, flushing = 0;
+	int issued, implemented, want, retain, revoking, flushing = 0;
 	int mds = -1;   /* keep track of how far we've gone through i_caps list
 			   to avoid an infinite loop on retry */
 	struct rb_node *p;
 	int tried_invalidate = 0;
 	int delayed = 0, sent = 0, force_requeue = 0, num;
+	int queue_invalidate = 0;
 	int is_delayed = flags & CHECK_CAPS_NODELAY;
 
 	/* if we are unmounting, flush any unused caps immediately. */
@@ -1401,6 +1402,8 @@ retry_locked:
 	file_wanted = __ceph_caps_file_wanted(ci);
 	used = __ceph_caps_used(ci);
 	want = file_wanted | used;
+	issued = __ceph_caps_issued(ci, &implemented);
+	revoking = implemented & ~issued;
 
 	retain = want | CEPH_CAP_PIN;
 	if (!mdsc->stopping && inode->i_nlink > 0) {
@@ -1419,11 +1422,11 @@ retry_locked:
 	}
 
 	dout("check_caps %p file_want %s used %s dirty %s flushing %s"
-	     " issued %s retain %s %s%s%s\n", inode,
+	     " issued %s revoking %s retain %s %s%s%s\n", inode,
 	     ceph_cap_string(file_wanted),
 	     ceph_cap_string(used), ceph_cap_string(ci->i_dirty_caps),
 	     ceph_cap_string(ci->i_flushing_caps),
-	     ceph_cap_string(__ceph_caps_issued(ci, NULL)),
+	     ceph_cap_string(issued), ceph_cap_string(revoking),
 	     ceph_cap_string(retain),
 	     (flags & CHECK_CAPS_AUTHONLY) ? " AUTHONLY" : "",
 	     (flags & CHECK_CAPS_NODELAY) ? " NODELAY" : "",
@@ -1437,7 +1440,8 @@ retry_locked:
 	if ((!is_delayed || mdsc->stopping) &&
 	    ci->i_wrbuffer_ref == 0 &&               /* no dirty pages... */
 	    ci->i_rdcache_gen &&                     /* may have cached pages */
-	    file_wanted == 0 &&                      /* no open files */
+	    (file_wanted == 0 ||                     /* no open files */
+	     (revoking & CEPH_CAP_FILE_CACHE)) &&     /*  or revoking cache */
 	    !ci->i_truncate_pending &&
 	    !tried_invalidate) {
 		u32 invalidating_gen = ci->i_rdcache_gen;
@@ -1451,6 +1455,10 @@ retry_locked:
 			/* success. */
 			ci->i_rdcache_gen = 0;
 			ci->i_rdcache_revoking = 0;
+		} else if (revoking & CEPH_CAP_FILE_CACHE) {
+			dout("check_caps queuing invalidate\n");
+			queue_invalidate = 1;
+			ci->i_rdcache_revoking = ci->i_rdcache_gen;
 		} else {
 			dout("check_caps failed to invalidate pages\n");
 			/* we failed to invalidate pages.  check these
@@ -1476,7 +1484,7 @@ retry_locked:
 
 		revoking = cap->implemented & ~cap->issued;
 		if (revoking)
-			dout("mds%d revoking %s\n", cap->mds,
+			dout(" mds%d revoking %s\n", cap->mds,
 			     ceph_cap_string(revoking));
 
 		if (cap == ci->i_auth_cap &&
@@ -1590,6 +1598,10 @@ ack:
 		__cap_delay_requeue(mdsc, ci);
 
 	spin_unlock(&inode->i_lock);
+
+	if (queue_invalidate)
+		if (ceph_queue_page_invalidation(inode))
+			igrab(inode);
 
 	if (session && drop_session_lock)
 		mutex_unlock(&session->s_mutex);
