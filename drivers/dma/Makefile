@@ -1,3 +1,10 @@
+ifeq ($(CONFIG_DMADEVICES_DEBUG),y)
+	EXTRA_CFLAGS	+= -DDEBUG
+endif
+ifeq ($(CONFIG_DMADEVICES_VDEBUG),y)
+	EXTRA_CFLAGS	+= -DVERBOSE_DEBUG
+endif
+
 obj-$(CONFIG_DMA_ENGINE) += dmaengine.o
 obj-$(CONFIG_NET_DMA) += iovlock.o
 obj-$(CONFIG_DMATEST) += dmatest.o

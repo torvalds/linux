@@ -13,6 +13,22 @@ menuconfig DMADEVICES
 	  DMA Device drivers supported by the configured arch, it may
 	  be empty in some cases.
 
+config DMADEVICES_DEBUG
+        bool "DMA Engine debugging"
+        depends on DMADEVICES != n
+        help
+          This is an option for use by developers; most people should
+          say N here.  This enables DMA engine core and driver debugging.
+
+config DMADEVICES_VDEBUG
+        bool "DMA Engine verbose debugging"
+        depends on DMADEVICES_DEBUG != n
+        help
+          This is an option for use by developers; most people should
+          say N here.  This enables deeper (more verbose) debugging of
+          the DMA engine core and drivers.
+
+
 if DMADEVICES
 
 comment "DMA Devices"
