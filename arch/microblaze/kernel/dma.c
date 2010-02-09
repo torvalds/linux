@@ -20,18 +20,15 @@
  * can set archdata.dma_data to an unsigned long holding the offset. By
  * default the offset is PCI_DRAM_OFFSET.
  */
-
-static inline void __dma_sync_page(void *paddr, unsigned long offset,
+static inline void __dma_sync_page(unsigned long paddr, unsigned long offset,
 				size_t size, enum dma_data_direction direction)
 {
-	unsigned long start = (unsigned long)paddr;
-
 	switch (direction) {
 	case DMA_TO_DEVICE:
-		flush_dcache_range(start + offset, start + offset + size);
+		flush_dcache_range(paddr + offset, paddr + offset + size);
 		break;
 	case DMA_FROM_DEVICE:
-		invalidate_dcache_range(start + offset, start + offset + size);
+		invalidate_dcache_range(paddr + offset, paddr + offset + size);
 		break;
 	default:
 		BUG();
