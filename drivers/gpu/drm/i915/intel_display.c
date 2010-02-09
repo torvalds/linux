@@ -4180,7 +4180,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	unsigned long flags;
-	int ret;
+	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
+	int ret, pipesrc;
 	RING_LOCALS;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -4236,7 +4237,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	OUT_RING(fb->pitch);
 	if (IS_I965G(dev)) {
 		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
-		OUT_RING((fb->width << 16) | fb->height);
+		pipesrc = I915_READ(pipesrc_reg); 
+		OUT_RING(pipesrc & 0x0fff0fff);
 	} else {
 		OUT_RING(obj_priv->gtt_offset);
 		OUT_RING(MI_NOOP);
