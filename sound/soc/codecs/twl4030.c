@@ -55,7 +55,7 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x0c, /* REG_ATXR1PGA		(0xB)	*/
 	0x00, /* REG_AVTXL2PGA		(0xC)	*/
 	0x00, /* REG_AVTXR2PGA		(0xD)	*/
-	0x01, /* REG_AUDIO_IF		(0xE)	*/
+	0x00, /* REG_AUDIO_IF		(0xE)	*/
 	0x00, /* REG_VOICE_IF		(0xF)	*/
 	0x00, /* REG_ARXR1PGA		(0x10)	*/
 	0x00, /* REG_ARXL1PGA		(0x11)	*/
@@ -1203,6 +1203,8 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("APLL Enable", SND_SOC_NOPM, 0, 0, apll_event,
 			    SND_SOC_DAPM_PRE_PMU|SND_SOC_DAPM_POST_PMD),
 
+	SND_SOC_DAPM_SUPPLY("AIF Enable", TWL4030_REG_AUDIO_IF, 0, 0, NULL, 0),
+
 	/* Output MIXER controls */
 	/* Earpiece */
 	SND_SOC_DAPM_MIXER("Earpiece Mixer", SND_SOC_NOPM, 0, 0,
@@ -1337,6 +1339,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Digital L2 Playback Mixer", NULL, "APLL Enable"},
 	{"Digital Voice Playback Mixer", NULL, "APLL Enable"},
 
+	{"Digital R1 Playback Mixer", NULL, "AIF Enable"},
+	{"Digital L1 Playback Mixer", NULL, "AIF Enable"},
+	{"Digital R2 Playback Mixer", NULL, "AIF Enable"},
+	{"Digital L2 Playback Mixer", NULL, "AIF Enable"},
+
 	{"Analog L1 Playback Mixer", NULL, "Digital L1 Playback Mixer"},
 	{"Analog R1 Playback Mixer", NULL, "Digital R1 Playback Mixer"},
 	{"Analog L2 Playback Mixer", NULL, "Digital L2 Playback Mixer"},
@@ -1454,6 +1461,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"ADC Virtual Right1", NULL, "APLL Enable"},
 	{"ADC Virtual Left2", NULL, "APLL Enable"},
 	{"ADC Virtual Right2", NULL, "APLL Enable"},
+
+	{"ADC Virtual Left1", NULL, "AIF Enable"},
+	{"ADC Virtual Right1", NULL, "AIF Enable"},
+	{"ADC Virtual Left2", NULL, "AIF Enable"},
+	{"ADC Virtual Right2", NULL, "AIF Enable"},
 
 	/* Analog bypass routes */
 	{"Right1 Analog Loopback", "Switch", "Analog Right"},
