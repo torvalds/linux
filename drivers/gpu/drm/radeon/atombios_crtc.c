@@ -245,10 +245,10 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		atombios_enable_crtc(crtc, 1);
+		atombios_enable_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev))
-			atombios_enable_crtc_memreq(crtc, 1);
-		atombios_blank_crtc(crtc, 0);
+			atombios_enable_crtc_memreq(crtc, ATOM_ENABLE);
+		atombios_blank_crtc(crtc, ATOM_DISABLE);
 		/* XXX re-enable when interrupt support is added */
 		if (!ASIC_IS_DCE4(rdev))
 			drm_vblank_post_modeset(dev, radeon_crtc->crtc_id);
@@ -260,10 +260,10 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* XXX re-enable when interrupt support is added */
 		if (!ASIC_IS_DCE4(rdev))
 			drm_vblank_pre_modeset(dev, radeon_crtc->crtc_id);
-		atombios_blank_crtc(crtc, 1);
+		atombios_blank_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev))
-			atombios_enable_crtc_memreq(crtc, 0);
-		atombios_enable_crtc(crtc, 0);
+			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
+		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		break;
 	}
 }
@@ -1116,14 +1116,14 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 
 static void atombios_crtc_prepare(struct drm_crtc *crtc)
 {
-	atombios_lock_crtc(crtc, 1);
+	atombios_lock_crtc(crtc, ATOM_ENABLE);
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 static void atombios_crtc_commit(struct drm_crtc *crtc)
 {
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
-	atombios_lock_crtc(crtc, 0);
+	atombios_lock_crtc(crtc, ATOM_DISABLE);
 }
 
 static const struct drm_crtc_helper_funcs atombios_helper_funcs = {
