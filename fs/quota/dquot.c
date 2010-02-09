@@ -229,6 +229,8 @@ static struct hlist_head *dquot_hash;
 struct dqstats dqstats;
 EXPORT_SYMBOL(dqstats);
 
+static qsize_t inode_get_rsv_space(struct inode *inode);
+
 static inline unsigned int
 hashfn(const struct super_block *sb, unsigned int id, int type)
 {
@@ -844,11 +846,14 @@ static int dqinit_needed(struct inode *inode, int type)
 static void add_dquot_ref(struct super_block *sb, int type)
 {
 	struct inode *inode, *old_inode = NULL;
+	int reserved = 0;
 
 	spin_lock(&inode_lock);
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
 			continue;
+		if (unlikely(inode_get_rsv_space(inode) > 0))
+			reserved = 1;
 		if (!atomic_read(&inode->i_writecount))
 			continue;
 		if (!dqinit_needed(inode, type))
@@ -869,6 +874,12 @@ static void add_dquot_ref(struct super_block *sb, int type)
 	}
 	spin_unlock(&inode_lock);
 	iput(old_inode);
+
+	if (reserved) {
+		printk(KERN_WARNING "VFS (%s): Writes happened before quota"
+			" was turned on thus quota information is probably "
+			"inconsistent. Please run quotacheck(8).\n", sb->s_id);
+	}
 }
 
 /*
@@ -982,10 +993,12 @@ static inline void dquot_resv_space(struct dquot *dquot, qsize_t number)
 /*
  * Claim reserved quota space
  */
-static void dquot_claim_reserved_space(struct dquot *dquot,
-						qsize_t number)
+static void dquot_claim_reserved_space(struct dquot *dquot, qsize_t number)
 {
-	WARN_ON(dquot->dq_dqb.dqb_rsvspace < number);
+	if (dquot->dq_dqb.dqb_rsvspace < number) {
+		WARN_ON_ONCE(1);
+		number = dquot->dq_dqb.dqb_rsvspace;
+	}
 	dquot->dq_dqb.dqb_curspace += number;
 	dquot->dq_dqb.dqb_rsvspace -= number;
 }
@@ -993,7 +1006,12 @@ static void dquot_claim_reserved_space(struct dquot *dquot,
 static inline
 void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
 {
-	dquot->dq_dqb.dqb_rsvspace -= number;
+	if (dquot->dq_dqb.dqb_rsvspace >= number)
+		dquot->dq_dqb.dqb_rsvspace -= number;
+	else {
+		WARN_ON_ONCE(1);
+		dquot->dq_dqb.dqb_rsvspace = 0;
+	}
 }
 
 static void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
@@ -1246,6 +1264,7 @@ static int info_bdq_free(struct dquot *dquot, qsize_t space)
 		return QUOTA_NL_BHARDBELOW;
 	return QUOTA_NL_NOWARN;
 }
+
 /*
  *	Initialize quota pointers in inode
  *	We do things in a bit complicated way but by that we avoid calling
@@ -1257,6 +1276,7 @@ int dquot_initialize(struct inode *inode, int type)
 	int cnt, ret = 0;
 	struct dquot *got[MAXQUOTAS] = { NULL, NULL };
 	struct super_block *sb = inode->i_sb;
+	qsize_t rsv;
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
@@ -1290,6 +1310,13 @@ int dquot_initialize(struct inode *inode, int type)
 		if (!inode->i_dquot[cnt]) {
 			inode->i_dquot[cnt] = got[cnt];
 			got[cnt] = NULL;
+			/*
+			 * Make quota reservation system happy if someone
+			 * did a write before quota was turned on
+			 */
+			rsv = inode_get_rsv_space(inode);
+			if (unlikely(rsv))
+				dquot_resv_space(inode->i_dquot[cnt], rsv);
 		}
 	}
 out_err:
