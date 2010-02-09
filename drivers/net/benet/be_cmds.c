@@ -1374,7 +1374,7 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			u32 flash_type, u32 flash_opcode, u32 buf_size)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_write_flashrom *req = cmd->va;
+	struct be_cmd_write_flashrom *req;
 	struct be_sge *sge;
 	int status;
 
@@ -1408,7 +1408,8 @@ err:
 	return status;
 }
 
-int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc)
+int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
+			 int offset)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_write_flashrom *req;
@@ -1429,9 +1430,9 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_READ_FLASHROM, sizeof(*req)+4);
 
-	req->params.op_type = cpu_to_le32(FLASHROM_TYPE_REDBOOT);
+	req->params.op_type = cpu_to_le32(IMG_TYPE_REDBOOT);
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
-	req->params.offset = 0x3FFFC;
+	req->params.offset = offset;
 	req->params.data_buf_size = 0x4;
 
 	status = be_mcc_notify_wait(adapter);
