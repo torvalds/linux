@@ -903,8 +903,18 @@ static int exofs_get_inode(struct super_block *sb, struct exofs_i_info *oi,
 	ios->in_attr_len = ARRAY_SIZE(attrs);
 
 	ret = exofs_sbi_read(ios);
-	if (ret)
+	if (unlikely(ret)) {
+		EXOFS_ERR("object(0x%llx) corrupted, return empty file=>%d\n",
+			  _LLU(ios->obj.id), ret);
+		memset(inode, 0, sizeof(*inode));
+		inode->i_mode = 0040000 | (0777 & ~022);
+		/* If object is lost on target we might as well enable it's
+		 * delete.
+		 */
+		if ((ret == -ENOENT) || (ret == -EINVAL))
+			ret = 0;
 		goto out;
+	}
 
 	ret = extract_attr_from_ios(ios, &attrs[0]);
 	if (ret) {
