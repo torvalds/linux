@@ -451,7 +451,7 @@ static struct resource sdhi0_cn7_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 101,
+		.start  = 100,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -474,7 +474,7 @@ static struct resource sdhi1_cn8_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 24,
+		.start  = 23,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
