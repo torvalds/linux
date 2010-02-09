@@ -127,12 +127,12 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 static void dspics_resets_init(void)
 {
 	if (!gpio_request(TRSLAT_RST_B, "translator-rst")) {
-		gpio_direction_output(TRSLAT_RST_B, 1);
+		gpio_direction_output(TRSLAT_RST_B, 0);
 		gpio_export(TRSLAT_RST_B, false);
 	}
 
 	if (!gpio_request(DSPICS_RST_B, "dspics-rst")) {
-		gpio_direction_output(DSPICS_RST_B, 1);
+		gpio_direction_output(DSPICS_RST_B, 0);
 		gpio_export(DSPICS_RST_B, false);
 	}
 }
@@ -200,7 +200,7 @@ static int __init marxbot_cam_init(void)
 	int ret = gpio_request(CAM_CHOICE, "cam-choice");
 	if (ret)
 		return ret;
-	gpio_direction_output(CAM_CHOICE, 1);
+	gpio_direction_output(CAM_CHOICE, 0);
 
 	ret = gpio_request(BASECAM_RST_B, "basecam-reset");
 	if (ret)
