@@ -502,14 +502,14 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 		*outlen = utf8s_to_utf16s(name, len, (wchar_t *)outname);
 		if (*outlen < 0)
 			return *outlen;
-		else if (*outlen > 255)
+		else if (*outlen > FAT_LFN_LEN)
 			return -ENAMETOOLONG;
 
 		op = &outname[*outlen * sizeof(wchar_t)];
 	} else {
 		if (nls) {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 255;
+			     i < len && *outlen <= FAT_LFN_LEN;
 			     *outlen += 1)
 			{
 				if (escape && (*ip == ':')) {
@@ -549,7 +549,7 @@ xlate_to_uni(const unsigned char *name, int len, unsigned char *outname,
 				return -ENAMETOOLONG;
 		} else {
 			for (i = 0, ip = name, op = outname, *outlen = 0;
-			     i < len && *outlen <= 255;
+			     i < len && *outlen <= FAT_LFN_LEN;
 			     i++, *outlen += 1)
 			{
 				*op++ = *ip++;
