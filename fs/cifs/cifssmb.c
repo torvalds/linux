@@ -5285,6 +5285,7 @@ CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 	struct fealist *ea_response_data;
 	struct fea *temp_fea;
 	char *temp_ptr;
+	char *end_of_smb;
 	__u16 params, byte_count, data_offset;
 
 	cFYI(1, ("In Query All EAs path %s", searchName));
@@ -5368,22 +5369,47 @@ QAllEAsRetry:
 		goto QAllEAsOut;
 	}
 
+	/* make sure list_len doesn't go past end of SMB */
+	end_of_smb = (char *)pByteArea(&pSMBr->hdr) + BCC(&pSMBr->hdr);
+	if ((char *)ea_response_data + list_len > end_of_smb) {
+		cFYI(1, ("EA list appears to go beyond SMB"));
+		rc = -EIO;
+		goto QAllEAsOut;
+	}
+
 	/* account for ea list len */
 	list_len -= 4;
 	temp_fea = ea_response_data->list;
 	temp_ptr = (char *)temp_fea;
 	while (list_len > 0) {
+		__u8 name_len;
 		__u16 value_len;
+
 		list_len -= 4;
 		temp_ptr += 4;
-		rc += temp_fea->name_len;
+		/* make sure we can read name_len and value_len */
+		if (list_len < 0) {
+			cFYI(1, ("EA entry goes beyond length of list"));
+			rc = -EIO;
+			goto QAllEAsOut;
+		}
+
+		name_len = temp_fea->name_len;
+		value_len = le16_to_cpu(temp_fea->value_len);
+		list_len -= name_len + 1 + value_len;
+		if (list_len < 0) {
+			cFYI(1, ("EA entry goes beyond length of list"));
+			rc = -EIO;
+			goto QAllEAsOut;
+		}
+
 		/* account for prefix user. and trailing null */
-		rc = rc + 5 + 1;
+		rc += (5 + 1 + name_len);
 		if (rc < (int) buf_size) {
 			memcpy(EAData, "user.", 5);
 			EAData += 5;
-			memcpy(EAData, temp_ptr, temp_fea->name_len);
-			EAData += temp_fea->name_len;
+			memcpy(EAData, temp_ptr, name_len);
+			EAData += name_len;
 			/* null terminate name */
 			*EAData = 0;
 			++EAData;
@@ -5394,20 +5420,7 @@ QAllEAsRetry:
 			rc = -ERANGE;
 			break;
 		}
-		list_len -= temp_fea->name_len;
-		temp_ptr += temp_fea->name_len;
-		/* account for trailing null */
-		list_len--;
-		temp_ptr++;
-		value_len = le16_to_cpu(temp_fea->value_len);
-		list_len -= value_len;
-		temp_ptr += value_len;
-		/* BB check that temp_ptr is still
-		      within the SMB BB*/
-
-		/* no trailing null to account for
-		   in value len */
-		/* go on to next EA */
+		temp_ptr += name_len + 1 + value_len;
 		temp_fea = (struct fea *)temp_ptr;
 	}
 
