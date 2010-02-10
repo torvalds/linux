@@ -6,9 +6,7 @@
 
 #include <asm/pci_x86.h>
 
-#ifdef CONFIG_X86_64
 #include <asm/pci-direct.h>
-#endif
 
 #include "bus_numa.h"
 
@@ -16,8 +14,6 @@
  * This discovers the pcibus <-> node mapping on AMD K8.
  * also get peer root bus resource for io,mmio
  */
-
-#ifdef CONFIG_X86_64
 
 struct pci_hostbridge_probe {
 	u32 bus;
@@ -339,23 +335,13 @@ static int __init early_fill_mp_bus_info(void)
 		       info->bus_min, info->bus_max, info->node, info->link);
 		for (j = 0; j < res_num; j++) {
 			res = &info->res[j];
-			printk(KERN_DEBUG "bus: %02x index %x %s: [%llx, %llx]\n",
-			       busnum, j,
-			       (res->flags & IORESOURCE_IO)?"io port":"mmio",
-			       res->start, res->end);
+			printk(KERN_DEBUG "bus: %02x index %x %pR\n",
+				       busnum, j, res);
 		}
 	}
 
 	return 0;
 }
-
-#else  /* !CONFIG_X86_64 */
-
-static int __init early_fill_mp_bus_info(void) { return 0; }
-
-#endif /* !CONFIG_X86_64 */
-
-/* common 32/64 bit code */
 
 #define ENABLE_CF8_EXT_CFG      (1ULL << 46)
 
