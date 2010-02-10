@@ -397,8 +397,7 @@ u16 wl1271_top_reg_read(struct wl1271 *wl, int addr)
 	/* poll for data ready */
 	do {
 		val = wl1271_spi_read32(wl, OCP_DATA_READ);
-		timeout--;
-	} while (!(val & OCP_READY_MASK) && timeout);
+	} while (!(val & OCP_READY_MASK) && --timeout);
 
 	if (!timeout) {
 		wl1271_warning("Top register access timed out.");

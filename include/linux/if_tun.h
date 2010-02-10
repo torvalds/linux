@@ -86,4 +86,18 @@ struct tun_filter {
 	__u8   addr[0][ETH_ALEN];
 };
 
+#ifdef __KERNEL__
+#if defined(CONFIG_TUN) || defined(CONFIG_TUN_MODULE)
+struct socket *tun_get_socket(struct file *);
+#else
+#include <linux/err.h>
+#include <linux/errno.h>
+struct file;
+struct socket;
+static inline struct socket *tun_get_socket(struct file *f)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif /* CONFIG_TUN */
+#endif /* __KERNEL__ */
 #endif /* __IF_TUN_H */

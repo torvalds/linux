@@ -55,7 +55,6 @@
 #include <linux/types.h>
 #include <linux/inet_lro.h>
 #include <asm/system.h>
-#include <linux/list.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.4";
@@ -656,6 +655,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 		struct sk_buff *skb;
 		int rx;
 		struct rx_desc *rx_desc;
+		int size;
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
@@ -678,10 +678,11 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 
 		rx_desc = rxq->rx_desc_area + rx;
 
+		size = skb->end - skb->data;
 		rx_desc->buf_ptr = dma_map_single(mp->dev->dev.parent,
-						  skb->data, mp->skb_size,
+						  skb->data, size,
 						  DMA_FROM_DEVICE);
-		rx_desc->buf_size = mp->skb_size;
+		rx_desc->buf_size = size;
 		rxq->rx_skb[rx] = skb;
 		wmb();
 		rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;
@@ -1695,7 +1696,7 @@ static u32 uc_addr_filter_mask(struct net_device *dev)
 		return 0;
 
 	nibbles = 1 << (dev->dev_addr[5] & 0x0f);
-	list_for_each_entry(ha, &dev->uc.list, list) {
+	netdev_for_each_uc_addr(ha, dev) {
 		if (memcmp(dev->dev_addr, ha->addr, 5))
 			return 0;
 		if ((dev->dev_addr[5] ^ ha->addr[5]) & 0xf0)

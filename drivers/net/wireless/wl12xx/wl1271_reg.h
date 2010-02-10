@@ -62,72 +62,9 @@
 #define WL1271_SLV_REG_DATA            (REGISTERS_BASE + 0x0008)
 #define WL1271_SLV_REG_ADATA           (REGISTERS_BASE + 0x000c)
 #define WL1271_SLV_MEM_DATA            (REGISTERS_BASE + 0x0018)
-/*
- * Interrupt registers.
- * 64 bit interrupt sources registers ws ced.
- * sme interupts were removed and new ones were added.
- * Order was changed.
- */
-#define FIQ_MASK                       (REGISTERS_BASE + 0x0400)
-#define FIQ_MASK_L                     (REGISTERS_BASE + 0x0400)
-#define FIQ_MASK_H                     (REGISTERS_BASE + 0x0404)
-#define FIQ_MASK_SET                   (REGISTERS_BASE + 0x0408)
-#define FIQ_MASK_SET_L                 (REGISTERS_BASE + 0x0408)
-#define FIQ_MASK_SET_H                 (REGISTERS_BASE + 0x040C)
-#define FIQ_MASK_CLR                   (REGISTERS_BASE + 0x0410)
-#define FIQ_MASK_CLR_L                 (REGISTERS_BASE + 0x0410)
-#define FIQ_MASK_CLR_H                 (REGISTERS_BASE + 0x0414)
-#define IRQ_MASK                       (REGISTERS_BASE + 0x0418)
-#define IRQ_MASK_L                     (REGISTERS_BASE + 0x0418)
-#define IRQ_MASK_H                     (REGISTERS_BASE + 0x041C)
-#define IRQ_MASK_SET                   (REGISTERS_BASE + 0x0420)
-#define IRQ_MASK_SET_L                 (REGISTERS_BASE + 0x0420)
-#define IRQ_MASK_SET_H                 (REGISTERS_BASE + 0x0424)
-#define IRQ_MASK_CLR                   (REGISTERS_BASE + 0x0428)
-#define IRQ_MASK_CLR_L                 (REGISTERS_BASE + 0x0428)
-#define IRQ_MASK_CLR_H                 (REGISTERS_BASE + 0x042C)
-#define ECPU_MASK                      (REGISTERS_BASE + 0x0448)
-#define FIQ_STS_L                      (REGISTERS_BASE + 0x044C)
-#define FIQ_STS_H                      (REGISTERS_BASE + 0x0450)
-#define IRQ_STS_L                      (REGISTERS_BASE + 0x0454)
-#define IRQ_STS_H                      (REGISTERS_BASE + 0x0458)
-#define INT_STS_ND                     (REGISTERS_BASE + 0x0464)
-#define INT_STS_RAW_L                  (REGISTERS_BASE + 0x0464)
-#define INT_STS_RAW_H                  (REGISTERS_BASE + 0x0468)
-#define INT_STS_CLR                    (REGISTERS_BASE + 0x04B4)
-#define INT_STS_CLR_L                  (REGISTERS_BASE + 0x04B4)
-#define INT_STS_CLR_H                  (REGISTERS_BASE + 0x04B8)
-#define INT_ACK                        (REGISTERS_BASE + 0x046C)
-#define INT_ACK_L                      (REGISTERS_BASE + 0x046C)
-#define INT_ACK_H                      (REGISTERS_BASE + 0x0470)
-#define INT_TRIG                       (REGISTERS_BASE + 0x0474)
-#define INT_TRIG_L                     (REGISTERS_BASE + 0x0474)
-#define INT_TRIG_H                     (REGISTERS_BASE + 0x0478)
-#define HOST_STS_L                     (REGISTERS_BASE + 0x045C)
-#define HOST_STS_H                     (REGISTERS_BASE + 0x0460)
-#define HOST_MASK                      (REGISTERS_BASE + 0x0430)
-#define HOST_MASK_L                    (REGISTERS_BASE + 0x0430)
-#define HOST_MASK_H                    (REGISTERS_BASE + 0x0434)
-#define HOST_MASK_SET                  (REGISTERS_BASE + 0x0438)
-#define HOST_MASK_SET_L                (REGISTERS_BASE + 0x0438)
-#define HOST_MASK_SET_H                (REGISTERS_BASE + 0x043C)
-#define HOST_MASK_CLR                  (REGISTERS_BASE + 0x0440)
-#define HOST_MASK_CLR_L                (REGISTERS_BASE + 0x0440)
-#define HOST_MASK_CLR_H                (REGISTERS_BASE + 0x0444)
 
 #define ACX_REG_INTERRUPT_TRIG         (REGISTERS_BASE + 0x0474)
 #define ACX_REG_INTERRUPT_TRIG_H       (REGISTERS_BASE + 0x0478)
-
-/* Host Interrupts*/
-#define HINT_MASK                      (REGISTERS_BASE + 0x0494)
-#define HINT_MASK_SET                  (REGISTERS_BASE + 0x0498)
-#define HINT_MASK_CLR                  (REGISTERS_BASE + 0x049C)
-#define HINT_STS_ND_MASKED             (REGISTERS_BASE + 0x04A0)
-/*1150 spec calls this HINT_STS_RAW*/
-#define HINT_STS_ND		       (REGISTERS_BASE + 0x04B0)
-#define HINT_STS_CLR                   (REGISTERS_BASE + 0x04A4)
-#define HINT_ACK                       (REGISTERS_BASE + 0x04A8)
-#define HINT_TRIG                      (REGISTERS_BASE + 0x04AC)
 
 /*=============================================
   Host Interrupt Mask Register - 32bit (RW)
@@ -433,16 +370,6 @@
 
 
 /*===============================================
-  Phy regs
- ===============================================*/
-#define ACX_PHY_ADDR_REG                SBB_ADDR
-#define ACX_PHY_DATA_REG                SBB_DATA
-#define ACX_PHY_CTRL_REG                SBB_CTL
-#define ACX_PHY_REG_WR_MASK             0x00000001ul
-#define ACX_PHY_REG_RD_MASK             0x00000002ul
-
-
-/*===============================================
  EEPROM Read/Write Request 32bit RW
  ------------------------------------------
  1 EE_READ - EEPROM Read Request 1 - Setting this bit
@@ -510,28 +437,6 @@
 #define ACX_CONT_WIND_CFG_REG    CONT_WIND_CFG
 #define ACX_CONT_WIND_MIN_MASK   0x0000007f
 #define ACX_CONT_WIND_MAX        0x03ff0000
-
-/*
- * Indirect slave register/memory registers
- * ----------------------------------------
- */
-#define HW_SLAVE_REG_ADDR_REG		0x00000004
-#define HW_SLAVE_REG_DATA_REG		0x00000008
-#define HW_SLAVE_REG_CTRL_REG		0x0000000c
-
-#define SLAVE_AUTO_INC				0x00010000
-#define SLAVE_NO_AUTO_INC			0x00000000
-#define SLAVE_HOST_LITTLE_ENDIAN	0x00000000
-
-#define HW_SLAVE_MEM_ADDR_REG		SLV_MEM_ADDR
-#define HW_SLAVE_MEM_DATA_REG		SLV_MEM_DATA
-#define HW_SLAVE_MEM_CTRL_REG		SLV_MEM_CTL
-#define HW_SLAVE_MEM_ENDIAN_REG		SLV_END_CTL
-
-#define HW_FUNC_EVENT_INT_EN		0x8000
-#define HW_FUNC_EVENT_MASK_REG		0x00000034
-
-#define ACX_MAC_TIMESTAMP_REG	(MAC_TIMESTAMP)
 
 /*===============================================
   HI_CFG Interface Configuration Register Values
@@ -646,10 +551,6 @@ b12-b0 - Supported Rate indicator bits as defined below.
 
 ******************************************************************************/
 
-
-#define TNETW1251_CHIP_ID_PG1_0         0x07010101
-#define TNETW1251_CHIP_ID_PG1_1         0x07020101
-#define TNETW1251_CHIP_ID_PG1_2	        0x07030101
 
 /*************************************************************************
 

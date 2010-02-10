@@ -319,6 +319,61 @@ static ssize_t qeth_l3_dev_checksum_store(struct device *dev,
 static DEVICE_ATTR(checksumming, 0644, qeth_l3_dev_checksum_show,
 		qeth_l3_dev_checksum_store);
 
+static ssize_t qeth_l3_dev_sniffer_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+
+	if (!card)
+		return -EINVAL;
+
+	return sprintf(buf, "%i\n", card->options.sniffer ? 1 : 0);
+}
+
+static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev_get_drvdata(dev);
+	int ret;
+	unsigned long i;
+
+	if (!card)
+		return -EINVAL;
+
+	if (card->info.type != QETH_CARD_TYPE_IQD)
+		return -EPERM;
+
+	if ((card->state != CARD_STATE_DOWN) &&
+	    (card->state != CARD_STATE_RECOVER))
+		return -EPERM;
+
+	ret = strict_strtoul(buf, 16, &i);
+	if (ret)
+		return -EINVAL;
+	switch (i) {
+	case 0:
+		card->options.sniffer = i;
+		break;
+	case 1:
+		ret = qdio_get_ssqd_desc(CARD_DDEV(card), &card->ssqd);
+		if (card->ssqd.qdioac2 & QETH_SNIFF_AVAIL) {
+			card->options.sniffer = i;
+			if (card->qdio.init_pool.buf_count !=
+					QETH_IN_BUF_COUNT_MAX)
+				qeth_realloc_buffer_pool(card,
+					QETH_IN_BUF_COUNT_MAX);
+			break;
+		} else
+			return -EPERM;
+	default:   /* fall through */
+		return -EINVAL;
+	}
+	return count;
+}
+
+static DEVICE_ATTR(sniffer, 0644, qeth_l3_dev_sniffer_show,
+		qeth_l3_dev_sniffer_store);
+
 static ssize_t qeth_l3_dev_large_send_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -373,6 +428,7 @@ static struct attribute *qeth_l3_device_attrs[] = {
 	&dev_attr_broadcast_mode.attr,
 	&dev_attr_canonical_macaddr.attr,
 	&dev_attr_checksumming.attr,
+	&dev_attr_sniffer.attr,
 	&dev_attr_large_send.attr,
 	NULL,
 };

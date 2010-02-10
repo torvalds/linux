@@ -250,8 +250,7 @@ struct pktgen_dev {
 	__u64 count;		/* Default No packets to send */
 	__u64 sofar;		/* How many pkts we've sent so far */
 	__u64 tx_bytes;		/* How many bytes we've transmitted */
-	__u64 errors;		/* Errors when trying to transmit,
-				   pkts will be re-sent */
+	__u64 errors;		/* Errors when trying to transmit, */
 
 	/* runtime counters relating to clone_skb */
 
@@ -3465,6 +3464,12 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->seq_num++;
 		pkt_dev->tx_bytes += pkt_dev->last_pkt_size;
 		break;
+	case NET_XMIT_DROP:
+	case NET_XMIT_CN:
+	case NET_XMIT_POLICED:
+		/* skb has been consumed */
+		pkt_dev->errors++;
+		break;
 	default: /* Drivers are not supposed to return other values! */
 		if (net_ratelimit())
 			pr_info("pktgen: %s xmit error: %d\n",
@@ -3519,6 +3524,7 @@ static int pktgen_thread_worker(void *arg)
 			wait_event_interruptible_timeout(t->queue,
 							 t->control != 0,
 							 HZ/10);
+			try_to_freeze();
 			continue;
 		}
 

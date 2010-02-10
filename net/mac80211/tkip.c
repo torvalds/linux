@@ -195,11 +195,13 @@ void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 }
 EXPORT_SYMBOL(ieee80211_get_tkip_key);
 
-/* Encrypt packet payload with TKIP using @key. @pos is a pointer to the
+/*
+ * Encrypt packet payload with TKIP using @key. @pos is a pointer to the
  * beginning of the buffer containing payload. This payload must include
- * headroom of eight octets for IV and Ext. IV and taildroom of four octets
- * for ICV. @payload_len is the length of payload (_not_ including extra
- * headroom and tailroom). @ta is the transmitter addresses. */
+ * the IV/Ext.IV and space for (taildroom) four octets for ICV.
+ * @payload_len is the length of payload (_not_ including IV/ICV length).
+ * @ta is the transmitter addresses.
+ */
 void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 				 struct ieee80211_key *key,
 				 u8 *pos, size_t payload_len, u8 *ta)
@@ -214,7 +216,6 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 
 	tkip_mixing_phase2(tk, ctx, ctx->iv16, rc4key);
 
-	pos = ieee80211_tkip_add_iv(pos, key, key->u.tkip.tx.iv16);
 	ieee80211_wep_encrypt_data(tfm, rc4key, 16, pos, payload_len);
 }
 
@@ -303,14 +304,12 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	if (key->local->ops->update_tkip_key &&
 	    key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
 	    key->u.tkip.rx[queue].state != TKIP_STATE_PHASE1_HW_UPLOADED) {
-		static const u8 bcast[ETH_ALEN] =
-		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-		const u8 *sta_addr = key->sta->sta.addr;
+		struct ieee80211_sub_if_data *sdata = key->sdata;
 
-		if (is_multicast_ether_addr(ra))
-			sta_addr = bcast;
-
-		drv_update_tkip_key(key->local, &key->conf, sta_addr,
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			sdata = container_of(key->sdata->bss,
+					struct ieee80211_sub_if_data, u.ap);
+		drv_update_tkip_key(key->local, sdata, &key->conf, key->sta,
 				iv32, key->u.tkip.rx[queue].p1k);
 		key->u.tkip.rx[queue].state = TKIP_STATE_PHASE1_HW_UPLOADED;
 	}

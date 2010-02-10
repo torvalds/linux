@@ -33,7 +33,7 @@ MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
 MODULE_DESCRIPTION("RTL8180 / RTL8185 PCI wireless driver");
 MODULE_LICENSE("GPL");
 
-static struct pci_device_id rtl8180_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(rtl8180_table) = {
 	/* rtl8185 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8185) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BELKIN, 0x700f) },
@@ -761,6 +761,14 @@ static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 	rtl818x_iowrite32(priv, &priv->map->RX_CONF, priv->rx_conf);
 }
 
+static u64 rtl8180_get_tsf(struct ieee80211_hw *dev)
+{
+	struct rtl8180_priv *priv = dev->priv;
+
+	return rtl818x_ioread32(priv, &priv->map->TSFT[0]) |
+	       (u64)(rtl818x_ioread32(priv, &priv->map->TSFT[1])) << 32;
+}
+
 static const struct ieee80211_ops rtl8180_ops = {
 	.tx			= rtl8180_tx,
 	.start			= rtl8180_start,
@@ -771,6 +779,7 @@ static const struct ieee80211_ops rtl8180_ops = {
 	.bss_info_changed	= rtl8180_bss_info_changed,
 	.prepare_multicast	= rtl8180_prepare_multicast,
 	.configure_filter	= rtl8180_configure_filter,
+	.get_tsf		= rtl8180_get_tsf,
 };
 
 static void rtl8180_eeprom_register_read(struct eeprom_93cx6 *eeprom)

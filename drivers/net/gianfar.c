@@ -143,7 +143,6 @@ void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
 static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
 static int gfar_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-u16 gfar_select_queue(struct net_device *dev, struct sk_buff *skb);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Gianfar Ethernet Driver");
@@ -455,7 +454,6 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_set_multicast_list = gfar_set_multi,
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
-	.ndo_select_queue = gfar_select_queue,
 	.ndo_get_stats = gfar_get_stats,
 	.ndo_vlan_rx_register = gfar_vlan_rx_register,
 	.ndo_set_mac_address = eth_mac_addr,
@@ -506,10 +504,6 @@ static inline int gfar_uses_fcb(struct gfar_private *priv)
 	return priv->vlgrp || priv->rx_csum_enable;
 }
 
-u16 gfar_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	return skb_get_queue_mapping(skb);
-}
 static void free_tx_pointers(struct gfar_private *priv)
 {
 	int i = 0;
@@ -2470,10 +2464,11 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	fcb = (struct rxfcb *)skb->data;
 
 	/* Remove the FCB from the skb */
-	skb_set_queue_mapping(skb, fcb->rq);
 	/* Remove the padded bytes, if there are any */
-	if (amount_pull)
+	if (amount_pull) {
+		skb_record_rx_queue(skb, fcb->rq);
 		skb_pull(skb, amount_pull);
+	}
 
 	if (priv->rx_csum_enable)
 		gfar_rx_checksum(skb, fcb);
@@ -2554,7 +2549,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 				/* Remove the FCS from the packet length */
 				skb_put(skb, pkt_len);
 				rx_queue->stats.rx_bytes += pkt_len;
-
+				skb_record_rx_queue(skb, rx_queue->qindex);
 				gfar_process_frame(dev, skb, amount_pull);
 
 			} else {

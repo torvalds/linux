@@ -3,8 +3,8 @@ Kernel driver k10temp
 
 Supported chips:
 * AMD Family 10h processors:
-  Socket F: Quad-Core/Six-Core/Embedded Opteron
-  Socket AM2+: Opteron, Phenom (II) X3/X4
+  Socket F: Quad-Core/Six-Core/Embedded Opteron (but see below)
+  Socket AM2+: Quad-Core Opteron, Phenom (II) X3/X4, Athlon X2 (but see below)
   Socket AM3: Quad-Core Opteron, Athlon/Phenom II X2/X3/X4, Sempron II
   Socket S1G3: Athlon II, Sempron, Turion II
 * AMD Family 11h processors:
@@ -36,10 +36,15 @@ Description
 This driver permits reading of the internal temperature sensor of AMD
 Family 10h and 11h processors.
 
-All these processors have a sensor, but on older revisions of Family 10h
-processors, the sensor may return inconsistent values (erratum 319). The
-driver will refuse to load on these revisions unless you specify the
-"force=1" module parameter.
+All these processors have a sensor, but on those for Socket F or AM2+,
+the sensor may return inconsistent values (erratum 319).  The driver
+will refuse to load on these revisions unless you specify the "force=1"
+module parameter.
+
+Due to technical reasons, the driver can detect only the mainboard's
+socket type, not the processor's actual capabilities.  Therefore, if you
+are using an AM3 processor on an AM2+ mainboard, you can safely use the
+"force=1" parameter.
 
 There is one temperature measurement value, available as temp1_input in
 sysfs. It is measured in degrees Celsius with a resolution of 1/8th degree.

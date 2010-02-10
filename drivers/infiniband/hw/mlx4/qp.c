@@ -1752,7 +1752,7 @@ int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	ind = qp->rq.head & (qp->rq.wqe_cnt - 1);
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
-		if (mlx4_wq_overflow(&qp->rq, nreq, qp->ibqp.send_cq)) {
+		if (mlx4_wq_overflow(&qp->rq, nreq, qp->ibqp.recv_cq)) {
 			err = -ENOMEM;
 			*bad_wr = wr;
 			goto out;

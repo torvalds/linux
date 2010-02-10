@@ -304,30 +304,46 @@ static u32 mcdi_to_ethtool_media(u32 media)
 
 static int efx_mcdi_phy_probe(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg;
+	struct efx_mcdi_phy_cfg *phy_data;
+	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
+	u32 caps;
 	int rc;
 
-	/* TODO: Move phy_data initialisation to
-	 * phy_op->probe/remove, rather than init/fini */
-	phy_cfg = kzalloc(sizeof(*phy_cfg), GFP_KERNEL);
-	if (phy_cfg == NULL) {
-		rc = -ENOMEM;
-		goto fail_alloc;
-	}
-	rc = efx_mcdi_get_phy_cfg(efx, phy_cfg);
+	/* Initialise and populate phy_data */
+	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
+	if (phy_data == NULL)
+		return -ENOMEM;
+
+	rc = efx_mcdi_get_phy_cfg(efx, phy_data);
 	if (rc != 0)
 		goto fail;
 
-	efx->phy_type = phy_cfg->type;
+	/* Read initial link advertisement */
+	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
+			  outbuf, sizeof(outbuf), NULL);
+	if (rc)
+		goto fail;
 
-	efx->mdio_bus = phy_cfg->channel;
-	efx->mdio.prtad = phy_cfg->port;
-	efx->mdio.mmds = phy_cfg->mmd_mask & ~(1 << MC_CMD_MMD_CLAUSE22);
+	/* Fill out nic state */
+	efx->phy_data = phy_data;
+	efx->phy_type = phy_data->type;
+
+	efx->mdio_bus = phy_data->channel;
+	efx->mdio.prtad = phy_data->port;
+	efx->mdio.mmds = phy_data->mmd_mask & ~(1 << MC_CMD_MMD_CLAUSE22);
 	efx->mdio.mode_support = 0;
-	if (phy_cfg->mmd_mask & (1 << MC_CMD_MMD_CLAUSE22))
+	if (phy_data->mmd_mask & (1 << MC_CMD_MMD_CLAUSE22))
 		efx->mdio.mode_support |= MDIO_SUPPORTS_C22;
-	if (phy_cfg->mmd_mask & ~(1 << MC_CMD_MMD_CLAUSE22))
+	if (phy_data->mmd_mask & ~(1 << MC_CMD_MMD_CLAUSE22))
 		efx->mdio.mode_support |= MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
+
+	caps = MCDI_DWORD(outbuf, GET_LINK_OUT_CAP);
+	if (caps & (1 << MC_CMD_PHY_CAP_AN_LBN))
+		efx->link_advertising =
+			mcdi_to_ethtool_cap(phy_data->media, caps);
+	else
+		phy_data->forced_cap = caps;
 
 	/* Assert that we can map efx -> mcdi loopback modes */
 	BUILD_BUG_ON(LOOPBACK_NONE != MC_CMD_LOOPBACK_NONE);
@@ -365,45 +381,17 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 	 * but by convention we don't */
 	efx->loopback_modes &= ~(1 << LOOPBACK_NONE);
 
-	kfree(phy_cfg);
+	/* Set the initial link mode */
+	efx_mcdi_phy_decode_link(
+		efx, &efx->link_state,
+		MCDI_DWORD(outbuf, GET_LINK_OUT_LINK_SPEED),
+		MCDI_DWORD(outbuf, GET_LINK_OUT_FLAGS),
+		MCDI_DWORD(outbuf, GET_LINK_OUT_FCNTL));
 
-	return 0;
-
-fail:
-	kfree(phy_cfg);
-fail_alloc:
-	return rc;
-}
-
-static int efx_mcdi_phy_init(struct efx_nic *efx)
-{
-	struct efx_mcdi_phy_cfg *phy_data;
-	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
-	u32 caps;
-	int rc;
-
-	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
-	if (phy_data == NULL)
-		return -ENOMEM;
-
-	rc = efx_mcdi_get_phy_cfg(efx, phy_data);
-	if (rc != 0)
-		goto fail;
-
-	efx->phy_data = phy_data;
-
-	BUILD_BUG_ON(MC_CMD_GET_LINK_IN_LEN != 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
-			  outbuf, sizeof(outbuf), NULL);
-	if (rc)
-		goto fail;
-
-	caps = MCDI_DWORD(outbuf, GET_LINK_OUT_CAP);
-	if (caps & (1 << MC_CMD_PHY_CAP_AN_LBN))
-		efx->link_advertising =
-			mcdi_to_ethtool_cap(phy_data->media, caps);
-	else
-		phy_data->forced_cap = caps;
+	/* Default to Autonegotiated flow control if the PHY supports it */
+	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
+	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
+		efx->wanted_fc |= EFX_FC_AUTO;
 
 	return 0;
 
@@ -460,7 +448,7 @@ void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 
 	/* The link partner capabilities are only relevent if the
 	 * link supports flow control autonegotiation */
-	if (~phy_cfg->supported_cap & (1 << MC_CMD_PHY_CAP_ASYM_LBN))
+	if (~phy_cfg->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		return;
 
 	/* If flow control autoneg is supported and enabled, then fine */
@@ -504,7 +492,7 @@ static bool efx_mcdi_phy_poll(struct efx_nic *efx)
 	return !efx_link_state_equal(&efx->link_state, &old_state);
 }
 
-static void efx_mcdi_phy_fini(struct efx_nic *efx)
+static void efx_mcdi_phy_remove(struct efx_nic *efx)
 {
 	struct efx_mcdi_phy_data *phy_data = efx->phy_data;
 
@@ -584,14 +572,37 @@ static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ec
 	return 0;
 }
 
+static int efx_mcdi_phy_test_alive(struct efx_nic *efx)
+{
+	u8 outbuf[MC_CMD_GET_PHY_STATE_OUT_LEN];
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_GET_PHY_STATE_IN_LEN != 0);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_PHY_STATE, NULL, 0,
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+
+	if (outlen < MC_CMD_GET_PHY_STATE_OUT_LEN)
+		return -EMSGSIZE;
+	if (MCDI_DWORD(outbuf, GET_PHY_STATE_STATE) != MC_CMD_PHY_STATE_OK)
+		return -EINVAL;
+
+	return 0;
+}
+
 struct efx_phy_operations efx_mcdi_phy_ops = {
 	.probe		= efx_mcdi_phy_probe,
-	.init 	 	= efx_mcdi_phy_init,
+	.init 	 	= efx_port_dummy_op_int,
 	.reconfigure	= efx_mcdi_phy_reconfigure,
 	.poll		= efx_mcdi_phy_poll,
-	.fini		= efx_mcdi_phy_fini,
+	.fini		= efx_port_dummy_op_void,
+	.remove		= efx_mcdi_phy_remove,
 	.get_settings	= efx_mcdi_phy_get_settings,
 	.set_settings	= efx_mcdi_phy_set_settings,
+	.test_alive	= efx_mcdi_phy_test_alive,
 	.run_tests	= NULL,
 	.test_name	= NULL,
 };

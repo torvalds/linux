@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -303,13 +303,12 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
-
+/* priv->mutex must be held */
 int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
 	int ret = 0;
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
-	bool enabled = (priv->iw_mode == NL80211_IFTYPE_STATION) &&
-			(priv->hw->conf.flags & IEEE80211_CONF_PS);
+	bool enabled = priv->hw->conf.flags & IEEE80211_CONF_PS;
 	bool update_chains;
 	struct iwl_powertable_cmd cmd;
 	int dtimper;
@@ -319,7 +318,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
 	if (priv->vif)
-		dtimper = priv->vif->bss_conf.dtim_period;
+		dtimper = priv->hw->conf.ps_dtim_period;
 	else
 		dtimper = 1;
 

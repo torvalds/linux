@@ -644,6 +644,7 @@ static void sky2_phy_power_up(struct sky2_hw *hw, unsigned port)
 {
 	u32 reg1;
 
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 	reg1 &= ~phy_power[port];
 
@@ -651,6 +652,7 @@ static void sky2_phy_power_up(struct sky2_hw *hw, unsigned port)
 		reg1 |= coma_mode[port];
 
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	sky2_pci_read32(hw, PCI_DEV_REG1);
 
 	if (hw->chip_id == CHIP_ID_YUKON_FE)
@@ -707,9 +709,11 @@ static void sky2_phy_power_down(struct sky2_hw *hw, unsigned port)
 		gm_phy_write(hw, port, PHY_MARV_CTRL, PHY_CT_PDOWN);
 	}
 
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 	reg1 |= phy_power[port];		/* set PHY to PowerDown/COMA Mode */
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 }
 
 /* Force a renegotiation */
@@ -1021,11 +1025,8 @@ static void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
 static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2, u16 *slot)
 {
 	struct sky2_tx_le *le = sky2->tx_le + *slot;
-	struct tx_ring_info *re = sky2->tx_ring + *slot;
 
 	*slot = RING_NEXT(*slot, sky2->tx_ring_size);
-	re->flags = 0;
-	re->skb = NULL;
 	le->ctrl = 0;
 	return le;
 }
@@ -1102,18 +1103,39 @@ static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 	int i;
 
 	re->data_addr = pci_map_single(pdev, skb->data, size, PCI_DMA_FROMDEVICE);
-	if (unlikely(pci_dma_mapping_error(pdev, re->data_addr)))
-		return -EIO;
+	if (pci_dma_mapping_error(pdev, re->data_addr))
+		goto mapping_error;
 
 	pci_unmap_len_set(re, data_size, size);
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
-		re->frag_addr[i] = pci_map_page(pdev,
-						skb_shinfo(skb)->frags[i].page,
-						skb_shinfo(skb)->frags[i].page_offset,
-						skb_shinfo(skb)->frags[i].size,
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+
+		re->frag_addr[i] = pci_map_page(pdev, frag->page,
+						frag->page_offset,
+						frag->size,
 						PCI_DMA_FROMDEVICE);
+
+		if (pci_dma_mapping_error(pdev, re->frag_addr[i]))
+			goto map_page_error;
+	}
 	return 0;
+
+map_page_error:
+	while (--i >= 0) {
+		pci_unmap_page(pdev, re->frag_addr[i],
+			       skb_shinfo(skb)->frags[i].size,
+			       PCI_DMA_FROMDEVICE);
+	}
+
+	pci_unmap_single(pdev, re->data_addr, pci_unmap_len(re, data_size),
+			 PCI_DMA_FROMDEVICE);
+
+mapping_error:
+	if (net_ratelimit())
+		dev_warn(&pdev->dev, "%s: rx mapping error\n",
+			 skb->dev->name);
+	return -EIO;
 }
 
 static void sky2_rx_unmap_skb(struct pci_dev *pdev, struct rx_ring_info *re)
@@ -1618,8 +1640,7 @@ static unsigned tx_le_req(const struct sk_buff *skb)
 	return count;
 }
 
-static void sky2_tx_unmap(struct pci_dev *pdev,
-			  const struct tx_ring_info *re)
+static void sky2_tx_unmap(struct pci_dev *pdev, struct tx_ring_info *re)
 {
 	if (re->flags & TX_MAP_SINGLE)
 		pci_unmap_single(pdev, pci_unmap_addr(re, mapaddr),
@@ -1629,6 +1650,7 @@ static void sky2_tx_unmap(struct pci_dev *pdev,
 		pci_unmap_page(pdev, pci_unmap_addr(re, mapaddr),
 			       pci_unmap_len(re, maplen),
 			       PCI_DMA_TODEVICE);
+	re->flags = 0;
 }
 
 /*
@@ -1835,6 +1857,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
 
+			re->skb = NULL;
 			dev_kfree_skb_any(skb);
 
 			sky2->tx_next = RING_NEXT(idx, sky2->tx_ring_size);
@@ -1844,7 +1867,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	sky2->tx_cons = idx;
 	smp_mb();
 
-	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4)
+	/* Wake unless it's detached, and called e.g. from sky2_down() */
+	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4 && netif_device_present(dev))
 		netif_wake_queue(dev);
 }
 
@@ -2148,7 +2172,9 @@ static void sky2_qlink_intr(struct sky2_hw *hw)
 
 	/* reset PHY Link Detect */
 	phy = sky2_pci_read16(hw, PSM_CONFIG_REG4);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	sky2_pci_write16(hw, PSM_CONFIG_REG4, phy | 1);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 	sky2_link_up(sky2);
 }
@@ -2301,30 +2327,32 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 				   struct rx_ring_info *re,
 				   unsigned int length)
 {
-	struct sk_buff *skb, *nskb;
+	struct sk_buff *skb;
+	struct rx_ring_info nre;
 	unsigned hdr_space = sky2->rx_data_size;
 
-	/* Don't be tricky about reusing pages (yet) */
-	nskb = sky2_rx_alloc(sky2);
-	if (unlikely(!nskb))
-		return NULL;
+	nre.skb = sky2_rx_alloc(sky2);
+	if (unlikely(!nre.skb))
+		goto nobuf;
+
+	if (sky2_rx_map_skb(sky2->hw->pdev, &nre, hdr_space))
+		goto nomap;
 
 	skb = re->skb;
 	sky2_rx_unmap_skb(sky2->hw->pdev, re);
-
 	prefetch(skb->data);
-	re->skb = nskb;
-	if (sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space)) {
-		dev_kfree_skb(nskb);
-		re->skb = skb;
-		return NULL;
-	}
+	*re = nre;
 
 	if (skb_shinfo(skb)->nr_frags)
 		skb_put_frags(skb, hdr_space, length);
 	else
 		skb_put(skb, length);
 	return skb;
+
+nomap:
+	dev_kfree_skb(nre.skb);
+nobuf:
+	return NULL;
 }
 
 /*
@@ -2376,6 +2404,9 @@ okay:
 		skb = receive_copy(sky2, re, length);
 	else
 		skb = receive_new(sky2, re, length);
+
+	dev->stats.rx_dropped += (skb == NULL);
+
 resubmit:
 	sky2_rx_submit(sky2, re);
 
@@ -2487,11 +2518,10 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 		case OP_RXSTAT:
 			total_packets[port]++;
 			total_bytes[port] += length;
+
 			skb = sky2_receive(dev, length, status);
-			if (unlikely(!skb)) {
-				dev->stats.rx_dropped++;
+			if (!skb)
 				break;
-			}
 
 			/* This chip reports checksum status differently */
 			if (hw->flags & SKY2_HW_NEW_LE) {
@@ -2639,6 +2669,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 	if (status & (Y2_IS_MST_ERR | Y2_IS_IRQ_STAT)) {
 		u16 pci_err;
 
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		pci_err = sky2_pci_read16(hw, PCI_STATUS);
 		if (net_ratelimit())
 			dev_err(&pdev->dev, "PCI hardware error (0x%x)\n",
@@ -2646,12 +2677,14 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 		sky2_pci_write16(hw, PCI_STATUS,
 				      pci_err | PCI_STATUS_ERROR_BITS);
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
 
 	if (status & Y2_IS_PCI_EXP) {
 		/* PCI-Express uncorrectable Error occurred */
 		u32 err;
 
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		err = sky2_read32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS);
 		sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
 			     0xfffffffful);
@@ -2659,6 +2692,7 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 			dev_err(&pdev->dev, "PCI Express error (0x%x)\n", err);
 
 		sky2_read32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS);
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
 
 	if (status & Y2_HWE_L1_MASK)
@@ -3037,6 +3071,7 @@ static void sky2_reset(struct sky2_hw *hw)
 	}
 
 	sky2_power_on(hw);
+	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 	for (i = 0; i < hw->ports; i++) {
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
@@ -3073,6 +3108,7 @@ static void sky2_reset(struct sky2_hw *hw)
 		reg <<= PSM_CONFIG_REG4_TIMER_PHY_LINK_DETECT_BASE;
 
 		/* reset PHY Link Detect */
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4,
 				 reg | PSM_CONFIG_REG4_RST_PHY_LINK_DETECT);
 		sky2_pci_write16(hw, PSM_CONFIG_REG4, reg);
@@ -3090,6 +3126,7 @@ static void sky2_reset(struct sky2_hw *hw)
 			/* restore the PCIe Link Control register */
 			sky2_pci_write16(hw, cap + PCI_EXP_LNKCTL, reg);
 		}
+		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
 		sky2_write32(hw, Y2_PEX_PHY_DATA, PEX_DB_ACCESS | (0x08UL << 16));
@@ -3176,7 +3213,9 @@ static void sky2_reset(struct sky2_hw *hw)
 static void sky2_detach(struct net_device *dev)
 {
 	if (netif_running(dev)) {
+		netif_tx_lock(dev);
 		netif_device_detach(dev);	/* stop txq */
+		netif_tx_unlock(dev);
 		sky2_down(dev);
 	}
 }
@@ -3227,6 +3266,27 @@ static inline u8 sky2_wol_supported(const struct sky2_hw *hw)
 	return sky2_is_copper(hw) ? (WAKE_PHY | WAKE_MAGIC) : 0;
 }
 
+static void sky2_hw_set_wol(struct sky2_hw *hw)
+{
+	int wol = 0;
+	int i;
+
+	for (i = 0; i < hw->ports; i++) {
+		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
+
+		if (sky2->wol)
+			wol = 1;
+	}
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
+	    hw->chip_id == CHIP_ID_YUKON_EX ||
+	    hw->chip_id == CHIP_ID_YUKON_FE_P)
+		sky2_write32(hw, B0_CTST, wol ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
+
+	device_set_wakeup_enable(&hw->pdev->dev, wol);
+}
+
 static void sky2_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
@@ -3246,13 +3306,7 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	sky2->wol = wol->wolopts;
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
-	    hw->chip_id == CHIP_ID_YUKON_EX ||
-	    hw->chip_id == CHIP_ID_YUKON_FE_P)
-		sky2_write32(hw, B0_CTST, sky2->wol
-			     ? Y2_HW_WOL_ON : Y2_HW_WOL_OFF);
-
-	device_set_wakeup_enable(&hw->pdev->dev, sky2->wol);
+	sky2_hw_set_wol(hw);
 
 	if (!netif_running(dev))
 		sky2_wol_init(sky2);
@@ -3837,6 +3891,50 @@ static int sky2_get_regs_len(struct net_device *dev)
 	return 0x4000;
 }
 
+static int sky2_reg_access_ok(struct sky2_hw *hw, unsigned int b)
+{
+	/* This complicated switch statement is to make sure and
+	 * only access regions that are unreserved.
+	 * Some blocks are only valid on dual port cards.
+	 */
+	switch (b) {
+	/* second port */
+	case 5:		/* Tx Arbiter 2 */
+	case 9:		/* RX2 */
+	case 14 ... 15:	/* TX2 */
+	case 17: case 19: /* Ram Buffer 2 */
+	case 22 ... 23: /* Tx Ram Buffer 2 */
+	case 25:	/* Rx MAC Fifo 1 */
+	case 27:	/* Tx MAC Fifo 2 */
+	case 31:	/* GPHY 2 */
+	case 40 ... 47: /* Pattern Ram 2 */
+	case 52: case 54: /* TCP Segmentation 2 */
+	case 112 ... 116: /* GMAC 2 */
+		return hw->ports > 1;
+
+	case 0:		/* Control */
+	case 2:		/* Mac address */
+	case 4:		/* Tx Arbiter 1 */
+	case 7:		/* PCI express reg */
+	case 8:		/* RX1 */
+	case 12 ... 13: /* TX1 */
+	case 16: case 18:/* Rx Ram Buffer 1 */
+	case 20 ... 21: /* Tx Ram Buffer 1 */
+	case 24:	/* Rx MAC Fifo 1 */
+	case 26:	/* Tx MAC Fifo 1 */
+	case 28 ... 29: /* Descriptor and status unit */
+	case 30:	/* GPHY 1*/
+	case 32 ... 39: /* Pattern Ram 1 */
+	case 48: case 50: /* TCP Segmentation 1 */
+	case 56 ... 60:	/* PCI space */
+	case 80 ... 84:	/* GMAC 1 */
+		return 1;
+
+	default:
+		return 0;
+	}
+}
+
 /*
  * Returns copy of control register region
  * Note: ethtool_get_regs always provides full size (16k) buffer
@@ -3851,55 +3949,13 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	regs->version = 1;
 
 	for (b = 0; b < 128; b++) {
-		/* This complicated switch statement is to make sure and
-		 * only access regions that are unreserved.
-		 * Some blocks are only valid on dual port cards.
-		 * and block 3 has some special diagnostic registers that
-		 * are poison.
-		 */
-		switch (b) {
-		case 3:
-			/* skip diagnostic ram region */
+		/* skip poisonous diagnostic ram region in block 3 */
+		if (b == 3)
 			memcpy_fromio(p + 0x10, io + 0x10, 128 - 0x10);
-			break;
-
-		/* dual port cards only */
-		case 5:		/* Tx Arbiter 2 */
-		case 9: 	/* RX2 */
-		case 14 ... 15:	/* TX2 */
-		case 17: case 19: /* Ram Buffer 2 */
-		case 22 ... 23: /* Tx Ram Buffer 2 */
-		case 25: 	/* Rx MAC Fifo 1 */
-		case 27: 	/* Tx MAC Fifo 2 */
-		case 31:	/* GPHY 2 */
-		case 40 ... 47: /* Pattern Ram 2 */
-		case 52: case 54: /* TCP Segmentation 2 */
-		case 112 ... 116: /* GMAC 2 */
-			if (sky2->hw->ports == 1)
-				goto reserved;
-			/* fall through */
-		case 0:		/* Control */
-		case 2:		/* Mac address */
-		case 4:		/* Tx Arbiter 1 */
-		case 7:		/* PCI express reg */
-		case 8:		/* RX1 */
-		case 12 ... 13: /* TX1 */
-		case 16: case 18:/* Rx Ram Buffer 1 */
-		case 20 ... 21: /* Tx Ram Buffer 1 */
-		case 24: 	/* Rx MAC Fifo 1 */
-		case 26: 	/* Tx MAC Fifo 1 */
-		case 28 ... 29: /* Descriptor and status unit */
-		case 30:	/* GPHY 1*/
-		case 32 ... 39: /* Pattern Ram 1 */
-		case 48: case 50: /* TCP Segmentation 1 */
-		case 56 ... 60:	/* PCI space */
-		case 80 ... 84:	/* GMAC 1 */
+		else if (sky2_reg_access_ok(sky2->hw, b))
 			memcpy_fromio(p, io, 128);
-			break;
-		default:
-reserved:
+		else
 			memset(p, 0, 128);
-		}
 
 		p += 128;
 		io += 128;
@@ -4684,6 +4740,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	INIT_WORK(&hw->restart_work, sky2_restart);
 
 	pci_set_drvdata(pdev, hw);
+	pdev->d3_delay = 150;
 
 	return 0;
 

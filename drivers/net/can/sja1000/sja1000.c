@@ -249,6 +249,9 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	uint8_t dreg;
 	int i;
 
+	if (can_dropped_invalid_skb(dev, skb))
+		return NETDEV_TX_OK;
+
 	netif_stop_queue(dev);
 
 	fi = dlc = cf->can_dlc;
@@ -564,6 +567,7 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 	priv->can.bittiming_const = &sja1000_bittiming_const;
 	priv->can.do_set_bittiming = sja1000_set_bittiming;
 	priv->can.do_set_mode = sja1000_set_mode;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	if (sizeof_priv)
 		priv->priv = (void *)priv + sizeof(struct sja1000_priv);

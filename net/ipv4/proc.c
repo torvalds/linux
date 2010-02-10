@@ -127,8 +127,8 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static struct {
-	char *name;
+static const struct {
+	const char *name;
 	int index;
 } icmpmibmap[] = {
 	{ "DestUnreachs", ICMP_DEST_UNREACH },

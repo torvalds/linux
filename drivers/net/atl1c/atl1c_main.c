@@ -35,7 +35,7 @@ char atl1c_driver_version[] = ATL1C_DRV_VERSION;
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id atl1c_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl1c_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1C)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2C)},
 	/* required last entry */
@@ -2596,11 +2596,8 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, adapter->hw.mac_addr, netdev->addr_len);
 	if (netif_msg_probe(adapter))
-		dev_dbg(&pdev->dev,
-			"mac address : %02x-%02x-%02x-%02x-%02x-%02x\n",
-			adapter->hw.mac_addr[0], adapter->hw.mac_addr[1],
-			adapter->hw.mac_addr[2], adapter->hw.mac_addr[3],
-			adapter->hw.mac_addr[4], adapter->hw.mac_addr[5]);
+		dev_dbg(&pdev->dev, "mac address : %pM\n",
+			adapter->hw.mac_addr);
 
 	atl1c_hw_set_mac_addr(&adapter->hw);
 	INIT_WORK(&adapter->common_task, atl1c_common_task);

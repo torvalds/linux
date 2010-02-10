@@ -474,6 +474,12 @@ static void tcp_synack_timer(struct sock *sk)
 				   TCP_TIMEOUT_INIT, TCP_RTO_MAX);
 }
 
+void tcp_syn_ack_timeout(struct sock *sk, struct request_sock *req)
+{
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPTIMEOUTS);
+}
+EXPORT_SYMBOL(tcp_syn_ack_timeout);
+
 void tcp_set_keepalive(struct sock *sk, int val)
 {
 	if ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))

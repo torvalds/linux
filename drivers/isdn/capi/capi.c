@@ -33,6 +33,7 @@
 #endif /* CONFIG_ISDN_CAPI_MIDDLEWARE */
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/poll.h>
 #include <linux/capi.h>
 #include <linux/kernelcapi.h>
@@ -1407,114 +1408,84 @@ static void capinc_tty_exit(void)
  * /proc/capi/capi20:
  *  minor applid nrecvctlpkt nrecvdatapkt nsendctlpkt nsenddatapkt
  */
-static int proc_capidev_read_proc(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data)
+static int capi20_proc_show(struct seq_file *m, void *v)
 {
         struct capidev *cdev;
 	struct list_head *l;
-	int len = 0;
 
 	read_lock(&capidev_list_lock);
 	list_for_each(l, &capidev_list) {
 		cdev = list_entry(l, struct capidev, list);
-		len += sprintf(page+len, "0 %d %lu %lu %lu %lu\n",
+		seq_printf(m, "0 %d %lu %lu %lu %lu\n",
 			cdev->ap.applid,
 			cdev->ap.nrecvctlpkt,
 			cdev->ap.nrecvdatapkt,
 			cdev->ap.nsentctlpkt,
 			cdev->ap.nsentdatapkt);
-		if (len <= off) {
-			off -= len;
-			len = 0;
-		} else {
-			if (len-off > count)
-				goto endloop;
-		}
 	}
-
-endloop:
 	read_unlock(&capidev_list_lock);
-	if (len < count)
-		*eof = 1;
-	if (len > count) len = count;
-	if (len < 0) len = 0;
-	return len;
+	return 0;
 }
+
+static int capi20_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, capi20_proc_show, NULL);
+}
+
+static const struct file_operations capi20_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= capi20_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*
  * /proc/capi/capi20ncci:
  *  applid ncci
  */
-static int proc_capincci_read_proc(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data)
+static int capi20ncci_proc_show(struct seq_file *m, void *v)
 {
         struct capidev *cdev;
         struct capincci *np;
 	struct list_head *l;
-	int len = 0;
 
 	read_lock(&capidev_list_lock);
 	list_for_each(l, &capidev_list) {
 		cdev = list_entry(l, struct capidev, list);
 		for (np=cdev->nccis; np; np = np->next) {
-			len += sprintf(page+len, "%d 0x%x\n",
+			seq_printf(m, "%d 0x%x\n",
 				       cdev->ap.applid,
 				       np->ncci);
-			if (len <= off) {
-				off -= len;
-				len = 0;
-			} else {
-				if (len-off > count)
-					goto endloop;
-			}
 		}
 	}
-endloop:
 	read_unlock(&capidev_list_lock);
-	*start = page+off;
-	if (len < count)
-		*eof = 1;
-	if (len>count) len = count;
-	if (len<0) len = 0;
-	return len;
+	return 0;
 }
 
-static struct procfsentries {
-  char *name;
-  mode_t mode;
-  int (*read_proc)(char *page, char **start, off_t off,
-                                       int count, int *eof, void *data);
-  struct proc_dir_entry *procent;
-} procfsentries[] = {
-   /* { "capi",		  S_IFDIR, 0 }, */
-   { "capi/capi20", 	  0	 , proc_capidev_read_proc },
-   { "capi/capi20ncci",   0	 , proc_capincci_read_proc },
+static int capi20ncci_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, capi20ncci_proc_show, NULL);
+}
+
+static const struct file_operations capi20ncci_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= capi20ncci_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 static void __init proc_init(void)
 {
-    int nelem = ARRAY_SIZE(procfsentries);
-    int i;
-
-    for (i=0; i < nelem; i++) {
-        struct procfsentries *p = procfsentries + i;
-	p->procent = create_proc_entry(p->name, p->mode, NULL);
-	if (p->procent) p->procent->read_proc = p->read_proc;
-    }
+	proc_create("capi/capi20", 0, NULL, &capi20_proc_fops);
+	proc_create("capi/capi20ncci", 0, NULL, &capi20ncci_proc_fops);
 }
 
 static void __exit proc_exit(void)
 {
-    int nelem = ARRAY_SIZE(procfsentries);
-    int i;
-
-    for (i=nelem-1; i >= 0; i--) {
-        struct procfsentries *p = procfsentries + i;
-	if (p->procent) {
-	   remove_proc_entry(p->name, NULL);
-	   p->procent = NULL;
-	}
-    }
+	remove_proc_entry("capi/capi20", NULL);
+	remove_proc_entry("capi/capi20ncci", NULL);
 }
 
 /* -------- init function and module interface ---------------------- */

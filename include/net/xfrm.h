@@ -1367,8 +1367,8 @@ struct xfrmk_spdinfo {
 extern struct xfrm_state *xfrm_find_acq_byseq(struct net *net, u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info);
-extern void xfrm_sad_getinfo(struct xfrmk_sadinfo *si);
-extern void xfrm_spd_getinfo(struct xfrmk_spdinfo *si);
+extern void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
+extern void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 extern int xfrm_replay_check(struct xfrm_state *x,
 			     struct sk_buff *skb, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
@@ -1408,9 +1408,9 @@ extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			    xfrm_address_t *saddr, u8 proto);
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler, unsigned short family);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short family);
-extern __be32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
-extern void xfrm6_tunnel_free_spi(xfrm_address_t *saddr);
-extern __be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr);
+extern __be32 xfrm6_tunnel_alloc_spi(struct net *net, xfrm_address_t *saddr);
+extern void xfrm6_tunnel_free_spi(struct net *net, xfrm_address_t *saddr);
+extern __be32 xfrm6_tunnel_spi_lookup(struct net *net, xfrm_address_t *saddr);
 extern int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_output(struct sk_buff *skb);

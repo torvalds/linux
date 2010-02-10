@@ -295,6 +295,10 @@
  *	This command is also used as an event to notify when a requested
  *	remain-on-channel duration has expired.
  *
+ * @NL80211_CMD_SET_TX_BITRATE_MASK: Set the mask of rates to be used in TX
+ *	rate selection. %NL80211_ATTR_IFINDEX is used to specify the interface
+ *	and @NL80211_ATTR_TX_RATES the set of allowed rates.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -381,6 +385,8 @@ enum nl80211_commands {
 	NL80211_CMD_REMAIN_ON_CHANNEL,
 	NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL,
 
+	NL80211_CMD_SET_TX_BITRATE_MASK,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -430,6 +436,8 @@ enum nl80211_commands {
  * @NL80211_ATTR_WIPHY_RTS_THRESHOLD: RTS threshold (TX frames with length
  *	larger than or equal to this use RTS/CTS handshake); allowed range:
  *	0..65536, disable with (u32)-1; dot11RTSThreshold; u32
+ * @NL80211_ATTR_WIPHY_COVERAGE_CLASS: Coverage Class as defined by IEEE 802.11
+ *	section 7.3.2.9; dot11CoverageClass; u8
  *
  * @NL80211_ATTR_IFINDEX: network interface index of the device to operate on
  * @NL80211_ATTR_IFNAME: network interface name
@@ -638,6 +646,13 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_COOKIE: Generic 64-bit cookie to identify objects.
  *
+ * @NL80211_ATTR_TX_RATES: Nested set of attributes
+ *	(enum nl80211_tx_rate_attributes) describing TX rates per band. The
+ *	enum nl80211_band value is used as the index (nla_type() of the nested
+ *	data. If a band is not included, it will be configured to allow all
+ *	rates based on negotiated supported rates information. This attribute
+ *	is used with %NL80211_CMD_SET_TX_BITRATE_MASK.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -778,6 +793,10 @@ enum nl80211_attrs {
 	NL80211_ATTR_DURATION,
 
 	NL80211_ATTR_COOKIE,
+
+	NL80211_ATTR_WIPHY_COVERAGE_CLASS,
+
+	NL80211_ATTR_TX_RATES,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1359,13 +1378,20 @@ enum nl80211_channel_type {
  * @NL80211_BSS_BEACON_INTERVAL: beacon interval of the (I)BSS (u16)
  * @NL80211_BSS_CAPABILITY: capability field (CPU order, u16)
  * @NL80211_BSS_INFORMATION_ELEMENTS: binary attribute containing the
- *	raw information elements from the probe response/beacon (bin)
+ *	raw information elements from the probe response/beacon (bin);
+ *	if the %NL80211_BSS_BEACON_IES attribute is present, the IEs here are
+ *	from a Probe Response frame; otherwise they are from a Beacon frame.
+ *	However, if the driver does not indicate the source of the IEs, these
+ *	IEs may be from either frame subtype.
  * @NL80211_BSS_SIGNAL_MBM: signal strength of probe response/beacon
  *	in mBm (100 * dBm) (s32)
  * @NL80211_BSS_SIGNAL_UNSPEC: signal strength of the probe response/beacon
  *	in unspecified units, scaled to 0..100 (u8)
  * @NL80211_BSS_STATUS: status, if this BSS is "used"
  * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
+ * @NL80211_BSS_BEACON_IES: binary attribute containing the raw information
+ *	elements from a Beacon frame (bin); not present if no Beacon frame has
+ *	yet been received
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -1381,6 +1407,7 @@ enum nl80211_bss {
 	NL80211_BSS_SIGNAL_UNSPEC,
 	NL80211_BSS_STATUS,
 	NL80211_BSS_SEEN_MS_AGO,
+	NL80211_BSS_BEACON_IES,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,
@@ -1476,6 +1503,35 @@ enum nl80211_key_attributes {
 	/* keep last */
 	__NL80211_KEY_AFTER_LAST,
 	NL80211_KEY_MAX = __NL80211_KEY_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_tx_rate_attributes - TX rate set attributes
+ * @__NL80211_TXRATE_INVALID: invalid
+ * @NL80211_TXRATE_LEGACY: Legacy (non-MCS) rates allowed for TX rate selection
+ *	in an array of rates as defined in IEEE 802.11 7.3.2.2 (u8 values with
+ *	1 = 500 kbps) but without the IE length restriction (at most
+ *	%NL80211_MAX_SUPP_RATES in a single array).
+ * @__NL80211_TXRATE_AFTER_LAST: internal
+ * @NL80211_TXRATE_MAX: highest TX rate attribute
+ */
+enum nl80211_tx_rate_attributes {
+	__NL80211_TXRATE_INVALID,
+	NL80211_TXRATE_LEGACY,
+
+	/* keep last */
+	__NL80211_TXRATE_AFTER_LAST,
+	NL80211_TXRATE_MAX = __NL80211_TXRATE_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_band - Frequency band
+ * @NL80211_BAND_2GHZ - 2.4 GHz ISM band
+ * @NL80211_BAND_5GHZ - around 5 GHz band (4.9 - 5.7 GHz)
+ */
+enum nl80211_band {
+	NL80211_BAND_2GHZ,
+	NL80211_BAND_5GHZ,
 };
 
 #endif /* __LINUX_NL80211_H */

@@ -741,7 +741,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		struct timeval tm;
 	} v;
 
-	unsigned int lv = sizeof(int);
+	int lv = sizeof(int);
 	int len;
 
 	if (get_user(len, optlen))
@@ -1205,6 +1205,10 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 
 		if (newsk->sk_prot->sockets_allocated)
 			percpu_counter_inc(newsk->sk_prot->sockets_allocated);
+
+		if (sock_flag(newsk, SOCK_TIMESTAMP) ||
+		    sock_flag(newsk, SOCK_TIMESTAMPING_RX_SOFTWARE))
+			net_enable_timestamp();
 	}
 out:
 	return newsk;
@@ -2136,13 +2140,13 @@ int sock_prot_inuse_get(struct net *net, struct proto *prot)
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_get);
 
-static int sock_inuse_init_net(struct net *net)
+static int __net_init sock_inuse_init_net(struct net *net)
 {
 	net->core.inuse = alloc_percpu(struct prot_inuse);
 	return net->core.inuse ? 0 : -ENOMEM;
 }
 
-static void sock_inuse_exit_net(struct net *net)
+static void __net_exit sock_inuse_exit_net(struct net *net)
 {
 	free_percpu(net->core.inuse);
 }

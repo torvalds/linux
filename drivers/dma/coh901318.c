@@ -1294,8 +1294,8 @@ static int __exit coh901318_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&base->dma_slave);
 	coh901318_pool_destroy(&base->pool);
 	free_irq(platform_get_irq(pdev, 0), base);
-	kfree(base);
 	iounmap(base->virtbase);
+	kfree(base);
 	release_mem_region(pdev->resource->start,
 			   resource_size(pdev->resource));
 	return 0;

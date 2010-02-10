@@ -50,7 +50,7 @@ MODULE_PARM_DESC(copybreak,
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id ixgb_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(ixgb_pci_tbl) = {
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_CX4,
@@ -1363,13 +1363,13 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 dma_error:
 	dev_err(&pdev->dev, "TX DMA map failed\n");
 	buffer_info->dma = 0;
-	count--;
-
-	while (count >= 0) {
+	if (count)
 		count--;
-		i--;
-		if (i < 0)
+
+	while (count--) {
+		if (i==0)
 			i += tx_ring->count;
+		i--;
 		buffer_info = &tx_ring->buffer_info[i];
 		ixgb_unmap_and_free_tx_resource(adapter, buffer_info);
 	}

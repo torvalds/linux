@@ -56,7 +56,7 @@ $(obj)/piggy.o: $(obj)/vmlinux.$(suffix_y) $(obj)/dummy.o
 LDFLAGS_vmlinuz := $(LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T
 vmlinuz: $(src)/ld.script $(obj-y) $(obj)/piggy.o
 	$(call if_changed,ld)
-	$(Q)$(OBJCOPY) $(OBJCOPYFLAGS) -R .comment -R .stab -R .stabstr -R .initrd -R .sysmap $@
+	$(Q)$(OBJCOPY) $(OBJCOPYFLAGS) $@
 
 #
 # Some DECstations need all possible sections of an ECOFF executable
@@ -84,14 +84,11 @@ vmlinuz.ecoff: $(obj)/../elf2ecoff $(VMLINUZ)
 $(obj)/../elf2ecoff: $(src)/../elf2ecoff.c
 	$(Q)$(HOSTCC) -o $@ $^
 
-drop-sections	= .reginfo .mdebug .comment .note .pdr .options .MIPS.options
-strip-flags	= $(addprefix --remove-section=,$(drop-sections))
-
-OBJCOPYFLAGS_vmlinuz.bin := $(OBJCOPYFLAGS) -O binary $(strip-flags)
+OBJCOPYFLAGS_vmlinuz.bin := $(OBJCOPYFLAGS) -O binary
 vmlinuz.bin: vmlinuz
 	$(call if_changed,objcopy)
 
-OBJCOPYFLAGS_vmlinuz.srec := $(OBJCOPYFLAGS) -S -O srec $(strip-flags)
+OBJCOPYFLAGS_vmlinuz.srec := $(OBJCOPYFLAGS) -S -O srec
 vmlinuz.srec: vmlinuz
 	$(call if_changed,objcopy)
 

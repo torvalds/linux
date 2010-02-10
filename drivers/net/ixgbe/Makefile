@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Intel 10 Gigabit PCI Express Linux driver
-# Copyright(c) 1999 - 2009 Intel Corporation.
+# Copyright(c) 1999 - 2010 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -33,7 +33,8 @@
 obj-$(CONFIG_IXGBE) += ixgbe.o
 
 ixgbe-objs := ixgbe_main.o ixgbe_common.o ixgbe_ethtool.o \
-              ixgbe_82599.o ixgbe_82598.o ixgbe_phy.o
+              ixgbe_82599.o ixgbe_82598.o ixgbe_phy.o ixgbe_sriov.o \
+              ixgbe_mbx.o
 
 ixgbe-$(CONFIG_IXGBE_DCB) +=  ixgbe_dcb.o ixgbe_dcb_82598.o \
                               ixgbe_dcb_82599.o ixgbe_dcb_nl.o

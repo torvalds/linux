@@ -1772,7 +1772,7 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, void __user *bu
 
 #endif
 
-static int ndisc_net_init(struct net *net)
+static int __net_init ndisc_net_init(struct net *net)
 {
 	struct ipv6_pinfo *np;
 	struct sock *sk;
@@ -1797,7 +1797,7 @@ static int ndisc_net_init(struct net *net)
 	return 0;
 }
 
-static void ndisc_net_exit(struct net *net)
+static void __net_exit ndisc_net_exit(struct net *net)
 {
 	inet_ctl_sock_destroy(net->ipv6.ndisc_sk);
 }

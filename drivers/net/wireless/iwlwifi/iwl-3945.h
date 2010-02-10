@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -37,7 +37,7 @@
 #include <net/ieee80211_radiotap.h>
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
-extern struct pci_device_id iwl3945_hw_card_ids[];
+extern const struct pci_device_id iwl3945_hw_card_ids[];
 
 #include "iwl-csr.h"
 #include "iwl-prph.h"

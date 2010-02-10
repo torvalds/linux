@@ -434,7 +434,7 @@ int wm8350_register_irq(struct wm8350 *wm8350, int irq,
 			irq_handler_t handler, unsigned long flags,
 			const char *name, void *data)
 {
-	if (irq < 0 || irq > WM8350_NUM_IRQ || !handler)
+	if (irq < 0 || irq >= WM8350_NUM_IRQ || !handler)
 		return -EINVAL;
 
 	if (wm8350->irq[irq].handler)
@@ -453,7 +453,7 @@ EXPORT_SYMBOL_GPL(wm8350_register_irq);
 
 int wm8350_free_irq(struct wm8350 *wm8350, int irq)
 {
-	if (irq < 0 || irq > WM8350_NUM_IRQ)
+	if (irq < 0 || irq >= WM8350_NUM_IRQ)
 		return -EINVAL;
 
 	wm8350_mask_irq(wm8350, irq);

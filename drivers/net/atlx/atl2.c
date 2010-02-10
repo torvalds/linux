@@ -63,7 +63,7 @@ MODULE_VERSION(ATL2_DRV_VERSION);
 /*
  * atl2_pci_tbl - PCI Device ID Table
  */
-static struct pci_device_id atl2_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(atl2_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2)},
 	/* required last entry */
 	{0,}
@@ -1959,12 +1959,15 @@ static int atl2_get_eeprom(struct net_device *netdev,
 		return -ENOMEM;
 
 	for (i = first_dword; i < last_dword; i++) {
-		if (!atl2_read_eeprom(hw, i*4, &(eeprom_buff[i-first_dword])))
-			return -EIO;
+		if (!atl2_read_eeprom(hw, i*4, &(eeprom_buff[i-first_dword]))) {
+			ret_val = -EIO;
+			goto free;
+		}
 	}
 
 	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 3),
 		eeprom->len);
+free:
 	kfree(eeprom_buff);
 
 	return ret_val;

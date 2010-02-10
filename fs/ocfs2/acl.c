@@ -98,14 +98,10 @@ static struct posix_acl *ocfs2_get_acl_nolock(struct inode *inode,
 					      int type,
 					      struct buffer_head *di_bh)
 {
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int name_index;
 	char *value = NULL;
 	struct posix_acl *acl;
 	int retval;
-
-	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
-		return NULL;
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:

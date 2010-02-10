@@ -1875,7 +1875,7 @@ static void __devexit pasemi_mac_remove(struct pci_dev *pdev)
 	free_netdev(netdev);
 }
 
-static struct pci_device_id pasemi_mac_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(pasemi_mac_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PASEMI, 0xa005) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_PASEMI, 0xa006) },
 	{ },

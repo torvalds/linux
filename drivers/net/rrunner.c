@@ -1293,7 +1293,7 @@ static void rr_dump(struct net_device *dev)
 
 	printk("Error code 0x%x\n", readl(&regs->Fail1));
 
-	index = (((readl(&regs->EvtPrd) >> 8) & 0xff ) - 1) % EVT_RING_ENTRIES;
+	index = (((readl(&regs->EvtPrd) >> 8) & 0xff) - 1) % TX_RING_ENTRIES;
 	cons = rrpriv->dirty_tx;
 	printk("TX ring index %i, TX consumer %i\n",
 	       index, cons);
@@ -1688,7 +1688,7 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 }
 
-static struct pci_device_id rr_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(rr_pci_tbl) = {
 	{ PCI_VENDOR_ID_ESSENTIAL, PCI_DEVICE_ID_ESSENTIAL_ROADRUNNER,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0,}

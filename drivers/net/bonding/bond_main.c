@@ -3307,7 +3307,7 @@ static void bond_remove_proc_entry(struct bonding *bond)
 /* Create the bonding directory under /proc/net, if doesn't exist yet.
  * Caller must hold rtnl_lock.
  */
-static void bond_create_proc_dir(struct bond_net *bn)
+static void __net_init bond_create_proc_dir(struct bond_net *bn)
 {
 	if (!bn->proc_dir) {
 		bn->proc_dir = proc_mkdir(DRV_NAME, bn->net->proc_net);
@@ -3320,7 +3320,7 @@ static void bond_create_proc_dir(struct bond_net *bn)
 /* Destroy the bonding directory under /proc/net, if empty.
  * Caller must hold rtnl_lock.
  */
-static void bond_destroy_proc_dir(struct bond_net *bn)
+static void __net_exit bond_destroy_proc_dir(struct bond_net *bn)
 {
 	if (bn->proc_dir) {
 		remove_proc_entry(DRV_NAME, bn->net->proc_net);
@@ -3338,11 +3338,11 @@ static void bond_remove_proc_entry(struct bonding *bond)
 {
 }
 
-static void bond_create_proc_dir(struct bond_net *bn)
+static inline void bond_create_proc_dir(struct bond_net *bn)
 {
 }
 
-static void bond_destroy_proc_dir(struct bond_net *bn)
+static inline void bond_destroy_proc_dir(struct bond_net *bn)
 {
 }
 
@@ -3650,7 +3650,7 @@ static int bond_open(struct net_device *bond_dev)
 		 */
 		if (bond_alb_initialize(bond, (bond->params.mode == BOND_MODE_ALB))) {
 			/* something went wrong - fail the open operation */
-			return -1;
+			return -ENOMEM;
 		}
 
 		INIT_DELAYED_WORK(&bond->alb_work, bond_alb_monitor);
@@ -3742,7 +3742,7 @@ static int bond_close(struct net_device *bond_dev)
 static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device_stats *stats = &bond->stats;
+	struct net_device_stats *stats = &bond_dev->stats;
 	struct net_device_stats local_stats;
 	struct slave *slave;
 	int i;
@@ -4955,7 +4955,7 @@ out_netdev:
 	goto out;
 }
 
-static int bond_net_init(struct net *net)
+static int __net_init bond_net_init(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
 
@@ -4967,7 +4967,7 @@ static int bond_net_init(struct net *net)
 	return 0;
 }
 
-static void bond_net_exit(struct net *net)
+static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
 

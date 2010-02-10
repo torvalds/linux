@@ -83,7 +83,7 @@ MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
 
 /* Known PCI ids */
-static const struct pci_device_id ath5k_pci_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(ath5k_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0207) }, /* 5210 early */
 	{ PCI_VDEVICE(ATHEROS, 0x0007) }, /* 5210 */
 	{ PCI_VDEVICE(ATHEROS, 0x0011) }, /* 5311 - this is on AHB bus !*/
@@ -254,6 +254,8 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		u32 changes);
 static void ath5k_sw_scan_start(struct ieee80211_hw *hw);
 static void ath5k_sw_scan_complete(struct ieee80211_hw *hw);
+static void ath5k_set_coverage_class(struct ieee80211_hw *hw,
+		u8 coverage_class);
 
 static const struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
@@ -274,6 +276,7 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.bss_info_changed = ath5k_bss_info_changed,
 	.sw_scan_start	= ath5k_sw_scan_start,
 	.sw_scan_complete = ath5k_sw_scan_complete,
+	.set_coverage_class = ath5k_set_coverage_class,
 };
 
 /*
@@ -1513,7 +1516,8 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 
 	ret = ath5k_hw_get_tx_queueprops(ah, sc->bhalq, &qi);
 	if (ret)
-		return ret;
+		goto err;
+
 	if (sc->opmode == NL80211_IFTYPE_AP ||
 		sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/*
@@ -1540,10 +1544,25 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 	if (ret) {
 		ATH5K_ERR(sc, "%s: unable to update parameters for beacon "
 			"hardware queue!\n", __func__);
-		return ret;
+		goto err;
 	}
+	ret = ath5k_hw_reset_tx_queue(ah, sc->bhalq); /* push to h/w */
+	if (ret)
+		goto err;
 
-	return ath5k_hw_reset_tx_queue(ah, sc->bhalq); /* push to h/w */;
+	/* reconfigure cabq with ready time to 80% of beacon_interval */
+	ret = ath5k_hw_get_tx_queueprops(ah, AR5K_TX_QUEUE_ID_CAB, &qi);
+	if (ret)
+		goto err;
+
+	qi.tqi_ready_time = (sc->bintval * 80) / 100;
+	ret = ath5k_hw_set_tx_queueprops(ah, AR5K_TX_QUEUE_ID_CAB, &qi);
+	if (ret)
+		goto err;
+
+	ret = ath5k_hw_reset_tx_queue(ah, AR5K_TX_QUEUE_ID_CAB);
+err:
+	return ret;
 }
 
 static void
@@ -3261,4 +3280,23 @@ static void ath5k_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath5k_softc *sc = hw->priv;
 	ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
 		AR5K_LED_ASSOC : AR5K_LED_INIT);
+}
+
+/**
+ * ath5k_set_coverage_class - Set IEEE 802.11 coverage class
+ *
+ * @hw: struct ieee80211_hw pointer
+ * @coverage_class: IEEE 802.11 coverage class number
+ *
+ * Mac80211 callback. Sets slot time, ACK timeout and CTS timeout for given
+ * coverage class. The values are persistent, they are restored after device
+ * reset.
+ */
+static void ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+{
+	struct ath5k_softc *sc = hw->priv;
+
+	mutex_lock(&sc->lock);
+	ath5k_hw_set_coverage_class(sc->ah, coverage_class);
+	mutex_unlock(&sc->lock);
 }

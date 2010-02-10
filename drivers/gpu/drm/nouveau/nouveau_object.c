@@ -881,7 +881,7 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 	return 0;
 }
 
-static int
+int
 nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
 		      struct nouveau_gpuobj **gpuobj_ret)
 {

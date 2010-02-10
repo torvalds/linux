@@ -622,7 +622,7 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 	for (dm = dev->mc_list; dm; dm = dm->next)
 		qeth_l2_add_mc(card, dm->da_addr, 0);
 
-	list_for_each_entry(ha, &dev->uc.list, list)
+	netdev_for_each_uc_addr(ha, dev)
 		qeth_l2_add_mc(card, ha->addr, 1);
 
 	spin_unlock_bh(&card->mclock);
@@ -769,7 +769,8 @@ static void qeth_l2_qdio_input_handler(struct ccw_device *ccwdev,
 		index = i % QDIO_MAX_BUFFERS_PER_Q;
 		buffer = &card->qdio.in_q->bufs[index];
 		if (!(qdio_err &&
-		      qeth_check_qdio_errors(buffer->buffer, qdio_err, "qinerr")))
+		      qeth_check_qdio_errors(card, buffer->buffer, qdio_err,
+					     "qinerr")))
 			qeth_l2_process_inbound_buffer(card, buffer, index);
 		/* clear buffer and give back to hardware */
 		qeth_put_buffer_pool_entry(card, buffer->pool_entry);
@@ -926,7 +927,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	QETH_DBF_TEXT(SETUP, 2, "setonlin");
 	QETH_DBF_HEX(SETUP, 2, &card, sizeof(void *));
 
-	qeth_set_allowed_threads(card, QETH_RECOVER_THREAD, 1);
 	recover_flag = card->state;
 	rc = qeth_core_hardsetup_card(card);
 	if (rc) {

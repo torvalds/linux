@@ -2612,7 +2612,7 @@ ctl_table ipv6_route_table_template[] = {
 	{ }
 };
 
-struct ctl_table *ipv6_route_sysctl_init(struct net *net)
+struct ctl_table * __net_init ipv6_route_sysctl_init(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -2637,7 +2637,7 @@ struct ctl_table *ipv6_route_sysctl_init(struct net *net)
 }
 #endif
 
-static int ip6_route_net_init(struct net *net)
+static int __net_init ip6_route_net_init(struct net *net)
 {
 	int ret = -ENOMEM;
 
@@ -2702,7 +2702,7 @@ out_ip6_dst_ops:
 	goto out;
 }
 
-static void ip6_route_net_exit(struct net *net)
+static void __net_exit ip6_route_net_exit(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	proc_net_remove(net, "ipv6_route");

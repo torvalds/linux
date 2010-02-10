@@ -152,7 +152,7 @@ int ath9k_wiphy_add(struct ath_softc *sc)
 
 	SET_IEEE80211_PERM_ADDR(hw, addr);
 
-	ath_set_hw_capab(sc, hw);
+	ath9k_set_hw_capab(sc, hw);
 
 	error = ieee80211_register_hw(hw);
 

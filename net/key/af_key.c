@@ -3019,12 +3019,11 @@ static int pfkey_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_e
 static u32 get_acqseq(void)
 {
 	u32 res;
-	static u32 acqseq;
-	static DEFINE_SPINLOCK(acqseq_lock);
+	static atomic_t acqseq;
 
-	spin_lock_bh(&acqseq_lock);
-	res = (++acqseq ? : ++acqseq);
-	spin_unlock_bh(&acqseq_lock);
+	do {
+		res = atomic_inc_return(&acqseq);
+	} while (!res);
 	return res;
 }
 
@@ -3738,17 +3737,17 @@ static int __net_init pfkey_init_proc(struct net *net)
 	return 0;
 }
 
-static void pfkey_exit_proc(struct net *net)
+static void __net_exit pfkey_exit_proc(struct net *net)
 {
 	proc_net_remove(net, "pfkey");
 }
 #else
-static int __net_init pfkey_init_proc(struct net *net)
+static inline int pfkey_init_proc(struct net *net)
 {
 	return 0;
 }
 
-static void pfkey_exit_proc(struct net *net)
+static inline void pfkey_exit_proc(struct net *net)
 {
 }
 #endif
@@ -3794,9 +3793,9 @@ static struct pernet_operations pfkey_net_ops = {
 
 static void __exit ipsec_pfkey_exit(void)
 {
-	unregister_pernet_subsys(&pfkey_net_ops);
 	xfrm_unregister_km(&pfkeyv2_mgr);
 	sock_unregister(PF_KEY);
+	unregister_pernet_subsys(&pfkey_net_ops);
 	proto_unregister(&key_proto);
 }
 
@@ -3807,21 +3806,22 @@ static int __init ipsec_pfkey_init(void)
 	if (err != 0)
 		goto out;
 
-	err = sock_register(&pfkey_family_ops);
+	err = register_pernet_subsys(&pfkey_net_ops);
 	if (err != 0)
 		goto out_unregister_key_proto;
+	err = sock_register(&pfkey_family_ops);
+	if (err != 0)
+		goto out_unregister_pernet;
 	err = xfrm_register_km(&pfkeyv2_mgr);
 	if (err != 0)
 		goto out_sock_unregister;
-	err = register_pernet_subsys(&pfkey_net_ops);
-	if (err != 0)
-		goto out_xfrm_unregister_km;
 out:
 	return err;
-out_xfrm_unregister_km:
-	xfrm_unregister_km(&pfkeyv2_mgr);
+
 out_sock_unregister:
 	sock_unregister(PF_KEY);
+out_unregister_pernet:
+	unregister_pernet_subsys(&pfkey_net_ops);
 out_unregister_key_proto:
 	proto_unregister(&key_proto);
 	goto out;

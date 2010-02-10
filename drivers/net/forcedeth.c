@@ -6198,7 +6198,7 @@ static void nv_shutdown(struct pci_dev *pdev)
 #define nv_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
 	{	/* nForce Ethernet Controller */
 		PCI_DEVICE(0x10DE, 0x01C3),
 		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,

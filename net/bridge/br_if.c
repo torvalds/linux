@@ -206,8 +206,6 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 
 	br_netfilter_rtable_init(br);
 
-	INIT_LIST_HEAD(&br->age_list);
-
 	br_stp_timer_init(br);
 
 	return dev;
@@ -467,7 +465,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	return 0;
 }
 
-void br_net_exit(struct net *net)
+void __net_exit br_net_exit(struct net *net)
 {
 	struct net_device *dev;
 	LIST_HEAD(list);

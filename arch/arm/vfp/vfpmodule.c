@@ -63,14 +63,15 @@ static void vfp_thread_flush(struct thread_info *thread)
 	put_cpu();
 }
 
-static void vfp_thread_release(struct thread_info *thread)
+static void vfp_thread_exit(struct thread_info *thread)
 {
 	/* release case: Per-thread VFP cleanup. */
 	union vfp_state *vfp = &thread->vfpstate;
-	unsigned int cpu = thread->cpu;
+	unsigned int cpu = get_cpu();
 
 	if (last_VFP_context[cpu] == vfp)
 		last_VFP_context[cpu] = NULL;
+	put_cpu();
 }
 
 /*
@@ -88,11 +89,13 @@ static void vfp_thread_release(struct thread_info *thread)
  *	but may change at any time.
  *   - we could be preempted if tree preempt rcu is enabled, so
  *	it is unsafe to use thread->cpu.
- *  THREAD_NOTIFY_RELEASE:
- *   - the thread (v) will not be running on any CPU; it is a dead thread.
- *   - thread->cpu will be the last CPU the thread ran on, which may not
- *	be the current CPU.
- *   - we could be preempted if tree preempt rcu is enabled.
+ *  THREAD_NOTIFY_EXIT
+ *   - the thread (v) will be running on the local CPU, so
+ *	v === current_thread_info()
+ *   - thread->cpu is the local CPU number at the time it is accessed,
+ *	but may change at any time.
+ *   - we could be preempted if tree preempt rcu is enabled, so
+ *	it is unsafe to use thread->cpu.
  */
 static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
@@ -133,7 +136,7 @@ static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 	if (cmd == THREAD_NOTIFY_FLUSH)
 		vfp_thread_flush(thread);
 	else
-		vfp_thread_release(thread);
+		vfp_thread_exit(thread);
 
 	return NOTIFY_DONE;
 }

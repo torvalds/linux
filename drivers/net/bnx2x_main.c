@@ -140,7 +140,7 @@ static struct {
 };
 
 
-static const struct pci_device_id bnx2x_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), BCM57711E },
@@ -7593,6 +7593,8 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		if (bp->cnic_eth_dev.drv_state & CNIC_DRV_STATE_REGD) {
 			bnx2x_set_iscsi_eth_mac_addr(bp, 1);
 			bp->cnic_flags |= BNX2X_CNIC_FLAG_MAC_SET;
+			bnx2x_init_sb(bp, bp->cnic_sb, bp->cnic_sb_mapping,
+				      CNIC_SB_ID(bp));
 		}
 		mutex_unlock(&bp->cnic_mutex);
 #endif
@@ -11729,7 +11731,7 @@ static void bnx2x_vlan_rx_register(struct net_device *dev,
 
 #endif
 
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+#ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_bnx2x(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -11753,7 +11755,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef BCM_VLAN
 	.ndo_vlan_rx_register	= bnx2x_vlan_rx_register,
 #endif
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+#ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
 };

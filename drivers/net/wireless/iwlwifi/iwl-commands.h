@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -120,7 +120,6 @@ enum {
 	CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
 
 	/* 802.11h related */
-	RADAR_NOTIFICATION = 0x70,	/* not used */
 	REPLY_QUIET_CMD = 0x71,		/* not used */
 	REPLY_CHANNEL_SWITCH = 0x72,
 	CHANNEL_SWITCH_NOTIFICATION = 0x73,
@@ -2248,10 +2247,22 @@ struct iwl_link_quality_cmd {
 	__le32 reserved2;
 } __attribute__ ((packed));
 
+/*
+ * BT configuration enable flags:
+ *   bit 0 - 1: BT channel announcement enabled
+ *           0: disable
+ *   bit 1 - 1: priority of BT device enabled
+ *           0: disable
+ *   bit 2 - 1: BT 2 wire support enabled
+ *           0: disable
+ */
 #define BT_COEX_DISABLE (0x0)
-#define BT_COEX_MODE_2W (0x1)
-#define BT_COEX_MODE_3W (0x2)
-#define BT_COEX_MODE_4W (0x3)
+#define BT_ENABLE_CHANNEL_ANNOUNCE BIT(0)
+#define BT_ENABLE_PRIORITY	   BIT(1)
+#define BT_ENABLE_2_WIRE	   BIT(2)
+
+#define BT_COEX_DISABLE (0x0)
+#define BT_COEX_ENABLE  (BT_ENABLE_CHANNEL_ANNOUNCE | BT_ENABLE_PRIORITY)
 
 #define BT_LEAD_TIME_MIN (0x0)
 #define BT_LEAD_TIME_DEF (0x1E)
@@ -2984,7 +2995,7 @@ struct statistics_rx_ht_phy {
 	__le32 agg_crc32_good;
 	__le32 agg_mpdu_cnt;
 	__le32 agg_cnt;
-	__le32 reserved2;
+	__le32 unsupport_mcs;
 } __attribute__ ((packed));
 
 #define INTERFERENCE_DATA_AVAILABLE      cpu_to_le32(1)
@@ -3087,8 +3098,8 @@ struct statistics_div {
 } __attribute__ ((packed));
 
 struct statistics_general {
-	__le32 temperature;
-	__le32 temperature_m;
+	__le32 temperature;   /* radio temperature */
+	__le32 temperature_m; /* for 5000 and up, this is radio voltage */
 	struct statistics_dbg dbg;
 	__le32 sleep_time;
 	__le32 slots_out;
@@ -3096,7 +3107,12 @@ struct statistics_general {
 	__le32 ttl_timestamp;
 	struct statistics_div div;
 	__le32 rx_enable_counter;
-	__le32 reserved1;
+	/*
+	 * num_of_sos_states:
+	 *  count the number of times we have to re-tune
+	 *  in order to get out of bad PHY status
+	 */
+	__le32 num_of_sos_states;
 	__le32 reserved2;
 	__le32 reserved3;
 } __attribute__ ((packed));
@@ -3161,13 +3177,30 @@ struct iwl_notif_statistics {
 
 /*
  * MISSED_BEACONS_NOTIFICATION = 0xa2 (notification only, not a command)
+ *
+ * uCode send MISSED_BEACONS_NOTIFICATION to driver when detect beacon missed
+ * in regardless of how many missed beacons, which mean when driver receive the
+ * notification, inside the command, it can find all the beacons information
+ * which include number of total missed beacons, number of consecutive missed
+ * beacons, number of beacons received and number of beacons expected to
+ * receive.
+ *
+ * If uCode detected consecutive_missed_beacons > 5, it will reset the radio
+ * in order to bring the radio/PHY back to working state; which has no relation
+ * to when driver will perform sensitivity calibration.
+ *
+ * Driver should set it own missed_beacon_threshold to decide when to perform
+ * sensitivity calibration based on number of consecutive missed beacons in
+ * order to improve overall performance, especially in noisy environment.
+ *
  */
-/* if ucode missed CONSECUTIVE_MISSED_BCONS_TH beacons in a row,
- * then this notification will be sent. */
-#define CONSECUTIVE_MISSED_BCONS_TH 20
+
+#define IWL_MISSED_BEACON_THRESHOLD_MIN	(1)
+#define IWL_MISSED_BEACON_THRESHOLD_DEF	(5)
+#define IWL_MISSED_BEACON_THRESHOLD_MAX	IWL_MISSED_BEACON_THRESHOLD_DEF
 
 struct iwl_missed_beacon_notif {
-	__le32 consequtive_missed_beacons;
+	__le32 consecutive_missed_beacons;
 	__le32 total_missed_becons;
 	__le32 num_expected_beacons;
 	__le32 num_recvd_beacons;

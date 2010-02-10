@@ -1383,7 +1383,7 @@ static void __devexit ioc3_remove_one (struct pci_dev *pdev)
 	 */
 }
 
-static struct pci_device_id ioc3_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(ioc3_pci_tbl) = {
 	{ PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0 }
 };

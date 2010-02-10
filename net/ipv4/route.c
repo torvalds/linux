@@ -586,7 +586,9 @@ static void __net_exit ip_rt_do_proc_exit(struct net *net)
 {
 	remove_proc_entry("rt_cache", net->proc_net_stat);
 	remove_proc_entry("rt_cache", net->proc_net);
+#ifdef CONFIG_NET_CLS_ROUTE
 	remove_proc_entry("rt_acct", net->proc_net);
+#endif
 }
 
 static struct pernet_operations ip_rt_proc_ops __net_initdata =  {
@@ -1988,8 +1990,13 @@ static int __mkroute_input(struct sk_buff *skb,
 	if (skb->protocol != htons(ETH_P_IP)) {
 		/* Not IP (i.e. ARP). Do not create route, if it is
 		 * invalid for proxy arp. DNAT routes are always valid.
+		 *
+		 * Proxy arp feature have been extended to allow, ARP
+		 * replies back to the same interface, to support
+		 * Private VLAN switch technologies. See arp.c.
 		 */
-		if (out_dev == in_dev) {
+		if (out_dev == in_dev &&
+		    IN_DEV_PROXY_ARP_PVLAN(in_dev) == 0) {
 			err = -EINVAL;
 			goto cleanup;
 		}

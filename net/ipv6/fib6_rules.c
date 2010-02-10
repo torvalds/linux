@@ -262,7 +262,7 @@ static struct fib_rules_ops fib6_rules_ops_template = {
 	.fro_net		= &init_net,
 };
 
-static int fib6_rules_net_init(struct net *net)
+static int __net_init fib6_rules_net_init(struct net *net)
 {
 	struct fib_rules_ops *ops;
 	int err = -ENOMEM;
@@ -291,7 +291,7 @@ out_fib6_rules_ops:
 	goto out;
 }
 
-static void fib6_rules_net_exit(struct net *net)
+static void __net_exit fib6_rules_net_exit(struct net *net)
 {
 	fib_rules_unregister(net->ipv6.fib6_rules_ops);
 }

@@ -3027,14 +3027,14 @@ static const struct file_operations if6_fops = {
 	.release	= seq_release_net,
 };
 
-static int if6_proc_net_init(struct net *net)
+static int __net_init if6_proc_net_init(struct net *net)
 {
 	if (!proc_net_fops_create(net, "if_inet6", S_IRUGO, &if6_fops))
 		return -ENOMEM;
 	return 0;
 }
 
-static void if6_proc_net_exit(struct net *net)
+static void __net_exit if6_proc_net_exit(struct net *net)
 {
        proc_net_remove(net, "if_inet6");
 }
@@ -4418,7 +4418,7 @@ static void addrconf_sysctl_unregister(struct inet6_dev *idev)
 
 #endif
 
-static int addrconf_init_net(struct net *net)
+static int __net_init addrconf_init_net(struct net *net)
 {
 	int err;
 	struct ipv6_devconf *all, *dflt;
@@ -4467,7 +4467,7 @@ err_alloc_all:
 	return err;
 }
 
-static void addrconf_exit_net(struct net *net)
+static void __net_exit addrconf_exit_net(struct net *net)
 {
 #ifdef CONFIG_SYSCTL
 	__addrconf_sysctl_unregister(net->ipv6.devconf_dflt);

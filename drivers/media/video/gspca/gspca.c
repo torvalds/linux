@@ -1815,6 +1815,8 @@ static int vidioc_qbuf(struct file *file, void *priv,
 	/* put the buffer in the 'queued' queue */
 	i = gspca_dev->fr_q;
 	gspca_dev->fr_queue[i] = index;
+	if (gspca_dev->fr_i == i)
+		gspca_dev->cur_frame = frame;
 	gspca_dev->fr_q = (i + 1) % gspca_dev->nframes;
 	PDEBUG(D_FRAM, "qbuf q:%d i:%d o:%d",
 		gspca_dev->fr_q,

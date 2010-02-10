@@ -2646,7 +2646,7 @@ static const struct file_operations igmp6_mcf_seq_fops = {
 	.release	=	seq_release_net,
 };
 
-static int igmp6_proc_init(struct net *net)
+static int __net_init igmp6_proc_init(struct net *net)
 {
 	int err;
 
@@ -2666,23 +2666,22 @@ out_proc_net_igmp6:
 	goto out;
 }
 
-static void igmp6_proc_exit(struct net *net)
+static void __net_exit igmp6_proc_exit(struct net *net)
 {
 	proc_net_remove(net, "mcfilter6");
 	proc_net_remove(net, "igmp6");
 }
 #else
-static int igmp6_proc_init(struct net *net)
+static inline int igmp6_proc_init(struct net *net)
 {
 	return 0;
 }
-static void igmp6_proc_exit(struct net *net)
+static inline void igmp6_proc_exit(struct net *net)
 {
-	;
 }
 #endif
 
-static int igmp6_net_init(struct net *net)
+static int __net_init igmp6_net_init(struct net *net)
 {
 	int err;
 
@@ -2708,7 +2707,7 @@ out_sock_create:
 	goto out;
 }
 
-static void igmp6_net_exit(struct net *net)
+static void __net_exit igmp6_net_exit(struct net *net)
 {
 	inet_ctl_sock_destroy(net->ipv6.igmp_sk);
 	igmp6_proc_exit(net);

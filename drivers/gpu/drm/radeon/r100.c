@@ -131,7 +131,8 @@ void r100_hpd_init(struct radeon_device *rdev)
 			break;
 		}
 	}
-	r100_irq_set(rdev);
+	if (rdev->irq.installed)
+		r100_irq_set(rdev);
 }
 
 void r100_hpd_fini(struct radeon_device *rdev)
@@ -243,6 +244,11 @@ int r100_irq_set(struct radeon_device *rdev)
 {
 	uint32_t tmp = 0;
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		WREG32(R_000040_GEN_INT_CNTL, 0);
+		return -EINVAL;
+	}
 	if (rdev->irq.sw_int) {
 		tmp |= RADEON_SW_INT_ENABLE;
 	}
@@ -356,6 +362,11 @@ void r100_fence_ring_emit(struct radeon_device *rdev,
 	/* Wait until IDLE & CLEAN */
 	radeon_ring_write(rdev, PACKET0(0x1720, 0));
 	radeon_ring_write(rdev, (1 << 16) | (1 << 17));
+	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
+	radeon_ring_write(rdev, rdev->config.r100.hdp_cntl |
+				RADEON_HDP_READ_BUFFER_INVALIDATE);
+	radeon_ring_write(rdev, PACKET0(RADEON_HOST_PATH_CNTL, 0));
+	radeon_ring_write(rdev, rdev->config.r100.hdp_cntl);
 	/* Emit fence sequence & fire IRQ */
 	radeon_ring_write(rdev, PACKET0(rdev->fence_drv.scratch_reg, 0));
 	radeon_ring_write(rdev, fence->seq);
@@ -1711,14 +1722,6 @@ void r100_gpu_init(struct radeon_device *rdev)
 {
 	/* TODO: anythings to do here ? pipes ? */
 	r100_hdp_reset(rdev);
-}
-
-void r100_hdp_flush(struct radeon_device *rdev)
-{
-	u32 tmp;
-	tmp = RREG32(RADEON_HOST_PATH_CNTL);
-	tmp |= RADEON_HDP_READ_BUFFER_INVALIDATE;
-	WREG32(RADEON_HOST_PATH_CNTL, tmp);
 }
 
 void r100_hdp_reset(struct radeon_device *rdev)
@@ -3313,6 +3316,7 @@ static int r100_startup(struct radeon_device *rdev)
 	}
 	/* Enable IRQ */
 	r100_irq_set(rdev);
+	rdev->config.r100.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -3371,6 +3375,7 @@ void r100_fini(struct radeon_device *rdev)
 	radeon_gem_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_bo_fini(rdev);

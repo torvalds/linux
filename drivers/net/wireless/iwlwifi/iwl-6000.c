@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008-2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -108,7 +108,7 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 
 	.auto_corr_max_ofdm = 145,
 	.auto_corr_max_ofdm_mrc = 232,
-	.auto_corr_max_ofdm_x1 = 145,
+	.auto_corr_max_ofdm_x1 = 110,
 	.auto_corr_max_ofdm_mrc_x1 = 232,
 
 	.auto_corr_min_cck = 125,
@@ -158,11 +158,25 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial sensitivity parameters */
 	/* Set initial calibration set */
 	priv->hw_params.sens = &iwl6000_sensitivity;
-	priv->hw_params.calib_init_cfg =
+	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
+	case CSR_HW_REV_TYPE_6x50:
+		priv->hw_params.calib_init_cfg =
+			BIT(IWL_CALIB_XTAL)		|
+			BIT(IWL_CALIB_DC)		|
+			BIT(IWL_CALIB_LO)		|
+			BIT(IWL_CALIB_TX_IQ) 		|
+			BIT(IWL_CALIB_BASE_BAND);
+
+		break;
+	default:
+		priv->hw_params.calib_init_cfg =
 			BIT(IWL_CALIB_XTAL)		|
 			BIT(IWL_CALIB_LO)		|
 			BIT(IWL_CALIB_TX_IQ) 		|
 			BIT(IWL_CALIB_BASE_BAND);
+		break;
+	}
+
 	return 0;
 }
 
@@ -216,6 +230,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.dump_csr = iwl_dump_csr,
+	.dump_fh = iwl_dump_fh,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
@@ -251,6 +266,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.temperature = iwl5000_temperature,
 		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static const struct iwl_ops iwl6000_ops = {
@@ -307,6 +323,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -336,6 +353,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -365,6 +383,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -395,6 +414,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -424,6 +444,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -454,6 +475,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.supports_idle = true,
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

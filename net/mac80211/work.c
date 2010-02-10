@@ -202,7 +202,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos;
+	u8 *pos, qos_info;
 	const u8 *ies;
 	size_t offset = 0, noffset;
 	int i, len, count, rates_len, supp_rates_len;
@@ -375,6 +375,14 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (wk->assoc.wmm_used && local->hw.queues >= 4) {
+		if (wk->assoc.uapsd_used) {
+			qos_info = local->uapsd_queues;
+			qos_info |= (local->uapsd_max_sp_len <<
+				     IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT);
+		} else {
+			qos_info = 0;
+		}
+
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
@@ -384,7 +392,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		*pos++ = 2; /* WME */
 		*pos++ = 0; /* WME info */
 		*pos++ = 1; /* WME ver */
-		*pos++ = 0;
+		*pos++ = qos_info;
 	}
 
 	/* add any remaining custom (i.e. vendor specific here) IEs */
@@ -527,13 +535,12 @@ ieee80211_remain_on_channel_timeout(struct ieee80211_work *wk)
 	 * First time we run, do nothing -- the generic code will
 	 * have switched to the right channel etc.
 	 */
-	if (!wk->remain.started) {
-		wk->remain.started = true;
+	if (!wk->started) {
 		wk->timeout = jiffies + msecs_to_jiffies(wk->remain.duration);
 
-		cfg80211_ready_on_channel(wk->sdata->dev, (u64)wk, wk->chan,
-					  wk->chan_type, wk->remain.duration,
-					  GFP_KERNEL);
+		cfg80211_ready_on_channel(wk->sdata->dev, (unsigned long) wk,
+					  wk->chan, wk->chan_type,
+					  wk->remain.duration, GFP_KERNEL);
 
 		return WORK_ACT_NONE;
 	}
@@ -813,14 +820,17 @@ static void ieee80211_work_work(struct work_struct *work)
 	mutex_lock(&local->work_mtx);
 
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
+		bool started = wk->started;
+
 		/* mark work as started if it's on the current off-channel */
-		if (!wk->started && local->tmp_channel &&
+		if (!started && local->tmp_channel &&
 		    wk->chan == local->tmp_channel &&
 		    wk->chan_type == local->tmp_channel_type) {
-			wk->started = true;
+			started = true;
+			wk->timeout = jiffies;
 		}
 
-		if (!wk->started && !local->tmp_channel) {
+		if (!started && !local->tmp_channel) {
 			/*
 			 * TODO: could optimize this by leaving the
 			 *	 station vifs in awake mode if they
@@ -833,12 +843,12 @@ static void ieee80211_work_work(struct work_struct *work)
 			local->tmp_channel = wk->chan;
 			local->tmp_channel_type = wk->chan_type;
 			ieee80211_hw_config(local, 0);
-			wk->started = true;
+			started = true;
 			wk->timeout = jiffies;
 		}
 
 		/* don't try to work with items that aren't started */
-		if (!wk->started)
+		if (!started)
 			continue;
 
 		if (time_is_after_jiffies(wk->timeout)) {
@@ -872,6 +882,8 @@ static void ieee80211_work_work(struct work_struct *work)
 			rma = ieee80211_remain_on_channel_timeout(wk);
 			break;
 		}
+
+		wk->started = started;
 
 		switch (rma) {
 		case WORK_ACT_NONE:
@@ -933,6 +945,9 @@ void ieee80211_add_work(struct ieee80211_work *wk)
 		return;
 
 	if (WARN_ON(!wk->done))
+		return;
+
+	if (WARN_ON(!ieee80211_sdata_running(wk->sdata)))
 		return;
 
 	wk->started = false;
@@ -1010,8 +1025,6 @@ ieee80211_rx_result ieee80211_work_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 		case IEEE80211_STYPE_PROBE_RESP:
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:
-		case IEEE80211_STYPE_DEAUTH:
-		case IEEE80211_STYPE_DISASSOC:
 			skb_queue_tail(&local->work_skb_queue, skb);
 			ieee80211_queue_work(&local->hw, &local->work_work);
 			return RX_QUEUED;
@@ -1027,7 +1040,7 @@ static enum work_done_result ieee80211_remain_done(struct ieee80211_work *wk,
 	/*
 	 * We are done serving the remain-on-channel command.
 	 */
-	cfg80211_remain_on_channel_expired(wk->sdata->dev, (u64)wk,
+	cfg80211_remain_on_channel_expired(wk->sdata->dev, (unsigned long) wk,
 					   wk->chan, wk->chan_type,
 					   GFP_KERNEL);
 
@@ -1053,7 +1066,7 @@ int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 
 	wk->remain.duration = duration;
 
-	*cookie = (u64)wk;
+	*cookie = (unsigned long) wk;
 
 	ieee80211_add_work(wk);
 
@@ -1069,7 +1082,7 @@ int ieee80211_wk_cancel_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&local->work_mtx);
 	list_for_each_entry_safe(wk, tmp, &local->work_list, list) {
-		if ((u64)wk == cookie) {
+		if ((unsigned long) wk == cookie) {
 			wk->timeout = jiffies;
 			found = true;
 			break;

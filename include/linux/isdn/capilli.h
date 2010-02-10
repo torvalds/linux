@@ -50,8 +50,7 @@ struct capi_ctr {
 	u16  (*send_message)(struct capi_ctr *, struct sk_buff *skb);
 	
 	char *(*procinfo)(struct capi_ctr *);
-	int (*ctr_read_proc)(char *page, char **start, off_t off,
-			     int count, int *eof, struct capi_ctr *card);
+	const struct file_operations *proc_fops;
 
 	/* filled in before calling ready callback */
 	u8 manu[CAPI_MANUFACTURER_LEN];		/* CAPI_GET_MANUFACTURER */

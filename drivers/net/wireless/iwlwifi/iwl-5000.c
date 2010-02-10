@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -263,8 +263,8 @@ static struct iwl_sensitivity_ranges iwl5000_sensitivity = {
 
 	.auto_corr_max_ofdm = 120,
 	.auto_corr_max_ofdm_mrc = 210,
-	.auto_corr_max_ofdm_x1 = 155,
-	.auto_corr_max_ofdm_mrc_x1 = 290,
+	.auto_corr_max_ofdm_x1 = 120,
+	.auto_corr_max_ofdm_mrc_x1 = 240,
 
 	.auto_corr_min_cck = 125,
 	.auto_corr_max_cck = 200,
@@ -412,12 +412,14 @@ static void iwl5000_rx_calib_complete(struct iwl_priv *priv,
 /*
  * ucode
  */
-static int iwl5000_load_section(struct iwl_priv *priv,
-				struct fw_desc *image,
-				u32 dst_addr)
+static int iwl5000_load_section(struct iwl_priv *priv, const char *name,
+				struct fw_desc *image, u32 dst_addr)
 {
 	dma_addr_t phy_addr = image->p_addr;
 	u32 byte_cnt = image->len;
+	int ret;
+
+	priv->ucode_write_complete = 0;
 
 	iwl_write_direct32(priv,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
@@ -447,6 +449,20 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
+	IWL_DEBUG_INFO(priv, "%s uCode section being loaded...\n", name);
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+					priv->ucode_write_complete, 5 * HZ);
+	if (ret == -ERESTARTSYS) {
+		IWL_ERR(priv, "Could not load the %s uCode section due "
+			"to interrupt\n", name);
+		return ret;
+	}
+	if (!ret) {
+		IWL_ERR(priv, "Could not load the %s uCode section\n",
+			name);
+		return -ETIMEDOUT;
+	}
+
 	return 0;
 }
 
@@ -456,48 +472,13 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 {
 	int ret = 0;
 
-	ret = iwl5000_load_section(priv, inst_image,
+	ret = iwl5000_load_section(priv, "INST", inst_image,
 				   IWL50_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
-	IWL_DEBUG_INFO(priv, "INST uCode section being loaded...\n");
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-					priv->ucode_write_complete, 5 * HZ);
-	if (ret == -ERESTARTSYS) {
-		IWL_ERR(priv, "Could not load the INST uCode section due "
-			"to interrupt\n");
-		return ret;
-	}
-	if (!ret) {
-		IWL_ERR(priv, "Could not load the INST uCode section\n");
-		return -ETIMEDOUT;
-	}
-
-	priv->ucode_write_complete = 0;
-
-	ret = iwl5000_load_section(
-		priv, data_image, IWL50_RTC_DATA_LOWER_BOUND);
-	if (ret)
-		return ret;
-
-	IWL_DEBUG_INFO(priv, "DATA uCode section being loaded...\n");
-
-	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
-				priv->ucode_write_complete, 5 * HZ);
-	if (ret == -ERESTARTSYS) {
-		IWL_ERR(priv, "Could not load the INST uCode section due "
-			"to interrupt\n");
-		return ret;
-	} else if (!ret) {
-		IWL_ERR(priv, "Could not load the DATA uCode section\n");
-		return -ETIMEDOUT;
-	} else
-		ret = 0;
-
-	priv->ucode_write_complete = 0;
-
-	return ret;
+	return iwl5000_load_section(priv, "DATA", data_image,
+				    IWL50_RTC_DATA_LOWER_BOUND);
 }
 
 int iwl5000_load_ucode(struct iwl_priv *priv)
@@ -781,7 +762,7 @@ void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 
 	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
 
-	if (txq->q.write_ptr < TFD_QUEUE_SIZE_BC_DUP)
+	if (write_ptr < TFD_QUEUE_SIZE_BC_DUP)
 		scd_bc_tbl[txq_id].
 			tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] = bc_ent;
 }
@@ -800,12 +781,12 @@ void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 	if (txq_id != IWL_CMD_QUEUE_NUM)
 		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
 
-	bc_ent =  cpu_to_le16(1 | (sta_id << 12));
+	bc_ent = cpu_to_le16(1 | (sta_id << 12));
 	scd_bc_tbl[txq_id].tfd_offset[read_ptr] = bc_ent;
 
-	if (txq->q.write_ptr < TFD_QUEUE_SIZE_BC_DUP)
+	if (read_ptr < TFD_QUEUE_SIZE_BC_DUP)
 		scd_bc_tbl[txq_id].
-			tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] =  bc_ent;
+			tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] = bc_ent;
 }
 
 static int iwl5000_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
@@ -1467,6 +1448,7 @@ struct iwl_lib_ops iwl5000_lib = {
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.dump_csr = iwl_dump_csr,
+	.dump_fh = iwl_dump_fh,
 	.load_ucode = iwl5000_load_ucode,
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
@@ -1502,6 +1484,7 @@ struct iwl_lib_ops iwl5000_lib = {
 		.temperature = iwl5000_temperature,
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -1555,6 +1538,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.temperature = iwl5150_temperature,
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
+	.add_bcast_station = iwl_add_bcast_station,
 };
 
 static const struct iwl_ops iwl5000_ops = {
@@ -1600,7 +1584,9 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
@@ -1623,7 +1609,9 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -1646,6 +1634,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.use_bsm = false,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -1668,7 +1657,9 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -1691,7 +1682,9 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -1714,7 +1707,9 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.use_bsm = false,
 	.ht_greenfield_support = true,
 	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -1737,6 +1732,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.use_bsm = false,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

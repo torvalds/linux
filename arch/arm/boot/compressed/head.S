@@ -27,6 +27,14 @@
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
+#elif defined(CONFIG_CPU_V7)
+		.macro	loadsp, rb
+		.endm
+		.macro	writeb, ch, rb
+wait:		mrc	p14, 0, pc, c0, c1, 0
+		bcs	wait
+		mcr	p14, 0, \ch, c0, c5, 0
+		.endm
 #elif defined(CONFIG_CPU_XSCALE)
 		.macro	loadsp, rb
 		.endm

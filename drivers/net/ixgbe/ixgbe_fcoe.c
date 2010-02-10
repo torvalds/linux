@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -525,7 +525,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 		for (i = 0; i < IXGBE_FCRETA_SIZE; i++) {
 			fcoe_i = f->mask + i % f->indices;
 			fcoe_i &= IXGBE_FCRETA_ENTRY_MASK;
-			fcoe_q = adapter->rx_ring[fcoe_i].reg_idx;
+			fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
 			IXGBE_WRITE_REG(hw, IXGBE_FCRETA(i), fcoe_q);
 		}
 		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, IXGBE_FCRECTL_ENA);
@@ -533,7 +533,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	} else  {
 		/* Use single rx queue for FCoE */
 		fcoe_i = f->mask;
-		fcoe_q = adapter->rx_ring[fcoe_i].reg_idx;
+		fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
 		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, 0);
 		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE),
 				IXGBE_ETQS_QUEUE_EN |

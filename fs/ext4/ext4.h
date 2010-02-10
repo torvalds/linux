@@ -699,6 +699,8 @@ struct ext4_inode_info {
 	unsigned int i_reserved_meta_blocks;
 	unsigned int i_allocated_meta_blocks;
 	unsigned short i_delalloc_reserved_flag;
+	sector_t i_da_metadata_calc_last_lblock;
+	int i_da_metadata_calc_len;
 
 	/* on-disk additional length */
 	__u16 i_extra_isize;

@@ -334,7 +334,7 @@ static inline int t1_is_asic(const adapter_t *adapter)
 	return adapter->params.is_asic;
 }
 
-extern struct pci_device_id t1_pci_tbl[];
+extern const struct pci_device_id t1_pci_tbl[];
 
 static inline int adapter_matches_type(const adapter_t *adapter,
 				       int version, int revision)

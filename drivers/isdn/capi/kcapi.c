@@ -490,13 +490,7 @@ attach_capi_ctr(struct capi_ctr *card)
 	card->traceflag = showcapimsgs;
 
 	sprintf(card->procfn, "capi/controllers/%d", card->cnr);
-	card->procent = create_proc_entry(card->procfn, 0, NULL);
-	if (card->procent) {
-	   card->procent->read_proc = 
-		(int (*)(char *,char **,off_t,int,int *,void *))
-			card->ctr_read_proc;
-	   card->procent->data = card;
-	}
+	card->procent = proc_create_data(card->procfn, 0, NULL, card->proc_fops, card);
 
 	ncards++;
 	printk(KERN_NOTICE "kcapi: Controller [%03d]: %s attached\n",

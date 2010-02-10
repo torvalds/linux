@@ -301,7 +301,7 @@ enum chipset {
 	CH_6915 = 0,
 };
 
-static struct pci_device_id starfire_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(starfire_pci_tbl) = {
 	{ 0x9004, 0x6915, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CH_6915 },
 	{ 0, }
 };
@@ -1063,7 +1063,7 @@ static int netdev_open(struct net_device *dev)
 	if (retval) {
 		printk(KERN_ERR "starfire: Failed to load firmware \"%s\"\n",
 		       FIRMWARE_RX);
-		return retval;
+		goto out_init;
 	}
 	if (fw_rx->size % 4) {
 		printk(KERN_ERR "starfire: bogus length %zu in \"%s\"\n",
@@ -1108,6 +1108,9 @@ out_tx:
 	release_firmware(fw_tx);
 out_rx:
 	release_firmware(fw_rx);
+out_init:
+	if (retval)
+		netdev_close(dev);
 	return retval;
 }
 

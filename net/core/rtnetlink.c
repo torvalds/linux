@@ -1386,7 +1386,7 @@ static struct notifier_block rtnetlink_dev_notifier = {
 };
 
 
-static int rtnetlink_net_init(struct net *net)
+static int __net_init rtnetlink_net_init(struct net *net)
 {
 	struct sock *sk;
 	sk = netlink_kernel_create(net, NETLINK_ROUTE, RTNLGRP_MAX,
@@ -1397,7 +1397,7 @@ static int rtnetlink_net_init(struct net *net)
 	return 0;
 }
 
-static void rtnetlink_net_exit(struct net *net)
+static void __net_exit rtnetlink_net_exit(struct net *net)
 {
 	netlink_kernel_release(net->rtnl);
 	net->rtnl = NULL;

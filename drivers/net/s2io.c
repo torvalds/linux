@@ -523,7 +523,7 @@ module_param_array(rts_frm_len, uint, NULL, 0);
  * S2IO device table.
  * This table lists all the devices that this driver supports.
  */
-static struct pci_device_id s2io_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(s2io_tbl) = {
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_WIN,
 	 PCI_ANY_ID, PCI_ANY_ID},
 	{PCI_VENDOR_ID_S2IO, PCI_DEVICE_ID_S2IO_UNI,
@@ -3421,7 +3421,7 @@ static int wait_for_cmd_complete(void __iomem *addr, u64 busy_bit,
 				break;
 			}
 		} else {
-			if (!(val64 & busy_bit)) {
+			if (val64 & busy_bit) {
 				ret = SUCCESS;
 				break;
 			}

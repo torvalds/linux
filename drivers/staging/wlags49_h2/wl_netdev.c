@@ -1194,9 +1194,7 @@ static const struct net_device_ops wl_netdev_ops =
     .ndo_stop               = &wl_adapter_close,
     .ndo_do_ioctl           = &wl_ioctl,
 
-#ifdef HAVE_TX_TIMEOUT
     .ndo_tx_timeout         = &wl_tx_timeout,
-#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
     .ndo_poll_controller    = wl_poll,
@@ -1270,9 +1268,7 @@ struct net_device * wl_device_alloc( void )
     dev->stop               = &wl_adapter_close;
     dev->do_ioctl           = &wl_ioctl;
 
-#ifdef HAVE_TX_TIMEOUT
     dev->tx_timeout         = &wl_tx_timeout;
-#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
     dev->poll_controller = wl_poll;
@@ -1280,9 +1276,7 @@ struct net_device * wl_device_alloc( void )
 
 #endif // (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 
-#ifdef HAVE_TX_TIMEOUT
     dev->watchdog_timeo     = TX_TIMEOUT;
-#endif
 
     dev->ethtool_ops	    = &wl_ethtool_ops;
 

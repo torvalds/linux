@@ -80,6 +80,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/if_vlan.h>
+#include <linux/virtio_net.h>
 
 #ifdef CONFIG_INET
 #include <net/inet_common.h>
@@ -156,7 +157,6 @@ struct packet_mreq_max {
 	unsigned char	mr_address[MAX_ADDR_LEN];
 };
 
-#ifdef CONFIG_PACKET_MMAP
 static int packet_set_ring(struct sock *sk, struct tpacket_req *req,
 		int closing, int tx_ring);
 
@@ -176,7 +176,6 @@ struct packet_ring_buffer {
 
 struct packet_sock;
 static int tpacket_snd(struct packet_sock *po, struct msghdr *msg);
-#endif
 
 static void packet_flush_mclist(struct sock *sk);
 
@@ -184,26 +183,23 @@ struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
 	struct sock		sk;
 	struct tpacket_stats	stats;
-#ifdef CONFIG_PACKET_MMAP
 	struct packet_ring_buffer	rx_ring;
 	struct packet_ring_buffer	tx_ring;
 	int			copy_thresh;
-#endif
 	spinlock_t		bind_lock;
 	struct mutex		pg_vec_lock;
 	unsigned int		running:1,	/* prot_hook is attached*/
 				auxdata:1,
-				origdev:1;
+				origdev:1,
+				has_vnet_hdr:1;
 	int			ifindex;	/* bound device		*/
 	__be16			num;
 	struct packet_mclist	*mclist;
-#ifdef CONFIG_PACKET_MMAP
 	atomic_t		mapped;
 	enum tpacket_versions	tp_version;
 	unsigned int		tp_hdrlen;
 	unsigned int		tp_reserve;
 	unsigned int		tp_loss:1;
-#endif
 	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
 };
 
@@ -216,8 +212,6 @@ struct packet_skb_cb {
 };
 
 #define PACKET_SKB_CB(__skb)	((struct packet_skb_cb *)((__skb)->cb))
-
-#ifdef CONFIG_PACKET_MMAP
 
 static void __packet_set_status(struct packet_sock *po, void *frame, int status)
 {
@@ -312,8 +306,6 @@ static inline void packet_increment_head(struct packet_ring_buffer *buff)
 {
 	buff->head = buff->head != buff->frame_max ? buff->head+1 : 0;
 }
-
-#endif
 
 static inline struct packet_sock *pkt_sk(struct sock *sk)
 {
@@ -638,7 +630,6 @@ drop:
 	return 0;
 }
 
-#ifdef CONFIG_PACKET_MMAP
 static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		       struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -1021,8 +1012,20 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 
 		status = TP_STATUS_SEND_REQUEST;
 		err = dev_queue_xmit(skb);
-		if (unlikely(err > 0 && (err = net_xmit_errno(err)) != 0))
-			goto out_xmit;
+		if (unlikely(err > 0)) {
+			err = net_xmit_errno(err);
+			if (err && __packet_get_status(po, ph) ==
+				   TP_STATUS_AVAILABLE) {
+				/* skb was destructed already */
+				skb = NULL;
+				goto out_status;
+			}
+			/*
+			 * skb was dropped but not destructed yet;
+			 * let's treat it like congestion or err < 0
+			 */
+			err = 0;
+		}
 		packet_increment_head(&po->tx_ring);
 		len_sum += tp_len;
 	} while (likely((ph != NULL) ||
@@ -1033,9 +1036,6 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	err = len_sum;
 	goto out_put;
 
-out_xmit:
-	skb->destructor = sock_wfree;
-	atomic_dec(&po->tx_ring.pending);
 out_status:
 	__packet_set_status(po, ph, status);
 	kfree_skb(skb);
@@ -1045,7 +1045,30 @@ out:
 	mutex_unlock(&po->pg_vec_lock);
 	return err;
 }
-#endif
+
+static inline struct sk_buff *packet_alloc_skb(struct sock *sk, size_t prepad,
+					       size_t reserve, size_t len,
+					       size_t linear, int noblock,
+					       int *err)
+{
+	struct sk_buff *skb;
+
+	/* Under a page?  Don't bother with paged skb. */
+	if (prepad + len < PAGE_SIZE || !linear)
+		linear = len;
+
+	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, noblock,
+				   err);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, reserve);
+	skb_put(skb, linear);
+	skb->data_len = len - linear;
+	skb->len += len - linear;
+
+	return skb;
+}
 
 static int packet_snd(struct socket *sock,
 			  struct msghdr *msg, size_t len)
@@ -1057,14 +1080,17 @@ static int packet_snd(struct socket *sock,
 	__be16 proto;
 	unsigned char *addr;
 	int ifindex, err, reserve = 0;
+	struct virtio_net_hdr vnet_hdr = { 0 };
+	int offset = 0;
+	int vnet_hdr_len;
+	struct packet_sock *po = pkt_sk(sk);
+	unsigned short gso_type = 0;
 
 	/*
 	 *	Get and verify the address.
 	 */
 
 	if (saddr == NULL) {
-		struct packet_sock *po = pkt_sk(sk);
-
 		ifindex	= po->ifindex;
 		proto	= po->num;
 		addr	= NULL;
@@ -1091,25 +1117,74 @@ static int packet_snd(struct socket *sock,
 	if (!(dev->flags & IFF_UP))
 		goto out_unlock;
 
+	if (po->has_vnet_hdr) {
+		vnet_hdr_len = sizeof(vnet_hdr);
+
+		err = -EINVAL;
+		if (len < vnet_hdr_len)
+			goto out_unlock;
+
+		len -= vnet_hdr_len;
+
+		err = memcpy_fromiovec((void *)&vnet_hdr, msg->msg_iov,
+				       vnet_hdr_len);
+		if (err < 0)
+			goto out_unlock;
+
+		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
+		    (vnet_hdr.csum_start + vnet_hdr.csum_offset + 2 >
+		      vnet_hdr.hdr_len))
+			vnet_hdr.hdr_len = vnet_hdr.csum_start +
+						 vnet_hdr.csum_offset + 2;
+
+		err = -EINVAL;
+		if (vnet_hdr.hdr_len > len)
+			goto out_unlock;
+
+		if (vnet_hdr.gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+			switch (vnet_hdr.gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+			case VIRTIO_NET_HDR_GSO_TCPV4:
+				gso_type = SKB_GSO_TCPV4;
+				break;
+			case VIRTIO_NET_HDR_GSO_TCPV6:
+				gso_type = SKB_GSO_TCPV6;
+				break;
+			case VIRTIO_NET_HDR_GSO_UDP:
+				gso_type = SKB_GSO_UDP;
+				break;
+			default:
+				goto out_unlock;
+			}
+
+			if (vnet_hdr.gso_type & VIRTIO_NET_HDR_GSO_ECN)
+				gso_type |= SKB_GSO_TCP_ECN;
+
+			if (vnet_hdr.gso_size == 0)
+				goto out_unlock;
+
+		}
+	}
+
 	err = -EMSGSIZE;
-	if (len > dev->mtu+reserve)
+	if (!gso_type && (len > dev->mtu+reserve))
 		goto out_unlock;
 
-	skb = sock_alloc_send_skb(sk, len + LL_ALLOCATED_SPACE(dev),
-				msg->msg_flags & MSG_DONTWAIT, &err);
+	err = -ENOBUFS;
+	skb = packet_alloc_skb(sk, LL_ALLOCATED_SPACE(dev),
+			       LL_RESERVED_SPACE(dev), len, vnet_hdr.hdr_len,
+			       msg->msg_flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto out_unlock;
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	skb_reset_network_header(skb);
+	skb_set_network_header(skb, reserve);
 
 	err = -EINVAL;
 	if (sock->type == SOCK_DGRAM &&
-	    dev_hard_header(skb, dev, ntohs(proto), addr, NULL, len) < 0)
+	    (offset = dev_hard_header(skb, dev, ntohs(proto), addr, NULL, len)) < 0)
 		goto out_free;
 
 	/* Returns -EFAULT on error */
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	err = skb_copy_datagram_from_iovec(skb, offset, msg->msg_iov, 0, len);
 	if (err)
 		goto out_free;
 
@@ -1117,6 +1192,25 @@ static int packet_snd(struct socket *sock,
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
+
+	if (po->has_vnet_hdr) {
+		if (vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
+			if (!skb_partial_csum_set(skb, vnet_hdr.csum_start,
+						  vnet_hdr.csum_offset)) {
+				err = -EINVAL;
+				goto out_free;
+			}
+		}
+
+		skb_shinfo(skb)->gso_size = vnet_hdr.gso_size;
+		skb_shinfo(skb)->gso_type = gso_type;
+
+		/* Header must be checked, and gso_segs computed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+
+		len += vnet_hdr_len;
+	}
 
 	/*
 	 *	Now send it
@@ -1142,13 +1236,11 @@ out:
 static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		struct msghdr *msg, size_t len)
 {
-#ifdef CONFIG_PACKET_MMAP
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
 	if (po->tx_ring.pg_vec)
 		return tpacket_snd(po, msg);
 	else
-#endif
 		return packet_snd(sock, msg, len);
 }
 
@@ -1162,9 +1254,7 @@ static int packet_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct packet_sock *po;
 	struct net *net;
-#ifdef CONFIG_PACKET_MMAP
 	struct tpacket_req req;
-#endif
 
 	if (!sk)
 		return 0;
@@ -1193,7 +1283,6 @@ static int packet_release(struct socket *sock)
 
 	packet_flush_mclist(sk);
 
-#ifdef CONFIG_PACKET_MMAP
 	memset(&req, 0, sizeof(req));
 
 	if (po->rx_ring.pg_vec)
@@ -1201,7 +1290,6 @@ static int packet_release(struct socket *sock)
 
 	if (po->tx_ring.pg_vec)
 		packet_set_ring(sk, &req, 1, 1);
-#endif
 
 	/*
 	 *	Now the socket is dead. No more input will appear.
@@ -1411,6 +1499,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct sk_buff *skb;
 	int copied, err;
 	struct sockaddr_ll *sll;
+	int vnet_hdr_len = 0;
 
 	err = -EINVAL;
 	if (flags & ~(MSG_PEEK|MSG_DONTWAIT|MSG_TRUNC|MSG_CMSG_COMPAT))
@@ -1441,6 +1530,48 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (skb == NULL)
 		goto out;
+
+	if (pkt_sk(sk)->has_vnet_hdr) {
+		struct virtio_net_hdr vnet_hdr = { 0 };
+
+		err = -EINVAL;
+		vnet_hdr_len = sizeof(vnet_hdr);
+		if ((len -= vnet_hdr_len) < 0)
+			goto out_free;
+
+		if (skb_is_gso(skb)) {
+			struct skb_shared_info *sinfo = skb_shinfo(skb);
+
+			/* This is a hint as to how much should be linear. */
+			vnet_hdr.hdr_len = skb_headlen(skb);
+			vnet_hdr.gso_size = sinfo->gso_size;
+			if (sinfo->gso_type & SKB_GSO_TCPV4)
+				vnet_hdr.gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+			else if (sinfo->gso_type & SKB_GSO_TCPV6)
+				vnet_hdr.gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+			else if (sinfo->gso_type & SKB_GSO_UDP)
+				vnet_hdr.gso_type = VIRTIO_NET_HDR_GSO_UDP;
+			else if (sinfo->gso_type & SKB_GSO_FCOE)
+				goto out_free;
+			else
+				BUG();
+			if (sinfo->gso_type & SKB_GSO_TCP_ECN)
+				vnet_hdr.gso_type |= VIRTIO_NET_HDR_GSO_ECN;
+		} else
+			vnet_hdr.gso_type = VIRTIO_NET_HDR_GSO_NONE;
+
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			vnet_hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
+			vnet_hdr.csum_start = skb->csum_start -
+							skb_headroom(skb);
+			vnet_hdr.csum_offset = skb->csum_offset;
+		} /* else everything is zero */
+
+		err = memcpy_toiovec(msg->msg_iov, (void *)&vnet_hdr,
+				     vnet_hdr_len);
+		if (err < 0)
+			goto out_free;
+	}
 
 	/*
 	 *	If the address length field is there to be filled in, we fill
@@ -1493,7 +1624,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	 *	Free or return the buffer as appropriate. Again this
 	 *	hides all the races and re-entrancy issues from us.
 	 */
-	err = (flags&MSG_TRUNC) ? skb->len : copied;
+	err = vnet_hdr_len + ((flags&MSG_TRUNC) ? skb->len : copied);
 
 out_free:
 	skb_free_datagram(sk, skb);
@@ -1723,13 +1854,14 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		return ret;
 	}
 
-#ifdef CONFIG_PACKET_MMAP
 	case PACKET_RX_RING:
 	case PACKET_TX_RING:
 	{
 		struct tpacket_req req;
 
 		if (optlen < sizeof(req))
+			return -EINVAL;
+		if (pkt_sk(sk)->has_vnet_hdr)
 			return -EINVAL;
 		if (copy_from_user(&req, optval, sizeof(req)))
 			return -EFAULT;
@@ -1792,7 +1924,6 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 		po->tp_loss = !!val;
 		return 0;
 	}
-#endif
 	case PACKET_AUXDATA:
 	{
 		int val;
@@ -1815,6 +1946,22 @@ packet_setsockopt(struct socket *sock, int level, int optname, char __user *optv
 			return -EFAULT;
 
 		po->origdev = !!val;
+		return 0;
+	}
+	case PACKET_VNET_HDR:
+	{
+		int val;
+
+		if (sock->type != SOCK_RAW)
+			return -EINVAL;
+		if (po->rx_ring.pg_vec || po->tx_ring.pg_vec)
+			return -EBUSY;
+		if (optlen < sizeof(val))
+			return -EINVAL;
+		if (copy_from_user(&val, optval, sizeof(val)))
+			return -EFAULT;
+
+		po->has_vnet_hdr = !!val;
 		return 0;
 	}
 	default:
@@ -1867,7 +2014,13 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 
 		data = &val;
 		break;
-#ifdef CONFIG_PACKET_MMAP
+	case PACKET_VNET_HDR:
+		if (len > sizeof(int))
+			len = sizeof(int);
+		val = po->has_vnet_hdr;
+
+		data = &val;
+		break;
 	case PACKET_VERSION:
 		if (len > sizeof(int))
 			len = sizeof(int);
@@ -1903,7 +2056,6 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		val = po->tp_loss;
 		data = &val;
 		break;
-#endif
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -2022,11 +2174,6 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 	}
 	return 0;
 }
-
-#ifndef CONFIG_PACKET_MMAP
-#define packet_mmap sock_no_mmap
-#define packet_poll datagram_poll
-#else
 
 static unsigned int packet_poll(struct file *file, struct socket *sock,
 				poll_table *wait)
@@ -2309,8 +2456,6 @@ out:
 	mutex_unlock(&po->pg_vec_lock);
 	return err;
 }
-#endif
-
 
 static const struct proto_ops packet_ops_spkt = {
 	.family =	PF_PACKET,
@@ -2448,7 +2593,7 @@ static const struct file_operations packet_seq_fops = {
 
 #endif
 
-static int packet_net_init(struct net *net)
+static int __net_init packet_net_init(struct net *net)
 {
 	rwlock_init(&net->packet.sklist_lock);
 	INIT_HLIST_HEAD(&net->packet.sklist);
@@ -2459,7 +2604,7 @@ static int packet_net_init(struct net *net)
 	return 0;
 }
 
-static void packet_net_exit(struct net *net)
+static void __net_exit packet_net_exit(struct net *net)
 {
 	proc_net_remove(net, "packet");
 }

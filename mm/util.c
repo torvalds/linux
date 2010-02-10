@@ -4,10 +4,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/sched.h>
-#include <linux/hugetlb.h>
-#include <linux/syscalls.h>
-#include <linux/mman.h>
-#include <linux/file.h>
 #include <asm/uaccess.h>
 
 #define CREATE_TRACE_POINTS
@@ -224,7 +220,7 @@ char *strndup_user(const char __user *s, long n)
 }
 EXPORT_SYMBOL(strndup_user);
 
-#ifndef HAVE_ARCH_PICK_MMAP_LAYOUT
+#if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
 void arch_pick_mmap_layout(struct mm_struct *mm)
 {
 	mm->mmap_base = TASK_UNMAPPED_BASE;
@@ -271,46 +267,6 @@ int __attribute__((weak)) get_user_pages_fast(unsigned long start,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(get_user_pages_fast);
-
-SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags,
-		unsigned long, fd, unsigned long, pgoff)
-{
-	struct file * file = NULL;
-	unsigned long retval = -EBADF;
-
-	if (!(flags & MAP_ANONYMOUS)) {
-		if (unlikely(flags & MAP_HUGETLB))
-			return -EINVAL;
-		file = fget(fd);
-		if (!file)
-			goto out;
-	} else if (flags & MAP_HUGETLB) {
-		struct user_struct *user = NULL;
-		/*
-		 * VM_NORESERVE is used because the reservations will be
-		 * taken when vm_ops->mmap() is called
-		 * A dummy user value is used because we are not locking
-		 * memory so no accounting is necessary
-		 */
-		len = ALIGN(len, huge_page_size(&default_hstate));
-		file = hugetlb_file_setup(HUGETLB_ANON_FILE, len, VM_NORESERVE,
-						&user, HUGETLB_ANONHUGE_INODE);
-		if (IS_ERR(file))
-			return PTR_ERR(file);
-	}
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	down_write(&current->mm->mmap_sem);
-	retval = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return retval;
-}
 
 /* Tracepoints definitions. */
 EXPORT_TRACEPOINT_SYMBOL(kmalloc);

@@ -39,8 +39,8 @@
  * @IEEE80211_BAND_5GHZ: around 5GHz band (4.9-5.7)
  */
 enum ieee80211_band {
-	IEEE80211_BAND_2GHZ,
-	IEEE80211_BAND_5GHZ,
+	IEEE80211_BAND_2GHZ = NL80211_BAND_2GHZ,
+	IEEE80211_BAND_5GHZ = NL80211_BAND_5GHZ,
 
 	/* keep last */
 	IEEE80211_NUM_BANDS
@@ -626,8 +626,14 @@ enum cfg80211_signal_type {
  * @beacon_interval: the beacon interval as from the frame
  * @capability: the capability field in host byte order
  * @information_elements: the information elements (Note that there
- *	is no guarantee that these are well-formed!)
+ *	is no guarantee that these are well-formed!); this is a pointer to
+ *	either the beacon_ies or proberesp_ies depending on whether Probe
+ *	Response frame has been received
  * @len_information_elements: total length of the information elements
+ * @beacon_ies: the information elements from the last Beacon frame
+ * @len_beacon_ies: total length of the beacon_ies
+ * @proberesp_ies: the information elements from the last Probe Response frame
+ * @len_proberesp_ies: total length of the proberesp_ies
  * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
@@ -641,6 +647,10 @@ struct cfg80211_bss {
 	u16 capability;
 	u8 *information_elements;
 	size_t len_information_elements;
+	u8 *beacon_ies;
+	size_t len_beacon_ies;
+	u8 *proberesp_ies;
+	size_t len_proberesp_ies;
 
 	s32 signal;
 
@@ -837,6 +847,7 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_RETRY_LONG		= 1 << 1,
 	WIPHY_PARAM_FRAG_THRESHOLD	= 1 << 2,
 	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
+	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
 };
 
 /**
@@ -856,20 +867,11 @@ enum tx_power_setting {
  * cfg80211_bitrate_mask - masks for bitrate control
  */
 struct cfg80211_bitrate_mask {
-/*
- * As discussed in Berlin, this struct really
- * should look like this:
-
 	struct {
 		u32 legacy;
-		u8 mcs[IEEE80211_HT_MCS_MASK_LEN];
+		/* TODO: add support for masking MCS rates; e.g.: */
+		/* u8 mcs[IEEE80211_HT_MCS_MASK_LEN]; */
 	} control[IEEE80211_NUM_BANDS];
-
- * Since we can always fix in-kernel users, let's keep
- * it simpler for now:
- */
-	u32 fixed;   /* fixed bitrate, 0 == not fixed */
-	u32 maxrate; /* in kbps, 0 == no limit */
 };
 /**
  * struct cfg80211_pmksa - PMK Security Association
@@ -1193,6 +1195,10 @@ enum wiphy_flags {
 	WIPHY_FLAG_4ADDR_STATION	= BIT(6),
 };
 
+struct mac_address {
+	u8 addr[ETH_ALEN];
+};
+
 /**
  * struct wiphy - wireless hardware description
  * @idx: the wiphy index assigned to this item
@@ -1211,12 +1217,28 @@ enum wiphy_flags {
  *	-1 = fragmentation disabled, only odd values >= 256 used
  * @rts_threshold: RTS threshold (dot11RTSThreshold); -1 = RTS/CTS disabled
  * @net: the network namespace this wiphy currently lives in
+ * @perm_addr: permanent MAC address of this device
+ * @addr_mask: If the device supports multiple MAC addresses by masking,
+ *	set this to a mask with variable bits set to 1, e.g. if the last
+ *	four bits are variable then set it to 00:...:00:0f. The actual
+ *	variable bits shall be determined by the interfaces added, with
+ *	interfaces not matching the mask being rejected to be brought up.
+ * @n_addresses: number of addresses in @addresses.
+ * @addresses: If the device has more than one address, set this pointer
+ *	to a list of addresses (6 bytes each). The first one will be used
+ *	by default for perm_addr. In this case, the mask should be set to
+ *	all-zeroes. In this case it is assumed that the device can handle
+ *	the same number of arbitrary MAC addresses.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
 
-	/* permanent MAC address */
+	/* permanent MAC address(es) */
 	u8 perm_addr[ETH_ALEN];
+	u8 addr_mask[ETH_ALEN];
+
+	u16 n_addresses;
+	struct mac_address *addresses;
 
 	/* Supported interface modes, OR together BIT(NL80211_IFTYPE_...) */
 	u16 interface_modes;
@@ -1236,6 +1258,7 @@ struct wiphy {
 	u8 retry_long;
 	u32 frag_threshold;
 	u32 rts_threshold;
+	u8 coverage_class;
 
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 	u32 hw_version;
@@ -1634,6 +1657,22 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
  * @skb: the data frame
  */
 unsigned int cfg80211_classify8021d(struct sk_buff *skb);
+
+/**
+ * cfg80211_find_ie - find information element in data
+ *
+ * @eid: element ID
+ * @ies: data consisting of IEs
+ * @len: length of data
+ *
+ * This function will return %NULL if the element ID could
+ * not be found or if the element is invalid (claims to be
+ * longer than the given data), or a pointer to the first byte
+ * of the requested element, that is the byte containing the
+ * element ID. There are no checks on the element length
+ * other than having to fit into the given data.
+ */
+const u8 *cfg80211_find_ie(u8 eid, const u8 *ies, int len);
 
 /*
  * Regulatory helper functions for wiphys

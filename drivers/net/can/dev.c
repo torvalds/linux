@@ -592,6 +592,8 @@ static int can_changelink(struct net_device *dev,
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
 		cm = nla_data(data[IFLA_CAN_CTRLMODE]);
+		if (cm->flags & ~priv->ctrlmode_supported)
+			return -EOPNOTSUPP;
 		priv->ctrlmode &= ~cm->mask;
 		priv->ctrlmode |= cm->flags;
 	}

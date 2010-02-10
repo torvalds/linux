@@ -249,30 +249,15 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_pspoll(struct ieee80211_local *local,
 			   struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_pspoll *pspoll;
 	struct sk_buff *skb;
-	u16 fc;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*pspoll));
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for "
-		       "pspoll frame\n", sdata->name);
+	skb = ieee80211_pspoll_get(&local->hw, &sdata->vif);
+	if (!skb)
 		return;
-	}
-	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	pspoll = (struct ieee80211_pspoll *) skb_put(skb, sizeof(*pspoll));
-	memset(pspoll, 0, sizeof(*pspoll));
-	fc = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL | IEEE80211_FCTL_PM;
-	pspoll->frame_control = cpu_to_le16(fc);
-	pspoll->aid = cpu_to_le16(ifmgd->aid);
-
-	/* aid in PS-Poll has its two MSBs each set to 1 */
-	pspoll->aid |= cpu_to_le16(1 << 15 | 1 << 14);
-
-	memcpy(pspoll->bssid, ifmgd->bssid, ETH_ALEN);
-	memcpy(pspoll->ta, sdata->vif.addr, ETH_ALEN);
+	pspoll = (struct ieee80211_pspoll *) skb->data;
+	pspoll->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
@@ -283,30 +268,47 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     int powersave)
 {
 	struct sk_buff *skb;
+	struct ieee80211_hdr_3addr *nullfunc;
+
+	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif);
+	if (!skb)
+		return;
+
+	nullfunc = (struct ieee80211_hdr_3addr *) skb->data;
+	if (powersave)
+		nullfunc->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	ieee80211_tx_skb(sdata, skb);
+}
+
+static void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata)
+{
+	struct sk_buff *skb;
 	struct ieee80211_hdr *nullfunc;
 	__le16 fc;
 
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 24);
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + 30);
 	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for nullfunc "
-		       "frame\n", sdata->name);
+		printk(KERN_DEBUG "%s: failed to allocate buffer for 4addr "
+		       "nullfunc frame\n", sdata->name);
 		return;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 24);
-	memset(nullfunc, 0, 24);
+	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 30);
+	memset(nullfunc, 0, 30);
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
-			 IEEE80211_FCTL_TODS);
-	if (powersave)
-		fc |= cpu_to_le16(IEEE80211_FCTL_PM);
+			 IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 	nullfunc->frame_control = fc;
 	memcpy(nullfunc->addr1, sdata->u.mgd.bssid, ETH_ALEN);
 	memcpy(nullfunc->addr2, sdata->vif.addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->u.mgd.bssid, ETH_ALEN);
+	memcpy(nullfunc->addr4, sdata->vif.addr, ETH_ALEN);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
@@ -482,6 +484,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 
 	if (count == 1 && found->u.mgd.powersave &&
 	    found->u.mgd.associated &&
+	    found->u.mgd.associated->beacon_ies &&
 	    !(found->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
 				    IEEE80211_STA_CONNECTION_POLL))) {
 		s32 beaconint_us;
@@ -495,14 +498,22 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
 		} else {
-			u8 dtimper = found->vif.bss_conf.dtim_period;
+			struct ieee80211_bss *bss;
 			int maxslp = 1;
+			u8 dtimper;
 
-			if (dtimper > 1)
+			bss = (void *)found->u.mgd.associated->priv;
+			dtimper = bss->dtim_period;
+
+			/* If the TIM IE is invalid, pretend the value is 1 */
+			if (!dtimper)
+				dtimper = 1;
+			else if (dtimper > 1)
 				maxslp = min_t(int, dtimper,
 						    latency / beaconint_us);
 
 			local->hw.conf.max_sleep_period = maxslp;
+			local->hw.conf.ps_dtim_period = dtimper;
 			local->ps_sdata = found;
 		}
 	} else {
@@ -567,7 +578,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	struct ieee80211_tx_queue_params params;
 	size_t left;
 	int count;
-	u8 *pos;
+	u8 *pos, uapsd_queues = 0;
 
 	if (local->hw.queues < 4)
 		return;
@@ -577,6 +588,10 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	if (wmm_param_len < 8 || wmm_param[5] /* version */ != 1)
 		return;
+
+	if (ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
+		uapsd_queues = local->uapsd_queues;
+
 	count = wmm_param[6] & 0x0f;
 	if (count == ifmgd->wmm_last_param_set)
 		return;
@@ -591,6 +606,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	for (; left >= 4; left -= 4, pos += 4) {
 		int aci = (pos[0] >> 5) & 0x03;
 		int acm = (pos[0] >> 4) & 0x01;
+		bool uapsd = false;
 		int queue;
 
 		switch (aci) {
@@ -598,22 +614,30 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 			queue = 3;
 			if (acm)
 				local->wmm_acm |= BIT(1) | BIT(2); /* BK/- */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BK)
+				uapsd = true;
 			break;
 		case 2: /* AC_VI */
 			queue = 1;
 			if (acm)
 				local->wmm_acm |= BIT(4) | BIT(5); /* CL/VI */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VI)
+				uapsd = true;
 			break;
 		case 3: /* AC_VO */
 			queue = 0;
 			if (acm)
 				local->wmm_acm |= BIT(6) | BIT(7); /* VO/NC */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+				uapsd = true;
 			break;
 		case 0: /* AC_BE */
 		default:
 			queue = 2;
 			if (acm)
 				local->wmm_acm |= BIT(0) | BIT(3); /* BE/EE */
+			if (uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_BE)
+				uapsd = true;
 			break;
 		}
 
@@ -621,11 +645,14 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		params.cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
 		params.cw_min = ecw2cw(pos[1] & 0x0f);
 		params.txop = get_unaligned_le16(pos + 2);
+		params.uapsd = uapsd;
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		printk(KERN_DEBUG "%s: WMM queue=%d aci=%d acm=%d aifs=%d "
-		       "cWmin=%d cWmax=%d txop=%d\n",
+		       "cWmin=%d cWmax=%d txop=%d uapsd=%d\n",
 		       wiphy_name(local->hw.wiphy), queue, aci, acm,
-		       params.aifs, params.cw_min, params.cw_max, params.txop);
+		       params.aifs, params.cw_min, params.cw_max, params.txop,
+		       params.uapsd);
 #endif
 		if (drv_conf_tx(local, queue, &params) && local->ops->conf_tx)
 			printk(KERN_DEBUG "%s: failed to set TX queue "
@@ -652,6 +679,8 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	}
 
 	use_short_slot = !!(capab & WLAN_CAPABILITY_SHORT_SLOT_TIME);
+	if (sdata->local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
+		use_short_slot = true;
 
 	if (use_protection != bss_conf->use_cts_prot) {
 		bss_conf->use_cts_prot = use_protection;
@@ -682,7 +711,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	/* set timing information */
 	sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
 	sdata->vif.bss_conf.timestamp = cbss->tsf;
-	sdata->vif.bss_conf.dtim_period = bss->dtim_period;
 
 	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
@@ -723,7 +751,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_smps(local, sdata);
 	mutex_unlock(&local->iflist_mtx);
 
-	netif_start_queue(sdata->dev);
+	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
 }
 
@@ -759,7 +787,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 	 * time -- we don't want the scan code to enable queues.
 	 */
 
-	netif_stop_queue(sdata->dev);
+	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
 	rcu_read_lock();
@@ -1096,7 +1124,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	if (err) {
 		printk(KERN_DEBUG "%s: failed to insert STA entry for"
 		       " the AP (error %d)\n", sdata->name, err);
-		return RX_MGMT_CFG80211_ASSOC_ERROR;
+		return false;
 	}
 
 	if (elems.wmm_param)
@@ -1120,6 +1148,13 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	ieee80211_set_associated(sdata, cbss, changed);
 
 	/*
+	 * If we're using 4-addr mode, let the AP know that we're
+	 * doing so, so that it can create the STA VLAN on its side
+	 */
+	if (ifmgd->use_4addr)
+		ieee80211_send_4addr_nullfunc(local, sdata);
+
+	/*
 	 * Start timer to probe the connection to the AP now.
 	 * Also start the timer that will detect beacon loss.
 	 */
@@ -1141,6 +1176,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	int freq;
 	struct ieee80211_bss *bss;
 	struct ieee80211_channel *channel;
+	bool need_ps = false;
+
+	if (sdata->u.mgd.associated) {
+		bss = (void *)sdata->u.mgd.associated->priv;
+		/* not previously set so we may need to recalc */
+		need_ps = !bss->dtim_period;
+	}
 
 	if (elems->ds_params && elems->ds_params_len == 1)
 		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
@@ -1159,6 +1201,12 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	if (!sdata->u.mgd.associated)
 		return;
+
+	if (need_ps) {
+		mutex_lock(&local->iflist_mtx);
+		ieee80211_recalc_ps(local, -1);
+		mutex_unlock(&local->iflist_mtx);
+	}
 
 	if (elems->ch_switch_elem && (elems->ch_switch_elem_len == 3) &&
 	    (memcmp(mgmt->bssid, sdata->u.mgd.associated->bssid,
@@ -1451,7 +1499,9 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			rma = ieee80211_rx_mgmt_disassoc(sdata, mgmt, skb->len);
 			break;
 		case IEEE80211_STYPE_ACTION:
-			/* XXX: differentiate, can only happen for CSA now! */
+			if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
+				break;
+
 			ieee80211_sta_process_chanswitch(sdata,
 					&mgmt->u.action.u.chan_switch.sw_elem,
 					(void *)ifmgd->associated->priv);
@@ -1774,7 +1824,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	if (!wk)
 		return -ENOMEM;
 
-	memcpy(wk->filter_ta, req->bss->bssid, ETH_ALEN);;
+	memcpy(wk->filter_ta, req->bss->bssid, ETH_ALEN);
 
 	if (req->ie && req->ie_len) {
 		memcpy(wk->ie, req->ie, req->ie_len);
@@ -1896,6 +1946,15 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	wk->assoc.supp_rates_len = bss->supp_rates_len;
 	wk->assoc.ht_information_ie =
 		ieee80211_bss_get_ie(req->bss, WLAN_EID_HT_INFORMATION);
+
+	if (bss->wmm_used && bss->uapsd_supported &&
+	    (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)) {
+		wk->assoc.uapsd_used = true;
+		ifmgd->flags |= IEEE80211_STA_UAPSD_ENABLED;
+	} else {
+		wk->assoc.uapsd_used = false;
+		ifmgd->flags &= ~IEEE80211_STA_UAPSD_ENABLED;
+	}
 
 	ssid = ieee80211_bss_get_ie(req->bss, WLAN_EID_SSID);
 	memcpy(wk->assoc.ssid, ssid + 2, ssid[1]);

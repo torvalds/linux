@@ -1327,11 +1327,13 @@ EXPORT_SYMBOL_HDA(snd_hda_query_pin_caps);
  */
 u32 snd_hda_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 {
-	u32 pincap = snd_hda_query_pin_caps(codec, nid);
+	u32 pincap;
 
-	if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
-
+	if (!codec->no_trigger_sense) {
+		pincap = snd_hda_query_pin_caps(codec, nid);
+		if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
+			snd_hda_codec_read(codec, nid, 0, AC_VERB_SET_PIN_SENSE, 0);
+	}
 	return snd_hda_codec_read(codec, nid, 0,
 				  AC_VERB_GET_PIN_SENSE, 0);
 }

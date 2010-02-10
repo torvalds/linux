@@ -253,6 +253,14 @@ enum {
 #define B43_SHM_SH_MAXBFRAMES		0x0080	/* Maximum number of frames in a burst */
 #define B43_SHM_SH_SPUWKUP		0x0094	/* pre-wakeup for synth PU in us */
 #define B43_SHM_SH_PRETBTT		0x0096	/* pre-TBTT in us */
+/* SHM_SHARED tx iq workarounds */
+#define B43_SHM_SH_NPHY_TXIQW0		0x0700
+#define B43_SHM_SH_NPHY_TXIQW1		0x0702
+#define B43_SHM_SH_NPHY_TXIQW2		0x0704
+#define B43_SHM_SH_NPHY_TXIQW3		0x0706
+/* SHM_SHARED tx pwr ctrl */
+#define B43_SHM_SH_NPHY_TXPWR_INDX0	0x0708
+#define B43_SHM_SH_NPHY_TXPWR_INDX1	0x070E
 
 /* SHM_SCRATCH offsets */
 #define B43_SHM_SC_MINCONT		0x0003	/* Minimum contention window */

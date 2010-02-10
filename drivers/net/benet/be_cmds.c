@@ -286,7 +286,7 @@ static void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 				MCC_WRB_SGE_CNT_SHIFT;
 	wrb->payload_length = payload_len;
 	wrb->tag0 = opcode;
-	be_dws_cpu_to_le(wrb, 20);
+	be_dws_cpu_to_le(wrb, 8);
 }
 
 /* Don't touch the hdr after it's prepared */
@@ -1479,6 +1479,41 @@ err:
 	return status;
 }
 
+int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
+			u8 loopback_type, u8 enable)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_lmode *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
+				OPCODE_LOWLEVEL_SET_LOOPBACK_MODE);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
+			OPCODE_LOWLEVEL_SET_LOOPBACK_MODE,
+			sizeof(*req));
+
+	req->src_port = port_num;
+	req->dest_port = port_num;
+	req->loopback_type = loopback_type;
+	req->loopback_state = enable;
+
+	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 		u32 loopback_type, u32 pkt_size, u32 num_pkts, u64 pattern)
 {
@@ -1501,6 +1536,7 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
 			OPCODE_LOWLEVEL_LOOPBACK_TEST, sizeof(*req));
+	req->hdr.timeout = 4;
 
 	req->pattern = cpu_to_le64(pattern);
 	req->src_port = cpu_to_le32(port_num);
@@ -1568,6 +1604,36 @@ int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 	}
 
 err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
+				struct be_dma_mem *nonemb_cmd)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_seeprom_read *req;
+	struct be_sge *sge;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	req = nonemb_cmd->va;
+	sge = nonembedded_sgl(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
+			OPCODE_COMMON_SEEPROM_READ);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_SEEPROM_READ, sizeof(*req));
+
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd->size);
+
+	status = be_mcc_notify_wait(adapter);
+
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }

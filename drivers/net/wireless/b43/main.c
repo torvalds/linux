@@ -67,7 +67,12 @@ MODULE_AUTHOR("Gábor Stefanik");
 MODULE_LICENSE("GPL");
 
 MODULE_FIRMWARE(B43_SUPPORTED_FIRMWARE_ID);
-
+MODULE_FIRMWARE("b43/ucode11.fw");
+MODULE_FIRMWARE("b43/ucode13.fw");
+MODULE_FIRMWARE("b43/ucode14.fw");
+MODULE_FIRMWARE("b43/ucode15.fw");
+MODULE_FIRMWARE("b43/ucode5.fw");
+MODULE_FIRMWARE("b43/ucode9.fw");
 
 static int modparam_bad_frames_preempt;
 module_param_named(bad_frames_preempt, modparam_bad_frames_preempt, int, 0444);
@@ -113,6 +118,7 @@ static const struct ssb_device_id b43_ssb_tbl[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 9),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 10),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 11),
+	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 12),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 13),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 15),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_80211, 16),
@@ -838,8 +844,10 @@ static void rx_tkip_phase1_write(struct b43_wldev *dev, u8 index, u32 iv32,
 }
 
 static void b43_op_update_tkip_key(struct ieee80211_hw *hw,
-			struct ieee80211_key_conf *keyconf, const u8 *addr,
-			u32 iv32, u16 *phase1key)
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_key_conf *keyconf,
+				   struct ieee80211_sta *sta,
+				   u32 iv32, u16 *phase1key)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
@@ -848,19 +856,19 @@ static void b43_op_update_tkip_key(struct ieee80211_hw *hw,
 	if (B43_WARN_ON(!modparam_hwtkip))
 		return;
 
-	mutex_lock(&wl->mutex);
-
+	/* This is only called from the RX path through mac80211, where
+	 * our mutex is already locked. */
+	B43_WARN_ON(!mutex_is_locked(&wl->mutex));
 	dev = wl->current_dev;
-	if (!dev || b43_status(dev) < B43_STAT_INITIALIZED)
-		goto out_unlock;
+	B43_WARN_ON(!dev || b43_status(dev) < B43_STAT_INITIALIZED);
 
 	keymac_write(dev, index, NULL);	/* First zero out mac to avoid race */
 
 	rx_tkip_phase1_write(dev, index, iv32, phase1key);
-	keymac_write(dev, index, addr);
-
-out_unlock:
-	mutex_unlock(&wl->mutex);
+	/* only pairwise TKIP keys are supported right now */
+	if (WARN_ON(!sta))
+		return;
+	keymac_write(dev, index, sta->addr);
 }
 
 static void do_key_write(struct b43_wldev *dev,
@@ -3564,6 +3572,12 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 		goto out_unlock_mutex;
 	dev = wl->current_dev;
 	phy = &dev->phy;
+
+	if (conf_is_ht(conf))
+		phy->is_40mhz =
+			(conf_is_ht40_minus(conf) || conf_is_ht40_plus(conf));
+	else
+		phy->is_40mhz = false;
 
 	b43_mac_suspend(dev);
 

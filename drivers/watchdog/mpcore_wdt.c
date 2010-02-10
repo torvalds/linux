@@ -350,7 +350,7 @@ static int __devinit mpcore_wdt_probe(struct platform_device *dev)
 		ret = -ENXIO;
 		goto err_free;
 	}
-	wdt->base = ioremap(res->start, res->end - res->start + 1);
+	wdt->base = ioremap(res->start, resource_size(res));
 	if (!wdt->base) {
 		ret = -ENOMEM;
 		goto err_free;

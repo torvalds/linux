@@ -17,6 +17,7 @@
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
+#include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
@@ -86,39 +87,40 @@ static void diva_um_timer_function(unsigned long data);
 extern struct proc_dir_entry *proc_net_eicon;
 static struct proc_dir_entry *um_idi_proc_entry = NULL;
 
-static int
-um_idi_proc_read(char *page, char **start, off_t off, int count, int *eof,
-		 void *data)
+static int um_idi_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
 	char tmprev[32];
 
-	len += sprintf(page + len, "%s\n", DRIVERNAME);
-	len += sprintf(page + len, "name     : %s\n", DRIVERLNAME);
-	len += sprintf(page + len, "release  : %s\n", DRIVERRELEASE_IDI);
+	seq_printf(m, "%s\n", DRIVERNAME);
+	seq_printf(m, "name     : %s\n", DRIVERLNAME);
+	seq_printf(m, "release  : %s\n", DRIVERRELEASE_IDI);
 	strcpy(tmprev, main_revision);
-	len += sprintf(page + len, "revision : %s\n", getrev(tmprev));
-	len += sprintf(page + len, "build    : %s\n", DIVA_BUILD);
-	len += sprintf(page + len, "major    : %d\n", major);
+	seq_printf(m, "revision : %s\n", getrev(tmprev));
+	seq_printf(m, "build    : %s\n", DIVA_BUILD);
+	seq_printf(m, "major    : %d\n", major);
 
-	if (off + count >= len)
-		*eof = 1;
-	if (len < off)
-		return 0;
-	*start = page + off;
-	return ((count < len - off) ? count : len - off);
+	return 0;
 }
+
+static int um_idi_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, um_idi_proc_show, NULL);
+}
+
+static const struct file_operations um_idi_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= um_idi_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static int DIVA_INIT_FUNCTION create_um_idi_proc(void)
 {
-	um_idi_proc_entry = create_proc_entry(DRIVERLNAME,
-					      S_IFREG | S_IRUGO | S_IWUSR,
-					      proc_net_eicon);
+	um_idi_proc_entry = proc_create(DRIVERLNAME, S_IRUGO, proc_net_eicon,
+					&um_idi_proc_fops);
 	if (!um_idi_proc_entry)
 		return (0);
-
-	um_idi_proc_entry->read_proc = um_idi_proc_read;
-
 	return (1);
 }
 

@@ -381,13 +381,13 @@ static void dm9601_set_multicast(struct net_device *net)
 
 	if (net->flags & IFF_PROMISC) {
 		rx_ctl |= 0x02;
-	} else if (net->flags & IFF_ALLMULTI || net->mc_count > DM_MAX_MCAST) {
+	} else if (net->flags & IFF_ALLMULTI ||
+		   netdev_mc_count(net) > DM_MAX_MCAST) {
 		rx_ctl |= 0x04;
-	} else if (net->mc_count) {
-		struct dev_mc_list *mc_list = net->mc_list;
-		int i;
+	} else if (!netdev_mc_empty(net)) {
+		struct dev_mc_list *mc_list;
 
-		for (i = 0; i < net->mc_count; i++, mc_list = mc_list->next) {
+		netdev_for_each_mc_addr(mc_list, net) {
 			u32 crc = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
 			hashes[crc >> 3] |= 1 << (crc & 0x7);
 		}

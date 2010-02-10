@@ -741,13 +741,13 @@ static int efx_probe_port(struct efx_nic *efx)
 
 	EFX_LOG(efx, "create port\n");
 
+	if (phy_flash_cfg)
+		efx->phy_mode = PHY_MODE_SPECIAL;
+
 	/* Connect up MAC/PHY operations table */
 	rc = efx->type->probe_port(efx);
 	if (rc)
 		goto err;
-
-	if (phy_flash_cfg)
-		efx->phy_mode = PHY_MODE_SPECIAL;
 
 	/* Sanity check MAC address */
 	if (is_valid_ether_addr(efx->mac_address)) {
@@ -1940,7 +1940,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
  **************************************************************************/
 
 /* PCI device ID table */
-static struct pci_device_id efx_pci_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(efx_pci_table) = {
 	{PCI_DEVICE(EFX_VENDID_SFC, FALCON_A_P_DEVID),
 	 .driver_data = (unsigned long) &falcon_a1_nic_type},
 	{PCI_DEVICE(EFX_VENDID_SFC, FALCON_B_P_DEVID),

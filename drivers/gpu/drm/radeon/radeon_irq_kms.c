@@ -97,6 +97,7 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	rdev->irq.sw_int = false;
 	for (i = 0; i < 2; i++) {
 		rdev->irq.crtc_vblank_int[i] = false;
+		rdev->irq.hpd[i] = false;
 	}
 	radeon_irq_set(rdev);
 }
@@ -128,17 +129,22 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 			DRM_INFO("radeon: using MSI.\n");
 		}
 	}
-	drm_irq_install(rdev->ddev);
 	rdev->irq.installed = true;
+	r = drm_irq_install(rdev->ddev);
+	if (r) {
+		rdev->irq.installed = false;
+		return r;
+	}
 	DRM_INFO("radeon: irq initialized.\n");
 	return 0;
 }
 
 void radeon_irq_kms_fini(struct radeon_device *rdev)
 {
+	drm_vblank_cleanup(rdev->ddev);
 	if (rdev->irq.installed) {
-		rdev->irq.installed = false;
 		drm_irq_uninstall(rdev->ddev);
+		rdev->irq.installed = false;
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
 	}
