@@ -184,11 +184,10 @@ config LOGIRUMBLEPAD2_FF
 	  Rumblepad 2 devices.
 
 config HID_MAGICMOUSE
-	tristate "Apple" if EMBEDDED
+	tristate "Apple MagicMouse multi-touch support"
 	depends on BT_HIDP
-	default !EMBEDDED
 	---help---
-	Support for the Apple Magic Mouse.
+	Support for the Apple Magic Mouse multi-touch.
 
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse.
