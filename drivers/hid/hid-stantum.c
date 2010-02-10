@@ -147,7 +147,6 @@ static void stantum_filter_event(struct stantum_data *sd,
 
 	input_mt_sync(input);
 	sd->valid = false;
-	sd->first = false;
 
 	/* touchscreen emulation */
 	if (sd->first) {
@@ -158,6 +157,7 @@ static void stantum_filter_event(struct stantum_data *sd,
 		input_event(input, EV_ABS, ABS_X, sd->x);
 		input_event(input, EV_ABS, ABS_Y, sd->y);
 	}
+	sd->first = false;
 }
 
 
