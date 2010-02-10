@@ -616,7 +616,7 @@ static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 
 	if (linear < fc->start || linear >= fc->end) {
 		size = min(15UL, PAGE_SIZE - offset_in_page(linear));
-		rc = ops->read_std(linear, fc->data, size, ctxt->vcpu);
+		rc = ops->fetch(linear, fc->data, size, ctxt->vcpu, NULL);
 		if (rc)
 			return rc;
 		fc->start = linear;
@@ -671,11 +671,11 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 		op_bytes = 3;
 	*address = 0;
 	rc = ops->read_std((unsigned long)ptr, (unsigned long *)size, 2,
-			   ctxt->vcpu);
+			   ctxt->vcpu, NULL);
 	if (rc)
 		return rc;
 	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes,
-			   ctxt->vcpu);
+			   ctxt->vcpu, NULL);
 	return rc;
 }
 
