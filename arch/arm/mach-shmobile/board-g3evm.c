@@ -27,6 +27,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
+#include <mach/sh7367.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -113,6 +115,29 @@ static void __init g3evm_map_io(void)
 
 static void __init g3evm_init(void)
 {
+	sh7367_pinmux_init();
+
+	/* Lit DS4 LED */
+	gpio_request(GPIO_PORT22, NULL);
+	gpio_direction_output(GPIO_PORT22, 1);
+	gpio_export(GPIO_PORT22, 0);
+
+	/* Lit DS8 LED */
+	gpio_request(GPIO_PORT23, NULL);
+	gpio_direction_output(GPIO_PORT23, 1);
+	gpio_export(GPIO_PORT23, 0);
+
+	/* Lit DS3 LED */
+	gpio_request(GPIO_PORT24, NULL);
+	gpio_direction_output(GPIO_PORT24, 1);
+	gpio_export(GPIO_PORT24, 0);
+
+	/* SCIFA1 */
+	gpio_request(GPIO_FN_SCIFA1_TXD, NULL);
+	gpio_request(GPIO_FN_SCIFA1_RXD, NULL);
+	gpio_request(GPIO_FN_SCIFA1_CTS, NULL);
+	gpio_request(GPIO_FN_SCIFA1_RTS, NULL);
+
 	sh7367_add_standard_devices();
 
 	platform_add_devices(g3evm_devices, ARRAY_SIZE(g3evm_devices));

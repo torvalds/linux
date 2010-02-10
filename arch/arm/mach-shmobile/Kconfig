@@ -31,6 +31,7 @@ comment "SH-Mobile Board Type"
 config MACH_G3EVM
 	bool "G3EVM board"
 	depends on ARCH_SH7367
+	select ARCH_REQUIRE_GPIOLIB
 
 config MACH_G4EVM
 	bool "G4EVM board"
