@@ -795,6 +795,9 @@ static const struct af9015_setup af9015_setup_hashes[] = {
 	{ 0xa3703d00,
 		af9015_rc_keys_a_link, ARRAY_SIZE(af9015_rc_keys_a_link),
 		af9015_ir_table_a_link, ARRAY_SIZE(af9015_ir_table_a_link) },
+	{ 0x9b7dc64e,
+		af9015_rc_keys_mygictv, ARRAY_SIZE(af9015_rc_keys_mygictv),
+		af9015_ir_table_mygictv, ARRAY_SIZE(af9015_ir_table_mygictv) },
 	{ }
 };
 
@@ -823,13 +826,7 @@ static void af9015_set_remote_config(struct usb_device *udev,
 			memset(manufacturer, 0, sizeof(manufacturer));
 			usb_string(udev, udev->descriptor.iManufacturer,
 				manufacturer, sizeof(manufacturer));
-			if (!strcmp("Geniatech", manufacturer)) {
-				/* iManufacturer 1 Geniatech
-				   iProduct      2 AF9015 */
-				table = af9015_setup_match(
-					AF9015_REMOTE_MYGICTV_U718,
-					af9015_setup_modparam);
-			} else if (!strcmp("MSI", manufacturer)) {
+			if (!strcmp("MSI", manufacturer)) {
 				/* iManufacturer 1 MSI
 				   iProduct      2 MSI K-VOX */
 				table = af9015_setup_match(
