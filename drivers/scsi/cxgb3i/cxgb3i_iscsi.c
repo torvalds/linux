@@ -708,6 +708,12 @@ static int cxgb3i_host_set_param(struct Scsi_Host *shost,
 {
 	struct cxgb3i_hba *hba = iscsi_host_priv(shost);
 
+	if (!hba->ndev) {
+		shost_printk(KERN_ERR, shost, "Could not set host param. "
+			     "Netdev for host not set.\n");
+		return -ENODEV;
+	}
+
 	cxgb3i_api_debug("param %d, buf %s.\n", param, buf);
 
 	switch (param) {
@@ -737,6 +743,12 @@ static int cxgb3i_host_get_param(struct Scsi_Host *shost,
 {
 	struct cxgb3i_hba *hba = iscsi_host_priv(shost);
 	int len = 0;
+
+	if (!hba->ndev) {
+		shost_printk(KERN_ERR, shost, "Could not set host param. "
+			     "Netdev for host not set.\n");
+		return -ENODEV;
+	}
 
 	cxgb3i_api_debug("hba %s, param %d.\n", hba->ndev->name, param);
 
