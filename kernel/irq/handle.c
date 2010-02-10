@@ -127,7 +127,7 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int node)
  */
 DEFINE_RAW_SPINLOCK(sparse_irq_lock);
 
-struct irq_desc **irq_desc_ptrs __read_mostly;
+static struct irq_desc **irq_desc_ptrs __read_mostly;
 
 static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS_LEGACY-1] = {
@@ -190,6 +190,11 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 		return irq_desc_ptrs[irq];
 
 	return NULL;
+}
+
+void replace_irq_desc(unsigned int irq, struct irq_desc *desc)
+{
+	irq_desc_ptrs[irq] = desc;
 }
 
 struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
