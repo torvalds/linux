@@ -1,5 +1,6 @@
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/range.h>
 
 #include "bus_numa.h"
 
@@ -53,6 +54,9 @@ void __devinit update_res(struct pci_root_info *info, resource_size_t start,
 	struct resource *res;
 
 	if (start > end)
+		return;
+
+	if (start == MAX_RESOURCE)
 		return;
 
 	if (!merge)
