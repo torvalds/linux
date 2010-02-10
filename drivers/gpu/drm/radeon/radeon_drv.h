@@ -294,6 +294,9 @@ typedef struct drm_radeon_private {
 	int r700_sc_prim_fifo_size;
 	int r700_sc_hiz_tile_fifo_size;
 	int r700_sc_earlyz_tile_fifo_fize;
+	int r600_group_size;
+	int r600_npipes;
+	int r600_nbanks;
 
 	struct mutex cs_mutex;
 	u32 cs_id_scnt;

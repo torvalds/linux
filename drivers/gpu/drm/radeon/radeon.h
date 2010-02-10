@@ -808,6 +808,9 @@ struct r600_asic {
 	unsigned sx_max_export_pos_size;
 	unsigned sx_max_export_smx_size;
 	unsigned sq_num_cf_insts;
+	unsigned tiling_nbanks;
+	unsigned tiling_npipes;
+	unsigned tiling_group_size;
 };
 
 struct rv770_asic {
@@ -828,6 +831,9 @@ struct rv770_asic {
 	unsigned sc_prim_fifo_size;
 	unsigned sc_hiz_tile_fifo_size;
 	unsigned sc_earlyz_tile_fifo_fize;
+	unsigned tiling_nbanks;
+	unsigned tiling_npipes;
+	unsigned tiling_group_size;
 };
 
 union radeon_asic_config {

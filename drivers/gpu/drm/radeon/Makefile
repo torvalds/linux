@@ -30,6 +30,9 @@ $(obj)/r420_reg_safe.h: $(src)/reg_srcs/r420 $(obj)/mkregtable
 $(obj)/rs600_reg_safe.h: $(src)/reg_srcs/rs600 $(obj)/mkregtable
 	$(call if_changed,mkregtable)
 
+$(obj)/r600_reg_safe.h: $(src)/reg_srcs/r600 $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
 $(obj)/r100.o: $(obj)/r100_reg_safe.h $(obj)/rn50_reg_safe.h
 
 $(obj)/r200.o: $(obj)/r200_reg_safe.h
@@ -41,6 +44,8 @@ $(obj)/r300.o: $(obj)/r300_reg_safe.h
 $(obj)/r420.o: $(obj)/r420_reg_safe.h
 
 $(obj)/rs600.o: $(obj)/rs600_reg_safe.h
+
+$(obj)/r600_cs.o: $(obj)/r600_reg_safe.h
 
 radeon-y := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o \
 	radeon_irq.o r300_cmdbuf.o r600_cp.o
