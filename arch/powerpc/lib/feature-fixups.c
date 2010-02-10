@@ -112,7 +112,7 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 
 void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 {
-	unsigned int *start, *end, *dest;
+	int *start, *end, *dest;
 
 	if (!(value & CPU_FTR_LWSYNC))
 		return ;
