@@ -19,6 +19,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/rculist.h>
 #include <linux/hash.h>
+#include <linux/radix-tree.h>
 #include <trace/events/irq.h>
 
 #include "internals.h"
@@ -127,7 +128,26 @@ static void init_one_irq_desc(int irq, struct irq_desc *desc, int node)
  */
 DEFINE_RAW_SPINLOCK(sparse_irq_lock);
 
-static struct irq_desc **irq_desc_ptrs __read_mostly;
+static RADIX_TREE(irq_desc_tree, GFP_ATOMIC);
+
+static void set_irq_desc(unsigned int irq, struct irq_desc *desc)
+{
+	radix_tree_insert(&irq_desc_tree, irq, desc);
+}
+
+struct irq_desc *irq_to_desc(unsigned int irq)
+{
+	return radix_tree_lookup(&irq_desc_tree, irq);
+}
+
+void replace_irq_desc(unsigned int irq, struct irq_desc *desc)
+{
+	void **ptr;
+
+	ptr = radix_tree_lookup_slot(&irq_desc_tree, irq);
+	if (ptr)
+		radix_tree_replace_slot(ptr, desc);
+}
 
 static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS_LEGACY-1] = {
@@ -159,9 +179,6 @@ int __init early_irq_init(void)
 	legacy_count = ARRAY_SIZE(irq_desc_legacy);
 	node = first_online_node;
 
-	/* allocate irq_desc_ptrs array based on nr_irqs */
-	irq_desc_ptrs = kcalloc(nr_irqs, sizeof(void *), GFP_NOWAIT);
-
 	/* allocate based on nr_cpu_ids */
 	kstat_irqs_legacy = kzalloc_node(NR_IRQS_LEGACY * nr_cpu_ids *
 					  sizeof(int), GFP_NOWAIT, node);
@@ -175,26 +192,10 @@ int __init early_irq_init(void)
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 		alloc_desc_masks(&desc[i], node, true);
 		init_desc_masks(&desc[i]);
-		irq_desc_ptrs[i] = desc + i;
+		set_irq_desc(i, &desc[i]);
 	}
 
-	for (i = legacy_count; i < nr_irqs; i++)
-		irq_desc_ptrs[i] = NULL;
-
 	return arch_early_irq_init();
-}
-
-struct irq_desc *irq_to_desc(unsigned int irq)
-{
-	if (irq_desc_ptrs && irq < nr_irqs)
-		return irq_desc_ptrs[irq];
-
-	return NULL;
-}
-
-void replace_irq_desc(unsigned int irq, struct irq_desc *desc)
-{
-	irq_desc_ptrs[irq] = desc;
 }
 
 struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
@@ -208,14 +209,14 @@ struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 		return NULL;
 	}
 
-	desc = irq_desc_ptrs[irq];
+	desc = irq_to_desc(irq);
 	if (desc)
 		return desc;
 
 	raw_spin_lock_irqsave(&sparse_irq_lock, flags);
 
 	/* We have to check it to avoid races with another CPU */
-	desc = irq_desc_ptrs[irq];
+	desc = irq_to_desc(irq);
 	if (desc)
 		goto out_unlock;
 
@@ -228,7 +229,7 @@ struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 	}
 	init_one_irq_desc(irq, desc, node);
 
-	irq_desc_ptrs[irq] = desc;
+	set_irq_desc(irq, desc);
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&sparse_irq_lock, flags);
