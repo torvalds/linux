@@ -571,7 +571,6 @@ config PARAVIRT_DEBUG
 config NO_BOOTMEM
 	default y
 	bool "Disable Bootmem code"
-	depends on X86_64
 	---help---
 	  Use early_res directly instead of bootmem before slab is ready.
 		- allocator (buddy) [generic]

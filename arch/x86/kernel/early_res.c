@@ -354,6 +354,9 @@ int __init get_free_all_memory_range(struct range **rangep, int nodeid)
 
 	/* need to go over early_node_map to find out good range for node */
 	nr_range = add_from_early_node_map(range, count, nr_range, nodeid);
+#ifdef CONFIG_X86_32
+	subtract_range(range, count, max_low_pfn, -1ULL);
+#endif
 	subtract_early_res(range, count);
 	nr_range = clean_sort_range(range, count);
 
