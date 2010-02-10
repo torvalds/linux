@@ -307,6 +307,10 @@ static long ts72xx_wdt_ioctl(struct file *file, unsigned int cmd,
 		error = copy_to_user(argp, &winfo, sizeof(winfo));
 		break;
 
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		return put_user(0, p);
+
 	case WDIOC_KEEPALIVE:
 		ts72xx_wdt_kick(wdt);
 		break;
@@ -477,12 +481,12 @@ static __devexit int ts72xx_wdt_remove(struct platform_device *pdev)
 	error = misc_deregister(&ts72xx_wdt_miscdev);
 	platform_set_drvdata(pdev, NULL);
 
-	iounmap(wdt->control_reg);
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
 	iounmap(wdt->feed_reg);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	release_mem_region(res->start, resource_size(res));
+
+	iounmap(wdt->control_reg);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
 	kfree(wdt);
