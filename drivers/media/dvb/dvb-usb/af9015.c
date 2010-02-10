@@ -1291,6 +1291,7 @@ static struct usb_device_id af9015_usb_table[] = {
 /* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_PC160_T)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV20)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_TINYTWIN_2)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1377,7 +1378,8 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			},
 			{
 				.name = "DigitalNow TinyTwin DVB-T Receiver",
-				.cold_ids = {&af9015_usb_table[5], NULL},
+				.cold_ids = {&af9015_usb_table[5],
+					     &af9015_usb_table[28], NULL},
 				.warm_ids = {NULL},
 			},
 			{
