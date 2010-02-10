@@ -240,7 +240,7 @@ static const struct ctrl sd_ctrls[] = {
 			.minimum = 0,
 			.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
 			.step    = 1,
-#define FREQ_DEF 1
+#define FREQ_DEF 0
 			.default_value = FREQ_DEF,
 		},
 		.set = sd_setfreq,
@@ -944,7 +944,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		desired_avg_lum = 5000;
 	} else {
 		deadzone = 1500;
-		desired_avg_lum = 23000;
+		desired_avg_lum = 18000;
 	}
 
 	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO)

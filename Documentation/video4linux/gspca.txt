@@ -229,8 +229,8 @@ sunplus		08ca:2050	Medion MD 41437
 sunplus		08ca:2060	Aiptek PocketDV5300
 tv8532		0923:010f	ICM532 cams
 mars		093a:050f	Mars-Semi Pc-Camera
-mr97310a	093a:010e	All four known CIF cams with this ID
-mr97310a	093a:010f	All four known VGA cams with this ID
+mr97310a	093a:010e	All known CIF cams with this ID
+mr97310a	093a:010f	All known VGA cams with this ID
 pac207		093a:2460	Qtec Webcam 100
 pac207		093a:2461	HP Webcam
 pac207		093a:2463	Philips SPC 220 NC
