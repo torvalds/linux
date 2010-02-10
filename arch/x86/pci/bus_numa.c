@@ -51,8 +51,8 @@ void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 	}
 }
 
-void __devinit update_res(struct pci_root_info *info, size_t start,
-			      size_t end, unsigned long flags, int merge)
+void __devinit update_res(struct pci_root_info *info, resource_size_t start,
+			  resource_size_t end, unsigned long flags, int merge)
 {
 	int i;
 	struct resource *res;
@@ -65,20 +65,20 @@ void __devinit update_res(struct pci_root_info *info, size_t start,
 
 	/* try to merge it with old one */
 	for (i = 0; i < info->res_num; i++) {
-		size_t final_start, final_end;
-		size_t common_start, common_end;
+		resource_size_t final_start, final_end;
+		resource_size_t common_start, common_end;
 
 		res = &info->res[i];
 		if (res->flags != flags)
 			continue;
 
-		common_start = max((size_t)res->start, start);
-		common_end = min((size_t)res->end, end);
+		common_start = max(res->start, start);
+		common_end = min(res->end, end);
 		if (common_start > common_end + 1)
 			continue;
 
-		final_start = min((size_t)res->start, start);
-		final_end = max((size_t)res->end, end);
+		final_start = min(res->start, start);
+		final_end = max(res->end, end);
 
 		res->start = final_start;
 		res->end = final_end;
