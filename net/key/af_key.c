@@ -1751,7 +1751,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	audit_info.secid = 0;
 	err = xfrm_state_flush(net, proto, &audit_info);
 	if (err)
-		return err;
+		return 0;
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
