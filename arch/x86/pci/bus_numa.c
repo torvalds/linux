@@ -5,7 +5,6 @@
 
 int pci_root_num;
 struct pci_root_info pci_root_info[PCI_ROOT_NR];
-int found_all_numa_early;
 
 void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 {
@@ -19,10 +18,6 @@ void x86_pci_root_bus_res_quirks(struct pci_bus *b)
 		return;
 
 	if (!pci_root_num)
-		return;
-
-	/* for amd, if only one root bus, don't need to do anything */
-	if (pci_root_num < 2 && found_all_numa_early)
 		return;
 
 	for (i = 0; i < pci_root_num; i++) {

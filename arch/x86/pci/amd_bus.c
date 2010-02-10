@@ -87,11 +87,12 @@ static int __init early_fill_mp_bus_info(void)
 	struct range range[RANGE_NUM];
 	u64 val;
 	u32 address;
+	bool found;
 
 	if (!early_pci_allowed())
 		return -1;
 
-	found_all_numa_early = 0;
+	found = false;
 	for (i = 0; i < ARRAY_SIZE(pci_probes); i++) {
 		u32 id;
 		u16 device;
@@ -105,12 +106,12 @@ static int __init early_fill_mp_bus_info(void)
 		device = (id>>16) & 0xffff;
 		if (pci_probes[i].vendor == vendor &&
 		    pci_probes[i].device == device) {
-			found_all_numa_early = 1;
+			found = true;
 			break;
 		}
 	}
 
-	if (!found_all_numa_early)
+	if (!found)
 		return 0;
 
 	pci_root_num = 0;
