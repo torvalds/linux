@@ -65,7 +65,7 @@ int dma_set_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_NUMA)
 static __initdata void *dma32_bootmem_ptr;
 static unsigned long dma32_bootmem_size __initdata = (128ULL<<20);
 
@@ -116,14 +116,21 @@ static void __init dma32_free_bootmem(void)
 	dma32_bootmem_ptr = NULL;
 	dma32_bootmem_size = 0;
 }
+#else
+void __init dma32_reserve_bootmem(void)
+{
+}
+static void __init dma32_free_bootmem(void)
+{
+}
+
 #endif
 
 void __init pci_iommu_alloc(void)
 {
-#ifdef CONFIG_X86_64
 	/* free the range so iommu could get some range less than 4G */
 	dma32_free_bootmem();
-#endif
+
 	if (pci_swiotlb_detect())
 		goto out;
 

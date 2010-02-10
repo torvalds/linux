@@ -969,14 +969,7 @@ void __init setup_arch(char **cmdline_p)
 	initmem_init(0, max_pfn, acpi, k8);
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 
-#ifdef CONFIG_X86_64
-	/*
-	 * dma32_reserve_bootmem() allocates bootmem which may conflict
-	 * with the crashkernel command line, so do that after
-	 * reserve_crashkernel()
-	 */
 	dma32_reserve_bootmem();
-#endif
 
 	reserve_ibft_region();
 
