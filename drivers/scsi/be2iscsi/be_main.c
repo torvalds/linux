@@ -61,10 +61,10 @@ static int beiscsi_slave_configure(struct scsi_device *sdev)
 /*------------------- PCI Driver operations and data ----------------- */
 static DEFINE_PCI_DEVICE_TABLE(beiscsi_pci_id_table) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
+	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID3) },
-	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID4) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, beiscsi_pci_id_table);
@@ -143,6 +143,7 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 				struct pci_dev *pcidev)
 {
 	u8 __iomem *addr;
+	int pcicfg_reg;
 
 	addr = ioremap_nocache(pci_resource_start(pcidev, 2),
 			       pci_resource_len(pcidev, 2));
@@ -159,13 +160,19 @@ static int beiscsi_map_pci_bars(struct beiscsi_hba *phba,
 	phba->db_va = addr;
 	phba->db_pa.u.a64.address =  pci_resource_start(pcidev, 4);
 
-	addr = ioremap_nocache(pci_resource_start(pcidev, 1),
-			       pci_resource_len(pcidev, 1));
+	if (phba->generation == BE_GEN2)
+		pcicfg_reg = 1;
+	else
+		pcicfg_reg = 0;
+
+	addr = ioremap_nocache(pci_resource_start(pcidev, pcicfg_reg),
+			       pci_resource_len(pcidev, pcicfg_reg));
+
 	if (addr == NULL)
 		goto pci_map_err;
 	phba->ctrl.pcicfg = addr;
 	phba->pci_va = addr;
-	phba->pci_pa.u.a64.address = pci_resource_start(pcidev, 1);
+	phba->pci_pa.u.a64.address = pci_resource_start(pcidev, pcicfg_reg);
 	return 0;
 
 pci_map_err:
@@ -3492,7 +3499,6 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		      io_task->pwrb_handle->wrb_index);
 	AMAP_SET_BITS(struct amap_iscsi_wrb, sgl_icd_idx, pwrb,
 		      io_task->psgl_handle->sgl_index);
-
 	switch (task->hdr->opcode & ISCSI_OPCODE_MASK) {
 	case ISCSI_OP_LOGIN:
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
@@ -3694,6 +3700,20 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		goto disable_pci;
 	}
 	SE_DEBUG(DBG_LVL_8, " phba = %p \n", phba);
+
+	switch (pcidev->device) {
+	case BE_DEVICE_ID1:
+	case OC_DEVICE_ID1:
+	case OC_DEVICE_ID2:
+		phba->generation = BE_GEN2;
+		break;
+	case BE_DEVICE_ID2:
+	case OC_DEVICE_ID3:
+		phba->generation = BE_GEN3;
+		break;
+	default:
+		phba->generation = 0;
+	}
 
 	if (enable_msix)
 		num_cpus = find_num_cpus();

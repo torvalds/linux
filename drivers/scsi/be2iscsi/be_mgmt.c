@@ -85,6 +85,7 @@ unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 	}
 	nonemb_cmd.size = sizeof(struct be_mgmt_controller_attributes);
 	req = nonemb_cmd.va;
+	memset(req, 0, sizeof(*req));
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
@@ -171,6 +172,7 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	}
 	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
 	req = nonemb_cmd.va;
+	memset(req, 0, sizeof(*req));
 	wrb = wrb_from_mccq(phba);
 	sge = nonembedded_sgl(wrb);
 	wrb->tag0 |= tag;
