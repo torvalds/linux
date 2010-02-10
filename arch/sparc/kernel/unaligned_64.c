@@ -636,7 +636,6 @@ daex:
 		return;
 	}
 	advance(regs);
-	return;
 }
 
 void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr)
@@ -685,5 +684,4 @@ daex:
 		return;
 	}
 	advance(regs);
-	return;
 }
