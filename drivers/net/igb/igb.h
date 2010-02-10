@@ -75,11 +75,14 @@ struct vf_data_storage {
 	u16 vlans_enabled;
 	u32 flags;
 	unsigned long last_nack;
+	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_qos;
 };
 
 #define IGB_VF_FLAG_CTS            0x00000001 /* VF is clear to send data */
 #define IGB_VF_FLAG_UNI_PROMISC    0x00000002 /* VF has unicast promisc */
 #define IGB_VF_FLAG_MULTI_PROMISC  0x00000004 /* VF has multicast promisc */
+#define IGB_VF_FLAG_PF_SET_MAC     0x00000008 /* PF has set MAC address */
 
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
