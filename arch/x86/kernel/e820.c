@@ -916,6 +916,48 @@ void __init reserve_early_overlap_ok(u64 start, u64 end, char *name)
 	__reserve_early(start, end, name, 1);
 }
 
+static void __init __check_and_double_early_res(u64 start)
+{
+	u64 end, size, mem;
+	struct early_res *new;
+
+	/* do we have enough slots left ? */
+	if ((max_early_res - early_res_count) > max(max_early_res/8, 2))
+		return;
+
+	/* double it */
+	end = max_pfn_mapped << PAGE_SHIFT;
+	size = sizeof(struct early_res) * max_early_res * 2;
+	mem = find_e820_area(start, end, size, sizeof(struct early_res));
+
+	if (mem == -1ULL)
+		panic("can not find more space for early_res array");
+
+	new = __va(mem);
+	/* save the first one for own */
+	new[0].start = mem;
+	new[0].end = mem + size;
+	new[0].overlap_ok = 0;
+	/* copy old to new */
+	if (early_res == early_res_x) {
+		memcpy(&new[1], &early_res[0],
+			 sizeof(struct early_res) * max_early_res);
+		memset(&new[max_early_res+1], 0,
+			 sizeof(struct early_res) * (max_early_res - 1));
+		early_res_count++;
+	} else {
+		memcpy(&new[1], &early_res[1],
+			 sizeof(struct early_res) * (max_early_res - 1));
+		memset(&new[max_early_res], 0,
+			 sizeof(struct early_res) * max_early_res);
+	}
+	memset(&early_res[0], 0, sizeof(struct early_res) * max_early_res);
+	early_res = new;
+	max_early_res *= 2;
+	printk(KERN_DEBUG "early_res array is doubled to %d at [%llx - %llx]\n",
+		max_early_res, mem, mem + size - 1);
+}
+
 /*
  * Most early reservations come here.
  *
@@ -928,6 +970,8 @@ void __init reserve_early(u64 start, u64 end, char *name)
 {
 	if (start >= end)
 		return;
+
+	__check_and_double_early_res(end);
 
 	drop_overlaps_that_are_ok(start, end);
 	__reserve_early(start, end, name, 0);
@@ -957,6 +1001,10 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 	for (i = 0; i < max_early_res && early_res[i].end; i++)
 		count++;
 
+	/* need to skip first one ?*/
+	if (early_res != early_res_x)
+		idx = 1;
+
 	printk(KERN_INFO "(%d/%d early reservations) ==> bootmem [%010llx - %010llx]\n",
 			 count - idx, max_early_res, start, end);
 	for (i = idx; i < count; i++) {
@@ -974,6 +1022,11 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 		reserve_bootmem_generic(final_start, final_end - final_start,
 				BOOTMEM_DEFAULT);
 	}
+	/* clear them */
+	memset(&early_res[0], 0, sizeof(struct early_res) * max_early_res);
+	early_res = NULL;
+	max_early_res = 0;
+	early_res_count = 0;
 }
 
 /* Check for already reserved areas */
