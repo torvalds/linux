@@ -4075,8 +4075,10 @@ static void mddev_delayed_delete(struct work_struct *ws)
 {
 	mddev_t *mddev = container_of(ws, mddev_t, del_work);
 
-	if (mddev->private == &md_redundancy_group) {
+	if (mddev->private) {
 		sysfs_remove_group(&mddev->kobj, &md_redundancy_group);
+		if (mddev->private != (void*)1)
+			sysfs_remove_group(&mddev->kobj, mddev->private);
 		if (mddev->sysfs_action)
 			sysfs_put(mddev->sysfs_action);
 		mddev->sysfs_action = NULL;
@@ -4287,10 +4289,7 @@ static int do_md_run(mddev_t * mddev)
 		sysfs_notify_dirent(rdev->sysfs_state);
 	}
 
-	md_probe(mddev->unit, NULL, NULL);
 	disk = mddev->gendisk;
-	if (!disk)
-		return -ENOMEM;
 
 	spin_lock(&pers_lock);
 	pers = find_pers(mddev->level, mddev->clevel);
@@ -4530,8 +4529,8 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			mddev->queue->unplug_fn = NULL;
 			mddev->queue->backing_dev_info.congested_fn = NULL;
 			module_put(mddev->pers->owner);
-			if (mddev->pers->sync_request)
-				mddev->private = &md_redundancy_group;
+			if (mddev->pers->sync_request && mddev->private == NULL)
+				mddev->private = (void*)1;
 			mddev->pers = NULL;
 			/* tell userspace to handle 'inactive' */
 			sysfs_notify_dirent(mddev->sysfs_state);
@@ -4577,9 +4576,6 @@ out:
 			mddev->bitmap_info.file = NULL;
 		}
 		mddev->bitmap_info.offset = 0;
-
-		/* make sure all md_delayed_delete calls have finished */
-		flush_scheduled_work();
 
 		export_array(mddev);
 
