@@ -764,7 +764,6 @@ static unsigned long __init setup_node_bootmem(int nodeid,
 	printk(KERN_INFO "  node %d bootmap %08lx - %08lx\n",
 		 nodeid, bootmap, bootmap + bootmap_size);
 	free_bootmem_with_active_regions(nodeid, end_pfn);
-	early_res_to_bootmem(start_pfn<<PAGE_SHIFT, end_pfn<<PAGE_SHIFT);
 
 	return bootmap + bootmap_size;
 }

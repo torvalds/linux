@@ -967,6 +967,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	initmem_init(0, max_pfn, acpi, k8);
+	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 
 #ifdef CONFIG_X86_64
 	/*
