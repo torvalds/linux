@@ -108,6 +108,7 @@ int tm6000_set_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 		tm6000_read_write_usb (dev, USB_DIR_OUT | USB_TYPE_VENDOR,
 				       req, value, index, NULL, 0);
 }
+EXPORT_SYMBOL_GPL(tm6000_set_reg);
 
 int tm6000_get_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 {
@@ -122,6 +123,7 @@ int tm6000_get_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 
 	return *buf;
 }
+EXPORT_SYMBOL_GPL(tm6000_get_reg);
 
 int tm6000_get_reg16 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 {
