@@ -797,8 +797,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 
 	rcu_read_lock();
 	sta = sta_info_get(sdata, bssid);
-	if (sta)
+	if (sta) {
+		set_sta_flags(sta, WLAN_STA_DISASSOC);
 		ieee80211_sta_tear_down_BA_sessions(sta);
+	}
 	rcu_read_unlock();
 
 	changed |= ieee80211_reset_erp_info(sdata);

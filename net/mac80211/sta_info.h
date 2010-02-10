@@ -42,6 +42,9 @@
  *	be in the queues
  * @WLAN_STA_PSPOLL: Station sent PS-poll while driver was keeping
  *	station in power-save mode, reply when the driver unblocks.
+ * @WLAN_STA_DISASSOC: Disassociation in progress.
+ *	This is used to reject TX BA session requests when disassociation
+ *	is in progress.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH		= 1<<0,
@@ -57,6 +60,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_SUSPEND	= 1<<11,
 	WLAN_STA_PS_DRIVER	= 1<<12,
 	WLAN_STA_PSPOLL		= 1<<13,
+	WLAN_STA_DISASSOC       = 1<<14,
 };
 
 #define STA_TID_NUM 16
