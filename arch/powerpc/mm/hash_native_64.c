@@ -122,7 +122,7 @@ static inline void native_lock_hpte(struct hash_pte *hptep)
 	unsigned long *word = &hptep->v;
 
 	while (1) {
-		if (!test_and_set_bit(HPTE_LOCK_BIT, word))
+		if (!test_and_set_bit_lock(HPTE_LOCK_BIT, word))
 			break;
 		while(test_bit(HPTE_LOCK_BIT, word))
 			cpu_relax();
@@ -133,8 +133,7 @@ static inline void native_unlock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = &hptep->v;
 
-	asm volatile("lwsync":::"memory");
-	clear_bit(HPTE_LOCK_BIT, word);
+	clear_bit_unlock(HPTE_LOCK_BIT, word);
 }
 
 static long native_hpte_insert(unsigned long hpte_group, unsigned long va,
