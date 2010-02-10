@@ -5281,7 +5281,7 @@ CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 	TRANSACTION2_QPI_RSP *pSMBr = NULL;
 	int rc = 0;
 	int bytes_returned;
-	int name_len;
+	int list_len;
 	struct fealist *ea_response_data;
 	struct fea *temp_fea;
 	char *temp_ptr;
@@ -5295,18 +5295,18 @@ QAllEAsRetry:
 		return rc;
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
-		name_len =
+		list_len =
 		    cifsConvertToUCS((__le16 *) pSMB->FileName, searchName,
 				     PATH_MAX, nls_codepage, remap);
-		name_len++;	/* trailing null */
-		name_len *= 2;
+		list_len++;	/* trailing null */
+		list_len *= 2;
 	} else {	/* BB improve the check for buffer overruns BB */
-		name_len = strnlen(searchName, PATH_MAX);
-		name_len++;	/* trailing null */
-		strncpy(pSMB->FileName, searchName, name_len);
+		list_len = strnlen(searchName, PATH_MAX);
+		list_len++;	/* trailing null */
+		strncpy(pSMB->FileName, searchName, list_len);
 	}
 
-	params = 2 /* level */ + 4 /* reserved */ + name_len /* includes NUL */;
+	params = 2 /* level */ + 4 /* reserved */ + list_len /* includes NUL */;
 	pSMB->TotalDataCount = 0;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	/* BB find exact max SMB PDU from sess structure BB */
@@ -5361,23 +5361,23 @@ QAllEAsRetry:
 	ea_response_data = (struct fealist *)
 				(((char *) &pSMBr->hdr.Protocol) + data_offset);
 
-	name_len = le32_to_cpu(ea_response_data->list_len);
-	cFYI(1, ("ea length %d", name_len));
-	if (name_len <= 8) {
+	list_len = le32_to_cpu(ea_response_data->list_len);
+	cFYI(1, ("ea length %d", list_len));
+	if (list_len <= 8) {
 		cFYI(1, ("empty EA list returned from server"));
 		goto QAllEAsOut;
 	}
 
 	/* account for ea list len */
-	name_len -= 4;
+	list_len -= 4;
 	temp_fea = ea_response_data->list;
 	temp_ptr = (char *)temp_fea;
-	while (name_len > 0) {
+	while (list_len > 0) {
 		__u16 value_len;
-		name_len -= 4;
+		list_len -= 4;
 		temp_ptr += 4;
 		rc += temp_fea->name_len;
-	/* account for prefix user. and trailing null */
+		/* account for prefix user. and trailing null */
 		rc = rc + 5 + 1;
 		if (rc < (int) buf_size) {
 			memcpy(EAData, "user.", 5);
@@ -5386,7 +5386,7 @@ QAllEAsRetry:
 			EAData += temp_fea->name_len;
 			/* null terminate name */
 			*EAData = 0;
-			EAData = EAData + 1;
+			++EAData;
 		} else if (buf_size == 0) {
 			/* skip copy - calc size only */
 		} else {
@@ -5394,13 +5394,13 @@ QAllEAsRetry:
 			rc = -ERANGE;
 			break;
 		}
-		name_len -= temp_fea->name_len;
+		list_len -= temp_fea->name_len;
 		temp_ptr += temp_fea->name_len;
 		/* account for trailing null */
-		name_len--;
+		list_len--;
 		temp_ptr++;
 		value_len = le16_to_cpu(temp_fea->value_len);
-		name_len -= value_len;
+		list_len -= value_len;
 		temp_ptr += value_len;
 		/* BB check that temp_ptr is still
 		      within the SMB BB*/
