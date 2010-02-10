@@ -743,29 +743,11 @@ struct early_res {
 	char name[15];
 	char overlap_ok;
 };
-static struct early_res early_res_x[MAX_EARLY_RES_X] __initdata = {
-	{ 0, PAGE_SIZE, "BIOS data page", 1 },	/* BIOS data page */
-#if defined(CONFIG_X86_32) && defined(CONFIG_X86_TRAMPOLINE)
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	{ PAGE_SIZE, PAGE_SIZE + PAGE_SIZE, "EX TRAMPOLINE", 1 },
-#endif
-
-	{}
-};
+static struct early_res early_res_x[MAX_EARLY_RES_X] __initdata;
 
 static int max_early_res __initdata = MAX_EARLY_RES_X;
 static struct early_res *early_res __initdata = &early_res_x[0];
-static int early_res_count __initdata =
-#ifdef CONFIG_X86_32
-	2
-#else
-	1
-#endif
-	;
+static int early_res_count __initdata;
 
 static int __init find_overlapped_early(u64 start, u64 end)
 {
