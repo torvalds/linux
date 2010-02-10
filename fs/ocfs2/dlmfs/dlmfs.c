@@ -220,6 +220,23 @@ static int dlmfs_file_release(struct inode *inode,
 	return 0;
 }
 
+/*
+ * We do ->setattr() just to override size changes.  Our size is the size
+ * of the LVB and nothing else.
+ */
+static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	int error;
+	struct inode *inode = dentry->d_inode;
+
+	attr->ia_valid &= ~ATTR_SIZE;
+	error = inode_change_ok(inode, attr);
+	if (!error)
+		error = inode_setattr(inode, attr);
+
+	return error;
+}
+
 static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
 {
 	int event = 0;
@@ -634,6 +651,7 @@ static const struct super_operations dlmfs_ops = {
 
 static const struct inode_operations dlmfs_file_inode_operations = {
 	.getattr	= simple_getattr,
+	.setattr	= dlmfs_file_setattr,
 };
 
 static int dlmfs_get_sb(struct file_system_type *fs_type,
