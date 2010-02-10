@@ -4094,6 +4094,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 
 	mutex_lock(&work->dev->struct_mutex);
 	i915_gem_object_unpin(work->old_fb_obj);
+	drm_gem_object_unreference(work->pending_flip_obj);
 	drm_gem_object_unreference(work->old_fb_obj);
 	mutex_unlock(&work->dev->struct_mutex);
 	kfree(work);
@@ -4221,8 +4222,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	/* Reference the old fb object for the scheduled work. */
+	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(work->old_fb_obj);
+	drm_gem_object_reference(obj);
 
 	crtc->fb = fb;
 	i915_gem_object_flush_write_domain(obj);
