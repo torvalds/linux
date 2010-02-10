@@ -65,9 +65,10 @@ static inline unsigned long __arch_spin_trylock(arch_spinlock_t *lock)
 	cmpwi		0,%0,0\n\
 	bne-		2f\n\
 	stwcx.		%1,0,%2\n\
-	bne-		1b\n\
-	isync\n\
-2:"	: "=&r" (tmp)
+	bne-		1b\n"
+	PPC_ACQUIRE_BARRIER
+"2:"
+	: "=&r" (tmp)
 	: "r" (token), "r" (&lock->slock)
 	: "cr0", "memory");
 
@@ -145,7 +146,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	SYNC_IO;
 	__asm__ __volatile__("# arch_spin_unlock\n\t"
-				LWSYNC_ON_SMP: : :"memory");
+				PPC_RELEASE_BARRIER: : :"memory");
 	lock->slock = 0;
 }
 
@@ -193,9 +194,9 @@ static inline long __arch_read_trylock(arch_rwlock_t *rw)
 	ble-		2f\n"
 	PPC405_ERR77(0,%1)
 "	stwcx.		%0,0,%1\n\
-	bne-		1b\n\
-	isync\n\
-2:"	: "=&r" (tmp)
+	bne-		1b\n"
+	PPC_ACQUIRE_BARRIER
+"2:"	: "=&r" (tmp)
 	: "r" (&rw->lock)
 	: "cr0", "xer", "memory");
 
@@ -217,9 +218,9 @@ static inline long __arch_write_trylock(arch_rwlock_t *rw)
 	bne-		2f\n"
 	PPC405_ERR77(0,%1)
 "	stwcx.		%1,0,%2\n\
-	bne-		1b\n\
-	isync\n\
-2:"	: "=&r" (tmp)
+	bne-		1b\n"
+	PPC_ACQUIRE_BARRIER
+"2:"	: "=&r" (tmp)
 	: "r" (token), "r" (&rw->lock)
 	: "cr0", "memory");
 
@@ -270,7 +271,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 
 	__asm__ __volatile__(
 	"# read_unlock\n\t"
-	LWSYNC_ON_SMP
+	PPC_RELEASE_BARRIER
 "1:	lwarx		%0,0,%1\n\
 	addic		%0,%0,-1\n"
 	PPC405_ERR77(0,%1)
@@ -284,7 +285,7 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	__asm__ __volatile__("# write_unlock\n\t"
-				LWSYNC_ON_SMP: : :"memory");
+				PPC_RELEASE_BARRIER: : :"memory");
 	rw->lock = 0;
 }
 

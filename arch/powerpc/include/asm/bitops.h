@@ -78,7 +78,7 @@ static __inline__ void fn(unsigned long mask,	\
 
 DEFINE_BITOP(set_bits, or, "", "")
 DEFINE_BITOP(clear_bits, andc, "", "")
-DEFINE_BITOP(clear_bits_unlock, andc, LWSYNC_ON_SMP, "")
+DEFINE_BITOP(clear_bits_unlock, andc, PPC_RELEASE_BARRIER, "")
 DEFINE_BITOP(change_bits, xor, "", "")
 
 static __inline__ void set_bit(int nr, volatile unsigned long *addr)
@@ -124,10 +124,14 @@ static __inline__ unsigned long fn(			\
 	return (old & mask);				\
 }
 
-DEFINE_TESTOP(test_and_set_bits, or, LWSYNC_ON_SMP, ISYNC_ON_SMP, 0)
-DEFINE_TESTOP(test_and_set_bits_lock, or, "", ISYNC_ON_SMP, 1)
-DEFINE_TESTOP(test_and_clear_bits, andc, LWSYNC_ON_SMP, ISYNC_ON_SMP, 0)
-DEFINE_TESTOP(test_and_change_bits, xor, LWSYNC_ON_SMP, ISYNC_ON_SMP, 0)
+DEFINE_TESTOP(test_and_set_bits, or, PPC_RELEASE_BARRIER,
+	      PPC_ACQUIRE_BARRIER, 0)
+DEFINE_TESTOP(test_and_set_bits_lock, or, "",
+	      PPC_ACQUIRE_BARRIER, 1)
+DEFINE_TESTOP(test_and_clear_bits, andc, PPC_RELEASE_BARRIER,
+	      PPC_ACQUIRE_BARRIER, 0)
+DEFINE_TESTOP(test_and_change_bits, xor, PPC_RELEASE_BARRIER,
+	      PPC_ACQUIRE_BARRIER, 0)
 
 static __inline__ int test_and_set_bit(unsigned long nr,
 				       volatile unsigned long *addr)
@@ -158,7 +162,7 @@ static __inline__ int test_and_change_bit(unsigned long nr,
 
 static __inline__ void __clear_bit_unlock(int nr, volatile unsigned long *addr)
 {
-	__asm__ __volatile__(LWSYNC_ON_SMP "" ::: "memory");
+	__asm__ __volatile__(PPC_RELEASE_BARRIER "" ::: "memory");
 	__clear_bit(nr, addr);
 }
 

@@ -37,11 +37,11 @@ static inline void isync(void)
 #endif
 
 #ifdef CONFIG_SMP
-#define ISYNC_ON_SMP	"\n\tisync\n"
-#define LWSYNC_ON_SMP	stringify_in_c(LWSYNC) "\n"
+#define PPC_ACQUIRE_BARRIER	"\n\tisync\n"
+#define PPC_RELEASE_BARRIER	stringify_in_c(LWSYNC) "\n"
 #else
-#define ISYNC_ON_SMP
-#define LWSYNC_ON_SMP
+#define PPC_ACQUIRE_BARRIER
+#define PPC_RELEASE_BARRIER
 #endif
 
 #endif /* __KERNEL__ */
