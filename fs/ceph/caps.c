@@ -1137,12 +1137,6 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 
 	spin_unlock(&inode->i_lock);
 
-	if (dropping & CEPH_CAP_FILE_CACHE) {
-		/* invalidate what we can */
-		dout("invalidating pages on %p\n", inode);
-		invalidate_mapping_pages(&inode->i_data, 0, -1);
-	}
-
 	ret = send_cap_msg(session, ceph_vino(inode).ino, cap_id,
 		op, keep, want, flushing, seq, flush_tid, issue_seq, mseq,
 		size, max_size, &mtime, &atime, time_warp_seq,
