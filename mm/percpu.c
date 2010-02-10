@@ -1929,7 +1929,10 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
 			}
 			/* copy and return the unused part */
 			memcpy(ptr, __per_cpu_load, ai->static_size);
+#ifndef CONFIG_NO_BOOTMEM
+			/* fix partial free ! */
 			free_fn(ptr + size_sum, ai->unit_size - size_sum);
+#endif
 		}
 	}
 

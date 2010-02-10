@@ -198,11 +198,13 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 void __init
 setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 {
-	unsigned long start_pfn, last_pfn, bootmap_pages, bootmap_size;
+	unsigned long start_pfn, last_pfn, nodedata_phys;
 	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
-	unsigned long bootmap_start, nodedata_phys;
-	void *bootmap;
 	int nid;
+#ifndef CONFIG_NO_BOOTMEM
+	unsigned long bootmap_start, bootmap_pages, bootmap_size;
+	void *bootmap;
+#endif
 
 	if (!end)
 		return;
@@ -216,7 +218,7 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 
 	start = roundup(start, ZONE_ALIGN);
 
-	printk(KERN_INFO "Bootmem setup node %d %016lx-%016lx\n", nodeid,
+	printk(KERN_INFO "Initmem setup node %d %016lx-%016lx\n", nodeid,
 	       start, end);
 
 	start_pfn = start >> PAGE_SHIFT;
@@ -235,9 +237,12 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 		printk(KERN_INFO "    NODE_DATA(%d) on node %d\n", nodeid, nid);
 
 	memset(NODE_DATA(nodeid), 0, sizeof(pg_data_t));
-	NODE_DATA(nodeid)->bdata = &bootmem_node_data[nodeid];
+	NODE_DATA(nodeid)->node_id = nodeid;
 	NODE_DATA(nodeid)->node_start_pfn = start_pfn;
 	NODE_DATA(nodeid)->node_spanned_pages = last_pfn - start_pfn;
+
+#ifndef CONFIG_NO_BOOTMEM
+	NODE_DATA(nodeid)->bdata = &bootmem_node_data[nodeid];
 
 	/*
 	 * Find a place for the bootmem map
@@ -275,6 +280,7 @@ setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 		printk(KERN_INFO "    bootmap(%d) on node %d\n", nodeid, nid);
 
 	free_bootmem_with_active_regions(nodeid, end);
+#endif
 
 	node_set_online(nodeid);
 }
@@ -732,6 +738,10 @@ unsigned long __init numa_free_all_bootmem(void)
 
 	for_each_online_node(i)
 		pages += free_all_bootmem_node(NODE_DATA(i));
+
+#ifdef CONFIG_NO_BOOTMEM
+	pages += free_all_memory_core_early(MAX_NUMNODES);
+#endif
 
 	return pages;
 }

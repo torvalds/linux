@@ -572,6 +572,7 @@ kernel_physical_mapping_init(unsigned long start,
 void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 				int acpi, int k8)
 {
+#ifndef CONFIG_NO_BOOTMEM
 	unsigned long bootmap_size, bootmap;
 
 	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
@@ -585,6 +586,9 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn,
 					 0, end_pfn);
 	e820_register_active_regions(0, start_pfn, end_pfn);
 	free_bootmem_with_active_regions(0, end_pfn);
+#else
+	e820_register_active_regions(0, start_pfn, end_pfn);
+#endif
 }
 #endif
 

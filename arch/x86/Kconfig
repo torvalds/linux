@@ -568,6 +568,19 @@ config PARAVIRT_DEBUG
 	  Enable to debug paravirt_ops internals.  Specifically, BUG if
 	  a paravirt_op is missing when it is called.
 
+config NO_BOOTMEM
+	default y
+	bool "Disable Bootmem code"
+	depends on X86_64
+	---help---
+	  Use early_res directly instead of bootmem before slab is ready.
+		- allocator (buddy) [generic]
+		- early allocator (bootmem) [generic]
+		- very early allocator (reserve_early*()) [x86]
+		- very very early allocator (early brk model) [x86]
+	  So reduce one layer between early allocator to final allocator
+
+
 config MEMTEST
 	bool "Memtest"
 	---help---

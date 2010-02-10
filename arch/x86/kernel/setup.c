@@ -967,7 +967,9 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	initmem_init(0, max_pfn, acpi, k8);
+#ifndef CONFIG_NO_BOOTMEM
 	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
+#endif
 
 	dma32_reserve_bootmem();
 

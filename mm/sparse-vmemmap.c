@@ -40,7 +40,7 @@ static void * __init_refok __earlyonly_bootmem_alloc(int node,
 				unsigned long align,
 				unsigned long goal)
 {
-	return __alloc_bootmem_node(NODE_DATA(node), size, align, goal);
+	return __alloc_bootmem_node_high(NODE_DATA(node), size, align, goal);
 }
 
 

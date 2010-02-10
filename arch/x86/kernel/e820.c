@@ -977,6 +977,25 @@ void __init reserve_early(u64 start, u64 end, char *name)
 	__reserve_early(start, end, name, 0);
 }
 
+void __init reserve_early_without_check(u64 start, u64 end, char *name)
+{
+	struct early_res *r;
+
+	if (start >= end)
+		return;
+
+	__check_and_double_early_res(end);
+
+	r = &early_res[early_res_count];
+
+	r->start = start;
+	r->end = end;
+	r->overlap_ok = 0;
+	if (name)
+		strncpy(r->name, name, sizeof(r->name) - 1);
+	early_res_count++;
+}
+
 void __init free_early(u64 start, u64 end)
 {
 	struct early_res *r;
@@ -991,6 +1010,94 @@ void __init free_early(u64 start, u64 end)
 	drop_range(i);
 }
 
+#ifdef CONFIG_NO_BOOTMEM
+static void __init subtract_early_res(struct range *range, int az)
+{
+	int i, count;
+	u64 final_start, final_end;
+	int idx = 0;
+
+	count  = 0;
+	for (i = 0; i < max_early_res && early_res[i].end; i++)
+		count++;
+
+	/* need to skip first one ?*/
+	if (early_res != early_res_x)
+		idx = 1;
+
+#if 1
+	printk(KERN_INFO "Subtract (%d early reservations)\n", count);
+#endif
+	for (i = idx; i < count; i++) {
+		struct early_res *r = &early_res[i];
+#if 0
+		printk(KERN_INFO "  #%d [%010llx - %010llx] %15s", i,
+			r->start, r->end, r->name);
+#endif
+		final_start = PFN_DOWN(r->start);
+		final_end = PFN_UP(r->end);
+		if (final_start >= final_end) {
+#if 0
+			printk(KERN_CONT "\n");
+#endif
+			continue;
+		}
+#if 0
+		printk(KERN_CONT " subtract pfn [%010llx - %010llx]\n",
+			final_start, final_end);
+#endif
+		subtract_range(range, az, final_start, final_end);
+	}
+
+}
+
+int __init get_free_all_memory_range(struct range **rangep, int nodeid)
+{
+	int i, count;
+	u64 start = 0, end;
+	u64 size;
+	u64 mem;
+	struct range *range;
+	int nr_range;
+
+	count  = 0;
+	for (i = 0; i < max_early_res && early_res[i].end; i++)
+		count++;
+
+	count *= 2;
+
+	size = sizeof(struct range) * count;
+#ifdef MAX_DMA32_PFN
+	if (max_pfn_mapped > MAX_DMA32_PFN)
+		start = MAX_DMA32_PFN << PAGE_SHIFT;
+#endif
+	end = max_pfn_mapped << PAGE_SHIFT;
+	mem = find_e820_area(start, end, size, sizeof(struct range));
+	if (mem == -1ULL)
+		panic("can not find more space for range free");
+
+	range = __va(mem);
+	/* use early_node_map[] and early_res to get range array at first */
+	memset(range, 0, size);
+	nr_range = 0;
+
+	/* need to go over early_node_map to find out good range for node */
+	nr_range = add_from_early_node_map(range, count, nr_range, nodeid);
+	subtract_early_res(range, count);
+	nr_range = clean_sort_range(range, count);
+
+	/* need to clear it ? */
+	if (nodeid == MAX_NUMNODES) {
+		memset(&early_res[0], 0,
+			 sizeof(struct early_res) * max_early_res);
+		early_res = NULL;
+		max_early_res = 0;
+	}
+
+	*rangep = range;
+	return nr_range;
+}
+#else
 void __init early_res_to_bootmem(u64 start, u64 end)
 {
 	int i, count;
@@ -1028,6 +1135,7 @@ void __init early_res_to_bootmem(u64 start, u64 end)
 	max_early_res = 0;
 	early_res_count = 0;
 }
+#endif
 
 /* Check for already reserved areas */
 static inline int __init bad_addr(u64 *addrp, u64 size, u64 align)
@@ -1083,6 +1191,35 @@ again:
 
 /*
  * Find a free area with specified alignment in a specific range.
+ * only with the area.between start to end is active range from early_node_map
+ * so they are good as RAM
+ */
+u64 __init find_early_area(u64 ei_start, u64 ei_last, u64 start, u64 end,
+			 u64 size, u64 align)
+{
+	u64 addr, last;
+
+	addr = round_up(ei_start, align);
+	if (addr < start)
+		addr = round_up(start, align);
+	if (addr >= ei_last)
+		goto out;
+	while (bad_addr(&addr, size, align) && addr+size <= ei_last)
+		;
+	last = addr + size;
+	if (last > ei_last)
+		goto out;
+	if (last > end)
+		goto out;
+
+	return addr;
+
+out:
+	return -1ULL;
+}
+
+/*
+ * Find a free area with specified alignment in a specific range.
  */
 u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
 {
@@ -1090,24 +1227,20 @@ u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
 
 	for (i = 0; i < e820.nr_map; i++) {
 		struct e820entry *ei = &e820.map[i];
-		u64 addr, last;
-		u64 ei_last;
+		u64 addr;
+		u64 ei_start, ei_last;
 
 		if (ei->type != E820_RAM)
 			continue;
-		addr = round_up(ei->addr, align);
+
 		ei_last = ei->addr + ei->size;
-		if (addr < start)
-			addr = round_up(start, align);
-		if (addr >= ei_last)
+		ei_start = ei->addr;
+		addr = find_early_area(ei_start, ei_last, start, end,
+					 size, align);
+
+		if (addr == -1ULL)
 			continue;
-		while (bad_addr(&addr, size, align) && addr+size <= ei_last)
-			;
-		last = addr + size;
-		if (last > ei_last)
-			continue;
-		if (last > end)
-			continue;
+
 		return addr;
 	}
 	return -1ULL;
