@@ -100,7 +100,14 @@ static struct usb_device_descriptor device_desc = {
 	.bLength              = sizeof(device_desc),
 	.bDescriptorType      = USB_DT_DEVICE,
 	.bcdUSB               = __constant_cpu_to_le16(0x0200),
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	/* we need to specify the class in the device descriptor
+	 * if we are using RNDIS.
+	 */
+	.bDeviceClass         = USB_CLASS_COMM,
+#else
 	.bDeviceClass         = USB_CLASS_PER_INTERFACE,
+#endif
 	.idVendor             = __constant_cpu_to_le16(VENDOR_ID),
 	.idProduct            = __constant_cpu_to_le16(PRODUCT_ID),
 	.bcdDevice            = __constant_cpu_to_le16(0xffff),
