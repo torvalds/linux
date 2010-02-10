@@ -82,8 +82,8 @@ static int __init early_fill_mp_bus_info(void)
 	struct pci_root_info *info;
 	u32 reg;
 	struct resource *res;
-	size_t start;
-	size_t end;
+	u64 start;
+	u64 end;
 	struct range range[RANGE_NUM];
 	u64 val;
 	u32 address;
@@ -173,7 +173,7 @@ static int __init early_fill_mp_bus_info(void)
 
 		info = &pci_root_info[j];
 		printk(KERN_DEBUG "node %d link %d: io port [%llx, %llx]\n",
-		       node, link, (u64)start, (u64)end);
+		       node, link, start, end);
 
 		/* kernel only handle 16 bit only */
 		if (end > 0xffff)
@@ -207,7 +207,7 @@ static int __init early_fill_mp_bus_info(void)
 	address = MSR_K8_TOP_MEM1;
 	rdmsrl(address, val);
 	end = (val & 0xffffff800000ULL);
-	printk(KERN_INFO "TOM: %016lx aka %ldM\n", end, end>>20);
+	printk(KERN_INFO "TOM: %016llx aka %lldM\n", end, end>>20);
 	if (end < (1ULL<<32))
 		subtract_range(range, RANGE_NUM, 0, end - 1);
 
@@ -246,7 +246,7 @@ static int __init early_fill_mp_bus_info(void)
 		info = &pci_root_info[j];
 
 		printk(KERN_DEBUG "node %d link %d: mmio [%llx, %llx]",
-		       node, link, (u64)start, (u64)end);
+		       node, link, start, end);
 		/*
 		 * some sick allocation would have range overlap with fam10h
 		 * mmconf range, so need to update start and end.
@@ -272,13 +272,13 @@ static int __init early_fill_mp_bus_info(void)
 				endx = fam10h_mmconf_start - 1;
 				update_res(info, start, endx, IORESOURCE_MEM, 0);
 				subtract_range(range, RANGE_NUM, start, endx);
-				printk(KERN_CONT " ==> [%llx, %llx]", (u64)start, endx);
+				printk(KERN_CONT " ==> [%llx, %llx]", start, endx);
 				start = fam10h_mmconf_end + 1;
 				changed = 1;
 			}
 			if (changed) {
 				if (start <= end) {
-					printk(KERN_CONT " %s [%llx, %llx]", endx?"and":"==>", (u64)start, (u64)end);
+					printk(KERN_CONT " %s [%llx, %llx]", endx ? "and" : "==>", start, end);
 				} else {
 					printk(KERN_CONT "%s\n", endx?"":" ==> none");
 					continue;
@@ -301,7 +301,7 @@ static int __init early_fill_mp_bus_info(void)
 		address = MSR_K8_TOP_MEM2;
 		rdmsrl(address, val);
 		end = (val & 0xffffff800000ULL);
-		printk(KERN_INFO "TOM2: %016lx aka %ldM\n", end, end>>20);
+		printk(KERN_INFO "TOM2: %016llx aka %lldM\n", end, end>>20);
 		subtract_range(range, RANGE_NUM, 1ULL<<32, end - 1);
 	}
 
