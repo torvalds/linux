@@ -562,11 +562,7 @@ struct compat_xt_entry_target {
  * current task alignment */
 
 struct compat_xt_counters {
-#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
-	u_int32_t cnt[4];
-#else
-	u_int64_t cnt[2];
-#endif
+	compat_u64 pcnt, bcnt;			/* Packet and byte counters */
 };
 
 struct compat_xt_counters_info {
