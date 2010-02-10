@@ -44,6 +44,11 @@ static void __rb_rotate_left(struct rb_node *node, struct rb_root *root)
 	else
 		root->rb_node = right;
 	rb_set_parent(node, right);
+
+	if (root->augment_cb) {
+		root->augment_cb(node);
+		root->augment_cb(right);
+	}
 }
 
 static void __rb_rotate_right(struct rb_node *node, struct rb_root *root)
@@ -67,11 +72,19 @@ static void __rb_rotate_right(struct rb_node *node, struct rb_root *root)
 	else
 		root->rb_node = left;
 	rb_set_parent(node, left);
+
+	if (root->augment_cb) {
+		root->augment_cb(node);
+		root->augment_cb(left);
+	}
 }
 
 void rb_insert_color(struct rb_node *node, struct rb_root *root)
 {
 	struct rb_node *parent, *gparent;
+
+	if (root->augment_cb)
+		root->augment_cb(node);
 
 	while ((parent = rb_parent(node)) && rb_is_red(parent))
 	{
@@ -227,12 +240,15 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 	else
 	{
 		struct rb_node *old = node, *left;
+		int old_parent_cb = 0;
+		int successor_parent_cb = 0;
 
 		node = node->rb_right;
 		while ((left = node->rb_left) != NULL)
 			node = left;
 
 		if (rb_parent(old)) {
+			old_parent_cb = 1;
 			if (rb_parent(old)->rb_left == old)
 				rb_parent(old)->rb_left = node;
 			else
@@ -247,8 +263,10 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 		if (parent == old) {
 			parent = node;
 		} else {
+			successor_parent_cb = 1;
 			if (child)
 				rb_set_parent(child, parent);
+
 			parent->rb_left = child;
 
 			node->rb_right = old->rb_right;
@@ -259,6 +277,24 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 		node->rb_left = old->rb_left;
 		rb_set_parent(old->rb_left, node);
 
+		if (root->augment_cb) {
+			/*
+			 * Here, three different nodes can have new children.
+			 * The parent of the successor node that was selected
+			 * to replace the node to be erased.
+			 * The node that is getting erased and is now replaced
+			 * by its successor.
+			 * The parent of the node getting erased-replaced.
+			 */
+			if (successor_parent_cb)
+				root->augment_cb(parent);
+
+			root->augment_cb(node);
+
+			if (old_parent_cb)
+				root->augment_cb(rb_parent(old));
+		}
+
 		goto color;
 	}
 
@@ -267,15 +303,19 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
 
 	if (child)
 		rb_set_parent(child, parent);
-	if (parent)
-	{
+
+	if (parent) {
 		if (parent->rb_left == node)
 			parent->rb_left = child;
 		else
 			parent->rb_right = child;
-	}
-	else
+
+		if (root->augment_cb)
+			root->augment_cb(parent);
+
+	} else {
 		root->rb_node = child;
+	}
 
  color:
 	if (color == RB_BLACK)
