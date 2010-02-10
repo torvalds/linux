@@ -892,10 +892,6 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 
 	mpc85xx_init_csrows(mci);
 
-#ifdef CONFIG_EDAC_DEBUG
-	edac_mc_register_mcidev_debug((struct attribute **)debug_attr);
-#endif
-
 	/* store the original error disable bits */
 	orig_ddr_err_disable =
 	    in_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DISABLE);
