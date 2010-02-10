@@ -2009,9 +2009,6 @@ static int intel_pmu_save_and_restart(struct perf_event *event)
 	x86_perf_event_update(event, hwc, idx);
 	ret = x86_perf_event_set_period(event, hwc, idx);
 
-	if (event->state == PERF_EVENT_STATE_ACTIVE)
-		intel_pmu_enable_event(hwc, idx);
-
 	return ret;
 }
 
