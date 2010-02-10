@@ -188,8 +188,8 @@ static const struct ctrl sd_ctrls[] = {
 			.id = V4L2_CID_EXPOSURE,
 			.type = V4L2_CTRL_TYPE_INTEGER,
 			.name = "Exposure",
-#define EXPOSURE_DEF  66 /*  33 ms / 30 fps (except on PAS202) */
-#define EXPOSURE_KNEE 200 /* 100 ms / 10 fps (except on PAS202) */
+#define EXPOSURE_DEF  66 /*  33 ms / 30 fps (except on PASXXX) */
+#define EXPOSURE_KNEE 200 /* 100 ms / 10 fps (except on PASXXX) */
 			.minimum = 0,
 			.maximum = 1023,
 			.step = 1,
@@ -408,6 +408,30 @@ static const __u8 initPas106[] = {
 	0x18, 0x10, 0x02, 0x02, 0x09, 0x07
 };
 /* compression 0x86 mckinit1 0x2b */
+
+/* "Known" PAS106B registers:
+  0x02 clock divider
+  0x03 Variable framerate bits 4-11
+  0x04 Var framerate bits 0-3, one must leave the 4 msb's at 0 !!
+       The variable framerate control must never be set lower then 300,
+       which sets the framerate at 90 / reg02, otherwise vsync is lost.
+  0x05 Shutter Time Line Offset, this can be used as an exposure control:
+       0 = use full frame time, 255 = no exposure at all
+       Note this may never be larger then "var-framerate control" / 2 - 2.
+       When var-framerate control is < 514, no exposure is reached at the max
+       allowed value for the framerate control value, rather then at 255.
+  0x06 Shutter Time Pixel Offset, like reg05 this influences exposure, but
+       only a very little bit, leave at 0xcd
+  0x07 offset sign bit (bit0 1 > negative offset)
+  0x08 offset
+  0x09 Blue Gain
+  0x0a Green1 Gain
+  0x0b Green2 Gain
+  0x0c Red Gain
+  0x0e Global gain
+  0x13 Write 1 to commit settings to sensor
+*/
+
 static const __u8 pas106_sensor_init[][8] = {
 	/* Pixel Clock Divider 6 */
 	{ 0xa1, 0x40, 0x02, 0x04, 0x00, 0x00, 0x00, 0x14 },
@@ -532,7 +556,7 @@ SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
 SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,
 	F_GAIN, 0, 0x21),
-SENS(initPas106, NULL, pas106_sensor_init, NULL, NULL, F_SIF, NO_EXPO|NO_FREQ,
+SENS(initPas106, NULL, pas106_sensor_init, NULL, NULL, F_GAIN|F_SIF, NO_FREQ,
 	0),
 SENS(initPas202, initPas202, pas202_sensor_init, NULL, NULL, F_GAIN,
 	NO_FREQ, 0),
@@ -628,25 +652,18 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
-	case SENSOR_PAS106: {
-		__u8 i2c1[] =
-			{0xa1, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14};
-
-		i2c1[3] = sd->brightness >> 3;
-		i2c1[2] = 0x0e;
-		if (i2c_w(gspca_dev, i2c1) < 0)
-			goto err;
-		i2c1[3] = 0x01;
-		i2c1[2] = 0x13;
-		if (i2c_w(gspca_dev, i2c1) < 0)
-			goto err;
-		break;
-	    }
+	case SENSOR_PAS106:
 	case SENSOR_PAS202: {
 		__u8 i2cpbright[] =
 			{0xb0, 0x40, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x16};
-		const __u8 i2cpdoit[] =
+		__u8 i2cpdoit[] =
 			{0xa0, 0x40, 0x11, 0x01, 0x00, 0x00, 0x00, 0x16};
+
+		/* PAS106 uses reg 7 and 8 instead of b and c */
+		if (sd->sensor == SENSOR_PAS106) {
+			i2cpbright[2] = 7;
+			i2cpdoit[2] = 0x13;
+		}
 
 		if (sd->brightness < 127) {
 			/* change reg 0x0b, signreg */
@@ -709,18 +726,28 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
+	case SENSOR_PAS106:
 	case SENSOR_PAS202: {
 		__u8 i2cpgain[] =
-			{0xa0, 0x40, 0x10, 0x00, 0x00, 0x00, 0x63, 0x15};
+			{0xa0, 0x40, 0x10, 0x00, 0x00, 0x00, 0x00, 0x15};
 		__u8 i2cpcolorgain[] =
 			{0xc0, 0x40, 0x07, 0x00, 0x00, 0x00, 0x00, 0x15};
-		const __u8 i2cpdoit[] =
-			{0xa0, 0x40, 0x11, 0x01, 0x00, 0x00, 0x63, 0x16};
+		__u8 i2cpdoit[] =
+			{0xa0, 0x40, 0x11, 0x01, 0x00, 0x00, 0x00, 0x16};
+
+		/* PAS106 uses different regs (and has split green gains) */
+		if (sd->sensor == SENSOR_PAS106) {
+			i2cpgain[2] = 0x0e;
+			i2cpcolorgain[0] = 0xd0;
+			i2cpcolorgain[2] = 0x09;
+			i2cpdoit[2] = 0x13;
+		}
 
 		i2cpgain[3] = sd->gain >> 3;
 		i2cpcolorgain[3] = sd->gain >> 4;
 		i2cpcolorgain[4] = sd->gain >> 4;
 		i2cpcolorgain[5] = sd->gain >> 4;
+		i2cpcolorgain[6] = sd->gain >> 4;
 
 		if (i2c_w(gspca_dev, i2cpgain) < 0)
 			goto err;
@@ -875,6 +902,38 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 		i2cpframerate[3] = framerate_ctrl >> 6;
 		i2cpframerate[4] = framerate_ctrl & 0x3f;
+		if (i2c_w(gspca_dev, i2cpframerate) < 0)
+			goto err;
+		if (i2c_w(gspca_dev, i2cpexpo) < 0)
+			goto err;
+		if (i2c_w(gspca_dev, i2cpdoit) < 0)
+			goto err;
+		break;
+	    }
+	case SENSOR_PAS106: {
+		__u8 i2cpframerate[] =
+			{0xb1, 0x40, 0x03, 0x00, 0x00, 0x00, 0x00, 0x14};
+		__u8 i2cpexpo[] =
+			{0xa1, 0x40, 0x05, 0x00, 0x00, 0x00, 0x00, 0x14};
+		const __u8 i2cpdoit[] =
+			{0xa1, 0x40, 0x13, 0x01, 0x00, 0x00, 0x00, 0x14};
+		int framerate_ctrl;
+
+		/* For values below 150 use partial frame exposure, above
+		   that use framerate ctrl */
+		if (sd->exposure < 150) {
+			i2cpexpo[3] = 150 - sd->exposure;
+			framerate_ctrl = 300;
+		} else {
+			/* The PAS106's exposure control goes from 0 - 4095,
+			   but anything below 300 causes vsync issues, so scale
+			   our 150-1023 to 300-4095 */
+			framerate_ctrl = (sd->exposure - 150) * 1000 / 230 +
+					 300;
+		}
+
+		i2cpframerate[3] = framerate_ctrl >> 4;
+		i2cpframerate[4] = framerate_ctrl & 0x0f;
 		if (i2c_w(gspca_dev, i2cpframerate) < 0)
 			goto err;
 		if (i2c_w(gspca_dev, i2cpexpo) < 0)
