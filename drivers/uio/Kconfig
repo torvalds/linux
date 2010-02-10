@@ -44,17 +44,6 @@ config UIO_PDRV_GENIRQ
 
 	  If you don't know what to do here, say N.
 
-config UIO_SMX
-	tristate "SMX cryptengine UIO interface"
-	help
-	  Userspace IO interface to the Cryptography engine found on the
-	  Nias Digital SMX boards.  These will be available from Q4 2008
-	  from http://www.niasdigital.com.  The userspace part of this
-	  driver will be released under the GPL at the same time as the
-	  hardware and will be able to be downloaded from the same site.
-
-	  If you compile this as a module, it will be called uio_smx.
-
 config UIO_AEC
 	tristate "AEC video timestamp device"
 	depends on PCI
