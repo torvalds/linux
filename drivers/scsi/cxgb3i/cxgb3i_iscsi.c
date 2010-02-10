@@ -591,8 +591,7 @@ static int cxgb3i_conn_bind(struct iscsi_cls_session *cls_session,
 	cxgb3i_conn_max_recv_dlength(conn);
 
 	spin_lock_bh(&conn->session->lock);
-	sprintf(conn->portal_address, NIPQUAD_FMT,
-		NIPQUAD(c3cn->daddr.sin_addr.s_addr));
+	sprintf(conn->portal_address, "%pI4", &c3cn->daddr.sin_addr.s_addr);
 	conn->portal_port = ntohs(c3cn->daddr.sin_port);
 	spin_unlock_bh(&conn->session->lock);
 
@@ -753,7 +752,7 @@ static int cxgb3i_host_get_param(struct Scsi_Host *shost,
 		__be32 addr;
 
 		addr = cxgb3i_get_private_ipv4addr(hba->ndev);
-		len = sprintf(buf, NIPQUAD_FMT, NIPQUAD(addr));
+		len = sprintf(buf, "%pI4", &addr);
 		break;
 	}
 	default:
