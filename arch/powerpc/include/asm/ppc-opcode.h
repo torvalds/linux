@@ -22,6 +22,7 @@
 #define PPC_INST_DCBZL			0x7c2007ec
 #define PPC_INST_ISEL			0x7c00001e
 #define PPC_INST_ISEL_MASK		0xfc00003e
+#define PPC_INST_LDARX			0x7c0000a8
 #define PPC_INST_LSWI			0x7c0004aa
 #define PPC_INST_LSWX			0x7c00042a
 #define PPC_INST_LWARX			0x7c000029
@@ -75,6 +76,9 @@
 					__PPC_RA(a) | __PPC_RB(b))
 #define	PPC_DCBZL(a, b)		stringify_in_c(.long PPC_INST_DCBZL | \
 					__PPC_RA(a) | __PPC_RB(b))
+#define PPC_LDARX(t, a, b, eh)	stringify_in_c(.long PPC_INST_LDARX | \
+					__PPC_RT(t) | __PPC_RA(a) | \
+					__PPC_RB(b) | __PPC_EH(eh))
 #define PPC_LWARX(t, a, b, eh)	stringify_in_c(.long PPC_INST_LWARX | \
 					__PPC_RT(t) | __PPC_RA(a) | \
 					__PPC_RB(b) | __PPC_EH(eh))

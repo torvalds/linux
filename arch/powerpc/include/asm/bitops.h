@@ -65,7 +65,7 @@ static __inline__ void fn(unsigned long mask,	\
 	unsigned long *p = (unsigned long *)_p;	\
 	__asm__ __volatile__ (			\
 	prefix					\
-"1:"	PPC_LLARX "%0,0,%3\n"			\
+"1:"	PPC_LLARX(%0,0,%3,0) "\n"		\
 	stringify_in_c(op) "%0,%0,%2\n"		\
 	PPC405_ERR77(0,%3)			\
 	PPC_STLCX "%0,0,%3\n"			\
@@ -103,31 +103,31 @@ static __inline__ void change_bit(int nr, volatile unsigned long *addr)
 
 /* Like DEFINE_BITOP(), with changes to the arguments to 'op' and the output
  * operands. */
-#define DEFINE_TESTOP(fn, op, prefix, postfix)	\
-static __inline__ unsigned long fn(		\
-		unsigned long mask,		\
-		volatile unsigned long *_p)	\
-{						\
-	unsigned long old, t;			\
-	unsigned long *p = (unsigned long *)_p;	\
-	__asm__ __volatile__ (			\
-	prefix					\
-"1:"	PPC_LLARX "%0,0,%3\n"			\
-	stringify_in_c(op) "%1,%0,%2\n"		\
-	PPC405_ERR77(0,%3)			\
-	PPC_STLCX "%1,0,%3\n"			\
-	"bne- 1b\n"				\
-	postfix					\
-	: "=&r" (old), "=&r" (t)		\
-	: "r" (mask), "r" (p)			\
-	: "cc", "memory");			\
-	return (old & mask);			\
+#define DEFINE_TESTOP(fn, op, prefix, postfix, eh)	\
+static __inline__ unsigned long fn(			\
+		unsigned long mask,			\
+		volatile unsigned long *_p)		\
+{							\
+	unsigned long old, t;				\
+	unsigned long *p = (unsigned long *)_p;		\
+	__asm__ __volatile__ (				\
+	prefix						\
+"1:"	PPC_LLARX(%0,0,%3,eh) "\n"			\
+	stringify_in_c(op) "%1,%0,%2\n"			\
+	PPC405_ERR77(0,%3)				\
+	PPC_STLCX "%1,0,%3\n"				\
+	"bne- 1b\n"					\
+	postfix						\
+	: "=&r" (old), "=&r" (t)			\
+	: "r" (mask), "r" (p)				\
+	: "cc", "memory");				\
+	return (old & mask);				\
 }
 
-DEFINE_TESTOP(test_and_set_bits, or, LWSYNC_ON_SMP, ISYNC_ON_SMP)
-DEFINE_TESTOP(test_and_set_bits_lock, or, "", ISYNC_ON_SMP)
-DEFINE_TESTOP(test_and_clear_bits, andc, LWSYNC_ON_SMP, ISYNC_ON_SMP)
-DEFINE_TESTOP(test_and_change_bits, xor, LWSYNC_ON_SMP, ISYNC_ON_SMP)
+DEFINE_TESTOP(test_and_set_bits, or, LWSYNC_ON_SMP, ISYNC_ON_SMP, 0)
+DEFINE_TESTOP(test_and_set_bits_lock, or, "", ISYNC_ON_SMP, 1)
+DEFINE_TESTOP(test_and_clear_bits, andc, LWSYNC_ON_SMP, ISYNC_ON_SMP, 0)
+DEFINE_TESTOP(test_and_change_bits, xor, LWSYNC_ON_SMP, ISYNC_ON_SMP, 0)
 
 static __inline__ int test_and_set_bit(unsigned long nr,
 				       volatile unsigned long *addr)
