@@ -366,7 +366,7 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 	char ea_value[4];
 	__u32 mode;
 
-	rc = CIFSSMBQueryEA(xid, cifs_sb->tcon, path, "SETFILEBITS",
+	rc = CIFSSMBQAllEAs(xid, cifs_sb->tcon, path, "SETFILEBITS",
 			    ea_value, 4 /* size of buf */, cifs_sb->local_nls,
 			    cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
