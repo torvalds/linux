@@ -1919,10 +1919,11 @@ static int iscsi_has_ping_timed_out(struct iscsi_conn *conn)
 static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 {
 	enum blk_eh_timer_return rc = BLK_EH_NOT_HANDLED;
-	struct iscsi_task *task = NULL;
+	struct iscsi_task *task = NULL, *running_task;
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
 	struct iscsi_conn *conn;
+	int i;
 
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
@@ -1947,8 +1948,15 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	}
 
 	task = (struct iscsi_task *)sc->SCp.ptr;
-	if (!task)
+	if (!task) {
+		/*
+		 * Raced with completion. Just reset timer, and let it
+		 * complete normally
+		 */
+		rc = BLK_EH_RESET_TIMER;
 		goto done;
+	}
+
 	/*
 	 * If we have sent (at least queued to the network layer) a pdu or
 	 * recvd one for the task since the last timeout ask for
@@ -1956,10 +1964,10 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	 * we can check if it is the task or connection when we send the
 	 * nop as a ping.
 	 */
-	if (time_after_eq(task->last_xfer, task->last_timeout)) {
+	if (time_after(task->last_xfer, task->last_timeout)) {
 		ISCSI_DBG_EH(session, "Command making progress. Asking "
 			     "scsi-ml for more time to complete. "
-			     "Last data recv at %lu. Last timeout was at "
+			     "Last data xfer at %lu. Last timeout was at "
 			     "%lu\n.", task->last_xfer, task->last_timeout);
 		task->have_checked_conn = false;
 		rc = BLK_EH_RESET_TIMER;
@@ -1975,6 +1983,43 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *sc)
 	if (iscsi_has_ping_timed_out(conn)) {
 		rc = BLK_EH_RESET_TIMER;
 		goto done;
+	}
+
+	for (i = 0; i < conn->session->cmds_max; i++) {
+		running_task = conn->session->cmds[i];
+		if (!running_task->sc || running_task == task ||
+		     running_task->state != ISCSI_TASK_RUNNING)
+			continue;
+
+		/*
+		 * Only check if cmds started before this one have made
+		 * progress, or this could never fail
+		 */
+		if (time_after(running_task->sc->jiffies_at_alloc,
+			       task->sc->jiffies_at_alloc))
+			continue;
+
+		if (time_after(running_task->last_xfer, task->last_timeout)) {
+			/*
+			 * This task has not made progress, but a task
+			 * started before us has transferred data since
+			 * we started/last-checked. We could be queueing
+			 * too many tasks or the LU is bad.
+			 *
+			 * If the device is bad the cmds ahead of us on
+			 * other devs will complete, and this loop will
+			 * eventually fail starting the scsi eh.
+			 */
+			ISCSI_DBG_EH(session, "Command has not made progress "
+				     "but commands ahead of it have. "
+				     "Asking scsi-ml for more time to "
+				     "complete. Our last xfer vs running task "
+				     "last xfer %lu/%lu. Last check %lu.\n",
+				     task->last_xfer, running_task->last_xfer,
+				     task->last_timeout);
+			rc = BLK_EH_RESET_TIMER;
+			goto done;
+		}
 	}
 
 	/* Assumes nop timeout is shorter than scsi cmd timeout */
