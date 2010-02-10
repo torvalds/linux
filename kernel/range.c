@@ -13,7 +13,7 @@
 
 int add_range(struct range *range, int az, int nr_range, u64 start, u64 end)
 {
-	if (start > end)
+	if (start >= end)
 		return nr_range;
 
 	/* Out of slots: */
@@ -33,7 +33,7 @@ int add_range_with_merge(struct range *range, int az, int nr_range,
 {
 	int i;
 
-	if (start > end)
+	if (start >= end)
 		return nr_range;
 
 	/* Try to merge it with old one: */
@@ -46,7 +46,7 @@ int add_range_with_merge(struct range *range, int az, int nr_range,
 
 		common_start = max(range[i].start, start);
 		common_end = min(range[i].end, end);
-		if (common_start > common_end + 1)
+		if (common_start > common_end)
 			continue;
 
 		final_start = min(range[i].start, start);
@@ -65,7 +65,7 @@ void subtract_range(struct range *range, int az, u64 start, u64 end)
 {
 	int i, j;
 
-	if (start > end)
+	if (start >= end)
 		return;
 
 	for (j = 0; j < az; j++) {
@@ -79,15 +79,15 @@ void subtract_range(struct range *range, int az, u64 start, u64 end)
 		}
 
 		if (start <= range[j].start && end < range[j].end &&
-		    range[j].start < end + 1) {
-			range[j].start = end + 1;
+		    range[j].start < end) {
+			range[j].start = end;
 			continue;
 		}
 
 
 		if (start > range[j].start && end >= range[j].end &&
-		    range[j].end > start - 1) {
-			range[j].end = start - 1;
+		    range[j].end > start) {
+			range[j].end = start;
 			continue;
 		}
 
@@ -99,11 +99,11 @@ void subtract_range(struct range *range, int az, u64 start, u64 end)
 			}
 			if (i < az) {
 				range[i].end = range[j].end;
-				range[i].start = end + 1;
+				range[i].start = end;
 			} else {
 				printk(KERN_ERR "run of slot in ranges\n");
 			}
-			range[j].end = start - 1;
+			range[j].end = start;
 			continue;
 		}
 	}

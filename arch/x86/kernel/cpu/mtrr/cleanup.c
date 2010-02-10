@@ -78,13 +78,13 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		base = range_state[i].base_pfn;
 		size = range_state[i].size_pfn;
 		nr_range = add_range_with_merge(range, RANGE_NUM, nr_range,
-						base, base + size - 1);
+						base, base + size);
 	}
 	if (debug_print) {
 		printk(KERN_DEBUG "After WB checking\n");
 		for (i = 0; i < nr_range; i++)
 			printk(KERN_DEBUG "MTRR MAP PFN: %016llx - %016llx\n",
-				 range[i].start, range[i].end + 1);
+				 range[i].start, range[i].end);
 	}
 
 	/* Take out UC ranges: */
@@ -106,11 +106,11 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 			size -= (1<<(20-PAGE_SHIFT)) - base;
 			base = 1<<(20-PAGE_SHIFT);
 		}
-		subtract_range(range, RANGE_NUM, base, base + size - 1);
+		subtract_range(range, RANGE_NUM, base, base + size);
 	}
 	if (extra_remove_size)
 		subtract_range(range, RANGE_NUM, extra_remove_base,
-				 extra_remove_base + extra_remove_size  - 1);
+				 extra_remove_base + extra_remove_size);
 
 	if  (debug_print) {
 		printk(KERN_DEBUG "After UC checking\n");
@@ -118,7 +118,7 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 			if (!range[i].end)
 				continue;
 			printk(KERN_DEBUG "MTRR MAP PFN: %016llx - %016llx\n",
-				 range[i].start, range[i].end + 1);
+				 range[i].start, range[i].end);
 		}
 	}
 
@@ -128,7 +128,7 @@ x86_get_mtrr_mem_range(struct range *range, int nr_range,
 		printk(KERN_DEBUG "After sorting\n");
 		for (i = 0; i < nr_range; i++)
 			printk(KERN_DEBUG "MTRR MAP PFN: %016llx - %016llx\n",
-				 range[i].start, range[i].end + 1);
+				 range[i].start, range[i].end);
 	}
 
 	return nr_range;
@@ -142,7 +142,7 @@ static unsigned long __init sum_ranges(struct range *range, int nr_range)
 	int i;
 
 	for (i = 0; i < nr_range; i++)
-		sum += range[i].end + 1 - range[i].start;
+		sum += range[i].end - range[i].start;
 
 	return sum;
 }
@@ -489,7 +489,7 @@ x86_setup_var_mtrrs(struct range *range, int nr_range,
 	/* Write the range: */
 	for (i = 0; i < nr_range; i++) {
 		set_var_mtrr_range(&var_state, range[i].start,
-				   range[i].end - range[i].start + 1);
+				   range[i].end - range[i].start);
 	}
 
 	/* Write the last range: */
@@ -720,7 +720,7 @@ int __init mtrr_cleanup(unsigned address_bits)
 	 * and fixed mtrrs should take effect before var mtrr for it:
 	 */
 	nr_range = add_range_with_merge(range, RANGE_NUM, nr_range, 0,
-					(1ULL<<(20 - PAGE_SHIFT)) - 1);
+					1ULL<<(20 - PAGE_SHIFT));
 	/* Sort the ranges: */
 	sort_range(range, nr_range);
 
@@ -939,9 +939,9 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	nr_range = 0;
 	if (mtrr_tom2) {
 		range[nr_range].start = (1ULL<<(32 - PAGE_SHIFT));
-		range[nr_range].end = (mtrr_tom2 >> PAGE_SHIFT) - 1;
-		if (highest_pfn < range[nr_range].end + 1)
-			highest_pfn = range[nr_range].end + 1;
+		range[nr_range].end = mtrr_tom2 >> PAGE_SHIFT;
+		if (highest_pfn < range[nr_range].end)
+			highest_pfn = range[nr_range].end;
 		nr_range++;
 	}
 	nr_range = x86_get_mtrr_mem_range(range, nr_range, 0, 0);
@@ -953,15 +953,15 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 
 	/* Check the holes: */
 	for (i = 0; i < nr_range - 1; i++) {
-		if (range[i].end + 1 < range[i+1].start)
-			total_trim_size += real_trim_memory(range[i].end + 1,
+		if (range[i].end < range[i+1].start)
+			total_trim_size += real_trim_memory(range[i].end,
 							    range[i+1].start);
 	}
 
 	/* Check the top: */
 	i = nr_range - 1;
-	if (range[i].end + 1 < end_pfn)
-		total_trim_size += real_trim_memory(range[i].end + 1,
+	if (range[i].end < end_pfn)
+		total_trim_size += real_trim_memory(range[i].end,
 							 end_pfn);
 
 	if (total_trim_size) {

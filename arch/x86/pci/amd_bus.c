@@ -145,7 +145,7 @@ static int __init early_fill_mp_bus_info(void)
 	def_link = (reg >> 8) & 0x03;
 
 	memset(range, 0, sizeof(range));
-	range[0].end = 0xffff;
+	add_range(range, RANGE_NUM, 0, 0, 0xffff + 1);
 	/* io port resource */
 	for (i = 0; i < 4; i++) {
 		reg = read_pci_config(bus, slot, 1, 0xc0 + (i << 3));
@@ -175,7 +175,7 @@ static int __init early_fill_mp_bus_info(void)
 		if (end > 0xffff)
 			end = 0xffff;
 		update_res(info, start, end, IORESOURCE_IO, 1);
-		subtract_range(range, RANGE_NUM, start, end);
+		subtract_range(range, RANGE_NUM, start, end + 1);
 	}
 	/* add left over io port range to def node/link, [0, 0xffff] */
 	/* find the position */
@@ -190,14 +190,16 @@ static int __init early_fill_mp_bus_info(void)
 			if (!range[i].end)
 				continue;
 
-			update_res(info, range[i].start, range[i].end,
+			update_res(info, range[i].start, range[i].end - 1,
 				   IORESOURCE_IO, 1);
 		}
 	}
 
 	memset(range, 0, sizeof(range));
 	/* 0xfd00000000-0xffffffffff for HT */
-	range[0].end = cap_resource((0xfdULL<<32) - 1);
+	end = cap_resource((0xfdULL<<32) - 1);
+	end++;
+	add_range(range, RANGE_NUM, 0, 0, end);
 
 	/* need to take out [0, TOM) for RAM*/
 	address = MSR_K8_TOP_MEM1;
@@ -205,14 +207,15 @@ static int __init early_fill_mp_bus_info(void)
 	end = (val & 0xffffff800000ULL);
 	printk(KERN_INFO "TOM: %016llx aka %lldM\n", end, end>>20);
 	if (end < (1ULL<<32))
-		subtract_range(range, RANGE_NUM, 0, end - 1);
+		subtract_range(range, RANGE_NUM, 0, end);
 
 	/* get mmconfig */
 	get_pci_mmcfg_amd_fam10h_range();
 	/* need to take out mmconf range */
 	if (fam10h_mmconf_end) {
 		printk(KERN_DEBUG "Fam 10h mmconf [%llx, %llx]\n", fam10h_mmconf_start, fam10h_mmconf_end);
-		subtract_range(range, RANGE_NUM, fam10h_mmconf_start, fam10h_mmconf_end);
+		subtract_range(range, RANGE_NUM, fam10h_mmconf_start,
+				 fam10h_mmconf_end + 1);
 	}
 
 	/* mmio resource */
@@ -267,7 +270,8 @@ static int __init early_fill_mp_bus_info(void)
 				/* we got a hole */
 				endx = fam10h_mmconf_start - 1;
 				update_res(info, start, endx, IORESOURCE_MEM, 0);
-				subtract_range(range, RANGE_NUM, start, endx);
+				subtract_range(range, RANGE_NUM, start,
+						 endx + 1);
 				printk(KERN_CONT " ==> [%llx, %llx]", start, endx);
 				start = fam10h_mmconf_end + 1;
 				changed = 1;
@@ -284,7 +288,7 @@ static int __init early_fill_mp_bus_info(void)
 
 		update_res(info, cap_resource(start), cap_resource(end),
 				 IORESOURCE_MEM, 1);
-		subtract_range(range, RANGE_NUM, start, end);
+		subtract_range(range, RANGE_NUM, start, end + 1);
 		printk(KERN_CONT "\n");
 	}
 
@@ -299,7 +303,7 @@ static int __init early_fill_mp_bus_info(void)
 		rdmsrl(address, val);
 		end = (val & 0xffffff800000ULL);
 		printk(KERN_INFO "TOM2: %016llx aka %lldM\n", end, end>>20);
-		subtract_range(range, RANGE_NUM, 1ULL<<32, end - 1);
+		subtract_range(range, RANGE_NUM, 1ULL<<32, end);
 	}
 
 	/*
@@ -319,7 +323,7 @@ static int __init early_fill_mp_bus_info(void)
 				continue;
 
 			update_res(info, cap_resource(range[i].start),
-				   cap_resource(range[i].end),
+				   cap_resource(range[i].end - 1),
 				   IORESOURCE_MEM, 1);
 		}
 	}
