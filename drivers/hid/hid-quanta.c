@@ -16,7 +16,6 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 
-MODULE_VERSION("1.00");
 MODULE_AUTHOR("Stephane Chatty <chatty@enac.fr>");
 MODULE_DESCRIPTION("Quanta dual-touch panel");
 MODULE_LICENSE("GPL");
