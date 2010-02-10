@@ -5282,9 +5282,10 @@ CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 	int rc = 0;
 	int bytes_returned;
 	int name_len;
+	struct fealist *ea_response_data;
 	struct fea *temp_fea;
 	char *temp_ptr;
-	__u16 params, byte_count;
+	__u16 params, byte_count, data_offset;
 
 	cFYI(1, ("In Query All EAs path %s", searchName));
 QAllEAsRetry:
@@ -5334,85 +5335,83 @@ QAllEAsRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	if (rc) {
 		cFYI(1, ("Send error in QueryAllEAs = %d", rc));
-	} else {		/* decode response */
-		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-
-		/* BB also check enough total bytes returned */
-		/* BB we need to improve the validity checking
-		of these trans2 responses */
-		if (rc || (pSMBr->ByteCount < 4))
-			rc = -EIO;	/* bad smb */
-	   /* else if (pFindData){
-			memcpy((char *) pFindData,
-			       (char *) &pSMBr->hdr.Protocol +
-			       data_offset, kl);
-		}*/ else {
-			/* check that length of list is not more than bcc */
-			/* check that each entry does not go beyond length
-			   of list */
-			/* check that each element of each entry does not
-			   go beyond end of list */
-			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
-			struct fealist *ea_response_data;
-			rc = 0;
-			/* validate_trans2_offsets() */
-			/* BB check if start of smb + data_offset > &bcc+ bcc */
-			ea_response_data = (struct fealist *)
-				(((char *) &pSMBr->hdr.Protocol) +
-				data_offset);
-			name_len = le32_to_cpu(ea_response_data->list_len);
-			cFYI(1, ("ea length %d", name_len));
-			if (name_len <= 8) {
-			/* returned EA size zeroed at top of function */
-				cFYI(1, ("empty EA list returned from server"));
-			} else {
-				/* account for ea list len */
-				name_len -= 4;
-				temp_fea = ea_response_data->list;
-				temp_ptr = (char *)temp_fea;
-				while (name_len > 0) {
-					__u16 value_len;
-					name_len -= 4;
-					temp_ptr += 4;
-					rc += temp_fea->name_len;
-				/* account for prefix user. and trailing null */
-					rc = rc + 5 + 1;
-					if (rc < (int)buf_size) {
-						memcpy(EAData, "user.", 5);
-						EAData += 5;
-						memcpy(EAData, temp_ptr,
-						       temp_fea->name_len);
-						EAData += temp_fea->name_len;
-						/* null terminate name */
-						*EAData = 0;
-						EAData = EAData + 1;
-					} else if (buf_size == 0) {
-						/* skip copy - calc size only */
-					} else {
-						/* stop before overrun buffer */
-						rc = -ERANGE;
-						break;
-					}
-					name_len -= temp_fea->name_len;
-					temp_ptr += temp_fea->name_len;
-					/* account for trailing null */
-					name_len--;
-					temp_ptr++;
-					value_len =
-					      le16_to_cpu(temp_fea->value_len);
-					name_len -= value_len;
-					temp_ptr += value_len;
-					/* BB check that temp_ptr is still
-					      within the SMB BB*/
-
-					/* no trailing null to account for
-					   in value len */
-					/* go on to next EA */
-					temp_fea = (struct fea *)temp_ptr;
-				}
-			}
-		}
+		goto QAllEAsOut;
 	}
+
+
+	/* BB also check enough total bytes returned */
+	/* BB we need to improve the validity checking
+	of these trans2 responses */
+
+	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+	if (rc || (pSMBr->ByteCount < 4)) {
+		rc = -EIO;	/* bad smb */
+		goto QAllEAsOut;
+	}
+
+	/* check that length of list is not more than bcc */
+	/* check that each entry does not go beyond length
+	   of list */
+	/* check that each element of each entry does not
+	   go beyond end of list */
+	/* validate_trans2_offsets() */
+	/* BB check if start of smb + data_offset > &bcc+ bcc */
+
+	data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
+	ea_response_data = (struct fealist *)
+				(((char *) &pSMBr->hdr.Protocol) + data_offset);
+
+	name_len = le32_to_cpu(ea_response_data->list_len);
+	cFYI(1, ("ea length %d", name_len));
+	if (name_len <= 8) {
+		cFYI(1, ("empty EA list returned from server"));
+		goto QAllEAsOut;
+	}
+
+	/* account for ea list len */
+	name_len -= 4;
+	temp_fea = ea_response_data->list;
+	temp_ptr = (char *)temp_fea;
+	while (name_len > 0) {
+		__u16 value_len;
+		name_len -= 4;
+		temp_ptr += 4;
+		rc += temp_fea->name_len;
+	/* account for prefix user. and trailing null */
+		rc = rc + 5 + 1;
+		if (rc < (int) buf_size) {
+			memcpy(EAData, "user.", 5);
+			EAData += 5;
+			memcpy(EAData, temp_ptr, temp_fea->name_len);
+			EAData += temp_fea->name_len;
+			/* null terminate name */
+			*EAData = 0;
+			EAData = EAData + 1;
+		} else if (buf_size == 0) {
+			/* skip copy - calc size only */
+		} else {
+			/* stop before overrun buffer */
+			rc = -ERANGE;
+			break;
+		}
+		name_len -= temp_fea->name_len;
+		temp_ptr += temp_fea->name_len;
+		/* account for trailing null */
+		name_len--;
+		temp_ptr++;
+		value_len = le16_to_cpu(temp_fea->value_len);
+		name_len -= value_len;
+		temp_ptr += value_len;
+		/* BB check that temp_ptr is still
+		      within the SMB BB*/
+
+		/* no trailing null to account for
+		   in value len */
+		/* go on to next EA */
+		temp_fea = (struct fea *)temp_ptr;
+	}
+
+QAllEAsOut:
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
 		goto QAllEAsRetry;
