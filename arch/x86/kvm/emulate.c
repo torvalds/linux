@@ -899,6 +899,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
+	case X86EMUL_MODE_VM86:
 	case X86EMUL_MODE_PROT16:
 		def_op_bytes = def_ad_bytes = 2;
 		break;
@@ -1525,7 +1526,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 
 	/* syscall is not available in real mode */
 	if (c->lock_prefix || ctxt->mode == X86EMUL_MODE_REAL
-	    || !is_protmode(ctxt->vcpu))
+	    || ctxt->mode == X86EMUL_MODE_VM86)
 		return -1;
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
@@ -1577,8 +1578,8 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	if (c->lock_prefix)
 		return -1;
 
-	/* inject #GP if in real mode or paging is disabled */
-	if (ctxt->mode == X86EMUL_MODE_REAL || !is_protmode(ctxt->vcpu)) {
+	/* inject #GP if in real mode */
+	if (ctxt->mode == X86EMUL_MODE_REAL) {
 		kvm_inject_gp(ctxt->vcpu, 0);
 		return -1;
 	}
@@ -1642,8 +1643,9 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	if (c->lock_prefix)
 		return -1;
 
-	/* inject #GP if in real mode or paging is disabled */
-	if (ctxt->mode == X86EMUL_MODE_REAL || !is_protmode(ctxt->vcpu)) {
+	/* inject #GP if in real mode or Virtual 8086 mode */
+	if (ctxt->mode == X86EMUL_MODE_REAL ||
+	    ctxt->mode == X86EMUL_MODE_VM86) {
 		kvm_inject_gp(ctxt->vcpu, 0);
 		return -1;
 	}
