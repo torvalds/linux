@@ -211,8 +211,8 @@ static inline void pud_clear(pud_t *pudp)
 #define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
 #else
-#define pte_pfn(x)		((unsigned long)((x).pte >> PAGE_SHIFT))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+#define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
+#define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #endif
 
 #define __pgd_offset(address)	pgd_index(address)

@@ -143,7 +143,7 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 #if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_CPU_MIPS32)
 	entrylo = pte.pte_high;
 #else
-	entrylo = pte_val(pte) >> 6;
+	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
 
 	ENTER_CRITICAL(flags);

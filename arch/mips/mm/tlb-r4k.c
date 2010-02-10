@@ -303,7 +303,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		unsigned long lo;
 		write_c0_pagemask(PM_HUGE_MASK);
 		ptep = (pte_t *)pmdp;
-		lo = pte_val(*ptep) >> 6;
+		lo = pte_to_entrylo(pte_val(*ptep));
 		write_c0_entrylo0(lo);
 		write_c0_entrylo1(lo + (HPAGE_SIZE >> 7));
 
@@ -323,8 +323,8 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 		ptep++;
 		write_c0_entrylo1(ptep->pte_high);
 #else
-		write_c0_entrylo0(pte_val(*ptep++) >> 6);
-		write_c0_entrylo1(pte_val(*ptep) >> 6);
+		write_c0_entrylo0(pte_to_entrylo(pte_val(*ptep++)));
+		write_c0_entrylo1(pte_to_entrylo(pte_val(*ptep)));
 #endif
 		mtc0_tlbw_hazard();
 		if (idx < 0)
@@ -437,6 +437,19 @@ void __cpuinit tlb_init(void)
 	    current_cpu_type() == CPU_R12000 ||
 	    current_cpu_type() == CPU_R14000)
 		write_c0_framemask(0);
+
+	if (kernel_uses_smartmips_rixi) {
+		/*
+		 * Enable the no read, no exec bits, and enable large virtual
+		 * address.
+		 */
+		u32 pg = PG_RIE | PG_XIE;
+#ifdef CONFIG_64BIT
+		pg |= PG_ELPA;
+#endif
+		write_c0_pagegrain(pg);
+	}
+
 	temp_tlb_entry = current_cpu_data.tlbsize - 1;
 
         /* From this point on the ARC firmware is dead.  */
