@@ -1072,6 +1072,9 @@ struct iwl_priv {
 	/* storing the jiffies when the plcp error rate is received */
 	unsigned long plcp_jiffies;
 
+	/* reporting the number of tids has AGG on. 0 means no AGGREGATION */
+	u8 agg_tids_count;
+
 	/* force reset */
 	unsigned long last_force_reset_jiffies;
 
