@@ -5,6 +5,9 @@
 # Common support
 obj-y := irq.o clock.o gpio.o time.o devices.o cpu.o system.o
 
+# MX51 uses the TZIC interrupt controller, older platforms use AVIC (irq.o)
+obj-$(CONFIG_MXC_TZIC) += tzic.o
+
 obj-$(CONFIG_ARCH_MX1) += iomux-mx1-mx2.o dma-mx1-mx2.o
 obj-$(CONFIG_ARCH_MX2) += iomux-mx1-mx2.o dma-mx1-mx2.o
 CFLAGS_iomux-mx1-mx2.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
