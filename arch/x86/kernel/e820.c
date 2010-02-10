@@ -723,6 +723,59 @@ core_initcall(e820_mark_nvs_memory);
 #endif
 
 /*
+ * Find a free area with specified alignment in a specific range.
+ */
+u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		u64 addr;
+		u64 ei_start, ei_last;
+
+		if (ei->type != E820_RAM)
+			continue;
+
+		ei_last = ei->addr + ei->size;
+		ei_start = ei->addr;
+		addr = find_early_area(ei_start, ei_last, start, end,
+					 size, align);
+
+		if (addr != -1ULL)
+			return addr;
+	}
+	return -1ULL;
+}
+
+/*
+ * Find next free range after *start
+ */
+u64 __init find_e820_area_size(u64 start, u64 *sizep, u64 align)
+{
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		struct e820entry *ei = &e820.map[i];
+		u64 addr;
+		u64 ei_start, ei_last;
+
+		if (ei->type != E820_RAM)
+			continue;
+
+		ei_last = ei->addr + ei->size;
+		ei_start = ei->addr;
+		addr = find_early_area_size(ei_start, ei_last, start,
+					 sizep, align);
+
+		if (addr != -1ULL)
+			return addr;
+	}
+
+	return -1ULL;
+}
+
+/*
  * pre allocated 4k and reserved it in e820
  */
 u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)

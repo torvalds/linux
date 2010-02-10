@@ -109,6 +109,8 @@ static inline void early_memtest(unsigned long start, unsigned long end)
 
 extern unsigned long end_user_pfn;
 
+extern u64 find_e820_area(u64 start, u64 end, u64 size, u64 align);
+extern u64 find_e820_area_size(u64 start, u64 *sizep, u64 align);
 extern u64 early_reserve_e820(u64 startt, u64 sizet, u64 align);
 #include <asm/early_res.h>
 
