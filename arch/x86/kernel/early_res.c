@@ -180,9 +180,9 @@ void __init reserve_early_overlap_ok(u64 start, u64 end, char *name)
 	__reserve_early(start, end, name, 1);
 }
 
-static void __init __check_and_double_early_res(u64 start)
+static void __init __check_and_double_early_res(u64 ex_start, u64 ex_end)
 {
-	u64 end, size, mem;
+	u64 start, end, size, mem;
 	struct early_res *new;
 
 	/* do we have enough slots left ? */
@@ -190,10 +190,23 @@ static void __init __check_and_double_early_res(u64 start)
 		return;
 
 	/* double it */
-	end = max_pfn_mapped << PAGE_SHIFT;
+	mem = -1ULL;
 	size = sizeof(struct early_res) * max_early_res * 2;
-	mem = find_e820_area(start, end, size, sizeof(struct early_res));
-
+	if (early_res == early_res_x)
+		start = 0;
+	else
+		start = early_res[0].end;
+	end = ex_start;
+	if (start + size < end)
+		mem = find_e820_area(start, end, size,
+					 sizeof(struct early_res));
+	if (mem == -1ULL) {
+		start = ex_end;
+		end = max_pfn_mapped << PAGE_SHIFT;
+		if (start + size < end)
+			mem = find_e820_area(start, end, size,
+						 sizeof(struct early_res));
+	}
 	if (mem == -1ULL)
 		panic("can not find more space for early_res array");
 
@@ -235,7 +248,7 @@ void __init reserve_early(u64 start, u64 end, char *name)
 	if (start >= end)
 		return;
 
-	__check_and_double_early_res(end);
+	__check_and_double_early_res(start, end);
 
 	drop_overlaps_that_are_ok(start, end);
 	__reserve_early(start, end, name, 0);
@@ -248,7 +261,7 @@ void __init reserve_early_without_check(u64 start, u64 end, char *name)
 	if (start >= end)
 		return;
 
-	__check_and_double_early_res(end);
+	__check_and_double_early_res(start, end);
 
 	r = &early_res[early_res_count];
 
