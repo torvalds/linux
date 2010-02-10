@@ -835,6 +835,8 @@ verify_sock_status:
 			len = -EFAULT;
 			break;
 		}
+		if (flags & MSG_TRUNC)
+			len = skb->len;
 	found_fin_ok:
 		if (!(flags & MSG_PEEK))
 			sk_eat_skb(sk, skb, 0);
