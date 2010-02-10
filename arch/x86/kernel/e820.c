@@ -1429,6 +1429,8 @@ void __init e820_reserve_resources_late(void)
 			end = MAX_RESOURCE_SIZE;
 		if (start >= end)
 			continue;
+		printk(KERN_DEBUG "reserve RAM buffer: %016llx - %016llx ",
+			       start, end);
 		reserve_region_with_split(&iomem_resource, start, end,
 					  "RAM buffer");
 	}
