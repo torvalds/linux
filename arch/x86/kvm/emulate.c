@@ -76,6 +76,7 @@
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define GroupMask   0xff        /* Group number stored in bits 0:7 */
 /* Misc flags */
+#define Lock        (1<<26) /* lock prefix is allowed for the instruction */
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
 /* Source 2 operand type */
@@ -94,35 +95,35 @@ enum {
 
 static u32 opcode_table[256] = {
 	/* 0x00 - 0x07 */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
 	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
 	/* 0x08 - 0x0F */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
 	ImplicitOps | Stack | No64, 0,
 	/* 0x10 - 0x17 */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
 	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
 	/* 0x18 - 0x1F */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
 	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
 	/* 0x20 - 0x27 */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	DstAcc | SrcImmByte, DstAcc | SrcImm, 0, 0,
 	/* 0x28 - 0x2F */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	0, 0, 0, 0,
 	/* 0x30 - 0x37 */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	0, 0, 0, 0,
 	/* 0x38 - 0x3F */
@@ -158,7 +159,7 @@ static u32 opcode_table[256] = {
 	Group | Group1_80, Group | Group1_81,
 	Group | Group1_82, Group | Group1_83,
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
@@ -263,17 +264,18 @@ static u32 twobyte_table[256] = {
 	DstMem | SrcReg | Src2CL | ModRM, 0, 0,
 	/* 0xA8 - 0xAF */
 	ImplicitOps | Stack, ImplicitOps | Stack,
-	0, DstMem | SrcReg | ModRM | BitOp,
+	0, DstMem | SrcReg | ModRM | BitOp | Lock,
 	DstMem | SrcReg | Src2ImmByte | ModRM,
 	DstMem | SrcReg | Src2CL | ModRM,
 	ModRM, 0,
 	/* 0xB0 - 0xB7 */
-	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM, 0,
-	    DstMem | SrcReg | ModRM | BitOp,
+	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
+	0, DstMem | SrcReg | ModRM | BitOp | Lock,
 	0, 0, ByteOp | DstReg | SrcMem | ModRM | Mov,
 	    DstReg | SrcMem16 | ModRM | Mov,
 	/* 0xB8 - 0xBF */
-	0, 0, Group | Group8, DstMem | SrcReg | ModRM | BitOp,
+	0, 0,
+	Group | Group8, DstMem | SrcReg | ModRM | BitOp | Lock,
 	0, 0, ByteOp | DstReg | SrcMem | ModRM | Mov,
 	    DstReg | SrcMem16 | ModRM | Mov,
 	/* 0xC0 - 0xCF */
@@ -290,25 +292,41 @@ static u32 twobyte_table[256] = {
 
 static u32 group_table[] = {
 	[Group1_80*8] =
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM,
 	[Group1_81*8] =
-	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
-	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
-	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
-	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM | Lock,
+	DstMem | SrcImm | ModRM,
 	[Group1_82*8] =
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
-	ByteOp | DstMem | SrcImm | ModRM, ByteOp | DstMem | SrcImm | ModRM,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM | Lock,
+	ByteOp | DstMem | SrcImm | ModRM,
 	[Group1_83*8] =
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM,
 	[Group1A*8] =
 	DstMem | SrcNone | ModRM | Mov | Stack, 0, 0, 0, 0, 0, 0, 0,
 	[Group3_Byte*8] =
@@ -332,10 +350,10 @@ static u32 group_table[] = {
 	SrcMem16 | ModRM | Mov | Priv, SrcMem | ModRM | ByteOp | Priv,
 	[Group8*8] =
 	0, 0, 0, 0,
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
-	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
+	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM | Lock,
+	DstMem | SrcImmByte | ModRM | Lock, DstMem | SrcImmByte | ModRM | Lock,
 	[Group9*8] =
-	0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0,
+	0, ImplicitOps | ModRM | Lock, 0, 0, 0, 0, 0, 0,
 };
 
 static u32 group2_table[] = {
@@ -1580,8 +1598,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 	u64 msr_data;
 
 	/* syscall is not available in real mode */
-	if (c->lock_prefix || ctxt->mode == X86EMUL_MODE_REAL
-	    || ctxt->mode == X86EMUL_MODE_VM86)
+	if (ctxt->mode == X86EMUL_MODE_REAL || ctxt->mode == X86EMUL_MODE_VM86)
 		return -1;
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
@@ -1628,10 +1645,6 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	struct decode_cache *c = &ctxt->decode;
 	struct kvm_segment cs, ss;
 	u64 msr_data;
-
-	/* inject #UD if LOCK prefix is used */
-	if (c->lock_prefix)
-		return -1;
 
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL) {
@@ -1693,10 +1706,6 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	struct kvm_segment cs, ss;
 	u64 msr_data;
 	int usermode;
-
-	/* inject #UD if LOCK prefix is used */
-	if (c->lock_prefix)
-		return -1;
 
 	/* inject #GP if in real mode or Virtual 8086 mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
@@ -1818,6 +1827,12 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 	saved_eip = c->eip;
+
+	/* LOCK prefix is allowed only with some instructions */
+	if (c->lock_prefix && !(c->d & Lock)) {
+		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		goto done;
+	}
 
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && kvm_x86_ops->get_cpl(ctxt->vcpu)) {
