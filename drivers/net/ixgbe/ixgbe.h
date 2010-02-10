@@ -453,6 +453,10 @@ extern s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc);
 extern s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
                                                  struct ixgbe_atr_input *input,
                                                  u8 queue);
+extern s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
+                                      struct ixgbe_atr_input *input,
+                                      struct ixgbe_atr_input_masks *input_masks,
+                                      u16 soft_id, u8 queue);
 extern s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input,
                                        u16 vlan_id);
 extern s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input,

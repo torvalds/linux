@@ -2129,6 +2129,15 @@ struct ixgbe_atr_input {
 	u8 byte_stream[42];
 };
 
+struct ixgbe_atr_input_masks {
+	u32 src_ip_mask;
+	u32 dst_ip_mask;
+	u16 src_port_mask;
+	u16 dst_port_mask;
+	u16 vlan_id_mask;
+	u16 data_mask;
+};
+
 enum ixgbe_eeprom_type {
 	ixgbe_eeprom_uninitialized = 0,
 	ixgbe_eeprom_spi,

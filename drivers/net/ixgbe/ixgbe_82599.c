@@ -1439,6 +1439,9 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 pballoc)
 	/* Send interrupt when 64 filters are left */
 	fdirctrl |= 4 << IXGBE_FDIRCTRL_FULL_THRESH_SHIFT;
 
+	/* Initialize the drop queue to Rx queue 127 */
+	fdirctrl |= (127 << IXGBE_FDIRCTRL_DROP_Q_SHIFT);
+
 	switch (pballoc) {
 	case IXGBE_FDIR_PBALLOC_64K:
 		/* 2k - 1 perfect filters */
@@ -1628,6 +1631,7 @@ static u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *atr_input,
  *  ixgbe_atr_set_vlan_id_82599 - Sets the VLAN id in the ATR input stream
  *  @input: input stream to modify
  *  @vlan: the VLAN id to load
+ *  @vlan_mask: bitwise mask for the VLAN
  **/
 s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input, u16 vlan)
 {
@@ -1641,6 +1645,7 @@ s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input, u16 vlan)
  *  ixgbe_atr_set_src_ipv4_82599 - Sets the source IPv4 address
  *  @input: input stream to modify
  *  @src_addr: the IP address to load
+ *  @src_addr_mask: bitwise mask for the source IP address
  **/
 s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input, u32 src_addr)
 {
@@ -1658,6 +1663,7 @@ s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input, u32 src_addr)
  *  ixgbe_atr_set_dst_ipv4_82599 - Sets the destination IPv4 address
  *  @input: input stream to modify
  *  @dst_addr: the IP address to load
+ *  @dst_addr_mask: bitwise mask for the destination IP address
  **/
 s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr)
 {
@@ -1680,8 +1686,8 @@ s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr)
  *  @src_addr_4: the fourth 4 bytes of the IP address to load
  **/
 s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 src_addr_1, u32 src_addr_2,
-                                        u32 src_addr_3, u32 src_addr_4)
+                                 u32 src_addr_1, u32 src_addr_2,
+                                 u32 src_addr_3, u32 src_addr_4)
 {
 	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET] = src_addr_4 & 0xff;
 	input->byte_stream[IXGBE_ATR_SRC_IPV6_OFFSET + 1] =
@@ -1723,8 +1729,8 @@ s32 ixgbe_atr_set_src_ipv6_82599(struct ixgbe_atr_input *input,
  *  @dst_addr_4: the fourth 4 bytes of the IP address to load
  **/
 s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
-                                        u32 dst_addr_1, u32 dst_addr_2,
-                                        u32 dst_addr_3, u32 dst_addr_4)
+                                 u32 dst_addr_1, u32 dst_addr_2,
+                                 u32 dst_addr_3, u32 dst_addr_4)
 {
 	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET] = dst_addr_4 & 0xff;
 	input->byte_stream[IXGBE_ATR_DST_IPV6_OFFSET + 1] =
@@ -1761,6 +1767,7 @@ s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
  *  ixgbe_atr_set_src_port_82599 - Sets the source port
  *  @input: input stream to modify
  *  @src_port: the source port to load
+ *  @src_port_mask: bitwise mask for the source port
  **/
 s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input, u16 src_port)
 {
@@ -1774,6 +1781,7 @@ s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input, u16 src_port)
  *  ixgbe_atr_set_dst_port_82599 - Sets the destination port
  *  @input: input stream to modify
  *  @dst_port: the destination port to load
+ *  @dst_port_mask: bitwise mask for the destination port
  **/
 s32 ixgbe_atr_set_dst_port_82599(struct ixgbe_atr_input *input, u16 dst_port)
 {
@@ -1802,7 +1810,7 @@ s32 ixgbe_atr_set_flex_byte_82599(struct ixgbe_atr_input *input, u16 flex_byte)
  *  @vm_pool: the Virtual Machine pool to load
  **/
 s32 ixgbe_atr_set_vm_pool_82599(struct ixgbe_atr_input *input,
-                                       u8 vm_pool)
+                                u8 vm_pool)
 {
 	input->byte_stream[IXGBE_ATR_VM_POOL_OFFSET] = vm_pool;
 
@@ -1826,8 +1834,7 @@ s32 ixgbe_atr_set_l4type_82599(struct ixgbe_atr_input *input, u8 l4type)
  *  @input: input stream to search
  *  @vlan: the VLAN id to load
  **/
-static s32 ixgbe_atr_get_vlan_id_82599(struct ixgbe_atr_input *input,
-                                       u16 *vlan)
+static s32 ixgbe_atr_get_vlan_id_82599(struct ixgbe_atr_input *input, u16 *vlan)
 {
 	*vlan = input->byte_stream[IXGBE_ATR_VLAN_OFFSET];
 	*vlan |= input->byte_stream[IXGBE_ATR_VLAN_OFFSET + 1] << 8;
@@ -2083,23 +2090,26 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
  *  ixgbe_fdir_add_perfect_filter_82599 - Adds a perfect filter
  *  @hw: pointer to hardware structure
  *  @input: input bitstream
+ *  @input_masks: bitwise masks for relevant fields
+ *  @soft_id: software index into the silicon hash tables for filter storage
  *  @queue: queue index to direct traffic to
  *
  *  Note that the caller to this function must lock before calling, since the
  *  hardware writes must be protected from one another.
  **/
 s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
-                                               struct ixgbe_atr_input *input,
-                                               u16 soft_id,
-                                               u8 queue)
+                                      struct ixgbe_atr_input *input,
+                                      struct ixgbe_atr_input_masks *input_masks,
+                                      u16 soft_id, u8 queue)
 {
 	u32 fdircmd = 0;
 	u32 fdirhash;
-	u32 src_ipv4, dst_ipv4;
+	u32 src_ipv4 = 0, dst_ipv4 = 0;
 	u32 src_ipv6_1, src_ipv6_2, src_ipv6_3, src_ipv6_4;
 	u16 src_port, dst_port, vlan_id, flex_bytes;
 	u16 bucket_hash;
 	u8  l4type;
+	u8  fdirm = 0;
 
 	/* Get our input values */
 	ixgbe_atr_get_l4type_82599(input, &l4type);
@@ -2154,7 +2164,6 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 		/* IPv4 */
 		ixgbe_atr_get_src_ipv4_82599(input, &src_ipv4);
 		IXGBE_WRITE_REG(hw, IXGBE_FDIRIPSA, src_ipv4);
-
 	}
 
 	ixgbe_atr_get_dst_ipv4_82599(input, &dst_ipv4);
@@ -2163,7 +2172,78 @@ s32 ixgbe_fdir_add_perfect_filter_82599(struct ixgbe_hw *hw,
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, (vlan_id |
 	                            (flex_bytes << IXGBE_FDIRVLAN_FLEX_SHIFT)));
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, (src_port |
-	                       (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
+	              (dst_port << IXGBE_FDIRPORT_DESTINATION_SHIFT)));
+
+	/*
+	 * Program the relevant mask registers.  If src/dst_port or src/dst_addr
+	 * are zero, then assume a full mask for that field.  Also assume that
+	 * a VLAN of 0 is unspecified, so mask that out as well.  L4type
+	 * cannot be masked out in this implementation.
+	 *
+	 * This also assumes IPv4 only.  IPv6 masking isn't supported at this
+	 * point in time.
+	 */
+	if (src_ipv4 == 0)
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, 0xffffffff);
+	else
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRSIP4M, input_masks->src_ip_mask);
+
+	if (dst_ipv4 == 0)
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, 0xffffffff);
+	else
+		IXGBE_WRITE_REG(hw, IXGBE_FDIRDIP4M, input_masks->dst_ip_mask);
+
+	switch (l4type & IXGBE_ATR_L4TYPE_MASK) {
+	case IXGBE_ATR_L4TYPE_TCP:
+		if (src_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM, 0xffff);
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+			                input_masks->src_port_mask);
+
+		if (dst_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
+			                (0xffff << 16)));
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRTCPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRTCPM) |
+			                (input_masks->dst_port_mask << 16)));
+		break;
+	case IXGBE_ATR_L4TYPE_UDP:
+		if (src_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM, 0xffff);
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+			                input_masks->src_port_mask);
+
+		if (dst_port == 0)
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
+			                (0xffff << 16)));
+		else
+			IXGBE_WRITE_REG(hw, IXGBE_FDIRUDPM,
+			               (IXGBE_READ_REG(hw, IXGBE_FDIRUDPM) |
+			                (input_masks->src_port_mask << 16)));
+		break;
+	default:
+		/* this already would have failed above */
+		break;
+	}
+
+	/* Program the last mask register, FDIRM */
+	if (input_masks->vlan_id_mask || !vlan_id)
+		/* Mask both VLAN and VLANP - bits 0 and 1 */
+		fdirm |= 0x3;
+
+	if (input_masks->data_mask || !flex_bytes)
+		/* Flex bytes need masking, so mask the whole thing - bit 4 */
+		fdirm |= 0x10;
+
+	/* Now mask VM pool and destination IPv6 - bits 5 and 2 */
+	fdirm |= 0x24;
+
+	IXGBE_WRITE_REG(hw, IXGBE_FDIRM, fdirm);
 
 	fdircmd |= IXGBE_FDIRCMD_CMD_ADD_FLOW;
 	fdircmd |= IXGBE_FDIRCMD_FILTER_UPDATE;

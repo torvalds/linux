@@ -979,6 +979,9 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 		return IXGBE_TEST_LEN;
 	case ETH_SS_STATS:
 		return IXGBE_STATS_LEN;
+	case ETH_SS_NTUPLE_FILTERS:
+		return (ETHTOOL_MAX_NTUPLE_LIST_ENTRY *
+		        ETHTOOL_MAX_NTUPLE_STRING_PER_ENTRY);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2150,23 +2153,124 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	bool need_reset = false;
 
 	ethtool_op_set_flags(netdev, data);
-
-	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
-		return 0;
 
 	/* if state changes we need to update adapter->flags and reset */
 	if ((!!(data & ETH_FLAG_LRO)) != 
 	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
 		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
+		need_reset = true;
+	}
+
+	/*
+	 * Check if Flow Director n-tuple support was enabled or disabled.  If
+	 * the state changed, we need to reset.
+	 */
+	if ((adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) &&
+	    (!(data & ETH_FLAG_NTUPLE))) {
+		/* turn off Flow Director perfect, set hash and reset */
+		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		need_reset = true;
+	} else if ((!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) &&
+	           (data & ETH_FLAG_NTUPLE)) {
+		/* turn off Flow Director hash, enable perfect and reset */
+		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+		adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
+		need_reset = true;
+	} else {
+		/* no state change */
+	}
+
+	if (need_reset) {
 		if (netif_running(netdev))
 			ixgbe_reinit_locked(adapter);
 		else
 			ixgbe_reset(adapter);
 	}
-	return 0;
 
+	return 0;
+}
+
+static int ixgbe_set_rx_ntuple(struct net_device *dev,
+                               struct ethtool_rx_ntuple *cmd)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ethtool_rx_ntuple_flow_spec fs = cmd->fs;
+	struct ixgbe_atr_input input_struct;
+	struct ixgbe_atr_input_masks input_masks;
+	int target_queue;
+
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+		return -EOPNOTSUPP;
+
+	/*
+	 * Don't allow programming if the action is a queue greater than
+	 * the number of online Tx queues.
+	 */
+	if ((fs.action >= adapter->num_tx_queues) ||
+	    (fs.action < ETHTOOL_RXNTUPLE_ACTION_DROP))
+		return -EINVAL;
+
+	memset(&input_struct, 0, sizeof(struct ixgbe_atr_input));
+	memset(&input_masks, 0, sizeof(struct ixgbe_atr_input_masks));
+
+	input_masks.src_ip_mask = fs.m_u.tcp_ip4_spec.ip4src;
+	input_masks.dst_ip_mask = fs.m_u.tcp_ip4_spec.ip4dst;
+	input_masks.src_port_mask = fs.m_u.tcp_ip4_spec.psrc;
+	input_masks.dst_port_mask = fs.m_u.tcp_ip4_spec.pdst;
+	input_masks.vlan_id_mask = fs.vlan_tag_mask;
+	/* only use the lowest 2 bytes for flex bytes */
+	input_masks.data_mask = (fs.data_mask & 0xffff);
+
+	switch (fs.flow_type) {
+	case TCP_V4_FLOW:
+		ixgbe_atr_set_l4type_82599(&input_struct, IXGBE_ATR_L4TYPE_TCP);
+		break;
+	case UDP_V4_FLOW:
+		ixgbe_atr_set_l4type_82599(&input_struct, IXGBE_ATR_L4TYPE_UDP);
+		break;
+	case SCTP_V4_FLOW:
+		ixgbe_atr_set_l4type_82599(&input_struct, IXGBE_ATR_L4TYPE_SCTP);
+		break;
+	default:
+		return -1;
+	}
+
+	/* Mask bits from the inputs based on user-supplied mask */
+	ixgbe_atr_set_src_ipv4_82599(&input_struct,
+	            (fs.h_u.tcp_ip4_spec.ip4src & ~fs.m_u.tcp_ip4_spec.ip4src));
+	ixgbe_atr_set_dst_ipv4_82599(&input_struct,
+	            (fs.h_u.tcp_ip4_spec.ip4dst & ~fs.m_u.tcp_ip4_spec.ip4dst));
+	/* 82599 expects these to be byte-swapped for perfect filtering */
+	ixgbe_atr_set_src_port_82599(&input_struct,
+	       ((ntohs(fs.h_u.tcp_ip4_spec.psrc)) & ~fs.m_u.tcp_ip4_spec.psrc));
+	ixgbe_atr_set_dst_port_82599(&input_struct,
+	       ((ntohs(fs.h_u.tcp_ip4_spec.pdst)) & ~fs.m_u.tcp_ip4_spec.pdst));
+
+	/* VLAN and Flex bytes are either completely masked or not */
+	if (!fs.vlan_tag_mask)
+		ixgbe_atr_set_vlan_id_82599(&input_struct, fs.vlan_tag);
+
+	if (!input_masks.data_mask)
+		/* make sure we only use the first 2 bytes of user data */
+		ixgbe_atr_set_flex_byte_82599(&input_struct,
+		                              (fs.data & 0xffff));
+
+	/* determine if we need to drop or route the packet */
+	if (fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP)
+		target_queue = MAX_RX_QUEUES - 1;
+	else
+		target_queue = fs.action;
+
+	spin_lock(&adapter->fdir_perfect_lock);
+	ixgbe_fdir_add_perfect_filter_82599(&adapter->hw, &input_struct,
+	                                    &input_masks, 0, target_queue);
+	spin_unlock(&adapter->fdir_perfect_lock);
+
+	return 0;
 }
 
 static const struct ethtool_ops ixgbe_ethtool_ops = {
@@ -2204,6 +2308,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_coalesce           = ixgbe_set_coalesce,
 	.get_flags              = ethtool_op_get_flags,
 	.set_flags              = ixgbe_set_flags,
+	.set_rx_ntuple          = ixgbe_set_rx_ntuple,
 };
 
 void ixgbe_set_ethtool_ops(struct net_device *netdev)
