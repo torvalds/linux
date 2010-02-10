@@ -7,16 +7,14 @@
 #include <linux/bootmem.h>
 #include <linux/mm.h>
 
-#include <asm/e820.h>
 #include <asm/early_res.h>
-#include <asm/proto.h>
 
 /*
  * Early reserved memory areas.
  */
 /*
  * need to make sure this one is bigger enough before
- * find_e820_area could be used
+ * find_fw_memmap_area could be used
  */
 #define MAX_EARLY_RES_X 32
 
@@ -180,6 +178,13 @@ void __init reserve_early_overlap_ok(u64 start, u64 end, char *name)
 	__reserve_early(start, end, name, 1);
 }
 
+u64 __init __weak find_fw_memmap_area(u64 start, u64 end, u64 size, u64 align)
+{
+	panic("should have find_fw_memmap_area defined with arch");
+
+	return -1ULL;
+}
+
 static void __init __check_and_double_early_res(u64 ex_start, u64 ex_end)
 {
 	u64 start, end, size, mem;
@@ -198,13 +203,13 @@ static void __init __check_and_double_early_res(u64 ex_start, u64 ex_end)
 		start = early_res[0].end;
 	end = ex_start;
 	if (start + size < end)
-		mem = find_e820_area(start, end, size,
+		mem = find_fw_memmap_area(start, end, size,
 					 sizeof(struct early_res));
 	if (mem == -1ULL) {
 		start = ex_end;
 		end = max_pfn_mapped << PAGE_SHIFT;
 		if (start + size < end)
-			mem = find_e820_area(start, end, size,
+			mem = find_fw_memmap_area(start, end, size,
 						 sizeof(struct early_res));
 	}
 	if (mem == -1ULL)
@@ -343,7 +348,7 @@ int __init get_free_all_memory_range(struct range **rangep, int nodeid)
 		start = MAX_DMA32_PFN << PAGE_SHIFT;
 #endif
 	end = max_pfn_mapped << PAGE_SHIFT;
-	mem = find_e820_area(start, end, size, sizeof(struct range));
+	mem = find_fw_memmap_area(start, end, size, sizeof(struct range));
 	if (mem == -1ULL)
 		panic("can not find more space for range free");
 

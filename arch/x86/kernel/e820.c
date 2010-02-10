@@ -748,6 +748,10 @@ u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
 	return -1ULL;
 }
 
+u64 __init find_fw_memmap_area(u64 start, u64 end, u64 size, u64 align)
+{
+	return find_e820_area(start, end, size, align);
+}
 /*
  * Find next free range after *start
  */
