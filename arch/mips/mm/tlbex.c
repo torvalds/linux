@@ -460,14 +460,14 @@ static __cpuinit void build_huge_update_entries(u32 **p,
 		uasm_i_lui(p, tmp, HPAGE_SIZE >> (7 + 16));
 
 	UASM_i_SRL(p, pte, pte, 6); /* convert to entrylo */
-	uasm_i_mtc0(p, pte, C0_ENTRYLO0); /* load it */
+	UASM_i_MTC0(p, pte, C0_ENTRYLO0); /* load it */
 	/* convert to entrylo1 */
 	if (small_sequence)
 		UASM_i_ADDIU(p, pte, pte, HPAGE_SIZE >> 7);
 	else
 		UASM_i_ADDU(p, pte, pte, tmp);
 
-	uasm_i_mtc0(p, pte, C0_ENTRYLO1); /* load it */
+	UASM_i_MTC0(p, pte, C0_ENTRYLO1); /* load it */
 }
 
 static __cpuinit void build_huge_handler_tail(u32 **p,
@@ -686,18 +686,18 @@ static void __cpuinit build_update_entries(u32 **p, unsigned int tmp,
 		uasm_i_ld(p, tmp, 0, ptep); /* get even pte */
 		uasm_i_ld(p, ptep, sizeof(pte_t), ptep); /* get odd pte */
 		uasm_i_dsrl(p, tmp, tmp, 6); /* convert to entrylo0 */
-		uasm_i_mtc0(p, tmp, C0_ENTRYLO0); /* load it */
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
 		uasm_i_dsrl(p, ptep, ptep, 6); /* convert to entrylo1 */
-		uasm_i_mtc0(p, ptep, C0_ENTRYLO1); /* load it */
+		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
 	} else {
 		int pte_off_even = sizeof(pte_t) / 2;
 		int pte_off_odd = pte_off_even + sizeof(pte_t);
 
 		/* The pte entries are pre-shifted */
 		uasm_i_lw(p, tmp, pte_off_even, ptep); /* get even pte */
-		uasm_i_mtc0(p, tmp, C0_ENTRYLO0); /* load it */
+		UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
 		uasm_i_lw(p, ptep, pte_off_odd, ptep); /* get odd pte */
-		uasm_i_mtc0(p, ptep, C0_ENTRYLO1); /* load it */
+		UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
 	}
 #else
 	UASM_i_LW(p, tmp, 0, ptep); /* get even pte */
@@ -706,14 +706,14 @@ static void __cpuinit build_update_entries(u32 **p, unsigned int tmp,
 		build_tlb_probe_entry(p);
 	UASM_i_SRL(p, tmp, tmp, 6); /* convert to entrylo0 */
 	if (r4k_250MHZhwbug())
-		uasm_i_mtc0(p, 0, C0_ENTRYLO0);
-	uasm_i_mtc0(p, tmp, C0_ENTRYLO0); /* load it */
+		UASM_i_MTC0(p, 0, C0_ENTRYLO0);
+	UASM_i_MTC0(p, tmp, C0_ENTRYLO0); /* load it */
 	UASM_i_SRL(p, ptep, ptep, 6); /* convert to entrylo1 */
 	if (r45k_bvahwbug())
 		uasm_i_mfc0(p, tmp, C0_INDEX);
 	if (r4k_250MHZhwbug())
-		uasm_i_mtc0(p, 0, C0_ENTRYLO1);
-	uasm_i_mtc0(p, ptep, C0_ENTRYLO1); /* load it */
+		UASM_i_MTC0(p, 0, C0_ENTRYLO1);
+	UASM_i_MTC0(p, ptep, C0_ENTRYLO1); /* load it */
 #endif
 }
 
