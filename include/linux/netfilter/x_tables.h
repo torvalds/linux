@@ -93,8 +93,7 @@ struct _xt_align {
 	__u64 u64;
 };
 
-#define XT_ALIGN(s) (((s) + (__alignof__(struct _xt_align)-1)) 	\
-			& ~(__alignof__(struct _xt_align)-1))
+#define XT_ALIGN(s) ALIGN((s), __alignof__(struct _xt_align))
 
 /* Standard return verdict, or do jump. */
 #define XT_STANDARD_TARGET ""
@@ -571,8 +570,14 @@ struct compat_xt_counters_info {
 	struct compat_xt_counters counters[0];
 };
 
-#define COMPAT_XT_ALIGN(s) (((s) + (__alignof__(struct compat_xt_counters)-1)) \
-		& ~(__alignof__(struct compat_xt_counters)-1))
+struct _compat_xt_align {
+	__u8 u8;
+	__u16 u16;
+	__u32 u32;
+	compat_u64 u64;
+};
+
+#define COMPAT_XT_ALIGN(s) ALIGN((s), __alignof__(struct _compat_xt_align))
 
 extern void xt_compat_lock(u_int8_t af);
 extern void xt_compat_unlock(u_int8_t af);
