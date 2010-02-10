@@ -204,7 +204,9 @@ static int pcie_init(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
 	unsigned int data;
-	int ret;
+	phys_addr_t memphys;
+	size_t memsize;
+	int ret, i;
 
 	/* Begin initialization */
 	pci_write_reg(chan, 0, SH4A_PCIETCTLR);
@@ -227,15 +229,24 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	data |= PCI_CAP_ID_EXP;
 	pci_write_reg(chan, data, SH4A_PCIEEXPCAP0);
 
-	/* Enable x4 link width and extended sync. */
+	/* Enable data link layer active state reporting */
+	pci_write_reg(chan, PCI_EXP_LNKCAP_DLLLARC, SH4A_PCIEEXPCAP3);
+
+	/* Enable extended sync and ASPM L0s support */
 	data = pci_read_reg(chan, SH4A_PCIEEXPCAP4);
-	data &= ~(PCI_EXP_LNKSTA_NLW << 16);
-	data |= (1 << 22) | PCI_EXP_LNKCTL_ES;
+	data &= ~PCI_EXP_LNKCTL_ASPMC;
+	data |= PCI_EXP_LNKCTL_ES | 1;
 	pci_write_reg(chan, data, SH4A_PCIEEXPCAP4);
+
+	/* Write out the physical slot number */
+	data = pci_read_reg(chan, SH4A_PCIEEXPCAP5);
+	data &= ~PCI_EXP_SLTCAP_PSN;
+	data |= (port->index + 1) << 19;
+	pci_write_reg(chan, data, SH4A_PCIEEXPCAP5);
 
 	/* Set the completion timer timeout to the maximum 32ms. */
 	data = pci_read_reg(chan, SH4A_PCIETLCTLR);
-	data &= ~0xffff;
+	data &= ~0x3f00;
 	data |= 0x32 << 8;
 	pci_write_reg(chan, data, SH4A_PCIETLCTLR);
 
@@ -247,6 +258,33 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	data &= ~PCIEMACCTLR_SCR_DIS;
 	data |= (0xff << 16);
 	pci_write_reg(chan, data, SH4A_PCIEMACCTLR);
+
+	memphys = __pa(memory_start);
+	memsize = roundup_pow_of_two(memory_end - memory_start);
+
+	/*
+	 * If there's more than 512MB of memory, we need to roll over to
+	 * LAR1/LAMR1.
+	 */
+	if (memsize > SZ_512M) {
+		__raw_writel(memphys + SZ_512M, chan->reg_base + SH4A_PCIELAR1);
+		__raw_writel(((memsize - SZ_512M) - SZ_256) | 1,
+			     chan->reg_base + SH4A_PCIELAMR1);
+		memsize = SZ_512M;
+	} else {
+		/*
+		 * Otherwise just zero it out and disable it.
+		 */
+		__raw_writel(0, chan->reg_base + SH4A_PCIELAR1);
+		__raw_writel(0, chan->reg_base + SH4A_PCIELAMR1);
+	}
+
+	/*
+	 * LAR0/LAMR0 covers up to the first 512MB, which is enough to
+	 * cover all of lowmem on most platforms.
+	 */
+	__raw_writel(memphys, chan->reg_base + SH4A_PCIELAR0);
+	__raw_writel((memsize - SZ_256) | 1, chan->reg_base + SH4A_PCIELAMR0);
 
 	/* Finish initialization */
 	data = pci_read_reg(chan, SH4A_PCIETCTLR);
@@ -267,10 +305,14 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	if (unlikely(ret != 0))
 		return -ENODEV;
 
-	pci_write_reg(chan, 0x00100007, SH4A_PCIEPCICONF1);
+	data = pci_read_reg(chan, SH4A_PCIEPCICONF1);
+	data &= ~(PCI_STATUS_DEVSEL_MASK << 16);
+	data |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+		(PCI_STATUS_CAP_LIST | PCI_STATUS_DEVSEL_FAST) << 16;
+	pci_write_reg(chan, data, SH4A_PCIEPCICONF1);
+
 	pci_write_reg(chan, 0x80888000, SH4A_PCIETXVC0DCTLR);
 	pci_write_reg(chan, 0x00222000, SH4A_PCIERXVC0DCTLR);
-	pci_write_reg(chan, 0x000050A0, SH4A_PCIEEXPCAP2);
 
 	wmb();
 
@@ -278,15 +320,32 @@ static int pcie_init(struct sh7786_pcie_port *port)
 	printk(KERN_NOTICE "PCI: PCIe#%d link width %d\n",
 	       port->index, (data >> 20) & 0x3f);
 
-	pci_write_reg(chan, 0x007c0000, SH4A_PCIEPAMR0);
-	pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH0);
-	pci_write_reg(chan, 0x00000000, SH4A_PCIEPARL0);
-	pci_write_reg(chan, 0x80000100, SH4A_PCIEPTCTLR0);
 
-	pci_write_reg(chan, 0x03fc0000, SH4A_PCIEPAMR2);
-	pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH2);
-	pci_write_reg(chan, 0x00000000, SH4A_PCIEPARL2);
-	pci_write_reg(chan, 0x80000000, SH4A_PCIEPTCTLR2);
+	for (i = 0; i < chan->nr_resources; i++) {
+		struct resource *res = chan->resources + i;
+		resource_size_t size;
+		u32 enable_mask;
+
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(i));
+
+		size = resource_size(res);
+
+		/*
+		 * The PAMR mask is calculated in units of 256kB, which
+		 * keeps things pretty simple.
+		 */
+		__raw_writel(((roundup_pow_of_two(size) / SZ_256K) - 1) << 18,
+			     chan->reg_base + SH4A_PCIEPAMR(i));
+
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARH(i));
+		pci_write_reg(chan, 0x00000000, SH4A_PCIEPARL(i));
+
+		enable_mask = MASK_PARE;
+		if (res->flags & IORESOURCE_IO)
+			enable_mask |= MASK_SPC;
+
+		pci_write_reg(chan, enable_mask, SH4A_PCIEPTCTLR(i));
+	}
 
 	return 0;
 }
