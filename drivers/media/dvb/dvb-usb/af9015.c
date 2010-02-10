@@ -792,6 +792,9 @@ static const struct af9015_setup af9015_setup_hashes[] = {
 	{ 0xb8feb708,
 		af9015_rc_keys_msi, ARRAY_SIZE(af9015_rc_keys_msi),
 		af9015_ir_table_msi, ARRAY_SIZE(af9015_ir_table_msi) },
+	{ 0xa3703d00,
+		af9015_rc_keys_a_link, ARRAY_SIZE(af9015_rc_keys_a_link),
+		af9015_ir_table_a_link, ARRAY_SIZE(af9015_ir_table_a_link) },
 	{ }
 };
 
