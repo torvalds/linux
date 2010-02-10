@@ -70,11 +70,18 @@ static struct clk r_clk = {
 	.rate	    = 32768,
 };
 
+/* a static usb0 for now - enough to get r8a66597 working */
+static struct clk usb0_clk = {
+	.name	    = "usb0",
+};
+
 static struct clk_lookup lookups[] = {
 	{
 		.clk = &peripheral_clk,
 	}, {
 		.clk = &r_clk,
+	}, {
+		.clk = &usb0_clk,
 	}
 };
 
