@@ -163,14 +163,27 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 				    unsigned long end, unsigned long size,
 				    unsigned long align)
 {
-	unsigned long mem = find_e820_area(start, end, size, align);
+	unsigned long mem;
 
+	/*
+	 * put it on high as possible
+	 * something will go with NODE_DATA
+	 */
+	if (start < (MAX_DMA_PFN<<PAGE_SHIFT))
+		start = MAX_DMA_PFN<<PAGE_SHIFT;
+	if (start < (MAX_DMA32_PFN<<PAGE_SHIFT) &&
+	    end > (MAX_DMA32_PFN<<PAGE_SHIFT))
+		start = MAX_DMA32_PFN<<PAGE_SHIFT;
+	mem = find_e820_area(start, end, size, align);
 	if (mem != -1L)
 		return __va(mem);
 
-
-	start = __pa(MAX_DMA_ADDRESS);
-	end = max_low_pfn_mapped << PAGE_SHIFT;
+	/* extend the search scope */
+	end = max_pfn_mapped << PAGE_SHIFT;
+	if (end > (MAX_DMA32_PFN<<PAGE_SHIFT))
+		start = MAX_DMA32_PFN<<PAGE_SHIFT;
+	else
+		start = MAX_DMA_PFN<<PAGE_SHIFT;
 	mem = find_e820_area(start, end, size, align);
 	if (mem != -1L)
 		return __va(mem);
