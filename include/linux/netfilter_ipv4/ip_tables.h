@@ -282,6 +282,7 @@ struct ipt_error {
 	.target.errorname = "ERROR",					       \
 }
 
+extern void *ipt_alloc_initial_table(const struct xt_table *);
 extern unsigned int ipt_do_table(struct sk_buff *skb,
 				 unsigned int hook,
 				 const struct net_device *in,

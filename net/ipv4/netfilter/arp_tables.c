@@ -27,6 +27,7 @@
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp/arp_tables.h>
+#include "../../netfilter/xt_repldata.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
@@ -57,6 +58,12 @@ do {								\
 #else
 #define ARP_NF_ASSERT(x)
 #endif
+
+void *arpt_alloc_initial_table(const struct xt_table *info)
+{
+	return xt_alloc_initial_table(arpt, ARPT);
+}
+EXPORT_SYMBOL_GPL(arpt_alloc_initial_table);
 
 static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 				      const char *hdr_addr, int len)
