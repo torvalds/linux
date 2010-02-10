@@ -653,6 +653,13 @@ static struct ad714x_platform_data ad7142_i2c_platform_data = {
 };
 #endif
 
+#if defined(CONFIG_AD2S90) || defined(CONFIG_AD2S90_MODULE)
+static struct bfin5xx_spi_chip ad2s90_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 #define MMC_SPI_CARD_DETECT_INT IRQ_PF5
 
@@ -964,6 +971,16 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_MODE_3,
 		.platform_data = &ad7147_spi_platform_data,
 		.controller_data = &ad7147_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD2S90) || defined(CONFIG_AD2S90_MODULE)
+	{
+		.modalias = "ad2s90",
+		.bus_num = 0,
+		.chip_select = 3,            /* change it for your board */
+		.platform_data = NULL,
+		.controller_data = &ad2s90_spi_chip_info,
 	},
 #endif
 
