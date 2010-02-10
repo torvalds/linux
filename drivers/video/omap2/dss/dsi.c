@@ -237,7 +237,6 @@ static struct
 	struct dsi_update_region update_region;
 
 	bool te_enabled;
-	bool use_ext_te;
 
 	struct work_struct framedone_work;
 	void (*framedone_callback)(int, void *);
@@ -2723,14 +2722,11 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	unsigned packet_payload;
 	unsigned packet_len;
 	u32 l;
-	bool use_te_trigger;
 	const unsigned channel = dsi.update_channel;
 	/* line buffer is 1024 x 24bits */
 	/* XXX: for some reason using full buffer size causes considerable TX
 	 * slowdown with update sizes that fill the whole buffer */
 	const unsigned line_buf_size = 1023 * 3;
-
-	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
 
 	DSSDBG("dsi_update_screen_dispc(%d,%d %dx%d)\n",
 			x, y, w, h);
@@ -2760,7 +2756,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	dsi_vc_write_long_header(channel, DSI_DT_DCS_LONG_WRITE, packet_len, 0);
 
-	if (use_te_trigger)
+	if (dsi.te_enabled)
 		l = FLD_MOD(l, 1, 30, 30); /* TE_EN */
 	else
 		l = FLD_MOD(l, 1, 31, 31); /* TE_START */
@@ -2781,7 +2777,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 
 	dss_start_update(dssdev);
 
-	if (use_te_trigger) {
+	if (dsi.te_enabled) {
 		/* disable LP_RX_TO, so that we can receive TE.  Time to wait
 		 * for TE is longer than the timer allows */
 		REG_FLD_MOD(DSI_TIMING2, 0, 15, 15); /* LP_RX_TO */
@@ -2805,16 +2801,13 @@ static void dsi_framedone_timeout_work_callback(struct work_struct *work)
 {
 	int r;
 	const int channel = dsi.update_channel;
-	bool use_te_trigger;
 
 	DSSERR("Framedone not received for 250ms!\n");
 
 	/* SIDLEMODE back to smart-idle */
 	dispc_enable_sidle();
 
-	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
-
-	if (use_te_trigger) {
+	if (dsi.te_enabled) {
 		/* enable LP_RX_TO again after the TE */
 		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
 	}
@@ -2858,13 +2851,10 @@ static void dsi_handle_framedone(void)
 {
 	int r;
 	const int channel = dsi.update_channel;
-	bool use_te_trigger;
-
-	use_te_trigger = dsi.te_enabled && !dsi.use_ext_te;
 
 	DSSDBG("FRAMEDONE\n");
 
-	if (use_te_trigger) {
+	if (dsi.te_enabled) {
 		/* enable LP_RX_TO again after the TE */
 		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
 	}
@@ -3174,8 +3164,6 @@ int omapdss_dsi_display_enable(struct omap_dss_device *dssdev)
 	r = dsi_display_init_dsi(dssdev);
 	if (r)
 		goto err2;
-
-	dsi.use_ext_te = dssdev->phy.dsi.ext_te;
 
 	mutex_unlock(&dsi.lock);
 
