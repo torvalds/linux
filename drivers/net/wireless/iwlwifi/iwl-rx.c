@@ -345,10 +345,10 @@ void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 		}
 	}
 
-	pci_free_consistent(priv->pci_dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			    rxq->dma_addr);
-	pci_free_consistent(priv->pci_dev, sizeof(struct iwl_rb_status),
-			    rxq->rb_stts, rxq->rb_stts_dma);
+	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
+			  rxq->dma_addr);
+	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
+			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;
 	rxq->rb_stts  = NULL;
 }
@@ -357,7 +357,7 @@ EXPORT_SYMBOL(iwl_rx_queue_free);
 int iwl_rx_queue_alloc(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
-	struct pci_dev *dev = priv->pci_dev;
+	struct device *dev = &priv->pci_dev->dev;
 	int i;
 
 	spin_lock_init(&rxq->lock);
@@ -365,12 +365,13 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&rxq->rx_used);
 
 	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = pci_alloc_consistent(dev, 4 * RX_QUEUE_SIZE, &rxq->dma_addr);
+	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->dma_addr,
+				     GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
 
-	rxq->rb_stts = pci_alloc_consistent(dev, sizeof(struct iwl_rb_status),
-					&rxq->rb_stts_dma);
+	rxq->rb_stts = dma_alloc_coherent(dev, sizeof(struct iwl_rb_status),
+					  &rxq->rb_stts_dma, GFP_KERNEL);
 	if (!rxq->rb_stts)
 		goto err_rb;
 
@@ -387,8 +388,8 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 	return 0;
 
 err_rb:
-	pci_free_consistent(priv->pci_dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			    rxq->dma_addr);
+	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
+			  rxq->dma_addr);
 err_bd:
 	return -ENOMEM;
 }
