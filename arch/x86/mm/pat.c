@@ -130,65 +130,7 @@ void pat_init(void)
 
 #undef PAT
 
-/*
- * The global memtype list keeps track of memory type for specific
- * physical memory areas. Conflicting memory types in different
- * mappings can cause CPU cache corruption. To avoid this we keep track.
- *
- * The list is sorted based on starting address and can contain multiple
- * entries for each address (this allows reference counting for overlapping
- * areas). All the aliases have the same cache attributes of course.
- * Zero attributes are represented as holes.
- *
- * The data structure is a list that is also organized as an rbtree
- * sorted on the start address of memtype range.
- *
- * memtype_lock protects both the linear list and rbtree.
- */
-
-static struct rb_root memtype_rbroot = RB_ROOT;
-static LIST_HEAD(memtype_list);
-static DEFINE_SPINLOCK(memtype_lock);	/* protects memtype list */
-
-static struct memtype *memtype_rb_search(struct rb_root *root, u64 start)
-{
-	struct rb_node *node = root->rb_node;
-	struct memtype *last_lower = NULL;
-
-	while (node) {
-		struct memtype *data = container_of(node, struct memtype, rb);
-
-		if (data->start < start) {
-			last_lower = data;
-			node = node->rb_right;
-		} else if (data->start > start) {
-			node = node->rb_left;
-		} else
-			return data;
-	}
-
-	/* Will return NULL if there is no entry with its start <= start */
-	return last_lower;
-}
-
-static void memtype_rb_insert(struct rb_root *root, struct memtype *data)
-{
-	struct rb_node **new = &(root->rb_node);
-	struct rb_node *parent = NULL;
-
-	while (*new) {
-		struct memtype *this = container_of(*new, struct memtype, rb);
-
-		parent = *new;
-		if (data->start <= this->start)
-			new = &((*new)->rb_left);
-		else if (data->start > this->start)
-			new = &((*new)->rb_right);
-	}
-
-	rb_link_node(&data->rb, parent, new);
-	rb_insert_color(&data->rb, root);
-}
+static DEFINE_SPINLOCK(memtype_lock);	/* protects memtype accesses */
 
 /*
  * Does intersection of PAT memory type and MTRR memory type and returns
@@ -214,33 +156,6 @@ static unsigned long pat_x_mtrr_type(u64 start, u64 end, unsigned long req_type)
 	}
 
 	return req_type;
-}
-
-static int
-chk_conflict(struct memtype *new, struct memtype *entry, unsigned long *type)
-{
-	if (new->type != entry->type) {
-		if (type) {
-			new->type = entry->type;
-			*type = entry->type;
-		} else
-			goto conflict;
-	}
-
-	 /* check overlaps with more than one entry in the list */
-	list_for_each_entry_continue(entry, &memtype_list, nd) {
-		if (new->end <= entry->start)
-			break;
-		else if (new->type != entry->type)
-			goto conflict;
-	}
-	return 0;
-
- conflict:
-	printk(KERN_INFO "%s:%d conflicting memory types "
-	       "%Lx-%Lx %s<->%s\n", current->comm, current->pid, new->start,
-	       new->end, cattr_name(new->type), cattr_name(entry->type));
-	return -EBUSY;
 }
 
 static int pat_pagerange_is_ram(unsigned long start, unsigned long end)
@@ -328,64 +243,6 @@ static int free_ram_pages_type(u64 start, u64 end)
 	return 0;
 }
 
-static int memtype_check_insert(struct memtype *new, unsigned long *new_type)
-{
-	struct memtype *entry;
-	u64 start, end;
-	unsigned long actual_type;
-	struct list_head *where;
-	int err = 0;
-
-	start = new->start;
-	end = new->end;
-	actual_type = new->type;
-
-	/* Search for existing mapping that overlaps the current range */
-	where = NULL;
-	list_for_each_entry(entry, &memtype_list, nd) {
-		if (end <= entry->start) {
-			where = entry->nd.prev;
-			break;
-		} else if (start <= entry->start) { /* end > entry->start */
-			err = chk_conflict(new, entry, new_type);
-			if (!err) {
-				dprintk("Overlap at 0x%Lx-0x%Lx\n",
-					entry->start, entry->end);
-				where = entry->nd.prev;
-			}
-			break;
-		} else if (start < entry->end) { /* start > entry->start */
-			err = chk_conflict(new, entry, new_type);
-			if (!err) {
-				dprintk("Overlap at 0x%Lx-0x%Lx\n",
-					entry->start, entry->end);
-
-				/*
-				 * Move to right position in the linked
-				 * list to add this new entry
-				 */
-				list_for_each_entry_continue(entry,
-							&memtype_list, nd) {
-					if (start <= entry->start) {
-						where = entry->nd.prev;
-						break;
-					}
-				}
-			}
-			break;
-		}
-	}
-	if (!err) {
-		if (where)
-			list_add(&new->nd, where);
-		else
-			list_add_tail(&new->nd, &memtype_list);
-
-		memtype_rb_insert(&memtype_rbroot, new);
-	}
-	return err;
-}
-
 /*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB
@@ -459,7 +316,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	spin_lock(&memtype_lock);
 
-	err = memtype_check_insert(new, new_type);
+	err = rbt_memtype_check_insert(new, new_type);
 	if (err) {
 		printk(KERN_INFO "reserve_memtype failed 0x%Lx-0x%Lx, "
 		       "track %s, req %s\n",
@@ -481,7 +338,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 int free_memtype(u64 start, u64 end)
 {
-	struct memtype *entry, *saved_entry;
 	int err = -EINVAL;
 	int is_range_ram;
 
@@ -505,46 +361,7 @@ int free_memtype(u64 start, u64 end)
 	}
 
 	spin_lock(&memtype_lock);
-
-	entry = memtype_rb_search(&memtype_rbroot, start);
-	if (unlikely(entry == NULL))
-		goto unlock_ret;
-
-	/*
-	 * Saved entry points to an entry with start same or less than what
-	 * we searched for. Now go through the list in both directions to look
-	 * for the entry that matches with both start and end, with list stored
-	 * in sorted start address
-	 */
-	saved_entry = entry;
-	list_for_each_entry_from(entry, &memtype_list, nd) {
-		if (entry->start == start && entry->end == end) {
-			rb_erase(&entry->rb, &memtype_rbroot);
-			list_del(&entry->nd);
-			kfree(entry);
-			err = 0;
-			break;
-		} else if (entry->start > start) {
-			break;
-		}
-	}
-
-	if (!err)
-		goto unlock_ret;
-
-	entry = saved_entry;
-	list_for_each_entry_reverse(entry, &memtype_list, nd) {
-		if (entry->start == start && entry->end == end) {
-			rb_erase(&entry->rb, &memtype_rbroot);
-			list_del(&entry->nd);
-			kfree(entry);
-			err = 0;
-			break;
-		} else if (entry->start < start) {
-			break;
-		}
-	}
-unlock_ret:
+	err = rbt_memtype_erase(start, end);
 	spin_unlock(&memtype_lock);
 
 	if (err) {
@@ -593,7 +410,7 @@ static unsigned long lookup_memtype(u64 paddr)
 
 	spin_lock(&memtype_lock);
 
-	entry = memtype_rb_search(&memtype_rbroot, paddr);
+	entry = rbt_memtype_lookup(paddr);
 	if (entry != NULL)
 		rettype = entry->type;
 	else
@@ -930,22 +747,6 @@ EXPORT_SYMBOL_GPL(pgprot_writecombine);
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
 
-/* get Nth element of the linked list */
-static int copy_memtype_nth_element(struct memtype *out, loff_t pos)
-{
-	struct memtype *list_node;
-	int i = 1;
-
-	list_for_each_entry(list_node, &memtype_list, nd) {
-		if (pos == i) {
-			*out = *list_node;
-			return 0;
-		}
-		++i;
-	}
-	return 1;
-}
-
 static struct memtype *memtype_get_idx(loff_t pos)
 {
 	struct memtype *print_entry;
@@ -956,7 +757,7 @@ static struct memtype *memtype_get_idx(loff_t pos)
 		return NULL;
 
 	spin_lock(&memtype_lock);
-	ret = copy_memtype_nth_element(print_entry, pos);
+	ret = rbt_memtype_copy_nth_element(print_entry, pos);
 	spin_unlock(&memtype_lock);
 
 	if (!ret) {
