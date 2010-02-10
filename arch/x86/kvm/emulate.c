@@ -75,6 +75,7 @@
 #define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define GroupMask   0xff        /* Group number stored in bits 0:7 */
+#define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 /* Source 2 operand type */
 #define Src2None    (0<<29)
 #define Src2CL      (1<<29)
@@ -204,7 +205,7 @@ static u32 opcode_table[256] = {
 	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
-	ImplicitOps, ImplicitOps, Group | Group3_Byte, Group | Group3,
+	ImplicitOps | Priv, ImplicitOps, Group | Group3_Byte, Group | Group3,
 	/* 0xF8 - 0xFF */
 	ImplicitOps, 0, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
@@ -212,16 +213,20 @@ static u32 opcode_table[256] = {
 
 static u32 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
-	0, Group | GroupDual | Group7, 0, 0, 0, ImplicitOps, ImplicitOps, 0,
-	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
+	0, Group | GroupDual | Group7, 0, 0,
+	0, ImplicitOps, ImplicitOps | Priv, 0,
+	ImplicitOps | Priv, ImplicitOps | Priv, 0, 0,
+	0, ImplicitOps | ModRM, 0, 0,
 	/* 0x10 - 0x1F */
 	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x20 - 0x2F */
-	ModRM | ImplicitOps, ModRM, ModRM | ImplicitOps, ModRM, 0, 0, 0, 0,
+	ModRM | ImplicitOps | Priv, ModRM | Priv,
+	ModRM | ImplicitOps | Priv, ModRM | Priv,
+	0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x30 - 0x3F */
-	ImplicitOps, 0, ImplicitOps, 0,
-	ImplicitOps, ImplicitOps, 0, 0,
+	ImplicitOps | Priv, 0, ImplicitOps | Priv, 0,
+	ImplicitOps, ImplicitOps | Priv, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x40 - 0x47 */
 	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
@@ -313,9 +318,9 @@ static u32 group_table[] = {
 	SrcMem | ModRM | Stack, 0,
 	SrcMem | ModRM | Stack, 0, SrcMem | ModRM | Stack, 0,
 	[Group7*8] =
-	0, 0, ModRM | SrcMem, ModRM | SrcMem,
+	0, 0, ModRM | SrcMem | Priv, ModRM | SrcMem | Priv,
 	SrcNone | ModRM | DstMem | Mov, 0,
-	SrcMem16 | ModRM | Mov, SrcMem | ModRM | ByteOp,
+	SrcMem16 | ModRM | Mov | Priv, SrcMem | ModRM | ByteOp | Priv,
 	[Group8*8] =
 	0, 0, 0, 0,
 	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM,
@@ -326,7 +331,7 @@ static u32 group_table[] = {
 
 static u32 group2_table[] = {
 	[Group7*8] =
-	SrcNone | ModRM, 0, 0, SrcNone | ModRM,
+	SrcNone | ModRM | Priv, 0, 0, SrcNone | ModRM,
 	SrcNone | ModRM | DstMem | Mov, 0,
 	SrcMem16 | ModRM | Mov, 0,
 	[Group9*8] =
@@ -1573,12 +1578,6 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 		return -1;
 	}
 
-	/* sysexit must be called from CPL 0 */
-	if (kvm_x86_ops->get_cpl(ctxt->vcpu) != 0) {
-		kvm_inject_gp(ctxt->vcpu, 0);
-		return -1;
-	}
-
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
 	if ((c->rex_prefix & 0x8) != 0x0)
@@ -1641,6 +1640,12 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 	saved_eip = c->eip;
+
+	/* Privileged instruction can be executed only in CPL=0 */
+	if ((c->d & Priv) && kvm_x86_ops->get_cpl(ctxt->vcpu)) {
+		kvm_inject_gp(ctxt->vcpu, 0);
+		goto done;
+	}
 
 	if (((c->d & ModRM) && (c->modrm_mod != 3)) || (c->d & MemAbs))
 		memop = c->modrm_ea;
