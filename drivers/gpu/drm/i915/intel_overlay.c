@@ -199,15 +199,10 @@ static struct overlay_registers *intel_overlay_map_regs_atomic(struct intel_over
 
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay)
 {
-	struct drm_device *dev = overlay->dev;
-        drm_i915_private_t *dev_priv = dev->dev_private;
-
 	if (OVERLAY_NONPHYSICAL(overlay->dev))
 		io_mapping_unmap_atomic(overlay->virt_addr);
 
 	overlay->virt_addr = NULL;
-
-	I915_READ(OVADD); /* flush wc cashes */
 
 	return;
 }
