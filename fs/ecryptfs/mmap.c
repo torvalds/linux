@@ -97,19 +97,6 @@ out:
  *                        (big-endian)
  *     Octet  26:         Begin RFC 2440 authentication token packet set
  */
-static void set_header_info(char *page_virt,
-			    struct ecryptfs_crypt_stat *crypt_stat)
-{
-	size_t written;
-	size_t save_num_header_bytes_at_front =
-		crypt_stat->num_header_bytes_at_front;
-
-	crypt_stat->num_header_bytes_at_front =
-		ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE;
-	ecryptfs_write_header_metadata(page_virt + 20, crypt_stat, &written);
-	crypt_stat->num_header_bytes_at_front =
-		save_num_header_bytes_at_front;
-}
 
 /**
  * ecryptfs_copy_up_encrypted_with_header
@@ -146,9 +133,13 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			memset(page_virt, 0, PAGE_CACHE_SIZE);
 			/* TODO: Support more than one header extent */
 			if (view_extent_num == 0) {
+				size_t written;
+
 				rc = ecryptfs_read_xattr_region(
 					page_virt, page->mapping->host);
-				set_header_info(page_virt, crypt_stat);
+				ecryptfs_write_header_metadata(page_virt + 20,
+							       crypt_stat,
+							       &written);
 			}
 			kunmap_atomic(page_virt, KM_USER0);
 			flush_dcache_page(page);

@@ -464,6 +464,14 @@ struct ecryptfs_daemon {
 
 extern struct mutex ecryptfs_daemon_hash_mux;
 
+static inline size_t
+ecryptfs_lower_header_size(struct ecryptfs_crypt_stat *crypt_stat)
+{
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
+		return 0;
+	return crypt_stat->num_header_bytes_at_front;
+}
+
 static inline struct ecryptfs_file_info *
 ecryptfs_file_to_private(struct file *file)
 {

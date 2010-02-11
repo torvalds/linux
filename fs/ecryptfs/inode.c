@@ -768,7 +768,7 @@ upper_size_to_lower_size(struct ecryptfs_crypt_stat *crypt_stat,
 {
 	loff_t lower_size;
 
-	lower_size = crypt_stat->num_header_bytes_at_front;
+	lower_size = ecryptfs_lower_header_size(crypt_stat);
 	if (upper_size != 0) {
 		loff_t num_extents;
 
