@@ -353,18 +353,6 @@ void r600_hpd_fini(struct radeon_device *rdev)
 /*
  * R600 PCIE GART
  */
-int r600_gart_clear_page(struct radeon_device *rdev, int i)
-{
-	void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
-	u64 pte;
-
-	if (i < 0 || i > rdev->gart.num_gpu_pages)
-		return -EINVAL;
-	pte = 0;
-	writeq(pte, ((void __iomem *)ptr) + (i * 8));
-	return 0;
-}
-
 void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 {
 	unsigned i;
