@@ -89,17 +89,22 @@ static u32 intel_lvds_get_max_backlight(struct drm_device *dev)
 static void intel_lvds_set_power(struct drm_device *dev, bool on)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 pp_status, ctl_reg, status_reg;
+	u32 pp_status, ctl_reg, status_reg, lvds_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
 		status_reg = PCH_PP_STATUS;
+		lvds_reg = PCH_LVDS;
 	} else {
 		ctl_reg = PP_CONTROL;
 		status_reg = PP_STATUS;
+		lvds_reg = LVDS;
 	}
 
 	if (on) {
+		I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
+		POSTING_READ(lvds_reg);
+
 		I915_WRITE(ctl_reg, I915_READ(ctl_reg) |
 			   POWER_TARGET_ON);
 		do {
@@ -115,6 +120,9 @@ static void intel_lvds_set_power(struct drm_device *dev, bool on)
 		do {
 			pp_status = I915_READ(status_reg);
 		} while (pp_status & PP_ON);
+
+		I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
+		POSTING_READ(lvds_reg);
 	}
 }
 
