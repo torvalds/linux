@@ -122,8 +122,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 					   * num_extents_per_page)
 					  + extent_num_in_page);
 		size_t num_header_extents_at_front =
-			(crypt_stat->num_header_bytes_at_front
-			 / crypt_stat->extent_size);
+			(crypt_stat->metadata_size / crypt_stat->extent_size);
 
 		if (view_extent_num < num_header_extents_at_front) {
 			/* This is a header extent */
@@ -152,7 +151,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			/* This is an encrypted data extent */
 			loff_t lower_offset =
 				((view_extent_num * crypt_stat->extent_size)
-				 - crypt_stat->num_header_bytes_at_front);
+				 - crypt_stat->metadata_size);
 
 			rc = ecryptfs_read_lower_page_segment(
 				page, (lower_offset >> PAGE_CACHE_SHIFT),
