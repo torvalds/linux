@@ -31,6 +31,7 @@
 #undef DUMMY_RX
 
 #include <linux/syscalls.h>
+#include <linux/eeprom_93cx6.h>
 
 #include "r8180_hw.h"
 #include "r8180.h"
@@ -2642,6 +2643,36 @@ static void rtl8180_link_detect_init(plink_detect_t plink_detect)
 }
 //YJ,add,080828,end
 
+static void rtl8187se_eeprom_register_read(struct eeprom_93cx6 *eeprom)
+{
+	struct net_device *dev = eeprom->data;
+	u8 reg = read_nic_byte(dev, EPROM_CMD);
+
+	eeprom->reg_data_in = reg & RTL818X_EEPROM_CMD_WRITE;
+	eeprom->reg_data_out = reg & RTL818X_EEPROM_CMD_READ;
+	eeprom->reg_data_clock = reg & RTL818X_EEPROM_CMD_CK;
+	eeprom->reg_chip_select = reg & RTL818X_EEPROM_CMD_CS;
+}
+
+static void rtl8187se_eeprom_register_write(struct eeprom_93cx6 *eeprom)
+{
+	struct net_device *dev = eeprom->data;
+	u8 reg = 2 << 6;
+
+	if (eeprom->reg_data_in)
+		reg |= RTL818X_EEPROM_CMD_WRITE;
+	if (eeprom->reg_data_out)
+		reg |= RTL818X_EEPROM_CMD_READ;
+	if (eeprom->reg_data_clock)
+		reg |= RTL818X_EEPROM_CMD_CK;
+	if (eeprom->reg_chip_select)
+		reg |= RTL818X_EEPROM_CMD_CS;
+
+	write_nic_byte(dev, EPROM_CMD, reg);
+	read_nic_byte(dev, EPROM_CMD);
+	udelay(10);
+}
+
 short rtl8180_init(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -2650,8 +2681,16 @@ short rtl8180_init(struct net_device *dev)
 	u32 usValue;
 	u16 tmpu16;
 	int i, j;
+	struct eeprom_93cx6 eeprom;
+	u16 eeprom_val;
 
-	priv->channel_plan = eprom_read(dev, EEPROM_COUNTRY_CODE>>1) & 0xFF;
+	eeprom.data = dev;
+	eeprom.register_read = rtl8187se_eeprom_register_read;
+	eeprom.register_write = rtl8187se_eeprom_register_write;
+	eeprom.width = PCI_EEPROM_WIDTH_93C46;
+
+	eeprom_93cx6_read(&eeprom, EEPROM_COUNTRY_CODE>>1, &eeprom_val);
+	priv->channel_plan = eeprom_val & 0xFF;
 	if(priv->channel_plan > COUNTRY_CODE_GLOBAL_DOMAIN){
 		printk("rtl8180_init:Error channel plan! Set to default.\n");
 		priv->channel_plan = 0;
@@ -2879,7 +2918,8 @@ short rtl8180_init(struct net_device *dev)
 	// just for sync 85
 	priv->enable_gpio0 = 0;
 
-	usValue = eprom_read(dev, EEPROM_SW_REVD_OFFSET);
+	eeprom_93cx6_read(&eeprom, EEPROM_SW_REVD_OFFSET, &eeprom_val);
+	usValue = eeprom_val;
 	DMESG("usValue is 0x%x\n",usValue);
 	//3Read AntennaDiversity
 
@@ -2919,27 +2959,23 @@ short rtl8180_init(struct net_device *dev)
 	else
 		priv->epromtype=EPROM_93c46;
 
-	dev->dev_addr[0]=eprom_read(dev,MAC_ADR) & 0xff;
-	dev->dev_addr[1]=(eprom_read(dev,MAC_ADR) & 0xff00)>>8;
-	dev->dev_addr[2]=eprom_read(dev,MAC_ADR+1) & 0xff;
-	dev->dev_addr[3]=(eprom_read(dev,MAC_ADR+1) & 0xff00)>>8;
-	dev->dev_addr[4]=eprom_read(dev,MAC_ADR+2) & 0xff;
-	dev->dev_addr[5]=(eprom_read(dev,MAC_ADR+2) & 0xff00)>>8;
+	eeprom_93cx6_multiread(&eeprom, 0x7, (__le16 *)
+			       dev->dev_addr, 3);
 
 	for(i=1,j=0; i<14; i+=2,j++){
-		word = eprom_read(dev,EPROM_TXPW_CH1_2 + j);
+		eeprom_93cx6_read(&eeprom, EPROM_TXPW_CH1_2 + j, &word);
 		priv->chtxpwr[i]=word & 0xff;
 		priv->chtxpwr[i+1]=(word & 0xff00)>>8;
 	}
 	for (i = 1, j = 0; i < 14; i += 2, j++) {
-		word = eprom_read(dev, EPROM_TXPW_OFDM_CH1_2 + j);
+		eeprom_93cx6_read(&eeprom, EPROM_TXPW_OFDM_CH1_2 + j, &word);
 		priv->chtxpwr_ofdm[i] = word & 0xff;
 		priv->chtxpwr_ofdm[i+1] = (word & 0xff00) >> 8;
 	}
 
 	/* 3Read crystal calibtration and thermal meter indication on 87SE. */
+	eeprom_93cx6_read(&eeprom, EEPROM_RSV>>1, &tmpu16);
 
-	tmpu16 = eprom_read(dev, EEPROM_RSV >> 1);
 	/* Crystal calibration for Xin and Xout resp. */
 	priv->XtalCal_Xout = tmpu16 & EEPROM_XTAL_CAL_XOUT_MASK;
 	priv->XtalCal_Xin = (tmpu16 & EEPROM_XTAL_CAL_XIN_MASK) >> 4;
@@ -2951,17 +2987,19 @@ short rtl8180_init(struct net_device *dev)
 	if ((tmpu16 & EEPROM_THERMAL_METER_ENABLE) >> 13)
 		priv->bTxPowerTrack = true;
 
-	word = eprom_read(dev,EPROM_TXPW_BASE);
+	eeprom_93cx6_read(&eeprom, EPROM_TXPW_BASE, &word);
 	priv->cck_txpwr_base = word & 0xf;
 	priv->ofdm_txpwr_base = (word>>4) & 0xf;
 
-	version = eprom_read(dev,EPROM_VERSION);
+	eeprom_93cx6_read(&eeprom, EPROM_VERSION, &version);
 	DMESG("EEPROM version %x",version);
 	priv->rcr_csense = 3;
 
-	priv->cs_treshold = (eprom_read(dev, ENERGY_TRESHOLD) & 0xff00) >> 8;
+	eeprom_93cx6_read(&eeprom, ENERGY_TRESHOLD, &eeprom_val);
+	priv->cs_treshold = (eeprom_val & 0xff00) >> 8;
 
-	priv->rf_chip = 0xff & eprom_read(dev, RFCHIPID);
+	eeprom_93cx6_read(&eeprom, RFCHIPID, &eeprom_val);
+	priv->rf_chip = 0xff & eeprom_val;
 
 	priv->rf_chip = RF_ZEBRA4;
 	priv->rf_sleep = rtl8225z4_rf_sleep;
