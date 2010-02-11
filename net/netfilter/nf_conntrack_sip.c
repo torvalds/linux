@@ -1305,14 +1305,17 @@ static char sip_names[MAX_PORTS][2][sizeof("sip-65535")] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1] = {
 	[SIP_EXPECT_SIGNALLING] = {
+		.name		= "signalling",
 		.max_expected	= 1,
 		.timeout	= 3 * 60,
 	},
 	[SIP_EXPECT_AUDIO] = {
+		.name		= "audio",
 		.max_expected	= 2 * IP_CT_DIR_MAX,
 		.timeout	= 3 * 60,
 	},
 	[SIP_EXPECT_VIDEO] = {
+		.name		= "video",
 		.max_expected	= 2 * IP_CT_DIR_MAX,
 		.timeout	= 3 * 60,
 	},

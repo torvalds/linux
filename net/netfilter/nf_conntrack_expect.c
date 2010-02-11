@@ -500,6 +500,7 @@ static void exp_seq_stop(struct seq_file *seq, void *v)
 static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *expect;
+	struct nf_conntrack_helper *helper;
 	struct hlist_node *n = v;
 	char *delim = "";
 
@@ -524,6 +525,14 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	}
 	if (expect->flags & NF_CT_EXPECT_INACTIVE)
 		seq_printf(s, "%sINACTIVE", delim);
+
+	helper = rcu_dereference(nfct_help(expect->master)->helper);
+	if (helper) {
+		seq_printf(s, "%s%s", expect->flags ? " " : "", helper->name);
+		if (helper->expect_policy[expect->class].name)
+			seq_printf(s, "/%s",
+				   helper->expect_policy[expect->class].name);
+	}
 
 	return seq_putc(s, '\n');
 }

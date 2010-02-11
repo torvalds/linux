@@ -66,6 +66,7 @@ static inline struct net *nf_ct_exp_net(struct nf_conntrack_expect *exp)
 struct nf_conntrack_expect_policy {
 	unsigned int	max_expected;
 	unsigned int	timeout;
+	const char	*name;
 };
 
 #define NF_CT_EXPECT_CLASS_DEFAULT	0
