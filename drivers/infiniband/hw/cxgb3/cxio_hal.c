@@ -109,7 +109,6 @@ int cxio_hal_cq_op(struct cxio_rdev *rdev_p, struct t3_cq *cq,
 		while (!CQ_VLD_ENTRY(rptr, cq->size_log2, cqe)) {
 			udelay(1);
 			if (i++ > 1000000) {
-				BUG_ON(1);
 				printk(KERN_ERR "%s: stalled rnic\n",
 				       rdev_p->dev_name);
 				return -EIO;
