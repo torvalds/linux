@@ -2043,7 +2043,6 @@ i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool lists_empty;
-	uint32_t seqno1, seqno2;
 	int ret;
 
 	spin_lock(&dev_priv->mm.active_list_lock);
@@ -2058,18 +2057,17 @@ i915_gpu_idle(struct drm_device *dev)
 
 	/* Flush everything onto the inactive list. */
 	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-	seqno1 = i915_add_request(dev, NULL, &dev_priv->render_ring);
-	if (seqno1 == 0)
-		return -ENOMEM;
-	ret = i915_wait_request(dev, seqno1, &dev_priv->render_ring);
+
+	ret = i915_wait_request(dev,
+				i915_gem_next_request_seqno(dev, &dev_priv->render_ring),
+				&dev_priv->render_ring);
 	if (ret)
 		return ret;
 
 	if (HAS_BSD(dev)) {
-		seqno2 = i915_add_request(dev, NULL, &dev_priv->bsd_ring);
-		if (seqno2 == 0)
-			return -ENOMEM;
-		ret = i915_wait_request(dev, seqno2, &dev_priv->bsd_ring);
+		ret = i915_wait_request(dev,
+					i915_gem_next_request_seqno(dev, &dev_priv->bsd_ring),
+					&dev_priv->bsd_ring);
 		if (ret)
 			return ret;
 	}
