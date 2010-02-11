@@ -81,60 +81,39 @@ static void radeon_print_power_mode_info(struct radeon_device *rdev)
 static struct radeon_power_state * radeon_pick_power_state(struct radeon_device *rdev,
 							   enum radeon_pm_state_type type)
 {
-	int i;
-	struct radeon_power_state *power_state = NULL;
+	int i, j;
+	enum radeon_pm_state_type wanted_types[2];
+	int wanted_count;
 
 	switch (type) {
 	case POWER_STATE_TYPE_DEFAULT:
 	default:
 		return rdev->pm.default_power_state;
 	case POWER_STATE_TYPE_POWERSAVE:
-		for (i = 0; i < rdev->pm.num_power_states; i++) {
-			if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_POWERSAVE) {
-				power_state = &rdev->pm.power_state[i];
-				break;
-			}
-		}
-		if (power_state == NULL) {
-			for (i = 0; i < rdev->pm.num_power_states; i++) {
-				if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_BATTERY) {
-					power_state = &rdev->pm.power_state[i];
-					break;
-				}
-			}
-		}
+		wanted_types[0] = POWER_STATE_TYPE_POWERSAVE;
+		wanted_types[1] = POWER_STATE_TYPE_BATTERY;
+		wanted_count = 2;
 		break;
 	case POWER_STATE_TYPE_BATTERY:
-		for (i = 0; i < rdev->pm.num_power_states; i++) {
-			if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_BATTERY) {
-				power_state = &rdev->pm.power_state[i];
-				break;
-			}
-		}
-		if (power_state == NULL) {
-			for (i = 0; i < rdev->pm.num_power_states; i++) {
-				if (rdev->pm.power_state[i].type == POWER_STATE_TYPE_POWERSAVE) {
-					power_state = &rdev->pm.power_state[i];
-					break;
-				}
-			}
-		}
+		wanted_types[0] = POWER_STATE_TYPE_BATTERY;
+		wanted_types[1] = POWER_STATE_TYPE_POWERSAVE;
+		wanted_count = 2;
 		break;
 	case POWER_STATE_TYPE_BALANCED:
 	case POWER_STATE_TYPE_PERFORMANCE:
-		for (i = 0; i < rdev->pm.num_power_states; i++) {
-			if (rdev->pm.power_state[i].type == type) {
-				power_state = &rdev->pm.power_state[i];
-				break;
-			}
-		}
+		wanted_types[0] = type;
+		wanted_count = 1;
 		break;
 	}
 
-	if (power_state == NULL)
-		return rdev->pm.default_power_state;
+	for (i = 0; i < wanted_count; i++) {
+		for (j = 0; j < rdev->pm.num_power_states; j++) {
+			if (rdev->pm.power_state[j].type == wanted_types[i])
+				return &rdev->pm.power_state[j];
+		}
+	}
 
-	return power_state;
+	return rdev->pm.default_power_state;
 }
 
 static struct radeon_pm_clock_info * radeon_pick_clock_mode(struct radeon_device *rdev,
