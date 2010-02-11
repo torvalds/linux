@@ -189,6 +189,9 @@ static struct platform_device dma0_device = {
 	.dev		= {
 		.platform_data	= &dma0_platform_data,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_DMAC0,
+	},
 };
 
 static struct platform_device dma1_device = {
@@ -198,6 +201,9 @@ static struct platform_device dma1_device = {
 	.num_resources	= ARRAY_SIZE(sh7724_dmae1_resources),
 	.dev		= {
 		.platform_data	= &dma1_platform_data,
+	},
+	.archdata = {
+		.hwblk_id = HWBLK_DMAC1,
 	},
 };
 

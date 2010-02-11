@@ -163,6 +163,9 @@ struct platform_device dma_device = {
 	.dev		= {
 		.platform_data	= &dma_platform_data,
 	},
+	.archdata = {
+		.hwblk_id = HWBLK_DMAC,
+	},
 };
 
 /* Serial */
