@@ -991,12 +991,15 @@ int i915_gpu_idle(struct drm_device *dev);
 int i915_gem_idle(struct drm_device *dev);
 uint32_t i915_add_request(struct drm_device *dev,
 		struct drm_file *file_priv,
-		uint32_t flush_domains,
 		struct intel_ring_buffer *ring);
 int i915_do_wait_request(struct drm_device *dev,
-		uint32_t seqno, int interruptible,
-		struct intel_ring_buffer *ring);
+			 uint32_t seqno,
+			 bool interruptible,
+			 struct intel_ring_buffer *ring);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+void i915_gem_process_flushing_list(struct drm_device *dev,
+				    uint32_t flush_domains,
+				    struct intel_ring_buffer *ring);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
 int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj);

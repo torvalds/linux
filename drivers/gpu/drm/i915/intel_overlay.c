@@ -230,7 +230,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	ADVANCE_LP_RING();
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, 0, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, &dev_priv->render_ring);
 	if (overlay->last_flip_req == 0)
 		return -ENOMEM;
 
@@ -269,7 +269,7 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
         ADVANCE_LP_RING();
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, 0, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, &dev_priv->render_ring);
 }
 
 static int intel_overlay_wait_flip(struct intel_overlay *overlay)
@@ -301,7 +301,7 @@ static int intel_overlay_wait_flip(struct intel_overlay *overlay)
         ADVANCE_LP_RING();
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, 0, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, &dev_priv->render_ring);
 	if (overlay->last_flip_req == 0)
 		return -ENOMEM;
 
@@ -342,7 +342,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
         ADVANCE_LP_RING();
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, 0, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, &dev_priv->render_ring);
 	if (overlay->last_flip_req == 0)
 		return -ENOMEM;
 
@@ -362,7 +362,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	ADVANCE_LP_RING();
 
 	overlay->last_flip_req =
-		i915_add_request(dev, NULL, 0, &dev_priv->render_ring);
+		i915_add_request(dev, NULL, &dev_priv->render_ring);
 	if (overlay->last_flip_req == 0)
 		return -ENOMEM;
 
@@ -409,7 +409,7 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 
 	if (overlay->last_flip_req == 0) {
 		overlay->last_flip_req =
-			i915_add_request(dev, NULL, 0, &dev_priv->render_ring);
+			i915_add_request(dev, NULL, &dev_priv->render_ring);
 		if (overlay->last_flip_req == 0)
 			return -ENOMEM;
 	}
@@ -439,8 +439,9 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 			OUT_RING(MI_NOOP);
 			ADVANCE_LP_RING();
 
-			overlay->last_flip_req = i915_add_request(dev, NULL,
-					0, &dev_priv->render_ring);
+			overlay->last_flip_req =
+				i915_add_request(dev, NULL,
+						 &dev_priv->render_ring);
 			if (overlay->last_flip_req == 0)
 				return -ENOMEM;
 
