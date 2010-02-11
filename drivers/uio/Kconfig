@@ -74,6 +74,7 @@ config UIO_AEC
 
 config UIO_SERCOS3
 	tristate "Automata Sercos III PCI card driver"
+	depends on PCI
 	help
 	  Userspace I/O interface for the Sercos III PCI card from
 	  Automata GmbH. The userspace part of this driver will be
@@ -87,7 +88,6 @@ config UIO_SERCOS3
 config UIO_PCI_GENERIC
 	tristate "Generic driver for PCI 2.3 and PCI Express cards"
 	depends on PCI
-	default n
 	help
 	  Generic driver that you can bind, dynamically, to any
 	  PCI 2.3 compliant and PCI Express card. It is useful,
