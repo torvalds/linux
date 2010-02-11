@@ -173,6 +173,24 @@
 #define WM8350_GPIO_DEBOUNCE_ON			1
 
 /*
+ * R30 (0x1E) - GPIO Interrupt Status
+ */
+#define WM8350_GP12_EINT                        0x1000
+#define WM8350_GP11_EINT                        0x0800
+#define WM8350_GP10_EINT                        0x0400
+#define WM8350_GP9_EINT                         0x0200
+#define WM8350_GP8_EINT                         0x0100
+#define WM8350_GP7_EINT                         0x0080
+#define WM8350_GP6_EINT                         0x0040
+#define WM8350_GP5_EINT                         0x0020
+#define WM8350_GP4_EINT                         0x0010
+#define WM8350_GP3_EINT                         0x0008
+#define WM8350_GP2_EINT                         0x0004
+#define WM8350_GP1_EINT                         0x0002
+#define WM8350_GP0_EINT                         0x0001
+
+
+/*
  * R128 (0x80) - GPIO Debounce
  */
 #define WM8350_GP12_DB                          0x1000

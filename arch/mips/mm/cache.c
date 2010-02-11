@@ -194,7 +194,7 @@ void __devinit cpu_cache_init(void)
 
 int __weak __uncached_access(struct file *file, unsigned long addr)
 {
-	if (file->f_flags & O_SYNC)
+	if (file->f_flags & O_DSYNC)
 		return 1;
 
 	return addr >= __pa(high_memory);

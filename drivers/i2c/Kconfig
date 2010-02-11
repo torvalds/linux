@@ -5,6 +5,7 @@
 menuconfig I2C
 	tristate "I2C support"
 	depends on HAS_IOMEM
+	select RT_MUTEXES
 	---help---
 	  I2C (pronounce: I-square-C) is a slow serial bus protocol used in
 	  many micro controller applications and developed by Philips.  SMBus,

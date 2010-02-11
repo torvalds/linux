@@ -47,6 +47,7 @@ static inline void __flush_cache_all(void)
 }
 
 /* dcache/icache coherency... */
+#define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 #ifdef CONFIG_MMU
 extern void flush_dcache_page(struct page *page);
 #else

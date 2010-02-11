@@ -70,41 +70,36 @@ frag_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	pr_debug("res %02X %02X%04X %02X ",
 		 fraginfo->flags & IP6T_FRAG_RES, fh->reserved,
 		 ntohs(fh->frag_off) & 0x6,
-		 !((fraginfo->flags & IP6T_FRAG_RES)
-		   && (fh->reserved || (ntohs(fh->frag_off) & 0x06))));
+		 !((fraginfo->flags & IP6T_FRAG_RES) &&
+		   (fh->reserved || (ntohs(fh->frag_off) & 0x06))));
 	pr_debug("first %02X %02X %02X ",
 		 fraginfo->flags & IP6T_FRAG_FST,
 		 ntohs(fh->frag_off) & ~0x7,
-		 !((fraginfo->flags & IP6T_FRAG_FST)
-		   && (ntohs(fh->frag_off) & ~0x7)));
+		 !((fraginfo->flags & IP6T_FRAG_FST) &&
+		   (ntohs(fh->frag_off) & ~0x7)));
 	pr_debug("mf %02X %02X %02X ",
 		 fraginfo->flags & IP6T_FRAG_MF,
 		 ntohs(fh->frag_off) & IP6_MF,
-		 !((fraginfo->flags & IP6T_FRAG_MF)
-		   && !((ntohs(fh->frag_off) & IP6_MF))));
+		 !((fraginfo->flags & IP6T_FRAG_MF) &&
+		   !((ntohs(fh->frag_off) & IP6_MF))));
 	pr_debug("last %02X %02X %02X\n",
 		 fraginfo->flags & IP6T_FRAG_NMF,
 		 ntohs(fh->frag_off) & IP6_MF,
-		 !((fraginfo->flags & IP6T_FRAG_NMF)
-		   && (ntohs(fh->frag_off) & IP6_MF)));
+		 !((fraginfo->flags & IP6T_FRAG_NMF) &&
+		   (ntohs(fh->frag_off) & IP6_MF)));
 
-	return (fh != NULL)
-	       &&
-	       id_match(fraginfo->ids[0], fraginfo->ids[1],
-			ntohl(fh->identification),
-			!!(fraginfo->invflags & IP6T_FRAG_INV_IDS))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_RES)
-		 && (fh->reserved || (ntohs(fh->frag_off) & 0x6)))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_FST)
-		 && (ntohs(fh->frag_off) & ~0x7))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_MF)
-		 && !(ntohs(fh->frag_off) & IP6_MF))
-	       &&
-	       !((fraginfo->flags & IP6T_FRAG_NMF)
-		 && (ntohs(fh->frag_off) & IP6_MF));
+	return (fh != NULL) &&
+		id_match(fraginfo->ids[0], fraginfo->ids[1],
+			 ntohl(fh->identification),
+			 !!(fraginfo->invflags & IP6T_FRAG_INV_IDS)) &&
+		!((fraginfo->flags & IP6T_FRAG_RES) &&
+		  (fh->reserved || (ntohs(fh->frag_off) & 0x6))) &&
+		!((fraginfo->flags & IP6T_FRAG_FST) &&
+		  (ntohs(fh->frag_off) & ~0x7)) &&
+		!((fraginfo->flags & IP6T_FRAG_MF) &&
+		  !(ntohs(fh->frag_off) & IP6_MF)) &&
+		!((fraginfo->flags & IP6T_FRAG_NMF) &&
+		  (ntohs(fh->frag_off) & IP6_MF));
 }
 
 static bool frag_mt6_check(const struct xt_mtchk_param *par)

@@ -158,8 +158,8 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
 #define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
-#elif	defined(CONFIG_MACH_LOGICPD_PXA270) \
-	|| defined(CONFIG_MACH_NOMADIK_8815NHK)
+#elif	defined(CONFIG_MACH_LOGICPD_PXA270) ||	\
+	defined(CONFIG_MACH_NOMADIK_8815NHK)
 
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1
@@ -206,21 +206,6 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 	}
 }
 
-#elif	defined(CONFIG_ARCH_OMAP)
-
-/* We can only do 16-bit reads and writes in the static memory space. */
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-#define SMC_IO_SHIFT		0
-#define SMC_NOWAIT		1
-
-#define SMC_inw(a, r)		readw((a) + (r))
-#define SMC_outw(v, a, r)	writew(v, (a) + (r))
-#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-#define	SMC_IRQ_FLAGS		(-1)	/* from resource */
-
 #elif	defined(CONFIG_SH_SH4202_MICRODEV)
 
 #define SMC_CAN_USE_8BIT	0
@@ -258,9 +243,9 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
 
-#elif   defined(CONFIG_MACH_LPD79520) \
-     || defined(CONFIG_MACH_LPD7A400) \
-     || defined(CONFIG_MACH_LPD7A404)
+#elif   defined(CONFIG_MACH_LPD79520) ||	\
+	defined(CONFIG_MACH_LPD7A400) ||	\
+	defined(CONFIG_MACH_LPD7A404)
 
 /* The LPD7X_IOBARRIER is necessary to overcome a mismatch between the
  * way that the CPU handles chip selects and the way that the SMC chip

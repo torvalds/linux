@@ -566,7 +566,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (pages_written >= write_chunk)
 			break;		/* We've done our duty */
 
-		schedule_timeout_interruptible(pause);
+		__set_current_state(TASK_INTERRUPTIBLE);
+		io_schedule_timeout(pause);
 
 		/*
 		 * Increase the delay for each loop, up to our previous
@@ -820,7 +821,6 @@ int write_cache_pages(struct address_space *mapping,
 		      struct writeback_control *wbc, writepage_t writepage,
 		      void *data)
 {
-	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	int ret = 0;
 	int done = 0;
 	struct pagevec pvec;
@@ -832,11 +832,6 @@ int write_cache_pages(struct address_space *mapping,
 	int cycled;
 	int range_whole = 0;
 	long nr_to_write = wbc->nr_to_write;
-
-	if (wbc->nonblocking && bdi_write_congested(bdi)) {
-		wbc->encountered_congestion = 1;
-		return 0;
-	}
 
 	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
@@ -955,12 +950,6 @@ continue_unlock:
 					done = 1;
 					break;
 				}
-			}
-
-			if (wbc->nonblocking && bdi_write_congested(bdi)) {
-				wbc->encountered_congestion = 1;
-				done = 1;
-				break;
 			}
 		}
 		pagevec_release(&pvec);

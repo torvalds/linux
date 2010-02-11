@@ -195,8 +195,8 @@ void rds_recv_incoming(struct rds_connection *conn, __be32 saddr, __be32 daddr,
 	 * XXX we could spend more on the wire to get more robust failure
 	 * detection, arguably worth it to avoid data corruption.
 	 */
-	if (be64_to_cpu(inc->i_hdr.h_sequence) < conn->c_next_rx_seq
-	 && (inc->i_hdr.h_flags & RDS_FLAG_RETRANSMITTED)) {
+	if (be64_to_cpu(inc->i_hdr.h_sequence) < conn->c_next_rx_seq &&
+	    (inc->i_hdr.h_flags & RDS_FLAG_RETRANSMITTED)) {
 		rds_stats_inc(s_recv_drop_old_seq);
 		goto out;
 	}
@@ -432,10 +432,9 @@ int rds_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 			}
 
 			timeo = wait_event_interruptible_timeout(*sk->sk_sleep,
-						(!list_empty(&rs->rs_notify_queue)
-						|| rs->rs_cong_notify
-						|| rds_next_incoming(rs, &inc)),
-						timeo);
+					(!list_empty(&rs->rs_notify_queue) ||
+					 rs->rs_cong_notify ||
+					 rds_next_incoming(rs, &inc)), timeo);
 			rdsdebug("recvmsg woke inc %p timeo %ld\n", inc,
 				 timeo);
 			if (timeo > 0 || timeo == MAX_SCHEDULE_TIMEOUT)

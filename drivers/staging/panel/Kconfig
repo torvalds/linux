@@ -47,7 +47,7 @@ config PANEL_PROFILE
 config PANEL_KEYPAD
 	depends on PANEL && PANEL_PROFILE="0"
 	int "Keypad type (0=none, 1=old 6 keys, 2=new 6 keys, 3=Nexcom 4 keys)"
-	range 0 4
+	range 0 3
 	default 0
 	---help---
 	  This enables and configures a keypad connected to the parallel port.

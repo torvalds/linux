@@ -21,6 +21,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/time.h>
+#include <linux/wait.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -70,6 +71,11 @@ enum {
 	Opt_commit,
 	Opt_err_withdraw,
 	Opt_err_panic,
+	Opt_statfs_quantum,
+	Opt_statfs_percent,
+	Opt_quota_quantum,
+	Opt_barrier,
+	Opt_nobarrier,
 	Opt_error,
 };
 
@@ -101,18 +107,23 @@ static const match_table_t tokens = {
 	{Opt_commit, "commit=%d"},
 	{Opt_err_withdraw, "errors=withdraw"},
 	{Opt_err_panic, "errors=panic"},
+	{Opt_statfs_quantum, "statfs_quantum=%d"},
+	{Opt_statfs_percent, "statfs_percent=%d"},
+	{Opt_quota_quantum, "quota_quantum=%d"},
+	{Opt_barrier, "barrier"},
+	{Opt_nobarrier, "nobarrier"},
 	{Opt_error, NULL}
 };
 
 /**
  * gfs2_mount_args - Parse mount options
- * @sdp:
- * @data:
+ * @args: The structure into which the parsed options will be written
+ * @options: The options to parse
  *
  * Return: errno
  */
 
-int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
+int gfs2_mount_args(struct gfs2_args *args, char *options)
 {
 	char *o;
 	int token;
@@ -157,7 +168,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_debug:
 			if (args->ar_errors == GFS2_ERRORS_PANIC) {
-				fs_info(sdp, "-o debug and -o errors=panic "
+				printk(KERN_WARNING "GFS2: -o debug and -o errors=panic "
 				       "are mutually exclusive.\n");
 				return -EINVAL;
 			}
@@ -210,7 +221,29 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 		case Opt_commit:
 			rv = match_int(&tmp[0], &args->ar_commit);
 			if (rv || args->ar_commit <= 0) {
-				fs_info(sdp, "commit mount option requires a positive numeric argument\n");
+				printk(KERN_WARNING "GFS2: commit mount option requires a positive numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
+			break;
+		case Opt_statfs_quantum:
+			rv = match_int(&tmp[0], &args->ar_statfs_quantum);
+			if (rv || args->ar_statfs_quantum < 0) {
+				printk(KERN_WARNING "GFS2: statfs_quantum mount option requires a non-negative numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
+			break;
+		case Opt_quota_quantum:
+			rv = match_int(&tmp[0], &args->ar_quota_quantum);
+			if (rv || args->ar_quota_quantum <= 0) {
+				printk(KERN_WARNING "GFS2: quota_quantum mount option requires a positive numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
+			break;
+		case Opt_statfs_percent:
+			rv = match_int(&tmp[0], &args->ar_statfs_percent);
+			if (rv || args->ar_statfs_percent < 0 ||
+			    args->ar_statfs_percent > 100) {
+				printk(KERN_WARNING "statfs_percent mount option requires a numeric argument between 0 and 100\n");
 				return rv ? rv : -EINVAL;
 			}
 			break;
@@ -219,15 +252,21 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_err_panic:
 			if (args->ar_debug) {
-				fs_info(sdp, "-o debug and -o errors=panic "
+				printk(KERN_WARNING "GFS2: -o debug and -o errors=panic "
 					"are mutually exclusive.\n");
 				return -EINVAL;
 			}
 			args->ar_errors = GFS2_ERRORS_PANIC;
 			break;
+		case Opt_barrier:
+			args->ar_nobarrier = 0;
+			break;
+		case Opt_nobarrier:
+			args->ar_nobarrier = 1;
+			break;
 		case Opt_error:
 		default:
-			fs_info(sdp, "invalid mount option: %s\n", o);
+			printk(KERN_WARNING "GFS2: invalid mount option: %s\n", o);
 			return -EINVAL;
 		}
 	}
@@ -442,7 +481,10 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 {
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
 	struct gfs2_statfs_change_host *l_sc = &sdp->sd_statfs_local;
+	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
 	struct buffer_head *l_bh;
+	s64 x, y;
+	int need_sync = 0;
 	int error;
 
 	error = gfs2_meta_inode_buffer(l_ip, &l_bh);
@@ -456,9 +498,17 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	l_sc->sc_free += free;
 	l_sc->sc_dinodes += dinodes;
 	gfs2_statfs_change_out(l_sc, l_bh->b_data + sizeof(struct gfs2_dinode));
+	if (sdp->sd_args.ar_statfs_percent) {
+		x = 100 * l_sc->sc_free;
+		y = m_sc->sc_free * sdp->sd_args.ar_statfs_percent;
+		if (x >= y || x <= -y)
+			need_sync = 1;
+	}
 	spin_unlock(&sdp->sd_statfs_spin);
 
 	brelse(l_bh);
+	if (need_sync)
+		gfs2_wake_up_statfs(sdp);
 }
 
 void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
@@ -484,8 +534,9 @@ void update_statfs(struct gfs2_sbd *sdp, struct buffer_head *m_bh,
 	gfs2_statfs_change_out(m_sc, m_bh->b_data + sizeof(struct gfs2_dinode));
 }
 
-int gfs2_statfs_sync(struct gfs2_sbd *sdp)
+int gfs2_statfs_sync(struct super_block *sb, int type)
 {
+	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
 	struct gfs2_inode *l_ip = GFS2_I(sdp->sd_sc_inode);
 	struct gfs2_statfs_change_host *m_sc = &sdp->sd_statfs_master;
@@ -521,6 +572,7 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 		goto out_bh2;
 
 	update_statfs(sdp, m_bh, l_bh);
+	sdp->sd_statfs_force_sync = 0;
 
 	gfs2_trans_end(sdp);
 
@@ -712,8 +764,8 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	int error;
 
 	flush_workqueue(gfs2_delete_workqueue);
-	gfs2_quota_sync(sdp);
-	gfs2_statfs_sync(sdp);
+	gfs2_quota_sync(sdp->sd_vfs, 0);
+	gfs2_statfs_sync(sdp->sd_vfs, 0);
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED, GL_NOCACHE,
 				   &t_gh);
@@ -1061,8 +1113,13 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	spin_lock(&gt->gt_spin);
 	args.ar_commit = gt->gt_log_flush_secs;
+	args.ar_quota_quantum = gt->gt_quota_quantum;
+	if (gt->gt_statfs_slow)
+		args.ar_statfs_quantum = 0;
+	else
+		args.ar_statfs_quantum = gt->gt_statfs_quantum;
 	spin_unlock(&gt->gt_spin);
-	error = gfs2_mount_args(sdp, &args, data);
+	error = gfs2_mount_args(&args, data);
 	if (error)
 		return error;
 
@@ -1097,8 +1154,21 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 		sb->s_flags |= MS_POSIXACL;
 	else
 		sb->s_flags &= ~MS_POSIXACL;
+	if (sdp->sd_args.ar_nobarrier)
+		set_bit(SDF_NOBARRIERS, &sdp->sd_flags);
+	else
+		clear_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 	spin_lock(&gt->gt_spin);
 	gt->gt_log_flush_secs = args.ar_commit;
+	gt->gt_quota_quantum = args.ar_quota_quantum;
+	if (args.ar_statfs_quantum) {
+		gt->gt_statfs_slow = 0;
+		gt->gt_statfs_quantum = args.ar_statfs_quantum;
+	}
+	else {
+		gt->gt_statfs_slow = 1;
+		gt->gt_statfs_quantum = 30;
+	}
 	spin_unlock(&gt->gt_spin);
 
 	gfs2_online_uevent(sdp);
@@ -1179,7 +1249,7 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
 	struct gfs2_sbd *sdp = mnt->mnt_sb->s_fs_info;
 	struct gfs2_args *args = &sdp->sd_args;
-	int lfsecs;
+	int val;
 
 	if (is_ancestor(mnt->mnt_root, sdp->sd_master_dir))
 		seq_printf(s, ",meta");
@@ -1240,9 +1310,17 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	}
 	if (args->ar_discard)
 		seq_printf(s, ",discard");
-	lfsecs = sdp->sd_tune.gt_log_flush_secs;
-	if (lfsecs != 60)
-		seq_printf(s, ",commit=%d", lfsecs);
+	val = sdp->sd_tune.gt_log_flush_secs;
+	if (val != 60)
+		seq_printf(s, ",commit=%d", val);
+	val = sdp->sd_tune.gt_statfs_quantum;
+	if (val != 30)
+		seq_printf(s, ",statfs_quantum=%d", val);
+	val = sdp->sd_tune.gt_quota_quantum;
+	if (val != 60)
+		seq_printf(s, ",quota_quantum=%d", val);
+	if (args->ar_statfs_percent)
+		seq_printf(s, ",statfs_percent=%d", args->ar_statfs_percent);
 	if (args->ar_errors != GFS2_ERRORS_DEFAULT) {
 		const char *state;
 
@@ -1259,6 +1337,9 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		}
 		seq_printf(s, ",errors=%s", state);
 	}
+	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
+		seq_printf(s, ",nobarrier");
+
 	return 0;
 }
 

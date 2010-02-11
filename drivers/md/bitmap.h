@@ -106,7 +106,7 @@ typedef __u16 bitmap_counter_t;
 #define BITMAP_BLOCK_SHIFT 9
 
 /* how many blocks per chunk? (this is variable) */
-#define CHUNK_BLOCK_RATIO(bitmap) ((bitmap)->chunksize >> BITMAP_BLOCK_SHIFT)
+#define CHUNK_BLOCK_RATIO(bitmap) ((bitmap)->mddev->bitmap_info.chunksize >> BITMAP_BLOCK_SHIFT)
 #define CHUNK_BLOCK_SHIFT(bitmap) ((bitmap)->chunkshift - BITMAP_BLOCK_SHIFT)
 #define CHUNK_BLOCK_MASK(bitmap) (CHUNK_BLOCK_RATIO(bitmap) - 1)
 
@@ -117,16 +117,6 @@ typedef __u16 bitmap_counter_t;
 #define PAGEPTR_BLOCK_SHIFT(bitmap) \
 			(CHUNK_BLOCK_SHIFT(bitmap) + PAGE_COUNTER_SHIFT - 1)
 #define PAGEPTR_BLOCK_MASK(bitmap) (PAGEPTR_BLOCK_RATIO(bitmap) - 1)
-
-/*
- * on-disk bitmap:
- *
- * Use one bit per "chunk" (block set). We do the disk I/O on the bitmap
- * file a page at a time. There's a superblock at the start of the file.
- */
-
-/* map chunks (bits) to file pages - offset by the size of the superblock */
-#define CHUNK_BIT_OFFSET(chunk) ((chunk) + (sizeof(bitmap_super_t) << 3))
 
 #endif
 
@@ -209,7 +199,6 @@ struct bitmap {
 	int counter_bits; /* how many bits per block counter */
 
 	/* bitmap chunksize -- how much data does each bit represent? */
-	unsigned long chunksize;
 	unsigned long chunkshift; /* chunksize = 2^chunkshift (for bitops) */
 	unsigned long chunks; /* total number of data chunks for the array */
 
@@ -226,7 +215,6 @@ struct bitmap {
 	/* bitmap spinlock */
 	spinlock_t lock;
 
-	long offset; /* offset from superblock if file is NULL */
 	struct file *file; /* backing disk file */
 	struct page *sb_page; /* cached copy of the bitmap file superblock */
 	struct page **filemap; /* list of cache pages for the file */
@@ -238,7 +226,6 @@ struct bitmap {
 
 	int allclean;
 
-	unsigned long max_write_behind; /* write-behind mode */
 	atomic_t behind_writes;
 
 	/*
@@ -246,7 +233,6 @@ struct bitmap {
 	 * file, cleaning up bits and flushing out pages to disk as necessary
 	 */
 	unsigned long daemon_lastrun; /* jiffies of last run */
-	unsigned long daemon_sleep; /* how many seconds between updates? */
 	unsigned long last_end_sync; /* when we lasted called end_sync to
 				      * update bitmap with resync progress */
 
@@ -254,6 +240,7 @@ struct bitmap {
 	wait_queue_head_t write_wait;
 	wait_queue_head_t overflow_wait;
 
+	struct sysfs_dirent *sysfs_can_clear;
 };
 
 /* the bitmap API */
@@ -282,7 +269,7 @@ void bitmap_close_sync(struct bitmap *bitmap);
 void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector);
 
 void bitmap_unplug(struct bitmap *bitmap);
-void bitmap_daemon_work(struct bitmap *bitmap);
+void bitmap_daemon_work(mddev_t *mddev);
 #endif
 
 #endif

@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c24xx/pm.c
  *
- * Copyright (c) 2004,2006 Simtec Electronics
+ * Copyright (c) 2004-2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C24XX Power Manager (Suspend-To-RAM) support

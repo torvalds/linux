@@ -52,7 +52,7 @@ static struct hard_trap_info
 	{ 0x2030, 0x08 /* SIGFPE */  },		/* spe fp data */
 	{ 0x2040, 0x08 /* SIGFPE */  },		/* spe fp data */
 	{ 0x2050, 0x08 /* SIGFPE */  },		/* spe fp round */
-	{ 0x2060, 0x0e /* SIGILL */  },		/* performace monitor */
+	{ 0x2060, 0x0e /* SIGILL */  },		/* performance monitor */
 	{ 0x2900, 0x08 /* SIGFPE */  },		/* apu unavailable */
 	{ 0x3100, 0x0e /* SIGALRM */ },		/* fixed interval timer */
 	{ 0x3200, 0x02 /* SIGINT */  }, 	/* watchdog */
@@ -282,12 +282,6 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
 	unsigned long *ptr = gdb_regs;
 	int reg;
-#ifdef CONFIG_SPE
-	union {
-		u32 v32[2];
-		u64 v64;
-	} acc;
-#endif
 
 	for (reg = 0; reg < 32; reg++)
 		UNPACK64(regs->gpr[reg], ptr);

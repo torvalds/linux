@@ -64,6 +64,7 @@
 #include <linux/dmi.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <linux/pnp.h>
 
 #ifdef CONFIG_PPC_OF
 #include <linux/of_device.h>
@@ -1919,7 +1920,7 @@ struct SPMITable {
 	s8      spmi_id[1]; /* A '\0' terminated array starts here. */
 };
 
-static __devinit int try_init_acpi(struct SPMITable *spmi)
+static __devinit int try_init_spmi(struct SPMITable *spmi)
 {
 	struct smi_info  *info;
 	u8 		 addr_space;
@@ -1940,7 +1941,7 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
 		return -ENOMEM;
 	}
 
-	info->addr_source = "ACPI";
+	info->addr_source = "SPMI";
 
 	/* Figure out the interface type. */
 	switch (spmi->InterfaceType) {
@@ -2002,7 +2003,7 @@ static __devinit int try_init_acpi(struct SPMITable *spmi)
 	return 0;
 }
 
-static __devinit void acpi_find_bmc(void)
+static __devinit void spmi_find_bmc(void)
 {
 	acpi_status      status;
 	struct SPMITable *spmi;
@@ -2020,9 +2021,106 @@ static __devinit void acpi_find_bmc(void)
 		if (status != AE_OK)
 			return;
 
-		try_init_acpi(spmi);
+		try_init_spmi(spmi);
 	}
 }
+
+static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
+				    const struct pnp_device_id *dev_id)
+{
+	struct acpi_device *acpi_dev;
+	struct smi_info *info;
+	acpi_handle handle;
+	acpi_status status;
+	unsigned long long tmp;
+
+	acpi_dev = pnp_acpi_device(dev);
+	if (!acpi_dev)
+		return -ENODEV;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->addr_source = "ACPI";
+
+	handle = acpi_dev->handle;
+
+	/* _IFT tells us the interface type: KCS, BT, etc */
+	status = acpi_evaluate_integer(handle, "_IFT", NULL, &tmp);
+	if (ACPI_FAILURE(status))
+		goto err_free;
+
+	switch (tmp) {
+	case 1:
+		info->si_type = SI_KCS;
+		break;
+	case 2:
+		info->si_type = SI_SMIC;
+		break;
+	case 3:
+		info->si_type = SI_BT;
+		break;
+	default:
+		dev_info(&dev->dev, "unknown interface type %lld\n", tmp);
+		goto err_free;
+	}
+
+	if (pnp_port_valid(dev, 0)) {
+		info->io_setup = port_setup;
+		info->io.addr_type = IPMI_IO_ADDR_SPACE;
+		info->io.addr_data = pnp_port_start(dev, 0);
+	} else if (pnp_mem_valid(dev, 0)) {
+		info->io_setup = mem_setup;
+		info->io.addr_type = IPMI_MEM_ADDR_SPACE;
+		info->io.addr_data = pnp_mem_start(dev, 0);
+	} else {
+		dev_err(&dev->dev, "no I/O or memory address\n");
+		goto err_free;
+	}
+
+	info->io.regspacing = DEFAULT_REGSPACING;
+	info->io.regsize = DEFAULT_REGSPACING;
+	info->io.regshift = 0;
+
+	/* If _GPE exists, use it; otherwise use standard interrupts */
+	status = acpi_evaluate_integer(handle, "_GPE", NULL, &tmp);
+	if (ACPI_SUCCESS(status)) {
+		info->irq = tmp;
+		info->irq_setup = acpi_gpe_irq_setup;
+	} else if (pnp_irq_valid(dev, 0)) {
+		info->irq = pnp_irq(dev, 0);
+		info->irq_setup = std_irq_setup;
+	}
+
+	info->dev = &acpi_dev->dev;
+	pnp_set_drvdata(dev, info);
+
+	return try_smi_init(info);
+
+err_free:
+	kfree(info);
+	return -EINVAL;
+}
+
+static void __devexit ipmi_pnp_remove(struct pnp_dev *dev)
+{
+	struct smi_info *info = pnp_get_drvdata(dev);
+
+	cleanup_one_si(info);
+}
+
+static const struct pnp_device_id pnp_dev_table[] = {
+	{"IPI0001", 0},
+	{"", 0},
+};
+
+static struct pnp_driver ipmi_pnp_driver = {
+	.name		= DEVICE_NAME,
+	.probe		= ipmi_pnp_probe,
+	.remove		= __devexit_p(ipmi_pnp_remove),
+	.id_table	= pnp_dev_table,
+};
 #endif
 
 #ifdef CONFIG_DMI
@@ -2202,7 +2300,6 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	int rv;
 	int class_type = pdev->class & PCI_ERMC_CLASSCODE_TYPE_MASK;
 	struct smi_info *info;
-	int first_reg_offset = 0;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -2240,9 +2337,6 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 
 	info->addr_source_cleanup = ipmi_pci_cleanup;
 	info->addr_source_data = pdev;
-
-	if (pdev->subsystem_vendor == PCI_HP_VENDOR_ID)
-		first_reg_offset = 1;
 
 	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
 		info->io_setup = port_setup;
@@ -3108,7 +3202,10 @@ static __devinit int init_ipmi_si(void)
 #endif
 
 #ifdef CONFIG_ACPI
-	acpi_find_bmc();
+	spmi_find_bmc();
+#endif
+#ifdef CONFIG_ACPI
+	pnp_register_driver(&ipmi_pnp_driver);
 #endif
 
 #ifdef CONFIG_PCI
@@ -3232,6 +3329,9 @@ static __exit void cleanup_ipmi_si(void)
 
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&ipmi_pci_driver);
+#endif
+#ifdef CONFIG_ACPI
+	pnp_unregister_driver(&ipmi_pnp_driver);
 #endif
 
 #ifdef CONFIG_PPC_OF

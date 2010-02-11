@@ -121,6 +121,14 @@ static struct fwentry firmwares[] = {
 	[BOARD_505A] = { "atmel_at76c505a-rfmd2958.bin" },
 	[BOARD_505AMX] = { "atmel_at76c505amx-rfmd.bin" },
 };
+MODULE_FIRMWARE("atmel_at76c503-i3861.bin");
+MODULE_FIRMWARE("atmel_at76c503-i3863.bin");
+MODULE_FIRMWARE("atmel_at76c503-rfmd.bin");
+MODULE_FIRMWARE("atmel_at76c503-rfmd-acc.bin");
+MODULE_FIRMWARE("atmel_at76c505-rfmd.bin");
+MODULE_FIRMWARE("atmel_at76c505-rfmd2958.bin");
+MODULE_FIRMWARE("atmel_at76c505a-rfmd2958.bin");
+MODULE_FIRMWARE("atmel_at76c505amx-rfmd.bin");
 
 #define USB_DEVICE_DATA(__ops)	.driver_info = (kernel_ulong_t)(__ops)
 
@@ -522,20 +530,6 @@ static char *hex2str(void *buf, int len)
 	*(--obuf) = '\0';
 
 	return ret;
-}
-
-#define MAC2STR_BUFFERS 4
-
-static inline char *mac2str(u8 *mac)
-{
-	static atomic_t a = ATOMIC_INIT(0);
-	static char bufs[MAC2STR_BUFFERS][6 * 3];
-	char *str;
-
-	str = bufs[atomic_inc_return(&a) & (MAC2STR_BUFFERS - 1)];
-	sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	return str;
 }
 
 /* LED trigger */
@@ -973,13 +967,13 @@ static void at76_dump_mib_mac_addr(struct at76_priv *priv)
 		goto exit;
 	}
 
-	at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: mac_addr %s res 0x%x 0x%x",
+	at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: mac_addr %pM res 0x%x 0x%x",
 		 wiphy_name(priv->hw->wiphy),
-		 mac2str(m->mac_addr), m->res[0], m->res[1]);
+		 m->mac_addr, m->res[0], m->res[1]);
 	for (i = 0; i < ARRAY_SIZE(m->group_addr); i++)
-		at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: group addr %d: %s, "
+		at76_dbg(DBG_MIB, "%s: MIB MAC_ADDR: group addr %d: %pM, "
 			 "status %d", wiphy_name(priv->hw->wiphy), i,
-			 mac2str(m->group_addr[i]), m->group_addr_status[i]);
+			 m->group_addr[i], m->group_addr_status[i]);
 exit:
 	kfree(m);
 }
@@ -1042,7 +1036,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 	at76_dbg(DBG_MIB, "%s: MIB MAC_MGMT: beacon_period %d CFP_max_duration "
 		 "%d medium_occupancy_limit %d station_id 0x%x ATIM_window %d "
 		 "CFP_mode %d privacy_opt_impl %d DTIM_period %d CFP_period %d "
-		 "current_bssid %s current_essid %s current_bss_type %d "
+		 "current_bssid %pM current_essid %s current_bss_type %d "
 		 "pm_mode %d ibss_change %d res %d "
 		 "multi_domain_capability_implemented %d "
 		 "international_roaming %d country_string %.3s",
@@ -1051,7 +1045,7 @@ static void at76_dump_mib_mac_mgmt(struct at76_priv *priv)
 		 le16_to_cpu(m->medium_occupancy_limit),
 		 le16_to_cpu(m->station_id), le16_to_cpu(m->ATIM_window),
 		 m->CFP_mode, m->privacy_option_implemented, m->DTIM_period,
-		 m->CFP_period, mac2str(m->current_bssid),
+		 m->CFP_period, m->current_bssid,
 		 hex2str(m->current_essid, IW_ESSID_MAX_SIZE),
 		 m->current_bss_type, m->power_mgmt_mode, m->ibss_change,
 		 m->res, m->multi_domain_capability_implemented,
@@ -1080,7 +1074,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 "cwmin %d cwmax %d short_retry_time %d long_retry_time %d "
 		 "scan_type %d scan_channel %d probe_delay %u "
 		 "min_channel_time %d max_channel_time %d listen_int %d "
-		 "desired_ssid %s desired_bssid %s desired_bsstype %d",
+		 "desired_ssid %s desired_bssid %pM desired_bsstype %d",
 		 wiphy_name(priv->hw->wiphy),
 		 le32_to_cpu(m->max_tx_msdu_lifetime),
 		 le32_to_cpu(m->max_rx_lifetime),
@@ -1092,7 +1086,7 @@ static void at76_dump_mib_mac(struct at76_priv *priv)
 		 le16_to_cpu(m->max_channel_time),
 		 le16_to_cpu(m->listen_interval),
 		 hex2str(m->desired_ssid, IW_ESSID_MAX_SIZE),
-		 mac2str(m->desired_bssid), m->desired_bsstype);
+		 m->desired_bssid, m->desired_bsstype);
 exit:
 	kfree(m);
 }
@@ -1194,6 +1188,9 @@ static int at76_start_monitor(struct at76_priv *priv)
 	scan.channel = priv->channel;
 	scan.scan_type = SCAN_TYPE_PASSIVE;
 	scan.international_scan = 0;
+	scan.min_channel_time = cpu_to_le16(priv->scan_min_time);
+	scan.max_channel_time = cpu_to_le16(priv->scan_max_time);
+	scan.probe_delay = cpu_to_le16(0);
 
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 	if (ret >= 0)
@@ -2217,6 +2214,8 @@ static struct ieee80211_supported_band at76_supported_band = {
 static int at76_init_new_device(struct at76_priv *priv,
 				struct usb_interface *interface)
 {
+	struct wiphy *wiphy;
+	size_t len;
 	int ret;
 
 	/* set up the endpoint information */
@@ -2254,6 +2253,7 @@ static int at76_init_new_device(struct at76_priv *priv,
 	priv->device_unplugged = 0;
 
 	/* mac80211 initialisation */
+	wiphy = priv->hw->wiphy;
 	priv->hw->wiphy->max_scan_ssids = 1;
 	priv->hw->wiphy->max_scan_ie_len = 0;
 	priv->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
@@ -2265,6 +2265,13 @@ static int at76_init_new_device(struct at76_priv *priv,
 	SET_IEEE80211_DEV(priv->hw, &interface->dev);
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
+	len = sizeof(wiphy->fw_version);
+	snprintf(wiphy->fw_version, len, "%d.%d.%d-%d",
+		 priv->fw_version.major, priv->fw_version.minor,
+		 priv->fw_version.patch, priv->fw_version.build);
+
+	wiphy->hw_version = priv->board_type;
+
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
 		printk(KERN_ERR "cannot register mac80211 hw (status %d)!\n",
@@ -2274,9 +2281,9 @@ static int at76_init_new_device(struct at76_priv *priv,
 
 	priv->mac80211_registered = 1;
 
-	printk(KERN_INFO "%s: USB %s, MAC %s, firmware %d.%d.%d-%d\n",
+	printk(KERN_INFO "%s: USB %s, MAC %pM, firmware %d.%d.%d-%d\n",
 	       wiphy_name(priv->hw->wiphy),
-	       dev_name(&interface->dev), mac2str(priv->mac_addr),
+	       dev_name(&interface->dev), priv->mac_addr,
 	       priv->fw_version.major, priv->fw_version.minor,
 	       priv->fw_version.patch, priv->fw_version.build);
 	printk(KERN_INFO "%s: regulatory domain 0x%02x: %s\n",

@@ -279,7 +279,7 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct igbvf_ring *temp_ring;
-	int err;
+	int err = 0;
 	u32 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
@@ -299,15 +299,22 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 		return 0;
 	}
 
-	temp_ring = vmalloc(sizeof(struct igbvf_ring));
-	if (!temp_ring)
-		return -ENOMEM;
-
 	while (test_and_set_bit(__IGBVF_RESETTING, &adapter->state))
 		msleep(1);
 
-	if (netif_running(adapter->netdev))
-		igbvf_down(adapter);
+	if (!netif_running(adapter->netdev)) {
+		adapter->tx_ring->count = new_tx_count;
+		adapter->rx_ring->count = new_rx_count;
+		goto clear_reset;
+	}
+
+	temp_ring = vmalloc(sizeof(struct igbvf_ring));
+	if (!temp_ring) {
+		err = -ENOMEM;
+		goto clear_reset;
+	}
+
+	igbvf_down(adapter);
 
 	/*
 	 * We can't just free everything and then setup again,
@@ -339,14 +346,11 @@ static int igbvf_set_ringparam(struct net_device *netdev,
 
 		memcpy(adapter->rx_ring, temp_ring,sizeof(struct igbvf_ring));
 	}
-
-	err = 0;
 err_setup:
-	if (netif_running(adapter->netdev))
-		igbvf_up(adapter);
-
-	clear_bit(__IGBVF_RESETTING, &adapter->state);
+	igbvf_up(adapter);
 	vfree(temp_ring);
+clear_reset:
+	clear_bit(__IGBVF_RESETTING, &adapter->state);
 	return err;
 }
 
@@ -361,16 +365,6 @@ static int igbvf_link_test(struct igbvf_adapter *adapter, u64 *data)
 		*data = 1;
 
 	return *data;
-}
-
-static int igbvf_get_self_test_count(struct net_device *netdev)
-{
-	return IGBVF_TEST_LEN;
-}
-
-static int igbvf_get_stats_count(struct net_device *netdev)
-{
-	return IGBVF_GLOBAL_STATS_LEN;
 }
 
 static void igbvf_diag_test(struct net_device *netdev,
@@ -480,6 +474,18 @@ static void igbvf_get_ethtool_stats(struct net_device *netdev,
 
 }
 
+static int igbvf_get_sset_count(struct net_device *dev, int stringset)
+{
+	switch(stringset) {
+	case ETH_SS_TEST:
+		return IGBVF_TEST_LEN;
+	case ETH_SS_STATS:
+		return IGBVF_GLOBAL_STATS_LEN;
+	default:
+		return -EINVAL;
+	}
+}
+
 static void igbvf_get_strings(struct net_device *netdev, u32 stringset,
                               u8 *data)
 {
@@ -528,11 +534,10 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= igbvf_set_tso,
 	.self_test		= igbvf_diag_test,
+	.get_sset_count		= igbvf_get_sset_count,
 	.get_strings		= igbvf_get_strings,
 	.phys_id		= igbvf_phys_id,
 	.get_ethtool_stats	= igbvf_get_ethtool_stats,
-	.self_test_count	= igbvf_get_self_test_count,
-	.get_stats_count	= igbvf_get_stats_count,
 	.get_coalesce		= igbvf_get_coalesce,
 	.set_coalesce		= igbvf_set_coalesce,
 };

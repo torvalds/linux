@@ -38,6 +38,7 @@ Table of Contents
   3.3	/proc/<pid>/io - Display the IO accounting fields
   3.4	/proc/<pid>/coredump_filter - Core dump filtering settings
   3.5	/proc/<pid>/mountinfo - Information about mounts
+  3.6	/proc/<pid>/comm  & /proc/<pid>/task/<tid>/comm
 
 
 ------------------------------------------------------------------------------
@@ -176,7 +177,6 @@ read the file /proc/PID/status:
   CapBnd: ffffffffffffffff
   voluntary_ctxt_switches:        0
   nonvoluntary_ctxt_switches:     1
-  Stack usage:    12 kB
 
 This shows you nearly the same information you would get if you viewed it with
 the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain its
@@ -230,7 +230,6 @@ Table 1-2: Contents of the statm files (as of 2.6.30-rc7)
  Mems_allowed_list           Same as previous, but in "list format"
  voluntary_ctxt_switches     number of voluntary context switches
  nonvoluntary_ctxt_switches  number of non voluntary context switches
- Stack usage:                stack usage high water mark (round up to page size)
 ..............................................................................
 
 Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
@@ -1072,7 +1071,8 @@ second).  The meanings of the columns are as follows, from left to right:
 - irq: servicing interrupts
 - softirq: servicing softirqs
 - steal: involuntary wait
-- guest: running a guest
+- guest: running a normal guest
+- guest_nice: running a niced guest
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
@@ -1088,8 +1088,8 @@ The "processes" line gives the number  of processes and threads created, which
 includes (but  is not limited  to) those  created by  calls to the  fork() and
 clone() system calls.
 
-The  "procs_running" line gives the  number of processes  currently running on
-CPUs.
+The "procs_running" line gives the total number of threads that are
+running or ready to run (i.e., the total number of runnable threads).
 
 The   "procs_blocked" line gives  the  number of  processes currently blocked,
 waiting for I/O to complete.
@@ -1408,3 +1408,11 @@ For more information on mount propagation see:
 
   Documentation/filesystems/sharedsubtree.txt
 
+
+3.6	/proc/<pid>/comm  & /proc/<pid>/task/<tid>/comm
+--------------------------------------------------------
+These files provide a method to access a tasks comm value. It also allows for
+a task to set its own or one of its thread siblings comm value. The comm value
+is limited in size compared to the cmdline value, so writing anything longer
+then the kernel's TASK_COMM_LEN (currently 16 chars) will result in a truncated
+comm value.

@@ -975,7 +975,7 @@ config ENC28J60_WRITEVERIFY
 
 config ETHOC
 	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
-	depends on NET_ETHERNET && HAS_IOMEM
+	depends on NET_ETHERNET && HAS_IOMEM && HAS_DMA
 	select MII
 	select PHYLIB
 	select CRC32
@@ -1001,7 +1001,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH || BLACKFIN
+	depends on ARM || SUPERH || BLACKFIN || MIPS
 	select CRC32
 	select MII
 	select PHYLIB
@@ -1741,6 +1741,7 @@ config KS8851
 config KS8851_MLL
 	tristate "Micrel KS8851 MLL"
 	depends on HAS_IOMEM
+	select MII
 	help
 	  This platform driver is for Micrel KS8851 Address/data bus
 	  multiplexed network chip.
@@ -1951,6 +1952,8 @@ config BCM63XX_ENET
 	  MIPS chipset family (BCM63XX).
 
 source "drivers/net/fs_enet/Kconfig"
+
+source "drivers/net/octeon/Kconfig"
 
 endif # NET_ETHERNET
 
@@ -2343,6 +2346,7 @@ config GELIC_NET
 
 config GELIC_WIRELESS
 	bool "PS3 Wireless support"
+	depends on WLAN
 	depends on GELIC_NET
 	select WIRELESS_EXT
 	help
@@ -2355,6 +2359,7 @@ config GELIC_WIRELESS
 config GELIC_WIRELESS_OLD_PSK_INTERFACE
        bool "PS3 Wireless private PSK interface (OBSOLETE)"
        depends on GELIC_WIRELESS
+       select WEXT_PRIV
        help
           This option retains the obsolete private interface to pass
           the PSK from user space programs to the driver.  The PSK
@@ -2481,6 +2486,8 @@ config S6GMAC
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called s6gmac.
+
+source "drivers/net/stmmac/Kconfig"
 
 endif # NETDEV_1000
 
@@ -2693,6 +2700,7 @@ config NETXEN_NIC
 config NIU
 	tristate "Sun Neptune 10Gbit Ethernet support"
 	depends on PCI
+	select CRC32
 	help
 	  This enables support for cards based upon Sun's
 	  Neptune chipset.
@@ -3229,5 +3237,13 @@ config VIRTIO_NET
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
+
+config VMXNET3
+       tristate "VMware VMXNET3 ethernet driver"
+       depends on PCI && INET
+       help
+         This driver supports VMware's vmxnet3 virtual ethernet NIC.
+         To compile this driver as a module, choose M here: the
+         module will be called vmxnet3.
 
 endif # NETDEVICES

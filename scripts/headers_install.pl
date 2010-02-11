@@ -20,7 +20,7 @@ use strict;
 
 my ($readdir, $installdir, $arch, @files) = @ARGV;
 
-my $unifdef = "scripts/unifdef -U__KERNEL__";
+my $unifdef = "scripts/unifdef -U__KERNEL__ -D__EXPORTED_HEADERS__";
 
 foreach my $file (@files) {
 	local *INFILE;

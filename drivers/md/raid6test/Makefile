@@ -7,7 +7,7 @@ CC	 = gcc
 OPTFLAGS = -O2			# Adjust as desired
 CFLAGS	 = -I.. -I ../../../include -g $(OPTFLAGS)
 LD	 = ld
-PERL	 = perl
+AWK	 = awk
 AR	 = ar
 RANLIB	 = ranlib
 
@@ -35,35 +35,35 @@ raid6.a: raid6int1.o raid6int2.o raid6int4.o raid6int8.o raid6int16.o \
 raid6test: test.c raid6.a
 	$(CC) $(CFLAGS) -o raid6test $^
 
-raid6altivec1.c: raid6altivec.uc ../unroll.pl
-	$(PERL) ../unroll.pl 1 < raid6altivec.uc > $@
+raid6altivec1.c: raid6altivec.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=1 < raid6altivec.uc > $@
 
-raid6altivec2.c: raid6altivec.uc ../unroll.pl
-	$(PERL) ../unroll.pl 2 < raid6altivec.uc > $@
+raid6altivec2.c: raid6altivec.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=2 < raid6altivec.uc > $@
 
-raid6altivec4.c: raid6altivec.uc ../unroll.pl
-	$(PERL) ../unroll.pl 4 < raid6altivec.uc > $@
+raid6altivec4.c: raid6altivec.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=4 < raid6altivec.uc > $@
 
-raid6altivec8.c: raid6altivec.uc ../unroll.pl
-	$(PERL) ../unroll.pl 8 < raid6altivec.uc > $@
+raid6altivec8.c: raid6altivec.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=8 < raid6altivec.uc > $@
 
-raid6int1.c: raid6int.uc ../unroll.pl
-	$(PERL) ../unroll.pl 1 < raid6int.uc > $@
+raid6int1.c: raid6int.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=1 < raid6int.uc > $@
 
-raid6int2.c: raid6int.uc ../unroll.pl
-	$(PERL) ../unroll.pl 2 < raid6int.uc > $@
+raid6int2.c: raid6int.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=2 < raid6int.uc > $@
 
-raid6int4.c: raid6int.uc ../unroll.pl
-	$(PERL) ../unroll.pl 4 < raid6int.uc > $@
+raid6int4.c: raid6int.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=4 < raid6int.uc > $@
 
-raid6int8.c: raid6int.uc ../unroll.pl
-	$(PERL) ../unroll.pl 8 < raid6int.uc > $@
+raid6int8.c: raid6int.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=8 < raid6int.uc > $@
 
-raid6int16.c: raid6int.uc ../unroll.pl
-	$(PERL) ../unroll.pl 16 < raid6int.uc > $@
+raid6int16.c: raid6int.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=16 < raid6int.uc > $@
 
-raid6int32.c: raid6int.uc ../unroll.pl
-	$(PERL) ../unroll.pl 32 < raid6int.uc > $@
+raid6int32.c: raid6int.uc ../unroll.awk
+	$(AWK) ../unroll.awk -vN=32 < raid6int.uc > $@
 
 raid6tables.c: mktables
 	./mktables > raid6tables.c

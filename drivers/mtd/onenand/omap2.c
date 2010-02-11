@@ -36,13 +36,13 @@
 #include <linux/io.h>
 
 #include <asm/mach/flash.h>
-#include <mach/gpmc.h>
-#include <mach/onenand.h>
+#include <plat/gpmc.h>
+#include <plat/onenand.h>
 #include <mach/gpio.h>
 
-#include <mach/dma.h>
+#include <plat/dma.h>
 
-#include <mach/board.h>
+#include <plat/board.h>
 
 #define DRIVER_NAME "omap2-onenand"
 
@@ -112,10 +112,24 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 	unsigned long timeout;
 	u32 syscfg;
 
-	if (state == FL_RESETING) {
-		int i;
+	if (state == FL_RESETING || state == FL_PREPARING_ERASE ||
+	    state == FL_VERIFYING_ERASE) {
+		int i = 21;
+		unsigned int intr_flags = ONENAND_INT_MASTER;
 
-		for (i = 0; i < 20; i++) {
+		switch (state) {
+		case FL_RESETING:
+			intr_flags |= ONENAND_INT_RESET;
+			break;
+		case FL_PREPARING_ERASE:
+			intr_flags |= ONENAND_INT_ERASE;
+			break;
+		case FL_VERIFYING_ERASE:
+			i = 101;
+			break;
+		}
+
+		while (--i) {
 			udelay(1);
 			intr = read_reg(c, ONENAND_REG_INTERRUPT);
 			if (intr & ONENAND_INT_MASTER)
@@ -126,7 +140,7 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 			wait_err("controller error", state, ctrl, intr);
 			return -EIO;
 		}
-		if (!(intr & ONENAND_INT_RESET)) {
+		if ((intr & intr_flags) != intr_flags) {
 			wait_err("timeout", state, ctrl, intr);
 			return -EIO;
 		}

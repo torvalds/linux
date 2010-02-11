@@ -15,7 +15,7 @@
  *
  * $#-way unrolled portable integer math RAID-6 instruction set
  *
- * This file is postprocessed using unroll.pl
+ * This file is postprocessed using unroll.awk
  *
  * <benh> hpa: in process,
  * you can just "steal" the vec unit with enable_kernel_altivec() (but

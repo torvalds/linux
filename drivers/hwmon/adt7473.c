@@ -32,9 +32,6 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x2C, 0x2D, 0x2E, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(adt7473);
-
 /* ADT7473 registers */
 #define ADT7473_REG_BASE_ADDR			0x20
 
@@ -166,15 +163,14 @@ struct adt7473_data {
 
 static int adt7473_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id);
-static int adt7473_detect(struct i2c_client *client, int kind,
+static int adt7473_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static int adt7473_remove(struct i2c_client *client);
 
 static const struct i2c_device_id adt7473_id[] = {
-	{ "adt7473", adt7473 },
+	{ "adt7473", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, adt7473_id);
 
 static struct i2c_driver adt7473_driver = {
 	.class		= I2C_CLASS_HWMON,
@@ -185,7 +181,7 @@ static struct i2c_driver adt7473_driver = {
 	.remove		= adt7473_remove,
 	.id_table	= adt7473_id,
 	.detect		= adt7473_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -1086,31 +1082,26 @@ static struct attribute *adt7473_attr[] =
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int adt7473_detect(struct i2c_client *client, int kind,
+static int adt7473_detect(struct i2c_client *client,
 			  struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
+	int vendor, device, revision;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	if (kind <= 0) {
-		int vendor, device, revision;
+	vendor = i2c_smbus_read_byte_data(client, ADT7473_REG_VENDOR);
+	if (vendor != ADT7473_VENDOR)
+		return -ENODEV;
 
-		vendor = i2c_smbus_read_byte_data(client, ADT7473_REG_VENDOR);
-		if (vendor != ADT7473_VENDOR)
-			return -ENODEV;
+	device = i2c_smbus_read_byte_data(client, ADT7473_REG_DEVICE);
+	if (device != ADT7473_DEVICE)
+		return -ENODEV;
 
-		device = i2c_smbus_read_byte_data(client, ADT7473_REG_DEVICE);
-		if (device != ADT7473_DEVICE)
-			return -ENODEV;
-
-		revision = i2c_smbus_read_byte_data(client,
-						    ADT7473_REG_REVISION);
-		if (revision != ADT7473_REV_68 && revision != ADT7473_REV_69)
-			return -ENODEV;
-	} else
-		dev_dbg(&adapter->dev, "detection forced\n");
+	revision = i2c_smbus_read_byte_data(client, ADT7473_REG_REVISION);
+	if (revision != ADT7473_REV_68 && revision != ADT7473_REV_69)
+		return -ENODEV;
 
 	strlcpy(info->type, "adt7473", I2C_NAME_SIZE);
 
@@ -1171,6 +1162,8 @@ static int adt7473_remove(struct i2c_client *client)
 
 static int __init adt7473_init(void)
 {
+	pr_notice("The adt7473 driver is deprecated, please use the adt7475 "
+		  "driver instead\n");
 	return i2c_add_driver(&adt7473_driver);
 }
 

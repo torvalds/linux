@@ -48,7 +48,7 @@
 #define SMSSDIO_INT		0x04
 #define SMSSDIO_BLOCK_SIZE	128
 
-static const struct sdio_device_id smssdio_ids[] = {
+static const struct sdio_device_id smssdio_ids[] __devinitconst = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_STELLAR),
 	 .driver_data = SMS1XXX_BOARD_SIANO_STELLAR},
 	{SDIO_DEVICE(SDIO_VENDOR_ID_SIANO, SDIO_DEVICE_ID_SIANO_NOVA_A0),
@@ -78,7 +78,7 @@ struct smssdio_device {
 
 static int smssdio_sendrequest(void *context, void *buffer, size_t size)
 {
-	int ret;
+	int ret = 0;
 	struct smssdio_device *smsdev;
 
 	smsdev = context;
@@ -222,7 +222,7 @@ static void smssdio_interrupt(struct sdio_func *func)
 	smscore_onresponse(smsdev->coredev, cb);
 }
 
-static int smssdio_probe(struct sdio_func *func,
+static int __devinit smssdio_probe(struct sdio_func *func,
 			 const struct sdio_device_id *id)
 {
 	int ret;
@@ -338,7 +338,7 @@ static struct sdio_driver smssdio_driver = {
 /* Module functions                                                */
 /*******************************************************************/
 
-int smssdio_module_init(void)
+static int __init smssdio_module_init(void)
 {
 	int ret = 0;
 
@@ -350,7 +350,7 @@ int smssdio_module_init(void)
 	return ret;
 }
 
-void smssdio_module_exit(void)
+static void __exit smssdio_module_exit(void)
 {
 	sdio_unregister_driver(&smssdio_driver);
 }

@@ -1226,10 +1226,16 @@ static void happy_meal_clean_rings(struct happy_meal *hp)
 			for (frag = 0; frag <= skb_shinfo(skb)->nr_frags; frag++) {
 				txd = &hp->happy_block->happy_meal_txd[i];
 				dma_addr = hme_read_desc32(hp, &txd->tx_addr);
-				dma_unmap_single(hp->dma_dev, dma_addr,
-						 (hme_read_desc32(hp, &txd->tx_flags)
-						  & TXFLAG_SIZE),
-						 DMA_TO_DEVICE);
+				if (!frag)
+					dma_unmap_single(hp->dma_dev, dma_addr,
+							 (hme_read_desc32(hp, &txd->tx_flags)
+							  & TXFLAG_SIZE),
+							 DMA_TO_DEVICE);
+				else
+					dma_unmap_page(hp->dma_dev, dma_addr,
+							 (hme_read_desc32(hp, &txd->tx_flags)
+							  & TXFLAG_SIZE),
+							 DMA_TO_DEVICE);
 
 				if (frag != skb_shinfo(skb)->nr_frags)
 					i++;
@@ -1953,7 +1959,10 @@ static void happy_meal_tx(struct happy_meal *hp)
 			dma_len = hme_read_desc32(hp, &this->tx_flags);
 
 			dma_len &= TXFLAG_SIZE;
-			dma_unmap_single(hp->dma_dev, dma_addr, dma_len, DMA_TO_DEVICE);
+			if (!frag)
+				dma_unmap_single(hp->dma_dev, dma_addr, dma_len, DMA_TO_DEVICE);
+			else
+				dma_unmap_page(hp->dma_dev, dma_addr, dma_len, DMA_TO_DEVICE);
 
 			elem = NEXT_TX(elem);
 			this = &txbase[elem];
@@ -2184,7 +2193,7 @@ static int happy_meal_open(struct net_device *dev)
 	 * into a single source which we register handling at probe time.
 	 */
 	if ((hp->happy_flags & (HFLAG_QUATTRO|HFLAG_PCI)) != HFLAG_QUATTRO) {
-		if (request_irq(dev->irq, &happy_meal_interrupt,
+		if (request_irq(dev->irq, happy_meal_interrupt,
 				IRQF_SHARED, dev->name, (void *)dev)) {
 			HMD(("EAGAIN\n"));
 			printk(KERN_ERR "happy_meal(SBUS): Can't order irq %d to go.\n",
@@ -3047,9 +3056,9 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		int len;
 
 		if (qfe_slot != -1 &&
-		    (addr = of_get_property(dp,
-					    "local-mac-address", &len)) != NULL
-		    && len == 6) {
+		    (addr = of_get_property(dp, "local-mac-address", &len))
+			!= NULL &&
+		    len == 6) {
 			memcpy(dev->dev_addr, addr, 6);
 		} else {
 			memcpy(dev->dev_addr, idprom->id_ethaddr, 6);

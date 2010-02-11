@@ -72,7 +72,7 @@ static int tosa_bl_get_brightness(struct backlight_device *dev)
 	return props->brightness;
 }
 
-static struct backlight_ops bl_ops = {
+static const struct backlight_ops bl_ops = {
 	.get_brightness		= tosa_bl_get_brightness,
 	.update_status		= tosa_bl_update_status,
 };

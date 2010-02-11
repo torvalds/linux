@@ -22,6 +22,8 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
 
+MODULE_LICENSE("GPL");
+
 enum {
 	CD_GPIO = 0,
 	WP_GPIO,

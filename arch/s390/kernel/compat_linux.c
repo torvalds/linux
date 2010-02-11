@@ -31,14 +31,8 @@
 #include <linux/shm.h>
 #include <linux/slab.h>
 #include <linux/uio.h>
-#include <linux/nfs_fs.h>
 #include <linux/quota.h>
 #include <linux/module.h>
-#include <linux/sunrpc/svc.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
-#include <linux/nfsd/syscall.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
@@ -527,59 +521,6 @@ asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
 	return ret;
 }
 
-#ifdef CONFIG_SYSCTL_SYSCALL
-struct __sysctl_args32 {
-	u32 name;
-	int nlen;
-	u32 oldval;
-	u32 oldlenp;
-	u32 newval;
-	u32 newlen;
-	u32 __unused[4];
-};
-
-asmlinkage long sys32_sysctl(struct __sysctl_args32 __user *args)
-{
-	struct __sysctl_args32 tmp;
-	int error;
-	size_t oldlen;
-	size_t __user *oldlenp = NULL;
-	unsigned long addr = (((unsigned long)&args->__unused[0]) + 7) & ~7;
-
-	if (copy_from_user(&tmp, args, sizeof(tmp)))
-		return -EFAULT;
-
-	if (tmp.oldval && tmp.oldlenp) {
-		/* Duh, this is ugly and might not work if sysctl_args
-		   is in read-only memory, but do_sysctl does indirectly
-		   a lot of uaccess in both directions and we'd have to
-		   basically copy the whole sysctl.c here, and
-		   glibc's __sysctl uses rw memory for the structure
-		   anyway.  */
-		if (get_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)) ||
-		    put_user(oldlen, (size_t __user *)addr))
-			return -EFAULT;
-		oldlenp = (size_t __user *)addr;
-	}
-
-	lock_kernel();
-	error = do_sysctl(compat_ptr(tmp.name), tmp.nlen, compat_ptr(tmp.oldval),
-			  oldlenp, compat_ptr(tmp.newval), tmp.newlen);
-	unlock_kernel();
-	if (oldlenp) {
-		if (!error) {
-			if (get_user(oldlen, (size_t __user *)addr) ||
-			    put_user(oldlen, (u32 __user *)compat_ptr(tmp.oldlenp)))
-				error = -EFAULT;
-		}
-		if (copy_to_user(args->__unused, tmp.__unused,
-				 sizeof(tmp.__unused)))
-			error = -EFAULT;
-	}
-	return error;
-}
-#endif
-
 struct stat64_emu31 {
 	unsigned long long  st_dev;
 	unsigned int    __pad1;
@@ -675,75 +616,35 @@ asmlinkage long sys32_fstatat64(unsigned int dfd, char __user *filename,
  */
 
 struct mmap_arg_struct_emu31 {
-	u32	addr;
-	u32	len;
-	u32	prot;
-	u32	flags;
-	u32	fd;
-	u32	offset;
+	compat_ulong_t addr;
+	compat_ulong_t len;
+	compat_ulong_t prot;
+	compat_ulong_t flags;
+	compat_ulong_t fd;
+	compat_ulong_t offset;
 };
 
-/* common code for old and new mmaps */
-static inline long do_mmap2(
-	unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	struct file * file = NULL;
-	unsigned long error = -EBADF;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	if (!IS_ERR((void *) error) && error + len >= 0x80000000ULL) {
-		/* Result is out of bounds.  */
-		do_munmap(current->mm, addr, len);
-		error = -ENOMEM;
-	}
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:    
-	return error;
-}
-
-
-asmlinkage unsigned long
-old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
+asmlinkage unsigned long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
 {
 	struct mmap_arg_struct_emu31 a;
-	int error = -EFAULT;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-
-	error = -EINVAL;
+		return -EFAULT;
 	if (a.offset & ~PAGE_MASK)
-		goto out;
-
-	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset >> PAGE_SHIFT); 
-out:
-	return error;
+		return -EINVAL;
+	a.addr = (unsigned long) compat_ptr(a.addr);
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			      a.offset >> PAGE_SHIFT);
 }
 
-asmlinkage long 
-sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
+asmlinkage long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
 {
 	struct mmap_arg_struct_emu31 a;
-	int error = -EFAULT;
 
 	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
-out:
-	return error;
+		return -EFAULT;
+	a.addr = (unsigned long) compat_ptr(a.addr);
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 }
 
 asmlinkage long sys32_read(unsigned int fd, char __user * buf, size_t count)

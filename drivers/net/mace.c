@@ -897,8 +897,8 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	    if (next >= N_RX_RING)
 		next = 0;
 	    np = mp->rx_cmds + next;
-	    if (next != mp->rx_fill
-		&& (ld_le16(&np->xfer_status) & ACTIVE) != 0) {
+	    if (next != mp->rx_fill &&
+		(ld_le16(&np->xfer_status) & ACTIVE) != 0) {
 		printk(KERN_DEBUG "mace: lost a status word\n");
 		++mace_lost_status;
 	    } else

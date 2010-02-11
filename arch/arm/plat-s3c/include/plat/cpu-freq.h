@@ -1,6 +1,6 @@
 /* arch/arm/plat-s3c/include/plat/cpu-freq.h
  *
- * Copyright (c) 2006,2007 Simtec Electronics
+ * Copyright (c) 2006-2007 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *

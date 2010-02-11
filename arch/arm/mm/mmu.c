@@ -117,6 +117,13 @@ static void __init early_cachepolicy(char **p)
 	}
 	if (i == ARRAY_SIZE(cache_policies))
 		printk(KERN_ERR "ERROR: unknown or unsupported cache policy\n");
+	/*
+	 * This restriction is partly to do with the way we boot; it is
+	 * unpredictable to have memory mapped using two different sets of
+	 * memory attributes (shared, type, and cache attribs).  We can not
+	 * change these attributes once the initial assembly has setup the
+	 * page tables.
+	 */
 	if (cpu_architecture() >= CPU_ARCH_ARMv6) {
 		printk(KERN_WARNING "Only cachepolicy=writeback supported on ARMv6 and later\n");
 		cachepolicy = CPOLICY_WRITEBACK;
@@ -446,8 +453,7 @@ static void __init build_mem_type_table(void)
 
 	pgprot_user   = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | user_pgprot);
 	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
-				 L_PTE_DIRTY | L_PTE_WRITE |
-				 L_PTE_EXEC | kern_pgprot);
+				 L_PTE_DIRTY | L_PTE_WRITE | kern_pgprot);
 
 	mem_types[MT_LOW_VECTORS].prot_l1 |= ecc_mask;
 	mem_types[MT_HIGH_VECTORS].prot_l1 |= ecc_mask;
@@ -874,7 +880,7 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 				BOOTMEM_EXCLUSIVE);
 	}
 
-	if (machine_is_treo680()) {
+	if (machine_is_treo680() || machine_is_centro()) {
 		reserve_bootmem_node(pgdat, 0xa0000000, 0x1000,
 				BOOTMEM_EXCLUSIVE);
 		reserve_bootmem_node(pgdat, 0xa2000000, 0x1000,
@@ -1029,7 +1035,7 @@ void __init paging_init(struct machine_desc *mdesc)
 	 */
 	zero_page = alloc_bootmem_low_pages(PAGE_SIZE);
 	empty_zero_page = virt_to_page(zero_page);
-	flush_dcache_page(empty_zero_page);
+	__flush_dcache_page(NULL, empty_zero_page);
 }
 
 /*
@@ -1061,4 +1067,6 @@ void setup_mm_for_reboot(char mode)
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
 		flush_pmd_entry(pmd);
 	}
+
+	local_flush_tlb_all();
 }

@@ -27,6 +27,7 @@
 #include <linux/swap.h>
 #include <linux/proc_fs.h>
 #include <linux/pfn.h>
+#include <linux/hardirq.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
@@ -132,7 +133,10 @@ void *kmap_coherent(struct page *page, unsigned long addr)
 	inc_preempt_count();
 	idx = (addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1);
 #ifdef CONFIG_MIPS_MT_SMTC
-	idx += FIX_N_COLOURS * smp_processor_id();
+	idx += FIX_N_COLOURS * smp_processor_id() +
+		(in_interrupt() ? (FIX_N_COLOURS * NR_CPUS) : 0);
+#else
+	idx += in_interrupt() ? FIX_N_COLOURS : 0;
 #endif
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, PAGE_KERNEL);
@@ -420,7 +424,7 @@ void __init mem_init(void)
 	       reservedpages << (PAGE_SHIFT-10),
 	       datasize >> 10,
 	       initsize >> 10,
-	       (unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
+	       totalhigh_pages << (PAGE_SHIFT-10));
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
@@ -458,7 +462,9 @@ void __init_refok free_initmem(void)
 			__pa_symbol(&__init_end));
 }
 
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 unsigned long pgd_current[NR_CPUS];
+#endif
 /*
  * On 64-bit we've got three-level pagetables with a slightly
  * different layout ...

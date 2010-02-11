@@ -610,7 +610,7 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 }
 
 /* called with ieee->lock held */
-void ieee80211_start_scan(struct ieee80211_device *ieee)
+void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
 	if(IS_DOT11D_ENABLE(ieee) )
 	{
@@ -1281,7 +1281,7 @@ void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	}
 }
 
-void ieee80211_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
+void ieee80211_rtl_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
 {
 	u8 *c;
 	struct sk_buff *skb;
@@ -2054,7 +2054,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 								ieee80211_associate_step2(ieee);
 							}else{
-								ieee80211_auth_challenge(ieee, challenge, chlen);
+								ieee80211_rtl_auth_challenge(ieee, challenge, chlen);
 							}
 						}else{
 							ieee->softmac_stats.rx_auth_rs_err++;
@@ -2120,10 +2120,10 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
  * care of the ieee802.11 fragmentation.
  * So the driver receives a fragment per time and might
  * call the stop function when it want without take care
- * to have enought room to TX an entire packet.
+ * to have enough room to TX an entire packet.
  * This might be useful if each fragment need it's own
  * descriptor, thus just keep a total free memory > than
- * the max fragmentation treshold is not enought.. If the
+ * the max fragmentation threshold is not enough.. If the
  * ieee802.11 stack passed a TXB struct then you needed
  * to keep N free descriptors where
  * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD
@@ -2162,7 +2162,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 			 * to check it any more.
 			 * */
 			//printk("error:no descriptor left@queue_index %d, %d, %d\n", queue_index, skb_queue_len(&ieee->skb_waitQ[queue_index]), ieee->check_nic_enough_desc(ieee->dev,queue_index));
-			//ieee80211_stop_queue(ieee);
+			//ieee80211_rtl_stop_queue(ieee);
 			skb_queue_tail(&ieee->skb_waitQ[queue_index], txb->fragments[i]);
 		}else{
 			ieee->softmac_data_hard_start_xmit(
@@ -2222,7 +2222,7 @@ void ieee80211_reset_queue(struct ieee80211_device *ieee)
 
 }
 
-void ieee80211_wake_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 {
 
 	unsigned long flags;
@@ -2263,7 +2263,7 @@ exit :
 }
 
 
-void ieee80211_stop_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee)
 {
 	//unsigned long flags;
 	//spin_lock_irqsave(&ieee->lock,flags);
@@ -2479,7 +2479,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 
 	if (ieee->state == IEEE80211_NOLINK){
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
@@ -2552,7 +2552,7 @@ void ieee80211_associate_retry_wq(struct work_struct *work)
 	if(ieee->state == IEEE80211_NOLINK)
 	{
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
@@ -3026,17 +3026,14 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		goto skip_host_crypt;
 
 	ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0) {
-		request_module("ieee80211_crypt_wep");
+	if (ops == NULL && strcmp(param->u.crypt.alg, "WEP") == 0)
 		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-		//set WEP40 first, it will be modified according to WEP104 or WEP40 at other place
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0) {
-		request_module("ieee80211_crypt_tkip");
+		/* set WEP40 first, it will be modified according to WEP104 or
+		 * WEP40 at other place */
+	else if (ops == NULL && strcmp(param->u.crypt.alg, "TKIP") == 0)
 		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	} else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0) {
-		request_module("ieee80211_crypt_ccmp");
+	else if (ops == NULL && strcmp(param->u.crypt.alg, "CCMP") == 0)
 		ops = ieee80211_get_crypto_ops(param->u.crypt.alg);
-	}
 	if (ops == NULL) {
 		printk("unknown crypto alg '%s'\n", param->u.crypt.alg);
 		param->u.crypt.err = IEEE_CRYPT_ERR_UNKNOWN_ALG;
@@ -3058,7 +3055,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 		memset(new_crypt, 0, sizeof(struct ieee80211_crypt_data));
 		new_crypt->ops = ops;
 
-		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
+		if (new_crypt->ops)
 			new_crypt->priv =
 				new_crypt->ops->init(param->u.crypt.idx);
 

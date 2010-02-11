@@ -78,7 +78,7 @@ static struct kmem_cache *bio_find_or_create_slab(unsigned int extra_size)
 
 	i = 0;
 	while (i < bio_slab_nr) {
-		struct bio_slab *bslab = &bio_slabs[i];
+		bslab = &bio_slabs[i];
 
 		if (!bslab->slab && entry == -1)
 			entry = i;
@@ -272,7 +272,7 @@ EXPORT_SYMBOL(bio_init);
  *   for a &struct bio to become free. If a %NULL @bs is passed in, we will
  *   fall back to just using @kmalloc to allocate the required memory.
  *
- *   Note that the caller must set ->bi_destructor on succesful return
+ *   Note that the caller must set ->bi_destructor on successful return
  *   of a bio, to do the appropriate freeing of the bio once the reference
  *   count drops to zero.
  **/
@@ -325,8 +325,16 @@ static void bio_fs_destructor(struct bio *bio)
  *	@gfp_mask: allocation mask to use
  *	@nr_iovecs: number of iovecs
  *
- *	Allocate a new bio with @nr_iovecs bvecs.  If @gfp_mask
- *	contains __GFP_WAIT, the allocation is guaranteed to succeed.
+ *	bio_alloc will allocate a bio and associated bio_vec array that can hold
+ *	at least @nr_iovecs entries. Allocations will be done from the
+ *	fs_bio_set. Also see @bio_alloc_bioset and @bio_kmalloc.
+ *
+ *	If %__GFP_WAIT is set, then bio_alloc will always be able to allocate
+ *	a bio. This is due to the mempool guarantees. To make this work, callers
+ *	must never allocate more than 1 bio at a time from this pool. Callers
+ *	that need to allocate more than 1 bio must always submit the previously
+ *	allocated bio for IO before attempting to allocate a new one. Failure to
+ *	do so can cause livelocks under memory pressure.
  *
  *	RETURNS:
  *	Pointer to new bio on success, NULL on failure.
@@ -350,21 +358,13 @@ static void bio_kmalloc_destructor(struct bio *bio)
 }
 
 /**
- * bio_alloc - allocate a bio for I/O
+ * bio_kmalloc - allocate a bio for I/O using kmalloc()
  * @gfp_mask:   the GFP_ mask given to the slab allocator
  * @nr_iovecs:	number of iovecs to pre-allocate
  *
  * Description:
- *   bio_alloc will allocate a bio and associated bio_vec array that can hold
- *   at least @nr_iovecs entries. Allocations will be done from the
- *   fs_bio_set. Also see @bio_alloc_bioset.
- *
- *   If %__GFP_WAIT is set, then bio_alloc will always be able to allocate
- *   a bio. This is due to the mempool guarantees. To make this work, callers
- *   must never allocate more than 1 bio at a time from this pool. Callers
- *   that need to allocate more than 1 bio must always submit the previously
- *   allocated bio for IO before attempting to allocate a new one. Failure to
- *   do so can cause livelocks under memory pressure.
+ *   Allocate a new bio with @nr_iovecs bvecs.  If @gfp_mask contains
+ *   %__GFP_WAIT, the allocation is guaranteed to succeed.
  *
  **/
 struct bio *bio_kmalloc(gfp_t gfp_mask, int nr_iovecs)
@@ -407,7 +407,7 @@ EXPORT_SYMBOL(zero_fill_bio);
  *
  * Description:
  *   Put a reference to a &struct bio, either one you have gotten with
- *   bio_alloc or bio_get. The last put of a bio will free it.
+ *   bio_alloc, bio_get or bio_clone. The last put of a bio will free it.
  **/
 void bio_put(struct bio *bio)
 {
@@ -542,13 +542,18 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 
 		if (page == prev->bv_page &&
 		    offset == prev->bv_offset + prev->bv_len) {
+			unsigned int prev_bv_len = prev->bv_len;
 			prev->bv_len += len;
 
 			if (q->merge_bvec_fn) {
 				struct bvec_merge_data bvm = {
+					/* prev_bvec is already charged in
+					   bi_size, discharge it in order to
+					   simulate merging updated prev_bvec
+					   as new bvec. */
 					.bi_bdev = bio->bi_bdev,
 					.bi_sector = bio->bi_sector,
-					.bi_size = bio->bi_size,
+					.bi_size = bio->bi_size - prev_bv_len,
 					.bi_rw = bio->bi_rw,
 				};
 
@@ -1392,6 +1397,18 @@ void bio_check_pages_dirty(struct bio *bio)
 		bio_put(bio);
 	}
 }
+
+#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE
+void bio_flush_dcache_pages(struct bio *bi)
+{
+	int i;
+	struct bio_vec *bvec;
+
+	bio_for_each_segment(bvec, bi, i)
+		flush_dcache_page(bvec->bv_page);
+}
+EXPORT_SYMBOL(bio_flush_dcache_pages);
+#endif
 
 /**
  * bio_endio - end I/O on a bio

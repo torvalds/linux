@@ -11,6 +11,9 @@
  * PROCFS Functions
  */
 
+#define KMSG_COMPONENT "tape"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/seq_file.h>
@@ -45,7 +48,7 @@ static int tape_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "TapeNo\tBusID      CuType/Model\t"
 			"DevType/Model\tBlkSize\tState\tOp\tMedState\n");
 	}
-	device = tape_get_device(n);
+	device = tape_find_device(n);
 	if (IS_ERR(device))
 		return 0;
 	spin_lock_irq(get_ccwdev_lock(device->cdev));

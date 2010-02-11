@@ -206,6 +206,12 @@
  	.get = snd_soc_dapm_get_enum_double, \
  	.put = snd_soc_dapm_put_enum_double, \
   	.private_value = (unsigned long)&xenum }
+#define SOC_DAPM_ENUM_VIRT(xname, xenum)		    \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_enum_double, \
+	.get = snd_soc_dapm_get_enum_virt, \
+	.put = snd_soc_dapm_put_enum_virt, \
+	.private_value = (unsigned long)&xenum }
 #define SOC_DAPM_VALUE_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_enum_double, \
@@ -259,6 +265,10 @@ int snd_soc_dapm_get_volsw(struct snd_kcontrol *kcontrol,
 int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_dapm_get_enum_virt(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
@@ -333,6 +343,10 @@ struct snd_soc_dapm_route {
 	const char *sink;
 	const char *control;
 	const char *source;
+
+	/* Note: currently only supported for links where source is a supply */
+	int (*connected)(struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink);
 };
 
 /* dapm audio path between two widgets */
@@ -348,6 +362,9 @@ struct snd_soc_dapm_path {
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
 	u32 walked:1;	/* path has been walked */
+
+	int (*connected)(struct snd_soc_dapm_widget *source,
+			 struct snd_soc_dapm_widget *sink);
 
 	struct list_head list_source;
 	struct list_head list_sink;

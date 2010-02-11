@@ -159,6 +159,8 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 
 struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 {
+	struct tcp_options_received tcp_opt;
+	u8 *hash_location;
 	struct inet_request_sock *ireq;
 	struct inet6_request_sock *ireq6;
 	struct tcp_request_sock *treq;
@@ -171,7 +173,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	int mss;
 	struct dst_entry *dst;
 	__u8 rcv_wscale;
-	struct tcp_options_received tcp_opt;
 
 	if (!sysctl_tcp_syncookies || !th->ack)
 		goto out;
@@ -186,7 +187,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 	/* check for timestamp cookie support */
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
-	tcp_parse_options(skb, &tcp_opt, 0);
+	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
 
 	if (tcp_opt.saw_tstamp)
 		cookie_check_timestamp(&tcp_opt);
@@ -252,8 +253,9 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 		}
 		ipv6_addr_copy(&fl.fl6_src, &ireq6->loc_addr);
 		fl.oif = sk->sk_bound_dev_if;
+		fl.mark = sk->sk_mark;
 		fl.fl_ip_dport = inet_rsk(req)->rmt_port;
-		fl.fl_ip_sport = inet_sk(sk)->sport;
+		fl.fl_ip_sport = inet_sk(sk)->inet_sport;
 		security_req_classify_flow(req, &fl);
 		if (ip6_dst_lookup(sk, &dst, &fl))
 			goto out_free;

@@ -29,10 +29,6 @@ asmlinkage int sys_sigaltstack(const stack_t __user *, stack_t __user *,
 			       struct pt_regs *);
 asmlinkage int sys_rt_sigreturn(struct pt_regs *);
 
-/* kernel/sys_avr32.c */
-asmlinkage long sys_mmap2(unsigned long, unsigned long, unsigned long,
-			  unsigned long, unsigned long, off_t);
-
 /* mm/cache.c */
 asmlinkage int sys_cacheflush(int, void __user *, size_t);
 

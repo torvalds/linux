@@ -1411,23 +1411,6 @@ static int uvesafb_check_var(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static void uvesafb_save_state(struct fb_info *info)
-{
-	struct uvesafb_par *par = info->par;
-
-	if (par->vbe_state_saved)
-		kfree(par->vbe_state_saved);
-
-	par->vbe_state_saved = uvesafb_vbe_state_save(par);
-}
-
-static void uvesafb_restore_state(struct fb_info *info)
-{
-	struct uvesafb_par *par = info->par;
-
-	uvesafb_vbe_state_restore(par, par->vbe_state_saved);
-}
-
 static struct fb_ops uvesafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= uvesafb_open,
@@ -1441,8 +1424,6 @@ static struct fb_ops uvesafb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 	.fb_check_var	= uvesafb_check_var,
 	.fb_set_par	= uvesafb_set_par,
-	.fb_save_state	= uvesafb_save_state,
-	.fb_restore_state = uvesafb_restore_state,
 };
 
 static void __devinit uvesafb_init_info(struct fb_info *info,
@@ -1458,15 +1439,6 @@ static void __devinit uvesafb_init_info(struct fb_info *info,
 	info->fix = uvesafb_fix;
 	info->fix.ypanstep = par->ypan ? 1 : 0;
 	info->fix.ywrapstep = (par->ypan > 1) ? 1 : 0;
-
-	/*
-	 * If we were unable to get the state buffer size, disable
-	 * functions for saving and restoring the hardware state.
-	 */
-	if (par->vbe_state_size == 0) {
-		info->fbops->fb_save_state = NULL;
-		info->fbops->fb_restore_state = NULL;
-	}
 
 	/* Disable blanking if the user requested so. */
 	if (!blank)

@@ -75,8 +75,8 @@ krb5_get_seq_num(struct crypto_blkcipher *key,
 	if ((code = krb5_decrypt(key, cksum, buf, plain, 8)))
 		return code;
 
-	if ((plain[4] != plain[5]) || (plain[4] != plain[6])
-				   || (plain[4] != plain[7]))
+	if ((plain[4] != plain[5]) || (plain[4] != plain[6]) ||
+	    (plain[4] != plain[7]))
 		return (s32)KG_BAD_SEQ;
 
 	*direction = plain[4];

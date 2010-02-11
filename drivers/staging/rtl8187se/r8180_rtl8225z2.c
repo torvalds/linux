@@ -23,7 +23,6 @@ static void write_rtl8225(struct net_device *dev, u8 adr, u16 data)
 	u16 out, select;
 	u8 bit;
 	u32 bangdata = (data << 4) | (adr & 0xf);
-	struct r8180_priv *priv = ieee80211_priv(dev);
 
 	out = read_nic_word(dev, RFPinsOutput) & 0xfff3;
 
@@ -33,7 +32,7 @@ static void write_rtl8225(struct net_device *dev, u8 adr, u16 data)
 	select = read_nic_word(dev, RFPinsSelect);
 
 	write_nic_word(dev, RFPinsSelect, select | 0x7 |
-		((priv->card_type == USB) ? 0 : SW_CONTROL_GPIO));
+		       SW_CONTROL_GPIO);
 
 	force_pci_posting(dev);
 	udelay(10);
@@ -71,16 +70,11 @@ static void write_rtl8225(struct net_device *dev, u8 adr, u16 data)
 	force_pci_posting(dev);
 	udelay(10);
 
-	write_nic_word(dev, RFPinsOutput, out |
-		((priv->card_type == USB) ? 4 : BB_HOST_BANG_EN));
+	write_nic_word(dev, RFPinsOutput, out | BB_HOST_BANG_EN);
 
-	write_nic_word(dev, RFPinsSelect, select |
-		((priv->card_type == USB) ? 0 : SW_CONTROL_GPIO));
+	write_nic_word(dev, RFPinsSelect, select | SW_CONTROL_GPIO);
 
-	if (priv->card_type == USB)
-		mdelay(2);
-	else
-		rtl8185_rf_pins_enable(dev);
+	rtl8185_rf_pins_enable(dev);
 }
 
 static const u16 rtl8225bcd_rxgain[] = {
@@ -174,15 +168,9 @@ static void rtl8225_SetTXPowerLevel(struct net_device *dev, short ch)
 	u8 cck_power_level = 0xff & priv->chtxpwr[ch];
 	u8 ofdm_power_level = 0xff & priv->chtxpwr_ofdm[ch];
 
-	if (priv->card_type == USB) {
-		max_cck_power_level = 11;
-		max_ofdm_power_level = 25;
-		min_ofdm_power_level = 10;
-	} else {
-		max_cck_power_level = 35;
-		max_ofdm_power_level = 35;
-		min_ofdm_power_level = 0;
-	}
+	max_cck_power_level = 35;
+	max_ofdm_power_level = 35;
+	min_ofdm_power_level = 0;
 
 	if (cck_power_level > max_cck_power_level)
 		cck_power_level = max_cck_power_level;
@@ -445,30 +433,28 @@ s8 DbmToTxPwrIdx(struct r8180_priv *priv, WIRELESS_MODE WirelessMode,
 	 * OFDM Power in dBm = Index * 0.5 + 0
 	 * CCK Power in dBm = Index * 0.25 + 13
 	 */
-	if (priv->card_8185 >= VERSION_8187S_B) {
-		s32 tmp = 0;
+	s32 tmp = 0;
 
-		if (WirelessMode == WIRELESS_MODE_G) {
-			bUseDefault = false;
-			tmp = (2 * PowerInDbm);
+	if (WirelessMode == WIRELESS_MODE_G) {
+		bUseDefault = false;
+		tmp = (2 * PowerInDbm);
 
-			if (tmp < 0)
-				TxPwrIdx = 0;
-			else if (tmp > 40) /* 40 means 20 dBm. */
-				TxPwrIdx = 40;
-			else
-				TxPwrIdx = (s8)tmp;
-		} else if (WirelessMode == WIRELESS_MODE_B) {
-			bUseDefault = false;
-			tmp = (4 * PowerInDbm) - 52;
+		if (tmp < 0)
+			TxPwrIdx = 0;
+		else if (tmp > 40) /* 40 means 20 dBm. */
+			TxPwrIdx = 40;
+		else
+			TxPwrIdx = (s8)tmp;
+	} else if (WirelessMode == WIRELESS_MODE_B) {
+		bUseDefault = false;
+		tmp = (4 * PowerInDbm) - 52;
 
-			if(tmp < 0)
-				TxPwrIdx = 0;
-			else if (tmp > 28) /* 28 means 20 dBm. */
-				TxPwrIdx = 28;
-			else
-				TxPwrIdx = (s8)tmp;
-		}
+		if (tmp < 0)
+			TxPwrIdx = 0;
+		else if (tmp > 28) /* 28 means 20 dBm. */
+			TxPwrIdx = 28;
+		else
+			TxPwrIdx = (s8)tmp;
 	}
 
 	/*
@@ -631,8 +617,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
 	priv->chan = channel;
 
-	if (priv->card_type != USB)
-		rtl8225_host_pci_init(dev);
+	rtl8225_host_pci_init(dev);
 
 	write_nic_dword(dev, RF_TIMING, 0x000a8008);
 
@@ -655,7 +640,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	write_rtl8225(dev, 0x4, 0x8c3); mdelay(1);
 	write_rtl8225(dev, 0x5, 0xc72); mdelay(1);
 	write_rtl8225(dev, 0x6, 0xe6);  mdelay(1);
-	write_rtl8225(dev, 0x7, ((priv->card_type == USB)? 0x82a : rtl8225_chan[channel]));  mdelay(1);
+	write_rtl8225(dev, 0x7, rtl8225_chan[channel]);  mdelay(1);
 	write_rtl8225(dev, 0x8, 0x3f);  mdelay(1);
 	write_rtl8225(dev, 0x9, 0x335); mdelay(1);
 	write_rtl8225(dev, 0xa, 0x9d4); mdelay(1);
@@ -681,13 +666,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
 	write_rtl8225(dev, 0x2, 0xc4d);
 
-	if (priv->card_type == USB) {
-		mdelay(200);
-
-		write_rtl8225(dev, 0x2, 0x44d);
-		mdelay(100);
-	}
-
 	/* FIXME!! rtl8187 we have to check if calibrarion
 	 * is successful and eventually cal. again (repeat
 	 * the two write on reg 2)
@@ -707,9 +685,6 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
 	write_rtl8225(dev, 0x0, 0x2bf);
 
-	if (priv->card_type != USB)
-		rtl8185_rf_pins_enable(dev);
-
 	for (i = 0; i < 128; i++) {
 		data = rtl8225_agc[i];
 
@@ -726,7 +701,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 
 	write_phy_ofdm(dev, 0x00, 0x01); mdelay(1);
 	write_phy_ofdm(dev, 0x01, 0x02); mdelay(1);
-	write_phy_ofdm(dev, 0x02, ((priv->card_type == USB) ? 0x42 : 0x62)); mdelay(1);
+	write_phy_ofdm(dev, 0x02, 0x62); mdelay(1);
 	write_phy_ofdm(dev, 0x03, 0x00); mdelay(1);
 	write_phy_ofdm(dev, 0x04, 0x00); mdelay(1);
 	write_phy_ofdm(dev, 0x05, 0x00); mdelay(1);
@@ -774,7 +749,7 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	write_phy_cck(dev, 0x6, 0xfc); mdelay(1);
 	write_phy_cck(dev, 0x7, 0x78); mdelay(1);
 	write_phy_cck(dev, 0x8, 0x2e); mdelay(1);
-	write_phy_cck(dev, 0x10, ((priv->card_type == USB) ? 0x9b: 0x93)); mdelay(1);
+	write_phy_cck(dev, 0x10, 0x93); mdelay(1);
 	write_phy_cck(dev, 0x11, 0x88); mdelay(1);
 	write_phy_cck(dev, 0x12, 0x47); mdelay(1);
 	write_phy_cck(dev, 0x13, 0xd0);
@@ -808,12 +783,8 @@ void rtl8225z2_rf_init(struct net_device *dev)
 	/* switch to high-speed 3-wire
 	 * last digit. 2 for both cck and ofdm
 	 */
-	if (priv->card_type == USB)
-		write_nic_dword(dev, 0x94, 0x3dc00002);
-	else {
-		write_nic_dword(dev, 0x94, 0x15c00002);
-		rtl8185_rf_pins_enable(dev);
-	}
+	write_nic_dword(dev, 0x94, 0x15c00002);
+	rtl8185_rf_pins_enable(dev);
 
 	rtl8225_rf_set_chan(dev, priv->chan);
 }
@@ -1058,7 +1029,7 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 			break;
 		default:
 			bResult = false;
-			printk("SetZebraRFPowerState8185(): unknow state to set: 0x%X!!!\n", eRFPowerState);
+			printk("SetZebraRFPowerState8185(): unknown state to set: 0x%X!!!\n", eRFPowerState);
 			break;
 		}
 		break;

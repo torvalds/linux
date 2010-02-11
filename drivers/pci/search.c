@@ -15,9 +15,9 @@
 
 DECLARE_RWSEM(pci_bus_sem);
 /*
- * find the upstream PCIE-to-PCI bridge of a PCI device
+ * find the upstream PCIe-to-PCI bridge of a PCI device
  * if the device is PCIE, return NULL
- * if the device isn't connected to a PCIE bridge (that is its parent is a
+ * if the device isn't connected to a PCIe bridge (that is its parent is a
  * legacy PCI bridge and the bridge is directly connected to bus 0), return its
  * parent
  */
@@ -26,18 +26,18 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 {
 	struct pci_dev *tmp = NULL;
 
-	if (pdev->is_pcie)
+	if (pci_is_pcie(pdev))
 		return NULL;
 	while (1) {
 		if (pci_is_root_bus(pdev->bus))
 			break;
 		pdev = pdev->bus->self;
 		/* a p2p bridge */
-		if (!pdev->is_pcie) {
+		if (!pci_is_pcie(pdev)) {
 			tmp = pdev;
 			continue;
 		}
-		/* PCI device should connect to a PCIE bridge */
+		/* PCI device should connect to a PCIe bridge */
 		if (pdev->pcie_type != PCI_EXP_TYPE_PCI_BRIDGE) {
 			/* Busted hardware? */
 			WARN_ON_ONCE(1);
@@ -149,32 +149,33 @@ struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 }
 
 /**
- * pci_get_bus_and_slot - locate PCI device from a given PCI bus & slot
- * @bus: number of PCI bus on which desired PCI device resides
- * @devfn: encodes number of PCI slot in which the desired PCI
- * device resides and the logical device number within that slot
- * in case of multi-function devices.
+ * pci_get_domain_bus_and_slot - locate PCI device for a given PCI domain (segment), bus, and slot
+ * @domain: PCI domain/segment on which the PCI device resides.
+ * @bus: PCI bus on which desired PCI device resides
+ * @devfn: encodes number of PCI slot in which the desired PCI device
+ * resides and the logical device number within that slot in case of
+ * multi-function devices.
  *
- * Note: the bus/slot search is limited to PCI domain (segment) 0.
- *
- * Given a PCI bus and slot/function number, the desired PCI device
- * is located in system global list of PCI devices.  If the device
- * is found, a pointer to its data structure is returned.  If no
- * device is found, %NULL is returned. The returned device has its
- * reference count bumped by one.
+ * Given a PCI domain, bus, and slot/function number, the desired PCI
+ * device is located in the list of PCI devices. If the device is
+ * found, its reference count is increased and this function returns a
+ * pointer to its data structure.  The caller must decrement the
+ * reference count by calling pci_dev_put().  If no device is found,
+ * %NULL is returned.
  */
-
-struct pci_dev * pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
+struct pci_dev *pci_get_domain_bus_and_slot(int domain, unsigned int bus,
+					    unsigned int devfn)
 {
 	struct pci_dev *dev = NULL;
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
-		if (pci_domain_nr(dev->bus) == 0 &&
-		   (dev->bus->number == bus && dev->devfn == devfn))
+		if (pci_domain_nr(dev->bus) == domain &&
+		    (dev->bus->number == bus && dev->devfn == devfn))
 			return dev;
 	}
 	return NULL;
 }
+EXPORT_SYMBOL(pci_get_domain_bus_and_slot);
 
 static int match_pci_dev_by_id(struct device *dev, void *data)
 {
@@ -354,5 +355,4 @@ EXPORT_SYMBOL(pci_find_next_bus);
 EXPORT_SYMBOL(pci_get_device);
 EXPORT_SYMBOL(pci_get_subsys);
 EXPORT_SYMBOL(pci_get_slot);
-EXPORT_SYMBOL(pci_get_bus_and_slot);
 EXPORT_SYMBOL(pci_get_class);

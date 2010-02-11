@@ -86,24 +86,16 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 
 static int ts_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
-	struct saa7134_dev *dev;
+	struct video_device *vdev = video_devdata(file);
+	struct saa7134_dev *dev = video_drvdata(file);
 	int err;
 
-	lock_kernel();
-	list_for_each_entry(dev, &saa7134_devlist, devlist)
-		if (dev->empress_dev && dev->empress_dev->minor == minor)
-			goto found;
-	unlock_kernel();
-	return -ENODEV;
- found:
-
-	dprintk("open minor=%d\n",minor);
+	dprintk("open dev=%s\n", video_device_node_name(vdev));
 	err = -EBUSY;
 	if (!mutex_trylock(&dev->empress_tsq.vb_lock))
-		goto done;
+		return err;
 	if (atomic_read(&dev->empress_users))
-		goto done_up;
+		goto done;
 
 	/* Unmute audio */
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
@@ -113,10 +105,8 @@ static int ts_open(struct file *file)
 	file->private_data = dev;
 	err = 0;
 
-done_up:
-	mutex_unlock(&dev->empress_tsq.vb_lock);
 done:
-	unlock_kernel();
+	mutex_unlock(&dev->empress_tsq.vb_lock);
 	return err;
 }
 
@@ -489,7 +479,6 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 static struct video_device saa7134_empress_template = {
 	.name          = "saa7134-empress",
 	.fops          = &ts_fops,
-	.minor	       = -1,
 	.ioctl_ops     = &ts_ioctl_ops,
 
 	.tvnorms			= SAA7134_NORMS,
@@ -531,6 +520,7 @@ static int empress_init(struct saa7134_dev *dev)
 
 	INIT_WORK(&dev->empress_workqueue, empress_signal_update);
 
+	video_set_drvdata(dev->empress_dev, dev);
 	err = video_register_device(dev->empress_dev,VFL_TYPE_GRABBER,
 				    empress_nr[dev->nr]);
 	if (err < 0) {
@@ -540,8 +530,8 @@ static int empress_init(struct saa7134_dev *dev)
 		dev->empress_dev = NULL;
 		return err;
 	}
-	printk(KERN_INFO "%s: registered device video%d [mpeg]\n",
-	       dev->name, dev->empress_dev->num);
+	printk(KERN_INFO "%s: registered device %s [mpeg]\n",
+	       dev->name, video_device_node_name(dev->empress_dev));
 
 	videobuf_queue_sg_init(&dev->empress_tsq, &saa7134_ts_qops,
 			    &dev->pci->dev, &dev->slock,

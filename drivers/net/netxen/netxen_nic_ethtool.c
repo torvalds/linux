@@ -66,7 +66,7 @@ static const char netxen_nic_gstrings_test[][ETH_GSTRING_LEN] = {
 
 #define NETXEN_NIC_TEST_LEN	ARRAY_SIZE(netxen_nic_gstrings_test)
 
-#define NETXEN_NIC_REGS_COUNT 42
+#define NETXEN_NIC_REGS_COUNT 30
 #define NETXEN_NIC_REGS_LEN (NETXEN_NIC_REGS_COUNT * sizeof(__le32))
 #define NETXEN_MAX_EEPROM_LEN   1024
 
@@ -85,11 +85,9 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 
 	strncpy(drvinfo->driver, netxen_nic_driver_name, 32);
 	strncpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID, 32);
-	read_lock(&adapter->adapter_lock);
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
 	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
 	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
-	read_unlock(&adapter->adapter_lock);
 	sprintf(drvinfo->fw_version, "%d.%d.%d", fw_major, fw_minor, fw_build);
 
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
@@ -259,18 +257,18 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	/* read which mode */
 	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
 		/* autonegotiation */
-		if (adapter->phy_write
-		    && adapter->phy_write(adapter,
-					  NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
-					  ecmd->autoneg) != 0)
+		if (adapter->phy_write &&
+		    adapter->phy_write(adapter,
+				       NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
+				       ecmd->autoneg) != 0)
 			return -EIO;
 		else
 			adapter->link_autoneg = ecmd->autoneg;
 
-		if (adapter->phy_read
-		    && adapter->phy_read(adapter,
-					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					 &status) != 0)
+		if (adapter->phy_read &&
+		    adapter->phy_read(adapter,
+				      NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+				      &status) != 0)
 			return -EIO;
 
 		/* speed */
@@ -290,10 +288,10 @@ netxen_nic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			netxen_clear_phy_duplex(status);
 		if (ecmd->duplex == DUPLEX_FULL)
 			netxen_set_phy_duplex(status);
-		if (adapter->phy_write
-		    && adapter->phy_write(adapter,
-					  NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					  *((int *)&status)) != 0)
+		if (adapter->phy_write &&
+		    adapter->phy_write(adapter,
+				       NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
+				       *((int *)&status)) != 0)
 			return -EIO;
 		else {
 			adapter->link_speed = ecmd->speed;
@@ -314,150 +312,91 @@ static int netxen_nic_get_regs_len(struct net_device *dev)
 	return NETXEN_NIC_REGS_LEN;
 }
 
-struct netxen_niu_regs {
-	__u32 reg[NETXEN_NIC_REGS_COUNT];
-};
-
-static struct netxen_niu_regs niu_registers[] = {
-	{
-	 /* GB Mode */
-	 {
-	  NETXEN_NIU_GB_SERDES_RESET,
-	  NETXEN_NIU_GB0_MII_MODE,
-	  NETXEN_NIU_GB1_MII_MODE,
-	  NETXEN_NIU_GB2_MII_MODE,
-	  NETXEN_NIU_GB3_MII_MODE,
-	  NETXEN_NIU_GB0_GMII_MODE,
-	  NETXEN_NIU_GB1_GMII_MODE,
-	  NETXEN_NIU_GB2_GMII_MODE,
-	  NETXEN_NIU_GB3_GMII_MODE,
-	  NETXEN_NIU_REMOTE_LOOPBACK,
-	  NETXEN_NIU_GB0_HALF_DUPLEX,
-	  NETXEN_NIU_GB1_HALF_DUPLEX,
-	  NETXEN_NIU_RESET_SYS_FIFOS,
-	  NETXEN_NIU_GB_CRC_DROP,
-	  NETXEN_NIU_GB_DROP_WRONGADDR,
-	  NETXEN_NIU_TEST_MUX_CTL,
-
-	  NETXEN_NIU_GB_MAC_CONFIG_0(0),
-	  NETXEN_NIU_GB_MAC_CONFIG_1(0),
-	  NETXEN_NIU_GB_HALF_DUPLEX_CTRL(0),
-	  NETXEN_NIU_GB_MAX_FRAME_SIZE(0),
-	  NETXEN_NIU_GB_TEST_REG(0),
-	  NETXEN_NIU_GB_MII_MGMT_CONFIG(0),
-	  NETXEN_NIU_GB_MII_MGMT_COMMAND(0),
-	  NETXEN_NIU_GB_MII_MGMT_ADDR(0),
-	  NETXEN_NIU_GB_MII_MGMT_CTRL(0),
-	  NETXEN_NIU_GB_MII_MGMT_STATUS(0),
-	  NETXEN_NIU_GB_MII_MGMT_INDICATE(0),
-	  NETXEN_NIU_GB_INTERFACE_CTRL(0),
-	  NETXEN_NIU_GB_INTERFACE_STATUS(0),
-	  NETXEN_NIU_GB_STATION_ADDR_0(0),
-	  NETXEN_NIU_GB_STATION_ADDR_1(0),
-	  -1,
-	  }
-	 },
-	{
-	 /* XG Mode */
-	 {
-	  NETXEN_NIU_XG_SINGLE_TERM,
-	  NETXEN_NIU_XG_DRIVE_HI,
-	  NETXEN_NIU_XG_DRIVE_LO,
-	  NETXEN_NIU_XG_DTX,
-	  NETXEN_NIU_XG_DEQ,
-	  NETXEN_NIU_XG_WORD_ALIGN,
-	  NETXEN_NIU_XG_RESET,
-	  NETXEN_NIU_XG_POWER_DOWN,
-	  NETXEN_NIU_XG_RESET_PLL,
-	  NETXEN_NIU_XG_SERDES_LOOPBACK,
-	  NETXEN_NIU_XG_DO_BYTE_ALIGN,
-	  NETXEN_NIU_XG_TX_ENABLE,
-	  NETXEN_NIU_XG_RX_ENABLE,
-	  NETXEN_NIU_XG_STATUS,
-	  NETXEN_NIU_XG_PAUSE_THRESHOLD,
-	  NETXEN_NIU_XGE_CONFIG_0,
-	  NETXEN_NIU_XGE_CONFIG_1,
-	  NETXEN_NIU_XGE_IPG,
-	  NETXEN_NIU_XGE_STATION_ADDR_0_HI,
-	  NETXEN_NIU_XGE_STATION_ADDR_0_1,
-	  NETXEN_NIU_XGE_STATION_ADDR_1_LO,
-	  NETXEN_NIU_XGE_STATUS,
-	  NETXEN_NIU_XGE_MAX_FRAME_SIZE,
-	  NETXEN_NIU_XGE_PAUSE_FRAME_VALUE,
-	  NETXEN_NIU_XGE_TX_BYTE_CNT,
-	  NETXEN_NIU_XGE_TX_FRAME_CNT,
-	  NETXEN_NIU_XGE_RX_BYTE_CNT,
-	  NETXEN_NIU_XGE_RX_FRAME_CNT,
-	  NETXEN_NIU_XGE_AGGR_ERROR_CNT,
-	  NETXEN_NIU_XGE_MULTICAST_FRAME_CNT,
-	  NETXEN_NIU_XGE_UNICAST_FRAME_CNT,
-	  NETXEN_NIU_XGE_CRC_ERROR_CNT,
-	  NETXEN_NIU_XGE_OVERSIZE_FRAME_ERR,
-	  NETXEN_NIU_XGE_UNDERSIZE_FRAME_ERR,
-	  NETXEN_NIU_XGE_LOCAL_ERROR_CNT,
-	  NETXEN_NIU_XGE_REMOTE_ERROR_CNT,
-	  NETXEN_NIU_XGE_CONTROL_CHAR_CNT,
-	  NETXEN_NIU_XGE_PAUSE_FRAME_CNT,
-	  -1,
-	  }
-	 }
-};
-
 static void
 netxen_nic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
-	__u32 mode, *regs_buff = p;
-	int i, window;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
+	struct nx_host_sds_ring *sds_ring;
+	u32 *regs_buff = p;
+	int ring, i = 0;
+	int port = adapter->physical_port;
 
 	memset(p, 0, NETXEN_NIC_REGS_LEN);
+
 	regs->version = (1 << 24) | (adapter->ahw.revision_id << 16) |
 	    (adapter->pdev)->device;
-	/* which mode */
-	regs_buff[0] = NXRD32(adapter, NETXEN_NIU_MODE);
-	mode = regs_buff[0];
 
-	/* Common registers to all the modes */
-	regs_buff[2] = NXRD32(adapter, NETXEN_NIU_STRAP_VALUE_SAVE_HIGHER);
-	/* GB/XGB Mode */
-	mode = (mode / 2) - 1;
-	window = 0;
-	if (mode <= 1) {
-		for (i = 3; niu_registers[mode].reg[i - 3] != -1; i++) {
-			/* GB: port specific registers */
-			if (mode == 0 && i >= 19)
-				window = adapter->physical_port *
-					NETXEN_NIC_PORT_WINDOW;
+	if (adapter->is_up != NETXEN_ADAPTER_UP_MAGIC)
+		return;
 
-			regs_buff[i] = NXRD32(adapter,
-				niu_registers[mode].reg[i - 3] + window);
-		}
+	regs_buff[i++] = NXRD32(adapter, CRB_CMDPEG_STATE);
+	regs_buff[i++] = NXRD32(adapter, CRB_RCVPEG_STATE);
+	regs_buff[i++] = NXRD32(adapter, CRB_FW_CAPABILITIES_1);
+	regs_buff[i++] = NXRDIO(adapter, adapter->crb_int_state_reg);
+	regs_buff[i++] = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
+	regs_buff[i++] = NXRD32(adapter, NX_CRB_DEV_STATE);
+	regs_buff[i++] = NXRD32(adapter, NETXEN_PEG_ALIVE_COUNTER);
+	regs_buff[i++] = NXRD32(adapter, NETXEN_PEG_HALT_STATUS1);
+	regs_buff[i++] = NXRD32(adapter, NETXEN_PEG_HALT_STATUS2);
 
+	regs_buff[i++] = NXRD32(adapter, NETXEN_CRB_PEG_NET_0+0x3c);
+	regs_buff[i++] = NXRD32(adapter, NETXEN_CRB_PEG_NET_1+0x3c);
+	regs_buff[i++] = NXRD32(adapter, NETXEN_CRB_PEG_NET_2+0x3c);
+	regs_buff[i++] = NXRD32(adapter, NETXEN_CRB_PEG_NET_3+0x3c);
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+
+		regs_buff[i++] = NXRD32(adapter, NETXEN_CRB_PEG_NET_4+0x3c);
+		i += 2;
+
+		regs_buff[i++] = NXRD32(adapter, CRB_XG_STATE_P3);
+		regs_buff[i++] = le32_to_cpu(*(adapter->tx_ring->hw_consumer));
+
+	} else {
+		i++;
+
+		regs_buff[i++] = NXRD32(adapter,
+					NETXEN_NIU_XGE_CONFIG_0+(0x10000*port));
+		regs_buff[i++] = NXRD32(adapter,
+					NETXEN_NIU_XGE_CONFIG_1+(0x10000*port));
+
+		regs_buff[i++] = NXRD32(adapter, CRB_XG_STATE);
+		regs_buff[i++] = NXRDIO(adapter,
+				 adapter->tx_ring->crb_cmd_consumer);
+	}
+
+	regs_buff[i++] = NXRDIO(adapter, adapter->tx_ring->crb_cmd_producer);
+
+	regs_buff[i++] = NXRDIO(adapter,
+			 recv_ctx->rds_rings[0].crb_rcv_producer);
+	regs_buff[i++] = NXRDIO(adapter,
+			 recv_ctx->rds_rings[1].crb_rcv_producer);
+
+	regs_buff[i++] = adapter->max_sds_rings;
+
+	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
+		sds_ring = &(recv_ctx->sds_rings[ring]);
+		regs_buff[i++] = NXRDIO(adapter,
+					sds_ring->crb_sts_consumer);
 	}
 }
 
 static u32 netxen_nic_test_link(struct net_device *dev)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
-	__u32 status;
-	int val;
+	u32 val, port;
 
-	/* read which mode */
-	if (adapter->ahw.port_type == NETXEN_NIC_GBE) {
-		if (adapter->phy_read
-		    && adapter->phy_read(adapter,
-					 NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
-					 &status) != 0)
-			return -EIO;
-		else {
-			val = netxen_get_phy_link(status);
-			return !val;
-		}
-	} else if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
+	port = adapter->physical_port;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		val = NXRD32(adapter, CRB_XG_STATE_P3);
+		val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
+		return (val == XG_LINK_UP_P3) ? 0 : 1;
+	} else {
 		val = NXRD32(adapter, CRB_XG_STATE);
+		val = (val >> port*8) & 0xff;
 		return (val == XG_LINK_UP) ? 0 : 1;
 	}
-	return -EIO;
 }
 
 static int
@@ -690,8 +629,8 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	u32 data_read, data_written;
 
 	data_read = NXRD32(adapter, NETXEN_PCIX_PH_REG(0));
-	if ((data_read & 0xffff) != PHAN_VENDOR_ID)
-	return 1;
+	if ((data_read & 0xffff) != adapter->pdev->vendor)
+		return 1;
 
 	data_written = (u32)0xa5a5a5a5;
 

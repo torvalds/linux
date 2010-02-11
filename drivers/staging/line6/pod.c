@@ -422,13 +422,21 @@ void pod_transmit_parameter(struct usb_line6_pod *pod, int param, int value)
 /*
 	Resolve value to memory location.
 */
-static void pod_resolve(const char *buf, short block0, short block1, unsigned char *location)
+static int pod_resolve(const char *buf, short block0, short block1, unsigned char *location)
 {
-	int value = simple_strtoul(buf, NULL, 10);
-	short block = (value < 0x40) ? block0 : block1;
+	unsigned long value;
+	short block;
+	int ret;
+
+	ret = strict_strtoul(buf, 10, &value);
+	if (ret)
+		return ret;
+
+	block = (value < 0x40) ? block0 : block1;
 	value &= 0x3f;
 	location[0] = block >> 7;
 	location[1] = value | (block & 0x7f);
+	return 0;
 }
 
 /*
@@ -438,14 +446,20 @@ static ssize_t pod_send_store_command(struct device *dev, const char *buf, size_
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-
+	int ret;
 	int size = 3 + sizeof(pod->prog_data_buf);
 	char *sysex = pod_alloc_sysex_buffer(pod, POD_SYSEX_STORE, size);
+
 	if (!sysex)
 		return 0;
 
 	sysex[SYSEX_DATA_OFS] = 5;  /* see pod_dump() */
-	pod_resolve(buf, block0, block1, sysex + SYSEX_DATA_OFS + 1);
+	ret = pod_resolve(buf, block0, block1, sysex + SYSEX_DATA_OFS + 1);
+	if (ret) {
+		kfree(sysex);
+		return ret;
+	}
+
 	memcpy(sysex + SYSEX_DATA_OFS + 3, &pod->prog_data_buf, sizeof(pod->prog_data_buf));
 
 	line6_send_sysex_message(&pod->line6, sysex, size);
@@ -461,13 +475,18 @@ static ssize_t pod_send_retrieve_command(struct device *dev, const char *buf, si
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
+	int ret;
 	int size = 4;
 	char *sysex = pod_alloc_sysex_buffer(pod, POD_SYSEX_DUMPMEM, size);
 
 	if (!sysex)
 		return 0;
 
-	pod_resolve(buf, block0, block1, sysex + SYSEX_DATA_OFS);
+	ret = pod_resolve(buf, block0, block1, sysex + SYSEX_DATA_OFS);
+	if (ret) {
+		kfree(sysex);
+		return ret;
+	}
 	sysex[SYSEX_DATA_OFS + 2] = 0;
 	sysex[SYSEX_DATA_OFS + 3] = 0;
 	line6_dump_started(&pod->dumpreq, POD_DUMP_MEMORY);
@@ -526,7 +545,13 @@ static ssize_t pod_set_channel(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	int value = simple_strtoul(buf, NULL, 10);
+	unsigned long value;
+	int ret;
+
+	ret = strict_strtoul(buf, 10, &value);
+	if (ret)
+		return ret;
+
 	pod_send_channel(pod, value);
 	return count;
 }
@@ -579,7 +604,7 @@ static ssize_t pod_set_dump(struct device *dev, struct device_attribute *attr,
 
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
-			"data block must be exactly %d bytes\n",
+			"data block must be exactly %zu bytes\n",
 			sizeof(pod->prog_data));
 		return -EINVAL;
 	}
@@ -645,6 +670,8 @@ static ssize_t pod_set_system_param(struct usb_line6_pod *pod, const char *buf,
 	char *sysex;
 	static const int size = 5;
 	unsigned short value;
+	unsigned long result;
+	int ret;
 
 	if (((pod->prog_data.control[POD_tuner] & 0x40) == 0) && tuner)
 		return -EINVAL;
@@ -653,7 +680,12 @@ static ssize_t pod_set_system_param(struct usb_line6_pod *pod, const char *buf,
 	sysex = pod_alloc_sysex_buffer(pod, POD_SYSEX_SYSTEM, size);
 	if (!sysex)
 		return 0;
-	value = simple_strtoul(buf, NULL, 10) & mask;
+
+	ret = strict_strtoul(buf, 10, &result);
+	if (ret)
+		return ret;
+
+	value = result & mask;
 	sysex[SYSEX_DATA_OFS] = code;
 	sysex[SYSEX_DATA_OFS + 1] = (value >> 12) & 0x0f;
 	sysex[SYSEX_DATA_OFS + 2] = (value >>  8) & 0x0f;
@@ -691,7 +723,7 @@ static ssize_t pod_set_dump_buf(struct device *dev,
 
 	if (count != sizeof(pod->prog_data)) {
 		dev_err(pod->line6.ifcdev,
-						"data block must be exactly %d bytes\n",
+						"data block must be exactly %zu bytes\n",
 						sizeof(pod->prog_data));
 		return -EINVAL;
 	}
@@ -812,7 +844,13 @@ static ssize_t pod_set_midi_postprocess(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	int value = simple_strtoul(buf, NULL, 10);
+	unsigned long value;
+	int ret;
+
+	ret = strict_strtoul(buf, 10, &value);
+	if (ret)
+		return ret;
+
 	pod->midi_postprocess = value ? 1 : 0;
 	return count;
 }

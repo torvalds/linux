@@ -38,7 +38,6 @@
 #define NVRAM_VERSION	"1.3"
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/nvram.h>
 
 #define PC		1
@@ -111,6 +110,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 
@@ -214,7 +214,6 @@ void nvram_set_checksum(void)
 
 static loff_t nvram_llseek(struct file *file, loff_t offset, int origin)
 {
-	lock_kernel();
 	switch (origin) {
 	case 0:
 		/* nothing to do */
@@ -226,7 +225,7 @@ static loff_t nvram_llseek(struct file *file, loff_t offset, int origin)
 		offset += NVRAM_BYTES;
 		break;
 	}
-	unlock_kernel();
+
 	return (offset >= 0) ? (file->f_pos = offset) : -EINVAL;
 }
 
@@ -265,10 +264,16 @@ static ssize_t nvram_write(struct file *file, const char __user *buf,
 	unsigned char contents[NVRAM_BYTES];
 	unsigned i = *ppos;
 	unsigned char *tmp;
-	int len;
 
-	len = (NVRAM_BYTES - i) < count ? (NVRAM_BYTES - i) : count;
-	if (copy_from_user(contents, buf, len))
+	if (i >= NVRAM_BYTES)
+		return 0;	/* Past EOF */
+
+	if (count > NVRAM_BYTES - i)
+		count = NVRAM_BYTES - i;
+	if (count > NVRAM_BYTES)
+		return -EFAULT;	/* Can't happen, but prove it to gcc */
+
+	if (copy_from_user(contents, buf, count))
 		return -EFAULT;
 
 	spin_lock_irq(&rtc_lock);
@@ -276,7 +281,7 @@ static ssize_t nvram_write(struct file *file, const char __user *buf,
 	if (!__nvram_check_checksum())
 		goto checksum_err;
 
-	for (tmp = contents; count-- > 0 && i < NVRAM_BYTES; ++i, ++tmp)
+	for (tmp = contents; count--; ++i, ++tmp)
 		__nvram_write_byte(*tmp, i);
 
 	__nvram_set_checksum();

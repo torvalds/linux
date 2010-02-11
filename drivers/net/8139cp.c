@@ -549,13 +549,11 @@ rx_status_loop:
 			pr_debug("%s: rx slot %d status 0x%x len %d\n",
 			       dev->name, rx_tail, status, len);
 
-		new_skb = netdev_alloc_skb(dev, buflen + NET_IP_ALIGN);
+		new_skb = netdev_alloc_skb_ip_align(dev, buflen);
 		if (!new_skb) {
 			dev->stats.rx_dropped++;
 			goto rx_next;
 		}
-
-		skb_reserve(new_skb, NET_IP_ALIGN);
 
 		dma_unmap_single(&cp->pdev->dev, mapping,
 				 buflen, PCI_DMA_FROMDEVICE);
@@ -911,8 +909,8 @@ static void __cp_set_rx_mode (struct net_device *dev)
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
 		    AcceptAllPhys;
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
-	} else if ((dev->mc_count > multicast_filter_limit)
-		   || (dev->flags & IFF_ALLMULTI)) {
+	} else if ((dev->mc_count > multicast_filter_limit) ||
+		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to filter perfectly -- accept all multicasts. */
 		rx_mode = AcceptBroadcast | AcceptMulticast | AcceptMyPhys;
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
@@ -1057,11 +1055,9 @@ static int cp_refill_rx(struct cp_private *cp)
 		struct sk_buff *skb;
 		dma_addr_t mapping;
 
-		skb = netdev_alloc_skb(dev, cp->rx_buf_sz + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(dev, cp->rx_buf_sz);
 		if (!skb)
 			goto err_out;
-
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		mapping = dma_map_single(&cp->pdev->dev, skb->data,
 					 cp->rx_buf_sz, PCI_DMA_FROMDEVICE);

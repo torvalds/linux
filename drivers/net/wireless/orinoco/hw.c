@@ -60,8 +60,15 @@ static inline fwtype_t determine_firmware_type(struct comp_id *nic_id)
 /* Set priv->firmware type, determine firmware properties
  * This function can be called before we have registerred with netdev,
  * so all errors go out with dev_* rather than printk
+ *
+ * If non-NULL stores a firmware description in fw_name.
+ * If non-NULL stores a HW version in hw_ver
+ *
+ * These are output via generic cfg80211 ethtool support.
  */
-int determine_fw_capabilities(struct orinoco_private *priv)
+int determine_fw_capabilities(struct orinoco_private *priv,
+			      char *fw_name, size_t fw_name_len,
+			      u32 *hw_ver)
 {
 	struct device *dev = priv->dev;
 	hermes_t *hw = &priv->hw;
@@ -84,6 +91,12 @@ int determine_fw_capabilities(struct orinoco_private *priv)
 	le16_to_cpus(&nic_id.minor);
 	dev_info(dev, "Hardware identity %04x:%04x:%04x:%04x\n",
 		 nic_id.id, nic_id.variant, nic_id.major, nic_id.minor);
+
+	if (hw_ver)
+		*hw_ver = (((nic_id.id & 0xff) << 24) |
+			   ((nic_id.variant & 0xff) << 16) |
+			   ((nic_id.major & 0xff) << 8) |
+			   (nic_id.minor & 0xff));
 
 	priv->firmware_type = determine_firmware_type(&nic_id);
 
@@ -135,8 +148,9 @@ int determine_fw_capabilities(struct orinoco_private *priv)
 	case FIRMWARE_TYPE_AGERE:
 		/* Lucent Wavelan IEEE, Lucent Orinoco, Cabletron RoamAbout,
 		   ELSA, Melco, HP, IBM, Dell 1150, Compaq 110/210 */
-		snprintf(priv->fw_name, sizeof(priv->fw_name) - 1,
-			 "Lucent/Agere %d.%02d", sta_id.major, sta_id.minor);
+		if (fw_name)
+			snprintf(fw_name, fw_name_len, "Lucent/Agere %d.%02d",
+				 sta_id.major, sta_id.minor);
 
 		firmver = ((unsigned long)sta_id.major << 16) | sta_id.minor;
 
@@ -185,8 +199,8 @@ int determine_fw_capabilities(struct orinoco_private *priv)
 			tmp[SYMBOL_MAX_VER_LEN] = '\0';
 		}
 
-		snprintf(priv->fw_name, sizeof(priv->fw_name) - 1,
-			 "Symbol %s", tmp);
+		if (fw_name)
+			snprintf(fw_name, fw_name_len, "Symbol %s", tmp);
 
 		priv->has_ibss = (firmver >= 0x20000);
 		priv->has_wep = (firmver >= 0x15012);
@@ -224,9 +238,9 @@ int determine_fw_capabilities(struct orinoco_private *priv)
 		 * different and less well tested */
 		/* D-Link MAC : 00:40:05:* */
 		/* Addtron MAC : 00:90:D1:* */
-		snprintf(priv->fw_name, sizeof(priv->fw_name) - 1,
-			 "Intersil %d.%d.%d", sta_id.major, sta_id.minor,
-			 sta_id.variant);
+		if (fw_name)
+			snprintf(fw_name, fw_name_len, "Intersil %d.%d.%d",
+				 sta_id.major, sta_id.minor, sta_id.variant);
 
 		firmver = ((unsigned long)sta_id.major << 16) |
 			((unsigned long)sta_id.minor << 8) | sta_id.variant;
@@ -245,7 +259,8 @@ int determine_fw_capabilities(struct orinoco_private *priv)
 		}
 		break;
 	}
-	dev_info(dev, "Firmware determined as %s\n", priv->fw_name);
+	if (fw_name)
+		dev_info(dev, "Firmware determined as %s\n", fw_name);
 
 	return 0;
 }

@@ -32,8 +32,7 @@
 
 #ifdef __KERNEL__
 
-struct inet6_ifaddr 
-{
+struct inet6_ifaddr {
 	struct in6_addr		addr;
 	__u32			prefix_len;
 	
@@ -67,8 +66,7 @@ struct inet6_ifaddr
 	int			dead;
 };
 
-struct ip6_sf_socklist
-{
+struct ip6_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	struct in6_addr		sl_addr[0];
@@ -79,8 +77,7 @@ struct ip6_sf_socklist
 
 #define IP6_SFBLOCK	10	/* allocate this many at once */
 
-struct ipv6_mc_socklist
-{
+struct ipv6_mc_socklist {
 	struct in6_addr		addr;
 	int			ifindex;
 	struct ipv6_mc_socklist *next;
@@ -89,8 +86,7 @@ struct ipv6_mc_socklist
 	struct ip6_sf_socklist	*sflist;
 };
 
-struct ip6_sf_list
-{
+struct ip6_sf_list {
 	struct ip6_sf_list	*sf_next;
 	struct in6_addr		sf_addr;
 	unsigned long		sf_count[2];	/* include/exclude counts */
@@ -105,8 +101,7 @@ struct ip6_sf_list
 #define MAF_NOREPORT		0x08
 #define MAF_GSQUERY		0x10
 
-struct ifmcaddr6
-{
+struct ifmcaddr6 {
 	struct in6_addr		mca_addr;
 	struct inet6_dev	*idev;
 	struct ifmcaddr6	*next;
@@ -126,15 +121,13 @@ struct ifmcaddr6
 
 /* Anycast stuff */
 
-struct ipv6_ac_socklist
-{
+struct ipv6_ac_socklist {
 	struct in6_addr		acl_addr;
 	int			acl_ifindex;
 	struct ipv6_ac_socklist *acl_next;
 };
 
-struct ifacaddr6
-{
+struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct inet6_dev	*aca_idev;
 	struct rt6_info		*aca_rt;
@@ -157,8 +150,7 @@ struct ipv6_devstat {
 	DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg);
 };
 
-struct inet6_dev 
-{
+struct inet6_dev {
 	struct net_device		*dev;
 
 	struct inet6_ifaddr	*addr_list;

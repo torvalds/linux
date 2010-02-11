@@ -245,6 +245,7 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 {
 	struct ivtv_stream *s = &itv->streams[type];
 	int vfl_type = ivtv_stream_info[type].vfl_type;
+	const char *name;
 	int num;
 
 	if (s->vdev == NULL)
@@ -268,24 +269,24 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 		s->vdev = NULL;
 		return -ENOMEM;
 	}
-	num = s->vdev->num;
+	name = video_device_node_name(s->vdev);
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
-		IVTV_INFO("Registered device video%d for %s (%d kB)\n",
-			num, s->name, itv->options.kilobytes[type]);
+		IVTV_INFO("Registered device %s for %s (%d kB)\n",
+			name, s->name, itv->options.kilobytes[type]);
 		break;
 	case VFL_TYPE_RADIO:
-		IVTV_INFO("Registered device radio%d for %s\n",
-			num, s->name);
+		IVTV_INFO("Registered device %s for %s\n",
+			name, s->name);
 		break;
 	case VFL_TYPE_VBI:
 		if (itv->options.kilobytes[type])
-			IVTV_INFO("Registered device vbi%d for %s (%d kB)\n",
-				num, s->name, itv->options.kilobytes[type]);
+			IVTV_INFO("Registered device %s for %s (%d kB)\n",
+				name, s->name, itv->options.kilobytes[type]);
 		else
-			IVTV_INFO("Registered device vbi%d for %s\n",
-				num, s->name);
+			IVTV_INFO("Registered device %s for %s\n",
+				name, s->name);
 		break;
 	}
 	return 0;

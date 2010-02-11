@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
+#include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
 #include "key.h"
@@ -162,21 +163,17 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 /* frame is destined to interface currently processed (incl. multicast frames) */
 #define IEEE80211_RX_RA_MATCH		BIT(1)
 #define IEEE80211_RX_AMSDU		BIT(2)
-#define IEEE80211_RX_CMNTR_REPORTED	BIT(3)
-#define IEEE80211_RX_FRAGMENTED		BIT(4)
+#define IEEE80211_RX_FRAGMENTED		BIT(3)
+/* only add flags here that do not change with subframes of an aMPDU */
 
 struct ieee80211_rx_data {
 	struct sk_buff *skb;
-	struct net_device *dev;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	struct ieee80211_key *key;
-	struct ieee80211_rx_status *status;
-	struct ieee80211_rate *rate;
 
 	unsigned int flags;
-	int sent_ps_buffered;
 	int queue;
 	u32 tkip_iv32;
 	u16 tkip_iv16;
@@ -209,6 +206,9 @@ struct ieee80211_if_wds {
 
 struct ieee80211_if_vlan {
 	struct list_head list;
+
+	/* used for all tx if the VLAN is configured to 4-addr mode */
+	struct sta_info *sta;
 };
 
 struct mesh_stats {
@@ -312,6 +312,8 @@ struct ieee80211_if_managed {
 	} mfp; /* management frame protection */
 
 	int wmm_last_param_set;
+
+	u8 use_4addr;
 };
 
 enum ieee80211_ibss_request {
@@ -353,6 +355,7 @@ struct ieee80211_if_mesh {
 	struct work_struct work;
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
+	struct timer_list mesh_path_root_timer;
 	struct sk_buff_head skb_queue;
 
 	unsigned long timers_running;
@@ -362,23 +365,23 @@ struct ieee80211_if_mesh {
 	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
 	size_t mesh_id_len;
 	/* Active Path Selection Protocol Identifier */
-	u8 mesh_pp_id[4];
+	u8 mesh_pp_id;
 	/* Active Path Selection Metric Identifier */
-	u8 mesh_pm_id[4];
+	u8 mesh_pm_id;
 	/* Congestion Control Mode Identifier */
-	u8 mesh_cc_id[4];
+	u8 mesh_cc_id;
 	/* Synchronization Protocol Identifier */
-	u8 mesh_sp_id[4];
+	u8 mesh_sp_id;
 	/* Authentication Protocol Identifier */
-	u8 mesh_auth_id[4];
-	/* Local mesh Destination Sequence Number */
-	u32 dsn;
+	u8 mesh_auth_id;
+	/* Local mesh Sequence Number */
+	u32 sn;
 	/* Last used PREQ ID */
 	u32 preq_id;
 	atomic_t mpaths;
-	/* Timestamp of last DSN update */
-	unsigned long last_dsn_update;
-	/* Timestamp of last DSN sent */
+	/* Timestamp of last SN update */
+	unsigned long last_sn_update;
+	/* Timestamp of last SN sent */
 	unsigned long last_preq;
 	struct mesh_rmc *rmc;
 	spinlock_t mesh_preq_queue_lock;
@@ -471,74 +474,11 @@ struct ieee80211_sub_if_data {
 	} u;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	struct dentry *debugfsdir;
-	union {
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *bssid;
-			struct dentry *aid;
-			struct dentry *capab;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-		} sta;
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *num_sta_ps;
-			struct dentry *dtim_count;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-			struct dentry *num_buffered_multicast;
-		} ap;
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *peer;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-		} wds;
-		struct {
-			struct dentry *drop_unencrypted;
-			struct dentry *force_unicast_rateidx;
-			struct dentry *max_ratectrl_rateidx;
-		} vlan;
-		struct {
-			struct dentry *mode;
-		} monitor;
-	} debugfs;
 	struct {
+		struct dentry *dir;
 		struct dentry *default_key;
 		struct dentry *default_mgmt_key;
-	} common_debugfs;
-
-#ifdef CONFIG_MAC80211_MESH
-	struct dentry *mesh_stats_dir;
-	struct {
-		struct dentry *fwded_mcast;
-		struct dentry *fwded_unicast;
-		struct dentry *fwded_frames;
-		struct dentry *dropped_frames_ttl;
-		struct dentry *dropped_frames_no_route;
-		struct dentry *estab_plinks;
-		struct timer_list mesh_path_timer;
-	} mesh_stats;
-
-	struct dentry *mesh_config_dir;
-	struct {
-		struct dentry *dot11MeshRetryTimeout;
-		struct dentry *dot11MeshConfirmTimeout;
-		struct dentry *dot11MeshHoldingTimeout;
-		struct dentry *dot11MeshMaxRetries;
-		struct dentry *dot11MeshTTL;
-		struct dentry *auto_open_plinks;
-		struct dentry *dot11MeshMaxPeerLinks;
-		struct dentry *dot11MeshHWMPactivePathTimeout;
-		struct dentry *dot11MeshHWMPpreqMinInterval;
-		struct dentry *dot11MeshHWMPnetDiameterTraversalTime;
-		struct dentry *dot11MeshHWMPmaxPREQretries;
-		struct dentry *path_refresh_time;
-		struct dentry *min_discovery_timeout;
-	} mesh_config;
-#endif
-
+	} debugfs;
 #endif
 	/* must be last, dynamically sized area in this! */
 	struct ieee80211_vif vif;
@@ -639,7 +579,6 @@ struct ieee80211_local {
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss, fif_pspoll;
 	unsigned int filter_flags; /* FIF_* */
-	struct iw_statistics wstats;
 
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
@@ -660,6 +599,14 @@ struct ieee80211_local {
 	 * sanity. It can eventually be used for WoW as well.
 	 */
 	bool suspended;
+
+	/*
+	 * Resuming is true while suspended, but when we're reprogramming the
+	 * hardware -- at that time it's allowed to use ieee80211_queue_work()
+	 * again even though some other parts of the stack are still suspended
+	 * and we still drop received frames to avoid waking the stack.
+	 */
+	bool resuming;
 
 	/*
 	 * quiescing is true during the suspend process _only_ to
@@ -730,10 +677,9 @@ struct ieee80211_local {
 	unsigned long scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request *int_scan_req;
-	struct cfg80211_scan_request *scan_req;
+	struct cfg80211_scan_request *scan_req, *hw_scan_req;
 	struct ieee80211_channel *scan_channel;
-	const u8 *orig_ies;
-	int orig_ies_len;
+	enum ieee80211_band hw_scan_band;
 	int scan_channel_idx;
 	int scan_ies_len;
 
@@ -800,6 +746,7 @@ struct ieee80211_local {
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
 	bool pspolling;
+	bool scan_ps_enabled;
 	/*
 	 * PS can only be enabled when we have exactly one managed
 	 * interface (and monitors) in PS, this then points there.
@@ -818,53 +765,6 @@ struct ieee80211_local {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {
 		struct dentry *rcdir;
-		struct dentry *rcname;
-		struct dentry *frequency;
-		struct dentry *total_ps_buffered;
-		struct dentry *wep_iv;
-		struct dentry *tsf;
-		struct dentry *queues;
-		struct dentry *reset;
-		struct dentry *noack;
-		struct dentry *statistics;
-		struct local_debugfsdentries_statsdentries {
-			struct dentry *transmitted_fragment_count;
-			struct dentry *multicast_transmitted_frame_count;
-			struct dentry *failed_count;
-			struct dentry *retry_count;
-			struct dentry *multiple_retry_count;
-			struct dentry *frame_duplicate_count;
-			struct dentry *received_fragment_count;
-			struct dentry *multicast_received_frame_count;
-			struct dentry *transmitted_frame_count;
-			struct dentry *wep_undecryptable_count;
-			struct dentry *num_scans;
-#ifdef CONFIG_MAC80211_DEBUG_COUNTERS
-			struct dentry *tx_handlers_drop;
-			struct dentry *tx_handlers_queued;
-			struct dentry *tx_handlers_drop_unencrypted;
-			struct dentry *tx_handlers_drop_fragment;
-			struct dentry *tx_handlers_drop_wep;
-			struct dentry *tx_handlers_drop_not_assoc;
-			struct dentry *tx_handlers_drop_unauth_port;
-			struct dentry *rx_handlers_drop;
-			struct dentry *rx_handlers_queued;
-			struct dentry *rx_handlers_drop_nullfunc;
-			struct dentry *rx_handlers_drop_defrag;
-			struct dentry *rx_handlers_drop_short;
-			struct dentry *rx_handlers_drop_passive_scan;
-			struct dentry *tx_expand_skb_head;
-			struct dentry *tx_expand_skb_head_cloned;
-			struct dentry *rx_expand_skb_head;
-			struct dentry *rx_expand_skb_head2;
-			struct dentry *rx_handlers_fragments;
-			struct dentry *tx_status_drop;
-#endif
-			struct dentry *dot11ACKFailureCount;
-			struct dentry *dot11RTSFailureCount;
-			struct dentry *dot11FCSErrorCount;
-			struct dentry *dot11RTSSuccessCount;
-		} stats;
 		struct dentry *stations;
 		struct dentry *keys;
 	} debugfs;
@@ -877,8 +777,9 @@ IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-/* this struct represents 802.11n's RA/TID combination */
+/* this struct represents 802.11n's RA/TID combination along with our vif */
 struct ieee80211_ra_tid {
+	struct ieee80211_vif *vif;
 	u8 ra[ETH_ALEN];
 	u16 tid;
 };
@@ -905,12 +806,13 @@ struct ieee802_11_elems {
 	u8 *wmm_param;
 	struct ieee80211_ht_cap *ht_cap_elem;
 	struct ieee80211_ht_info *ht_info_elem;
-	u8 *mesh_config;
+	struct ieee80211_meshconf_ie *mesh_config;
 	u8 *mesh_id;
 	u8 *peer_link;
 	u8 *preq;
 	u8 *prep;
 	u8 *perr;
+	struct ieee80211_rann_ie *rann;
 	u8 *ch_switch_elem;
 	u8 *country_elem;
 	u8 *pwr_constr_elem;
@@ -932,7 +834,6 @@ struct ieee802_11_elems {
 	u8 ext_supp_rates_len;
 	u8 wmm_info_len;
 	u8 wmm_param_len;
-	u8 mesh_config_len;
 	u8 mesh_id_len;
 	u8 peer_link_len;
 	u8 preq_len;
@@ -1055,6 +956,18 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
 
+/*
+ * radiotap header for status frames
+ */
+struct ieee80211_tx_status_rtap_hdr {
+	struct ieee80211_radiotap_header hdr;
+	u8 rate;
+	u8 padding_for_rate;
+	__le16 tx_flags;
+	u8 data_retries;
+} __attribute__ ((packed));
+
+
 /* HT */
 void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 				       struct ieee80211_ht_cap *ht_cap_ie,
@@ -1083,6 +996,8 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				   enum ieee80211_back_parties initiator);
+int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
+				    enum ieee80211_back_parties initiator);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
@@ -1122,8 +1037,7 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 				     struct ieee80211_hdr *hdr, const u8 *tsc,
 				     gfp_t gfp);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata);
-void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		      int encrypt);
+void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems);
 u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
@@ -1160,7 +1074,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u8 *extra, size_t extra_len, const u8 *bssid,
 			 const u8 *key, u8 key_len, u8 key_idx);
 int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
-			     const u8 *ie, size_t ie_len);
+			     const u8 *ie, size_t ie_len,
+			     enum ieee80211_band band);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len);

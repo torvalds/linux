@@ -35,6 +35,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/oplib.h>
+#include <asm/timex.h>
 #include <asm/timer.h>
 #include <asm/system.h>
 #include <asm/irq.h>
@@ -51,7 +52,6 @@ DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
 
 static int set_rtc_mmss(unsigned long);
-static int sbus_do_settimeofday(struct timespec *tv);
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -75,6 +75,8 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 
 __volatile__ unsigned int *master_l10_counter;
+
+u32 (*do_arch_gettimeoffset)(void);
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -196,23 +198,40 @@ static int __init clock_init(void)
 {
 	return of_register_driver(&clock_driver, &of_platform_bus_type);
 }
-
 /* Must be after subsys_initcall() so that busses are probed.  Must
  * be before device_initcall() because things like the RTC driver
  * need to see the clock registers.
  */
 fs_initcall(clock_init);
 
+
+u32 sbus_do_gettimeoffset(void)
+{
+	unsigned long val = *master_l10_counter;
+	unsigned long usec = (val >> 10) & 0x1fffff;
+
+	/* Limit hit?  */
+	if (val & 0x80000000)
+		usec += 1000000 / HZ;
+
+	return usec * 1000;
+}
+
+
+u32 arch_gettimeoffset(void)
+{
+	if (unlikely(!do_arch_gettimeoffset))
+		return 0;
+	return do_arch_gettimeoffset();
+}
+
 static void __init sbus_time_init(void)
 {
+	do_arch_gettimeoffset = sbus_do_gettimeoffset;
 
-	BTFIXUPSET_CALL(bus_do_settimeofday, sbus_do_settimeofday, BTFIXUPCALL_NORM);
 	btfixup();
 
 	sparc_init_timers(timer_interrupt);
-	
-	/* Now that OBP ticker has been silenced, it is safe to enable IRQ. */
-	local_irq_enable();
 }
 
 void __init time_init(void)
@@ -227,94 +246,6 @@ void __init time_init(void)
 	sbus_time_init();
 }
 
-static inline unsigned long do_gettimeoffset(void)
-{
-	unsigned long val = *master_l10_counter;
-	unsigned long usec = (val >> 10) & 0x1fffff;
-
-	/* Limit hit?  */
-	if (val & 0x80000000)
-		usec += 1000000 / HZ;
-
-	return usec;
-}
-
-/* Ok, my cute asm atomicity trick doesn't work anymore.
- * There are just too many variables that need to be protected
- * now (both members of xtime, et al.)
- */
-void do_gettimeofday(struct timeval *tv)
-{
-	unsigned long flags;
-	unsigned long seq;
-	unsigned long usec, sec;
-	unsigned long max_ntp_tick = tick_usec - tickadj;
-
-	do {
-		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		usec = do_gettimeoffset();
-
-		/*
-		 * If time_adjust is negative then NTP is slowing the clock
-		 * so make sure not to go into next possible interval.
-		 * Better to lose some accuracy than have time go backwards..
-		 */
-		if (unlikely(time_adjust < 0))
-			usec = min(usec, max_ntp_tick);
-
-		sec = xtime.tv_sec;
-		usec += (xtime.tv_nsec / 1000);
-	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
-
-	while (usec >= 1000000) {
-		usec -= 1000000;
-		sec++;
-	}
-
-	tv->tv_sec = sec;
-	tv->tv_usec = usec;
-}
-
-EXPORT_SYMBOL(do_gettimeofday);
-
-int do_settimeofday(struct timespec *tv)
-{
-	int ret;
-
-	write_seqlock_irq(&xtime_lock);
-	ret = bus_do_settimeofday(tv);
-	write_sequnlock_irq(&xtime_lock);
-	clock_was_set();
-	return ret;
-}
-
-EXPORT_SYMBOL(do_settimeofday);
-
-static int sbus_do_settimeofday(struct timespec *tv)
-{
-	time_t wtm_sec, sec = tv->tv_sec;
-	long wtm_nsec, nsec = tv->tv_nsec;
-
-	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
-		return -EINVAL;
-
-	/*
-	 * This is revolting. We need to set "xtime" correctly. However, the
-	 * value in this location is the value at the most recent update of
-	 * wall time.  Discover what correction gettimeofday() would have
-	 * made, and then undo it!
-	 */
-	nsec -= 1000 * do_gettimeoffset();
-
-	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
-	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
-
-	set_normalized_timespec(&xtime, sec, nsec);
-	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
-
-	ntp_clear();
-	return 0;
-}
 
 static int set_rtc_mmss(unsigned long secs)
 {

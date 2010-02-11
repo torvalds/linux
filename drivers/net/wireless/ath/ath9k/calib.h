@@ -17,6 +17,8 @@
 #ifndef CALIB_H
 #define CALIB_H
 
+#include "hw.h"
+
 extern const struct ath9k_percal_data iq_cal_multi_sample;
 extern const struct ath9k_percal_data iq_cal_single_sample;
 extern const struct ath9k_percal_data adc_gain_cal_multi_sample;

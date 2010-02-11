@@ -272,7 +272,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_munlockall
 	PTR	sys_vhangup			/* 6150 */
 	PTR	sys_pivot_root
-	PTR	sys_32_sysctl
+	PTR	compat_sys_sysctl
 	PTR	sys_prctl
 	PTR	compat_sys_adjtimex
 	PTR	compat_sys_setrlimit		/* 6155 */
@@ -418,4 +418,5 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_rt_tgsigqueueinfo	/* 5295 */
 	PTR	sys_perf_event_open
 	PTR	sys_accept4
+	PTR     compat_sys_recvmmsg
 	.size	sysn32_call_table,.-sysn32_call_table

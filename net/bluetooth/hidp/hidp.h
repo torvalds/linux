@@ -154,7 +154,9 @@ struct hidp_session {
 	struct sk_buff_head ctrl_transmit;
 	struct sk_buff_head intr_transmit;
 
-	struct hidp_connadd_req *req;
+	/* Report descriptor */
+	__u8 *rd_data;
+	uint rd_size;
 };
 
 static inline void hidp_schedule(struct hidp_session *session)

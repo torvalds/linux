@@ -501,15 +501,16 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	if (!(rt->rt_flags & RTCF_LOCAL)) {
 		struct net_device *dev = NULL;
 
+		rcu_read_lock();
 		if (rt->fl.iif &&
 			net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr)
-			dev = dev_get_by_index(net, rt->fl.iif);
+			dev = dev_get_by_index_rcu(net, rt->fl.iif);
 
-		if (dev) {
+		if (dev)
 			saddr = inet_select_addr(dev, 0, RT_SCOPE_LINK);
-			dev_put(dev);
-		} else
+		else
 			saddr = 0;
+		rcu_read_unlock();
 	}
 
 	tos = icmp_pointers[type].error ? ((iph->tos & IPTOS_TOS_MASK) |
@@ -1165,6 +1166,10 @@ static int __net_init icmp_sk_init(struct net *net)
 		sk->sk_sndbuf =
 			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
 
+		/*
+		 * Speedup sock_wfree()
+		 */
+		sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 		inet_sk(sk)->pmtudisc = IP_PMTUDISC_DONT;
 	}
 

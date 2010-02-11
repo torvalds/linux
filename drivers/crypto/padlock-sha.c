@@ -24,6 +24,12 @@
 #include <asm/i387.h>
 #include "padlock.h"
 
+#ifdef CONFIG_64BIT
+#define STACK_ALIGN 16
+#else
+#define STACK_ALIGN 4
+#endif
+
 struct padlock_sha_desc {
 	struct shash_desc fallback;
 };
@@ -51,6 +57,23 @@ static int padlock_sha_update(struct shash_desc *desc,
 	return crypto_shash_update(&dctx->fallback, data, length);
 }
 
+static int padlock_sha_export(struct shash_desc *desc, void *out)
+{
+	struct padlock_sha_desc *dctx = shash_desc_ctx(desc);
+
+	return crypto_shash_export(&dctx->fallback, out);
+}
+
+static int padlock_sha_import(struct shash_desc *desc, const void *in)
+{
+	struct padlock_sha_desc *dctx = shash_desc_ctx(desc);
+	struct padlock_sha_ctx *ctx = crypto_shash_ctx(desc->tfm);
+
+	dctx->fallback.tfm = ctx->fallback;
+	dctx->fallback.flags = desc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+	return crypto_shash_import(&dctx->fallback, in);
+}
+
 static inline void padlock_output_block(uint32_t *src,
 		 	uint32_t *dst, size_t count)
 {
@@ -64,7 +87,9 @@ static int padlock_sha1_finup(struct shash_desc *desc, const u8 *in,
 	/* We can't store directly to *out as it may be unaligned. */
 	/* BTW Don't reduce the buffer size below 128 Bytes!
 	 *     PadLock microcode needs it that big. */
-	char result[128] __attribute__ ((aligned(PADLOCK_ALIGNMENT)));
+	char buf[128 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
+		((aligned(STACK_ALIGN)));
+	char *result = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 	struct padlock_sha_desc *dctx = shash_desc_ctx(desc);
 	struct sha1_state state;
 	unsigned int space;
@@ -128,7 +153,9 @@ static int padlock_sha256_finup(struct shash_desc *desc, const u8 *in,
 	/* We can't store directly to *out as it may be unaligned. */
 	/* BTW Don't reduce the buffer size below 128 Bytes!
 	 *     PadLock microcode needs it that big. */
-	char result[128] __attribute__ ((aligned(PADLOCK_ALIGNMENT)));
+	char buf[128 + PADLOCK_ALIGNMENT - STACK_ALIGN] __attribute__
+		((aligned(STACK_ALIGN)));
+	char *result = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 	struct padlock_sha_desc *dctx = shash_desc_ctx(desc);
 	struct sha256_state state;
 	unsigned int space;
@@ -225,7 +252,10 @@ static struct shash_alg sha1_alg = {
 	.update 	=	padlock_sha_update,
 	.finup  	=	padlock_sha1_finup,
 	.final  	=	padlock_sha1_final,
+	.export		=	padlock_sha_export,
+	.import		=	padlock_sha_import,
 	.descsize	=	sizeof(struct padlock_sha_desc),
+	.statesize	=	sizeof(struct sha1_state),
 	.base		=	{
 		.cra_name		=	"sha1",
 		.cra_driver_name	=	"sha1-padlock",
@@ -246,7 +276,10 @@ static struct shash_alg sha256_alg = {
 	.update 	=	padlock_sha_update,
 	.finup  	=	padlock_sha256_finup,
 	.final  	=	padlock_sha256_final,
+	.export		=	padlock_sha_export,
+	.import		=	padlock_sha_import,
 	.descsize	=	sizeof(struct padlock_sha_desc),
+	.statesize	=	sizeof(struct sha256_state),
 	.base		=	{
 		.cra_name		=	"sha256",
 		.cra_driver_name	=	"sha256-padlock",

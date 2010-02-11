@@ -75,7 +75,7 @@ takara_end_irq(unsigned int irq)
 }
 
 static struct irq_chip takara_irq_type = {
-	.typename	= "TAKARA",
+	.name		= "TAKARA",
 	.startup	= takara_startup_irq,
 	.shutdown	= takara_disable_irq,
 	.enable		= takara_enable_irq,

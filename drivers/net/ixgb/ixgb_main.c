@@ -233,7 +233,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 		/* proceed to try to request regular interrupt */
 	}
 
-	err = request_irq(adapter->pdev->irq, &ixgb_intr, irq_flags,
+	err = request_irq(adapter->pdev->irq, ixgb_intr, irq_flags,
 	                  netdev->name, netdev);
 	if (err) {
 		if (adapter->have_msi)
@@ -892,10 +892,18 @@ static void
 ixgb_unmap_and_free_tx_resource(struct ixgb_adapter *adapter,
                                 struct ixgb_buffer *buffer_info)
 {
-	buffer_info->dma = 0;
+	if (buffer_info->dma) {
+		if (buffer_info->mapped_as_page)
+			pci_unmap_page(adapter->pdev, buffer_info->dma,
+				       buffer_info->length, PCI_DMA_TODEVICE);
+		else
+			pci_unmap_single(adapter->pdev, buffer_info->dma,
+					 buffer_info->length,
+					 PCI_DMA_TODEVICE);
+		buffer_info->dma = 0;
+	}
+
 	if (buffer_info->skb) {
-		skb_dma_unmap(&adapter->pdev->dev, buffer_info->skb,
-		              DMA_TO_DEVICE);
 		dev_kfree_skb_any(buffer_info->skb);
 		buffer_info->skb = NULL;
 	}
@@ -1272,23 +1280,15 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	    unsigned int first)
 {
 	struct ixgb_desc_ring *tx_ring = &adapter->tx_ring;
+	struct pci_dev *pdev = adapter->pdev;
 	struct ixgb_buffer *buffer_info;
 	int len = skb_headlen(skb);
 	unsigned int offset = 0, size, count = 0, i;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
-
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
-	dma_addr_t *map;
 
 	i = tx_ring->next_to_use;
-
-	if (skb_dma_map(&adapter->pdev->dev, skb, DMA_TO_DEVICE)) {
-		dev_err(&adapter->pdev->dev, "TX DMA map failed\n");
-		return 0;
-	}
-
-	map = skb_shinfo(skb)->dma_maps;
 
 	while (len) {
 		buffer_info = &tx_ring->buffer_info[i];
@@ -1301,11 +1301,11 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 		buffer_info->length = size;
 		WARN_ON(buffer_info->dma != 0);
 		buffer_info->time_stamp = jiffies;
-		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
-			pci_map_single(adapter->pdev,
-				skb->data + offset,
-				size,
-				PCI_DMA_TODEVICE);
+		buffer_info->mapped_as_page = false;
+		buffer_info->dma = pci_map_single(pdev, skb->data + offset,
+						  size, PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+			goto dma_error;
 		buffer_info->next_to_watch = 0;
 
 		len -= size;
@@ -1323,7 +1323,7 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 		frag = &skb_shinfo(skb)->frags[f];
 		len = frag->size;
-		offset = 0;
+		offset = frag->page_offset;
 
 		while (len) {
 			i++;
@@ -1341,7 +1341,13 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 			buffer_info->length = size;
 			buffer_info->time_stamp = jiffies;
-			buffer_info->dma = map[f] + offset;
+			buffer_info->mapped_as_page = true;
+			buffer_info->dma =
+				pci_map_page(pdev, frag->page,
+					     offset, size,
+					     PCI_DMA_TODEVICE);
+			if (pci_dma_mapping_error(pdev, buffer_info->dma))
+				goto dma_error;
 			buffer_info->next_to_watch = 0;
 
 			len -= size;
@@ -1353,6 +1359,22 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 	tx_ring->buffer_info[first].next_to_watch = i;
 
 	return count;
+
+dma_error:
+	dev_err(&pdev->dev, "TX DMA map failed\n");
+	buffer_info->dma = 0;
+	if (count)
+		count--;
+
+	while (count--) {
+		if (i==0)
+			i += tx_ring->count;
+		i--;
+		buffer_info = &tx_ring->buffer_info[i];
+		ixgb_unmap_and_free_tx_resource(adapter, buffer_info);
+	}
+
+	return 0;
 }
 
 static void
@@ -1537,9 +1559,7 @@ ixgb_tx_timeout_task(struct work_struct *work)
 static struct net_device_stats *
 ixgb_get_stats(struct net_device *netdev)
 {
-	struct ixgb_adapter *adapter = netdev_priv(netdev);
-
-	return &adapter->net_stats;
+	return &netdev->stats;
 }
 
 /**
@@ -1676,16 +1696,16 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 
 	/* Fill out the OS statistics structure */
 
-	adapter->net_stats.rx_packets = adapter->stats.gprcl;
-	adapter->net_stats.tx_packets = adapter->stats.gptcl;
-	adapter->net_stats.rx_bytes = adapter->stats.gorcl;
-	adapter->net_stats.tx_bytes = adapter->stats.gotcl;
-	adapter->net_stats.multicast = adapter->stats.mprcl;
-	adapter->net_stats.collisions = 0;
+	netdev->stats.rx_packets = adapter->stats.gprcl;
+	netdev->stats.tx_packets = adapter->stats.gptcl;
+	netdev->stats.rx_bytes = adapter->stats.gorcl;
+	netdev->stats.tx_bytes = adapter->stats.gotcl;
+	netdev->stats.multicast = adapter->stats.mprcl;
+	netdev->stats.collisions = 0;
 
 	/* ignore RLEC as it reports errors for padded (<64bytes) frames
 	 * with a length in the type/len field */
-	adapter->net_stats.rx_errors =
+	netdev->stats.rx_errors =
 	    /* adapter->stats.rnbc + */ adapter->stats.crcerrs +
 	    adapter->stats.ruc +
 	    adapter->stats.roc /*+ adapter->stats.rlec */  +
@@ -1693,21 +1713,21 @@ ixgb_update_stats(struct ixgb_adapter *adapter)
 	    adapter->stats.ecbc + adapter->stats.mpc;
 
 	/* see above
-	 * adapter->net_stats.rx_length_errors = adapter->stats.rlec;
+	 * netdev->stats.rx_length_errors = adapter->stats.rlec;
 	 */
 
-	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
-	adapter->net_stats.rx_fifo_errors = adapter->stats.mpc;
-	adapter->net_stats.rx_missed_errors = adapter->stats.mpc;
-	adapter->net_stats.rx_over_errors = adapter->stats.mpc;
+	netdev->stats.rx_crc_errors = adapter->stats.crcerrs;
+	netdev->stats.rx_fifo_errors = adapter->stats.mpc;
+	netdev->stats.rx_missed_errors = adapter->stats.mpc;
+	netdev->stats.rx_over_errors = adapter->stats.mpc;
 
-	adapter->net_stats.tx_errors = 0;
-	adapter->net_stats.rx_frame_errors = 0;
-	adapter->net_stats.tx_aborted_errors = 0;
-	adapter->net_stats.tx_carrier_errors = 0;
-	adapter->net_stats.tx_fifo_errors = 0;
-	adapter->net_stats.tx_heartbeat_errors = 0;
-	adapter->net_stats.tx_window_errors = 0;
+	netdev->stats.tx_errors = 0;
+	netdev->stats.rx_frame_errors = 0;
+	netdev->stats.tx_aborted_errors = 0;
+	netdev->stats.tx_carrier_errors = 0;
+	netdev->stats.tx_fifo_errors = 0;
+	netdev->stats.tx_heartbeat_errors = 0;
+	netdev->stats.tx_window_errors = 0;
 }
 
 #define IXGB_MAX_INTR 10
@@ -1974,9 +1994,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 		 * of reassembly being done in the stack */
 		if (length < copybreak) {
 			struct sk_buff *new_skb =
-			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
+			    netdev_alloc_skb_ip_align(netdev, length);
 			if (new_skb) {
-				skb_reserve(new_skb, NET_IP_ALIGN);
 				skb_copy_to_linear_data_offset(new_skb,
 							       -NET_IP_ALIGN,
 							       (skb->data -
@@ -2059,19 +2078,12 @@ ixgb_alloc_rx_buffers(struct ixgb_adapter *adapter, int cleaned_count)
 			goto map_skb;
 		}
 
-		skb = netdev_alloc_skb(netdev, adapter->rx_buffer_len
-			               + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(netdev, adapter->rx_buffer_len);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->alloc_rx_buff_failed++;
 			break;
 		}
-
-		/* Make buffer alignment 2 beyond a 16 byte boundary
-		 * this will result in a 16 byte aligned IP header after
-		 * the 14 byte MAC header is removed
-		 */
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;

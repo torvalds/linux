@@ -202,7 +202,7 @@ static struct resource usb_res[] = {
 		.name = "mem",
 		.flags = IORESOURCE_MEM,
 		.start = 0x03400000,
-		.end = 0x034001fff,
+		.end = 0x03401fff,
 	},
 };
 
@@ -503,8 +503,9 @@ static int __init ar7_register_devices(void)
 {
 	u16 chip_id;
 	int res;
+	u32 *bootcr, val;
 #ifdef CONFIG_SERIAL_8250
-	static struct uart_port uart_port[2];
+	static struct uart_port uart_port[2] __initdata;
 
 	memset(uart_port, 0, sizeof(struct uart_port) * 2);
 
@@ -595,7 +596,13 @@ static int __init ar7_register_devices(void)
 
 	ar7_wdt_res.end = ar7_wdt_res.start + 0x20;
 
-	res = platform_device_register(&ar7_wdt);
+	bootcr = (u32 *)ioremap_nocache(AR7_REGS_DCL, 4);
+	val = *bootcr;
+	iounmap(bootcr);
+
+	/* Register watchdog only if enabled in hardware */
+	if (val & AR7_WDT_HW_ENA)
+		res = platform_device_register(&ar7_wdt);
 
 	return res;
 }

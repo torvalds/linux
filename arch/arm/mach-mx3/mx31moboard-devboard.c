@@ -22,11 +22,15 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
+#include <linux/usb/otg.h>
+
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/hardware.h>
 #include <mach/mmc.h>
+#include <mach/mxc_ehci.h>
+#include <mach/ulpi.h>
 
 #include "devices.h"
 
@@ -39,6 +43,12 @@ static unsigned int devboard_pins[] = {
 	MX31_PIN_PC_READY__SD2_DATA1, MX31_PIN_PC_WAIT_B__SD2_DATA0,
 	MX31_PIN_PC_CD2_B__SD2_CLK, MX31_PIN_PC_CD1_B__SD2_CMD,
 	MX31_PIN_ATA_DIOR__GPIO3_28, MX31_PIN_ATA_DIOW__GPIO3_29,
+	/* USB H1 */
+	MX31_PIN_CSPI1_MISO__USBH1_RXDP, MX31_PIN_CSPI1_MOSI__USBH1_RXDM,
+	MX31_PIN_CSPI1_SS0__USBH1_TXDM, MX31_PIN_CSPI1_SS1__USBH1_TXDP,
+	MX31_PIN_CSPI1_SS2__USBH1_RCV, MX31_PIN_CSPI1_SCLK__USBH1_OEB,
+	MX31_PIN_CSPI1_SPI_RDY__USBH1_FS, MX31_PIN_SFS6__USBH1_SUSPEND,
+	MX31_PIN_NFRE_B__GPIO1_11, MX31_PIN_NFALE__GPIO1_12,
 };
 
 static struct imxuart_platform_data uart_pdata = {
@@ -98,6 +108,80 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 	.exit	= devboard_sdhc2_exit,
 };
 
+#define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
+			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
+
+static int devboard_usbh1_hw_init(struct platform_device *pdev)
+{
+	mxc_iomux_set_gpr(MUX_PGP_USB_SUSPEND, true);
+
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_MISO, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_MOSI, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SS0, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SS1, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SS2, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SCLK, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_CSPI1_SPI_RDY, USB_PAD_CFG);
+	mxc_iomux_set_pad(MX31_PIN_SFS6, USB_PAD_CFG);
+
+	return 0;
+}
+
+#define USBH1_VBUSEN_B	IOMUX_TO_GPIO(MX31_PIN_NFRE_B)
+#define USBH1_MODE	IOMUX_TO_GPIO(MX31_PIN_NFALE)
+
+static int devboard_isp1105_init(struct otg_transceiver *otg)
+{
+	int ret = gpio_request(USBH1_MODE, "usbh1-mode");
+	if (ret)
+		return ret;
+	/* single ended */
+	gpio_direction_output(USBH1_MODE, 0);
+
+	ret = gpio_request(USBH1_VBUSEN_B, "usbh1-vbusen");
+	if (ret) {
+		gpio_free(USBH1_MODE);
+		return ret;
+	}
+	gpio_direction_output(USBH1_VBUSEN_B, 1);
+
+	return 0;
+}
+
+
+static int devboard_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
+{
+	if (on)
+		gpio_set_value(USBH1_VBUSEN_B, 0);
+	else
+		gpio_set_value(USBH1_VBUSEN_B, 1);
+
+	return 0;
+}
+
+static struct mxc_usbh_platform_data usbh1_pdata = {
+	.init	= devboard_usbh1_hw_init,
+	.portsc	= MXC_EHCI_MODE_UTMI | MXC_EHCI_SERIAL,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED | MXC_EHCI_INTERFACE_SINGLE_UNI,
+};
+
+static int __init devboard_usbh1_init(void)
+{
+	struct otg_transceiver *otg;
+
+	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
+	if (!otg)
+		return -ENOMEM;
+
+	otg->label	= "ISP1105";
+	otg->init	= devboard_isp1105_init;
+	otg->set_vbus	= devboard_isp1105_set_vbus;
+
+	usbh1_pdata.otg = otg;
+
+	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+}
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -111,4 +195,6 @@ void __init mx31moboard_devboard_init(void)
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
+
+	devboard_usbh1_init();
 }

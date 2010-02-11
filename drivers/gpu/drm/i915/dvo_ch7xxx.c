@@ -152,7 +152,7 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	};
 
 	if (!ch7xxx->quiet) {
-		DRM_DEBUG("Unable to read register 0x%02x from %s:%02x.\n",
+		DRM_DEBUG_KMS("Unable to read register 0x%02x from %s:%02x.\n",
 			  addr, i2cbus->adapter.name, dvo->slave_addr);
 	}
 	return false;
@@ -179,7 +179,7 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 		return true;
 
 	if (!ch7xxx->quiet) {
-		DRM_DEBUG("Unable to write register 0x%02x to %s:%d.\n",
+		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
 			  addr, i2cbus->adapter.name, dvo->slave_addr);
 	}
 
@@ -207,7 +207,8 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 
 	name = ch7xxx_get_id(vendor);
 	if (!name) {
-		DRM_DEBUG("ch7xxx not detected; got 0x%02x from %s slave %d.\n",
+		DRM_DEBUG_KMS("ch7xxx not detected; got 0x%02x from %s "
+				"slave %d.\n",
 			  vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
@@ -217,13 +218,14 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 		goto out;
 
 	if (device != CH7xxx_DID) {
-		DRM_DEBUG("ch7xxx not detected; got 0x%02x from %s slave %d.\n",
+		DRM_DEBUG_KMS("ch7xxx not detected; got 0x%02x from %s "
+				"slave %d.\n",
 			  vendor, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 
 	ch7xxx->quiet = false;
-	DRM_DEBUG("Detected %s chipset, vendor/device ID 0x%02x/0x%02x\n",
+	DRM_DEBUG_KMS("Detected %s chipset, vendor/device ID 0x%02x/0x%02x\n",
 		  name, vendor, device);
 	return true;
 out:
@@ -315,8 +317,8 @@ static void ch7xxx_dump_regs(struct intel_dvo_device *dvo)
 
 	for (i = 0; i < CH7xxx_NUM_REGS; i++) {
 		if ((i % 8) == 0 )
-			DRM_DEBUG("\n %02X: ", i);
-		DRM_DEBUG("%02X ", ch7xxx->mode_reg.regs[i]);
+			DRM_LOG_KMS("\n %02X: ", i);
+		DRM_LOG_KMS("%02X ", ch7xxx->mode_reg.regs[i]);
 	}
 }
 

@@ -110,6 +110,7 @@ set_debug(const char *val, struct kernel_param *kp)
 MODULE_AUTHOR("Karsten Keil");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(SPEEDFAX_REV);
+MODULE_FIRMWARE("isdn/ISAR.BIN");
 module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Speedfax debug mask");
 module_param(irqloops, uint, S_IRUGO | S_IWUSR);

@@ -19,4 +19,11 @@ config BFIN561_BLUETECHNIX_CM
 	help
 	  CM-BF561 support for EVAL- and DEV-Board.
 
+config BFIN561_ACVILON
+	bool "BF561-ACVILON"
+	help
+	  BF561-ACVILON System On Module support (SO-DIMM 144).
+	  For more information about Acvilon BF561 SoM
+	  please go to http://www.niistt.ru/
+
 endchoice

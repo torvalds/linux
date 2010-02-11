@@ -1564,12 +1564,10 @@ static int nsp_cs_probe(struct pcmcia_device *link)
 	link->io.IOAddrLines	 = 10;	/* not used */
 
 	/* Interrupt setup */
-	link->irq.Attributes	 = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1	 = IRQ_LEVEL_ID;
+	link->irq.Attributes	 = IRQ_TYPE_EXCLUSIVE;
 
 	/* Interrupt handler */
 	link->irq.Handler	 = &nspintr;
-	link->irq.Instance       = info;
 	link->irq.Attributes     |= IRQF_SHARED;
 
 	/* General socket configuration */
@@ -1684,10 +1682,10 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 			if (cfg_mem->req.Size < 0x1000)
 				cfg_mem->req.Size = 0x1000;
 			cfg_mem->req.AccessSpeed = 0;
-			if (pcmcia_request_window(&p_dev, &cfg_mem->req, &p_dev->win) != 0)
+			if (pcmcia_request_window(p_dev, &cfg_mem->req, &p_dev->win) != 0)
 				goto next_entry;
 			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-			if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
+			if (pcmcia_map_mem_page(p_dev, p_dev->win, &map) != 0)
 				goto next_entry;
 
 			cfg_mem->data->MmioAddress = (unsigned long) ioremap_nocache(cfg_mem->req.Base, cfg_mem->req.Size);

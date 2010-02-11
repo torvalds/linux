@@ -356,10 +356,8 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 
 	switch (host_type) {
 	case VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION:
-		if (func_id == 0) {
-			access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
-					VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
-		}
+		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
+				VXGE_HW_DEVICE_ACCESS_RIGHT_SRPCIM;
 		break;
 	case VXGE_HW_MR_NO_SR_VH0_BASE_FUNCTION:
 		access_rights |= VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM |
@@ -381,6 +379,22 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 
 	return access_rights;
 }
+/*
+ * __vxge_hw_device_is_privilaged
+ * This routine checks if the device function is privilaged or not
+ */
+
+enum vxge_hw_status
+__vxge_hw_device_is_privilaged(u32 host_type, u32 func_id)
+{
+	if (__vxge_hw_device_access_rights_get(host_type,
+		func_id) &
+		VXGE_HW_DEVICE_ACCESS_RIGHT_MRPCIM)
+		return VXGE_HW_OK;
+	else
+		return VXGE_HW_ERR_PRIVILAGED_OPEARATION;
+}
+
 /*
  * __vxge_hw_device_host_info_get
  * This routine returns the host type assignments
@@ -446,220 +460,6 @@ __vxge_hw_verify_pci_e_info(struct __vxge_hw_device *hldev)
 	return VXGE_HW_OK;
 }
 
-enum vxge_hw_status
-__vxge_hw_device_is_privilaged(struct __vxge_hw_device *hldev)
-{
-	if ((hldev->host_type == VXGE_HW_NO_MR_NO_SR_NORMAL_FUNCTION ||
-	hldev->host_type == VXGE_HW_MR_NO_SR_VH0_BASE_FUNCTION ||
-	hldev->host_type == VXGE_HW_NO_MR_SR_VH0_FUNCTION0) &&
-	(hldev->func_id == 0))
-		return VXGE_HW_OK;
-	else
-		return VXGE_HW_ERR_PRIVILAGED_OPEARATION;
-}
-
-/*
- * vxge_hw_wrr_rebalance - Rebalance the RX_WRR and KDFC_WRR calandars.
- * Rebalance the RX_WRR and KDFC_WRR calandars.
- */
-static enum
-vxge_hw_status vxge_hw_wrr_rebalance(struct __vxge_hw_device *hldev)
-{
-	u64 val64;
-	u32 wrr_states[VXGE_HW_WEIGHTED_RR_SERVICE_STATES];
-	u32 i, j, how_often = 1;
-	enum vxge_hw_status status = VXGE_HW_OK;
-
-	status = __vxge_hw_device_is_privilaged(hldev);
-	if (status != VXGE_HW_OK)
-		goto exit;
-
-	/* Reset the priorities assigned to the WRR arbitration
-	phases for the receive traffic */
-	for (i = 0; i < VXGE_HW_WRR_RING_COUNT; i++)
-		writeq(0, ((&hldev->mrpcim_reg->rx_w_round_robin_0) + i));
-
-	/* Reset the transmit FIFO servicing calendar for FIFOs */
-	for (i = 0; i < VXGE_HW_WRR_FIFO_COUNT; i++) {
-		writeq(0, ((&hldev->mrpcim_reg->kdfc_w_round_robin_0) + i));
-		writeq(0, ((&hldev->mrpcim_reg->kdfc_w_round_robin_20) + i));
-	}
-
-	/* Assign WRR priority  0 for all FIFOs */
-	for (i = 1; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-		writeq(VXGE_HW_KDFC_FIFO_0_CTRL_WRR_NUMBER(0),
-				((&hldev->mrpcim_reg->kdfc_fifo_0_ctrl)  + i));
-
-		writeq(VXGE_HW_KDFC_FIFO_17_CTRL_WRR_NUMBER(0),
-			((&hldev->mrpcim_reg->kdfc_fifo_17_ctrl) + i));
-	}
-
-	/* Reset to service non-offload doorbells */
-	writeq(0, &hldev->mrpcim_reg->kdfc_entry_type_sel_0);
-	writeq(0, &hldev->mrpcim_reg->kdfc_entry_type_sel_1);
-
-	/* Set priority 0 to all receive queues */
-	writeq(0, &hldev->mrpcim_reg->rx_queue_priority_0);
-	writeq(0, &hldev->mrpcim_reg->rx_queue_priority_1);
-	writeq(0, &hldev->mrpcim_reg->rx_queue_priority_2);
-
-	/* Initialize all the slots as unused */
-	for (i = 0; i < VXGE_HW_WEIGHTED_RR_SERVICE_STATES; i++)
-		wrr_states[i] = -1;
-
-	/* Prepare the Fifo service states */
-	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
-		if (!hldev->config.vp_config[i].min_bandwidth)
-			continue;
-
-		how_often = VXGE_HW_VPATH_BANDWIDTH_MAX /
-				hldev->config.vp_config[i].min_bandwidth;
-		if (how_often) {
-
-			for (j = 0; j < VXGE_HW_WRR_FIFO_SERVICE_STATES;) {
-				if (wrr_states[j] == -1) {
-					wrr_states[j] = i;
-					/* Make sure each fifo is serviced
-					 * atleast once */
-					if (i == j)
-						j += VXGE_HW_MAX_VIRTUAL_PATHS;
-					else
-						j += how_often;
-				} else
-					j++;
-			}
-		}
-	}
-
-	/* Fill the unused slots with 0 */
-	for (j = 0; j < VXGE_HW_WEIGHTED_RR_SERVICE_STATES; j++) {
-		if (wrr_states[j] == -1)
-			wrr_states[j] = 0;
-	}
-
-	/* Assign WRR priority number for FIFOs */
-	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-		writeq(VXGE_HW_KDFC_FIFO_0_CTRL_WRR_NUMBER(i),
-				((&hldev->mrpcim_reg->kdfc_fifo_0_ctrl) + i));
-
-		writeq(VXGE_HW_KDFC_FIFO_17_CTRL_WRR_NUMBER(i),
-			((&hldev->mrpcim_reg->kdfc_fifo_17_ctrl) + i));
-	}
-
-	/* Modify the servicing algorithm applied to the 3 types of doorbells.
-	i.e, none-offload, message and offload */
-	writeq(VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_0(0) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_1(0) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_2(0) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_3(0) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_4(1) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_5(0) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_6(0) |
-				VXGE_HW_KDFC_ENTRY_TYPE_SEL_0_NUMBER_7(0),
-				&hldev->mrpcim_reg->kdfc_entry_type_sel_0);
-
-	writeq(VXGE_HW_KDFC_ENTRY_TYPE_SEL_1_NUMBER_8(1),
-				&hldev->mrpcim_reg->kdfc_entry_type_sel_1);
-
-	for (i = 0, j = 0; i < VXGE_HW_WRR_FIFO_COUNT; i++) {
-
-		val64 = VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_0(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_1(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_2(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_3(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_4(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_5(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_6(wrr_states[j++]);
-		val64 |= VXGE_HW_KDFC_W_ROUND_ROBIN_0_NUMBER_7(wrr_states[j++]);
-
-		writeq(val64, (&hldev->mrpcim_reg->kdfc_w_round_robin_0 + i));
-		writeq(val64, (&hldev->mrpcim_reg->kdfc_w_round_robin_20 + i));
-	}
-
-	/* Set up the priorities assigned to receive queues */
-	writeq(VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_0(0) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_1(1) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_2(2) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_3(3) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_4(4) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_5(5) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_6(6) |
-			VXGE_HW_RX_QUEUE_PRIORITY_0_RX_Q_NUMBER_7(7),
-			&hldev->mrpcim_reg->rx_queue_priority_0);
-
-	writeq(VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_8(8) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_9(9) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_10(10) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_11(11) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_12(12) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_13(13) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_14(14) |
-			VXGE_HW_RX_QUEUE_PRIORITY_1_RX_Q_NUMBER_15(15),
-			&hldev->mrpcim_reg->rx_queue_priority_1);
-
-	writeq(VXGE_HW_RX_QUEUE_PRIORITY_2_RX_Q_NUMBER_16(16),
-				&hldev->mrpcim_reg->rx_queue_priority_2);
-
-	/* Initialize all the slots as unused */
-	for (i = 0; i < VXGE_HW_WEIGHTED_RR_SERVICE_STATES; i++)
-		wrr_states[i] = -1;
-
-	/* Prepare the Ring service states */
-	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
-
-		if (!hldev->config.vp_config[i].min_bandwidth)
-			continue;
-
-		how_often = VXGE_HW_VPATH_BANDWIDTH_MAX /
-				hldev->config.vp_config[i].min_bandwidth;
-
-		if (how_often) {
-			for (j = 0; j < VXGE_HW_WRR_RING_SERVICE_STATES;) {
-				if (wrr_states[j] == -1) {
-					wrr_states[j] = i;
-					/* Make sure each ring is
-					 * serviced atleast once */
-					if (i == j)
-						j += VXGE_HW_MAX_VIRTUAL_PATHS;
-					else
-						j += how_often;
-				} else
-					j++;
-			}
-		}
-	}
-
-	/* Fill the unused slots with 0 */
-	for (j = 0; j < VXGE_HW_WEIGHTED_RR_SERVICE_STATES; j++) {
-		if (wrr_states[j] == -1)
-			wrr_states[j] = 0;
-	}
-
-	for (i = 0, j = 0; i < VXGE_HW_WRR_RING_COUNT; i++) {
-		val64 =  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_0(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_1(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_2(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_3(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_4(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_5(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_6(
-				wrr_states[j++]);
-		val64 |=  VXGE_HW_RX_W_ROUND_ROBIN_0_RX_W_PRIORITY_SS_7(
-				wrr_states[j++]);
-
-		writeq(val64, ((&hldev->mrpcim_reg->rx_w_round_robin_0) + i));
-	}
-exit:
-	return status;
-}
-
 /*
  * __vxge_hw_device_initialize
  * Initialize Titan-V hardware.
@@ -668,14 +468,14 @@ enum vxge_hw_status __vxge_hw_device_initialize(struct __vxge_hw_device *hldev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	if (VXGE_HW_OK == __vxge_hw_device_is_privilaged(hldev)) {
+	if (VXGE_HW_OK == __vxge_hw_device_is_privilaged(hldev->host_type,
+				hldev->func_id)) {
 		/* Validate the pci-e link width and speed */
 		status = __vxge_hw_verify_pci_e_info(hldev);
 		if (status != VXGE_HW_OK)
 			goto exit;
 	}
 
-	vxge_hw_wrr_rebalance(hldev);
 exit:
 	return status;
 }
@@ -953,7 +753,8 @@ vxge_hw_mrpcim_stats_access(struct __vxge_hw_device *hldev,
 	u64 val64;
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -990,7 +791,8 @@ vxge_hw_device_xmac_aggr_stats_get(struct __vxge_hw_device *hldev, u32 port,
 
 	val64 = (u64 *)aggr_stats;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -1023,7 +825,8 @@ vxge_hw_device_xmac_port_stats_get(struct __vxge_hw_device *hldev, u32 port,
 	u32 offset = 0x0;
 	val64 = (u64 *) port_stats;
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -1221,7 +1024,8 @@ enum vxge_hw_status vxge_hw_device_setpause_data(struct __vxge_hw_device *hldev,
 		goto exit;
 	}
 
-	status = __vxge_hw_device_is_privilaged(hldev);
+	status = __vxge_hw_device_is_privilaged(hldev->host_type,
+			hldev->func_id);
 	if (status != VXGE_HW_OK)
 		goto exit;
 
@@ -2352,6 +2156,28 @@ exit:
 	return status;
 }
 
+/*
+ * vxge_hw_vpath_strip_fcs_check - Check for FCS strip.
+ */
+enum vxge_hw_status
+vxge_hw_vpath_strip_fcs_check(struct __vxge_hw_device *hldev, u64 vpath_mask)
+{
+	struct vxge_hw_vpmgmt_reg       __iomem *vpmgmt_reg;
+	enum vxge_hw_status status = VXGE_HW_OK;
+	int i = 0, j = 0;
+
+	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
+		if (!((vpath_mask) & vxge_mBIT(i)))
+			continue;
+		vpmgmt_reg = hldev->vpmgmt_reg[i];
+		for (j = 0; j < VXGE_HW_MAC_MAX_MAC_PORT_ID; j++) {
+			if (readq(&vpmgmt_reg->rxmac_cfg0_port_vpmgmt_clone[j])
+			& VXGE_HW_RXMAC_CFG0_PORT_VPMGMT_CLONE_STRIP_FCS)
+				return VXGE_HW_FAIL;
+		}
+	}
+	return status;
+}
 /*
  * vxge_hw_mgmt_reg_Write - Write Titan register.
  */
@@ -4056,6 +3882,30 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 	return status;
 }
 
+void
+vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id)
+{
+	struct __vxge_hw_virtualpath *vpath;
+	struct vxge_hw_vpath_reg __iomem *vp_reg;
+	struct vxge_hw_vp_config *config;
+	u64 val64;
+
+	vpath = &hldev->virtual_paths[vp_id];
+	vp_reg = vpath->vp_reg;
+	config = vpath->vp_config;
+
+	if (config->fifo.enable == VXGE_HW_FIFO_ENABLE) {
+		val64 = readq(&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
+
+		if (config->tti.timer_ci_en != VXGE_HW_TIM_TIMER_CI_ENABLE) {
+			config->tti.timer_ci_en = VXGE_HW_TIM_TIMER_CI_ENABLE;
+			val64 |= VXGE_HW_TIM_CFG1_INT_NUM_TIMER_CI;
+			writeq(val64,
+			&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
+		}
+	}
+	return;
+}
 /*
  * __vxge_hw_vpath_initialize
  * This routine is the final phase of init which initializes the
@@ -4097,8 +3947,6 @@ __vxge_hw_vpath_initialize(struct __vxge_hw_device *hldev, u32 vp_id)
 
 	if (status != VXGE_HW_OK)
 		goto exit;
-
-	writeq(0, &vp_reg->gendma_int);
 
 	val64 = readq(&vp_reg->rtdma_rd_optimization_ctrl);
 

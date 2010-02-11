@@ -3,8 +3,7 @@
 
 #include <net/netfilter/nf_conntrack.h>
 
-enum nf_ct_ext_id
-{
+enum nf_ct_ext_id {
 	NF_CT_EXT_HELPER,
 	NF_CT_EXT_NAT,
 	NF_CT_EXT_ACCT,
@@ -65,8 +64,7 @@ __nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp);
 
 #define NF_CT_EXT_F_PREALLOC	0x0001
 
-struct nf_ct_ext_type
-{
+struct nf_ct_ext_type {
 	/* Destroys relationships (can be NULL). */
 	void (*destroy)(struct nf_conn *ct);
 	/* Called when realloacted (can be NULL).

@@ -22,9 +22,11 @@
 *.lst
 *.symtypes
 *.order
+modules.builtin
 *.elf
 *.bin
 *.gz
+*.bz2
 *.lzma
 *.patch
 *.gcno
@@ -35,6 +37,7 @@
 tags
 TAGS
 vmlinux
+vmlinuz
 System.map
 Module.markers
 Module.symvers
@@ -44,14 +47,8 @@ Module.symvers
 #
 # Generated include files
 #
-include/asm
-include/asm-*/asm-offsets.h
 include/config
-include/linux/autoconf.h
-include/linux/compile.h
 include/linux/version.h
-include/linux/utsrelease.h
-include/linux/bounds.h
 include/generated
 
 # stgit generated dirs

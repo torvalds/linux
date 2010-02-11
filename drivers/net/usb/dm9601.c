@@ -611,7 +611,7 @@ static int dm9601_link_reset(struct usbnet *dev)
 
 static const struct driver_info dm9601_info = {
 	.description	= "Davicom DM9601 USB Ethernet",
-	.flags		= FLAG_ETHER,
+	.flags		= FLAG_ETHER | FLAG_LINK_INTR,
 	.bind		= dm9601_bind,
 	.rx_fixup	= dm9601_rx_fixup,
 	.tx_fixup	= dm9601_tx_fixup,
@@ -648,6 +648,10 @@ static const struct usb_device_id products[] = {
 	{
 	USB_DEVICE(0x0fe6, 0x8101),	/* DM9601 USB to Fast Ethernet Adapter */
 	.driver_info = (unsigned long)&dm9601_info,
+	 },
+	{
+	 USB_DEVICE(0x0a46, 0x9000),	/* DM9000E */
+	 .driver_info = (unsigned long)&dm9601_info,
 	 },
 	{},			// END
 };

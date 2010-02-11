@@ -273,8 +273,8 @@ void __init netfilter_init(void)
 
 #ifdef CONFIG_SYSCTL
 struct ctl_path nf_net_netfilter_sysctl_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "netfilter", .ctl_name = NET_NETFILTER, },
+	{ .procname = "net", },
+	{ .procname = "netfilter", },
 	{ }
 };
 EXPORT_SYMBOL_GPL(nf_net_netfilter_sysctl_path);

@@ -372,15 +372,21 @@ config SND_SGALAXY
 
 config SND_SSCAPE
 	tristate "Ensoniq SoundScape driver"
-	select SND_HWDEP
 	select SND_MPU401_UART
 	select SND_WSS_LIB
+	select FW_LOADER
 	help
 	  Say Y here to include support for Ensoniq SoundScape 
-	  soundcards.
+	  and Ensoniq OEM soundcards.
 
 	  The PCM audio is supported on SoundScape Classic, Elite, PnP
-	  and VIVO cards. The MIDI support is very experimental.
+	  and VIVO cards. The supported OEM cards are SPEA Media FX and
+	  Reveal SC-600.
+	  The MIDI support is very experimental and requires binary
+	  firmware files called "scope.cod" and "sndscape.co?" where the
+	  ? is digit 0, 1, 2, 3 or 4. The firmware files can be found
+	  in DOS or Windows driver packages. One has to put the firmware
+	  files into the /lib/firmware directory.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sscape.

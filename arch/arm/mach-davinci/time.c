@@ -14,20 +14,14 @@
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
-#include <linux/device.h>
 #include <linux/platform_device.h>
 
 #include <mach/hardware.h>
-#include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <asm/errno.h>
-#include <mach/io.h>
 #include <mach/cputype.h>
 #include <mach/time.h>
 #include "clock.h"

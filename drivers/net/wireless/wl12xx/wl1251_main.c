@@ -28,6 +28,7 @@
 #include <linux/irq.h>
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
+#include <linux/vmalloc.h>
 
 #include "wl1251.h"
 #include "wl12xx_80211.h"
@@ -83,7 +84,7 @@ static int wl1251_fetch_firmware(struct wl1251 *wl)
 	}
 
 	wl->fw_len = fw->size;
-	wl->fw = kmalloc(wl->fw_len, GFP_KERNEL);
+	wl->fw = vmalloc(wl->fw_len);
 
 	if (!wl->fw) {
 		wl1251_error("could not allocate memory for the firmware");
@@ -183,8 +184,11 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG12)",
 			     wl->chip_id);
 		break;
-	case CHIP_ID_1251_PG10:
 	case CHIP_ID_1251_PG11:
+		wl1251_debug(DEBUG_BOOT, "chip id 0x%x (1251 PG11)",
+			     wl->chip_id);
+		break;
+	case CHIP_ID_1251_PG10:
 	default:
 		wl1251_error("unsupported chip id: 0x%x", wl->chip_id);
 		ret = -ENODEV;
@@ -208,9 +212,10 @@ out:
 	return ret;
 }
 
+#define WL1251_IRQ_LOOP_COUNT 10
 static void wl1251_irq_work(struct work_struct *work)
 {
-	u32 intr;
+	u32 intr, ctr = WL1251_IRQ_LOOP_COUNT;
 	struct wl1251 *wl =
 		container_of(work, struct wl1251, irq_work);
 	int ret;
@@ -231,78 +236,86 @@ static void wl1251_irq_work(struct work_struct *work)
 	intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
 	wl1251_debug(DEBUG_IRQ, "intr: 0x%x", intr);
 
-	if (wl->data_path) {
-		wl->rx_counter =
-			wl1251_mem_read32(wl, wl->data_path->rx_control_addr);
+	do {
+		if (wl->data_path) {
+			wl->rx_counter = wl1251_mem_read32(
+				wl, wl->data_path->rx_control_addr);
 
-		/* We handle a frmware bug here */
-		switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
-		case 0:
-			wl1251_debug(DEBUG_IRQ, "RX: FW and host in sync");
-			intr &= ~WL1251_ACX_INTR_RX0_DATA;
-			intr &= ~WL1251_ACX_INTR_RX1_DATA;
-			break;
-		case 1:
-			wl1251_debug(DEBUG_IRQ, "RX: FW +1");
-			intr |= WL1251_ACX_INTR_RX0_DATA;
-			intr &= ~WL1251_ACX_INTR_RX1_DATA;
-			break;
-		case 2:
-			wl1251_debug(DEBUG_IRQ, "RX: FW +2");
-			intr |= WL1251_ACX_INTR_RX0_DATA;
-			intr |= WL1251_ACX_INTR_RX1_DATA;
-			break;
-		default:
-			wl1251_warning("RX: FW and host out of sync: %d",
-				       wl->rx_counter - wl->rx_handled);
-			break;
+			/* We handle a frmware bug here */
+			switch ((wl->rx_counter - wl->rx_handled) & 0xf) {
+			case 0:
+				wl1251_debug(DEBUG_IRQ,
+					     "RX: FW and host in sync");
+				intr &= ~WL1251_ACX_INTR_RX0_DATA;
+				intr &= ~WL1251_ACX_INTR_RX1_DATA;
+				break;
+			case 1:
+				wl1251_debug(DEBUG_IRQ, "RX: FW +1");
+				intr |= WL1251_ACX_INTR_RX0_DATA;
+				intr &= ~WL1251_ACX_INTR_RX1_DATA;
+				break;
+			case 2:
+				wl1251_debug(DEBUG_IRQ, "RX: FW +2");
+				intr |= WL1251_ACX_INTR_RX0_DATA;
+				intr |= WL1251_ACX_INTR_RX1_DATA;
+				break;
+			default:
+				wl1251_warning(
+					"RX: FW and host out of sync: %d",
+					wl->rx_counter - wl->rx_handled);
+				break;
+			}
+
+			wl->rx_handled = wl->rx_counter;
+
+			wl1251_debug(DEBUG_IRQ, "RX counter: %d",
+				     wl->rx_counter);
 		}
 
-		wl->rx_handled = wl->rx_counter;
+		intr &= wl->intr_mask;
 
+		if (intr == 0) {
+			wl1251_debug(DEBUG_IRQ, "INTR is 0");
+			goto out_sleep;
+		}
 
-		wl1251_debug(DEBUG_IRQ, "RX counter: %d", wl->rx_counter);
-	}
+		if (intr & WL1251_ACX_INTR_RX0_DATA) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
+			wl1251_rx(wl);
+		}
 
-	intr &= wl->intr_mask;
+		if (intr & WL1251_ACX_INTR_RX1_DATA) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
+			wl1251_rx(wl);
+		}
 
-	if (intr == 0) {
-		wl1251_debug(DEBUG_IRQ, "INTR is 0");
-		wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK,
-				   ~(wl->intr_mask));
+		if (intr & WL1251_ACX_INTR_TX_RESULT) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
+			wl1251_tx_complete(wl);
+		}
 
-		goto out_sleep;
-	}
+		if (intr & (WL1251_ACX_INTR_EVENT_A |
+			    WL1251_ACX_INTR_EVENT_B)) {
+			wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)",
+				     intr);
+			if (intr & WL1251_ACX_INTR_EVENT_A)
+				wl1251_event_handle(wl, 0);
+			else
+				wl1251_event_handle(wl, 1);
+		}
 
-	if (intr & WL1251_ACX_INTR_RX0_DATA) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX0_DATA");
-		wl1251_rx(wl);
-	}
+		if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
+			wl1251_debug(DEBUG_IRQ,
+				     "WL1251_ACX_INTR_INIT_COMPLETE");
 
-	if (intr & WL1251_ACX_INTR_RX1_DATA) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_RX1_DATA");
-		wl1251_rx(wl);
-	}
+		if (--ctr == 0)
+			break;
 
-	if (intr & WL1251_ACX_INTR_TX_RESULT) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_TX_RESULT");
-		wl1251_tx_complete(wl);
-	}
-
-	if (intr & (WL1251_ACX_INTR_EVENT_A | WL1251_ACX_INTR_EVENT_B)) {
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_EVENT (0x%x)", intr);
-		if (intr & WL1251_ACX_INTR_EVENT_A)
-			wl1251_event_handle(wl, 0);
-		else
-			wl1251_event_handle(wl, 1);
-	}
-
-	if (intr & WL1251_ACX_INTR_INIT_COMPLETE)
-		wl1251_debug(DEBUG_IRQ, "WL1251_ACX_INTR_INIT_COMPLETE");
-
-	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
+		intr = wl1251_reg_read32(wl, ACX_REG_INTERRUPT_CLEAR);
+	} while (intr);
 
 out_sleep:
+	wl1251_reg_write32(wl, ACX_REG_INTERRUPT_MASK, ~(wl->intr_mask));
 	wl1251_ps_elp_sleep(wl);
 
 out:
@@ -506,6 +519,12 @@ static int wl1251_op_add_interface(struct ieee80211_hw *hw,
 		     conf->type, conf->mac_addr);
 
 	mutex_lock(&wl->mutex);
+	if (wl->vif) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	wl->vif = conf->vif;
 
 	switch (conf->type) {
 	case NL80211_IFTYPE_STATION:
@@ -535,7 +554,12 @@ out:
 static void wl1251_op_remove_interface(struct ieee80211_hw *hw,
 					 struct ieee80211_if_init_conf *conf)
 {
+	struct wl1251 *wl = hw->priv;
+
+	mutex_lock(&wl->mutex);
 	wl1251_debug(DEBUG_MAC80211, "mac80211 remove interface");
+	wl->vif = NULL;
+	mutex_unlock(&wl->mutex);
 }
 
 static int wl1251_build_null_data(struct wl1251 *wl)
@@ -552,7 +576,8 @@ static int wl1251_build_null_data(struct wl1251 *wl)
 
 	memcpy(template.header.sa, wl->mac_addr, ETH_ALEN);
 	template.header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_DATA |
-						IEEE80211_STYPE_NULLFUNC);
+						IEEE80211_STYPE_NULLFUNC |
+						IEEE80211_FCTL_TODS);
 
 	return wl1251_cmd_template_set(wl, CMD_NULL_DATA, &template,
 				       sizeof(template));
@@ -565,7 +590,10 @@ static int wl1251_build_ps_poll(struct wl1251 *wl, u16 aid)
 
 	memcpy(template.bssid, wl->bssid, ETH_ALEN);
 	memcpy(template.ta, wl->mac_addr, ETH_ALEN);
-	template.aid = aid;
+
+	/* aid in PS-Poll has its two MSBs each set to 1 */
+	template.aid = cpu_to_le16(1 << 15 | 1 << 14 | aid);
+
 	template.fc = cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
 
 	return wl1251_cmd_template_set(wl, CMD_PS_POLL, &template,
@@ -600,10 +628,6 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (ret < 0)
 			goto out_sleep;
 	}
-
-	ret = wl1251_build_null_data(wl);
-	if (ret < 0)
-		goto out_sleep;
 
 	if (conf->flags & IEEE80211_CONF_PS && !wl->psm_requested) {
 		wl1251_debug(DEBUG_PSM, "psm enabled");
@@ -1082,13 +1106,28 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	if (changed & BSS_CHANGED_BSSID) {
+		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
+
+		ret = wl1251_build_null_data(wl);
+		if (ret < 0)
+			goto out;
+
+		if (wl->bss_type != BSS_TYPE_IBSS) {
+			ret = wl1251_join(wl, wl->bss_type, wl->channel,
+					  wl->beacon_int, wl->dtim_period);
+			if (ret < 0)
+				goto out_sleep;
+		}
+	}
+
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			wl->beacon_int = bss_conf->beacon_int;
 			wl->dtim_period = bss_conf->dtim_period;
 
-			/* FIXME: call join */
-
+			ret = wl1251_acx_wr_tbtt_and_dtim(wl, wl->beacon_int,
+							  wl->dtim_period);
 			wl->aid = bss_conf->aid;
 
 			ret = wl1251_build_ps_poll(wl, wl->aid);
@@ -1138,23 +1177,6 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (ret < 0) {
 			wl1251_warning("Set ctsprotect failed %d", ret);
 			goto out;
-		}
-	}
-
-	if (changed & BSS_CHANGED_BSSID) {
-		memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
-
-		ret = wl1251_build_null_data(wl);
-		if (ret < 0)
-			goto out;
-
-		if (wl->bss_type != BSS_TYPE_IBSS) {
-			ret = wl1251_join(wl, wl->bss_type, wl->channel,
-					  wl->beacon_int, wl->dtim_period);
-			if (ret < 0)
-				goto out_sleep;
-			wl1251_warning("Set ctsprotect failed %d", ret);
-			goto out_sleep;
 		}
 	}
 
@@ -1308,7 +1330,9 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->channel_change_time = 10000;
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_NOISE_DBM;
+		IEEE80211_HW_NOISE_DBM |
+		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_BEACON_FILTER;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 	wl->hw->wiphy->max_scan_ssids = 1;
@@ -1351,6 +1375,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	skb_queue_head_init(&wl->tx_queue);
 
 	INIT_WORK(&wl->filter_work, wl1251_filter_work);
+	INIT_DELAYED_WORK(&wl->elp_work, wl1251_elp_work);
 	wl->channel = WL1251_DEFAULT_CHANNEL;
 	wl->scanning = false;
 	wl->default_key = 0;
@@ -1368,6 +1393,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 	wl->power_level = WL1251_DEFAULT_POWER_LEVEL;
 	wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
 	wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
+	wl->vif = NULL;
 
 	for (i = 0; i < FW_TX_CMPLT_BLOCK_SIZE; i++)
 		wl->tx_frames[i] = NULL;
@@ -1409,7 +1435,7 @@ int wl1251_free_hw(struct wl1251 *wl)
 
 	kfree(wl->target_mem_map);
 	kfree(wl->data_path);
-	kfree(wl->fw);
+	vfree(wl->fw);
 	wl->fw = NULL;
 	kfree(wl->nvs);
 	wl->nvs = NULL;
@@ -1426,4 +1452,5 @@ EXPORT_SYMBOL_GPL(wl1251_free_hw);
 MODULE_DESCRIPTION("TI wl1251 Wireles LAN Driver Core");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");
-MODULE_ALIAS("spi:wl12xx");
+MODULE_ALIAS("spi:wl1251");
+MODULE_FIRMWARE(WL1251_FW_NAME);

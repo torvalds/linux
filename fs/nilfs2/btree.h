@@ -34,28 +34,6 @@ struct nilfs_btree;
 struct nilfs_btree_path;
 
 /**
- * struct nilfs_btree_node - B-tree node
- * @bn_flags: flags
- * @bn_level: level
- * @bn_nchildren: number of children
- * @bn_pad: padding
- */
-struct nilfs_btree_node {
-	__u8 bn_flags;
-	__u8 bn_level;
-	__le16 bn_nchildren;
-	__le32 bn_pad;
-};
-
-/* flags */
-#define NILFS_BTREE_NODE_ROOT	0x01
-
-/* level */
-#define NILFS_BTREE_LEVEL_DATA		0
-#define NILFS_BTREE_LEVEL_NODE_MIN	(NILFS_BTREE_LEVEL_DATA + 1)
-#define NILFS_BTREE_LEVEL_MAX		14
-
-/**
  * struct nilfs_btree - B-tree structure
  * @bt_bmap: bmap base structure
  */

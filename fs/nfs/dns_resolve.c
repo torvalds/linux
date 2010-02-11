@@ -146,7 +146,7 @@ static int nfs_dns_show(struct seq_file *m, struct cache_detail *cd,
 	return 0;
 }
 
-struct nfs_dns_ent *nfs_dns_lookup(struct cache_detail *cd,
+static struct nfs_dns_ent *nfs_dns_lookup(struct cache_detail *cd,
 		struct nfs_dns_ent *key)
 {
 	struct cache_head *ch;
@@ -159,7 +159,7 @@ struct nfs_dns_ent *nfs_dns_lookup(struct cache_detail *cd,
 	return container_of(ch, struct nfs_dns_ent, h);
 }
 
-struct nfs_dns_ent *nfs_dns_update(struct cache_detail *cd,
+static struct nfs_dns_ent *nfs_dns_update(struct cache_detail *cd,
 		struct nfs_dns_ent *new,
 		struct nfs_dns_ent *key)
 {

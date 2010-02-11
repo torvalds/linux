@@ -1,5 +1,6 @@
 		function tracer guts
 		====================
+		By Mike Frysinger
 
 Introduction
 ------------
@@ -53,14 +54,14 @@ size of the mcount call that is embedded in the function).
 For example, if the function foo() calls bar(), when the bar() function calls
 mcount(), the arguments mcount() will pass to the tracer are:
 	"frompc" - the address bar() will use to return to foo()
-	"selfpc" - the address bar() (with _mcount() size adjustment)
+	"selfpc" - the address bar() (with mcount() size adjustment)
 
 Also keep in mind that this mcount function will be called *a lot*, so
 optimizing for the default case of no tracer will help the smooth running of
 your system when tracing is disabled.  So the start of the mcount function is
-typically the bare min with checking things before returning.  That also means
-the code flow should usually kept linear (i.e. no branching in the nop case).
-This is of course an optimization and not a hard requirement.
+typically the bare minimum with checking things before returning.  That also
+means the code flow should usually be kept linear (i.e. no branching in the nop
+case).  This is of course an optimization and not a hard requirement.
 
 Here is some pseudo code that should help (these functions should actually be
 implemented in assembly):
@@ -131,10 +132,10 @@ some functions to save (hijack) and restore the return address.
 
 The mcount function should check the function pointers ftrace_graph_return
 (compare to ftrace_stub) and ftrace_graph_entry (compare to
-ftrace_graph_entry_stub).  If either of those are not set to the relevant stub
+ftrace_graph_entry_stub).  If either of those is not set to the relevant stub
 function, call the arch-specific function ftrace_graph_caller which in turn
 calls the arch-specific function prepare_ftrace_return.  Neither of these
-function names are strictly required, but you should use them anyways to stay
+function names is strictly required, but you should use them anyway to stay
 consistent across the architecture ports -- easier to compare & contrast
 things.
 
@@ -144,7 +145,7 @@ but the first argument should be a pointer to the "frompc".  Typically this is
 located on the stack.  This allows the function to hijack the return address
 temporarily to have it point to the arch-specific function return_to_handler.
 That function will simply call the common ftrace_return_to_handler function and
-that will return the original return address with which, you can return to the
+that will return the original return address with which you can return to the
 original call site.
 
 Here is the updated mcount pseudo code:
@@ -173,14 +174,16 @@ void ftrace_graph_caller(void)
 
 	unsigned long *frompc = &...;
 	unsigned long selfpc = <return address> - MCOUNT_INSN_SIZE;
-	prepare_ftrace_return(frompc, selfpc);
+	/* passing frame pointer up is optional -- see below */
+	prepare_ftrace_return(frompc, selfpc, frame_pointer);
 
 	/* restore all state needed by the ABI */
 }
 #endif
 
-For information on how to implement prepare_ftrace_return(), simply look at
-the x86 version.  The only architecture-specific piece in it is the setup of
+For information on how to implement prepare_ftrace_return(), simply look at the
+x86 version (the frame pointer passing is optional; see the next section for
+more information).  The only architecture-specific piece in it is the setup of
 the fault recovery table (the asm(...) code).  The rest should be the same
 across architectures.
 
@@ -205,6 +208,23 @@ void return_to_handler(void)
 #endif
 
 
+HAVE_FUNCTION_GRAPH_FP_TEST
+---------------------------
+
+An arch may pass in a unique value (frame pointer) to both the entering and
+exiting of a function.  On exit, the value is compared and if it does not
+match, then it will panic the kernel.  This is largely a sanity check for bad
+code generation with gcc.  If gcc for your port sanely updates the frame
+pointer under different opitmization levels, then ignore this option.
+
+However, adding support for it isn't terribly difficult.  In your assembly code
+that calls prepare_ftrace_return(), pass the frame pointer as the 3rd argument.
+Then in the C version of that function, do what the x86 port does and pass it
+along to ftrace_push_return_trace() instead of a stub value of 0.
+
+Similarly, when you call ftrace_return_to_handler(), pass it the frame pointer.
+
+
 HAVE_FTRACE_NMI_ENTER
 ---------------------
 
@@ -213,10 +233,19 @@ If you can't trace NMI functions, then skip this option.
 <details to be filled>
 
 
-HAVE_FTRACE_SYSCALLS
+HAVE_SYSCALL_TRACEPOINTS
 ---------------------
 
-<details to be filled>
+You need very few things to get the syscalls tracing in an arch.
+
+- Have a NR_syscalls variable in <asm/unistd.h> that provides the number
+  of syscalls supported by the arch.
+- Implement arch_syscall_addr() that resolves a syscall address from a
+  syscall number.
+- Support the TIF_SYSCALL_TRACEPOINT thread flags
+- Put the trace_sys_enter() and trace_sys_exit() tracepoints calls from ptrace
+  in the ptrace syscalls tracing path.
+- Tag this arch as HAVE_SYSCALL_TRACEPOINTS.
 
 
 HAVE_FTRACE_MCOUNT_RECORD

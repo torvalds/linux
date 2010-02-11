@@ -38,6 +38,107 @@ struct swsusp_header {
 
 static struct swsusp_header *swsusp_header;
 
+/**
+ *	The following functions are used for tracing the allocated
+ *	swap pages, so that they can be freed in case of an error.
+ */
+
+struct swsusp_extent {
+	struct rb_node node;
+	unsigned long start;
+	unsigned long end;
+};
+
+static struct rb_root swsusp_extents = RB_ROOT;
+
+static int swsusp_extents_insert(unsigned long swap_offset)
+{
+	struct rb_node **new = &(swsusp_extents.rb_node);
+	struct rb_node *parent = NULL;
+	struct swsusp_extent *ext;
+
+	/* Figure out where to put the new node */
+	while (*new) {
+		ext = container_of(*new, struct swsusp_extent, node);
+		parent = *new;
+		if (swap_offset < ext->start) {
+			/* Try to merge */
+			if (swap_offset == ext->start - 1) {
+				ext->start--;
+				return 0;
+			}
+			new = &((*new)->rb_left);
+		} else if (swap_offset > ext->end) {
+			/* Try to merge */
+			if (swap_offset == ext->end + 1) {
+				ext->end++;
+				return 0;
+			}
+			new = &((*new)->rb_right);
+		} else {
+			/* It already is in the tree */
+			return -EINVAL;
+		}
+	}
+	/* Add the new node and rebalance the tree. */
+	ext = kzalloc(sizeof(struct swsusp_extent), GFP_KERNEL);
+	if (!ext)
+		return -ENOMEM;
+
+	ext->start = swap_offset;
+	ext->end = swap_offset;
+	rb_link_node(&ext->node, parent, new);
+	rb_insert_color(&ext->node, &swsusp_extents);
+	return 0;
+}
+
+/**
+ *	alloc_swapdev_block - allocate a swap page and register that it has
+ *	been allocated, so that it can be freed in case of an error.
+ */
+
+sector_t alloc_swapdev_block(int swap)
+{
+	unsigned long offset;
+
+	offset = swp_offset(get_swap_page_of_type(swap));
+	if (offset) {
+		if (swsusp_extents_insert(offset))
+			swap_free(swp_entry(swap, offset));
+		else
+			return swapdev_block(swap, offset);
+	}
+	return 0;
+}
+
+/**
+ *	free_all_swap_pages - free swap pages allocated for saving image data.
+ *	It also frees the extents used to register which swap entres had been
+ *	allocated.
+ */
+
+void free_all_swap_pages(int swap)
+{
+	struct rb_node *node;
+
+	while ((node = swsusp_extents.rb_node)) {
+		struct swsusp_extent *ext;
+		unsigned long offset;
+
+		ext = container_of(node, struct swsusp_extent, node);
+		rb_erase(node, &swsusp_extents);
+		for (offset = ext->start; offset <= ext->end; offset++)
+			swap_free(swp_entry(swap, offset));
+
+		kfree(ext);
+	}
+}
+
+int swsusp_swap_in_use(void)
+{
+	return (swsusp_extents.rb_node != NULL);
+}
+
 /*
  * General things
  */
@@ -314,7 +415,6 @@ static int save_image(struct swap_map_handle *handle,
 {
 	unsigned int m;
 	int ret;
-	int error = 0;
 	int nr_pages;
 	int err2;
 	struct bio *bio;
@@ -329,26 +429,27 @@ static int save_image(struct swap_map_handle *handle,
 	nr_pages = 0;
 	bio = NULL;
 	do_gettimeofday(&start);
-	do {
+	while (1) {
 		ret = snapshot_read_next(snapshot, PAGE_SIZE);
-		if (ret > 0) {
-			error = swap_write_page(handle, data_of(*snapshot),
-						&bio);
-			if (error)
-				break;
-			if (!(nr_pages % m))
-				printk("\b\b\b\b%3d%%", nr_pages / m);
-			nr_pages++;
-		}
-	} while (ret > 0);
+		if (ret <= 0)
+			break;
+		ret = swap_write_page(handle, data_of(*snapshot), &bio);
+		if (ret)
+			break;
+		if (!(nr_pages % m))
+			printk(KERN_CONT "\b\b\b\b%3d%%", nr_pages / m);
+		nr_pages++;
+	}
 	err2 = wait_on_bio_chain(&bio);
 	do_gettimeofday(&stop);
-	if (!error)
-		error = err2;
-	if (!error)
-		printk("\b\b\b\bdone\n");
+	if (!ret)
+		ret = err2;
+	if (!ret)
+		printk(KERN_CONT "\b\b\b\bdone\n");
+	else
+		printk(KERN_CONT "\n");
 	swsusp_show_speed(&start, &stop, nr_to_write, "Wrote");
-	return error;
+	return ret;
 }
 
 /**
@@ -536,7 +637,8 @@ static int load_image(struct swap_map_handle *handle,
 		snapshot_write_finalize(snapshot);
 		if (!snapshot_image_loaded(snapshot))
 			error = -ENODATA;
-	}
+	} else
+		printk("\n");
 	swsusp_show_speed(&start, &stop, nr_to_read, "Read");
 	return error;
 }
@@ -572,8 +674,6 @@ int swsusp_read(unsigned int *flags_p)
 		error = load_image(&handle, &snapshot, header->pages - 1);
 	release_swap_reader(&handle);
 
-	blkdev_put(resume_bdev, FMODE_READ);
-
 	if (!error)
 		pr_debug("PM: Image successfully loaded\n");
 	else
@@ -596,7 +696,7 @@ int swsusp_check(void)
 		error = bio_read_page(swsusp_resume_block,
 					swsusp_header, NULL);
 		if (error)
-			return error;
+			goto put;
 
 		if (!memcmp(SWSUSP_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
@@ -604,8 +704,10 @@ int swsusp_check(void)
 			error = bio_write_page(swsusp_resume_block,
 						swsusp_header, NULL);
 		} else {
-			return -EINVAL;
+			error = -EINVAL;
 		}
+
+put:
 		if (error)
 			blkdev_put(resume_bdev, FMODE_READ);
 		else

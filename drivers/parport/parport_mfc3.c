@@ -386,7 +386,7 @@ static void __exit parport_mfc3_exit(void)
 		if (!this_port[i])
 			continue;
 		parport_remove_port(this_port[i]);
-		if (!this_port[i]->irq != PARPORT_IRQ_NONE) {
+		if (this_port[i]->irq != PARPORT_IRQ_NONE) {
 			if (--use_cnt == 0) 
 				free_irq(IRQ_AMIGA_PORTS, &pp_mfc3_ops);
 		}

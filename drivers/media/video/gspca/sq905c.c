@@ -115,11 +115,9 @@ static void sq905c_dostream(struct work_struct *work)
 {
 	struct sd *dev = container_of(work, struct sd, work_struct);
 	struct gspca_dev *gspca_dev = &dev->gspca_dev;
-	struct gspca_frame *frame;
 	int bytes_left; /* bytes remaining in current frame. */
 	int data_len;   /* size to use for the next read. */
 	int act_len;
-	int discarding = 0; /* true if we failed to get space for frame. */
 	int packet_type;
 	int ret;
 	u8 *buffer;
@@ -131,8 +129,6 @@ static void sq905c_dostream(struct work_struct *work)
 	}
 
 	while (gspca_dev->present && gspca_dev->streaming) {
-		if (!gspca_dev->present)
-			goto quit_stream;
 		/* Request the header, which tells the size to download */
 		ret = usb_bulk_msg(gspca_dev->dev,
 				usb_rcvbulkpipe(gspca_dev->dev, 0x81),
@@ -149,17 +145,11 @@ static void sq905c_dostream(struct work_struct *work)
 		PDEBUG(D_STREAM, "bytes_left = 0x%x", bytes_left);
 		/* We keep the header. It has other information, too. */
 		packet_type = FIRST_PACKET;
-		frame = gspca_get_i_frame(gspca_dev);
-		if (frame && !discarding) {
-			gspca_frame_add(gspca_dev, packet_type,
-				frame, buffer, FRAME_HEADER_LEN);
-			} else
-				discarding = 1;
-		while (bytes_left > 0) {
+		gspca_frame_add(gspca_dev, packet_type,
+				buffer, FRAME_HEADER_LEN);
+		while (bytes_left > 0 && gspca_dev->present) {
 			data_len = bytes_left > SQ905C_MAX_TRANSFER ?
 				SQ905C_MAX_TRANSFER : bytes_left;
-			if (!gspca_dev->present)
-				goto quit_stream;
 			ret = usb_bulk_msg(gspca_dev->dev,
 				usb_rcvbulkpipe(gspca_dev->dev, 0x81),
 				buffer, data_len, &act_len,
@@ -174,19 +164,16 @@ static void sq905c_dostream(struct work_struct *work)
 				packet_type = LAST_PACKET;
 			else
 				packet_type = INTER_PACKET;
-			frame = gspca_get_i_frame(gspca_dev);
-			if (frame && !discarding)
-				gspca_frame_add(gspca_dev, packet_type,
-						frame, buffer, data_len);
-			else
-				discarding = 1;
+			gspca_frame_add(gspca_dev, packet_type,
+					buffer, data_len);
 		}
 	}
 quit_stream:
-	mutex_lock(&gspca_dev->usb_lock);
-	if (gspca_dev->present)
+	if (gspca_dev->present) {
+		mutex_lock(&gspca_dev->usb_lock);
 		sq905c_command(gspca_dev, SQ905C_CLEAR, 0);
-	mutex_unlock(&gspca_dev->usb_lock);
+		mutex_unlock(&gspca_dev->usb_lock);
+	}
 	kfree(buffer);
 }
 

@@ -1969,8 +1969,8 @@ static void ql_update_lrg_bufq_prod_index(struct ql3_adapter *qdev)
 	struct ql_rcv_buf_cb *lrg_buf_cb;
 	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
 
-	if ((qdev->lrg_buf_free_count >= 8)
-	    && (qdev->lrg_buf_release_cnt >= 16)) {
+	if ((qdev->lrg_buf_free_count >= 8) &&
+	    (qdev->lrg_buf_release_cnt >= 16)) {
 
 		if (qdev->lrg_buf_skb_check)
 			if (!ql_populate_free_queue(qdev))
@@ -1978,8 +1978,8 @@ static void ql_update_lrg_bufq_prod_index(struct ql3_adapter *qdev)
 
 		lrg_buf_q_ele = qdev->lrg_buf_next_free;
 
-		while ((qdev->lrg_buf_release_cnt >= 16)
-		       && (qdev->lrg_buf_free_count >= 8)) {
+		while ((qdev->lrg_buf_release_cnt >= 16) &&
+		       (qdev->lrg_buf_free_count >= 8)) {
 
 			for (i = 0; i < 8; i++) {
 				lrg_buf_cb =
@@ -3651,7 +3651,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 		ql_sem_unlock(qdev, QL_DRVR_SEM_MASK);
 	} else {
 		printk(KERN_ERR PFX
-		       "%s: Could not aquire driver lock.\n",
+		       "%s: Could not acquire driver lock.\n",
 		       ndev->name);
 		goto err_lock;
 	}

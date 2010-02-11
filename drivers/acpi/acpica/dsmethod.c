@@ -414,7 +414,7 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 	/* Invoke an internal method if necessary */
 
 	if (obj_desc->method.method_flags & AML_METHOD_INTERNAL_ONLY) {
-		status = obj_desc->method.implementation(next_walk_state);
+		status = obj_desc->method.extra.implementation(next_walk_state);
 		if (status == AE_OK) {
 			status = AE_CTRL_TERMINATE;
 		}

@@ -75,7 +75,9 @@ void bcm63xx_machine_reboot(void)
 		bcm6348_a1_reboot();
 
 	printk(KERN_INFO "triggering watchdog soft-reset...\n");
-	bcm_perf_writel(SYS_PLL_SOFT_RESET, PERF_SYS_PLL_CTL_REG);
+	reg = bcm_perf_readl(PERF_SYS_PLL_CTL_REG);
+	reg |= SYS_PLL_SOFT_RESET;
+	bcm_perf_writel(reg, PERF_SYS_PLL_CTL_REG);
 	while (1)
 		;
 }

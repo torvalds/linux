@@ -55,7 +55,13 @@ typedef struct _drive_info_struct
 	char device_initialized;     /* indicates whether dev is initialized */
 } drive_info_struct;
 
-struct ctlr_info 
+struct Cmd_sg_list {
+	SGDescriptor_struct	*sgchain;
+	dma_addr_t		sg_chain_dma;
+	int			chain_block_size;
+};
+
+struct ctlr_info
 {
 	int	ctlr;
 	char	devname[8];
@@ -75,6 +81,16 @@ struct ctlr_info
 	int	num_luns;
 	int 	highest_lun;
 	int	usage_count;  /* number of opens all all minor devices */
+	/* Need space for temp sg list
+	 * number of scatter/gathers supported
+	 * number of scatter/gathers in chained block
+	 */
+	struct	scatterlist **scatter_list;
+	int	maxsgentries;
+	int	chainsize;
+	int	max_cmd_sgentries;
+	struct Cmd_sg_list **cmd_sg_list;
+
 #	define DOORBELL_INT	0
 #	define PERF_MODE_INT	1
 #	define SIMPLE_MODE_INT	2

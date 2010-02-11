@@ -38,6 +38,9 @@ jiffies = jiffies_64 + 4;
 #endif
 SECTIONS
 {
+	. = 0;
+	reloc_start = .;
+
 	. = KERNELBASE;
 
 /*
@@ -236,6 +239,7 @@ SECTIONS
 		READ_MOSTLY_DATA(L1_CACHE_BYTES)
 	}
 
+	. = ALIGN(PAGE_SIZE);
 	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
 		NOSAVE_DATA
 	}

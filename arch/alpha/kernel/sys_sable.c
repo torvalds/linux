@@ -502,7 +502,7 @@ sable_lynx_mask_and_ack_irq(unsigned int irq)
 }
 
 static struct irq_chip sable_lynx_irq_type = {
-	.typename	= "SABLE/LYNX",
+	.name		= "SABLE/LYNX",
 	.startup	= sable_lynx_startup_irq,
 	.shutdown	= sable_lynx_disable_irq,
 	.enable		= sable_lynx_enable_irq,

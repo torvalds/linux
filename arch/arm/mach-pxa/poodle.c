@@ -293,7 +293,7 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
 	.init 			= poodle_mci_init,
 	.setpower 		= poodle_mci_setpower,
 	.exit			= poodle_mci_exit,
-	.gpio_card_detect	= POODLE_IRQ_GPIO_nSD_DETECT,
+	.gpio_card_detect	= POODLE_GPIO_nSD_DETECT,
 	.gpio_card_ro		= POODLE_GPIO_nSD_WP,
 	.gpio_power		= -1,
 };
@@ -448,6 +448,10 @@ static void __init poodle_init(void)
 	PCFR |= PCFR_OPDE;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(poodle_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	platform_scoop_config = &poodle_pcmcia_config;
 

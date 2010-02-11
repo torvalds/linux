@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
@@ -86,6 +86,7 @@ enum iwnes_memreg_type {
 	IWNES_MEMREG_TYPE_CQ = 0x0002,
 	IWNES_MEMREG_TYPE_MW = 0x0003,
 	IWNES_MEMREG_TYPE_FMR = 0x0004,
+	IWNES_MEMREG_TYPE_FMEM = 0x0005,
 };
 
 struct nes_mem_reg_req {

@@ -154,37 +154,98 @@ static void *cpu_data;
 void * __cpuinit
 per_cpu_init (void)
 {
-	int cpu;
-	static int first_time=1;
+	static bool first_time = true;
+	void *cpu0_data = __cpu0_per_cpu;
+	unsigned int cpu;
+
+	if (!first_time)
+		goto skip;
+	first_time = false;
 
 	/*
-	 * get_free_pages() cannot be used before cpu_init() done.  BSP
-	 * allocates "NR_CPUS" pages for all CPUs to avoid that AP calls
-	 * get_zeroed_page().
+	 * get_free_pages() cannot be used before cpu_init() done.
+	 * BSP allocates PERCPU_PAGE_SIZE bytes for all possible CPUs
+	 * to avoid that AP calls get_zeroed_page().
 	 */
-	if (first_time) {
-		void *cpu0_data = __cpu0_per_cpu;
+	for_each_possible_cpu(cpu) {
+		void *src = cpu == 0 ? cpu0_data : __phys_per_cpu_start;
 
-		first_time=0;
+		memcpy(cpu_data, src, __per_cpu_end - __per_cpu_start);
+		__per_cpu_offset[cpu] = (char *)cpu_data - __per_cpu_start;
+		per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
 
-		__per_cpu_offset[0] = (char *) cpu0_data - __per_cpu_start;
-		per_cpu(local_per_cpu_offset, 0) = __per_cpu_offset[0];
+		/*
+		 * percpu area for cpu0 is moved from the __init area
+		 * which is setup by head.S and used till this point.
+		 * Update ar.k3.  This move is ensures that percpu
+		 * area for cpu0 is on the correct node and its
+		 * virtual address isn't insanely far from other
+		 * percpu areas which is important for congruent
+		 * percpu allocator.
+		 */
+		if (cpu == 0)
+			ia64_set_kr(IA64_KR_PER_CPU_DATA, __pa(cpu_data) -
+				    (unsigned long)__per_cpu_start);
 
-		for (cpu = 1; cpu < NR_CPUS; cpu++) {
-			memcpy(cpu_data, __phys_per_cpu_start, __per_cpu_end - __per_cpu_start);
-			__per_cpu_offset[cpu] = (char *) cpu_data - __per_cpu_start;
-			cpu_data += PERCPU_PAGE_SIZE;
-			per_cpu(local_per_cpu_offset, cpu) = __per_cpu_offset[cpu];
-		}
+		cpu_data += PERCPU_PAGE_SIZE;
 	}
+skip:
 	return __per_cpu_start + __per_cpu_offset[smp_processor_id()];
 }
 
 static inline void
 alloc_per_cpu_data(void)
 {
-	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * NR_CPUS-1,
+	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * num_possible_cpus(),
 				   PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+}
+
+/**
+ * setup_per_cpu_areas - setup percpu areas
+ *
+ * Arch code has already allocated and initialized percpu areas.  All
+ * this function has to do is to teach the determined layout to the
+ * dynamic percpu allocator, which happens to be more complex than
+ * creating whole new ones using helpers.
+ */
+void __init
+setup_per_cpu_areas(void)
+{
+	struct pcpu_alloc_info *ai;
+	struct pcpu_group_info *gi;
+	unsigned int cpu;
+	ssize_t static_size, reserved_size, dyn_size;
+	int rc;
+
+	ai = pcpu_alloc_alloc_info(1, num_possible_cpus());
+	if (!ai)
+		panic("failed to allocate pcpu_alloc_info");
+	gi = &ai->groups[0];
+
+	/* units are assigned consecutively to possible cpus */
+	for_each_possible_cpu(cpu)
+		gi->cpu_map[gi->nr_units++] = cpu;
+
+	/* set parameters */
+	static_size = __per_cpu_end - __per_cpu_start;
+	reserved_size = PERCPU_MODULE_RESERVE;
+	dyn_size = PERCPU_PAGE_SIZE - static_size - reserved_size;
+	if (dyn_size < 0)
+		panic("percpu area overflow static=%zd reserved=%zd\n",
+		      static_size, reserved_size);
+
+	ai->static_size		= static_size;
+	ai->reserved_size	= reserved_size;
+	ai->dyn_size		= dyn_size;
+	ai->unit_size		= PERCPU_PAGE_SIZE;
+	ai->atom_size		= PAGE_SIZE;
+	ai->alloc_size		= PERCPU_PAGE_SIZE;
+
+	rc = pcpu_setup_first_chunk(ai, __per_cpu_start + __per_cpu_offset[0]);
+	if (rc)
+		panic("failed to setup percpu area (err=%d)", rc);
+
+	pcpu_free_alloc_info(ai);
 }
 #else
 #define alloc_per_cpu_data() do { } while (0)
@@ -270,8 +331,8 @@ paging_init (void)
 
 		map_size = PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
 			sizeof(struct page));
-		vmalloc_end -= map_size;
-		vmem_map = (struct page *) vmalloc_end;
+		VMALLOC_END -= map_size;
+		vmem_map = (struct page *) VMALLOC_END;
 		efi_memmap_walk(create_mem_map_page_table, NULL);
 
 		/*

@@ -38,7 +38,6 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(ds1621);
 static int polarity = -1;
 module_param(polarity, int, 0);
 MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low");
@@ -224,7 +223,7 @@ static const struct attribute_group ds1621_group = {
 
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int ds1621_detect(struct i2c_client *client, int kind,
+static int ds1621_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -237,20 +236,16 @@ static int ds1621_detect(struct i2c_client *client, int kind,
 		return -ENODEV;
 
 	/* Now, we do the remaining detection. It is lousy. */
-	if (kind < 0) {
-		/* The NVB bit should be low if no EEPROM write has been 
-		   requested during the latest 10ms, which is highly 
-		   improbable in our case. */
-		conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
-		if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
+	/* The NVB bit should be low if no EEPROM write has been  requested
+	   during the latest 10ms, which is highly improbable in our case. */
+	conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+	if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
+		return -ENODEV;
+	/* The 7 lowest bits of a temperature should always be 0. */
+	for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
+		temp = i2c_smbus_read_word_data(client, DS1621_REG_TEMP[i]);
+		if (temp < 0 || (temp & 0x7f00))
 			return -ENODEV;
-		/* The 7 lowest bits of a temperature should always be 0. */
-		for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
-			temp = i2c_smbus_read_word_data(client,
-							DS1621_REG_TEMP[i]);
-			if (temp < 0 || (temp & 0x7f00))
-				return -ENODEV;
-		}
 	}
 
 	strlcpy(info->type, "ds1621", I2C_NAME_SIZE);
@@ -309,8 +304,8 @@ static int ds1621_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ds1621_id[] = {
-	{ "ds1621", ds1621 },
-	{ "ds1625", ds1621 },
+	{ "ds1621", 0 },
+	{ "ds1625", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds1621_id);
@@ -325,7 +320,7 @@ static struct i2c_driver ds1621_driver = {
 	.remove		= ds1621_remove,
 	.id_table	= ds1621_id,
 	.detect		= ds1621_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init ds1621_init(void)

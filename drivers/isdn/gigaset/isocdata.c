@@ -41,7 +41,8 @@ static inline int isowbuf_freebytes(struct isowbuf_t *iwb)
 
 	read = iwb->read;
 	write = iwb->write;
-	if ((freebytes = read - write) > 0) {
+	freebytes = read - write;
+	if (freebytes > 0) {
 		/* no wraparound: need padding space within regular area */
 		return freebytes - BAS_OUTBUFPAD;
 	} else if (read < BAS_OUTBUFPAD) {
@@ -50,29 +51,6 @@ static inline int isowbuf_freebytes(struct isowbuf_t *iwb)
 	} else {
 		/* following the wraparound yields more space */
 		return freebytes + BAS_OUTBUFSIZE - BAS_OUTBUFPAD;
-	}
-}
-
-/* compare two offsets within the buffer
- * The buffer is seen as circular, with the read position as start
- * returns -1/0/1 if position a </=/> position b without crossing 'read'
- */
-static inline int isowbuf_poscmp(struct isowbuf_t *iwb, int a, int b)
-{
-	int read;
-	if (a == b)
-		return 0;
-	read = iwb->read;
-	if (a < b) {
-		if (a < read && read <= b)
-			return +1;
-		else
-			return -1;
-	} else {
-		if (b < read && read <= a)
-			return -1;
-		else
-			return +1;
 	}
 }
 
@@ -271,7 +249,7 @@ static inline void dump_bytes(enum debuglevel level, const char *tag,
  *        bit 14..13 = number of bits added by stuffing
  */
 static const u16 stufftab[5 * 256] = {
-// previous 1s = 0:
+/* previous 1s = 0: */
  0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f,
  0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001d, 0x001e, 0x201f,
  0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002a, 0x002b, 0x002c, 0x002d, 0x002e, 0x002f,
@@ -289,7 +267,7 @@ static const u16 stufftab[5 * 256] = {
  0x0ce0, 0x0ce1, 0x0ce2, 0x0ce3, 0x0ce4, 0x0ce5, 0x0ce6, 0x0ce7, 0x0ce8, 0x0ce9, 0x0cea, 0x0ceb, 0x0cec, 0x0ced, 0x0cee, 0x0cef,
  0x10f0, 0x10f1, 0x10f2, 0x10f3, 0x10f4, 0x10f5, 0x10f6, 0x10f7, 0x20f8, 0x20f9, 0x20fa, 0x20fb, 0x257c, 0x257d, 0x29be, 0x2ddf,
 
-// previous 1s = 1:
+/* previous 1s = 1: */
  0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x200f,
  0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001d, 0x001e, 0x202f,
  0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002a, 0x002b, 0x002c, 0x002d, 0x002e, 0x204f,
@@ -307,7 +285,7 @@ static const u16 stufftab[5 * 256] = {
  0x0ce0, 0x0ce1, 0x0ce2, 0x0ce3, 0x0ce4, 0x0ce5, 0x0ce6, 0x0ce7, 0x0ce8, 0x0ce9, 0x0cea, 0x0ceb, 0x0cec, 0x0ced, 0x0cee, 0x2dcf,
  0x10f0, 0x10f1, 0x10f2, 0x10f3, 0x10f4, 0x10f5, 0x10f6, 0x10f7, 0x20f8, 0x20f9, 0x20fa, 0x20fb, 0x257c, 0x257d, 0x29be, 0x31ef,
 
-// previous 1s = 2:
+/* previous 1s = 2: */
  0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x2007, 0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x2017,
  0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x2027, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001d, 0x001e, 0x2037,
  0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x2047, 0x0028, 0x0029, 0x002a, 0x002b, 0x002c, 0x002d, 0x002e, 0x2057,
@@ -325,7 +303,7 @@ static const u16 stufftab[5 * 256] = {
  0x0ce0, 0x0ce1, 0x0ce2, 0x0ce3, 0x0ce4, 0x0ce5, 0x0ce6, 0x2dc7, 0x0ce8, 0x0ce9, 0x0cea, 0x0ceb, 0x0cec, 0x0ced, 0x0cee, 0x2dd7,
  0x10f0, 0x10f1, 0x10f2, 0x10f3, 0x10f4, 0x10f5, 0x10f6, 0x31e7, 0x20f8, 0x20f9, 0x20fa, 0x20fb, 0x257c, 0x257d, 0x29be, 0x41f7,
 
-// previous 1s = 3:
+/* previous 1s = 3: */
  0x0000, 0x0001, 0x0002, 0x2003, 0x0004, 0x0005, 0x0006, 0x200b, 0x0008, 0x0009, 0x000a, 0x2013, 0x000c, 0x000d, 0x000e, 0x201b,
  0x0010, 0x0011, 0x0012, 0x2023, 0x0014, 0x0015, 0x0016, 0x202b, 0x0018, 0x0019, 0x001a, 0x2033, 0x001c, 0x001d, 0x001e, 0x203b,
  0x0020, 0x0021, 0x0022, 0x2043, 0x0024, 0x0025, 0x0026, 0x204b, 0x0028, 0x0029, 0x002a, 0x2053, 0x002c, 0x002d, 0x002e, 0x205b,
@@ -343,7 +321,7 @@ static const u16 stufftab[5 * 256] = {
  0x0ce0, 0x0ce1, 0x0ce2, 0x2dc3, 0x0ce4, 0x0ce5, 0x0ce6, 0x2dcb, 0x0ce8, 0x0ce9, 0x0cea, 0x2dd3, 0x0cec, 0x0ced, 0x0cee, 0x2ddb,
  0x10f0, 0x10f1, 0x10f2, 0x31e3, 0x10f4, 0x10f5, 0x10f6, 0x31eb, 0x20f8, 0x20f9, 0x20fa, 0x41f3, 0x257c, 0x257d, 0x29be, 0x46fb,
 
-// previous 1s = 4:
+/* previous 1s = 4: */
  0x0000, 0x2001, 0x0002, 0x2005, 0x0004, 0x2009, 0x0006, 0x200d, 0x0008, 0x2011, 0x000a, 0x2015, 0x000c, 0x2019, 0x000e, 0x201d,
  0x0010, 0x2021, 0x0012, 0x2025, 0x0014, 0x2029, 0x0016, 0x202d, 0x0018, 0x2031, 0x001a, 0x2035, 0x001c, 0x2039, 0x001e, 0x203d,
  0x0020, 0x2041, 0x0022, 0x2045, 0x0024, 0x2049, 0x0026, 0x204d, 0x0028, 0x2051, 0x002a, 0x2055, 0x002c, 0x2059, 0x002e, 0x205d,
@@ -367,7 +345,8 @@ static const u16 stufftab[5 * 256] = {
  * parameters:
  *	cin	input byte
  *	ones	number of trailing '1' bits in result before this step
- *	iwb	pointer to output buffer structure (write semaphore must be held)
+ *	iwb	pointer to output buffer structure
+ *		(write semaphore must be held)
  * return value:
  *	number of trailing '1' bits in result after this step
  */
@@ -408,7 +387,8 @@ static inline int hdlc_bitstuff_byte(struct isowbuf_t *iwb, unsigned char cin,
  * parameters:
  *	in	input buffer
  *	count	number of bytes in input buffer
- *	iwb	pointer to output buffer structure (write semaphore must be held)
+ *	iwb	pointer to output buffer structure
+ *		(write semaphore must be held)
  * return value:
  *	position of end of packet in output buffer on success,
  *	-EAGAIN if write semaphore busy or buffer full
@@ -440,7 +420,8 @@ static inline int hdlc_buildframe(struct isowbuf_t *iwb,
 		fcs = crc_ccitt_byte(fcs, c);
 	}
 
-	/* bitstuff and append FCS (complemented, least significant byte first) */
+	/* bitstuff and append FCS
+	 * (complemented, least significant byte first) */
 	fcs ^= 0xffff;
 	ones = hdlc_bitstuff_byte(iwb, fcs & 0x00ff, ones);
 	ones = hdlc_bitstuff_byte(iwb, (fcs >> 8) & 0x00ff, ones);
@@ -459,7 +440,8 @@ static inline int hdlc_buildframe(struct isowbuf_t *iwb,
  * parameters:
  *	in	input buffer
  *	count	number of bytes in input buffer
- *	iwb	pointer to output buffer structure (write semaphore must be held)
+ *	iwb	pointer to output buffer structure
+ *		(write semaphore must be held)
  * return value:
  *	position of end of packet in output buffer on success,
  *	-EAGAIN if write semaphore busy or buffer full
@@ -500,7 +482,7 @@ int gigaset_isoc_buildframe(struct bc_state *bcs, unsigned char *in, int len)
 	int result;
 
 	switch (bcs->proto2) {
-	case ISDN_PROTO_L2_HDLC:
+	case L2_HDLC:
 		result = hdlc_buildframe(bcs->hw.bas->isooutbuf, in, len);
 		gig_dbg(DEBUG_ISO, "%s: %d bytes HDLC -> %d",
 			__func__, len, result);
@@ -542,8 +524,9 @@ static inline void hdlc_flush(struct bc_state *bcs)
 	if (likely(bcs->skb != NULL))
 		skb_trim(bcs->skb, 0);
 	else if (!bcs->ignore) {
-		if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-			skb_reserve(bcs->skb, HW_HDR_LEN);
+		bcs->skb = dev_alloc_skb(SBUFSIZE + bcs->cs->hw_hdr_len);
+		if (bcs->skb)
+			skb_reserve(bcs->skb, bcs->cs->hw_hdr_len);
 		else
 			dev_err(bcs->cs->dev, "could not allocate skb\n");
 	}
@@ -557,43 +540,46 @@ static inline void hdlc_flush(struct bc_state *bcs)
  */
 static inline void hdlc_done(struct bc_state *bcs)
 {
+	struct cardstate *cs = bcs->cs;
 	struct sk_buff *procskb;
+	unsigned int len;
 
 	if (unlikely(bcs->ignore)) {
 		bcs->ignore--;
 		hdlc_flush(bcs);
 		return;
 	}
-
-	if ((procskb = bcs->skb) == NULL) {
+	procskb = bcs->skb;
+	if (procskb == NULL) {
 		/* previous error */
 		gig_dbg(DEBUG_ISO, "%s: skb=NULL", __func__);
-		gigaset_rcv_error(NULL, bcs->cs, bcs);
+		gigaset_isdn_rcv_err(bcs);
 	} else if (procskb->len < 2) {
-		dev_notice(bcs->cs->dev, "received short frame (%d octets)\n",
+		dev_notice(cs->dev, "received short frame (%d octets)\n",
 			   procskb->len);
 		bcs->hw.bas->runts++;
-		gigaset_rcv_error(procskb, bcs->cs, bcs);
+		dev_kfree_skb_any(procskb);
+		gigaset_isdn_rcv_err(bcs);
 	} else if (bcs->fcs != PPP_GOODFCS) {
-		dev_notice(bcs->cs->dev, "frame check error (0x%04x)\n",
-			   bcs->fcs);
+		dev_notice(cs->dev, "frame check error (0x%04x)\n", bcs->fcs);
 		bcs->hw.bas->fcserrs++;
-		gigaset_rcv_error(procskb, bcs->cs, bcs);
+		dev_kfree_skb_any(procskb);
+		gigaset_isdn_rcv_err(bcs);
 	} else {
-		procskb->len -= 2;		/* subtract FCS */
-		procskb->tail -= 2;
-		gig_dbg(DEBUG_ISO, "%s: good frame (%d octets)",
-			__func__, procskb->len);
+		len = procskb->len;
+		__skb_trim(procskb, len -= 2);	/* subtract FCS */
+		gig_dbg(DEBUG_ISO, "%s: good frame (%d octets)", __func__, len);
 		dump_bytes(DEBUG_STREAM_DUMP,
-			   "rcv data", procskb->data, procskb->len);
-		bcs->hw.bas->goodbytes += procskb->len;
-		gigaset_rcv_skb(procskb, bcs->cs, bcs);
+			   "rcv data", procskb->data, len);
+		bcs->hw.bas->goodbytes += len;
+		gigaset_skb_rcvd(bcs, procskb);
 	}
 
-	if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-		skb_reserve(bcs->skb, HW_HDR_LEN);
+	bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
+	if (bcs->skb)
+		skb_reserve(bcs->skb, cs->hw_hdr_len);
 	else
-		dev_err(bcs->cs->dev, "could not allocate skb\n");
+		dev_err(cs->dev, "could not allocate skb\n");
 	bcs->fcs = PPP_INITFCS;
 }
 
@@ -610,12 +596,8 @@ static inline void hdlc_frag(struct bc_state *bcs, unsigned inbits)
 
 	dev_notice(bcs->cs->dev, "received partial byte (%d bits)\n", inbits);
 	bcs->hw.bas->alignerrs++;
-	gigaset_rcv_error(bcs->skb, bcs->cs, bcs);
-
-	if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
-		skb_reserve(bcs->skb, HW_HDR_LEN);
-	else
-		dev_err(bcs->cs->dev, "could not allocate skb\n");
+	gigaset_isdn_rcv_err(bcs);
+	__skb_trim(bcs->skb, 0);
 	bcs->fcs = PPP_INITFCS;
 }
 
@@ -646,10 +628,10 @@ static const unsigned char bitcounts[256] = {
 };
 
 /* hdlc_unpack
- * perform HDLC frame processing (bit unstuffing, flag detection, FCS calculation)
- * on a sequence of received data bytes (8 bits each, LSB first)
- * pass on successfully received, complete frames as SKBs via gigaset_rcv_skb
- * notify of errors via gigaset_rcv_error
+ * perform HDLC frame processing (bit unstuffing, flag detection, FCS
+ * calculation) on a sequence of received data bytes (8 bits each, LSB first)
+ * pass on successfully received, complete frames as SKBs via gigaset_skb_rcvd
+ * notify of errors via gigaset_isdn_rcv_err
  * tally frames, errors etc. in BC structure counters
  * parameters:
  *	src	received data
@@ -665,9 +647,12 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 
 	/* load previous state:
 	 * inputstate = set of flag bits:
-	 * - INS_flag_hunt: no complete opening flag received since connection setup or last abort
-	 * - INS_have_data: at least one complete data byte received since last flag
-	 * seqlen = number of consecutive '1' bits in last 7 input stream bits (0..7)
+	 * - INS_flag_hunt: no complete opening flag received since connection
+	 *                  setup or last abort
+	 * - INS_have_data: at least one complete data byte received since last
+	 *                  flag
+	 * seqlen = number of consecutive '1' bits in last 7 input stream bits
+	 *          (0..7)
 	 * inbyte = accumulated partial data byte (if !INS_flag_hunt)
 	 * inbits = number of valid bits in inbyte, starting at LSB (0..6)
 	 */
@@ -701,9 +686,11 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 				inbyte = c >> (lead1 + 1);
 				inbits = 7 - lead1;
 				if (trail1 >= 8) {
-					/* interior stuffing: omitting the MSB handles most cases */
+					/* interior stuffing:
+					 * omitting the MSB handles most cases,
+					 * correct the incorrectly handled
+					 * cases individually */
 					inbits--;
-					/* correct the incorrectly handled cases individually */
 					switch (c) {
 					case 0xbe:
 						inbyte = 0x3f;
@@ -729,13 +716,14 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 			hdlc_flush(bcs);
 			inputstate |= INS_flag_hunt;
 		} else if (seqlen == 6) {
-			/* closing flag, including (6 - lead1) '1's and one '0' from inbits */
+			/* closing flag, including (6 - lead1) '1's
+			 * and one '0' from inbits */
 			if (inbits > 7 - lead1) {
 				hdlc_frag(bcs, inbits + lead1 - 7);
 				inputstate &= ~INS_have_data;
 			} else {
 				if (inbits < 7 - lead1)
-					ubc->stolen0s ++;
+					ubc->stolen0s++;
 				if (inputstate & INS_have_data) {
 					hdlc_done(bcs);
 					inputstate &= ~INS_have_data;
@@ -744,7 +732,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 
 			if (c == PPP_FLAG) {
 				/* complete flag, LSB overlaps preceding flag */
-				ubc->shared0s ++;
+				ubc->shared0s++;
 				inbits = 0;
 				inbyte = 0;
 			} else if (trail1 != 7) {
@@ -752,9 +740,11 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 				inbyte = c >> (lead1 + 1);
 				inbits = 7 - lead1;
 				if (trail1 >= 8) {
-					/* interior stuffing: omitting the MSB handles most cases */
+					/* interior stuffing:
+					 * omitting the MSB handles most cases,
+					 * correct the incorrectly handled
+					 * cases individually */
 					inbits--;
-					/* correct the incorrectly handled cases individually */
 					switch (c) {
 					case 0xbe:
 						inbyte = 0x3f;
@@ -762,7 +752,8 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 					}
 				}
 			} else {
-				/* abort sequence follows, skb already empty anyway */
+				/* abort sequence follows,
+				 * skb already empty anyway */
 				ubc->aborts++;
 				inputstate |= INS_flag_hunt;
 			}
@@ -787,14 +778,17 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 			} else {
 				/* stuffed data */
 				if (trail1 < 7) { /* => seqlen == 5 */
-					/* stuff bit at position lead1, no interior stuffing */
+					/* stuff bit at position lead1,
+					 * no interior stuffing */
 					unsigned char mask = (1 << lead1) - 1;
 					c = (c & mask) | ((c & ~mask) >> 1);
 					inbyte |= c << inbits;
 					inbits += 7;
 				} else if (seqlen < 5) { /* trail1 >= 8 */
-					/* interior stuffing: omitting the MSB handles most cases */
-					/* correct the incorrectly handled cases individually */
+					/* interior stuffing:
+					 * omitting the MSB handles most cases,
+					 * correct the incorrectly handled
+					 * cases individually */
 					switch (c) {
 					case 0xbe:
 						c = 0x7e;
@@ -804,8 +798,9 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 					inbits += 7;
 				} else { /* seqlen == 5 && trail1 >= 8 */
 
-					/* stuff bit at lead1 *and* interior stuffing */
-					switch (c) {	/* unstuff individually */
+					/* stuff bit at lead1 *and* interior
+					 * stuffing -- unstuff individually */
+					switch (c) {
 					case 0x7d:
 						c = 0x3f;
 						break;
@@ -841,7 +836,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 }
 
 /* trans_receive
- * pass on received USB frame transparently as SKB via gigaset_rcv_skb
+ * pass on received USB frame transparently as SKB via gigaset_skb_rcvd
  * invert bytes
  * tally frames, errors etc. in BC structure counters
  * parameters:
@@ -852,6 +847,7 @@ static inline void hdlc_unpack(unsigned char *src, unsigned count,
 static inline void trans_receive(unsigned char *src, unsigned count,
 				 struct bc_state *bcs)
 {
+	struct cardstate *cs = bcs->cs;
 	struct sk_buff *skb;
 	int dobytes;
 	unsigned char *dst;
@@ -861,13 +857,14 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 		hdlc_flush(bcs);
 		return;
 	}
-	if (unlikely((skb = bcs->skb) == NULL)) {
-		bcs->skb = skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN);
+	skb = bcs->skb;
+	if (unlikely(skb == NULL)) {
+		bcs->skb = skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
 		if (!skb) {
-			dev_err(bcs->cs->dev, "could not allocate skb\n");
+			dev_err(cs->dev, "could not allocate skb\n");
 			return;
 		}
-		skb_reserve(skb, HW_HDR_LEN);
+		skb_reserve(skb, cs->hw_hdr_len);
 	}
 	bcs->hw.bas->goodbytes += skb->len;
 	dobytes = TRANSBUFSIZE - skb->len;
@@ -881,23 +878,24 @@ static inline void trans_receive(unsigned char *src, unsigned count,
 		if (dobytes == 0) {
 			dump_bytes(DEBUG_STREAM_DUMP,
 				   "rcv data", skb->data, skb->len);
-			gigaset_rcv_skb(skb, bcs->cs, bcs);
-			bcs->skb = skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN);
+			gigaset_skb_rcvd(bcs, skb);
+			bcs->skb = skb =
+				dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
 			if (!skb) {
-				dev_err(bcs->cs->dev,
-					"could not allocate skb\n");
+				dev_err(cs->dev, "could not allocate skb\n");
 				return;
 			}
-			skb_reserve(bcs->skb, HW_HDR_LEN);
+			skb_reserve(skb, cs->hw_hdr_len);
 			dobytes = TRANSBUFSIZE;
 		}
 	}
 }
 
-void gigaset_isoc_receive(unsigned char *src, unsigned count, struct bc_state *bcs)
+void gigaset_isoc_receive(unsigned char *src, unsigned count,
+			  struct bc_state *bcs)
 {
 	switch (bcs->proto2) {
-	case ISDN_PROTO_L2_HDLC:
+	case L2_HDLC:
 		hdlc_unpack(src, count, bcs);
 		break;
 	default:		/* assume transparent */
@@ -981,8 +979,10 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
  * @bcs:	B channel descriptor structure.
  * @skb:	data to send.
  *
- * Called by i4l.c to queue an skb for sending, and start transmission if
+ * Called by LL to queue an skb for sending, and start transmission if
  * necessary.
+ * Once the payload data has been transmitted completely, gigaset_skb_sent()
+ * will be called with the skb's link layer header preserved.
  *
  * Return value:
  *	number of bytes accepted for sending (skb->len) if ok,

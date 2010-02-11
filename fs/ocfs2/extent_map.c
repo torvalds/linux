@@ -37,6 +37,7 @@
 #include "extent_map.h"
 #include "inode.h"
 #include "super.h"
+#include "symlink.h"
 
 #include "buffer_head_io.h"
 
@@ -191,7 +192,7 @@ static int ocfs2_try_to_merge_extent_map(struct ocfs2_extent_map_item *emi,
 		emi->ei_clusters += ins->ei_clusters;
 		return 1;
 	} else if ((ins->ei_phys + ins->ei_clusters) == emi->ei_phys &&
-		   (ins->ei_cpos + ins->ei_clusters) == emi->ei_phys &&
+		   (ins->ei_cpos + ins->ei_clusters) == emi->ei_cpos &&
 		   ins->ei_flags == emi->ei_flags) {
 		emi->ei_phys = ins->ei_phys;
 		emi->ei_cpos = ins->ei_cpos;
@@ -703,6 +704,12 @@ out:
 	return ret;
 }
 
+/*
+ * The ocfs2_fiemap_inline() may be a little bit misleading, since
+ * it not only handles the fiemap for inlined files, but also deals
+ * with the fast symlink, cause they have no difference for extent
+ * mapping per se.
+ */
 static int ocfs2_fiemap_inline(struct inode *inode, struct buffer_head *di_bh,
 			       struct fiemap_extent_info *fieinfo,
 			       u64 map_start)
@@ -715,11 +722,18 @@ static int ocfs2_fiemap_inline(struct inode *inode, struct buffer_head *di_bh,
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	di = (struct ocfs2_dinode *)di_bh->b_data;
-	id_count = le16_to_cpu(di->id2.i_data.id_count);
+	if (ocfs2_inode_is_fast_symlink(inode))
+		id_count = ocfs2_fast_symlink_chars(inode->i_sb);
+	else
+		id_count = le16_to_cpu(di->id2.i_data.id_count);
 
 	if (map_start < id_count) {
 		phys = oi->ip_blkno << inode->i_sb->s_blocksize_bits;
-		phys += offsetof(struct ocfs2_dinode, id2.i_data.id_data);
+		if (ocfs2_inode_is_fast_symlink(inode))
+			phys += offsetof(struct ocfs2_dinode, id2.i_symlink);
+		else
+			phys += offsetof(struct ocfs2_dinode,
+					 id2.i_data.id_data);
 
 		ret = fiemap_fill_next_extent(fieinfo, 0, phys, id_count,
 					      flags);
@@ -756,9 +770,10 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	down_read(&OCFS2_I(inode)->ip_alloc_sem);
 
 	/*
-	 * Handle inline-data separately.
+	 * Handle inline-data and fast symlink separately.
 	 */
-	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+	if ((OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) ||
+	    ocfs2_inode_is_fast_symlink(inode)) {
 		ret = ocfs2_fiemap_inline(inode, di_bh, fieinfo, map_start);
 		goto out_unlock;
 	}
@@ -786,6 +801,8 @@ int ocfs2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		fe_flags = 0;
 		if (rec.e_flags & OCFS2_EXT_UNWRITTEN)
 			fe_flags |= FIEMAP_EXTENT_UNWRITTEN;
+		if (rec.e_flags & OCFS2_EXT_REFCOUNTED)
+			fe_flags |= FIEMAP_EXTENT_SHARED;
 		if (is_last)
 			fe_flags |= FIEMAP_EXTENT_LAST;
 		len_bytes = (u64)le16_to_cpu(rec.e_leaf_clusters) << osb->s_clustersize_bits;

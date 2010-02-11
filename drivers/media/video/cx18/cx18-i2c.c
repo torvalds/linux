@@ -28,7 +28,6 @@
 #include "cx18-gpio.h"
 #include "cx18-i2c.h"
 #include "cx18-irq.h"
-#include <media/ir-kbd-i2c.h>
 
 #define CX18_REG_I2C_1_WR   0xf15000
 #define CX18_REG_I2C_1_RD   0xf15008
@@ -97,17 +96,11 @@ static const char * const hw_devicenames[] = {
 	"ir_rx_z8f0811_haup",
 };
 
-static const struct IR_i2c_init_data z8f0811_ir_init_data = {
-	.ir_codes = &ir_codes_hauppauge_new_table,
-	.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR,
-	.type = IR_TYPE_RC5,
-	.name = "CX23418 Z8F0811 Hauppauge",
-};
-
-static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
-			   u8 addr)
+static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
+			   const char *type, u8 addr)
 {
 	struct i2c_board_info info;
+	struct IR_i2c_init_data *init_data = &cx->ir_i2c_init_data;
 	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
@@ -116,9 +109,11 @@ static int cx18_i2c_new_ir(struct i2c_adapter *adap, u32 hw, const char *type,
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
-		info.platform_data = (void *) &z8f0811_ir_init_data;
-		break;
-	default:
+		init_data->ir_codes = &ir_codes_hauppauge_new_table;
+		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
+		init_data->type = IR_TYPE_RC5;
+		init_data->name = cx->card_name;
+		info.platform_data = init_data;
 		break;
 	}
 
@@ -154,8 +149,8 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return sd != NULL ? 0 : -1;
 	}
 
-	if (hw & CX18_HW_Z8F0811_IR_HAUP)
-		return cx18_i2c_new_ir(adap, hw, type, hw_addrs[idx]);
+	if (hw & CX18_HW_IR_ANY)
+		return cx18_i2c_new_ir(cx, adap, hw, type, hw_addrs[idx]);
 
 	/* Is it not an I2C device or one we do not wish to register? */
 	if (!hw_addrs[idx])

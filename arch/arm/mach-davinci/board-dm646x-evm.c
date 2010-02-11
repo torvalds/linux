@@ -17,38 +17,28 @@
  **************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/major.h>
-#include <linux/root_dev.h>
-#include <linux/dma-mapping.h>
-#include <linux/serial.h>
-#include <linux/serial_8250.h>
 #include <linux/leds.h>
 #include <linux/gpio.h>
-#include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/pcf857x.h>
-#include <linux/etherdevice.h>
 
 #include <media/tvp514x.h>
 
-#include <asm/setup.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/dm646x.h>
 #include <mach/common.h>
-#include <mach/psc.h>
 #include <mach/serial.h>
 #include <mach/i2c.h>
-#include <mach/mmc.h>
-#include <mach/emac.h>
+#include <mach/nand.h>
 
 #if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
     defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
@@ -56,6 +46,11 @@
 #else
 #define HAS_ATA 0
 #endif
+
+#define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x20008000
+#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x42000000
+
+#define NAND_BLOCK_SIZE		SZ_128K
 
 /* CPLD Register 0 bits to control ATA */
 #define DM646X_EVM_ATA_RST		BIT(0)
@@ -90,6 +85,63 @@ static spinlock_t vpif_reg_lock;
 
 static struct davinci_uart_config uart_config __initdata = {
 	.enabled_uarts = (1 << 0),
+};
+
+/* Note: We are setting first partition as 'bootloader' constituting UBL, U-Boot
+ * and U-Boot environment this avoids dependency on any particular combination
+ * of UBL, U-Boot or flashing tools etc.
+ */
+static struct mtd_partition davinci_nand_partitions[] = {
+	{
+		/* UBL, U-Boot with environment */
+		.name		= "bootloader",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= 16 * NAND_BLOCK_SIZE,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	}, {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+		.mask_flags	= 0,
+	}, {
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0,
+	}
+};
+
+static struct davinci_nand_pdata davinci_nand_data = {
+	.mask_cle 		= 0x80000,
+	.mask_ale 		= 0x40000,
+	.parts			= davinci_nand_partitions,
+	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
+	.ecc_mode		= NAND_ECC_HW,
+	.options		= 0,
+};
+
+static struct resource davinci_nand_resources[] = {
+	{
+		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_32M - 1,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device davinci_nand_device = {
+	.name			= "davinci_nand",
+	.id			= 0,
+
+	.num_resources		= ARRAY_SIZE(davinci_nand_resources),
+	.resource		= davinci_nand_resources,
+
+	.dev			= {
+		.platform_data	= &davinci_nand_data,
+	},
 };
 
 /* CPLD Register 0 Client: used for I/O Control */
@@ -142,7 +194,7 @@ static struct gpio_led evm_leds[] = {
 	{ .name = "DS4", .active_low = 1, },
 };
 
-static __initconst struct gpio_led_platform_data evm_led_data = {
+static const struct gpio_led_platform_data evm_led_data = {
 	.num_leds = ARRAY_SIZE(evm_leds),
 	.leds     = evm_leds,
 };
@@ -646,6 +698,8 @@ static __init void evm_init(void)
 	davinci_serial_init(&uart_config);
 	dm646x_init_mcasp0(&dm646x_evm_snd_data[0]);
 	dm646x_init_mcasp1(&dm646x_evm_snd_data[1]);
+
+	platform_device_register(&davinci_nand_device);
 
 	if (HAS_ATA)
 		dm646x_init_ide();

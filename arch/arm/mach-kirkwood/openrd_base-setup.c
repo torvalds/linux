@@ -70,7 +70,19 @@ static void __init openrd_base_init(void)
 	kirkwood_ge00_init(&openrd_base_ge00_data);
 	kirkwood_sata_init(&openrd_base_sata_data);
 	kirkwood_sdio_init(&openrd_base_mvsdio_data);
+
+	kirkwood_i2c_init();
 }
+
+static int __init openrd_base_pci_init(void)
+{
+	if (machine_is_openrd_base())
+		kirkwood_pcie_init();
+
+	return 0;
+ }
+subsys_initcall(openrd_base_pci_init);
+
 
 MACHINE_START(OPENRD_BASE, "Marvell OpenRD Base Board")
 	/* Maintainer: Dhaval Vasa <dhaval.vasa@einfochips.com> */

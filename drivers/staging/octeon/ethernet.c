@@ -30,7 +30,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
-#include <linux/mii.h>
+#include <linux/phy.h>
 
 #include <net/dst.h>
 
@@ -111,6 +111,16 @@ MODULE_PARM_DESC(disable_core_queueing, "\n"
 	"\tallows packets to be sent without lock contention in the packet\n"
 	"\tscheduler resulting in some cases in improved throughput.\n");
 
+
+/*
+ * The offset from mac_addr_base that should be used for the next port
+ * that is configured.  By convention, if any mgmt ports exist on the
+ * chip, they get the first mac addresses, The ports controlled by
+ * this driver are numbered sequencially following any mgmt addresses
+ * that may exist.
+ */
+static unsigned int cvm_oct_mac_addr_offset;
+
 /**
  * Periodic timer to check auto negotiation
  */
@@ -121,8 +131,6 @@ static struct timer_list cvm_oct_poll_timer;
  * the ipd input port number.
  */
 struct net_device *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
-
-extern struct semaphore mdio_sem;
 
 /**
  * Periodic timer tick for slow management operations
@@ -150,13 +158,8 @@ static void cvm_do_timer(unsigned long arg)
 		goto out;
 
 	priv = netdev_priv(cvm_oct_device[port]);
-	if (priv->poll) {
-		/* skip polling if we don't get the lock */
-		if (!down_trylock(&mdio_sem)) {
-			priv->poll(cvm_oct_device[port]);
-			up(&mdio_sem);
-		}
-	}
+	if (priv->poll)
+		priv->poll(cvm_oct_device[port]);
 
 	queues_per_port = cvmx_pko_get_num_queues(port);
 	/* Drain any pending packets in the free list */
@@ -474,16 +477,30 @@ static int cvm_oct_common_set_mac_address(struct net_device *dev, void *addr)
  */
 int cvm_oct_common_init(struct net_device *dev)
 {
-	static int count;
-	char mac[8] = { 0x00, 0x00,
-		octeon_bootinfo->mac_addr_base[0],
-		octeon_bootinfo->mac_addr_base[1],
-		octeon_bootinfo->mac_addr_base[2],
-		octeon_bootinfo->mac_addr_base[3],
-		octeon_bootinfo->mac_addr_base[4],
-		octeon_bootinfo->mac_addr_base[5] + count
-	};
 	struct octeon_ethernet *priv = netdev_priv(dev);
+	struct sockaddr sa;
+	u64 mac = ((u64)(octeon_bootinfo->mac_addr_base[0] & 0xff) << 40) |
+		((u64)(octeon_bootinfo->mac_addr_base[1] & 0xff) << 32) |
+		((u64)(octeon_bootinfo->mac_addr_base[2] & 0xff) << 24) |
+		((u64)(octeon_bootinfo->mac_addr_base[3] & 0xff) << 16) |
+		((u64)(octeon_bootinfo->mac_addr_base[4] & 0xff) << 8) |
+		(u64)(octeon_bootinfo->mac_addr_base[5] & 0xff);
+
+	mac += cvm_oct_mac_addr_offset;
+	sa.sa_data[0] = (mac >> 40) & 0xff;
+	sa.sa_data[1] = (mac >> 32) & 0xff;
+	sa.sa_data[2] = (mac >> 24) & 0xff;
+	sa.sa_data[3] = (mac >> 16) & 0xff;
+	sa.sa_data[4] = (mac >> 8) & 0xff;
+	sa.sa_data[5] = mac & 0xff;
+
+	if (cvm_oct_mac_addr_offset >= octeon_bootinfo->mac_addr_count)
+		printk(KERN_DEBUG "%s: Using MAC outside of the assigned range:"
+			" %02x:%02x:%02x:%02x:%02x:%02x\n", dev->name,
+			sa.sa_data[0] & 0xff, sa.sa_data[1] & 0xff,
+			sa.sa_data[2] & 0xff, sa.sa_data[3] & 0xff,
+			sa.sa_data[4] & 0xff, sa.sa_data[5] & 0xff);
+	cvm_oct_mac_addr_offset++;
 
 	/*
 	 * Force the interface to use the POW send if always_use_pow
@@ -496,14 +513,12 @@ int cvm_oct_common_init(struct net_device *dev)
 	if (priv->queue != -1 && USE_HW_TCPUDP_CHECKSUM)
 		dev->features |= NETIF_F_IP_CSUM;
 
-	count++;
-
 	/* We do our own locking, Linux doesn't need to */
 	dev->features |= NETIF_F_LLTX;
 	SET_ETHTOOL_OPS(dev, &cvm_oct_ethtool_ops);
 
-	cvm_oct_mdio_setup_device(dev);
-	dev->netdev_ops->ndo_set_mac_address(dev, mac);
+	cvm_oct_phy_setup_device(dev);
+	dev->netdev_ops->ndo_set_mac_address(dev, &sa);
 	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
 
 	/*
@@ -518,7 +533,10 @@ int cvm_oct_common_init(struct net_device *dev)
 
 void cvm_oct_common_uninit(struct net_device *dev)
 {
-	/* Currently nothing to do */
+	struct octeon_ethernet *priv = netdev_priv(dev);
+
+	if (priv->phydev)
+		phy_disconnect(priv->phydev);
 }
 
 static const struct net_device_ops cvm_oct_npi_netdev_ops = {
@@ -605,6 +623,8 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
+extern void octeon_mdiobus_force_mod_depencency(void);
+
 /**
  * Module/ driver initialization. Creates the linux network
  * devices.
@@ -618,7 +638,15 @@ static int __init cvm_oct_init_module(void)
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
 
+	octeon_mdiobus_force_mod_depencency();
 	pr_notice("cavium-ethernet %s\n", OCTEON_ETHERNET_VERSION);
+
+	if (OCTEON_IS_MODEL(OCTEON_CN52XX))
+		cvm_oct_mac_addr_offset = 2; /* First two are the mgmt ports. */
+	else if (OCTEON_IS_MODEL(OCTEON_CN56XX))
+		cvm_oct_mac_addr_offset = 1; /* First one is the mgmt port. */
+	else
+		cvm_oct_mac_addr_offset = 0;
 
 	cvm_oct_proc_initialize();
 	cvm_oct_rx_initialize();

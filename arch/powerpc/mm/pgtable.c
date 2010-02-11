@@ -49,12 +49,12 @@ struct pte_freelist_batch
 {
 	struct rcu_head	rcu;
 	unsigned int	index;
-	pgtable_free_t	tables[0];
+	unsigned long	tables[0];
 };
 
 #define PTE_FREELIST_SIZE \
 	((PAGE_SIZE - sizeof(struct pte_freelist_batch)) \
-	  / sizeof(pgtable_free_t))
+	  / sizeof(unsigned long))
 
 static void pte_free_smp_sync(void *arg)
 {
@@ -64,13 +64,13 @@ static void pte_free_smp_sync(void *arg)
 /* This is only called when we are critically out of memory
  * (and fail to get a page in pte_free_tlb).
  */
-static void pgtable_free_now(pgtable_free_t pgf)
+static void pgtable_free_now(void *table, unsigned shift)
 {
 	pte_freelist_forced_free++;
 
 	smp_call_function(pte_free_smp_sync, NULL, 1);
 
-	pgtable_free(pgf);
+	pgtable_free(table, shift);
 }
 
 static void pte_free_rcu_callback(struct rcu_head *head)
@@ -79,8 +79,12 @@ static void pte_free_rcu_callback(struct rcu_head *head)
 		container_of(head, struct pte_freelist_batch, rcu);
 	unsigned int i;
 
-	for (i = 0; i < batch->index; i++)
-		pgtable_free(batch->tables[i]);
+	for (i = 0; i < batch->index; i++) {
+		void *table = (void *)(batch->tables[i] & ~MAX_PGTABLE_INDEX_SIZE);
+		unsigned shift = batch->tables[i] & MAX_PGTABLE_INDEX_SIZE;
+
+		pgtable_free(table, shift);
+	}
 
 	free_page((unsigned long)batch);
 }
@@ -91,25 +95,28 @@ static void pte_free_submit(struct pte_freelist_batch *batch)
 	call_rcu(&batch->rcu, pte_free_rcu_callback);
 }
 
-void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
+void pgtable_free_tlb(struct mmu_gather *tlb, void *table, unsigned shift)
 {
 	/* This is safe since tlb_gather_mmu has disabled preemption */
 	struct pte_freelist_batch **batchp = &__get_cpu_var(pte_freelist_cur);
+	unsigned long pgf;
 
 	if (atomic_read(&tlb->mm->mm_users) < 2 ||
 	    cpumask_equal(mm_cpumask(tlb->mm), cpumask_of(smp_processor_id()))){
-		pgtable_free(pgf);
+		pgtable_free(table, shift);
 		return;
 	}
 
 	if (*batchp == NULL) {
 		*batchp = (struct pte_freelist_batch *)__get_free_page(GFP_ATOMIC);
 		if (*batchp == NULL) {
-			pgtable_free_now(pgf);
+			pgtable_free_now(table, shift);
 			return;
 		}
 		(*batchp)->index = 0;
 	}
+	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
+	pgf = (unsigned long)table | shift;
 	(*batchp)->tables[(*batchp)->index++] = pgf;
 	if ((*batchp)->index == PTE_FREELIST_SIZE) {
 		pte_free_submit(*batchp);

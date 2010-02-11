@@ -316,9 +316,9 @@ static ssize_t store_group_addr(struct device *d,
 	if (new_addr[5] & ~0xf)
 		return -EINVAL;
 
-	if (new_addr[5] == 1 	/* 802.3x Pause address */
-	    || new_addr[5] == 2 /* 802.3ad Slow protocols */
-	    || new_addr[5] == 3) /* 802.1X PAE address */
+	if (new_addr[5] == 1 ||		/* 802.3x Pause address */
+	    new_addr[5] == 2 ||		/* 802.3ad Slow protocols */
+	    new_addr[5] == 3)		/* 802.1X PAE address */
 		return -EINVAL;
 
 	spin_lock_bh(&br->lock);

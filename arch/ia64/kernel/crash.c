@@ -239,32 +239,29 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 #ifdef CONFIG_SYSCTL
 static ctl_table kdump_ctl_table[] = {
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "kdump_on_init",
 		.data = &kdump_on_init,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = &proc_dointvec,
+		.proc_handler = proc_dointvec,
 	},
 	{
-		.ctl_name = CTL_UNNUMBERED,
 		.procname = "kdump_on_fatal_mca",
 		.data = &kdump_on_fatal_mca,
 		.maxlen = sizeof(int),
 		.mode = 0644,
-		.proc_handler = &proc_dointvec,
+		.proc_handler = proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table sys_table[] = {
 	{
-	  .ctl_name = CTL_KERN,
 	  .procname = "kernel",
 	  .mode = 0555,
 	  .child = kdump_ctl_table,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif
 

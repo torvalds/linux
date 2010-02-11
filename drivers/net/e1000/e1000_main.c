@@ -1698,18 +1698,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	rctl &= ~E1000_RCTL_SZ_4096;
 	rctl |= E1000_RCTL_BSEX;
 	switch (adapter->rx_buffer_len) {
-		case E1000_RXBUFFER_256:
-			rctl |= E1000_RCTL_SZ_256;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
-		case E1000_RXBUFFER_512:
-			rctl |= E1000_RCTL_SZ_512;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
-		case E1000_RXBUFFER_1024:
-			rctl |= E1000_RCTL_SZ_1024;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
 		case E1000_RXBUFFER_2048:
 		default:
 			rctl |= E1000_RCTL_SZ_2048;
@@ -1839,10 +1827,17 @@ void e1000_free_all_tx_resources(struct e1000_adapter *adapter)
 static void e1000_unmap_and_free_tx_resource(struct e1000_adapter *adapter,
 					     struct e1000_buffer *buffer_info)
 {
-	buffer_info->dma = 0;
+	if (buffer_info->dma) {
+		if (buffer_info->mapped_as_page)
+			pci_unmap_page(adapter->pdev, buffer_info->dma,
+				       buffer_info->length, PCI_DMA_TODEVICE);
+		else
+			pci_unmap_single(adapter->pdev,	buffer_info->dma,
+					 buffer_info->length,
+					 PCI_DMA_TODEVICE);
+		buffer_info->dma = 0;
+	}
 	if (buffer_info->skb) {
-		skb_dma_unmap(&adapter->pdev->dev, buffer_info->skb,
-		              DMA_TO_DEVICE);
 		dev_kfree_skb_any(buffer_info->skb);
 		buffer_info->skb = NULL;
 	}
@@ -2683,21 +2678,13 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 			unsigned int mss)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct pci_dev *pdev = adapter->pdev;
 	struct e1000_buffer *buffer_info;
 	unsigned int len = skb_headlen(skb);
-	unsigned int offset, size, count = 0, i;
+	unsigned int offset = 0, size, count = 0, i;
 	unsigned int f;
-	dma_addr_t *map;
 
 	i = tx_ring->next_to_use;
-
-	if (skb_dma_map(&adapter->pdev->dev, skb, DMA_TO_DEVICE)) {
-		dev_err(&adapter->pdev->dev, "TX DMA map failed\n");
-		return 0;
-	}
-
-	map = skb_shinfo(skb)->dma_maps;
-	offset = 0;
 
 	while (len) {
 		buffer_info = &tx_ring->buffer_info[i];
@@ -2735,7 +2722,11 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 		buffer_info->length = size;
 		/* set time_stamp *before* dma to help avoid a possible race */
 		buffer_info->time_stamp = jiffies;
-		buffer_info->dma = skb_shinfo(skb)->dma_head + offset;
+		buffer_info->mapped_as_page = false;
+		buffer_info->dma = pci_map_single(pdev,	skb->data + offset,
+						  size,	PCI_DMA_TODEVICE);
+		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+			goto dma_error;
 		buffer_info->next_to_watch = i;
 
 		len -= size;
@@ -2753,7 +2744,7 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 
 		frag = &skb_shinfo(skb)->frags[f];
 		len = frag->size;
-		offset = 0;
+		offset = frag->page_offset;
 
 		while (len) {
 			i++;
@@ -2777,7 +2768,12 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 
 			buffer_info->length = size;
 			buffer_info->time_stamp = jiffies;
-			buffer_info->dma = map[f] + offset;
+			buffer_info->mapped_as_page = true;
+			buffer_info->dma = pci_map_page(pdev, frag->page,
+							offset,	size,
+							PCI_DMA_TODEVICE);
+			if (pci_dma_mapping_error(pdev, buffer_info->dma))
+				goto dma_error;
 			buffer_info->next_to_watch = i;
 
 			len -= size;
@@ -2790,6 +2786,22 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 	tx_ring->buffer_info[first].next_to_watch = i;
 
 	return count;
+
+dma_error:
+	dev_err(&pdev->dev, "TX DMA map failed\n");
+	buffer_info->dma = 0;
+	if (count)
+		count--;
+
+	while (count--) {
+		if (i==0)
+			i += tx_ring->count;
+		i--;
+		buffer_info = &tx_ring->buffer_info[i];
+		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
+	}
+
+	return 0;
 }
 
 static void e1000_tx_queue(struct e1000_adapter *adapter,
@@ -3101,10 +3113,8 @@ static void e1000_reset_task(struct work_struct *work)
 
 static struct net_device_stats *e1000_get_stats(struct net_device *netdev)
 {
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
 	/* only return the current stats */
-	return &adapter->net_stats;
+	return &netdev->stats;
 }
 
 /**
@@ -3154,13 +3164,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	 *  however with the new *_jumbo_rx* routines, jumbo receives will use
 	 *  fragmented skbs */
 
-	if (max_frame <= E1000_RXBUFFER_256)
-		adapter->rx_buffer_len = E1000_RXBUFFER_256;
-	else if (max_frame <= E1000_RXBUFFER_512)
-		adapter->rx_buffer_len = E1000_RXBUFFER_512;
-	else if (max_frame <= E1000_RXBUFFER_1024)
-		adapter->rx_buffer_len = E1000_RXBUFFER_1024;
-	else if (max_frame <= E1000_RXBUFFER_2048)
+	if (max_frame <= E1000_RXBUFFER_2048)
 		adapter->rx_buffer_len = E1000_RXBUFFER_2048;
 	else
 #if (PAGE_SIZE >= E1000_RXBUFFER_16384)
@@ -3196,6 +3200,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 
 void e1000_update_stats(struct e1000_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned long flags;
@@ -3288,32 +3293,32 @@ void e1000_update_stats(struct e1000_adapter *adapter)
 	}
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.mprc;
-	adapter->net_stats.collisions = adapter->stats.colc;
+	netdev->stats.multicast = adapter->stats.mprc;
+	netdev->stats.collisions = adapter->stats.colc;
 
 	/* Rx Errors */
 
 	/* RLEC on some newer hardware can be incorrect so build
 	* our own version based on RUC and ROC */
-	adapter->net_stats.rx_errors = adapter->stats.rxerrc +
+	netdev->stats.rx_errors = adapter->stats.rxerrc +
 		adapter->stats.crcerrs + adapter->stats.algnerrc +
 		adapter->stats.ruc + adapter->stats.roc +
 		adapter->stats.cexterr;
 	adapter->stats.rlerrc = adapter->stats.ruc + adapter->stats.roc;
-	adapter->net_stats.rx_length_errors = adapter->stats.rlerrc;
-	adapter->net_stats.rx_crc_errors = adapter->stats.crcerrs;
-	adapter->net_stats.rx_frame_errors = adapter->stats.algnerrc;
-	adapter->net_stats.rx_missed_errors = adapter->stats.mpc;
+	netdev->stats.rx_length_errors = adapter->stats.rlerrc;
+	netdev->stats.rx_crc_errors = adapter->stats.crcerrs;
+	netdev->stats.rx_frame_errors = adapter->stats.algnerrc;
+	netdev->stats.rx_missed_errors = adapter->stats.mpc;
 
 	/* Tx Errors */
 	adapter->stats.txerrc = adapter->stats.ecol + adapter->stats.latecol;
-	adapter->net_stats.tx_errors = adapter->stats.txerrc;
-	adapter->net_stats.tx_aborted_errors = adapter->stats.ecol;
-	adapter->net_stats.tx_window_errors = adapter->stats.latecol;
-	adapter->net_stats.tx_carrier_errors = adapter->stats.tncrs;
+	netdev->stats.tx_errors = adapter->stats.txerrc;
+	netdev->stats.tx_aborted_errors = adapter->stats.ecol;
+	netdev->stats.tx_window_errors = adapter->stats.latecol;
+	netdev->stats.tx_carrier_errors = adapter->stats.tncrs;
 	if (hw->bad_tx_carr_stats_fd &&
 	    adapter->link_duplex == FULL_DUPLEX) {
-		adapter->net_stats.tx_carrier_errors = 0;
+		netdev->stats.tx_carrier_errors = 0;
 		adapter->stats.tncrs = 0;
 	}
 
@@ -3484,8 +3489,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 		adapter->detect_tx_hung = false;
 		if (tx_ring->buffer_info[eop].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[eop].time_stamp +
-		               (adapter->tx_timeout_factor * HZ))
-		    && !(er32(STATUS) & E1000_STATUS_TXOFF)) {
+		               (adapter->tx_timeout_factor * HZ)) &&
+		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
 
 			/* detected Tx unit hang */
 			DPRINTK(DRV, ERR, "Detected Tx Unit Hang\n"
@@ -3514,8 +3519,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	}
 	adapter->total_tx_bytes += total_tx_bytes;
 	adapter->total_tx_packets += total_tx_packets;
-	adapter->net_stats.tx_bytes += total_tx_bytes;
-	adapter->net_stats.tx_packets += total_tx_packets;
+	netdev->stats.tx_bytes += total_tx_bytes;
+	netdev->stats.tx_packets += total_tx_packets;
 	return (count < tx_ring->count);
 }
 
@@ -3767,8 +3772,8 @@ next_desc:
 
 	adapter->total_rx_packets += total_rx_packets;
 	adapter->total_rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	netdev->stats.rx_bytes += total_rx_bytes;
+	netdev->stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -3827,13 +3832,22 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		length = le16_to_cpu(rx_desc->length);
 		/* !EOP means multiple descriptors were used to store a single
-		 * packet, also make sure the frame isn't just CRC only */
-		if (unlikely(!(status & E1000_RXD_STAT_EOP) || (length <= 4))) {
+		 * packet, if thats the case we need to toss it.  In fact, we
+		 * to toss every packet with the EOP bit clear and the next
+		 * frame that _does_ have the EOP bit set, as it is by
+		 * definition only a frame fragment
+		 */
+		if (unlikely(!(status & E1000_RXD_STAT_EOP)))
+			adapter->discarding = true;
+
+		if (adapter->discarding) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);
 			/* recycle */
 			buffer_info->skb = skb;
+			if (status & E1000_RXD_STAT_EOP)
+				adapter->discarding = false;
 			goto next_desc;
 		}
 
@@ -3867,9 +3881,8 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 		 * of reassembly being done in the stack */
 		if (length < copybreak) {
 			struct sk_buff *new_skb =
-			    netdev_alloc_skb(netdev, length + NET_IP_ALIGN);
+			    netdev_alloc_skb_ip_align(netdev, length);
 			if (new_skb) {
-				skb_reserve(new_skb, NET_IP_ALIGN);
 				skb_copy_to_linear_data_offset(new_skb,
 							       -NET_IP_ALIGN,
 							       (skb->data -
@@ -3916,8 +3929,8 @@ next_desc:
 
 	adapter->total_rx_packets += total_rx_packets;
 	adapter->total_rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_bytes += total_rx_bytes;
-	adapter->net_stats.rx_packets += total_rx_packets;
+	netdev->stats.rx_bytes += total_rx_bytes;
+	netdev->stats.rx_packets += total_rx_packets;
 	return cleaned;
 }
 
@@ -3938,9 +3951,7 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 	struct e1000_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
-	unsigned int bufsz = 256 -
-	                     16 /*for skb_reserve */ -
-	                     NET_IP_ALIGN;
+	unsigned int bufsz = 256 - 16 /*for skb_reserve */ ;
 
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
@@ -3952,7 +3963,7 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 			goto check_page;
 		}
 
-		skb = netdev_alloc_skb(netdev, bufsz);
+		skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->alloc_rx_buff_failed++;
@@ -3965,7 +3976,7 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 			DPRINTK(PROBE, ERR, "skb align check failed: %u bytes "
 					     "at %p\n", bufsz, skb->data);
 			/* Try again, without freeing the previous */
-			skb = netdev_alloc_skb(netdev, bufsz);
+			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			/* Failed allocation, critical failure */
 			if (!skb) {
 				dev_kfree_skb(oldskb);
@@ -3983,12 +3994,6 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 			/* Use new allocation */
 			dev_kfree_skb(oldskb);
 		}
-		/* Make buffer alignment 2 beyond a 16 byte boundary
-		 * this will result in a 16 byte aligned IP header after
-		 * the 14 byte MAC header is removed
-		 */
-		skb_reserve(skb, NET_IP_ALIGN);
-
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 check_page:
@@ -4045,7 +4050,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 	struct e1000_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
-	unsigned int bufsz = adapter->rx_buffer_len + NET_IP_ALIGN;
+	unsigned int bufsz = adapter->rx_buffer_len;
 
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
@@ -4057,7 +4062,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 			goto map_skb;
 		}
 
-		skb = netdev_alloc_skb(netdev, bufsz);
+		skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->alloc_rx_buff_failed++;
@@ -4070,7 +4075,7 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 			DPRINTK(RX_ERR, ERR, "skb align check failed: %u bytes "
 					     "at %p\n", bufsz, skb->data);
 			/* Try again, without freeing the previous */
-			skb = netdev_alloc_skb(netdev, bufsz);
+			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			/* Failed allocation, critical failure */
 			if (!skb) {
 				dev_kfree_skb(oldskb);
@@ -4089,12 +4094,6 @@ static void e1000_alloc_rx_buffers(struct e1000_adapter *adapter,
 			/* Use new allocation */
 			dev_kfree_skb(oldskb);
 		}
-		/* Make buffer alignment 2 beyond a 16 byte boundary
-		 * this will result in a 16 byte aligned IP header after
-		 * the 14 byte MAC header is removed
-		 */
-		skb_reserve(skb, NET_IP_ALIGN);
-
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 map_skb:

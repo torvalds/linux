@@ -206,7 +206,8 @@ static inline void i8253_cascade_ns_to_timer_2div(int i8253_osc_base,
 	}
 
 	*nanosec = div1 * div2 * i8253_osc_base;
-	*d1 = div1 & 0xffff;	/*  masking is done since counter maps zero to 0x10000 */
+	/*  masking is done since counter maps zero to 0x10000 */
+	*d1 = div1 & 0xffff;
 	*d2 = div2 & 0xffff;
 	return;
 }

@@ -27,7 +27,7 @@ void move_masked_irq(int irq)
 	if (!desc->chip->set_affinity)
 		return;
 
-	assert_spin_locked(&desc->lock);
+	assert_raw_spin_locked(&desc->lock);
 
 	/*
 	 * If there was a valid mask to work with, please

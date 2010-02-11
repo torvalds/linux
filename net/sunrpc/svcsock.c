@@ -111,7 +111,7 @@ static void svc_release_skb(struct svc_rqst *rqstp)
 		rqstp->rq_xprt_ctxt = NULL;
 
 		dprintk("svc: service %p, releasing skb %p\n", rqstp, skb);
-		skb_free_datagram(svsk->sk_sk, skb);
+		skb_free_datagram_locked(svsk->sk_sk, skb);
 	}
 }
 
@@ -272,14 +272,14 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 	case PF_INET:
 		len = snprintf(buf, remaining, "ipv4 %s %pI4 %d\n",
 				proto_name,
-				&inet_sk(sk)->rcv_saddr,
-				inet_sk(sk)->num);
+				&inet_sk(sk)->inet_rcv_saddr,
+				inet_sk(sk)->inet_num);
 		break;
 	case PF_INET6:
 		len = snprintf(buf, remaining, "ipv6 %s %pI6 %d\n",
 				proto_name,
 				&inet6_sk(sk)->rcv_saddr,
-				inet_sk(sk)->num);
+				inet_sk(sk)->inet_num);
 		break;
 	default:
 		len = snprintf(buf, remaining, "*unknown-%d*\n",
@@ -578,7 +578,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 				"svc: received unknown control message %d/%d; "
 				"dropping RPC reply datagram\n",
 					cmh->cmsg_level, cmh->cmsg_type);
-		skb_free_datagram(svsk->sk_sk, skb);
+		skb_free_datagram_locked(svsk->sk_sk, skb);
 		return 0;
 	}
 
@@ -588,18 +588,18 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		if (csum_partial_copy_to_xdr(&rqstp->rq_arg, skb)) {
 			local_bh_enable();
 			/* checksum error */
-			skb_free_datagram(svsk->sk_sk, skb);
+			skb_free_datagram_locked(svsk->sk_sk, skb);
 			return 0;
 		}
 		local_bh_enable();
-		skb_free_datagram(svsk->sk_sk, skb);
+		skb_free_datagram_locked(svsk->sk_sk, skb);
 	} else {
 		/* we can use it in-place */
 		rqstp->rq_arg.head[0].iov_base = skb->data +
 			sizeof(struct udphdr);
 		rqstp->rq_arg.head[0].iov_len = len;
 		if (skb_checksum_complete(skb)) {
-			skb_free_datagram(svsk->sk_sk, skb);
+			skb_free_datagram_locked(svsk->sk_sk, skb);
 			return 0;
 		}
 		rqstp->rq_xprt_ctxt = skb;
@@ -1311,7 +1311,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	/* Register socket with portmapper */
 	if (*errp >= 0 && pmap_register)
 		*errp = svc_register(serv, inet->sk_family, inet->sk_protocol,
-				     ntohs(inet_sk(inet)->sport));
+				     ntohs(inet_sk(inet)->inet_sport));
 
 	if (*errp < 0) {
 		kfree(svsk);

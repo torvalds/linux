@@ -31,9 +31,12 @@ OPTIONS
 -w::
 --width=::
         Select the width of the SVG file (default: 1000)
--p::
+-P::
 --power-only::
         Only output the CPU power section of the diagram
+-p::
+--process::
+        Select the processes to display, by name or PID
 
 
 SEE ALSO

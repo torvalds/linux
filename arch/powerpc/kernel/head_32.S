@@ -164,6 +164,9 @@ __after_mmu_off:
 #ifdef CONFIG_PPC_EARLY_DEBUG_CPM
 	bl	setup_cpm_bat
 #endif
+#ifdef CONFIG_PPC_EARLY_DEBUG_USBGECKO
+	bl	setup_usbgecko_bat
+#endif
 
 /*
  * Call setup_cpu for CPU 0 and initialize 6xx Idle
@@ -1200,6 +1203,28 @@ setup_cpm_bat:
 	ori	r11, r11, (BL_1M << 2) | 2
 	mtspr	SPRN_DBAT1U, r11
 
+	blr
+#endif
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_USBGECKO
+setup_usbgecko_bat:
+	/* prepare a BAT for early io */
+#if defined(CONFIG_GAMECUBE)
+	lis	r8, 0x0c00
+#elif defined(CONFIG_WII)
+	lis	r8, 0x0d00
+#else
+#error Invalid platform for USB Gecko based early debugging.
+#endif
+	/*
+	 * The virtual address used must match the virtual address
+	 * associated to the fixmap entry FIX_EARLY_DEBUG_BASE.
+	 */
+	lis	r11, 0xfffe	/* top 128K */
+	ori	r8, r8, 0x002a	/* uncached, guarded ,rw */
+	ori	r11, r11, 0x2	/* 128K, Vs=1, Vp=0 */
+	mtspr	SPRN_DBAT1L, r8
+	mtspr	SPRN_DBAT1U, r11
 	blr
 #endif
 

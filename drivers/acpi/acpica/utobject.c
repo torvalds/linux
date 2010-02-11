@@ -190,6 +190,35 @@ union acpi_operand_object *acpi_ut_create_package_object(u32 count)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_create_integer_object
+ *
+ * PARAMETERS:  initial_value       - Initial value for the integer
+ *
+ * RETURN:      Pointer to a new Integer object, null on failure
+ *
+ * DESCRIPTION: Create an initialized integer object
+ *
+ ******************************************************************************/
+
+union acpi_operand_object *acpi_ut_create_integer_object(u64 initial_value)
+{
+	union acpi_operand_object *integer_desc;
+
+	ACPI_FUNCTION_TRACE(ut_create_integer_object);
+
+	/* Create and initialize a new integer object */
+
+	integer_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+	if (!integer_desc) {
+		return_PTR(NULL);
+	}
+
+	integer_desc->integer.value = initial_value;
+	return_PTR(integer_desc);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_create_buffer_object
  *
  * PARAMETERS:  buffer_size            - Size of buffer to be created

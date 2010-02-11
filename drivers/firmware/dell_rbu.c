@@ -544,8 +544,11 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 {
 	rbu_data.entry_created = 0;
 
-	if (!fw || !fw->size)
+	if (!fw)
 		return;
+
+	if (!fw->size)
+		goto out;
 
 	spin_lock(&rbu_data.lock);
 	if (!strcmp(image_type, "mono")) {
@@ -568,6 +571,8 @@ static void callbackfn_rbu(const struct firmware *fw, void *context)
 	} else
 		pr_debug("invalid image type specified.\n");
 	spin_unlock(&rbu_data.lock);
+ out:
+	release_firmware(fw);
 }
 
 static ssize_t read_rbu_image_type(struct kobject *kobj,
@@ -615,7 +620,7 @@ static ssize_t write_rbu_image_type(struct kobject *kobj,
 			spin_unlock(&rbu_data.lock);
 			req_firm_rc = request_firmware_nowait(THIS_MODULE,
 				FW_ACTION_NOHOTPLUG, "dell_rbu",
-				&rbu_device->dev, &context,
+				&rbu_device->dev, GFP_KERNEL, &context,
 				callbackfn_rbu);
 			if (req_firm_rc) {
 				printk(KERN_ERR

@@ -191,7 +191,7 @@ static int sun3_82586_open(struct net_device *dev)
 	startrecv586(dev);
 	sun3_enaint();
 
-	ret = request_irq(dev->irq, &sun3_82586_interrupt,0,dev->name,dev);
+	ret = request_irq(dev->irq, sun3_82586_interrupt,0,dev->name,dev);
 	if (ret)
 	{
 		sun3_reset586();

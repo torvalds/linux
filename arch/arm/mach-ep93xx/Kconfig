@@ -17,13 +17,31 @@ config EP93XX_SDCE3_SYNC_PHYS_OFFSET
 	bool "0x00000000 - SDCE3/SyncBoot"
 	help
 	  Select this option if you want support for EP93xx boards with the
-	  first SDRAM bank at 0x00000000
+	  first SDRAM bank at 0x00000000.
 
 config EP93XX_SDCE0_PHYS_OFFSET
 	bool "0xc0000000 - SDCEO"
 	help
 	  Select this option if you want support for EP93xx boards with the
-	  first SDRAM bank at 0xc0000000
+	  first SDRAM bank at 0xc0000000.
+
+config EP93XX_SDCE1_PHYS_OFFSET
+	bool "0xd0000000 - SDCE1"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xd0000000.
+
+config EP93XX_SDCE2_PHYS_OFFSET
+	bool "0xe0000000 - SDCE2"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xe0000000.
+
+config EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	bool "0xf0000000 - SDCE3/AsyncBoot"
+	help
+	  Select this option if you want support for EP93xx boards with the
+	  first SDRAM bank at 0xf0000000.
 
 endchoice
 
@@ -112,28 +130,36 @@ config MACH_MICRO9
 	bool
 
 config MACH_MICRO9H
-	bool "Support Contec Hypercontrol Micro9-H"
+	bool "Support Contec Micro9-High"
 	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
 	select MACH_MICRO9
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Contec Hypercontrol Micro9-H board.
+	  Contec Micro9-High board.
 
 config MACH_MICRO9M
-	bool "Support Contec Hypercontrol Micro9-M"
-	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
+	bool "Support Contec Micro9-Mid"
+	depends on EP93XX_SDCE3_ASYNC_PHYS_OFFSET
 	select MACH_MICRO9
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Contec Hypercontrol Micro9-M board.
+	  Contec Micro9-Mid board.
 
 config MACH_MICRO9L
-	bool "Support Contec Hypercontrol Micro9-L"
+	bool "Support Contec Micro9-Lite"
 	depends on EP93XX_SDCE3_SYNC_PHYS_OFFSET
 	select MACH_MICRO9
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Contec Hypercontrol Micro9-L board.
+	  Contec Micro9-Lite board.
+
+config MACH_MICRO9S
+	bool "Support Contec Micro9-Slim"
+	depends on EP93XX_SDCE3_ASYNC_PHYS_OFFSET
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Micro9-Slim board.
 
 config MACH_TS72XX
 	bool "Support Technologic Systems TS-72xx SBC"

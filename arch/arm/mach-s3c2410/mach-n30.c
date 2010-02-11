@@ -338,7 +338,7 @@ static struct platform_device *n35_devices[] __initdata = {
 	&n35_button_device,
 };
 
-static struct s3c2410_platform_i2c n30_i2ccfg = {
+static struct s3c2410_platform_i2c __initdata n30_i2ccfg = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
 	.frequency	= 10*1000,
@@ -500,8 +500,8 @@ static void __init n30_init_irq(void)
 static void __init n30_init(void)
 {
 	s3c24xx_fb_set_platdata(&n30_fb_info);
-	s3c_device_i2c0.dev.platform_data = &n30_i2ccfg;
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
+	s3c_i2c0_set_platdata(&n30_i2ccfg);
 
 	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */

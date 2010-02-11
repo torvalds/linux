@@ -1296,7 +1296,7 @@ again:
 			window_start = entry->offset;
 			window_free = entry->bytes;
 			last = entry;
-			max_extent = 0;
+			max_extent = entry->bytes;
 		} else {
 			last = next;
 			window_free += next->bytes;

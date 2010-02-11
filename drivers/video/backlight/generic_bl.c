@@ -70,7 +70,7 @@ void corgibl_limit_intensity(int limit)
 }
 EXPORT_SYMBOL(corgibl_limit_intensity);
 
-static struct backlight_ops genericbl_ops = {
+static const struct backlight_ops genericbl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = genericbl_get_intensity,
 	.update_status  = genericbl_send_intensity,

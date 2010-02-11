@@ -205,7 +205,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	switch (data[0]) {
 	case MBS_COMMAND_COMPLETE:
-		if (fcport->flags & FCF_TAPE_PRESENT)
+		if (fcport->flags & FCF_FCP2_DEVICE)
 			opts |= BIT_1;
 		rval = qla2x00_get_port_database(vha, fcport, opts);
 		if (rval != QLA_SUCCESS)
@@ -269,6 +269,8 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->flags.online = 0;
 	ha->flags.chip_reset_done = 0;
 	vha->flags.reset_active = 0;
+	ha->flags.pci_channel_io_perm_failure = 0;
+	ha->flags.eeh_busy = 0;
 	atomic_set(&vha->loop_down_timer, LOOP_DOWN_TIME);
 	atomic_set(&vha->loop_state, LOOP_DOWN);
 	vha->device_flags = DFLG_NO_CABLE;
@@ -277,7 +279,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	vha->marker_needed = 0;
 	ha->isp_abort_cnt = 0;
 	ha->beacon_blink_led = 0;
-	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 
 	set_bit(0, ha->req_qid_map);
 	set_bit(0, ha->rsp_qid_map);
@@ -582,6 +583,9 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	uint16_t	cmd;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return;
+
 	ha->isp_ops->disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -787,6 +791,12 @@ void
 qla24xx_reset_chip(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
+
+	if (pci_channel_offline(ha->pdev) &&
+	    ha->flags.pci_channel_io_perm_failure) {
+		return;
+	}
+
 	ha->isp_ops->disable_intrs(ha);
 
 	/* Perform RISC reset. */
@@ -1203,7 +1213,7 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 				}
 				qla2x00_get_resource_cnts(vha, NULL,
 				    &ha->fw_xcb_count, NULL, NULL,
-				    &ha->max_npiv_vports);
+				    &ha->max_npiv_vports, NULL);
 
 				if (!fw_major_version && ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(vha);
@@ -1443,7 +1453,17 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 			icb->firmware_options_2 |=
 				__constant_cpu_to_le32(BIT_18);
 
-		icb->firmware_options_2 &= __constant_cpu_to_le32(~BIT_22);
+		/* Use Disable MSIX Handshake mode for capable adapters */
+		if (IS_MSIX_NACK_CAPABLE(ha)) {
+			icb->firmware_options_2 &=
+				__constant_cpu_to_le32(~BIT_22);
+			ha->flags.disable_msix_handshake = 1;
+			qla_printk(KERN_INFO, ha,
+				"MSIX Handshake Disable Mode turned on\n");
+		} else {
+			icb->firmware_options_2 |=
+				__constant_cpu_to_le32(BIT_22);
+		}
 		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_23);
 
 		WRT_REG_DWORD(&reg->isp25mq.req_q_in, 0);
@@ -2257,6 +2277,8 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	clear_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 	clear_bit(RSCN_UPDATE, &vha->dpc_flags);
 
+	qla2x00_get_data_rate(vha);
+
 	/* Determine what we need to do */
 	if (ha->current_topology == ISP_CFG_FL &&
 	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
@@ -2704,7 +2726,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 
 		/*
 		 * Logout all previous fabric devices marked lost, except
-		 * tape devices.
+		 * FCP2 devices.
 		 */
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags))
@@ -2717,7 +2739,7 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 				qla2x00_mark_device_lost(vha, fcport,
 				    ql2xplogiabsentdevice, 0);
 				if (fcport->loop_id != FC_NO_LOOP_ID &&
-				    (fcport->flags & FCF_TAPE_PRESENT) == 0 &&
+				    (fcport->flags & FCF_FCP2_DEVICE) == 0 &&
 				    fcport->port_type != FCT_INITIATOR &&
 				    fcport->port_type != FCT_BROADCAST) {
 					ha->isp_ops->fabric_logout(vha,
@@ -2996,7 +3018,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			fcport->d_id.b24 = new_fcport->d_id.b24;
 			fcport->flags |= FCF_LOGIN_NEEDED;
 			if (fcport->loop_id != FC_NO_LOOP_ID &&
-			    (fcport->flags & FCF_TAPE_PRESENT) == 0 &&
+			    (fcport->flags & FCF_FCP2_DEVICE) == 0 &&
 			    fcport->port_type != FCT_INITIATOR &&
 			    fcport->port_type != FCT_BROADCAST) {
 				ha->isp_ops->fabric_logout(vha, fcport->loop_id,
@@ -3250,9 +3272,9 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 
 	rval = qla2x00_fabric_login(vha, fcport, next_loopid);
 	if (rval == QLA_SUCCESS) {
-		/* Send an ADISC to tape devices.*/
+		/* Send an ADISC to FCP2 devices.*/
 		opts = 0;
-		if (fcport->flags & FCF_TAPE_PRESENT)
+		if (fcport->flags & FCF_FCP2_DEVICE)
 			opts |= BIT_1;
 		rval = qla2x00_get_port_database(vha, fcport, opts);
 		if (rval != QLA_SUCCESS) {
@@ -3551,6 +3573,13 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		/* Requeue all commands in outstanding command list. */
 		qla2x00_abort_all_cmds(vha, DID_RESET << 16);
 
+		if (unlikely(pci_channel_offline(ha->pdev) &&
+		    ha->flags.pci_channel_io_perm_failure)) {
+			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+			status = 0;
+			return status;
+		}
+
 		ha->isp_ops->get_flash_version(vha, req->ring);
 
 		ha->isp_ops->nvram_config(vha);
@@ -3572,6 +3601,15 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 
 			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
+
+			if (IS_QLA81XX(ha))
+				qla2x00_get_fw_version(vha,
+				    &ha->fw_major_version,
+				    &ha->fw_minor_version,
+				    &ha->fw_subminor_version,
+				    &ha->fw_attributes, &ha->fw_memory_size,
+				    ha->mpi_version, &ha->mpi_capabilities,
+				    ha->phy_version);
 
 			if (ha->fce) {
 				ha->flags.fce_enabled = 1;
@@ -4440,6 +4478,8 @@ qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 	int ret, retries;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (ha->flags.pci_channel_io_perm_failure)
+		return;
 	if (!IS_FWI2_CAPABLE(ha))
 		return;
 	if (!ha->fw_major_version)

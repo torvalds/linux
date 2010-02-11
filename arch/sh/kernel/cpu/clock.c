@@ -598,7 +598,7 @@ static struct dentry *clk_debugfs_root;
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
-	struct dentry *d, *child;
+	struct dentry *d, *child, *child_tmp;
 	struct clk *pa = c->parent;
 	char s[255];
 	char *p = s;
@@ -630,7 +630,7 @@ static int clk_debugfs_register_one(struct clk *c)
 
 err_out:
 	d = c->dentry;
-	list_for_each_entry(child, &d->d_subdirs, d_u.d_child)
+	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
 		debugfs_remove(child);
 	debugfs_remove(c->dentry);
 	return err;

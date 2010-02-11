@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -94,12 +94,15 @@ enum data_queue_qid {
  *	mac80211 but was stripped for processing by the driver.
  * @SKBDESC_L2_PADDED: Payload has been padded for 4-byte alignment,
  *	the padded bytes are located between header and payload.
+ * @SKBDESC_NOT_MAC80211: Frame didn't originate from mac80211,
+ *	don't try to pass it back.
  */
 enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
 	SKBDESC_IV_STRIPPED = 1 << 2,
-	SKBDESC_L2_PADDED = 1 << 3
+	SKBDESC_L2_PADDED = 1 << 3,
+	SKBDESC_NOT_MAC80211 = 1 << 4,
 };
 
 /**

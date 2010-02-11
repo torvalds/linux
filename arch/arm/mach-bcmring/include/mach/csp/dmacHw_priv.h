@@ -83,7 +83,7 @@ typedef struct {
 *  @brief   Get next available transaction width
 *
 *
-*  @return  On sucess  : Next avail able transaction width
+*  @return  On success  : Next available transaction width
 *           On failure : dmacHw_TRANSACTION_WIDTH_8
 *
 *  @note

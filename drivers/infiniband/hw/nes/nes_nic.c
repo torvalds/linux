@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -1080,11 +1080,14 @@ static int nes_netdev_set_rx_csum(struct net_device *netdev, u32 enable)
 
 
 /**
- * nes_netdev_get_stats_count
+ * nes_netdev_get_sset_count
  */
-static int nes_netdev_get_stats_count(struct net_device *netdev)
+static int nes_netdev_get_sset_count(struct net_device *netdev, int stringset)
 {
-	return NES_ETHTOOL_STAT_COUNT;
+	if (stringset == ETH_SS_STATS)
+		return NES_ETHTOOL_STAT_COUNT;
+	else
+		return -EINVAL;
 }
 
 
@@ -1264,7 +1267,6 @@ static void nes_netdev_get_drvinfo(struct net_device *netdev,
 	sprintf(drvinfo->fw_version, "%u.%u", nesadapter->firmware_version>>16,
 				nesadapter->firmware_version & 0x000000ff);
 	strcpy(drvinfo->version, DRV_VERSION);
-	drvinfo->n_stats = nes_netdev_get_stats_count(netdev);
 	drvinfo->testinfo_len = 0;
 	drvinfo->eedump_len = 0;
 	drvinfo->regdump_len = 0;
@@ -1516,7 +1518,7 @@ static const struct ethtool_ops nes_ethtool_ops = {
 	.get_rx_csum = nes_netdev_get_rx_csum,
 	.get_sg = ethtool_op_get_sg,
 	.get_strings = nes_netdev_get_strings,
-	.get_stats_count = nes_netdev_get_stats_count,
+	.get_sset_count = nes_netdev_get_sset_count,
 	.get_ethtool_stats = nes_netdev_get_ethtool_stats,
 	.get_drvinfo = nes_netdev_get_drvinfo,
 	.get_coalesce = nes_netdev_get_coalesce,

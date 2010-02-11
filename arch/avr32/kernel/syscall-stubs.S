@@ -61,7 +61,7 @@ __sys_execve:
 __sys_mmap2:
 	pushm	lr
 	st.w	--sp, ARG6
-	call	sys_mmap2
+	call	sys_mmap_pgoff
 	sub	sp, -4
 	popm	pc
 

@@ -49,7 +49,8 @@ extern int xfs_acl_chmod(struct inode *inode);
 extern int posix_acl_access_exists(struct inode *inode);
 extern int posix_acl_default_exists(struct inode *inode);
 
-extern struct xattr_handler xfs_xattr_system_handler;
+extern struct xattr_handler xfs_xattr_acl_access_handler;
+extern struct xattr_handler xfs_xattr_acl_default_handler;
 #else
 # define xfs_check_acl					NULL
 # define xfs_get_acl(inode, type)			NULL

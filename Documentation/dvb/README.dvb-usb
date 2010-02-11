@@ -85,7 +85,7 @@ http://www.linuxtv.org/wiki/index.php/DVB_USB
 	     - moved transfer control (pid filter, fifo control) from usb driver to frontend, it seems
 	       better settled there (added xfer_ops-struct)
 	     - created a common files for frontends (mc/p/mb)
-  2004-09-28 - added support for a new device (Unkown, vendor ID is Hyper-Paltek)
+  2004-09-28 - added support for a new device (Unknown, vendor ID is Hyper-Paltek)
   2004-09-20 - added support for a new device (Compro DVB-U2000), thanks
 	       to Amaury Demol for reporting
 	     - changed usb TS transfer method (several urbs, stopping transfer

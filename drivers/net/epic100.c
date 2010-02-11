@@ -630,8 +630,8 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 		barrier();
 		if ((inl(ioaddr + MIICtrl) & MII_READOP) == 0) {
 			/* Work around read failure bug. */
-			if (phy_id == 1 && location < 6
-				&& inw(ioaddr + MIIData) == 0xffff) {
+			if (phy_id == 1 && location < 6 &&
+			    inw(ioaddr + MIIData) == 0xffff) {
 				outl(read_cmd, ioaddr + MIICtrl);
 				continue;
 			}
@@ -668,7 +668,7 @@ static int epic_open(struct net_device *dev)
 	outl(0x4001, ioaddr + GENCTL);
 
 	napi_enable(&ep->napi);
-	if ((retval = request_irq(dev->irq, &epic_interrupt, IRQF_SHARED, dev->name, dev))) {
+	if ((retval = request_irq(dev->irq, epic_interrupt, IRQF_SHARED, dev->name, dev))) {
 		napi_disable(&ep->napi);
 		return retval;
 	}
@@ -1205,8 +1205,8 @@ static int epic_rx(struct net_device *dev, int budget)
 			}
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
-			if (pkt_len < rx_copybreak
-				&& (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				pci_dma_sync_single_for_cpu(ep->pci_dev,
 							    ep->rx_ring[entry].bufaddr,

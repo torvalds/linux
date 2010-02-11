@@ -73,6 +73,7 @@
 
 #include <asm/mtrr.h>
 #include <asm/apic.h>
+#include <asm/trampoline.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
@@ -110,6 +111,7 @@
 #ifdef CONFIG_X86_64
 #include <asm/numa_64.h>
 #endif
+#include <asm/mce.h>
 
 /*
  * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
@@ -248,7 +250,7 @@ EXPORT_SYMBOL(edd);
  *              from boot_params into a safe place.
  *
  */
-static inline void copy_edd(void)
+static inline void __init copy_edd(void)
 {
      memcpy(edd.mbr_signature, boot_params.edd_mbr_sig_buffer,
 	    sizeof(edd.mbr_signature));
@@ -257,7 +259,7 @@ static inline void copy_edd(void)
      edd.edd_info_nr = boot_params.eddbuf_entries;
 }
 #else
-static inline void copy_edd(void)
+static inline void __init copy_edd(void)
 {
 }
 #endif
@@ -634,16 +636,31 @@ static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
 		},
 	},
 	{
+		.callback = dmi_low_memory_corruption,
+		.ident = "Phoenix/MSC BIOS",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix/MSC"),
+		},
+	},
 	/*
-	 * AMI BIOS with low memory corruption was found on Intel DG45ID board.
-	 * It hase different DMI_BIOS_VENDOR = "Intel Corp.", for now we will
+	 * AMI BIOS with low memory corruption was found on Intel DG45ID and
+	 * DG45FC boards.
+	 * It has a different DMI_BIOS_VENDOR = "Intel Corp.", for now we will
 	 * match only DMI_BOARD_NAME and see if there is more bad products
 	 * with this vendor.
 	 */
+	{
 		.callback = dmi_low_memory_corruption,
 		.ident = "AMI BIOS",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "DG45ID"),
+		},
+	},
+	{
+		.callback = dmi_low_memory_corruption,
+		.ident = "AMI BIOS",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "DG45FC"),
 		},
 	},
 #endif
@@ -884,6 +901,13 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_brk();
 
+	/*
+	 * Find and reserve possible boot-time SMP configuration:
+	 */
+	find_smp_config();
+
+	reserve_trampoline_memory();
+
 #ifdef CONFIG_ACPI_SLEEP
 	/*
 	 * Reserve low memory region for sleep support.
@@ -929,11 +953,6 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_table_init();
 
 	early_acpi_boot_init();
-
-	/*
-	 * Find and reserve possible boot-time SMP configuration:
-	 */
-	find_smp_config();
 
 #ifdef CONFIG_ACPI_NUMA
 	/*
@@ -1021,6 +1040,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 	x86_init.oem.banner();
+
+	mcheck_init();
 }
 
 #ifdef CONFIG_X86_32

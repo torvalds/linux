@@ -180,15 +180,15 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 
 	switch (type) {
 	case THERMAL_TRIP_CRITICAL:
-		return sprintf(buf, "critical");
+		return sprintf(buf, "critical\n");
 	case THERMAL_TRIP_HOT:
-		return sprintf(buf, "hot");
+		return sprintf(buf, "hot\n");
 	case THERMAL_TRIP_PASSIVE:
-		return sprintf(buf, "passive");
+		return sprintf(buf, "passive\n");
 	case THERMAL_TRIP_ACTIVE:
-		return sprintf(buf, "active");
+		return sprintf(buf, "active\n");
 	default:
-		return sprintf(buf, "unknown");
+		return sprintf(buf, "unknown\n");
 	}
 }
 
@@ -225,6 +225,12 @@ passive_store(struct device *dev, struct device_attribute *attr,
 	if (!sscanf(buf, "%d\n", &state))
 		return -EINVAL;
 
+	/* sanity check: values below 1000 millicelcius don't make sense
+	 * and can cause the system to go into a thermal heart attack
+	 */
+	if (state && state < 1000)
+		return -EINVAL;
+
 	if (state && !tz->forced_passive) {
 		mutex_lock(&thermal_list_lock);
 		list_for_each_entry(cdev, &thermal_cdev_list, node) {
@@ -235,6 +241,8 @@ passive_store(struct device *dev, struct device_attribute *attr,
 								 cdev);
 		}
 		mutex_unlock(&thermal_list_lock);
+		if (!tz->passive_delay)
+			tz->passive_delay = 1000;
 	} else if (!state && tz->forced_passive) {
 		mutex_lock(&thermal_list_lock);
 		list_for_each_entry(cdev, &thermal_cdev_list, node) {
@@ -245,16 +253,11 @@ passive_store(struct device *dev, struct device_attribute *attr,
 								   cdev);
 		}
 		mutex_unlock(&thermal_list_lock);
+		tz->passive_delay = 0;
 	}
 
 	tz->tc1 = 1;
 	tz->tc2 = 1;
-
-	if (!tz->passive_delay)
-		tz->passive_delay = 1000;
-
-	if (!tz->polling_delay)
-		tz->polling_delay = 10000;
 
 	tz->forced_passive = state;
 
@@ -374,7 +377,7 @@ thermal_cooling_device_cur_state_store(struct device *dev,
 	if (!sscanf(buf, "%ld\n", &state))
 		return -EINVAL;
 
-	if (state < 0)
+	if ((long)state < 0)
 		return -EINVAL;
 
 	result = cdev->ops->set_cur_state(cdev, state);
@@ -1016,6 +1019,8 @@ void thermal_zone_device_update(struct thermal_zone_device *tz)
 		thermal_zone_device_set_polling(tz, tz->passive_delay);
 	else if (tz->polling_delay)
 		thermal_zone_device_set_polling(tz, tz->polling_delay);
+	else
+		thermal_zone_device_set_polling(tz, 0);
 	mutex_unlock(&tz->lock);
 }
 EXPORT_SYMBOL(thermal_zone_device_update);

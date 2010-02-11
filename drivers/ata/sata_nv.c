@@ -1594,9 +1594,21 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 	    !ata_dev_enabled(link->device))
 		sata_link_hardreset(link, sata_deb_timing_hotplug, deadline,
 				    NULL, NULL);
-	else if (!(ehc->i.flags & ATA_EHI_QUIET))
-		ata_link_printk(link, KERN_INFO,
-				"nv: skipping hardreset on occupied port\n");
+	else {
+		const unsigned long *timing = sata_ehc_deb_timing(ehc);
+		int rc;
+
+		if (!(ehc->i.flags & ATA_EHI_QUIET))
+			ata_link_printk(link, KERN_INFO, "nv: skipping "
+					"hardreset on occupied port\n");
+
+		/* make sure the link is online */
+		rc = sata_link_resume(link, timing, deadline);
+		/* whine about phy resume failure but proceed */
+		if (rc && rc != -EOPNOTSUPP)
+			ata_link_printk(link, KERN_WARNING, "failed to resume "
+					"link (errno=%d)\n", rc);
+	}
 
 	/* device signature acquisition is unreliable */
 	return -EAGAIN;
@@ -1963,7 +1975,7 @@ static int nv_swncq_slave_config(struct scsi_device *sdev)
 	ata_id_c_string(dev->id, model_num, ATA_ID_PROD, sizeof(model_num));
 
 	if (strncmp(model_num, "Maxtor", 6) == 0) {
-		ata_scsi_change_queue_depth(sdev, 1);
+		ata_scsi_change_queue_depth(sdev, 1, SCSI_QDEPTH_DEFAULT);
 		ata_dev_printk(dev, KERN_NOTICE,
 			"Disabling SWNCQ mode (depth %x)\n", sdev->queue_depth);
 	}

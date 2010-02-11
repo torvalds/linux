@@ -330,9 +330,9 @@ done:
  */
 static void free_user(struct user_struct *up, unsigned long flags)
 {
-	spin_unlock_irqrestore(&uidhash_lock, flags);
 	INIT_DELAYED_WORK(&up->work, cleanup_user_struct);
 	schedule_delayed_work(&up->work, msecs_to_jiffies(1000));
+	spin_unlock_irqrestore(&uidhash_lock, flags);
 }
 
 #else	/* CONFIG_USER_SCHED && CONFIG_SYSFS */

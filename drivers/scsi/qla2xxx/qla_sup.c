@@ -2292,11 +2292,14 @@ qla25xx_read_optrom_data(struct scsi_qla_host *vha, uint8_t *buf,
 	uint32_t faddr, left, burst;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
+		goto try_fast;
 	if (offset & 0xfff)
 		goto slow_read;
 	if (length < OPTROM_BURST_SIZE)
 		goto slow_read;
 
+try_fast:
 	optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 	    &optrom_dma, GFP_KERNEL);
 	if (!optrom) {

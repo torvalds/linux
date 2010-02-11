@@ -36,7 +36,7 @@ static inline int init_new_context(struct task_struct *tsk,
 		mm->context.has_pgste = 1;
 		mm->context.alloc_pgste = 1;
 	} else {
-		mm->context.noexec = s390_noexec;
+		mm->context.noexec = (user_mode == SECONDARY_SPACE_MODE);
 		mm->context.has_pgste = 0;
 		mm->context.alloc_pgste = 0;
 	}
@@ -58,7 +58,7 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 	pgd_t *pgd = mm->pgd;
 
 	S390_lowcore.user_asce = mm->context.asce_bits | __pa(pgd);
-	if (switch_amode) {
+	if (user_mode != HOME_SPACE_MODE) {
 		/* Load primary space page table origin. */
 		pgd = mm->context.noexec ? get_shadow_table(pgd) : pgd;
 		S390_lowcore.user_exec_asce = mm->context.asce_bits | __pa(pgd);

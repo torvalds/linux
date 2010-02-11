@@ -338,7 +338,7 @@ err_out:
  * copy of the complete multi sector transfer deprotected page.  On failure,
  * *@wrp is undefined.
  *
- * Simillarly, if @lsn is not NULL, on succes *@lsn will be set to the current
+ * Simillarly, if @lsn is not NULL, on success *@lsn will be set to the current
  * logfile lsn according to this restart page.  On failure, *@lsn is undefined.
  *
  * The following error codes are defined:

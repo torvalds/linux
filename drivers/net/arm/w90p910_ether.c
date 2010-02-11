@@ -160,8 +160,8 @@ struct  w90p910_ether {
 	struct mii_if_info mii;
 	struct timer_list check_timer;
 	void __iomem *reg;
-	unsigned int rxirq;
-	unsigned int txirq;
+	int rxirq;
+	int txirq;
 	unsigned int cur_tx;
 	unsigned int cur_rx;
 	unsigned int finish_tx;

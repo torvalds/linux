@@ -85,7 +85,6 @@ parameter is applicable:
 	PPT	Parallel port support is enabled.
 	PS2	Appropriate PS/2 support is enabled.
 	RAM	RAM disk support is enabled.
-	ROOTPLUG The example Root Plug LSM is enabled.
 	S390	S390 architecture is enabled.
 	SCSI	Appropriate SCSI support is enabled.
 			A lot of drivers has their options described inside of
@@ -241,7 +240,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, s4_nonvs }
+				  old_ordering, s4_nonvs, sci_force_enable }
 			See Documentation/power/video.txt for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
@@ -254,6 +253,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			of _PTS is used by default).
 			s4_nonvs prevents the kernel from saving/restoring the
 			ACPI NVS memory during hibernation.
+			sci_force_enable causes the kernel to set SCI_EN directly
+			on resume from S1/S3 (which is against the ACPI spec,
+			but some broken systems don't work without it).
 
 	acpi_use_timer_override [HW,ACPI]
 			Use timer override. For some broken Nvidia NF5 boards
@@ -344,6 +346,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
+
+	show_lapic=	[APIC,X86] Advanced Programmable Interrupt Controller
+			Limit apic dumping. The parameter defines the maximal
+			number of local apics being dumped. Also it is possible
+			to set it to "all" by meaning -- no limit here.
+			Format: { 1 (default) | 2 | ... | all }.
+			The parameter valid if only apic=debug or
+			apic=verbose is specified.
+			Example: apic=debug show_lapic=all
 
 	apm=		[APM] Advanced Power Management
 			See header of arch/x86/kernel/apm_32.c.
@@ -779,6 +790,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			by the set_ftrace_notrace file in the debugfs
 			tracing directory.
 
+	ftrace_graph_filter=[function-list]
+			[FTRACE] Limit the top level callers functions traced
+			by the function graph tracer at boot up.
+			function-list is a comma separated list of functions
+			that can be changed at run time by the
+			set_graph_function file in the debugfs tracing directory.
+
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
 			support via parallel port (up to 5 devices per port)
@@ -1017,7 +1035,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			No delay
 
 	ip=		[IP_PNP]
-			See Documentation/filesystems/nfsroot.txt.
+			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	ip2=		[HW] Set IO/IRQ pairs for up to 4 IntelliPort boards
 			See comment before ip2_setup() in
@@ -1538,10 +1556,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			going to be removed in 2.6.29.
 
 	nfsaddrs=	[NFS]
-			See Documentation/filesystems/nfsroot.txt.
+			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
-			See Documentation/filesystems/nfsroot.txt.
+			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback
@@ -1771,6 +1789,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			of the timeout.  We have interrupts disabled while
 			waiting for the ACK, so if this is set too high
 			interrupts *may* be lost!
+
+	omap_mux=	[OMAP] Override bootloader pin multiplexing.
+			Format: <mux_mode0.mode_name=value>...
+			For example, to override I2C bus2:
+			omap_mux=i2c2_scl.i2c2_scl=0x100,i2c2_sda.i2c2_sda=0x100
 
 	opl3=		[HW,OSS]
 			Format: <io>
@@ -2032,8 +2055,15 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	print-fatal-signals=
 			[KNL] debug: print fatal signals
-			print-fatal-signals=1: print segfault info to
-			the kernel console.
+
+			If enabled, warn about various signal handling
+			related application anomalies: too many signals,
+			too many POSIX.1 timers, fatal signals causing a
+			coredump - etc.
+
+			If you hit the warning due to signal overflow,
+			you might want to try "ulimit -i unlimited".
+
 			default: off.
 
 	printk.time=	Show timing data prefixed to each printk message line
@@ -2164,15 +2194,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Useful for devices that are detected asynchronously
 			(e.g. USB and MMC devices).
 
-	root_plug.vendor_id=
-			[ROOTPLUG] Override the default vendor ID
-
-	root_plug.product_id=
-			[ROOTPLUG] Override the default product ID
-
-	root_plug.debug=
-			[ROOTPLUG] Enable debugging output
-
 	rw		[KNL] Mount root device read-write on boot
 
 	S		[KNL] Run init in single mode
@@ -2181,6 +2202,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			See drivers/net/irda/sa1100_ir.c.
 
 	sbni=		[NET] Granch SBNI12 leased line adapter
+
+	sched_debug	[KNL] Enables verbose scheduler debug messages.
 
 	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
 			Format: <io>[,<timeout>[,<isapnp>]]
@@ -2590,6 +2613,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	uart6850=	[HW,OSS]
 			Format: <io>,<irq>
 
+	uhash_entries=	[KNL,NET]
+			Set number of hash buckets for UDP/UDP-Lite connections
+
 	uhci-hcd.ignore_oc=
 			[USB] Ignore overcurrent events (default N).
 			Some badly-designed motherboards generate lots of
@@ -2645,6 +2671,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			to a common usb-storage quirk flag as follows:
 				a = SANE_SENSE (collect more than 18 bytes
 					of sense data);
+				b = BAD_SENSE (don't collect more than 18
+					bytes of sense data);
 				c = FIX_CAPACITY (decrease the reported
 					device capacity by one sector);
 				h = CAPACITY_HEURISTICS (decrease the
@@ -2704,6 +2732,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
 			Format: <command>
 
+	vt.cur_default=	[VT] Default cursor shape.
+			Format: 0xCCBBAA, where AA, BB, and CC are the same as
+			the parameters of the <Esc>[?A;B;Cc escape sequence;
+			see VGA-softcursor.txt. Default: 2 = underline.
+
 	vt.default_blu=	[VT]
 			Format: <blue0>,<blue1>,<blue2>,...,<blue15>
 			Change the default blue palette of the console.
@@ -2728,6 +2761,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			Set system-wide default UTF-8 mode for all tty's.
 			Default is 1, i.e. UTF-8 mode is enabled for all
 			newly opened terminals.
+
+	vt.global_cursor_default=
+			[VT]
+			Format=<-1|0|1>
+			Set system-wide default for whether a cursor
+			is shown on new VTs. Default is -1,
+			i.e. cursors will be created by default unless
+			overridden by individual drivers. 0 will hide
+			cursors, 1 will display them.
 
 	waveartist=	[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>

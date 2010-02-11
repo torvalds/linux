@@ -93,8 +93,7 @@ typedef unsigned int nf_hookfn(unsigned int hooknum,
 			       const struct net_device *out,
 			       int (*okfn)(struct sk_buff *));
 
-struct nf_hook_ops
-{
+struct nf_hook_ops {
 	struct list_head list;
 
 	/* User fills in from here down. */
@@ -106,8 +105,7 @@ struct nf_hook_ops
 	int priority;
 };
 
-struct nf_sockopt_ops
-{
+struct nf_sockopt_ops {
 	struct list_head list;
 
 	u_int8_t pf;

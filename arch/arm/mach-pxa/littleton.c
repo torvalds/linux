@@ -44,10 +44,10 @@
 #include <mach/ssp.h>
 #include <mach/mmc.h>
 #include <mach/pxa2xx_spi.h>
-#include <plat/i2c.h>
 #include <mach/pxa27x_keypad.h>
-#include <mach/pxa3xx_nand.h>
 #include <mach/littleton.h>
+#include <plat/i2c.h>
+#include <plat/pxa3xx_nand.h>
 
 #include "generic.h"
 
@@ -110,6 +110,12 @@ static mfp_cfg_t littleton_mfp_cfg[] __initdata = {
 	GPIO7_MMC1_CLK,
 	GPIO8_MMC1_CMD,
 	GPIO15_GPIO, /* card detect */
+
+	/* UART3 */
+	GPIO107_UART3_CTS,
+	GPIO108_UART3_RTS,
+	GPIO109_UART3_TXD,
+	GPIO110_UART3_RXD,
 };
 
 static struct resource smc91x_resources[] = {
@@ -412,6 +418,10 @@ static void __init littleton_init(void)
 {
 	/* initialize MFP configurations */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(littleton_mfp_cfg));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	/*
 	 * Note: we depend bootloader set the correct

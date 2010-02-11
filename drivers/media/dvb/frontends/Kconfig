@@ -201,6 +201,21 @@ config DVB_SI21XX
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_DS3000
+	tristate "Montage Tehnology DS3000 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S/S2 tuner module. Say Y when you want to support this frontend.
+
+config DVB_MB86A16
+	tristate "Fujitsu MB86A16 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S/DSS Direct Conversion reveiver.
+	  Say Y when you want to support this frontend.
+
 comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
@@ -337,6 +352,13 @@ config DVB_TDA10048
 
 config DVB_AF9013
 	tristate "Afatech AF9013 demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
+config DVB_EC100
+	tristate "E3C EC100"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
@@ -512,6 +534,15 @@ config DVB_TUNER_DIB0070
 	  This device is only used inside a SiP called together with a
 	  demodulator for now.
 
+config DVB_TUNER_DIB0090
+	tristate "DiBcom DiB0090 silicon base-band tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner DiB0090 from DiBcom.
+	  This device is only used inside a SiP called together with a
+	  demodulator for now.
+
 comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
 
@@ -556,6 +587,24 @@ config DVB_LGS8GXX
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
+
+config DVB_ATBM8830
+	tristate "AltoBeam ATBM8830/8831 DMB-TH demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DMB-TH tuner module. Say Y when you want to support this frontend.
+
+config DVB_TDA665x
+	tristate "TDA665x tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Support for tuner modules based on Philips TDA6650/TDA6651 chips.
+	  Say Y when you want to support this chip.
+
+	  Currently supported tuners:
+	  * Panasonic ENV57H12D5 (ET-50DT)
 
 comment "Tools to develop new frontends"
 

@@ -429,8 +429,16 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	case USB_ENDPOINT_XFER_ISOC:
 	case USB_ENDPOINT_XFER_INT:
 		/* too small? */
-		if (urb->interval <= 0)
-			return -EINVAL;
+		switch (dev->speed) {
+		case USB_SPEED_VARIABLE:
+			if (urb->interval < 6)
+				return -EINVAL;
+			break;
+		default:
+			if (urb->interval <= 0)
+				return -EINVAL;
+			break;
+		}
 		/* too big? */
 		switch (dev->speed) {
 		case USB_SPEED_SUPER:	/* units are 125us */
@@ -438,6 +446,10 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if (urb->interval > (1 << 15))
 				return -EINVAL;
 			max = 1 << 15;
+		case USB_SPEED_VARIABLE:
+			if (urb->interval > 16)
+				return -EINVAL;
+			break;
 		case USB_SPEED_HIGH:	/* units are microframes */
 			/* NOTE usb handles 2^15 */
 			if (urb->interval > (1024 * 8))
@@ -461,8 +473,10 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		default:
 			return -EINVAL;
 		}
-		/* Round down to a power of 2, no more than max */
-		urb->interval = min(max, 1 << ilog2(urb->interval));
+		if (dev->speed != USB_SPEED_VARIABLE) {
+			/* Round down to a power of 2, no more than max */
+			urb->interval = min(max, 1 << ilog2(urb->interval));
+		}
 	}
 
 	return usb_hcd_submit_urb(urb, mem_flags);

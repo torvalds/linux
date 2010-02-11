@@ -61,12 +61,6 @@ unsigned int boot_cpu_physical_apicid = -1U;
 
 /*
  * The highest APIC ID seen during enumeration.
- *
- * On AMD, this determines the messaging protocol we can use: if all APIC IDs
- * are in the 0 ... 7 range, then we can use logical addressing which
- * has some performance advantages (better broadcasting).
- *
- * If there's an APIC ID above 8, we use physical addressing.
  */
 unsigned int max_physical_apicid;
 
@@ -241,28 +235,13 @@ static int modern_apic(void)
 }
 
 /*
- * bare function to substitute write operation
- * and it's _that_ fast :)
- */
-static void native_apic_write_dummy(u32 reg, u32 v)
-{
-	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
-}
-
-static u32 native_apic_read_dummy(u32 reg)
-{
-	WARN_ON_ONCE((cpu_has_apic && !disable_apic));
-	return 0;
-}
-
-/*
- * right after this call apic->write/read doesn't do anything
- * note that there is no restore operation it works one way
+ * right after this call apic become NOOP driven
+ * so apic->write/read doesn't do anything
  */
 void apic_disable(void)
 {
-	apic->read = native_apic_read_dummy;
-	apic->write = native_apic_write_dummy;
+	pr_info("APIC: switched to apic NOOP\n");
+	apic = &apic_noop;
 }
 
 void native_apic_wait_icr_idle(void)
@@ -459,7 +438,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 		v = apic_read(APIC_LVTT);
 		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
 		apic_write(APIC_LVTT, v);
-		apic_write(APIC_TMICT, 0xffffffff);
+		apic_write(APIC_TMICT, 0);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		/* Nothing to do here */
@@ -662,7 +641,7 @@ static int __init calibrate_APIC_clock(void)
 	calibration_result = (delta * APIC_DIVISOR) / LAPIC_CAL_LOOPS;
 
 	apic_printk(APIC_VERBOSE, "..... delta %ld\n", delta);
-	apic_printk(APIC_VERBOSE, "..... mult: %ld\n", lapic_clockevent.mult);
+	apic_printk(APIC_VERBOSE, "..... mult: %u\n", lapic_clockevent.mult);
 	apic_printk(APIC_VERBOSE, "..... calibration result: %u\n",
 		    calibration_result);
 
@@ -1356,7 +1335,7 @@ void enable_x2apic(void)
 
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
 	if (!(msr & X2APIC_ENABLE)) {
-		pr_info("Enabling x2apic\n");
+		printk_once(KERN_INFO "Enabling x2apic\n");
 		wrmsr(MSR_IA32_APICBASE, msr | X2APIC_ENABLE, 0);
 	}
 }
@@ -1392,14 +1371,11 @@ void __init enable_IR_x2apic(void)
 	unsigned long flags;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 	int ret, x2apic_enabled = 0;
-	int dmar_table_init_ret = 0;
+	int dmar_table_init_ret;
 
-#ifdef CONFIG_INTR_REMAP
 	dmar_table_init_ret = dmar_table_init();
-	if (dmar_table_init_ret)
-		pr_debug("dmar_table_init() failed with %d:\n",
-				dmar_table_init_ret);
-#endif
+	if (dmar_table_init_ret && !x2apic_supported())
+		return;
 
 	ioapic_entries = alloc_ioapic_entries();
 	if (!ioapic_entries) {
@@ -1916,14 +1892,17 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		max_physical_apicid = apicid;
 
 #ifdef CONFIG_X86_32
-	switch (boot_cpu_data.x86_vendor) {
-	case X86_VENDOR_INTEL:
-		if (num_processors > 8)
+	if (num_processors > 8) {
+		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_INTEL:
+			if (!APIC_XAPIC(version)) {
+				def_to_bigsmp = 0;
+				break;
+			}
+			/* If P4 and above fall through */
+		case X86_VENDOR_AMD:
 			def_to_bigsmp = 1;
-		break;
-	case X86_VENDOR_AMD:
-		if (max_physical_apicid >= 8)
-			def_to_bigsmp = 1;
+		}
 	}
 #endif
 

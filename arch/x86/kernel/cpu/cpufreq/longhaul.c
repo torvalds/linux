@@ -813,7 +813,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 			memcpy(eblcr, samuel2_eblcr, sizeof(samuel2_eblcr));
 			break;
 		case 1 ... 15:
-			longhaul_version = TYPE_LONGHAUL_V1;
+			longhaul_version = TYPE_LONGHAUL_V2;
 			if (c->x86_mask < 8) {
 				cpu_model = CPU_SAMUEL2;
 				cpuname = "C3 'Samuel 2' [C5B]";
@@ -885,7 +885,7 @@ static int __init longhaul_cpu_init(struct cpufreq_policy *policy)
 
 	/* Find ACPI data for processor */
 	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-				ACPI_UINT32_MAX, &longhaul_walk_callback,
+				ACPI_UINT32_MAX, &longhaul_walk_callback, NULL,
 				NULL, (void *)&pr);
 
 	/* Check ACPI support for C3 state */

@@ -641,7 +641,7 @@ data file must be retired (see the relinquish cookie function below).
 
 Furthermore, note that this does not cancel the asynchronous read or write
 operation started by the read/alloc and write functions, so the page
-invalidation and release functions must use:
+invalidation functions must use:
 
 	bool fscache_check_page_write(struct fscache_cookie *cookie,
 				      struct page *page);
@@ -652,6 +652,25 @@ to see if a page is being written to the cache, and:
 					struct page *page);
 
 to wait for it to finish if it is.
+
+
+When releasepage() is being implemented, a special FS-Cache function exists to
+manage the heuristics of coping with vmscan trying to eject pages, which may
+conflict with the cache trying to write pages to the cache (which may itself
+need to allocate memory):
+
+	bool fscache_maybe_release_page(struct fscache_cookie *cookie,
+					struct page *page,
+					gfp_t gfp);
+
+This takes the netfs cookie, and the page and gfp arguments as supplied to
+releasepage().  It will return false if the page cannot be released yet for
+some reason and if it returns true, the page has been uncached and can now be
+released.
+
+To make a page available for release, this function may wait for an outstanding
+storage request to complete, or it may attempt to cancel the storage request -
+in which case the page will not be stored in the cache this time.
 
 
 ==========================

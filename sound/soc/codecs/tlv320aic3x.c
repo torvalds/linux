@@ -753,7 +753,6 @@ static int aic3x_add_widgets(struct snd_soc_codec *codec)
 	/* set up audio path interconnects */
 	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -1405,17 +1404,7 @@ static int aic3x_probe(struct platform_device *pdev)
 
 	aic3x_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "aic3x: failed to register card\n");
-		goto card_err;
-	}
-
 	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 
 pcm_err:
 	kfree(codec->reg_cache);

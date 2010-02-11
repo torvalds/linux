@@ -22,6 +22,7 @@
 #include "sysfs.h"
 #include "debugfs.h"
 #include "wext-compat.h"
+#include "ethtool.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -43,6 +44,9 @@ DEFINE_MUTEX(cfg80211_mutex);
 
 /* for debugfs */
 static struct dentry *ieee80211_debugfs_dir;
+
+/* for the cleanup, scan and event works */
+struct workqueue_struct *cfg80211_wq;
 
 /* requires cfg80211_mutex to be held! */
 struct cfg80211_registered_device *cfg80211_rdev_by_wiphy_idx(int wiphy_idx)
@@ -230,7 +234,7 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev;
 	int err = 0;
 
-	if (!rdev->wiphy.netnsok)
+	if (!(rdev->wiphy.flags & WIPHY_FLAG_NETNS_OK))
 		return -EOPNOTSUPP;
 
 	list_for_each_entry(wdev, &rdev->netdev_list, list) {
@@ -359,11 +363,17 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
 
+#ifdef CONFIG_CFG80211_WEXT
+	rdev->wiphy.wext = &cfg80211_wext_handler;
+#endif
+
 	device_initialize(&rdev->wiphy.dev);
 	rdev->wiphy.dev.class = &ieee80211_class;
 	rdev->wiphy.dev.platform_data = rdev;
 
-	rdev->wiphy.ps_default = CONFIG_CFG80211_DEFAULT_PS_VALUE;
+#ifdef CONFIG_CFG80211_DEFAULT_PS
+	rdev->wiphy.flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
+#endif
 
 	wiphy_net_set(&rdev->wiphy, &init_net);
 
@@ -478,7 +488,7 @@ int wiphy_register(struct wiphy *wiphy)
 	if (IS_ERR(rdev->wiphy.debugfsdir))
 		rdev->wiphy.debugfsdir = NULL;
 
-	if (wiphy->custom_regulatory) {
+	if (wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY) {
 		struct regulatory_request request;
 
 		request.wiphy_idx = get_wiphy_idx(wiphy);
@@ -542,7 +552,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	 * First remove the hardware from everywhere, this makes
 	 * it impossible to find from userspace.
 	 */
-	cfg80211_debugfs_rdev_del(rdev);
+	debugfs_remove_recursive(rdev->wiphy.debugfsdir);
 	list_del(&rdev->list);
 
 	/*
@@ -565,7 +575,6 @@ void wiphy_unregister(struct wiphy *wiphy)
 
 	cfg80211_rdev_list_generation++;
 	device_del(&rdev->wiphy.dev);
-	debugfs_remove(rdev->wiphy.debugfsdir);
 
 	mutex_unlock(&cfg80211_mutex);
 
@@ -626,6 +635,10 @@ static void wdev_cleanup_work(struct work_struct *work)
 	dev_put(wdev->netdev);
 }
 
+static struct device_type wiphy_type = {
+	.name	= "wlan",
+};
+
 static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 					 unsigned long state,
 					 void *ndev)
@@ -642,6 +655,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 	WARN_ON(wdev->iftype == NL80211_IFTYPE_UNSPECIFIED);
 
 	switch (state) {
+	case NETDEV_POST_INIT:
+		SET_NETDEV_DEVTYPE(dev, &wiphy_type);
+		break;
 	case NETDEV_REGISTER:
 		/*
 		 * NB: cannot take rdev->mtx here because this may be
@@ -666,13 +682,14 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->netdev = dev;
 		wdev->sme_state = CFG80211_SME_IDLE;
 		mutex_unlock(&rdev->devlist_mtx);
-#ifdef CONFIG_WIRELESS_EXT
-		if (!dev->wireless_handlers)
-			dev->wireless_handlers = &cfg80211_wext_handler;
+#ifdef CONFIG_CFG80211_WEXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
-		wdev->wext.ps = wdev->wiphy->ps_default;
+		if (wdev->wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT)
+			wdev->wext.ps = true;
+		else
+			wdev->wext.ps = false;
 		wdev->wext.ps_timeout = 100;
 		if (rdev->ops->set_power_mgmt)
 			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
@@ -682,6 +699,12 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 				wdev->wext.ps = false;
 			}
 #endif
+		if (!dev->ethtool_ops)
+			dev->ethtool_ops = &cfg80211_ethtool_ops;
+
+		if ((wdev->iftype == NL80211_IFTYPE_STATION ||
+		     wdev->iftype == NL80211_IFTYPE_ADHOC) && !wdev->use_4addr)
+			dev->priv_flags |= IFF_DONT_BRIDGE;
 		break;
 	case NETDEV_GOING_DOWN:
 		switch (wdev->iftype) {
@@ -690,7 +713,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		case NL80211_IFTYPE_STATION:
 			wdev_lock(wdev);
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.ie);
 			wdev->wext.ie = NULL;
 			wdev->wext.ie_len = 0;
@@ -707,7 +730,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		break;
 	case NETDEV_DOWN:
 		dev_hold(dev);
-		schedule_work(&wdev->cleanup_work);
+		queue_work(cfg80211_wq, &wdev->cleanup_work);
 		break;
 	case NETDEV_UP:
 		/*
@@ -722,9 +745,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			mutex_unlock(&rdev->devlist_mtx);
 			dev_put(dev);
 		}
-#ifdef CONFIG_WIRELESS_EXT
 		cfg80211_lock_rdev(rdev);
 		mutex_lock(&rdev->devlist_mtx);
+#ifdef CONFIG_CFG80211_WEXT
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
@@ -737,10 +760,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		}
 		wdev_unlock(wdev);
+#endif
 		rdev->opencount++;
 		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);
-#endif
 		break;
 	case NETDEV_UNREGISTER:
 		/*
@@ -760,7 +783,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_init(&wdev->list);
 			rdev->devlist_generation++;
-#ifdef CONFIG_WIRELESS_EXT
+#ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.keys);
 #endif
 		}
@@ -825,8 +848,14 @@ static int __init cfg80211_init(void)
 	if (err)
 		goto out_fail_reg;
 
+	cfg80211_wq = create_singlethread_workqueue("cfg80211");
+	if (!cfg80211_wq)
+		goto out_fail_wq;
+
 	return 0;
 
+out_fail_wq:
+	regulatory_exit();
 out_fail_reg:
 	debugfs_remove(ieee80211_debugfs_dir);
 out_fail_nl80211:
@@ -848,5 +877,6 @@ static void cfg80211_exit(void)
 	wiphy_sysfs_exit();
 	regulatory_exit();
 	unregister_pernet_device(&cfg80211_pernet_ops);
+	destroy_workqueue(cfg80211_wq);
 }
 module_exit(cfg80211_exit);

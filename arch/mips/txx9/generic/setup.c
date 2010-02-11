@@ -85,7 +85,7 @@ int txx9_ccfg_toeon __initdata = 1;
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	if (!strcmp(id, "spi-baseclk"))
-		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 4);
+		return (struct clk *)((unsigned long)txx9_gbus_clock / 2 / 2);
 	if (!strcmp(id, "imbus_clk"))
 		return (struct clk *)((unsigned long)txx9_gbus_clock / 2);
 	return ERR_PTR(-ENOENT);
@@ -160,7 +160,6 @@ static void __init prom_init_cmdline(void)
 	int argc;
 	int *argv32;
 	int i;			/* Always ignore the "-c" at argv[0] */
-	char builtin[CL_SIZE];
 
 	if (fw_arg0 >= CKSEG0 || fw_arg1 < CKSEG0) {
 		/*
@@ -174,20 +173,6 @@ static void __init prom_init_cmdline(void)
 		argv32 = (int *)fw_arg1;
 	}
 
-	/* ignore all built-in args if any f/w args given */
-	/*
-	 * But if built-in strings was started with '+', append them
-	 * to command line args.  If built-in was started with '-',
-	 * ignore all f/w args.
-	 */
-	builtin[0] = '\0';
-	if (arcs_cmdline[0] == '+')
-		strcpy(builtin, arcs_cmdline + 1);
-	else if (arcs_cmdline[0] == '-') {
-		strcpy(builtin, arcs_cmdline + 1);
-		argc = 0;
-	} else if (argc <= 1)
-		strcpy(builtin, arcs_cmdline);
 	arcs_cmdline[0] = '\0';
 
 	for (i = 1; i < argc; i++) {
@@ -200,12 +185,6 @@ static void __init prom_init_cmdline(void)
 			strcat(arcs_cmdline, "\"");
 		} else
 			strcat(arcs_cmdline, str);
-	}
-	/* append saved builtin args */
-	if (builtin[0]) {
-		if (arcs_cmdline[0])
-			strcat(arcs_cmdline, " ");
-		strcat(arcs_cmdline, builtin);
 	}
 }
 
@@ -315,7 +294,7 @@ static inline void txx9_cache_fixup(void)
 
 static void __init preprocess_cmdline(void)
 {
-	char cmdline[CL_SIZE];
+	static char cmdline[COMMAND_LINE_SIZE] __initdata;
 	char *s;
 
 	strcpy(cmdline, arcs_cmdline);
@@ -817,7 +796,8 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 out_pdev:
 	platform_device_put(pdev);
 out_gpio:
-	gpio_remove(&iocled->chip);
+	if (gpiochip_remove(&iocled->chip))
+		return;
 out_unmap:
 	iounmap(iocled->mmioaddr);
 out_free:

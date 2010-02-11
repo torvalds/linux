@@ -181,7 +181,7 @@ err:
 	return ret;
 }
 
-static int palmte2_backlight_notify(int brightness)
+static int palmte2_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_PALMTE2_BL_POWER, brightness);
 	gpio_set_value(GPIO_NR_PALMTE2_LCD_POWER, brightness);
@@ -372,6 +372,10 @@ static void __init palmte2_udc_init(void)
 static void __init palmte2_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmte2_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	set_pxa_fb_info(&palmte2_lcd_screen);
 	pxa_set_mci_info(&palmte2_mci_platform_data);

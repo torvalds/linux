@@ -1919,7 +1919,7 @@ static const struct v4l2_subdev_tuner_ops tvaudio_tuner_ops = {
 	.s_radio = tvaudio_s_radio,
 	.s_frequency = tvaudio_s_frequency,
 	.s_tuner = tvaudio_s_tuner,
-	.s_tuner = tvaudio_g_tuner,
+	.g_tuner = tvaudio_g_tuner,
 };
 
 static const struct v4l2_subdev_audio_ops tvaudio_audio_ops = {

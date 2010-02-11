@@ -48,6 +48,7 @@ static struct ieee80211_hw * ath_get_virt_hw(struct ath_softc *sc,
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_desc *ds;
 	struct sk_buff *skb;
 
@@ -59,14 +60,16 @@ static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 
 	/* virtual addr of the beginning of the buffer. */
 	skb = bf->bf_mpdu;
-	ASSERT(skb != NULL);
+	BUG_ON(skb == NULL);
 	ds->ds_vdata = skb->data;
 
-	/* setup rx descriptors. The rx.bufsize here tells the harware
+	/*
+	 * setup rx descriptors. The rx_bufsize here tells the hardware
 	 * how much data it can DMA to us and that we are prepared
-	 * to process */
+	 * to process
+	 */
 	ath9k_hw_setuprxdesc(ah, ds,
-			     sc->rx.bufsize,
+			     common->rx_bufsize,
 			     0);
 
 	if (sc->rx.rxlink == NULL)
@@ -86,192 +89,11 @@ static void ath_setdefantenna(struct ath_softc *sc, u32 antenna)
 	sc->rx.rxotherant = 0;
 }
 
-/*
- *  Extend 15-bit time stamp from rx descriptor to
- *  a full 64-bit TSF using the current h/w TSF.
-*/
-static u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp)
-{
-	u64 tsf;
-
-	tsf = ath9k_hw_gettsf64(sc->sc_ah);
-	if ((tsf & 0x7fff) < rstamp)
-		tsf -= 0x8000;
-	return (tsf & ~0x7fff) | rstamp;
-}
-
-/*
- * For Decrypt or Demic errors, we only mark packet status here and always push
- * up the frame up to let mac80211 handle the actual error case, be it no
- * decryption key or real decryption error. This let us keep statistics there.
- */
-static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
-			  struct ieee80211_rx_status *rx_status, bool *decrypt_error,
-			  struct ath_softc *sc)
-{
-	struct ieee80211_hdr *hdr;
-	u8 ratecode;
-	__le16 fc;
-	struct ieee80211_hw *hw;
-	struct ieee80211_sta *sta;
-	struct ath_node *an;
-	int last_rssi = ATH_RSSI_DUMMY_MARKER;
-
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
-	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
-	hw = ath_get_virt_hw(sc, hdr);
-
-	if (ds->ds_rxstat.rs_more) {
-		/*
-		 * Frame spans multiple descriptors; this cannot happen yet
-		 * as we don't support jumbograms. If not in monitor mode,
-		 * discard the frame. Enable this if you want to see
-		 * error frames in Monitor mode.
-		 */
-		if (sc->sc_ah->opmode != NL80211_IFTYPE_MONITOR)
-			goto rx_next;
-	} else if (ds->ds_rxstat.rs_status != 0) {
-		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
-			rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_PHY)
-			goto rx_next;
-
-		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_DECRYPT) {
-			*decrypt_error = true;
-		} else if (ds->ds_rxstat.rs_status & ATH9K_RXERR_MIC) {
-			if (ieee80211_is_ctl(fc))
-				/*
-				 * Sometimes, we get invalid
-				 * MIC failures on valid control frames.
-				 * Remove these mic errors.
-				 */
-				ds->ds_rxstat.rs_status &= ~ATH9K_RXERR_MIC;
-			else
-				rx_status->flag |= RX_FLAG_MMIC_ERROR;
-		}
-		/*
-		 * Reject error frames with the exception of
-		 * decryption and MIC failures. For monitor mode,
-		 * we also ignore the CRC error.
-		 */
-		if (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR) {
-			if (ds->ds_rxstat.rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
-			      ATH9K_RXERR_CRC))
-				goto rx_next;
-		} else {
-			if (ds->ds_rxstat.rs_status &
-			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC)) {
-				goto rx_next;
-			}
-		}
-	}
-
-	ratecode = ds->ds_rxstat.rs_rate;
-
-	if (ratecode & 0x80) {
-		/* HT rate */
-		rx_status->flag |= RX_FLAG_HT;
-		if (ds->ds_rxstat.rs_flags & ATH9K_RX_2040)
-			rx_status->flag |= RX_FLAG_40MHZ;
-		if (ds->ds_rxstat.rs_flags & ATH9K_RX_GI)
-			rx_status->flag |= RX_FLAG_SHORT_GI;
-		rx_status->rate_idx = ratecode & 0x7f;
-	} else {
-		int i = 0, cur_band, n_rates;
-
-		cur_band = hw->conf.channel->band;
-		n_rates = sc->sbands[cur_band].n_bitrates;
-
-		for (i = 0; i < n_rates; i++) {
-			if (sc->sbands[cur_band].bitrates[i].hw_value ==
-			    ratecode) {
-				rx_status->rate_idx = i;
-				break;
-			}
-
-			if (sc->sbands[cur_band].bitrates[i].hw_value_short ==
-			    ratecode) {
-				rx_status->rate_idx = i;
-				rx_status->flag |= RX_FLAG_SHORTPRE;
-				break;
-			}
-		}
-	}
-
-	rcu_read_lock();
-	sta = ieee80211_find_sta(sc->hw, hdr->addr2);
-	if (sta) {
-		an = (struct ath_node *) sta->drv_priv;
-		if (ds->ds_rxstat.rs_rssi != ATH9K_RSSI_BAD &&
-		   !ds->ds_rxstat.rs_moreaggr)
-			ATH_RSSI_LPF(an->last_rssi, ds->ds_rxstat.rs_rssi);
-		last_rssi = an->last_rssi;
-	}
-	rcu_read_unlock();
-
-	if (likely(last_rssi != ATH_RSSI_DUMMY_MARKER))
-		ds->ds_rxstat.rs_rssi = ATH_EP_RND(last_rssi,
-					ATH_RSSI_EP_MULTIPLIER);
-	if (ds->ds_rxstat.rs_rssi < 0)
-		ds->ds_rxstat.rs_rssi = 0;
-	else if (ds->ds_rxstat.rs_rssi > 127)
-		ds->ds_rxstat.rs_rssi = 127;
-
-	/* Update Beacon RSSI, this is used by ANI. */
-	if (ieee80211_is_beacon(fc))
-		sc->sc_ah->stats.avgbrssi = ds->ds_rxstat.rs_rssi;
-
-	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
-	rx_status->band = hw->conf.channel->band;
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->noise = sc->ani.noise_floor;
-	rx_status->signal = ATH_DEFAULT_NOISE_FLOOR + ds->ds_rxstat.rs_rssi;
-	rx_status->antenna = ds->ds_rxstat.rs_antenna;
-
-	/*
-	 * Theory for reporting quality:
-	 *
-	 * At a hardware RSSI of 45 you will be able to use MCS 7  reliably.
-	 * At a hardware RSSI of 45 you will be able to use MCS 15 reliably.
-	 * At a hardware RSSI of 35 you should be able use 54 Mbps reliably.
-	 *
-	 * MCS 7  is the highets MCS index usable by a 1-stream device.
-	 * MCS 15 is the highest MCS index usable by a 2-stream device.
-	 *
-	 * All ath9k devices are either 1-stream or 2-stream.
-	 *
-	 * How many bars you see is derived from the qual reporting.
-	 *
-	 * A more elaborate scheme can be used here but it requires tables
-	 * of SNR/throughput for each possible mode used. For the MCS table
-	 * you can refer to the wireless wiki:
-	 *
-	 * http://wireless.kernel.org/en/developers/Documentation/ieee80211/802.11n
-	 *
-	 */
-	if (conf_is_ht(&hw->conf))
-		rx_status->qual =  ds->ds_rxstat.rs_rssi * 100 / 45;
-	else
-		rx_status->qual =  ds->ds_rxstat.rs_rssi * 100 / 35;
-
-	/* rssi can be more than 45 though, anything above that
-	 * should be considered at 100% */
-	if (rx_status->qual > 100)
-		rx_status->qual = 100;
-
-	rx_status->flag |= RX_FLAG_TSFT;
-
-	return 1;
-rx_next:
-	return 0;
-}
-
 static void ath_opmode_init(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
@@ -280,13 +102,13 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 	/* configure bssid mask */
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_hw_setbssidmask(sc);
+		ath_hw_setbssidmask(common);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
 	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, sc->sc_ah->macaddr);
+	ath9k_hw_setmac(ah, common->macaddr);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -295,6 +117,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 int ath_rx_init(struct ath_softc *sc, int nbufs)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct sk_buff *skb;
 	struct ath_buf *bf;
 	int error = 0;
@@ -303,24 +126,24 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_lock_init(&sc->rx.rxbuflock);
 
-	sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-				 min(sc->common.cachelsz, (u16)64));
+	common->rx_bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
+				     min(common->cachelsz, (u16)64));
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-		sc->common.cachelsz, sc->rx.bufsize);
+	ath_print(common, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
+		  common->cachelsz, common->rx_bufsize);
 
 	/* Initialize rx descriptors */
 
 	error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
 				  "rx", nbufs, 1);
 	if (error != 0) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"failed to allocate rx descriptors: %d\n", error);
+		ath_print(common, ATH_DBG_FATAL,
+			  "failed to allocate rx descriptors: %d\n", error);
 		goto err;
 	}
 
 	list_for_each_entry(bf, &sc->rx.rxbuf, list) {
-		skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_KERNEL);
+		skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_KERNEL);
 		if (skb == NULL) {
 			error = -ENOMEM;
 			goto err;
@@ -328,14 +151,14 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 
 		bf->bf_mpdu = skb;
 		bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
-						 sc->rx.bufsize,
+						 common->rx_bufsize,
 						 DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(sc->dev,
 					       bf->bf_buf_addr))) {
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"dma_mapping_error() on RX init\n");
+			ath_print(common, ATH_DBG_FATAL,
+				  "dma_mapping_error() on RX init\n");
 			error = -ENOMEM;
 			goto err;
 		}
@@ -352,6 +175,8 @@ err:
 
 void ath_rx_cleanup(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct sk_buff *skb;
 	struct ath_buf *bf;
 
@@ -359,7 +184,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 		skb = bf->bf_mpdu;
 		if (skb) {
 			dma_unmap_single(sc->dev, bf->bf_buf_addr,
-					 sc->rx.bufsize, DMA_FROM_DEVICE);
+					 common->rx_bufsize, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 		}
 	}
@@ -420,7 +245,10 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	else
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
-	if (sc->rx.rxfilter & FIF_PSPOLL)
+	if ((AR_SREV_9280_10_OR_LATER(sc->sc_ah) ||
+	    AR_SREV_9285_10_OR_LATER(sc->sc_ah)) &&
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_AP) &&
+	    (sc->rx.rxfilter & FIF_PSPOLL))
 		rfilt |= ATH9K_RX_FILTER_PSPOLL;
 
 	if (conf_is_ht(&sc->hw->conf))
@@ -527,20 +355,22 @@ static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
 static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_mgmt *mgmt;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	if (skb->len < 24 + 8 + 2 + 2)
 		return;
 
 	mgmt = (struct ieee80211_mgmt *)skb->data;
-	if (memcmp(sc->curbssid, mgmt->bssid, ETH_ALEN) != 0)
+	if (memcmp(common->curbssid, mgmt->bssid, ETH_ALEN) != 0)
 		return; /* not from our current AP */
 
 	sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
 
 	if (sc->sc_flags & SC_OP_BEACON_SYNC) {
 		sc->sc_flags &= ~SC_OP_BEACON_SYNC;
-		DPRINTF(sc, ATH_DBG_PS, "Reconfigure Beacon timers based on "
-			"timestamp from the AP\n");
+		ath_print(common, ATH_DBG_PS,
+			  "Reconfigure Beacon timers based on "
+			  "timestamp from the AP\n");
 		ath_beacon_config(sc, NULL);
 	}
 
@@ -552,8 +382,8 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * a backup trigger for returning into NETWORK SLEEP state,
 		 * so we are waiting for it as well.
 		 */
-		DPRINTF(sc, ATH_DBG_PS, "Received DTIM beacon indicating "
-			"buffered broadcast/multicast frame(s)\n");
+		ath_print(common, ATH_DBG_PS, "Received DTIM beacon indicating "
+			  "buffered broadcast/multicast frame(s)\n");
 		sc->sc_flags |= SC_OP_WAIT_FOR_CAB | SC_OP_WAIT_FOR_BEACON;
 		return;
 	}
@@ -565,13 +395,15 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 		 * been delivered.
 		 */
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
-		DPRINTF(sc, ATH_DBG_PS, "PS wait for CAB frames timed out\n");
+		ath_print(common, ATH_DBG_PS,
+			  "PS wait for CAB frames timed out\n");
 	}
 }
 
 static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 
@@ -589,14 +421,15 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		 * point.
 		 */
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_CAB;
-		DPRINTF(sc, ATH_DBG_PS, "All PS CAB frames received, back to "
-			"sleep\n");
+		ath_print(common, ATH_DBG_PS,
+			  "All PS CAB frames received, back to sleep\n");
 	} else if ((sc->sc_flags & SC_OP_WAIT_FOR_PSPOLL_DATA) &&
 		   !is_multicast_ether_addr(hdr->addr1) &&
 		   !ieee80211_has_morefrags(hdr->frame_control)) {
 		sc->sc_flags &= ~SC_OP_WAIT_FOR_PSPOLL_DATA;
-		DPRINTF(sc, ATH_DBG_PS, "Going back to sleep after having "
-			"received PS-Poll data (0x%x)\n",
+		ath_print(common, ATH_DBG_PS,
+			  "Going back to sleep after having received "
+			  "PS-Poll data (0x%x)\n",
 			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
 					SC_OP_WAIT_FOR_CAB |
 					SC_OP_WAIT_FOR_PSPOLL_DATA |
@@ -604,8 +437,9 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 	}
 }
 
-static void ath_rx_send_to_mac80211(struct ath_softc *sc, struct sk_buff *skb,
-				    struct ieee80211_rx_status *rx_status)
+static void ath_rx_send_to_mac80211(struct ieee80211_hw *hw,
+				    struct ath_softc *sc, struct sk_buff *skb,
+				    struct ieee80211_rx_status *rxs)
 {
 	struct ieee80211_hdr *hdr;
 
@@ -625,19 +459,14 @@ static void ath_rx_send_to_mac80211(struct ath_softc *sc, struct sk_buff *skb,
 			if (aphy == NULL)
 				continue;
 			nskb = skb_copy(skb, GFP_ATOMIC);
-			if (nskb) {
-				memcpy(IEEE80211_SKB_RXCB(nskb), rx_status,
-					sizeof(*rx_status));
-				ieee80211_rx(aphy->hw, nskb);
-			}
+			if (!nskb)
+				continue;
+			ieee80211_rx(aphy->hw, nskb);
 		}
-		memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
 		ieee80211_rx(sc->hw, skb);
-	} else {
+	} else
 		/* Deliver unicast frames based on receiver address */
-		memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
-		ieee80211_rx(ath_get_virt_hw(sc, hdr), skb);
-	}
+		ieee80211_rx(hw, skb);
 }
 
 int ath_rx_tasklet(struct ath_softc *sc, int flush)
@@ -648,14 +477,20 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 	struct ath_buf *bf;
 	struct ath_desc *ds;
+	struct ath_rx_status *rx_stats;
 	struct sk_buff *skb = NULL, *requeue_skb;
-	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status *rxs;
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	/*
+	 * The hw can techncically differ from common->hw when using ath9k
+	 * virtual wiphy so to account for that we iterate over the active
+	 * wiphys and find the appropriate wiphy and therefore hw.
+	 */
+	struct ieee80211_hw *hw = NULL;
 	struct ieee80211_hdr *hdr;
-	int hdrlen, padsize, retval;
+	int retval;
 	bool decrypt_error = false;
-	u8 keyix;
-	__le16 fc;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
 
@@ -727,8 +562,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 * 2. requeueing the same buffer to h/w
 		 */
 		dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
-				sc->rx.bufsize,
+				common->rx_bufsize,
 				DMA_FROM_DEVICE);
+
+		hdr = (struct ieee80211_hdr *) skb->data;
+		rxs =  IEEE80211_SKB_RXCB(skb);
+
+		hw = ath_get_virt_hw(sc, hdr);
+		rx_stats = &ds->ds_rxstat;
 
 		/*
 		 * If we're asked to flush receive queue, directly
@@ -737,19 +578,14 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		if (flush)
 			goto requeue;
 
-		if (!ds->ds_rxstat.rs_datalen)
-			goto requeue;
-
-		/* The status portion of the descriptor could get corrupted. */
-		if (sc->rx.bufsize < ds->ds_rxstat.rs_datalen)
-			goto requeue;
-
-		if (!ath_rx_prepare(skb, ds, &rx_status, &decrypt_error, sc))
+		retval = ath9k_cmn_rx_skb_preprocess(common, hw, skb, rx_stats,
+						     rxs, &decrypt_error);
+		if (retval)
 			goto requeue;
 
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
-		requeue_skb = ath_rxbuf_alloc(&sc->common, sc->rx.bufsize, GFP_ATOMIC);
+		requeue_skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_ATOMIC);
 
 		/* If there is no memory we ignore the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
@@ -760,60 +596,26 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		/* Unmap the frame */
 		dma_unmap_single(sc->dev, bf->bf_buf_addr,
-				 sc->rx.bufsize,
+				 common->rx_bufsize,
 				 DMA_FROM_DEVICE);
 
-		skb_put(skb, ds->ds_rxstat.rs_datalen);
+		skb_put(skb, rx_stats->rs_datalen);
 
-		/* see if any padding is done by the hw and remove it */
-		hdr = (struct ieee80211_hdr *)skb->data;
-		hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-		fc = hdr->frame_control;
-
-		/* The MAC header is padded to have 32-bit boundary if the
-		 * packet payload is non-zero. The general calculation for
-		 * padsize would take into account odd header lengths:
-		 * padsize = (4 - hdrlen % 4) % 4; However, since only
-		 * even-length headers are used, padding can only be 0 or 2
-		 * bytes and we can optimize this a bit. In addition, we must
-		 * not try to remove padding from short control frames that do
-		 * not have payload. */
-		padsize = hdrlen & 3;
-		if (padsize && hdrlen >= 24) {
-			memmove(skb->data + padsize, skb->data, hdrlen);
-			skb_pull(skb, padsize);
-		}
-
-		keyix = ds->ds_rxstat.rs_keyix;
-
-		if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error) {
-			rx_status.flag |= RX_FLAG_DECRYPTED;
-		} else if (ieee80211_has_protected(fc)
-			   && !decrypt_error && skb->len >= hdrlen + 4) {
-			keyix = skb->data[hdrlen + 3] >> 6;
-
-			if (test_bit(keyix, sc->keymap))
-				rx_status.flag |= RX_FLAG_DECRYPTED;
-		}
-		if (ah->sw_mgmt_crypto &&
-		    (rx_status.flag & RX_FLAG_DECRYPTED) &&
-		    ieee80211_is_mgmt(fc)) {
-			/* Use software decrypt for management frames. */
-			rx_status.flag &= ~RX_FLAG_DECRYPTED;
-		}
+		ath9k_cmn_rx_skb_postprocess(common, skb, rx_stats,
+					     rxs, decrypt_error);
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
 		bf->bf_buf_addr = dma_map_single(sc->dev, requeue_skb->data,
-					 sc->rx.bufsize,
-					 DMA_FROM_DEVICE);
+						 common->rx_bufsize,
+						 DMA_FROM_DEVICE);
 		if (unlikely(dma_mapping_error(sc->dev,
 			  bf->bf_buf_addr))) {
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
-			DPRINTF(sc, ATH_DBG_FATAL,
-				"dma_mapping_error() on RX\n");
-			ath_rx_send_to_mac80211(sc, skb, &rx_status);
+			ath_print(common, ATH_DBG_FATAL,
+				  "dma_mapping_error() on RX\n");
+			ath_rx_send_to_mac80211(hw, sc, skb, rxs);
 			break;
 		}
 		bf->bf_dmacontext = bf->bf_buf_addr;
@@ -824,7 +626,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		 */
 		if (sc->rx.defant != ds->ds_rxstat.rs_antenna) {
 			if (++sc->rx.rxotherant >= 3)
-				ath_setdefantenna(sc, ds->ds_rxstat.rs_antenna);
+				ath_setdefantenna(sc, rx_stats->rs_antenna);
 		} else {
 			sc->rx.rxotherant = 0;
 		}
@@ -834,7 +636,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 					     SC_OP_WAIT_FOR_PSPOLL_DATA)))
 			ath_rx_ps(sc, skb);
 
-		ath_rx_send_to_mac80211(sc, skb, &rx_status);
+		ath_rx_send_to_mac80211(hw, sc, skb, rxs);
 
 requeue:
 		list_move_tail(&bf->list, &sc->rx.rxbuf);

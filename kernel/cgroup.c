@@ -1710,14 +1710,13 @@ static ssize_t cgroup_write_X64(struct cgroup *cgrp, struct cftype *cft,
 		return -EFAULT;
 
 	buffer[nbytes] = 0;     /* nul-terminate */
-	strstrip(buffer);
 	if (cft->write_u64) {
-		u64 val = simple_strtoull(buffer, &end, 0);
+		u64 val = simple_strtoull(strstrip(buffer), &end, 0);
 		if (*end)
 			return -EINVAL;
 		retval = cft->write_u64(cgrp, cft, val);
 	} else {
-		s64 val = simple_strtoll(buffer, &end, 0);
+		s64 val = simple_strtoll(strstrip(buffer), &end, 0);
 		if (*end)
 			return -EINVAL;
 		retval = cft->write_s64(cgrp, cft, val);
@@ -1753,8 +1752,7 @@ static ssize_t cgroup_write_string(struct cgroup *cgrp, struct cftype *cft,
 	}
 
 	buffer[nbytes] = 0;     /* nul-terminate */
-	strstrip(buffer);
-	retval = cft->write_string(cgrp, cft, buffer);
+	retval = cft->write_string(cgrp, cft, strstrip(buffer));
 	if (!retval)
 		retval = nbytes;
 out:
@@ -2470,7 +2468,6 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 			/* make sure l doesn't vanish out from under us */
 			down_write(&l->mutex);
 			mutex_unlock(&cgrp->pidlist_mutex);
-			l->use_count++;
 			return l;
 		}
 	}
@@ -2939,14 +2936,17 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	for_each_subsys(root, ss) {
 		struct cgroup_subsys_state *css = ss->create(ss, cgrp);
+
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
 			goto err_destroy;
 		}
 		init_cgroup_css(css, ss, cgrp);
-		if (ss->use_id)
-			if (alloc_css_id(ss, parent, cgrp))
+		if (ss->use_id) {
+			err = alloc_css_id(ss, parent, cgrp);
+			if (err)
 				goto err_destroy;
+		}
 		/* At error, ->destroy() callback has to free assigned ID. */
 	}
 

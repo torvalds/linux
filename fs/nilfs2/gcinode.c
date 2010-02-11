@@ -149,7 +149,7 @@ int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
 				   __u64 vbn, struct buffer_head **out_bh)
 {
 	int ret = nilfs_btnode_submit_block(&NILFS_I(inode)->i_btnode_cache,
-					    vbn ? : pbn, pbn, out_bh, 0);
+					    vbn ? : pbn, pbn, out_bh);
 	if (ret == -EEXIST) /* internal code (cache hit) */
 		ret = 0;
 	return ret;
@@ -212,9 +212,10 @@ void nilfs_destroy_gccache(struct the_nilfs *nilfs)
 static struct inode *alloc_gcinode(struct the_nilfs *nilfs, ino_t ino,
 				   __u64 cno)
 {
-	struct inode *inode = nilfs_mdt_new_common(nilfs, NULL, ino, GFP_NOFS);
+	struct inode *inode;
 	struct nilfs_inode_info *ii;
 
+	inode = nilfs_mdt_new_common(nilfs, NULL, ino, GFP_NOFS, 0);
 	if (!inode)
 		return NULL;
 
@@ -265,7 +266,6 @@ struct inode *nilfs_gc_iget(struct the_nilfs *nilfs, ino_t ino, __u64 cno)
  */
 void nilfs_clear_gcinode(struct inode *inode)
 {
-	nilfs_mdt_clear(inode);
 	nilfs_mdt_destroy(inode);
 }
 

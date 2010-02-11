@@ -102,7 +102,6 @@
 
 /* Some offsets in PCI config space that are actually used. */
 #define ET1310_PCI_MAX_PYLD		0x4C
-#define ET1310_NMI_DISABLE		0x61
 #define ET1310_PCI_MAC_ADDRESS		0xA4
 #define ET1310_PCI_EEPROM_STATUS	0xB2
 #define ET1310_PCI_ACK_NACK		0xC0

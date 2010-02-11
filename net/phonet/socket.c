@@ -45,13 +45,28 @@ static int pn_socket_release(struct socket *sock)
 	return 0;
 }
 
+#define PN_HASHSIZE	16
+#define PN_HASHMASK	(PN_HASHSIZE-1)
+
+
 static struct  {
-	struct hlist_head hlist;
+	struct hlist_head hlist[PN_HASHSIZE];
 	spinlock_t lock;
-} pnsocks = {
-	.hlist = HLIST_HEAD_INIT,
-	.lock = __SPIN_LOCK_UNLOCKED(pnsocks.lock),
-};
+} pnsocks;
+
+void __init pn_sock_init(void)
+{
+	unsigned i;
+
+	for (i = 0; i < PN_HASHSIZE; i++)
+		INIT_HLIST_HEAD(pnsocks.hlist + i);
+	spin_lock_init(&pnsocks.lock);
+}
+
+static struct hlist_head *pn_hash_list(u16 obj)
+{
+	return pnsocks.hlist + (obj & PN_HASHMASK);
+}
 
 /*
  * Find address based on socket address, match only certain fields.
@@ -64,10 +79,11 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 	struct sock *rval = NULL;
 	u16 obj = pn_sockaddr_get_object(spn);
 	u8 res = spn->spn_resource;
+	struct hlist_head *hlist = pn_hash_list(obj);
 
 	spin_lock_bh(&pnsocks.lock);
 
-	sk_for_each(sknode, node, &pnsocks.hlist) {
+	sk_for_each(sknode, node, hlist) {
 		struct pn_sock *pn = pn_sk(sknode);
 		BUG_ON(!pn->sobject); /* unbound socket */
 
@@ -82,8 +98,8 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 			if (pn->resource != res)
 				continue;
 		}
-		if (pn_addr(pn->sobject)
-		 && pn_addr(pn->sobject) != pn_addr(obj))
+		if (pn_addr(pn->sobject) &&
+		    pn_addr(pn->sobject) != pn_addr(obj))
 			continue;
 
 		rval = sknode;
@@ -94,13 +110,44 @@ struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 	spin_unlock_bh(&pnsocks.lock);
 
 	return rval;
+}
 
+/* Deliver a broadcast packet (only in bottom-half) */
+void pn_deliver_sock_broadcast(struct net *net, struct sk_buff *skb)
+{
+	struct hlist_head *hlist = pnsocks.hlist;
+	unsigned h;
+
+	spin_lock(&pnsocks.lock);
+	for (h = 0; h < PN_HASHSIZE; h++) {
+		struct hlist_node *node;
+		struct sock *sknode;
+
+		sk_for_each(sknode, node, hlist) {
+			struct sk_buff *clone;
+
+			if (!net_eq(sock_net(sknode), net))
+				continue;
+			if (!sock_flag(sknode, SOCK_BROADCAST))
+				continue;
+
+			clone = skb_clone(skb, GFP_ATOMIC);
+			if (clone) {
+				sock_hold(sknode);
+				sk_receive_skb(sknode, clone, 0);
+			}
+		}
+		hlist++;
+	}
+	spin_unlock(&pnsocks.lock);
 }
 
 void pn_sock_hash(struct sock *sk)
 {
+	struct hlist_head *hlist = pn_hash_list(pn_sk(sk)->sobject);
+
 	spin_lock_bh(&pnsocks.lock);
-	sk_add_node(sk, &pnsocks.hlist);
+	sk_add_node(sk, hlist);
 	spin_unlock_bh(&pnsocks.lock);
 }
 EXPORT_SYMBOL(pn_sock_hash);
@@ -416,15 +463,20 @@ EXPORT_SYMBOL(pn_sock_get_port);
 static struct sock *pn_sock_get_idx(struct seq_file *seq, loff_t pos)
 {
 	struct net *net = seq_file_net(seq);
+	struct hlist_head *hlist = pnsocks.hlist;
 	struct hlist_node *node;
 	struct sock *sknode;
+	unsigned h;
 
-	sk_for_each(sknode, node, &pnsocks.hlist) {
-		if (!net_eq(net, sock_net(sknode)))
-			continue;
-		if (!pos)
-			return sknode;
-		pos--;
+	for (h = 0; h < PN_HASHSIZE; h++) {
+		sk_for_each(sknode, node, hlist) {
+			if (!net_eq(net, sock_net(sknode)))
+				continue;
+			if (!pos)
+				return sknode;
+			pos--;
+		}
+		hlist++;
 	}
 	return NULL;
 }

@@ -26,6 +26,21 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 
+static char *bits_names(unsigned int bits, char *names[], int size)
+{
+	int i, n;
+	static char buf[128];
+
+	for (i = 0, n = 0; i < size; i++) {
+		if (bits & (1U<<i) && names[i])
+			n += snprintf(buf + n, sizeof(buf) - n, " %s",
+				      names[i]);
+	}
+	buf[n] = '\0';
+
+	return buf;
+}
+
 static const char *get_wid_type_name(unsigned int wid_value)
 {
 	static char *names[16] = {
@@ -44,6 +59,41 @@ static const char *get_wid_type_name(unsigned int wid_value)
 		return names[wid_value];
 	else
 		return "UNKNOWN Widget";
+}
+
+static void print_nid_mixers(struct snd_info_buffer *buffer,
+			     struct hda_codec *codec, hda_nid_t nid)
+{
+	int i;
+	struct hda_nid_item *items = codec->mixers.list;
+	struct snd_kcontrol *kctl;
+	for (i = 0; i < codec->mixers.used; i++) {
+		if (items[i].nid == nid) {
+			kctl = items[i].kctl;
+			snd_iprintf(buffer,
+			  "  Control: name=\"%s\", index=%i, device=%i\n",
+			  kctl->id.name, kctl->id.index, kctl->id.device);
+		}
+	}
+}
+
+static void print_nid_pcms(struct snd_info_buffer *buffer,
+			   struct hda_codec *codec, hda_nid_t nid)
+{
+	int pcm, type;
+	struct hda_pcm *cpcm;
+	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
+		cpcm = &codec->pcm_info[pcm];
+		for (type = 0; type < 2; type++) {
+			if (cpcm->stream[type].nid != nid || cpcm->pcm == NULL)
+				continue;
+			snd_iprintf(buffer, "  Device: name=\"%s\", "
+				    "type=\"%s\", device=%i\n",
+				    cpcm->name,
+				    snd_hda_pcm_type_name[cpcm->pcm_type],
+				    cpcm->pcm->device);
+		}
+	}
 }
 
 static void print_amp_caps(struct snd_info_buffer *buffer,
@@ -190,9 +240,14 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		/* Realtek uses this bit as a different meaning */
 		if ((codec->vendor_id >> 16) == 0x10ec)
 			snd_iprintf(buffer, " R/L");
-		else
+		else {
+			if (caps & AC_PINCAP_HBR)
+				snd_iprintf(buffer, " HBR");
 			snd_iprintf(buffer, " HDMI");
+		}
 	}
+	if (caps & AC_PINCAP_DP)
+		snd_iprintf(buffer, " DP");
 	if (caps & AC_PINCAP_TRIG_REQ)
 		snd_iprintf(buffer, " Trigger");
 	if (caps & AC_PINCAP_IMP_SENSE)
@@ -363,8 +418,24 @@ static const char *get_pwr_state(u32 state)
 static void print_power_state(struct snd_info_buffer *buffer,
 			      struct hda_codec *codec, hda_nid_t nid)
 {
+	static char *names[] = {
+		[ilog2(AC_PWRST_D0SUP)]		= "D0",
+		[ilog2(AC_PWRST_D1SUP)]		= "D1",
+		[ilog2(AC_PWRST_D2SUP)]		= "D2",
+		[ilog2(AC_PWRST_D3SUP)]		= "D3",
+		[ilog2(AC_PWRST_D3COLDSUP)]	= "D3cold",
+		[ilog2(AC_PWRST_S3D3COLDSUP)]	= "S3D3cold",
+		[ilog2(AC_PWRST_CLKSTOP)]	= "CLKSTOP",
+		[ilog2(AC_PWRST_EPSS)]		= "EPSS",
+	};
+
+	int sup = snd_hda_param_read(codec, nid, AC_PAR_POWER_STATE);
 	int pwr = snd_hda_codec_read(codec, nid, 0,
 				     AC_VERB_GET_POWER_STATE, 0);
+	if (sup)
+		snd_iprintf(buffer, "  Power states: %s\n",
+			    bits_names(sup, names, ARRAY_SIZE(names)));
+
 	snd_iprintf(buffer, "  Power: setting=%s, actual=%s\n",
 		    get_pwr_state(pwr & AC_PWRST_SETTING),
 		    get_pwr_state((pwr & AC_PWRST_ACTUAL) >>
@@ -457,6 +528,7 @@ static void print_gpio(struct snd_info_buffer *buffer,
 			    (data & (1<<i)) ? 1 : 0,
 			    (unsol & (1<<i)) ? 1 : 0);
 	/* FIXME: add GPO and GPI pin information */
+	print_nid_mixers(buffer, codec, nid);
 }
 
 static void print_codec_info(struct snd_info_entry *entry,
@@ -535,6 +607,9 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_CP_CAPS)
 			snd_iprintf(buffer, " CP");
 		snd_iprintf(buffer, "\n");
+
+		print_nid_mixers(buffer, codec, nid);
+		print_nid_pcms(buffer, codec, nid);
 
 		/* volume knob is a special widget that always have connection
 		 * list

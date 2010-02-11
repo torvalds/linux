@@ -381,7 +381,7 @@ err:
 	return ret;
 }
 
-static int magician_backlight_notify(int brightness)
+static int magician_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(EGPIO_MAGICIAN_BL_POWER, brightness);
 	if (brightness >= 200) {
@@ -741,6 +741,10 @@ static void __init magician_init(void)
 	gpio_request(GPIO107_MAGICIAN_DS1WM_IRQ, "DS1WM_IRQ");
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	platform_add_devices(ARRAY_AND_SIZE(devices));
 

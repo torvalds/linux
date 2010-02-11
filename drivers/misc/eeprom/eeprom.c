@@ -32,9 +32,6 @@
 static const unsigned short normal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
 					0x55, 0x56, 0x57, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(eeprom);
-
 
 /* Size of EEPROM in bytes */
 #define EEPROM_SIZE		256
@@ -135,8 +132,7 @@ static struct bin_attribute eeprom_attr = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int eeprom_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info)
+static int eeprom_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 
@@ -233,7 +229,7 @@ static struct i2c_driver eeprom_driver = {
 
 	.class		= I2C_CLASS_DDC | I2C_CLASS_SPD,
 	.detect		= eeprom_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init eeprom_init(void)

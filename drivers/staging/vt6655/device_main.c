@@ -661,7 +661,7 @@ else
    if(zonetype!=pDevice->abyEEPROM[EEP_OFS_ZONETYPE])
       printk("zonetype in file[%02x] mismatch with in EEPROM[%02x]\n",zonetype,pDevice->abyEEPROM[EEP_OFS_ZONETYPE]);
    else
-      printk("Read Zonetype file sucess,use default zonetype setting[%02x]\n",zonetype);
+      printk("Read Zonetype file success,use default zonetype setting[%02x]\n",zonetype);
  }
  	}
   else

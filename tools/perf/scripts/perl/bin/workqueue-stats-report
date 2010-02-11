@@ -1,0 +1,7 @@
+#!/bin/bash
+# description: workqueue stats (ins/exe/create/destroy)
+perf trace -s ~/libexec/perf-core/scripts/perl/workqueue-stats.pl
+
+
+
+

@@ -648,7 +648,7 @@ static inline int __init activate_vmi(void)
 
 	pv_info.paravirt_enabled = 1;
 	pv_info.kernel_rpl = kernel_cs & SEGMENT_RPL_MASK;
-	pv_info.name = "vmi";
+	pv_info.name = "vmi [deprecated]";
 
 	pv_init_ops.patch = vmi_patch;
 

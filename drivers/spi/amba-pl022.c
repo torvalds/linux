@@ -1826,7 +1826,7 @@ static struct amba_id pl022_ids[] = {
 		 * ST Micro derivative, this has 32bit wide
 		 * and 32 locations deep TX/RX FIFO
 		 */
-		.id	= 0x00108022,
+		.id	= 0x01080022,
 		.mask	= 0xffffffff,
 		.data	= &vendor_st,
 	},

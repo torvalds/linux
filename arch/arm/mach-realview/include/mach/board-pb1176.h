@@ -73,4 +73,9 @@
 #define REALVIEW_PB1176_GIC_DIST_BASE		0x10041000 /* GIC distributor, on FPGA */
 #define REALVIEW_PB1176_L220_BASE		0x10110000 /* L220 registers */
 
+/*
+ * Control register SYS_RESETCTL Bit 8 is set to 1 to force a soft reset
+ */
+#define REALVIEW_PB1176_SYS_SOFT_RESET    0x0100
+
 #endif	/* __ASM_ARCH_BOARD_PB1176_H */

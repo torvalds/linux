@@ -585,6 +585,11 @@ static void vgacon_init(struct vc_data *c, int init)
 	vgacon_uni_pagedir[1]++;
 	if (!vgacon_uni_pagedir[0] && p)
 		con_set_default_unimap(c);
+
+	/* Only set the default if the user didn't deliberately override it */
+	if (global_cursor_default == -1)
+		global_cursor_default =
+			!(screen_info.flags & VIDEO_FLAGS_NOCURSOR);
 }
 
 static void vgacon_deinit(struct vc_data *c)

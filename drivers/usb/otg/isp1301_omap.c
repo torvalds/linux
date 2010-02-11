@@ -36,8 +36,8 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/usb.h>
-#include <mach/mux.h>
+#include <plat/usb.h>
+#include <plat/mux.h>
 
 
 #ifndef	DEBUG
@@ -843,7 +843,7 @@ static irqreturn_t omap_otg_irq(int irq, void *_isp)
 
 static struct platform_device *otg_dev;
 
-static int otg_init(struct isp1301 *isp)
+static int isp1301_otg_init(struct isp1301 *isp)
 {
 	u32 l;
 
@@ -1275,7 +1275,7 @@ static int __exit isp1301_remove(struct i2c_client *i2c)
 static int isp1301_otg_enable(struct isp1301 *isp)
 {
 	power_up(isp);
-	otg_init(isp);
+	isp1301_otg_init(isp);
 
 	/* NOTE:  since we don't change this, this provides
 	 * a few more interrupts than are strictly needed.

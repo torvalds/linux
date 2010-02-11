@@ -13,44 +13,52 @@
 #include <linux/compat.h>
 
 /*
-** reiserfs_ioctl - handler for ioctl for inode
-** supported commands:
-**  1) REISERFS_IOC_UNPACK - try to unpack tail from direct item into indirect
-**                           and prevent packing file (argument arg has to be non-zero)
-**  2) REISERFS_IOC_[GS]ETFLAGS, REISERFS_IOC_[GS]ETVERSION
-**  3) That's all for a while ...
-*/
-int reiserfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		   unsigned long arg)
+ * reiserfs_ioctl - handler for ioctl for inode
+ * supported commands:
+ *  1) REISERFS_IOC_UNPACK - try to unpack tail from direct item into indirect
+ *                           and prevent packing file (argument arg has to be non-zero)
+ *  2) REISERFS_IOC_[GS]ETFLAGS, REISERFS_IOC_[GS]ETVERSION
+ *  3) That's all for a while ...
+ */
+long reiserfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	unsigned int flags;
 	int err = 0;
+
+	reiserfs_write_lock(inode->i_sb);
 
 	switch (cmd) {
 	case REISERFS_IOC_UNPACK:
 		if (S_ISREG(inode->i_mode)) {
 			if (arg)
-				return reiserfs_unpack(inode, filp);
-			else
-				return 0;
+				err = reiserfs_unpack(inode, filp);
 		} else
-			return -ENOTTY;
-		/* following two cases are taken from fs/ext2/ioctl.c by Remy
-		   Card (card@masi.ibp.fr) */
+			err = -ENOTTY;
+		break;
+		/*
+		 * following two cases are taken from fs/ext2/ioctl.c by Remy
+		 * Card (card@masi.ibp.fr)
+		 */
 	case REISERFS_IOC_GETFLAGS:
-		if (!reiserfs_attrs(inode->i_sb))
-			return -ENOTTY;
+		if (!reiserfs_attrs(inode->i_sb)) {
+			err = -ENOTTY;
+			break;
+		}
 
 		flags = REISERFS_I(inode)->i_attrs;
 		i_attrs_to_sd_attrs(inode, (__u16 *) & flags);
-		return put_user(flags, (int __user *)arg);
+		err = put_user(flags, (int __user *)arg);
+		break;
 	case REISERFS_IOC_SETFLAGS:{
-			if (!reiserfs_attrs(inode->i_sb))
-				return -ENOTTY;
+			if (!reiserfs_attrs(inode->i_sb)) {
+				err = -ENOTTY;
+				break;
+			}
 
 			err = mnt_want_write(filp->f_path.mnt);
 			if (err)
-				return err;
+				break;
 
 			if (!is_owner_or_cap(inode)) {
 				err = -EPERM;
@@ -90,16 +98,19 @@ int reiserfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 			mark_inode_dirty(inode);
 setflags_out:
 			mnt_drop_write(filp->f_path.mnt);
-			return err;
+			break;
 		}
 	case REISERFS_IOC_GETVERSION:
-		return put_user(inode->i_generation, (int __user *)arg);
+		err = put_user(inode->i_generation, (int __user *)arg);
+		break;
 	case REISERFS_IOC_SETVERSION:
-		if (!is_owner_or_cap(inode))
-			return -EPERM;
+		if (!is_owner_or_cap(inode)) {
+			err = -EPERM;
+			break;
+		}
 		err = mnt_want_write(filp->f_path.mnt);
 		if (err)
-			return err;
+			break;
 		if (get_user(inode->i_generation, (int __user *)arg)) {
 			err = -EFAULT;
 			goto setversion_out;
@@ -108,19 +119,20 @@ setflags_out:
 		mark_inode_dirty(inode);
 setversion_out:
 		mnt_drop_write(filp->f_path.mnt);
-		return err;
+		break;
 	default:
-		return -ENOTTY;
+		err = -ENOTTY;
 	}
+
+	reiserfs_write_unlock(inode->i_sb);
+
+	return err;
 }
 
 #ifdef CONFIG_COMPAT
 long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int ret;
-
 	/* These are just misnamed, they actually get/put from/to user an int */
 	switch (cmd) {
 	case REISERFS_IOC32_UNPACK:
@@ -141,10 +153,8 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 	default:
 		return -ENOIOCTLCMD;
 	}
-	lock_kernel();
-	ret = reiserfs_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
-	unlock_kernel();
-	return ret;
+
+	return reiserfs_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 }
 #endif
 

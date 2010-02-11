@@ -12,7 +12,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
@@ -23,7 +22,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/dm365.h>
-#include <mach/clock.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/psc.h>
@@ -32,6 +30,8 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
+#include <mach/asp.h>
+#include <mach/keyscan.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -369,7 +369,7 @@ static struct clk timer3_clk = {
 
 static struct clk usb_clk = {
 	.name		= "usb",
-	.parent		= &pll2_sysclk1,
+	.parent		= &pll1_aux_clk,
 	.lpsc		= DAVINCI_LPSC_USB,
 };
 
@@ -456,7 +456,7 @@ static struct davinci_clk dm365_clks[] = {
 	CLK(NULL, "usb", &usb_clk),
 	CLK("davinci_emac.1", NULL, &emac_clk),
 	CLK("voice_codec", NULL, &voicecodec_clk),
-	CLK("soc-audio.0", NULL, &asp0_clk),
+	CLK("davinci-asp.0", NULL, &asp0_clk),
 	CLK(NULL, "rto", &rto_clk),
 	CLK(NULL, "mjcp", &mjcp_clk),
 	CLK(NULL, NULL, NULL),
@@ -531,7 +531,7 @@ MUX_CFG(DM365,  EMAC_CRS,	3,   2,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_MDIO,	3,   1,     1,    1,     false)
 MUX_CFG(DM365,  EMAC_MDCLK,	3,   0,     1,    1,     false)
 
-MUX_CFG(DM365,	KEYPAD,		2,   0,     0x3f, 0x3f,  false)
+MUX_CFG(DM365,	KEYSCAN,	2,   0,     0x3f, 0x3f,  false)
 
 MUX_CFG(DM365,	PWM0,		1,   0,     3,    2,     false)
 MUX_CFG(DM365,	PWM0_G23,	3,   26,    3,    3,     false)
@@ -603,6 +603,9 @@ INT_CFG(DM365,  INT_IMX1_ENABLE,     24,    1,    1,     false)
 INT_CFG(DM365,  INT_IMX1_DISABLE,    24,    1,    0,     false)
 INT_CFG(DM365,  INT_NSF_ENABLE,      25,    1,    1,     false)
 INT_CFG(DM365,  INT_NSF_DISABLE,     25,    1,    0,     false)
+
+EVT_CFG(DM365,	EVT2_ASP_TX,         0,     1,    0,     false)
+EVT_CFG(DM365,	EVT3_ASP_RX,         1,     1,    0,     false)
 #endif
 };
 
@@ -696,6 +699,7 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_I2C]			= 3,
 	[IRQ_UARTINT0]			= 3,
 	[IRQ_UARTINT1]			= 3,
+	[IRQ_DM365_RTCINT]		= 3,
 	[IRQ_DM365_SPIINT0_0]		= 3,
 	[IRQ_DM365_SPIINT3_0]		= 3,
 	[IRQ_DM365_GPIO0]		= 3,
@@ -806,6 +810,50 @@ static struct platform_device dm365_edma_device = {
 	.resource		= edma_resources,
 };
 
+static struct resource dm365_asp_resources[] = {
+	{
+		.start	= DAVINCI_DM365_ASP0_BASE,
+		.end	= DAVINCI_DM365_ASP0_BASE + SZ_8K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP0_TX,
+		.end	= DAVINCI_DMA_ASP0_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		.start	= DAVINCI_DMA_ASP0_RX,
+		.end	= DAVINCI_DMA_ASP0_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dm365_asp_device = {
+	.name		= "davinci-asp",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm365_asp_resources),
+	.resource	= dm365_asp_resources,
+};
+
+static struct resource dm365_rtc_resources[] = {
+	{
+		.start = DM365_RTC_BASE,
+		.end = DM365_RTC_BASE + SZ_1K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_DM365_RTCINT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm365_rtc_device = {
+	.name = "rtc_davinci",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(dm365_rtc_resources),
+	.resource = dm365_rtc_resources,
+};
+
 static struct map_desc dm365_io_desc[] = {
 	{
 		.virtual	= IO_VIRT,
@@ -820,6 +868,28 @@ static struct map_desc dm365_io_desc[] = {
 		/* MT_MEMORY_NONCACHED requires supersection alignment */
 		.type		= MT_DEVICE,
 	},
+};
+
+static struct resource dm365_ks_resources[] = {
+	{
+		/* registers */
+		.start = DM365_KEYSCAN_BASE,
+		.end = DM365_KEYSCAN_BASE + SZ_1K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		/* interrupt */
+		.start = IRQ_DM365_KEYINT,
+		.end = IRQ_DM365_KEYINT,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm365_ks_device = {
+	.name		= "davinci_keyscan",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm365_ks_resources),
+	.resource	= dm365_ks_resources,
 };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
@@ -906,6 +976,32 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
 };
+
+void __init dm365_init_asp(struct snd_platform_data *pdata)
+{
+	davinci_cfg_reg(DM365_MCBSP0_BDX);
+	davinci_cfg_reg(DM365_MCBSP0_X);
+	davinci_cfg_reg(DM365_MCBSP0_BFSX);
+	davinci_cfg_reg(DM365_MCBSP0_BDR);
+	davinci_cfg_reg(DM365_MCBSP0_R);
+	davinci_cfg_reg(DM365_MCBSP0_BFSR);
+	davinci_cfg_reg(DM365_EVT2_ASP_TX);
+	davinci_cfg_reg(DM365_EVT3_ASP_RX);
+	dm365_asp_device.dev.platform_data = pdata;
+	platform_device_register(&dm365_asp_device);
+}
+
+void __init dm365_init_ks(struct davinci_ks_platform_data *pdata)
+{
+	dm365_ks_device.dev.platform_data = pdata;
+	platform_device_register(&dm365_ks_device);
+}
+
+void __init dm365_init_rtc(void)
+{
+	davinci_cfg_reg(DM365_INT_PRTCSS);
+	platform_device_register(&dm365_rtc_device);
+}
 
 void __init dm365_init(void)
 {

@@ -79,7 +79,7 @@ int i_APCI2200_Read1DigitalInput(struct comedi_device *dev, struct comedi_subdev
 	unsigned int ui_TmpValue = 0;
 	unsigned int ui_Channel;
 	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel >= 0 && ui_Channel <= 7) {
+	if (ui_Channel <= 7) {
 		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI2200_DIGITAL_IP);
 		*data = (ui_TmpValue >> ui_Channel) & 0x1;
 	}			/* if(ui_Channel >= 0 && ui_Channel <=7) */

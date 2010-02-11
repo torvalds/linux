@@ -213,7 +213,7 @@ load_config_help[] = N_(
 	"to modify that configuration.\n"
 	"\n"
 	"If you are uncertain, then you have probably never used alternate\n"
-	"configuration files.  You should therefor leave this blank to abort.\n"),
+	"configuration files. You should therefore leave this blank to abort.\n"),
 save_config_text[] = N_(
 	"Enter a filename to which this configuration should be saved "
 	"as an alternate.  Leave blank to abort."),

@@ -146,7 +146,7 @@ int rxrpc_recvmsg(struct kiocb *iocb, struct socket *sock,
 				memcpy(msg->msg_name,
 				       &call->conn->trans->peer->srx,
 				       sizeof(call->conn->trans->peer->srx));
-			sock_recv_timestamp(msg, &rx->sk, skb);
+			sock_recv_ts_and_drops(msg, &rx->sk, skb);
 		}
 
 		/* receive the message */

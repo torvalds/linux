@@ -171,7 +171,7 @@ static u32 flow_get_proto_dst(const struct sk_buff *skb)
 
 static u32 flow_get_iif(const struct sk_buff *skb)
 {
-	return skb->iif;
+	return skb->skb_iif;
 }
 
 static u32 flow_get_priority(const struct sk_buff *skb)

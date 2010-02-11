@@ -97,6 +97,7 @@ struct nilfs_segsum_pointer {
  * @sc_dsync_start: start byte offset of data pages
  * @sc_dsync_end: end byte offset of data pages (inclusive)
  * @sc_segbufs: List of segment buffers
+ * @sc_write_logs: List of segment buffers to hold logs under writing
  * @sc_segbuf_nblocks: Number of available blocks in segment buffers.
  * @sc_curseg: Current segment buffer
  * @sc_super_root: Pointer to the super root buffer
@@ -143,6 +144,7 @@ struct nilfs_sc_info {
 
 	/* Segment buffers */
 	struct list_head	sc_segbufs;
+	struct list_head	sc_write_logs;
 	unsigned long		sc_segbuf_nblocks;
 	struct nilfs_segment_buffer *sc_curseg;
 	struct buffer_head     *sc_super_root;

@@ -52,11 +52,6 @@ struct rcu_head {
 };
 
 /* Exported common interfaces */
-#ifdef CONFIG_TREE_PREEMPT_RCU
-extern void synchronize_rcu(void);
-#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
-#define synchronize_rcu synchronize_sched
-#endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
 extern void synchronize_rcu_bh(void);
 extern void synchronize_sched(void);
 extern void rcu_barrier(void);
@@ -67,12 +62,11 @@ extern int sched_expedited_torture_stats(char *page);
 
 /* Internal to kernel */
 extern void rcu_init(void);
-extern void rcu_scheduler_starting(void);
-extern int rcu_needs_cpu(int cpu);
-extern int rcu_scheduler_active;
 
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 #include <linux/rcutree.h>
+#elif defined(CONFIG_TINY_RCU)
+#include <linux/rcutiny.h>
 #else
 #error "Unknown RCU implementation specified to kernel configuration"
 #endif

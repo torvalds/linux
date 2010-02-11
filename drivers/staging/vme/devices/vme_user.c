@@ -31,7 +31,6 @@
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -625,7 +624,7 @@ err_nocard:
 static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 {
 	int i, err;
-	char name[8];
+	char name[12];
 
 	/* Save pointer to the bridge device */
 	if (vme_user_bridge != NULL) {

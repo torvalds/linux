@@ -1,5 +1,3 @@
-# arch/arm/plat-s3c/Kconfig
-#
 # Copyright 2007 Simtec Electronics
 #
 # Licensed under GPLv2
@@ -159,6 +157,12 @@ config S3C_GPIO_CFG_S3C64XX
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
 
+config S5P_GPIO_CFG_S5PC1XX
+	bool
+	help
+	  Internal configuration to enable S5PC1XX style GPIO configuration
+	  functions.
+
 # DMA
 
 config S3C_DMA
@@ -177,6 +181,11 @@ config S3C_DEV_HSMMC1
 	bool
 	help
 	  Compile in platform device definitions for HSMMC channel 1
+
+config S3C_DEV_HSMMC2
+	bool
+	help
+	  Compile in platform device definitions for HSMMC channel 2
 
 config S3C_DEV_I2C1
 	bool

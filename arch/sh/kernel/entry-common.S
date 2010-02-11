@@ -70,8 +70,14 @@ ret_from_exception:
 	CFI_STARTPROC simple
 	CFI_DEF_CFA r14, 0
 	CFI_REL_OFFSET 17, 64
-	CFI_REL_OFFSET 15, 0
+	CFI_REL_OFFSET 15, 60
 	CFI_REL_OFFSET 14, 56
+	CFI_REL_OFFSET 13, 52
+	CFI_REL_OFFSET 12, 48
+	CFI_REL_OFFSET 11, 44
+	CFI_REL_OFFSET 10, 40
+	CFI_REL_OFFSET 9, 36
+	CFI_REL_OFFSET 8, 32
 	preempt_stop()
 ENTRY(ret_from_irq)
 	!
@@ -121,7 +127,7 @@ noresched:
 ENTRY(resume_userspace)
 	! r8: current_thread_info
 	cli
-	TRACE_IRQS_OfF
+	TRACE_IRQS_OFF
 	mov.l	@(TI_FLAGS,r8), r0		! current_thread_info->flags
 	tst	#(_TIF_WORK_MASK & 0xff), r0
 	bt/s	__restore_all
@@ -133,7 +139,7 @@ work_pending:
 	! r8: current_thread_info
 	! t:  result of "tst	#_TIF_NEED_RESCHED, r0"
 	bf/s	work_resched
-	 tst	#(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK), r0
+	 tst	#_TIF_SIGPENDING, r0
 work_notifysig:
 	bt/s	__restore_all
 	 mov	r15, r4

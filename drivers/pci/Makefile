@@ -14,6 +14,8 @@ CFLAGS_legacy.o += -Wno-deprecated-declarations
 # Build PCI Express stuff if needed
 obj-$(CONFIG_PCIEPORTBUS) += pcie/
 
+obj-$(CONFIG_PCI_IOAPIC) += ioapic.o
+
 obj-$(CONFIG_HOTPLUG) += hotplug.o
 
 # Build the PCI Hotplug drivers if we were asked to

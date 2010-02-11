@@ -173,14 +173,6 @@ extern unsigned long tce_alloc_start, tce_alloc_end;
  */
 extern int mmu_ci_restrictions;
 
-#ifdef CONFIG_HUGETLB_PAGE
-/*
- * The page size indexes of the huge pages for use by hugetlbfs
- */
-extern unsigned int mmu_huge_psizes[MMU_PAGE_COUNT];
-
-#endif /* CONFIG_HUGETLB_PAGE */
-
 /*
  * This function sets the AVPN and L fields of the HPTE  appropriately
  * for the page size
@@ -253,10 +245,11 @@ extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned long vsid, pte_t *ptep, unsigned long trap,
 			   unsigned int local, int ssize);
 struct mm_struct;
+unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap);
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
-extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
-			  unsigned long ea, unsigned long vsid, int local,
-			  unsigned long trap);
+int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
+		     pte_t *ptep, unsigned long trap, int local, int ssize,
+		     unsigned int shift, unsigned int mmu_psize);
 
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
@@ -380,6 +373,38 @@ extern void slb_set_size(u16 size);
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+/*
+ * For the sub-page protection option, we extend the PGD with one of
+ * these.  Basically we have a 3-level tree, with the top level being
+ * the protptrs array.  To optimize speed and memory consumption when
+ * only addresses < 4GB are being protected, pointers to the first
+ * four pages of sub-page protection words are stored in the low_prot
+ * array.
+ * Each page of sub-page protection words protects 1GB (4 bytes
+ * protects 64k).  For the 3-level tree, each page of pointers then
+ * protects 8TB.
+ */
+struct subpage_prot_table {
+	unsigned long maxaddr;	/* only addresses < this are protected */
+	unsigned int **protptrs[2];
+	unsigned int *low_prot[4];
+};
+
+#define SBP_L1_BITS		(PAGE_SHIFT - 2)
+#define SBP_L2_BITS		(PAGE_SHIFT - 3)
+#define SBP_L1_COUNT		(1 << SBP_L1_BITS)
+#define SBP_L2_COUNT		(1 << SBP_L2_BITS)
+#define SBP_L2_SHIFT		(PAGE_SHIFT + SBP_L1_BITS)
+#define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
+
+extern void subpage_prot_free(struct mm_struct *mm);
+extern void subpage_prot_init_new_context(struct mm_struct *mm);
+#else
+static inline void subpage_prot_free(struct mm_struct *mm) {}
+static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
+
 typedef unsigned long mm_context_id_t;
 
 typedef struct {
@@ -393,6 +418,9 @@ typedef struct {
 	u16 sllp;		/* SLB page size encoding */
 #endif
 	unsigned long vdso_base;
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+	struct subpage_prot_table spt;
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
 } mm_context_t;
 
 

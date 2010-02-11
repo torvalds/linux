@@ -770,6 +770,11 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry>'S920'</entry>
 	    <entry>YUV 4:2:0 format of the gspca sn9c20x driver.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-STV0680">
+	    <entry><constant>V4L2_PIX_FMT_STV0680</constant></entry>
+	    <entry>'S680'</entry>
+	    <entry>Bayer format of the gspca stv0680 driver.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-WNVA">
 	    <entry><constant>V4L2_PIX_FMT_WNVA</constant></entry>
 	    <entry>'WNVA'</entry>

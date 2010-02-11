@@ -29,7 +29,7 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
-static inline void arch_reset(char mode, char *cmd)
+static inline void arch_reset(char mode, const char *cmd)
 {
 	printk("arch_reset:%c %x\n", mode, bcmring_arch_warm_reboot);
 

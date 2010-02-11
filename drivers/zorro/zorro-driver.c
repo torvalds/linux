@@ -156,5 +156,4 @@ postcore_initcall(zorro_driver_init);
 EXPORT_SYMBOL(zorro_match_device);
 EXPORT_SYMBOL(zorro_register_driver);
 EXPORT_SYMBOL(zorro_unregister_driver);
-EXPORT_SYMBOL(zorro_dev_driver);
 EXPORT_SYMBOL(zorro_bus_type);

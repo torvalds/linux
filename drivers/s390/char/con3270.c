@@ -572,7 +572,6 @@ static struct console con3270 = {
 
 /*
  * 3270 console initialization code called from console_init().
- * NOTE: This is called before kmalloc is available.
  */
 static int __init
 con3270_init(void)

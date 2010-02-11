@@ -30,6 +30,7 @@ struct snd_pcm_substream;
 #define SND_SOC_DAIFMT_DSP_A		3 /* L data MSB after FRM LRC */
 #define SND_SOC_DAIFMT_DSP_B		4 /* L data MSB during FRM LRC */
 #define SND_SOC_DAIFMT_AC97		5 /* AC97 */
+#define SND_SOC_DAIFMT_PDM		6 /* Pulse density modulation */
 
 /* left and right justified also known as MSB and LSB respectively */
 #define SND_SOC_DAIFMT_MSB		SND_SOC_DAIFMT_LEFT_J
@@ -106,13 +107,17 @@ int snd_soc_dai_set_clkdiv(struct snd_soc_dai *dai,
 	int div_id, int div);
 
 int snd_soc_dai_set_pll(struct snd_soc_dai *dai,
-	int pll_id, unsigned int freq_in, unsigned int freq_out);
+	int pll_id, int source, unsigned int freq_in, unsigned int freq_out);
 
 /* Digital Audio interface formatting */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt);
 
 int snd_soc_dai_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width);
+
+int snd_soc_dai_set_channel_map(struct snd_soc_dai *dai,
+	unsigned int tx_num, unsigned int *tx_slot,
+	unsigned int rx_num, unsigned int *rx_slot);
 
 int snd_soc_dai_set_tristate(struct snd_soc_dai *dai, int tristate);
 
@@ -136,8 +141,8 @@ struct snd_soc_dai_ops {
 	 */
 	int (*set_sysclk)(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir);
-	int (*set_pll)(struct snd_soc_dai *dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out);
+	int (*set_pll)(struct snd_soc_dai *dai, int pll_id, int source,
+		unsigned int freq_in, unsigned int freq_out);
 	int (*set_clkdiv)(struct snd_soc_dai *dai, int div_id, int div);
 
 	/*
@@ -148,6 +153,9 @@ struct snd_soc_dai_ops {
 	int (*set_tdm_slot)(struct snd_soc_dai *dai,
 		unsigned int tx_mask, unsigned int rx_mask,
 		int slots, int slot_width);
+	int (*set_channel_map)(struct snd_soc_dai *dai,
+		unsigned int tx_num, unsigned int *tx_slot,
+		unsigned int rx_num, unsigned int *rx_slot);
 	int (*set_tristate)(struct snd_soc_dai *dai, int tristate);
 
 	/*

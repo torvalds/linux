@@ -809,8 +809,8 @@ static int init_cqcam(struct parport *port)
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "video%d: Colour QuickCam found on %s\n",
-	       qcam->vdev.num, qcam->pport->name);
+	printk(KERN_INFO "%s: Colour QuickCam found on %s\n",
+	       video_device_node_name(&qcam->vdev), qcam->pport->name);
 
 	qcams[num_cams++] = qcam;
 

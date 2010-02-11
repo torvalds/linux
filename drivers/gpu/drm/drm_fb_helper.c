@@ -156,7 +156,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 			force = DRM_FORCE_ON;
 			break;
 		case 'D':
-			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) ||
+			if ((connector->connector_type != DRM_MODE_CONNECTOR_DVII) &&
 			    (connector->connector_type != DRM_MODE_CONNECTOR_HDMIB))
 				force = DRM_FORCE_ON;
 			else
@@ -373,11 +373,9 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 					mutex_unlock(&dev->mode_config.mutex);
 				}
 			}
-			if (dpms_mode == DRM_MODE_DPMS_OFF) {
-				mutex_lock(&dev->mode_config.mutex);
-				crtc_funcs->dpms(crtc, dpms_mode);
-				mutex_unlock(&dev->mode_config.mutex);
-			}
+			mutex_lock(&dev->mode_config.mutex);
+			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+			mutex_unlock(&dev->mode_config.mutex);
 		}
 	}
 }
@@ -385,18 +383,23 @@ static void drm_fb_helper_off(struct fb_info *info, int dpms_mode)
 int drm_fb_helper_blank(int blank, struct fb_info *info)
 {
 	switch (blank) {
+	/* Display: On; HSync: On, VSync: On */
 	case FB_BLANK_UNBLANK:
 		drm_fb_helper_on(info);
 		break;
+	/* Display: Off; HSync: On, VSync: On */
 	case FB_BLANK_NORMAL:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
 		break;
+	/* Display: Off; HSync: Off, VSync: On */
 	case FB_BLANK_HSYNC_SUSPEND:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
 		break;
+	/* Display: Off; HSync: On, VSync: Off */
 	case FB_BLANK_VSYNC_SUSPEND:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_SUSPEND);
 		break;
+	/* Display: Off; HSync: Off, VSync: Off */
 	case FB_BLANK_POWERDOWN:
 		drm_fb_helper_off(info, DRM_MODE_DPMS_OFF);
 		break;
@@ -454,12 +457,29 @@ out_free:
 }
 EXPORT_SYMBOL(drm_fb_helper_init_crtc_count);
 
-static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
+static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int pindex;
+
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+		u32 *palette;
+		u32 value;
+		/* place color in psuedopalette */
+		if (regno > 16)
+			return -EINVAL;
+		palette = (u32 *)info->pseudo_palette;
+		red >>= (16 - info->var.red.length);
+		green >>= (16 - info->var.green.length);
+		blue >>= (16 - info->var.blue.length);
+		value = (red << info->var.red.offset) |
+			(green << info->var.green.offset) |
+			(blue << info->var.blue.offset);
+		palette[regno] = value;
+		return 0;
+	}
 
 	pindex = regno;
 
@@ -467,9 +487,9 @@ static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		pindex = regno << 3;
 
 		if (fb->depth == 16 && regno > 63)
-			return;
+			return -EINVAL;
 		if (fb->depth == 15 && regno > 31)
-			return;
+			return -EINVAL;
 
 		if (fb->depth == 16) {
 			u16 r, g, b;
@@ -493,13 +513,7 @@ static void setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 
 	if (fb->depth != 16)
 		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
-
-	if (regno < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
-		((u32 *) fb->pseudo_palette)[regno] =
-			(regno << info->var.red.offset) |
-			(regno << info->var.green.offset) |
-			(regno << info->var.blue.offset);
-	}
+	return 0;
 }
 
 int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
@@ -536,7 +550,9 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 			if (transp)
 				htransp = *transp++;
 
-			setcolreg(crtc, hred, hgreen, hblue, start++, info);
+			rc = setcolreg(crtc, hred, hgreen, hblue, start++, info);
+			if (rc)
+				return rc;
 		}
 		crtc_funcs->load_lut(crtc);
 	}
@@ -555,6 +571,7 @@ int drm_fb_helper_setcolreg(unsigned regno,
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_crtc *crtc;
 	int i;
+	int ret;
 
 	if (regno > 255)
 		return 1;
@@ -568,8 +585,10 @@ int drm_fb_helper_setcolreg(unsigned regno,
 		if (i == fb_helper->crtc_count)
 			continue;
 
+		ret = setcolreg(crtc, red, green, blue, regno, info);
+		if (ret)
+			return ret;
 
-		setcolreg(crtc, red, green, blue, regno, info);
 		crtc_funcs->load_lut(crtc);
 	}
 	return 0;
@@ -583,15 +602,14 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	struct drm_framebuffer *fb = fb_helper->fb;
 	int depth;
 
-	if (var->pixclock == -1 || !var->pixclock)
+	if (var->pixclock != 0)
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
-	if (var->xres > fb->width || var->yres > fb->height) {
-		DRM_ERROR("Requested width/height is greater than current fb "
-			   "object %dx%d > %dx%d\n", var->xres, var->yres,
-			   fb->width, fb->height);
-		DRM_ERROR("Need resizing code.\n");
+	if (var->bits_per_pixel > fb->bits_per_pixel || var->xres > fb->width || var->yres > fb->height) {
+		DRM_DEBUG("fb userspace requested width/height/bpp is greater than current fb "
+			  "object %dx%d-%d > %dx%d-%d\n", var->xres, var->yres, var->bits_per_pixel,
+			  fb->width, fb->height, fb->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -675,7 +693,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	int ret;
 	int i;
 
-	if (var->pixclock != -1) {
+	if (var->pixclock != 0) {
 		DRM_ERROR("PIXEL CLCOK SET\n");
 		return -EINVAL;
 	}
@@ -691,7 +709,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 
 		if (crtc->fb == fb_helper->crtc_info[i].mode_set.fb) {
 			mutex_lock(&dev->mode_config.mutex);
-			ret = crtc->funcs->set_config(&fb_helper->crtc_info->mode_set);
+			ret = crtc->funcs->set_config(&fb_helper->crtc_info[i].mode_set);
 			mutex_unlock(&dev->mode_config.mutex);
 			if (ret)
 				return ret;
@@ -888,9 +906,14 @@ int drm_fb_helper_single_fb_probe(struct drm_device *dev,
 	fb_helper->fb = fb;
 
 	if (new_fb) {
-		info->var.pixclock = -1;
-		if (register_framebuffer(info) < 0)
+		info->var.pixclock = 0;
+		ret = fb_alloc_cmap(&info->cmap, modeset->crtc->gamma_size, 0);
+		if (ret)
+			return ret;
+		if (register_framebuffer(info) < 0) {
+			fb_dealloc_cmap(&info->cmap);
 			return -EINVAL;
+		}
 	} else {
 		drm_fb_helper_set_par(info);
 	}
@@ -920,6 +943,7 @@ void drm_fb_helper_free(struct drm_fb_helper *helper)
 		unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 	drm_fb_helper_crtc_free(helper);
+	fb_dealloc_cmap(&helper->fb->fbdev->cmap);
 }
 EXPORT_SYMBOL(drm_fb_helper_free);
 
@@ -928,7 +952,7 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 {
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
-		FB_VISUAL_DIRECTCOLOR;
+		FB_VISUAL_TRUECOLOR;
 	info->fix.type_aux = 0;
 	info->fix.xpanstep = 1; /* doing it in hw */
 	info->fix.ypanstep = 1; /* doing it in hw */

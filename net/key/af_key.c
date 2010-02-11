@@ -35,7 +35,7 @@
 #define _X2KEY(x) ((x) == XFRM_INF ? 0 : (x))
 #define _KEY2X(x) ((x) == 0 ? XFRM_INF : (x))
 
-static int pfkey_net_id;
+static int pfkey_net_id __read_mostly;
 struct netns_pfkey {
 	/* List of all pfkey sockets. */
 	struct hlist_head table;
@@ -177,7 +177,8 @@ static struct proto key_proto = {
 	.obj_size = sizeof(struct pfkey_sock),
 };
 
-static int pfkey_create(struct net *net, struct socket *sock, int protocol)
+static int pfkey_create(struct net *net, struct socket *sock, int protocol,
+			int kern)
 {
 	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	struct sock *sk;
@@ -1192,6 +1193,7 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 			x->aalg->alg_key_len = key->sadb_key_bits;
 			memcpy(x->aalg->alg_key, key+1, keysize);
 		}
+		x->aalg->alg_trunc_len = a->uinfo.auth.icv_truncbits;
 		x->props.aalgo = sa->sadb_sa_auth;
 		/* x->algo.flags = sa->sadb_sa_flags; */
 	}
@@ -3606,7 +3608,7 @@ static int pfkey_recvmsg(struct kiocb *kiocb,
 	if (err)
 		goto out_free;
 
-	sock_recv_timestamp(msg, sk, skb);
+	sock_recv_ts_and_drops(msg, sk, skb);
 
 	err = (flags & MSG_TRUNC) ? skb->len : copied;
 
@@ -3644,7 +3646,7 @@ static const struct proto_ops pfkey_ops = {
 	.recvmsg	=	pfkey_recvmsg,
 };
 
-static struct net_proto_family pfkey_family_ops = {
+static const struct net_proto_family pfkey_family_ops = {
 	.family	=	PF_KEY,
 	.create	=	pfkey_create,
 	.owner	=	THIS_MODULE,
@@ -3764,28 +3766,14 @@ static struct xfrm_mgr pfkeyv2_mgr =
 
 static int __net_init pfkey_net_init(struct net *net)
 {
-	struct netns_pfkey *net_pfkey;
+	struct netns_pfkey *net_pfkey = net_generic(net, pfkey_net_id);
 	int rv;
 
-	net_pfkey = kmalloc(sizeof(struct netns_pfkey), GFP_KERNEL);
-	if (!net_pfkey) {
-		rv = -ENOMEM;
-		goto out_kmalloc;
-	}
 	INIT_HLIST_HEAD(&net_pfkey->table);
 	atomic_set(&net_pfkey->socks_nr, 0);
-	rv = net_assign_generic(net, pfkey_net_id, net_pfkey);
-	if (rv < 0)
-		goto out_assign;
-	rv = pfkey_init_proc(net);
-	if (rv < 0)
-		goto out_proc;
-	return 0;
 
-out_proc:
-out_assign:
-	kfree(net_pfkey);
-out_kmalloc:
+	rv = pfkey_init_proc(net);
+
 	return rv;
 }
 
@@ -3795,19 +3783,20 @@ static void __net_exit pfkey_net_exit(struct net *net)
 
 	pfkey_exit_proc(net);
 	BUG_ON(!hlist_empty(&net_pfkey->table));
-	kfree(net_pfkey);
 }
 
 static struct pernet_operations pfkey_net_ops = {
 	.init = pfkey_net_init,
 	.exit = pfkey_net_exit,
+	.id   = &pfkey_net_id,
+	.size = sizeof(struct netns_pfkey),
 };
 
 static void __exit ipsec_pfkey_exit(void)
 {
-	unregister_pernet_gen_subsys(pfkey_net_id, &pfkey_net_ops);
 	xfrm_unregister_km(&pfkeyv2_mgr);
 	sock_unregister(PF_KEY);
+	unregister_pernet_subsys(&pfkey_net_ops);
 	proto_unregister(&key_proto);
 }
 
@@ -3818,21 +3807,22 @@ static int __init ipsec_pfkey_init(void)
 	if (err != 0)
 		goto out;
 
-	err = sock_register(&pfkey_family_ops);
+	err = register_pernet_subsys(&pfkey_net_ops);
 	if (err != 0)
 		goto out_unregister_key_proto;
+	err = sock_register(&pfkey_family_ops);
+	if (err != 0)
+		goto out_unregister_pernet;
 	err = xfrm_register_km(&pfkeyv2_mgr);
 	if (err != 0)
 		goto out_sock_unregister;
-	err = register_pernet_gen_subsys(&pfkey_net_id, &pfkey_net_ops);
-	if (err != 0)
-		goto out_xfrm_unregister_km;
 out:
 	return err;
-out_xfrm_unregister_km:
-	xfrm_unregister_km(&pfkeyv2_mgr);
+
 out_sock_unregister:
 	sock_unregister(PF_KEY);
+out_unregister_pernet:
+	unregister_pernet_subsys(&pfkey_net_ops);
 out_unregister_key_proto:
 	proto_unregister(&key_proto);
 	goto out;

@@ -95,8 +95,7 @@ static int compat_r128_init(struct file *file, unsigned int cmd,
 			  &init->agp_textures_offset))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_R128_INIT, (unsigned long)init);
+	return drm_ioctl(file, DRM_IOCTL_R128_INIT, (unsigned long)init);
 }
 
 typedef struct drm_r128_depth32 {
@@ -129,8 +128,7 @@ static int compat_r128_depth(struct file *file, unsigned int cmd,
 			  &depth->mask))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_R128_DEPTH, (unsigned long)depth);
+	return drm_ioctl(file, DRM_IOCTL_R128_DEPTH, (unsigned long)depth);
 
 }
 
@@ -153,8 +151,7 @@ static int compat_r128_stipple(struct file *file, unsigned int cmd,
 			  &stipple->mask))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_R128_STIPPLE, (unsigned long)stipple);
+	return drm_ioctl(file, DRM_IOCTL_R128_STIPPLE, (unsigned long)stipple);
 }
 
 typedef struct drm_r128_getparam32 {
@@ -178,8 +175,7 @@ static int compat_r128_getparam(struct file *file, unsigned int cmd,
 			  &getparam->value))
 		return -EFAULT;
 
-	return drm_ioctl(file->f_path.dentry->d_inode, file,
-			 DRM_IOCTL_R128_GETPARAM, (unsigned long)getparam);
+	return drm_ioctl(file, DRM_IOCTL_R128_GETPARAM, (unsigned long)getparam);
 }
 
 drm_ioctl_compat_t *r128_compat_ioctls[] = {
@@ -210,12 +206,10 @@ long r128_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	if (nr < DRM_COMMAND_BASE + DRM_ARRAY_SIZE(r128_compat_ioctls))
 		fn = r128_compat_ioctls[nr - DRM_COMMAND_BASE];
 
-	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
 		ret = (*fn) (filp, cmd, arg);
 	else
-		ret = drm_ioctl(filp->f_path.dentry->d_inode, filp, cmd, arg);
-	unlock_kernel();
+		ret = drm_ioctl(filp, cmd, arg);
 
 	return ret;
 }

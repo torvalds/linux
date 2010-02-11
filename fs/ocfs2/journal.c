@@ -659,7 +659,7 @@ static int __ocfs2_journal_access(handle_t *handle,
 
 	default:
 		status = -EINVAL;
-		mlog(ML_ERROR, "Uknown access type!\n");
+		mlog(ML_ERROR, "Unknown access type!\n");
 	}
 	if (!status && ocfs2_meta_ecc(osb) && triggers)
 		jbd2_journal_set_triggers(bh, &triggers->ot_triggers);
@@ -2034,7 +2034,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		status = -ENOENT;
 		mlog_errno(status);
 		return status;
-	}	
+	}
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
 	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);

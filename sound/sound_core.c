@@ -61,7 +61,7 @@ static void __exit cleanup_soundcore(void)
 	class_destroy(sound_class);
 }
 
-module_init(init_soundcore);
+subsys_initcall(init_soundcore);
 module_exit(cleanup_soundcore);
 
 
@@ -353,7 +353,7 @@ static struct sound_unit *chains[SOUND_STEP];
  *      @dev: device pointer
  *
  *	Allocate a special sound device by minor number from the sound
- *	subsystem. The allocated number is returned on succes. On failure
+ *	subsystem. The allocated number is returned on success. On failure
  *	a negative error code is returned.
  */
  

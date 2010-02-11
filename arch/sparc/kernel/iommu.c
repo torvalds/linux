@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/iommu-helper.h>
+#include <linux/bitmap.h>
 
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
@@ -169,7 +170,7 @@ void iommu_range_free(struct iommu *iommu, dma_addr_t dma_addr, unsigned long np
 
 	entry = (dma_addr - iommu->page_table_map_base) >> IO_PAGE_SHIFT;
 
-	iommu_area_free(arena->map, entry, npages);
+	bitmap_clear(arena->map, entry, npages);
 }
 
 int iommu_table_init(struct iommu *iommu, int tsbsize,

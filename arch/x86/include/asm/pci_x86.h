@@ -118,11 +118,27 @@ extern int __init pcibios_init(void);
 
 /* pci-mmconfig.c */
 
+/* "PCI MMCONFIG %04x [bus %02x-%02x]" */
+#define PCI_MMCFG_RESOURCE_NAME_LEN (22 + 4 + 2 + 2)
+
+struct pci_mmcfg_region {
+	struct list_head list;
+	struct resource res;
+	u64 address;
+	char __iomem *virt;
+	u16 segment;
+	u8 start_bus;
+	u8 end_bus;
+	char name[PCI_MMCFG_RESOURCE_NAME_LEN];
+};
+
 extern int __init pci_mmcfg_arch_init(void);
 extern void __init pci_mmcfg_arch_free(void);
+extern struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus);
 
-extern struct acpi_mcfg_allocation *pci_mmcfg_config;
-extern int pci_mmcfg_config_num;
+extern struct list_head pci_mmcfg_list;
+
+#define PCI_MMCFG_BUS_OFFSET(bus)      ((bus) << 20)
 
 /*
  * AMD Fam10h CPUs are buggy, and cannot access MMIO config space

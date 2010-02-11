@@ -807,12 +807,11 @@ static int ata_acpi_exec_tfs(struct ata_device *dev, int *nr_executed)
  * EH context.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -ENOENT if _SDD doesn't exist, -errno on failure.
  */
 static int ata_acpi_push_id(struct ata_device *dev)
 {
 	struct ata_port *ap = dev->link->ap;
-	int err;
 	acpi_status status;
 	struct acpi_object_list input;
 	union acpi_object in_params[1];
@@ -835,12 +834,16 @@ static int ata_acpi_push_id(struct ata_device *dev)
 	status = acpi_evaluate_object(dev->acpi_handle, "_SDD", &input, NULL);
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
-	err = ACPI_FAILURE(status) ? -EIO : 0;
-	if (err < 0)
+	if (status == AE_NOT_FOUND)
+		return -ENOENT;
+
+	if (ACPI_FAILURE(status)) {
 		ata_dev_printk(dev, KERN_WARNING,
 			       "ACPI _SDD failed (AE 0x%x)\n", status);
+		return -EIO;
+	}
 
-	return err;
+	return 0;
 }
 
 /**
@@ -971,7 +974,7 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 	/* do _SDD if SATA */
 	if (acpi_sata) {
 		rc = ata_acpi_push_id(dev);
-		if (rc)
+		if (rc && rc != -ENOENT)
 			goto acpi_err;
 	}
 

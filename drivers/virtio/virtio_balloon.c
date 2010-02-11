@@ -19,7 +19,6 @@
  */
 //#define DEBUG
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_balloon.h>
 #include <linux/swap.h>
 #include <linux/kthread.h>
@@ -248,7 +247,7 @@ out:
 	return err;
 }
 
-static void virtballoon_remove(struct virtio_device *vdev)
+static void __devexit virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
@@ -267,7 +266,7 @@ static void virtballoon_remove(struct virtio_device *vdev)
 
 static unsigned int features[] = { VIRTIO_BALLOON_F_MUST_TELL_HOST };
 
-static struct virtio_driver virtio_balloon = {
+static struct virtio_driver virtio_balloon_driver = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
@@ -280,12 +279,12 @@ static struct virtio_driver virtio_balloon = {
 
 static int __init init(void)
 {
-	return register_virtio_driver(&virtio_balloon);
+	return register_virtio_driver(&virtio_balloon_driver);
 }
 
 static void __exit fini(void)
 {
-	unregister_virtio_driver(&virtio_balloon);
+	unregister_virtio_driver(&virtio_balloon_driver);
 }
 module_init(init);
 module_exit(fini);

@@ -165,7 +165,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 				obj_desc->method.method_flags =
 				    AML_METHOD_INTERNAL_ONLY;
-				obj_desc->method.implementation =
+				obj_desc->method.extra.implementation =
 				    acpi_ut_osi_implementation;
 #endif
 				break;

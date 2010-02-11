@@ -12,22 +12,13 @@
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/irq.h>
-#include <linux/bitops.h>
 
-#include <mach/cputype.h>
-#include <mach/irqs.h>
-#include <mach/hardware.h>
-#include <mach/common.h>
 #include <mach/gpio.h>
 
 #include <asm/mach/irq.h>
-
 
 static DEFINE_SPINLOCK(gpio_lock);
 

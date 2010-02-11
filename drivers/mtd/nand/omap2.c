@@ -18,9 +18,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 
-#include <mach/dma.h>
-#include <mach/gpmc.h>
-#include <mach/nand.h>
+#include <plat/dma.h>
+#include <plat/gpmc.h>
+#include <plat/nand.h>
 
 #define GPMC_IRQ_STATUS		0x18
 #define GPMC_ECC_CONFIG		0x1F4

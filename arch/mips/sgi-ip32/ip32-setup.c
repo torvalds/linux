@@ -90,7 +90,7 @@ void __init plat_mem_setup(void)
 	{
 		char* con = ArcGetEnvironmentVariable("console");
 		if (con && *con == 'd') {
-			static char options[8];
+			static char options[8] __initdata;
 			char *baud = ArcGetEnvironmentVariable("dbaud");
 			if (baud)
 				strcpy(options, baud);

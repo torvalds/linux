@@ -67,11 +67,11 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 		cmds_max = beiscsi_ep->phba->params.wrbs_per_cxn;
 	}
 
-	 cls_session = iscsi_session_setup(&beiscsi_iscsi_transport,
-					   shost, cmds_max,
-					   sizeof(*beiscsi_sess),
-					   sizeof(*io_task),
-					   initial_cmdsn, ISCSI_MAX_TARGET);
+	cls_session = iscsi_session_setup(&beiscsi_iscsi_transport,
+					  shost, cmds_max,
+					  sizeof(*beiscsi_sess),
+					  sizeof(*io_task),
+					  initial_cmdsn, ISCSI_MAX_TARGET);
 	if (!cls_session)
 		return NULL;
 	sess = cls_session->dd_data;
@@ -297,7 +297,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 
 	switch (param) {
 	case ISCSI_HOST_PARAM_HWADDRESS:
-		be_cmd_get_mac_addr(&phba->ctrl, phba->mac_address);
+		be_cmd_get_mac_addr(phba, phba->mac_address);
 		len = sysfs_format_mac(buf, phba->mac_address, ETH_ALEN);
 		break;
 	default:
@@ -377,16 +377,12 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct beiscsi_offload_params params;
-	struct iscsi_session *session = conn->session;
-	struct Scsi_Host *shost = iscsi_session_to_shost(session->cls_session);
-	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 
 	memset(&params, 0, sizeof(struct beiscsi_offload_params));
 	beiscsi_ep = beiscsi_conn->ep;
 	if (!beiscsi_ep)
 		SE_DEBUG(DBG_LVL_1, "In beiscsi_conn_start , no beiscsi_ep\n");
 
-	free_mgmt_sgl_handle(phba, beiscsi_conn->plogin_sgl_handle);
 	beiscsi_conn->login_in_progress = 0;
 	beiscsi_set_params_for_offld(beiscsi_conn, &params);
 	beiscsi_offload_connection(beiscsi_conn, &params);
@@ -498,6 +494,13 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 		SE_DEBUG(DBG_LVL_1, "shost is NULL \n");
 		return ERR_PTR(ret);
 	}
+
+	if (phba->state) {
+		ret = -EBUSY;
+		SE_DEBUG(DBG_LVL_1, "The Adapet state is Not UP \n");
+		return ERR_PTR(ret);
+	}
+
 	ep = iscsi_create_endpoint(sizeof(struct beiscsi_endpoint));
 	if (!ep) {
 		ret = -ENOMEM;

@@ -39,14 +39,14 @@
 struct cx18;
 
 /*
- * This structure is used by CPU to provide completed buffers information
- * Its structure is dictrated by the layout of the SCB, required by the
- * firmware, but its defintion needs to be here, instead of in cx18-scb.h,
+ * This structure is used by CPU to provide completed MDL & buffers information.
+ * Its structure is dictated by the layout of the SCB, required by the
+ * firmware, but its definition needs to be here, instead of in cx18-scb.h,
  * for mailbox work order scheduling
  */
 struct cx18_mdl_ack {
     u32 id;        /* ID of a completed MDL */
-    u32 data_used; /* Total data filled in the MDL for buffer 'id' */
+    u32 data_used; /* Total data filled in the MDL with 'id' */
 };
 
 /* The cx18_mailbox struct is the mailbox structure which is used for passing

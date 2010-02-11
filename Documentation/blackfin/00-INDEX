@@ -1,9 +1,6 @@
 00-INDEX
 	- This file
 
-cache-lock.txt
-	- HOWTO for blackfin cache locking.
-
 cachefeatures.txt
 	- Supported cache features.
 

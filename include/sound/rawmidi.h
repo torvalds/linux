@@ -46,6 +46,7 @@
 struct snd_rawmidi;
 struct snd_rawmidi_substream;
 struct snd_seq_port_info;
+struct pid;
 
 struct snd_rawmidi_ops {
 	int (*open) (struct snd_rawmidi_substream * substream);
@@ -97,6 +98,7 @@ struct snd_rawmidi_substream {
 	struct snd_rawmidi_str *pstr;
 	char name[32];
 	struct snd_rawmidi_runtime *runtime;
+	struct pid *pid;
 	/* hardware layer */
 	struct snd_rawmidi_ops *ops;
 };

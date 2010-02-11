@@ -191,21 +191,27 @@ config SENSORS_ADT7470
 	  will be called adt7470.
 
 config SENSORS_ADT7473
-	tristate "Analog Devices ADT7473"
+	tristate "Analog Devices ADT7473 (DEPRECATED)"
 	depends on I2C && EXPERIMENTAL
+	select SENSORS_ADT7475
 	help
 	  If you say yes here you get support for the Analog Devices
 	  ADT7473 temperature monitoring chips.
+
+	  This driver is deprecated, you should use the adt7475 driver
+	  instead.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7473.
 
 config SENSORS_ADT7475
-	tristate "Analog Devices ADT7475"
+	tristate "Analog Devices ADT7473, ADT7475, ADT7476 and ADT7490"
 	depends on I2C && EXPERIMENTAL
+	select HWMON_VID
 	help
 	  If you say yes here you get support for the Analog Devices
-	  ADT7475 hardware monitoring chips.
+	  ADT7473, ADT7475, ADT7476 and ADT7490 hardware monitoring
+	  chips.
 
 	  This driver can also be build as a module.  If so, the module
 	  will be called adt7475.
@@ -221,6 +227,18 @@ config SENSORS_K8TEMP
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k8temp.
+
+config SENSORS_K10TEMP
+	tristate "AMD Phenom/Sempron/Turion/Opteron temperature sensor"
+	depends on X86 && PCI
+	help
+	  If you say yes here you get support for the temperature
+	  sensor(s) inside your CPU. Supported are later revisions of
+	  the AMD Family 10h and all revisions of the AMD Family 11h
+	  microarchitectures.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called k10temp.
 
 config SENSORS_AMS
 	tristate "Apple Motion Sensor driver"
@@ -305,12 +323,12 @@ config SENSORS_F71805F
 	  will be called f71805f.
 
 config SENSORS_F71882FG
-	tristate "Fintek F71858FG, F71862FG, F71882FG and F8000"
+	tristate "Fintek F71858FG, F71862FG, F71882FG, F71889FG and F8000"
 	depends on EXPERIMENTAL
 	help
 	  If you say yes here you get support for hardware monitoring
-	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG
-	  and F8000 Super-I/O chips.
+	  features of the Fintek F71858FG, F71862FG/71863FG, F71882FG/F71883FG,
+	  F71889FG and F8000 Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called f71882fg.
@@ -374,7 +392,7 @@ config SENSORS_GL520SM
 
 config SENSORS_CORETEMP
 	tristate "Intel Core/Core2/Atom temperature sensor"
-	depends on X86 && EXPERIMENTAL
+	depends on X86 && PCI && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the temperature
 	  sensor inside your CPU. Most of the family 6 CPUs
@@ -441,6 +459,15 @@ config SENSORS_LM70
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm70.
+
+config SENSORS_LM73
+	tristate "National Semiconductor LM73"
+	depends on I2C
+	help
+	  If you say yes here you get support for National Semiconductor LM73
+	  sensor chips.
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm73.
 
 config SENSORS_LM75
 	tristate "National Semiconductor LM75 and compatibles"
@@ -765,6 +792,16 @@ config SENSORS_ADS7828
 	  This driver can also be built as a module.  If so, the module
 	  will be called ads7828.
 
+config SENSORS_AMC6821
+	tristate "Texas Instruments AMC6821"
+	depends on I2C  && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  AMC6821 hardware monitoring chips.
+
+	  This driver can also be build as a module.  If so, the module
+	  will be called amc6821.
+
 config SENSORS_THMC50
 	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"
 	depends on I2C && EXPERIMENTAL
@@ -794,6 +831,14 @@ config SENSORS_TMP421
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tmp421.
+
+config SENSORS_VIA_CPUTEMP
+	tristate "VIA CPU temperature sensor"
+	depends on X86
+	help
+	  If you say yes here you get support for the temperature
+	  sensor inside your CPU. Supported are all known variants of
+	  the VIA C7 and Nano.
 
 config SENSORS_VIA686A
 	tristate "VIA686A"
@@ -841,7 +886,7 @@ config SENSORS_W83781D
 
 config SENSORS_W83791D
 	tristate "Winbond W83791D"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W83791D chip.
@@ -983,6 +1028,23 @@ config SENSORS_LIS3_SPI
 	  will be called lis3lv02d and a specific module for the SPI transport
 	  is called lis3lv02d_spi.
 
+config SENSORS_LIS3_I2C
+	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer (I2C)"
+	depends on I2C && INPUT
+	select INPUT_POLLDEV
+	default n
+	help
+	  This driver provides support for the LIS3LV02Dx accelerometer connected
+	  via I2C. The accelerometer data is readable via
+	  /sys/devices/platform/lis3lv02d.
+
+	  This driver also provides an absolute input class device, allowing
+	  the device to act as a pinball machine-esque joystick.
+
+	  This driver can also be built as modules.  If so, the core module
+	  will be called lis3lv02d and a specific module for the I2C transport
+	  is called lis3lv02d_i2c.
+
 config SENSORS_APPLESMC
 	tristate "Apple SMC (Motion sensor, light sensor, keyboard backlight)"
 	depends on INPUT && X86
@@ -1008,6 +1070,12 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_MC13783_ADC
+        tristate "Freescale MC13783 ADC"
+        depends on MFD_MC13783
+        help
+          Support for the A/D converter on MC13783 PMIC.
+
 if ACPI
 
 comment "ACPI drivers"
@@ -1025,25 +1093,27 @@ config SENSORS_ATK0110
 	  will be called asus_atk0110.
 
 config SENSORS_LIS3LV02D
-	tristate "STMicroeletronics LIS3LV02Dx three-axis digital accelerometer"
+	tristate "STMicroeletronics LIS3* three-axis digital accelerometer"
 	depends on INPUT
 	select INPUT_POLLDEV
 	select NEW_LEDS
 	select LEDS_CLASS
 	default n
 	help
-	  This driver provides support for the LIS3LV02Dx accelerometer. In
-	  particular, it can be found in a number of HP laptops, which have the
-	  "Mobile Data Protection System 3D" or "3D DriveGuard" feature. On such
-	  systems the driver should load automatically (via ACPI). The
-	  accelerometer might also be found in other systems, connected via SPI
-	  or I2C.  The accelerometer data is readable via
-	  /sys/devices/platform/lis3lv02d.
+	  This driver provides support for the LIS3* accelerometers, such as the
+	  LIS3LV02DL or the LIS331DL. In particular, it can be found in a number
+	  of HP laptops, which have the "Mobile Data Protection System 3D" or
+	  "3D DriveGuard" feature. On such systems the driver should load
+	  automatically (via ACPI alias). The accelerometer might also be found
+	  in other systems, connected via SPI or I2C. The accelerometer data is
+	  readable via /sys/devices/platform/lis3lv02d.
 
 	  This driver also provides an absolute input class device, allowing
-	  the laptop to act as a pinball machine-esque joystick. On HP laptops,
+	  a laptop to act as a pinball machine-esque joystick. It provides also
+	  a misc device which can be used to detect free-fall. On HP laptops,
 	  if the led infrastructure is activated, support for a led indicating
-	  disk protection will be provided as hp:red:hddprotection.
+	  disk protection will be provided as hp::hddprotect. For more
+	  information on the feature, refer to Documentation/hwmon/lis3lv02d.
 
 	  This driver can also be built as modules.  If so, the core module
 	  will be called lis3lv02d and a specific module for HP laptops will be

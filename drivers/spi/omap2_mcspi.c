@@ -35,8 +35,8 @@
 
 #include <linux/spi/spi.h>
 
-#include <mach/dma.h>
-#include <mach/clock.h>
+#include <plat/dma.h>
+#include <plat/clock.h>
 
 
 #define OMAP2_MCSPI_MAX_FREQ		48000000

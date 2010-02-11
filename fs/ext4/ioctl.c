@@ -221,31 +221,38 @@ setversion_out:
 		struct file *donor_filp;
 		int err;
 
+		if (!(filp->f_mode & FMODE_READ) ||
+		    !(filp->f_mode & FMODE_WRITE))
+			return -EBADF;
+
 		if (copy_from_user(&me,
 			(struct move_extent __user *)arg, sizeof(me)))
 			return -EFAULT;
+		me.moved_len = 0;
 
 		donor_filp = fget(me.donor_fd);
 		if (!donor_filp)
 			return -EBADF;
 
-		if (!capable(CAP_DAC_OVERRIDE)) {
-			if ((current->real_cred->fsuid != inode->i_uid) ||
-				!(inode->i_mode & S_IRUSR) ||
-				!(donor_filp->f_dentry->d_inode->i_mode &
-				S_IRUSR)) {
-				fput(donor_filp);
-				return -EACCES;
-			}
+		if (!(donor_filp->f_mode & FMODE_WRITE)) {
+			err = -EBADF;
+			goto mext_out;
 		}
+
+		err = mnt_want_write(filp->f_path.mnt);
+		if (err)
+			goto mext_out;
 
 		err = ext4_move_extents(filp, donor_filp, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
-		fput(donor_filp);
+		mnt_drop_write(filp->f_path.mnt);
+		if (me.moved_len > 0)
+			file_remove_suid(donor_filp);
 
 		if (copy_to_user((struct move_extent *)arg, &me, sizeof(me)))
-			return -EFAULT;
-
+			err = -EFAULT;
+mext_out:
+		fput(donor_filp);
 		return err;
 	}
 

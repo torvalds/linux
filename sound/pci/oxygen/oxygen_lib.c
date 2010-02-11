@@ -278,7 +278,11 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 static void oxygen_restore_eeprom(struct oxygen *chip,
 				  const struct pci_device_id *id)
 {
-	if (oxygen_read_eeprom(chip, 0) != OXYGEN_EEPROM_ID) {
+	u16 eeprom_id;
+
+	eeprom_id = oxygen_read_eeprom(chip, 0);
+	if (eeprom_id != OXYGEN_EEPROM_ID &&
+	    (eeprom_id != 0xffff || id->subdevice != 0x8788)) {
 		/*
 		 * This function gets called only when a known card model has
 		 * been detected, i.e., we know there is a valid subsystem
@@ -300,6 +304,28 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 				   OXYGEN_MISC_WRITE_PCI_SUBID);
 
 		snd_printk(KERN_INFO "EEPROM ID restored\n");
+	}
+}
+
+static void pci_bridge_magic(void)
+{
+	struct pci_dev *pci = NULL;
+	u32 tmp;
+
+	for (;;) {
+		/* If there is any Pericom PI7C9X110 PCI-E/PCI bridge ... */
+		pci = pci_get_device(0x12d8, 0xe110, pci);
+		if (!pci)
+			break;
+		/*
+		 * ... configure its secondary internal arbiter to park to
+		 * the secondary port, instead of to the last master.
+		 */
+		if (!pci_read_config_dword(pci, 0x40, &tmp)) {
+			tmp |= 1;
+			pci_write_config_dword(pci, 0x40, tmp);
+		}
+		/* Why?  Try asking C-Media. */
 	}
 }
 
@@ -581,6 +607,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
+	pci_bridge_magic();
 	oxygen_init(chip);
 	chip->model.init(chip);
 

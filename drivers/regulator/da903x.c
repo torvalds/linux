@@ -331,7 +331,7 @@ static int da9034_get_ldo12_voltage(struct regulator_dev *rdev)
 static int da9034_list_ldo12_voltage(struct regulator_dev *rdev,
 				     unsigned selector)
 {
-	if (selector > ARRAY_SIZE(da9034_ldo12_data))
+	if (selector >= ARRAY_SIZE(da9034_ldo12_data))
 		return -EINVAL;
 	return da9034_ldo12_data[selector] * 1000;
 }

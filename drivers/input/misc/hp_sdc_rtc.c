@@ -35,7 +35,6 @@
 
 #include <linux/hp_sdc.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -209,7 +208,7 @@ static inline int hp_sdc_rtc_read_rt(struct timeval *res) {
 
 /* Read the i8042 fast handshake timer */
 static inline int hp_sdc_rtc_read_fhs(struct timeval *res) {
-	uint64_t raw;
+	int64_t raw;
 	unsigned int tenms;
 
 	raw = hp_sdc_rtc_read_i8042timer(HP_SDC_CMD_LOAD_FHS, 2);
@@ -409,7 +408,6 @@ static unsigned int hp_sdc_rtc_poll(struct file *file, poll_table *wait)
 
 static int hp_sdc_rtc_open(struct inode *inode, struct file *file)
 {
-	cycle_kernel_lock();
         return 0;
 }
 

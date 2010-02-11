@@ -53,7 +53,6 @@ static void __init n2100_timer_init(void)
 
 static struct sys_timer n2100_timer = {
 	.init		= n2100_timer_init,
-	.offset		= iop_gettimeoffset,
 };
 
 

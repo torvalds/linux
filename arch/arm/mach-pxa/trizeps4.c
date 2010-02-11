@@ -524,6 +524,10 @@ static void __init trizeps4_init(void)
 					ARRAY_SIZE(trizeps4_devices));
 	}
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	if (0)	/* dont know how to determine LCD */
 		set_pxa_fb_info(&sharp_lcd);
 	else

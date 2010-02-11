@@ -17,6 +17,8 @@
 #ifndef REG_H
 #define REG_H
 
+#include "../reg.h"
+
 #define AR_CR                0x0008
 #define AR_CR_RXE            0x00000004
 #define AR_CR_RXD            0x00000020
@@ -969,10 +971,10 @@ enum {
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_S         4
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF        0x00000080
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF_S      7
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB      0x00000400
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB_S    10
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB        0x00001000
 #define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB_S      12
-#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB      0x00001000
-#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_BB_S    1
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB         0x00008000
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB_S       15
 #define AR_GPIO_RTC_RESET_OVERRIDE_ENABLE        0x00010000
@@ -1330,13 +1332,22 @@ enum {
 #define AR_MCAST_FIL0       0x8040
 #define AR_MCAST_FIL1       0x8044
 
+/*
+ * AR_DIAG_SW - Register which can be used for diagnostics and testing purposes.
+ *
+ * The force RX abort (AR_DIAG_RX_ABORT, bit 25) can be used in conjunction with
+ * RX block (AR_DIAG_RX_DIS, bit 5) to help fast channel change to shut down
+ * receive. The force RX abort bit will kill any frame which is currently being
+ * transferred between the MAC and baseband. The RX block bit (AR_DIAG_RX_DIS)
+ * will prevent any new frames from getting started.
+ */
 #define AR_DIAG_SW                  0x8048
 #define AR_DIAG_CACHE_ACK           0x00000001
 #define AR_DIAG_ACK_DIS             0x00000002
 #define AR_DIAG_CTS_DIS             0x00000004
 #define AR_DIAG_ENCRYPT_DIS         0x00000008
 #define AR_DIAG_DECRYPT_DIS         0x00000010
-#define AR_DIAG_RX_DIS              0x00000020
+#define AR_DIAG_RX_DIS              0x00000020 /* RX block */
 #define AR_DIAG_LOOP_BACK           0x00000040
 #define AR_DIAG_CORR_FCS            0x00000080
 #define AR_DIAG_CHAN_INFO           0x00000100
@@ -1345,12 +1356,12 @@ enum {
 #define AR_DIAG_FRAME_NV0           0x00020000
 #define AR_DIAG_OBS_PT_SEL1         0x000C0000
 #define AR_DIAG_OBS_PT_SEL1_S       18
-#define AR_DIAG_FORCE_RX_CLEAR      0x00100000
+#define AR_DIAG_FORCE_RX_CLEAR      0x00100000 /* force rx_clear high */
 #define AR_DIAG_IGNORE_VIRT_CS      0x00200000
 #define AR_DIAG_FORCE_CH_IDLE_HIGH  0x00400000
 #define AR_DIAG_EIFS_CTRL_ENA       0x00800000
 #define AR_DIAG_DUAL_CHAIN_INFO     0x01000000
-#define AR_DIAG_RX_ABORT            0x02000000
+#define AR_DIAG_RX_ABORT            0x02000000 /* Force RX abort */
 #define AR_DIAG_SATURATE_CYCLE_CNT  0x04000000
 #define AR_DIAG_OBS_PT_SEL2         0x08000000
 #define AR_DIAG_RX_CLEAR_CTL_LOW    0x10000000
@@ -1420,9 +1431,6 @@ enum {
 #define AR_SLEEP2                   0x80d8
 #define AR_SLEEP2_BEACON_TIMEOUT    0xFFE00000
 #define AR_SLEEP2_BEACON_TIMEOUT_S  21
-
-#define AR_BSSMSKL            0x80e0
-#define AR_BSSMSKU            0x80e4
 
 #define AR_TPC                 0x80e8
 #define AR_TPC_ACK             0x0000003f
@@ -1704,5 +1712,8 @@ enum {
 #define AR_KEYTABLE_TYPE(_n)    (AR_KEYTABLE(_n) + 20)
 #define AR_KEYTABLE_MAC0(_n)    (AR_KEYTABLE(_n) + 24)
 #define AR_KEYTABLE_MAC1(_n)    (AR_KEYTABLE(_n) + 28)
+
+#define AR9271_CORE_CLOCK	117   /* clock to 117Mhz */
+#define AR9271_TARGET_BAUD_RATE	19200 /* 115200 */
 
 #endif

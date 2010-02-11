@@ -40,8 +40,7 @@
 
 #define SG_TABLESIZE		30
 
-static int i2o_cfg_ioctl(struct inode *, struct file *, unsigned int,
-			 unsigned long);
+static long i2o_cfg_ioctl(struct file *, unsigned int, unsigned long);
 
 static spinlock_t i2o_config_lock;
 
@@ -751,7 +750,7 @@ static long i2o_cfg_compat_ioctl(struct file *file, unsigned cmd,
 	lock_kernel();
 	switch (cmd) {
 	case I2OGETIOPS:
-		ret = i2o_cfg_ioctl(NULL, file, cmd, arg);
+		ret = i2o_cfg_ioctl(file, cmd, arg);
 		break;
 	case I2OPASSTHRU32:
 		ret = i2o_cfg_passthru32(file, cmd, arg);
@@ -984,11 +983,11 @@ out:
 /*
  * IOCTL Handler
  */
-static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
-			 unsigned long arg)
+static long i2o_cfg_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
+	lock_kernel();
 	switch (cmd) {
 	case I2OGETIOPS:
 		ret = i2o_cfg_getiops(arg);
@@ -1044,7 +1043,7 @@ static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
 		osm_debug("unknown ioctl called!\n");
 		ret = -EINVAL;
 	}
-
+	unlock_kernel();
 	return ret;
 }
 
@@ -1118,7 +1117,7 @@ static int cfg_release(struct inode *inode, struct file *file)
 static const struct file_operations config_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
-	.ioctl = i2o_cfg_ioctl,
+	.unlocked_ioctl = i2o_cfg_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = i2o_cfg_compat_ioctl,
 #endif

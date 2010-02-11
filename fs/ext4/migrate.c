@@ -238,7 +238,7 @@ static int extend_credit_for_blkdel(handle_t *handle, struct inode *inode)
 	 * So allocate a credit of 3. We may update
 	 * quota (user and group).
 	 */
-	needed = 3 + 2*EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb);
+	needed = 3 + EXT4_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
 
 	if (ext4_journal_extend(handle, needed) != 0)
 		retval = ext4_journal_restart(handle, needed);
@@ -262,13 +262,17 @@ static int free_dind_blocks(handle_t *handle,
 	for (i = 0; i < max_entries; i++) {
 		if (tmp_idata[i]) {
 			extend_credit_for_blkdel(handle, inode);
-			ext4_free_blocks(handle, inode,
-					le32_to_cpu(tmp_idata[i]), 1, 1);
+			ext4_free_blocks(handle, inode, 0,
+					 le32_to_cpu(tmp_idata[i]), 1,
+					 EXT4_FREE_BLOCKS_METADATA |
+					 EXT4_FREE_BLOCKS_FORGET);
 		}
 	}
 	put_bh(bh);
 	extend_credit_for_blkdel(handle, inode);
-	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1, 1);
+	ext4_free_blocks(handle, inode, 0, le32_to_cpu(i_data), 1,
+			 EXT4_FREE_BLOCKS_METADATA |
+			 EXT4_FREE_BLOCKS_FORGET);
 	return 0;
 }
 
@@ -297,7 +301,9 @@ static int free_tind_blocks(handle_t *handle,
 	}
 	put_bh(bh);
 	extend_credit_for_blkdel(handle, inode);
-	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1, 1);
+	ext4_free_blocks(handle, inode, 0, le32_to_cpu(i_data), 1,
+			 EXT4_FREE_BLOCKS_METADATA |
+			 EXT4_FREE_BLOCKS_FORGET);
 	return 0;
 }
 
@@ -308,8 +314,10 @@ static int free_ind_block(handle_t *handle, struct inode *inode, __le32 *i_data)
 	/* ei->i_data[EXT4_IND_BLOCK] */
 	if (i_data[0]) {
 		extend_credit_for_blkdel(handle, inode);
-		ext4_free_blocks(handle, inode,
-				le32_to_cpu(i_data[0]), 1, 1);
+		ext4_free_blocks(handle, inode, 0,
+				le32_to_cpu(i_data[0]), 1,
+				 EXT4_FREE_BLOCKS_METADATA |
+				 EXT4_FREE_BLOCKS_FORGET);
 	}
 
 	/* ei->i_data[EXT4_DIND_BLOCK] */
@@ -419,7 +427,8 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 	}
 	put_bh(bh);
 	extend_credit_for_blkdel(handle, inode);
-	ext4_free_blocks(handle, inode, block, 1, 1);
+	ext4_free_blocks(handle, inode, 0, block, 1,
+			 EXT4_FREE_BLOCKS_METADATA | EXT4_FREE_BLOCKS_FORGET);
 	return retval;
 }
 
@@ -477,7 +486,7 @@ int ext4_ext_migrate(struct inode *inode)
 	handle = ext4_journal_start(inode,
 					EXT4_DATA_TRANS_BLOCKS(inode->i_sb) +
 					EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2 * EXT4_QUOTA_INIT_BLOCKS(inode->i_sb)
+					EXT4_MAXQUOTAS_INIT_BLOCKS(inode->i_sb)
 					+ 1);
 	if (IS_ERR(handle)) {
 		retval = PTR_ERR(handle);

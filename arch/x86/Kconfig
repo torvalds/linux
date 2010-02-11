@@ -49,7 +49,12 @@ config X86
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_HW_BREAKPOINT
+	select PERF_EVENTS
+	select ANON_INODES
 	select HAVE_ARCH_KMEMCHECK
+	select HAVE_USER_RETURN_NOTIFIER
 
 config OUTPUT_FORMAT
 	string
@@ -491,7 +496,7 @@ if PARAVIRT_GUEST
 source "arch/x86/xen/Kconfig"
 
 config VMI
-	bool "VMI Guest support"
+	bool "VMI Guest support (DEPRECATED)"
 	select PARAVIRT
 	depends on X86_32
 	---help---
@@ -499,6 +504,15 @@ config VMI
 	  (it could be used by other hypervisors in theory too, but is not
 	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
+
+	  As of September 2009, VMware has started a phased retirement
+	  of this feature from VMware's products. Please see
+	  feature-removal-schedule.txt for details.  If you are
+	  planning to enable this option, please note that you cannot
+	  live migrate a VMI enabled VM to a future VMware product,
+	  which doesn't support VMI. So if you expect your kernel to
+	  seamlessly migrate to newer VMware products, keep this
+	  disabled.
 
 config KVM_CLOCK
 	bool "KVM paravirtualized clock"
@@ -975,12 +989,6 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-config X86_CPU_DEBUG
-	tristate "/sys/kernel/debug/x86/cpu/* - CPU Debug support"
-	---help---
-	  If you select this option, this will provide various x86 CPUs
-	  information through debugfs.
-
 choice
 	prompt "High Memory Support"
 	default HIGHMEM4G if !X86_NUMAQ
@@ -1233,6 +1241,11 @@ config ARCH_MEMORY_PROBE
 	def_bool X86_64
 	depends on MEMORY_HOTPLUG
 
+config ILLEGAL_POINTER_VALUE
+       hex
+       default 0 if X86_32
+       default 0xdead000000000000 if X86_64
+
 source "mm/Kconfig"
 
 config HIGHPTE
@@ -1321,7 +1334,9 @@ config MATH_EMULATION
 	  kernel, it won't hurt.
 
 config MTRR
-	bool "MTRR (Memory Type Range Register) support"
+	bool
+	default y
+	prompt "MTRR (Memory Type Range Register) support" if EMBEDDED
 	---help---
 	  On Intel P6 family processors (Pentium Pro, Pentium II and later)
 	  the Memory Type Range Registers (MTRRs) may be used to control
@@ -1387,7 +1402,8 @@ config MTRR_SANITIZER_SPARE_REG_NR_DEFAULT
 
 config X86_PAT
 	bool
-	prompt "x86 PAT support"
+	default y
+	prompt "x86 PAT support" if EMBEDDED
 	depends on MTRR
 	---help---
 	  Use PAT attributes to setup page level cache control.
@@ -1434,12 +1450,8 @@ config SECCOMP
 
 	  If unsure, say Y. Only embedded should say N here.
 
-config CC_STACKPROTECTOR_ALL
-	bool
-
 config CC_STACKPROTECTOR
 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
-	select CC_STACKPROTECTOR_ALL
 	---help---
 	  This option turns on the -fstack-protector GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
@@ -1597,7 +1609,7 @@ config COMPAT_VDSO
 	depends on X86_32 || IA32_EMULATION
 	---help---
 	  Map the 32-bit VDSO to the predictable old-style address too.
-	---help---
+
 	  Say N here if you are running a sufficiently recent glibc
 	  version (2.3.3 or later), to remove the high-mapped
 	  VDSO mapping and to exclusively use the randomized VDSO.
@@ -2002,18 +2014,9 @@ config SCx200HR_TIMER
 	  processor goes idle (as is done by the scheduler).  The
 	  other workaround is idle=poll boot option.
 
-config GEODE_MFGPT_TIMER
-	def_bool y
-	prompt "Geode Multi-Function General Purpose Timer (MFGPT) events"
-	depends on MGEODE_LX && GENERIC_TIME && GENERIC_CLOCKEVENTS
-	---help---
-	  This driver provides a clock event source based on the MFGPT
-	  timer(s) in the CS5535 and CS5536 companion chip for the geode.
-	  MFGPTs have a better resolution and max interval than the
-	  generic PIT, and are suitable for use as high-res timers.
-
 config OLPC
 	bool "One Laptop Per Child support"
+	select GPIOLIB
 	default n
 	---help---
 	  Add support for detecting the unique features of the OLPC

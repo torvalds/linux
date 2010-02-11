@@ -33,6 +33,7 @@
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 
+#include <asm/dpmc.h>
 #include <asm/blackfin.h>
 #include <asm/cacheflush.h>
 #include <asm/portmux.h>
@@ -386,8 +387,8 @@ static int mii_probe(struct net_device *dev)
 	u32 sclk, mdc_div;
 
 	/* Enable PHY output early */
-	if (!(bfin_read_VR_CTL() & PHYCLKOE))
-		bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
+	if (!(bfin_read_VR_CTL() & CLKBUFOE))
+		bfin_write_VR_CTL(bfin_read_VR_CTL() | CLKBUFOE);
 
 	sclk = get_sclk();
 	mdc_div = ((sclk / MDC_CLK) / 2) - 1;
@@ -554,8 +555,8 @@ static void adjust_tx_list(void)
 {
 	int timeout_cnt = MAX_TIMEOUT_CNT;
 
-	if (tx_list_head->status.status_word != 0
-	    && current_tx_ptr != tx_list_head) {
+	if (tx_list_head->status.status_word != 0 &&
+	    current_tx_ptr != tx_list_head) {
 		goto adjust_head;	/* released something, just return; */
 	}
 
@@ -567,8 +568,8 @@ static void adjust_tx_list(void)
 	if (current_tx_ptr->next->next == tx_list_head) {
 		while (tx_list_head->status.status_word == 0) {
 			udelay(10);
-			if (tx_list_head->status.status_word != 0
-			    || !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
+			if (tx_list_head->status.status_word != 0 ||
+			    !(bfin_read_DMA2_IRQ_STATUS() & DMA_RUN)) {
 				goto adjust_head;
 			}
 			if (timeout_cnt-- < 0) {
@@ -596,8 +597,8 @@ adjust_head:
 			       ": no sk_buff in a transmitted frame!\n");
 		}
 		tx_list_head = tx_list_head->next;
-	} while (tx_list_head->status.status_word != 0
-		 && current_tx_ptr != tx_list_head);
+	} while (tx_list_head->status.status_word != 0 &&
+		 current_tx_ptr != tx_list_head);
 	return;
 
 }

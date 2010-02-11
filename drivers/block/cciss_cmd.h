@@ -5,9 +5,10 @@
 //###########################################################################
 #define CISS_VERSION "1.00"
 
-//general boundary defintions
+//general boundary definitions
 #define SENSEINFOBYTES          32//note that this value may vary between host implementations
-#define MAXSGENTRIES            31
+#define MAXSGENTRIES            32
+#define CCISS_SG_CHAIN          0x80000000
 #define MAXREPLYQS              256
 
 //Command Status value
@@ -319,6 +320,10 @@ typedef struct _CfgTable_struct {
   BYTE             ServerName[16];
   DWORD            HeartBeat;
   DWORD            SCSI_Prefetch;
+  DWORD            MaxSGElements;
+  DWORD            MaxLogicalUnits;
+  DWORD            MaxPhysicalDrives;
+  DWORD            MaxPhysicalDrivesPerLogicalUnit;
 } CfgTable_struct;
 #pragma pack()	 
 #endif // CCISS_CMD_H

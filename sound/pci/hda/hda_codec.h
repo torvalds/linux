@@ -255,9 +255,13 @@ enum {
  *       in HD-audio specification
  */
 #define AC_PINCAP_HDMI			(1<<7)	/* HDMI pin */
+#define AC_PINCAP_DP			(1<<24)	/* DisplayPort pin, can
+						 * coexist with AC_PINCAP_HDMI
+						 */
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
+#define AC_PINCAP_HBR			(1<<27)	/* High Bit Rate */
 /* Vref status (used in pin cap) */
 #define AC_PINCAP_VREF_HIZ		(1<<0)	/* Hi-Z */
 #define AC_PINCAP_VREF_50		(1<<1)	/* 50% */
@@ -286,6 +290,10 @@ enum {
 #define AC_PWRST_D1SUP			(1<<1)
 #define AC_PWRST_D2SUP			(1<<2)
 #define AC_PWRST_D3SUP			(1<<3)
+#define AC_PWRST_D3COLDSUP		(1<<4)
+#define AC_PWRST_S3D3COLDSUP		(1<<29)
+#define AC_PWRST_CLKSTOP		(1<<30)
+#define AC_PWRST_EPSS			(1U<<31)
 
 /* Power state values */
 #define AC_PWRST_SETTING		(0xf<<0)
@@ -631,6 +639,7 @@ struct hda_bus {
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
+	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 };
 
 /*
@@ -674,6 +683,7 @@ struct hda_codec_ops {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
+	void (*reboot_notify)(struct hda_codec *codec);
 };
 
 /* record for amp information cache */
@@ -771,6 +781,7 @@ struct hda_codec {
 
 	/* beep device */
 	struct hda_beep *beep;
+	unsigned int beep_mode;
 
 	/* widget capabilities cache */
 	unsigned int num_nodes;
@@ -806,11 +817,15 @@ struct hda_codec {
 	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
 					    * (e.g. Conexant codecs)
 					    */
+	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int power_transition :1; /* power-state in transition */
 	int power_count;	/* current (global) power refcount */
 	struct delayed_work power_work; /* delayed task for powerdown */
+	unsigned long power_on_acct;
+	unsigned long power_off_acct;
+	unsigned long power_jiffies;
 #endif
 
 	/* codec-specific additional proc output */
@@ -910,6 +925,7 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
  * Misc
  */
 void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
+void snd_hda_bus_reboot_notify(struct hda_bus *bus);
 
 /*
  * power management
@@ -933,6 +949,7 @@ const char *snd_hda_get_jack_location(u32 cfg);
 void snd_hda_power_up(struct hda_codec *codec);
 void snd_hda_power_down(struct hda_codec *codec);
 #define snd_hda_codec_needs_resume(codec) codec->power_count
+void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
 static inline void snd_hda_power_up(struct hda_codec *codec) {}
 static inline void snd_hda_power_down(struct hda_codec *codec) {}

@@ -186,7 +186,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_puts(p, "           CPU0");
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto unlock;
@@ -200,7 +200,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_printf(p, ", %s", action->name);
 		seq_putc(p, '\n');
 unlock:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	}
 	return 0;
 }

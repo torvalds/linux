@@ -30,9 +30,6 @@
 
 struct iwl_priv;
 
-#ifdef CONFIG_IWLWIFI_LEDS
-#include <linux/leds.h>
-
 #define IWL_LED_SOLID 11
 #define IWL_LED_NAME_LEN 31
 #define IWL_DEF_LED_INTRVL cpu_to_le32(1000)
@@ -47,38 +44,23 @@ enum led_type {
 	IWL_LED_TRG_RADIO,
 	IWL_LED_TRG_MAX,
 };
-#endif
 
-#ifdef CONFIG_IWLWIFI_LEDS
-
-struct iwl_led {
-	struct iwl_priv *priv;
-	struct led_classdev led_dev;
-	char name[32];
-
-	int (*led_on) (struct iwl_priv *priv, int led_id);
-	int (*led_off) (struct iwl_priv *priv, int led_id);
-	int (*led_pattern) (struct iwl_priv *priv, int led_id, unsigned int idx);
-
-	enum led_type type;
-	unsigned int registered;
+/*
+ * LED mode
+ *    IWL_LED_BLINK:    adjust led blink rate based on blink table
+ *    IWL_LED_RF_STATE: turn LED on/off based on RF state
+ *			LED ON  = RF ON
+ *			LED OFF = RF OFF
+ */
+enum iwl_led_mode {
+	IWL_LED_BLINK,
+	IWL_LED_RF_STATE,
 };
 
-int iwl_leds_register(struct iwl_priv *priv);
-void iwl_leds_unregister(struct iwl_priv *priv);
+void iwl_leds_init(struct iwl_priv *priv);
 void iwl_leds_background(struct iwl_priv *priv);
+int iwl_led_start(struct iwl_priv *priv);
+int iwl_led_associate(struct iwl_priv *priv);
+int iwl_led_disassociate(struct iwl_priv *priv);
 
-#else
-static inline int iwl_leds_register(struct iwl_priv *priv)
-{
-	return 0;
-}
-static inline void iwl_leds_unregister(struct iwl_priv *priv)
-{
-}
-static inline void iwl_leds_background(struct iwl_priv *priv)
-{
-}
-
-#endif /* CONFIG_IWLWIFI_LEDS */
 #endif /* __iwl_leds_h__ */

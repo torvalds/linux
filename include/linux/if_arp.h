@@ -133,8 +133,7 @@ struct arpreq_old {
  *	This structure defines an ethernet arp header.
  */
 
-struct arphdr
-{
+struct arphdr {
 	__be16		ar_hrd;		/* format of hardware address	*/
 	__be16		ar_pro;		/* format of protocol address	*/
 	unsigned char	ar_hln;		/* length of hardware address	*/

@@ -14,6 +14,10 @@ Supported chips:
     Prefix: 'f71882fg'
     Addresses scanned: none, address read from Super I/O config space
     Datasheet: Available from the Fintek website
+  * Fintek F71889FG
+    Prefix: 'f71889fg'
+    Addresses scanned: none, address read from Super I/O config space
+    Datasheet: Should become available on the Fintek website soon
   * Fintek F8000
     Prefix: 'f8000'
     Addresses scanned: none, address read from Super I/O config space
@@ -50,6 +54,12 @@ Both PWM (pulse-width modulation) and DC fan speed control methods are
 supported. The right one to use depends on external circuitry on the
 motherboard, so the driver assumes that the BIOS set the method
 properly.
+
+Note that the lowest numbered temperature zone trip point corresponds to
+to the border between the highest and one but highest temperature zones, and
+vica versa. So the temperature zone trip points 1-4 (or 1-2) go from high temp
+to low temp! This is how things are implemented in the IC, and the driver
+mimicks this.
 
 There are 2 modes to specify the speed of the fan, PWM duty cycle (or DC
 voltage) mode, where 0-100% duty cycle (0-100% of 12V) is specified. And RPM

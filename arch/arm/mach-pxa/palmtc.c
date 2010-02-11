@@ -185,7 +185,7 @@ err:
 	return ret;
 }
 
-static int palmtc_backlight_notify(int brightness)
+static int palmtc_backlight_notify(struct device *dev, int brightness)
 {
 	/* backlight is on when GPIO16 AF0 is high */
 	gpio_set_value(GPIO_NR_PALMTC_BL_POWER, brightness);
@@ -292,10 +292,10 @@ const static unsigned int palmtc_keypad_col_gpios[] = {
 
 static struct matrix_keypad_platform_data palmtc_keypad_platform_data = {
 	.keymap_data	= &palmtc_keymap_data,
-	.col_gpios	= palmtc_keypad_row_gpios,
-	.num_col_gpios	= 12,
-	.row_gpios	= palmtc_keypad_col_gpios,
-	.num_row_gpios	= 4,
+	.row_gpios	= palmtc_keypad_row_gpios,
+	.num_row_gpios	= ARRAY_SIZE(palmtc_keypad_row_gpios),
+	.col_gpios	= palmtc_keypad_col_gpios,
+	.num_col_gpios	= ARRAY_SIZE(palmtc_keypad_col_gpios),
 	.active_low	= 1,
 
 	.debounce_ms		= 20,
@@ -415,6 +415,11 @@ static struct platform_device *devices[] __initdata = {
 static void __init palmtc_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmtc_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+	pxa_set_hwuart_info(NULL);
 
 	set_pxa_fb_info(&palmtc_lcd_screen);
 	pxa_set_mci_info(&palmtc_mci_platform_data);

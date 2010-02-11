@@ -253,6 +253,8 @@ EXPORT_SYMBOL(cookie_check_timestamp);
 struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			     struct ip_options *opt)
 {
+	struct tcp_options_received tcp_opt;
+	u8 *hash_location;
 	struct inet_request_sock *ireq;
 	struct tcp_request_sock *treq;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -263,7 +265,6 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	int mss;
 	struct rtable *rt;
 	__u8 rcv_wscale;
-	struct tcp_options_received tcp_opt;
 
 	if (!sysctl_tcp_syncookies || !th->ack)
 		goto out;
@@ -278,7 +279,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 
 	/* check for timestamp cookie support */
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
-	tcp_parse_options(skb, &tcp_opt, 0);
+	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
 
 	if (tcp_opt.saw_tstamp)
 		cookie_check_timestamp(&tcp_opt);
@@ -333,7 +334,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	 * no easy way to do this.
 	 */
 	{
-		struct flowi fl = { .nl_u = { .ip4_u =
+		struct flowi fl = { .mark = sk->sk_mark,
+				    .nl_u = { .ip4_u =
 					      { .daddr = ((opt && opt->srr) ?
 							  opt->faddr :
 							  ireq->rmt_addr),

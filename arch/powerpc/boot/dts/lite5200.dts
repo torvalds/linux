@@ -247,7 +247,6 @@
 			compatible = "fsl,mpc5200-i2c","fsl-i2c";
 			reg = <0x3d00 0x40>;
 			interrupts = <2 15 0>;
-			fsl5200-clocking;
 		};
 
 		i2c@3d40 {
@@ -256,7 +255,6 @@
 			compatible = "fsl,mpc5200-i2c","fsl-i2c";
 			reg = <0x3d40 0x40>;
 			interrupts = <2 16 0>;
-			fsl5200-clocking;
 		};
 		sram@8000 {
 			compatible = "fsl,mpc5200-sram";

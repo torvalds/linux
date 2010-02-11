@@ -74,7 +74,7 @@
 #define SCA3000_MEAS_MODE_OP_2			0x02
 
 /* In motion detection mode the accelerations are band pass filtered
- * (aprox 1 - 25Hz) and then a programmable theshold used to trigger
+ * (aprox 1 - 25Hz) and then a programmable threshold used to trigger
  * and interrupt.
  */
 #define SCA3000_MEAS_MODE_MOT_DET		0x03
@@ -139,7 +139,7 @@
 /* Values of mulipexed registers (write to ctrl_data after select) */
 #define SCA3000_REG_ADDR_CTRL_DATA		0x22
 
-/* Measurment modes available on some sca3000 series chips. Code assumes others
+/* Measurement modes available on some sca3000 series chips. Code assumes others
  * may become available in the future.
  *
  * Bypass - Bypass the low-pass filter in the signal channel so as to increase

@@ -25,6 +25,14 @@
 #include <linux/kernel.h>
 #include <linux/utsname.h>
 
+
+#if defined USB_ETH_RNDIS
+#  undef USB_ETH_RNDIS
+#endif
+#ifdef CONFIG_USB_ETH_RNDIS
+#  define USB_ETH_RNDIS y
+#endif
+
 #include "u_ether.h"
 
 
@@ -61,17 +69,12 @@
  * simpler, Microsoft pushes their own approach: RNDIS.  The published
  * RNDIS specs are ambiguous and appear to be incomplete, and are also
  * needlessly complex.  They borrow more from CDC ACM than CDC ECM.
- *
- * While CDC ECM, CDC Subset, and RNDIS are designed to extend the ethernet
- * interface to the target, CDC EEM was designed to use ethernet over the USB
- * link between the host and target.  CDC EEM is implemented as an alternative
- * to those other protocols when that communication model is more appropriate
  */
 
 #define DRIVER_DESC		"Ethernet Gadget"
 #define DRIVER_VERSION		"Memorial Day 2008"
 
-#ifdef CONFIG_USB_ETH_RNDIS
+#ifdef USB_ETH_RNDIS
 #define PREFIX			"RNDIS/"
 #else
 #define PREFIX			""
@@ -92,7 +95,7 @@
 
 static inline bool has_rndis(void)
 {
-#ifdef	CONFIG_USB_ETH_RNDIS
+#ifdef	USB_ETH_RNDIS
 	return true;
 #else
 	return false;
@@ -115,7 +118,7 @@ static inline bool has_rndis(void)
 
 #include "f_ecm.c"
 #include "f_subset.c"
-#ifdef	CONFIG_USB_ETH_RNDIS
+#ifdef	USB_ETH_RNDIS
 #include "f_rndis.c"
 #include "rndis.c"
 #endif
@@ -157,8 +160,8 @@ static inline bool has_rndis(void)
 #define RNDIS_PRODUCT_NUM	0xa4a2	/* Ethernet/RNDIS Gadget */
 
 /* For EEM gadgets */
-#define EEM_VENDOR_NUM	0x0525	/* INVALID - NEEDS TO BE ALLOCATED */
-#define EEM_PRODUCT_NUM	0xa4a1	/* INVALID - NEEDS TO BE ALLOCATED */
+#define EEM_VENDOR_NUM		0x1d6b	/* Linux Foundation */
+#define EEM_PRODUCT_NUM		0x0102	/* EEM Gadget */
 
 /*-------------------------------------------------------------------------*/
 
@@ -256,7 +259,7 @@ static struct usb_configuration rndis_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_USB_ETH_EEM
+#ifdef USB_ETH_EEM
 static int use_eem = 1;
 #else
 static int use_eem;

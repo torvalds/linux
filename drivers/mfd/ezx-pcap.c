@@ -387,7 +387,6 @@ static int __devinit pcap_add_subdev(struct pcap_chip *pcap,
 	pdev = platform_device_alloc(subdev->name, subdev->id);
 	pdev->dev.parent = &pcap->spi->dev;
 	pdev->dev.platform_data = subdev->platform_data;
-	platform_set_drvdata(pdev, pcap);
 
 	return platform_device_add(pdev);
 }

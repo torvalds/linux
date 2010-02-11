@@ -50,23 +50,17 @@ struct wl1271_static_data {
 #define WU_COUNTER_PAUSE_VAL 0x3FF
 #define WELP_ARM_COMMAND_VAL 0x4
 
-#define OCP_CMD_LOOP  32
-
-#define OCP_CMD_WRITE 0x1
-#define OCP_CMD_READ  0x2
-
-#define OCP_READY_MASK  BIT(18)
-#define OCP_STATUS_MASK (BIT(16) | BIT(17))
-
-#define OCP_STATUS_NO_RESP    0x00000
-#define OCP_STATUS_OK         0x10000
-#define OCP_STATUS_REQ_FAILED 0x20000
-#define OCP_STATUS_RESP_ERROR 0x30000
-
-#define OCP_REG_POLARITY 0x30032
+#define OCP_REG_POLARITY     0x0064
+#define OCP_REG_CLK_TYPE     0x0448
+#define OCP_REG_CLK_POLARITY 0x0cb2
 
 #define CMD_MBOX_ADDRESS 0x407B4
 
 #define POLARITY_LOW BIT(1)
+
+#define FREF_CLK_TYPE_BITS     0xfffffe7f
+#define CLK_REQ_PRCM           0x100
+#define FREF_CLK_POLARITY_BITS 0xfffff8ff
+#define CLK_REQ_OUTN_SEL       0x700
 
 #endif

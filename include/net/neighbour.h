@@ -37,8 +37,7 @@
 
 struct neighbour;
 
-struct neigh_parms
-{
+struct neigh_parms {
 #ifdef CONFIG_NET_NS
 	struct net *net;
 #endif
@@ -70,8 +69,7 @@ struct neigh_parms
 	int	locktime;
 };
 
-struct neigh_statistics
-{
+struct neigh_statistics {
 	unsigned long allocs;		/* number of allocated neighs */
 	unsigned long destroys;		/* number of destroyed neighs */
 	unsigned long hash_grows;	/* number of hash resizes */
@@ -90,15 +88,9 @@ struct neigh_statistics
 	unsigned long unres_discards;	/* number of unresolved drops */
 };
 
-#define NEIGH_CACHE_STAT_INC(tbl, field)				\
-	do {								\
-		preempt_disable();					\
-		(per_cpu_ptr((tbl)->stats, smp_processor_id())->field)++; \
-		preempt_enable();					\
-	} while (0)
+#define NEIGH_CACHE_STAT_INC(tbl, field) this_cpu_inc((tbl)->stats->field)
 
-struct neighbour
-{
+struct neighbour {
 	struct neighbour	*next;
 	struct neigh_table	*tbl;
 	struct neigh_parms	*parms;
@@ -122,8 +114,7 @@ struct neighbour
 	u8			primary_key[0];
 };
 
-struct neigh_ops
-{
+struct neigh_ops {
 	int			family;
 	void			(*solicit)(struct neighbour *, struct sk_buff*);
 	void			(*error_report)(struct neighbour *, struct sk_buff*);
@@ -133,8 +124,7 @@ struct neigh_ops
 	int			(*queue_xmit)(struct sk_buff*);
 };
 
-struct pneigh_entry
-{
+struct pneigh_entry {
 	struct pneigh_entry	*next;
 #ifdef CONFIG_NET_NS
 	struct net		*net;
@@ -149,8 +139,7 @@ struct pneigh_entry
  */
 
 
-struct neigh_table
-{
+struct neigh_table {
 	struct neigh_table	*next;
 	int			family;
 	int			entry_size;
@@ -264,8 +253,7 @@ extern int			neigh_sysctl_register(struct net_device *dev,
 						      struct neigh_parms *p,
 						      int p_id, int pdev_id,
 						      char *p_name,
-						      proc_handler *proc_handler,
-						      ctl_handler *strategy);
+						      proc_handler *proc_handler);
 extern void			neigh_sysctl_unregister(struct neigh_parms *p);
 
 static inline void __neigh_parms_put(struct neigh_parms *parms)

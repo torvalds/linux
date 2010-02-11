@@ -354,6 +354,28 @@ static void au1x_ic1_ack(unsigned int irq_nr)
 	au_sync();
 }
 
+static void au1x_ic0_maskack(unsigned int irq_nr)
+{
+	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;
+
+	au_writel(1 << bit, IC0_WAKECLR);
+	au_writel(1 << bit, IC0_MASKCLR);
+	au_writel(1 << bit, IC0_RISINGCLR);
+	au_writel(1 << bit, IC0_FALLINGCLR);
+	au_sync();
+}
+
+static void au1x_ic1_maskack(unsigned int irq_nr)
+{
+	unsigned int bit = irq_nr - AU1000_INTC1_INT_BASE;
+
+	au_writel(1 << bit, IC1_WAKECLR);
+	au_writel(1 << bit, IC1_MASKCLR);
+	au_writel(1 << bit, IC1_RISINGCLR);
+	au_writel(1 << bit, IC1_FALLINGCLR);
+	au_sync();
+}
+
 static int au1x_ic1_setwake(unsigned int irq, unsigned int on)
 {
 	unsigned int bit = irq - AU1000_INTC1_INT_BASE;
@@ -379,25 +401,21 @@ static int au1x_ic1_setwake(unsigned int irq, unsigned int on)
 /*
  * irq_chips for both ICs; this way the mask handlers can be
  * as short as possible.
- *
- * NOTE: the ->ack() callback is used by the handle_edge_irq
- *	 flowhandler only, the ->mask_ack() one by handle_level_irq,
- *	 so no need for an irq_chip for each type of irq (level/edge).
  */
 static struct irq_chip au1x_ic0_chip = {
 	.name		= "Alchemy-IC0",
-	.ack		= au1x_ic0_ack,		/* edge */
+	.ack		= au1x_ic0_ack,
 	.mask		= au1x_ic0_mask,
-	.mask_ack	= au1x_ic0_mask,	/* level */
+	.mask_ack	= au1x_ic0_maskack,
 	.unmask		= au1x_ic0_unmask,
 	.set_type	= au1x_ic_settype,
 };
 
 static struct irq_chip au1x_ic1_chip = {
 	.name		= "Alchemy-IC1",
-	.ack		= au1x_ic1_ack,		/* edge */
+	.ack		= au1x_ic1_ack,
 	.mask		= au1x_ic1_mask,
-	.mask_ack	= au1x_ic1_mask,	/* level */
+	.mask_ack	= au1x_ic1_maskack,
 	.unmask		= au1x_ic1_unmask,
 	.set_type	= au1x_ic_settype,
 	.set_wake	= au1x_ic1_setwake,

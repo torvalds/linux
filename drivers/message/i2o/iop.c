@@ -132,7 +132,7 @@ u32 i2o_cntxt_list_add(struct i2o_controller * c, void *ptr)
  *	Removes a previously added pointer from the context list and returns
  *	the matching context id.
  *
- *	Returns context id on succes or 0 on failure.
+ *	Returns context id on success or 0 on failure.
  */
 u32 i2o_cntxt_list_remove(struct i2o_controller * c, void *ptr)
 {
@@ -198,7 +198,7 @@ void *i2o_cntxt_list_get(struct i2o_controller *c, u32 context)
  *	@c: controller to which the context list belong
  *	@ptr: pointer to which the context id should be fetched
  *
- *	Returns context id which matches to the pointer on succes or 0 on
+ *	Returns context id which matches to the pointer on success or 0 on
  *	failure.
  */
 u32 i2o_cntxt_list_get_ptr(struct i2o_controller * c, void *ptr)

@@ -318,14 +318,14 @@ struct pv_mmu_ops {
 			   phys_addr_t phys, pgprot_t flags);
 };
 
-struct raw_spinlock;
+struct arch_spinlock;
 struct pv_lock_ops {
-	int (*spin_is_locked)(struct raw_spinlock *lock);
-	int (*spin_is_contended)(struct raw_spinlock *lock);
-	void (*spin_lock)(struct raw_spinlock *lock);
-	void (*spin_lock_flags)(struct raw_spinlock *lock, unsigned long flags);
-	int (*spin_trylock)(struct raw_spinlock *lock);
-	void (*spin_unlock)(struct raw_spinlock *lock);
+	int (*spin_is_locked)(struct arch_spinlock *lock);
+	int (*spin_is_contended)(struct arch_spinlock *lock);
+	void (*spin_lock)(struct arch_spinlock *lock);
+	void (*spin_lock_flags)(struct arch_spinlock *lock, unsigned long flags);
+	int (*spin_trylock)(struct arch_spinlock *lock);
+	void (*spin_unlock)(struct arch_spinlock *lock);
 };
 
 /* This contains all the paravirt structures: we get a convenient
@@ -494,10 +494,11 @@ int paravirt_disable_iospace(void);
 #define EXTRA_CLOBBERS
 #define VEXTRA_CLOBBERS
 #else  /* CONFIG_X86_64 */
+/* [re]ax isn't an arg, but the return val */
 #define PVOP_VCALL_ARGS					\
 	unsigned long __edi = __edi, __esi = __esi,	\
-		__edx = __edx, __ecx = __ecx
-#define PVOP_CALL_ARGS		PVOP_VCALL_ARGS, __eax
+		__edx = __edx, __ecx = __ecx, __eax = __eax
+#define PVOP_CALL_ARGS		PVOP_VCALL_ARGS
 
 #define PVOP_CALL_ARG1(x)		"D" ((unsigned long)(x))
 #define PVOP_CALL_ARG2(x)		"S" ((unsigned long)(x))
@@ -509,6 +510,7 @@ int paravirt_disable_iospace(void);
 				"=c" (__ecx)
 #define PVOP_CALL_CLOBBERS	PVOP_VCALL_CLOBBERS, "=a" (__eax)
 
+/* void functions are still allowed [re]ax for scratch */
 #define PVOP_VCALLEE_CLOBBERS	"=a" (__eax)
 #define PVOP_CALLEE_CLOBBERS	PVOP_VCALLEE_CLOBBERS
 
@@ -583,8 +585,8 @@ int paravirt_disable_iospace(void);
 		       VEXTRA_CLOBBERS,					\
 		       pre, post, ##__VA_ARGS__)
 
-#define __PVOP_VCALLEESAVE(rettype, op, pre, post, ...)			\
-	____PVOP_CALL(rettype, op.func, CLBR_RET_REG,			\
+#define __PVOP_VCALLEESAVE(op, pre, post, ...)				\
+	____PVOP_VCALL(op.func, CLBR_RET_REG,				\
 		      PVOP_VCALLEE_CLOBBERS, ,				\
 		      pre, post, ##__VA_ARGS__)
 

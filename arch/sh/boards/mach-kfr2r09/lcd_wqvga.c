@@ -273,6 +273,12 @@ int kfr2r09_lcd_setup(void *board_data, void *sohandle,
 	return 0;
 }
 
+void kfr2r09_lcd_start(void *board_data, void *sohandle,
+		       struct sh_mobile_lcdc_sys_bus_ops *so)
+{
+	write_memory_start(sohandle, so);
+}
+
 #define CTRL_CKSW       0x10
 #define CTRL_C10        0x20
 #define CTRL_CPSW       0x80

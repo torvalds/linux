@@ -34,9 +34,9 @@
 
 
 /* Called to allocate buffer, must return a continue buffer space */
-zbuf_t* zfwBufAllocate(zdev_t* dev, u16_t len)
+zbuf_t *zfwBufAllocate(zdev_t *dev, u16_t len)
 {
-    zbuf_t* buf;
+    zbuf_t *buf;
 
     /* Allocate SKB for packet*/
     buf = dev_alloc_skb(len);
@@ -46,15 +46,15 @@ zbuf_t* zfwBufAllocate(zdev_t* dev, u16_t len)
 
 
 /* Called to free buffer, replace below 3 functions */
-void zfwBufFree(zdev_t* dev, zbuf_t* buf, u16_t status)
+void zfwBufFree(zdev_t *dev, zbuf_t *buf, u16_t status)
 {
     dev_kfree_skb_any(buf);
 }
 
 /* Called to adjust buffer size and head pointer */
-u16_t zfwBufRemoveHead(zdev_t* dev, zbuf_t* buf, u16_t size)
+u16_t zfwBufRemoveHead(zdev_t *dev, zbuf_t *buf, u16_t size)
 {
-    //zm_assert(buf->len > size);
+    /* zm_assert(buf->len > size); */
 
     buf->data += size;
     buf->len -= size;
@@ -68,7 +68,7 @@ u16_t zfwBufRemoveHead(zdev_t* dev, zbuf_t* buf, u16_t size)
 /* Used to chain Rx buffer to form a frame. if the prepared Rx buffer  */
 /* is greater than an ethernet frame(1518+32 byte), then this function    */
 /* will only be called with head=NULL.                                 */
-u16_t zfwBufChain(zdev_t* dev, zbuf_t** head, zbuf_t* tail)
+u16_t zfwBufChain(zdev_t *dev, zbuf_t **head, zbuf_t *tail)
 {
 
     *head = tail;
@@ -77,7 +77,7 @@ u16_t zfwBufChain(zdev_t* dev, zbuf_t** head, zbuf_t* tail)
 
 
 /* Called when doing infra-bss forwarding */
-u16_t zfwBufCopy(zdev_t* dev, zbuf_t* dst, zbuf_t* src)
+u16_t zfwBufCopy(zdev_t *dev, zbuf_t *dst, zbuf_t *src)
 {
     memcpy(dst->data, src->data, src->len);
     dst->tail = dst->data;
@@ -87,7 +87,7 @@ u16_t zfwBufCopy(zdev_t* dev, zbuf_t* dst, zbuf_t* src)
 
 
 /* Called to adjust buffer size and tail pointer */
-u16_t zfwBufSetSize(zdev_t* dev, zbuf_t* buf, u16_t size)
+u16_t zfwBufSetSize(zdev_t *dev, zbuf_t *buf, u16_t size)
 {
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
     buf->tail = 0;
@@ -101,11 +101,11 @@ u16_t zfwBufSetSize(zdev_t* dev, zbuf_t* buf, u16_t size)
     return 0;
 }
 
-u16_t zfwBufGetSize(zdev_t* dev, zbuf_t* buf)
+u16_t zfwBufGetSize(zdev_t *dev, zbuf_t *buf)
 {
     return buf->len;
 }
 
-void zfwCopyBufContext(zdev_t* dev, zbuf_t* source, zbuf_t* dst)
+void zfwCopyBufContext(zdev_t *dev, zbuf_t *source, zbuf_t *dst)
 {
 }

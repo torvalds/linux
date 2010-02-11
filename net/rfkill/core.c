@@ -579,6 +579,8 @@ static ssize_t rfkill_name_show(struct device *dev,
 
 static const char *rfkill_get_type_str(enum rfkill_type type)
 {
+	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_FM + 1);
+
 	switch (type) {
 	case RFKILL_TYPE_WLAN:
 		return "wlan";
@@ -592,11 +594,11 @@ static const char *rfkill_get_type_str(enum rfkill_type type)
 		return "wwan";
 	case RFKILL_TYPE_GPS:
 		return "gps";
+	case RFKILL_TYPE_FM:
+		return "fm";
 	default:
 		BUG();
 	}
-
-	BUILD_BUG_ON(NUM_RFKILL_TYPES != RFKILL_TYPE_GPS + 1);
 }
 
 static ssize_t rfkill_type_show(struct device *dev,
@@ -1189,6 +1191,7 @@ static long rfkill_fop_ioctl(struct file *file, unsigned int cmd,
 #endif
 
 static const struct file_operations rfkill_fops = {
+	.owner		= THIS_MODULE,
 	.open		= rfkill_fop_open,
 	.read		= rfkill_fop_read,
 	.write		= rfkill_fop_write,

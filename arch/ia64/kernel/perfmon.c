@@ -522,42 +522,37 @@ EXPORT_SYMBOL(pfm_sysctl);
 
 static ctl_table pfm_ctl_table[]={
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "debug",
 		.data		= &pfm_sysctl.debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0666,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "debug_ovfl",
 		.data		= &pfm_sysctl.debug_ovfl,
 		.maxlen		= sizeof(int),
 		.mode		= 0666,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "fastctxsw",
 		.data		= &pfm_sysctl.fastctxsw,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	=  &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "expert_mode",
 		.data		= &pfm_sysctl.expert_mode,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{}
 };
 static ctl_table pfm_sysctl_dir[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "perfmon",
 		.mode		= 0555,
 		.child		= pfm_ctl_table,
@@ -566,7 +561,6 @@ static ctl_table pfm_sysctl_dir[] = {
 };
 static ctl_table pfm_sysctl_root[] = {
 	{
-		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
 		.mode		= 0555,
 		.child		= pfm_sysctl_dir,
@@ -2206,7 +2200,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 {
 	struct file *file;
 	struct inode *inode;
-	struct dentry *dentry;
+	struct path path;
 	char name[32];
 	struct qstr this;
 
@@ -2231,18 +2225,19 @@ pfm_alloc_file(pfm_context_t *ctx)
 	/*
 	 * allocate a new dcache entry
 	 */
-	dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
-	if (!dentry) {
+	path.dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
+	if (!path.dentry) {
 		iput(inode);
 		return ERR_PTR(-ENOMEM);
 	}
+	path.mnt = mntget(pfmfs_mnt);
 
-	dentry->d_op = &pfmfs_dentry_operations;
-	d_add(dentry, inode);
+	path.dentry->d_op = &pfmfs_dentry_operations;
+	d_add(path.dentry, inode);
 
-	file = alloc_file(pfmfs_mnt, dentry, FMODE_READ, &pfm_file_ops);
+	file = alloc_file(&path, FMODE_READ, &pfm_file_ops);
 	if (!file) {
-		dput(dentry);
+		path_put(&path);
 		return ERR_PTR(-ENFILE);
 	}
 
@@ -2298,7 +2293,7 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	 * if ((mm->total_vm << PAGE_SHIFT) + len> task->rlim[RLIMIT_AS].rlim_cur)
 	 * 	return -ENOMEM;
 	 */
-	if (size > task->signal->rlim[RLIMIT_MEMLOCK].rlim_cur)
+	if (size > task_rlimit(task, RLIMIT_MEMLOCK))
 		return -ENOMEM;
 
 	/*
@@ -3523,7 +3518,7 @@ pfm_use_debug_registers(struct task_struct *task)
  * IA64_THREAD_DBG_VALID set. This indicates a task which was
  * able to use the debug registers for debugging purposes via
  * ptrace(). Therefore we know it was not using them for
- * perfmormance monitoring, so we only decrement the number
+ * performance monitoring, so we only decrement the number
  * of "ptraced" debug register users to keep the count up to date
  */
 int

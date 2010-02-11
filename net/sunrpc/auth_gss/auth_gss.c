@@ -304,7 +304,7 @@ __gss_find_upcall(struct rpc_inode *rpci, uid_t uid)
  * to that upcall instead of adding the new upcall.
  */
 static inline struct gss_upcall_msg *
-gss_add_msg(struct gss_auth *gss_auth, struct gss_upcall_msg *gss_msg)
+gss_add_msg(struct gss_upcall_msg *gss_msg)
 {
 	struct rpc_inode *rpci = gss_msg->inode;
 	struct inode *inode = &rpci->vfs_inode;
@@ -445,7 +445,7 @@ gss_setup_upcall(struct rpc_clnt *clnt, struct gss_auth *gss_auth, struct rpc_cr
 	gss_new = gss_alloc_msg(gss_auth, uid, clnt, gss_cred->gc_machine_cred);
 	if (IS_ERR(gss_new))
 		return gss_new;
-	gss_msg = gss_add_msg(gss_auth, gss_new);
+	gss_msg = gss_add_msg(gss_new);
 	if (gss_msg == gss_new) {
 		struct inode *inode = &gss_new->inode->vfs_inode;
 		int res = rpc_queue_upcall(inode, &gss_new->msg);
@@ -485,7 +485,7 @@ gss_refresh_upcall(struct rpc_task *task)
 	dprintk("RPC: %5u gss_refresh_upcall for uid %u\n", task->tk_pid,
 								cred->cr_uid);
 	gss_msg = gss_setup_upcall(task->tk_client, gss_auth, cred);
-	if (IS_ERR(gss_msg) == -EAGAIN) {
+	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		/* XXX: warning on the first, under the assumption we
 		 * shouldn't normally hit this case on a refresh. */
 		warn_gssd();
@@ -644,7 +644,22 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	p = gss_fill_context(p, end, ctx, gss_msg->auth->mech);
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
-		gss_msg->msg.errno = (err == -EAGAIN) ? -EAGAIN : -EACCES;
+		switch (err) {
+		case -EACCES:
+			gss_msg->msg.errno = err;
+			err = mlen;
+			break;
+		case -EFAULT:
+		case -ENOMEM:
+		case -EINVAL:
+		case -ENOSYS:
+			gss_msg->msg.errno = -EAGAIN;
+			break;
+		default:
+			printk(KERN_CRIT "%s: bad return from "
+				"gss_fill_context: %zd\n", __func__, err);
+			BUG();
+		}
 		goto err_release_msg;
 	}
 	gss_msg->ctx = gss_get_ctx(ctx);

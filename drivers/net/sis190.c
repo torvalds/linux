@@ -536,13 +536,12 @@ static bool sis190_try_rx_copy(struct sis190_private *tp,
 	if (pkt_size >= rx_copybreak)
 		goto out;
 
-	skb = netdev_alloc_skb(tp->dev, pkt_size + 2);
+	skb = netdev_alloc_skb_ip_align(tp->dev, pkt_size);
 	if (!skb)
 		goto out;
 
 	pci_dma_sync_single_for_cpu(tp->pci_dev, addr, tp->rx_buf_sz,
 				PCI_DMA_FROMDEVICE);
-	skb_reserve(skb, 2);
 	skb_copy_to_linear_data(skb, sk_buff[0]->data, pkt_size);
 	*sk_buff = skb;
 	done = true;

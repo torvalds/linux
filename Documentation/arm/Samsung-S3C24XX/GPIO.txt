@@ -134,4 +134,4 @@ Authour
 
 
 Ben Dooks, 03 October 2004
-(c) 2004 Ben Dooks, Simtec Electronics
+Copyright 2004 Ben Dooks, Simtec Electronics

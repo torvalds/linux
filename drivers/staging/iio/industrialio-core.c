@@ -18,6 +18,8 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 #include <linux/cdev.h>
 #include "iio.h"
 #include "trigger_consumer.h"

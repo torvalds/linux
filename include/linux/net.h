@@ -41,6 +41,7 @@
 #define SYS_SENDMSG	16		/* sys_sendmsg(2)		*/
 #define SYS_RECVMSG	17		/* sys_recvmsg(2)		*/
 #define SYS_ACCEPT4	18		/* sys_accept4(2)		*/
+#define SYS_RECVMMSG	19		/* sys_recvmmsg(2)		*/
 
 typedef enum {
 	SS_FREE = 0,			/* not allocated		*/
@@ -198,9 +199,13 @@ struct proto_ops {
 				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
 };
 
+#define DECLARE_SOCKADDR(type, dst, src)	\
+	type dst = ({ __sockaddr_check_size(sizeof(*dst)); (type) src; })
+
 struct net_proto_family {
 	int		family;
-	int		(*create)(struct net *net, struct socket *sock, int protocol);
+	int		(*create)(struct net *net, struct socket *sock,
+				  int protocol, int kern);
 	struct module	*owner;
 };
 
@@ -263,89 +268,6 @@ extern int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg);
 extern int kernel_sock_shutdown(struct socket *sock,
 				enum sock_shutdown_cmd how);
 
-#ifndef CONFIG_SMP
-#define SOCKOPS_WRAPPED(name) name
-#define SOCKOPS_WRAP(name, fam)
-#else
-
-#define SOCKOPS_WRAPPED(name) __unlocked_##name
-
-#define SOCKCALL_WRAP(name, call, parms, args)		\
-static int __lock_##name##_##call  parms		\
-{							\
-	int ret;					\
-	lock_kernel();					\
-	ret = __unlocked_##name##_ops.call  args ;\
-	unlock_kernel();				\
-	return ret;					\
-}
-
-#define SOCKCALL_UWRAP(name, call, parms, args)		\
-static unsigned int __lock_##name##_##call  parms	\
-{							\
-	int ret;					\
-	lock_kernel();					\
-	ret = __unlocked_##name##_ops.call  args ;\
-	unlock_kernel();				\
-	return ret;					\
-}
-
-
-#define SOCKOPS_WRAP(name, fam)					\
-SOCKCALL_WRAP(name, release, (struct socket *sock), (sock))	\
-SOCKCALL_WRAP(name, bind, (struct socket *sock, struct sockaddr *uaddr, int addr_len), \
-	      (sock, uaddr, addr_len))				\
-SOCKCALL_WRAP(name, connect, (struct socket *sock, struct sockaddr * uaddr, \
-			      int addr_len, int flags), 	\
-	      (sock, uaddr, addr_len, flags))			\
-SOCKCALL_WRAP(name, socketpair, (struct socket *sock1, struct socket *sock2), \
-	      (sock1, sock2))					\
-SOCKCALL_WRAP(name, accept, (struct socket *sock, struct socket *newsock, \
-			 int flags), (sock, newsock, flags)) \
-SOCKCALL_WRAP(name, getname, (struct socket *sock, struct sockaddr *uaddr, \
-			 int *addr_len, int peer), (sock, uaddr, addr_len, peer)) \
-SOCKCALL_UWRAP(name, poll, (struct file *file, struct socket *sock, struct poll_table_struct *wait), \
-	      (file, sock, wait)) \
-SOCKCALL_WRAP(name, ioctl, (struct socket *sock, unsigned int cmd, \
-			 unsigned long arg), (sock, cmd, arg)) \
-SOCKCALL_WRAP(name, compat_ioctl, (struct socket *sock, unsigned int cmd, \
-			 unsigned long arg), (sock, cmd, arg)) \
-SOCKCALL_WRAP(name, listen, (struct socket *sock, int len), (sock, len)) \
-SOCKCALL_WRAP(name, shutdown, (struct socket *sock, int flags), (sock, flags)) \
-SOCKCALL_WRAP(name, setsockopt, (struct socket *sock, int level, int optname, \
-			 char __user *optval, unsigned int optlen), (sock, level, optname, optval, optlen)) \
-SOCKCALL_WRAP(name, getsockopt, (struct socket *sock, int level, int optname, \
-			 char __user *optval, int __user *optlen), (sock, level, optname, optval, optlen)) \
-SOCKCALL_WRAP(name, sendmsg, (struct kiocb *iocb, struct socket *sock, struct msghdr *m, size_t len), \
-	      (iocb, sock, m, len)) \
-SOCKCALL_WRAP(name, recvmsg, (struct kiocb *iocb, struct socket *sock, struct msghdr *m, size_t len, int flags), \
-	      (iocb, sock, m, len, flags)) \
-SOCKCALL_WRAP(name, mmap, (struct file *file, struct socket *sock, struct vm_area_struct *vma), \
-	      (file, sock, vma)) \
-	      \
-static const struct proto_ops name##_ops = {			\
-	.family		= fam,				\
-	.owner		= THIS_MODULE,			\
-	.release	= __lock_##name##_release,	\
-	.bind		= __lock_##name##_bind,		\
-	.connect	= __lock_##name##_connect,	\
-	.socketpair	= __lock_##name##_socketpair,	\
-	.accept		= __lock_##name##_accept,	\
-	.getname	= __lock_##name##_getname,	\
-	.poll		= __lock_##name##_poll,		\
-	.ioctl		= __lock_##name##_ioctl,	\
-	.compat_ioctl	= __lock_##name##_compat_ioctl,	\
-	.listen		= __lock_##name##_listen,	\
-	.shutdown	= __lock_##name##_shutdown,	\
-	.setsockopt	= __lock_##name##_setsockopt,	\
-	.getsockopt	= __lock_##name##_getsockopt,	\
-	.sendmsg	= __lock_##name##_sendmsg,	\
-	.recvmsg	= __lock_##name##_recvmsg,	\
-	.mmap		= __lock_##name##_mmap,		\
-};
-
-#endif
-
 #define MODULE_ALIAS_NETPROTO(proto) \
 	MODULE_ALIAS("net-pf-" __stringify(proto))
 
@@ -358,6 +280,7 @@ static const struct proto_ops name##_ops = {			\
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
+#include <linux/ratelimit.h>
 extern struct ratelimit_state net_ratelimit_state;
 #endif
 

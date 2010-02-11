@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2440/mach-osiris.c
  *
- * Copyright (c) 2005,2008 Simtec Electronics
+ * Copyright (c) 2005-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
@@ -22,6 +22,8 @@
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
+
+#include <linux/i2c/tps65010.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -148,7 +150,7 @@ static int external_map[]   = { 2 };
 static int chip0_map[]      = { 0 };
 static int chip1_map[]      = { 1 };
 
-static struct mtd_partition osiris_default_nand_part[] = {
+static struct mtd_partition __initdata osiris_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
@@ -171,7 +173,7 @@ static struct mtd_partition osiris_default_nand_part[] = {
 	}
 };
 
-static struct mtd_partition osiris_default_nand_part_large[] = {
+static struct mtd_partition __initdata osiris_default_nand_part_large[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_128K,
@@ -201,11 +203,12 @@ static struct mtd_partition osiris_default_nand_part_large[] = {
  * socket.
 */
 
-static struct s3c2410_nand_set osiris_nand_sets[] = {
+static struct s3c2410_nand_set __initdata osiris_nand_sets[] = {
 	[1] = {
 		.name		= "External",
 		.nr_chips	= 1,
 		.nr_map		= external_map,
+		.options	= NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(osiris_default_nand_part),
 		.partitions	= osiris_default_nand_part,
 	},
@@ -220,6 +223,7 @@ static struct s3c2410_nand_set osiris_nand_sets[] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
+		.options	= NAND_SCAN_SILENT_NODEV,
 		.nr_partitions	= ARRAY_SIZE(osiris_default_nand_part),
 		.partitions	= osiris_default_nand_part,
 	},
@@ -243,7 +247,7 @@ static void osiris_nand_select(struct s3c2410_nand_set *set, int slot)
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 }
 
-static struct s3c2410_platform_nand osiris_nand_info = {
+static struct s3c2410_platform_nand __initdata osiris_nand_info = {
 	.tacls		= 25,
 	.twrph0		= 60,
 	.twrph1		= 60,
@@ -326,12 +330,44 @@ static struct sys_device osiris_pm_sysdev = {
 	.cls		= &osiris_pm_sysclass,
 };
 
+/* Link for DVS driver to TPS65011 */
+
+static void osiris_tps_release(struct device *dev)
+{
+	/* static device, do not need to release anything */
+}
+
+static struct platform_device osiris_tps_device = {
+	.name	= "osiris-dvs",
+	.id	= -1,
+	.dev.release = osiris_tps_release,
+};
+
+static int osiris_tps_setup(struct i2c_client *client, void *context)
+{
+	osiris_tps_device.dev.parent = &client->dev;
+	return platform_device_register(&osiris_tps_device);
+}
+
+static int osiris_tps_remove(struct i2c_client *client, void *context)
+{
+	platform_device_unregister(&osiris_tps_device);
+	return 0;
+}
+
+static struct tps65010_board osiris_tps_board = {
+	.base		= -1,	/* GPIO can go anywhere at the moment */
+	.setup		= osiris_tps_setup,
+	.teardown	= osiris_tps_remove,
+};
+
 /* I2C devices fitted. */
 
 static struct i2c_board_info osiris_i2c_devs[] __initdata = {
 	{
 		I2C_BOARD_INFO("tps65011", 0x48),
 		.irq	= IRQ_EINT20,
+		.platform_data = &osiris_tps_board,
 	},
 };
 
@@ -377,8 +413,6 @@ static void __init osiris_map_io(void)
 
 	s3c24xx_register_clocks(osiris_clocks, ARRAY_SIZE(osiris_clocks));
 
-	s3c_device_nand.dev.platform_data = &osiris_nand_info;
-
 	s3c24xx_init_io(osiris_iodesc, ARRAY_SIZE(osiris_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(osiris_uartcfgs, ARRAY_SIZE(osiris_uartcfgs));
@@ -408,6 +442,7 @@ static void __init osiris_init(void)
 	sysdev_register(&osiris_pm_sysdev);
 
 	s3c_i2c0_set_platdata(NULL);
+	s3c_nand_set_platdata(&osiris_nand_info);
 
 	s3c_cpufreq_setboard(&osiris_cpufreq);
 

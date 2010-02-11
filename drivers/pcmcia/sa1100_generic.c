@@ -51,7 +51,7 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #ifdef CONFIG_SA1100_CERF
 	pcmcia_cerf_init,
 #endif
-#ifdef CONFIG_SA1100_H3600
+#if defined(CONFIG_SA1100_H3100) || defined(CONFIG_SA1100_H3600)
 	pcmcia_h3600_init,
 #endif
 #ifdef CONFIG_SA1100_SHANNON
@@ -83,7 +83,16 @@ static int sa11x0_drv_pcmcia_probe(struct platform_device *dev)
 
 static int sa11x0_drv_pcmcia_remove(struct platform_device *dev)
 {
-	return soc_common_drv_pcmcia_remove(&dev->dev);
+	struct skt_dev_info *sinfo = platform_get_drvdata(dev);
+	int i;
+
+	platform_set_drvdata(dev, NULL);
+
+	for (i = 0; i < sinfo->nskt; i++)
+		soc_pcmcia_remove_one(&sinfo->skt[i]);
+
+	kfree(sinfo);
+	return 0;
 }
 
 static int sa11x0_drv_pcmcia_suspend(struct platform_device *dev,

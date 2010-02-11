@@ -142,7 +142,7 @@ static void sis5595_write(u8 reg, u8 data)
 	outb(data, sis5595_base + SMB_DAT);
 }
 
-static int sis5595_setup(struct pci_dev *SIS5595_dev)
+static int __devinit sis5595_setup(struct pci_dev *SIS5595_dev)
 {
 	u16 a;
 	u8 val;

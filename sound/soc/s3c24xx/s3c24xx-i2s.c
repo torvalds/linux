@@ -32,13 +32,13 @@
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <plat/audio.h>
+
 #include <asm/dma.h>
 #include <mach/dma.h>
 
 #include <plat/regs-iis.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-i2s.h"
 
 static struct s3c2410_dma_client s3c24xx_dma_client_out = {
@@ -49,14 +49,14 @@ static struct s3c2410_dma_client s3c24xx_dma_client_in = {
 	.name = "I2S PCM Stereo in"
 };
 
-static struct s3c24xx_pcm_dma_params s3c24xx_i2s_pcm_stereo_out = {
+static struct s3c_dma_params s3c24xx_i2s_pcm_stereo_out = {
 	.client		= &s3c24xx_dma_client_out,
 	.channel	= DMACH_I2S_OUT,
 	.dma_addr	= S3C2410_PA_IIS + S3C2410_IISFIFO,
 	.dma_size	= 2,
 };
 
-static struct s3c24xx_pcm_dma_params s3c24xx_i2s_pcm_stereo_in = {
+static struct s3c_dma_params s3c24xx_i2s_pcm_stereo_in = {
 	.client		= &s3c24xx_dma_client_in,
 	.channel	= DMACH_I2S_IN,
 	.dma_addr	= S3C2410_PA_IIS + S3C2410_IISFIFO,
@@ -258,12 +258,12 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
 		iismod &= ~S3C2410_IISMOD_16BIT;
-		((struct s3c24xx_pcm_dma_params *)
+		((struct s3c_dma_params *)
 		  rtd->dai->cpu_dai->dma_data)->dma_size = 1;
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		iismod |= S3C2410_IISMOD_16BIT;
-		((struct s3c24xx_pcm_dma_params *)
+		((struct s3c_dma_params *)
 		  rtd->dai->cpu_dai->dma_data)->dma_size = 2;
 		break;
 	default:
@@ -280,7 +280,7 @@ static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int channel = ((struct s3c24xx_pcm_dma_params *)
+	int channel = ((struct s3c_dma_params *)
 		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	pr_debug("Entered %s\n", __func__);

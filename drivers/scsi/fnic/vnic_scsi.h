@@ -95,5 +95,6 @@ struct vnic_fc_config {
 
 #define VFCF_FCP_SEQ_LVL_ERR	0x1	/* Enable FCP-2 Error Recovery */
 #define VFCF_PERBI		0x2	/* persistent binding info available */
+#define VFCF_FIP_CAPABLE	0x4	/* firmware can handle FIP */
 
 #endif /* _VNIC_SCSI_H_ */

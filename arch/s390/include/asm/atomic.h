@@ -21,7 +21,7 @@
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 
 #define __CS_LOOP(ptr, op_val, op_string) ({				\
-	typeof(ptr->counter) old_val, new_val;				\
+	int old_val, new_val;						\
 	asm volatile(							\
 		"	l	%0,%2\n"				\
 		"0:	lr	%1,%0\n"				\
@@ -38,7 +38,7 @@
 #else /* __GNUC__ */
 
 #define __CS_LOOP(ptr, op_val, op_string) ({				\
-	typeof(ptr->counter) old_val, new_val;				\
+	int old_val, new_val;						\
 	asm volatile(							\
 		"	l	%0,0(%3)\n"				\
 		"0:	lr	%1,%0\n"				\
@@ -143,7 +143,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 #if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 
 #define __CSG_LOOP(ptr, op_val, op_string) ({				\
-	typeof(ptr->counter) old_val, new_val;				\
+	long long old_val, new_val;					\
 	asm volatile(							\
 		"	lg	%0,%2\n"				\
 		"0:	lgr	%1,%0\n"				\
@@ -160,7 +160,7 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 #else /* __GNUC__ */
 
 #define __CSG_LOOP(ptr, op_val, op_string) ({				\
-	typeof(ptr->counter) old_val, new_val;				\
+	long long old_val, new_val;					\
 	asm volatile(							\
 		"	lg	%0,0(%3)\n"				\
 		"0:	lgr	%1,%0\n"				\

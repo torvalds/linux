@@ -533,6 +533,13 @@ config AVNET
 	default y
 	depends on (AVNET5282)
 
+config UBOOT
+	bool "Support for U-Boot command line parameters"
+	help
+	  If you say Y here kernel will try to collect command
+	  line parameters from the initial u-boot stack.
+	default n
+
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
 	default y

@@ -101,24 +101,14 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
+int ath5k_hw_attach(struct ath5k_softc *sc)
 {
-	struct ath5k_hw *ah;
+	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	struct pci_dev *pdev = sc->pdev;
 	struct ath5k_eeprom_info *ee;
 	int ret;
 	u32 srev;
-
-	/*If we passed the test malloc a ath5k_hw struct*/
-	ah = kzalloc(sizeof(struct ath5k_hw), GFP_KERNEL);
-	if (ah == NULL) {
-		ret = -ENOMEM;
-		ATH5K_ERR(sc, "out of memory\n");
-		goto err;
-	}
-
-	ah->ah_sc = sc;
-	ah->ah_iobase = sc->iobase;
 
 	/*
 	 * HW information
@@ -278,12 +268,12 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 		goto err_free;
 	}
 
+	ee = &ah->ah_capabilities.cap_eeprom;
+
 	/*
 	 * Write PCI-E power save settings
 	 */
 	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
-		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-
 		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
 		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
 
@@ -321,7 +311,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	}
 
 	/* Crypto settings */
-	ee = &ah->ah_capabilities.cap_eeprom;
 	ah->ah_aes_support = srev >= AR5K_SREV_AR5212_V4 &&
 		(ee->ee_version >= AR5K_EEPROM_VERSION_5_0 &&
 		 !AR5K_EEPROM_AES_DIS(ee->ee_misc5));
@@ -336,20 +325,21 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc)
 	ath5k_hw_set_lladdr(ah, (u8[ETH_ALEN]){});
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
-	memset(ah->ah_bssid, 0xff, ETH_ALEN);
-	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
+	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
+	ath5k_hw_set_associd(ah);
 	ath5k_hw_set_opmode(ah);
 
 	ath5k_hw_rfgain_opt_init(ah);
 
+	ath5k_hw_init_nfcal_hist(ah);
+
 	/* turn on HW LEDs */
 	ath5k_hw_set_ledstate(ah, AR5K_LED_INIT);
 
-	return ah;
+	return 0;
 err_free:
 	kfree(ah);
-err:
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /**
@@ -369,5 +359,4 @@ void ath5k_hw_detach(struct ath5k_hw *ah)
 	ath5k_eeprom_detach(ah);
 
 	/* assume interrupts are down */
-	kfree(ah);
 }

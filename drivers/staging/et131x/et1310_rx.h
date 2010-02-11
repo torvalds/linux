@@ -209,36 +209,26 @@ typedef struct _PKT_STAT_DESC_t {
 /* Typedefs for the RX DMA status word */
 
 /*
- * RXSTAT_WORD0_t structure holds part of the status bits of the Rx DMA engine
+ * rx status word 0 holds part of the status bits of the Rx DMA engine
  * that get copied out to memory by the ET-1310.  Word 0 is a 32 bit word
- * whichcontains Free Buffer ring 0 and 1 available offset.
+ * which contains the Free Buffer ring 0 and 1 available offset.
+ *
+ * bit 0-9 FBR1 offset
+ * bit 10 Wrap flag for FBR1
+ * bit 16-25 FBR0 offset
+ * bit 26 Wrap flag for FBR0
  */
-typedef union _rxstat_word0_t {
-	u32 value;
-	struct {
-#ifdef _BIT_FIELDS_HTOL
-		u32 FBR1unused:5;	/* bits 27-31 */
-		u32 FBR1wrap:1;	/* bit 26 */
-		u32 FBR1offset:10;	/* bits 16-25 */
-		u32 FBR0unused:5;	/* bits 11-15 */
-		u32 FBR0wrap:1;	/* bit 10 */
-		u32 FBR0offset:10;	/* bits 0-9 */
-#else
-		u32 FBR0offset:10;	/* bits 0-9 */
-		u32 FBR0wrap:1;	/* bit 10 */
-		u32 FBR0unused:5;	/* bits 11-15 */
-		u32 FBR1offset:10;	/* bits 16-25 */
-		u32 FBR1wrap:1;	/* bit 26 */
-		u32 FBR1unused:5;	/* bits 27-31 */
-#endif
-	} bits;
-} RXSTAT_WORD0_t, *PRXSTAT_WORD0_t;
 
 /*
  * RXSTAT_WORD1_t structure holds part of the status bits of the Rx DMA engine
  * that get copied out to memory by the ET-1310.  Word 3 is a 32 bit word
  * which contains the Packet Status Ring available offset.
  */
+
+#define RXSTAT1_OFFSET	16
+#define RXSTAT1_MASK	0xFFF
+#define RXSTAT1_WRAP	0x10000000
+
 typedef union _rxstat_word1_t {
 	u32 value;
 	struct {
@@ -261,7 +251,7 @@ typedef union _rxstat_word1_t {
  * it sits in free memory, and is pointed to by 0x101c / 0x1020
  */
 typedef struct _rx_status_block_t {
-	RXSTAT_WORD0_t Word0;
+	u32 Word0;
 	RXSTAT_WORD1_t Word1;
 } RX_STATUS_BLOCK_t, *PRX_STATUS_BLOCK_t;
 
@@ -280,15 +270,6 @@ typedef enum {
 	ONE_PACKET_INTERRUPT,
 	FOUR_PACKET_INTERRUPT
 } eRX_INTERRUPT_STATE_t, *PeRX_INTERRUPT_STATE_t;
-
-/*
- * Structure to hold the skb's in a list
- */
-typedef struct rx_skb_list_elem {
-	struct list_head skb_list_elem;
-	dma_addr_t dma_addr;
-	struct sk_buff *skb;
-} RX_SKB_LIST_ELEM, *PRX_SKB_LIST_ELEM;
 
 /*
  * RX_RING_t is sructure representing the adaptor's local reference(s) to the
@@ -319,21 +300,16 @@ typedef struct _rx_ring_t {
 
 	void *pPSRingVa;
 	dma_addr_t pPSRingPa;
-	uint64_t pPSRingRealPa;
-	uint64_t pPSRingOffset;
-	RXDMA_PSR_FULL_OFFSET_t local_psr_full;
+	u32 local_psr_full;
 	u32 PsrNumEntries;
 
 	void *pRxStatusVa;
 	dma_addr_t pRxStatusPa;
-	uint64_t RxStatusRealPA;
-	uint64_t RxStatusOffset;
 
 	struct list_head RecvBufferPool;
 
 	/* RECV */
 	struct list_head RecvList;
-	struct list_head RecvPendingList;
 	u32 nReadyRecv;
 
 	u32 NumRfd;

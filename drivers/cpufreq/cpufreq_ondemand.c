@@ -133,9 +133,9 @@ static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 
 	idle_time = cputime64_sub(cur_wall_time, busy_time);
 	if (wall)
-		*wall = cur_wall_time;
+		*wall = (cputime64_t)jiffies_to_usecs(cur_wall_time);
 
-	return idle_time;
+	return (cputime64_t)jiffies_to_usecs(idle_time);
 }
 
 static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
@@ -553,6 +553,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		freq_next = max_load_freq /
 				(dbs_tuners_ins.up_threshold -
 				 dbs_tuners_ins.down_differential);
+
+		if (freq_next < policy->min)
+			freq_next = policy->min;
 
 		if (!dbs_tuners_ins.powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,

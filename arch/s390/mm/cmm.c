@@ -18,6 +18,7 @@
 #include <linux/swap.h>
 #include <linux/kthread.h>
 #include <linux/oom.h>
+#include <linux/suspend.h>
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
@@ -44,6 +45,7 @@ static volatile long cmm_pages_target;
 static volatile long cmm_timed_pages_target;
 static long cmm_timeout_pages;
 static long cmm_timeout_seconds;
+static int cmm_suspended;
 
 static struct cmm_page_array *cmm_page_list;
 static struct cmm_page_array *cmm_timed_page_list;
@@ -147,9 +149,9 @@ cmm_thread(void *dummy)
 
 	while (1) {
 		rc = wait_event_interruptible(cmm_thread_wait,
-			(cmm_pages != cmm_pages_target ||
-			 cmm_timed_pages != cmm_timed_pages_target ||
-			 kthread_should_stop()));
+			(!cmm_suspended && (cmm_pages != cmm_pages_target ||
+			 cmm_timed_pages != cmm_timed_pages_target)) ||
+			 kthread_should_stop());
 		if (kthread_should_stop() || rc == -ERESTARTSYS) {
 			cmm_pages_target = cmm_pages;
 			cmm_timed_pages_target = cmm_timed_pages;
@@ -343,30 +345,29 @@ static struct ctl_table cmm_table[] = {
 	{
 		.procname	= "cmm_pages",
 		.mode		= 0644,
-		.proc_handler	= &cmm_pages_handler,
+		.proc_handler	= cmm_pages_handler,
 	},
 	{
 		.procname	= "cmm_timed_pages",
 		.mode		= 0644,
-		.proc_handler	= &cmm_pages_handler,
+		.proc_handler	= cmm_pages_handler,
 	},
 	{
 		.procname	= "cmm_timeout",
 		.mode		= 0644,
-		.proc_handler	= &cmm_timeout_handler,
+		.proc_handler	= cmm_timeout_handler,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table cmm_dir_table[] = {
 	{
-		.ctl_name	= CTL_VM,
 		.procname	= "vm",
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= cmm_table,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 #endif
 
@@ -411,6 +412,38 @@ cmm_smsg_target(char *from, char *msg)
 
 static struct ctl_table_header *cmm_sysctl_header;
 
+static int cmm_suspend(void)
+{
+	cmm_suspended = 1;
+	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
+	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);
+	return 0;
+}
+
+static int cmm_resume(void)
+{
+	cmm_suspended = 0;
+	cmm_kick_thread();
+	return 0;
+}
+
+static int cmm_power_event(struct notifier_block *this,
+			   unsigned long event, void *ptr)
+{
+	switch (event) {
+	case PM_POST_HIBERNATION:
+		return cmm_resume();
+	case PM_HIBERNATION_PREPARE:
+		return cmm_suspend();
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct notifier_block cmm_power_notifier = {
+	.notifier_call = cmm_power_event,
+};
+
 static int
 cmm_init (void)
 {
@@ -419,7 +452,7 @@ cmm_init (void)
 #ifdef CONFIG_CMM_PROC
 	cmm_sysctl_header = register_sysctl_table(cmm_dir_table);
 	if (!cmm_sysctl_header)
-		goto out;
+		goto out_sysctl;
 #endif
 #ifdef CONFIG_CMM_IUCV
 	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
@@ -429,17 +462,21 @@ cmm_init (void)
 	rc = register_oom_notifier(&cmm_oom_nb);
 	if (rc < 0)
 		goto out_oom_notify;
+	rc = register_pm_notifier(&cmm_power_notifier);
+	if (rc)
+		goto out_pm;
 	init_waitqueue_head(&cmm_thread_wait);
 	init_timer(&cmm_timer);
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	rc = IS_ERR(cmm_thread_ptr) ? PTR_ERR(cmm_thread_ptr) : 0;
-	if (!rc)
-		goto out;
-	/*
-	 * kthread_create failed. undo all the stuff from above again.
-	 */
-	unregister_oom_notifier(&cmm_oom_nb);
+	if (rc)
+		goto out_kthread;
+	return 0;
 
+out_kthread:
+	unregister_pm_notifier(&cmm_power_notifier);
+out_pm:
+	unregister_oom_notifier(&cmm_oom_nb);
 out_oom_notify:
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
@@ -447,8 +484,8 @@ out_smsg:
 #endif
 #ifdef CONFIG_CMM_PROC
 	unregister_sysctl_table(cmm_sysctl_header);
+out_sysctl:
 #endif
-out:
 	return rc;
 }
 
@@ -456,6 +493,7 @@ static void
 cmm_exit(void)
 {
 	kthread_stop(cmm_thread_ptr);
+	unregister_pm_notifier(&cmm_power_notifier);
 	unregister_oom_notifier(&cmm_oom_nb);
 	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
 	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);

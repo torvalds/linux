@@ -29,8 +29,6 @@
 
 #define B43legacy_IRQWAIT_MAX_RETRIES	20
 
-#define B43legacy_RX_MAX_SSI		60 /* best guess at max ssi */
-
 /* MMIO offsets */
 #define B43legacy_MMIO_DMA0_REASON	0x20
 #define B43legacy_MMIO_DMA0_IRQ_MASK	0x24

@@ -338,9 +338,6 @@ mv64xxx_i2c_prepare_for_io(struct mv64xxx_i2c_data *drv_data,
 	if (msg->flags & I2C_M_RD)
 		dir = 1;
 
-	if (msg->flags & I2C_M_REV_DIR_ADDR)
-		dir ^= 1;
-
 	if (msg->flags & I2C_M_TEN) {
 		drv_data->addr1 = 0xf0 | (((u32)msg->addr & 0x300) >> 7) | dir;
 		drv_data->addr2 = (u32)msg->addr & 0xff;

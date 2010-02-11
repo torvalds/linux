@@ -176,6 +176,7 @@ struct pvr2_device_desc {
 	unsigned int flag_has_analogtuner:1;   /* Has analog tuner */
 	unsigned int flag_has_composite:1;     /* Has composite input */
 	unsigned int flag_has_svideo:1;        /* Has s-video input */
+	unsigned int flag_fx2_16kb:1;          /* 16KB FX2 firmware OK here */
 };
 
 extern struct usb_device_id pvr2_device_table[];

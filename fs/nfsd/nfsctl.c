@@ -1,46 +1,20 @@
 /*
- * linux/fs/nfsd/nfsctl.c
- *
  * Syscall interface to knfsd.
  *
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/module.h>
-
-#include <linux/linkage.h>
-#include <linux/time.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
 #include <linux/namei.h>
-#include <linux/fcntl.h>
-#include <linux/net.h>
-#include <linux/in.h>
-#include <linux/syscalls.h>
-#include <linux/unistd.h>
-#include <linux/slab.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/pagemap.h>
-#include <linux/init.h>
-#include <linux/inet.h>
-#include <linux/string.h>
 #include <linux/ctype.h>
 
-#include <linux/nfs.h>
 #include <linux/nfsd_idmap.h>
-#include <linux/lockd/bind.h>
-#include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
-#include <linux/nfsd/nfsd.h>
-#include <linux/nfsd/cache.h>
-#include <linux/nfsd/xdr.h>
 #include <linux/nfsd/syscall.h>
 #include <linux/lockd/lockd.h>
 #include <linux/sunrpc/clnt.h>
 
-#include <asm/uaccess.h>
-#include <net/ipv6.h>
+#include "nfsd.h"
+#include "cache.h"
 
 /*
  *	We have a single directory with 9 nodes in it.
@@ -55,6 +29,7 @@ enum {
 	NFSD_Getfd,
 	NFSD_Getfs,
 	NFSD_List,
+	NFSD_Export_features,
 	NFSD_Fh,
 	NFSD_FO_UnlockIP,
 	NFSD_FO_UnlockFS,
@@ -171,6 +146,24 @@ static const struct file_operations exports_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 	.owner		= THIS_MODULE,
+};
+
+static int export_features_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "0x%x 0x%x\n", NFSEXP_ALLFLAGS, NFSEXP_SECINFO_FLAGS);
+	return 0;
+}
+
+static int export_features_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, export_features_show, NULL);
+}
+
+static struct file_operations export_features_operations = {
+	.open		= export_features_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
@@ -1330,6 +1323,8 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Getfd] = {".getfd", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Getfs] = {".getfs", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_List] = {"exports", &exports_operations, S_IRUGO},
+		[NFSD_Export_features] = {"export_features",
+					&export_features_operations, S_IRUGO},
 		[NFSD_FO_UnlockIP] = {"unlock_ip",
 					&transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_FO_UnlockFS] = {"unlock_filesystem",

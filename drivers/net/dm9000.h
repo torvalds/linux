@@ -50,7 +50,7 @@
 #define DM9000_RCSR	       0x32
 
 #define CHIPR_DM9000A	       0x19
-#define CHIPR_DM9000B	       0x1B
+#define CHIPR_DM9000B	       0x1A
 
 #define DM9000_MRCMDX          0xF0
 #define DM9000_MRCMD           0xF2
@@ -110,6 +110,13 @@
 #define RSR_AE              (1<<2)
 #define RSR_CE              (1<<1)
 #define RSR_FOE             (1<<0)
+
+#define WCR_LINKEN		(1 << 5)
+#define WCR_SAMPLEEN		(1 << 4)
+#define WCR_MAGICEN		(1 << 3)
+#define WCR_LINKST		(1 << 2)
+#define WCR_SAMPLEST		(1 << 1)
+#define WCR_MAGICST		(1 << 0)
 
 #define FCTR_HWOT(ot)	(( ot & 0xf ) << 4 )
 #define FCTR_LWOT(ot)	( ot & 0xf )

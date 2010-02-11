@@ -28,37 +28,13 @@
 #include <asm/cacheflush.h>
 #include <asm/cachectl.h>
 
-static inline long
-do_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
-	 unsigned long flags, int fd, unsigned long pgoff)
-{
-	int error = -EBADF;
-	struct file *file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return error;
-}
-
 asmlinkage int old_mmap(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags,
 	int fd, unsigned long off)
 {
 	if (off & ~PAGE_MASK)
 		return -EINVAL;
-	return do_mmap2(addr, len, prot, flags, fd, off>>PAGE_SHIFT);
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, off>>PAGE_SHIFT);
 }
 
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
@@ -74,7 +50,7 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 
 	pgoff >>= PAGE_SHIFT - 12;
 
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
+	return sys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
 }
 
 /*

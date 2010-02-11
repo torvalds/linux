@@ -1728,7 +1728,7 @@ static bool phy_SetRFPowerState8192SU(struct net_device* dev,RT_RF_POWER_STATE e
 
 			default:
 				bResult = FALSE;
-				//RT_ASSERT(FALSE, ("phy_SetRFPowerState8192SU(): unknow state to set: 0x%X!!!\n", eRFPowerState));
+				//RT_ASSERT(FALSE, ("phy_SetRFPowerState8192SU(): unknown state to set: 0x%X!!!\n", eRFPowerState));
 				break;
 		}
 		break;
@@ -2711,7 +2711,7 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 // However, this procedure is performed synchronously  which should be running under
 // passive level.
 //
-//not understant it
+//not understand it
 void PHY_SwChnlPhy8192S(	// Only called during initialize
 	struct net_device* dev,
 	u8		channel

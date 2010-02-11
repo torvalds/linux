@@ -561,7 +561,7 @@ config HPAPCI
 
 config MVME147_SCC
 	bool "SCC support for MVME147 serial ports"
-	depends on MVME147
+	depends on MVME147 && BROKEN
 	help
 	  This is the driver for the serial ports on the Motorola MVME147
 	  boards.  Everyone using one of these boards should say Y here.
@@ -576,14 +576,14 @@ config SERIAL167
 
 config MVME162_SCC
 	bool "SCC support for MVME162 serial ports"
-	depends on MVME16x
+	depends on MVME16x && BROKEN
 	help
 	  This is the driver for the serial ports on the Motorola MVME162 and
 	  172 boards.  Everyone using one of these boards should say Y here.
 
 config BVME6000_SCC
 	bool "SCC support for BVME6000 serial ports"
-	depends on BVME6000
+	depends on BVME6000 && BROKEN
 	help
 	  This is the driver for the serial ports on the BVME4000 and BVME6000
 	  boards from BVM Ltd.  Everyone using one of these boards should say

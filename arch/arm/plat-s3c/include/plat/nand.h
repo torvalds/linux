@@ -17,6 +17,7 @@
  *			Setting this flag will allow the kernel to
  *			look for it at boot time and also skip the NAND
  *			scan.
+ * @options:		Default value to set into 'struct nand_chip' options.
  * @nr_chips:		Number of chips in this set
  * @nr_partitions:	Number of partitions pointed to by @partitions
  * @name:		Name of set (optional)
@@ -31,6 +32,7 @@ struct s3c2410_nand_set {
 	unsigned int		disable_ecc:1;
 	unsigned int		flash_bbt:1;
 
+	unsigned int		options;
 	int			nr_chips;
 	int			nr_partitions;
 	char			*name;
@@ -55,3 +57,11 @@ struct s3c2410_platform_nand {
 					       int chip);
 };
 
+/**
+ * s3c_nand_set_platdata() - register NAND platform data.
+ * @nand: The NAND platform data to register with s3c_device_nand.
+ *
+ * This function copies the given NAND platform data, @nand and registers
+ * it with the s3c_device_nand. This allows @nand to be __initdata.
+*/
+extern void s3c_nand_set_platdata(struct s3c2410_platform_nand *nand);

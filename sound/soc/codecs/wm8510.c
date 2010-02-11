@@ -219,7 +219,6 @@ static int wm8510_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -271,8 +270,8 @@ static void pll_factors(unsigned int target, unsigned int source)
 	pll_div.k = K;
 }
 
-static int wm8510_set_dai_pll(struct snd_soc_dai *codec_dai,
-		int pll_id, unsigned int freq_in, unsigned int freq_out)
+static int wm8510_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
+		int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
@@ -425,23 +424,23 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* filter coefficient */
 	switch (params_rate(params)) {
-	case SNDRV_PCM_RATE_8000:
+	case 8000:
 		adn |= 0x5 << 1;
 		break;
-	case SNDRV_PCM_RATE_11025:
+	case 11025:
 		adn |= 0x4 << 1;
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case 16000:
 		adn |= 0x3 << 1;
 		break;
-	case SNDRV_PCM_RATE_22050:
+	case 22050:
 		adn |= 0x2 << 1;
 		break;
-	case SNDRV_PCM_RATE_32000:
+	case 32000:
 		adn |= 0x1 << 1;
 		break;
-	case SNDRV_PCM_RATE_44100:
-	case SNDRV_PCM_RATE_48000:
+	case 44100:
+	case 48000:
 		break;
 	}
 
@@ -604,16 +603,9 @@ static int wm8510_init(struct snd_soc_device *socdev,
 	snd_soc_add_controls(codec, wm8510_snd_controls,
 				ARRAY_SIZE(wm8510_snd_controls));
 	wm8510_add_widgets(codec);
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "wm8510: failed to register card\n");
-		goto card_err;
-	}
+
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 err:
 	kfree(codec->reg_cache);
 	return ret;

@@ -15,6 +15,8 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+
+#include <mach/atmel-mci.h>
 #include <linux/atmel-mci.h>
 
 #include <asm/io.h>
@@ -1181,11 +1183,24 @@ static struct resource atmel_spi1_resource[] = {
 DEFINE_DEV(atmel_spi, 1);
 DEV_CLK(spi_clk, atmel_spi1, pba, 1);
 
-static void __init
-at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
-		      unsigned int n, const u8 *pins)
+void __init
+at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b, unsigned int n)
 {
+	/*
+	 * Manage the chipselects as GPIOs, normally using the same pins
+	 * the SPI controller expects; but boards can use other pins.
+	 */
+	static u8 __initdata spi_pins[][4] = {
+		{ GPIO_PIN_PA(3), GPIO_PIN_PA(4),
+		  GPIO_PIN_PA(5), GPIO_PIN_PA(20) },
+		{ GPIO_PIN_PB(2), GPIO_PIN_PB(3),
+		  GPIO_PIN_PB(4), GPIO_PIN_PA(27) },
+	};
 	unsigned int pin, mode;
+
+	/* There are only 2 SPI controllers */
+	if (bus_num > 1)
+		return;
 
 	for (; n; n--, b++) {
 		b->bus_num = bus_num;
@@ -1193,7 +1208,7 @@ at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
 			continue;
 		pin = (unsigned)b->controller_data;
 		if (!pin) {
-			pin = pins[b->chip_select];
+			pin = spi_pins[bus_num][b->chip_select];
 			b->controller_data = (void *)pin;
 		}
 		mode = AT32_GPIOF_OUTPUT;
@@ -1206,16 +1221,6 @@ at32_spi_setup_slaves(unsigned int bus_num, struct spi_board_info *b,
 struct platform_device *__init
 at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 {
-	/*
-	 * Manage the chipselects as GPIOs, normally using the same pins
-	 * the SPI controller expects; but boards can use other pins.
-	 */
-	static u8 __initdata spi0_pins[] =
-		{ GPIO_PIN_PA(3), GPIO_PIN_PA(4),
-		  GPIO_PIN_PA(5), GPIO_PIN_PA(20), };
-	static u8 __initdata spi1_pins[] =
-		{ GPIO_PIN_PB(2), GPIO_PIN_PB(3),
-		  GPIO_PIN_PB(4), GPIO_PIN_PA(27), };
 	struct platform_device *pdev;
 	u32 pin_mask;
 
@@ -1228,7 +1233,7 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 		select_peripheral(PIOA, (1 << 0), PERIPH_A, AT32_GPIOF_PULLUP);
 		select_peripheral(PIOA, pin_mask, PERIPH_A, 0);
 
-		at32_spi_setup_slaves(0, b, n, spi0_pins);
+		at32_spi_setup_slaves(0, b, n);
 		break;
 
 	case 1:
@@ -1239,7 +1244,7 @@ at32_add_device_spi(unsigned int id, struct spi_board_info *b, unsigned int n)
 		select_peripheral(PIOB, (1 << 0), PERIPH_B, AT32_GPIOF_PULLUP);
 		select_peripheral(PIOB, pin_mask, PERIPH_B, 0);
 
-		at32_spi_setup_slaves(1, b, n, spi1_pins);
+		at32_spi_setup_slaves(1, b, n);
 		break;
 
 	default:
@@ -1320,7 +1325,7 @@ struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct platform_device		*pdev;
-	struct dw_dma_slave		*dws = &data->dma_slave;
+	struct mci_dma_data	        *slave;
 	u32				pioa_mask;
 	u32				piob_mask;
 
@@ -1339,16 +1344,22 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
-	dws->dma_dev = &dw_dmac0_device.dev;
-	dws->reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
-	dws->cfg_hi = (DWC_CFGH_SRC_PER(0)
+	slave = kzalloc(sizeof(struct mci_dma_data), GFP_KERNEL);
+	if (!slave)
+		goto fail;
+
+	slave->sdata.dma_dev = &dw_dmac0_device.dev;
+	slave->sdata.reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
+	slave->sdata.cfg_hi = (DWC_CFGH_SRC_PER(0)
 				| DWC_CFGH_DST_PER(1));
-	dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL
+	slave->sdata.cfg_lo &= ~(DWC_CFGL_HS_DST_POL
 				| DWC_CFGL_HS_SRC_POL);
+
+	data->dma_slave = slave;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
-		goto fail;
+		goto fail_free;
 
 	/* CLK line is common to both slots */
 	pioa_mask = 1 << 10;
@@ -1372,7 +1383,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 		/* Slot is unused */
 		break;
 	default:
-		goto fail;
+		goto fail_free;
 	}
 
 	select_peripheral(PIOA, pioa_mask, PERIPH_A, 0);
@@ -1399,7 +1410,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 		break;
 	default:
 		if (!data->slot[0].bus_width)
-			goto fail;
+			goto fail_free;
 
 		data->slot[1].bus_width = 0;
 		break;
@@ -1410,7 +1421,10 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	platform_device_add(pdev);
 	return pdev;
 
+fail_free:
+	kfree(slave);
 fail:
+	data->dma_slave = NULL;
 	platform_device_put(pdev);
 	return NULL;
 }

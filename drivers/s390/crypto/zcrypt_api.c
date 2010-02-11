@@ -299,9 +299,7 @@ static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
  */
 static int zcrypt_open(struct inode *inode, struct file *filp)
 {
-	lock_kernel();
 	atomic_inc(&zcrypt_open_count);
-	unlock_kernel();
 	return 0;
 }
 
@@ -395,10 +393,12 @@ static long zcrypt_rsa_crt(struct ica_rsa_modexpo_crt *crt)
 			 * u_mult_inv > 128 bytes.
 			 */
 			if (copied == 0) {
-				int len;
+				unsigned int len;
 				spin_unlock_bh(&zcrypt_device_lock);
 				/* len is max 256 / 2 - 120 = 8 */
 				len = crt->inputdatalength / 2 - 120;
+				if (len > sizeof(z1))
+					return -EFAULT;
 				z1 = z2 = z3 = 0;
 				if (copy_from_user(&z1, crt->np_prime, len) ||
 				    copy_from_user(&z2, crt->bp_key, len) ||
@@ -1009,6 +1009,10 @@ static int zcrypt_status_read(char *resp_buff, char **start, off_t offset,
 		       zcrypt_count_type(ZCRYPT_CEX2C));
 	len += sprintf(resp_buff + len, "CEX2A count: %d\n",
 		       zcrypt_count_type(ZCRYPT_CEX2A));
+	len += sprintf(resp_buff + len, "CEX3C count: %d\n",
+		       zcrypt_count_type(ZCRYPT_CEX3C));
+	len += sprintf(resp_buff + len, "CEX3A count: %d\n",
+		       zcrypt_count_type(ZCRYPT_CEX3A));
 	len += sprintf(resp_buff + len, "requestq count: %d\n",
 		       zcrypt_requestq_count());
 	len += sprintf(resp_buff + len, "pendingq count: %d\n",
@@ -1017,7 +1021,7 @@ static int zcrypt_status_read(char *resp_buff, char **start, off_t offset,
 		       atomic_read(&zcrypt_open_count));
 	zcrypt_status_mask(workarea);
 	len += sprinthx("Online devices: 1=PCICA 2=PCICC 3=PCIXCC(MCL2) "
-			"4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A",
+			"4=PCIXCC(MCL3) 5=CEX2C 6=CEX2A 7=CEX3C 8=CEX3A",
 			resp_buff+len, workarea, AP_DEVICES);
 	zcrypt_qdepth_mask(workarea);
 	len += sprinthx("Waiting work element counts",
@@ -1095,8 +1099,9 @@ static int zcrypt_status_write(struct file *file, const char __user *buffer,
 		 * '0' for no device, '1' for PCICA, '2' for PCICC,
 		 * '3' for PCIXCC_MCL2, '4' for PCIXCC_MCL3,
 		 * '5' for CEX2C and '6' for CEX2A'
+		 * '7' for CEX3C and '8' for CEX3A
 		 */
-		if (*ptr >= '0' && *ptr <= '6')
+		if (*ptr >= '0' && *ptr <= '8')
 			j++;
 		else if (*ptr == 'd' || *ptr == 'D')
 			zcrypt_disable_card(j++);

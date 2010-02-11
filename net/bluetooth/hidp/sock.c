@@ -241,7 +241,8 @@ static struct proto hidp_proto = {
 	.obj_size	= sizeof(struct bt_sock)
 };
 
-static int hidp_sock_create(struct net *net, struct socket *sock, int protocol)
+static int hidp_sock_create(struct net *net, struct socket *sock, int protocol,
+			    int kern)
 {
 	struct sock *sk;
 
@@ -268,7 +269,7 @@ static int hidp_sock_create(struct net *net, struct socket *sock, int protocol)
 	return 0;
 }
 
-static struct net_proto_family hidp_sock_family_ops = {
+static const struct net_proto_family hidp_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= hidp_sock_create

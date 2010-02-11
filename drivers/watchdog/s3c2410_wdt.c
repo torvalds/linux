@@ -36,6 +36,7 @@
 #include <linux/clk.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/cpufreq.h>
 
 #include <mach/map.h>
 
@@ -142,9 +143,14 @@ static void s3c2410wdt_start(void)
 	spin_unlock(&wdt_lock);
 }
 
+static inline int s3c2410wdt_is_running(void)
+{
+	return readl(wdt_base + S3C2410_WTCON) & S3C2410_WTCON_ENABLE;
+}
+
 static int s3c2410wdt_set_heartbeat(int timeout)
 {
-	unsigned int freq = clk_get_rate(wdt_clock);
+	unsigned long freq = clk_get_rate(wdt_clock);
 	unsigned int count;
 	unsigned int divisor = 1;
 	unsigned long wtcon;
@@ -155,7 +161,7 @@ static int s3c2410wdt_set_heartbeat(int timeout)
 	freq /= 128;
 	count = timeout * freq;
 
-	DBG("%s: count=%d, timeout=%d, freq=%d\n",
+	DBG("%s: count=%d, timeout=%d, freq=%lu\n",
 	    __func__, count, timeout, freq);
 
 	/* if the count is bigger than the watchdog register,
@@ -324,6 +330,73 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 	s3c2410wdt_keepalive();
 	return IRQ_HANDLED;
 }
+
+
+#ifdef CONFIG_CPU_FREQ
+
+static int s3c2410wdt_cpufreq_transition(struct notifier_block *nb,
+					  unsigned long val, void *data)
+{
+	int ret;
+
+	if (!s3c2410wdt_is_running())
+		goto done;
+
+	if (val == CPUFREQ_PRECHANGE) {
+		/* To ensure that over the change we don't cause the
+		 * watchdog to trigger, we perform an keep-alive if
+		 * the watchdog is running.
+		 */
+
+		s3c2410wdt_keepalive();
+	} else if (val == CPUFREQ_POSTCHANGE) {
+		s3c2410wdt_stop();
+
+		ret = s3c2410wdt_set_heartbeat(tmr_margin);
+
+		if (ret >= 0)
+			s3c2410wdt_start();
+		else
+			goto err;
+	}
+
+done:
+	return 0;
+
+ err:
+	dev_err(wdt_dev, "cannot set new value for timeout %d\n", tmr_margin);
+	return ret;
+}
+
+static struct notifier_block s3c2410wdt_cpufreq_transition_nb = {
+	.notifier_call	= s3c2410wdt_cpufreq_transition,
+};
+
+static inline int s3c2410wdt_cpufreq_register(void)
+{
+	return cpufreq_register_notifier(&s3c2410wdt_cpufreq_transition_nb,
+					 CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+static inline void s3c2410wdt_cpufreq_deregister(void)
+{
+	cpufreq_unregister_notifier(&s3c2410wdt_cpufreq_transition_nb,
+				    CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+#else
+static inline int s3c2410wdt_cpufreq_register(void)
+{
+	return 0;
+}
+
+static inline void s3c2410wdt_cpufreq_deregister(void)
+{
+}
+#endif
+
+
+
 /* device interface */
 
 static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
@@ -348,7 +421,7 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	size = (res->end - res->start) + 1;
+	size = resource_size(res);
 	wdt_mem = request_mem_region(res->start, size, pdev->name);
 	if (wdt_mem == NULL) {
 		dev_err(dev, "failed to get memory region\n");
@@ -387,6 +460,11 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 	clk_enable(wdt_clock);
 
+	if (s3c2410wdt_cpufreq_register() < 0) {
+		printk(KERN_ERR PFX "failed to register cpufreq\n");
+		goto err_clk;
+	}
+
 	/* see if we can actually set the requested timer margin, and if
 	 * not, try the default value */
 
@@ -407,7 +485,7 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(dev, "cannot register miscdev on minor=%d (%d)\n",
 			WATCHDOG_MINOR, ret);
-		goto err_clk;
+		goto err_cpufreq;
 	}
 
 	if (tmr_atboot && started == 0) {
@@ -432,6 +510,9 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
+ err_cpufreq:
+	s3c2410wdt_cpufreq_deregister();
+
  err_clk:
 	clk_disable(wdt_clock);
 	clk_put(wdt_clock);
@@ -451,6 +532,8 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 static int __devexit s3c2410wdt_remove(struct platform_device *dev)
 {
+	s3c2410wdt_cpufreq_deregister();
+
 	release_resource(wdt_mem);
 	kfree(wdt_mem);
 	wdt_mem = NULL;

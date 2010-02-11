@@ -37,7 +37,6 @@
 #include "baseband.h"
 #include "wpactl.h"
 #include "key.h"
-#include "mac.h"
 #include "datarate.h"
 
 #define VIAWGET_HOSTAPD_MAX_BUF_SIZE 1024

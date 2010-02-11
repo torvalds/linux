@@ -1299,7 +1299,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 
 	tvnorm = &bttv_tvnorms[norm];
 
-	if (!memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
+	if (memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
 		    sizeof (tvnorm->cropcap))) {
 		bttv_crop_reset(&btv->crop[0], norm);
 		btv->crop[1] = btv->crop[0]; /* current = default */
@@ -3206,23 +3206,23 @@ err:
 
 static int bttv_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct bttv *btv = video_drvdata(file);
 	struct bttv_fh *fh;
 	enum v4l2_buf_type type = 0;
 
-	dprintk(KERN_DEBUG "bttv: open minor=%d\n",minor);
+	dprintk(KERN_DEBUG "bttv: open dev=%s\n", video_device_node_name(vdev));
 
-	lock_kernel();
-	if (btv->video_dev->minor == minor) {
+	if (vdev->vfl_type == VFL_TYPE_GRABBER) {
 		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	} else if (btv->vbi_dev->minor == minor) {
+	} else if (vdev->vfl_type == VFL_TYPE_VBI) {
 		type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	} else {
 		WARN_ON(1);
-		unlock_kernel();
 		return -ENODEV;
 	}
+
+	lock_kernel();
 
 	dprintk(KERN_DEBUG "bttv%d: open called (type=%s)\n",
 		btv->c.nr,v4l2_type_names[type]);
@@ -3397,7 +3397,6 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 
 static struct video_device bttv_video_template = {
 	.fops         = &bttv_fops,
-	.minor        = -1,
 	.ioctl_ops    = &bttv_ioctl_ops,
 	.tvnorms      = BTTV_NORMS,
 	.current_norm = V4L2_STD_PAL,
@@ -3408,18 +3407,13 @@ static struct video_device bttv_video_template = {
 
 static int radio_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
+	struct video_device *vdev = video_devdata(file);
 	struct bttv *btv = video_drvdata(file);
 	struct bttv_fh *fh;
 
-	dprintk("bttv: open minor=%d\n",minor);
+	dprintk("bttv: open dev=%s\n", video_device_node_name(vdev));
 
 	lock_kernel();
-	WARN_ON(btv->radio_dev && btv->radio_dev->minor != minor);
-	if (!btv->radio_dev || btv->radio_dev->minor != minor) {
-		unlock_kernel();
-		return -ENODEV;
-	}
 
 	dprintk("bttv%d: open called (radio)\n",btv->c.nr);
 
@@ -3640,7 +3634,6 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 
 static struct video_device radio_template = {
 	.fops      = &radio_fops,
-	.minor     = -1,
 	.ioctl_ops = &radio_ioctl_ops,
 };
 
@@ -3800,11 +3793,34 @@ bttv_irq_next_video(struct bttv *btv, struct bttv_buffer_set *set)
 		if (!V4L2_FIELD_HAS_BOTH(item->vb.field) &&
 		    (item->vb.queue.next != &btv->capture)) {
 			item = list_entry(item->vb.queue.next, struct bttv_buffer, vb.queue);
+			/* Mike Isely <isely@pobox.com> - Only check
+			 * and set up the bottom field in the logic
+			 * below.  Don't ever do the top field.  This
+			 * of course means that if we set up the
+			 * bottom field in the above code that we'll
+			 * actually skip a field.  But that's OK.
+			 * Having processed only a single buffer this
+			 * time, then the next time around the first
+			 * available buffer should be for a top field.
+			 * That will then cause us here to set up a
+			 * top then a bottom field in the normal way.
+			 * The alternative to this understanding is
+			 * that we set up the second available buffer
+			 * as a top field, but that's out of order
+			 * since this driver always processes the top
+			 * field first - the effect will be the two
+			 * buffers being returned in the wrong order,
+			 * with the second buffer also being delayed
+			 * by one field time (owing to the fifo nature
+			 * of videobuf).  Worse still, we'll be stuck
+			 * doing fields out of order now every time
+			 * until something else causes a field to be
+			 * dropped.  By effectively forcing a field to
+			 * drop this way then we always get back into
+			 * sync within a single frame time.  (Out of
+			 * order fields can screw up deinterlacing
+			 * algorithms.) */
 			if (!V4L2_FIELD_HAS_BOTH(item->vb.field)) {
-				if (NULL == set->top &&
-				    V4L2_FIELD_TOP == item->vb.field) {
-					set->top = item;
-				}
 				if (NULL == set->bottom &&
 				    V4L2_FIELD_BOTTOM == item->vb.field) {
 					set->bottom = item;
@@ -4185,21 +4201,21 @@ static struct video_device *vdev_init(struct bttv *btv,
 static void bttv_unregister_video(struct bttv *btv)
 {
 	if (btv->video_dev) {
-		if (-1 != btv->video_dev->minor)
+		if (video_is_registered(btv->video_dev))
 			video_unregister_device(btv->video_dev);
 		else
 			video_device_release(btv->video_dev);
 		btv->video_dev = NULL;
 	}
 	if (btv->vbi_dev) {
-		if (-1 != btv->vbi_dev->minor)
+		if (video_is_registered(btv->vbi_dev))
 			video_unregister_device(btv->vbi_dev);
 		else
 			video_device_release(btv->vbi_dev);
 		btv->vbi_dev = NULL;
 	}
 	if (btv->radio_dev) {
-		if (-1 != btv->radio_dev->minor)
+		if (video_is_registered(btv->radio_dev))
 			video_unregister_device(btv->radio_dev);
 		else
 			video_device_release(btv->radio_dev);
@@ -4221,8 +4237,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (video_register_device(btv->video_dev, VFL_TYPE_GRABBER,
 				  video_nr[btv->c.nr]) < 0)
 		goto err;
-	printk(KERN_INFO "bttv%d: registered device video%d\n",
-	       btv->c.nr, btv->video_dev->num);
+	printk(KERN_INFO "bttv%d: registered device %s\n",
+	       btv->c.nr, video_device_node_name(btv->video_dev));
 	if (device_create_file(&btv->video_dev->dev,
 				     &dev_attr_card)<0) {
 		printk(KERN_ERR "bttv%d: device_create_file 'card' "
@@ -4238,8 +4254,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (video_register_device(btv->vbi_dev, VFL_TYPE_VBI,
 				  vbi_nr[btv->c.nr]) < 0)
 		goto err;
-	printk(KERN_INFO "bttv%d: registered device vbi%d\n",
-	       btv->c.nr, btv->vbi_dev->num);
+	printk(KERN_INFO "bttv%d: registered device %s\n",
+	       btv->c.nr, video_device_node_name(btv->vbi_dev));
 
 	if (!btv->has_radio)
 		return 0;
@@ -4250,8 +4266,8 @@ static int __devinit bttv_register_video(struct bttv *btv)
 	if (video_register_device(btv->radio_dev, VFL_TYPE_RADIO,
 				  radio_nr[btv->c.nr]) < 0)
 		goto err;
-	printk(KERN_INFO "bttv%d: registered device radio%d\n",
-	       btv->c.nr, btv->radio_dev->num);
+	printk(KERN_INFO "bttv%d: registered device %s\n",
+	       btv->c.nr, video_device_node_name(btv->radio_dev));
 
 	/* all done */
 	return 0;

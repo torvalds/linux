@@ -25,6 +25,13 @@
  *		http://www.ryston.cz/petr/vlb/pdc20230b.html
  *		http://www.ryston.cz/petr/vlb/pdc20230c.html
  *		http://www.ryston.cz/petr/vlb/pdc20630.html
+ *	QDI65x0:
+ *		http://www.ryston.cz/petr/vlb/qd6500.html
+ *		http://www.ryston.cz/petr/vlb/qd6580.html
+ *
+ *	QDI65x0 probe code based on drivers/ide/legacy/qd65xx.c
+ *	Rewritten from the work of Colten Edwards <pje120@cs.usask.ca> by
+ *	Samuel Thibault <samuel.thibault@ens-lyon.org>
  *
  *  Unsupported but docs exist:
  *	Appian/Adaptec AIC25VL01/Cirrus Logic PD7220
@@ -35,7 +42,7 @@
  *  the MPIIX where the tuning is PCI side but the IDE is "ISA side".
  *
  *  Specific support is included for the ht6560a/ht6560b/opti82c611a/
- *  opti82c465mv/promise 20230c/20630/winbond83759A
+ *  opti82c465mv/promise 20230c/20630/qdi65x0/winbond83759A
  *
  *  Use the autospeed and pio_mask options with:
  *	Appian ADI/2 aka CLPD7220 or AIC25VL01.
@@ -672,7 +679,7 @@ static void qdi6580dp_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	outb(timing, ld_qdi->timing + 2 * ap->port_no);
 	/* Clear the FIFO */
 	if (adev->class != ATA_DEV_ATA)
-		outb(0x5F, ld_qdi->timing + 3);
+		outb(0x5F, (ld_qdi->timing & 0xFFF0) + 3);
 }
 
 /**
@@ -707,7 +714,7 @@ static void qdi6580_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	outb(timing, ld_qdi->timing + 2 * adev->devno);
 	/* Clear the FIFO */
 	if (adev->class != ATA_DEV_ATA)
-		outb(0x5F, ld_qdi->timing + 3);
+		outb(0x5F, (ld_qdi->timing & 0xFFF0) + 3);
 }
 
 /**
@@ -787,6 +794,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 static struct ata_port_operations qdi6580dp_port_ops = {
 	.inherits	= &legacy_base_port_ops,
 	.set_piomode	= qdi6580dp_set_piomode,
+	.qc_issue	= qdi_qc_issue,
 	.sff_data_xfer	= vlb32_data_xfer,
 };
 

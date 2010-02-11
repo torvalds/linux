@@ -1419,7 +1419,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 		nsp32_msg(KERN_ERR, "Received unexpected BMCNTERR IRQ! ");
 		/*
 		 * TODO: To be implemented improving bus master
-		 * transfer reliablity when BMCNTERR is occurred in
+		 * transfer reliability when BMCNTERR is occurred in
 		 * AutoSCSI phase described in specification.
 		 */
 	}

@@ -189,7 +189,7 @@ int s3c_adc_read(struct s3c_adc_client *client, unsigned int ch)
 err:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(s3c_adc_convert);
+EXPORT_SYMBOL_GPL(s3c_adc_read);
 
 static void s3c_adc_default_select(struct s3c_adc_client *client,
 				   unsigned select)
@@ -365,7 +365,7 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int s3c_adc_remove(struct platform_device *pdev)
+static int __devexit s3c_adc_remove(struct platform_device *pdev)
 {
 	struct adc_device *adc = platform_get_drvdata(pdev);
 

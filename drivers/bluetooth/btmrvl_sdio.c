@@ -535,7 +535,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		break;
 
 	default:
-		BT_ERR("Unknow packet type:%d", type);
+		BT_ERR("Unknown packet type:%d", type);
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, payload,
 						blksz * buf_block_len);
 
@@ -808,6 +808,7 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 
 exit:
 	sdio_release_host(card->func);
+	kfree(tmpbuf);
 
 	return ret;
 }
@@ -930,6 +931,8 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	priv->hw_wakeup_firmware = btmrvl_sdio_wakeup_fw;
 
 	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+	priv->btmrvl_dev.psmode = 1;
+	btmrvl_enable_ps(priv);
 
 	return 0;
 
@@ -1001,3 +1004,5 @@ MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell BT-over-SDIO driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL v2");
+MODULE_FIRMWARE("sd8688_helper.bin");
+MODULE_FIRMWARE("sd8688.bin");

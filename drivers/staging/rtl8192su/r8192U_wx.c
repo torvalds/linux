@@ -435,7 +435,7 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 92; /* > 8% missed beacons is 'bad' */
-	/* TODO: Find real 'good' to 'bad' threshol value for RSSI */
+	/* TODO: Find real 'good' to 'bad' threshold value for RSSI */
 	range->avg_qual.level = 20 + -98;
 	range->avg_qual.noise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */

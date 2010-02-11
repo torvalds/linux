@@ -1373,7 +1373,7 @@ static int GetGpioPinParams(u32 PinNum, u32 *pTranslatedPinNum,
 
 	*pGroupCfg = 1;
 
-	if (PinNum >= 0 && PinNum <= 1)	{
+	if (PinNum <= 1)	{
 		*pTranslatedPinNum = 0;
 		*pGroupNum = 9;
 		*pGroupCfg = 2;

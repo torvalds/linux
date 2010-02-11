@@ -48,7 +48,6 @@ typedef struct user_i387_struct elf_fpregset_t;
 	PT_REGS_EAX(regs) = 0; \
 } while (0)
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE 4096
 
 #define ELF_ET_DYN_BASE (2 * TASK_SIZE / 3)

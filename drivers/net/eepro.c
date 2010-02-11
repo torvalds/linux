@@ -990,7 +990,7 @@ static int eepro_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-	if (request_irq(dev->irq , &eepro_interrupt, 0, dev->name, dev)) {
+	if (request_irq(dev->irq , eepro_interrupt, 0, dev->name, dev)) {
 		printk(KERN_ERR "%s: unable to get IRQ %d.\n", dev->name, dev->irq);
 		return -EAGAIN;
 	}

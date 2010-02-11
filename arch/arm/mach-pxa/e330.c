@@ -55,6 +55,9 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init e330_init(void)
 {
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	eseries_register_clks();
 	eseries_get_tmio_gpios();
 	platform_add_devices(devices, ARRAY_SIZE(devices));

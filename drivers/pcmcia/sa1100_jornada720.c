@@ -22,25 +22,10 @@
 #define SOCKET1_POWER	(GPIO_GPIO1 | GPIO_GPIO3)
 #define SOCKET1_3V	GPIO_GPIO3
 
-static int jornada720_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
-{
-	unsigned int pin = GPIO_A0 | GPIO_A1 | GPIO_A2 | GPIO_A3;
-
-	/*
-	* What is all this crap for?
-	*/
-	GRER |= 0x00000002;
-	/* Set GPIO_A<3:1> to be outputs for PCMCIA/CF power controller: */
-	sa1111_set_io_dir(SA1111_DEV(skt->dev), pin, 0, 0);
-	sa1111_set_io(SA1111_DEV(skt->dev), pin, 0);
-	sa1111_set_sleep_io(SA1111_DEV(skt->dev), pin, 0);
-
-	return sa1111_pcmcia_hw_init(skt);
-}
-
 static int
 jornada720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state_t *state)
 {
+	struct sa1111_pcmcia_socket *s = to_skt(skt);
 	unsigned int pa_dwr_mask, pa_dwr_set;
 	int ret;
 
@@ -97,7 +82,7 @@ jornada720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 		unsigned long flags;
 
 		local_irq_save(flags);
-		sa1111_set_io(SA1111_DEV(skt->dev), pa_dwr_mask, pa_dwr_set);
+		sa1111_set_io(s->dev, pa_dwr_mask, pa_dwr_set);
 		local_irq_restore(flags);
 	}
 
@@ -106,21 +91,30 @@ jornada720_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_s
 
 static struct pcmcia_low_level jornada720_pcmcia_ops = {
 	.owner			= THIS_MODULE,
-	.hw_init		= jornada720_pcmcia_hw_init,
-	.hw_shutdown		= sa1111_pcmcia_hw_shutdown,
-	.socket_state		= sa1111_pcmcia_socket_state,
 	.configure_socket	= jornada720_pcmcia_configure_socket,
-
 	.socket_init		= sa1111_pcmcia_socket_init,
-	.socket_suspend		= sa1111_pcmcia_socket_suspend,
+	.first			= 0,
+	.nr			= 2,
 };
 
 int __devinit pcmcia_jornada720_init(struct device *dev)
 {
 	int ret = -ENODEV;
 
-	if (machine_is_jornada720())
-		ret = sa11xx_drv_pcmcia_probe(dev, &jornada720_pcmcia_ops, 0, 2);
+	if (machine_is_jornada720()) {
+		unsigned int pin = GPIO_A0 | GPIO_A1 | GPIO_A2 | GPIO_A3;
+
+		GRER |= 0x00000002;
+
+		/* Set GPIO_A<3:1> to be outputs for PCMCIA/CF power controller: */
+		sa1111_set_io_dir(dev, pin, 0, 0);
+		sa1111_set_io(dev, pin, 0);
+		sa1111_set_sleep_io(dev, pin, 0);
+
+		sa11xx_drv_pcmcia_ops(&jornada720_pcmcia_ops);
+		ret = sa1111_pcmcia_add(dev, &jornada720_pcmcia_ops,
+				sa11xx_drv_pcmcia_add_one);
+	}
 
 	return ret;
 }

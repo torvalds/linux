@@ -1,3 +1,4 @@
+#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
 #ifndef _SPARC_PROM_H
 #define _SPARC_PROM_H
 #ifdef __KERNEL__
@@ -28,49 +29,10 @@
 #define of_prop_cmp(s1, s2)		strcasecmp((s1), (s2))
 #define of_node_cmp(s1, s2)		strcmp((s1), (s2))
 
-typedef u32 phandle;
-typedef u32 ihandle;
-
-struct property {
-	char	*name;
-	int	length;
-	void	*value;
-	struct property *next;
-	unsigned long _flags;
-	unsigned int unique_id;
-};
-
-struct of_irq_controller;
-struct device_node {
-	const char	*name;
-	const char	*type;
-	phandle	node;
-	char	*path_component_name;
-	char	*full_name;
-
-	struct	property *properties;
-	struct  property *deadprops; /* removed properties */
-	struct	device_node *parent;
-	struct	device_node *child;
-	struct	device_node *sibling;
-	struct	device_node *next;	/* next device of same type */
-	struct	device_node *allnext;	/* next in list of all nodes */
-	struct  proc_dir_entry *pde;	/* this node's proc directory */
-	struct  kref kref;
-	unsigned long _flags;
-	void	*data;
-	unsigned int unique_id;
-
-	struct of_irq_controller *irq_trans;
-};
-
 struct of_irq_controller {
 	unsigned int	(*irq_build)(struct device_node *, unsigned int, void *);
 	void		*data;
 };
-
-#define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
-#define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
 extern struct device_node *of_find_node_by_cpuid(int cpuid);
 extern int of_set_property(struct device_node *node, const char *name, void *val, int len);
@@ -89,15 +51,6 @@ extern void prom_build_devicetree(void);
 extern void of_populate_present_mask(void);
 extern void of_fill_in_cpu_data(void);
 
-/* Dummy ref counting routines - to be implemented later */
-static inline struct device_node *of_node_get(struct device_node *node)
-{
-	return node;
-}
-static inline void of_node_put(struct device_node *node)
-{
-}
-
 /* These routines are here to provide compatibility with how powerpc
  * handles IRQ mapping for OF device nodes.  We precompute and permanently
  * register them in the of_device objects, whereas powerpc computes them
@@ -107,12 +60,6 @@ extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 static inline void irq_dispose_mapping(unsigned int virq)
 {
 }
-
-/*
- * NB:  This is here while we transition from using asm/prom.h
- * to linux/of.h
- */
-#include <linux/of.h>
 
 extern struct device_node *of_console_device;
 extern char *of_console_path;

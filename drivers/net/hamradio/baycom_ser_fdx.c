@@ -35,7 +35,7 @@
  *          driver only supports standard serial hardware (8250, 16450, 16550A)
  *
  *          This modem usually draws its supply current out of the otherwise unused
- *          TXD pin of the serial port. Thus a contignuous stream of 0x00-bytes
+ *          TXD pin of the serial port. Thus a contiguous stream of 0x00-bytes
  *          is transmitted to achieve a positive supply voltage.
  *
  *  hsk:    This is a 4800 baud FSK modem, designed for TNC use. It works fine

@@ -83,6 +83,7 @@ static const struct ac97_codec_id snd_ac97_codec_id_vendors[] = {
 { 0x4e534300, 0xffffff00, "National Semiconductor", NULL, NULL },
 { 0x50534300, 0xffffff00, "Philips",		NULL,	NULL },
 { 0x53494c00, 0xffffff00, "Silicon Laboratory",	NULL,	NULL },
+{ 0x53544d00, 0xffffff00, "STMicroelectronics",	NULL,	NULL },
 { 0x54524100, 0xffffff00, "TriTech",		NULL,	NULL },
 { 0x54584e00, 0xffffff00, "Texas Instruments",	NULL,	NULL },
 { 0x56494100, 0xffffff00, "VIA Technologies",   NULL,	NULL },
@@ -161,6 +162,7 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x4e534350, 0xffffffff, "LM4550",		patch_lm4550,  	NULL }, // volume wrap fix 
 { 0x50534304, 0xffffffff, "UCB1400",		patch_ucb1400,	NULL },
 { 0x53494c20, 0xffffffe0, "Si3036,8",		mpatch_si3036,	mpatch_si3036, AC97_MODEM_PATCH },
+{ 0x53544d02, 0xffffffff, "ST7597",		NULL,		NULL },
 { 0x54524102, 0xffffffff, "TR28022",		NULL,		NULL },
 { 0x54524103, 0xffffffff, "TR28023",		NULL,		NULL },
 { 0x54524106, 0xffffffff, "TR28026",		NULL,		NULL },
@@ -213,6 +215,14 @@ static int snd_ac97_valid_reg(struct snd_ac97 *ac97, unsigned short reg)
 {
 	/* filter some registers for buggy codecs */
 	switch (ac97->id) {
+	case AC97_ID_ST_AC97_ID4:
+		if (reg == 0x08)
+			return 0;
+		/* fall through */
+	case AC97_ID_ST7597:
+		if (reg == 0x22 || reg == 0x7a)
+			return 1;
+		/* fall through */
 	case AC97_ID_AK4540:
 	case AC97_ID_AK4542:
 		if (reg <= 0x1c || reg == 0x20 || reg == 0x26 || reg >= 0x7c)
@@ -603,8 +613,8 @@ AC97_SINGLE("Tone Control - Treble", AC97_MASTER_TONE, 0, 15, 1)
 };
 
 static const struct snd_kcontrol_new snd_ac97_controls_pc_beep[2] = {
-AC97_SINGLE("PC Speaker Playback Switch", AC97_PC_BEEP, 15, 1, 1),
-AC97_SINGLE("PC Speaker Playback Volume", AC97_PC_BEEP, 1, 15, 1)
+AC97_SINGLE("Beep Playback Switch", AC97_PC_BEEP, 15, 1, 1),
+AC97_SINGLE("Beep Playback Volume", AC97_PC_BEEP, 1, 15, 1)
 };
 
 static const struct snd_kcontrol_new snd_ac97_controls_mic_boost =
@@ -1393,7 +1403,7 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 		}
 	}
 	
-	/* build PC Speaker controls */
+	/* build Beep controls */
 	if (!(ac97->flags & AC97_HAS_NO_PC_BEEP) && 
 		((ac97->flags & AC97_HAS_PC_BEEP) ||
 	    snd_ac97_try_volume_mix(ac97, AC97_PC_BEEP))) {
@@ -2122,7 +2132,7 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 		}
 		/* nothing should be in powerdown mode */
 		snd_ac97_write_cache(ac97, AC97_GENERAL_PURPOSE, 0);
-		end_time = jiffies + msecs_to_jiffies(120);
+		end_time = jiffies + msecs_to_jiffies(5000);
 		do {
 			if ((snd_ac97_read(ac97, AC97_POWERDOWN) & 0x0f) == 0x0f)
 				goto __ready_ok;

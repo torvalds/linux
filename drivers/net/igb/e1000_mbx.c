@@ -143,12 +143,16 @@ static s32 igb_poll_for_msg(struct e1000_hw *hw, u16 mbx_id)
 	if (!countdown || !mbx->ops.check_for_msg)
 		goto out;
 
-	while (mbx->ops.check_for_msg(hw, mbx_id)) {
+	while (countdown && mbx->ops.check_for_msg(hw, mbx_id)) {
 		countdown--;
 		if (!countdown)
 			break;
 		udelay(mbx->usec_delay);
 	}
+
+	/* if we failed, all future posted messages fail until reset */
+	if (!countdown)
+		mbx->timeout = 0;
 out:
 	return countdown ? 0 : -E1000_ERR_MBX;
 }
@@ -168,12 +172,16 @@ static s32 igb_poll_for_ack(struct e1000_hw *hw, u16 mbx_id)
 	if (!countdown || !mbx->ops.check_for_ack)
 		goto out;
 
-	while (mbx->ops.check_for_ack(hw, mbx_id)) {
+	while (countdown && mbx->ops.check_for_ack(hw, mbx_id)) {
 		countdown--;
 		if (!countdown)
 			break;
 		udelay(mbx->usec_delay);
 	}
+
+	/* if we failed, all future posted messages fail until reset */
+	if (!countdown)
+		mbx->timeout = 0;
 out:
 	return countdown ? 0 : -E1000_ERR_MBX;
 }
@@ -217,12 +225,13 @@ out:
 static s32 igb_write_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
-	s32 ret_val = 0;
+	s32 ret_val = -E1000_ERR_MBX;
 
-	if (!mbx->ops.write)
+	/* exit if either we can't write or there isn't a defined timeout */
+	if (!mbx->ops.write || !mbx->timeout)
 		goto out;
 
-	/* send msg*/
+	/* send msg */
 	ret_val = mbx->ops.write(hw, msg, size, mbx_id);
 
 	/* if msg sent wait until we receive an ack */
@@ -305,6 +314,30 @@ static s32 igb_check_for_rst_pf(struct e1000_hw *hw, u16 vf_number)
 }
 
 /**
+ *  igb_obtain_mbx_lock_pf - obtain mailbox lock
+ *  @hw: pointer to the HW structure
+ *  @vf_number: the VF index
+ *
+ *  return SUCCESS if we obtained the mailbox lock
+ **/
+static s32 igb_obtain_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
+{
+	s32 ret_val = -E1000_ERR_MBX;
+	u32 p2v_mailbox;
+
+
+	/* Take ownership of the buffer */
+	wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_PFU);
+
+	/* reserve mailbox for vf use */
+	p2v_mailbox = rd32(E1000_P2VMAILBOX(vf_number));
+	if (p2v_mailbox & E1000_P2VMAILBOX_PFU)
+		ret_val = 0;
+
+	return ret_val;
+}
+
+/**
  *  igb_write_mbx_pf - Places a message in the mailbox
  *  @hw: pointer to the HW structure
  *  @msg: The message buffer
@@ -316,27 +349,17 @@ static s32 igb_check_for_rst_pf(struct e1000_hw *hw, u16 vf_number)
 static s32 igb_write_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
                               u16 vf_number)
 {
-	u32 p2v_mailbox;
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 i;
 
-	/* Take ownership of the buffer */
-	wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_PFU);
-
-	/* Make sure we have ownership now... */
-	p2v_mailbox = rd32(E1000_P2VMAILBOX(vf_number));
-	if (!(p2v_mailbox & E1000_P2VMAILBOX_PFU)) {
-		/* failed to grab ownership */
-		ret_val = -E1000_ERR_MBX;
+	/* lock the mailbox to prevent pf/vf race condition */
+	ret_val = igb_obtain_mbx_lock_pf(hw, vf_number);
+	if (ret_val)
 		goto out_no_write;
-	}
 
-	/*
-	 * flush any ack or msg which may already be in the queue
-	 * as they are likely the result of an error
-	 */
-	igb_check_for_ack_pf(hw, vf_number);
+	/* flush msg and acks as we are overwriting the message buffer */
 	igb_check_for_msg_pf(hw, vf_number);
+	igb_check_for_ack_pf(hw, vf_number);
 
 	/* copy the caller specified message to the mailbox memory buffer */
 	for (i = 0; i < size; i++)
@@ -367,20 +390,13 @@ out_no_write:
 static s32 igb_read_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
                              u16 vf_number)
 {
-	u32 p2v_mailbox;
-	s32 ret_val = 0;
+	s32 ret_val;
 	u16 i;
 
-	/* Take ownership of the buffer */
-	wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_PFU);
-
-	/* Make sure we have ownership now... */
-	p2v_mailbox = rd32(E1000_P2VMAILBOX(vf_number));
-	if (!(p2v_mailbox & E1000_P2VMAILBOX_PFU)) {
-		/* failed to grab ownership */
-		ret_val = -E1000_ERR_MBX;
+	/* lock the mailbox to prevent pf/vf race condition */
+	ret_val = igb_obtain_mbx_lock_pf(hw, vf_number);
+	if (ret_val)
 		goto out_no_read;
-	}
 
 	/* copy the message to the mailbox memory buffer */
 	for (i = 0; i < size; i++)
@@ -391,8 +407,6 @@ static s32 igb_read_mbx_pf(struct e1000_hw *hw, u32 *msg, u16 size,
 
 	/* update stats */
 	hw->mbx.stats.msgs_rx++;
-
-	ret_val = 0;
 
 out_no_read:
 	return ret_val;

@@ -221,6 +221,8 @@ typedef struct ide_tape_obj {
 
 static DEFINE_MUTEX(idetape_ref_mutex);
 
+static DEFINE_MUTEX(idetape_chrdev_mutex);
+
 static struct class *idetape_sysfs_class;
 
 static void ide_tape_release(struct device *);
@@ -1457,10 +1459,11 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 	if (i >= MAX_HWIFS * MAX_DRIVES)
 		return -ENXIO;
 
-	lock_kernel();
+	mutex_lock(&idetape_chrdev_mutex);
+
 	tape = ide_tape_get(NULL, true, i);
 	if (!tape) {
-		unlock_kernel();
+		mutex_unlock(&idetape_chrdev_mutex);
 		return -ENXIO;
 	}
 
@@ -1519,12 +1522,15 @@ static int idetape_chrdev_open(struct inode *inode, struct file *filp)
 				tape->door_locked = DOOR_LOCKED;
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&idetape_chrdev_mutex);
+
 	return 0;
 
 out_put_tape:
 	ide_tape_put(tape);
-	unlock_kernel();
+
+	mutex_unlock(&idetape_chrdev_mutex);
+
 	return retval;
 }
 
@@ -1551,7 +1557,8 @@ static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 	ide_drive_t *drive = tape->drive;
 	unsigned int minor = iminor(inode);
 
-	lock_kernel();
+	mutex_lock(&idetape_chrdev_mutex);
+
 	tape = drive->driver_data;
 
 	ide_debug_log(IDE_DBG_FUNC, "enter");
@@ -1575,7 +1582,9 @@ static int idetape_chrdev_release(struct inode *inode, struct file *filp)
 	}
 	clear_bit(ilog2(IDE_AFLAG_BUSY), &drive->atapi_flags);
 	ide_tape_put(tape);
-	unlock_kernel();
+
+	mutex_unlock(&idetape_chrdev_mutex);
+
 	return 0;
 }
 

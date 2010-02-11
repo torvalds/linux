@@ -497,7 +497,7 @@ typedef struct {
  * @inserted_drive		: channel:Id of inserted drive
  * @battery_status		: bit 0: battery module missing
  *				bit 1: VBAD
- *				bit 2: temprature high
+ *				bit 2: temperature high
  *				bit 3: battery pack missing
  *				bit 4,5:
  *					00 - charge complete

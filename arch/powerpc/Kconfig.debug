@@ -46,7 +46,7 @@ config DEBUG_STACK_USAGE
 
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
-	depends on PPC_PSERIES && DEBUG_FS
+	depends on PPC_PSERIES && DEBUG_FS && TRACEPOINTS
 	help
 	  Adds code to keep track of the number of hypervisor calls made and
 	  the amount of time spent in hypervisor calls.  Wall time spent in
@@ -253,6 +253,14 @@ config PPC_EARLY_DEBUG_CPM
 	  Select this to enable early debugging for Freescale chips
 	  using a CPM-based serial port.  This assumes that the bootwrapper
 	  has run, and set up the CPM in a particular way.
+
+config PPC_EARLY_DEBUG_USBGECKO
+	bool "Early debugging through the USB Gecko adapter"
+	depends on GAMECUBE_COMMON
+	select USBGECKO_UDBG
+	help
+	  Select this to enable early debugging for Nintendo GameCube/Wii
+	  consoles via an external USB Gecko adapter.
 
 endchoice
 

@@ -302,7 +302,7 @@ static void __init setup_chaos(struct pci_controller *hose,
  *  1 -> Skip the device but act as if the access was successfull
  *       (return 0xff's on reads, eventually, cache config space
  *       accesses in a later version)
- * -1 -> Hide the device (unsuccessful acess)
+ * -1 -> Hide the device (unsuccessful access)
  */
 static int u3_ht_skip_device(struct pci_controller *hose,
 			     struct pci_bus *bus, unsigned int devfn)

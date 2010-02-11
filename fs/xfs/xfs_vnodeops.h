@@ -38,7 +38,6 @@ int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
 		const char *target_path, mode_t mode, struct xfs_inode **ipp,
 		cred_t *credp);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
-int xfs_reclaim(struct xfs_inode *ip);
 int xfs_change_file_space(struct xfs_inode *ip, int cmd,
 		xfs_flock64_t *bf, xfs_off_t offset, int attr_flags);
 int xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,

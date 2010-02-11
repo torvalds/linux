@@ -22,7 +22,6 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/virtio.h>
-#include <linux/virtio_ids.h>
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
@@ -283,13 +282,12 @@ static bool try_fill_recv_maxbufs(struct virtnet_info *vi, gfp_t gfp)
 	do {
 		struct skb_vnet_hdr *hdr;
 
-		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
 		if (unlikely(!skb)) {
 			oom = true;
 			break;
 		}
 
-		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, MAX_PACKET_LEN);
 
 		hdr = skb_vnet_hdr(skb);
@@ -344,13 +342,11 @@ static bool try_fill_recv(struct virtnet_info *vi, gfp_t gfp)
 	do {
 		skb_frag_t *f;
 
-		skb = netdev_alloc_skb(vi->dev, GOOD_COPY_LEN + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(vi->dev, GOOD_COPY_LEN);
 		if (unlikely(!skb)) {
 			oom = true;
 			break;
 		}
-
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		f = &skb_shinfo(skb)->frags[0];
 		f->page = get_a_page(vi, gfp);
@@ -399,8 +395,7 @@ static void refill_work(struct work_struct *work)
 
 	vi = container_of(work, struct virtnet_info, refill.work);
 	napi_disable(&vi->napi);
-	try_fill_recv(vi, GFP_KERNEL);
-	still_empty = (vi->num == 0);
+	still_empty = !try_fill_recv(vi, GFP_KERNEL);
 	napi_enable(&vi->napi);
 
 	/* In theory, this can happen: if we don't get any buffers in
@@ -432,8 +427,8 @@ again:
 	/* Out of packets? */
 	if (received < budget) {
 		napi_complete(napi);
-		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq))
-		    && napi_schedule_prep(napi)) {
+		if (unlikely(!vi->rvq->vq_ops->enable_cb(vi->rvq)) &&
+		    napi_schedule_prep(napi)) {
 			vi->rvq->vq_ops->disable_cb(vi->rvq);
 			__napi_schedule(napi);
 			goto again;
@@ -454,7 +449,7 @@ static unsigned int free_old_xmit_skbs(struct virtnet_info *vi)
 		vi->dev->stats.tx_bytes += skb->len;
 		vi->dev->stats.tx_packets++;
 		tot_sgs += skb_vnet_hdr(skb)->num_sg;
-		kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 	}
 	return tot_sgs;
 }
@@ -517,8 +512,7 @@ again:
 	/* Free up any pending old buffers before queueing new ones. */
 	free_old_xmit_skbs(vi);
 
-	/* Put new one in send queue and do transmit */
-	__skb_queue_head(&vi->send, skb);
+	/* Try to transmit */
 	capacity = xmit_skb(vi, skb);
 
 	/* This can happen with OOM and indirect buffers. */
@@ -532,8 +526,17 @@ again:
 		}
 		return NETDEV_TX_BUSY;
 	}
-
 	vi->svq->vq_ops->kick(vi->svq);
+
+	/*
+	 * Put new one in send queue.  You'd expect we'd need this before
+	 * xmit_skb calls add_buf(), since the callback can be triggered
+	 * immediately after that.  But since the callback just triggers
+	 * another call back here, normal network xmit locking prevents the
+	 * race.
+	 */
+	__skb_queue_head(&vi->send, skb);
+
 	/* Don't wait up for transmitted skbs to be freed. */
 	skb_orphan(skb);
 	nf_reset(skb);
@@ -886,9 +889,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 	INIT_DELAYED_WORK(&vi->refill, refill_work);
 
 	/* If we can receive ANY GSO packets, we must allocate large ones. */
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4)
-	    || virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6)
-	    || virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ECN))
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4) ||
+	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6) ||
+	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_ECN))
 		vi->big_packets = true;
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_MRG_RXBUF))
@@ -991,7 +994,7 @@ static unsigned int features[] = {
 	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN,
 };
 
-static struct virtio_driver virtio_net = {
+static struct virtio_driver virtio_net_driver = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
 	.driver.name =	KBUILD_MODNAME,
@@ -1004,12 +1007,12 @@ static struct virtio_driver virtio_net = {
 
 static int __init init(void)
 {
-	return register_virtio_driver(&virtio_net);
+	return register_virtio_driver(&virtio_net_driver);
 }
 
 static void __exit fini(void)
 {
-	unregister_virtio_driver(&virtio_net);
+	unregister_virtio_driver(&virtio_net_driver);
 }
 module_init(init);
 module_exit(fini);

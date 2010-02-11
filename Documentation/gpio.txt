@@ -380,7 +380,7 @@ rare; use gpiochip_remove() when it is unavoidable.
 
 Most often a gpio_chip is part of an instance-specific structure with state
 not exposed by the GPIO interfaces, such as addressing, power management,
-and more.  Chips such as codecs will have complex non-GPIO state,
+and more.  Chips such as codecs will have complex non-GPIO state.
 
 Any debugfs dump method should normally ignore signals which haven't been
 requested as GPIOs.  They can use gpiochip_is_requested(), which returns
@@ -531,7 +531,14 @@ and have the following read/write attributes:
 		This file exists only if the pin can be configured as an
 		interrupt generating input pin.
 
-GPIO controllers have paths like /sys/class/gpio/chipchip42/ (for the
+	"active_low" ... reads as either 0 (false) or 1 (true).  Write
+		any nonzero value to invert the value attribute both
+		for reading and writing.  Existing and subsequent
+		poll(2) support configuration via the edge attribute
+		for "rising" and "falling" edges will follow this
+		setting.
+
+GPIO controllers have paths like /sys/class/gpio/gpiochip42/ (for the
 controller implementing GPIOs starting at #42) and have the following
 read-only attributes:
 
@@ -566,6 +573,8 @@ requested using gpio_request():
 	int gpio_export_link(struct device *dev, const char *name,
 		unsigned gpio)
 
+	/* change the polarity of a GPIO node in sysfs */
+	int gpio_sysfs_set_active_low(unsigned gpio, int value);
 
 After a kernel driver requests a GPIO, it may only be made available in
 the sysfs interface by gpio_export().  The driver can control whether the
@@ -580,3 +589,9 @@ After the GPIO has been exported, gpio_export_link() allows creating
 symlinks from elsewhere in sysfs to the GPIO sysfs node.  Drivers can
 use this to provide the interface under their own device in sysfs with
 a descriptive name.
+
+Drivers can use gpio_sysfs_set_active_low() to hide GPIO line polarity
+differences between boards from user space.  This only affects the
+sysfs interface.  Polarity change can be done both before and after
+gpio_export(), and previously enabled poll(2) support for either
+rising or falling edge will be reconfigured to follow this setting.

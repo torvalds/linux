@@ -79,7 +79,7 @@ static void	call_connect_status(struct rpc_task *task);
 
 static __be32	*rpc_encode_header(struct rpc_task *task);
 static __be32	*rpc_verify_header(struct rpc_task *task);
-static int	rpc_ping(struct rpc_clnt *clnt, int flags);
+static int	rpc_ping(struct rpc_clnt *clnt);
 
 static void rpc_register_client(struct rpc_clnt *clnt)
 {
@@ -340,7 +340,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		return clnt;
 
 	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
-		int err = rpc_ping(clnt, RPC_TASK_SOFT);
+		int err = rpc_ping(clnt);
 		if (err != 0) {
 			rpc_shutdown_client(clnt);
 			return ERR_PTR(err);
@@ -528,7 +528,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 	clnt->cl_prog     = program->number;
 	clnt->cl_vers     = version->number;
 	clnt->cl_stats    = program->stats;
-	err = rpc_ping(clnt, RPC_TASK_SOFT);
+	err = rpc_ping(clnt);
 	if (err != 0) {
 		rpc_shutdown_client(clnt);
 		clnt = ERR_PTR(err);
@@ -1060,7 +1060,7 @@ call_bind_status(struct rpc_task *task)
 		goto retry_timeout;
 	case -EPFNOSUPPORT:
 		/* server doesn't support any rpcbind version we know of */
-		dprintk("RPC: %5u remote rpcbind service unavailable\n",
+		dprintk("RPC: %5u unrecognized remote rpcbind service\n",
 				task->tk_pid);
 		break;
 	case -EPROTONOSUPPORT:
@@ -1069,6 +1069,21 @@ call_bind_status(struct rpc_task *task)
 		task->tk_status = 0;
 		task->tk_action = call_bind;
 		return;
+	case -ECONNREFUSED:		/* connection problems */
+	case -ECONNRESET:
+	case -ENOTCONN:
+	case -EHOSTDOWN:
+	case -EHOSTUNREACH:
+	case -ENETUNREACH:
+	case -EPIPE:
+		dprintk("RPC: %5u remote rpcbind unreachable: %d\n",
+				task->tk_pid, task->tk_status);
+		if (!RPC_IS_SOFTCONN(task)) {
+			rpc_delay(task, 5*HZ);
+			goto retry_timeout;
+		}
+		status = task->tk_status;
+		break;
 	default:
 		dprintk("RPC: %5u unrecognized rpcbind error (%d)\n",
 				task->tk_pid, -task->tk_status);
@@ -1180,11 +1195,25 @@ static void
 call_transmit_status(struct rpc_task *task)
 {
 	task->tk_action = call_status;
+
+	/*
+	 * Common case: success.  Force the compiler to put this
+	 * test first.
+	 */
+	if (task->tk_status == 0) {
+		xprt_end_transmit(task);
+		rpc_task_force_reencode(task);
+		return;
+	}
+
 	switch (task->tk_status) {
 	case -EAGAIN:
 		break;
 	default:
+		dprint_status(task);
 		xprt_end_transmit(task);
+		rpc_task_force_reencode(task);
+		break;
 		/*
 		 * Special cases: if we've been waiting on the
 		 * socket's write_space() callback, or if the
@@ -1192,11 +1221,16 @@ call_transmit_status(struct rpc_task *task)
 		 * then hold onto the transport lock.
 		 */
 	case -ECONNREFUSED:
-	case -ECONNRESET:
-	case -ENOTCONN:
 	case -EHOSTDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
+		if (RPC_IS_SOFTCONN(task)) {
+			xprt_end_transmit(task);
+			rpc_exit(task, task->tk_status);
+			break;
+		}
+	case -ECONNRESET:
+	case -ENOTCONN:
 	case -EPIPE:
 		rpc_task_force_reencode(task);
 	}
@@ -1346,6 +1380,10 @@ call_timeout(struct rpc_task *task)
 	dprintk("RPC: %5u call_timeout (major)\n", task->tk_pid);
 	task->tk_timeouts++;
 
+	if (RPC_IS_SOFTCONN(task)) {
+		rpc_exit(task, -ETIMEDOUT);
+		return;
+	}
 	if (RPC_IS_SOFT(task)) {
 		if (clnt->cl_chatty)
 			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
@@ -1675,14 +1713,14 @@ static struct rpc_procinfo rpcproc_null = {
 	.p_decode = rpcproc_decode_null,
 };
 
-static int rpc_ping(struct rpc_clnt *clnt, int flags)
+static int rpc_ping(struct rpc_clnt *clnt)
 {
 	struct rpc_message msg = {
 		.rpc_proc = &rpcproc_null,
 	};
 	int err;
 	msg.rpc_cred = authnull_ops.lookup_cred(NULL, NULL, 0);
-	err = rpc_call_sync(clnt, &msg, flags);
+	err = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN);
 	put_rpccred(msg.rpc_cred);
 	return err;
 }

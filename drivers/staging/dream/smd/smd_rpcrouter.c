@@ -33,7 +33,6 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
-#include <linux/wakelock.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/platform_device.h>
@@ -96,7 +95,6 @@ static DEFINE_SPINLOCK(server_list_lock);
 static DEFINE_SPINLOCK(smd_lock);
 
 static struct workqueue_struct *rpcrouter_workqueue;
-static struct wake_lock rpcrouter_wake_lock;
 static int rpcrouter_need_len;
 
 static atomic_t next_xid = ATOMIC_INIT(1);
@@ -290,7 +288,6 @@ struct msm_rpc_endpoint *msm_rpcrouter_create_local_endpoint(dev_t dev)
 	init_waitqueue_head(&ept->wait_q);
 	INIT_LIST_HEAD(&ept->read_q);
 	spin_lock_init(&ept->read_q_lock);
-	wake_lock_init(&ept->read_q_wake_lock, WAKE_LOCK_SUSPEND, "rpc_read");
 	INIT_LIST_HEAD(&ept->incomplete);
 
 	spin_lock_irqsave(&local_endpoints_lock, flags);
@@ -313,7 +310,6 @@ int msm_rpcrouter_destroy_local_endpoint(struct msm_rpc_endpoint *ept)
 	if (rc < 0)
 		return rc;
 
-	wake_lock_destroy(&ept->read_q_wake_lock);
 	list_del(&ept->list);
 	kfree(ept);
 	return 0;
@@ -540,8 +536,6 @@ static void rpcrouter_smdnotify(void *_dev, unsigned event)
 	if (event != SMD_EVENT_DATA)
 		return;
 
-	if (smd_read_avail(smd_channel) >= rpcrouter_need_len)
-		wake_lock(&rpcrouter_wake_lock);
 	wake_up(&smd_wait);
 }
 
@@ -576,7 +570,6 @@ static int rr_read(void *data, int len)
 				return -EIO;
 		}
 		rpcrouter_need_len = len;
-		wake_unlock(&rpcrouter_wake_lock);
 		spin_unlock_irqrestore(&smd_lock, flags);
 
 //		printk("rr_read: waiting (%d)\n", len);
@@ -676,7 +669,6 @@ static void do_read_data(struct work_struct *work)
 
 packet_complete:
 	spin_lock_irqsave(&ept->read_q_lock, flags);
-	wake_lock(&ept->read_q_wake_lock);
 	list_add_tail(&pkt->list, &ept->read_q);
 	wake_up(&ept->wait_q);
 	spin_unlock_irqrestore(&ept->read_q_lock, flags);
@@ -699,7 +691,6 @@ done:
 fail_io:
 fail_data:
 	printk(KERN_ERR "rpc_router has died\n");
-	wake_unlock(&rpcrouter_wake_lock);
 }
 
 void msm_rpc_setup_req(struct rpc_request_hdr *hdr, uint32_t prog,
@@ -1061,8 +1052,6 @@ int __msm_rpc_read(struct msm_rpc_endpoint *ept,
 		return -ETOOSMALL;
 	}
 	list_del(&pkt->list);
-	if (list_empty(&ept->read_q))
-		wake_unlock(&ept->read_q_wake_lock);
 	spin_unlock_irqrestore(&ept->read_q_lock, flags);
 
 	rc = pkt->length;
@@ -1229,7 +1218,6 @@ static int msm_rpcrouter_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&newserver_wait);
 	init_waitqueue_head(&smd_wait);
-	wake_lock_init(&rpcrouter_wake_lock, WAKE_LOCK_SUSPEND, "SMD_RPCCALL");
 
 	rpcrouter_workqueue = create_singlethread_workqueue("rpcrouter");
 	if (!rpcrouter_workqueue)

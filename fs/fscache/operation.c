@@ -13,6 +13,7 @@
 
 #define FSCACHE_DEBUG_LEVEL OPERATION
 #include <linux/module.h>
+#include <linux/seq_file.h>
 #include "internal.h"
 
 atomic_t fscache_op_debug_id;
@@ -31,32 +32,33 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 	_enter("{OBJ%x OP%x,%u}",
 	       op->object->debug_id, op->debug_id, atomic_read(&op->usage));
 
+	fscache_set_op_state(op, "EnQ");
+
+	ASSERT(list_empty(&op->pend_link));
 	ASSERT(op->processor != NULL);
 	ASSERTCMP(op->object->state, >=, FSCACHE_OBJECT_AVAILABLE);
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
 
-	if (list_empty(&op->pend_link)) {
-		switch (op->flags & FSCACHE_OP_TYPE) {
-		case FSCACHE_OP_FAST:
-			_debug("queue fast");
-			atomic_inc(&op->usage);
-			if (!schedule_work(&op->fast_work))
-				fscache_put_operation(op);
-			break;
-		case FSCACHE_OP_SLOW:
-			_debug("queue slow");
-			slow_work_enqueue(&op->slow_work);
-			break;
-		case FSCACHE_OP_MYTHREAD:
-			_debug("queue for caller's attention");
-			break;
-		default:
-			printk(KERN_ERR "FS-Cache: Unexpected op type %lx",
-			       op->flags);
-			BUG();
-			break;
-		}
-		fscache_stat(&fscache_n_op_enqueue);
+	fscache_stat(&fscache_n_op_enqueue);
+	switch (op->flags & FSCACHE_OP_TYPE) {
+	case FSCACHE_OP_FAST:
+		_debug("queue fast");
+		atomic_inc(&op->usage);
+		if (!schedule_work(&op->fast_work))
+			fscache_put_operation(op);
+		break;
+	case FSCACHE_OP_SLOW:
+		_debug("queue slow");
+		slow_work_enqueue(&op->slow_work);
+		break;
+	case FSCACHE_OP_MYTHREAD:
+		_debug("queue for caller's attention");
+		break;
+	default:
+		printk(KERN_ERR "FS-Cache: Unexpected op type %lx",
+		       op->flags);
+		BUG();
+		break;
 	}
 }
 EXPORT_SYMBOL(fscache_enqueue_operation);
@@ -67,6 +69,8 @@ EXPORT_SYMBOL(fscache_enqueue_operation);
 static void fscache_run_op(struct fscache_object *object,
 			   struct fscache_operation *op)
 {
+	fscache_set_op_state(op, "Run");
+
 	object->n_in_progress++;
 	if (test_and_clear_bit(FSCACHE_OP_WAITING, &op->flags))
 		wake_up_bit(&op->flags, FSCACHE_OP_WAITING);
@@ -87,9 +91,12 @@ int fscache_submit_exclusive_op(struct fscache_object *object,
 
 	_enter("{OBJ%x OP%x},", object->debug_id, op->debug_id);
 
+	fscache_set_op_state(op, "SubmitX");
+
 	spin_lock(&object->lock);
 	ASSERTCMP(object->n_ops, >=, object->n_in_progress);
 	ASSERTCMP(object->n_ops, >=, object->n_exclusive);
+	ASSERT(list_empty(&op->pend_link));
 
 	ret = -ENOBUFS;
 	if (fscache_object_is_active(object)) {
@@ -190,9 +197,12 @@ int fscache_submit_op(struct fscache_object *object,
 
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
 
+	fscache_set_op_state(op, "Submit");
+
 	spin_lock(&object->lock);
 	ASSERTCMP(object->n_ops, >=, object->n_in_progress);
 	ASSERTCMP(object->n_ops, >=, object->n_exclusive);
+	ASSERT(list_empty(&op->pend_link));
 
 	ostate = object->state;
 	smp_rmb();
@@ -222,6 +232,11 @@ int fscache_submit_op(struct fscache_object *object,
 		list_add_tail(&op->pend_link, &object->pending_ops);
 		fscache_stat(&fscache_n_op_pend);
 		ret = 0;
+	} else if (object->state == FSCACHE_OBJECT_DYING ||
+		   object->state == FSCACHE_OBJECT_LC_DYING ||
+		   object->state == FSCACHE_OBJECT_WITHDRAWING) {
+		fscache_stat(&fscache_n_op_rejected);
+		ret = -ENOBUFS;
 	} else if (!test_bit(FSCACHE_IOERROR, &object->cache->flags)) {
 		fscache_report_unexpected_submission(object, op, ostate);
 		ASSERT(!fscache_object_is_active(object));
@@ -264,12 +279,7 @@ void fscache_start_operations(struct fscache_object *object)
 			stop = true;
 		}
 		list_del_init(&op->pend_link);
-		object->n_in_progress++;
-
-		if (test_and_clear_bit(FSCACHE_OP_WAITING, &op->flags))
-			wake_up_bit(&op->flags, FSCACHE_OP_WAITING);
-		if (op->processor)
-			fscache_enqueue_operation(op);
+		fscache_run_op(object, op);
 
 		/* the pending queue was holding a ref on the object */
 		fscache_put_operation(op);
@@ -279,6 +289,36 @@ void fscache_start_operations(struct fscache_object *object)
 
 	_debug("woke %d ops on OBJ%x",
 	       object->n_in_progress, object->debug_id);
+}
+
+/*
+ * cancel an operation that's pending on an object
+ */
+int fscache_cancel_op(struct fscache_operation *op)
+{
+	struct fscache_object *object = op->object;
+	int ret;
+
+	_enter("OBJ%x OP%x}", op->object->debug_id, op->debug_id);
+
+	spin_lock(&object->lock);
+
+	ret = -EBUSY;
+	if (!list_empty(&op->pend_link)) {
+		fscache_stat(&fscache_n_op_cancelled);
+		list_del_init(&op->pend_link);
+		object->n_ops--;
+		if (test_bit(FSCACHE_OP_EXCLUSIVE, &op->flags))
+			object->n_exclusive--;
+		if (test_and_clear_bit(FSCACHE_OP_WAITING, &op->flags))
+			wake_up_bit(&op->flags, FSCACHE_OP_WAITING);
+		fscache_put_operation(op);
+		ret = 0;
+	}
+
+	spin_unlock(&object->lock);
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -298,6 +338,8 @@ void fscache_put_operation(struct fscache_operation *op)
 	if (!atomic_dec_and_test(&op->usage))
 		return;
 
+	fscache_set_op_state(op, "Put");
+
 	_debug("PUT OP");
 	if (test_and_set_bit(FSCACHE_OP_DEAD, &op->flags))
 		BUG();
@@ -310,6 +352,9 @@ void fscache_put_operation(struct fscache_operation *op)
 	}
 
 	object = op->object;
+
+	if (test_bit(FSCACHE_OP_DEC_READ_CNT, &op->flags))
+		atomic_dec(&object->n_reads);
 
 	/* now... we may get called with the object spinlock held, so we
 	 * complete the cleanup here only if we can immediately acquire the
@@ -452,8 +497,27 @@ static void fscache_op_execute(struct slow_work *work)
 	_leave("");
 }
 
+/*
+ * describe an operation for slow-work debugging
+ */
+#ifdef CONFIG_SLOW_WORK_PROC
+static void fscache_op_desc(struct slow_work *work, struct seq_file *m)
+{
+	struct fscache_operation *op =
+		container_of(work, struct fscache_operation, slow_work);
+
+	seq_printf(m, "FSC: OBJ%x OP%x: %s/%s fl=%lx",
+		   op->object->debug_id, op->debug_id,
+		   op->name, op->state, op->flags);
+}
+#endif
+
 const struct slow_work_ops fscache_op_slow_work_ops = {
+	.owner		= THIS_MODULE,
 	.get_ref	= fscache_op_get_ref,
 	.put_ref	= fscache_op_put_ref,
 	.execute	= fscache_op_execute,
+#ifdef CONFIG_SLOW_WORK_PROC
+	.desc		= fscache_op_desc,
+#endif
 };

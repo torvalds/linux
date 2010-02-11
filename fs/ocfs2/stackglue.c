@@ -620,51 +620,46 @@ error:
 
 static ctl_table ocfs2_nm_table[] = {
 	{
-		.ctl_name	= 1,
 		.procname	= "hb_ctl_path",
 		.data		= ocfs2_hb_ctl_path,
 		.maxlen		= OCFS2_MAX_HB_CTL_PATH,
 		.mode		= 0644,
-		.proc_handler	= &proc_dostring,
-		.strategy	= &sysctl_string,
+		.proc_handler	= proc_dostring,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static ctl_table ocfs2_mod_table[] = {
 	{
-		.ctl_name	= FS_OCFS2_NM,
 		.procname	= "nm",
 		.data		= NULL,
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= ocfs2_nm_table
 	},
-	{ .ctl_name = 0}
+	{ }
 };
 
 static ctl_table ocfs2_kern_table[] = {
 	{
-		.ctl_name	= FS_OCFS2,
 		.procname	= "ocfs2",
 		.data		= NULL,
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= ocfs2_mod_table
 	},
-	{ .ctl_name = 0}
+	{ }
 };
 
 static ctl_table ocfs2_root_table[] = {
 	{
-		.ctl_name	= CTL_FS,
 		.procname	= "fs",
 		.data		= NULL,
 		.maxlen		= 0,
 		.mode		= 0555,
 		.child		= ocfs2_kern_table
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_table_header *ocfs2_table_header = NULL;

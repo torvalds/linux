@@ -525,38 +525,6 @@ consist_inode:
 	return ERR_PTR(-EIO);
 }
 
-
-/**
- * dirent_first - Return the first dirent
- * @dip: the directory
- * @bh: The buffer
- * @dent: Pointer to list of dirents
- *
- * return first dirent whether bh points to leaf or stuffed dinode
- *
- * Returns: IS_LEAF, IS_DINODE, or -errno
- */
-
-static int dirent_first(struct gfs2_inode *dip, struct buffer_head *bh,
-			struct gfs2_dirent **dent)
-{
-	struct gfs2_meta_header *h = (struct gfs2_meta_header *)bh->b_data;
-
-	if (be32_to_cpu(h->mh_type) == GFS2_METATYPE_LF) {
-		if (gfs2_meta_check(GFS2_SB(&dip->i_inode), bh))
-			return -EIO;
-		*dent = (struct gfs2_dirent *)(bh->b_data +
-					       sizeof(struct gfs2_leaf));
-		return IS_LEAF;
-	} else {
-		if (gfs2_metatype_check(GFS2_SB(&dip->i_inode), bh, GFS2_METATYPE_DI))
-			return -EIO;
-		*dent = (struct gfs2_dirent *)(bh->b_data +
-					       sizeof(struct gfs2_dinode));
-		return IS_DINODE;
-	}
-}
-
 static int dirent_check_reclen(struct gfs2_inode *dip,
 			       const struct gfs2_dirent *d, const void *end_p)
 {
@@ -1006,7 +974,7 @@ static int dir_split_leaf(struct inode *inode, const struct qstr *name)
 	divider = (start + half_len) << (32 - dip->i_depth);
 
 	/*  Copy the entries  */
-	dirent_first(dip, obh, &dent);
+	dent = (struct gfs2_dirent *)(obh->b_data + sizeof(struct gfs2_leaf));
 
 	do {
 		next = dent;

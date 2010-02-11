@@ -22,9 +22,13 @@
 #include <linux/i2c.h>
 #include <linux/smc91x.h>
 #include <linux/mfd/da903x.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/onenand.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/flash.h>
 
 #include <mach/pxa930.h>
 #include <plat/i2c.h>
@@ -33,7 +37,7 @@
 #include "devices.h"
 #include "generic.h"
 
-#define GPIO_LCD_RESET	(16)
+#define GPIO_LCD_RESET		(16)
 
 /* SAAR MFP configurations */
 static mfp_cfg_t saar_mfp_cfg[] __initdata = {
@@ -56,6 +60,31 @@ static mfp_cfg_t saar_mfp_cfg[] __initdata = {
 	/* Ethernet */
 	DF_nCS1_nCS3,
 	GPIO97_GPIO,
+
+	/* DFI */
+	DF_INT_RnB_ND_INT_RnB,
+	DF_nRE_nOE_ND_nRE,
+	DF_nWE_ND_nWE,
+	DF_CLE_nOE_ND_CLE,
+	DF_nADV1_ALE_ND_ALE,
+	DF_nADV2_ALE_nCS3,
+	DF_nCS0_ND_nCS0,
+	DF_IO0_ND_IO0,
+	DF_IO1_ND_IO1,
+	DF_IO2_ND_IO2,
+	DF_IO3_ND_IO3,
+	DF_IO4_ND_IO4,
+	DF_IO5_ND_IO5,
+	DF_IO6_ND_IO6,
+	DF_IO7_ND_IO7,
+	DF_IO8_ND_IO8,
+	DF_IO9_ND_IO9,
+	DF_IO10_ND_IO10,
+	DF_IO11_ND_IO11,
+	DF_IO12_ND_IO12,
+	DF_IO13_ND_IO13,
+	DF_IO14_ND_IO14,
+	DF_IO15_ND_IO15,
 };
 
 #define SAAR_ETH_PHYS	(0x14000000)
@@ -451,10 +480,15 @@ static inline void saar_init_lcd(void) {}
 #endif
 
 #if defined(CONFIG_I2C_PXA) || defined(CONFIG_I2C_PXA_MODULE)
+static struct da9034_backlight_pdata saar_da9034_backlight = {
+	.output_current	= 4,	/* 4mA */
+};
+
 static struct da903x_subdev_info saar_da9034_subdevs[] = {
 	[0] = {
 		.name		= "da903x-backlight",
 		.id		= DA9034_ID_WLED,
+		.platform_data	= &saar_da9034_backlight,
 	},
 };
 
@@ -480,12 +514,81 @@ static void __init saar_init_i2c(void)
 #else
 static inline void saar_init_i2c(void) {}
 #endif
+
+#if defined(CONFIG_MTD_ONENAND) || defined(CONFIG_MTD_ONENAND_MODULE)
+static struct mtd_partition saar_onenand_partitions[] = {
+	{
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= SZ_1M,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "reserved",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_8M,
+		.mask_flags	= MTD_WRITEABLE,
+	}, {
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= (SZ_2M + SZ_1M),
+		.mask_flags	= 0,
+	}, {
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_48M,
+		.mask_flags	= 0,
+	}
+};
+
+static struct onenand_platform_data saar_onenand_info = {
+	.parts		= saar_onenand_partitions,
+	.nr_parts	= ARRAY_SIZE(saar_onenand_partitions),
+};
+
+#define SMC_CS0_PHYS_BASE	(0x10000000)
+
+static struct resource saar_resource_onenand[] = {
+	[0] = {
+		.start	= SMC_CS0_PHYS_BASE,
+		.end	= SMC_CS0_PHYS_BASE + SZ_1M,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device saar_device_onenand = {
+	.name		= "onenand-flash",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &saar_onenand_info,
+	},
+	.resource	= saar_resource_onenand,
+	.num_resources	= ARRAY_SIZE(saar_resource_onenand),
+};
+
+static void __init saar_init_onenand(void)
+{
+	platform_device_register(&saar_device_onenand);
+}
+#else
+static void __init saar_init_onenand(void) {}
+#endif
+
 static void __init saar_init(void)
 {
 	/* initialize MFP configurations */
 	pxa3xx_mfp_config(ARRAY_AND_SIZE(saar_mfp_cfg));
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
+
 	platform_device_register(&smc91x_device);
+	saar_init_onenand();
 
 	saar_init_i2c();
 	saar_init_lcd();

@@ -37,23 +37,6 @@
 #include "ds1603.h"
 #endif
 
-/* Strategy function to write EEPROM after changing string entry */
-int sysctl_lasatstring(ctl_table *table,
-		void *oldval, size_t *oldlenp,
-		void *newval, size_t newlen)
-{
-	int r;
-
-	r = sysctl_string(table, oldval, oldlenp, newval, newlen);
-	if (r < 0)
-		return r;
-
-	if (newval && newlen)
-		lasat_write_eeprom_info();
-
-	return 0;
-}
-
 
 /* And the same for proc */
 int proc_dolasatstring(ctl_table *table, int write,
@@ -110,46 +93,6 @@ int proc_dolasatrtc(ctl_table *table, int write,
 		rtc_mips_set_mmss(rtctmp);
 
 	return 0;
-}
-#endif
-
-/* Sysctl for setting the IP addresses */
-int sysctl_lasat_intvec(ctl_table *table,
-		    void *oldval, size_t *oldlenp,
-		    void *newval, size_t newlen)
-{
-	int r;
-
-	r = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
-	if (r < 0)
-		return r;
-
-	if (newval && newlen)
-		lasat_write_eeprom_info();
-
-	return 0;
-}
-
-#ifdef CONFIG_DS1603
-/* Same for RTC */
-int sysctl_lasat_rtc(ctl_table *table,
-		    void *oldval, size_t *oldlenp,
-		    void *newval, size_t newlen)
-{
-	struct timespec ts;
-	int r;
-
-	read_persistent_clock(&ts);
-	rtctmp = ts.tv_sec;
-	if (rtctmp < 0)
-		rtctmp = 0;
-	r = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
-	if (r < 0)
-		return r;
-	if (newval && newlen)
-		rtc_mips_set_mmss(rtctmp);
-
-	return r;
 }
 #endif
 
@@ -214,23 +157,6 @@ int proc_lasat_ip(ctl_table *table, int write,
 }
 #endif
 
-static int sysctl_lasat_prid(ctl_table *table,
-				     void *oldval, size_t *oldlenp,
-				     void *newval, size_t newlen)
-{
-	int r;
-
-	r = sysctl_intvec(table, oldval, oldlenp, newval, newlen);
-	if (r < 0)
-		return r;
-	if (newval && newlen) {
-		lasat_board_info.li_eeprom_info.prid = *(int *)newval;
-		lasat_write_eeprom_info();
-		lasat_init_board_info();
-	}
-	return 0;
-}
-
 int proc_lasat_prid(ctl_table *table, int write,
 		       void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -252,115 +178,92 @@ extern int lasat_boot_to_service;
 
 static ctl_table lasat_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "cpu-hz",
 		.data		= &lasat_board_info.li_cpu_hz,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "bus-hz",
 		.data		= &lasat_board_info.li_bus_hz,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "bmid",
 		.data		= &lasat_board_info.li_bmid,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "prid",
 		.data		= &lasat_board_info.li_prid,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_lasat_prid,
-		.strategy	= &sysctl_lasat_prid
+		.proc_handler	= proc_lasat_prid,
 	},
 #ifdef CONFIG_INET
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "ipaddr",
 		.data		= &lasat_board_info.li_eeprom_info.ipaddr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_lasat_ip,
-		.strategy	= &sysctl_lasat_intvec
+		.proc_handler	= proc_lasat_ip,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "netmask",
 		.data		= &lasat_board_info.li_eeprom_info.netmask,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_lasat_ip,
-		.strategy	= &sysctl_lasat_intvec
+		.proc_handler	= proc_lasat_ip,
 	},
 #endif
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "passwd_hash",
 		.data		= &lasat_board_info.li_eeprom_info.passwd_hash,
 		.maxlen		=
 			sizeof(lasat_board_info.li_eeprom_info.passwd_hash),
 		.mode		= 0600,
-		.proc_handler	= &proc_dolasatstring,
-		.strategy	= &sysctl_lasatstring
+		.proc_handler	= proc_dolasatstring,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "boot-service",
 		.data		= &lasat_boot_to_service,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-		.strategy	= &sysctl_intvec
+		.proc_handler	= proc_dointvec,
 	},
 #ifdef CONFIG_DS1603
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "rtc",
 		.data		= &rtctmp,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dolasatrtc,
-		.strategy	= &sysctl_lasat_rtc
+		.proc_handler	= proc_dolasatrtc,
 	},
 #endif
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "namestr",
 		.data		= &lasat_board_info.li_namestr,
 		.maxlen		= sizeof(lasat_board_info.li_namestr),
 		.mode		= 0444,
-		.proc_handler	= &proc_dostring,
-		.strategy	= &sysctl_string
+		.proc_handler	= proc_dostring,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "typestr",
 		.data		= &lasat_board_info.li_typestr,
 		.maxlen		= sizeof(lasat_board_info.li_typestr),
 		.mode		= 0444,
-		.proc_handler	= &proc_dostring,
-		.strategy	= &sysctl_string
+		.proc_handler	= proc_dostring,
 	},
 	{}
 };
 
 static ctl_table lasat_root_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "lasat",
 		.mode		=  0555,
 		.child		= lasat_table

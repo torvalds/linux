@@ -17,24 +17,6 @@ menuconfig PCCARD
 
 if PCCARD
 
-config PCMCIA_DEBUG
-	bool "Enable PCCARD debugging"
-	help
-	  Say Y here to enable PCMCIA subsystem debugging.  You
-	  will need to choose the debugging level either via the
-	  kernel command line, or module options depending whether
-	  you build the PCMCIA as modules.
-
-	  The kernel command line options are:
-	    pcmcia_core.pc_debug=N
-	    pcmcia.pc_debug=N
-	    sa11xx_core.pc_debug=N
-
-	  The module option is called pc_debug=N
-
-	  In all the above examples, N is the debugging verbosity
-	  level.
-
 config PCMCIA
 	tristate "16-bit PCMCIA support"
 	select CRC32
@@ -82,7 +64,7 @@ config PCMCIA_IOCTL
 	  If unsure, say Y.
 
 config CARDBUS
-	bool "32-bit CardBus support"	
+	bool "32-bit CardBus support"
 	depends on PCI
 	default y
 	---help---
@@ -105,8 +87,8 @@ config YENTA
 	select PCCARD_NONSTATIC
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
-	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is 
-	  the hardware inside your computer that PCMCIA cards are plugged 
+	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
+	  the hardware inside your computer that PCMCIA cards are plugged
 	  into.
 
 	  To compile this driver as modules, choose M here: the
@@ -196,9 +178,13 @@ config PCMCIA_BCM63XX
 	tristate "bcm63xx pcmcia support"
 	depends on BCM63XX && PCMCIA
 
+config PCMCIA_SOC_COMMON
+	tristate
+
 config PCMCIA_SA1100
 	tristate "SA1100 support"
 	depends on ARM && ARCH_SA1100 && PCMCIA
+	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for SA11x0-based PCMCIA or CF
 	  sockets, found on HP iPAQs, Yopy, and other StrongARM(R)/
@@ -209,6 +195,7 @@ config PCMCIA_SA1100
 config PCMCIA_SA1111
 	tristate "SA1111 support"
 	depends on ARM && ARCH_SA1100 && SA1111 && PCMCIA
+	select PCMCIA_SOC_COMMON
 	help
 	  Say Y  here to include support for SA1111-based PCMCIA or CF
 	  sockets, found on the Jornada 720, Graphicsmaster and other
@@ -221,9 +208,28 @@ config PCMCIA_PXA2XX
 	depends on ARM && ARCH_PXA && PCMCIA
 	depends on (ARCH_LUBBOCK || MACH_MAINSTONE || PXA_SHARPSL \
 		    || MACH_ARMCORE || ARCH_PXA_PALM || TRIZEPS_PCMCIA \
-		    || ARCH_VIPER || ARCH_PXA_ESERIES || MACH_STARGATE2)
+		    || ARCOM_PCMCIA || ARCH_PXA_ESERIES || MACH_STARGATE2)
+	select PCMCIA_SOC_COMMON
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
+
+config PCMCIA_DEBUG
+	bool "Enable debugging"
+	depends on (PCMCIA_SA1111 || PCMCIA_SA1100 || PCMCIA_PXA2XX)
+	help
+	  Say Y here to enable debugging for the SoC PCMCIA layer.
+	  You will need to choose the debugging level either via the
+	  kernel command line, or module options depending whether
+	  you build the drivers as modules.
+
+	  The kernel command line options are:
+	    sa11xx_core.pc_debug=N
+	    pxa2xx_core.pc_debug=N
+
+	  The module option is called pc_debug=N
+
+	  In all the above examples, N is the debugging verbosity
+	  level.
 
 config PCMCIA_PROBE
 	bool

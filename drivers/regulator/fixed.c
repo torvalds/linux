@@ -196,11 +196,10 @@ static int regulator_fixed_voltage_remove(struct platform_device *pdev)
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 
 	regulator_unregister(drvdata->dev);
-	kfree(drvdata->desc.name);
-	kfree(drvdata);
-
 	if (gpio_is_valid(drvdata->gpio))
 		gpio_free(drvdata->gpio);
+	kfree(drvdata->desc.name);
+	kfree(drvdata);
 
 	return 0;
 }

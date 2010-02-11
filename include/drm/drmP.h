@@ -245,16 +245,6 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 
 #endif
 
-#define DRM_PROC_LIMIT (PAGE_SIZE-80)
-
-#define DRM_PROC_PRINT(fmt, arg...)					\
-   len += sprintf(&buf[len], fmt , ##arg);				\
-   if (len > DRM_PROC_LIMIT) { *eof = 1; return len - offset; }
-
-#define DRM_PROC_PRINT_RET(ret, fmt, arg...)				\
-   len += sprintf(&buf[len], fmt , ##arg);				\
-   if (len > DRM_PROC_LIMIT) { ret; *eof = 1; return len - offset; }
-
 /*@}*/
 
 /***********************************************************************/
@@ -265,19 +255,8 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 
 #define DRM_LEFTCOUNT(x) (((x)->rp + (x)->count - (x)->wp) % ((x)->count + 1))
 #define DRM_BUFCOUNT(x) ((x)->count - DRM_LEFTCOUNT(x))
-#define DRM_WAITCOUNT(dev,idx) DRM_BUFCOUNT(&dev->queuelist[idx]->waitlist)
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
-/**
- * Get the private SAREA mapping.
- *
- * \param _dev DRM device.
- * \param _ctx context number.
- * \param _map output mapping.
- */
-#define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
-	(_map) = (_dev)->context_sareas[_ctx];		\
-} while(0)
 
 /**
  * Test that the hardware lock is held by the caller, returning otherwise.
@@ -297,18 +276,6 @@ do {										\
 } while (0)
 
 /**
- * Copy and IOCTL return string to user space
- */
-#define DRM_COPY( name, value )						\
-	len = strlen( value );						\
-	if ( len > name##_len ) len = name##_len;			\
-	name##_len = strlen( value );					\
-	if ( len && name ) {						\
-		if ( copy_to_user( name, value, len ) )			\
-			return -EFAULT;					\
-	}
-
-/**
  * Ioctl function type.
  *
  * \param inode device inode.
@@ -322,10 +289,14 @@ typedef int drm_ioctl_t(struct drm_device *dev, void *data,
 typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 			       unsigned long arg);
 
+#define DRM_IOCTL_NR(n)                _IOC_NR(n)
+#define DRM_MAJOR       226
+
 #define DRM_AUTH	0x1
 #define	DRM_MASTER	0x2
 #define DRM_ROOT_ONLY	0x4
 #define DRM_CONTROL_ALLOW 0x8
+#define DRM_UNLOCKED	0x10
 
 struct drm_ioctl_desc {
 	unsigned int cmd;
@@ -426,6 +397,14 @@ struct drm_buf_entry {
 	struct drm_freelist freelist;
 };
 
+/* Event queued up for userspace to read */
+struct drm_pending_event {
+	struct drm_event *event;
+	struct list_head link;
+	struct drm_file *file_priv;
+	void (*destroy)(struct drm_pending_event *event);
+};
+
 /** File private data */
 struct drm_file {
 	int authenticated;
@@ -449,6 +428,10 @@ struct drm_file {
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
 	struct list_head fbs;
+
+	wait_queue_head_t event_wait;
+	struct list_head event_list;
+	int event_space;
 };
 
 /** Wait queue */
@@ -795,6 +778,15 @@ struct drm_driver {
 	/* Master routines */
 	int (*master_create)(struct drm_device *dev, struct drm_master *master);
 	void (*master_destroy)(struct drm_device *dev, struct drm_master *master);
+	/**
+	 * master_set is called whenever the minor master is set.
+	 * master_drop is called whenever the minor master is dropped.
+	 */
+
+	int (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
+			  bool from_open);
+	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv,
+			    bool from_release);
 
 	int (*proc_init)(struct drm_minor *minor);
 	void (*proc_cleanup)(struct drm_minor *minor);
@@ -900,6 +892,12 @@ struct drm_minor {
 	struct drm_mode_group mode_group;
 };
 
+struct drm_pending_vblank_event {
+	struct drm_pending_event base;
+	int pipe;
+	struct drm_event_vblank event;
+};
+
 /**
  * DRM device structure. This structure represent a complete card that
  * may contain multiple heads.
@@ -998,6 +996,12 @@ struct drm_device {
 	struct timer_list vblank_disable_timer;
 
 	u32 max_vblank_count;           /**< size of vblank counter register */
+
+	/**
+	 * List of events
+	 */
+	struct list_head vblank_event_list;
+	spinlock_t event_lock;
 
 	/*@} */
 	cycles_t ctx_start;
@@ -1125,8 +1129,8 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 				/* Driver support (drm_drv.h) */
 extern int drm_init(struct drm_driver *driver);
 extern void drm_exit(struct drm_driver *driver);
-extern int drm_ioctl(struct inode *inode, struct file *filp,
-		     unsigned int cmd, unsigned long arg);
+extern long drm_ioctl(struct file *filp,
+		      unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
 extern int drm_lastclose(struct drm_device *dev);
@@ -1135,6 +1139,8 @@ extern int drm_lastclose(struct drm_device *dev);
 extern int drm_open(struct inode *inode, struct file *filp);
 extern int drm_stub_open(struct inode *inode, struct file *filp);
 extern int drm_fasync(int fd, struct file *filp, int on);
+extern ssize_t drm_read(struct file *filp, char __user *buffer,
+			size_t count, loff_t *offset);
 extern int drm_release(struct inode *inode, struct file *filp);
 
 				/* Mapping support (drm_vm.h) */
@@ -1295,6 +1301,7 @@ extern u32 drm_vblank_count(struct drm_device *dev, int crtc);
 extern void drm_handle_vblank(struct drm_device *dev, int crtc);
 extern int drm_vblank_get(struct drm_device *dev, int crtc);
 extern void drm_vblank_put(struct drm_device *dev, int crtc);
+extern void drm_vblank_off(struct drm_device *dev, int crtc);
 extern void drm_vblank_cleanup(struct drm_device *dev);
 /* Modesetting support */
 extern void drm_vblank_pre_modeset(struct drm_device *dev, int crtc);
@@ -1401,7 +1408,7 @@ extern int drm_ati_pcigart_cleanup(struct drm_device *dev,
 				   struct drm_ati_pcigart_info * gart_info);
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
-				       size_t align, dma_addr_t maxaddr);
+				       size_t align);
 extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 
@@ -1519,14 +1526,27 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 
 static __inline__ void *drm_calloc_large(size_t nmemb, size_t size)
 {
-	if (size * nmemb <= PAGE_SIZE)
-	    return kcalloc(nmemb, size, GFP_KERNEL);
-
 	if (size != 0 && nmemb > ULONG_MAX / size)
 		return NULL;
 
+	if (size * nmemb <= PAGE_SIZE)
+	    return kcalloc(nmemb, size, GFP_KERNEL);
+
 	return __vmalloc(size * nmemb,
 			 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO, PAGE_KERNEL);
+}
+
+/* Modeled after cairo's malloc_ab, it's like calloc but without the zeroing. */
+static __inline__ void *drm_malloc_ab(size_t nmemb, size_t size)
+{
+	if (size != 0 && nmemb > ULONG_MAX / size)
+		return NULL;
+
+	if (size * nmemb <= PAGE_SIZE)
+	    return kmalloc(nmemb * size, GFP_KERNEL);
+
+	return __vmalloc(size * nmemb,
+			 GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
 }
 
 static __inline void drm_free_large(void *ptr)

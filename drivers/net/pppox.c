@@ -104,7 +104,8 @@ int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 EXPORT_SYMBOL(pppox_ioctl);
 
-static int pppox_create(struct net *net, struct socket *sock, int protocol)
+static int pppox_create(struct net *net, struct socket *sock, int protocol,
+			int kern)
 {
 	int rc = -EPROTOTYPE;
 
@@ -125,7 +126,7 @@ out:
 	return rc;
 }
 
-static struct net_proto_family pppox_proto_family = {
+static const struct net_proto_family pppox_proto_family = {
 	.family	= PF_PPPOX,
 	.create	= pppox_create,
 	.owner	= THIS_MODULE,

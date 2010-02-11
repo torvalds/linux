@@ -53,11 +53,6 @@
 #include <linux/highmem.h>
 #include <linux/buffer_head.h>
 #include <linux/rbtree.h>
-#ifndef CONFIG_OCFS2_COMPAT_JBD
-# include <linux/jbd2.h>
-#else
-# include <linux/jbd.h>
-#endif
 
 #define MLOG_MASK_PREFIX ML_UPTODATE
 
@@ -272,8 +267,8 @@ static int ocfs2_buffer_cached(struct ocfs2_caching_info *ci,
 }
 
 /* Warning: even if it returns true, this does *not* guarantee that
- * the block is stored in our inode metadata cache. 
- * 
+ * the block is stored in our inode metadata cache.
+ *
  * This can be called under lock_buffer()
  */
 int ocfs2_buffer_uptodate(struct ocfs2_caching_info *ci,

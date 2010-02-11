@@ -15,6 +15,7 @@
 #include <linux/blkdev.h>
 #include <linux/poll.h>
 #include <linux/cdev.h>
+#include <linux/jiffies.h>
 #include <linux/percpu.h>
 #include <linux/uio.h>
 #include <linux/idr.h>
@@ -197,7 +198,7 @@ static int blk_fill_sgv4_hdr_rq(struct request_queue *q, struct request *rq,
 	rq->cmd_len = hdr->request_len;
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 
-	rq->timeout = (hdr->timeout * HZ) / 1000;
+	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
 		rq->timeout = q->sg_timeout;
 	if (!rq->timeout)

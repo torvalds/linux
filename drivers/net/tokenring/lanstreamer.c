@@ -596,7 +596,7 @@ static int streamer_open(struct net_device *dev)
 	        rc=streamer_reset(dev);
 	}
 
-	if (request_irq(dev->irq, &streamer_interrupt, IRQF_SHARED, "lanstreamer", dev)) {
+	if (request_irq(dev->irq, streamer_interrupt, IRQF_SHARED, "lanstreamer", dev)) {
 		return -EAGAIN;
 	}
 #if STREAMER_DEBUG
@@ -712,8 +712,8 @@ static int streamer_open(struct net_device *dev)
 					strcat(open_error, " - ");
 					strcat(open_error, open_min_error[(error_code & 0x0f)]);
 
-					if (!streamer_priv->streamer_ring_speed
-					    && ((error_code & 0x0f) == 0x0d)) 
+					if (!streamer_priv->streamer_ring_speed &&
+					    ((error_code & 0x0f) == 0x0d))
 					{
 						printk(KERN_WARNING "%s: Tried to autosense ring speed with no monitors present\n", dev->name);
 						printk(KERN_WARNING "%s: Please try again with a specified ring speed \n", dev->name);
@@ -1032,8 +1032,8 @@ static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 	sisr = readw(streamer_mmio + SISR);
 
 	while((sisr & (SISR_MI | SISR_SRB_REPLY | SISR_ADAPTER_CHECK | SISR_ASB_FREE | 
-		       SISR_ARB_CMD | SISR_TRB_REPLY | SISR_PAR_ERR | SISR_SERR_ERR))
-               && (max_intr > 0)) {
+		       SISR_ARB_CMD | SISR_TRB_REPLY | SISR_PAR_ERR | SISR_SERR_ERR)) &&
+	      (max_intr > 0)) {
 
 		if(sisr & SISR_PAR_ERR) {
 			writew(~SISR_PAR_ERR, streamer_mmio + SISR_RUM);

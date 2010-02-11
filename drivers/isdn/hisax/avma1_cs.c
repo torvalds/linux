@@ -30,22 +30,6 @@ MODULE_DESCRIPTION("ISDN4Linux: PCMCIA client driver for AVM A1/Fritz!PCMCIA car
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
 
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args);
-static char *version =
-"avma1_cs.c 1.00 1998/01/23 10:00:00 (Carsten Paeth)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -119,7 +103,7 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
 {
     local_info_t *local;
 
-    DEBUG(0, "avma1cs_attach()\n");
+    dev_dbg(&p_dev->dev, "avma1cs_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
@@ -136,10 +120,7 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
     p_dev->io.IOAddrLines = 5;
 
     /* Interrupt setup */
-    p_dev->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
-
-    p_dev->irq.IRQInfo1 = IRQ_LEVEL_ID;
+    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
@@ -161,7 +142,7 @@ static int avma1cs_probe(struct pcmcia_device *p_dev)
 
 static void avma1cs_detach(struct pcmcia_device *link)
 {
-	DEBUG(0, "avma1cs_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "avma1cs_detach(0x%p)\n", link);
 	avma1cs_release(link);
 	kfree(link->priv);
 } /* avma1cs_detach */
@@ -203,7 +184,7 @@ static int avma1cs_config(struct pcmcia_device *link)
 
     dev = link->priv;
 
-    DEBUG(0, "avma1cs_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "avma1cs_config(0x%p)\n", link);
 
     devname[0] = 0;
     if (link->prod_id[1])
@@ -218,7 +199,6 @@ static int avma1cs_config(struct pcmcia_device *link)
 	 */
 	i = pcmcia_request_irq(link, &link->irq);
 	if (i != 0) {
-	    cs_error(link, RequestIRQ, i);
 	    /* undo */
 	    pcmcia_disable_device(link);
 	    break;
@@ -229,7 +209,6 @@ static int avma1cs_config(struct pcmcia_device *link)
 	 */
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0) {
-	    cs_error(link, RequestConfiguration, i);
 	    pcmcia_disable_device(link);
 	    break;
 	}
@@ -281,7 +260,7 @@ static void avma1cs_release(struct pcmcia_device *link)
 {
 	local_info_t *local = link->priv;
 
-	DEBUG(0, "avma1cs_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "avma1cs_release(0x%p)\n", link);
 
 	/* now unregister function with hisax */
 	HiSax_closecard(local->node.minor);

@@ -162,7 +162,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 	tty->driver_data = cs;
 
 	++cs->open_count;
@@ -171,7 +171,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 		spin_lock_irqsave(&cs->lock, flags);
 		cs->tty = tty;
 		spin_unlock_irqrestore(&cs->lock, flags);
-		tty->low_latency = 1; //FIXME test
+		tty->low_latency = 1;
 	}
 
 	mutex_unlock(&cs->mutex);
@@ -228,7 +228,7 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 	gig_dbg(DEBUG_IF, "%u: %s(0x%x)", cs->minor_index, __func__, cmd);
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
 	if (!cs->connected) {
 		gig_dbg(DEBUG_IF, "not connected");
@@ -299,9 +299,8 @@ static int if_tiocmget(struct tty_struct *tty, struct file *file)
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
-	// FIXME read from device?
 	retval = cs->control_state & (TIOCM_RTS|TIOCM_DTR);
 
 	mutex_unlock(&cs->mutex);
@@ -326,7 +325,7 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 		cs->minor_index, __func__, set, clear);
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
 	if (!cs->connected) {
 		gig_dbg(DEBUG_IF, "not connected");
@@ -356,7 +355,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
 	if (!cs->connected) {
 		gig_dbg(DEBUG_IF, "not connected");
@@ -390,7 +389,7 @@ static int if_write_room(struct tty_struct *tty)
 	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
 
 	if (mutex_lock_interruptible(&cs->mutex))
-		return -ERESTARTSYS; // FIXME -EINTR?
+		return -ERESTARTSYS;
 
 	if (!cs->connected) {
 		gig_dbg(DEBUG_IF, "not connected");
@@ -455,9 +454,8 @@ static void if_throttle(struct tty_struct *tty)
 		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
 	else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
-	else {
-		//FIXME
-	}
+	else
+		gig_dbg(DEBUG_ANY, "%s: not implemented\n", __func__);
 
 	mutex_unlock(&cs->mutex);
 }
@@ -480,9 +478,8 @@ static void if_unthrottle(struct tty_struct *tty)
 		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
 	else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
-	else {
-		//FIXME
-	}
+	else
+		gig_dbg(DEBUG_ANY, "%s: not implemented\n", __func__);
 
 	mutex_unlock(&cs->mutex);
 }
@@ -515,10 +512,9 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 		goto out;
 	}
 
-	// stolen from mct_u232.c
 	iflag = tty->termios->c_iflag;
 	cflag = tty->termios->c_cflag;
-	old_cflag = old ? old->c_cflag : cflag; //FIXME?
+	old_cflag = old ? old->c_cflag : cflag;
 	gig_dbg(DEBUG_IF, "%u: iflag %x cflag %x old %x",
 		cs->minor_index, iflag, cflag, old_cflag);
 
@@ -588,7 +584,7 @@ void gigaset_if_init(struct cardstate *cs)
 	if (!drv->have_tty)
 		return;
 
-	tasklet_init(&cs->if_wake_tasklet, &if_wake, (unsigned long) cs);
+	tasklet_init(&cs->if_wake_tasklet, if_wake, (unsigned long) cs);
 
 	mutex_lock(&cs->mutex);
 	cs->tty_dev = tty_register_device(drv->tty, cs->minor_index, NULL);
@@ -632,7 +628,8 @@ void gigaset_if_receive(struct cardstate *cs,
 	struct tty_struct *tty;
 
 	spin_lock_irqsave(&cs->lock, flags);
-	if ((tty = cs->tty) == NULL)
+	tty = cs->tty;
+	if (tty == NULL)
 		gig_dbg(DEBUG_ANY, "receive on closed device");
 	else {
 		tty_buffer_request_room(tty, len);
@@ -659,9 +656,9 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 
 	drv->have_tty = 0;
 
-	if ((drv->tty = alloc_tty_driver(minors)) == NULL)
+	drv->tty = tty = alloc_tty_driver(minors);
+	if (tty == NULL)
 		goto enomem;
-	tty = drv->tty;
 
 	tty->magic =		TTY_DRIVER_MAGIC,
 	tty->major =		GIG_MAJOR,
@@ -676,8 +673,8 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 
 	tty->owner =		THIS_MODULE;
 
-	tty->init_termios          = tty_std_termios; //FIXME
-	tty->init_termios.c_cflag  = B9600 | CS8 | CREAD | HUPCL | CLOCAL; //FIXME
+	tty->init_termios          = tty_std_termios;
+	tty->init_termios.c_cflag  = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_set_operations(tty, &if_ops);
 
 	ret = tty_register_driver(tty);

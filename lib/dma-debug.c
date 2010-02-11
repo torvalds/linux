@@ -259,7 +259,7 @@ static struct dma_debug_entry *hash_bucket_find(struct hash_bucket *bucket,
 		 * times. Without a hardware IOMMU this results in the
 		 * same device addresses being put into the dma-debug
 		 * hash multiple times too. This can result in false
-		 * positives being reported. Therfore we implement a
+		 * positives being reported. Therefore we implement a
 		 * best-fit algorithm here which returns the entry from
 		 * the hash which fits best to the reference value
 		 * instead of the first-fit.
@@ -587,7 +587,7 @@ out_unlock:
 	return count;
 }
 
-const struct file_operations filter_fops = {
+static const struct file_operations filter_fops = {
 	.read  = filter_read,
 	.write = filter_write,
 };
@@ -670,12 +670,13 @@ static int device_dma_allocations(struct device *dev)
 	return count;
 }
 
-static int dma_debug_device_change(struct notifier_block *nb,
-				    unsigned long action, void *data)
+static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	int count;
 
+	if (global_disable)
+		return 0;
 
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
@@ -696,6 +697,9 @@ static int dma_debug_device_change(struct notifier_block *nb,
 void dma_debug_add_bus(struct bus_type *bus)
 {
 	struct notifier_block *nb;
+
+	if (global_disable)
+		return;
 
 	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
 	if (nb == NULL) {
@@ -819,9 +823,11 @@ static void check_unmap(struct dma_debug_entry *ref)
 		err_printk(ref->dev, entry, "DMA-API: device driver frees "
 			   "DMA memory with different CPU address "
 			   "[device address=0x%016llx] [size=%llu bytes] "
-			   "[cpu alloc address=%p] [cpu free address=%p]",
+			   "[cpu alloc address=0x%016llx] "
+			   "[cpu free address=0x%016llx]",
 			   ref->dev_addr, ref->size,
-			   (void *)entry->paddr, (void *)ref->paddr);
+			   (unsigned long long)entry->paddr,
+			   (unsigned long long)ref->paddr);
 	}
 
 	if (ref->sg_call_ents && ref->type == dma_debug_sg &&
@@ -907,6 +913,9 @@ static void check_sync(struct device *dev,
 				ref->size);
 	}
 
+	if (entry->direction == DMA_BIDIRECTIONAL)
+		goto out;
+
 	if (ref->direction != entry->direction) {
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"DMA memory with different direction "
@@ -916,9 +925,6 @@ static void check_sync(struct device *dev,
 				dir2name[entry->direction],
 				dir2name[ref->direction]);
 	}
-
-	if (entry->direction == DMA_BIDIRECTIONAL)
-		goto out;
 
 	if (to_cpu && !(entry->direction == DMA_FROM_DEVICE) &&
 		      !(ref->direction == DMA_TO_DEVICE))
@@ -942,7 +948,6 @@ static void check_sync(struct device *dev,
 
 out:
 	put_hash_bucket(bucket, &flags);
-
 }
 
 void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,

@@ -53,14 +53,8 @@ void ieee80211_crypt_deinit_entries(struct ieee80211_device *ieee,
 
 		list_del(ptr);
 
-		if (entry->ops) {
+		if (entry->ops)
 			entry->ops->deinit(entry->priv);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-			module_put(entry->ops->owner);
-#else
-			__MOD_DEC_USE_COUNT(entry->ops->owner);
-#endif
-		}
 		kfree(entry);
 	}
 }

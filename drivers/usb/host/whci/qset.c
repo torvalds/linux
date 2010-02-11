@@ -49,16 +49,19 @@ struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
  *        state
  * @urb:  an urb for a transfer to this endpoint
  */
-static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
+static void qset_fill_qh(struct whc *whc, struct whc_qset *qset, struct urb *urb)
 {
 	struct usb_device *usb_dev = urb->dev;
+	struct wusb_dev *wusb_dev = usb_dev->wusb_dev;
 	struct usb_wireless_ep_comp_descriptor *epcd;
 	bool is_out;
+	uint8_t phy_rate;
 
 	is_out = usb_pipeout(urb->pipe);
 
-	epcd = (struct usb_wireless_ep_comp_descriptor *)qset->ep->extra;
+	qset->max_packet = le16_to_cpu(urb->ep->desc.wMaxPacketSize);
 
+	epcd = (struct usb_wireless_ep_comp_descriptor *)qset->ep->extra;
 	if (epcd) {
 		qset->max_seq = epcd->bMaxSequence;
 		qset->max_burst = epcd->bMaxBurst;
@@ -67,12 +70,28 @@ static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
 		qset->max_burst = 1;
 	}
 
+	/*
+	 * Initial PHY rate is 53.3 Mbit/s for control endpoints or
+	 * the maximum supported by the device for other endpoints
+	 * (unless limited by the user).
+	 */
+	if (usb_pipecontrol(urb->pipe))
+		phy_rate = UWB_PHY_RATE_53;
+	else {
+		uint16_t phy_rates;
+
+		phy_rates = le16_to_cpu(wusb_dev->wusb_cap_descr->wPHYRates);
+		phy_rate = fls(phy_rates) - 1;
+		if (phy_rate > whc->wusbhc.phy_rate)
+			phy_rate = whc->wusbhc.phy_rate;
+	}
+
 	qset->qh.info1 = cpu_to_le32(
 		QH_INFO1_EP(usb_pipeendpoint(urb->pipe))
 		| (is_out ? QH_INFO1_DIR_OUT : QH_INFO1_DIR_IN)
 		| usb_pipe_to_qh_type(urb->pipe)
 		| QH_INFO1_DEV_INFO_IDX(wusb_port_no_to_idx(usb_dev->portnum))
-		| QH_INFO1_MAX_PKT_LEN(usb_maxpacket(urb->dev, urb->pipe, is_out))
+		| QH_INFO1_MAX_PKT_LEN(qset->max_packet)
 		);
 	qset->qh.info2 = cpu_to_le32(
 		QH_INFO2_BURST(qset->max_burst)
@@ -86,7 +105,7 @@ static void qset_fill_qh(struct whc_qset *qset, struct urb *urb)
 	 * strength and can presumably guess the Tx power required
 	 * from that? */
 	qset->qh.info3 = cpu_to_le32(
-		QH_INFO3_TX_RATE_53_3
+		QH_INFO3_TX_RATE(phy_rate)
 		| QH_INFO3_TX_PWR(0) /* 0 == max power */
 		);
 
@@ -148,7 +167,7 @@ struct whc_qset *get_qset(struct whc *whc, struct urb *urb,
 
 		qset->ep = urb->ep;
 		urb->ep->hcpriv = qset;
-		qset_fill_qh(qset, urb);
+		qset_fill_qh(whc, qset, urb);
 	}
 	return qset;
 }
@@ -241,6 +260,36 @@ static void qset_remove_qtd(struct whc *whc, struct whc_qset *qset)
 	qset->ntds--;
 }
 
+static void qset_copy_bounce_to_sg(struct whc *whc, struct whc_std *std)
+{
+	struct scatterlist *sg;
+	void *bounce;
+	size_t remaining, offset;
+
+	bounce = std->bounce_buf;
+	remaining = std->len;
+
+	sg = std->bounce_sg;
+	offset = std->bounce_offset;
+
+	while (remaining) {
+		size_t len;
+
+		len = min(sg->length - offset, remaining);
+		memcpy(sg_virt(sg) + offset, bounce, len);
+
+		bounce += len;
+		remaining -= len;
+
+		offset += len;
+		if (offset >= sg->length) {
+			sg = sg_next(sg);
+			offset = 0;
+		}
+	}
+
+}
+
 /**
  * qset_free_std - remove an sTD and free it.
  * @whc: the WHCI host controller
@@ -249,13 +298,29 @@ static void qset_remove_qtd(struct whc *whc, struct whc_qset *qset)
 void qset_free_std(struct whc *whc, struct whc_std *std)
 {
 	list_del(&std->list_node);
-	if (std->num_pointers) {
-		dma_unmap_single(whc->wusbhc.dev, std->dma_addr,
-				 std->num_pointers * sizeof(struct whc_page_list_entry),
-				 DMA_TO_DEVICE);
-		kfree(std->pl_virt);
-	}
+	if (std->bounce_buf) {
+		bool is_out = usb_pipeout(std->urb->pipe);
+		dma_addr_t dma_addr;
 
+		if (std->num_pointers)
+			dma_addr = le64_to_cpu(std->pl_virt[0].buf_ptr);
+		else
+			dma_addr = std->dma_addr;
+
+		dma_unmap_single(whc->wusbhc.dev, dma_addr,
+				 std->len, is_out ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		if (!is_out)
+			qset_copy_bounce_to_sg(whc, std);
+		kfree(std->bounce_buf);
+	}
+	if (std->pl_virt) {
+		if (std->dma_addr)
+			dma_unmap_single(whc->wusbhc.dev, std->dma_addr,
+					 std->num_pointers * sizeof(struct whc_page_list_entry),
+					 DMA_TO_DEVICE);
+		kfree(std->pl_virt);
+		std->pl_virt = NULL;
+	}
 	kfree(std);
 }
 
@@ -293,12 +358,17 @@ static int qset_fill_page_list(struct whc *whc, struct whc_std *std, gfp_t mem_f
 {
 	dma_addr_t dma_addr = std->dma_addr;
 	dma_addr_t sp, ep;
-	size_t std_len = std->len;
 	size_t pl_len;
 	int p;
 
-	sp = ALIGN(dma_addr, WHCI_PAGE_SIZE);
-	ep = dma_addr + std_len;
+	/* Short buffers don't need a page list. */
+	if (std->len <= WHCI_PAGE_SIZE) {
+		std->num_pointers = 0;
+		return 0;
+	}
+
+	sp = dma_addr & ~(WHCI_PAGE_SIZE-1);
+	ep = dma_addr + std->len;
 	std->num_pointers = DIV_ROUND_UP(ep - sp, WHCI_PAGE_SIZE);
 
 	pl_len = std->num_pointers * sizeof(struct whc_page_list_entry);
@@ -309,7 +379,7 @@ static int qset_fill_page_list(struct whc *whc, struct whc_std *std, gfp_t mem_f
 
 	for (p = 0; p < std->num_pointers; p++) {
 		std->pl_virt[p].buf_ptr = cpu_to_le64(dma_addr);
-		dma_addr = ALIGN(dma_addr + WHCI_PAGE_SIZE, WHCI_PAGE_SIZE);
+		dma_addr = (dma_addr + WHCI_PAGE_SIZE) & ~(WHCI_PAGE_SIZE-1);
 	}
 
 	return 0;
@@ -339,6 +409,218 @@ static void urb_dequeue_work(struct work_struct *work)
 	spin_unlock_irqrestore(&whc->lock, flags);
 }
 
+static struct whc_std *qset_new_std(struct whc *whc, struct whc_qset *qset,
+				    struct urb *urb, gfp_t mem_flags)
+{
+	struct whc_std *std;
+
+	std = kzalloc(sizeof(struct whc_std), mem_flags);
+	if (std == NULL)
+		return NULL;
+
+	std->urb = urb;
+	std->qtd = NULL;
+
+	INIT_LIST_HEAD(&std->list_node);
+	list_add_tail(&std->list_node, &qset->stds);
+
+	return std;
+}
+
+static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *urb,
+			   gfp_t mem_flags)
+{
+	size_t remaining;
+	struct scatterlist *sg;
+	int i;
+	int ntds = 0;
+	struct whc_std *std = NULL;
+	struct whc_page_list_entry *entry;
+	dma_addr_t prev_end = 0;
+	size_t pl_len;
+	int p = 0;
+
+	remaining = urb->transfer_buffer_length;
+
+	for_each_sg(urb->sg->sg, sg, urb->num_sgs, i) {
+		dma_addr_t dma_addr;
+		size_t dma_remaining;
+		dma_addr_t sp, ep;
+		int num_pointers;
+
+		if (remaining == 0) {
+			break;
+		}
+
+		dma_addr = sg_dma_address(sg);
+		dma_remaining = min_t(size_t, sg_dma_len(sg), remaining);
+
+		while (dma_remaining) {
+			size_t dma_len;
+
+			/*
+			 * We can use the previous std (if it exists) provided that:
+			 * - the previous one ended on a page boundary.
+			 * - the current one begins on a page boundary.
+			 * - the previous one isn't full.
+			 *
+			 * If a new std is needed but the previous one
+			 * was not a whole number of packets then this
+			 * sg list cannot be mapped onto multiple
+			 * qTDs.  Return an error and let the caller
+			 * sort it out.
+			 */
+			if (!std
+			    || (prev_end & (WHCI_PAGE_SIZE-1))
+			    || (dma_addr & (WHCI_PAGE_SIZE-1))
+			    || std->len + WHCI_PAGE_SIZE > QTD_MAX_XFER_SIZE) {
+				if (std->len % qset->max_packet != 0)
+					return -EINVAL;
+				std = qset_new_std(whc, qset, urb, mem_flags);
+				if (std == NULL) {
+					return -ENOMEM;
+				}
+				ntds++;
+				p = 0;
+			}
+
+			dma_len = dma_remaining;
+
+			/*
+			 * If the remainder of this element doesn't
+			 * fit in a single qTD, limit the qTD to a
+			 * whole number of packets.  This allows the
+			 * remainder to go into the next qTD.
+			 */
+			if (std->len + dma_len > QTD_MAX_XFER_SIZE) {
+				dma_len = (QTD_MAX_XFER_SIZE / qset->max_packet)
+					* qset->max_packet - std->len;
+			}
+
+			std->len += dma_len;
+			std->ntds_remaining = -1; /* filled in later */
+
+			sp = dma_addr & ~(WHCI_PAGE_SIZE-1);
+			ep = dma_addr + dma_len;
+			num_pointers = DIV_ROUND_UP(ep - sp, WHCI_PAGE_SIZE);
+			std->num_pointers += num_pointers;
+
+			pl_len = std->num_pointers * sizeof(struct whc_page_list_entry);
+
+			std->pl_virt = krealloc(std->pl_virt, pl_len, mem_flags);
+			if (std->pl_virt == NULL) {
+				return -ENOMEM;
+			}
+
+			for (;p < std->num_pointers; p++, entry++) {
+				std->pl_virt[p].buf_ptr = cpu_to_le64(dma_addr);
+				dma_addr = (dma_addr + WHCI_PAGE_SIZE) & ~(WHCI_PAGE_SIZE-1);
+			}
+
+			prev_end = dma_addr = ep;
+			dma_remaining -= dma_len;
+			remaining -= dma_len;
+		}
+	}
+
+	/* Now the number of stds is know, go back and fill in
+	   std->ntds_remaining. */
+	list_for_each_entry(std, &qset->stds, list_node) {
+		if (std->ntds_remaining == -1) {
+			pl_len = std->num_pointers * sizeof(struct whc_page_list_entry);
+			std->ntds_remaining = ntds--;
+			std->dma_addr = dma_map_single(whc->wusbhc.dev, std->pl_virt,
+						       pl_len, DMA_TO_DEVICE);
+		}
+	}
+	return 0;
+}
+
+/**
+ * qset_add_urb_sg_linearize - add an urb with sg list, copying the data
+ *
+ * If the URB contains an sg list whose elements cannot be directly
+ * mapped to qTDs then the data must be transferred via bounce
+ * buffers.
+ */
+static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
+				     struct urb *urb, gfp_t mem_flags)
+{
+	bool is_out = usb_pipeout(urb->pipe);
+	size_t max_std_len;
+	size_t remaining;
+	int ntds = 0;
+	struct whc_std *std = NULL;
+	void *bounce = NULL;
+	struct scatterlist *sg;
+	int i;
+
+	/* limit maximum bounce buffer to 16 * 3.5 KiB ~= 28 k */
+	max_std_len = qset->max_burst * qset->max_packet;
+
+	remaining = urb->transfer_buffer_length;
+
+	for_each_sg(urb->sg->sg, sg, urb->sg->nents, i) {
+		size_t len;
+		size_t sg_remaining;
+		void *orig;
+
+		if (remaining == 0) {
+			break;
+		}
+
+		sg_remaining = min_t(size_t, remaining, sg->length);
+		orig = sg_virt(sg);
+
+		while (sg_remaining) {
+			if (!std || std->len == max_std_len) {
+				std = qset_new_std(whc, qset, urb, mem_flags);
+				if (std == NULL)
+					return -ENOMEM;
+				std->bounce_buf = kmalloc(max_std_len, mem_flags);
+				if (std->bounce_buf == NULL)
+					return -ENOMEM;
+				std->bounce_sg = sg;
+				std->bounce_offset = orig - sg_virt(sg);
+				bounce = std->bounce_buf;
+				ntds++;
+			}
+
+			len = min(sg_remaining, max_std_len - std->len);
+
+			if (is_out)
+				memcpy(bounce, orig, len);
+
+			std->len += len;
+			std->ntds_remaining = -1; /* filled in later */
+
+			bounce += len;
+			orig += len;
+			sg_remaining -= len;
+			remaining -= len;
+		}
+	}
+
+	/*
+	 * For each of the new sTDs, map the bounce buffers, create
+	 * page lists (if necessary), and fill in std->ntds_remaining.
+	 */
+	list_for_each_entry(std, &qset->stds, list_node) {
+		if (std->ntds_remaining != -1)
+			continue;
+
+		std->dma_addr = dma_map_single(&whc->umc->dev, std->bounce_buf, std->len,
+					       is_out ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+
+		if (qset_fill_page_list(whc, std, mem_flags) < 0)
+			return -ENOMEM;
+
+		std->ntds_remaining = ntds--;
+	}
+
+	return 0;
+}
+
 /**
  * qset_add_urb - add an urb to the qset's queue.
  *
@@ -353,10 +635,7 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 	int remaining = urb->transfer_buffer_length;
 	u64 transfer_dma = urb->transfer_dma;
 	int ntds_remaining;
-
-	ntds_remaining = DIV_ROUND_UP(remaining, QTD_MAX_XFER_SIZE);
-	if (ntds_remaining == 0)
-		ntds_remaining = 1;
+	int ret;
 
 	wurb = kzalloc(sizeof(struct whc_urb), mem_flags);
 	if (wurb == NULL)
@@ -366,32 +645,39 @@ int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 	wurb->urb = urb;
 	INIT_WORK(&wurb->dequeue_work, urb_dequeue_work);
 
+	if (urb->sg) {
+		ret = qset_add_urb_sg(whc, qset, urb, mem_flags);
+		if (ret == -EINVAL) {
+			qset_free_stds(qset, urb);
+			ret = qset_add_urb_sg_linearize(whc, qset, urb, mem_flags);
+		}
+		if (ret < 0)
+			goto err_no_mem;
+		return 0;
+	}
+
+	ntds_remaining = DIV_ROUND_UP(remaining, QTD_MAX_XFER_SIZE);
+	if (ntds_remaining == 0)
+		ntds_remaining = 1;
+
 	while (ntds_remaining) {
 		struct whc_std *std;
 		size_t std_len;
-
-		std = kmalloc(sizeof(struct whc_std), mem_flags);
-		if (std == NULL)
-			goto err_no_mem;
 
 		std_len = remaining;
 		if (std_len > QTD_MAX_XFER_SIZE)
 			std_len = QTD_MAX_XFER_SIZE;
 
-		std->urb = urb;
+		std = qset_new_std(whc, qset, urb, mem_flags);
+		if (std == NULL)
+			goto err_no_mem;
+
 		std->dma_addr = transfer_dma;
 		std->len = std_len;
 		std->ntds_remaining = ntds_remaining;
-		std->qtd = NULL;
 
-		INIT_LIST_HEAD(&std->list_node);
-		list_add_tail(&std->list_node, &qset->stds);
-
-		if (std_len > WHCI_PAGE_SIZE) {
-			if (qset_fill_page_list(whc, std, mem_flags) < 0)
-				goto err_no_mem;
-		} else
-			std->num_pointers = 0;
+		if (qset_fill_page_list(whc, std, mem_flags) < 0)
+			goto err_no_mem;
 
 		ntds_remaining--;
 		remaining -= std_len;

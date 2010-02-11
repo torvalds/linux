@@ -1,8 +1,9 @@
 config IWM
 	tristate "Intel Wireless Multicomm 3200 WiFi driver"
-	depends on MMC && WLAN_80211 && EXPERIMENTAL
+	depends on MMC && EXPERIMENTAL
 	depends on CFG80211
 	select FW_LOADER
+	select IWMC3200TOP
 	help
 	  The Intel Wireless Multicomm 3200 hardware is a combo
 	  card with GPS, Bluetooth, WiMax and 802.11 radios. It

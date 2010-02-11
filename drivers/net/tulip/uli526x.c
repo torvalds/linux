@@ -461,7 +461,7 @@ static int uli526x_open(struct net_device *dev)
 	/* Initialize ULI526X board */
 	uli526x_init(dev);
 
-	ret = request_irq(dev->irq, &uli526x_interrupt, IRQF_SHARED, dev->name, dev);
+	ret = request_irq(dev->irq, uli526x_interrupt, IRQF_SHARED, dev->name, dev);
 	if (ret)
 		return ret;
 

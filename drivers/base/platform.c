@@ -441,6 +441,7 @@ error:
 	platform_device_put(pdev);
 	return ERR_PTR(retval);
 }
+EXPORT_SYMBOL_GPL(platform_device_register_data);
 
 static int platform_drv_probe(struct device *_dev)
 {
@@ -521,11 +522,15 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 {
 	int retval, code;
 
+	/* make sure driver won't have bind/unbind attributes */
+	drv->driver.suppress_bind_attrs = true;
+
 	/* temporary section violation during probe() */
 	drv->probe = probe;
 	retval = code = platform_driver_register(drv);
 
-	/* Fixup that section violation, being paranoid about code scanning
+	/*
+	 * Fixup that section violation, being paranoid about code scanning
 	 * the list of drivers in order to probe new devices.  Check to see
 	 * if the probe was successful, and make sure any forced probes of
 	 * new devices fail.
@@ -996,7 +1001,7 @@ static __initdata LIST_HEAD(early_platform_device_list);
 int __init early_platform_driver_register(struct early_platform_driver *epdrv,
 					  char *buf)
 {
-	unsigned long index;
+	char *tmp;
 	int n;
 
 	/* Simply add the driver to the end of the global list.
@@ -1015,13 +1020,28 @@ int __init early_platform_driver_register(struct early_platform_driver *epdrv,
 	if (buf && !strncmp(buf, epdrv->pdrv->driver.name, n)) {
 		list_move(&epdrv->list, &early_platform_driver_list);
 
-		if (!strcmp(buf, epdrv->pdrv->driver.name))
+		/* Allow passing parameters after device name */
+		if (buf[n] == '\0' || buf[n] == ',')
 			epdrv->requested_id = -1;
-		else if (buf[n] == '.' && strict_strtoul(&buf[n + 1], 10,
-							 &index) == 0)
-			epdrv->requested_id = index;
-		else
-			epdrv->requested_id = EARLY_PLATFORM_ID_ERROR;
+		else {
+			epdrv->requested_id = simple_strtoul(&buf[n + 1],
+							     &tmp, 10);
+
+			if (buf[n] != '.' || (tmp == &buf[n + 1])) {
+				epdrv->requested_id = EARLY_PLATFORM_ID_ERROR;
+				n = 0;
+			} else
+				n += strcspn(&buf[n + 1], ",") + 1;
+		}
+
+		if (buf[n] == ',')
+			n++;
+
+		if (epdrv->bufsize) {
+			memcpy(epdrv->buffer, &buf[n],
+			       min_t(int, epdrv->bufsize, strlen(&buf[n]) + 1));
+			epdrv->buffer[epdrv->bufsize - 1] = '\0';
+		}
 	}
 
 	return 0;

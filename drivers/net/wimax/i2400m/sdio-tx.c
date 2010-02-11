@@ -149,5 +149,8 @@ int i2400ms_tx_setup(struct i2400ms *i2400ms)
 
 void i2400ms_tx_release(struct i2400ms *i2400ms)
 {
-	destroy_workqueue(i2400ms->tx_workqueue);
+	if (i2400ms->tx_workqueue) {
+		destroy_workqueue(i2400ms->tx_workqueue);
+		i2400ms->tx_workqueue = NULL;
+	}
 }

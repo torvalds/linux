@@ -103,8 +103,7 @@ extern void			rt6_pmtu_discovery(struct in6_addr *daddr,
 
 struct netlink_callback;
 
-struct rt6_rtnl_dump_arg
-{
+struct rt6_rtnl_dump_arg {
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	struct net *net;

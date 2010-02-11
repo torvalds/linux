@@ -23,86 +23,21 @@ static inline pte_t *follow_table(struct mm_struct *mm, unsigned long addr)
 
 	pgd = pgd_offset(mm, addr);
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		return NULL;
+		return (pte_t *) 0x3a;
 
 	pud = pud_offset(pgd, addr);
 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		return NULL;
+		return (pte_t *) 0x3b;
 
 	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		return NULL;
+		return (pte_t *) 0x10;
 
 	return pte_offset_map(pmd, addr);
 }
 
-static int __handle_fault(struct mm_struct *mm, unsigned long address,
-			  int write_access)
-{
-	struct vm_area_struct *vma;
-	int ret = -EFAULT;
-	int fault;
-
-	if (in_atomic())
-		return ret;
-	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, address);
-	if (unlikely(!vma))
-		goto out;
-	if (unlikely(vma->vm_start > address)) {
-		if (!(vma->vm_flags & VM_GROWSDOWN))
-			goto out;
-		if (expand_stack(vma, address))
-			goto out;
-	}
-
-	if (!write_access) {
-		/* page not present, check vm flags */
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-			goto out;
-	} else {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto out;
-	}
-
-survive:
-	fault = handle_mm_fault(mm, vma, address, write_access ? FAULT_FLAG_WRITE : 0);
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			goto out_sigbus;
-		BUG();
-	}
-	if (fault & VM_FAULT_MAJOR)
-		current->maj_flt++;
-	else
-		current->min_flt++;
-	ret = 0;
-out:
-	up_read(&mm->mmap_sem);
-	return ret;
-
-out_of_memory:
-	up_read(&mm->mmap_sem);
-	if (is_global_init(current)) {
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
-	printk("VM: killing process %s\n", current->comm);
-	return ret;
-
-out_sigbus:
-	up_read(&mm->mmap_sem);
-	current->thread.prot_addr = address;
-	current->thread.trap_no = 0x11;
-	force_sig(SIGBUS, current);
-	return ret;
-}
-
-static size_t __user_copy_pt(unsigned long uaddr, void *kptr,
-			     size_t n, int write_user)
+static __always_inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
+					     size_t n, int write_user)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long offset, pfn, done, size;
@@ -114,12 +49,17 @@ retry:
 	spin_lock(&mm->page_table_lock);
 	do {
 		pte = follow_table(mm, uaddr);
-		if (!pte || !pte_present(*pte) ||
-		    (write_user && !pte_write(*pte)))
+		if ((unsigned long) pte < 0x1000)
 			goto fault;
+		if (!pte_present(*pte)) {
+			pte = (pte_t *) 0x11;
+			goto fault;
+		} else if (write_user && !pte_write(*pte)) {
+			pte = (pte_t *) 0x04;
+			goto fault;
+		}
 
 		pfn = pte_pfn(*pte);
-
 		offset = uaddr & (PAGE_SIZE - 1);
 		size = min(n - done, PAGE_SIZE - offset);
 		if (write_user) {
@@ -137,7 +77,7 @@ retry:
 	return n - done;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	if (__handle_fault(mm, uaddr, write_user))
+	if (__handle_fault(uaddr, (unsigned long) pte, write_user))
 		return n - done;
 	goto retry;
 }
@@ -146,30 +86,31 @@ fault:
  * Do DAT for user address by page table walk, return kernel address.
  * This function needs to be called with current->mm->page_table_lock held.
  */
-static unsigned long __dat_user_addr(unsigned long uaddr)
+static __always_inline unsigned long __dat_user_addr(unsigned long uaddr)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long pfn, ret;
+	unsigned long pfn;
 	pte_t *pte;
 	int rc;
 
-	ret = 0;
 retry:
 	pte = follow_table(mm, uaddr);
-	if (!pte || !pte_present(*pte))
+	if ((unsigned long) pte < 0x1000)
 		goto fault;
+	if (!pte_present(*pte)) {
+		pte = (pte_t *) 0x11;
+		goto fault;
+	}
 
 	pfn = pte_pfn(*pte);
-	ret = (pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE - 1));
-out:
-	return ret;
+	return (pfn << PAGE_SHIFT) + (uaddr & (PAGE_SIZE - 1));
 fault:
 	spin_unlock(&mm->page_table_lock);
-	rc = __handle_fault(mm, uaddr, 0);
+	rc = __handle_fault(uaddr, (unsigned long) pte, 0);
 	spin_lock(&mm->page_table_lock);
-	if (rc)
-		goto out;
-	goto retry;
+	if (!rc)
+		goto retry;
+	return 0;
 }
 
 size_t copy_from_user_pt(size_t n, const void __user *from, void *to)
@@ -234,8 +175,12 @@ retry:
 	spin_lock(&mm->page_table_lock);
 	do {
 		pte = follow_table(mm, uaddr);
-		if (!pte || !pte_present(*pte))
+		if ((unsigned long) pte < 0x1000)
 			goto fault;
+		if (!pte_present(*pte)) {
+			pte = (pte_t *) 0x11;
+			goto fault;
+		}
 
 		pfn = pte_pfn(*pte);
 		offset = uaddr & (PAGE_SIZE-1);
@@ -249,9 +194,8 @@ retry:
 	return done + 1;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	if (__handle_fault(mm, uaddr, 0)) {
+	if (__handle_fault(uaddr, (unsigned long) pte, 0))
 		return 0;
-	}
 	goto retry;
 }
 
@@ -284,7 +228,7 @@ static size_t copy_in_user_pt(size_t n, void __user *to,
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long offset_from, offset_to, offset_max, pfn_from, pfn_to,
-		      uaddr, done, size;
+		      uaddr, done, size, error_code;
 	unsigned long uaddr_from = (unsigned long) from;
 	unsigned long uaddr_to = (unsigned long) to;
 	pte_t *pte_from, *pte_to;
@@ -298,17 +242,28 @@ static size_t copy_in_user_pt(size_t n, void __user *to,
 retry:
 	spin_lock(&mm->page_table_lock);
 	do {
+		write_user = 0;
+		uaddr = uaddr_from;
 		pte_from = follow_table(mm, uaddr_from);
-		if (!pte_from || !pte_present(*pte_from)) {
-			uaddr = uaddr_from;
-			write_user = 0;
+		error_code = (unsigned long) pte_from;
+		if (error_code < 0x1000)
+			goto fault;
+		if (!pte_present(*pte_from)) {
+			error_code = 0x11;
 			goto fault;
 		}
 
+		write_user = 1;
+		uaddr = uaddr_to;
 		pte_to = follow_table(mm, uaddr_to);
-		if (!pte_to || !pte_present(*pte_to) || !pte_write(*pte_to)) {
-			uaddr = uaddr_to;
-			write_user = 1;
+		error_code = (unsigned long) pte_to;
+		if (error_code < 0x1000)
+			goto fault;
+		if (!pte_present(*pte_to)) {
+			error_code = 0x11;
+			goto fault;
+		} else if (!pte_write(*pte_to)) {
+			error_code = 0x04;
 			goto fault;
 		}
 
@@ -329,7 +284,7 @@ retry:
 	return n - done;
 fault:
 	spin_unlock(&mm->page_table_lock);
-	if (__handle_fault(mm, uaddr, write_user))
+	if (__handle_fault(uaddr, error_code, write_user))
 		return n - done;
 	goto retry;
 }

@@ -87,7 +87,6 @@ static void __init iq81340mc_timer_init(void)
 
 static struct sys_timer iq81340mc_timer = {
        .init       = iq81340mc_timer_init,
-       .offset     = iop_gettimeoffset,
 };
 
 MACHINE_START(IQ81340MC, "Intel IQ81340MC")

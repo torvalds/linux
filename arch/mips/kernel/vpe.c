@@ -1116,8 +1116,6 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->shared_ptr = NULL;
 	v->__start = 0;
 
-	unlock_kernel();
-
 	return 0;
 }
 

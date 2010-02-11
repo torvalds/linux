@@ -354,7 +354,6 @@ struct kvm_vcpu_arch {
 	unsigned int time_offset;
 	struct page *time_page;
 
-	bool singlestep; /* guest is single stepped by KVM */
 	bool nmi_pending;
 	bool nmi_injected;
 
@@ -371,6 +370,10 @@ struct kvm_vcpu_arch {
 	u64 mcg_status;
 	u64 mcg_ctl;
 	u64 *mce_banks;
+
+	/* used for guest single stepping over the given code position */
+	u16 singlestep_cs;
+	unsigned long singlestep_rip;
 };
 
 struct kvm_mem_alias {
@@ -397,7 +400,6 @@ struct kvm_arch{
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;
-	struct hlist_head irq_ack_notifier_list;
 	int vapics_in_nmi_mode;
 
 	unsigned int tss_addr;
@@ -410,8 +412,10 @@ struct kvm_arch{
 	gpa_t ept_identity_map_addr;
 
 	unsigned long irq_sources_bitmap;
-	unsigned long irq_states[KVM_IOAPIC_NUM_PINS];
 	u64 vm_init_tsc;
+	s64 kvmclock_offset;
+
+	struct kvm_xen_hvm_config xen_hvm_config;
 };
 
 struct kvm_vm_stat {
@@ -461,7 +465,7 @@ struct descriptor_table {
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */
-	void (*hardware_enable)(void *dummy);      /* __init */
+	int (*hardware_enable)(void *dummy);
 	void (*hardware_disable)(void *dummy);
 	void (*check_processor_compatibility)(void *rtn);
 	int (*hardware_setup)(void);               /* __init */
@@ -477,8 +481,8 @@ struct kvm_x86_ops {
 	void (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 
-	int (*set_guest_debug)(struct kvm_vcpu *vcpu,
-			       struct kvm_guest_debug *dbg);
+	void (*set_guest_debug)(struct kvm_vcpu *vcpu,
+				struct kvm_guest_debug *dbg);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 	u64 (*get_segment_base)(struct kvm_vcpu *vcpu, int seg);
@@ -506,8 +510,8 @@ struct kvm_x86_ops {
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu);
 
-	void (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
-	int (*handle_exit)(struct kvm_run *run, struct kvm_vcpu *vcpu);
+	void (*run)(struct kvm_vcpu *vcpu);
+	int (*handle_exit)(struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*set_interrupt_shadow)(struct kvm_vcpu *vcpu, int mask);
 	u32 (*get_interrupt_shadow)(struct kvm_vcpu *vcpu, int mask);
@@ -519,6 +523,8 @@ struct kvm_x86_ops {
 				bool has_error_code, u32 error_code);
 	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*nmi_allowed)(struct kvm_vcpu *vcpu);
+	bool (*get_nmi_mask)(struct kvm_vcpu *vcpu);
+	void (*set_nmi_mask)(struct kvm_vcpu *vcpu, bool masked);
 	void (*enable_nmi_window)(struct kvm_vcpu *vcpu);
 	void (*enable_irq_window)(struct kvm_vcpu *vcpu);
 	void (*update_cr8_intercept)(struct kvm_vcpu *vcpu, int tpr, int irr);
@@ -568,7 +574,7 @@ enum emulation_result {
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)
-int emulate_instruction(struct kvm_vcpu *vcpu, struct kvm_run *run,
+int emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2, u16 error_code, int emulation_type);
 void kvm_report_emulation_failure(struct kvm_vcpu *cvpu, const char *context);
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
@@ -585,9 +591,9 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 
 struct x86_emulate_ctxt;
 
-int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+int kvm_emulate_pio(struct kvm_vcpu *vcpu, int in,
 		     int size, unsigned port);
-int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
 			   int size, unsigned long count, int down,
 			    gva_t address, int rep, unsigned port);
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
@@ -615,6 +621,9 @@ void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
+
+unsigned long kvm_get_rflags(struct kvm_vcpu *vcpu);
+void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
 
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
@@ -801,5 +810,8 @@ int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
+
+void kvm_define_shared_msr(unsigned index, u32 msr);
+void kvm_set_shared_msr(unsigned index, u64 val, u64 mask);
 
 #endif /* _ASM_X86_KVM_HOST_H */

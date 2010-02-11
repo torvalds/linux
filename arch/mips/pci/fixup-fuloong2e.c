@@ -13,7 +13,8 @@
  */
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <asm/mips-boards/bonito64.h>
+
+#include <loongson.h>
 
 /* South bridge slot number is set by the pci probe process */
 static u8 sb_slot = 5;
@@ -35,7 +36,7 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 			break;
 		}
 	} else {
-		irq = BONITO_IRQ_BASE + 25 + pin;
+		irq = LOONGSON_IRQ_BASE + 25 + pin;
 	}
 	return irq;
 

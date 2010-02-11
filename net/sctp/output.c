@@ -429,23 +429,22 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		list_del_init(&chunk->list);
 		if (sctp_chunk_is_data(chunk)) {
 
-			if (!chunk->has_tsn) {
-				sctp_chunk_assign_ssn(chunk);
-				sctp_chunk_assign_tsn(chunk);
+			if (!chunk->resent) {
 
-			/* 6.3.1 C4) When data is in flight and when allowed
-			 * by rule C5, a new RTT measurement MUST be made each
-			 * round trip.  Furthermore, new RTT measurements
-			 * SHOULD be made no more than once per round-trip
-			 * for a given destination transport address.
-			 */
+				/* 6.3.1 C4) When data is in flight and when allowed
+				 * by rule C5, a new RTT measurement MUST be made each
+				 * round trip.  Furthermore, new RTT measurements
+				 * SHOULD be made no more than once per round-trip
+				 * for a given destination transport address.
+				 */
 
 				if (!tp->rto_pending) {
 					chunk->rtt_in_progress = 1;
 					tp->rto_pending = 1;
 				}
-			} else
-				chunk->resent = 1;
+			}
+
+			chunk->resent = 1;
 
 			has_data = 1;
 		}
@@ -557,8 +556,6 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 		struct timer_list *timer;
 		unsigned long timeout;
 
-		tp->last_time_used = jiffies;
-
 		/* Restart the AUTOCLOSE timer when sending data. */
 		if (sctp_state(asoc, ESTABLISHED) && asoc->autoclose) {
 			timer = &asoc->timers[SCTP_EVENT_TIMEOUT_AUTOCLOSE];
@@ -617,7 +614,6 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 	sctp_xmit_t retval = SCTP_XMIT_OK;
 	size_t datasize, rwnd, inflight, flight_size;
 	struct sctp_transport *transport = packet->transport;
-	__u32 max_burst_bytes;
 	struct sctp_association *asoc = transport->asoc;
 	struct sctp_outq *q = &asoc->outqueue;
 
@@ -648,28 +644,6 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 			retval = SCTP_XMIT_RWND_FULL;
 			goto finish;
 		}
-	}
-
-	/* sctpimpguide-05 2.14.2
-	 * D) When the time comes for the sender to
-	 * transmit new DATA chunks, the protocol parameter Max.Burst MUST
-	 * first be applied to limit how many new DATA chunks may be sent.
-	 * The limit is applied by adjusting cwnd as follows:
-	 * 	if ((flightsize + Max.Burst * MTU) < cwnd)
-	 *		cwnd = flightsize + Max.Burst * MTU
-	 */
-	max_burst_bytes = asoc->max_burst * asoc->pathmtu;
-	if ((flight_size + max_burst_bytes) < transport->cwnd) {
-		transport->cwnd = flight_size + max_burst_bytes;
-		SCTP_DEBUG_PRINTK("%s: cwnd limited by max_burst: "
-				  "transport: %p, cwnd: %d, "
-				  "ssthresh: %d, flight_size: %d, "
-				  "pba: %d\n",
-				  __func__, transport,
-				  transport->cwnd,
-				  transport->ssthresh,
-				  transport->flight_size,
-				  transport->partial_bytes_acked);
 	}
 
 	/* RFC 2960 6.1  Transmission of DATA Chunks
@@ -747,6 +721,8 @@ static void sctp_packet_append_data(struct sctp_packet *packet,
 	/* Has been accepted for transmission. */
 	if (!asoc->peer.prsctp_capable)
 		chunk->msg->can_abandon = 0;
+	sctp_chunk_assign_tsn(chunk);
+	sctp_chunk_assign_ssn(chunk);
 }
 
 static sctp_xmit_t sctp_packet_will_fit(struct sctp_packet *packet,
