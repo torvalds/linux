@@ -81,7 +81,9 @@ ip6table_mangle_hook(unsigned int hook, struct sk_buff *skb,
 {
 	if (hook == NF_INET_LOCAL_OUT)
 		return ip6t_local_out_hook(hook, skb, out, okfn);
-
+	if (hook == NF_INET_POST_ROUTING)
+		return ip6t_do_table(skb, hook, in, out,
+				     dev_net(out)->ipv6.ip6table_mangle);
 	/* INPUT/FORWARD */
 	return ip6t_do_table(skb, hook, in, out,
 			     dev_net(in)->ipv6.ip6table_mangle);
