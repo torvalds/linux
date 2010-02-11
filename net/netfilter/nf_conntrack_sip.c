@@ -907,6 +907,7 @@ err1:
 static const struct sdp_media_type sdp_media_types[] = {
 	SDP_MEDIA_TYPE("audio ", SIP_EXPECT_AUDIO),
 	SDP_MEDIA_TYPE("video ", SIP_EXPECT_VIDEO),
+	SDP_MEDIA_TYPE("image ", SIP_EXPECT_IMAGE),
 };
 
 static const struct sdp_media_type *sdp_media_type(const char *dptr,
@@ -932,7 +933,6 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	struct nf_conn_help *help = nfct_help(ct);
 	unsigned int matchoff, matchlen;
 	unsigned int mediaoff, medialen;
 	unsigned int sdpoff;
@@ -1024,9 +1024,6 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 		ret = nf_nat_sdp_session(skb, dataoff, dptr, datalen, sdpoff,
 					 &rtp_addr);
 
-	if (ret == NF_ACCEPT && i > 0)
-		help->help.ct_sip_info.invite_cseq = cseq;
-
 	return ret;
 }
 static int process_invite_response(struct sk_buff *skb, unsigned int dataoff,
@@ -1075,6 +1072,22 @@ static int process_prack_response(struct sk_buff *skb, unsigned int dataoff,
 	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
+}
+
+static int process_invite_request(struct sk_buff *skb, unsigned int dataoff,
+				  const char **dptr, unsigned int *datalen,
+				  unsigned int cseq)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct nf_conn_help *help = nfct_help(ct);
+	unsigned int ret;
+
+	flush_expectations(ct, true);
+	ret = process_sdp(skb, dataoff, dptr, datalen, cseq);
+	if (ret == NF_ACCEPT)
+		help->help.ct_sip_info.invite_cseq = cseq;
+	return ret;
 }
 
 static int process_bye_request(struct sk_buff *skb, unsigned int dataoff,
@@ -1257,7 +1270,7 @@ flush:
 }
 
 static const struct sip_handler sip_handlers[] = {
-	SIP_HANDLER("INVITE", process_sdp, process_invite_response),
+	SIP_HANDLER("INVITE", process_invite_request, process_invite_response),
 	SIP_HANDLER("UPDATE", process_sdp, process_update_response),
 	SIP_HANDLER("ACK", process_sdp, NULL),
 	SIP_HANDLER("PRACK", process_sdp, process_prack_response),
@@ -1471,6 +1484,11 @@ static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1
 	[SIP_EXPECT_VIDEO] = {
 		.name		= "video",
 		.max_expected	= 2 * IP_CT_DIR_MAX,
+		.timeout	= 3 * 60,
+	},
+	[SIP_EXPECT_IMAGE] = {
+		.name		= "image",
+		.max_expected	= IP_CT_DIR_MAX,
 		.timeout	= 3 * 60,
 	},
 };
