@@ -323,11 +323,7 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 	sbi->data_map.odm_raid_algorithm  =
 				le32_to_cpu(dt->dt_data_map.cb_raid_algorithm);
 
-/* FIXME: Only raid0 !group_width/depth for now. if not so, do not mount */
-	if (sbi->data_map.odm_group_width || sbi->data_map.odm_group_depth) {
-		EXOFS_ERR("Group width/depth not supported\n");
-		return -EINVAL;
-	}
+/* FIXME: Only raid0 for now. if not so, do not mount */
 	if (sbi->data_map.odm_num_comps != numdevs) {
 		EXOFS_ERR("odm_num_comps(%u) != numdevs(%u)\n",
 			  sbi->data_map.odm_num_comps, numdevs);
@@ -343,14 +339,6 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 		return -EINVAL;
 	}
 
-	stripe_length = sbi->data_map.odm_stripe_unit *
-			(numdevs / (sbi->data_map.odm_mirror_cnt + 1));
-	if (stripe_length >= (1ULL << 32)) {
-		EXOFS_ERR("Total Stripe length(0x%llx)"
-			  " >= 32bit is not supported\n", _LLU(stripe_length));
-		return -EINVAL;
-	}
-
 	if (0 != (sbi->data_map.odm_stripe_unit & ~PAGE_MASK)) {
 		EXOFS_ERR("Stripe Unit(0x%llx)"
 			  " must be Multples of PAGE_SIZE(0x%lx)\n",
@@ -360,8 +348,36 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 
 	sbi->layout.stripe_unit = sbi->data_map.odm_stripe_unit;
 	sbi->layout.mirrors_p1 = sbi->data_map.odm_mirror_cnt + 1;
-	sbi->layout.group_width = sbi->data_map.odm_num_comps /
+
+	if (sbi->data_map.odm_group_width) {
+		sbi->layout.group_width = sbi->data_map.odm_group_width;
+		sbi->layout.group_depth = sbi->data_map.odm_group_depth;
+		if (!sbi->layout.group_depth) {
+			EXOFS_ERR("group_depth == 0 && group_width != 0\n");
+			return -EINVAL;
+		}
+		sbi->layout.group_count = sbi->data_map.odm_num_comps /
+						sbi->layout.mirrors_p1 /
+						sbi->data_map.odm_group_width;
+	} else {
+		if (sbi->data_map.odm_group_depth) {
+			printk(KERN_NOTICE "Warning: group_depth ignored "
+				"group_width == 0 && group_depth == %d\n",
+				sbi->data_map.odm_group_depth);
+			sbi->data_map.odm_group_depth = 0;
+		}
+		sbi->layout.group_width = sbi->data_map.odm_num_comps /
 							sbi->layout.mirrors_p1;
+		sbi->layout.group_depth = -1;
+		sbi->layout.group_count = 1;
+	}
+
+	stripe_length = (u64)sbi->layout.group_width * sbi->layout.stripe_unit;
+	if (stripe_length >= (1ULL << 32)) {
+		EXOFS_ERR("Total Stripe length(0x%llx)"
+			  " >= 32bit is not supported\n", _LLU(stripe_length));
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -540,6 +556,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->layout.stripe_unit = PAGE_SIZE;
 	sbi->layout.mirrors_p1 = 1;
 	sbi->layout.group_width = 1;
+	sbi->layout.group_depth = -1;
+	sbi->layout.group_count = 1;
 	sbi->layout.s_ods[0] = od;
 	sbi->layout.s_numdevs = 1;
 	sbi->layout.s_pid = opts->pid;

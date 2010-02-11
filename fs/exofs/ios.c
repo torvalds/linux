@@ -262,25 +262,50 @@ int exofs_check_io(struct exofs_io_state *ios, u64 *resid)
 /*
  * L - logical offset into the file
  *
- * U - The number of bytes in a full stripe
+ * U - The number of bytes in a stripe within a group
  *
  *	U = stripe_unit * group_width
  *
- * N - The stripe number
+ * T - The number of bytes striped within a group of component objects
+ *     (before advancing to the next group)
  *
- *	N = L / U
+ *	T = stripe_unit * group_width * group_depth
+ *
+ * S - The number of bytes striped across all component objects
+ *     before the pattern repeats
+ *
+ *	S = stripe_unit * group_width * group_depth * group_count
+ *
+ * M - The "major" (i.e., across all components) stripe number
+ *
+ *	M = L / S
+ *
+ * G - Counts the groups from the beginning of the major stripe
+ *
+ *	G = (L - (M * S)) / T	[or (L % S) / T]
+ *
+ * H - The byte offset within the group
+ *
+ *	H = (L - (M * S)) % T	[or (L % S) % T]
+ *
+ * N - The "minor" (i.e., across the group) stripe number
+ *
+ *	N = H / U
  *
  * C - The component index coresponding to L
  *
- *	C = (L - (N*U)) / stripe_unit
+ *	C = (H - (N * U)) / stripe_unit + G * group_width
+ *	[or (L % U) / stripe_unit + G * group_width]
  *
  * O - The component offset coresponding to L
  *
- *	(N*stripe_unit)+(L%stripe_unit)
+ *	O = L % stripe_unit + N * stripe_unit + M * group_depth * stripe_unit
  */
-
 struct _striping_info {
 	u64 obj_offset;
+	u64 group_length;
+	u64 total_group_length;
+	u64 Major;
 	unsigned dev;
 	unsigned unit_off;
 };
@@ -290,15 +315,35 @@ static void _calc_stripe_info(struct exofs_io_state *ios, u64 file_offset,
 {
 	u32	stripe_unit = ios->layout->stripe_unit;
 	u32	group_width = ios->layout->group_width;
+	u64	group_depth = ios->layout->group_depth;
+
 	u32	U = stripe_unit * group_width;
+	u64	T = U * group_depth;
+	u64	S = T * ios->layout->group_count;
+	u64	M = div64_u64(file_offset, S);
 
-	u32	LmodU;
-	u64 	N = div_u64_rem(file_offset, U, &LmodU);
+	/*
+	G = (L - (M * S)) / T
+	H = (L - (M * S)) % T
+	*/
+	u64	LmodS = file_offset - M * S;
+	u32	G = div64_u64(LmodS, T);
+	u64	H = LmodS - G * T;
 
-	si->unit_off = LmodU % stripe_unit;
-	si->obj_offset = N * stripe_unit + si->unit_off;
-	si->dev = LmodU / stripe_unit;
+	u32	N = div_u64(H, U);
+
+	/* "H - (N * U)" is just "H % U" so it's bound to u32 */
+	si->dev = (u32)(H - (N * U)) / stripe_unit + G * group_width;
 	si->dev *= ios->layout->mirrors_p1;
+
+	div_u64_rem(file_offset, stripe_unit, &si->unit_off);
+
+	si->obj_offset = si->unit_off + (N * stripe_unit) +
+				  (M * group_depth * stripe_unit);
+
+	si->group_length = T - H;
+	si->total_group_length = T;
+	si->Major = M;
 }
 
 static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
@@ -345,16 +390,17 @@ static int _add_stripe_unit(struct exofs_io_state *ios,  unsigned *cur_pg,
 	return 0;
 }
 
-static int _prepare_pages(struct exofs_io_state *ios,
-			  struct _striping_info *si)
+static int _prepare_one_group(struct exofs_io_state *ios, u64 length,
+			      struct _striping_info *si, unsigned first_comp)
 {
-	u64 length = ios->length;
 	unsigned stripe_unit = ios->layout->stripe_unit;
 	unsigned mirrors_p1 = ios->layout->mirrors_p1;
+	unsigned devs_in_group = ios->layout->group_width * mirrors_p1;
 	unsigned dev = si->dev;
-	unsigned comp = 0;
-	unsigned stripes = 0;
-	unsigned cur_pg = 0;
+	unsigned first_dev = dev - (dev % devs_in_group);
+	unsigned comp = first_comp + (dev - first_dev);
+	unsigned max_comp = ios->numdevs ? ios->numdevs - mirrors_p1 : 0;
+	unsigned cur_pg = ios->pages_consumed;
 	int ret = 0;
 
 	while (length) {
@@ -377,10 +423,11 @@ static int _prepare_pages(struct exofs_io_state *ios,
 				cur_len = stripe_unit;
 			}
 
-			stripes++;
+			if (max_comp < comp)
+				max_comp = comp;
 
 			dev += mirrors_p1;
-			dev %= ios->layout->s_numdevs;
+			dev = (dev % devs_in_group) + first_dev;
 		} else {
 			cur_len = stripe_unit;
 		}
@@ -393,18 +440,24 @@ static int _prepare_pages(struct exofs_io_state *ios,
 			goto out;
 
 		comp += mirrors_p1;
-		comp %= ios->layout->s_numdevs;
+		comp = (comp % devs_in_group) + first_comp;
 
 		length -= cur_len;
 	}
 out:
-	ios->numdevs = stripes * mirrors_p1;
+	ios->numdevs = max_comp + mirrors_p1;
+	ios->pages_consumed = cur_pg;
 	return ret;
 }
 
 static int _prepare_for_striping(struct exofs_io_state *ios)
 {
+	u64 length = ios->length;
 	struct _striping_info si;
+	unsigned devs_in_group = ios->layout->group_width *
+				 ios->layout->mirrors_p1;
+	unsigned first_comp = 0;
+	int ret = 0;
 
 	_calc_stripe_info(ios, ios->offset, &si);
 
@@ -424,7 +477,31 @@ static int _prepare_for_striping(struct exofs_io_state *ios)
 		return 0;
 	}
 
-	return _prepare_pages(ios, &si);
+	while (length) {
+		if (length < si.group_length)
+			si.group_length = length;
+
+		ret = _prepare_one_group(ios, si.group_length, &si, first_comp);
+		if (unlikely(ret))
+			goto out;
+
+		length -= si.group_length;
+
+		si.group_length = si.total_group_length;
+		si.unit_off = 0;
+		++si.Major;
+		si.obj_offset = si.Major * ios->layout->stripe_unit *
+						ios->layout->group_depth;
+
+		si.dev = (si.dev - (si.dev % devs_in_group)) + devs_in_group;
+		si.dev %= ios->layout->s_numdevs;
+
+		first_comp += devs_in_group;
+		first_comp %= ios->layout->s_numdevs;
+	}
+
+out:
+	return ret;
 }
 
 int exofs_sbi_create(struct exofs_io_state *ios)
@@ -481,6 +558,9 @@ static int _sbi_write_mirror(struct exofs_io_state *ios, int cur_comp)
 	unsigned dev = ios->per_dev[cur_comp].dev;
 	unsigned last_comp = cur_comp + ios->layout->mirrors_p1;
 	int ret = 0;
+
+	if (ios->pages && !master_dev->length)
+		return 0; /* Just an empty slot */
 
 	for (; cur_comp < last_comp; ++cur_comp, ++dev) {
 		struct exofs_per_dev_state *per_dev = &ios->per_dev[cur_comp];
@@ -579,6 +659,9 @@ static int _sbi_read_mirror(struct exofs_io_state *ios, unsigned cur_comp)
 	struct osd_request *or;
 	struct exofs_per_dev_state *per_dev = &ios->per_dev[cur_comp];
 	unsigned first_dev = (unsigned)ios->obj.id;
+
+	if (ios->pages && !per_dev->length)
+		return 0; /* Just an empty slot */
 
 	first_dev = per_dev->dev + first_dev % ios->layout->mirrors_p1;
 	or = osd_start_request(exofs_ios_od(ios, first_dev), GFP_KERNEL);
