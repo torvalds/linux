@@ -70,7 +70,8 @@ static struct cdev macvtap_cdev;
  * exists.
  *
  * The callbacks from macvlan are always done with rcu_read_lock held
- * already, while in the file_operations, we get it ourselves.
+ * already. For calls from file_operations, we use the rcu_read_lock_bh
+ * to get a reference count on the socket and the device.
  *
  * When destroying a queue, we remove the pointers from the file and
  * from the dev and then synchronize_rcu to make sure no thread is
@@ -159,13 +160,21 @@ static void macvtap_del_queues(struct net_device *dev)
 
 static inline struct macvtap_queue *macvtap_file_get_queue(struct file *file)
 {
+	struct macvtap_queue *q;
 	rcu_read_lock_bh();
-	return rcu_dereference(file->private_data);
+	q = rcu_dereference(file->private_data);
+	if (q) {
+		sock_hold(&q->sk);
+		dev_hold(q->vlan->dev);
+	}
+	rcu_read_unlock_bh();
+	return q;
 }
 
-static inline void macvtap_file_put_queue(void)
+static inline void macvtap_file_put_queue(struct macvtap_queue *q)
 {
-	rcu_read_unlock_bh();
+	sock_put(&q->sk);
+	dev_put(q->vlan->dev);
 }
 
 /*
@@ -314,8 +323,8 @@ static unsigned int macvtap_poll(struct file *file, poll_table * wait)
 	     sock_writeable(&q->sk)))
 		mask |= POLLOUT | POLLWRNORM;
 
+	macvtap_file_put_queue(q);
 out:
-	macvtap_file_put_queue();
 	return mask;
 }
 
@@ -366,8 +375,8 @@ static ssize_t macvtap_aio_write(struct kiocb *iocb, const struct iovec *iv,
 
 	result = macvtap_get_user(q, iv, iov_length(iv, count),
 			      file->f_flags & O_NONBLOCK);
+	macvtap_file_put_queue(q);
 out:
-	macvtap_file_put_queue();
 	return result;
 }
 
@@ -398,10 +407,8 @@ static ssize_t macvtap_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	struct sk_buff *skb;
 	ssize_t len, ret = 0;
 
-	if (!q) {
-		ret = -ENOLINK;
-		goto out;
-	}
+	if (!q)
+		return -ENOLINK;
 
 	len = iov_length(iv, count);
 	if (len < 0) {
@@ -437,7 +444,7 @@ static ssize_t macvtap_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	remove_wait_queue(q->sk.sk_sleep, &wait);
 
 out:
-	macvtap_file_put_queue();
+	macvtap_file_put_queue(q);
 	return ret;
 }
 
@@ -468,7 +475,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		if (!q)
 			return -ENOLINK;
 		memcpy(devname, q->vlan->dev->name, sizeof(devname));
-		macvtap_file_put_queue();
+		macvtap_file_put_queue(q);
 
 		if (copy_to_user(&ifr->ifr_name, q->vlan->dev->name, IFNAMSIZ) ||
 		    put_user((TUN_TAP_DEV | TUN_NO_PI), &ifr->ifr_flags))
@@ -485,8 +492,10 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		q = macvtap_file_get_queue(file);
+		if (!q)
+			return -ENOLINK;
 		q->sk.sk_sndbuf = u;
-		macvtap_file_put_queue();
+		macvtap_file_put_queue(q);
 		return 0;
 
 	case TUNSETOFFLOAD:
