@@ -56,7 +56,7 @@ int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 MODULE_PARM_DESC(vram_notify, "Force DMA notifiers to be in VRAM");
-int nouveau_vram_notify;
+int nouveau_vram_notify = 1;
 module_param_named(vram_notify, nouveau_vram_notify, int, 0400);
 
 MODULE_PARM_DESC(duallink, "Allow dual-link TMDS (>=GeForce 8)");
@@ -74,6 +74,14 @@ module_param_named(uscript_tmds, nouveau_uscript_tmds, int, 0400);
 MODULE_PARM_DESC(ignorelid, "Ignore ACPI lid status");
 int nouveau_ignorelid = 0;
 module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
+
+MODULE_PARM_DESC(noagp, "Disable all acceleration");
+int nouveau_noaccel = 0;
+module_param_named(noaccel, nouveau_noaccel, int, 0400);
+
+MODULE_PARM_DESC(noagp, "Disable fbcon acceleration");
+int nouveau_nofbaccel = 0;
+module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
 
 MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"
