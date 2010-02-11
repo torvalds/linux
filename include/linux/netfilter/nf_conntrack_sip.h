@@ -34,10 +34,10 @@ struct sdp_media_type {
 struct sip_handler {
 	const char	*method;
 	unsigned int	len;
-	int		(*request)(struct sk_buff *skb,
+	int		(*request)(struct sk_buff *skb, unsigned int dataoff,
 				   const char **dptr, unsigned int *datalen,
 				   unsigned int cseq);
-	int		(*response)(struct sk_buff *skb,
+	int		(*response)(struct sk_buff *skb, unsigned int dataoff,
 				    const char **dptr, unsigned int *datalen,
 				    unsigned int cseq, unsigned int code);
 };
@@ -100,33 +100,39 @@ enum sdp_header_types {
 };
 
 extern unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
+				       unsigned int dataoff,
 				       const char **dptr,
 				       unsigned int *datalen);
 extern unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
+					      unsigned int dataoff,
 					      const char **dptr,
 					      unsigned int *datalen,
 					      struct nf_conntrack_expect *exp,
 					      unsigned int matchoff,
 					      unsigned int matchlen);
 extern unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
-					    const char **dptr,
 					    unsigned int dataoff,
+					    const char **dptr,
 					    unsigned int *datalen,
+					    unsigned int sdpoff,
 					    enum sdp_header_types type,
 					    enum sdp_header_types term,
 					    const union nf_inet_addr *addr);
 extern unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb,
+					    unsigned int dataoff,
 					    const char **dptr,
 					    unsigned int *datalen,
 					    unsigned int matchoff,
 					    unsigned int matchlen,
 					    u_int16_t port);
 extern unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
-					       const char **dptr,
 					       unsigned int dataoff,
+					       const char **dptr,
 					       unsigned int *datalen,
+					       unsigned int sdpoff,
 					       const union nf_inet_addr *addr);
 extern unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb,
+					     unsigned int dataoff,
 					     const char **dptr,
 					     unsigned int *datalen,
 					     struct nf_conntrack_expect *rtp_exp,

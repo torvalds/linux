@@ -50,12 +50,13 @@ module_param(sip_direct_media, int, 0600);
 MODULE_PARM_DESC(sip_direct_media, "Expect Media streams between signalling "
 				   "endpoints only (default 1)");
 
-unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
+unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb, unsigned int dataoff,
 				const char **dptr,
 				unsigned int *datalen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_hook);
 
 unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
+				       unsigned int dataoff,
 				       const char **dptr,
 				       unsigned int *datalen,
 				       struct nf_conntrack_expect *exp,
@@ -63,17 +64,17 @@ unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 				       unsigned int matchlen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_expect_hook);
 
-unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb,
+unsigned int (*nf_nat_sdp_addr_hook)(struct sk_buff *skb, unsigned int dataoff,
 				     const char **dptr,
-				     unsigned int dataoff,
 				     unsigned int *datalen,
+				     unsigned int sdpoff,
 				     enum sdp_header_types type,
 				     enum sdp_header_types term,
 				     const union nf_inet_addr *addr)
 				     __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_addr_hook);
 
-unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb,
+unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb, unsigned int dataoff,
 				     const char **dptr,
 				     unsigned int *datalen,
 				     unsigned int matchoff,
@@ -82,14 +83,15 @@ unsigned int (*nf_nat_sdp_port_hook)(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_sdp_port_hook);
 
 unsigned int (*nf_nat_sdp_session_hook)(struct sk_buff *skb,
-					const char **dptr,
 					unsigned int dataoff,
+					const char **dptr,
 					unsigned int *datalen,
+					unsigned int sdpoff,
 					const union nf_inet_addr *addr)
 					__read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sdp_session_hook);
 
-unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb,
+unsigned int (*nf_nat_sdp_media_hook)(struct sk_buff *skb, unsigned int dataoff,
 				      const char **dptr,
 				      unsigned int *datalen,
 				      struct nf_conntrack_expect *rtp_exp,
@@ -729,7 +731,7 @@ static void flush_expectations(struct nf_conn *ct, bool media)
 	spin_unlock_bh(&nf_conntrack_lock);
 }
 
-static int set_expected_rtp_rtcp(struct sk_buff *skb,
+static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int dataoff,
 				 const char **dptr, unsigned int *datalen,
 				 union nf_inet_addr *daddr, __be16 port,
 				 enum sip_expectation_classes class,
@@ -806,7 +808,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 	if (direct_rtp) {
 		nf_nat_sdp_port = rcu_dereference(nf_nat_sdp_port_hook);
 		if (nf_nat_sdp_port &&
-		    !nf_nat_sdp_port(skb, dptr, datalen,
+		    !nf_nat_sdp_port(skb, dataoff, dptr, datalen,
 				     mediaoff, medialen, ntohs(rtp_port)))
 			goto err1;
 	}
@@ -828,7 +830,8 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb,
 
 	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
 	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK && !direct_rtp)
-		ret = nf_nat_sdp_media(skb, dptr, datalen, rtp_exp, rtcp_exp,
+		ret = nf_nat_sdp_media(skb, dataoff, dptr, datalen,
+				       rtp_exp, rtcp_exp,
 				       mediaoff, medialen, daddr);
 	else {
 		if (nf_ct_expect_related(rtp_exp) == 0) {
@@ -867,7 +870,7 @@ static const struct sdp_media_type *sdp_media_type(const char *dptr,
 	return NULL;
 }
 
-static int process_sdp(struct sk_buff *skb,
+static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 		       const char **dptr, unsigned int *datalen,
 		       unsigned int cseq)
 {
@@ -942,7 +945,7 @@ static int process_sdp(struct sk_buff *skb,
 		else
 			return NF_DROP;
 
-		ret = set_expected_rtp_rtcp(skb, dptr, datalen,
+		ret = set_expected_rtp_rtcp(skb, dataoff, dptr, datalen,
 					    &rtp_addr, htons(port), t->class,
 					    mediaoff, medialen);
 		if (ret != NF_ACCEPT)
@@ -950,8 +953,9 @@ static int process_sdp(struct sk_buff *skb,
 
 		/* Update media connection address if present */
 		if (maddr_len && nf_nat_sdp_addr && ct->status & IPS_NAT_MASK) {
-			ret = nf_nat_sdp_addr(skb, dptr, mediaoff, datalen,
-					      c_hdr, SDP_HDR_MEDIA, &rtp_addr);
+			ret = nf_nat_sdp_addr(skb, dataoff, dptr, datalen,
+					      mediaoff, c_hdr, SDP_HDR_MEDIA,
+					      &rtp_addr);
 			if (ret != NF_ACCEPT)
 				return ret;
 		}
@@ -961,14 +965,15 @@ static int process_sdp(struct sk_buff *skb,
 	/* Update session connection and owner addresses */
 	nf_nat_sdp_session = rcu_dereference(nf_nat_sdp_session_hook);
 	if (nf_nat_sdp_session && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sdp_session(skb, dptr, sdpoff, datalen, &rtp_addr);
+		ret = nf_nat_sdp_session(skb, dataoff, dptr, datalen, sdpoff,
+					 &rtp_addr);
 
 	if (ret == NF_ACCEPT && i > 0)
 		help->help.ct_sip_info.invite_cseq = cseq;
 
 	return ret;
 }
-static int process_invite_response(struct sk_buff *skb,
+static int process_invite_response(struct sk_buff *skb, unsigned int dataoff,
 				   const char **dptr, unsigned int *datalen,
 				   unsigned int cseq, unsigned int code)
 {
@@ -978,13 +983,13 @@ static int process_invite_response(struct sk_buff *skb,
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
-		return process_sdp(skb, dptr, datalen, cseq);
+		return process_sdp(skb, dataoff, dptr, datalen, cseq);
 	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
 }
 
-static int process_update_response(struct sk_buff *skb,
+static int process_update_response(struct sk_buff *skb, unsigned int dataoff,
 				   const char **dptr, unsigned int *datalen,
 				   unsigned int cseq, unsigned int code)
 {
@@ -994,13 +999,13 @@ static int process_update_response(struct sk_buff *skb,
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
-		return process_sdp(skb, dptr, datalen, cseq);
+		return process_sdp(skb, dataoff, dptr, datalen, cseq);
 	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
 }
 
-static int process_prack_response(struct sk_buff *skb,
+static int process_prack_response(struct sk_buff *skb, unsigned int dataoff,
 				  const char **dptr, unsigned int *datalen,
 				  unsigned int cseq, unsigned int code)
 {
@@ -1010,13 +1015,13 @@ static int process_prack_response(struct sk_buff *skb,
 
 	if ((code >= 100 && code <= 199) ||
 	    (code >= 200 && code <= 299))
-		return process_sdp(skb, dptr, datalen, cseq);
+		return process_sdp(skb, dataoff, dptr, datalen, cseq);
 	else if (help->help.ct_sip_info.invite_cseq == cseq)
 		flush_expectations(ct, true);
 	return NF_ACCEPT;
 }
 
-static int process_bye_request(struct sk_buff *skb,
+static int process_bye_request(struct sk_buff *skb, unsigned int dataoff,
 			       const char **dptr, unsigned int *datalen,
 			       unsigned int cseq)
 {
@@ -1031,7 +1036,7 @@ static int process_bye_request(struct sk_buff *skb,
  * signalling connections. The expectation is marked inactive and is activated
  * when receiving a response indicating success from the registrar.
  */
-static int process_register_request(struct sk_buff *skb,
+static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 				    const char **dptr, unsigned int *datalen,
 				    unsigned int cseq)
 {
@@ -1101,7 +1106,7 @@ static int process_register_request(struct sk_buff *skb,
 
 	nf_nat_sip_expect = rcu_dereference(nf_nat_sip_expect_hook);
 	if (nf_nat_sip_expect && ct->status & IPS_NAT_MASK)
-		ret = nf_nat_sip_expect(skb, dptr, datalen, exp,
+		ret = nf_nat_sip_expect(skb, dataoff, dptr, datalen, exp,
 					matchoff, matchlen);
 	else {
 		if (nf_ct_expect_related(exp) != 0)
@@ -1117,7 +1122,7 @@ store_cseq:
 	return ret;
 }
 
-static int process_register_response(struct sk_buff *skb,
+static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 				     const char **dptr, unsigned int *datalen,
 				     unsigned int cseq, unsigned int code)
 {
@@ -1127,7 +1132,7 @@ static int process_register_response(struct sk_buff *skb,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	union nf_inet_addr addr;
 	__be16 port;
-	unsigned int matchoff, matchlen, dataoff = 0;
+	unsigned int matchoff, matchlen, coff = 0;
 	unsigned int expires = 0;
 	int in_contact = 0, ret;
 
@@ -1154,7 +1159,7 @@ static int process_register_response(struct sk_buff *skb,
 	while (1) {
 		unsigned int c_expires = expires;
 
-		ret = ct_sip_parse_header_uri(ct, *dptr, &dataoff, *datalen,
+		ret = ct_sip_parse_header_uri(ct, *dptr, &coff, *datalen,
 					      SIP_HDR_CONTACT, &in_contact,
 					      &matchoff, &matchlen,
 					      &addr, &port);
@@ -1193,13 +1198,13 @@ static const struct sip_handler sip_handlers[] = {
 	SIP_HANDLER("REGISTER", process_register_request, process_register_response),
 };
 
-static int process_sip_response(struct sk_buff *skb,
+static int process_sip_response(struct sk_buff *skb, unsigned int dataoff,
 				const char **dptr, unsigned int *datalen)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
-	unsigned int matchoff, matchlen;
-	unsigned int code, cseq, dataoff, i;
+	unsigned int matchoff, matchlen, matchend;
+	unsigned int code, cseq, i;
 
 	if (*datalen < strlen("SIP/2.0 200"))
 		return NF_ACCEPT;
@@ -1213,7 +1218,7 @@ static int process_sip_response(struct sk_buff *skb,
 	cseq = simple_strtoul(*dptr + matchoff, NULL, 10);
 	if (!cseq)
 		return NF_DROP;
-	dataoff = matchoff + matchlen + 1;
+	matchend = matchoff + matchlen + 1;
 
 	for (i = 0; i < ARRAY_SIZE(sip_handlers); i++) {
 		const struct sip_handler *handler;
@@ -1221,15 +1226,16 @@ static int process_sip_response(struct sk_buff *skb,
 		handler = &sip_handlers[i];
 		if (handler->response == NULL)
 			continue;
-		if (*datalen < dataoff + handler->len ||
-		    strnicmp(*dptr + dataoff, handler->method, handler->len))
+		if (*datalen < matchend + handler->len ||
+		    strnicmp(*dptr + matchend, handler->method, handler->len))
 			continue;
-		return handler->response(skb, dptr, datalen, cseq, code);
+		return handler->response(skb, dataoff, dptr, datalen,
+					 cseq, code);
 	}
 	return NF_ACCEPT;
 }
 
-static int process_sip_request(struct sk_buff *skb,
+static int process_sip_request(struct sk_buff *skb, unsigned int dataoff,
 			       const char **dptr, unsigned int *datalen)
 {
 	enum ip_conntrack_info ctinfo;
@@ -1254,7 +1260,7 @@ static int process_sip_request(struct sk_buff *skb,
 		if (!cseq)
 			return NF_DROP;
 
-		return handler->request(skb, dptr, datalen, cseq);
+		return handler->request(skb, dataoff, dptr, datalen, cseq);
 	}
 	return NF_ACCEPT;
 }
@@ -1288,13 +1294,13 @@ static int sip_help(struct sk_buff *skb,
 		return NF_ACCEPT;
 
 	if (strnicmp(dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
-		ret = process_sip_request(skb, &dptr, &datalen);
+		ret = process_sip_request(skb, dataoff, &dptr, &datalen);
 	else
-		ret = process_sip_response(skb, &dptr, &datalen);
+		ret = process_sip_response(skb, dataoff, &dptr, &datalen);
 
 	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
 		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
-		if (nf_nat_sip && !nf_nat_sip(skb, &dptr, &datalen))
+		if (nf_nat_sip && !nf_nat_sip(skb, dataoff, &dptr, &datalen))
 			ret = NF_DROP;
 	}
 
