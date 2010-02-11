@@ -183,6 +183,44 @@ static struct radeon_asic r300_asic = {
 	.ioctl_wait_idle = NULL,
 };
 
+
+static struct radeon_asic r300_asic_pcie = {
+	.init = &r300_init,
+	.fini = &r300_fini,
+	.suspend = &r300_suspend,
+	.resume = &r300_resume,
+	.vga_set_state = &r100_vga_set_state,
+	.gpu_reset = &r300_gpu_reset,
+	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
+	.gart_set_page = &rv370_pcie_gart_set_page,
+	.cp_commit = &r100_cp_commit,
+	.ring_start = &r300_ring_start,
+	.ring_test = &r100_ring_test,
+	.ring_ib_execute = &r100_ring_ib_execute,
+	.irq_set = &r100_irq_set,
+	.irq_process = &r100_irq_process,
+	.get_vblank_counter = &r100_get_vblank_counter,
+	.fence_ring_emit = &r300_fence_ring_emit,
+	.cs_parse = &r300_cs_parse,
+	.copy_blit = &r100_copy_blit,
+	.copy_dma = &r200_copy_dma,
+	.copy = &r100_copy_blit,
+	.get_engine_clock = &radeon_legacy_get_engine_clock,
+	.set_engine_clock = &radeon_legacy_set_engine_clock,
+	.get_memory_clock = &radeon_legacy_get_memory_clock,
+	.set_memory_clock = NULL,
+	.set_pcie_lanes = &rv370_set_pcie_lanes,
+	.set_clock_gating = &radeon_legacy_set_clock_gating,
+	.set_surface_reg = r100_set_surface_reg,
+	.clear_surface_reg = r100_clear_surface_reg,
+	.bandwidth_update = &r100_bandwidth_update,
+	.hpd_init = &r100_hpd_init,
+	.hpd_fini = &r100_hpd_fini,
+	.hpd_sense = &r100_hpd_sense,
+	.hpd_set_polarity = &r100_hpd_set_polarity,
+	.ioctl_wait_idle = NULL,
+};
+
 /*
  * r420,r423,rv410
  */

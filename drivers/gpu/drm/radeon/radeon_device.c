@@ -350,11 +350,10 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_R350:
 	case CHIP_RV350:
 	case CHIP_RV380:
-		rdev->asic = &r300_asic;
-		if (rdev->flags & RADEON_IS_PCIE) {
-			rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
-			rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
-		}
+		if (rdev->flags & RADEON_IS_PCIE)
+			rdev->asic = &r300_asic_pcie;
+		else
+			rdev->asic = &r300_asic;
 		break;
 	case CHIP_R420:
 	case CHIP_R423:
