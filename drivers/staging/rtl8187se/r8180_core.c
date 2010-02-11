@@ -4238,10 +4238,11 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	/* HW radio On/Off according to the value of FF51[4](config0) */
 	btConfig0 = btPSR = read_nic_byte(dev, CONFIG0);
 
-	/* Turn on LED. */
-	write_nic_byte(dev, PSR, btPSR | BIT3);
-
 	eRfPowerStateToSet = (btConfig0 & BIT4) ?  eRfOn : eRfOff;
+
+	/* Turn LED back on when radio enabled */
+	if (eRfPowerStateToSet == eRfOn)
+		write_nic_byte(dev, PSR, btPSR | BIT3);
 
 	if ((priv->ieee80211->bHwRadioOff == true) &&
 	   (eRfPowerStateToSet == eRfOn)) {
