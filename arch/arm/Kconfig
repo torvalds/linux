@@ -276,6 +276,20 @@ config ARCH_VERSATILE
 	help
 	  This enables support for ARM Ltd Versatile board.
 
+config ARCH_VEXPRESS
+	bool "ARM Ltd. Versatile Express family"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_AMBA
+	select ARM_TIMER_SP804
+	select COMMON_CLKDEV
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_TIME
+	select HAVE_CLK
+	select ICST
+	select PLAT_VERSATILE
+	help
+	  This enables support for the ARM Ltd Versatile Express boards.
+
 config ARCH_AT91
 	bool "Atmel AT91"
 	select GENERIC_GPIO
@@ -925,6 +939,8 @@ source "arch/arm/mach-u300/Kconfig"
 source "arch/arm/mach-ux500/Kconfig"
 
 source "arch/arm/mach-versatile/Kconfig"
+
+source "arch/arm/mach-vexpress/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 

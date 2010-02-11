@@ -1,0 +1,4 @@
+menu "Versatile Express platform type"
+	depends on ARCH_VEXPRESS
+
+endmenu
