@@ -614,8 +614,6 @@ out:
 	return ret;
 }
 
-#define PUSHBUF_CAL (dev_priv->card_type >= NV_20)
-
 int
 nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
@@ -703,7 +701,7 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 	/* If presumed return address doesn't match, we need to map the
 	 * push buffer and fix it..
 	 */
-	if (!PUSHBUF_CAL) {
+	if (dev_priv->card_type < NV_20) {
 		uint32_t retaddy;
 
 		if (chan->dma.free < 4 + NOUVEAU_DMA_SKIPS) {
@@ -741,7 +739,7 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 						      req->offset / 4,
 						      pbvirt, is_iomem);
 
-		if (!PUSHBUF_CAL) {
+		if (dev_priv->card_type < NV_20) {
 			nouveau_bo_wr32(pbbo,
 					req->offset / 4 + req->nr_dwords - 2,
 					req->suffix0);
@@ -763,7 +761,7 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 
 		nv50_dma_push(chan, pbbo, req->offset, req->nr_dwords);
 	} else
-	if (PUSHBUF_CAL) {
+	if (dev_priv->card_type >= NV_20) {
 		ret = RING_SPACE(chan, 2);
 		if (ret) {
 			NV_ERROR(dev, "cal_space: %d\n", ret);
@@ -805,7 +803,7 @@ out_next:
 		req->suffix0 = 0x00000000;
 		req->suffix1 = 0x00000000;
 	} else
-	if (PUSHBUF_CAL) {
+	if (dev_priv->card_type >= NV_20) {
 		req->suffix0 = 0x00020000;
 		req->suffix1 = 0x00000000;
 	} else {
