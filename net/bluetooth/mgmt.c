@@ -1328,7 +1328,7 @@ static int pair_device(struct sock *sk, u16 index, unsigned char *data, u16 len)
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 	}
 
-	conn = hci_connect(hdev, ACL_LINK, &cp->bdaddr, sec_level, auth_type);
+	conn = hci_connect(hdev, ACL_LINK, 0, &cp->bdaddr, sec_level, auth_type);
 	if (IS_ERR(conn)) {
 		err = PTR_ERR(conn);
 		goto unlock;
