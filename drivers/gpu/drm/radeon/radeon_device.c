@@ -340,11 +340,13 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_RS100:
 	case CHIP_RV200:
 	case CHIP_RS200:
+		rdev->asic = &r100_asic;
+		break;
 	case CHIP_R200:
 	case CHIP_RV250:
 	case CHIP_RS300:
 	case CHIP_RV280:
-		rdev->asic = &r100_asic;
+		rdev->asic = &r200_asic;
 		break;
 	case CHIP_R300:
 	case CHIP_R350:
