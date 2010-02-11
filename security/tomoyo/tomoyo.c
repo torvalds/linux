@@ -21,21 +21,23 @@ static int tomoyo_cred_alloc_blank(struct cred *new, gfp_t gfp)
 static int tomoyo_cred_prepare(struct cred *new, const struct cred *old,
 			       gfp_t gfp)
 {
-	/*
-	 * Since "struct tomoyo_domain_info *" is a sharable pointer,
-	 * we don't need to duplicate.
-	 */
-	new->security = old->security;
+	struct tomoyo_domain_info *domain = old->security;
+	new->security = domain;
+	if (domain)
+		atomic_inc(&domain->users);
 	return 0;
 }
 
 static void tomoyo_cred_transfer(struct cred *new, const struct cred *old)
 {
-	/*
-	 * Since "struct tomoyo_domain_info *" is a sharable pointer,
-	 * we don't need to duplicate.
-	 */
-	new->security = old->security;
+	tomoyo_cred_prepare(new, old, 0);
+}
+
+static void tomoyo_cred_free(struct cred *cred)
+{
+	struct tomoyo_domain_info *domain = cred->security;
+	if (domain)
+		atomic_dec(&domain->users);
 }
 
 static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
@@ -59,6 +61,14 @@ static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
 	if (!tomoyo_policy_loaded)
 		tomoyo_load_policy(bprm->filename);
 	/*
+	 * Release reference to "struct tomoyo_domain_info" stored inside
+	 * "bprm->cred->security". New reference to "struct tomoyo_domain_info"
+	 * stored inside "bprm->cred->security" will be acquired later inside
+	 * tomoyo_find_next_domain().
+	 */
+	atomic_dec(&((struct tomoyo_domain_info *)
+		     bprm->cred->security)->users);
+	/*
 	 * Tell tomoyo_bprm_check_security() is called for the first time of an
 	 * execve operation.
 	 */
@@ -75,12 +85,6 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	 * using current domain.
 	 */
 	if (!domain) {
-		/*
-		 * We will need to protect whole execve() operation when GC
-		 * starts kfree()ing "struct tomoyo_domain_info" because
-		 * bprm->cred->security points to "struct tomoyo_domain_info"
-		 * but "struct tomoyo_domain_info" does not have a refcounter.
-		 */
 		const int idx = tomoyo_read_lock();
 		const int err = tomoyo_find_next_domain(bprm);
 		tomoyo_read_unlock(idx);
@@ -265,6 +269,7 @@ static struct security_operations tomoyo_security_ops = {
 	.cred_alloc_blank    = tomoyo_cred_alloc_blank,
 	.cred_prepare        = tomoyo_cred_prepare,
 	.cred_transfer	     = tomoyo_cred_transfer,
+	.cred_free           = tomoyo_cred_free,
 	.bprm_set_creds      = tomoyo_bprm_set_creds,
 	.bprm_check_security = tomoyo_bprm_check_security,
 	.file_fcntl          = tomoyo_file_fcntl,

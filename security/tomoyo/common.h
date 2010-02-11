@@ -234,6 +234,10 @@ struct tomoyo_acl_info {
  *      name of the domain to be created was too long or it could not allocate
  *      memory. If set to true, more than one process continued execve()
  *      without domain transition.
+ *  (9) "users" is an atomic_t that holds how many "struct cred"->security
+ *      are referring this "struct tomoyo_domain_info". If is_deleted == true
+ *      and users == 0, this struct will be kfree()d upon next garbage
+ *      collection.
  *
  * A domain's lifecycle is an analogy of files on / directory.
  * Multiple domains with the same domainname cannot be created (as with
@@ -252,6 +256,7 @@ struct tomoyo_domain_info {
 	bool quota_warned; /* Quota warnning flag.   */
 	bool ignore_global_allow_read; /* Ignore "allow_read" flag. */
 	bool transition_failed; /* Domain transition failed flag. */
+	atomic_t users; /* Number of referring credentials. */
 };
 
 /*

@@ -817,6 +817,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
  out:
 	if (!domain)
 		domain = old_domain;
+	/* Update reference count on "struct tomoyo_domain_info". */
+	atomic_inc(&domain->users);
 	bprm->cred->security = domain;
 	kfree(real_program_name);
 	kfree(symlink_program_name);
