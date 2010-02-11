@@ -2374,9 +2374,9 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 				goto default_mode;
 			/* skip overclock modes for now */
 			if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
-			     rdev->clock.default_mclk) ||
+			     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
 			    (rdev->pm.power_state[state_index].clock_info[0].sclk >
-			     rdev->clock.default_sclk))
+			     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
 				goto default_mode;
 			rdev->pm.power_state[state_index].type =
 				POWER_STATE_TYPE_BATTERY;

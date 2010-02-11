@@ -1463,9 +1463,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						continue;
 					/* skip overclock modes for now */
 					if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
-					     rdev->clock.default_mclk) ||
+					     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
 					    (rdev->pm.power_state[state_index].clock_info[0].sclk >
-					     rdev->clock.default_sclk))
+					     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
 						continue;
 					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
 						power_info->info.asPowerPlayInfo[i].ucNumPciELanes;
@@ -1528,9 +1528,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						continue;
 					/* skip overclock modes for now */
 					if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
-					     rdev->clock.default_mclk) ||
+					     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
 					    (rdev->pm.power_state[state_index].clock_info[0].sclk >
-					     rdev->clock.default_sclk))
+					     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
 						continue;
 					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
 						power_info->info_2.asPowerPlayInfo[i].ucNumPciELanes;
@@ -1597,9 +1597,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						continue;
 					/* skip overclock modes for now */
 					if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
-					     rdev->clock.default_mclk) ||
+					     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
 					    (rdev->pm.power_state[state_index].clock_info[0].sclk >
-					     rdev->clock.default_sclk))
+					     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
 						continue;
 					rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
 						power_info->info_3.asPowerPlayInfo[i].ucNumPciELanes;
@@ -1693,7 +1693,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							continue;
 						/* skip overclock modes for now */
 						if (rdev->pm.power_state[state_index].clock_info[mode_index].sclk >
-						    rdev->clock.default_sclk)
+						    rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN)
 							continue;
 						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
 							VOLTAGE_SW;
@@ -1720,9 +1720,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 							continue;
 						/* skip overclock modes for now */
 						if ((rdev->pm.power_state[state_index].clock_info[mode_index].mclk >
-						     rdev->clock.default_mclk) ||
+						     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
 						    (rdev->pm.power_state[state_index].clock_info[mode_index].sclk >
-						     rdev->clock.default_sclk))
+						     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
 							continue;
 						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
 							VOLTAGE_SW;

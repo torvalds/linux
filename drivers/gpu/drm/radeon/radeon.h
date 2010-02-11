@@ -662,6 +662,11 @@ struct radeon_power_state {
 	bool voltage_drop_active;
 };
 
+/*
+ * Some modes are overclocked by very low value, accept them
+ */
+#define RADEON_MODE_OVERCLOCK_MARGIN 500 /* 5 MHz */
+
 struct radeon_pm {
 	struct mutex		mutex;
 	struct delayed_work	idle_work;
