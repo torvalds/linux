@@ -18,22 +18,22 @@
 
 #include "hid-ids.h"
 
-static bool emulate_3button = 1;
+static bool emulate_3button = true;
 module_param(emulate_3button, bool, 0644);
 MODULE_PARM_DESC(emulate_3button, "Emulate a middle button");
 
 static int middle_button_start = -350;
 static int middle_button_stop = +350;
 
-static bool emulate_scroll_wheel = 1;
+static bool emulate_scroll_wheel = true;
 module_param(emulate_scroll_wheel, bool, 0644);
 MODULE_PARM_DESC(emulate_scroll_wheel, "Emulate a scroll wheel");
 
-static bool report_touches = 1;
+static bool report_touches = true;
 module_param(report_touches, bool, 0644);
 MODULE_PARM_DESC(report_touches, "Emit touch records (otherwise, only use them for emulation)");
 
-static bool report_undeciphered = 0;
+static bool report_undeciphered;
 module_param(report_undeciphered, bool, 0644);
 MODULE_PARM_DESC(report_undeciphered, "Report undeciphered multi-touch state field using a MSC_RAW event");
 
@@ -108,9 +108,9 @@ static int magicmouse_firm_touch(struct magicmouse_sc *msc)
 
 static void magicmouse_emit_buttons(struct magicmouse_sc *msc, int state)
 {
-        int last_state = test_bit(BTN_LEFT, msc->input->key) << 0 |
-                test_bit(BTN_RIGHT, msc->input->key) << 1 |
-                test_bit(BTN_MIDDLE, msc->input->key) << 2;
+	int last_state = test_bit(BTN_LEFT, msc->input->key) << 0 |
+		test_bit(BTN_RIGHT, msc->input->key) << 1 |
+		test_bit(BTN_MIDDLE, msc->input->key) << 2;
 
 	if (emulate_3button) {
 		int id;
@@ -177,7 +177,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		switch (tdata[7] & TOUCH_STATE_MASK) {
 		case TOUCH_STATE_START:
 			msc->touches[id].scroll_y = y;
-                        msc->scroll_accel = min_t(int, msc->scroll_accel + 1,
+			msc->scroll_accel = min_t(int, msc->scroll_accel + 1,
 						ARRAY_SIZE(accel_profile) - 1);
 			break;
 		case TOUCH_STATE_DRAG:
@@ -193,7 +193,7 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 
 	/* Generate the input events for this touch. */
 	if (report_touches) {
-                int orientation = (misc >> 10) - 32;
+		int orientation = (misc >> 10) - 32;
 
 		input_report_abs(input, ABS_MT_TRACKING_ID, id);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, tdata[3]);
@@ -202,9 +202,8 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		input_report_abs(input, ABS_MT_POSITION_X, x);
 		input_report_abs(input, ABS_MT_POSITION_Y, y);
 
-		if (report_undeciphered) {
+		if (report_undeciphered)
 			input_event(input, EV_MSC, MSC_RAW, tdata[7]);
-		}
 
 		input_mt_sync(input);
 	}
@@ -291,62 +290,41 @@ static void magicmouse_setup_input(struct input_dev *input, struct hid_device *h
 	input->id.version = hdev->version;
 	input->dev.parent = hdev->dev.parent;
 
-	set_bit(EV_KEY, input->evbit);
-	set_bit(BTN_LEFT, input->keybit);
-	set_bit(BTN_RIGHT, input->keybit);
+	__set_bit(EV_KEY, input->evbit);
+	__set_bit(BTN_LEFT, input->keybit);
+	__set_bit(BTN_RIGHT, input->keybit);
 	if (emulate_3button)
-		set_bit(BTN_MIDDLE, input->keybit);
-	set_bit(BTN_TOOL_FINGER, input->keybit);
+		__set_bit(BTN_MIDDLE, input->keybit);
+	__set_bit(BTN_TOOL_FINGER, input->keybit);
 
-	set_bit(EV_REL, input->evbit);
-	set_bit(REL_X, input->relbit);
-	set_bit(REL_Y, input->relbit);
+	__set_bit(EV_REL, input->evbit);
+	__set_bit(REL_X, input->relbit);
+	__set_bit(REL_Y, input->relbit);
 	if (emulate_scroll_wheel)
-		set_bit(REL_WHEEL, input->relbit);
+		__set_bit(REL_WHEEL, input->relbit);
 
 	if (report_touches) {
-		set_bit(EV_ABS, input->evbit);
+		__set_bit(EV_ABS, input->evbit);
 
-		set_bit(ABS_MT_TRACKING_ID, input->absbit);
-		input->absmin[ABS_MT_TRACKING_ID] = 0;
-		input->absmax[ABS_MT_TRACKING_ID] = 15;
-		input->absfuzz[ABS_MT_TRACKING_ID] = 0;
-
-		set_bit(ABS_MT_TOUCH_MAJOR, input->absbit);
-		input->absmin[ABS_MT_TOUCH_MAJOR] = 0;
-		input->absmax[ABS_MT_TOUCH_MAJOR] = 255;
-		input->absfuzz[ABS_MT_TOUCH_MAJOR] = 4;
-
-		set_bit(ABS_MT_TOUCH_MINOR, input->absbit);
-		input->absmin[ABS_MT_TOUCH_MINOR] = 0;
-		input->absmax[ABS_MT_TOUCH_MINOR] = 255;
-		input->absfuzz[ABS_MT_TOUCH_MINOR] = 4;
-
-		set_bit(ABS_MT_ORIENTATION, input->absbit);
-		input->absmin[ABS_MT_ORIENTATION] = -32;
-		input->absmax[ABS_MT_ORIENTATION] = 31;
-		input->absfuzz[ABS_MT_ORIENTATION] = 1;
-
-		set_bit(ABS_MT_POSITION_X, input->absbit);
-		input->absmin[ABS_MT_POSITION_X] = -1100;
-		input->absmax[ABS_MT_POSITION_X] = 1358;
-		input->absfuzz[ABS_MT_POSITION_X] = 4;
-
+		input_set_abs_params(input, ABS_MT_TRACKING_ID, 0, 15, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 4, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 255, 4, 0);
+		input_set_abs_params(input, ABS_MT_ORIENTATION, -32, 31, 1, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_X, -1100, 1358,
+				4, 0);
 		/* Note: Touch Y position from the device is inverted relative
 		 * to how pointer motion is reported (and relative to how USB
 		 * HID recommends the coordinates work).  This driver keeps
 		 * the origin at the same position, and just uses the additive
 		 * inverse of the reported Y.
 		 */
-		set_bit(ABS_MT_POSITION_Y, input->absbit);
-		input->absmin[ABS_MT_POSITION_Y] = -1589;
-		input->absmax[ABS_MT_POSITION_Y] = 2047;
-		input->absfuzz[ABS_MT_POSITION_Y] = 4;
+		input_set_abs_params(input, ABS_MT_POSITION_Y, -1589, 2047,
+				4, 0);
 	}
 
 	if (report_undeciphered) {
-		set_bit(EV_MSC, input->evbit);
-		set_bit(MSC_RAW, input->mscbit);
+		__set_bit(EV_MSC, input->evbit);
+		__set_bit(MSC_RAW, input->mscbit);
 	}
 }
 
@@ -385,7 +363,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 	if (!report) {
 		dev_err(&hdev->dev, "unable to register touch report\n");
 		ret = -ENOMEM;
-		goto err_free;
+		goto err_stop_hw;
 	}
 	report->size = 6;
 
@@ -394,35 +372,37 @@ static int magicmouse_probe(struct hid_device *hdev,
 	if (ret != sizeof(feature_1)) {
 		dev_err(&hdev->dev, "unable to request touch data (1:%d)\n",
 				ret);
-		goto err_free;
+		goto err_stop_hw;
 	}
 	ret = hdev->hid_output_raw_report(hdev, feature_2,
 			sizeof(feature_2), HID_FEATURE_REPORT);
 	if (ret != sizeof(feature_2)) {
 		dev_err(&hdev->dev, "unable to request touch data (2:%d)\n",
 				ret);
-		goto err_free;
+		goto err_stop_hw;
 	}
 
 	input = input_allocate_device();
 	if (!input) {
 		dev_err(&hdev->dev, "can't alloc input device\n");
 		ret = -ENOMEM;
-		goto err_free;
+		goto err_stop_hw;
 	}
 	magicmouse_setup_input(input, hdev);
 
 	ret = input_register_device(input);
 	if (ret) {
 		dev_err(&hdev->dev, "input device registration failed\n");
-		goto err_both;
+		goto err_input;
 	}
 	msc->input = input;
 
 	return 0;
- err_both:
+err_input:
 	input_free_device(input);
- err_free:
+err_stop_hw:
+	hid_hw_stop(hdev);
+err_free:
 	kfree(msc);
 	return ret;
 }
