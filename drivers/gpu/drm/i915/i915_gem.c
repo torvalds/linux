@@ -46,7 +46,8 @@ static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 						     uint64_t offset,
 						     uint64_t size);
 static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj);
-static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
+static int i915_gem_object_wait_rendering(struct drm_gem_object *obj,
+					  bool interruptible);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
@@ -1468,6 +1469,14 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 	obj_priv->pages = NULL;
 }
 
+static uint32_t
+i915_gem_next_request_seqno(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	return dev_priv->next_seqno;
+}
+
 static void
 i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno,
 			       struct intel_ring_buffer *ring)
@@ -1483,6 +1492,11 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno,
 		drm_gem_object_reference(obj);
 		obj_priv->active = 1;
 	}
+
+	/* Take the seqno of the next request if none is given */
+	if (seqno == 0)
+		seqno = i915_gem_next_request_seqno(dev);
+
 	/* Move from whatever list we were on to the tail of execution. */
 	spin_lock(&dev_priv->mm.active_list_lock);
 	list_move_tail(&obj_priv->list, &ring->active_list);
@@ -1828,6 +1842,12 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 
 	BUG_ON(seqno == 0);
 
+	if (seqno == dev_priv->next_seqno) {
+		seqno = i915_add_request(dev, NULL, 0, ring);
+		if (seqno == 0)
+			return -ENOMEM;
+	}
+
 	if (atomic_read(&dev_priv->mm.wedged))
 		return -EIO;
 
@@ -1915,7 +1935,8 @@ i915_gem_flush(struct drm_device *dev,
  * safe to unbind from the GTT or access from the CPU.
  */
 static int
-i915_gem_object_wait_rendering(struct drm_gem_object *obj)
+i915_gem_object_wait_rendering(struct drm_gem_object *obj,
+			       bool interruptible)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
@@ -1934,8 +1955,10 @@ i915_gem_object_wait_rendering(struct drm_gem_object *obj)
 		DRM_INFO("%s: object %p wait for seqno %08x\n",
 			  __func__, obj, obj_priv->last_rendering_seqno);
 #endif
-		ret = i915_wait_request(dev,
-				obj_priv->last_rendering_seqno, obj_priv->ring);
+		ret = i915_do_wait_request(dev,
+					   obj_priv->last_rendering_seqno,
+					   interruptible,
+					   obj_priv->ring);
 		if (ret != 0)
 			return ret;
 	}
@@ -2438,7 +2461,7 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 		if (ret != 0)
 			return ret;
 
-		ret = i915_gem_object_wait_rendering(obj);
+		ret = i915_gem_object_wait_rendering(obj, true);
 		if (ret != 0)
 			return ret;
 	}
@@ -2694,7 +2717,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 		return ret;
 
 	/* Wait on any GPU rendering and flushing to occur. */
-	ret = i915_gem_object_wait_rendering(obj);
+	ret = i915_gem_object_wait_rendering(obj, true);
 	if (ret != 0)
 		return ret;
 
@@ -2733,7 +2756,6 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 int
 i915_gem_object_set_to_display_plane(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
@@ -2747,18 +2769,9 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj)
 		return ret;
 
 	/* Wait on any GPU rendering and flushing to occur. */
-	if (obj_priv->active) {
-#if WATCH_BUF
-		DRM_INFO("%s: object %p wait for seqno %08x\n",
-			  __func__, obj, obj_priv->last_rendering_seqno);
-#endif
-		ret = i915_do_wait_request(dev,
-				obj_priv->last_rendering_seqno,
-				0,
-				obj_priv->ring);
-		if (ret != 0)
-			return ret;
-	}
+	ret = i915_gem_object_wait_rendering(obj, false);
+	if (ret != 0)
+		return ret;
 
 	i915_gem_object_flush_cpu_write_domain(obj);
 
@@ -2797,7 +2810,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 		return ret;
 
 	/* Wait on any GPU rendering and flushing to occur. */
-	ret = i915_gem_object_wait_rendering(obj);
+	ret = i915_gem_object_wait_rendering(obj, true);
 	if (ret != 0)
 		return ret;
 
@@ -3098,7 +3111,7 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 		return ret;
 
 	/* Wait on any GPU rendering and flushing to occur. */
-	ret = i915_gem_object_wait_rendering(obj);
+	ret = i915_gem_object_wait_rendering(obj, true);
 	if (ret != 0)
 		return ret;
 	i915_gem_object_flush_gtt_write_domain(obj);
