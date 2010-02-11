@@ -1481,12 +1481,14 @@ i915_gem_next_request_seqno(struct drm_device *dev,
 }
 
 static void
-i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno,
+i915_gem_object_move_to_active(struct drm_gem_object *obj,
 			       struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	uint32_t seqno = i915_gem_next_request_seqno(dev, ring);
+
 	BUG_ON(ring == NULL);
 	obj_priv->ring = ring;
 
@@ -1495,10 +1497,6 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj, uint32_t seqno,
 		drm_gem_object_reference(obj);
 		obj_priv->active = 1;
 	}
-
-	/* Take the seqno of the next request if none is given */
-	if (seqno == 0)
-		seqno = i915_gem_next_request_seqno(dev, ring);
 
 	/* Move from whatever list we were on to the tail of execution. */
 	spin_lock(&dev_priv->mm.active_list_lock);
@@ -1590,7 +1588,7 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 
 			obj->write_domain = 0;
 			list_del_init(&obj_priv->gpu_write_list);
-			i915_gem_object_move_to_active(obj, 0, ring);
+			i915_gem_object_move_to_active(obj, ring);
 
 			/* update the fence lru list */
 			if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
@@ -3819,6 +3817,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 
+	for (i = 0; i < args->buffer_count; i++) {
+		struct drm_gem_object *obj = object_list[i];
+		obj_priv = to_intel_bo(obj);
+
+		i915_gem_object_move_to_active(obj, ring);
+#if WATCH_LRU
+		DRM_INFO("%s: move to exec list %p\n", __func__, obj);
+#endif
+	}
+
 	/*
 	 * Get a seqno representing the execution of the current buffer,
 	 * which we can wait on.  We would like to mitigate these interrupts,
@@ -3827,15 +3835,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 * wait on when trying to clear up gtt space).
 	 */
 	seqno = i915_add_request(dev, file_priv, ring);
-	for (i = 0; i < args->buffer_count; i++) {
-		struct drm_gem_object *obj = object_list[i];
-		obj_priv = to_intel_bo(obj);
 
-		i915_gem_object_move_to_active(obj, seqno, ring);
-#if WATCH_LRU
-		DRM_INFO("%s: move to exec list %p\n", __func__, obj);
-#endif
-	}
 #if WATCH_LRU
 	i915_dump_lru(dev, __func__);
 #endif
