@@ -1002,6 +1002,9 @@ static int af9015_read_config(struct usb_device *udev)
 			af9015_af9013_config[i].gpio[1] = AF9013_GPIO_LO;
 			af9015_af9013_config[i].rf_spec_inv = 1;
 			break;
+		case AF9013_TUNER_TDA18218:
+			warn("tuner NXP TDA18218 not supported yet");
+			return -ENODEV;
 		default:
 			warn("tuner id:%d not supported, please report!", val);
 			return -ENODEV;
