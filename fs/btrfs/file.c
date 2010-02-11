@@ -720,13 +720,15 @@ again:
 					inode->i_ino, orig_offset);
 		BUG_ON(ret);
 	}
-	fi = btrfs_item_ptr(leaf, path->slots[0],
-			   struct btrfs_file_extent_item);
 	if (del_nr == 0) {
+		fi = btrfs_item_ptr(leaf, path->slots[0],
+			   struct btrfs_file_extent_item);
 		btrfs_set_file_extent_type(leaf, fi,
 					   BTRFS_FILE_EXTENT_REG);
 		btrfs_mark_buffer_dirty(leaf);
 	} else {
+		fi = btrfs_item_ptr(leaf, del_slot - 1,
+			   struct btrfs_file_extent_item);
 		btrfs_set_file_extent_type(leaf, fi,
 					   BTRFS_FILE_EXTENT_REG);
 		btrfs_set_file_extent_num_bytes(leaf, fi,
