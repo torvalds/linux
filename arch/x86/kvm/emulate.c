@@ -1015,11 +1015,6 @@ done_prefixes:
 		}
 	}
 
-	if (mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
-		kvm_report_emulation_failure(ctxt->vcpu, "invalid x86/64 instruction");
-		return -1;
-	}
-
 	if (c->d & Group) {
 		group = c->d & GroupMask;
 		c->modrm = insn_fetch(u8, 1, c->eip);
@@ -1827,6 +1822,11 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 	saved_eip = c->eip;
+
+	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
+		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		goto done;
+	}
 
 	/* LOCK prefix is allowed only with some instructions */
 	if (c->lock_prefix && !(c->d & Lock)) {
