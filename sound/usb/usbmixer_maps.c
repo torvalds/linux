@@ -19,11 +19,16 @@
  *
  */
 
+struct usbmix_dB_map {
+	u32 min;
+	u32 max;
+};
 
 struct usbmix_name_map {
 	int id;
 	const char *name;
 	int control;
+	struct usbmix_dB_map *dB;
 };
 
 struct usbmix_selector_map {
@@ -72,7 +77,7 @@ static struct usbmix_name_map extigy_map[] = {
 	{ 8, "Line Playback" }, /* FU */
 	/* 9: IT mic */
 	{ 10, "Mic Playback" }, /* FU */
-	{ 11, "Capture Input Source" }, /* SU */
+	{ 11, "Capture Source" }, /* SU */
 	{ 12, "Capture" }, /* FU */
 	/* 13: OT pcm capture */
 	/* 14: MU (w/o controls) */
@@ -102,6 +107,9 @@ static struct usbmix_name_map extigy_map[] = {
  * e.g. no Master and fake PCM volume
  *			Pavel Mihaylov <bin@bash.info>
  */
+static struct usbmix_dB_map mp3plus_dB_1 = {-4781, 0};	/* just guess */
+static struct usbmix_dB_map mp3plus_dB_2 = {-1781, 618}; /* just guess */
+
 static struct usbmix_name_map mp3plus_map[] = {
 	/* 1: IT pcm */
 	/* 2: IT mic */
@@ -110,16 +118,19 @@ static struct usbmix_name_map mp3plus_map[] = {
 	/* 5: OT digital out */
 	/* 6: OT speaker */
 	/* 7: OT pcm capture */
-	{ 8, "Capture Input Source" }, /* FU, default PCM Capture Source */
+	{ 8, "Capture Source" }, /* FU, default PCM Capture Source */
 		/* (Mic, Input 1 = Line input, Input 2 = Optical input) */
 	{ 9, "Master Playback" }, /* FU, default Speaker 1 */
 	/* { 10, "Mic Capture", 1 }, */ /* FU, Mic Capture */
-	/* { 10, "Mic Capture", 2 }, */ /* FU, Mic Capture */
+	{ 10, /* "Mic Capture", */ NULL, 2, .dB = &mp3plus_dB_2 },
+		/* FU, Mic Capture */
 	{ 10, "Mic Boost", 7 }, /* FU, default Auto Gain Input */
-	{ 11, "Line Capture" }, /* FU, default PCM Capture */
+	{ 11, "Line Capture", .dB = &mp3plus_dB_2 },
+		/* FU, default PCM Capture */
 	{ 12, "Digital In Playback" }, /* FU, default PCM 1 */
-	/* { 13, "Mic Playback" }, */ /* FU, default Mic Playback */
-	{ 14, "Line Playback" }, /* FU, default Speaker */
+	{ 13, /* "Mic Playback", */ .dB = &mp3plus_dB_1 },
+		/* FU, default Mic Playback */
+	{ 14, "Line Playback", .dB = &mp3plus_dB_1 }, /* FU, default Speaker */
 	/* 15: MU */
 	{ 0 } /* terminator */
 };

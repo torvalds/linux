@@ -123,6 +123,7 @@ struct usb_mixer_elem_info {
 	int channels;
 	int val_type;
 	int min, max, res;
+	int dBmin, dBmax;
 	int cached;
 	int cache_val[MAX_CHANNELS];
 	u8 initialized;
@@ -194,42 +195,50 @@ enum {
  */
 #include "usbmixer_maps.c"
 
-/* get the mapped name if the unit matches */
-static int check_mapped_name(struct mixer_build *state, int unitid, int control, char *buf, int buflen)
+static const struct usbmix_name_map *
+find_map(struct mixer_build *state, int unitid, int control)
 {
-	const struct usbmix_name_map *p;
+	const struct usbmix_name_map *p = state->map;
 
-	if (! state->map)
-		return 0;
+	if (!p)
+		return NULL;
 
 	for (p = state->map; p->id; p++) {
-		if (p->id == unitid && p->name &&
-		    (! control || ! p->control || control == p->control)) {
-			buflen--;
-			return strlcpy(buf, p->name, buflen);
-		}
+		if (p->id == unitid &&
+		    (!control || !p->control || control == p->control))
+			return p;
 	}
-	return 0;
+	return NULL;
+}
+
+/* get the mapped name if the unit matches */
+static int
+check_mapped_name(const struct usbmix_name_map *p, char *buf, int buflen)
+{
+	if (!p || !p->name)
+		return 0;
+
+	buflen--;
+	return strlcpy(buf, p->name, buflen);
 }
 
 /* check whether the control should be ignored */
-static int check_ignored_ctl(struct mixer_build *state, int unitid, int control)
+static inline int
+check_ignored_ctl(const struct usbmix_name_map *p)
 {
-	const struct usbmix_name_map *p;
-
-	if (! state->map)
+	if (!p || p->name || p->dB)
 		return 0;
-	for (p = state->map; p->id; p++) {
-		if (p->id == unitid && ! p->name &&
-		    (! control || ! p->control || control == p->control)) {
-			/*
-			printk(KERN_DEBUG "ignored control %d:%d\n",
-			       unitid, control);
-			*/
-			return 1;
-		}
+	return 1;
+}
+
+/* dB mapping */
+static inline void check_mapped_dB(const struct usbmix_name_map *p,
+				   struct usb_mixer_elem_info *cval)
+{
+	if (p && p->dB) {
+		cval->dBmin = p->dB->min;
+		cval->dBmax = p->dB->max;
 	}
-	return 0;
 }
 
 /* get the mapped selector source name */
@@ -466,20 +475,8 @@ static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 
 	if (size < sizeof(scale))
 		return -ENOMEM;
-	/* USB descriptions contain the dB scale in 1/256 dB unit
-	 * while ALSA TLV contains in 1/100 dB unit
-	 */
-	scale[2] = (convert_signed_value(cval, cval->min) * 100) / 256;
-	scale[3] = (convert_signed_value(cval, cval->max) * 100) / 256;
-	if (scale[3] <= scale[2]) {
-		/* something is wrong; assume it's either from/to 0dB */
-		if (scale[2] < 0)
-			scale[3] = 0;
-		else if (scale[2] > 0)
-			scale[2] = 0;
-		else /* totally crap, return an error */
-			return -EINVAL;
-	}
+	scale[2] = cval->dBmin;
+	scale[3] = cval->dBmax;
 	if (copy_to_user(_tlv, scale, sizeof(scale)))
 		return -EFAULT;
 	return 0;
@@ -720,6 +717,7 @@ static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 	cval->min = default_min;
 	cval->max = cval->min + 1;
 	cval->res = 1;
+	cval->dBmin = cval->dBmax = 0;
 
 	if (cval->val_type == USB_MIXER_BOOLEAN ||
 	    cval->val_type == USB_MIXER_INV_BOOLEAN) {
@@ -787,6 +785,24 @@ static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 
 		cval->initialized = 1;
 	}
+
+	/* USB descriptions contain the dB scale in 1/256 dB unit
+	 * while ALSA TLV contains in 1/100 dB unit
+	 */
+	cval->dBmin = (convert_signed_value(cval, cval->min) * 100) / 256;
+	cval->dBmax = (convert_signed_value(cval, cval->max) * 100) / 256;
+	if (cval->dBmin > cval->dBmax) {
+		/* something is wrong; assume it's either from/to 0dB */
+		if (cval->dBmin < 0)
+			cval->dBmax = 0;
+		else if (cval->dBmin > 0)
+			cval->dBmin = 0;
+		if (cval->dBmin > cval->dBmax) {
+			/* totally crap, return an error */
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -912,6 +928,7 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 	int nameid = desc[desc[0] - 1];
 	struct snd_kcontrol *kctl;
 	struct usb_mixer_elem_info *cval;
+	const struct usbmix_name_map *map;
 
 	control++; /* change from zero-based to 1-based value */
 
@@ -920,7 +937,8 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 		return;
 	}
 
-	if (check_ignored_ctl(state, unitid, control))
+	map = find_map(state, unitid, control);
+	if (check_ignored_ctl(map))
 		return;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
@@ -954,10 +972,11 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 	}
 	kctl->private_free = usb_mixer_elem_free;
 
-	len = check_mapped_name(state, unitid, control, kctl->id.name, sizeof(kctl->id.name));
+	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	mapped_name = len != 0;
 	if (! len && nameid)
-		len = snd_usb_copy_string_desc(state, nameid, kctl->id.name, sizeof(kctl->id.name));
+		len = snd_usb_copy_string_desc(state, nameid,
+				kctl->id.name, sizeof(kctl->id.name));
 
 	switch (control) {
 	case USB_FEATURE_MUTE:
@@ -995,6 +1014,7 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
 			kctl->vd[0].access |= 
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ |
 				SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+			check_mapped_dB(map, cval);
 		}
 		break;
 
@@ -1122,8 +1142,10 @@ static void build_mixer_unit_ctl(struct mixer_build *state, unsigned char *desc,
 	unsigned int num_outs = desc[5 + input_pins];
 	unsigned int i, len;
 	struct snd_kcontrol *kctl;
+	const struct usbmix_name_map *map;
 
-	if (check_ignored_ctl(state, unitid, 0))
+	map = find_map(state, unitid, 0);
+	if (check_ignored_ctl(map))
 		return;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
@@ -1152,7 +1174,7 @@ static void build_mixer_unit_ctl(struct mixer_build *state, unsigned char *desc,
 	}
 	kctl->private_free = usb_mixer_elem_free;
 
-	len = check_mapped_name(state, unitid, 0, kctl->id.name, sizeof(kctl->id.name));
+	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	if (! len)
 		len = get_term_name(state, iterm, kctl->id.name, sizeof(kctl->id.name), 0);
 	if (! len)
@@ -1342,6 +1364,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, unsigned 
 	int i, err, nameid, type, len;
 	struct procunit_info *info;
 	struct procunit_value_info *valinfo;
+	const struct usbmix_name_map *map;
 	static struct procunit_value_info default_value_info[] = {
 		{ 0x01, "Switch", USB_MIXER_BOOLEAN },
 		{ 0 }
@@ -1371,7 +1394,8 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, unsigned 
 		/* FIXME: bitmap might be longer than 8bit */
 		if (! (dsc[12 + num_ins] & (1 << (valinfo->control - 1))))
 			continue;
-		if (check_ignored_ctl(state, unitid, valinfo->control))
+		map = find_map(state, unitid, valinfo->control);
+		if (check_ignored_ctl(map))
 			continue;
 		cval = kzalloc(sizeof(*cval), GFP_KERNEL);
 		if (! cval) {
@@ -1402,8 +1426,9 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, unsigned 
 		}
 		kctl->private_free = usb_mixer_elem_free;
 
-		if (check_mapped_name(state, unitid, cval->control, kctl->id.name, sizeof(kctl->id.name)))
-			;
+		if (check_mapped_name(map, kctl->id.name,
+						sizeof(kctl->id.name)))
+			/* nothing */ ;
 		else if (info->name)
 			strlcpy(kctl->id.name, info->name, sizeof(kctl->id.name));
 		else {
@@ -1542,6 +1567,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	int err;
 	struct usb_mixer_elem_info *cval;
 	struct snd_kcontrol *kctl;
+	const struct usbmix_name_map *map;
 	char **namelist;
 
 	if (! num_ins || desc[0] < 5 + num_ins) {
@@ -1557,7 +1583,8 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	if (num_ins == 1) /* only one ? nonsense! */
 		return 0;
 
-	if (check_ignored_ctl(state, unitid, 0))
+	map = find_map(state, unitid, 0);
+	if (check_ignored_ctl(map))
 		return 0;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
@@ -1612,7 +1639,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	kctl->private_free = usb_mixer_selector_elem_free;
 
 	nameid = desc[desc[0] - 1];
-	len = check_mapped_name(state, unitid, 0, kctl->id.name, sizeof(kctl->id.name));
+	len = check_mapped_name(map, kctl->id.name, sizeof(kctl->id.name));
 	if (len)
 		;
 	else if (nameid)
