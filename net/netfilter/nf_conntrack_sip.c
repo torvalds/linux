@@ -56,6 +56,9 @@ unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb, unsigned int dataoff,
 				unsigned int *datalen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_hook);
 
+void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb, s16 off) __read_mostly;
+EXPORT_SYMBOL_GPL(nf_nat_sip_seq_adjust_hook);
+
 unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 				       unsigned int dataoff,
 				       const char **dptr,
@@ -1360,6 +1363,7 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 	const char *dptr, *end;
 	s16 diff, tdiff = 0;
 	int ret;
+	typeof(nf_nat_sip_seq_adjust_hook) nf_nat_sip_seq_adjust;
 
 	if (ctinfo != IP_CT_ESTABLISHED &&
 	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY)
@@ -1413,6 +1417,12 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 		dataoff += msglen;
 		dptr    += msglen;
 		datalen  = datalen + diff - msglen;
+	}
+
+	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
+		nf_nat_sip_seq_adjust = rcu_dereference(nf_nat_sip_seq_adjust_hook);
+		if (nf_nat_sip_seq_adjust)
+			nf_nat_sip_seq_adjust(skb, tdiff);
 	}
 
 	return ret;

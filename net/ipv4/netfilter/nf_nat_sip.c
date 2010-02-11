@@ -1,4 +1,4 @@
-/* SIP extension for UDP NAT alteration.
+/* SIP extension for NAT alteration.
  *
  * (C) 2005 by Christian Hentschel <chentschel@arnet.com.ar>
  * based on RR's ip_nat_ftp.c and other modules.
@@ -15,6 +15,7 @@
 #include <linux/ip.h>
 #include <net/ip.h>
 #include <linux/udp.h>
+#include <linux/tcp.h>
 
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
@@ -36,10 +37,27 @@ static unsigned int mangle_packet(struct sk_buff *skb, unsigned int dataoff,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	struct tcphdr *th;
+	unsigned int baseoff;
 
-	if (!nf_nat_mangle_udp_packet(skb, ct, ctinfo, matchoff, matchlen,
-				      buffer, buflen))
-		return 0;
+	if (nf_ct_protonum(ct) == IPPROTO_TCP) {
+		th = (struct tcphdr *)(skb->data + ip_hdrlen(skb));
+		baseoff = ip_hdrlen(skb) + th->doff * 4;
+		matchoff += dataoff - baseoff;
+
+		if (!__nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
+						matchoff, matchlen,
+						buffer, buflen, false))
+			return 0;
+	} else {
+		baseoff = ip_hdrlen(skb) + sizeof(struct udphdr);
+		matchoff += dataoff - baseoff;
+
+		if (!nf_nat_mangle_udp_packet(skb, ct, ctinfo,
+					      matchoff, matchlen,
+					      buffer, buflen))
+			return 0;
+	}
 
 	/* Reload data pointer and adjust datalen value */
 	*dptr = skb->data + dataoff;
@@ -104,6 +122,7 @@ static unsigned int ip_nat_sip(struct sk_buff *skb, unsigned int dataoff,
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	unsigned int coff, matchoff, matchlen;
+	enum sip_header_types hdr;
 	union nf_inet_addr addr;
 	__be16 port;
 	int request, in_header;
@@ -120,9 +139,14 @@ static unsigned int ip_nat_sip(struct sk_buff *skb, unsigned int dataoff,
 	} else
 		request = 0;
 
+	if (nf_ct_protonum(ct) == IPPROTO_TCP)
+		hdr = SIP_HDR_VIA_TCP;
+	else
+		hdr = SIP_HDR_VIA_UDP;
+
 	/* Translate topmost Via header and parameters */
 	if (ct_sip_parse_header_uri(ct, *dptr, NULL, *datalen,
-				    SIP_HDR_VIA_UDP, NULL, &matchoff, &matchlen,
+				    hdr, NULL, &matchoff, &matchlen,
 				    &addr, &port) > 0) {
 		unsigned int matchend, poff, plen, buflen, n;
 		char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];
@@ -204,7 +228,21 @@ next:
 	if (!map_sip_addr(skb, dataoff, dptr, datalen, SIP_HDR_FROM) ||
 	    !map_sip_addr(skb, dataoff, dptr, datalen, SIP_HDR_TO))
 		return NF_DROP;
+
 	return NF_ACCEPT;
+}
+
+static void ip_nat_sip_seq_adjust(struct sk_buff *skb, s16 off)
+{
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
+	const struct tcphdr *th;
+
+	if (nf_ct_protonum(ct) != IPPROTO_TCP || off == 0)
+		return;
+
+	th = (struct tcphdr *)(skb->data + ip_hdrlen(skb));
+	nf_nat_set_seq_adjust(ct, ctinfo, th->seq, off);
 }
 
 /* Handles expected signalling connections and media streams */
@@ -472,6 +510,7 @@ err1:
 static void __exit nf_nat_sip_fini(void)
 {
 	rcu_assign_pointer(nf_nat_sip_hook, NULL);
+	rcu_assign_pointer(nf_nat_sip_seq_adjust_hook, NULL);
 	rcu_assign_pointer(nf_nat_sip_expect_hook, NULL);
 	rcu_assign_pointer(nf_nat_sdp_addr_hook, NULL);
 	rcu_assign_pointer(nf_nat_sdp_port_hook, NULL);
@@ -483,12 +522,14 @@ static void __exit nf_nat_sip_fini(void)
 static int __init nf_nat_sip_init(void)
 {
 	BUG_ON(nf_nat_sip_hook != NULL);
+	BUG_ON(nf_nat_sip_seq_adjust_hook != NULL);
 	BUG_ON(nf_nat_sip_expect_hook != NULL);
 	BUG_ON(nf_nat_sdp_addr_hook != NULL);
 	BUG_ON(nf_nat_sdp_port_hook != NULL);
 	BUG_ON(nf_nat_sdp_session_hook != NULL);
 	BUG_ON(nf_nat_sdp_media_hook != NULL);
 	rcu_assign_pointer(nf_nat_sip_hook, ip_nat_sip);
+	rcu_assign_pointer(nf_nat_sip_seq_adjust_hook, ip_nat_sip_seq_adjust);
 	rcu_assign_pointer(nf_nat_sip_expect_hook, ip_nat_sip_expect);
 	rcu_assign_pointer(nf_nat_sdp_addr_hook, ip_nat_sdp_addr);
 	rcu_assign_pointer(nf_nat_sdp_port_hook, ip_nat_sdp_port);
