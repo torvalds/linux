@@ -1107,9 +1107,9 @@ static void write_ecryptfs_marker(char *page_virt, size_t *written)
 	(*written) = MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
 }
 
-static void
-write_ecryptfs_flags(char *page_virt, struct ecryptfs_crypt_stat *crypt_stat,
-		     size_t *written)
+void ecryptfs_write_crypt_stat_flags(char *page_virt,
+				     struct ecryptfs_crypt_stat *crypt_stat,
+				     size_t *written)
 {
 	u32 flags = 0;
 	int i;
@@ -1290,7 +1290,8 @@ static int ecryptfs_write_headers_virt(char *page_virt, size_t max,
 	offset = ECRYPTFS_FILE_SIZE_BYTES;
 	write_ecryptfs_marker((page_virt + offset), &written);
 	offset += written;
-	write_ecryptfs_flags((page_virt + offset), crypt_stat, &written);
+	ecryptfs_write_crypt_stat_flags((page_virt + offset), crypt_stat,
+					&written);
 	offset += written;
 	ecryptfs_write_header_metadata((page_virt + offset), crypt_stat,
 				       &written);

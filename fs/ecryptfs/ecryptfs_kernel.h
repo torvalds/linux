@@ -659,6 +659,9 @@ int ecryptfs_decrypt_page(struct page *page);
 int ecryptfs_write_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry);
 int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
+void ecryptfs_write_crypt_stat_flags(char *page_virt,
+				     struct ecryptfs_crypt_stat *crypt_stat,
+				     size_t *written);
 int ecryptfs_read_and_validate_header_region(char *data,
 					     struct inode *ecryptfs_inode);
 int ecryptfs_read_and_validate_xattr_region(char *page_virt,

@@ -82,6 +82,19 @@ out:
 	return rc;
 }
 
+static void strip_xattr_flag(char *page_virt,
+			     struct ecryptfs_crypt_stat *crypt_stat)
+{
+	if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
+		size_t written;
+
+		crypt_stat->flags &= ~ECRYPTFS_METADATA_IN_XATTR;
+		ecryptfs_write_crypt_stat_flags(page_virt, crypt_stat,
+						&written);
+		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
+	}
+}
+
 /**
  *   Header Extent:
  *     Octets 0-7:        Unencrypted file size (big-endian)
@@ -136,6 +149,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 
 				rc = ecryptfs_read_xattr_region(
 					page_virt, page->mapping->host);
+				strip_xattr_flag(page_virt + 16, crypt_stat);
 				ecryptfs_write_header_metadata(page_virt + 20,
 							       crypt_stat,
 							       &written);
