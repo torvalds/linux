@@ -846,9 +846,9 @@ static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx
 					"0x%04X\n", reg);
 			return -EINVAL;
 		}
+		tmp = (reg - CB_COLOR0_BASE) / 4;
 		track->cb_color_bo_offset[tmp] = radeon_get_ib_value(p, idx);
 		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-		tmp = (reg - CB_COLOR0_BASE) / 4;
 		track->cb_color_base_last[tmp] = ib[idx];
 		track->cb_color_bo[tmp] = reloc->robj;
 		break;
@@ -1324,6 +1324,8 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 	do {
 		r = r600_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
+			kfree(p->track);
+			p->track = NULL;
 			return r;
 		}
 		p->idx += pkt.count + 2;
@@ -1339,10 +1341,12 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 		default:
 			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
 			kfree(p->track);
+			p->track = NULL;
 			return -EINVAL;
 		}
 		if (r) {
 			kfree(p->track);
+			p->track = NULL;
 			return r;
 		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
@@ -1353,6 +1357,7 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 	}
 #endif
 	kfree(p->track);
+	p->track = NULL;
 	return 0;
 }
 
