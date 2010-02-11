@@ -43,7 +43,7 @@ bool tomoyo_memory_ok(void *ptr);
  * Keep the given name on the RAM.
  * The RAM is shared, so NEVER try to modify or kfree() the returned name.
  */
-const struct tomoyo_path_info *tomoyo_save_name(const char *name);
+const struct tomoyo_path_info *tomoyo_get_name(const char *name);
 
 /* Check for memory usage. */
 int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
@@ -53,5 +53,24 @@ int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
 
 /* Initialize realpath related code. */
 void __init tomoyo_realpath_init(void);
+
+/*
+ * tomoyo_name_entry is a structure which is used for linking
+ * "struct tomoyo_path_info" into tomoyo_name_list .
+ */
+struct tomoyo_name_entry {
+	struct list_head list;
+	atomic_t users;
+	struct tomoyo_path_info entry;
+};
+
+static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
+{
+	if (name) {
+		struct tomoyo_name_entry *ptr =
+			container_of(name, struct tomoyo_name_entry, entry);
+		atomic_dec(&ptr->users);
+	}
+}
 
 #endif /* !defined(_SECURITY_TOMOYO_REALPATH_H) */

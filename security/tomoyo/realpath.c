@@ -254,21 +254,6 @@ static unsigned int tomoyo_quota_for_savename;
 #define TOMOYO_MAX_HASH (1u<<TOMOYO_HASH_BITS)
 
 /*
- * tomoyo_name_entry is a structure which is used for linking
- * "struct tomoyo_path_info" into tomoyo_name_list .
- *
- * Since tomoyo_name_list manages a list of strings which are shared by
- * multiple processes (whereas "struct tomoyo_path_info" inside
- * "struct tomoyo_path_info_with_data" is not shared), a reference counter will
- * be added to "struct tomoyo_name_entry" rather than "struct tomoyo_path_info"
- * when TOMOYO starts supporting garbage collector.
- */
-struct tomoyo_name_entry {
-	struct list_head list;
-	struct tomoyo_path_info entry;
-};
-
-/*
  * tomoyo_name_list is used for holding string data used by TOMOYO.
  * Since same string data is likely used for multiple times (e.g.
  * "/lib/libc-2.5.so"), TOMOYO shares string data in the form of
@@ -277,13 +262,13 @@ struct tomoyo_name_entry {
 static struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
 
 /**
- * tomoyo_save_name - Allocate permanent memory for string data.
+ * tomoyo_get_name - Allocate permanent memory for string data.
  *
  * @name: The string to store into the permernent memory.
  *
  * Returns pointer to "struct tomoyo_path_info" on success, NULL otherwise.
  */
-const struct tomoyo_path_info *tomoyo_save_name(const char *name)
+const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 {
 	static DEFINE_MUTEX(lock);
 	struct tomoyo_name_entry *ptr;
@@ -299,8 +284,10 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 	head = &tomoyo_name_list[hash_long(hash, TOMOYO_HASH_BITS)];
 	mutex_lock(&lock);
 	list_for_each_entry(ptr, head, list) {
-		if (hash == ptr->entry.hash && !strcmp(name, ptr->entry.name))
-			goto out;
+		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name))
+			continue;
+		atomic_inc(&ptr->users);
+		goto out;
 	}
 	ptr = kzalloc(sizeof(*ptr) + len, GFP_KERNEL);
 	allocated_len = ptr ? ksize(ptr) : 0;
@@ -309,7 +296,7 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 		     > tomoyo_quota_for_savename)) {
 		kfree(ptr);
 		printk(KERN_WARNING "ERROR: Out of memory "
-		       "for tomoyo_save_name().\n");
+		       "for tomoyo_get_name().\n");
 		if (!tomoyo_policy_loaded)
 			panic("MAC Initialization failed.\n");
 		ptr = NULL;
@@ -318,6 +305,7 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 	tomoyo_allocated_memory_for_savename += allocated_len;
 	ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
 	memmove((char *) ptr->entry.name, name, len);
+	atomic_set(&ptr->users, 1);
 	tomoyo_fill_path_info(&ptr->entry);
 	list_add_tail(&ptr->list, head);
  out:
@@ -336,7 +324,7 @@ void __init tomoyo_realpath_init(void)
 	for (i = 0; i < TOMOYO_MAX_HASH; i++)
 		INIT_LIST_HEAD(&tomoyo_name_list[i]);
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);
-	tomoyo_kernel_domain.domainname = tomoyo_save_name(TOMOYO_ROOT_NAME);
+	tomoyo_kernel_domain.domainname = tomoyo_get_name(TOMOYO_ROOT_NAME);
 	/*
 	 * tomoyo_read_lock() is not needed because this function is
 	 * called before the first "delete" request.

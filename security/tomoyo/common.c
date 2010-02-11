@@ -12,8 +12,8 @@
 #include <linux/uaccess.h>
 #include <linux/security.h>
 #include <linux/hardirq.h>
-#include "realpath.h"
 #include "common.h"
+#include "realpath.h"
 #include "tomoyo.h"
 
 /* Lock for protecting policy. */
@@ -943,7 +943,9 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 		return -EINVAL;
 	*cp = '\0';
 	if (!strcmp(data, "COMMENT")) {
-		profile->comment = tomoyo_save_name(cp + 1);
+		const struct tomoyo_path_info *old_comment = profile->comment;
+		profile->comment = tomoyo_get_name(cp + 1);
+		tomoyo_put_name(old_comment);
 		return 0;
 	}
 	for (i = 0; i < TOMOYO_MAX_CONTROL_INDEX; i++) {
@@ -1117,7 +1119,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 		if (!tomoyo_is_correct_path(manager, 1, -1, -1, __func__))
 			return -EINVAL;
 	}
-	saved_manager = tomoyo_save_name(manager);
+	saved_manager = tomoyo_get_name(manager);
 	if (!saved_manager)
 		return -ENOMEM;
 	if (!is_delete)
@@ -1132,12 +1134,14 @@ static int tomoyo_update_manager_entry(const char *manager,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->manager = saved_manager;
+		saved_manager = NULL;
 		entry->is_domain = is_domain;
 		list_add_tail_rcu(&entry->list, &tomoyo_policy_manager_list);
 		entry = NULL;
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+	tomoyo_put_name(saved_manager);
 	kfree(entry);
 	return error;
 }

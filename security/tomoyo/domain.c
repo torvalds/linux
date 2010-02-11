@@ -203,7 +203,7 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 {
 	struct tomoyo_domain_initializer_entry *entry = NULL;
 	struct tomoyo_domain_initializer_entry *ptr;
-	const struct tomoyo_path_info *saved_program;
+	const struct tomoyo_path_info *saved_program = NULL;
 	const struct tomoyo_path_info *saved_domainname = NULL;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	bool is_last_name = false;
@@ -216,11 +216,11 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 			is_last_name = true;
 		else if (!tomoyo_is_correct_domain(domainname, __func__))
 			return -EINVAL;
-		saved_domainname = tomoyo_save_name(domainname);
+		saved_domainname = tomoyo_get_name(domainname);
 		if (!saved_domainname)
 			goto out;
 	}
-	saved_program = tomoyo_save_name(program);
+	saved_program = tomoyo_get_name(program);
 	if (!saved_program)
 		goto out;
 	if (!is_delete)
@@ -237,7 +237,9 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->domainname = saved_domainname;
+		saved_domainname = NULL;
 		entry->program = saved_program;
+		saved_program = NULL;
 		entry->is_not = is_not;
 		entry->is_last_name = is_last_name;
 		list_add_tail_rcu(&entry->list,
@@ -247,6 +249,8 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
+	tomoyo_put_name(saved_domainname);
+	tomoyo_put_name(saved_program);
 	kfree(entry);
 	return error;
 }
@@ -419,7 +423,7 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 {
 	struct tomoyo_domain_keeper_entry *entry = NULL;
 	struct tomoyo_domain_keeper_entry *ptr;
-	const struct tomoyo_path_info *saved_domainname;
+	const struct tomoyo_path_info *saved_domainname = NULL;
 	const struct tomoyo_path_info *saved_program = NULL;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	bool is_last_name = false;
@@ -432,11 +436,11 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	if (program) {
 		if (!tomoyo_is_correct_path(program, 1, -1, -1, __func__))
 			return -EINVAL;
-		saved_program = tomoyo_save_name(program);
+		saved_program = tomoyo_get_name(program);
 		if (!saved_program)
 			goto out;
 	}
-	saved_domainname = tomoyo_save_name(domainname);
+	saved_domainname = tomoyo_get_name(domainname);
 	if (!saved_domainname)
 		goto out;
 	if (!is_delete)
@@ -453,7 +457,9 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->domainname = saved_domainname;
+		saved_domainname = NULL;
 		entry->program = saved_program;
+		saved_program = NULL;
 		entry->is_not = is_not;
 		entry->is_last_name = is_last_name;
 		list_add_tail_rcu(&entry->list, &tomoyo_domain_keeper_list);
@@ -462,6 +468,8 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
+	tomoyo_put_name(saved_domainname);
+	tomoyo_put_name(saved_program);
 	kfree(entry);
 	return error;
 }
@@ -623,8 +631,8 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	if (!tomoyo_is_correct_path(original_name, 1, -1, -1, __func__) ||
 	    !tomoyo_is_correct_path(aliased_name, 1, -1, -1, __func__))
 		return -EINVAL; /* No patterns allowed. */
-	saved_original_name = tomoyo_save_name(original_name);
-	saved_aliased_name = tomoyo_save_name(aliased_name);
+	saved_original_name = tomoyo_get_name(original_name);
+	saved_aliased_name = tomoyo_get_name(aliased_name);
 	if (!saved_original_name || !saved_aliased_name)
 		goto out;
 	if (!is_delete)
@@ -640,13 +648,17 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->original_name = saved_original_name;
+		saved_original_name = NULL;
 		entry->aliased_name = saved_aliased_name;
+		saved_aliased_name = NULL;
 		list_add_tail_rcu(&entry->list, &tomoyo_alias_list);
 		entry = NULL;
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
+	tomoyo_put_name(saved_original_name);
+	tomoyo_put_name(saved_aliased_name);
 	kfree(entry);
 	return error;
 }
@@ -721,7 +733,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 
 	if (!tomoyo_is_correct_domain(domainname, __func__))
 		return NULL;
-	saved_domainname = tomoyo_save_name(domainname);
+	saved_domainname = tomoyo_get_name(domainname);
 	if (!saved_domainname)
 		return NULL;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -736,6 +748,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	if (!found && tomoyo_memory_ok(entry)) {
 		INIT_LIST_HEAD(&entry->acl_info_list);
 		entry->domainname = saved_domainname;
+		saved_domainname = NULL;
 		entry->profile = profile;
 		list_add_tail_rcu(&entry->list, &tomoyo_domain_list);
 		domain = entry;
@@ -743,6 +756,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		found = true;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+	tomoyo_put_name(saved_domainname);
 	kfree(entry);
 	return found ? domain : NULL;
 }

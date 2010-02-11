@@ -222,7 +222,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 
 	if (!tomoyo_is_correct_path(filename, 1, 0, -1, __func__))
 		return -EINVAL;
-	saved_filename = tomoyo_save_name(filename);
+	saved_filename = tomoyo_get_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
 	if (!is_delete)
@@ -237,11 +237,13 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->filename = saved_filename;
+		saved_filename = NULL;
 		list_add_tail_rcu(&entry->list, &tomoyo_globally_readable_list);
 		entry = NULL;
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+	tomoyo_put_name(saved_filename);
 	kfree(entry);
 	return error;
 }
@@ -365,7 +367,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	const struct tomoyo_path_info *saved_pattern;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	saved_pattern = tomoyo_save_name(pattern);
+	saved_pattern = tomoyo_get_name(pattern);
 	if (!saved_pattern)
 		return error;
 	if (!saved_pattern->is_patterned)
@@ -382,6 +384,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->pattern = saved_pattern;
+		saved_pattern = NULL;
 		list_add_tail_rcu(&entry->list, &tomoyo_pattern_list);
 		entry = NULL;
 		error = 0;
@@ -389,6 +392,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	mutex_unlock(&tomoyo_policy_lock);
  out:
 	kfree(entry);
+	tomoyo_put_name(saved_pattern);
 	return error;
 }
 
@@ -518,7 +522,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 
 	if (!tomoyo_is_correct_path(pattern, 0, 0, 0, __func__))
 		return -EINVAL;
-	saved_pattern = tomoyo_save_name(pattern);
+	saved_pattern = tomoyo_get_name(pattern);
 	if (!saved_pattern)
 		return error;
 	if (!is_delete)
@@ -533,11 +537,13 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
 		entry->pattern = saved_pattern;
+		saved_pattern = NULL;
 		list_add_tail_rcu(&entry->list, &tomoyo_no_rewrite_list);
 		entry = NULL;
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+	tomoyo_put_name(saved_pattern);
 	kfree(entry);
 	return error;
 }
@@ -867,7 +873,7 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 		return -EINVAL;
 	if (!tomoyo_is_correct_path(filename, 0, 0, 0, __func__))
 		return -EINVAL;
-	saved_filename = tomoyo_save_name(filename);
+	saved_filename = tomoyo_get_name(filename);
 	if (!saved_filename)
 		return -ENOMEM;
 	if (!is_delete)
@@ -913,12 +919,14 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 		if (perm == (1 << TOMOYO_TYPE_READ_WRITE_ACL))
 			entry->perm |= rw_mask;
 		entry->filename = saved_filename;
+		saved_filename = NULL;
 		list_add_tail_rcu(&entry->head.list, &domain->acl_info_list);
 		entry = NULL;
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
 	kfree(entry);
+	tomoyo_put_name(saved_filename);
 	return error;
 }
 
@@ -952,8 +960,8 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 	if (!tomoyo_is_correct_path(filename1, 0, 0, 0, __func__) ||
 	    !tomoyo_is_correct_path(filename2, 0, 0, 0, __func__))
 		return -EINVAL;
-	saved_filename1 = tomoyo_save_name(filename1);
-	saved_filename2 = tomoyo_save_name(filename2);
+	saved_filename1 = tomoyo_get_name(filename1);
+	saved_filename2 = tomoyo_get_name(filename2);
 	if (!saved_filename1 || !saved_filename2)
 		goto out;
 	if (!is_delete)
@@ -979,13 +987,17 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 		entry->head.type = TOMOYO_TYPE_DOUBLE_PATH_ACL;
 		entry->perm = perm;
 		entry->filename1 = saved_filename1;
+		saved_filename1 = NULL;
 		entry->filename2 = saved_filename2;
+		saved_filename2 = NULL;
 		list_add_tail_rcu(&entry->head.list, &domain->acl_info_list);
 		entry = NULL;
 		error = 0;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
+	tomoyo_put_name(saved_filename1);
+	tomoyo_put_name(saved_filename2);
 	kfree(entry);
 	return error;
 }
