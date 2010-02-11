@@ -1094,7 +1094,7 @@ static int l2cap_do_connect(struct sock *sk)
 		}
 	}
 
-	hcon = hci_connect(hdev, ACL_LINK, dst,
+	hcon = hci_connect(hdev, ACL_LINK, 0, dst,
 					l2cap_pi(sk)->sec_level, auth_type);
 	if (!hcon)
 		goto done;
