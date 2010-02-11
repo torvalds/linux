@@ -118,6 +118,7 @@ struct radio_data {
 	__u32		fm_freq;
 	int		users;
 	unsigned int	is_radio_streaming;
+	int		pre_emphasis;
 	struct video_device *fm_dev;
 };
 
@@ -185,7 +186,6 @@ struct poseidon {
 	struct pd_dvb_adapter	dvb_data;	/* DVB	 */
 
 	u32			state;
-	int			country_code;
 	struct file		*file_for_stream; /* the active stream*/
 
 #ifdef CONFIG_PM
@@ -240,7 +240,6 @@ struct video_device *vdev_init(struct poseidon *, struct video_device *);
 int send_set_req(struct poseidon*, u8, s32, s32*);
 int send_get_req(struct poseidon*, u8, s32, void*, s32*, s32);
 s32 set_tuner_mode(struct poseidon*, unsigned char);
-enum tlg__analog_audio_standard get_audio_std(s32, s32);
 
 /* bulk urb alloc/free */
 int alloc_bulk_urbs_generic(struct urb **urb_array, int num,
@@ -252,7 +251,6 @@ void free_all_urb_generic(struct urb **urb_array, int num);
 /* misc */
 void poseidon_delete(struct kref *kref);
 void destroy_video_device(struct video_device **v_dev);
-extern int country_code;
 extern int debug_mode;
 void set_debug_mode(struct video_device *vfd, int debug_mode);
 

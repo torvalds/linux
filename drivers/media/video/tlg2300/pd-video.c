@@ -15,10 +15,6 @@ static int pm_video_suspend(struct poseidon *pd);
 static int pm_video_resume(struct poseidon *pd);
 static void iso_bubble_handler(struct work_struct *w);
 
-int country_code = 86;
-module_param(country_code, int, 0644);
-MODULE_PARM_DESC(country_code, "country code (e.g China is 86)");
-
 int usb_transfer_mode;
 module_param(usb_transfer_mode, int, 0644);
 MODULE_PARM_DESC(usb_transfer_mode, "0 = Bulk, 1 = Isochronous");
@@ -93,26 +89,52 @@ static struct poseidon_control controls[] = {
 		{ V4L2_CID_BRIGHTNESS, V4L2_CTRL_TYPE_INTEGER,
 			"brightness", 0, 10000, 1, 100, 0, },
 		CUST_PARM_ID_BRIGHTNESS_CTRL
-	},
-
-	{
+	}, {
 		{ V4L2_CID_CONTRAST, V4L2_CTRL_TYPE_INTEGER,
 			"contrast", 0, 10000, 1, 100, 0, },
 		CUST_PARM_ID_CONTRAST_CTRL,
-	},
-
-	{
+	}, {
 		{ V4L2_CID_HUE, V4L2_CTRL_TYPE_INTEGER,
 			"hue", 0, 10000, 1, 100, 0, },
 		CUST_PARM_ID_HUE_CTRL,
-	},
-
-	{
+	}, {
 		{ V4L2_CID_SATURATION, V4L2_CTRL_TYPE_INTEGER,
 			"saturation", 0, 10000, 1, 100, 0, },
 		CUST_PARM_ID_SATURATION_CTRL,
 	},
 };
+
+struct video_std_to_audio_std {
+	v4l2_std_id	video_std;
+	int 		audio_std;
+};
+
+static const struct video_std_to_audio_std video_to_audio_map[] = {
+	/* country : { 27, 32, 33, 34, 36, 44, 45, 46, 47, 48, 64,
+			65, 86, 351, 352, 353, 354, 358, 372, 852, 972 } */
+	{ (V4L2_STD_PAL_I | V4L2_STD_PAL_B | V4L2_STD_PAL_D |
+		V4L2_STD_SECAM_L | V4L2_STD_SECAM_D), TLG_TUNE_ASTD_NICAM },
+
+	/* country : { 1, 52, 54, 55, 886 } */
+	{V4L2_STD_NTSC_M | V4L2_STD_PAL_N | V4L2_STD_PAL_M, TLG_TUNE_ASTD_BTSC},
+
+	/* country : { 81 } */
+	{ V4L2_STD_NTSC_M_JP, TLG_TUNE_ASTD_EIAJ },
+
+	/* other country : TLG_TUNE_ASTD_A2 */
+};
+static const unsigned int map_size = ARRAY_SIZE(video_to_audio_map);
+
+static int get_audio_std(v4l2_std_id v4l2_std)
+{
+	int i = 0;
+
+	for (; i < map_size; i++) {
+		if (v4l2_std & video_to_audio_map[i].video_std)
+			return video_to_audio_map[i].audio_std;
+	}
+	return TLG_TUNE_ASTD_A2;
+}
 
 static int vidioc_querycap(struct file *file, void *fh,
 			struct v4l2_capability *cap)
@@ -1067,7 +1089,7 @@ static int pd_vidioc_s_tuner(struct poseidon *pd, int index)
 	mutex_lock(&pd->lock);
 	param = pd_audio_modes[index].tlg_audio_mode;
 	ret = send_set_req(pd, TUNER_AUD_MODE, param, &cmd_status);
-	audiomode = get_audio_std(TLG_MODE_ANALOG_TV, pd->country_code);
+	audiomode = get_audio_std(pd->video_data.context.tvnormid);
 	ret |= send_set_req(pd, TUNER_AUD_ANA_STD, audiomode,
 				&cmd_status);
 	if (!ret)
@@ -1255,9 +1277,7 @@ static int vidioc_streamoff(struct file *file, void *fh,
 	return videobuf_streamoff(&front->q);
 }
 
-/*
- * Set the firmware' default values : need altersetting and country code
- */
+/* Set the firmware's default values : need altersetting */
 static int pd_video_checkmode(struct poseidon *pd)
 {
 	s32 ret = 0, cmd_status, audiomode;
@@ -1286,8 +1306,8 @@ static int pd_video_checkmode(struct poseidon *pd)
 	ret |= send_set_req(pd, TUNE_FREQ_SELECT, TUNER_FREQ_MIN, &cmd_status);
 	ret |= send_set_req(pd, VBI_DATA_SEL, 1, &cmd_status);/* enable vbi */
 
-	/* need country code to set the audio */
-	audiomode = get_audio_std(TLG_MODE_ANALOG_TV, pd->country_code);
+	/* set the audio */
+	audiomode = get_audio_std(pd->video_data.context.tvnormid);
 	ret |= send_set_req(pd, TUNER_AUD_ANA_STD, audiomode, &cmd_status);
 	ret |= send_set_req(pd, TUNER_AUD_MODE,
 				TLG_TUNE_TVAUDIO_MODE_STEREO, &cmd_status);
@@ -1392,7 +1412,6 @@ static int pd_video_open(struct file *file)
 			goto out;
 
 		pd->cur_transfer_mode	= usb_transfer_mode;/* bulk or iso */
-		pd->country_code	= country_code;
 		init_video_context(&pd->video_data.context);
 
 		ret = pd_video_checkmode(pd);

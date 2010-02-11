@@ -22,9 +22,16 @@ static int poseidon_fm_open(struct file *filp);
 #define TUNER_FREQ_MIN_FM 76000000
 #define TUNER_FREQ_MAX_FM 108000000
 
+#define MAX_PREEMPHASIS (V4L2_PREEMPHASIS_75_uS + 1)
+static int preemphasis[MAX_PREEMPHASIS] = {
+	TLG_TUNE_ASTD_NONE,   /* V4L2_PREEMPHASIS_DISABLED */
+	TLG_TUNE_ASTD_FM_EUR, /* V4L2_PREEMPHASIS_50_uS    */
+	TLG_TUNE_ASTD_FM_US,  /* V4L2_PREEMPHASIS_75_uS    */
+};
+
 static int poseidon_check_mode_radio(struct poseidon *p)
 {
-	int ret, radiomode;
+	int ret;
 	u32 status;
 
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -38,8 +45,8 @@ static int poseidon_check_mode_radio(struct poseidon *p)
 		goto out;
 
 	ret = send_set_req(p, SGNL_SRC_SEL, TLG_SIG_SRC_ANTENNA, &status);
-	radiomode = get_audio_std(TLG_MODE_FM_RADIO, p->country_code);
-	ret = send_set_req(p, TUNER_AUD_ANA_STD, radiomode, &status);
+	ret = send_set_req(p, TUNER_AUD_ANA_STD,
+				p->radio_data.pre_emphasis, &status);
 	ret |= send_set_req(p, TUNER_AUD_MODE,
 				TLG_TUNE_TVAUDIO_MODE_STEREO, &status);
 	ret |= send_set_req(p, AUDIO_SAMPLE_RATE_SEL,
@@ -91,7 +98,9 @@ static int poseidon_fm_open(struct file *filp)
 
 	usb_autopm_get_interface(p->interface);
 	if (0 == p->state) {
-		p->country_code = country_code;
+		/* default pre-emphasis */
+		if (p->radio_data.pre_emphasis == 0)
+			p->radio_data.pre_emphasis = TLG_TUNE_ASTD_FM_EUR;
 		set_debug_mode(vfd, debug_mode);
 
 		ret = poseidon_check_mode_radio(p);
@@ -205,13 +214,12 @@ int fm_get_freq(struct file *file, void *priv, struct v4l2_frequency *argp)
 static int set_frequency(struct poseidon *p, __u32 frequency)
 {
 	__u32 freq ;
-	int ret, status, radiomode;
+	int ret, status;
 
 	mutex_lock(&p->lock);
 
-	radiomode = get_audio_std(TLG_MODE_FM_RADIO, p->country_code);
-	/*NTSC 8,PAL 2 */
-	ret = send_set_req(p, TUNER_AUD_ANA_STD, radiomode, &status);
+	ret = send_set_req(p, TUNER_AUD_ANA_STD,
+				p->radio_data.pre_emphasis, &status);
 
 	freq =  (frequency * 125) * 500 / 1000;/* kHZ */
 	if (freq < TUNER_FREQ_MIN_FM/1000 || freq > TUNER_FREQ_MAX_FM/1000) {
@@ -253,27 +261,86 @@ int fm_set_freq(struct file *file, void *priv, struct v4l2_frequency *argp)
 int tlg_fm_vidioc_g_ctrl(struct file *file, void *priv,
 		struct v4l2_control *arg)
 {
-    return 0;
+	return 0;
 }
 
-int tlg_fm_vidioc_exts_ctrl(struct file *file, void *fh,
-		struct v4l2_ext_controls *a)
+int tlg_fm_vidioc_g_exts_ctrl(struct file *file, void *fh,
+				struct v4l2_ext_controls *ctrls)
 {
-    return 0;
+	struct poseidon *p = file->private_data;
+	int i;
+
+	if (ctrls->ctrl_class != V4L2_CTRL_CLASS_FM_TX)
+		return -EINVAL;
+
+	for (i = 0; i < ctrls->count; i++) {
+		struct v4l2_ext_control *ctrl = ctrls->controls + i;
+
+		if (ctrl->id != V4L2_CID_TUNE_PREEMPHASIS)
+			continue;
+
+		if (i < MAX_PREEMPHASIS)
+			ctrl->value = p->radio_data.pre_emphasis;
+	}
+	return 0;
+}
+
+int tlg_fm_vidioc_s_exts_ctrl(struct file *file, void *fh,
+			struct v4l2_ext_controls *ctrls)
+{
+	int i;
+
+	if (ctrls->ctrl_class != V4L2_CTRL_CLASS_FM_TX)
+		return -EINVAL;
+
+	for (i = 0; i < ctrls->count; i++) {
+		struct v4l2_ext_control *ctrl = ctrls->controls + i;
+
+		if (ctrl->id != V4L2_CID_TUNE_PREEMPHASIS)
+			continue;
+
+		if (ctrl->value >= 0 && ctrl->value < MAX_PREEMPHASIS) {
+			struct poseidon *p = file->private_data;
+			int pre_emphasis = preemphasis[ctrl->value];
+			u32 status;
+
+			send_set_req(p, TUNER_AUD_ANA_STD,
+						pre_emphasis, &status);
+			p->radio_data.pre_emphasis = pre_emphasis;
+		}
+	}
+	return 0;
 }
 
 int tlg_fm_vidioc_s_ctrl(struct file *file, void *priv,
-		struct v4l2_control *arg)
+		struct v4l2_control *ctrl)
 {
-    return 0;
+	return 0;
 }
 
 int tlg_fm_vidioc_queryctrl(struct file *file, void *priv,
-		struct v4l2_queryctrl *arg)
+		struct v4l2_queryctrl *ctrl)
 {
-	arg->minimum = 0;
-	arg->maximum = 65535;
-	return 0;
+	if (!(ctrl->id & V4L2_CTRL_FLAG_NEXT_CTRL))
+		return -EINVAL;
+
+	ctrl->id &= ~V4L2_CTRL_FLAG_NEXT_CTRL;
+	if (ctrl->id != V4L2_CID_TUNE_PREEMPHASIS) {
+		/* return the next supported control */
+		ctrl->id = V4L2_CID_TUNE_PREEMPHASIS;
+		v4l2_ctrl_query_fill(ctrl, V4L2_PREEMPHASIS_DISABLED,
+					V4L2_PREEMPHASIS_75_uS, 1,
+					V4L2_PREEMPHASIS_50_uS);
+		ctrl->flags = V4L2_CTRL_FLAG_UPDATE;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int tlg_fm_vidioc_querymenu(struct file *file, void *fh,
+				struct v4l2_querymenu *qmenu)
+{
+	return v4l2_ctrl_query_menu(qmenu, NULL, NULL);
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
@@ -311,9 +378,11 @@ static const struct v4l2_ioctl_ops poseidon_fm_ioctl_ops = {
 	.vidioc_g_input     = vidioc_g_input,
 	.vidioc_s_input     = vidioc_s_input,
 	.vidioc_queryctrl   = tlg_fm_vidioc_queryctrl,
+	.vidioc_querymenu   = tlg_fm_vidioc_querymenu,
 	.vidioc_g_ctrl      = tlg_fm_vidioc_g_ctrl,
 	.vidioc_s_ctrl      = tlg_fm_vidioc_s_ctrl,
-	.vidioc_s_ext_ctrls = tlg_fm_vidioc_exts_ctrl,
+	.vidioc_s_ext_ctrls = tlg_fm_vidioc_s_exts_ctrl,
+	.vidioc_g_ext_ctrls = tlg_fm_vidioc_g_exts_ctrl,
 	.vidioc_s_tuner     = vidioc_s_tuner,
 	.vidioc_g_tuner     = tlg_fm_vidioc_g_tuner,
 	.vidioc_g_frequency = fm_get_freq,

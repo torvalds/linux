@@ -189,41 +189,6 @@ int set_tuner_mode(struct poseidon *pd, unsigned char mode)
 	return 0;
 }
 
-enum tlg__analog_audio_standard get_audio_std(s32 mode, s32 country_code)
-{
-	s32 nicam[] = {27, 32, 33, 34, 36, 44, 45, 46, 47, 48, 64,
-			65, 86, 351, 352, 353, 354, 358, 372, 852, 972};
-	s32 btsc[] = {1, 52, 54, 55, 886};
-	s32 eiaj[] = {81};
-	s32 i;
-
-	if (mode == TLG_MODE_FM_RADIO) {
-		if (country_code == 1)
-			return TLG_TUNE_ASTD_FM_US;
-		else
-			return TLG_TUNE_ASTD_FM_EUR;
-	} else if (mode == TLG_MODE_ANALOG_TV_UNCOMP) {
-		for (i = 0; i < sizeof(nicam) / sizeof(s32); i++) {
-			if (country_code == nicam[i])
-				return TLG_TUNE_ASTD_NICAM;
-		}
-
-		for (i = 0; i < sizeof(btsc) / sizeof(s32); i++) {
-			if (country_code == btsc[i])
-				return TLG_TUNE_ASTD_BTSC;
-		}
-
-		for (i = 0; i < sizeof(eiaj) / sizeof(s32); i++) {
-			if (country_code == eiaj[i])
-				return TLG_TUNE_ASTD_EIAJ;
-		}
-
-		return TLG_TUNE_ASTD_A2;
-	} else {
-		return TLG_TUNE_ASTD_NONE;
-	}
-}
-
 void poseidon_delete(struct kref *kref)
 {
 	struct poseidon *pd = container_of(kref, struct poseidon, kref);
@@ -462,7 +427,6 @@ static int poseidon_probe(struct usb_interface *interface,
 		struct device *dev = &interface->dev;
 
 		logpm(pd);
-		pd->country_code = 86;
 		mutex_init(&pd->lock);
 
 		/* register v4l2 device */
