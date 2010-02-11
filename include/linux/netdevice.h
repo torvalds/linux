@@ -746,6 +746,7 @@ struct net_device {
 #define NETIF_F_FCOE_CRC	(1 << 24) /* FCoE CRC32 */
 #define NETIF_F_SCTP_CSUM	(1 << 25) /* SCTP checksum offload */
 #define NETIF_F_FCOE_MTU	(1 << 26) /* Supports max FCoE MTU, 2158 bytes*/
+#define NETIF_F_NTUPLE		(1 << 27) /* N-tuple filters supported */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -954,6 +955,8 @@ struct net_device {
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
+	/* n-tuple filter list attached to this device */
+	struct ethtool_rx_ntuple_list ethtool_ntuple_list;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

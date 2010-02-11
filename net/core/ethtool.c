@@ -120,7 +120,7 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data)
  * NETIF_F_xxx values in include/linux/netdevice.h
  */
 static const u32 flags_dup_features =
-	ETH_FLAG_LRO;
+	(ETH_FLAG_LRO | ETH_FLAG_NTUPLE);
 
 u32 ethtool_op_get_flags(struct net_device *dev)
 {
@@ -139,8 +139,25 @@ int ethtool_op_set_flags(struct net_device *dev, u32 data)
 	else
 		dev->features &= ~NETIF_F_LRO;
 
+	if (data & ETH_FLAG_NTUPLE)
+		dev->features |= NETIF_F_NTUPLE;
+	else
+		dev->features &= ~NETIF_F_NTUPLE;
+
 	return 0;
 }
+
+void ethtool_ntuple_flush(struct net_device *dev)
+{
+	struct ethtool_rx_ntuple_flow_spec_container *fsc, *f;
+
+	list_for_each_entry_safe(fsc, f, &dev->ethtool_ntuple_list.list, list) {
+		list_del(&fsc->list);
+		kfree(fsc);
+	}
+	dev->ethtool_ntuple_list.count = 0;
+}
+EXPORT_SYMBOL(ethtool_ntuple_flush);
 
 /* Handlers for each ethtool command */
 
@@ -266,6 +283,307 @@ err_out:
 	return ret;
 }
 
+static int __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
+                                  struct ethtool_rx_ntuple_flow_spec *spec)
+{
+	struct ethtool_rx_ntuple_flow_spec_container *fsc;
+
+	/* don't add filters forever */
+	if (list->count >= ETHTOOL_MAX_NTUPLE_LIST_ENTRY)
+		return 0;
+
+	fsc = kmalloc(sizeof(*fsc), GFP_ATOMIC);
+	if (!fsc)
+		return -ENOMEM;
+
+	/* Copy the whole filter over */
+	fsc->fs.flow_type = spec->flow_type;
+	memcpy(&fsc->fs.h_u, &spec->h_u, sizeof(spec->h_u));
+	memcpy(&fsc->fs.m_u, &spec->m_u, sizeof(spec->m_u));
+
+	fsc->fs.vlan_tag = spec->vlan_tag;
+	fsc->fs.vlan_tag_mask = spec->vlan_tag_mask;
+	fsc->fs.data = spec->data;
+	fsc->fs.data_mask = spec->data_mask;
+	fsc->fs.action = spec->action;
+
+	/* add to the list */
+	list_add_tail_rcu(&fsc->list, &list->list);
+	list->count++;
+
+	return 0;
+}
+
+static int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_rx_ntuple cmd;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	int ret;
+
+	if (!ops->set_rx_ntuple)
+		return -EOPNOTSUPP;
+
+	if (!(dev->features & NETIF_F_NTUPLE))
+		return -EINVAL;
+
+	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
+		return -EFAULT;
+
+	ret = ops->set_rx_ntuple(dev, &cmd);
+
+	/*
+	 * Cache filter in dev struct for GET operation only if
+	 * the underlying driver doesn't have its own GET operation, and
+	 * only if the filter was added successfully.
+	 */
+	if (!ops->get_rx_ntuple && !ret)
+		if (__rx_ntuple_filter_add(&dev->ethtool_ntuple_list, &cmd.fs))
+			return -ENOMEM;
+
+	return ret;
+}
+
+static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
+{
+	struct ethtool_gstrings gstrings;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rx_ntuple_flow_spec_container *fsc;
+	u8 *data;
+	char *p;
+	int ret, i, num_strings = 0;
+
+	if (!ops->get_sset_count)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&gstrings, useraddr, sizeof(gstrings)))
+		return -EFAULT;
+
+	ret = ops->get_sset_count(dev, gstrings.string_set);
+	if (ret < 0)
+		return ret;
+
+	gstrings.len = ret;
+
+	data = kmalloc(gstrings.len * ETH_GSTRING_LEN, GFP_USER);
+	if (!data)
+		return -ENOMEM;
+
+	if (ops->get_rx_ntuple) {
+		/* driver-specific filter grab */
+		ret = ops->get_rx_ntuple(dev, gstrings.string_set, data);
+		goto copy;
+	}
+
+	/* default ethtool filter grab */
+	i = 0;
+	p = (char *)data;
+	list_for_each_entry(fsc, &dev->ethtool_ntuple_list.list, list) {
+		sprintf(p, "Filter %d:\n", i);
+		p += ETH_GSTRING_LEN;
+		num_strings++;
+
+		switch (fsc->fs.flow_type) {
+		case TCP_V4_FLOW:
+			sprintf(p, "\tFlow Type: TCP\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case UDP_V4_FLOW:
+			sprintf(p, "\tFlow Type: UDP\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case SCTP_V4_FLOW:
+			sprintf(p, "\tFlow Type: SCTP\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case AH_ESP_V4_FLOW:
+			sprintf(p, "\tFlow Type: AH ESP\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case ESP_V4_FLOW:
+			sprintf(p, "\tFlow Type: ESP\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case IP_USER_FLOW:
+			sprintf(p, "\tFlow Type: Raw IP\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case IPV4_FLOW:
+			sprintf(p, "\tFlow Type: IPv4\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		default:
+			sprintf(p, "\tFlow Type: Unknown\n");
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			goto unknown_filter;
+		};
+
+		/* now the rest of the filters */
+		switch (fsc->fs.flow_type) {
+		case TCP_V4_FLOW:
+		case UDP_V4_FLOW:
+		case SCTP_V4_FLOW:
+			sprintf(p, "\tSrc IP addr: 0x%x\n",
+			        fsc->fs.h_u.tcp_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tSrc IP mask: 0x%x\n",
+			        fsc->fs.m_u.tcp_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP addr: 0x%x\n",
+			        fsc->fs.h_u.tcp_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP mask: 0x%x\n",
+			        fsc->fs.m_u.tcp_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tSrc Port: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.tcp_ip4_spec.psrc,
+			        fsc->fs.m_u.tcp_ip4_spec.psrc);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest Port: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.tcp_ip4_spec.pdst,
+			        fsc->fs.m_u.tcp_ip4_spec.pdst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tTOS: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.tcp_ip4_spec.tos,
+			        fsc->fs.m_u.tcp_ip4_spec.tos);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case AH_ESP_V4_FLOW:
+		case ESP_V4_FLOW:
+			sprintf(p, "\tSrc IP addr: 0x%x\n",
+			        fsc->fs.h_u.ah_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tSrc IP mask: 0x%x\n",
+			        fsc->fs.m_u.ah_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP addr: 0x%x\n",
+			        fsc->fs.h_u.ah_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP mask: 0x%x\n",
+			        fsc->fs.m_u.ah_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tSPI: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.ah_ip4_spec.spi,
+			        fsc->fs.m_u.ah_ip4_spec.spi);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tTOS: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.ah_ip4_spec.tos,
+			        fsc->fs.m_u.ah_ip4_spec.tos);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case IP_USER_FLOW:
+			sprintf(p, "\tSrc IP addr: 0x%x\n",
+			        fsc->fs.h_u.raw_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tSrc IP mask: 0x%x\n",
+			        fsc->fs.m_u.raw_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP addr: 0x%x\n",
+			        fsc->fs.h_u.raw_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP mask: 0x%x\n",
+			        fsc->fs.m_u.raw_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		case IPV4_FLOW:
+			sprintf(p, "\tSrc IP addr: 0x%x\n",
+			        fsc->fs.h_u.usr_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tSrc IP mask: 0x%x\n",
+			        fsc->fs.m_u.usr_ip4_spec.ip4src);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP addr: 0x%x\n",
+			        fsc->fs.h_u.usr_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tDest IP mask: 0x%x\n",
+			        fsc->fs.m_u.usr_ip4_spec.ip4dst);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tL4 bytes: 0x%x, mask: 0x%x\n",
+			        fsc->fs.h_u.usr_ip4_spec.l4_4_bytes,
+			        fsc->fs.m_u.usr_ip4_spec.l4_4_bytes);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tTOS: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.usr_ip4_spec.tos,
+			        fsc->fs.m_u.usr_ip4_spec.tos);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tIP Version: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.usr_ip4_spec.ip_ver,
+			        fsc->fs.m_u.usr_ip4_spec.ip_ver);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			sprintf(p, "\tProtocol: %d, mask: 0x%x\n",
+			        fsc->fs.h_u.usr_ip4_spec.proto,
+			        fsc->fs.m_u.usr_ip4_spec.proto);
+			p += ETH_GSTRING_LEN;
+			num_strings++;
+			break;
+		};
+		sprintf(p, "\tVLAN: %d, mask: 0x%x\n",
+		        fsc->fs.vlan_tag, fsc->fs.vlan_tag_mask);
+		p += ETH_GSTRING_LEN;
+		num_strings++;
+		sprintf(p, "\tUser-defined: 0x%Lx\n", fsc->fs.data);
+		p += ETH_GSTRING_LEN;
+		num_strings++;
+		sprintf(p, "\tUser-defined mask: 0x%Lx\n", fsc->fs.data_mask);
+		p += ETH_GSTRING_LEN;
+		num_strings++;
+		if (fsc->fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP)
+			sprintf(p, "\tAction: Drop\n");
+		else
+			sprintf(p, "\tAction: Direct to queue %d\n",
+			        fsc->fs.action);
+		p += ETH_GSTRING_LEN;
+		num_strings++;
+unknown_filter:
+		i++;
+	}
+copy:
+	/* indicate to userspace how many strings we actually have */
+	gstrings.len = num_strings;
+	ret = -EFAULT;
+	if (copy_to_user(useraddr, &gstrings, sizeof(gstrings)))
+		goto out;
+	useraddr += sizeof(gstrings);
+	if (copy_to_user(useraddr, data, gstrings.len * ETH_GSTRING_LEN))
+		goto out;
+	ret = 0;
+
+out:
+	kfree(data);
+	return ret;
+}
+
 static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_regs regs;
@@ -312,6 +630,9 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 
 	if (copy_from_user(&reset, useraddr, sizeof(reset)))
 		return -EFAULT;
+
+	/* Clear ethtool n-tuple list */
+	ethtool_ntuple_flush(dev);
 
 	ret = dev->ethtool_ops->reset(dev, &reset.data);
 	if (ret)
@@ -1111,6 +1432,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_RESET:
 		rc = ethtool_reset(dev, useraddr);
+		break;
+	case ETHTOOL_SRXNTUPLE:
+		rc = ethtool_set_rx_ntuple(dev, useraddr);
+		break;
+	case ETHTOOL_GRXNTUPLE:
+		rc = ethtool_get_rx_ntuple(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
