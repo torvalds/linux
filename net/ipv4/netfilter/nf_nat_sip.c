@@ -122,7 +122,7 @@ static unsigned int ip_nat_sip(struct sk_buff *skb, unsigned int dataoff,
 
 	/* Translate topmost Via header and parameters */
 	if (ct_sip_parse_header_uri(ct, *dptr, NULL, *datalen,
-				    SIP_HDR_VIA, NULL, &matchoff, &matchlen,
+				    SIP_HDR_VIA_UDP, NULL, &matchoff, &matchlen,
 				    &addr, &port) > 0) {
 		unsigned int matchend, poff, plen, buflen, n;
 		char buffer[sizeof("nnn.nnn.nnn.nnn:nnnnn")];

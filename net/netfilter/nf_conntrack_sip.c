@@ -16,6 +16,7 @@
 #include <linux/inet.h>
 #include <linux/in.h>
 #include <linux/udp.h>
+#include <linux/tcp.h>
 #include <linux/netfilter.h>
 
 #include <net/netfilter/nf_conntrack.h>
@@ -287,7 +288,8 @@ static const struct sip_header ct_sip_hdrs[] = {
 	[SIP_HDR_FROM]			= SIP_HDR("From", "f", "sip:", skp_epaddr_len),
 	[SIP_HDR_TO]			= SIP_HDR("To", "t", "sip:", skp_epaddr_len),
 	[SIP_HDR_CONTACT]		= SIP_HDR("Contact", "m", "sip:", skp_epaddr_len),
-	[SIP_HDR_VIA]			= SIP_HDR("Via", "v", "UDP ", epaddr_len),
+	[SIP_HDR_VIA_UDP]		= SIP_HDR("Via", "v", "UDP ", epaddr_len),
+	[SIP_HDR_VIA_TCP]		= SIP_HDR("Via", "v", "TCP ", epaddr_len),
 	[SIP_HDR_EXPIRES]		= SIP_HDR("Expires", NULL, NULL, digits_len),
 	[SIP_HDR_CONTENT_LENGTH]	= SIP_HDR("Content-Length", "l", NULL, digits_len),
 };
@@ -519,6 +521,33 @@ int ct_sip_parse_header_uri(const struct nf_conn *ct, const char *dptr,
 }
 EXPORT_SYMBOL_GPL(ct_sip_parse_header_uri);
 
+static int ct_sip_parse_param(const struct nf_conn *ct, const char *dptr,
+			      unsigned int dataoff, unsigned int datalen,
+			      const char *name,
+			      unsigned int *matchoff, unsigned int *matchlen)
+{
+	const char *limit = dptr + datalen;
+	const char *start;
+	const char *end;
+
+	limit = ct_sip_header_search(dptr + dataoff, limit, ",", strlen(","));
+	if (!limit)
+		limit = dptr + datalen;
+
+	start = ct_sip_header_search(dptr + dataoff, limit, name, strlen(name));
+	if (!start)
+		return 0;
+	start += strlen(name);
+
+	end = ct_sip_header_search(start, limit, ";", strlen(";"));
+	if (!end)
+		end = limit;
+
+	*matchoff = start - dptr;
+	*matchlen = end - start;
+	return 1;
+}
+
 /* Parse address from header parameter and return address, offset and length */
 int ct_sip_parse_address_param(const struct nf_conn *ct, const char *dptr,
 			       unsigned int dataoff, unsigned int datalen,
@@ -576,6 +605,29 @@ int ct_sip_parse_numerical_param(const struct nf_conn *ct, const char *dptr,
 	return 1;
 }
 EXPORT_SYMBOL_GPL(ct_sip_parse_numerical_param);
+
+static int ct_sip_parse_transport(struct nf_conn *ct, const char *dptr,
+				  unsigned int dataoff, unsigned int datalen,
+				  u8 *proto)
+{
+	unsigned int matchoff, matchlen;
+
+	if (ct_sip_parse_param(ct, dptr, dataoff, datalen, "transport=",
+			       &matchoff, &matchlen)) {
+		if (!strnicmp(dptr + matchoff, "TCP", strlen("TCP")))
+			*proto = IPPROTO_TCP;
+		else if (!strnicmp(dptr + matchoff, "UDP", strlen("UDP")))
+			*proto = IPPROTO_UDP;
+		else
+			return 0;
+
+		if (*proto != nf_ct_protonum(ct))
+			return 0;
+	} else
+		*proto = nf_ct_protonum(ct);
+
+	return 1;
+}
 
 /* SDP header parsing: a SDP session description contains an ordered set of
  * headers, starting with a section containing general session parameters,
@@ -685,7 +737,7 @@ static int ct_sip_parse_sdp_addr(const struct nf_conn *ct, const char *dptr,
 
 static int refresh_signalling_expectation(struct nf_conn *ct,
 					  union nf_inet_addr *addr,
-					  __be16 port,
+					  u8 proto, __be16 port,
 					  unsigned int expires)
 {
 	struct nf_conn_help *help = nfct_help(ct);
@@ -697,6 +749,7 @@ static int refresh_signalling_expectation(struct nf_conn *ct,
 	hlist_for_each_entry_safe(exp, n, next, &help->expectations, lnode) {
 		if (exp->class != SIP_EXPECT_SIGNALLING ||
 		    !nf_inet_addr_cmp(&exp->tuple.dst.u3, addr) ||
+		    exp->tuple.dst.protonum != proto ||
 		    exp->tuple.dst.u.udp.port != port)
 			continue;
 		if (!del_timer(&exp->timeout))
@@ -1048,6 +1101,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 	struct nf_conntrack_expect *exp;
 	union nf_inet_addr *saddr, daddr;
 	__be16 port;
+	u8 proto;
 	unsigned int expires = 0;
 	int ret;
 	typeof(nf_nat_sip_expect_hook) nf_nat_sip_expect;
@@ -1080,6 +1134,10 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 	if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.src.u3, &daddr))
 		return NF_ACCEPT;
 
+	if (ct_sip_parse_transport(ct, *dptr, matchoff + matchlen, *datalen,
+				   &proto) == 0)
+		return NF_ACCEPT;
+
 	if (ct_sip_parse_numerical_param(ct, *dptr,
 					 matchoff + matchlen, *datalen,
 					 "expires=", NULL, NULL, &expires) < 0)
@@ -1099,7 +1157,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 		saddr = &ct->tuplehash[!dir].tuple.src.u3;
 
 	nf_ct_expect_init(exp, SIP_EXPECT_SIGNALLING, nf_ct_l3num(ct),
-			  saddr, &daddr, IPPROTO_UDP, NULL, &port);
+			  saddr, &daddr, proto, NULL, &port);
 	exp->timeout.expires = sip_timeout * HZ;
 	exp->helper = nfct_help(ct)->helper;
 	exp->flags = NF_CT_EXPECT_PERMANENT | NF_CT_EXPECT_INACTIVE;
@@ -1132,6 +1190,7 @@ static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	union nf_inet_addr addr;
 	__be16 port;
+	u8 proto;
 	unsigned int matchoff, matchlen, coff = 0;
 	unsigned int expires = 0;
 	int in_contact = 0, ret;
@@ -1172,6 +1231,10 @@ static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 		if (!nf_inet_addr_cmp(&ct->tuplehash[dir].tuple.dst.u3, &addr))
 			continue;
 
+		if (ct_sip_parse_transport(ct, *dptr, matchoff + matchlen,
+					   *datalen, &proto) == 0)
+			continue;
+
 		ret = ct_sip_parse_numerical_param(ct, *dptr,
 						   matchoff + matchlen,
 						   *datalen, "expires=",
@@ -1180,7 +1243,8 @@ static int process_register_response(struct sk_buff *skb, unsigned int dataoff,
 			return NF_DROP;
 		if (c_expires == 0)
 			break;
-		if (refresh_signalling_expectation(ct, &addr, port, c_expires))
+		if (refresh_signalling_expectation(ct, &addr, proto, port,
+						   c_expires))
 			return NF_ACCEPT;
 	}
 
@@ -1265,15 +1329,100 @@ static int process_sip_request(struct sk_buff *skb, unsigned int dataoff,
 	return NF_ACCEPT;
 }
 
-static int sip_help(struct sk_buff *skb,
-		    unsigned int protoff,
-		    struct nf_conn *ct,
-		    enum ip_conntrack_info ctinfo)
+static int process_sip_msg(struct sk_buff *skb, struct nf_conn *ct,
+			   unsigned int dataoff, const char **dptr,
+			   unsigned int *datalen)
+{
+	typeof(nf_nat_sip_hook) nf_nat_sip;
+	int ret;
+
+	if (strnicmp(*dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
+		ret = process_sip_request(skb, dataoff, dptr, datalen);
+	else
+		ret = process_sip_response(skb, dataoff, dptr, datalen);
+
+	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
+		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
+		if (nf_nat_sip && !nf_nat_sip(skb, dataoff, dptr, datalen))
+			ret = NF_DROP;
+	}
+
+	return ret;
+}
+
+static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
+{
+	struct tcphdr *th, _tcph;
+	unsigned int dataoff, datalen;
+	unsigned int matchoff, matchlen, clen;
+	unsigned int msglen, origlen;
+	const char *dptr, *end;
+	s16 diff, tdiff = 0;
+	int ret;
+
+	if (ctinfo != IP_CT_ESTABLISHED &&
+	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY)
+		return NF_ACCEPT;
+
+	/* No Data ? */
+	th = skb_header_pointer(skb, protoff, sizeof(_tcph), &_tcph);
+	if (th == NULL)
+		return NF_ACCEPT;
+	dataoff = protoff + th->doff * 4;
+	if (dataoff >= skb->len)
+		return NF_ACCEPT;
+
+	nf_ct_refresh(ct, skb, sip_timeout * HZ);
+
+	if (skb_is_nonlinear(skb)) {
+		pr_debug("Copy of skbuff not supported yet.\n");
+		return NF_ACCEPT;
+	}
+
+	dptr = skb->data + dataoff;
+	datalen = skb->len - dataoff;
+	if (datalen < strlen("SIP/2.0 200"))
+		return NF_ACCEPT;
+
+	while (1) {
+		if (ct_sip_get_header(ct, dptr, 0, datalen,
+				      SIP_HDR_CONTENT_LENGTH,
+				      &matchoff, &matchlen) <= 0)
+			break;
+
+		clen = simple_strtoul(dptr + matchoff, (char **)&end, 10);
+		if (dptr + matchoff == end)
+			break;
+
+		if (end + strlen("\r\n\r\n") > dptr + datalen)
+			break;
+		if (end[0] != '\r' || end[1] != '\n' ||
+		    end[2] != '\r' || end[3] != '\n')
+			break;
+		end += strlen("\r\n\r\n") + clen;
+
+		msglen = origlen = end - dptr;
+
+		ret = process_sip_msg(skb, ct, dataoff, &dptr, &msglen);
+		if (ret != NF_ACCEPT)
+			break;
+		diff     = msglen - origlen;
+		tdiff   += diff;
+
+		dataoff += msglen;
+		dptr    += msglen;
+		datalen  = datalen + diff - msglen;
+	}
+
+	return ret;
+}
+
+static int sip_help_udp(struct sk_buff *skb, unsigned int protoff,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo)
 {
 	unsigned int dataoff, datalen;
 	const char *dptr;
-	int ret;
-	typeof(nf_nat_sip_hook) nf_nat_sip;
 
 	/* No Data ? */
 	dataoff = protoff + sizeof(struct udphdr);
@@ -1282,33 +1431,21 @@ static int sip_help(struct sk_buff *skb,
 
 	nf_ct_refresh(ct, skb, sip_timeout * HZ);
 
-	if (!skb_is_nonlinear(skb))
-		dptr = skb->data + dataoff;
-	else {
+	if (skb_is_nonlinear(skb)) {
 		pr_debug("Copy of skbuff not supported yet.\n");
 		return NF_ACCEPT;
 	}
 
+	dptr = skb->data + dataoff;
 	datalen = skb->len - dataoff;
 	if (datalen < strlen("SIP/2.0 200"))
 		return NF_ACCEPT;
 
-	if (strnicmp(dptr, "SIP/2.0 ", strlen("SIP/2.0 ")) != 0)
-		ret = process_sip_request(skb, dataoff, &dptr, &datalen);
-	else
-		ret = process_sip_response(skb, dataoff, &dptr, &datalen);
-
-	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
-		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
-		if (nf_nat_sip && !nf_nat_sip(skb, dataoff, &dptr, &datalen))
-			ret = NF_DROP;
-	}
-
-	return ret;
+	return process_sip_msg(skb, ct, dataoff, &dptr, &datalen);
 }
 
-static struct nf_conntrack_helper sip[MAX_PORTS][2] __read_mostly;
-static char sip_names[MAX_PORTS][2][sizeof("sip-65535")] __read_mostly;
+static struct nf_conntrack_helper sip[MAX_PORTS][4] __read_mostly;
+static char sip_names[MAX_PORTS][4][sizeof("sip-65535")] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1] = {
 	[SIP_EXPECT_SIGNALLING] = {
@@ -1333,7 +1470,7 @@ static void nf_conntrack_sip_fini(void)
 	int i, j;
 
 	for (i = 0; i < ports_c; i++) {
-		for (j = 0; j < 2; j++) {
+		for (j = 0; j < ARRAY_SIZE(sip[i]); j++) {
 			if (sip[i][j].me == NULL)
 				continue;
 			nf_conntrack_helper_unregister(&sip[i][j]);
@@ -1353,14 +1490,24 @@ static int __init nf_conntrack_sip_init(void)
 		memset(&sip[i], 0, sizeof(sip[i]));
 
 		sip[i][0].tuple.src.l3num = AF_INET;
-		sip[i][1].tuple.src.l3num = AF_INET6;
-		for (j = 0; j < 2; j++) {
-			sip[i][j].tuple.dst.protonum = IPPROTO_UDP;
+		sip[i][0].tuple.dst.protonum = IPPROTO_UDP;
+		sip[i][0].help = sip_help_udp;
+		sip[i][1].tuple.src.l3num = AF_INET;
+		sip[i][1].tuple.dst.protonum = IPPROTO_TCP;
+		sip[i][1].help = sip_help_tcp;
+
+		sip[i][2].tuple.src.l3num = AF_INET6;
+		sip[i][2].tuple.dst.protonum = IPPROTO_UDP;
+		sip[i][2].help = sip_help_udp;
+		sip[i][3].tuple.src.l3num = AF_INET6;
+		sip[i][3].tuple.dst.protonum = IPPROTO_TCP;
+		sip[i][3].help = sip_help_tcp;
+
+		for (j = 0; j < ARRAY_SIZE(sip[i]); j++) {
 			sip[i][j].tuple.src.u.udp.port = htons(ports[i]);
 			sip[i][j].expect_policy = sip_exp_policy;
 			sip[i][j].expect_class_max = SIP_EXPECT_MAX;
 			sip[i][j].me = THIS_MODULE;
-			sip[i][j].help = sip_help;
 
 			tmpname = &sip_names[i][j][0];
 			if (ports[i] == SIP_PORT)
