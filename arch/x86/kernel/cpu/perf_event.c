@@ -2403,12 +2403,12 @@ done:
 }
 
 static int x86_event_sched_in(struct perf_event *event,
-			  struct perf_cpu_context *cpuctx, int cpu)
+			  struct perf_cpu_context *cpuctx)
 {
 	int ret = 0;
 
 	event->state = PERF_EVENT_STATE_ACTIVE;
-	event->oncpu = cpu;
+	event->oncpu = smp_processor_id();
 	event->tstamp_running += event->ctx->time - event->tstamp_stopped;
 
 	if (!is_x86_event(event))
@@ -2424,7 +2424,7 @@ static int x86_event_sched_in(struct perf_event *event,
 }
 
 static void x86_event_sched_out(struct perf_event *event,
-			    struct perf_cpu_context *cpuctx, int cpu)
+			    struct perf_cpu_context *cpuctx)
 {
 	event->state = PERF_EVENT_STATE_INACTIVE;
 	event->oncpu = -1;
@@ -2452,9 +2452,9 @@ static void x86_event_sched_out(struct perf_event *event,
  */
 int hw_perf_group_sched_in(struct perf_event *leader,
 	       struct perf_cpu_context *cpuctx,
-	       struct perf_event_context *ctx, int cpu)
+	       struct perf_event_context *ctx)
 {
-	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct perf_event *sub;
 	int assign[X86_PMC_IDX_MAX];
 	int n0, n1, ret;
@@ -2468,14 +2468,14 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 	if (ret)
 		return ret;
 
-	ret = x86_event_sched_in(leader, cpuctx, cpu);
+	ret = x86_event_sched_in(leader, cpuctx);
 	if (ret)
 		return ret;
 
 	n1 = 1;
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
 		if (sub->state > PERF_EVENT_STATE_OFF) {
-			ret = x86_event_sched_in(sub, cpuctx, cpu);
+			ret = x86_event_sched_in(sub, cpuctx);
 			if (ret)
 				goto undo;
 			++n1;
@@ -2500,11 +2500,11 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 	 */
 	return 1;
 undo:
-	x86_event_sched_out(leader, cpuctx, cpu);
+	x86_event_sched_out(leader, cpuctx);
 	n0  = 1;
 	list_for_each_entry(sub, &leader->sibling_list, group_entry) {
 		if (sub->state == PERF_EVENT_STATE_ACTIVE) {
-			x86_event_sched_out(sub, cpuctx, cpu);
+			x86_event_sched_out(sub, cpuctx);
 			if (++n0 == n1)
 				break;
 		}
