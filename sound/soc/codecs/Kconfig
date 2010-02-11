@@ -36,6 +36,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
+	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
@@ -264,4 +265,7 @@ config SND_SOC_MAX9877
 	tristate
 
 config SND_SOC_TPA6130A2
+	tristate
+
+config SND_SOC_WM2000
 	tristate
