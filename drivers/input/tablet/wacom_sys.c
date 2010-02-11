@@ -530,9 +530,12 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_endpoint_descriptor *endpoint;
 	struct wacom *wacom;
 	struct wacom_wac *wacom_wac;
-	struct wacom_features *features;
+	struct wacom_features *features = (void *)id->driver_info;
 	struct input_dev *input_dev;
 	int error = -ENOMEM;
+
+	if (!features)
+		return -EINVAL;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	wacom_wac = kzalloc(sizeof(struct wacom_wac), GFP_KERNEL);
@@ -555,7 +558,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
-	wacom_wac->features = features = get_wacom_feature(id);
+	wacom_wac->features = features;
 	BUG_ON(features->pktlen > WACOM_PKGLEN_MAX);
 
 	input_dev->name = wacom_wac->features->name;
@@ -663,6 +666,7 @@ static int wacom_reset_resume(struct usb_interface *intf)
 
 static struct usb_driver wacom_driver = {
 	.name =		"wacom",
+	.id_table =	wacom_ids,
 	.probe =	wacom_probe,
 	.disconnect =	wacom_disconnect,
 	.suspend =	wacom_suspend,
@@ -674,7 +678,7 @@ static struct usb_driver wacom_driver = {
 static int __init wacom_init(void)
 {
 	int result;
-	wacom_driver.id_table = get_device_table();
+
 	result = usb_register(&wacom_driver);
 	if (result == 0)
 		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
