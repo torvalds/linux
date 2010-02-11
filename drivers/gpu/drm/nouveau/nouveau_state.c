@@ -310,6 +310,14 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
+	struct drm_device *dev = priv;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->chipset >= 0x40)
+		nv_wr32(dev, 0x88054, state);
+	else
+		nv_wr32(dev, 0x1854, state);
+
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
@@ -427,15 +435,19 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	/* PGRAPH */
-	ret = engine->graph.init(dev);
-	if (ret)
-		goto out_fb;
+	if (nouveau_noaccel)
+		engine->graph.accel_blocked = true;
+	else {
+		/* PGRAPH */
+		ret = engine->graph.init(dev);
+		if (ret)
+			goto out_fb;
 
-	/* PFIFO */
-	ret = engine->fifo.init(dev);
-	if (ret)
-		goto out_graph;
+		/* PFIFO */
+		ret = engine->fifo.init(dev);
+		if (ret)
+			goto out_graph;
+	}
 
 	/* this call irq_preinstall, register irq handler and
 	 * call irq_postinstall
@@ -479,9 +491,11 @@ nouveau_card_init(struct drm_device *dev)
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
-	engine->fifo.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->fifo.takedown(dev);
 out_graph:
-	engine->graph.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->graph.takedown(dev);
 out_fb:
 	engine->fb.takedown(dev);
 out_timer:
@@ -518,8 +532,10 @@ static void nouveau_card_takedown(struct drm_device *dev)
 			dev_priv->channel = NULL;
 		}
 
-		engine->fifo.takedown(dev);
-		engine->graph.takedown(dev);
+		if (!nouveau_noaccel) {
+			engine->fifo.takedown(dev);
+			engine->graph.takedown(dev);
+		}
 		engine->fb.takedown(dev);
 		engine->timer.takedown(dev);
 		engine->mc.takedown(dev);
@@ -817,6 +833,15 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = dev_priv->vm_vram_base;
 		break;
+	case NOUVEAU_GETPARAM_GRAPH_UNITS:
+		/* NV40 and NV50 versions are quite different, but register
+		 * address is the same. User is supposed to know the card
+		 * family anyway... */
+		if (dev_priv->chipset >= 0x40) {
+			getparam->value = nv_rd32(dev, NV40_PMC_GRAPH_UNITS);
+			break;
+		}
+		/* FALLTHRU */
 	default:
 		NV_ERROR(dev, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;

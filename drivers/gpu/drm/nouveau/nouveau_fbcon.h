@@ -40,7 +40,13 @@ int nouveau_fbcon_remove(struct drm_device *dev, struct drm_framebuffer *fb);
 void nouveau_fbcon_restore(void);
 void nouveau_fbcon_zfill(struct drm_device *dev);
 
+void nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
+void nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+void nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
 int nv04_fbcon_accel_init(struct fb_info *info);
+void nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
+void nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region);
+void nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image);
 int nv50_fbcon_accel_init(struct fb_info *info);
 
 void nouveau_fbcon_gpu_lockup(struct fb_info *info);
