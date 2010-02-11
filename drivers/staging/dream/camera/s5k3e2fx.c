@@ -743,12 +743,14 @@ static int s5k3e2fx_sensor_open_init(const struct msm_camera_sensor_info *data)
 	}
 
 	/* initialize AF */
-	if ((rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr,
-			0x3146, 0x3A)) < 0)
+	rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr,
+			0x3146, 0x3A)
+	if (rc < 0)
 		goto init_fail1;
 
-	if ((rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr,
-			0x3130, 0x03)) < 0)
+	rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr,
+			0x3130, 0x03)
+	if (rc < 0)
 		goto init_fail1;
 
 	goto init_done;
@@ -814,20 +816,20 @@ static uint16_t s5k3e2fx_get_prev_lines_pf(void)
 
 static uint16_t s5k3e2fx_get_prev_pixels_pl(void)
 {
-	return (s5k3e2fx_reg_pat[S_RES_PREVIEW].size_w +
-		s5k3e2fx_reg_pat[S_RES_PREVIEW].blk_p);
+	return s5k3e2fx_reg_pat[S_RES_PREVIEW].size_w +
+		s5k3e2fx_reg_pat[S_RES_PREVIEW].blk_p;
 }
 
 static uint16_t s5k3e2fx_get_pict_lines_pf(void)
 {
-	return (s5k3e2fx_reg_pat[S_RES_CAPTURE].size_h +
-		s5k3e2fx_reg_pat[S_RES_CAPTURE].blk_l);
+	return s5k3e2fx_reg_pat[S_RES_CAPTURE].size_h +
+		s5k3e2fx_reg_pat[S_RES_CAPTURE].blk_l;
 }
 
 static uint16_t s5k3e2fx_get_pict_pixels_pl(void)
 {
-	return (s5k3e2fx_reg_pat[S_RES_CAPTURE].size_w +
-		s5k3e2fx_reg_pat[S_RES_CAPTURE].blk_p);
+	return s5k3e2fx_reg_pat[S_RES_CAPTURE].size_w +
+		s5k3e2fx_reg_pat[S_RES_CAPTURE].blk_p;
 }
 
 static uint32_t s5k3e2fx_get_pict_max_exp_lc(void)
