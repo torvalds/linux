@@ -1637,7 +1637,7 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	}
 
 	/* Associate any objects on the flushing list matching the write
-	 * domain we're flushing with our flush.
+	 * domain we're flushing with our request.
 	 */
 	if (flush_domains != 0) 
 		i915_gem_process_flushing_list(dev, flush_domains, seqno, ring);
@@ -1887,8 +1887,9 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		ret = -EIO;
 
 	if (ret && ret != -ERESTARTSYS)
-		DRM_ERROR("%s returns %d (awaiting %d at %d)\n",
-			  __func__, ret, seqno, ring->get_gem_seqno(dev, ring));
+		DRM_ERROR("%s returns %d (awaiting %d at %d, next %d)\n",
+			  __func__, ret, seqno, ring->get_gem_seqno(dev, ring),
+			  dev_priv->next_seqno);
 
 	/* Directly dispatch request retiring.  While we have the work queue
 	 * to handle this, the waiter on a request often wants an associated
@@ -1918,8 +1919,10 @@ i915_gem_flush(struct drm_device *dev,
 	       uint32_t flush_domains)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
 		drm_agp_chipset_flush(dev);
+
 	dev_priv->render_ring.flush(dev, &dev_priv->render_ring,
 			invalidate_domains,
 			flush_domains);
@@ -1928,6 +1931,17 @@ i915_gem_flush(struct drm_device *dev,
 		dev_priv->bsd_ring.flush(dev, &dev_priv->bsd_ring,
 				invalidate_domains,
 				flush_domains);
+
+	/* Associate any objects on the flushing list matching the write
+	 * domain we're flushing with the next request.
+	 */
+	if (flush_domains != 0)  {
+		i915_gem_process_flushing_list(dev, flush_domains, 0,
+					       &dev_priv->render_ring);
+		if (HAS_BSD(dev))
+			i915_gem_process_flushing_list(dev, flush_domains, 0,
+						       &dev_priv->bsd_ring);
+	}
 }
 
 /**
@@ -2061,14 +2075,14 @@ i915_gpu_idle(struct drm_device *dev)
 
 	/* Flush everything onto the inactive list. */
 	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-	seqno1 = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS,
+	seqno1 = i915_add_request(dev, NULL, 0,
 			&dev_priv->render_ring);
 	if (seqno1 == 0)
 		return -ENOMEM;
 	ret = i915_wait_request(dev, seqno1, &dev_priv->render_ring);
 
 	if (HAS_BSD(dev)) {
-		seqno2 = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS,
+		seqno2 = i915_add_request(dev, NULL, 0,
 				&dev_priv->bsd_ring);
 		if (seqno2 == 0)
 			return -ENOMEM;
@@ -2077,7 +2091,6 @@ i915_gpu_idle(struct drm_device *dev)
 		if (ret)
 			return ret;
 	}
-
 
 	return ret;
 }
@@ -3771,12 +3784,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			       dev->invalidate_domains,
 			       dev->flush_domains);
 		if (dev_priv->flush_rings & FLUSH_RENDER_RING)
-			(void)i915_add_request(dev, file_priv,
-					       dev->flush_domains,
+			(void)i915_add_request(dev, file_priv, 0,
 					       &dev_priv->render_ring);
 		if (dev_priv->flush_rings & FLUSH_BSD_RING)
-			(void)i915_add_request(dev, file_priv,
-					       dev->flush_domains,
+			(void)i915_add_request(dev, file_priv, 0,
 					       &dev_priv->bsd_ring);
 	}
 
