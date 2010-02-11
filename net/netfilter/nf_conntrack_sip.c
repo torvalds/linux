@@ -236,12 +236,13 @@ int ct_sip_parse_request(const struct nf_conn *ct,
 		return 0;
 
 	/* Find SIP URI */
-	limit -= strlen("sip:");
-	for (; dptr < limit; dptr++) {
+	for (; dptr < limit - strlen("sip:"); dptr++) {
 		if (*dptr == '\r' || *dptr == '\n')
 			return -1;
-		if (strnicmp(dptr, "sip:", strlen("sip:")) == 0)
+		if (strnicmp(dptr, "sip:", strlen("sip:")) == 0) {
+			dptr += strlen("sip:");
 			break;
+		}
 	}
 	if (!skp_epaddr_len(ct, dptr, limit, &shift))
 		return 0;
