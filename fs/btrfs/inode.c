@@ -4508,7 +4508,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	err = btrfs_find_free_objectid(trans, root, dir->i_ino, &objectid);
 	if (err) {
 		err = -ENOSPC;
-		goto out_unlock;
+		goto out_fail;
 	}
 
 	inode = btrfs_new_inode(trans, root, dir, dentry->d_name.name,
