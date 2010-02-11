@@ -47,12 +47,23 @@ nouveau_debugfs_channel_info(struct seq_file *m, void *data)
 	seq_printf(m, "           cur: 0x%08x\n", chan->dma.cur << 2);
 	seq_printf(m, "           put: 0x%08x\n", chan->dma.put << 2);
 	seq_printf(m, "          free: 0x%08x\n", chan->dma.free << 2);
+	if (chan->dma.ib_max) {
+		seq_printf(m, "        ib max: 0x%08x\n", chan->dma.ib_max);
+		seq_printf(m, "        ib put: 0x%08x\n", chan->dma.ib_put);
+		seq_printf(m, "       ib free: 0x%08x\n", chan->dma.ib_free);
+	}
 
 	seq_printf(m, "gpu fifo state:\n");
 	seq_printf(m, "           get: 0x%08x\n",
 					nvchan_rd32(chan, chan->user_get));
 	seq_printf(m, "           put: 0x%08x\n",
 					nvchan_rd32(chan, chan->user_put));
+	if (chan->dma.ib_max) {
+		seq_printf(m, "        ib get: 0x%08x\n",
+			   nvchan_rd32(chan, 0x88));
+		seq_printf(m, "        ib put: 0x%08x\n",
+			   nvchan_rd32(chan, 0x8c));
+	}
 
 	seq_printf(m, "last fence    : %d\n", chan->fence.sequence);
 	seq_printf(m, "last signalled: %d\n", chan->fence.sequence_ack);

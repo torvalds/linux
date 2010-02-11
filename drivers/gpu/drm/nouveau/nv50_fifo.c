@@ -283,17 +283,17 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 
 	dev_priv->engine.instmem.prepare_access(dev, true);
 
-	nv_wo32(dev, ramfc, 0x08/4, chan->pushbuf_base);
-	nv_wo32(dev, ramfc, 0x10/4, chan->pushbuf_base);
 	nv_wo32(dev, ramfc, 0x48/4, chan->pushbuf->instance >> 4);
 	nv_wo32(dev, ramfc, 0x80/4, (0xc << 24) | (chan->ramht->instance >> 4));
-	nv_wo32(dev, ramfc, 0x3c/4, 0x00086078);
 	nv_wo32(dev, ramfc, 0x44/4, 0x2101ffff);
 	nv_wo32(dev, ramfc, 0x60/4, 0x7fffffff);
 	nv_wo32(dev, ramfc, 0x40/4, 0x00000000);
 	nv_wo32(dev, ramfc, 0x7c/4, 0x30000001);
 	nv_wo32(dev, ramfc, 0x78/4, 0x00000000);
-	nv_wo32(dev, ramfc, 0x4c/4, 0xffffffff);
+	nv_wo32(dev, ramfc, 0x3c/4, 0x403f6078);
+	nv_wo32(dev, ramfc, 0x50/4, chan->pushbuf_base +
+				    chan->dma.ib_base * 4);
+	nv_wo32(dev, ramfc, 0x54/4, drm_order(chan->dma.ib_max + 1) << 16);
 
 	if (!IS_G80) {
 		nv_wo32(dev, chan->ramin->gpuobj, 0, chan->id);

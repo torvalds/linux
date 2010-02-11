@@ -239,6 +239,11 @@ struct nouveau_channel {
 		int cur;
 		int put;
 		/* access via pushbuf_bo */
+
+		int ib_base;
+		int ib_max;
+		int ib_free;
+		int ib_put;
 	} dma;
 
 	uint32_t sw_subchannel[8];
@@ -848,7 +853,7 @@ nouveau_debugfs_channel_fini(struct nouveau_channel *chan)
 /* nouveau_dma.c */
 extern void nouveau_dma_pre_init(struct nouveau_channel *);
 extern int  nouveau_dma_init(struct nouveau_channel *);
-extern int  nouveau_dma_wait(struct nouveau_channel *, int size);
+extern int  nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 
 /* nouveau_acpi.c */
 #ifdef CONFIG_ACPI

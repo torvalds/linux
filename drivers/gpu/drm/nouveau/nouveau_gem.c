@@ -707,7 +707,7 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 		uint32_t retaddy;
 
 		if (chan->dma.free < 4 + NOUVEAU_DMA_SKIPS) {
-			ret = nouveau_dma_wait(chan, 4 + NOUVEAU_DMA_SKIPS);
+			ret = nouveau_dma_wait(chan, 0, 4 + NOUVEAU_DMA_SKIPS);
 			if (ret) {
 				NV_ERROR(dev, "jmp_space: %d\n", ret);
 				goto out;
@@ -754,6 +754,15 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 		}
 	}
 
+	if (chan->dma.ib_max) {
+		ret = nouveau_dma_wait(chan, 2, 6);
+		if (ret) {
+			NV_INFO(dev, "nv50cal_space: %d\n", ret);
+			goto out;
+		}
+
+		nv50_dma_push(chan, pbbo, req->offset, req->nr_dwords);
+	} else
 	if (PUSHBUF_CAL) {
 		ret = RING_SPACE(chan, 2);
 		if (ret) {
@@ -792,6 +801,10 @@ out:
 	kfree(bo);
 
 out_next:
+	if (chan->dma.ib_max) {
+		req->suffix0 = 0x00000000;
+		req->suffix1 = 0x00000000;
+	} else
 	if (PUSHBUF_CAL) {
 		req->suffix0 = 0x00020000;
 		req->suffix1 = 0x00000000;
