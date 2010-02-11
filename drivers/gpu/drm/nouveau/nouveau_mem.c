@@ -285,23 +285,45 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			uint32_t flags, uint64_t phys)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	unsigned pages;
+	struct nouveau_gpuobj *pgt;
+	unsigned block;
+	int i;
 
-	virt -= dev_priv->vm_vram_base;
-	pages = size >> 16;
+	virt = ((virt - dev_priv->vm_vram_base) >> 16) << 1;
+	size = (size >> 16) << 1;
+	phys |= ((uint64_t)flags << 32) | 1;
 
 	dev_priv->engine.instmem.prepare_access(dev, true);
-	while (pages--) {
-		struct nouveau_gpuobj *pt = dev_priv->vm_vram_pt[virt >> 29];
-		unsigned pte = ((virt & 0x1fffffffULL) >> 16) << 1;
-		unsigned offset_h = upper_32_bits(phys) & 0xff;
+	while (size) {
+		unsigned offset_h = upper_32_bits(phys);
 		unsigned offset_l = lower_32_bits(phys);
+		unsigned pte, end;
 
-		nv_wo32(dev, pt, pte++, offset_l | 1);
-		nv_wo32(dev, pt, pte++, offset_h | flags);
+		for (i = 7; i >= 0; i--) {
+			block = 1 << (i + 1);
+			if (size >= block && !(virt & (block - 1)))
+				break;
+		}
+		offset_l |= (i << 7);
 
-		phys += (1 << 16);
-		virt += (1 << 16);
+		phys += block << 15;
+		size -= block;
+
+		while (block) {
+			pgt = dev_priv->vm_vram_pt[virt >> 14];
+			pte = virt & 0x3ffe;
+
+			end = pte + block;
+			if (end > 16384)
+				end = 16384;
+			block -= (end - pte);
+			virt  += (end - pte);
+
+			while (pte < end) {
+				nv_wo32(dev, pgt, pte++, offset_l);
+				nv_wo32(dev, pgt, pte++, offset_h);
+			}
+		}
 	}
 	dev_priv->engine.instmem.finish_access(dev);
 
