@@ -1217,6 +1217,17 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	/* As defined by IEEE 802.11-2007 17.3.8.6 */
 	slottime = ah->slottime + 3 * ah->coverage_class;
 	acktimeout = slottime + sifstime;
+
+	/*
+	 * Workaround for early ACK timeouts, add an offset to match the
+	 * initval's 64us ack timeout value.
+	 * This was initially only meant to work around an issue with delayed
+	 * BA frames in some implementations, but it has been found to fix ACK
+	 * timeout issues in other cases as well.
+	 */
+	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ)
+		acktimeout += 64 - sifstime - ah->slottime;
+
 	ath9k_hw_setslottime(ah, slottime);
 	ath9k_hw_set_ack_timeout(ah, acktimeout);
 	ath9k_hw_set_cts_timeout(ah, acktimeout);
