@@ -10,8 +10,6 @@
  */
 
 #include "common.h"
-#include "tomoyo.h"
-#include "realpath.h"
 #include <linux/binfmts.h>
 
 /* Variables definitions.*/
@@ -58,76 +56,6 @@ struct tomoyo_domain_info tomoyo_kernel_domain;
  * exceptions.
  */
 LIST_HEAD(tomoyo_domain_list);
-
-/*
- * tomoyo_domain_initializer_entry is a structure which is used for holding
- * "initialize_domain" and "no_initialize_domain" entries.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_domain_initializer_list .
- *  (2) "domainname" which is "a domainname" or "the last component of a
- *      domainname". This field is NULL if "from" clause is not specified.
- *  (3) "program" which is a program's pathname.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- *  (5) "is_not" is a bool which is true if "no_initialize_domain", false
- *      otherwise.
- *  (6) "is_last_name" is a bool which is true if "domainname" is "the last
- *      component of a domainname", false otherwise.
- */
-struct tomoyo_domain_initializer_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *domainname;    /* This may be NULL */
-	const struct tomoyo_path_info *program;
-	bool is_deleted;
-	bool is_not;       /* True if this entry is "no_initialize_domain".  */
-	/* True if the domainname is tomoyo_get_last_name(). */
-	bool is_last_name;
-};
-
-/*
- * tomoyo_domain_keeper_entry is a structure which is used for holding
- * "keep_domain" and "no_keep_domain" entries.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_domain_keeper_list .
- *  (2) "domainname" which is "a domainname" or "the last component of a
- *      domainname".
- *  (3) "program" which is a program's pathname.
- *      This field is NULL if "from" clause is not specified.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- *  (5) "is_not" is a bool which is true if "no_initialize_domain", false
- *      otherwise.
- *  (6) "is_last_name" is a bool which is true if "domainname" is "the last
- *      component of a domainname", false otherwise.
- */
-struct tomoyo_domain_keeper_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *domainname;
-	const struct tomoyo_path_info *program;       /* This may be NULL */
-	bool is_deleted;
-	bool is_not;       /* True if this entry is "no_keep_domain".        */
-	/* True if the domainname is tomoyo_get_last_name(). */
-	bool is_last_name;
-};
-
-/*
- * tomoyo_alias_entry is a structure which is used for holding "alias" entries.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_alias_list .
- *  (2) "original_name" which is a dereferenced pathname.
- *  (3) "aliased_name" which is a symlink's pathname.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- */
-struct tomoyo_alias_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *original_name;
-	const struct tomoyo_path_info *aliased_name;
-	bool is_deleted;
-};
 
 /**
  * tomoyo_get_last_name - Get last component of a domainname.

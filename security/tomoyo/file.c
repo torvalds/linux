@@ -10,58 +10,6 @@
  */
 
 #include "common.h"
-#include "tomoyo.h"
-#include "realpath.h"
-
-/*
- * tomoyo_globally_readable_file_entry is a structure which is used for holding
- * "allow_read" entries.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_globally_readable_list .
- *  (2) "filename" is a pathname which is allowed to open(O_RDONLY).
- *  (3) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- */
-struct tomoyo_globally_readable_file_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *filename;
-	bool is_deleted;
-};
-
-/*
- * tomoyo_pattern_entry is a structure which is used for holding
- * "tomoyo_pattern_list" entries.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_pattern_list .
- *  (2) "pattern" is a pathname pattern which is used for converting pathnames
- *      to pathname patterns during learning mode.
- *  (3) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- */
-struct tomoyo_pattern_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *pattern;
-	bool is_deleted;
-};
-
-/*
- * tomoyo_no_rewrite_entry is a structure which is used for holding
- * "deny_rewrite" entries.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_no_rewrite_list .
- *  (2) "pattern" is a pathname which is by default not permitted to modify
- *      already existing content.
- *  (3) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- */
-struct tomoyo_no_rewrite_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *pattern;
-	bool is_deleted;
-};
 
 /* Keyword array for single path operations. */
 static const char *tomoyo_sp_keyword[TOMOYO_MAX_SINGLE_PATH_OPERATION] = {

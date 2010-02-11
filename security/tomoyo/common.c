@@ -13,8 +13,6 @@
 #include <linux/security.h>
 #include <linux/hardirq.h>
 #include "common.h"
-#include "realpath.h"
-#include "tomoyo.h"
 
 /* Lock for protecting policy. */
 DEFINE_MUTEX(tomoyo_policy_lock);
@@ -1038,27 +1036,6 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
 		head->read_eof = true;
 	return 0;
 }
-
-/*
- * tomoyo_policy_manager_entry is a structure which is used for holding list of
- * domainnames or programs which are permitted to modify configuration via
- * /sys/kernel/security/tomoyo/ interface.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_policy_manager_list .
- *  (2) "manager" is a domainname or a program's pathname.
- *  (3) "is_domain" is a bool which is true if "manager" is a domainname, false
- *      otherwise.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- */
-struct tomoyo_policy_manager_entry {
-	struct list_head list;
-	/* A path to program or a domainname. */
-	const struct tomoyo_path_info *manager;
-	bool is_domain;  /* True if manager is a domainname. */
-	bool is_deleted; /* True if this entry is deleted. */
-};
 
 /*
  * tomoyo_policy_manager_list is used for holding list of domainnames or

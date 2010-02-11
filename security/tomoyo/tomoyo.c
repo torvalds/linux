@@ -11,8 +11,6 @@
 
 #include <linux/security.h>
 #include "common.h"
-#include "tomoyo.h"
-#include "realpath.h"
 
 static int tomoyo_cred_alloc_blank(struct cred *new, gfp_t gfp)
 {

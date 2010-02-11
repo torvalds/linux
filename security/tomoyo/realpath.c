@@ -15,9 +15,7 @@
 #include <linux/fs_struct.h>
 #include <linux/hash.h>
 #include <linux/magic.h>
-
 #include "common.h"
-#include "realpath.h"
 
 /**
  * tomoyo_encode: Convert binary string to ascii string.
@@ -244,14 +242,6 @@ bool tomoyo_memory_ok(void *ptr)
 static unsigned int tomoyo_allocated_memory_for_savename;
 /* Quota for holding string data in bytes. */
 static unsigned int tomoyo_quota_for_savename;
-
-/*
- * TOMOYO uses this hash only when appending a string into the string
- * table. Frequency of appending strings is very low. So we don't need
- * large (e.g. 64k) hash size. 256 will be sufficient.
- */
-#define TOMOYO_HASH_BITS  8
-#define TOMOYO_MAX_HASH (1u<<TOMOYO_HASH_BITS)
 
 /*
  * tomoyo_name_list is used for holding string data used by TOMOYO.
