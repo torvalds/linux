@@ -154,10 +154,17 @@ struct sh_dmae_slave_config {
 	char				mid_rid;
 };
 
+struct sh_dmae_channel {
+	unsigned int	offset;
+	unsigned int	dmars;
+	unsigned int	dmars_bit;
+};
+
 struct sh_dmae_pdata {
-	unsigned int mode;
-	struct sh_dmae_slave_config *config;
-	int config_num;
+	struct sh_dmae_slave_config *slave;
+	int slave_num;
+	struct sh_dmae_channel *channel;
+	int channel_num;
 };
 
 struct device;

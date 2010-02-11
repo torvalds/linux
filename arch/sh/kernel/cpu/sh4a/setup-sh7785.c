@@ -295,15 +295,115 @@ static struct platform_device tmu5_device = {
 	.num_resources	= ARRAY_SIZE(tmu5_resources),
 };
 
-static struct sh_dmae_pdata dma_platform_data = {
-	.mode = (SHDMA_MIX_IRQ | SHDMA_DMAOR1),
+/* DMA */
+static struct sh_dmae_channel sh7785_dmae0_channels[] = {
+	{
+		.offset = 0,
+		.dmars = 0,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x10,
+		.dmars = 0,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x20,
+		.dmars = 4,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x30,
+		.dmars = 4,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x50,
+		.dmars = 8,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x60,
+		.dmars = 8,
+		.dmars_bit = 8,
+	}
 };
 
-static struct platform_device dma_device = {
+static struct sh_dmae_channel sh7785_dmae1_channels[] = {
+	{
+		.offset = 0,
+	}, {
+		.offset = 0x10,
+	}, {
+		.offset = 0x20,
+	}, {
+		.offset = 0x30,
+	}, {
+		.offset = 0x50,
+	}, {
+		.offset = 0x60,
+	}
+};
+
+static struct sh_dmae_pdata dma0_platform_data = {
+	.channel	= sh7785_dmae0_channels,
+	.channel_num	= ARRAY_SIZE(sh7785_dmae0_channels),
+};
+
+static struct sh_dmae_pdata dma1_platform_data = {
+	.channel	= sh7785_dmae1_channels,
+	.channel_num	= ARRAY_SIZE(sh7785_dmae1_channels),
+};
+
+static struct resource sh7785_dmae0_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xfc808020,
+		.end	= 0xfc80808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xfc809000,
+		.end	= 0xfc80900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* Real DMA error IRQ is 39, and channel IRQs are 33-38 */
+		.start	= 33,
+		.end	= 33,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+};
+
+static struct resource sh7785_dmae1_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xfcc08020,
+		.end	= 0xfcc0808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	/* DMAC1 has no DMARS */
+	{
+		/* Real DMA error IRQ is 58, and channel IRQs are 52-57 */
+		.start	= 52,
+		.end	= 52,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_SHAREABLE,
+	},
+};
+
+static struct platform_device dma0_device = {
 	.name           = "sh-dma-engine",
-	.id             = -1,
+	.id             = 0,
+	.resource	= sh7785_dmae0_resources,
+	.num_resources	= ARRAY_SIZE(sh7785_dmae0_resources),
 	.dev            = {
-		.platform_data  = &dma_platform_data,
+		.platform_data	= &dma0_platform_data,
+	},
+};
+
+static struct platform_device dma1_device = {
+	.name		= "sh-dma-engine",
+	.id		= 1,
+	.resource	= sh7785_dmae1_resources,
+	.num_resources	= ARRAY_SIZE(sh7785_dmae1_resources),
+	.dev		= {
+		.platform_data	= &dma1_platform_data,
 	},
 };
 
@@ -320,7 +420,8 @@ static struct platform_device *sh7785_devices[] __initdata = {
 	&tmu3_device,
 	&tmu4_device,
 	&tmu5_device,
-	&dma_device,
+	&dma0_device,
+	&dma1_device,
 };
 
 static int __init sh7785_devices_setup(void)

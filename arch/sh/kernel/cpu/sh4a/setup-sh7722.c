@@ -75,15 +75,79 @@ static struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
 	},
 };
 
+static struct sh_dmae_channel sh7722_dmae_channels[] = {
+	{
+		.offset = 0,
+		.dmars = 0,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x10,
+		.dmars = 0,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x20,
+		.dmars = 4,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x30,
+		.dmars = 4,
+		.dmars_bit = 8,
+	}, {
+		.offset = 0x50,
+		.dmars = 8,
+		.dmars_bit = 0,
+	}, {
+		.offset = 0x60,
+		.dmars = 8,
+		.dmars_bit = 8,
+	}
+};
+
 static struct sh_dmae_pdata dma_platform_data = {
-	.mode		= 0,
-	.config		= sh7722_dmae_slaves,
-	.config_num	= ARRAY_SIZE(sh7722_dmae_slaves),
+	.slave		= sh7722_dmae_slaves,
+	.slave_num	= ARRAY_SIZE(sh7722_dmae_slaves),
+	.channel	= sh7722_dmae_channels,
+	.channel_num	= ARRAY_SIZE(sh7722_dmae_channels),
+};
+
+static struct resource sh7722_dmae_resources[] = {
+	[0] = {
+		/* Channel registers and DMAOR */
+		.start	= 0xfe008020,
+		.end	= 0xfe00808f,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* DMARSx */
+		.start	= 0xfe009000,
+		.end	= 0xfe00900b,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		/* DMA error IRQ */
+		.start	= 78,
+		.end	= 78,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 0-3 */
+		.start	= 48,
+		.end	= 51,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* IRQ for channels 4-5 */
+		.start	= 76,
+		.end	= 77,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 struct platform_device dma_device = {
 	.name		= "sh-dma-engine",
 	.id		= -1,
+	.resource	= sh7722_dmae_resources,
+	.num_resources	= ARRAY_SIZE(sh7722_dmae_resources),
 	.dev		= {
 		.platform_data	= &dma_platform_data,
 	},
