@@ -5763,6 +5763,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_sw_init;
 
+	/* Make it possible the adapter to be woken up via WOL */
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
+
 	/*
 	 * If there is a fan on this device and it has failed log the
 	 * failure.
