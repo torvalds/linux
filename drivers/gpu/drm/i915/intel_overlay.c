@@ -220,9 +220,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	overlay->active = 1;
 	overlay->hw_wedged = NEEDS_WAIT_FOR_FLIP;
 
-	BEGIN_LP_RING(6);
-	OUT_RING(MI_FLUSH);
-	OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_ON);
 	OUT_RING(overlay->flip_addr | OFC_UPDATE);
 	OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -262,9 +260,7 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
 	if (tmp & (1 << 17))
 		DRM_DEBUG("overlay underrun, DOVSTA: %x\n", tmp);
 
-	BEGIN_LP_RING(4);
-	OUT_RING(MI_FLUSH);
-	OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(2);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
         ADVANCE_LP_RING();
@@ -333,9 +329,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	/* wait for overlay to go idle */
 	overlay->hw_wedged = SWITCH_OFF_STAGE_1;
 
-	BEGIN_LP_RING(6);
-	OUT_RING(MI_FLUSH);
-	OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(4);
 	OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	OUT_RING(flip_addr);
         OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -353,9 +347,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	/* turn overlay off */
 	overlay->hw_wedged = SWITCH_OFF_STAGE_2;
 
-	BEGIN_LP_RING(6);
-        OUT_RING(MI_FLUSH);
-        OUT_RING(MI_NOOP);
+	BEGIN_LP_RING(4);
         OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
 	OUT_RING(flip_addr);
         OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
@@ -430,9 +422,7 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 
 			overlay->hw_wedged = SWITCH_OFF_STAGE_2;
 
-			BEGIN_LP_RING(6);
-			OUT_RING(MI_FLUSH);
-			OUT_RING(MI_NOOP);
+			BEGIN_LP_RING(4);
 			OUT_RING(MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
 			OUT_RING(flip_addr);
 			OUT_RING(MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
