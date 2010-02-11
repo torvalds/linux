@@ -85,13 +85,13 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 		return -ENOMEM;
 
 	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	buffer->event = atomic_read(&attr_sd->s_attr.open->event);
 	count = ops->show(kobj, attr_sd->s_attr.attr, buffer->page);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	/*
 	 * The code works fine with PAGE_SIZE return but it's likely to
@@ -203,12 +203,12 @@ flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t 
 	int rc;
 
 	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	rc = ops->store(kobj, attr_sd->s_attr.attr, buffer->page, count);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	return rc;
 }
@@ -344,7 +344,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		memmove(last_sysfs_file, p, strlen(p) + 1);
 
 	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	/* every kobject with an attribute needs a ktype assigned */
@@ -393,13 +393,13 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		goto err_free;
 
 	/* open succeeded, put active references */
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return 0;
 
  err_free:
 	kfree(buffer);
  err_out:
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return error;
 }
 
@@ -437,12 +437,12 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 	struct sysfs_open_dirent *od = attr_sd->s_attr.open;
 
 	/* need parent for the kobj, grab both */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		goto trigger;
 
 	poll_wait(filp, &od->poll, wait);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	if (buffer->event != atomic_read(&od->event))
 		goto trigger;
