@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
+#include "VersionInfo.h"
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
@@ -974,6 +975,7 @@ static void __exit vmbus_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_VERSION(HV_DRV_VERSION);
 module_param(vmbus_irq, int, S_IRUGO);
 module_param(vmbus_loglevel, int, S_IRUGO);
 

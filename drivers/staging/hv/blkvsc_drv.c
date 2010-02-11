@@ -31,6 +31,7 @@
 #include <scsi/scsi_dbg.h>
 #include "osd.h"
 #include "logging.h"
+#include "VersionInfo.h"
 #include "vmbus.h"
 #include "StorVscApi.h"
 
@@ -1507,6 +1508,7 @@ static void __exit blkvsc_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_VERSION(HV_DRV_VERSION);
 module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
 module_init(blkvsc_init);
 module_exit(blkvsc_exit);

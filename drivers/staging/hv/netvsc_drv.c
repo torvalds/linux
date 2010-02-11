@@ -35,10 +35,9 @@
 #include <net/pkt_sched.h>
 #include "osd.h"
 #include "logging.h"
+#include "VersionInfo.h"
 #include "vmbus.h"
 #include "NetVscApi.h"
-
-MODULE_LICENSE("GPL");
 
 struct net_device_context {
 	/* point back to our device context */
@@ -603,6 +602,8 @@ static void __exit netvsc_exit(void)
 	DPRINT_EXIT(NETVSC_DRV);
 }
 
+MODULE_LICENSE("GPL");
+MODULE_VERSION(HV_DRV_VERSION);
 module_param(netvsc_ringbuffer_size, int, S_IRUGO);
 
 module_init(netvsc_init);

@@ -24,8 +24,24 @@
 #ifndef __HV_VERSION_INFO
 #define __HV_VERSION_INFO
 
-static const char VersionDate[] = __DATE__;
-static const char VersionTime[] = __TIME__;
-static const char VersionDesc[] = "Version 2.0";
+/*
+ * We use the same version numbering for all Hyper-V modules.
+ *
+ * Definition of versioning is as follows;
+ *
+ * 	Major Number 	Changes for these scenarios;
+ *			1.	When a new version of Windows Hyper-V
+ *				is released.
+ *			2.	A Major change has occurred in the
+ *			       	Linux IC's.
+ *			(For example the merge for the first time
+ *			into the kernel) Every time the Major Number
+ *			changes, the Revision number is reset to 0.
+ *	Minor Number	Changes when new functionality is added
+ *			to the Linux IC's that is not a bug fix.
+ *
+ */
+#define HV_DRV_VERSION           "3.0"
+
 
 #endif
