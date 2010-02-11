@@ -124,7 +124,6 @@ struct sh_mobile_lcdc_chan {
 	struct scatterlist *sglist;
 	unsigned long frame_end;
 	unsigned long pan_offset;
-	unsigned long new_pan_offset;
 	wait_queue_head_t frame_end_wait;
 	struct completion vsync_completion;
 };
@@ -369,21 +368,6 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 		}
 
 		/* VSYNC End */
-		if ((ldintr & LDINTR_VES) &&
-		    (ch->pan_offset != ch->new_pan_offset)) {
-			unsigned long ldrcntr = lcdc_read(priv, _LDRCNTR);
-			/* Set the source address for the next refresh */
-			lcdc_write_chan_mirror(ch, LDSA1R, ch->dma_handle +
-					       ch->new_pan_offset);
-			if (lcdc_chan_is_sublcd(ch))
-				lcdc_write(ch->lcdc, _LDRCNTR,
-					   ldrcntr ^ LDRCNTR_SRS);
-			else
-				lcdc_write(ch->lcdc, _LDRCNTR,
-					   ldrcntr ^ LDRCNTR_MRS);
-			ch->pan_offset = ch->new_pan_offset;
-		}
-
 		if (ldintr & LDINTR_VES)
 			complete(&ch->vsync_completion);
 	}
@@ -774,21 +758,28 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 				     struct fb_info *info)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
+	unsigned long ldrcntr;
+	unsigned long new_pan_offset;
 
-	if (info->var.xoffset == var->xoffset &&
-	    info->var.yoffset == var->yoffset)
-		return 0;	/* No change, do nothing */
-
-	ch->new_pan_offset = (var->yoffset * info->fix.line_length) +
+	new_pan_offset = (var->yoffset * info->fix.line_length) +
 		(var->xoffset * (info->var.bits_per_pixel / 8));
 
-	if (ch->new_pan_offset != ch->pan_offset) {
-		unsigned long ldintr;
-		ldintr = lcdc_read(ch->lcdc, _LDINTR);
-		ldintr |= LDINTR_VEE;
-		lcdc_write(ch->lcdc, _LDINTR, ldintr);
-		sh_mobile_lcdc_deferred_io_touch(info);
-	}
+	if (new_pan_offset == ch->pan_offset)
+		return 0;	/* No change, do nothing */
+
+	ldrcntr = lcdc_read(priv, _LDRCNTR);
+
+	/* Set the source address for the next refresh */
+	lcdc_write_chan_mirror(ch, LDSA1R, ch->dma_handle + new_pan_offset);
+	if (lcdc_chan_is_sublcd(ch))
+		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
+	else
+		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_MRS);
+
+	ch->pan_offset = new_pan_offset;
+
+	sh_mobile_lcdc_deferred_io_touch(info);
 
 	return 0;
 }
@@ -1009,7 +1000,6 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 		init_waitqueue_head(&priv->ch[i].frame_end_wait);
 		init_completion(&priv->ch[i].vsync_completion);
 		priv->ch[j].pan_offset = 0;
-		priv->ch[j].new_pan_offset = 0;
 
 		switch (pdata->ch[i].chan) {
 		case LCDC_CHAN_MAINLCD:
