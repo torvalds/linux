@@ -771,7 +771,8 @@ xfrm_policy_flush_secctx_check(struct net *net, u8 type, struct xfrm_audit *audi
 
 int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 {
-	int dir, err = 0;
+	int dir, err = 0, cnt = 0;
+	struct xfrm_policy *dp;
 
 	write_lock_bh(&xfrm_policy_lock);
 
@@ -789,8 +790,10 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 				     &net->xfrm.policy_inexact[dir], bydst) {
 			if (pol->type != type)
 				continue;
-			__xfrm_policy_unlink(pol, dir);
+			dp = __xfrm_policy_unlink(pol, dir);
 			write_unlock_bh(&xfrm_policy_lock);
+			if (dp)
+				cnt++;
 
 			xfrm_audit_policy_delete(pol, 1, audit_info->loginuid,
 						 audit_info->sessionid,
@@ -809,8 +812,10 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 					     bydst) {
 				if (pol->type != type)
 					continue;
-				__xfrm_policy_unlink(pol, dir);
+				dp = __xfrm_policy_unlink(pol, dir);
 				write_unlock_bh(&xfrm_policy_lock);
+				if (dp)
+					cnt++;
 
 				xfrm_audit_policy_delete(pol, 1,
 							 audit_info->loginuid,
@@ -824,6 +829,8 @@ int xfrm_policy_flush(struct net *net, u8 type, struct xfrm_audit *audit_info)
 		}
 
 	}
+	if (!cnt)
+		err = -ESRCH;
 	atomic_inc(&flow_cache_genid);
 out:
 	write_unlock_bh(&xfrm_policy_lock);
