@@ -291,31 +291,17 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 	pages = size >> 16;
 
 	dev_priv->engine.instmem.prepare_access(dev, true);
-	if (flags & 0x80000000) {
-		while (pages--) {
-			struct nouveau_gpuobj *pt =
-				dev_priv->vm_vram_pt[virt >> 29];
-			unsigned pte = ((virt & 0x1fffffffULL) >> 16) << 1;
+	while (pages--) {
+		struct nouveau_gpuobj *pt = dev_priv->vm_vram_pt[virt >> 29];
+		unsigned pte = ((virt & 0x1fffffffULL) >> 16) << 1;
+		unsigned offset_h = upper_32_bits(phys) & 0xff;
+		unsigned offset_l = lower_32_bits(phys);
 
-			nv_wo32(dev, pt, pte++, 0x00000000);
-			nv_wo32(dev, pt, pte++, 0x00000000);
+		nv_wo32(dev, pt, pte++, offset_l | 1);
+		nv_wo32(dev, pt, pte++, offset_h | flags);
 
-			virt += (1 << 16);
-		}
-	} else {
-		while (pages--) {
-			struct nouveau_gpuobj *pt =
-				dev_priv->vm_vram_pt[virt >> 29];
-			unsigned pte = ((virt & 0x1fffffffULL) >> 16) << 1;
-			unsigned offset_h = upper_32_bits(phys) & 0xff;
-			unsigned offset_l = lower_32_bits(phys);
-
-			nv_wo32(dev, pt, pte++, offset_l | 1);
-			nv_wo32(dev, pt, pte++, offset_h | flags);
-
-			phys += (1 << 16);
-			virt += (1 << 16);
-		}
+		phys += (1 << 16);
+		virt += (1 << 16);
 	}
 	dev_priv->engine.instmem.finish_access(dev);
 
@@ -339,7 +325,41 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 void
 nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 {
-	nv50_mem_vm_bind_linear(dev, virt, size, 0x80000000, 0);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *pgt;
+	unsigned pages, pte, end;
+
+	virt -= dev_priv->vm_vram_base;
+	pages = (size >> 16) << 1;
+
+	dev_priv->engine.instmem.prepare_access(dev, true);
+	while (pages) {
+		pgt = dev_priv->vm_vram_pt[virt >> 29];
+		pte = (virt & 0x1ffe0000ULL) >> 15;
+
+		end = pte + pages;
+		if (end > 16384)
+			end = 16384;
+		pages -= (end - pte);
+		virt  += (end - pte) << 15;
+
+		while (pte < end)
+			nv_wo32(dev, pgt, pte++, 0);
+	}
+	dev_priv->engine.instmem.finish_access(dev);
+
+	nv_wr32(dev, 0x100c80, 0x00050001);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
+		return;
+	}
+
+	nv_wr32(dev, 0x100c80, 0x00000001);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
+	}
 }
 
 /*
