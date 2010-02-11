@@ -110,7 +110,7 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
  * will cause "/usr/sbin/httpd" to belong to "<kernel> /usr/sbin/httpd" domain
  * unless executed from "<kernel> /etc/rc.d/init.d/httpd" domain.
  */
-static LIST_HEAD(tomoyo_domain_initializer_list);
+LIST_HEAD(tomoyo_domain_initializer_list);
 
 /**
  * tomoyo_update_domain_initializer_entry - Update "struct tomoyo_domain_initializer_entry" list.
@@ -330,7 +330,7 @@ static bool tomoyo_is_domain_initializer(const struct tomoyo_path_info *
  * "<kernel> /usr/sbin/sshd /bin/bash /usr/bin/passwd" domain, unless
  * explicitly specified by "initialize_domain".
  */
-static LIST_HEAD(tomoyo_domain_keeper_list);
+LIST_HEAD(tomoyo_domain_keeper_list);
 
 /**
  * tomoyo_update_domain_keeper_entry - Update "struct tomoyo_domain_keeper_entry" list.
@@ -533,7 +533,7 @@ static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
  * /bin/busybox and domainname which the current process will belong to after
  * execve() succeeds is calculated using /bin/cat rather than /bin/busybox .
  */
-static LIST_HEAD(tomoyo_alias_list);
+LIST_HEAD(tomoyo_alias_list);
 
 /**
  * tomoyo_update_alias_entry - Update "struct tomoyo_alias_entry" list.

@@ -1067,7 +1067,7 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
  *
  * # cat /sys/kernel/security/tomoyo/manager
  */
-static LIST_HEAD(tomoyo_policy_manager_list);
+LIST_HEAD(tomoyo_policy_manager_list);
 
 /**
  * tomoyo_update_manager_entry - Add a manager entry.
@@ -2109,6 +2109,7 @@ static int tomoyo_write_control(struct file *file, const char __user *buffer,
 static int tomoyo_close_control(struct file *file)
 {
 	struct tomoyo_io_buffer *head = file->private_data;
+	const bool is_write = !!head->write_buf;
 
 	tomoyo_read_unlock(head->reader_idx);
 	/* Release memory used for policy I/O. */
@@ -2119,6 +2120,8 @@ static int tomoyo_close_control(struct file *file)
 	kfree(head);
 	head = NULL;
 	file->private_data = NULL;
+	if (is_write)
+		tomoyo_run_gc();
 	return 0;
 }
 

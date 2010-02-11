@@ -638,6 +638,11 @@ int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
 				    struct file *filp);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 
+/* Run garbage collector. */
+void tomoyo_run_gc(void);
+
+void tomoyo_memory_free(void *ptr);
+
 /********** External variable definitions. **********/
 
 /* Lock for GC. */
@@ -645,6 +650,16 @@ extern struct srcu_struct tomoyo_ss;
 
 /* The list for "struct tomoyo_domain_info". */
 extern struct list_head tomoyo_domain_list;
+
+extern struct list_head tomoyo_domain_initializer_list;
+extern struct list_head tomoyo_domain_keeper_list;
+extern struct list_head tomoyo_alias_list;
+extern struct list_head tomoyo_globally_readable_list;
+extern struct list_head tomoyo_pattern_list;
+extern struct list_head tomoyo_no_rewrite_list;
+extern struct list_head tomoyo_policy_manager_list;
+extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
+extern struct mutex tomoyo_name_list_lock;
 
 /* Lock for protecting policy. */
 extern struct mutex tomoyo_policy_lock;

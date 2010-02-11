@@ -148,7 +148,7 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
  * given "allow_read /lib/libc-2.5.so" to the domain which current process
  * belongs to.
  */
-static LIST_HEAD(tomoyo_globally_readable_list);
+LIST_HEAD(tomoyo_globally_readable_list);
 
 /**
  * tomoyo_update_globally_readable_entry - Update "struct tomoyo_globally_readable_file_entry" list.
@@ -295,7 +295,7 @@ bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
  * which pretends as if /proc/self/ is not a symlink; so that we can forbid
  * current process from accessing other process's information.
  */
-static LIST_HEAD(tomoyo_pattern_list);
+LIST_HEAD(tomoyo_pattern_list);
 
 /**
  * tomoyo_update_file_pattern_entry - Update "struct tomoyo_pattern_entry" list.
@@ -448,7 +448,7 @@ bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
  * " (deleted)" suffix if the file is already unlink()ed; so that we don't
  * need to worry whether the file is already unlink()ed or not.
  */
-static LIST_HEAD(tomoyo_no_rewrite_list);
+LIST_HEAD(tomoyo_no_rewrite_list);
 
 /**
  * tomoyo_update_no_rewrite_entry - Update "struct tomoyo_no_rewrite_entry" list.
