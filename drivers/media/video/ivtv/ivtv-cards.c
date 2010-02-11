@@ -1210,6 +1210,60 @@ static const struct ivtv_card ivtv_card_buffalo = {
 	.i2c = &ivtv_i2c_std,
 };
 
+/* ------------------------------------------------------------------------- */
+/* Sony Kikyou */
+
+static const struct ivtv_card_pci_info ivtv_pci_kikyou[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_SONY, 0x813d },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_kikyou = {
+	.type = IVTV_CARD_KIKYOU,
+	.name = "Sony VAIO Giga Pocket (ENX Kikyou)",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_SAA7115,
+	.hw_audio = IVTV_HW_GPIO,
+	.hw_audio_ctrl = IVTV_HW_GPIO,
+	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TUNER,
+	.video_inputs = {
+	{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE5 },
+	{ IVTV_CARD_INPUT_COMPOSITE1, 1, IVTV_SAA71XX_COMPOSITE4 }, /* rear */
+	{ IVTV_CARD_INPUT_COMPOSITE2, 2, IVTV_SAA71XX_COMPOSITE1 }, /* front */
+	{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO1 },
+	{ IVTV_CARD_INPUT_SVIDEO2,    2, IVTV_SAA71XX_SVIDEO2 },
+	},
+	.audio_inputs = {
+	     { IVTV_CARD_INPUT_AUD_TUNER,  IVTV_GPIO_TUNER },
+	     { IVTV_CARD_INPUT_LINE_IN1,   IVTV_GPIO_LINE_IN },
+	     /* IVTV_GPIO_RADIO?? pretend to have "radio" for 2nd audio GPIO. */
+	     { IVTV_CARD_INPUT_LINE_IN2,   2 },
+	},
+	/*
+	 * Sony windows software seems to set 0x200 when unmuting.
+	 * Does it do anything?  Not clear what 0x100 does either.
+	 */
+	.gpio_init = { .direction = 0x0381, .initial_value = 0x0320 },
+	.gpio_audio_input = { .mask   = 0x0060,
+			      .tuner  = 0x0000,
+			      .linein = 0x0060,
+			      .radio  = 0x0020 },
+	.gpio_audio_mute  = { .mask = 0x0000,
+			      .mute = 0x0000 }, /* 0x200? Disable for now. */
+	.gpio_audio_mode  = { .mask   = 0x0080,
+			      .mono   = 0x0000,
+			      .stereo = 0x0000, /* SAP */
+			      .lang1  = 0x0080,
+			      .lang2  = 0x0000,
+			      .both   = 0x0080 },
+	.tuners = {
+	     { .std = V4L2_STD_ALL, .tuner = TUNER_SONY_BTF_PXN01Z },
+	},
+	.pci_list = ivtv_pci_kikyou,
+	.i2c = &ivtv_i2c_std,
+};
+
+
 static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pvr250,
 	&ivtv_card_pvr350,
@@ -1238,6 +1292,7 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_aver_m104,
 	&ivtv_card_buffalo,
 	&ivtv_card_aver_ultra1500mce,
+	&ivtv_card_kikyou,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */
