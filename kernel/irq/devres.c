@@ -42,7 +42,7 @@ static int devm_irq_match(struct device *dev, void *res, void *data)
  *	automatically freed on driver detach.
  *
  *	If an IRQ allocated with this function needs to be freed
- *	separately, dev_free_irq() must be used.
+ *	separately, devm_free_irq() must be used.
  */
 int devm_request_threaded_irq(struct device *dev, unsigned int irq,
 			      irq_handler_t handler, irq_handler_t thread_fn,
