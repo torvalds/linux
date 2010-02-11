@@ -163,7 +163,7 @@ EXPORT_SYMBOL(ethtool_ntuple_flush);
 
 static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_cmd cmd = { ETHTOOL_GSET };
+	struct ethtool_cmd cmd = { .cmd = ETHTOOL_GSET };
 	int err;
 
 	if (!dev->ethtool_ops->get_settings)
@@ -645,7 +645,7 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_get_wol(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_wolinfo wol = { ETHTOOL_GWOL };
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 
 	if (!dev->ethtool_ops->get_wol)
 		return -EOPNOTSUPP;
@@ -779,7 +779,7 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_coalesce coalesce = { ETHTOOL_GCOALESCE };
+	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
 
 	if (!dev->ethtool_ops->get_coalesce)
 		return -EOPNOTSUPP;
@@ -806,7 +806,7 @@ static int ethtool_set_coalesce(struct net_device *dev, void __user *useraddr)
 
 static int ethtool_get_ringparam(struct net_device *dev, void __user *useraddr)
 {
-	struct ethtool_ringparam ringparam = { ETHTOOL_GRINGPARAM };
+	struct ethtool_ringparam ringparam = { .cmd = ETHTOOL_GRINGPARAM };
 
 	if (!dev->ethtool_ops->get_ringparam)
 		return -EOPNOTSUPP;
@@ -1160,7 +1160,7 @@ static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
 static int ethtool_get_value(struct net_device *dev, char __user *useraddr,
 			     u32 cmd, u32 (*actor)(struct net_device *))
 {
-	struct ethtool_value edata = { cmd };
+	struct ethtool_value edata = { .cmd = cmd };
 
 	if (!actor)
 		return -EOPNOTSUPP;
