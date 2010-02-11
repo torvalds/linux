@@ -289,7 +289,7 @@ static void __init pcm038_init(void)
 	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
 
 	mxc_gpio_mode(PE16_AF_OWIRE);
-	mxc_register_device(&mxc_nand_device, &pcm038_nand_board_info);
+	mxc_register_device(&imx27_nand_device, &pcm038_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, pcm038_i2c_devices,

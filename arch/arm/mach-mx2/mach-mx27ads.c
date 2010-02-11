@@ -290,7 +290,7 @@ static void __init mx27ads_board_init(void)
 	mxc_register_device(&mxc_uart_device3, &uart_pdata[3]);
 	mxc_register_device(&mxc_uart_device4, &uart_pdata[4]);
 	mxc_register_device(&mxc_uart_device5, &uart_pdata[5]);
-	mxc_register_device(&mxc_nand_device, &mx27ads_nand_board_info);
+	mxc_register_device(&imx27_nand_device, &mx27ads_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, mx27ads_i2c_devices,

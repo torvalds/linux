@@ -15,13 +15,9 @@ extern struct platform_device mxc_uart_device5;
 extern struct platform_device mxc_w1_master_device;
 #ifdef CONFIG_MACH_MX21
 extern struct platform_device imx21_nand_device;
-#define mxc_nand_device imx21_nand_device
 #endif
 #ifdef CONFIG_MACH_MX27
 extern struct platform_device imx27_nand_device;
-#ifndef CONFIG_MACH_MX21
-#define mxc_nand_device imx27_nand_device
-#endif
 #endif
 extern struct platform_device mxc_fb_device;
 extern struct platform_device mxc_fec_device;

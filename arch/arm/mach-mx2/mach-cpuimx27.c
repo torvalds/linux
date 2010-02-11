@@ -189,7 +189,8 @@ static void __init eukrea_cpuimx27_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
 
-	mxc_register_device(&mxc_nand_device, &eukrea_cpuimx27_nand_board_info);
+	mxc_register_device(&imx27_nand_device,
+			&eukrea_cpuimx27_nand_board_info);
 
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));

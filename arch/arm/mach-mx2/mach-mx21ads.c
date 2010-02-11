@@ -268,7 +268,7 @@ static void __init mx21ads_board_init(void)
 	mxc_register_device(&mxc_uart_device3, &uart_pdata);
 	mxc_register_device(&mxc_fb_device, &mx21ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &mx21ads_sdhc_pdata);
-	mxc_register_device(&mxc_nand_device, &mx21ads_nand_board_info);
+	mxc_register_device(&imx21_nand_device, &mx21ads_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }

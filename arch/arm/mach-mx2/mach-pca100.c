@@ -196,7 +196,7 @@ static void __init pca100_init(void)
 	mxc_gpio_mode(GPIO_PORTC | 29 | GPIO_GPIO | GPIO_IN);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
 
-	mxc_register_device(&mxc_nand_device, &pca100_nand_board_info);
+	mxc_register_device(&imx27_nand_device, &pca100_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, pca100_i2c_devices,
