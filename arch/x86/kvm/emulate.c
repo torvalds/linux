@@ -1016,7 +1016,7 @@ done_prefixes:
 	}
 
 	if (mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
-		kvm_report_emulation_failure(ctxt->vcpu, "invalid x86/64 instruction");;
+		kvm_report_emulation_failure(ctxt->vcpu, "invalid x86/64 instruction");
 		return -1;
 	}
 
