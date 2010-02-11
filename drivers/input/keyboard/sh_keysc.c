@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
+#include <linux/bitmap.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 
@@ -35,7 +36,7 @@ static const struct {
 struct sh_keysc_priv {
 	void __iomem *iomem_base;
 	struct clk *clk;
-	unsigned long last_keys;
+	DECLARE_BITMAP(last_keys, SH_KEYSC_MAXKEYS);
 	struct input_dev *input;
 	struct sh_keysc_info pdata;
 };
@@ -71,69 +72,87 @@ static void sh_keysc_level_mode(struct sh_keysc_priv *p,
 		udelay(pdata->kycr2_delay);
 }
 
+static void sh_keysc_map_dbg(struct device *dev, unsigned long *map,
+			     const char *str)
+{
+	int k;
+
+	for (k = 0; k < BITS_TO_LONGS(SH_KEYSC_MAXKEYS); k++)
+		dev_dbg(dev, "%s[%d] 0x%lx\n", str, k, map[k]);
+}
+
 static irqreturn_t sh_keysc_isr(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct sh_keysc_priv *priv = platform_get_drvdata(pdev);
 	struct sh_keysc_info *pdata = &priv->pdata;
-	unsigned long keys, keys1, keys0, mask;
+	int keyout_nr = sh_keysc_mode[pdata->mode].keyout;
+	int keyin_nr = sh_keysc_mode[pdata->mode].keyin;
+	DECLARE_BITMAP(keys, SH_KEYSC_MAXKEYS);
+	DECLARE_BITMAP(keys0, SH_KEYSC_MAXKEYS);
+	DECLARE_BITMAP(keys1, SH_KEYSC_MAXKEYS);
 	unsigned char keyin_set, tmp;
-	int i, k;
+	int i, k, n;
 
 	dev_dbg(&pdev->dev, "isr!\n");
 
-	keys1 = ~0;
-	keys0 = 0;
+	bitmap_fill(keys1, SH_KEYSC_MAXKEYS);
+	bitmap_zero(keys0, SH_KEYSC_MAXKEYS);
 
 	do {
-		keys = 0;
+		bitmap_zero(keys, SH_KEYSC_MAXKEYS);
 		keyin_set = 0;
 
 		sh_keysc_write(priv, KYCR2, KYCR2_IRQ_DISABLED);
 
-		for (i = 0; i < sh_keysc_mode[pdata->mode].keyout; i++) {
+		for (i = 0; i < keyout_nr; i++) {
+			n = keyin_nr * i;
+
+			/* drive one KEYOUT pin low, read KEYIN pins */
 			sh_keysc_write(priv, KYOUTDR, 0xfff ^ (3 << (i * 2)));
 			udelay(pdata->delay);
 			tmp = sh_keysc_read(priv, KYINDR);
 
-			keys |= tmp << (sh_keysc_mode[pdata->mode].keyin * i);
-			tmp ^= (1 << sh_keysc_mode[pdata->mode].keyin) - 1;
-			keyin_set |= tmp;
+			/* set bit if key press has been detected */
+			for (k = 0; k < keyin_nr; k++) {
+				if (tmp & (1 << k))
+					__set_bit(n + k, keys);
+			}
+
+			/* keep track of which KEYIN bits that have been set */
+			keyin_set |= tmp ^ ((1 << keyin_nr) - 1);
 		}
 
 		sh_keysc_level_mode(priv, keyin_set);
 
-		keys ^= ~0;
-		keys &= (1 << (sh_keysc_mode[pdata->mode].keyin *
-			       sh_keysc_mode[pdata->mode].keyout)) - 1;
-		keys1 &= keys;
-		keys0 |= keys;
+		bitmap_complement(keys, keys, SH_KEYSC_MAXKEYS);
+		bitmap_and(keys1, keys1, keys, SH_KEYSC_MAXKEYS);
+		bitmap_or(keys0, keys0, keys, SH_KEYSC_MAXKEYS);
 
-		dev_dbg(&pdev->dev, "keys 0x%08lx\n", keys);
+		sh_keysc_map_dbg(&pdev->dev, keys, "keys");
 
 	} while (sh_keysc_read(priv, KYCR2) & 0x01);
 
-	dev_dbg(&pdev->dev, "last_keys 0x%08lx keys0 0x%08lx keys1 0x%08lx\n",
-		priv->last_keys, keys0, keys1);
+	sh_keysc_map_dbg(&pdev->dev, priv->last_keys, "last_keys");
+	sh_keysc_map_dbg(&pdev->dev, keys0, "keys0");
+	sh_keysc_map_dbg(&pdev->dev, keys1, "keys1");
 
 	for (i = 0; i < SH_KEYSC_MAXKEYS; i++) {
 		k = pdata->keycodes[i];
 		if (!k)
 			continue;
 
-		mask = 1 << i;
-
-		if (!((priv->last_keys ^ keys0) & mask))
+		if (test_bit(i, keys0) == test_bit(i, priv->last_keys))
 			continue;
 
-		if ((keys1 | keys0) & mask) {
+		if (test_bit(i, keys1) || test_bit(i, keys0)) {
 			input_event(priv->input, EV_KEY, k, 1);
-			priv->last_keys |= mask;
+			__set_bit(i, priv->last_keys);
 		}
 
-		if (!(keys1 & mask)) {
+		if (!test_bit(i, keys1)) {
 			input_event(priv->input, EV_KEY, k, 0);
-			priv->last_keys &= ~mask;
+			__clear_bit(i, priv->last_keys);
 		}
 
 	}
