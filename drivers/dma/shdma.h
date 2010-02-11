@@ -17,6 +17,8 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 
+#include <asm/dmaengine.h>
+
 #define SH_DMA_TCR_MAX 0x00FFFFFF	/* 16MB */
 
 struct sh_dmae_regs {
@@ -55,7 +57,7 @@ struct sh_dmae_chan {
 
 struct sh_dmae_device {
 	struct dma_device common;
-	struct sh_dmae_chan *chan[MAX_DMA_CHANNELS];
+	struct sh_dmae_chan *chan[SH_DMAC_MAX_CHANNELS];
 	struct sh_dmae_pdata *pdata;
 	u32 __iomem *chan_reg;
 	u16 __iomem *dmars;

@@ -13,7 +13,10 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 #include <linux/sh_timer.h>
-#include <asm/dma-sh.h>
+
+#include <asm/dmaengine.h>
+
+#include <cpu/dma-register.h>
 
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xffe00000,
@@ -292,14 +295,30 @@ static struct sh_dmae_channel sh7780_dmae1_channels[] = {
 	}
 };
 
+static unsigned int ts_shift[] = TS_SHIFT;
+
 static struct sh_dmae_pdata dma0_platform_data = {
 	.channel	= sh7780_dmae0_channels,
 	.channel_num	= ARRAY_SIZE(sh7780_dmae0_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
 };
 
 static struct sh_dmae_pdata dma1_platform_data = {
 	.channel	= sh7780_dmae1_channels,
 	.channel_num	= ARRAY_SIZE(sh7780_dmae1_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
 };
 
 static struct resource sh7780_dmae0_resources[] = {

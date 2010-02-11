@@ -24,8 +24,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <cpu/dma.h>
-#include <asm/dma-sh.h>
+#include <asm/dmaengine.h>
 #include "shdma.h"
 
 /* DMA descriptor control */
@@ -38,15 +37,8 @@ enum sh_dmae_desc_status {
 };
 
 #define NR_DESCS_PER_CHANNEL 32
-/*
- * Define the default configuration for dual address memory-memory transfer.
- * The 0x400 value represents auto-request, external->external.
- *
- * And this driver set 4byte burst mode.
- * If you want to change mode, you need to change RS_DEFAULT of value.
- * (ex 1byte burst mode -> (RS_DUAL & ~TS_32)
- */
-#define RS_DEFAULT  (RS_DUAL)
+/* Default MEMCPY transfer size = 2^2 = 4 bytes */
+#define LOG2_DEFAULT_XFER_SIZE	2
 
 /* A bitmask with bits enough for enum sh_dmae_slave_chan_id */
 static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SHDMA_SLAVE_NUMBER)];
@@ -90,7 +82,7 @@ static int sh_dmae_rst(struct sh_dmae_device *shdev)
 	unsigned short dmaor;
 
 	sh_dmae_ctl_stop(shdev);
-	dmaor = dmaor_read(shdev) | DMAOR_INIT;
+	dmaor = dmaor_read(shdev) | shdev->pdata->dmaor_init;
 
 	dmaor_write(shdev, dmaor);
 	if (dmaor_read(shdev) & (DMAOR_AE | DMAOR_NMIF)) {
@@ -110,13 +102,36 @@ static bool dmae_is_busy(struct sh_dmae_chan *sh_chan)
 	return false; /* waiting */
 }
 
-static unsigned int ts_shift[] = TS_SHIFT;
-static inline unsigned int calc_xmit_shift(u32 chcr)
+static unsigned int calc_xmit_shift(struct sh_dmae_chan *sh_chan, u32 chcr)
 {
-	int cnt = ((chcr & CHCR_TS_LOW_MASK) >> CHCR_TS_LOW_SHIFT) |
-		((chcr & CHCR_TS_HIGH_MASK) >> CHCR_TS_HIGH_SHIFT);
+	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
+						struct sh_dmae_device, common);
+	struct sh_dmae_pdata *pdata = shdev->pdata;
+	int cnt = ((chcr & pdata->ts_low_mask) >> pdata->ts_low_shift) |
+		((chcr & pdata->ts_high_mask) >> pdata->ts_high_shift);
 
-	return ts_shift[cnt];
+	if (cnt >= pdata->ts_shift_num)
+		cnt = 0;
+
+	return pdata->ts_shift[cnt];
+}
+
+static u32 log2size_to_chcr(struct sh_dmae_chan *sh_chan, int l2size)
+{
+	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
+						struct sh_dmae_device, common);
+	struct sh_dmae_pdata *pdata = shdev->pdata;
+	int i;
+
+	for (i = 0; i < pdata->ts_shift_num; i++)
+		if (pdata->ts_shift[i] == l2size)
+			break;
+
+	if (i == pdata->ts_shift_num)
+		i = 0;
+
+	return ((i << pdata->ts_low_shift) & pdata->ts_low_mask) |
+		((i << pdata->ts_high_shift) & pdata->ts_high_mask);
 }
 
 static void dmae_set_reg(struct sh_dmae_chan *sh_chan, struct sh_dmae_regs *hw)
@@ -144,8 +159,13 @@ static void dmae_halt(struct sh_dmae_chan *sh_chan)
 
 static void dmae_init(struct sh_dmae_chan *sh_chan)
 {
-	u32 chcr = RS_DEFAULT; /* default is DUAL mode */
-	sh_chan->xmit_shift = calc_xmit_shift(chcr);
+	/*
+	 * Default configuration for dual address memory-memory transfer.
+	 * 0x400 represents auto-request.
+	 */
+	u32 chcr = DM_INC | SM_INC | 0x400 | log2size_to_chcr(sh_chan,
+						   LOG2_DEFAULT_XFER_SIZE);
+	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, chcr);
 	sh_dmae_writel(sh_chan, chcr, CHCR);
 }
 
@@ -155,7 +175,7 @@ static int dmae_set_chcr(struct sh_dmae_chan *sh_chan, u32 val)
 	if (dmae_is_busy(sh_chan))
 		return -EBUSY;
 
-	sh_chan->xmit_shift = calc_xmit_shift(val);
+	sh_chan->xmit_shift = calc_xmit_shift(sh_chan, val);
 	sh_dmae_writel(sh_chan, val, CHCR);
 
 	return 0;
@@ -285,9 +305,8 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 
 		dmae_set_dmars(sh_chan, cfg->mid_rid);
 		dmae_set_chcr(sh_chan, cfg->chcr);
-	} else {
-		if ((sh_dmae_readl(sh_chan, CHCR) & 0x700) != 0x400)
-			dmae_set_chcr(sh_chan, RS_DEFAULT);
+	} else if ((sh_dmae_readl(sh_chan, CHCR) & 0xf00) != 0x400) {
+		dmae_init(sh_chan);
 	}
 
 	spin_lock_bh(&sh_chan->desc_lock);
@@ -757,7 +776,7 @@ static irqreturn_t sh_dmae_err(int irq, void *data)
 	sh_dmae_ctl_stop(shdev);
 
 	/* We cannot detect, which channel caused the error, have to reset all */
-	for (i = 0; i < MAX_DMA_CHANNELS; i++) {
+	for (i = 0; i < SH_DMAC_MAX_CHANNELS; i++) {
 		struct sh_dmae_chan *sh_chan = shdev->chan[i];
 		if (sh_chan) {
 			struct sh_desc *desc;
@@ -822,6 +841,9 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 		return -ENOMEM;
 	}
 
+	/* copy struct dma_device */
+	new_sh_chan->common.device = &shdev->common;
+
 	new_sh_chan->dev = shdev->common.dev;
 	new_sh_chan->id = id;
 	new_sh_chan->irq = irq;
@@ -839,9 +861,6 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 	/* Init descripter manage list */
 	INIT_LIST_HEAD(&new_sh_chan->ld_queue);
 	INIT_LIST_HEAD(&new_sh_chan->ld_free);
-
-	/* copy struct dma_device */
-	new_sh_chan->common.device = &shdev->common;
 
 	/* Add the channel to DMA device channel list */
 	list_add_tail(&new_sh_chan->common.device_node,
@@ -896,8 +915,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 {
 	struct sh_dmae_pdata *pdata = pdev->dev.platform_data;
 	unsigned long irqflags = IRQF_DISABLED,
-		chan_flag[MAX_DMA_CHANNELS] = {};
-	int errirq, chan_irq[MAX_DMA_CHANNELS];
+		chan_flag[SH_DMAC_MAX_CHANNELS] = {};
+	int errirq, chan_irq[SH_DMAC_MAX_CHANNELS];
 	int err, i, irq_cnt = 0, irqres = 0;
 	struct sh_dmae_device *shdev;
 	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
@@ -983,7 +1002,7 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	shdev->common.dev = &pdev->dev;
 	/* Default transfer size of 32 bytes requires 32-byte alignment */
-	shdev->common.copy_align = 5;
+	shdev->common.copy_align = LOG2_DEFAULT_XFER_SIZE;
 
 #if defined(CONFIG_CPU_SH4)
 	chanirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);

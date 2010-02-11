@@ -72,7 +72,7 @@ struct siu_firmware {
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
-#include <asm/dma-sh.h>
+#include <asm/dmaengine.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

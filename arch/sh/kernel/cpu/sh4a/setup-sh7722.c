@@ -7,18 +7,21 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/platform_device.h>
 #include <linux/init.h>
+#include <linux/mm.h>
+#include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
-#include <linux/mm.h>
+#include <linux/sh_timer.h>
 #include <linux/uio_driver.h>
 #include <linux/usb/m66592.h>
-#include <linux/sh_timer.h>
+
 #include <asm/clock.h>
+#include <asm/dmaengine.h>
 #include <asm/mmzone.h>
-#include <asm/dma-sh.h>
 #include <asm/siu.h>
+
+#include <cpu/dma-register.h>
 #include <cpu/sh7722.h>
 
 static struct sh_dmae_slave_config sh7722_dmae_slaves[] = {
@@ -103,11 +106,20 @@ static struct sh_dmae_channel sh7722_dmae_channels[] = {
 	}
 };
 
+static unsigned int ts_shift[] = TS_SHIFT;
+
 static struct sh_dmae_pdata dma_platform_data = {
 	.slave		= sh7722_dmae_slaves,
 	.slave_num	= ARRAY_SIZE(sh7722_dmae_slaves),
 	.channel	= sh7722_dmae_channels,
 	.channel_num	= ARRAY_SIZE(sh7722_dmae_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
 };
 
 static struct resource sh7722_dmae_resources[] = {

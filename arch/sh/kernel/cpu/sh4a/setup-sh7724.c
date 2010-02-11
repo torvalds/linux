@@ -21,10 +21,13 @@
 #include <linux/sh_timer.h>
 #include <linux/io.h>
 #include <linux/notifier.h>
+
 #include <asm/suspend.h>
 #include <asm/clock.h>
-#include <asm/dma-sh.h>
+#include <asm/dmaengine.h>
 #include <asm/mmzone.h>
+
+#include <cpu/dma-register.h>
 #include <cpu/sh7724.h>
 
 /* DMA */
@@ -84,14 +87,30 @@ static struct sh_dmae_channel sh7724_dmae1_channels[] = {
 	}
 };
 
+static unsigned int ts_shift[] = TS_SHIFT;
+
 static struct sh_dmae_pdata dma0_platform_data = {
 	.channel	= sh7724_dmae0_channels,
 	.channel_num	= ARRAY_SIZE(sh7724_dmae0_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
 };
 
 static struct sh_dmae_pdata dma1_platform_data = {
 	.channel	= sh7724_dmae1_channels,
 	.channel_num	= ARRAY_SIZE(sh7724_dmae1_channels),
+	.ts_low_shift	= CHCR_TS_LOW_SHIFT,
+	.ts_low_mask	= CHCR_TS_LOW_MASK,
+	.ts_high_shift	= CHCR_TS_HIGH_SHIFT,
+	.ts_high_mask	= CHCR_TS_HIGH_MASK,
+	.ts_shift	= ts_shift,
+	.ts_shift_num	= ARRAY_SIZE(ts_shift),
+	.dmaor_init	= DMAOR_INIT,
 };
 
 /* Resource order important! */
