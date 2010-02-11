@@ -156,6 +156,26 @@ radeon_get_encoder_id(struct drm_device *dev, uint32_t supported_device, uint8_t
 	return ret;
 }
 
+static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	switch (radeon_encoder->encoder_id) {
+	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
+	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
+	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
+	case ENCODER_OBJECT_ID_INTERNAL_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+	case ENCODER_OBJECT_ID_INTERNAL_DDI:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		return true;
+	default:
+		return false;
+	}
+}
 void
 radeon_link_encoder_connector(struct drm_device *dev)
 {
@@ -202,7 +222,7 @@ radeon_get_connector_for_encoder(struct drm_encoder *encoder)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		radeon_connector = to_radeon_connector(connector);
-		if (radeon_encoder->devices & radeon_connector->devices)
+		if (radeon_encoder->active_device & radeon_connector->devices)
 			return connector;
 	}
 	return NULL;
@@ -676,31 +696,11 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 
 	memset(&args, 0, sizeof(args));
 
-	if (ASIC_IS_DCE32(rdev)) {
-		if (dig->dig_block)
-			index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-		else
-			index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
-		num = dig->dig_block + 1;
-	} else {
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			/* XXX doesn't really matter which dig encoder we pick as long as it's
-			 * not already in use
-			 */
-			if (dig_connector->linkb)
-				index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-			else
-				index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
-			num = 1;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-			/* Only dig2 encoder can drive LVTMA */
-			index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
-			num = 2;
-			break;
-		}
-	}
+	if (dig->dig_encoder)
+		index = GetIndexIntoMasterTable(COMMAND, DIG2EncoderControl);
+	else
+		index = GetIndexIntoMasterTable(COMMAND, DIG1EncoderControl);
+	num = dig->dig_encoder + 1;
 
 	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
 
@@ -822,7 +822,7 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 	}
 	if (ASIC_IS_DCE32(rdev)) {
-		if (dig->dig_block)
+		if (dig->dig_encoder == 1)
 			args.v2.acConfig.ucEncoderSel = 1;
 		if (dig_connector->linkb)
 			args.v2.acConfig.ucLinkSel = 1;
@@ -849,17 +849,16 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 				args.v2.acConfig.fCoherentMode = 1;
 		}
 	} else {
+
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
+
+		if (dig->dig_encoder)
+			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
+		else
+			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
-			/* XXX doesn't really matter which dig encoder we pick as long as it's
-			 * not already in use
-			 */
-			if (dig_connector->linkb)
-				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
-			else
-				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
 			if (rdev->flags & RADEON_IS_IGP) {
 				if (radeon_encoder->pixel_clock > 165000) {
 					if (dig_connector->igp_lane_info & 0x3)
@@ -877,10 +876,6 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
 				}
 			}
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-			/* Only dig2 encoder can drive LVTMA */
-			args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 			break;
 		}
 
@@ -1046,6 +1041,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 	union crtc_sourc_param args;
 	int index = GetIndexIntoMasterTable(COMMAND, SelectCRTC_Source);
 	uint8_t frev, crev;
+	struct radeon_encoder_atom_dig *dig;
 
 	memset(&args, 0, sizeof(args));
 
@@ -1109,39 +1105,15 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-				if (ASIC_IS_DCE32(rdev)) {
-					if (radeon_crtc->crtc_id)
-						args.v2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
-					else
-						args.v2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-				} else {
-					struct drm_connector *connector;
-					struct radeon_connector *radeon_connector;
-					struct radeon_connector_atom_dig *dig_connector;
-
-					connector = radeon_get_connector_for_encoder(encoder);
-					if (!connector)
-						return;
-					radeon_connector = to_radeon_connector(connector);
-					if (!radeon_connector->con_priv)
-						return;
-					dig_connector = radeon_connector->con_priv;
-
-					/* XXX doesn't really matter which dig encoder we pick as long as it's
-					 * not already in use
-					 */
-					if (dig_connector->linkb)
-						args.v2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
-					else
-						args.v2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
-				}
+			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+				dig = radeon_encoder->enc_priv;
+				if (dig->dig_encoder)
+					args.v2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
+				else
+					args.v2.ucEncoderID = ASIC_INT_DIG1_ENCODER_ID;
 				break;
 			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 				args.v2.ucEncoderID = ASIC_INT_DVO_ENCODER_ID;
-				break;
-			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-				/* Only dig2 encoder can drive LVTMA */
-				args.v2.ucEncoderID = ASIC_INT_DIG2_ENCODER_ID;
 				break;
 			case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 				if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT))
@@ -1202,6 +1174,47 @@ atombios_apply_encoder_quirks(struct drm_encoder *encoder,
 	}
 }
 
+static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(encoder->crtc);
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_encoder *test_encoder;
+	struct radeon_encoder_atom_dig *dig;
+	uint32_t dig_enc_in_use = 0;
+	/* on DCE32 and encoder can driver any block so just crtc id */
+	if (ASIC_IS_DCE32(rdev)) {
+		return radeon_crtc->crtc_id;
+	}
+
+	/* on DCE3 - LVTMA can only be driven by DIGB */
+	list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
+		struct radeon_encoder *radeon_test_encoder;
+
+		if (encoder == test_encoder)
+			continue;
+
+		if (!radeon_encoder_is_digital(test_encoder))
+			continue;
+
+		radeon_test_encoder = to_radeon_encoder(test_encoder);
+		dig = radeon_test_encoder->enc_priv;
+
+		if (dig->dig_encoder >= 0)
+			dig_enc_in_use |= (1 << dig->dig_encoder);
+	}
+
+	if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA) {
+		if (dig_enc_in_use & 0x2)
+			DRM_ERROR("LVDS required digital encoder 2 but it was in use - stealing\n");
+		return 1;
+	}
+	if (!(dig_enc_in_use & 1))
+		return 0;
+	return 1;
+}
+
 static void
 radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *mode,
@@ -1214,12 +1227,9 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (radeon_encoder->active_device &
 	    (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) {
-		if (radeon_encoder->enc_priv) {
-			struct radeon_encoder_atom_dig *dig;
-
-			dig = radeon_encoder->enc_priv;
-			dig->dig_block = radeon_crtc->crtc_id;
-		}
+		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+		if (dig)
+			dig->dig_encoder = radeon_atom_pick_dig_encoder(encoder);
 	}
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
@@ -1379,7 +1389,13 @@ static void radeon_atom_encoder_commit(struct drm_encoder *encoder)
 static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig;
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+
+	if (radeon_encoder_is_digital(encoder)) {
+		dig = radeon_encoder->enc_priv;
+		dig->dig_encoder = -1;
+	}
 	radeon_encoder->active_device = 0;
 }
 
@@ -1436,6 +1452,7 @@ radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 
 	/* coherent mode by default */
 	dig->coherent_mode = true;
+	dig->dig_encoder = -1;
 
 	return dig;
 }

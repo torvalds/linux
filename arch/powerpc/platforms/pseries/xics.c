@@ -191,11 +191,7 @@ static int get_irq_server(unsigned int virq, cpumask_t cpumask,
 	return default_server;
 }
 #else
-static int get_irq_server(unsigned int virq, cpumask_t cpumask,
-			  unsigned int strict_check)
-{
-	return default_server;
-}
+#define get_irq_server(virq, cpumask, strict_check) (default_server)
 #endif
 
 static void xics_unmask_irq(unsigned int virq)

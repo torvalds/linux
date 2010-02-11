@@ -470,6 +470,8 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 		}
 		if (service_rc == 12 && service_rs == 769)
 			return -EINVAL;
+		if (service_rc == 8 && service_rs == 72)
+			return -EINVAL;
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
 	}

@@ -343,7 +343,19 @@ static void clocksource_resume_watchdog(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&watchdog_lock, flags);
+	/*
+	 * We use trylock here to avoid a potential dead lock when
+	 * kgdb calls this code after the kernel has been stopped with
+	 * watchdog_lock held. When watchdog_lock is held we just
+	 * return and accept, that the watchdog might trigger and mark
+	 * the monitored clock source (usually TSC) unstable.
+	 *
+	 * This does not affect the other caller clocksource_resume()
+	 * because at this point the kernel is UP, interrupts are
+	 * disabled and nothing can hold watchdog_lock.
+	 */
+	if (!spin_trylock_irqsave(&watchdog_lock, flags))
+		return;
 	clocksource_reset_watchdog();
 	spin_unlock_irqrestore(&watchdog_lock, flags);
 }
@@ -458,8 +470,8 @@ void clocksource_resume(void)
  * clocksource_touch_watchdog - Update watchdog
  *
  * Update the watchdog after exception contexts such as kgdb so as not
- * to incorrectly trip the watchdog.
- *
+ * to incorrectly trip the watchdog. This might fail when the kernel
+ * was stopped in code which holds watchdog_lock.
  */
 void clocksource_touch_watchdog(void)
 {

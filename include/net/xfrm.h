@@ -1367,8 +1367,8 @@ struct xfrmk_spdinfo {
 extern struct xfrm_state *xfrm_find_acq_byseq(struct net *net, u32 seq);
 extern int xfrm_state_delete(struct xfrm_state *x);
 extern int xfrm_state_flush(struct net *net, u8 proto, struct xfrm_audit *audit_info);
-extern void xfrm_sad_getinfo(struct xfrmk_sadinfo *si);
-extern void xfrm_spd_getinfo(struct xfrmk_spdinfo *si);
+extern void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si);
+extern void xfrm_spd_getinfo(struct net *net, struct xfrmk_spdinfo *si);
 extern int xfrm_replay_check(struct xfrm_state *x,
 			     struct sk_buff *skb, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);

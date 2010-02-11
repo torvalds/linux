@@ -104,7 +104,6 @@ static int vmw_dmabuf_pin_in_vram(struct vmw_private *dev_priv,
 				  bool pin, bool interruptible)
 {
 	struct ttm_buffer_object *bo = &buf->base;
-	struct ttm_bo_global *glob = bo->glob;
 	struct ttm_placement *overlay_placement = &vmw_vram_placement;
 	int ret;
 
@@ -115,14 +114,6 @@ static int vmw_dmabuf_pin_in_vram(struct vmw_private *dev_priv,
 	ret = ttm_bo_reserve(bo, interruptible, false, false, 0);
 	if (unlikely(ret != 0))
 		goto err;
-
-	if (buf->gmr_bound) {
-		vmw_gmr_unbind(dev_priv, buf->gmr_id);
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, buf->gmr_id);
-		spin_unlock(&glob->lru_lock);
-		buf->gmr_bound = NULL;
-	}
 
 	if (pin)
 		overlay_placement = &vmw_vram_ne_placement;
