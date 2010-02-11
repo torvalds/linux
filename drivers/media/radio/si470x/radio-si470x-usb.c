@@ -842,9 +842,11 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 		kfree(radio->int_in_buffer);
 		video_unregister_device(radio->videodev);
 		kfree(radio->buffer);
+		mutex_unlock(&radio->disconnect_lock);
 		kfree(radio);
+	} else {
+		mutex_unlock(&radio->disconnect_lock);
 	}
-	mutex_unlock(&radio->disconnect_lock);
 }
 
 
