@@ -13,6 +13,7 @@ extern void sh7367_pinmux_init(void);
 extern void sh7377_init_irq(void);
 extern void sh7377_add_early_devices(void);
 extern void sh7377_add_standard_devices(void);
+extern void sh7377_pinmux_init(void);
 
 extern void sh7372_init_irq(void);
 extern void sh7372_add_early_devices(void);

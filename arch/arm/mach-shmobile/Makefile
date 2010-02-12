@@ -12,6 +12,7 @@ obj-$(CONFIG_ARCH_SH7372)	+= setup-sh7372.o clock-sh7367.o intc-sh7372.o
 
 # Pinmux setup
 pfc-$(CONFIG_ARCH_SH7367)	:= pfc-sh7367.o
+pfc-$(CONFIG_ARCH_SH7377)	:= pfc-sh7377.o
 obj-$(CONFIG_GENERIC_GPIO)	+= $(pfc-y)
 
 # Board objects

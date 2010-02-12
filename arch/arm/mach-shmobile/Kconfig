@@ -36,6 +36,7 @@ config MACH_G3EVM
 config MACH_G4EVM
 	bool "G4EVM board"
 	depends on ARCH_SH7377
+	select ARCH_REQUIRE_GPIOLIB
 
 config MACH_AP4EVB
 	bool "AP4EVB board"

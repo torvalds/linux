@@ -27,6 +27,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
+#include <mach/sh7377.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -113,6 +115,28 @@ static void __init g4evm_map_io(void)
 
 static void __init g4evm_init(void)
 {
+	sh7377_pinmux_init();
+
+	/* Lit DS14 LED */
+	gpio_request(GPIO_PORT109, NULL);
+	gpio_direction_output(GPIO_PORT109, 1);
+	gpio_export(GPIO_PORT109, 1);
+
+	/* Lit DS15 LED */
+	gpio_request(GPIO_PORT110, NULL);
+	gpio_direction_output(GPIO_PORT110, 1);
+	gpio_export(GPIO_PORT110, 1);
+
+	/* Lit DS16 LED */
+	gpio_request(GPIO_PORT112, NULL);
+	gpio_direction_output(GPIO_PORT112, 1);
+	gpio_export(GPIO_PORT112, 1);
+
+	/* Lit DS17 LED */
+	gpio_request(GPIO_PORT113, NULL);
+	gpio_direction_output(GPIO_PORT113, 1);
+	gpio_export(GPIO_PORT113, 1);
+
 	sh7377_add_standard_devices();
 
 	platform_add_devices(g4evm_devices, ARRAY_SIZE(g4evm_devices));
