@@ -1707,7 +1707,8 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 				alloc_len - sizeof(union  lpfc_sli4_cfg_shdr);
 	}
 	/* The sub-header is in DMA memory, which needs endian converstion */
-	lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
+	if (cfg_shdr)
+		lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
 			      sizeof(union  lpfc_sli4_cfg_shdr));
 
 	return alloc_len;

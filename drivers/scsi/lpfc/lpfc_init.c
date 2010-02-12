@@ -2363,6 +2363,7 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
+	struct Scsi_Host *shost;
 	int i;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
@@ -2376,13 +2377,14 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			struct Scsi_Host *shost;
-
 			if (vports[i]->load_flag & FC_UNLOADING)
 				continue;
+			shost = lpfc_shost_from_vport(vports[i]);
+			spin_lock_irq(shost->host_lock);
 			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
 			vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			vports[i]->fc_flag &= ~FC_VFI_REGISTERED;
+			spin_unlock_irq(shost->host_lock);
 
 			shost =	lpfc_shost_from_vport(vports[i]);
 			list_for_each_entry_safe(ndlp, next_ndlp,
@@ -2789,8 +2791,6 @@ lpfc_stop_port_s4(struct lpfc_hba *phba)
 	lpfc_stop_hba_timers(phba);
 	phba->pport->work_port_events = 0;
 	phba->sli4_hba.intr_enable = 0;
-	/* Hard clear it for now, shall have more graceful way to wait later */
-	phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 }
 
 /**
