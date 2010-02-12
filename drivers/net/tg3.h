@@ -2112,6 +2112,9 @@
 
 /* Fast Ethernet Tranceiver definitions */
 #define MII_TG3_FET_PTEST		0x17
+#define  MII_TG3_FET_PTEST_FRC_TX_LINK	0x1000
+#define  MII_TG3_FET_PTEST_FRC_TX_LOCK	0x0800
+
 #define MII_TG3_FET_TEST		0x1f
 #define  MII_TG3_FET_SHADOW_EN		0x0080
 

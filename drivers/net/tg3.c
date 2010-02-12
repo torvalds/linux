@@ -10822,8 +10822,12 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 
 		mac_mode = tp->mac_mode & ~MAC_MODE_PORT_MODE_MASK;
 		if (tp->tg3_flags3 & TG3_FLG3_PHY_IS_FET) {
-			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
-				tg3_writephy(tp, MII_TG3_FET_PTEST, 0x1800);
+			tg3_writephy(tp, MII_TG3_FET_PTEST,
+				     MII_TG3_FET_PTEST_FRC_TX_LINK |
+				     MII_TG3_FET_PTEST_FRC_TX_LOCK);
+			/* The write needs to be flushed for the AC131 */
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
+				tg3_readphy(tp, MII_TG3_FET_PTEST, &val);
 			mac_mode |= MAC_MODE_PORT_MODE_MII;
 		} else
 			mac_mode |= MAC_MODE_PORT_MODE_GMII;
