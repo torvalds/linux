@@ -26,10 +26,10 @@
 
 struct ntrig_data {
 	__s32 x, y, id, w, h;
-	char reading_a_point, found_contact_id;
-	char pen_active;
-	char finger_active;
-	char inverted;
+	bool reading_a_point, found_contact_id;
+	bool pen_active;
+	bool finger_active;
+	bool inverted;
 };
 
 /*
@@ -42,6 +42,10 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	/* No special mappings needed for the pen */
+	if (field->application == HID_DG_PEN)
+		return 0;
+
 	switch (usage->hid & HID_USAGE_PAGE) {
 
 	case HID_UP_GENDESK:
@@ -104,6 +108,9 @@ static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
+	/* No special mappings needed for the pen */
+	if (field->application == HID_DG_PEN)
+		return 0;
 	if (usage->type == EV_KEY || usage->type == EV_REL
 			|| usage->type == EV_ABS)
 		clear_bit(usage->code, *bit);
@@ -122,6 +129,10 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 {
 	struct input_dev *input = field->hidinput->input;
 	struct ntrig_data *nd = hid_get_drvdata(hid);
+
+	/* No special handling needed for the pen */
+	if (field->application == HID_DG_PEN)
+		return 0;
 
         if (hid->claimed & HID_CLAIMED_INPUT) {
 		switch (usage->hid) {
@@ -231,8 +242,8 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 	}
 
 	/* we have handled the hidinput part, now remains hiddev */
-        if (hid->claimed & HID_CLAIMED_HIDDEV && hid->hiddev_hid_event)
-                hid->hiddev_hid_event(hid, field, usage, value);
+	if ((hid->claimed & HID_CLAIMED_HIDDEV) && hid->hiddev_hid_event)
+		hid->hiddev_hid_event(hid, field, usage, value);
 
 	return 1;
 }
@@ -241,6 +252,11 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret;
 	struct ntrig_data *nd;
+	struct hid_input *hidinput;
+	struct input_dev *input;
+
+	if (id->driver_data)
+		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 
 	nd = kmalloc(sizeof(struct ntrig_data), GFP_KERNEL);
 	if (!nd) {
@@ -252,12 +268,43 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_set_drvdata(hdev, nd);
 
 	ret = hid_parse(hdev);
-	if (!ret)
-		ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+	if (ret) {
+		dev_err(&hdev->dev, "parse failed\n");
+		goto err_free;
+	}
 
-	if (ret)
-		kfree (nd);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	if (ret) {
+		dev_err(&hdev->dev, "hw start failed\n");
+		goto err_free;
+	}
 
+
+	list_for_each_entry(hidinput, &hdev->inputs, list) {
+		input = hidinput->input;
+		switch (hidinput->report->field[0]->application) {
+		case HID_DG_PEN:
+			input->name = "N-Trig Pen";
+			break;
+		case HID_DG_TOUCHSCREEN:
+			/*
+			 * The physical touchscreen (single touch)
+			 * input has a value for physical, whereas
+			 * the multitouch only has logical input
+			 * fields.
+			 */
+			input->name =
+				(hidinput->report->field[0]
+				 ->physical) ?
+				"N-Trig Touchscreen" :
+				"N-Trig MultiTouch";
+			break;
+		}
+	}
+
+	return 0;
+err_free:
+	kfree(nd);
 	return ret;
 }
 
@@ -276,7 +323,7 @@ MODULE_DEVICE_TABLE(hid, ntrig_devices);
 
 static const struct hid_usage_id ntrig_grabbed_usages[] = {
 	{ HID_ANY_ID, HID_ANY_ID, HID_ANY_ID },
-	{ HID_ANY_ID - 1, HID_ANY_ID - 1, HID_ANY_ID - 1}
+	{ HID_ANY_ID - 1, HID_ANY_ID - 1, HID_ANY_ID - 1 }
 };
 
 static struct hid_driver ntrig_driver = {
