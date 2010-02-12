@@ -105,7 +105,7 @@ static void update_blkif_status(blkif_t *blkif)
 				   char *buf)				\
 	{								\
 		struct xenbus_device *dev = to_xenbus_device(_dev);	\
-		struct backend_info *be = dev->dev.driver_data;		\
+		struct backend_info *be = dev_get_drvdata(&dev->dev);	\
 									\
 		return sprintf(buf, format, ##args);			\
 	}								\
@@ -169,7 +169,7 @@ void xenvbd_sysfs_delif(struct xenbus_device *dev)
 
 static int blkback_remove(struct xenbus_device *dev)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
 	DPRINTK("");
 
@@ -190,7 +190,7 @@ static int blkback_remove(struct xenbus_device *dev)
 	}
 
 	kfree(be);
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static int blkback_probe(struct xenbus_device *dev,
 		return -ENOMEM;
 	}
 	be->dev = dev;
-	dev->dev.driver_data = be;
+	dev_set_drvdata(&dev->dev, be);
 
 	be->blkif = blkif_alloc(dev->otherend_id);
 	if (IS_ERR(be->blkif)) {
@@ -348,7 +348,7 @@ static void backend_changed(struct xenbus_watch *watch,
 static void frontend_changed(struct xenbus_device *dev,
 			     enum xenbus_state frontend_state)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
 	DPRINTK("%s", xenbus_strstate(frontend_state));
