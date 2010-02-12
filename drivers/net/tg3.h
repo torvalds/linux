@@ -2717,7 +2717,7 @@ struct tg3 {
 	struct vlan_group		*vlgrp;
 #endif
 
-	struct tg3_rx_prodring_set	prodring[TG3_IRQ_MAX_VECS - 1];
+	struct tg3_rx_prodring_set	prodring[TG3_IRQ_MAX_VECS];
 
 
 	/* begin "everything else" cacheline(s) section */

@@ -4733,7 +4733,7 @@ next_pkt_nopost:
 	tw32_rx_mbox(tnapi->consmbox, sw_idx);
 
 	/* Refill RX ring(s). */
-	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) || tnapi == &tp->napi[1]) {
+	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS)) {
 		if (work_mask & RXD_OPAQUE_RING_STD) {
 			tpr->rx_std_prod_idx = std_prod_idx % TG3_RX_RING_SIZE;
 			tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG,
@@ -4755,7 +4755,8 @@ next_pkt_nopost:
 		tpr->rx_std_prod_idx = std_prod_idx % TG3_RX_RING_SIZE;
 		tpr->rx_jmb_prod_idx = jmb_prod_idx % TG3_RX_JUMBO_RING_SIZE;
 
-		napi_schedule(&tp->napi[1].napi);
+		if (tnapi != &tp->napi[1])
+			napi_schedule(&tp->napi[1].napi);
 	}
 
 	return received;
@@ -4893,25 +4894,23 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 		work_done += tg3_rx(tnapi, budget - work_done);
 
 	if ((tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) && tnapi == &tp->napi[1]) {
+		struct tg3_rx_prodring_set *dpr = &tp->prodring[0];
 		int i;
-		u32 std_prod_idx = tp->prodring[0].rx_std_prod_idx;
-		u32 jmb_prod_idx = tp->prodring[0].rx_jmb_prod_idx;
+		u32 std_prod_idx = dpr->rx_std_prod_idx;
+		u32 jmb_prod_idx = dpr->rx_jmb_prod_idx;
 
-		for (i = 2; i < tp->irq_cnt; i++)
-			tg3_rx_prodring_xfer(tp, tnapi->prodring,
-					     tp->napi[i].prodring);
+		for (i = 1; i < tp->irq_cnt; i++)
+			tg3_rx_prodring_xfer(tp, dpr, tp->napi[i].prodring);
 
 		wmb();
 
-		if (std_prod_idx != tp->prodring[0].rx_std_prod_idx) {
-			u32 mbox = TG3_RX_STD_PROD_IDX_REG;
-			tw32_rx_mbox(mbox, tp->prodring[0].rx_std_prod_idx);
-		}
+		if (std_prod_idx != dpr->rx_std_prod_idx)
+			tw32_rx_mbox(TG3_RX_STD_PROD_IDX_REG,
+				     dpr->rx_std_prod_idx);
 
-		if (jmb_prod_idx != tp->prodring[0].rx_jmb_prod_idx) {
-			u32 mbox = TG3_RX_JMB_PROD_IDX_REG;
-			tw32_rx_mbox(mbox, tp->prodring[0].rx_jmb_prod_idx);
-		}
+		if (jmb_prod_idx != dpr->rx_jmb_prod_idx)
+			tw32_rx_mbox(TG3_RX_JMB_PROD_IDX_REG,
+				     dpr->rx_jmb_prod_idx);
 
 		mmiowb();
 	}
@@ -6173,8 +6172,7 @@ static void tg3_free_rings(struct tg3 *tp)
 			dev_kfree_skb_any(skb);
 		}
 
-		if (tp->irq_cnt == 1 || j != tp->irq_cnt - 1)
-			tg3_rx_prodring_free(tp, &tp->prodring[j]);
+		tg3_rx_prodring_free(tp, &tp->prodring[j]);
 	}
 }
 
@@ -6210,9 +6208,10 @@ static int tg3_init_rings(struct tg3 *tp)
 		if (tnapi->rx_rcb)
 			memset(tnapi->rx_rcb, 0, TG3_RX_RCB_RING_BYTES(tp));
 
-		if ((tp->irq_cnt == 1 || i != tp->irq_cnt - 1) &&
-			tg3_rx_prodring_alloc(tp, &tp->prodring[i]))
+		if (tg3_rx_prodring_alloc(tp, &tp->prodring[i])) {
+			tg3_free_rings(tp);
 			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -6259,7 +6258,7 @@ static void tg3_free_consistent(struct tg3 *tp)
 		tp->hw_stats = NULL;
 	}
 
-	for (i = 0; i < (tp->irq_cnt == 1 ? 1 : tp->irq_cnt - 1); i++)
+	for (i = 0; i < tp->irq_cnt; i++)
 		tg3_rx_prodring_fini(tp, &tp->prodring[i]);
 }
 
@@ -6271,7 +6270,7 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 {
 	int i;
 
-	for (i = 0; i < (tp->irq_cnt == 1 ? 1 : tp->irq_cnt - 1); i++) {
+	for (i = 0; i < tp->irq_cnt; i++) {
 		if (tg3_rx_prodring_init(tp, &tp->prodring[i]))
 			goto err_out;
 	}
@@ -6336,10 +6335,7 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 			break;
 		}
 
-		if (tp->irq_cnt == 1)
-			tnapi->prodring = &tp->prodring[0];
-		else if (i)
-			tnapi->prodring = &tp->prodring[i - 1];
+		tnapi->prodring = &tp->prodring[i];
 
 		/*
 		 * If multivector RSS is enabled, vector 0 does not handle
