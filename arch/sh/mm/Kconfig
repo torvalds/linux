@@ -75,6 +75,7 @@ config MEMORY_SIZE
 config 29BIT
 	def_bool !32BIT
 	depends on SUPERH32
+	select UNCACHED_MAPPING
 
 config 32BIT
 	bool
@@ -84,6 +85,7 @@ config PMB
 	bool "Support 32-bit physical addressing through PMB"
 	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
 	select 32BIT
+	select UNCACHED_MAPPING
 	help
 	  If you say Y here, physical addressing will be extended to
 	  32-bits through the SH-4A PMB. If this is not set, legacy
@@ -172,6 +174,9 @@ config ARCH_MEMORY_PROBE
 config IOREMAP_FIXED
        def_bool y
        depends on X2TLB || SUPERH64
+
+config UNCACHED_MAPPING
+	bool
 
 choice
 	prompt "Kernel page size"

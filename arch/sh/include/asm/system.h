@@ -10,7 +10,6 @@
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <asm/types.h>
-#include <asm/ptrace.h>
 
 #define AT_VECTOR_SIZE_ARCH 5 /* entries in ARCH_DLINFO */
 
@@ -113,6 +112,8 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
      (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,		 \
 				    (unsigned long)_n_, sizeof(*(ptr))); \
   })
+
+struct pt_regs;
 
 extern void die(const char *str, struct pt_regs *regs, long err) __attribute__ ((noreturn));
 void free_initmem(void);

@@ -21,11 +21,12 @@
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
 #include <asm/cache.h>
+#include <asm/sizes.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-#ifdef CONFIG_SUPERH32
+#ifdef CONFIG_UNCACHED_MAPPING
 /*
  * This is the offset of the uncached section from its cached alias.
  *
@@ -36,8 +37,8 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * Default value only valid in 29 bit mode, in 32bit mode this will be
  * updated by the early PMB initialization code.
  */
-unsigned long cached_to_uncached = P2SEG - P1SEG;
-unsigned long uncached_size = 0x20000000;
+unsigned long cached_to_uncached = 0x20000000;
+unsigned long uncached_size = SZ_512M;
 #endif
 
 #ifdef CONFIG_MMU
@@ -281,7 +282,9 @@ void __init mem_init(void)
 #endif
 		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
 		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB) (cached)\n"
+#ifdef CONFIG_UNCACHED_MAPPING
 		"            : 0x%08lx - 0x%08lx   (%4ld MB) (uncached)\n"
+#endif
 		"      .init : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 		"      .data : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 		"      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
@@ -299,9 +302,11 @@ void __init mem_init(void)
 		(unsigned long)memory_start, (unsigned long)high_memory,
 		((unsigned long)high_memory - (unsigned long)memory_start) >> 20,
 
+#ifdef CONFIG_UNCACHED_MAPPING
 		(unsigned long)memory_start + cached_to_uncached,
 		(unsigned long)memory_start + cached_to_uncached + uncached_size,
 		uncached_size >> 20,
+#endif
 
 		(unsigned long)&__init_begin, (unsigned long)&__init_end,
 		((unsigned long)&__init_end -
