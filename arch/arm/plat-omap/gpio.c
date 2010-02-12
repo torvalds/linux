@@ -177,13 +177,11 @@ struct gpio_bank {
 	u16 irq;
 	u16 virtual_irq_start;
 	int method;
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2) ||  \
-		defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 	u32 suspend_wakeup;
 	u32 saved_wakeup;
 #endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-			defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	u32 non_wakeup_gpios;
 	u32 enabled_non_wakeup_gpios;
 
@@ -592,8 +590,7 @@ static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 		reg += OMAP7XX_GPIO_DATA_OUTPUT;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-		defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_DATAOUT;
 		break;
@@ -684,8 +681,7 @@ void omap_set_gpio_debounce_time(int gpio, int enc_time)
 }
 EXPORT_SYMBOL(omap_set_gpio_debounce_time);
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 						int trigger)
 {
@@ -856,8 +852,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 			goto bad;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	case METHOD_GPIO_24XX:
 		set_24xx_gpio_triggering(bank, gpio, trigger);
 		break;
@@ -1131,8 +1126,7 @@ static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 		spin_unlock_irqrestore(&bank->lock, flags);
 		return 0;
 #endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	case METHOD_GPIO_24XX:
 		if (bank->non_wakeup_gpios & (1 << gpio)) {
 			printk(KERN_ERR "Unable to modify wakeup on "
@@ -1227,8 +1221,7 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 		__raw_writel(1 << offset, reg);
 	}
 #endif
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	if (bank->method == METHOD_GPIO_24XX) {
 		/* Disable wake-up during idle for dynamic tick */
 		void __iomem *reg = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
@@ -1809,8 +1802,7 @@ static int __init _omap_gpio_init(void)
 			gpio_count = 32; /* 7xx has 32-bit GPIOs */
 		}
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 		if (bank->method == METHOD_GPIO_24XX) {
 			static const u32 non_wakeup_gpios[] = {
 				0xe203ffc0, 0x08700040
@@ -1903,8 +1895,7 @@ static int __init _omap_gpio_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2) || \
-		defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 static int omap_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 {
 	int i;
@@ -2013,8 +2004,7 @@ static struct sys_device omap_gpio_device = {
 
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 
 static int workaround_enabled;
 
@@ -2240,8 +2230,7 @@ static int __init omap_gpio_sysinit(void)
 
 	mpuio_init();
 
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2) || \
-		defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 	if (cpu_is_omap16xx() || cpu_class_is_omap2()) {
 		if (ret == 0) {
 			ret = sysdev_class_register(&omap_gpio_sysclass);
@@ -2300,8 +2289,7 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 /* FIXME for at least omap2, show pullup/pulldown state */
 
 			irqstat = irq_desc[irq].status;
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2) ||	\
-		defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 			if (is_in && ((bank->suspend_wakeup & mask)
 					|| irqstat & IRQ_TYPE_SENSE_MASK)) {
 				char	*trigger = NULL;

@@ -1870,8 +1870,7 @@ static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id)
 #define omap1_dma_irq_handler	NULL
 #endif
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-			defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 
 static int omap2_dma_handle_ch(int ch)
 {

@@ -125,7 +125,7 @@ config OMAP_MPU_TIMER
 
 config OMAP_32K_TIMER
 	bool "Use 32KHz timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
 	help
 	  Select this option if you want to enable the OMAP 32KHz timer.
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
@@ -146,7 +146,7 @@ config OMAP_32K_TIMER_HZ
 
 config OMAP_DM_TIMER
 	bool "Use dual-mode timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
 	help
 	 Select this option if you want to use OMAP Dual-Mode timers.
 

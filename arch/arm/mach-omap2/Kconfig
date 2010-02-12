@@ -29,7 +29,7 @@ config OMAP_PACKAGE_CBP
        bool
 
 comment "OMAP Board Type"
-	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"

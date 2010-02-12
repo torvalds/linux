@@ -153,8 +153,7 @@
 struct omap_dm_timer {
 	unsigned long phys_base;
 	int irq;
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-			defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	struct clk *iclk, *fclk;
 #endif
 	void __iomem *io_base;
@@ -490,8 +489,7 @@ __u32 omap_dm_timer_modify_idlect_mask(__u32 inputmask)
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_modify_idlect_mask);
 
-#elif defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-				defined(CONFIG_ARCH_OMAP4)
+#else
 
 struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
 {
@@ -535,8 +533,7 @@ void omap_dm_timer_stop(struct omap_dm_timer *timer)
 	if (l & OMAP_TIMER_CTRL_ST) {
 		l &= ~0x1;
 		omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-			defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 		/* Readback to make sure write has completed */
 		omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
 		 /*
@@ -781,8 +778,7 @@ int __init omap_dm_timer_init(void)
 		timer->io_base = ioremap(timer->phys_base, map_size);
 		BUG_ON(!timer->io_base);
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-					defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 		if (cpu_class_is_omap2()) {
 			char clk_name[16];
 			sprintf(clk_name, "gpt%d_ick", i + 1);

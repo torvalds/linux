@@ -26,8 +26,7 @@ struct clkops {
 	void			(*find_companion)(struct clk *, void __iomem **, u8 *);
 };
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-		defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 
 struct clksel_rate {
 	u32			val;
@@ -89,8 +88,7 @@ struct clk {
 	__u8			enable_bit;
 	__s8			usecount;
 	u8			fixed_div;
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
-		defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	void __iomem		*clksel_reg;
 	u32			clksel_mask;
 	const struct clksel	*clksel;
