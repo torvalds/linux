@@ -1448,6 +1448,36 @@ fail:
 	return err;
 }
 
+static void virtcons_remove(struct virtio_device *vdev)
+{
+	struct ports_device *portdev;
+	struct port *port, *port2;
+	struct port_buffer *buf;
+	unsigned int len;
+
+	portdev = vdev->priv;
+
+	cancel_work_sync(&portdev->control_work);
+	cancel_work_sync(&portdev->config_work);
+
+	list_for_each_entry_safe(port, port2, &portdev->ports, list)
+		remove_port(port);
+
+	unregister_chrdev(portdev->chr_major, "virtio-portsdev");
+
+	while ((buf = portdev->c_ivq->vq_ops->get_buf(portdev->c_ivq, &len)))
+		free_buf(buf);
+
+	while ((buf = portdev->c_ivq->vq_ops->detach_unused_buf(portdev->c_ivq)))
+		free_buf(buf);
+
+	vdev->config->del_vqs(vdev);
+	kfree(portdev->in_vqs);
+	kfree(portdev->out_vqs);
+
+	kfree(portdev);
+}
+
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_CONSOLE, VIRTIO_DEV_ANY_ID },
 	{ 0 },
@@ -1465,6 +1495,7 @@ static struct virtio_driver virtio_console = {
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
 	.probe =	virtcons_probe,
+	.remove =	virtcons_remove,
 	.config_changed = config_intr,
 };
 
@@ -1488,7 +1519,17 @@ static int __init init(void)
 
 	return register_virtio_driver(&virtio_console);
 }
+
+static void __exit fini(void)
+{
+	unregister_virtio_driver(&virtio_console);
+
+	class_destroy(pdrvdata.class);
+	if (pdrvdata.debugfs_dir)
+		debugfs_remove_recursive(pdrvdata.debugfs_dir);
+}
 module_init(init);
+module_exit(fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio console driver");
