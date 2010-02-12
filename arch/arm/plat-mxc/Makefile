@@ -15,4 +15,3 @@ obj-$(CONFIG_USB_EHCI_MXC) += ehci.o
 obj-$(CONFIG_MXC_ULPI) += ulpi.o
 obj-$(CONFIG_ARCH_MXC_AUDMUX_V1) += audmux-v1.o
 obj-$(CONFIG_ARCH_MXC_AUDMUX_V2) += audmux-v2.o
-CFLAGS_audmux-v2.o = -DIMX_NEEDS_DEPRECATED_SYMBOLS
