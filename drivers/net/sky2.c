@@ -1908,21 +1908,12 @@ static void sky2_tx_reset(struct sky2_hw *hw, unsigned port)
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_SET);
 }
 
-/* Network shutdown */
-static int sky2_down(struct net_device *dev)
+static void sky2_hw_down(struct sky2_port *sky2)
 {
-	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	u16 ctrl;
 	u32 imask;
-
-	/* Never really got started! */
-	if (!sky2->tx_le)
-		return 0;
-
-	if (netif_msg_ifdown(sky2))
-		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
+	u16 ctrl;
 
 	/* Force flow control off */
 	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_PAUSE_OFF);
@@ -1972,6 +1963,21 @@ static int sky2_down(struct net_device *dev)
 
 	/* Free any pending frames stuck in HW queue */
 	sky2_tx_complete(sky2, sky2->tx_prod);
+}
+
+/* Network shutdown */
+static int sky2_down(struct net_device *dev)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+
+	/* Never really got started! */
+	if (!sky2->tx_le)
+		return 0;
+
+	if (netif_msg_ifdown(sky2))
+		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
+
+	sky2_hw_down(sky2);
 
 	sky2_free_buffers(sky2);
 
