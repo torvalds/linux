@@ -49,10 +49,6 @@ struct bq27x00_access_methods {
 struct bq27x00_device_info {
 	struct device 		*dev;
 	int			id;
-	int			voltage_uV;
-	int			current_uA;
-	int			temp_C;
-	int			charge_rsoc;
 	struct bq27x00_access_methods	*bus;
 	struct power_supply	bat;
 
