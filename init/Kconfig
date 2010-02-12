@@ -946,6 +946,11 @@ config PERF_USE_VMALLOC
 	help
 	  See tools/perf/design.txt for details
 
+config PERF_EVENTS_NMI
+	bool
+	help
+	  Arch has support for nmi_watchdog
+
 menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS
