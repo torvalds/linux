@@ -255,6 +255,11 @@ out:
 	return ret;
 }
 
+static inline struct poseidon *get_pd(struct usb_interface *intf)
+{
+	return usb_get_intfdata(intf);
+}
+
 #ifdef CONFIG_PM
 /* one-to-one map : poseidon{} <----> usb_device{}'s port */
 static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
@@ -301,11 +306,6 @@ static struct poseidon *find_old_poseidon(struct usb_device *udev)
 static inline int is_working(struct poseidon *pd)
 {
 	return get_pm_count(pd) > 0;
-}
-
-static inline struct poseidon *get_pd(struct usb_interface *intf)
-{
-	return usb_get_intfdata(intf);
 }
 
 static int poseidon_suspend(struct usb_interface *intf, pm_message_t msg)
@@ -365,6 +365,15 @@ static void hibernation_resume(struct work_struct *w)
 	logpm(pd);
 	if (pd->pm_resume)
 		pd->pm_resume(pd);
+}
+#else /* CONFIG_PM is not enabled: */
+static inline struct poseidon *find_old_poseidon(struct usb_device *udev)
+{
+	return NULL;
+}
+
+static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
+{
 }
 #endif
 

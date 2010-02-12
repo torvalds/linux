@@ -254,7 +254,11 @@ void destroy_video_device(struct video_device **v_dev);
 extern int debug_mode;
 void set_debug_mode(struct video_device *vfd, int debug_mode);
 
+#ifdef CONFIG_PM
 #define in_hibernation(pd) (pd->msg.event == PM_EVENT_FREEZE)
+#else
+#define in_hibernation(pd) (0)
+#endif
 #define get_pm_count(p) (atomic_read(&(p)->interface->pm_usage_cnt))
 
 #define log(a, ...) printk(KERN_DEBUG "\t[ %s : %.3d ] "a"\n", \
