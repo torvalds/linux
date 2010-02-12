@@ -33,6 +33,7 @@ static struct platform_device *platform_devs[] __initdata = {
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_io_desc[] __initdata = {
+	__IO_DEV_DESC(U8500_UART2_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GIC_CPU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GIC_DIST_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_MTU0_BASE, SZ_4K),
