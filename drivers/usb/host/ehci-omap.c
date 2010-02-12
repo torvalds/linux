@@ -645,6 +645,9 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	omap->ehci->regs = hcd->regs
 		+ HC_LENGTH(readl(&omap->ehci->caps->hc_capbase));
 
+	dbg_hcs_params(omap->ehci, "reset");
+	dbg_hcc_params(omap->ehci, "reset");
+
 	/* cache this readonly data; minimize chip reads */
 	omap->ehci->hcs_params = readl(&omap->ehci->caps->hcs_params);
 
