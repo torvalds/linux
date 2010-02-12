@@ -504,6 +504,10 @@ struct lpfc_hba {
 		(struct lpfc_hba *);
 	void (*lpfc_stop_port)
 		(struct lpfc_hba *);
+	int (*lpfc_hba_init_link)
+		(struct lpfc_hba *);
+	int (*lpfc_hba_down_link)
+		(struct lpfc_hba *);
 
 
 	/* SLI4 specific HBA data structure */
@@ -618,6 +622,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
+	uint32_t cfg_suppress_link_up;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 

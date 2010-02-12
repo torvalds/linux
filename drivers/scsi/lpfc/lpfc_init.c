@@ -544,7 +544,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -EIO;
 		}
-	} else {
+	} else if (phba->cfg_suppress_link_up == 0) {
 		lpfc_init_link(phba, pmb, phba->cfg_topology,
 			phba->cfg_link_speed);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -599,6 +599,102 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
 
+	return 0;
+}
+
+/**
+ * lpfc_hba_init_link - Initialize the FC link
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine will issue the INIT_LINK mailbox command call.
+ * It is available to other drivers through the lpfc_hba data
+ * structure for use as a delayed link up mechanism with the
+ * module parameter lpfc_suppress_link_up.
+ *
+ * Return code
+ *		0 - success
+ *		Any other value - error
+ **/
+int
+lpfc_hba_init_link(struct lpfc_hba *phba)
+{
+	struct lpfc_vport *vport = phba->pport;
+	LPFC_MBOXQ_t *pmb;
+	MAILBOX_t *mb;
+	int rc;
+
+	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb) {
+		phba->link_state = LPFC_HBA_ERROR;
+		return -ENOMEM;
+	}
+	mb = &pmb->u.mb;
+	pmb->vport = vport;
+
+	lpfc_init_link(phba, pmb, phba->cfg_topology,
+		phba->cfg_link_speed);
+	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	lpfc_set_loopback_flag(phba);
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	if (rc != MBX_SUCCESS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0498 Adapter failed to init, mbxCmd x%x "
+			"INIT_LINK, mbxStatus x%x\n",
+			mb->mbxCommand, mb->mbxStatus);
+		/* Clear all interrupt enable conditions */
+		writel(0, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
+		/* Clear all pending interrupts */
+		writel(0xffffffff, phba->HAregaddr);
+		readl(phba->HAregaddr); /* flush */
+		phba->link_state = LPFC_HBA_ERROR;
+		if (rc != MBX_BUSY)
+			mempool_free(pmb, phba->mbox_mem_pool);
+		return -EIO;
+	}
+	phba->cfg_suppress_link_up = 0;
+
+	return 0;
+}
+
+/**
+ * lpfc_hba_down_link - this routine downs the FC link
+ *
+ * This routine will issue the DOWN_LINK mailbox command call.
+ * It is available to other drivers through the lpfc_hba data
+ * structure for use to stop the link.
+ *
+ * Return code
+ *		0 - success
+ *		Any other value - error
+ **/
+int
+lpfc_hba_down_link(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *pmb;
+	int rc;
+
+	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb) {
+		phba->link_state = LPFC_HBA_ERROR;
+		return -ENOMEM;
+	}
+
+	lpfc_printf_log(phba,
+		KERN_ERR, LOG_INIT,
+		"0491 Adapter Link is disabled.\n");
+	lpfc_down_link(phba, pmb);
+	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	if ((rc != MBX_SUCCESS) && (rc != MBX_BUSY)) {
+		lpfc_printf_log(phba,
+		KERN_ERR, LOG_INIT,
+		"2522 Adapter failed to issue DOWN_LINK"
+		" mbox command rc 0x%x\n", rc);
+
+		mempool_free(pmb, phba->mbox_mem_pool);
+		return -EIO;
+	}
 	return 0;
 }
 
@@ -3952,6 +4048,8 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 int
 lpfc_init_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
+	phba->lpfc_hba_init_link = lpfc_hba_init_link;
+	phba->lpfc_hba_down_link = lpfc_hba_down_link;
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
 		phba->lpfc_hba_down_post = lpfc_hba_down_post_s3;
