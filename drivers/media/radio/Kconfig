@@ -444,6 +444,7 @@ config RADIO_TEF6862
 config RADIO_TIMBERDALE
 	tristate "Enable the Timberdale radio driver"
 	depends on MFD_TIMBERDALE && VIDEO_V4L2
+	depends on I2C	# for RADIO_SAA7706H
 	select RADIO_TEF6862
 	select RADIO_SAA7706H
 	---help---
