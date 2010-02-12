@@ -6721,6 +6721,13 @@ static int tg3_poll_fw(struct tg3 *tp)
 		       tp->dev->name);
 	}
 
+	if (tp->pci_chip_rev_id == CHIPREV_ID_57765_A0) {
+		/* The 57765 A0 needs a little more
+		 * time to do some important work.
+		 */
+		mdelay(10);
+	}
+
 	return 0;
 }
 
