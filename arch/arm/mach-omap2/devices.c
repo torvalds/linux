@@ -510,7 +510,12 @@ static struct platform_device dummy_pdev = {
  **/
 static void __init omap_hsmmc_reset(void)
 {
-	u32 i, nr_controllers = cpu_is_omap44xx() ? OMAP44XX_NR_MMC :
+	u32 i, nr_controllers;
+
+	if (cpu_is_omap242x())
+		return;
+
+	nr_controllers = cpu_is_omap44xx() ? OMAP44XX_NR_MMC :
 		(cpu_is_omap34xx() ? OMAP34XX_NR_MMC : OMAP24XX_NR_MMC);
 
 	for (i = 0; i < nr_controllers; i++) {
