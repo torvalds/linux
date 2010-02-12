@@ -2010,6 +2010,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES])
 		return -EINVAL;
 
+	if (!info->attrs[NL80211_ATTR_STA_AID])
+		return -EINVAL;
+
 	mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 	params.supported_rates =
 		nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
@@ -2018,11 +2021,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 
-	if (info->attrs[NL80211_ATTR_STA_AID]) {
-		params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
-		if (!params.aid || params.aid > IEEE80211_MAX_AID)
-			return -EINVAL;
-	}
+	params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+	if (!params.aid || params.aid > IEEE80211_MAX_AID)
+		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
 		params.ht_capa =
@@ -2037,41 +2038,18 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto out_rtnl;
 
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	err = get_vlan(info, rdev, &params.vlan);
 	if (err)
 		goto out;
 
 	/* validate settings */
 	err = 0;
-
-	switch (dev->ieee80211_ptr->iftype) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_AP_VLAN:
-		/* all ok but must have AID */
-		if (!params.aid)
-			err = -EINVAL;
-		break;
-	case NL80211_IFTYPE_MESH_POINT:
-		/* disallow things mesh doesn't support */
-		if (params.vlan)
-			err = -EINVAL;
-		if (params.aid)
-			err = -EINVAL;
-		if (params.ht_capa)
-			err = -EINVAL;
-		if (params.listen_interval >= 0)
-			err = -EINVAL;
-		if (params.supported_rates)
-			err = -EINVAL;
-		if (params.sta_flags_mask)
-			err = -EINVAL;
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-	if (err)
-		goto out;
 
 	if (!rdev->ops->add_station) {
 		err = -EOPNOTSUPP;
@@ -2113,8 +2091,7 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 		goto out_rtnl;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_MESH_POINT) {
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
 		err = -EINVAL;
 		goto out;
 	}
