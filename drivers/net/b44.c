@@ -189,11 +189,13 @@ static int b44_wait_bit(struct b44 *bp, unsigned long reg,
 		udelay(10);
 	}
 	if (i == timeout) {
-		printk(KERN_ERR PFX "%s: BUG!  Timeout waiting for bit %08x of register "
-		       "%lx to %s.\n",
-		       bp->dev->name,
-		       bit, reg,
-		       (clear ? "clear" : "set"));
+		if (net_ratelimit())
+			printk(KERN_ERR PFX "%s: BUG!  Timeout waiting for bit "
+			       "%08x of register "
+			       "%lx to %s.\n",
+			       bp->dev->name,
+			       bit, reg,
+			       (clear ? "clear" : "set"));
 		return -ENODEV;
 	}
 	return 0;
