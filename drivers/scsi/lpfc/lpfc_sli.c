@@ -5739,19 +5739,19 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 
 		for (i = 0; i < numBdes; i++) {
 			/* Should already be byte swapped. */
-			sgl->addr_hi =  bpl->addrHigh;
-			sgl->addr_lo =  bpl->addrLow;
-			/* swap the size field back to the cpu so we
-			 * can assign it to the sgl.
-			 */
-			bde.tus.w  = le32_to_cpu(bpl->tus.w);
-			bf_set(lpfc_sli4_sge_len, sgl, bde.tus.f.bdeSize);
+			sgl->addr_hi = bpl->addrHigh;
+			sgl->addr_lo = bpl->addrLow;
+
 			if ((i+1) == numBdes)
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
 			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->word3 = cpu_to_le32(sgl->word3);
+			/* swap the size field back to the cpu so we
+			 * can assign it to the sgl.
+			 */
+			bde.tus.w = le32_to_cpu(bpl->tus.w);
+			sgl->sge_len = cpu_to_le32(bde.tus.f.bdeSize);
 			bpl++;
 			sgl++;
 		}
@@ -5764,11 +5764,10 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				cpu_to_le32(icmd->un.genreq64.bdl.addrHigh);
 			sgl->addr_lo =
 				cpu_to_le32(icmd->un.genreq64.bdl.addrLow);
-			bf_set(lpfc_sli4_sge_len, sgl,
-				icmd->un.genreq64.bdl.bdeSize);
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->word3 = cpu_to_le32(sgl->word3);
+			sgl->sge_len =
+				cpu_to_le32(icmd->un.genreq64.bdl.bdeSize);
 	}
 	return sglq->sli4_xritag;
 }
@@ -8934,8 +8933,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 	int ecount = 0;
 	uint16_t cqid;
 
-	if (bf_get(lpfc_eqe_major_code, eqe) != 0 ||
-	    bf_get(lpfc_eqe_minor_code, eqe) != 0) {
+	if (bf_get(lpfc_eqe_major_code, eqe) != 0) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0359 Not a valid slow-path completion "
 				"event: majorcode=x%x, minorcode=x%x\n",
@@ -9167,8 +9165,7 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	uint16_t cqid;
 	int ecount = 0;
 
-	if (unlikely(bf_get(lpfc_eqe_major_code, eqe) != 0) ||
-	    unlikely(bf_get(lpfc_eqe_minor_code, eqe) != 0)) {
+	if (unlikely(bf_get(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0366 Not a valid fast-path completion "
 				"event: majorcode=x%x, minorcode=x%x\n",

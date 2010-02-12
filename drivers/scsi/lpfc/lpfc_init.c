@@ -2443,7 +2443,8 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->this_id = -1;
 	shost->max_cmd_len = 16;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		shost->dma_boundary = LPFC_SLI4_MAX_SEGMENT_SIZE;
+		shost->dma_boundary =
+			phba->sli4_hba.pc_sli4_params.sge_supp_len;
 		shost->sg_tablesize = phba->cfg_sg_seg_cnt;
 	}
 
@@ -3621,8 +3622,10 @@ static int
 lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli;
-	int rc;
-	int i, hbq_count;
+	LPFC_MBOXQ_t *mboxq;
+	int rc, i, hbq_count, buf_size, dma_buf_size, max_buf_size;
+	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
+	struct lpfc_mqe *mqe;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -3680,31 +3683,26 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
 	 * 2 segments are added since the IOCB needs a command and response bde.
 	 * To insure that the scsi sgl does not cross a 4k page boundary only
-	 * sgl sizes of 1k, 2k, 4k, and 8k are supported.
-	 * Table of sgl sizes and seg_cnt:
-	 * sgl size, 	sg_seg_cnt	total seg
-	 * 1k		50		52
-	 * 2k		114		116
-	 * 4k		242		244
-	 * 8k		498		500
-	 * cmd(32) + rsp(160) + (52 * sizeof(sli4_sge)) = 1024
-	 * cmd(32) + rsp(160) + (116 * sizeof(sli4_sge)) = 2048
-	 * cmd(32) + rsp(160) + (244 * sizeof(sli4_sge)) = 4096
-	 * cmd(32) + rsp(160) + (500 * sizeof(sli4_sge)) = 8192
+	 * sgl sizes of must be a power of 2.
 	 */
-	if (phba->cfg_sg_seg_cnt <= LPFC_DEFAULT_SG_SEG_CNT)
-		phba->cfg_sg_seg_cnt = 50;
-	else if (phba->cfg_sg_seg_cnt <= 114)
-		phba->cfg_sg_seg_cnt = 114;
-	else if (phba->cfg_sg_seg_cnt <= 242)
-		phba->cfg_sg_seg_cnt = 242;
+	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
+		    ((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge)));
+	/* Feature Level 1 hardware is limited to 2 pages */
+	if ((bf_get(lpfc_sli_intf_featurelevel1, &phba->sli4_hba.sli_intf) ==
+	     LPFC_SLI_INTF_FEATURELEVEL1_1))
+		max_buf_size = LPFC_SLI4_FL1_MAX_BUF_SIZE;
 	else
-		phba->cfg_sg_seg_cnt = 498;
-
-	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd)
-					+ sizeof(struct fcp_rsp);
-	phba->cfg_sg_dma_buf_size +=
-		((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge));
+		max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
+	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
+	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
+	     dma_buf_size = dma_buf_size << 1)
+		;
+	if (dma_buf_size == max_buf_size)
+		phba->cfg_sg_seg_cnt = (dma_buf_size -
+			sizeof(struct fcp_cmnd) - sizeof(struct fcp_rsp) -
+			(2 * sizeof(struct sli4_sge))) /
+				sizeof(struct sli4_sge);
+	phba->cfg_sg_dma_buf_size = dma_buf_size;
 
 	/* Initialize buffer queue management fields */
 	hbq_count = lpfc_sli_hbq_count();
@@ -3822,6 +3820,43 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_fcp_eq_hdl;
 	}
 
+	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
+						       GFP_KERNEL);
+	if (!mboxq) {
+		rc = -ENOMEM;
+		goto out_free_fcp_eq_hdl;
+	}
+
+	/* Get the Supported Pages. It is always available. */
+	lpfc_supported_pages(mboxq);
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (unlikely(rc)) {
+		rc = -EIO;
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		goto out_free_fcp_eq_hdl;
+	}
+
+	mqe = &mboxq->u.mqe;
+	memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
+	       LPFC_MAX_SUPPORTED_PAGES);
+	for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
+		switch (pn_page[i]) {
+		case LPFC_SLI4_PARAMETERS:
+			phba->sli4_hba.pc_sli4_params.supported = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Read the port's SLI4 Parameters capabilities if supported. */
+	if (phba->sli4_hba.pc_sli4_params.supported)
+		rc = lpfc_pc_sli4_params_get(phba, mboxq);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	if (rc) {
+		rc = -EIO;
+		goto out_free_fcp_eq_hdl;
+	}
 	return rc;
 
 out_free_fcp_eq_hdl:
@@ -4825,7 +4860,7 @@ lpfc_sli_pci_mem_unset(struct lpfc_hba *phba)
 int
 lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 {
-	struct lpfc_register sta_reg, uerrlo_reg, uerrhi_reg, scratchpad;
+	struct lpfc_register sta_reg, uerrlo_reg, uerrhi_reg;
 	int i, port_error = -ENODEV;
 
 	if (!phba->sli4_hba.STAregaddr)
@@ -4861,14 +4896,21 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			bf_get(lpfc_hst_state_port_status, &sta_reg));
 
 	/* Log device information */
-	scratchpad.word0 =  readl(phba->sli4_hba.SCRATCHPADregaddr);
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-			"2534 Device Info: ChipType=0x%x, SliRev=0x%x, "
-			"FeatureL1=0x%x, FeatureL2=0x%x\n",
-			bf_get(lpfc_scratchpad_chiptype, &scratchpad),
-			bf_get(lpfc_scratchpad_slirev, &scratchpad),
-			bf_get(lpfc_scratchpad_featurelevel1, &scratchpad),
-			bf_get(lpfc_scratchpad_featurelevel2, &scratchpad));
+	phba->sli4_hba.sli_intf.word0 = readl(phba->sli4_hba.SLIINTFregaddr);
+	if (bf_get(lpfc_sli_intf_valid,
+		   &phba->sli4_hba.sli_intf) == LPFC_SLI_INTF_VALID) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"2534 Device Info: ChipType=0x%x, SliRev=0x%x, "
+				"FeatureL1=0x%x, FeatureL2=0x%x\n",
+				bf_get(lpfc_sli_intf_sli_family,
+				       &phba->sli4_hba.sli_intf),
+				bf_get(lpfc_sli_intf_slirev,
+				       &phba->sli4_hba.sli_intf),
+				bf_get(lpfc_sli_intf_featurelevel1,
+				       &phba->sli4_hba.sli_intf),
+				bf_get(lpfc_sli_intf_featurelevel2,
+				       &phba->sli4_hba.sli_intf));
+	}
 	phba->sli4_hba.ue_mask_lo = readl(phba->sli4_hba.UEMASKLOregaddr);
 	phba->sli4_hba.ue_mask_hi = readl(phba->sli4_hba.UEMASKHIregaddr);
 	/* With uncoverable error, log the error message and return error */
@@ -4907,8 +4949,8 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba)
 					LPFC_UE_MASK_LO;
 	phba->sli4_hba.UEMASKHIregaddr = phba->sli4_hba.conf_regs_memmap_p +
 					LPFC_UE_MASK_HI;
-	phba->sli4_hba.SCRATCHPADregaddr = phba->sli4_hba.conf_regs_memmap_p +
-					LPFC_SCRATCHPAD;
+	phba->sli4_hba.SLIINTFregaddr = phba->sli4_hba.conf_regs_memmap_p +
+					LPFC_SLI_INTF;
 }
 
 /**
@@ -6981,6 +7023,73 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	phba->pport->work_port_events = 0;
 }
 
+ /**
+ * lpfc_pc_sli4_params_get - Get the SLI4_PARAMS port capabilities.
+ * @phba: Pointer to HBA context object.
+ * @mboxq: Pointer to the mailboxq memory for the mailbox command response.
+ *
+ * This function is called in the SLI4 code path to read the port's
+ * sli4 capabilities.
+ *
+ * This function may be be called from any context that can block-wait
+ * for the completion.  The expectation is that this routine is called
+ * typically from probe_one or from the online routine.
+ **/
+int
+lpfc_pc_sli4_params_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	int rc;
+	struct lpfc_mqe *mqe;
+	struct lpfc_pc_sli4_params *sli4_params;
+	uint32_t mbox_tmo;
+
+	rc = 0;
+	mqe = &mboxq->u.mqe;
+
+	/* Read the port's SLI4 Parameters port capabilities */
+	lpfc_sli4_params(mboxq);
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	else {
+		mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_PORT_CAPABILITIES);
+		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
+	}
+
+	if (unlikely(rc))
+		return 1;
+
+	sli4_params = &phba->sli4_hba.pc_sli4_params;
+	sli4_params->if_type = bf_get(if_type, &mqe->un.sli4_params);
+	sli4_params->sli_rev = bf_get(sli_rev, &mqe->un.sli4_params);
+	sli4_params->sli_family = bf_get(sli_family, &mqe->un.sli4_params);
+	sli4_params->featurelevel_1 = bf_get(featurelevel_1,
+					     &mqe->un.sli4_params);
+	sli4_params->featurelevel_2 = bf_get(featurelevel_2,
+					     &mqe->un.sli4_params);
+	sli4_params->proto_types = mqe->un.sli4_params.word3;
+	sli4_params->sge_supp_len = mqe->un.sli4_params.sge_supp_len;
+	sli4_params->if_page_sz = bf_get(if_page_sz, &mqe->un.sli4_params);
+	sli4_params->rq_db_window = bf_get(rq_db_window, &mqe->un.sli4_params);
+	sli4_params->loopbk_scope = bf_get(loopbk_scope, &mqe->un.sli4_params);
+	sli4_params->eq_pages_max = bf_get(eq_pages, &mqe->un.sli4_params);
+	sli4_params->eqe_size = bf_get(eqe_size, &mqe->un.sli4_params);
+	sli4_params->cq_pages_max = bf_get(cq_pages, &mqe->un.sli4_params);
+	sli4_params->cqe_size = bf_get(cqe_size, &mqe->un.sli4_params);
+	sli4_params->mq_pages_max = bf_get(mq_pages, &mqe->un.sli4_params);
+	sli4_params->mqe_size = bf_get(mqe_size, &mqe->un.sli4_params);
+	sli4_params->mq_elem_cnt = bf_get(mq_elem_cnt, &mqe->un.sli4_params);
+	sli4_params->wq_pages_max = bf_get(wq_pages, &mqe->un.sli4_params);
+	sli4_params->wqe_size = bf_get(wqe_size, &mqe->un.sli4_params);
+	sli4_params->rq_pages_max = bf_get(rq_pages, &mqe->un.sli4_params);
+	sli4_params->rqe_size = bf_get(rqe_size, &mqe->un.sli4_params);
+	sli4_params->hdr_pages_max = bf_get(hdr_pages, &mqe->un.sli4_params);
+	sli4_params->hdr_size = bf_get(hdr_size, &mqe->un.sli4_params);
+	sli4_params->hdr_pp_align = bf_get(hdr_pp_align, &mqe->un.sli4_params);
+	sli4_params->sgl_pages_max = bf_get(sgl_pages, &mqe->un.sli4_params);
+	sli4_params->sgl_pp_align = bf_get(sgl_pp_align, &mqe->un.sli4_params);
+	return rc;
+}
+
 /**
  * lpfc_pci_probe_one_s3 - PCI probe func to reg SLI-3 device to PCI subsystem.
  * @pdev: pointer to PCI device
@@ -8053,11 +8162,11 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int rc;
 	struct lpfc_sli_intf intf;
 
-	if (pci_read_config_dword(pdev, LPFC_SLIREV_CONF_WORD, &intf.word0))
+	if (pci_read_config_dword(pdev, LPFC_SLI_INTF, &intf.word0))
 		return -ENODEV;
 
 	if ((bf_get(lpfc_sli_intf_valid, &intf) == LPFC_SLI_INTF_VALID) &&
-		(bf_get(lpfc_sli_intf_rev, &intf) == LPFC_SLIREV_CONF_SLI4))
+	    (bf_get(lpfc_sli_intf_slirev, &intf) == LPFC_SLI_INTF_REV_SLI4))
 		rc = lpfc_pci_probe_one_s4(pdev, pid);
 	else
 		rc = lpfc_pci_probe_one_s3(pdev, pid);
