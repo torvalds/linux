@@ -453,11 +453,6 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	if (rc<0)
 		goto err;
 
-	/* register and initialize V4L2 */
-	rc=tm6000_v4l2_register(dev);
-	if (rc<0)
-		goto err;
-
 	/* Default values for STD and resolutions */
 	dev->width = 720;
 	dev->height = 480;
@@ -480,12 +475,18 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 			"tvaudio", "tvaudio", I2C_ADDR_TDA9874, NULL);
 
+	/* register and initialize V4L2 */
+	rc=tm6000_v4l2_register(dev);
+	if (rc<0)
+		goto err;
+
 	if(dev->caps.has_dvb) {
 		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
 		if(!dev->dvb) {
 			rc = -ENOMEM;
 			goto err2;
 		}
+
 #ifdef CONFIG_VIDEO_TM6000_DVB
 		rc = tm6000_dvb_register(dev);
 		if(rc < 0) {
