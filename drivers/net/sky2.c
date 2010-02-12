@@ -1525,15 +1525,15 @@ static void sky2_free_buffers(struct sky2_port *sky2)
 	sky2->rx_ring = NULL;
 }
 
-/* Bring up network interface. */
-static int sky2_up(struct net_device *dev)
+static void sky2_hw_up(struct sky2_port *sky2)
 {
-	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	u32 imask, ramsize;
-	int cap, err;
+	u32 ramsize;
+	int cap;
 	struct net_device *otherdev = hw->dev[sky2->port^1];
+
+	tx_init(sky2);
 
 	/*
  	 * On dual port PCI-X card, there is an problem where status
@@ -1546,16 +1546,7 @@ static int sky2_up(struct net_device *dev)
 		cmd = sky2_pci_read16(hw, cap + PCI_X_CMD);
  		cmd &= ~PCI_X_CMD_MAX_SPLIT;
  		sky2_pci_write16(hw, cap + PCI_X_CMD, cmd);
-
- 	}
-
-	netif_carrier_off(dev);
-
-	err = sky2_alloc_buffers(sky2);
-	if (err)
-		goto err_out;
-
-	tx_init(sky2);
+	}
 
 	sky2_mac_init(hw, port);
 
@@ -1564,7 +1555,7 @@ static int sky2_up(struct net_device *dev)
 	if (ramsize > 0) {
 		u32 rxspace;
 
-		pr_debug(PFX "%s: ram buffer %dK\n", dev->name, ramsize);
+		pr_debug(PFX "%s: ram buffer %dK\n", sky2->netdev->name, ramsize);
 		if (ramsize < 16)
 			rxspace = ramsize / 2;
 		else
@@ -1597,6 +1588,24 @@ static int sky2_up(struct net_device *dev)
 #endif
 
 	sky2_rx_start(sky2);
+}
+
+/* Bring up network interface. */
+static int sky2_up(struct net_device *dev)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	u32 imask;
+	int err;
+
+	netif_carrier_off(dev);
+
+	err = sky2_alloc_buffers(sky2);
+	if (err)
+		goto err_out;
+
+	sky2_hw_up(sky2);
 
 	/* Enable interrupts from phy/mac for port */
 	imask = sky2_read32(hw, B0_IMSK);
