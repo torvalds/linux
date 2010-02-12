@@ -838,6 +838,8 @@ static const struct file_operations port_debugfs_ops = {
 /* Remove all port-specific data. */
 static int remove_port(struct port *port)
 {
+	struct port_buffer *buf;
+
 	spin_lock_irq(&port->portdev->ports_lock);
 	list_del(&port->list);
 	spin_unlock_irq(&port->portdev->ports_lock);
@@ -851,14 +853,17 @@ static int remove_port(struct port *port)
 	if (port->guest_connected)
 		send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
 
-	while (port->in_vq->vq_ops->detach_unused_buf(port->in_vq))
-		;
-
 	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
 	device_destroy(pdrvdata.class, port->dev->devt);
 	cdev_del(&port->cdev);
 
+	/* Remove unused data this port might have received. */
 	discard_port_data(port);
+
+	/* Remove buffers we queued up for the Host to send us data in. */
+	while ((buf = port->in_vq->vq_ops->detach_unused_buf(port->in_vq)))
+		free_buf(buf);
+
 	kfree(port->name);
 
 	debugfs_remove(port->debugfs_file);
