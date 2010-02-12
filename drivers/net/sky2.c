@@ -3128,7 +3128,7 @@ static void sky2_reset(struct sky2_hw *hw)
 		/* check if PSMv2 was running before */
 		reg = sky2_pci_read16(hw, PSM_CONFIG_REG3);
 		if (reg & PCI_EXP_LNKCTL_ASPMC) {
-			int cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+			cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 			/* restore the PCIe Link Control register */
 			sky2_pci_write16(hw, cap + PCI_EXP_LNKCTL, reg);
 		}
