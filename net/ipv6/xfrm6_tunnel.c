@@ -161,7 +161,6 @@ alloc_spi:
 	if (!x6spi)
 		goto out;
 
-	INIT_RCU_HEAD(&x6spi->rcu_head);
 	memcpy(&x6spi->addr, saddr, sizeof(x6spi->addr));
 	x6spi->spi = spi;
 	atomic_set(&x6spi->refcnt, 1);
