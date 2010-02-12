@@ -2498,9 +2498,9 @@ twobyte_insn:
 	case 0x21: /* mov from dr to reg */
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
-		rc = emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]);
-		if (rc)
+		if (emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]))
 			goto cannot_emulate;
+		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x22: /* mov reg, cr */
@@ -2513,18 +2513,16 @@ twobyte_insn:
 	case 0x23: /* mov from reg to dr */
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
-		rc = emulator_set_dr(ctxt, c->modrm_reg,
-				     c->regs[c->modrm_rm]);
-		if (rc)
+		if (emulator_set_dr(ctxt, c->modrm_reg, c->regs[c->modrm_rm]))
 			goto cannot_emulate;
+		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x30:
 		/* wrmsr */
 		msr_data = (u32)c->regs[VCPU_REGS_RAX]
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
-		rc = kvm_set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data);
-		if (rc) {
+		if (kvm_set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			c->eip = kvm_rip_read(ctxt->vcpu);
 		}
@@ -2533,8 +2531,7 @@ twobyte_insn:
 		break;
 	case 0x32:
 		/* rdmsr */
-		rc = kvm_get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data);
-		if (rc) {
+		if (kvm_get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			c->eip = kvm_rip_read(ctxt->vcpu);
 		} else {
