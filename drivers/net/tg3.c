@@ -10780,12 +10780,12 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 	struct tg3_napi *tnapi, *rnapi;
 	struct tg3_rx_prodring_set *tpr = &tp->prodring[0];
 
+	tnapi = &tp->napi[0];
+	rnapi = &tp->napi[0];
 	if (tp->irq_cnt > 1) {
-		tnapi = &tp->napi[1];
 		rnapi = &tp->napi[1];
-	} else {
-		tnapi = &tp->napi[0];
-		rnapi = &tp->napi[0];
+		if (tp->tg3_flags3 & TG3_FLG3_ENABLE_TSS)
+			tnapi = &tp->napi[1];
 	}
 	coal_now = tnapi->coal_now | rnapi->coal_now;
 
