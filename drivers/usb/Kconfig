@@ -40,6 +40,7 @@ config USB_ARCH_HAS_OHCI
 	default y if ARCH_PNX4008 && I2C
 	default y if MFD_TC6393XB
 	default y if ARCH_W90X900
+	default y if ARCH_DAVINCI_DA8XX
 	# PPC:
 	default y if STB03xxx
 	default y if PPC_MPC52xx
