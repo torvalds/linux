@@ -182,12 +182,12 @@ nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 	      int delta, int dwords)
 {
 	struct nouveau_bo *pb = chan->pushbuf_bo;
-	uint64_t offset = (bo->bo.mem.mm_node->start << PAGE_SHIFT) + delta;
+	uint64_t offset = bo->bo.offset + delta;
 	int ip = (chan->dma.ib_put * 2) + chan->dma.ib_base;
 
 	BUG_ON(chan->dma.ib_free < 1);
-	nouveau_bo_wr32(pb, ip++, offset);
-	nouveau_bo_wr32(pb, ip++, dwords << 10);
+	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
+	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | dwords << 10);
 
 	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
 	nvchan_wr32(chan, 0x8c, chan->dma.ib_put);
