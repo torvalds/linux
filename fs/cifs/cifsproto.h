@@ -142,6 +142,8 @@ extern int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSFindClose(const int, struct cifsTconInfo *tcon,
 			const __u16 search_handle);
 
+extern int CIFSSMBQFileInfo(const int xid, struct cifsTconInfo *tcon,
+			u16 netfid, FILE_ALL_INFO *pFindData);
 extern int CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			FILE_ALL_INFO *findData,
