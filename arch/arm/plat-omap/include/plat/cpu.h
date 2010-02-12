@@ -114,7 +114,7 @@ unsigned int omap_rev(void);
 #  define OMAP_NAME omap16xx
 # endif
 #endif
-#if (defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP34XX))
+#if (defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
 # if (defined(OMAP_NAME) || defined(MULTI_OMAP1))
 #  error "OMAP1 and OMAP2 can't be selected at the same time"
 # endif
@@ -241,7 +241,7 @@ IS_OMAP_SUBCLASS(443x, 0x443)
 #  define cpu_is_omap242x()		is_omap242x()
 #  define cpu_is_omap243x()		is_omap243x()
 # endif
-# if defined(CONFIG_ARCH_OMAP34XX)
+# if defined(CONFIG_ARCH_OMAP3)
 #  undef  cpu_is_omap34xx
 #  undef  cpu_is_omap343x
 #  define cpu_is_omap34xx()		is_omap34xx()
@@ -260,7 +260,7 @@ IS_OMAP_SUBCLASS(443x, 0x443)
 #  undef  cpu_is_omap243x
 #  define cpu_is_omap243x()		1
 # endif
-# if defined(CONFIG_ARCH_OMAP34XX)
+# if defined(CONFIG_ARCH_OMAP3)
 #  undef  cpu_is_omap34xx
 #  define cpu_is_omap34xx()		1
 # endif
@@ -385,7 +385,7 @@ IS_OMAP_TYPE(3517, 0x3517)
 # define cpu_is_omap2430()		is_omap2430()
 #endif
 
-#if defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP3)
 # undef cpu_is_omap3430
 # undef cpu_is_omap3503
 # undef cpu_is_omap3515

@@ -284,7 +284,7 @@ static inline void omap243x_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 extern void omap34xx_map_common_io(void);
 #else
 static inline void omap34xx_map_common_io(void)

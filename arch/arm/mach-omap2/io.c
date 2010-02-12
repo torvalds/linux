@@ -125,7 +125,7 @@ static struct map_desc omap243x_io_desc[] __initdata = {
 #endif
 #endif
 
-#ifdef	CONFIG_ARCH_OMAP34XX
+#ifdef	CONFIG_ARCH_OMAP3
 static struct map_desc omap34xx_io_desc[] __initdata = {
 	{
 		.virtual	= L3_34XX_VIRT,
@@ -269,7 +269,7 @@ void __init omap243x_map_common_io()
 }
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 void __init omap34xx_map_common_io()
 {
 	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));

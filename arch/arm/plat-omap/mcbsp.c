@@ -198,7 +198,7 @@ void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg *config)
 }
 EXPORT_SYMBOL(omap_mcbsp_config);
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 /*
  * omap_mcbsp_set_tx_threshold configures how to deal
  * with transmit threshold. the threshold value and handler can be
@@ -1107,7 +1107,7 @@ void omap_mcbsp_set_spi_mode(unsigned int id,
 }
 EXPORT_SYMBOL(omap_mcbsp_set_spi_mode);
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 #define max_thres(m)			(mcbsp->pdata->buffer_size)
 #define valid_threshold(m, val)		((val) <= max_thres(m))
 #define THRESHOLD_PROP_BUILDER(prop)					\
@@ -1246,7 +1246,7 @@ static inline void __devexit omap34xx_device_exit(struct omap_mcbsp *mcbsp)
 #else
 static inline void __devinit omap34xx_device_init(struct omap_mcbsp *mcbsp) {}
 static inline void __devexit omap34xx_device_exit(struct omap_mcbsp *mcbsp) {}
-#endif /* CONFIG_ARCH_OMAP34XX */
+#endif /* CONFIG_ARCH_OMAP3 */
 
 /*
  * McBSP1 and McBSP3 are directly mapped on 1610 and 1510.

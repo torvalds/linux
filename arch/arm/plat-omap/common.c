@@ -127,7 +127,7 @@ static cycle_t omap2430_32k_read(struct clocksource *cs)
 #define omap2430_32k_read	NULL
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 static cycle_t omap34xx_32k_read(struct clocksource *cs)
 {
 	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10);
