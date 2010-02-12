@@ -74,7 +74,7 @@ static int bq27x00_read(u8 reg, int *rt_value, int b_single,
 }
 
 /*
- * Return the battery temperature in Celsius degrees
+ * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
  */
 static int bq27x00_battery_temperature(struct bq27x00_device_info *di)
@@ -88,7 +88,7 @@ static int bq27x00_battery_temperature(struct bq27x00_device_info *di)
 		return ret;
 	}
 
-	return (temp >> 2) - 273;
+	return ((temp >> 2) - 273) * 10;
 }
 
 /*
