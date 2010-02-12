@@ -647,20 +647,20 @@ static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
 	if (linear < fc->start || linear >= fc->end) {
 		size = min(15UL, PAGE_SIZE - offset_in_page(linear));
 		rc = ops->fetch(linear, fc->data, size, ctxt->vcpu, NULL);
-		if (rc)
+		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		fc->start = linear;
 		fc->end = linear + size;
 	}
 	*dest = fc->data[linear - fc->start];
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 			 struct x86_emulate_ops *ops,
 			 unsigned long eip, void *dest, unsigned size)
 {
-	int rc = 0;
+	int rc;
 
 	/* x86 instructions are limited to 15 bytes. */
 	if (eip + size - ctxt->decode.eip_orig > 15)
@@ -668,10 +668,10 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 	eip += ctxt->cs_base;
 	while (size--) {
 		rc = do_fetch_insn_byte(ctxt, ops, eip++, dest++);
-		if (rc)
+		if (rc != X86EMUL_CONTINUE)
 			return rc;
 	}
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 /*
@@ -782,7 +782,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	u8 sib;
 	int index_reg = 0, base_reg = 0, scale;
-	int rc = 0;
+	int rc = X86EMUL_CONTINUE;
 
 	if (c->rex_prefix) {
 		c->modrm_reg = (c->rex_prefix & 4) << 1;	/* REX.R */
@@ -895,7 +895,7 @@ static int decode_abs(struct x86_emulate_ctxt *ctxt,
 		      struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc = 0;
+	int rc = X86EMUL_CONTINUE;
 
 	switch (c->ad_bytes) {
 	case 2:
@@ -916,7 +916,7 @@ int
 x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc = 0;
+	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
 	int def_op_bytes, def_ad_bytes, group;
 
@@ -1041,7 +1041,7 @@ done_prefixes:
 		rc = decode_modrm(ctxt, ops);
 	else if (c->d & MemAbs)
 		rc = decode_abs(ctxt, ops);
-	if (rc)
+	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
 	if (!c->has_seg_override)
