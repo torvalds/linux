@@ -67,8 +67,8 @@ u32 cm_packets_dropped;
 u32 cm_packets_retrans;
 u32 cm_packets_created;
 u32 cm_packets_received;
-u32 cm_listens_created;
-u32 cm_listens_destroyed;
+atomic_t cm_listens_created;
+atomic_t cm_listens_destroyed;
 u32 cm_backlog_drops;
 atomic_t cm_loopbacks;
 atomic_t cm_nodes_created;
@@ -1042,7 +1042,7 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 		kfree(listener);
 		listener = NULL;
 		ret = 0;
-		cm_listens_destroyed++;
+		atomic_inc(&cm_listens_destroyed);
 	} else {
 		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 	}
@@ -3172,7 +3172,7 @@ int nes_create_listen(struct iw_cm_id *cm_id, int backlog)
 			g_cm_core->api->stop_listener(g_cm_core, (void *)cm_node);
 			return err;
 		}
-		cm_listens_created++;
+		atomic_inc(&cm_listens_created);
 	}
 
 	cm_id->add_ref(cm_id);

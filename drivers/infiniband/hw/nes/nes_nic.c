@@ -1230,8 +1230,8 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	target_stat_values[++index] = cm_packets_received;
 	target_stat_values[++index] = cm_packets_dropped;
 	target_stat_values[++index] = cm_packets_retrans;
-	target_stat_values[++index] = cm_listens_created;
-	target_stat_values[++index] = cm_listens_destroyed;
+	target_stat_values[++index] = atomic_read(&cm_listens_created);
+	target_stat_values[++index] = atomic_read(&cm_listens_destroyed);
 	target_stat_values[++index] = cm_backlog_drops;
 	target_stat_values[++index] = atomic_read(&cm_loopbacks);
 	target_stat_values[++index] = atomic_read(&cm_nodes_created);
