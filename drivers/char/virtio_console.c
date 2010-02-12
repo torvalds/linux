@@ -330,6 +330,7 @@ static void discard_port_data(struct port *port)
 	struct port_buffer *buf;
 	struct virtqueue *vq;
 	unsigned int len;
+	int ret;
 
 	vq = port->in_vq;
 	if (port->inbuf)
@@ -337,16 +338,18 @@ static void discard_port_data(struct port *port)
 	else
 		buf = vq->vq_ops->get_buf(vq, &len);
 
-	if (!buf)
-		return;
-
-	if (add_inbuf(vq, buf) < 0) {
-		buf->len = buf->offset = 0;
-		dev_warn(port->dev, "Error adding buffer back to vq\n");
-		return;
+	ret = 0;
+	while (buf) {
+		if (add_inbuf(vq, buf) < 0) {
+			ret++;
+			free_buf(buf);
+		}
+		buf = vq->vq_ops->get_buf(vq, &len);
 	}
-
 	port->inbuf = NULL;
+	if (ret)
+		dev_warn(port->dev, "Errors adding %d buffers back to vq\n",
+			 ret);
 }
 
 static bool port_has_data(struct port *port)
@@ -354,12 +357,19 @@ static bool port_has_data(struct port *port)
 	unsigned long flags;
 	bool ret;
 
-	ret = false;
 	spin_lock_irqsave(&port->inbuf_lock, flags);
-	if (port->inbuf)
+	if (port->inbuf) {
 		ret = true;
+		goto out;
+	}
+	port->inbuf = get_inbuf(port);
+	if (port->inbuf) {
+		ret = true;
+		goto out;
+	}
+	ret = false;
+out:
 	spin_unlock_irqrestore(&port->inbuf_lock, flags);
-
 	return ret;
 }
 
@@ -1011,7 +1021,8 @@ static void in_intr(struct virtqueue *vq)
 		return;
 
 	spin_lock_irqsave(&port->inbuf_lock, flags);
-	port->inbuf = get_inbuf(port);
+	if (!port->inbuf)
+		port->inbuf = get_inbuf(port);
 
 	/*
 	 * Don't queue up data when port is closed.  This condition
@@ -1087,7 +1098,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 {
 	char debugfs_name[16];
 	struct port *port;
-	struct port_buffer *inbuf;
+	struct port_buffer *buf;
 	dev_t devt;
 	int err;
 
@@ -1132,14 +1143,13 @@ static int add_port(struct ports_device *portdev, u32 id)
 	spin_lock_init(&port->inbuf_lock);
 	init_waitqueue_head(&port->waitqueue);
 
-	inbuf = alloc_buf(PAGE_SIZE);
-	if (!inbuf) {
+	/* Fill the in_vq with buffers so the host can send us data. */
+	err = fill_queue(port->in_vq, &port->inbuf_lock);
+	if (!err) {
+		dev_err(port->dev, "Error allocating inbufs\n");
 		err = -ENOMEM;
 		goto free_device;
 	}
-
-	/* Register the input buffer the first time. */
-	add_inbuf(port->in_vq, inbuf);
 
 	/*
 	 * If we're not using multiport support, this has to be a console port
@@ -1147,7 +1157,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 	if (!use_multiport(port->portdev)) {
 		err = init_port_console(port);
 		if (err)
-			goto free_inbuf;
+			goto free_inbufs;
 	}
 
 	spin_lock_irq(&portdev->ports_lock);
@@ -1175,8 +1185,9 @@ static int add_port(struct ports_device *portdev, u32 id)
 	}
 	return 0;
 
-free_inbuf:
-	free_buf(inbuf);
+free_inbufs:
+	while ((buf = port->in_vq->vq_ops->detach_unused_buf(port->in_vq)))
+		free_buf(buf);
 free_device:
 	device_destroy(pdrvdata.class, port->dev->devt);
 free_cdev:
