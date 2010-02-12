@@ -2699,6 +2699,7 @@ struct tg3 {
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
 
+	u32				coal_now;
 	u32				msg_enable;
 
 	/* begin "tx thread" cacheline section */

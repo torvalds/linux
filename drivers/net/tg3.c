@@ -642,7 +642,6 @@ static void tg3_disable_ints(struct tg3 *tp)
 static void tg3_enable_ints(struct tg3 *tp)
 {
 	int i;
-	u32 coal_now = 0;
 
 	tp->irq_sync = 0;
 	wmb();
@@ -650,13 +649,14 @@ static void tg3_enable_ints(struct tg3 *tp)
 	tw32(TG3PCI_MISC_HOST_CTRL,
 	     (tp->misc_host_ctrl & ~MISC_HOST_CTRL_MASK_PCI_INT));
 
+	tp->coal_now = tp->coalesce_mode | HOSTCC_MODE_ENABLE;
 	for (i = 0; i < tp->irq_cnt; i++) {
 		struct tg3_napi *tnapi = &tp->napi[i];
 		tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
 		if (tp->tg3_flags2 & TG3_FLG2_1SHOT_MSI)
 			tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
 
-		coal_now |= tnapi->coal_now;
+		tp->coal_now |= tnapi->coal_now;
 	}
 
 	/* Force an initial interrupt */
@@ -664,8 +664,9 @@ static void tg3_enable_ints(struct tg3 *tp)
 	    (tp->napi[0].hw_status->status & SD_STATUS_UPDATED))
 		tw32(GRC_LOCAL_CTRL, tp->grc_local_ctrl | GRC_LCLCTRL_SETINT);
 	else
-		tw32(HOSTCC_MODE, tp->coalesce_mode |
-		     HOSTCC_MODE_ENABLE | coal_now);
+		tw32(HOSTCC_MODE, tp->coal_now);
+
+	tp->coal_now &= ~(tp->napi[0].coal_now | tp->napi[1].coal_now);
 }
 
 static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
@@ -4794,12 +4795,12 @@ static void tg3_poll_link(struct tg3 *tp)
 	}
 }
 
-static void tg3_rx_prodring_xfer(struct tg3 *tp,
-				 struct tg3_rx_prodring_set *dpr,
-				 struct tg3_rx_prodring_set *spr)
+static int tg3_rx_prodring_xfer(struct tg3 *tp,
+				struct tg3_rx_prodring_set *dpr,
+				struct tg3_rx_prodring_set *spr)
 {
 	u32 si, di, cpycnt, src_prod_idx;
-	int i;
+	int i, err = 0;
 
 	while (1) {
 		src_prod_idx = spr->rx_std_prod_idx;
@@ -4825,6 +4826,7 @@ static void tg3_rx_prodring_xfer(struct tg3 *tp,
 		for (i = di; i < di + cpycnt; i++) {
 			if (dpr->rx_std_buffers[i].skb) {
 				cpycnt = i - di;
+				err = -ENOSPC;
 				break;
 			}
 		}
@@ -4881,6 +4883,7 @@ static void tg3_rx_prodring_xfer(struct tg3 *tp,
 		for (i = di; i < di + cpycnt; i++) {
 			if (dpr->rx_jmb_buffers[i].skb) {
 				cpycnt = i - di;
+				err = -ENOSPC;
 				break;
 			}
 		}
@@ -4911,6 +4914,8 @@ static void tg3_rx_prodring_xfer(struct tg3 *tp,
 		dpr->rx_jmb_prod_idx = (dpr->rx_jmb_prod_idx + cpycnt) %
 				       TG3_RX_JUMBO_RING_SIZE;
 	}
+
+	return err;
 }
 
 static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
@@ -4933,12 +4938,13 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 
 	if ((tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS) && tnapi == &tp->napi[1]) {
 		struct tg3_rx_prodring_set *dpr = &tp->prodring[0];
-		int i;
+		int i, err = 0;
 		u32 std_prod_idx = dpr->rx_std_prod_idx;
 		u32 jmb_prod_idx = dpr->rx_jmb_prod_idx;
 
 		for (i = 1; i < tp->irq_cnt; i++)
-			tg3_rx_prodring_xfer(tp, dpr, tp->napi[i].prodring);
+			err |= tg3_rx_prodring_xfer(tp, dpr,
+						    tp->napi[i].prodring);
 
 		wmb();
 
@@ -4951,6 +4957,9 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 				     dpr->rx_jmb_prod_idx);
 
 		mmiowb();
+
+		if (err)
+			tw32_f(HOSTCC_MODE, tp->coal_now);
 	}
 
 	return work_done;
