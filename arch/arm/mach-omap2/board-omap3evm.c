@@ -41,6 +41,7 @@
 #include <plat/usb.h>
 #include <plat/common.h>
 #include <plat/mcspi.h>
+#include <plat/display.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -147,6 +148,187 @@ static inline void __init omap3evm_init_smsc911x(void)
 static inline void __init omap3evm_init_smsc911x(void) { return; }
 #endif
 
+/*
+ * OMAP3EVM LCD Panel control signals
+ */
+#define OMAP3EVM_LCD_PANEL_LR		2
+#define OMAP3EVM_LCD_PANEL_UD		3
+#define OMAP3EVM_LCD_PANEL_INI		152
+#define OMAP3EVM_LCD_PANEL_ENVDD	153
+#define OMAP3EVM_LCD_PANEL_QVGA		154
+#define OMAP3EVM_LCD_PANEL_RESB		155
+#define OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO	210
+#define OMAP3EVM_DVI_PANEL_EN_GPIO	199
+
+static int lcd_enabled;
+static int dvi_enabled;
+
+static void __init omap3_evm_display_init(void)
+{
+	int r;
+
+	r = gpio_request(OMAP3EVM_LCD_PANEL_RESB, "lcd_panel_resb");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_resb\n");
+		return;
+	}
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_RESB, 1);
+
+	r = gpio_request(OMAP3EVM_LCD_PANEL_INI, "lcd_panel_ini");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_ini\n");
+		goto err_1;
+	}
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_INI, 1);
+
+	r = gpio_request(OMAP3EVM_LCD_PANEL_QVGA, "lcd_panel_qvga");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_qvga\n");
+		goto err_2;
+	}
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_QVGA, 0);
+
+	r = gpio_request(OMAP3EVM_LCD_PANEL_LR, "lcd_panel_lr");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_lr\n");
+		goto err_3;
+	}
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_LR, 1);
+
+	r = gpio_request(OMAP3EVM_LCD_PANEL_UD, "lcd_panel_ud");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_ud\n");
+		goto err_4;
+	}
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_UD, 1);
+
+	r = gpio_request(OMAP3EVM_LCD_PANEL_ENVDD, "lcd_panel_envdd");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_envdd\n");
+		goto err_5;
+	}
+	gpio_direction_output(OMAP3EVM_LCD_PANEL_ENVDD, 0);
+
+	return;
+
+err_5:
+	gpio_free(OMAP3EVM_LCD_PANEL_UD);
+err_4:
+	gpio_free(OMAP3EVM_LCD_PANEL_LR);
+err_3:
+	gpio_free(OMAP3EVM_LCD_PANEL_QVGA);
+err_2:
+	gpio_free(OMAP3EVM_LCD_PANEL_INI);
+err_1:
+	gpio_free(OMAP3EVM_LCD_PANEL_RESB);
+
+}
+
+static int omap3_evm_enable_lcd(struct omap_dss_device *dssdev)
+{
+	if (dvi_enabled) {
+		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
+		return -EINVAL;
+	}
+	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 0);
+
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
+		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
+	else
+		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
+
+	lcd_enabled = 1;
+	return 0;
+}
+
+static void omap3_evm_disable_lcd(struct omap_dss_device *dssdev)
+{
+	gpio_set_value(OMAP3EVM_LCD_PANEL_ENVDD, 1);
+
+	if (get_omap3_evm_rev() >= OMAP3EVM_BOARD_GEN_2)
+		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 1);
+	else
+		gpio_set_value(OMAP3EVM_LCD_PANEL_BKLIGHT_GPIO, 0);
+
+	lcd_enabled = 0;
+}
+
+static struct omap_dss_device omap3_evm_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "sharp_ls_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 18,
+	.platform_enable	= omap3_evm_enable_lcd,
+	.platform_disable	= omap3_evm_disable_lcd,
+};
+
+static int omap3_evm_enable_tv(struct omap_dss_device *dssdev)
+{
+	return 0;
+}
+
+static void omap3_evm_disable_tv(struct omap_dss_device *dssdev)
+{
+}
+
+static struct omap_dss_device omap3_evm_tv_device = {
+	.name			= "tv",
+	.driver_name		= "venc",
+	.type			= OMAP_DISPLAY_TYPE_VENC,
+	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+	.platform_enable	= omap3_evm_enable_tv,
+	.platform_disable	= omap3_evm_disable_tv,
+};
+
+static int omap3_evm_enable_dvi(struct omap_dss_device *dssdev)
+{
+	if (lcd_enabled) {
+		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
+		return -EINVAL;
+	}
+
+	gpio_set_value(OMAP3EVM_DVI_PANEL_EN_GPIO, 1);
+
+	dvi_enabled = 1;
+	return 0;
+}
+
+static void omap3_evm_disable_dvi(struct omap_dss_device *dssdev)
+{
+	gpio_set_value(OMAP3EVM_DVI_PANEL_EN_GPIO, 0);
+
+	dvi_enabled = 0;
+}
+
+static struct omap_dss_device omap3_evm_dvi_device = {
+	.name			= "dvi",
+	.driver_name		= "generic_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 24,
+	.platform_enable	= omap3_evm_enable_dvi,
+	.platform_disable	= omap3_evm_disable_dvi,
+};
+
+static struct omap_dss_device *omap3_evm_dss_devices[] = {
+	&omap3_evm_lcd_device,
+	&omap3_evm_tv_device,
+	&omap3_evm_dvi_device,
+};
+
+static struct omap_dss_board_info omap3_evm_dss_data = {
+	.num_devices	= ARRAY_SIZE(omap3_evm_dss_devices),
+	.devices	= omap3_evm_dss_devices,
+	.default_device	= &omap3_evm_lcd_device,
+};
+
+static struct platform_device omap3_evm_dss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &omap3_evm_dss_data,
+	},
+};
+
 static struct regulator_consumer_supply omap3evm_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -236,6 +418,14 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	 * the P2 connector; notably LEDA for the LCD backlight.
 	 */
 
+	/* TWL4030_GPIO_MAX + 0 == ledA, LCD Backlight control */
+	gpio_request(gpio + TWL4030_GPIO_MAX, "EN_LCD_BKL");
+	gpio_direction_output(gpio + TWL4030_GPIO_MAX, 0);
+
+	/* gpio + 7 == DVI Enable */
+	gpio_request(gpio + 7, "EN_DVI");
+	gpio_direction_output(gpio + 7, 0);
+
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
 	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
 
@@ -300,6 +490,47 @@ static struct twl4030_codec_data omap3evm_codec_data = {
 	.audio = &omap3evm_audio_data,
 };
 
+static struct regulator_consumer_supply omap3_evm_vdda_dac_supply = {
+	.supply		= "vdda_dac",
+	.dev		= &omap3_evm_dss_device.dev,
+};
+
+/* VDAC for DSS driving S-Video */
+static struct regulator_init_data omap3_evm_vdac = {
+	.constraints = {
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_evm_vdda_dac_supply,
+};
+
+/* VPLL2 for digital video outputs */
+static struct regulator_consumer_supply omap3_evm_vpll2_supply = {
+	.supply		= "vdvi",
+	.dev		= &omap3_evm_lcd_device.dev,
+};
+
+static struct regulator_init_data omap3_evm_vpll2 = {
+	.constraints = {
+		.name			= "VDVI",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_evm_vpll2_supply,
+};
+
 static struct twl4030_platform_data omap3evm_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
@@ -310,6 +541,8 @@ static struct twl4030_platform_data omap3evm_twldata = {
 	.usb		= &omap3evm_usb_data,
 	.gpio		= &omap3evm_gpio_data,
 	.codec		= &omap3evm_codec_data,
+	.vdac		= &omap3_evm_vdac,
+	.vpll2		= &omap3_evm_vpll2,
 };
 
 static struct i2c_board_info __initdata omap3evm_i2c_boardinfo[] = {
@@ -336,15 +569,6 @@ static int __init omap3_evm_i2c_init(void)
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
 }
-
-static struct platform_device omap3_evm_lcd_device = {
-	.name		= "omap3evm_lcd",
-	.id		= -1,
-};
-
-static struct omap_lcd_config omap3_evm_lcd_config __initdata = {
-	.ctrl_name	= "internal",
-};
 
 static void ads7846_dev_init(void)
 {
@@ -393,7 +617,6 @@ struct spi_board_info omap3evm_spi_board_info[] = {
 };
 
 static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&omap3_evm_lcd_config },
 };
 
 static void __init omap3_evm_init_irq(void)
@@ -406,7 +629,7 @@ static void __init omap3_evm_init_irq(void)
 }
 
 static struct platform_device *omap3_evm_devices[] __initdata = {
-	&omap3_evm_lcd_device,
+	&omap3_evm_dss_device,
 };
 
 static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
@@ -473,6 +696,7 @@ static void __init omap3_evm_init(void)
 	usb_ehci_init(&ehci_pdata);
 	ads7846_dev_init();
 	omap3evm_init_smsc911x();
+	omap3_evm_display_init();
 }
 
 static void __init omap3_evm_map_io(void)
