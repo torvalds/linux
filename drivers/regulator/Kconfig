@@ -27,6 +27,17 @@ config REGULATOR_DEBUG
 	help
 	  Say yes here to enable debugging support.
 
+config REGULATOR_DUMMY
+	bool "Provide a dummy regulator if regulator lookups fail"
+	help
+	  If this option is enabled then when a regulator lookup fails
+	  and the board has not specified that it has provided full
+	  constraints then the regulator core will provide an always
+	  enabled dummy regulator will be provided, allowing consumer
+	  drivers to continue.
+
+	  A warning will be generated when this substitution is done.
+
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
 	help
