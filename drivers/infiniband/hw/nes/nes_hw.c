@@ -3352,8 +3352,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	u16 async_event_id;
 	u8 tcp_state;
 	u8 iwarp_state;
-	int must_disconn = 1;
-	int must_terminate = 0;
 	struct ib_event ibevent;
 
 	nes_debug(NES_DBG_AEQ, "\n");
@@ -3367,6 +3365,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 		BUG_ON(!context);
 	}
 
+	/* context is nesqp unless async_event_id == CQ ERROR */
+	nesqp = (struct nes_qp *)(unsigned long)context;
 	async_event_id = (u16)aeq_info;
 	tcp_state = (aeq_info & NES_AEQE_TCP_STATE_MASK) >> NES_AEQE_TCP_STATE_SHIFT;
 	iwarp_state = (aeq_info & NES_AEQE_IWARP_STATE_MASK) >> NES_AEQE_IWARP_STATE_SHIFT;
@@ -3378,8 +3378,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 
 	switch (async_event_id) {
 		case NES_AEQE_AEID_LLP_FIN_RECEIVED:
-			nesqp = (struct nes_qp *)(unsigned long)context;
-
 			if (nesqp->term_flags)
 				return; /* Ignore it, wait for close complete */
 
@@ -3394,79 +3392,48 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 						async_event_id, nesqp->last_aeq, tcp_state);
 			}
 
-			if ((tcp_state != NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
-					(nesqp->ibqp_state != IB_QPS_RTS)) {
-				/* FIN Received but tcp state or IB state moved on,
-						should expect a	close complete */
-				return;
-			}
-
+			break;
 		case NES_AEQE_AEID_LLP_CLOSE_COMPLETE:
-			nesqp = (struct nes_qp *)(unsigned long)context;
 			if (nesqp->term_flags) {
 				nes_terminate_done(nesqp, 0);
 				return;
 			}
+			spin_lock_irqsave(&nesqp->lock, flags);
+			nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_CLOSING;
+			spin_unlock_irqrestore(&nesqp->lock, flags);
+			nes_hw_modify_qp(nesdev, nesqp, NES_CQP_QP_IWARP_STATE_CLOSING, 0, 0);
+			nes_cm_disconn(nesqp);
+			break;
 
-		case NES_AEQE_AEID_LLP_CONNECTION_RESET:
 		case NES_AEQE_AEID_RESET_SENT:
-			nesqp = (struct nes_qp *)(unsigned long)context;
-			if (async_event_id == NES_AEQE_AEID_RESET_SENT) {
-				tcp_state = NES_AEQE_TCP_STATE_CLOSED;
-			}
+			tcp_state = NES_AEQE_TCP_STATE_CLOSED;
 			spin_lock_irqsave(&nesqp->lock, flags);
 			nesqp->hw_iwarp_state = iwarp_state;
 			nesqp->hw_tcp_state = tcp_state;
 			nesqp->last_aeq = async_event_id;
-
-			if ((tcp_state == NES_AEQE_TCP_STATE_CLOSED) ||
-					(tcp_state == NES_AEQE_TCP_STATE_TIME_WAIT)) {
-				nesqp->hte_added = 0;
-				next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR | NES_CQP_QP_DEL_HTE;
-			}
-
-			if ((nesqp->ibqp_state == IB_QPS_RTS) &&
-					((tcp_state == NES_AEQE_TCP_STATE_CLOSE_WAIT) ||
-					(async_event_id == NES_AEQE_AEID_LLP_CONNECTION_RESET))) {
-				switch (nesqp->hw_iwarp_state) {
-					case NES_AEQE_IWARP_STATE_RTS:
-						next_iwarp_state = NES_CQP_QP_IWARP_STATE_CLOSING;
-						nesqp->hw_iwarp_state = NES_AEQE_IWARP_STATE_CLOSING;
-						break;
-					case NES_AEQE_IWARP_STATE_TERMINATE:
-						must_disconn = 0; /* terminate path takes care of disconn */
-						if (nesqp->term_flags == 0)
-							must_terminate = 1;
-						break;
-				}
-			} else {
-				if (async_event_id ==  NES_AEQE_AEID_LLP_FIN_RECEIVED) {
-					/* FIN Received but ib state not RTS,
-							close complete will be on its way */
-					must_disconn = 0;
-				}
-			}
+			nesqp->hte_added = 0;
 			spin_unlock_irqrestore(&nesqp->lock, flags);
+			next_iwarp_state = NES_CQP_QP_IWARP_STATE_ERROR | NES_CQP_QP_DEL_HTE;
+			nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 0);
+			nes_cm_disconn(nesqp);
+			break;
 
-			if (must_terminate)
-				nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
-			else if (must_disconn) {
-				if (next_iwarp_state) {
-					nes_debug(NES_DBG_AEQ, "issuing hw modifyqp for QP%u. next state = 0x%08X\n",
-						  nesqp->hwqp.qp_id, next_iwarp_state);
-					nes_hw_modify_qp(nesdev, nesqp, next_iwarp_state, 0, 0);
-				}
-				nes_cm_disconn(nesqp);
-			}
+		case NES_AEQE_AEID_LLP_CONNECTION_RESET:
+			if (atomic_read(&nesqp->close_timer_started))
+				return;
+			spin_lock_irqsave(&nesqp->lock, flags);
+			nesqp->hw_iwarp_state = iwarp_state;
+			nesqp->hw_tcp_state = tcp_state;
+			nesqp->last_aeq = async_event_id;
+			spin_unlock_irqrestore(&nesqp->lock, flags);
+			nes_cm_disconn(nesqp);
 			break;
 
 		case NES_AEQE_AEID_TERMINATE_SENT:
-			nesqp = (struct nes_qp *)(unsigned long)context;
 			nes_terminate_send_fin(nesdev, nesqp, aeqe);
 			break;
 
 		case NES_AEQE_AEID_LLP_TERMINATE_RECEIVED:
-			nesqp = (struct nes_qp *)(unsigned long)context;
 			nes_terminate_received(nesdev, nesqp, aeqe);
 			break;
 
@@ -3480,7 +3447,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 		case NES_AEQE_AEID_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER:
 		case NES_AEQE_AEID_AMP_BOUNDS_VIOLATION:
 		case NES_AEQE_AEID_AMP_TO_WRAP:
-			nesqp = (struct nes_qp *)(unsigned long)context;
+			printk(KERN_ERR PFX "QP[%u] async_event_id=0x%04X IB_EVENT_QP_ACCESS_ERR\n",
+					nesqp->hwqp.qp_id, async_event_id);
 			nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_ACCESS_ERR);
 			break;
 
@@ -3488,7 +3456,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 		case NES_AEQE_AEID_LLP_SEGMENT_TOO_SMALL:
 		case NES_AEQE_AEID_DDP_UBE_INVALID_MO:
 		case NES_AEQE_AEID_DDP_UBE_INVALID_QN:
-			nesqp = (struct nes_qp *)(unsigned long)context;
 			if (iwarp_opcode(nesqp, aeq_info) > IWARP_OPCODE_TERM) {
 				aeq_info &= 0xffff0000;
 				aeq_info |= NES_AEQE_AEID_RDMAP_ROE_UNEXPECTED_OPCODE;
@@ -3530,7 +3497,8 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 		case NES_AEQE_AEID_STAG_ZERO_INVALID:
 		case NES_AEQE_AEID_ROE_INVALID_RDMA_READ_REQUEST:
 		case NES_AEQE_AEID_ROE_INVALID_RDMA_WRITE_OR_READ_RESP:
-			nesqp = (struct nes_qp *)(unsigned long)context;
+			printk(KERN_ERR PFX "QP[%u] async_event_id=0x%04X IB_EVENT_QP_FATAL\n",
+					nesqp->hwqp.qp_id, async_event_id);
 			nes_terminate_connection(nesdev, nesqp, aeqe, IB_EVENT_QP_FATAL);
 			break;
 
