@@ -194,9 +194,9 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
  * previous token if args expands to nothing.
  */
 #define __mlog_printk(level, fmt, args...)				\
-	printk(level "(%u,%lu):%s:%d " fmt, task_pid_nr(current),	\
-	       __mlog_cpu_guess, __PRETTY_FUNCTION__, __LINE__ ,	\
-	       ##args)
+	printk(level "(%s,%u,%lu):%s:%d " fmt, current->comm,		\
+	       task_pid_nr(current), __mlog_cpu_guess,			\
+	       __PRETTY_FUNCTION__, __LINE__ , ##args)
 
 #define mlog(mask, fmt, args...) do {					\
 	u64 __m = MLOG_MASK_PREFIX | (mask);				\
