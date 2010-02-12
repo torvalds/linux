@@ -1057,25 +1057,30 @@ static void config_intr(struct virtio_device *vdev)
 	resize_console(find_port_by_id(portdev, 0));
 }
 
-static void fill_queue(struct virtqueue *vq, spinlock_t *lock)
+static unsigned int fill_queue(struct virtqueue *vq, spinlock_t *lock)
 {
 	struct port_buffer *buf;
-	int ret;
+	unsigned int ret;
+	int err;
 
+	ret = 0;
 	do {
 		buf = alloc_buf(PAGE_SIZE);
 		if (!buf)
 			break;
 
 		spin_lock_irq(lock);
-		ret = add_inbuf(vq, buf);
-		if (ret < 0) {
+		err = add_inbuf(vq, buf);
+		if (err < 0) {
 			spin_unlock_irq(lock);
 			free_buf(buf);
 			break;
 		}
+		ret++;
 		spin_unlock_irq(lock);
-	} while (ret > 0);
+	} while (err > 0);
+
+	return ret;
 }
 
 static int add_port(struct ports_device *portdev, u32 id)
@@ -1430,7 +1435,13 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 		INIT_WORK(&portdev->control_work, &control_work_handler);
 		INIT_WORK(&portdev->config_work, &config_work_handler);
 
-		fill_queue(portdev->c_ivq, &portdev->cvq_lock);
+		err = fill_queue(portdev->c_ivq, &portdev->cvq_lock);
+		if (!err) {
+			dev_err(&vdev->dev,
+				"Error allocating buffers for control queue\n");
+			err = -ENOMEM;
+			goto free_vqs;
+		}
 	}
 
 	for (i = 0; i < portdev->config.nr_ports; i++)
@@ -1440,6 +1451,10 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	early_put_chars = NULL;
 	return 0;
 
+free_vqs:
+	vdev->config->del_vqs(vdev);
+	kfree(portdev->in_vqs);
+	kfree(portdev->out_vqs);
 free_chrdev:
 	unregister_chrdev(portdev->chr_major, "virtio-portsdev");
 free:
