@@ -27,9 +27,6 @@
 struct ntrig_data {
 	__s32 x, y, id, w, h;
 	bool reading_a_point, found_contact_id;
-	bool pen_active;
-	bool finger_active;
-	bool inverted;
 };
 
 /*
@@ -47,7 +44,6 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		return 0;
 
 	switch (usage->hid & HID_USAGE_PAGE) {
-
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
 		case HID_GD_X:
@@ -111,6 +107,7 @@ static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 	/* No special mappings needed for the pen */
 	if (field->application == HID_DG_PEN)
 		return 0;
+
 	if (usage->type == EV_KEY || usage->type == EV_REL
 			|| usage->type == EV_ABS)
 		clear_bit(usage->code, *bit);
@@ -136,18 +133,6 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 
         if (hid->claimed & HID_CLAIMED_INPUT) {
 		switch (usage->hid) {
-
-		case HID_DG_INRANGE:
-			if (field->application & 0x3)
-				nd->pen_active = (value != 0);
-			else
-				nd->finger_active = (value != 0);
-			return 0;
-
-		case HID_DG_INVERT:
-			nd->inverted = value;
-			return 0;
-
 		case HID_GD_X:
 			nd->x = value;
 			nd->reading_a_point = 1;
@@ -171,32 +156,8 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 * to emit a normal (X, Y) position
 			 */
 			if (!nd->found_contact_id) {
-				if (nd->pen_active && nd->finger_active) {
-					input_report_key(input, BTN_TOOL_DOUBLETAP, 0);
-					input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
-				}
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
-			}
-			break;
-		case HID_DG_TIPPRESSURE:
-			/*
-			 * when in single touch mode, this is the last
-			 * report received in a pen event. We want
-			 * to emit a normal (X, Y) position
-			 */
-			if (! nd->found_contact_id) {
-				if (nd->pen_active && nd->finger_active) {
-					input_report_key(input,
-							nd->inverted ? BTN_TOOL_RUBBER : BTN_TOOL_PEN
-							, 0);
-					input_report_key(input,
-							nd->inverted ? BTN_TOOL_RUBBER : BTN_TOOL_PEN
-							, 1);
-				}
-				input_event(input, EV_ABS, ABS_X, nd->x);
-				input_event(input, EV_ABS, ABS_Y, nd->y);
-				input_event(input, EV_ABS, ABS_PRESSURE, value);
 			}
 			break;
 		case 0xff000002:
