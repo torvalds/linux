@@ -25,5 +25,8 @@ void __init x86_mrst_early_setup(void)
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.resources.reserve_resources = x86_init_noop;
 
+	x86_init.pci.init = pci_mrst_init;
+	x86_init.pci.fixup_irqs = x86_init_noop;
+
 	legacy_pic = &null_legacy_pic;
 }
