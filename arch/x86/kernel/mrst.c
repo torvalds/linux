@@ -23,6 +23,7 @@
 #include <asm/mrst.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
+#include <asm/apb_timer.h>
 
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
@@ -166,10 +167,54 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 	return 0;
 }
 
+/*
+ * the secondary clock in Moorestown can be APBT or LAPIC clock, default to
+ * APBT but cmdline option can also override it.
+ */
+static void __cpuinit mrst_setup_secondary_clock(void)
+{
+	/* restore default lapic clock if disabled by cmdline */
+	if (disable_apbt_percpu)
+		return setup_secondary_APIC_clock();
+	apbt_setup_secondary_clock();
+}
+
+static unsigned long __init mrst_calibrate_tsc(void)
+{
+	unsigned long flags, fast_calibrate;
+
+	local_irq_save(flags);
+	fast_calibrate = apbt_quick_calibrate();
+	local_irq_restore(flags);
+
+	if (fast_calibrate)
+		return fast_calibrate;
+
+	return 0;
+}
+
+void __init mrst_time_init(void)
+{
+	sfi_table_parse(SFI_SIG_MTMR, NULL, NULL, sfi_parse_mtmr);
+	pre_init_apic_IRQ0();
+	apbt_time_init();
+}
+
 void __init mrst_rtc_init(void)
 {
 	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
 }
+
+/*
+ * if we use per cpu apb timer, the bootclock already setup. if we use lapic
+ * timer and one apbt timer for broadcast, we need to set up lapic boot clock.
+ */
+static void __init mrst_setup_boot_clock(void)
+{
+	pr_info("%s: per cpu apbt flag %d \n", __func__, disable_apbt_percpu);
+	if (disable_apbt_percpu)
+		setup_boot_APIC_clock();
+};
 
 /*
  * Moorestown specific x86_init function overrides and early setup
@@ -180,6 +225,14 @@ void __init x86_mrst_early_setup(void)
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.resources.reserve_resources = x86_init_noop;
 
+	x86_init.timers.timer_init = mrst_time_init;
+	x86_init.timers.setup_percpu_clockev = mrst_setup_boot_clock;
+
+	x86_init.irqs.pre_vector_init = x86_init_noop;
+
+	x86_cpuinit.setup_percpu_clockev = mrst_setup_secondary_clock;
+
+	x86_platform.calibrate_tsc = mrst_calibrate_tsc;
 	x86_init.pci.init = pci_mrst_init;
 	x86_init.pci.fixup_irqs = x86_init_noop;
 
