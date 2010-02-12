@@ -589,6 +589,15 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
+		/*
+		 * If VPI is unreged, driver need to do INIT_VPI
+		 * before re-registering
+		 */
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			spin_lock_irq(shost->host_lock);
+			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+			spin_unlock_irq(shost->host_lock);
+		}
 	}
 
 	if (phba->sli_rev < LPFC_SLI_REV4) {
@@ -606,7 +615,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_start_fdiscs(phba);
 			lpfc_do_scr_ns_plogi(phba, vport);
 		} else if (vport->fc_flag & FC_VFI_REGISTERED)
-			lpfc_register_new_vport(phba, vport, ndlp);
+			lpfc_issue_init_vpi(vport);
 		else
 			lpfc_issue_reg_vfi(vport);
 	}
@@ -6210,10 +6219,13 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 		spin_unlock_irq(shost->host_lock);
 	}
 
-	if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
+	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI)
+		lpfc_issue_init_vpi(vport);
+	else if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
 		lpfc_register_new_vport(phba, vport, ndlp);
 	else
 		lpfc_do_scr_ns_plogi(phba, vport);

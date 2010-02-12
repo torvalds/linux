@@ -22,6 +22,10 @@
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
+
+/* Amount of time in seconds for waiting FCF rediscovery to complete */
+#define LPFC_FCF_REDISCOVER_WAIT_TMO		2000 /* msec */
+
 /* Number of SGL entries can be posted in a 4KB nonembedded mbox command */
 #define LPFC_NEMBED_MBOX_SGL_CNT		254
 
@@ -129,22 +133,33 @@ struct lpfc_sli4_link {
 	uint16_t logical_speed;
 };
 
-struct lpfc_fcf {
-	uint8_t	 fabric_name[8];
-	uint8_t	 switch_name[8];
+struct lpfc_fcf_rec {
+	uint8_t  fabric_name[8];
+	uint8_t  switch_name[8];
 	uint8_t  mac_addr[6];
 	uint16_t fcf_indx;
+	uint32_t priority;
+	uint16_t vlan_id;
+	uint32_t addr_mode;
+	uint32_t flag;
+#define BOOT_ENABLE	0x01
+#define RECORD_VALID	0x02
+};
+
+struct lpfc_fcf {
 	uint16_t fcfi;
 	uint32_t fcf_flag;
 #define FCF_AVAILABLE	0x01 /* FCF available for discovery */
 #define FCF_REGISTERED	0x02 /* FCF registered with FW */
-#define FCF_DISCOVERED	0x04 /* FCF discovery started  */
-#define FCF_BOOT_ENABLE 0x08 /* Boot bios use this FCF */
-#define FCF_IN_USE	0x10 /* Atleast one discovery completed */
-#define FCF_VALID_VLAN	0x20 /* Use the vlan id specified */
-	uint32_t priority;
+#define FCF_SCAN_DONE	0x04 /* FCF table scan done */
+#define FCF_IN_USE	0x08 /* Atleast one discovery completed */
+#define FCF_REDISC_PEND	0x10 /* FCF rediscovery pending */
+#define FCF_REDISC_EVT	0x20 /* FCF rediscovery event to worker thread */
+#define FCF_REDISC_FOV	0x40 /* Post FCF rediscovery fast failover */
 	uint32_t addr_mode;
-	uint16_t vlan_id;
+	struct lpfc_fcf_rec current_rec;
+	struct lpfc_fcf_rec failover_rec;
+	struct timer_list redisc_wait;
 };
 
 #define LPFC_REGION23_SIGNATURE "RG23"
@@ -407,6 +422,8 @@ void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_sli4_mbx_sge_set(struct lpfcMboxq *, uint32_t, dma_addr_t, uint32_t);
 void lpfc_sli4_mbx_sge_get(struct lpfcMboxq *, uint32_t,
 			   struct lpfc_mbx_sge *);
+int lpfc_sli4_mbx_read_fcf_record(struct lpfc_hba *, struct lpfcMboxq *,
+				  uint16_t);
 
 void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
@@ -449,6 +466,7 @@ int lpfc_sli4_alloc_rpi(struct lpfc_hba *);
 void lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_remove_rpis(struct lpfc_hba *);
 void lpfc_sli4_async_event_proc(struct lpfc_hba *);
+void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *);
 int lpfc_sli4_resume_rpi(struct lpfc_nodelist *);
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);

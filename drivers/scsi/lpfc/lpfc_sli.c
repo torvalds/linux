@@ -11956,12 +11956,6 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 {
 	int rc = 0, error;
 	LPFC_MBOXQ_t *mboxq;
-	void *virt_addr;
-	dma_addr_t phys_addr;
-	uint8_t *bytep;
-	struct lpfc_mbx_sge sge;
-	uint32_t alloc_len, req_len;
-	struct lpfc_mbx_read_fcf_tbl *read_fcf;
 
 	phba->fcoe_eventtag_at_fcf_scan = phba->fcoe_eventtag;
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -11972,43 +11966,19 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 		error = -ENOMEM;
 		goto fail_fcfscan;
 	}
-
-	req_len = sizeof(struct fcf_record) +
-		  sizeof(union lpfc_sli4_cfg_shdr) + 2 * sizeof(uint32_t);
-
-	/* Set up READ_FCF SLI4_CONFIG mailbox-ioctl command */
-	alloc_len = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
-			 LPFC_MBOX_OPCODE_FCOE_READ_FCF_TABLE, req_len,
-			 LPFC_SLI4_MBX_NEMBED);
-
-	if (alloc_len < req_len) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0291 Allocated DMA memory size (x%x) is "
-				"less than the requested DMA memory "
-				"size (x%x)\n", alloc_len, req_len);
-		error = -ENOMEM;
+	/* Construct the read FCF record mailbox command */
+	rc = lpfc_sli4_mbx_read_fcf_record(phba, mboxq, fcf_index);
+	if (rc) {
+		error = -EINVAL;
 		goto fail_fcfscan;
 	}
-
-	/* Get the first SGE entry from the non-embedded DMA memory. This
-	 * routine only uses a single SGE.
-	 */
-	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
-	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
-	virt_addr = mboxq->sge_array->addr[0];
-	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
-
-	/* Set up command fields */
-	bf_set(lpfc_mbx_read_fcf_tbl_indx, &read_fcf->u.request, fcf_index);
-	/* Perform necessary endian conversion */
-	bytep = virt_addr + sizeof(union lpfc_sli4_cfg_shdr);
-	lpfc_sli_pcimem_bcopy(bytep, bytep, sizeof(uint32_t));
+	/* Issue the mailbox command asynchronously */
 	mboxq->vport = phba->pport;
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_fcf_record;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	if (rc == MBX_NOT_FINISHED)
 		error = -EIO;
-	} else {
+	else {
 		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag |= FCF_DISC_INPROGRESS;
 		spin_unlock_irq(&phba->hbalock);
@@ -12024,6 +11994,90 @@ fail_fcfscan:
 		spin_unlock_irq(&phba->hbalock);
 	}
 	return error;
+}
+
+/**
+ * lpfc_mbx_cmpl_redisc_fcf_table - completion routine for rediscover FCF table
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is the completion routine for the rediscover FCF table mailbox
+ * command. If the mailbox command returned failure, it will try to stop the
+ * FCF rediscover wait timer.
+ **/
+void
+lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	struct lpfc_mbx_redisc_fcf_tbl *redisc_fcf;
+	uint32_t shdr_status, shdr_add_status;
+
+	redisc_fcf = &mbox->u.mqe.un.redisc_fcf_tbl;
+
+	shdr_status = bf_get(lpfc_mbox_hdr_status,
+			     &redisc_fcf->header.cfg_shdr.response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+			     &redisc_fcf->header.cfg_shdr.response);
+	if (shdr_status || shdr_add_status) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2746 Requesting for FCF rediscovery failed "
+				"status x%x add_status x%x\n",
+				shdr_status, shdr_add_status);
+		/*
+		 * Request failed, last resort to re-try current
+		 * registered FCF entry
+		 */
+		lpfc_retry_pport_discovery(phba);
+	} else
+		/*
+		 * Start FCF rediscovery wait timer for pending FCF
+		 * before rescan FCF record table.
+		 */
+		lpfc_fcf_redisc_wait_start_timer(phba);
+
+	mempool_free(mbox, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_sli4_redisc_all_fcf - Request to rediscover entire FCF table by port.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to request for rediscovery of the entire FCF table
+ * by the port.
+ **/
+int
+lpfc_sli4_redisc_fcf_table(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mbox;
+	struct lpfc_mbx_redisc_fcf_tbl *redisc_fcf;
+	int rc, length;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2745 Failed to allocate mbox for "
+				"requesting FCF rediscover.\n");
+		return -ENOMEM;
+	}
+
+	length = (sizeof(struct lpfc_mbx_redisc_fcf_tbl) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
+			 LPFC_MBOX_OPCODE_FCOE_REDISCOVER_FCF,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	redisc_fcf = &mbox->u.mqe.un.redisc_fcf_tbl;
+	/* Set count to 0 for invalidating the entire FCF database */
+	bf_set(lpfc_mbx_redisc_fcf_count, redisc_fcf, 0);
+
+	/* Issue the mailbox command asynchronously */
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_mbx_cmpl_redisc_fcf_table;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+
+	if (rc == MBX_NOT_FINISHED) {
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return -EIO;
+	}
+	return 0;
 }
 
 /**

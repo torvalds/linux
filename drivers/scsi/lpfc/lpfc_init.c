@@ -2073,6 +2073,44 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 }
 
 /**
+ * __lpfc_sli4_stop_fcf_redisc_wait_timer - Stop FCF rediscovery wait timer
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine stops the SLI4 FCF rediscover wait timer if it's on. The
+ * caller of this routine should already hold the host lock.
+ **/
+void
+__lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
+{
+	/* Clear pending FCF rediscovery wait timer */
+	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
+	/* Now, try to stop the timer */
+	del_timer(&phba->fcf.redisc_wait);
+}
+
+/**
+ * lpfc_sli4_stop_fcf_redisc_wait_timer - Stop FCF rediscovery wait timer
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine stops the SLI4 FCF rediscover wait timer if it's on. It
+ * checks whether the FCF rediscovery wait timer is pending with the host
+ * lock held before proceeding with disabling the timer and clearing the
+ * wait timer pendig flag.
+ **/
+void
+lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
+{
+	spin_lock_irq(&phba->hbalock);
+	if (!(phba->fcf.fcf_flag & FCF_REDISC_PEND)) {
+		/* FCF rediscovery timer already fired or stopped */
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+	__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
+	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
  * lpfc_stop_hba_timers - Stop all the timers associated with an HBA
  * @phba: pointer to lpfc hba data structure.
  *
@@ -2096,6 +2134,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 		break;
 	case LPFC_PCI_DEV_OC:
 		/* Stop any OneConnect device sepcific driver timers */
+		lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -2706,7 +2745,7 @@ lpfc_sli_remove_dflt_fcf(struct lpfc_hba *phba)
 	del_fcf_record = &mboxq->u.mqe.un.del_fcf_entry;
 	bf_set(lpfc_mbx_del_fcf_tbl_count, del_fcf_record, 1);
 	bf_set(lpfc_mbx_del_fcf_tbl_index, del_fcf_record,
-	       phba->fcf.fcf_indx);
+	       phba->fcf.current_rec.fcf_indx);
 
 	if (!phba->sli4_hba.intr_enable)
 		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
@@ -2727,6 +2766,57 @@ lpfc_sli_remove_dflt_fcf(struct lpfc_hba *phba)
 	}
 	if (rc != MBX_TIMEOUT)
 		mempool_free(mboxq, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_fcf_redisc_wait_start_timer - Start fcf rediscover wait timer
+ * @phba: Pointer to hba for which this call is being executed.
+ *
+ * This routine starts the timer waiting for the FCF rediscovery to complete.
+ **/
+void
+lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *phba)
+{
+	unsigned long fcf_redisc_wait_tmo =
+		(jiffies + msecs_to_jiffies(LPFC_FCF_REDISCOVER_WAIT_TMO));
+	/* Start fcf rediscovery wait period timer */
+	mod_timer(&phba->fcf.redisc_wait, fcf_redisc_wait_tmo);
+	spin_lock_irq(&phba->hbalock);
+	/* Allow action to new fcf asynchronous event */
+	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_SCAN_DONE);
+	/* Mark the FCF rediscovery pending state */
+	phba->fcf.fcf_flag |= FCF_REDISC_PEND;
+	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
+ * lpfc_sli4_fcf_redisc_wait_tmo - FCF table rediscover wait timeout
+ * @ptr: Map to lpfc_hba data structure pointer.
+ *
+ * This routine is invoked when waiting for FCF table rediscover has been
+ * timed out. If new FCF record(s) has (have) been discovered during the
+ * wait period, a new FCF event shall be added to the FCOE async event
+ * list, and then worker thread shall be waked up for processing from the
+ * worker thread context.
+ **/
+void
+lpfc_sli4_fcf_redisc_wait_tmo(unsigned long ptr)
+{
+	struct lpfc_hba *phba = (struct lpfc_hba *)ptr;
+
+	/* Don't send FCF rediscovery event if timer cancelled */
+	spin_lock_irq(&phba->hbalock);
+	if (!(phba->fcf.fcf_flag & FCF_REDISC_PEND)) {
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+	/* Clear FCF rediscovery timer pending flag */
+	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
+	/* FCF rediscovery event to worker thread */
+	phba->fcf.fcf_flag |= FCF_REDISC_EVT;
+	spin_unlock_irq(&phba->hbalock);
+	/* wake up worker thread */
+	lpfc_worker_wake_up(phba);
 }
 
 /**
@@ -3020,17 +3110,26 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	phba->fcoe_eventtag = acqe_fcoe->event_tag;
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
+	case LPFC_FCOE_EVENT_TYPE_FCF_PARAM_MOD:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
 			"2546 New FCF found index 0x%x tag 0x%x\n",
 			acqe_fcoe->index,
 			acqe_fcoe->event_tag);
-		/*
-		 * If the current FCF is in discovered state, or
-		 * FCF discovery is in progress do nothing.
-		 */
 		spin_lock_irq(&phba->hbalock);
-		if ((phba->fcf.fcf_flag & FCF_DISCOVERED) ||
-		   (phba->hba_flag & FCF_DISC_INPROGRESS)) {
+		if ((phba->fcf.fcf_flag & FCF_SCAN_DONE) ||
+		    (phba->hba_flag & FCF_DISC_INPROGRESS)) {
+			/*
+			 * If the current FCF is in discovered state or
+			 * FCF discovery is in progress, do nothing.
+			 */
+			spin_unlock_irq(&phba->hbalock);
+			break;
+		}
+		if (phba->fcf.fcf_flag & FCF_REDISC_EVT) {
+			/*
+			 * If fast FCF failover rescan event is pending,
+			 * do nothing.
+			 */
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
@@ -3057,7 +3156,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			" tag 0x%x\n", acqe_fcoe->index,
 			acqe_fcoe->event_tag);
 		/* If the event is not for currently used fcf do nothing */
-		if (phba->fcf.fcf_indx != acqe_fcoe->index)
+		if (phba->fcf.current_rec.fcf_indx != acqe_fcoe->index)
 			break;
 		/*
 		 * Currently, driver support only one FCF - so treat this as
@@ -3121,7 +3220,19 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
 			vport->port_state = LPFC_FDISC;
 		} else {
-			lpfc_retry_pport_discovery(phba);
+			/*
+			 * Otherwise, we request port to rediscover
+			 * the entire FCF table for a fast recovery
+			 * from possible case that the current FCF
+			 * is no longer valid.
+			 */
+			rc = lpfc_sli4_redisc_fcf_table(phba);
+			if (rc)
+				/*
+				 * Last resort will be re-try on the
+				 * the current registered FCF entry.
+				 */
+				lpfc_retry_pport_discovery(phba);
 		}
 		break;
 	default:
@@ -3195,6 +3306,34 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		/* Free the completion event processed to the free pool */
 		lpfc_sli4_cq_event_release(phba, cq_event);
 	}
+}
+
+/**
+ * lpfc_sli4_fcf_redisc_event_proc - Process fcf table rediscovery event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked by the worker thread to process FCF table
+ * rediscovery pending completion event.
+ **/
+void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *phba)
+{
+	int rc;
+
+	spin_lock_irq(&phba->hbalock);
+	/* Clear FCF rediscovery timeout event */
+	phba->fcf.fcf_flag &= ~FCF_REDISC_EVT;
+	/* Clear driver fast failover FCF record flag */
+	phba->fcf.failover_rec.flag = 0;
+	/* Set state for FCF fast failover */
+	phba->fcf.fcf_flag |= FCF_REDISC_FOV;
+	spin_unlock_irq(&phba->hbalock);
+
+	/* Scan FCF table from the first entry to re-discover SAN */
+	rc = lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
+	if (rc)
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+				"2747 Post FCF rediscovery read FCF record "
+				"failed 0x%x\n", rc);
 }
 
 /**
@@ -3512,6 +3651,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	init_timer(&phba->eratt_poll);
 	phba->eratt_poll.function = lpfc_poll_eratt;
 	phba->eratt_poll.data = (unsigned long) phba;
+	/* FCF rediscover timer */
+	init_timer(&phba->fcf.redisc_wait);
+	phba->fcf.redisc_wait.function = lpfc_sli4_fcf_redisc_wait_tmo;
+	phba->fcf.redisc_wait.data = (unsigned long)phba;
+
 	/*
 	 * We need to do a READ_CONFIG mailbox command here before
 	 * calling lpfc_get_cfgparam. For VFs this will report the
@@ -6039,7 +6183,7 @@ lpfc_sli4_fcfi_unreg(struct lpfc_hba *phba, uint16_t fcfi)
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* Mark the FCFI is no longer registered */
 		phba->fcf.fcf_flag &=
-			~(FCF_AVAILABLE | FCF_REGISTERED | FCF_DISCOVERED);
+			~(FCF_AVAILABLE | FCF_REGISTERED | FCF_SCAN_DONE);
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 	}
 }

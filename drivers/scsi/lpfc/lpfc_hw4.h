@@ -797,6 +797,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_FCOE_ADD_FCF			0x09
 #define LPFC_MBOX_OPCODE_FCOE_DELETE_FCF		0x0A
 #define LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE		0x0B
+#define LPFC_MBOX_OPCODE_FCOE_REDISCOVER_FCF		0x10
 
 /* Mailbox command structures */
 struct eq_context {
@@ -1295,6 +1296,19 @@ struct lpfc_mbx_del_fcf_tbl_entry {
 #define lpfc_mbx_del_fcf_tbl_index_SHIFT	16
 #define lpfc_mbx_del_fcf_tbl_index_MASK		0x0000FFFF
 #define lpfc_mbx_del_fcf_tbl_index_WORD		word10
+};
+
+struct lpfc_mbx_redisc_fcf_tbl {
+	struct mbox_header header;
+	uint32_t word10;
+#define lpfc_mbx_redisc_fcf_count_SHIFT		0
+#define lpfc_mbx_redisc_fcf_count_MASK		0x0000FFFF
+#define lpfc_mbx_redisc_fcf_count_WORD		word10
+	uint32_t resvd;
+	uint32_t word12;
+#define lpfc_mbx_redisc_fcf_index_SHIFT		0
+#define lpfc_mbx_redisc_fcf_index_MASK		0x0000FFFF
+#define lpfc_mbx_redisc_fcf_index_WORD		word12
 };
 
 struct lpfc_mbx_query_fw_cfg {
@@ -1859,6 +1873,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_read_fcf_tbl read_fcf_tbl;
 		struct lpfc_mbx_add_fcf_tbl_entry add_fcf_entry;
 		struct lpfc_mbx_del_fcf_tbl_entry del_fcf_entry;
+		struct lpfc_mbx_redisc_fcf_tbl redisc_fcf_tbl;
 		struct lpfc_mbx_reg_fcfi reg_fcfi;
 		struct lpfc_mbx_unreg_fcfi unreg_fcfi;
 		struct lpfc_mbx_mq_create mq_create;
@@ -1975,6 +1990,7 @@ struct lpfc_acqe_fcoe {
 #define LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL	0x2
 #define LPFC_FCOE_EVENT_TYPE_FCF_DEAD		0x3
 #define LPFC_FCOE_EVENT_TYPE_CVL		0x4
+#define LPFC_FCOE_EVENT_TYPE_FCF_PARAM_MOD	0x5
 	uint32_t event_tag;
 	uint32_t trailer;
 };
