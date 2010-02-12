@@ -448,8 +448,11 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	/* Put everything in free lists. */
 	vq->num_free = num;
 	vq->free_head = 0;
-	for (i = 0; i < num-1; i++)
+	for (i = 0; i < num-1; i++) {
 		vq->vring.desc[i].next = i+1;
+		vq->data[i] = NULL;
+	}
+	vq->data[i] = NULL;
 
 	return &vq->vq;
 }
