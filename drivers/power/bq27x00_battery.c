@@ -74,12 +74,7 @@ static enum power_supply_property bq27x00_battery_props[] = {
 static int bq27x00_read(u8 reg, int *rt_value, int b_single,
 			struct bq27x00_device_info *di)
 {
-	int ret;
-
-	ret = di->bus->read(reg, rt_value, b_single, di);
-	*rt_value = be16_to_cpu(*rt_value);
-
-	return ret;
+	return di->bus->read(reg, rt_value, b_single, di);
 }
 
 /*
@@ -161,7 +156,7 @@ static int bq27x00_battery_rsoc(struct bq27x00_device_info *di)
 		return ret;
 	}
 
-	return rsoc >> 8;
+	return rsoc;
 }
 
 #define to_bq27x00_device_info(x) container_of((x), \
@@ -238,7 +233,7 @@ static int bq27200_read(u8 reg, int *rt_value, int b_single,
 		err = i2c_transfer(client->adapter, msg, 1);
 		if (err >= 0) {
 			if (!b_single)
-				*rt_value = get_unaligned_be16(data);
+				*rt_value = get_unaligned_le16(data);
 			else
 				*rt_value = data[0];
 
