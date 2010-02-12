@@ -236,25 +236,8 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 };
 #endif
 
-void __init omap2_map_common_io(void)
+static void __init _omap2_map_common_io(void)
 {
-#if defined(CONFIG_ARCH_OMAP2420)
-	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
-	iotable_init(omap242x_io_desc, ARRAY_SIZE(omap242x_io_desc));
-#endif
-
-#if defined(CONFIG_ARCH_OMAP2430)
-	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
-	iotable_init(omap243x_io_desc, ARRAY_SIZE(omap243x_io_desc));
-#endif
-
-#if defined(CONFIG_ARCH_OMAP34XX)
-	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
-#endif
-
-#if defined(CONFIG_ARCH_OMAP4)
-	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
-#endif
 	/* Normally devicemaps_init() would flush caches and tlb after
 	 * mdesc->map_io(), but we must also do it here because of the CPU
 	 * revision check below.
@@ -267,6 +250,40 @@ void __init omap2_map_common_io(void)
 	omapfb_reserve_sdram();
 	omap_vram_reserve_sdram();
 }
+
+#ifdef CONFIG_ARCH_OMAP2420
+void __init omap242x_map_common_io()
+{
+	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
+	iotable_init(omap242x_io_desc, ARRAY_SIZE(omap242x_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+void __init omap243x_map_common_io()
+{
+	iotable_init(omap24xx_io_desc, ARRAY_SIZE(omap24xx_io_desc));
+	iotable_init(omap243x_io_desc, ARRAY_SIZE(omap243x_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP34XX
+void __init omap34xx_map_common_io()
+{
+	iotable_init(omap34xx_io_desc, ARRAY_SIZE(omap34xx_io_desc));
+	_omap2_map_common_io();
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+void __init omap44xx_map_common_io()
+{
+	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
+	_omap2_map_common_io();
+}
+#endif
 
 /*
  * omap2_init_reprogram_sdrc - reprogram SDRC timing parameters

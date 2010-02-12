@@ -268,7 +268,38 @@ struct omap_sdrc_params;
 extern void omap1_map_common_io(void);
 extern void omap1_init_common_hw(void);
 
-extern void omap2_map_common_io(void);
+#ifdef CONFIG_ARCH_OMAP2420
+extern void omap242x_map_common_io(void);
+#else
+static inline void omap242x_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+extern void omap243x_map_common_io(void);
+#else
+static inline void omap243x_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP34XX
+extern void omap34xx_map_common_io(void);
+#else
+static inline void omap34xx_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+extern void omap44xx_map_common_io(void);
+#else
+static inline void omap44xx_map_common_io(void)
+{
+}
+#endif
+
 extern void omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1);
 

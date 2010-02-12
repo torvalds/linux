@@ -370,7 +370,7 @@ static void __init omap_h4_init(void)
 static void __init omap_h4_map_io(void)
 {
 	omap2_set_globals_242x();
-	omap2_map_common_io();
+	omap242x_map_common_io();
 }
 
 MACHINE_START(OMAP_H4, "OMAP2420 H4 board")

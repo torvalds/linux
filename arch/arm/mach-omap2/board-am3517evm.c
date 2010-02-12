@@ -228,7 +228,7 @@ static void __init am3517_evm_init(void)
 static void __init am3517_evm_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")

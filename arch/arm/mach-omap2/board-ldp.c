@@ -404,7 +404,7 @@ static void __init omap_ldp_init(void)
 static void __init omap_ldp_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(OMAP_LDP, "OMAP LDP board")

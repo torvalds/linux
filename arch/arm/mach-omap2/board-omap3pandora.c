@@ -423,7 +423,7 @@ static void __init omap3pandora_init(void)
 static void __init omap3pandora_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")

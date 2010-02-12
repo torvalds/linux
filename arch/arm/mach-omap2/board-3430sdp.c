@@ -674,7 +674,7 @@ static void __init omap_3430sdp_init(void)
 static void __init omap_3430sdp_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(OMAP_3430SDP, "OMAP3430 3430SDP board")

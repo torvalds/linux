@@ -710,7 +710,7 @@ static void __init cm_t35_init_irq(void)
 static void __init cm_t35_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {

@@ -469,7 +469,7 @@ static void __init overo_init(void)
 static void __init overo_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(OVERO, "Gumstix Overo")

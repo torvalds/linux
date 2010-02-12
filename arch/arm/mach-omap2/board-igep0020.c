@@ -246,7 +246,7 @@ static void __init igep2_init(void)
 static void __init igep2_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(IGEP0020, "IGEP v2 board")

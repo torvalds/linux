@@ -99,7 +99,7 @@ static void __init n8x0_onenand_init(void) {}
 static void __init n8x0_map_io(void)
 {
 	omap2_set_globals_242x();
-	omap2_map_common_io();
+	omap242x_map_common_io();
 }
 
 static void __init n8x0_init_irq(void)
