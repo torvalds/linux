@@ -154,6 +154,8 @@ extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
 			FILE_ALL_INFO *findData,
 			const struct nls_table *nls_codepage, int remap);
 
+extern int CIFSSMBUnixQFileInfo(const int xid, struct cifsTconInfo *tcon,
+			u16 netfid, FILE_UNIX_BASIC_INFO *pFindData);
 extern int CIFSSMBUnixQPathInfo(const int xid,
 			struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
