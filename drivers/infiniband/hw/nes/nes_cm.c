@@ -1011,9 +1011,10 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 					event.cm_info.loc_port =
 							 loopback->loc_port;
 					event.cm_info.cm_id = loopback->cm_id;
+					add_ref_cm_node(loopback);
+					loopback->state = NES_CM_STATE_CLOSED;
 					cm_event_connect_error(&event);
 					cm_node->state = NES_CM_STATE_LISTENER_DESTROYED;
-					loopback->state = NES_CM_STATE_CLOSED;
 
 					rem_ref_cm_node(cm_node->cm_core,
 							 cm_node);
