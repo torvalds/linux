@@ -12,4 +12,6 @@
 #define _ASM_X86_MRST_H
 extern int pci_mrst_init(void);
 
+#define SFI_MTMR_MAX_NUM 8
+
 #endif /* _ASM_X86_MRST_H */
