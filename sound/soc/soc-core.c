@@ -542,7 +542,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 		/* start delayed pop wq here for playback streams */
 		codec_dai->pop_wait = 1;
 		schedule_delayed_work(&card->delayed_work,
-			msecs_to_jiffies(pmdown_time));
+			msecs_to_jiffies(card->pmdown_time));
 	} else {
 		/* capture streams can be powered down now */
 		snd_soc_dapm_stream_event(codec,
@@ -1039,6 +1039,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	dev_dbg(card->dev, "All components present, instantiating\n");
 
 	/* Found everything, bring it up */
+	card->pmdown_time = pmdown_time;
+
 	if (card->probe) {
 		ret = card->probe(pdev);
 		if (ret < 0)
