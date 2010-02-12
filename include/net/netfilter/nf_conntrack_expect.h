@@ -56,11 +56,7 @@ struct nf_conntrack_expect {
 
 static inline struct net *nf_ct_exp_net(struct nf_conntrack_expect *exp)
 {
-#ifdef CONFIG_NET_NS
-	return exp->master->ct_net;	/* by definition */
-#else
-	return &init_net;
-#endif
+	return nf_ct_net(exp->master);
 }
 
 struct nf_conntrack_expect_policy {
