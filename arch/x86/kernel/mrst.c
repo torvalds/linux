@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/sfi.h>
 #include <linux/irq.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 #include <asm/mpspec_def.h>
@@ -26,6 +27,10 @@
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
 int sfi_mtimer_num;
+
+struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
+EXPORT_SYMBOL_GPL(sfi_mrtc_array);
+int sfi_mrtc_num;
 
 static inline void assign_to_mp_irq(struct mpc_intsrc *m,
 				    struct mpc_intsrc *mp_irq)
@@ -124,6 +129,46 @@ void sfi_free_mtmr(struct sfi_timer_table_entry *mtmr)
 		}
 		i++;
 	}
+}
+
+/* parse all the mrtc info to a global mrtc array */
+int __init sfi_parse_mrtc(struct sfi_table_header *table)
+{
+	struct sfi_table_simple *sb;
+	struct sfi_rtc_table_entry *pentry;
+	struct mpc_intsrc mp_irq;
+
+	int totallen;
+
+	sb = (struct sfi_table_simple *)table;
+	if (!sfi_mrtc_num) {
+		sfi_mrtc_num = SFI_GET_NUM_ENTRIES(sb,
+						struct sfi_rtc_table_entry);
+		pentry = (struct sfi_rtc_table_entry *)sb->pentry;
+		totallen = sfi_mrtc_num * sizeof(*pentry);
+		memcpy(sfi_mrtc_array, pentry, totallen);
+	}
+
+	printk(KERN_INFO "SFI: RTC info (num = %d):\n", sfi_mrtc_num);
+	pentry = sfi_mrtc_array;
+	for (totallen = 0; totallen < sfi_mrtc_num; totallen++, pentry++) {
+		printk(KERN_INFO "RTC[%d]: paddr = 0x%08x, irq = %d\n",
+			totallen, (u32)pentry->phys_addr, pentry->irq);
+		mp_irq.type = MP_IOAPIC;
+		mp_irq.irqtype = mp_INT;
+		mp_irq.irqflag = 0;
+		mp_irq.srcbus = 0;
+		mp_irq.srcbusirq = pentry->irq;	/* IRQ */
+		mp_irq.dstapic = MP_APIC_ALL;
+		mp_irq.dstirq = pentry->irq;
+		save_mp_irq(&mp_irq);
+	}
+	return 0;
+}
+
+void __init mrst_rtc_init(void)
+{
+	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
 }
 
 /*
