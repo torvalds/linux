@@ -26,10 +26,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
- * TODO (last updated Feb 23rd, 2009):
+ * TODO (last updated Feb 12, 2010):
  *	- add kernel-doc
  *	- enable AUTOIDLE
- *	- move DPLL5 programming to clock fw
  *	- add suspend/resume
  *	- move workarounds to board-files
  */
