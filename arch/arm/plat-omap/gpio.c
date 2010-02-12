@@ -1630,7 +1630,7 @@ static int gpio_2irq(struct gpio_chip *chip, unsigned offset)
 /*---------------------------------------------------------------------*/
 
 static int initialized;
-#if !(defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4))
+#if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2)
 static struct clk * gpio_ick;
 #endif
 

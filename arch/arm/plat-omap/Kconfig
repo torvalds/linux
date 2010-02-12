@@ -7,27 +7,35 @@ config ARCH_OMAP_OTG
 
 choice
 	prompt "OMAP System Type"
-	default ARCH_OMAP1
+	default ARCH_OMAP2PLUS
 
 config ARCH_OMAP1
 	bool "TI OMAP1"
 	select COMMON_CLKDEV
+	help
+	  "Systems based on omap7xx, omap15xx or omap16xx"
+
+config ARCH_OMAP2PLUS
+	bool "TI OMAP2/3/4"
+	select COMMON_CLKDEV
+	help
+	  "Systems based on omap24xx, omap34xx or omap44xx"
 
 config ARCH_OMAP2
 	bool "TI OMAP2"
+	depends on ARCH_OMAP2PLUS
 	select CPU_V6
-	select COMMON_CLKDEV
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
+	depends on ARCH_OMAP2PLUS
 	select CPU_V7
-	select COMMON_CLKDEV
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
+	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select ARM_GIC
-	select COMMON_CLKDEV
 
 endchoice
 
