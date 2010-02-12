@@ -3,10 +3,12 @@
  * Written by Niibe Yutaka and Paul Mundt
  */
 #ifdef CONFIG_SUPERH64
-#define LOAD_OFFSET	CONFIG_PAGE_OFFSET
+#define LOAD_OFFSET	PAGE_OFFSET
+#define MEMORY_OFFSET	__MEMORY_START
 OUTPUT_ARCH(sh:sh5)
 #else
 #define LOAD_OFFSET	0
+#define MEMORY_OFFSET	0
 OUTPUT_ARCH(sh)
 #endif
 
@@ -14,16 +16,10 @@ OUTPUT_ARCH(sh)
 #include <asm/cache.h>
 #include <asm/vmlinux.lds.h>
 
-#if defined(CONFIG_32BIT) && !defined(CONFIG_PMB_LEGACY)
-#define MEMORY_OFFSET	0
-#else
-#define MEMORY_OFFSET	(CONFIG_MEMORY_START & 0x1fffffff)
-#endif
-
 ENTRY(_start)
 SECTIONS
 {
-	. = CONFIG_PAGE_OFFSET + MEMORY_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
+	. = PAGE_OFFSET + MEMORY_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
 
 	_text = .;		/* Text and read-only data */
 
@@ -34,12 +30,7 @@ SECTIONS
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		HEAD_TEXT
 		TEXT_TEXT
-
-#ifdef CONFIG_SUPERH64
-		*(.text64)
-		*(.text..SHmedia32)
-#endif
-
+		EXTRA_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
