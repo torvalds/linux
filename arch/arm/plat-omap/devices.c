@@ -244,7 +244,7 @@ fail:
 
 #if defined(CONFIG_HW_RANDOM_OMAP) || defined(CONFIG_HW_RANDOM_OMAP_MODULE)
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#ifdef CONFIG_ARCH_OMAP2
 #define	OMAP_RNG_BASE		0x480A0000
 #else
 #define	OMAP_RNG_BASE		0xfffe5000

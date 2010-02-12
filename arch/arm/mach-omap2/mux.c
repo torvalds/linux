@@ -75,7 +75,7 @@ void omap_mux_write_array(struct omap_board_mux *board_mux)
 	}
 }
 
-#if defined(CONFIG_ARCH_OMAP24XX) && defined(CONFIG_OMAP_MUX)
+#if defined(CONFIG_ARCH_OMAP2) && defined(CONFIG_OMAP_MUX)
 
 static struct omap_mux_cfg arch_mux_cfg;
 

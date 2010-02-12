@@ -30,7 +30,7 @@
 
 /* 24XX powerdomains and dependencies */
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#ifdef CONFIG_ARCH_OMAP2
 
 /* Powerdomains */
 
@@ -82,7 +82,7 @@ static struct powerdomain core_24xx_pwrdm = {
 	},
 };
 
-#endif	   /* CONFIG_ARCH_OMAP24XX */
+#endif	   /* CONFIG_ARCH_OMAP2 */
 
 
 

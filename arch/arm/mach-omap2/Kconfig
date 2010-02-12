@@ -1,19 +1,15 @@
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
-config ARCH_OMAP24XX
-	bool "OMAP24xx Based System"
-	depends on ARCH_OMAP2
-
 config ARCH_OMAP2420
 	bool "OMAP2420 support"
-	depends on ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 	select OMAP_DM_TIMER
 	select ARCH_OMAP_OTG
 
 config ARCH_OMAP2430
 	bool "OMAP2430 support"
-	depends on ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config ARCH_OMAP34XX
 	bool "OMAP34xx Based System"
@@ -42,7 +38,7 @@ comment "OMAP Board Type"
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config MACH_OMAP2_TUSB6010
 	bool
@@ -51,16 +47,16 @@ config MACH_OMAP2_TUSB6010
 
 config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 	select OMAP_DEBUG_DEVICES
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config MACH_OMAP3_BEAGLE
 	bool "OMAP3 BEAGLE board"
