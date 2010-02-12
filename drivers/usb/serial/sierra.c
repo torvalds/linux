@@ -304,16 +304,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver sierra_driver = {
-	.name       = "sierra",
-	.probe      = usb_serial_probe,
-	.disconnect = usb_serial_disconnect,
-	.suspend    = usb_serial_suspend,
-	.resume     = usb_serial_resume,
-	.id_table   = id_table,
-	.no_dynamic_id = 	1,
-	.supports_autosuspend =	1,
-};
 
 struct sierra_port_private {
 	spinlock_t lock;	/* lock the structure */
@@ -1061,10 +1051,30 @@ static int sierra_resume(struct usb_serial *serial)
 
 	return ec ? -EIO : 0;
 }
+
+static int sierra_reset_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	dev_err(&serial->dev->dev, "%s\n", __func__);
+	return usb_serial_resume(intf);
+}
 #else
 #define sierra_suspend NULL
 #define sierra_resume NULL
+#define sierra_reset_resume NULL
 #endif
+
+static struct usb_driver sierra_driver = {
+	.name       = "sierra",
+	.probe      = usb_serial_probe,
+	.disconnect = usb_serial_disconnect,
+	.suspend    = usb_serial_suspend,
+	.resume     = usb_serial_resume,
+	.reset_resume = sierra_reset_resume,
+	.id_table   = id_table,
+	.no_dynamic_id = 	1,
+	.supports_autosuspend =	1,
+};
 
 static struct usb_serial_driver sierra_device = {
 	.driver = {
