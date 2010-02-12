@@ -648,7 +648,11 @@ static const struct dmi_system_id bad_lid_status[] = {
  */
 static enum drm_connector_status intel_lvds_detect(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	enum drm_connector_status status = connector_status_connected;
+
+	if (IS_I8XX(dev))
+		return connector_status_connected;
 
 	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
 		status = connector_status_disconnected;
