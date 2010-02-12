@@ -702,7 +702,7 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	*address = 0;
 	rc = ops->read_std((unsigned long)ptr, (unsigned long *)size, 2,
 			   ctxt->vcpu, NULL);
-	if (rc)
+	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes,
 			   ctxt->vcpu, NULL);
@@ -1301,7 +1301,7 @@ static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
 	int rc;
 
 	rc = emulate_pop(ctxt, ops, &selector, c->op_bytes);
-	if (rc != 0)
+	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
 	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)selector, seg);
@@ -1327,7 +1327,7 @@ static int emulate_popa(struct x86_emulate_ctxt *ctxt,
 			struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc = 0;
+	int rc = X86EMUL_CONTINUE;
 	int reg = VCPU_REGS_RDI;
 
 	while (reg >= VCPU_REGS_RAX) {
@@ -1338,7 +1338,7 @@ static int emulate_popa(struct x86_emulate_ctxt *ctxt,
 		}
 
 		rc = emulate_pop(ctxt, ops, &c->regs[reg], c->op_bytes);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			break;
 		--reg;
 	}
@@ -1349,12 +1349,8 @@ static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc;
 
-	rc = emulate_pop(ctxt, ops, &c->dst.val, c->dst.bytes);
-	if (rc != 0)
-		return rc;
-	return 0;
+	return emulate_pop(ctxt, ops, &c->dst.val, c->dst.bytes);
 }
 
 static inline void emulate_grp2(struct x86_emulate_ctxt *ctxt)
@@ -1390,7 +1386,7 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc = 0;
+	int rc = X86EMUL_CONTINUE;
 
 	switch (c->modrm_reg) {
 	case 0 ... 1:	/* test */
@@ -1437,7 +1433,7 @@ static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
 		emulate_push(ctxt);
 		break;
 	}
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
@@ -1468,7 +1464,7 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 			return rc;
 		ctxt->eflags |= EFLG_ZF;
 	}
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
@@ -1479,12 +1475,12 @@ static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
 	unsigned long cs;
 
 	rc = emulate_pop(ctxt, ops, &c->eip, c->op_bytes);
-	if (rc)
+	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	if (c->op_bytes == 4)
 		c->eip = (u32)c->eip;
 	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
-	if (rc)
+	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)cs, VCPU_SREG_CS);
 	return rc;
@@ -1539,7 +1535,7 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 	default:
 		break;
 	}
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static void toggle_interruptibility(struct x86_emulate_ctxt *ctxt, u32 mask)
@@ -1811,7 +1807,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct decode_cache *c = &ctxt->decode;
 	unsigned int port;
 	int io_dir_in;
-	int rc = 0;
+	int rc = X86EMUL_CONTINUE;
 
 	ctxt->interruptibility = 0;
 
@@ -1926,7 +1922,7 @@ special_insn:
 		break;
 	case 0x07:		/* pop es */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_ES);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0x08 ... 0x0d:
@@ -1945,7 +1941,7 @@ special_insn:
 		break;
 	case 0x17:		/* pop ss */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_SS);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0x18 ... 0x1d:
@@ -1957,7 +1953,7 @@ special_insn:
 		break;
 	case 0x1f:		/* pop ds */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_DS);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0x20 ... 0x25:
@@ -1988,7 +1984,7 @@ special_insn:
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
 		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0x60:	/* pusha */
@@ -1996,7 +1992,7 @@ special_insn:
 		break;
 	case 0x61:	/* popa */
 		rc = emulate_popa(ctxt, ops);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0x63:		/* movsxd */
@@ -2141,7 +2137,7 @@ special_insn:
 	}
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		rc = emulate_grp1a(ctxt, ops);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0x90: /* nop / xchg r8,rax */
@@ -2277,7 +2273,7 @@ special_insn:
 		break;
 	case 0xcb:		/* ret far */
 		rc = emulate_ret_far(ctxt, ops);
-		if (rc)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
@@ -2351,7 +2347,7 @@ special_insn:
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
 		rc = emulate_grp3(ctxt, ops);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0xf8: /* clc */
@@ -2385,14 +2381,14 @@ special_insn:
 		break;
 	case 0xfe ... 0xff:	/* Grp4/Grp5 */
 		rc = emulate_grp45(ctxt, ops);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	}
 
 writeback:
 	rc = writeback(ctxt, ops);
-	if (rc != 0)
+	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
 	/* Commit shadow register state. */
@@ -2418,7 +2414,7 @@ twobyte_insn:
 				goto cannot_emulate;
 
 			rc = kvm_fix_hypercall(ctxt->vcpu);
-			if (rc)
+			if (rc != X86EMUL_CONTINUE)
 				goto done;
 
 			/* Let the processor re-execute the fixed hypercall */
@@ -2429,7 +2425,7 @@ twobyte_insn:
 		case 2: /* lgdt */
 			rc = read_descriptor(ctxt, ops, c->src.ptr,
 					     &size, &address, c->op_bytes);
-			if (rc)
+			if (rc != X86EMUL_CONTINUE)
 				goto done;
 			realmode_lgdt(ctxt->vcpu, size, address);
 			/* Disable writeback. */
@@ -2440,7 +2436,7 @@ twobyte_insn:
 				switch (c->modrm_rm) {
 				case 1:
 					rc = kvm_fix_hypercall(ctxt->vcpu);
-					if (rc)
+					if (rc != X86EMUL_CONTINUE)
 						goto done;
 					break;
 				default:
@@ -2450,7 +2446,7 @@ twobyte_insn:
 				rc = read_descriptor(ctxt, ops, c->src.ptr,
 						     &size, &address,
 						     c->op_bytes);
-				if (rc)
+				if (rc != X86EMUL_CONTINUE)
 					goto done;
 				realmode_lidt(ctxt->vcpu, size, address);
 			}
@@ -2577,7 +2573,7 @@ twobyte_insn:
 		break;
 	case 0xa1:	 /* pop fs */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_FS);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0xa3:
@@ -2596,7 +2592,7 @@ twobyte_insn:
 		break;
 	case 0xa9:	/* pop gs */
 		rc = emulate_pop_sreg(ctxt, ops, VCPU_SREG_GS);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
 	case 0xab:
@@ -2669,7 +2665,7 @@ twobyte_insn:
 		break;
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
 		rc = emulate_grp9(ctxt, ops, memop);
-		if (rc != 0)
+		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->dst.type = OP_NONE;
 		break;
