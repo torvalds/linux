@@ -733,7 +733,6 @@ static void sky2_wol_init(struct sky2_port *sky2)
 	unsigned port = sky2->port;
 	enum flow_control save_mode;
 	u16 ctrl;
-	u32 reg1;
 
 	/* Bring hardware out of reset */
 	sky2_write16(hw, B0_CTST, CS_RST_CLR);
@@ -786,11 +785,6 @@ static void sky2_wol_init(struct sky2_port *sky2)
 
 	/* Disable PiG firmware */
 	sky2_write16(hw, B0_CTST, Y2_HW_WOL_OFF);
-
-	/* Turn on legacy PCI-Express PME mode */
-	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
-	reg1 |= PCI_Y2_PME_LEGACY;
-	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 
 	/* block receiver */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
