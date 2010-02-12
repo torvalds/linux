@@ -20,10 +20,14 @@ extern void touch_nmi_watchdog(void);
 extern void acpi_nmi_disable(void);
 extern void acpi_nmi_enable(void);
 #else
+#ifndef CONFIG_NMI_WATCHDOG
 static inline void touch_nmi_watchdog(void)
 {
 	touch_softlockup_watchdog();
 }
+#else
+extern void touch_nmi_watchdog(void);
+#endif
 static inline void acpi_nmi_disable(void) { }
 static inline void acpi_nmi_enable(void) { }
 #endif
@@ -49,6 +53,11 @@ static inline bool trigger_all_cpu_backtrace(void)
 
 #ifdef CONFIG_NMI_WATCHDOG
 int hw_nmi_is_cpu_stuck(struct pt_regs *);
+u64 hw_nmi_get_sample_period(void);
+extern int nmi_watchdog_enabled;
+struct ctl_table;
+extern int proc_nmi_enabled(struct ctl_table *, int ,
+                        void __user *, size_t *, loff_t *);
 #endif
 
 #endif

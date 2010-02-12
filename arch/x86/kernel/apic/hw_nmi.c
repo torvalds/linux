@@ -32,8 +32,13 @@ static DEFINE_PER_CPU(unsigned, last_irq_sum);
  */
 static inline unsigned int get_timer_irqs(int cpu)
 {
-        return per_cpu(irq_stat, cpu).apic_timer_irqs +
-                per_cpu(irq_stat, cpu).irq0_irqs;
+	unsigned int irqs = per_cpu(irq_stat, cpu).irq0_irqs;
+
+#if defined(CONFIG_X86_LOCAL_APIC)
+	irqs += per_cpu(irq_stat, cpu).apic_timer_irqs;
+#endif
+
+        return irqs;
 }
 
 static inline int mce_in_progress(void)
@@ -82,6 +87,11 @@ int hw_nmi_is_cpu_stuck(struct pt_regs *regs)
 	}
 }
 
+u64 hw_nmi_get_sample_period(void)
+{
+        return cpu_khz * 1000;
+}
+
 void arch_trigger_all_cpu_backtrace(void)
 {
 	int i;
@@ -100,15 +110,16 @@ void arch_trigger_all_cpu_backtrace(void)
 }
 
 /* STUB calls to mimic old nmi_watchdog behaviour */
+#if defined(CONFIG_X86_LOCAL_APIC)
 unsigned int nmi_watchdog = NMI_NONE;
 EXPORT_SYMBOL(nmi_watchdog);
-atomic_t nmi_active = ATOMIC_INIT(0);           /* oprofile uses this */
-EXPORT_SYMBOL(nmi_active);
-int nmi_watchdog_enabled;
-int unknown_nmi_panic;
-void cpu_nmi_set_wd_enabled(void) { return; }
 void acpi_nmi_enable(void) { return; }
 void acpi_nmi_disable(void) { return; }
+#endif
+atomic_t nmi_active = ATOMIC_INIT(0);           /* oprofile uses this */
+EXPORT_SYMBOL(nmi_active);
+int unknown_nmi_panic;
+void cpu_nmi_set_wd_enabled(void) { return; }
 void stop_apic_nmi_watchdog(void *unused) { return; }
 void setup_apic_nmi_watchdog(void *unused) { return; }
 int __init check_nmi_watchdog(void) { return 0; }

@@ -30,6 +30,8 @@ static DEFINE_PER_CPU(struct perf_event *, nmi_watchdog_ev);
 static DEFINE_PER_CPU(int, nmi_watchdog_touch);
 static DEFINE_PER_CPU(long, alert_counter);
 
+static int panic_on_timeout;
+
 void touch_nmi_watchdog(void)
 {
 	__raw_get_cpu_var(nmi_watchdog_touch) = 1;
@@ -46,19 +48,49 @@ void touch_all_nmi_watchdog(void)
 	touch_softlockup_watchdog();
 }
 
+static int __init setup_nmi_watchdog(char *str)
+{
+        if (!strncmp(str, "panic", 5)) {
+                panic_on_timeout = 1;
+                str = strchr(str, ',');
+                if (!str)
+                        return 1;
+                ++str;
+        }
+        return 1;
+}
+__setup("nmi_watchdog=", setup_nmi_watchdog);
+
 #ifdef CONFIG_SYSCTL
 /*
  * proc handler for /proc/sys/kernel/nmi_watchdog
  */
+int nmi_watchdog_enabled;
+
 int proc_nmi_enabled(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *length, loff_t *ppos)
 {
 	int cpu;
 
-	if (per_cpu(nmi_watchdog_ev, smp_processor_id()) == NULL)
+	if (!write) {
+		struct perf_event *event;
+		for_each_online_cpu(cpu) {
+			event = per_cpu(nmi_watchdog_ev, cpu);
+			if (event->state > PERF_EVENT_STATE_OFF) {
+				nmi_watchdog_enabled = 1;
+				break;
+			}
+		}
+		proc_dointvec(table, write, buffer, length, ppos);
+		return 0;
+	}
+
+	if (per_cpu(nmi_watchdog_ev, smp_processor_id()) == NULL) {
 		nmi_watchdog_enabled = 0;
-	else
-		nmi_watchdog_enabled = 1;
+		proc_dointvec(table, write, buffer, length, ppos);
+		printk("NMI watchdog failed configuration, can not be enabled\n");
+		return 0;
+	}
 
 	touch_all_nmi_watchdog();
 	proc_dointvec(table, write, buffer, length, ppos);
@@ -81,8 +113,6 @@ struct perf_event_attr wd_attr = {
 	.disabled = 1,
 };
 
-static int panic_on_timeout;
-
 void wd_overflow(struct perf_event *event, int nmi,
 		 struct perf_sample_data *data,
 		 struct pt_regs *regs)
@@ -103,11 +133,11 @@ void wd_overflow(struct perf_event *event, int nmi,
 		 */
 		per_cpu(alert_counter,cpu) += 1;
 		if (per_cpu(alert_counter,cpu) == 5) {
-			/*
-			 * die_nmi will return ONLY if NOTIFY_STOP happens..
-			 */
-			die_nmi("BUG: NMI Watchdog detected LOCKUP",
-				regs, panic_on_timeout);
+			if (panic_on_timeout) {
+				panic("NMI Watchdog detected LOCKUP on cpu %d", cpu);
+			} else {
+				WARN(1, "NMI Watchdog detected LOCKUP on cpu %d", cpu);
+			}
 		}
 	} else {
 		per_cpu(alert_counter,cpu) = 0;
@@ -133,7 +163,7 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
 		/* originally wanted the below chunk to be in CPU_UP_PREPARE, but caps is unpriv for non-CPU0 */
-		wd_attr.sample_period = cpu_khz * 1000;
+		wd_attr.sample_period = hw_nmi_get_sample_period();
 		event = perf_event_create_kernel_counter(&wd_attr, hotcpu, -1, wd_overflow);
 		if (IS_ERR(event)) {
 			printk(KERN_ERR "nmi watchdog failed to create perf event on %i: %p\n", hotcpu, event);
