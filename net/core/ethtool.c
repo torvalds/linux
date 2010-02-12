@@ -134,15 +134,21 @@ u32 ethtool_op_get_flags(struct net_device *dev)
 
 int ethtool_op_set_flags(struct net_device *dev, u32 data)
 {
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
 	if (data & ETH_FLAG_LRO)
 		dev->features |= NETIF_F_LRO;
 	else
 		dev->features &= ~NETIF_F_LRO;
 
-	if (data & ETH_FLAG_NTUPLE)
+	if (data & ETH_FLAG_NTUPLE) {
+		if (!ops->set_rx_ntuple)
+			return -EOPNOTSUPP;
 		dev->features |= NETIF_F_NTUPLE;
-	else
+	} else {
+		/* safe to clear regardless */
 		dev->features &= ~NETIF_F_NTUPLE;
+	}
 
 	return 0;
 }
@@ -317,9 +323,6 @@ static int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_rx_ntuple_flow_spec_container *fsc = NULL;
 	int ret;
-
-	if (!ops->set_rx_ntuple)
-		return -EOPNOTSUPP;
 
 	if (!(dev->features & NETIF_F_NTUPLE))
 		return -EINVAL;
