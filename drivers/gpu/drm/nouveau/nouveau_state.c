@@ -777,13 +777,6 @@ int nouveau_unload(struct drm_device *dev)
 	return 0;
 }
 
-int
-nouveau_ioctl_card_init(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
-{
-	return nouveau_card_init(dev);
-}
-
 int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 						struct drm_file *file_priv)
 {

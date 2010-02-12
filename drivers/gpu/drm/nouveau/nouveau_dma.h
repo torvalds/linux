@@ -32,7 +32,7 @@
 #endif
 
 void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
-		   int delta, int dwords);
+		   int delta, int length);
 
 /*
  * There's a hw race condition where you can't jump to your PUT offset,
@@ -149,7 +149,7 @@ FIRE_RING(struct nouveau_channel *chan)
 
 	if (chan->dma.ib_max) {
 		nv50_dma_push(chan, chan->pushbuf_bo, chan->dma.put << 2,
-			      chan->dma.cur - chan->dma.put);
+			      (chan->dma.cur - chan->dma.put) << 2);
 	} else {
 		WRITE_PUT(chan->dma.cur);
 	}

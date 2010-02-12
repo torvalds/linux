@@ -34,7 +34,7 @@
 
 #define DRIVER_MAJOR		0
 #define DRIVER_MINOR		0
-#define DRIVER_PATCHLEVEL	15
+#define DRIVER_PATCHLEVEL	16
 
 #define NOUVEAU_FAMILY   0x0000FFFF
 #define NOUVEAU_FLAGS    0xFFFF0000
@@ -83,6 +83,7 @@ struct nouveau_bo {
 	struct drm_file *reserved_by;
 	struct list_head entry;
 	int pbbo_index;
+	bool validate_mapped;
 
 	struct nouveau_channel *channel;
 
@@ -704,12 +705,6 @@ extern bool nouveau_wait_until(struct drm_device *, uint64_t timeout,
 			       uint32_t reg, uint32_t mask, uint32_t val);
 extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
-extern int  nouveau_ioctl_card_init(struct drm_device *, void *data,
-				    struct drm_file *);
-extern int  nouveau_ioctl_suspend(struct drm_device *, void *data,
-				  struct drm_file *);
-extern int  nouveau_ioctl_resume(struct drm_device *, void *data,
-				 struct drm_file *);
 
 /* nouveau_mem.c */
 extern int  nouveau_mem_init_heap(struct mem_block **, uint64_t start,
@@ -1160,16 +1155,6 @@ extern int nouveau_gem_ioctl_new(struct drm_device *, void *,
 				 struct drm_file *);
 extern int nouveau_gem_ioctl_pushbuf(struct drm_device *, void *,
 				     struct drm_file *);
-extern int nouveau_gem_ioctl_pushbuf_call(struct drm_device *, void *,
-					  struct drm_file *);
-extern int nouveau_gem_ioctl_pushbuf_call2(struct drm_device *, void *,
-					   struct drm_file *);
-extern int nouveau_gem_ioctl_pin(struct drm_device *, void *,
-				 struct drm_file *);
-extern int nouveau_gem_ioctl_unpin(struct drm_device *, void *,
-				   struct drm_file *);
-extern int nouveau_gem_ioctl_tile(struct drm_device *, void *,
-				  struct drm_file *);
 extern int nouveau_gem_ioctl_cpu_prep(struct drm_device *, void *,
 				      struct drm_file *);
 extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,

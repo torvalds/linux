@@ -179,7 +179,7 @@ READ_GET(struct nouveau_channel *chan, uint32_t *prev_get, uint32_t *timeout)
 
 void
 nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
-	      int delta, int dwords)
+	      int delta, int length)
 {
 	struct nouveau_bo *pb = chan->pushbuf_bo;
 	uint64_t offset = bo->bo.offset + delta;
@@ -187,7 +187,7 @@ nv50_dma_push(struct nouveau_channel *chan, struct nouveau_bo *bo,
 
 	BUG_ON(chan->dma.ib_free < 1);
 	nouveau_bo_wr32(pb, ip++, lower_32_bits(offset));
-	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | dwords << 10);
+	nouveau_bo_wr32(pb, ip++, upper_32_bits(offset) | length << 8);
 
 	chan->dma.ib_put = (chan->dma.ib_put + 1) & chan->dma.ib_max;
 	nvchan_wr32(chan, 0x8c, chan->dma.ib_put);

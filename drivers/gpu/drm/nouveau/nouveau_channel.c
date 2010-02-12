@@ -385,6 +385,14 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 		return ret;
 	init->channel  = chan->id;
 
+	if (chan->dma.ib_max)
+		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
+					NOUVEAU_GEM_DOMAIN_GART;
+	else if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_VRAM)
+		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM;
+	else
+		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
+
 	init->subchan[0].handle = NvM2MF;
 	if (dev_priv->card_type < NV_50)
 		init->subchan[0].grclass = 0x0039;
@@ -424,7 +432,6 @@ nouveau_ioctl_fifo_free(struct drm_device *dev, void *data,
  ***********************************/
 
 struct drm_ioctl_desc nouveau_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_NOUVEAU_CARD_INIT, nouveau_ioctl_card_init, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GETPARAM, nouveau_ioctl_getparam, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_SETPARAM, nouveau_ioctl_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_CHANNEL_ALLOC, nouveau_ioctl_fifo_alloc, DRM_AUTH),
@@ -434,13 +441,9 @@ struct drm_ioctl_desc nouveau_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GPUOBJ_FREE, nouveau_ioctl_gpuobj_free, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_NEW, nouveau_gem_ioctl_new, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PUSHBUF, nouveau_gem_ioctl_pushbuf, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PUSHBUF_CALL, nouveau_gem_ioctl_pushbuf_call, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PIN, nouveau_gem_ioctl_pin, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_UNPIN, nouveau_gem_ioctl_unpin, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_CPU_PREP, nouveau_gem_ioctl_cpu_prep, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_CPU_FINI, nouveau_gem_ioctl_cpu_fini, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PUSHBUF_CALL2, nouveau_gem_ioctl_pushbuf_call2, DRM_AUTH),
 };
 
 int nouveau_max_ioctl = DRM_ARRAY_SIZE(nouveau_ioctls);
