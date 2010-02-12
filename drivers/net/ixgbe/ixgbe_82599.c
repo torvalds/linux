@@ -1631,7 +1631,6 @@ static u16 ixgbe_atr_compute_hash_82599(struct ixgbe_atr_input *atr_input,
  *  ixgbe_atr_set_vlan_id_82599 - Sets the VLAN id in the ATR input stream
  *  @input: input stream to modify
  *  @vlan: the VLAN id to load
- *  @vlan_mask: bitwise mask for the VLAN
  **/
 s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input, u16 vlan)
 {
@@ -1645,7 +1644,6 @@ s32 ixgbe_atr_set_vlan_id_82599(struct ixgbe_atr_input *input, u16 vlan)
  *  ixgbe_atr_set_src_ipv4_82599 - Sets the source IPv4 address
  *  @input: input stream to modify
  *  @src_addr: the IP address to load
- *  @src_addr_mask: bitwise mask for the source IP address
  **/
 s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input, u32 src_addr)
 {
@@ -1663,7 +1661,6 @@ s32 ixgbe_atr_set_src_ipv4_82599(struct ixgbe_atr_input *input, u32 src_addr)
  *  ixgbe_atr_set_dst_ipv4_82599 - Sets the destination IPv4 address
  *  @input: input stream to modify
  *  @dst_addr: the IP address to load
- *  @dst_addr_mask: bitwise mask for the destination IP address
  **/
 s32 ixgbe_atr_set_dst_ipv4_82599(struct ixgbe_atr_input *input, u32 dst_addr)
 {
@@ -1767,7 +1764,6 @@ s32 ixgbe_atr_set_dst_ipv6_82599(struct ixgbe_atr_input *input,
  *  ixgbe_atr_set_src_port_82599 - Sets the source port
  *  @input: input stream to modify
  *  @src_port: the source port to load
- *  @src_port_mask: bitwise mask for the source port
  **/
 s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input, u16 src_port)
 {
@@ -1781,7 +1777,6 @@ s32 ixgbe_atr_set_src_port_82599(struct ixgbe_atr_input *input, u16 src_port)
  *  ixgbe_atr_set_dst_port_82599 - Sets the destination port
  *  @input: input stream to modify
  *  @dst_port: the destination port to load
- *  @dst_port_mask: bitwise mask for the destination port
  **/
 s32 ixgbe_atr_set_dst_port_82599(struct ixgbe_atr_input *input, u16 dst_port)
 {
