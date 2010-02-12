@@ -166,8 +166,12 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		wd_attr.sample_period = hw_nmi_get_sample_period();
 		event = perf_event_create_kernel_counter(&wd_attr, hotcpu, -1, wd_overflow);
 		if (IS_ERR(event)) {
-			printk(KERN_ERR "nmi watchdog failed to create perf event on %i: %p\n", hotcpu, event);
-			return NOTIFY_BAD;
+			wd_attr.type = PERF_TYPE_SOFTWARE;
+			event = perf_event_create_kernel_counter(&wd_attr, hotcpu, -1, wd_overflow);
+			if (IS_ERR(event)) {
+				printk(KERN_ERR "nmi watchdog failed to create perf event on %i: %p\n", hotcpu, event);
+				return NOTIFY_BAD;
+			}
 		}
 		per_cpu(nmi_watchdog_ev, hotcpu) = event;
 		perf_event_enable(per_cpu(nmi_watchdog_ev, hotcpu));
