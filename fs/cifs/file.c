@@ -1890,11 +1890,10 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 
 int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	int rc, xid;
 
 	xid = GetXid();
-	rc = cifs_revalidate_dentry(dentry);
+	rc = cifs_revalidate_file(file);
 	if (rc) {
 		cFYI(1, ("Validation prior to mmap failed, error=%d", rc));
 		FreeXid(xid);

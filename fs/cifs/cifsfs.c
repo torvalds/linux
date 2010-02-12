@@ -639,7 +639,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		   setting the revalidate time to zero */
 		CIFS_I(file->f_path.dentry->d_inode)->time = 0;
 
-		retval = cifs_revalidate_dentry(file->f_path.dentry);
+		retval = cifs_revalidate_file(file);
 		if (retval < 0)
 			return (loff_t)retval;
 	}

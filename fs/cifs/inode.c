@@ -268,6 +268,31 @@ cifs_create_dfs_fattr(struct cifs_fattr *fattr, struct super_block *sb)
 	fattr->cf_flags |= CIFS_FATTR_DFS_REFERRAL;
 }
 
+int cifs_get_file_info_unix(struct file *filp)
+{
+	int rc;
+	int xid;
+	FILE_UNIX_BASIC_INFO find_data;
+	struct cifs_fattr fattr;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
+
+	xid = GetXid();
+	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->netfid, &find_data);
+	if (!rc) {
+		cifs_unix_basic_to_fattr(&fattr, &find_data, cifs_sb);
+	} else if (rc == -EREMOTE) {
+		cifs_create_dfs_fattr(&fattr, inode->i_sb);
+		rc = 0;
+	}
+
+	cifs_fattr_to_inode(inode, &fattr);
+	FreeXid(xid);
+	return rc;
+}
+
 int cifs_get_inode_info_unix(struct inode **pinode,
 			     const unsigned char *full_path,
 			     struct super_block *sb, int xid)
@@ -467,6 +492,47 @@ cifs_all_info_to_fattr(struct cifs_fattr *fattr, FILE_ALL_INFO *info,
 
 	fattr->cf_uid = cifs_sb->mnt_uid;
 	fattr->cf_gid = cifs_sb->mnt_gid;
+}
+
+int cifs_get_file_info(struct file *filp)
+{
+	int rc;
+	int xid;
+	FILE_ALL_INFO find_data;
+	struct cifs_fattr fattr;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
+	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
+
+	xid = GetXid();
+	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);
+	if (rc == -EOPNOTSUPP || rc == -EINVAL) {
+		/*
+		 * FIXME: legacy server -- fall back to path-based call?
+ 		 * for now, just skip revalidating and mark inode for
+ 		 * immediate reval.
+ 		 */
+		rc = 0;
+		CIFS_I(inode)->time = 0;
+		goto cgfi_exit;
+	} else if (rc == -EREMOTE) {
+		cifs_create_dfs_fattr(&fattr, inode->i_sb);
+		rc = 0;
+	} else if (rc)
+		goto cgfi_exit;
+
+	/*
+	 * don't bother with SFU junk here -- just mark inode as needing
+	 * revalidation.
+	 */
+	cifs_all_info_to_fattr(&fattr, &find_data, cifs_sb, false);
+	fattr.cf_uniqueid = CIFS_I(inode)->uniqueid;
+	fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
+	cifs_fattr_to_inode(inode, &fattr);
+cgfi_exit:
+	FreeXid(xid);
+	return rc;
 }
 
 int cifs_get_inode_info(struct inode **pinode,
@@ -1463,6 +1529,26 @@ cifs_invalidate_mapping(struct inode *inode)
 			cifs_i->write_behind_rc = rc;
 	}
 	invalidate_remote_inode(inode);
+}
+
+int cifs_revalidate_file(struct file *filp)
+{
+	int rc = 0;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+
+	if (!cifs_inode_needs_reval(inode))
+		goto check_inval;
+
+	if (CIFS_SB(inode->i_sb)->tcon->unix_ext)
+		rc = cifs_get_file_info_unix(filp);
+	else
+		rc = cifs_get_file_info(filp);
+
+check_inval:
+	if (CIFS_I(inode)->invalid_mapping)
+		cifs_invalidate_mapping(inode);
+
+	return rc;
 }
 
 /* revalidate a dentry's inode attributes */
