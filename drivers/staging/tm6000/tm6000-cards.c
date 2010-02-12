@@ -496,6 +496,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 		}
 #endif
 	}
+	mutex_unlock(&dev->lock);
 	return 0;
 
 err2:
