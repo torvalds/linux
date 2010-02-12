@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>
@@ -255,3 +256,80 @@ struct platform_device s3c64xx_device_pcm1 = {
 	},
 };
 EXPORT_SYMBOL(s3c64xx_device_pcm1);
+
+/* AC97 Controller platform devices */
+
+static int s3c64xx_ac97_cfg_gpd(struct platform_device *pdev)
+{
+	s3c_gpio_cfgpin(S3C64XX_GPD(0), S3C64XX_GPD0_AC97_BITCLK);
+	s3c_gpio_cfgpin(S3C64XX_GPD(1), S3C64XX_GPD1_AC97_nRESET);
+	s3c_gpio_cfgpin(S3C64XX_GPD(2), S3C64XX_GPD2_AC97_SYNC);
+	s3c_gpio_cfgpin(S3C64XX_GPD(3), S3C64XX_GPD3_AC97_SDI);
+	s3c_gpio_cfgpin(S3C64XX_GPD(4), S3C64XX_GPD4_AC97_SDO);
+
+	return 0;
+}
+
+static int s3c64xx_ac97_cfg_gpe(struct platform_device *pdev)
+{
+	s3c_gpio_cfgpin(S3C64XX_GPE(0), S3C64XX_GPE0_AC97_BITCLK);
+	s3c_gpio_cfgpin(S3C64XX_GPE(1), S3C64XX_GPE1_AC97_nRESET);
+	s3c_gpio_cfgpin(S3C64XX_GPE(2), S3C64XX_GPE2_AC97_SYNC);
+	s3c_gpio_cfgpin(S3C64XX_GPE(3), S3C64XX_GPE3_AC97_SDI);
+	s3c_gpio_cfgpin(S3C64XX_GPE(4), S3C64XX_GPE4_AC97_SDO);
+
+	return 0;
+}
+
+static struct resource s3c64xx_ac97_resource[] = {
+	[0] = {
+		.start = S3C64XX_PA_AC97,
+		.end   = S3C64XX_PA_AC97 + 0x100 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = DMACH_AC97_PCMOUT,
+		.end   = DMACH_AC97_PCMOUT,
+		.flags = IORESOURCE_DMA,
+	},
+	[2] = {
+		.start = DMACH_AC97_PCMIN,
+		.end   = DMACH_AC97_PCMIN,
+		.flags = IORESOURCE_DMA,
+	},
+	[3] = {
+		.start = DMACH_AC97_MICIN,
+		.end   = DMACH_AC97_MICIN,
+		.flags = IORESOURCE_DMA,
+	},
+	[4] = {
+		.start = IRQ_AC97,
+		.end   = IRQ_AC97,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct s3c_audio_pdata s3c_ac97_pdata;
+
+static u64 s3c64xx_ac97_dmamask = DMA_BIT_MASK(32);
+
+struct platform_device s3c64xx_device_ac97 = {
+	.name		  = "s3c-ac97",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(s3c64xx_ac97_resource),
+	.resource	  = s3c64xx_ac97_resource,
+	.dev = {
+		.platform_data = &s3c_ac97_pdata,
+		.dma_mask = &s3c64xx_ac97_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+EXPORT_SYMBOL(s3c64xx_device_ac97);
+
+void __init s3c64xx_ac97_setup_gpio(int num)
+{
+	if (num == S3C64XX_AC97_GPD)
+		s3c_ac97_pdata.cfg_gpio = s3c64xx_ac97_cfg_gpd;
+	else
+		s3c_ac97_pdata.cfg_gpio = s3c64xx_ac97_cfg_gpe;
+}
