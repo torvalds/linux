@@ -274,7 +274,7 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 	/* NOTE: DaVinci shadows the Mentor IRQs.  Don't manage them through
 	 * the Mentor registers (except for setup), use the TI ones and EOI.
 	 *
-	 * Docs describe irq "vector" registers asociated with the CPPI and
+	 * Docs describe irq "vector" registers associated with the CPPI and
 	 * USB EOI registers.  These hold a bitmask corresponding to the
 	 * current IRQ, not an irq handler address.  Would using those bits
 	 * resolve some of the races observed in this dispatch code??
