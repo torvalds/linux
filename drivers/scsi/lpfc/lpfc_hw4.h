@@ -77,10 +77,6 @@ struct lpfc_sli_intf {
 #define LPFC_SLI_INTF_VALID		6
 };
 
-#define LPFC_SLI4_BAR0		1
-#define LPFC_SLI4_BAR1		2
-#define LPFC_SLI4_BAR2		4
-
 #define LPFC_SLI4_MBX_EMBED	true
 #define LPFC_SLI4_MBX_NEMBED	false
 

@@ -6079,16 +6079,20 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 
 	/* Get the bus address of SLI4 device Bar0, Bar1, and Bar2 and the
 	 * number of bytes required by each mapping. They are actually
-	 * mapping to the PCI BAR regions 1, 2, and 4 by the SLI4 device.
+	 * mapping to the PCI BAR regions 0 or 1, 2, and 4 by the SLI4 device.
 	 */
-	phba->pci_bar0_map = pci_resource_start(pdev, LPFC_SLI4_BAR0);
-	bar0map_len = pci_resource_len(pdev, LPFC_SLI4_BAR0);
+	if (pci_resource_start(pdev, 0)) {
+		phba->pci_bar0_map = pci_resource_start(pdev, 0);
+		bar0map_len = pci_resource_len(pdev, 0);
+	} else {
+		phba->pci_bar0_map = pci_resource_start(pdev, 1);
+		bar0map_len = pci_resource_len(pdev, 1);
+	}
+	phba->pci_bar1_map = pci_resource_start(pdev, 2);
+	bar1map_len = pci_resource_len(pdev, 2);
 
-	phba->pci_bar1_map = pci_resource_start(pdev, LPFC_SLI4_BAR1);
-	bar1map_len = pci_resource_len(pdev, LPFC_SLI4_BAR1);
-
-	phba->pci_bar2_map = pci_resource_start(pdev, LPFC_SLI4_BAR2);
-	bar2map_len = pci_resource_len(pdev, LPFC_SLI4_BAR2);
+	phba->pci_bar2_map = pci_resource_start(pdev, 4);
+	bar2map_len = pci_resource_len(pdev, 4);
 
 	/* Map SLI4 PCI Config Space Register base to a kernel virtual addr */
 	phba->sli4_hba.conf_regs_memmap_p =
@@ -7174,6 +7178,12 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
+	/*
+	 * As the new kernel behavior of pci_restore_state() API call clears
+	 * device saved_state flag, need to save the restored state again.
+	 */
+	pci_save_state(pdev);
+
 	if (pdev->is_busmaster)
 		pci_set_master(pdev);
 
@@ -7357,6 +7367,13 @@ lpfc_io_slot_reset_s3(struct pci_dev *pdev)
 	}
 
 	pci_restore_state(pdev);
+
+	/*
+	 * As the new kernel behavior of pci_restore_state() API call clears
+	 * device saved_state flag, need to save the restored state again.
+	 */
+	pci_save_state(pdev);
+
 	if (pdev->is_busmaster)
 		pci_set_master(pdev);
 
@@ -7766,6 +7783,13 @@ lpfc_pci_resume_one_s4(struct pci_dev *pdev)
 	/* Restore device state from PCI config space */
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+
+	/*
+	 * As the new kernel behavior of pci_restore_state() API call clears
+	 * device saved_state flag, need to save the restored state again.
+	 */
+	pci_save_state(pdev);
+
 	if (pdev->is_busmaster)
 		pci_set_master(pdev);
 
