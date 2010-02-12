@@ -626,13 +626,6 @@ ENTRY(_system_call)
 	p0 = [sp + PT_ORIG_P0];
 #endif /* CONFIG_IPIPE */
 
-	/* Check the System Call */
-	r7 = __NR_syscall;
-	/* System call number is passed in P0 */
-	r6 = p0;
-	cc = r6 < r7;
-	if ! cc jump .Lbadsys;
-
 	/* are we tracing syscalls?*/
 	r7 = sp;
 	r6.l = lo(ALIGN_PAGE_MASK);
@@ -644,6 +637,12 @@ ENTRY(_system_call)
 	if CC JUMP _sys_trace;
 	CC = BITTST(r7,TIF_SINGLESTEP);
 	if CC JUMP _sys_trace;
+
+	/* Make sure the system call # is valid */
+	p4 = __NR_syscall;
+	/* System call number is passed in P0 */
+	cc = p4 <= p0;
+	if cc jump .Lbadsys;
 
 	/* Execute the appropriate system call */
 
@@ -741,9 +740,14 @@ _sys_trace:
 	r0 = sp;
 	pseudo_long_call _syscall_trace_enter, p5;
 
-	/* Execute the appropriate system call */
-
+	/* Make sure the system call # is valid */
 	p4 = [SP + PT_P0];
+	p3 = __NR_syscall;
+	cc = p3 <= p4;
+	r0 = -ENOSYS;
+	if cc jump .Lsys_trace_badsys;
+
+	/* Execute the appropriate system call */
 	p5.l = _sys_call_table;
 	p5.h = _sys_call_table;
 	p5 = p5 + (p4 << 2);
@@ -761,6 +765,7 @@ _sys_trace:
 	SP += -12;
 	call (p5);
 	SP += 24;
+.Lsys_trace_badsys:
 	[sp + PT_R0] = r0;
 
 	r0 = sp;
