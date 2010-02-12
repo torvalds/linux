@@ -1880,10 +1880,6 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 
 	sky2->tx_cons = idx;
 	smp_mb();
-
-	/* Wake unless it's detached, and called e.g. from sky2_down() */
-	if (tx_avail(sky2) > MAX_SKB_TX_LE + 4 && netif_device_present(dev))
-		netif_wake_queue(dev);
 }
 
 static void sky2_tx_reset(struct sky2_hw *hw, unsigned port)
@@ -1912,7 +1908,6 @@ static void sky2_hw_down(struct sky2_port *sky2)
 {
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	u32 imask;
 	u16 ctrl;
 
 	/* Force flow control off */
@@ -1946,15 +1941,6 @@ static void sky2_hw_down(struct sky2_port *sky2)
 
 	sky2_rx_stop(sky2);
 
-	/* Disable port IRQ */
-	imask = sky2_read32(hw, B0_IMSK);
-	imask &= ~portirq_msk[port];
-	sky2_write32(hw, B0_IMSK, imask);
-	sky2_read32(hw, B0_IMSK);
-
-	synchronize_irq(hw->pdev->irq);
-	napi_synchronize(&hw->napi);
-
 	spin_lock_bh(&sky2->phy_lock);
 	sky2_phy_power_down(hw, port);
 	spin_unlock_bh(&sky2->phy_lock);
@@ -1969,6 +1955,7 @@ static void sky2_hw_down(struct sky2_port *sky2)
 static int sky2_down(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
 
 	/* Never really got started! */
 	if (!sky2->tx_le)
@@ -1976,6 +1963,14 @@ static int sky2_down(struct net_device *dev)
 
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
+
+	/* Disable port IRQ */
+	sky2_write32(hw, B0_IMSK,
+		     sky2_read32(hw, B0_IMSK) & ~portirq_msk[sky2->port]);
+	sky2_read32(hw, B0_IMSK);
+
+	synchronize_irq(hw->pdev->irq);
+	napi_synchronize(&hw->napi);
 
 	sky2_hw_down(sky2);
 
@@ -2475,8 +2470,13 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		sky2_tx_complete(sky2, last);
+
+		/* Wake unless it's detached, and called e.g. from sky2_down() */
+		if (tx_avail(sky2) > MAX_SKB_TX_LE + 4)
+			netif_wake_queue(dev);
+	}
 }
 
 static inline void sky2_skb_rx(const struct sky2_port *sky2,
@@ -3277,20 +3277,46 @@ static int sky2_reattach(struct net_device *dev)
 static void sky2_restart(struct work_struct *work)
 {
 	struct sky2_hw *hw = container_of(work, struct sky2_hw, restart_work);
+	u32 imask;
 	int i;
 
 	rtnl_lock();
-	for (i = 0; i < hw->ports; i++)
-		sky2_detach(hw->dev[i]);
 
 	napi_disable(&hw->napi);
+	synchronize_irq(hw->pdev->irq);
+	imask = sky2_read32(hw, B0_IMSK);
 	sky2_write32(hw, B0_IMSK, 0);
-	sky2_reset(hw);
-	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
-	napi_enable(&hw->napi);
 
-	for (i = 0; i < hw->ports; i++)
-		sky2_reattach(hw->dev[i]);
+	for (i = 0; i < hw->ports; i++) {
+		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
+
+		if (!netif_running(dev))
+			continue;
+
+		netif_carrier_off(dev);
+		netif_tx_disable(dev);
+		sky2_hw_down(sky2);
+	}
+
+	sky2_reset(hw);
+
+	for (i = 0; i < hw->ports; i++) {
+		struct net_device *dev = hw->dev[i];
+		struct sky2_port *sky2 = netdev_priv(dev);
+
+		if (!netif_running(dev))
+			continue;
+
+		sky2_hw_up(sky2);
+		netif_wake_queue(dev);
+	}
+
+	sky2_write32(hw, B0_IMSK, imask);
+	sky2_read32(hw, B0_IMSK);
+
+	sky2_read32(hw, B0_Y2_SP_LISR);
+	napi_enable(&hw->napi);
 
 	rtnl_unlock();
 }
