@@ -739,7 +739,7 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 	int isValid = 1;
 
 	if (direntry->d_inode) {
-		if (cifs_revalidate(direntry))
+		if (cifs_revalidate_dentry(direntry))
 			return 0;
 	} else {
 		cFYI(1, ("neg dentry 0x%p name = %s",

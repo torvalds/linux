@@ -1894,7 +1894,7 @@ int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	int rc, xid;
 
 	xid = GetXid();
-	rc = cifs_revalidate(dentry);
+	rc = cifs_revalidate_dentry(dentry);
 	if (rc) {
 		cFYI(1, ("Validation prior to mmap failed, error=%d", rc));
 		FreeXid(xid);

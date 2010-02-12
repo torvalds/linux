@@ -77,6 +77,41 @@ static void cifs_set_ops(struct inode *inode, const bool is_dfs_referral)
 	}
 }
 
+/* check inode attributes against fattr. If they don't match, tag the
+ * inode for cache invalidation
+ */
+static void
+cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
+{
+	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
+
+	cFYI(1, ("%s: revalidating inode %llu", __func__, cifs_i->uniqueid));
+
+	if (inode->i_state & I_NEW) {
+		cFYI(1, ("%s: inode %llu is new", __func__, cifs_i->uniqueid));
+		return;
+	}
+
+	/* don't bother with revalidation if we have an oplock */
+	if (cifs_i->clientCanCacheRead) {
+		cFYI(1, ("%s: inode %llu is oplocked", __func__,
+			 cifs_i->uniqueid));
+		return;
+	}
+
+	 /* revalidate if mtime or size have changed */
+	if (timespec_equal(&inode->i_mtime, &fattr->cf_mtime) &&
+	    cifs_i->server_eof == fattr->cf_eof) {
+		cFYI(1, ("%s: inode %llu is unchanged", __func__,
+			 cifs_i->uniqueid));
+		return;
+	}
+
+	cFYI(1, ("%s: invalidating inode %llu mapping", __func__,
+		 cifs_i->uniqueid));
+	cifs_i->invalid_mapping = true;
+}
+
 /* populate an inode with info from a cifs_fattr struct */
 void
 cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
@@ -84,6 +119,8 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	unsigned long oldtime = cifs_i->time;
+
+	cifs_revalidate_cache(inode, fattr);
 
 	inode->i_atime = fattr->cf_atime;
 	inode->i_mtime = fattr->cf_mtime;
@@ -1389,135 +1426,83 @@ cifs_rename_exit:
 	return rc;
 }
 
-int cifs_revalidate(struct dentry *direntry)
+static bool
+cifs_inode_needs_reval(struct inode *inode)
+{
+	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
+
+	if (cifs_i->clientCanCacheRead)
+		return false;
+
+	if (!lookupCacheEnabled)
+		return true;
+
+	if (cifs_i->time == 0)
+		return true;
+
+	/* FIXME: the actimeo should be tunable */
+	if (time_after_eq(jiffies, cifs_i->time + HZ))
+		return true;
+
+	return false;
+}
+
+/* check invalid_mapping flag and zap the cache if it's set */
+static void
+cifs_invalidate_mapping(struct inode *inode)
+{
+	int rc;
+	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
+
+	cifs_i->invalid_mapping = false;
+
+	/* write back any cached data */
+	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
+		rc = filemap_write_and_wait(inode->i_mapping);
+		if (rc)
+			cifs_i->write_behind_rc = rc;
+	}
+	invalidate_remote_inode(inode);
+}
+
+/* revalidate a dentry's inode attributes */
+int cifs_revalidate_dentry(struct dentry *dentry)
 {
 	int xid;
-	int rc = 0, wbrc = 0;
-	char *full_path;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsInodeInfo *cifsInode;
-	loff_t local_size;
-	struct timespec local_mtime;
-	bool invalidate_inode = false;
+	int rc = 0;
+	char *full_path = NULL;
+	struct inode *inode = dentry->d_inode;
+	struct super_block *sb = dentry->d_sb;
 
-	if (direntry->d_inode == NULL)
+	if (inode == NULL)
 		return -ENOENT;
-
-	cifsInode = CIFS_I(direntry->d_inode);
-
-	if (cifsInode == NULL)
-		return -ENOENT;
-
-	/* no sense revalidating inode info on file that no one can write */
-	if (CIFS_I(direntry->d_inode)->clientCanCacheRead)
-		return rc;
 
 	xid = GetXid();
 
-	cifs_sb = CIFS_SB(direntry->d_sb);
+	if (!cifs_inode_needs_reval(inode))
+		goto check_inval;
 
 	/* can not safely grab the rename sem here if rename calls revalidate
 	   since that would deadlock */
-	full_path = build_path_from_dentry(direntry);
+	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
-		FreeXid(xid);
-		return rc;
+		goto check_inval;
 	}
+
 	cFYI(1, ("Revalidate: %s inode 0x%p count %d dentry: 0x%p d_time %ld "
-		 "jiffies %ld", full_path, direntry->d_inode,
-		 direntry->d_inode->i_count.counter, direntry,
-		 direntry->d_time, jiffies));
+		 "jiffies %ld", full_path, inode, inode->i_count.counter,
+		 dentry, dentry->d_time, jiffies));
 
-	if (cifsInode->time == 0) {
-		/* was set to zero previously to force revalidate */
-	} else if (time_before(jiffies, cifsInode->time + HZ) &&
-		   lookupCacheEnabled) {
-		if ((S_ISREG(direntry->d_inode->i_mode) == 0) ||
-		    (direntry->d_inode->i_nlink == 1)) {
-			kfree(full_path);
-			FreeXid(xid);
-			return rc;
-		} else {
-			cFYI(1, ("Have to revalidate file due to hardlinks"));
-		}
-	}
+	if (CIFS_SB(sb)->tcon->unix_ext)
+		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);
+	else
+		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,
+					 xid, NULL);
 
-	/* save mtime and size */
-	local_mtime = direntry->d_inode->i_mtime;
-	local_size = direntry->d_inode->i_size;
-
-	if (cifs_sb->tcon->unix_ext) {
-		rc = cifs_get_inode_info_unix(&direntry->d_inode, full_path,
-					      direntry->d_sb, xid);
-		if (rc) {
-			cFYI(1, ("error on getting revalidate info %d", rc));
-/*			if (rc != -ENOENT)
-				rc = 0; */	/* BB should we cache info on
-						   certain errors? */
-		}
-	} else {
-		rc = cifs_get_inode_info(&direntry->d_inode, full_path, NULL,
-					 direntry->d_sb, xid, NULL);
-		if (rc) {
-			cFYI(1, ("error on getting revalidate info %d", rc));
-/*			if (rc != -ENOENT)
-				rc = 0; */	/* BB should we cache info on
-						   certain errors? */
-		}
-	}
-	/* should we remap certain errors, access denied?, to zero */
-
-	/* if not oplocked, we invalidate inode pages if mtime or file size
-	   had changed on server */
-
-	if (timespec_equal(&local_mtime, &direntry->d_inode->i_mtime) &&
-	    (local_size == direntry->d_inode->i_size)) {
-		cFYI(1, ("cifs_revalidate - inode unchanged"));
-	} else {
-		/* file may have changed on server */
-		if (cifsInode->clientCanCacheRead) {
-			/* no need to invalidate inode pages since we were the
-			   only ones who could have modified the file and the
-			   server copy is staler than ours */
-		} else {
-			invalidate_inode = true;
-		}
-	}
-
-	/* can not grab this sem since kernel filesys locking documentation
-	   indicates i_mutex may be taken by the kernel on lookup and rename
-	   which could deadlock if we grab the i_mutex here as well */
-/*	mutex_lock(&direntry->d_inode->i_mutex);*/
-	/* need to write out dirty pages here  */
-	if (direntry->d_inode->i_mapping) {
-		/* do we need to lock inode until after invalidate completes
-		   below? */
-		wbrc = filemap_fdatawrite(direntry->d_inode->i_mapping);
-		if (wbrc)
-			CIFS_I(direntry->d_inode)->write_behind_rc = wbrc;
-	}
-	if (invalidate_inode) {
-	/* shrink_dcache not necessary now that cifs dentry ops
-	are exported for negative dentries */
-/*		if (S_ISDIR(direntry->d_inode->i_mode))
-			shrink_dcache_parent(direntry); */
-		if (S_ISREG(direntry->d_inode->i_mode)) {
-			if (direntry->d_inode->i_mapping) {
-				wbrc = filemap_fdatawait(direntry->d_inode->i_mapping);
-				if (wbrc)
-					CIFS_I(direntry->d_inode)->write_behind_rc = wbrc;
-			}
-			/* may eventually have to do this for open files too */
-			if (list_empty(&(cifsInode->openFileList))) {
-				/* changed on server - flush read ahead pages */
-				cFYI(1, ("Invalidating read ahead data on "
-					 "closed file"));
-				invalidate_remote_inode(direntry->d_inode);
-			}
-		}
-	}
-/*	mutex_unlock(&direntry->d_inode->i_mutex); */
+check_inval:
+	if (CIFS_I(inode)->invalid_mapping)
+		cifs_invalidate_mapping(inode);
 
 	kfree(full_path);
 	FreeXid(xid);
@@ -1527,7 +1512,7 @@ int cifs_revalidate(struct dentry *direntry)
 int cifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	struct kstat *stat)
 {
-	int err = cifs_revalidate(dentry);
+	int err = cifs_revalidate_dentry(dentry);
 	if (!err) {
 		generic_fillattr(dentry->d_inode, stat);
 		stat->blksize = CIFS_MAX_MSGSIZE;
