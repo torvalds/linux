@@ -52,6 +52,10 @@
 #define HCI_PCI		5
 #define HCI_SDIO	6
 
+/* HCI controller types */
+#define HCI_BREDR	0x00
+#define HCI_80211	0x01
+
 /* HCI device quirks */
 enum {
 	HCI_QUIRK_NO_RESET,

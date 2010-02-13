@@ -491,6 +491,10 @@ int hci_dev_open(__u16 dev)
 	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
 		set_bit(HCI_RAW, &hdev->flags);
 
+	/* Treat all non BR/EDR controllers as raw devices for now */
+	if (hdev->dev_type != HCI_BREDR)
+		set_bit(HCI_RAW, &hdev->flags);
+
 	if (hdev->open(hdev)) {
 		ret = -EIO;
 		goto done;
@@ -797,7 +801,7 @@ int hci_get_dev_info(void __user *arg)
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
-	di.type     = hdev->bus;
+	di.type     = (hdev->bus & 0x0f) | (hdev->dev_type << 4);
 	di.flags    = hdev->flags;
 	di.pkt_type = hdev->pkt_type;
 	di.acl_mtu  = hdev->acl_mtu;

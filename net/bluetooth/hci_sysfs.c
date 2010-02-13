@@ -192,10 +192,28 @@ static inline char *host_bustostr(int bus)
 	}
 }
 
+static inline char *host_typetostr(int type)
+{
+	switch (type) {
+	case HCI_BREDR:
+		return "BR/EDR";
+	case HCI_80211:
+		return "802.11";
+	default:
+		return "UNKNOWN";
+	}
+}
+
 static ssize_t show_bus(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
 	return sprintf(buf, "%s\n", host_bustostr(hdev->bus));
+}
+
+static ssize_t show_type(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hci_dev *hdev = dev_get_drvdata(dev);
+	return sprintf(buf, "%s\n", host_typetostr(hdev->dev_type));
 }
 
 static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
@@ -334,6 +352,7 @@ static ssize_t store_sniff_min_interval(struct device *dev, struct device_attrib
 }
 
 static DEVICE_ATTR(bus, S_IRUGO, show_bus, NULL);
+static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 static DEVICE_ATTR(class, S_IRUGO, show_class, NULL);
 static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
@@ -351,6 +370,7 @@ static DEVICE_ATTR(sniff_min_interval, S_IRUGO | S_IWUSR,
 
 static struct attribute *bt_host_attrs[] = {
 	&dev_attr_bus.attr,
+	&dev_attr_type.attr,
 	&dev_attr_name.attr,
 	&dev_attr_class.attr,
 	&dev_attr_address.attr,
