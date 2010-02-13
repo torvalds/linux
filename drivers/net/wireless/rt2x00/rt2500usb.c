@@ -1409,8 +1409,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_register_read(rt2x00dev, MAC_CSR0, &reg);
 	rt2x00_set_chip(rt2x00dev, RT2570, value, reg);
 
-	if (!rt2x00_check_rev(rt2x00dev, 0x000ffff0, 0) ||
-	    rt2x00_check_rev(rt2x00dev, 0x0000000f, 0)) {
+	if (((reg & 0xfff0) != 0) || ((reg & 0x0000000f) == 0)) {
 		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 		return -ENODEV;
 	}

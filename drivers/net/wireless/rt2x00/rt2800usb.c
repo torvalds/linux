@@ -92,7 +92,6 @@ static bool rt2800usb_check_crc(const u8 *data, const size_t len)
 static int rt2800usb_check_firmware(struct rt2x00_dev *rt2x00dev,
 				    const u8 *data, const size_t len)
 {
-	u16 chipset = (rt2x00_rev(rt2x00dev) >> 16) & 0xffff;
 	size_t offset = 0;
 
 	/*
@@ -111,9 +110,9 @@ static int rt2800usb_check_firmware(struct rt2x00_dev *rt2x00dev,
 	 * Check if we need the upper 4kb firmware data or not.
 	 */
 	if ((len == 4096) &&
-	    (chipset != 0x2860) &&
-	    (chipset != 0x2872) &&
-	    (chipset != 0x3070))
+	    !rt2x00_rt(rt2x00dev, RT2860) &&
+	    !rt2x00_rt(rt2x00dev, RT2872) &&
+	    !rt2x00_rt(rt2x00dev, RT3070))
 		return FW_BAD_VERSION;
 
 	/*
@@ -138,14 +137,13 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 	u32 offset;
 	u32 length;
-	u16 chipset = (rt2x00_rev(rt2x00dev) >> 16) & 0xffff;
 
 	/*
 	 * Check which section of the firmware we need.
 	 */
-	if ((chipset == 0x2860) ||
-	    (chipset == 0x2872) ||
-	    (chipset == 0x3070)) {
+	if (rt2x00_rt(rt2x00dev, RT2860) ||
+	    rt2x00_rt(rt2x00dev, RT2872) ||
+	    rt2x00_rt(rt2x00dev, RT3070)) {
 		offset = 0;
 		length = 4096;
 	} else {
@@ -200,9 +198,9 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0xff, 0, 0);
 
-	if ((chipset == 0x3070) ||
-	    (chipset == 0x3071) ||
-	    (chipset == 0x3572)) {
+	if (rt2x00_rt(rt2x00dev, RT3070) ||
+	    rt2x00_rt(rt2x00dev, RT3071) ||
+	    rt2x00_rt(rt2x00dev, RT3572)) {
 		udelay(200);
 		rt2800_mcu_request(rt2x00dev, MCU_CURRENT, 0, 0, 0);
 		udelay(10);

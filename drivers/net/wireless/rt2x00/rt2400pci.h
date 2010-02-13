@@ -65,6 +65,7 @@
  * CSR0: ASIC revision number.
  */
 #define CSR0				0x0000
+#define CSR0_REVISION			FIELD32(0x0000ffff)
 
 /*
  * CSR1: System control register.
