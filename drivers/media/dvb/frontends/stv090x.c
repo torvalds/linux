@@ -4324,6 +4324,20 @@ static int stv090x_init(struct dvb_frontend *fe)
 	u32 reg;
 
 	if (state->internal->mclk == 0) {
+		/* call tuner init to configure the tuner's clock output
+		   divider directly before setting up the master clock of
+		   the stv090x. */
+		if (stv090x_i2c_gate_ctrl(state, 1) < 0)
+			goto err;
+
+		if (config->tuner_init) {
+			if (config->tuner_init(fe) < 0)
+				goto err_gateoff;
+		}
+
+		if (stv090x_i2c_gate_ctrl(state, 0) < 0)
+			goto err;
+
 		stv090x_set_mclk(state, 135000000, config->xtal); /* 135 Mhz */
 		msleep(5);
 		if (stv090x_write_reg(state, STV090x_SYNTCTRL,

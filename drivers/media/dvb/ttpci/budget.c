@@ -640,6 +640,12 @@ static void frontend_init(struct budget *budget)
 				tt1600_stv090x_config.tuner_set_refclk	  = ctl->tuner_set_refclk;
 				tt1600_stv090x_config.tuner_get_status	  = ctl->tuner_get_status;
 
+				/* call the init function once to initialize
+				   tuner's clock output divider and demod's
+				   master clock */
+				if (budget->dvb_frontend->ops.init)
+					budget->dvb_frontend->ops.init(budget->dvb_frontend);
+
 				dvb_attach(isl6423_attach,
 					budget->dvb_frontend,
 					&budget->i2c_adap,

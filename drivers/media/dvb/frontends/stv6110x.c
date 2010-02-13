@@ -361,7 +361,6 @@ struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 {
 	struct stv6110x_state *stv6110x;
 	u8 default_regs[] = {0x07, 0x11, 0xdc, 0x85, 0x17, 0x01, 0xe6, 0x1e};
-	int ret;
 
 	stv6110x = kzalloc(sizeof (struct stv6110x_state), GFP_KERNEL);
 	if (stv6110x == NULL)
@@ -388,25 +387,6 @@ struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 	case 0:
 		STV6110x_SETFIELD(stv6110x->regs[STV6110x_CTRL2], CTRL2_CO_DIV, 3);
 		break;
-	}
-
-	if (fe->ops.i2c_gate_ctrl) {
-		ret = fe->ops.i2c_gate_ctrl(fe, 1);
-		if (ret < 0)
-			goto error;
-	}
-
-	ret = stv6110x_write_regs(stv6110x, 0, stv6110x->regs,
-				  ARRAY_SIZE(stv6110x->regs));
-	if (ret < 0) {
-		dprintk(FE_ERROR, 1, "Initialization failed");
-		goto error;
-	}
-
-	if (fe->ops.i2c_gate_ctrl) {
-		ret = fe->ops.i2c_gate_ctrl(fe, 0);
-		if (ret < 0)
-			goto error;
 	}
 
 	fe->tuner_priv		= stv6110x;
