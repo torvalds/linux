@@ -923,22 +923,7 @@ static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->chip.rt = rt;
 	rt2x00dev->chip.rf = rf;
 	rt2x00dev->chip.rev = rev;
-}
 
-static inline void rt2x00_set_chip_rt(struct rt2x00_dev *rt2x00dev,
-				      const u16 rt)
-{
-	rt2x00dev->chip.rt = rt;
-}
-
-static inline void rt2x00_set_chip_rf(struct rt2x00_dev *rt2x00dev,
-				      const u16 rf, const u32 rev)
-{
-	rt2x00_set_chip(rt2x00dev, rt2x00dev->chip.rt, rf, rev);
-}
-
-static inline void rt2x00_print_chip(struct rt2x00_dev *rt2x00dev)
-{
 	INFO(rt2x00dev,
 	     "Chipset detected - rt: %04x, rf: %04x, rev: %08x.\n",
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);

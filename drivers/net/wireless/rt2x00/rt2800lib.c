@@ -40,6 +40,9 @@
 #if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 #include "rt2x00usb.h"
 #endif
+#if defined(CONFIG_RT2X00_LIB_PCI) || defined(CONFIG_RT2X00_LIB_PCI_MODULE)
+#include "rt2x00pci.h"
+#endif
 #include "rt2800lib.h"
 #include "rt2800.h"
 #include "rt2800usb.h"
@@ -1839,6 +1842,7 @@ EXPORT_SYMBOL_GPL(rt2800_validate_eeprom);
 int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
+	u16 chip;
 	u16 value;
 	u16 eeprom;
 
@@ -1853,25 +1857,40 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
 
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
-
-	if (rt2x00_is_usb(rt2x00dev)) {
+	if (rt2x00_is_pci(rt2x00dev)) {
+#if defined(CONFIG_RT2X00_LIB_PCI) || defined(CONFIG_RT2X00_LIB_PCI_MODULE)
+		pci_read_config_word(to_pci_dev(rt2x00dev->dev),
+				     PCI_DEVICE_ID,
+				     &chip);
+#else
+		BUG();
+#endif
+	} else if (rt2x00_is_usb(rt2x00dev)) {
 		/*
 		 * The check for rt2860 is not a typo, some rt2870 hardware
 		 * identifies itself as rt2860 in the CSR register.
 		 */
-		if (rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28600000) ||
-		    rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28700000) ||
-		    rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28800000)) {
-			rt2x00_set_chip_rt(rt2x00dev, RT2870);
-		} else if (rt2x00_check_rev(rt2x00dev, 0xffff0000, 0x30700000)) {
-			rt2x00_set_chip_rt(rt2x00dev, RT3070);
+		if (((reg & 0xfff00000) == 0x28600000) ||
+		    ((reg & 0xfff00000) == 0x28700000) ||
+		    ((reg & 0xfff00000) == 0x28800000)) {
+			chip = RT2870;
+		} else if ((reg & 0xffff0000) == 0x30700000) {
+			chip = RT3070;
 		} else {
 			ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 			return -ENODEV;
 		}
+	} else if (rt2x00_is_soc(rt2x00dev)) {
+#if defined(CONFIG_RALINK_RT288X)
+		chip = RT2880;
+#elif defined(CONFIG_RALINK_RT305X)
+		chip = RT3052;
+#else
+		BUG();
+#endif
 	}
-	rt2x00_print_chip(rt2x00dev);
+
+	rt2x00_set_chip(rt2x00dev, chip, value, reg);
 
 	if (!rt2x00_rf(rt2x00dev, RF2820) &&
 	    !rt2x00_rf(rt2x00dev, RF2850) &&

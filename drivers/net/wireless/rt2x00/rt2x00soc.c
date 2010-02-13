@@ -71,9 +71,7 @@ exit:
 	return -ENOMEM;
 }
 
-int rt2x00soc_probe(struct platform_device *pdev,
-		    const unsigned short chipset,
-		    const struct rt2x00_ops *ops)
+int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops)
 {
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
@@ -95,7 +93,6 @@ int rt2x00soc_probe(struct platform_device *pdev,
 	rt2x00dev->name = pdev->dev.driver->name;
 
 	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
-	rt2x00_set_chip_rt(rt2x00dev, chipset);
 
 	retval = rt2x00soc_alloc_reg(rt2x00dev);
 	if (retval)

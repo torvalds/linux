@@ -1490,6 +1490,7 @@ static int rt2500pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
+	u16 chip;
 	u16 value;
 	u16 eeprom;
 
@@ -1499,12 +1500,16 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
 
 	/*
+	 * Identify RT chipset.
+	 */
+	pci_read_config_word(to_pci_dev(rt2x00dev->dev), PCI_DEVICE_ID, &chip);
+
+	/*
 	 * Identify RF chipset.
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, CSR0, &reg);
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
-	rt2x00_print_chip(rt2x00dev);
+	rt2x00_set_chip(rt2x00dev, chip, value, reg);
 
 	if (!rt2x00_rf(rt2x00dev, RF2522) &&
 	    !rt2x00_rf(rt2x00dev, RF2523) &&

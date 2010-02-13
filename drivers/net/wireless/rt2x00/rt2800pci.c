@@ -1219,11 +1219,10 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_RT2800PCI_SOC
-#if defined(CONFIG_RALINK_RT288X)
-__rt2x00soc_probe(RT2880, &rt2800pci_ops);
-#elif defined(CONFIG_RALINK_RT305X)
-__rt2x00soc_probe(RT3052, &rt2800pci_ops);
-#endif
+static int rt2800soc_probe(struct platform_device *pdev)
+{
+	return rt2x00soc_probe(pdev, rt2800pci_ops);
+}
 
 static struct platform_driver rt2800soc_driver = {
 	.driver		= {
@@ -1231,7 +1230,7 @@ static struct platform_driver rt2800soc_driver = {
 		.owner		= THIS_MODULE,
 		.mod_name	= KBUILD_MODNAME,
 	},
-	.probe		= __rt2x00soc_probe,
+	.probe		= rt2800soc_probe,
 	.remove		= __devexit_p(rt2x00soc_remove),
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,

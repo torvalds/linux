@@ -27,6 +27,7 @@
 #define RT2X00PCI_H
 
 #include <linux/io.h>
+#include <linux/pci.h>
 
 /*
  * This variable should be used with the
