@@ -160,6 +160,7 @@ struct avg_val {
 enum rt2x00_chip_intf {
 	RT2X00_CHIP_INTF_PCI,
 	RT2X00_CHIP_INTF_USB,
+	RT2X00_CHIP_INTF_SOC,
 };
 
 /*
@@ -976,14 +977,19 @@ static inline bool rt2x00_intf(struct rt2x00_dev *rt2x00dev,
 	return (rt2x00dev->chip.intf == intf);
 }
 
-static inline bool rt2x00_intf_is_pci(struct rt2x00_dev *rt2x00dev)
+static inline bool rt2x00_is_pci(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
 }
 
-static inline bool rt2x00_intf_is_usb(struct rt2x00_dev *rt2x00dev)
+static inline bool rt2x00_is_usb(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
+}
+
+static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
 }
 
 /**

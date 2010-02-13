@@ -1041,18 +1041,12 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read EEPROM into buffer
 	 */
-	switch (rt2x00dev->chip.rt) {
-	case RT2880:
-	case RT3052:
+	if (rt2x00_is_soc(rt2x00dev))
 		rt2800pci_read_eeprom_soc(rt2x00dev);
-		break;
-	default:
-		if (rt2800pci_efuse_detect(rt2x00dev))
-			rt2800pci_read_eeprom_efuse(rt2x00dev);
-		else
-			rt2800pci_read_eeprom_pci(rt2x00dev);
-		break;
-	}
+	else if (rt2800pci_efuse_detect(rt2x00dev))
+		rt2800pci_read_eeprom_efuse(rt2x00dev);
+	else
+		rt2800pci_read_eeprom_pci(rt2x00dev);
 
 	return rt2800_validate_eeprom(rt2x00dev);
 }
@@ -1103,7 +1097,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires firmware.
 	 */
-	if (!rt2x00_rt(rt2x00dev, RT2880) && !rt2x00_rt(rt2x00dev, RT3052))
+	if (!rt2x00_is_soc(rt2x00dev))
 		__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
