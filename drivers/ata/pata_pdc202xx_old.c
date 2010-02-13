@@ -35,7 +35,7 @@ static int pdc2026x_cable_detect(struct ata_port *ap)
 	return ATA_CBL_PATA80;
 }
 
-static void pdc20246_exec_command(struct ata_port *ap,
+static void pdc202xx_exec_command(struct ata_port *ap,
 				  const struct ata_taskfile *tf)
 {
 	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
@@ -281,7 +281,7 @@ static struct ata_port_operations pdc2024x_port_ops = {
 	.set_piomode		= pdc202xx_set_piomode,
 	.set_dmamode		= pdc202xx_set_dmamode,
 
-	.sff_exec_command	= pdc20246_exec_command,
+	.sff_exec_command	= pdc202xx_exec_command,
 };
 
 static struct ata_port_operations pdc2026x_port_ops = {
@@ -295,6 +295,8 @@ static struct ata_port_operations pdc2026x_port_ops = {
 	.dev_config		= pdc2026x_dev_config,
 
 	.port_start		= pdc2026x_port_start,
+
+	.sff_exec_command	= pdc202xx_exec_command,
 };
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
