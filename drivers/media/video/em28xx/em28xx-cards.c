@@ -1280,6 +1280,7 @@ struct em28xx_board em28xx_boards[] = {
 		.decoder	= EM28XX_SAA711X,
 		.has_dvb	= 1,
 		.dvb_gpio	= em2882_kworld_315u_digital,
+		.ir_codes	= &ir_codes_kworld_315u_table,
 		.xclk		= EM28XX_XCLK_FREQUENCY_12MHZ,
 		.i2c_speed	= EM28XX_I2C_CLK_WAIT_ENABLE,
 		/* Analog mode - still not ready */
