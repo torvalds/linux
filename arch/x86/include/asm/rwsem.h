@@ -232,34 +232,19 @@ static inline void __up_write(struct rw_semaphore *sem)
  */
 static inline void __downgrade_write(struct rw_semaphore *sem)
 {
-#ifdef CONFIG_X86_64
-# if RWSEM_WAITING_BIAS != -0x100000000
-#  error "This code assumes RWSEM_WAITING_BIAS == -2^32"
-# endif
-
-	/* 64-bit immediates are special and expensive, and not needed here */
-	asm volatile("# beginning __downgrade_write\n\t"
-		     LOCK_PREFIX "incl 4(%1)\n\t"
-		     /* transitions 0xZZZZZZZZ00000001 -> 0xYYYYYYYY00000001 */
-		     "  jns       1f\n\t"
-		     "  call call_rwsem_downgrade_wake\n"
-		     "1:\n\t"
-		     "# ending __downgrade_write\n"
-		     : "+m" (sem->count)
-		     : "a" (sem)
-		     : "memory", "cc");
-#else
 	asm volatile("# beginning __downgrade_write\n\t"
 		     LOCK_PREFIX _ASM_ADD "%2,(%1)\n\t"
-		     /* transitions 0xZZZZ0001 -> 0xYYYY0001 */
+		     /*
+		      * transitions 0xZZZZ0001 -> 0xYYYY0001 (i386)
+		      *     0xZZZZZZZZ00000001 -> 0xYYYYYYYY00000001 (x86_64)
+		      */
 		     "  jns       1f\n\t"
 		     "  call call_rwsem_downgrade_wake\n"
 		     "1:\n\t"
 		     "# ending __downgrade_write\n"
 		     : "+m" (sem->count)
-		     : "a" (sem), "i" (-RWSEM_WAITING_BIAS)
+		     : "a" (sem), "er" (-RWSEM_WAITING_BIAS)
 		     : "memory", "cc");
-#endif
 }
 
 /*
