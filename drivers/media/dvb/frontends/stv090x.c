@@ -758,6 +758,15 @@ static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
 {
 	u32 reg;
 
+	/*
+	 * NOTE! A lock is used as a FSM to control the state in which
+	 * access is serialized between two tuners on the same demod.
+	 * This has nothing to do with a lock to protect a critical section
+	 * which may in some other cases be confused with protecting I/O
+	 * access to the demodulator gate.
+	 * In case of any error, the lock is unlocked and exit within the
+	 * relevant operations themselves.
+	 */
 	if (enable)
 		mutex_lock(&state->internal->tuner_lock);
 
