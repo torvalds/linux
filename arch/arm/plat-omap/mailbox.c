@@ -298,10 +298,9 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 
 static void omap_mbox_fini(struct omap_mbox *mbox)
 {
+	free_irq(mbox->irq, mbox);
 	mbox_queue_free(mbox->txq);
 	mbox_queue_free(mbox->rxq);
-
-	free_irq(mbox->irq, mbox);
 
 	if (unlikely(mbox->ops->shutdown)) {
 		write_lock(&mboxes_lock);
