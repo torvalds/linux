@@ -288,6 +288,7 @@ Conexant 5066
   laptop	Basic Laptop config (default)
   dell-laptop	Dell laptops
   olpc-xo-1_5	OLPC XO 1.5
+  ideapad       Lenovo IdeaPad U150
 
 STAC9200
 ========
