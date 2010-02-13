@@ -4119,11 +4119,22 @@ find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
 			continue;
 
 		rq = cpu_rq(i);
-		wl = weighted_cpuload(i) * SCHED_LOAD_SCALE;
-		wl /= power;
+		wl = weighted_cpuload(i);
 
+		/*
+		 * When comparing with imbalance, use weighted_cpuload()
+		 * which is not scaled with the cpu power.
+		 */
 		if (capacity && rq->nr_running == 1 && wl > imbalance)
 			continue;
+
+		/*
+		 * For the load comparisons with the other cpu's, consider
+		 * the weighted_cpuload() scaled with the cpu power, so that
+		 * the load can be moved away from the cpu that is potentially
+		 * running at a lower capacity.
+		 */
+		wl = (wl * SCHED_LOAD_SCALE) / power;
 
 		if (wl > max_load) {
 			max_load = wl;
