@@ -111,20 +111,20 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (!sd)
 		return -EINVAL;
 
+	mutex_lock(&sysfs_mutex);
 	error = inode_change_ok(inode, iattr);
 	if (error)
-		return error;
+		goto out;
 
 	iattr->ia_valid &= ~ATTR_SIZE; /* ignore size changes */
 
 	error = inode_setattr(inode, iattr);
 	if (error)
-		return error;
+		goto out;
 
-	mutex_lock(&sysfs_mutex);
 	error = sysfs_sd_setattr(sd, iattr);
+out:
 	mutex_unlock(&sysfs_mutex);
-
 	return error;
 }
 
