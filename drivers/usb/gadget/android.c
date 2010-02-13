@@ -100,14 +100,7 @@ static struct usb_device_descriptor device_desc = {
 	.bLength              = sizeof(device_desc),
 	.bDescriptorType      = USB_DT_DEVICE,
 	.bcdUSB               = __constant_cpu_to_le16(0x0200),
-#ifdef CONFIG_USB_ANDROID_RNDIS
-	/* we need to specify the class in the device descriptor
-	 * if we are using RNDIS.
-	 */
-	.bDeviceClass         = USB_CLASS_COMM,
-#else
 	.bDeviceClass         = USB_CLASS_PER_INTERFACE,
-#endif
 	.idVendor             = __constant_cpu_to_le16(VENDOR_ID),
 	.idProduct            = __constant_cpu_to_le16(PRODUCT_ID),
 	.bcdDevice            = __constant_cpu_to_le16(0xffff),
@@ -336,6 +329,18 @@ void android_enable_function(struct usb_function *f, int enable)
 		device_desc.idProduct = __constant_cpu_to_le16(product_id);
 		if (dev->cdev)
 			dev->cdev->desc.idProduct = device_desc.idProduct;
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+		/* We need to specify the COMM class in the device descriptor
+		* if we are using RNDIS.
+		*/
+		if (!strcmp(f->name, "rndis")) {
+			if (enable)
+				dev->cdev->desc.bDeviceClass = USB_CLASS_COMM;
+			else
+				dev->cdev->desc.bDeviceClass = USB_CLASS_PER_INTERFACE;
+		}
+#endif
 
 		/* force reenumeration */
 		if (dev->cdev && dev->cdev->gadget &&
