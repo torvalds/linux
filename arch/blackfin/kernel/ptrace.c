@@ -25,7 +25,6 @@
 #include <asm/cacheflush.h>
 #include <asm/mem_map.h>
 
-#define TEXT_OFFSET 0
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
@@ -43,7 +42,7 @@
  * kernel stack will not be empty on entry to the kernel, so
  * ptracing these tasks will fail.
  */
-static inline struct pt_regs *get_user_regs(struct task_struct *task)
+static inline struct pt_regs *task_pt_regs(struct task_struct *task)
 {
 	return (struct pt_regs *)
 	    ((unsigned long)task_stack_page(task) +
@@ -56,7 +55,7 @@ static inline struct pt_regs *get_user_regs(struct task_struct *task)
 static inline int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
 {
 	struct pt_regs regs;
-	memcpy(&regs, get_user_regs(tsk), sizeof(regs));
+	memcpy(&regs, task_pt_regs(tsk), sizeof(regs));
 	regs.usp = tsk->thread.usp;
 	return copy_to_user(uregs, &regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
 }
@@ -69,40 +68,49 @@ static inline int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
 /*
  * Get contents of register REGNO in task TASK.
  */
-static inline long get_reg(struct task_struct *task, int regno)
+static inline long
+get_reg(struct task_struct *task, long regno, unsigned long __user *datap)
 {
-	unsigned char *reg_ptr;
+	long tmp;
+	struct pt_regs *regs = task_pt_regs(task);
 
-	struct pt_regs *regs =
-	    (struct pt_regs *)((unsigned long)task_stack_page(task) +
-			       (THREAD_SIZE - sizeof(struct pt_regs)));
-	reg_ptr = (char *)regs;
+	if (regno & 3 || regno > PT_LAST_PSEUDO || regno < 0)
+		return -EIO;
 
 	switch (regno) {
+	case PT_TEXT_ADDR:
+		tmp = task->mm->start_code;
+		break;
+	case PT_TEXT_END_ADDR:
+		tmp = task->mm->end_code;
+		break;
+	case PT_DATA_ADDR:
+		tmp = task->mm->start_data;
+		break;
 	case PT_USP:
-		return task->thread.usp;
+		tmp = task->thread.usp;
+		break;
 	default:
-		if (regno <= 216)
-			return *(long *)(reg_ptr + regno);
+		if (regno < sizeof(*regs)) {
+			void *reg_ptr = regs;
+			tmp = *(long *)(reg_ptr + regno);
+		} else
+			return -EIO;
 	}
-	/* slight mystery ... never seems to come here but kernel misbehaves without this code! */
 
-	printk(KERN_WARNING "Request to get for unknown register %d\n", regno);
-	return 0;
+	return put_user(tmp, datap);
 }
 
 /*
  * Write contents of register REGNO in task TASK.
  */
 static inline int
-put_reg(struct task_struct *task, int regno, unsigned long data)
+put_reg(struct task_struct *task, long regno, unsigned long data)
 {
-	char *reg_ptr;
+	struct pt_regs *regs = task_pt_regs(task);
 
-	struct pt_regs *regs =
-	    (struct pt_regs *)((unsigned long)task_stack_page(task) +
-			       (THREAD_SIZE - sizeof(struct pt_regs)));
-	reg_ptr = (char *)regs;
+	if (regno & 3 || regno > PT_LAST_PSEUDO || regno < 0)
+		return -EIO;
 
 	switch (regno) {
 	case PT_PC:
@@ -119,10 +127,18 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 		regs->usp = data;
 		task->thread.usp = data;
 		break;
+	case PT_SYSCFG:	/* don't let userspace screw with this */
+		if ((data & ~1) != 0x6)
+			pr_warning("ptrace: ignore syscfg write of %#lx\n", data);
+		break;		/* regs->syscfg = data; break; */
 	default:
-		if (regno <= 216)
-			*(long *)(reg_ptr + regno) = data;
+		if (regno < sizeof(*regs)) {
+			void *reg_offset = regs;
+			*(long *)(reg_offset + regno) = data;
+		}
+		/* Ignore writes to pseudo registers */
 	}
+
 	return 0;
 }
 
@@ -231,40 +247,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-		/* read the word at location addr in the USER area. */
-	case PTRACE_PEEKUSR:
-		{
-			unsigned long tmp;
-			ret = -EIO;
-			tmp = 0;
-			if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 16))) {
-				printk(KERN_WARNING "ptrace error : PEEKUSR : temporarily returning "
-				                    "0 - %x sizeof(pt_regs) is %lx\n",
-				     (int)addr, sizeof(struct pt_regs));
-				break;
-			}
-			if (addr == sizeof(struct pt_regs)) {
-				/* PT_TEXT_ADDR */
-				tmp = child->mm->start_code + TEXT_OFFSET;
-			} else if (addr == (sizeof(struct pt_regs) + 4)) {
-				/* PT_TEXT_END_ADDR */
-				tmp = child->mm->end_code;
-			} else if (addr == (sizeof(struct pt_regs) + 8)) {
-				/* PT_DATA_ADDR */
-				tmp = child->mm->start_data;
-#ifdef CONFIG_BINFMT_ELF_FDPIC
-			} else if (addr == (sizeof(struct pt_regs) + 12)) {
-				goto case_PTRACE_GETFDPIC_EXEC;
-			} else if (addr == (sizeof(struct pt_regs) + 16)) {
-				goto case_PTRACE_GETFDPIC_INTERP;
-#endif
-			} else {
-				tmp = get_reg(child, addr);
-			}
-			ret = put_user(tmp, datap);
-			break;
-		}
-
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 	case PTRACE_GETFDPIC: {
 		unsigned long tmp = 0;
@@ -327,19 +309,21 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-	case PTRACE_POKEUSR:	/* write the word at location addr in the USER area */
-		ret = -EIO;
-		if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 16))) {
-			printk(KERN_WARNING "ptrace error : POKEUSR: temporarily returning 0\n");
-			break;
+	case PTRACE_PEEKUSR:
+		switch (addr) {
+#ifdef CONFIG_BINFMT_ELF_FDPIC	/* backwards compat */
+		case PT_FDPIC_EXEC:   goto case_PTRACE_GETFDPIC_EXEC;
+		case PT_FDPIC_INTERP: goto case_PTRACE_GETFDPIC_INTERP;
+#endif
+		default:
+			ret = get_reg(child, addr, datap);
 		}
+		pr_debug("ptrace: PEEKUSR reg %li with %#lx = %i\n", addr, data, ret);
+		break;
 
-		/* Ignore writes to SYSCFG and other pseudo regs */
-		if (addr >= PT_SYSCFG) {
-			ret = 0;
-			break;
-		}
+	case PTRACE_POKEUSR:
 		ret = put_reg(child, addr, data);
+		pr_debug("ptrace: POKEUSR reg %li with %li = %i\n", addr, data, ret);
 		break;
 
 	case PTRACE_GETREGS:
