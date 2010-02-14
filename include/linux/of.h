@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/kref.h>
 #include <linux/mod_devicetable.h>
+#include <linux/spinlock.h>
 
 #include <asm/byteorder.h>
 
@@ -67,6 +68,7 @@ struct device_node {
 /* Pointer for first entry in chain of all nodes. */
 extern struct device_node *allnodes;
 extern struct device_node *of_chosen;
+extern rwlock_t devtree_lock;
 
 static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 {
