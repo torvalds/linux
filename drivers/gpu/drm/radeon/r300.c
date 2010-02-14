@@ -705,6 +705,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			tile_flags |= R300_TXO_MACRO_TILE;
 		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
 			tile_flags |= R300_TXO_MICRO_TILE;
+		else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+			tile_flags |= R300_TXO_MICRO_TILE_SQUARE;
 
 		tmp = idx_value + ((u32)reloc->lobj.gpu_offset);
 		tmp |= tile_flags;
@@ -755,6 +757,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			tile_flags |= R300_COLOR_TILE_ENABLE;
 		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
 			tile_flags |= R300_COLOR_MICROTILE_ENABLE;
+		else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+			tile_flags |= R300_COLOR_MICROTILE_SQUARE_ENABLE;
 
 		tmp = idx_value & ~(0x7 << 16);
 		tmp |= tile_flags;
@@ -826,7 +830,9 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
 			tile_flags |= R300_DEPTHMACROTILE_ENABLE;
 		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= R300_DEPTHMICROTILE_TILED;;
+			tile_flags |= R300_DEPTHMICROTILE_TILED;
+		else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO_SQUARE)
+			tile_flags |= R300_DEPTHMICROTILE_TILED_SQUARE;
 
 		tmp = idx_value & ~(0x7 << 16);
 		tmp |= tile_flags;
