@@ -541,7 +541,7 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 	/*** STATION ***/
 	/* Set the REQUIRED config items */
 	/* SSID */
-	pstr = (p80211pstrd_t *) & (msg->ssid.data);
+	pstr = (p80211pstrd_t *) &(msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFOWNSSID,
 					bytebuf, HFA384x_RID_CNFOWNSSID_LEN);
@@ -1034,7 +1034,7 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 
 	/* Set the ssid */
 	memset(bytebuf, 0, 256);
-	pstr = (p80211pstrd_t *) & (msg->ssid.data);
+	pstr = (p80211pstrd_t *) &(msg->ssid.data);
 	prism2mgmt_pstr2bytestr(p2bytestr, pstr);
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_CNFDESIREDSSID,
 					bytebuf,

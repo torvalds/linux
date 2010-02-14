@@ -206,12 +206,12 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		/* XXXX need to pick keynum other than default? */
 
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
-
-		if ((foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
-				       skb->len,
-				       (wlandev->hostwep &
-					HOSTWEP_DEFAULTKEY_MASK),
-				       p80211_wep->iv, p80211_wep->icv))) {
+		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
+			skb->len,
+			(wlandev->hostwep &
+			HOSTWEP_DEFAULTKEY_MASK),
+			p80211_wep->iv, p80211_wep->icv);
+		if (foo) {
 			printk(KERN_WARNING
 			       "Host en-WEP failed, dropping frame (%d).\n",
 			       foo);
@@ -323,11 +323,12 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 			       skb->len);
 			return 1;
 		}
-		if ((foo = wep_decrypt(wlandev, skb->data + payload_offset + 4,
-				       payload_length - 8, -1,
-				       skb->data + payload_offset,
-				       skb->data + payload_offset +
-				       payload_length - 4))) {
+		foo = wep_decrypt(wlandev, skb->data + payload_offset + 4,
+			payload_length - 8, -1,
+			skb->data + payload_offset,
+			skb->data + payload_offset +
+			payload_length - 4);
+		if (foo) {
 			/* de-wep failed, drop skb. */
 			pr_debug("Host de-WEP failed, dropping frame (%d).\n",
 				 foo);

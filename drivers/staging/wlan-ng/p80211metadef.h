@@ -190,9 +190,9 @@
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1))
 #define DIDmib_dot11mac_dot11OperationTable_dot11MACAddress \
-                        (P80211DID_MKSECTION(2) | \
-                        P80211DID_MKGROUP(1) | \
-                        P80211DID_MKITEM(1) | 0x18000000)
+			((P80211DID_MKSECTION(2) | \
+			P80211DID_MKGROUP(1) | \
+			P80211DID_MKITEM(1) | 0x18000000))
 #define DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
@@ -210,18 +210,18 @@
 			P80211DID_MKGROUP(1) | \
 			P80211DID_MKITEM(5) | 0x18000000)
 #define DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime \
-                       (P80211DID_MKSECTION(2) | \
-                       P80211DID_MKGROUP(1) | \
-                       P80211DID_MKITEM(6) | 0x10000000)
+			(P80211DID_MKSECTION(2) | \
+			P80211DID_MKGROUP(1) | \
+			P80211DID_MKITEM(6) | 0x10000000)
 #define DIDmib_cat_dot11phy \
 			P80211DID_MKSECTION(3)
 #define DIDmib_dot11phy_dot11PhyOperationTable \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(1))
 #define DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel \
-                       (P80211DID_MKSECTION(3) | \
-                       P80211DID_MKGROUP(3) | \
-                       P80211DID_MKITEM(10) | 0x18000000)
+			(P80211DID_MKSECTION(3) | \
+			P80211DID_MKGROUP(3) | \
+			P80211DID_MKITEM(10) | 0x18000000)
 #define DIDmib_dot11phy_dot11PhyDSSSTable \
 			(P80211DID_MKSECTION(3) | \
 			P80211DID_MKGROUP(5))

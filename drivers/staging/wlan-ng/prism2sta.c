@@ -1023,13 +1023,13 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev,
 
 	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(u32);
 	if (inf->framelen > 22) {
-		dst = (u32 *) & hw->tallies;
-		src32 = (u32 *) & inf->info.commtallies32;
+		dst = (u32 *) &hw->tallies;
+		src32 = (u32 *) &inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
 			*dst += le32_to_cpu(*src32);
 	} else {
-		dst = (u32 *) & hw->tallies;
-		src16 = (u16 *) & inf->info.commtallies16;
+		dst = (u32 *) &hw->tallies;
+		src16 = (u16 *) &inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += le16_to_cpu(*src16);
 	}
@@ -1280,7 +1280,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 				     HFA384x_RID_CURRENTSSID, result);
 				goto failed;
 			}
-			prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) & ssid,
+			prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
 						(p80211pstrd_t *) &
 						wlandev->ssid);
 
@@ -1368,8 +1368,8 @@ void prism2sta_processing_defer(struct work_struct *data)
 				 HFA384x_RID_CURRENTSSID, result);
 			goto failed;
 		}
-		prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) & ssid,
-					(p80211pstrd_t *) & wlandev->ssid);
+		prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
+					(p80211pstrd_t *) &wlandev->ssid);
 
 		hw->link_status = HFA384x_LINK_CONNECTED;
 		netif_carrier_on(wlandev->netdev);
@@ -2028,8 +2028,8 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 			 HFA384x_RID_CURRENTSSID, result);
 		goto done;
 	}
-	prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) & ssid,
-				(p80211pstrd_t *) & wlandev->ssid);
+	prism2mgmt_bytestr2pstr((hfa384x_bytestr_t *) &ssid,
+				(p80211pstrd_t *) &wlandev->ssid);
 
 	/* Reschedule timer */
 	mod_timer(&hw->commsqual_timer, jiffies + HZ);
