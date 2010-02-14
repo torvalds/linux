@@ -9,9 +9,11 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/elf.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
+#include <linux/regset.h>
 #include <linux/signal.h>
 #include <linux/uaccess.h>
 
@@ -48,22 +50,6 @@ static inline struct pt_regs *task_pt_regs(struct task_struct *task)
 	    ((unsigned long)task_stack_page(task) +
 	     (THREAD_SIZE - sizeof(struct pt_regs)));
 }
-
-/*
- * Get all user integer registers.
- */
-static inline int ptrace_getregs(struct task_struct *tsk, void __user *uregs)
-{
-	struct pt_regs regs;
-	memcpy(&regs, task_pt_regs(tsk), sizeof(regs));
-	regs.usp = tsk->thread.usp;
-	return copy_to_user(uregs, &regs, sizeof(struct pt_regs)) ? -EFAULT : 0;
-}
-
-/* Mapping from PT_xxx to the stack offset at which the register is
- * saved.  Notice that usp has no stack-slot and needs to be treated
- * specially (see get_reg/put_reg below).
- */
 
 /*
  * Get contents of register REGNO in task TASK.
@@ -168,6 +154,84 @@ static inline int is_user_addr_valid(struct task_struct *child,
 		return 0;
 
 	return -EIO;
+}
+
+/*
+ * retrieve the contents of Blackfin userspace general registers
+ */
+static int genregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* This sucks ... */
+	regs->usp = target->thread.usp;
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  regs, 0, sizeof(*regs));
+	if (ret < 0)
+		return ret;
+
+	return user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					sizeof(*regs), -1);
+}
+
+/*
+ * update the contents of the Blackfin userspace general registers
+ */
+static int genregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* Don't let people set SYSCFG (it's at the end of pt_regs) */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 regs, 0, PT_SYSCFG);
+	if (ret < 0)
+		return ret;
+
+	/* This sucks ... */
+	target->thread.usp = regs->usp;
+	/* regs->retx = regs->pc; */
+
+	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					PT_SYSCFG, -1);
+}
+
+/*
+ * Define the register sets available on the Blackfin under Linux
+ */
+enum bfin_regset {
+	REGSET_GENERAL,
+};
+
+static const struct user_regset bfin_regsets[] = {
+	[REGSET_GENERAL] = {
+		.core_note_type = NT_PRSTATUS,
+		.n              = sizeof(struct pt_regs) / sizeof(long),
+		.size           = sizeof(long),
+		.align          = sizeof(long),
+		.get            = genregs_get,
+		.set            = genregs_set,
+	},
+};
+
+static const struct user_regset_view user_bfin_native_view = {
+	.name      = "Blackfin",
+	.e_machine = EM_BLACKFIN,
+	.regsets   = bfin_regsets,
+	.n         = ARRAY_SIZE(bfin_regsets),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_bfin_native_view;
 }
 
 void ptrace_enable(struct task_struct *child)
@@ -327,15 +391,18 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 
 	case PTRACE_GETREGS:
-		/* Get all gp regs from the child. */
-		ret = ptrace_getregs(child, datap);
-		break;
+		pr_debug("ptrace: PTRACE_GETREGS\n");
+		return copy_regset_to_user(child, &user_bfin_native_view,
+					   REGSET_GENERAL,
+					   0, sizeof(struct pt_regs),
+					   (void __user *)data);
 
 	case PTRACE_SETREGS:
-		printk(KERN_WARNING "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
-		/* Set all gp regs in the child. */
-		ret = 0;
-		break;
+		pr_debug("ptrace: PTRACE_SETREGS\n");
+		return copy_regset_from_user(child, &user_bfin_native_view,
+					     REGSET_GENERAL,
+					     0, sizeof(struct pt_regs),
+					     (const void __user *)data);
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
