@@ -10,15 +10,17 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/lmb.h>
 #include <linux/initrd.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-
+#include <linux/string.h>
+#include <linux/errno.h>
 
 #ifdef CONFIG_PPC
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC */
+
+#include <asm/page.h>
 
 int __initdata dt_root_addr_cells;
 int __initdata dt_root_size_cells;
@@ -560,7 +562,8 @@ void __init unflatten_device_tree(void)
 	pr_debug("  size is %lx, allocating...\n", size);
 
 	/* Allocate memory for the expanded device tree */
-	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
+	mem = early_init_dt_alloc_memory_arch(size + 4,
+			__alignof__(struct device_node));
 	mem = (unsigned long) __va(mem);
 
 	((__be32 *)mem)[size / 4] = cpu_to_be32(0xdeadbeef);
