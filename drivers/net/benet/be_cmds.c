@@ -167,7 +167,14 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 	u32 ready;
 
 	do {
-		ready = ioread32(db) & MPU_MAILBOX_DB_RDY_MASK;
+		ready = ioread32(db);
+		if (ready == 0xffffffff) {
+			dev_err(&adapter->pdev->dev,
+				"pci slot disconnected\n");
+			return -1;
+		}
+
+		ready &= MPU_MAILBOX_DB_RDY_MASK;
 		if (ready)
 			break;
 
@@ -197,6 +204,11 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 	struct be_dma_mem *mbox_mem = &adapter->mbox_mem;
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
+
+	/* wait for ready to be set */
+	status = be_mbox_db_ready_wait(adapter, db);
+	if (status != 0)
+		return status;
 
 	val |= MPU_MAILBOX_DB_HI_MASK;
 	/* at bits 2 - 31 place mbox dma addr msb bits 34 - 63 */
@@ -395,6 +407,9 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 {
 	u8 *wrb;
 	int status;
+
+	if (adapter->eeh_err)
+		return -EIO;
 
 	spin_lock(&adapter->mbox_lock);
 
@@ -768,6 +783,9 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 	u8 subsys = 0, opcode = 0;
 	int status;
 
+	if (adapter->eeh_err)
+		return -EIO;
+
 	spin_lock(&adapter->mbox_lock);
 
 	wrb = wrb_from_mbox(adapter);
@@ -855,6 +873,9 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_destroy *req;
 	int status;
+
+	if (adapter->eeh_err)
+		return -EIO;
 
 	spin_lock(&adapter->mbox_lock);
 

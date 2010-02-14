@@ -68,6 +68,9 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 	u32 reg = ioread32(addr);
 	u32 enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 
+	if (adapter->eeh_err)
+		return;
+
 	if (!enabled && enable)
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 	else if (enabled && !enable)
@@ -99,6 +102,10 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 {
 	u32 val = 0;
 	val |= qid & DB_EQ_RING_ID_MASK;
+
+	if (adapter->eeh_err)
+		return;
+
 	if (arm)
 		val |= 1 << DB_EQ_REARM_SHIFT;
 	if (clear_int)
@@ -112,6 +119,10 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 {
 	u32 val = 0;
 	val |= qid & DB_CQ_RING_ID_MASK;
+
+	if (adapter->eeh_err)
+		return;
+
 	if (arm)
 		val |= 1 << DB_CQ_REARM_SHIFT;
 	val |= num_popped << DB_CQ_NUM_POPPED_SHIFT;
@@ -2154,6 +2165,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
+	pci_save_state(adapter->pdev);
 	return 0;
 
 free_mbox:
@@ -2417,13 +2429,102 @@ static int be_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
+				pci_channel_state_t state)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev =  adapter->netdev;
+
+	dev_err(&adapter->pdev->dev, "EEH error detected\n");
+
+	adapter->eeh_err = true;
+
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev)) {
+		rtnl_lock();
+		be_close(netdev);
+		rtnl_unlock();
+	}
+	be_clear(adapter);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_disable_device(pdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	int status;
+
+	dev_info(&adapter->pdev->dev, "EEH reset\n");
+	adapter->eeh_err = false;
+
+	status = pci_enable_device(pdev);
+	if (status)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_set_master(pdev);
+	pci_set_power_state(pdev, 0);
+	pci_restore_state(pdev);
+
+	/* Check if card is ok and fw is ready */
+	status = be_cmd_POST(adapter);
+	if (status)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void be_eeh_resume(struct pci_dev *pdev)
+{
+	int status = 0;
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev =  adapter->netdev;
+
+	dev_info(&adapter->pdev->dev, "EEH resume\n");
+
+	pci_save_state(pdev);
+
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		goto err;
+
+	status = be_setup(adapter);
+	if (status)
+		goto err;
+
+	if (netif_running(netdev)) {
+		status = be_open(netdev);
+		if (status)
+			goto err;
+	}
+	netif_device_attach(netdev);
+	return;
+err:
+	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
+	return;
+}
+
+static struct pci_error_handlers be_eeh_handlers = {
+	.error_detected = be_eeh_err_detected,
+	.slot_reset = be_eeh_reset,
+	.resume = be_eeh_resume,
+};
+
 static struct pci_driver be_driver = {
 	.name = DRV_NAME,
 	.id_table = be_dev_ids,
 	.probe = be_probe,
 	.remove = be_remove,
 	.suspend = be_suspend,
-	.resume = be_resume
+	.resume = be_resume,
+	.err_handler = &be_eeh_handlers
 };
 
 static int __init be_init_module(void)
