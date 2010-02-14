@@ -26,8 +26,6 @@
 #include <asm/irq.h>
 #include <asm/atomic.h>
 
-extern struct device_node *of_chosen;
-
 #define HAVE_ARCH_DEVTREE_FIXUPS
 
 /* Other Prototypes */

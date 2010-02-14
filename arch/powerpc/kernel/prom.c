@@ -67,9 +67,6 @@ int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
 #endif
 
-/* export that to outside world */
-struct device_node *of_chosen;
-
 static int __init early_parse_mem(char *p)
 {
 	if (!p)

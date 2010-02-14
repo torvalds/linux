@@ -23,6 +23,7 @@
 #include <linux/proc_fs.h>
 
 struct device_node *allnodes;
+struct device_node *of_chosen;
 
 /* use when traversing tree through the allnext, child, sibling,
  * or parent members of struct device_node.

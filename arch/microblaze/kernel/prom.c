@@ -42,9 +42,6 @@
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
 
-/* export that to outside world */
-struct device_node *of_chosen;
-
 void __init early_init_dt_scan_chosen_arch(unsigned long node)
 {
 	/* No Microblaze specific code here */

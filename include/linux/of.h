@@ -66,6 +66,7 @@ struct device_node {
 
 /* Pointer for first entry in chain of all nodes. */
 extern struct device_node *allnodes;
+extern struct device_node *of_chosen;
 
 static inline int of_node_check_flag(struct device_node *n, unsigned long flag)
 {
