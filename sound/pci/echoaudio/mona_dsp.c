@@ -33,8 +33,7 @@ static int write_control_reg(struct echoaudio *chip, u32 value, char force);
 static int set_input_clock(struct echoaudio *chip, u16 clock);
 static int set_professional_spdif(struct echoaudio *chip, char prof);
 static int set_digital_mode(struct echoaudio *chip, u8 mode);
-static int load_asic_generic(struct echoaudio *chip, u32 cmd,
-			     const struct firmware *asic);
+static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic);
 static int check_asic_status(struct echoaudio *chip);
 
 
@@ -64,9 +63,9 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	/* Mona comes in both '301 and '361 flavors */
 	if (chip->device_id == DEVICE_ID_56361)
-		chip->dsp_code_to_load = &card_fw[FW_MONA_361_DSP];
+		chip->dsp_code_to_load = FW_MONA_361_DSP;
 	else
-		chip->dsp_code_to_load = &card_fw[FW_MONA_301_DSP];
+		chip->dsp_code_to_load = FW_MONA_301_DSP;
 
 	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
 	chip->professional_spdif = FALSE;
@@ -120,7 +119,7 @@ static int load_asic(struct echoaudio *chip)
 {
 	u32 control_reg;
 	int err;
-	const struct firmware *asic;
+	short asic;
 
 	if (chip->asic_loaded)
 		return 0;
@@ -128,9 +127,9 @@ static int load_asic(struct echoaudio *chip)
 	mdelay(10);
 
 	if (chip->device_id == DEVICE_ID_56361)
-		asic = &card_fw[FW_MONA_361_1_ASIC48];
+		asic = FW_MONA_361_1_ASIC48;
 	else
-		asic = &card_fw[FW_MONA_301_1_ASIC48];
+		asic = FW_MONA_301_1_ASIC48;
 
 	err = load_asic_generic(chip, DSP_FNC_LOAD_MONA_PCI_CARD_ASIC, asic);
 	if (err < 0)
@@ -141,7 +140,7 @@ static int load_asic(struct echoaudio *chip)
 
 	/* Do the external one */
 	err = load_asic_generic(chip, DSP_FNC_LOAD_MONA_EXTERNAL_ASIC,
-				&card_fw[FW_MONA_2_ASIC]);
+				FW_MONA_2_ASIC);
 	if (err < 0)
 		return err;
 
@@ -165,22 +164,22 @@ loaded.  This function checks the ASIC needed for the new mode and sees
 if it matches the one already loaded. */
 static int switch_asic(struct echoaudio *chip, char double_speed)
 {
-	const struct firmware *asic;
 	int err;
+	short asic;
 
 	/* Check the clock detect bits to see if this is
 	a single-speed clock or a double-speed clock; load
 	a new ASIC if necessary. */
 	if (chip->device_id == DEVICE_ID_56361) {
 		if (double_speed)
-			asic = &card_fw[FW_MONA_361_1_ASIC96];
+			asic = FW_MONA_361_1_ASIC96;
 		else
-			asic = &card_fw[FW_MONA_361_1_ASIC48];
+			asic = FW_MONA_361_1_ASIC48;
 	} else {
 		if (double_speed)
-			asic = &card_fw[FW_MONA_301_1_ASIC96];
+			asic = FW_MONA_301_1_ASIC96;
 		else
-			asic = &card_fw[FW_MONA_301_1_ASIC48];
+			asic = FW_MONA_301_1_ASIC48;
 	}
 
 	if (asic != chip->asic_code) {
@@ -200,7 +199,7 @@ static int switch_asic(struct echoaudio *chip, char double_speed)
 static int set_sample_rate(struct echoaudio *chip, u32 rate)
 {
 	u32 control_reg, clock;
-	const struct firmware *asic;
+	short asic;
 	char force_write;
 
 	/* Only set the clock for internal mode. */
@@ -218,14 +217,14 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		if (chip->digital_mode == DIGITAL_MODE_ADAT)
 			return -EINVAL;
 		if (chip->device_id == DEVICE_ID_56361)
-			asic = &card_fw[FW_MONA_361_1_ASIC96];
+			asic = FW_MONA_361_1_ASIC96;
 		else
-			asic = &card_fw[FW_MONA_301_1_ASIC96];
+			asic = FW_MONA_301_1_ASIC96;
 	} else {
 		if (chip->device_id == DEVICE_ID_56361)
-			asic = &card_fw[FW_MONA_361_1_ASIC48];
+			asic = FW_MONA_361_1_ASIC48;
 		else
-			asic = &card_fw[FW_MONA_301_1_ASIC48];
+			asic = FW_MONA_301_1_ASIC48;
 	}
 
 	force_write = 0;
@@ -410,8 +409,8 @@ static int dsp_set_digital_mode(struct echoaudio *chip, u8 mode)
 	case DIGITAL_MODE_ADAT:
 		/* If the current ASIC is the 96KHz ASIC, switch the ASIC
 		   and set to 48 KHz */
-		if (chip->asic_code == &card_fw[FW_MONA_361_1_ASIC96] ||
-		    chip->asic_code == &card_fw[FW_MONA_301_1_ASIC96]) {
+		if (chip->asic_code == FW_MONA_361_1_ASIC96 ||
+		    chip->asic_code == FW_MONA_301_1_ASIC96) {
 			set_sample_rate(chip, 48000);
 		}
 		control_reg |= GML_ADAT_MODE;

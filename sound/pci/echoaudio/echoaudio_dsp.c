@@ -175,15 +175,15 @@ static inline int check_asic_status(struct echoaudio *chip)
 #ifdef ECHOCARD_HAS_ASIC
 
 /* Load ASIC code - done after the DSP is loaded */
-static int load_asic_generic(struct echoaudio *chip, u32 cmd,
-			     const struct firmware *asic)
+static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic)
 {
 	const struct firmware *fw;
 	int err;
 	u32 i, size;
 	u8 *code;
 
-	if ((err = get_firmware(&fw, asic, chip)) < 0) {
+	err = get_firmware(&fw, chip, asic);
+	if (err < 0) {
 		snd_printk(KERN_WARNING "Firmware not found !\n");
 		return err;
 	}
@@ -245,7 +245,8 @@ static int install_resident_loader(struct echoaudio *chip)
 		return 0;
 	}
 
-	if ((i = get_firmware(&fw, &card_fw[FW_361_LOADER], chip)) < 0) {
+	i = get_firmware(&fw, chip, FW_361_LOADER);
+	if (i < 0) {
 		snd_printk(KERN_WARNING "Firmware not found !\n");
 		return i;
 	}
@@ -485,7 +486,8 @@ static int load_firmware(struct echoaudio *chip)
 		chip->dsp_code = NULL;
 	}
 
-	if ((err = get_firmware(&fw, chip->dsp_code_to_load, chip)) < 0)
+	err = get_firmware(&fw, chip, chip->dsp_code_to_load);
+	if (err < 0)
 		return err;
 	err = load_dsp(chip, (u16 *)fw->data);
 	free_firmware(fw);

@@ -36,17 +36,23 @@ MODULE_PARM_DESC(enable, "Enable " ECHOCARD_NAME " soundcard.");
 static unsigned int channels_list[10] = {1, 2, 4, 6, 8, 10, 12, 14, 16, 999999};
 static const DECLARE_TLV_DB_SCALE(db_scale_output_gain, -12800, 100, 1);
 
+
+
 static int get_firmware(const struct firmware **fw_entry,
-			const struct firmware *frm, struct echoaudio *chip)
+			struct echoaudio *chip, const short fw_index)
 {
 	int err;
 	char name[30];
+	const struct firmware *frm = &card_fw[fw_index];
+
 	DE_ACT(("firmware requested: %s\n", frm->data));
 	snprintf(name, sizeof(name), "ea/%s", frm->data);
 	if ((err = request_firmware(fw_entry, name, pci_device(chip))) < 0)
 		snd_printk(KERN_ERR "get_firmware(): Firmware not available (%d)\n", err);
 	return err;
 }
+
+
 
 static void free_firmware(const struct firmware *fw_entry)
 {

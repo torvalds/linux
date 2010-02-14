@@ -61,7 +61,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->subdevice_id = subdevice_id;
 	chip->bad_board = TRUE;
 	chip->has_midi = TRUE;
-	chip->dsp_code_to_load = &card_fw[FW_ECHO3G_DSP];
+	chip->dsp_code_to_load = FW_ECHO3G_DSP;
 
 	/* Load the DSP code and the ASIC on the PCI card and get
 	what type of external box is attached */

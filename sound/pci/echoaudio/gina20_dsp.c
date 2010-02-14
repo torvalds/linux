@@ -49,7 +49,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
 	chip->bad_board = TRUE;
-	chip->dsp_code_to_load = &card_fw[FW_GINA20_DSP];
+	chip->dsp_code_to_load = FW_GINA20_DSP;
 	chip->spdif_status = GD_SPDIF_STATUS_UNDEF;
 	chip->clock_state = GD_CLOCK_UNDEF;
 	/* Since this card has no ASIC, mark it as loaded so everything
