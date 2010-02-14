@@ -30,8 +30,6 @@ extern struct device_node *of_chosen;
 
 #define HAVE_ARCH_DEVTREE_FIXUPS
 
-extern rwlock_t devtree_lock;	/* temporary while merging */
-
 /* Other Prototypes */
 extern int early_uartlite_console(void);
 
