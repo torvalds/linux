@@ -1038,9 +1038,10 @@ int az6027_identify_state(struct usb_device *udev, struct dvb_usb_device_propert
 
 
 static struct usb_device_id az6027_usb_table [] = {
-            { USB_DEVICE(USB_VID_TERRATEC, USB_PID_AZUREWAVE_AZ6027) },
-	  // { USB_DEVICE(0x0fd9, 0x002a) },
-	    { 0 },
+	{ USB_DEVICE(USB_VID_AZUREWAVE, USB_PID_AZUREWAVE_AZ6027) },
+	{ USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_DVBS2CI) },
+	{ USB_DEVICE(USB_VID_TECHNISAT, USB_PID_TECHNISAT_USB2_HDCI) },
+	{ },
 };
 
 MODULE_DEVICE_TABLE(usb, az6027_usb_table);
