@@ -613,7 +613,7 @@ request_firmware_work_func(void *arg)
 }
 
 /**
- * request_firmware_nowait: asynchronous version of request_firmware
+ * request_firmware_nowait - asynchronous version of request_firmware
  * @module: module requesting the firmware
  * @uevent: sends uevent to copy the firmware image if this flag
  *	is non-zero else the firmware copy must be done manually.
