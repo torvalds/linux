@@ -612,6 +612,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	case REMOTE_KEY_REPEAT:
 		deb_info("key repeated\n");
 		input_event(d->rc_input_dev, EV_KEY, event, 1);
+		input_sync(d->rc_input_dev);
 		input_event(d->rc_input_dev, EV_KEY, d->last_event, 0);
 		input_sync(d->rc_input_dev);
 		break;
