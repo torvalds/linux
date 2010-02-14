@@ -31,12 +31,6 @@
  * in exit.c or in signal.c.
  */
 
-/* determines which bits in the SYSCFG reg the user has access to. */
-/* 1 = access 0 = no access */
-#define SYSCFG_MASK 0x0007	/* SYSCFG reg */
-/* sets the trace bits. */
-#define TRACE_BITS 0x0001
-
 /* Find the stack offset for a register, relative to thread.esp0. */
 #define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
 
@@ -162,9 +156,8 @@ static inline int is_user_addr_valid(struct task_struct *child,
 
 void ptrace_enable(struct task_struct *child)
 {
-	unsigned long tmp;
-	tmp = get_reg(child, PT_SYSCFG) | (TRACE_BITS);
-	put_reg(child, PT_SYSCFG, tmp);
+	struct pt_regs *regs = task_pt_regs(child);
+	regs->syscfg |= SYSCFG_SSSTEP;
 }
 
 /*
@@ -174,10 +167,8 @@ void ptrace_enable(struct task_struct *child)
  */
 void ptrace_disable(struct task_struct *child)
 {
-	unsigned long tmp;
-	/* make sure the single step bit is not set. */
-	tmp = get_reg(child, PT_SYSCFG) & ~TRACE_BITS;
-	put_reg(child, PT_SYSCFG, tmp);
+	struct pt_regs *regs = task_pt_regs(child);
+	regs->syscfg &= ~SYSCFG_SSSTEP;
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -343,13 +334,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-		if (addr >= (sizeof(struct pt_regs))) {
+		/* Ignore writes to SYSCFG and other pseudo regs */
+		if (addr >= PT_SYSCFG) {
 			ret = 0;
 			break;
-		}
-		if (addr == PT_SYSCFG) {
-			data &= SYSCFG_MASK;
-			data |= get_reg(child, PT_SYSCFG);
 		}
 		ret = put_reg(child, addr, data);
 		break;
