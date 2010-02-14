@@ -1820,8 +1820,7 @@ int __init ndisc_init(void)
 	neigh_table_init(&nd_tbl);
 
 #ifdef CONFIG_SYSCTL
-	err = neigh_sysctl_register(NULL, &nd_tbl.parms, NET_IPV6,
-				    NET_IPV6_NEIGH, "ipv6",
+	err = neigh_sysctl_register(NULL, &nd_tbl.parms, "ipv6",
 				    &ndisc_ifinfo_sysctl_change);
 	if (err)
 		goto out_unregister_pernet;
