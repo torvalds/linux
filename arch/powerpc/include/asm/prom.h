@@ -39,11 +39,6 @@ extern struct device_node* pci_device_to_OF_node(struct pci_dev *);
 extern void pci_create_OF_bus_map(void);
 #endif
 
-extern struct resource *request_OF_resource(struct device_node* node,
-				int index, const char* name_postfix);
-extern int release_OF_resource(struct device_node* node, int index);
-
-
 /*
  * OF address retreival & translation
  */

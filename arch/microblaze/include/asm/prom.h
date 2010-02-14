@@ -31,10 +31,6 @@
 /* Other Prototypes */
 extern int early_uartlite_console(void);
 
-extern struct resource *request_OF_resource(struct device_node *node,
-				int index, const char *name_postfix);
-extern int release_OF_resource(struct device_node *node, int index);
-
 /*
  * OF address retreival & translation
  */
