@@ -472,6 +472,8 @@ static void free_firmware(const struct firmware *fw_entry);
 
 #ifdef ECHOCARD_HAS_MIDI
 static int enable_midi_input(struct echoaudio *chip, char enable);
+static void snd_echo_midi_output_trigger(
+			struct snd_rawmidi_substream *substream, int up);
 static int midi_service_irq(struct echoaudio *chip);
 static int __devinit snd_echo_midi_create(struct snd_card *card,
 					  struct echoaudio *chip);
