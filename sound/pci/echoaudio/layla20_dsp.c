@@ -64,13 +64,16 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	if ((err = init_line_levels(chip)) < 0)
-		return err;
-
-	err = set_professional_spdif(chip, TRUE);
-
 	DE_INIT(("init_hw done\n"));
 	return err;
+}
+
+
+
+static int set_mixer_defaults(struct echoaudio *chip)
+{
+	chip->professional_spdif = FALSE;
+	return init_line_levels(chip);
 }
 
 

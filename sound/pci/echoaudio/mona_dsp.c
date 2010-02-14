@@ -67,24 +67,22 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	else
 		chip->dsp_code_to_load = FW_MONA_301_DSP;
 
-	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
-	chip->professional_spdif = FALSE;
-	chip->digital_in_automute = TRUE;
-
 	if ((err = load_firmware(chip)) < 0)
 		return err;
 	chip->bad_board = FALSE;
 
-	if ((err = init_line_levels(chip)) < 0)
-		return err;
-
-	err = set_digital_mode(chip, DIGITAL_MODE_SPDIF_RCA);
-	if (err < 0)
-		return err;
-	err = set_professional_spdif(chip, TRUE);
-
 	DE_INIT(("init_hw done\n"));
 	return err;
+}
+
+
+
+static int set_mixer_defaults(struct echoaudio *chip)
+{
+	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
+	chip->professional_spdif = FALSE;
+	chip->digital_in_automute = TRUE;
+	return init_line_levels(chip);
 }
 
 

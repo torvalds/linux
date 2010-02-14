@@ -57,9 +57,6 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		ECHO_CLOCK_BIT_INTERNAL | ECHO_CLOCK_BIT_SPDIF |
 		ECHO_CLOCK_BIT_ESYNC | ECHO_CLOCK_BIT_ESYNC96 |
 		ECHO_CLOCK_BIT_ADAT;
-	chip->professional_spdif = FALSE;
-	chip->digital_in_automute = TRUE;
-	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
 
 	/* Gina24 comes in both '301 and '361 flavors */
 	if (chip->device_id == DEVICE_ID_56361) {
@@ -81,15 +78,18 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 	chip->bad_board = FALSE;
 
-	if ((err = init_line_levels(chip)) < 0)
-		return err;
-	err = set_digital_mode(chip, DIGITAL_MODE_SPDIF_RCA);
-	if (err < 0)
-		return err;
-	err = set_professional_spdif(chip, TRUE);
-
 	DE_INIT(("init_hw done\n"));
 	return err;
+}
+
+
+
+static int set_mixer_defaults(struct echoaudio *chip)
+{
+	chip->digital_mode = DIGITAL_MODE_SPDIF_RCA;
+	chip->professional_spdif = FALSE;
+	chip->digital_in_automute = TRUE;
+	return init_line_levels(chip);
 }
 
 
