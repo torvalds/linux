@@ -36,6 +36,10 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 typedef int (*next_reloc_t)(struct radeon_cs_parser*, struct radeon_cs_reloc**);
 static next_reloc_t r600_cs_packet_next_reloc = &r600_cs_packet_next_reloc_mm;
 
+struct r600_cs_track {
+	u32	cb_color0_base_last;
+};
+
 /**
  * r600_cs_packet_parse() - parse cp packet and point ib index to next packet
  * @parser:	parser structure holding parsing context.
@@ -174,6 +178,28 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 	(*cs_reloc)->lobj.gpu_offset = (u64)relocs_chunk->kdata[idx + 3] << 32;
 	(*cs_reloc)->lobj.gpu_offset |= relocs_chunk->kdata[idx + 0];
 	return 0;
+}
+
+/**
+ * r600_cs_packet_next_is_pkt3_nop() - test if next packet is packet3 nop for reloc
+ * @parser:		parser structure holding parsing context.
+ *
+ * Check next packet is relocation packet3, do bo validation and compute
+ * GPU offset using the provided start.
+ **/
+static inline int r600_cs_packet_next_is_pkt3_nop(struct radeon_cs_parser *p)
+{
+	struct radeon_cs_packet p3reloc;
+	int r;
+
+	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
+	if (r) {
+		return 0;
+	}
+	if (p3reloc.type != PACKET_TYPE3 || p3reloc.opcode != PACKET3_NOP) {
+		return 0;
+	}
+	return 1;
 }
 
 /**
@@ -337,6 +363,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt)
 {
 	struct radeon_cs_reloc *reloc;
+	struct r600_cs_track *track;
 	volatile u32 *ib;
 	unsigned idx;
 	unsigned i;
@@ -344,6 +371,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 	int r;
 	u32 idx_value;
 
+	track = (struct r600_cs_track *)p->track;
 	ib = p->ib->ptr;
 	idx = pkt->idx + 1;
 	idx_value = radeon_get_ib_value(p, idx);
@@ -503,9 +531,60 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
 			switch (reg) {
+			/* This register were added late, there is userspace
+			 * which does provide relocation for those but set
+			 * 0 offset. In order to avoid breaking old userspace
+			 * we detect this and set address to point to last
+			 * CB_COLOR0_BASE, note that if userspace doesn't set
+			 * CB_COLOR0_BASE before this register we will report
+			 * error. Old userspace always set CB_COLOR0_BASE
+			 * before any of this.
+			 */
+			case R_0280E0_CB_COLOR0_FRAG:
+			case R_0280E4_CB_COLOR1_FRAG:
+			case R_0280E8_CB_COLOR2_FRAG:
+			case R_0280EC_CB_COLOR3_FRAG:
+			case R_0280F0_CB_COLOR4_FRAG:
+			case R_0280F4_CB_COLOR5_FRAG:
+			case R_0280F8_CB_COLOR6_FRAG:
+			case R_0280FC_CB_COLOR7_FRAG:
+			case R_0280C0_CB_COLOR0_TILE:
+			case R_0280C4_CB_COLOR1_TILE:
+			case R_0280C8_CB_COLOR2_TILE:
+			case R_0280CC_CB_COLOR3_TILE:
+			case R_0280D0_CB_COLOR4_TILE:
+			case R_0280D4_CB_COLOR5_TILE:
+			case R_0280D8_CB_COLOR6_TILE:
+			case R_0280DC_CB_COLOR7_TILE:
+				if (!r600_cs_packet_next_is_pkt3_nop(p)) {
+					if (!track->cb_color0_base_last) {
+						dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
+						return -EINVAL;
+					}
+					ib[idx+1+i] = track->cb_color0_base_last;
+					printk_once(KERN_WARNING "You have old & broken userspace "
+						"please consider updating mesa & xf86-video-ati\n");
+				} else {
+					r = r600_cs_packet_next_reloc(p, &reloc);
+					if (r) {
+						dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
+						return -EINVAL;
+					}
+					ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				}
+				break;
 			case DB_DEPTH_BASE:
 			case DB_HTILE_DATA_BASE:
 			case CB_COLOR0_BASE:
+				r = r600_cs_packet_next_reloc(p, &reloc);
+				if (r) {
+					DRM_ERROR("bad SET_CONTEXT_REG "
+							"0x%04X\n", reg);
+					return -EINVAL;
+				}
+				ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				track->cb_color0_base_last = ib[idx+1+i];
+				break;
 			case CB_COLOR1_BASE:
 			case CB_COLOR2_BASE:
 			case CB_COLOR3_BASE:
@@ -678,8 +757,11 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 int r600_cs_parse(struct radeon_cs_parser *p)
 {
 	struct radeon_cs_packet pkt;
+	struct r600_cs_track *track;
 	int r;
 
+	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	p->track = track;
 	do {
 		r = r600_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
@@ -757,6 +839,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;
+	parser.dev = &dev->pdev->dev;
 	parser.rdev = NULL;
 	parser.family = family;
 	parser.ib = &fake_ib;
