@@ -463,11 +463,11 @@ static void prepare_write_message(struct ceph_connection *con)
 		       struct ceph_msg, list_head);
 	con->out_msg = m;
 	if (test_bit(LOSSYTX, &con->state)) {
+		list_del_init(&m->list_head);
+	} else {
 		/* put message on sent list */
 		ceph_msg_get(m);
 		list_move_tail(&m->list_head, &con->out_sent);
-	} else {
-		list_del_init(&m->list_head);
 	}
 
 	m->hdr.seq = cpu_to_le64(++con->out_seq);
