@@ -1018,7 +1018,7 @@ static int ioctl_get_cycle_timer(struct client *client, void *buffer)
 
 	local_irq_disable();
 
-	cycle_time = card->driver->get_bus_time(card);
+	cycle_time = card->driver->get_cycle_time(card);
 	do_gettimeofday(&tv);
 
 	local_irq_enable();

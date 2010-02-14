@@ -38,7 +38,6 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 
-#include <asm/atomic.h>
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <asm/system.h>
@@ -187,7 +186,6 @@ struct fw_ohci {
 	int node_id;
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
-	atomic_t bus_seconds;
 
 	bool use_dualbuffer;
 	bool old_uninorth;
@@ -276,7 +274,7 @@ static void log_irqs(u32 evt)
 	    !(evt & OHCI1394_busReset))
 		return;
 
-	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
+	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
 	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
 	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
@@ -286,7 +284,6 @@ static void log_irqs(u32 evt)
 	    evt & OHCI1394_isochTx		? " IT"			: "",
 	    evt & OHCI1394_postedWriteErr	? " postedWriteErr"	: "",
 	    evt & OHCI1394_cycleTooLong		? " cycleTooLong"	: "",
-	    evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
 	    evt & OHCI1394_cycleInconsistent	? " cycleInconsistent"	: "",
 	    evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
 	    evt & OHCI1394_busReset		? " busReset"		: "",
@@ -294,8 +291,7 @@ static void log_irqs(u32 evt)
 		    OHCI1394_RSPkt | OHCI1394_reqTxComplete |
 		    OHCI1394_respTxComplete | OHCI1394_isochRx |
 		    OHCI1394_isochTx | OHCI1394_postedWriteErr |
-		    OHCI1394_cycleTooLong | OHCI1394_cycle64Seconds |
-		    OHCI1394_cycleInconsistent |
+		    OHCI1394_cycleTooLong | OHCI1394_cycleInconsistent |
 		    OHCI1394_regAccessFail | OHCI1394_busReset)
 						? " ?"			: "");
 }
@@ -1385,7 +1381,7 @@ static void bus_reset_tasklet(unsigned long data)
 static irqreturn_t irq_handler(int irq, void *data)
 {
 	struct fw_ohci *ohci = data;
-	u32 event, iso_event, cycle_time;
+	u32 event, iso_event;
 	int i;
 
 	event = reg_read(ohci, OHCI1394_IntEventClear);
@@ -1453,12 +1449,6 @@ static irqreturn_t irq_handler(int irq, void *data)
 		 */
 		if (printk_ratelimit())
 			fw_notify("isochronous cycle inconsistent\n");
-	}
-
-	if (event & OHCI1394_cycle64Seconds) {
-		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-		if ((cycle_time & 0x80000000) == 0)
-			atomic_inc(&ohci->bus_seconds);
 	}
 
 	return IRQ_HANDLED;
@@ -1554,8 +1544,7 @@ static int ohci_enable(struct fw_card *card,
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
 		  OHCI1394_postedWriteErr | OHCI1394_cycleTooLong |
-		  OHCI1394_cycleInconsistent |
-		  OHCI1394_cycle64Seconds | OHCI1394_regAccessFail |
+		  OHCI1394_cycleInconsistent | OHCI1394_regAccessFail |
 		  OHCI1394_masterIntEnable);
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
 		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
@@ -1821,7 +1810,7 @@ static u32 cycle_timer_ticks(u32 cycle_timer)
  * error.  (A PCI read should take at least 20 ticks of the 24.576 MHz timer to
  * execute, so we have enough precision to compute the ratio of the differences.)
  */
-static u64 ohci_get_bus_time(struct fw_card *card)
+static u32 ohci_get_cycle_time(struct fw_card *card)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	u32 c0, c1, c2;
@@ -1849,7 +1838,7 @@ static u64 ohci_get_bus_time(struct fw_card *card)
 			 && i++ < 20);
 	}
 
-	return ((u64)atomic_read(&ohci->bus_seconds) << 32) | c2;
+	return c2;
 }
 
 static void copy_iso_headers(struct iso_context *ctx, void *p)
@@ -2426,7 +2415,7 @@ static const struct fw_card_driver ohci_driver = {
 	.send_response		= ohci_send_response,
 	.cancel_packet		= ohci_cancel_packet,
 	.enable_phys_dma	= ohci_enable_phys_dma,
-	.get_bus_time		= ohci_get_bus_time,
+	.get_cycle_time		= ohci_get_cycle_time,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
