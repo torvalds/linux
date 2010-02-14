@@ -64,7 +64,7 @@ config RT2800PCI_SOC
 	default y
 
 config RT2800PCI
-	tristate "Ralink rt2800 (PCI/PCMCIA) support (VERY EXPERIMENTAL)"
+	tristate "Ralink rt28xx/rt30xx/rt35xx (PCI/PCIe/PCMCIA) support (EXPERIMENTAL)"
 	depends on (RT2800PCI_PCI || RT2800PCI_SOC) && EXPERIMENTAL
 	select RT2800_LIB
 	select RT2X00_LIB_PCI if RT2800PCI_PCI
@@ -75,13 +75,39 @@ config RT2800PCI
 	select CRC_CCITT
 	select EEPROM_93CX6
 	---help---
-	  This adds support for rt2800 wireless chipset family.
+	  This adds support for rt2800/rt3000/rt3500 wireless chipset family.
 	  Supported chips: RT2760, RT2790, RT2860, RT2880, RT2890 & RT3052
 
 	  This driver is non-functional at the moment and is intended for
 	  developers.
 
 	  When compiled as a module, this driver will be called "rt2800pci.ko".
+
+if RT2800PCI
+
+config RT2800PCI_RT30XX
+	bool "rt2800pci - Include support for rt30xx (PCI/PCIe/PCMCIA) devices"
+	default n
+	---help---
+	  This adds support for rt30xx wireless chipset family to the
+	  rt2800pci driver.
+	  Supported chips: RT3090, RT3091 & RT3092
+
+	  Support for these devices is non-functional at the moment and is
+	  intended for testers and developers.
+
+config RT2800PCI_RT35XX
+	bool "rt2800pci - Include support for rt35xx (PCI/PCIe/PCMCIA) devices"
+	default n
+	---help---
+	  This adds support for rt35xx wireless chipset family to the
+	  rt2800pci driver.
+	  Supported chips: RT3060, RT3062, RT3562, RT3592
+
+	  Support for these devices is non-functional at the moment and is
+	  intended for testers and developers.
+
+endif
 
 config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
@@ -125,6 +151,43 @@ config RT2800USB
 	  - support for RT3070 chips is non-functional at the moment
 
 	  When compiled as a module, this driver will be called "rt2800usb.ko".
+
+if RT2800USB
+
+config RT2800USB_RT30XX
+	bool "rt2800usb - Include support for rt30xx (USB) devices"
+	default n
+	---help---
+	  This adds support for rt30xx wireless chipset family to the
+	  rt2800usb driver.
+	  Supported chips: RT3070, RT3071 & RT3072
+
+	  Support for these devices is non-functional at the moment and is
+	  intended for testers and developers.
+
+config RT2800USB_RT35XX
+	bool "rt2800usb - Include support for rt35xx (USB) devices"
+	default n
+	---help---
+	  This adds support for rt35xx wireless chipset family to the
+	  rt2800usb driver.
+	  Supported chips: RT3572
+
+	  Support for these devices is non-functional at the moment and is
+	  intended for testers and developers.
+
+config RT2800USB_UNKNOWN
+	bool "rt2800usb - Include support for unknown (USB) devices"
+	default n
+	---help---
+	  This adds support for rt2800 family devices that are known to
+	  have a rt2800 family chipset, but for which the exact chipset
+	  is unknown.
+
+	  Support status for these devices is unknown, and enabling these
+	  devices may or may not work.
+
+endif
 
 config RT2800_LIB
 	tristate
