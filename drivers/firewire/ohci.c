@@ -1817,13 +1817,14 @@ static u64 ohci_get_bus_time(struct fw_card *card)
 		c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 	} else {
 		/*
-		 * VIA controllers have two bugs when updating the iso cycle
-		 * timer register:
-		 * 1) When the lowest six bits are wrapping around to zero,
+		 * Some controllers exhibit one or more of the following bugs
+		 * when updating the iso cycle timer register:
+		 *  - When the lowest six bits are wrapping around to zero,
 		 *    a read that happens at the same time will return garbage
 		 *    in the lowest ten bits.
-		 * 2) When the cycleOffset field wraps around to zero, the
+		 *  - When the cycleOffset field wraps around to zero, the
 		 *    cycleCount field is not incremented for about 60 ns.
+		 *  - Occasionally, the entire register reads zero.
 		 *
 		 * To catch these, we read the register three times and ensure
 		 * that the difference between each two consecutive reads is
@@ -2542,7 +2543,9 @@ static int __devinit pci_probe(struct pci_dev *dev,
 #endif
 	ohci->bus_reset_packet_quirk = dev->vendor == PCI_VENDOR_ID_TI;
 
-	ohci->iso_cycle_timer_quirk = dev->vendor == PCI_VENDOR_ID_VIA;
+	ohci->iso_cycle_timer_quirk = dev->vendor == PCI_VENDOR_ID_AL	||
+				      dev->vendor == PCI_VENDOR_ID_NEC	||
+				      dev->vendor == PCI_VENDOR_ID_VIA;
 
 	ar_context_init(&ohci->ar_request_ctx, ohci,
 			OHCI1394_AsReqRcvContextControlSet);
