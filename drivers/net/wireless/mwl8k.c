@@ -3784,9 +3784,9 @@ mwl8k_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		s->cmd = cmd;
 		s->sta = *sta;
 
-		spin_lock(&priv->sta_notify_list_lock);
+		spin_lock_bh(&priv->sta_notify_list_lock);
 		list_add_tail(&s->list, &priv->sta_notify_list);
-		spin_unlock(&priv->sta_notify_list_lock);
+		spin_unlock_bh(&priv->sta_notify_list_lock);
 
 		ieee80211_queue_work(hw, &priv->sta_notify_worker);
 	}
