@@ -43,12 +43,24 @@ static int get_firmware(const struct firmware **fw_entry,
 {
 	int err;
 	char name[30];
-	const struct firmware *frm = &card_fw[fw_index];
 
-	DE_ACT(("firmware requested: %s\n", frm->data));
-	snprintf(name, sizeof(name), "ea/%s", frm->data);
-	if ((err = request_firmware(fw_entry, name, pci_device(chip))) < 0)
+#ifdef CONFIG_PM
+	if (chip->fw_cache[fw_index]) {
+		DE_ACT(("firmware requested: %s is cached\n", card_fw[fw_index].data));
+		*fw_entry = chip->fw_cache[fw_index];
+		return 0;
+	}
+#endif
+
+	DE_ACT(("firmware requested: %s\n", card_fw[fw_index].data));
+	snprintf(name, sizeof(name), "ea/%s", card_fw[fw_index].data);
+	err = request_firmware(fw_entry, name, pci_device(chip));
+	if (err < 0)
 		snd_printk(KERN_ERR "get_firmware(): Firmware not available (%d)\n", err);
+#ifdef CONFIG_PM
+	else
+		chip->fw_cache[fw_index] = *fw_entry;
+#endif
 	return err;
 }
 
@@ -56,8 +68,29 @@ static int get_firmware(const struct firmware **fw_entry,
 
 static void free_firmware(const struct firmware *fw_entry)
 {
+#ifdef CONFIG_PM
+	DE_ACT(("firmware not released (kept in cache)\n"));
+#else
 	release_firmware(fw_entry);
 	DE_ACT(("firmware released\n"));
+#endif
+}
+
+
+
+static void free_firmware_cache(struct echoaudio *chip)
+{
+#ifdef CONFIG_PM
+	int i;
+
+	for (i = 0; i < 8 ; i++)
+		if (chip->fw_cache[i]) {
+			release_firmware(chip->fw_cache[i]);
+			DE_ACT(("release_firmware(%d)\n", i));
+		}
+
+	DE_ACT(("firmware_cache released\n"));
+#endif
 }
 
 
@@ -1880,6 +1913,7 @@ static int snd_echo_free(struct echoaudio *chip)
 	pci_disable_device(chip->pci);
 
 	/* release chip data */
+	free_firmware_cache(chip);
 	kfree(chip);
 	DE_INIT(("Chip freed.\n"));
 	return 0;
