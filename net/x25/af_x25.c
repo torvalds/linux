@@ -512,15 +512,20 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 {
 	struct sock *sk;
 	struct x25_sock *x25;
-	int rc = -ESOCKTNOSUPPORT;
+	int rc = -EAFNOSUPPORT;
 
 	if (!net_eq(net, &init_net))
-		return -EAFNOSUPPORT;
-
-	if (sock->type != SOCK_SEQPACKET || protocol)
 		goto out;
 
-	rc = -ENOMEM;
+	rc = -ESOCKTNOSUPPORT;
+	if (sock->type != SOCK_SEQPACKET)
+		goto out;
+
+	rc = -EINVAL;
+	if (protocol)
+		goto out;
+
+	rc = -ENOBUFS;
 	if ((sk = x25_alloc_socket(net)) == NULL)
 		goto out;
 
