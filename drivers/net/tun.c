@@ -61,6 +61,7 @@
 #include <linux/crc32.h>
 #include <linux/nsproxy.h>
 #include <linux/virtio_net.h>
+#include <linux/rcupdate.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
@@ -364,6 +365,10 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * This is a noop if the filter is disabled.
 	 * Filter can be enabled only for the TAP devices. */
 	if (!check_filter(&tun->txflt, skb))
+		goto drop;
+
+	if (tun->socket.sk->sk_filter &&
+	    sk_filter(tun->socket.sk, skb))
 		goto drop;
 
 	if (skb_queue_len(&tun->socket.sk->sk_receive_queue) >= dev->tx_queue_len) {
@@ -1162,6 +1167,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
 	void __user* argp = (void __user*)arg;
+	struct sock_fprog fprog;
 	struct ifreq ifr;
 	int sndbuf;
 	int ret;
@@ -1307,6 +1313,26 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		tun->socket.sk->sk_sndbuf = sndbuf;
+		break;
+
+	case TUNATTACHFILTER:
+		/* Can be set only for TAPs */
+		ret = -EINVAL;
+		if ((tun->flags & TUN_TYPE_MASK) != TUN_TAP_DEV)
+			break;
+		ret = -EFAULT;
+		if (copy_from_user(&fprog, argp, sizeof(fprog)))
+			break;
+
+		ret = sk_attach_filter(&fprog, tun->socket.sk);
+		break;
+
+	case TUNDETACHFILTER:
+		/* Can be set only for TAPs */
+		ret = -EINVAL;
+		if ((tun->flags & TUN_TYPE_MASK) != TUN_TAP_DEV)
+			break;
+		ret = sk_detach_filter(tun->socket.sk);
 		break;
 
 	default:

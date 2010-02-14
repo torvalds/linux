@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/filter.h>
 
 /* Read queue size */
 #define TUN_READQ_SIZE	500
@@ -48,6 +49,8 @@
 #define TUNGETIFF      _IOR('T', 210, unsigned int)
 #define TUNGETSNDBUF   _IOR('T', 211, int)
 #define TUNSETSNDBUF   _IOW('T', 212, int)
+#define TUNATTACHFILTER _IOW('T', 213, struct sock_fprog)
+#define TUNDETACHFILTER _IOW('T', 214, struct sock_fprog)
 
 /* TUNSETIFF ifr flags */
 #define IFF_TUN		0x0001
