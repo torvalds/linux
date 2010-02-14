@@ -23,13 +23,6 @@
 #include <asm/irq.h>
 #include <asm/atomic.h>
 
-#define OF_ROOT_NODE_ADDR_CELLS_DEFAULT	1
-#define OF_ROOT_NODE_SIZE_CELLS_DEFAULT	1
-
-#define of_compat_cmp(s1, s2, l)	strcasecmp((s1), (s2))
-#define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
-#define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
-
 extern struct device_node *of_chosen;
 
 #define HAVE_ARCH_DEVTREE_FIXUPS
