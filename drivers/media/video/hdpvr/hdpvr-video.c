@@ -573,7 +573,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct hdpvr_device *dev = video_drvdata(file);
 
 	strcpy(cap->driver, "hdpvr");
-	strcpy(cap->card, "Haupauge HD PVR");
+	strcpy(cap->card, "Hauppauge HD PVR");
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->version = HDPVR_VERSION;
 	cap->capabilities =     V4L2_CAP_VIDEO_CAPTURE |
