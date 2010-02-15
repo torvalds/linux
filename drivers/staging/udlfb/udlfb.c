@@ -56,6 +56,20 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+#ifndef CONFIG_FB_DEFERRED_IO
+#warning message "kernel FB_DEFFERRED_IO option to support generic fbdev apps"
+#endif
+
+#ifndef CONFIG_FB_SYS_IMAGEBLIT
+#ifndef CONFIG_FB_SYS_IMAGEBLIT_MODULE
+#warning message "FB_SYS_* in kernel or module option to support fb console"
+#endif
+#endif
+
+#ifndef CONFIG_FB_MODE_HELPERS
+#warning message "kernel FB_MODE_HELPERS required. Expect build break"
+#endif
+
 /* dlfb keeps a list of urbs for efficient bulk transfers */
 static void dlfb_urb_completion(struct urb *urb);
 static struct urb *dlfb_get_urb(struct dlfb_data *dev);
