@@ -350,7 +350,7 @@ retry:
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
 	if (args.ucReplyStatus && !args.ucDataOutLen) {
-		if (args.ucReplyStatus == 0x20 && retry_count < 10)
+		if (args.ucReplyStatus == 0x20 && retry_count++ < 10)
 			goto retry;
 		DRM_DEBUG("failed to get auxch %02x%02x %02x %02x 0x%02x %02x after %d retries\n",
 			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
