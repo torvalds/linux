@@ -2,7 +2,7 @@
 #define _FS_CEPH_MON_CLIENT_H
 
 #include <linux/completion.h>
-#include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 
 #include "messenger.h"
 #include "msgpool.h"
@@ -45,6 +45,7 @@ struct ceph_mon_request {
  */
 struct ceph_mon_statfs_request {
 	u64 tid;
+	struct rb_node node;
 	int result;
 	struct ceph_statfs *buf;
 	struct completion completion;
@@ -75,7 +76,7 @@ struct ceph_mon_client {
 	struct ceph_msgpool msgpool_auth_reply;
 
 	/* pending statfs requests */
-	struct radix_tree_root statfs_request_tree;
+	struct rb_root statfs_request_tree;
 	int num_statfs_requests;
 	u64 last_tid;
 

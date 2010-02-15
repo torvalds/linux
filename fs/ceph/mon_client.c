@@ -343,6 +343,46 @@ out:
 /*
  * statfs
  */
+static struct ceph_mon_statfs_request *__lookup_statfs(
+	struct ceph_mon_client *monc, u64 tid)
+{
+	struct ceph_mon_statfs_request *req;
+	struct rb_node *n = monc->statfs_request_tree.rb_node;
+
+	while (n) {
+		req = rb_entry(n, struct ceph_mon_statfs_request, node);
+		if (tid < req->tid)
+			n = n->rb_left;
+		else if (tid > req->tid)
+			n = n->rb_right;
+		else
+			return req;
+	}
+	return NULL;
+}
+
+static void __insert_statfs(struct ceph_mon_client *monc,
+			    struct ceph_mon_statfs_request *new)
+{
+	struct rb_node **p = &monc->statfs_request_tree.rb_node;
+	struct rb_node *parent = NULL;
+	struct ceph_mon_statfs_request *req = NULL;
+
+	while (*p) {
+		parent = *p;
+		req = rb_entry(parent, struct ceph_mon_statfs_request, node);
+		if (new->tid < req->tid)
+			p = &(*p)->rb_left;
+		else if (new->tid > req->tid)
+			p = &(*p)->rb_right;
+		else
+			BUG();
+	}
+
+	rb_link_node(&new->node, parent, p);
+	rb_insert_color(&new->node, &monc->statfs_request_tree);
+}
+
 static void handle_statfs_reply(struct ceph_mon_client *monc,
 				struct ceph_msg *msg)
 {
@@ -356,7 +396,7 @@ static void handle_statfs_reply(struct ceph_mon_client *monc,
 	dout("handle_statfs_reply %p tid %llu\n", msg, tid);
 
 	mutex_lock(&monc->mutex);
-	req = radix_tree_lookup(&monc->statfs_request_tree, tid);
+	req = __lookup_statfs(monc, tid);
 	if (req) {
 		*req->buf = reply->st;
 		req->result = 0;
@@ -416,11 +456,7 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	req.tid = ++monc->last_tid;
 	req.last_attempt = jiffies;
 	req.delay = BASE_DELAY_INTERVAL;
-	if (radix_tree_insert(&monc->statfs_request_tree, req.tid, &req) < 0) {
-		mutex_unlock(&monc->mutex);
-		pr_err("ENOMEM in do_statfs\n");
-		return -ENOMEM;
-	}
+	__insert_statfs(monc, &req);
 	monc->num_statfs_requests++;
 	mutex_unlock(&monc->mutex);
 
@@ -430,7 +466,7 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 		err = wait_for_completion_interruptible(&req.completion);
 
 	mutex_lock(&monc->mutex);
-	radix_tree_delete(&monc->statfs_request_tree, req.tid);
+	rb_erase(&req.node, &monc->statfs_request_tree);
 	monc->num_statfs_requests--;
 	ceph_msgpool_resv(&monc->msgpool_statfs_reply, -1);
 	mutex_unlock(&monc->mutex);
@@ -445,20 +481,11 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
  */
 static void __resend_statfs(struct ceph_mon_client *monc)
 {
-	u64 next_tid = 0;
-	int got;
-	int did = 0;
 	struct ceph_mon_statfs_request *req;
+	struct rb_node *p;
 
-	while (1) {
-		got = radix_tree_gang_lookup(&monc->statfs_request_tree,
-					     (void **)&req,
-					     next_tid, 1);
-		if (got == 0)
-			break;
-		did++;
-		next_tid = req->tid + 1;
-
+	for (p = rb_first(&monc->statfs_request_tree); p; p = rb_next(p)) {
+		req = rb_entry(p, struct ceph_mon_statfs_request, node);
 		send_statfs(monc, req);
 	}
 }
@@ -578,7 +605,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->sub_sent = 0;
 
 	INIT_DELAYED_WORK(&monc->delayed_work, delayed_work);
-	INIT_RADIX_TREE(&monc->statfs_request_tree, GFP_NOFS);
+	monc->statfs_request_tree = RB_ROOT;
 	monc->num_statfs_requests = 0;
 	monc->last_tid = 0;
 
