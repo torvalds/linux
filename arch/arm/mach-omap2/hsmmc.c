@@ -16,6 +16,7 @@
 #include <mach/hardware.h>
 #include <plat/control.h>
 #include <plat/mmc.h>
+#include <plat/omap-pm.h>
 
 #include "hsmmc.h"
 
@@ -34,8 +35,7 @@ static struct hsmmc_controller {
 
 static int hsmmc_get_context_loss(struct device *dev)
 {
-	/* FIXME: PM DPS not implemented yet */
-	return 0;
+	return omap_pm_get_dev_context_loss_count(dev);
 }
 
 #else
