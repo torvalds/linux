@@ -6555,16 +6555,16 @@ bnx2_save_stats(struct bnx2 *bp)
 		u32 hi;
 		u64 lo;
 
-		hi = *(temp_stats + i) + *(hw_stats + i);
-		lo = *(temp_stats + i + 1) + *(hw_stats + i + 1);
+		hi = temp_stats[i] + hw_stats[i];
+		lo = (u64) temp_stats[i + 1] + (u64) hw_stats[i + 1];
 		if (lo > 0xffffffff)
 			hi++;
-		*(temp_stats + i) = hi;
-		*(temp_stats + i + 1) = lo & 0xffffffff;
+		temp_stats[i] = hi;
+		temp_stats[i + 1] = lo & 0xffffffff;
 	}
 
 	for ( ; i < sizeof(struct statistics_block) / 4; i++)
-		*(temp_stats + i) = *(temp_stats + i) + *(hw_stats + i);
+		temp_stats[i] += hw_stats[i];
 }
 
 #define GET_64BIT_NET_STATS64(ctr)				\
