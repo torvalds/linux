@@ -1656,6 +1656,9 @@ static int omap_hsmmc_disabled_to_sleep(struct omap_hsmmc_host *host)
 	dev_dbg(mmc_dev(host->mmc), "DISABLED -> %s\n",
 		host->dpm_state == CARDSLEEP ? "CARDSLEEP" : "REGSLEEP");
 
+	if (mmc_slot(host).no_off)
+		return 0;
+
 	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE) ||
 	    mmc_slot(host).card_detect ||
 	    (mmc_slot(host).get_cover_state &&
@@ -1669,6 +1672,9 @@ static int omap_hsmmc_disabled_to_sleep(struct omap_hsmmc_host *host)
 static int omap_hsmmc_sleep_to_off(struct omap_hsmmc_host *host)
 {
 	if (!mmc_try_claim_host(host->mmc))
+		return 0;
+
+	if (mmc_slot(host).no_off)
 		return 0;
 
 	if (!((host->mmc->caps & MMC_CAP_NONREMOVABLE) ||
