@@ -152,12 +152,12 @@ mext_check_null_inode(struct inode *inode1, struct inode *inode2,
 	int ret = 0;
 
 	if (inode1 == NULL) {
-		ext4_error(inode2->i_sb, function,
+		__ext4_error(inode2->i_sb, function,
 			"Both inodes should not be NULL: "
 			"inode1 NULL inode2 %lu", inode2->i_ino);
 		ret = -EIO;
 	} else if (inode2 == NULL) {
-		ext4_error(inode1->i_sb, function,
+		__ext4_error(inode1->i_sb, function,
 			"Both inodes should not be NULL: "
 			"inode1 %lu inode2 NULL", inode1->i_ino);
 		ret = -EIO;
@@ -526,7 +526,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 	 * new_ext       |-------|
 	 */
 	if (le32_to_cpu(oext->ee_block) + oext_alen - 1 < new_ext_end) {
-		ext4_error(orig_inode->i_sb, __func__,
+		ext4_error(orig_inode->i_sb,
 			"new_ext_end(%u) should be less than or equal to "
 			"oext->ee_block(%u) + oext_alen(%d) - 1",
 			new_ext_end, le32_to_cpu(oext->ee_block),
@@ -689,12 +689,12 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	while (1) {
 		/* The extent for donor must be found. */
 		if (!dext) {
-			ext4_error(donor_inode->i_sb, __func__,
+			ext4_error(donor_inode->i_sb,
 				   "The extent for donor must be found");
 			*err = -EIO;
 			goto out;
 		} else if (donor_off != le32_to_cpu(tmp_dext.ee_block)) {
-			ext4_error(donor_inode->i_sb, __func__,
+			ext4_error(donor_inode->i_sb,
 				"Donor offset(%u) and the first block of donor "
 				"extent(%u) should be equal",
 				donor_off,
@@ -1351,7 +1351,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			if (ret1 < 0)
 				break;
 			if (*moved_len > len) {
-				ext4_error(orig_inode->i_sb, __func__,
+				ext4_error(orig_inode->i_sb,
 					"We replaced blocks too much! "
 					"sum of replaced: %llu requested: %llu",
 					*moved_len, len);

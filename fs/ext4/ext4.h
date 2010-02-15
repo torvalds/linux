@@ -1486,13 +1486,16 @@ extern int ext4_group_extend(struct super_block *sb,
 				ext4_fsblk_t n_blocks_count);
 
 /* super.c */
-extern void ext4_error(struct super_block *, const char *, const char *, ...)
+extern void __ext4_error(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
+#define ext4_error(sb, message...)	__ext4_error(sb, __func__, ## message)
 extern void __ext4_std_error(struct super_block *, const char *, int);
 extern void ext4_abort(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
-extern void ext4_warning(struct super_block *, const char *, const char *, ...)
+extern void __ext4_warning(struct super_block *, const char *,
+			  const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
+#define ext4_warning(sb, message...)	__ext4_warning(sb, __func__, ## message)
 extern void ext4_msg(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_grp_locked_error(struct super_block *, ext4_group_t,

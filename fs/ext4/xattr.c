@@ -227,7 +227,8 @@ ext4_xattr_block_get(struct inode *inode, int name_index, const char *name,
 	ea_bdebug(bh, "b_count=%d, refcount=%d",
 		atomic_read(&(bh->b_count)), le32_to_cpu(BHDR(bh)->h_refcount));
 	if (ext4_xattr_check_block(bh)) {
-bad_block:	ext4_error(inode->i_sb, __func__,
+bad_block:
+		ext4_error(inode->i_sb,
 			   "inode %lu: bad block %llu", inode->i_ino,
 			   EXT4_I(inode)->i_file_acl);
 		error = -EIO;
@@ -371,7 +372,7 @@ ext4_xattr_block_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	ea_bdebug(bh, "b_count=%d, refcount=%d",
 		atomic_read(&(bh->b_count)), le32_to_cpu(BHDR(bh)->h_refcount));
 	if (ext4_xattr_check_block(bh)) {
-		ext4_error(inode->i_sb, __func__,
+		ext4_error(inode->i_sb,
 			   "inode %lu: bad block %llu", inode->i_ino,
 			   EXT4_I(inode)->i_file_acl);
 		error = -EIO;
@@ -665,9 +666,8 @@ ext4_xattr_block_find(struct inode *inode, struct ext4_xattr_info *i,
 			atomic_read(&(bs->bh->b_count)),
 			le32_to_cpu(BHDR(bs->bh)->h_refcount));
 		if (ext4_xattr_check_block(bs->bh)) {
-			ext4_error(sb, __func__,
-				"inode %lu: bad block %llu", inode->i_ino,
-				EXT4_I(inode)->i_file_acl);
+			ext4_error(sb, "inode %lu: bad block %llu",
+				   inode->i_ino, EXT4_I(inode)->i_file_acl);
 			error = -EIO;
 			goto cleanup;
 		}
@@ -880,9 +880,8 @@ cleanup_dquot:
 	goto cleanup;
 
 bad_block:
-	ext4_error(inode->i_sb, __func__,
-		   "inode %lu: bad block %llu", inode->i_ino,
-		   EXT4_I(inode)->i_file_acl);
+	ext4_error(inode->i_sb, "inode %lu: bad block %llu",
+		   inode->i_ino, EXT4_I(inode)->i_file_acl);
 	goto cleanup;
 
 #undef header
@@ -1195,9 +1194,8 @@ retry:
 		if (!bh)
 			goto cleanup;
 		if (ext4_xattr_check_block(bh)) {
-			ext4_error(inode->i_sb, __func__,
-				"inode %lu: bad block %llu", inode->i_ino,
-				EXT4_I(inode)->i_file_acl);
+			ext4_error(inode->i_sb, "inode %lu: bad block %llu",
+				   inode->i_ino, EXT4_I(inode)->i_file_acl);
 			error = -EIO;
 			goto cleanup;
 		}
@@ -1372,16 +1370,14 @@ ext4_xattr_delete_inode(handle_t *handle, struct inode *inode)
 		goto cleanup;
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
 	if (!bh) {
-		ext4_error(inode->i_sb, __func__,
-			"inode %lu: block %llu read error", inode->i_ino,
-			EXT4_I(inode)->i_file_acl);
+		ext4_error(inode->i_sb, "inode %lu: block %llu read error",
+			   inode->i_ino, EXT4_I(inode)->i_file_acl);
 		goto cleanup;
 	}
 	if (BHDR(bh)->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC) ||
 	    BHDR(bh)->h_blocks != cpu_to_le32(1)) {
-		ext4_error(inode->i_sb, __func__,
-			"inode %lu: bad block %llu", inode->i_ino,
-			EXT4_I(inode)->i_file_acl);
+		ext4_error(inode->i_sb, "inode %lu: bad block %llu",
+			   inode->i_ino, EXT4_I(inode)->i_file_acl);
 		goto cleanup;
 	}
 	ext4_xattr_release_block(handle, inode, bh);
@@ -1506,7 +1502,7 @@ again:
 		}
 		bh = sb_bread(inode->i_sb, ce->e_block);
 		if (!bh) {
-			ext4_error(inode->i_sb, __func__,
+			ext4_error(inode->i_sb,
 				"inode %lu: block %lu read error",
 				inode->i_ino, (unsigned long) ce->e_block);
 		} else if (le32_to_cpu(BHDR(bh)->h_refcount) >=

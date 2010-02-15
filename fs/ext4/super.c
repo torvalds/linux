@@ -333,7 +333,7 @@ static void ext4_handle_error(struct super_block *sb)
 			sb->s_id);
 }
 
-void ext4_error(struct super_block *sb, const char *function,
+void __ext4_error(struct super_block *sb, const char *function,
 		const char *fmt, ...)
 {
 	va_list args;
@@ -450,7 +450,7 @@ void ext4_msg (struct super_block * sb, const char *prefix,
 	va_end(args);
 }
 
-void ext4_warning(struct super_block *sb, const char *function,
+void __ext4_warning(struct super_block *sb, const char *function,
 		  const char *fmt, ...)
 {
 	va_list args;
@@ -507,7 +507,7 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	if (le32_to_cpu(es->s_rev_level) > EXT4_GOOD_OLD_REV)
 		return;
 
-	ext4_warning(sb, __func__,
+	ext4_warning(sb,
 		     "updating to rev %d because of new feature flag, "
 		     "running e2fsck is recommended",
 		     EXT4_DYNAMIC_REV);
@@ -3367,10 +3367,9 @@ static void ext4_clear_journal_err(struct super_block *sb,
 		char nbuf[16];
 
 		errstr = ext4_decode_error(sb, j_errno, nbuf);
-		ext4_warning(sb, __func__, "Filesystem error recorded "
+		ext4_warning(sb, "Filesystem error recorded "
 			     "from previous mount: %s", errstr);
-		ext4_warning(sb, __func__, "Marking fs in need of "
-			     "filesystem check.");
+		ext4_warning(sb, "Marking fs in need of filesystem check.");
 
 		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 		es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
