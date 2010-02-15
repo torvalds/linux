@@ -9,35 +9,30 @@ choice
 config ARCH_MX1
 	bool "MX1-based"
 	select CPU_ARM920T
-	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX1 family
 
 config ARCH_MX2
 	bool "MX2-based"
 	select CPU_ARM926T
-	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
 config ARCH_MX25
 	bool "MX25-based"
 	select CPU_ARM926T
-	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX25 family
 
 config ARCH_MX3
 	bool "MX3-based"
 	select CPU_V6
-	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 
 config ARCH_MXC91231
 	bool "MXC91231-based"
 	select CPU_V6
-	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale MXC91231 family
 
