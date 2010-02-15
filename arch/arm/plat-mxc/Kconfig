@@ -9,12 +9,14 @@ choice
 config ARCH_MX1
 	bool "MX1-based"
 	select CPU_ARM920T
+	select IMX_HAVE_IOMUX_V1
 	help
 	  This enables support for systems based on the Freescale i.MX1 family
 
 config ARCH_MX2
 	bool "MX2-based"
 	select CPU_ARM926T
+	select IMX_HAVE_IOMUX_V1
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
@@ -66,6 +68,9 @@ config MXC_ULPI
 	bool
 
 config ARCH_HAS_RNGA
+	bool
+
+config IMX_HAVE_IOMUX_V1
 	bool
 
 config ARCH_MXC_IOMUX_V3

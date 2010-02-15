@@ -1,11 +1,11 @@
 /*
- *  arch/arm/mach-mxc/generic.c
+ * arch/arm/plat-mxc/iomux-v1.c
  *
- *  author: Sascha Hauer
- *  Created: april 20th, 2004
- *  Copyright: Synertronixx GmbH
+ * author: Sascha Hauer
+ * Created: april 20th, 2004
+ * Copyright: Synertronixx GmbH
  *
- *  Common code for i.MX machines
+ * Common code for i.MX1, i.MX21 and i.MX27
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -154,4 +154,3 @@ void mxc_gpio_release_multiple_pins(const int *pin_list, int count)
 
 }
 EXPORT_SYMBOL(mxc_gpio_release_multiple_pins);
-
