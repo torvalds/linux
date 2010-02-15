@@ -13,7 +13,7 @@
 
 #include "hardware.h"
 
-		.macro	addruart,rx
+		.macro	addruart, rx, tmp
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
 		moveq	\rx, #0x40000000		@ physical

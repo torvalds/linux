@@ -80,7 +80,6 @@ static LIST_HEAD(uart_list);
 
 static struct plat_serial8250_port serial_platform_data0[] = {
 	{
-		.mapbase	= OMAP_UART1_BASE,
 		.irq		= 72,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -93,7 +92,6 @@ static struct plat_serial8250_port serial_platform_data0[] = {
 
 static struct plat_serial8250_port serial_platform_data1[] = {
 	{
-		.mapbase	= OMAP_UART2_BASE,
 		.irq		= 73,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -106,7 +104,6 @@ static struct plat_serial8250_port serial_platform_data1[] = {
 
 static struct plat_serial8250_port serial_platform_data2[] = {
 	{
-		.mapbase	= OMAP_UART3_BASE,
 		.irq		= 74,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -120,7 +117,6 @@ static struct plat_serial8250_port serial_platform_data2[] = {
 #ifdef CONFIG_ARCH_OMAP4
 static struct plat_serial8250_port serial_platform_data3[] = {
 	{
-		.mapbase	= OMAP_UART4_BASE,
 		.irq		= 70,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -131,6 +127,17 @@ static struct plat_serial8250_port serial_platform_data3[] = {
 	}
 };
 #endif
+
+void __init omap2_set_globals_uart(struct omap_globals *omap2_globals)
+{
+	serial_platform_data0[0].mapbase = omap2_globals->uart1_phys;
+	serial_platform_data1[0].mapbase = omap2_globals->uart2_phys;
+	serial_platform_data2[0].mapbase = omap2_globals->uart3_phys;
+#ifdef CONFIG_ARCH_OMAP4
+	serial_platform_data3[0].mapbase = omap2_globals->uart4_phys;
+#endif
+}
+
 static inline unsigned int __serial_read_reg(struct uart_port *up,
 					   int offset)
 {
