@@ -50,18 +50,6 @@ int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
 int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int flags);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		int flags, struct attrlist_cursor_kern *cursor);
-ssize_t xfs_read(struct xfs_inode *ip, struct kiocb *iocb,
-		const struct iovec *iovp, unsigned int segs,
-		loff_t *offset, int ioflags);
-ssize_t xfs_splice_read(struct xfs_inode *ip, struct file *infilp,
-		loff_t *ppos, struct pipe_inode_info *pipe, size_t count,
-		int flags, int ioflags);
-ssize_t xfs_splice_write(struct xfs_inode *ip,
-		struct pipe_inode_info *pipe, struct file *outfilp,
-		loff_t *ppos, size_t count, int flags, int ioflags);
-ssize_t xfs_write(struct xfs_inode *xip, struct kiocb *iocb,
-		const struct iovec *iovp, unsigned int nsegs,
-		loff_t *offset, int ioflags);
 int xfs_bmap(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
 		int flags, struct xfs_iomap *iomapp, int *niomaps);
 void xfs_tosspages(struct xfs_inode *inode, xfs_off_t first,

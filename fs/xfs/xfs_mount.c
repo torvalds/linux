@@ -2052,6 +2052,26 @@ xfs_mount_log_sb(
 	return error;
 }
 
+/*
+ * If the underlying (data/log/rt) device is readonly, there are some
+ * operations that cannot proceed.
+ */
+int
+xfs_dev_is_read_only(
+	struct xfs_mount	*mp,
+	char			*message)
+{
+	if (xfs_readonly_buftarg(mp->m_ddev_targp) ||
+	    xfs_readonly_buftarg(mp->m_logdev_targp) ||
+	    (mp->m_rtdev_targp && xfs_readonly_buftarg(mp->m_rtdev_targp))) {
+		cmn_err(CE_NOTE,
+			"XFS: %s required on read-only device.", message);
+		cmn_err(CE_NOTE,
+			"XFS: write access unavailable, cannot proceed.");
+		return EROFS;
+	}
+	return 0;
+}
 
 #ifdef HAVE_PERCPU_SB
 /*
