@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
+ * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License v2. See the file COPYING in the main directory of this archive for
@@ -27,10 +28,8 @@
 
 #include "udlfb.h"
 
-#define DRIVER_VERSION "DisplayLink Framebuffer Driver 0.4.1"
-
 static struct fb_fix_screeninfo dlfb_fix = {
-	.id =           "displaylinkfb",
+	.id =           "udlfb",
 	.type =         FB_TYPE_PACKED_PIXELS,
 	.visual =       FB_VISUAL_TRUECOLOR,
 	.xpanstep =     0,
@@ -38,6 +37,13 @@ static struct fb_fix_screeninfo dlfb_fix = {
 	.ywrapstep =    0,
 	.accel =        FB_ACCEL_NONE,
 };
+
+static const u32 udlfb_info_flags = FBINFO_DEFAULT | FBINFO_READS_FAST |
+#ifdef FBINFO_VIRTFB
+		FBINFO_VIRTFB |
+#endif
+		FBINFO_HWACCEL_IMAGEBLIT | FBINFO_HWACCEL_FILLRECT |
+		FBINFO_HWACCEL_COPYAREA | FBINFO_MISC_ALWAYS_SETPAR;
 
 /*
  * There are many DisplayLink-based products, all with unique PIDs. We are able
@@ -940,6 +946,29 @@ static void dlfb_delete(struct kref *kref)
 }
 
 /*
+ * Called by fbdev as last part of unregister_framebuffer() process
+ * No new clients can open connections. Deallocate everything fb_info.
+ */
+static void dlfb_ops_destroy(struct fb_info *info)
+{
+	struct dlfb_data *dev = info->par;
+
+	if (info->cmap.len != 0)
+		fb_dealloc_cmap(&info->cmap);
+	if (info->monspecs.modedb)
+		fb_destroy_modedb(info->monspecs.modedb);
+	if (info->screen_base)
+		vfree(info->screen_base);
+
+	fb_destroy_modelist(&info->modelist);
+
+	framebuffer_release(info);
+
+	/* ref taken before register_framebuffer() for dlfb_data clients */
+	kref_put(&dev->kref, dlfb_delete);
+}
+
+/*
  * Check whether a video mode is supported by the DisplayLink chip
  * We start from monitor's modes, so don't need to filter that here
  */
@@ -966,6 +995,35 @@ static void dlfb_var_color_format(struct fb_var_screeninfo *var)
 	var->blue = blue;
 }
 
+static int dlfb_ops_check_var(struct fb_var_screeninfo *var,
+				struct fb_info *info)
+{
+	struct fb_videomode mode;
+
+	/* TODO: support dynamically changing framebuffer size */
+	if ((var->xres * var->yres * 2) > info->fix.smem_len)
+		return -EINVAL;
+
+	/* set device-specific elements of var unrelated to mode */
+	dlfb_var_color_format(var);
+
+	fb_var_to_videomode(&mode, var);
+
+	if (!dlfb_is_valid_mode(&mode, info))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int dlfb_ops_set_par(struct fb_info *info)
+{
+	struct dlfb_data *dev = info->par;
+
+	dl_notice("set_par mode %dx%d\n", info->var.xres, info->var.yres);
+
+	return dlfb_set_video_mode(dev, &info->var);
+}
+
 static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev_info = info->par;
@@ -985,6 +1043,7 @@ static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 }
 
 static struct fb_ops dlfb_ops = {
+	.owner = THIS_MODULE,
 	.fb_setcolreg = dlfb_ops_setcolreg,
 	.fb_fillrect = dlfb_ops_fillrect,
 	.fb_copyarea = dlfb_ops_copyarea,
@@ -993,6 +1052,8 @@ static struct fb_ops dlfb_ops = {
 	.fb_ioctl = dlfb_ops_ioctl,
 	.fb_release = dlfb_ops_release,
 	.fb_blank = dlfb_ops_blank,
+	.fb_check_var = dlfb_ops_check_var,
+	.fb_set_par = dlfb_ops_set_par,
 };
 
 /*
@@ -1222,37 +1283,48 @@ static int dlfb_select_std_channel(struct dlfb_data *dev)
 	return ret;
 }
 
-static int dlfb_probe(struct usb_interface *interface,
+
+static int dlfb_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
-	struct device *mydev;
 	struct usb_device *usbdev;
 	struct dlfb_data *dev;
 	struct fb_info *info;
 	int videomemorysize;
+	int i;
 	unsigned char *videomemory;
 	int retval = -ENOMEM;
 	struct fb_var_screeninfo *var;
-	struct fb_bitfield red = { 11, 5, 0 };
-	struct fb_bitfield green = { 5, 6, 0 };
-	struct fb_bitfield blue = { 0, 5, 0 };
+	int registered = 0;
+	u16 *pix_framebuffer;
 
-	usbdev = usb_get_dev(interface_to_usbdev(interface));
-	mydev = &usbdev->dev;
+	/* usb initialization */
+
+	usbdev = interface_to_usbdev(interface);
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		dev_err(mydev, "failed alloc of dev struct\n");
-		goto err_devalloc;
+		err("dlfb_usb_probe: failed alloc of dev struct\n");
+		goto error;
 	}
 
+	/* we need to wait for both usb and fbdev to spin down on disconnect */
+	kref_init(&dev->kref); /* matching kref_put in usb .disconnect fn */
+	kref_get(&dev->kref); /* matching kref_put in .fb_destroy function*/
+
 	mutex_init(&dev->bulk_mutex);
+
 	dev->udev = usbdev;
 	dev->gdev = &usbdev->dev; /* our generic struct device * */
-	dev->interface = interface;
 	usb_set_intfdata(interface, dev);
 
-	dev_info(mydev, "dlfb_probe: setting up DisplayLink device\n");
+	if (!dlfb_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
+		retval = -ENOMEM;
+		dl_err("dlfb_alloc_urb_list failed\n");
+		goto error;
+	}
+
+	mutex_init(&dev->fb_open_lock);
 
 	/*
 	 * TODO: replace single 64K buffer with buffer list
@@ -1260,8 +1332,8 @@ static int dlfb_probe(struct usb_interface *interface,
 	 */
 	dev->buf = kmalloc(BUF_SIZE, GFP_KERNEL);
 	if (dev->buf == NULL) {
-		dev_err(mydev, "unable to allocate memory for dlfb commands\n");
-		goto err_usballoc;
+		dl_err("unable to allocate memory for dlfb commands\n");
+		goto error;
 	}
 	dev->bufend = dev->buf + BUF_SIZE;
 
@@ -1270,49 +1342,51 @@ static int dlfb_probe(struct usb_interface *interface,
 			  usb_sndbulkpipe(dev->udev, 1), dev->buf, 0,
 			  dlfb_bulk_callback, dev);
 
-	/* allocates framebuffer driver structure, not framebuffer memory */
-	info = framebuffer_alloc(0, mydev);
-	if (!info)
-		goto err_fballoc;
+	/* We don't register a new USB class. Our client interface is fbdev */
 
+	/* allocates framebuffer driver structure, not framebuffer memory */
+	info = framebuffer_alloc(0, &usbdev->dev);
+	if (!info) {
+		retval = -ENOMEM;
+		dl_err("framebuffer_alloc failed\n");
+		goto error;
+	}
 	dev->info = info;
 	info->par = dev;
 	info->pseudo_palette = dev->pseudo_palette;
+	info->fbops = &dlfb_ops;
 
 	var = &info->var;
-	retval = dlfb_get_var_from_edid(dev, var);
-	if (retval) {
-		/* had a problem getting edid. so fallback to 640x480 */
-		dev_err(mydev, "Problem %d with EDID.\n", retval);
-		var->xres = 640;
-		var->yres = 480;
-	}
+
+	/* TODO set limit based on actual SKU detection */
+	dev->sku_pixel_limit = 2048 * 1152;
+
+	INIT_LIST_HEAD(&info->modelist);
+	dlfb_parse_edid(dev, var, info);
 
 	/*
 	 * ok, now that we've got the size info, we can alloc our framebuffer.
-	 * We are using 16bpp.
 	 */
-	info->var.bits_per_pixel = 16;
 	info->fix = dlfb_fix;
 	info->fix.line_length = var->xres * (var->bits_per_pixel / 8);
 	videomemorysize = info->fix.line_length * var->yres;
 
 	/*
 	 * The big chunk of system memory we use as a virtual framebuffer.
-	 * Pages don't need to be set RESERVED (non-swap) immediately on 2.6
-	 * remap_pfn_page() syscall in our mmap and/or defio will handle.
+	 * TODO: Handle fbcon cursor code calling blit in interrupt context
 	 */
 	videomemory = vmalloc(videomemorysize);
-	if (!videomemory)
-		goto err_vidmem;
-	memset(videomemory, 0, videomemorysize);
+	if (!videomemory) {
+		retval = -ENOMEM;
+		dl_err("Virtual framebuffer alloc failed\n");
+		goto error;
+	}
 
 	info->screen_base = videomemory;
 	info->fix.smem_len = PAGE_ALIGN(videomemorysize);
 	info->fix.smem_start = (unsigned long) videomemory;
-	info->flags =
-	    FBINFO_DEFAULT | FBINFO_READS_FAST | FBINFO_HWACCEL_IMAGEBLIT |
-	    FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT;
+	info->flags = udlfb_info_flags;
+
 
 	/*
 	 * Second framebuffer copy, mirroring the state of the framebuffer
@@ -1320,109 +1394,121 @@ static int dlfb_probe(struct usb_interface *interface,
 	 * But with imperfect damage info we may end up sending pixels over USB
 	 * that were, in fact, unchanged -- wasting limited USB bandwidth
 	 */
-	dev->backing_buffer = vmalloc(dev->screen_size);
+	dev->backing_buffer = vmalloc(videomemorysize);
 	if (!dev->backing_buffer)
-		dev_info(mydev, "No backing buffer allocated!\n");
-
-	info->fbops = &dlfb_ops;
-
-	var->vmode = FB_VMODE_NONINTERLACED;
-	var->red = red;
-	var->green = green;
-	var->blue = blue;
-
-	/*
-	 * TODO: Enable FB_CONFIG_DEFIO support
-
-	 info->fbdefio = &dlfb_defio;
-	 fb_deferred_io_init(info);
-
-	 */
+		dl_warn("No shadow/backing buffer allcoated\n");
+	else
+		memset(dev->backing_buffer, 0, videomemorysize);
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
-		dev_err(mydev, "Failed to allocate colormap\n");
-		goto err_cmap;
+		dl_err("fb_alloc_cmap failed %x\n", retval);
+		goto error;
 	}
 
+	/* ready to begin using device */
+
+/*
+#ifdef CONFIG_FB_DEFERRED_IO
+	atomic_set(&dev->use_defio, 1);
+#endif
+*/
+	atomic_set(&dev->usb_active, 1);
 	dlfb_select_std_channel(dev);
-	dlfb_set_video_mode(dev, var);
-	/* TODO: dlfb_dpy_update(dev); */
 
+	dlfb_ops_check_var(var, info);
+	dlfb_ops_set_par(info);
+
+	/* paint greenscreen */
+/*
+	pix_framebuffer = (u16 *) videomemory;
+	for (i = 0; i < videomemorysize / 2; i++)
+		pix_framebuffer[i] = 0x37e6;
+
+	dlfb_handle_damage(dev, 0, 0, info->var.xres, info->var.yres,
+				videomemory);
+*/
 	retval = register_framebuffer(info);
-	if (retval < 0)
-		goto err_regfb;
+	if (retval < 0) {
+		dl_err("register_framebuffer failed %d\n", retval);
+		goto error;
+	}
+	registered = 1;
 
-	/* paint "successful" green screen */
-	draw_rect(dev, 0, 0, dev->info->var.xres,
-		  dev->info->var.yres, 0x30, 0xff, 0x30);
+	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
+		device_create_file(info->dev, &fb_device_attrs[i]);
 
-	dev_info(mydev, "DisplayLink USB device %d now attached, "
-			"using %dK of memory\n", info->node,
-		 ((dev->backing_buffer) ?
-		  videomemorysize * 2 : videomemorysize) >> 10);
+	device_create_bin_file(info->dev, &edid_attr);
+
+	dl_err("DisplayLink USB device /dev/fb%d attached. %dx%d resolution."
+			" Using %dK framebuffer memory\n", info->node,
+			var->xres, var->yres,
+			((dev->backing_buffer) ?
+			videomemorysize * 2 : videomemorysize) >> 10);
 	return 0;
 
-err_regfb:
-	fb_dealloc_cmap(&info->cmap);
-err_cmap:
-	/* TODO: fb_deferred_io_cleanup(info); */
-	vfree(videomemory);
-err_vidmem:
-	framebuffer_release(info);
-err_fballoc:
-	kfree(dev->buf);
-err_usballoc:
-	usb_set_intfdata(interface, NULL);
-	usb_put_dev(dev->udev);
-	kfree(dev);
-err_devalloc:
+error:
+	if (dev) {
+		if (registered) {
+			unregister_framebuffer(info);
+			dlfb_ops_destroy(info);
+		} else
+			kref_put(&dev->kref, dlfb_delete);
+
+		if (dev->urbs.count > 0)
+			dlfb_free_urb_list(dev);
+		kref_put(&dev->kref, dlfb_delete); /* last ref from kref_init */
+
+		/* dev has been deallocated. Do not dereference */
+	}
+
 	return retval;
 }
 
-static void dlfb_disconnect(struct usb_interface *interface)
+static void dlfb_usb_disconnect(struct usb_interface *interface)
 {
 	struct dlfb_data *dev;
 	struct fb_info *info;
+	int i;
 
 	dev = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
-	usb_put_dev(dev->udev);
-
-	/*
-	 * TODO: since, upon usb disconnect(), usb will cancel in-flight urbs
-	 * and error out any new ones, look at eliminating need for mutex
-	 */
-	mutex_lock(&dev->bulk_mutex);
-	dev->interface = NULL;
 	info = dev->info;
-	mutex_unlock(&dev->bulk_mutex);
+
+	/* when non-active we'll update virtual framebuffer, but no new urbs */
+	atomic_set(&dev->usb_active, 0);
+
+	usb_set_intfdata(interface, NULL);
+
+	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
+		device_remove_file(info->dev, &fb_device_attrs[i]);
+
+	device_remove_bin_file(info->dev, &edid_attr);
+
+	/* this function will wait for all in-flight urbs to complete */
+	dlfb_free_urb_list(dev);
 
 	if (info) {
-		dev_info(&interface->dev, "Detaching DisplayLink device %d.\n",
-						info->node);
+		dl_notice("Detaching /dev/fb%d\n", info->node);
 		unregister_framebuffer(info);
-		fb_dealloc_cmap(&info->cmap);
-		/* TODO: fb_deferred_io_cleanup(info); */
-		fb_dealloc_cmap(&info->cmap);
-		vfree((void __force *)info->screen_base);
-		framebuffer_release(info);
+		dlfb_ops_destroy(info);
 	}
 
-	if (dev->backing_buffer)
-		vfree(dev->backing_buffer);
+	/* release reference taken by kref_init in probe() */
+	kref_put(&dev->kref, dlfb_delete);
 
-	kfree(dev);
+	/* consider dlfb_data freed */
+
+	return;
 }
 
 static struct usb_driver dlfb_driver = {
 	.name = "udlfb",
-	.probe = dlfb_probe,
-	.disconnect = dlfb_disconnect,
+	.probe = dlfb_usb_probe,
+	.disconnect = dlfb_usb_disconnect,
 	.id_table = id_table,
 };
 
-static int __init dlfb_init(void)
+static int __init dlfb_module_init(void)
 {
 	int res;
 
@@ -1435,13 +1521,13 @@ static int __init dlfb_init(void)
 	return res;
 }
 
-static void __exit dlfb_exit(void)
+static void __exit dlfb_module_exit(void)
 {
 	usb_deregister(&dlfb_driver);
 }
 
-module_init(dlfb_init);
-module_exit(dlfb_exit);
+module_init(dlfb_module_init);
+module_exit(dlfb_module_exit);
 
 static void dlfb_urb_completion(struct urb *urb)
 {
@@ -1613,6 +1699,8 @@ static int dlfb_submit_urb(struct dlfb_data *dev, struct urb *urb, size_t len)
 }
 
 MODULE_AUTHOR("Roberto De Ioris <roberto@unbit.it>, "
-	      "Jaya Kumar <jayakumar.lkml@gmail.com>");
-MODULE_DESCRIPTION(DRIVER_VERSION);
+	      "Jaya Kumar <jayakumar.lkml@gmail.com>, "
+	      "Bernie Thompson <bernie@plugable.com>");
+MODULE_DESCRIPTION("DisplayLink kernel framebuffer driver");
 MODULE_LICENSE("GPL");
+

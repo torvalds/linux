@@ -25,13 +25,14 @@ struct dlfb_data {
 	struct device *gdev; /* &udev->dev */
 	struct usb_interface *interface;
 	struct urb *tx_urb, *ctrl_urb;
-	struct usb_ctrlrequest dr;
 	struct fb_info *info;
 	struct urb_list urbs;
 	struct kref kref;
 	char *buf;
 	char *bufend;
 	char *backing_buffer;
+	struct delayed_work deferred_work;
+	struct mutex fb_open_lock;
 	struct mutex bulk_mutex;
 	int fb_count;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
