@@ -27,9 +27,7 @@ config HAVE_FUNCTION_GRAPH_TRACER
 config HAVE_FUNCTION_GRAPH_FP_TEST
 	bool
 	help
-	 An arch may pass in a unique value (frame pointer) to both the
-	 entering and exiting of a function. On exit, the value is compared
-	 and if it does not match, then it will panic the kernel.
+	  See Documentation/trace/ftrace-design.txt
 
 config HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	bool

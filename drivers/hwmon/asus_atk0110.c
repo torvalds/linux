@@ -1329,17 +1329,16 @@ static int atk_add(struct acpi_device *device)
 			&buf, ACPI_TYPE_PACKAGE);
 	if (ret != AE_OK) {
 		dev_dbg(&device->dev, "atk: method MBIF not found\n");
-		err = -ENODEV;
-		goto out;
+	} else {
+		obj = buf.pointer;
+		if (obj->package.count >= 2) {
+			union acpi_object *id = &obj->package.elements[1];
+			if (id->type == ACPI_TYPE_STRING)
+				dev_dbg(&device->dev, "board ID = %s\n",
+					id->string.pointer);
+		}
+		ACPI_FREE(buf.pointer);
 	}
-
-	obj = buf.pointer;
-	if (obj->package.count >= 2 &&
-			obj->package.elements[1].type == ACPI_TYPE_STRING) {
-		dev_dbg(&device->dev, "board ID = %s\n",
-				obj->package.elements[1].string.pointer);
-	}
-	ACPI_FREE(buf.pointer);
 
 	err = atk_probe_if(data);
 	if (err) {

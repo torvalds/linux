@@ -1437,8 +1437,9 @@ ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	struct nlattr *nest_parms;
 
 	memset(&m, 0xFF, sizeof(m));
-	m.src.u.all = mask->src.u.all;
 	memcpy(&m.src.u3, &mask->src.u3, sizeof(m.src.u3));
+	m.src.u.all = mask->src.u.all;
+	m.dst.protonum = tuple->dst.protonum;
 
 	nest_parms = nla_nest_start(skb, CTA_EXPECT_MASK | NLA_F_NESTED);
 	if (!nest_parms)

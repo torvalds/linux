@@ -563,7 +563,7 @@ static int rj54n1_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	struct i2c_client *client = sd->priv;
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	struct v4l2_rect *rect = &a->c;
-	unsigned int dummy, output_w, output_h,
+	unsigned int dummy = 0, output_w, output_h,
 		input_w = rect->width, input_h = rect->height;
 	int ret;
 

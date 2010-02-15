@@ -1403,6 +1403,7 @@ extern void flush_tlb_handlers(void);
  * Timer interrupt
  */
 int cp0_compare_irq;
+int cp0_compare_irq_shift;
 
 /*
  * Performance counter IRQ or -1 if shared with timer
@@ -1493,8 +1494,9 @@ void __cpuinit per_cpu_trap_init(void)
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
 	 */
 	if (cpu_has_mips_r2) {
-		cp0_compare_irq = (read_c0_intctl() >> 29) & 7;
-		cp0_perfcount_irq = (read_c0_intctl() >> 26) & 7;
+		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
+		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
+		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
 		if (cp0_perfcount_irq == cp0_compare_irq)
 			cp0_perfcount_irq = -1;
 	} else {

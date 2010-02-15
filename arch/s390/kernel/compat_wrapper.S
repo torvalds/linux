@@ -1853,12 +1853,3 @@ sys32_execve_wrapper:
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
 	jg	sys32_execve		# branch to system call
-
-	.globl	compat_sys_recvmmsg_wrapper
-compat_sys_recvmmsg_wrapper:
-	lgfr	%r2,%r2			# int
-	llgtr	%r3,%r3			# struct compat_mmsghdr *
-	llgfr	%r4,%r4			# unsigned int
-	llgfr	%r5,%r5			# unsigned int
-	llgtr	%r6,%r6			# struct compat_timespec *
-	jg	compat_sys_recvmmsg

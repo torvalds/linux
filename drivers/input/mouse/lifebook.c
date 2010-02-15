@@ -53,6 +53,12 @@ static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
 	{
 		/* LifeBook B */
 		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lifebook B Series"),
+		},
+	},
+	{
+		/* LifeBook B */
+		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B Series"),
 		},
 	},

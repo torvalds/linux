@@ -46,9 +46,9 @@ static DEFINE_SPINLOCK(wdt_lock);
 static void wdt_send_data(unsigned char command, unsigned char data)
 {
 	outb(command, COMMAND_PORT);
-	mdelay(100);
+	msleep(100);
 	outb(data, DATA_PORT);
-	mdelay(200);
+	msleep(200);
 }
 
 static void wdt_enable(void)
@@ -202,11 +202,10 @@ static int __init fitpc2_wdt_init(void)
 {
 	int err;
 
-	if (strcmp("SBC-FITPC2", dmi_get_system_info(DMI_BOARD_NAME))) {
-		pr_info("board name is: %s. Should be SBC-FITPC2\n",
-			dmi_get_system_info(DMI_BOARD_NAME));
+	if (!strstr(dmi_get_system_info(DMI_BOARD_NAME), "SBC-FITPC2"))
 		return -ENODEV;
-	}
+
+	pr_info("%s found\n", dmi_get_system_info(DMI_BOARD_NAME));
 
 	if (!request_region(COMMAND_PORT, 1, WATCHDOG_NAME)) {
 		pr_err("I/O address 0x%04x already in use\n", COMMAND_PORT);

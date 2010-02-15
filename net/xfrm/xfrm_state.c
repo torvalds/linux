@@ -641,11 +641,11 @@ out:
 }
 EXPORT_SYMBOL(xfrm_state_flush);
 
-void xfrm_sad_getinfo(struct xfrmk_sadinfo *si)
+void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 {
 	spin_lock_bh(&xfrm_state_lock);
-	si->sadcnt = init_net.xfrm.state_num;
-	si->sadhcnt = init_net.xfrm.state_hmask;
+	si->sadcnt = net->xfrm.state_num;
+	si->sadhcnt = net->xfrm.state_hmask;
 	si->sadhmcnt = xfrm_state_hashmax;
 	spin_unlock_bh(&xfrm_state_lock);
 }

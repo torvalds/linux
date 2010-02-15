@@ -43,7 +43,7 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 		param->value = vmw_overlay_num_free_overlays(dev_priv);
 		break;
 	case DRM_VMW_PARAM_3D:
-		param->value = dev_priv->capabilities & SVGA_CAP_3D ? 1 : 0;
+		param->value = vmw_fifo_have_3d(dev_priv) ? 1 : 0;
 		break;
 	case DRM_VMW_PARAM_FIFO_OFFSET:
 		param->value = dev_priv->mmio_start;

@@ -70,8 +70,6 @@ struct intel_limit {
     intel_p2_t	    p2;
     bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
 		      int, int, intel_clock_t *);
-    bool (* find_reduced_pll)(const intel_limit_t *, struct drm_crtc *,
-			      int, int, intel_clock_t *);
 };
 
 #define I8XX_DOT_MIN		  25000
@@ -243,11 +241,11 @@ struct intel_limit {
 #define IRONLAKE_VCO_MIN         1760000
 #define IRONLAKE_VCO_MAX         3510000
 #define IRONLAKE_N_MIN           1
-#define IRONLAKE_N_MAX           5
+#define IRONLAKE_N_MAX           6
 #define IRONLAKE_M_MIN           79
-#define IRONLAKE_M_MAX           118
+#define IRONLAKE_M_MAX           127
 #define IRONLAKE_M1_MIN          12
-#define IRONLAKE_M1_MAX          23
+#define IRONLAKE_M1_MAX          22
 #define IRONLAKE_M2_MIN          5
 #define IRONLAKE_M2_MAX          9
 #define IRONLAKE_P_SDVO_DAC_MIN  5
@@ -274,9 +272,6 @@ static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *best_clock);
 static bool
-intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			    int target, int refclk, intel_clock_t *best_clock);
-static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
 
@@ -299,7 +294,6 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
@@ -314,7 +308,6 @@ static const intel_limit_t intel_limits_i8xx_lvds = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 	
 static const intel_limit_t intel_limits_i9xx_sdvo = {
@@ -329,7 +322,6 @@ static const intel_limit_t intel_limits_i9xx_sdvo = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_lvds = {
@@ -347,7 +339,6 @@ static const intel_limit_t intel_limits_i9xx_lvds = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
     /* below parameter and function is for G4X Chipset Family*/
@@ -365,7 +356,6 @@ static const intel_limit_t intel_limits_g4x_sdvo = {
 		 .p2_fast = G4X_P2_SDVO_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_hdmi = {
@@ -382,7 +372,6 @@ static const intel_limit_t intel_limits_g4x_hdmi = {
 		 .p2_fast = G4X_P2_HDMI_DAC_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
@@ -407,7 +396,6 @@ static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 		 .p2_fast = G4X_P2_SINGLE_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
@@ -432,7 +420,6 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 		 .p2_fast = G4X_P2_DUAL_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_display_port = {
@@ -470,7 +457,6 @@ static const intel_limit_t intel_limits_pineview_sdvo = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
@@ -486,7 +472,6 @@ static const intel_limit_t intel_limits_pineview_lvds = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_sdvo = {
@@ -766,46 +751,6 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	}
 
 	return (err != target);
-}
-
-
-static bool
-intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			    int target, int refclk, intel_clock_t *best_clock)
-
-{
-	struct drm_device *dev = crtc->dev;
-	intel_clock_t clock;
-	int err = target;
-	bool found = false;
-
-	memcpy(&clock, best_clock, sizeof(intel_clock_t));
-
-	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
-		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in Pineview */
-			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
-				break;
-			for (clock.n = limit->n.min; clock.n <= limit->n.max;
-			     clock.n++) {
-				int this_err;
-
-				intel_clock(dev, refclk, &clock);
-
-				if (!intel_PLL_is_valid(crtc, &clock))
-					continue;
-
-				this_err = abs(clock.dot - target);
-				if (this_err < err) {
-					*best_clock = clock;
-					err = this_err;
-					found = true;
-				}
-			}
-		}
-	}
-
-	return found;
 }
 
 static bool
@@ -1262,7 +1207,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, 1);
+	ret = i915_gem_object_set_to_display_plane(obj);
 	if (ret != 0) {
 		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
@@ -2910,10 +2855,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (is_lvds && limit->find_reduced_pll &&
-			dev_priv->lvds_downclock_avail) {
-		memcpy(&reduced_clock, &clock, sizeof(intel_clock_t));
-		has_reduced_clock = limit->find_reduced_pll(limit, crtc,
+	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		has_reduced_clock = limit->find_pll(limit, crtc,
 							    dev_priv->lvds_downclock,
 							    refclk,
 							    &reduced_clock);
@@ -2981,6 +2924,21 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
+		} else if (is_edp) {
+			switch (dev_priv->edp_bpp/3) {
+			case 8:
+				temp |= PIPE_8BPC;
+				break;
+			case 10:
+				temp |= PIPE_10BPC;
+				break;
+			case 6:
+				temp |= PIPE_6BPC;
+				break;
+			case 12:
+				temp |= PIPE_12BPC;
+				break;
+			}
 		} else
 			temp |= PIPE_8BPC;
 		I915_WRITE(pipeconf_reg, temp);

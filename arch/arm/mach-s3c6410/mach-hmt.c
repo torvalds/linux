@@ -82,7 +82,7 @@ static int hmt_bl_init(struct device *dev)
 	return ret;
 }
 
-static int hmt_bl_notify(int brightness)
+static int hmt_bl_notify(struct device *dev, int brightness)
 {
 	/*
 	 * translate from CIELUV/CIELAB L*->brightness, E.G. from

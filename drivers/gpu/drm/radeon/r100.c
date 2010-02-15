@@ -1504,6 +1504,7 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 			DRM_ERROR("PRIM_WALK must be 3 for IMMD draw\n");
 			return -EINVAL;
 		}
+		track->vtx_size = r100_get_vtx_size(radeon_get_ib_value(p, idx + 0));
 		track->vap_vf_cntl = radeon_get_ib_value(p, idx + 1);
 		track->immd_dwords = pkt->count - 1;
 		r = r100_cs_track_check(p->rdev, track);
@@ -3399,9 +3400,7 @@ int r100_mc_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_AGP) {
 		r = radeon_agp_init(rdev);
 		if (r) {
-			printk(KERN_WARNING "[drm] Disabling AGP\n");
-			rdev->flags &= ~RADEON_IS_AGP;
-			rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+			radeon_agp_disable(rdev);
 		} else {
 			rdev->mc.gtt_location = rdev->mc.agp_base;
 		}

@@ -1803,7 +1803,7 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	return service_tree->count == 1;
+	return service_tree->count == 1 && cfq_cfqq_sync(cfqq);
 }
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
@@ -3075,6 +3075,12 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 
 	if (cfq_class_idle(cfqq))
 		return true;
+
+	/*
+	 * Don't allow a non-RT request to preempt an ongoing RT cfqq timeslice.
+	 */
+	if (cfq_class_rt(cfqq) && !cfq_class_rt(new_cfqq))
+		return false;
 
 	/*
 	 * if the new request is sync, but the currently running queue is

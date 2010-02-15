@@ -125,16 +125,24 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_PREFER_HIGH_POST_DIV (1 << 9)
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
+#define RADEON_PLL_USE_POST_DIV         (1 << 12)
 
 struct radeon_pll {
-	uint16_t reference_freq;
-	uint16_t reference_div;
+	/* reference frequency */
+	uint32_t reference_freq;
+
+	/* fixed dividers */
+	uint32_t reference_div;
+	uint32_t post_div;
+
+	/* pll in/out limits */
 	uint32_t pll_in_min;
 	uint32_t pll_in_max;
 	uint32_t pll_out_min;
 	uint32_t pll_out_max;
-	uint16_t xclk;
+	uint32_t best_vco;
 
+	/* divider limits */
 	uint32_t min_ref_div;
 	uint32_t max_ref_div;
 	uint32_t min_post_div;
@@ -143,7 +151,12 @@ struct radeon_pll {
 	uint32_t max_feedback_div;
 	uint32_t min_frac_feedback_div;
 	uint32_t max_frac_feedback_div;
-	uint32_t best_vco;
+
+	/* flags for the current clock */
+	uint32_t flags;
+
+	/* pll id */
+	uint32_t id;
 };
 
 struct radeon_i2c_chan {
@@ -286,7 +299,7 @@ struct radeon_atom_ss {
 struct radeon_encoder_atom_dig {
 	/* atom dig */
 	bool coherent_mode;
-	int dig_block;
+	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB */
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;
@@ -417,8 +430,7 @@ extern void radeon_compute_pll(struct radeon_pll *pll,
 			       uint32_t *fb_div_p,
 			       uint32_t *frac_fb_div_p,
 			       uint32_t *ref_div_p,
-			       uint32_t *post_div_p,
-			       int flags);
+			       uint32_t *post_div_p);
 
 extern void radeon_compute_pll_avivo(struct radeon_pll *pll,
 				     uint64_t freq,
@@ -426,8 +438,7 @@ extern void radeon_compute_pll_avivo(struct radeon_pll *pll,
 				     uint32_t *fb_div_p,
 				     uint32_t *frac_fb_div_p,
 				     uint32_t *ref_div_p,
-				     uint32_t *post_div_p,
-				     int flags);
+				     uint32_t *post_div_p);
 
 extern void radeon_setup_encoder_clones(struct drm_device *dev);
 
@@ -453,7 +464,6 @@ extern void atombios_crtc_dpms(struct drm_crtc *crtc, int mode);
 
 extern int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 				 struct drm_framebuffer *old_fb);
-extern void radeon_legacy_atom_set_surface(struct drm_crtc *crtc);
 
 extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 				  struct drm_file *file_priv,

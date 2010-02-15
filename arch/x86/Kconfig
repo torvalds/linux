@@ -989,12 +989,6 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-config X86_CPU_DEBUG
-	tristate "/sys/kernel/debug/x86/cpu/* - CPU Debug support"
-	---help---
-	  If you select this option, this will provide various x86 CPUs
-	  information through debugfs.
-
 choice
 	prompt "High Memory Support"
 	default HIGHMEM4G if !X86_NUMAQ

@@ -756,6 +756,10 @@ pci_power_t pci_target_state(struct pci_dev *dev);
 int pci_prepare_to_sleep(struct pci_dev *dev);
 int pci_back_from_sleep(struct pci_dev *dev);
 
+/* For use by arch with custom probe code */
+void set_pcie_port_type(struct pci_dev *pdev);
+void set_pcie_hotplug_bridge(struct pci_dev *pdev);
+
 /* Functions for PCI Hotplug drivers to use */
 int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap);
 #ifdef CONFIG_HOTPLUG

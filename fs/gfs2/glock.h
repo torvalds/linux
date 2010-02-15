@@ -123,7 +123,7 @@ struct lm_lockops {
 	int (*lm_mount) (struct gfs2_sbd *sdp, const char *fsname);
  	void (*lm_unmount) (struct gfs2_sbd *sdp);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
-	void (*lm_put_lock) (struct kmem_cache *cachep, void *gl);
+	void (*lm_put_lock) (struct kmem_cache *cachep, struct gfs2_glock *gl);
 	unsigned int (*lm_lock) (struct gfs2_glock *gl,
 				 unsigned int req_state, unsigned int flags);
 	void (*lm_cancel) (struct gfs2_glock *gl);

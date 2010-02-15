@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/smp_lock.h>
 
+#include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
@@ -322,6 +323,7 @@ fs3270_write(struct file *filp, const char __user *data, size_t count, loff_t *o
 static long
 fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	char __user *argp;
 	struct fs3270 *fp;
 	struct raw3270_iocb iocb;
 	int rc;
@@ -329,6 +331,10 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	fp = filp->private_data;
 	if (!fp)
 		return -ENODEV;
+	if (is_compat_task())
+		argp = compat_ptr(arg);
+	else
+		argp = (char __user *)arg;
 	rc = 0;
 	mutex_lock(&fs3270_mutex);
 	switch (cmd) {
@@ -339,10 +345,10 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		fp->write_command = arg;
 		break;
 	case TUBGETI:
-		rc = put_user(fp->read_command, (char __user *) arg);
+		rc = put_user(fp->read_command, argp);
 		break;
 	case TUBGETO:
-		rc = put_user(fp->write_command,(char __user *) arg);
+		rc = put_user(fp->write_command, argp);
 		break;
 	case TUBGETMOD:
 		iocb.model = fp->view.model;
@@ -351,8 +357,7 @@ fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		iocb.pf_cnt = 24;
 		iocb.re_cnt = 20;
 		iocb.map = 0;
-		if (copy_to_user((char __user *) arg, &iocb,
-				 sizeof(struct raw3270_iocb)))
+		if (copy_to_user(argp, &iocb, sizeof(struct raw3270_iocb)))
 			rc = -EFAULT;
 		break;
 	}
@@ -511,8 +516,8 @@ static const struct file_operations fs3270_fops = {
 	.write		 = fs3270_write,	/* write */
 	.unlocked_ioctl	 = fs3270_ioctl,	/* ioctl */
 	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
-	.open	 	= fs3270_open,		/* open */
-	.release 	= fs3270_close,		/* release */
+	.open		 = fs3270_open,		/* open */
+	.release	 = fs3270_close,	/* release */
 };
 
 /*

@@ -182,8 +182,14 @@ static struct platform_device netspace_v2_gpio_buttons = {
 
 static struct gpio_led netspace_v2_gpio_led_pins[] = {
 	{
-		.name	= "ns_v2:red:fail",
-		.gpio	= NETSPACE_V2_GPIO_RED_LED,
+		.name			= "ns_v2:blue:sata",
+		.default_trigger	= "default-on",
+		.gpio			= NETSPACE_V2_GPIO_BLUE_LED_CMD,
+		.active_low		= 1,
+	},
+	{
+		.name			= "ns_v2:red:fail",
+		.gpio			= NETSPACE_V2_GPIO_RED_LED,
 	},
 };
 
@@ -202,30 +208,19 @@ static struct platform_device netspace_v2_gpio_leds = {
 
 static void __init netspace_v2_gpio_leds_init(void)
 {
+	int err;
+
+	/* Configure register slow_led to allow SATA activity LED blinking */
+	err = gpio_request(NETSPACE_V2_GPIO_BLUE_LED_SLOW, "blue LED slow");
+	if (err == 0) {
+		err = gpio_direction_output(NETSPACE_V2_GPIO_BLUE_LED_SLOW, 0);
+		if (err)
+			gpio_free(NETSPACE_V2_GPIO_BLUE_LED_SLOW);
+	}
+	if (err)
+		pr_err("netspace_v2: failed to configure blue LED slow GPIO\n");
+
 	platform_device_register(&netspace_v2_gpio_leds);
-
-	/*
-	 * Configure the front blue LED to blink in relation with the SATA
-	 * activity.
-	 */
-	if (gpio_request(NETSPACE_V2_GPIO_BLUE_LED_SLOW,
-			 "SATA blue LED slow") != 0)
-		return;
-	if (gpio_direction_output(NETSPACE_V2_GPIO_BLUE_LED_SLOW, 0) != 0)
-		goto err_free_1;
-	if (gpio_request(NETSPACE_V2_GPIO_BLUE_LED_CMD,
-			 "SATA blue LED command") != 0)
-		goto err_free_1;
-	if (gpio_direction_output(NETSPACE_V2_GPIO_BLUE_LED_CMD, 0) != 0)
-		goto err_free_2;
-
-	return;
-
-err_free_2:
-	gpio_free(NETSPACE_V2_GPIO_BLUE_LED_CMD);
-err_free_1:
-	gpio_free(NETSPACE_V2_GPIO_BLUE_LED_SLOW);
-	pr_err("netspace_v2: failed to configure SATA blue LED\n");
 }
 
 /*****************************************************************************
@@ -314,6 +309,7 @@ static void __init netspace_v2_init(void)
 		pr_err("netspace_v2: failed to configure power-off GPIO\n");
 }
 
+#ifdef CONFIG_MACH_NETSPACE_V2
 MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
 	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
 	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
@@ -323,3 +319,16 @@ MACHINE_START(NETSPACE_V2, "LaCie Network Space v2")
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &netspace_v2_timer,
 MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_INETSPACE_V2
+MACHINE_START(INETSPACE_V2, "LaCie Internet Space v2")
+	.phys_io	= KIRKWOOD_REGS_PHYS_BASE,
+	.io_pg_offst	= ((KIRKWOOD_REGS_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.init_machine	= netspace_v2_init,
+	.map_io		= kirkwood_map_io,
+	.init_irq	= kirkwood_init_irq,
+	.timer		= &netspace_v2_timer,
+MACHINE_END
+#endif

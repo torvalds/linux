@@ -493,3 +493,52 @@ Why:	These two features use non-standard interfaces. There are the
 Who:	Corentin Chary <corentin.chary@gmail.com>
 
 ----------------------------
+
+What:	usbvideo quickcam_messenger driver
+When:	2.6.35
+Files:	drivers/media/video/usbvideo/quickcam_messenger.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_stv06xx
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	ov511 v4l1 driver
+When:	2.6.35
+Files:	drivers/media/video/ov511.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_ov519
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	w9968cf v4l1 driver
+When:	2.6.35
+Files:	drivers/media/video/w9968cf*.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_ov519
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	ovcamchip sensor framework
+When:	2.6.35
+Files:	drivers/media/video/ovcamchip/*
+Why:	Only used by obsoleted v4l1 drivers
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	stv680 v4l1 driver
+When:	2.6.35
+Files:	drivers/media/video/stv680.[ch]
+Why:	obsolete v4l1 driver replaced by gspca_stv0680
+Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	zc0301 v4l driver
+When:	2.6.35
+Files:	drivers/media/video/zc0301/*
+Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
+	supports 2 USB-ID's (because it only supports a limited set of
+	sensors) wich are also supported by the gspca_zc3xx driver
+	(which supports 53 USB-ID's in total)
+Who:	Hans de Goede <hdegoede@redhat.com>
