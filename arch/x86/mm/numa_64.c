@@ -598,172 +598,38 @@ static int __init split_nodes_size_interleave(u64 addr, u64 max_addr, u64 size)
 }
 
 /*
- * Splits num_nodes nodes up equally starting at node_start.  The return value
- * is the number of nodes split up and addr is adjusted to be at the end of the
- * last node allocated.
- */
-static int __init split_nodes_equally(u64 *addr, u64 max_addr, int node_start,
-				      int num_nodes)
-{
-	unsigned int big;
-	u64 size;
-	int i;
-
-	if (num_nodes <= 0)
-		return -1;
-	if (num_nodes > MAX_NUMNODES)
-		num_nodes = MAX_NUMNODES;
-	size = (max_addr - *addr - e820_hole_size(*addr, max_addr)) /
-	       num_nodes;
-	/*
-	 * Calculate the number of big nodes that can be allocated as a result
-	 * of consolidating the leftovers.
-	 */
-	big = ((size & ~FAKE_NODE_MIN_HASH_MASK) * num_nodes) /
-	      FAKE_NODE_MIN_SIZE;
-
-	/* Round down to nearest FAKE_NODE_MIN_SIZE. */
-	size &= FAKE_NODE_MIN_HASH_MASK;
-	if (!size) {
-		printk(KERN_ERR "Not enough memory for each node.  "
-		       "NUMA emulation disabled.\n");
-		return -1;
-	}
-
-	for (i = node_start; i < num_nodes + node_start; i++) {
-		u64 end = *addr + size;
-
-		if (i < big)
-			end += FAKE_NODE_MIN_SIZE;
-		/*
-		 * The final node can have the remaining system RAM.  Other
-		 * nodes receive roughly the same amount of available pages.
-		 */
-		if (i == num_nodes + node_start - 1)
-			end = max_addr;
-		else
-			end = find_end_of_node(*addr, max_addr, size);
-		if (setup_node_range(i, addr, end - *addr, max_addr) < 0)
-			break;
-	}
-	return i - node_start + 1;
-}
-
-/*
- * Splits the remaining system RAM into chunks of size.  The remaining memory is
- * always assigned to a final node and can be asymmetric.  Returns the number of
- * nodes split.
- */
-static int __init split_nodes_by_size(u64 *addr, u64 max_addr, int node_start,
-				      u64 size)
-{
-	int i = node_start;
-	size = (size << 20) & FAKE_NODE_MIN_HASH_MASK;
-	while (!setup_node_range(i++, addr, size, max_addr))
-		;
-	return i - node_start;
-}
-
-/*
  * Sets up the system RAM area from start_pfn to last_pfn according to the
  * numa=fake command-line option.
  */
 static int __init numa_emulation(unsigned long start_pfn,
 			unsigned long last_pfn, int acpi, int k8)
 {
-	u64 size, addr = start_pfn << PAGE_SHIFT;
+	u64 addr = start_pfn << PAGE_SHIFT;
 	u64 max_addr = last_pfn << PAGE_SHIFT;
-	int num_nodes = 0, num = 0, coeff_flag, coeff = -1, i;
 	int num_phys_nodes;
+	int num_nodes;
+	int i;
 
 	num_phys_nodes = setup_physnodes(addr, max_addr, acpi, k8);
 	/*
 	 * If the numa=fake command-line contains a 'M' or 'G', it represents
-	 * the fixed node size.
+	 * the fixed node size.  Otherwise, if it is just a single number N,
+	 * split the system RAM into N fake nodes.
 	 */
 	if (strchr(cmdline, 'M') || strchr(cmdline, 'G')) {
+		u64 size;
+
 		size = memparse(cmdline, &cmdline);
 		num_nodes = split_nodes_size_interleave(addr, max_addr, size);
-		if (num_nodes < 0)
-			return num_nodes;
-		goto out;
+	} else {
+		unsigned long n;
+
+		n = simple_strtoul(cmdline, NULL, 0);
+		num_nodes = split_nodes_interleave(addr, max_addr, num_phys_nodes, n);
 	}
 
-	/*
-	 * If the numa=fake command-line is just a single number N, split the
-	 * system RAM into N fake nodes.
-	 */
-	if (!strchr(cmdline, '*') && !strchr(cmdline, ',')) {
-		long n = simple_strtol(cmdline, NULL, 0);
-
-		num_nodes = split_nodes_interleave(addr, max_addr,
-							num_phys_nodes, n);
-		if (num_nodes < 0)
-			return num_nodes;
-		goto out;
-	}
-
-	/* Parse the command line. */
-	for (coeff_flag = 0; ; cmdline++) {
-		if (*cmdline && isdigit(*cmdline)) {
-			num = num * 10 + *cmdline - '0';
-			continue;
-		}
-		if (*cmdline == '*') {
-			if (num > 0)
-				coeff = num;
-			coeff_flag = 1;
-		}
-		if (!*cmdline || *cmdline == ',') {
-			if (!coeff_flag)
-				coeff = 1;
-			/*
-			 * Round down to the nearest FAKE_NODE_MIN_SIZE.
-			 * Command-line coefficients are in megabytes.
-			 */
-			size = ((u64)num << 20) & FAKE_NODE_MIN_HASH_MASK;
-			if (size)
-				for (i = 0; i < coeff; i++, num_nodes++)
-					if (setup_node_range(num_nodes, &addr,
-						size, max_addr) < 0)
-						goto done;
-			if (!*cmdline)
-				break;
-			coeff_flag = 0;
-			coeff = -1;
-		}
-		num = 0;
-	}
-done:
-	if (!num_nodes)
-		return -1;
-	/* Fill remainder of system RAM, if appropriate. */
-	if (addr < max_addr) {
-		if (coeff_flag && coeff < 0) {
-			/* Split remaining nodes into num-sized chunks */
-			num_nodes += split_nodes_by_size(&addr, max_addr,
-							 num_nodes, num);
-			goto out;
-		}
-		switch (*(cmdline - 1)) {
-		case '*':
-			/* Split remaining nodes into coeff chunks */
-			if (coeff <= 0)
-				break;
-			num_nodes += split_nodes_equally(&addr, max_addr,
-							 num_nodes, coeff);
-			break;
-		case ',':
-			/* Do not allocate remaining system RAM */
-			break;
-		default:
-			/* Give one final node */
-			setup_node_range(num_nodes, &addr, max_addr - addr,
-					 max_addr);
-			num_nodes++;
-		}
-	}
-out:
+	if (num_nodes < 0)
+		return num_nodes;
 	memnode_shift = compute_hash_shift(nodes, num_nodes, NULL);
 	if (memnode_shift < 0) {
 		memnode_shift = 0;
