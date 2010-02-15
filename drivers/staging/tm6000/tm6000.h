@@ -37,7 +37,7 @@
 #include "dvb_frontend.h"
 #include "dmxdev.h"
 
-#define TM6000_VERSION KERNEL_VERSION(0, 0, 1)
+#define TM6000_VERSION KERNEL_VERSION(0, 0, 2)
 
 /* Inputs */
 
