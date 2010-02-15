@@ -44,7 +44,6 @@ static void dlfb_edid(struct dlfb_data *dev_info)
 				    usb_rcvctrlpipe(dev_info->udev, 0), (0x02),
 				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
 				    0);
-		/*printk("ret control msg edid %d: %d [%d]\n",i, ret, rbuf[1]); */
 		dev_info->edid[i] = rbuf[1];
 	}
 
