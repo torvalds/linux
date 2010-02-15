@@ -7,7 +7,7 @@
  *    Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
  * and
  * arch/arm/plat-mxc/include/mach/iomux-mx35.h
- *    Copyright (C, NO_PAD_CTRL) 2009 by Jan Weitzel Phytec Messtechnik GmbH <armlinux@phytec.de>
+ *    Copyright (C) 2009 by Jan Weitzel Phytec Messtechnik GmbH <armlinux@phytec.de>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
