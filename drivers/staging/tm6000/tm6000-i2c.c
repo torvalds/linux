@@ -87,7 +87,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				msgs[i + 1].buf, msgs[i + 1].len);
 			i++;
 
-			if ((dev->dev_type == TM6010) && (addr == 0xc2)) {
+			if (addr == dev->tuner_addr) {
 				tm6000_set_reg(dev, 0x32, 0,0);
 				tm6000_set_reg(dev, 0x33, 0,0);
 			}
@@ -105,7 +105,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				addr | msgs[i].buf[0] << 8, 0,
 				msgs[i].buf + 1, msgs[i].len - 1);
 
-			if ((dev->dev_type == TM6010) && (addr == 0xc2)) {
+			if (addr == dev->tuner_addr) {
 				tm6000_set_reg(dev, 0x32, 0,0);
 				tm6000_set_reg(dev, 0x33, 0,0);
 			}
