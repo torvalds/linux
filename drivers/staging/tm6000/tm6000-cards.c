@@ -332,6 +332,31 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_3, 0x01);
 		msleep(11);
 		break;
+	case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+		/* Turn zarlink zl10353 on */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_4, 0x00);
+		msleep(15);
+		/* Reset zarlink zl10353 */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_1, 0x00);
+		msleep(50);
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_1, 0x01);
+		msleep(15);
+		/* Turn zarlink zl10353 off */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_4, 0x01);
+		msleep(15);
+		/* ir ? */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_0, 0x01);
+		msleep(15);
+		/* Power led on (blue) */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_7, 0x00);
+		msleep(15);
+		/* DVB led off (orange) */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_5, 0x01);
+		msleep(15);
+		/* Turn zarlink zl10353 on */
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6010_GPIO_4, 0x00);
+		msleep(15);
+		break;
 	default:
 		break;
 	}
