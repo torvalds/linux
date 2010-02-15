@@ -3204,9 +3204,6 @@ static int fflp_early_init(struct niu *np)
 	parent = np->parent;
 	err = 0;
 	if (!(parent->flags & PARENT_FLGS_CLS_HWINIT)) {
-		netif_printk(np, probe, KERN_DEBUG, np->dev,
-			     "%s() Initting hw on port %u\n",
-			     __func__, np->port);
 		if (np->parent->plat_type != PLAT_TYPE_NIU) {
 			fflp_reset(np);
 			fflp_set_timings(np);
@@ -3248,8 +3245,6 @@ static int fflp_early_init(struct niu *np)
 
 		vlan_tbl_clear(np);
 
-		netif_printk(np, probe, KERN_DEBUG, np->dev,
-			     "%s() Success\n", __func__);
 		parent->flags |= PARENT_FLGS_CLS_HWINIT;
 	}
 out:
@@ -4246,12 +4241,10 @@ static irqreturn_t niu_interrupt(int irq, void *dev_id)
 	v2 = nr64(LDSV2(ldg));
 
 	if (netif_msg_intr(np))
-		pr_cont(" v0[%llx] v1[%llx] v2[%llx]",
+		pr_cont(" v0[%llx] v1[%llx] v2[%llx]\n",
 		       (unsigned long long) v0,
 		       (unsigned long long) v1,
 		       (unsigned long long) v2);
-
-	pr_cont("\n");
 
 	if (unlikely(!v0 && !v1 && !v2)) {
 		spin_unlock_irqrestore(&np->lock, flags);
@@ -8577,9 +8570,6 @@ static int __devinit niu_get_and_validate_port(struct niu *np)
 		}
 	}
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
-		     "%s() port[%d] num_ports[%d]\n",
-		     __func__, np->port, parent->num_ports);
 	if (np->port >= parent->num_ports)
 		return -ENODEV;
 
@@ -8965,9 +8955,6 @@ static int __devinit niu_probe_ports(struct niu *np)
 	struct niu_parent *parent = np->parent;
 	int err, i;
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
-		     "%s() port_phy[%08x]\n", __func__, parent->port_phy);
-
 	if (parent->port_phy == PORT_PHY_UNKNOWN) {
 		err = walk_phys(np, parent);
 		if (err)
@@ -8987,10 +8974,6 @@ static int __devinit niu_probe_ports(struct niu *np)
 static int __devinit niu_classifier_swstate_init(struct niu *np)
 {
 	struct niu_classifier *cp = &np->clas;
-
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
-		     "%s() num_tcam(%d)\n",
-		     __func__, np->parent->tcam_num_entries);
 
 	cp->tcam_top = (u16) np->port;
 	cp->tcam_sz = np->parent->tcam_num_entries / np->parent->num_ports;
@@ -9506,9 +9489,6 @@ static struct niu_parent * __devinit niu_new_parent(struct niu *np,
 	struct niu_parent *p;
 	int i;
 
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
-		     "%s() Creating new parent\n", __func__);
-
 	plat_dev = platform_device_register_simple("niu", niu_parent_index,
 						   NULL, 0);
 	if (IS_ERR(plat_dev))
@@ -9572,10 +9552,6 @@ static struct niu_parent * __devinit niu_get_parent(struct niu *np,
 {
 	struct niu_parent *p, *tmp;
 	int port = np->port;
-
-	netif_printk(np, probe, KERN_DEBUG, np->dev,
-		     "%s() platform_type[%u] port[%u]\n",
-		     __func__, ptype, port);
 
 	mutex_lock(&niu_parent_lock);
 	p = NULL;
