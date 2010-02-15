@@ -809,6 +809,7 @@ static void ath_key_delete(struct ath_common *common, struct ieee80211_key_conf 
 
 	clear_bit(key->hw_key_idx + 64, common->keymap);
 	if (common->splitmic) {
+		ath9k_hw_keyreset(ah, key->hw_key_idx + 32);
 		clear_bit(key->hw_key_idx + 32, common->keymap);
 		clear_bit(key->hw_key_idx + 64 + 32, common->keymap);
 	}
@@ -1492,6 +1493,19 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&sc->mutex);
 }
 
+void ath9k_enable_ps(struct ath_softc *sc)
+{
+	sc->ps_enabled = true;
+	if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
+		if ((sc->imask & ATH9K_INT_TIM_TIMER) == 0) {
+			sc->imask |= ATH9K_INT_TIM_TIMER;
+			ath9k_hw_set_interrupts(sc->sc_ah,
+					sc->imask);
+		}
+	}
+	ath9k_hw_setrxabort(sc->sc_ah, 1);
+}
+
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath_wiphy *aphy = hw->priv;
@@ -1546,22 +1560,13 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS) {
 			sc->ps_flags |= PS_ENABLED;
-			if (!(ah->caps.hw_caps &
-			      ATH9K_HW_CAP_AUTOSLEEP)) {
-				if ((sc->imask & ATH9K_INT_TIM_TIMER) == 0) {
-					sc->imask |= ATH9K_INT_TIM_TIMER;
-					ath9k_hw_set_interrupts(sc->sc_ah,
-							sc->imask);
-				}
-			}
 			/*
 			 * At this point we know hardware has received an ACK
 			 * of a previously sent null data frame.
 			 */
 			if ((sc->ps_flags & PS_NULLFUNC_COMPLETED)) {
 				sc->ps_flags &= ~PS_NULLFUNC_COMPLETED;
-				sc->ps_enabled = true;
-				ath9k_hw_setrxabort(sc->sc_ah, 1);
+				ath9k_enable_ps(sc);
                         }
 		} else {
 			sc->ps_enabled = false;

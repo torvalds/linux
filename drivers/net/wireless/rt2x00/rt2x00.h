@@ -1044,8 +1044,6 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
-int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
-			   struct ieee80211_tx_queue_stats *stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,

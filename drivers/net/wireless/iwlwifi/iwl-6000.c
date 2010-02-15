@@ -277,21 +277,6 @@ static const struct iwl_ops iwl6000_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-static struct iwl_hcmd_utils_ops iwl6050_hcmd_utils = {
-	.get_hcmd_size = iwl5000_get_hcmd_size,
-	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
-	.rts_tx_cmd_flag = iwl5000_rts_tx_cmd_flag,
-	.calc_rssi = iwl5000_calc_rssi,
-};
-
-static const struct iwl_ops iwl6050_ops = {
-	.ucode = &iwl5000_ucode,
-	.lib = &iwl6000_lib,
-	.hcmd = &iwl5000_hcmd,
-	.utils = &iwl6050_hcmd_utils,
-	.led = &iwlagn_led_ops,
-};
-
 /*
  * "i": Internal configuration, use internal Power Amplifier
  */
@@ -324,6 +309,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -354,6 +340,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -384,6 +371,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -392,7 +380,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl6050_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
@@ -415,6 +403,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1500,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -423,7 +412,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl6050_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
@@ -445,6 +434,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1500,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -476,6 +466,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.adv_thermal_throttle = true,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

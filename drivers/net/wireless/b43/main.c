@@ -637,10 +637,17 @@ static void b43_upload_card_macaddress(struct b43_wldev *dev)
 static void b43_set_slot_time(struct b43_wldev *dev, u16 slot_time)
 {
 	/* slot_time is in usec. */
-	if (dev->phy.type != B43_PHYTYPE_G)
+	/* This test used to exit for all but a G PHY. */
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
 		return;
-	b43_write16(dev, 0x684, 510 + slot_time);
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0010, slot_time);
+	b43_write16(dev, B43_MMIO_IFSSLOT, 510 + slot_time);
+	/* Shared memory location 0x0010 is the slot time and should be
+	 * set to slot_time; however, this register is initially 0 and changing
+	 * the value adversely affects the transmit rate for BCM4311
+	 * devices. Until this behavior is unterstood, delete this step
+	 *
+	 * b43_shm_write16(dev, B43_SHM_SHARED, 0x0010, slot_time);
+	 */
 }
 
 static void b43_short_slot_timing_enable(struct b43_wldev *dev)
@@ -3349,27 +3356,6 @@ out_unlock:
 	return err;
 }
 
-static int b43_op_get_tx_stats(struct ieee80211_hw *hw,
-			       struct ieee80211_tx_queue_stats *stats)
-{
-	struct b43_wl *wl = hw_to_b43_wl(hw);
-	struct b43_wldev *dev;
-	int err = -ENODEV;
-
-	mutex_lock(&wl->mutex);
-	dev = wl->current_dev;
-	if (dev && b43_status(dev) >= B43_STAT_STARTED) {
-		if (b43_using_pio_transfers(dev))
-			b43_pio_get_tx_stats(dev, stats);
-		else
-			b43_dma_get_tx_stats(dev, stats);
-		err = 0;
-	}
-	mutex_unlock(&wl->mutex);
-
-	return err;
-}
-
 static int b43_op_get_stats(struct ieee80211_hw *hw,
 			    struct ieee80211_low_level_stats *stats)
 {
@@ -3980,6 +3966,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev)
 	}
 
 	/* We are ready to run. */
+	ieee80211_wake_queues(dev->wl->hw);
 	b43_set_status(dev, B43_STAT_STARTED);
 
 	/* Start data flow (TX/RX). */
@@ -4389,8 +4376,6 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 
 	ieee80211_wake_queues(dev->wl->hw);
 
-	ieee80211_wake_queues(dev->wl->hw);
-
 	b43_set_status(dev, B43_STAT_INITIALIZED);
 
 out:
@@ -4596,7 +4581,6 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.set_key		= b43_op_set_key,
 	.update_tkip_key	= b43_op_update_tkip_key,
 	.get_stats		= b43_op_get_stats,
-	.get_tx_stats		= b43_op_get_tx_stats,
 	.get_tsf		= b43_op_get_tsf,
 	.set_tsf		= b43_op_set_tsf,
 	.start			= b43_op_start,

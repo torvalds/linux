@@ -2297,7 +2297,6 @@ const struct ieee80211_ops rt2800_mac80211_ops = {
 	.set_rts_threshold	= rt2800_set_rts_threshold,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
-	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 };

@@ -1719,6 +1719,7 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
+	struct ieee80211_local *local = rx->local;
 	struct net_device *dev = sdata->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	__le16 fc = hdr->frame_control;
@@ -1749,6 +1750,13 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rx->skb->len;
+
+	if (ieee80211_is_data(hdr->frame_control) &&
+	    !is_multicast_ether_addr(hdr->addr1) &&
+	    local->hw.conf.dynamic_ps_timeout > 0 && local->ps_sdata) {
+			mod_timer(&local->dynamic_ps_timer, jiffies +
+			 msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
+	}
 
 	ieee80211_deliver_skb(rx);
 
@@ -2244,8 +2252,8 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				rate_idx = 0; /* TODO: HT rates */
 			else
 				rate_idx = status->rate_idx;
-			rx->sta = ieee80211_ibss_add_sta(sdata, bssid, hdr->addr2,
-				BIT(rate_idx));
+			rx->sta = ieee80211_ibss_add_sta(sdata, bssid,
+					hdr->addr2, BIT(rate_idx), GFP_ATOMIC);
 		}
 		break;
 	case NL80211_IFTYPE_MESH_POINT:

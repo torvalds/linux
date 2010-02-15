@@ -243,6 +243,40 @@ static inline void drv_sta_notify(struct ieee80211_local *local,
 	trace_drv_sta_notify(local, sdata, cmd, sta);
 }
 
+static inline int drv_sta_add(struct ieee80211_local *local,
+			      struct ieee80211_sub_if_data *sdata,
+			      struct ieee80211_sta *sta)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	if (local->ops->sta_add)
+		ret = local->ops->sta_add(&local->hw, &sdata->vif, sta);
+	else if (local->ops->sta_notify)
+		local->ops->sta_notify(&local->hw, &sdata->vif,
+					STA_NOTIFY_ADD, sta);
+
+	trace_drv_sta_add(local, sdata, sta, ret);
+
+	return ret;
+}
+
+static inline void drv_sta_remove(struct ieee80211_local *local,
+				  struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_sta *sta)
+{
+	might_sleep();
+
+	if (local->ops->sta_remove)
+		local->ops->sta_remove(&local->hw, &sdata->vif, sta);
+	else if (local->ops->sta_notify)
+		local->ops->sta_notify(&local->hw, &sdata->vif,
+					STA_NOTIFY_REMOVE, sta);
+
+	trace_drv_sta_remove(local, sdata, sta);
+}
+
 static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
 			      const struct ieee80211_tx_queue_params *params)
 {
@@ -253,14 +287,6 @@ static inline int drv_conf_tx(struct ieee80211_local *local, u16 queue,
 	if (local->ops->conf_tx)
 		ret = local->ops->conf_tx(&local->hw, queue, params);
 	trace_drv_conf_tx(local, queue, params, ret);
-	return ret;
-}
-
-static inline int drv_get_tx_stats(struct ieee80211_local *local,
-				   struct ieee80211_tx_queue_stats *stats)
-{
-	int ret = local->ops->get_tx_stats(&local->hw, stats);
-	trace_drv_get_tx_stats(local, stats, ret);
 	return ret;
 }
 

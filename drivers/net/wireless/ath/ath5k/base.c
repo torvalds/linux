@@ -241,8 +241,6 @@ static int ath5k_set_key(struct ieee80211_hw *hw,
 		struct ieee80211_key_conf *key);
 static int ath5k_get_stats(struct ieee80211_hw *hw,
 		struct ieee80211_low_level_stats *stats);
-static int ath5k_get_tx_stats(struct ieee80211_hw *hw,
-		struct ieee80211_tx_queue_stats *stats);
 static u64 ath5k_get_tsf(struct ieee80211_hw *hw);
 static void ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf);
 static void ath5k_reset_tsf(struct ieee80211_hw *hw);
@@ -269,7 +267,6 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
 	.conf_tx 	= NULL,
-	.get_tx_stats 	= ath5k_get_tx_stats,
 	.get_tsf 	= ath5k_get_tsf,
 	.set_tsf 	= ath5k_set_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
@@ -1249,6 +1246,29 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	return 0;
 }
 
+static enum ath5k_pkt_type get_hw_packet_type(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+	enum ath5k_pkt_type htype;
+	__le16 fc;
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	fc = hdr->frame_control;
+
+	if (ieee80211_is_beacon(fc))
+		htype = AR5K_PKT_TYPE_BEACON;
+	else if (ieee80211_is_probe_resp(fc))
+		htype = AR5K_PKT_TYPE_PROBE_RESP;
+	else if (ieee80211_is_atim(fc))
+		htype = AR5K_PKT_TYPE_ATIM;
+	else if (ieee80211_is_pspoll(fc))
+		htype = AR5K_PKT_TYPE_PSPOLL;
+	else
+		htype = AR5K_PKT_TYPE_NORMAL;
+
+	return htype;
+}
+
 static int
 ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 		  struct ath5k_txq *txq)
@@ -1303,7 +1323,8 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 			sc->vif, pktlen, info));
 	}
 	ret = ah->ah_setup_tx_desc(ah, ds, pktlen,
-		ieee80211_get_hdrlen_from_skb(skb), AR5K_PKT_TYPE_NORMAL,
+		ieee80211_get_hdrlen_from_skb(skb),
+		get_hw_packet_type(skb),
 		(sc->power_level * 2),
 		hw_rate,
 		info->control.rates[0].count, keyidx, ah->ah_tx_ant, flags,
@@ -1332,7 +1353,6 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 
 	spin_lock_bh(&txq->lock);
 	list_add_tail(&bf->list, &txq->q);
-	sc->tx_stats[txq->qnum].len++;
 	if (txq->link == NULL) /* is this first packet? */
 		ath5k_hw_set_txdp(ah, txq->qnum, bf->daddr);
 	else /* no, so only link it */
@@ -1581,7 +1601,6 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		ath5k_txbuf_free(sc, bf);
 
 		spin_lock_bh(&sc->txbuflock);
-		sc->tx_stats[txq->qnum].len--;
 		list_move_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock_bh(&sc->txbuflock);
@@ -2011,10 +2030,8 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		}
 
 		ieee80211_tx_status(sc->hw, skb);
-		sc->tx_stats[txq->qnum].count++;
 
 		spin_lock(&sc->txbuflock);
-		sc->tx_stats[txq->qnum].len--;
 		list_move_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock(&sc->txbuflock);
@@ -3112,17 +3129,6 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 	ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 
 	memcpy(stats, &sc->ll_stats, sizeof(sc->ll_stats));
-
-	return 0;
-}
-
-static int
-ath5k_get_tx_stats(struct ieee80211_hw *hw,
-		struct ieee80211_tx_queue_stats *stats)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	memcpy(stats, &sc->tx_stats, sizeof(sc->tx_stats));
 
 	return 0;
 }

@@ -1144,9 +1144,10 @@ static int wl1251_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	if (ret < 0)
 		goto out;
 
+	/* mac80211 uses units of 32 usec */
 	ret = wl1251_acx_ac_cfg(wl, wl1251_tx_get_queue(queue),
 				params->cw_min, params->cw_max,
-				params->aifs, params->txop);
+				params->aifs, params->txop * 32);
 	if (ret < 0)
 		goto out_sleep;
 

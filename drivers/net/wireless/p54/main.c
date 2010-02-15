@@ -358,16 +358,6 @@ static int p54_get_stats(struct ieee80211_hw *dev,
 	return 0;
 }
 
-static int p54_get_tx_stats(struct ieee80211_hw *dev,
-			    struct ieee80211_tx_queue_stats *stats)
-{
-	struct p54_common *priv = dev->priv;
-
-	memcpy(stats, &priv->tx_stats[P54_QUEUE_DATA],
-	       sizeof(stats[0]) * dev->queues);
-	return 0;
-}
-
 static void p54_bss_info_changed(struct ieee80211_hw *dev,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
@@ -522,7 +512,6 @@ static const struct ieee80211_ops p54_ops = {
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
-	.get_tx_stats		= p54_get_tx_stats
 };
 
 struct ieee80211_hw *p54_init_common(size_t priv_data_len)

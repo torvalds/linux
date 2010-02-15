@@ -27,10 +27,6 @@
 #include "rate.h"
 #include "led.h"
 
-#define IEEE80211_AUTH_TIMEOUT (HZ / 5)
-#define IEEE80211_AUTH_MAX_TRIES 3
-#define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
-#define IEEE80211_ASSOC_MAX_TRIES 3
 #define IEEE80211_MAX_PROBE_TRIES 5
 
 /*
@@ -438,8 +434,11 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 	} else {
 		if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
 			ieee80211_send_nullfunc(local, sdata, 1);
-		conf->flags |= IEEE80211_CONF_PS;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+
+		if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+			conf->flags |= IEEE80211_CONF_PS;
+			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+		}
 	}
 }
 
@@ -545,6 +544,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local,
 			     dynamic_ps_enable_work);
 	struct ieee80211_sub_if_data *sdata = local->ps_sdata;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	/* can only happen when PS was just disabled anyway */
 	if (!sdata)
@@ -553,11 +553,16 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
+	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)))
 		ieee80211_send_nullfunc(local, sdata, 1);
 
-	local->hw.conf.flags |= IEEE80211_CONF_PS;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) ||
+	    (ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
+		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
+		local->hw.conf.flags |= IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -792,8 +797,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 
 	rcu_read_lock();
 	sta = sta_info_get(sdata, bssid);
-	if (sta)
+	if (sta) {
+		set_sta_flags(sta, WLAN_STA_DISASSOC);
 		ieee80211_sta_tear_down_BA_sessions(sta);
+	}
 	rcu_read_unlock();
 
 	changed |= ieee80211_reset_erp_info(sdata);
@@ -826,19 +833,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 	changed |= BSS_CHANGED_BSSID;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
-	rcu_read_lock();
-
-	sta = sta_info_get(sdata, bssid);
-	if (!sta) {
-		rcu_read_unlock();
-		return;
-	}
-
-	sta_info_unlink(&sta);
-
-	rcu_read_unlock();
-
-	sta_info_destroy(sta);
+	sta_info_destroy_addr(sdata, bssid);
 }
 
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
@@ -1844,7 +1839,11 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	wk->probe_auth.algorithm = auth_alg;
 	wk->probe_auth.privacy = req->bss->capability & WLAN_CAPABILITY_PRIVACY;
 
-	wk->type = IEEE80211_WORK_DIRECT_PROBE;
+	/* if we already have a probe, don't probe again */
+	if (req->bss->proberesp_ies)
+		wk->type = IEEE80211_WORK_AUTH;
+	else
+		wk->type = IEEE80211_WORK_DIRECT_PROBE;
 	wk->chan = req->bss->channel;
 	wk->sdata = sdata;
 	wk->done = ieee80211_probe_auth_done;
@@ -1904,6 +1903,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	ifmgd->flags &= ~IEEE80211_STA_DISABLE_11N;
+	ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 
 	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
@@ -2007,12 +2007,18 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 		mutex_lock(&local->work_mtx);
 		list_for_each_entry(wk, &local->work_list, list) {
-			if (wk->type != IEEE80211_WORK_DIRECT_PROBE)
+			if (wk->sdata != sdata)
 				continue;
+
+			if (wk->type != IEEE80211_WORK_DIRECT_PROBE &&
+			    wk->type != IEEE80211_WORK_AUTH)
+				continue;
+
 			if (memcmp(req->bss->bssid, wk->filter_ta, ETH_ALEN))
 				continue;
-			not_auth_yet = true;
-			list_del(&wk->list);
+
+			not_auth_yet = wk->type == IEEE80211_WORK_DIRECT_PROBE;
+			list_del_rcu(&wk->list);
 			free_work(wk);
 			break;
 		}

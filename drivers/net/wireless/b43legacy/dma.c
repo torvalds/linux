@@ -1411,7 +1411,6 @@ int b43legacy_dma_tx(struct b43legacy_wldev *dev,
 		b43legacyerr(dev->wl, "DMA tx mapping failure\n");
 		goto out_unlock;
 	}
-	ring->nr_tx_packets++;
 	if ((free_slots(ring) < SLOTS_PER_PACKET) ||
 	    should_inject_overflow(ring)) {
 		/* This TX ring is full. */
@@ -1525,25 +1524,6 @@ void b43legacy_dma_handle_txstatus(struct b43legacy_wldev *dev,
 	}
 
 	spin_unlock(&ring->lock);
-}
-
-void b43legacy_dma_get_tx_stats(struct b43legacy_wldev *dev,
-			      struct ieee80211_tx_queue_stats *stats)
-{
-	const int nr_queues = dev->wl->hw->queues;
-	struct b43legacy_dmaring *ring;
-	unsigned long flags;
-	int i;
-
-	for (i = 0; i < nr_queues; i++) {
-		ring = priority_to_txring(dev, i);
-
-		spin_lock_irqsave(&ring->lock, flags);
-		stats[i].len = ring->used_slots / SLOTS_PER_PACKET;
-		stats[i].limit = ring->nr_slots / SLOTS_PER_PACKET;
-		stats[i].count = ring->nr_tx_packets;
-		spin_unlock_irqrestore(&ring->lock, flags);
-	}
 }
 
 static void dma_rx(struct b43legacy_dmaring *ring,

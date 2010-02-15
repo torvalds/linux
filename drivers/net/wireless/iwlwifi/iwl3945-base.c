@@ -3835,7 +3835,6 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.config = iwl_mac_config,
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl3945_mac_set_key,
-	.get_tx_stats = iwl_mac_get_tx_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,

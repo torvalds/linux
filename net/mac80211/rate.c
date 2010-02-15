@@ -145,7 +145,7 @@ static const struct file_operations rcname_ops = {
 };
 #endif
 
-struct rate_control_ref *rate_control_alloc(const char *name,
+static struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local)
 {
 	struct dentry *debugfsdir = NULL;

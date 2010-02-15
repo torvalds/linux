@@ -2787,6 +2787,7 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		if ((le16_to_cpu(priv->staging_rxon.channel) != ch))
 			priv->staging_rxon.flags = 0;
 
+		iwl_set_rxon_ht(priv, ht_conf);
 		iwl_set_rxon_channel(priv, conf->channel);
 
 		iwl_set_flags_for_band(priv, conf->channel->band);
@@ -2849,42 +2850,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(iwl_mac_config);
-
-int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
-			 struct ieee80211_tx_queue_stats *stats)
-{
-	struct iwl_priv *priv = hw->priv;
-	int i, avail;
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
-	unsigned long flags;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
-		return -EIO;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	for (i = 0; i < AC_NUM; i++) {
-		txq = &priv->txq[i];
-		q = &txq->q;
-		avail = iwl_queue_space(q);
-
-		stats[i].len = q->n_window - avail;
-		stats[i].limit = q->n_window - q->high_mark;
-		stats[i].count = q->n_window;
-
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return 0;
-}
-EXPORT_SYMBOL(iwl_mac_get_tx_stats);
 
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 {

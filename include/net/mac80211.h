@@ -117,19 +117,6 @@ struct ieee80211_tx_queue_params {
 	bool uapsd;
 };
 
-/**
- * struct ieee80211_tx_queue_stats - transmit queue statistics
- *
- * @len: number of packets in queue
- * @limit: queue length limit
- * @count: number of frames sent
- */
-struct ieee80211_tx_queue_stats {
-	unsigned int len;
-	unsigned int limit;
-	unsigned int count;
-};
-
 struct ieee80211_low_level_stats {
 	unsigned int dot11ACKFailureCount;
 	unsigned int dot11RTSFailureCount;
@@ -814,7 +801,7 @@ enum set_key_cmd {
  * mac80211, any ieee80211_sta pointer you get access to must
  * either be protected by rcu_read_lock() explicitly or implicitly,
  * or you must take good care to not use such a pointer after a
- * call to your sta_notify callback that removed it.
+ * call to your sta_remove callback that removed it.
  *
  * @addr: MAC address
  * @aid: AID we assigned to the station if we're an AP
@@ -840,8 +827,8 @@ struct ieee80211_sta {
  * indicates addition and removal of a station to station table,
  * or if a associated station made a power state transition.
  *
- * @STA_NOTIFY_ADD: a station was added to the station table
- * @STA_NOTIFY_REMOVE: a station being removed from the station table
+ * @STA_NOTIFY_ADD: (DEPRECATED) a station was added to the station table
+ * @STA_NOTIFY_REMOVE: (DEPRECATED) a station being removed from the station table
  * @STA_NOTIFY_SLEEP: a station is now sleeping
  * @STA_NOTIFY_AWAKE: a sleeping station woke up
  */
@@ -958,6 +945,11 @@ enum ieee80211_tkip_key_type {
  *	Hardware supports Unscheduled Automatic Power Save Delivery
  *	(U-APSD) in managed mode. The mode is configured with
  *	conf_tx() operation.
+ *
+ * @IEEE80211_HW_REPORTS_TX_ACK_STATUS:
+ *	Hardware can provide ack status reports of Tx frames to
+ *	the stack.
+ *
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -978,6 +970,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_STATIC_SMPS		= 1<<15,
 	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
+	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 };
 
 /**
@@ -1534,21 +1527,19 @@ enum ieee80211_ampdu_mlme_action {
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *	The callback can sleep.
  *
- * @sta_notify: Notifies low level driver about addition, removal or power
- *	state transition of an associated station, AP,  IBSS/WDS/mesh peer etc.
- *	Must be atomic.
+ * @sta_add: Notifies low level driver about addition of an associated station,
+ *	AP, IBSS/WDS/mesh peer etc. This callback can sleep.
+ *
+ * @sta_remove: Notifies low level driver about removal of an associated
+ *	station, AP, IBSS/WDS/mesh peer etc. This callback can sleep.
+ *
+ * @sta_notify: Notifies low level driver about power state transition of an
+ *	associated station, AP,  IBSS/WDS/mesh peer etc. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
  *	Returns a negative error code on failure.
  *	The callback can sleep.
- *
- * @get_tx_stats: Get statistics of the current TX queue status. This is used
- *	to get number of currently queued packets (queue length), maximum queue
- *	size (limit), and total number of packets sent using each TX queue
- *	(count). The 'stats' pointer points to an array that has hw->queues
- *	items.
- *	The callback must be atomic.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
  *	this is only used for IBSS mode BSSID merging and debugging. Is not a
@@ -1635,12 +1626,14 @@ struct ieee80211_ops {
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
+	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta);
+	int (*sta_remove)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_sta *sta);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
-	int (*get_tx_stats)(struct ieee80211_hw *hw,
-			    struct ieee80211_tx_queue_stats *stats);
 	u64 (*get_tsf)(struct ieee80211_hw *hw);
 	void (*set_tsf)(struct ieee80211_hw *hw, u64 tsf);
 	void (*reset_tsf)(struct ieee80211_hw *hw);

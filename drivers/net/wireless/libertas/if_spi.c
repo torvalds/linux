@@ -23,6 +23,7 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/semaphore.h>
 #include <linux/spi/libertas_spi.h>
 #include <linux/spi/spi.h>
 

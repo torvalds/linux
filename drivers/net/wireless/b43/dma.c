@@ -1369,7 +1369,6 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		b43err(dev->wl, "DMA tx mapping failure\n");
 		goto out;
 	}
-	ring->nr_tx_packets++;
 	if ((free_slots(ring) < TX_SLOTS_PER_FRAME) ||
 	    should_inject_overflow(ring)) {
 		/* This TX ring is full. */
@@ -1497,22 +1496,6 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Woke up TX ring %d\n", ring->index);
 		}
-	}
-}
-
-void b43_dma_get_tx_stats(struct b43_wldev *dev,
-			  struct ieee80211_tx_queue_stats *stats)
-{
-	const int nr_queues = dev->wl->hw->queues;
-	struct b43_dmaring *ring;
-	int i;
-
-	for (i = 0; i < nr_queues; i++) {
-		ring = select_ring_by_priority(dev, i);
-
-		stats[i].len = ring->used_slots / TX_SLOTS_PER_FRAME;
-		stats[i].limit = ring->nr_slots / TX_SLOTS_PER_FRAME;
-		stats[i].count = ring->nr_tx_packets;
 	}
 }
 

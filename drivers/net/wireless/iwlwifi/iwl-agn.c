@@ -2631,7 +2631,7 @@ static int iwl_mac_setup_register(struct iwl_priv *priv)
 	 */
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
-	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
+	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX + 1;
 	/* we create the 802.11 header and a zero-length SSID element */
 	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
 
@@ -3440,7 +3440,6 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.set_key = iwl_mac_set_key,
 	.update_tkip_key = iwl_mac_update_tkip_key,
 	.get_stats = iwl_mac_get_stats,
-	.get_tx_stats = iwl_mac_get_tx_stats,
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,

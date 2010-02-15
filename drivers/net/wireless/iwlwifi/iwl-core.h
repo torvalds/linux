@@ -293,6 +293,7 @@ struct iwl_cfg {
 	bool support_ct_kill_exit;
 	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
+	s32 chain_noise_scale;
 };
 
 /***************************
@@ -341,8 +342,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif);
 int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
 void iwl_config_ap(struct iwl_priv *priv);
-int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
-			 struct ieee80211_tx_queue_stats *stats);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
 int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
