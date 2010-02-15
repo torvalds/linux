@@ -21,7 +21,6 @@ int xfs_setattr(struct xfs_inode *ip, struct iattr *vap, int flags);
 #define XFS_ATTR_NOACL		0x08	/* Don't call xfs_acl_chmod */
 
 int xfs_readlink(struct xfs_inode *ip, char *link);
-int xfs_fsync(struct xfs_inode *ip);
 int xfs_release(struct xfs_inode *ip);
 int xfs_inactive(struct xfs_inode *ip);
 int xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
