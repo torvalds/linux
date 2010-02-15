@@ -62,7 +62,7 @@ static void dlfb_free_urb_list(struct dlfb_data *dev);
  * Inserts a specific DisplayLink controller command into the provided
  * buffer.
  */
-static char *insert_command(char *buf, u8 reg, u8 val)
+static char *dlfb_set_register(char *buf, u8 reg, u8 val)
 {
 	*buf++ = 0xAF;
 	*buf++ = 0x20;
@@ -71,59 +71,59 @@ static char *insert_command(char *buf, u8 reg, u8 val)
 	return buf;
 }
 
-static char *insert_vidreg_lock(char *buf)
+static char *dlfb_vidreg_lock(char *buf)
 {
-	return insert_command(buf, 0xFF, 0x00);
+	return dlfb_set_register(buf, 0xFF, 0x00);
 }
 
-static char *insert_vidreg_unlock(char *buf)
+static char *dlfb_vidreg_unlock(char *buf)
 {
-	return insert_command(buf, 0xFF, 0xFF);
+	return dlfb_set_register(buf, 0xFF, 0xFF);
 }
 
 /*
  * Once you send this command, the DisplayLink framebuffer gets driven to the
  * display.
  */
-static char *insert_enable_hvsync(char *buf)
+static char *dlfb_enable_hvsync(char *buf)
 {
-	return insert_command(buf, 0x1F, 0x00);
+	return dlfb_set_register(buf, 0x1F, 0x00);
 }
 
-static char *insert_set_color_depth(char *buf, u8 selection)
+static char *dlfb_set_color_depth(char *buf, u8 selection)
 {
-	return insert_command(buf, 0x00, selection);
+	return dlfb_set_register(buf, 0x00, selection);
 }
 
-static char *insert_set_base16bpp(char *wrptr, u32 base)
+static char *dlfb_set_base16bpp(char *wrptr, u32 base)
 {
 	/* the base pointer is 16 bits wide, 0x20 is hi byte. */
-	wrptr = insert_command(wrptr, 0x20, base >> 16);
-	wrptr = insert_command(wrptr, 0x21, base >> 8);
-	return insert_command(wrptr, 0x22, base);
+	wrptr = dlfb_set_register(wrptr, 0x20, base >> 16);
+	wrptr = dlfb_set_register(wrptr, 0x21, base >> 8);
+	return dlfb_set_register(wrptr, 0x22, base);
 }
 
-static char *insert_set_base8bpp(char *wrptr, u32 base)
+static char *dlfb_set_base8bpp(char *wrptr, u32 base)
 {
-	wrptr = insert_command(wrptr, 0x26, base >> 16);
-	wrptr = insert_command(wrptr, 0x27, base >> 8);
-	return insert_command(wrptr, 0x28, base);
+	wrptr = dlfb_set_register(wrptr, 0x26, base >> 16);
+	wrptr = dlfb_set_register(wrptr, 0x27, base >> 8);
+	return dlfb_set_register(wrptr, 0x28, base);
 }
 
-static char *insert_command_16(char *wrptr, u8 reg, u16 value)
+static char *dlfb_set_register_16(char *wrptr, u8 reg, u16 value)
 {
-	wrptr = insert_command(wrptr, reg, value >> 8);
-	return insert_command(wrptr, reg+1, value);
+	wrptr = dlfb_set_register(wrptr, reg, value >> 8);
+	return dlfb_set_register(wrptr, reg+1, value);
 }
 
 /*
  * This is kind of weird because the controller takes some
  * register values in a different byte order than other registers.
  */
-static char *insert_command_16be(char *wrptr, u8 reg, u16 value)
+static char *dlfb_set_register_16be(char *wrptr, u8 reg, u16 value)
 {
-	wrptr = insert_command(wrptr, reg, value);
-	return insert_command(wrptr, reg+1, value >> 8);
+	wrptr = dlfb_set_register(wrptr, reg, value);
+	return dlfb_set_register(wrptr, reg+1, value >> 8);
 }
 
 /*
@@ -152,64 +152,65 @@ static u16 lfsr16(u16 actual_count)
  * This does LFSR conversion on the value that is to be written.
  * See LFSR explanation above for more detail.
  */
-static char *insert_command_lfsr16(char *wrptr, u8 reg, u16 value)
+static char *dlfb_set_register_lfsr16(char *wrptr, u8 reg, u16 value)
 {
-	return insert_command_16(wrptr, reg, lfsr16(value));
+	return dlfb_set_register_16(wrptr, reg, lfsr16(value));
 }
 
 /*
  * This takes a standard fbdev screeninfo struct and all of its monitor mode
  * details and converts them into the DisplayLink equivalent register commands.
  */
-static char *insert_set_vid_cmds(char *wrptr, struct fb_var_screeninfo *var)
+static char *dlfb_set_vid_cmds(char *wrptr, struct fb_var_screeninfo *var)
 {
 	u16 xds, yds;
 	u16 xde, yde;
 	u16 yec;
 
-
 	/* x display start */
 	xds = var->left_margin + var->hsync_len;
-	wrptr = insert_command_lfsr16(wrptr, 0x01, xds);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x01, xds);
 	/* x display end */
 	xde = xds + var->xres;
-	wrptr = insert_command_lfsr16(wrptr, 0x03, xde);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x03, xde);
 
 	/* y display start */
 	yds = var->upper_margin + var->vsync_len;
-	wrptr = insert_command_lfsr16(wrptr, 0x05, yds);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x05, yds);
 	/* y display end */
 	yde = yds + var->yres;
-	wrptr = insert_command_lfsr16(wrptr, 0x07, yde);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x07, yde);
 
 	/* x end count is active + blanking - 1 */
-	wrptr = insert_command_lfsr16(wrptr, 0x09, xde + var->right_margin - 1);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x09,
+			xde + var->right_margin - 1);
 
 	/* libdlo hardcodes hsync start to 1 */
-	wrptr = insert_command_lfsr16(wrptr, 0x0B, 1);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x0B, 1);
 
 	/* hsync end is width of sync pulse + 1 */
-	wrptr = insert_command_lfsr16(wrptr, 0x0D, var->hsync_len + 1);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x0D, var->hsync_len + 1);
 
 	/* hpixels is active pixels */
-	wrptr = insert_command_16(wrptr, 0x0F, var->xres);
+	wrptr = dlfb_set_register_16(wrptr, 0x0F, var->xres);
 
 	/* yendcount is vertical active + vertical blanking */
 	yec = var->yres + var->upper_margin + var->lower_margin +
 			var->vsync_len;
-	wrptr = insert_command_lfsr16(wrptr, 0x11, yec);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x11, yec);
 
 	/* libdlo hardcodes vsync start to 0 */
-	wrptr = insert_command_lfsr16(wrptr, 0x13, 0);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x13, 0);
 
 	/* vsync end is width of vsync pulse */
-	wrptr = insert_command_lfsr16(wrptr, 0x15, var->vsync_len);
+	wrptr = dlfb_set_register_lfsr16(wrptr, 0x15, var->vsync_len);
 
 	/* vpixels is active pixels */
-	wrptr = insert_command_16(wrptr, 0x17, var->yres);
+	wrptr = dlfb_set_register_16(wrptr, 0x17, var->yres);
 
 	/* convert picoseconds to 5kHz multiple for pclk5k = x * 1E12/5k */
-	wrptr = insert_command_16be(wrptr, 0x1B, 200*1000*1000/var->pixclock);
+	wrptr = dlfb_set_register_16be(wrptr, 0x1B,
+			200*1000*1000/var->pixclock);
 
 	return wrptr;
 }
@@ -234,16 +235,16 @@ static int dlfb_set_video_mode(struct dlfb_data *dev,
 	* controller * associated with the display. There are 2 base
 	* pointers, currently, we only * use the 16 bpp segment.
 	*/
-	wrptr = insert_vidreg_lock(buf);
-	wrptr = insert_set_color_depth(wrptr, 0x00);
+	wrptr = dlfb_vidreg_lock(buf);
+	wrptr = dlfb_set_color_depth(wrptr, 0x00);
 	/* set base for 16bpp segment to 0 */
-	wrptr = insert_set_base16bpp(wrptr, 0);
+	wrptr = dlfb_set_base16bpp(wrptr, 0);
 	/* set base for 8bpp segment to end of fb */
-	wrptr = insert_set_base8bpp(wrptr, dev->info->fix.smem_len);
+	wrptr = dlfb_set_base8bpp(wrptr, dev->info->fix.smem_len);
 
-	wrptr = insert_set_vid_cmds(wrptr, var);
-	wrptr = insert_enable_hvsync(wrptr);
-	wrptr = insert_vidreg_unlock(wrptr);
+	wrptr = dlfb_set_vid_cmds(wrptr, var);
+	wrptr = dlfb_enable_hvsync(wrptr);
+	wrptr = dlfb_vidreg_unlock(wrptr);
 
 	writesize = wrptr - buf;
 
@@ -284,7 +285,7 @@ static int dlfb_get_var_from_edid(struct dlfb_data *dev,
 	return ret;
 }
 
-static int dlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned long start = vma->vm_start;
 	unsigned long size = vma->vm_end - vma->vm_start;
@@ -781,18 +782,18 @@ copyarea(struct dlfb_data *dev_info, int dx, int dy, int sx, int sy,
 	return 1;
 }
 
-static void dlfb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
+static void dlfb_ops_copyarea(struct fb_info *info,
+			const struct fb_copyarea *area)
 {
-
 	struct dlfb_data *dev = info->par;
 
 	copyarea(dev, area->dx, area->dy, area->sx, area->sy, area->width,
 		 area->height);
 }
 
-static void dlfb_imageblit(struct fb_info *info, const struct fb_image *image)
+static void dlfb_ops_imageblit(struct fb_info *info,
+			const struct fb_image *image)
 {
-
 	int ret;
 	struct dlfb_data *dev = info->par;
 	cfb_imageblit(info, image);
@@ -801,7 +802,7 @@ static void dlfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		       info->screen_base);
 }
 
-static void dlfb_fillrect(struct fb_info *info,
+static void dlfb_ops_fillrect(struct fb_info *info,
 			  const struct fb_fillrect *region)
 {
 
@@ -817,9 +818,9 @@ static void dlfb_fillrect(struct fb_info *info,
 
 }
 
-static int dlfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
+			unsigned long arg)
 {
-
 	struct dlfb_data *dev_info = info->par;
 	struct dloarea *area = NULL;
 
@@ -875,7 +876,7 @@ static int dlfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 
 /* taken from vesafb */
 static int
-dlfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 	       unsigned blue, unsigned transp, struct fb_info *info)
 {
 	int err = 0;
@@ -900,7 +901,7 @@ dlfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return err;
 }
 
-static int dlfb_release(struct fb_info *info, int user)
+static int dlfb_ops_release(struct fb_info *info, int user)
 {
 	struct dlfb_data *dev_info = info->par;
 	image_blit(dev_info, 0, 0, info->var.xres, info->var.yres,
@@ -923,7 +924,7 @@ static void dlfb_delete(struct kref *kref)
 	kfree(dev);
 }
 
-static int dlfb_blank(int blank_mode, struct fb_info *info)
+static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev_info = info->par;
 	char *bufptr = dev_info->buf;
@@ -942,14 +943,14 @@ static int dlfb_blank(int blank_mode, struct fb_info *info)
 }
 
 static struct fb_ops dlfb_ops = {
-	.fb_setcolreg = dlfb_setcolreg,
-	.fb_fillrect = dlfb_fillrect,
-	.fb_copyarea = dlfb_copyarea,
-	.fb_imageblit = dlfb_imageblit,
-	.fb_mmap = dlfb_mmap,
-	.fb_ioctl = dlfb_ioctl,
-	.fb_release = dlfb_release,
-	.fb_blank = dlfb_blank,
+	.fb_setcolreg = dlfb_ops_setcolreg,
+	.fb_fillrect = dlfb_ops_fillrect,
+	.fb_copyarea = dlfb_ops_copyarea,
+	.fb_imageblit = dlfb_ops_imageblit,
+	.fb_mmap = dlfb_ops_mmap,
+	.fb_ioctl = dlfb_ops_ioctl,
+	.fb_release = dlfb_ops_release,
+	.fb_blank = dlfb_ops_blank,
 };
 
 /*
