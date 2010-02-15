@@ -480,6 +480,7 @@ void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 
 void		xfs_synchronize_times(xfs_inode_t *);
+void		xfs_mark_inode_dirty(xfs_inode_t *);
 void		xfs_mark_inode_dirty_sync(xfs_inode_t *);
 
 #define IHOLD(ip) \

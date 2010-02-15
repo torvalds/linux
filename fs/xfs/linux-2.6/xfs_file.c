@@ -97,16 +97,6 @@ xfs_iozero(
 	return (-status);
 }
 
-/*
- * We ignore the datasync flag here because a datasync is effectively
- * identical to an fsync. That is, datasync implies that we need to write
- * only the metadata needed to be able to access the data that is written
- * if we crash after the call completes. Hence if we are writing beyond
- * EOF we have to log the inode size change as well, which makes it a
- * full fsync. If we don't write beyond EOF, the inode core will be
- * clean in memory and so we don't need to log the inode, just like
- * fsync.
- */
 STATIC int
 xfs_file_fsync(
 	struct file		*file,
@@ -139,7 +129,18 @@ xfs_file_fsync(
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
-	if (ip->i_update_core) {
+	/*
+	 * First check if the VFS inode is marked dirty.  All the dirtying
+	 * of non-transactional updates no goes through mark_inode_dirty*,
+	 * which allows us to distinguish beteeen pure timestamp updates
+	 * and i_size updates which need to be caught for fdatasync.
+	 * After that also theck for the dirty state in the XFS inode, which
+	 * might gets cleared when the inode gets written out via the AIL
+	 * or xfs_iflush_cluster.
+	 */
+	if (((dentry->d_inode->i_state & I_DIRTY_DATASYNC) ||
+	    ((dentry->d_inode->i_state & I_DIRTY_SYNC) && !datasync)) &&
+	    ip->i_update_core) {
 		/*
 		 * Kick off a transaction to log the inode core to get the
 		 * updates.  The sync transaction will also force the log.

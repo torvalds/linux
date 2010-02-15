@@ -187,7 +187,7 @@ xfs_setfilesize(
 	isize = xfs_ioend_new_eof(ioend);
 	if (isize) {
 		ip->i_d.di_size = isize;
-		xfs_mark_inode_dirty_sync(ip);
+		xfs_mark_inode_dirty(ip);
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -341,7 +341,7 @@ xfs_submit_ioend_bio(
 	 * but don't update the inode size until I/O completion.
 	 */
 	if (xfs_ioend_new_eof(ioend))
-		xfs_mark_inode_dirty_sync(XFS_I(ioend->io_inode));
+		xfs_mark_inode_dirty(XFS_I(ioend->io_inode));
 
 	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
 		   WRITE_SYNC_PLUG : WRITE, bio);
