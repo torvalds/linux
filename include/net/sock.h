@@ -1049,7 +1049,7 @@ extern void sk_common_release(struct sock *sk);
 extern void sock_init_data(struct socket *sock, struct sock *sk);
 
 /**
- *	sk_filter_release: Release a socket filter
+ *	sk_filter_release - release a socket filter
  *	@fp: filter to remove
  *
  *	Remove a filter from a socket and release its resources.
