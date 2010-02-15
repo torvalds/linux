@@ -19,6 +19,12 @@
 #include <plat/omap34xx.h>
 #include <plat/omap44xx.h>
 
+#define OMAP2_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
+#define OMAP3_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
+#define OMAP4_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE)
+#define INTCPS_SIR_IRQ_OFFSET	0x0040	/* omap2/3 active interrupt offset */
+#define	ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
+
 		.macro	disable_fiq
 		.endm
 
@@ -26,11 +32,6 @@
 		.endm
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-
-#define OMAP2_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
-#define OMAP3_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
-#define INTCPS_SIR_IRQ_OFFSET	0x0040		/* Active interrupt offset */
-#define	ACTIVEIRQ_MASK		0x7f		/* Active interrupt bits */
 
 		.pushsection .data
 omap_irq_base:	.word	0
@@ -90,8 +91,6 @@ omap_irq_base:	.word	0
 
 #ifdef CONFIG_ARCH_OMAP4
 
-#define OMAP44XX_VA_GIC_CPU_BASE	OMAP2_L4_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE)
-
 		.macro  get_irqnr_preamble, base, tmp
 		.endm
 
@@ -115,7 +114,7 @@ omap_irq_base:	.word	0
 		 * valid range for an IRQ (30-1020 inclusive).
 		 */
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr     \base, =OMAP44XX_VA_GIC_CPU_BASE
+		ldr     \base, =OMAP4_IRQ_BASE
 		ldr     \irqstat, [\base, #GIC_CPU_INTACK]
 
 		ldr     \tmp, =1021
