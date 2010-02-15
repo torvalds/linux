@@ -16,23 +16,10 @@
  * http://www.opensource.org/licenses/gpl-license.html
  * http://www.gnu.org/copyleft/gpl.html
  */
-#ifndef __IOMUX_MX25_H__
-#define __IOMUX_MX25_H__
+#ifndef __MACH_IOMUX_MX25_H__
+#define __MACH_IOMUX_MX25_H__
 
 #include <mach/iomux-v3.h>
-
-#ifndef GPIO_PORTA
-#error Please include mach/iomux.h
-#endif
-
-/*
- *
- * @brief MX25 I/O Pin List
- *
- * @ingroup GPIO_MX25
- */
-
-#ifndef __ASSEMBLY__
 
 /*
  * IOMUX/PAD Bit field definitions
@@ -513,5 +500,4 @@
 #define MX25_PAD_CTL_GRP_DVS_SDHC1	IOMUX_PAD(0x458, 0x000, 0, 0, 0, NO_PAD_CTRL)
 #define MX25_PAD_CTL_GRP_DVS_LCD	IOMUX_PAD(0x45c, 0x000, 0, 0, 0, NO_PAD_CTRL)
 
-#endif // __ASSEMBLY__
-#endif // __IOMUX_MX25_H__
+#endif /* __MACH_IOMUX_MX25_H__ */
