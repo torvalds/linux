@@ -369,7 +369,6 @@ static void osd_reset(struct ceph_connection *con)
 		return;
 	dout("osd_reset osd%d\n", osd->o_osd);
 	osdc = osd->o_osdc;
-	osd->o_incarnation++;
 	down_read(&osdc->map_sem);
 	kick_requests(osdc, osd);
 	up_read(&osdc->map_sem);
@@ -921,7 +920,9 @@ static void kick_requests(struct ceph_osd_client *osdc,
 
 	dout("kick_requests osd%d\n", kickosd ? kickosd->o_osd : -1);
 	mutex_lock(&osdc->request_mutex);
-	if (!kickosd) {
+	if (kickosd) {
+		__reset_osd(osdc, kickosd);
+	} else {
 		for (p = rb_first(&osdc->osds); p; p = n) {
 			struct ceph_osd *osd =
 				rb_entry(p, struct ceph_osd, o_node);
