@@ -344,6 +344,7 @@ void ceph_con_close(struct ceph_connection *con)
 	clear_bit(STANDBY, &con->state);  /* avoid connect_seq bump */
 	mutex_lock(&con->mutex);
 	reset_connection(con);
+	cancel_delayed_work(&con->work);
 	mutex_unlock(&con->mutex);
 	queue_con(con);
 }
@@ -1841,6 +1842,8 @@ static void ceph_fault(struct ceph_connection *con)
 	clear_bit(BUSY, &con->state);  /* to avoid an improbable race */
 
 	mutex_lock(&con->mutex);
+	if (test_bit(CLOSED, &con->state))
+		goto out_unlock;
 
 	con_close_socket(con);
 
@@ -1876,8 +1879,6 @@ static void ceph_fault(struct ceph_connection *con)
 	else if (con->delay < MAX_DELAY_INTERVAL)
 		con->delay *= 2;
 
-	mutex_unlock(&con->mutex);
-
 	/* explicitly schedule work to try to reconnect again later. */
 	dout("fault queueing %p delay %lu\n", con, con->delay);
 	con->ops->get(con);
@@ -1885,6 +1886,8 @@ static void ceph_fault(struct ceph_connection *con)
 			       round_jiffies_relative(con->delay)) == 0)
 		con->ops->put(con);
 
+out_unlock:
+	mutex_unlock(&con->mutex);
 out:
 	if (con->ops->fault)
 		con->ops->fault(con);
