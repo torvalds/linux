@@ -366,7 +366,6 @@ typedef struct r8180_priv
 	short diversity;
 	u8 cs_treshold;
 	short rcr_csense;
-	short rf_chip;
 	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	void (*rf_set_chan)(struct net_device *dev,short ch);
@@ -478,9 +477,6 @@ typedef struct r8180_priv
 	u8 retry_data;
 	u8 retry_rts;
 	u16 rts;
-
-//add for RF power on power off by lizhaoming 080512
-	u8	 RegThreeWireMode; // See "Three wire mode" defined above, 2006.05.31, by rcnjko.
 
 //by amy for led
 	LED_STRATEGY_8185 LedStrategy;

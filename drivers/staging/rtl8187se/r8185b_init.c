@@ -238,22 +238,9 @@ PlatformIORead4Byte(
 	return data;
 }
 
-void
-SetOutputEnableOfRfPins(
-	struct net_device *dev
-	)
+void SetOutputEnableOfRfPins(struct net_device *dev)
 {
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-
-	switch(priv->rf_chip)
-	{
-	case RFCHIPID_RTL8225:
-	case RF_ZEBRA2:
-	case RF_ZEBRA4:
-		write_nic_word(dev, RFPinsEnable, 0x1bff);
-		//write_nic_word(dev, RFPinsEnable, 0x1fff);
-		break;
-	}
+	write_nic_word(dev, RFPinsEnable, 0x1bff);
 }
 
 void
@@ -603,111 +590,27 @@ HwThreeWire(
 
 
 void
-RF_WriteReg(
-	struct net_device *dev,
-	u8		offset,
-	u32		data
-	)
+RF_WriteReg(struct net_device *dev, u8 offset, u32 data)
 {
-	//RFReg			reg;
-	u32			data2Write;
-	u8			len;
-	u8			low2high;
-	//u32			RF_Read = 0;
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
+	u32 data2Write;
+	u8 len;
 
+	/* Pure HW 3-wire. */
+	data2Write = (data << 4) | (u32)(offset & 0x0f);
+	len = 16;
 
-	switch(priv->rf_chip)
-	{
-	case RFCHIPID_RTL8225:
-	case RF_ZEBRA2:		// Annie 2006-05-12.
-	case RF_ZEBRA4:        //by amy
-		switch(priv->RegThreeWireMode)
-		{
-		case SW_THREE_WIRE:
-			{ // Perform SW 3-wire programming by driver.
-				data2Write = (data << 4) | (u32)(offset & 0x0f);
-				len = 16;
-				low2high = 0;
-				ZEBRA_RFSerialWrite(dev, data2Write, len, low2high);
-       			}
-			break;
-
- 		case HW_THREE_WIRE:
-			{ // Pure HW 3-wire.
-				data2Write = (data << 4) | (u32)(offset & 0x0f);
-				len = 16;
-				HwThreeWire(
-					dev,
-					(u8 *)(&data2Write),	// pDataBuf,
-					len,				// nDataBufBitCnt,
-					0,					// bHold,
-					1);					// bWrite
-         		}
-			break;
-			case HW_THREE_WIRE_PI: //Parallel Interface
-			{ // Pure HW 3-wire.
-				data2Write = (data << 4) | (u32)(offset & 0x0f);
-				len = 16;
-					HwHSSIThreeWire(
-						dev,
-						(u8*)(&data2Write),	// pDataBuf,
-						len,						// nDataBufBitCnt,
-						0, 					// bSI
-						1); 					// bWrite
-
-                                //printk("33333\n");
-			}
-			break;
-
-			case HW_THREE_WIRE_SI: //Serial Interface
-			{ // Pure HW 3-wire.
-				data2Write = (data << 4) | (u32)(offset & 0x0f);
-				len = 16;
-//                                printk(" enter  ZEBRA_RFSerialWrite\n ");
-//                                low2high = 0;
-//                                ZEBRA_RFSerialWrite(dev, data2Write, len, low2high);
-
-				HwHSSIThreeWire(
-					dev,
-					(u8*)(&data2Write),	// pDataBuf,
-					len,						// nDataBufBitCnt,
-					1, 					// bSI
-					1); 					// bWrite
-
-//                                 printk(" exit ZEBRA_RFSerialWrite\n ");
-			}
-			break;
-
-
-		default:
-			DMESGE("RF_WriteReg(): invalid RegThreeWireMode(%d) !!!", priv->RegThreeWireMode);
-			break;
-		}
-		break;
-
-	default:
-		DMESGE("RF_WriteReg(): unknown RFChipID: %#X", priv->rf_chip);
-		break;
-	}
+	HwHSSIThreeWire(dev, (u8 *)(&data2Write), len, 1, 1);
 }
 
-
 void
-ZEBRA_RFSerialRead(
-	struct net_device *dev,
-	u32		data2Write,
-	u8		wLength,
-	u32		*data2Read,
-	u8		rLength,
-	u8		low2high
-	)
+ZEBRA_RFSerialRead(struct net_device *dev, u32 data2Write, u8 wLength,
+		   u32 *data2Read, u8 rLength, u8 low2high)
 {
 	ThreeWireReg	twreg;
-	int				i;
-	u16			oval,oval2,oval3,tmp, wReg80;
-	u32			mask;
-	u8			u1bTmp;
+	int i;
+	u16 oval, oval2, oval3, tmp, wReg80;
+	u32 mask;
+	u8 u1bTmp;
 	ThreeWireReg	tdata;
 	//PHAL_DATA_8187	pHalData = GetHalData8187(pAdapter);
 	{ // RTL8187S HSSI Read/Write Function
@@ -818,71 +721,16 @@ ZEBRA_RFSerialRead(
 }
 
 
-u32
-RF_ReadReg(
-	struct net_device *dev,
-	u8		offset
-	)
+u32 RF_ReadReg(struct net_device *dev, u8 offset)
 {
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	u32			data2Write;
-	u8			wlen;
-	u8			rlen;
-	u8			low2high;
-	u32			dataRead;
+	u32 data2Write;
+	u8 wlen;
+	u32 dataRead;
 
-	switch(priv->rf_chip)
-	{
-	case RFCHIPID_RTL8225:
-	case RF_ZEBRA2:
-	case RF_ZEBRA4:
-		switch(priv->RegThreeWireMode)
-		{
-			case HW_THREE_WIRE_PI: // For 87S  Parallel Interface.
-			{
-				data2Write = ((u32)(offset&0x0f));
-				wlen=16;
-				HwHSSIThreeWire(
-					dev,
-					(u8*)(&data2Write),	// pDataBuf,
-					wlen,					// nDataBufBitCnt,
-					0, 					// bSI
-					0); 					// bWrite
-				dataRead= data2Write;
-			}
-			break;
-
-			case HW_THREE_WIRE_SI: // For 87S Serial Interface.
-			{
-				data2Write = ((u32)(offset&0x0f)) ;
-				wlen=16;
-				HwHSSIThreeWire(
-					dev,
-					(u8*)(&data2Write),	// pDataBuf,
-					wlen,					// nDataBufBitCnt,
-					1, 					// bSI
-					0					// bWrite
-					);
-				dataRead= data2Write;
-			}
-			break;
-
-			// Perform SW 3-wire programming by driver.
-			default:
-			{
-				data2Write = ((u32)(offset&0x1f)) << 27; // For Zebra E-cut. 2005.04.11, by rcnjko.
-				wlen = 6;
-				rlen = 12;
-				low2high = 0;
-				ZEBRA_RFSerialRead(dev, data2Write, wlen,&dataRead,rlen, low2high);
-			}
-			break;
-		}
-		break;
-	default:
-		dataRead = 0;
-		break;
-	}
+	data2Write = ((u32)(offset & 0x0f));
+	wlen = 16;
+	HwHSSIThreeWire(dev, (u8 *)(&data2Write), wlen, 1, 0);
+	dataRead = data2Write;
 
 	return dataRead;
 }
@@ -1291,81 +1139,59 @@ UpdateInitialGain(
 		return;
 	}
 
-	switch(priv->rf_chip)
-	{
-	case RF_ZEBRA4:
-		// Dynamic set initial gain, follow 87B
-		switch(priv->InitialGain)
-		{
-			case 1: //m861dBm
-				//DMESG("RTL8187 + 8225 Initial Gain State 1: -82 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x26);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfa);	mdelay(1);
-				break;
-
-			case 2: //m862dBm
-				//DMESG("RTL8187 + 8225 Initial Gain State 2: -82 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x36);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfa);	mdelay(1);
-				break;
-
-			case 3: //m863dBm
-				//DMESG("RTL8187 + 8225 Initial Gain State 3: -82 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x36);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfb);	mdelay(1);
-				break;
-
-			case 4: //m864dBm
-				//DMESG("RTL8187 + 8225 Initial Gain State 4: -78 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x46);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfb);	mdelay(1);
-				break;
-
-			case 5: //m82dBm
-				//DMESG("RTL8187 + 8225 Initial Gain State 5: -74 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x46);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x96);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfb);	mdelay(1);
-				break;
-
-			case 6: //m78dBm
-				//DMESG ("RTL8187 + 8225 Initial Gain State 6: -70 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x56);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x96);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfc);	mdelay(1);
-				break;
-
-			case 7: //m74dBm
-				//DMESG("RTL8187 + 8225 Initial Gain State 7: -66 dBm \n");
-				write_phy_ofdm(dev, 0x17, 0x56);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0xa6);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfc);	mdelay(1);
-				break;
-
-			case 8:
-				//DMESG("RTL8187 + 8225 Initial Gain State 8:\n");
-				write_phy_ofdm(dev, 0x17, 0x66);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0xb6);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfc);	mdelay(1);
-				break;
-
-
-			default:	//MP
-				//DMESG("RTL8187 + 8225 Initial Gain State 1: -82 dBm (default)\n");
-				write_phy_ofdm(dev, 0x17, 0x26);	mdelay(1);
-				write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
-				write_phy_ofdm(dev, 0x05, 0xfa);	mdelay(1);
-				break;
-		}
+	switch (priv->InitialGain) {
+	case 1: /* m861dBm */
+		write_phy_ofdm(dev, 0x17, 0x26);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfa);	mdelay(1);
 		break;
 
+	case 2: /* m862dBm */
+		write_phy_ofdm(dev, 0x17, 0x36);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfa);	mdelay(1);
+		break;
 
-	default:
-		DMESG("UpdateInitialGain(): unknown RFChipID: %#X\n", priv->rf_chip);
+	case 3: /* m863dBm */
+		write_phy_ofdm(dev, 0x17, 0x36);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfb);	mdelay(1);
+		break;
+
+	case 4: /* m864dBm */
+		write_phy_ofdm(dev, 0x17, 0x46);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfb);	mdelay(1);
+		break;
+
+	case 5: /* m82dBm */
+		write_phy_ofdm(dev, 0x17, 0x46);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x96);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfb);	mdelay(1);
+		break;
+
+	case 6: /* m78dBm */
+		write_phy_ofdm(dev, 0x17, 0x56);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x96);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfc);	mdelay(1);
+		break;
+
+	case 7: /* m74dBm */
+		write_phy_ofdm(dev, 0x17, 0x56);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0xa6);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfc);	mdelay(1);
+		break;
+
+	case 8:
+		write_phy_ofdm(dev, 0x17, 0x66);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0xb6);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfc);	mdelay(1);
+		break;
+
+	default:	/* MP */
+		write_phy_ofdm(dev, 0x17, 0x26);	mdelay(1);
+		write_phy_ofdm(dev, 0x24, 0x86);	mdelay(1);
+		write_phy_ofdm(dev, 0x05, 0xfa);	mdelay(1);
 		break;
 	}
 }
@@ -1397,14 +1223,8 @@ PhyConfig8185(
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
        write_nic_dword(dev, RCR, priv->ReceiveConfig);
 	   priv->RFProgType = read_nic_byte(dev, CONFIG4) & 0x03;
-     	// RF config
-	switch(priv->rf_chip)
-	{
-	case RF_ZEBRA2:
-	case RF_ZEBRA4:
-		ZEBRA_Config_85BASIC_HardCode( dev);
-		break;
-	}
+	/*  RF config */
+	ZEBRA_Config_85BASIC_HardCode(dev);
 //{by amy 080312
 	// Set default initial gain state to 4, approved by SD3 DZ, by Bruce, 2007-06-06.
 	if(priv->bDigMechanism)
@@ -1614,19 +1434,8 @@ GetSupportedWirelessMode8185(
 )
 {
 	u8			btSupportedWirelessMode = 0;
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
-	switch(priv->rf_chip)
-	{
-	case RF_ZEBRA2:
-	case RF_ZEBRA4:
-		btSupportedWirelessMode = (WIRELESS_MODE_B | WIRELESS_MODE_G);
-		break;
-	default:
-		btSupportedWirelessMode = WIRELESS_MODE_B;
-		break;
-	}
-
+	btSupportedWirelessMode = (WIRELESS_MODE_B | WIRELESS_MODE_G);
 	return btSupportedWirelessMode;
 }
 
@@ -1881,23 +1690,11 @@ ActSetWirelessMode8185(
 	}
 
 
-	// 2. Swtich band: RF or BB specific actions,
-	// for example, refresh tables in omc8255, or change initial gain if necessary.
-	switch(priv->rf_chip)
-	{
-	case RF_ZEBRA2:
-	case RF_ZEBRA4:
-		{
-			// Nothing to do for Zebra to switch band.
-			// Update current wireless mode if we swtich to specified band successfully.
-			ieee->mode = (WIRELESS_MODE)btWirelessMode;
-		}
-		break;
-
-	default:
-		DMESGW("ActSetWirelessMode8185(): unsupported RF: 0x%X !!!\n", priv->rf_chip);
-		break;
-	}
+	/* 2. Swtich band: RF or BB specific actions,
+	 * for example, refresh tables in omc8255, or change initial gain if necessary.
+	 * Nothing to do for Zebra to switch band.
+	 * Update current wireless mode if we swtich to specified band successfully. */
+	ieee->mode = (WIRELESS_MODE)btWirelessMode;
 
 	// 3. Change related setting.
 	if( ieee->mode == WIRELESS_MODE_A ){
@@ -2108,18 +1905,7 @@ SetRFPowerState(
 		return bResult;
 	}
 
-	switch(priv->rf_chip)
-	{
-		case RF_ZEBRA2:
-		case RF_ZEBRA4:
-			 bResult = SetZebraRFPowerState8185(dev, eRFPowerState);
-			break;
-
-		default:
-			printk("SetRFPowerState8185(): unknown RFChipID: 0x%X!!!\n", priv->rf_chip);
-			break;;
-}
-//	printk("<--------- SetRFPowerState(): bResult(%d)\n", bResult);
+	 bResult = SetZebraRFPowerState8185(dev, eRFPowerState);
 
 	return bResult;
 }

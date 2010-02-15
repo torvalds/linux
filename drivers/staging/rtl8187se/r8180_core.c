@@ -663,11 +663,8 @@ unsigned char STRENGTH_MAP[] = {
 
 void rtl8180_RSSI_calc(struct net_device *dev, u8 *rssi, u8 *qual)
 {
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	u32 temp;
 	u32 temp2;
-	u32 temp3;
-	u32 lsb;
 	u32 q;
 	u32 orig_qual;
 	u8  _rssi;
@@ -688,88 +685,6 @@ void rtl8180_RSSI_calc(struct net_device *dev, u8 *rssi, u8 *qual)
 
 	*qual = temp;
 	temp2 = *rssi;
-
-	switch(priv->rf_chip){
-	case RFCHIPID_RFMD:
-		lsb = temp2 & 1;
-		temp2 &= 0x7e;
-		if ( !lsb || !(temp2 <= 0x3c) ) {
-			temp2 = 0x64;
-		} else {
-			temp2 = 100 * temp2 / 0x3c;
-		}
-		*rssi = temp2 & 0xff;
-		_rssi = temp2 & 0xff;
-		break;
-	case RFCHIPID_INTERSIL:
-		lsb = temp2;
-		temp2 &= 0xfffffffe;
-		temp2 *= 251;
-		temp3 = temp2;
-		temp2 <<= 6;
-		temp3 += temp2;
-		temp3 <<= 1;
-		temp2 = 0x4950df;
-		temp2 -= temp3;
-		lsb &= 1;
-		if ( temp2 <= 0x3e0000 ) {
-			if ( temp2 < 0xffef0000 )
-				temp2 = 0xffef0000;
-		} else {
-			temp2 = 0x3e0000;
-		}
-		if ( !lsb ) {
-			temp2 -= 0xf0000;
-		} else {
-			temp2 += 0xf0000;
-		}
-
-		temp3 = 0x4d0000;
-		temp3 -= temp2;
-		temp3 *= 100;
-		temp3 = temp3 / 0x6d;
-		temp3 >>= 0x10;
-		_rssi = temp3 & 0xff;
-		*rssi = temp3 & 0xff;
-		break;
-	case RFCHIPID_GCT:
-	        lsb = temp2 & 1;
-		temp2 &= 0x7e;
-		if ( ! lsb || !(temp2 <= 0x3c) ){
-			temp2 = 0x64;
-		} else {
-			temp2 = (100 * temp2) / 0x3c;
-		}
-		*rssi = temp2 & 0xff;
-		_rssi = temp2 & 0xff;
-		break;
-	case RFCHIPID_PHILIPS:
-		if( orig_qual <= 0x4e ){
-			_rssi = STRENGTH_MAP[orig_qual];
-			*rssi = _rssi;
-		} else {
-			orig_qual -= 0x80;
-			if ( !orig_qual ){
-				_rssi = 1;
-				*rssi = 1;
-			} else {
-				_rssi = 0x32;
-				*rssi = 0x32;
-			}
-		}
-		break;
-	case RFCHIPID_MAXIM:
-		lsb = temp2 & 1;
-		temp2 &= 0x7e;
-		temp2 >>= 1;
-		temp2 += 0x42;
-		if( lsb != 0 ){
-			temp2 += 0xa;
-		}
-		*rssi = temp2 & 0xff;
-		_rssi = temp2 & 0xff;
-		break;
-	}
 
 	if ( _rssi < 0x64 ){
 		if ( _rssi == 0 ) {
@@ -2707,8 +2622,6 @@ short rtl8180_init(struct net_device *dev)
 	priv->txbeaconcount = 2;
 	priv->rx_skb_complete = 1;
 
-	priv->RegThreeWireMode = HW_THREE_WIRE_SI;
-
 	priv->RFChangeInProgress = false;
 	priv->SetRFPowerStateInProgress = false;
 	priv->RFProgType = 0;
@@ -2999,9 +2912,6 @@ short rtl8180_init(struct net_device *dev)
 	priv->cs_treshold = (eeprom_val & 0xff00) >> 8;
 
 	eeprom_93cx6_read(&eeprom, RFCHIPID, &eeprom_val);
-	priv->rf_chip = 0xff & eeprom_val;
-
-	priv->rf_chip = RF_ZEBRA4;
 	priv->rf_sleep = rtl8225z4_rf_sleep;
 	priv->rf_wakeup = rtl8225z4_rf_wakeup;
 	DMESGW("**PLEASE** REPORT SUCCESSFUL/UNSUCCESSFUL TO Realtek!");
