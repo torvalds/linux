@@ -24,6 +24,7 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 
+#include "mux.h"
 #include "hsmmc.h"
 
 /* Zoom2 has Qwerty keyboard*/
@@ -263,9 +264,17 @@ static int __init omap_i2c_init(void)
 	return 0;
 }
 
+static void enable_board_wakeup_source(void)
+{
+	/* T2 interrupt line (keypad) */
+	omap_mux_init_signal("sys_nirq",
+		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
+}
+
 void __init zoom_peripherals_init(void)
 {
 	omap_i2c_init();
 	omap_serial_init();
 	usb_musb_init();
+	enable_board_wakeup_source();
 }
