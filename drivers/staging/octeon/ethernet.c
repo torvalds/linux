@@ -140,6 +140,8 @@ atomic_t cvm_oct_poll_queue_stopping = ATOMIC_INIT(0);
  */
 struct net_device *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
 
+u64 cvm_oct_tx_poll_interval;
+
 static void cvm_oct_rx_refill_worker(struct work_struct *work);
 static DECLARE_DELAYED_WORK(cvm_oct_rx_refill_work, cvm_oct_rx_refill_worker);
 
@@ -159,18 +161,19 @@ static void cvm_oct_rx_refill_worker(struct work_struct *work)
 				   &cvm_oct_rx_refill_work, HZ);
 }
 
-static void cvm_oct_tx_clean_worker(struct work_struct *work)
+static void cvm_oct_periodic_worker(struct work_struct *work)
 {
 	struct octeon_ethernet *priv = container_of(work,
 						    struct octeon_ethernet,
-						    tx_clean_work.work);
+						    port_periodic_work.work);
 
 	if (priv->poll)
 		priv->poll(cvm_oct_device[priv->port]);
-	cvm_oct_free_tx_skbs(priv);
+
 	cvm_oct_device[priv->port]->netdev_ops->ndo_get_stats(cvm_oct_device[priv->port]);
+
 	if (!atomic_read(&cvm_oct_poll_queue_stopping))
-		queue_delayed_work(cvm_oct_poll_queue, &priv->tx_clean_work, HZ);
+		queue_delayed_work(cvm_oct_poll_queue, &priv->port_periodic_work, HZ);
  }
 
 /**
@@ -662,6 +665,9 @@ static int __init cvm_oct_init_module(void)
 	 */
 	cvmx_fau_atomic_write32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
+	/* Initialize the FAU used for counting tx SKBs that need to be freed */
+	cvmx_fau_atomic_write32(FAU_TOTAL_TX_TO_CLEAN, 0);
+
 	if ((pow_send_group != -1)) {
 		struct net_device *dev;
 		pr_info("\tConfiguring device for POW only access\n");
@@ -669,18 +675,6 @@ static int __init cvm_oct_init_module(void)
 		if (dev) {
 			/* Initialize the device private structure. */
 			struct octeon_ethernet *priv = netdev_priv(dev);
-
-			hrtimer_init(&priv->tx_restart_timer,
-				     CLOCK_MONOTONIC,
-				     HRTIMER_MODE_REL);
-			priv->tx_restart_timer.function = cvm_oct_restart_tx;
-
-			/*
-			 * Default for 10GE 5000nS enough time to
-			 * transmit about 100 64byte packtes.  1GE
-			 * interfaces will get 50000nS below.
-			 */
-			priv->tx_restart_interval = ktime_set(0, 5000);
 
 			dev->netdev_ops = &cvm_oct_pow_netdev_ops;
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
@@ -725,9 +719,8 @@ static int __init cvm_oct_init_module(void)
 			/* Initialize the device private structure. */
 			priv = netdev_priv(dev);
 
-			INIT_DELAYED_WORK(&priv->tx_clean_work,
-					  cvm_oct_tx_clean_worker);
-
+			INIT_DELAYED_WORK(&priv->port_periodic_work,
+					  cvm_oct_periodic_worker);
 			priv->imode = imode;
 			priv->port = port;
 			priv->queue = cvmx_pko_get_base_queue(priv->port);
@@ -763,7 +756,6 @@ static int __init cvm_oct_init_module(void)
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
 				dev->netdev_ops = &cvm_oct_sgmii_netdev_ops;
-				priv->tx_restart_interval = ktime_set(0, 50000);
 				strcpy(dev->name, "eth%d");
 				break;
 
@@ -775,7 +767,6 @@ static int __init cvm_oct_init_module(void)
 			case CVMX_HELPER_INTERFACE_MODE_RGMII:
 			case CVMX_HELPER_INTERFACE_MODE_GMII:
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
-				priv->tx_restart_interval = ktime_set(0, 50000);
 				strcpy(dev->name, "eth%d");
 				break;
 			}
@@ -793,12 +784,18 @@ static int __init cvm_oct_init_module(void)
 				    cvmx_pko_get_num_queues(priv->port) *
 				    sizeof(uint32_t);
 				queue_delayed_work(cvm_oct_poll_queue,
-						   &priv->tx_clean_work, HZ);
+						   &priv->port_periodic_work, HZ);
 			}
 		}
 	}
 
+	cvm_oct_tx_initialize();
 	cvm_oct_rx_initialize();
+
+	/*
+	 * 150 uS: about 10 1500-byte packtes at 1GE.
+	 */
+	cvm_oct_tx_poll_interval = 150 * (octeon_get_clock_rate() / 1000000);
 
 	queue_delayed_work(cvm_oct_poll_queue, &cvm_oct_rx_refill_work, HZ);
 
@@ -826,6 +823,8 @@ static void __exit cvm_oct_cleanup_module(void)
 	cancel_delayed_work_sync(&cvm_oct_rx_refill_work);
 
 	cvm_oct_rx_shutdown();
+	cvm_oct_tx_shutdown();
+
 	cvmx_pko_disable();
 
 	/* Free the ethernet devices */
@@ -833,9 +832,9 @@ static void __exit cvm_oct_cleanup_module(void)
 		if (cvm_oct_device[port]) {
 			struct net_device *dev = cvm_oct_device[port];
 			struct octeon_ethernet *priv = netdev_priv(dev);
-			cancel_delayed_work_sync(&priv->tx_clean_work);
+			cancel_delayed_work_sync(&priv->port_periodic_work);
 
-			cvm_oct_tx_shutdown(dev);
+			cvm_oct_tx_shutdown_dev(dev);
 			unregister_netdev(dev);
 			kfree(dev);
 			cvm_oct_device[port] = NULL;

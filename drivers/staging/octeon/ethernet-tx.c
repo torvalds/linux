@@ -48,6 +48,7 @@
 
 #include "cvmx-wqe.h"
 #include "cvmx-fau.h"
+#include "cvmx-pip.h"
 #include "cvmx-pko.h"
 #include "cvmx-helper.h"
 
@@ -66,6 +67,11 @@
 #define GET_SKBUFF_QOS(skb) 0
 #endif
 
+static void cvm_oct_tx_do_cleanup(unsigned long arg);
+static DECLARE_TASKLET(cvm_oct_tx_cleanup_tasklet, cvm_oct_tx_do_cleanup, 0);
+
+/* Maximum number of SKBs to try to free per xmit packet. */
+#define MAX_SKB_TO_FREE (MAX_OUT_QUEUE_DEPTH * 2)
 
 static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
 {
@@ -77,10 +83,24 @@ static inline int32_t cvm_oct_adjust_skb_to_free(int32_t skb_to_free, int fau)
 	return skb_to_free;
 }
 
-void cvm_oct_free_tx_skbs(struct octeon_ethernet *priv)
+static void cvm_oct_kick_tx_poll_watchdog(void)
+{
+	union cvmx_ciu_timx ciu_timx;
+	ciu_timx.u64 = 0;
+	ciu_timx.s.one_shot = 1;
+	ciu_timx.s.len = cvm_oct_tx_poll_interval;
+	cvmx_write_csr(CVMX_CIU_TIMX(1), ciu_timx.u64);
+}
+
+void cvm_oct_free_tx_skbs(struct net_device *dev)
 {
 	int32_t skb_to_free;
 	int qos, queues_per_port;
+	int total_freed = 0;
+	int total_remaining = 0;
+	unsigned long flags;
+	struct octeon_ethernet *priv = netdev_priv(dev);
+
 	queues_per_port = cvmx_pko_get_num_queues(priv->port);
 	/* Drain any pending packets in the free list */
 	for (qos = 0; qos < queues_per_port; qos++) {
@@ -89,24 +109,31 @@ void cvm_oct_free_tx_skbs(struct octeon_ethernet *priv)
 		skb_to_free = cvmx_fau_fetch_and_add32(priv->fau+qos*4, MAX_SKB_TO_FREE);
 		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free, priv->fau+qos*4);
 
-		while (skb_to_free > 0) {
-			dev_kfree_skb_any(skb_dequeue(&priv->tx_free_list[qos]));
-			skb_to_free--;
+
+		total_freed += skb_to_free;
+		if (skb_to_free > 0) {
+			struct sk_buff *to_free_list = NULL;
+			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
+			while (skb_to_free > 0) {
+				struct sk_buff *t = __skb_dequeue(&priv->tx_free_list[qos]);
+				t->next = to_free_list;
+				to_free_list = t;
+				skb_to_free--;
+			}
+			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
+			/* Do the actual freeing outside of the lock. */
+			while (to_free_list) {
+				struct sk_buff *t = to_free_list;
+				to_free_list = to_free_list->next;
+				dev_kfree_skb_any(t);
+			}
 		}
+		total_remaining += skb_queue_len(&priv->tx_free_list[qos]);
 	}
-}
-
-enum hrtimer_restart cvm_oct_restart_tx(struct hrtimer *timer)
-{
-	struct octeon_ethernet *priv = container_of(timer, struct octeon_ethernet, tx_restart_timer);
-	struct net_device *dev = cvm_oct_device[priv->port];
-
-	cvm_oct_free_tx_skbs(priv);
-
-	if (netif_queue_stopped(dev))
+	if (total_freed >= 0 && netif_queue_stopped(dev))
 		netif_wake_queue(dev);
-
-	return HRTIMER_NORESTART;
+	if (total_remaining)
+		cvm_oct_kick_tx_poll_watchdog();
 }
 
 /**
@@ -129,6 +156,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *to_free_list;
 	int32_t skb_to_free;
 	int32_t buffers_to_free;
+	u32 total_to_clean;
 	unsigned long flags;
 #if REUSE_SKBUFFS_WITHOUT_FREE
 	unsigned char *fpa_head;
@@ -232,7 +260,6 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	pko_command.s.subone0 = 1;
 
 	pko_command.s.dontfree = 1;
-	pko_command.s.reg0 = priv->fau + qos * 4;
 
 	/* Build the PKO buffer pointer */
 	hw_buffer.u64 = 0;
@@ -327,7 +354,6 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * We can use this buffer in the FPA.  We don't need the FAU
 	 * update anymore
 	 */
-	pko_command.s.reg0 = 0;
 	pko_command.s.dontfree = 0;
 
 	hw_buffer.s.back = ((unsigned long)skb->data >> 7) - ((unsigned long)fpa_head >> 7);
@@ -384,15 +410,17 @@ dont_put_skbuff_in_hw:
 	 * If we're sending faster than the receive can free them then
 	 * don't do the HW free.
 	 */
-	if ((buffers_to_free < -100) && !pko_command.s.dontfree) {
+	if ((buffers_to_free < -100) && !pko_command.s.dontfree)
 		pko_command.s.dontfree = 1;
-		pko_command.s.reg0 = priv->fau + qos * 4;
-	}
 
-	if (pko_command.s.dontfree)
+	if (pko_command.s.dontfree) {
 		queue_type = QUEUE_CORE;
-	else
+		pko_command.s.reg0 = priv->fau+qos*4;
+	} else {
 		queue_type = QUEUE_HW;
+	}
+	if (USE_ASYNC_IOBDMA)
+		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
 
 	spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 
@@ -402,10 +430,7 @@ dont_put_skbuff_in_hw:
 			/* Drop the lock when notifying the core.  */
 			spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
 			netif_stop_queue(dev);
-			hrtimer_start(&priv->tx_restart_timer,
-				      priv->tx_restart_interval, HRTIMER_MODE_REL);
 			spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
-
 		} else {
 			/* If not using normal queueing.  */
 			queue_type = QUEUE_DROP;
@@ -460,10 +485,26 @@ skip_xmit:
 	}
 
 	if (USE_ASYNC_IOBDMA) {
+		CVMX_SYNCIOBDMA;
+		total_to_clean = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
 		/* Restore the scratch area */
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
+	} else {
+		total_to_clean = cvmx_fau_fetch_and_add32(FAU_TOTAL_TX_TO_CLEAN, 1);
 	}
+
+	if (total_to_clean & 0x3ff) {
+		/*
+		 * Schedule the cleanup tasklet every 1024 packets for
+		 * the pathological case of high traffic on one port
+		 * delaying clean up of packets on a different port
+		 * that is blocked waiting for the cleanup.
+		 */
+		tasklet_schedule(&cvm_oct_tx_cleanup_tasklet);
+	}
+
+	cvm_oct_kick_tx_poll_watchdog();
 
 	return NETDEV_TX_OK;
 }
@@ -624,7 +665,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
  *
  * @dev:    Device being shutdown
  */
-void cvm_oct_tx_shutdown(struct net_device *dev)
+void cvm_oct_tx_shutdown_dev(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -637,4 +678,46 @@ void cvm_oct_tx_shutdown(struct net_device *dev)
 					  (&priv->tx_free_list[qos]));
 		spin_unlock_irqrestore(&priv->tx_free_list[qos].lock, flags);
 	}
+}
+
+static void cvm_oct_tx_do_cleanup(unsigned long arg)
+{
+	int port;
+
+	for (port = 0; port < TOTAL_NUMBER_OF_PORTS; port++) {
+		if (cvm_oct_device[port]) {
+			struct net_device *dev = cvm_oct_device[port];
+			cvm_oct_free_tx_skbs(dev);
+		}
+	}
+}
+
+static irqreturn_t cvm_oct_tx_cleanup_watchdog(int cpl, void *dev_id)
+{
+	/* Disable the interrupt.  */
+	cvmx_write_csr(CVMX_CIU_TIMX(1), 0);
+	/* Do the work in the tasklet.  */
+	tasklet_schedule(&cvm_oct_tx_cleanup_tasklet);
+	return IRQ_HANDLED;
+}
+
+void cvm_oct_tx_initialize(void)
+{
+	int i;
+
+	/* Disable the interrupt.  */
+	cvmx_write_csr(CVMX_CIU_TIMX(1), 0);
+	/* Register an IRQ hander for to receive CIU_TIMX(1) interrupts */
+	i = request_irq(OCTEON_IRQ_TIMER1,
+			cvm_oct_tx_cleanup_watchdog, 0,
+			"Ethernet", cvm_oct_device);
+
+	if (i)
+		panic("Could not acquire Ethernet IRQ %d\n", OCTEON_IRQ_TIMER1);
+}
+
+void cvm_oct_tx_shutdown(void)
+{
+	/* Free the interrupt handler */
+	free_irq(OCTEON_IRQ_TIMER1, cvm_oct_device);
 }

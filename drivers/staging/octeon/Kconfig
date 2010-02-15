@@ -3,7 +3,6 @@ config OCTEON_ETHERNET
 	depends on CPU_CAVIUM_OCTEON
 	select PHYLIB
 	select MDIO_OCTEON
-	select HIGH_RES_TIMERS
 	help
 	  This driver supports the builtin ethernet ports on Cavium
 	  Networks' products in the Octeon family. This driver supports the

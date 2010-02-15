@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2007 Cavium Networks
+ * Copyright (c) 2003-2010 Cavium Networks
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -30,8 +30,6 @@
  */
 #ifndef OCTEON_ETHERNET_H
 #define OCTEON_ETHERNET_H
-
-#include <linux/hrtimer.h>
 
 /**
  * This is the definition of the Ethernet driver's private
@@ -59,9 +57,7 @@ struct octeon_ethernet {
 	uint64_t link_info;
 	/* Called periodically to check link status */
 	void (*poll) (struct net_device *dev);
-	struct hrtimer		tx_restart_timer;
-	ktime_t			tx_restart_interval;
-	struct delayed_work	tx_clean_work;
+	struct delayed_work	port_periodic_work;
 	struct work_struct	port_work;	/* may be unused. */
 };
 
@@ -101,6 +97,7 @@ extern char pow_send_list[];
 extern struct net_device *cvm_oct_device[];
 extern struct workqueue_struct *cvm_oct_poll_queue;
 extern atomic_t cvm_oct_poll_queue_stopping;
+extern u64 cvm_oct_tx_poll_interval;
 
 extern int max_rx_cpus;
 extern int rx_napi_weight;
