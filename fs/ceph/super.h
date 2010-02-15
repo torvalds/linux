@@ -656,6 +656,8 @@ static inline void ceph_put_snap_context(struct ceph_snap_context *sc)
 struct ceph_snap_realm {
 	u64 ino;
 	atomic_t nref;
+	struct rb_node node;
+
 	u64 created, seq;
 	u64 parent_ino;
 	u64 parent_since;   /* snapid when our current parent became so */

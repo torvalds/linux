@@ -1,6 +1,5 @@
 #include "ceph_debug.h"
 
-#include <linux/radix-tree.h>
 #include <linux/sort.h>
 
 #include "super.h"
@@ -77,6 +76,28 @@ void ceph_get_snap_realm(struct ceph_mds_client *mdsc,
 	atomic_inc(&realm->nref);
 }
 
+static void __insert_snap_realm(struct rb_root *root,
+				struct ceph_snap_realm *new)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct ceph_snap_realm *r = NULL;
+
+	while (*p) {
+		parent = *p;
+		r = rb_entry(parent, struct ceph_snap_realm, node);
+		if (new->ino < r->ino)
+			p = &(*p)->rb_left;
+		else if (new->ino > r->ino)
+			p = &(*p)->rb_right;
+		else
+			BUG();
+	}
+
+	rb_link_node(&new->node, parent, p);
+	rb_insert_color(&new->node, root);
+}
+
 /*
  * create and get the realm rooted at @ino and bump its ref count.
  *
@@ -92,8 +113,6 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 	if (!realm)
 		return ERR_PTR(-ENOMEM);
 
-	radix_tree_insert(&mdsc->snap_realms, ino, realm);
-
 	atomic_set(&realm->nref, 0);    /* tree does not take a ref */
 	realm->ino = ino;
 	INIT_LIST_HEAD(&realm->children);
@@ -101,24 +120,34 @@ static struct ceph_snap_realm *ceph_create_snap_realm(
 	INIT_LIST_HEAD(&realm->empty_item);
 	INIT_LIST_HEAD(&realm->inodes_with_caps);
 	spin_lock_init(&realm->inodes_with_caps_lock);
+	__insert_snap_realm(&mdsc->snap_realms, realm);
 	dout("create_snap_realm %llx %p\n", realm->ino, realm);
 	return realm;
 }
 
 /*
- * find and get (if found) the realm rooted at @ino and bump its ref count.
+ * lookup the realm rooted at @ino.
  *
  * caller must hold snap_rwsem for write.
  */
 struct ceph_snap_realm *ceph_lookup_snap_realm(struct ceph_mds_client *mdsc,
 					       u64 ino)
 {
-	struct ceph_snap_realm *realm;
+	struct rb_node *n = mdsc->snap_realms.rb_node;
+	struct ceph_snap_realm *r;
 
-	realm = radix_tree_lookup(&mdsc->snap_realms, ino);
-	if (realm)
-		dout("lookup_snap_realm %llx %p\n", realm->ino, realm);
-	return realm;
+	while (n) {
+		r = rb_entry(n, struct ceph_snap_realm, node);
+		if (ino < r->ino)
+			n = n->rb_left;
+		else if (ino > r->ino)
+			n = n->rb_right;
+		else {
+			dout("lookup_snap_realm %llx %p\n", r->ino, r);
+			return r;
+		}
+	}
+	return NULL;
 }
 
 static void __put_snap_realm(struct ceph_mds_client *mdsc,
@@ -132,7 +161,7 @@ static void __destroy_snap_realm(struct ceph_mds_client *mdsc,
 {
 	dout("__destroy_snap_realm %p %llx\n", realm, realm->ino);
 
-	radix_tree_delete(&mdsc->snap_realms, realm->ino);
+	rb_erase(&realm->node, &mdsc->snap_realms);
 
 	if (realm->parent) {
 		list_del_init(&realm->child_item);

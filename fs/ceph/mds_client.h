@@ -5,7 +5,6 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/radix-tree.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 
@@ -246,7 +245,7 @@ struct ceph_mds_client {
 	 * should be destroyed.
 	 */
 	struct rw_semaphore     snap_rwsem;
-	struct radix_tree_root  snap_realms;
+	struct rb_root          snap_realms;
 	struct list_head        snap_empty;
 	spinlock_t              snap_empty_lock;  /* protect snap_empty */
 

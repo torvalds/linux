@@ -2097,9 +2097,8 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 {
 	struct ceph_mds_session *session = NULL;
 	struct ceph_msg *reply;
+	struct rb_node *p;
 	int err;
-	int got;
-	u64 next_snap_ino = 0;
 	struct ceph_pagelist *pagelist;
 
 	pr_info("reconnect to recovering mds%d\n", mds);
@@ -2155,14 +2154,10 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 	 * parent for all of our realms.  If the mds has any newer info,
 	 * it will tell us.
 	 */
-	next_snap_ino = 0;
-	while (1) {
-		struct ceph_snap_realm *realm;
+	for (p = rb_first(&mdsc->snap_realms); p; p = rb_next(p)) {
+		struct ceph_snap_realm *realm =
+			rb_entry(p, struct ceph_snap_realm, node);
 		struct ceph_mds_snaprealm_reconnect sr_rec;
-		got = radix_tree_gang_lookup(&mdsc->snap_realms,
-					     (void **)&realm, next_snap_ino, 1);
-		if (!got)
-			break;
 
 		dout(" adding snap realm %llx seq %lld parent %llx\n",
 		     realm->ino, realm->seq, realm->parent_ino);
@@ -2172,7 +2167,6 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc, int mds)
 		err = ceph_pagelist_append(pagelist, &sr_rec, sizeof(sr_rec));
 		if (err)
 			goto fail;
-		next_snap_ino = realm->ino + 1;
 	}
 
 send:
@@ -2603,7 +2597,7 @@ int ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
 	mdsc->max_sessions = 0;
 	mdsc->stopping = 0;
 	init_rwsem(&mdsc->snap_rwsem);
-	INIT_RADIX_TREE(&mdsc->snap_realms, GFP_NOFS);
+	mdsc->snap_realms = RB_ROOT;
 	INIT_LIST_HEAD(&mdsc->snap_empty);
 	spin_lock_init(&mdsc->snap_empty_lock);
 	mdsc->last_tid = 0;
