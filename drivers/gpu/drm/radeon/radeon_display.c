@@ -278,7 +278,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 		DRM_INFO("  %s\n", connector_names[connector->connector_type]);
 		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
 			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
-		if (radeon_connector->ddc_bus)
+		if (radeon_connector->ddc_bus) {
 			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 				 radeon_connector->ddc_bus->rec.mask_clk_reg,
 				 radeon_connector->ddc_bus->rec.mask_data_reg,
@@ -288,6 +288,15 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.en_data_reg,
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
+		} else {
+			if (connector->connector_type == DRM_MODE_CONNECTOR_VGA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
+				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);

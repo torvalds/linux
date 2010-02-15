@@ -118,7 +118,9 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset)
 			 * clear the TS_RESTORE_SIGMASK flag.
 			 */
 			current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
-			tracehook_signal_handler(signr, &info, &ka, regs, 0);
+
+			tracehook_signal_handler(signr, &info, &ka, regs,
+					test_thread_flag(TIF_SINGLESTEP));
 			return 1;
 		}
 	}

@@ -101,6 +101,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 		struct nouveau_encoder *nvenc = nouveau_encoder(enc);
 
 		if (nvenc == nv_encoder ||
+		    nvenc->disconnect != nv50_sor_disconnect ||
 		    nvenc->dcb->or != nv_encoder->dcb->or)
 			continue;
 

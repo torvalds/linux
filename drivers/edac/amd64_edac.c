@@ -2658,10 +2658,11 @@ static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
  * the memory system completely. A command line option allows to force-enable
  * hardware ECC later in amd64_enable_ecc_error_reporting().
  */
-static const char *ecc_warning =
-	"WARNING: ECC is disabled by BIOS. Module will NOT be loaded.\n"
-	" Either Enable ECC in the BIOS, or set 'ecc_enable_override'.\n"
-	" Also, use of the override can cause unknown side effects.\n";
+static const char *ecc_msg =
+	"ECC disabled in the BIOS or no ECC capability, module will not load.\n"
+	" Either enable ECC checking or force module loading by setting "
+	"'ecc_enable_override'.\n"
+	" (Note that use of the override may cause unknown side effects.)\n";
 
 static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 {
@@ -2673,7 +2674,7 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 
 	ecc_enabled = !!(value & K8_NBCFG_ECC_ENABLE);
 	if (!ecc_enabled)
-		amd64_printk(KERN_WARNING, "This node reports that Memory ECC "
+		amd64_printk(KERN_NOTICE, "This node reports that Memory ECC "
 			     "is currently disabled, set F3x%x[22] (%s).\n",
 			     K8_NBCFG, pci_name(pvt->misc_f3_ctl));
 	else
@@ -2681,13 +2682,13 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 
 	nb_mce_en = amd64_nb_mce_bank_enabled_on_node(pvt->mc_node_id);
 	if (!nb_mce_en)
-		amd64_printk(KERN_WARNING, "NB MCE bank disabled, set MSR "
+		amd64_printk(KERN_NOTICE, "NB MCE bank disabled, set MSR "
 			     "0x%08x[4] on node %d to enable.\n",
 			     MSR_IA32_MCG_CTL, pvt->mc_node_id);
 
 	if (!ecc_enabled || !nb_mce_en) {
 		if (!ecc_enable_override) {
-			amd64_printk(KERN_WARNING, "%s", ecc_warning);
+			amd64_printk(KERN_NOTICE, "%s", ecc_msg);
 			return -ENODEV;
 		}
 		ecc_enable_override = 0;

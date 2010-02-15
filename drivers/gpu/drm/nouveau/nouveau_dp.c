@@ -502,12 +502,12 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 			break;
 	}
 
-	if ((stat & NV50_AUXCH_STAT_COUNT) != data_nr) {
-		ret = -EREMOTEIO;
-		goto out;
-	}
-
 	if (cmd & 1) {
+		if ((stat & NV50_AUXCH_STAT_COUNT) != data_nr) {
+			ret = -EREMOTEIO;
+			goto out;
+		}
+
 		for (i = 0; i < 4; i++) {
 			data32[i] = nv_rd32(dev, NV50_AUXCH_DATA_IN(index, i));
 			NV_DEBUG_KMS(dev, "rd %d: 0x%08x\n", i, data32[i]);

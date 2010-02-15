@@ -880,6 +880,7 @@ void getboottime(struct timespec *ts)
 
 	set_normalized_timespec(ts, -boottime.tv_sec, -boottime.tv_nsec);
 }
+EXPORT_SYMBOL_GPL(getboottime);
 
 /**
  * monotonic_to_bootbased - Convert the monotonic time to boot based.
@@ -889,6 +890,7 @@ void monotonic_to_bootbased(struct timespec *ts)
 {
 	*ts = timespec_add_safe(*ts, total_sleep_time);
 }
+EXPORT_SYMBOL_GPL(monotonic_to_bootbased);
 
 unsigned long get_seconds(void)
 {

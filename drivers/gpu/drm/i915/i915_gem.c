@@ -1552,6 +1552,8 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 	else
 		list_move_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 
+	BUG_ON(!list_empty(&obj_priv->gpu_write_list));
+
 	obj_priv->last_rendering_seqno = 0;
 	if (obj_priv->active) {
 		obj_priv->active = 0;
@@ -1622,7 +1624,8 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 		struct drm_i915_gem_object *obj_priv, *next;
 
 		list_for_each_entry_safe(obj_priv, next,
-					 &dev_priv->mm.flushing_list, list) {
+					 &dev_priv->mm.gpu_write_list,
+					 gpu_write_list) {
 			struct drm_gem_object *obj = obj_priv->obj;
 
 			if ((obj->write_domain & flush_domains) ==
@@ -1630,6 +1633,7 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 				uint32_t old_write_domain = obj->write_domain;
 
 				obj->write_domain = 0;
+				list_del_init(&obj_priv->gpu_write_list);
 				i915_gem_object_move_to_active(obj, seqno);
 
 				trace_i915_gem_object_change_domain(obj,
@@ -2084,8 +2088,8 @@ static int
 i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t seqno;
 	int ret;
+	uint32_t seqno;
 	bool lists_empty;
 
 	spin_lock(&dev_priv->mm.active_list_lock);
@@ -2106,6 +2110,8 @@ i915_gem_evict_everything(struct drm_device *dev)
 	ret = i915_wait_request(dev, seqno);
 	if (ret)
 		return ret;
+
+	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 
 	ret = i915_gem_evict_from_inactive_list(dev);
 	if (ret)
@@ -2701,7 +2707,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj)
 	old_write_domain = obj->write_domain;
 	i915_gem_flush(dev, 0, obj->write_domain);
 	seqno = i915_add_request(dev, NULL, obj->write_domain);
-	obj->write_domain = 0;
+	BUG_ON(obj->write_domain);
 	i915_gem_object_move_to_active(obj, seqno);
 
 	trace_i915_gem_object_change_domain(obj,
@@ -3682,8 +3688,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (args->num_cliprects != 0) {
 		cliprects = kcalloc(args->num_cliprects, sizeof(*cliprects),
 				    GFP_KERNEL);
-		if (cliprects == NULL)
+		if (cliprects == NULL) {
+			ret = -ENOMEM;
 			goto pre_mutex_err;
+		}
 
 		ret = copy_from_user(cliprects,
 				     (struct drm_clip_rect __user *)
@@ -3850,16 +3858,23 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		i915_gem_flush(dev,
 			       dev->invalidate_domains,
 			       dev->flush_domains);
-		if (dev->flush_domains)
+		if (dev->flush_domains & I915_GEM_GPU_DOMAINS)
 			(void)i915_add_request(dev, file_priv,
 					       dev->flush_domains);
 	}
 
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_gem_object *obj = object_list[i];
+		struct drm_i915_gem_object *obj_priv = obj->driver_private;
 		uint32_t old_write_domain = obj->write_domain;
 
 		obj->write_domain = obj->pending_write_domain;
+		if (obj->write_domain)
+			list_move_tail(&obj_priv->gpu_write_list,
+				       &dev_priv->mm.gpu_write_list);
+		else
+			list_del_init(&obj_priv->gpu_write_list);
+
 		trace_i915_gem_object_change_domain(obj,
 						    obj->read_domains,
 						    old_write_domain);
@@ -4370,6 +4385,7 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 	obj_priv->obj = obj;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
 	INIT_LIST_HEAD(&obj_priv->list);
+	INIT_LIST_HEAD(&obj_priv->gpu_write_list);
 	INIT_LIST_HEAD(&obj_priv->fence_list);
 	obj_priv->madv = I915_MADV_WILLNEED;
 
@@ -4821,6 +4837,7 @@ i915_gem_load(struct drm_device *dev)
 	spin_lock_init(&dev_priv->mm.active_list_lock);
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
+	INIT_LIST_HEAD(&dev_priv->mm.gpu_write_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.request_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);

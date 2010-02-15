@@ -735,8 +735,10 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	if (cmdbuf->num_cliprects) {
 		cliprects = kcalloc(cmdbuf->num_cliprects,
 				    sizeof(struct drm_clip_rect), GFP_KERNEL);
-		if (cliprects == NULL)
+		if (cliprects == NULL) {
+			ret = -ENOMEM;
 			goto fail_batch_free;
+		}
 
 		ret = copy_from_user(cliprects, cmdbuf->cliprects,
 				     cmdbuf->num_cliprects *
