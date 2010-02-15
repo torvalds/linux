@@ -567,14 +567,17 @@ static void sierra_indat_callback(struct urb *urb)
 	} else {
 		if (urb->actual_length) {
 			tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				tty_buffer_request_room(tty,
+					urb->actual_length);
+				tty_insert_flip_string(tty, data,
+					urb->actual_length);
+				tty_flip_buffer_push(tty);
 
-			tty_buffer_request_room(tty, urb->actual_length);
-			tty_insert_flip_string(tty, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
-
-			tty_kref_put(tty);
-			usb_serial_debug_data(debug, &port->dev, __func__,
-				urb->actual_length, data);
+				tty_kref_put(tty);
+				usb_serial_debug_data(debug, &port->dev,
+					__func__, urb->actual_length, data);
+			}
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
 				" received\n", __func__);
