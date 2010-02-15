@@ -62,15 +62,18 @@ struct linux_binprm;
 #define TOMOYO_ROOT_NAME_LEN                     (sizeof(TOMOYO_ROOT_NAME) - 1)
 
 /* Index numbers for Access Controls. */
-#define TOMOYO_MAC_FOR_FILE                  0  /* domain_policy.conf */
-#define TOMOYO_MAX_ACCEPT_ENTRY              1
-#define TOMOYO_VERBOSE                       2
-#define TOMOYO_MAX_CONTROL_INDEX             3
+enum tomoyo_mac_index {
+	TOMOYO_MAC_FOR_FILE,  /* domain_policy.conf */
+	TOMOYO_MAX_ACCEPT_ENTRY,
+	TOMOYO_VERBOSE,
+	TOMOYO_MAX_CONTROL_INDEX
+};
 
 /* Index numbers for Access Controls. */
-
-#define TOMOYO_TYPE_SINGLE_PATH_ACL                 0
-#define TOMOYO_TYPE_DOUBLE_PATH_ACL                 1
+enum tomoyo_acl_entry_type_index {
+	TOMOYO_TYPE_SINGLE_PATH_ACL,
+	TOMOYO_TYPE_DOUBLE_PATH_ACL,
+};
 
 /* Index numbers for File Controls. */
 
@@ -83,44 +86,50 @@ struct linux_binprm;
  * automatically cleared if TYPE_READ_WRITE_ACL is cleared.
  */
 
-#define TOMOYO_TYPE_READ_WRITE_ACL    0
-#define TOMOYO_TYPE_EXECUTE_ACL       1
-#define TOMOYO_TYPE_READ_ACL          2
-#define TOMOYO_TYPE_WRITE_ACL         3
-#define TOMOYO_TYPE_CREATE_ACL        4
-#define TOMOYO_TYPE_UNLINK_ACL        5
-#define TOMOYO_TYPE_MKDIR_ACL         6
-#define TOMOYO_TYPE_RMDIR_ACL         7
-#define TOMOYO_TYPE_MKFIFO_ACL        8
-#define TOMOYO_TYPE_MKSOCK_ACL        9
-#define TOMOYO_TYPE_MKBLOCK_ACL      10
-#define TOMOYO_TYPE_MKCHAR_ACL       11
-#define TOMOYO_TYPE_TRUNCATE_ACL     12
-#define TOMOYO_TYPE_SYMLINK_ACL      13
-#define TOMOYO_TYPE_REWRITE_ACL      14
-#define TOMOYO_TYPE_IOCTL_ACL        15
-#define TOMOYO_TYPE_CHMOD_ACL        16
-#define TOMOYO_TYPE_CHOWN_ACL        17
-#define TOMOYO_TYPE_CHGRP_ACL        18
-#define TOMOYO_TYPE_CHROOT_ACL       19
-#define TOMOYO_TYPE_MOUNT_ACL        20
-#define TOMOYO_TYPE_UMOUNT_ACL       21
-#define TOMOYO_MAX_SINGLE_PATH_OPERATION 22
+enum tomoyo_path_acl_index {
+	TOMOYO_TYPE_READ_WRITE_ACL,
+	TOMOYO_TYPE_EXECUTE_ACL,
+	TOMOYO_TYPE_READ_ACL,
+	TOMOYO_TYPE_WRITE_ACL,
+	TOMOYO_TYPE_CREATE_ACL,
+	TOMOYO_TYPE_UNLINK_ACL,
+	TOMOYO_TYPE_MKDIR_ACL,
+	TOMOYO_TYPE_RMDIR_ACL,
+	TOMOYO_TYPE_MKFIFO_ACL,
+	TOMOYO_TYPE_MKSOCK_ACL,
+	TOMOYO_TYPE_MKBLOCK_ACL,
+	TOMOYO_TYPE_MKCHAR_ACL,
+	TOMOYO_TYPE_TRUNCATE_ACL,
+	TOMOYO_TYPE_SYMLINK_ACL,
+	TOMOYO_TYPE_REWRITE_ACL,
+	TOMOYO_TYPE_IOCTL_ACL,
+	TOMOYO_TYPE_CHMOD_ACL,
+	TOMOYO_TYPE_CHOWN_ACL,
+	TOMOYO_TYPE_CHGRP_ACL,
+	TOMOYO_TYPE_CHROOT_ACL,
+	TOMOYO_TYPE_MOUNT_ACL,
+	TOMOYO_TYPE_UMOUNT_ACL,
+	TOMOYO_MAX_SINGLE_PATH_OPERATION
+};
 
-#define TOMOYO_TYPE_LINK_ACL         0
-#define TOMOYO_TYPE_RENAME_ACL       1
-#define TOMOYO_TYPE_PIVOT_ROOT_ACL   2
-#define TOMOYO_MAX_DOUBLE_PATH_OPERATION 3
+enum tomoyo_path2_acl_index {
+	TOMOYO_TYPE_LINK_ACL,
+	TOMOYO_TYPE_RENAME_ACL,
+	TOMOYO_TYPE_PIVOT_ROOT_ACL,
+	TOMOYO_MAX_DOUBLE_PATH_OPERATION
+};
 
-#define TOMOYO_DOMAINPOLICY          0
-#define TOMOYO_EXCEPTIONPOLICY       1
-#define TOMOYO_DOMAIN_STATUS         2
-#define TOMOYO_PROCESS_STATUS        3
-#define TOMOYO_MEMINFO               4
-#define TOMOYO_SELFDOMAIN            5
-#define TOMOYO_VERSION               6
-#define TOMOYO_PROFILE               7
-#define TOMOYO_MANAGER               8
+enum tomoyo_securityfs_interface_index {
+	TOMOYO_DOMAINPOLICY,
+	TOMOYO_EXCEPTIONPOLICY,
+	TOMOYO_DOMAIN_STATUS,
+	TOMOYO_PROCESS_STATUS,
+	TOMOYO_MEMINFO,
+	TOMOYO_SELFDOMAIN,
+	TOMOYO_VERSION,
+	TOMOYO_PROFILE,
+	TOMOYO_MANAGER
+};
 
 /********** Structure definitions. **********/
 
