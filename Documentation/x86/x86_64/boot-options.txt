@@ -166,6 +166,10 @@ NUMA
 
   numa=noacpi   Don't parse the SRAT table for NUMA setup
 
+  numa=fake=<size>[MG]
+		If given as a memory unit, fills all system RAM with nodes of
+		size interleaved over physical nodes.
+
   numa=fake=CMDLINE
 		If a number, fakes CMDLINE nodes and ignores NUMA setup of the
 		actual machine.  Otherwise, system memory is configured

@@ -502,6 +502,102 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 }
 
 /*
+ * Returns the end address of a node so that there is at least `size' amount of
+ * non-reserved memory or `max_addr' is reached.
+ */
+static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
+{
+	u64 end = start + size;
+
+	while (end - start - e820_hole_size(start, end) < size) {
+		end += FAKE_NODE_MIN_SIZE;
+		if (end > max_addr) {
+			end = max_addr;
+			break;
+		}
+	}
+	return end;
+}
+
+/*
+ * Sets up fake nodes of `size' interleaved over physical nodes ranging from
+ * `addr' to `max_addr'.  The return value is the number of nodes allocated.
+ */
+static int __init split_nodes_size_interleave(u64 addr, u64 max_addr, u64 size)
+{
+	nodemask_t physnode_mask = NODE_MASK_NONE;
+	u64 min_size;
+	int ret = 0;
+	int i;
+
+	if (!size)
+		return -1;
+	/*
+	 * The limit on emulated nodes is MAX_NUMNODES, so the size per node is
+	 * increased accordingly if the requested size is too small.  This
+	 * creates a uniform distribution of node sizes across the entire
+	 * machine (but not necessarily over physical nodes).
+	 */
+	min_size = (max_addr - addr - e820_hole_size(addr, max_addr)) /
+						MAX_NUMNODES;
+	min_size = max(min_size, FAKE_NODE_MIN_SIZE);
+	if ((min_size & FAKE_NODE_MIN_HASH_MASK) < min_size)
+		min_size = (min_size + FAKE_NODE_MIN_SIZE) &
+						FAKE_NODE_MIN_HASH_MASK;
+	if (size < min_size) {
+		pr_err("Fake node size %LuMB too small, increasing to %LuMB\n",
+			size >> 20, min_size >> 20);
+		size = min_size;
+	}
+	size &= FAKE_NODE_MIN_HASH_MASK;
+
+	for (i = 0; i < MAX_NUMNODES; i++)
+		if (physnodes[i].start != physnodes[i].end)
+			node_set(i, physnode_mask);
+	/*
+	 * Fill physical nodes with fake nodes of size until there is no memory
+	 * left on any of them.
+	 */
+	while (nodes_weight(physnode_mask)) {
+		for_each_node_mask(i, physnode_mask) {
+			u64 dma32_end = MAX_DMA32_PFN << PAGE_SHIFT;
+			u64 end;
+
+			end = find_end_of_node(physnodes[i].start,
+						physnodes[i].end, size);
+			/*
+			 * If there won't be at least FAKE_NODE_MIN_SIZE of
+			 * non-reserved memory in ZONE_DMA32 for the next node,
+			 * this one must extend to the boundary.
+			 */
+			if (end < dma32_end && dma32_end - end -
+			    e820_hole_size(end, dma32_end) < FAKE_NODE_MIN_SIZE)
+				end = dma32_end;
+
+			/*
+			 * If there won't be enough non-reserved memory for the
+			 * next node, this one must extend to the end of the
+			 * physical node.
+			 */
+			if (physnodes[i].end - end -
+			    e820_hole_size(end, physnodes[i].end) < size)
+				end = physnodes[i].end;
+
+			/*
+			 * Setup the fake node that will be allocated as bootmem
+			 * later.  If setup_node_range() returns non-zero, there
+			 * is no more memory available on this physical node.
+			 */
+			if (setup_node_range(ret++, &physnodes[i].start,
+						end - physnodes[i].start,
+						physnodes[i].end) < 0)
+				node_clear(i, physnode_mask);
+		}
+	}
+	return ret;
+}
+
+/*
  * Splits num_nodes nodes up equally starting at node_start.  The return value
  * is the number of nodes split up and addr is adjusted to be at the end of the
  * last node allocated.
@@ -546,14 +642,7 @@ static int __init split_nodes_equally(u64 *addr, u64 max_addr, int node_start,
 		if (i == num_nodes + node_start - 1)
 			end = max_addr;
 		else
-			while (end - *addr - e820_hole_size(*addr, end) <
-			       size) {
-				end += FAKE_NODE_MIN_SIZE;
-				if (end > max_addr) {
-					end = max_addr;
-					break;
-				}
-			}
+			end = find_end_of_node(*addr, max_addr, size);
 		if (setup_node_range(i, addr, end - *addr, max_addr) < 0)
 			break;
 	}
@@ -588,6 +677,18 @@ static int __init numa_emulation(unsigned long start_pfn,
 	int num_phys_nodes;
 
 	num_phys_nodes = setup_physnodes(addr, max_addr, acpi, k8);
+	/*
+	 * If the numa=fake command-line contains a 'M' or 'G', it represents
+	 * the fixed node size.
+	 */
+	if (strchr(cmdline, 'M') || strchr(cmdline, 'G')) {
+		size = memparse(cmdline, &cmdline);
+		num_nodes = split_nodes_size_interleave(addr, max_addr, size);
+		if (num_nodes < 0)
+			return num_nodes;
+		goto out;
+	}
+
 	/*
 	 * If the numa=fake command-line is just a single number N, split the
 	 * system RAM into N fake nodes.
