@@ -279,6 +279,7 @@ static int
 p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 {
 	struct virtio_chan *chan;
+	int ret = -ENOENT;
 	int found = 0;
 
 	mutex_lock(&virtio_9p_lock);
@@ -289,13 +290,14 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 				found = 1;
 				break;
 			}
+			ret = -EBUSY;
 		}
 	}
 	mutex_unlock(&virtio_9p_lock);
 
 	if (!found) {
 		printk(KERN_ERR "9p: no channels available\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	client->trans = (void *)chan;
