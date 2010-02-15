@@ -26,6 +26,9 @@ struct dlfb_data {
 	u32 pseudo_palette[256];
 };
 
+#define NR_USB_REQUEST_I2C_SUB_IO 0x02
+#define NR_USB_REQUEST_CHANNEL 0x12
+
 static void dlfb_bulk_callback(struct urb *urb)
 {
 	struct dlfb_data *dev_info = urb->context;

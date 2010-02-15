@@ -39,8 +39,17 @@ static struct fb_fix_screeninfo dlfb_fix = {
 	.accel =        FB_ACCEL_NONE,
 };
 
-#define NR_USB_REQUEST_I2C_SUB_IO 0x02
-#define NR_USB_REQUEST_CHANNEL 0x12
+/*
+ * There are many DisplayLink-based products, all with unique PIDs. We are able
+ * to support all volume ones (circa 2009) with a single driver, so we match
+ * globally on VID. TODO: Probe() needs to detect when we might be running
+ * "future" chips, and bail on those, so a compatible driver can match.
+ */
+static struct usb_device_id id_table[] = {
+	{.idVendor = 0x17e9, .match_flags = USB_DEVICE_ID_MATCH_VENDOR,},
+	{},
+};
+MODULE_DEVICE_TABLE(usb, id_table);
 
 /*
  * Inserts a specific DisplayLink controller command into the provided
@@ -252,24 +261,6 @@ error:
 	return retval;
 }
 
-/*
- * This is necessary before we can communicate with the display controller.
- */
-static int dlfb_select_std_channel(struct dlfb_data *dev)
-{
-	int ret;
-	u8 set_def_chn[] = {	   0x57, 0xCD, 0xDC, 0xA7,
-				0x1C, 0x88, 0x5E, 0x15,
-				0x60, 0xFE, 0xC6, 0x97,
-				0x16, 0x3D, 0x47, 0xF2  };
-
-	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
-			NR_USB_REQUEST_CHANNEL,
-			(USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
-			set_def_chn, sizeof(set_def_chn), USB_CTRL_SET_TIMEOUT);
-	return ret;
-}
-
 
 /*
  * Query EDID from the handware, then hand it off to fbdev's edid parse
@@ -324,18 +315,6 @@ struct dloarea {
 	int w, h;
 	int x2, y2;
 };
-
-/*
- * There are many DisplayLink-based products, all with unique PIDs. We are able
- * to support all volume ones (circa 2009) with a single driver, so we match
- * globally on VID. TODO: Probe() needs to detect when we might be running
- * "future" chips, and bail on those, so a compatible driver can match.
- */
-static struct usb_device_id id_table[] = {
-	{.idVendor = 0x17e9, .match_flags = USB_DEVICE_ID_MATCH_VENDOR,},
-	{},
-};
-MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver dlfb_driver;
 
@@ -888,7 +867,6 @@ static int dlfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 }
 
 /* taken from vesafb */
-
 static int
 dlfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	       unsigned blue, unsigned transp, struct fb_info *info)
@@ -951,6 +929,24 @@ static struct fb_ops dlfb_ops = {
 	.fb_release = dlfb_release,
 	.fb_blank = dlfb_blank,
 };
+
+/*
+ * This is necessary before we can communicate with the display controller.
+ */
+static int dlfb_select_std_channel(struct dlfb_data *dev)
+{
+	int ret;
+	u8 set_def_chn[] = {	   0x57, 0xCD, 0xDC, 0xA7,
+				0x1C, 0x88, 0x5E, 0x15,
+				0x60, 0xFE, 0xC6, 0x97,
+				0x16, 0x3D, 0x47, 0xF2  };
+
+	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
+			NR_USB_REQUEST_CHANNEL,
+			(USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
+			set_def_chn, sizeof(set_def_chn), USB_CTRL_SET_TIMEOUT);
+	return ret;
+}
 
 static int dlfb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
