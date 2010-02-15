@@ -279,9 +279,19 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name)
 
 void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 {
-	prm_base = omap2_globals->prm;
-	cm_base = omap2_globals->cm;
-	cm2_base = omap2_globals->cm2;
+	/* Static mapping, never released */
+	if (omap2_globals->prm) {
+		prm_base = ioremap(omap2_globals->prm, SZ_8K);
+		WARN_ON(!prm_base);
+	}
+	if (omap2_globals->cm) {
+		cm_base = ioremap(omap2_globals->cm, SZ_8K);
+		WARN_ON(!cm_base);
+	}
+	if (omap2_globals->cm2) {
+		cm2_base = ioremap(omap2_globals->cm2, SZ_8K);
+		WARN_ON(!cm2_base);
+	}
 }
 
 #ifdef CONFIG_ARCH_OMAP3

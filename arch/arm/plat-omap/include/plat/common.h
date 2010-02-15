@@ -37,16 +37,20 @@ extern void __iomem *gic_cpu_base_addr;
 extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
 
-/* IO bases for various OMAP processors */
+/*
+ * IO bases for various OMAP processors
+ * Except the tap base, rest all the io bases
+ * listed are physical addresses.
+ */
 struct omap_globals {
 	u32		class;		/* OMAP class to detect */
 	void __iomem	*tap;		/* Control module ID code */
-	void __iomem	*sdrc;		/* SDRAM Controller */
-	void __iomem	*sms;		/* SDRAM Memory Scheduler */
-	void __iomem	*ctrl;		/* System Control Module */
-	void __iomem	*prm;		/* Power and Reset Management */
-	void __iomem	*cm;		/* Clock Management */
-	void __iomem	*cm2;
+	unsigned long   sdrc;           /* SDRAM Controller */
+	unsigned long   sms;            /* SDRAM Memory Scheduler */
+	unsigned long   ctrl;           /* System Control Module */
+	unsigned long   prm;            /* Power and Reset Management */
+	unsigned long   cm;             /* Clock Management */
+	unsigned long   cm2;
 	unsigned long	uart1_phys;
 	unsigned long	uart2_phys;
 	unsigned long	uart3_phys;
