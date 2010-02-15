@@ -28,28 +28,42 @@
 #include <plat/mcbsp.h>
 
 struct omap_mcbsp **mcbsp_ptr;
-int omap_mcbsp_count;
+int omap_mcbsp_count, omap_mcbsp_cache_size;
 
 void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
 {
-	if (cpu_class_is_omap1() || cpu_is_omap2420())
+	if (cpu_class_is_omap1()) {
+		((u16 *)mcbsp->reg_cache)[reg / sizeof(u16)] = (u16)val;
 		__raw_writew((u16)val, mcbsp->io_base + reg);
-	else
+	} else if (cpu_is_omap2420()) {
+		((u16 *)mcbsp->reg_cache)[reg / sizeof(u32)] = (u16)val;
+		__raw_writew((u16)val, mcbsp->io_base + reg);
+	} else {
+		((u32 *)mcbsp->reg_cache)[reg / sizeof(u32)] = val;
 		__raw_writel(val, mcbsp->io_base + reg);
+	}
 }
 
-int omap_mcbsp_read(struct omap_mcbsp *mcbsp, u16 reg)
+int omap_mcbsp_read(struct omap_mcbsp *mcbsp, u16 reg, bool from_cache)
 {
-	if (cpu_class_is_omap1() || cpu_is_omap2420())
-		return __raw_readw(mcbsp->io_base + reg);
-	else
-		return __raw_readl(mcbsp->io_base + reg);
+	if (cpu_class_is_omap1()) {
+		return !from_cache ? __raw_readw(mcbsp->io_base + reg) :
+				((u16 *)mcbsp->reg_cache)[reg / sizeof(u16)];
+	} else if (cpu_is_omap2420()) {
+		return !from_cache ? __raw_readw(mcbsp->io_base + reg) :
+				((u16 *)mcbsp->reg_cache)[reg / sizeof(u32)];
+	} else {
+		return !from_cache ? __raw_readl(mcbsp->io_base + reg) :
+				((u32 *)mcbsp->reg_cache)[reg / sizeof(u32)];
+	}
 }
 
 #define MCBSP_READ(mcbsp, reg) \
-		omap_mcbsp_read(mcbsp, OMAP_MCBSP_REG_##reg)
+		omap_mcbsp_read(mcbsp, OMAP_MCBSP_REG_##reg, 0)
 #define MCBSP_WRITE(mcbsp, reg, val) \
 		omap_mcbsp_write(mcbsp, OMAP_MCBSP_REG_##reg, val)
+#define MCBSP_READ_CACHE(mcbsp, reg) \
+		omap_mcbsp_read(mcbsp, OMAP_MCBSP_REG_##reg, 1)
 
 #define omap_mcbsp_check_valid_id(id)	(id < omap_mcbsp_count)
 #define id_to_mcbsp_ptr(id)		mcbsp_ptr[id];
@@ -383,6 +397,7 @@ EXPORT_SYMBOL(omap_mcbsp_set_io_type);
 int omap_mcbsp_request(unsigned int id)
 {
 	struct omap_mcbsp *mcbsp;
+	void *reg_cache;
 	int err;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
@@ -391,15 +406,21 @@ int omap_mcbsp_request(unsigned int id)
 	}
 	mcbsp = id_to_mcbsp_ptr(id);
 
+	reg_cache = kzalloc(omap_mcbsp_cache_size, GFP_KERNEL);
+	if (!reg_cache) {
+		return -ENOMEM;
+	}
+
 	spin_lock(&mcbsp->lock);
 	if (!mcbsp->free) {
 		dev_err(mcbsp->dev, "McBSP%d is currently in use\n",
 			mcbsp->id);
-		spin_unlock(&mcbsp->lock);
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_kfree;
 	}
 
 	mcbsp->free = 0;
+	mcbsp->reg_cache = reg_cache;
 	spin_unlock(&mcbsp->lock);
 
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->request)
@@ -427,7 +448,7 @@ int omap_mcbsp_request(unsigned int id)
 			dev_err(mcbsp->dev, "Unable to request TX IRQ %d "
 					"for McBSP%d\n", mcbsp->tx_irq,
 					mcbsp->id);
-			goto error;
+			goto err_clk_disable;
 		}
 
 		init_completion(&mcbsp->rx_irq_completion);
@@ -437,16 +458,16 @@ int omap_mcbsp_request(unsigned int id)
 			dev_err(mcbsp->dev, "Unable to request RX IRQ %d "
 					"for McBSP%d\n", mcbsp->rx_irq,
 					mcbsp->id);
-			goto tx_irq;
+			goto err_free_irq;
 		}
 	}
 
 	return 0;
-tx_irq:
+err_free_irq:
 	free_irq(mcbsp->tx_irq, (void *)mcbsp);
-error:
+err_clk_disable:
 	if (mcbsp->pdata && mcbsp->pdata->ops && mcbsp->pdata->ops->free)
-			mcbsp->pdata->ops->free(id);
+		mcbsp->pdata->ops->free(id);
 
 	/* Do procedure specific to omap34xx arch, if applicable */
 	omap34xx_mcbsp_free(mcbsp);
@@ -454,7 +475,12 @@ error:
 	clk_disable(mcbsp->fclk);
 	clk_disable(mcbsp->iclk);
 
+	spin_lock(&mcbsp->lock);
 	mcbsp->free = 1;
+	mcbsp->reg_cache = NULL;
+err_kfree:
+	spin_unlock(&mcbsp->lock);
+	kfree(reg_cache);
 
 	return err;
 }
@@ -463,6 +489,7 @@ EXPORT_SYMBOL(omap_mcbsp_request);
 void omap_mcbsp_free(unsigned int id)
 {
 	struct omap_mcbsp *mcbsp;
+	void *reg_cache;
 
 	if (!omap_mcbsp_check_valid_id(id)) {
 		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
@@ -485,16 +512,18 @@ void omap_mcbsp_free(unsigned int id)
 		free_irq(mcbsp->tx_irq, (void *)mcbsp);
 	}
 
-	spin_lock(&mcbsp->lock);
-	if (mcbsp->free) {
-		dev_err(mcbsp->dev, "McBSP%d was not reserved\n",
-			mcbsp->id);
-		spin_unlock(&mcbsp->lock);
-		return;
-	}
+	reg_cache = mcbsp->reg_cache;
 
-	mcbsp->free = 1;
+	spin_lock(&mcbsp->lock);
+	if (mcbsp->free)
+		dev_err(mcbsp->dev, "McBSP%d was not reserved\n", mcbsp->id);
+	else
+		mcbsp->free = 1;
+	mcbsp->reg_cache = NULL;
 	spin_unlock(&mcbsp->lock);
+
+	if (reg_cache)
+		kfree(reg_cache);
 }
 EXPORT_SYMBOL(omap_mcbsp_free);
 
