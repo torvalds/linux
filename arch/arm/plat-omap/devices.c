@@ -28,6 +28,7 @@
 #include <plat/menelaus.h>
 #include <plat/mcbsp.h>
 #include <plat/dsp_common.h>
+#include <plat/omap44xx.h>
 
 #if	defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
 
@@ -188,6 +189,41 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 					int size)
 {  }
+#endif
+
+/*-------------------------------------------------------------------------*/
+
+#if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
+		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
+
+static struct resource mcpdm_resources[] = {
+	{
+		.name		= "mcpdm_mem",
+		.start		= OMAP44XX_MCPDM_BASE,
+		.end		= OMAP44XX_MCPDM_BASE + SZ_4K,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.name		= "mcpdm_irq",
+		.start		= INT_44XX_MCPDM_IRQ,
+		.end		= INT_44XX_MCPDM_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device omap_mcpdm_device = {
+	.name		= "omap-mcpdm",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(mcpdm_resources),
+	.resource	= mcpdm_resources,
+};
+
+static void omap_init_mcpdm(void)
+{
+	(void) platform_device_register(&omap_mcpdm_device);
+}
+#else
+static inline void omap_init_mcpdm(void) {}
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -385,6 +421,7 @@ static int __init omap_init_devices(void)
 	omap_init_dsp();
 	omap_init_kp();
 	omap_init_rng();
+	omap_init_mcpdm();
 	omap_init_uwire();
 	omap_init_wdt();
 	return 0;
