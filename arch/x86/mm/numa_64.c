@@ -427,7 +427,7 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 	 * Calculate the number of big nodes that can be allocated as a result
 	 * of consolidating the remainder.
 	 */
-	big = ((size & ~FAKE_NODE_MIN_HASH_MASK) & nr_nodes) /
+	big = ((size & ~FAKE_NODE_MIN_HASH_MASK) * nr_nodes) /
 		FAKE_NODE_MIN_SIZE;
 
 	size &= FAKE_NODE_MIN_HASH_MASK;
