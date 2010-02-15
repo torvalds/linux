@@ -2,7 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
- * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -287,6 +287,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 					msecs_to_jiffies(10));
 	}
+
+	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX)
+		cfg80211_action_tx_status(
+			skb->dev, (unsigned long) skb, skb->data, skb->len,
+			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
 
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);

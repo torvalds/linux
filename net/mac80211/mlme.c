@@ -2084,3 +2084,38 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	return 0;
 }
+
+int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_channel *chan,
+			 enum nl80211_channel_type channel_type,
+			 const u8 *buf, size_t len, u64 *cookie)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct sk_buff *skb;
+
+	/* Check that we are on the requested channel for transmission */
+	if ((chan != local->tmp_channel ||
+	     channel_type != local->tmp_channel_type) &&
+	    (chan != local->oper_channel ||
+	     channel_type != local->oper_channel_type))
+		return -EBUSY;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	memcpy(skb_put(skb, len), buf, len);
+
+	if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
+		IEEE80211_SKB_CB(skb)->flags |=
+			IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_NL80211_FRAME_TX |
+		IEEE80211_TX_CTL_REQ_TX_STATUS;
+	skb->dev = sdata->dev;
+	ieee80211_tx_skb(sdata, skb);
+
+	*cookie = (unsigned long) skb;
+	return 0;
+}

@@ -1,7 +1,7 @@
 /*
  * mac80211 configuration hooks for cfg80211
  *
- * Copyright 2006, 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -1448,6 +1448,15 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 	return ieee80211_wk_cancel_remain_on_channel(sdata, cookie);
 }
 
+static int ieee80211_action(struct wiphy *wiphy, struct net_device *dev,
+			    struct ieee80211_channel *chan,
+			    enum nl80211_channel_type channel_type,
+			    const u8 *buf, size_t len, u64 *cookie)
+{
+	return ieee80211_mgd_action(IEEE80211_DEV_TO_SUB_IF(dev), chan,
+				    channel_type, buf, len, cookie);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1496,4 +1505,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.set_bitrate_mask = ieee80211_set_bitrate_mask,
 	.remain_on_channel = ieee80211_remain_on_channel,
 	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
+	.action = ieee80211_action,
 };

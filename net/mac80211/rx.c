@@ -1856,12 +1856,17 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
 	struct sk_buff *nskb;
+	struct ieee80211_rx_status *status;
 	int len = rx->skb->len;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
 		return RX_CONTINUE;
 
-	if (!rx->sta)
+	/* drop too small frames */
+	if (len < IEEE80211_MIN_ACTION_SIZE)
+		return RX_DROP_UNUSABLE;
+
+	if (!rx->sta && mgmt->u.action.category != WLAN_CATEGORY_PUBLIC)
 		return RX_DROP_UNUSABLE;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
@@ -1869,14 +1874,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
 		return RX_DROP_UNUSABLE;
-
-	/* drop too small frames */
-	if (len < IEEE80211_MIN_ACTION_SIZE)
-		return RX_DROP_UNUSABLE;
-
-	/* return action frames that have *only* category */
-	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
-		goto return_frame;
 
 	switch (mgmt->u.action.category) {
 	case WLAN_CATEGORY_BACK:
@@ -1889,6 +1886,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 		    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_AP)
+			break;
+
+		/* verify action_code is present */
+		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			break;
 
 		switch (mgmt->u.action.u.addba_req.action_code) {
@@ -1917,6 +1918,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			break;
 
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			break;
+
+		/* verify action_code is present */
+		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			break;
 
 		switch (mgmt->u.action.u.measurement.action_code) {
@@ -1954,7 +1959,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	}
- return_frame:
+
 	/*
 	 * For AP mode, hostapd is responsible for handling any action
 	 * frames that we didn't handle, including returning unknown
@@ -1965,6 +1970,20 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		return RX_DROP_MONITOR;
+
+	/*
+	 * Getting here means the kernel doesn't know how to handle
+	 * it, but maybe userspace does ... include returned frames
+	 * so userspace can register for those to know whether ones
+	 * it transmitted were processed or returned.
+	 */
+	status = IEEE80211_SKB_RXCB(rx->skb);
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    cfg80211_rx_action(rx->sdata->dev, status->freq,
+			       rx->skb->data, rx->skb->len,
+			       GFP_ATOMIC))
+		goto handled;
 
 	/* do not return rejected action frames */
 	if (mgmt->u.action.category & 0x80)
@@ -1985,7 +2004,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	}
 
  handled:
-	rx->sta->rx_packets++;
+	if (rx->sta)
+		rx->sta->rx_packets++;
 	dev_kfree_skb(rx->skb);
 	return RX_QUEUED;
 }

@@ -677,6 +677,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		INIT_WORK(&wdev->cleanup_work, wdev_cleanup_work);
 		INIT_LIST_HEAD(&wdev->event_list);
 		spin_lock_init(&wdev->event_lock);
+		INIT_LIST_HEAD(&wdev->action_registrations);
+		spin_lock_init(&wdev->action_registrations_lock);
+
 		mutex_lock(&rdev->devlist_mtx);
 		list_add_rcu(&wdev->list, &rdev->netdev_list);
 		rdev->devlist_generation++;
@@ -792,6 +795,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			sysfs_remove_link(&dev->dev.kobj, "phy80211");
 			list_del_rcu(&wdev->list);
 			rdev->devlist_generation++;
+			cfg80211_mlme_purge_actions(wdev);
 #ifdef CONFIG_CFG80211_WEXT
 			kfree(wdev->wext.keys);
 #endif
