@@ -130,7 +130,7 @@ const struct clkops clkops_omap3430es2_hsotgusb_wait = {
 	.find_companion = omap2_clk_dflt_find_companion,
 };
 
-const struct clkops clkops_noncore_dpll_ops = {
+const struct clkops omap3_clkops_noncore_dpll_ops = {
 	.enable		= omap3_noncore_dpll_enable,
 	.disable	= omap3_noncore_dpll_disable,
 };

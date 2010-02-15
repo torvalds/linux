@@ -337,7 +337,7 @@ static struct dpll_data dpll2_dd = {
 
 static struct clk dpll2_ck = {
 	.name		= "dpll2_ck",
-	.ops		= &clkops_noncore_dpll_ops,
+	.ops		= &omap3_clkops_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll2_dd,
 	.round_rate	= &omap2_dpll_round_rate,
@@ -554,7 +554,7 @@ static struct dpll_data dpll4_dd = {
 
 static struct clk dpll4_ck = {
 	.name		= "dpll4_ck",
-	.ops		= &clkops_noncore_dpll_ops,
+	.ops		= &omap3_clkops_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll4_dd,
 	.round_rate	= &omap2_dpll_round_rate,
@@ -854,7 +854,7 @@ static struct dpll_data dpll5_dd = {
 
 static struct clk dpll5_ck = {
 	.name		= "dpll5_ck",
-	.ops		= &clkops_noncore_dpll_ops,
+	.ops		= &omap3_clkops_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll5_dd,
 	.round_rate	= &omap2_dpll_round_rate,

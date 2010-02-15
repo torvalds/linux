@@ -12,6 +12,6 @@
 
 int omap4xxx_clk_init(void);
 
-extern const struct clkops clkops_noncore_dpll_ops;
+extern const struct clkops omap4_clkops_noncore_dpll_ops;
 
 #endif

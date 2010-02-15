@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include "clock.h"
 
-const struct clkops clkops_noncore_dpll_ops = {
+const struct clkops omap4_clkops_noncore_dpll_ops = {
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
 };
