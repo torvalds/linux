@@ -851,6 +851,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 		d->chip.mask_ack = intc_mask_ack;
 	}
 
+	/* disable bits matching force_disable before registering irqs */
+	if (desc->force_disable)
+		intc_enable_disable_enum(desc, d, desc->force_disable, 0);
 
 	/* disable bits matching force_enable before registering irqs */
 	if (desc->force_enable)
