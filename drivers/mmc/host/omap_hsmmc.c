@@ -347,7 +347,14 @@ static int omap_hsmmc_23_set_sleep(struct device *dev, int slot, int sleep,
 		err = regulator_set_mode(host->vcc, mode);
 	if (err)
 		return err;
-	return regulator_set_mode(host->vcc_aux, mode);
+
+	if (!mmc_slot(host).vcc_aux_disable_is_sleep)
+		return regulator_set_mode(host->vcc_aux, mode);
+
+	if (sleep)
+		return regulator_disable(host->vcc_aux);
+	else
+		return regulator_enable(host->vcc_aux);
 }
 
 static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
@@ -1981,6 +1988,13 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 		mmc->ops	= &omap_hsmmc_ps_ops;
 	else
 		mmc->ops	= &omap_hsmmc_ops;
+
+	/*
+	 * If regulator_disable can only put vcc_aux to sleep then there is
+	 * no off state.
+	 */
+	if (mmc_slot(host).vcc_aux_disable_is_sleep)
+		mmc_slot(host).no_off = 1;
 
 	mmc->f_min	= 400000;
 	mmc->f_max	= 52000000;

@@ -205,6 +205,9 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		if (c->no_off)
 			mmc->slots[0].no_off = 1;
 
+		if (c->vcc_aux_disable_is_sleep)
+			mmc->slots[0].vcc_aux_disable_is_sleep = 1;
+
 		/* NOTE:  MMC slots should have a Vcc regulator set up.
 		 * This may be from a TWL4030-family chip, another
 		 * controllable regulator, or a fixed supply.
