@@ -21,9 +21,7 @@ struct twl4030_hsmmc_info {
 	int	ocr_mask;	/* temporary HACK */
 };
 
-#if defined(CONFIG_REGULATOR) && \
-	(defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
-	 defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE))
+#if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 
 void twl4030_mmc_init(struct twl4030_hsmmc_info *);
 
