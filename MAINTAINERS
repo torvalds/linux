@@ -2373,6 +2373,12 @@ F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/linux/gigaset_dev.h
 
+GRETH 10/100/1G Ethernet MAC device driver
+M:	Kristoffer Glembo <kristoffer@gaisler.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/greth*
+
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 M:	Frank Seidel <frank@f-seidel.de>
 L:	lm-sensors@lm-sensors.org
