@@ -237,7 +237,7 @@ static int dmatest_func(void *data)
 	dma_cookie_t		cookie;
 	enum dma_status		status;
 	enum dma_ctrl_flags 	flags;
-	u8			pq_coefs[pq_sources];
+	u8			pq_coefs[pq_sources + 1];
 	int			ret;
 	int			src_cnt;
 	int			dst_cnt;
@@ -257,7 +257,7 @@ static int dmatest_func(void *data)
 	} else if (thread->type == DMA_PQ) {
 		src_cnt = pq_sources | 1; /* force odd to ensure dst = src */
 		dst_cnt = 2;
-		for (i = 0; i < pq_sources; i++)
+		for (i = 0; i < src_cnt; i++)
 			pq_coefs[i] = 1;
 	} else
 		goto err_srcs;
@@ -355,7 +355,7 @@ static int dmatest_func(void *data)
 			for (i = 0; i < dst_cnt; i++)
 				dma_pq[i] = dma_dsts[i] + dst_off;
 			tx = dev->device_prep_dma_pq(chan, dma_pq, dma_srcs,
-						     pq_sources, pq_coefs,
+						     src_cnt, pq_coefs,
 						     len, flags);
 		}
 
