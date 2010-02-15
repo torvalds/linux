@@ -1102,7 +1102,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	int err = -ENOMEM;
 	struct xfrm_state *x = xfrm_state_alloc(net);
 	if (!x)
-		goto error;
+		goto out;
 
 	memcpy(&x->id, &orig->id, sizeof(x->id));
 	memcpy(&x->sel, &orig->sel, sizeof(x->sel));
@@ -1160,16 +1160,10 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	return x;
 
  error:
+	xfrm_state_put(x);
+out:
 	if (errp)
 		*errp = err;
-	if (x) {
-		kfree(x->aalg);
-		kfree(x->ealg);
-		kfree(x->calg);
-		kfree(x->encap);
-		kfree(x->coaddr);
-	}
-	kfree(x);
 	return NULL;
 }
 
