@@ -165,11 +165,6 @@ int mxc_iomux_mode(unsigned int pin_mode);
 	MXC_GPIO_IRQ_START)
 
 /*
- * The number of gpio devices among the pads
- */
-#define GPIO_PORT_MAX 3
-
-/*
  * This enumeration is constructed based on the Section
  * "sw_pad_ctl & sw_mux_ctl details" of the MX31 IC Spec. Each enumerated
  * value is constructed based on the rules described above.

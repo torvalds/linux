@@ -41,16 +41,9 @@
 #define MXC_SWR(x)	(0x3c + ((x) << 8))
 #define MXC_PUEN(x)	(0x40 + ((x) << 8))
 
-#ifdef CONFIG_ARCH_MX1
-# define GPIO_PORT_MAX  3
-#endif
-#ifdef CONFIG_ARCH_MX2
-# define GPIO_PORT_MAX  5
-#endif
-
-#ifndef GPIO_PORT_MAX
-# error "GPIO config port count unknown!"
-#endif
+#define MX1_NUM_GPIO_PORT	4
+#define MX21_NUM_GPIO_PORT	6
+#define MX27_NUM_GPIO_PORT	6
 
 #define GPIO_PIN_MASK 0x1f
 
@@ -102,9 +95,9 @@
 #define IRQ_GPIOE(x)  (IRQ_GPIOD(32) + x)
 #define IRQ_GPIOF(x)  (IRQ_GPIOE(32) + x)
 
-extern void mxc_gpio_mode(int gpio_mode);
+extern int mxc_gpio_mode(int gpio_mode);
 extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
-	const char *label);
+		const char *label);
 extern void mxc_gpio_release_multiple_pins(const int *pin_list, int count);
 
 #endif /* __MACH_IOMUX_V1_H__ */
