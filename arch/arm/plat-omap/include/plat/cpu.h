@@ -31,6 +31,7 @@
 #define __ASM_ARCH_OMAP_CPU_H
 
 #include <linux/bitops.h>
+#include <plat/multi.h>
 
 /*
  * Omap device type i.e. EMU/HS/TST/GP/BAD
@@ -74,75 +75,6 @@ unsigned int omap_rev(void);
  * Get the CPU revision for OMAP devices
  */
 #define GET_OMAP_REVISION()	((omap_rev() >> 8) & 0xff)
-
-/*
- * Test if multicore OMAP support is needed
- */
-#undef MULTI_OMAP1
-#undef MULTI_OMAP2
-#undef OMAP_NAME
-
-#ifdef CONFIG_ARCH_OMAP730
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP1
-#  define MULTI_OMAP1
-# else
-#  define OMAP_NAME omap730
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP850
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP1
-#  define MULTI_OMAP1
-# else
-#  define OMAP_NAME omap850
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP15XX
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP1
-#  define MULTI_OMAP1
-# else
-#  define OMAP_NAME omap1510
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP16XX
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP1
-#  define MULTI_OMAP1
-# else
-#  define OMAP_NAME omap16xx
-# endif
-#endif
-#if (defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
-# if (defined(OMAP_NAME) || defined(MULTI_OMAP1))
-#  error "OMAP1 and OMAP2 can't be selected at the same time"
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP2420
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap2420
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP2430
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap2430
-# endif
-#endif
-#ifdef CONFIG_ARCH_OMAP3430
-# ifdef OMAP_NAME
-#  undef  MULTI_OMAP2
-#  define MULTI_OMAP2
-# else
-#  define OMAP_NAME omap3430
-# endif
-#endif
 
 /*
  * Macros to group OMAP into cpu classes.
