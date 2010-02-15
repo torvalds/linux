@@ -4984,7 +4984,8 @@ read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, i
 		else
 			NV_WARN(dev,
 				"DCB I2C table has more entries than indexable "
-				"(%d entries, max index 15)\n", i2ctable[2]);
+				"(%d entries, max %d)\n", i2ctable[2],
+				DCB_MAX_NUM_I2C_ENTRIES);
 		entry_len = i2ctable[3];
 		/* [4] is i2c_default_indices, read in parse_dcb_table() */
 	}
@@ -5000,8 +5001,8 @@ read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, i
 
 	if (index == 0xf)
 		return 0;
-	if (index > i2c_entries) {
-		NV_ERROR(dev, "DCB I2C index too big (%d > %d)\n",
+	if (index >= i2c_entries) {
+		NV_ERROR(dev, "DCB I2C index too big (%d >= %d)\n",
 			 index, i2ctable[2]);
 		return -ENOENT;
 	}
