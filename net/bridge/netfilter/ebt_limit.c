@@ -90,7 +90,7 @@ static struct xt_match ebt_limit_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_limit_mt,
 	.checkentry	= ebt_limit_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_limit_info)),
+	.matchsize	= sizeof(struct ebt_limit_info),
 	.me		= THIS_MODULE,
 };
 
