@@ -342,6 +342,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		data->res.fattr = &data->fattr;
 		data->res.eof = 0;
 		data->res.count = bytes;
+		nfs_fattr_init(&data->fattr);
 		msg.rpc_argp = &data->args;
 		msg.rpc_resp = &data->res;
 
@@ -575,6 +576,7 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	data->res.count = 0;
 	data->res.fattr = &data->fattr;
 	data->res.verf = &data->verf;
+	nfs_fattr_init(&data->fattr);
 
 	NFS_PROTO(data->inode)->commit_setup(data, &msg);
 
@@ -766,6 +768,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		data->res.fattr = &data->fattr;
 		data->res.count = bytes;
 		data->res.verf = &data->verf;
+		nfs_fattr_init(&data->fattr);
 
 		task_setup_data.task = &data->task;
 		task_setup_data.callback_data = data;
