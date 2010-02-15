@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 
 #include <mach/hardware.h>
+#include <mach/am35xx.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
