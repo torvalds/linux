@@ -53,7 +53,7 @@ module_param(ip_list_perms, uint, 0400);
 module_param(ip_list_uid, uint, 0400);
 module_param(ip_list_gid, uint, 0400);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
-MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP to remember (max. 255)");
+MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP address to remember (max. 255)");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/xt_recent/* files");
 MODULE_PARM_DESC(ip_list_uid,"owner of /proc/net/xt_recent/* files");
@@ -306,8 +306,12 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	if ((info->check_set & (XT_RECENT_SET | XT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count))
 		return false;
-	if (info->hit_count > ip_pkt_list_tot)
+	if (info->hit_count > ip_pkt_list_tot) {
+		pr_info(KBUILD_MODNAME ": hitcount (%u) is larger than "
+			"packets to be remembered (%u)\n",
+			info->hit_count, ip_pkt_list_tot);
 		return false;
+	}
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
 		return false;
