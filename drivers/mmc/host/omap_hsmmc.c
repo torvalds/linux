@@ -296,11 +296,8 @@ static int omap_hsmmc_23_set_power(struct device *dev, int slot, int power_on,
 				ret = mmc_regulator_set_ocr(host->vcc, 0);
 		}
 	} else {
-		if (host->vcc_aux) {
-			ret = regulator_is_enabled(host->vcc_aux);
-			if (ret > 0)
-				ret = regulator_disable(host->vcc_aux);
-		}
+		if (host->vcc_aux)
+			ret = regulator_disable(host->vcc_aux);
 		if (ret == 0)
 			ret = mmc_regulator_set_ocr(host->vcc, 0);
 	}
@@ -1975,7 +1972,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	host->slot_id	= 0;
 	host->mapbase	= res->start;
 	host->base	= ioremap(host->mapbase, SZ_4K);
-	host->power_mode = -1;
+	host->power_mode = MMC_POWER_OFF;
 
 	platform_set_drvdata(pdev, host);
 	INIT_WORK(&host->mmc_carddetect_work, omap_hsmmc_detect);
