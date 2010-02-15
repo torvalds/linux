@@ -444,6 +444,8 @@ static int ebt_verify_pointers(const struct ebt_replace *repl,
 				break;
 			if (left < e->next_offset)
 				break;
+			if (e->next_offset < sizeof(struct ebt_entry))
+				return -EINVAL;
 			offset += e->next_offset;
 		}
 	}
