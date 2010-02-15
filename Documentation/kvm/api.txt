@@ -718,6 +718,37 @@ If KVM_CAP_INTR_SHADOW is available, KVM_VCPUEVENT_VALID_SHADOW can be set in
 the flags field to signal that interrupt.shadow contains a valid state and
 shall be written into the VCPU.
 
+4.32 KVM_GET_DEBUGREGS
+
+Capability: KVM_CAP_DEBUGREGS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_debugregs (out)
+Returns: 0 on success, -1 on error
+
+Reads debug registers from the vcpu.
+
+struct kvm_debugregs {
+	__u64 db[4];
+	__u64 dr6;
+	__u64 dr7;
+	__u64 flags;
+	__u64 reserved[9];
+};
+
+4.33 KVM_SET_DEBUGREGS
+
+Capability: KVM_CAP_DEBUGREGS
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_debugregs (in)
+Returns: 0 on success, -1 on error
+
+Writes debug registers into the vcpu.
+
+See KVM_GET_DEBUGREGS for the data structure. The flags field is unused
+yet and must be cleared on entry.
+
 
 5. The kvm_run structure
 

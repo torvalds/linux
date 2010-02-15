@@ -503,6 +503,9 @@ struct kvm_ioeventfd {
 #define KVM_CAP_PCI_SEGMENT 47
 #define KVM_CAP_PPC_PAIRED_SINGLES 48
 #define KVM_CAP_INTR_SHADOW 49
+#ifdef __KVM_HAVE_DEBUGREGS
+#define KVM_CAP_DEBUGREGS 50
+#endif
 #define KVM_CAP_X86_ROBUST_SINGLESTEP 51
 
 #ifdef KVM_CAP_IRQ_ROUTING
@@ -690,6 +693,9 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_VCPU_EVENTS */
 #define KVM_GET_VCPU_EVENTS       _IOR(KVMIO,  0x9f, struct kvm_vcpu_events)
 #define KVM_SET_VCPU_EVENTS       _IOW(KVMIO,  0xa0, struct kvm_vcpu_events)
+/* Available with KVM_CAP_DEBUGREGS */
+#define KVM_GET_DEBUGREGS         _IOR(KVMIO,  0xa1, struct kvm_debugregs)
+#define KVM_SET_DEBUGREGS         _IOW(KVMIO,  0xa2, struct kvm_debugregs)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 

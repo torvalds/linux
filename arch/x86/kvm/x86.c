@@ -1548,6 +1548,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_HYPERV_VAPIC:
 	case KVM_CAP_HYPERV_SPIN:
 	case KVM_CAP_PCI_SEGMENT:
+	case KVM_CAP_DEBUGREGS:
 	case KVM_CAP_X86_ROBUST_SINGLESTEP:
 		r = 1;
 		break;
@@ -2165,6 +2166,36 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static void kvm_vcpu_ioctl_x86_get_debugregs(struct kvm_vcpu *vcpu,
+					     struct kvm_debugregs *dbgregs)
+{
+	vcpu_load(vcpu);
+
+	memcpy(dbgregs->db, vcpu->arch.db, sizeof(vcpu->arch.db));
+	dbgregs->dr6 = vcpu->arch.dr6;
+	dbgregs->dr7 = vcpu->arch.dr7;
+	dbgregs->flags = 0;
+
+	vcpu_put(vcpu);
+}
+
+static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
+					    struct kvm_debugregs *dbgregs)
+{
+	if (dbgregs->flags)
+		return -EINVAL;
+
+	vcpu_load(vcpu);
+
+	memcpy(vcpu->arch.db, dbgregs->db, sizeof(vcpu->arch.db));
+	vcpu->arch.dr6 = dbgregs->dr6;
+	vcpu->arch.dr7 = dbgregs->dr7;
+
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -2341,6 +2372,29 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			break;
 
 		r = kvm_vcpu_ioctl_x86_set_vcpu_events(vcpu, &events);
+		break;
+	}
+	case KVM_GET_DEBUGREGS: {
+		struct kvm_debugregs dbgregs;
+
+		kvm_vcpu_ioctl_x86_get_debugregs(vcpu, &dbgregs);
+
+		r = -EFAULT;
+		if (copy_to_user(argp, &dbgregs,
+				 sizeof(struct kvm_debugregs)))
+			break;
+		r = 0;
+		break;
+	}
+	case KVM_SET_DEBUGREGS: {
+		struct kvm_debugregs dbgregs;
+
+		r = -EFAULT;
+		if (copy_from_user(&dbgregs, argp,
+				   sizeof(struct kvm_debugregs)))
+			break;
+
+		r = kvm_vcpu_ioctl_x86_set_debugregs(vcpu, &dbgregs);
 		break;
 	}
 	default:
