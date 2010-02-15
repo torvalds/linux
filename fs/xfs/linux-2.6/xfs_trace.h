@@ -197,13 +197,13 @@ TRACE_EVENT(xfs_iext_insert,
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d ino 0x%llx state %s idx %ld "
-		  "offset %lld block %s count %lld flag %d caller %pf",
+		  "offset %lld block %lld count %lld flag %d caller %pf",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_flags(__entry->bmap_state, "|", XFS_BMAP_EXT_FLAGS),
 		  (long)__entry->idx,
 		  __entry->startoff,
-		  xfs_fmtfsblock(__entry->startblock),
+		  (__int64_t)__entry->startblock,
 		  __entry->blockcount,
 		  __entry->state,
 		  (char *)__entry->caller_ip)
@@ -241,13 +241,13 @@ DECLARE_EVENT_CLASS(xfs_bmap_class,
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d ino 0x%llx state %s idx %ld "
-		  "offset %lld block %s count %lld flag %d caller %pf",
+		  "offset %lld block %lld count %lld flag %d caller %pf",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_flags(__entry->bmap_state, "|", XFS_BMAP_EXT_FLAGS),
 		  (long)__entry->idx,
 		  __entry->startoff,
-		  xfs_fmtfsblock(__entry->startblock),
+		  (__int64_t)__entry->startblock,
 		  __entry->blockcount,
 		  __entry->state,
 		  (char *)__entry->caller_ip)
@@ -881,7 +881,7 @@ TRACE_EVENT(name, \
 	), \
 	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx " \
 		  "offset 0x%llx count %zd flags %s " \
-		  "startoff 0x%llx startblock %s blockcount 0x%llx", \
+		  "startoff 0x%llx startblock %lld blockcount 0x%llx", \
 		  MAJOR(__entry->dev), MINOR(__entry->dev), \
 		  __entry->ino, \
 		  __entry->size, \
@@ -890,7 +890,7 @@ TRACE_EVENT(name, \
 		  __entry->count, \
 		  __print_flags(__entry->flags, "|", BMAPI_FLAGS), \
 		  __entry->startoff, \
-		  xfs_fmtfsblock(__entry->startblock), \
+		  (__int64_t)__entry->startblock, \
 		  __entry->blockcount) \
 )
 DEFINE_IOMAP_EVENT(xfs_iomap_enter);
