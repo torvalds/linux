@@ -83,6 +83,19 @@ config NF_CONNTRACK_SECMARK
 
 	  If unsure, say 'N'.
 
+config NF_CONNTRACK_ZONES
+	bool  'Connection tracking zones'
+	depends on NETFILTER_ADVANCED
+	depends on NETFILTER_XT_TARGET_CT
+	help
+	  This option enables support for connection tracking zones.
+	  Normally, each connection needs to have a unique system wide
+	  identity. Connection tracking zones allow to have multiple
+	  connections using the same identity, as long as they are
+	  contained in different zones.
+
+	  If unsure, say `N'.
+
 config NF_CONNTRACK_EVENTS
 	bool "Connection tracking events"
 	depends on NETFILTER_ADVANCED

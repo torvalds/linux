@@ -5,7 +5,7 @@
 
 struct xt_ct_target_info {
 	u_int16_t	flags;
-	u_int16_t	__unused;
+	u_int16_t	zone;
 	u_int32_t	ct_events;
 	u_int32_t	exp_events;
 	char		helper[16];

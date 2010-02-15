@@ -811,7 +811,7 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	h = nf_conntrack_find_get(net, &tuple);
+	h = nf_conntrack_find_get(net, 0, &tuple);
 	if (!h)
 		return -ENOENT;
 
@@ -872,7 +872,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	h = nf_conntrack_find_get(net, &tuple);
+	h = nf_conntrack_find_get(net, 0, &tuple);
 	if (!h)
 		return -ENOENT;
 
@@ -1221,7 +1221,7 @@ ctnetlink_create_conntrack(struct net *net,
 	int err = -EINVAL;
 	struct nf_conntrack_helper *helper;
 
-	ct = nf_conntrack_alloc(net, otuple, rtuple, GFP_ATOMIC);
+	ct = nf_conntrack_alloc(net, 0, otuple, rtuple, GFP_ATOMIC);
 	if (IS_ERR(ct))
 		return ERR_PTR(-ENOMEM);
 
@@ -1325,7 +1325,7 @@ ctnetlink_create_conntrack(struct net *net,
 		if (err < 0)
 			goto err2;
 
-		master_h = nf_conntrack_find_get(net, &master);
+		master_h = nf_conntrack_find_get(net, 0, &master);
 		if (master_h == NULL) {
 			err = -ENOENT;
 			goto err2;
@@ -1374,9 +1374,9 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	spin_lock_bh(&nf_conntrack_lock);
 	if (cda[CTA_TUPLE_ORIG])
-		h = __nf_conntrack_find(net, &otuple);
+		h = __nf_conntrack_find(net, 0, &otuple);
 	else if (cda[CTA_TUPLE_REPLY])
-		h = __nf_conntrack_find(net, &rtuple);
+		h = __nf_conntrack_find(net, 0, &rtuple);
 
 	if (h == NULL) {
 		err = -ENOENT;
@@ -1714,7 +1714,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (err < 0)
 		return err;
 
-	exp = nf_ct_expect_find_get(net, &tuple);
+	exp = nf_ct_expect_find_get(net, 0, &tuple);
 	if (!exp)
 		return -ENOENT;
 
@@ -1770,7 +1770,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 
 		/* bump usage count to 2 */
-		exp = nf_ct_expect_find_get(net, &tuple);
+		exp = nf_ct_expect_find_get(net, 0, &tuple);
 		if (!exp)
 			return -ENOENT;
 
@@ -1855,7 +1855,7 @@ ctnetlink_create_expect(struct net *net, const struct nlattr * const cda[],
 		return err;
 
 	/* Look for master conntrack of this expectation */
-	h = nf_conntrack_find_get(net, &master_tuple);
+	h = nf_conntrack_find_get(net, 0, &master_tuple);
 	if (!h)
 		return -ENOENT;
 	ct = nf_ct_tuplehash_to_ctrack(h);
@@ -1912,7 +1912,7 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 		return err;
 
 	spin_lock_bh(&nf_conntrack_lock);
-	exp = __nf_ct_expect_find(net, &tuple);
+	exp = __nf_ct_expect_find(net, 0, &tuple);
 
 	if (!exp) {
 		spin_unlock_bh(&nf_conntrack_lock);

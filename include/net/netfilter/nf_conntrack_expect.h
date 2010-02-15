@@ -74,13 +74,16 @@ int nf_conntrack_expect_init(struct net *net);
 void nf_conntrack_expect_fini(struct net *net);
 
 struct nf_conntrack_expect *
-__nf_ct_expect_find(struct net *net, const struct nf_conntrack_tuple *tuple);
+__nf_ct_expect_find(struct net *net, u16 zone,
+		    const struct nf_conntrack_tuple *tuple);
 
 struct nf_conntrack_expect *
-nf_ct_expect_find_get(struct net *net, const struct nf_conntrack_tuple *tuple);
+nf_ct_expect_find_get(struct net *net, u16 zone,
+		      const struct nf_conntrack_tuple *tuple);
 
 struct nf_conntrack_expect *
-nf_ct_find_expectation(struct net *net, const struct nf_conntrack_tuple *tuple);
+nf_ct_find_expectation(struct net *net, u16 zone,
+		       const struct nf_conntrack_tuple *tuple);
 
 void nf_ct_unlink_expect(struct nf_conntrack_expect *exp);
 void nf_ct_remove_expectations(struct nf_conn *ct);
