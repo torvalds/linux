@@ -6,6 +6,6 @@
 #include <linux/virtio_config.h>
 
 /* Maximum number of virtio channels per partition (1 for now) */
-#define MAX_9P_CHAN	1
+#define MAX_9P_CHAN	10
 
 #endif /* _LINUX_VIRTIO_9P_H */

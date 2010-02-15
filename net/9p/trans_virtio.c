@@ -296,13 +296,15 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 
 	mutex_lock(&virtio_9p_lock);
 	while (index < MAX_9P_CHAN) {
-		if (chan->initialized && !chan->inuse) {
-			chan->inuse = true;
-			break;
-		} else {
-			index++;
-			chan = &channels[index];
+		if (chan->initialized &&
+			!strcmp(devname, dev_name(&chan->vdev->dev))) {
+			if (!chan->inuse) {
+				chan->inuse = true;
+				break;
+			}
 		}
+		index++;
+		chan = &channels[index];
 	}
 	mutex_unlock(&virtio_9p_lock);
 
