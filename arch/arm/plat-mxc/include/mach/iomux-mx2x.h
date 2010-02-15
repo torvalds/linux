@@ -19,10 +19,6 @@
 #ifndef __MACH_IOMUX_MX2x_H__
 #define __MACH_IOMUX_MX2x_H__
 
-#ifndef GPIO_PORTA
-#error Please include mach/iomux.h
-#endif
-
 /* Primary GPIO pin functions */
 
 #define PA5_PF_LSCLK		(GPIO_PORTA | GPIO_PF | GPIO_OUT | 5)

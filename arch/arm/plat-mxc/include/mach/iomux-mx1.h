@@ -18,9 +18,7 @@
 #ifndef __MACH_IOMUX_MX1_H__
 #define __MACH_IOMUX_MX1_H__
 
-#ifndef GPIO_PORTA
-#error Please include mach/iomux.h
-#endif
+#include <mach/iomux-v1.h>
 
 #define PA0_AIN_SPI2_CLK	(GPIO_PORTA | GPIO_AIN | GPIO_OUT | 0)
 #define PA0_AF_ETMTRACESYNC	(GPIO_PORTA | GPIO_AF | 0)
