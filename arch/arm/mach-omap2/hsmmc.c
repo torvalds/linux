@@ -48,6 +48,9 @@ static void hsmmc1_before_set_reg(struct device *dev, int slot,
 	u32 reg, prog_io;
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
 
+	if (mmc->slots[0].remux)
+		mmc->slots[0].remux(dev, slot, power_on);
+
 	/*
 	 * Assume we power both OMAP VMMC1 (for CMD, CLK, DAT0..3) and the
 	 * card with Vcc regulator (from twl4030 or whatever).  OMAP has both
@@ -121,6 +124,9 @@ static void hsmmc23_before_set_reg(struct device *dev, int slot,
 {
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
 
+	if (mmc->slots[0].remux)
+		mmc->slots[0].remux(dev, slot, power_on);
+
 	if (power_on) {
 		/* Only MMC2 supports a CLKIN */
 		if (mmc->slots[0].internal_clock) {
@@ -184,6 +190,8 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 
 		mmc->slots[0].switch_pin = c->gpio_cd;
 		mmc->slots[0].gpio_wp = c->gpio_wp;
+
+		mmc->slots[0].remux = c->remux;
 
 		if (c->cover_only)
 			mmc->slots[0].cover = 1;

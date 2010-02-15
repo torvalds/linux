@@ -209,6 +209,46 @@ static struct twl4030_madc_platform_data rx51_madc_data = {
 	.irq_line		= 1,
 };
 
+/* Enable input logic and pull all lines up when eMMC is on. */
+static struct omap_board_mux rx51_mmc2_on_mux[] = {
+	OMAP3_MUX(SDMMC2_CMD, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT0, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT1, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT2, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT3, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT4, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT5, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT6, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT7, OMAP_PIN_INPUT_PULLUP | OMAP_MUX_MODE0),
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+
+/* Disable input logic and pull all lines down when eMMC is off. */
+static struct omap_board_mux rx51_mmc2_off_mux[] = {
+	OMAP3_MUX(SDMMC2_CMD, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT0, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT1, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT2, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT3, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT4, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT5, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT6, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	OMAP3_MUX(SDMMC2_DAT7, OMAP_PULL_ENA | OMAP_MUX_MODE0),
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+
+/*
+ * Current flows to eMMC when eMMC is off and the data lines are pulled up,
+ * so pull them down. N.B. we pull 8 lines because we are using 8 lines.
+ */
+static void rx51_mmc2_remux(struct device *dev, int slot, int power_on)
+{
+	if (power_on)
+		omap_mux_write_array(rx51_mmc2_on_mux);
+	else
+		omap_mux_write_array(rx51_mmc2_off_mux);
+}
+
 static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "external",
@@ -222,11 +262,12 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "internal",
 		.mmc		= 2,
-		.wires		= 8,
+		.wires		= 8, /* See also rx51_mmc2_remux */
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
 		.power_saving	= true,
+		.remux		= rx51_mmc2_remux,
 	},
 	{}	/* Terminator */
 };
