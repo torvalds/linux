@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap2/mmc-twl4030.c
+ * linux/arch/arm/mach-omap2/hsmmc.c
  *
  * Copyright (C) 2007-2008 Texas Instruments
  * Copyright (C) 2008 Nokia Corporation
@@ -17,7 +17,7 @@
 #include <plat/control.h>
 #include <plat/mmc.h>
 
-#include "mmc-twl4030.h"
+#include "hsmmc.h"
 
 #if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 

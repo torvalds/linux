@@ -38,7 +38,7 @@
 #include <plat/usb.h>
 #include <plat/gpmc-smc91x.h>
 
-#include "mmc-twl4030.h"
+#include "hsmmc.h"
 
 #define SDP2430_CS0_BASE	0x04000000
 #define SECONDARY_LCD_GPIO		147

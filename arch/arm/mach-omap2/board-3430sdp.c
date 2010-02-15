@@ -45,7 +45,7 @@
 
 #include "mux.h"
 #include "sdram-qimonda-hyb18m512160af-6.h"
-#include "mmc-twl4030.h"
+#include "hsmmc.h"
 
 #define CONFIG_DISABLE_HFCLK 1
 

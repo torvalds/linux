@@ -50,7 +50,7 @@
 #include <plat/timer-gp.h>
 
 #include "mux.h"
-#include "mmc-twl4030.h"
+#include "hsmmc.h"
 
 #include <asm/setup.h>
 
