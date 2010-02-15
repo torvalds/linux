@@ -24,7 +24,6 @@
 *  GPIO Module and I/O Multiplexer
 *  x = 0..3 for reg_A, reg_B, reg_C, reg_D
 */
-#define VA_GPIO_BASE	IO_ADDRESS(GPIO_BASE_ADDR)
 #define MXC_DDIR(x)    (0x00 + ((x) << 8))
 #define MXC_OCR1(x)    (0x04 + ((x) << 8))
 #define MXC_OCR2(x)    (0x08 + ((x) << 8))
