@@ -370,6 +370,9 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	unsigned i;
 	u32 tmp;
 
+	/* flush hdp cache so updates hit vram */
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+
 	WREG32(VM_CONTEXT0_INVALIDATION_LOW_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_INVALIDATION_HIGH_ADDR, (rdev->mc.gtt_end - 1) >> 12);
 	WREG32(VM_CONTEXT0_REQUEST_RESPONSE, REQUEST_TYPE(1));
