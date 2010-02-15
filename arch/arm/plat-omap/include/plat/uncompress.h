@@ -40,12 +40,13 @@ static void putc(int c)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP
+	/* Will get removed in the next patch, set to OMAP3 to compile */
 #ifdef	CONFIG_OMAP_LL_DEBUG_UART3
-	uart = (volatile u8 *)(OMAP_UART3_BASE);
+	uart = (volatile u8 *)(OMAP3_UART3_BASE);
 #elif defined(CONFIG_OMAP_LL_DEBUG_UART2)
-	uart = (volatile u8 *)(OMAP_UART2_BASE);
+	uart = (volatile u8 *)(OMAP3_UART2_BASE);
 #elif defined(CONFIG_OMAP_LL_DEBUG_UART1)
-	uart = (volatile u8 *)(OMAP_UART1_BASE);
+	uart = (volatile u8 *)(OMAP3_UART1_BASE);
 #elif defined(CONFIG_OMAP_LL_DEBUG_NONE)
 	return;
 #else

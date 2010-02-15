@@ -11,6 +11,10 @@
  *
 */
 
+#include <linux/serial_reg.h>
+
+#include <plat/serial.h>
+
 		.macro	addruart, rx, tmp
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
@@ -30,13 +34,13 @@
 		.endm
 
 		.macro	busyuart,rd,rx
-1001:		ldrb	\rd, [\rx, #(0x5 << 2)]	@ OMAP-1510 and friends
-		and	\rd, \rd, #0x60
-		teq	\rd, #0x60
+1001:		ldrb	\rd, [\rx, #(UART_LSR << OMAP_PORT_SHIFT)]
+		and	\rd, \rd, #(UART_LSR_TEMT | UART_LSR_THRE)
+		teq	\rd, #(UART_LSR_TEMT | UART_LSR_THRE)
 		beq	1002f
-		ldrb	\rd, [\rx, #(0x5 << 0)]	@ OMAP-730 only
-		and	\rd, \rd, #0x60
-		teq	\rd, #0x60
+		ldrb	\rd, [\rx, #(UART_LSR << OMAP7XX_PORT_SHIFT)]
+		and	\rd, \rd, #(UART_LSR_TEMT | UART_LSR_THRE)
+		teq	\rd, #(UART_LSR_TEMT | UART_LSR_THRE)
 		bne	1001b
 1002:
 		.endm
