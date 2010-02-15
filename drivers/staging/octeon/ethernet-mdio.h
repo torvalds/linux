@@ -32,7 +32,6 @@
 #include <linux/ip.h>
 #include <linux/string.h>
 #include <linux/ethtool.h>
-#include <linux/mii.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <net/dst.h>
