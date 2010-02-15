@@ -19,6 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
+#include <linux/ioctl.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 
@@ -106,6 +107,7 @@ static unsigned long lcdc_offs_sublcd[NR_CH_REGS] = {
 #define LDRCNTR_SRC	0x00010000
 #define LDRCNTR_MRS	0x00000002
 #define LDRCNTR_MRC	0x00000001
+#define LDSR_MRS	0x00000100
 
 struct sh_mobile_lcdc_priv;
 struct sh_mobile_lcdc_chan {
@@ -124,6 +126,7 @@ struct sh_mobile_lcdc_chan {
 	unsigned long pan_offset;
 	unsigned long new_pan_offset;
 	wait_queue_head_t frame_end_wait;
+	struct completion vsync_completion;
 };
 
 struct sh_mobile_lcdc_priv {
@@ -366,7 +369,8 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 		}
 
 		/* VSYNC End */
-		if (ldintr & LDINTR_VES) {
+		if ((ldintr & LDINTR_VES) &&
+		    (ch->pan_offset != ch->new_pan_offset)) {
 			unsigned long ldrcntr = lcdc_read(priv, _LDRCNTR);
 			/* Set the source address for the next refresh */
 			lcdc_write_chan_mirror(ch, LDSA1R, ch->dma_handle +
@@ -379,6 +383,9 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 					   ldrcntr ^ LDRCNTR_MRS);
 			ch->pan_offset = ch->new_pan_offset;
 		}
+
+		if (ldintr & LDINTR_VES)
+			complete(&ch->vsync_completion);
 	}
 
 	return IRQ_HANDLED;
@@ -786,6 +793,43 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static int sh_mobile_wait_for_vsync(struct fb_info *info)
+{
+	struct sh_mobile_lcdc_chan *ch = info->par;
+	unsigned long ldintr;
+	int ret;
+
+	/* Enable VSync End interrupt */
+	ldintr = lcdc_read(ch->lcdc, _LDINTR);
+	ldintr |= LDINTR_VEE;
+	lcdc_write(ch->lcdc, _LDINTR, ldintr);
+
+	ret = wait_for_completion_interruptible_timeout(&ch->vsync_completion,
+							msecs_to_jiffies(100));
+	if (!ret)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int sh_mobile_ioctl(struct fb_info *info, unsigned int cmd,
+		       unsigned long arg)
+{
+	int retval;
+
+	switch (cmd) {
+	case FBIO_WAITFORVSYNC:
+		retval = sh_mobile_wait_for_vsync(info);
+		break;
+
+	default:
+		retval = -ENOIOCTLCMD;
+		break;
+	}
+	return retval;
+}
+
+
 static struct fb_ops sh_mobile_lcdc_ops = {
 	.owner          = THIS_MODULE,
 	.fb_setcolreg	= sh_mobile_lcdc_setcolreg,
@@ -795,6 +839,7 @@ static struct fb_ops sh_mobile_lcdc_ops = {
 	.fb_copyarea	= sh_mobile_lcdc_copyarea,
 	.fb_imageblit	= sh_mobile_lcdc_imageblit,
 	.fb_pan_display = sh_mobile_fb_pan_display,
+	.fb_ioctl       = sh_mobile_ioctl,
 };
 
 static int sh_mobile_lcdc_set_bpp(struct fb_var_screeninfo *var, int bpp)
@@ -962,6 +1007,7 @@ static int __init sh_mobile_lcdc_probe(struct platform_device *pdev)
 			goto err1;
 		}
 		init_waitqueue_head(&priv->ch[i].frame_end_wait);
+		init_completion(&priv->ch[i].vsync_completion);
 		priv->ch[j].pan_offset = 0;
 		priv->ch[j].new_pan_offset = 0;
 
