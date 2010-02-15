@@ -2100,14 +2100,17 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 {
 	vcpu_load(vcpu);
 
-	events->exception.injected = vcpu->arch.exception.pending;
+	events->exception.injected =
+		vcpu->arch.exception.pending &&
+		!kvm_exception_is_soft(vcpu->arch.exception.nr);
 	events->exception.nr = vcpu->arch.exception.nr;
 	events->exception.has_error_code = vcpu->arch.exception.has_error_code;
 	events->exception.error_code = vcpu->arch.exception.error_code;
 
-	events->interrupt.injected = vcpu->arch.interrupt.pending;
+	events->interrupt.injected =
+		vcpu->arch.interrupt.pending && !vcpu->arch.interrupt.soft;
 	events->interrupt.nr = vcpu->arch.interrupt.nr;
-	events->interrupt.soft = vcpu->arch.interrupt.soft;
+	events->interrupt.soft = 0;
 
 	events->nmi.injected = vcpu->arch.nmi_injected;
 	events->nmi.pending = vcpu->arch.nmi_pending;
