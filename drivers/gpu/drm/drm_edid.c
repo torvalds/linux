@@ -598,6 +598,50 @@ struct drm_display_mode *drm_mode_std(struct drm_device *dev,
 	return mode;
 }
 
+/*
+ * EDID is delightfully ambiguous about how interlaced modes are to be
+ * encoded.  Our internal representation is of frame height, but some
+ * HDTV detailed timings are encoded as field height.
+ *
+ * The format list here is from CEA, in frame size.  Technically we
+ * should be checking refresh rate too.  Whatever.
+ */
+static void
+drm_mode_do_interlace_quirk(struct drm_display_mode *mode,
+			    struct detailed_pixel_timing *pt)
+{
+	int i;
+	static const struct {
+		int w, h;
+	} cea_interlaced[] = {
+		{ 1920, 1080 },
+		{  720,  480 },
+		{ 1440,  480 },
+		{ 2880,  480 },
+		{  720,  576 },
+		{ 1440,  576 },
+		{ 2880,  576 },
+	};
+	static const int n_sizes =
+		sizeof(cea_interlaced)/sizeof(cea_interlaced[0]);
+
+	if (!(pt->misc & DRM_EDID_PT_INTERLACED))
+		return;
+
+	for (i = 0; i < n_sizes; i++) {
+		if ((mode->hdisplay == cea_interlaced[i].w) &&
+		    (mode->vdisplay == cea_interlaced[i].h / 2)) {
+			mode->vdisplay *= 2;
+			mode->vsync_start *= 2;
+			mode->vsync_end *= 2;
+			mode->vtotal *= 2;
+			mode->vtotal |= 1;
+		}
+	}
+
+	mode->flags |= DRM_MODE_FLAG_INTERLACE;
+}
+
 /**
  * drm_mode_detailed - create a new mode from an EDID detailed timing section
  * @dev: DRM device (needed to create new mode)
@@ -680,8 +724,7 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 
 	drm_mode_set_name(mode);
 
-	if (pt->misc & DRM_EDID_PT_INTERLACED)
-		mode->flags |= DRM_MODE_FLAG_INTERLACE;
+	drm_mode_do_interlace_quirk(mode, pt);
 
 	if (quirks & EDID_QUIRK_DETAILED_SYNC_PP) {
 		pt->misc |= DRM_EDID_PT_HSYNC_POSITIVE | DRM_EDID_PT_VSYNC_POSITIVE;
