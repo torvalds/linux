@@ -86,16 +86,16 @@ static void tomoyo_del_manager(struct tomoyo_policy_manager_entry *ptr)
 static void tomoyo_del_acl(struct tomoyo_acl_info *acl)
 {
 	switch (acl->type) {
-	case TOMOYO_TYPE_SINGLE_PATH_ACL:
+	case TOMOYO_TYPE_PATH_ACL:
 		{
-			struct tomoyo_single_path_acl_record *entry
+			struct tomoyo_path_acl *entry
 				= container_of(acl, typeof(*entry), head);
 			tomoyo_put_name(entry->filename);
 		}
 		break;
-	case TOMOYO_TYPE_DOUBLE_PATH_ACL:
+	case TOMOYO_TYPE_PATH2_ACL:
 		{
-			struct tomoyo_double_path_acl_record *entry
+			struct tomoyo_path2_acl *entry
 				= container_of(acl, typeof(*entry), head);
 			tomoyo_put_name(entry->filename1);
 			tomoyo_put_name(entry->filename2);
@@ -238,18 +238,18 @@ static void tomoyo_collect_entry(void)
 			list_for_each_entry_rcu(acl, &domain->acl_info_list,
 						list) {
 				switch (acl->type) {
-				case TOMOYO_TYPE_SINGLE_PATH_ACL:
+				case TOMOYO_TYPE_PATH_ACL:
 					if (container_of(acl,
-					 struct tomoyo_single_path_acl_record,
+					 struct tomoyo_path_acl,
 							 head)->perm ||
 					    container_of(acl,
-					 struct tomoyo_single_path_acl_record,
+					 struct tomoyo_path_acl,
 							 head)->perm_high)
 						continue;
 					break;
-				case TOMOYO_TYPE_DOUBLE_PATH_ACL:
+				case TOMOYO_TYPE_PATH2_ACL:
 					if (container_of(acl,
-					 struct tomoyo_double_path_acl_record,
+					 struct tomoyo_path2_acl,
 							 head)->perm)
 						continue;
 					break;

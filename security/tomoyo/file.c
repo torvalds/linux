@@ -12,62 +12,62 @@
 #include "common.h"
 
 /* Keyword array for single path operations. */
-static const char *tomoyo_sp_keyword[TOMOYO_MAX_SINGLE_PATH_OPERATION] = {
-	[TOMOYO_TYPE_READ_WRITE_ACL] = "read/write",
-	[TOMOYO_TYPE_EXECUTE_ACL]    = "execute",
-	[TOMOYO_TYPE_READ_ACL]       = "read",
-	[TOMOYO_TYPE_WRITE_ACL]      = "write",
-	[TOMOYO_TYPE_CREATE_ACL]     = "create",
-	[TOMOYO_TYPE_UNLINK_ACL]     = "unlink",
-	[TOMOYO_TYPE_MKDIR_ACL]      = "mkdir",
-	[TOMOYO_TYPE_RMDIR_ACL]      = "rmdir",
-	[TOMOYO_TYPE_MKFIFO_ACL]     = "mkfifo",
-	[TOMOYO_TYPE_MKSOCK_ACL]     = "mksock",
-	[TOMOYO_TYPE_MKBLOCK_ACL]    = "mkblock",
-	[TOMOYO_TYPE_MKCHAR_ACL]     = "mkchar",
-	[TOMOYO_TYPE_TRUNCATE_ACL]   = "truncate",
-	[TOMOYO_TYPE_SYMLINK_ACL]    = "symlink",
-	[TOMOYO_TYPE_REWRITE_ACL]    = "rewrite",
-	[TOMOYO_TYPE_IOCTL_ACL]      = "ioctl",
-	[TOMOYO_TYPE_CHMOD_ACL]      = "chmod",
-	[TOMOYO_TYPE_CHOWN_ACL]      = "chown",
-	[TOMOYO_TYPE_CHGRP_ACL]      = "chgrp",
-	[TOMOYO_TYPE_CHROOT_ACL]     = "chroot",
-	[TOMOYO_TYPE_MOUNT_ACL]      = "mount",
-	[TOMOYO_TYPE_UMOUNT_ACL]     = "unmount",
+static const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
+	[TOMOYO_TYPE_READ_WRITE] = "read/write",
+	[TOMOYO_TYPE_EXECUTE]    = "execute",
+	[TOMOYO_TYPE_READ]       = "read",
+	[TOMOYO_TYPE_WRITE]      = "write",
+	[TOMOYO_TYPE_CREATE]     = "create",
+	[TOMOYO_TYPE_UNLINK]     = "unlink",
+	[TOMOYO_TYPE_MKDIR]      = "mkdir",
+	[TOMOYO_TYPE_RMDIR]      = "rmdir",
+	[TOMOYO_TYPE_MKFIFO]     = "mkfifo",
+	[TOMOYO_TYPE_MKSOCK]     = "mksock",
+	[TOMOYO_TYPE_MKBLOCK]    = "mkblock",
+	[TOMOYO_TYPE_MKCHAR]     = "mkchar",
+	[TOMOYO_TYPE_TRUNCATE]   = "truncate",
+	[TOMOYO_TYPE_SYMLINK]    = "symlink",
+	[TOMOYO_TYPE_REWRITE]    = "rewrite",
+	[TOMOYO_TYPE_IOCTL]      = "ioctl",
+	[TOMOYO_TYPE_CHMOD]      = "chmod",
+	[TOMOYO_TYPE_CHOWN]      = "chown",
+	[TOMOYO_TYPE_CHGRP]      = "chgrp",
+	[TOMOYO_TYPE_CHROOT]     = "chroot",
+	[TOMOYO_TYPE_MOUNT]      = "mount",
+	[TOMOYO_TYPE_UMOUNT]     = "unmount",
 };
 
 /* Keyword array for double path operations. */
-static const char *tomoyo_dp_keyword[TOMOYO_MAX_DOUBLE_PATH_OPERATION] = {
-	[TOMOYO_TYPE_LINK_ACL]    = "link",
-	[TOMOYO_TYPE_RENAME_ACL]  = "rename",
-	[TOMOYO_TYPE_PIVOT_ROOT_ACL] = "pivot_root",
+static const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION] = {
+	[TOMOYO_TYPE_LINK]    = "link",
+	[TOMOYO_TYPE_RENAME]  = "rename",
+	[TOMOYO_TYPE_PIVOT_ROOT] = "pivot_root",
 };
 
 /**
- * tomoyo_sp2keyword - Get the name of single path operation.
+ * tomoyo_path2keyword - Get the name of single path operation.
  *
  * @operation: Type of operation.
  *
  * Returns the name of single path operation.
  */
-const char *tomoyo_sp2keyword(const u8 operation)
+const char *tomoyo_path2keyword(const u8 operation)
 {
-	return (operation < TOMOYO_MAX_SINGLE_PATH_OPERATION)
-		? tomoyo_sp_keyword[operation] : NULL;
+	return (operation < TOMOYO_MAX_PATH_OPERATION)
+		? tomoyo_path_keyword[operation] : NULL;
 }
 
 /**
- * tomoyo_dp2keyword - Get the name of double path operation.
+ * tomoyo_path22keyword - Get the name of double path operation.
  *
  * @operation: Type of operation.
  *
  * Returns the name of double path operation.
  */
-const char *tomoyo_dp2keyword(const u8 operation)
+const char *tomoyo_path22keyword(const u8 operation)
 {
-	return (operation < TOMOYO_MAX_DOUBLE_PATH_OPERATION)
-		? tomoyo_dp_keyword[operation] : NULL;
+	return (operation < TOMOYO_MAX_PATH2_OPERATION)
+		? tomoyo_path2_keyword[operation] : NULL;
 }
 
 /**
@@ -115,13 +115,13 @@ static struct tomoyo_path_info *tomoyo_get_path(struct path *path)
 	return NULL;
 }
 
-static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
-					 const char *filename2,
-					 struct tomoyo_domain_info *
-					 const domain, const bool is_delete);
-static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
-					 struct tomoyo_domain_info *
-					 const domain, const bool is_delete);
+static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
+				   const char *filename2,
+				   struct tomoyo_domain_info *const domain,
+				   const bool is_delete);
+static int tomoyo_update_path_acl(const u8 type, const char *filename,
+				  struct tomoyo_domain_info *const domain,
+				  const bool is_delete);
 
 /*
  * tomoyo_globally_readable_list is used for holding list of pathnames which
@@ -597,19 +597,19 @@ static int tomoyo_update_file_acl(const char *filename, u8 perm,
 		 */
 		return 0;
 	if (perm & 4)
-		tomoyo_update_single_path_acl(TOMOYO_TYPE_READ_ACL, filename,
-					      domain, is_delete);
+		tomoyo_update_path_acl(TOMOYO_TYPE_READ, filename, domain,
+				       is_delete);
 	if (perm & 2)
-		tomoyo_update_single_path_acl(TOMOYO_TYPE_WRITE_ACL, filename,
-					      domain, is_delete);
+		tomoyo_update_path_acl(TOMOYO_TYPE_WRITE, filename, domain,
+				       is_delete);
 	if (perm & 1)
-		tomoyo_update_single_path_acl(TOMOYO_TYPE_EXECUTE_ACL,
-					      filename, domain, is_delete);
+		tomoyo_update_path_acl(TOMOYO_TYPE_EXECUTE, filename, domain,
+				       is_delete);
 	return 0;
 }
 
 /**
- * tomoyo_check_single_path_acl2 - Check permission for single path operation.
+ * tomoyo_path_acl2 - Check permission for single path operation.
  *
  * @domain:          Pointer to "struct tomoyo_domain_info".
  * @filename:        Filename to check.
@@ -620,22 +620,18 @@ static int tomoyo_update_file_acl(const char *filename, u8 perm,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_check_single_path_acl2(const struct tomoyo_domain_info *
-					 domain,
-					 const struct tomoyo_path_info *
-					 filename,
-					 const u32 perm,
-					 const bool may_use_pattern)
+static int tomoyo_path_acl2(const struct tomoyo_domain_info *domain,
+			    const struct tomoyo_path_info *filename,
+			    const u32 perm, const bool may_use_pattern)
 {
 	struct tomoyo_acl_info *ptr;
 	int error = -EPERM;
 
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_single_path_acl_record *acl;
-		if (ptr->type != TOMOYO_TYPE_SINGLE_PATH_ACL)
+		struct tomoyo_path_acl *acl;
+		if (ptr->type != TOMOYO_TYPE_PATH_ACL)
 			continue;
-		acl = container_of(ptr, struct tomoyo_single_path_acl_record,
-				   head);
+		acl = container_of(ptr, struct tomoyo_path_acl, head);
 		if (perm <= 0xFFFF) {
 			if (!(acl->perm & perm))
 				continue;
@@ -676,17 +672,16 @@ static int tomoyo_check_file_acl(const struct tomoyo_domain_info *domain,
 	if (!tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE))
 		return 0;
 	if (operation == 6)
-		perm = 1 << TOMOYO_TYPE_READ_WRITE_ACL;
+		perm = 1 << TOMOYO_TYPE_READ_WRITE;
 	else if (operation == 4)
-		perm = 1 << TOMOYO_TYPE_READ_ACL;
+		perm = 1 << TOMOYO_TYPE_READ;
 	else if (operation == 2)
-		perm = 1 << TOMOYO_TYPE_WRITE_ACL;
+		perm = 1 << TOMOYO_TYPE_WRITE;
 	else if (operation == 1)
-		perm = 1 << TOMOYO_TYPE_EXECUTE_ACL;
+		perm = 1 << TOMOYO_TYPE_EXECUTE;
 	else
 		BUG();
-	return tomoyo_check_single_path_acl2(domain, filename, perm,
-					     operation != 1);
+	return tomoyo_path_acl2(domain, filename, perm, operation != 1);
 }
 
 /**
@@ -718,13 +713,13 @@ static int tomoyo_check_file_perm2(struct tomoyo_domain_info * const domain,
 	    && tomoyo_is_globally_readable_file(filename))
 		error = 0;
 	if (perm == 6)
-		msg = tomoyo_sp2keyword(TOMOYO_TYPE_READ_WRITE_ACL);
+		msg = tomoyo_path2keyword(TOMOYO_TYPE_READ_WRITE);
 	else if (perm == 4)
-		msg = tomoyo_sp2keyword(TOMOYO_TYPE_READ_ACL);
+		msg = tomoyo_path2keyword(TOMOYO_TYPE_READ);
 	else if (perm == 2)
-		msg = tomoyo_sp2keyword(TOMOYO_TYPE_WRITE_ACL);
+		msg = tomoyo_path2keyword(TOMOYO_TYPE_WRITE);
 	else if (perm == 1)
-		msg = tomoyo_sp2keyword(TOMOYO_TYPE_EXECUTE_ACL);
+		msg = tomoyo_path2keyword(TOMOYO_TYPE_EXECUTE);
 	else
 		BUG();
 	if (!error)
@@ -773,28 +768,28 @@ int tomoyo_write_file_policy(char *data, struct tomoyo_domain_info *domain,
 	if (strncmp(data, "allow_", 6))
 		goto out;
 	data += 6;
-	for (type = 0; type < TOMOYO_MAX_SINGLE_PATH_OPERATION; type++) {
-		if (strcmp(data, tomoyo_sp_keyword[type]))
+	for (type = 0; type < TOMOYO_MAX_PATH_OPERATION; type++) {
+		if (strcmp(data, tomoyo_path_keyword[type]))
 			continue;
-		return tomoyo_update_single_path_acl(type, filename,
-						     domain, is_delete);
+		return tomoyo_update_path_acl(type, filename, domain,
+					      is_delete);
 	}
 	filename2 = strchr(filename, ' ');
 	if (!filename2)
 		goto out;
 	*filename2++ = '\0';
-	for (type = 0; type < TOMOYO_MAX_DOUBLE_PATH_OPERATION; type++) {
-		if (strcmp(data, tomoyo_dp_keyword[type]))
+	for (type = 0; type < TOMOYO_MAX_PATH2_OPERATION; type++) {
+		if (strcmp(data, tomoyo_path2_keyword[type]))
 			continue;
-		return tomoyo_update_double_path_acl(type, filename, filename2,
-						     domain, is_delete);
+		return tomoyo_update_path2_acl(type, filename, filename2,
+					       domain, is_delete);
 	}
  out:
 	return -EINVAL;
 }
 
 /**
- * tomoyo_update_single_path_acl - Update "struct tomoyo_single_path_acl_record" list.
+ * tomoyo_update_path_acl - Update "struct tomoyo_path_acl" list.
  *
  * @type:      Type of operation.
  * @filename:  Filename.
@@ -805,15 +800,15 @@ int tomoyo_write_file_policy(char *data, struct tomoyo_domain_info *domain,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
-					 struct tomoyo_domain_info *
-					 const domain, const bool is_delete)
+static int tomoyo_update_path_acl(const u8 type, const char *filename,
+				  struct tomoyo_domain_info *const domain,
+				  const bool is_delete)
 {
 	static const u32 rw_mask =
-		(1 << TOMOYO_TYPE_READ_ACL) | (1 << TOMOYO_TYPE_WRITE_ACL);
+		(1 << TOMOYO_TYPE_READ) | (1 << TOMOYO_TYPE_WRITE);
 	const struct tomoyo_path_info *saved_filename;
 	struct tomoyo_acl_info *ptr;
-	struct tomoyo_single_path_acl_record *entry = NULL;
+	struct tomoyo_path_acl *entry = NULL;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	const u32 perm = 1 << type;
 
@@ -828,10 +823,9 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_single_path_acl_record *acl =
-			container_of(ptr, struct tomoyo_single_path_acl_record,
-				     head);
-		if (ptr->type != TOMOYO_TYPE_SINGLE_PATH_ACL)
+		struct tomoyo_path_acl *acl =
+			container_of(ptr, struct tomoyo_path_acl, head);
+		if (ptr->type != TOMOYO_TYPE_PATH_ACL)
 			continue;
 		if (acl->filename != saved_filename)
 			continue;
@@ -841,9 +835,8 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 			else
 				acl->perm_high &= ~(perm >> 16);
 			if ((acl->perm & rw_mask) != rw_mask)
-				acl->perm &= ~(1 << TOMOYO_TYPE_READ_WRITE_ACL);
-			else if (!(acl->perm &
-				   (1 << TOMOYO_TYPE_READ_WRITE_ACL)))
+				acl->perm &= ~(1 << TOMOYO_TYPE_READ_WRITE);
+			else if (!(acl->perm & (1 << TOMOYO_TYPE_READ_WRITE)))
 				acl->perm &= ~rw_mask;
 		} else {
 			if (perm <= 0xFFFF)
@@ -851,20 +844,20 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 			else
 				acl->perm_high |= (perm >> 16);
 			if ((acl->perm & rw_mask) == rw_mask)
-				acl->perm |= 1 << TOMOYO_TYPE_READ_WRITE_ACL;
-			else if (acl->perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL))
+				acl->perm |= 1 << TOMOYO_TYPE_READ_WRITE;
+			else if (acl->perm & (1 << TOMOYO_TYPE_READ_WRITE))
 				acl->perm |= rw_mask;
 		}
 		error = 0;
 		break;
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->head.type = TOMOYO_TYPE_SINGLE_PATH_ACL;
+		entry->head.type = TOMOYO_TYPE_PATH_ACL;
 		if (perm <= 0xFFFF)
 			entry->perm = perm;
 		else
 			entry->perm_high = (perm >> 16);
-		if (perm == (1 << TOMOYO_TYPE_READ_WRITE_ACL))
+		if (perm == (1 << TOMOYO_TYPE_READ_WRITE))
 			entry->perm |= rw_mask;
 		entry->filename = saved_filename;
 		saved_filename = NULL;
@@ -879,7 +872,7 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
 }
 
 /**
- * tomoyo_update_double_path_acl - Update "struct tomoyo_double_path_acl_record" list.
+ * tomoyo_update_path2_acl - Update "struct tomoyo_path2_acl" list.
  *
  * @type:      Type of operation.
  * @filename1: First filename.
@@ -891,15 +884,15 @@ static int tomoyo_update_single_path_acl(const u8 type, const char *filename,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
-					 const char *filename2,
-					 struct tomoyo_domain_info *
-					 const domain, const bool is_delete)
+static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
+				   const char *filename2,
+				   struct tomoyo_domain_info *const domain,
+				   const bool is_delete)
 {
 	const struct tomoyo_path_info *saved_filename1;
 	const struct tomoyo_path_info *saved_filename2;
 	struct tomoyo_acl_info *ptr;
-	struct tomoyo_double_path_acl_record *entry = NULL;
+	struct tomoyo_path2_acl *entry = NULL;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	const u8 perm = 1 << type;
 
@@ -916,10 +909,9 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	mutex_lock(&tomoyo_policy_lock);
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_double_path_acl_record *acl =
-			container_of(ptr, struct tomoyo_double_path_acl_record,
-				     head);
-		if (ptr->type != TOMOYO_TYPE_DOUBLE_PATH_ACL)
+		struct tomoyo_path2_acl *acl =
+			container_of(ptr, struct tomoyo_path2_acl, head);
+		if (ptr->type != TOMOYO_TYPE_PATH2_ACL)
 			continue;
 		if (acl->filename1 != saved_filename1 ||
 		    acl->filename2 != saved_filename2)
@@ -932,7 +924,7 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 		break;
 	}
 	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->head.type = TOMOYO_TYPE_DOUBLE_PATH_ACL;
+		entry->head.type = TOMOYO_TYPE_PATH2_ACL;
 		entry->perm = perm;
 		entry->filename1 = saved_filename1;
 		saved_filename1 = NULL;
@@ -951,7 +943,7 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
 }
 
 /**
- * tomoyo_check_single_path_acl - Check permission for single path operation.
+ * tomoyo_path_acl - Check permission for single path operation.
  *
  * @domain:   Pointer to "struct tomoyo_domain_info".
  * @type:     Type of operation.
@@ -961,17 +953,16 @@ static int tomoyo_update_double_path_acl(const u8 type, const char *filename1,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_check_single_path_acl(struct tomoyo_domain_info *domain,
-					const u8 type,
-					const struct tomoyo_path_info *filename)
+static int tomoyo_path_acl(struct tomoyo_domain_info *domain, const u8 type,
+			   const struct tomoyo_path_info *filename)
 {
 	if (!tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE))
 		return 0;
-	return tomoyo_check_single_path_acl2(domain, filename, 1 << type, 1);
+	return tomoyo_path_acl2(domain, filename, 1 << type, 1);
 }
 
 /**
- * tomoyo_check_double_path_acl - Check permission for double path operation.
+ * tomoyo_path2_acl - Check permission for double path operation.
  *
  * @domain:    Pointer to "struct tomoyo_domain_info".
  * @type:      Type of operation.
@@ -982,12 +973,10 @@ static int tomoyo_check_single_path_acl(struct tomoyo_domain_info *domain,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_check_double_path_acl(const struct tomoyo_domain_info *domain,
-					const u8 type,
-					const struct tomoyo_path_info *
-					filename1,
-					const struct tomoyo_path_info *
-					filename2)
+static int tomoyo_path2_acl(const struct tomoyo_domain_info *domain,
+			    const u8 type,
+			    const struct tomoyo_path_info *filename1,
+			    const struct tomoyo_path_info *filename2)
 {
 	struct tomoyo_acl_info *ptr;
 	const u8 perm = 1 << type;
@@ -996,11 +985,10 @@ static int tomoyo_check_double_path_acl(const struct tomoyo_domain_info *domain,
 	if (!tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE))
 		return 0;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_double_path_acl_record *acl;
-		if (ptr->type != TOMOYO_TYPE_DOUBLE_PATH_ACL)
+		struct tomoyo_path2_acl *acl;
+		if (ptr->type != TOMOYO_TYPE_PATH2_ACL)
 			continue;
-		acl = container_of(ptr, struct tomoyo_double_path_acl_record,
-				   head);
+		acl = container_of(ptr, struct tomoyo_path2_acl, head);
 		if (!(acl->perm & perm))
 			continue;
 		if (!tomoyo_path_matches_pattern(filename1, acl->filename1))
@@ -1014,7 +1002,7 @@ static int tomoyo_check_double_path_acl(const struct tomoyo_domain_info *domain,
 }
 
 /**
- * tomoyo_check_single_path_permission2 - Check permission for single path operation.
+ * tomoyo_path_permission2 - Check permission for single path operation.
  *
  * @domain:    Pointer to "struct tomoyo_domain_info".
  * @operation: Type of operation.
@@ -1025,10 +1013,10 @@ static int tomoyo_check_double_path_acl(const struct tomoyo_domain_info *domain,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_check_single_path_permission2(struct tomoyo_domain_info *
-						const domain, u8 operation,
-						const struct tomoyo_path_info *
-						filename, const u8 mode)
+static int tomoyo_path_permission2(struct tomoyo_domain_info *const domain,
+				   u8 operation,
+				   const struct tomoyo_path_info *filename,
+				   const u8 mode)
 {
 	const char *msg;
 	int error;
@@ -1037,8 +1025,8 @@ static int tomoyo_check_single_path_permission2(struct tomoyo_domain_info *
 	if (!mode)
 		return 0;
  next:
-	error = tomoyo_check_single_path_acl(domain, operation, filename);
-	msg = tomoyo_sp2keyword(operation);
+	error = tomoyo_path_acl(domain, operation, filename);
+	msg = tomoyo_path2keyword(operation);
 	if (!error)
 		goto ok;
 	if (tomoyo_verbose_mode(domain))
@@ -1047,7 +1035,7 @@ static int tomoyo_check_single_path_permission2(struct tomoyo_domain_info *
 		       tomoyo_get_last_name(domain));
 	if (mode == 1 && tomoyo_domain_quota_is_ok(domain)) {
 		const char *name = tomoyo_get_file_pattern(filename)->name;
-		tomoyo_update_single_path_acl(operation, name, domain, false);
+		tomoyo_update_path_acl(operation, name, domain, false);
 	}
 	if (!is_enforce)
 		error = 0;
@@ -1057,9 +1045,9 @@ static int tomoyo_check_single_path_permission2(struct tomoyo_domain_info *
 	 * we need to check "allow_rewrite" permission if the filename is
 	 * specified by "deny_rewrite" keyword.
 	 */
-	if (!error && operation == TOMOYO_TYPE_TRUNCATE_ACL &&
+	if (!error && operation == TOMOYO_TYPE_TRUNCATE &&
 	    tomoyo_is_no_rewrite_file(filename)) {
-		operation = TOMOYO_TYPE_REWRITE_ACL;
+		operation = TOMOYO_TYPE_REWRITE;
 		goto next;
 	}
 	return error;
@@ -1127,17 +1115,15 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	if ((acc_mode & MAY_WRITE) &&
 	    ((flag & O_TRUNC) || !(flag & O_APPEND)) &&
 	    (tomoyo_is_no_rewrite_file(buf))) {
-		error = tomoyo_check_single_path_permission2(domain,
-						     TOMOYO_TYPE_REWRITE_ACL,
-							     buf, mode);
+		error = tomoyo_path_permission2(domain, TOMOYO_TYPE_REWRITE,
+						buf, mode);
 	}
 	if (!error)
 		error = tomoyo_check_file_perm2(domain, buf, acc_mode, "open",
 						mode);
 	if (!error && (flag & O_TRUNC))
-		error = tomoyo_check_single_path_permission2(domain,
-						     TOMOYO_TYPE_TRUNCATE_ACL,
-							     buf, mode);
+		error = tomoyo_path_permission2(domain, TOMOYO_TYPE_TRUNCATE,
+						buf, mode);
  out:
 	kfree(buf);
 	tomoyo_read_unlock(idx);
@@ -1147,7 +1133,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 }
 
 /**
- * tomoyo_check_1path_perm - Check permission for "create", "unlink", "mkdir", "rmdir", "mkfifo", "mksock", "mkblock", "mkchar", "truncate", "symlink", "ioctl", "chmod", "chown", "chgrp", "chroot", "mount" and "unmount".
+ * tomoyo_path_perm - Check permission for "create", "unlink", "mkdir", "rmdir", "mkfifo", "mksock", "mkblock", "mkchar", "truncate", "symlink", "ioctl", "chmod", "chown", "chgrp", "chroot", "mount" and "unmount".
  *
  * @domain:    Pointer to "struct tomoyo_domain_info".
  * @operation: Type of operation.
@@ -1155,8 +1141,8 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_check_1path_perm(struct tomoyo_domain_info *domain,
-			    const u8 operation, struct path *path)
+int tomoyo_path_perm(struct tomoyo_domain_info *domain,
+		     const u8 operation, struct path *path)
 {
 	int error = -ENOMEM;
 	struct tomoyo_path_info *buf;
@@ -1171,9 +1157,9 @@ int tomoyo_check_1path_perm(struct tomoyo_domain_info *domain,
 	if (!buf)
 		goto out;
 	switch (operation) {
-	case TOMOYO_TYPE_MKDIR_ACL:
-	case TOMOYO_TYPE_RMDIR_ACL:
-	case TOMOYO_TYPE_CHROOT_ACL:
+	case TOMOYO_TYPE_MKDIR:
+	case TOMOYO_TYPE_RMDIR:
+	case TOMOYO_TYPE_CHROOT:
 		if (!buf->is_dir) {
 			/*
 			 * tomoyo_get_path() reserves space for appending "/."
@@ -1182,8 +1168,7 @@ int tomoyo_check_1path_perm(struct tomoyo_domain_info *domain,
 			tomoyo_fill_path_info(buf);
 		}
 	}
-	error = tomoyo_check_single_path_permission2(domain, operation, buf,
-						     mode);
+	error = tomoyo_path_permission2(domain, operation, buf, mode);
  out:
 	kfree(buf);
 	tomoyo_read_unlock(idx);
@@ -1220,9 +1205,7 @@ int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
 		error = 0;
 		goto out;
 	}
-	error = tomoyo_check_single_path_permission2(domain,
-						     TOMOYO_TYPE_REWRITE_ACL,
-						     buf, mode);
+	error = tomoyo_path_permission2(domain, TOMOYO_TYPE_REWRITE, buf, mode);
  out:
 	kfree(buf);
 	tomoyo_read_unlock(idx);
@@ -1232,7 +1215,7 @@ int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
 }
 
 /**
- * tomoyo_check_2path_perm - Check permission for "rename", "link" and "pivot_root".
+ * tomoyo_path2_perm - Check permission for "rename", "link" and "pivot_root".
  *
  * @domain:    Pointer to "struct tomoyo_domain_info".
  * @operation: Type of operation.
@@ -1241,9 +1224,9 @@ int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_check_2path_perm(struct tomoyo_domain_info * const domain,
-			    const u8 operation, struct path *path1,
-			    struct path *path2)
+int tomoyo_path2_perm(struct tomoyo_domain_info * const domain,
+		      const u8 operation, struct path *path1,
+		      struct path *path2)
 {
 	int error = -ENOMEM;
 	struct tomoyo_path_info *buf1, *buf2;
@@ -1275,8 +1258,8 @@ int tomoyo_check_2path_perm(struct tomoyo_domain_info * const domain,
 			}
 		}
 	}
-	error = tomoyo_check_double_path_acl(domain, operation, buf1, buf2);
-	msg = tomoyo_dp2keyword(operation);
+	error = tomoyo_path2_acl(domain, operation, buf1, buf2);
+	msg = tomoyo_path22keyword(operation);
 	if (!error)
 		goto out;
 	if (tomoyo_verbose_mode(domain))
@@ -1287,8 +1270,8 @@ int tomoyo_check_2path_perm(struct tomoyo_domain_info * const domain,
 	if (mode == 1 && tomoyo_domain_quota_is_ok(domain)) {
 		const char *name1 = tomoyo_get_file_pattern(buf1)->name;
 		const char *name2 = tomoyo_get_file_pattern(buf2)->name;
-		tomoyo_update_double_path_acl(operation, name1, name2, domain,
-					      false);
+		tomoyo_update_path2_acl(operation, name1, name2, domain,
+					false);
 	}
  out:
 	kfree(buf1);

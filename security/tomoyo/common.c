@@ -841,25 +841,22 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain)
 		return true;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		switch (ptr->type) {
-			struct tomoyo_single_path_acl_record *acl;
+			struct tomoyo_path_acl *acl;
 			u32 perm;
 			u8 i;
-		case TOMOYO_TYPE_SINGLE_PATH_ACL:
-			acl = container_of(ptr,
-					   struct tomoyo_single_path_acl_record,
-					   head);
+		case TOMOYO_TYPE_PATH_ACL:
+			acl = container_of(ptr, struct tomoyo_path_acl, head);
 			perm = acl->perm | (((u32) acl->perm_high) << 16);
-			for (i = 0; i < TOMOYO_MAX_SINGLE_PATH_OPERATION; i++)
+			for (i = 0; i < TOMOYO_MAX_PATH_OPERATION; i++)
 				if (perm & (1 << i))
 					count++;
-			if (perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL))
+			if (perm & (1 << TOMOYO_TYPE_READ_WRITE))
 				count -= 2;
 			break;
-		case TOMOYO_TYPE_DOUBLE_PATH_ACL:
-			perm = container_of(ptr,
-				    struct tomoyo_double_path_acl_record,
-					    head)->perm;
-			for (i = 0; i < TOMOYO_MAX_DOUBLE_PATH_OPERATION; i++)
+		case TOMOYO_TYPE_PATH2_ACL:
+			perm = container_of(ptr, struct tomoyo_path2_acl, head)
+				->perm;
+			for (i = 0; i < TOMOYO_MAX_PATH2_OPERATION; i++)
 				if (perm & (1 << i))
 					count++;
 			break;
@@ -1366,16 +1363,15 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_print_single_path_acl - Print a single path ACL entry.
+ * tomoyo_print_path_acl - Print a single path ACL entry.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_single_path_acl_record".
+ * @ptr:  Pointer to "struct tomoyo_path_acl".
  *
  * Returns true on success, false otherwise.
  */
-static bool tomoyo_print_single_path_acl(struct tomoyo_io_buffer *head,
-					 struct tomoyo_single_path_acl_record *
-					 ptr)
+static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
+				  struct tomoyo_path_acl *ptr)
 {
 	int pos;
 	u8 bit;
@@ -1384,17 +1380,15 @@ static bool tomoyo_print_single_path_acl(struct tomoyo_io_buffer *head,
 	const u32 perm = ptr->perm | (((u32) ptr->perm_high) << 16);
 
 	filename = ptr->filename->name;
-	for (bit = head->read_bit; bit < TOMOYO_MAX_SINGLE_PATH_OPERATION;
-	     bit++) {
+	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
 		const char *msg;
 		if (!(perm & (1 << bit)))
 			continue;
 		/* Print "read/write" instead of "read" and "write". */
-		if ((bit == TOMOYO_TYPE_READ_ACL ||
-		     bit == TOMOYO_TYPE_WRITE_ACL)
-		    && (perm & (1 << TOMOYO_TYPE_READ_WRITE_ACL)))
+		if ((bit == TOMOYO_TYPE_READ || bit == TOMOYO_TYPE_WRITE)
+		    && (perm & (1 << TOMOYO_TYPE_READ_WRITE)))
 			continue;
-		msg = tomoyo_sp2keyword(bit);
+		msg = tomoyo_path2keyword(bit);
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s %s%s\n", msg,
 				      atmark, filename))
@@ -1409,16 +1403,15 @@ static bool tomoyo_print_single_path_acl(struct tomoyo_io_buffer *head,
 }
 
 /**
- * tomoyo_print_double_path_acl - Print a double path ACL entry.
+ * tomoyo_print_path2_acl - Print a double path ACL entry.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_double_path_acl_record".
+ * @ptr:  Pointer to "struct tomoyo_path2_acl".
  *
  * Returns true on success, false otherwise.
  */
-static bool tomoyo_print_double_path_acl(struct tomoyo_io_buffer *head,
-					 struct tomoyo_double_path_acl_record *
-					 ptr)
+static bool tomoyo_print_path2_acl(struct tomoyo_io_buffer *head,
+				   struct tomoyo_path2_acl *ptr)
 {
 	int pos;
 	const char *atmark1 = "";
@@ -1430,12 +1423,11 @@ static bool tomoyo_print_double_path_acl(struct tomoyo_io_buffer *head,
 
 	filename1 = ptr->filename1->name;
 	filename2 = ptr->filename2->name;
-	for (bit = head->read_bit; bit < TOMOYO_MAX_DOUBLE_PATH_OPERATION;
-	     bit++) {
+	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH2_OPERATION; bit++) {
 		const char *msg;
 		if (!(perm & (1 << bit)))
 			continue;
-		msg = tomoyo_dp2keyword(bit);
+		msg = tomoyo_path22keyword(bit);
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s %s%s %s%s\n", msg,
 				      atmark1, filename1, atmark2, filename2))
@@ -1462,19 +1454,15 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 {
 	const u8 acl_type = ptr->type;
 
-	if (acl_type == TOMOYO_TYPE_SINGLE_PATH_ACL) {
-		struct tomoyo_single_path_acl_record *acl
-			= container_of(ptr,
-				       struct tomoyo_single_path_acl_record,
-				       head);
-		return tomoyo_print_single_path_acl(head, acl);
+	if (acl_type == TOMOYO_TYPE_PATH_ACL) {
+		struct tomoyo_path_acl *acl
+			= container_of(ptr, struct tomoyo_path_acl, head);
+		return tomoyo_print_path_acl(head, acl);
 	}
-	if (acl_type == TOMOYO_TYPE_DOUBLE_PATH_ACL) {
-		struct tomoyo_double_path_acl_record *acl
-			= container_of(ptr,
-				       struct tomoyo_double_path_acl_record,
-				       head);
-		return tomoyo_print_double_path_acl(head, acl);
+	if (acl_type == TOMOYO_TYPE_PATH2_ACL) {
+		struct tomoyo_path2_acl *acl
+			= container_of(ptr, struct tomoyo_path2_acl, head);
+		return tomoyo_print_path2_acl(head, acl);
 	}
 	BUG(); /* This must not happen. */
 	return false;
