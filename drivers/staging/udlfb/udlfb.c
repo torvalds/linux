@@ -51,6 +51,13 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
+/* dlfb keeps a list of urbs for efficient bulk transfers */
+static void dlfb_urb_completion(struct urb *urb);
+static struct urb *dlfb_get_urb(struct dlfb_data *dev);
+static int dlfb_submit_urb(struct dlfb_data *dev, struct urb * urb, size_t len);
+static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size);
+static void dlfb_free_urb_list(struct dlfb_data *dev);
+
 /*
  * Inserts a specific DisplayLink controller command into the provided
  * buffer.
@@ -901,6 +908,21 @@ static int dlfb_release(struct fb_info *info, int user)
 	return 0;
 }
 
+/*
+ * Called when all client interfaces to start transactions have been disabled,
+ * and all references to our device instance (dlfb_data) are released.
+ * Every transaction must have a reference, so we know are fully spun down
+ */
+static void dlfb_delete(struct kref *kref)
+{
+	struct dlfb_data *dev = container_of(kref, struct dlfb_data, kref);
+
+	if (dev->backing_buffer)
+		vfree(dev->backing_buffer);
+
+	kfree(dev);
+}
+
 static int dlfb_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev_info = info->par;
@@ -974,6 +996,7 @@ static int dlfb_probe(struct usb_interface *interface,
 
 	mutex_init(&dev->bulk_mutex);
 	dev->udev = usbdev;
+	dev->gdev = &usbdev->dev; /* our generic struct device * */
 	dev->interface = interface;
 	usb_set_intfdata(interface, dev);
 
@@ -1167,6 +1190,175 @@ static void __exit dlfb_exit(void)
 
 module_init(dlfb_init);
 module_exit(dlfb_exit);
+
+static void dlfb_urb_completion(struct urb *urb)
+{
+	struct urb_node *unode = urb->context;
+	struct dlfb_data *dev = unode->dev;
+	unsigned long flags;
+
+	/* sync/async unlink faults aren't errors */
+	if (urb->status) {
+		if (!(urb->status == -ENOENT ||
+		    urb->status == -ECONNRESET ||
+		    urb->status == -ESHUTDOWN)) {
+			dl_err("%s - nonzero write bulk status received: %d\n",
+				__func__, urb->status);
+			atomic_set(&dev->lost_pixels, 1);
+		}
+	}
+
+	urb->transfer_buffer_length = dev->urbs.size; /* reset to actual */
+
+	spin_lock_irqsave(&dev->urbs.lock, flags);
+	list_add_tail(&unode->entry, &dev->urbs.list);
+	dev->urbs.available++;
+	spin_unlock_irqrestore(&dev->urbs.lock, flags);
+
+	up(&dev->urbs.limit_sem);
+}
+
+static void dlfb_free_urb_list(struct dlfb_data *dev)
+{
+	int count = dev->urbs.count;
+	struct list_head *node;
+	struct urb_node *unode;
+	struct urb *urb;
+	int ret;
+	unsigned long flags;
+
+	dl_notice("Waiting for completes and freeing all render urbs\n");
+
+	/* keep waiting and freeing, until we've got 'em all */
+	while (count--) {
+		/* Timeout means a memory leak and/or fault */
+		ret = down_timeout(&dev->urbs.limit_sem, FREE_URB_TIMEOUT);
+		if (ret) {
+			BUG_ON(ret);
+			break;
+		}
+		spin_lock_irqsave(&dev->urbs.lock, flags);
+
+		node = dev->urbs.list.next; /* have reserved one with sem */
+		list_del_init(node);
+
+		spin_unlock_irqrestore(&dev->urbs.lock, flags);
+
+		unode = list_entry(node, struct urb_node, entry);
+		urb = unode->urb;
+
+		/* Free each separately allocated piece */
+		usb_buffer_free(urb->dev, dev->urbs.size,
+			urb->transfer_buffer, urb->transfer_dma);
+		usb_free_urb(urb);
+		kfree(node);
+	}
+
+	kref_put(&dev->kref, dlfb_delete);
+
+}
+
+static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
+{
+	int i = 0;
+	struct urb *urb;
+	struct urb_node *unode;
+	char *buf;
+
+	spin_lock_init(&dev->urbs.lock);
+
+	dev->urbs.size = size;
+	INIT_LIST_HEAD(&dev->urbs.list);
+
+	while (i < count) {
+		unode = kzalloc(sizeof(struct urb_node), GFP_KERNEL);
+		if (!unode)
+			break;
+		unode->dev = dev;
+
+		urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!urb) {
+			kfree(unode);
+			break;
+		}
+		unode->urb = urb;
+
+		buf = usb_buffer_alloc(dev->udev, MAX_TRANSFER, GFP_KERNEL,
+					&urb->transfer_dma);
+		if (!buf) {
+			kfree(unode);
+			usb_free_urb(urb);
+			break;
+		}
+
+		/* urb->transfer_buffer_length set to actual before submit */
+		usb_fill_bulk_urb(urb, dev->udev, usb_sndbulkpipe(dev->udev, 1),
+			buf, size, dlfb_urb_completion, unode);
+		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+		list_add_tail(&unode->entry, &dev->urbs.list);
+
+		i++;
+	}
+
+	sema_init(&dev->urbs.limit_sem, i);
+	dev->urbs.count = i;
+	dev->urbs.available = i;
+
+	kref_get(&dev->kref); /* released in free_render_urbs() */
+
+	dl_notice("allocated %d %d byte urbs \n", i, (int) size);
+
+	return i;
+}
+
+static struct urb *dlfb_get_urb(struct dlfb_data *dev)
+{
+	int ret = 0;
+	struct list_head *entry;
+	struct urb_node *unode;
+	struct urb *urb = NULL;
+	unsigned long flags;
+
+	/* Wait for an in-flight buffer to complete and get re-queued */
+	ret = down_timeout(&dev->urbs.limit_sem, GET_URB_TIMEOUT);
+	if (ret) {
+		atomic_set(&dev->lost_pixels, 1);
+		dl_err("wait for urb interrupted: %x\n", ret);
+		goto error;
+	}
+
+	spin_lock_irqsave(&dev->urbs.lock, flags);
+
+	BUG_ON(list_empty(&dev->urbs.list)); /* reserved one with limit_sem */
+	entry = dev->urbs.list.next;
+	list_del_init(entry);
+	dev->urbs.available--;
+
+	spin_unlock_irqrestore(&dev->urbs.lock, flags);
+
+	unode = list_entry(entry, struct urb_node, entry);
+	urb = unode->urb;
+
+error:
+	return urb;
+}
+
+static int dlfb_submit_urb(struct dlfb_data *dev, struct urb *urb, size_t len)
+{
+	int ret;
+
+	BUG_ON(len > dev->urbs.size);
+
+	urb->transfer_buffer_length = len; /* set to actual payload len */
+	ret = usb_submit_urb(urb, GFP_KERNEL);
+	if (ret) {
+		dlfb_urb_completion(urb); /* because no one else will */
+		atomic_set(&dev->lost_pixels, 1);
+		dl_err("usb_submit_urb error %x\n", ret);
+	}
+	return ret;
+}
 
 MODULE_AUTHOR("Roberto De Ioris <roberto@unbit.it>, "
 	      "Jaya Kumar <jayakumar.lkml@gmail.com>");

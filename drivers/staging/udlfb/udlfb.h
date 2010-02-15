@@ -5,16 +5,35 @@
 #define BUF_HIGH_WATER_MARK	1024
 #define BUF_SIZE		(64*1024)
 
+struct urb_node {
+	struct list_head entry;
+	struct dlfb_data *dev;
+	struct urb *urb;
+};
+
+struct urb_list {
+	struct list_head list;
+	spinlock_t lock;
+	struct semaphore limit_sem;
+	int available;
+	int count;
+	size_t size;
+};
+
 struct dlfb_data {
 	struct usb_device *udev;
+	struct device *gdev; /* &udev->dev */
 	struct usb_interface *interface;
 	struct urb *tx_urb, *ctrl_urb;
 	struct usb_ctrlrequest dr;
 	struct fb_info *info;
+	struct urb_list urbs;
+	struct kref kref;
 	char *buf;
 	char *bufend;
 	char *backing_buffer;
 	struct mutex bulk_mutex;
+	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	char edid[128];
 	int screen_size;
 	int line_length;
@@ -28,6 +47,14 @@ struct dlfb_data {
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02
 #define NR_USB_REQUEST_CHANNEL 0x12
+
+/* -BULK_SIZE as per usb-skeleton. Can we get full page and avoid overhead? */
+#define BULK_SIZE 512
+#define MAX_TRANSFER (PAGE_SIZE*16 - BULK_SIZE)
+#define WRITES_IN_FLIGHT (4)
+
+#define GET_URB_TIMEOUT	HZ
+#define FREE_URB_TIMEOUT (HZ*2)
 
 static void dlfb_bulk_callback(struct urb *urb)
 {
@@ -72,4 +99,12 @@ static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
 
 #define dlfb_set_register insert_command
 
+#define dl_err(format, arg...) \
+	dev_err(dev->gdev, "dlfb: " format, ## arg)
+#define dl_warn(format, arg...) \
+	dev_warn(dev->gdev, "dlfb: " format, ## arg)
+#define dl_notice(format, arg...) \
+	dev_notice(dev->gdev, "dlfb: " format, ## arg)
+#define dl_info(format, arg...) \
+	dev_info(dev->gdev, "dlfb: " format, ## arg)
 #endif
