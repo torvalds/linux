@@ -416,6 +416,13 @@ struct reg_init tm6010_init_tab[] = {
 
 	{ REQ_05_SET_GET_USBREG, 0x18, 0x00 },
 
+	{ REQ_07_SET_GET_AVREG, 0xdc, 0xaa },
+	{ REQ_07_SET_GET_AVREG, 0xdd, 0x30 },
+	{ REQ_07_SET_GET_AVREG, 0xde, 0x20 },
+	{ REQ_07_SET_GET_AVREG, 0xdf, 0xd0 },
+	{ REQ_04_EN_DISABLE_MCU_INT, 0x02, 0x00 },
+	{ REQ_07_SET_GET_AVREG, 0xd8, 0x2f },
+
 	/* set remote wakeup key:any key wakeup */
 	{ REQ_07_SET_GET_AVREG,  0xe5,  0xfe },
 	{ REQ_07_SET_GET_AVREG,  0xda,  0xff },
