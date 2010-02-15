@@ -255,6 +255,7 @@ static const char *session_state_name(int s)
 	case CEPH_MDS_SESSION_OPEN: return "open";
 	case CEPH_MDS_SESSION_HUNG: return "hung";
 	case CEPH_MDS_SESSION_CLOSING: return "closing";
+	case CEPH_MDS_SESSION_RESTARTING: return "restarting";
 	case CEPH_MDS_SESSION_RECONNECTING: return "reconnecting";
 	default: return "???";
 	}
@@ -448,10 +449,42 @@ static struct ceph_mds_request *__lookup_request(struct ceph_mds_client *mdsc,
 					     u64 tid)
 {
 	struct ceph_mds_request *req;
-	req = radix_tree_lookup(&mdsc->request_tree, tid);
-	if (req)
-		ceph_mdsc_get_request(req);
-	return req;
+	struct rb_node *n = mdsc->request_tree.rb_node;
+
+	while (n) {
+		req = rb_entry(n, struct ceph_mds_request, r_node);
+		if (tid < req->r_tid)
+			n = n->rb_left;
+		else if (tid > req->r_tid)
+			n = n->rb_right;
+		else {
+			ceph_mdsc_get_request(req);
+			return req;
+		}
+	}
+	return NULL;
+}
+
+static void __insert_request(struct ceph_mds_client *mdsc,
+			     struct ceph_mds_request *new)
+{
+	struct rb_node **p = &mdsc->request_tree.rb_node;
+	struct rb_node *parent = NULL;
+	struct ceph_mds_request *req = NULL;
+
+	while (*p) {
+		parent = *p;
+		req = rb_entry(parent, struct ceph_mds_request, r_node);
+		if (new->r_tid < req->r_tid)
+			p = &(*p)->rb_left;
+		else if (new->r_tid > req->r_tid)
+			p = &(*p)->rb_right;
+		else
+			BUG();
+	}
+
+	rb_link_node(&new->r_node, parent, p);
+	rb_insert_color(&new->r_node, &mdsc->request_tree);
 }
 
 /*
@@ -469,7 +502,7 @@ static void __register_request(struct ceph_mds_client *mdsc,
 		ceph_reserve_caps(&req->r_caps_reservation, req->r_num_caps);
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
-	radix_tree_insert(&mdsc->request_tree, req->r_tid, (void *)req);
+	__insert_request(mdsc, req);
 
 	if (dir) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
@@ -485,7 +518,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 				 struct ceph_mds_request *req)
 {
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
-	radix_tree_delete(&mdsc->request_tree, req->r_tid);
+	rb_erase(&req->r_node, &mdsc->request_tree);
 	ceph_mdsc_put_request(req);
 
 	if (req->r_unsafe_dir) {
@@ -1115,17 +1148,25 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 }
 
 /*
- * return oldest (lowest) tid in request tree, 0 if none.
+ * return oldest (lowest) request, tid in request tree, 0 if none.
  *
  * called under mdsc->mutex.
  */
+static struct ceph_mds_request *__get_oldest_req(struct ceph_mds_client *mdsc)
+{
+	if (RB_EMPTY_ROOT(&mdsc->request_tree))
+		return NULL;
+	return rb_entry(rb_first(&mdsc->request_tree),
+			struct ceph_mds_request, r_node);
+}
+
 static u64 __get_oldest_tid(struct ceph_mds_client *mdsc)
 {
-	struct ceph_mds_request *first;
-	if (radix_tree_gang_lookup(&mdsc->request_tree,
-				   (void **)&first, 0, 1) <= 0)
-		return 0;
-	return first->r_tid;
+	struct ceph_mds_request *req = __get_oldest_req(mdsc);
+
+	if (req)
+		return req->r_tid;
+	return 0;
 }
 
 /*
@@ -1540,26 +1581,19 @@ static void __wake_requests(struct ceph_mds_client *mdsc,
  */
 static void kick_requests(struct ceph_mds_client *mdsc, int mds, int all)
 {
-	struct ceph_mds_request *reqs[10];
-	u64 nexttid = 0;
-	int i, got;
+	struct ceph_mds_request *req;
+	struct rb_node *p;
 
 	dout("kick_requests mds%d\n", mds);
-	while (nexttid <= mdsc->last_tid) {
-		got = radix_tree_gang_lookup(&mdsc->request_tree,
-					     (void **)&reqs, nexttid, 10);
-		if (got == 0)
-			break;
-		nexttid = reqs[got-1]->r_tid + 1;
-		for (i = 0; i < got; i++) {
-			if (reqs[i]->r_got_unsafe)
-				continue;
-			if (reqs[i]->r_session &&
-			    reqs[i]->r_session->s_mds == mds) {
-				dout(" kicking tid %llu\n", reqs[i]->r_tid);
-				put_request_session(reqs[i]);
-				__do_request(mdsc, reqs[i]);
-			}
+	for (p = rb_first(&mdsc->request_tree); p; p = rb_next(p)) {
+		req = rb_entry(p, struct ceph_mds_request, r_node);
+		if (req->r_got_unsafe)
+			continue;
+		if (req->r_session &&
+		    req->r_session->s_mds == mds) {
+			dout(" kicking tid %llu\n", req->r_tid);
+			put_request_session(req);
+			__do_request(mdsc, req);
 		}
 	}
 }
@@ -1748,7 +1782,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 			list_del_init(&req->r_unsafe_item);
 
 			/* last unsafe request during umount? */
-			if (mdsc->stopping && !__get_oldest_tid(mdsc))
+			if (mdsc->stopping && !__get_oldest_req(mdsc))
 				complete(&mdsc->safe_umount_waiters);
 			mutex_unlock(&mdsc->mutex);
 			goto out;
@@ -2573,7 +2607,7 @@ int ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
 	INIT_LIST_HEAD(&mdsc->snap_empty);
 	spin_lock_init(&mdsc->snap_empty_lock);
 	mdsc->last_tid = 0;
-	INIT_RADIX_TREE(&mdsc->request_tree, GFP_NOFS);
+	mdsc->request_tree = RB_ROOT;
 	INIT_DELAYED_WORK(&mdsc->delayed_work, delayed_work);
 	mdsc->last_renew_caps = jiffies;
 	INIT_LIST_HEAD(&mdsc->cap_delay_list);
@@ -2600,20 +2634,19 @@ static void wait_requests(struct ceph_mds_client *mdsc)
 	struct ceph_client *client = mdsc->client;
 
 	mutex_lock(&mdsc->mutex);
-	if (__get_oldest_tid(mdsc)) {
+	if (__get_oldest_req(mdsc)) {
 		mutex_unlock(&mdsc->mutex);
+
 		dout("wait_requests waiting for requests\n");
 		wait_for_completion_timeout(&mdsc->safe_umount_waiters,
 				    client->mount_args->mount_timeout * HZ);
-		mutex_lock(&mdsc->mutex);
 
 		/* tear down remaining requests */
-		while (radix_tree_gang_lookup(&mdsc->request_tree,
-					      (void **)&req, 0, 1)) {
+		mutex_lock(&mdsc->mutex);
+		while ((req = __get_oldest_req(mdsc))) {
 			dout("wait_requests timed out on tid %llu\n",
 			     req->r_tid);
-			radix_tree_delete(&mdsc->request_tree, req->r_tid);
-			ceph_mdsc_put_request(req);
+			__unregister_request(mdsc, req);
 		}
 	}
 	mutex_unlock(&mdsc->mutex);
@@ -2639,31 +2672,29 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
  */
 static void wait_unsafe_requests(struct ceph_mds_client *mdsc, u64 want_tid)
 {
-	struct ceph_mds_request *req;
-	u64 next_tid = 0;
-	int got;
+	struct ceph_mds_request *req = NULL;
+	struct rb_node *n;
 
 	mutex_lock(&mdsc->mutex);
 	dout("wait_unsafe_requests want %lld\n", want_tid);
-	while (1) {
-		got = radix_tree_gang_lookup(&mdsc->request_tree, (void **)&req,
-					     next_tid, 1);
-		if (!got)
+	req = __get_oldest_req(mdsc);
+	while (req && req->r_tid <= want_tid) {
+		if ((req->r_op & CEPH_MDS_OP_WRITE)) {
+			/* write op */
+			ceph_mdsc_get_request(req);
+			mutex_unlock(&mdsc->mutex);
+			dout("wait_unsafe_requests  wait on %llu (want %llu)\n",
+			     req->r_tid, want_tid);
+			wait_for_completion(&req->r_safe_completion);
+			mutex_lock(&mdsc->mutex);
+			n = rb_next(&req->r_node);
+			ceph_mdsc_put_request(req);
+		} else {
+			n = rb_next(&req->r_node);
+		}
+		if (!n)
 			break;
-		if (req->r_tid > want_tid)
-			break;
-
-		next_tid = req->r_tid + 1;
-		if ((req->r_op & CEPH_MDS_OP_WRITE) == 0)
-			continue;  /* not a write op */
-
-		ceph_mdsc_get_request(req);
-		mutex_unlock(&mdsc->mutex);
-		dout("wait_unsafe_requests  wait on %llu (want %llu)\n",
-		     req->r_tid, want_tid);
-		wait_for_completion(&req->r_safe_completion);
-		mutex_lock(&mdsc->mutex);
-		ceph_mdsc_put_request(req);
+		req = rb_entry(n, struct ceph_mds_request, r_node);
 	}
 	mutex_unlock(&mdsc->mutex);
 	dout("wait_unsafe_requests done\n");
