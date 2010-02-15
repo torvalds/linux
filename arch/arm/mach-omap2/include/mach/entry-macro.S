@@ -92,6 +92,7 @@ omap_irq_base:	.word	0
 #ifdef CONFIG_ARCH_OMAP4
 
 		.macro  get_irqnr_preamble, base, tmp
+		ldr     \base, =OMAP4_IRQ_BASE
 		.endm
 
 		/*
@@ -114,7 +115,6 @@ omap_irq_base:	.word	0
 		 * valid range for an IRQ (30-1020 inclusive).
 		 */
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr     \base, =OMAP4_IRQ_BASE
 		ldr     \irqstat, [\base, #GIC_CPU_INTACK]
 
 		ldr     \tmp, =1021
