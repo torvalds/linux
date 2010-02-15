@@ -818,6 +818,21 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 
 }
 
+static void dlfb_get_edid(struct dlfb_data *dev)
+{
+	int i;
+	int ret;
+	char rbuf[2];
+
+	for (i = 0; i < sizeof(dev->edid); i++) {
+		ret = usb_control_msg(dev->udev,
+				    usb_rcvctrlpipe(dev->udev, 0), (0x02),
+				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
+				    0);
+		dev->edid[i] = rbuf[1];
+	}
+}
+
 static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
@@ -924,6 +939,33 @@ static void dlfb_delete(struct kref *kref)
 	kfree(dev);
 }
 
+/*
+ * Check whether a video mode is supported by the DisplayLink chip
+ * We start from monitor's modes, so don't need to filter that here
+ */
+static int dlfb_is_valid_mode(struct fb_videomode *mode,
+		struct fb_info *info)
+{
+	struct dlfb_data *dev = info->par;
+
+	if (mode->xres * mode->yres > dev->sku_pixel_limit)
+		return 0;
+
+	return 1;
+}
+
+static void dlfb_var_color_format(struct fb_var_screeninfo *var)
+{
+	const struct fb_bitfield red = { 11, 5, 0 };
+	const struct fb_bitfield green = { 5, 6, 0 };
+	const struct fb_bitfield blue = { 0, 5, 0 };
+
+	var->bits_per_pixel = 16;
+	var->red = red;
+	var->green = green;
+	var->blue = blue;
+}
+
 static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev_info = info->par;
@@ -951,6 +993,215 @@ static struct fb_ops dlfb_ops = {
 	.fb_ioctl = dlfb_ops_ioctl,
 	.fb_release = dlfb_ops_release,
 	.fb_blank = dlfb_ops_blank,
+};
+
+/*
+ * Calls dlfb_get_edid() to query the EDID of attached monitor via usb cmds
+ * Then parses EDID into three places used by various parts of fbdev:
+ * fb_var_screeninfo contains the timing of the monitor's preferred mode
+ * fb_info.monspecs is full parsed EDID info, including monspecs.modedb
+ * fb_info.modelist is a linked list of all monitor & VESA modes which work
+ *
+ * If EDID is not readable/valid, then modelist is all VESA modes,
+ * monspecs is NULL, and fb_var_screeninfo is set to safe VESA mode
+ * Returns 0 if EDID parses successfully
+ */
+static int dlfb_parse_edid(struct dlfb_data *dev,
+			    struct fb_var_screeninfo *var,
+			    struct fb_info *info)
+{
+	int i;
+	const struct fb_videomode *default_vmode = NULL;
+	int result = 0;
+
+	fb_destroy_modelist(&info->modelist);
+	memset(&info->monspecs, 0, sizeof(info->monspecs));
+
+	dlfb_get_edid(dev);
+	fb_edid_to_monspecs(dev->edid, &info->monspecs);
+
+	if (info->monspecs.modedb_len > 0) {
+
+		for (i = 0; i < info->monspecs.modedb_len; i++) {
+			if (dlfb_is_valid_mode(&info->monspecs.modedb[i], info))
+				fb_add_videomode(&info->monspecs.modedb[i],
+					&info->modelist);
+		}
+
+		default_vmode = fb_find_best_display(&info->monspecs,
+						     &info->modelist);
+	} else {
+		struct fb_videomode fb_vmode = {0};
+
+		dl_err("Unable to get valid EDID from device/display\n");
+		result = 1;
+
+		/*
+		 * Add the standard VESA modes to our modelist
+		 * Since we don't have EDID, there may be modes that
+		 * overspec monitor and/or are incorrect aspect ratio, etc.
+		 * But at least the user has a chance to choose
+		 */
+		for (i = 0; i < VESA_MODEDB_SIZE; i++) {
+			if (dlfb_is_valid_mode((struct fb_videomode *)
+						&vesa_modes[i], info))
+				fb_add_videomode(&vesa_modes[i],
+						 &info->modelist);
+		}
+
+		/*
+		 * default to resolution safe for projectors
+		 * (since they are most common case without EDID)
+		 */
+		fb_vmode.xres = 800;
+		fb_vmode.yres = 600;
+		fb_vmode.refresh = 60;
+		default_vmode = fb_find_nearest_mode(&fb_vmode,
+						     &info->modelist);
+	}
+
+	fb_videomode_to_var(var, default_vmode);
+	dlfb_var_color_format(var);
+
+	return result;
+}
+
+static ssize_t metrics_bytes_rendered_show(struct device *fbdev,
+				   struct device_attribute *a, char *buf) {
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			atomic_read(&dev->bytes_rendered));
+}
+
+static ssize_t metrics_bytes_identical_show(struct device *fbdev,
+				   struct device_attribute *a, char *buf) {
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			atomic_read(&dev->bytes_identical));
+}
+
+static ssize_t metrics_bytes_sent_show(struct device *fbdev,
+				   struct device_attribute *a, char *buf) {
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			atomic_read(&dev->bytes_sent));
+}
+
+static ssize_t metrics_cpu_kcycles_used_show(struct device *fbdev,
+				   struct device_attribute *a, char *buf) {
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			atomic_read(&dev->cpu_kcycles_used));
+}
+
+static ssize_t metrics_misc_show(struct device *fbdev,
+				   struct device_attribute *a, char *buf) {
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	return snprintf(buf, PAGE_SIZE,
+			"Calls to\ndamage: %u\nblit: %u\n"
+			"defio faults: %u\ncopy: %u\n"
+			"fill: %u\n\n"
+			"active framebuffer clients: %d\n"
+			"urbs available %d(%d)\n"
+			"Shadow framebuffer in use? %s\n"
+			"Any lost pixels? %s\n",
+			atomic_read(&dev->damage_count),
+			atomic_read(&dev->blit_count),
+			atomic_read(&dev->defio_fault_count),
+			atomic_read(&dev->copy_count),
+			atomic_read(&dev->fill_count),
+			dev->fb_count,
+			dev->urbs.available, dev->urbs.limit_sem.count,
+			(dev->backing_buffer) ? "yes" : "no",
+			atomic_read(&dev->lost_pixels) ? "yes" : "no");
+}
+
+static ssize_t edid_show(struct kobject *kobj, struct bin_attribute *a,
+			 char *buf, loff_t off, size_t count) {
+	struct device *fbdev = container_of(kobj, struct device, kobj);
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	char *edid = &dev->edid[0];
+	const size_t size = sizeof(dev->edid);
+
+	if (dlfb_parse_edid(dev, &fb_info->var, fb_info))
+		return 0;
+
+	if (off >= size)
+		return 0;
+
+	if (off + count > size)
+		count = size - off;
+	memcpy(buf, edid + off, count);
+
+	return count;
+}
+
+
+static ssize_t metrics_reset_store(struct device *fbdev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+
+	atomic_set(&dev->bytes_rendered, 0);
+	atomic_set(&dev->bytes_identical, 0);
+	atomic_set(&dev->bytes_sent, 0);
+	atomic_set(&dev->cpu_kcycles_used, 0);
+	atomic_set(&dev->blit_count, 0);
+	atomic_set(&dev->copy_count, 0);
+	atomic_set(&dev->fill_count, 0);
+	atomic_set(&dev->defio_fault_count, 0);
+	atomic_set(&dev->damage_count, 0);
+
+	return count;
+}
+
+static ssize_t use_defio_show(struct device *fbdev,
+				   struct device_attribute *a, char *buf) {
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			atomic_read(&dev->use_defio));
+}
+
+static ssize_t use_defio_store(struct device *fbdev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+
+	if (count > 0) {
+		if (buf[0] == '0')
+			atomic_set(&dev->use_defio, 0);
+		if (buf[0] == '1')
+			atomic_set(&dev->use_defio, 1);
+	}
+	return count;
+}
+
+static struct bin_attribute edid_attr = {
+	.attr.name = "edid",
+	.attr.mode = 0444,
+	.size = 128,
+	.read = edid_show,
+};
+
+static struct device_attribute fb_device_attrs[] = {
+	__ATTR_RO(metrics_bytes_rendered),
+	__ATTR_RO(metrics_bytes_identical),
+	__ATTR_RO(metrics_bytes_sent),
+	__ATTR_RO(metrics_cpu_kcycles_used),
+	__ATTR_RO(metrics_misc),
+	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
+	__ATTR_RW(use_defio),
 };
 
 /*

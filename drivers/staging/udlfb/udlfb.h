@@ -33,8 +33,12 @@ struct dlfb_data {
 	char *bufend;
 	char *backing_buffer;
 	struct mutex bulk_mutex;
+	int fb_count;
+	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
+	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
 	char edid[128];
+	int sku_pixel_limit;
 	int screen_size;
 	int line_length;
 	struct completion done;
@@ -43,6 +47,17 @@ struct dlfb_data {
 	int base8;
 	int base8d;
 	u32 pseudo_palette[256];
+	/* blit-only rendering path metrics, exposed through sysfs */
+	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
+	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
+	atomic_t bytes_sent; /* to usb, after compression including overhead */
+	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
+	/* interface usage metrics. Clients can call driver via several */
+	atomic_t blit_count;
+	atomic_t copy_count;
+	atomic_t fill_count;
+	atomic_t damage_count;
+	atomic_t defio_fault_count;
 };
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02
@@ -98,6 +113,9 @@ static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
 }
 
 #define dlfb_set_register insert_command
+
+/* remove once this gets added to sysfs.h */
+#define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
 
 #define dl_err(format, arg...) \
 	dev_err(dev->gdev, "dlfb: " format, ## arg)
