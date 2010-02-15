@@ -109,10 +109,6 @@
 #include <mach/iomux-mx27.h>
 #endif
 #endif
-#ifdef CONFIG_ARCH_MX25
-#include <mach/iomux-mx25.h>
-#endif
-
 
 /* decode irq number to use with IMR(x), ISR(x) and friends */
 #define IRQ_TO_REG(irq) ((irq - MXC_INTERNAL_IRQS) >> 5)

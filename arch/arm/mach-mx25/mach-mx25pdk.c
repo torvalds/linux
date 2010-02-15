@@ -36,7 +36,7 @@
 #include <mach/mx25.h>
 #include <mach/mxc_nand.h>
 #include "devices.h"
-#include <mach/iomux.h>
+#include <mach/iomux-mx25.h>
 
 static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
