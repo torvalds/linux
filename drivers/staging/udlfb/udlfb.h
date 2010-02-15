@@ -1,9 +1,20 @@
 #ifndef UDLFB_H
 #define UDLFB_H
 
-/* as libdlo */
-#define BUF_HIGH_WATER_MARK	1024
-#define BUF_SIZE		(64*1024)
+/*
+ * TODO: Propose standard fb.h ioctl for reporting damage,
+ * using _IOWR() and one of the existing area structs from fb.h
+ * Consider these ioctls deprecated, but they're still used by the
+ * DisplayLink X server as yet - need both to be modified in tandem
+ * when new ioctl(s) are ready.
+ */
+#define DLFB_IOCTL_RETURN_EDID	 0xAD
+#define DLFB_IOCTL_REPORT_DAMAGE 0xAA
+struct dloarea {
+	int x, y;
+	int w, h;
+	int x2, y2;
+};
 
 struct urb_node {
 	struct list_head entry;
@@ -23,30 +34,20 @@ struct urb_list {
 struct dlfb_data {
 	struct usb_device *udev;
 	struct device *gdev; /* &udev->dev */
-	struct usb_interface *interface;
-	struct urb *tx_urb, *ctrl_urb;
 	struct fb_info *info;
 	struct urb_list urbs;
 	struct kref kref;
-	char *buf;
-	char *bufend;
 	char *backing_buffer;
 	struct delayed_work deferred_work;
 	struct mutex fb_open_lock;
-	struct mutex bulk_mutex;
 	int fb_count;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
 	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
 	char edid[128];
 	int sku_pixel_limit;
-	int screen_size;
-	int line_length;
-	struct completion done;
 	int base16;
-	int base16d;
 	int base8;
-	int base8d;
 	u32 pseudo_palette[256];
 	/* blit-only rendering path metrics, exposed through sysfs */
 	atomic_t bytes_rendered; /* raw pixel-bytes driver asked to render */
@@ -72,48 +73,24 @@ struct dlfb_data {
 #define GET_URB_TIMEOUT	HZ
 #define FREE_URB_TIMEOUT (HZ*2)
 
-static void dlfb_bulk_callback(struct urb *urb)
-{
-	struct dlfb_data *dev_info = urb->context;
-	complete(&dev_info->done);
-}
+#define BPP                     2
+#define MAX_CMD_PIXELS		255
 
-static void dlfb_edid(struct dlfb_data *dev_info)
-{
-	int i;
-	int ret;
-	char rbuf[2];
+#define RLX_HEADER_BYTES	7
+#define MIN_RLX_PIX_BYTES       4
+#define MIN_RLX_CMD_BYTES	(RLX_HEADER_BYTES + MIN_RLX_PIX_BYTES)
 
-	for (i = 0; i < 128; i++) {
-		ret =
-		    usb_control_msg(dev_info->udev,
-				    usb_rcvctrlpipe(dev_info->udev, 0), (0x02),
-				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
-				    0);
-		dev_info->edid[i] = rbuf[1];
-	}
+#define RLE_HEADER_BYTES	6
+#define MIN_RLE_PIX_BYTES	3
+#define MIN_RLE_CMD_BYTES	(RLE_HEADER_BYTES + MIN_RLE_PIX_BYTES)
 
-}
+#define RAW_HEADER_BYTES	6
+#define MIN_RAW_PIX_BYTES	2
+#define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
 
-static int dlfb_bulk_msg(struct dlfb_data *dev_info, int len)
-{
-	int ret;
-
-	init_completion(&dev_info->done);
-
-	dev_info->tx_urb->actual_length = 0;
-	dev_info->tx_urb->transfer_buffer_length = len;
-
-	ret = usb_submit_urb(dev_info->tx_urb, GFP_KERNEL);
-	if (!wait_for_completion_timeout(&dev_info->done, 1000)) {
-		usb_kill_urb(dev_info->tx_urb);
-		printk("usb timeout !!!\n");
-	}
-
-	return dev_info->tx_urb->actual_length;
-}
-
-#define dlfb_set_register insert_command
+/* remove these once align.h patch is taken into kernel */
+#define DL_ALIGN_UP(x, a) ALIGN(x, a)
+#define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
 
 /* remove once this gets added to sysfs.h */
 #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
