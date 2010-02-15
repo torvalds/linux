@@ -89,7 +89,7 @@ static bool udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
-static int udplite_error(struct net *net,
+static int udplite_error(struct net *net, struct nf_conn *tmpl,
 			 struct sk_buff *skb,
 			 unsigned int dataoff,
 			 enum ip_conntrack_info *ctinfo,

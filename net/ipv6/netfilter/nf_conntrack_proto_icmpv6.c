@@ -179,7 +179,8 @@ icmpv6_error_message(struct net *net,
 }
 
 static int
-icmpv6_error(struct net *net, struct sk_buff *skb, unsigned int dataoff,
+icmpv6_error(struct net *net, struct nf_conn *tmpl,
+	     struct sk_buff *skb, unsigned int dataoff,
 	     enum ip_conntrack_info *ctinfo, u_int8_t pf, unsigned int hooknum)
 {
 	const struct icmp6hdr *icmp6h;
