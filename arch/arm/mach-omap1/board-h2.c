@@ -26,6 +26,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
@@ -35,7 +36,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
 #include <plat/mux.h>
@@ -45,6 +45,7 @@
 #include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/common.h>
+#include <plat/flash.h>
 
 #include "board-h2.h"
 
@@ -121,9 +122,9 @@ static struct mtd_partition h2_nor_partitions[] = {
 	}
 };
 
-static struct flash_platform_data h2_nor_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data h2_nor_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= h2_nor_partitions,
 	.nr_parts	= ARRAY_SIZE(h2_nor_partitions),
 };
@@ -134,7 +135,7 @@ static struct resource h2_nor_resource = {
 };
 
 static struct platform_device h2_nor_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &h2_nor_data,

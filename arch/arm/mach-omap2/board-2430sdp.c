@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/delay.h>
 #include <linux/i2c/twl.h>
 #include <linux/err.h>
@@ -28,7 +29,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
 #include <plat/mux.h>
@@ -74,8 +74,7 @@ static struct mtd_partition sdp2430_partitions[] = {
 	}
 };
 
-static struct flash_platform_data sdp2430_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data sdp2430_flash_data = {
 	.width		= 2,
 	.parts		= sdp2430_partitions,
 	.nr_parts	= ARRAY_SIZE(sdp2430_partitions),
@@ -88,7 +87,7 @@ static struct resource sdp2430_flash_resource = {
 };
 
 static struct platform_device sdp2430_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev = {
 		.platform_data	= &sdp2430_flash_data,
