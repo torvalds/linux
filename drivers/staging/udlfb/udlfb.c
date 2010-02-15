@@ -63,6 +63,11 @@ static int dlfb_submit_urb(struct dlfb_data *dev, struct urb * urb, size_t len);
 static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size);
 static void dlfb_free_urb_list(struct dlfb_data *dev);
 
+/* other symbols with dependents */
+#ifdef CONFIG_FB_DEFERRED_IO
+static struct fb_deferred_io dlfb_defio;
+#endif
+
 /*
  * Inserts a specific DisplayLink controller command into the provided
  * buffer.
@@ -717,9 +722,59 @@ dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return err;
 }
 
+/*
+ * It's common for several clients to have framebuffer open simultaneously.
+ * e.g. both fbcon and X. Makes things interesting.
+ */
+static int dlfb_ops_open(struct fb_info *info, int user)
+{
+	struct dlfb_data *dev = info->par;
+
+/*	if (user == 0)
+ *		We could special case kernel mode clients (fbcon) here
+ */
+
+	mutex_lock(&dev->fb_open_lock);
+
+	dev->fb_count++;
+
+#ifdef CONFIG_FB_DEFERRED_IO
+	if ((atomic_read(&dev->use_defio)) && (info->fbdefio == NULL)) {
+		/* enable defio */
+		info->fbdefio = &dlfb_defio;
+		fb_deferred_io_init(info);
+	}
+#endif
+
+	dl_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
+	    info->node, user, info, dev->fb_count);
+
+	mutex_unlock(&dev->fb_open_lock);
+
+	return 0;
+}
+
 static int dlfb_ops_release(struct fb_info *info, int user)
 {
-	struct dlfb_data *dev_info = info->par;
+	struct dlfb_data *dev = info->par;
+
+	mutex_lock(&dev->fb_open_lock);
+
+	dev->fb_count--;
+
+#ifdef CONFIG_FB_DEFERRED_IO
+	if ((dev->fb_count == 0) && (info->fbdefio)) {
+		fb_deferred_io_cleanup(info);
+		info->fbdefio = NULL;
+		info->fbops->fb_mmap = dlfb_ops_mmap;
+	}
+#endif
+
+	dl_notice("release /dev/fb%d user=%d count=%d\n",
+		  info->node, user, dev->fb_count);
+
+	mutex_unlock(&dev->fb_open_lock);
+
 	return 0;
 }
 
@@ -734,6 +789,8 @@ static void dlfb_delete(struct kref *kref)
 
 	if (dev->backing_buffer)
 		vfree(dev->backing_buffer);
+
+	mutex_destroy(&dev->fb_open_lock);
 
 	kfree(dev);
 }
@@ -853,6 +910,7 @@ static struct fb_ops dlfb_ops = {
 	.fb_imageblit = dlfb_ops_imageblit,
 	.fb_mmap = dlfb_ops_mmap,
 	.fb_ioctl = dlfb_ops_ioctl,
+	.fb_open = dlfb_ops_open,
 	.fb_release = dlfb_ops_release,
 	.fb_blank = dlfb_ops_blank,
 	.fb_check_var = dlfb_ops_check_var,
@@ -1068,6 +1126,68 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR_RW(use_defio),
 };
 
+#ifdef CONFIG_FB_DEFERRED_IO
+static void dlfb_dpy_deferred_io(struct fb_info *info,
+				struct list_head *pagelist)
+{
+	struct page *cur;
+	struct fb_deferred_io *fbdefio = info->fbdefio;
+	struct dlfb_data *dev = info->par;
+	struct urb *urb;
+	char *cmd;
+	cycles_t start_cycles, end_cycles;
+	int bytes_sent = 0;
+	int bytes_identical = 0;
+	int bytes_rendered = 0;
+	int fault_count = 0;
+
+	if (!atomic_read(&dev->use_defio))
+		return;
+
+	if (!atomic_read(&dev->usb_active))
+		return;
+
+	start_cycles = get_cycles();
+
+	urb = dlfb_get_urb(dev);
+	if (!urb)
+		return;
+	cmd = urb->transfer_buffer;
+
+	/* walk the written page list and render each to device */
+	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+		dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
+				  &cmd, cur->index << PAGE_SHIFT,
+				  PAGE_SIZE, &bytes_identical, &bytes_sent);
+		bytes_rendered += PAGE_SIZE;
+		fault_count++;
+	}
+
+	if (cmd > (char *) urb->transfer_buffer) {
+		/* Send partial buffer remaining before exiting */
+		int len = cmd - (char *) urb->transfer_buffer;
+		dlfb_submit_urb(dev, urb, len);
+		bytes_sent += len;
+	} else
+		dlfb_urb_completion(urb);
+
+	atomic_add(fault_count, &dev->defio_fault_count);
+	atomic_add(bytes_sent, &dev->bytes_sent);
+	atomic_add(bytes_identical, &dev->bytes_identical);
+	atomic_add(bytes_rendered, &dev->bytes_rendered);
+	end_cycles = get_cycles();
+	atomic_add(((unsigned int) ((end_cycles - start_cycles)
+		    >> 10)), /* Kcycles */
+		   &dev->cpu_kcycles_used);
+}
+
+static struct fb_deferred_io dlfb_defio = {
+	.delay          = 5,
+	.deferred_io    = dlfb_dpy_deferred_io,
+};
+
+#endif
+
 /*
  * This is necessary before we can communicate with the display controller.
  */
@@ -1193,11 +1313,9 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 
 	/* ready to begin using device */
 
-/*
 #ifdef CONFIG_FB_DEFERRED_IO
 	atomic_set(&dev->use_defio, 1);
 #endif
-*/
 	atomic_set(&dev->usb_active, 1);
 	dlfb_select_std_channel(dev);
 
