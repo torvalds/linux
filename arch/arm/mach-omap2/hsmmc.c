@@ -26,20 +26,20 @@ static u16 control_devconf1_offset;
 
 #define HSMMC_NAME_LEN	9
 
-static struct twl_mmc_controller {
+static struct hsmmc_controller {
 	char				name[HSMMC_NAME_LEN + 1];
 } hsmmc[OMAP34XX_NR_MMC];
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 
-static int twl4030_mmc_get_context_loss(struct device *dev)
+static int hsmmc_get_context_loss(struct device *dev)
 {
 	/* FIXME: PM DPS not implemented yet */
 	return 0;
 }
 
 #else
-#define twl4030_mmc_get_context_loss NULL
+#define hsmmc_get_context_loss NULL
 #endif
 
 static void hsmmc1_before_set_reg(struct device *dev, int slot,
@@ -135,9 +135,9 @@ static void hsmmc23_before_set_reg(struct device *dev, int slot,
 
 static struct omap_mmc_platform_data *hsmmc_data[OMAP34XX_NR_MMC] __initdata;
 
-void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
+void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
-	struct twl4030_hsmmc_info *c;
+	struct omap2_hsmmc_info *c;
 	int nr_hsmmc = ARRAY_SIZE(hsmmc_data);
 	int i;
 
@@ -150,7 +150,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 	}
 
 	for (c = controllers; c->mmc; c++) {
-		struct twl_mmc_controller *twl = hsmmc + c->mmc - 1;
+		struct hsmmc_controller *hc = hsmmc + c->mmc - 1;
 		struct omap_mmc_platform_data *mmc = hsmmc_data[c->mmc - 1];
 
 		if (!c->mmc || c->mmc > nr_hsmmc) {
@@ -162,25 +162,25 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			continue;
 		}
 
-		mmc = kzalloc(sizeof(struct omap_mmc_platform_data), GFP_KERNEL);
+		mmc = kzalloc(sizeof(struct omap_mmc_platform_data),
+			      GFP_KERNEL);
 		if (!mmc) {
 			pr_err("Cannot allocate memory for mmc device!\n");
 			goto done;
 		}
 
 		if (c->name)
-			strncpy(twl->name, c->name, HSMMC_NAME_LEN);
+			strncpy(hc->name, c->name, HSMMC_NAME_LEN);
 		else
-			snprintf(twl->name, ARRAY_SIZE(twl->name),
+			snprintf(hc->name, ARRAY_SIZE(hc->name),
 				"mmc%islot%i", c->mmc, 1);
-		mmc->slots[0].name = twl->name;
+		mmc->slots[0].name = hc->name;
 		mmc->nr_slots = 1;
 		mmc->slots[0].wires = c->wires;
 		mmc->slots[0].internal_clock = !c->ext_clock;
 		mmc->dma_mask = 0xffffffff;
 
-		mmc->get_context_loss_count =
-				twl4030_mmc_get_context_loss;
+		mmc->get_context_loss_count = hsmmc_get_context_loss;
 
 		mmc->slots[0].switch_pin = c->gpio_cd;
 		mmc->slots[0].gpio_wp = c->gpio_wp;

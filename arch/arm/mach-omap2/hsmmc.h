@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
  */
 
-struct twl4030_hsmmc_info {
+struct omap2_hsmmc_info {
 	u8	mmc;		/* controller 1/2/3 */
 	u8	wires;		/* 1/4/8 wires */
 	bool	transceiver;	/* MMC-2 option */
@@ -23,11 +23,11 @@ struct twl4030_hsmmc_info {
 
 #if defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 
-void twl4030_mmc_init(struct twl4030_hsmmc_info *);
+void omap2_hsmmc_init(struct omap2_hsmmc_info *);
 
 #else
 
-static inline void twl4030_mmc_init(struct twl4030_hsmmc_info *info)
+static inline void omap2_hsmmc_init(struct omap2_hsmmc_info *info)
 {
 }
 
