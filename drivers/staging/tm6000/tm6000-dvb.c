@@ -23,8 +23,6 @@
 #include "tm6000.h"
 #include "tm6000-regs.h"
 
-#include "hack.h"
-
 #include "zl10353.h"
 
 #include <media/tuner.h>
@@ -222,8 +220,7 @@ int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 				     .disable_i2c_gate_ctrl = 1,
 				    };
 
-		dvb->frontend = pseudo_zl10353_attach(dev, &config,
-/*		dvb->frontend = dvb_attach (zl10353_attach, &config, */
+		dvb->frontend = dvb_attach(zl10353_attach, &config,
 							   &dev->i2c_adap);
 	}
 	else {
