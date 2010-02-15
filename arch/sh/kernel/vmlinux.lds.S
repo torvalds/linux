@@ -4,17 +4,22 @@
  */
 #ifdef CONFIG_SUPERH64
 #define LOAD_OFFSET	PAGE_OFFSET
-#define MEMORY_OFFSET	__MEMORY_START
 OUTPUT_ARCH(sh:sh5)
 #else
 #define LOAD_OFFSET	0
-#define MEMORY_OFFSET	0
 OUTPUT_ARCH(sh)
 #endif
 
 #include <asm/thread_info.h>
 #include <asm/cache.h>
 #include <asm/vmlinux.lds.h>
+
+#if defined(CONFIG_29BIT) || defined(CONFIG_SUPERH64) || \
+    defined(CONFIG_PMB_LEGACY)
+ #define MEMORY_OFFSET	__MEMORY_START
+#else
+ #define MEMORY_OFFSET  0
+#endif
 
 ENTRY(_start)
 SECTIONS
