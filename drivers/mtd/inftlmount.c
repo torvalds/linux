@@ -100,9 +100,10 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		}
 
 		/* To be safer with BIOS, also use erase mark as discriminant */
-		if ((ret = inftl_read_oob(mtd, block * inftl->EraseSize +
-					  SECTORSIZE + 8, 8, &retlen,
-					  (char *)&h1) < 0)) {
+		ret = inftl_read_oob(mtd,
+				     block * inftl->EraseSize + SECTORSIZE + 8,
+				     8, &retlen,(char *)&h1);
+		if (ret < 0) {
 			printk(KERN_WARNING "INFTL: ANAND header found at "
 				"0x%x in mtd%d, but OOB data read failed "
 				"(err %d)\n", block * inftl->EraseSize,
