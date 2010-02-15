@@ -285,8 +285,8 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 	dvb->demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING
 							    | DMX_MEMORY_BASED_FILTERING;
 	dvb->demux.priv = dev;
-	dvb->demux.filternum = 5; /* 256; */
-	dvb->demux.feednum = 5; /* 256; */
+	dvb->demux.filternum = 8;
+	dvb->demux.feednum = 8;
 	dvb->demux.start_feed = tm6000_start_feed;
 	dvb->demux.stop_feed = tm6000_stop_feed;
 	dvb->demux.write_to_decoder = NULL;
