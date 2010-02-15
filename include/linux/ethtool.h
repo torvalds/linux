@@ -14,7 +14,6 @@
 #define _LINUX_ETHTOOL_H
 
 #include <linux/types.h>
-#include <linux/rculist.h>
 
 /* This should work for both 32 and 64 bit userland. */
 struct ethtool_cmd {
@@ -408,6 +407,8 @@ struct ethtool_flash {
 };
 
 #ifdef __KERNEL__
+
+#include <linux/rculist.h>
 
 struct ethtool_rx_ntuple_flow_spec_container {
 	struct ethtool_rx_ntuple_flow_spec fs;
