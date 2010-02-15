@@ -269,12 +269,28 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 		/* Reset codes during load firmware */
 		switch (arg) {
 		case 0:
-			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x00);
-			msleep(130);
-			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
-					dev->tuner_reset_gpio, 0x01);
-			msleep(130);
+			/* newer tuner can faster reset */
+			switch (dev->model) {
+			case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->tuner_reset_gpio, 0x01);
+				msleep(60);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->tuner_reset_gpio, 0x00);
+				msleep(75);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->tuner_reset_gpio, 0x01);
+				msleep(60);
+				break;
+			default:
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->tuner_reset_gpio, 0x00);
+				msleep(130);
+				tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+					       dev->tuner_reset_gpio, 0x01);
+				msleep(130);
+				break;
+			}
 			break;
 		case 1:
 			tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT,
