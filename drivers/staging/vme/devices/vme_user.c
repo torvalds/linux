@@ -738,6 +738,14 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 				"resource\n");
 			goto err_master;
 		}
+		image[i].size_buf = PCI_BUF_SIZE;
+		image[i].kern_buf = kmalloc(image[i].size_buf, GFP_KERNEL);
+		if (image[i].kern_buf == NULL) {
+			printk(KERN_WARNING "Unable to allocate memory for "
+				"master window buffers\n");
+			err = -ENOMEM;
+			goto err_master_buf;
+		}
 	}
 
 	/* Create sysfs entries - on udev systems this creates the dev files */
@@ -791,6 +799,9 @@ err_sysfs:
 
 	/* Ensure counter set correcty to unalloc all master windows */
 	i = MASTER_MAX + 1;
+err_master_buf:
+	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++)
+		kfree(image[i].kern_buf);
 err_master:
 	while (i > MASTER_MINOR) {
 		i--;
@@ -825,6 +836,9 @@ static int __exit vme_user_remove(struct device *dev, int cur_bus, int cur_slot)
 		device_destroy(vme_user_sysfs_class, MKDEV(VME_MAJOR, i));
 	}
 	class_destroy(vme_user_sysfs_class);
+
+	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++)
+		kfree(image[i].kern_buf);
 
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
 		vme_slave_set(image[i].resource, 0, 0, 0, 0, VME_A32, 0);
