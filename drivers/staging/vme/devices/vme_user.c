@@ -400,8 +400,39 @@ static ssize_t vme_user_write(struct file *file, const char *buf, size_t count,
 
 static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 {
-	printk(KERN_ERR "Llseek currently incomplete\n");
-	return -EINVAL;
+	loff_t absolute = -1;
+	unsigned int minor = MINOR(file->f_dentry->d_inode->i_rdev);
+	size_t image_size;
+
+	down(&image[minor].sem);
+	image_size = vme_get_size(image[minor].resource);
+
+	switch (whence) {
+	case SEEK_SET:
+		absolute = off;
+		break;
+	case SEEK_CUR:
+		absolute = file->f_pos + off;
+		break;
+	case SEEK_END:
+		absolute = image_size + off;
+		break;
+	default:
+		up(&image[minor].sem);
+		return -EINVAL;
+		break;
+	}
+
+	if ((absolute < 0) || (absolute >= image_size)) {
+		up(&image[minor].sem);
+		return -EINVAL;
+	}
+
+	file->f_pos = absolute;
+
+	up(&image[minor].sem);
+
+	return absolute;
 }
 
 /*
