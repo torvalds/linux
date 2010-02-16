@@ -700,6 +700,8 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		goto err_out_remove_scsi_host;
 	}
 
+	fc_lport_init_stats(lp);
+
 	fc_lport_config(lp);
 
 	if (fc_set_mfs(lp, fnic->config.maxdatafieldsize +
