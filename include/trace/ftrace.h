@@ -199,7 +199,7 @@
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static enum print_line_t						\
+static notrace enum print_line_t					\
 ftrace_raw_output_id_##call(int event_id, const char *name,		\
 			    struct trace_iterator *iter, int flags)	\
 {									\
@@ -232,7 +232,7 @@ ftrace_raw_output_id_##call(int event_id, const char *name,		\
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)			\
-static enum print_line_t						\
+static notrace enum print_line_t					\
 ftrace_raw_output_##name(struct trace_iterator *iter, int flags)	\
 {									\
 	return ftrace_raw_output_id_##template(event_##name.id,		\
@@ -241,7 +241,7 @@ ftrace_raw_output_##name(struct trace_iterator *iter, int flags)	\
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
-static enum print_line_t						\
+static notrace enum print_line_t					\
 ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 {									\
 	struct trace_seq *s = &iter->seq;				\
@@ -307,7 +307,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags)	\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
-static int								\
+static int notrace							\
 ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 {									\
 	struct ftrace_raw_##call field;					\
@@ -355,7 +355,7 @@ ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static inline int ftrace_get_offsets_##call(				\
+static inline notrace int ftrace_get_offsets_##call(			\
 	struct ftrace_data_offsets_##call *__data_offsets, proto)       \
 {									\
 	int __data_size = 0;						\
@@ -402,12 +402,14 @@ static inline int ftrace_get_offsets_##call(				\
 									\
 static void ftrace_profile_##name(proto);				\
 									\
-static int ftrace_profile_enable_##name(struct ftrace_event_call *unused)\
+static notrace int							\
+ftrace_profile_enable_##name(struct ftrace_event_call *unused)		\
 {									\
 	return register_trace_##name(ftrace_profile_##name);		\
 }									\
 									\
-static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
+static notrace void							\
+ftrace_profile_disable_##name(struct ftrace_event_call *unused)		\
 {									\
 	unregister_trace_##name(ftrace_profile_##name);			\
 }
@@ -541,7 +543,8 @@ static void ftrace_profile_disable_##name(struct ftrace_event_call *unused)\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 									\
-static void ftrace_raw_event_id_##call(struct ftrace_event_call *event_call, \
+static notrace void							\
+ftrace_raw_event_id_##call(struct ftrace_event_call *event_call,	\
 				       proto)				\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
@@ -578,17 +581,19 @@ static void ftrace_raw_event_id_##call(struct ftrace_event_call *event_call, \
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
 									\
-static void ftrace_raw_event_##call(proto)				\
+static notrace void ftrace_raw_event_##call(proto)			\
 {									\
 	ftrace_raw_event_id_##template(&event_##call, args);		\
 }									\
 									\
-static int ftrace_raw_reg_event_##call(struct ftrace_event_call *unused)\
+static notrace int							\
+ftrace_raw_reg_event_##call(struct ftrace_event_call *unused)		\
 {									\
 	return register_trace_##call(ftrace_raw_event_##call);		\
 }									\
 									\
-static void ftrace_raw_unreg_event_##call(struct ftrace_event_call *unused)\
+static notrace void							\
+ftrace_raw_unreg_event_##call(struct ftrace_event_call *unused)		\
 {									\
 	unregister_trace_##call(ftrace_raw_event_##call);		\
 }									\
@@ -750,7 +755,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static void								\
+static notrace void							\
 ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 			    proto)					\
 {									\
@@ -820,7 +825,7 @@ end_recursion:								\
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)		\
-static void ftrace_profile_##call(proto)			\
+static notrace void ftrace_profile_##call(proto)		\
 {								\
 	struct ftrace_event_call *event_call = &event_##call;	\
 								\
