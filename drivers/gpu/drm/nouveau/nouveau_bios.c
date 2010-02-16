@@ -5861,13 +5861,12 @@ nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->VBIOS;
 	struct init_exec iexec = { true, false };
-	unsigned long flags;
 
-	spin_lock_irqsave(&bios->lock, flags);
+	mutex_lock(&bios->lock);
 	bios->display.output = dcbent;
 	parse_init_table(bios, table, &iexec);
 	bios->display.output = NULL;
-	spin_unlock_irqrestore(&bios->lock, flags);
+	mutex_unlock(&bios->lock);
 }
 
 static bool NVInitVBIOS(struct drm_device *dev)
@@ -5876,7 +5875,7 @@ static bool NVInitVBIOS(struct drm_device *dev)
 	struct nvbios *bios = &dev_priv->VBIOS;
 
 	memset(bios, 0, sizeof(struct nvbios));
-	spin_lock_init(&bios->lock);
+	mutex_init(&bios->lock);
 	bios->dev = dev;
 
 	if (!NVShadowVBIOS(dev, bios->data))
