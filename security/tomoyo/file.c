@@ -1135,17 +1135,16 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 /**
  * tomoyo_path_perm - Check permission for "create", "unlink", "mkdir", "rmdir", "mkfifo", "mksock", "mkblock", "mkchar", "truncate", "symlink", "ioctl", "chmod", "chown", "chgrp", "chroot", "mount" and "unmount".
  *
- * @domain:    Pointer to "struct tomoyo_domain_info".
  * @operation: Type of operation.
  * @path:      Pointer to "struct path".
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path_perm(struct tomoyo_domain_info *domain,
-		     const u8 operation, struct path *path)
+int tomoyo_path_perm(const u8 operation, struct path *path)
 {
 	int error = -ENOMEM;
 	struct tomoyo_path_info *buf;
+	struct tomoyo_domain_info *domain = tomoyo_domain();
 	const u8 mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
 	const bool is_enforce = (mode == 3);
 	int idx;
@@ -1180,15 +1179,14 @@ int tomoyo_path_perm(struct tomoyo_domain_info *domain,
 /**
  * tomoyo_check_rewrite_permission - Check permission for "rewrite".
  *
- * @domain: Pointer to "struct tomoyo_domain_info".
  * @filp: Pointer to "struct file".
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
-				    struct file *filp)
+int tomoyo_check_rewrite_permission(struct file *filp)
 {
 	int error = -ENOMEM;
+	struct tomoyo_domain_info *domain = tomoyo_domain();
 	const u8 mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
 	const bool is_enforce = (mode == 3);
 	struct tomoyo_path_info *buf;
@@ -1217,19 +1215,18 @@ int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
 /**
  * tomoyo_path2_perm - Check permission for "rename", "link" and "pivot_root".
  *
- * @domain:    Pointer to "struct tomoyo_domain_info".
  * @operation: Type of operation.
  * @path1:      Pointer to "struct path".
  * @path2:      Pointer to "struct path".
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path2_perm(struct tomoyo_domain_info * const domain,
-		      const u8 operation, struct path *path1,
+int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2)
 {
 	int error = -ENOMEM;
 	struct tomoyo_path_info *buf1, *buf2;
+	struct tomoyo_domain_info *domain = tomoyo_domain();
 	const u8 mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
 	const bool is_enforce = (mode == 3);
 	const char *msg;

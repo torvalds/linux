@@ -637,12 +637,10 @@ int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
 			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
-int tomoyo_path_perm(struct tomoyo_domain_info *domain, const u8 operation,
-		     struct path *path);
-int tomoyo_path2_perm(struct tomoyo_domain_info *domain, const u8 operation,
-		      struct path *path1, struct path *path2);
-int tomoyo_check_rewrite_permission(struct tomoyo_domain_info *domain,
-				    struct file *filp);
+int tomoyo_path_perm(const u8 operation, struct path *path);
+int tomoyo_path2_perm(const u8 operation, struct path *path1,
+		      struct path *path2);
+int tomoyo_check_rewrite_permission(struct file *filp);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 
 /* Run garbage collector. */

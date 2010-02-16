@@ -100,33 +100,33 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 static int tomoyo_path_truncate(struct path *path, loff_t length,
 				unsigned int time_attrs)
 {
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_TRUNCATE, path);
+	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path);
 }
 
 static int tomoyo_path_unlink(struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_UNLINK, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_UNLINK, &path);
 }
 
 static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
 			     int mode)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_MKDIR, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_MKDIR, &path);
 }
 
 static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_RMDIR, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_RMDIR, &path);
 }
 
 static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
 			       const char *old_name)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_SYMLINK, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_SYMLINK, &path);
 }
 
 static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
@@ -149,7 +149,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 		type = TOMOYO_TYPE_MKSOCK;
 		break;
 	}
-	return tomoyo_path_perm(tomoyo_domain(), type, &path);
+	return tomoyo_path_perm(type, &path);
 }
 
 static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -157,8 +157,7 @@ static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
 {
 	struct path path1 = { new_dir->mnt, old_dentry };
 	struct path path2 = { new_dir->mnt, new_dentry };
-	return tomoyo_path2_perm(tomoyo_domain(), TOMOYO_TYPE_LINK, &path1,
-				 &path2);
+	return tomoyo_path2_perm(TOMOYO_TYPE_LINK, &path1, &path2);
 }
 
 static int tomoyo_path_rename(struct path *old_parent,
@@ -168,15 +167,14 @@ static int tomoyo_path_rename(struct path *old_parent,
 {
 	struct path path1 = { old_parent->mnt, old_dentry };
 	struct path path2 = { new_parent->mnt, new_dentry };
-	return tomoyo_path2_perm(tomoyo_domain(), TOMOYO_TYPE_RENAME, &path1,
-				 &path2);
+	return tomoyo_path2_perm(TOMOYO_TYPE_RENAME, &path1, &path2);
 }
 
 static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	if (cmd == F_SETFL && ((arg ^ file->f_flags) & O_APPEND))
-		return tomoyo_check_rewrite_permission(tomoyo_domain(), file);
+		return tomoyo_check_rewrite_permission(file);
 	return 0;
 }
 
@@ -196,50 +194,46 @@ static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
 static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_IOCTL,
-				&file->f_path);
+	return tomoyo_path_perm(TOMOYO_TYPE_IOCTL, &file->f_path);
 }
 
 static int tomoyo_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
 			     mode_t mode)
 {
 	struct path path = { mnt, dentry };
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_CHMOD, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_CHMOD, &path);
 }
 
 static int tomoyo_path_chown(struct path *path, uid_t uid, gid_t gid)
 {
 	int error = 0;
 	if (uid != (uid_t) -1)
-		error = tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_CHOWN,
-					 path);
+		error = tomoyo_path_perm(TOMOYO_TYPE_CHOWN, path);
 	if (!error && gid != (gid_t) -1)
-		error = tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_CHGRP,
-					 path);
+		error = tomoyo_path_perm(TOMOYO_TYPE_CHGRP, path);
 	return error;
 }
 
 static int tomoyo_path_chroot(struct path *path)
 {
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_CHROOT, path);
+	return tomoyo_path_perm(TOMOYO_TYPE_CHROOT, path);
 }
 
 static int tomoyo_sb_mount(char *dev_name, struct path *path,
 			   char *type, unsigned long flags, void *data)
 {
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_MOUNT, path);
+	return tomoyo_path_perm(TOMOYO_TYPE_MOUNT, path);
 }
 
 static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
 {
 	struct path path = { mnt, mnt->mnt_root };
-	return tomoyo_path_perm(tomoyo_domain(), TOMOYO_TYPE_UMOUNT, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_UMOUNT, &path);
 }
 
 static int tomoyo_sb_pivotroot(struct path *old_path, struct path *new_path)
 {
-	return tomoyo_path2_perm(tomoyo_domain(), TOMOYO_TYPE_PIVOT_ROOT,
-				 new_path, old_path);
+	return tomoyo_path2_perm(TOMOYO_TYPE_PIVOT_ROOT, new_path, old_path);
 }
 
 /*
