@@ -621,11 +621,15 @@ static struct pxa2xx_udc_mach_info zeus_udc_info = {
 	.udc_command = zeus_udc_command,
 };
 
+#ifdef CONFIG_PM
 static void zeus_power_off(void)
 {
 	local_irq_disable();
 	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP);
 }
+#else
+#define zeus_power_off   NULL
+#endif
 
 #ifdef CONFIG_APM_EMULATION
 static void zeus_get_power_status(struct apm_power_info *info)
