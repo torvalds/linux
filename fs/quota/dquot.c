@@ -1695,15 +1695,13 @@ EXPORT_SYMBOL(dquot_free_inode);
  * This operation can block, but only after everything is updated
  * A transaction must be started when entering this function.
  */
-int dquot_transfer(struct inode *inode, struct iattr *iattr)
+int dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask)
 {
 	qsize_t space, cur_space;
 	qsize_t rsv_space = 0;
 	struct dquot *transfer_from[MAXQUOTAS];
 	struct dquot *transfer_to[MAXQUOTAS];
 	int cnt, ret = QUOTA_OK;
-	int chuid = iattr->ia_valid & ATTR_UID && inode->i_uid != iattr->ia_uid,
-	    chgid = iattr->ia_valid & ATTR_GID && inode->i_gid != iattr->ia_gid;
 	char warntype_to[MAXQUOTAS];
 	char warntype_from_inodes[MAXQUOTAS], warntype_from_space[MAXQUOTAS];
 
@@ -1717,13 +1715,10 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 		transfer_to[cnt] = NULL;
 		warntype_to[cnt] = QUOTA_NL_NOWARN;
 	}
-	if (chuid)
-		transfer_to[USRQUOTA] = dqget(inode->i_sb, iattr->ia_uid,
-					      USRQUOTA);
-	if (chgid)
-		transfer_to[GRPQUOTA] = dqget(inode->i_sb, iattr->ia_gid,
-					      GRPQUOTA);
-
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (mask & (1 << cnt))
+			transfer_to[cnt] = dqget(inode->i_sb, chid[cnt], cnt);
+	}
 	down_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	if (IS_NOQUOTA(inode)) {	/* File without quota accounting? */
 		up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
@@ -1799,12 +1794,25 @@ over_quota:
 }
 EXPORT_SYMBOL(dquot_transfer);
 
-/* Wrapper for transferring ownership of an inode */
+/* Wrapper for transferring ownership of an inode for uid/gid only
+ * Called from FSXXX_setattr()
+ */
 int vfs_dq_transfer(struct inode *inode, struct iattr *iattr)
 {
+	qid_t chid[MAXQUOTAS];
+	unsigned long mask = 0;
+
+	if (iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) {
+		mask |= 1 << USRQUOTA;
+		chid[USRQUOTA] = iattr->ia_uid;
+	}
+	if (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid) {
+		mask |= 1 << GRPQUOTA;
+		chid[GRPQUOTA] = iattr->ia_gid;
+	}
 	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode)) {
 		vfs_dq_init(inode);
-		if (inode->i_sb->dq_op->transfer(inode, iattr) == NO_QUOTA)
+		if (inode->i_sb->dq_op->transfer(inode, chid, mask) == NO_QUOTA)
 			return 1;
 	}
 	return 0;

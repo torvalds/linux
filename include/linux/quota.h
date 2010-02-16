@@ -301,7 +301,7 @@ struct dquot_operations {
 	int (*alloc_inode) (const struct inode *, qsize_t);
 	int (*free_space) (struct inode *, qsize_t);
 	int (*free_inode) (const struct inode *, qsize_t);
-	int (*transfer) (struct inode *, struct iattr *);
+	int (*transfer) (struct inode *, qid_t *, unsigned long);
 	int (*write_dquot) (struct dquot *);		/* Ordinary dquot write */
 	struct dquot *(*alloc_dquot)(struct super_block *, int);	/* Allocate memory for new dquot */
 	void (*destroy_dquot)(struct dquot *);		/* Free memory for dquot */

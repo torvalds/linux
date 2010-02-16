@@ -43,7 +43,7 @@ void dquot_release_reserved_space(struct inode *inode, qsize_t number);
 int dquot_free_space(struct inode *inode, qsize_t number);
 int dquot_free_inode(const struct inode *inode, qsize_t number);
 
-int dquot_transfer(struct inode *inode, struct iattr *iattr);
+int dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask);
 int dquot_commit(struct dquot *dquot);
 int dquot_acquire(struct dquot *dquot);
 int dquot_release(struct dquot *dquot);
