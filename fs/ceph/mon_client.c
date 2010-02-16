@@ -96,6 +96,18 @@ int ceph_monmap_contains(struct ceph_monmap *m, struct ceph_entity_addr *addr)
 }
 
 /*
+ * Send an auth request.
+ */
+static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
+{
+	monc->pending_auth = 1;
+	monc->m_auth->front.iov_len = len;
+	monc->m_auth->hdr.front_len = cpu_to_le32(len);
+	ceph_msg_get(monc->m_auth);  /* keep our ref */
+	ceph_con_send(monc->con, monc->m_auth);
+}
+
+/*
  * Close monitor session, if any.
  */
 static void __close_session(struct ceph_mon_client *monc)
@@ -137,10 +149,7 @@ static int __open_session(struct ceph_mon_client *monc)
 		ret = ceph_auth_build_hello(monc->auth,
 					    monc->m_auth->front.iov_base,
 					    monc->m_auth->front_max);
-		monc->m_auth->front.iov_len = ret;
-		monc->m_auth->hdr.front_len = cpu_to_le32(ret);
-		ceph_msg_get(monc->m_auth);  /* keep our ref */
-		ceph_con_send(monc->con, monc->m_auth);
+		__send_prepared_auth_request(monc, ret);
 	} else {
 		dout("open_session mon%d already open\n", monc->cur_mon);
 	}
@@ -507,11 +516,9 @@ static void delayed_work(struct work_struct *work)
 		__open_session(monc);  /* continue hunting */
 	} else {
 		ceph_con_keepalive(monc->con);
-		mutex_unlock(&monc->mutex);
 
 		__validate_auth(monc);
 
-		mutex_lock(&monc->mutex);
 		if (monc->auth->ops->is_authenticated(monc->auth))
 			__send_subscribe(monc);
 	}
@@ -649,16 +656,6 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 
 	kfree(monc->monmap);
 }
-
-static void __send_prepared_auth_request(struct ceph_mon_client *monc, int len)
-{
-	monc->pending_auth = 1;
-	monc->m_auth->front.iov_len = len;
-	monc->m_auth->hdr.front_len = cpu_to_le32(len);
-	ceph_msg_get(monc->m_auth);  /* keep our ref */
-	ceph_con_send(monc->con, monc->m_auth);
-}
-
 
 static void handle_auth_reply(struct ceph_mon_client *monc,
 			      struct ceph_msg *msg)
