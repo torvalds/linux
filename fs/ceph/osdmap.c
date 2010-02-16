@@ -321,8 +321,13 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 	dout("osdmap_destroy %p\n", map);
 	if (map->crush)
 		crush_destroy(map->crush);
-	while (!RB_EMPTY_ROOT(&map->pg_temp))
-		rb_erase(rb_first(&map->pg_temp), &map->pg_temp);
+	while (!RB_EMPTY_ROOT(&map->pg_temp)) {
+		struct ceph_pg_mapping *pg =
+			rb_entry(rb_first(&map->pg_temp),
+				 struct ceph_pg_mapping, node);
+		rb_erase(&pg->node, &map->pg_temp);
+		kfree(pg);
+	}
 	kfree(map->osd_state);
 	kfree(map->osd_weight);
 	kfree(map->pg_pool);
@@ -367,7 +372,8 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 }
 
 /*
- * Insert a new pg_temp mapping
+ * rbtree of pg_mapping for handling pg_temp (explicit mapping of pgid
+ * to a set of osds)
  */
 static int pgid_cmp(struct ceph_pg l, struct ceph_pg r)
 {
@@ -404,6 +410,26 @@ static int __insert_pg_mapping(struct ceph_pg_mapping *new,
 	rb_link_node(&new->node, parent, p);
 	rb_insert_color(&new->node, root);
 	return 0;
+}
+
+static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
+						   struct ceph_pg pgid)
+{
+	struct rb_node *n = root->rb_node;
+	struct ceph_pg_mapping *pg;
+	int c;
+
+	while (n) {
+		pg = rb_entry(n, struct ceph_pg_mapping, node);
+		c = pgid_cmp(pgid, pg->pgid);
+		if (c < 0)
+			n = n->rb_left;
+		else if (c > 0)
+			n = n->rb_right;
+		else
+			return pg;
+	}
+	return NULL;
 }
 
 /*
@@ -870,26 +896,17 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 			int *osds, int *num)
 {
-	struct rb_node *n = osdmap->pg_temp.rb_node;
 	struct ceph_pg_mapping *pg;
 	struct ceph_pg_pool_info *pool;
 	int ruleno;
 	unsigned poolid, ps, pps;
 	int preferred;
-	int c;
 
 	/* pg_temp? */
-	while (n) {
-		pg = rb_entry(n, struct ceph_pg_mapping, node);
-		c = pgid_cmp(pgid, pg->pgid);
-		if (c < 0)
-			n = n->rb_left;
-		else if (c > 0)
-			n = n->rb_right;
-		else {
-			*num = pg->len;
-			return pg->osds;
-		}
+	pg = __lookup_pg_mapping(&osdmap->pg_temp, pgid);
+	if (pg) {
+		*num = pg->len;
+		return pg->osds;
 	}
 
 	/* crush */
