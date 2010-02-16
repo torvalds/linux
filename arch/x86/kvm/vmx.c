@@ -600,11 +600,11 @@ static void reload_tss(void)
 	/*
 	 * VT restores TR but not its size.  Useless.
 	 */
-	struct descriptor_table gdt;
+	struct desc_ptr gdt;
 	struct desc_struct *descs;
 
 	kvm_get_gdt(&gdt);
-	descs = (void *)gdt.base;
+	descs = (void *)gdt.address;
 	descs[GDT_ENTRY_TSS].type = 9; /* available TSS */
 	load_TR_desc();
 }
@@ -758,7 +758,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	if (vcpu->cpu != cpu) {
-		struct descriptor_table dt;
+		struct desc_ptr dt;
 		unsigned long sysenter_esp;
 
 		vcpu->cpu = cpu;
@@ -768,7 +768,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 */
 		vmcs_writel(HOST_TR_BASE, kvm_read_tr_base()); /* 22.2.4 */
 		kvm_get_gdt(&dt);
-		vmcs_writel(HOST_GDTR_BASE, dt.base);   /* 22.2.4 */
+		vmcs_writel(HOST_GDTR_BASE, dt.address);   /* 22.2.4 */
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
@@ -1934,28 +1934,28 @@ static void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
 	*l = (ar >> 13) & 1;
 }
 
-static void vmx_get_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void vmx_get_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
-	dt->limit = vmcs_read32(GUEST_IDTR_LIMIT);
-	dt->base = vmcs_readl(GUEST_IDTR_BASE);
+	dt->size = vmcs_read32(GUEST_IDTR_LIMIT);
+	dt->address = vmcs_readl(GUEST_IDTR_BASE);
 }
 
-static void vmx_set_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void vmx_set_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
-	vmcs_write32(GUEST_IDTR_LIMIT, dt->limit);
-	vmcs_writel(GUEST_IDTR_BASE, dt->base);
+	vmcs_write32(GUEST_IDTR_LIMIT, dt->size);
+	vmcs_writel(GUEST_IDTR_BASE, dt->address);
 }
 
-static void vmx_get_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void vmx_get_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
-	dt->limit = vmcs_read32(GUEST_GDTR_LIMIT);
-	dt->base = vmcs_readl(GUEST_GDTR_BASE);
+	dt->size = vmcs_read32(GUEST_GDTR_LIMIT);
+	dt->address = vmcs_readl(GUEST_GDTR_BASE);
 }
 
-static void vmx_set_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void vmx_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
-	vmcs_write32(GUEST_GDTR_LIMIT, dt->limit);
-	vmcs_writel(GUEST_GDTR_BASE, dt->base);
+	vmcs_write32(GUEST_GDTR_LIMIT, dt->size);
+	vmcs_writel(GUEST_GDTR_BASE, dt->address);
 }
 
 static bool rmode_segment_valid(struct kvm_vcpu *vcpu, int seg)
@@ -2334,7 +2334,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	u32 junk;
 	u64 host_pat, tsc_this, tsc_base;
 	unsigned long a;
-	struct descriptor_table dt;
+	struct desc_ptr dt;
 	int i;
 	unsigned long kvm_vmx_return;
 	u32 exec_control;
@@ -2416,7 +2416,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write16(HOST_TR_SELECTOR, GDT_ENTRY_TSS*8);  /* 22.2.4 */
 
 	kvm_get_idt(&dt);
-	vmcs_writel(HOST_IDTR_BASE, dt.base);   /* 22.2.4 */
+	vmcs_writel(HOST_IDTR_BASE, dt.address);   /* 22.2.4 */
 
 	asm("mov $.Lkvm_vmx_return, %0" : "=r"(kvm_vmx_return));
 	vmcs_writel(HOST_RIP, kvm_vmx_return); /* 22.2.5 */

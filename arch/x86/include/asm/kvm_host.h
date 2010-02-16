@@ -461,11 +461,6 @@ struct kvm_vcpu_stat {
 	u32 nmi_injections;
 };
 
-struct descriptor_table {
-	u16 limit;
-	unsigned long base;
-} __attribute__((packed));
-
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */
@@ -503,10 +498,10 @@ struct kvm_x86_ops {
 	void (*set_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 	void (*set_cr4)(struct kvm_vcpu *vcpu, unsigned long cr4);
 	void (*set_efer)(struct kvm_vcpu *vcpu, u64 efer);
-	void (*get_idt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
-	void (*set_idt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
-	void (*get_gdt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
-	void (*set_gdt)(struct kvm_vcpu *vcpu, struct descriptor_table *dt);
+	void (*get_idt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+	void (*set_idt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+	void (*get_gdt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+	void (*set_gdt)(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
 	int (*get_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long *dest);
 	int (*set_dr)(struct kvm_vcpu *vcpu, int dr, unsigned long value);
 	void (*cache_reg)(struct kvm_vcpu *vcpu, enum kvm_reg reg);
@@ -724,12 +719,12 @@ static inline void kvm_load_ldt(u16 sel)
 	asm("lldt %0" : : "rm"(sel));
 }
 
-static inline void kvm_get_idt(struct descriptor_table *table)
+static inline void kvm_get_idt(struct desc_ptr *table)
 {
 	asm("sidt %0" : "=m"(*table));
 }
 
-static inline void kvm_get_gdt(struct descriptor_table *table)
+static inline void kvm_get_gdt(struct desc_ptr *table)
 {
 	asm("sgdt %0" : "=m"(*table));
 }

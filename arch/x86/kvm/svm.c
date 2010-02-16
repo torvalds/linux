@@ -319,7 +319,7 @@ static int svm_hardware_enable(void *garbage)
 
 	struct svm_cpu_data *sd;
 	uint64_t efer;
-	struct descriptor_table gdt_descr;
+	struct desc_ptr gdt_descr;
 	struct desc_struct *gdt;
 	int me = raw_smp_processor_id();
 
@@ -345,7 +345,7 @@ static int svm_hardware_enable(void *garbage)
 	sd->next_asid = sd->max_asid + 1;
 
 	kvm_get_gdt(&gdt_descr);
-	gdt = (struct desc_struct *)gdt_descr.base;
+	gdt = (struct desc_struct *)gdt_descr.address;
 	sd->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 
 	wrmsrl(MSR_EFER, efer | EFER_SVME);
@@ -936,36 +936,36 @@ static int svm_get_cpl(struct kvm_vcpu *vcpu)
 	return save->cpl;
 }
 
-static void svm_get_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void svm_get_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	dt->limit = svm->vmcb->save.idtr.limit;
-	dt->base = svm->vmcb->save.idtr.base;
+	dt->size = svm->vmcb->save.idtr.limit;
+	dt->address = svm->vmcb->save.idtr.base;
 }
 
-static void svm_set_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void svm_set_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	svm->vmcb->save.idtr.limit = dt->limit;
-	svm->vmcb->save.idtr.base = dt->base ;
+	svm->vmcb->save.idtr.limit = dt->size;
+	svm->vmcb->save.idtr.base = dt->address ;
 }
 
-static void svm_get_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void svm_get_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	dt->limit = svm->vmcb->save.gdtr.limit;
-	dt->base = svm->vmcb->save.gdtr.base;
+	dt->size = svm->vmcb->save.gdtr.limit;
+	dt->address = svm->vmcb->save.gdtr.base;
 }
 
-static void svm_set_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
+static void svm_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	svm->vmcb->save.gdtr.limit = dt->limit;
-	svm->vmcb->save.gdtr.base = dt->base ;
+	svm->vmcb->save.gdtr.limit = dt->size;
+	svm->vmcb->save.gdtr.base = dt->address ;
 }
 
 static void svm_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
