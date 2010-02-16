@@ -197,7 +197,10 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_settings(dev, &cmd);
 }
 
-static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_drvinfo info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -232,7 +235,10 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 	return 0;
 }
 
-static int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_rxnfc cmd;
 
@@ -245,7 +251,10 @@ static int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_rxnfc(dev, &cmd);
 }
 
-static int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -317,7 +326,10 @@ static void __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
 	list->count++;
 }
 
-static int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_rx_ntuple cmd;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -788,7 +800,10 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
 
@@ -802,7 +817,10 @@ static int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
 	return 0;
 }
 
-static int ethtool_set_coalesce(struct net_device *dev, void __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_set_coalesce(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce;
 
@@ -1212,7 +1230,10 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	return actor(dev, edata.data);
 }
 
-static int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
+/*
+ * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
+ */
+static noinline int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_flash efl;
 
