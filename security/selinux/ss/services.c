@@ -455,7 +455,8 @@ static void security_dump_masked_av(struct context *scontext,
 	char *scontext_name = NULL;
 	char *tcontext_name = NULL;
 	char *permission_names[32];
-	int index, length;
+	int index;
+	u32 length;
 	bool need_comma = false;
 
 	if (!permissions)
@@ -807,7 +808,7 @@ int security_bounded_transition(u32 old_sid, u32 new_sid)
 	if (rc) {
 		char *old_name = NULL;
 		char *new_name = NULL;
-		int length;
+		u32 length;
 
 		if (!context_struct_to_string(old_context,
 					      &old_name, &length) &&
