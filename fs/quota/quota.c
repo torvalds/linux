@@ -124,10 +124,17 @@ void sync_quota_sb(struct super_block *sb, int type)
 }
 #endif
 
-static void sync_dquots(int type)
+static int quota_sync_all(int type)
 {
 	struct super_block *sb;
 	int cnt;
+	int ret;
+
+	if (type >= MAXQUOTAS)
+		return -EINVAL;
+	ret = security_quotactl(Q_SYNC, type, 0, NULL);
+	if (ret)
+		return ret;
 
 	spin_lock(&sb_lock);
 restart:
@@ -157,6 +164,8 @@ restart:
 			goto restart;
 	}
 	spin_unlock(&sb_lock);
+
+	return 0;
 }
 
 static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
@@ -322,12 +331,9 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_SETQUOTA:
 		return quota_setquota(sb, type, id, addr);
 	case Q_SYNC:
-		if (sb) {
-			if (!sb->s_qcop->quota_sync)
-				return -ENOSYS;
-			sync_quota_sb(sb, type);
-		} else
-			sync_dquots(type);
+		if (!sb->s_qcop->quota_sync)
+			return -ENOSYS;
+		sync_quota_sb(sb, type);
 		return 0;
 	case Q_XQUOTAON:
 	case Q_XQUOTAOFF:
@@ -392,18 +398,26 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 	cmds = cmd >> SUBCMDSHIFT;
 	type = cmd & SUBCMDMASK;
 
-	if (cmds != Q_SYNC || special) {
-		sb = quotactl_block(special);
-		if (IS_ERR(sb))
-			return PTR_ERR(sb);
+	/*
+	 * As a special case Q_SYNC can be called without a specific device.
+	 * It will iterate all superblocks that have quota enabled and call
+	 * the sync action on each of them.
+	 */
+	if (!special) {
+		if (cmds == Q_SYNC)
+			return quota_sync_all(type);
+		return -ENODEV;
 	}
+
+	sb = quotactl_block(special);
+	if (IS_ERR(sb))
+		return PTR_ERR(sb);
 
 	ret = check_quotactl_valid(sb, type, cmds, id);
 	if (ret >= 0)
 		ret = do_quotactl(sb, type, cmds, id, addr);
-	if (sb)
-		drop_super(sb);
 
+	drop_super(sb);
 	return ret;
 }
 
