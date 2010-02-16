@@ -21,11 +21,18 @@
 
 #include "atl1c.h"
 
-#define ATL1C_DRV_VERSION "1.0.0.1-NAPI"
+#define ATL1C_DRV_VERSION "1.0.0.2-NAPI"
 char atl1c_driver_name[] = "atl1c";
 char atl1c_driver_version[] = ATL1C_DRV_VERSION;
 #define PCI_DEVICE_ID_ATTANSIC_L2C      0x1062
 #define PCI_DEVICE_ID_ATTANSIC_L1C      0x1063
+#define PCI_DEVICE_ID_ATHEROS_L2C_B	0x2060 /* AR8152 v1.1 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L2C_B2	0x2062 /* AR8152 v2.0 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L1D	0x1073 /* AR8151 v1.0 Gigabit 1000 */
+
+#define L2CB_V10			0xc0
+#define L2CB_V11			0xc1
+
 /*
  * atl1c_pci_tbl - PCI Device ID Table
  *
@@ -38,6 +45,9 @@ char atl1c_driver_version[] = ATL1C_DRV_VERSION;
 static DEFINE_PCI_DEVICE_TABLE(atl1c_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L1C)},
 	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATTANSIC_L2C)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L2C_B)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L2C_B2)},
+	{PCI_DEVICE(PCI_VENDOR_ID_ATTANSIC, PCI_DEVICE_ID_ATHEROS_L1D)},
 	/* required last entry */
 	{ 0 }
 };
@@ -593,11 +603,18 @@ static void atl1c_set_mac_type(struct atl1c_hw *hw)
 	case PCI_DEVICE_ID_ATTANSIC_L2C:
 		hw->nic_type = athr_l2c;
 		break;
-
 	case PCI_DEVICE_ID_ATTANSIC_L1C:
 		hw->nic_type = athr_l1c;
 		break;
-
+	case PCI_DEVICE_ID_ATHEROS_L2C_B:
+		hw->nic_type = athr_l2c_b;
+		break;
+	case PCI_DEVICE_ID_ATHEROS_L2C_B2:
+		hw->nic_type = athr_l2c_b2;
+		break;
+	case PCI_DEVICE_ID_ATHEROS_L1D:
+		hw->nic_type = athr_l1d;
+		break;
 	default:
 		break;
 	}
@@ -620,10 +637,13 @@ static int atl1c_setup_mac_funcs(struct atl1c_hw *hw)
 		hw->ctrl_flags |= ATL1C_ASPM_L0S_SUPPORT;
 	if (link_ctrl_data & LINK_CTRL_L1_EN)
 		hw->ctrl_flags |= ATL1C_ASPM_L1_SUPPORT;
+	if (link_ctrl_data & LINK_CTRL_EXT_SYNC)
+		hw->ctrl_flags |= ATL1C_LINK_EXT_SYNC;
 
-	if (hw->nic_type == athr_l1c) {
+	if (hw->nic_type == athr_l1c ||
+	    hw->nic_type == athr_l1d) {
 		hw->ctrl_flags |= ATL1C_ASPM_CTRL_MON;
-		hw->ctrl_flags |= ATL1C_LINK_CAP_1000M;
+		hw->link_cap_flags |= ATL1C_LINK_CAP_1000M;
 	}
 	return 0;
 }
@@ -1234,21 +1254,92 @@ static void atl1c_disable_l0s_l1(struct atl1c_hw *hw)
 static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup)
 {
 	u32 pm_ctrl_data;
+	u32 link_ctrl_data;
 
 	AT_READ_REG(hw, REG_PM_CTRL, &pm_ctrl_data);
-
+	AT_READ_REG(hw, REG_LINK_CTRL, &link_ctrl_data);
 	pm_ctrl_data &= ~PM_CTRL_SERDES_PD_EX_L1;
+
 	pm_ctrl_data &=  ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
 			PM_CTRL_L1_ENTRY_TIMER_SHIFT);
+	pm_ctrl_data &= ~(PM_CTRL_LCKDET_TIMER_MASK <<
+			  PM_CTRL_LCKDET_TIMER_SHIFT);
 
 	pm_ctrl_data |= PM_CTRL_MAC_ASPM_CHK;
+	pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
+	pm_ctrl_data |= PM_CTRL_RBER_EN;
+	pm_ctrl_data |= PM_CTRL_SDES_EN;
+
+	if (hw->nic_type == athr_l2c_b ||
+	    hw->nic_type == athr_l1d ||
+	    hw->nic_type == athr_l2c_b2) {
+		link_ctrl_data &= ~LINK_CTRL_EXT_SYNC;
+		if (!(hw->ctrl_flags & ATL1C_APS_MODE_ENABLE)) {
+			if (hw->nic_type == athr_l2c_b &&
+			    hw->revision_id == L2CB_V10)
+				link_ctrl_data |= LINK_CTRL_EXT_SYNC;
+		}
+
+		AT_WRITE_REG(hw, REG_LINK_CTRL, link_ctrl_data);
+
+		pm_ctrl_data |= PM_CTRL_PCIE_RECV;
+		pm_ctrl_data |= AT_ASPM_L1_TIMER << PM_CTRL_PM_REQ_TIMER_SHIFT;
+		pm_ctrl_data &= ~PM_CTRL_EN_BUFS_RX_L0S;
+		pm_ctrl_data &= ~PM_CTRL_SA_DLY_EN;
+		pm_ctrl_data &= ~PM_CTRL_HOTRST;
+		pm_ctrl_data |= 1 << PM_CTRL_L1_ENTRY_TIMER_SHIFT;
+		pm_ctrl_data |= PM_CTRL_SERDES_PD_EX_L1;
+	}
 
 	if (linkup) {
-		pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
-		pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
+		pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
+		pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
+		if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
+			pm_ctrl_data |= PM_CTRL_ASPM_L1_EN;
+		if (hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT)
+			pm_ctrl_data |= PM_CTRL_ASPM_L0S_EN;
 
-		pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
-		pm_ctrl_data |= PM_CTRL_SERDES_L1_EN;
+		if (hw->nic_type == athr_l2c_b ||
+		    hw->nic_type == athr_l1d ||
+		    hw->nic_type == athr_l2c_b2) {
+			if (hw->nic_type == athr_l2c_b)
+				if (!(hw->ctrl_flags & ATL1C_APS_MODE_ENABLE))
+					pm_ctrl_data &= PM_CTRL_ASPM_L0S_EN;
+			pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
+			pm_ctrl_data &= ~PM_CTRL_SERDES_PLL_L1_EN;
+			pm_ctrl_data &= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
+			pm_ctrl_data |= PM_CTRL_CLK_SWH_L1;
+			if (hw->adapter->link_speed == SPEED_100 ||
+			    hw->adapter->link_speed == SPEED_1000) {
+				pm_ctrl_data &=
+					~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
+					  PM_CTRL_L1_ENTRY_TIMER_SHIFT);
+				if (hw->nic_type == athr_l1d)
+					pm_ctrl_data |= 0xF <<
+						PM_CTRL_L1_ENTRY_TIMER_SHIFT;
+				else
+					pm_ctrl_data |= 7 <<
+						PM_CTRL_L1_ENTRY_TIMER_SHIFT;
+			}
+		} else {
+			pm_ctrl_data |= PM_CTRL_SERDES_L1_EN;
+			pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
+			pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
+			pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
+			pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
+			pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
+		}
+		atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x29);
+		if (hw->adapter->link_speed == SPEED_10)
+			if (hw->nic_type == athr_l1d)
+				atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0xB69D);
+			else
+				atl1c_write_phy_reg(hw, MII_DBG_DATA, 0xB6DD);
+		else if (hw->adapter->link_speed == SPEED_100)
+			atl1c_write_phy_reg(hw, MII_DBG_DATA, 0xB2DD);
+		else
+			atl1c_write_phy_reg(hw, MII_DBG_DATA, 0x96DD);
+
 	} else {
 		pm_ctrl_data &= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
 		pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
@@ -1302,6 +1393,10 @@ static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter)
 		mac_ctrl_data |= MAC_CTRL_MC_ALL_EN;
 
 	mac_ctrl_data |= MAC_CTRL_SINGLE_PAUSE_EN;
+	if (hw->nic_type == athr_l1d || hw->nic_type == athr_l2c_b2) {
+		mac_ctrl_data |= MAC_CTRL_SPEED_MODE_SW;
+		mac_ctrl_data |= MAC_CTRL_HASH_ALG_CRC32;
+	}
 	AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
 }
 

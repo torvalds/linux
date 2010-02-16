@@ -57,6 +57,7 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define REG_LINK_CTRL			0x68
 #define LINK_CTRL_L0S_EN		0x01
 #define LINK_CTRL_L1_EN			0x02
+#define LINK_CTRL_EXT_SYNC		0x80
 
 #define REG_VPD_CAP			0x6C
 #define VPD_CAP_ID_MASK                 0xff
@@ -156,6 +157,8 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define PM_CTRL_PM_REQ_TIMER_SHIFT	20
 #define PM_CTRL_LCKDET_TIMER_MASK	0x3F
 #define PM_CTRL_LCKDET_TIMER_SHIFT	24
+#define PM_CTRL_EN_BUFS_RX_L0S		0x10000000
+#define PM_CTRL_SA_DLY_EN		0x20000000
 #define PM_CTRL_MAC_ASPM_CHK		0x40000000
 #define PM_CTRL_HOTRST			0x80000000
 
@@ -314,6 +317,8 @@ int atl1c_restart_autoneg(struct atl1c_hw *hw);
 #define MAC_CTRL_BC_EN              	0x4000000
 #define MAC_CTRL_DBG                	0x8000000
 #define MAC_CTRL_SINGLE_PAUSE_EN	0x10000000
+#define MAC_CTRL_HASH_ALG_CRC32		0x20000000
+#define MAC_CTRL_SPEED_MODE_SW		0x40000000
 
 /* MAC IPG/IFG Control Register  */
 #define REG_MAC_IPG_IFG             	0x1484
