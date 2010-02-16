@@ -1654,6 +1654,12 @@ void r600_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->cp.align_mask = 16 - 1;
 }
 
+void r600_cp_fini(struct radeon_device *rdev)
+{
+	r600_cp_stop(rdev);
+	radeon_ring_fini(rdev);
+}
+
 
 /*
  * GPU scratch registers helpers function.
@@ -1861,6 +1867,12 @@ int r600_startup(struct radeon_device *rdev)
 			return r;
 	}
 	r600_gpu_init(rdev);
+	r = r600_blit_init(rdev);
+	if (r) {
+		r600_blit_fini(rdev);
+		rdev->asic->copy = NULL;
+		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
 	/* pin copy shader into vram */
 	if (rdev->r600_blit.shader_obj) {
 		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
@@ -1938,6 +1950,13 @@ int r600_resume(struct radeon_device *rdev)
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio resume failed\n");
+		return r;
+	}
+
 	return r;
 }
 
@@ -1945,6 +1964,7 @@ int r600_suspend(struct radeon_device *rdev)
 {
 	int r;
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
 	rdev->cp.ready = false;
@@ -2045,19 +2065,15 @@ int r600_init(struct radeon_device *rdev)
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
-	r = r600_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
 
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
-		r600_suspend(rdev);
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		r600_cp_fini(rdev);
 		r600_wb_fini(rdev);
-		radeon_ring_fini(rdev);
+		r600_irq_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		r600_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
@@ -2083,20 +2099,17 @@ int r600_init(struct radeon_device *rdev)
 
 void r600_fini(struct radeon_device *rdev)
 {
-	/* Suspend operations */
-	r600_suspend(rdev);
-
 	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
+	r600_cp_fini(rdev);
+	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	radeon_ring_fini(rdev);
-	r600_wb_fini(rdev);
 	r600_pcie_gart_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
@@ -2899,4 +2912,19 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
 #else
 	return 0;
 #endif
+}
+
+/**
+ * r600_ioctl_wait_idle - flush host path cache on wait idle ioctl
+ * rdev: radeon device structure
+ * bo: buffer object struct which userspace is waiting for idle
+ *
+ * Some R6XX/R7XX doesn't seems to take into account HDP flush performed
+ * through ring buffer, this leads to corruption in rendering, see
+ * http://bugzilla.kernel.org/show_bug.cgi?id=15186 to avoid this we
+ * directly perform HDP flush by writing register through MMIO.
+ */
+void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
+{
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }

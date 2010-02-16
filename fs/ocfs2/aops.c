@@ -599,7 +599,7 @@ bail:
 	return ret;
 }
 
-/* 
+/*
  * ocfs2_dio_end_io is called by the dio core when a dio is finished.  We're
  * particularly interested in the aio/dio case.  Like the core uses
  * i_alloc_sem, we use the rw_lock DLM lock to protect io on one node from
@@ -670,7 +670,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
-					    nr_segs, 
+					    nr_segs,
 					    ocfs2_direct_IO_get_blocks,
 					    ocfs2_dio_end_io);
 

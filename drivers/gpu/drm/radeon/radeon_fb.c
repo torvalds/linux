@@ -248,7 +248,7 @@ int radeonfb_create(struct drm_device *dev,
 	if (ret)
 		goto out_unref;
 
-	memset_io(fbptr, 0xff, aligned_size);
+	memset_io(fbptr, 0x0, aligned_size);
 
 	strcpy(info->fix.id, "radeondrmfb");
 

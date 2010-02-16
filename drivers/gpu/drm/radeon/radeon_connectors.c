@@ -580,16 +580,18 @@ static enum drm_connector_status radeon_vga_detect(struct drm_connector *connect
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct drm_encoder *encoder;
 	struct drm_encoder_helper_funcs *encoder_funcs;
-	bool dret;
+	bool dret = false;
 	enum drm_connector_status ret = connector_status_disconnected;
 
 	encoder = radeon_best_single_encoder(connector);
 	if (!encoder)
 		ret = connector_status_disconnected;
 
-	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
-	dret = radeon_ddc_probe(radeon_connector);
-	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
+	if (radeon_connector->ddc_bus) {
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
+		dret = radeon_ddc_probe(radeon_connector);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
+	}
 	if (dret) {
 		if (radeon_connector->edid) {
 			kfree(radeon_connector->edid);
@@ -740,11 +742,13 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 	struct drm_mode_object *obj;
 	int i;
 	enum drm_connector_status ret = connector_status_disconnected;
-	bool dret;
+	bool dret = false;
 
-	radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
-	dret = radeon_ddc_probe(radeon_connector);
-	radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
+	if (radeon_connector->ddc_bus) {
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 1);
+		dret = radeon_ddc_probe(radeon_connector);
+		radeon_i2c_do_lock(radeon_connector->ddc_bus, 0);
+	}
 	if (dret) {
 		if (radeon_connector->edid) {
 			kfree(radeon_connector->edid);
@@ -1343,7 +1347,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 				radeon_connector->dac_load_detect = false;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,
-						      1);
+						      radeon_connector->dac_load_detect);
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
 						      radeon_combios_get_tv_info(rdev));

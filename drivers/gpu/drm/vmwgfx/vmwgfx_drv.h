@@ -39,10 +39,10 @@
 #include "ttm/ttm_execbuf_util.h"
 #include "ttm/ttm_module.h"
 
-#define VMWGFX_DRIVER_DATE "20090724"
-#define VMWGFX_DRIVER_MAJOR 0
-#define VMWGFX_DRIVER_MINOR 1
-#define VMWGFX_DRIVER_PATCHLEVEL 2
+#define VMWGFX_DRIVER_DATE "20100209"
+#define VMWGFX_DRIVER_MAJOR 1
+#define VMWGFX_DRIVER_MINOR 0
+#define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
@@ -113,6 +113,7 @@ struct vmw_fifo_state {
 	unsigned long static_buffer_size;
 	bool using_bounce_buffer;
 	uint32_t capabilities;
+	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
 };
 
@@ -213,7 +214,7 @@ struct vmw_private {
 	 * Fencing and IRQs.
 	 */
 
-	uint32_t fence_seq;
+	atomic_t fence_seq;
 	wait_queue_head_t fence_queue;
 	wait_queue_head_t fifo_queue;
 	atomic_t fence_queue_waiters;
