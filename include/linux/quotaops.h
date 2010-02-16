@@ -22,7 +22,7 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 void sync_quota_sb(struct super_block *sb, int type);
 static inline void writeout_quota_sb(struct super_block *sb, int type)
 {
-	if (sb->s_qcop->quota_sync)
+	if (sb->s_qcop && sb->s_qcop->quota_sync)
 		sb->s_qcop->quota_sync(sb, type);
 }
 

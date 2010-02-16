@@ -18,6 +18,7 @@
 #include <linux/capability.h>
 #include <linux/quotaops.h>
 #include <linux/types.h>
+#include <linux/writeback.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
@@ -52,7 +53,7 @@ void sync_quota_sb(struct super_block *sb, int type)
 {
 	int cnt;
 
-	if (!sb->s_qcop->quota_sync)
+	if (!sb->s_qcop || !sb->s_qcop->quota_sync)
 		return;
 
 	sb->s_qcop->quota_sync(sb, type);
@@ -318,9 +319,11 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_XGETQUOTA:
 		return quota_getxquota(sb, type, id, addr);
 	case Q_XQUOTASYNC:
-		if (!sb->s_qcop->quota_sync)
-			return -ENOSYS;
-		return sb->s_qcop->quota_sync(sb, type);
+		/* caller already holds s_umount */
+		if (sb->s_flags & MS_RDONLY)
+			return -EROFS;
+		writeback_inodes_sb(sb);
+		return 0;
 	default:
 		return -EINVAL;
 	}
