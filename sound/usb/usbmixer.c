@@ -69,13 +69,16 @@ static const struct rc_config {
 	{ USB_ID(0x041e, 0x3048), 2, 2, 6, 6,  2,  0x6e91 }, /* Toshiba SB0500 */
 };
 
+#define MAX_ID_ELEMS	256
+
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
 	unsigned int ctrlif;
 	struct list_head list;
 	unsigned int ignore_ctl_error;
 	struct urb *urb;
-	struct usb_mixer_elem_info **id_elems; /* array[256], indexed by unit id */
+	/* array[MAX_ID_ELEMS], indexed by unit id */
+	struct usb_mixer_elem_info **id_elems;
 
 	/* Sound Blaster remote control stuff */
 	const struct rc_config *rc_cfg;
@@ -1825,6 +1828,45 @@ static void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer,
 			       info->elem_id);
 }
 
+static void snd_usb_mixer_dump_cval(struct snd_info_buffer *buffer,
+				    int unitid,
+				    struct usb_mixer_elem_info *cval)
+{
+	static char *val_types[] = {"BOOLEAN", "INV_BOOLEAN",
+				    "S8", "U8", "S16", "U16"};
+	snd_iprintf(buffer, "  Unit: %i\n", unitid);
+	if (cval->elem_id)
+		snd_iprintf(buffer, "    Control: name=\"%s\", index=%i\n",
+				cval->elem_id->name, cval->elem_id->index);
+	snd_iprintf(buffer, "    Info: id=%i, control=%i, cmask=0x%x, "
+			    "channels=%i, type=\"%s\"\n", cval->id,
+			    cval->control, cval->cmask, cval->channels,
+			    val_types[cval->val_type]);
+	snd_iprintf(buffer, "    Volume: min=%i, max=%i, dBmin=%i, dBmax=%i\n",
+			    cval->min, cval->max, cval->dBmin, cval->dBmax);
+}
+
+static void snd_usb_mixer_proc_read(struct snd_info_entry *entry,
+				    struct snd_info_buffer *buffer)
+{
+	struct snd_usb_audio *chip = entry->private_data;
+	struct usb_mixer_interface *mixer;
+	struct usb_mixer_elem_info *cval;
+	int unitid;
+
+	list_for_each_entry(mixer, &chip->mixer_list, list) {
+		snd_iprintf(buffer,
+			"USB Mixer: ctrlif=%i, ctlerr=%i\n",
+				mixer->ctrlif, mixer->ignore_ctl_error);
+		snd_iprintf(buffer, "Card: %s\n", chip->card->longname);
+		for (unitid = 0; unitid < MAX_ID_ELEMS; unitid++) {
+			for (cval = mixer->id_elems[unitid]; cval;
+						cval = cval->next_id_elem)
+				snd_usb_mixer_dump_cval(buffer, unitid, cval);
+		}
+	}
+}
+
 static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
 					int unitid)
 {
@@ -2187,20 +2229,21 @@ static int snd_xonar_u1_controls_create(struct usb_mixer_interface *mixer)
 }
 
 void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
-		unsigned char samplerate_id)
+			       unsigned char samplerate_id)
 {
-	 struct usb_mixer_interface *mixer;
-	 struct usb_mixer_elem_info *cval;
-	 int unitid = 12; /* SamleRate ExtensionUnit ID */
+	struct usb_mixer_interface *mixer;
+	struct usb_mixer_elem_info *cval;
+	int unitid = 12; /* SamleRate ExtensionUnit ID */
 
-	 list_for_each_entry(mixer, &chip->mixer_list, list) {
-		 cval = mixer->id_elems[unitid];
-		 if (cval) {
-			set_cur_ctl_value(cval, cval->control << 8, samplerate_id);
+	list_for_each_entry(mixer, &chip->mixer_list, list) {
+		cval = mixer->id_elems[unitid];
+		if (cval) {
+			set_cur_ctl_value(cval, cval->control << 8,
+					  samplerate_id);
 			snd_usb_mixer_notify_id(mixer, unitid);
-		 }
-		 break;
-	 }
+		}
+		break;
+	}
 }
 
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
@@ -2210,6 +2253,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 		.dev_free = snd_usb_mixer_dev_free
 	};
 	struct usb_mixer_interface *mixer;
+	struct snd_info_entry *entry;
 	int err;
 
 	strcpy(chip->card->mixername, "USB Mixer");
@@ -2236,8 +2280,6 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	if (mixer->chip->usb_id == USB_ID(0x041e, 0x3020) ||
 	    mixer->chip->usb_id == USB_ID(0x041e, 0x3040) ||
 	    mixer->chip->usb_id == USB_ID(0x041e, 0x3048)) {
-		struct snd_info_entry *entry;
-
 		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)
 			goto _error;
 		if (!snd_card_proc_new(chip->card, "audigy2nx", &entry))
@@ -2255,6 +2297,11 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	err = snd_device_new(chip->card, SNDRV_DEV_LOWLEVEL, mixer, &dev_ops);
 	if (err < 0)
 		goto _error;
+
+	if (list_empty(&chip->mixer_list) &&
+	    !snd_card_proc_new(chip->card, "usbmixer", &entry))
+		snd_info_set_text_ops(entry, chip, snd_usb_mixer_proc_read);
+
 	list_add(&mixer->list, &chip->mixer_list);
 	return 0;
 
