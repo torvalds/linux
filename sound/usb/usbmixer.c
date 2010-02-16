@@ -108,7 +108,7 @@ struct mixer_build {
 	struct usb_mixer_interface *mixer;
 	unsigned char *buffer;
 	unsigned int buflen;
-	DECLARE_BITMAP(unitbitmap, 256);
+	DECLARE_BITMAP(unitbitmap, MAX_ID_ELEMS);
 	struct usb_audio_term oterm;
 	const struct usbmix_name_map *map;
 	const struct usbmix_selector_map *selector_map;
@@ -2265,7 +2265,8 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	mixer->chip = chip;
 	mixer->ctrlif = ctrlif;
 	mixer->ignore_ctl_error = ignore_error;
-	mixer->id_elems = kcalloc(256, sizeof(*mixer->id_elems), GFP_KERNEL);
+	mixer->id_elems = kcalloc(MAX_ID_ELEMS, sizeof(*mixer->id_elems),
+				  GFP_KERNEL);
 	if (!mixer->id_elems) {
 		kfree(mixer);
 		return -ENOMEM;
