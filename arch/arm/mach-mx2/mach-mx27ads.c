@@ -33,7 +33,7 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx27.h>
 #include <mach/board-mx27ads.h>
 #include <mach/mxc_nand.h>
 #include <mach/i2c.h>

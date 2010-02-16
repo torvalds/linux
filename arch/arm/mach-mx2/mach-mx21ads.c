@@ -30,7 +30,7 @@
 #include <asm/mach/map.h>
 #include <mach/imx-uart.h>
 #include <mach/imxfb.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx21.h>
 #include <mach/mxc_nand.h>
 #include <mach/mmc.h>
 #include <mach/board-mx21ads.h>

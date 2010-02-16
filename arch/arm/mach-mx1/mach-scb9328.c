@@ -23,7 +23,7 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx1.h>
 
 #include "devices.h"
 

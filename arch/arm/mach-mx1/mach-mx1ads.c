@@ -27,7 +27,7 @@
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx1.h>
 #include <mach/irqs.h>
 
 #include "devices.h"

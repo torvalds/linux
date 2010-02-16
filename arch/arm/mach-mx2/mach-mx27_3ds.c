@@ -26,7 +26,7 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx27.h>
 #include <mach/board-mx27pdk.h>
 
 #include "devices.h"

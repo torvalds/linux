@@ -31,7 +31,7 @@
 #include <asm/mach-types.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux.h>
+#include <mach/iomux-mx27.h>
 #include <mach/i2c.h>
 #include <asm/mach/time.h>
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
