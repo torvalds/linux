@@ -700,7 +700,7 @@ static int dac33_hw_params(struct snd_pcm_substream *substream,
 }
 
 #define CALC_OSCSET(rate, refclk) ( \
-	((((rate * 10000) / refclk) * 4096) + 5000) / 10000)
+	((((rate * 10000) / refclk) * 4096) + 7000) / 10000)
 #define CALC_RATIOSET(rate, refclk) ( \
 	((((refclk  * 100000) / rate) * 16384) + 50000) / 100000)
 
