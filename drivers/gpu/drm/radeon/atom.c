@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #define ATOM_DEBUG
 
@@ -212,7 +213,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_PS:
 		idx = U8(*ptr);
 		(*ptr)++;
-		val = le32_to_cpu(ctx->ps[idx]);
+		/* get_unaligned_le32 avoids unaligned accesses from atombios
+		 * tables, noticed on a DEC Alpha. */
+		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
 		break;
