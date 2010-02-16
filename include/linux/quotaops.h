@@ -79,53 +79,56 @@ static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
  * Functions for checking status of quota
  */
 
-static inline int sb_has_quota_usage_enabled(struct super_block *sb, int type)
+static inline bool sb_has_quota_usage_enabled(struct super_block *sb, int type)
 {
 	return sb_dqopt(sb)->flags &
 				dquot_state_flag(DQUOT_USAGE_ENABLED, type);
 }
 
-static inline int sb_has_quota_limits_enabled(struct super_block *sb, int type)
+static inline bool sb_has_quota_limits_enabled(struct super_block *sb, int type)
 {
 	return sb_dqopt(sb)->flags &
 				dquot_state_flag(DQUOT_LIMITS_ENABLED, type);
 }
 
-static inline int sb_has_quota_suspended(struct super_block *sb, int type)
+static inline bool sb_has_quota_suspended(struct super_block *sb, int type)
 {
 	return sb_dqopt(sb)->flags &
 				dquot_state_flag(DQUOT_SUSPENDED, type);
 }
 
-static inline int sb_any_quota_suspended(struct super_block *sb)
+static inline unsigned sb_any_quota_suspended(struct super_block *sb)
 {
-	return sb_has_quota_suspended(sb, USRQUOTA) ||
-		sb_has_quota_suspended(sb, GRPQUOTA);
+	unsigned type, tmsk = 0;
+	for (type = 0; type < MAXQUOTAS; type++)
+		tmsk |= sb_has_quota_suspended(sb, type) << type;
+	return tmsk;
 }
 
 /* Does kernel know about any quota information for given sb + type? */
-static inline int sb_has_quota_loaded(struct super_block *sb, int type)
+static inline bool sb_has_quota_loaded(struct super_block *sb, int type)
 {
 	/* Currently if anything is on, then quota usage is on as well */
 	return sb_has_quota_usage_enabled(sb, type);
 }
 
-static inline int sb_any_quota_loaded(struct super_block *sb)
+static inline unsigned sb_any_quota_loaded(struct super_block *sb)
 {
-	return sb_has_quota_loaded(sb, USRQUOTA) ||
-		sb_has_quota_loaded(sb, GRPQUOTA);
+	unsigned type, tmsk = 0;
+	for (type = 0; type < MAXQUOTAS; type++)
+		tmsk |= sb_has_quota_loaded(sb, type) << type;
+	return	tmsk;
 }
 
-static inline int sb_has_quota_active(struct super_block *sb, int type)
+static inline bool sb_has_quota_active(struct super_block *sb, int type)
 {
 	return sb_has_quota_loaded(sb, type) &&
 	       !sb_has_quota_suspended(sb, type);
 }
 
-static inline int sb_any_quota_active(struct super_block *sb)
+static inline unsigned sb_any_quota_active(struct super_block *sb)
 {
-	return sb_has_quota_active(sb, USRQUOTA) ||
-	       sb_has_quota_active(sb, GRPQUOTA);
+	return sb_any_quota_loaded(sb) & ~sb_any_quota_suspended(sb);
 }
 
 /*

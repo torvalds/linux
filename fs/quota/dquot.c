@@ -1301,7 +1301,7 @@ int dquot_initialize(struct inode *inode, int type)
 {
 	unsigned int id = 0;
 	int cnt, ret = 0;
-	struct dquot *got[MAXQUOTAS] = { NULL, NULL };
+	struct dquot *got[MAXQUOTAS];
 	struct super_block *sb = inode->i_sb;
 	qsize_t rsv;
 
@@ -1312,6 +1312,7 @@ int dquot_initialize(struct inode *inode, int type)
 
 	/* First get references to structures we might need. */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		got[cnt] = NULL;
 		if (type != -1 && cnt != type)
 			continue;
 		switch (cnt) {
