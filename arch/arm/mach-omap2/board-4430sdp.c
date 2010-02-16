@@ -87,7 +87,9 @@ static void __init omap_4430sdp_init(void)
 	omap_serial_init();
 	/* OMAP4 SDP uses internal transceiver so register nop transceiver */
 	usb_nop_xceiv_register();
-	usb_musb_init(&musb_board_data);
+	/* FIXME: allow multi-omap to boot until musb is updated for omap4 */
+	if (!cpu_is_omap44xx())
+		usb_musb_init(&musb_board_data);
 }
 
 static void __init omap_4430sdp_map_io(void)
