@@ -289,51 +289,6 @@ acpi_evaluate_integer(acpi_handle handle,
 
 EXPORT_SYMBOL(acpi_evaluate_integer);
 
-#if 0
-acpi_status
-acpi_evaluate_string(acpi_handle handle,
-		     acpi_string pathname,
-		     acpi_object_list * arguments, acpi_string * data)
-{
-	acpi_status status = AE_OK;
-	acpi_object *element = NULL;
-	acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-
-	if (!data)
-		return AE_BAD_PARAMETER;
-
-	status = acpi_evaluate_object(handle, pathname, arguments, &buffer);
-	if (ACPI_FAILURE(status)) {
-		acpi_util_eval_error(handle, pathname, status);
-		return status;
-	}
-
-	element = (acpi_object *) buffer.pointer;
-
-	if ((element->type != ACPI_TYPE_STRING)
-	    || (element->type != ACPI_TYPE_BUFFER)
-	    || !element->string.length) {
-		acpi_util_eval_error(handle, pathname, AE_BAD_DATA);
-		return AE_BAD_DATA;
-	}
-
-	*data = kzalloc(element->string.length + 1, GFP_KERNEL);
-	if (!data) {
-		printk(KERN_ERR PREFIX "Memory allocation\n");
-		return -ENOMEM;
-	}
-
-	memcpy(*data, element->string.pointer, element->string.length);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%s]\n", *data));
-
-	kfree(buffer.pointer);
-
-	return AE_OK;
-}
-#endif
-
 acpi_status
 acpi_evaluate_reference(acpi_handle handle,
 			acpi_string pathname,
