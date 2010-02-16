@@ -396,7 +396,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 	}
 	while (status || r500_disp_int) {
 		/* SW interrupt */
-		if (G_000040_SW_INT_EN(status))
+		if (G_000044_SW_INT(status))
 			radeon_fence_process(rdev);
 		/* Vertical blank interrupts */
 		if (G_007EDC_LB_D1_VBLANK_INTERRUPT(r500_disp_int))

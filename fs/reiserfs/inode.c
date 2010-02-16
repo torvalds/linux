@@ -31,11 +31,12 @@ void reiserfs_delete_inode(struct inode *inode)
 	    JOURNAL_PER_BALANCE_CNT * 2 +
 	    2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb);
 	struct reiserfs_transaction_handle th;
+	int depth;
 	int err;
 
 	truncate_inode_pages(&inode->i_data, 0);
 
-	reiserfs_write_lock(inode->i_sb);
+	depth = reiserfs_write_lock_once(inode->i_sb);
 
 	/* The = 0 happens when we abort creating a new inode for some reason like lack of space.. */
 	if (!(inode->i_state & I_NEW) && INODE_PKEY(inode)->k_objectid != 0) {	/* also handles bad_inode case */
@@ -74,7 +75,7 @@ void reiserfs_delete_inode(struct inode *inode)
       out:
 	clear_inode(inode);	/* note this must go after the journal_end to prevent deadlock */
 	inode->i_blocks = 0;
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock_once(inode->i_sb, depth);
 }
 
 static void _make_cpu_key(struct cpu_key *key, int version, __u32 dirid,

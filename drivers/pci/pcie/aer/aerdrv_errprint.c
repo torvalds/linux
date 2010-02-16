@@ -184,7 +184,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 	if (info->status == 0) {
 		AER_PR(info, dev,
-			"PCIE Bus Error: severity=%s, type=Unaccessible, "
+			"PCIe Bus Error: severity=%s, type=Unaccessible, "
 			"id=%04x(Unregistered Agent ID)\n",
 			aer_error_severity_string[info->severity], id);
 	} else {
@@ -194,7 +194,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 		agent = AER_GET_AGENT(info->severity, info->status);
 
 		AER_PR(info, dev,
-			"PCIE Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
+			"PCIe Bus Error: severity=%s, type=%s, id=%04x(%s)\n",
 			aer_error_severity_string[info->severity],
 			aer_error_layer[layer], id, aer_agent_string[agent]);
 
