@@ -1109,6 +1109,15 @@ static void radeon_atom_apply_lvds_quirks(struct drm_device *dev,
 			lvds->pll_algo = PLL_ALGO_LEGACY;
 	}
 
+	/* Dell Studio 15 laptop panel doesn't like new pll divider algo */
+	if ((dev->pdev->device == 0x95c4) &&
+	    (dev->pdev->subsystem_vendor == 0x1028) &&
+	    (dev->pdev->subsystem_device == 0x029f)) {
+		if ((lvds->native_mode.hdisplay == 1280) &&
+		    (lvds->native_mode.vdisplay == 800))
+			lvds->pll_algo = PLL_ALGO_LEGACY;
+	}
+
 }
 
 union lvds_info {
