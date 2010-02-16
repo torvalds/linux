@@ -575,7 +575,23 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 
 static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 {
-	return acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
+	int i, valid, ret = acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
+
+	if (ret)
+		return ret;
+
+	valid = tz->trips.critical.flags.valid |
+		tz->trips.hot.flags.valid |
+		tz->trips.passive.flags.valid;
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
+		valid |= tz->trips.active[i].flags.valid;
+
+	if (!valid) {
+		printk(KERN_WARNING FW_BUG "No valid trip found\n");
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void acpi_thermal_check(void *data)
