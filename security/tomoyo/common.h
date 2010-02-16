@@ -520,12 +520,10 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain);
 bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
 /* Check whether the domainname is correct. */
-bool tomoyo_is_correct_domain(const unsigned char *domainname,
-			      const char *function);
+bool tomoyo_is_correct_domain(const unsigned char *domainname);
 /* Check whether the token is correct. */
 bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
-			    const s8 pattern_type, const s8 end_type,
-			    const char *function);
+			    const s8 pattern_type, const s8 end_type);
 /* Check whether the token can be a domainname. */
 bool tomoyo_is_domain_def(const unsigned char *buffer);
 /* Check whether the given filename matches the given pattern. */

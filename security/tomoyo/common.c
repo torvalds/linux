@@ -179,14 +179,12 @@ static void tomoyo_normalize_line(unsigned char *buffer)
  *                1 = must / -1 = must not / 0 = don't care
  * @end_type:     Should the pathname end with '/'?
  *                1 = must / -1 = must not / 0 = don't care
- * @function:     The name of function calling me.
  *
  * Check whether the given filename follows the naming rules.
  * Returns true if @filename follows the naming rules, false otherwise.
  */
 bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
-			    const s8 pattern_type, const s8 end_type,
-			    const char *function)
+			    const s8 pattern_type, const s8 end_type)
 {
 	const char *const start = filename;
 	bool in_repetition = false;
@@ -194,7 +192,6 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 	unsigned char c;
 	unsigned char d;
 	unsigned char e;
-	const char *original_filename = filename;
 
 	if (!filename)
 		goto out;
@@ -283,25 +280,20 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 		goto out;
 	return true;
  out:
-	printk(KERN_DEBUG "%s: Invalid pathname '%s'\n", function,
-	       original_filename);
 	return false;
 }
 
 /**
  * tomoyo_is_correct_domain - Check whether the given domainname follows the naming rules.
  * @domainname:   The domainname to check.
- * @function:     The name of function calling me.
  *
  * Returns true if @domainname follows the naming rules, false otherwise.
  */
-bool tomoyo_is_correct_domain(const unsigned char *domainname,
-			      const char *function)
+bool tomoyo_is_correct_domain(const unsigned char *domainname)
 {
 	unsigned char c;
 	unsigned char d;
 	unsigned char e;
-	const char *org_domainname = domainname;
 
 	if (!domainname || strncmp(domainname, TOMOYO_ROOT_NAME,
 				   TOMOYO_ROOT_NAME_LEN))
@@ -344,8 +336,6 @@ bool tomoyo_is_correct_domain(const unsigned char *domainname,
 	} while (*domainname);
 	return true;
  out:
-	printk(KERN_DEBUG "%s: Invalid domainname '%s'\n", function,
-	       org_domainname);
 	return false;
 }
 
@@ -1086,11 +1076,11 @@ static int tomoyo_update_manager_entry(const char *manager,
 	bool is_domain = false;
 
 	if (tomoyo_is_domain_def(manager)) {
-		if (!tomoyo_is_correct_domain(manager, __func__))
+		if (!tomoyo_is_correct_domain(manager))
 			return -EINVAL;
 		is_domain = true;
 	} else {
-		if (!tomoyo_is_correct_path(manager, 1, -1, -1, __func__))
+		if (!tomoyo_is_correct_path(manager, 1, -1, -1))
 			return -EINVAL;
 	}
 	saved_manager = tomoyo_get_name(manager);

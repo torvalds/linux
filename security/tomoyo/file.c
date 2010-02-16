@@ -168,7 +168,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	const struct tomoyo_path_info *saved_filename;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(filename, 1, 0, -1, __func__))
+	if (!tomoyo_is_correct_path(filename, 1, 0, -1))
 		return -EINVAL;
 	saved_filename = tomoyo_get_name(filename);
 	if (!saved_filename)
@@ -468,7 +468,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	const struct tomoyo_path_info *saved_pattern;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(pattern, 0, 0, 0, __func__))
+	if (!tomoyo_is_correct_path(pattern, 0, 0, 0))
 		return -EINVAL;
 	saved_pattern = tomoyo_get_name(pattern);
 	if (!saved_pattern)
@@ -814,7 +814,7 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 
 	if (!domain)
 		return -EINVAL;
-	if (!tomoyo_is_correct_path(filename, 0, 0, 0, __func__))
+	if (!tomoyo_is_correct_path(filename, 0, 0, 0))
 		return -EINVAL;
 	saved_filename = tomoyo_get_name(filename);
 	if (!saved_filename)
@@ -898,8 +898,8 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 
 	if (!domain)
 		return -EINVAL;
-	if (!tomoyo_is_correct_path(filename1, 0, 0, 0, __func__) ||
-	    !tomoyo_is_correct_path(filename2, 0, 0, 0, __func__))
+	if (!tomoyo_is_correct_path(filename1, 0, 0, 0) ||
+	    !tomoyo_is_correct_path(filename2, 0, 0, 0))
 		return -EINVAL;
 	saved_filename1 = tomoyo_get_name(filename1);
 	saved_filename2 = tomoyo_get_name(filename2);
