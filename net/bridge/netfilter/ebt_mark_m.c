@@ -41,7 +41,7 @@ static struct xt_match ebt_mark_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_mark_mt,
 	.checkentry	= ebt_mark_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_mark_m_info)),
+	.matchsize	= sizeof(struct ebt_mark_m_info),
 	.me		= THIS_MODULE,
 };
 

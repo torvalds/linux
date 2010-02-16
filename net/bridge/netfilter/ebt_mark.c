@@ -59,7 +59,7 @@ static struct xt_target ebt_mark_tg_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_mark_tg,
 	.checkentry	= ebt_mark_tg_check,
-	.targetsize	= XT_ALIGN(sizeof(struct ebt_mark_t_info)),
+	.targetsize	= sizeof(struct ebt_mark_t_info),
 	.me		= THIS_MODULE,
 };
 

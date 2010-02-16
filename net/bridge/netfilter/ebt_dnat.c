@@ -54,7 +54,7 @@ static struct xt_target ebt_dnat_tg_reg __read_mostly = {
 			  (1 << NF_BR_LOCAL_OUT) | (1 << NF_BR_BROUTING),
 	.target		= ebt_dnat_tg,
 	.checkentry	= ebt_dnat_tg_check,
-	.targetsize	= XT_ALIGN(sizeof(struct ebt_nat_info)),
+	.targetsize	= sizeof(struct ebt_nat_info),
 	.me		= THIS_MODULE,
 };
 

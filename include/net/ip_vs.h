@@ -26,6 +26,11 @@
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>			/* for ipv6_addr_copy */
 
+
+/* Connections' size value needed by ip_vs_ctl.c */
+extern int ip_vs_conn_tab_size;
+
+
 struct ip_vs_iphdr {
 	int len;
 	__u8 protocol;
@@ -591,17 +596,6 @@ extern void ip_vs_init_hash_table(struct list_head *table, int rows);
  *     ip_vs_conn handling functions
  *     (from ip_vs_conn.c)
  */
-
-/*
- *     IPVS connection entry hash table
- */
-#ifndef CONFIG_IP_VS_TAB_BITS
-#define CONFIG_IP_VS_TAB_BITS   12
-#endif
-
-#define IP_VS_CONN_TAB_BITS	CONFIG_IP_VS_TAB_BITS
-#define IP_VS_CONN_TAB_SIZE     (1 << IP_VS_CONN_TAB_BITS)
-#define IP_VS_CONN_TAB_MASK     (IP_VS_CONN_TAB_SIZE - 1)
 
 enum {
 	IP_VS_DIR_INPUT = 0,
