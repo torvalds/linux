@@ -25,6 +25,7 @@
 #define PMB_C			0x00000008
 #define PMB_WT			0x00000001
 #define PMB_UB			0x00000200
+#define PMB_CACHE_MASK		(PMB_C | PMB_WT | PMB_UB)
 #define PMB_V			0x00000100
 
 #define PMB_NO_ENTRY		(-1)

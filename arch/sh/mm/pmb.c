@@ -276,41 +276,57 @@ static void __pmb_unmap(struct pmb_entry *pmbe)
 	} while (pmbe);
 }
 
-#ifdef CONFIG_PMB_LEGACY
-static inline unsigned int pmb_ppn_in_range(unsigned long ppn)
+static inline void
+pmb_log_mapping(unsigned long data_val, unsigned long vpn, unsigned long ppn)
 {
-	return ppn >= __MEMORY_START && ppn < __MEMORY_START + __MEMORY_SIZE;
+	unsigned int size;
+	const char *sz_str;
+
+	size = data_val & PMB_SZ_MASK;
+
+	sz_str = (size == PMB_SZ_16M)  ? " 16MB":
+		 (size == PMB_SZ_64M)  ? " 64MB":
+		 (size == PMB_SZ_128M) ? "128MB":
+					 "512MB";
+
+	pr_info("\t0x%08lx -> 0x%08lx [ %s %scached ]\n",
+		vpn >> PAGE_SHIFT, ppn >> PAGE_SHIFT, sz_str,
+		(data_val & PMB_C) ? "" : "un");
 }
 
-static int pmb_apply_legacy_mappings(void)
+static inline unsigned int pmb_ppn_in_range(unsigned long ppn)
+{
+	return ppn >= __pa(memory_start) && ppn < __pa(memory_end);
+}
+
+static int pmb_synchronize_mappings(void)
 {
 	unsigned int applied = 0;
 	int i;
 
-	pr_info("PMB: Preserving legacy mappings:\n");
+	pr_info("PMB: boot mappings:\n");
 
 	/*
-	 * The following entries are setup by the bootloader.
+	 * Run through the initial boot mappings, log the established
+	 * ones, and blow away anything that falls outside of the valid
+	 * PPN range. Specifically, we only care about existing mappings
+	 * that impact the cached/uncached sections.
 	 *
-	 * Entry       VPN	   PPN	    V	SZ	C	UB
-	 * --------------------------------------------------------
-	 *   0      0xA0000000 0x00000000   1   64MB    0       0
-	 *   1      0xA4000000 0x04000000   1   16MB    0       0
-	 *   2      0xA6000000 0x08000000   1   16MB    0       0
-	 *   9      0x88000000 0x48000000   1  128MB    1       1
-	 *  10      0x90000000 0x50000000   1  128MB    1       1
-	 *  11      0x98000000 0x58000000   1  128MB    1       1
-	 *  13      0xA8000000 0x48000000   1  128MB    0       0
-	 *  14      0xB0000000 0x50000000   1  128MB    0       0
-	 *  15      0xB8000000 0x58000000   1  128MB    0       0
+	 * Note that touching these can be a bit of a minefield; the boot
+	 * loader can establish multi-page mappings with the same caching
+	 * attributes, so we need to ensure that we aren't modifying a
+	 * mapping that we're presently executing from, or may execute
+	 * from in the case of straddling page boundaries.
 	 *
-	 * The only entries the we need are the ones that map the kernel
-	 * at the cached and uncached addresses.
+	 * In the future we will have to tidy up after the boot loader by
+	 * jumping between the cached and uncached mappings and tearing
+	 * down alternating mappings while executing from the other.
 	 */
 	for (i = 0; i < PMB_ENTRY_MAX; i++) {
 		unsigned long addr, data;
 		unsigned long addr_val, data_val;
-		unsigned long ppn, vpn;
+		unsigned long ppn, vpn, flags;
+		struct pmb_entry *pmbe;
 
 		addr = mk_pmb_addr(i);
 		data = mk_pmb_data(i);
@@ -330,106 +346,66 @@ static int pmb_apply_legacy_mappings(void)
 		/*
 		 * Only preserve in-range mappings.
 		 */
-		if (pmb_ppn_in_range(ppn)) {
-			unsigned int size;
-			char *sz_str = NULL;
-
-			size = data_val & PMB_SZ_MASK;
-
-			sz_str = (size == PMB_SZ_16M)  ? " 16MB":
-				 (size == PMB_SZ_64M)  ? " 64MB":
-				 (size == PMB_SZ_128M) ? "128MB":
-							 "512MB";
-
-			pr_info("\t0x%08lx -> 0x%08lx [ %s %scached ]\n",
-				vpn >> PAGE_SHIFT, ppn >> PAGE_SHIFT, sz_str,
-				(data_val & PMB_C) ? "" : "un");
-
-			applied++;
-		} else {
+		if (!pmb_ppn_in_range(ppn)) {
 			/*
 			 * Invalidate anything out of bounds.
 			 */
 			__raw_writel(addr_val & ~PMB_V, addr);
 			__raw_writel(data_val & ~PMB_V, data);
+			continue;
 		}
+
+		/*
+		 * Update the caching attributes if necessary
+		 */
+		if (data_val & PMB_C) {
+#if defined(CONFIG_CACHE_WRITETHROUGH)
+			data_val |= PMB_WT;
+#elif defined(CONFIG_CACHE_WRITEBACK)
+			data_val &= ~PMB_WT;
+#else
+			data_val &= ~(PMB_C | PMB_WT);
+#endif
+			__raw_writel(data_val, data);
+		}
+
+		flags = data_val & (PMB_SZ_MASK | PMB_CACHE_MASK);
+
+		pmbe = pmb_alloc(vpn, ppn, flags, i);
+		if (IS_ERR(pmbe)) {
+			WARN_ON_ONCE(1);
+			continue;
+		}
+
+		pmb_log_mapping(data_val, vpn, ppn);
+
+		applied++;
 	}
 
 	return (applied == 0);
 }
-#else
-static inline int pmb_apply_legacy_mappings(void)
-{
-	return 1;
-}
-#endif
 
 int pmb_init(void)
 {
-	int i;
-	unsigned long addr, data;
-	unsigned long ret;
+	int ret;
 
 	jump_to_uncached();
-
-	/*
-	 * Attempt to apply the legacy boot mappings if configured. If
-	 * this is successful then we simply carry on with those and
-	 * don't bother establishing additional memory mappings. Dynamic
-	 * device mappings through pmb_remap() can still be bolted on
-	 * after this.
-	 */
-	ret = pmb_apply_legacy_mappings();
-	if (ret == 0) {
-		back_to_cached();
-		return 0;
-	}
 
 	/*
 	 * Sync our software copy of the PMB mappings with those in
 	 * hardware. The mappings in the hardware PMB were either set up
 	 * by the bootloader or very early on by the kernel.
 	 */
-	for (i = 0; i < PMB_ENTRY_MAX; i++) {
-		struct pmb_entry *pmbe;
-		unsigned long vpn, ppn, flags;
-
-		addr = PMB_DATA + (i << PMB_E_SHIFT);
-		data = __raw_readl(addr);
-		if (!(data & PMB_V))
-			continue;
-
-		if (data & PMB_C) {
-#if defined(CONFIG_CACHE_WRITETHROUGH)
-			data |= PMB_WT;
-#elif defined(CONFIG_CACHE_WRITEBACK)
-			data &= ~PMB_WT;
-#else
-			data &= ~(PMB_C | PMB_WT);
-#endif
-		}
-		__raw_writel(data, addr);
-
-		ppn = data & PMB_PFN_MASK;
-
-		flags = data & (PMB_C | PMB_WT | PMB_UB);
-		flags |= data & PMB_SZ_MASK;
-
-		addr = PMB_ADDR + (i << PMB_E_SHIFT);
-		data = __raw_readl(addr);
-
-		vpn = data & PMB_PFN_MASK;
-
-		pmbe = pmb_alloc(vpn, ppn, flags, i);
-		WARN_ON(IS_ERR(pmbe));
+	ret = pmb_synchronize_mappings();
+	if (unlikely(ret == 0)) {
+		back_to_cached();
+		return 0;
 	}
 
 	__raw_writel(0, PMB_IRMCR);
 
 	/* Flush out the TLB */
-	i =  __raw_readl(MMUCR);
-	i |= MMUCR_TI;
-	__raw_writel(i, MMUCR);
+	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
 
 	back_to_cached();
 
