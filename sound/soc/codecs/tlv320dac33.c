@@ -734,7 +734,10 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 
 	aictrl_a = dac33_read_reg_cache(codec, DAC33_SER_AUDIOIF_CTRL_A);
 	aictrl_a &= ~(DAC33_NCYCL_MASK | DAC33_WLEN_MASK);
+	/* Read FIFO control A, and clear FIFO flush bit */
 	fifoctrl_a = dac33_read_reg_cache(codec, DAC33_FIFO_CTRL_A);
+	fifoctrl_a &= ~DAC33_FIFOFLUSH;
+
 	fifoctrl_a &= ~DAC33_WIDTH;
 	switch (substream->runtime->format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
