@@ -55,4 +55,5 @@ define_machine(mpc5121_generic) {
 	.init_IRQ		= mpc512x_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,
+	.restart		= mpc512x_restart,
 };
