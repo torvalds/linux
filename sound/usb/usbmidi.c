@@ -1360,6 +1360,12 @@ static struct port_info {
 	EXTERNAL_PORT(0x086a, 0x0001, 8, "%s Broadcast"),
 	EXTERNAL_PORT(0x086a, 0x0002, 8, "%s Broadcast"),
 	EXTERNAL_PORT(0x086a, 0x0003, 4, "%s Broadcast"),
+	/* Access Music Virus TI */
+	EXTERNAL_PORT(0x133e, 0x0815, 0, "%s MIDI"),
+	PORT_INFO(0x133e, 0x0815, 1, "%s Synth", 0,
+		SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC |
+		SNDRV_SEQ_PORT_TYPE_HARDWARE |
+		SNDRV_SEQ_PORT_TYPE_SYNTHESIZER),
 };
 
 static struct port_info *find_port_info(struct snd_usb_midi* umidi, int number)
