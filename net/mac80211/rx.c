@@ -1397,6 +1397,21 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 		     ieee80211_is_data(fc) &&
 		     (rx->key || rx->sdata->drop_unencrypted)))
 		return -EACCES;
+
+	return 0;
+}
+
+static int
+ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
+	__le16 fc = hdr->frame_control;
+	int res;
+
+	res = ieee80211_drop_unencrypted(rx, fc);
+	if (unlikely(res))
+		return res;
+
 	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
 		if (unlikely(ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
 			     rx->key))
@@ -1872,7 +1887,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_UNUSABLE;
 
-	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
+	if (ieee80211_drop_unencrypted_mgmt(rx))
 		return RX_DROP_UNUSABLE;
 
 	switch (mgmt->u.action.category) {
@@ -2014,14 +2029,13 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
 	ieee80211_rx_result rxs;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_MONITOR;
 
-	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
-		return RX_DROP_MONITOR;
+	if (ieee80211_drop_unencrypted_mgmt(rx))
+		return RX_DROP_UNUSABLE;
 
 	rxs = ieee80211_work_rx_mgmt(rx->sdata, rx->skb);
 	if (rxs != RX_CONTINUE)
