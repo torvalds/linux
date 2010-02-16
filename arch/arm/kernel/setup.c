@@ -102,6 +102,7 @@ struct cpu_cache_fns cpu_cache;
 #endif
 #ifdef CONFIG_OUTER_CACHE
 struct outer_cache_fns outer_cache;
+EXPORT_SYMBOL(outer_cache);
 #endif
 
 struct stack {
