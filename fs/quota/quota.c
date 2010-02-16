@@ -21,69 +21,30 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
-/* Check validity of generic quotactl commands */
-static int generic_quotactl_valid(struct super_block *sb, int type, int cmd,
-				  qid_t id)
+static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
+				     qid_t id)
 {
-	if (type >= MAXQUOTAS)
-		return -EINVAL;
-	if (!sb && cmd != Q_SYNC)
-		return -ENODEV;
-	/* Is operation supported? */
-	if (sb && !sb->s_qcop)
-		return -ENOSYS;
-
-	/* Check privileges */
-	if (cmd == Q_GETQUOTA) {
-		if (((type == USRQUOTA && current_euid() != id) ||
-		     (type == GRPQUOTA && !in_egroup_p(id))) &&
-		    !capable(CAP_SYS_ADMIN))
-			return -EPERM;
-	}
-	else if (cmd != Q_GETFMT && cmd != Q_SYNC && cmd != Q_GETINFO)
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-	return 0;
-}
-
-/* Check validity of XFS Quota Manager commands */
-static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd,
-			      qid_t id)
-{
-	if (type >= XQM_MAXQUOTAS)
-		return -EINVAL;
-	if (!sb)
-		return -ENODEV;
-	if (!sb->s_qcop)
-		return -ENOSYS;
-
-	/* Check privileges */
-	if (cmd == Q_XGETQUOTA) {
-		if (((type == XQM_USRQUOTA && current_euid() != id) ||
-		     (type == XQM_GRPQUOTA && !in_egroup_p(id))) &&
-		     !capable(CAP_SYS_ADMIN))
-			return -EPERM;
-	} else if (cmd != Q_XGETQSTAT && cmd != Q_XQUOTASYNC) {
+	switch (cmd) {
+	/* these commands do not require any special privilegues */
+	case Q_GETFMT:
+	case Q_SYNC:
+	case Q_GETINFO:
+	case Q_XGETQSTAT:
+	case Q_XQUOTASYNC:
+		break;
+	/* allow to query information for dquots we "own" */
+	case Q_GETQUOTA:
+	case Q_XGETQUOTA:
+		if ((type == USRQUOTA && current_euid() == id) ||
+		    (type == GRPQUOTA && in_egroup_p(id)))
+			break;
+		/*FALLTHROUGH*/
+	default:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 	}
 
-	return 0;
-}
-
-static int check_quotactl_valid(struct super_block *sb, int type, int cmd,
-				qid_t id)
-{
-	int error;
-
-	if (XQM_COMMAND(cmd))
-		error = xqm_quotactl_valid(sb, type, cmd, id);
-	else
-		error = generic_quotactl_valid(sb, type, cmd, id);
-	if (!error)
-		error = security_quotactl(cmd, type, id, sb);
-	return error;
+	return security_quotactl(cmd, type, id, sb);
 }
 
 #ifdef CONFIG_QUOTA
@@ -313,6 +274,17 @@ static int quota_getxquota(struct super_block *sb, int type, qid_t id,
 static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 		       void __user *addr)
 {
+	int ret;
+
+	if (type >= (XQM_COMMAND(cmd) ? XQM_MAXQUOTAS : MAXQUOTAS))
+		return -EINVAL;
+	if (!sb->s_qcop)
+		return -ENOSYS;
+
+	ret = check_quotactl_permission(sb, type, cmd, id);
+	if (ret < 0)
+		return ret;
+
 	switch (cmd) {
 	case Q_QUOTAON:
 		return quota_quotaon(sb, type, cmd, id, addr);
@@ -413,9 +385,7 @@ SYSCALL_DEFINE4(quotactl, unsigned int, cmd, const char __user *, special,
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 
-	ret = check_quotactl_valid(sb, type, cmds, id);
-	if (ret >= 0)
-		ret = do_quotactl(sb, type, cmds, id, addr);
+	ret = do_quotactl(sb, type, cmds, id, addr);
 
 	drop_super(sb);
 	return ret;
