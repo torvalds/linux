@@ -3334,7 +3334,7 @@ static __net_initdata struct pernet_operations rt_secret_timer_ops = {
 
 
 #ifdef CONFIG_NET_CLS_ROUTE
-struct ip_rt_acct *ip_rt_acct __read_mostly;
+struct ip_rt_acct __percpu *ip_rt_acct __read_mostly;
 #endif /* CONFIG_NET_CLS_ROUTE */
 
 static __initdata unsigned long rhash_entries;

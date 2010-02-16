@@ -164,7 +164,7 @@ struct neigh_table {
 	rwlock_t		lock;
 	unsigned long		last_rand;
 	struct kmem_cache		*kmem_cachep;
-	struct neigh_statistics	*stats;
+	struct neigh_statistics	__percpu *stats;
 	struct neighbour	**hash_buckets;
 	unsigned int		hash_mask;
 	__u32			hash_rnd;

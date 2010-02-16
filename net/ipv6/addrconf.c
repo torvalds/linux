@@ -278,31 +278,31 @@ static void addrconf_mod_timer(struct inet6_ifaddr *ifp,
 
 static int snmp6_alloc_dev(struct inet6_dev *idev)
 {
-	if (snmp_mib_init((void **)idev->stats.ipv6,
+	if (snmp_mib_init((void __percpu **)idev->stats.ipv6,
 			  sizeof(struct ipstats_mib)) < 0)
 		goto err_ip;
-	if (snmp_mib_init((void **)idev->stats.icmpv6,
+	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6,
 			  sizeof(struct icmpv6_mib)) < 0)
 		goto err_icmp;
-	if (snmp_mib_init((void **)idev->stats.icmpv6msg,
+	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6msg,
 			  sizeof(struct icmpv6msg_mib)) < 0)
 		goto err_icmpmsg;
 
 	return 0;
 
 err_icmpmsg:
-	snmp_mib_free((void **)idev->stats.icmpv6);
+	snmp_mib_free((void __percpu **)idev->stats.icmpv6);
 err_icmp:
-	snmp_mib_free((void **)idev->stats.ipv6);
+	snmp_mib_free((void __percpu **)idev->stats.ipv6);
 err_ip:
 	return -ENOMEM;
 }
 
 static void snmp6_free_dev(struct inet6_dev *idev)
 {
-	snmp_mib_free((void **)idev->stats.icmpv6msg);
-	snmp_mib_free((void **)idev->stats.icmpv6);
-	snmp_mib_free((void **)idev->stats.ipv6);
+	snmp_mib_free((void __percpu **)idev->stats.icmpv6msg);
+	snmp_mib_free((void __percpu **)idev->stats.icmpv6);
+	snmp_mib_free((void __percpu **)idev->stats.ipv6);
 }
 
 /* Nobody refers to this device, we may destroy it. */
@@ -3766,8 +3766,8 @@ static inline size_t inet6_if_nlmsg_size(void)
 		 );
 }
 
-static inline void __snmp6_fill_stats(u64 *stats, void **mib, int items,
-				      int bytes)
+static inline void __snmp6_fill_stats(u64 *stats, void __percpu **mib,
+				      int items, int bytes)
 {
 	int i;
 	int pad = bytes - sizeof(u64) * items;
@@ -3786,10 +3786,10 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 {
 	switch(attrtype) {
 	case IFLA_INET6_STATS:
-		__snmp6_fill_stats(stats, (void **)idev->stats.ipv6, IPSTATS_MIB_MAX, bytes);
+		__snmp6_fill_stats(stats, (void __percpu **)idev->stats.ipv6, IPSTATS_MIB_MAX, bytes);
 		break;
 	case IFLA_INET6_ICMP6STATS:
-		__snmp6_fill_stats(stats, (void **)idev->stats.icmpv6, ICMP6_MIB_MAX, bytes);
+		__snmp6_fill_stats(stats, (void __percpu **)idev->stats.icmpv6, ICMP6_MIB_MAX, bytes);
 		break;
 	}
 }

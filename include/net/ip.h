@@ -174,9 +174,9 @@ extern struct ipv4_config ipv4_config;
 #define NET_ADD_STATS_BH(net, field, adnd) SNMP_ADD_STATS_BH((net)->mib.net_statistics, field, adnd)
 #define NET_ADD_STATS_USER(net, field, adnd) SNMP_ADD_STATS_USER((net)->mib.net_statistics, field, adnd)
 
-extern unsigned long snmp_fold_field(void *mib[], int offt);
-extern int snmp_mib_init(void *ptr[2], size_t mibsize);
-extern void snmp_mib_free(void *ptr[2]);
+extern unsigned long snmp_fold_field(void __percpu *mib[], int offt);
+extern int snmp_mib_init(void __percpu *ptr[2], size_t mibsize);
+extern void snmp_mib_free(void __percpu *ptr[2]);
 
 extern struct local_ports {
 	seqlock_t	lock;

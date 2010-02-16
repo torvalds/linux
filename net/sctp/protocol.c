@@ -996,12 +996,13 @@ int sctp_register_pf(struct sctp_pf *pf, sa_family_t family)
 
 static inline int init_sctp_mibs(void)
 {
-	return snmp_mib_init((void**)sctp_statistics, sizeof(struct sctp_mib));
+	return snmp_mib_init((void __percpu **)sctp_statistics,
+			     sizeof(struct sctp_mib));
 }
 
 static inline void cleanup_sctp_mibs(void)
 {
-	snmp_mib_free((void**)sctp_statistics);
+	snmp_mib_free((void __percpu **)sctp_statistics);
 }
 
 static void sctp_v4_pf_init(void)
