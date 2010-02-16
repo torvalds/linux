@@ -34,7 +34,7 @@ struct veth_net_stats {
 
 struct veth_priv {
 	struct net_device *peer;
-	struct veth_net_stats *stats;
+	struct veth_net_stats __percpu *stats;
 	unsigned ip_summed;
 };
 
@@ -263,7 +263,7 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 
 static int veth_dev_init(struct net_device *dev)
 {
-	struct veth_net_stats *stats;
+	struct veth_net_stats __percpu *stats;
 	struct veth_priv *priv;
 
 	stats = alloc_percpu(struct veth_net_stats);
