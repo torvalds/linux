@@ -701,8 +701,12 @@ static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
 	/* Request slave resources and allocate buffers (128kB wide) */
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
 		/* XXX Need to properly request attributes */
+		/* For ca91cx42 bridge there are only two slave windows
+		 * supporting A16 addressing, so we request A24 supported
+		 * by all windows.
+		 */
 		image[i].resource = vme_slave_request(vme_user_bridge,
-			VME_A16, VME_SCT);
+			VME_A24, VME_SCT);
 		if (image[i].resource == NULL) {
 			printk(KERN_WARNING "Unable to allocate slave "
 				"resource\n");
