@@ -77,7 +77,7 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 		if (pos < 0)
 			return ERR_PTR(pos);
 	} else {
-		if (test_bit(entry, &pmb_map))
+		if (test_and_set_bit(entry, &pmb_map))
 			return ERR_PTR(-ENOSPC);
 		pos = entry;
 	}
