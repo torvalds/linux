@@ -127,12 +127,7 @@ typedef struct page *pgtable_t;
  * is not visible (it is part of the PMB mapping) and so needs to be
  * added or subtracted as required.
  */
-#if defined(CONFIG_PMB_LEGACY)
-/* phys = virt - PAGE_OFFSET - (__MEMORY_START & 0xe0000000) */
-#define PMB_OFFSET	(PAGE_OFFSET - PXSEG(__MEMORY_START))
-#define __pa(x)	((unsigned long)(x) - PMB_OFFSET)
-#define __va(x)	((void *)((unsigned long)(x) + PMB_OFFSET))
-#elif defined(CONFIG_32BIT)
+#ifdef CONFIG_PMB
 #define __pa(x)	((unsigned long)(x)-PAGE_OFFSET+__MEMORY_START)
 #define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET-__MEMORY_START))
 #else
