@@ -770,29 +770,25 @@ static int smsc911x_mii_probe(struct net_device *dev)
 {
 	struct smsc911x_data *pdata = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
-	int phy_addr;
+	int ret;
 
 	/* find the first phy */
-	for (phy_addr = 0; phy_addr < PHY_MAX_ADDR; phy_addr++) {
-		if (pdata->mii_bus->phy_map[phy_addr]) {
-			phydev = pdata->mii_bus->phy_map[phy_addr];
-			SMSC_TRACE(PROBE, "PHY %d: addr %d, phy_id 0x%08X",
-				phy_addr, phydev->addr, phydev->phy_id);
-			break;
-		}
-	}
-
+	phydev = phy_find_first(pdata->mii_bus);
 	if (!phydev) {
 		pr_err("%s: no PHY found\n", dev->name);
 		return -ENODEV;
 	}
 
-	phydev = phy_connect(dev, dev_name(&phydev->dev),
-		&smsc911x_phy_adjust_link, 0, pdata->config.phy_interface);
+	SMSC_TRACE(PROBE, "PHY %d: addr %d, phy_id 0x%08X",
+			phy_addr, phydev->addr, phydev->phy_id);
 
-	if (IS_ERR(phydev)) {
+	ret = phy_connect_direct(dev, phydev,
+			&smsc911x_phy_adjust_link, 0,
+			pdata->config.phy_interface);
+
+	if (ret) {
 		pr_err("%s: Could not attach to PHY\n", dev->name);
-		return PTR_ERR(phydev);
+		return ret;
 	}
 
 	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
