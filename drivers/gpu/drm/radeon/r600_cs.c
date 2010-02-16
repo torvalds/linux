@@ -163,7 +163,7 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 {
 	struct r600_cs_track *track = p->track;
-	u32 bpe, pitch, slice_tile_max, size, tmp, height;
+	u32 bpe = 0, pitch, slice_tile_max, size, tmp, height;
 	volatile u32 *ib = p->ib->ptr;
 
 	if (G_0280A0_TILE_MODE(track->cb_color_info[i])) {
@@ -935,7 +935,7 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 						struct radeon_bo *texture,
 						struct radeon_bo *mipmap)
 {
-	u32 nfaces, nlevels, blevel, w0, h0, d0, bpe;
+	u32 nfaces, nlevels, blevel, w0, h0, d0, bpe = 0;
 	u32 word0, word1, l0_size, mipmap_size;
 
 	/* on legacy kernel we don't perform advanced check */
