@@ -114,7 +114,7 @@ struct ceph_mds_session {
 	int               s_num_cap_releases;
 	struct list_head  s_cap_releases; /* waiting cap_release messages */
 	struct list_head  s_cap_releases_done; /* ready to send */
-	bool              s_iterating_caps;
+	struct ceph_cap  *s_cap_iterator;
 
 	/* protected by mutex */
 	struct list_head  s_cap_flushing;     /* inodes w/ flushing caps */

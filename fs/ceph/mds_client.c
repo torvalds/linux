@@ -344,7 +344,7 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	INIT_LIST_HEAD(&s->s_waiting);
 	INIT_LIST_HEAD(&s->s_unsafe);
 	s->s_num_cap_releases = 0;
-	s->s_iterating_caps = false;
+	s->s_cap_iterator = NULL;
 	INIT_LIST_HEAD(&s->s_cap_releases);
 	INIT_LIST_HEAD(&s->s_cap_releases_done);
 	INIT_LIST_HEAD(&s->s_cap_flushing);
@@ -729,28 +729,61 @@ static int iterate_session_caps(struct ceph_mds_session *session,
 				 int (*cb)(struct inode *, struct ceph_cap *,
 					    void *), void *arg)
 {
-	struct ceph_cap *cap, *ncap;
-	struct inode *inode;
+	struct list_head *p;
+	struct ceph_cap *cap;
+	struct inode *inode, *last_inode = NULL;
+	struct ceph_cap *old_cap = NULL;
 	int ret;
 
 	dout("iterate_session_caps %p mds%d\n", session, session->s_mds);
 	spin_lock(&session->s_cap_lock);
-	session->s_iterating_caps = true;
-	list_for_each_entry_safe(cap, ncap, &session->s_caps, session_caps) {
+	p = session->s_caps.next;
+	while (p != &session->s_caps) {
+		cap = list_entry(p, struct ceph_cap, session_caps);
 		inode = igrab(&cap->ci->vfs_inode);
-		if (!inode)
+		if (!inode) {
+			p = p->next;
 			continue;
+		}
+		session->s_cap_iterator = cap;
 		spin_unlock(&session->s_cap_lock);
+
+		if (last_inode) {
+			iput(last_inode);
+			last_inode = NULL;
+		}
+		if (old_cap) {
+			ceph_put_cap(old_cap);
+			old_cap = NULL;
+		}
+
 		ret = cb(inode, cap, arg);
-		iput(inode);
+		last_inode = inode;
+
 		spin_lock(&session->s_cap_lock);
+		p = p->next;
+		if (cap->ci == NULL) {
+			dout("iterate_session_caps  finishing cap %p removal\n",
+			     cap);
+			BUG_ON(cap->session != session);
+			list_del_init(&cap->session_caps);
+			session->s_nr_caps--;
+			cap->session = NULL;
+			old_cap = cap;  /* put_cap it w/o locks held */
+		}
 		if (ret < 0)
 			goto out;
 	}
 	ret = 0;
 out:
-	session->s_iterating_caps = false;
+	session->s_cap_iterator = NULL;
 	spin_unlock(&session->s_cap_lock);
+
+	if (last_inode)
+		iput(last_inode);
+	if (old_cap)
+		ceph_put_cap(old_cap);
+
 	return ret;
 }
 
@@ -942,7 +975,7 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	session->s_trim_caps--;
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
-		__ceph_remove_cap(cap, NULL);
+		__ceph_remove_cap(cap);
 	} else {
 		/* try to drop referring dentries */
 		spin_unlock(&inode->i_lock);

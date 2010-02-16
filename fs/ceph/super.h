@@ -795,15 +795,15 @@ extern int ceph_add_cap(struct inode *inode,
 			int fmode, unsigned issued, unsigned wanted,
 			unsigned cap, unsigned seq, u64 realmino, int flags,
 			struct ceph_cap_reservation *caps_reservation);
-extern void __ceph_remove_cap(struct ceph_cap *cap,
-			      struct ceph_cap_reservation *ctx);
+extern void __ceph_remove_cap(struct ceph_cap *cap);
 static inline void ceph_remove_cap(struct ceph_cap *cap)
 {
 	struct inode *inode = &cap->ci->vfs_inode;
 	spin_lock(&inode->i_lock);
-	__ceph_remove_cap(cap, NULL);
+	__ceph_remove_cap(cap);
 	spin_unlock(&inode->i_lock);
 }
+extern void ceph_put_cap(struct ceph_cap *cap);
 
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, int unused);
