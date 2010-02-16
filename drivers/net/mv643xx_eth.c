@@ -2846,6 +2846,7 @@ static const struct net_device_ops mv643xx_eth_netdev_ops = {
 	.ndo_start_xmit		= mv643xx_eth_xmit,
 	.ndo_set_rx_mode	= mv643xx_eth_set_rx_mode,
 	.ndo_set_mac_address	= mv643xx_eth_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= mv643xx_eth_ioctl,
 	.ndo_change_mtu		= mv643xx_eth_change_mtu,
 	.ndo_tx_timeout		= mv643xx_eth_tx_timeout,
