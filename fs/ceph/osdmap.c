@@ -328,9 +328,15 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 		rb_erase(&pg->node, &map->pg_temp);
 		kfree(pg);
 	}
+	while (!RB_EMPTY_ROOT(&map->pg_pools)) {
+		struct ceph_pg_pool_info *pi =
+			rb_entry(rb_first(&map->pg_pools),
+				 struct ceph_pg_pool_info, node);
+		rb_erase(&pi->node, &map->pg_pools);
+		kfree(pi);
+	}
 	kfree(map->osd_state);
 	kfree(map->osd_weight);
-	kfree(map->pg_pool);
 	kfree(map->osd_addr);
 	kfree(map);
 }
@@ -433,6 +439,48 @@ static struct ceph_pg_mapping *__lookup_pg_mapping(struct rb_root *root,
 }
 
 /*
+ * rbtree of pg pool info
+ */
+static int __insert_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *new)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct ceph_pg_pool_info *pi = NULL;
+
+	while (*p) {
+		parent = *p;
+		pi = rb_entry(parent, struct ceph_pg_pool_info, node);
+		if (new->id < pi->id)
+			p = &(*p)->rb_left;
+		else if (new->id > pi->id)
+			p = &(*p)->rb_right;
+		else
+			return -EEXIST;
+	}
+
+	rb_link_node(&new->node, parent, p);
+	rb_insert_color(&new->node, root);
+	return 0;
+}
+
+static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, int id)
+{
+	struct ceph_pg_pool_info *pi;
+	struct rb_node *n = root->rb_node;
+
+	while (n) {
+		pi = rb_entry(n, struct ceph_pg_pool_info, node);
+		if (id < pi->id)
+			n = n->rb_left;
+		else if (id > pi->id)
+			n = n->rb_right;
+		else
+			return pi;
+	}
+	return NULL;
+}
+
+/*
  * decode a full map.
  */
 struct ceph_osdmap *osdmap_decode(void **p, void *end)
@@ -443,6 +491,7 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	u8 ev;
 	int err = -EINVAL;
 	void *start = *p;
+	struct ceph_pg_pool_info *pi;
 
 	dout("osdmap_decode %p to %p len %d\n", *p, end, (int)(end - *p));
 
@@ -464,32 +513,27 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 	ceph_decode_copy(p, &map->created, sizeof(map->created));
 	ceph_decode_copy(p, &map->modified, sizeof(map->modified));
 
-	map->num_pools = ceph_decode_32(p);
-	map->pg_pool = kcalloc(map->num_pools, sizeof(*map->pg_pool),
-			       GFP_NOFS);
-	if (!map->pg_pool) {
-		err = -ENOMEM;
-		goto bad;
-	}
 	ceph_decode_32_safe(p, end, max, bad);
 	while (max--) {
-		ceph_decode_need(p, end, 4+1+sizeof(map->pg_pool->v), bad);
-		i = ceph_decode_32(p);
-		if (i >= map->num_pools)
+		ceph_decode_need(p, end, 4 + 1 + sizeof(pi->v), bad);
+		pi = kmalloc(sizeof(*pi), GFP_NOFS);
+		if (!pi)
 			goto bad;
+		pi->id = ceph_decode_32(p);
 		ev = ceph_decode_8(p); /* encoding version */
 		if (ev > CEPH_PG_POOL_VERSION) {
 			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
 				   ev, CEPH_PG_POOL_VERSION);
 			goto bad;
 		}
-		ceph_decode_copy(p, &map->pg_pool[i].v,
-				 sizeof(map->pg_pool->v));
-		calc_pg_masks(&map->pg_pool[i]);
-		p += le32_to_cpu(map->pg_pool[i].v.num_snaps) * sizeof(u64);
-		p += le32_to_cpu(map->pg_pool[i].v.num_removed_snap_intervals)
+		ceph_decode_copy(p, &pi->v, sizeof(pi->v));
+		__insert_pg_pool(&map->pg_pools, pi);
+		calc_pg_masks(pi);
+		p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
+		p += le32_to_cpu(pi->v.num_removed_snap_intervals)
 			* sizeof(u64) * 2;
 	}
+	ceph_decode_32_safe(p, end, map->pool_max, bad);
 
 	ceph_decode_32_safe(p, end, map->flags, bad);
 
@@ -581,7 +625,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	u32 epoch = 0;
 	struct ceph_timespec modified;
 	u32 len, pool;
-	__s32 new_flags, max;
+	__s32 new_pool_max, new_flags, max;
 	void *start = *p;
 	int err = -EINVAL;
 	u16 version;
@@ -600,6 +644,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	epoch = ceph_decode_32(p);
 	BUG_ON(epoch != map->epoch+1);
 	ceph_decode_copy(p, &modified, sizeof(modified));
+	new_pool_max = ceph_decode_32(p);
 	new_flags = ceph_decode_32(p);
 
 	/* full map? */
@@ -623,6 +668,8 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	/* new flags? */
 	if (new_flags >= 0)
 		map->flags = new_flags;
+	if (new_pool_max >= 0)
+		map->pool_max = new_pool_max;
 
 	ceph_decode_need(p, end, 5*sizeof(u32), bad);
 
@@ -647,37 +694,42 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 	ceph_decode_32_safe(p, end, len, bad);
 	while (len--) {
 		__u8 ev;
+		struct ceph_pg_pool_info *pi;
 
 		ceph_decode_32_safe(p, end, pool, bad);
-		if (pool >= map->num_pools) {
-			void *pg_pool = kcalloc(pool + 1,
-						sizeof(*map->pg_pool),
-						GFP_NOFS);
-			if (!pg_pool) {
-				err = -ENOMEM;
-				goto bad;
-			}
-			memcpy(pg_pool, map->pg_pool,
-			       map->num_pools * sizeof(*map->pg_pool));
-			kfree(map->pg_pool);
-			map->pg_pool = pg_pool;
-			map->num_pools = pool+1;
-		}
-		ceph_decode_need(p, end, 1 + sizeof(map->pg_pool->v), bad);
+		ceph_decode_need(p, end, 1 + sizeof(pi->v), bad);
 		ev = ceph_decode_8(p);  /* encoding version */
 		if (ev > CEPH_PG_POOL_VERSION) {
 			pr_warning("got unknown v %d > %d of ceph_pg_pool\n",
 				   ev, CEPH_PG_POOL_VERSION);
 			goto bad;
 		}
-		ceph_decode_copy(p, &map->pg_pool[pool].v,
-				 sizeof(map->pg_pool->v));
-		calc_pg_masks(&map->pg_pool[pool]);
+		pi = __lookup_pg_pool(&map->pg_pools, pool);
+		if (!pi) {
+			pi = kmalloc(sizeof(*pi), GFP_NOFS);
+			if (!pi) {
+				err = -ENOMEM;
+				goto bad;
+			}
+			pi->id = pool;
+			__insert_pg_pool(&map->pg_pools, pi);
+		}
+		ceph_decode_copy(p, &pi->v, sizeof(pi->v));
+		calc_pg_masks(pi);
 	}
 
-	/* old_pool (ignore) */
+	/* old_pool */
 	ceph_decode_32_safe(p, end, len, bad);
-	*p += len * sizeof(u32);
+	while (len--) {
+		struct ceph_pg_pool_info *pi;
+
+		ceph_decode_32_safe(p, end, pool, bad);
+		pi = __lookup_pg_pool(&map->pg_pools, pool);
+		if (pi) {
+			rb_erase(&pi->node, &map->pg_pools);
+			kfree(pi);
+		}
+	}
 
 	/* new_up */
 	err = -EINVAL;
@@ -861,10 +913,10 @@ int ceph_calc_object_layout(struct ceph_object_layout *ol,
 	unsigned ps;
 
 	BUG_ON(!osdmap);
-	if (poolid >= osdmap->num_pools)
-		return -EIO;
 
-	pool = &osdmap->pg_pool[poolid];
+	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
+	if (!pool)
+		return -EIO;
 	ps = ceph_str_hash(pool->v.object_hash, oid, strlen(oid));
 	if (preferred >= 0) {
 		ps += preferred;
@@ -919,9 +971,9 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	    preferred >= osdmap->crush->max_devices)
 		preferred = -1;
 
-	if (poolid >= osdmap->num_pools)
+	pool = __lookup_pg_pool(&osdmap->pg_pools, poolid);
+	if (!pool)
 		return NULL;
-	pool = &osdmap->pg_pool[poolid];
 	ruleno = crush_find_rule(osdmap->crush, pool->v.crush_ruleset,
 				 pool->v.type, pool->v.size);
 	if (ruleno < 0) {

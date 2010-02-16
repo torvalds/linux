@@ -19,6 +19,8 @@
  * the change between two successive epochs, or as a fully encoded map.
  */
 struct ceph_pg_pool_info {
+	struct rb_node node;
+	int id;
 	struct ceph_pg_pool v;
 	int pg_num_mask, pgp_num_mask, lpg_num_mask, lpgp_num_mask;
 };
@@ -44,9 +46,8 @@ struct ceph_osdmap {
 	struct ceph_entity_addr *osd_addr;
 
 	struct rb_root pg_temp;
-
-	u32 num_pools;
-	struct ceph_pg_pool_info *pg_pool;
+	struct rb_root pg_pools;
+	u32 pool_max;
 
 	/* the CRUSH map specifies the mapping of placement groups to
 	 * the list of osds that store+replicate them. */
