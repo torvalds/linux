@@ -2948,9 +2948,7 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 	sector_t blk = off >> EXT3_BLOCK_SIZE_BITS(sb);
 	int err = 0;
 	int offset = off & (sb->s_blocksize - 1);
-	int tocopy;
 	int journal_quota = EXT3_SB(sb)->s_qf_names[type] != NULL;
-	size_t towrite = len;
 	struct buffer_head *bh;
 	handle_t *handle = journal_current_handle();
 
@@ -2961,53 +2959,54 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 			(unsigned long long)off, (unsigned long long)len);
 		return -EIO;
 	}
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
-	while (towrite > 0) {
-		tocopy = sb->s_blocksize - offset < towrite ?
-				sb->s_blocksize - offset : towrite;
-		bh = ext3_bread(handle, inode, blk, 1, &err);
-		if (!bh)
-			goto out;
-		if (journal_quota) {
-			err = ext3_journal_get_write_access(handle, bh);
-			if (err) {
-				brelse(bh);
-				goto out;
-			}
-		}
-		lock_buffer(bh);
-		memcpy(bh->b_data+offset, data, tocopy);
-		flush_dcache_page(bh->b_page);
-		unlock_buffer(bh);
-		if (journal_quota)
-			err = ext3_journal_dirty_metadata(handle, bh);
-		else {
-			/* Always do at least ordered writes for quotas */
-			err = ext3_journal_dirty_data(handle, bh);
-			mark_buffer_dirty(bh);
-		}
-		brelse(bh);
-		if (err)
-			goto out;
-		offset = 0;
-		towrite -= tocopy;
-		data += tocopy;
-		blk++;
+
+	/*
+	 * Since we account only one data block in transaction credits,
+	 * then it is impossible to cross a block boundary.
+	 */
+	if (sb->s_blocksize - offset < len) {
+		ext3_msg(sb, KERN_WARNING, "Quota write (off=%llu, len=%llu)"
+			" cancelled because not block aligned",
+			(unsigned long long)off, (unsigned long long)len);
+		return -EIO;
 	}
+	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
+	bh = ext3_bread(handle, inode, blk, 1, &err);
+	if (!bh)
+		goto out;
+	if (journal_quota) {
+		err = ext3_journal_get_write_access(handle, bh);
+		if (err) {
+			brelse(bh);
+			goto out;
+		}
+	}
+	lock_buffer(bh);
+	memcpy(bh->b_data+offset, data, len);
+	flush_dcache_page(bh->b_page);
+	unlock_buffer(bh);
+	if (journal_quota)
+		err = ext3_journal_dirty_metadata(handle, bh);
+	else {
+		/* Always do at least ordered writes for quotas */
+		err = ext3_journal_dirty_data(handle, bh);
+		mark_buffer_dirty(bh);
+	}
+	brelse(bh);
 out:
-	if (len == towrite) {
+	if (err) {
 		mutex_unlock(&inode->i_mutex);
 		return err;
 	}
-	if (inode->i_size < off+len-towrite) {
-		i_size_write(inode, off+len-towrite);
+	if (inode->i_size < off + len) {
+		i_size_write(inode, off + len);
 		EXT3_I(inode)->i_disksize = inode->i_size;
 	}
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	ext3_mark_inode_dirty(handle, inode);
 	mutex_unlock(&inode->i_mutex);
-	return len - towrite;
+	return len;
 }
 
 #endif
