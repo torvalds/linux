@@ -51,7 +51,6 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 static int quota_sync_all(int type)
 {
 	struct super_block *sb;
-	int cnt;
 	int ret;
 
 	if (type >= MAXQUOTAS)
@@ -66,20 +65,6 @@ restart:
 		if (!sb->s_qcop || !sb->s_qcop->quota_sync)
 			continue;
 
-		/* This test just improves performance so it needn't be
-		 * reliable... */
-		for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-			if (type != -1 && type != cnt)
-				continue;
-			if (!sb_has_quota_active(sb, cnt))
-				continue;
-			if (!info_dirty(&sb_dqopt(sb)->info[cnt]) &&
-			   list_empty(&sb_dqopt(sb)->info[cnt].dqi_dirty_list))
-				continue;
-			break;
-		}
-		if (cnt == MAXQUOTAS)
-			continue;
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
