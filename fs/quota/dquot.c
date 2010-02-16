@@ -570,7 +570,7 @@ out:
 }
 EXPORT_SYMBOL(dquot_scan_active);
 
-int vfs_quota_sync(struct super_block *sb, int type)
+int vfs_quota_sync(struct super_block *sb, int type, int wait)
 {
 	struct list_head *dirty;
 	struct dquot *dquot;
@@ -614,6 +614,33 @@ int vfs_quota_sync(struct super_block *sb, int type)
 	dqstats.syncs++;
 	spin_unlock(&dq_list_lock);
 	mutex_unlock(&dqopt->dqonoff_mutex);
+
+	if (!wait || (sb_dqopt(sb)->flags & DQUOT_QUOTA_SYS_FILE))
+		return 0;
+
+	/* This is not very clever (and fast) but currently I don't know about
+	 * any other simple way of getting quota data to disk and we must get
+	 * them there for userspace to be visible... */
+	if (sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, 1);
+	sync_blockdev(sb->s_bdev);
+
+	/*
+	 * Now when everything is written we can discard the pagecache so
+	 * that userspace sees the changes.
+	 */
+	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (type != -1 && cnt != type)
+			continue;
+		if (!sb_has_quota_active(sb, cnt))
+			continue;
+		mutex_lock_nested(&sb_dqopt(sb)->files[cnt]->i_mutex,
+				  I_MUTEX_QUOTA);
+		truncate_inode_pages(&sb_dqopt(sb)->files[cnt]->i_data, 0);
+		mutex_unlock(&sb_dqopt(sb)->files[cnt]->i_mutex);
+	}
+	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 
 	return 0;
 }
