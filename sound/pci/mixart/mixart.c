@@ -60,7 +60,7 @@ MODULE_PARM_DESC(enable, "Enable Digigram " CARD_NAME " soundcard.");
 /*
  */
 
-static struct pci_device_id snd_mixart_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_mixart_ids) = {
 	{ PCI_VDEVICE(MOTOROLA, 0x0003), 0, }, /* MC8240 */
 	{ 0, }
 };

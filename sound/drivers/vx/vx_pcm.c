@@ -46,62 +46,12 @@
  */
 
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/pcm.h>
 #include <sound/vx_core.h>
 #include "vx_cmd.h"
-
-
-/*
- * we use a vmalloc'ed (sg-)buffer
- */
-
-/* get the physical page pointer on the given offset */
-static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
-					     unsigned long offset)
-{
-	void *pageptr = subs->runtime->dma_area + offset;
-	return vmalloc_to_page(pageptr);
-}
-
-/*
- * allocate a buffer via vmalloc_32().
- * called from hw_params
- * NOTE: this may be called not only once per pcm open!
- */
-static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs, size_t size)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-	if (runtime->dma_area) {
-		/* already allocated */
-		if (runtime->dma_bytes >= size)
-			return 0; /* already enough large */
-		vfree(runtime->dma_area);
-	}
-	runtime->dma_area = vmalloc_32(size);
-	if (! runtime->dma_area)
-		return -ENOMEM;
-	memset(runtime->dma_area, 0, size);
-	runtime->dma_bytes = size;
-	return 1; /* changed */
-}
-
-/*
- * free the buffer.
- * called from hw_free callback
- * NOTE: this may be called not only once per pcm open!
- */
-static int snd_pcm_free_vmalloc_buffer(struct snd_pcm_substream *subs)
-{
-	struct snd_pcm_runtime *runtime = subs->runtime;
-
-	vfree(runtime->dma_area);
-	runtime->dma_area = NULL;
-	return 0;
-}
 
 
 /*
@@ -865,7 +815,8 @@ static snd_pcm_uframes_t vx_pcm_playback_pointer(struct snd_pcm_substream *subs)
 static int vx_pcm_hw_params(struct snd_pcm_substream *subs,
 				     struct snd_pcm_hw_params *hw_params)
 {
-	return snd_pcm_alloc_vmalloc_buffer(subs, params_buffer_bytes(hw_params));
+	return snd_pcm_lib_alloc_vmalloc_32_buffer
+					(subs, params_buffer_bytes(hw_params));
 }
 
 /*
@@ -873,7 +824,7 @@ static int vx_pcm_hw_params(struct snd_pcm_substream *subs,
  */
 static int vx_pcm_hw_free(struct snd_pcm_substream *subs)
 {
-	return snd_pcm_free_vmalloc_buffer(subs);
+	return snd_pcm_lib_free_vmalloc_buffer(subs);
 }
 
 /*
@@ -953,7 +904,8 @@ static struct snd_pcm_ops vx_pcm_playback_ops = {
 	.prepare =	vx_pcm_prepare,
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_playback_pointer,
-	.page =		snd_pcm_get_vmalloc_page,
+	.page =		snd_pcm_lib_get_vmalloc_page,
+	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 
@@ -1173,7 +1125,8 @@ static struct snd_pcm_ops vx_pcm_capture_ops = {
 	.prepare =	vx_pcm_prepare,
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_capture_pointer,
-	.page =		snd_pcm_get_vmalloc_page,
+	.page =		snd_pcm_lib_get_vmalloc_page,
+	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 

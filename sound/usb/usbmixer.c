@@ -187,6 +187,21 @@ enum {
 	USB_PROC_DCR_RELEASE = 6,
 };
 
+/*E-mu 0202(0404) eXtension Unit(XU) control*/
+enum {
+	USB_XU_CLOCK_RATE 		= 0xe301,
+	USB_XU_CLOCK_SOURCE		= 0xe302,
+	USB_XU_DIGITAL_IO_STATUS	= 0xe303,
+	USB_XU_DEVICE_OPTIONS		= 0xe304,
+	USB_XU_DIRECT_MONITORING	= 0xe305,
+	USB_XU_METERING			= 0xe306
+};
+enum {
+	USB_XU_CLOCK_SOURCE_SELECTOR = 0x02,	/* clock source*/
+	USB_XU_CLOCK_RATE_SELECTOR = 0x03,	/* clock rate */
+	USB_XU_DIGITAL_FORMAT_SELECTOR = 0x01,	/* the spdif format */
+	USB_XU_SOFT_LIMIT_SELECTOR = 0x03	/* soft limiter */
+};
 
 /*
  * manual mapping of mixer names
@@ -1352,7 +1367,32 @@ static struct procunit_info procunits[] = {
 	{ USB_PROC_DCR, "DCR", dcr_proc_info },
 	{ 0 },
 };
-
+/*
+ * predefined data for extension units
+ */
+static struct procunit_value_info clock_rate_xu_info[] = {
+       { USB_XU_CLOCK_RATE_SELECTOR, "Selector", USB_MIXER_U8, 0 },
+       { 0 }
+};
+static struct procunit_value_info clock_source_xu_info[] = {
+	{ USB_XU_CLOCK_SOURCE_SELECTOR, "External", USB_MIXER_BOOLEAN },
+	{ 0 }
+};
+static struct procunit_value_info spdif_format_xu_info[] = {
+	{ USB_XU_DIGITAL_FORMAT_SELECTOR, "SPDIF/AC3", USB_MIXER_BOOLEAN },
+	{ 0 }
+};
+static struct procunit_value_info soft_limit_xu_info[] = {
+	{ USB_XU_SOFT_LIMIT_SELECTOR, " ", USB_MIXER_BOOLEAN },
+	{ 0 }
+};
+static struct procunit_info extunits[] = {
+	{ USB_XU_CLOCK_RATE, "Clock rate", clock_rate_xu_info },
+	{ USB_XU_CLOCK_SOURCE, "DigitalIn CLK source", clock_source_xu_info },
+	{ USB_XU_DIGITAL_IO_STATUS, "DigitalOut format:", spdif_format_xu_info },
+	{ USB_XU_DEVICE_OPTIONS, "AnalogueIn Soft Limit", soft_limit_xu_info },
+	{ 0 }
+};
 /*
  * build a processing/extension unit
  */
@@ -1415,8 +1455,18 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, unsigned 
 			cval->max = dsc[15];
 			cval->res = 1;
 			cval->initialized = 1;
-		} else
-			get_min_max(cval, valinfo->min_value);
+		} else {
+			if (type == USB_XU_CLOCK_RATE) {
+				/* E-Mu USB 0404/0202/TrackerPre
+				 * samplerate control quirk
+				 */
+				cval->min = 0;
+				cval->max = 5;
+				cval->res = 1;
+				cval->initialized = 1;
+			} else
+				get_min_max(cval, valinfo->min_value);
+		}
 
 		kctl = snd_ctl_new1(&mixer_procunit_ctl, cval);
 		if (! kctl) {
@@ -1458,7 +1508,7 @@ static int parse_audio_processing_unit(struct mixer_build *state, int unitid, un
 
 static int parse_audio_extension_unit(struct mixer_build *state, int unitid, unsigned char *desc)
 {
-	return build_audio_procunit(state, unitid, desc, NULL, "Extension Unit");
+	return build_audio_procunit(state, unitid, desc, extunits, "Extension Unit");
 }
 
 
@@ -2134,6 +2184,23 @@ static int snd_xonar_u1_controls_create(struct usb_mixer_interface *mixer)
 		return err;
 	mixer->xonar_u1_status = 0x05;
 	return 0;
+}
+
+void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
+		unsigned char samplerate_id)
+{
+	 struct usb_mixer_interface *mixer;
+	 struct usb_mixer_elem_info *cval;
+	 int unitid = 12; /* SamleRate ExtensionUnit ID */
+
+	 list_for_each_entry(mixer, &chip->mixer_list, list) {
+		 cval = mixer->id_elems[unitid];
+		 if (cval) {
+			set_cur_ctl_value(cval, cval->control << 8, samplerate_id);
+			snd_usb_mixer_notify_id(mixer, unitid);
+		 }
+		 break;
+	 }
 }
 
 int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,

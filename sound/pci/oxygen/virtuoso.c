@@ -40,7 +40,7 @@ MODULE_PARM_DESC(id, "ID string");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "enable card");
 
-static struct pci_device_id xonar_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(xonar_ids) = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8269) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8275) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x82b7) },

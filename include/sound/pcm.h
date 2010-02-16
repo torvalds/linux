@@ -915,6 +915,44 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size);
 int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream);
 
+int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
+				      size_t size, gfp_t gfp_flags);
+int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream);
+struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
+					  unsigned long offset);
+#if 0 /* for kernel-doc */
+/**
+ * snd_pcm_lib_alloc_vmalloc_buffer - allocate virtual DMA buffer
+ * @substream: the substream to allocate the buffer to
+ * @size: the requested buffer size, in bytes
+ *
+ * Allocates the PCM substream buffer using vmalloc(), i.e., the memory is
+ * contiguous in kernel virtual space, but not in physical memory.  Use this
+ * if the buffer is accessed by kernel code but not by device DMA.
+ *
+ * Returns 1 if the buffer was changed, 0 if not changed, or a negative error
+ * code.
+ */
+static int snd_pcm_lib_alloc_vmalloc_buffer
+			(struct snd_pcm_substream *substream, size_t size);
+/**
+ * snd_pcm_lib_alloc_vmalloc_32_buffer - allocate 32-bit-addressable buffer
+ * @substream: the substream to allocate the buffer to
+ * @size: the requested buffer size, in bytes
+ *
+ * This function works like snd_pcm_lib_alloc_vmalloc_buffer(), but uses
+ * vmalloc_32(), i.e., the pages are allocated from 32-bit-addressable memory.
+ */
+static int snd_pcm_lib_alloc_vmalloc_32_buffer
+			(struct snd_pcm_substream *substream, size_t size);
+#endif
+#define snd_pcm_lib_alloc_vmalloc_buffer(subs, size) \
+	_snd_pcm_lib_alloc_vmalloc_buffer \
+			(subs, size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO)
+#define snd_pcm_lib_alloc_vmalloc_32_buffer(subs, size) \
+	_snd_pcm_lib_alloc_vmalloc_buffer \
+			(subs, size, GFP_KERNEL | GFP_DMA32 | __GFP_ZERO)
+
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
  * SG-buffer handling
@@ -984,6 +1022,10 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream, struct vm_area_s
 #define SNDRV_PCM_INFO_MMAP_IOMEM	0
 #define snd_pcm_lib_mmap_iomem	NULL
 #endif
+
+int snd_pcm_lib_mmap_noncached(struct snd_pcm_substream *substream,
+			       struct vm_area_struct *area);
+#define snd_pcm_lib_mmap_vmalloc	snd_pcm_lib_mmap_noncached
 
 static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 {

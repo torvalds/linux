@@ -145,7 +145,7 @@ struct snd_als300_substream_data {
 	int block_counter_register;
 };
 
-static struct pci_device_id snd_als300_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_als300_ids) = {
 	{ 0x4005, 0x0300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_ALS300 },
 	{ 0x4005, 0x0308, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DEVICE_ALS300_PLUS },
 	{ 0, }

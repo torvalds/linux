@@ -2190,7 +2190,7 @@ static int snd_seq_do_ioctl(struct snd_seq_client *client, unsigned int cmd,
 		if (p->cmd == cmd)
 			return p->func(client, arg);
 	}
-	snd_printd("seq unknown ioctl() 0x%x (type='%c', number=0x%2x)\n",
+	snd_printd("seq unknown ioctl() 0x%x (type='%c', number=0x%02x)\n",
 		   cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
 	return -ENOTTY;
 }
