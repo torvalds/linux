@@ -121,4 +121,11 @@ config DEBUG_ZBOOT
 	  to reduce the kernel image size and speed up the booting procedure a
 	  little.
 
+config SPINLOCK_TEST
+	bool "Enable spinlock timing tests in debugfs"
+	depends on DEBUG_FS
+	default n
+	help
+	  Add several files to the debugfs to test spinlock speed.
+
 endmenu
