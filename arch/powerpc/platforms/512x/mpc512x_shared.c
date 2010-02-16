@@ -58,3 +58,8 @@ void __init mpc512x_declare_of_platform_devices(void)
 			"Error while probing of_platform bus\n");
 }
 
+void __init mpc512x_init(void)
+{
+	mpc512x_declare_of_platform_devices();
+	mpc5121_clk_init();
+}
