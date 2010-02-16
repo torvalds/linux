@@ -61,9 +61,17 @@ static int __init setup_nmi_watchdog(char *str)
 }
 __setup("nmi_watchdog=", setup_nmi_watchdog);
 
-struct perf_event_attr wd_attr = {
+struct perf_event_attr wd_hw_attr = {
 	.type = PERF_TYPE_HARDWARE,
 	.config = PERF_COUNT_HW_CPU_CYCLES,
+	.size = sizeof(struct perf_event_attr),
+	.pinned = 1,
+	.disabled = 1,
+};
+
+struct perf_event_attr wd_sw_attr = {
+	.type = PERF_TYPE_SOFTWARE,
+	.config = PERF_COUNT_SW_CPU_CLOCK,
 	.size = sizeof(struct perf_event_attr),
 	.pinned = 1,
 	.disabled = 1,
@@ -105,6 +113,7 @@ void wd_overflow(struct perf_event *event, int nmi,
 static int enable_nmi_watchdog(int cpu)
 {
 	struct perf_event *event;
+	struct perf_event_attr *wd_attr;
 
 	event = per_cpu(nmi_watchdog_ev, cpu);
 	if (event && event->state > PERF_EVENT_STATE_OFF)
@@ -112,11 +121,15 @@ static int enable_nmi_watchdog(int cpu)
 
 	if (event == NULL) {
 		/* Try to register using hardware perf events first */
-		wd_attr.sample_period = hw_nmi_get_sample_period();
-		event = perf_event_create_kernel_counter(&wd_attr, cpu, -1, wd_overflow);
+		wd_attr = &wd_hw_attr;
+		wd_attr->sample_period = hw_nmi_get_sample_period();
+		event = perf_event_create_kernel_counter(wd_attr, cpu, -1, wd_overflow);
 		if (IS_ERR(event)) {
-			wd_attr.type = PERF_TYPE_SOFTWARE;
-			event = perf_event_create_kernel_counter(&wd_attr, cpu, -1, wd_overflow);
+			/* hardware doesn't exist or not supported, fallback to software events */
+			printk("nmi_watchdog: hardware not available, trying software events\n");
+			wd_attr = &wd_sw_attr;
+			wd_attr->sample_period = NSEC_PER_SEC;
+			event = perf_event_create_kernel_counter(wd_attr, cpu, -1, wd_overflow);
 			if (IS_ERR(event)) {
 				printk(KERN_ERR "nmi watchdog failed to create perf event on %i: %p\n", cpu, event);
 				return -1;
