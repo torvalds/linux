@@ -68,8 +68,6 @@ xfs_fs_set_xstate(
 		return -EROFS;
 	if (op != Q_XQUOTARM && !XFS_IS_QUOTA_RUNNING(mp))
 		return -ENOSYS;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	if (uflags & XFS_QUOTA_UDQ_ACCT)
 		flags |= XFS_UQUOTA_ACCT;
@@ -130,8 +128,6 @@ xfs_fs_set_xquota(
 		return -ENOSYS;
 	if (!XFS_IS_QUOTA_ON(mp))
 		return -ESRCH;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	return -xfs_qm_scall_setqlim(mp, id, xfs_quota_type(type), fdq);
 }
