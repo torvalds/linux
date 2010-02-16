@@ -3327,6 +3327,32 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 }
 
 /*
+ * This call will put the synth in "USB send" mode, i.e it will send MIDI
+ * messages through USB (this is disabled at startup). The synth will
+ * acknowledge by sending a sysex on endpoint 0x85 and by displaying a USB
+ * sign on its LCD. Values here are chosen based on sniffing USB traffic
+ * under Windows.
+ */
+static int snd_usb_accessmusic_boot_quirk(struct usb_device *dev)
+{
+	int err, actual_length;
+
+	/* "midi send" enable */
+	static const u8 seq[] = { 0x4e, 0x73, 0x52, 0x01 };
+
+	void *buf = kmemdup(seq, ARRAY_SIZE(seq), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	err = usb_interrupt_msg(dev, usb_sndintpipe(dev, 0x05), buf,
+			ARRAY_SIZE(seq), &actual_length, 1000);
+	kfree(buf);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+/*
  * Setup quirks
  */
 #define AUDIOPHILE_SET			0x01 /* if set, parse device_setup */
@@ -3621,6 +3647,12 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	/* C-Media CM6206 / CM106-Like Sound Device */
 	if (id == USB_ID(0x0d8c, 0x0102)) {
 		if (snd_usb_cm6206_boot_quirk(dev) < 0)
+			goto __err_val;
+	}
+
+	/* Access Music VirusTI Desktop */
+	if (id == USB_ID(0x133e, 0x0815)) {
+		if (snd_usb_accessmusic_boot_quirk(dev) < 0)
 			goto __err_val;
 	}
 
