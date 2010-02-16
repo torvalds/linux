@@ -1,6 +1,6 @@
 /* bnx2.c: Broadcom NX2 network driver.
  *
- * Copyright (c) 2004-2009 Broadcom Corporation
+ * Copyright (c) 2004-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,13 +58,13 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"2.0.3"
-#define DRV_MODULE_RELDATE	"Dec 03, 2009"
-#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-5.0.0.j3.fw"
+#define DRV_MODULE_VERSION	"2.0.8"
+#define DRV_MODULE_RELDATE	"Feb 15, 2010"
+#define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-5.0.0.j6.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-5.0.0.j3.fw"
-#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-5.0.0.j3.fw"
-#define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-5.0.0.j3.fw"
-#define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-5.0.0.j3.fw"
+#define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-5.0.0.j9.fw"
+#define FW_RV2P_FILE_09_Ax	"bnx2/bnx2-rv2p-09ax-5.0.0.j10.fw"
+#define FW_RV2P_FILE_09		"bnx2/bnx2-rv2p-09-5.0.0.j10.fw"
 
 #define RUN_AT(x) (jiffies + (x))
 
