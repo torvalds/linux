@@ -75,6 +75,11 @@ static struct clk usb0_clk = {
 	.name	    = "usb0",
 };
 
+/* a static keysc0 clk for now - enough to get sh_keysc working */
+static struct clk keysc0_clk = {
+	.name	    = "keysc0",
+};
+
 static struct clk_lookup lookups[] = {
 	{
 		.clk = &peripheral_clk,
@@ -82,6 +87,8 @@ static struct clk_lookup lookups[] = {
 		.clk = &r_clk,
 	}, {
 		.clk = &usb0_clk,
+	}, {
+		.clk = &keysc0_clk,
 	}
 };
 
