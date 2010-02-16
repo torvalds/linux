@@ -61,50 +61,6 @@ static int __init setup_nmi_watchdog(char *str)
 }
 __setup("nmi_watchdog=", setup_nmi_watchdog);
 
-#ifdef CONFIG_SYSCTL
-/*
- * proc handler for /proc/sys/kernel/nmi_watchdog
- */
-int nmi_watchdog_enabled;
-
-int proc_nmi_enabled(struct ctl_table *table, int write,
-		     void __user *buffer, size_t *length, loff_t *ppos)
-{
-	int cpu;
-
-	if (!write) {
-		struct perf_event *event;
-		for_each_online_cpu(cpu) {
-			event = per_cpu(nmi_watchdog_ev, cpu);
-			if (event->state > PERF_EVENT_STATE_OFF) {
-				nmi_watchdog_enabled = 1;
-				break;
-			}
-		}
-		proc_dointvec(table, write, buffer, length, ppos);
-		return 0;
-	}
-
-	if (per_cpu(nmi_watchdog_ev, smp_processor_id()) == NULL) {
-		nmi_watchdog_enabled = 0;
-		proc_dointvec(table, write, buffer, length, ppos);
-		printk("NMI watchdog failed configuration, can not be enabled\n");
-		return 0;
-	}
-
-	touch_all_nmi_watchdog();
-	proc_dointvec(table, write, buffer, length, ppos);
-	if (nmi_watchdog_enabled)
-		for_each_online_cpu(cpu)
-			perf_event_enable(per_cpu(nmi_watchdog_ev, cpu));
-	else
-		for_each_online_cpu(cpu)
-			perf_event_disable(per_cpu(nmi_watchdog_ev, cpu));
-	return 0;
-}
-
-#endif /* CONFIG_SYSCTL */
-
 struct perf_event_attr wd_attr = {
 	.type = PERF_TYPE_HARDWARE,
 	.config = PERF_COUNT_HW_CPU_CYCLES,
@@ -146,6 +102,85 @@ void wd_overflow(struct perf_event *event, int nmi,
 	return;
 }
 
+static int enable_nmi_watchdog(int cpu)
+{
+	struct perf_event *event;
+
+	event = per_cpu(nmi_watchdog_ev, cpu);
+	if (event && event->state > PERF_EVENT_STATE_OFF)
+		return 0;
+
+	if (event == NULL) {
+		/* Try to register using hardware perf events first */
+		wd_attr.sample_period = hw_nmi_get_sample_period();
+		event = perf_event_create_kernel_counter(&wd_attr, cpu, -1, wd_overflow);
+		if (IS_ERR(event)) {
+			wd_attr.type = PERF_TYPE_SOFTWARE;
+			event = perf_event_create_kernel_counter(&wd_attr, cpu, -1, wd_overflow);
+			if (IS_ERR(event)) {
+				printk(KERN_ERR "nmi watchdog failed to create perf event on %i: %p\n", cpu, event);
+				return -1;
+			}
+		}
+		per_cpu(nmi_watchdog_ev, cpu) = event;
+	}
+	perf_event_enable(per_cpu(nmi_watchdog_ev, cpu));
+	return 0;
+}
+
+static void disable_nmi_watchdog(int cpu)
+{
+	struct perf_event *event;
+
+	event = per_cpu(nmi_watchdog_ev, cpu);
+	if (event) {
+		perf_event_disable(per_cpu(nmi_watchdog_ev, cpu));
+		per_cpu(nmi_watchdog_ev, cpu) = NULL;
+		perf_event_release_kernel(event);
+	}
+}
+
+#ifdef CONFIG_SYSCTL
+/*
+ * proc handler for /proc/sys/kernel/nmi_watchdog
+ */
+int nmi_watchdog_enabled;
+
+int proc_nmi_enabled(struct ctl_table *table, int write,
+		     void __user *buffer, size_t *length, loff_t *ppos)
+{
+	int cpu;
+
+	if (!write) {
+		struct perf_event *event;
+		for_each_online_cpu(cpu) {
+			event = per_cpu(nmi_watchdog_ev, cpu);
+			if (event && event->state > PERF_EVENT_STATE_OFF) {
+				nmi_watchdog_enabled = 1;
+				break;
+			}
+		}
+		proc_dointvec(table, write, buffer, length, ppos);
+		return 0;
+	}
+
+	touch_all_nmi_watchdog();
+	proc_dointvec(table, write, buffer, length, ppos);
+	if (nmi_watchdog_enabled) {
+		for_each_online_cpu(cpu)
+			if (enable_nmi_watchdog(cpu)) {
+				printk("NMI watchdog failed configuration, "
+					" can not be enabled\n");
+			}
+	} else {
+		for_each_online_cpu(cpu)
+			disable_nmi_watchdog(cpu);
+	}
+	return 0;
+}
+
+#endif /* CONFIG_SYSCTL */
+
 /*
  * Create/destroy watchdog threads as CPUs come and go:
  */
@@ -153,7 +188,6 @@ static int __cpuinit
 cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
-	struct perf_event *event;
 
 	switch (action) {
 	case CPU_UP_PREPARE:
@@ -162,29 +196,15 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		/* originally wanted the below chunk to be in CPU_UP_PREPARE, but caps is unpriv for non-CPU0 */
-		wd_attr.sample_period = hw_nmi_get_sample_period();
-		event = perf_event_create_kernel_counter(&wd_attr, hotcpu, -1, wd_overflow);
-		if (IS_ERR(event)) {
-			wd_attr.type = PERF_TYPE_SOFTWARE;
-			event = perf_event_create_kernel_counter(&wd_attr, hotcpu, -1, wd_overflow);
-			if (IS_ERR(event)) {
-				printk(KERN_ERR "nmi watchdog failed to create perf event on %i: %p\n", hotcpu, event);
-				return NOTIFY_BAD;
-			}
-		}
-		per_cpu(nmi_watchdog_ev, hotcpu) = event;
-		perf_event_enable(per_cpu(nmi_watchdog_ev, hotcpu));
+		if (enable_nmi_watchdog(hotcpu))
+			return NOTIFY_BAD;
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
-		perf_event_disable(per_cpu(nmi_watchdog_ev, hotcpu));
+		disable_nmi_watchdog(hotcpu);
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		event = per_cpu(nmi_watchdog_ev, hotcpu);
-		per_cpu(nmi_watchdog_ev, hotcpu) = NULL;
-		perf_event_release_kernel(event);
 		break;
 #endif /* CONFIG_HOTPLUG_CPU */
 	}
