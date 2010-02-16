@@ -1856,8 +1856,9 @@ static void snd_usb_mixer_proc_read(struct snd_info_entry *entry,
 
 	list_for_each_entry(mixer, &chip->mixer_list, list) {
 		snd_iprintf(buffer,
-			"USB Mixer: ctrlif=%i, ctlerr=%i\n",
-				mixer->ctrlif, mixer->ignore_ctl_error);
+			"USB Mixer: usb_id=0x%08x, ctrlif=%i, ctlerr=%i\n",
+				chip->usb_id, mixer->ctrlif,
+				mixer->ignore_ctl_error);
 		snd_iprintf(buffer, "Card: %s\n", chip->card->longname);
 		for (unitid = 0; unitid < MAX_ID_ELEMS; unitid++) {
 			for (cval = mixer->id_elems[unitid]; cval;
