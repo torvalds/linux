@@ -255,7 +255,7 @@
 		};
 
 		display@2100 {
-			compatible = "fsl,mpc5121-diu", "fsl,diu";
+			compatible = "fsl,mpc5121-diu";
 			reg = <0x2100 0x100>;
 			interrupts = <64 0x8>;
 			interrupt-parent = < &ipic >;
