@@ -94,8 +94,8 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 		musb_resources[0].start = OMAP34XX_HSUSB_OTG_BASE;
 	} else if (cpu_is_omap44xx()) {
 		musb_resources[0].start = OMAP44XX_HSUSB_OTG_BASE;
-		musb_resources[1].start = INT_44XX_HS_USB_MC;
-		musb_resources[2].start = INT_44XX_HS_USB_DMA;
+		musb_resources[1].start = OMAP44XX_IRQ_HS_USB_MC_N;
+		musb_resources[2].start = OMAP44XX_IRQ_HS_USB_DMA_N;
 	}
 	musb_resources[0].end = musb_resources[0].start + SZ_4K - 1;
 

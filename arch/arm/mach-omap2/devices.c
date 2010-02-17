@@ -191,7 +191,7 @@ static struct resource omap4_mbox_resources[] = {
 		.flags          = IORESOURCE_MEM,
 	},
 	{
-		.start          = INT_44XX_MAIL_U0_MPU,
+		.start          = OMAP44XX_IRQ_MAIL_U0,
 		.flags          = IORESOURCE_IRQ,
 	},
 };
@@ -720,13 +720,13 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			if (!cpu_is_omap44xx())
 				return;
 			base = OMAP4_MMC4_BASE + OMAP4_MMC_REG_OFFSET;
-			irq = INT_44XX_MMC4_IRQ;
+			irq = OMAP44XX_IRQ_MMC4;
 			break;
 		case 4:
 			if (!cpu_is_omap44xx())
 				return;
 			base = OMAP4_MMC5_BASE + OMAP4_MMC_REG_OFFSET;
-			irq = INT_44XX_MMC5_IRQ;
+			irq = OMAP44XX_IRQ_MMC4;
 			break;
 		default:
 			continue;
@@ -738,7 +738,7 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 		} else if (cpu_is_omap44xx()) {
 			if (i < 3) {
 				base += OMAP4_MMC_REG_OFFSET;
-				irq += IRQ_GIC_START;
+				irq += OMAP44XX_IRQ_GIC_START;
 			}
 			size = OMAP4_HSMMC_SIZE;
 			name = "mmci-omap-hs";

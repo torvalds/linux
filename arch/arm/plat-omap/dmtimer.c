@@ -250,18 +250,18 @@ static const int omap3_dm_timer_count = ARRAY_SIZE(omap3_dm_timers);
 
 #ifdef CONFIG_ARCH_OMAP4
 static struct omap_dm_timer omap4_dm_timers[] = {
-	{ .phys_base = 0x4a318000, .irq = INT_44XX_GPTIMER1 },
-	{ .phys_base = 0x48032000, .irq = INT_44XX_GPTIMER2 },
-	{ .phys_base = 0x48034000, .irq = INT_44XX_GPTIMER3 },
-	{ .phys_base = 0x48036000, .irq = INT_44XX_GPTIMER4 },
-	{ .phys_base = 0x40138000, .irq = INT_44XX_GPTIMER5 },
-	{ .phys_base = 0x4013a000, .irq = INT_44XX_GPTIMER6 },
-	{ .phys_base = 0x4013a000, .irq = INT_44XX_GPTIMER7 },
-	{ .phys_base = 0x4013e000, .irq = INT_44XX_GPTIMER8 },
-	{ .phys_base = 0x4803e000, .irq = INT_44XX_GPTIMER9 },
-	{ .phys_base = 0x48086000, .irq = INT_44XX_GPTIMER10 },
-	{ .phys_base = 0x48088000, .irq = INT_44XX_GPTIMER11 },
-	{ .phys_base = 0x4a320000, .irq = INT_44XX_GPTIMER12 },
+	{ .phys_base = 0x4a318000, .irq = OMAP44XX_IRQ_GPT1 },
+	{ .phys_base = 0x48032000, .irq = OMAP44XX_IRQ_GPT2 },
+	{ .phys_base = 0x48034000, .irq = OMAP44XX_IRQ_GPT3 },
+	{ .phys_base = 0x48036000, .irq = OMAP44XX_IRQ_GPT4 },
+	{ .phys_base = 0x40138000, .irq = OMAP44XX_IRQ_GPT5 },
+	{ .phys_base = 0x4013a000, .irq = OMAP44XX_IRQ_GPT6 },
+	{ .phys_base = 0x4013a000, .irq = OMAP44XX_IRQ_GPT7 },
+	{ .phys_base = 0x4013e000, .irq = OMAP44XX_IRQ_GPT8 },
+	{ .phys_base = 0x4803e000, .irq = OMAP44XX_IRQ_GPT9 },
+	{ .phys_base = 0x48086000, .irq = OMAP44XX_IRQ_GPT10 },
+	{ .phys_base = 0x48088000, .irq = OMAP44XX_IRQ_GPT11 },
+	{ .phys_base = 0x4a320000, .irq = OMAP44XX_IRQ_GPT12 },
 };
 static const char *omap4_dm_source_names[] __initdata = {
 	"sys_ck",

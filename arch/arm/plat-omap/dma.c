@@ -2132,7 +2132,7 @@ static int __init omap_init_dma(void)
 	if (cpu_class_is_omap2()) {
 		int irq;
 		if (cpu_is_omap44xx())
-			irq = INT_44XX_SDMA_IRQ0;
+			irq = OMAP44XX_IRQ_SDMA_0;
 		else
 			irq = INT_24XX_SDMA_IRQ0;
 		setup_irq(irq, &omap24xx_dma_irq);

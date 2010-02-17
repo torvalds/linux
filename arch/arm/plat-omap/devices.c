@@ -205,8 +205,8 @@ static struct resource mcpdm_resources[] = {
 	},
 	{
 		.name		= "mcpdm_irq",
-		.start		= INT_44XX_MCPDM_IRQ,
-		.end		= INT_44XX_MCPDM_IRQ,
+		.start		= OMAP44XX_IRQ_MCPDM,
+		.end		= OMAP44XX_IRQ_MCPDM,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
