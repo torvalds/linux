@@ -163,14 +163,17 @@ xfs_ioend_new_eof(
 }
 
 /*
- * Update on-disk file size now that data has been written to disk.
- * The current in-memory file size is i_size.  If a write is beyond
- * eof i_new_size will be the intended file size until i_size is
- * updated.  If this write does not extend all the way to the valid
- * file size then restrict this update to the end of the write.
+ * Update on-disk file size now that data has been written to disk.  The
+ * current in-memory file size is i_size.  If a write is beyond eof i_new_size
+ * will be the intended file size until i_size is updated.  If this write does
+ * not extend all the way to the valid file size then restrict this update to
+ * the end of the write.
+ *
+ * This function does not block as blocking on the inode lock in IO completion
+ * can lead to IO completion order dependency deadlocks.. If it can't get the
+ * inode ilock it will return EAGAIN. Callers must handle this.
  */
-
-STATIC void
+STATIC int
 xfs_setfilesize(
 	xfs_ioend_t		*ioend)
 {
@@ -181,9 +184,11 @@ xfs_setfilesize(
 	ASSERT(ioend->io_type != IOMAP_READ);
 
 	if (unlikely(ioend->io_error))
-		return;
+		return 0;
 
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
+		return EAGAIN;
+
 	isize = xfs_ioend_new_eof(ioend);
 	if (isize) {
 		ip->i_d.di_size = isize;
@@ -191,40 +196,7 @@ xfs_setfilesize(
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-}
-
-/*
- * IO write completion.
- */
-STATIC void
-xfs_end_io(
-	struct work_struct	*work)
-{
-	xfs_ioend_t		*ioend =
-		container_of(work, xfs_ioend_t, io_work);
-	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
-
-	/*
-	 * For unwritten extents we need to issue transactions to convert a
-	 * range to normal written extens after the data I/O has finished.
-	 */
-	if (ioend->io_type == IOMAP_UNWRITTEN &&
-	    likely(!ioend->io_error && !XFS_FORCED_SHUTDOWN(ip->i_mount))) {
-		int error;
-
-		error = xfs_iomap_write_unwritten(ip, ioend->io_offset,
-						 ioend->io_size);
-		if (error)
-			ioend->io_error = error;
-	}
-
-	/*
-	 * We might have to update the on-disk file size after extending
-	 * writes.
-	 */
-	if (ioend->io_type != IOMAP_READ)
-		xfs_setfilesize(ioend);
-	xfs_destroy_ioend(ioend);
+	return 0;
 }
 
 /*
@@ -246,6 +218,53 @@ xfs_finish_ioend(
 		if (wait)
 			flush_workqueue(wq);
 	}
+}
+
+/*
+ * IO write completion.
+ */
+STATIC void
+xfs_end_io(
+	struct work_struct *work)
+{
+	xfs_ioend_t	*ioend = container_of(work, xfs_ioend_t, io_work);
+	struct xfs_inode *ip = XFS_I(ioend->io_inode);
+	int		error;
+
+	/*
+	 * For unwritten extents we need to issue transactions to convert a
+	 * range to normal written extens after the data I/O has finished.
+	 */
+	if (ioend->io_type == IOMAP_UNWRITTEN &&
+	    likely(!ioend->io_error && !XFS_FORCED_SHUTDOWN(ip->i_mount))) {
+
+		error = xfs_iomap_write_unwritten(ip, ioend->io_offset,
+						 ioend->io_size);
+		if (error)
+			ioend->io_error = error;
+	}
+
+	/*
+	 * We might have to update the on-disk file size after extending
+	 * writes.
+	 */
+	if (ioend->io_type != IOMAP_READ) {
+		error = xfs_setfilesize(ioend);
+		ASSERT(!error || error == EAGAIN);
+	}
+
+	/*
+	 * If we didn't complete processing of the ioend, requeue it to the
+	 * tail of the workqueue for another attempt later. Otherwise destroy
+	 * it.
+	 */
+	if (error == EAGAIN) {
+		atomic_inc(&ioend->io_remaining);
+		xfs_finish_ioend(ioend, 0);
+		/* ensure we don't spin on blocked ioends */
+		delay(1);
+	} else
+		xfs_destroy_ioend(ioend);
 }
 
 /*
