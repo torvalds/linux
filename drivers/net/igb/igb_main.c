@@ -3758,7 +3758,7 @@ static int __igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 	return 0;
 }
 
-static int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
+static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, int size)
 {
 	if (igb_desc_unused(tx_ring) >= size)
 		return 0;
