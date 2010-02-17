@@ -262,9 +262,7 @@ static int htable_create_v0(struct net *net, struct xt_hashlimit_info *minfo, u_
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
 	add_timer(&hinfo->timer);
 
-	mutex_lock(&hashlimit_mutex);
 	hlist_add_head(&hinfo->node, &hashlimit_net->htables);
-	mutex_unlock(&hashlimit_mutex);
 
 	return 0;
 }
@@ -327,9 +325,7 @@ static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 	hinfo->timer.expires = jiffies + msecs_to_jiffies(hinfo->cfg.gc_interval);
 	add_timer(&hinfo->timer);
 
-	mutex_lock(&hashlimit_mutex);
 	hlist_add_head(&hinfo->node, &hashlimit_net->htables);
-	mutex_unlock(&hashlimit_mutex);
 
 	return 0;
 }
