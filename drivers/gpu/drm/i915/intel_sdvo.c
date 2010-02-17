@@ -2345,6 +2345,14 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		connector->connector_type = DRM_MODE_CONNECTOR_VGA;
 		intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 					(1 << INTEL_ANALOG_CLONE_BIT);
+	} else if (flags & SDVO_OUTPUT_CVBS0) {
+
+		sdvo_priv->controlled_output = SDVO_OUTPUT_CVBS0;
+		encoder->encoder_type = DRM_MODE_ENCODER_TVDAC;
+		connector->connector_type = DRM_MODE_CONNECTOR_SVIDEO;
+		sdvo_priv->is_tv = true;
+		intel_output->needs_tv_clock = true;
+		intel_output->clone_mask = 1 << INTEL_SDVO_TV_CLONE_BIT;
 	} else if (flags & SDVO_OUTPUT_LVDS0) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_LVDS0;

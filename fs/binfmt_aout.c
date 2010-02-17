@@ -264,6 +264,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 #else
 	set_personality(PER_LINUX);
 #endif
+	setup_new_exec(bprm);
 
 	current->mm->end_code = ex.a_text +
 		(current->mm->start_code = N_TXTADDR(ex));

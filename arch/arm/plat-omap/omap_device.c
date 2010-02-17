@@ -89,16 +89,6 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-/* XXX this should be moved into a separate file */
-#if defined(CONFIG_ARCH_OMAP2420)
-# define OMAP_32KSYNCT_BASE		0x48004000
-#elif defined(CONFIG_ARCH_OMAP2430)
-# define OMAP_32KSYNCT_BASE		0x49020000
-#elif defined(CONFIG_ARCH_OMAP3430)
-# define OMAP_32KSYNCT_BASE		0x48320000
-#else
-# error Unknown OMAP device
-#endif
 
 /* Private functions */
 

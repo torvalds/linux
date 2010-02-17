@@ -77,6 +77,7 @@ struct drm_nouveau_gpuobj_free {
 #define NOUVEAU_GETPARAM_PCI_PHYSICAL    10
 #define NOUVEAU_GETPARAM_CHIPSET_ID      11
 #define NOUVEAU_GETPARAM_VM_VRAM_BASE    12
+#define NOUVEAU_GETPARAM_GRAPH_UNITS     13
 struct drm_nouveau_getparam {
 	uint64_t param;
 	uint64_t value;

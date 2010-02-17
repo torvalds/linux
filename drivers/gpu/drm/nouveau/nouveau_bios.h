@@ -205,6 +205,8 @@ struct nvbios {
 	struct drm_device *dev;
 	struct nouveau_bios_info pub;
 
+	spinlock_t lock;
+
 	uint8_t data[NV_PROM_SIZE];
 	unsigned int length;
 	bool execute;

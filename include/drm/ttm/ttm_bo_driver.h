@@ -353,6 +353,11 @@ struct ttm_bo_driver {
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */
 	void (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+
+	/**
+	 * notify the driver that we're about to swap out this bo
+	 */
+	void (*swap_notify) (struct ttm_buffer_object *bo);
 };
 
 /**

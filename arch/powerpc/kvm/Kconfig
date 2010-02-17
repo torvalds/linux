@@ -53,7 +53,7 @@ config KVM_440
 
 config KVM_EXIT_TIMING
 	bool "Detailed exit timing"
-	depends on KVM
+	depends on KVM_440 || KVM_E500
 	---help---
 	  Calculate elapsed time for every exit/enter cycle. A per-vcpu
 	  report is available in debugfs kvm/vm#_vcpu#_timing.

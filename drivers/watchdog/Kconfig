@@ -396,8 +396,8 @@ config SBC_FITPC2_WATCHDOG
 	tristate "Compulab SBC-FITPC2 watchdog"
 	depends on X86
 	---help---
-	  This is the driver for the built-in watchdog timer on the fit-PC2
-	  Single-board computer made by Compulab.
+	  This is the driver for the built-in watchdog timer on the fit-PC2,
+	  fit-PC2i, CM-iAM single-board computers made by Compulab.
 
 	  It`s possible to enable watchdog timer either from BIOS (F2) or from booted Linux.
 	  When "Watchdog Timer Value" enabled one can set 31-255 s operational range.

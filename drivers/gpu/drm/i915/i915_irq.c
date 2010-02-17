@@ -309,6 +309,22 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	if (de_iir & DE_GSE)
 		ironlake_opregion_gse_intr(dev);
 
+	if (de_iir & DE_PLANEA_FLIP_DONE) {
+		intel_prepare_page_flip(dev, 0);
+		intel_finish_page_flip(dev, 0);
+	}
+
+	if (de_iir & DE_PLANEB_FLIP_DONE) {
+		intel_prepare_page_flip(dev, 1);
+		intel_finish_page_flip(dev, 1);
+	}
+
+	if (de_iir & DE_PIPEA_VBLANK)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK)
+		drm_handle_vblank(dev, 1);
+
 	/* check event from PCH */
 	if ((de_iir & DE_PCH_EVENT) &&
 	    (pch_iir & SDE_HOTPLUG_MASK)) {
@@ -844,11 +860,11 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 	if (!(pipeconf & PIPEACONF_ENABLE))
 		return -EINVAL;
 
-	if (IS_IRONLAKE(dev))
-		return 0;
-
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	if (IS_I965G(dev))
+	if (IS_IRONLAKE(dev))
+		ironlake_enable_display_irq(dev_priv, (pipe == 0) ? 
+					    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+	else if (IS_I965G(dev))
 		i915_enable_pipestat(dev_priv, pipe,
 				     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	else
@@ -866,13 +882,14 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
 
-	if (IS_IRONLAKE(dev))
-		return;
-
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	i915_disable_pipestat(dev_priv, pipe,
-			      PIPE_VBLANK_INTERRUPT_ENABLE |
-			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
+	if (IS_IRONLAKE(dev))
+		ironlake_disable_display_irq(dev_priv, (pipe == 0) ? 
+					     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+	else
+		i915_disable_pipestat(dev_priv, pipe,
+				      PIPE_VBLANK_INTERRUPT_ENABLE |
+				      PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
@@ -1015,13 +1032,14 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
-	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT;
+	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
+			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
 	u32 render_mask = GT_USER_INTERRUPT;
 	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
 
 	dev_priv->irq_mask_reg = ~display_mask;
-	dev_priv->de_irq_enable_reg = display_mask;
+	dev_priv->de_irq_enable_reg = display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK;
 
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));

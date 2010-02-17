@@ -278,12 +278,11 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	/* Ensure the channel is no longer active on the GPU */
 	pfifo->reassign(dev, false);
 
-	if (pgraph->channel(dev) == chan) {
-		pgraph->fifo_access(dev, false);
+	pgraph->fifo_access(dev, false);
+	if (pgraph->channel(dev) == chan)
 		pgraph->unload_context(dev);
-		pgraph->fifo_access(dev, true);
-	}
 	pgraph->destroy_context(chan);
+	pgraph->fifo_access(dev, true);
 
 	if (pfifo->channel_id(dev) == chan->id) {
 		pfifo->disable(dev);

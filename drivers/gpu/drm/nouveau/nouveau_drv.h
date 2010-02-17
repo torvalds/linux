@@ -509,6 +509,8 @@ struct drm_nouveau_private {
 	void __iomem *ramin;
 	uint32_t ramin_size;
 
+	struct nouveau_bo *vga_ram;
+
 	struct workqueue_struct *wq;
 	struct work_struct irq_work;
 
@@ -675,6 +677,9 @@ extern char *nouveau_tv_norm;
 extern int nouveau_reg_debug;
 extern char *nouveau_vbios;
 extern int nouveau_ctxfw;
+extern int nouveau_ignorelid;
+extern int nouveau_nofbaccel;
+extern int nouveau_noaccel;
 
 /* nouveau_state.c */
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);

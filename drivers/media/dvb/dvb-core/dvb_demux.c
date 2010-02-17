@@ -426,16 +426,7 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		};
 	};
 
-	if (dvb_demux_tscheck) {
-		if (!demux->cnt_storage)
-			demux->cnt_storage = vmalloc(MAX_PID + 1);
-
-		if (!demux->cnt_storage) {
-			printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
-			dvb_demux_tscheck = 0;
-			goto no_dvb_demux_tscheck;
-		}
-
+	if (demux->cnt_storage) {
 		/* check pkt counter */
 		if (pid < MAX_PID) {
 			if (buf[1] & 0x80)
@@ -454,7 +445,6 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		};
 		/* end check */
 	};
-no_dvb_demux_tscheck:
 
 	list_for_each_entry(feed, &demux->feed_list, list_head) {
 		if ((feed->pid != pid) && (feed->pid != 0x2000))
@@ -1246,6 +1236,7 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 	dvbdemux->feed = vmalloc(dvbdemux->feednum * sizeof(struct dvb_demux_feed));
 	if (!dvbdemux->feed) {
 		vfree(dvbdemux->filter);
+		dvbdemux->filter = NULL;
 		return -ENOMEM;
 	}
 	for (i = 0; i < dvbdemux->filternum; i++) {
@@ -1255,6 +1246,13 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 	for (i = 0; i < dvbdemux->feednum; i++) {
 		dvbdemux->feed[i].state = DMX_STATE_FREE;
 		dvbdemux->feed[i].index = i;
+	}
+
+	if (dvb_demux_tscheck) {
+		dvbdemux->cnt_storage = vmalloc(MAX_PID + 1);
+
+		if (!dvbdemux->cnt_storage)
+			printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
 	}
 
 	INIT_LIST_HEAD(&dvbdemux->frontend_list);

@@ -2034,7 +2034,7 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		status = -ENOENT;
 		mlog_errno(status);
 		return status;
-	}	
+	}
 
 	mutex_lock(&orphan_dir_inode->i_mutex);
 	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);

@@ -35,7 +35,7 @@
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return rdev->family >= CHIP_R600
+	return (rdev->family >= CHIP_R600 && rdev->family < CHIP_RV710)
 		|| rdev->family == CHIP_RS600
 		|| rdev->family == CHIP_RS690
 		|| rdev->family == CHIP_RS740;
@@ -261,7 +261,6 @@ void r600_audio_fini(struct radeon_device *rdev)
 	if (!r600_audio_chipset_supported(rdev))
 		return;
 
-	WREG32_P(R600_AUDIO_ENABLE, 0x0, ~0x81000000);
-
 	del_timer(&rdev->audio_timer);
+	WREG32_P(R600_AUDIO_ENABLE, 0x0, ~0x81000000);
 }

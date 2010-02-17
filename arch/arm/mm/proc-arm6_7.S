@@ -41,7 +41,7 @@ ENTRY(cpu_arm7_dcache_clean_area)
 ENTRY(cpu_arm7_data_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
-	ldr	r8, [r0]			@ read arm instruction
+	ldr	r8, [r2]			@ read arm instruction
 	tst	r8, #1 << 20			@ L = 0 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #15 << 24
