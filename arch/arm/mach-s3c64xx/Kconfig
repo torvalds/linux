@@ -144,6 +144,21 @@ config SMDK6410_WM1190_EV1
 	  detected at runtime so the the resulting kernel can be used
 	  with or without the 1190-EV1 fitted.
 
+config SMDK6410_WM1192_EV1
+	bool "Support Wolfson Microelectronics 1192-EV1 PMIC card"
+	depends on MACH_SMDK6410
+	select REGULATOR
+	select REGULATOR_WM831X
+	select S3C24XX_GPIO_EXTRA64
+	select MFD_WM831X
+	help
+	  The Wolfson Microelectronics 1192-EV1 is a WM831x based PMIC
+	  daughtercard for the Samsung SMDK6410 reference platform.
+	  Enabling this option will build support for this module into
+	  the kernel.  The presence of the daughtercard will be
+	  detected at runtime so the the resulting kernel can be used
+	  with or without the 1192-EV1 fitted.
+
 config MACH_NCP
 	bool "NCP"
 	select CPU_S3C6410

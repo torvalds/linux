@@ -200,6 +200,8 @@
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 #define IRQ_BOARD_NR 64
+#elif defined(CONFIG_SMDK6410_WM1192_EV1)
+#define IRQ_BOARD_NR 64
 #else
 #define IRQ_BOARD_NR 16
 #endif

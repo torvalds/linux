@@ -32,6 +32,10 @@
 #include <linux/mfd/wm8350/pmic.h>
 #endif
 
+#ifdef CONFIG_SMDK6410_WM1192_EV1
+#include <linux/mfd/wm831x/pdata.h>
+#endif
+
 #include <video/platform_lcd.h>
 
 #include <asm/mach/arch.h>
@@ -257,6 +261,119 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&smdk6410_smsc911x,
 };
 
+#ifdef CONFIG_REGULATOR
+/* ARM core */
+static struct regulator_consumer_supply smdk6410_vddarm_consumers[] = {
+	{
+		.supply = "vddarm",
+	}
+};
+
+/* VDDARM, BUCK1 on J5 */
+static struct regulator_init_data smdk6410_vddarm = {
+	.constraints = {
+		.name = "PVDD_ARM",
+		.min_uV = 1000000,
+		.max_uV = 1300000,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(smdk6410_vddarm_consumers),
+	.consumer_supplies = smdk6410_vddarm_consumers,
+};
+
+/* VDD_INT, BUCK2 on J5 */
+static struct regulator_init_data smdk6410_vddint = {
+	.constraints = {
+		.name = "PVDD_INT",
+		.min_uV = 1000000,
+		.max_uV = 1200000,
+		.always_on = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+	},
+};
+
+/* VDD_HI, LDO3 on J5 */
+static struct regulator_init_data smdk6410_vddhi = {
+	.constraints = {
+		.name = "PVDD_HI",
+		.always_on = 1,
+	},
+};
+
+/* VDD_PLL, LDO2 on J5 */
+static struct regulator_init_data smdk6410_vddpll = {
+	.constraints = {
+		.name = "PVDD_PLL",
+		.always_on = 1,
+	},
+};
+
+/* VDD_UH_MMC, LDO5 on J5 */
+static struct regulator_init_data smdk6410_vdduh_mmc = {
+	.constraints = {
+		.name = "PVDD_UH/PVDD_MMC",
+		.always_on = 1,
+	},
+};
+
+/* VCCM3BT, LDO8 on J5 */
+static struct regulator_init_data smdk6410_vccmc3bt = {
+	.constraints = {
+		.name = "PVCCM3BT",
+		.always_on = 1,
+	},
+};
+
+/* VCCM2MTV, LDO11 on J5 */
+static struct regulator_init_data smdk6410_vccm2mtv = {
+	.constraints = {
+		.name = "PVCCM2MTV",
+		.always_on = 1,
+	},
+};
+
+/* VDD_LCD, LDO12 on J5 */
+static struct regulator_init_data smdk6410_vddlcd = {
+	.constraints = {
+		.name = "PVDD_LCD",
+		.always_on = 1,
+	},
+};
+
+/* VDD_OTGI, LDO9 on J5 */
+static struct regulator_init_data smdk6410_vddotgi = {
+	.constraints = {
+		.name = "PVDD_OTGI",
+		.always_on = 1,
+	},
+};
+
+/* VDD_OTG, LDO14 on J5 */
+static struct regulator_init_data smdk6410_vddotg = {
+	.constraints = {
+		.name = "PVDD_OTG",
+		.always_on = 1,
+	},
+};
+
+/* VDD_ALIVE, LDO15 on J5 */
+static struct regulator_init_data smdk6410_vddalive = {
+	.constraints = {
+		.name = "PVDD_ALIVE",
+		.always_on = 1,
+	},
+};
+
+/* VDD_AUDIO, VLDO_AUDIO on J5 */
+static struct regulator_init_data smdk6410_vddaudio = {
+	.constraints = {
+		.name = "PVDD_AUDIO",
+		.always_on = 1,
+	},
+};
+#endif
+
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 /* S3C64xx internal logic & PLL */
 static struct regulator_init_data wm8350_dcdc1_data = {
@@ -280,7 +397,7 @@ static struct regulator_init_data wm8350_dcdc3_data = {
 			 .uV = 1800000,
 			 .mode = REGULATOR_MODE_NORMAL,
 			 .enabled = 1,
-		 },
+		},
 		.initial_state = PM_SUSPEND_MEM,
 	},
 };
@@ -305,56 +422,6 @@ static struct regulator_init_data wm8350_dcdc4_data = {
 	.consumer_supplies = wm8350_dcdc4_consumers,
 };
 
-/* ARM core */
-static struct regulator_consumer_supply dcdc6_consumers[] = {
-	{
-		.supply = "vddarm",
-	}
-};
-
-static struct regulator_init_data wm8350_dcdc6_data = {
-	.constraints = {
-		.name = "PVDD_ARM",
-		.min_uV = 1000000,
-		.max_uV = 1300000,
-		.always_on = 1,
-		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
-	},
-	.num_consumer_supplies = ARRAY_SIZE(dcdc6_consumers),
-	.consumer_supplies = dcdc6_consumers,
-};
-
-/* Alive */
-static struct regulator_init_data wm8350_ldo1_data = {
-	.constraints = {
-		.name = "PVDD_ALIVE",
-		.min_uV = 1200000,
-		.max_uV = 1200000,
-		.always_on = 1,
-		.apply_uV = 1,
-	},
-};
-
-/* OTG */
-static struct regulator_init_data wm8350_ldo2_data = {
-	.constraints = {
-		.name = "PVDD_OTG",
-		.min_uV = 3300000,
-		.max_uV = 3300000,
-		.always_on = 1,
-	},
-};
-
-/* LCD */
-static struct regulator_init_data wm8350_ldo3_data = {
-	.constraints = {
-		.name = "PVDD_LCD",
-		.min_uV = 3000000,
-		.max_uV = 3000000,
-		.always_on = 1,
-	},
-};
-
 /* OTGi/1190-EV1 HPVDD & AVDD */
 static struct regulator_init_data wm8350_ldo4_data = {
 	.constraints = {
@@ -373,10 +440,10 @@ static struct {
 	{ WM8350_DCDC_1, &wm8350_dcdc1_data },
 	{ WM8350_DCDC_3, &wm8350_dcdc3_data },
 	{ WM8350_DCDC_4, &wm8350_dcdc4_data },
-	{ WM8350_DCDC_6, &wm8350_dcdc6_data },
-	{ WM8350_LDO_1, &wm8350_ldo1_data },
-	{ WM8350_LDO_2, &wm8350_ldo2_data },
-	{ WM8350_LDO_3, &wm8350_ldo3_data },
+	{ WM8350_DCDC_6, &smdk6410_vddarm },
+	{ WM8350_LDO_1, &smdk6410_vddalive },
+	{ WM8350_LDO_2, &smdk6410_vddotg },
+	{ WM8350_LDO_3, &smdk6410_vddlcd },
 	{ WM8350_LDO_4, &wm8350_ldo4_data },
 };
 
@@ -403,9 +470,88 @@ static struct wm8350_platform_data __initdata smdk6410_wm8350_pdata = {
 };
 #endif
 
+#ifdef CONFIG_SMDK6410_WM1192_EV1
+static int wm1192_pre_init(struct wm831x *wm831x)
+{
+	/* Configure the IRQ line */
+	s3c_gpio_setpull(S3C64XX_GPN(12), S3C_GPIO_PULL_UP);
+
+	return 0;
+}
+
+static struct wm831x_backlight_pdata wm1192_backlight_pdata = {
+	.isink = 1,
+	.max_uA = 27554,
+};
+
+static struct regulator_init_data wm1192_dcdc3 = {
+	.constraints = {
+		.name = "PVDD_MEM/PVDD_GPS",
+		.always_on = 1,
+	},
+};
+
+static struct regulator_consumer_supply wm1192_ldo1_consumers[] = {
+	{ .supply = "DVDD", .dev_name = "0-001b", },   /* WM8580 */
+};
+
+static struct regulator_init_data wm1192_ldo1 = {
+	.constraints = {
+		.name = "PVDD_LCD/PVDD_EXT",
+		.always_on = 1,
+	},
+	.consumer_supplies = wm1192_ldo1_consumers,
+	.num_consumer_supplies = ARRAY_SIZE(wm1192_ldo1_consumers),
+};
+
+static struct wm831x_status_pdata wm1192_led7_pdata = {
+	.name = "LED7:green:",
+};
+
+static struct wm831x_status_pdata wm1192_led8_pdata = {
+	.name = "LED8:green:",
+};
+
+static struct wm831x_pdata smdk6410_wm1192_pdata = {
+	.pre_init = wm1192_pre_init,
+	.irq_base = IRQ_BOARD_START,
+
+	.backlight = &wm1192_backlight_pdata,
+	.dcdc = {
+		&smdk6410_vddarm,  /* DCDC1 */
+		&smdk6410_vddint,  /* DCDC2 */
+		&wm1192_dcdc3,
+	},
+	.ldo = {
+		 &wm1192_ldo1,        /* LDO1 */
+		 &smdk6410_vdduh_mmc, /* LDO2 */
+		 NULL,                /* LDO3 NC */
+		 &smdk6410_vddotgi,   /* LDO4 */
+		 &smdk6410_vddotg,    /* LDO5 */
+		 &smdk6410_vddhi,     /* LDO6 */
+		 &smdk6410_vddaudio,  /* LDO7 */
+		 &smdk6410_vccm2mtv,  /* LDO8 */
+		 &smdk6410_vddpll,    /* LDO9 */
+		 &smdk6410_vccmc3bt,  /* LDO10 */
+		 &smdk6410_vddalive,  /* LDO11 */
+	},
+	.status = {
+		&wm1192_led7_pdata,
+		&wm1192_led8_pdata,
+	},
+};
+#endif
+
 static struct i2c_board_info i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },
 	{ I2C_BOARD_INFO("wm8580", 0x1b), },
+
+#ifdef CONFIG_SMDK6410_WM1192_EV1
+	{ I2C_BOARD_INFO("wm8312", 0x34),
+	  .platform_data = &smdk6410_wm1192_pdata,
+	  .irq = S3C_EINT(12),
+	},
+#endif
 
 #ifdef CONFIG_SMDK6410_WM1190_EV1
 	{ I2C_BOARD_INFO("wm8350", 0x1a),
