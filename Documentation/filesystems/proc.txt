@@ -188,7 +188,7 @@ memory usage. Its seven fields are explained in Table 1-3.  The stat file
 contains details information about the process itself.  Its fields are
 explained in Table 1-4.
 
-Table 1-2: Contents of the statm files (as of 2.6.30-rc7)
+Table 1-2: Contents of the status files (as of 2.6.30-rc7)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable
