@@ -591,10 +591,6 @@ struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from)
 
 	int match(struct device *dev, void *data)
 	{
-		/* skip panels connected to controllers */
-		if (to_dss_device(dev)->panel.ctrl)
-			return 0;
-
 		return 1;
 	}
 
@@ -626,45 +622,21 @@ EXPORT_SYMBOL(omap_dss_find_device);
 
 int omap_dss_start_device(struct omap_dss_device *dssdev)
 {
-	int r;
-
 	if (!dssdev->driver) {
 		DSSDBG("no driver\n");
-		r = -ENODEV;
-		goto err0;
-	}
-
-	if (dssdev->ctrl.panel && !dssdev->ctrl.panel->driver) {
-		DSSDBG("no panel driver\n");
-		r = -ENODEV;
-		goto err0;
+		return -ENODEV;
 	}
 
 	if (!try_module_get(dssdev->dev.driver->owner)) {
-		r = -ENODEV;
-		goto err0;
-	}
-
-	if (dssdev->ctrl.panel) {
-		if (!try_module_get(dssdev->ctrl.panel->dev.driver->owner)) {
-			r = -ENODEV;
-			goto err1;
-		}
+		return -ENODEV;
 	}
 
 	return 0;
-err1:
-	module_put(dssdev->dev.driver->owner);
-err0:
-	return r;
 }
 EXPORT_SYMBOL(omap_dss_start_device);
 
 void omap_dss_stop_device(struct omap_dss_device *dssdev)
 {
-	if (dssdev->ctrl.panel)
-		module_put(dssdev->ctrl.panel->dev.driver->owner);
-
 	module_put(dssdev->dev.driver->owner);
 }
 EXPORT_SYMBOL(omap_dss_stop_device);

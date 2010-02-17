@@ -431,14 +431,11 @@ struct omap_dss_device {
 		enum omap_panel_config config;
 
 		u8 recommended_bpp;
-
-		struct omap_dss_device *ctrl;
 	} panel;
 
 	struct {
 		u8 pixel_size;
 		struct rfbi_timings rfbi_timings;
-		struct omap_dss_device *panel;
 	} ctrl;
 
 	int reset_gpio;

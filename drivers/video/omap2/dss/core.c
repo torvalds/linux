@@ -771,11 +771,8 @@ static int dss_driver_probe(struct device *dev)
 
 	dss_init_device(core.pdev, dssdev);
 
-	/* skip this if the device is behind a ctrl */
-	if (!dssdev->panel.ctrl) {
-		force = pdata->default_device == dssdev;
-		dss_recheck_connections(dssdev, force);
-	}
+	force = pdata->default_device == dssdev;
+	dss_recheck_connections(dssdev, force);
 
 	r = dssdrv->probe(dssdev);
 
@@ -861,8 +858,6 @@ static void omap_dss_dev_release(struct device *dev)
 int omap_dss_register_device(struct omap_dss_device *dssdev)
 {
 	static int dev_num;
-	static int panel_num;
-	int r;
 
 	WARN_ON(!dssdev->driver_name);
 
@@ -871,36 +866,12 @@ int omap_dss_register_device(struct omap_dss_device *dssdev)
 	dssdev->dev.parent = &dss_bus;
 	dssdev->dev.release = omap_dss_dev_release;
 	dev_set_name(&dssdev->dev, "display%d", dev_num++);
-	r = device_register(&dssdev->dev);
-	if (r)
-		return r;
-
-	if (dssdev->ctrl.panel) {
-		struct omap_dss_device *panel = dssdev->ctrl.panel;
-
-		panel->panel.ctrl = dssdev;
-
-		reset_device(&panel->dev, 1);
-		panel->dev.bus = &dss_bus_type;
-		panel->dev.parent = &dssdev->dev;
-		panel->dev.release = omap_dss_dev_release;
-		dev_set_name(&panel->dev, "panel%d", panel_num++);
-		r = device_register(&panel->dev);
-		if (r)
-			return r;
-	}
-
-	return 0;
+	return device_register(&dssdev->dev);
 }
 
 void omap_dss_unregister_device(struct omap_dss_device *dssdev)
 {
 	device_unregister(&dssdev->dev);
-
-	if (dssdev->ctrl.panel) {
-		struct omap_dss_device *panel = dssdev->ctrl.panel;
-		device_unregister(&panel->dev);
-	}
 }
 
 /* BUS */
