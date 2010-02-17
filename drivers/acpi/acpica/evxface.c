@@ -617,13 +617,6 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	handler->context = context;
 	handler->method_node = gpe_event_info->dispatch.method_node;
 
-	/* Disable the GPE before installing the handler */
-
-	status = acpi_ev_disable_gpe(gpe_event_info);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
 	/* Install the handler */
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
@@ -704,13 +697,6 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 
 	if (gpe_event_info->dispatch.handler->address != address) {
 		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/* Disable the GPE before removing the handler */
-
-	status = acpi_ev_disable_gpe(gpe_event_info);
-	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
 
