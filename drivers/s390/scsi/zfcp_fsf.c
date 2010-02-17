@@ -741,6 +741,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 			return ERR_PTR(-ENOMEM);
 		}
 
+		req->seq_no = adapter->fsf_req_seq_no;
 		req->qtcb->prefix.req_seq_no = adapter->fsf_req_seq_no;
 		req->qtcb->prefix.req_id = req->req_id;
 		req->qtcb->prefix.ulp_info = 26;
@@ -748,8 +749,6 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 		req->qtcb->prefix.qtcb_version = FSF_QTCB_CURRENT_VERSION;
 		req->qtcb->header.req_handle = req->req_id;
 		req->qtcb->header.fsf_command = req->fsf_command;
-		req->seq_no = adapter->fsf_req_seq_no;
-		req->qtcb->prefix.req_seq_no = adapter->fsf_req_seq_no;
 		sbale[1].addr = (void *) req->qtcb;
 		sbale[1].length = sizeof(struct fsf_qtcb);
 	}
