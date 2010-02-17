@@ -578,6 +578,9 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 	if (!client->wb_pagevec_pool)
 		goto fail_trunc_wq;
 
+	/* caps */
+	client->min_caps = args->max_readdir;
+	ceph_adjust_min_caps(client->min_caps);
 
 	/* subsystems */
 	err = ceph_monc_init(&client->monc, client);
@@ -618,6 +621,8 @@ static void ceph_destroy_client(struct ceph_client *client)
 	ceph_mdsc_stop(&client->mdsc);
 	ceph_monc_stop(&client->monc);
 	ceph_osdc_stop(&client->osdc);
+
+	ceph_adjust_min_caps(-client->min_caps);
 
 	ceph_debugfs_client_cleanup(client);
 	destroy_workqueue(client->wb_wq);

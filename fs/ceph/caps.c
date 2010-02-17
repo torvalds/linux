@@ -128,6 +128,7 @@ static int caps_total_count;        /* total caps allocated */
 static int caps_use_count;          /* in use */
 static int caps_reserve_count;      /* unused, reserved */
 static int caps_avail_count;        /* unused, unreserved */
+static int caps_min_count;          /* keep at least this many (unreserved) */
 
 void __init ceph_caps_init(void)
 {
@@ -149,6 +150,15 @@ void ceph_caps_finalize(void)
 	caps_avail_count = 0;
 	caps_use_count = 0;
 	caps_reserve_count = 0;
+	caps_min_count = 0;
+	spin_unlock(&caps_list_lock);
+}
+
+void ceph_adjust_min_caps(int delta)
+{
+	spin_lock(&caps_list_lock);
+	caps_min_count += delta;
+	BUG_ON(caps_min_count < 0);
 	spin_unlock(&caps_list_lock);
 }
 
@@ -265,12 +275,10 @@ static void put_cap(struct ceph_cap *cap,
 	     caps_reserve_count, caps_avail_count);
 	caps_use_count--;
 	/*
-	 * Keep some preallocated caps around, at least enough to do a
-	 * readdir (which needs to preallocate lots of them), to avoid
-	 * lots of free/alloc churn.
+	 * Keep some preallocated caps around (ceph_min_count), to
+	 * avoid lots of free/alloc churn.
 	 */
-	if (caps_avail_count >= caps_reserve_count +
-	    ceph_client(cap->ci->vfs_inode.i_sb)->mount_args->max_readdir) {
+	if (caps_avail_count >= caps_reserve_count + caps_min_count) {
 		caps_total_count--;
 		kmem_cache_free(ceph_cap_cachep, cap);
 	} else {
@@ -289,7 +297,8 @@ static void put_cap(struct ceph_cap *cap,
 }
 
 void ceph_reservation_status(struct ceph_client *client,
-			     int *total, int *avail, int *used, int *reserved)
+			     int *total, int *avail, int *used, int *reserved,
+			     int *min)
 {
 	if (total)
 		*total = caps_total_count;
@@ -299,6 +308,8 @@ void ceph_reservation_status(struct ceph_client *client,
 		*used = caps_use_count;
 	if (reserved)
 		*reserved = caps_reserve_count;
+	if (min)
+		*min = caps_min_count;
 }
 
 /*
