@@ -33,11 +33,11 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_bsg_fc.h>
 #include <asm/ccwdev.h>
-#include <asm/qdio.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
+#include "zfcp_qdio.h"
 
 struct zfcp_reqlist;
 
@@ -127,12 +127,6 @@ struct zfcp_adapter_mempool {
 	mempool_t *qtcb_pool;
 };
 
-struct zfcp_qdio_queue {
-	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
-	u8		   first;	/* index of next free bfr in queue */
-	atomic_t           count;	/* number of free buffers in queue */
-};
-
 struct zfcp_erp_action {
 	struct list_head list;
 	int action;	              /* requested action code */
@@ -162,29 +156,6 @@ struct zfcp_latencies {
 	struct latency_cont write;
 	struct latency_cont cmd;
 	spinlock_t lock;
-};
-
-/** struct zfcp_qdio - basic QDIO data structure
- * @resp_q: response queue
- * @req_q: request queue
- * @stat_lock: lock to protect req_q_util and req_q_time
- * @req_q_lock; lock to serialize access to request queue
- * @req_q_time: time of last fill level change
- * @req_q_util: used for accounting
- * @req_q_full: queue full incidents
- * @req_q_wq: used to wait for SBAL availability
- * @adapter: adapter used in conjunction with this QDIO structure
- */
-struct zfcp_qdio {
-	struct zfcp_qdio_queue	resp_q;
-	struct zfcp_qdio_queue	req_q;
-	spinlock_t		stat_lock;
-	spinlock_t		req_q_lock;
-	unsigned long long	req_q_time;
-	u64			req_q_util;
-	atomic_t		req_q_full;
-	wait_queue_head_t	req_q_wq;
-	struct zfcp_adapter	*adapter;
 };
 
 struct zfcp_adapter {
@@ -273,33 +244,11 @@ struct zfcp_unit {
 };
 
 /**
- * struct zfcp_queue_req - queue related values for a request
- * @sbal_number: number of free SBALs
- * @sbal_first: first SBAL for this request
- * @sbal_last: last SBAL for this request
- * @sbal_limit: last possible SBAL for this request
- * @sbale_curr: current SBALE at creation of this request
- * @sbal_response: SBAL used in interrupt
- * @qdio_outb_usage: usage of outbound queue
- * @qdio_inb_usage: usage of inbound queue
- */
-struct zfcp_queue_req {
-	u8		       sbal_number;
-	u8		       sbal_first;
-	u8		       sbal_last;
-	u8		       sbal_limit;
-	u8		       sbale_curr;
-	u8		       sbal_response;
-	u16		       qdio_outb_usage;
-	u16		       qdio_inb_usage;
-};
-
-/**
  * struct zfcp_fsf_req - basic FSF request structure
  * @list: list of FSF requests
  * @req_id: unique request ID
  * @adapter: adapter this request belongs to
- * @queue_req: queue related values
+ * @qdio_req: qdio queue related values
  * @completion: used to signal the completion of the request
  * @status: status of the request
  * @fsf_command: FSF command issued
@@ -317,7 +266,7 @@ struct zfcp_fsf_req {
 	struct list_head	list;
 	unsigned long		req_id;
 	struct zfcp_adapter	*adapter;
-	struct zfcp_queue_req	queue_req;
+	struct zfcp_qdio_req	qdio_req;
 	struct completion	completion;
 	u32			status;
 	u32			fsf_command;

@@ -140,9 +140,9 @@ void _zfcp_dbf_hba_fsf_response(const char *tag2, int level,
 	memcpy(response->fsf_status_qual,
 	       fsf_status_qual, FSF_STATUS_QUALIFIER_SIZE);
 	response->fsf_req_status = fsf_req->status;
-	response->sbal_first = fsf_req->queue_req.sbal_first;
-	response->sbal_last = fsf_req->queue_req.sbal_last;
-	response->sbal_response = fsf_req->queue_req.sbal_response;
+	response->sbal_first = fsf_req->qdio_req.sbal_first;
+	response->sbal_last = fsf_req->qdio_req.sbal_last;
+	response->sbal_response = fsf_req->qdio_req.sbal_response;
 	response->pool = fsf_req->pool != NULL;
 	response->erp_action = (unsigned long)fsf_req->erp_action;
 
