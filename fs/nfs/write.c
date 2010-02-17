@@ -1598,8 +1598,7 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 	struct nfs_page *req;
 	int ret;
 
-	if (PageFsCache(page))
-		nfs_fscache_release_page(page, GFP_KERNEL);
+	nfs_fscache_release_page(page, GFP_KERNEL);
 
 	req = nfs_find_and_lock_request(page);
 	ret = PTR_ERR(req);

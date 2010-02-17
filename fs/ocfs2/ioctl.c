@@ -7,6 +7,7 @@
 
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/compat.h>
 
 #define MLOG_MASK_PREFIX ML_INODE
 #include <cluster/masklog.h>
@@ -181,6 +182,10 @@ long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 #ifdef CONFIG_COMPAT
 long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
+	bool preserve;
+	struct reflink_arguments args;
+	struct inode *inode = file->f_path.dentry->d_inode;
+
 	switch (cmd) {
 	case OCFS2_IOC32_GETFLAGS:
 		cmd = OCFS2_IOC_GETFLAGS;
@@ -195,8 +200,15 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case OCFS2_IOC_GROUP_EXTEND:
 	case OCFS2_IOC_GROUP_ADD:
 	case OCFS2_IOC_GROUP_ADD64:
-	case OCFS2_IOC_REFLINK:
 		break;
+	case OCFS2_IOC_REFLINK:
+		if (copy_from_user(&args, (struct reflink_arguments *)arg,
+				   sizeof(args)))
+			return -EFAULT;
+		preserve = (args.preserve != 0);
+
+		return ocfs2_reflink_ioctl(inode, compat_ptr(args.old_path),
+					   compat_ptr(args.new_path), preserve);
 	default:
 		return -ENOIOCTLCMD;
 	}

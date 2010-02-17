@@ -725,7 +725,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		goto fail;
 	}
 
-	error = -EINVAL;
+	error = -EUSERS;
 	if (!gfs2_jindex_size(sdp)) {
 		fs_err(sdp, "no journals!\n");
 		goto fail_jindex;

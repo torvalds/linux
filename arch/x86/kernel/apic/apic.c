@@ -1641,9 +1641,7 @@ int __init APIC_init_uniprocessor(void)
 #endif
 
 	enable_IR_x2apic();
-#ifdef CONFIG_X86_64
 	default_setup_apic_routing();
-#endif
 
 	verify_local_APIC();
 	connect_bsp_APIC();
@@ -1890,21 +1888,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	}
 	if (apicid > max_physical_apicid)
 		max_physical_apicid = apicid;
-
-#ifdef CONFIG_X86_32
-	if (num_processors > 8) {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_INTEL:
-			if (!APIC_XAPIC(version)) {
-				def_to_bigsmp = 0;
-				break;
-			}
-			/* If P4 and above fall through */
-		case X86_VENDOR_AMD:
-			def_to_bigsmp = 1;
-		}
-	}
-#endif
 
 #if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;

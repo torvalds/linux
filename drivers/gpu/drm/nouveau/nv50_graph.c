@@ -165,6 +165,12 @@ nv50_graph_channel(struct drm_device *dev)
 	uint32_t inst;
 	int i;
 
+	/* Be sure we're not in the middle of a context switch or bad things
+	 * will happen, such as unloading the wrong pgraph context.
+	 */
+	if (!nv_wait(0x400300, 0x00000001, 0x00000000))
+		NV_ERROR(dev, "Ctxprog is still running\n");
+
 	inst = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
 	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
 		return NULL;
@@ -275,7 +281,7 @@ nv50_graph_load_context(struct nouveau_channel *chan)
 int
 nv50_graph_unload_context(struct drm_device *dev)
 {
-	uint32_t inst, fifo = nv_rd32(dev, 0x400500);
+	uint32_t inst;
 
 	inst  = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
 	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
@@ -283,12 +289,10 @@ nv50_graph_unload_context(struct drm_device *dev)
 	inst &= NV50_PGRAPH_CTXCTL_CUR_INSTANCE;
 
 	nouveau_wait_for_idle(dev);
-	nv_wr32(dev, 0x400500, fifo & ~1);
 	nv_wr32(dev, 0x400784, inst);
 	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x20);
 	nv_wr32(dev, 0x400304, nv_rd32(dev, 0x400304) | 0x01);
 	nouveau_wait_for_idle(dev);
-	nv_wr32(dev, 0x400500, fifo);
 
 	nv_wr32(dev, NV50_PGRAPH_CTXCTL_CUR, inst);
 	return 0;

@@ -961,16 +961,14 @@ static void __init omap_mux_init_list(struct omap_mux *superset)
 	while (superset->reg_offset !=  OMAP_MUX_TERMINATOR) {
 		struct omap_mux *entry;
 
-#ifndef CONFIG_OMAP_MUX
-		/* Skip pins that are not muxed as GPIO by bootloader */
-		if (!OMAP_MODE_GPIO(omap_mux_read(superset->reg_offset))) {
+#ifdef CONFIG_OMAP_MUX
+		if (!superset->muxnames || !superset->muxnames[0]) {
 			superset++;
 			continue;
 		}
-#endif
-
-#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_DEBUG_FS)
-		if (!superset->muxnames || !superset->muxnames[0]) {
+#else
+		/* Skip pins that are not muxed as GPIO by bootloader */
+		if (!OMAP_MODE_GPIO(omap_mux_read(superset->reg_offset))) {
 			superset++;
 			continue;
 		}

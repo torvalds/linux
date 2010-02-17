@@ -453,6 +453,5 @@ extern void qla24xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla25xx_wrt_req_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla25xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
 extern void qla24xx_wrt_rsp_reg(struct qla_hw_data *, uint16_t, uint16_t);
-extern struct scsi_qla_host * qla25xx_get_host(struct rsp_que *);
 
 #endif /* _QLA_GBL_H */

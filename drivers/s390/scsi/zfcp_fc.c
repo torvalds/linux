@@ -671,12 +671,11 @@ static void zfcp_fc_ct_els_job_handler(void *data)
 {
 	struct fc_bsg_job *job = data;
 	struct zfcp_fsf_ct_els *zfcp_ct_els = job->dd_data;
-	int status = zfcp_ct_els->status;
-	int reply_status;
+	struct fc_bsg_reply *jr = job->reply;
 
-	reply_status = status ? FC_CTELS_STATUS_REJECT : FC_CTELS_STATUS_OK;
-	job->reply->reply_data.ctels_reply.status = reply_status;
-	job->reply->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+	jr->result = zfcp_ct_els->status ? -EIO : 0;
 	job->job_done(job);
 }
 
