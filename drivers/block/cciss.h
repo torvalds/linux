@@ -66,7 +66,7 @@ struct ctlr_info
 	int	ctlr;
 	char	devname[8];
 	char    *product_name;
-	char	firm_ver[4]; // Firmware version 
+	char	firm_ver[4]; /* Firmware version */
 	struct pci_dev *pdev;
 	__u32	board_id;
 	void __iomem *vaddr;
@@ -103,7 +103,7 @@ struct ctlr_info
 	BYTE	cciss_write;
 	BYTE	cciss_read_capacity;
 
-	// information about each logical volume
+	/* information about each logical volume */
 	drive_info_struct *drv[CISS_MAX_LUN];
 
 	struct access_method access;
@@ -116,7 +116,7 @@ struct ctlr_info
 	unsigned int maxSG;
 	spinlock_t lock;
 
-	//* pointers to command and error info pool */ 
+	/* pointers to command and error info pool */
 	CommandList_struct 	*cmd_pool;
 	dma_addr_t		cmd_pool_dhandle; 
 	ErrorInfo_struct 	*errinfo_pool;
@@ -134,7 +134,7 @@ struct ctlr_info
 	*/
 	int			next_to_run;
 
-	// Disk structures we need to pass back
+	/* Disk structures we need to pass back */
 	struct gendisk   *gendisk[CISS_MAX_LUN];
 #ifdef CONFIG_CISS_SCSI_TAPE
 	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
@@ -315,4 +315,3 @@ struct board_type {
 #define CCISS_LOCK(i)	(&hba[i]->lock)
 
 #endif /* CCISS_H */
-

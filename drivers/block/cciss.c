@@ -1341,26 +1341,27 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 				kfree(buff);
 				return -ENOMEM;
 			}
-			// Fill in the command type
+			/* Fill in the command type */
 			c->cmd_type = CMD_IOCTL_PEND;
-			// Fill in Command Header
-			c->Header.ReplyQueue = 0;	// unused in simple mode
-			if (iocommand.buf_size > 0)	// buffer to fill
+			/* Fill in Command Header */
+			c->Header.ReplyQueue = 0;   /* unused in simple mode */
+			if (iocommand.buf_size > 0) /* buffer to fill */
 			{
 				c->Header.SGList = 1;
 				c->Header.SGTotal = 1;
-			} else	// no buffers to fill
+			} else /* no buffers to fill */
 			{
 				c->Header.SGList = 0;
 				c->Header.SGTotal = 0;
 			}
 			c->Header.LUN = iocommand.LUN_info;
-			c->Header.Tag.lower = c->busaddr;	// use the kernel address the cmd block for tag
+			/* use the kernel address the cmd block for tag */
+			c->Header.Tag.lower = c->busaddr;
 
-			// Fill in Request block
+			/* Fill in Request block */
 			c->Request = iocommand.Request;
 
-			// Fill in the scatter gather information
+			/* Fill in the scatter gather information */
 			if (iocommand.buf_size > 0) {
 				temp64.val = pci_map_single(host->pdev, buff,
 					iocommand.buf_size,
@@ -1368,7 +1369,7 @@ static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 				c->SG[0].Addr.lower = temp64.val32.lower;
 				c->SG[0].Addr.upper = temp64.val32.upper;
 				c->SG[0].Len = iocommand.buf_size;
-				c->SG[0].Ext = 0;	// we are not chaining
+				c->SG[0].Ext = 0;  /* we are not chaining */
 			}
 			c->waiting = &wait;
 
@@ -2422,7 +2423,7 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
 			c->Request.Type.Direction = XFER_READ;
 			c->Request.Timeout = 0;
 			c->Request.CDB[0] = cmd;
-			c->Request.CDB[6] = (size >> 24) & 0xFF;	//MSB
+			c->Request.CDB[6] = (size >> 24) & 0xFF; /* MSB */
 			c->Request.CDB[7] = (size >> 16) & 0xFF;
 			c->Request.CDB[8] = (size >> 8) & 0xFF;
 			c->Request.CDB[9] = size & 0xFF;
@@ -2691,7 +2692,7 @@ static void cciss_geometry_inquiry(int ctlr, int logvol,
 			       "cciss: reading geometry failed, volume "
 			       "does not support reading geometry\n");
 			drv->heads = 255;
-			drv->sectors = 32;	// Sectors per track
+			drv->sectors = 32;	/* Sectors per track */
 			drv->cylinders = total_size + 1;
 			drv->raid_level = RAID_UNKNOWN;
 		} else {
@@ -3109,19 +3110,19 @@ static void do_cciss_request(struct request_queue *q)
 
 	/* fill in the request */
 	drv = creq->rq_disk->private_data;
-	c->Header.ReplyQueue = 0;	// unused in simple mode
+	c->Header.ReplyQueue = 0;	/* unused in simple mode */
 	/* got command from pool, so use the command block index instead */
 	/* for direct lookups. */
 	/* The first 2 bits are reserved for controller error reporting. */
 	c->Header.Tag.lower = (c->cmdindex << 3);
 	c->Header.Tag.lower |= 0x04;	/* flag for direct lookup. */
 	memcpy(&c->Header.LUN, drv->LunID, sizeof(drv->LunID));
-	c->Request.CDBLen = 10;	// 12 byte commands not in FW yet;
-	c->Request.Type.Type = TYPE_CMD;	// It is a command.
+	c->Request.CDBLen = 10;	/* 12 byte commands not in FW yet; */
+	c->Request.Type.Type = TYPE_CMD;	/* It is a command. */
 	c->Request.Type.Attribute = ATTR_SIMPLE;
 	c->Request.Type.Direction =
 	    (rq_data_dir(creq) == READ) ? XFER_READ : XFER_WRITE;
-	c->Request.Timeout = 0;	// Don't time out
+	c->Request.Timeout = 0;	/* Don't time out */
 	c->Request.CDB[0] =
 	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
 	start_blk = blk_rq_pos(creq);
@@ -3206,11 +3207,11 @@ static void do_cciss_request(struct request_queue *q)
 	if (likely(blk_fs_request(creq))) {
 		if(h->cciss_read == CCISS_READ_10) {
 			c->Request.CDB[1] = 0;
-			c->Request.CDB[2] = (start_blk >> 24) & 0xff;	//MSB
+			c->Request.CDB[2] = (start_blk >> 24) & 0xff; /* MSB */
 			c->Request.CDB[3] = (start_blk >> 16) & 0xff;
 			c->Request.CDB[4] = (start_blk >> 8) & 0xff;
 			c->Request.CDB[5] = start_blk & 0xff;
-			c->Request.CDB[6] = 0;	// (sect >> 24) & 0xff; MSB
+			c->Request.CDB[6] = 0; /* (sect >> 24) & 0xff; MSB */
 			c->Request.CDB[7] = (blk_rq_sectors(creq) >> 8) & 0xff;
 			c->Request.CDB[8] = blk_rq_sectors(creq) & 0xff;
 			c->Request.CDB[9] = c->Request.CDB[11] = c->Request.CDB[12] = 0;
@@ -3219,7 +3220,7 @@ static void do_cciss_request(struct request_queue *q)
 
 			c->Request.CDBLen = 16;
 			c->Request.CDB[1]= 0;
-			c->Request.CDB[2]= (upper32 >> 24) & 0xff;	//MSB
+			c->Request.CDB[2]= (upper32 >> 24) & 0xff; /* MSB */
 			c->Request.CDB[3]= (upper32 >> 16) & 0xff;
 			c->Request.CDB[4]= (upper32 >>  8) & 0xff;
 			c->Request.CDB[5]= upper32 & 0xff;
