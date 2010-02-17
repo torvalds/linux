@@ -283,30 +283,32 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
 ======================================================================*/
 
-static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
-			   size_t len, void *ptr)
+static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
+			size_t len, void *ptr)
 {
 	struct cis_cache_entry *cis;
-	int ret;
+	int ret = 0;
 
 	if (s->state & SOCKET_CARDBUS)
-		return;
+		return -EINVAL;
 
 	mutex_lock(&s->ops_mutex);
 	if (s->fake_cis) {
 		if (s->fake_cis_len >= addr+len)
 			memcpy(ptr, s->fake_cis+addr, len);
-		else
+		else {
 			memset(ptr, 0xff, len);
+			ret = -EINVAL;
+		}
 		mutex_unlock(&s->ops_mutex);
-		return;
+		return ret;
 	}
 
 	list_for_each_entry(cis, &s->cis_cache, node) {
 		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
 			memcpy(ptr, cis->cache, len);
 			mutex_unlock(&s->ops_mutex);
-			return;
+			return 0;
 		}
 	}
 	mutex_unlock(&s->ops_mutex);
@@ -326,6 +328,7 @@ static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 			mutex_unlock(&s->ops_mutex);
 		}
 	}
+	return ret;
 }
 
 static void
@@ -374,6 +377,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 {
 	struct cis_cache_entry *cis;
 	char *buf;
+	int ret;
 
 	if (s->state & SOCKET_CARDBUS)
 		return -EINVAL;
@@ -390,9 +394,8 @@ int verify_cis_cache(struct pcmcia_socket *s)
 		if (len > 256)
 			len = 256;
 
-		pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
-
-		if (memcmp(buf, cis->cache, len) != 0) {
+		ret = pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
+		if (ret || memcmp(buf, cis->cache, len) != 0) {
 			kfree(buf);
 			return -1;
 		}
@@ -425,6 +428,7 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 	}
 	s->fake_cis_len = len;
 	memcpy(s->fake_cis, data, len);
+	dev_info(&s->dev, "Using replacement CIS\n");
 	mutex_unlock(&s->ops_mutex);
 	return 0;
 }
@@ -478,11 +482,14 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 {
     u_char link[5];
     u_int ofs;
+    int ret;
 
     if (MFC_FN(tuple->Flags)) {
 	/* Get indirect link from the MFC tuple */
-	read_cis_cache(s, LINK_SPACE(tuple->Flags),
+	ret = read_cis_cache(s, LINK_SPACE(tuple->Flags),
 		       tuple->LinkOffset, 5, link);
+	if (ret)
+		return -1;
 	ofs = get_unaligned_le32(link + 1);
 	SPACE(tuple->Flags) = (link[0] == CISTPL_MFC_ATTR);
 	/* Move to the next indirect link */
@@ -498,7 +505,9 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
     if (SPACE(tuple->Flags)) {
 	/* This is ugly, but a common CIS error is to code the long
 	   link offset incorrectly, so we check the right spot... */
-	read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+	ret = read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+	if (ret)
+		return -1;
 	if ((link[0] == CISTPL_LINKTARGET) && (link[1] >= 3) &&
 	    (strncmp(link+2, "CIS", 3) == 0))
 	    return ofs;
@@ -506,7 +515,9 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 	/* Then, we try the wrong spot... */
 	ofs = ofs >> 1;
     }
-    read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+    ret = read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+    if (ret)
+	    return -1;
     if ((link[0] == CISTPL_LINKTARGET) && (link[1] >= 3) &&
 	(strncmp(link+2, "CIS", 3) == 0))
 	return ofs;
@@ -518,6 +529,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 {
     u_char link[2], tmp;
     int ofs, i, attr;
+    int ret;
 
     if (!s)
 	return -EINVAL;
@@ -532,7 +544,9 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	if (link[1] == 0xff) {
 	    link[0] = CISTPL_END;
 	} else {
-	    read_cis_cache(s, attr, ofs, 2, link);
+	    ret = read_cis_cache(s, attr, ofs, 2, link);
+	    if (ret)
+		    return -1;
 	    if (link[0] == CISTPL_NULL) {
 		ofs++; continue;
 	    }
@@ -544,7 +558,9 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	    if (ofs < 0)
 		return -ENOSPC;
 	    attr = SPACE(tuple->Flags);
-	    read_cis_cache(s, attr, ofs, 2, link);
+	    ret = read_cis_cache(s, attr, ofs, 2, link);
+	    if (ret)
+		    return -1;
 	}
 
 	/* Is this a link tuple?  Make a note of it */
@@ -558,12 +574,16 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	    case CISTPL_LONGLINK_A:
 		HAS_LINK(tuple->Flags) = 1;
 		LINK_SPACE(tuple->Flags) = attr | IS_ATTR;
-		read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		ret = read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		if (ret)
+			return -1;
 		break;
 	    case CISTPL_LONGLINK_C:
 		HAS_LINK(tuple->Flags) = 1;
 		LINK_SPACE(tuple->Flags) = attr & ~IS_ATTR;
-		read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		ret = read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		if (ret)
+			return -1;
 		break;
 	    case CISTPL_INDIRECT:
 		HAS_LINK(tuple->Flags) = 1;
@@ -575,7 +595,9 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 		LINK_SPACE(tuple->Flags) = attr;
 		if (function == BIND_FN_ALL) {
 		    /* Follow all the MFC links */
-		    read_cis_cache(s, attr, ofs+2, 1, &tmp);
+		    ret = read_cis_cache(s, attr, ofs+2, 1, &tmp);
+		    if (ret)
+			    return -1;
 		    MFC_FN(tuple->Flags) = tmp;
 		} else {
 		    /* Follow exactly one of the links */
@@ -616,6 +638,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
 {
     u_int len;
+    int ret;
 
     if (!s)
 	return -EINVAL;
@@ -626,9 +649,11 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
     tuple->TupleDataLen = tuple->TupleLink;
     if (len == 0)
 	return 0;
-    read_cis_cache(s, SPACE(tuple->Flags),
+    ret = read_cis_cache(s, SPACE(tuple->Flags),
 		   tuple->CISOffset + tuple->TupleOffset,
 		   _MIN(len, tuple->TupleDataMax), tuple->TupleData);
+    if (ret)
+	    return -1;
     return 0;
 }
 
