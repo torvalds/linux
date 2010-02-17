@@ -654,9 +654,6 @@ static int ethtool_reset(struct net_device *dev, char __user *useraddr)
 	if (copy_from_user(&reset, useraddr, sizeof(reset)))
 		return -EFAULT;
 
-	/* Clear ethtool n-tuple list */
-	ethtool_ntuple_flush(dev);
-
 	ret = dev->ethtool_ops->reset(dev, &reset.data);
 	if (ret)
 		return ret;
