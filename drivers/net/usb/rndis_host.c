@@ -335,8 +335,8 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	dev->maxpacket = usb_maxpacket(dev->udev, dev->out, 1);
 	if (dev->maxpacket == 0) {
-		if (netif_msg_probe(dev))
-			dev_dbg(&intf->dev, "dev->maxpacket can't be 0\n");
+		netif_dbg(dev, probe, dev->net,
+			  "dev->maxpacket can't be 0\n");
 		retval = -EINVAL;
 		goto fail_and_release;
 	}
@@ -394,17 +394,15 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	}
 	if ((flags & FLAG_RNDIS_PHYM_WIRELESS) &&
 			*phym != RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
-		if (netif_msg_probe(dev))
-			dev_dbg(&intf->dev, "driver requires wireless "
-				"physical medium, but device is not.\n");
+		netif_dbg(dev, probe, dev->net,
+			  "driver requires wireless physical medium, but device is not\n");
 		retval = -ENODEV;
 		goto halt_fail_and_release;
 	}
 	if ((flags & FLAG_RNDIS_PHYM_NOT_WIRELESS) &&
 			*phym == RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
-		if (netif_msg_probe(dev))
-			dev_dbg(&intf->dev, "driver requires non-wireless "
-				"physical medium, but device is wireless.\n");
+		netif_dbg(dev, probe, dev->net,
+			  "driver requires non-wireless physical medium, but device is wireless.\n");
 		retval = -ENODEV;
 		goto halt_fail_and_release;
 	}

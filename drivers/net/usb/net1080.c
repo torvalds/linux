@@ -203,26 +203,23 @@ static void nc_dump_registers(struct usbnet *dev)
 
 static inline void nc_dump_usbctl(struct usbnet *dev, u16 usbctl)
 {
-	if (!netif_msg_link(dev))
-		return;
-	netdev_dbg(dev->net, "net1080 %s-%s usbctl 0x%x:%s%s%s%s%s;"
-		   " this%s%s;"
-		   " other%s%s; r/o 0x%x\n",
-		   dev->udev->bus->bus_name, dev->udev->devpath,
-		   usbctl,
-		   (usbctl & USBCTL_ENABLE_LANG) ? " lang" : "",
-		   (usbctl & USBCTL_ENABLE_MFGR) ? " mfgr" : "",
-		   (usbctl & USBCTL_ENABLE_PROD) ? " prod" : "",
-		   (usbctl & USBCTL_ENABLE_SERIAL) ? " serial" : "",
-		   (usbctl & USBCTL_ENABLE_DEFAULTS) ? " defaults" : "",
+	netif_dbg(dev, link, dev->net,
+		  "net1080 %s-%s usbctl 0x%x:%s%s%s%s%s; this%s%s; other%s%s; r/o 0x%x\n",
+		  dev->udev->bus->bus_name, dev->udev->devpath,
+		  usbctl,
+		  (usbctl & USBCTL_ENABLE_LANG) ? " lang" : "",
+		  (usbctl & USBCTL_ENABLE_MFGR) ? " mfgr" : "",
+		  (usbctl & USBCTL_ENABLE_PROD) ? " prod" : "",
+		  (usbctl & USBCTL_ENABLE_SERIAL) ? " serial" : "",
+		  (usbctl & USBCTL_ENABLE_DEFAULTS) ? " defaults" : "",
 
-		   (usbctl & USBCTL_FLUSH_THIS) ? " FLUSH" : "",
-		   (usbctl & USBCTL_DISCONN_THIS) ? " DIS" : "",
+		  (usbctl & USBCTL_FLUSH_THIS) ? " FLUSH" : "",
+		  (usbctl & USBCTL_DISCONN_THIS) ? " DIS" : "",
 
-		   (usbctl & USBCTL_FLUSH_OTHER) ? " FLUSH" : "",
-		   (usbctl & USBCTL_DISCONN_OTHER) ? " DIS" : "",
+		  (usbctl & USBCTL_FLUSH_OTHER) ? " FLUSH" : "",
+		  (usbctl & USBCTL_DISCONN_OTHER) ? " DIS" : "",
 
-		   usbctl & ~USBCTL_WRITABLE_MASK);
+		  usbctl & ~USBCTL_WRITABLE_MASK);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -249,27 +246,26 @@ static inline void nc_dump_usbctl(struct usbnet *dev, u16 usbctl)
 
 static inline void nc_dump_status(struct usbnet *dev, u16 status)
 {
-	if (!netif_msg_link(dev))
-		return;
-	netdev_dbg(dev->net, "net1080 %s-%s status 0x%x: this (%c) PKT=%d%s%s%s; other PKT=%d%s%s%s; unspec 0x%x\n",
-		   dev->udev->bus->bus_name, dev->udev->devpath,
-		   status,
+	netif_dbg(dev, link, dev->net,
+		  "net1080 %s-%s status 0x%x: this (%c) PKT=%d%s%s%s; other PKT=%d%s%s%s; unspec 0x%x\n",
+		  dev->udev->bus->bus_name, dev->udev->devpath,
+		  status,
 
-		   // XXX the packet counts don't seem right
-		   // (1 at reset, not 0); maybe UNSPEC too
+		  // XXX the packet counts don't seem right
+		  // (1 at reset, not 0); maybe UNSPEC too
 
-		   (status & STATUS_PORT_A) ? 'A' : 'B',
-		   STATUS_PACKETS_THIS(status),
-		   (status & STATUS_CONN_THIS) ? " CON" : "",
-		   (status & STATUS_SUSPEND_THIS) ? " SUS" : "",
-		   (status & STATUS_MAILBOX_THIS) ? " MBOX" : "",
+		  (status & STATUS_PORT_A) ? 'A' : 'B',
+		  STATUS_PACKETS_THIS(status),
+		  (status & STATUS_CONN_THIS) ? " CON" : "",
+		  (status & STATUS_SUSPEND_THIS) ? " SUS" : "",
+		  (status & STATUS_MAILBOX_THIS) ? " MBOX" : "",
 
-		   STATUS_PACKETS_OTHER(status),
-		   (status & STATUS_CONN_OTHER) ? " CON" : "",
-		   (status & STATUS_SUSPEND_OTHER) ? " SUS" : "",
-		   (status & STATUS_MAILBOX_OTHER) ? " MBOX" : "",
+		  STATUS_PACKETS_OTHER(status),
+		  (status & STATUS_CONN_OTHER) ? " CON" : "",
+		  (status & STATUS_SUSPEND_OTHER) ? " SUS" : "",
+		  (status & STATUS_MAILBOX_OTHER) ? " MBOX" : "",
 
-		   status & STATUS_UNSPEC_MASK);
+		  status & STATUS_UNSPEC_MASK);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -284,10 +280,9 @@ static inline void nc_dump_status(struct usbnet *dev, u16 status)
 
 static inline void nc_dump_ttl(struct usbnet *dev, u16 ttl)
 {
-	if (netif_msg_link(dev))
-		netdev_dbg(dev->net, "net1080 %s-%s ttl 0x%x this = %d, other = %d\n",
-			   dev->udev->bus->bus_name, dev->udev->devpath,
-			   ttl, TTL_THIS(ttl), TTL_OTHER(ttl));
+	netif_dbg(dev, link, dev->net, "net1080 %s-%s ttl 0x%x this = %d, other = %d\n",
+		  dev->udev->bus->bus_name, dev->udev->devpath,
+		  ttl, TTL_THIS(ttl), TTL_OTHER(ttl));
 }
 
 /*-------------------------------------------------------------------------*/
@@ -332,10 +327,9 @@ static int net1080_reset(struct usbnet *dev)
 			MK_TTL(NC_READ_TTL_MS, TTL_OTHER(ttl)) );
 	dbg("%s: assigned TTL, %d ms", dev->net->name, NC_READ_TTL_MS);
 
-	if (netif_msg_link(dev))
-		netdev_info(dev->net, "port %c, peer %sconnected\n",
-			    (status & STATUS_PORT_A) ? 'A' : 'B',
-			    (status & STATUS_CONN_OTHER) ? "" : "dis");
+	netif_info(dev, link, dev->net, "port %c, peer %sconnected\n",
+		   (status & STATUS_PORT_A) ? 'A' : 'B',
+		   (status & STATUS_CONN_OTHER) ? "" : "dis");
 	retval = 0;
 
 done:
@@ -412,8 +406,8 @@ static void nc_ensure_sync(struct usbnet *dev)
 			return;
 		}
 
-		if (netif_msg_rx_err(dev))
-			netdev_dbg(dev->net, "flush net1080; too many framing errors\n");
+		netif_dbg(dev, rx_err, dev->net,
+			  "flush net1080; too many framing errors\n");
 		dev->frame_errors = 0;
 	}
 }
