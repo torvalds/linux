@@ -90,20 +90,15 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 	pmbe->ppn	= ppn;
 	pmbe->flags	= flags;
 	pmbe->entry	= pos;
+	pmbe->size	= 0;
 
 	return pmbe;
 }
 
 static void pmb_free(struct pmb_entry *pmbe)
 {
-	int pos = pmbe->entry;
-
-	pmbe->vpn	= 0;
-	pmbe->ppn	= 0;
-	pmbe->flags	= 0;
-	pmbe->entry	= 0;
-
-	clear_bit(pos, pmb_map);
+	clear_bit(pmbe->entry, pmb_map);
+	pmbe->entry = PMB_NO_ENTRY;
 }
 
 /*
@@ -198,6 +193,8 @@ again:
 		vaddr	+= pmb_sizes[i].size;
 		size	-= pmb_sizes[i].size;
 
+		pmbe->size = pmb_sizes[i].size;
+
 		/*
 		 * Link adjacent entries that span multiple PMB entries
 		 * for easier tear-down.
@@ -273,25 +270,7 @@ static void pmb_unmap_entry(struct pmb_entry *pmbe)
 	} while (pmbe);
 }
 
-static inline void
-pmb_log_mapping(unsigned long data_val, unsigned long vpn, unsigned long ppn)
-{
-	unsigned int size;
-	const char *sz_str;
-
-	size = data_val & PMB_SZ_MASK;
-
-	sz_str = (size == PMB_SZ_16M)  ? " 16MB":
-		 (size == PMB_SZ_64M)  ? " 64MB":
-		 (size == PMB_SZ_128M) ? "128MB":
-					 "512MB";
-
-	pr_info("\t0x%08lx -> 0x%08lx [ %s %scached ]\n",
-		vpn >> PAGE_SHIFT, ppn >> PAGE_SHIFT, sz_str,
-		(data_val & PMB_C) ? "" : "un");
-}
-
-static inline unsigned int pmb_ppn_in_range(unsigned long ppn)
+static __always_inline unsigned int pmb_ppn_in_range(unsigned long ppn)
 {
 	return ppn >= __pa(memory_start) && ppn < __pa(memory_end);
 }
@@ -299,7 +278,8 @@ static inline unsigned int pmb_ppn_in_range(unsigned long ppn)
 static int pmb_synchronize_mappings(void)
 {
 	unsigned int applied = 0;
-	int i;
+	struct pmb_entry *pmbp = NULL;
+	int i, j;
 
 	pr_info("PMB: boot mappings:\n");
 
@@ -323,6 +303,7 @@ static int pmb_synchronize_mappings(void)
 		unsigned long addr, data;
 		unsigned long addr_val, data_val;
 		unsigned long ppn, vpn, flags;
+		unsigned int size;
 		struct pmb_entry *pmbe;
 
 		addr = mk_pmb_addr(i);
@@ -366,7 +347,8 @@ static int pmb_synchronize_mappings(void)
 			__raw_writel(data_val, data);
 		}
 
-		flags = data_val & (PMB_SZ_MASK | PMB_CACHE_MASK);
+		size = data_val & PMB_SZ_MASK;
+		flags = size | (data_val & PMB_CACHE_MASK);
 
 		pmbe = pmb_alloc(vpn, ppn, flags, i);
 		if (IS_ERR(pmbe)) {
@@ -374,7 +356,24 @@ static int pmb_synchronize_mappings(void)
 			continue;
 		}
 
-		pmb_log_mapping(data_val, vpn, ppn);
+		for (j = 0; j < ARRAY_SIZE(pmb_sizes); j++)
+			if (pmb_sizes[j].flag == size)
+				pmbe->size = pmb_sizes[j].size;
+
+		/*
+		 * Compare the previous entry against the current one to
+		 * see if the entries span a contiguous mapping. If so,
+		 * setup the entry links accordingly.
+		 */
+		if (pmbp && ((pmbe->vpn == (pmbp->vpn + pmbp->size)) &&
+			     (pmbe->ppn == (pmbp->ppn + pmbp->size))))
+			pmbp->link = pmbe;
+
+		pmbp = pmbe;
+
+		pr_info("\t0x%08lx -> 0x%08lx [ %ldMB %scached ]\n",
+			vpn >> PAGE_SHIFT, ppn >> PAGE_SHIFT, pmbe->size >> 20,
+			(data_val & PMB_C) ? "" : "un");
 
 		applied++;
 	}

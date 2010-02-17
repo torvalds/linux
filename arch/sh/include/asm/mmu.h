@@ -59,6 +59,7 @@ struct pmb_entry {
 	unsigned long vpn;
 	unsigned long ppn;
 	unsigned long flags;
+	unsigned long size;
 
 	/*
 	 * 0 .. NR_PMB_ENTRIES for specific entry selection, or
@@ -66,7 +67,6 @@ struct pmb_entry {
 	 */
 	int entry;
 
-	struct pmb_entry *next;
 	/* Adjacent entry link for contiguous multi-entry mappings */
 	struct pmb_entry *link;
 };
