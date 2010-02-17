@@ -2147,7 +2147,7 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 		return ret;
 
 	return print_irq_inversion_bug(curr, &root, target_entry,
-					this, 1, irqclass);
+					this, 0, irqclass);
 }
 
 void print_irqtrace_events(struct task_struct *curr)

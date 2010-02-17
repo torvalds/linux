@@ -211,6 +211,7 @@ static struct fixed_voltage_config smdk6410_b_pwr_5v_pdata = {
 	.supply_name = "B_PWR_5V",
 	.microvolts = 5000000,
 	.init_data = &smdk6410_b_pwr_5v_data,
+	.gpio = -EINVAL,
 };
 
 static struct platform_device smdk6410_b_pwr_5v = {

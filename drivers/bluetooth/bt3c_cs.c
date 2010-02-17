@@ -345,7 +345,9 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 	int iir;
 	irqreturn_t r = IRQ_NONE;
 
-	BUG_ON(!info->hdev);
+	if (!info || !info->hdev)
+		/* our irq handler is shared */
+		return IRQ_NONE;
 
 	iobase = info->p_dev->io.BasePort1;
 

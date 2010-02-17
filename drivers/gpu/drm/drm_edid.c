@@ -633,8 +633,7 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 		return NULL;
 	}
 	if (!(pt->misc & DRM_EDID_PT_SEPARATE_SYNC)) {
-		printk(KERN_WARNING "integrated sync not supported\n");
-		return NULL;
+		printk(KERN_WARNING "composite sync not supported\n");
 	}
 
 	/* it is incorrect if hsync/vsync width is zero */

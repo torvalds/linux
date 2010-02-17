@@ -709,7 +709,7 @@ static void spca504B_SetSizeType(struct gspca_dev *gspca_dev)
 		spca504B_PollingDataReady(gspca_dev);
 
 		/* Init the cam width height with some values get on init ? */
-		reg_w_riv(gspca_dev, 0x31, 0, 0x04);
+		reg_w_riv(gspca_dev, 0x31, 0x0004, 0x00);
 		spca504B_WaitCmdStatus(gspca_dev);
 		spca504B_PollingDataReady(gspca_dev);
 		break;
@@ -807,14 +807,14 @@ static void init_ctl_reg(struct gspca_dev *gspca_dev)
 	default:
 /*	case BRIDGE_SPCA533: */
 /*	case BRIDGE_SPCA504B: */
-		reg_w_riv(gspca_dev, 0, 0x00, 0x21ad);	/* hue */
-		reg_w_riv(gspca_dev, 0, 0x01, 0x21ac);	/* sat/hue */
-		reg_w_riv(gspca_dev, 0, 0x00, 0x21a3);	/* gamma */
+		reg_w_riv(gspca_dev, 0, 0x21ad, 0x00);	/* hue */
+		reg_w_riv(gspca_dev, 0, 0x21ac, 0x01);	/* sat/hue */
+		reg_w_riv(gspca_dev, 0, 0x21a3, 0x00);	/* gamma */
 		break;
 	case BRIDGE_SPCA536:
-		reg_w_riv(gspca_dev, 0, 0x40, 0x20f5);
-		reg_w_riv(gspca_dev, 0, 0x01, 0x20f4);
-		reg_w_riv(gspca_dev, 0, 0x00, 0x2089);
+		reg_w_riv(gspca_dev, 0, 0x20f5, 0x40);
+		reg_w_riv(gspca_dev, 0, 0x20f4, 0x01);
+		reg_w_riv(gspca_dev, 0, 0x2089, 0x00);
 		break;
 	}
 	if (pollreg)
@@ -887,11 +887,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	switch (sd->bridge) {
 	case BRIDGE_SPCA504B:
 		reg_w_riv(gspca_dev, 0x1d, 0x00, 0);
-		reg_w_riv(gspca_dev, 0, 0x01, 0x2306);
-		reg_w_riv(gspca_dev, 0, 0x00, 0x0d04);
-		reg_w_riv(gspca_dev, 0, 0x00, 0x2000);
-		reg_w_riv(gspca_dev, 0, 0x13, 0x2301);
-		reg_w_riv(gspca_dev, 0, 0x00, 0x2306);
+		reg_w_riv(gspca_dev, 0x00, 0x2306, 0x01);
+		reg_w_riv(gspca_dev, 0x00, 0x0d04, 0x00);
+		reg_w_riv(gspca_dev, 0x00, 0x2000, 0x00);
+		reg_w_riv(gspca_dev, 0x00, 0x2301, 0x13);
+		reg_w_riv(gspca_dev, 0x00, 0x2306, 0x00);
 		/* fall thru */
 	case BRIDGE_SPCA533:
 		spca504B_PollingDataReady(gspca_dev);
@@ -1000,7 +1000,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			spca504B_WaitCmdStatus(gspca_dev);
 			break;
 		default:
-			reg_w_riv(gspca_dev, 0x31, 0, 0x04);
+			reg_w_riv(gspca_dev, 0x31, 0x0004, 0x00);
 			spca504B_WaitCmdStatus(gspca_dev);
 			spca504B_PollingDataReady(gspca_dev);
 			break;

@@ -137,7 +137,7 @@ static int hw_bitblt_1(void __iomem *engine, u8 op, u32 width, u32 height,
 			tmp, dst_pitch);
 		return -EINVAL;
 	}
-	tmp = (tmp >> 3) | (dst_pitch << (16 - 3));
+	tmp = VIA_PITCH_ENABLE | (tmp >> 3) | (dst_pitch << (16 - 3));
 	writel(tmp, engine + 0x38);
 
 	if (op == VIA_BITBLT_FILL)
@@ -351,6 +351,9 @@ int viafb_init_engine(struct fb_info *info)
 	viapar->fbmem_free -= VQ_SIZE;
 	viapar->shared->vq_vram_addr = viapar->fbmem_free;
 	viapar->fbmem_used += VQ_SIZE;
+
+	/* Init 2D engine reg to reset 2D engine */
+	writel(0x0, engine + VIA_REG_KEYCONTROL);
 
 	/* Init AGP and VQ regs */
 	switch (chip_name) {

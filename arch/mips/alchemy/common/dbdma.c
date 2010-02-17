@@ -412,8 +412,11 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 		if (desc_base == 0)
 			return 0;
 
+		ctp->cdb_membase = desc_base;
 		desc_base = ALIGN_ADDR(desc_base, sizeof(au1x_ddma_desc_t));
-	}
+	} else
+		ctp->cdb_membase = desc_base;
+
 	dp = (au1x_ddma_desc_t *)desc_base;
 
 	/* Keep track of the base descriptor. */
@@ -613,7 +616,7 @@ u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 	dma_cache_wback_inv((unsigned long)buf, nbytes);
 	dp->dscr_cmd0 |= DSCR_CMD0_V;	/* Let it rip */
 	au_sync();
-	dma_cache_wback_inv((unsigned long)dp, sizeof(dp));
+	dma_cache_wback_inv((unsigned long)dp, sizeof(*dp));
 	ctp->chan_ptr->ddma_dbell = 0;
 
 	/* Get next descriptor pointer.	*/
@@ -676,7 +679,7 @@ _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	dma_cache_inv((unsigned long)buf, nbytes);
 	dp->dscr_cmd0 |= DSCR_CMD0_V;	/* Let it rip */
 	au_sync();
-	dma_cache_wback_inv((unsigned long)dp, sizeof(dp));
+	dma_cache_wback_inv((unsigned long)dp, sizeof(*dp));
 	ctp->chan_ptr->ddma_dbell = 0;
 
 	/* Get next descriptor pointer.	*/
@@ -831,7 +834,7 @@ void au1xxx_dbdma_chan_free(u32 chanid)
 
 	au1xxx_dbdma_stop(chanid);
 
-	kfree((void *)ctp->chan_desc_base);
+	kfree((void *)ctp->cdb_membase);
 
 	stp->dev_flags &= ~DEV_FLAGS_INUSE;
 	dtp->dev_flags &= ~DEV_FLAGS_INUSE;

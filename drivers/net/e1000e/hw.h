@@ -818,6 +818,7 @@ struct e1000_mac_info {
 
 	u8  forced_speed_duplex;
 
+	bool adaptive_ifs;
 	bool arc_subsystem_valid;
 	bool autoneg;
 	bool autoneg_failed;

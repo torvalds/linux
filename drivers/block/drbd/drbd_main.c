@@ -1298,6 +1298,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 				dev_err(DEV, "Sending state in drbd_io_error() failed\n");
 		}
 
+		wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
 		lc_destroy(mdev->resync);
 		mdev->resync = NULL;
 		lc_destroy(mdev->act_log);
@@ -2972,7 +2973,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 		goto out_no_q;
 	mdev->rq_queue = q;
 	q->queuedata   = mdev;
-	blk_queue_max_segment_size(q, DRBD_MAX_SEGMENT_SIZE);
 
 	disk = alloc_disk(1);
 	if (!disk)
@@ -2996,6 +2996,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	q->backing_dev_info.congested_data = mdev;
 
 	blk_queue_make_request(q, drbd_make_request_26);
+	blk_queue_max_segment_size(q, DRBD_MAX_SEGMENT_SIZE);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(q, drbd_merge_bvec);
 	q->queue_lock = &mdev->req_lock; /* needed since we use */

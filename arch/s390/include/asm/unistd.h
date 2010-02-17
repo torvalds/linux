@@ -269,8 +269,7 @@
 #define	__NR_pwritev		329
 #define __NR_rt_tgsigqueueinfo	330
 #define __NR_perf_event_open	331
-#define __NR_recvmmsg		332
-#define NR_syscalls 333
+#define NR_syscalls 332
 
 /* 
  * There are some system calls that are not present on 64 bit, some
@@ -376,6 +375,9 @@
 #define __IGNORE_set_mempolicy
 #define __IGNORE_migrate_pages
 #define __IGNORE_move_pages
+
+/* Ignore system calls that are also reachable via sys_socket */
+#define __IGNORE_recvmmsg
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

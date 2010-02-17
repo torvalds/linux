@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include <linux/smp_lock.h>
+#include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("Input core");
@@ -45,6 +46,7 @@ static unsigned int input_abs_bypass_init_data[] __initdata = {
 	ABS_MT_TOOL_TYPE,
 	ABS_MT_BLOB_ID,
 	ABS_MT_TRACKING_ID,
+	ABS_MT_PRESSURE,
 	0
 };
 static unsigned long input_abs_bypass[BITS_TO_LONGS(ABS_CNT)];
@@ -764,6 +766,40 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 	return error;
 }
 
+#ifdef CONFIG_COMPAT
+
+static int input_bits_to_string(char *buf, int buf_size,
+				unsigned long bits, bool skip_empty)
+{
+	int len = 0;
+
+	if (INPUT_COMPAT_TEST) {
+		u32 dword = bits >> 32;
+		if (dword || !skip_empty)
+			len += snprintf(buf, buf_size, "%x ", dword);
+
+		dword = bits & 0xffffffffUL;
+		if (dword || !skip_empty || len)
+			len += snprintf(buf + len, max(buf_size - len, 0),
+					"%x", dword);
+	} else {
+		if (bits || !skip_empty)
+			len += snprintf(buf, buf_size, "%lx", bits);
+	}
+
+	return len;
+}
+
+#else /* !CONFIG_COMPAT */
+
+static int input_bits_to_string(char *buf, int buf_size,
+				unsigned long bits, bool skip_empty)
+{
+	return bits || !skip_empty ?
+		snprintf(buf, buf_size, "%lx", bits) : 0;
+}
+
+#endif
 
 #ifdef CONFIG_PROC_FS
 
@@ -832,14 +868,25 @@ static void input_seq_print_bitmap(struct seq_file *seq, const char *name,
 				   unsigned long *bitmap, int max)
 {
 	int i;
-
-	for (i = BITS_TO_LONGS(max) - 1; i > 0; i--)
-		if (bitmap[i])
-			break;
+	bool skip_empty = true;
+	char buf[18];
 
 	seq_printf(seq, "B: %s=", name);
-	for (; i >= 0; i--)
-		seq_printf(seq, "%lx%s", bitmap[i], i > 0 ? " " : "");
+
+	for (i = BITS_TO_LONGS(max) - 1; i >= 0; i--) {
+		if (input_bits_to_string(buf, sizeof(buf),
+					 bitmap[i], skip_empty)) {
+			skip_empty = false;
+			seq_printf(seq, "%s%s", buf, i > 0 ? " " : "");
+		}
+	}
+
+	/*
+	 * If no output was produced print a single 0.
+	 */
+	if (skip_empty)
+		seq_puts(seq, "0");
+
 	seq_putc(seq, '\n');
 }
 
@@ -1128,14 +1175,23 @@ static int input_print_bitmap(char *buf, int buf_size, unsigned long *bitmap,
 {
 	int i;
 	int len = 0;
+	bool skip_empty = true;
 
-	for (i = BITS_TO_LONGS(max) - 1; i > 0; i--)
-		if (bitmap[i])
-			break;
+	for (i = BITS_TO_LONGS(max) - 1; i >= 0; i--) {
+		len += input_bits_to_string(buf + len, max(buf_size - len, 0),
+					    bitmap[i], skip_empty);
+		if (len) {
+			skip_empty = false;
+			if (i > 0)
+				len += snprintf(buf + len, max(buf_size - len, 0), " ");
+		}
+	}
 
-	for (; i >= 0; i--)
-		len += snprintf(buf + len, max(buf_size - len, 0),
-				"%lx%s", bitmap[i], i > 0 ? " " : "");
+	/*
+	 * If no output was produced print a single 0.
+	 */
+	if (len == 0)
+		len = snprintf(buf, buf_size, "%d", 0);
 
 	if (add_cr)
 		len += snprintf(buf + len, max(buf_size - len, 0), "\n");
@@ -1150,7 +1206,8 @@ static ssize_t input_dev_show_cap_##bm(struct device *dev,		\
 {									\
 	struct input_dev *input_dev = to_input_dev(dev);		\
 	int len = input_print_bitmap(buf, PAGE_SIZE,			\
-				     input_dev->bm##bit, ev##_MAX, 1);	\
+				     input_dev->bm##bit, ev##_MAX,	\
+				     true);				\
 	return min_t(int, len, PAGE_SIZE);				\
 }									\
 static DEVICE_ATTR(bm, S_IRUGO, input_dev_show_cap_##bm, NULL)
@@ -1214,7 +1271,7 @@ static int input_add_uevent_bm_var(struct kobj_uevent_env *env,
 
 	len = input_print_bitmap(&env->buf[env->buflen - 1],
 				 sizeof(env->buf) - env->buflen,
-				 bitmap, max, 0);
+				 bitmap, max, false);
 	if (len >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
 

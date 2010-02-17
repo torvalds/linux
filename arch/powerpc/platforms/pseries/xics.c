@@ -163,14 +163,13 @@ static inline void lpar_qirr_info(int n_cpu , u8 value)
 /* Interface to generic irq subsystem */
 
 #ifdef CONFIG_SMP
-static int get_irq_server(unsigned int virq, unsigned int strict_check)
+static int get_irq_server(unsigned int virq, cpumask_t cpumask,
+			  unsigned int strict_check)
 {
 	int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t cpumask;
 	cpumask_t tmp = CPU_MASK_NONE;
 
-	cpumask_copy(&cpumask, irq_to_desc(virq)->affinity);
 	if (!distribute_irqs)
 		return default_server;
 
@@ -192,10 +191,7 @@ static int get_irq_server(unsigned int virq, unsigned int strict_check)
 	return default_server;
 }
 #else
-static int get_irq_server(unsigned int virq, unsigned int strict_check)
-{
-	return default_server;
-}
+#define get_irq_server(virq, cpumask, strict_check) (default_server)
 #endif
 
 static void xics_unmask_irq(unsigned int virq)
@@ -211,7 +207,7 @@ static void xics_unmask_irq(unsigned int virq)
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = get_irq_server(virq, 0);
+	server = get_irq_server(virq, *(irq_to_desc(virq)->affinity), 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
@@ -405,7 +401,7 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 	 * For the moment only implement delivery to all cpus or one cpu.
 	 * Get current irq_server for the given irq
 	 */
-	irq_server = get_irq_server(virq, 1);
+	irq_server = get_irq_server(virq, *cpumask, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
@@ -788,9 +784,13 @@ static void xics_set_cpu_priority(unsigned char cppr)
 {
 	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
 
-	BUG_ON(os_cppr->index != 0);
+	/*
+	 * we only really want to set the priority when there's
+	 * just one cppr value on the stack
+	 */
+	WARN_ON(os_cppr->index != 0);
 
-	os_cppr->stack[os_cppr->index] = cppr;
+	os_cppr->stack[0] = cppr;
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		lpar_cppr_info(cppr);
@@ -825,8 +825,14 @@ void xics_setup_cpu(void)
 
 void xics_teardown_cpu(void)
 {
+	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
 	int cpu = smp_processor_id();
 
+	/*
+	 * we have to reset the cppr index to 0 because we're
+	 * not going to return from the IPI
+	 */
+	os_cppr->index = 0;
 	xics_set_cpu_priority(0);
 
 	/* Clear any pending IPI request */

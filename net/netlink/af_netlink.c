@@ -455,8 +455,13 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 	if (nl_table[protocol].registered &&
 	    try_module_get(nl_table[protocol].module))
 		module = nl_table[protocol].module;
+	else
+		err = -EPROTONOSUPPORT;
 	cb_mutex = nl_table[protocol].cb_mutex;
 	netlink_unlock_table();
+
+	if (err < 0)
+		goto out;
 
 	err = __netlink_create(net, sock, cb_mutex, protocol);
 	if (err < 0)

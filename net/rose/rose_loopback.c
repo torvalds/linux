@@ -75,7 +75,7 @@ static void rose_loopback_timer(unsigned long param)
 		lci_i     = ((skb->data[0] << 8) & 0xF00) + ((skb->data[1] << 0) & 0x0FF);
 		frametype = skb->data[2];
 		dest      = (rose_address *)(skb->data + 4);
-		lci_o     = 0xFFF - lci_i;
+		lci_o     = ROSE_DEFAULT_MAXVC + 1 - lci_i;
 
 		skb_reset_transport_header(skb);
 

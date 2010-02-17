@@ -528,7 +528,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		     sector_t offset)
 {
 	sector_t alignment;
-	unsigned int top, bottom;
+	unsigned int top, bottom, ret = 0;
 
 	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
@@ -546,6 +546,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->max_segment_size = min_not_zero(t->max_segment_size,
 					   b->max_segment_size);
 
+	t->misaligned |= b->misaligned;
+
 	alignment = queue_limit_alignment_offset(b, offset);
 
 	/* Bottom device has different alignment.  Check that it is
@@ -558,8 +560,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		bottom = max(b->physical_block_size, b->io_min) + alignment;
 
 		/* Verify that top and bottom intervals line up */
-		if (max(top, bottom) & (min(top, bottom) - 1))
+		if (max(top, bottom) & (min(top, bottom) - 1)) {
 			t->misaligned = 1;
+			ret = -1;
+		}
 	}
 
 	t->logical_block_size = max(t->logical_block_size,
@@ -578,18 +582,21 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	if (t->physical_block_size & (t->logical_block_size - 1)) {
 		t->physical_block_size = t->logical_block_size;
 		t->misaligned = 1;
+		ret = -1;
 	}
 
 	/* Minimum I/O a multiple of the physical block size? */
 	if (t->io_min & (t->physical_block_size - 1)) {
 		t->io_min = t->physical_block_size;
 		t->misaligned = 1;
+		ret = -1;
 	}
 
 	/* Optimal I/O a multiple of the physical block size? */
 	if (t->io_opt & (t->physical_block_size - 1)) {
 		t->io_opt = 0;
 		t->misaligned = 1;
+		ret = -1;
 	}
 
 	/* Find lowest common alignment_offset */
@@ -597,8 +604,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 		& (max(t->physical_block_size, t->io_min) - 1);
 
 	/* Verify that new alignment_offset is on a logical block boundary */
-	if (t->alignment_offset & (t->logical_block_size - 1))
+	if (t->alignment_offset & (t->logical_block_size - 1)) {
 		t->misaligned = 1;
+		ret = -1;
+	}
 
 	/* Discard alignment and granularity */
 	if (b->discard_granularity) {
@@ -626,9 +635,31 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			(t->discard_granularity - 1);
 	}
 
-	return t->misaligned ? -1 : 0;
+	return ret;
 }
 EXPORT_SYMBOL(blk_stack_limits);
+
+/**
+ * bdev_stack_limits - adjust queue limits for stacked drivers
+ * @t:	the stacking driver limits (top device)
+ * @bdev:  the component block_device (bottom)
+ * @start:  first data sector within component device
+ *
+ * Description:
+ *    Merges queue limits for a top device and a block_device.  Returns
+ *    0 if alignment didn't change.  Returns -1 if adding the bottom
+ *    device caused misalignment.
+ */
+int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
+		      sector_t start)
+{
+	struct request_queue *bq = bdev_get_queue(bdev);
+
+	start += get_start_sect(bdev);
+
+	return blk_stack_limits(t, &bq->limits, start << 9);
+}
+EXPORT_SYMBOL(bdev_stack_limits);
 
 /**
  * disk_stack_limits - adjust queue limits for stacked drivers

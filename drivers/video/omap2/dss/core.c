@@ -124,6 +124,7 @@ static void restore_all_ctx(void)
 	dss_clk_disable_all_no_ctx();
 }
 
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 /* CLOCKS */
 static void core_dump_clocks(struct seq_file *s)
 {
@@ -149,6 +150,7 @@ static void core_dump_clocks(struct seq_file *s)
 				clocks[i]->usecount);
 	}
 }
+#endif /* defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT) */
 
 static int dss_get_clock(struct clk **clock, const char *clk_name)
 {
@@ -394,6 +396,14 @@ static int dss_initialize_debugfs(void)
 
 	debugfs_create_file("clk", S_IRUGO, dss_debugfs_dir,
 			&dss_debug_dump_clocks, &dss_debug_fops);
+
+	debugfs_create_file("dispc_irq", S_IRUGO, dss_debugfs_dir,
+			&dispc_dump_irqs, &dss_debug_fops);
+
+#ifdef CONFIG_OMAP2_DSS_DSI
+	debugfs_create_file("dsi_irq", S_IRUGO, dss_debugfs_dir,
+			&dsi_dump_irqs, &dss_debug_fops);
+#endif
 
 	debugfs_create_file("dss", S_IRUGO, dss_debugfs_dir,
 			&dss_dump_regs, &dss_debug_fops);

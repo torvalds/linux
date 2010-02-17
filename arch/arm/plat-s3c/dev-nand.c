@@ -58,8 +58,8 @@ static int __init s3c_nand_copy_set(struct s3c2410_nand_set *set)
 			return -ENOMEM;
 	}
 	
-	size = sizeof(int) * set->nr_chips;
-	if (size) {
+	if (set->nr_map && set->nr_chips) {
+		size = sizeof(int) * set->nr_chips;
 		ptr = kmemdup(set->nr_map, size, GFP_KERNEL);
 		set->nr_map = ptr;
 

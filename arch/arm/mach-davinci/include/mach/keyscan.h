@@ -29,6 +29,7 @@ enum davinci_matrix_types {
 };
 
 struct davinci_ks_platform_data {
+	int		(*device_enable)(struct device *dev);
 	unsigned short	*keymap;
 	u32		keymapsize;
 	u8		rep:1;

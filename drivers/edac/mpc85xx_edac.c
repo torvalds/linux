@@ -804,8 +804,8 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		end   <<= (24 - PAGE_SHIFT);
 		end    |= (1 << (24 - PAGE_SHIFT)) - 1;
 
-		csrow->first_page = start >> PAGE_SHIFT;
-		csrow->last_page = end >> PAGE_SHIFT;
+		csrow->first_page = start;
+		csrow->last_page = end;
 		csrow->nr_pages = end + 1 - start;
 		csrow->grain = 8;
 		csrow->mtype = mtype;
@@ -891,10 +891,6 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 	mpc85xx_set_mc_sysfs_attributes(mci);
 
 	mpc85xx_init_csrows(mci);
-
-#ifdef CONFIG_EDAC_DEBUG
-	edac_mc_register_mcidev_debug((struct attribute **)debug_attr);
-#endif
 
 	/* store the original error disable bits */
 	orig_ddr_err_disable =

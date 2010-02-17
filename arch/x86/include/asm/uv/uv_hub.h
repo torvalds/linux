@@ -495,5 +495,17 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
+/*
+ * Get the minimum revision number of the hub chips within the partition.
+ *     1 - initial rev 1.0 silicon
+ *     2 - rev 2.0 production silicon
+ */
+static inline int uv_get_min_hub_revision_id(void)
+{
+	extern int uv_min_hub_revision_id;
+
+	return uv_min_hub_revision_id;
+}
+
 #endif /* CONFIG_X86_64 */
 #endif /* _ASM_X86_UV_UV_HUB_H */
