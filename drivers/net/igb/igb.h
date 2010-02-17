@@ -141,6 +141,7 @@ struct igb_buffer {
 			u16 length;
 			u16 next_to_watch;
 			u16 mapped_as_page;
+			u16 gso_segs;
 		};
 		/* RX */
 		struct {

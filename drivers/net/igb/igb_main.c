@@ -3641,6 +3641,7 @@ static inline int igb_tx_map_adv(struct igb_ring *tx_ring, struct sk_buff *skb,
 	}
 
 	tx_ring->buffer_info[i].skb = skb;
+	tx_ring->buffer_info[i].gso_segs = skb_shinfo(skb)->gso_segs ?: 1;
 	tx_ring->buffer_info[first].next_to_watch = i;
 
 	return ++count;
@@ -5032,7 +5033,7 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 			if (skb) {
 				unsigned int segs, bytecount;
 				/* gso_segs is currently only valid for tcp */
-				segs = skb_shinfo(skb)->gso_segs ?: 1;
+				segs = buffer_info->gso_segs;
 				/* multiply data chunks by size of headers */
 				bytecount = ((segs - 1) * skb_headlen(skb)) +
 					    skb->len;
