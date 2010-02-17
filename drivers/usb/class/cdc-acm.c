@@ -428,7 +428,6 @@ next_buffer:
 		throttled = acm->throttle;
 		spin_unlock_irqrestore(&acm->throttle_lock, flags);
 		if (!throttled) {
-			tty_buffer_request_room(tty, buf->size);
 			tty_insert_flip_string(tty, buf->base, buf->size);
 			tty_flip_buffer_push(tty);
 		} else {
