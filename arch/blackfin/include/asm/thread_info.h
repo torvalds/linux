@@ -103,6 +103,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_FREEZE		6	/* is freezing for suspend */
 #define TIF_IRQ_SYNC		7	/* sync pipeline stage */
 #define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
+#define TIF_SINGLESTEP		9
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -113,6 +114,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
 #define _TIF_IRQ_SYNC		(1<<TIF_IRQ_SYNC)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
 
 #define _TIF_WORK_MASK		0x0000FFFE	/* work to do on interrupt/exception return */
 

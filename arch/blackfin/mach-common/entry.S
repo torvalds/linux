@@ -642,6 +642,8 @@ ENTRY(_system_call)
 	r7 = [p2+TI_FLAGS];
 	CC = BITTST(r7,TIF_SYSCALL_TRACE);
 	if CC JUMP _sys_trace;
+	CC = BITTST(r7,TIF_SINGLESTEP);
+	if CC JUMP _sys_trace;
 
 	/* Execute the appropriate system call */
 

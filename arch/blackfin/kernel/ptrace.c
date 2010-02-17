@@ -220,12 +220,16 @@ void user_enable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	regs->syscfg |= SYSCFG_SSSTEP;
+
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	regs->syscfg &= ~SYSCFG_SSSTEP;
+
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -401,6 +405,9 @@ asmlinkage int syscall_trace_enter(struct pt_regs *regs)
 
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+	int step;
+
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }
