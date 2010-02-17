@@ -1,6 +1,6 @@
 /* bnx2x_fw_defs.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -471,6 +471,11 @@
 
 
 /* Host coalescing constants */
+#define HC_IGU_BC_MODE 0
+#define HC_IGU_NBC_MODE 1
+
+#define HC_REGULAR_SEGMENT 0
+#define HC_DEFAULT_SEGMENT 1
 
 /* index numbers */
 #define HC_USTORM_DEF_SB_NUM_INDICES 8

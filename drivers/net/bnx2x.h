@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -130,7 +130,7 @@
 				 offset, len32); \
 	} while (0)
 
-#define VIRT_WR_DMAE_LEN(bp, data, addr, len32) \
+#define VIRT_WR_DMAE_LEN(bp, data, addr, len32, le32_swap) \
 	do { \
 		memcpy(GUNZIP_BUF(bp), data, (len32) * 4); \
 		bnx2x_write_big_buf_wb(bp, addr, len32); \
