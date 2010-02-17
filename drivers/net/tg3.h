@@ -2943,21 +2943,13 @@ struct tg3 {
 #define TG3_PHY_ID_BCM57765		0x5c0d8a40
 #define TG3_PHY_ID_BCM5906		0xdc00ac40
 #define TG3_PHY_ID_BCM8002		0x60010140
-#define TG3_PHY_ID_BCM50610		0x0143bd60
-#define TG3_PHY_ID_BCM50610M		0x0143bd70
-#define TG3_PHY_ID_BCMAC131		0x0143bc70
-#define TG3_PHY_ID_RTL8211C		0x001cc910
-#define TG3_PHY_ID_RTL8201E		0x00008200
-#define TG3_PHY_ID_BCM57780		0x03625d90
 #define TG3_PHY_ID_INVALID		0xffffffff
+
+#define PHY_ID_RTL8211C			0x001cc910
+#define PHY_ID_RTL8201E			0x00008200
 
 #define TG3_PHY_ID_REV_MASK		0x0000000f
 #define TG3_PHY_REV_BCM5401_B0		0x1
-
-#define TG3_PHY_OUI_MASK		0xfffffc00
-#define TG3_PHY_OUI_1			0x00206000
-#define TG3_PHY_OUI_2			0x0143bc00
-#define TG3_PHY_OUI_3			0x03625c00
 
 	/* This macro assumes the passed PHY ID is
 	 * already masked with TG3_PHY_ID_MASK.

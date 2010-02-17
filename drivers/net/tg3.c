@@ -955,17 +955,17 @@ static void tg3_mdio_config_5785(struct tg3 *tp)
 
 	phydev = tp->mdio_bus->phy_map[TG3_PHY_MII_ADDR];
 	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
-	case TG3_PHY_ID_BCM50610:
-	case TG3_PHY_ID_BCM50610M:
+	case PHY_ID_BCM50610:
+	case PHY_ID_BCM50610M:
 		val = MAC_PHYCFG2_50610_LED_MODES;
 		break;
-	case TG3_PHY_ID_BCMAC131:
+	case PHY_ID_BCMAC131:
 		val = MAC_PHYCFG2_AC131_LED_MODES;
 		break;
-	case TG3_PHY_ID_RTL8211C:
+	case PHY_ID_RTL8211C:
 		val = MAC_PHYCFG2_RTL8211C_LED_MODES;
 		break;
-	case TG3_PHY_ID_RTL8201E:
+	case PHY_ID_RTL8201E:
 		val = MAC_PHYCFG2_RTL8201E_LED_MODES;
 		break;
 	default:
@@ -1115,12 +1115,12 @@ static int tg3_mdio_init(struct tg3 *tp)
 	}
 
 	switch (phydev->drv->phy_id & phydev->drv->phy_id_mask) {
-	case TG3_PHY_ID_BCM57780:
+	case PHY_ID_BCM57780:
 		phydev->interface = PHY_INTERFACE_MODE_GMII;
 		phydev->dev_flags |= PHY_BRCM_AUTO_PWRDWN_ENABLE;
 		break;
-	case TG3_PHY_ID_BCM50610:
-	case TG3_PHY_ID_BCM50610M:
+	case PHY_ID_BCM50610:
+	case PHY_ID_BCM50610M:
 		phydev->dev_flags |= PHY_BRCM_CLEAR_RGMII_MODE |
 				     PHY_BRCM_RX_REFCLK_UNUSED |
 				     PHY_BRCM_DIS_TXCRXC_NOENRGY |
@@ -1132,11 +1132,11 @@ static int tg3_mdio_init(struct tg3 *tp)
 		if (tp->tg3_flags3 & TG3_FLG3_RGMII_EXT_IBND_TX_EN)
 			phydev->dev_flags |= PHY_BRCM_EXT_IBND_TX_ENABLE;
 		/* fallthru */
-	case TG3_PHY_ID_RTL8211C:
+	case PHY_ID_RTL8211C:
 		phydev->interface = PHY_INTERFACE_MODE_RGMII;
 		break;
-	case TG3_PHY_ID_RTL8201E:
-	case TG3_PHY_ID_BCMAC131:
+	case PHY_ID_RTL8201E:
+	case PHY_ID_BCMAC131:
 		phydev->interface = PHY_INTERFACE_MODE_MII;
 		phydev->dev_flags |= PHY_BRCM_AUTO_PWRDWN_ENABLE;
 		tp->tg3_flags3 |= TG3_FLG3_PHY_IS_FET;
@@ -2563,11 +2563,11 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 			phy_start_aneg(phydev);
 
 			phyid = phydev->drv->phy_id & phydev->drv->phy_id_mask;
-			if (phyid != TG3_PHY_ID_BCMAC131) {
-				phyid &= TG3_PHY_OUI_MASK;
-				if (phyid == TG3_PHY_OUI_1 ||
-				    phyid == TG3_PHY_OUI_2 ||
-				    phyid == TG3_PHY_OUI_3)
+			if (phyid != PHY_ID_BCMAC131) {
+				phyid &= PHY_BCM_OUI_MASK;
+				if (phyid == PHY_BCM_OUI_1 ||
+				    phyid == PHY_BCM_OUI_2 ||
+				    phyid == PHY_BCM_OUI_3)
 					do_low_power = true;
 			}
 		}

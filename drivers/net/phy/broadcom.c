@@ -18,9 +18,6 @@
 #include <linux/phy.h>
 #include <linux/brcmphy.h>
 
-#define PHY_ID_BCM50610		0x0143bd60
-#define PHY_ID_BCM50610M	0x0143bd70
-#define PHY_ID_BCM57780		0x03625d90
 
 #define BRCM_PHY_MODEL(phydev) \
 	((phydev)->drv->phy_id & (phydev)->drv->phy_id_mask)
@@ -823,7 +820,7 @@ static struct phy_driver bcm57780_driver = {
 };
 
 static struct phy_driver bcmac131_driver = {
-	.phy_id		= 0x0143bc70,
+	.phy_id		= PHY_ID_BCMAC131,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCMAC131",
 	.features	= PHY_BASIC_FEATURES |
