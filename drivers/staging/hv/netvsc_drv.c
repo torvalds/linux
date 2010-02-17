@@ -41,7 +41,7 @@
 
 struct net_device_context {
 	/* point back to our device context */
-	struct device_context *device_ctx;
+	struct vm_device *device_ctx;
 	struct net_device_stats stats;
 };
 
@@ -271,7 +271,7 @@ retry_send:
 static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				       unsigned int status)
 {
-	struct device_context *device_ctx = to_device_context(device_obj);
+	struct vm_device *device_ctx = to_vm_device(device_obj);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
 
 	DPRINT_ENTER(NETVSC_DRV);
@@ -298,7 +298,7 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 static int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet)
 {
-	struct device_context *device_ctx = to_device_context(device_obj);
+	struct vm_device *device_ctx = to_vm_device(device_obj);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
 	struct net_device_context *net_device_ctx;
 	struct sk_buff *skb;
@@ -390,7 +390,7 @@ static int netvsc_probe(struct device *device)
 	struct netvsc_driver_context *net_drv_ctx =
 		(struct netvsc_driver_context *)driver_ctx;
 	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	struct net_device *net = NULL;
 	struct net_device_context *net_device_ctx;
@@ -462,7 +462,7 @@ static int netvsc_remove(struct device *device)
 	struct netvsc_driver_context *net_drv_ctx =
 		(struct netvsc_driver_context *)driver_ctx;
 	struct netvsc_driver *net_drv_obj = &net_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	int ret;

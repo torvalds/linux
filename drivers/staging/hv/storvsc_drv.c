@@ -41,7 +41,7 @@ struct host_device_context {
 	/* must be 1st field
 	 * FIXME this is a bug */
 	/* point back to our device context */
-	struct device_context *device_ctx;
+	struct vm_device *device_ctx;
 	struct kmem_cache *request_pool;
 	unsigned int port;
 	unsigned char path;
@@ -234,7 +234,7 @@ static int storvsc_probe(struct device *device)
 				(struct storvsc_driver_context *)driver_ctx;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&storvsc_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	struct Scsi_Host *host;
 	struct host_device_context *host_device_ctx;
@@ -330,7 +330,7 @@ static int storvsc_remove(struct device *device)
 			(struct storvsc_driver_context *)driver_ctx;
 	struct storvsc_driver_object *storvsc_drv_obj =
 			&storvsc_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	struct Scsi_Host *host = dev_get_drvdata(device);
 	struct host_device_context *host_device_ctx =
@@ -631,7 +631,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 	int ret;
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
-	struct device_context *device_ctx = host_device_ctx->device_ctx;
+	struct vm_device *device_ctx = host_device_ctx->device_ctx;
 	struct driver_context *driver_ctx =
 		driver_to_driver_context(device_ctx->device.driver);
 	struct storvsc_driver_context *storvsc_drv_ctx =
@@ -870,7 +870,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 	int ret;
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
-	struct device_context *device_ctx = host_device_ctx->device_ctx;
+	struct vm_device *device_ctx = host_device_ctx->device_ctx;
 
 	DPRINT_ENTER(STORVSC_DRV);
 
