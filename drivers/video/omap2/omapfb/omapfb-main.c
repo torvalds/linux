@@ -2176,9 +2176,11 @@ static int omapfb_probe(struct platform_device *pdev)
 		u16 w, h;
 #endif
 		r = def_display->enable(def_display);
-		if (r)
+		if (r) {
 			dev_warn(fbdev->dev, "Failed to enable display '%s'\n",
 					def_display->name);
+			goto cleanup;
+		}
 
 		/* set the update mode */
 		if (def_display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
