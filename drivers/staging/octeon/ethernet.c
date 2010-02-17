@@ -42,8 +42,6 @@
 #include "ethernet-tx.h"
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
-#include "ethernet-proc.h"
-
 
 #include "cvmx-pip.h"
 #include "cvmx-pko.h"
@@ -621,7 +619,6 @@ static int __init cvm_oct_init_module(void)
 		return -ENOMEM;
 	}
 
-	cvm_oct_proc_initialize();
 	cvm_oct_configure_common_hw();
 
 	cvmx_helper_initialize_packet_io_global();
@@ -828,7 +825,6 @@ static void __exit cvm_oct_cleanup_module(void)
 	destroy_workqueue(cvm_oct_poll_queue);
 
 	cvmx_pko_shutdown();
-	cvm_oct_proc_shutdown();
 
 	cvmx_ipd_free_ptr();
 
