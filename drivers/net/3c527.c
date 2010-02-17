@@ -1533,9 +1533,7 @@ static void do_mc32_set_multicast_list(struct net_device *dev, int retry)
 	{
 		unsigned char block[62];
 		unsigned char *bp;
-		struct dev_mc_list *dmc=dev->mc_list;
-
-		int i;
+		struct dev_mc_list *dmc;
 
 		if(retry==0)
 			lp->mc_list_valid = 0;
@@ -1545,11 +1543,9 @@ static void do_mc32_set_multicast_list(struct net_device *dev, int retry)
 			block[0]=netdev_mc_count(dev);
 			bp=block+2;
 
-			for(i=0;i<netdev_mc_count(dev);i++)
-			{
+			netdev_for_each_mc_addr(dmc, dev) {
 				memcpy(bp, dmc->dmi_addr, 6);
 				bp+=6;
-				dmc=dmc->next;
 			}
 			if(mc32_command_nowait(dev, 2, block,
 					       2+6*netdev_mc_count(dev))==-1)
