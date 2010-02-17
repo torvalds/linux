@@ -30,6 +30,8 @@
 #define ZFCP_DBF_TAG_SIZE      4
 #define ZFCP_DBF_ID_SIZE       7
 
+#define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
+
 struct zfcp_dbf_dump {
 	u8 tag[ZFCP_DBF_TAG_SIZE];
 	u32 total_size;		/* size of total dump data */

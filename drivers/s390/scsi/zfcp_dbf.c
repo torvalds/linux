@@ -576,7 +576,8 @@ void zfcp_dbf_rec_adapter(char *id, void *ref, struct zfcp_dbf *dbf)
 	struct zfcp_adapter *adapter = dbf->adapter;
 
 	zfcp_dbf_rec_target(id, ref, dbf, &adapter->status,
-				  &adapter->erp_counter, 0, 0, 0);
+			    &adapter->erp_counter, 0, 0,
+			    ZFCP_DBF_INVALID_LUN);
 }
 
 /**
@@ -590,8 +591,8 @@ void zfcp_dbf_rec_port(char *id, void *ref, struct zfcp_port *port)
 	struct zfcp_dbf *dbf = port->adapter->dbf;
 
 	zfcp_dbf_rec_target(id, ref, dbf, &port->status,
-				  &port->erp_counter, port->wwpn, port->d_id,
-				  0);
+			    &port->erp_counter, port->wwpn, port->d_id,
+			    ZFCP_DBF_INVALID_LUN);
 }
 
 /**
@@ -642,10 +643,9 @@ void zfcp_dbf_rec_trigger(char *id2, void *ref, u8 want, u8 need, void *action,
 		r->u.trigger.ps = atomic_read(&port->status);
 		r->u.trigger.wwpn = port->wwpn;
 	}
-	if (unit) {
+	if (unit)
 		r->u.trigger.us = atomic_read(&unit->status);
-		r->u.trigger.fcp_lun = unit->fcp_lun;
-	}
+	r->u.trigger.fcp_lun = unit ? unit->fcp_lun : ZFCP_DBF_INVALID_LUN;
 	debug_event(dbf->rec, action ? 1 : 4, r, sizeof(*r));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
