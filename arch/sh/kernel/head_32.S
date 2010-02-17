@@ -236,7 +236,7 @@ ENTRY(_stext)
 	 * r10 = number of entries we've setup so far
 	 */
 	mov	#0, r1
-	mov	#PMB_ENTRY_MAX, r0
+	mov	#NR_PMB_ENTRIES, r0
 
 .Lagain:
 	mov.l	r1, @r3		/* Clear PMB_ADDR entry */

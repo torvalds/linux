@@ -11,7 +11,9 @@
 
 #define PMB_ADDR		0xf6100000
 #define PMB_DATA		0xf7100000
-#define PMB_ENTRY_MAX		16
+
+#define NR_PMB_ENTRIES		16
+
 #define PMB_E_MASK		0x0000000f
 #define PMB_E_SHIFT		8
 
