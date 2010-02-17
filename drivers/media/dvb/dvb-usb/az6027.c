@@ -387,8 +387,8 @@ static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 /* keys for the enclosed remote control */
 static struct dvb_usb_rc_key az6027_rc_keys[] = {
-	{ 0x00, 0x01, KEY_1 },
-	{ 0x00, 0x02, KEY_2 },
+	{ 0x0001, KEY_1 },
+	{ 0x0002, KEY_2 },
 };
 
 /* remote control stuff (does not work with my box) */
