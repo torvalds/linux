@@ -1362,6 +1362,41 @@ static int __mark_caps_flushing(struct inode *inode,
 }
 
 /*
+ * try to invalidate mapping pages without blocking.
+ */
+static int mapping_is_empty(struct address_space *mapping)
+{
+	struct page *page = find_get_page(mapping, 0);
+
+	if (!page)
+		return 1;
+
+	put_page(page);
+	return 0;
+}
+
+static int try_nonblocking_invalidate(struct inode *inode)
+{
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	u32 invalidating_gen = ci->i_rdcache_gen;
+
+	spin_unlock(&inode->i_lock);
+	invalidate_mapping_pages(&inode->i_data, 0, -1);
+	spin_lock(&inode->i_lock);
+
+	if (mapping_is_empty(&inode->i_data) &&
+	    invalidating_gen == ci->i_rdcache_gen) {
+		/* success. */
+		dout("try_nonblocking_invalidate %p success\n", inode);
+		ci->i_rdcache_gen = 0;
+		ci->i_rdcache_revoking = 0;
+		return 0;
+	}
+	dout("try_nonblocking_invalidate %p failed\n", inode);
+	return -1;
+}
+
+/*
  * Swiss army knife function to examine currently used and wanted
  * versus held caps.  Release, flush, ack revoked caps to mds as
  * appropriate.
@@ -1451,27 +1486,19 @@ retry_locked:
 	    (file_wanted == 0 ||                     /* no open files */
 	     (revoking & CEPH_CAP_FILE_CACHE)) &&     /*  or revoking cache */
 	    !tried_invalidate) {
-		u32 invalidating_gen = ci->i_rdcache_gen;
-		int ret;
-
 		dout("check_caps trying to invalidate on %p\n", inode);
-		spin_unlock(&inode->i_lock);
-		ret = invalidate_mapping_pages(&inode->i_data, 0, -1);
-		spin_lock(&inode->i_lock);
-		if (ret == 0 && invalidating_gen == ci->i_rdcache_gen) {
-			/* success. */
-			ci->i_rdcache_gen = 0;
-			ci->i_rdcache_revoking = 0;
-		} else if (revoking & CEPH_CAP_FILE_CACHE) {
-			dout("check_caps queuing invalidate\n");
-			queue_invalidate = 1;
-			ci->i_rdcache_revoking = ci->i_rdcache_gen;
-		} else {
-			dout("check_caps failed to invalidate pages\n");
-			/* we failed to invalidate pages.  check these
-			   caps again later. */
-			force_requeue = 1;
-			__cap_set_timeouts(mdsc, ci);
+		if (try_nonblocking_invalidate(inode) < 0) {
+			if (revoking & CEPH_CAP_FILE_CACHE) {
+				dout("check_caps queuing invalidate\n");
+				queue_invalidate = 1;
+				ci->i_rdcache_revoking = ci->i_rdcache_gen;
+			} else {
+				dout("check_caps failed to invalidate pages\n");
+				/* we failed to invalidate pages.  check these
+				   caps again later. */
+				force_requeue = 1;
+				__cap_set_timeouts(mdsc, ci);
+			}
 		}
 		tried_invalidate = 1;
 		goto retry_locked;
@@ -2184,7 +2211,6 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int revoked_rdcache = 0;
 	int queue_invalidate = 0;
 	int tried_invalidate = 0;
-	int ret;
 
 	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
 	     inode, cap, mds, seq, ceph_cap_string(newcaps));
@@ -2199,24 +2225,16 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 restart:
 	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
 	    !ci->i_wrbuffer_ref && !tried_invalidate) {
-		dout("CACHE invalidation\n");
-		spin_unlock(&inode->i_lock);
 		tried_invalidate = 1;
-
-		ret = invalidate_mapping_pages(&inode->i_data, 0, -1);
-		spin_lock(&inode->i_lock);
-		if (ret < 0) {
+		if (try_nonblocking_invalidate(inode) == 0) {
+			revoked_rdcache = 1;
+		} else {
 			/* there were locked pages.. invalidate later
 			   in a separate thread. */
 			if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 				queue_invalidate = 1;
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			}
-		} else {
-			/* we successfully invalidated those pages */
-			revoked_rdcache = 1;
-			ci->i_rdcache_gen = 0;
-			ci->i_rdcache_revoking = 0;
 		}
 		goto restart;
 	}
