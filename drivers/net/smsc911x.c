@@ -1383,29 +1383,20 @@ static void smsc911x_set_multicast_list(struct net_device *dev)
 		/* Enabling specific multicast addresses */
 		unsigned int hash_high = 0;
 		unsigned int hash_low = 0;
-		unsigned int count = 0;
-		struct dev_mc_list *mc_list = dev->mc_list;
+		struct dev_mc_list *mc_list;
 
 		pdata->set_bits_mask = MAC_CR_HPFILT_;
 		pdata->clear_bits_mask = (MAC_CR_PRMS_ | MAC_CR_MCPAS_);
 
-		while (mc_list) {
-			count++;
-			if ((mc_list->dmi_addrlen) == ETH_ALEN) {
-				unsigned int bitnum =
-				    smsc911x_hash(mc_list->dmi_addr);
-				unsigned int mask = 0x01 << (bitnum & 0x1F);
-				if (bitnum & 0x20)
-					hash_high |= mask;
-				else
-					hash_low |= mask;
-			} else {
-				SMSC_WARNING(DRV, "dmi_addrlen != 6");
-			}
-			mc_list = mc_list->next;
+		netdev_for_each_mc_addr(mc_list, dev) {
+			unsigned int bitnum = smsc911x_hash(mc_list->dmi_addr);
+			unsigned int mask = 0x01 << (bitnum & 0x1F);
+
+			if (bitnum & 0x20)
+				hash_high |= mask;
+			else
+				hash_low |= mask;
 		}
-		if (count != (unsigned int)netdev_mc_count(dev))
-			SMSC_WARNING(DRV, "mc_count != dev->mc_count");
 
 		pdata->hashhi = hash_high;
 		pdata->hashlo = hash_low;
