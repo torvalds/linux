@@ -3450,6 +3450,7 @@ int __init add_from_early_node_map(struct range *range, int az,
 	return nr_range;
 }
 
+#ifdef CONFIG_NO_BOOTMEM
 void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 					u64 goal, u64 limit)
 {
@@ -3486,6 +3487,7 @@ void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 
 	return NULL;
 }
+#endif
 
 
 void __init work_with_active_regions(int nid, work_fn_t work_fn, void *data)
