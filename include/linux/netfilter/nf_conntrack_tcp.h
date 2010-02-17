@@ -55,8 +55,7 @@ struct ip_ct_tcp_state {
 	u_int8_t	flags;		/* per direction options */
 };
 
-struct ip_ct_tcp
-{
+struct ip_ct_tcp {
 	struct ip_ct_tcp_state seen[2];	/* connection parameters per direction */
 	u_int8_t	state;		/* state of the connection (enum tcp_conntrack) */
 	/* For detecting stale connections */
@@ -67,6 +66,9 @@ struct ip_ct_tcp
 	u_int32_t	last_ack;	/* Last sequence number seen in opposite dir */
 	u_int32_t	last_end;	/* Last seq + len */
 	u_int16_t	last_win;	/* Last window advertisement seen in dir */
+	/* For SYN packets while we may be out-of-sync */
+	u_int8_t	last_wscale;	/* Last window scaling factor seen */
+	u_int8_t	last_flags;	/* Last flags set */
 };
 
 #endif /* __KERNEL__ */

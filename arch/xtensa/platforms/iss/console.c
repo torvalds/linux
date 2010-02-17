@@ -196,7 +196,7 @@ static const struct file_operations rs_proc_fops = {
 	.release	= single_release,
 };
 
-static struct tty_operations serial_ops = {
+static const struct tty_operations serial_ops = {
 	.open = rs_open,
 	.close = rs_close,
 	.write = rs_write,

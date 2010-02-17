@@ -93,6 +93,7 @@ static const struct stacktrace_ops backtrace_ops = {
 	.warning_symbol		= backtrace_warning_symbol,
 	.stack			= backtrace_stack,
 	.address		= backtrace_address,
+	.walk_stack		= print_context_stack,
 };
 
 static int

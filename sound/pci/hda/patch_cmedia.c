@@ -66,7 +66,7 @@ struct cmi_spec {
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 
-	/* pin deafault configuration */
+	/* pin default configuration */
 	hda_nid_t pin_nid[NUM_PINS];
 	unsigned int def_conf[NUM_PINS];
 	unsigned int pin_def_confs;
@@ -197,8 +197,8 @@ static struct snd_kcontrol_new cmi9880_basic_mixer[] = {
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0, HDA_INPUT),
-	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x23, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x23, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x23, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x23, 0, HDA_OUTPUT),
 	{ } /* end */
 };
 

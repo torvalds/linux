@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -716,139 +716,6 @@ static void rt2500usb_reset_tuner(struct rt2x00_dev *rt2x00dev,
 }
 
 /*
- * NOTE: This function is directly ported from legacy driver, but
- * despite it being declared it was never called. Although link tuning
- * sounds like a good idea, and usually works well for the other drivers,
- * it does _not_ work with rt2500usb. Enabling this function will result
- * in TX capabilities only until association kicks in. Immediately
- * after the successful association all TX frames will be kept in the
- * hardware queue and never transmitted.
- */
-#if 0
-static void rt2500usb_link_tuner(struct rt2x00_dev *rt2x00dev)
-{
-	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
-	u16 bbp_thresh;
-	u16 vgc_bound;
-	u16 sens;
-	u16 r24;
-	u16 r25;
-	u16 r61;
-	u16 r17_sens;
-	u8 r17;
-	u8 up_bound;
-	u8 low_bound;
-
-	/*
-	 * Read current r17 value, as well as the sensitivity values
-	 * for the r17 register.
-	 */
-	rt2500usb_bbp_read(rt2x00dev, 17, &r17);
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R17, &r17_sens);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_VGC, &vgc_bound);
-	up_bound = rt2x00_get_field16(vgc_bound, EEPROM_BBPTUNE_VGCUPPER);
-	low_bound = rt2x00_get_field16(vgc_bound, EEPROM_BBPTUNE_VGCLOWER);
-
-	/*
-	 * If we are not associated, we should go straight to the
-	 * dynamic CCA tuning.
-	 */
-	if (!rt2x00dev->intf_associated)
-		goto dynamic_cca_tune;
-
-	/*
-	 * Determine the BBP tuning threshold and correctly
-	 * set BBP 24, 25 and 61.
-	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE, &bbp_thresh);
-	bbp_thresh = rt2x00_get_field16(bbp_thresh, EEPROM_BBPTUNE_THRESHOLD);
-
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R24, &r24);
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R25, &r25);
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R61, &r61);
-
-	if ((rssi + bbp_thresh) > 0) {
-		r24 = rt2x00_get_field16(r24, EEPROM_BBPTUNE_R24_HIGH);
-		r25 = rt2x00_get_field16(r25, EEPROM_BBPTUNE_R25_HIGH);
-		r61 = rt2x00_get_field16(r61, EEPROM_BBPTUNE_R61_HIGH);
-	} else {
-		r24 = rt2x00_get_field16(r24, EEPROM_BBPTUNE_R24_LOW);
-		r25 = rt2x00_get_field16(r25, EEPROM_BBPTUNE_R25_LOW);
-		r61 = rt2x00_get_field16(r61, EEPROM_BBPTUNE_R61_LOW);
-	}
-
-	rt2500usb_bbp_write(rt2x00dev, 24, r24);
-	rt2500usb_bbp_write(rt2x00dev, 25, r25);
-	rt2500usb_bbp_write(rt2x00dev, 61, r61);
-
-	/*
-	 * A too low RSSI will cause too much false CCA which will
-	 * then corrupt the R17 tuning. To remidy this the tuning should
-	 * be stopped (While making sure the R17 value will not exceed limits)
-	 */
-	if (rssi >= -40) {
-		if (r17 != 0x60)
-			rt2500usb_bbp_write(rt2x00dev, 17, 0x60);
-		return;
-	}
-
-	/*
-	 * Special big-R17 for short distance
-	 */
-	if (rssi >= -58) {
-		sens = rt2x00_get_field16(r17_sens, EEPROM_BBPTUNE_R17_LOW);
-		if (r17 != sens)
-			rt2500usb_bbp_write(rt2x00dev, 17, sens);
-		return;
-	}
-
-	/*
-	 * Special mid-R17 for middle distance
-	 */
-	if (rssi >= -74) {
-		sens = rt2x00_get_field16(r17_sens, EEPROM_BBPTUNE_R17_HIGH);
-		if (r17 != sens)
-			rt2500usb_bbp_write(rt2x00dev, 17, sens);
-		return;
-	}
-
-	/*
-	 * Leave short or middle distance condition, restore r17
-	 * to the dynamic tuning range.
-	 */
-	low_bound = 0x32;
-	if (rssi < -77)
-		up_bound -= (-77 - rssi);
-
-	if (up_bound < low_bound)
-		up_bound = low_bound;
-
-	if (r17 > up_bound) {
-		rt2500usb_bbp_write(rt2x00dev, 17, up_bound);
-		rt2x00dev->link.vgc_level = up_bound;
-		return;
-	}
-
-dynamic_cca_tune:
-
-	/*
-	 * R17 is inside the dynamic tuning range,
-	 * start tuning the link based on the false cca counter.
-	 */
-	if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
-		rt2500usb_bbp_write(rt2x00dev, 17, ++r17);
-		rt2x00dev->link.vgc_level = r17;
-	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
-		rt2500usb_bbp_write(rt2x00dev, 17, --r17);
-		rt2x00dev->link.vgc_level = r17;
-	}
-}
-#else
-#define rt2500usb_link_tuner	NULL
-#endif
-
-/*
  * Initialization functions.
  */
 static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
@@ -1542,6 +1409,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2500usb_register_read(rt2x00dev, MAC_CSR0, &reg);
 	rt2x00_set_chip(rt2x00dev, RT2570, value, reg);
+	rt2x00_print_chip(rt2x00dev);
 
 	if (!rt2x00_check_rev(&rt2x00dev->chip, 0x000ffff0, 0) ||
 	    rt2x00_check_rev(&rt2x00dev->chip, 0x0000000f, 0)) {
@@ -1788,8 +1656,6 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_SUPPORTS_PS |
 	    IEEE80211_HW_PS_NULLFUNC_STACK;
 
-	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
-
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
 				rt2x00_eeprom_addr(rt2x00dev,
@@ -1910,7 +1776,6 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.rfkill_poll		= rt2500usb_rfkill_poll,
 	.link_stats		= rt2500usb_link_stats,
 	.reset_tuner		= rt2500usb_reset_tuner,
-	.link_tuner		= rt2500usb_link_tuner,
 	.write_tx_desc		= rt2500usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
 	.write_beacon		= rt2500usb_write_beacon,
@@ -1956,20 +1821,21 @@ static const struct data_queue_desc rt2500usb_queue_atim = {
 };
 
 static const struct rt2x00_ops rt2500usb_ops = {
-	.name		= KBUILD_MODNAME,
-	.max_sta_intf	= 1,
-	.max_ap_intf	= 1,
-	.eeprom_size	= EEPROM_SIZE,
-	.rf_size	= RF_SIZE,
-	.tx_queues	= NUM_TX_QUEUES,
-	.rx		= &rt2500usb_queue_rx,
-	.tx		= &rt2500usb_queue_tx,
-	.bcn		= &rt2500usb_queue_bcn,
-	.atim		= &rt2500usb_queue_atim,
-	.lib		= &rt2500usb_rt2x00_ops,
-	.hw		= &rt2500usb_mac80211_ops,
+	.name			= KBUILD_MODNAME,
+	.max_sta_intf		= 1,
+	.max_ap_intf		= 1,
+	.eeprom_size		= EEPROM_SIZE,
+	.rf_size		= RF_SIZE,
+	.tx_queues		= NUM_TX_QUEUES,
+	.extra_tx_headroom	= TXD_DESC_SIZE,
+	.rx			= &rt2500usb_queue_rx,
+	.tx			= &rt2500usb_queue_tx,
+	.bcn			= &rt2500usb_queue_bcn,
+	.atim			= &rt2500usb_queue_atim,
+	.lib			= &rt2500usb_rt2x00_ops,
+	.hw			= &rt2500usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	.debugfs	= &rt2500usb_rt2x00debug,
+	.debugfs		= &rt2500usb_rt2x00debug,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 };
 

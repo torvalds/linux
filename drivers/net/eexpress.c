@@ -457,7 +457,7 @@ static int eexp_open(struct net_device *dev)
 	if (!dev->irq || !irqrmap[dev->irq])
 		return -ENXIO;
 
-	ret = request_irq(dev->irq, &eexp_irq, 0, dev->name, dev);
+	ret = request_irq(dev->irq, eexp_irq, 0, dev->name, dev);
 	if (ret)
 		return ret;
 

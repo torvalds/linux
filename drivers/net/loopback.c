@@ -81,7 +81,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */
 	pcpu_lstats = dev->ml_priv;
-	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
+	lb_stats = this_cpu_ptr(pcpu_lstats);
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
@@ -207,20 +207,12 @@ static __net_init int loopback_net_init(struct net *net)
 out_free_netdev:
 	free_netdev(dev);
 out:
-	if (net == &init_net)
+	if (net_eq(net, &init_net))
 		panic("loopback: Failed to register netdevice: %d\n", err);
 	return err;
-}
-
-static __net_exit void loopback_net_exit(struct net *net)
-{
-	struct net_device *dev = net->loopback_dev;
-
-	unregister_netdev(dev);
 }
 
 /* Registered in net/core/dev.c */
 struct pernet_operations __net_initdata loopback_net_ops = {
        .init = loopback_net_init,
-       .exit = loopback_net_exit,
 };

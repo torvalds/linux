@@ -329,12 +329,6 @@ extern unsigned char fontdata_8x16[];
  *
  *	* perform fb specific mmap *
  *	int (*fb_mmap)(struct fb_info *info, struct vm_area_struct *vma);
- *
- *	* save current hardware state *
- *	void (*fb_save_state)(struct fb_info *info);
- *
- *	* restore saved state *
- *	void (*fb_restore_state)(struct fb_info *info);
  * } ;
  */
 
@@ -2246,6 +2240,9 @@ static int ext_setcolreg(unsigned int regno, unsigned int red,
 	unsigned char colmask = (1 << external_bitspercol) - 1;
 
 	if (!external_vgaiobase)
+		return 1;
+
+	if (regno > 255)
 		return 1;
 
 	switch (external_card_type) {

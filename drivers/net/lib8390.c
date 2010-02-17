@@ -464,8 +464,8 @@ static irqreturn_t __ei_interrupt(int irq, void *dev_id)
 			   ei_inb_p(e8390_base + EN0_ISR));
 
 	/* !!Assumption!! -- we stay in page 0.	 Don't break this. */
-	while ((interrupts = ei_inb_p(e8390_base + EN0_ISR)) != 0
-		   && ++nr_serviced < MAX_SERVICE)
+	while ((interrupts = ei_inb_p(e8390_base + EN0_ISR)) != 0 &&
+	       ++nr_serviced < MAX_SERVICE)
 	{
 		if (!netif_running(dev)) {
 			printk(KERN_WARNING "%s: interrupt from stopped card\n", dev->name);
@@ -721,10 +721,10 @@ static void ei_receive(struct net_device *dev)
 		/* Check for bogosity warned by 3c503 book: the status byte is never
 		   written.  This happened a lot during testing! This code should be
 		   cleaned up someday. */
-		if (rx_frame.next != next_frame
-			&& rx_frame.next != next_frame + 1
-			&& rx_frame.next != next_frame - num_rx_pages
-			&& rx_frame.next != next_frame + 1 - num_rx_pages) {
+		if (rx_frame.next != next_frame &&
+		    rx_frame.next != next_frame + 1 &&
+		    rx_frame.next != next_frame - num_rx_pages &&
+		    rx_frame.next != next_frame + 1 - num_rx_pages) {
 			ei_local->current_page = rxing_page;
 			ei_outb(ei_local->current_page-1, e8390_base+EN0_BOUNDARY);
 			dev->stats.rx_errors++;

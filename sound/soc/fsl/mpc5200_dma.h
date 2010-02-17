@@ -13,26 +13,25 @@
  * @psc_dma:		pointer back to parent psc_dma data structure
  * @bcom_task:		bestcomm task structure
  * @irq:		irq number for bestcomm task
- * @period_start:	physical address of start of DMA region
  * @period_end:		physical address of end of DMA region
  * @period_next_pt:	physical address of next DMA buffer to enqueue
  * @period_bytes:	size of DMA period in bytes
+ * @ac97_slot_bits:	Enable bits for turning on the correct AC97 slot
  */
 struct psc_dma_stream {
 	struct snd_pcm_runtime *runtime;
-	snd_pcm_uframes_t appl_ptr;
-
 	int active;
 	struct psc_dma *psc_dma;
 	struct bcom_task *bcom_task;
 	int irq;
 	struct snd_pcm_substream *stream;
-	dma_addr_t period_start;
-	dma_addr_t period_end;
-	dma_addr_t period_next_pt;
-	dma_addr_t period_current_pt;
+	int period_next;
+	int period_current;
 	int period_bytes;
-	int period_size;
+	int period_count;
+
+	/* AC97 state */
+	u32 ac97_slot_bits;
 };
 
 /**
@@ -72,6 +71,15 @@ struct psc_dma {
 		unsigned long underrun_count;
 	} stats;
 };
+
+/* Utility for retrieving psc_dma_stream structure from a substream */
+inline struct psc_dma_stream *
+to_psc_dma_stream(struct snd_pcm_substream *substream, struct psc_dma *psc_dma)
+{
+	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return &psc_dma->capture;
+	return &psc_dma->playback;
+}
 
 int mpc5200_audio_dma_create(struct of_device *op);
 int mpc5200_audio_dma_destroy(struct of_device *op);

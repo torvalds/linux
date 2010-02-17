@@ -356,9 +356,6 @@ static int free_ram_pages_type(u64 start, u64 end)
  * - _PAGE_CACHE_UC_MINUS
  * - _PAGE_CACHE_UC
  *
- * req_type will have a special case value '-1', when requester want to inherit
- * the memory type from mtrr (if WB), existing PAT, defaulting to UC_MINUS.
- *
  * If new_type is NULL, function will return an error if it cannot reserve the
  * region with req_type. If new_type is non-NULL, function will return
  * available type in new_type in case of no error. In case of any error
@@ -378,9 +375,7 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (!pat_enabled) {
 		/* This is identical to page table setting without PAT */
 		if (new_type) {
-			if (req_type == -1)
-				*new_type = _PAGE_CACHE_WB;
-			else if (req_type == _PAGE_CACHE_WC)
+			if (req_type == _PAGE_CACHE_WC)
 				*new_type = _PAGE_CACHE_UC_MINUS;
 			else
 				*new_type = req_type & _PAGE_CACHE_MASK;
@@ -709,9 +704,8 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (!range_is_allowed(pfn, size))
 		return 0;
 
-	if (file->f_flags & O_SYNC) {
+	if (file->f_flags & O_DSYNC)
 		flags = _PAGE_CACHE_UC_MINUS;
-	}
 
 #ifdef CONFIG_X86_32
 	/*

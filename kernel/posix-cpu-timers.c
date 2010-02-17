@@ -384,7 +384,8 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 
 /*
  * Validate the clockid_t for a new CPU-clock timer, and initialize the timer.
- * This is called from sys_timer_create with the new timer already locked.
+ * This is called from sys_timer_create() and do_cpu_nanosleep() with the
+ * new timer already all-zeros initialized.
  */
 int posix_cpu_timer_create(struct k_itimer *new_timer)
 {
@@ -396,8 +397,6 @@ int posix_cpu_timer_create(struct k_itimer *new_timer)
 		return -EINVAL;
 
 	INIT_LIST_HEAD(&new_timer->it.cpu.entry);
-	new_timer->it.cpu.incr.sched = 0;
-	new_timer->it.cpu.expires.sched = 0;
 
 	read_lock(&tasklist_lock);
 	if (CPUCLOCK_PERTHREAD(new_timer->it_clock)) {

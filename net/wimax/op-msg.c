@@ -388,6 +388,8 @@ int wimax_gnl_doit_msg_from_user(struct sk_buff *skb, struct genl_info *info)
 	}
 	mutex_lock(&wimax_dev->mutex);
 	result = wimax_dev_is_ready(wimax_dev);
+	if (result == -ENOMEDIUM)
+		result = 0;
 	if (result < 0)
 		goto error_not_ready;
 	result = -ENOSYS;

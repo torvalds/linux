@@ -78,11 +78,9 @@ int radeon_gart_table_vram_alloc(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.vram.robj == NULL) {
-		r = radeon_object_create(rdev, NULL,
-					 rdev->gart.table_size,
-					 true,
-					 RADEON_GEM_DOMAIN_VRAM,
-					 false, &rdev->gart.table.vram.robj);
+		r = radeon_bo_create(rdev, NULL, rdev->gart.table_size,
+					true, RADEON_GEM_DOMAIN_VRAM,
+					&rdev->gart.table.vram.robj);
 		if (r) {
 			return r;
 		}
@@ -95,32 +93,38 @@ int radeon_gart_table_vram_pin(struct radeon_device *rdev)
 	uint64_t gpu_addr;
 	int r;
 
-	r = radeon_object_pin(rdev->gart.table.vram.robj,
-			      RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
+	r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rdev->gart.table.vram.robj,
+				RADEON_GEM_DOMAIN_VRAM, &gpu_addr);
 	if (r) {
-		radeon_object_unref(&rdev->gart.table.vram.robj);
+		radeon_bo_unreserve(rdev->gart.table.vram.robj);
 		return r;
 	}
-	r = radeon_object_kmap(rdev->gart.table.vram.robj,
-			       (void **)&rdev->gart.table.vram.ptr);
-	if (r) {
-		radeon_object_unpin(rdev->gart.table.vram.robj);
-		radeon_object_unref(&rdev->gart.table.vram.robj);
-		DRM_ERROR("radeon: failed to map gart vram table.\n");
-		return r;
-	}
+	r = radeon_bo_kmap(rdev->gart.table.vram.robj,
+				(void **)&rdev->gart.table.vram.ptr);
+	if (r)
+		radeon_bo_unpin(rdev->gart.table.vram.robj);
+	radeon_bo_unreserve(rdev->gart.table.vram.robj);
 	rdev->gart.table_addr = gpu_addr;
-	return 0;
+	return r;
 }
 
 void radeon_gart_table_vram_free(struct radeon_device *rdev)
 {
+	int r;
+
 	if (rdev->gart.table.vram.robj == NULL) {
 		return;
 	}
-	radeon_object_kunmap(rdev->gart.table.vram.robj);
-	radeon_object_unpin(rdev->gart.table.vram.robj);
-	radeon_object_unref(&rdev->gart.table.vram.robj);
+	r = radeon_bo_reserve(rdev->gart.table.vram.robj, false);
+	if (likely(r == 0)) {
+		radeon_bo_kunmap(rdev->gart.table.vram.robj);
+		radeon_bo_unpin(rdev->gart.table.vram.robj);
+		radeon_bo_unreserve(rdev->gart.table.vram.robj);
+	}
+	radeon_bo_unref(&rdev->gart.table.vram.robj);
 }
 
 
@@ -140,15 +144,15 @@ void radeon_gart_unbind(struct radeon_device *rdev, unsigned offset,
 		WARN(1, "trying to unbind memory to unitialized GART !\n");
 		return;
 	}
-	t = offset / 4096;
-	p = t / (PAGE_SIZE / 4096);
+	t = offset / RADEON_GPU_PAGE_SIZE;
+	p = t / (PAGE_SIZE / RADEON_GPU_PAGE_SIZE);
 	for (i = 0; i < pages; i++, p++) {
 		if (rdev->gart.pages[p]) {
 			pci_unmap_page(rdev->pdev, rdev->gart.pages_addr[p],
 				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 			rdev->gart.pages[p] = NULL;
 			rdev->gart.pages_addr[p] = 0;
-			for (j = 0; j < (PAGE_SIZE / 4096); j++, t++) {
+			for (j = 0; j < (PAGE_SIZE / RADEON_GPU_PAGE_SIZE); j++, t++) {
 				radeon_gart_set_page(rdev, t, 0);
 			}
 		}
@@ -169,8 +173,8 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		DRM_ERROR("trying to bind memory to unitialized GART !\n");
 		return -EINVAL;
 	}
-	t = offset / 4096;
-	p = t / (PAGE_SIZE / 4096);
+	t = offset / RADEON_GPU_PAGE_SIZE;
+	p = t / (PAGE_SIZE / RADEON_GPU_PAGE_SIZE);
 
 	for (i = 0; i < pages; i++, p++) {
 		/* we need to support large memory configurations */
@@ -185,9 +189,9 @@ int radeon_gart_bind(struct radeon_device *rdev, unsigned offset,
 		}
 		rdev->gart.pages[p] = pagelist[i];
 		page_base = rdev->gart.pages_addr[p];
-		for (j = 0; j < (PAGE_SIZE / 4096); j++, t++) {
+		for (j = 0; j < (PAGE_SIZE / RADEON_GPU_PAGE_SIZE); j++, t++) {
 			radeon_gart_set_page(rdev, t, page_base);
-			page_base += 4096;
+			page_base += RADEON_GPU_PAGE_SIZE;
 		}
 	}
 	mb();
@@ -200,14 +204,14 @@ int radeon_gart_init(struct radeon_device *rdev)
 	if (rdev->gart.pages) {
 		return 0;
 	}
-	/* We need PAGE_SIZE >= 4096 */
-	if (PAGE_SIZE < 4096) {
+	/* We need PAGE_SIZE >= RADEON_GPU_PAGE_SIZE */
+	if (PAGE_SIZE < RADEON_GPU_PAGE_SIZE) {
 		DRM_ERROR("Page size is smaller than GPU page size!\n");
 		return -EINVAL;
 	}
 	/* Compute table size */
 	rdev->gart.num_cpu_pages = rdev->mc.gtt_size / PAGE_SIZE;
-	rdev->gart.num_gpu_pages = rdev->mc.gtt_size / 4096;
+	rdev->gart.num_gpu_pages = rdev->mc.gtt_size / RADEON_GPU_PAGE_SIZE;
 	DRM_INFO("GART: num cpu pages %u, num gpu pages %u\n",
 		 rdev->gart.num_cpu_pages, rdev->gart.num_gpu_pages);
 	/* Allocate pages table */

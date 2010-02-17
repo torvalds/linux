@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2461
+# define AAC_DRIVER_BUILD 24702
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -526,10 +526,10 @@ struct aac_driver_ident
 
 /*
  *	The adapter interface specs all queues to be located in the same
- *	physically contigous block. The host structure that defines the
+ *	physically contiguous block. The host structure that defines the
  *	commuication queues will assume they are each a separate physically
- *	contigous memory region that will support them all being one big
- *	contigous block.
+ *	contiguous memory region that will support them all being one big
+ *	contiguous block.
  *	There is a command and response queue for each level and direction of
  *	commuication. These regions are accessed by both the host and adapter.
  */
@@ -1036,6 +1036,9 @@ struct aac_dev
 	u8			printf_enabled;
 	u8			in_reset;
 	u8			msi;
+	int			management_fib_count;
+	spinlock_t		manage_lock;
+
 };
 
 #define aac_adapter_interrupt(dev) \

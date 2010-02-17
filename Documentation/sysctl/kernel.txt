@@ -19,6 +19,8 @@ Currently, these files might (depending on your configuration)
 show up in /proc/sys/kernel:
 - acpi_video_flags
 - acct
+- bootloader_type	     [ X86 only ]
+- bootloader_version	     [ X86 only ]
 - callhome		     [ S390 only ]
 - auto_msgmni
 - core_pattern
@@ -93,6 +95,35 @@ valid for 30 seconds.
 
 ==============================================================
 
+bootloader_type:
+
+x86 bootloader identification
+
+This gives the bootloader type number as indicated by the bootloader,
+shifted left by 4, and OR'd with the low four bits of the bootloader
+version.  The reason for this encoding is that this used to match the
+type_of_loader field in the kernel header; the encoding is kept for
+backwards compatibility.  That is, if the full bootloader type number
+is 0x15 and the full version number is 0x234, this file will contain
+the value 340 = 0x154.
+
+See the type_of_loader and ext_loader_type fields in
+Documentation/x86/boot.txt for additional information.
+
+==============================================================
+
+bootloader_version:
+
+x86 bootloader version
+
+The complete bootloader version number.  In the example above, this
+file will contain the value 564 = 0x234.
+
+See the type_of_loader and ext_loader_ver fields in
+Documentation/x86/boot.txt for additional information.
+
+==============================================================
+
 callhome:
 
 Controls the kernel's callhome behavior in case of a kernel panic.
@@ -139,9 +170,9 @@ core_pattern is used to specify a core dumpfile pattern name.
 core_pipe_limit:
 
 This sysctl is only applicable when core_pattern is configured to pipe core
-files to user space helper a (when the first character of core_pattern is a '|',
+files to a user space helper (when the first character of core_pattern is a '|',
 see above).  When collecting cores via a pipe to an application, it is
-occasionally usefull for the collecting application to gather data about the
+occasionally useful for the collecting application to gather data about the
 crashing process from its /proc/pid directory.  In order to do this safely, the
 kernel must wait for the collecting process to exit, so as not to remove the
 crashing processes proc files prematurely.  This in turn creates the possibility
@@ -152,7 +183,7 @@ applications in parallel.  If this value is exceeded, then those crashing
 processes above that value are noted via the kernel log and their cores are
 skipped.  0 is a special value, indicating that unlimited processes may be
 captured in parallel, but that no waiting will take place (i.e. the collecting
-process is not guaranteed access to /proc/<crahing pid>/).  This value defaults
+process is not guaranteed access to /proc/<crashing pid>/).  This value defaults
 to 0.
 
 ==============================================================

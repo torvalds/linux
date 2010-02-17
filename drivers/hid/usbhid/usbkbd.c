@@ -266,7 +266,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 			 le16_to_cpu(dev->descriptor.idProduct));
 
 	usb_make_path(dev, kbd->phys, sizeof(kbd->phys));
-	strlcpy(kbd->phys, "/input0", sizeof(kbd->phys));
+	strlcat(kbd->phys, "/input0", sizeof(kbd->phys));
 
 	input_dev->name = kbd->name;
 	input_dev->phys = kbd->phys;

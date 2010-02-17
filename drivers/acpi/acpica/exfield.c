@@ -162,13 +162,12 @@ acpi_ex_read_data_from_field(struct acpi_walk_state *walk_state,
 	} else {
 		/* Field will fit within an Integer (normal case) */
 
-		buffer_desc = acpi_ut_create_internal_object(ACPI_TYPE_INTEGER);
+		buffer_desc = acpi_ut_create_integer_object((u64) 0);
 		if (!buffer_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 
 		length = acpi_gbl_integer_byte_width;
-		buffer_desc->integer.value = 0;
 		buffer = &buffer_desc->integer.value;
 	}
 

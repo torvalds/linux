@@ -80,87 +80,9 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 		return tomoyo_find_next_domain(bprm);
 	/*
 	 * Read permission is checked against interpreters using next domain.
-	 * '1' is the result of open_to_namei_flags(O_RDONLY).
 	 */
-	return tomoyo_check_open_permission(domain, &bprm->file->f_path, 1);
+	return tomoyo_check_open_permission(domain, &bprm->file->f_path, O_RDONLY);
 }
-
-#ifdef CONFIG_SYSCTL
-
-static int tomoyo_prepend(char **buffer, int *buflen, const char *str)
-{
-	int namelen = strlen(str);
-
-	if (*buflen < namelen)
-		return -ENOMEM;
-	*buflen -= namelen;
-	*buffer -= namelen;
-	memcpy(*buffer, str, namelen);
-	return 0;
-}
-
-/**
- * tomoyo_sysctl_path - return the realpath of a ctl_table.
- * @table: pointer to "struct ctl_table".
- *
- * Returns realpath(3) of the @table on success.
- * Returns NULL on failure.
- *
- * This function uses tomoyo_alloc(), so the caller must call tomoyo_free()
- * if this function didn't return NULL.
- */
-static char *tomoyo_sysctl_path(struct ctl_table *table)
-{
-	int buflen = TOMOYO_MAX_PATHNAME_LEN;
-	char *buf = tomoyo_alloc(buflen);
-	char *end = buf + buflen;
-	int error = -ENOMEM;
-
-	if (!buf)
-		return NULL;
-
-	*--end = '\0';
-	buflen--;
-	while (table) {
-		char num[32];
-		const char *sp = table->procname;
-
-		if (!sp) {
-			memset(num, 0, sizeof(num));
-			snprintf(num, sizeof(num) - 1, "=%d=", table->ctl_name);
-			sp = num;
-		}
-		if (tomoyo_prepend(&end, &buflen, sp) ||
-		    tomoyo_prepend(&end, &buflen, "/"))
-			goto out;
-		table = table->parent;
-	}
-	if (tomoyo_prepend(&end, &buflen, "/proc/sys"))
-		goto out;
-	error = tomoyo_encode(buf, end - buf, end);
- out:
-	if (!error)
-		return buf;
-	tomoyo_free(buf);
-	return NULL;
-}
-
-static int tomoyo_sysctl(struct ctl_table *table, int op)
-{
-	int error;
-	char *name;
-
-	op &= MAY_READ | MAY_WRITE;
-	if (!op)
-		return 0;
-	name = tomoyo_sysctl_path(table);
-	if (!name)
-		return -ENOMEM;
-	error = tomoyo_check_file_perm(tomoyo_domain(), name, op);
-	tomoyo_free(name);
-	return error;
-}
-#endif
 
 static int tomoyo_path_truncate(struct path *path, loff_t length,
 				unsigned int time_attrs)
@@ -261,10 +183,6 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
 {
 	int flags = f->f_flags;
-
-	if ((flags + 1) & O_ACCMODE)
-		flags++;
-	flags |= f->f_flags & (O_APPEND | O_TRUNC);
 	/* Don't check read permission here if called from do_execve(). */
 	if (current->in_execve)
 		return 0;
@@ -282,9 +200,6 @@ static struct security_operations tomoyo_security_ops = {
 	.cred_transfer	     = tomoyo_cred_transfer,
 	.bprm_set_creds      = tomoyo_bprm_set_creds,
 	.bprm_check_security = tomoyo_bprm_check_security,
-#ifdef CONFIG_SYSCTL
-	.sysctl              = tomoyo_sysctl,
-#endif
 	.file_fcntl          = tomoyo_file_fcntl,
 	.dentry_open         = tomoyo_dentry_open,
 	.path_truncate       = tomoyo_path_truncate,

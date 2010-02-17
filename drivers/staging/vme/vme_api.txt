@@ -77,7 +77,7 @@ driver in question:
 	struct vme_resource * vme_slave_request(struct device *dev,
 		vme_address_t aspace, vme_cycle_t cycle);
 
-	struct vme_resource *vme_request_dma(struct device *dev);
+	struct vme_resource *vme_dma_request(struct device *dev);
 
 For slave windows these attributes are split into those of type 'vme_address_t'
 and 'vme_cycle_t'. Master windows add a further set of attributes 'vme_cycle_t'.
@@ -290,10 +290,10 @@ status ID combination. Any given combination can only be assigned a single
 callback function. A void pointer parameter is provided, the value of which is
 passed to the callback function, the use of this pointer is user undefined:
 
-	int vme_request_irq(struct device *dev, int level, int statid,
+	int vme_irq_request(struct device *dev, int level, int statid,
 		void (*callback)(int, int, void *), void *priv);
 
-	void vme_free_irq(struct device *dev, int level, int statid);
+	void vme_irq_free(struct device *dev, int level, int statid);
 
 The callback parameters are as follows. Care must be taken in writing a callback
 function, callback functions run in interrupt context:
@@ -307,7 +307,7 @@ Interrupt Generation
 The following function can be used to generate a VME interrupt at a given VME
 level and VME status ID:
 
-	int vme_generate_irq(struct device *dev, int level, int statid);
+	int vme_irq_generate(struct device *dev, int level, int statid);
 
 
 Location monitors

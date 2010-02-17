@@ -429,7 +429,11 @@ struct gfs2_args {
 	unsigned int ar_meta:1;			/* mount metafs */
 	unsigned int ar_discard:1;		/* discard requests */
 	unsigned int ar_errors:2;               /* errors=withdraw | panic */
+	unsigned int ar_nobarrier:1;            /* do not send barriers */
 	int ar_commit;				/* Commit interval */
+	int ar_statfs_quantum;			/* The fast statfs interval */
+	int ar_quota_quantum;			/* The quota interval */
+	int ar_statfs_percent;			/* The % change to force sync */
 };
 
 struct gfs2_tune {
@@ -540,6 +544,8 @@ struct gfs2_sbd {
 	struct gfs2_holder sd_live_gh;
 	struct gfs2_glock *sd_rename_gl;
 	struct gfs2_glock *sd_trans_gl;
+	wait_queue_head_t sd_glock_wait;
+	atomic_t sd_glock_disposal;
 
 	/* Inode Stuff */
 
@@ -558,6 +564,7 @@ struct gfs2_sbd {
 	spinlock_t sd_statfs_spin;
 	struct gfs2_statfs_change_host sd_statfs_master;
 	struct gfs2_statfs_change_host sd_statfs_local;
+	int sd_statfs_force_sync;
 
 	/* Resource group stuff */
 

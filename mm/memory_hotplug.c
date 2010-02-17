@@ -26,6 +26,8 @@
 #include <linux/migrate.h>
 #include <linux/page-isolation.h>
 #include <linux/pfn.h>
+#include <linux/suspend.h>
+#include <linux/mm_inline.h>
 
 #include <asm/tlbflush.h>
 
@@ -70,7 +72,9 @@ static void get_page_bootmem(unsigned long info,  struct page *page, int type)
 	atomic_inc(&page->_count);
 }
 
-void put_page_bootmem(struct page *page)
+/* reference to __meminit __free_pages_bootmem is valid
+ * so use __ref to tell modpost not to generate a warning */
+void __ref put_page_bootmem(struct page *page)
 {
 	int type;
 
@@ -447,7 +451,8 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 }
 #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
 
-static pg_data_t *hotadd_new_pgdat(int nid, u64 start)
+/* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
+static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 {
 	struct pglist_data *pgdat;
 	unsigned long zones_size[MAX_NR_ZONES] = {0};
@@ -484,14 +489,18 @@ int __ref add_memory(int nid, u64 start, u64 size)
 	struct resource *res;
 	int ret;
 
+	lock_system_sleep();
+
 	res = register_memory_resource(start, size);
+	ret = -EEXIST;
 	if (!res)
-		return -EEXIST;
+		goto out;
 
 	if (!node_online(nid)) {
 		pgdat = hotadd_new_pgdat(nid, start);
+		ret = -ENOMEM;
 		if (!pgdat)
-			return -ENOMEM;
+			goto out;
 		new_pgdat = 1;
 	}
 
@@ -514,7 +523,8 @@ int __ref add_memory(int nid, u64 start, u64 size)
 		BUG_ON(ret);
 	}
 
-	return ret;
+	goto out;
+
 error:
 	/* rollback pgdat allocation and others */
 	if (new_pgdat)
@@ -522,6 +532,8 @@ error:
 	if (res)
 		release_memory_resource(res);
 
+out:
+	unlock_system_sleep();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(add_memory);
@@ -663,6 +675,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		if (!ret) { /* Success */
 			list_add_tail(&page->lru, &source);
 			move_pages--;
+			inc_zone_page_state(page, NR_ISOLATED_ANON +
+					    page_is_file_cache(page));
+
 		} else {
 			/* Becasue we don't have big zone->lock. we should
 			   check this again here. */
@@ -685,7 +700,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 	if (list_empty(&source))
 		goto out;
 	/* this function returns # of failed pages */
-	ret = migrate_pages(&source, hotremove_migrate_alloc, 0);
+	ret = migrate_pages(&source, hotremove_migrate_alloc, 0, 1);
 
 out:
 	return ret;
@@ -738,7 +753,7 @@ check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	return offlined;
 }
 
-int offline_pages(unsigned long start_pfn,
+static int offline_pages(unsigned long start_pfn,
 		  unsigned long end_pfn, unsigned long timeout)
 {
 	unsigned long pfn, nr_pages, expire;
@@ -758,6 +773,8 @@ int offline_pages(unsigned long start_pfn,
 	if (!test_pages_in_a_zone(start_pfn, end_pfn))
 		return -EINVAL;
 
+	lock_system_sleep();
+
 	zone = page_zone(pfn_to_page(start_pfn));
 	node = zone_to_nid(zone);
 	nr_pages = end_pfn - start_pfn;
@@ -765,7 +782,7 @@ int offline_pages(unsigned long start_pfn,
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn);
 	if (ret)
-		return ret;
+		goto out;
 
 	arg.start_pfn = start_pfn;
 	arg.nr_pages = nr_pages;
@@ -838,11 +855,16 @@ repeat:
 
 	setup_per_zone_wmarks();
 	calculate_zone_inactive_ratio(zone);
+	if (!node_present_pages(node)) {
+		node_clear_state(node, N_HIGH_MEMORY);
+		kswapd_stop(node);
+	}
 
 	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();
 
 	memory_notify(MEM_OFFLINE, &arg);
+	unlock_system_sleep();
 	return 0;
 
 failed_removal:
@@ -852,6 +874,8 @@ failed_removal:
 	/* pushback to free area */
 	undo_isolate_page_range(start_pfn, end_pfn);
 
+out:
+	unlock_system_sleep();
 	return ret;
 }
 

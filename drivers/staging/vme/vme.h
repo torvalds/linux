@@ -123,7 +123,7 @@ unsigned int vme_master_rmw (struct vme_resource *, unsigned int, unsigned int,
 	unsigned int, loff_t);
 void vme_master_free(struct vme_resource *);
 
-struct vme_resource *vme_request_dma(struct device *);
+struct vme_resource *vme_dma_request(struct device *);
 struct vme_dma_list *vme_new_dma_list(struct vme_resource *);
 struct vme_dma_attr *vme_dma_pattern_attribute(u32, vme_pattern_t);
 struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t);
@@ -136,10 +136,10 @@ int vme_dma_list_exec(struct vme_dma_list *);
 int vme_dma_list_free(struct vme_dma_list *);
 int vme_dma_free(struct vme_resource *);
 
-int vme_request_irq(struct device *, int, int,
+int vme_irq_request(struct device *, int, int,
 	void (*callback)(int, int, void *), void *);
-void vme_free_irq(struct device *, int, int);
-int vme_generate_irq(struct device *, int, int);
+void vme_irq_free(struct device *, int, int);
+int vme_irq_generate(struct device *, int, int);
 
 struct vme_resource * vme_lm_request(struct device *);
 int vme_lm_count(struct vme_resource *);

@@ -357,7 +357,7 @@ static void ks8842_rx_frame(struct net_device *netdev,
 
 	/* check the status */
 	if ((status & RXSR_VALID) && !(status & RXSR_ERROR)) {
-		struct sk_buff *skb = netdev_alloc_skb(netdev, len + 2);
+		struct sk_buff *skb = netdev_alloc_skb_ip_align(netdev, len);
 
 		dev_dbg(&adapter->pdev->dev, "%s, got package, len: %d\n",
 			__func__, len);
@@ -369,9 +369,6 @@ static void ks8842_rx_frame(struct net_device *netdev,
 			if (status & RXSR_MULTICAST)
 				netdev->stats.multicast++;
 
-			/* Align socket buffer in 4-byte boundary for
-				 better performance. */
-			skb_reserve(skb, 2);
 			data = (u32 *)skb_put(skb, len);
 
 			ks8842_select_bank(adapter, 17);

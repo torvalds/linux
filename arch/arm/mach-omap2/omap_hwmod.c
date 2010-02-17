@@ -45,11 +45,12 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 
-#include <mach/cpu.h>
-#include <mach/clockdomain.h>
-#include <mach/powerdomain.h>
-#include <mach/clock.h>
-#include <mach/omap_hwmod.h>
+#include <plat/common.h>
+#include <plat/cpu.h>
+#include <plat/clockdomain.h>
+#include <plat/powerdomain.h>
+#include <plat/clock.h>
+#include <plat/omap_hwmod.h>
 
 #include "cm.h"
 
@@ -93,7 +94,8 @@ static int _update_sysc_cache(struct omap_hwmod *oh)
 
 	oh->_sysc_cache = omap_hwmod_readl(oh, oh->sysconfig->sysc_offs);
 
-	oh->_int_flags |= _HWMOD_SYSCONFIG_LOADED;
+	if (!(oh->sysconfig->sysc_flags & SYSC_NO_CACHE))
+		oh->_int_flags |= _HWMOD_SYSCONFIG_LOADED;
 
 	return 0;
 }
@@ -205,6 +207,32 @@ static int _set_softreset(struct omap_hwmod *oh, u32 *v)
 		return -EINVAL;
 
 	*v |= SYSC_SOFTRESET_MASK;
+
+	return 0;
+}
+
+/**
+ * _set_module_autoidle: set the OCP_SYSCONFIG AUTOIDLE field in @v
+ * @oh: struct omap_hwmod *
+ * @autoidle: desired AUTOIDLE bitfield value (0 or 1)
+ * @v: pointer to register contents to modify
+ *
+ * Update the module autoidle bit in @v to be @autoidle for the @oh
+ * hwmod.  The autoidle bit controls whether the module can gate
+ * internal clocks automatically when it isn't doing anything; the
+ * exact function of this bit varies on a per-module basis.  This
+ * function does not write to the hardware.  Returns -EINVAL upon
+ * error or 0 upon success.
+ */
+static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle,
+				u32 *v)
+{
+	if (!oh->sysconfig ||
+	    !(oh->sysconfig->sysc_flags & SYSC_HAS_AUTOIDLE))
+		return -EINVAL;
+
+	*v &= ~SYSC_AUTOIDLE_MASK;
+	*v |= autoidle << SYSC_AUTOIDLE_SHIFT;
 
 	return 0;
 }
@@ -325,6 +353,9 @@ static int _init_main_clk(struct omap_hwmod *oh)
 	if (IS_ERR(c))
 		ret = -EINVAL;
 	oh->_clk = c;
+
+	WARN(!c->clkdm, "omap_hwmod: %s: missing clockdomain for %s.\n",
+	     oh->clkdev_con_id, c->name);
 
 	return ret;
 }
@@ -496,6 +527,7 @@ static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 	struct omap_hwmod_addr_space *mem;
 	int i;
 	int found = 0;
+	void __iomem *va_start;
 
 	if (!oh || oh->slaves_cnt == 0)
 		return NULL;
@@ -509,16 +541,20 @@ static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 		}
 	}
 
-	/* XXX use ioremap() instead? */
-
-	if (found)
+	if (found) {
+		va_start = ioremap(mem->pa_start, mem->pa_end - mem->pa_start);
+		if (!va_start) {
+			pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
+			return NULL;
+		}
 		pr_debug("omap_hwmod: %s: MPU register target at va %p\n",
-			 oh->name, OMAP2_IO_ADDRESS(mem->pa_start));
-	else
+			 oh->name, va_start);
+	} else {
 		pr_debug("omap_hwmod: %s: no MPU register target found\n",
 			 oh->name);
+	}
 
-	return (found) ? OMAP2_IO_ADDRESS(mem->pa_start) : NULL;
+	return (found) ? va_start : NULL;
 }
 
 /**
@@ -552,8 +588,19 @@ static void _sysc_enable(struct omap_hwmod *oh)
 		_set_master_standbymode(oh, idlemode, &v);
 	}
 
-	/* XXX OCP AUTOIDLE bit? */
+	if (oh->sysconfig->sysc_flags & SYSC_HAS_AUTOIDLE) {
+		idlemode = (oh->flags & HWMOD_NO_OCP_AUTOIDLE) ?
+			0 : 1;
+		_set_module_autoidle(oh, idlemode, &v);
+	}
 
+	/* XXX OCP ENAWAKEUP bit? */
+
+	/*
+	 * XXX The clock framework should handle this, by
+	 * calling into this code.  But this must wait until the
+	 * clock structures are tagged with omap_hwmod entries
+	 */
 	if (oh->flags & HWMOD_SET_DEFAULT_CLOCKACT &&
 	    oh->sysconfig->sysc_flags & SYSC_HAS_CLOCKACTIVITY)
 		_set_clockactivity(oh, oh->sysconfig->clockact, &v);
@@ -617,7 +664,8 @@ static void _sysc_shutdown(struct omap_hwmod *oh)
 	if (oh->sysconfig->sysc_flags & SYSC_HAS_MIDLEMODE)
 		_set_master_standbymode(oh, HWMOD_IDLEMODE_FORCE, &v);
 
-	/* XXX clear OCP AUTOIDLE bit? */
+	if (oh->sysconfig->sysc_flags & SYSC_HAS_AUTOIDLE)
+		_set_module_autoidle(oh, 1, &v);
 
 	_write_sysconfig(v, oh);
 }
@@ -731,7 +779,7 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 static int _reset(struct omap_hwmod *oh)
 {
 	u32 r, v;
-	int c;
+	int c = 0;
 
 	if (!oh->sysconfig ||
 	    !(oh->sysconfig->sysc_flags & SYSC_HAS_SOFTRESET) ||
@@ -753,13 +801,9 @@ static int _reset(struct omap_hwmod *oh)
 		return r;
 	_write_sysconfig(v, oh);
 
-	c = 0;
-	while (c < MAX_MODULE_RESET_WAIT &&
-	       !(omap_hwmod_readl(oh, oh->sysconfig->syss_offs) &
-		 SYSS_RESETDONE_MASK)) {
-		udelay(1);
-		c++;
-	}
+	omap_test_timeout((omap_hwmod_readl(oh, oh->sysconfig->syss_offs) &
+			   SYSS_RESETDONE_MASK),
+			  MAX_MODULE_RESET_WAIT, c);
 
 	if (c == MAX_MODULE_RESET_WAIT)
 		WARN(1, "omap_hwmod: %s: failed to reset in %d usec\n",
@@ -879,33 +923,6 @@ static int _shutdown(struct omap_hwmod *oh)
 }
 
 /**
- * _write_clockact_lock - set the module's clockactivity bits
- * @oh: struct omap_hwmod *
- * @clockact: CLOCKACTIVITY field bits
- *
- * Writes the CLOCKACTIVITY bits @clockact to the hwmod @oh
- * OCP_SYSCONFIG register.  Returns -EINVAL if the hwmod is in the
- * wrong state or returns 0.
- */
-static int _write_clockact_lock(struct omap_hwmod *oh, u8 clockact)
-{
-	u32 v;
-
-	if (!oh->sysconfig ||
-	    !(oh->sysconfig->sysc_flags & SYSC_HAS_CLOCKACTIVITY))
-		return -EINVAL;
-
-	mutex_lock(&omap_hwmod_mutex);
-	v = oh->_sysc_cache;
-	_set_clockactivity(oh, clockact, &v);
-	_write_sysconfig(v, oh);
-	mutex_unlock(&omap_hwmod_mutex);
-
-	return 0;
-}
-
-
-/**
  * _setup - do initial configuration of omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -943,11 +960,19 @@ static int _setup(struct omap_hwmod *oh)
 
 	_enable(oh);
 
-	if (!(oh->flags & HWMOD_INIT_NO_RESET))
-		_reset(oh);
-
-	/* XXX OCP AUTOIDLE bit? */
-	/* XXX OCP ENAWAKEUP bit? */
+	if (!(oh->flags & HWMOD_INIT_NO_RESET)) {
+		/*
+		 * XXX Do the OCP_SYSCONFIG bits need to be
+		 * reprogrammed after a reset?  If not, then this can
+		 * be removed.  If they do, then probably the
+		 * _enable() function should be split to avoid the
+		 * rewrite of the OCP_SYSCONFIG register.
+		 */
+		if (oh->sysconfig) {
+			_update_sysc_cache(oh);
+			_sysc_enable(oh);
+		}
+	}
 
 	if (!(oh->flags & HWMOD_INIT_NO_IDLE))
 		_idle(oh);
@@ -1148,6 +1173,7 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: unregistering\n", oh->name);
 
 	mutex_lock(&omap_hwmod_mutex);
+	iounmap(oh->_rt_va);
 	list_del(&oh->node);
 	mutex_unlock(&omap_hwmod_mutex);
 
@@ -1342,8 +1368,9 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 	/* For each IRQ, DMA, memory area, fill in array.*/
 
 	for (i = 0; i < oh->mpu_irqs_cnt; i++) {
-		(res + r)->start = *(oh->mpu_irqs + i);
-		(res + r)->end = *(oh->mpu_irqs + i);
+		(res + r)->name = (oh->mpu_irqs + i)->name;
+		(res + r)->start = (oh->mpu_irqs + i)->irq;
+		(res + r)->end = (oh->mpu_irqs + i)->irq;
 		(res + r)->flags = IORESOURCE_IRQ;
 		r++;
 	}
@@ -1445,62 +1472,6 @@ int omap_hwmod_del_initiator_dep(struct omap_hwmod *oh,
 				 struct omap_hwmod *init_oh)
 {
 	return _del_initiator_dep(oh, init_oh);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to BOTH
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_both(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_BOTH);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to MAIN
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_main(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_MAIN);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to ICLK
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_iclk(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_ICLK);
-}
-
-/**
- * omap_hwmod_set_clockact_none - set clockactivity test to NONE
- * @oh: struct omap_hwmod *
- *
- * On some modules, this function can affect the wakeup latency vs.
- * power consumption balance.  Intended to be called by the
- * omap_device layer.  Passes along the return value from
- * _write_clockact_lock().
- */
-int omap_hwmod_set_clockact_none(struct omap_hwmod *oh)
-{
-	return _write_clockact_lock(oh, CLOCKACT_TEST_NONE);
 }
 
 /**

@@ -929,7 +929,7 @@ static int qt_open(struct tty_struct *tty,
 	dbg(__FILE__ "qt_setuart completed.\n");
 
 	/*
-	 * Put this here to make it responsive to stty and defauls set by
+	 * Put this here to make it responsive to stty and defaults set by
 	 * the tty layer
 	 */
 	/* FIXME: is this needed? */

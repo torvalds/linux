@@ -23,7 +23,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <mach/clock.h>
+#include <plat/clock.h>
 #include <asm/system.h>
 
 #define VERY_HI_RATE	900000000
@@ -127,13 +127,14 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	/* FIXME: what's the actual transition time? */
-	policy->cpuinfo.transition_latency = 10 * 1000 * 1000;
+	policy->cpuinfo.transition_latency = 300 * 1000;
 
 	return 0;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)
 {
+	clk_exit_cpufreq_table(&freq_table);
 	clk_put(mpu_clk);
 	return 0;
 }

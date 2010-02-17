@@ -69,8 +69,9 @@ void ext2_xip_verify_sb(struct super_block *sb)
 	if ((sbi->s_mount_opt & EXT2_MOUNT_XIP) &&
 	    !sb->s_bdev->bd_disk->fops->direct_access) {
 		sbi->s_mount_opt &= (~EXT2_MOUNT_XIP);
-		ext2_warning(sb, __func__,
-			     "ignoring xip option - not supported by bdev");
+		ext2_msg(sb, KERN_WARNING,
+			     "warning: ignoring xip option - "
+			     "not supported by bdev");
 	}
 }
 

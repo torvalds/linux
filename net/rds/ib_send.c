@@ -252,8 +252,8 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 
 		rds_ib_ring_free(&ic->i_send_ring, completed);
 
-		if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags)
-		 || test_bit(0, &conn->c_map_queued))
+		if (test_and_clear_bit(RDS_LL_SEND_FULL, &conn->c_flags) ||
+		    test_bit(0, &conn->c_map_queued))
 			queue_delayed_work(rds_wq, &conn->c_send_w, 0);
 
 		/* We expect errors as the qp is drained during shutdown */

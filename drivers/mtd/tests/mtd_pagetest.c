@@ -523,6 +523,7 @@ static int __init mtd_pagetest_init(void)
 	do_div(tmp, mtd->erasesize);
 	ebcnt = tmp;
 	pgcnt = mtd->erasesize / mtd->writesize;
+	pgsize = mtd->writesize;
 
 	printk(PRINT_PREF "MTD device size %llu, eraseblock size %u, "
 	       "page size %u, count of eraseblocks %u, pages per "

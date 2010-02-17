@@ -1312,9 +1312,9 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	void __user *addr = as->userurb;
 	unsigned int i;
 
-	if (as->userbuffer)
+	if (as->userbuffer && urb->actual_length)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer,
-				 urb->transfer_buffer_length))
+				 urb->actual_length))
 			goto err_out;
 	if (put_user(as->status, &userurb->status))
 		goto err_out;
@@ -1334,14 +1334,11 @@ static int processcompl(struct async *as, void __user * __user *arg)
 		}
 	}
 
-	free_async(as);
-
 	if (put_user(addr, (void __user * __user *)arg))
 		return -EFAULT;
 	return 0;
 
 err_out:
-	free_async(as);
 	return -EFAULT;
 }
 
@@ -1371,8 +1368,11 @@ static struct async *reap_as(struct dev_state *ps)
 static int proc_reapurb(struct dev_state *ps, void __user *arg)
 {
 	struct async *as = reap_as(ps);
-	if (as)
-		return processcompl(as, (void __user * __user *)arg);
+	if (as) {
+		int retval = processcompl(as, (void __user * __user *)arg);
+		free_async(as);
+		return retval;
+	}
 	if (signal_pending(current))
 		return -EINTR;
 	return -EIO;
@@ -1380,14 +1380,59 @@ static int proc_reapurb(struct dev_state *ps, void __user *arg)
 
 static int proc_reapurbnonblock(struct dev_state *ps, void __user *arg)
 {
+	int retval;
 	struct async *as;
 
-	if (!(as = async_getcompleted(ps)))
-		return -EAGAIN;
-	return processcompl(as, (void __user * __user *)arg);
+	as = async_getcompleted(ps);
+	retval = -EAGAIN;
+	if (as) {
+		retval = processcompl(as, (void __user * __user *)arg);
+		free_async(as);
+	}
+	return retval;
 }
 
 #ifdef CONFIG_COMPAT
+static int proc_control_compat(struct dev_state *ps,
+				struct usbdevfs_ctrltransfer32 __user *p32)
+{
+        struct usbdevfs_ctrltransfer __user *p;
+        __u32 udata;
+        p = compat_alloc_user_space(sizeof(*p));
+        if (copy_in_user(p, p32, (sizeof(*p32) - sizeof(compat_caddr_t))) ||
+            get_user(udata, &p32->data) ||
+	    put_user(compat_ptr(udata), &p->data))
+		return -EFAULT;
+        return proc_control(ps, p);
+}
+
+static int proc_bulk_compat(struct dev_state *ps,
+			struct usbdevfs_bulktransfer32 __user *p32)
+{
+        struct usbdevfs_bulktransfer __user *p;
+        compat_uint_t n;
+        compat_caddr_t addr;
+
+        p = compat_alloc_user_space(sizeof(*p));
+
+        if (get_user(n, &p32->ep) || put_user(n, &p->ep) ||
+            get_user(n, &p32->len) || put_user(n, &p->len) ||
+            get_user(n, &p32->timeout) || put_user(n, &p->timeout) ||
+            get_user(addr, &p32->data) || put_user(compat_ptr(addr), &p->data))
+                return -EFAULT;
+
+        return proc_bulk(ps, p);
+}
+static int proc_disconnectsignal_compat(struct dev_state *ps, void __user *arg)
+{
+	struct usbdevfs_disconnectsignal32 ds;
+
+	if (copy_from_user(&ds, arg, sizeof(ds)))
+		return -EFAULT;
+	ps->discsignr = ds.signr;
+	ps->disccontext = compat_ptr(ds.context);
+	return 0;
+}
 
 static int get_urb32(struct usbdevfs_urb *kurb,
 		     struct usbdevfs_urb32 __user *uurb)
@@ -1435,9 +1480,9 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	void __user *addr = as->userurb;
 	unsigned int i;
 
-	if (as->userbuffer)
+	if (as->userbuffer && urb->actual_length)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer,
-				 urb->transfer_buffer_length))
+				 urb->actual_length))
 			return -EFAULT;
 	if (put_user(as->status, &userurb->status))
 		return -EFAULT;
@@ -1457,7 +1502,6 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 		}
 	}
 
-	free_async(as);
 	if (put_user(ptr_to_compat(addr), (u32 __user *)arg))
 		return -EFAULT;
 	return 0;
@@ -1466,8 +1510,11 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 static int proc_reapurb_compat(struct dev_state *ps, void __user *arg)
 {
 	struct async *as = reap_as(ps);
-	if (as)
-		return processcompl_compat(as, (void __user * __user *)arg);
+	if (as) {
+		int retval = processcompl_compat(as, (void __user * __user *)arg);
+		free_async(as);
+		return retval;
+	}
 	if (signal_pending(current))
 		return -EINTR;
 	return -EIO;
@@ -1475,12 +1522,18 @@ static int proc_reapurb_compat(struct dev_state *ps, void __user *arg)
 
 static int proc_reapurbnonblock_compat(struct dev_state *ps, void __user *arg)
 {
+	int retval;
 	struct async *as;
 
-	if (!(as = async_getcompleted(ps)))
-		return -EAGAIN;
-	return processcompl_compat(as, (void __user * __user *)arg);
+	retval = -EAGAIN;
+	as = async_getcompleted(ps);
+	if (as) {
+		retval = processcompl_compat(as, (void __user * __user *)arg);
+		free_async(as);
+	}
+	return retval;
 }
+
 
 #endif
 
@@ -1648,12 +1701,12 @@ static int proc_release_port(struct dev_state *ps, void __user *arg)
  * are assuming that somehow the configuration has been prevented from
  * changing.  But there's no mechanism to ensure that...
  */
-static int usbdev_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
+static long usbdev_do_ioctl(struct file *file, unsigned int cmd,
+				void __user *p)
 {
 	struct dev_state *ps = file->private_data;
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct usb_device *dev = ps->dev;
-	void __user *p = (void __user *)arg;
 	int ret = -ENOTTY;
 
 	if (!(file->f_mode & FMODE_WRITE))
@@ -1726,6 +1779,24 @@ static int usbdev_ioctl(struct inode *inode, struct file *file,
 		break;
 
 #ifdef CONFIG_COMPAT
+	case USBDEVFS_CONTROL32:
+		snoop(&dev->dev, "%s: CONTROL32\n", __func__);
+		ret = proc_control_compat(ps, p);
+		if (ret >= 0)
+			inode->i_mtime = CURRENT_TIME;
+		break;
+
+	case USBDEVFS_BULK32:
+		snoop(&dev->dev, "%s: BULK32\n", __func__);
+		ret = proc_bulk_compat(ps, p);
+		if (ret >= 0)
+			inode->i_mtime = CURRENT_TIME;
+		break;
+
+	case USBDEVFS_DISCSIGNAL32:
+		snoop(&dev->dev, "%s: DISCSIGNAL32\n", __func__);
+		ret = proc_disconnectsignal_compat(ps, p);
+		break;
 
 	case USBDEVFS_SUBMITURB32:
 		snoop(&dev->dev, "%s: SUBMITURB32\n", __func__);
@@ -1745,7 +1816,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case USBDEVFS_IOCTL32:
-		snoop(&dev->dev, "%s: IOCTL\n", __func__);
+		snoop(&dev->dev, "%s: IOCTL32\n", __func__);
 		ret = proc_ioctl_compat(ps, ptr_to_compat(p));
 		break;
 #endif
@@ -1801,6 +1872,32 @@ static int usbdev_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
+static long usbdev_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = usbdev_do_ioctl(file, cmd, (void __user *)arg);
+	unlock_kernel();
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long usbdev_compat_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = usbdev_do_ioctl(file, cmd, compat_ptr(arg));
+	unlock_kernel();
+
+	return ret;
+}
+#endif
+
 /* No kernel lock - fine */
 static unsigned int usbdev_poll(struct file *file,
 				struct poll_table_struct *wait)
@@ -1817,13 +1914,16 @@ static unsigned int usbdev_poll(struct file *file,
 }
 
 const struct file_operations usbdev_file_operations = {
-	.owner = 	THIS_MODULE,
-	.llseek =	usbdev_lseek,
-	.read =		usbdev_read,
-	.poll =		usbdev_poll,
-	.ioctl =	usbdev_ioctl,
-	.open =		usbdev_open,
-	.release =	usbdev_release,
+	.owner =	  THIS_MODULE,
+	.llseek =	  usbdev_lseek,
+	.read =		  usbdev_read,
+	.poll =		  usbdev_poll,
+	.unlocked_ioctl = usbdev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =   usbdev_compat_ioctl,
+#endif
+	.open =		  usbdev_open,
+	.release =	  usbdev_release,
 };
 
 static void usbdev_remove(struct usb_device *udev)

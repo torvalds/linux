@@ -35,6 +35,8 @@ extern void mmu_reset(void);
 extern void early_console_reg_tlb_alloc(unsigned int addr);
 #   endif /* CONFIG_MMU */
 
+extern void of_platform_reset_gpio_probe(void);
+
 void time_init(void);
 void init_IRQ(void);
 void machine_early_init(const char *cmdline, unsigned int ram,

@@ -2107,7 +2107,7 @@ vpif_resume(struct device *dev)
 	return -1;
 }
 
-static struct dev_pm_ops vpif_dev_pm_ops = {
+static const struct dev_pm_ops vpif_dev_pm_ops = {
 	.suspend = vpif_suspend,
 	.resume = vpif_resume,
 };

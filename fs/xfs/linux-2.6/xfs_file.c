@@ -52,7 +52,7 @@ xfs_file_aio_read(
 	loff_t			pos)
 {
 	struct file		*file = iocb->ki_filp;
-	int			ioflags = IO_ISAIO;
+	int			ioflags = 0;
 
 	BUG_ON(iocb->ki_pos != pos);
 	if (unlikely(file->f_flags & O_DIRECT))
@@ -71,7 +71,7 @@ xfs_file_aio_write(
 	loff_t			pos)
 {
 	struct file		*file = iocb->ki_filp;
-	int			ioflags = IO_ISAIO;
+	int			ioflags = 0;
 
 	BUG_ON(iocb->ki_pos != pos);
 	if (unlikely(file->f_flags & O_DIRECT))

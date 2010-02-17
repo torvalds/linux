@@ -38,7 +38,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <mach/hardware.h>
-#include <mach/dmtimer.h>
+#include <plat/dmtimer.h>
 #include <mach/irqs.h>
 
 /* register offsets */
@@ -551,6 +551,19 @@ void omap_dm_timer_stop(struct omap_dm_timer *timer)
 	if (l & OMAP_TIMER_CTRL_ST) {
 		l &= ~0x1;
 		omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
+			defined(CONFIG_ARCH_OMAP4)
+		/* Readback to make sure write has completed */
+		omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
+		 /*
+		  * Wait for functional clock period x 3.5 to make sure that
+		  * timer is stopped
+		  */
+		udelay(3500000 / clk_get_rate(timer->fclk) + 1);
+		/* Ack possibly pending interrupt */
+		omap_dm_timer_write_reg(timer, OMAP_TIMER_STAT_REG,
+				OMAP_TIMER_INT_OVERFLOW);
+#endif
 	}
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_stop);
@@ -742,16 +755,17 @@ EXPORT_SYMBOL_GPL(omap_dm_timers_active);
 int __init omap_dm_timer_init(void)
 {
 	struct omap_dm_timer *timer;
-	int i;
+	int i, map_size = SZ_8K;	/* Module 4KB + L4 4KB except on omap1 */
 
 	if (!(cpu_is_omap16xx() || cpu_class_is_omap2()))
 		return -ENODEV;
 
 	spin_lock_init(&dm_timer_lock);
 
-	if (cpu_class_is_omap1())
+	if (cpu_class_is_omap1()) {
 		dm_timers = omap1_dm_timers;
-	else if (cpu_is_omap24xx()) {
+		map_size = SZ_2K;
+	} else if (cpu_is_omap24xx()) {
 		dm_timers = omap2_dm_timers;
 		dm_source_names = omap2_dm_source_names;
 		dm_source_clocks = omap2_dm_source_clocks;
@@ -774,10 +788,11 @@ int __init omap_dm_timer_init(void)
 
 	for (i = 0; i < dm_timer_count; i++) {
 		timer = &dm_timers[i];
-		if (cpu_class_is_omap1())
-			timer->io_base = OMAP1_IO_ADDRESS(timer->phys_base);
-		else
-			timer->io_base = OMAP2_IO_ADDRESS(timer->phys_base);
+
+		/* Static mapping, never released */
+		timer->io_base = ioremap(timer->phys_base, map_size);
+		BUG_ON(!timer->io_base);
+
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3) || \
 					defined(CONFIG_ARCH_OMAP4)
 		if (cpu_class_is_omap2()) {

@@ -6,7 +6,7 @@ struct op_counter_config {
 	unsigned long enabled;
 	unsigned long event;
 
-	unsigned long long count;
+	unsigned long count;
 
 	/* Dummy values for userspace tool compliance */
 	unsigned long kernel;

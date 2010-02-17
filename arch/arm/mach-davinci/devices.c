@@ -9,14 +9,10 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
-
-#include <asm/mach/map.h>
 
 #include <mach/hardware.h>
 #include <mach/i2c.h>
@@ -177,7 +173,7 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 			mmcsd1_resources[0].start = DM365_MMCSD1_BASE;
 			mmcsd1_resources[0].end = DM365_MMCSD1_BASE +
 							SZ_4K - 1;
-			mmcsd0_resources[2].start = IRQ_DM365_SDIOINT1;
+			mmcsd1_resources[2].start = IRQ_DM365_SDIOINT1;
 		} else
 			break;
 

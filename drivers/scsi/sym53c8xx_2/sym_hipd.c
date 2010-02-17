@@ -2692,7 +2692,7 @@ static void sym_int_ma (struct sym_hcb *np)
 	 *  we force a SIR_NEGO_PROTO interrupt (it is a hack that avoids 
 	 *  bloat for such a should_not_happen situation).
 	 *  In all other situation, we reset the BUS.
-	 *  Are these assumptions reasonnable ? (Wait and see ...)
+	 *  Are these assumptions reasonable ? (Wait and see ...)
 	 */
 unexpected_phase:
 	dsp -= 8;

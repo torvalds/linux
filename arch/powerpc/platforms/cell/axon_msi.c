@@ -312,7 +312,7 @@ static struct irq_chip msic_irq_chip = {
 	.mask		= mask_msi_irq,
 	.unmask		= unmask_msi_irq,
 	.shutdown	= unmask_msi_irq,
-	.typename	= "AXON-MSI",
+	.name		= "AXON-MSI",
 };
 
 static int msic_host_map(struct irq_host *h, unsigned int virq,
@@ -365,7 +365,7 @@ static int axon_msi_probe(struct of_device *device,
 		printk(KERN_ERR
 		       "axon_msi: couldn't parse dcr properties on %s\n",
 			dn->full_name);
-		goto out;
+		goto out_free_msic;
 	}
 
 	msic->dcr_host = dcr_map(dn, dcr_base, dcr_len);

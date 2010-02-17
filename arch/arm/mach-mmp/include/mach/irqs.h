@@ -31,7 +31,9 @@
 #define IRQ_PXA168_DDR_INT		26
 #define IRQ_PXA168_UART1		27
 #define IRQ_PXA168_UART2		28
+#define IRQ_PXA168_UART3		29
 #define IRQ_PXA168_WDT			35
+#define IRQ_PXA168_MAIN_PMU		36
 #define IRQ_PXA168_FRQ_CHANGE		38
 #define IRQ_PXA168_SDH1			39
 #define IRQ_PXA168_SDH2			40
@@ -46,7 +48,7 @@
 #define IRQ_PXA168_USB2			51
 #define IRQ_PXA168_AC97			57
 #define IRQ_PXA168_TWSI1		58
-#define IRQ_PXA168_PMU			60
+#define IRQ_PXA168_AP_PMU		60
 #define IRQ_PXA168_SM_INT		63
 
 /*

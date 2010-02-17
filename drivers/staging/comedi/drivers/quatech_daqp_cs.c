@@ -55,23 +55,6 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled -- but it can then be enabled for specific
-   modules at load time with a 'pc_debug=#' option to insmod.
-*/
-
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0644);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version = "quatech_daqp_cs.c 1.10 2003/04/21 (Brent Baccala)";
-#else
-#define DEBUG(n, args...)
-#endif
-
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
@@ -506,7 +489,7 @@ static int daqp_ai_cmdtest(struct comedi_device *dev,
 
 	/* step 2: make sure trigger sources are unique and mutually compatible */
 
-	/* note that mutual compatiblity is not an issue here */
+	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
 	    cmd->scan_begin_src != TRIG_FOLLOW)
 		err++;
@@ -863,8 +846,6 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
 	struct local_info_t *local = dev_table[it->options[0]];
-	tuple_t tuple;
-	int i;
 	struct comedi_subdevice *s;
 
 	if (it->options[0] < 0 || it->options[0] >= MAX_DEV || !local) {
@@ -883,29 +864,10 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	strcpy(local->board_name, "DAQP");
 	dev->board_name = local->board_name;
-
-	tuple.DesiredTuple = CISTPL_VERS_1;
-	if (pcmcia_get_first_tuple(local->link, &tuple) == 0) {
-		u_char buf[128];
-
-		buf[0] = buf[sizeof(buf) - 1] = 0;
-		tuple.TupleData = buf;
-		tuple.TupleDataMax = sizeof(buf);
-		tuple.TupleOffset = 2;
-		if (pcmcia_get_tuple_data(local->link, &tuple) == 0) {
-
-			for (i = 0; i < tuple.TupleDataLen - 4; i++)
-				if (buf[i] == 0)
-					break;
-			for (i++; i < tuple.TupleDataLen - 4; i++)
-				if (buf[i] == 0)
-					break;
-			i++;
-			if ((i < tuple.TupleDataLen - 4)
-			    && (strncmp(buf + i, "DAQP", 4) == 0)) {
-				strncpy(local->board_name, buf + i,
-					sizeof(local->board_name));
-			}
+	if (local->link->prod_id[2]) {
+		if (strncmp(local->link->prod_id[2], "DAQP", 4) == 0) {
+			strncpy(local->board_name, local->link->prod_id[2],
+				sizeof(local->board_name));
 		}
 	}
 
@@ -1058,7 +1020,7 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	struct local_info_t *local;
 	int i;
 
-	DEBUG(0, "daqp_cs_attach()\n");
+	dev_dbg(&link->dev, "daqp_cs_attach()\n");
 
 	for (i = 0; i < MAX_DEV; i++)
 		if (dev_table[i] == NULL)
@@ -1079,10 +1041,8 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.Handler = daqp_interrupt;
-	link->irq.Instance = local;
 
 	/*
 	   General socket configuration defaults can go here.  In this
@@ -1112,7 +1072,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 {
 	struct local_info_t *dev = link->priv;
 
-	DEBUG(0, "daqp_cs_detach(0x%p)\n", link);
+	dev_dbg(&link->dev, "daqp_cs_detach\n");
 
 	if (link->dev_node) {
 		dev->stop = 1;
@@ -1134,115 +1094,54 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
+
+static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	/* Do we need to allocate an interrupt? */
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+	}
+
+	/* This reserves IO space but doesn't actually enable it */
+	return pcmcia_request_io(p_dev, &p_dev->io);
+}
+
 static void daqp_cs_config(struct pcmcia_device *link)
 {
 	struct local_info_t *dev = link->priv;
-	tuple_t tuple;
-	cisparse_t parse;
-	int last_ret;
-	u_char buf[64];
+	int ret;
 
-	DEBUG(0, "daqp_cs_config(0x%p)\n", link);
+	dev_dbg(&link->dev, "daqp_cs_config\n");
 
-	/*
-	   This reads the card's CONFIG tuple to find its configuration
-	   registers.
-	 */
-	tuple.DesiredTuple = CISTPL_CONFIG;
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-
-	last_ret = pcmcia_get_first_tuple(link, &tuple);
-	if (last_ret) {
-		cs_error(link, GetFirstTuple, last_ret);
-		goto cs_failed;
-	}
-
-	last_ret = pcmcia_get_tuple_data(link, &tuple);
-	if (last_ret) {
-		cs_error(link, GetTupleData, last_ret);
-		goto cs_failed;
-	}
-
-	last_ret = pcmcia_parse_tuple(&tuple, &parse);
-	if (last_ret) {
-		cs_error(link, ParseTuple, last_ret);
-		goto cs_failed;
-	}
-	link->conf.ConfigBase = parse.config.base;
-	link->conf.Present = parse.config.rmask[0];
-
-	/*
-	   In this loop, we scan the CIS for configuration table entries,
-	   each of which describes a valid card configuration, including
-	   voltage, IO window, memory window, and interrupt settings.
-
-	   We make no assumptions about the card to be configured: we use
-	   just the information available in the CIS.  In an ideal world,
-	   this would work for any PCMCIA card, but it requires a complete
-	   and accurate CIS.  In practice, a driver usually "knows" most of
-	   these things without consulting the CIS, and most client drivers
-	   will only use the CIS to fill in implementation-defined details.
-	 */
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	last_ret = pcmcia_get_first_tuple(link, &tuple);
-	if (last_ret) {
-		cs_error(link, GetFirstTuple, last_ret);
-		goto cs_failed;
-	}
-
-	while (1) {
-		cistpl_cftable_entry_t dflt = { 0 };
-		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		if (pcmcia_get_tuple_data(link, &tuple))
-			goto next_entry;
-		if (pcmcia_parse_tuple(&tuple, &parse))
-			goto next_entry;
-
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-			dflt = *cfg;
-		if (cfg->index == 0)
-			goto next_entry;
-		link->conf.ConfigIndex = cfg->index;
-
-		/* Do we need to allocate an interrupt? */
-		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-			link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-			if (!(io->flags & CISTPL_IO_8BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-			if (!(io->flags & CISTPL_IO_16BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-			link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin > 1) {
-				link->io.Attributes2 = link->io.Attributes1;
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-		}
-
-		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(link, &link->io))
-			goto next_entry;
-
-		/* If we got this far, we're cool! */
-		break;
-
-next_entry:
-		last_ret = pcmcia_get_next_tuple(link, &tuple);
-		if (last_ret) {
-			cs_error(link, GetNextTuple, last_ret);
-			goto cs_failed;
-		}
+	ret = pcmcia_loop_config(link, daqp_pcmcia_config_loop, NULL);
+	if (ret) {
+		dev_warn(&link->dev, "no configuration found\n");
+		goto failed;
 	}
 
 	/*
@@ -1251,11 +1150,9 @@ next_entry:
 	   irq structure is initialized.
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		last_ret = pcmcia_request_irq(link, &link->irq);
-		if (last_ret) {
-			cs_error(link, RequestIRQ, last_ret);
-			goto cs_failed;
-		}
+		ret = pcmcia_request_irq(link, &link->irq);
+		if (ret)
+			goto failed;
 	}
 
 	/*
@@ -1263,11 +1160,9 @@ next_entry:
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	last_ret = pcmcia_request_configuration(link, &link->conf);
-	if (last_ret) {
-		cs_error(link, RequestConfiguration, last_ret);
-		goto cs_failed;
-	}
+	ret = pcmcia_request_configuration(link, &link->conf);
+	if (ret)
+		goto failed;
 
 	/*
 	   At this point, the dev_node_t structure(s) need to be
@@ -1296,14 +1191,14 @@ next_entry:
 
 	return;
 
-cs_failed:
+failed:
 	daqp_cs_release(link);
 
 }				/* daqp_cs_config */
 
 static void daqp_cs_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "daqp_cs_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "daqp_cs_release\n");
 
 	pcmcia_disable_device(link);
 }				/* daqp_cs_release */
@@ -1363,7 +1258,6 @@ struct pcmcia_driver daqp_cs_driver = {
 
 int __init init_module(void)
 {
-	DEBUG(0, "%s\n", version);
 	pcmcia_register_driver(&daqp_cs_driver);
 	comedi_driver_register(&driver_daqp);
 	return 0;
@@ -1371,7 +1265,6 @@ int __init init_module(void)
 
 void __exit cleanup_module(void)
 {
-	DEBUG(0, "daqp_cs: unloading\n");
 	comedi_driver_unregister(&driver_daqp);
 	pcmcia_unregister_driver(&daqp_cs_driver);
 }

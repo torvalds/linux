@@ -21,6 +21,7 @@
 #include "ixp2400_tx.ucode"
 #include "ixpdev_priv.h"
 #include "ixpdev.h"
+#include "pm3386.h"
 
 #define DRV_MODULE_VERSION	"0.2"
 
@@ -108,9 +109,8 @@ static int ixpdev_rx(struct net_device *dev, int processed, int budget)
 		if (unlikely(!netif_running(nds[desc->channel])))
 			goto err;
 
-		skb = netdev_alloc_skb(dev, desc->pkt_length + 2);
+		skb = netdev_alloc_skb_ip_align(dev, desc->pkt_length);
 		if (likely(skb != NULL)) {
-			skb_reserve(skb, 2);
 			skb_copy_to_linear_data(skb, buf, desc->pkt_length);
 			skb_put(skb, desc->pkt_length);
 			skb->protocol = eth_type_trans(skb, nds[desc->channel]);
@@ -271,6 +271,15 @@ static int ixpdev_close(struct net_device *dev)
 	return 0;
 }
 
+static struct net_device_stats *ixpdev_get_stats(struct net_device *dev)
+{
+	struct ixpdev_priv *ip = netdev_priv(dev);
+
+	pm3386_get_stats(ip->channel, &(dev->stats));
+
+	return &(dev->stats);
+}
+
 static const struct net_device_ops ixpdev_netdev_ops = {
 	.ndo_open		= ixpdev_open,
 	.ndo_stop		= ixpdev_close,
@@ -278,6 +287,7 @@ static const struct net_device_ops ixpdev_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_get_stats		= ixpdev_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixpdev_poll_controller,
 #endif

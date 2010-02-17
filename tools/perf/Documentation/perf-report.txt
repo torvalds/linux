@@ -24,11 +24,11 @@ OPTIONS
 --dsos=::
 	Only consider symbols in these dsos. CSV that understands
 	file://filename entries.
--n
---show-nr-samples
+-n::
+--show-nr-samples::
 	Show the number of samples for each symbol
--T
---threads
+-T::
+--threads::
 	Show per-thread event counters
 -C::
 --comms=::
@@ -38,6 +38,10 @@ OPTIONS
 --symbols=::
 	Only consider these symbols. CSV that understands
 	file://filename entries.
+
+-s::
+--sort=::
+	Sort by key(s): pid, comm, dso, symbol, parent.
 
 -w::
 --field-width=::

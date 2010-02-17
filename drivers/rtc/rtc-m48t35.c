@@ -142,7 +142,6 @@ static const struct rtc_class_ops m48t35_ops = {
 
 static int __devinit m48t35_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	struct m48t35_priv *priv;
 	int ret = 0;
@@ -171,20 +170,21 @@ static int __devinit m48t35_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out;
 	}
+
 	spin_lock_init(&priv->lock);
-	rtc = rtc_device_register("m48t35", &pdev->dev,
+
+	platform_set_drvdata(pdev, priv);
+
+	priv->rtc = rtc_device_register("m48t35", &pdev->dev,
 				  &m48t35_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
+	if (IS_ERR(priv->rtc)) {
+		ret = PTR_ERR(priv->rtc);
 		goto out;
 	}
-	priv->rtc = rtc;
-	platform_set_drvdata(pdev, priv);
+
 	return 0;
 
 out:
-	if (priv->rtc)
-		rtc_device_unregister(priv->rtc);
 	if (priv->reg)
 		iounmap(priv->reg);
 	if (priv->baseaddr)

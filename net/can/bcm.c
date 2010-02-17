@@ -132,23 +132,27 @@ static inline struct bcm_sock *bcm_sk(const struct sock *sk)
 /*
  * procfs functions
  */
-static char *bcm_proc_getifname(int ifindex)
+static char *bcm_proc_getifname(char *result, int ifindex)
 {
 	struct net_device *dev;
 
 	if (!ifindex)
 		return "any";
 
-	/* no usage counting */
-	dev = __dev_get_by_index(&init_net, ifindex);
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(&init_net, ifindex);
 	if (dev)
-		return dev->name;
+		strcpy(result, dev->name);
+	else
+		strcpy(result, "???");
+	rcu_read_unlock();
 
-	return "???";
+	return result;
 }
 
 static int bcm_proc_show(struct seq_file *m, void *v)
 {
+	char ifname[IFNAMSIZ];
 	struct sock *sk = (struct sock *)m->private;
 	struct bcm_sock *bo = bcm_sk(sk);
 	struct bcm_op *op;
@@ -157,7 +161,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, " / sk %p", sk);
 	seq_printf(m, " / bo %p", bo);
 	seq_printf(m, " / dropped %lu", bo->dropped_usr_msgs);
-	seq_printf(m, " / bound %s", bcm_proc_getifname(bo->ifindex));
+	seq_printf(m, " / bound %s", bcm_proc_getifname(ifname, bo->ifindex));
 	seq_printf(m, " <<<\n");
 
 	list_for_each_entry(op, &bo->rx_ops, list) {
@@ -169,7 +173,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 			continue;
 
 		seq_printf(m, "rx_op: %03X %-5s ",
-				op->can_id, bcm_proc_getifname(op->ifindex));
+				op->can_id, bcm_proc_getifname(ifname, op->ifindex));
 		seq_printf(m, "[%d]%c ", op->nframes,
 				(op->flags & RX_CHECK_DLC)?'d':' ');
 		if (op->kt_ival1.tv64)
@@ -194,7 +198,8 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 	list_for_each_entry(op, &bo->tx_ops, list) {
 
 		seq_printf(m, "tx_op: %03X %s [%d] ",
-				op->can_id, bcm_proc_getifname(op->ifindex),
+				op->can_id,
+				bcm_proc_getifname(ifname, op->ifindex),
 				op->nframes);
 
 		if (op->kt_ival1.tv64)
@@ -1534,7 +1539,7 @@ static int bcm_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return err;
 	}
 
-	sock_recv_timestamp(msg, sk, skb);
+	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
 		msg->msg_namelen = sizeof(struct sockaddr_can);
@@ -1576,7 +1581,6 @@ static struct proto bcm_proto __read_mostly = {
 static struct can_proto bcm_can_proto __read_mostly = {
 	.type       = SOCK_DGRAM,
 	.protocol   = CAN_BCM,
-	.capability = -1,
 	.ops        = &bcm_ops,
 	.prot       = &bcm_proto,
 };

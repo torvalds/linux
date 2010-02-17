@@ -17,8 +17,8 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.0.1e"
-#define DRV_MODULE_RELDATE	"June 22, 2009"
+#define DRV_MODULE_VERSION	"2.1.0"
+#define DRV_MODULE_RELDATE	"Dec 06, 2009"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
@@ -31,6 +31,10 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
 static DEFINE_MUTEX(bnx2i_dev_lock);
+
+unsigned int event_coal_min = 24;
+module_param(event_coal_min, int, 0664);
+MODULE_PARM_DESC(event_coal_min, "Event Coalescing Minimum Commands");
 
 unsigned int event_coal_div = 1;
 module_param(event_coal_div, int, 0664);
@@ -83,8 +87,12 @@ void bnx2i_identify_device(struct bnx2i_hba *hba)
 		set_bit(BNX2I_NX2_DEV_5709, &hba->cnic_dev_type);
 		hba->mail_queue_access = BNX2I_MQ_BIN_MODE;
 	} else if (hba->pci_did == PCI_DEVICE_ID_NX2_57710 ||
-		   hba->pci_did == PCI_DEVICE_ID_NX2_57711)
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711 ||
+		   hba->pci_did == PCI_DEVICE_ID_NX2_57711E)
 		set_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type);
+	else
+		printk(KERN_ALERT "bnx2i: unknown device, 0x%x\n",
+				  hba->pci_did);
 }
 
 
@@ -363,7 +371,7 @@ static int __init bnx2i_mod_init(void)
 
 	printk(KERN_INFO "%s", version);
 
-	if (!is_power_of_2(sq_size))
+	if (sq_size && !is_power_of_2(sq_size))
 		sq_size = roundup_pow_of_two(sq_size);
 
 	mutex_init(&bnx2i_dev_lock);

@@ -20,7 +20,6 @@
 #include <linux/mutex.h>
 #include <linux/nsc_gpio.h>
 #include <linux/platform_device.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 #define DEVNAME "pc8736x_gpio"
@@ -223,7 +222,6 @@ static int pc8736x_gpio_open(struct inode *inode, struct file *file)
 	unsigned m = iminor(inode);
 	file->private_data = &pc8736x_gpio_ops;
 
-	cycle_kernel_lock();
 	dev_dbg(&pdev->dev, "open %d\n", m);
 
 	if (m >= PC8736X_GPIO_CT)

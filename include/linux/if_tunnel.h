@@ -5,6 +5,7 @@
 
 #ifdef __KERNEL__
 #include <linux/ip.h>
+#include <linux/in6.h>
 #endif
 
 #define SIOCGETTUNNEL   (SIOCDEVPRIVATE + 0)
@@ -15,6 +16,10 @@
 #define SIOCADDPRL      (SIOCDEVPRIVATE + 5)
 #define SIOCDELPRL      (SIOCDEVPRIVATE + 6)
 #define SIOCCHGPRL      (SIOCDEVPRIVATE + 7)
+#define SIOCGET6RD      (SIOCDEVPRIVATE + 8)
+#define SIOCADD6RD      (SIOCDEVPRIVATE + 9)
+#define SIOCDEL6RD      (SIOCDEVPRIVATE + 10)
+#define SIOCCHG6RD      (SIOCDEVPRIVATE + 11)
 
 #define GRE_CSUM	__cpu_to_be16(0x8000)
 #define GRE_ROUTING	__cpu_to_be16(0x4000)
@@ -25,8 +30,7 @@
 #define GRE_FLAGS	__cpu_to_be16(0x00F8)
 #define GRE_VERSION	__cpu_to_be16(0x0007)
 
-struct ip_tunnel_parm
-{
+struct ip_tunnel_parm {
 	char			name[IFNAMSIZ];
 	int			link;
 	__be16			i_flags;
@@ -51,8 +55,14 @@ struct ip_tunnel_prl {
 /* PRL flags */
 #define	PRL_DEFAULT		0x0001
 
-enum
-{
+struct ip_tunnel_6rd {
+	struct in6_addr		prefix;
+	__be32			relay_prefix;
+	__u16			prefixlen;
+	__u16			relay_prefixlen;
+};
+
+enum {
 	IFLA_GRE_UNSPEC,
 	IFLA_GRE_LINK,
 	IFLA_GRE_IFLAGS,

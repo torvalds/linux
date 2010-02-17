@@ -382,8 +382,6 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	vha->mgmt_svr_loop_id = 10 + vha->vp_idx;
 
 	vha->dpc_flags = 0L;
-	set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
-	set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 
 	/*
 	 * To fix the issue of processing a parent's RSCN for the vport before
@@ -638,11 +636,15 @@ failed:
 
 static void qla_do_work(struct work_struct *work)
 {
+	unsigned long flags;
 	struct rsp_que *rsp = container_of(work, struct rsp_que, q_work);
 	struct scsi_qla_host *vha;
+	struct qla_hw_data *ha = rsp->hw;
 
-	vha = qla25xx_get_host(rsp);
+	spin_lock_irqsave(&rsp->hw->hardware_lock, flags);
+	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, rsp);
+	spin_unlock_irqrestore(&rsp->hw->hardware_lock, flags);
 }
 
 /* create response queue */
@@ -698,6 +700,10 @@ qla25xx_create_rsp_que(struct qla_hw_data *ha, uint16_t options,
 	/* Use alternate PCI devfn */
 	if (LSB(rsp->rid))
 		options |= BIT_5;
+	/* Enable MSIX handshake mode on for uncapable adapters */
+	if (!IS_MSIX_NACK_CAPABLE(ha))
+		options |= BIT_6;
+
 	rsp->options = options;
 	rsp->id = que_id;
 	reg = ISP_QUE_REG(ha, que_id);

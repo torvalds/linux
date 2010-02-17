@@ -26,6 +26,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
 #include <linux/gpio.h>
+#include <linux/pda_power.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -56,6 +57,7 @@ static struct resource collie_scoop_resources[] = {
 static struct scoop_config collie_scoop_setup = {
 	.io_dir 	= COLLIE_SCOOP_IO_DIR,
 	.io_out		= COLLIE_SCOOP_IO_OUT,
+	.gpio_base	= COLLIE_SCOOP_GPIO_BASE,
 };
 
 struct platform_device colliescoop_device = {
@@ -85,6 +87,70 @@ static struct scoop_pcmcia_config collie_pcmcia_config = {
 static struct mcp_plat_data collie_mcp_data = {
 	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
 	.sclk_rate	= 9216000,
+	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
+};
+
+/*
+ * Collie AC IN
+ */
+static int collie_power_init(struct device *dev)
+{
+	int ret = gpio_request(COLLIE_GPIO_AC_IN, "ac in");
+	if (ret)
+		goto err_gpio_req;
+
+	ret = gpio_direction_input(COLLIE_GPIO_AC_IN);
+	if (ret)
+		goto err_gpio_in;
+
+	return 0;
+
+err_gpio_in:
+	gpio_free(COLLIE_GPIO_AC_IN);
+err_gpio_req:
+	return ret;
+}
+
+static void collie_power_exit(struct device *dev)
+{
+	gpio_free(COLLIE_GPIO_AC_IN);
+}
+
+static int collie_power_ac_online(void)
+{
+	return gpio_get_value(COLLIE_GPIO_AC_IN) == 2;
+}
+
+static char *collie_ac_supplied_to[] = {
+	"main-battery",
+	"backup-battery",
+};
+
+static struct pda_power_pdata collie_power_data = {
+	.init			= collie_power_init,
+	.is_ac_online		= collie_power_ac_online,
+	.exit			= collie_power_exit,
+	.supplied_to		= collie_ac_supplied_to,
+	.num_supplicants	= ARRAY_SIZE(collie_ac_supplied_to),
+};
+
+static struct resource collie_power_resource[] = {
+	{
+		.name		= "ac",
+		.start		= gpio_to_irq(COLLIE_GPIO_AC_IN),
+		.end		= gpio_to_irq(COLLIE_GPIO_AC_IN),
+		.flags		= IORESOURCE_IRQ |
+				  IORESOURCE_IRQ_HIGHEDGE |
+				  IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+static struct platform_device collie_power_device = {
+	.name			= "pda-power",
+	.id			= -1,
+	.dev.platform_data	= &collie_power_data,
+	.resource		= collie_power_resource,
+	.num_resources		= ARRAY_SIZE(collie_power_resource),
 };
 
 #ifdef CONFIG_SHARP_LOCOMO
@@ -178,6 +244,7 @@ struct platform_device collie_locomo_device = {
 static struct platform_device *devices[] __initdata = {
 	&collie_locomo_device,
 	&colliescoop_device,
+	&collie_power_device,
 };
 
 static struct mtd_partition collie_partitions[] = {
@@ -248,21 +315,23 @@ static void __init collie_init(void)
 	GPDR = GPIO_LDD8 | GPIO_LDD9 | GPIO_LDD10 | GPIO_LDD11 | GPIO_LDD12 |
 		GPIO_LDD13 | GPIO_LDD14 | GPIO_LDD15 | GPIO_SSP_TXD |
 		GPIO_SSP_SCLK | GPIO_SSP_SFRM | GPIO_SDLC_SCLK |
-		COLLIE_GPIO_UCB1x00_RESET | COLLIE_GPIO_nMIC_ON |
-		COLLIE_GPIO_nREMOCON_ON | GPIO_32_768kHz;
+		_COLLIE_GPIO_UCB1x00_RESET | _COLLIE_GPIO_nMIC_ON |
+		_COLLIE_GPIO_nREMOCON_ON | GPIO_32_768kHz;
 
 	PPDR = PPC_LDD0 | PPC_LDD1 | PPC_LDD2 | PPC_LDD3 | PPC_LDD4 | PPC_LDD5 |
 		PPC_LDD6 | PPC_LDD7 | PPC_L_PCLK | PPC_L_LCLK | PPC_L_FCLK | PPC_L_BIAS |
 		PPC_TXD1 | PPC_TXD2 | PPC_TXD3 | PPC_TXD4 | PPC_SCLK | PPC_SFRM;
 
-	PWER = COLLIE_GPIO_AC_IN | COLLIE_GPIO_CO | COLLIE_GPIO_ON_KEY |
-		COLLIE_GPIO_WAKEUP | COLLIE_GPIO_nREMOCON_INT | PWER_RTC;
+	PWER = _COLLIE_GPIO_AC_IN | _COLLIE_GPIO_CO | _COLLIE_GPIO_ON_KEY |
+		_COLLIE_GPIO_WAKEUP | _COLLIE_GPIO_nREMOCON_INT | PWER_RTC;
 
-	PGSR = COLLIE_GPIO_nREMOCON_ON;
+	PGSR = _COLLIE_GPIO_nREMOCON_ON;
 
 	PSDR = PPC_RXD1 | PPC_RXD2 | PPC_RXD3 | PPC_RXD4;
 
 	PCFR = PCFR_OPDE;
+
+	GPSR |= _COLLIE_GPIO_UCB1x00_RESET;
 
 
 	platform_scoop_config = &collie_pcmcia_config;
@@ -272,9 +341,9 @@ static void __init collie_init(void)
 		printk(KERN_WARNING "collie: Unable to register LoCoMo device\n");
 	}
 
-	sa11x0_set_flash_data(&collie_flash_data, collie_flash_resources,
-			      ARRAY_SIZE(collie_flash_resources));
-	sa11x0_set_mcp_data(&collie_mcp_data);
+	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,
+			    ARRAY_SIZE(collie_flash_resources));
+	sa11x0_register_mcp(&collie_mcp_data);
 
 	sharpsl_save_param();
 }

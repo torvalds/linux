@@ -657,7 +657,7 @@ static int AmiStateInfo(char *buffer, size_t space)
 	len += sprintf(buffer+len, "\tsound.volume_right = %d [0...64]\n",
 		       dmasound.volume_right);
 	if (len >= space) {
-		printk(KERN_ERR "dmasound_paula: overlowed state buffer alloc.\n") ;
+		printk(KERN_ERR "dmasound_paula: overflowed state buffer alloc.\n") ;
 		len = space ;
 	}
 	return len;

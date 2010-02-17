@@ -97,7 +97,7 @@ static struct sms_board sms_boards[] = {
 	},
 };
 
-struct sms_board *sms_get_board(int id)
+struct sms_board *sms_get_board(unsigned id)
 {
 	BUG_ON(id >= ARRAY_SIZE(sms_boards));
 
@@ -294,6 +294,8 @@ int sms_board_load_modules(int id)
 	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A:
 	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B:
 	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 		request_module("smsdvb");
 		break;
 	default:

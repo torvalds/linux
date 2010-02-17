@@ -2290,7 +2290,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		 * In the non-paging case, the sequencer will
 		 * never re-reference the in-core SCB.
 		 * To make sure we are notified during
-		 * reslection, set the MK_MESSAGE flag in
+		 * reselection, set the MK_MESSAGE flag in
 		 * the card's copy of the SCB.
 		 */
 		if ((ahc->flags & AHC_PAGESCBS) == 0) {

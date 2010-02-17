@@ -51,7 +51,7 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
-	     st->bucket < nf_conntrack_htable_size;
+	     st->bucket < net->ct.htable_size;
 	     st->bucket++) {
 		n = rcu_dereference(net->ct.hash[st->bucket].first);
 		if (!is_a_nulls(n))
@@ -69,7 +69,7 @@ static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 	head = rcu_dereference(head->next);
 	while (is_a_nulls(head)) {
 		if (likely(get_nulls_value(head) == st->bucket)) {
-			if (++st->bucket >= nf_conntrack_htable_size)
+			if (++st->bucket >= net->ct.htable_size)
 				return NULL;
 		}
 		head = rcu_dereference(net->ct.hash[st->bucket].first);
@@ -340,7 +340,6 @@ static struct ctl_table_header *nf_ct_netfilter_header;
 
 static ctl_table nf_ct_sysctl_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_MAX,
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
@@ -348,7 +347,6 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_COUNT,
 		.procname	= "nf_conntrack_count",
 		.data		= &init_net.ct.count,
 		.maxlen		= sizeof(int),
@@ -356,15 +354,13 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name       = NET_NF_CONNTRACK_BUCKETS,
 		.procname       = "nf_conntrack_buckets",
-		.data           = &nf_conntrack_htable_size,
+		.data           = &init_net.ct.htable_size,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0444,
 		.proc_handler   = proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_CHECKSUM,
 		.procname	= "nf_conntrack_checksum",
 		.data		= &init_net.ct.sysctl_checksum,
 		.maxlen		= sizeof(unsigned int),
@@ -372,43 +368,39 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_NF_CONNTRACK_LOG_INVALID,
 		.procname	= "nf_conntrack_log_invalid",
 		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.strategy	= sysctl_intvec,
 		.extra1		= &log_invalid_proto_min,
 		.extra2		= &log_invalid_proto_max,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nf_conntrack_expect_max",
 		.data		= &nf_ct_expect_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 #define NET_NF_CONNTRACK_MAX 2089
 
 static ctl_table nf_ct_netfilter_table[] = {
 	{
-		.ctl_name	= NET_NF_CONNTRACK_MAX,
 		.procname	= "nf_conntrack_max",
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{ .ctl_name = 0 }
+	{ }
 };
 
 static struct ctl_path nf_ct_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "net", },
 	{ }
 };
 
@@ -429,6 +421,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 		goto out_kmemdup;
 
 	table[1].data = &net->ct.count;
+	table[2].data = &net->ct.htable_size;
 	table[3].data = &net->ct.sysctl_checksum;
 	table[4].data = &net->ct.sysctl_log_invalid;
 

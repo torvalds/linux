@@ -26,10 +26,11 @@
 //
 //
 // The purpose of this code is very simple: make it possible to tranfser
-// the samples 'as they are' with no alteration from a PCMreader SCB (DMA from host)
-// to any other SCB. This is useful for AC3 throug SPDIF. SRC (source rate converters) 
-// task always alters the samples in some how, however it's from 48khz -> 48khz. The
-// alterations are not audible, but AC3 wont work. 
+// the samples 'as they are' with no alteration from a PCMreader
+// SCB (DMA from host) to any other SCB. This is useful for AC3 through SPDIF.
+// SRC (source rate converters) task always alters the samples in somehow,
+// however it's from 48khz -> 48khz.
+// The alterations are not audible, but AC3 wont work. 
 //
 //        ...
 //         |

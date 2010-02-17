@@ -33,10 +33,10 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <linux/kernel.h>
 
 #include "../perf.h"
 #include "trace-event.h"
-
 
 #define VERSION "0.5"
 
@@ -483,27 +483,33 @@ static struct tracepoint_path *
 get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
 {
 	struct tracepoint_path path, *ppath = &path;
-	int i;
+	int i, nr_tracepoints = 0;
 
 	for (i = 0; i < nb_events; i++) {
 		if (pattrs[i].type != PERF_TYPE_TRACEPOINT)
 			continue;
+		++nr_tracepoints;
 		ppath->next = tracepoint_id_to_path(pattrs[i].config);
 		if (!ppath->next)
 			die("%s\n", "No memory to alloc tracepoints list");
 		ppath = ppath->next;
 	}
 
-	return path.next;
+	return nr_tracepoints > 0 ? path.next : NULL;
 }
-void read_tracing_data(struct perf_event_attr *pattrs, int nb_events)
+
+int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 {
 	char buf[BUFSIZ];
-	struct tracepoint_path *tps;
+	struct tracepoint_path *tps = get_tracepoints_path(pattrs, nb_events);
 
-	output_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC | O_LARGEFILE, 0644);
-	if (output_fd < 0)
-		die("creating file '%s'", output_file);
+	/*
+	 * What? No tracepoints? No sense writing anything here, bail out.
+	 */
+	if (tps == NULL)
+		return -1;
+
+	output_fd = fd;
 
 	buf[0] = 23;
 	buf[1] = 8;
@@ -530,11 +536,11 @@ void read_tracing_data(struct perf_event_attr *pattrs, int nb_events)
 	page_size = getpagesize();
 	write_or_die(&page_size, 4);
 
-	tps = get_tracepoints_path(pattrs, nb_events);
-
 	read_header_files();
 	read_ftrace_files(tps);
 	read_event_files(tps);
 	read_proc_kallsyms();
 	read_ftrace_printk();
+
+	return 0;
 }

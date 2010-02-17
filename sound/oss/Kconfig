@@ -1,5 +1,3 @@
-# drivers/sound/Config.in
-#
 # 18 Apr 1998, Michael Elizabeth Chastain, <mailto:mec@shout.net>
 # More hacking for modularisation.
 #
@@ -286,18 +284,6 @@ config SOUND_DMAP
 	  the command-line argument "dmabuf=1" to the sound module.
 
 	  Say Y unless you have 16MB or more RAM or a PCI sound card.
-
-config SOUND_SSCAPE
-	tristate "Ensoniq SoundScape support"
-	help
-	  Answer Y if you have a sound card based on the Ensoniq SoundScape
-	  chipset. Such cards are being manufactured at least by Ensoniq, Spea
-	  and Reveal (Reveal makes also other cards).
-
-	  If you compile the driver into the kernel, you have to add
-	  "sscape=<io>,<irq>,<dma>,<mpuio>,<mpuirq>" to the kernel command
-	  line.
-
 
 config SOUND_VMIDI
 	tristate "Loopback MIDI device support"

@@ -1,5 +1,5 @@
-#ifndef RUN_COMMAND_H
-#define RUN_COMMAND_H
+#ifndef __PERF_RUN_COMMAND_H
+#define __PERF_RUN_COMMAND_H
 
 enum {
 	ERR_RUN_COMMAND_FORK = 10000,
@@ -85,4 +85,4 @@ struct async {
 int start_async(struct async *async);
 int finish_async(struct async *async);
 
-#endif
+#endif /* __PERF_RUN_COMMAND_H */

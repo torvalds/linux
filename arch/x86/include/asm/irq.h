@@ -34,9 +34,10 @@ static inline int irq_canonicalize(int irq)
 #ifdef CONFIG_HOTPLUG_CPU
 #include <linux/cpumask.h>
 extern void fixup_irqs(void);
+extern void irq_force_complete_move(int);
 #endif
 
-extern void (*generic_interrupt_extension)(void);
+extern void (*x86_platform_ipi_callback)(void);
 extern void native_init_IRQ(void);
 extern bool handle_irq(unsigned irq, struct pt_regs *regs);
 

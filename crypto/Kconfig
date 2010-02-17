@@ -440,6 +440,15 @@ config CRYPTO_WP512
 	  See also:
 	  <http://planeta.terra.com.br/informatica/paulobarreto/WhirlpoolPage.html>
 
+config CRYPTO_GHASH_CLMUL_NI_INTEL
+	tristate "GHASH digest algorithm (CLMUL-NI accelerated)"
+	depends on (X86 || UML_X86) && 64BIT
+	select CRYPTO_SHASH
+	select CRYPTO_CRYPTD
+	help
+	  GHASH is message digest algorithm for GCM (Galois/Counter Mode).
+	  The implementation is accelerated by CLMUL-NI of Intel.
+
 comment "Ciphers"
 
 config CRYPTO_AES

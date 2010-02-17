@@ -9,7 +9,6 @@ CONFIG_MIPS=y
 # Machine selection
 #
 # CONFIG_MACH_ALCHEMY is not set
-# CONFIG_BASLER_EXCITE is not set
 # CONFIG_BCM47XX is not set
 # CONFIG_MIPS_COBALT is not set
 # CONFIG_MACH_DECSTATION is not set
@@ -1077,7 +1076,9 @@ CONFIG_FRAME_WARN=1024
 # CONFIG_HEADERS_CHECK is not set
 # CONFIG_DEBUG_KERNEL is not set
 # CONFIG_SAMPLES is not set
+CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="cca=3 mem=64M console=ttyVR0,115200 ip=any root=/dev/nfs"
+# CONFIG_CMDLINE_OVERRIDE is not set
 
 #
 # Security options

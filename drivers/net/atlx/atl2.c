@@ -409,7 +409,7 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 		if (rxd->status.ok && rxd->status.pkt_size >= 60) {
 			int rx_size = (int)(rxd->status.pkt_size - 4);
 			/* alloc new buffer */
-			skb = netdev_alloc_skb(netdev, rx_size + NET_IP_ALIGN);
+			skb = netdev_alloc_skb_ip_align(netdev, rx_size);
 			if (NULL == skb) {
 				printk(KERN_WARNING
 					"%s: Mem squeeze, deferring packet.\n",
@@ -421,7 +421,6 @@ static void atl2_intr_rx(struct atl2_adapter *adapter)
 				netdev->stats.rx_dropped++;
 				break;
 			}
-			skb_reserve(skb, NET_IP_ALIGN);
 			skb->dev = netdev;
 			memcpy(skb->data, rxd->packet, rx_size);
 			skb_put(skb, rx_size);
@@ -652,7 +651,7 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 	if (adapter->have_msi)
 		flags &= ~IRQF_SHARED;
 
-	return request_irq(adapter->pdev->irq, &atl2_intr, flags, netdev->name,
+	return request_irq(adapter->pdev->irq, atl2_intr, flags, netdev->name,
 		netdev);
 }
 
@@ -1960,12 +1959,15 @@ static int atl2_get_eeprom(struct net_device *netdev,
 		return -ENOMEM;
 
 	for (i = first_dword; i < last_dword; i++) {
-		if (!atl2_read_eeprom(hw, i*4, &(eeprom_buff[i-first_dword])))
-			return -EIO;
+		if (!atl2_read_eeprom(hw, i*4, &(eeprom_buff[i-first_dword]))) {
+			ret_val = -EIO;
+			goto free;
+		}
 	}
 
 	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 3),
 		eeprom->len);
+free:
 	kfree(eeprom_buff);
 
 	return ret_val;

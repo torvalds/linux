@@ -82,7 +82,7 @@ get_fpu_long(struct task_struct *task, unsigned long addr)
 
 	if (last_task_used_math == task) {
 		enable_fpu();
-		save_fpu(task, regs);
+		save_fpu(task);
 		disable_fpu();
 		last_task_used_math = 0;
 		regs->sr |= SR_FD;
@@ -118,7 +118,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 		set_stopped_child_used_math(task);
 	} else if (last_task_used_math == task) {
 		enable_fpu();
-		save_fpu(task, regs);
+		save_fpu(task);
 		disable_fpu();
 		last_task_used_math = 0;
 		regs->sr |= SR_FD;
@@ -133,6 +133,8 @@ void user_enable_single_step(struct task_struct *child)
 	struct pt_regs *regs = child->thread.uregs;
 
 	regs->sr |= SR_SSTEP;	/* auto-resetting upon exception */
+
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 void user_disable_single_step(struct task_struct *child)
@@ -140,6 +142,8 @@ void user_disable_single_step(struct task_struct *child)
 	struct pt_regs *regs = child->thread.uregs;
 
 	regs->sr &= ~SR_SSTEP;
+
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 static int genregs_get(struct task_struct *target,
@@ -454,6 +458,8 @@ asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 
 asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 {
+	int step;
+
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->regs[9]),
 				   regs->regs[9]);
@@ -461,8 +467,9 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_exit(regs, regs->regs[9]);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }
 
 /* Called with interrupts disabled */

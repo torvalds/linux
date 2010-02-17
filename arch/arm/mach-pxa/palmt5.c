@@ -209,7 +209,7 @@ err:
 	return ret;
 }
 
-static int palmt5_backlight_notify(int brightness)
+static int palmt5_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_PALMT5_BL_POWER, brightness);
 	gpio_set_value(GPIO_NR_PALMT5_LCD_POWER, brightness);
@@ -418,6 +418,10 @@ static void __init palmt5_udc_init(void)
 static void __init palmt5_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmt5_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	palmt5_pm_init();
 	set_pxa_fb_info(&palmt5_lcd_screen);

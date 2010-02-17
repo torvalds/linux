@@ -16,8 +16,6 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
-#define SVC_MAX_WAKING 5
-
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
@@ -129,8 +127,8 @@ static void svc_xprt_free(struct kref *kref)
 	struct svc_xprt *xprt =
 		container_of(kref, struct svc_xprt, xpt_ref);
 	struct module *owner = xprt->xpt_class->xcl_owner;
-	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags)
-	    && xprt->xpt_auth_cache != NULL)
+	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags) &&
+	    xprt->xpt_auth_cache != NULL)
 		svcauth_unix_info_release(xprt->xpt_auth_cache);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
@@ -306,7 +304,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	struct svc_pool *pool;
 	struct svc_rqst	*rqstp;
 	int cpu;
-	int thread_avail;
 
 	if (!(xprt->xpt_flags &
 	      ((1<<XPT_CONN)|(1<<XPT_DATA)|(1<<XPT_CLOSE)|(1<<XPT_DEFERRED))))
@@ -317,6 +314,12 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	put_cpu();
 
 	spin_lock_bh(&pool->sp_lock);
+
+	if (!list_empty(&pool->sp_threads) &&
+	    !list_empty(&pool->sp_sockets))
+		printk(KERN_ERR
+		       "svc_xprt_enqueue: "
+		       "threads and transports both waiting??\n");
 
 	if (test_bit(XPT_DEAD, &xprt->xpt_flags)) {
 		/* Don't enqueue dead transports */
@@ -358,15 +361,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	}
 
  process:
-	/* Work out whether threads are available */
-	thread_avail = !list_empty(&pool->sp_threads);	/* threads are asleep */
-	if (pool->sp_nwaking >= SVC_MAX_WAKING) {
-		/* too many threads are runnable and trying to wake up */
-		thread_avail = 0;
-		pool->sp_stats.overloads_avoided++;
-	}
-
-	if (thread_avail) {
+	if (!list_empty(&pool->sp_threads)) {
 		rqstp = list_entry(pool->sp_threads.next,
 				   struct svc_rqst,
 				   rq_list);
@@ -381,8 +376,6 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 		svc_xprt_get(xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
-		rqstp->rq_waking = 1;
-		pool->sp_nwaking++;
 		pool->sp_stats.threads_woken++;
 		BUG_ON(xprt->xpt_pool != pool);
 		wake_up(&rqstp->rq_wait);
@@ -651,11 +644,6 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		return -EINTR;
 
 	spin_lock_bh(&pool->sp_lock);
-	if (rqstp->rq_waking) {
-		rqstp->rq_waking = 0;
-		pool->sp_nwaking--;
-		BUG_ON(pool->sp_nwaking < 0);
-	}
 	xprt = svc_xprt_dequeue(pool);
 	if (xprt) {
 		rqstp->rq_xprt = xprt;
@@ -711,7 +699,8 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	spin_unlock_bh(&pool->sp_lock);
 
 	len = 0;
-	if (test_bit(XPT_LISTENER, &xprt->xpt_flags)) {
+	if (test_bit(XPT_LISTENER, &xprt->xpt_flags) &&
+	    !test_bit(XPT_CLOSE, &xprt->xpt_flags)) {
 		struct svc_xprt *newxpt;
 		newxpt = xprt->xpt_ops->xpo_accept(xprt);
 		if (newxpt) {
@@ -846,8 +835,8 @@ static void svc_age_temp_xprts(unsigned long closure)
 		 * through, close it. */
 		if (!test_and_set_bit(XPT_OLD, &xprt->xpt_flags))
 			continue;
-		if (atomic_read(&xprt->xpt_ref.refcount) > 1
-		    || test_bit(XPT_BUSY, &xprt->xpt_flags))
+		if (atomic_read(&xprt->xpt_ref.refcount) > 1 ||
+		    test_bit(XPT_BUSY, &xprt->xpt_flags))
 			continue;
 		svc_xprt_get(xprt);
 		list_move(le, &to_be_aged);
@@ -1204,16 +1193,15 @@ static int svc_pool_stats_show(struct seq_file *m, void *p)
 	struct svc_pool *pool = p;
 
 	if (p == SEQ_START_TOKEN) {
-		seq_puts(m, "# pool packets-arrived sockets-enqueued threads-woken overloads-avoided threads-timedout\n");
+		seq_puts(m, "# pool packets-arrived sockets-enqueued threads-woken threads-timedout\n");
 		return 0;
 	}
 
-	seq_printf(m, "%u %lu %lu %lu %lu %lu\n",
+	seq_printf(m, "%u %lu %lu %lu %lu\n",
 		pool->sp_id,
 		pool->sp_stats.packets,
 		pool->sp_stats.sockets_queued,
 		pool->sp_stats.threads_woken,
-		pool->sp_stats.overloads_avoided,
 		pool->sp_stats.threads_timedout);
 
 	return 0;

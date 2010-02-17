@@ -767,7 +767,6 @@ static struct video_device ar_template = {
 	.name		= "Colour AR VGA",
 	.fops		= &ar_fops,
 	.release	= ar_release,
-	.minor		= -1,
 };
 
 #define ALIGN4(x)	((((int)(x)) & 0x3) == 0)
@@ -860,8 +859,8 @@ static int __init ar_init(void)
 		goto out_dev;
 	}
 
-	printk("video%d: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
-		ar->vdev->num, M32R_IRQ_INT3, freq);
+	printk("%s: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
+		video_device_node_name(ar->vdev), M32R_IRQ_INT3, freq);
 
 	return 0;
 

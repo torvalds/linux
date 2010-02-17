@@ -303,6 +303,12 @@ load_b:
 		case SKF_AD_IFINDEX:
 			A = skb->dev->ifindex;
 			continue;
+		case SKF_AD_MARK:
+			A = skb->mark;
+			continue;
+		case SKF_AD_QUEUE:
+			A = skb->queue_mapping;
+			continue;
 		case SKF_AD_NLATTR: {
 			struct nlattr *nla;
 

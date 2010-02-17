@@ -36,6 +36,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
+#include <linux/sched.h>
 
 static unsigned int b3dfg_nbuf = 2;
 
@@ -467,7 +468,6 @@ static int get_wand_status(struct b3dfg_dev *fgdev, int __user *arg)
 
 static int enable_transmission(struct b3dfg_dev *fgdev)
 {
-	u16 command;
 	unsigned long flags;
 	struct device *dev = &fgdev->pdev->dev;
 
@@ -477,17 +477,6 @@ static int enable_transmission(struct b3dfg_dev *fgdev)
 	if (!b3dfg_read32(fgdev, B3D_REG_WAND_STS)) {
 		dev_dbg(dev, "cannot start transmission without wand\n");
 		return -EINVAL;
-	}
-
-	/*
-	 * Check we're a bus master.
-	 * TODO: I think we can remove this having added the pci_set_master call
-	 */
-	pci_read_config_word(fgdev->pdev, PCI_COMMAND, &command);
-	if (!(command & PCI_COMMAND_MASTER)) {
-		dev_err(dev, "not a bus master, force-enabling\n");
-		pci_write_config_word(fgdev->pdev, PCI_COMMAND,
-			command | PCI_COMMAND_MASTER);
 	}
 
 	spin_lock_irqsave(&fgdev->buffer_lock, flags);

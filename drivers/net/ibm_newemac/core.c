@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -443,7 +444,7 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 		ret |= EMAC_MR1_TFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Rx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unknown Tx FIFO size %d\n",
 		       dev->ndev->name, tx_size);
 	}
 
@@ -470,6 +471,9 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 	DBG2(dev, "__emac4_calc_base_mr1" NL);
 
 	switch(tx_size) {
+	case 16384:
+		ret |= EMAC4_MR1_TFS_16K;
+		break;
 	case 4096:
 		ret |= EMAC4_MR1_TFS_4K;
 		break;
@@ -477,7 +481,7 @@ static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_
 		ret |= EMAC4_MR1_TFS_2K;
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unknown Rx FIFO size %d\n",
+		printk(KERN_WARNING "%s: Unknown Tx FIFO size %d\n",
 		       dev->ndev->name, tx_size);
 	}
 
@@ -1972,27 +1976,27 @@ static int emac_ethtool_set_settings(struct net_device *ndev,
 	if (cmd->autoneg == AUTONEG_DISABLE) {
 		switch (cmd->speed) {
 		case SPEED_10:
-			if (cmd->duplex == DUPLEX_HALF
-			    && !(f & SUPPORTED_10baseT_Half))
+			if (cmd->duplex == DUPLEX_HALF &&
+			    !(f & SUPPORTED_10baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL
-			    && !(f & SUPPORTED_10baseT_Full))
+			if (cmd->duplex == DUPLEX_FULL &&
+			    !(f & SUPPORTED_10baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_100:
-			if (cmd->duplex == DUPLEX_HALF
-			    && !(f & SUPPORTED_100baseT_Half))
+			if (cmd->duplex == DUPLEX_HALF &&
+			    !(f & SUPPORTED_100baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL
-			    && !(f & SUPPORTED_100baseT_Full))
+			if (cmd->duplex == DUPLEX_FULL &&
+			    !(f & SUPPORTED_100baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_1000:
-			if (cmd->duplex == DUPLEX_HALF
-			    && !(f & SUPPORTED_1000baseT_Half))
+			if (cmd->duplex == DUPLEX_HALF &&
+			    !(f & SUPPORTED_1000baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL
-			    && !(f & SUPPORTED_1000baseT_Full))
+			if (cmd->duplex == DUPLEX_FULL &&
+			    !(f & SUPPORTED_1000baseT_Full))
 				return -EINVAL;
 			break;
 		default:
@@ -2145,9 +2149,12 @@ static int emac_ethtool_nway_reset(struct net_device *ndev)
 	return res;
 }
 
-static int emac_ethtool_get_stats_count(struct net_device *ndev)
+static int emac_ethtool_get_sset_count(struct net_device *ndev, int stringset)
 {
-	return EMAC_ETHTOOL_STATS_COUNT;
+	if (stringset == ETH_SS_STATS)
+		return EMAC_ETHTOOL_STATS_COUNT;
+	else
+		return -EINVAL;
 }
 
 static void emac_ethtool_get_strings(struct net_device *ndev, u32 stringset,
@@ -2178,7 +2185,6 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	info->fw_version[0] = '\0';
 	sprintf(info->bus_info, "PPC 4xx EMAC-%d %s",
 		dev->cell_index, dev->ofdev->node->full_name);
-	info->n_stats = emac_ethtool_get_stats_count(ndev);
 	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
@@ -2198,7 +2204,7 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_rx_csum = emac_ethtool_get_rx_csum,
 
 	.get_strings = emac_ethtool_get_strings,
-	.get_stats_count = emac_ethtool_get_stats_count,
+	.get_sset_count = emac_ethtool_get_sset_count,
 	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
 
 	.get_link = ethtool_op_get_link,
@@ -2985,6 +2991,7 @@ static struct of_device_id emac_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, emac_match);
 
 static struct of_platform_driver emac_driver = {
 	.name = "emac",

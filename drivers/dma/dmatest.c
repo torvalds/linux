@@ -298,10 +298,6 @@ static int dmatest_func(void *data)
 
 		total_tests++;
 
-		len = dmatest_random() % test_buf_size + 1;
-		src_off = dmatest_random() % (test_buf_size - len + 1);
-		dst_off = dmatest_random() % (test_buf_size - len + 1);
-
 		/* honor alignment restrictions */
 		if (thread->type == DMA_MEMCPY)
 			align = dev->copy_align;
@@ -310,7 +306,19 @@ static int dmatest_func(void *data)
 		else if (thread->type == DMA_PQ)
 			align = dev->pq_align;
 
+		if (1 << align > test_buf_size) {
+			pr_err("%u-byte buffer too small for %d-byte alignment\n",
+			       test_buf_size, 1 << align);
+			break;
+		}
+
+		len = dmatest_random() % test_buf_size + 1;
 		len = (len >> align) << align;
+		if (!len)
+			len = 1 << align;
+		src_off = dmatest_random() % (test_buf_size - len + 1);
+		dst_off = dmatest_random() % (test_buf_size - len + 1);
+
 		src_off = (src_off >> align) << align;
 		dst_off = (dst_off >> align) << align;
 
@@ -459,7 +467,7 @@ err_srcs:
 
 	if (iterations > 0)
 		while (!kthread_should_stop()) {
-			DECLARE_WAIT_QUEUE_HEAD(wait_dmatest_exit);
+			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait_dmatest_exit);
 			interruptible_sleep_on(&wait_dmatest_exit);
 		}
 

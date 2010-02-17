@@ -237,7 +237,6 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 objectid;
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
 	u64 index = 0;
-	unsigned long nr = 1;
 
 	/*
 	 * 1 - inode item
@@ -290,7 +289,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 	btrfs_set_root_generation(&root_item, trans->transid);
 	btrfs_set_root_level(&root_item, 0);
 	btrfs_set_root_refs(&root_item, 1);
-	btrfs_set_root_used(&root_item, 0);
+	btrfs_set_root_used(&root_item, leaf->len);
 	btrfs_set_root_last_snapshot(&root_item, 0);
 
 	memset(&root_item.drop_progress, 0, sizeof(root_item.drop_progress));
@@ -342,24 +341,21 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	d_instantiate(dentry, btrfs_lookup_dentry(dir, dentry));
 fail:
-	nr = trans->blocks_used;
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
 
 	btrfs_unreserve_metadata_space(root, 6);
-	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
 
 static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 			   char *name, int namelen)
 {
+	struct inode *inode;
 	struct btrfs_pending_snapshot *pending_snapshot;
 	struct btrfs_trans_handle *trans;
-	int ret = 0;
-	int err;
-	unsigned long nr = 0;
+	int ret;
 
 	if (!root->ref_cows)
 		return -EINVAL;
@@ -372,20 +368,20 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	 */
 	ret = btrfs_reserve_metadata_space(root, 6);
 	if (ret)
-		goto fail_unlock;
+		goto fail;
 
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot) {
 		ret = -ENOMEM;
 		btrfs_unreserve_metadata_space(root, 6);
-		goto fail_unlock;
+		goto fail;
 	}
 	pending_snapshot->name = kmalloc(namelen + 1, GFP_NOFS);
 	if (!pending_snapshot->name) {
 		ret = -ENOMEM;
 		kfree(pending_snapshot);
 		btrfs_unreserve_metadata_space(root, 6);
-		goto fail_unlock;
+		goto fail;
 	}
 	memcpy(pending_snapshot->name, name, namelen);
 	pending_snapshot->name[namelen] = '\0';
@@ -395,10 +391,19 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	pending_snapshot->root = root;
 	list_add(&pending_snapshot->list,
 		 &trans->transaction->pending_snapshots);
-	err = btrfs_commit_transaction(trans, root);
+	ret = btrfs_commit_transaction(trans, root);
+	BUG_ON(ret);
+	btrfs_unreserve_metadata_space(root, 6);
 
-fail_unlock:
-	btrfs_btree_balance_dirty(root, nr);
+	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		goto fail;
+	}
+	BUG_ON(!inode);
+	d_instantiate(dentry, inode);
+	ret = 0;
+fail:
 	return ret;
 }
 
@@ -1027,8 +1032,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	BUG_ON(!trans);
 
 	/* punch hole in destination first */
-	btrfs_drop_extents(trans, root, inode, off, off + len,
-			   off + len, 0, &hint_byte, 1);
+	btrfs_drop_extents(trans, inode, off, off + len, &hint_byte, 1);
 
 	/* clone data */
 	key.objectid = src->i_ino;

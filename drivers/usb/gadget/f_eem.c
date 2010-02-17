@@ -358,7 +358,7 @@ done:
 	 * b15:		bmType (0 == data)
 	 */
 	len = skb->len;
-	put_unaligned_le16((len & 0x3FFF) | BIT(14), skb_push(skb, 2));
+	put_unaligned_le16(len & 0x3FFF, skb_push(skb, 2));
 
 	/* add a zero-length EEM packet, if needed */
 	if (padlen)
@@ -464,7 +464,6 @@ static int eem_unwrap(struct gether *port,
 			}
 
 			/* validate CRC */
-			crc = get_unaligned_le32(skb->data + len - ETH_FCS_LEN);
 			if (header & BIT(14)) {
 				crc = get_unaligned_le32(skb->data + len
 							- ETH_FCS_LEN);

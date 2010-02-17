@@ -254,7 +254,7 @@ int ip_mc_output(struct sk_buff *skb)
 	 */
 
 	if (rt->rt_flags&RTCF_MULTICAST) {
-		if ((!sk || inet_sk(sk)->mc_loop)
+		if (sk_mc_loop(sk)
 #ifdef CONFIG_IP_MROUTE
 		/* Small optimization: do not loopback not local frames,
 		   which returned after forwarding; they will be  dropped
@@ -264,9 +264,11 @@ int ip_mc_output(struct sk_buff *skb)
 
 		   This check is duplicated in ip_mr_input at the moment.
 		 */
-		    && ((rt->rt_flags&RTCF_LOCAL) || !(IPCB(skb)->flags&IPSKB_FORWARDED))
+		    &&
+		    ((rt->rt_flags & RTCF_LOCAL) ||
+		     !(IPCB(skb)->flags & IPSKB_FORWARDED))
 #endif
-		) {
+		   ) {
 			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 			if (newskb)
 				NF_HOOK(PF_INET, NF_INET_POST_ROUTING, newskb,
@@ -329,7 +331,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 		__be32 daddr;
 
 		/* Use correct destination address if we have options. */
-		daddr = inet->daddr;
+		daddr = inet->inet_daddr;
 		if(opt && opt->srr)
 			daddr = opt->faddr;
 
@@ -338,13 +340,13 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 					    .mark = sk->sk_mark,
 					    .nl_u = { .ip4_u =
 						      { .daddr = daddr,
-							.saddr = inet->saddr,
+							.saddr = inet->inet_saddr,
 							.tos = RT_CONN_FLAGS(sk) } },
 					    .proto = sk->sk_protocol,
 					    .flags = inet_sk_flowi_flags(sk),
 					    .uli_u = { .ports =
-						       { .sport = inet->sport,
-							 .dport = inet->dport } } };
+						       { .sport = inet->inet_sport,
+							 .dport = inet->inet_dport } } };
 
 			/* If this fails, retransmit mechanism of transport layer will
 			 * keep trying until route appears or the connection times
@@ -379,7 +381,7 @@ packet_routed:
 
 	if (opt && opt->optlen) {
 		iph->ihl += opt->optlen >> 2;
-		ip_options_build(skb, opt, inet->daddr, rt, 0);
+		ip_options_build(skb, opt, inet->inet_daddr, rt, 0);
 	}
 
 	ip_select_ident_more(iph, &rt->u.dst, sk,
@@ -501,8 +503,8 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			if (skb->sk) {
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
-				truesizes += frag->truesize;
 			}
+			truesizes += frag->truesize;
 		}
 
 		/* Everything is OK. Generate! */
@@ -846,7 +848,8 @@ int ip_append_data(struct sock *sk,
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
 	if (inet->cork.length + length > 0xFFFF - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->dport, mtu-exthdrlen);
+		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport,
+			       mtu-exthdrlen);
 		return -EMSGSIZE;
 	}
 
@@ -1100,7 +1103,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
 
 	if (inet->cork.length + size > 0xFFFF - fragheaderlen) {
-		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->dport, mtu);
+		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport, mtu);
 		return -EMSGSIZE;
 	}
 

@@ -135,8 +135,8 @@ ebt_stp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (memcmp(sp, header, sizeof(header)))
 		return false;
 
-	if (info->bitmask & EBT_STP_TYPE
-	    && FWINV(info->type != sp->type, EBT_STP_TYPE))
+	if (info->bitmask & EBT_STP_TYPE &&
+	    FWINV(info->type != sp->type, EBT_STP_TYPE))
 		return false;
 
 	if (sp->type == BPDU_TYPE_CONFIG &&

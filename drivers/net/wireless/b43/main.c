@@ -628,10 +628,17 @@ static void b43_upload_card_macaddress(struct b43_wldev *dev)
 static void b43_set_slot_time(struct b43_wldev *dev, u16 slot_time)
 {
 	/* slot_time is in usec. */
-	if (dev->phy.type != B43_PHYTYPE_G)
+	/* This test used to exit for all but a G PHY. */
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
 		return;
-	b43_write16(dev, 0x684, 510 + slot_time);
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0010, slot_time);
+	b43_write16(dev, B43_MMIO_IFSSLOT, 510 + slot_time);
+	/* Shared memory location 0x0010 is the slot time and should be
+	 * set to slot_time; however, this register is initially 0 and changing
+	 * the value adversely affects the transmit rate for BCM4311
+	 * devices. Until this behavior is unterstood, delete this step
+	 *
+	 * b43_shm_write16(dev, B43_SHM_SHARED, 0x0010, slot_time);
+	 */
 }
 
 static void b43_short_slot_timing_enable(struct b43_wldev *dev)
@@ -1784,7 +1791,10 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 			       dma_reason[0], dma_reason[1],
 			       dma_reason[2], dma_reason[3],
 			       dma_reason[4], dma_reason[5]);
-			b43_controller_restart(dev, "DMA error");
+			b43err(dev->wl, "This device does not support DMA "
+			       "on your system. Please use PIO instead.\n");
+			b43err(dev->wl, "CONFIG_B43_FORCE_PIO must be set in "
+			       "your kernel configuration.\n");
 			return;
 		}
 		if (merged_dma_reason & B43_DMAIRQ_NONFATALMASK) {
@@ -2955,7 +2965,7 @@ static void do_periodic_work(struct b43_wldev *dev)
 /* Periodic work locking policy:
  * 	The whole periodic work handler is protected by
  * 	wl->mutex. If another lock is needed somewhere in the
- * 	pwork callchain, it's aquired in-place, where it's needed.
+ * 	pwork callchain, it's acquired in-place, where it's needed.
  */
 static void b43_periodic_work_handler(struct work_struct *work)
 {
@@ -3573,7 +3583,7 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (conf->channel->hw_value != phy->channel)
 		b43_switch_channel(dev, conf->channel->hw_value);
 
-	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
+	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_MONITOR);
 
 	/* Adjust the desired TX power level. */
 	if (conf->power_level != 0) {
@@ -3874,6 +3884,7 @@ static struct b43_wldev * b43_wireless_core_stop(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
 	struct b43_wldev *orig_dev;
+	u32 mask;
 
 redo:
 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
@@ -3920,7 +3931,8 @@ redo:
 			goto redo;
 		return dev;
 	}
-	B43_WARN_ON(b43_read32(dev, B43_MMIO_GEN_IRQ_MASK));
+	mask = b43_read32(dev, B43_MMIO_GEN_IRQ_MASK);
+	B43_WARN_ON(mask != 0xFFFFFFFF && mask);
 
 	/* Drain the TX queue */
 	while (skb_queue_len(&wl->tx_queue))
@@ -4519,9 +4531,8 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw,
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 
-	mutex_lock(&wl->mutex);
+	/* FIXME: add locking */
 	b43_update_templates(wl);
-	mutex_unlock(&wl->mutex);
 
 	return 0;
 }
@@ -4668,7 +4679,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
 	struct ssb_bus *bus = dev->dev->bus;
-	struct pci_dev *pdev = bus->host_pci;
+	struct pci_dev *pdev = (bus->bustype == SSB_BUSTYPE_PCI) ? bus->host_pci : NULL;
 	int err;
 	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
 	u32 tmp;
@@ -4801,7 +4812,7 @@ static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
 
 	if (!list_empty(&wl->devlist)) {
 		/* We are not the first core on this chip. */
-		pdev = dev->bus->host_pci;
+		pdev = (dev->bus->bustype == SSB_BUSTYPE_PCI) ? dev->bus->host_pci : NULL;
 		/* Only special chips support more than one wireless
 		 * core, although some of the other chips have more than
 		 * one wireless core as well. Check for this and
@@ -4997,7 +5008,7 @@ static void b43_remove(struct ssb_device *dev)
 
 	if (list_empty(&wl->devlist)) {
 		b43_rng_exit(wl);
-		b43_leds_unregister(wldev);
+		b43_leds_unregister(wl);
 		/* Last core on the chip unregistered.
 		 * We can destroy common struct b43_wl.
 		 */

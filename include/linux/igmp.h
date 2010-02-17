@@ -27,8 +27,7 @@
  *	Header in on cable format
  */
 
-struct igmphdr
-{
+struct igmphdr {
 	__u8 type;
 	__u8 code;		/* For newer IGMP */
 	__sum16 csum;
@@ -151,8 +150,7 @@ static inline struct igmpv3_query *
 extern int sysctl_igmp_max_memberships;
 extern int sysctl_igmp_max_msf;
 
-struct ip_sf_socklist
-{
+struct ip_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	__be32			sl_addr[0];
@@ -167,16 +165,14 @@ struct ip_sf_socklist
    this list never used in fast path code
  */
 
-struct ip_mc_socklist
-{
+struct ip_mc_socklist {
 	struct ip_mc_socklist	*next;
 	struct ip_mreqn		multi;
 	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ip_sf_socklist	*sflist;
 };
 
-struct ip_sf_list
-{
+struct ip_sf_list {
 	struct ip_sf_list	*sf_next;
 	__be32			sf_inaddr;
 	unsigned long		sf_count[2];	/* include/exclude counts */
@@ -185,8 +181,7 @@ struct ip_sf_list
 	unsigned char		sf_crcount;	/* retrans. left to send */
 };
 
-struct ip_mc_list
-{
+struct ip_mc_list {
 	struct in_device	*interface;
 	__be32			multiaddr;
 	struct ip_sf_list	*sources;

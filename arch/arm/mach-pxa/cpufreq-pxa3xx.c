@@ -102,7 +102,7 @@ static int setup_freqs_table(struct cpufreq_policy *policy,
 		table[i].index = i;
 		table[i].frequency = freqs[i].cpufreq_mhz * 1000;
 	}
-	table[num].frequency = i;
+	table[num].index = i;
 	table[num].frequency = CPUFREQ_TABLE_END;
 
 	pxa3xx_freqs = freqs;

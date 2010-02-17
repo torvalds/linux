@@ -185,7 +185,7 @@ bfa_uf_get(struct bfa_uf_mod_s *uf_mod)
 	struct bfa_uf_s   *uf;
 
 	bfa_q_deq(&uf_mod->uf_free_q, &uf);
-	return (uf);
+	return uf;
 }
 
 static void

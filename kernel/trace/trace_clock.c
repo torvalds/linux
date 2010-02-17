@@ -20,6 +20,8 @@
 #include <linux/ktime.h>
 #include <linux/trace_clock.h>
 
+#include "trace.h"
+
 /*
  * trace_clock_local(): the simplest and least coherent tracing clock.
  *
@@ -28,17 +30,17 @@
  */
 u64 notrace trace_clock_local(void)
 {
-	unsigned long flags;
 	u64 clock;
+	int resched;
 
 	/*
 	 * sched_clock() is an architecture implemented, fast, scalable,
 	 * lockless clock. It is not guaranteed to be coherent across
 	 * CPUs, nor across CPU idle events.
 	 */
-	raw_local_irq_save(flags);
+	resched = ftrace_preempt_disable();
 	clock = sched_clock();
-	raw_local_irq_restore(flags);
+	ftrace_preempt_enable(resched);
 
 	return clock;
 }
@@ -69,10 +71,10 @@ u64 notrace trace_clock(void)
 /* keep prev_time and lock in the same cacheline. */
 static struct {
 	u64 prev_time;
-	raw_spinlock_t lock;
+	arch_spinlock_t lock;
 } trace_clock_struct ____cacheline_aligned_in_smp =
 	{
-		.lock = (raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED,
+		.lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED,
 	};
 
 u64 notrace trace_clock_global(void)
@@ -92,7 +94,7 @@ u64 notrace trace_clock_global(void)
 	if (unlikely(in_nmi()))
 		goto out;
 
-	__raw_spin_lock(&trace_clock_struct.lock);
+	arch_spin_lock(&trace_clock_struct.lock);
 
 	/*
 	 * TODO: if this happens often then maybe we should reset
@@ -104,7 +106,7 @@ u64 notrace trace_clock_global(void)
 
 	trace_clock_struct.prev_time = now;
 
-	__raw_spin_unlock(&trace_clock_struct.lock);
+	arch_spin_unlock(&trace_clock_struct.lock);
 
  out:
 	raw_local_irq_restore(flags);

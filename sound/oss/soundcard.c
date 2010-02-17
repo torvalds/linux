@@ -56,7 +56,7 @@
 /*
  * Table for permanently allocated memory (used when unloading the module)
  */
-void *          sound_mem_blocks[1024];
+void *          sound_mem_blocks[MAX_MEM_BLOCKS];
 int             sound_nblocks = 0;
 
 /* Persistent DMA buffers */
@@ -574,7 +574,7 @@ static int __init oss_init(void)
 				      NULL, "%s%d", dev_list[i].name, j);
 	}
 
-	if (sound_nblocks >= 1024)
+	if (sound_nblocks >= MAX_MEM_BLOCKS - 1)
 		printk(KERN_ERR "Sound warning: Deallocation table was too small.\n");
 	
 	return 0;

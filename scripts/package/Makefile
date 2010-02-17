@@ -18,6 +18,9 @@
 # e) generate the rpm files, based on kernel.spec
 # - Use /. to avoid tar packing just the symlink
 
+# Note that the rpm-pkg target cannot be used with KBUILD_OUTPUT,
+# but the binrpm-pkg target can; for some reason O= gets ignored.
+
 # Do we have rpmbuild, otherwise fall back to the older rpm
 RPM := $(shell if [ -x "/usr/bin/rpmbuild" ]; then echo rpmbuild; \
 	           else echo rpm; fi)
@@ -33,6 +36,12 @@ $(objtree)/kernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) > $@
 
 rpm-pkg rpm: $(objtree)/kernel.spec FORCE
+	@if test -n "$(KBUILD_OUTPUT)"; then \
+		echo "Building source + binary RPM is not possible outside the"; \
+		echo "kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
+		echo "binrpm-pkg target instead."; \
+		false; \
+	fi
 	$(MAKE) clean
 	$(PREV) ln -sf $(srctree) $(KERNELPATH)
 	$(CONFIG_SHELL) $(srctree)/scripts/setlocalversion > $(objtree)/.scmversion
@@ -61,16 +70,34 @@ binrpm-pkg: $(objtree)/binkernel.spec FORCE
 	set -e; \
 	mv -f $(objtree)/.tmp_version $(objtree)/.version
 
-	$(RPM) $(RPMOPTS) --define "_builddir $(srctree)" --target \
+	$(RPM) $(RPMOPTS) --define "_builddir $(objtree)" --target \
 		$(UTS_MACHINE) -bb $<
 
 clean-files += $(objtree)/binkernel.spec
 
 # Deb target
 # ---------------------------------------------------------------------------
+quiet_cmd_builddeb = BUILDDEB
+      cmd_builddeb = set -e; \
+	test `id -u` = 0 || \
+	test -n "$(KBUILD_PKG_ROOTCMD)" || { \
+		which fakeroot >/dev/null 2>&1 && \
+		KBUILD_PKG_ROOTCMD="fakeroot -u"; \
+	} || { \
+		echo; \
+		echo "builddeb must be run as root (or using fakeroot)."; \
+		echo "KBUILD_PKG_ROOTCMD is unset and fakeroot not found."; \
+		echo "Try setting KBUILD_PKG_ROOTCMD to a command to acquire"; \
+		echo "root privileges (e.g., 'fakeroot -u' or 'sudo')."; \
+		false; \
+	} && \
+	\
+	$$KBUILD_PKG_ROOTCMD $(CONFIG_SHELL) \
+		$(srctree)/scripts/package/builddeb
+
 deb-pkg: FORCE
 	$(MAKE) KBUILD_SRC=
-	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
+	$(call cmd,builddeb)
 
 clean-dirs += $(objtree)/debian/
 

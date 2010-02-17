@@ -46,6 +46,7 @@
 #include <asm/setup.h>
 #include <asm/mmu.h>
 #include <asm/ns87303.h>
+#include <asm/btext.h>
 
 #ifdef CONFIG_IP_PNP
 #include <net/ipconfig.h>
@@ -286,7 +287,10 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	boot_flags_init(*cmdline_p);
-	register_console(&prom_early_console);
+#ifdef CONFIG_EARLYFB
+	if (btext_find_display())
+#endif
+		register_console(&prom_early_console);
 
 	if (tlb_type == hypervisor)
 		printk("ARCH: SUN4V\n");

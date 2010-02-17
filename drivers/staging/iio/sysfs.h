@@ -15,7 +15,7 @@
 #include "iio.h"
 
 /**
- * struct iio_event_attribute - event control attribute
+ * struct iio_event_attr - event control attribute
  * @dev_attr:	underlying device attribute
  * @mask:	mask for the event when detecting
  * @listel:	list header to allow addition to list of event handlers
@@ -54,6 +54,7 @@ __init_iio_chrdev_minor_attr(struct iio_chrdev_minor_attr *minor_attr,
  * struct iio_dev_attr - iio specific device attribute
  * @dev_attr:	underlying device attribute
  * @address:	associated register address
+ * @val2:	secondary attribute value
  */
 struct iio_dev_attr {
 	struct device_attribute dev_attr;
@@ -71,6 +72,8 @@ ssize_t iio_read_const_attr(struct device *dev,
 /**
  * struct iio_const_attr - constant device specific attribute
  *                         often used for things like available modes
+ * @string:	attribute string
+ * @dev_attr:	underlying device attribute
  */
 struct iio_const_attr {
 	const char *string;
@@ -80,7 +83,7 @@ struct iio_const_attr {
 #define to_iio_const_attr(_dev_attr) \
 	container_of(_dev_attr, struct iio_const_attr, dev_attr)
 
-/* Some attributes will be hard coded (device dependant) and not require an
+/* Some attributes will be hard coded (device dependent) and not require an
    address, in these cases pass a negative */
 #define IIO_ATTR(_name, _mode, _show, _store, _addr)		\
 	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
@@ -108,102 +111,130 @@ struct iio_const_attr {
 /* Generic attributes of onetype or another */
 
 /**
- * IIO_DEV_ATTR_REG: revision number for the device
+ * IIO_DEV_ATTR_REV - revision number for the device
+ * @_show: output method for the attribute
  *
  * Very much device dependent.
  **/
 #define IIO_DEV_ATTR_REV(_show)			\
 	IIO_DEVICE_ATTR(revision, S_IRUGO, _show, NULL, 0)
+
 /**
- * IIO_DEV_ATTR_NAME: chip type dependant identifier
+ * IIO_DEV_ATTR_NAME - chip type dependent identifier
+ * @_show: output method for the attribute
  **/
 #define IIO_DEV_ATTR_NAME(_show)				\
 	IIO_DEVICE_ATTR(name, S_IRUGO, _show, NULL, 0)
 
 /**
- * IIO_DEV_ATTR_SAMP_FREQ: sets any internal clock frequency
+ * IIO_DEV_ATTR_SAMP_FREQ - sets any internal clock frequency
+ * @_mode: sysfs file mode/permissions
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
  **/
 #define IIO_DEV_ATTR_SAMP_FREQ(_mode, _show, _store)			\
 	IIO_DEVICE_ATTR(sampling_frequency, _mode, _show, _store, 0)
 
 /**
- * IIO_DEV_ATTR_AVAIL_SAMP_FREQ: list available sampling frequencies.
+ * IIO_DEV_ATTR_AVAIL_SAMP_FREQ - list available sampling frequencies
+ * @_show: output method for the attribute
  *
- * May be mode dependant on some devices
+ * May be mode dependent on some devices
  **/
 #define IIO_DEV_ATTR_AVAIL_SAMP_FREQ(_show)				\
 	IIO_DEVICE_ATTR(available_sampling_frequency, S_IRUGO, _show, NULL, 0)
 
 /**
- * IIO_DEV_ATTR_CONST_AVAIL_SAMP_FREQ: list available sampling frequencies.
+ * IIO_CONST_ATTR_AVAIL_SAMP_FREQ - list available sampling frequencies
+ * @_string: frequency string for the attribute
  *
  * Constant version
  **/
 #define IIO_CONST_ATTR_AVAIL_SAMP_FREQ(_string)	\
 	IIO_CONST_ATTR(available_sampling_frequency, _string)
+
 /**
- * IIO_DEV_ATTR_SCAN_MODE: select a scan mode
+ * IIO_DEV_ATTR_SCAN_MODE - select a scan mode
+ * @_mode: sysfs file mode/permissions
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
  *
  * This is used when only certain combinations of inputs may be read in one
  * scan.
  **/
 #define IIO_DEV_ATTR_SCAN_MODE(_mode, _show, _store)		\
 	IIO_DEVICE_ATTR(scan_mode, _mode, _show, _store, 0)
+
 /**
- * IIO_DEV_ATTR_AVAIL_SCAN_MODES: list available scan modes
+ * IIO_DEV_ATTR_AVAIL_SCAN_MODES - list available scan modes
+ * @_show: output method for the attribute
  **/
 #define IIO_DEV_ATTR_AVAIL_SCAN_MODES(_show)				\
 	IIO_DEVICE_ATTR(available_scan_modes, S_IRUGO, _show, NULL, 0)
 
 /**
- * IIO_DEV_ATTR_SCAN: result of scan of multiple channels
+ * IIO_DEV_ATTR_SCAN - result of scan of multiple channels
+ * @_show: output method for the attribute
  **/
 #define IIO_DEV_ATTR_SCAN(_show)		\
 	IIO_DEVICE_ATTR(scan, S_IRUGO, _show, NULL, 0);
 
 /**
- * IIO_DEV_ATTR_INPUT: direct read of a single input channel
+ * IIO_DEV_ATTR_INPUT - direct read of a single input channel
+ * @_number: input channel number
+ * @_show: output method for the attribute
  **/
 #define IIO_DEV_ATTR_INPUT(_number, _show)				\
 	IIO_DEVICE_ATTR(in##_number, S_IRUGO, _show, NULL, _number)
 
-
 /**
- * IIO_DEV_ATTR_SW_RING_ENABLE: enable software ring buffer
+ * IIO_DEV_ATTR_SW_RING_ENABLE - enable software ring buffer
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
  *
- * Success may be dependant on attachment of trigger previously
+ * Success may be dependent on attachment of trigger previously.
  **/
 #define IIO_DEV_ATTR_SW_RING_ENABLE(_show, _store)			\
 	IIO_DEVICE_ATTR(sw_ring_enable, S_IRUGO | S_IWUSR, _show, _store, 0)
 
 /**
- * IIO_DEV_ATTR_HW_RING_ENABLE: enable hardware ring buffer
+ * IIO_DEV_ATTR_HW_RING_ENABLE - enable hardware ring buffer
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
  *
- * This is a different attribute from the software one as one can invision
+ * This is a different attribute from the software one as one can envision
  * schemes where a combination of the two may be used.
  **/
 #define IIO_DEV_ATTR_HW_RING_ENABLE(_show, _store)			\
 	IIO_DEVICE_ATTR(hw_ring_enable, S_IRUGO | S_IWUSR, _show, _store, 0)
 
 /**
- * IIO_DEV_ATTR_BPSE: set number of bits per scan element
+ * IIO_DEV_ATTR_BPSE - set number of bits per scan element
+ * @_mode: sysfs file mode/permissions
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
  **/
 #define IIO_DEV_ATTR_BPSE(_mode, _show, _store)		\
 	IIO_DEVICE_ATTR(bpse, _mode, _show, _store, 0)
 
 /**
- * IIO_DEV_ATTR_BPSE_AVAILABLE: no of bits per scan element supported
+ * IIO_DEV_ATTR_BPSE_AVAILABLE - number of bits per scan element supported
+ * @_show: output method for the attribute
  **/
 #define IIO_DEV_ATTR_BPSE_AVAILABLE(_show)				\
 	IIO_DEVICE_ATTR(bpse_available, S_IRUGO, _show, NULL, 0)
 
 /**
- * IIO_DEV_ATTR_TEMP: many sensors have auxiliary temperature sensors
+ * IIO_DEV_ATTR_TEMP - many sensors have auxiliary temperature sensors
+ * @_show: output method for the attribute
  **/
 #define IIO_DEV_ATTR_TEMP(_show)			\
 	IIO_DEVICE_ATTR(temp, S_IRUGO, _show, NULL, 0)
+
 /**
- * IIO_EVENT_SH: generic shared event handler
+ * IIO_EVENT_SH - generic shared event handler
+ * @_name: event name
+ * @_handler: handler function to be called
  *
  * This is used in cases where more than one event may result from a single
  * handler.  Often the case that some alarm register must be read and multiple
@@ -221,8 +252,14 @@ struct iio_const_attr {
 			.prev = &iio_event_##_name.list,		\
 		},							\
 	};
+
 /**
- * IIO_EVENT_ATTR_SH: generic shared event attribute
+ * IIO_EVENT_ATTR_SH - generic shared event attribute
+ * @_name: event name
+ * @_ev_list: event handler list
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
+ * @_mask: mask used when detecting the event
  *
  * An attribute with an associated IIO_EVENT_SH
  **/
@@ -235,7 +272,12 @@ struct iio_const_attr {
 	    .listel = &_ev_list };
 
 /**
- * IIO_EVENT_ATTR: non shared event attribute
+ * IIO_EVENT_ATTR - non-shared event attribute
+ * @_name: event name
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
+ * @_mask: mask used when detecting the event
+ * @_handler: handler function to be called
  **/
 #define IIO_EVENT_ATTR(_name, _show, _store, _mask, _handler)		\
 	static struct iio_event_handler_list				\
@@ -251,10 +293,14 @@ struct iio_const_attr {
 	    .listel = &iio_event_##_name };				\
 
 /**
- * IIO_EVENT_ATTR_DATA_RDY: event driven by data ready signal
+ * IIO_EVENT_ATTR_DATA_RDY - event driven by data ready signal
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
+ * @_mask: mask used when detecting the event
+ * @_handler: handler function to be called
  *
  * Not typically implemented in devices where full triggering support
- * has been implemented
+ * has been implemented.
  **/
 #define IIO_EVENT_ATTR_DATA_RDY(_show, _store, _mask, _handler) \
 	IIO_EVENT_ATTR(data_rdy, _show, _store, _mask, _handler)
@@ -269,19 +315,31 @@ struct iio_const_attr {
 #define IIO_EVENT_CODE_DEVICE_SPECIFIC	1000
 
 /**
- * IIO_EVENT_ATTR_RING_50_FULL: ring buffer event to indicate 50% full
+ * IIO_EVENT_ATTR_RING_50_FULL - ring buffer event to indicate 50% full
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
+ * @_mask: mask used when detecting the event
+ * @_handler: handler function to be called
  **/
 #define IIO_EVENT_ATTR_RING_50_FULL(_show, _store, _mask, _handler)	\
 	IIO_EVENT_ATTR(ring_50_full, _show, _store, _mask, _handler)
 
 /**
- * IIO_EVENT_ATTR_RING_50_FULL_SH: shared ring event to indicate 50% full
+ * IIO_EVENT_ATTR_RING_50_FULL_SH - shared ring event to indicate 50% full
+ * @_evlist: event handler list
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
+ * @_mask: mask used when detecting the event
  **/
 #define IIO_EVENT_ATTR_RING_50_FULL_SH(_evlist, _show, _store, _mask)	\
 	IIO_EVENT_ATTR_SH(ring_50_full, _evlist, _show, _store, _mask)
 
 /**
- * IIO_EVENT_ATTR_RING_75_FULL_SH: shared ring event to indicate 75% full
+ * IIO_EVENT_ATTR_RING_75_FULL_SH - shared ring event to indicate 75% full
+ * @_evlist: event handler list
+ * @_show: output method for the attribute
+ * @_store: input method for the attribute
+ * @_mask: mask used when detecting the event
  **/
 #define IIO_EVENT_ATTR_RING_75_FULL_SH(_evlist, _show, _store, _mask)	\
 	IIO_EVENT_ATTR_SH(ring_75_full, _evlist, _show, _store, _mask)

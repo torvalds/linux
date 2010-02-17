@@ -547,6 +547,9 @@ bail:
  *
  * called like this: dio->get_blocks(dio->inode, fs_startblk,
  * 					fs_count, map_bh, dio->rw == WRITE);
+ *
+ * Note that we never bother to allocate blocks here, and thus ignore the
+ * create argument.
  */
 static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 				     struct buffer_head *bh_result, int create)
@@ -563,14 +566,6 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 
 	inode_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
 
-	/*
-	 * Any write past EOF is not allowed because we'd be extending.
-	 */
-	if (create && (iblock + max_blocks) > inode_blocks) {
-		ret = -EIO;
-		goto bail;
-	}
-
 	/* This figures out the size of the next contiguous block, and
 	 * our logical offset */
 	ret = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno,
@@ -579,15 +574,6 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		mlog(ML_ERROR, "get_blocks() failed iblock=%llu\n",
 		     (unsigned long long)iblock);
 		ret = -EIO;
-		goto bail;
-	}
-
-	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)) && !p_blkno && create) {
-		ocfs2_error(inode->i_sb,
-			    "Inode %llu has a hole at block %llu\n",
-			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
-			    (unsigned long long)iblock);
-		ret = -EROFS;
 		goto bail;
 	}
 
@@ -601,20 +587,8 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 	 */
 	if (p_blkno && !(ext_flags & OCFS2_EXT_UNWRITTEN))
 		map_bh(bh_result, inode->i_sb, p_blkno);
-	else {
-		/*
-		 * ocfs2_prepare_inode_for_write() should have caught
-		 * the case where we'd be filling a hole and triggered
-		 * a buffered write instead.
-		 */
-		if (create) {
-			ret = -EIO;
-			mlog_errno(ret);
-			goto bail;
-		}
-
+	else
 		clear_buffer_mapped(bh_result);
-	}
 
 	/* make sure we don't map more than max_blocks blocks here as
 	   that's all the kernel will handle at this point. */
@@ -625,7 +599,7 @@ bail:
 	return ret;
 }
 
-/* 
+/*
  * ocfs2_dio_end_io is called by the dio core when a dio is finished.  We're
  * particularly interested in the aio/dio case.  Like the core uses
  * i_alloc_sem, we use the rw_lock DLM lock to protect io on one node from
@@ -696,7 +670,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
-					    nr_segs, 
+					    nr_segs,
 					    ocfs2_direct_IO_get_blocks,
 					    ocfs2_dio_end_io);
 

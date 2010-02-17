@@ -319,9 +319,7 @@ SECTIONS
 		__brk_limit = .;
 	}
 
-	.end : AT(ADDR(.end) - LOAD_OFFSET) {
-		_end = .;
-	}
+	_end = .;
 
         STABS_DEBUG
         DWARF_DEBUG
@@ -333,6 +331,9 @@ SECTIONS
 
 
 #ifdef CONFIG_X86_32
+/*
+ * The ASSERT() sink to . is intentional, for binutils 2.14 compatibility:
+ */
 . = ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
 	   "kernel image bigger than KERNEL_IMAGE_SIZE");
 #else

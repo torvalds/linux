@@ -842,7 +842,7 @@ static int r6040_open(struct net_device *dev)
 	int ret;
 
 	/* Request IRQ and Register interrupt handler */
-	ret = request_irq(dev->irq, &r6040_interrupt,
+	ret = request_irq(dev->irq, r6040_interrupt,
 		IRQF_SHARED, dev->name, dev);
 	if (ret)
 		return ret;
@@ -958,8 +958,7 @@ static void r6040_multicast_list(struct net_device *dev)
 	}
 	/* Too many multicast addresses
 	 * accept all traffic */
-	else if ((dev->mc_count > MCAST_MAX)
-		|| (dev->flags & IFF_ALLMULTI))
+	else if ((dev->mc_count > MCAST_MAX) || (dev->flags & IFF_ALLMULTI))
 		reg |= 0x0020;
 
 	iowrite16(reg, ioaddr);
@@ -1085,7 +1084,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	int bar = 0;
 	u16 *adrp;
 
-	printk(KERN_INFO "%s\n", version);
+	printk("%s\n", version);
 
 	err = pci_enable_device(pdev);
 	if (err)

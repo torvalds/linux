@@ -26,8 +26,6 @@
 # define B43_DEBUG	0
 #endif
 
-#define B43_RX_MAX_SSI			60
-
 /* MMIO offsets */
 #define B43_MMIO_DMA0_REASON		0x20
 #define B43_MMIO_DMA0_IRQ_MASK		0x24
@@ -117,6 +115,7 @@
 #define B43_MMIO_TSF_2			0x636	/* core rev < 3 only */
 #define B43_MMIO_TSF_3			0x638	/* core rev < 3 only */
 #define B43_MMIO_RNG			0x65A
+#define B43_MMIO_IFSSLOT		0x684	/* Interframe slot time */
 #define B43_MMIO_IFSCTL			0x688 /* Interframe space control */
 #define  B43_MMIO_IFSCTL_USE_EDCF	0x0004
 #define B43_MMIO_POWERUP_DELAY		0x6A8
@@ -607,82 +606,7 @@ struct b43_qos_params {
 	struct ieee80211_tx_queue_params p;
 };
 
-struct b43_wldev;
-
-/* Data structure for the WLAN parts (802.11 cores) of the b43 chip. */
-struct b43_wl {
-	/* Pointer to the active wireless device on this chip */
-	struct b43_wldev *current_dev;
-	/* Pointer to the ieee80211 hardware data structure */
-	struct ieee80211_hw *hw;
-
-	/* Global driver mutex. Every operation must run with this mutex locked. */
-	struct mutex mutex;
-	/* Hard-IRQ spinlock. This lock protects things used in the hard-IRQ
-	 * handler, only. This basically is just the IRQ mask register. */
-	spinlock_t hardirq_lock;
-
-	/* The number of queues that were registered with the mac80211 subsystem
-	 * initially. This is a backup copy of hw->queues in case hw->queues has
-	 * to be dynamically lowered at runtime (Firmware does not support QoS).
-	 * hw->queues has to be restored to the original value before unregistering
-	 * from the mac80211 subsystem. */
-	u16 mac80211_initially_registered_queues;
-
-	/* We can only have one operating interface (802.11 core)
-	 * at a time. General information about this interface follows.
-	 */
-
-	struct ieee80211_vif *vif;
-	/* The MAC address of the operating interface. */
-	u8 mac_addr[ETH_ALEN];
-	/* Current BSSID */
-	u8 bssid[ETH_ALEN];
-	/* Interface type. (NL80211_IFTYPE_XXX) */
-	int if_type;
-	/* Is the card operating in AP, STA or IBSS mode? */
-	bool operating;
-	/* filter flags */
-	unsigned int filter_flags;
-	/* Stats about the wireless interface */
-	struct ieee80211_low_level_stats ieee_stats;
-
-#ifdef CONFIG_B43_HWRNG
-	struct hwrng rng;
-	bool rng_initialized;
-	char rng_name[30 + 1];
-#endif /* CONFIG_B43_HWRNG */
-
-	/* List of all wireless devices on this chip */
-	struct list_head devlist;
-	u8 nr_devs;
-
-	bool radiotap_enabled;
-	bool radio_enabled;
-
-	/* The beacon we are currently using (AP or IBSS mode). */
-	struct sk_buff *current_beacon;
-	bool beacon0_uploaded;
-	bool beacon1_uploaded;
-	bool beacon_templates_virgin; /* Never wrote the templates? */
-	struct work_struct beacon_update_trigger;
-
-	/* The current QOS parameters for the 4 queues. */
-	struct b43_qos_params qos_params[4];
-
-	/* Work for adjustment of the transmission power.
-	 * This is scheduled when we determine that the actual TX output
-	 * power doesn't match what we want. */
-	struct work_struct txpower_adjust_work;
-
-	/* Packet transmit work */
-	struct work_struct tx_work;
-	/* Queue of packets to be transmitted. */
-	struct sk_buff_head tx_queue;
-
-	/* The device LEDs. */
-	struct b43_leds leds;
-};
+struct b43_wl;
 
 /* The type of the firmware file. */
 enum b43_firmware_file_type {
@@ -822,6 +746,87 @@ struct b43_wldev {
 	unsigned int tx_count;
 	unsigned int rx_count;
 #endif
+};
+
+/* Data structure for the WLAN parts (802.11 cores) of the b43 chip. */
+struct b43_wl {
+	/* Pointer to the active wireless device on this chip */
+	struct b43_wldev *current_dev;
+	/* Pointer to the ieee80211 hardware data structure */
+	struct ieee80211_hw *hw;
+
+	/* Global driver mutex. Every operation must run with this mutex locked. */
+	struct mutex mutex;
+	/* Hard-IRQ spinlock. This lock protects things used in the hard-IRQ
+	 * handler, only. This basically is just the IRQ mask register. */
+	spinlock_t hardirq_lock;
+
+	/* The number of queues that were registered with the mac80211 subsystem
+	 * initially. This is a backup copy of hw->queues in case hw->queues has
+	 * to be dynamically lowered at runtime (Firmware does not support QoS).
+	 * hw->queues has to be restored to the original value before unregistering
+	 * from the mac80211 subsystem. */
+	u16 mac80211_initially_registered_queues;
+
+	/* We can only have one operating interface (802.11 core)
+	 * at a time. General information about this interface follows.
+	 */
+
+	struct ieee80211_vif *vif;
+	/* The MAC address of the operating interface. */
+	u8 mac_addr[ETH_ALEN];
+	/* Current BSSID */
+	u8 bssid[ETH_ALEN];
+	/* Interface type. (NL80211_IFTYPE_XXX) */
+	int if_type;
+	/* Is the card operating in AP, STA or IBSS mode? */
+	bool operating;
+	/* filter flags */
+	unsigned int filter_flags;
+	/* Stats about the wireless interface */
+	struct ieee80211_low_level_stats ieee_stats;
+
+#ifdef CONFIG_B43_HWRNG
+	struct hwrng rng;
+	bool rng_initialized;
+	char rng_name[30 + 1];
+#endif /* CONFIG_B43_HWRNG */
+
+	/* List of all wireless devices on this chip */
+	struct list_head devlist;
+	u8 nr_devs;
+
+	bool radiotap_enabled;
+	bool radio_enabled;
+
+	/* The beacon we are currently using (AP or IBSS mode). */
+	struct sk_buff *current_beacon;
+	bool beacon0_uploaded;
+	bool beacon1_uploaded;
+	bool beacon_templates_virgin; /* Never wrote the templates? */
+	struct work_struct beacon_update_trigger;
+
+	/* The current QOS parameters for the 4 queues. */
+	struct b43_qos_params qos_params[4];
+
+	/* Work for adjustment of the transmission power.
+	 * This is scheduled when we determine that the actual TX output
+	 * power doesn't match what we want. */
+	struct work_struct txpower_adjust_work;
+
+	/* Packet transmit work */
+	struct work_struct tx_work;
+	/* Queue of packets to be transmitted. */
+	struct sk_buff_head tx_queue;
+
+	/* The device LEDs. */
+	struct b43_leds leds;
+
+#ifdef CONFIG_B43_PIO
+	/* Kmalloc'ed scratch space for PIO TX/RX. Protected by wl->mutex. */
+	u8 pio_scratchspace[110] __attribute__((__aligned__(8)));
+	u8 pio_tailspace[4] __attribute__((__aligned__(8)));
+#endif /* CONFIG_B43_PIO */
 };
 
 static inline struct b43_wl *hw_to_b43_wl(struct ieee80211_hw *hw)

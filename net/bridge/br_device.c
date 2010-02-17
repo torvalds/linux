@@ -157,6 +157,7 @@ static const struct ethtool_ops br_ethtool_ops = {
 	.get_tso	= ethtool_op_get_tso,
 	.set_tso	= br_set_tso,
 	.get_ufo	= ethtool_op_get_ufo,
+	.set_ufo	= ethtool_op_set_ufo,
 	.get_flags	= ethtool_op_get_flags,
 };
 

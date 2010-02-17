@@ -4,8 +4,8 @@
 /*
  * OMAP2/3 Power/Reset Management (PRM) register definitions
  *
- * Copyright (C) 2007 Texas Instruments, Inc.
- * Copyright (C) 2007 Nokia Corporation
+ * Copyright (C) 2007-2009 Texas Instruments, Inc.
+ * Copyright (C) 2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -17,11 +17,17 @@
 #include "prcm-common.h"
 
 #define OMAP2420_PRM_REGADDR(module, reg)				\
-			OMAP2_IO_ADDRESS(OMAP2420_PRM_BASE + (module) + (reg))
+		OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE + (module) + (reg))
 #define OMAP2430_PRM_REGADDR(module, reg)				\
-			OMAP2_IO_ADDRESS(OMAP2430_PRM_BASE + (module) + (reg))
+		OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE + (module) + (reg))
 #define OMAP34XX_PRM_REGADDR(module, reg)				\
-			OMAP2_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
+		OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
+#define OMAP44XX_PRM_REGADDR(module, reg)				\
+		OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE + (module) + (reg))
+#define OMAP44XX_CHIRONSS_REGADDR(module, reg)				\
+		OMAP2_L4_IO_ADDRESS(OMAP4430_CHIRONSS_BASE + (module) + (reg))
+
+#include "prm44xx.h"
 
 /*
  * Architecture-specific global PRM registers

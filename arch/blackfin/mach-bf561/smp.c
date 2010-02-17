@@ -52,8 +52,6 @@ int __init setup_profiling_timer(unsigned int multiplier) /* not supported */
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
-	local_irq_disable();
-
 	/* Clone setup for peripheral interrupt sources from CoreA. */
 	bfin_write_SICB_IMASK0(bfin_read_SICA_IMASK0());
 	bfin_write_SICB_IMASK1(bfin_read_SICA_IMASK1());
@@ -69,11 +67,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	bfin_write_SICB_IAR6(bfin_read_SICA_IAR6());
 	bfin_write_SICB_IAR7(bfin_read_SICA_IAR7());
 	SSYNC();
-
-	local_irq_enable();
-
-	/* Calibrate loops per jiffy value. */
-	calibrate_delay();
 
 	/* Store CPU-private information to the cpu_data array. */
 	bfin_setup_cpudata(cpu);
@@ -108,9 +101,13 @@ int __cpuinit platform_boot_secondary(unsigned int cpu, struct task_struct *idle
 		barrier();
 	}
 
-	spin_unlock(&boot_lock);
-
-	return cpu_isset(cpu, cpu_callin_map) ? 0 : -ENOSYS;
+	if (cpu_isset(cpu, cpu_callin_map)) {
+		cpu_set(cpu, cpu_online_map);
+		/* release the lock and let coreb run */
+		spin_unlock(&boot_lock);
+		return 0;
+	} else
+		panic("CPU%u: processor failed to boot\n", cpu);
 }
 
 void __init platform_request_ipi(irq_handler_t handler)

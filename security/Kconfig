@@ -91,28 +91,6 @@ config SECURITY_PATH
 	  implement pathname based access controls.
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_FILE_CAPABILITIES
-	bool "File POSIX Capabilities"
-	default n
-	help
-	  This enables filesystem capabilities, allowing you to give
-	  binaries a subset of root's powers without using setuid 0.
-
-	  If in doubt, answer N.
-
-config SECURITY_ROOTPLUG
-	bool "Root Plug Support"
-	depends on USB=y && SECURITY
-	help
-	  This is a sample LSM module that should only be used as such.
-	  It prevents any programs running with egid == 0 if a specific
-	  USB device is not present in the system.
-
-	  See <http://www.linuxjournal.com/article.php?sid=6279> for
-	  more information about this module.
-
-	  If you are unsure how to answer this question, answer N.
-
 config INTEL_TXT
 	bool "Enable Intel(R) Trusted Execution Technology (Intel(R) TXT)"
 	depends on HAVE_INTEL_TXT
@@ -164,6 +142,38 @@ source security/smack/Kconfig
 source security/tomoyo/Kconfig
 
 source security/integrity/ima/Kconfig
+
+choice
+	prompt "Default security module"
+	default DEFAULT_SECURITY_SELINUX if SECURITY_SELINUX
+	default DEFAULT_SECURITY_SMACK if SECURITY_SMACK
+	default DEFAULT_SECURITY_TOMOYO if SECURITY_TOMOYO
+	default DEFAULT_SECURITY_DAC
+
+	help
+	  Select the security module that will be used by default if the
+	  kernel parameter security= is not specified.
+
+	config DEFAULT_SECURITY_SELINUX
+		bool "SELinux" if SECURITY_SELINUX=y
+
+	config DEFAULT_SECURITY_SMACK
+		bool "Simplified Mandatory Access Control" if SECURITY_SMACK=y
+
+	config DEFAULT_SECURITY_TOMOYO
+		bool "TOMOYO" if SECURITY_TOMOYO=y
+
+	config DEFAULT_SECURITY_DAC
+		bool "Unix Discretionary Access Controls"
+
+endchoice
+
+config DEFAULT_SECURITY
+	string
+	default "selinux" if DEFAULT_SECURITY_SELINUX
+	default "smack" if DEFAULT_SECURITY_SMACK
+	default "tomoyo" if DEFAULT_SECURITY_TOMOYO
+	default "" if DEFAULT_SECURITY_DAC
 
 endmenu
 

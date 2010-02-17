@@ -42,20 +42,35 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
 #define E1000_DEV_ID_82576_NS                 0x150A
+#define E1000_DEV_ID_82576_NS_SERDES          0x1518
 #define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
+#define E1000_DEV_ID_82580_COPPER             0x150E
+#define E1000_DEV_ID_82580_FIBER              0x150F
+#define E1000_DEV_ID_82580_SERDES             0x1510
+#define E1000_DEV_ID_82580_SGMII              0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
 
+#define E1000_FUNC_0     0
 #define E1000_FUNC_1     1
+#define E1000_FUNC_2     2
+#define E1000_FUNC_3     3
+
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN2   6
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN3   9
 
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_82575,
 	e1000_82576,
+	e1000_82580,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
@@ -70,7 +85,6 @@ enum e1000_nvm_type {
 	e1000_nvm_unknown = 0,
 	e1000_nvm_none,
 	e1000_nvm_eeprom_spi,
-	e1000_nvm_eeprom_microwire,
 	e1000_nvm_flash_hw,
 	e1000_nvm_flash_sw
 };
@@ -79,8 +93,6 @@ enum e1000_nvm_override {
 	e1000_nvm_override_none = 0,
 	e1000_nvm_override_spi_small,
 	e1000_nvm_override_spi_large,
-	e1000_nvm_override_microwire_small,
-	e1000_nvm_override_microwire_large
 };
 
 enum e1000_phy_type {
@@ -92,6 +104,7 @@ enum e1000_phy_type {
 	e1000_phy_gg82563,
 	e1000_phy_igp_3,
 	e1000_phy_ife,
+	e1000_phy_82580,
 };
 
 enum e1000_bus_type {
@@ -288,6 +301,7 @@ struct e1000_mac_operations {
 
 struct e1000_phy_operations {
 	s32  (*acquire)(struct e1000_hw *);
+	s32  (*check_polarity)(struct e1000_hw *);
 	s32  (*check_reset_block)(struct e1000_hw *);
 	s32  (*force_speed_duplex)(struct e1000_hw *);
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
@@ -339,6 +353,7 @@ struct e1000_mac_info {
 	u16 ifs_ratio;
 	u16 ifs_step_size;
 	u16 mta_reg_count;
+	u16 uta_reg_count;
 
 	/* Maximum size of the MTA register table in all supported adapters */
 	#define MAX_MTA_REG 128
@@ -463,6 +478,7 @@ struct e1000_mbx_info {
 
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
+	bool global_device_reset;
 };
 
 struct e1000_hw {

@@ -9,14 +9,11 @@
  * (at your option) any later version.
  */
 #include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/genalloc.h>
 
 #include <mach/common.h>
-#include <mach/memory.h>
 #include <mach/sram.h>
-
 
 static struct gen_pool *sram_pool;
 

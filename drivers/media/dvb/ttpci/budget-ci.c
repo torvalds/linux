@@ -178,7 +178,7 @@ static void msp430_ir_interrupt(unsigned long data)
 	if (budget_ci->ir.last_raw != raw || !timer_pending(&budget_ci->ir.timer_keyup)) {
 		ir_input_nokey(dev, &budget_ci->ir.state);
 		ir_input_keydown(dev, &budget_ci->ir.state,
-				 budget_ci->ir.ir_key, raw);
+				 budget_ci->ir.ir_key);
 		budget_ci->ir.last_raw = raw;
 	}
 
@@ -190,12 +190,13 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	struct saa7146_dev *saa = budget_ci->budget.dev;
 	struct input_dev *input_dev = budget_ci->ir.dev;
 	int error;
+	struct ir_scancode_table *ir_codes;
+
 
 	budget_ci->ir.dev = input_dev = input_allocate_device();
 	if (!input_dev) {
 		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
-		error = -ENOMEM;
-		goto out1;
+		return -ENOMEM;
 	}
 
 	snprintf(budget_ci->ir.name, sizeof(budget_ci->ir.name),
@@ -217,6 +218,11 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	}
 	input_dev->dev.parent = &saa->pci->dev;
 
+	if (rc5_device < 0)
+		budget_ci->ir.rc5_device = IR_DEVICE_ANY;
+	else
+		budget_ci->ir.rc5_device = rc5_device;
+
 	/* Select keymap and address */
 	switch (budget_ci->budget.dev->pci->subsystem_device) {
 	case 0x100c:
@@ -224,47 +230,34 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	case 0x1011:
 	case 0x1012:
 		/* The hauppauge keymap is a superset of these remotes */
-		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, &ir_codes_hauppauge_new_table);
+		ir_codes = &ir_codes_hauppauge_new_table;
 
 		if (rc5_device < 0)
 			budget_ci->ir.rc5_device = 0x1f;
-		else
-			budget_ci->ir.rc5_device = rc5_device;
 		break;
 	case 0x1010:
 	case 0x1017:
 	case 0x101a:
 		/* for the Technotrend 1500 bundled remote */
-		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, &ir_codes_tt_1500_table);
-
-		if (rc5_device < 0)
-			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
-		else
-			budget_ci->ir.rc5_device = rc5_device;
+		ir_codes = &ir_codes_tt_1500_table;
 		break;
 	default:
 		/* unknown remote */
-		ir_input_init(input_dev, &budget_ci->ir.state,
-			      IR_TYPE_RC5, &ir_codes_budget_ci_old_table);
-
-		if (rc5_device < 0)
-			budget_ci->ir.rc5_device = IR_DEVICE_ANY;
-		else
-			budget_ci->ir.rc5_device = rc5_device;
+		ir_codes = &ir_codes_budget_ci_old_table;
 		break;
 	}
+
+	ir_input_init(input_dev, &budget_ci->ir.state, IR_TYPE_RC5);
 
 	/* initialise the key-up timeout handler */
 	init_timer(&budget_ci->ir.timer_keyup);
 	budget_ci->ir.timer_keyup.function = msp430_ir_keyup;
 	budget_ci->ir.timer_keyup.data = (unsigned long) &budget_ci->ir;
 	budget_ci->ir.last_raw = 0xffff; /* An impossible value */
-	error = input_register_device(input_dev);
+	error = ir_input_register(input_dev, ir_codes);
 	if (error) {
 		printk(KERN_ERR "budget_ci: could not init driver for IR device (code %d)\n", error);
-		goto out2;
+		return error;
 	}
 
 	/* note: these must be after input_register_device */
@@ -278,11 +271,6 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
 
 	return 0;
-
-out2:
-	input_free_device(input_dev);
-out1:
-	return error;
 }
 
 static void msp430_ir_deinit(struct budget_ci *budget_ci)
@@ -297,7 +285,7 @@ static void msp430_ir_deinit(struct budget_ci *budget_ci)
 	del_timer_sync(&dev->timer);
 	ir_input_nokey(dev, &budget_ci->ir.state);
 
-	input_unregister_device(dev);
+	ir_input_unregister(dev);
 }
 
 static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int address)
@@ -1248,7 +1236,7 @@ static const struct stb0899_s1_reg tt3200_stb0899_s1_init_3[] = {
 	{ STB0899_TSCFGH        	, 0x0c },
 	{ STB0899_TSCFGM        	, 0x00 },
 	{ STB0899_TSCFGL        	, 0x0c },
-	{ STB0899_TSOUT			, 0x0d }, /* 0x0d for CAM */
+	{ STB0899_TSOUT			, 0x4d }, /* 0x0d for CAM */
 	{ STB0899_RSSYNCDEL     	, 0x00 },
 	{ STB0899_TSINHDELH     	, 0x02 },
 	{ STB0899_TSINHDELM		, 0x00 },

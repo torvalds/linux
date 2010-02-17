@@ -46,7 +46,10 @@ static s32  igb_get_cfg_done_82575(struct e1000_hw *);
 static s32  igb_init_hw_82575(struct e1000_hw *);
 static s32  igb_phy_hw_reset_sgmii_82575(struct e1000_hw *);
 static s32  igb_read_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16 *);
+static s32  igb_read_phy_reg_82580(struct e1000_hw *, u32, u16 *);
+static s32  igb_write_phy_reg_82580(struct e1000_hw *, u32, u16);
 static s32  igb_reset_hw_82575(struct e1000_hw *);
+static s32  igb_reset_hw_82580(struct e1000_hw *);
 static s32  igb_set_d0_lplu_state_82575(struct e1000_hw *, bool);
 static s32  igb_setup_copper_link_82575(struct e1000_hw *);
 static s32  igb_setup_serdes_link_82575(struct e1000_hw *);
@@ -61,6 +64,12 @@ static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
 static s32  igb_set_pcie_completion_timeout(struct e1000_hw *hw);
+
+static const u16 e1000_82580_rxpbs_table[] =
+	{ 36, 72, 144, 1, 2, 4, 8, 16,
+	  35, 70, 140 };
+#define E1000_82580_RXPBS_TABLE_SIZE \
+	(sizeof(e1000_82580_rxpbs_table)/sizeof(u16))
 
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
@@ -81,11 +90,19 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		break;
 	case E1000_DEV_ID_82576:
 	case E1000_DEV_ID_82576_NS:
+	case E1000_DEV_ID_82576_NS_SERDES:
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
 	case E1000_DEV_ID_82576_QUAD_COPPER:
 	case E1000_DEV_ID_82576_SERDES_QUAD:
 		mac->type = e1000_82576;
+		break;
+	case E1000_DEV_ID_82580_COPPER:
+	case E1000_DEV_ID_82580_FIBER:
+	case E1000_DEV_ID_82580_SERDES:
+	case E1000_DEV_ID_82580_SGMII:
+	case E1000_DEV_ID_82580_COPPER_DUAL:
+		mac->type = e1000_82580;
 		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
@@ -109,6 +126,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		dev_spec->sgmii_active = true;
 		ctrl_ext |= E1000_CTRL_I2C_ENA;
 		break;
+	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
 		ctrl_ext |= E1000_CTRL_I2C_ENA;
@@ -120,12 +138,26 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 
 	wr32(E1000_CTRL_EXT, ctrl_ext);
 
+	/*
+	 * if using i2c make certain the MDICNFG register is cleared to prevent
+	 * communications from being misrouted to the mdic registers
+	 */
+	if ((ctrl_ext & E1000_CTRL_I2C_ENA) && (hw->mac.type == e1000_82580))
+		wr32(E1000_MDICNFG, 0);
+
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES_82575;
 	if (mac->type == e1000_82576)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82576;
+	if (mac->type == e1000_82580)
+		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
+	/* reset */
+	if (mac->type == e1000_82580)
+		mac->ops.reset_hw = igb_reset_hw_82580;
+	else
+		mac->ops.reset_hw = igb_reset_hw_82575;
 	/* Set if part includes ASF firmware */
 	mac->asf_firmware_present = true;
 	/* Set if manageability features are enabled. */
@@ -193,6 +225,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.reset              = igb_phy_hw_reset_sgmii_82575;
 		phy->ops.read_reg           = igb_read_phy_reg_sgmii_82575;
 		phy->ops.write_reg          = igb_write_phy_reg_sgmii_82575;
+	} else if (hw->mac.type == e1000_82580) {
+		phy->ops.reset              = igb_phy_hw_reset;
+		phy->ops.read_reg           = igb_read_phy_reg_82580;
+		phy->ops.write_reg          = igb_write_phy_reg_82580;
 	} else {
 		phy->ops.reset              = igb_phy_hw_reset;
 		phy->ops.read_reg           = igb_read_phy_reg_igp;
@@ -224,6 +260,12 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.set_d0_lplu_state  = igb_set_d0_lplu_state_82575;
 		phy->ops.set_d3_lplu_state  = igb_set_d3_lplu_state;
 		break;
+	case I82580_I_PHY_ID:
+		phy->type                   = e1000_phy_82580;
+		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_82580;
+		phy->ops.get_cable_length   = igb_get_cable_length_82580;
+		phy->ops.get_phy_info       = igb_get_phy_info_82580;
+		break;
 	default:
 		return -E1000_ERR_PHY;
 	}
@@ -240,9 +282,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
  **/
 static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
 {
-	u16 mask;
+	u16 mask = E1000_SWFW_PHY0_SM;
 
-	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	if (hw->bus.func == E1000_FUNC_1)
+		mask = E1000_SWFW_PHY1_SM;
 
 	return igb_acquire_swfw_sync_82575(hw, mask);
 }
@@ -256,9 +299,11 @@ static s32 igb_acquire_phy_82575(struct e1000_hw *hw)
  **/
 static void igb_release_phy_82575(struct e1000_hw *hw)
 {
-	u16 mask;
+	u16 mask = E1000_SWFW_PHY0_SM;
 
-	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	if (hw->bus.func == E1000_FUNC_1)
+		mask = E1000_SWFW_PHY1_SM;
+
 	igb_release_swfw_sync_82575(hw, mask);
 }
 
@@ -274,45 +319,23 @@ static void igb_release_phy_82575(struct e1000_hw *hw)
 static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 					  u16 *data)
 {
-	struct e1000_phy_info *phy = &hw->phy;
-	u32 i, i2ccmd = 0;
+	s32 ret_val = -E1000_ERR_PARAM;
 
 	if (offset > E1000_MAX_SGMII_PHY_REG_ADDR) {
 		hw_dbg("PHY Address %u is out of range\n", offset);
-		return -E1000_ERR_PARAM;
+		goto out;
 	}
 
-	/*
-	 * Set up Op-code, Phy Address, and register address in the I2CCMD
-	 * register.  The MAC will take care of interfacing with the
-	 * PHY to retrieve the desired data.
-	 */
-	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
-		  (phy->addr << E1000_I2CCMD_PHY_ADDR_SHIFT) |
-		  (E1000_I2CCMD_OPCODE_READ));
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
 
-	wr32(E1000_I2CCMD, i2ccmd);
+	ret_val = igb_read_phy_reg_i2c(hw, offset, data);
 
-	/* Poll the ready bit to see if the I2C read completed */
-	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
-		udelay(50);
-		i2ccmd = rd32(E1000_I2CCMD);
-		if (i2ccmd & E1000_I2CCMD_READY)
-			break;
-	}
-	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Read did not complete\n");
-		return -E1000_ERR_PHY;
-	}
-	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg("I2CCMD Error bit set\n");
-		return -E1000_ERR_PHY;
-	}
+	hw->phy.ops.release(hw);
 
-	/* Need to byte-swap the 16-bit value. */
-	*data = ((i2ccmd >> 8) & 0x00FF) | ((i2ccmd << 8) & 0xFF00);
-
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -327,47 +350,24 @@ static s32 igb_read_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 static s32 igb_write_phy_reg_sgmii_82575(struct e1000_hw *hw, u32 offset,
 					   u16 data)
 {
-	struct e1000_phy_info *phy = &hw->phy;
-	u32 i, i2ccmd = 0;
-	u16 phy_data_swapped;
+	s32 ret_val = -E1000_ERR_PARAM;
+
 
 	if (offset > E1000_MAX_SGMII_PHY_REG_ADDR) {
 		hw_dbg("PHY Address %d is out of range\n", offset);
-		return -E1000_ERR_PARAM;
+		goto out;
 	}
 
-	/* Swap the data bytes for the I2C interface */
-	phy_data_swapped = ((data >> 8) & 0x00FF) | ((data << 8) & 0xFF00);
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
 
-	/*
-	 * Set up Op-code, Phy Address, and register address in the I2CCMD
-	 * register.  The MAC will take care of interfacing with the
-	 * PHY to retrieve the desired data.
-	 */
-	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
-		  (phy->addr << E1000_I2CCMD_PHY_ADDR_SHIFT) |
-		  E1000_I2CCMD_OPCODE_WRITE |
-		  phy_data_swapped);
+	ret_val = igb_write_phy_reg_i2c(hw, offset, data);
 
-	wr32(E1000_I2CCMD, i2ccmd);
+	hw->phy.ops.release(hw);
 
-	/* Poll the ready bit to see if the I2C read completed */
-	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
-		udelay(50);
-		i2ccmd = rd32(E1000_I2CCMD);
-		if (i2ccmd & E1000_I2CCMD_READY)
-			break;
-	}
-	if (!(i2ccmd & E1000_I2CCMD_READY)) {
-		hw_dbg("I2CCMD Write did not complete\n");
-		return -E1000_ERR_PHY;
-	}
-	if (i2ccmd & E1000_I2CCMD_ERROR) {
-		hw_dbg("I2CCMD Error bit set\n");
-		return -E1000_ERR_PHY;
-	}
-
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -676,6 +676,10 @@ static s32 igb_get_cfg_done_82575(struct e1000_hw *hw)
 
 	if (hw->bus.func == 1)
 		mask = E1000_NVM_CFG_DONE_PORT_1;
+	else if (hw->bus.func == E1000_FUNC_2)
+		mask = E1000_NVM_CFG_DONE_PORT_2;
+	else if (hw->bus.func == E1000_FUNC_3)
+		mask = E1000_NVM_CFG_DONE_PORT_3;
 
 	while (timeout) {
 		if (rd32(E1000_EEMNGCTL) & mask)
@@ -706,9 +710,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 	s32 ret_val;
 	u16 speed, duplex;
 
-	/* SGMII link check is done through the PCS register. */
-	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (igb_sgmii_active_82575(hw))) {
+	if (hw->phy.media_type != e1000_media_type_copper) {
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
 		                                             &duplex);
 		/*
@@ -723,6 +725,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 
 	return ret_val;
 }
+
 /**
  *  igb_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
@@ -788,13 +791,27 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
+	u16 eeprom_data = 0;
 
 	if (hw->phy.media_type != e1000_media_type_internal_serdes ||
 	    igb_sgmii_active_82575(hw))
 		return;
 
-	/* if the management interface is not enabled, then power down */
-	if (!igb_enable_mng_pass_thru(hw)) {
+	if (hw->bus.func == E1000_FUNC_0)
+		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+	else if (hw->mac.type == e1000_82580)
+		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
+		                 NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
+		                 &eeprom_data);
+	else if (hw->bus.func == E1000_FUNC_1)
+		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
+
+	/*
+	 * If APM is not enabled in the EEPROM and management interface is
+	 * not enabled, then power down.
+	 */
+	if (!(eeprom_data & E1000_NVM_APME_82575) &&
+	    !igb_enable_mng_pass_thru(hw)) {
 		/* Disable PCS to turn off link */
 		reg = rd32(E1000_PCS_CFG0);
 		reg &= ~E1000_PCS_CFG_PCS_EN;
@@ -908,6 +925,11 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	for (i = 0; i < mac->mta_reg_count; i++)
 		array_wr32(E1000_MTA, i, 0);
 
+	/* Zero out the Unicast HASH table */
+	hw_dbg("Zeroing the UTA\n");
+	for (i = 0; i < mac->uta_reg_count; i++)
+		array_wr32(E1000_UTA, i, 0);
+
 	/* Setup link and flow control */
 	ret_val = igb_setup_link(hw);
 
@@ -934,7 +956,6 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32  ret_val;
-	bool link;
 
 	ctrl = rd32(E1000_CTRL);
 	ctrl |= E1000_CTRL_SLU;
@@ -946,6 +967,9 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		goto out;
 
 	if (igb_sgmii_active_82575(hw) && !hw->phy.reset_disable) {
+		/* allow time for SFP cage time to power up phy */
+		msleep(300);
+
 		ret_val = hw->phy.ops.reset(hw);
 		if (ret_val) {
 			hw_dbg("Error resetting the PHY.\n");
@@ -959,6 +983,9 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	case e1000_phy_igp_3:
 		ret_val = igb_copper_link_setup_igp(hw);
 		break;
+	case e1000_phy_82580:
+		ret_val = igb_copper_link_setup_82580(hw);
+		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
 		break;
@@ -967,57 +994,24 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	if (hw->mac.autoneg) {
-		/*
-		 * Setup autoneg and flow control advertisement
-		 * and perform autonegotiation.
-		 */
-		ret_val = igb_copper_link_autoneg(hw);
-		if (ret_val)
-			goto out;
-	} else {
-		/*
-		 * PHY will be set to 10H, 10F, 100H or 100F
-		 * depending on user settings.
-		 */
-		hw_dbg("Forcing Speed and Duplex\n");
-		ret_val = hw->phy.ops.force_speed_duplex(hw);
-		if (ret_val) {
-			hw_dbg("Error Forcing Speed and Duplex\n");
-			goto out;
-		}
-	}
-
-	/*
-	 * Check link status. Wait up to 100 microseconds for link to become
-	 * valid.
-	 */
-	ret_val = igb_phy_has_link(hw, COPPER_LINK_UP_LIMIT, 10, &link);
-	if (ret_val)
-		goto out;
-
-	if (link) {
-		hw_dbg("Valid link established!!!\n");
-		/* Config the MAC and PHY after link is up */
-		igb_config_collision_dist(hw);
-		ret_val = igb_config_fc_after_link_up(hw);
-	} else {
-		hw_dbg("Unable to establish link!!!\n");
-	}
-
+	ret_val = igb_setup_copper_link(hw);
 out:
 	return ret_val;
 }
 
 /**
- *  igb_setup_serdes_link_82575 - Setup link for fiber/serdes
+ *  igb_setup_serdes_link_82575 - Setup link for serdes
  *  @hw: pointer to the HW structure
  *
- *  Configures speed and duplex for fiber and serdes links.
+ *  Configure the physical coding sub-layer (PCS) link.  The PCS link is
+ *  used on copper connections where the serialized gigabit media independent
+ *  interface (sgmii), or serdes fiber is being used.  Configures the link
+ *  for auto-negotiation or forces speed/duplex.
  **/
 static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 {
-	u32 ctrl_reg, reg;
+	u32 ctrl_ext, ctrl_reg, reg;
+	bool pcs_autoneg;
 
 	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
 	    !igb_sgmii_active_82575(hw))
@@ -1032,9 +1026,9 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	wr32(E1000_SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 
 	/* power on the sfp cage if present */
-	reg = rd32(E1000_CTRL_EXT);
-	reg &= ~E1000_CTRL_EXT_SDP3_DATA;
-	wr32(E1000_CTRL_EXT, reg);
+	ctrl_ext = rd32(E1000_CTRL_EXT);
+	ctrl_ext &= ~E1000_CTRL_EXT_SDP3_DATA;
+	wr32(E1000_CTRL_EXT, ctrl_ext);
 
 	ctrl_reg = rd32(E1000_CTRL);
 	ctrl_reg |= E1000_CTRL_SLU;
@@ -1051,15 +1045,31 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 
 	reg = rd32(E1000_PCS_LCTL);
 
-	if (igb_sgmii_active_82575(hw)) {
-		/* allow time for SFP cage to power up phy */
-		msleep(300);
+	/* default pcs_autoneg to the same setting as mac autoneg */
+	pcs_autoneg = hw->mac.autoneg;
 
-		/* AN time out should be disabled for SGMII mode */
+	switch (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) {
+	case E1000_CTRL_EXT_LINK_MODE_SGMII:
+		/* sgmii mode lets the phy handle forcing speed/duplex */
+		pcs_autoneg = true;
+		/* autoneg time out should be disabled for SGMII mode */
 		reg &= ~(E1000_PCS_LCTL_AN_TIMEOUT);
-	} else {
+		break;
+	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
+		/* disable PCS autoneg and support parallel detect only */
+		pcs_autoneg = false;
+	default:
+		/*
+		 * non-SGMII modes only supports a speed of 1000/Full for the
+		 * link so it is best to just force the MAC and let the pcs
+		 * link either autoneg or be forced to 1000/Full
+		 */
 		ctrl_reg |= E1000_CTRL_SPD_1000 | E1000_CTRL_FRCSPD |
 		            E1000_CTRL_FD | E1000_CTRL_FRCDPX;
+
+		/* set speed of 1000/Full if speed/duplex is forced */
+		reg |= E1000_PCS_LCTL_FSV_1000 | E1000_PCS_LCTL_FDV_FULL;
+		break;
 	}
 
 	wr32(E1000_CTRL, ctrl_reg);
@@ -1070,7 +1080,6 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	 * mode that will be compatible with older link partners and switches.
 	 * However, both are supported by the hardware and some drivers/tools.
 	 */
-
 	reg &= ~(E1000_PCS_LCTL_AN_ENABLE | E1000_PCS_LCTL_FLV_LINK_UP |
 		E1000_PCS_LCTL_FSD | E1000_PCS_LCTL_FORCE_LINK);
 
@@ -1080,25 +1089,16 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 	 */
 	reg |= E1000_PCS_LCTL_FORCE_FCTRL;
 
-	/*
-	 * we always set sgmii to autoneg since it is the phy that will be
-	 * forcing the link and the serdes is just a go-between
-	 */
-	if (hw->mac.autoneg || igb_sgmii_active_82575(hw)) {
+	if (pcs_autoneg) {
 		/* Set PCS register for autoneg */
-		reg |= E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
-		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
-		       E1000_PCS_LCTL_AN_ENABLE |     /* Enable Autoneg */
-		       E1000_PCS_LCTL_AN_RESTART;     /* Restart autoneg */
-		hw_dbg("Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
+		reg |= E1000_PCS_LCTL_AN_ENABLE | /* Enable Autoneg */
+		       E1000_PCS_LCTL_AN_RESTART; /* Restart autoneg */
+		hw_dbg("Configuring Autoneg:PCS_LCTL=0x%08X\n", reg);
 	} else {
-		/* Set PCS register for forced speed */
-		reg |= E1000_PCS_LCTL_FLV_LINK_UP |   /* Force link up */
-		       E1000_PCS_LCTL_FSV_1000 |      /* Force 1000    */
-		       E1000_PCS_LCTL_FDV_FULL |      /* SerDes Full duplex */
-		       E1000_PCS_LCTL_FSD |           /* Force Speed */
-		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
-		hw_dbg("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
+		/* Set PCS register for forced link */
+		reg |= E1000_PCS_LCTL_FSD;        /* Force Speed */
+
+		hw_dbg("Configuring Forced Link:PCS_LCTL=0x%08X\n", reg);
 	}
 
 	wr32(E1000_PCS_LCTL, reg);
@@ -1167,9 +1167,18 @@ static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 
-	if (igb_check_alt_mac_addr(hw))
-		ret_val = igb_read_mac_addr(hw);
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = igb_check_alt_mac_addr(hw);
+	if (ret_val)
+		goto out;
 
+	ret_val = igb_read_mac_addr(hw);
+
+out:
 	return ret_val;
 }
 
@@ -1181,61 +1190,59 @@ static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
  **/
 static void igb_clear_hw_cntrs_82575(struct e1000_hw *hw)
 {
-	u32 temp;
-
 	igb_clear_hw_cntrs_base(hw);
 
-	temp = rd32(E1000_PRC64);
-	temp = rd32(E1000_PRC127);
-	temp = rd32(E1000_PRC255);
-	temp = rd32(E1000_PRC511);
-	temp = rd32(E1000_PRC1023);
-	temp = rd32(E1000_PRC1522);
-	temp = rd32(E1000_PTC64);
-	temp = rd32(E1000_PTC127);
-	temp = rd32(E1000_PTC255);
-	temp = rd32(E1000_PTC511);
-	temp = rd32(E1000_PTC1023);
-	temp = rd32(E1000_PTC1522);
+	rd32(E1000_PRC64);
+	rd32(E1000_PRC127);
+	rd32(E1000_PRC255);
+	rd32(E1000_PRC511);
+	rd32(E1000_PRC1023);
+	rd32(E1000_PRC1522);
+	rd32(E1000_PTC64);
+	rd32(E1000_PTC127);
+	rd32(E1000_PTC255);
+	rd32(E1000_PTC511);
+	rd32(E1000_PTC1023);
+	rd32(E1000_PTC1522);
 
-	temp = rd32(E1000_ALGNERRC);
-	temp = rd32(E1000_RXERRC);
-	temp = rd32(E1000_TNCRS);
-	temp = rd32(E1000_CEXTERR);
-	temp = rd32(E1000_TSCTC);
-	temp = rd32(E1000_TSCTFC);
+	rd32(E1000_ALGNERRC);
+	rd32(E1000_RXERRC);
+	rd32(E1000_TNCRS);
+	rd32(E1000_CEXTERR);
+	rd32(E1000_TSCTC);
+	rd32(E1000_TSCTFC);
 
-	temp = rd32(E1000_MGTPRC);
-	temp = rd32(E1000_MGTPDC);
-	temp = rd32(E1000_MGTPTC);
+	rd32(E1000_MGTPRC);
+	rd32(E1000_MGTPDC);
+	rd32(E1000_MGTPTC);
 
-	temp = rd32(E1000_IAC);
-	temp = rd32(E1000_ICRXOC);
+	rd32(E1000_IAC);
+	rd32(E1000_ICRXOC);
 
-	temp = rd32(E1000_ICRXPTC);
-	temp = rd32(E1000_ICRXATC);
-	temp = rd32(E1000_ICTXPTC);
-	temp = rd32(E1000_ICTXATC);
-	temp = rd32(E1000_ICTXQEC);
-	temp = rd32(E1000_ICTXQMTC);
-	temp = rd32(E1000_ICRXDMTC);
+	rd32(E1000_ICRXPTC);
+	rd32(E1000_ICRXATC);
+	rd32(E1000_ICTXPTC);
+	rd32(E1000_ICTXATC);
+	rd32(E1000_ICTXQEC);
+	rd32(E1000_ICTXQMTC);
+	rd32(E1000_ICRXDMTC);
 
-	temp = rd32(E1000_CBTMPC);
-	temp = rd32(E1000_HTDPMC);
-	temp = rd32(E1000_CBRMPC);
-	temp = rd32(E1000_RPTHC);
-	temp = rd32(E1000_HGPTC);
-	temp = rd32(E1000_HTCBDPC);
-	temp = rd32(E1000_HGORCL);
-	temp = rd32(E1000_HGORCH);
-	temp = rd32(E1000_HGOTCL);
-	temp = rd32(E1000_HGOTCH);
-	temp = rd32(E1000_LENERRS);
+	rd32(E1000_CBTMPC);
+	rd32(E1000_HTDPMC);
+	rd32(E1000_CBRMPC);
+	rd32(E1000_RPTHC);
+	rd32(E1000_HGPTC);
+	rd32(E1000_HTCBDPC);
+	rd32(E1000_HGORCL);
+	rd32(E1000_HGORCH);
+	rd32(E1000_HGOTCL);
+	rd32(E1000_HGOTCH);
+	rd32(E1000_LENERRS);
 
 	/* This register should not be read in copper configurations */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes ||
 	    igb_sgmii_active_82575(hw))
-		temp = rd32(E1000_SCVPC);
+		rd32(E1000_SCVPC);
 }
 
 /**
@@ -1400,8 +1407,183 @@ void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
 	wr32(E1000_VT_CTL, vt_ctl);
 }
 
+/**
+ *  igb_read_phy_reg_82580 - Read 82580 MDI control register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
+ *
+ *  Reads the MDI control register in the PHY at offset and stores the
+ *  information read to data.
+ **/
+static s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	u32 mdicnfg = 0;
+	s32 ret_val;
+
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	/*
+	 * We config the phy address in MDICNFG register now. Same bits
+	 * as before. The values in MDIC can be written but will be
+	 * ignored. This allows us to call the old function after
+	 * configuring the PHY address in the new register
+	 */
+	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
+	wr32(E1000_MDICNFG, mdicnfg);
+
+	ret_val = igb_read_phy_reg_mdic(hw, offset, data);
+
+	hw->phy.ops.release(hw);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_write_phy_reg_82580 - Write 82580 MDI control register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write to register at offset
+ *
+ *  Writes data to MDI control register in the PHY at offset.
+ **/
+static s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	u32 mdicnfg = 0;
+	s32 ret_val;
+
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	/*
+	 * We config the phy address in MDICNFG register now. Same bits
+	 * as before. The values in MDIC can be written but will be
+	 * ignored. This allows us to call the old function after
+	 * configuring the PHY address in the new register
+	 */
+	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
+	wr32(E1000_MDICNFG, mdicnfg);
+
+	ret_val = igb_write_phy_reg_mdic(hw, offset, data);
+
+	hw->phy.ops.release(hw);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_reset_hw_82580 - Reset hardware
+ *  @hw: pointer to the HW structure
+ *
+ *  This resets function or entire device (all ports, etc.)
+ *  to a known state.
+ **/
+static s32 igb_reset_hw_82580(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	/* BH SW mailbox bit in SW_FW_SYNC */
+	u16 swmbsw_mask = E1000_SW_SYNCH_MB;
+	u32 ctrl, icr;
+	bool global_device_reset = hw->dev_spec._82575.global_device_reset;
+
+
+	hw->dev_spec._82575.global_device_reset = false;
+
+	/* Get current control state. */
+	ctrl = rd32(E1000_CTRL);
+
+	/*
+	 * Prevent the PCI-E bus from sticking if there is no TLP connection
+	 * on the last TLP read/write transaction when MAC is reset.
+	 */
+	ret_val = igb_disable_pcie_master(hw);
+	if (ret_val)
+		hw_dbg("PCI-E Master disable polling has failed.\n");
+
+	hw_dbg("Masking off all interrupts\n");
+	wr32(E1000_IMC, 0xffffffff);
+	wr32(E1000_RCTL, 0);
+	wr32(E1000_TCTL, E1000_TCTL_PSP);
+	wrfl();
+
+	msleep(10);
+
+	/* Determine whether or not a global dev reset is requested */
+	if (global_device_reset &&
+		igb_acquire_swfw_sync_82575(hw, swmbsw_mask))
+			global_device_reset = false;
+
+	if (global_device_reset &&
+		!(rd32(E1000_STATUS) & E1000_STAT_DEV_RST_SET))
+		ctrl |= E1000_CTRL_DEV_RST;
+	else
+		ctrl |= E1000_CTRL_RST;
+
+	wr32(E1000_CTRL, ctrl);
+
+	/* Add delay to insure DEV_RST has time to complete */
+	if (global_device_reset)
+		msleep(5);
+
+	ret_val = igb_get_auto_rd_done(hw);
+	if (ret_val) {
+		/*
+		 * When auto config read does not complete, do not
+		 * return with an error. This can happen in situations
+		 * where there is no eeprom and prevents getting link.
+		 */
+		hw_dbg("Auto Read Done did not complete\n");
+	}
+
+	/* If EEPROM is not present, run manual init scripts */
+	if ((rd32(E1000_EECD) & E1000_EECD_PRES) == 0)
+		igb_reset_init_script_82575(hw);
+
+	/* clear global device reset status bit */
+	wr32(E1000_STATUS, E1000_STAT_DEV_RST_SET);
+
+	/* Clear any pending interrupt events. */
+	wr32(E1000_IMC, 0xffffffff);
+	icr = rd32(E1000_ICR);
+
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = igb_check_alt_mac_addr(hw);
+
+	/* Release semaphore */
+	if (global_device_reset)
+		igb_release_swfw_sync_82575(hw, swmbsw_mask);
+
+	return ret_val;
+}
+
+/**
+ *  igb_rxpbs_adjust_82580 - adjust RXPBS value to reflect actual RX PBA size
+ *  @data: data received by reading RXPBS register
+ *
+ *  The 82580 uses a table based approach for packet buffer allocation sizes.
+ *  This function converts the retrieved value into the correct table value
+ *     0x0 0x1 0x2 0x3 0x4 0x5 0x6 0x7
+ *  0x0 36  72 144   1   2   4   8  16
+ *  0x8 35  70 140 rsv rsv rsv rsv rsv
+ */
+u16 igb_rxpbs_adjust_82580(u32 data)
+{
+	u16 ret_val = 0;
+
+	if (data < E1000_82580_RXPBS_TABLE_SIZE)
+		ret_val = e1000_82580_rxpbs_table[data];
+
+	return ret_val;
+}
+
 static struct e1000_mac_operations e1000_mac_ops_82575 = {
-	.reset_hw             = igb_reset_hw_82575,
 	.init_hw              = igb_init_hw_82575,
 	.check_for_link       = igb_check_for_link_82575,
 	.rar_set              = igb_rar_set,

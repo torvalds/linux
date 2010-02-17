@@ -45,6 +45,7 @@ static const char *const version =
 #include <linux/crc32.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
@@ -1515,8 +1516,8 @@ static void __devinit pcnet32_probe_vlbus(unsigned int *pcnet32_portlist)
 		if (request_region
 		    (ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_vlbus")) {
 			/* check if there is really a pcnet chip on that ioaddr */
-			if ((inb(ioaddr + 14) == 0x57)
-			    && (inb(ioaddr + 15) == 0x57)) {
+			if ((inb(ioaddr + 14) == 0x57) &&
+			    (inb(ioaddr + 15) == 0x57)) {
 				pcnet32_probe1(ioaddr, 0, NULL);
 			} else {
 				release_region(ioaddr, PCNET32_TOTAL_SIZE);
@@ -1610,8 +1611,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		a = &pcnet32_wio;
 	} else {
 		pcnet32_dwio_reset(ioaddr);
-		if (pcnet32_dwio_read_csr(ioaddr, 0) == 4
-		    && pcnet32_dwio_check(ioaddr)) {
+		if (pcnet32_dwio_read_csr(ioaddr, 0) == 4 &&
+		    pcnet32_dwio_check(ioaddr)) {
 			a = &pcnet32_dwio;
 		} else {
 			if (pcnet32_debug & NETIF_MSG_PROBE)
@@ -1750,8 +1751,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	for (i = 0; i < 6; i++)
 		promaddr[i] = inb(ioaddr + i);
 
-	if (memcmp(promaddr, dev->dev_addr, 6)
-	    || !is_valid_ether_addr(dev->dev_addr)) {
+	if (memcmp(promaddr, dev->dev_addr, 6) ||
+	    !is_valid_ether_addr(dev->dev_addr)) {
 		if (is_valid_ether_addr(promaddr)) {
 			if (pcnet32_debug & NETIF_MSG_PROBE) {
 				printk(" warning: CSR address invalid,\n");
@@ -1765,7 +1766,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
 	if (!is_valid_ether_addr(dev->perm_addr))
-		memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
+		memset(dev->dev_addr, 0, ETH_ALEN);
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
 		printk(" %pM", dev->dev_addr);
@@ -1840,8 +1841,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->mii = mii;
 	lp->chip_version = chip_version;
 	lp->msg_enable = pcnet32_debug;
-	if ((cards_found >= MAX_UNITS)
-	    || (options[cards_found] >= sizeof(options_mapping)))
+	if ((cards_found >= MAX_UNITS) ||
+	    (options[cards_found] >= sizeof(options_mapping)))
 		lp->options = PCNET32_PORT_ASEL;
 	else
 		lp->options = options_mapping[options[cards_found]];
@@ -1866,8 +1867,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 		goto err_free_ring;
 	}
 	/* detect special T1/E1 WAN card by checking for MAC address */
-	if (dev->dev_addr[0] == 0x00 && dev->dev_addr[1] == 0xe0
-	    && dev->dev_addr[2] == 0x75)
+	if (dev->dev_addr[0] == 0x00 && dev->dev_addr[1] == 0xe0 &&
+	    dev->dev_addr[2] == 0x75)
 		lp->options = PCNET32_PORT_FD | PCNET32_PORT_GPSI;
 
 	lp->init_block->mode = cpu_to_le16(0x0003);	/* Disable Rx and Tx. */
@@ -2095,7 +2096,7 @@ static int pcnet32_open(struct net_device *dev)
 	int rc;
 	unsigned long flags;
 
-	if (request_irq(dev->irq, &pcnet32_interrupt,
+	if (request_irq(dev->irq, pcnet32_interrupt,
 			lp->shared_irq ? IRQF_SHARED : 0, dev->name,
 			(void *)dev)) {
 		return -EAGAIN;

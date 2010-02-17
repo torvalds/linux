@@ -57,7 +57,7 @@ struct uic {
 
 static void uic_unmask_irq(unsigned int virq)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
 	unsigned long flags;
@@ -101,7 +101,7 @@ static void uic_ack_irq(unsigned int virq)
 
 static void uic_mask_ack_irq(unsigned int virq)
 {
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
 	unsigned long flags;
@@ -129,7 +129,7 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	unsigned long flags;
 	int trigger, polarity;
 	u32 tr, pr, mask;
@@ -177,7 +177,7 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 }
 
 static struct irq_chip uic_irq_chip = {
-	.typename	= " UIC  ",
+	.name		= " UIC  ",
 	.unmask		= uic_unmask_irq,
 	.mask		= uic_mask_irq,
  	.mask_ack	= uic_mask_ack_irq,
@@ -202,7 +202,7 @@ static int uic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int uic_host_xlate(struct irq_host *h, struct device_node *ct,
-			  u32 *intspec, unsigned int intsize,
+			  const u32 *intspec, unsigned int intsize,
 			  irq_hw_number_t *out_hwirq, unsigned int *out_type)
 
 {
@@ -225,12 +225,12 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	int src;
 	int subvirq;
 
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	if (desc->status & IRQ_LEVEL)
 		desc->chip->mask(virq);
 	else
 		desc->chip->mask_ack(virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 
 	msr = mfdcr(uic->dcrbase + UIC_MSR);
 	if (!msr) /* spurious interrupt */
@@ -242,12 +242,12 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 	generic_handle_irq(subvirq);
 
 uic_irq_ret:
-	spin_lock(&desc->lock);
+	raw_spin_lock(&desc->lock);
 	if (desc->status & IRQ_LEVEL)
 		desc->chip->ack(virq);
 	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
 		desc->chip->unmask(virq);
-	spin_unlock(&desc->lock);
+	raw_spin_unlock(&desc->lock);
 }
 
 static struct uic * __init uic_init_one(struct device_node *node)

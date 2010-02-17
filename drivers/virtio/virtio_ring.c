@@ -285,6 +285,9 @@ static void *vring_get_buf(struct virtqueue *_vq, unsigned int *len)
 		return NULL;
 	}
 
+	/* Only get used array entries after they have been exposed by host. */
+	rmb();
+
 	i = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].id;
 	*len = vq->vring.used->ring[vq->last_used_idx%vq->vring.num].len;
 

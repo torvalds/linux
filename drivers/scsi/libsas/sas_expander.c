@@ -960,7 +960,6 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 
 			}
 		}
-		res = 0;
 	}
 
 	return res;

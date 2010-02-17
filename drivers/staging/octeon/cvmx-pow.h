@@ -1959,7 +1959,7 @@ static inline uint32_t cvmx_pow_tag_get_hw_bits(uint64_t tag)
  * @buffer_size:
  *               The size of the supplied buffer
  *
- * Returns Zero on sucess, negative on failure
+ * Returns Zero on success, negative on failure
  */
 extern int cvmx_pow_capture(void *buffer, int buffer_size);
 

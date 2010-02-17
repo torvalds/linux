@@ -6,8 +6,15 @@ mainmenu "Linux/Microblaze Kernel Configuration"
 config MICROBLAZE
 	def_bool y
 	select HAVE_LMB
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD
 	select USB_ARCH_HAS_EHCI
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select HAVE_OPROFILE
+	select TRACING_SUPPORT
 
 config SWAP
 	def_bool n
@@ -57,10 +64,22 @@ config GENERIC_GPIO
 config GENERIC_CSUM
 	def_bool y
 
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
 config PCI
 	def_bool n
 
 config NO_DMA
+	def_bool y
+
+config DTC
 	def_bool y
 
 source "init/Kconfig"
@@ -71,7 +90,7 @@ source "arch/microblaze/platform/Kconfig.platform"
 
 menu "Processor type and features"
 
-source kernel/time/Kconfig
+source "kernel/time/Kconfig"
 
 source "kernel/Kconfig.preempt"
 

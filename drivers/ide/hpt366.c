@@ -297,68 +297,6 @@ static u32 twenty_five_base_hpt36x[] = {
 	/* XFER_PIO_0 */	0xc0d08585
 };
 
-#if 0
-/* These are the timing tables from the HighPoint open source drivers... */
-static u32 thirty_three_base_hpt37x[] = {
-	/* XFER_UDMA_6 */	0x12446231,	/* 0x12646231 ?? */
-	/* XFER_UDMA_5 */	0x12446231,
-	/* XFER_UDMA_4 */	0x12446231,
-	/* XFER_UDMA_3 */	0x126c6231,
-	/* XFER_UDMA_2 */	0x12486231,
-	/* XFER_UDMA_1 */	0x124c6233,
-	/* XFER_UDMA_0 */	0x12506297,
-
-	/* XFER_MW_DMA_2 */	0x22406c31,
-	/* XFER_MW_DMA_1 */	0x22406c33,
-	/* XFER_MW_DMA_0 */	0x22406c97,
-
-	/* XFER_PIO_4 */	0x06414e31,
-	/* XFER_PIO_3 */	0x06414e42,
-	/* XFER_PIO_2 */	0x06414e53,
-	/* XFER_PIO_1 */	0x06814e93,
-	/* XFER_PIO_0 */	0x06814ea7
-};
-
-static u32 fifty_base_hpt37x[] = {
-	/* XFER_UDMA_6 */	0x12848242,
-	/* XFER_UDMA_5 */	0x12848242,
-	/* XFER_UDMA_4 */	0x12ac8242,
-	/* XFER_UDMA_3 */	0x128c8242,
-	/* XFER_UDMA_2 */	0x120c8242,
-	/* XFER_UDMA_1 */	0x12148254,
-	/* XFER_UDMA_0 */	0x121882ea,
-
-	/* XFER_MW_DMA_2 */	0x22808242,
-	/* XFER_MW_DMA_1 */	0x22808254,
-	/* XFER_MW_DMA_0 */	0x228082ea,
-
-	/* XFER_PIO_4 */	0x0a81f442,
-	/* XFER_PIO_3 */	0x0a81f443,
-	/* XFER_PIO_2 */	0x0a81f454,
-	/* XFER_PIO_1 */	0x0ac1f465,
-	/* XFER_PIO_0 */	0x0ac1f48a
-};
-
-static u32 sixty_six_base_hpt37x[] = {
-	/* XFER_UDMA_6 */	0x1c869c62,
-	/* XFER_UDMA_5 */	0x1cae9c62,	/* 0x1c8a9c62 */
-	/* XFER_UDMA_4 */	0x1c8a9c62,
-	/* XFER_UDMA_3 */	0x1c8e9c62,
-	/* XFER_UDMA_2 */	0x1c929c62,
-	/* XFER_UDMA_1 */	0x1c9a9c62,
-	/* XFER_UDMA_0 */	0x1c829c62,
-
-	/* XFER_MW_DMA_2 */	0x2c829c62,
-	/* XFER_MW_DMA_1 */	0x2c829c66,
-	/* XFER_MW_DMA_0 */	0x2c829d2e,
-
-	/* XFER_PIO_4 */	0x0c829c62,
-	/* XFER_PIO_3 */	0x0c829c84,
-	/* XFER_PIO_2 */	0x0c829ca6,
-	/* XFER_PIO_1 */	0x0d029d26,
-	/* XFER_PIO_0 */	0x0d029d5e
-};
-#else
 /*
  * The following are the new timing tables with PIO mode data/taskfile transfer
  * overclocking fixed...
@@ -424,16 +362,13 @@ static u32 sixty_six_base_hpt37x[] = {
 	/* XFER_PIO_1 */	0x0d02ff26,
 	/* XFER_PIO_0 */	0x0d42ff7f
 };
-#endif
 
-#define HPT366_DEBUG_DRIVE_INFO		0
 #define HPT371_ALLOW_ATA133_6		1
 #define HPT302_ALLOW_ATA133_6		1
 #define HPT372_ALLOW_ATA133_6		1
 #define HPT370_ALLOW_ATA100_5		0
 #define HPT366_ALLOW_ATA66_4		1
 #define HPT366_ALLOW_ATA66_3		1
-#define HPT366_MAX_DEVS			8
 
 /* Supported ATA clock frequencies */
 enum ata_clock {

@@ -75,16 +75,6 @@ MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("Asix AX88190 PCMCIA ethernet driver");
 MODULE_LICENSE("GPL");
 
-#ifdef PCMCIA_DEBUG
-#define INT_MODULE_PARM(n, v) static int n = v; module_param(n, int, 0)
-
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"axnet_cs.c 1.28 2002/06/29 06:27:37 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -167,7 +157,7 @@ static int axnet_probe(struct pcmcia_device *link)
     struct net_device *dev;
     struct ei_device *ei_local;
 
-    DEBUG(0, "axnet_attach()\n");
+    dev_dbg(&link->dev, "axnet_attach()\n");
 
     dev = alloc_etherdev(sizeof(struct ei_device) + sizeof(axnet_dev_t));
     if (!dev)
@@ -180,7 +170,6 @@ static int axnet_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = dev;
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -205,7 +194,7 @@ static void axnet_detach(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
 
-    DEBUG(0, "axnet_detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "axnet_detach(0x%p)\n", link);
 
     if (link->dev_node)
 	unregister_netdev(dev);
@@ -272,9 +261,6 @@ static int get_prom(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int try_io_port(struct pcmcia_device *link)
 {
     int j, ret;
@@ -284,7 +270,7 @@ static int try_io_port(struct pcmcia_device *link)
 	    /* for master/slave multifunction cards */
 	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	    link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+		IRQ_TYPE_DYNAMIC_SHARING;
 	}
     } else {
 	/* This should be two 16-port windows */
@@ -341,26 +327,29 @@ static int axnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     axnet_dev_t *info = PRIV(dev);
-    int i, j, j2, last_ret, last_fn;
+    int i, j, j2, ret;
 
-    DEBUG(0, "axnet_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "axnet_config(0x%p)\n", link);
 
     /* don't trust the CIS on this; Linksys got it wrong */
     link->conf.Present = 0x63;
-    last_ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
-    if (last_ret != 0) {
-	cs_error(link, RequestIO, last_ret);
+    ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
+    if (ret != 0)
 	goto failed;
-    }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
     
     if (link->io.NumPorts2 == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
     
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
+
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
 
@@ -410,7 +399,7 @@ static int axnet_config(struct pcmcia_device *link)
 
     info->phy_id = (i < 32) ? i : -1;
     link->dev_node = &info->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");
@@ -426,14 +415,12 @@ static int axnet_config(struct pcmcia_device *link)
 	   dev->base_addr, dev->irq,
 	   dev->dev_addr);
     if (info->phy_id != -1) {
-	DEBUG(0, "  MII transceiver at index %d, status %x.\n", info->phy_id, j);
+	dev_dbg(&link->dev, "  MII transceiver at index %d, status %x.\n", info->phy_id, j);
     } else {
 	printk(KERN_NOTICE "  No MII transceivers found!\n");
     }
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     axnet_release(link);
     return -ENODEV;
@@ -543,7 +530,7 @@ static int axnet_open(struct net_device *dev)
     struct pcmcia_device *link = info->p_dev;
     unsigned int nic_base = dev->base_addr;
     
-    DEBUG(2, "axnet_open('%s')\n", dev->name);
+    dev_dbg(&link->dev, "axnet_open('%s')\n", dev->name);
 
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
@@ -572,7 +559,7 @@ static int axnet_close(struct net_device *dev)
     axnet_dev_t *info = PRIV(dev);
     struct pcmcia_device *link = info->p_dev;
 
-    DEBUG(2, "axnet_close('%s')\n", dev->name);
+    dev_dbg(&link->dev, "axnet_close('%s')\n", dev->name);
 
     ax_close(dev);
     free_irq(dev->irq, dev);
@@ -741,10 +728,8 @@ static void block_input(struct net_device *dev, int count,
     int xfer_count = count;
     char *buf = skb->data;
 
-#ifdef PCMCIA_DEBUG
     if ((ei_debug > 4) && (count != 4))
-	printk(KERN_DEBUG "%s: [bi=%d]\n", dev->name, count+4);
-#endif
+	    pr_debug("%s: [bi=%d]\n", dev->name, count+4);
     outb_p(ring_offset & 0xff, nic_base + EN0_RSARLO);
     outb_p(ring_offset >> 8, nic_base + EN0_RSARHI);
     outb_p(E8390_RREAD+E8390_START, nic_base + AXNET_CMD);
@@ -762,10 +747,7 @@ static void block_output(struct net_device *dev, int count,
 {
     unsigned int nic_base = dev->base_addr;
 
-#ifdef PCMCIA_DEBUG
-    if (ei_debug > 4)
-	printk(KERN_DEBUG "%s: [bo=%d]\n", dev->name, count);
-#endif
+    pr_debug("%s: [bo=%d]\n", dev->name, count);
 
     /* Round the count up for word writes.  Do we need to do this?
        What effect will an odd byte count have on the 8390?
@@ -1232,8 +1214,8 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id)
 	ei_local->irqlock = 1;
    
 	/* !!Assumption!! -- we stay in page 0.	 Don't break this. */
-	while ((interrupts = inb_p(e8390_base + EN0_ISR)) != 0
-		   && ++nr_serviced < MAX_SERVICE) 
+	while ((interrupts = inb_p(e8390_base + EN0_ISR)) != 0 &&
+	       ++nr_serviced < MAX_SERVICE)
 	{
 		if (!netif_running(dev) || (interrupts == 0xff)) {
 			if (ei_debug > 1)

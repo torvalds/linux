@@ -31,6 +31,7 @@
 
 #include <mach/hardware.h>
 #include <mach/fb.h>
+#include <mach/ep93xx_keypad.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -206,7 +207,6 @@ static void ep93xx_gpio_ab_irq_handler(unsigned int irq, struct irq_desc *desc)
 	for (i = 0; i < 8; i++) {
 		if (status & (1 << i)) {
 			int gpio_irq = gpio_to_irq(EP93XX_GPIO_LINE_B(0)) + i;
-			desc = irq_desc + gpio_irq;
 			generic_handle_irq(gpio_irq);
 		}
 	}
@@ -550,13 +550,11 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 	platform_device_register(&ep93xx_eth_device);
 }
 
-static struct i2c_gpio_platform_data ep93xx_i2c_data = {
-	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
-	.sda_is_open_drain	= 0,
-	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
-	.scl_is_open_drain	= 0,
-	.udelay			= 2,
-};
+
+/*************************************************************************
+ * EP93xx i2c peripheral handling
+ *************************************************************************/
+static struct i2c_gpio_platform_data ep93xx_i2c_data;
 
 static struct platform_device ep93xx_i2c_device = {
 	.name			= "i2c-gpio",
@@ -564,8 +562,25 @@ static struct platform_device ep93xx_i2c_device = {
 	.dev.platform_data	= &ep93xx_i2c_data,
 };
 
-void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
+void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
+				struct i2c_board_info *devices, int num)
 {
+	/*
+	 * Set the EEPROM interface pin drive type control.
+	 * Defines the driver type for the EECLK and EEDAT pins as either
+	 * open drain, which will require an external pull-up, or a normal
+	 * CMOS driver.
+	 */
+	if (data->sda_is_open_drain && data->sda_pin != EP93XX_GPIO_LINE_EEDAT)
+		pr_warning("ep93xx: sda != EEDAT, open drain has no effect\n");
+	if (data->scl_is_open_drain && data->scl_pin != EP93XX_GPIO_LINE_EECLK)
+		pr_warning("ep93xx: scl != EECLK, open drain has no effect\n");
+
+	__raw_writel((data->sda_is_open_drain << 1) |
+		     (data->scl_is_open_drain << 0),
+		     EP93XX_GPIO_EEDRIVE);
+
+	ep93xx_i2c_data = *data;
 	i2c_register_board_info(0, devices, num);
 	platform_device_register(&ep93xx_i2c_device);
 }
@@ -713,6 +728,82 @@ void __init ep93xx_register_fb(struct ep93xxfb_mach_info *data)
 	ep93xxfb_data = *data;
 	platform_device_register(&ep93xx_fb_device);
 }
+
+
+/*************************************************************************
+ * EP93xx matrix keypad peripheral handling
+ *************************************************************************/
+static struct resource ep93xx_keypad_resource[] = {
+	{
+		.start	= EP93XX_KEY_MATRIX_PHYS_BASE,
+		.end	= EP93XX_KEY_MATRIX_PHYS_BASE + 0x0c - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_EP93XX_KEY,
+		.end	= IRQ_EP93XX_KEY,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ep93xx_keypad_device = {
+	.name			= "ep93xx-keypad",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(ep93xx_keypad_resource),
+	.resource		= ep93xx_keypad_resource,
+};
+
+void __init ep93xx_register_keypad(struct ep93xx_keypad_platform_data *data)
+{
+	ep93xx_keypad_device.dev.platform_data = data;
+	platform_device_register(&ep93xx_keypad_device);
+}
+
+int ep93xx_keypad_acquire_gpio(struct platform_device *pdev)
+{
+	int err;
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		err = gpio_request(EP93XX_GPIO_LINE_C(i), dev_name(&pdev->dev));
+		if (err)
+			goto fail_gpio_c;
+		err = gpio_request(EP93XX_GPIO_LINE_D(i), dev_name(&pdev->dev));
+		if (err)
+			goto fail_gpio_d;
+	}
+
+	/* Enable the keypad controller; GPIO ports C and D used for keypad */
+	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_KEYS |
+				 EP93XX_SYSCON_DEVCFG_GONK);
+
+	return 0;
+
+fail_gpio_d:
+	gpio_free(EP93XX_GPIO_LINE_C(i));
+fail_gpio_c:
+	for ( ; i >= 0; --i) {
+		gpio_free(EP93XX_GPIO_LINE_C(i));
+		gpio_free(EP93XX_GPIO_LINE_D(i));
+	}
+	return err;
+}
+EXPORT_SYMBOL(ep93xx_keypad_acquire_gpio);
+
+void ep93xx_keypad_release_gpio(struct platform_device *pdev)
+{
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		gpio_free(EP93XX_GPIO_LINE_C(i));
+		gpio_free(EP93XX_GPIO_LINE_D(i));
+	}
+
+	/* Disable the keypad controller; GPIO ports C and D used for GPIO */
+	ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_KEYS |
+			       EP93XX_SYSCON_DEVCFG_GONK);
+}
+EXPORT_SYMBOL(ep93xx_keypad_release_gpio);
+
 
 extern void ep93xx_gpio_init(void);
 

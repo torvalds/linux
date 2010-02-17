@@ -197,6 +197,14 @@ static void p54p_check_rx_ring(struct ieee80211_hw *dev, u32 *index,
 			i %= ring_limit;
 			continue;
 		}
+
+		if (unlikely(len > priv->common.rx_mtu)) {
+			if (net_ratelimit())
+				dev_err(&priv->pdev->dev, "rx'd frame size "
+					"exceeds length threshold.\n");
+
+			len = priv->common.rx_mtu;
+		}
 		skb_put(skb, len);
 
 		if (p54_rx(dev, skb)) {
@@ -411,7 +419,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 	int err;
 
 	init_completion(&priv->boot_comp);
-	err = request_irq(priv->pdev->irq, &p54p_interrupt,
+	err = request_irq(priv->pdev->irq, p54p_interrupt,
 			  IRQF_SHARED, "p54pci", dev);
 	if (err) {
 		dev_err(&priv->pdev->dev, "failed to register IRQ handler\n");

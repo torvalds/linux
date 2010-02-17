@@ -7,6 +7,7 @@
 #include <asm/pci_x86.h>
 
 struct pci_root_info {
+	struct acpi_device *bridge;
 	char *name;
 	unsigned int res_num;
 	struct resource *res;
@@ -58,6 +59,30 @@ bus_has_transparent_bridge(struct pci_bus *bus)
 	return false;
 }
 
+static void
+align_resource(struct acpi_device *bridge, struct resource *res)
+{
+	int align = (res->flags & IORESOURCE_MEM) ? 16 : 4;
+
+	/*
+	 * Host bridge windows are not BARs, but the decoders on the PCI side
+	 * that claim this address space have starting alignment and length
+	 * constraints, so fix any obvious BIOS goofs.
+	 */
+	if (!IS_ALIGNED(res->start, align)) {
+		dev_printk(KERN_DEBUG, &bridge->dev,
+			   "host bridge window %pR invalid; "
+			   "aligning start to %d-byte boundary\n", res, align);
+		res->start &= ~(align - 1);
+	}
+	if (!IS_ALIGNED(res->end + 1, align)) {
+		dev_printk(KERN_DEBUG, &bridge->dev,
+			   "host bridge window %pR invalid; "
+			   "aligning end to %d-byte boundary\n", res, align);
+		res->end = ALIGN(res->end, align) - 1;
+	}
+}
+
 static acpi_status
 setup_resource(struct acpi_resource *acpi_res, void *data)
 {
@@ -91,11 +116,12 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	start = addr.minimum + addr.translation_offset;
 	end = start + addr.address_length - 1;
 	if (info->res_num >= max_root_bus_resources) {
-		printk(KERN_WARNING "PCI: Failed to allocate 0x%lx-0x%lx "
-			"from %s for %s due to _CRS returning more than "
-			"%d resource descriptors\n", (unsigned long) start,
-			(unsigned long) end, root->name, info->name,
-			max_root_bus_resources);
+		if (pci_probe & PCI_USE__CRS)
+			printk(KERN_WARNING "PCI: Failed to allocate "
+			       "0x%lx-0x%lx from %s for %s due to _CRS "
+			       "returning more than %d resource descriptors\n",
+			       (unsigned long) start, (unsigned long) end,
+			       root->name, info->name, max_root_bus_resources);
 		return AE_OK;
 	}
 
@@ -105,14 +131,28 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = start;
 	res->end = end;
 	res->child = NULL;
+	align_resource(info->bridge, res);
+
+	if (!(pci_probe & PCI_USE__CRS)) {
+		dev_printk(KERN_DEBUG, &info->bridge->dev,
+			   "host bridge window %pR (ignored)\n", res);
+		return AE_OK;
+	}
 
 	if (insert_resource(root, res)) {
-		printk(KERN_ERR "PCI: Failed to allocate 0x%lx-0x%lx "
-			"from %s for %s\n", (unsigned long) res->start,
-			(unsigned long) res->end, root->name, info->name);
+		dev_err(&info->bridge->dev,
+			"can't allocate host bridge window %pR\n", res);
 	} else {
 		info->bus->resource[info->res_num] = res;
 		info->res_num++;
+		if (addr.translation_offset)
+			dev_info(&info->bridge->dev, "host bridge window %pR "
+				 "(PCI address [%#llx-%#llx])\n",
+				 res, res->start - addr.translation_offset,
+				 res->end - addr.translation_offset);
+		else
+			dev_info(&info->bridge->dev,
+				 "host bridge window %pR\n", res);
 	}
 	return AE_OK;
 }
@@ -124,6 +164,12 @@ get_current_resources(struct acpi_device *device, int busnum,
 	struct pci_root_info info;
 	size_t size;
 
+	if (!(pci_probe & PCI_USE__CRS))
+		dev_info(&device->dev,
+			 "ignoring host bridge windows from ACPI; "
+			 "boot with \"pci=use_crs\" to use them\n");
+
+	info.bridge = device;
 	info.bus = bus;
 	info.res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_resource,
@@ -163,8 +209,9 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 #endif
 
 	if (domain && !pci_domains_supported) {
-		printk(KERN_WARNING "PCI: Multiple domains not supported "
-		       "(dom %d, bus %d)\n", domain, busnum);
+		printk(KERN_WARNING "pci_bus %04x:%02x: "
+		       "ignored (multiple domains not supported)\n",
+		       domain, busnum);
 		return NULL;
 	}
 
@@ -188,7 +235,8 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	 */
 	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
 	if (!sd) {
-		printk(KERN_ERR "PCI: OOM, not probing PCI bus %02x\n", busnum);
+		printk(KERN_WARNING "pci_bus %04x:%02x: "
+		       "ignored (out of memory)\n", domain, busnum);
 		return NULL;
 	}
 
@@ -209,9 +257,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	} else {
 		bus = pci_create_bus(NULL, busnum, &pci_root_ops, sd);
 		if (bus) {
-			if (pci_probe & PCI_USE__CRS)
-				get_current_resources(device, busnum, domain,
-							bus);
+			get_current_resources(device, busnum, domain, bus);
 			bus->subordinate = pci_scan_child_bus(bus);
 		}
 	}

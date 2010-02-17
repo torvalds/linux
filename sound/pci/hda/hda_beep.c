@@ -42,7 +42,7 @@ static void snd_hda_generate_beep(struct work_struct *work)
 		return;
 
 	/* generate tone */
-	snd_hda_codec_write_cache(codec, beep->nid, 0,
+	snd_hda_codec_write(codec, beep->nid, 0,
 			AC_VERB_SET_BEEP_CONTROL, beep->tone);
 }
 
@@ -113,23 +113,25 @@ static int snd_hda_beep_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
-int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
+static void snd_hda_do_detach(struct hda_beep *beep)
+{
+	input_unregister_device(beep->dev);
+	beep->dev = NULL;
+	cancel_work_sync(&beep->beep_work);
+	/* turn off beep for sure */
+	snd_hda_codec_write(beep->codec, beep->nid, 0,
+				  AC_VERB_SET_BEEP_CONTROL, 0);
+}
+
+static int snd_hda_do_attach(struct hda_beep *beep)
 {
 	struct input_dev *input_dev;
-	struct hda_beep *beep;
+	struct hda_codec *codec = beep->codec;
 	int err;
 
-	if (!snd_hda_get_bool_hint(codec, "beep"))
-		return 0; /* disabled explicitly */
-
-	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
-	if (beep == NULL)
-		return -ENOMEM;
-	snprintf(beep->phys, sizeof(beep->phys),
-		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
 	input_dev = input_allocate_device();
 	if (!input_dev) {
-		kfree(beep);
+		printk(KERN_INFO "hda_beep: unable to allocate input device\n");
 		return -ENOMEM;
 	}
 
@@ -151,21 +153,100 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	err = input_register_device(input_dev);
 	if (err < 0) {
 		input_free_device(input_dev);
-		kfree(beep);
+		printk(KERN_INFO "hda_beep: unable to register input device\n");
 		return err;
 	}
+	beep->dev = input_dev;
+	return 0;
+}
 
+static void snd_hda_do_register(struct work_struct *work)
+{
+	struct hda_beep *beep =
+		container_of(work, struct hda_beep, register_work);
+
+	mutex_lock(&beep->mutex);
+	if (beep->enabled && !beep->dev)
+		snd_hda_do_attach(beep);
+	mutex_unlock(&beep->mutex);
+}
+
+static void snd_hda_do_unregister(struct work_struct *work)
+{
+	struct hda_beep *beep =
+		container_of(work, struct hda_beep, unregister_work.work);
+
+	mutex_lock(&beep->mutex);
+	if (!beep->enabled && beep->dev)
+		snd_hda_do_detach(beep);
+	mutex_unlock(&beep->mutex);
+}
+
+int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
+{
+	struct hda_beep *beep = codec->beep;
+	enable = !!enable;
+	if (beep == NULL)
+		return 0;
+	if (beep->enabled != enable) {
+		beep->enabled = enable;
+		if (!enable) {
+			/* turn off beep */
+			snd_hda_codec_write(beep->codec, beep->nid, 0,
+						  AC_VERB_SET_BEEP_CONTROL, 0);
+		}
+		if (beep->mode == HDA_BEEP_MODE_SWREG) {
+			if (enable) {
+				cancel_delayed_work(&beep->unregister_work);
+				schedule_work(&beep->register_work);
+			} else {
+				schedule_delayed_work(&beep->unregister_work,
+									   HZ);
+			}
+		}
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_enable_beep_device);
+
+int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
+{
+	struct hda_beep *beep;
+
+	if (!snd_hda_get_bool_hint(codec, "beep"))
+		return 0; /* disabled explicitly by hints */
+	if (codec->beep_mode == HDA_BEEP_MODE_OFF)
+		return 0; /* disabled by module option */
+
+	beep = kzalloc(sizeof(*beep), GFP_KERNEL);
+	if (beep == NULL)
+		return -ENOMEM;
+	snprintf(beep->phys, sizeof(beep->phys),
+		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
 	/* enable linear scale */
 	snd_hda_codec_write(codec, nid, 0,
 		AC_VERB_SET_DIGI_CONVERT_2, 0x01);
 
 	beep->nid = nid;
-	beep->dev = input_dev;
 	beep->codec = codec;
-	beep->enabled = 1;
+	beep->mode = codec->beep_mode;
 	codec->beep = beep;
 
+	INIT_WORK(&beep->register_work, &snd_hda_do_register);
+	INIT_DELAYED_WORK(&beep->unregister_work, &snd_hda_do_unregister);
 	INIT_WORK(&beep->beep_work, &snd_hda_generate_beep);
+	mutex_init(&beep->mutex);
+
+	if (beep->mode == HDA_BEEP_MODE_ON) {
+		int err = snd_hda_do_attach(beep);
+		if (err < 0) {
+			kfree(beep);
+			codec->beep = NULL;
+			return err;
+		}
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_attach_beep_device);
@@ -174,11 +255,12 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 {
 	struct hda_beep *beep = codec->beep;
 	if (beep) {
-		cancel_work_sync(&beep->beep_work);
-
-		input_unregister_device(beep->dev);
-		kfree(beep);
+		cancel_work_sync(&beep->register_work);
+		cancel_delayed_work(&beep->unregister_work);
+		if (beep->dev)
+			snd_hda_do_detach(beep);
 		codec->beep = NULL;
+		kfree(beep);
 	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_detach_beep_device);

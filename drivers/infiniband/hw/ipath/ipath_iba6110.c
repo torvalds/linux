@@ -381,7 +381,7 @@ static const ipath_err_t infinipath_hwe_htclnkbbyte1crcerr =
 #define IPATH_GPIO_SCL \
 	(1ULL << (_IPATH_GPIO_SCL_NUM+INFINIPATH_EXTC_GPIOOE_SHIFT))
 
-/* keep the code below somewhat more readonable; not used elsewhere */
+/* keep the code below somewhat more readable; not used elsewhere */
 #define _IPATH_HTLINK0_CRCBITS (infinipath_hwe_htclnkabyte0crcerr |	\
 				infinipath_hwe_htclnkabyte1crcerr)
 #define _IPATH_HTLINK1_CRCBITS (infinipath_hwe_htclnkbbyte0crcerr |	\

@@ -879,7 +879,7 @@ recycle:
 	pci_dma_sync_single_for_cpu(adap->pdev, dma_addr, len,
 				    PCI_DMA_FROMDEVICE);
 	(*sd->pg_chunk.p_cnt)--;
-	if (!*sd->pg_chunk.p_cnt)
+	if (!*sd->pg_chunk.p_cnt && sd->pg_chunk.page != fl->pg_chunk.page)
 		pci_unmap_page(adap->pdev,
 			       sd->pg_chunk.mapping,
 			       fl->alloc_size,
@@ -1260,7 +1260,7 @@ netdev_tx_t t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (should_restart_tx(q) &&
 		    test_and_clear_bit(TXQ_ETH, &qs->txq_stopped)) {
 			q->restarts++;
-			netif_tx_wake_queue(txq);
+			netif_tx_start_queue(txq);
 		}
 	}
 
@@ -1285,7 +1285,7 @@ netdev_tx_t t3_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/*
 	 * We do not use Tx completion interrupts to free DMAd Tx packets.
-	 * This is good for performamce but means that we rely on new Tx
+	 * This is good for performance but means that we rely on new Tx
 	 * packets arriving to run the destructors of completed packets,
 	 * which open up space in their sockets' send queues.  Sometimes
 	 * we do not get such new packets causing Tx to stall.  A single
@@ -1946,10 +1946,9 @@ static void restart_tx(struct sge_qset *qs)
  *	Check if the ARP request is probing the private IP address
  *	dedicated to iSCSI, generate an ARP reply if so.
  */
-static void cxgb3_arp_process(struct adapter *adapter, struct sk_buff *skb)
+static void cxgb3_arp_process(struct port_info *pi, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
-	struct port_info *pi;
 	struct arphdr *arp;
 	unsigned char *arp_ptr;
 	unsigned char *sha;
@@ -1972,18 +1971,30 @@ static void cxgb3_arp_process(struct adapter *adapter, struct sk_buff *skb)
 	arp_ptr += dev->addr_len;
 	memcpy(&tip, arp_ptr, sizeof(tip));
 
-	pi = netdev_priv(dev);
 	if (tip != pi->iscsi_ipv4addr)
 		return;
 
 	arp_send(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha,
-		 dev->dev_addr, sha);
+		 pi->iscsic.mac_addr, sha);
 
 }
 
 static inline int is_arp(struct sk_buff *skb)
 {
 	return skb->protocol == htons(ETH_P_ARP);
+}
+
+static void cxgb3_process_iscsi_prov_pack(struct port_info *pi,
+					struct sk_buff *skb)
+{
+	if (is_arp(skb)) {
+		cxgb3_arp_process(pi, skb);
+		return;
+	}
+
+	if (pi->iscsic.recv)
+		pi->iscsic.recv(pi, skb);
+
 }
 
 /**
@@ -2024,13 +2035,12 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 				vlan_gro_receive(&qs->napi, grp,
 						 ntohs(p->vlan), skb);
 			else {
-				if (unlikely(pi->iscsi_ipv4addr &&
-				    is_arp(skb))) {
+				if (unlikely(pi->iscsic.flags)) {
 					unsigned short vtag = ntohs(p->vlan) &
 								VLAN_VID_MASK;
 					skb->dev = vlan_group_get_device(grp,
 									 vtag);
-					cxgb3_arp_process(adap, skb);
+					cxgb3_process_iscsi_prov_pack(pi, skb);
 				}
 				__vlan_hwaccel_rx(skb, grp, ntohs(p->vlan),
 					  	  rq->polling);
@@ -2041,8 +2051,8 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 		if (lro)
 			napi_gro_receive(&qs->napi, skb);
 		else {
-			if (unlikely(pi->iscsi_ipv4addr && is_arp(skb)))
-				cxgb3_arp_process(adap, skb);
+			if (unlikely(pi->iscsic.flags))
+				cxgb3_process_iscsi_prov_pack(pi, skb);
 			netif_receive_skb(skb);
 		}
 	} else
@@ -2069,6 +2079,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 			 struct sge_fl *fl, int len, int complete)
 {
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
+	struct port_info *pi = netdev_priv(qs->netdev);
 	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
 	struct skb_frag_struct *rx_frag;
@@ -2088,7 +2099,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 				    PCI_DMA_FROMDEVICE);
 
 	(*sd->pg_chunk.p_cnt)--;
-	if (!*sd->pg_chunk.p_cnt)
+	if (!*sd->pg_chunk.p_cnt && sd->pg_chunk.page != fl->pg_chunk.page)
 		pci_unmap_page(adap->pdev,
 			       sd->pg_chunk.mapping,
 			       fl->alloc_size,
@@ -2106,11 +2117,18 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	if (!nr_frags) {
 		offset = 2 + sizeof(struct cpl_rx_pkt);
-		qs->lro_va = sd->pg_chunk.va + 2;
-	}
-	len -= offset;
+		cpl = qs->lro_va = sd->pg_chunk.va + 2;
 
-	prefetch(qs->lro_va);
+		if ((pi->rx_offload & T3_RX_CSUM) &&
+		     cpl->csum_valid && cpl->csum == htons(0xffff)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			qs->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
+		} else
+			skb->ip_summed = CHECKSUM_NONE;
+	} else
+		cpl = qs->lro_va;
+
+	len -= offset;
 
 	rx_frag += nr_frags;
 	rx_frag->page = sd->pg_chunk.page;
@@ -2125,12 +2143,9 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	if (!complete)
 		return;
 
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	cpl = qs->lro_va;
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
 
 	if (unlikely(cpl->vlan_valid)) {
-		struct net_device *dev = qs->netdev;
-		struct port_info *pi = netdev_priv(dev);
 		struct vlan_group *grp = pi->vlan_grp;
 
 		if (likely(grp != NULL)) {

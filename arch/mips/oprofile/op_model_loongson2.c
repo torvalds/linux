@@ -1,7 +1,7 @@
 /*
  * Loongson2 performance counter driver for oprofile
  *
- * Copyright (C) 2009 Lemote Inc. & Insititute of Computing Technology
+ * Copyright (C) 2009 Lemote Inc.
  * Author: Yanhua <yanh@lemote.com>
  * Author: Wu Zhangjin <wuzj@lemote.com>
  *
@@ -22,7 +22,7 @@
  * otherwise, the oprofile tool will not recognize this and complain about
  * "cpu_type 'unset' is not valid".
  */
-#define LOONGSON2_CPU_TYPE	"mips/godson2"
+#define LOONGSON2_CPU_TYPE	"mips/loongson2"
 
 #define LOONGSON2_COUNTER1_EVENT(event)	((event & 0x0f) << 5)
 #define LOONGSON2_COUNTER2_EVENT(event)	((event & 0x0f) << 9)
@@ -125,6 +125,9 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	 */
 
 	/* Check whether the irq belongs to me */
+	enabled = read_c0_perfcnt() & LOONGSON2_PERFCNT_INT_EN;
+	if (!enabled)
+		return IRQ_NONE;
 	enabled = reg.cnt1_enabled | reg.cnt2_enabled;
 	if (!enabled)
 		return IRQ_NONE;

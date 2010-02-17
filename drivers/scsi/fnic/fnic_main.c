@@ -25,6 +25,8 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/if_ether.h>
+#include <scsi/fc/fc_fip.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_fc.h>
@@ -68,6 +70,7 @@ MODULE_PARM_DESC(fnic_log_level, "bit mask of fnic logging levels");
 
 static struct libfc_function_template fnic_transport_template = {
 	.frame_send = fnic_send,
+	.lport_set_port_id = fnic_set_port_id,
 	.fcp_abort_io = fnic_empty_scsi_cleanup,
 	.fcp_cleanup = fnic_empty_scsi_cleanup,
 	.exch_mgr_reset = fnic_exch_mgr_reset
@@ -140,6 +143,7 @@ static struct fc_function_template fnic_fc_functions = {
 	.get_fc_host_stats = fnic_get_stats,
 	.dd_fcrport_size = sizeof(struct fc_rport_libfc_priv),
 	.terminate_rport_io = fnic_terminate_rport_io,
+	.bsg_request = fc_lport_bsg_request,
 };
 
 static void fnic_get_host_speed(struct Scsi_Host *shost)
@@ -324,9 +328,6 @@ static int fnic_cleanup(struct fnic *fnic)
 {
 	unsigned int i;
 	int err;
-	unsigned long flags;
-	struct fc_frame *flogi = NULL;
-	struct fc_frame *flogi_resp = NULL;
 
 	vnic_dev_disable(fnic->vdev);
 	for (i = 0; i < fnic->intr_count; i++)
@@ -367,24 +368,6 @@ static int fnic_cleanup(struct fnic *fnic)
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_clean(&fnic->intr[i]);
 
-	/*
-	 * Remove cached flogi and flogi resp frames if any
-	 * These frames are not in any queue, and therefore queue
-	 * cleanup does not clean them. So clean them explicitly
-	 */
-	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	flogi = fnic->flogi;
-	fnic->flogi = NULL;
-	flogi_resp = fnic->flogi_resp;
-	fnic->flogi_resp = NULL;
-	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
-
-	if (flogi)
-		dev_kfree_skb(fp_skb(flogi));
-
-	if (flogi_resp)
-		dev_kfree_skb(fp_skb(flogi_resp));
-
 	mempool_destroy(fnic->io_req_pool);
 	for (i = 0; i < FNIC_SGL_NUM_CACHES; i++)
 		mempool_destroy(fnic->io_sgl_pool[i]);
@@ -409,6 +392,17 @@ static void *fnic_alloc_slab_dma(gfp_t gfp_mask, void *pool_data)
 	return kmem_cache_alloc(mem, gfp_mask | GFP_ATOMIC | GFP_DMA);
 }
 
+/**
+ * fnic_get_mac() - get assigned data MAC address for FIP code.
+ * @lport: 	local port.
+ */
+static u8 *fnic_get_mac(struct fc_lport *lport)
+{
+	struct fnic *fnic = lport_priv(lport);
+
+	return fnic->data_src_addr;
+}
+
 static int __devinit fnic_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
@@ -424,17 +418,16 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	 * Allocate SCSI Host and set up association between host,
 	 * local port, and fnic
 	 */
-	host = scsi_host_alloc(&fnic_host_template,
-			       sizeof(struct fc_lport) + sizeof(struct fnic));
-	if (!host) {
-		printk(KERN_ERR PFX "Unable to alloc SCSI host\n");
+	lp = libfc_host_alloc(&fnic_host_template, sizeof(struct fnic));
+	if (!lp) {
+		printk(KERN_ERR PFX "Unable to alloc libfc local port\n");
 		err = -ENOMEM;
 		goto err_out;
 	}
-	lp = shost_priv(host);
-	lp->host = host;
+	host = lp->host;
 	fnic = lport_priv(lp);
 	fnic->lport = lp;
+	fnic->ctlr.lp = lp;
 
 	snprintf(fnic->name, sizeof(fnic->name) - 1, "%s%d", DRV_NAME,
 		 host->host_no);
@@ -543,12 +536,14 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		goto err_out_dev_close;
 	}
 
-	err = vnic_dev_mac_addr(fnic->vdev, fnic->mac_addr);
+	err = vnic_dev_mac_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "vNIC get MAC addr failed \n");
 		goto err_out_dev_close;
 	}
+	/* set data_src for point-to-point mode and to keep it non-zero */
+	memcpy(fnic->data_src_addr, fnic->ctlr.ctl_src_addr, ETH_ALEN);
 
 	/* Get vNIC configuration */
 	err = fnic_get_vnic_config(fnic);
@@ -560,6 +555,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	}
 	host->max_lun = fnic->config.luns_per_tgt;
 	host->max_id = FNIC_MAX_FCP_TARGET;
+	host->max_cmd_len = FNIC_MAX_CMD_LEN;
 
 	fnic_get_res_counts(fnic);
 
@@ -571,19 +567,12 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		goto err_out_dev_close;
 	}
 
-	err = fnic_request_intr(fnic);
-	if (err) {
-		shost_printk(KERN_ERR, fnic->lport->host,
-			     "Unable to request irq.\n");
-		goto err_out_clear_intr;
-	}
-
 	err = fnic_alloc_vnic_resources(fnic);
 	if (err) {
 		shost_printk(KERN_ERR, fnic->lport->host,
 			     "Failed to alloc vNIC resources, "
 			     "aborting.\n");
-		goto err_out_free_intr;
+		goto err_out_clear_intr;
 	}
 
 
@@ -623,9 +612,21 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fnic->vlan_hw_insert = 1;
 	fnic->vlan_id = 0;
 
-	fnic->flogi_oxid = FC_XID_UNKNOWN;
-	fnic->flogi = NULL;
-	fnic->flogi_resp = NULL;
+	/* Initialize the FIP fcoe_ctrl struct */
+	fnic->ctlr.send = fnic_eth_send;
+	fnic->ctlr.update_mac = fnic_update_mac;
+	fnic->ctlr.get_src_addr = fnic_get_mac;
+	fcoe_ctlr_init(&fnic->ctlr);
+	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
+		shost_printk(KERN_INFO, fnic->lport->host,
+			     "firmware supports FIP\n");
+		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
+		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
+	} else {
+		shost_printk(KERN_INFO, fnic->lport->host,
+			     "firmware uses non-FIP mode\n");
+		fnic->ctlr.mode = FIP_ST_NON_FIP;
+	}
 	fnic->state = FNIC_IN_FC_MODE;
 
 	/* Enable hardware stripping of vlan header on ingress */
@@ -716,6 +717,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	INIT_WORK(&fnic->link_work, fnic_handle_link);
 	INIT_WORK(&fnic->frame_work, fnic_handle_frame);
 	skb_queue_head_init(&fnic->frame_queue);
+	skb_queue_head_init(&fnic->tx_queue);
 
 	/* Enable all queues */
 	for (i = 0; i < fnic->raw_wq_count; i++)
@@ -728,6 +730,14 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fc_fabric_login(lp);
 
 	vnic_dev_enable(fnic->vdev);
+
+	err = fnic_request_intr(fnic);
+	if (err) {
+		shost_printk(KERN_ERR, fnic->lport->host,
+			     "Unable to request irq.\n");
+		goto err_out_free_exch_mgr;
+	}
+
 	for (i = 0; i < fnic->intr_count; i++)
 		vnic_intr_unmask(&fnic->intr[i]);
 
@@ -738,8 +748,8 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 err_out_free_exch_mgr:
 	fc_exch_mgr_free(lp);
 err_out_remove_scsi_host:
-	fc_remove_host(fnic->lport->host);
-	scsi_remove_host(fnic->lport->host);
+	fc_remove_host(lp->host);
+	scsi_remove_host(lp->host);
 err_out_free_rq_buf:
 	for (i = 0; i < fnic->rq_count; i++)
 		vnic_rq_clean(&fnic->rq[i], fnic_free_rq_buf);
@@ -752,8 +762,6 @@ err_out_free_ioreq_pool:
 	mempool_destroy(fnic->io_req_pool);
 err_out_free_resources:
 	fnic_free_vnic_resources(fnic);
-err_out_free_intr:
-	fnic_free_intr(fnic);
 err_out_clear_intr:
 	fnic_clear_intr_mode(fnic);
 err_out_dev_close:
@@ -775,6 +783,7 @@ err_out:
 static void __devexit fnic_remove(struct pci_dev *pdev)
 {
 	struct fnic *fnic = pci_get_drvdata(pdev);
+	struct fc_lport *lp = fnic->lport;
 	unsigned long flags;
 
 	/*
@@ -796,6 +805,7 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	 */
 	flush_workqueue(fnic_event_queue);
 	skb_queue_purge(&fnic->frame_queue);
+	skb_queue_purge(&fnic->tx_queue);
 
 	/*
 	 * Log off the fabric. This stops all remote ports, dns port,
@@ -808,7 +818,8 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	fnic->in_remove = 1;
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
-	fc_lport_destroy(fnic->lport);
+	fcoe_ctlr_destroy(&fnic->ctlr);
+	fc_lport_destroy(lp);
 
 	/*
 	 * This stops the fnic device, masks all interrupts. Completed
@@ -818,6 +829,7 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	fnic_cleanup(fnic);
 
 	BUG_ON(!skb_queue_empty(&fnic->frame_queue));
+	BUG_ON(!skb_queue_empty(&fnic->tx_queue));
 
 	spin_lock_irqsave(&fnic_list_lock, flags);
 	list_del(&fnic->list);
@@ -827,8 +839,8 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	scsi_remove_host(fnic->lport->host);
 	fc_exch_mgr_free(fnic->lport);
 	vnic_dev_notify_unset(fnic->vdev);
-	fnic_free_vnic_resources(fnic);
 	fnic_free_intr(fnic);
+	fnic_free_vnic_resources(fnic);
 	fnic_clear_intr_mode(fnic);
 	vnic_dev_close(fnic->vdev);
 	vnic_dev_unregister(fnic->vdev);
@@ -836,7 +848,7 @@ static void __devexit fnic_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
-	scsi_host_put(fnic->lport->host);
+	scsi_host_put(lp->host);
 }
 
 static struct pci_driver fnic_driver = {

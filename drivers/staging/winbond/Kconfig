@@ -1,6 +1,6 @@
 config W35UND
 	tristate "IS89C35 WLAN USB driver"
-	depends on MAC80211 && WLAN_80211 && USB && EXPERIMENTAL
+	depends on MAC80211 && WLAN && USB && EXPERIMENTAL
 	default n
 	---help---
 	  This is highly experimental driver for Winbond WIFI card.

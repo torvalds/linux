@@ -276,10 +276,9 @@ void smp_send_reschedule(int cpu)
 	if (cpu_is_offline(cpu))
 		return;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
-	memset(msg, 0, sizeof(msg));
 	INIT_LIST_HEAD(&msg->list);
 	msg->type = BFIN_IPI_RESCHEDULE;
 
@@ -305,10 +304,9 @@ void smp_send_stop(void)
 	if (cpus_empty(callmap))
 		return;
 
-	msg = kmalloc(sizeof(*msg), GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg), GFP_ATOMIC);
 	if (!msg)
 		return;
-	memset(msg, 0, sizeof(msg));
 	INIT_LIST_HEAD(&msg->list);
 	msg->type = BFIN_IPI_CPU_STOP;
 
@@ -337,13 +335,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	smp_wmb();
 
 	ret = platform_boot_secondary(cpu, idle);
-
-	if (ret) {
-		cpu_clear(cpu, cpu_present_map);
-		printk(KERN_CRIT "CPU%u: processor failed to boot (%d)\n", cpu, ret);
-		free_task(idle);
-	} else
-		cpu_set(cpu, cpu_online_map);
 
 	secondary_stack = NULL;
 
@@ -420,9 +411,16 @@ void __cpuinit secondary_start_kernel(void)
 
 	setup_secondary(cpu);
 
+	platform_secondary_init(cpu);
+
 	local_irq_enable();
 
-	platform_secondary_init(cpu);
+	/*
+	 * Calibrate loops per jiffy value.
+	 * IRQs need to be enabled here - D-cache can be invalidated
+	 * in timer irq handler, so core B can read correct jiffies.
+	 */
+	calibrate_delay();
 
 	cpu_idle();
 }

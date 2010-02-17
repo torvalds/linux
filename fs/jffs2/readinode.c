@@ -931,7 +931,7 @@ static inline int read_unknown(struct jffs2_sb_info *c, struct jffs2_raw_node_re
  * Helper function for jffs2_get_inode_nodes().
  * The function detects whether more data should be read and reads it if yes.
  *
- * Returns: 0 on succes;
+ * Returns: 0 on success;
  * 	    negative error code on failure.
  */
 static int read_more(struct jffs2_sb_info *c, struct jffs2_raw_node_ref *ref,
@@ -1284,7 +1284,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 				f->target = NULL;
 				mutex_unlock(&f->sem);
 				jffs2_do_clear_inode(c, f);
-				return -ret;
+				return ret;
 			}
 
 			f->target[je32_to_cpu(latest_node->csize)] = '\0';

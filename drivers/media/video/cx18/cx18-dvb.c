@@ -61,6 +61,7 @@ static struct mxl5005s_config hauppauge_hvr1600_tuner = {
 	.top		 = MXL5005S_TOP_25P2,
 	.mod_mode        = MXL_DIGITAL_MODE,
 	.if_mode         = MXL_ZERO_IF,
+	.qam_gain        = 0x02,
 	.AgcMasterByte   = 0x00,
 };
 
@@ -71,7 +72,8 @@ static struct s5h1409_config hauppauge_hvr1600_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.hvr1600_opt   = S5H1409_HVR1600_OPTIMIZE
 };
 
 /*
@@ -360,9 +362,10 @@ int cx18_dvb_register(struct cx18_stream *stream)
 	dvb_net_init(dvb_adapter, &dvb->dvbnet, dmx);
 
 	CX18_INFO("DVB Frontend registered\n");
-	CX18_INFO("Registered DVB adapter%d for %s (%d x %d kB)\n",
+	CX18_INFO("Registered DVB adapter%d for %s (%d x %d.%02d kB)\n",
 		  stream->dvb.dvb_adapter.num, stream->name,
-		  stream->buffers, stream->buf_size/1024);
+		  stream->buffers, stream->buf_size/1024,
+		  (stream->buf_size * 100 / 1024) % 100);
 
 	mutex_init(&dvb->feedlock);
 	dvb->enabled = 1;

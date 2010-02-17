@@ -16,7 +16,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
+
 #include <asm/uaccess.h>
 #include "mem_user.h"
 
@@ -78,7 +78,6 @@ out:
 
 static int mmapper_open(struct inode *inode, struct file *file)
 {
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -115,18 +114,16 @@ static int __init mmapper_init(void)
 	v_buf = (char *) find_iomem("mmapper", &mmapper_size);
 	if (mmapper_size == 0) {
 		printk(KERN_ERR "mmapper_init - find_iomem failed\n");
-		goto out;
+		return -ENODEV;
 	}
+	p_buf = __pa(v_buf);
 
 	err = misc_register(&mmapper_dev);
 	if (err) {
 		printk(KERN_ERR "mmapper - misc_register failed, err = %d\n",
 		       err);
-		goto out;
+		return err;;
 	}
-
-	p_buf = __pa(v_buf);
-out:
 	return 0;
 }
 

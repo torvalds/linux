@@ -597,15 +597,15 @@ struct net_device *nr_dev_first(void)
 {
 	struct net_device *dev, *first = NULL;
 
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, dev) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
 		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_NETROM)
 			if (first == NULL || strncmp(dev->name, first->name, 3) < 0)
 				first = dev;
 	}
 	if (first)
 		dev_hold(first);
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 
 	return first;
 }
@@ -617,16 +617,17 @@ struct net_device *nr_dev_get(ax25_address *addr)
 {
 	struct net_device *dev;
 
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, dev) {
-		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_NETROM && ax25cmp(addr, (ax25_address *)dev->dev_addr) == 0) {
+	rcu_read_lock();
+	for_each_netdev_rcu(&init_net, dev) {
+		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_NETROM &&
+		    ax25cmp(addr, (ax25_address *)dev->dev_addr) == 0) {
 			dev_hold(dev);
 			goto out;
 		}
 	}
 	dev = NULL;
 out:
-	read_unlock(&dev_base_lock);
+	rcu_read_unlock();
 	return dev;
 }
 
@@ -842,12 +843,13 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 	dptr  = skb_push(skb, 1);
 	*dptr = AX25_P_NETROM;
 
-	ax25s = ax25_send_frame(skb, 256, (ax25_address *)dev->dev_addr, &nr_neigh->callsign, nr_neigh->digipeat, nr_neigh->dev);
-	if (nr_neigh->ax25 && ax25s) {
-		/* We were already holding this ax25_cb */
+	ax25s = nr_neigh->ax25;
+	nr_neigh->ax25 = ax25_send_frame(skb, 256,
+					 (ax25_address *)dev->dev_addr,
+					 &nr_neigh->callsign,
+					 nr_neigh->digipeat, nr_neigh->dev);
+	if (ax25s)
 		ax25_cb_put(ax25s);
-	}
-	nr_neigh->ax25 = ax25s;
 
 	dev_put(dev);
 	ret = (nr_neigh->ax25 != NULL);

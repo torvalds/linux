@@ -24,7 +24,6 @@
 #include <net/mip6.h>
 #endif
 
-static struct dst_ops xfrm6_dst_ops;
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
 
 static struct dst_entry *xfrm6_dst_lookup(struct net *net, int tos,
@@ -224,8 +223,10 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 
 static inline int xfrm6_garbage_collect(struct dst_ops *ops)
 {
-	xfrm6_policy_afinfo.garbage_collect(&init_net);
-	return (atomic_read(&xfrm6_dst_ops.entries) > xfrm6_dst_ops.gc_thresh*2);
+	struct net *net = container_of(ops, struct net, xfrm.xfrm6_dst_ops);
+
+	xfrm6_policy_afinfo.garbage_collect(net);
+	return (atomic_read(&ops->entries) > ops->gc_thresh * 2);
 }
 
 static void xfrm6_update_pmtu(struct dst_entry *dst, u32 mtu)
@@ -309,9 +310,8 @@ static void xfrm6_policy_fini(void)
 #ifdef CONFIG_SYSCTL
 static struct ctl_table xfrm6_policy_table[] = {
 	{
-		.ctl_name       = CTL_UNNUMBERED,
 		.procname       = "xfrm6_gc_thresh",
-		.data	   	= &xfrm6_dst_ops.gc_thresh,
+		.data	   	= &init_net.xfrm.xfrm6_dst_ops.gc_thresh,
 		.maxlen	 	= sizeof(int),
 		.mode	   	= 0644,
 		.proc_handler   = proc_dointvec,
@@ -327,13 +327,6 @@ int __init xfrm6_init(void)
 	int ret;
 	unsigned int gc_thresh;
 
-	ret = xfrm6_policy_init();
-	if (ret)
-		goto out;
-
-	ret = xfrm6_state_init();
-	if (ret)
-		goto out_policy;
 	/*
 	 * We need a good default value for the xfrm6 gc threshold.
 	 * In ipv4 we set it to the route hash table size * 8, which
@@ -347,6 +340,15 @@ int __init xfrm6_init(void)
 	 */
 	gc_thresh = FIB6_TABLE_HASHSZ * 8;
 	xfrm6_dst_ops.gc_thresh = (gc_thresh < 1024) ? 1024 : gc_thresh;
+
+	ret = xfrm6_policy_init();
+	if (ret)
+		goto out;
+
+	ret = xfrm6_state_init();
+	if (ret)
+		goto out_policy;
+
 #ifdef CONFIG_SYSCTL
 	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv6_ctl_path,
 						xfrm6_policy_table);

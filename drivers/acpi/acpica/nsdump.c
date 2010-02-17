@@ -180,7 +180,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	this_node = acpi_ns_map_handle_to_node(obj_handle);
+	this_node = acpi_ns_validate_handle(obj_handle);
 	if (!this_node) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
 				  obj_handle));
@@ -634,8 +634,8 @@ acpi_ns_dump_objects(acpi_object_type type,
 	(void)acpi_ns_walk_namespace(type, start_handle, max_depth,
 				     ACPI_NS_WALK_NO_UNLOCK |
 				     ACPI_NS_WALK_TEMP_NODES,
-				     acpi_ns_dump_one_object, (void *)&info,
-				     NULL);
+				     acpi_ns_dump_one_object, NULL,
+				     (void *)&info, NULL);
 }
 #endif				/* ACPI_FUTURE_USAGE */
 

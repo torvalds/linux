@@ -198,25 +198,10 @@ static void atl1c_phy_config(unsigned long data)
 
 void atl1c_reinit_locked(struct atl1c_adapter *adapter)
 {
-
 	WARN_ON(in_interrupt());
 	atl1c_down(adapter);
 	atl1c_up(adapter);
 	clear_bit(__AT_RESETTING, &adapter->flags);
-}
-
-static void atl1c_reset_task(struct work_struct *work)
-{
-	struct atl1c_adapter *adapter;
-	struct net_device *netdev;
-
-	adapter = container_of(work, struct atl1c_adapter, reset_task);
-	netdev = adapter->netdev;
-
-	netif_device_detach(netdev);
-	atl1c_down(adapter);
-	atl1c_up(adapter);
-	netif_device_attach(netdev);
 }
 
 static void atl1c_check_link_status(struct atl1c_adapter *adapter)
@@ -275,18 +260,6 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 	}
 }
 
-/*
- * atl1c_link_chg_task - deal with link change event Out of interrupt context
- * @netdev: network interface device structure
- */
-static void atl1c_link_chg_task(struct work_struct *work)
-{
-	struct atl1c_adapter *adapter;
-
-	adapter = container_of(work, struct atl1c_adapter, link_chg_task);
-	atl1c_check_link_status(adapter);
-}
-
 static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -311,19 +284,39 @@ static void atl1c_link_chg_event(struct atl1c_adapter *adapter)
 			adapter->link_speed = SPEED_0;
 		}
 	}
-	schedule_work(&adapter->link_chg_task);
+
+	adapter->work_event |= ATL1C_WORK_EVENT_LINK_CHANGE;
+	schedule_work(&adapter->common_task);
 }
+
+static void atl1c_common_task(struct work_struct *work)
+{
+	struct atl1c_adapter *adapter;
+	struct net_device *netdev;
+
+	adapter = container_of(work, struct atl1c_adapter, common_task);
+	netdev = adapter->netdev;
+
+	if (adapter->work_event & ATL1C_WORK_EVENT_RESET) {
+		netif_device_detach(netdev);
+		atl1c_down(adapter);
+		atl1c_up(adapter);
+		netif_device_attach(netdev);
+		return;
+	}
+
+	if (adapter->work_event & ATL1C_WORK_EVENT_LINK_CHANGE)
+		atl1c_check_link_status(adapter);
+
+	return;
+}
+
 
 static void atl1c_del_timer(struct atl1c_adapter *adapter)
 {
 	del_timer_sync(&adapter->phy_config_timer);
 }
 
-static void atl1c_cancel_work(struct atl1c_adapter *adapter)
-{
-	cancel_work_sync(&adapter->reset_task);
-	cancel_work_sync(&adapter->link_chg_task);
-}
 
 /*
  * atl1c_tx_timeout - Respond to a Tx Hang
@@ -334,7 +327,8 @@ static void atl1c_tx_timeout(struct net_device *netdev)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	/* Do the reset outside of interrupt context */
-	schedule_work(&adapter->reset_task);
+	adapter->work_event |= ATL1C_WORK_EVENT_RESET;
+	schedule_work(&adapter->common_task);
 }
 
 /*
@@ -710,6 +704,35 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 	return 0;
 }
 
+static inline void atl1c_clean_buffer(struct pci_dev *pdev,
+				struct atl1c_buffer *buffer_info, int in_irq)
+{
+	u16 pci_driection;
+	if (buffer_info->flags & ATL1C_BUFFER_FREE)
+		return;
+	if (buffer_info->dma) {
+		if (buffer_info->flags & ATL1C_PCIMAP_FROMDEVICE)
+			pci_driection = PCI_DMA_FROMDEVICE;
+		else
+			pci_driection = PCI_DMA_TODEVICE;
+
+		if (buffer_info->flags & ATL1C_PCIMAP_SINGLE)
+			pci_unmap_single(pdev, buffer_info->dma,
+					buffer_info->length, pci_driection);
+		else if (buffer_info->flags & ATL1C_PCIMAP_PAGE)
+			pci_unmap_page(pdev, buffer_info->dma,
+					buffer_info->length, pci_driection);
+	}
+	if (buffer_info->skb) {
+		if (in_irq)
+			dev_kfree_skb_irq(buffer_info->skb);
+		else
+			dev_kfree_skb(buffer_info->skb);
+	}
+	buffer_info->dma = 0;
+	buffer_info->skb = NULL;
+	ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_FREE);
+}
 /*
  * atl1c_clean_tx_ring - Free Tx-skb
  * @adapter: board private structure
@@ -725,22 +748,12 @@ static void atl1c_clean_tx_ring(struct atl1c_adapter *adapter,
 	ring_count = tpd_ring->count;
 	for (index = 0; index < ring_count; index++) {
 		buffer_info = &tpd_ring->buffer_info[index];
-		if (buffer_info->state == ATL1_BUFFER_FREE)
-			continue;
-		if (buffer_info->dma)
-			pci_unmap_single(pdev, buffer_info->dma,
-					buffer_info->length,
-					PCI_DMA_TODEVICE);
-		if (buffer_info->skb)
-			dev_kfree_skb(buffer_info->skb);
-		buffer_info->dma = 0;
-		buffer_info->skb = NULL;
-		buffer_info->state = ATL1_BUFFER_FREE;
+		atl1c_clean_buffer(pdev, buffer_info, 0);
 	}
 
 	/* Zero out Tx-buffers */
 	memset(tpd_ring->desc, 0, sizeof(struct atl1c_tpd_desc) *
-				ring_count);
+		ring_count);
 	atomic_set(&tpd_ring->next_to_clean, 0);
 	tpd_ring->next_to_use = 0;
 }
@@ -760,16 +773,7 @@ static void atl1c_clean_rx_ring(struct atl1c_adapter *adapter)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		for (j = 0; j < rfd_ring[i].count; j++) {
 			buffer_info = &rfd_ring[i].buffer_info[j];
-			if (buffer_info->state == ATL1_BUFFER_FREE)
-				continue;
-			if (buffer_info->dma)
-				pci_unmap_single(pdev, buffer_info->dma,
-						buffer_info->length,
-						PCI_DMA_FROMDEVICE);
-			if (buffer_info->skb)
-				dev_kfree_skb(buffer_info->skb);
-			buffer_info->state = ATL1_BUFFER_FREE;
-			buffer_info->skb = NULL;
+			atl1c_clean_buffer(pdev, buffer_info, 0);
 		}
 		/* zero out the descriptor ring */
 		memset(rfd_ring[i].desc, 0, rfd_ring[i].size);
@@ -796,7 +800,8 @@ static void atl1c_init_ring_ptrs(struct atl1c_adapter *adapter)
 		atomic_set(&tpd_ring[i].next_to_clean, 0);
 		buffer_info = tpd_ring[i].buffer_info;
 		for (j = 0; j < tpd_ring->count; j++)
-			buffer_info[i].state = ATL1_BUFFER_FREE;
+			ATL1C_SET_BUFFER_STATE(&buffer_info[i],
+					ATL1C_BUFFER_FREE);
 	}
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		rfd_ring[i].next_to_use = 0;
@@ -805,7 +810,7 @@ static void atl1c_init_ring_ptrs(struct atl1c_adapter *adapter)
 		rrd_ring[i].next_to_clean = 0;
 		for (j = 0; j < rfd_ring[i].count; j++) {
 			buffer_info = &rfd_ring[i].buffer_info[j];
-			buffer_info->state = ATL1_BUFFER_FREE;
+			ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_FREE);
 		}
 	}
 }
@@ -1447,6 +1452,7 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 	struct atl1c_tpd_ring *tpd_ring = (struct atl1c_tpd_ring *)
 				&adapter->tpd_ring[type];
 	struct atl1c_buffer *buffer_info;
+	struct pci_dev *pdev = adapter->pdev;
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 hw_next_to_clean;
 	u16 shift;
@@ -1462,16 +1468,7 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 
 	while (next_to_clean != hw_next_to_clean) {
 		buffer_info = &tpd_ring->buffer_info[next_to_clean];
-		if (buffer_info->state == ATL1_BUFFER_BUSY) {
-			pci_unmap_page(adapter->pdev, buffer_info->dma,
-					buffer_info->length, PCI_DMA_TODEVICE);
-			buffer_info->dma = 0;
-			if (buffer_info->skb) {
-				dev_kfree_skb_irq(buffer_info->skb);
-				buffer_info->skb = NULL;
-			}
-			buffer_info->state = ATL1_BUFFER_FREE;
-		}
+		atl1c_clean_buffer(pdev, buffer_info, 1);
 		if (++next_to_clean == tpd_ring->count)
 			next_to_clean = 0;
 		atomic_set(&tpd_ring->next_to_clean, next_to_clean);
@@ -1536,14 +1533,15 @@ static irqreturn_t atl1c_intr(int irq, void *data)
 			/* reset MAC */
 			hw->intr_mask &= ~ISR_ERROR;
 			AT_WRITE_REG(hw, REG_IMR, hw->intr_mask);
-			schedule_work(&adapter->reset_task);
+			adapter->work_event |= ATL1C_WORK_EVENT_RESET;
+			schedule_work(&adapter->common_task);
 			break;
 		}
 
 		if (status & ISR_OVER)
 			if (netif_msg_intr(adapter))
 				dev_warn(&pdev->dev,
-					"TX/RX over flow (status = 0x%x)\n",
+					"TX/RX overflow (status = 0x%x)\n",
 					status & ISR_OVER);
 
 		/* link event */
@@ -1587,7 +1585,7 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid
 	buffer_info = &rfd_ring->buffer_info[rfd_next_to_use];
 	next_info = &rfd_ring->buffer_info[next_next];
 
-	while (next_info->state == ATL1_BUFFER_FREE) {
+	while (next_info->flags & ATL1C_BUFFER_FREE) {
 		rfd_desc = ATL1C_RFD_DESC(rfd_ring, rfd_next_to_use);
 
 		skb = dev_alloc_skb(adapter->rx_buffer_len);
@@ -1603,12 +1601,14 @@ static int atl1c_alloc_rx_buffer(struct atl1c_adapter *adapter, const int ringid
 		 * the 14 byte MAC header is removed
 		 */
 		vir_addr = skb->data;
-		buffer_info->state = ATL1_BUFFER_BUSY;
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 		buffer_info->dma = pci_map_single(pdev, vir_addr,
 						buffer_info->length,
 						PCI_DMA_FROMDEVICE);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_FROMDEVICE);
 		rfd_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
 		rfd_next_to_use = next_next;
 		if (++next_next == rfd_ring->count)
@@ -1653,7 +1653,8 @@ static void atl1c_clean_rfd(struct atl1c_rfd_ring *rfd_ring,
 			RRS_RX_RFD_INDEX_MASK;
 	for (i = 0; i < num; i++) {
 		buffer_info[rfd_index].skb = NULL;
-		buffer_info[rfd_index].state = ATL1_BUFFER_FREE;
+		ATL1C_SET_BUFFER_STATE(&buffer_info[rfd_index],
+					ATL1C_BUFFER_FREE);
 		if (++rfd_index == rfd_ring->count)
 			rfd_index = 0;
 	}
@@ -1967,7 +1968,9 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 		buffer_info->length = map_len;
 		buffer_info->dma = pci_map_single(adapter->pdev,
 					skb->data, hdr_len, PCI_DMA_TODEVICE);
-		buffer_info->state = ATL1_BUFFER_BUSY;
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_TODEVICE);
 		mapped_len += map_len;
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len = cpu_to_le16(buffer_info->length);
@@ -1981,16 +1984,15 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 		else {
 			use_tpd = atl1c_get_tpd(adapter, type);
 			memcpy(use_tpd, tpd, sizeof(struct atl1c_tpd_desc));
-			use_tpd = atl1c_get_tpd(adapter, type);
-			memcpy(use_tpd, tpd, sizeof(struct atl1c_tpd_desc));
 		}
 		buffer_info = atl1c_get_tx_buffer(adapter, use_tpd);
 		buffer_info->length = buf_len - mapped_len;
 		buffer_info->dma =
 			pci_map_single(adapter->pdev, skb->data + mapped_len,
 					buffer_info->length, PCI_DMA_TODEVICE);
-		buffer_info->state = ATL1_BUFFER_BUSY;
-
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_SINGLE,
+			ATL1C_PCIMAP_TODEVICE);
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len  = cpu_to_le16(buffer_info->length);
 	}
@@ -2010,8 +2012,9 @@ static void atl1c_tx_map(struct atl1c_adapter *adapter,
 					frag->page_offset,
 					buffer_info->length,
 					PCI_DMA_TODEVICE);
-		buffer_info->state = ATL1_BUFFER_BUSY;
-
+		ATL1C_SET_BUFFER_STATE(buffer_info, ATL1C_BUFFER_BUSY);
+		ATL1C_SET_PCIMAP_TYPE(buffer_info, ATL1C_PCIMAP_PAGE,
+			ATL1C_PCIMAP_TODEVICE);
 		use_tpd->buffer_addr = cpu_to_le64(buffer_info->dma);
 		use_tpd->buffer_len  = cpu_to_le16(buffer_info->length);
 	}
@@ -2137,7 +2140,7 @@ static int atl1c_request_irq(struct atl1c_adapter *adapter)
 
 	if (!adapter->have_msi)
 		flags |= IRQF_SHARED;
-	err = request_irq(adapter->pdev->irq, &atl1c_intr, flags,
+	err = request_irq(adapter->pdev->irq, atl1c_intr, flags,
 			netdev->name, netdev);
 	if (err) {
 		if (netif_msg_ifup(adapter))
@@ -2200,8 +2203,7 @@ void atl1c_down(struct atl1c_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	atl1c_del_timer(adapter);
-	atl1c_cancel_work(adapter);
-
+	adapter->work_event = 0; /* clear all event */
 	/* signal that we're down so the interrupt handler does not
 	 * reschedule our watchdog timer */
 	set_bit(__AT_DOWN, &adapter->flags);
@@ -2601,8 +2603,8 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 			adapter->hw.mac_addr[4], adapter->hw.mac_addr[5]);
 
 	atl1c_hw_set_mac_addr(&adapter->hw);
-	INIT_WORK(&adapter->reset_task, atl1c_reset_task);
-	INIT_WORK(&adapter->link_chg_task, atl1c_link_chg_task);
+	INIT_WORK(&adapter->common_task, atl1c_common_task);
+	adapter->work_event = 0;
 	err = register_netdev(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "register netdevice failed\n");

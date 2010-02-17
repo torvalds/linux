@@ -190,10 +190,13 @@ static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
 
 	if (m->slaves) {
 		if (m->dev->flags & IFF_UP) {
-			if ((m->dev->flags&IFF_POINTOPOINT && !(dev->flags&IFF_POINTOPOINT))
-			    || (m->dev->flags&IFF_BROADCAST && !(dev->flags&IFF_BROADCAST))
-			    || (m->dev->flags&IFF_MULTICAST && !(dev->flags&IFF_MULTICAST))
-			    || dev->mtu < m->dev->mtu)
+			if ((m->dev->flags & IFF_POINTOPOINT &&
+			     !(dev->flags & IFF_POINTOPOINT)) ||
+			    (m->dev->flags & IFF_BROADCAST &&
+			     !(dev->flags & IFF_BROADCAST)) ||
+			    (m->dev->flags & IFF_MULTICAST &&
+			     !(dev->flags & IFF_MULTICAST)) ||
+			    dev->mtu < m->dev->mtu)
 				return -EINVAL;
 		} else {
 			if (!(dev->flags&IFF_POINTOPOINT))

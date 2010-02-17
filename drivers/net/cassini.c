@@ -4342,11 +4342,11 @@ static int cas_open(struct net_device *dev)
 		cas_unlock_all_restore(cp, flags);
 	}
 
+	err = -ENOMEM;
 	if (cas_tx_tiny_alloc(cp) < 0)
-		return -ENOMEM;
+		goto err_unlock;
 
 	/* alloc rx descriptors */
-	err = -ENOMEM;
 	if (cas_alloc_rxds(cp) < 0)
 		goto err_tx_tiny;
 
@@ -4386,6 +4386,7 @@ err_spare:
 	cas_free_rxds(cp);
 err_tx_tiny:
 	cas_tx_tiny_free(cp);
+err_unlock:
 	mutex_unlock(&cp->pm_mutex);
 	return err;
 }

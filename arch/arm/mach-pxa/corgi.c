@@ -457,6 +457,7 @@ static struct pxaficp_platform_data corgi_ficp_platform_data = {
  * USB Device Controller
  */
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
+	.gpio_vbus		= -1,
 	/* no connect GPIO; corgi can't tell connection status */
 	.gpio_pullup		= CORGI_GPIO_USB_PULLUP,
 };
@@ -670,6 +671,10 @@ static void __init corgi_init(void)
 	PCFR |= PCFR_OPDE;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(corgi_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	corgi_init_spi();
 

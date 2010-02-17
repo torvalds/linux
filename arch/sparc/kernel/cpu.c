@@ -185,6 +185,17 @@ static const struct manufacturer_info __initconst manufacturer_info[] = {
 		FPU(-1, NULL)
 	}
 },{
+	0xF,		/* Aeroflex Gaisler */
+	.cpu_info = {
+		CPU(3, "LEON"),
+		CPU(-1, NULL)
+	},
+	.fpu_info = {
+		FPU(2, "GRFPU"),
+		FPU(3, "GRFPU-Lite"),
+		FPU(-1, NULL)
+	}
+},{
 	0x17,
 	.cpu_info = {
 		CPU_PMU(0x10, "TI UltraSparc I   (SpitFire)", "ultra12"),

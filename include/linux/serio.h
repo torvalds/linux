@@ -136,25 +136,6 @@ static inline void serio_continue_rx(struct serio *serio)
 	spin_unlock_irq(&serio->lock);
 }
 
-/*
- * Use the following functions to pin serio's driver in process context
- */
-static inline int serio_pin_driver(struct serio *serio)
-{
-	return mutex_lock_interruptible(&serio->drv_mutex);
-}
-
-static inline void serio_pin_driver_uninterruptible(struct serio *serio)
-{
-	mutex_lock(&serio->drv_mutex);
-}
-
-static inline void serio_unpin_driver(struct serio *serio)
-{
-	mutex_unlock(&serio->drv_mutex);
-}
-
-
 #endif
 
 /*
@@ -215,5 +196,6 @@ static inline void serio_unpin_driver(struct serio *serio)
 #define SERIO_INEXIO	0x37
 #define SERIO_TOUCHIT213	0x38
 #define SERIO_W8001	0x39
+#define SERIO_DYNAPRO	0x3a
 
 #endif

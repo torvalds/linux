@@ -77,6 +77,35 @@ static int snd_soc_7_9_spi_write(void *control_data, const char *data,
 #define snd_soc_7_9_spi_write NULL
 #endif
 
+static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
+			     unsigned int value)
+{
+	u8 *cache = codec->reg_cache;
+	u8 data[2];
+
+	BUG_ON(codec->volatile_register);
+
+	data[0] = reg & 0xff;
+	data[1] = value & 0xff;
+
+	if (reg < codec->reg_cache_size)
+		cache[reg] = value;
+
+	if (codec->hw_write(codec->control_data, data, 2) == 2)
+		return 0;
+	else
+		return -EIO;
+}
+
+static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
+				     unsigned int reg)
+{
+	u8 *cache = codec->reg_cache;
+	if (reg >= codec->reg_cache_size)
+		return -1;
+	return cache[reg];
+}
+
 static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 			      unsigned int value)
 {
@@ -150,9 +179,20 @@ static struct {
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	unsigned int (*i2c_read)(struct snd_soc_codec *, unsigned int);
 } io_types[] = {
-	{ 7, 9, snd_soc_7_9_write, snd_soc_7_9_spi_write, snd_soc_7_9_read },
-	{ 8, 16, snd_soc_8_16_write, NULL, snd_soc_8_16_read,
-	  snd_soc_8_16_read_i2c },
+	{
+		.addr_bits = 7, .data_bits = 9,
+		.write = snd_soc_7_9_write, .read = snd_soc_7_9_read,
+		.spi_write = snd_soc_7_9_spi_write 
+	},
+	{
+		.addr_bits = 8, .data_bits = 8,
+		.write = snd_soc_8_8_write, .read = snd_soc_8_8_read,
+	},
+	{
+		.addr_bits = 8, .data_bits = 16,
+		.write = snd_soc_8_16_write, .read = snd_soc_8_16_read,
+		.i2c_read = snd_soc_8_16_read_i2c,
+	},
 };
 
 /**

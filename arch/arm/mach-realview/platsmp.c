@@ -146,11 +146,8 @@ static void __init poke_milo(void)
 	 * register. The BootMonitor waits for this register to become
 	 * non-zero.
 	 */
-#define REALVIEW_SYS_FLAGSS_OFFSET 0x30
-#define REALVIEW_SYS_FLAGSC_OFFSET 0x34
 	__raw_writel(BSYM(virt_to_phys(realview_secondary_startup)),
-		     __io_address(REALVIEW_SYS_BASE) +
-		     REALVIEW_SYS_FLAGSS_OFFSET);
+		     __io_address(REALVIEW_SYS_FLAGSSET));
 
 	mb();
 }

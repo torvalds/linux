@@ -12,6 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/miscdevice.h>
+#include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include "zfcp_def.h"
 #include "zfcp_ext.h"
@@ -86,22 +87,17 @@ static int zfcp_cfdc_copy_to_user(void __user  *user_buffer,
 static struct zfcp_adapter *zfcp_cfdc_get_adapter(u32 devno)
 {
 	char busid[9];
-	struct ccw_device *ccwdev;
-	struct zfcp_adapter *adapter = NULL;
+	struct ccw_device *cdev;
+	struct zfcp_adapter *adapter;
 
 	snprintf(busid, sizeof(busid), "0.0.%04x", devno);
-	ccwdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
-	if (!ccwdev)
-		goto out;
+	cdev = get_ccwdev_by_busid(&zfcp_ccw_driver, busid);
+	if (!cdev)
+		return NULL;
 
-	adapter = dev_get_drvdata(&ccwdev->dev);
-	if (!adapter)
-		goto out_put;
+	adapter = zfcp_ccw_adapter_by_cdev(cdev);
 
-	zfcp_adapter_get(adapter);
-out_put:
-	put_device(&ccwdev->dev);
-out:
+	put_device(&cdev->dev);
 	return adapter;
 }
 
@@ -168,7 +164,7 @@ static void zfcp_cfdc_req_to_sense(struct zfcp_cfdc_data *data,
 }
 
 static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
-				unsigned long buffer)
+				unsigned long arg)
 {
 	struct zfcp_cfdc_data *data;
 	struct zfcp_cfdc_data __user *data_user;
@@ -180,7 +176,11 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 	if (command != ZFCP_CFDC_IOC)
 		return -ENOTTY;
 
-	data_user = (void __user *) buffer;
+	if (is_compat_task())
+		data_user = compat_ptr(arg);
+	else
+		data_user = (void __user *)arg;
+
 	if (!data_user)
 		return -EINVAL;
 
@@ -212,7 +212,6 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		retval = -ENXIO;
 		goto free_buffer;
 	}
-	zfcp_adapter_get(adapter);
 
 	retval = zfcp_cfdc_sg_setup(data->command, fsf_cfdc->sg,
 				    data_user->control_file);
@@ -245,7 +244,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
  free_sg:
 	zfcp_sg_free_table(fsf_cfdc->sg, ZFCP_CFDC_PAGES);
  adapter_put:
-	zfcp_adapter_put(adapter);
+	zfcp_ccw_adapter_put(adapter);
  free_buffer:
 	kfree(data);
  no_mem_sense:

@@ -32,7 +32,7 @@ extern void mxc91231_init_irq(void);
 extern void mxc_timer_init(struct clk *timer_clk, void __iomem *, int);
 extern int mx1_clocks_init(unsigned long fref);
 extern int mx21_clocks_init(unsigned long lref, unsigned long fref);
-extern int mx25_clocks_init(unsigned long fref);
+extern int mx25_clocks_init(void);
 extern int mx27_clocks_init(unsigned long fref);
 extern int mx31_clocks_init(unsigned long fref);
 extern int mx35_clocks_init(void);

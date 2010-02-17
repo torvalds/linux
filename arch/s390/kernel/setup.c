@@ -87,7 +87,6 @@ unsigned long elf_hwcap = 0;
 char elf_platform[ELF_PLATFORM_SIZE];
 
 struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
-volatile int __cpu_logical_map[NR_CPUS]; /* logical cpu to cpu address */
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
@@ -123,12 +122,6 @@ void __cpuinit cpu_init(void)
          * Store processor id in lowcore (used e.g. in timer_interrupt)
          */
 	get_cpu_id(&S390_lowcore.cpu_id);
-
-        /*
-         * Force FPU initialization:
-         */
-        clear_thread_flag(TIF_USEDFPU);
-        clear_used_math();
 
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
@@ -305,9 +298,8 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-#ifdef CONFIG_S390_SWITCH_AMODE
-unsigned int switch_amode = 0;
-EXPORT_SYMBOL_GPL(switch_amode);
+unsigned int user_mode = HOME_SPACE_MODE;
+EXPORT_SYMBOL_GPL(user_mode);
 
 static int set_amode_and_uaccess(unsigned long user_amode,
 				 unsigned long user32_amode)
@@ -340,23 +332,29 @@ static int set_amode_and_uaccess(unsigned long user_amode,
  */
 static int __init early_parse_switch_amode(char *p)
 {
-	switch_amode = 1;
+	if (user_mode != SECONDARY_SPACE_MODE)
+		user_mode = PRIMARY_SPACE_MODE;
 	return 0;
 }
 early_param("switch_amode", early_parse_switch_amode);
 
-#else /* CONFIG_S390_SWITCH_AMODE */
-static inline int set_amode_and_uaccess(unsigned long user_amode,
-					unsigned long user32_amode)
+static int __init early_parse_user_mode(char *p)
 {
+	if (p && strcmp(p, "primary") == 0)
+		user_mode = PRIMARY_SPACE_MODE;
+#ifdef CONFIG_S390_EXEC_PROTECT
+	else if (p && strcmp(p, "secondary") == 0)
+		user_mode = SECONDARY_SPACE_MODE;
+#endif
+	else if (!p || strcmp(p, "home") == 0)
+		user_mode = HOME_SPACE_MODE;
+	else
+		return 1;
 	return 0;
 }
-#endif /* CONFIG_S390_SWITCH_AMODE */
+early_param("user_mode", early_parse_user_mode);
 
 #ifdef CONFIG_S390_EXEC_PROTECT
-unsigned int s390_noexec = 0;
-EXPORT_SYMBOL_GPL(s390_noexec);
-
 /*
  * Enable execute protection?
  */
@@ -364,8 +362,7 @@ static int __init early_parse_noexec(char *p)
 {
 	if (!strncmp(p, "off", 3))
 		return 0;
-	switch_amode = 1;
-	s390_noexec = 1;
+	user_mode = SECONDARY_SPACE_MODE;
 	return 0;
 }
 early_param("noexec", early_parse_noexec);
@@ -373,7 +370,7 @@ early_param("noexec", early_parse_noexec);
 
 static void setup_addressing_mode(void)
 {
-	if (s390_noexec) {
+	if (user_mode == SECONDARY_SPACE_MODE) {
 		if (set_amode_and_uaccess(PSW_ASC_SECONDARY,
 					  PSW32_ASC_SECONDARY))
 			pr_info("Execute protection active, "
@@ -381,7 +378,7 @@ static void setup_addressing_mode(void)
 		else
 			pr_info("Execute protection active, "
 				"mvcos not available\n");
-	} else if (switch_amode) {
+	} else if (user_mode == PRIMARY_SPACE_MODE) {
 		if (set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY))
 			pr_info("Address spaces switched, "
 				"mvcos available\n");
@@ -411,7 +408,7 @@ setup_lowcore(void)
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
-	if (switch_amode)
+	if (user_mode != HOME_SPACE_MODE)
 		lc->restart_psw.mask |= PSW_ASC_HOME;
 	lc->external_new_psw.mask = psw_kernel_bits;
 	lc->external_new_psw.addr =
@@ -851,7 +848,6 @@ setup_arch(char **cmdline_p)
 	setup_lowcore();
 
         cpu_init();
-	__cpu_logical_map[0] = stap();
 	s390_init_cpu_topology();
 
 	/*

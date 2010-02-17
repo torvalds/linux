@@ -44,12 +44,13 @@
 #include <linux/serial.h>
 #include <linux/usb/serial.h>
 #include "ftdi_sio.h"
+#include "ftdi_sio_ids.h"
 
 /*
  * Version Information
  */
 #define DRIVER_VERSION "v1.5.0"
-#define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Bill Ryder <bryder@sgi.com>, Kuba Ober <kuba@mareimbrium.org>"
+#define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Bill Ryder <bryder@sgi.com>, Kuba Ober <kuba@mareimbrium.org>, Andreas Mohr"
 #define DRIVER_DESC "USB FTDI Serial Converters Driver"
 
 static int debug;
@@ -144,10 +145,15 @@ static struct ftdi_sio_quirk ftdi_HE_TIRA1_quirk = {
 
 
 
+/*
+ * Device ID not listed? Test via module params product/vendor or
+ * /sys/bus/usb/ftdi_sio/new_id, then send patch/report!
+ */
 static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_AMC232_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CANUSB_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_CANDAPTER_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_NXTCAM_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_0_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_1_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_SCS_DEVICE_2_PID) },
@@ -551,9 +557,16 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PEDO_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_IBS_PROD_PID) },
 	/*
-	 * Due to many user requests for multiple ELV devices we enable
-	 * them by default.
+	 * ELV devices:
 	 */
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_USR_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_MSM1_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_KL100_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_WS550_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_EC3000_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_WS888_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_TWS550_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FEM_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_CLI7000_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_PPS7330_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_TFM100_PID) },
@@ -570,11 +583,17 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_PCK100_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_RFP500_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FS20SIG_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UTP8_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_WS300PC_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_WS444PC_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1300PC_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_EM1010PC_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_WS500_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_HS485_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UMS100_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_TFD128_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FM3RX_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_WS777_PID) },
 	{ USB_DEVICE(FTDI_VID, LINX_SDMUSBQSS_PID) },
 	{ USB_DEVICE(FTDI_VID, LINX_MASTERDEVEL2_PID) },
 	{ USB_DEVICE(FTDI_VID, LINX_FUTURE_0_PID) },
@@ -598,6 +617,20 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(BANDB_VID, BANDB_USOTL4_PID) },
 	{ USB_DEVICE(BANDB_VID, BANDB_USTL4_PID) },
 	{ USB_DEVICE(BANDB_VID, BANDB_USO9ML2_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_USOPTL4_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_USPTL4_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_USO9ML2DR_2_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_USO9ML2DR_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_USOPTL4DR2_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_USOPTL4DR_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_485USB9F_2W_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_485USB9F_4W_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_232USB9M_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_485USBTB_2W_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_485USBTB_4W_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_TTL5USB9M_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_TTL3USB9M_PID) },
+	{ USB_DEVICE(BANDB_VID, BANDB_ZZ_PROG1_USB_PID) },
 	{ USB_DEVICE(FTDI_VID, EVER_ECO_PRO_CDS) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_1_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_4N_GALAXY_DE_2_PID) },
@@ -682,6 +715,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID_USB60F) },
 	{ USB_DEVICE(FTDI_VID, FTDI_REU_TINY_PID) },
 	{ USB_DEVICE(PAPOUCH_VID, PAPOUCH_QUIDO4x4_PID) },
+	{ USB_DEVICE(PAPOUCH_VID, PAPOUCH_AD4USB_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DGQG_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DUSB_PID) },
 	{ USB_DEVICE(ALTI2_VID, ALTI2_N3_PID) },
@@ -1937,7 +1971,7 @@ static void ftdi_write_bulk_callback(struct urb *urb)
 		return;
 	}
 	/* account for transferred data */
-	countback = urb->actual_length;
+	countback = urb->transfer_buffer_length;
 	data_offset = priv->write_offset;
 	if (data_offset > 0) {
 		/* Subtract the control bytes */
@@ -1950,7 +1984,6 @@ static void ftdi_write_bulk_callback(struct urb *urb)
 
 	if (status) {
 		dbg("nonzero write bulk status received: %d", status);
-		return;
 	}
 
 	usb_serial_port_softint(port);
@@ -2196,15 +2229,21 @@ static void ftdi_set_termios(struct tty_struct *tty,
 
 	/* Set number of data bits, parity, stop bits */
 
-	termios->c_cflag &= ~CMSPAR;
-
 	urb_value = 0;
 	urb_value |= (cflag & CSTOPB ? FTDI_SIO_SET_DATA_STOP_BITS_2 :
 		      FTDI_SIO_SET_DATA_STOP_BITS_1);
-	urb_value |= (cflag & PARENB ?
-		      (cflag & PARODD ? FTDI_SIO_SET_DATA_PARITY_ODD :
-		       FTDI_SIO_SET_DATA_PARITY_EVEN) :
-		      FTDI_SIO_SET_DATA_PARITY_NONE);
+	if (cflag & PARENB) {
+		if (cflag & CMSPAR)
+			urb_value |= cflag & PARODD ?
+				     FTDI_SIO_SET_DATA_PARITY_MARK :
+				     FTDI_SIO_SET_DATA_PARITY_SPACE;
+		else
+			urb_value |= cflag & PARODD ?
+				     FTDI_SIO_SET_DATA_PARITY_ODD :
+				     FTDI_SIO_SET_DATA_PARITY_EVEN;
+	} else {
+		urb_value |= FTDI_SIO_SET_DATA_PARITY_NONE;
+	}
 	if (cflag & CSIZE) {
 		switch (cflag & CSIZE) {
 		case CS5: urb_value |= 5; dbg("Setting CS5"); break;

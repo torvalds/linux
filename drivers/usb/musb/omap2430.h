@@ -12,7 +12,7 @@
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430)
 #include <mach/hardware.h>
-#include <mach/usb.h>
+#include <plat/usb.h>
 
 /*
  * OMAP2430-specific definitions

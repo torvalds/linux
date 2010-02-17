@@ -238,7 +238,7 @@ static struct resource csb726_lan_resources[] = {
 };
 
 struct smsc911x_platform_config csb726_lan_config = {
-	.irq_type	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
 	.flags		= SMSC911X_USE_32BIT,
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
@@ -268,6 +268,9 @@ static void __init csb726_init(void)
 /*	MSC2 = 0x06697ff4; *//* none/SM501 */
 	MSC2 = (MSC2 & ~0xffff) | 0x7ff4; /* SM501 */
 
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 	pxa_set_i2c_info(NULL);
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_mci_info(&csb726_mci);

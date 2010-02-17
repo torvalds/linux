@@ -43,10 +43,13 @@
 #define PCIXCC_MIN_MOD_SIZE	 16	/*  128 bits	*/
 #define PCIXCC_MIN_MOD_SIZE_OLD	 64	/*  512 bits	*/
 #define PCIXCC_MAX_MOD_SIZE	256	/* 2048 bits	*/
+#define CEX3C_MIN_MOD_SIZE	PCIXCC_MIN_MOD_SIZE
+#define CEX3C_MAX_MOD_SIZE	PCIXCC_MAX_MOD_SIZE
 
-#define PCIXCC_MCL2_SPEED_RATING	7870	/* FIXME: needs finetuning */
+#define PCIXCC_MCL2_SPEED_RATING	7870
 #define PCIXCC_MCL3_SPEED_RATING	7870
-#define CEX2C_SPEED_RATING		8540
+#define CEX2C_SPEED_RATING		7000
+#define CEX3C_SPEED_RATING		6500	/* FIXME: needs finetuning */
 
 #define PCIXCC_MAX_ICA_MESSAGE_SIZE 0x77c  /* max size type6 v2 crt message */
 #define PCIXCC_MAX_ICA_RESPONSE_SIZE 0x77c /* max size type86 v2 reply	    */
@@ -72,7 +75,7 @@ struct response_type {
 static struct ap_device_id zcrypt_pcixcc_ids[] = {
 	{ AP_DEVICE(AP_DEVICE_TYPE_PCIXCC) },
 	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2C) },
-	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2C2) },
+	{ AP_DEVICE(AP_DEVICE_TYPE_CEX3C) },
 	{ /* end of list */ },
 };
 
@@ -326,6 +329,11 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	function_code = ((unsigned char *)&msg->cprbx) + msg->cprbx.cprb_len;
 	memcpy(msg->hdr.function_code, function_code, sizeof(msg->hdr.function_code));
 
+	if (memcmp(function_code, "US", 2) == 0)
+		ap_msg->special = 1;
+	else
+		ap_msg->special = 0;
+
 	/* copy data block */
 	if (xcRB->request_data_length &&
 	    copy_from_user(req_data, xcRB->request_data_address,
@@ -461,6 +469,8 @@ static int convert_type86_ica(struct zcrypt_device *zdev,
 			return -EAGAIN;
 		}
 		if (service_rc == 12 && service_rs == 769)
+			return -EINVAL;
+		if (service_rc == 8 && service_rs == 72)
 			return -EINVAL;
 		zdev->online = 0;
 		return -EAGAIN;	/* repeat the request on a different device. */
@@ -688,6 +698,7 @@ static long zcrypt_pcixcc_modexpo(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -727,6 +738,7 @@ static long zcrypt_pcixcc_modexpo_crt(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -766,6 +778,7 @@ static long zcrypt_pcixcc_send_cprb(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -805,6 +818,7 @@ static long zcrypt_pcixcc_rng(struct zcrypt_device *zdev,
 	};
 	int rc;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = kmalloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE, GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -972,6 +986,7 @@ static int zcrypt_pcixcc_rng_supported(struct ap_device *ap_dev)
 	} __attribute__((packed)) *reply;
 	int rc, i;
 
+	ap_init_message(&ap_msg);
 	ap_msg.message = (void *) get_zeroed_page(GFP_KERNEL);
 	if (!ap_msg.message)
 		return -ENOMEM;
@@ -1016,14 +1031,15 @@ out_free:
 static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 {
 	struct zcrypt_device *zdev;
-	int rc;
+	int rc = 0;
 
 	zdev = zcrypt_device_alloc(PCIXCC_MAX_RESPONSE_SIZE);
 	if (!zdev)
 		return -ENOMEM;
 	zdev->ap_dev = ap_dev;
 	zdev->online = 1;
-	if (ap_dev->device_type == AP_DEVICE_TYPE_PCIXCC) {
+	switch (ap_dev->device_type) {
+	case AP_DEVICE_TYPE_PCIXCC:
 		rc = zcrypt_pcixcc_mcl(ap_dev);
 		if (rc < 0) {
 			zcrypt_device_free(zdev);
@@ -1041,13 +1057,25 @@ static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
 			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
 			zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
 		}
-	} else {
+		break;
+	case AP_DEVICE_TYPE_CEX2C:
 		zdev->user_space_type = ZCRYPT_CEX2C;
 		zdev->type_string = "CEX2C";
 		zdev->speed_rating = CEX2C_SPEED_RATING;
 		zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
 		zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
+		break;
+	case AP_DEVICE_TYPE_CEX3C:
+		zdev->user_space_type = ZCRYPT_CEX3C;
+		zdev->type_string = "CEX3C";
+		zdev->speed_rating = CEX3C_SPEED_RATING;
+		zdev->min_mod_size = CEX3C_MIN_MOD_SIZE;
+		zdev->max_mod_size = CEX3C_MAX_MOD_SIZE;
+		break;
+	default:
+		goto out_free;
 	}
+
 	rc = zcrypt_pcixcc_rng_supported(ap_dev);
 	if (rc < 0) {
 		zcrypt_device_free(zdev);

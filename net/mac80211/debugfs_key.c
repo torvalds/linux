@@ -225,8 +225,8 @@ static ssize_t key_key_read(struct file *file, char __user *userbuf,
 KEY_OPS(key);
 
 #define DEBUGFS_ADD(name) \
-	key->debugfs.name = debugfs_create_file(#name, 0400,\
-				key->debugfs.dir, key, &key_##name##_ops);
+	debugfs_create_file(#name, 0400, key->debugfs.dir, \
+			    key, &key_##name##_ops);
 
 void ieee80211_debugfs_key_add(struct ieee80211_key *key)
   {
@@ -271,30 +271,12 @@ void ieee80211_debugfs_key_add(struct ieee80211_key *key)
 	DEBUGFS_ADD(ifindex);
 };
 
-#define DEBUGFS_DEL(name) \
-	debugfs_remove(key->debugfs.name); key->debugfs.name = NULL;
-
 void ieee80211_debugfs_key_remove(struct ieee80211_key *key)
 {
 	if (!key)
 		return;
 
-	DEBUGFS_DEL(keylen);
-	DEBUGFS_DEL(flags);
-	DEBUGFS_DEL(keyidx);
-	DEBUGFS_DEL(hw_key_idx);
-	DEBUGFS_DEL(tx_rx_count);
-	DEBUGFS_DEL(algorithm);
-	DEBUGFS_DEL(tx_spec);
-	DEBUGFS_DEL(rx_spec);
-	DEBUGFS_DEL(replays);
-	DEBUGFS_DEL(icverrors);
-	DEBUGFS_DEL(key);
-	DEBUGFS_DEL(ifindex);
-
-	debugfs_remove(key->debugfs.stalink);
-	key->debugfs.stalink = NULL;
-	debugfs_remove(key->debugfs.dir);
+	debugfs_remove_recursive(key->debugfs.dir);
 	key->debugfs.dir = NULL;
 }
 void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
@@ -302,7 +284,7 @@ void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
 	char buf[50];
 	struct ieee80211_key *key;
 
-	if (!sdata->debugfsdir)
+	if (!sdata->debugfs.dir)
 		return;
 
 	/* this is running under the key lock */
@@ -310,9 +292,9 @@ void ieee80211_debugfs_key_add_default(struct ieee80211_sub_if_data *sdata)
 	key = sdata->default_key;
 	if (key) {
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->common_debugfs.default_key =
+		sdata->debugfs.default_key =
 			debugfs_create_symlink("default_key",
-					       sdata->debugfsdir, buf);
+					       sdata->debugfs.dir, buf);
 	} else
 		ieee80211_debugfs_key_remove_default(sdata);
 }
@@ -322,8 +304,8 @@ void ieee80211_debugfs_key_remove_default(struct ieee80211_sub_if_data *sdata)
 	if (!sdata)
 		return;
 
-	debugfs_remove(sdata->common_debugfs.default_key);
-	sdata->common_debugfs.default_key = NULL;
+	debugfs_remove(sdata->debugfs.default_key);
+	sdata->debugfs.default_key = NULL;
 }
 
 void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
@@ -331,7 +313,7 @@ void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 	char buf[50];
 	struct ieee80211_key *key;
 
-	if (!sdata->debugfsdir)
+	if (!sdata->debugfs.dir)
 		return;
 
 	/* this is running under the key lock */
@@ -339,9 +321,9 @@ void ieee80211_debugfs_key_add_mgmt_default(struct ieee80211_sub_if_data *sdata)
 	key = sdata->default_mgmt_key;
 	if (key) {
 		sprintf(buf, "../keys/%d", key->debugfs.cnt);
-		sdata->common_debugfs.default_mgmt_key =
+		sdata->debugfs.default_mgmt_key =
 			debugfs_create_symlink("default_mgmt_key",
-					       sdata->debugfsdir, buf);
+					       sdata->debugfs.dir, buf);
 	} else
 		ieee80211_debugfs_key_remove_mgmt_default(sdata);
 }
@@ -351,8 +333,8 @@ void ieee80211_debugfs_key_remove_mgmt_default(struct ieee80211_sub_if_data *sda
 	if (!sdata)
 		return;
 
-	debugfs_remove(sdata->common_debugfs.default_mgmt_key);
-	sdata->common_debugfs.default_mgmt_key = NULL;
+	debugfs_remove(sdata->debugfs.default_mgmt_key);
+	sdata->debugfs.default_mgmt_key = NULL;
 }
 
 void ieee80211_debugfs_key_sta_del(struct ieee80211_key *key,

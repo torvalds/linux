@@ -335,12 +335,17 @@ static struct device_attribute *megaraid_sdev_attrs[] = {
  * megaraid_change_queue_depth - Change the device's queue depth
  * @sdev:	scsi device struct
  * @qdepth:	depth to set
+ * @reason:	calling context
  *
  * Return value:
  * 	actual depth set
  */
-static int megaraid_change_queue_depth(struct scsi_device *sdev, int qdepth)
+static int megaraid_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				       int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	if (qdepth > MBOX_MAX_SCSI_CMDS)
 		qdepth = MBOX_MAX_SCSI_CMDS;
 	scsi_adjust_queue_depth(sdev, 0, qdepth);
@@ -2704,7 +2709,7 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 	}
 	else {
 		con_log(CL_ANN, (KERN_NOTICE
-		"megaraid mbox: reset sequence completed sucessfully\n"));
+		"megaraid mbox: reset sequence completed successfully\n"));
 	}
 
 

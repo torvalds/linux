@@ -93,7 +93,6 @@ static int cx20442_add_widgets(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(codec, cx20442_audio_map,
 				ARRAY_SIZE(cx20442_audio_map));
 
-	snd_soc_dapm_new_widgets(codec);
 	return 0;
 }
 
@@ -355,17 +354,6 @@ static int cx20442_codec_probe(struct platform_device *pdev)
 
 	cx20442_add_widgets(codec);
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to register card\n");
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 }

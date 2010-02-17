@@ -66,6 +66,10 @@ static struct iwm_eeprom_entry eeprom_map[] = {
 	[IWM_EEPROM_SKU_CAP] =
 	{"SKU capabilities", IWM_EEPROM_SKU_CAP_OFF, IWM_EEPROM_SKU_CAP_LEN},
 
+	[IWM_EEPROM_FAT_CHANNELS_CAP] =
+	{"HT channels capabilities", IWM_EEPROM_FAT_CHANNELS_CAP_OFF,
+	 IWM_EEPROM_FAT_CHANNELS_CAP_LEN},
+
 	[IWM_EEPROM_CALIB_RXIQ_OFFSET] =
 	{"RX IQ offset", IWM_EEPROM_CALIB_RXIQ_OFF, IWM_EEPROM_INDIRECT_LEN},
 
@@ -145,6 +149,52 @@ u8 *iwm_eeprom_access(struct iwm_priv *iwm, u8 eeprom_id)
 
 	return iwm->eeprom + eeprom_map[eeprom_id].offset;
 }
+
+int iwm_eeprom_fat_channels(struct iwm_priv *iwm)
+{
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+	struct ieee80211_supported_band *band;
+	u16 *channels, i;
+
+	channels = (u16 *)iwm_eeprom_access(iwm, IWM_EEPROM_FAT_CHANNELS_CAP);
+	if (IS_ERR(channels))
+		return PTR_ERR(channels);
+
+	band = wiphy->bands[IEEE80211_BAND_2GHZ];
+	band->ht_cap.ht_supported = true;
+
+	for (i = 0; i < IWM_EEPROM_FAT_CHANNELS_24; i++)
+		if (!(channels[i] & IWM_EEPROM_FAT_CHANNEL_ENABLED))
+			band->ht_cap.ht_supported = false;
+
+	band = wiphy->bands[IEEE80211_BAND_5GHZ];
+	band->ht_cap.ht_supported = true;
+	for (i = IWM_EEPROM_FAT_CHANNELS_24; i < IWM_EEPROM_FAT_CHANNELS; i++)
+		if (!(channels[i] & IWM_EEPROM_FAT_CHANNEL_ENABLED))
+			band->ht_cap.ht_supported = false;
+
+	return 0;
+}
+
+u32 iwm_eeprom_wireless_mode(struct iwm_priv *iwm)
+{
+	u16 sku_cap;
+	u32 wireless_mode = 0;
+
+	sku_cap = *((u16 *)iwm_eeprom_access(iwm, IWM_EEPROM_SKU_CAP));
+
+	if (sku_cap & IWM_EEPROM_SKU_CAP_BAND_24GHZ)
+		wireless_mode |= WIRELESS_MODE_11G;
+
+	if (sku_cap & IWM_EEPROM_SKU_CAP_BAND_52GHZ)
+		wireless_mode |= WIRELESS_MODE_11A;
+
+	if (sku_cap & IWM_EEPROM_SKU_CAP_11N_ENABLE)
+		wireless_mode |= WIRELESS_MODE_11N;
+
+	return wireless_mode;
+}
+
 
 int iwm_eeprom_init(struct iwm_priv *iwm)
 {

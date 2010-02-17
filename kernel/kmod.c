@@ -80,15 +80,15 @@ int __request_module(bool wait, const char *fmt, ...)
 #define MAX_KMOD_CONCURRENT 50	/* Completely arbitrary value - KAO */
 	static int kmod_loop_msg;
 
-	ret = security_kernel_module_request();
-	if (ret)
-		return ret;
-
 	va_start(args, fmt);
 	ret = vsnprintf(module_name, MODULE_NAME_LEN, fmt, args);
 	va_end(args);
 	if (ret >= MODULE_NAME_LEN)
 		return -ENAMETOOLONG;
+
+	ret = security_kernel_module_request(module_name);
+	if (ret)
+		return ret;
 
 	/* If modprobe needs a service that is in a module, we get a recursive
 	 * loop.  Limit the number of running kmod threads to max_threads/2 or
@@ -520,13 +520,15 @@ int call_usermodehelper_pipe(char *path, char **argv, char **envp,
 		return -ENOMEM;
 
 	ret = call_usermodehelper_stdinpipe(sub_info, filp);
-	if (ret < 0)
-		goto out;
+	if (ret < 0) {
+		call_usermodehelper_freeinfo(sub_info);
+		return ret;
+	}
 
-	return call_usermodehelper_exec(sub_info, UMH_WAIT_EXEC);
+	ret = call_usermodehelper_exec(sub_info, UMH_WAIT_EXEC);
+	if (ret < 0)	/* Failed to execute helper, close pipe */
+		filp_close(*filp, NULL);
 
-  out:
-	call_usermodehelper_freeinfo(sub_info);
 	return ret;
 }
 EXPORT_SYMBOL(call_usermodehelper_pipe);

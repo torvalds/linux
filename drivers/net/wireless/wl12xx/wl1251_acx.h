@@ -450,6 +450,11 @@ struct acx_beacon_filter_option {
 			   (BEACON_FILTER_TABLE_MAX_VENDOR_SPECIFIC_IE_NUM * \
 			    BEACON_FILTER_TABLE_EXTRA_VENDOR_SPECIFIC_IE_SIZE))
 
+#define BEACON_RULE_PASS_ON_CHANGE                     BIT(0)
+#define BEACON_RULE_PASS_ON_APPEARANCE                 BIT(1)
+
+#define BEACON_FILTER_IE_ID_CHANNEL_SWITCH_ANN         (37)
+
 struct acx_beacon_filter_ie_table {
 	struct acx_header header;
 
@@ -457,6 +462,16 @@ struct acx_beacon_filter_ie_table {
 	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 	u8 pad[3];
 } __attribute__ ((packed));
+
+#define SYNCH_FAIL_DEFAULT_THRESHOLD    10     /* number of beacons */
+#define NO_BEACON_DEFAULT_TIMEOUT       (500) /* in microseconds */
+
+struct acx_conn_monit_params {
+	struct acx_header header;
+
+	u32 synch_fail_thold; /* number of beacons missed */
+	u32 bss_lose_timeout; /* number of TU's from synch fail */
+};
 
 enum {
 	SG_ENABLE = 0,
@@ -1134,6 +1149,23 @@ struct wl1251_acx_mem_map {
 	u32 num_rx_mem_blocks;
 } __attribute__ ((packed));
 
+
+struct wl1251_acx_wr_tbtt_and_dtim {
+
+	struct acx_header header;
+
+	/* Time in TUs between two consecutive beacons */
+	u16 tbtt;
+
+	/*
+	 * DTIM period
+	 * For BSS: Number of TBTTs in a DTIM period (range: 1-10)
+	 * For IBSS: value shall be set to 1
+	*/
+	u8  dtim;
+	u8  padding;
+} __attribute__ ((packed));
+
 /*************************************************************************
 
     Host Interrupt Register (WiLink -> Host)
@@ -1273,8 +1305,9 @@ int wl1251_acx_slot(struct wl1251 *wl, enum acx_slot_type slot_time);
 int wl1251_acx_group_address_tbl(struct wl1251 *wl);
 int wl1251_acx_service_period_timeout(struct wl1251 *wl);
 int wl1251_acx_rts_threshold(struct wl1251 *wl, u16 rts_threshold);
-int wl1251_acx_beacon_filter_opt(struct wl1251 *wl);
+int wl1251_acx_beacon_filter_opt(struct wl1251 *wl, bool enable_filter);
 int wl1251_acx_beacon_filter_table(struct wl1251 *wl);
+int wl1251_acx_conn_monit_params(struct wl1251 *wl);
 int wl1251_acx_sg_enable(struct wl1251 *wl);
 int wl1251_acx_sg_cfg(struct wl1251 *wl);
 int wl1251_acx_cca_threshold(struct wl1251 *wl);
@@ -1288,5 +1321,6 @@ int wl1251_acx_statistics(struct wl1251 *wl, struct acx_statistics *stats);
 int wl1251_acx_tsf_info(struct wl1251 *wl, u64 *mactime);
 int wl1251_acx_rate_policies(struct wl1251 *wl);
 int wl1251_acx_mem_cfg(struct wl1251 *wl);
+int wl1251_acx_wr_tbtt_and_dtim(struct wl1251 *wl, u16 tbtt, u8 dtim);
 
 #endif /* __WL1251_ACX_H__ */

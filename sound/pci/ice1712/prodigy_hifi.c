@@ -1100,7 +1100,7 @@ static void ak4396_init(struct snd_ice1712 *ice)
 }
 
 #ifdef CONFIG_PM
-static int __devinit prodigy_hd2_resume(struct snd_ice1712 *ice)
+static int prodigy_hd2_resume(struct snd_ice1712 *ice)
 {
 	/* initialize ak4396 codec and restore previous mixer volumes */
 	struct prodigy_hifi_spec *spec = ice->spec;

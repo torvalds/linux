@@ -105,7 +105,7 @@ void __init kirkwood_setup_cpu_mbus(void)
 	setup_cpu_win(0, KIRKWOOD_PCIE_IO_PHYS_BASE, KIRKWOOD_PCIE_IO_SIZE,
 		      TARGET_PCIE, ATTR_PCIE_IO, KIRKWOOD_PCIE_IO_BUS_BASE);
 	setup_cpu_win(1, KIRKWOOD_PCIE_MEM_PHYS_BASE, KIRKWOOD_PCIE_MEM_SIZE,
-		      TARGET_PCIE, ATTR_PCIE_MEM, -1);
+		      TARGET_PCIE, ATTR_PCIE_MEM, KIRKWOOD_PCIE_MEM_BUS_BASE);
 
 	/*
 	 * Setup window for NAND controller.

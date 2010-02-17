@@ -949,7 +949,7 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	lo->lo_state = Lo_unbound;
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
-	if (max_part > 0)
+	if (max_part > 0 && bdev)
 		ioctl_by_bdev(bdev, BLKRRPART, 0);
 	mutex_unlock(&lo->lo_ctl_mutex);
 	/*

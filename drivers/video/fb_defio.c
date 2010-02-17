@@ -71,7 +71,7 @@ int fb_deferred_io_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct fb_info *info = file->private_data;
 
-	/* Skip if deferred io is complied-in but disabled on this fbdev */
+	/* Skip if deferred io is compiled-in but disabled on this fbdev */
 	if (!info->fbdefio)
 		return 0;
 
@@ -144,7 +144,9 @@ static const struct address_space_operations fb_deferred_io_aops = {
 static int fb_deferred_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	vma->vm_ops = &fb_deferred_io_vm_ops;
-	vma->vm_flags |= ( VM_IO | VM_RESERVED | VM_DONTEXPAND );
+	vma->vm_flags |= ( VM_RESERVED | VM_DONTEXPAND );
+	if (!(info->flags & FBINFO_VIRTFB))
+		vma->vm_flags |= VM_IO;
 	vma->vm_private_data = info;
 	return 0;
 }

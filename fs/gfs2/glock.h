@@ -123,7 +123,7 @@ struct lm_lockops {
 	int (*lm_mount) (struct gfs2_sbd *sdp, const char *fsname);
  	void (*lm_unmount) (struct gfs2_sbd *sdp);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
-	void (*lm_put_lock) (struct kmem_cache *cachep, void *gl);
+	void (*lm_put_lock) (struct kmem_cache *cachep, struct gfs2_glock *gl);
 	unsigned int (*lm_lock) (struct gfs2_glock *gl,
 				 unsigned int req_state, unsigned int flags);
 	void (*lm_cancel) (struct gfs2_glock *gl);
@@ -178,15 +178,6 @@ static inline int gfs2_glock_is_held_dfrd(struct gfs2_glock *gl)
 static inline int gfs2_glock_is_held_shrd(struct gfs2_glock *gl)
 {
 	return gl->gl_state == LM_ST_SHARED;
-}
-
-static inline int gfs2_glock_is_blocking(struct gfs2_glock *gl)
-{
-	int ret;
-	spin_lock(&gl->gl_spin);
-	ret = test_bit(GLF_DEMOTE, &gl->gl_flags);
-	spin_unlock(&gl->gl_spin);
-	return ret;
 }
 
 int gfs2_glock_get(struct gfs2_sbd *sdp,

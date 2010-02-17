@@ -147,10 +147,40 @@ static ssize_t wusb_chid_store(struct device *dev,
 }
 static DEVICE_ATTR(wusb_chid, 0644, wusb_chid_show, wusb_chid_store);
 
+
+static ssize_t wusb_phy_rate_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+
+	return sprintf(buf, "%d\n", wusbhc->phy_rate);
+}
+
+static ssize_t wusb_phy_rate_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
+	uint8_t phy_rate;
+	ssize_t result;
+
+	result = sscanf(buf, "%hhu", &phy_rate);
+	if (result != 1)
+		return -EINVAL;
+	if (phy_rate >= UWB_PHY_RATE_INVALID)
+		return -EINVAL;
+
+	wusbhc->phy_rate = phy_rate;
+	return size;
+}
+static DEVICE_ATTR(wusb_phy_rate, 0644, wusb_phy_rate_show, wusb_phy_rate_store);
+
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
 		&dev_attr_wusb_trust_timeout.attr,
 		&dev_attr_wusb_chid.attr,
+		&dev_attr_wusb_phy_rate.attr,
 		NULL,
 };
 
@@ -177,6 +207,8 @@ int wusbhc_create(struct wusbhc *wusbhc)
 	int result = 0;
 
 	wusbhc->trust_timeout = WUSB_TRUST_TIMEOUT_MS;
+	wusbhc->phy_rate = UWB_PHY_RATE_INVALID - 1;
+
 	mutex_init(&wusbhc->mutex);
 	result = wusbhc_mmcie_create(wusbhc);
 	if (result < 0)

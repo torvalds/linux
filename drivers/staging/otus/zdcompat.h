@@ -17,7 +17,7 @@
 /*  Module Name : zdcompat.h                                            */
 /*                                                                      */
 /*  Abstract                                                            */
-/*     This module contains function defintion for compatibility.       */
+/*     This module contains function definition for compatibility.      */
 /*                                                                      */
 /*  NOTES                                                               */
 /*     Platform dependent.                                              */

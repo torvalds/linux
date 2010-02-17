@@ -37,6 +37,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 
+#include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/page.h>
 #include <xen/grant_table.h>

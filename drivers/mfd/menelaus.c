@@ -44,7 +44,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/gpio.h>
-#include <mach/menelaus.h>
+#include <plat/menelaus.h>
 
 #define DRIVER_NAME			"menelaus"
 

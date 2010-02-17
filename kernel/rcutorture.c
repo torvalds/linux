@@ -327,6 +327,11 @@ rcu_torture_cb(struct rcu_head *p)
 		cur_ops->deferred_free(rp);
 }
 
+static int rcu_no_completed(void)
+{
+	return 0;
+}
+
 static void rcu_torture_deferred_free(struct rcu_torture *p)
 {
 	call_rcu(&p->rtort_rcu, rcu_torture_cb);
@@ -386,6 +391,21 @@ static struct rcu_torture_ops rcu_sync_ops = {
 	.stats		= NULL,
 	.irq_capable	= 1,
 	.name		= "rcu_sync"
+};
+
+static struct rcu_torture_ops rcu_expedited_ops = {
+	.init		= rcu_sync_torture_init,
+	.cleanup	= NULL,
+	.readlock	= rcu_torture_read_lock,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_torture_read_unlock,
+	.completed	= rcu_no_completed,
+	.deferred_free	= rcu_sync_torture_deferred_free,
+	.sync		= synchronize_rcu_expedited,
+	.cb_barrier	= NULL,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "rcu_expedited"
 };
 
 /*
@@ -547,6 +567,25 @@ static struct rcu_torture_ops srcu_ops = {
 	.name		= "srcu"
 };
 
+static void srcu_torture_synchronize_expedited(void)
+{
+	synchronize_srcu_expedited(&srcu_ctl);
+}
+
+static struct rcu_torture_ops srcu_expedited_ops = {
+	.init		= srcu_torture_init,
+	.cleanup	= srcu_torture_cleanup,
+	.readlock	= srcu_torture_read_lock,
+	.read_delay	= srcu_read_delay,
+	.readunlock	= srcu_torture_read_unlock,
+	.completed	= srcu_torture_completed,
+	.deferred_free	= rcu_sync_torture_deferred_free,
+	.sync		= srcu_torture_synchronize_expedited,
+	.cb_barrier	= NULL,
+	.stats		= srcu_torture_stats,
+	.name		= "srcu_expedited"
+};
+
 /*
  * Definitions for sched torture testing.
  */
@@ -560,11 +599,6 @@ static int sched_torture_read_lock(void)
 static void sched_torture_read_unlock(int idx)
 {
 	preempt_enable();
-}
-
-static int sched_torture_completed(void)
-{
-	return 0;
 }
 
 static void rcu_sched_torture_deferred_free(struct rcu_torture *p)
@@ -583,7 +617,7 @@ static struct rcu_torture_ops sched_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= sched_torture_completed,
+	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sched_torture_deferred_free,
 	.sync		= sched_torture_synchronize,
 	.cb_barrier	= rcu_barrier_sched,
@@ -592,13 +626,13 @@ static struct rcu_torture_ops sched_ops = {
 	.name		= "sched"
 };
 
-static struct rcu_torture_ops sched_ops_sync = {
+static struct rcu_torture_ops sched_sync_ops = {
 	.init		= rcu_sync_torture_init,
 	.cleanup	= NULL,
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= sched_torture_completed,
+	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
 	.sync		= sched_torture_synchronize,
 	.cb_barrier	= NULL,
@@ -612,7 +646,7 @@ static struct rcu_torture_ops sched_expedited_ops = {
 	.readlock	= sched_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= sched_torture_read_unlock,
-	.completed	= sched_torture_completed,
+	.completed	= rcu_no_completed,
 	.deferred_free	= rcu_sync_torture_deferred_free,
 	.sync		= synchronize_sched_expedited,
 	.cb_barrier	= NULL,
@@ -729,13 +763,13 @@ static void rcu_torture_timer(unsigned long unused)
 		/* Should not happen, but... */
 		pipe_count = RCU_TORTURE_PIPE_LEN;
 	}
-	++__get_cpu_var(rcu_torture_count)[pipe_count];
+	__this_cpu_inc(per_cpu_var(rcu_torture_count)[pipe_count]);
 	completed = cur_ops->completed() - completed;
 	if (completed > RCU_TORTURE_PIPE_LEN) {
 		/* Should not happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
 	}
-	++__get_cpu_var(rcu_torture_batch)[completed];
+	__this_cpu_inc(per_cpu_var(rcu_torture_batch)[completed]);
 	preempt_enable();
 	cur_ops->readunlock(idx);
 }
@@ -784,13 +818,13 @@ rcu_torture_reader(void *arg)
 			/* Should not happen, but... */
 			pipe_count = RCU_TORTURE_PIPE_LEN;
 		}
-		++__get_cpu_var(rcu_torture_count)[pipe_count];
+		__this_cpu_inc(per_cpu_var(rcu_torture_count)[pipe_count]);
 		completed = cur_ops->completed() - completed;
 		if (completed > RCU_TORTURE_PIPE_LEN) {
 			/* Should not happen, but... */
 			completed = RCU_TORTURE_PIPE_LEN;
 		}
-		++__get_cpu_var(rcu_torture_batch)[completed];
+		__this_cpu_inc(per_cpu_var(rcu_torture_batch)[completed]);
 		preempt_enable();
 		cur_ops->readunlock(idx);
 		schedule();
@@ -1097,9 +1131,10 @@ rcu_torture_init(void)
 	int cpu;
 	int firsterr = 0;
 	static struct rcu_torture_ops *torture_ops[] =
-		{ &rcu_ops, &rcu_sync_ops, &rcu_bh_ops, &rcu_bh_sync_ops,
-		  &sched_expedited_ops,
-		  &srcu_ops, &sched_ops, &sched_ops_sync, };
+		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
+		  &rcu_bh_ops, &rcu_bh_sync_ops,
+		  &srcu_ops, &srcu_expedited_ops,
+		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 
 	mutex_lock(&fullstop_mutex);
 
@@ -1110,8 +1145,12 @@ rcu_torture_init(void)
 			break;
 	}
 	if (i == ARRAY_SIZE(torture_ops)) {
-		printk(KERN_ALERT "rcutorture: invalid torture type: \"%s\"\n",
+		printk(KERN_ALERT "rcu-torture: invalid torture type: \"%s\"\n",
 		       torture_type);
+		printk(KERN_ALERT "rcu-torture types:");
+		for (i = 0; i < ARRAY_SIZE(torture_ops); i++)
+			printk(KERN_ALERT " %s", torture_ops[i]->name);
+		printk(KERN_ALERT "\n");
 		mutex_unlock(&fullstop_mutex);
 		return -EINVAL;
 	}

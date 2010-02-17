@@ -175,7 +175,7 @@ STATIC void NCR_700_chip_reset(struct Scsi_Host *host);
 STATIC int NCR_700_slave_alloc(struct scsi_device *SDpnt);
 STATIC int NCR_700_slave_configure(struct scsi_device *SDpnt);
 STATIC void NCR_700_slave_destroy(struct scsi_device *SDpnt);
-static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth);
+static int NCR_700_change_queue_depth(struct scsi_device *SDpnt, int depth, int reason);
 static int NCR_700_change_queue_type(struct scsi_device *SDpnt, int depth);
 
 STATIC struct device_attribute *NCR_700_dev_attrs[];
@@ -1491,7 +1491,7 @@ NCR_700_intr(int irq, void *dev_id)
 	unsigned long flags;
 	int handled = 0;
 
-	/* Use the host lock to serialise acess to the 53c700
+	/* Use the host lock to serialise access to the 53c700
 	 * hardware.  Note: In future, we may need to take the queue
 	 * lock to enter the done routines.  When that happens, we
 	 * need to ensure that for this driver, the host lock and the
@@ -2082,8 +2082,11 @@ NCR_700_slave_destroy(struct scsi_device *SDp)
 }
 
 static int
-NCR_700_change_queue_depth(struct scsi_device *SDp, int depth)
+NCR_700_change_queue_depth(struct scsi_device *SDp, int depth, int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	if (depth > NCR_700_MAX_TAGS)
 		depth = NCR_700_MAX_TAGS;
 

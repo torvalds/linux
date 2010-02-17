@@ -40,7 +40,6 @@
 #include "au0828.h"
 #include "au0828-reg.h"
 
-static LIST_HEAD(au0828_devlist);
 static DEFINE_MUTEX(au0828_sysfs_lock);
 
 #define AU0828_VERSION_CODE KERNEL_VERSION(0, 0, 1)
@@ -693,10 +692,8 @@ void au0828_analog_unregister(struct au0828_dev *dev)
 	dprintk(1, "au0828_release_resources called\n");
 	mutex_lock(&au0828_sysfs_lock);
 
-	if (dev->vdev) {
-		list_del(&dev->au0828list);
+	if (dev->vdev)
 		video_unregister_device(dev->vdev);
-	}
 	if (dev->vbi_dev)
 		video_unregister_device(dev->vbi_dev);
 
@@ -737,29 +734,15 @@ static void res_free(struct au0828_fh *fh)
 
 static int au0828_v4l2_open(struct file *filp)
 {
-	int minor = video_devdata(filp)->minor;
 	int ret = 0;
-	struct au0828_dev *h, *dev = NULL;
+	struct au0828_dev *dev = video_drvdata(filp);
 	struct au0828_fh *fh;
-	int type = 0;
-	struct list_head *list;
+	int type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-	list_for_each(list, &au0828_devlist) {
-		h = list_entry(list, struct au0828_dev, au0828list);
-		if (h->vdev->minor == minor) {
-			dev = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
 #ifdef VBI_IS_WORKING
-		if (h->vbi_dev->minor == minor) {
-			dev = h;
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
+	if (video_devdata(filp)->vfl_type == VFL_TYPE_GRABBER)
+		type = V4L2_BUF_TYPE_VBI_CAPTURE;
 #endif
-	}
-
-	if (NULL == dev)
-		return -ENODEV;
 
 	fh = kzalloc(sizeof(struct au0828_fh), GFP_KERNEL);
 	if (NULL == fh) {
@@ -830,7 +813,7 @@ static int au0828_v4l2_close(struct file *filp)
 		au0828_uninit_isoc(dev);
 
 		/* Save some power by putting tuner to sleep */
-		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_standby);
+		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
 
 		/* When close the device, set the usb intf0 into alt0 to free
 		   USB bandwidth */
@@ -1587,7 +1570,6 @@ static const struct video_device au0828_video_template = {
 	.fops                       = &au0828_v4l_fops,
 	.release                    = video_device_release,
 	.ioctl_ops 		    = &video_ioctl_ops,
-	.minor                      = -1,
 	.tvnorms                    = V4L2_STD_NTSC_M,
 	.current_norm               = V4L2_STD_NTSC_M,
 };
@@ -1676,25 +1658,23 @@ int au0828_analog_register(struct au0828_dev *dev,
 	strcpy(dev->vbi_dev->name, "au0828a vbi");
 #endif
 
-	list_add_tail(&dev->au0828list, &au0828_devlist);
-
 	/* Register the v4l2 device */
+	video_set_drvdata(dev->vdev, dev);
 	retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (retval != 0) {
 		dprintk(1, "unable to register video device (error = %d).\n",
 			retval);
-		list_del(&dev->au0828list);
 		video_device_release(dev->vdev);
 		return -ENODEV;
 	}
 
 #ifdef VBI_IS_WORKING
 	/* Register the vbi device */
+	video_set_drvdata(dev->vbi_dev, dev);
 	retval = video_register_device(dev->vbi_dev, VFL_TYPE_VBI, -1);
 	if (retval != 0) {
 		dprintk(1, "unable to register vbi device (error = %d).\n",
 			retval);
-		list_del(&dev->au0828list);
 		video_device_release(dev->vbi_dev);
 		video_device_release(dev->vdev);
 		return -ENODEV;

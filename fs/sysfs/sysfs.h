@@ -8,6 +8,7 @@
  * This file is released under the GPLv2.
  */
 
+#include <linux/lockdep.h>
 #include <linux/fs.h>
 
 struct sysfs_open_dirent;
@@ -50,6 +51,9 @@ struct sysfs_inode_attrs {
 struct sysfs_dirent {
 	atomic_t		s_count;
 	atomic_t		s_active;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
 	struct sysfs_dirent	*s_parent;
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
@@ -84,14 +88,23 @@ static inline unsigned int sysfs_type(struct sysfs_dirent *sd)
 	return sd->s_flags & SYSFS_TYPE_MASK;
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#define sysfs_dirent_init_lockdep(sd)				\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	lockdep_init_map(&sd->dep_map, "s_active", &__key, 0);	\
+} while(0)
+#else
+#define sysfs_dirent_init_lockdep(sd) do {} while(0)
+#endif
+
 /*
  * Context structure to be used while adding/removing nodes.
  */
 struct sysfs_addrm_cxt {
 	struct sysfs_dirent	*parent_sd;
-	struct inode		*parent_inode;
 	struct sysfs_dirent	*removed;
-	int			cnt;
 };
 
 /*
@@ -105,7 +118,6 @@ extern struct kmem_cache *sysfs_dir_cachep;
  * dir.c
  */
 extern struct mutex sysfs_mutex;
-extern struct mutex sysfs_rename_mutex;
 extern spinlock_t sysfs_assoc_lock;
 
 extern const struct file_operations sysfs_dir_operations;
@@ -133,6 +145,9 @@ int sysfs_create_subdir(struct kobject *kobj, const char *name,
 			struct sysfs_dirent **p_sd);
 void sysfs_remove_subdir(struct sysfs_dirent *sd);
 
+int sysfs_rename(struct sysfs_dirent *sd,
+	struct sysfs_dirent *new_parent_sd, const char *new_name);
+
 static inline struct sysfs_dirent *__sysfs_get(struct sysfs_dirent *sd)
 {
 	if (sd) {
@@ -155,7 +170,10 @@ static inline void __sysfs_put(struct sysfs_dirent *sd)
  */
 struct inode *sysfs_get_inode(struct sysfs_dirent *sd);
 void sysfs_delete_inode(struct inode *inode);
+int sysfs_sd_setattr(struct sysfs_dirent *sd, struct iattr *iattr);
+int sysfs_permission(struct inode *inode, int mask);
 int sysfs_setattr(struct dentry *dentry, struct iattr *iattr);
+int sysfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
 int sysfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags);
 int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name);

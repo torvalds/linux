@@ -72,10 +72,6 @@ static void wl1251_rx_status(struct wl1251 *wl,
 	}
 
 	status->signal = desc->rssi;
-	status->qual = (desc->rssi - WL1251_RX_MIN_RSSI) * 100 /
-		(WL1251_RX_MAX_RSSI - WL1251_RX_MIN_RSSI);
-	status->qual = min(status->qual, 100);
-	status->qual = max(status->qual, 0);
 
 	/*
 	 * FIXME: guessing that snr needs to be divided by two, otherwise
@@ -153,7 +149,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 		     beacon ? "beacon" : "");
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
-	ieee80211_rx(wl->hw, skb);
+	ieee80211_rx_ni(wl->hw, skb);
 }
 
 static void wl1251_rx_ack(struct wl1251 *wl)

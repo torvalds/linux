@@ -1,6 +1,6 @@
 /* linux/arch/arm/plat-s3c/dma.c
  *
- * Copyright (c) 2003-2005,2006,2009 Simtec Electronics
+ * Copyright (c) 2003-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *	http://armlinux.simtec.co.uk/
  *

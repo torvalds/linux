@@ -47,6 +47,8 @@ struct be_mcc_wrb {
 
 #define CQE_FLAGS_VALID_MASK (1 << 31)
 #define CQE_FLAGS_ASYNC_MASK (1 << 30)
+#define CQE_FLAGS_COMPLETED_MASK 	(1 << 28)
+#define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
 
 /* Completion Status */
 #define MCC_STATUS_SUCCESS 0x0
@@ -173,7 +175,7 @@ struct be_cmd_req_hdr {
 	u8 domain;		/* dword 0 */
 	u32 timeout;		/* dword 1 */
 	u32 request_length;	/* dword 2 */
-	u32 rsvd;		/* dword 3 */
+	u32 rsvd0;		/* dword 3 */
 };
 
 struct be_cmd_resp_hdr {
@@ -382,7 +384,6 @@ struct be_cmd_req_modify_eq_delay {
 
 #define ETH_ALEN	6
 
-
 struct be_cmd_req_get_mac_addr {
 	struct be_cmd_req_hdr hdr;
 	u32 nic_port_count;
@@ -417,14 +418,21 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 
 int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 			  int type);
+int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
+			struct be_queue_info *mccq,
+			struct be_queue_info *cq);
+
 int be_poll_mcc(struct be_ctrl_info *ctrl);
-unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl);
-int be_cmd_get_mac_addr(struct be_ctrl_info *ctrl, u8 *mac_addr);
+unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
+				      struct beiscsi_hba *phba);
+int be_cmd_get_mac_addr(struct beiscsi_hba *phba, u8 *mac_addr);
 
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
+struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
+int be_mcc_notify_wait(struct beiscsi_hba *phba);
 
 int be_mbox_notify(struct be_ctrl_info *ctrl);
 
@@ -530,6 +538,23 @@ struct amap_sol_cqe {
 	u8 i_res_cnt[31];	/* dword 3 */
 	u8 valid;		/* dword 3 */
 } __packed;
+
+#define SOL_ICD_INDEX_MASK	0x0003FFC0
+struct amap_sol_cqe_ring {
+	u8 hw_sts[8];		/* dword 0 */
+	u8 i_sts[8];		/* dword 0 */
+	u8 i_resp[8];		/* dword 0 */
+	u8 i_flags[7];		/* dword 0 */
+	u8 s;			/* dword 0 */
+	u8 i_exp_cmd_sn[32];	/* dword 1 */
+	u8 code[6];		/* dword 2 */
+	u8 icd_index[12];	/* dword 2 */
+	u8 rsvd[6];		/* dword 2 */
+	u8 i_cmd_wnd[8];	/* dword 2 */
+	u8 i_res_cnt[31];	/* dword 3 */
+	u8 valid;		/* dword 3 */
+} __packed;
+
 
 
 /**
@@ -664,8 +689,8 @@ struct be_fw_cfg {
 #define	OPCODE_COMMON_TCP_UPLOAD	56
 #define OPCODE_COMMON_ISCSI_ERROR_RECOVERY_INVALIDATE_COMMANDS 1
 /* --- CMD_ISCSI_INVALIDATE_CONNECTION_TYPE --- */
-#define CMD_ISCSI_CONNECTION_INVALIDATE 1
-#define CMD_ISCSI_CONNECTION_ISSUE_TCP_RST 2
+#define CMD_ISCSI_CONNECTION_INVALIDATE 0x8001
+#define CMD_ISCSI_CONNECTION_ISSUE_TCP_RST 0x8002
 #define OPCODE_ISCSI_INI_DRIVER_INVALIDATE_CONNECTION 42
 
 #define INI_WR_CMD			1	/* Initiator write command */

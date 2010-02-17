@@ -408,7 +408,7 @@ static struct platform_device keypad_device = {
 };
 
 static struct platform_device rtc_device = {
-	.name = "rtc0",
+	.name = "rtc-coh901331",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(rtc_resources),
 	.resource = rtc_resources,

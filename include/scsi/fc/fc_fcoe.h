@@ -86,6 +86,18 @@ struct fcoe_crc_eof {
 #define FCOE_MIN_FRAME 46
 
 /*
+ * FCoE Link Error Status Block: T11 FC-BB-5 Rev2.0, Clause 7.10.
+ */
+struct fcoe_fc_els_lesb {
+	__be32		lesb_link_fail;	/* link failure count */
+	__be32		lesb_vlink_fail; /* virtual link failure count */
+	__be32		lesb_miss_fka;	/* missing FIP keep-alive count */
+	__be32		lesb_symb_err;	/* symbol error during carrier count */
+	__be32		lesb_err_block;	/* errored block count */
+	__be32		lesb_fcs_error; /* frame check sequence error count */
+};
+
+/*
  * fc_fcoe_set_mac - Store OUI + DID into MAC address field.
  * @mac: mac address to be set
  * @did: fc dest id to use

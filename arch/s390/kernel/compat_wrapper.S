@@ -689,8 +689,6 @@ sys32_fdatasync_wrapper:
 	llgfr	%r2,%r2			# unsigned int
 	jg	sys_fdatasync		# branch to system call
 
-#sys32_sysctl_wrapper			# tbd
-
 	.globl	sys32_mlock_wrapper
 sys32_mlock_wrapper:
 	llgfr	%r2,%r2			# unsigned long
@@ -1087,8 +1085,8 @@ sys32_stime_wrapper:
 
 	.globl	sys32_sysctl_wrapper
 sys32_sysctl_wrapper:
-	llgtr	%r2,%r2 		# struct __sysctl_args32 *
-	jg	sys32_sysctl
+	llgtr	%r2,%r2 		# struct compat_sysctl_args *
+	jg	compat_sys_sysctl
 
 	.globl	sys32_fstat64_wrapper
 sys32_fstat64_wrapper:

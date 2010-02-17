@@ -270,7 +270,7 @@ err:
 	return ret;
 }
 
-static int palmld_backlight_notify(int brightness)
+static int palmld_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_PALMLD_BL_POWER, brightness);
 	gpio_set_value(GPIO_NR_PALMLD_LCD_POWER, brightness);
@@ -529,6 +529,10 @@ static void __init palmld_map_io(void)
 static void __init palmld_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmld_pin_config));
+
+	pxa_set_ffuart_info(NULL);
+	pxa_set_btuart_info(NULL);
+	pxa_set_stuart_info(NULL);
 
 	palmld_pm_init();
 	set_pxa_fb_info(&palmld_lcd_screen);

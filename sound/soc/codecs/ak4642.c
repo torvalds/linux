@@ -442,18 +442,9 @@ static int ak4642_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "ak4642: failed to register card\n");
-		goto card_err;
-	}
-
 	dev_info(&pdev->dev, "AK4642 Audio Codec %s", AK4642_VERSION);
 	return ret;
 
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 pcm_err:
 	return ret;
 
@@ -479,7 +470,7 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_ak4642);
 
 static int __init ak4642_modinit(void)
 {
-	int ret;
+	int ret = 0;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&ak4642_i2c_driver);
 #endif

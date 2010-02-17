@@ -1,5 +1,3 @@
-# drivers/mtd/nand/Kconfig
-
 menuconfig MTD_NAND
 	tristate "NAND Device Support"
 	depends on MTD
@@ -203,6 +201,22 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
+config MTD_NAND_BCM_UMI
+	tristate "NAND Flash support for BCM Reference Boards"
+	depends on ARCH_BCMRING && MTD_NAND
+	help
+	  This enables the NAND flash controller on the BCM UMI block.
+
+	  No board specfic support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
+config MTD_NAND_BCM_UMI_HWCS
+	bool "BCM UMI NAND Hardware CS"
+	depends on MTD_NAND_BCM_UMI
+	help
+	  Enable the use of the BCM UMI block's internal CS using NAND.
+	  This should only be used if you know the external NAND CS can toggle.
+
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -277,14 +291,6 @@ config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
 	depends on ARCH_PXA
 
-config MTD_NAND_BASLER_EXCITE
-	tristate  "Support for NAND Flash on Basler eXcite"
-	depends on BASLER_EXCITE
-	help
-          This enables the driver for the NAND flash device found on the
-          Basler eXcite Smart Camera. If built as a module, the driver
-          will be named excite_nandflash.
-
 config MTD_NAND_CAFE
 	tristate "NAND support for OLPC CAFÉ chip"
 	depends on PCI
@@ -358,7 +364,7 @@ endchoice
 
 config MTD_NAND_PXA3xx
 	tristate "Support for NAND flash devices on PXA3xx"
-	depends on MTD_NAND && PXA3xx
+	depends on MTD_NAND && (PXA3xx || ARCH_MMP)
 	help
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors

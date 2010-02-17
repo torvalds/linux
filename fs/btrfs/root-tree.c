@@ -159,7 +159,6 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	write_extent_buffer(l, item, ptr, sizeof(*item));
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 out:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -332,7 +331,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	BUG_ON(refs != 0);
 	ret = btrfs_del_item(trans, root, path);
 out:
-	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	return ret;
 }

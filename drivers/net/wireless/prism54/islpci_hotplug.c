@@ -181,7 +181,7 @@ prism54_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	isl38xx_disable_interrupts(priv->device_base);
 
 	/* request for the interrupt before uploading the firmware */
-	rvalue = request_irq(pdev->irq, &islpci_interrupt,
+	rvalue = request_irq(pdev->irq, islpci_interrupt,
 			     IRQF_SHARED, ndev->name, priv);
 
 	if (rvalue) {

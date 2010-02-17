@@ -79,6 +79,11 @@ struct dm_region_hash {
 	struct list_head recovered_regions;
 	struct list_head failed_recovered_regions;
 
+	/*
+	 * If there was a barrier failure no regions can be marked clean.
+	 */
+	int barrier_failure;
+
 	void *context;
 	sector_t target_begin;
 
@@ -211,6 +216,7 @@ struct dm_region_hash *dm_region_hash_create(
 	INIT_LIST_HEAD(&rh->quiesced_regions);
 	INIT_LIST_HEAD(&rh->recovered_regions);
 	INIT_LIST_HEAD(&rh->failed_recovered_regions);
+	rh->barrier_failure = 0;
 
 	rh->region_pool = mempool_create_kmalloc_pool(MIN_REGIONS,
 						      sizeof(struct dm_region));
@@ -377,8 +383,6 @@ static void complete_resync_work(struct dm_region *reg, int success)
 /* dm_rh_mark_nosync
  * @ms
  * @bio
- * @done
- * @error
  *
  * The bio was written on some mirror(s) but failed on other mirror(s).
  * We can successfully endio the bio but should avoid the region being
@@ -386,14 +390,18 @@ static void complete_resync_work(struct dm_region *reg, int success)
  *
  * This function is _not_ safe in interrupt context!
  */
-void dm_rh_mark_nosync(struct dm_region_hash *rh,
-		       struct bio *bio, unsigned done, int error)
+void dm_rh_mark_nosync(struct dm_region_hash *rh, struct bio *bio)
 {
 	unsigned long flags;
 	struct dm_dirty_log *log = rh->log;
 	struct dm_region *reg;
 	region_t region = dm_rh_bio_to_region(rh, bio);
 	int recovering = 0;
+
+	if (bio_empty_barrier(bio)) {
+		rh->barrier_failure = 1;
+		return;
+	}
 
 	/* We must inform the log that the sync count has changed. */
 	log->type->set_region_sync(log, region, 0);
@@ -419,7 +427,6 @@ void dm_rh_mark_nosync(struct dm_region_hash *rh,
 	BUG_ON(!list_empty(&reg->list));
 	spin_unlock_irqrestore(&rh->region_lock, flags);
 
-	bio_endio(bio, error);
 	if (recovering)
 		complete_resync_work(reg, 0);
 }
@@ -515,8 +522,11 @@ void dm_rh_inc_pending(struct dm_region_hash *rh, struct bio_list *bios)
 {
 	struct bio *bio;
 
-	for (bio = bios->head; bio; bio = bio->bi_next)
+	for (bio = bios->head; bio; bio = bio->bi_next) {
+		if (bio_empty_barrier(bio))
+			continue;
 		rh_inc(rh, dm_rh_bio_to_region(rh, bio));
+	}
 }
 EXPORT_SYMBOL_GPL(dm_rh_inc_pending);
 
@@ -544,7 +554,14 @@ void dm_rh_dec(struct dm_region_hash *rh, region_t region)
 		 */
 
 		/* do nothing for DM_RH_NOSYNC */
-		if (reg->state == DM_RH_RECOVERING) {
+		if (unlikely(rh->barrier_failure)) {
+			/*
+			 * If a write barrier failed some time ago, we
+			 * don't know whether or not this write made it
+			 * to the disk, so we must resync the device.
+			 */
+			reg->state = DM_RH_NOSYNC;
+		} else if (reg->state == DM_RH_RECOVERING) {
 			list_add_tail(&reg->list, &rh->quiesced_regions);
 		} else if (reg->state == DM_RH_DIRTY) {
 			reg->state = DM_RH_CLEAN;
@@ -643,10 +660,9 @@ void dm_rh_recovery_end(struct dm_region *reg, int success)
 	spin_lock_irq(&rh->region_lock);
 	if (success)
 		list_add(&reg->list, &reg->rh->recovered_regions);
-	else {
-		reg->state = DM_RH_NOSYNC;
+	else
 		list_add(&reg->list, &reg->rh->failed_recovered_regions);
-	}
+
 	spin_unlock_irq(&rh->region_lock);
 
 	rh->wakeup_workers(rh->context);

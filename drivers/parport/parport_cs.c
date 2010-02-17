@@ -67,14 +67,6 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 INT_MODULE_PARM(epp_mode, 1);
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"parport_cs.c 1.29 2002/10/11 06:57:41 (David Hinds)";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -103,7 +95,7 @@ static int parport_probe(struct pcmcia_device *link)
 {
     parport_info_t *info;
 
-    DEBUG(0, "parport_attach()\n");
+    dev_dbg(&link->dev, "parport_attach()\n");
 
     /* Create new parport device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -114,7 +106,6 @@ static int parport_probe(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -132,7 +123,7 @@ static int parport_probe(struct pcmcia_device *link)
 
 static void parport_detach(struct pcmcia_device *link)
 {
-    DEBUG(0, "parport_detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "parport_detach\n");
 
     parport_cs_release(link);
 
@@ -146,9 +137,6 @@ static void parport_detach(struct pcmcia_device *link)
     parport device available to the system.
 
 ======================================================================*/
-
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int parport_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
@@ -178,18 +166,20 @@ static int parport_config(struct pcmcia_device *link)
 {
     parport_info_t *info = link->priv;
     struct parport *p;
-    int last_ret, last_fn;
+    int ret;
 
-    DEBUG(0, "parport_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "parport_config\n");
 
-    last_ret = pcmcia_loop_config(link, parport_config_check, NULL);
-    if (last_ret) {
-	    cs_error(link, RequestIO, last_ret);
+    ret = pcmcia_loop_config(link, parport_config_check, NULL);
+    if (ret)
 	    goto failed;
-    }
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
     p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
 			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
@@ -213,8 +203,6 @@ static int parport_config(struct pcmcia_device *link)
 
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     parport_cs_release(link);
     return -ENODEV;
@@ -232,7 +220,7 @@ static void parport_cs_release(struct pcmcia_device *link)
 {
 	parport_info_t *info = link->priv;
 
-	DEBUG(0, "parport_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "parport_release\n");
 
 	if (info->ndev) {
 		struct parport *p = info->port;

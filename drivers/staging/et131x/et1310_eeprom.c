@@ -95,198 +95,120 @@
 #include "et1310_tx.h"
 
 
-/*
- * EEPROM Defines
- */
 
-/* LBCIF Register Groups (addressed via 32-bit offsets) */
-#define LBCIF_DWORD0_GROUP_OFFSET       0xAC
-#define LBCIF_DWORD1_GROUP_OFFSET       0xB0
+static int eeprom_wait_ready(struct pci_dev *pdev, u32 *status)
+{
+	u32 reg;
+	int i;
 
-/* LBCIF Registers (addressed via 8-bit offsets) */
-#define LBCIF_ADDRESS_REGISTER_OFFSET   0xAC
-#define LBCIF_DATA_REGISTER_OFFSET      0xB0
-#define LBCIF_CONTROL_REGISTER_OFFSET   0xB1
-#define LBCIF_STATUS_REGISTER_OFFSET    0xB2
+	/*
+	 * 1. Check LBCIF Status Register for bits 6 & 3:2 all equal to 0 and
+	 *    bits 7,1:0 both equal to 1, at least once after reset.
+	 *    Subsequent operations need only to check that bits 1:0 are equal
+	 *    to 1 prior to starting a single byte read/write
+	 */
 
-/* LBCIF Control Register Bits */
-#define LBCIF_CONTROL_SEQUENTIAL_READ   0x01
-#define LBCIF_CONTROL_PAGE_WRITE        0x02
-#define LBCIF_CONTROL_UNUSED1           0x04
-#define LBCIF_CONTROL_EEPROM_RELOAD     0x08
-#define LBCIF_CONTROL_UNUSED2           0x10
-#define LBCIF_CONTROL_TWO_BYTE_ADDR     0x20
-#define LBCIF_CONTROL_I2C_WRITE         0x40
-#define LBCIF_CONTROL_LBCIF_ENABLE      0x80
+	for (i = 0; i < MAX_NUM_REGISTER_POLLS; i++) {
+		/* Read registers grouped in DWORD1 */
+		if (pci_read_config_dword(pdev, LBCIF_DWORD1_GROUP, &reg))
+			return -EIO;
 
-/* LBCIF Status Register Bits */
-#define LBCIF_STATUS_PHY_QUEUE_AVAIL    0x01
-#define LBCIF_STATUS_I2C_IDLE           0x02
-#define LBCIF_STATUS_ACK_ERROR          0x04
-#define LBCIF_STATUS_GENERAL_ERROR      0x08
-#define LBCIF_STATUS_UNUSED             0x30
-#define LBCIF_STATUS_CHECKSUM_ERROR     0x40
-#define LBCIF_STATUS_EEPROM_PRESENT     0x80
+		/* I2C idle and Phy Queue Avail both true */
+		if ((reg & 0x3000) == 0x3000) {
+			if (status)
+				*status = reg;
+			return reg & 0xFF;
+		}
+	}
+	return -ETIMEDOUT;
+}
 
-/* Miscellaneous Constraints */
-#define MAX_NUM_REGISTER_POLLS          1000
-#define MAX_NUM_WRITE_RETRIES           2
-
-/*
- * Define macros that allow individual register values to be extracted from a
- * DWORD1 register grouping
- */
-#define EXTRACT_DATA_REGISTER(x)    (u8)(x & 0xFF)
-#define EXTRACT_STATUS_REGISTER(x)  (u8)((x >> 16) & 0xFF)
-#define EXTRACT_CONTROL_REG(x)      (u8)((x >> 8) & 0xFF)
 
 /**
- * EepromWriteByte - Write a byte to the ET1310's EEPROM
+ * eeprom_write - Write a byte to the ET1310's EEPROM
  * @etdev: pointer to our private adapter structure
  * @addr: the address to write
  * @data: the value to write
  *
- * Returns SUCCESS or FAILURE
+ * Returns 1 for a successful write.
  */
-int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
+static int eeprom_write(struct et131x_adapter *etdev, u32 addr, u8 data)
 {
 	struct pci_dev *pdev = etdev->pdev;
-	int index;
+	int index = 0;
 	int retries;
 	int err = 0;
 	int i2c_wack = 0;
 	int writeok = 0;
-	u8 control;
-	u8 status = 0;
-	u32 dword1 = 0;
+	u32 status;
 	u32 val = 0;
 
 	/*
-	 * The following excerpt is from "Serial EEPROM HW Design
-	 * Specification" Version 0.92 (9/20/2004):
-	 *
-	 * Single Byte Writes
-	 *
 	 * For an EEPROM, an I2C single byte write is defined as a START
 	 * condition followed by the device address, EEPROM address, one byte
 	 * of data and a STOP condition.  The STOP condition will trigger the
 	 * EEPROM's internally timed write cycle to the nonvolatile memory.
 	 * All inputs are disabled during this write cycle and the EEPROM will
 	 * not respond to any access until the internal write is complete.
-	 * The steps to execute a single byte write are as follows:
-	 *
-	 * 1. Check LBCIF Status Register for bits 6 & 3:2 all equal to 0 and
-	 *    bits 7,1:0 both equal to 1, at least once after reset.
-	 *    Subsequent operations need only to check that bits 1:0 are
-	 *    equal to 1 prior to starting a single byte write.
-	 *
+	 */
+
+	err = eeprom_wait_ready(pdev, NULL);
+	if (err)
+		return err;
+
+	 /*
 	 * 2. Write to the LBCIF Control Register:  bit 7=1, bit 6=1, bit 3=0,
 	 *    and bits 1:0 both =0.  Bit 5 should be set according to the
 	 *    type of EEPROM being accessed (1=two byte addressing, 0=one
 	 *    byte addressing).
-	 *
-	 * 3. Write the address to the LBCIF Address Register.
-	 *
-	 * 4. Write the data to the LBCIF Data Register (the I2C write will
-	 *    begin).
-	 *
-	 * 5. Monitor bit 1:0 of the LBCIF Status Register.  When bits 1:0 are
-	 *    both equal to 1, the I2C write has completed and the internal
-	 *    write cycle of the EEPROM is about to start. (bits 1:0 = 01 is
-	 *    a legal state while waiting from both equal to 1, but bits
-	 *    1:0 = 10 is invalid and implies that something is broken).
-	 *
-	 * 6. Check bit 3 of the LBCIF Status Register.  If  equal to 1, an
-	 *    error has occurred.
-	 *
-	 * 7. Check bit 2 of the LBCIF Status Register.  If equal to 1 an ACK
-	 *    error has occurred on the address phase of the write.  This
-	 *    could be due to an actual hardware failure or the EEPROM may
-	 *    still be in its internal write cycle from a previous write.
-	 *    This write operation was ignored and must be repeated later.
-	 *
-	 * 8. Set bit 6 of the LBCIF Control Register = 0. If another write is
-	 *    required, go to step 1.
 	 */
-
-	/* Step 1: */
-	for (index = 0; index < MAX_NUM_REGISTER_POLLS; index++) {
-		/* Read registers grouped in DWORD1 */
-		if (pci_read_config_dword(pdev, LBCIF_DWORD1_GROUP_OFFSET,
-					  &dword1)) {
-			err = 1;
-			break;
-		}
-
-		status = EXTRACT_STATUS_REGISTER(dword1);
-
-		if (status & LBCIF_STATUS_PHY_QUEUE_AVAIL &&
-			status & LBCIF_STATUS_I2C_IDLE)
-			/* bits 1:0 are equal to 1 */
-			break;
-	}
-
-	if (err || (index >= MAX_NUM_REGISTER_POLLS))
-		return FAILURE;
-
-	/* Step 2: */
-	control = 0;
-	control |= LBCIF_CONTROL_LBCIF_ENABLE | LBCIF_CONTROL_I2C_WRITE;
-
-	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
-				  control)) {
-		return FAILURE;
-	}
+	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
+			LBCIF_CONTROL_LBCIF_ENABLE | LBCIF_CONTROL_I2C_WRITE))
+		return -EIO;
 
 	i2c_wack = 1;
 
 	/* Prepare EEPROM address for Step 3 */
 
 	for (retries = 0; retries < MAX_NUM_WRITE_RETRIES; retries++) {
-		/* Step 3:*/
-		if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER_OFFSET,
-					   addr)) {
+		/* Write the address to the LBCIF Address Register */
+		if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER, addr))
 			break;
-		}
-
-		/* Step 4: */
-		if (pci_write_config_byte(pdev, LBCIF_DATA_REGISTER_OFFSET,
-					  data)) {
+		/*
+		 * Write the data to the LBCIF Data Register (the I2C write
+		 * will begin).
+		 */
+		if (pci_write_config_byte(pdev, LBCIF_DATA_REGISTER, data))
 			break;
-		}
+		/*
+		 * Monitor bit 1:0 of the LBCIF Status Register.  When bits
+		 * 1:0 are both equal to 1, the I2C write has completed and the
+		 * internal write cycle of the EEPROM is about to start.
+		 * (bits 1:0 = 01 is a legal state while waiting from both
+		 * equal to 1, but bits 1:0 = 10 is invalid and implies that
+		 * something is broken).
+		 */
+		err = eeprom_wait_ready(pdev, &status);
+		if (err < 0)
+			return 0;
 
-		/* Step 5: */
-		for (index = 0; index < MAX_NUM_REGISTER_POLLS; index++) {
-			/* Read registers grouped in DWORD1 */
-			if (pci_read_config_dword(pdev,
-						  LBCIF_DWORD1_GROUP_OFFSET,
-						  &dword1)) {
-				err = 1;
-				break;
-			}
-
-			status = EXTRACT_STATUS_REGISTER(dword1);
-
-			if (status & LBCIF_STATUS_PHY_QUEUE_AVAIL &&
-				status & LBCIF_STATUS_I2C_IDLE) {
-				/* I2C write complete */
-				break;
-			}
-		}
-
-		if (err || (index >= MAX_NUM_REGISTER_POLLS))
+		/*
+		 * Check bit 3 of the LBCIF Status Register.  If  equal to 1,
+		 * an error has occurred.Don't break here if we are revision
+		 * 1, this is so we do a blind write for load bug.
+		 */
+		if ((status & LBCIF_STATUS_GENERAL_ERROR)
+			&& etdev->pdev->revision == 0)
 			break;
 
 		/*
-		 * Step 6: Don't break here if we are revision 1, this is
-		 *	   so we do a blind write for load bug.
+		 * Check bit 2 of the LBCIF Status Register.  If equal to 1 an
+		 * ACK error has occurred on the address phase of the write.
+		 * This could be due to an actual hardware failure or the
+		 * EEPROM may still be in its internal write cycle from a
+		 * previous write. This write operation was ignored and must be
+		  *repeated later.
 		 */
-		if (status & LBCIF_STATUS_GENERAL_ERROR
-		    && etdev->pdev->revision == 0) {
-			break;
-		}
-
-		/* Step 7 */
 		if (status & LBCIF_STATUS_ACK_ERROR) {
 			/*
 			 * This could be due to an actual hardware failure
@@ -302,154 +224,160 @@ int EepromWriteByte(struct et131x_adapter *etdev, u32 addr, u8 data)
 		break;
 	}
 
-	/* Step 8: */
+	/*
+	 * Set bit 6 of the LBCIF Control Register = 0.
+	 */
 	udelay(10);
-	index = 0;
-	while (i2c_wack) {
-		control &= ~LBCIF_CONTROL_I2C_WRITE;
 
-		if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
-					  control)) {
+	while (i2c_wack) {
+		if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
+			LBCIF_CONTROL_LBCIF_ENABLE))
 			writeok = 0;
-		}
 
 		/* Do read until internal ACK_ERROR goes away meaning write
 		 * completed
 		 */
 		do {
 			pci_write_config_dword(pdev,
-					       LBCIF_ADDRESS_REGISTER_OFFSET,
+					       LBCIF_ADDRESS_REGISTER,
 					       addr);
 			do {
 				pci_read_config_dword(pdev,
-					LBCIF_DATA_REGISTER_OFFSET, &val);
+					LBCIF_DATA_REGISTER, &val);
 			} while ((val & 0x00010000) == 0);
 		} while (val & 0x00040000);
 
-		control = EXTRACT_CONTROL_REG(val);
-
-		if (control != 0xC0 || index == 10000)
+		if ((val & 0xFF00) != 0xC000 || index == 10000)
 			break;
-
 		index++;
 	}
-
-	return writeok ? SUCCESS : FAILURE;
+	return writeok ? 0 : -EIO;
 }
 
 /**
- * EepromReadByte - Read a byte from the ET1310's EEPROM
+ * eeprom_read - Read a byte from the ET1310's EEPROM
  * @etdev: pointer to our private adapter structure
  * @addr: the address from which to read
  * @pdata: a pointer to a byte in which to store the value of the read
  * @eeprom_id: the ID of the EEPROM
  * @addrmode: how the EEPROM is to be accessed
  *
- * Returns SUCCESS or FAILURE
+ * Returns 1 for a successful read
  */
-int EepromReadByte(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
+static int eeprom_read(struct et131x_adapter *etdev, u32 addr, u8 *pdata)
 {
 	struct pci_dev *pdev = etdev->pdev;
-	int index;
-	int err = 0;
-	u8 control;
-	u8 status = 0;
-	u32 dword1 = 0;
+	int err;
+	u32 status;
 
 	/*
-	 * The following excerpt is from "Serial EEPROM HW Design
-	 * Specification" Version 0.92 (9/20/2004):
-	 *
-	 * Single Byte Reads
-	 *
 	 * A single byte read is similar to the single byte write, with the
 	 * exception of the data flow:
-	 *
-	 * 1. Check LBCIF Status Register for bits 6 & 3:2 all equal to 0 and
-	 *    bits 7,1:0 both equal to 1, at least once after reset.
-	 *    Subsequent operations need only to check that bits 1:0 are equal
-	 *    to 1 prior to starting a single byte read.
-	 *
-	 * 2. Write to the LBCIF Control Register:  bit 7=1, bit 6=0, bit 3=0,
-	 *    and bits 1:0 both =0.  Bit 5 should be set according to the type
-	 *    of EEPROM being accessed (1=two byte addressing, 0=one byte
-	 *    addressing).
-	 *
-	 * 3. Write the address to the LBCIF Address Register (I2C read will
-	 *    begin).
-	 *
-	 * 4. Monitor bit 0 of the LBCIF Status Register.  When =1, I2C read
-	 *    is complete. (if bit 1 =1 and bit 0 stays =0, a hardware failure
-	 *    has occurred).
-	 *
-	 * 5. Check bit 2 of the LBCIF Status Register.  If =1, then an error
-	 *    has occurred.  The data that has been returned from the PHY may
-	 *    be invalid.
-	 *
-	 * 6. Regardless of error status, read data byte from LBCIF Data
-	 *    Register.  If another byte is required, go to step 1.
 	 */
 
-	/* Step 1: */
-	for (index = 0; index < MAX_NUM_REGISTER_POLLS; index++) {
-		/* Read registers grouped in DWORD1 */
-		if (pci_read_config_dword(pdev, LBCIF_DWORD1_GROUP_OFFSET,
-					  &dword1)) {
-			err = 1;
-			break;
-		}
+	err = eeprom_wait_ready(pdev, NULL);
+	if (err)
+		return err;
+ 	/*
+	 * Write to the LBCIF Control Register:  bit 7=1, bit 6=0, bit 3=0,
+	 * and bits 1:0 both =0.  Bit 5 should be set according to the type
+	 * of EEPROM being accessed (1=two byte addressing, 0=one byte
+	 * addressing).
+	 */
+	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER,
+				  LBCIF_CONTROL_LBCIF_ENABLE))
+		return -EIO;
+	/*
+	 * Write the address to the LBCIF Address Register (I2C read will
+	 * begin).
+	 */
+	if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER, addr))
+		return -EIO;
+	/*
+	 * Monitor bit 0 of the LBCIF Status Register.  When = 1, I2C read
+	 * is complete. (if bit 1 =1 and bit 0 stays = 0, a hardware failure
+	 * has occurred).
+	 */
+	err = eeprom_wait_ready(pdev, &status);
+	if (err < 0)
+		return err;
+	/*
+	 * Regardless of error status, read data byte from LBCIF Data
+	 * Register.
+	 */
+	*pdata = err;
+	/*
+	 * Check bit 2 of the LBCIF Status Register.  If = 1,
+	 * then an error has occurred.
+	 */
+	return (status & LBCIF_STATUS_ACK_ERROR) ? -EIO : 0;
+}
 
-		status = EXTRACT_STATUS_REGISTER(dword1);
+int et131x_init_eeprom(struct et131x_adapter *etdev)
+{
+	struct pci_dev *pdev = etdev->pdev;
+	u8 eestatus;
 
-		if (status & LBCIF_STATUS_PHY_QUEUE_AVAIL &&
-		    status & LBCIF_STATUS_I2C_IDLE) {
-			/* bits 1:0 are equal to 1 */
-			break;
-		}
+	/* We first need to check the EEPROM Status code located at offset
+	 * 0xB2 of config space
+	 */
+	pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS,
+				      &eestatus);
+
+	/* THIS IS A WORKAROUND:
+	 * I need to call this function twice to get my card in a
+	 * LG M1 Express Dual running. I tried also a msleep before this
+	 * function, because I thougth there could be some time condidions
+	 * but it didn't work. Call the whole function twice also work.
+	 */
+	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
+		dev_err(&pdev->dev,
+		       "Could not read PCI config space for EEPROM Status\n");
+		return -EIO;
 	}
 
-	if (err || (index >= MAX_NUM_REGISTER_POLLS))
-		return FAILURE;
+	/* Determine if the error(s) we care about are present. If they are
+	 * present we need to fail.
+	 */
+	if (eestatus & 0x4C) {
+		int write_failed = 0;
+		if (pdev->revision == 0x01) {
+			int	i;
+			static const u8 eedata[4] = { 0xFE, 0x13, 0x10, 0xFF };
 
-	/* Step 2: */
-	control = 0;
-	control |= LBCIF_CONTROL_LBCIF_ENABLE;
-
-	if (pci_write_config_byte(pdev, LBCIF_CONTROL_REGISTER_OFFSET,
-				  control)) {
-		return FAILURE;
-	}
-
-	/* Step 3: */
-
-	if (pci_write_config_dword(pdev, LBCIF_ADDRESS_REGISTER_OFFSET,
-				   addr)) {
-		return FAILURE;
-	}
-
-	/* Step 4: */
-	for (index = 0; index < MAX_NUM_REGISTER_POLLS; index++) {
-		/* Read registers grouped in DWORD1 */
-		if (pci_read_config_dword(pdev, LBCIF_DWORD1_GROUP_OFFSET,
-					  &dword1)) {
-			err = 1;
-			break;
+			/* Re-write the first 4 bytes if we have an eeprom
+			 * present and the revision id is 1, this fixes the
+			 * corruption seen with 1310 B Silicon
+			 */
+			for (i = 0; i < 3; i++)
+				if (eeprom_write(etdev, i, eedata[i]) < 0)
+					write_failed = 1;
 		}
+		if (pdev->revision  != 0x01 || write_failed) {
+			dev_err(&pdev->dev,
+			    "Fatal EEPROM Status Error - 0x%04x\n", eestatus);
 
-		status = EXTRACT_STATUS_REGISTER(dword1);
-
-		if (status & LBCIF_STATUS_PHY_QUEUE_AVAIL
-		    && status & LBCIF_STATUS_I2C_IDLE) {
-			/* I2C read complete */
-			break;
+			/* This error could mean that there was an error
+			 * reading the eeprom or that the eeprom doesn't exist.
+			 * We will treat each case the same and not try to gather
+			 * additional information that normally would come from the
+			 * eeprom, like MAC Address
+			 */
+			etdev->has_eeprom = 0;
+			return -EIO;
 		}
 	}
+	etdev->has_eeprom = 1;
 
-	if (err || (index >= MAX_NUM_REGISTER_POLLS))
-		return FAILURE;
+	/* Read the EEPROM for information regarding LED behavior. Refer to
+	 * ET1310_phy.c, et131x_xcvr_init(), for its use.
+	 */
+	eeprom_read(etdev, 0x70, &etdev->eepromData[0]);
+	eeprom_read(etdev, 0x71, &etdev->eepromData[1]);
 
-	/* Step 6: */
-	*pdata = EXTRACT_DATA_REGISTER(dword1);
+	if (etdev->eepromData[0] != 0xcd)
+		/* Disable all optional features */
+		etdev->eepromData[1] = 0x00;
 
-	return (status & LBCIF_STATUS_ACK_ERROR) ? FAILURE : SUCCESS;
+	return 0;
 }

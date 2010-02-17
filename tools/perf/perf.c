@@ -14,6 +14,7 @@
 #include "util/run-command.h"
 #include "util/parse-events.h"
 #include "util/string.h"
+#include "util/debugfs.h"
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";
@@ -89,8 +90,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 		/*
 		 * Check remaining flags.
 		 */
-		if (!prefixcmp(cmd, "--exec-path")) {
-			cmd += 11;
+		if (!prefixcmp(cmd, CMD_EXEC_PATH)) {
+			cmd += strlen(CMD_EXEC_PATH);
 			if (*cmd == '=')
 				perf_set_argv_exec_path(cmd + 1);
 			else {
@@ -117,8 +118,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 			(*argv)++;
 			(*argc)--;
 			handled++;
-		} else if (!prefixcmp(cmd, "--perf-dir=")) {
-			setenv(PERF_DIR_ENVIRONMENT, cmd + 10, 1);
+		} else if (!prefixcmp(cmd, CMD_PERF_DIR)) {
+			setenv(PERF_DIR_ENVIRONMENT, cmd + strlen(CMD_PERF_DIR), 1);
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--work-tree")) {
@@ -131,8 +132,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
-		} else if (!prefixcmp(cmd, "--work-tree=")) {
-			setenv(PERF_WORK_TREE_ENVIRONMENT, cmd + 12, 1);
+		} else if (!prefixcmp(cmd, CMD_WORK_TREE)) {
+			setenv(PERF_WORK_TREE_ENVIRONMENT, cmd + strlen(CMD_WORK_TREE), 1);
 			if (envchanged)
 				*envchanged = 1;
 		} else if (!strcmp(cmd, "--debugfs-dir")) {
@@ -146,8 +147,8 @@ static int handle_options(const char*** argv, int* argc, int* envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
-		} else if (!prefixcmp(cmd, "--debugfs-dir=")) {
-			strncpy(debugfs_mntpt, cmd + 14, MAXPATHLEN);
+		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
+			strncpy(debugfs_mntpt, cmd + strlen(CMD_DEBUGFS_DIR), MAXPATHLEN);
 			debugfs_mntpt[MAXPATHLEN - 1] = '\0';
 			if (envchanged)
 				*envchanged = 1;
@@ -284,17 +285,22 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	static struct cmd_struct commands[] = {
-		{ "help", cmd_help, 0 },
-		{ "list", cmd_list, 0 },
-		{ "record", cmd_record, 0 },
-		{ "report", cmd_report, 0 },
-		{ "stat", cmd_stat, 0 },
-		{ "timechart", cmd_timechart, 0 },
-		{ "top", cmd_top, 0 },
-		{ "annotate", cmd_annotate, 0 },
-		{ "version", cmd_version, 0 },
-		{ "trace", cmd_trace, 0 },
-		{ "sched", cmd_sched, 0 },
+		{ "buildid-list", cmd_buildid_list, 0 },
+		{ "diff",	cmd_diff,	0 },
+		{ "help",	cmd_help,	0 },
+		{ "list",	cmd_list,	0 },
+		{ "record",	cmd_record,	0 },
+		{ "report",	cmd_report,	0 },
+		{ "bench",	cmd_bench,	0 },
+		{ "stat",	cmd_stat,	0 },
+		{ "timechart",	cmd_timechart,	0 },
+		{ "top",	cmd_top,	0 },
+		{ "annotate",	cmd_annotate,	0 },
+		{ "version",	cmd_version,	0 },
+		{ "trace",	cmd_trace,	0 },
+		{ "sched",	cmd_sched,	0 },
+		{ "probe",	cmd_probe,	0 },
+		{ "kmem",	cmd_kmem,	0 },
 	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;
@@ -382,45 +388,12 @@ static int run_argv(int *argcp, const char ***argv)
 /* mini /proc/mounts parser: searching for "^blah /mount/point debugfs" */
 static void get_debugfs_mntpt(void)
 {
-	FILE *file;
-	char fs_type[100];
-	char debugfs[MAXPATHLEN];
+	const char *path = debugfs_find_mountpoint();
 
-	/*
-	 * try the standard location
-	 */
-	if (valid_debugfs_mount("/sys/kernel/debug/") == 0) {
-		strcpy(debugfs_mntpt, "/sys/kernel/debug/");
-		return;
-	}
-
-	/*
-	 * try the sane location
-	 */
-	if (valid_debugfs_mount("/debug/") == 0) {
-		strcpy(debugfs_mntpt, "/debug/");
-		return;
-	}
-
-	/*
-	 * give up and parse /proc/mounts
-	 */
-	file = fopen("/proc/mounts", "r");
-	if (file == NULL)
-		return;
-
-	while (fscanf(file, "%*s %"
-		      STR(MAXPATHLEN)
-		      "s %99s %*s %*d %*d\n",
-		      debugfs, fs_type) == 2) {
-		if (strcmp(fs_type, "debugfs") == 0)
-			break;
-	}
-	fclose(file);
-	if (strcmp(fs_type, "debugfs") == 0) {
-		strncpy(debugfs_mntpt, debugfs, MAXPATHLEN);
-		debugfs_mntpt[MAXPATHLEN - 1] = '\0';
-	}
+	if (path)
+		strncpy(debugfs_mntpt, path, sizeof(debugfs_mntpt));
+	else
+		debugfs_mntpt[0] = '\0';
 }
 
 int main(int argc, const char **argv)

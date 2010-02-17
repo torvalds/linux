@@ -1,5 +1,3 @@
-# arch/arm/mach-s5pc100/Kconfig
-#
 # Copyright 2009 Samsung Electronics Co.
 #	Byungho Min <bhmin@samsung.com>
 #
@@ -14,9 +12,23 @@ config CPU_S5PC100
 	help
 	  Enable S5PC100 CPU support
 
+config S5PC100_SETUP_SDHCI
+        bool
+        select S5PC1XX_SETUP_SDHCI_GPIO
+        help
+          Internal helper functions for S5PC100 based SDHCI systems
+
 config MACH_SMDKC100
 	bool "SMDKC100"
 	select CPU_S5PC100
+	select S3C_DEV_FB
+	select S3C_DEV_I2C1
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S5PC1XX_SETUP_I2C0
 	select S5PC1XX_SETUP_I2C1
+	select S5PC1XX_SETUP_FB_24BPP
+	select S5PC100_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDKC100

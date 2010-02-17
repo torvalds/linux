@@ -1,0 +1,11 @@
+config PCMCIA_NETWAVE
+	tristate "Xircom Netwave AirSurfer Pcmcia wireless support"
+	depends on PCMCIA && WLAN
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  Say Y here if you intend to attach this type of PCMCIA (PC-card)
+	  wireless Ethernet networking card to your computer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called netwave_cs.  If unsure, say N.

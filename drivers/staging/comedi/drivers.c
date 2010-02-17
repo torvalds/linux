@@ -387,7 +387,7 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	return 1;
 }
 
-static inline unsigned long uvirt_to_kva(pgd_t * pgd, unsigned long adr)
+static inline unsigned long uvirt_to_kva(pgd_t *pgd, unsigned long adr)
 {
 	unsigned long ret = 0UL;
 	pmd_t *pmd;

@@ -25,7 +25,6 @@
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_IA_64
 
-#define USE_ELF_CORE_DUMP
 #define CORE_DUMP_USE_REGSET
 
 /* Least-significant four bits of ELF header's e_flags are OS-specific.  The bits are
@@ -202,7 +201,9 @@ extern void ia64_elf_core_copy_regs (struct pt_regs *src, elf_gregset_t dst);
    relevant until we have real hardware to play with... */
 #define ELF_PLATFORM	NULL
 
-#define SET_PERSONALITY(ex)	set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex)	\
+	set_personality((current->personality & ~PER_MASK) | PER_LINUX)
+
 #define elf_read_implies_exec(ex, executable_stack)					\
 	((executable_stack!=EXSTACK_DISABLE_X) && ((ex).e_flags & EF_IA_64_LINUX_EXECUTABLE_STACK) != 0)
 

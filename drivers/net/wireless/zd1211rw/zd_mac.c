@@ -88,6 +88,34 @@ static const struct ieee80211_rate zd_rates[] = {
 	  .flags = 0 },
 };
 
+/*
+ * Zydas retry rates table. Each line is listed in the same order as
+ * in zd_rates[] and contains all the rate used when a packet is sent
+ * starting with a given rates. Let's consider an example :
+ *
+ * "11 Mbits : 4, 3, 2, 1, 0" means :
+ * - packet is sent using 4 different rates
+ * - 1st rate is index 3 (ie 11 Mbits)
+ * - 2nd rate is index 2 (ie 5.5 Mbits)
+ * - 3rd rate is index 1 (ie 2 Mbits)
+ * - 4th rate is index 0 (ie 1 Mbits)
+ */
+
+static const struct tx_retry_rate zd_retry_rates[] = {
+	{ /*  1 Mbits */	1, { 0 }},
+	{ /*  2 Mbits */	2, { 1,  0 }},
+	{ /*  5.5 Mbits */	3, { 2,  1, 0 }},
+	{ /* 11 Mbits */	4, { 3,  2, 1, 0 }},
+	{ /*  6 Mbits */	5, { 4,  3, 2, 1, 0 }},
+	{ /*  9 Mbits */	6, { 5,  4, 3, 2, 1, 0}},
+	{ /* 12 Mbits */	5, { 6,  3, 2, 1, 0 }},
+	{ /* 18 Mbits */	6, { 7,  6, 3, 2, 1, 0 }},
+	{ /* 24 Mbits */	6, { 8,  6, 3, 2, 1, 0 }},
+	{ /* 36 Mbits */	7, { 9,  8, 6, 3, 2, 1, 0 }},
+	{ /* 48 Mbits */	8, {10,  9, 8, 6, 3, 2, 1, 0 }},
+	{ /* 54 Mbits */	9, {11, 10, 9, 8, 6, 3, 2, 1, 0 }}
+};
+
 static const struct ieee80211_channel zd_channels[] = {
 	{ .center_freq = 2412, .hw_value = 1 },
 	{ .center_freq = 2417, .hw_value = 2 },
@@ -282,7 +310,7 @@ static void zd_op_stop(struct ieee80211_hw *hw)
 }
 
 /**
- * tx_status - reports tx status of a packet if required
+ * zd_mac_tx_status - reports tx status of a packet if required
  * @hw - a &struct ieee80211_hw pointer
  * @skb - a sk-buffer
  * @flags: extra flags to set in the TX status info
@@ -295,15 +323,49 @@ static void zd_op_stop(struct ieee80211_hw *hw)
  *
  * If no status information has been requested, the skb is freed.
  */
-static void tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
-		      int ackssi, bool success)
+static void zd_mac_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
+		      int ackssi, struct tx_status *tx_status)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int i;
+	int success = 1, retry = 1;
+	int first_idx;
+	const struct tx_retry_rate *retries;
 
 	ieee80211_tx_info_clear_status(info);
 
-	if (success)
+	if (tx_status) {
+		success = !tx_status->failure;
+		retry = tx_status->retry + success;
+	}
+
+	if (success) {
+		/* success */
 		info->flags |= IEEE80211_TX_STAT_ACK;
+	} else {
+		/* failure */
+		info->flags &= ~IEEE80211_TX_STAT_ACK;
+	}
+
+	first_idx = info->status.rates[0].idx;
+	ZD_ASSERT(0<=first_idx && first_idx<ARRAY_SIZE(zd_retry_rates));
+	retries = &zd_retry_rates[first_idx];
+	ZD_ASSERT(0<=retry && retry<=retries->count);
+
+	info->status.rates[0].idx = retries->rate[0];
+	info->status.rates[0].count = 1; // (retry > 1 ? 2 : 1);
+
+	for (i=1; i<IEEE80211_TX_MAX_RATES-1 && i<retry; i++) {
+		info->status.rates[i].idx = retries->rate[i];
+		info->status.rates[i].count = 1; // ((i==retry-1) && success ? 1:2);
+	}
+	for (; i<IEEE80211_TX_MAX_RATES && i<retry; i++) {
+		info->status.rates[i].idx = retries->rate[retry-1];
+		info->status.rates[i].count = 1; // (success ? 1:2);
+	}
+	if (i<IEEE80211_TX_MAX_RATES)
+		info->status.rates[i].idx = -1; /* terminate */
+
 	info->status.ack_signal = ackssi;
 	ieee80211_tx_status_irqsafe(hw, skb);
 }
@@ -312,20 +374,83 @@ static void tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
  * zd_mac_tx_failed - callback for failed frames
  * @dev: the mac80211 wireless device
  *
- * This function is called if a frame couldn't be succesfully be
+ * This function is called if a frame couldn't be successfully be
  * transferred. The first frame from the tx queue, will be selected and
  * reported as error to the upper layers.
  */
-void zd_mac_tx_failed(struct ieee80211_hw *hw)
+void zd_mac_tx_failed(struct urb *urb)
 {
-	struct sk_buff_head *q = &zd_hw_mac(hw)->ack_wait_queue;
+	struct ieee80211_hw * hw = zd_usb_to_hw(urb->context);
+	struct zd_mac *mac = zd_hw_mac(hw);
+	struct sk_buff_head *q = &mac->ack_wait_queue;
 	struct sk_buff *skb;
+	struct tx_status *tx_status = (struct tx_status *)urb->transfer_buffer;
+	unsigned long flags;
+	int success = !tx_status->failure;
+	int retry = tx_status->retry + success;
+	int found = 0;
+	int i, position = 0;
 
-	skb = skb_dequeue(q);
-	if (skb == NULL)
-		return;
+	q = &mac->ack_wait_queue;
+	spin_lock_irqsave(&q->lock, flags);
 
-	tx_status(hw, skb, 0, 0);
+	skb_queue_walk(q, skb) {
+		struct ieee80211_hdr *tx_hdr;
+		struct ieee80211_tx_info *info;
+		int first_idx, final_idx;
+		const struct tx_retry_rate *retries;
+		u8 final_rate;
+
+		position ++;
+
+		/* if the hardware reports a failure and we had a 802.11 ACK
+		 * pending, then we skip the first skb when searching for a
+		 * matching frame */
+		if (tx_status->failure && mac->ack_pending &&
+		    skb_queue_is_first(q, skb)) {
+			continue;
+		}
+
+		tx_hdr = (struct ieee80211_hdr *)skb->data;
+
+		/* we skip all frames not matching the reported destination */
+		if (unlikely(memcmp(tx_hdr->addr1, tx_status->mac, ETH_ALEN))) {
+			continue;
+		}
+
+		/* we skip all frames not matching the reported final rate */
+
+		info = IEEE80211_SKB_CB(skb);
+		first_idx = info->status.rates[0].idx;
+		ZD_ASSERT(0<=first_idx && first_idx<ARRAY_SIZE(zd_retry_rates));
+		retries = &zd_retry_rates[first_idx];
+		if (retry < 0 || retry > retries->count) {
+			continue;
+		}
+
+		ZD_ASSERT(0<=retry && retry<=retries->count);
+		final_idx = retries->rate[retry-1];
+		final_rate = zd_rates[final_idx].hw_value;
+
+		if (final_rate != tx_status->rate) {
+			continue;
+		}
+
+		found = 1;
+		break;
+	}
+
+	if (found) {
+		for (i=1; i<=position; i++) {
+			skb = __skb_dequeue(q);
+			zd_mac_tx_status(hw, skb,
+					 mac->ack_pending ? mac->ack_signal : 0,
+					 i == position ? tx_status : NULL);
+			mac->ack_pending = 0;
+		}
+	}
+
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 /**
@@ -342,18 +467,27 @@ void zd_mac_tx_to_dev(struct sk_buff *skb, int error)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hw *hw = info->rate_driver_data[0];
+	struct zd_mac *mac = zd_hw_mac(hw);
+
+	ieee80211_tx_info_clear_status(info);
 
 	skb_pull(skb, sizeof(struct zd_ctrlset));
 	if (unlikely(error ||
 	    (info->flags & IEEE80211_TX_CTL_NO_ACK))) {
-		tx_status(hw, skb, 0, !error);
+		/*
+		 * FIXME : do we need to fill in anything ?
+		 */
+		ieee80211_tx_status_irqsafe(hw, skb);
 	} else {
-		struct sk_buff_head *q =
-			&zd_hw_mac(hw)->ack_wait_queue;
+		struct sk_buff_head *q = &mac->ack_wait_queue;
 
 		skb_queue_tail(q, skb);
-		while (skb_queue_len(q) > ZD_MAC_MAX_ACK_WAITERS)
-			zd_mac_tx_failed(hw);
+		while (skb_queue_len(q) > ZD_MAC_MAX_ACK_WAITERS) {
+			zd_mac_tx_status(hw, skb_dequeue(q),
+					 mac->ack_pending ? mac->ack_signal : 0,
+					 NULL);
+			mac->ack_pending = 0;
+		}
 	}
 }
 
@@ -606,27 +740,47 @@ fail:
 static int filter_ack(struct ieee80211_hw *hw, struct ieee80211_hdr *rx_hdr,
 		      struct ieee80211_rx_status *stats)
 {
+	struct zd_mac *mac = zd_hw_mac(hw);
 	struct sk_buff *skb;
 	struct sk_buff_head *q;
 	unsigned long flags;
+	int found = 0;
+	int i, position = 0;
 
 	if (!ieee80211_is_ack(rx_hdr->frame_control))
 		return 0;
 
-	q = &zd_hw_mac(hw)->ack_wait_queue;
+	q = &mac->ack_wait_queue;
 	spin_lock_irqsave(&q->lock, flags);
 	skb_queue_walk(q, skb) {
 		struct ieee80211_hdr *tx_hdr;
 
+		position ++;
+
+		if (mac->ack_pending && skb_queue_is_first(q, skb))
+		    continue;
+
 		tx_hdr = (struct ieee80211_hdr *)skb->data;
 		if (likely(!memcmp(tx_hdr->addr2, rx_hdr->addr1, ETH_ALEN)))
 		{
-			__skb_unlink(skb, q);
-			tx_status(hw, skb, stats->signal, 1);
-			goto out;
+			found = 1;
+			break;
 		}
 	}
-out:
+
+	if (found) {
+		for (i=1; i<position; i++) {
+			skb = __skb_dequeue(q);
+			zd_mac_tx_status(hw, skb,
+					 mac->ack_pending ? mac->ack_signal : 0,
+					 NULL);
+			mac->ack_pending = 0;
+		}
+
+		mac->ack_pending = 1;
+		mac->ack_signal = stats->signal;
+	}
+
 	spin_unlock_irqrestore(&q->lock, flags);
 	return 1;
 }
@@ -674,9 +828,6 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	stats.freq = zd_channels[_zd_chip_get_channel(&mac->chip) - 1].center_freq;
 	stats.band = IEEE80211_BAND_2GHZ;
 	stats.signal = status->signal_strength;
-	stats.qual = zd_rx_qual_percent(buffer,
-		                          length - sizeof(struct rx_status),
-		                          status);
 
 	rate = zd_rx_rate(buffer, status);
 
@@ -709,6 +860,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 		skb_reserve(skb, 2);
 	}
 
+	/* FIXME : could we avoid this big memcpy ? */
 	memcpy(skb_put(skb, length), buffer, length);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &stats, sizeof(stats));
@@ -835,12 +987,13 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 	changed_flags &= SUPPORTED_FIF_FLAGS;
 	*new_flags &= SUPPORTED_FIF_FLAGS;
 
-	/* changed_flags is always populated but this driver
-	 * doesn't support all FIF flags so its possible we don't
-	 * need to do anything */
-	if (!changed_flags)
-		return;
-
+	/*
+	 * If multicast parameter (as returned by zd_op_prepare_multicast)
+	 * has changed, no bit in changed_flags is set. To handle this
+	 * situation, we do not return if changed_flags is 0. If we do so,
+	 * we will have some issue with IPv6 which uses multicast for link
+	 * layer address resolution.
+	 */
 	if (*new_flags & (FIF_PROMISC_IN_BSS | FIF_ALLMULTI))
 		zd_mc_add_all(&hash);
 
@@ -999,7 +1152,14 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 	hw->queues = 1;
 	hw->extra_tx_headroom = sizeof(struct zd_ctrlset);
 
+	/*
+	 * Tell mac80211 that we support multi rate retries
+	 */
+	hw->max_rates = IEEE80211_TX_MAX_RATES;
+	hw->max_rate_tries = 18;	/* 9 rates * 2 retries/rate */
+
 	skb_queue_head_init(&mac->ack_wait_queue);
+	mac->ack_pending = 0;
 
 	zd_chip_init(&mac->chip, hw, intf);
 	housekeeping_init(mac);

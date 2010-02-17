@@ -965,10 +965,12 @@ EXPORT_SYMBOL(may_umount_tree);
 int may_umount(struct vfsmount *mnt)
 {
 	int ret = 1;
+	down_read(&namespace_sem);
 	spin_lock(&vfsmount_lock);
 	if (propagate_mount_busy(mnt, 2))
 		ret = 0;
 	spin_unlock(&vfsmount_lock);
+	up_read(&namespace_sem);
 	return ret;
 }
 
@@ -1352,12 +1354,12 @@ static int attach_recursive_mnt(struct vfsmount *source_mnt,
 	if (err)
 		goto out_cleanup_ids;
 
+	spin_lock(&vfsmount_lock);
+
 	if (IS_MNT_SHARED(dest_mnt)) {
 		for (p = source_mnt; p; p = next_mnt(p, source_mnt))
 			set_mnt_shared(p);
 	}
-
-	spin_lock(&vfsmount_lock);
 	if (parent_path) {
 		detach_mnt(source_mnt, parent_path);
 		attach_mnt(source_mnt, path);
@@ -1534,8 +1536,12 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = change_mount_flags(path->mnt, flags);
 	else
 		err = do_remount_sb(sb, flags, data, 0);
-	if (!err)
+	if (!err) {
+		spin_lock(&vfsmount_lock);
+		mnt_flags |= path->mnt->mnt_flags & MNT_PNODE_MASK;
 		path->mnt->mnt_flags = mnt_flags;
+		spin_unlock(&vfsmount_lock);
+	}
 	up_write(&sb->s_umount);
 	if (!err) {
 		security_sb_post_remount(path->mnt, flags, data);
@@ -1664,6 +1670,8 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 		 int mnt_flags, struct list_head *fslist)
 {
 	int err;
+
+	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD);
 
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
@@ -1921,6 +1929,16 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (data_page)
 		((char *)data_page)[PAGE_SIZE - 1] = 0;
 
+	/* ... and get the mountpoint */
+	retval = kern_path(dir_name, LOOKUP_FOLLOW, &path);
+	if (retval)
+		return retval;
+
+	retval = security_sb_mount(dev_name, &path,
+				   type_page, flags, data_page);
+	if (retval)
+		goto dput_out;
+
 	/* Default to relatime unless overriden */
 	if (!(flags & MS_NOATIME))
 		mnt_flags |= MNT_RELATIME;
@@ -1944,16 +1962,6 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	flags &= ~(MS_NOSUID | MS_NOEXEC | MS_NODEV | MS_ACTIVE |
 		   MS_NOATIME | MS_NODIRATIME | MS_RELATIME| MS_KERNMOUNT |
 		   MS_STRICTATIME);
-
-	/* ... and get the mountpoint */
-	retval = kern_path(dir_name, LOOKUP_FOLLOW, &path);
-	if (retval)
-		return retval;
-
-	retval = security_sb_mount(dev_name, &path,
-				   type_page, flags, data_page);
-	if (retval)
-		goto dput_out;
 
 	if (flags & MS_REMOUNT)
 		retval = do_remount(&path, flags & ~MS_REMOUNT, mnt_flags,

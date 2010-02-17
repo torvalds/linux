@@ -385,10 +385,12 @@
 #define __NR_pwritev		362
 #define __NR_rt_tgsigqueueinfo	363
 #define __NR_perf_event_open	364
+#define __NR_recvmmsg		365
+#define __NR_accept4		366
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 365
+#define NR_syscalls 367
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

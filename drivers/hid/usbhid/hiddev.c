@@ -450,7 +450,6 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 	uref_multi = kmalloc(sizeof(struct hiddev_usage_ref_multi), GFP_KERNEL);
 	if (!uref_multi)
 		return -ENOMEM;
-	lock_kernel();
 	uref = &uref_multi->uref;
 	if (cmd == HIDIOCGUSAGES || cmd == HIDIOCSUSAGES) {
 		if (copy_from_user(uref_multi, user_arg,
@@ -528,7 +527,6 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 
 		case HIDIOCGCOLLECTIONINDEX:
 			i = field->usage[uref->usage_index].collection_index;
-			unlock_kernel();
 			kfree(uref_multi);
 			return i;
 		case HIDIOCGUSAGES:
@@ -547,15 +545,12 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 		}
 
 goodreturn:
-		unlock_kernel();
 		kfree(uref_multi);
 		return 0;
 fault:
-		unlock_kernel();
 		kfree(uref_multi);
 		return -EFAULT;
 inval:
-		unlock_kernel();
 		kfree(uref_multi);
 		return -EINVAL;
 	}

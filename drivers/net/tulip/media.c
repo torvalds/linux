@@ -468,8 +468,8 @@ void __devinit tulip_find_mii (struct net_device *dev, int board_idx)
 		int phy = phyn & 0x1f;
 		int mii_status = tulip_mdio_read (dev, phy, MII_BMSR);
 		if ((mii_status & 0x8301) == 0x8001 ||
-		    ((mii_status & BMSR_100BASE4) == 0
-		     && (mii_status & 0x7800) != 0)) {
+		    ((mii_status & BMSR_100BASE4) == 0 &&
+		     (mii_status & 0x7800) != 0)) {
 			/* preserve Becker logic, gain indentation level */
 		} else {
 			continue;

@@ -162,6 +162,9 @@ struct dvb_usb_adapter_properties {
 	struct usb_data_stream_properties stream;
 
 	int size_of_priv;
+
+	int (*fe_ioctl_override) (struct dvb_frontend *,
+				  unsigned int, void *, unsigned int);
 };
 
 /**

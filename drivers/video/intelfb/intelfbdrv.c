@@ -874,6 +874,9 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 	if (bailearly == 18)
 		bailout(dinfo);
 
+	/* read active pipe */
+	dinfo->pipe = intelfbhw_active_pipe(&dinfo->save_state);
+
 	/* Cursor initialisation */
 	if (dinfo->hwcursor) {
 		intelfbhw_cursor_init(dinfo);

@@ -407,6 +407,7 @@ static int pcl711_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		 *  0xb4 = Select Counter 2 | LSB/MSB | Mode=2 | Binary
 		 */
 
+		timer1 = timer2 = 0;
 		i8253_cascade_ns_to_timer(i8253_osc_base, &timer1, &timer2,
 					  &cmd->scan_begin_arg,
 					  TRIG_ROUND_NEAREST);

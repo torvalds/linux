@@ -15,7 +15,7 @@
 
 static inline void __iomem *__io(unsigned long addr)
 {
-	return (void __iomem *)((addr - KIRKWOOD_PCIE_IO_PHYS_BASE)
+	return (void __iomem *)((addr - KIRKWOOD_PCIE_IO_BUS_BASE)
 					+ KIRKWOOD_PCIE_IO_VIRT_BASE);
 }
 

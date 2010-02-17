@@ -1654,7 +1654,7 @@ static const struct net_device_ops fec_netdev_ops = {
   *
   * index is only used in legacy code
   */
-int __init fec_enet_init(struct net_device *dev, int index)
+static int fec_enet_init(struct net_device *dev, int index)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct bufdesc *cbd_base;

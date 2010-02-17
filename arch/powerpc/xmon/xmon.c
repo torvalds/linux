@@ -517,6 +517,15 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 	in_xmon = 0;
 #endif
 
+#ifdef CONFIG_BOOKE
+	if (regs->msr & MSR_DE) {
+		bp = at_breakpoint(regs->nip);
+		if (bp != NULL) {
+			regs->nip = (unsigned long) &bp->instr[0];
+			atomic_inc(&bp->ref_count);
+		}
+	}
+#else
 	if ((regs->msr & (MSR_IR|MSR_PR|MSR_SF)) == (MSR_IR|MSR_SF)) {
 		bp = at_breakpoint(regs->nip);
 		if (bp != NULL) {
@@ -530,7 +539,7 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 			}
 		}
 	}
-
+#endif
 	insert_cpu_bpts();
 
 	local_irq_restore(flags);
@@ -894,6 +903,14 @@ cmds(struct pt_regs *excp)
 	}
 }
 
+#ifdef CONFIG_BOOKE
+static int do_step(struct pt_regs *regs)
+{
+	regs->msr |= MSR_DE;
+	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
+	return 1;
+}
+#else
 /*
  * Step a single instruction.
  * Some instructions we emulate, others we execute with MSR_SE set.
@@ -924,6 +941,7 @@ static int do_step(struct pt_regs *regs)
 	regs->msr |= MSR_SE;
 	return 1;
 }
+#endif
 
 static void bootcmds(void)
 {
@@ -1623,7 +1641,8 @@ static void super_regs(void)
 			       ptrLpPaca->saved_srr0, ptrLpPaca->saved_srr1);
 			printf("    Saved Gpr3=%.16lx  Saved Gpr4=%.16lx \n",
 			       ptrLpPaca->saved_gpr3, ptrLpPaca->saved_gpr4);
-			printf("    Saved Gpr5=%.16lx \n", ptrLpPaca->saved_gpr5);
+			printf("    Saved Gpr5=%.16lx \n",
+				ptrLpPaca->gpr5_dword.saved_gpr5);
 		}
 #endif
 

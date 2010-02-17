@@ -13,7 +13,6 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/errno.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -185,13 +184,11 @@ static int monwrite_open(struct inode *inode, struct file *filp)
 	monpriv = kzalloc(sizeof(struct mon_private), GFP_KERNEL);
 	if (!monpriv)
 		return -ENOMEM;
-	lock_kernel();
 	INIT_LIST_HEAD(&monpriv->list);
 	monpriv->hdr_to_read = sizeof(monpriv->hdr);
 	mutex_init(&monpriv->thread_mutex);
 	filp->private_data = monpriv;
 	list_add_tail(&monpriv->priv_list, &mon_priv_list);
-	unlock_kernel();
 	return nonseekable_open(inode, filp);
 }
 
@@ -326,7 +323,7 @@ static int monwriter_thaw(struct device *dev)
 	return monwriter_restore(dev);
 }
 
-static struct dev_pm_ops monwriter_pm_ops = {
+static const struct dev_pm_ops monwriter_pm_ops = {
 	.freeze		= monwriter_freeze,
 	.thaw		= monwriter_thaw,
 	.restore	= monwriter_restore,
@@ -364,6 +361,10 @@ static int __init mon_init(void)
 		goto out_driver;
 	}
 
+	/*
+	 * misc_register() has to be the last action in module_init(), because
+	 * file operations will be available right after this.
+	 */
 	rc = misc_register(&mon_dev);
 	if (rc)
 		goto out_device;

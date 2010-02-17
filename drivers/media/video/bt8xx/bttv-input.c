@@ -73,12 +73,12 @@ static void ir_handle_key(struct bttv *btv)
 
 	if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 	    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-		ir_input_keydown(ir->dev,&ir->ir,data,data);
+		ir_input_keydown(ir->dev, &ir->ir, data);
 	} else {
 		/* HACK: Probably, ir->mask_keydown is missing
 		   for this board */
 		if (btv->c.type == BTTV_BOARD_WINFAST2000)
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 
 		ir_input_nokey(ir->dev,&ir->ir);
 	}
@@ -104,7 +104,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 			gpio, data,
 			(gpio & ir->mask_keyup) ? " up" : "up/down");
 
-		ir_input_keydown(ir->dev, &ir->ir, data, data);
+		ir_input_keydown(ir->dev, &ir->ir, data);
 		if (keyup)
 			ir_input_nokey(ir->dev, &ir->ir);
 	} else {
@@ -118,7 +118,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 		if (keyup)
 			ir_input_nokey(ir->dev, &ir->ir);
 		else
-			ir_input_keydown(ir->dev, &ir->ir, data, data);
+			ir_input_keydown(ir->dev, &ir->ir, data);
 	}
 
 	ir->last_gpio = data | keyup;
@@ -368,7 +368,10 @@ int bttv_input_init(struct bttv *btv)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(btv->c.pci));
 
-	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type);
+	if (err < 0)
+		goto err_out_free;
+
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
 	input_dev->id.bustype = BUS_PCI;
@@ -386,7 +389,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_start(btv, ir);
 
 	/* all done */
-	err = input_register_device(btv->remote->dev);
+	err = ir_input_register(btv->remote->dev, ir_codes);
 	if (err)
 		goto err_out_stop;
 
@@ -400,7 +403,6 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_stop(btv);
 	btv->remote = NULL;
  err_out_free:
-	input_free_device(input_dev);
 	kfree(ir);
 	return err;
 }
@@ -411,7 +413,7 @@ void bttv_input_fini(struct bttv *btv)
 		return;
 
 	bttv_ir_stop(btv);
-	input_unregister_device(btv->remote->dev);
+	ir_input_unregister(btv->remote->dev);
 	kfree(btv->remote);
 	btv->remote = NULL;
 }

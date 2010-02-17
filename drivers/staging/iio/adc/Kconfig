@@ -6,8 +6,18 @@ comment "Analog to digital convertors"
 config MAX1363
 	tristate "MAXIM max1363 ADC driver"
 	depends on I2C
+	select IIO_TRIGGER if IIO_RING_BUFFER
 	help
 	  Say yes here to build support for many MAXIM i2c analog to digital
 	  convertors (ADC). (max1361, max1362, max1363, max1364, max1136,
 	  max1136, max1137, max1138, max1139, max1236, max1237, max11238,
 	  max1239) Provides direct access via sysfs.
+
+config MAX1363_RING_BUFFER
+	bool "MAXIM max1363: use ring buffer"
+	depends on MAX1363
+	select IIO_RING_BUFFER
+	select IIO_SW_RING
+	help
+	  Say yes here to include ring buffer support in the MAX1363
+	  ADC driver.

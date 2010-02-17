@@ -90,17 +90,35 @@ config USB_EHCI_TT_NEWSCHED
 
 config USB_EHCI_BIG_ENDIAN_MMIO
 	bool
-	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (PPC_CELLEB || PPC_PS3 || 440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX)
 	default y
 
 config USB_EHCI_BIG_ENDIAN_DESC
 	bool
-	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX)
+	depends on USB_EHCI_HCD && (440EPX || ARCH_IXP4XX || XPS_USB_HCD_XILINX)
 	default y
+
+config XPS_USB_HCD_XILINX
+	bool "Use Xilinx usb host EHCI controller core"
+	depends on USB_EHCI_HCD && (PPC32 || MICROBLAZE)
+	select USB_EHCI_BIG_ENDIAN_DESC
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	---help---
+		Xilinx xps USB host controller core is EHCI compilant and has
+		transaction translator built-in. It can be configured to either
+		support both high speed and full speed devices, or high speed
+		devices only.
 
 config USB_EHCI_FSL
 	bool "Support for Freescale on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && FSL_SOC
+	select USB_EHCI_ROOT_HUB_TT
+	---help---
+	  Variation of ARC USB block used in some Freescale chips.
+
+config USB_EHCI_MXC
+	bool "Support for Freescale on-chip EHCI USB controller"
+	depends on USB_EHCI_HCD && ARCH_MXC
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.

@@ -52,13 +52,13 @@ void __init setup_arch(char **cmdline_p)
 	/* irq_early_init(); */
 	setup_cpuinfo();
 
-	__invalidate_icache_all();
-	__enable_icache();
+	microblaze_cache_init();
 
-	__invalidate_dcache_all();
-	__enable_dcache();
+	invalidate_dcache();
+	enable_dcache();
 
-	panic_timeout = 120;
+	invalidate_icache();
+	enable_icache();
 
 	setup_memory();
 
@@ -131,6 +131,8 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 		strlcpy(cmd_line, cmdline, COMMAND_LINE_SIZE);
 #endif
 
+	lockdep_init();
+
 /* initialize device tree for usage in early_printk */
 	early_init_devtree((void *)_fdt_start);
 
@@ -186,32 +188,3 @@ static int microblaze_debugfs_init(void)
 }
 arch_initcall(microblaze_debugfs_init);
 #endif
-
-void machine_restart(char *cmd)
-{
-	printk(KERN_NOTICE "Machine restart...\n");
-	dump_stack();
-	while (1)
-		;
-}
-
-void machine_shutdown(void)
-{
-	printk(KERN_NOTICE "Machine shutdown...\n");
-	while (1)
-		;
-}
-
-void machine_halt(void)
-{
-	printk(KERN_NOTICE "Machine halt...\n");
-	while (1)
-		;
-}
-
-void machine_power_off(void)
-{
-	printk(KERN_NOTICE "Machine power off...\n");
-	while (1)
-		;
-}

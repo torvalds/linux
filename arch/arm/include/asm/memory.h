@@ -125,14 +125,22 @@
  * private definitions which should NOT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.
  */
+#ifndef __virt_to_phys
 #define __virt_to_phys(x)	((x) - PAGE_OFFSET + PHYS_OFFSET)
 #define __phys_to_virt(x)	((x) - PHYS_OFFSET + PAGE_OFFSET)
+#endif
 
 /*
  * Convert a physical address to a Page Frame Number and back
  */
 #define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
 #define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+
+/*
+ * Convert a page to/from a physical address
+ */
+#define page_to_phys(page)	(__pfn_to_phys(page_to_pfn(page)))
+#define phys_to_page(phys)	(pfn_to_page(__phys_to_pfn(phys)))
 
 #ifndef __ASSEMBLY__
 
@@ -194,7 +202,8 @@ static inline void *phys_to_virt(unsigned long x)
 #ifndef __virt_to_bus
 #define __virt_to_bus	__virt_to_phys
 #define __bus_to_virt	__phys_to_virt
-#define __pfn_to_bus(x)	((x) << PAGE_SHIFT)
+#define __pfn_to_bus(x)	__pfn_to_phys(x)
+#define __bus_to_pfn(x)	__phys_to_pfn(x)
 #endif
 
 static inline __deprecated unsigned long virt_to_bus(void *x)
@@ -291,11 +300,6 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #endif /* NODE_MEM_SIZE_BITS */
 
 #endif /* !CONFIG_DISCONTIGMEM */
-
-/*
- * For BIO.  "will die".  Kill me when bio_to_phys() and bvec_to_phys() die.
- */
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 /*
  * Optional coherency support.  Currently used only by selected

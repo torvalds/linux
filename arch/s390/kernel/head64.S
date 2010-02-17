@@ -83,6 +83,8 @@ startup_continue:
 	slr	%r0,%r0 		# set cpuid to zero
 	sigp	%r1,%r0,0x12		# switch to esame mode
 	sam64				# switch to 64 bit mode
+	llgfr	%r13,%r13		# clear high-order half of base reg
+	lmh	%r0,%r15,.Lzero64-.LPG1(%r13)	# clear high-order half
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
 					# move IPL device to lowcore
@@ -127,6 +129,7 @@ startup_continue:
 .L4malign:.quad 0xffffffffffc00000
 .Lscan2g:.quad	0x80000000 + 0x20000 - 8	# 2GB + 128K - 8
 .Lnop:	.long	0x07000700
+.Lzero64:.fill	16,4,0x0
 #ifdef CONFIG_ZFCPDUMP
 .Lcurrent_cpu:
 	.long 0x0

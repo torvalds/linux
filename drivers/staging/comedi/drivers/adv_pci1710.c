@@ -830,7 +830,7 @@ static irqreturn_t interrupt_service_pci1710(int irq, void *d)
 static int pci171x_ai_docmd_and_mode(int mode, struct comedi_device *dev,
 				     struct comedi_subdevice *s)
 {
-	unsigned int divisor1, divisor2;
+	unsigned int divisor1 = 0, divisor2 = 0;
 	unsigned int seglen;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_docmd_and_mode(%d,...)\n",
@@ -934,7 +934,7 @@ static int pci171x_ai_cmdtest(struct comedi_device *dev,
 			      struct comedi_cmd *cmd)
 {
 	int err = 0;
-	int tmp, divisor1, divisor2;
+	int tmp, divisor1 = 0, divisor2 = 0;
 
 	DPRINTK("adv_pci1710 EDBG: BGN: pci171x_ai_cmdtest(...)\n");
 #ifdef PCI171X_EXTDEBUG

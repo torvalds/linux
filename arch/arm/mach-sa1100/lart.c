@@ -28,7 +28,7 @@ static struct mcp_plat_data lart_mcp_data = {
 
 static void __init lart_init(void)
 {
-	sa11x0_set_mcp_data(&lart_mcp_data);
+	sa11x0_register_mcp(&lart_mcp_data);
 }
 
 static struct map_desc lart_io_desc[] __initdata = {

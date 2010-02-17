@@ -25,8 +25,6 @@
  * to fit into the literal area of the inode.
  */
 
-struct xfs_inode;
-
 /*
  * Entries are packed toward the top as tight as possible.
  */
@@ -68,43 +66,5 @@ typedef struct xfs_attr_sf_sort {
 #define XFS_ATTR_SF_TOTSIZE(dp)			/* total space in use */ \
 	(be16_to_cpu(((xfs_attr_shortform_t *)	\
 		((dp)->i_afp->if_u1.if_data))->hdr.totsize))
-
-#if defined(XFS_ATTR_TRACE)
-/*
- * Kernel tracing support for attribute lists
- */
-struct xfs_attr_list_context;
-struct xfs_da_intnode;
-struct xfs_da_node_entry;
-struct xfs_attr_leafblock;
-
-#define	XFS_ATTR_TRACE_SIZE	4096	/* size of global trace buffer */
-extern ktrace_t	*xfs_attr_trace_buf;
-
-/*
- * Trace record types.
- */
-#define	XFS_ATTR_KTRACE_L_C	1	/* context */
-#define	XFS_ATTR_KTRACE_L_CN	2	/* context, node */
-#define	XFS_ATTR_KTRACE_L_CB	3	/* context, btree */
-#define	XFS_ATTR_KTRACE_L_CL	4	/* context, leaf */
-
-void xfs_attr_trace_l_c(char *where, struct xfs_attr_list_context *context);
-void xfs_attr_trace_l_cn(char *where, struct xfs_attr_list_context *context,
-			      struct xfs_da_intnode *node);
-void xfs_attr_trace_l_cb(char *where, struct xfs_attr_list_context *context,
-			      struct xfs_da_node_entry *btree);
-void xfs_attr_trace_l_cl(char *where, struct xfs_attr_list_context *context,
-			      struct xfs_attr_leafblock *leaf);
-void xfs_attr_trace_enter(int type, char *where,
-			     struct xfs_attr_list_context *context,
-			     __psunsigned_t a13, __psunsigned_t a14,
-			     __psunsigned_t a15);
-#else
-#define	xfs_attr_trace_l_c(w,c)
-#define	xfs_attr_trace_l_cn(w,c,n)
-#define	xfs_attr_trace_l_cb(w,c,b)
-#define	xfs_attr_trace_l_cl(w,c,l)
-#endif /* XFS_ATTR_TRACE */
 
 #endif	/* __XFS_ATTR_SF_H__ */

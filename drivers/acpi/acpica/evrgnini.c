@@ -575,6 +575,21 @@ acpi_ev_initialize_region(union acpi_operand_object *region_obj,
 				handler_obj = obj_desc->thermal_zone.handler;
 				break;
 
+			case ACPI_TYPE_METHOD:
+				/*
+				 * If we are executing module level code, the original
+				 * Node's object was replaced by this Method object and we
+				 * saved the handler in the method object.
+				 *
+				 * See acpi_ns_exec_module_code
+				 */
+				if (obj_desc->method.
+				    flags & AOPOBJ_MODULE_LEVEL) {
+					handler_obj =
+					    obj_desc->method.extra.handler;
+				}
+				break;
+
 			default:
 				/* Ignore other objects */
 				break;

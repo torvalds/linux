@@ -530,7 +530,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
-	_REGISTER_CLOCK(NULL, "wdog", wdog_clk)
+	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "rtc", rtc_clk)
 	_REGISTER_CLOCK(NULL, "epit", epit1_clk)
 	_REGISTER_CLOCK(NULL, "epit", epit2_clk)
@@ -558,8 +558,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc_w1.0", NULL, owire_clk)
 	_REGISTER_CLOCK("mxc-mmc.0", NULL, sdhc1_clk)
 	_REGISTER_CLOCK("mxc-mmc.1", NULL, sdhc2_clk)
-	_REGISTER_CLOCK(NULL, "ssi", ssi1_clk)
-	_REGISTER_CLOCK(NULL, "ssi", ssi2_clk)
+	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
+	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK(NULL, "firi", firi_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
@@ -615,6 +615,8 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_enable(&iim_clk);
 
 	clk_enable(&serial_pll_clk);
+
+	mx31_read_cpu_rev();
 
 	if (mx31_revision() >= CHIP_REV_2_0) {
 		reg = __raw_readl(MXC_CCM_PMCR1);

@@ -103,7 +103,7 @@ struct videobuf_dmabuf *videobuf_to_dma (struct videobuf_buffer *buf);
 void *videobuf_sg_alloc(size_t size);
 
 void videobuf_queue_sg_init(struct videobuf_queue* q,
-			 struct videobuf_queue_ops *ops,
+			 const struct videobuf_queue_ops *ops,
 			 struct device *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,

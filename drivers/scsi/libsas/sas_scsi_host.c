@@ -820,9 +820,13 @@ void sas_slave_destroy(struct scsi_device *scsi_dev)
 		ata_port_disable(dev->sata_dev.ap);
 }
 
-int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth)
+int sas_change_queue_depth(struct scsi_device *scsi_dev, int new_depth,
+			   int reason)
 {
 	int res = min(new_depth, SAS_MAX_QD);
+
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
 
 	if (scsi_dev->tagged_supported)
 		scsi_adjust_queue_depth(scsi_dev, scsi_get_tag_type(scsi_dev),

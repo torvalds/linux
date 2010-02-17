@@ -162,7 +162,7 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	if (tf->command == ATA_CMD_SET_FEATURES &&
 	    tf->feature == SETFEATURES_XFER &&
 	    tf->nsect >= XFER_SW_DMA_0) {
-		xfer_rate = ide_find_dma_mode(drive, XFER_UDMA_6);
+		xfer_rate = ide_find_dma_mode(drive, tf->nsect);
 		if (xfer_rate != tf->nsect) {
 			err = -EINVAL;
 			goto abort;

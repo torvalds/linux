@@ -62,10 +62,14 @@ static void
 activate_substream(struct snd_usb_caiaqdev *dev,
 	           struct snd_pcm_substream *sub)
 {
+	spin_lock(&dev->spinlock);
+
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		dev->sub_playback[sub->number] = sub;
 	else
 		dev->sub_capture[sub->number] = sub;
+
+	spin_unlock(&dev->spinlock);
 }
 
 static void
@@ -269,16 +273,22 @@ snd_usb_caiaq_pcm_pointer(struct snd_pcm_substream *sub)
 {
 	int index = sub->number;
 	struct snd_usb_caiaqdev *dev = snd_pcm_substream_chip(sub);
+	snd_pcm_uframes_t ptr;
+
+	spin_lock(&dev->spinlock);
 
 	if (dev->input_panic || dev->output_panic)
-		return SNDRV_PCM_POS_XRUN;
+		ptr = SNDRV_PCM_POS_XRUN;
 
 	if (sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		return bytes_to_frames(sub->runtime,
+		ptr = bytes_to_frames(sub->runtime,
 					dev->audio_out_buf_pos[index]);
 	else
-		return bytes_to_frames(sub->runtime,
+		ptr = bytes_to_frames(sub->runtime,
 					dev->audio_in_buf_pos[index]);
+
+	spin_unlock(&dev->spinlock);
+	return ptr;
 }
 
 /* operators for both playback and capture */

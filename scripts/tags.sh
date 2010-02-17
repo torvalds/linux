@@ -89,7 +89,13 @@ all_defconfigs()
 
 docscope()
 {
-	(echo \-k; echo \-q; all_sources) > cscope.files
+	# always use absolute paths for cscope, as recommended by cscope
+	# upstream
+	case "$tree" in
+		/*) ;;
+		*) tree=$PWD/$tree ;;
+	esac
+	(cd /; echo \-k; echo \-q; all_sources) > cscope.files
 	cscope -b -f cscope.out
 }
 

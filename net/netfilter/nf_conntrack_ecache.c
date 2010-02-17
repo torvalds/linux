@@ -151,7 +151,6 @@ static int nf_ct_events_retry_timeout __read_mostly = 15*HZ;
 #ifdef CONFIG_SYSCTL
 static struct ctl_table event_sysctl_table[] = {
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nf_conntrack_events",
 		.data		= &init_net.ct.sysctl_events,
 		.maxlen		= sizeof(unsigned int),
@@ -159,7 +158,6 @@ static struct ctl_table event_sysctl_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "nf_conntrack_events_retry_timeout",
 		.data		= &init_net.ct.sysctl_events_retry_timeout,
 		.maxlen		= sizeof(unsigned int),

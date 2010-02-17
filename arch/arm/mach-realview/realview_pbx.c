@@ -304,6 +304,40 @@ static struct sys_timer realview_pbx_timer = {
 	.init		= realview_pbx_timer_init,
 };
 
+static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
+			       char **from, struct meminfo *meminfo)
+{
+#ifdef CONFIG_SPARSEMEM
+	/*
+	 * Memory configuration with SPARSEMEM enabled on RealView PBX (see
+	 * asm/mach/memory.h for more information).
+	 */
+	meminfo->bank[0].start = 0;
+	meminfo->bank[0].size = SZ_256M;
+	meminfo->bank[1].start = 0x20000000;
+	meminfo->bank[1].size = SZ_512M;
+	meminfo->bank[2].start = 0x80000000;
+	meminfo->bank[2].size = SZ_256M;
+	meminfo->nr_banks = 3;
+#else
+	realview_fixup(mdesc, tags, from, meminfo);
+#endif
+}
+
+static void realview_pbx_reset(char mode)
+{
+	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
+	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
+
+	/*
+	 * To reset, we hit the on-board reset register
+	 * in the system FPGA
+	 */
+	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
+	__raw_writel(0x00F0, reset_ctrl);
+	__raw_writel(0x00F4, reset_ctrl);
+}
+
 static void __init realview_pbx_init(void)
 {
 	int i;
@@ -338,6 +372,7 @@ static void __init realview_pbx_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
+	realview_reset = realview_pbx_reset;
 }
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
@@ -345,6 +380,7 @@ MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")
 	.phys_io	= REALVIEW_PBX_UART0_BASE,
 	.io_pg_offst	= (IO_ADDRESS(REALVIEW_PBX_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= PHYS_OFFSET + 0x00000100,
+	.fixup		= realview_pbx_fixup,
 	.map_io		= realview_pbx_map_io,
 	.init_irq	= gic_init_irq,
 	.timer		= &realview_pbx_timer,

@@ -30,7 +30,7 @@
 
 /*
  * use drive write caching -- we need deferred error handling to be
- * able to sucessfully recover with this option (drive will return good
+ * able to successfully recover with this option (drive will return good
  * status as soon as the cdb is validated).
  */
 #if defined(CONFIG_CDROM_PKTCDVD_WCACHE)

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
+  Copyright(c) 1999 - 2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -43,10 +43,6 @@
  * 82583V Gigabit Network Connection
  */
 
-#include <linux/netdevice.h>
-#include <linux/delay.h>
-#include <linux/pci.h>
-
 #include "e1000.h"
 
 #define ID_LED_RESERVED_F746 0xF746
@@ -69,15 +65,15 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw);
 static s32 e1000_setup_link_82571(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
+static void e1000_clear_vfta_82571(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_82574(struct e1000_hw *hw);
 static s32 e1000_led_on_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw);
+static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw);
 
 /**
  *  e1000_init_phy_params_82571 - Init PHY func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 {
@@ -92,6 +88,9 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 	phy->addr			 = 1;
 	phy->autoneg_mask		 = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 	phy->reset_delay_us		 = 100;
+
+	phy->ops.power_up		 = e1000_power_up_phy_copper;
+	phy->ops.power_down		 = e1000_power_down_phy_copper_82571;
 
 	switch (hw->mac.type) {
 	case e1000_82571:
@@ -140,8 +139,6 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 /**
  *  e1000_init_nvm_params_82571 - Init NVM func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 {
@@ -205,8 +202,6 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
 /**
  *  e1000_init_mac_params_82571 - Init MAC func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 {
@@ -240,7 +235,10 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
 	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK) ? 1 : 0;
+	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
+	                ? true : false;
+	/* Adaptive IFS supported */
+	mac->adaptive_ifs = true;
 
 	/* check for link */
 	switch (hw->phy.media_type) {
@@ -313,7 +311,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 			 * indicates that the bootagent or EFI code has
 			 * improperly left this bit enabled
 			 */
-			hw_dbg(hw, "Please update your 82571 Bootagent\n");
+			e_dbg("Please update your 82571 Bootagent\n");
 		}
 		ew32(SWSM, swsm & ~E1000_SWSM_SMBI);
 	}
@@ -487,7 +485,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 	}
 
 	if (i == sw_timeout) {
-		hw_dbg(hw, "Driver can't access device - SMBI bit is set.\n");
+		e_dbg("Driver can't access device - SMBI bit is set.\n");
 		hw->dev_spec.e82571.smb_counter++;
 	}
 	/* Get the FW semaphore. */
@@ -505,7 +503,7 @@ static s32 e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
 	if (i == fw_timeout) {
 		/* Release semaphores */
 		e1000_put_hw_semaphore_82571(hw);
-		hw_dbg(hw, "Driver can't access the NVM\n");
+		e_dbg("Driver can't access the NVM\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -702,8 +700,7 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 				      u16 words, u16 *data)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
-	u32 i;
-	u32 eewr = 0;
+	u32 i, eewr = 0;
 	s32 ret_val = 0;
 
 	/*
@@ -712,7 +709,7 @@ static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
-		hw_dbg(hw, "nvm parameter(s) out of bounds\n");
+		e_dbg("nvm parameter(s) out of bounds\n");
 		return -E1000_ERR_NVM;
 	}
 
@@ -753,7 +750,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout) {
-		hw_dbg(hw, "MNG configuration cycle has not completed.\n");
+		e_dbg("MNG configuration cycle has not completed.\n");
 		return -E1000_ERR_RESET;
 	}
 
@@ -763,7 +760,7 @@ static s32 e1000_get_cfg_done_82571(struct e1000_hw *hw)
 /**
  *  e1000_set_d0_lplu_state_82571 - Set Low Power Linkup D0 state
  *  @hw: pointer to the HW structure
- *  @active: TRUE to enable LPLU, FALSE to disable
+ *  @active: true to enable LPLU, false to disable
  *
  *  Sets the LPLU D0 state according to the active flag.  When activating LPLU
  *  this function also disables smart speed and vice versa.  LPLU will not be
@@ -834,15 +831,11 @@ static s32 e1000_set_d0_lplu_state_82571(struct e1000_hw *hw, bool active)
  *  e1000_reset_hw_82571 - Reset hardware
  *  @hw: pointer to the HW structure
  *
- *  This resets the hardware into a known state.  This is a
- *  function pointer entry point called by the api module.
+ *  This resets the hardware into a known state.
  **/
 static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 {
-	u32 ctrl;
-	u32 extcnf_ctrl;
-	u32 ctrl_ext;
-	u32 icr;
+	u32 ctrl, extcnf_ctrl, ctrl_ext, icr;
 	s32 ret_val;
 	u16 i = 0;
 
@@ -852,9 +845,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_disable_pcie_master(hw);
 	if (ret_val)
-		hw_dbg(hw, "PCI-E Master disable polling has failed.\n");
+		e_dbg("PCI-E Master disable polling has failed.\n");
 
-	hw_dbg(hw, "Masking off all interrupts\n");
+	e_dbg("Masking off all interrupts\n");
 	ew32(IMC, 0xffffffff);
 
 	ew32(RCTL, 0);
@@ -893,7 +886,7 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 
-	hw_dbg(hw, "Issuing a global reset to MAC\n");
+	e_dbg("Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 
 	if (hw->nvm.type == e1000_nvm_flash_hw) {
@@ -951,21 +944,19 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 reg_data;
 	s32 ret_val;
-	u16 i;
-	u16 rar_count = mac->rar_entry_count;
+	u16 i, rar_count = mac->rar_entry_count;
 
 	e1000_initialize_hw_bits_82571(hw);
 
 	/* Initialize identification LED */
 	ret_val = e1000e_id_led_init(hw);
-	if (ret_val) {
-		hw_dbg(hw, "Error initializing identification LED\n");
-		return ret_val;
-	}
+	if (ret_val)
+		e_dbg("Error initializing identification LED\n");
+		/* This is not fatal and we should not stop init due to this */
 
 	/* Disabling VLAN filtering */
-	hw_dbg(hw, "Initializing the IEEE VLAN\n");
-	e1000e_clear_vfta(hw);
+	e_dbg("Initializing the IEEE VLAN\n");
+	mac->ops.clear_vfta(hw);
 
 	/* Setup the receive address. */
 	/*
@@ -978,7 +969,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	e1000e_init_rx_addrs(hw, rar_count);
 
 	/* Zero out the Multicast HASH table */
-	hw_dbg(hw, "Zeroing the MTA\n");
+	e_dbg("Zeroing the MTA\n");
 	for (i = 0; i < mac->mta_reg_count; i++)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
@@ -1125,6 +1116,13 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		reg |= (1 << 22);
 		ew32(GCR, reg);
 
+		/*
+		 * Workaround for hardware errata.
+		 * apply workaround for hardware errata documented in errata
+		 * docs Fixes issue where some error prone or unreliable PCIe
+		 * completions are occurring, particularly with ASPM enabled.
+		 * Without fix, issue can cause tx timeouts.
+		 */
 		reg = er32(GCR2);
 		reg |= 1;
 		ew32(GCR2, reg);
@@ -1137,13 +1135,13 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_clear_vfta - Clear VLAN filter table
+ *  e1000_clear_vfta_82571 - Clear VLAN filter table
  *  @hw: pointer to the HW structure
  *
  *  Clears the register array which contains the VLAN filter table by
  *  setting all the values to 0.
  **/
-void e1000e_clear_vfta(struct e1000_hw *hw)
+static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 {
 	u32 offset;
 	u32 vfta_value = 0;
@@ -1294,7 +1292,6 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 {
 	u32 ctrl;
-	u32 led_ctrl;
 	s32 ret_val;
 
 	ctrl = er32(CTRL);
@@ -1309,11 +1306,6 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 		break;
 	case e1000_phy_igp_2:
 		ret_val = e1000e_copper_link_setup_igp(hw);
-		/* Setup activity LED */
-		led_ctrl = er32(LEDCTL);
-		led_ctrl &= IGP_ACTIVITY_LED_MASK;
-		led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-		ew32(LEDCTL, led_ctrl);
 		break;
 	default:
 		return -E1000_ERR_PHY;
@@ -1360,8 +1352,20 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
  *  e1000_check_for_serdes_link_82571 - Check for link (Serdes)
  *  @hw: pointer to the HW structure
  *
- *  Checks for link up on the hardware.  If link is not up and we have
- *  a signal, then we need to force link up.
+ *  Reports the link state as up or down.
+ *
+ *  If autonegotiation is supported by the link partner, the link state is
+ *  determined by the result of autonegotiation. This is the most likely case.
+ *  If autonegotiation is not supported by the link partner, and the link
+ *  has a valid signal, force the link up.
+ *
+ *  The link state is represented internally here by 4 states:
+ *
+ *  1) down
+ *  2) autoneg_progress
+ *  3) autoneg_complete (the link sucessfully autonegotiated)
+ *  4) forced_up (the link has been forced up, it did not autonegotiate)
+ *
  **/
 static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 {
@@ -1387,7 +1391,8 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				 */
 				mac->serdes_link_state =
 				    e1000_serdes_link_autoneg_progress;
-				hw_dbg(hw, "AN_UP     -> AN_PROG\n");
+				mac->serdes_has_link = false;
+				e_dbg("AN_UP     -> AN_PROG\n");
 			}
 		break;
 
@@ -1401,79 +1406,86 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			if (rxcw & E1000_RXCW_C) {
 				/* Enable autoneg, and unforce link up */
 				ew32(TXCW, mac->txcw);
-				ew32(CTRL,
-				    (ctrl & ~E1000_CTRL_SLU));
+				ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 				mac->serdes_link_state =
 				    e1000_serdes_link_autoneg_progress;
-				hw_dbg(hw, "FORCED_UP -> AN_PROG\n");
+				mac->serdes_has_link = false;
+				e_dbg("FORCED_UP -> AN_PROG\n");
 			}
 			break;
 
 		case e1000_serdes_link_autoneg_progress:
-			/*
-			 * If the LU bit is set in the STATUS register,
-			 * autoneg has completed sucessfully. If not,
-			 * try foring the link because the far end may be
-			 * available but not capable of autonegotiation.
-			 */
-			if (status & E1000_STATUS_LU)  {
-				mac->serdes_link_state =
-				    e1000_serdes_link_autoneg_complete;
-				hw_dbg(hw, "AN_PROG   -> AN_UP\n");
+			if (rxcw & E1000_RXCW_C) {
+				/*
+				 * We received /C/ ordered sets, meaning the
+				 * link partner has autonegotiated, and we can
+				 * trust the Link Up (LU) status bit.
+				 */
+				if (status & E1000_STATUS_LU) {
+					mac->serdes_link_state =
+					    e1000_serdes_link_autoneg_complete;
+					e_dbg("AN_PROG   -> AN_UP\n");
+					mac->serdes_has_link = true;
+				} else {
+					/* Autoneg completed, but failed. */
+					mac->serdes_link_state =
+					    e1000_serdes_link_down;
+					e_dbg("AN_PROG   -> DOWN\n");
+				}
 			} else {
 				/*
-				 * Disable autoneg, force link up and
-				 * full duplex, and change state to forced
+				 * The link partner did not autoneg.
+				 * Force link up and full duplex, and change
+				 * state to forced.
 				 */
-				ew32(TXCW,
-				    (mac->txcw & ~E1000_TXCW_ANE));
+				ew32(TXCW, (mac->txcw & ~E1000_TXCW_ANE));
 				ctrl |= (E1000_CTRL_SLU | E1000_CTRL_FD);
 				ew32(CTRL, ctrl);
 
 				/* Configure Flow Control after link up. */
-				ret_val =
-				    e1000e_config_fc_after_link_up(hw);
+				ret_val = e1000e_config_fc_after_link_up(hw);
 				if (ret_val) {
-					hw_dbg(hw, "Error config flow control\n");
+					e_dbg("Error config flow control\n");
 					break;
 				}
 				mac->serdes_link_state =
 				    e1000_serdes_link_forced_up;
-				hw_dbg(hw, "AN_PROG   -> FORCED_UP\n");
+				mac->serdes_has_link = true;
+				e_dbg("AN_PROG   -> FORCED_UP\n");
 			}
-			mac->serdes_has_link = true;
 			break;
 
 		case e1000_serdes_link_down:
 		default:
-			/* The link was down but the receiver has now gained
+			/*
+			 * The link was down but the receiver has now gained
 			 * valid sync, so lets see if we can bring the link
-			 * up. */
+			 * up.
+			 */
 			ew32(TXCW, mac->txcw);
-			ew32(CTRL,
-			    (ctrl & ~E1000_CTRL_SLU));
+			ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 			mac->serdes_link_state =
 			    e1000_serdes_link_autoneg_progress;
-			hw_dbg(hw, "DOWN      -> AN_PROG\n");
+			e_dbg("DOWN      -> AN_PROG\n");
 			break;
 		}
 	} else {
 		if (!(rxcw & E1000_RXCW_SYNCH)) {
 			mac->serdes_has_link = false;
 			mac->serdes_link_state = e1000_serdes_link_down;
-			hw_dbg(hw, "ANYSTATE  -> DOWN\n");
+			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/*
-			 * We have sync, and can tolerate one
-			 * invalid (IV) codeword before declaring
-			 * link down, so reread to look again
+			 * We have sync, and can tolerate one invalid (IV)
+			 * codeword before declaring link down, so reread
+			 * to look again.
 			 */
 			udelay(10);
 			rxcw = er32(RXCW);
 			if (rxcw & E1000_RXCW_IV) {
 				mac->serdes_link_state = e1000_serdes_link_down;
 				mac->serdes_has_link = false;
-				hw_dbg(hw, "ANYSTATE  -> DOWN\n");
+				e_dbg("ANYSTATE  -> DOWN\n");
 			}
 		}
 	}
@@ -1495,7 +1507,7 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 
 	ret_val = e1000_read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
-		hw_dbg(hw, "NVM Read Error\n");
+		e_dbg("NVM Read Error\n");
 		return ret_val;
 	}
 
@@ -1525,7 +1537,7 @@ static s32 e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data)
 bool e1000e_get_laa_state_82571(struct e1000_hw *hw)
 {
 	if (hw->mac.type != e1000_82571)
-		return 0;
+		return false;
 
 	return hw->dev_spec.e82571.laa_is_present;
 }
@@ -1535,7 +1547,7 @@ bool e1000e_get_laa_state_82571(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *  @state: enable/disable locally administered address
  *
- *  Enable/Disable the current locally administers address state.
+ *  Enable/Disable the current locally administered address state.
  **/
 void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state)
 {
@@ -1609,6 +1621,28 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 }
 
 /**
+ * e1000_power_down_phy_copper_82571 - Remove link during PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, remove the link.
+ **/
+static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	struct e1000_mac_info *mac = &hw->mac;
+
+	if (!(phy->ops.check_reset_block))
+		return;
+
+	/* If the management interface is not enabled, then power down */
+	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
+		e1000_power_down_phy_copper(hw);
+
+	return;
+}
+
+/**
  *  e1000_clear_hw_cntrs_82571 - Clear device specific hardware counters
  *  @hw: pointer to the HW structure
  *
@@ -1616,44 +1650,42 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
  **/
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw)
 {
-	u32 temp;
-
 	e1000e_clear_hw_cntrs_base(hw);
 
-	temp = er32(PRC64);
-	temp = er32(PRC127);
-	temp = er32(PRC255);
-	temp = er32(PRC511);
-	temp = er32(PRC1023);
-	temp = er32(PRC1522);
-	temp = er32(PTC64);
-	temp = er32(PTC127);
-	temp = er32(PTC255);
-	temp = er32(PTC511);
-	temp = er32(PTC1023);
-	temp = er32(PTC1522);
+	er32(PRC64);
+	er32(PRC127);
+	er32(PRC255);
+	er32(PRC511);
+	er32(PRC1023);
+	er32(PRC1522);
+	er32(PTC64);
+	er32(PTC127);
+	er32(PTC255);
+	er32(PTC511);
+	er32(PTC1023);
+	er32(PTC1522);
 
-	temp = er32(ALGNERRC);
-	temp = er32(RXERRC);
-	temp = er32(TNCRS);
-	temp = er32(CEXTERR);
-	temp = er32(TSCTC);
-	temp = er32(TSCTFC);
+	er32(ALGNERRC);
+	er32(RXERRC);
+	er32(TNCRS);
+	er32(CEXTERR);
+	er32(TSCTC);
+	er32(TSCTFC);
 
-	temp = er32(MGTPRC);
-	temp = er32(MGTPDC);
-	temp = er32(MGTPTC);
+	er32(MGTPRC);
+	er32(MGTPDC);
+	er32(MGTPTC);
 
-	temp = er32(IAC);
-	temp = er32(ICRXOC);
+	er32(IAC);
+	er32(ICRXOC);
 
-	temp = er32(ICRXPTC);
-	temp = er32(ICRXATC);
-	temp = er32(ICTXPTC);
-	temp = er32(ICTXATC);
-	temp = er32(ICTXQEC);
-	temp = er32(ICTXQMTC);
-	temp = er32(ICRXDMTC);
+	er32(ICRXPTC);
+	er32(ICRXATC);
+	er32(ICTXPTC);
+	er32(ICTXATC);
+	er32(ICTXQEC);
+	er32(ICTXQMTC);
+	er32(ICRXDMTC);
 }
 
 static struct e1000_mac_operations e82571_mac_ops = {
@@ -1667,6 +1699,8 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	/* .led_on: mac type dependent */
 	.led_off		= e1000e_led_off_generic,
 	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
+	.write_vfta		= e1000_write_vfta_generic,
+	.clear_vfta		= e1000_clear_vfta_82571,
 	.reset_hw		= e1000_reset_hw_82571,
 	.init_hw		= e1000_init_hw_82571,
 	.setup_link		= e1000_setup_link_82571,
@@ -1675,64 +1709,67 @@ static struct e1000_mac_operations e82571_mac_ops = {
 };
 
 static struct e1000_phy_operations e82_phy_ops_igp = {
-	.acquire_phy		= e1000_get_hw_semaphore_82571,
+	.acquire		= e1000_get_hw_semaphore_82571,
+	.check_polarity		= e1000_check_polarity_igp,
 	.check_reset_block	= e1000e_check_reset_block_generic,
-	.commit_phy		= NULL,
+	.commit			= NULL,
 	.force_speed_duplex	= e1000e_phy_force_speed_duplex_igp,
 	.get_cfg_done		= e1000_get_cfg_done_82571,
 	.get_cable_length	= e1000e_get_cable_length_igp_2,
-	.get_phy_info		= e1000e_get_phy_info_igp,
-	.read_phy_reg		= e1000e_read_phy_reg_igp,
-	.release_phy		= e1000_put_hw_semaphore_82571,
-	.reset_phy		= e1000e_phy_hw_reset_generic,
+	.get_info		= e1000e_get_phy_info_igp,
+	.read_reg		= e1000e_read_phy_reg_igp,
+	.release		= e1000_put_hw_semaphore_82571,
+	.reset			= e1000e_phy_hw_reset_generic,
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
-	.write_phy_reg		= e1000e_write_phy_reg_igp,
+	.write_reg		= e1000e_write_phy_reg_igp,
 	.cfg_on_link_up      	= NULL,
 };
 
 static struct e1000_phy_operations e82_phy_ops_m88 = {
-	.acquire_phy		= e1000_get_hw_semaphore_82571,
+	.acquire		= e1000_get_hw_semaphore_82571,
+	.check_polarity		= e1000_check_polarity_m88,
 	.check_reset_block	= e1000e_check_reset_block_generic,
-	.commit_phy		= e1000e_phy_sw_reset,
+	.commit			= e1000e_phy_sw_reset,
 	.force_speed_duplex	= e1000e_phy_force_speed_duplex_m88,
 	.get_cfg_done		= e1000e_get_cfg_done,
 	.get_cable_length	= e1000e_get_cable_length_m88,
-	.get_phy_info		= e1000e_get_phy_info_m88,
-	.read_phy_reg		= e1000e_read_phy_reg_m88,
-	.release_phy		= e1000_put_hw_semaphore_82571,
-	.reset_phy		= e1000e_phy_hw_reset_generic,
+	.get_info		= e1000e_get_phy_info_m88,
+	.read_reg		= e1000e_read_phy_reg_m88,
+	.release		= e1000_put_hw_semaphore_82571,
+	.reset			= e1000e_phy_hw_reset_generic,
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
-	.write_phy_reg		= e1000e_write_phy_reg_m88,
+	.write_reg		= e1000e_write_phy_reg_m88,
 	.cfg_on_link_up      	= NULL,
 };
 
 static struct e1000_phy_operations e82_phy_ops_bm = {
-	.acquire_phy		= e1000_get_hw_semaphore_82571,
+	.acquire		= e1000_get_hw_semaphore_82571,
+	.check_polarity		= e1000_check_polarity_m88,
 	.check_reset_block	= e1000e_check_reset_block_generic,
-	.commit_phy		= e1000e_phy_sw_reset,
+	.commit			= e1000e_phy_sw_reset,
 	.force_speed_duplex	= e1000e_phy_force_speed_duplex_m88,
 	.get_cfg_done		= e1000e_get_cfg_done,
 	.get_cable_length	= e1000e_get_cable_length_m88,
-	.get_phy_info		= e1000e_get_phy_info_m88,
-	.read_phy_reg		= e1000e_read_phy_reg_bm2,
-	.release_phy		= e1000_put_hw_semaphore_82571,
-	.reset_phy		= e1000e_phy_hw_reset_generic,
+	.get_info		= e1000e_get_phy_info_m88,
+	.read_reg		= e1000e_read_phy_reg_bm2,
+	.release		= e1000_put_hw_semaphore_82571,
+	.reset			= e1000e_phy_hw_reset_generic,
 	.set_d0_lplu_state	= e1000_set_d0_lplu_state_82571,
 	.set_d3_lplu_state	= e1000e_set_d3_lplu_state,
-	.write_phy_reg		= e1000e_write_phy_reg_bm2,
+	.write_reg		= e1000e_write_phy_reg_bm2,
 	.cfg_on_link_up      	= NULL,
 };
 
 static struct e1000_nvm_operations e82571_nvm_ops = {
-	.acquire_nvm		= e1000_acquire_nvm_82571,
-	.read_nvm		= e1000e_read_nvm_eerd,
-	.release_nvm		= e1000_release_nvm_82571,
-	.update_nvm		= e1000_update_nvm_checksum_82571,
+	.acquire		= e1000_acquire_nvm_82571,
+	.read			= e1000e_read_nvm_eerd,
+	.release		= e1000_release_nvm_82571,
+	.update			= e1000_update_nvm_checksum_82571,
 	.valid_led_default	= e1000_valid_led_default_82571,
-	.validate_nvm		= e1000_validate_nvm_checksum_82571,
-	.write_nvm		= e1000_write_nvm_82571,
+	.validate		= e1000_validate_nvm_checksum_82571,
+	.write			= e1000_write_nvm_82571,
 };
 
 struct e1000_info e1000_82571_info = {

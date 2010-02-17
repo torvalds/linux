@@ -1990,7 +1990,7 @@ void __init poke_leonsparc(void)
 void __init init_leon(void)
 {
 
-	srmmu_name = "Leon";
+	srmmu_name = "LEON";
 
 	BTFIXUPSET_CALL(flush_cache_all, leon_flush_cache_all,
 			BTFIXUPCALL_NORM);
@@ -2037,8 +2037,6 @@ static void __init get_srmmu_type(void)
 
 	/* First, check for sparc-leon. */
 	if (sparc_cpu_model == sparc_leon) {
-		psr_typ = 0xf;	/* hardcoded ids for older models/simulators */
-		psr_vers = 2;
 		init_leon();
 		return;
 	}
@@ -2301,7 +2299,8 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(flush_cache_mm, smp_flush_cache_mm, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_range, smp_flush_cache_range, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_page, smp_flush_cache_page, BTFIXUPCALL_NORM);
-	if (sparc_cpu_model != sun4d) {
+	if (sparc_cpu_model != sun4d &&
+	    sparc_cpu_model != sparc_leon) {
 		BTFIXUPSET_CALL(flush_tlb_all, smp_flush_tlb_all, BTFIXUPCALL_NORM);
 		BTFIXUPSET_CALL(flush_tlb_mm, smp_flush_tlb_mm, BTFIXUPCALL_NORM);
 		BTFIXUPSET_CALL(flush_tlb_range, smp_flush_tlb_range, BTFIXUPCALL_NORM);
@@ -2330,6 +2329,8 @@ void __init ld_mmu_srmmu(void)
 #ifdef CONFIG_SMP
 	if (sparc_cpu_model == sun4d)
 		sun4d_init_smp();
+	else if (sparc_cpu_model == sparc_leon)
+		leon_init_smp();
 	else
 		sun4m_init_smp();
 #endif

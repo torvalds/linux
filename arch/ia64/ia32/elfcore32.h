@@ -11,8 +11,6 @@
 #include <asm/intrinsics.h>
 #include <asm/uaccess.h>
 
-#define USE_ELF_CORE_DUMP 1
-
 /* Override elfcore.h */
 #define _LINUX_ELFCORE_H 1
 typedef unsigned int elf_greg_t;

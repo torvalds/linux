@@ -257,11 +257,6 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 
 	snd_soc_add_controls(codec, ad1980_snd_ac97_controls,
 				ARRAY_SIZE(ad1980_snd_ac97_controls));
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		printk(KERN_ERR "ad1980: failed to register card\n");
-		goto reset_err;
-	}
 
 	return 0;
 

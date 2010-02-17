@@ -60,6 +60,7 @@
  * @dca: direct cache access context
  * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
  * @enumerate_channels: hw version specific channel enumeration
+ * @reset_hw: hw version specific channel (re)initialization
  * @cleanup_tasklet: select between the v2 and v3 cleanup routines
  * @timer_fn: select between the v2 and v3 timer watchdog routines
  * @self_test: hardware version specific self test for each supported op type
@@ -78,6 +79,7 @@ struct ioatdma_device {
 	struct dca_provider *dca;
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
+	int (*reset_hw)(struct ioat_chan_common *chan);
 	void (*cleanup_tasklet)(unsigned long data);
 	void (*timer_fn)(unsigned long data);
 	int (*self_test)(struct ioatdma_device *device);
@@ -264,6 +266,22 @@ static inline void ioat_suspend(struct ioat_chan_common *chan)
 	writeb(IOAT_CHANCMD_SUSPEND, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
 }
 
+static inline void ioat_reset(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+
+	writeb(IOAT_CHANCMD_RESET, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+}
+
+static inline bool ioat_reset_pending(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+	u8 cmd;
+
+	cmd = readb(chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+	return (cmd & IOAT_CHANCMD_RESET) == IOAT_CHANCMD_RESET;
+}
+
 static inline void ioat_set_chainaddr(struct ioat_dma_chan *ioat, u64 addr)
 {
 	struct ioat_chan_common *chan = &ioat->base;
@@ -297,9 +315,7 @@ static inline bool is_ioat_suspended(unsigned long status)
 /* channel was fatally programmed */
 static inline bool is_ioat_bug(unsigned long err)
 {
-	return !!(err & (IOAT_CHANERR_SRC_ADDR_ERR|IOAT_CHANERR_DEST_ADDR_ERR|
-			 IOAT_CHANERR_NEXT_ADDR_ERR|IOAT_CHANERR_CONTROL_ERR|
-			 IOAT_CHANERR_LENGTH_ERR));
+	return !!err;
 }
 
 static inline void ioat_unmap(struct pci_dev *pdev, dma_addr_t addr, size_t len,

@@ -467,7 +467,7 @@ static int dvi_get_panel_size_from_DDCv1(void)
 	default:
 		viaparinfo->tmds_setting_info->dvi_panel_size =
 			VIA_RES_1024X768;
-		DEBUG_MSG(KERN_INFO "Unknow panel size max resolution = %d !\
+		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d !\
 					 set default panel size.\n", max_h);
 		break;
 	}
@@ -534,7 +534,7 @@ static int dvi_get_panel_size_from_DDCv2(void)
 	default:
 		viaparinfo->tmds_setting_info->dvi_panel_size =
 			VIA_RES_1024X768;
-		DEBUG_MSG(KERN_INFO "Unknow panel size max resolution = %d!\
+		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d!\
 					set default panel size.\n", HSize);
 		break;
 	}

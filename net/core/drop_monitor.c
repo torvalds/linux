@@ -41,7 +41,7 @@ static void send_dm_alert(struct work_struct *unused);
  * netlink alerts
  */
 static int trace_state = TRACE_OFF;
-static spinlock_t trace_state_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(trace_state_lock);
 
 struct per_cpu_dm_data {
 	struct work_struct dm_alert_work;

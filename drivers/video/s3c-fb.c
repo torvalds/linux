@@ -211,21 +211,23 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 
 /**
  * s3c_fb_calc_pixclk() - calculate the divider to create the pixel clock.
- * @id: window id.
  * @sfb: The hardware state.
  * @pixclock: The pixel clock wanted, in picoseconds.
  *
  * Given the specified pixel clock, work out the necessary divider to get
  * close to the output frequency.
  */
-static int s3c_fb_calc_pixclk(unsigned char id, struct s3c_fb *sfb, unsigned int pixclk)
+static int s3c_fb_calc_pixclk(struct s3c_fb *sfb, unsigned int pixclk)
 {
-	struct s3c_fb_pd_win *win = sfb->pdata->win[id];
 	unsigned long clk = clk_get_rate(sfb->bus_clk);
+	unsigned long long tmp;
 	unsigned int result;
 
-	pixclk *= win->win_mode.refresh;
-	result = clk / pixclk;
+	tmp = (unsigned long long)clk;
+	tmp *= pixclk;
+
+	do_div(tmp, 1000000000UL);
+	result = (unsigned int)tmp / 1000;
 
 	dev_dbg(sfb->dev, "pixclk=%u, clk=%lu, div=%d (%lu)\n",
 		pixclk, clk, result, clk / result);
@@ -301,7 +303,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 	/* use window 0 as the basis for the lcd output timings */
 
 	if (win_no == 0) {
-		clkdiv = s3c_fb_calc_pixclk(win_no, sfb, var->pixclock);
+		clkdiv = s3c_fb_calc_pixclk(sfb, var->pixclock);
 
 		data = sfb->pdata->vidcon0;
 		data &= ~(VIDCON0_CLKVAL_F_MASK | VIDCON0_CLKDIR);

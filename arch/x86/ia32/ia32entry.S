@@ -204,7 +204,7 @@ sysexit_from_sys_call:
 	movl RDI-ARGOFFSET(%rsp),%r8d	/* reload 5th syscall arg */
 	.endm
 
-	.macro auditsys_exit exit,ebpsave=RBP
+	.macro auditsys_exit exit
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags(%r10)
 	jnz ia32_ret_from_sys_call
 	TRACE_IRQS_ON
@@ -217,7 +217,6 @@ sysexit_from_sys_call:
 	call audit_syscall_exit
 	GET_THREAD_INFO(%r10)
 	movl RAX-ARGOFFSET(%rsp),%eax	/* reload syscall return value */
-	movl \ebpsave-ARGOFFSET(%rsp),%ebp /* reload user register value */
 	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
 	cli
 	TRACE_IRQS_OFF
@@ -351,7 +350,7 @@ cstar_auditsys:
 	jmp cstar_dispatch
 
 sysretl_audit:
-	auditsys_exit sysretl_from_sys_call, RCX /* user %ebp in RCX slot */
+	auditsys_exit sysretl_from_sys_call
 #endif
 
 cstar_tracesys:
@@ -654,7 +653,7 @@ ia32_sys_call_table:
 	.quad compat_sys_writev
 	.quad sys_getsid
 	.quad sys_fdatasync
-	.quad sys32_sysctl	/* sysctl */
+	.quad compat_sys_sysctl	/* sysctl */
 	.quad sys_mlock		/* 150 */
 	.quad sys_munlock
 	.quad sys_mlockall
@@ -697,7 +696,7 @@ ia32_sys_call_table:
 	.quad quiet_ni_syscall		/* streams2 */
 	.quad stub32_vfork            /* 190 */
 	.quad compat_sys_getrlimit
-	.quad sys32_mmap2
+	.quad sys_mmap_pgoff
 	.quad sys32_truncate64
 	.quad sys32_ftruncate64
 	.quad sys32_stat64		/* 195 */
@@ -842,4 +841,5 @@ ia32_sys_call_table:
 	.quad compat_sys_pwritev
 	.quad compat_sys_rt_tgsigqueueinfo	/* 335 */
 	.quad sys_perf_event_open
+	.quad compat_sys_recvmmsg
 ia32_syscall_end:

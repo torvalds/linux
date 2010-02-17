@@ -17,8 +17,6 @@
 EXPORT_SYMBOL(mcount);
 #endif
 
-EXPORT_SYMBOL(kernel_thread);
-
 EXPORT_SYMBOL(__get_user_1);
 EXPORT_SYMBOL(__get_user_2);
 EXPORT_SYMBOL(__get_user_4);
@@ -30,9 +28,8 @@ EXPORT_SYMBOL(__put_user_8);
 
 EXPORT_SYMBOL(copy_user_generic);
 EXPORT_SYMBOL(__copy_user_nocache);
-EXPORT_SYMBOL(copy_from_user);
-EXPORT_SYMBOL(copy_to_user);
-EXPORT_SYMBOL(__copy_from_user_inatomic);
+EXPORT_SYMBOL(_copy_from_user);
+EXPORT_SYMBOL(_copy_to_user);
 
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
@@ -57,4 +54,6 @@ EXPORT_SYMBOL(__memcpy);
 
 EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(init_level4_pgt);
-EXPORT_SYMBOL(load_gs_index);
+#ifndef CONFIG_PARAVIRT
+EXPORT_SYMBOL(native_load_gs_index);
+#endif

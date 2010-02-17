@@ -53,7 +53,6 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 {
 	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_mem_reg *old_mem = &bo->mem;
-	uint32_t save_flags = old_mem->placement;
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
@@ -62,7 +61,6 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		ttm_flag_masked(&old_mem->placement, TTM_PL_FLAG_SYSTEM,
 				TTM_PL_MASK_MEM);
 		old_mem->mem_type = TTM_PL_SYSTEM;
-		save_flags = old_mem->placement;
 	}
 
 	ret = ttm_tt_set_placement_caching(ttm, new_mem->placement);
@@ -77,7 +75,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
-	ttm_flag_masked(&save_flags, new_mem->placement, TTM_PL_MASK_MEMTYPE);
+
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_move_ttm);
@@ -219,7 +217,6 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	void *old_iomap;
 	void *new_iomap;
 	int ret;
-	uint32_t save_flags = old_mem->placement;
 	unsigned long i;
 	unsigned long page;
 	unsigned long add = 0;
@@ -270,7 +267,6 @@ out2:
 
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
-	ttm_flag_masked(&save_flags, new_mem->placement, TTM_PL_MASK_MEMTYPE);
 
 	if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) && (ttm != NULL)) {
 		ttm_tt_unbind(ttm);
@@ -369,6 +365,7 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 #endif
 	return tmp;
 }
+EXPORT_SYMBOL(ttm_io_prot);
 
 static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 			  unsigned long bus_base,
@@ -427,7 +424,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 
 		/*
 		 * We need to use vmap to get the desired page protection
-		 * or to make the buffer object look contigous.
+		 * or to make the buffer object look contiguous.
 		 */
 		prot = (mem->placement & TTM_PL_FLAG_CACHED) ?
 			PAGE_KERNEL :
@@ -536,7 +533,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	struct ttm_mem_type_manager *man = &bdev->man[new_mem->mem_type];
 	struct ttm_mem_reg *old_mem = &bo->mem;
 	int ret;
-	uint32_t save_flags = old_mem->placement;
 	struct ttm_buffer_object *ghost_obj;
 	void *tmp_obj = NULL;
 
@@ -597,7 +593,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
-	ttm_flag_masked(&save_flags, new_mem->placement, TTM_PL_MASK_MEMTYPE);
+
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);

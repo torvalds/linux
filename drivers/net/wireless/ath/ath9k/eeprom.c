@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "ath9k.h"
+#include "hw.h"
 
 static inline u16 ath9k_hw_fbin2freq(u8 fbin, bool is2GHz)
 {
@@ -83,11 +83,9 @@ bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList, u16 listSize,
 	return false;
 }
 
-bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
+bool ath9k_hw_nvram_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_softc *sc = ah->ah_sc;
-
-	return sc->bus_ops->eeprom_read(ah, off, data);
+	return common->bus_ops->eeprom_read(common, off, data);
 }
 
 void ath9k_hw_fill_vpd_table(u8 pwrMin, u8 pwrMax, u8 *pPwrList,

@@ -35,12 +35,7 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/lockdep.h>
-#ifndef CONFIG_OCFS2_COMPAT_JBD
-# include <linux/jbd2.h>
-#else
-# include <linux/jbd.h>
-# include "ocfs2_jbd_compat.h"
-#endif
+#include <linux/jbd2.h>
 
 /* For union ocfs2_dlm_lksb */
 #include "stackglue.h"
@@ -141,6 +136,10 @@ enum ocfs2_unlock_action {
 #define OCFS2_LOCK_PENDING       (0x00000400) /* This lockres is pending a
 						 call to dlm_lock.  Only
 						 exists with BUSY set. */
+#define OCFS2_LOCK_UPCONVERT_FINISHING (0x00000800) /* blocks the dc thread
+						     * from downconverting
+						     * before the upconvert
+						     * has completed */
 
 struct ocfs2_lock_res_ops;
 
@@ -250,9 +249,11 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_LOCALFLOCKS = 1 << 5, /* No cluster aware user file locks */
 	OCFS2_MOUNT_NOUSERXATTR = 1 << 6, /* No user xattr */
 	OCFS2_MOUNT_INODE64 = 1 << 7,	/* Allow inode numbers > 2^32 */
-	OCFS2_MOUNT_POSIX_ACL = 1 << 8,	/* POSIX access control lists */
-	OCFS2_MOUNT_USRQUOTA = 1 << 9, /* We support user quotas */
-	OCFS2_MOUNT_GRPQUOTA = 1 << 10, /* We support group quotas */
+	OCFS2_MOUNT_POSIX_ACL = 1 << 8,	/* Force POSIX access control lists */
+	OCFS2_MOUNT_NO_POSIX_ACL = 1 << 9,	/* Disable POSIX access
+						   control lists */
+	OCFS2_MOUNT_USRQUOTA = 1 << 10, /* We support user quotas */
+	OCFS2_MOUNT_GRPQUOTA = 1 << 11, /* We support group quotas */
 };
 
 #define OCFS2_OSB_SOFT_RO			0x0001

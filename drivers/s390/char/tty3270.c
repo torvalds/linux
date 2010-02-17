@@ -19,6 +19,7 @@
 
 #include <linux/slab.h>
 #include <linux/bootmem.h>
+#include <linux/compat.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -1731,6 +1732,22 @@ tty3270_ioctl(struct tty_struct *tty, struct file *file,
 	return kbd_ioctl(tp->kbd, file, cmd, arg);
 }
 
+#ifdef CONFIG_COMPAT
+static long
+tty3270_compat_ioctl(struct tty_struct *tty, struct file *file,
+	      unsigned int cmd, unsigned long arg)
+{
+	struct tty3270 *tp;
+
+	tp = tty->driver_data;
+	if (!tp)
+		return -ENODEV;
+	if (tty->flags & (1 << TTY_IO_ERROR))
+		return -EIO;
+	return kbd_ioctl(tp->kbd, file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+
 static const struct tty_operations tty3270_ops = {
 	.open = tty3270_open,
 	.close = tty3270_close,
@@ -1745,6 +1762,9 @@ static const struct tty_operations tty3270_ops = {
 	.hangup = tty3270_hangup,
 	.wait_until_sent = tty3270_wait_until_sent,
 	.ioctl = tty3270_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = tty3270_compat_ioctl,
+#endif
 	.set_termios = tty3270_set_termios
 };
 

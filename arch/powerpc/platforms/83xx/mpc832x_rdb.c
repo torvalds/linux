@@ -74,7 +74,7 @@ static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
 
 		prop = of_get_property(np, "mode", NULL);
 		if (prop && !strcmp(prop, "cpu-qe"))
-			pdata.qe_mode = 1;
+			pdata.flags = SPI_QE_CPU_MODE;
 
 		for (j = 0; j < num_board_infos; j++) {
 			if (board_infos[j].bus_num == pdata.bus_num)

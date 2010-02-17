@@ -38,22 +38,21 @@ int radeon_gem_object_init(struct drm_gem_object *obj)
 
 void radeon_gem_object_free(struct drm_gem_object *gobj)
 {
-	struct radeon_object *robj = gobj->driver_private;
+	struct radeon_bo *robj = gobj->driver_private;
 
 	gobj->driver_private = NULL;
 	if (robj) {
-		radeon_object_unref(&robj);
+		radeon_bo_unref(&robj);
 	}
 }
 
 int radeon_gem_object_create(struct radeon_device *rdev, int size,
-			     int alignment, int initial_domain,
-			     bool discardable, bool kernel,
-			     bool interruptible,
-			     struct drm_gem_object **obj)
+				int alignment, int initial_domain,
+				bool discardable, bool kernel,
+				struct drm_gem_object **obj)
 {
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	int r;
 
 	*obj = NULL;
@@ -65,11 +64,11 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	if (alignment < PAGE_SIZE) {
 		alignment = PAGE_SIZE;
 	}
-	r = radeon_object_create(rdev, gobj, size, kernel, initial_domain,
-				 interruptible, &robj);
+	r = radeon_bo_create(rdev, gobj, size, kernel, initial_domain, &robj);
 	if (r) {
-		DRM_ERROR("Failed to allocate GEM object (%d, %d, %u)\n",
-			  size, initial_domain, alignment);
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",
+				  size, initial_domain, alignment, r);
 		mutex_lock(&rdev->ddev->struct_mutex);
 		drm_gem_object_unreference(gobj);
 		mutex_unlock(&rdev->ddev->struct_mutex);
@@ -83,33 +82,33 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 int radeon_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
 			  uint64_t *gpu_addr)
 {
-	struct radeon_object *robj = obj->driver_private;
-	uint32_t flags;
+	struct radeon_bo *robj = obj->driver_private;
+	int r;
 
-	switch (pin_domain) {
-	case RADEON_GEM_DOMAIN_VRAM:
-		flags = TTM_PL_FLAG_VRAM;
-		break;
-	case RADEON_GEM_DOMAIN_GTT:
-		flags = TTM_PL_FLAG_TT;
-		break;
-	default:
-		flags = TTM_PL_FLAG_SYSTEM;
-		break;
-	}
-	return radeon_object_pin(robj, flags, gpu_addr);
+	r = radeon_bo_reserve(robj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(robj, pin_domain, gpu_addr);
+	radeon_bo_unreserve(robj);
+	return r;
 }
 
 void radeon_gem_object_unpin(struct drm_gem_object *obj)
 {
-	struct radeon_object *robj = obj->driver_private;
-	radeon_object_unpin(robj);
+	struct radeon_bo *robj = obj->driver_private;
+	int r;
+
+	r = radeon_bo_reserve(robj, false);
+	if (likely(r == 0)) {
+		radeon_bo_unpin(robj);
+		radeon_bo_unreserve(robj);
+	}
 }
 
 int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			  uint32_t rdomain, uint32_t wdomain)
 {
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	uint32_t domain;
 	int r;
 
@@ -127,7 +126,7 @@ int radeon_gem_set_domain(struct drm_gem_object *gobj,
 	}
 	if (domain == RADEON_GEM_DOMAIN_CPU) {
 		/* Asking for cpu access wait for object idle */
-		r = radeon_object_wait(robj);
+		r = radeon_bo_wait(robj, NULL, false);
 		if (r) {
 			printk(KERN_ERR "Failed to wait for object !\n");
 			return r;
@@ -144,7 +143,7 @@ int radeon_gem_init(struct radeon_device *rdev)
 
 void radeon_gem_fini(struct radeon_device *rdev)
 {
-	radeon_object_force_delete(rdev);
+	radeon_bo_force_delete(rdev);
 }
 
 
@@ -158,9 +157,13 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	struct drm_radeon_gem_info *args = data;
 
 	args->vram_size = rdev->mc.real_vram_size;
-	/* FIXME: report somethings that makes sense */
-	args->vram_visible = rdev->mc.real_vram_size - (4 * 1024 * 1024);
-	args->gart_size = rdev->mc.gtt_size;
+	args->vram_visible = rdev->mc.real_vram_size;
+	if (rdev->stollen_vga_memory)
+		args->vram_visible -= radeon_bo_size(rdev->stollen_vga_memory);
+	if (rdev->fbdev_rbo)
+		args->vram_visible -= radeon_bo_size(rdev->fbdev_rbo);
+	args->gart_size = rdev->mc.gtt_size - rdev->cp.ring_size - 4096 -
+		RADEON_IB_POOL_SIZE*64*1024;
 	return 0;
 }
 
@@ -192,8 +195,8 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* create a gem object to contain this object in */
 	args->size = roundup(args->size, PAGE_SIZE);
 	r = radeon_gem_object_create(rdev, args->size, args->alignment,
-				     args->initial_domain, false,
-				     false, true, &gobj);
+					args->initial_domain, false,
+					false, &gobj);
 	if (r) {
 		return r;
 	}
@@ -218,7 +221,7 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * just validate the BO into a certain domain */
 	struct drm_radeon_gem_set_domain *args = data;
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	int r;
 
 	/* for now if someone requests domain CPU -
@@ -244,19 +247,18 @@ int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_radeon_gem_mmap *args = data;
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
-	int r;
+	struct radeon_bo *robj;
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
 		return -EINVAL;
 	}
 	robj = gobj->driver_private;
-	r = radeon_object_mmap(robj, &args->addr_ptr);
+	args->addr_ptr = radeon_bo_mmap_offset(robj);
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);
-	return r;
+	return 0;
 }
 
 int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
@@ -264,16 +266,16 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_radeon_gem_busy *args = data;
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	int r;
-	uint32_t cur_placement;
+	uint32_t cur_placement = 0;
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
 		return -EINVAL;
 	}
 	robj = gobj->driver_private;
-	r = radeon_object_busy_domain(robj, &cur_placement);
+	r = radeon_bo_wait(robj, &cur_placement, true);
 	switch (cur_placement) {
 	case TTM_PL_VRAM:
 		args->domain = RADEON_GEM_DOMAIN_VRAM;
@@ -297,7 +299,7 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_radeon_gem_wait_idle *args = data;
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	int r;
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
@@ -305,7 +307,10 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 	robj = gobj->driver_private;
-	r = radeon_object_wait(robj);
+	r = radeon_bo_wait(robj, NULL, false);
+	/* callback hw specific functions if any */
+	if (robj->rdev->asic->ioctl_wait_idle)
+		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);
@@ -317,7 +322,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_radeon_gem_set_tiling *args = data;
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
+	struct radeon_bo *robj;
 	int r = 0;
 
 	DRM_DEBUG("%d \n", args->handle);
@@ -325,7 +330,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	if (gobj == NULL)
 		return -EINVAL;
 	robj = gobj->driver_private;
-	radeon_object_set_tiling_flags(robj, args->tiling_flags, args->pitch);
+	r = radeon_bo_set_tiling_flags(robj, args->tiling_flags, args->pitch);
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);
@@ -337,16 +342,20 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_radeon_gem_get_tiling *args = data;
 	struct drm_gem_object *gobj;
-	struct radeon_object *robj;
+	struct radeon_bo *rbo;
 	int r = 0;
 
 	DRM_DEBUG("\n");
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL)
 		return -EINVAL;
-	robj = gobj->driver_private;
-	radeon_object_get_tiling_flags(robj, &args->tiling_flags,
-				       &args->pitch);
+	rbo = gobj->driver_private;
+	r = radeon_bo_reserve(rbo, false);
+	if (unlikely(r != 0))
+		goto out;
+	radeon_bo_get_tiling_flags(rbo, &args->tiling_flags, &args->pitch);
+	radeon_bo_unreserve(rbo);
+out:
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);

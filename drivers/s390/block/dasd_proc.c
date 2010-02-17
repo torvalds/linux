@@ -14,6 +14,7 @@
 #define KMSG_COMPONENT "dasd"
 
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/proc_fs.h>
@@ -71,7 +72,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 	/* Print device number. */
 	seq_printf(m, "%s", dev_name(&device->cdev->dev));
 	/* Print discipline string. */
-	if (device != NULL && device->discipline != NULL)
+	if (device->discipline != NULL)
 		seq_printf(m, "(%s)", device->discipline->name);
 	else
 		seq_printf(m, "(none)");
@@ -91,10 +92,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 	substr = (device->features & DASD_FEATURE_READONLY) ? "(ro)" : " ";
 	seq_printf(m, "%4s: ", substr);
 	/* Print device status information. */
-	switch ((device != NULL) ? device->state : -1) {
-	case -1:
-		seq_printf(m, "unknown");
-		break;
+	switch (device->state) {
 	case DASD_STATE_NEW:
 		seq_printf(m, "new");
 		break;
@@ -215,7 +213,7 @@ dasd_statistics_read(char *page, char **start, off_t off,
 	}
 
 	prof = &dasd_global_profile;
-	/* prevent couter 'overflow' on output */
+	/* prevent counter 'overflow' on output */
 	for (factor = 1; (prof->dasd_io_reqs / factor) > 9999999;
 	     factor *= 10);
 
@@ -272,10 +270,10 @@ dasd_statistics_write(struct file *file, const char __user *user_buf,
 	DBF_EVENT(DBF_DEBUG, "/proc/dasd/statictics: '%s'\n", buffer);
 
 	/* check for valid verbs */
-	for (str = buffer; isspace(*str); str++);
+	str = skip_spaces(buffer);
 	if (strncmp(str, "set", 3) == 0 && isspace(str[3])) {
 		/* 'set xxx' was given */
-		for (str = str + 4; isspace(*str); str++);
+		str = skip_spaces(str + 4);
 		if (strcmp(str, "on") == 0) {
 			/* switch on statistics profiling */
 			dasd_profile_level = DASD_PROFILE_ON;

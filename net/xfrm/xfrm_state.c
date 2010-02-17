@@ -21,6 +21,9 @@
 #include <linux/cache.h>
 #include <linux/audit.h>
 #include <asm/uaccess.h>
+#include <linux/ktime.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 
 #include "xfrm_hash.h"
 
@@ -352,7 +355,7 @@ static void xfrm_put_mode(struct xfrm_mode *mode)
 
 static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
-	del_timer_sync(&x->timer);
+	tasklet_hrtimer_cancel(&x->mtimer);
 	del_timer_sync(&x->rtimer);
 	kfree(x->aalg);
 	kfree(x->ealg);
@@ -398,9 +401,10 @@ static inline unsigned long make_jiffies(long secs)
 		return secs*HZ;
 }
 
-static void xfrm_timer_handler(unsigned long data)
+static enum hrtimer_restart xfrm_timer_handler(struct hrtimer * me)
 {
-	struct xfrm_state *x = (struct xfrm_state*)data;
+	struct tasklet_hrtimer *thr = container_of(me, struct tasklet_hrtimer, timer);
+	struct xfrm_state *x = container_of(thr, struct xfrm_state, mtimer);
 	struct net *net = xs_net(x);
 	unsigned long now = get_seconds();
 	long next = LONG_MAX;
@@ -451,8 +455,9 @@ static void xfrm_timer_handler(unsigned long data)
 	if (warn)
 		km_state_expired(x, 0, 0);
 resched:
-	if (next != LONG_MAX)
-		mod_timer(&x->timer, jiffies + make_jiffies(next));
+	if (next != LONG_MAX){
+		tasklet_hrtimer_start(&x->mtimer, ktime_set(next, 0), HRTIMER_MODE_REL);
+	}
 
 	goto out;
 
@@ -474,6 +479,7 @@ expired:
 
 out:
 	spin_unlock(&x->lock);
+	return HRTIMER_NORESTART;
 }
 
 static void xfrm_replay_timer_handler(unsigned long data);
@@ -492,7 +498,7 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 		INIT_HLIST_NODE(&x->bydst);
 		INIT_HLIST_NODE(&x->bysrc);
 		INIT_HLIST_NODE(&x->byspi);
-		setup_timer(&x->timer, xfrm_timer_handler, (unsigned long)x);
+		tasklet_hrtimer_init(&x->mtimer, xfrm_timer_handler, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 		setup_timer(&x->rtimer, xfrm_replay_timer_handler,
 				(unsigned long)x);
 		x->curlft.add_time = get_seconds();
@@ -635,11 +641,11 @@ out:
 }
 EXPORT_SYMBOL(xfrm_state_flush);
 
-void xfrm_sad_getinfo(struct xfrmk_sadinfo *si)
+void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 {
 	spin_lock_bh(&xfrm_state_lock);
-	si->sadcnt = init_net.xfrm.state_num;
-	si->sadhcnt = init_net.xfrm.state_hmask;
+	si->sadcnt = net->xfrm.state_num;
+	si->sadhcnt = net->xfrm.state_hmask;
 	si->sadhmcnt = xfrm_state_hashmax;
 	spin_unlock_bh(&xfrm_state_lock);
 }
@@ -843,8 +849,7 @@ found:
 				hlist_add_head(&x->byspi, net->xfrm.state_byspi+h);
 			}
 			x->lft.hard_add_expires_seconds = net->xfrm.sysctl_acq_expires;
-			x->timer.expires = jiffies + net->xfrm.sysctl_acq_expires*HZ;
-			add_timer(&x->timer);
+			tasklet_hrtimer_start(&x->mtimer, ktime_set(net->xfrm.sysctl_acq_expires, 0), HRTIMER_MODE_REL);
 			net->xfrm.state_num++;
 			xfrm_hash_grow_check(net, x->bydst.next != NULL);
 		} else {
@@ -921,7 +926,7 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 		hlist_add_head(&x->byspi, net->xfrm.state_byspi+h);
 	}
 
-	mod_timer(&x->timer, jiffies + HZ);
+	tasklet_hrtimer_start(&x->mtimer, ktime_set(1, 0), HRTIMER_MODE_REL);
 	if (x->replay_maxage)
 		mod_timer(&x->rtimer, jiffies + x->replay_maxage);
 
@@ -1019,8 +1024,7 @@ static struct xfrm_state *__find_acq_core(struct net *net, unsigned short family
 		x->props.reqid = reqid;
 		x->lft.hard_add_expires_seconds = net->xfrm.sysctl_acq_expires;
 		xfrm_state_hold(x);
-		x->timer.expires = jiffies + net->xfrm.sysctl_acq_expires*HZ;
-		add_timer(&x->timer);
+		tasklet_hrtimer_start(&x->mtimer, ktime_set(net->xfrm.sysctl_acq_expires, 0), HRTIMER_MODE_REL);
 		list_add(&x->km.all, &net->xfrm.state_all);
 		hlist_add_head(&x->bydst, net->xfrm.state_bydst+h);
 		h = xfrm_src_hash(net, daddr, saddr, family);
@@ -1098,7 +1102,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	int err = -ENOMEM;
 	struct xfrm_state *x = xfrm_state_alloc(net);
 	if (!x)
-		goto error;
+		goto out;
 
 	memcpy(&x->id, &orig->id, sizeof(x->id));
 	memcpy(&x->sel, &orig->sel, sizeof(x->sel));
@@ -1110,7 +1114,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	x->props.saddr = orig->props.saddr;
 
 	if (orig->aalg) {
-		x->aalg = xfrm_algo_clone(orig->aalg);
+		x->aalg = xfrm_algo_auth_clone(orig->aalg);
 		if (!x->aalg)
 			goto error;
 	}
@@ -1156,16 +1160,10 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	return x;
 
  error:
+	xfrm_state_put(x);
+out:
 	if (errp)
 		*errp = err;
-	if (x) {
-		kfree(x->aalg);
-		kfree(x->ealg);
-		kfree(x->calg);
-		kfree(x->encap);
-		kfree(x->coaddr);
-	}
-	kfree(x);
 	return NULL;
 }
 
@@ -1300,7 +1298,7 @@ out:
 		memcpy(&x1->lft, &x->lft, sizeof(x1->lft));
 		x1->km.dying = 0;
 
-		mod_timer(&x1->timer, jiffies + HZ);
+		tasklet_hrtimer_start(&x1->mtimer, ktime_set(1, 0), HRTIMER_MODE_REL);
 		if (x1->curlft.use_time)
 			xfrm_state_check_expire(x1);
 
@@ -1325,7 +1323,7 @@ int xfrm_state_check_expire(struct xfrm_state *x)
 	if (x->curlft.bytes >= x->lft.hard_byte_limit ||
 	    x->curlft.packets >= x->lft.hard_packet_limit) {
 		x->km.state = XFRM_STATE_EXPIRED;
-		mod_timer(&x->timer, jiffies);
+		tasklet_hrtimer_start(&x->mtimer, ktime_set(0,0), HRTIMER_MODE_REL);
 		return -EINVAL;
 	}
 

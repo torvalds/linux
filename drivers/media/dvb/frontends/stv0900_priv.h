@@ -46,22 +46,6 @@
 #define FALSE (!TRUE)
 #endif
 
-#define	dmd_reg(a, b, c) \
-	do { \
-		a = 0; \
-		switch (demod) { \
-		case STV0900_DEMOD_1: \
-		default: \
-			a = b; \
-			break; \
-		case STV0900_DEMOD_2: \
-			a = c; \
-			break; \
-		} \
-	} while (0)
-
-static int stvdebug;
-
 #define dprintk(args...) \
 	do { \
 		if (stvdebug) \
@@ -70,6 +54,8 @@ static int stvdebug;
 
 #define STV0900_MAXLOOKUPSIZE 500
 #define STV0900_BLIND_SEARCH_AGC2_TH 700
+#define STV0900_BLIND_SEARCH_AGC2_TH_CUT30 1400
+#define IQPOWER_THRESHOLD  30
 
 /* One point of the lookup table */
 struct stv000_lookpoint {
@@ -263,14 +249,14 @@ struct stv0900_init_params{
 	int	tuner1_adc;
 
 	/* IQ from the tuner1 to the demod */
-	enum stv0900_iq_inversion	tun1_iq_inversion;
+	enum stv0900_iq_inversion	tun1_iq_inv;
 	enum fe_stv0900_clock_type	path2_ts_clock;
 
 	u8	tun2_maddress;
 	int	tuner2_adc;
 
 	/* IQ from the tuner2 to the demod */
-	enum stv0900_iq_inversion	tun2_iq_inversion;
+	enum stv0900_iq_inversion	tun2_iq_inv;
 	struct stv0900_reg		*ts_config;
 };
 
@@ -300,7 +286,7 @@ struct stv0900_signal_info {
 	enum fe_stv0900_modcode			modcode;
 	enum fe_stv0900_modulation		modulation;
 	enum fe_stv0900_pilot			pilot;
-	enum fe_stv0900_frame_length		frame_length;
+	enum fe_stv0900_frame_length		frame_len;
 	enum stv0900_iq_inversion		spectrum;
 	enum fe_stv0900_rolloff			rolloff;
 
@@ -318,47 +304,25 @@ struct stv0900_internal{
 	/* Demodulator use for single demod or for dual demod) */
 	enum fe_stv0900_demod_mode	demod_mode;
 
-	/*Demod 1*/
-	s32	tuner1_freq;
-	s32	tuner1_bw;
-	s32	dmd1_symbol_rate;
-	s32	dmd1_srch_range;
+	/*Demods */
+	s32	freq[2];
+	s32	bw[2];
+	s32	symbol_rate[2];
+	s32	srch_range[2];
 
 	/* algorithm for search Blind, Cold or Warm*/
-	enum fe_stv0900_search_algo	dmd1_srch_algo;
+	enum fe_stv0900_search_algo	srch_algo[2];
 	/* search standard: Auto, DVBS1/DSS only or DVBS2 only*/
-	enum fe_stv0900_search_standard	dmd1_srch_standard;
+	enum fe_stv0900_search_standard	srch_standard[2];
 	/* inversion search : auto, auto norma first, normal or inverted */
-	enum fe_stv0900_search_iq	dmd1_srch_iq_inv;
-	enum fe_stv0900_modcode		dmd1_modcode;
-	enum fe_stv0900_modulation	dmd1_modulation;
-	enum fe_stv0900_fec		dmd1_fec;
+	enum fe_stv0900_search_iq	srch_iq_inv[2];
+	enum fe_stv0900_modcode		modcode[2];
+	enum fe_stv0900_modulation	modulation[2];
+	enum fe_stv0900_fec		fec[2];
 
-	struct stv0900_signal_info	dmd1_rslts;
-	enum fe_stv0900_signal_type	dmd1_state;
+	struct stv0900_signal_info	result[2];
+	enum fe_stv0900_error		err[2];
 
-	enum fe_stv0900_error		dmd1_err;
-
-	/*Demod 2*/
-	s32	tuner2_freq;
-	s32	tuner2_bw;
-	s32	dmd2_symbol_rate;
-	s32	dmd2_srch_range;
-
-	enum fe_stv0900_search_algo	dmd2_srch_algo;
-	enum fe_stv0900_search_standard	dmd2_srch_stndrd;
-	/* inversion search : auto, auto normal first, normal or inverted */
-	enum fe_stv0900_search_iq	dmd2_srch_iq_inv;
-	enum fe_stv0900_modcode		dmd2_modcode;
-	enum fe_stv0900_modulation	dmd2_modulation;
-	enum fe_stv0900_fec		dmd2_fec;
-
-	/* results of the search*/
-	struct stv0900_signal_info	dmd2_rslts;
-	/* current state of the search algorithm */
-	enum fe_stv0900_signal_type	dmd2_state;
-
-	enum fe_stv0900_error		dmd2_err;
 
 	struct i2c_adapter	*i2c_adap;
 	u8			i2c_addr;
@@ -378,6 +342,8 @@ struct stv0900_state {
 	struct dvb_frontend		frontend;
 	int demod;
 };
+
+extern int stvdebug;
 
 extern s32 ge2comp(s32 a, s32 width);
 
@@ -418,13 +384,14 @@ extern u8 stv0900_get_optim_short_carr_loop(s32 srate,
 extern void stv0900_stop_all_s2_modcod(struct stv0900_internal *i_params,
 				enum fe_stv0900_demod_num demod);
 
-extern void stv0900_activate_s2_modcode(struct stv0900_internal *i_params,
+extern void stv0900_activate_s2_modcod(struct stv0900_internal *i_params,
 				enum fe_stv0900_demod_num demod);
 
-extern void stv0900_activate_s2_modcode_single(struct stv0900_internal *i_params,
+extern void stv0900_activate_s2_modcod_single(struct stv0900_internal *i_params,
 				enum fe_stv0900_demod_num demod);
 
-extern enum fe_stv0900_tracking_standard stv0900_get_standard(struct dvb_frontend *fe,
+extern enum
+fe_stv0900_tracking_standard stv0900_get_standard(struct dvb_frontend *fe,
 				enum fe_stv0900_demod_num demod);
 
 #endif

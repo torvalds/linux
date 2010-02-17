@@ -2,7 +2,7 @@
  * Finger Sensing Pad PS/2 mouse driver.
  *
  * Copyright (C) 2005-2007 Asia Vital Components Co., Ltd.
- * Copyright (C) 2005-2009 Tai-hwa Liang, Sentelic Corporation.
+ * Copyright (C) 2005-2010 Tai-hwa Liang, Sentelic Corporation.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -658,9 +658,9 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 			if (packet[3] & BIT(1))
 				button_status |= 0x0f;	/* wheel up */
 			if (packet[3] & BIT(2))
-				button_status |= BIT(5);/* horizontal left */
+				button_status |= BIT(4);/* horizontal left */
 			if (packet[3] & BIT(3))
-				button_status |= BIT(4);/* horizontal right */
+				button_status |= BIT(5);/* horizontal right */
 			/* push back to packet queue */
 			if (button_status != 0)
 				packet[3] = button_status;
@@ -836,6 +836,7 @@ int fsp_init(struct psmouse *psmouse)
 	priv->flags |= FSPDRV_FLAG_EN_OPC;
 
 	/* Set up various supported input event bits */
+	__set_bit(BTN_MIDDLE, psmouse->dev->keybit);
 	__set_bit(BTN_BACK, psmouse->dev->keybit);
 	__set_bit(BTN_FORWARD, psmouse->dev->keybit);
 	__set_bit(REL_WHEEL, psmouse->dev->relbit);

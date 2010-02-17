@@ -112,11 +112,7 @@ static bool acpi_pci_can_wakeup(struct pci_dev *dev)
 static void acpi_pci_propagate_wakeup_enable(struct pci_bus *bus, bool enable)
 {
 	while (bus->parent) {
-		struct pci_dev *bridge = bus->self;
-		int ret;
-
-		ret = acpi_pm_device_sleep_wake(&bridge->dev, enable);
-		if (!ret || bridge->is_pcie)
+		if (!acpi_pm_device_sleep_wake(&bus->self->dev, enable))
 			return;
 		bus = bus->parent;
 	}
@@ -131,9 +127,7 @@ static int acpi_pci_sleep_wake(struct pci_dev *dev, bool enable)
 	if (acpi_pci_can_wakeup(dev))
 		return acpi_pm_device_sleep_wake(&dev->dev, enable);
 
-	if (!dev->is_pcie)
-		acpi_pci_propagate_wakeup_enable(dev->bus, enable);
-
+	acpi_pci_propagate_wakeup_enable(dev->bus, enable);
 	return 0;
 }
 

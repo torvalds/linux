@@ -2505,7 +2505,7 @@ he_close(struct atm_vcc *vcc)
 		 * TBRQ, the host issues the close command to the adapter.
 		 */
 
-		while (((tx_inuse = atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) > 0) &&
+		while (((tx_inuse = atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
 		       (retry < MAX_RETRY)) {
 			msleep(sleep);
 			if (sleep < 250)
@@ -2514,7 +2514,7 @@ he_close(struct atm_vcc *vcc)
 			++retry;
 		}
 
-		if (tx_inuse)
+		if (tx_inuse > 1)
 			hprintk("close tx cid 0x%x tx_inuse = %d\n", cid, tx_inuse);
 
 		/* 2.3.1.1 generic close operations with flush */
@@ -2739,7 +2739,7 @@ he_ioctl(struct atm_dev *atm_dev, unsigned int cmd, void __user *arg)
 			spin_lock_irqsave(&he_dev->global_lock, flags);
 			switch (reg.type) {
 				case HE_REGTYPE_PCI:
-					if (reg.addr < 0 || reg.addr >= HE_REGMAP_SIZE) {
+					if (reg.addr >= HE_REGMAP_SIZE) {
 						err = -EINVAL;
 						break;
 					}

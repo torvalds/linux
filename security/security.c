@@ -16,9 +16,11 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/security.h>
+#include <linux/ima.h>
 
 /* Boot-time LSM user choice */
-static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1];
+static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
+	CONFIG_DEFAULT_SECURITY;
 
 /* things that live in capability.c */
 extern struct security_operations default_security_ops;
@@ -79,8 +81,10 @@ __setup("security=", choose_lsm);
  *
  * Return true if:
  *	-The passed LSM is the one chosen by user at boot time,
- *	-or user didn't specify a specific LSM and we're the first to ask
- *	 for registration permission,
+ *	-or the passed LSM is configured as the default and the user did not
+ *	 choose an alternate LSM at boot time,
+ *	-or there is no default LSM set and the user didn't specify a
+ *	 specific LSM and we're the first to ask for registration permission,
  *	-or the passed LSM is currently loaded.
  * Otherwise, return false.
  */
@@ -235,7 +239,12 @@ int security_bprm_set_creds(struct linux_binprm *bprm)
 
 int security_bprm_check(struct linux_binprm *bprm)
 {
-	return security_ops->bprm_check_security(bprm);
+	int ret;
+
+	ret = security_ops->bprm_check_security(bprm);
+	if (ret)
+		return ret;
+	return ima_bprm_check(bprm);
 }
 
 void security_bprm_committing_creds(struct linux_binprm *bprm)
@@ -352,12 +361,21 @@ EXPORT_SYMBOL(security_sb_parse_opts_str);
 
 int security_inode_alloc(struct inode *inode)
 {
+	int ret;
+
 	inode->i_security = NULL;
-	return security_ops->inode_alloc_security(inode);
+	ret =  security_ops->inode_alloc_security(inode);
+	if (ret)
+		return ret;
+	ret = ima_inode_alloc(inode);
+	if (ret)
+		security_inode_free(inode);
+	return ret;
 }
 
 void security_inode_free(struct inode *inode)
 {
+	ima_inode_free(inode);
 	security_ops->inode_free_security(inode);
 }
 
@@ -433,6 +451,26 @@ int security_path_truncate(struct path *path, loff_t length,
 	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
 	return security_ops->path_truncate(path, length, time_attrs);
+}
+
+int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
+			mode_t mode)
+{
+	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+		return 0;
+	return security_ops->path_chmod(dentry, mnt, mode);
+}
+
+int security_path_chown(struct path *path, uid_t uid, gid_t gid)
+{
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+		return 0;
+	return security_ops->path_chown(path, uid, gid);
+}
+
+int security_path_chroot(struct path *path)
+{
+	return security_ops->path_chroot(path);
 }
 #endif
 
@@ -639,7 +677,12 @@ int security_file_mmap(struct file *file, unsigned long reqprot,
 			unsigned long prot, unsigned long flags,
 			unsigned long addr, unsigned long addr_only)
 {
-	return security_ops->file_mmap(file, reqprot, prot, flags, addr, addr_only);
+	int ret;
+
+	ret = security_ops->file_mmap(file, reqprot, prot, flags, addr, addr_only);
+	if (ret)
+		return ret;
+	return ima_file_mmap(file, prot);
 }
 
 int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
@@ -719,9 +762,9 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return security_ops->kernel_create_files_as(new, inode);
 }
 
-int security_kernel_module_request(void)
+int security_kernel_module_request(char *kmod_name)
 {
-	return security_ops->kernel_module_request();
+	return security_ops->kernel_module_request(kmod_name);
 }
 
 int security_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)

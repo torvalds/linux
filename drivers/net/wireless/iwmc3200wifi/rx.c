@@ -423,7 +423,9 @@ static int iwm_ntf_rx_ticket(struct iwm_priv *iwm, u8 *buf,
 			if (IS_ERR(ticket_node))
 				return PTR_ERR(ticket_node);
 
-			IWM_DBG_RX(iwm, DBG, "TICKET RELEASE(%d)\n",
+			IWM_DBG_RX(iwm, DBG, "TICKET %s(%d)\n",
+				   ticket->action ==  IWM_RX_TICKET_RELEASE ?
+				   "RELEASE" : "DROP",
 				   ticket->id);
 			list_add_tail(&ticket_node->node, &iwm->rx_tickets);
 
@@ -500,6 +502,18 @@ static int iwm_mlme_assoc_start(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+static u8 iwm_is_open_wep_profile(struct iwm_priv *iwm)
+{
+	if ((iwm->umac_profile->sec.ucast_cipher == UMAC_CIPHER_TYPE_WEP_40 ||
+	     iwm->umac_profile->sec.ucast_cipher == UMAC_CIPHER_TYPE_WEP_104) &&
+	    (iwm->umac_profile->sec.ucast_cipher ==
+	     iwm->umac_profile->sec.mcast_cipher) &&
+	    (iwm->umac_profile->sec.auth_type == UMAC_AUTH_TYPE_OPEN))
+	       return 1;
+
+       return 0;
+}
+
 static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
@@ -565,11 +579,17 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 			goto ibss;
 
 		if (!test_bit(IWM_STATUS_RESETTING, &iwm->status))
-			cfg80211_connect_result(iwm_to_ndev(iwm),
-						complete->bssid,
-						NULL, 0, NULL, 0,
-						WLAN_STATUS_UNSPECIFIED_FAILURE,
-						GFP_KERNEL);
+			if (!iwm_is_open_wep_profile(iwm)) {
+				cfg80211_connect_result(iwm_to_ndev(iwm),
+					       complete->bssid,
+					       NULL, 0, NULL, 0,
+					       WLAN_STATUS_UNSPECIFIED_FAILURE,
+					       GFP_KERNEL);
+			} else {
+				/* Let's try shared WEP auth */
+				IWM_ERR(iwm, "Trying WEP shared auth\n");
+				schedule_work(&iwm->auth_retry_worker);
+			}
 		else
 			cfg80211_disconnected(iwm_to_ndev(iwm), 0, NULL, 0,
 					      GFP_KERNEL);
@@ -713,6 +733,19 @@ static int iwm_mlme_update_sta_table(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+static int iwm_mlme_medium_lost(struct iwm_priv *iwm, u8 *buf,
+				unsigned long buf_size,
+				struct iwm_wifi_cmd *cmd)
+{
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+
+	IWM_DBG_NTF(iwm, DBG, "WiFi/WiMax coexistence radio is OFF\n");
+
+	wiphy_rfkill_set_hw_state(wiphy, true);
+
+	return 0;
+}
+
 static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 				     unsigned long buf_size,
 				     struct iwm_wifi_cmd *cmd)
@@ -761,7 +794,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 	}
 
 	bss->bss = kzalloc(bss_len, GFP_KERNEL);
-	if (!bss) {
+	if (!bss->bss) {
 		kfree(bss);
 		IWM_ERR(iwm, "Couldn't allocate bss\n");
 		return -ENOMEM;
@@ -899,6 +932,8 @@ static int iwm_ntf_mlme(struct iwm_priv *iwm, u8 *buf,
 	case WIFI_IF_NTFY_EXTENDED_IE_REQUIRED:
 		IWM_DBG_MLME(iwm, DBG, "Extended IE required\n");
 		break;
+	case WIFI_IF_NTFY_RADIO_PREEMPTION:
+		return iwm_mlme_medium_lost(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_BSS_TRK_TABLE_CHANGED:
 		return iwm_mlme_update_bss_table(iwm, buf, buf_size, cmd);
 	case WIFI_IF_NTFY_BSS_TRK_ENTRIES_REMOVED:
@@ -1052,12 +1087,83 @@ static int iwm_ntf_channel_info_list(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+static int iwm_ntf_stop_resume_tx(struct iwm_priv *iwm, u8 *buf,
+				  unsigned long buf_size,
+				  struct iwm_wifi_cmd *cmd)
+{
+	struct iwm_umac_notif_stop_resume_tx *stp_res_tx =
+		(struct iwm_umac_notif_stop_resume_tx *)buf;
+	struct iwm_sta_info *sta_info;
+	struct iwm_tid_info *tid_info;
+	u8 sta_id = STA_ID_N_COLOR_ID(stp_res_tx->sta_id);
+	u16 tid_msk = le16_to_cpu(stp_res_tx->stop_resume_tid_msk);
+	int bit, ret = 0;
+	bool stop = false;
+
+	IWM_DBG_NTF(iwm, DBG, "stop/resume notification:\n"
+		    "\tflags:       0x%x\n"
+		    "\tSTA id:      %d\n"
+		    "\tTID bitmask: 0x%x\n",
+		    stp_res_tx->flags, stp_res_tx->sta_id,
+		    stp_res_tx->stop_resume_tid_msk);
+
+	if (stp_res_tx->flags & UMAC_STOP_TX_FLAG)
+		stop = true;
+
+	sta_info = &iwm->sta_table[sta_id];
+	if (!sta_info->valid) {
+		IWM_ERR(iwm, "Stoping an invalid STA: %d %d\n",
+			sta_id, stp_res_tx->sta_id);
+		return -EINVAL;
+	}
+
+	for_each_bit(bit, (unsigned long *)&tid_msk, IWM_UMAC_TID_NR) {
+		tid_info = &sta_info->tid_info[bit];
+
+		mutex_lock(&tid_info->mutex);
+		tid_info->stopped = stop;
+		mutex_unlock(&tid_info->mutex);
+
+		if (!stop) {
+			struct iwm_tx_queue *txq;
+			int queue = iwm_tid_to_queue(bit);
+
+			if (queue < 0)
+				continue;
+
+			txq = &iwm->txq[queue];
+			/*
+			 * If we resume, we have to move our SKBs
+			 * back to the tx queue and queue some work.
+			 */
+			spin_lock_bh(&txq->lock);
+			skb_queue_splice_init(&txq->queue, &txq->stopped_queue);
+			spin_unlock_bh(&txq->lock);
+
+			queue_work(txq->wq, &txq->worker);
+		}
+
+	}
+
+	/* We send an ACK only for the stop case */
+	if (stop)
+		ret = iwm_send_umac_stop_resume_tx(iwm, stp_res_tx);
+
+	return ret;
+}
+
 static int iwm_ntf_wifi_if_wrapper(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
 {
-	struct iwm_umac_wifi_if *hdr =
-			(struct iwm_umac_wifi_if *)cmd->buf.payload;
+	struct iwm_umac_wifi_if *hdr;
+
+	if (cmd == NULL) {
+		IWM_ERR(iwm, "Couldn't find expected wifi command\n");
+		return -EINVAL;
+	}
+
+	hdr = (struct iwm_umac_wifi_if *)cmd->buf.payload;
 
 	IWM_DBG_NTF(iwm, DBG, "WIFI_IF_WRAPPER cmd is delivered to UMAC: "
 		    "oid is 0x%x\n", hdr->oid);
@@ -1079,6 +1185,7 @@ static int iwm_ntf_wifi_if_wrapper(struct iwm_priv *iwm, u8 *buf,
 	return 0;
 }
 
+#define CT_KILL_DELAY (30 * HZ)
 static int iwm_ntf_card_state(struct iwm_priv *iwm, u8 *buf,
 			      unsigned long buf_size, struct iwm_wifi_cmd *cmd)
 {
@@ -1091,7 +1198,20 @@ static int iwm_ntf_card_state(struct iwm_priv *iwm, u8 *buf,
 		 flags & IWM_CARD_STATE_HW_DISABLED ? "ON" : "OFF",
 		 flags & IWM_CARD_STATE_CTKILL_DISABLED ? "ON" : "OFF");
 
-	wiphy_rfkill_set_hw_state(wiphy, flags & IWM_CARD_STATE_HW_DISABLED);
+	if (flags & IWM_CARD_STATE_CTKILL_DISABLED) {
+		/*
+		 * We got a CTKILL event: We bring the interface down in
+		 * oder to cool the device down, and try to bring it up
+		 * 30 seconds later. If it's still too hot, we'll go through
+		 * this code path again.
+		 */
+		cancel_delayed_work_sync(&iwm->ct_kill_delay);
+		schedule_delayed_work(&iwm->ct_kill_delay, CT_KILL_DELAY);
+	}
+
+	wiphy_rfkill_set_hw_state(wiphy, flags &
+				  (IWM_CARD_STATE_HW_DISABLED |
+				   IWM_CARD_STATE_CTKILL_DISABLED));
 
 	return 0;
 }
@@ -1282,6 +1402,14 @@ int iwm_rx_handle(struct iwm_priv *iwm, u8 *buf, unsigned long buf_size)
 
 	switch (le32_to_cpu(hdr->cmd)) {
 	case UMAC_REBOOT_BARKER:
+		if (test_bit(IWM_STATUS_READY, &iwm->status)) {
+			IWM_ERR(iwm, "Unexpected BARKER\n");
+
+			schedule_work(&iwm->reset_worker);
+
+			return 0;
+		}
+
 		return iwm_notif_send(iwm, NULL, IWM_BARKER_REBOOT_NOTIFICATION,
 				      IWM_SRC_UDMA, buf, buf_size);
 	case UMAC_ACK_BARKER:
@@ -1308,6 +1436,7 @@ static const iwm_handler iwm_umac_handlers[] =
 	[UMAC_NOTIFY_OPCODE_STATS]		= iwm_ntf_statistics,
 	[UMAC_CMD_OPCODE_EEPROM_PROXY]		= iwm_ntf_eeprom_proxy,
 	[UMAC_CMD_OPCODE_GET_CHAN_INFO_LIST]	= iwm_ntf_channel_info_list,
+	[UMAC_CMD_OPCODE_STOP_RESUME_STA_TX]	= iwm_ntf_stop_resume_tx,
 	[REPLY_RX_MPDU_CMD]			= iwm_ntf_rx_packet,
 	[UMAC_CMD_OPCODE_WIFI_IF_WRAPPER]	= iwm_ntf_wifi_if_wrapper,
 };
@@ -1444,11 +1573,12 @@ static void iwm_rx_process_packet(struct iwm_priv *iwm,
 		}
 		break;
 	case IWM_RX_TICKET_DROP:
-		IWM_DBG_RX(iwm, DBG, "DROP packet\n");
+		IWM_DBG_RX(iwm, DBG, "DROP packet: 0x%x\n",
+			   le16_to_cpu(ticket_node->ticket->flags));
 		kfree_skb(packet->skb);
 		break;
 	default:
-		IWM_ERR(iwm, "Unknow ticket action: %d\n",
+		IWM_ERR(iwm, "Unknown ticket action: %d\n",
 			le16_to_cpu(ticket_node->ticket->action));
 		kfree_skb(packet->skb);
 	}

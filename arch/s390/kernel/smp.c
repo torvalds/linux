@@ -52,6 +52,9 @@
 #include <asm/cpu.h>
 #include "entry.h"
 
+/* logical cpu to cpu address */
+int __cpu_logical_map[NR_CPUS];
+
 static struct task_struct *current_set[NR_CPUS];
 
 static u8 smp_cpu_type;
@@ -76,7 +79,6 @@ static int cpu_stopped(int cpu)
 	__u32 status;
 
 	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
-	case sigp_order_code_accepted:
 	case sigp_status_stored:
 		/* Check for stopped and check stop state */
 		if (status & 0x50)
@@ -638,6 +640,8 @@ void __cpu_die(unsigned int cpu)
 	/* Wait until target cpu is down */
 	while (!cpu_stopped(cpu))
 		cpu_relax();
+	while (signal_processor_p(0, cpu, sigp_set_prefix) == sigp_busy)
+		udelay(10);
 	smp_free_lowcore(cpu);
 	pr_info("Processor %d stopped\n", cpu);
 }
@@ -645,8 +649,8 @@ void __cpu_die(unsigned int cpu)
 void cpu_die(void)
 {
 	idle_task_exit();
-	signal_processor(smp_processor_id(), sigp_stop);
-	BUG();
+	while (signal_processor(smp_processor_id(), sigp_stop) == sigp_busy)
+		cpu_relax();
 	for (;;);
 }
 
@@ -714,6 +718,12 @@ void __init smp_prepare_boot_cpu(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
+}
+
+void __init smp_setup_processor_id(void)
+{
+	S390_lowcore.cpu_nr = 0;
+	__cpu_logical_map[0] = stap();
 }
 
 /*

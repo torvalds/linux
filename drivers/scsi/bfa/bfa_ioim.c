@@ -105,13 +105,13 @@ bfa_ioim_sm_uninit(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 				bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
 				list_del(&ioim->qe);
 				list_add_tail(&ioim->qe,
-					&ioim->fcpim->ioim_comp_q);
+						&ioim->fcpim->ioim_comp_q);
 				bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
 						__bfa_cb_ioim_pathtov, ioim);
 			} else {
 				list_del(&ioim->qe);
 				list_add_tail(&ioim->qe,
-					&ioim->itnim->pending_q);
+						&ioim->itnim->pending_q);
 			}
 			break;
 		}

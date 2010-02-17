@@ -70,7 +70,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 #include <media/v4l2-common.h>
 #include <linux/io.h>
 #include <media/davinci/vpfe_capture.h>
@@ -660,7 +659,7 @@ static void vpfe_detach_irq(struct vpfe_device *vpfe_dev)
 
 	frame_format = ccdc_dev->hw_ops.get_frame_format();
 	if (frame_format == CCDC_FRMFMT_PROGRESSIVE)
-		free_irq(IRQ_VDINT1, vpfe_dev);
+		free_irq(vpfe_dev->ccdc_irq1, vpfe_dev);
 }
 
 static int vpfe_attach_irq(struct vpfe_device *vpfe_dev)
@@ -1338,7 +1337,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	vpfe_dev->memory = req_buf->memory;
 	videobuf_queue_dma_contig_init(&vpfe_dev->buffer_queue,
 				&vpfe_videobuf_qops,
-				NULL,
+				vpfe_dev->pdev,
 				&vpfe_dev->irqlock,
 				req_buf->type,
 				vpfe_dev->fmt.fmt.pix.field,
@@ -1411,6 +1410,41 @@ static int vpfe_dqbuf(struct file *file, void *priv,
 	}
 	return videobuf_dqbuf(&vpfe_dev->buffer_queue,
 				      buf, file->f_flags & O_NONBLOCK);
+}
+
+static int vpfe_queryctrl(struct file *file, void *priv,
+		struct v4l2_queryctrl *qctrl)
+{
+	struct vpfe_device *vpfe_dev = video_drvdata(file);
+	struct vpfe_subdev_info *sdinfo;
+
+	sdinfo = vpfe_dev->current_subdev;
+
+	return v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
+					 core, queryctrl, qctrl);
+
+}
+
+static int vpfe_g_ctrl(struct file *file, void *priv, struct v4l2_control *ctrl)
+{
+	struct vpfe_device *vpfe_dev = video_drvdata(file);
+	struct vpfe_subdev_info *sdinfo;
+
+	sdinfo = vpfe_dev->current_subdev;
+
+	return v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
+					 core, g_ctrl, ctrl);
+}
+
+static int vpfe_s_ctrl(struct file *file, void *priv, struct v4l2_control *ctrl)
+{
+	struct vpfe_device *vpfe_dev = video_drvdata(file);
+	struct vpfe_subdev_info *sdinfo;
+
+	sdinfo = vpfe_dev->current_subdev;
+
+	return v4l2_device_call_until_err(&vpfe_dev->v4l2_dev, sdinfo->grp_id,
+					 core, s_ctrl, ctrl);
 }
 
 /*
@@ -1577,7 +1611,7 @@ static int vpfe_cropcap(struct file *file, void *priv,
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_cropcap\n");
 
-	if (vpfe_dev->std_index > ARRAY_SIZE(vpfe_standards))
+	if (vpfe_dev->std_index >= ARRAY_SIZE(vpfe_standards))
 		return -EINVAL;
 
 	memset(crop, 0, sizeof(struct v4l2_cropcap));
@@ -1710,6 +1744,9 @@ static const struct v4l2_ioctl_ops vpfe_ioctl_ops = {
 	.vidioc_querystd	 = vpfe_querystd,
 	.vidioc_s_std		 = vpfe_s_std,
 	.vidioc_g_std		 = vpfe_g_std,
+	.vidioc_queryctrl	 = vpfe_queryctrl,
+	.vidioc_g_ctrl		 = vpfe_g_ctrl,
+	.vidioc_s_ctrl		 = vpfe_s_ctrl,
 	.vidioc_reqbufs		 = vpfe_reqbufs,
 	.vidioc_querybuf	 = vpfe_querybuf,
 	.vidioc_qbuf		 = vpfe_qbuf,
@@ -1929,7 +1966,6 @@ static __init int vpfe_probe(struct platform_device *pdev)
 	vfd->release		= video_device_release;
 	vfd->fops		= &vpfe_fops;
 	vfd->ioctl_ops		= &vpfe_ioctl_ops;
-	vfd->minor		= -1;
 	vfd->tvnorms		= 0;
 	vfd->current_norm	= V4L2_STD_PAL;
 	vfd->v4l2_dev 		= &vpfe_dev->v4l2_dev;
@@ -1978,8 +2014,7 @@ static __init int vpfe_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, vpfe_dev);
 	/* set driver private data */
 	video_set_drvdata(vpfe_dev->video_dev, vpfe_dev);
-	i2c_adap = i2c_get_adapter(1);
-	vpfe_cfg = pdev->dev.platform_data;
+	i2c_adap = i2c_get_adapter(vpfe_cfg->i2c_adapter_id);
 	num_subdevs = vpfe_cfg->num_subdevs;
 	vpfe_dev->sd = kmalloc(sizeof(struct v4l2_subdev *) * num_subdevs,
 				GFP_KERNEL);
@@ -2034,7 +2069,7 @@ probe_out_video_unregister:
 probe_out_v4l2_unregister:
 	v4l2_device_unregister(&vpfe_dev->v4l2_dev);
 probe_out_video_release:
-	if (vpfe_dev->video_dev->minor == -1)
+	if (!video_is_registered(vpfe_dev->video_dev))
 		video_device_release(vpfe_dev->video_dev);
 probe_out_release_irq:
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
@@ -2054,7 +2089,7 @@ probe_free_dev_mem:
 /*
  * vpfe_remove : It un-register device from V4L2 driver
  */
-static int vpfe_remove(struct platform_device *pdev)
+static int __devexit vpfe_remove(struct platform_device *pdev)
 {
 	struct vpfe_device *vpfe_dev = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -2090,7 +2125,7 @@ vpfe_resume(struct device *dev)
 	return -1;
 }
 
-static struct dev_pm_ops vpfe_dev_pm_ops = {
+static const struct dev_pm_ops vpfe_dev_pm_ops = {
 	.suspend = vpfe_suspend,
 	.resume = vpfe_resume,
 };

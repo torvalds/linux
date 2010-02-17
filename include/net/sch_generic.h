@@ -15,16 +15,14 @@ struct qdisc_walker;
 struct tcf_walker;
 struct module;
 
-struct qdisc_rate_table
-{
+struct qdisc_rate_table {
 	struct tc_ratespec rate;
 	u32		data[256];
 	struct qdisc_rate_table *next;
 	int		refcnt;
 };
 
-enum qdisc_state_t
-{
+enum qdisc_state_t {
 	__QDISC_STATE_RUNNING,
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
@@ -37,8 +35,7 @@ struct qdisc_size_table {
 	u16			data[];
 };
 
-struct Qdisc
-{
+struct Qdisc {
 	int 			(*enqueue)(struct sk_buff *skb, struct Qdisc *dev);
 	struct sk_buff *	(*dequeue)(struct Qdisc *dev);
 	unsigned		flags;
@@ -78,8 +75,7 @@ struct Qdisc
 	struct gnet_stats_queue	qstats;
 };
 
-struct Qdisc_class_ops
-{
+struct Qdisc_class_ops {
 	/* Child qdisc manipulation */
 	struct netdev_queue *	(*select_queue)(struct Qdisc *, struct tcmsg *);
 	int			(*graft)(struct Qdisc *, unsigned long cl,
@@ -108,8 +104,7 @@ struct Qdisc_class_ops
 					struct gnet_dump *);
 };
 
-struct Qdisc_ops
-{
+struct Qdisc_ops {
 	struct Qdisc_ops	*next;
 	const struct Qdisc_class_ops	*cl_ops;
 	char			id[IFNAMSIZ];
@@ -133,14 +128,12 @@ struct Qdisc_ops
 };
 
 
-struct tcf_result
-{
+struct tcf_result {
 	unsigned long	class;
 	u32		classid;
 };
 
-struct tcf_proto_ops
-{
+struct tcf_proto_ops {
 	struct tcf_proto_ops	*next;
 	char			kind[IFNAMSIZ];
 
@@ -164,8 +157,7 @@ struct tcf_proto_ops
 	struct module		*owner;
 };
 
-struct tcf_proto
-{
+struct tcf_proto {
 	/* Fast access part */
 	struct tcf_proto	*next;
 	void			*root;
@@ -261,14 +253,12 @@ extern struct Qdisc_ops noop_qdisc_ops;
 extern struct Qdisc_ops pfifo_fast_ops;
 extern struct Qdisc_ops mq_qdisc_ops;
 
-struct Qdisc_class_common
-{
+struct Qdisc_class_common {
 	u32			classid;
 	struct hlist_node	hnode;
 };
 
-struct Qdisc_class_hash
-{
+struct Qdisc_class_hash {
 	struct hlist_head	*hash;
 	unsigned int		hashsize;
 	unsigned int		hashmask;

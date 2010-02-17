@@ -8,34 +8,27 @@
  * warranty of any kind, whether express or implied.
  */
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 #include <linux/i2c.h>
-#include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/eeprom.h>
 
-#include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
-#include <mach/hardware.h>
 #include <mach/dm355.h>
-#include <mach/psc.h>
-#include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/nand.h>
 #include <mach/mmc.h>
+#include <mach/usb.h>
 
 #define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x01e10000
 #define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
@@ -270,7 +263,7 @@ static __init void dm355_leopard_init(void)
 	gpio_request(2, "usb_id_toggle");
 	gpio_direction_output(2, USB_ID_VALUE);
 	/* irlml6401 switches over 1A in under 8 msec */
-	setup_usb(500, 8);
+	davinci_setup_usb(1000, 8);
 
 	davinci_setup_mmc(0, &dm355leopard_mmc_config);
 	davinci_setup_mmc(1, &dm355leopard_mmc_config);

@@ -127,7 +127,8 @@ static const struct proto_ops pvc_proto_ops = {
 };
 
 
-static int pvc_create(struct net *net, struct socket *sock,int protocol)
+static int pvc_create(struct net *net, struct socket *sock, int protocol,
+		      int kern)
 {
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
@@ -137,7 +138,7 @@ static int pvc_create(struct net *net, struct socket *sock,int protocol)
 }
 
 
-static struct net_proto_family pvc_family_ops = {
+static const struct net_proto_family pvc_family_ops = {
 	.family = PF_ATMPVC,
 	.create = pvc_create,
 	.owner = THIS_MODULE,

@@ -69,17 +69,6 @@
 #define PCMCIA
 #include "../tokenring/ibmtr.c"
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version =
-"ibmtr_cs.c 1.10   1996/01/06 05:19:00 (Steve Kipisz)\n"
-"           2.2.7  1999/05/03 12:00:00 (Mike Phillips)\n"
-"           2.4.2  2001/30/28 Midnight (Burt Silverman)\n";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -130,6 +119,12 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 };
 
+static irqreturn_t ibmtr_interrupt(int irq, void *dev_id) {
+	ibmtr_dev_t *info = dev_id;
+	struct net_device *dev = info->dev;
+	return tok_interrupt(irq, dev);
+};
+
 /*======================================================================
 
     ibmtr_attach() creates an "instance" of the driver, allocating
@@ -143,7 +138,7 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     ibmtr_dev_t *info;
     struct net_device *dev;
 
-    DEBUG(0, "ibmtr_attach()\n");
+    dev_dbg(&link->dev, "ibmtr_attach()\n");
 
     /* Create new token-ring device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -161,14 +156,13 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts1 = 4;
     link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = &tok_interrupt;
+    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
+    link->irq.Handler = ibmtr_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-    link->irq.Instance = info->dev = dev;
+    info->dev = dev;
 
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
@@ -190,7 +184,7 @@ static void ibmtr_detach(struct pcmcia_device *link)
     struct net_device *dev = info->dev;
      struct tok_info *ti = netdev_priv(dev);
 
-    DEBUG(0, "ibmtr_detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "ibmtr_detach\n");
     
     /* 
      * When the card removal interrupt hits tok_interrupt(), 
@@ -217,9 +211,6 @@ static void ibmtr_detach(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
-
 static int __devinit ibmtr_config(struct pcmcia_device *link)
 {
     ibmtr_dev_t *info = link->priv;
@@ -227,9 +218,9 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     struct tok_info *ti = netdev_priv(dev);
     win_req_t req;
     memreq_t mem;
-    int i, last_ret, last_fn;
+    int i, ret;
 
-    DEBUG(0, "ibmtr_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "ibmtr_config\n");
 
     link->conf.ConfigIndex = 0x61;
 
@@ -241,11 +232,15 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (i != 0) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
 	link->io.BasePort1 = 0xA24;
-	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
+	ret = pcmcia_request_io(link, &link->io);
+	if (ret)
+		goto failed;
     }
     dev->base_addr = link->io.BasePort1;
 
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
     dev->irq = link->irq.AssignedIRQ;
     ti->irq = link->irq.AssignedIRQ;
     ti->global_int_enable=GLOBAL_INT_ENABLE+((dev->irq==9) ? 2 : dev->irq);
@@ -256,11 +251,15 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     req.Base = 0; 
     req.Size = 0x2000;
     req.AccessSpeed = 250;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &link->win));
+    ret = pcmcia_request_window(link, &req, &link->win);
+    if (ret)
+	    goto failed;
 
     mem.CardOffset = mmiobase;
     mem.Page = 0;
-    CS_CHECK(MapMemPage, pcmcia_map_mem_page(link->win, &mem));
+    ret = pcmcia_map_mem_page(link, link->win, &mem);
+    if (ret)
+	    goto failed;
     ti->mmio = ioremap(req.Base, req.Size);
 
     /* Allocate the SRAM memory window */
@@ -269,17 +268,23 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     req.Base = 0;
     req.Size = sramsize * 1024;
     req.AccessSpeed = 250;
-    CS_CHECK(RequestWindow, pcmcia_request_window(&link, &req, &info->sram_win_handle));
+    ret = pcmcia_request_window(link, &req, &info->sram_win_handle);
+    if (ret)
+	    goto failed;
 
     mem.CardOffset = srambase;
     mem.Page = 0;
-    CS_CHECK(MapMemPage, pcmcia_map_mem_page(info->sram_win_handle, &mem));
+    ret = pcmcia_map_mem_page(link, info->sram_win_handle, &mem);
+    if (ret)
+	    goto failed;
 
     ti->sram_base = mem.CardOffset >> 12;
     ti->sram_virt = ioremap(req.Base, req.Size);
     ti->sram_phys = req.Base;
 
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
 
     /*  Set up the Token-Ring Controller Configuration Register and
         turn on the card.  Check the "Local Area Network Credit Card
@@ -287,7 +292,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     ibmtr_hw_setup(dev, mmiobase);
 
     link->dev_node = &info->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
@@ -305,8 +310,6 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 	   dev->dev_addr);
     return 0;
 
-cs_failed:
-    cs_error(link, last_fn, last_ret);
 failed:
     ibmtr_release(link);
     return -ENODEV;
@@ -325,12 +328,12 @@ static void ibmtr_release(struct pcmcia_device *link)
 	ibmtr_dev_t *info = link->priv;
 	struct net_device *dev = info->dev;
 
-	DEBUG(0, "ibmtr_release(0x%p)\n", link);
+	dev_dbg(&link->dev, "ibmtr_release\n");
 
 	if (link->win) {
 		struct tok_info *ti = netdev_priv(dev);
 		iounmap(ti->mmio);
-		pcmcia_release_window(info->sram_win_handle);
+		pcmcia_release_window(link, info->sram_win_handle);
 	}
 	pcmcia_disable_device(link);
 }

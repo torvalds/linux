@@ -216,10 +216,10 @@
 
 #define UART_IIR_TOD	0x08	/* Character Timeout Indication Detected */
 
-#define UART_FCR_PXAR1	0x00	/* receive FIFO treshold = 1 */
-#define UART_FCR_PXAR8	0x40	/* receive FIFO treshold = 8 */
-#define UART_FCR_PXAR16	0x80	/* receive FIFO treshold = 16 */
-#define UART_FCR_PXAR32	0xc0	/* receive FIFO treshold = 32 */
+#define UART_FCR_PXAR1	0x00	/* receive FIFO threshold = 1 */
+#define UART_FCR_PXAR8	0x40	/* receive FIFO threshold = 8 */
+#define UART_FCR_PXAR16	0x80	/* receive FIFO threshold = 16 */
+#define UART_FCR_PXAR32	0xc0	/* receive FIFO threshold = 32 */
 
 
 

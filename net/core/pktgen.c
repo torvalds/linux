@@ -250,8 +250,7 @@ struct pktgen_dev {
 	__u64 count;		/* Default No packets to send */
 	__u64 sofar;		/* How many pkts we've sent so far */
 	__u64 tx_bytes;		/* How many bytes we've transmitted */
-	__u64 errors;		/* Errors when trying to transmit,
-				   pkts will be re-sent */
+	__u64 errors;		/* Errors when trying to transmit, */
 
 	/* runtime counters relating to clone_skb */
 
@@ -335,10 +334,12 @@ struct pktgen_dev {
 	__u32 cur_src_mac_offset;
 	__be32 cur_saddr;
 	__be32 cur_daddr;
+	__u16 ip_id;
 	__u16 cur_udp_dst;
 	__u16 cur_udp_src;
 	__u16 cur_queue_map;
 	__u32 cur_pkt_size;
+	__u32 last_pkt_size;
 
 	__u8 hh[14];
 	/* = {
@@ -362,6 +363,7 @@ struct pktgen_dev {
 				  * device name (not when the inject is
 				  * started as it used to do.)
 				  */
+	char odevname[32];
 	struct flow_state *flows;
 	unsigned cflows;	/* Concurrent flows (config) */
 	unsigned lflow;		/* Flow length  (config) */
@@ -425,7 +427,7 @@ static const char version[] =
 static int pktgen_remove_device(struct pktgen_thread *t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread *t, const char *ifname);
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
-					  const char *ifname);
+					  const char *ifname, bool exact);
 static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(void);
 static void pktgen_reset_all_threads(void);
@@ -527,7 +529,7 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 	seq_printf(seq,
 		   "     frags: %d  delay: %llu  clone_skb: %d  ifname: %s\n",
 		   pkt_dev->nfrags, (unsigned long long) pkt_dev->delay,
-		   pkt_dev->clone_skb, pkt_dev->odev->name);
+		   pkt_dev->clone_skb, pkt_dev->odevname);
 
 	seq_printf(seq, "     flows: %u flowlen: %u\n", pkt_dev->cflows,
 		   pkt_dev->lflow);
@@ -1687,13 +1689,13 @@ static int pktgen_thread_show(struct seq_file *seq, void *v)
 	if_lock(t);
 	list_for_each_entry(pkt_dev, &t->if_list, list)
 		if (pkt_dev->running)
-			seq_printf(seq, "%s ", pkt_dev->odev->name);
+			seq_printf(seq, "%s ", pkt_dev->odevname);
 
 	seq_printf(seq, "\nStopped: ");
 
 	list_for_each_entry(pkt_dev, &t->if_list, list)
 		if (!pkt_dev->running)
-			seq_printf(seq, "%s ", pkt_dev->odev->name);
+			seq_printf(seq, "%s ", pkt_dev->odevname);
 
 	if (t->result[0])
 		seq_printf(seq, "\nResult: %s\n", t->result);
@@ -1816,9 +1818,10 @@ static struct pktgen_dev *__pktgen_NN_threads(const char *ifname, int remove)
 {
 	struct pktgen_thread *t;
 	struct pktgen_dev *pkt_dev = NULL;
+	bool exact = (remove == FIND);
 
 	list_for_each_entry(t, &pktgen_threads, th_list) {
-		pkt_dev = pktgen_find_dev(t, ifname);
+		pkt_dev = pktgen_find_dev(t, ifname, exact);
 		if (pkt_dev) {
 			if (remove) {
 				if_lock(t);
@@ -1993,7 +1996,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 		       "queue_map_min (zero-based) (%d) exceeds valid range "
 		       "[0 - %d] for (%d) queues on %s, resetting\n",
 		       pkt_dev->queue_map_min, (ntxq ?: 1) - 1, ntxq,
-		       pkt_dev->odev->name);
+		       pkt_dev->odevname);
 		pkt_dev->queue_map_min = ntxq - 1;
 	}
 	if (pkt_dev->queue_map_max >= ntxq) {
@@ -2001,7 +2004,7 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 		       "queue_map_max (zero-based) (%d) exceeds valid range "
 		       "[0 - %d] for (%d) queues on %s, resetting\n",
 		       pkt_dev->queue_map_max, (ntxq ?: 1) - 1, ntxq,
-		       pkt_dev->odev->name);
+		       pkt_dev->odevname);
 		pkt_dev->queue_map_max = ntxq - 1;
 	}
 
@@ -2048,9 +2051,8 @@ static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 				read_lock_bh(&idev->lock);
 				for (ifp = idev->addr_list; ifp;
 				     ifp = ifp->if_next) {
-					if (ifp->scope == IFA_LINK
-					    && !(ifp->
-						 flags & IFA_F_TENTATIVE)) {
+					if (ifp->scope == IFA_LINK &&
+					    !(ifp->flags & IFA_F_TENTATIVE)) {
 						ipv6_addr_copy(&pkt_dev->
 							       cur_in6_saddr,
 							       &ifp->addr);
@@ -2630,6 +2632,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	iph->protocol = IPPROTO_UDP;	/* UDP */
 	iph->saddr = pkt_dev->cur_saddr;
 	iph->daddr = pkt_dev->cur_daddr;
+	iph->id = htons(pkt_dev->ip_id);
+	pkt_dev->ip_id++;
 	iph->frag_off = 0;
 	iplen = 20 + 8 + datalen;
 	iph->tot_len = htons(iplen);
@@ -2641,24 +2645,26 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	skb->dev = odev;
 	skb->pkt_type = PACKET_HOST;
 
-	if (pkt_dev->nfrags <= 0)
+	if (pkt_dev->nfrags <= 0) {
 		pgh = (struct pktgen_hdr *)skb_put(skb, datalen);
-	else {
+		memset(pgh + 1, 0, datalen - sizeof(struct pktgen_hdr));
+	} else {
 		int frags = pkt_dev->nfrags;
-		int i;
+		int i, len;
 
 		pgh = (struct pktgen_hdr *)(((char *)(udph)) + 8);
 
 		if (frags > MAX_SKB_FRAGS)
 			frags = MAX_SKB_FRAGS;
 		if (datalen > frags * PAGE_SIZE) {
-			skb_put(skb, datalen - frags * PAGE_SIZE);
+			len = datalen - frags * PAGE_SIZE;
+			memset(skb_put(skb, len), 0, len);
 			datalen = frags * PAGE_SIZE;
 		}
 
 		i = 0;
 		while (datalen > 0) {
-			struct page *page = alloc_pages(GFP_KERNEL, 0);
+			struct page *page = alloc_pages(GFP_KERNEL | __GFP_ZERO, 0);
 			skb_shinfo(skb)->frags[i].page = page;
 			skb_shinfo(skb)->frags[i].page_offset = 0;
 			skb_shinfo(skb)->frags[i].size =
@@ -3257,7 +3263,7 @@ static int pktgen_stop_device(struct pktgen_dev *pkt_dev)
 
 	if (!pkt_dev->running) {
 		printk(KERN_WARNING "pktgen: interface: %s is already "
-		       "stopped\n", pkt_dev->odev->name);
+		       "stopped\n", pkt_dev->odevname);
 		return -EINVAL;
 	}
 
@@ -3429,7 +3435,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 			pkt_dev->clone_count--;	/* back out increment, OOM */
 			return;
 		}
-
+		pkt_dev->last_pkt_size = pkt_dev->skb->len;
 		pkt_dev->allocated_skbs++;
 		pkt_dev->clone_count = 0;	/* reset counter */
 	}
@@ -3441,12 +3447,14 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	txq = netdev_get_tx_queue(odev, queue_map);
 
 	__netif_tx_lock_bh(txq);
-	atomic_inc(&(pkt_dev->skb->users));
 
-	if (unlikely(netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq)))
+	if (unlikely(netif_tx_queue_stopped(txq) || netif_tx_queue_frozen(txq))) {
 		ret = NETDEV_TX_BUSY;
-	else
-		ret = (*xmit)(pkt_dev->skb, odev);
+		pkt_dev->last_ok = 0;
+		goto unlock;
+	}
+	atomic_inc(&(pkt_dev->skb->users));
+	ret = (*xmit)(pkt_dev->skb, odev);
 
 	switch (ret) {
 	case NETDEV_TX_OK:
@@ -3454,12 +3462,18 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->last_ok = 1;
 		pkt_dev->sofar++;
 		pkt_dev->seq_num++;
-		pkt_dev->tx_bytes += pkt_dev->cur_pkt_size;
+		pkt_dev->tx_bytes += pkt_dev->last_pkt_size;
+		break;
+	case NET_XMIT_DROP:
+	case NET_XMIT_CN:
+	case NET_XMIT_POLICED:
+		/* skb has been consumed */
+		pkt_dev->errors++;
 		break;
 	default: /* Drivers are not supposed to return other values! */
 		if (net_ratelimit())
 			pr_info("pktgen: %s xmit error: %d\n",
-				odev->name, ret);
+				pkt_dev->odevname, ret);
 		pkt_dev->errors++;
 		/* fallthru */
 	case NETDEV_TX_LOCKED:
@@ -3468,6 +3482,7 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		atomic_dec(&(pkt_dev->skb->users));
 		pkt_dev->last_ok = 0;
 	}
+unlock:
 	__netif_tx_unlock_bh(txq);
 
 	/* If pkt_dev->count is zero, then run forever */
@@ -3509,6 +3524,7 @@ static int pktgen_thread_worker(void *arg)
 			wait_event_interruptible_timeout(t->queue,
 							 t->control != 0,
 							 HZ/10);
+			try_to_freeze();
 			continue;
 		}
 
@@ -3561,13 +3577,18 @@ static int pktgen_thread_worker(void *arg)
 }
 
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread *t,
-					  const char *ifname)
+					  const char *ifname, bool exact)
 {
 	struct pktgen_dev *p, *pkt_dev = NULL;
-	if_lock(t);
+	size_t len = strlen(ifname);
 
+	if_lock(t);
 	list_for_each_entry(p, &t->if_list, list)
-		if (strncmp(p->odev->name, ifname, IFNAMSIZ) == 0) {
+		if (strncmp(p->odevname, ifname, len) == 0) {
+			if (p->odevname[len]) {
+				if (exact || p->odevname[len] != '@')
+					continue;
+			}
 			pkt_dev = p;
 			break;
 		}
@@ -3610,6 +3631,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 {
 	struct pktgen_dev *pkt_dev;
 	int err;
+	int node = cpu_to_node(t->cpu);
 
 	/* We don't allow a device to be on several threads */
 
@@ -3619,11 +3641,13 @@ static int pktgen_add_device(struct pktgen_thread *t, const char *ifname)
 		return -EBUSY;
 	}
 
-	pkt_dev = kzalloc(sizeof(struct pktgen_dev), GFP_KERNEL);
+	pkt_dev = kzalloc_node(sizeof(struct pktgen_dev), GFP_KERNEL, node);
 	if (!pkt_dev)
 		return -ENOMEM;
 
-	pkt_dev->flows = vmalloc(MAX_CFLOWS * sizeof(struct flow_state));
+	strcpy(pkt_dev->odevname, ifname);
+	pkt_dev->flows = vmalloc_node(MAX_CFLOWS * sizeof(struct flow_state),
+				      node);
 	if (pkt_dev->flows == NULL) {
 		kfree(pkt_dev);
 		return -ENOMEM;
@@ -3685,7 +3709,8 @@ static int __init pktgen_create_thread(int cpu)
 	struct proc_dir_entry *pe;
 	struct task_struct *p;
 
-	t = kzalloc(sizeof(struct pktgen_thread), GFP_KERNEL);
+	t = kzalloc_node(sizeof(struct pktgen_thread), GFP_KERNEL,
+			 cpu_to_node(cpu));
 	if (!t) {
 		printk(KERN_ERR "pktgen: ERROR: out of memory, can't "
 		       "create new thread.\n");

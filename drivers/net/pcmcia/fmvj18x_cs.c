@@ -72,13 +72,6 @@ MODULE_LICENSE("GPL");
 /* 0:4KB*2 TX buffer   else:8KB*2 TX buffer */
 INT_MODULE_PARM(sram_config, 0);
 
-#ifdef PCMCIA_DEBUG
-INT_MODULE_PARM(pc_debug, PCMCIA_DEBUG);
-#define DEBUG(n, args...) if (pc_debug>(n)) printk(KERN_DEBUG args)
-static char *version = DRV_NAME ".c " DRV_VERSION " 2002/03/23";
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 /*
@@ -245,7 +238,7 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     local_info_t *lp;
     struct net_device *dev;
 
-    DEBUG(0, "fmvj18x_attach()\n");
+    dev_dbg(&link->dev, "fmvj18x_attach()\n");
 
     /* Make up a FMVJ18x specific data structure */
     dev = alloc_etherdev(sizeof(local_info_t));
@@ -262,10 +255,8 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->io.IOAddrLines = 5;
 
     /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1 = IRQ_LEVEL_ID;
-    link->irq.Handler = &fjn_interrupt;
-    link->irq.Instance = dev;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
+    link->irq.Handler = fjn_interrupt;
 
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
@@ -285,7 +276,7 @@ static void fmvj18x_detach(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
 
-    DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
+    dev_dbg(&link->dev, "fmvj18x_detach\n");
 
     if (link->dev_node)
 	unregister_netdev(dev);
@@ -296,9 +287,6 @@ static void fmvj18x_detach(struct pcmcia_device *link)
 } /* fmvj18x_detach */
 
 /*====================================================================*/
-
-#define CS_CHECK(fn, ret) \
-do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int mfc_try_io_port(struct pcmcia_device *link)
 {
@@ -341,39 +329,44 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
     return ret;	/* RequestIO failed */
 }
 
+static int fmvj18x_ioprobe(struct pcmcia_device *p_dev,
+			   cistpl_cftable_entry_t *cfg,
+			   cistpl_cftable_entry_t *dflt,
+			   unsigned int vcc,
+			   void *priv_data)
+{
+	return 0; /* strange, but that's what the code did already before... */
+}
+
 static int fmvj18x_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     local_info_t *lp = netdev_priv(dev);
-    tuple_t tuple;
-    cisparse_t parse;
-    u_short buf[32];
-    int i, last_fn = 0, last_ret = 0, ret;
+    int i, ret;
     unsigned int ioaddr;
     cardtype_t cardtype;
     char *card_name = "unknown";
-    u_char *node_id;
+    u8 *buf;
+    size_t len;
+    u_char buggybuf[32];
 
-    DEBUG(0, "fmvj18x_config(0x%p)\n", link);
+    dev_dbg(&link->dev, "fmvj18x_config\n");
 
-    tuple.TupleData = (u_char *)buf;
-    tuple.TupleDataMax = 64;
-    tuple.TupleOffset = 0;
-    tuple.DesiredTuple = CISTPL_FUNCE;
-    tuple.TupleOffset = 0;
-    if (pcmcia_get_first_tuple(link, &tuple) == 0) {
+    len = pcmcia_get_tuple(link, CISTPL_FUNCE, &buf);
+    kfree(buf);
+
+    if (len) {
 	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(&tuple, &parse));
-	link->conf.ConfigIndex = parse.cftable_entry.index;
+	ret = pcmcia_loop_config(link, fmvj18x_ioprobe, NULL);
+	if (ret != 0)
+		goto failed;
+
 	switch (link->manf_id) {
 	case MANFID_TDK:
 	    cardtype = TDK;
-	    if (link->card_id == PRODID_TDK_GN3410
-			|| link->card_id == PRODID_TDK_NP9610
-			|| link->card_id == PRODID_TDK_MN3200) {
+	    if (link->card_id == PRODID_TDK_GN3410 ||
+		link->card_id == PRODID_TDK_NP9610 ||
+		link->card_id == PRODID_TDK_MN3200) {
 		/* MultiFunction Card */
 		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
@@ -433,17 +426,24 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     if (link->io.NumPorts2 != 0) {
     	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED|IRQ_HANDLE_PRESENT;
+		IRQ_TYPE_DYNAMIC_SHARING;
 	ret = mfc_try_io_port(link);
-	if (ret != 0) goto cs_failed;
+	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {
 	ret = ungermann_try_io_port(link);
-	if (ret != 0) goto cs_failed;
+	if (ret != 0) goto failed;
     } else { 
-	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
+	    ret = pcmcia_request_io(link, &link->io);
+	    if (ret)
+		    goto failed;
     }
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_irq(link, &link->irq);
+    if (ret)
+	    goto failed;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret)
+	    goto failed;
+
     dev->irq = link->irq.AssignedIRQ;
     dev->base_addr = link->io.BasePort1;
 
@@ -474,21 +474,21 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case CONTEC:
     case NEC:
     case KME:
-	tuple.DesiredTuple = CISTPL_FUNCE;
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
 	if (cardtype == MBH10304) {
-	    /* MBH10304's CIS_FUNCE is corrupted */
-	    node_id = &(tuple.TupleData[5]);
 	    card_name = "FMV-J182";
-	} else {
-	    while (tuple.TupleData[0] != CISTPL_FUNCE_LAN_NODE_ID ) {
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-		CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
+
+	    len = pcmcia_get_tuple(link, CISTPL_FUNCE, &buf);
+	    if (len < 11) {
+		    kfree(buf);
+		    goto failed;
 	    }
-	    node_id = &(tuple.TupleData[2]);
+	    /* Read MACID from CIS */
+	    for (i = 5; i < 11; i++)
+		    dev->dev_addr[i] = buf[i];
+	    kfree(buf);
+	} else {
+	    if (pcmcia_get_mac_from_cis(link, dev))
+		goto failed;
 	    if( cardtype == TDK ) {
 		card_name = "TDK LAK-CD021";
 	    } else if( cardtype == LA501 ) {
@@ -501,9 +501,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		card_name = "C-NET(PC)C";
 	    }
 	}
-	/* Read MACID from CIS */
-	for (i = 0; i < 6; i++)
-	    dev->dev_addr[i] = node_id[i];
 	break;
     case UNGERMANN:
 	/* Read MACID from register */
@@ -513,12 +510,12 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	break;
     case XXX10304:
 	/* Read MACID from Buggy CIS */
-	if (fmvj18x_get_hwinfo(link, tuple.TupleData) == -1) {
+	if (fmvj18x_get_hwinfo(link, buggybuf) == -1) {
 	    printk(KERN_NOTICE "fmvj18x_cs: unable to read hardware net address.\n");
 	    goto failed;
 	}
 	for (i = 0 ; i < 6; i++) {
-	    dev->dev_addr[i] = tuple.TupleData[i];
+	    dev->dev_addr[i] = buggybuf[i];
 	}
 	card_name = "FMV-J182";
 	break;
@@ -533,7 +530,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     lp->cardtype = cardtype;
     link->dev_node = &lp->node;
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
@@ -551,9 +548,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     return 0;
     
-cs_failed:
-    /* All Card Services errors end up here */
-    cs_error(link, last_fn, last_ret);
 failed:
     fmvj18x_release(link);
     return -ENODEV;
@@ -571,16 +565,14 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != 0) {
-	cs_error(link, RequestWindow, i);
+    i = pcmcia_request_window(link, &req, &link->win);
+    if (i != 0)
 	return -1;
-    }
 
     base = ioremap(req.Base, req.Size);
     mem.Page = 0;
     mem.CardOffset = 0;
-    pcmcia_map_mem_page(link->win, &mem);
+    pcmcia_map_mem_page(link, link->win, &mem);
 
     /*
      *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
@@ -590,11 +582,11 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     */ 
     for (i = 0; i < 0x200; i++) {
 	if (readb(base+i*2) == 0x22) {	
-	    if (readb(base+(i-1)*2) == 0xff
-	     && readb(base+(i+5)*2) == 0x04
-	     && readb(base+(i+6)*2) == 0x06
-	     && readb(base+(i+13)*2) == 0xff) 
-		break;
+		if (readb(base+(i-1)*2) == 0xff &&
+		    readb(base+(i+5)*2) == 0x04 &&
+		    readb(base+(i+6)*2) == 0x06 &&
+		    readb(base+(i+13)*2) == 0xff)
+			break;
 	}
     }
 
@@ -605,9 +597,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     }
 
     iounmap(base);
-    j = pcmcia_release_window(link->win);
-    if (j != 0)
-	cs_error(link, ReleaseWindow, j);
+    j = pcmcia_release_window(link, link->win);
     return (i != 0x200) ? 0 : -1;
 
 } /* fmvj18x_get_hwinfo */
@@ -626,11 +616,9 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
-    i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != 0) {
-	cs_error(link, RequestWindow, i);
+    i = pcmcia_request_window(link, &req, &link->win);
+    if (i != 0)
 	return -1;
-    }
 
     lp->base = ioremap(req.Base, req.Size);
     if (lp->base == NULL) {
@@ -640,11 +628,10 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 
     mem.Page = 0;
     mem.CardOffset = 0;
-    i = pcmcia_map_mem_page(link->win, &mem);
+    i = pcmcia_map_mem_page(link, link->win, &mem);
     if (i != 0) {
 	iounmap(lp->base);
 	lp->base = NULL;
-	cs_error(link, MapMemPage, i);
 	return -1;
     }
     
@@ -671,15 +658,13 @@ static void fmvj18x_release(struct pcmcia_device *link)
     u_char __iomem *tmp;
     int j;
 
-    DEBUG(0, "fmvj18x_release(0x%p)\n", link);
+    dev_dbg(&link->dev, "fmvj18x_release\n");
 
     if (lp->base != NULL) {
 	tmp = lp->base;
 	lp->base = NULL;    /* set NULL before iounmap */
 	iounmap(tmp);
-	j = pcmcia_release_window(link->win);
-	if (j != 0)
-	    cs_error(link, ReleaseWindow, j);
+	j = pcmcia_release_window(link, link->win);
     }
 
     pcmcia_disable_device(link);
@@ -732,6 +717,7 @@ static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "NEC", "PK-UG-J001" ,0x18df0ba0 ,0x831b1064),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0d0a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0e0a),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0e01),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0a05),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x1101),
 	PCMCIA_DEVICE_NULL,
@@ -788,8 +774,8 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
     outb(tx_stat, ioaddr + TX_STATUS);
     outb(rx_stat, ioaddr + RX_STATUS);
     
-    DEBUG(4, "%s: interrupt, rx_status %02x.\n", dev->name, rx_stat);
-    DEBUG(4, "               tx_status %02x.\n", tx_stat);
+    pr_debug("%s: interrupt, rx_status %02x.\n", dev->name, rx_stat);
+    pr_debug("               tx_status %02x.\n", tx_stat);
     
     if (rx_stat || (inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
 	/* there is packet(s) in rx buffer */
@@ -809,8 +795,8 @@ static irqreturn_t fjn_interrupt(int dummy, void *dev_id)
 	}
 	netif_wake_queue(dev);
     }
-    DEBUG(4, "%s: exiting interrupt,\n", dev->name);
-    DEBUG(4, "    tx_status %02x, rx_status %02x.\n", tx_stat, rx_stat);
+    pr_debug("%s: exiting interrupt,\n", dev->name);
+    pr_debug("    tx_status %02x, rx_status %02x.\n", tx_stat, rx_stat);
 
     outb(D_TX_INTR, ioaddr + TX_INTR);
     outb(D_RX_INTR, ioaddr + RX_INTR);
@@ -882,7 +868,7 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 	    return NETDEV_TX_BUSY;
 	}
 
-	DEBUG(4, "%s: Transmitting a packet of length %lu.\n",
+	pr_debug("%s: Transmitting a packet of length %lu.\n",
 	      dev->name, (unsigned long)skb->len);
 	dev->stats.tx_bytes += skb->len;
 
@@ -937,7 +923,7 @@ static void fjn_reset(struct net_device *dev)
     unsigned int ioaddr = dev->base_addr;
     int i;
 
-    DEBUG(4, "fjn_reset(%s) called.\n",dev->name);
+    pr_debug("fjn_reset(%s) called.\n",dev->name);
 
     /* Reset controller */
     if( sram_config == 0 ) 
@@ -1015,13 +1001,13 @@ static void fjn_rx(struct net_device *dev)
     unsigned int ioaddr = dev->base_addr;
     int boguscount = 10;	/* 5 -> 10: by agy 19940922 */
 
-    DEBUG(4, "%s: in rx_packet(), rx_status %02x.\n",
+    pr_debug("%s: in rx_packet(), rx_status %02x.\n",
 	  dev->name, inb(ioaddr + RX_STATUS));
 
     while ((inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
 	u_short status = inw(ioaddr + DATAPORT);
 
-	DEBUG(4, "%s: Rxing packet mode %02x status %04x.\n",
+	pr_debug("%s: Rxing packet mode %02x status %04x.\n",
 	      dev->name, inb(ioaddr + RX_MODE), status);
 #ifndef final_version
 	if (status == 0) {
@@ -1061,16 +1047,14 @@ static void fjn_rx(struct net_device *dev)
 		 (pkt_len + 1) >> 1);
 	    skb->protocol = eth_type_trans(skb, dev);
 
-#ifdef PCMCIA_DEBUG
-	    if (pc_debug > 5) {
+	    {
 		int i;
-		printk(KERN_DEBUG "%s: Rxed packet of length %d: ",
-		       dev->name, pkt_len);
+		pr_debug("%s: Rxed packet of length %d: ",
+			dev->name, pkt_len);
 		for (i = 0; i < 14; i++)
-		    printk(" %02x", skb->data[i]);
-		printk(".\n");
+			pr_debug(" %02x", skb->data[i]);
+		pr_debug(".\n");
 	    }
-#endif
 
 	    netif_rx(skb);
 	    dev->stats.rx_packets++;
@@ -1094,7 +1078,7 @@ static void fjn_rx(struct net_device *dev)
 	}
 
 	if (i > 0)
-	    DEBUG(5, "%s: Exint Rx packet with mode %02x after "
+	    pr_debug("%s: Exint Rx packet with mode %02x after "
 		  "%d ticks.\n", dev->name, inb(ioaddr + RX_MODE), i);
     }
 */
@@ -1112,24 +1096,8 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	sprintf(info->bus_info, "PCMCIA 0x%lx", dev->base_addr);
 }
 
-#ifdef PCMCIA_DEBUG
-static u32 netdev_get_msglevel(struct net_device *dev)
-{
-	return pc_debug;
-}
-
-static void netdev_set_msglevel(struct net_device *dev, u32 level)
-{
-	pc_debug = level;
-}
-#endif /* PCMCIA_DEBUG */
-
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
-#ifdef PCMCIA_DEBUG
-	.get_msglevel		= netdev_get_msglevel,
-	.set_msglevel		= netdev_set_msglevel,
-#endif /* PCMCIA_DEBUG */
 };
 
 static int fjn_config(struct net_device *dev, struct ifmap *map){
@@ -1141,7 +1109,7 @@ static int fjn_open(struct net_device *dev)
     struct local_info_t *lp = netdev_priv(dev);
     struct pcmcia_device *link = lp->p_dev;
 
-    DEBUG(4, "fjn_open('%s').\n", dev->name);
+    pr_debug("fjn_open('%s').\n", dev->name);
 
     if (!pcmcia_dev_present(link))
 	return -ENODEV;
@@ -1167,7 +1135,7 @@ static int fjn_close(struct net_device *dev)
     struct pcmcia_device *link = lp->p_dev;
     unsigned int ioaddr = dev->base_addr;
 
-    DEBUG(4, "fjn_close('%s').\n", dev->name);
+    pr_debug("fjn_close('%s').\n", dev->name);
 
     lp->open_time = 0;
     netif_stop_queue(dev);
@@ -1219,8 +1187,8 @@ static void set_rx_mode(struct net_device *dev)
     if (dev->flags & IFF_PROMISC) {
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
-    } else if (dev->mc_count > MC_FILTERBREAK
-	       ||  (dev->flags & IFF_ALLMULTI)) {
+    } else if (dev->mc_count > MC_FILTERBREAK ||
+	       (dev->flags & IFF_ALLMULTI)) {
 	/* Too many to filter perfectly -- accept all multicasts. */
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */

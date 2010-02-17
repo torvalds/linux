@@ -132,7 +132,7 @@ void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
 
 	sin6->sin6_family = AF_INET6;
 	ipv6_addr_copy(&sin6->sin6_addr, &np->daddr);
-	sin6->sin6_port	= inet_sk(sk)->dport;
+	sin6->sin6_port	= inet_sk(sk)->inet_dport;
 	/* We do not store received flowlabel for TCP */
 	sin6->sin6_flowinfo = 0;
 	sin6->sin6_scope_id = 0;
@@ -168,8 +168,7 @@ struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
 	if (dst) {
 		struct rt6_info *rt = (struct rt6_info *)dst;
 		if (rt->rt6i_flow_cache_genid != atomic_read(&flow_cache_genid)) {
-			sk->sk_dst_cache = NULL;
-			dst_release(dst);
+			__sk_dst_reset(sk);
 			dst = NULL;
 		}
 	}
@@ -194,8 +193,9 @@ int inet6_csk_xmit(struct sk_buff *skb, int ipfragok)
 	fl.fl6_flowlabel = np->flow_label;
 	IP6_ECN_flow_xmit(sk, fl.fl6_flowlabel);
 	fl.oif = sk->sk_bound_dev_if;
-	fl.fl_ip_sport = inet->sport;
-	fl.fl_ip_dport = inet->dport;
+	fl.mark = sk->sk_mark;
+	fl.fl_ip_sport = inet->inet_sport;
+	fl.fl_ip_dport = inet->inet_dport;
 	security_sk_classify_flow(sk, &fl);
 
 	if (np->opt && np->opt->srcrt) {

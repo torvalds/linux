@@ -218,12 +218,15 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 		packet->header_length = 16;
 		packet->payload_length = 0;
 		break;
+
+	default:
+		WARN(1, KERN_ERR "wrong tcode %d", tcode);
 	}
  common:
 	packet->speed = speed;
 	packet->generation = generation;
 	packet->ack = 0;
-	packet->payload_bus = 0;
+	packet->payload_mapped = false;
 }
 
 /**
@@ -429,14 +432,20 @@ static struct fw_address_handler *lookup_overlapping_address_handler(
 	return NULL;
 }
 
+static bool is_enclosing_handler(struct fw_address_handler *handler,
+				 unsigned long long offset, size_t length)
+{
+	return handler->offset <= offset &&
+		offset + length <= handler->offset + handler->length;
+}
+
 static struct fw_address_handler *lookup_enclosing_address_handler(
 	struct list_head *list, unsigned long long offset, size_t length)
 {
 	struct fw_address_handler *handler;
 
 	list_for_each_entry(handler, list, link) {
-		if (handler->offset <= offset &&
-		    offset + length <= handler->offset + handler->length)
+		if (is_enclosing_handler(handler, offset, length))
 			return handler;
 	}
 
@@ -462,6 +471,12 @@ const struct fw_address_region fw_unit_space_region =
 	{ .start = 0xfffff0000900ULL, .end = 0x1000000000000ULL, };
 #endif  /*  0  */
 
+static bool is_in_fcp_region(u64 offset, size_t length)
+{
+	return offset >= (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
+		offset + length <= (CSR_REGISTER_BASE | CSR_FCP_END);
+}
+
 /**
  * fw_core_add_address_handler - register for incoming requests
  * @handler: callback
@@ -474,8 +489,11 @@ const struct fw_address_region fw_unit_space_region =
  * give the details of the particular request.
  *
  * Return value:  0 on success, non-zero otherwise.
+ *
  * The start offset of the handler's address region is determined by
  * fw_core_add_address_handler() and is returned in handler->offset.
+ *
+ * Address allocations are exclusive, except for the FCP registers.
  */
 int fw_core_add_address_handler(struct fw_address_handler *handler,
 				const struct fw_address_region *region)
@@ -495,10 +513,12 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 
 	handler->offset = region->start;
 	while (handler->offset + handler->length <= region->end) {
-		other =
-		    lookup_overlapping_address_handler(&address_handler_list,
-						       handler->offset,
-						       handler->length);
+		if (is_in_fcp_region(handler->offset, handler->length))
+			other = NULL;
+		else
+			other = lookup_overlapping_address_handler
+					(&address_handler_list,
+					 handler->offset, handler->length);
 		if (other != NULL) {
 			handler->offset += other->length;
 		} else {
@@ -595,11 +615,10 @@ void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		break;
 
 	default:
-		BUG();
-		return;
+		WARN(1, KERN_ERR "wrong tcode %d", tcode);
 	}
 
-	response->payload_bus = 0;
+	response->payload_mapped = false;
 }
 EXPORT_SYMBOL(fw_fill_response);
 
@@ -666,6 +685,9 @@ static struct fw_request *allocate_request(struct fw_packet *p)
 void fw_send_response(struct fw_card *card,
 		      struct fw_request *request, int rcode)
 {
+	if (WARN_ONCE(!request, "invalid for FCP address handlers"))
+		return;
+
 	/* unified transaction or broadcast transaction: don't respond */
 	if (request->ack != ACK_PENDING ||
 	    HEADER_DESTINATION_IS_BROADCAST(request->request_header[0])) {
@@ -684,26 +706,15 @@ void fw_send_response(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_send_response);
 
-void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
+static void handle_exclusive_region_request(struct fw_card *card,
+					    struct fw_packet *p,
+					    struct fw_request *request,
+					    unsigned long long offset)
 {
 	struct fw_address_handler *handler;
-	struct fw_request *request;
-	unsigned long long offset;
 	unsigned long flags;
 	int tcode, destination, source;
 
-	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
-		return;
-
-	request = allocate_request(p);
-	if (request == NULL) {
-		/* FIXME: send statically allocated busy packet. */
-		return;
-	}
-
-	offset      =
-		((unsigned long long)
-		 HEADER_GET_OFFSET_HIGH(p->header[1]) << 32) | p->header[2];
 	tcode       = HEADER_GET_TCODE(p->header[0]);
 	destination = HEADER_GET_DESTINATION(p->header[0]);
 	source      = HEADER_GET_SOURCE(p->header[1]);
@@ -729,6 +740,73 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 					  p->generation, p->speed, offset,
 					  request->data, request->length,
 					  handler->callback_data);
+}
+
+static void handle_fcp_region_request(struct fw_card *card,
+				      struct fw_packet *p,
+				      struct fw_request *request,
+				      unsigned long long offset)
+{
+	struct fw_address_handler *handler;
+	unsigned long flags;
+	int tcode, destination, source;
+
+	if ((offset != (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
+	     offset != (CSR_REGISTER_BASE | CSR_FCP_RESPONSE)) ||
+	    request->length > 0x200) {
+		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
+
+		return;
+	}
+
+	tcode       = HEADER_GET_TCODE(p->header[0]);
+	destination = HEADER_GET_DESTINATION(p->header[0]);
+	source      = HEADER_GET_SOURCE(p->header[1]);
+
+	if (tcode != TCODE_WRITE_QUADLET_REQUEST &&
+	    tcode != TCODE_WRITE_BLOCK_REQUEST) {
+		fw_send_response(card, request, RCODE_TYPE_ERROR);
+
+		return;
+	}
+
+	spin_lock_irqsave(&address_handler_lock, flags);
+	list_for_each_entry(handler, &address_handler_list, link) {
+		if (is_enclosing_handler(handler, offset, request->length))
+			handler->address_callback(card, NULL, tcode,
+						  destination, source,
+						  p->generation, p->speed,
+						  offset, request->data,
+						  request->length,
+						  handler->callback_data);
+	}
+	spin_unlock_irqrestore(&address_handler_lock, flags);
+
+	fw_send_response(card, request, RCODE_COMPLETE);
+}
+
+void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
+{
+	struct fw_request *request;
+	unsigned long long offset;
+
+	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
+		return;
+
+	request = allocate_request(p);
+	if (request == NULL) {
+		/* FIXME: send statically allocated busy packet. */
+		return;
+	}
+
+	offset = ((u64)HEADER_GET_OFFSET_HIGH(p->header[1]) << 32) |
+		p->header[2];
+
+	if (!is_in_fcp_region(offset, request->length))
+		handle_exclusive_region_request(card, p, request, offset);
+	else
+		handle_fcp_region_request(card, p, request, offset);
+
 }
 EXPORT_SYMBOL(fw_core_handle_request);
 
@@ -810,8 +888,7 @@ static void handle_topology_map(struct fw_card *card, struct fw_request *request
 		int speed, unsigned long long offset,
 		void *payload, size_t length, void *callback_data)
 {
-	int i, start, end;
-	__be32 *map;
+	int start;
 
 	if (!TCODE_IS_READ_REQUEST(tcode)) {
 		fw_send_response(card, request, RCODE_TYPE_ERROR);
@@ -824,11 +901,7 @@ static void handle_topology_map(struct fw_card *card, struct fw_request *request
 	}
 
 	start = (offset - topology_map_region.start) / 4;
-	end = start + length / 4;
-	map = payload;
-
-	for (i = 0; i < length / 4; i++)
-		map[i] = cpu_to_be32(card->topology_map[start + i]);
+	memcpy(payload, &card->topology_map[start], length);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }

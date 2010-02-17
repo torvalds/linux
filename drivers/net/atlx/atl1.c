@@ -1344,8 +1344,8 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 
 	/* link result is our setting */
 	if (!reconfig) {
-		if (adapter->link_speed != speed
-		    || adapter->link_duplex != duplex) {
+		if (adapter->link_speed != speed ||
+		    adapter->link_duplex != duplex) {
 			adapter->link_speed = speed;
 			adapter->link_duplex = duplex;
 			atl1_setup_mac_ctrl(adapter);
@@ -1864,20 +1864,13 @@ static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 
 		rfd_desc = ATL1_RFD_DESC(rfd_ring, rfd_next_to_use);
 
-		skb = netdev_alloc_skb(adapter->netdev,
-				       adapter->rx_buffer_len + NET_IP_ALIGN);
+		skb = netdev_alloc_skb_ip_align(adapter->netdev,
+						adapter->rx_buffer_len);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->netdev->stats.rx_dropped++;
 			break;
 		}
-
-		/*
-		 * Make buffer alignment 2 beyond a 16 byte boundary
-		 * this will result in a 16 byte aligned IP header after
-		 * the 14 byte MAC header is removed
-		 */
-		skb_reserve(skb, NET_IP_ALIGN);
 
 		buffer_info->alloced = 1;
 		buffer_info->skb = skb;
@@ -2094,8 +2087,8 @@ static void atl1_intr_tx(struct atl1_adapter *adapter)
 	}
 	atomic_set(&tpd_ring->next_to_clean, sw_tpd_next_to_clean);
 
-	if (netif_queue_stopped(adapter->netdev)
-	    && netif_carrier_ok(adapter->netdev))
+	if (netif_queue_stopped(adapter->netdev) &&
+	    netif_carrier_ok(adapter->netdev))
 		netif_wake_queue(adapter->netdev);
 }
 
@@ -2596,7 +2589,7 @@ static s32 atl1_up(struct atl1_adapter *adapter)
 		irq_flags |= IRQF_SHARED;
 	}
 
-	err = request_irq(adapter->pdev->irq, &atl1_intr, irq_flags,
+	err = request_irq(adapter->pdev->irq, atl1_intr, irq_flags,
 			netdev->name, netdev);
 	if (unlikely(err))
 		goto err_up;

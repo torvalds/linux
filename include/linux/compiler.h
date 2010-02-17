@@ -15,6 +15,7 @@
 # define __acquire(x)	__context__(x,1)
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
+# define __percpu	__attribute__((noderef, address_space(3)))
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
 #else
@@ -32,6 +33,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 # define __acquire(x) (void)0
 # define __release(x) (void)0
 # define __cond_lock(x,c) (c)
+# define __percpu
 #endif
 
 #ifdef __KERNEL__
@@ -144,6 +146,11 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define barrier() __memory_barrier()
 #endif
 
+/* Unreachable code */
+#ifndef unreachable
+# define unreachable() do { } while (1)
+#endif
+
 #ifndef RELOC_HIDE
 # define RELOC_HIDE(ptr, off)					\
   ({ unsigned long __ptr;					\
@@ -213,6 +220,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 # define __maybe_unused		/* unimplemented */
 #endif
 
+#ifndef __always_unused
+# define __always_unused	/* unimplemented */
+#endif
+
 #ifndef noinline
 #define noinline
 #endif
@@ -264,6 +275,17 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type
 # define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#endif
+
+/* Compile time object size, -1 for unknown */
+#ifndef __compiletime_object_size
+# define __compiletime_object_size(obj) -1
+#endif
+#ifndef __compiletime_warning
+# define __compiletime_warning(message)
+#endif
+#ifndef __compiletime_error
+# define __compiletime_error(message)
 #endif
 
 /*

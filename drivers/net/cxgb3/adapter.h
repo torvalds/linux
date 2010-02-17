@@ -48,10 +48,25 @@
 struct vlan_group;
 struct adapter;
 struct sge_qset;
+struct port_info;
 
 enum {			/* rx_offload flags */
 	T3_RX_CSUM	= 1 << 0,
 	T3_LRO		= 1 << 1,
+};
+
+enum mac_idx_types {
+	LAN_MAC_IDX	= 0,
+	SAN_MAC_IDX,
+
+	MAX_MAC_IDX
+};
+
+struct iscsi_config {
+	__u8	mac_addr[ETH_ALEN];
+	__u32	flags;
+	int (*send)(struct port_info *pi, struct sk_buff **skb);
+	int (*recv)(struct port_info *pi, struct sk_buff *skb);
 };
 
 struct port_info {
@@ -68,6 +83,7 @@ struct port_info {
 	struct net_device_stats netstats;
 	int activity;
 	__be32 iscsi_ipv4addr;
+	struct iscsi_config iscsic;
 
 	int link_fault; /* link fault was detected */
 };

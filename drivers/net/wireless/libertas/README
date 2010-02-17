@@ -1,5 +1,5 @@
 ================================================================================
-			README for USB8388
+			README for Libertas
 
  (c) Copyright © 2003-2006, Marvell International Ltd.
  All Rights Reserved
@@ -225,5 +225,29 @@ setuserscan
 
     All entries in the scan table (not just the new scan data when keep=1)
     will be displayed upon completion by use of the getscantable ioctl.
+
+========================
+IWCONFIG COMMANDS
+========================
+power period
+
+	This command is used to configure the station in deep sleep mode /
+	auto deep sleep mode.
+
+	The timer is implemented to monitor the activities (command, event,
+	etc.). When an activity is detected station will exit from deep
+	sleep mode automatically and restart the timer. At timer expiry
+	(no activity for defined time period) the deep sleep mode is entered
+	automatically.
+
+	Note: this command is for SDIO interface only.
+
+	Usage:
+	To enable deep sleep mode do:
+		iwconfig wlan0 power period 0
+	To enable auto deep sleep mode with idle time period 5 seconds do:
+		iwconfig wlan0 power period 5
+	To disable deep sleep/auto deep sleep mode do:
+		iwconfig wlan0 power period -1
 
 ==============================================================================

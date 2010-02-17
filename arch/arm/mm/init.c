@@ -273,7 +273,6 @@ static void __init bootmem_init_node(int node, struct meminfo *mi,
 		struct membank *bank = &mi->bank[i];
 		if (!bank->highmem)
 			free_bootmem_node(pgdat, bank_phys_start(bank), bank_phys_size(bank));
-		memory_present(node, bank_pfn_start(bank), bank_pfn_end(bank));
 	}
 
 	/*
@@ -370,6 +369,19 @@ int pfn_valid(unsigned long pfn)
 	return 0;
 }
 EXPORT_SYMBOL(pfn_valid);
+
+static void arm_memory_present(struct meminfo *mi, int node)
+{
+}
+#else
+static void arm_memory_present(struct meminfo *mi, int node)
+{
+	int i;
+	for_each_nodebank(i, mi, node) {
+		struct membank *bank = &mi->bank[i];
+		memory_present(node, bank_pfn_start(bank), bank_pfn_end(bank));
+	}
+}
 #endif
 
 static int __init meminfo_cmp(const void *_a, const void *_b)
@@ -427,6 +439,12 @@ void __init bootmem_init(void)
 		 */
 		if (node == initrd_node)
 			bootmem_reserve_initrd(node);
+
+		/*
+		 * Sparsemem tries to allocate bootmem in memory_present(),
+		 * so must be done after the fixed reservations
+		 */
+		arm_memory_present(mi, node);
 	}
 
 	/*
@@ -483,7 +501,7 @@ free_memmap(int node, unsigned long start_pfn, unsigned long end_pfn)
 	/*
 	 * Convert start_pfn/end_pfn to a struct page pointer.
 	 */
-	start_pg = pfn_to_page(start_pfn);
+	start_pg = pfn_to_page(start_pfn - 1) + 1;
 	end_pg = pfn_to_page(end_pfn);
 
 	/*
@@ -598,7 +616,7 @@ void __init mem_init(void)
 		"%dK data, %dK init, %luK highmem)\n",
 		nr_free_pages() << (PAGE_SHIFT-10), codesize >> 10,
 		datasize >> 10, initsize >> 10,
-		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10)));
+		totalhigh_pages << (PAGE_SHIFT-10));
 
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
 		extern int sysctl_overcommit_memory;

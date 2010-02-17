@@ -1,0 +1,61 @@
+perf-probe(1)
+=============
+
+NAME
+----
+perf-probe - Define new dynamic tracepoints
+
+SYNOPSIS
+--------
+[verse]
+'perf probe' [options] --add='PROBE' [...]
+or
+'perf probe' [options] PROBE
+or
+'perf probe' [options] --del='[GROUP:]EVENT' [...]
+or
+'perf probe' --list
+
+DESCRIPTION
+-----------
+This command defines dynamic tracepoint events, by symbol and registers
+without debuginfo, or by C expressions (C line numbers, C function names,
+and C local variables) with debuginfo.
+
+
+OPTIONS
+-------
+-k::
+--vmlinux=PATH::
+	Specify vmlinux path which has debuginfo (Dwarf binary).
+
+-v::
+--verbose::
+        Be more verbose (show parsed arguments, etc).
+
+-a::
+--add=::
+	Define a probe event (see PROBE SYNTAX for detail).
+
+-d::
+--del=::
+	Delete a probe event.
+
+-l::
+--list::
+	List up current probe events.
+
+PROBE SYNTAX
+------------
+Probe points are defined by following syntax.
+
+ "[EVENT=]FUNC[+OFFS|:RLN|%return][@SRC]|SRC:ALN [ARG ...]"
+
+'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. Currently, event group name is set as 'probe'.
+'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, 'RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. In addition, 'SRC' specifies a source file which has that function.
+It is also possible to specify a probe point by the source line number by using 'SRC:ALN' syntax, where 'SRC' is the source file path and 'ALN' is the line number.
+'ARG' specifies the arguments of this probe point. You can use the name of local variable, or kprobe-tracer argument format (e.g. $retval, %ax, etc).
+
+SEE ALSO
+--------
+linkperf:perf-trace[1], linkperf:perf-record[1]

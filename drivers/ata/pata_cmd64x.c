@@ -219,7 +219,7 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		regU |= udma_data[adev->dma_mode - XFER_UDMA_0] << shift;
 		/* Merge the control bits */
 		regU |= 1 << adev->devno; /* UDMA on */
-		if (adev->dma_mode > 2)	/* 15nS timing */
+		if (adev->dma_mode > XFER_UDMA_2) /* 15nS timing */
 			regU |= 4 << adev->devno;
 	} else {
 		regU &= ~ (1 << adev->devno);	/* UDMA off */
@@ -294,8 +294,6 @@ static struct ata_port_operations cmd648_port_ops = {
 
 static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	u32 class_rev;
-
 	static const struct ata_port_info cmd_info[6] = {
 		{	/* CMD 643 - no UDMA */
 			.flags = ATA_FLAG_SLAVE_POSS,
@@ -345,18 +343,15 @@ static int cmd64x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	pci_read_config_dword(pdev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xFF;
-
 	if (id->driver_data == 0)	/* 643 */
 		ata_pci_bmdma_clear_simplex(pdev);
 
 	if (pdev->device == PCI_DEVICE_ID_CMD_646) {
 		/* Does UDMA work ? */
-		if (class_rev > 4)
+		if (pdev->revision > 4)
 			ppi[0] = &cmd_info[2];
 		/* Early rev with other problems ? */
-		else if (class_rev == 1)
+		else if (pdev->revision == 1)
 			ppi[0] = &cmd_info[3];
 	}
 

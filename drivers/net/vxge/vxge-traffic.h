@@ -2389,6 +2389,8 @@ vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh);
 
 int
 vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel);
+void
+vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id);
 
 /* ========================== PRIVATE API ================================= */
 

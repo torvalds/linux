@@ -85,8 +85,6 @@
 /* Interrupt and Configuration Register (VIPER_ICR) */
 /* This is a write only register. Only CF_RST is used under Linux */
 
-extern void viper_cf_rst(int state);
-
 #define VIPER_ICR_RETRIG	(1 << 0)
 #define VIPER_ICR_AUTO_CLR	(1 << 1)
 #define VIPER_ICR_R_DIS		(1 << 2)

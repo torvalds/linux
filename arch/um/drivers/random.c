@@ -7,7 +7,6 @@
  * of the GNU General Public License, incorporated herein by reference.
  */
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -34,8 +33,6 @@ static DECLARE_WAIT_QUEUE_HEAD(host_read_wait);
 
 static int rng_dev_open (struct inode *inode, struct file *filp)
 {
-	cycle_kernel_lock();
-
 	/* enforce read-only access to this chrdev */
 	if ((filp->f_mode & FMODE_READ) == 0)
 		return -EINVAL;

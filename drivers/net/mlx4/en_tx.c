@@ -47,7 +47,7 @@ enum {
 static int inline_thold __read_mostly = MAX_INLINE;
 
 module_param_named(inline_thold, inline_thold, int, 0444);
-MODULE_PARM_DESC(inline_thold, "treshold for using inline data");
+MODULE_PARM_DESC(inline_thold, "threshold for using inline data");
 
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring *ring, u32 size,

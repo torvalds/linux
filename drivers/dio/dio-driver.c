@@ -140,5 +140,4 @@ postcore_initcall(dio_driver_init);
 EXPORT_SYMBOL(dio_match_device);
 EXPORT_SYMBOL(dio_register_driver);
 EXPORT_SYMBOL(dio_unregister_driver);
-EXPORT_SYMBOL(dio_dev_driver);
 EXPORT_SYMBOL(dio_bus_type);

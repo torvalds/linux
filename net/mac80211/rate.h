@@ -59,6 +59,9 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_supported_band *sband;
 
+	if (!ref)
+		return;
+
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);
@@ -72,7 +75,7 @@ static inline void rate_control_rate_update(struct ieee80211_local *local,
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 
-	if (ref->ops->rate_update)
+	if (ref && ref->ops->rate_update)
 		ref->ops->rate_update(ref->priv, sband, ista,
 				      priv_sta, changed);
 }
@@ -97,7 +100,7 @@ static inline void rate_control_add_sta_debugfs(struct sta_info *sta)
 {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (sta->debugfs.dir && ref->ops->add_sta_debugfs)
+	if (ref && sta->debugfs.dir && ref->ops->add_sta_debugfs)
 		ref->ops->add_sta_debugfs(ref->priv, sta->rate_ctrl_priv,
 					  sta->debugfs.dir);
 #endif
@@ -107,7 +110,7 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (ref->ops->remove_sta_debugfs)
+	if (ref && ref->ops->remove_sta_debugfs)
 		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
 #endif
 }

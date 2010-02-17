@@ -200,7 +200,7 @@ int com20020_found(struct net_device *dev, int shared)
 	outb(dev->dev_addr[0], _XREG);
 
 	/* reserve the irq */
-	if (request_irq(dev->irq, &arcnet_interrupt, shared,
+	if (request_irq(dev->irq, arcnet_interrupt, shared,
 			"arcnet (COM20020)", dev)) {
 		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;

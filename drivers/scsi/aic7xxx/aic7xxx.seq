@@ -1693,7 +1693,7 @@ if ((ahc->flags & AHC_INITIATORROLE) != 0) {
  * Is it a disconnect message?  Set a flag in the SCB to remind us
  * and await the bus going free.  If this is an untagged transaction
  * store the SCB id for it in our untagged target table for lookup on
- * a reselction.
+ * a reselection.
  */
 mesgin_disconnect:
 	/*

@@ -1,9 +1,16 @@
+config ATH9K_HW
+	tristate
+config ATH9K_COMMON
+	tristate
+
 config ATH9K
 	tristate "Atheros 802.11n wireless cards support"
-	depends on PCI && MAC80211 && WLAN_80211
+	depends on PCI && MAC80211
+	select ATH9K_HW
 	select MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
+	select ATH9K_COMMON
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros IEEE 802.11n AR5008, AR9001 and AR9002 family
@@ -16,13 +23,12 @@ config ATH9K
 
 	  If you choose to build a module, it'll be called ath9k.
 
-config ATH9K_DEBUG
+config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
-	depends on ATH9K
+	depends on ATH9K && DEBUG_FS
 	---help---
-	  Say Y, if you need ath9k to display debug messages.
-	  Pass the debug mask as a module parameter:
+	  Say Y, if you need access to ath9k's statistics for
+	  interrupts, rate control, etc.
 
-	  modprobe ath9k debug=0x00000200
+	  Also required for changing debug message flags at run time.
 
-	  Look in ath9k/debug.h for possible debug masks

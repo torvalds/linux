@@ -224,8 +224,6 @@ struct acpi_processor {
 	struct acpi_processor_throttling throttling;
 	struct acpi_processor_limit limit;
 	struct thermal_cooling_device *cdev;
-	/* the _PDC objects for this processor, if any */
-	struct acpi_object_list *pdc;
 };
 
 struct acpi_processor_errata {
@@ -256,9 +254,6 @@ int acpi_processor_notify_smm(struct module *calling_module);
 /* for communication between multiple parts of the processor kernel module */
 DECLARE_PER_CPU(struct acpi_processor *, processors);
 extern struct acpi_processor_errata errata;
-
-void arch_acpi_processor_init_pdc(struct acpi_processor *pr);
-void arch_acpi_processor_cleanup_pdc(struct acpi_processor *pr);
 
 #ifdef ARCH_HAS_POWER_INIT
 void acpi_processor_power_init_bm_check(struct acpi_processor_flags *flags,
@@ -294,7 +289,8 @@ static inline void acpi_processor_ffh_cstate_enter(struct acpi_processor_cx
 #ifdef CONFIG_CPU_FREQ
 void acpi_processor_ppc_init(void);
 void acpi_processor_ppc_exit(void);
-int acpi_processor_ppc_has_changed(struct acpi_processor *pr);
+int acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag);
+extern int acpi_processor_get_bios_limit(int cpu, unsigned int *limit);
 #else
 static inline void acpi_processor_ppc_init(void)
 {
@@ -304,7 +300,8 @@ static inline void acpi_processor_ppc_exit(void)
 {
 	return;
 }
-static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
+static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr,
+								int event_flag)
 {
 	static unsigned int printout = 1;
 	if (printout) {
@@ -316,7 +313,15 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 	}
 	return 0;
 }
+static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
+{
+	return -ENODEV;
+}
+
 #endif				/* CONFIG_CPU_FREQ */
+
+/* in processor_pdc.c */
+void acpi_processor_set_pdc(acpi_handle handle);
 
 /* in processor_throttling.c */
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr);

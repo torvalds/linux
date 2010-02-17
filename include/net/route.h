@@ -49,10 +49,8 @@
 
 struct fib_nh;
 struct inet_peer;
-struct rtable
-{
-	union
-	{
+struct rtable {
+	union {
 		struct dst_entry	dst;
 	} u;
 
@@ -77,16 +75,14 @@ struct rtable
 	struct inet_peer	*peer; /* long-living peer info */
 };
 
-struct ip_rt_acct
-{
+struct ip_rt_acct {
 	__u32 	o_bytes;
 	__u32 	o_packets;
 	__u32 	i_bytes;
 	__u32 	i_packets;
 };
 
-struct rt_cache_stat 
-{
+struct rt_cache_stat {
         unsigned int in_hit;
         unsigned int in_slow_tot;
         unsigned int in_slow_mc;
@@ -112,6 +108,7 @@ extern int		ip_rt_init(void);
 extern void		ip_rt_redirect(__be32 old_gw, __be32 dst, __be32 new_gw,
 				       __be32 src, struct net_device *dev);
 extern void		rt_cache_flush(struct net *net, int how);
+extern void		rt_cache_flush_batch(void);
 extern int		__ip_route_output_key(struct net *, struct rtable **, const struct flowi *flp);
 extern int		ip_route_output_key(struct net *, struct rtable **, struct flowi *flp);
 extern int		ip_route_output_flow(struct net *, struct rtable **rp, struct flowi *flp, struct sock *sk, int flags);

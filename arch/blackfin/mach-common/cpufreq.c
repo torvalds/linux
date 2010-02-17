@@ -13,7 +13,7 @@
 #include <linux/fs.h>
 #include <asm/blackfin.h>
 #include <asm/time.h>
-
+#include <asm/dpmc.h>
 
 /* this is the table of CCLK frequencies, in Hz */
 /* .index is the entry in the auxillary dpm_state_table[] */
@@ -138,7 +138,8 @@ static int __init __bfin_cpu_init(struct cpufreq_policy *policy)
 						 dpm_state_table[index].tscale);
 	}
 
-	policy->cpuinfo.transition_latency = (bfin_read_PLL_LOCKCNT() / (sclk / 1000000)) * 1000;
+	policy->cpuinfo.transition_latency = 50000; /* 50us assumed */
+
 	/*Now ,only support one cpu */
 	policy->cur = cclk;
 	cpufreq_frequency_table_get_attr(bfin_freq_table, policy->cpu);

@@ -1,2 +1,2 @@
-subdir-y := mdp
-subdir-	+= mdp
+subdir-y := mdp genheaders
+subdir-	+= mdp genheaders

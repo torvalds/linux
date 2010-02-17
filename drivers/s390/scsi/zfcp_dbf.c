@@ -13,6 +13,7 @@
 #include <asm/debug.h>
 #include "zfcp_dbf.h"
 #include "zfcp_ext.h"
+#include "zfcp_fc.h"
 
 static u32 dbfsize = 4;
 
@@ -177,8 +178,7 @@ void _zfcp_dbf_hba_fsf_response(const char *tag2, int level,
 
 	case FSF_QTCB_SEND_ELS:
 		send_els = (struct zfcp_send_els *)fsf_req->data;
-		response->u.els.d_id = qtcb->bottom.support.d_id;
-		response->u.els.ls_code = send_els->ls_code >> 24;
+		response->u.els.d_id = ntoh24(qtcb->bottom.support.d_id);
 		break;
 
 	case FSF_QTCB_ABORT_FCP_CMND:
@@ -327,7 +327,7 @@ static void zfcp_dbf_hba_view_response(char **p,
 			break;
 		zfcp_dbf_out(p, "scsi_cmnd", "0x%0Lx", r->u.fcp.cmnd);
 		zfcp_dbf_out(p, "scsi_serial", "0x%016Lx", r->u.fcp.serial);
-		p += sprintf(*p, "\n");
+		*p += sprintf(*p, "\n");
 		break;
 
 	case FSF_QTCB_OPEN_PORT_WITH_DID:
@@ -348,7 +348,6 @@ static void zfcp_dbf_hba_view_response(char **p,
 
 	case FSF_QTCB_SEND_ELS:
 		zfcp_dbf_out(p, "d_id", "0x%06x", r->u.els.d_id);
-		zfcp_dbf_out(p, "ls_code", "0x%02x", r->u.els.ls_code);
 		break;
 
 	case FSF_QTCB_ABORT_FCP_CMND:
@@ -677,14 +676,14 @@ void zfcp_dbf_rec_action(char *id2, struct zfcp_erp_action *erp_action)
 /**
  * zfcp_dbf_san_ct_request - trace event for issued CT request
  * @fsf_req: request containing issued CT data
+ * @d_id: destination id where ct request is sent to
  */
-void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
+void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req, u32 d_id)
 {
-	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_wka_port *wka_port = ct->wka_port;
-	struct zfcp_adapter *adapter = wka_port->adapter;
+	struct zfcp_fsf_ct_els *ct = (struct zfcp_fsf_ct_els *)fsf_req->data;
+	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct zfcp_dbf *dbf = adapter->dbf;
-	struct ct_hdr *hdr = sg_virt(ct->req);
+	struct fc_ct_hdr *hdr = sg_virt(ct->req);
 	struct zfcp_dbf_san_record *r = &dbf->san_buf;
 	struct zfcp_dbf_san_record_ct_request *oct = &r->u.ct_req;
 	int level = 3;
@@ -695,19 +694,18 @@ void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
 	strncpy(r->tag, "octc", ZFCP_DBF_TAG_SIZE);
 	r->fsf_reqid = fsf_req->req_id;
 	r->fsf_seqno = fsf_req->seq_no;
-	r->s_id = fc_host_port_id(adapter->scsi_host);
-	r->d_id = wka_port->d_id;
-	oct->cmd_req_code = hdr->cmd_rsp_code;
-	oct->revision = hdr->revision;
-	oct->gs_type = hdr->gs_type;
-	oct->gs_subtype = hdr->gs_subtype;
-	oct->options = hdr->options;
-	oct->max_res_size = hdr->max_res_size;
-	oct->len = min((int)ct->req->length - (int)sizeof(struct ct_hdr),
+	oct->d_id = d_id;
+	oct->cmd_req_code = hdr->ct_cmd;
+	oct->revision = hdr->ct_rev;
+	oct->gs_type = hdr->ct_fs_type;
+	oct->gs_subtype = hdr->ct_fs_subtype;
+	oct->options = hdr->ct_options;
+	oct->max_res_size = hdr->ct_mr_size;
+	oct->len = min((int)ct->req->length - (int)sizeof(struct fc_ct_hdr),
 		       ZFCP_DBF_SAN_MAX_PAYLOAD);
 	debug_event(dbf->san, level, r, sizeof(*r));
 	zfcp_dbf_hexdump(dbf->san, r, sizeof(*r), level,
-			 (void *)hdr + sizeof(struct ct_hdr), oct->len);
+			 (void *)hdr + sizeof(struct fc_ct_hdr), oct->len);
 	spin_unlock_irqrestore(&dbf->san_lock, flags);
 }
 
@@ -717,10 +715,9 @@ void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req)
  */
 void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *fsf_req)
 {
-	struct zfcp_send_ct *ct = (struct zfcp_send_ct *)fsf_req->data;
-	struct zfcp_wka_port *wka_port = ct->wka_port;
-	struct zfcp_adapter *adapter = wka_port->adapter;
-	struct ct_hdr *hdr = sg_virt(ct->resp);
+	struct zfcp_fsf_ct_els *ct = (struct zfcp_fsf_ct_els *)fsf_req->data;
+	struct zfcp_adapter *adapter = fsf_req->adapter;
+	struct fc_ct_hdr *hdr = sg_virt(ct->resp);
 	struct zfcp_dbf *dbf = adapter->dbf;
 	struct zfcp_dbf_san_record *r = &dbf->san_buf;
 	struct zfcp_dbf_san_record_ct_response *rct = &r->u.ct_resp;
@@ -732,25 +729,23 @@ void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *fsf_req)
 	strncpy(r->tag, "rctc", ZFCP_DBF_TAG_SIZE);
 	r->fsf_reqid = fsf_req->req_id;
 	r->fsf_seqno = fsf_req->seq_no;
-	r->s_id = wka_port->d_id;
-	r->d_id = fc_host_port_id(adapter->scsi_host);
-	rct->cmd_rsp_code = hdr->cmd_rsp_code;
-	rct->revision = hdr->revision;
-	rct->reason_code = hdr->reason_code;
-	rct->expl = hdr->reason_code_expl;
-	rct->vendor_unique = hdr->vendor_unique;
-	rct->max_res_size = hdr->max_res_size;
-	rct->len = min((int)ct->resp->length - (int)sizeof(struct ct_hdr),
+	rct->cmd_rsp_code = hdr->ct_cmd;
+	rct->revision = hdr->ct_rev;
+	rct->reason_code = hdr->ct_reason;
+	rct->expl = hdr->ct_explan;
+	rct->vendor_unique = hdr->ct_vendor;
+	rct->max_res_size = hdr->ct_mr_size;
+	rct->len = min((int)ct->resp->length - (int)sizeof(struct fc_ct_hdr),
 		       ZFCP_DBF_SAN_MAX_PAYLOAD);
 	debug_event(dbf->san, level, r, sizeof(*r));
 	zfcp_dbf_hexdump(dbf->san, r, sizeof(*r), level,
-			 (void *)hdr + sizeof(struct ct_hdr), rct->len);
+			 (void *)hdr + sizeof(struct fc_ct_hdr), rct->len);
 	spin_unlock_irqrestore(&dbf->san_lock, flags);
 }
 
 static void zfcp_dbf_san_els(const char *tag, int level,
-			     struct zfcp_fsf_req *fsf_req, u32 s_id, u32 d_id,
-			     u8 ls_code, void *buffer, int buflen)
+			     struct zfcp_fsf_req *fsf_req, u32 d_id,
+			     void *buffer, int buflen)
 {
 	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct zfcp_dbf *dbf = adapter->dbf;
@@ -762,9 +757,7 @@ static void zfcp_dbf_san_els(const char *tag, int level,
 	strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
 	rec->fsf_reqid = fsf_req->req_id;
 	rec->fsf_seqno = fsf_req->seq_no;
-	rec->s_id = s_id;
-	rec->d_id = d_id;
-	rec->u.els.ls_code = ls_code;
+	rec->u.els.d_id = d_id;
 	debug_event(dbf->san, level, rec, sizeof(*rec));
 	zfcp_dbf_hexdump(dbf->san, rec, sizeof(*rec), level,
 			 buffer, min(buflen, ZFCP_DBF_SAN_MAX_PAYLOAD));
@@ -777,12 +770,11 @@ static void zfcp_dbf_san_els(const char *tag, int level,
  */
 void zfcp_dbf_san_els_request(struct zfcp_fsf_req *fsf_req)
 {
-	struct zfcp_send_els *els = (struct zfcp_send_els *)fsf_req->data;
+	struct zfcp_fsf_ct_els *els = (struct zfcp_fsf_ct_els *)fsf_req->data;
+	u32 d_id = ntoh24(fsf_req->qtcb->bottom.support.d_id);
 
-	zfcp_dbf_san_els("oels", 2, fsf_req,
-			       fc_host_port_id(els->adapter->scsi_host),
-			       els->d_id, *(u8 *) sg_virt(els->req),
-			       sg_virt(els->req), els->req->length);
+	zfcp_dbf_san_els("oels", 2, fsf_req, d_id,
+			 sg_virt(els->req), els->req->length);
 }
 
 /**
@@ -791,12 +783,11 @@ void zfcp_dbf_san_els_request(struct zfcp_fsf_req *fsf_req)
  */
 void zfcp_dbf_san_els_response(struct zfcp_fsf_req *fsf_req)
 {
-	struct zfcp_send_els *els = (struct zfcp_send_els *)fsf_req->data;
+	struct zfcp_fsf_ct_els *els = (struct zfcp_fsf_ct_els *)fsf_req->data;
+	u32 d_id = ntoh24(fsf_req->qtcb->bottom.support.d_id);
 
-	zfcp_dbf_san_els("rels", 2, fsf_req, els->d_id,
-			       fc_host_port_id(els->adapter->scsi_host),
-			       *(u8 *)sg_virt(els->req), sg_virt(els->resp),
-			       els->resp->length);
+	zfcp_dbf_san_els("rels", 2, fsf_req, d_id,
+			       sg_virt(els->resp), els->resp->length);
 }
 
 /**
@@ -805,16 +796,13 @@ void zfcp_dbf_san_els_response(struct zfcp_fsf_req *fsf_req)
  */
 void zfcp_dbf_san_incoming_els(struct zfcp_fsf_req *fsf_req)
 {
-	struct zfcp_adapter *adapter = fsf_req->adapter;
 	struct fsf_status_read_buffer *buf =
 			(struct fsf_status_read_buffer *)fsf_req->data;
 	int length = (int)buf->length -
 		     (int)((void *)&buf->payload - (void *)buf);
 
-	zfcp_dbf_san_els("iels", 1, fsf_req, buf->d_id,
-			       fc_host_port_id(adapter->scsi_host),
-			       buf->payload.data[0], (void *)buf->payload.data,
-			       length);
+	zfcp_dbf_san_els("iels", 1, fsf_req, ntoh24(buf->d_id),
+			       (void *)buf->payload.data, length);
 }
 
 static int zfcp_dbf_san_view_format(debug_info_t *id, struct debug_view *view,
@@ -829,11 +817,10 @@ static int zfcp_dbf_san_view_format(debug_info_t *id, struct debug_view *view,
 	zfcp_dbf_tag(&p, "tag", r->tag);
 	zfcp_dbf_out(&p, "fsf_reqid", "0x%0Lx", r->fsf_reqid);
 	zfcp_dbf_out(&p, "fsf_seqno", "0x%08x", r->fsf_seqno);
-	zfcp_dbf_out(&p, "s_id", "0x%06x", r->s_id);
-	zfcp_dbf_out(&p, "d_id", "0x%06x", r->d_id);
 
 	if (strncmp(r->tag, "octc", ZFCP_DBF_TAG_SIZE) == 0) {
 		struct zfcp_dbf_san_record_ct_request *ct = &r->u.ct_req;
+		zfcp_dbf_out(&p, "d_id", "0x%06x", ct->d_id);
 		zfcp_dbf_out(&p, "cmd_req_code", "0x%04x", ct->cmd_req_code);
 		zfcp_dbf_out(&p, "revision", "0x%02x", ct->revision);
 		zfcp_dbf_out(&p, "gs_type", "0x%02x", ct->gs_type);
@@ -852,7 +839,7 @@ static int zfcp_dbf_san_view_format(debug_info_t *id, struct debug_view *view,
 		   strncmp(r->tag, "rels", ZFCP_DBF_TAG_SIZE) == 0 ||
 		   strncmp(r->tag, "iels", ZFCP_DBF_TAG_SIZE) == 0) {
 		struct zfcp_dbf_san_record_els *els = &r->u.els;
-		zfcp_dbf_out(&p, "ls_code", "0x%02x", els->ls_code);
+		zfcp_dbf_out(&p, "d_id", "0x%06x", els->d_id);
 	}
 	return p - out_buf;
 }
@@ -870,8 +857,9 @@ void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 	struct zfcp_dbf_scsi_record *rec = &dbf->scsi_buf;
 	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)rec;
 	unsigned long flags;
-	struct fcp_rsp_iu *fcp_rsp;
-	char *fcp_rsp_info = NULL, *fcp_sns_info = NULL;
+	struct fcp_resp_with_ext *fcp_rsp;
+	struct fcp_resp_rsp_info *fcp_rsp_info = NULL;
+	char *fcp_sns_info = NULL;
 	int offset = 0, buflen = 0;
 
 	spin_lock_irqsave(&dbf->scsi_lock, flags);
@@ -895,20 +883,22 @@ void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 				rec->scsi_allowed = scsi_cmnd->allowed;
 			}
 			if (fsf_req != NULL) {
-				fcp_rsp = (struct fcp_rsp_iu *)
-				    &(fsf_req->qtcb->bottom.io.fcp_rsp);
-				fcp_rsp_info = (unsigned char *) &fcp_rsp[1];
-				fcp_sns_info =
-				    zfcp_get_fcp_sns_info_ptr(fcp_rsp);
+				fcp_rsp = (struct fcp_resp_with_ext *)
+					&(fsf_req->qtcb->bottom.io.fcp_rsp);
+				fcp_rsp_info = (struct fcp_resp_rsp_info *)
+					&fcp_rsp[1];
+				fcp_sns_info = (char *) &fcp_rsp[1];
+				if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL)
+					fcp_sns_info += fcp_rsp->ext.fr_sns_len;
 
-				rec->rsp_validity = fcp_rsp->validity.value;
-				rec->rsp_scsi_status = fcp_rsp->scsi_status;
-				rec->rsp_resid = fcp_rsp->fcp_resid;
-				if (fcp_rsp->validity.bits.fcp_rsp_len_valid)
-					rec->rsp_code = *(fcp_rsp_info + 3);
-				if (fcp_rsp->validity.bits.fcp_sns_len_valid) {
-					buflen = min((int)fcp_rsp->fcp_sns_len,
-						     ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO);
+				rec->rsp_validity = fcp_rsp->resp.fr_flags;
+				rec->rsp_scsi_status = fcp_rsp->resp.fr_status;
+				rec->rsp_resid = fcp_rsp->ext.fr_resid;
+				if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL)
+					rec->rsp_code = fcp_rsp_info->rsp_code;
+				if (fcp_rsp->resp.fr_flags & FCP_SNS_LEN_VAL) {
+					buflen = min(fcp_rsp->ext.fr_sns_len,
+					   (u32)ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO);
 					rec->sns_info_len = buflen;
 					memcpy(rec->sns_info, fcp_sns_info,
 					       min(buflen,
@@ -1067,6 +1057,8 @@ err_out:
  */
 void zfcp_dbf_adapter_unregister(struct zfcp_dbf *dbf)
 {
+	if (!dbf)
+		return;
 	debug_unregister(dbf->scsi);
 	debug_unregister(dbf->san);
 	debug_unregister(dbf->hba);

@@ -377,8 +377,8 @@ static u32 rds_ib_protocol_compatible(struct rdma_cm_event *event)
 	}
 
 	/* Even if len is crap *now* I still want to check it. -ASG */
-	if (event->param.conn.private_data_len < sizeof (*dp)
-	    || dp->dp_protocol_major == 0)
+	if (event->param.conn.private_data_len < sizeof (*dp) ||
+	    dp->dp_protocol_major == 0)
 		return RDS_PROTOCOL_3_0;
 
 	common = be16_to_cpu(dp->dp_protocol_minor_mask) & RDS_IB_SUPPORTED_PROTOCOLS;
@@ -694,6 +694,8 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&ic->ib_node);
+	tasklet_init(&ic->i_recv_tasklet, rds_ib_recv_tasklet_fn,
+		     (unsigned long) ic);
 	mutex_init(&ic->i_recv_mutex);
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&ic->i_ack_lock);

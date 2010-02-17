@@ -26,11 +26,19 @@ OPTIONS
 
 -e::
 --event=::
-	Select the PMU event. Selection can be a symbolic event name
-	(use 'perf list' to list all events) or a raw PMU
-	event (eventsel+umask) in the form of rNNN where NNN is a
-	hexadecimal event descriptor.
+	Select the PMU event. Selection can be:
 
+        - a symbolic event name	(use 'perf list' to list all events)
+
+        - a raw PMU event (eventsel+umask) in the form of rNNN where NNN is a
+	  hexadecimal event descriptor.
+
+        - a hardware breakpoint event in the form of '\mem:addr[:access]'
+          where addr is the address in memory you want to break in.
+          Access is the memory access type (read, write, execute) it can
+          be passed as follows: '\mem:addr[:[r][w][x]]'.
+          If you want to profile read-write accesses in 0x1000, just set
+          'mem:0x1000:rw'.
 -a::
         System-wide collection.
 

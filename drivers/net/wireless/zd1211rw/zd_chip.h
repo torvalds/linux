@@ -642,13 +642,29 @@ enum {
 #define CR_ZD1211B_TXOP			CTL_REG(0x0b20)
 #define CR_ZD1211B_RETRY_MAX		CTL_REG(0x0b28)
 
+/* Value for CR_ZD1211_RETRY_MAX & CR_ZD1211B_RETRY_MAX. Vendor driver uses 2,
+ * we use 0. The first rate is tried (count+2), then all next rates are tried
+ * twice, until 1 Mbits is tried. */
+#define	ZD1211_RETRY_COUNT		0
+#define	ZD1211B_RETRY_COUNT	\
+	(ZD1211_RETRY_COUNT <<  0)|	\
+	(ZD1211_RETRY_COUNT <<  8)|	\
+	(ZD1211_RETRY_COUNT << 16)|	\
+	(ZD1211_RETRY_COUNT << 24)
+
 /* Used to detect PLL lock */
 #define UW2453_INTR_REG			((zd_addr_t)0x85c1)
 
 #define CWIN_SIZE			0x007f043f
 
 
-#define HWINT_ENABLED			0x004f0000
+#define HWINT_ENABLED			\
+	(INT_TX_COMPLETE_EN|		\
+	 INT_RX_COMPLETE_EN|		\
+	 INT_RETRY_FAIL_EN|		\
+	 INT_WAKEUP_EN|			\
+	 INT_CFG_NEXT_BCN_EN)
+
 #define HWINT_DISABLED			0
 
 #define E2P_PWR_INT_GUARD		8
@@ -912,9 +928,6 @@ static inline int zd_get_beacon_interval(struct zd_chip *chip, u32 *interval)
 }
 
 struct rx_status;
-
-u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
-	               const struct rx_status *status);
 
 u8 zd_rx_rate(const void *rx_frame, const struct rx_status *status);
 

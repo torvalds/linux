@@ -79,7 +79,7 @@ extern ktrace_t *xfs_filestreams_trace_buf;
  * the cache that reference per-ag array elements that have since been
  * reallocated.
  */
-STATIC_INLINE int
+static inline int
 xfs_filestream_peek_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
@@ -87,7 +87,7 @@ xfs_filestream_peek_ag(
 	return atomic_read(&mp->m_perag[agno].pagf_fstrms);
 }
 
-STATIC_INLINE int
+static inline int
 xfs_filestream_get_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
@@ -95,7 +95,7 @@ xfs_filestream_get_ag(
 	return atomic_inc_return(&mp->m_perag[agno].pagf_fstrms);
 }
 
-STATIC_INLINE int
+static inline int
 xfs_filestream_put_ag(
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agno)
@@ -122,7 +122,7 @@ int xfs_filestream_new_ag(struct xfs_bmalloca *ap, xfs_agnumber_t *agp);
 
 
 /* filestreams for the inode? */
-STATIC_INLINE int
+static inline int
 xfs_inode_is_filestream(
 	struct xfs_inode	*ip)
 {

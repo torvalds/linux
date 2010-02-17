@@ -3153,7 +3153,7 @@ bRelayPacketSend (
     }
 
     if (pDevice->bEnableHostWEP) {
-        if (uNodeIndex >= 0) {
+        if (uNodeIndex < MAX_NODE_NUM + 1) {
             pTransmitKey = &STempKey;
             pTransmitKey->byCipherSuite = pMgmt->sNodeDBTable[uNodeIndex].byCipherSuite;
             pTransmitKey->dwKeyIndex = pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex;

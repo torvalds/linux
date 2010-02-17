@@ -216,7 +216,7 @@ void zfStaConnectFail(zdev_t* dev, u16_t reason, u16_t* bssid, u8_t weight)
     /* Change internal state */
     zfChangeAdapterState(dev, ZM_STA_STATE_DISCONNECT);
 
-    /* Improve WEP/TKIP performace with HT AP, detail information please look bug#32495 */
+    /* Improve WEP/TKIP performance with HT AP, detail information please look bug#32495 */
     //zfHpSetTTSIFSTime(dev, 0x8);
 
     /* Notify wrapper of connection status changes */
@@ -4148,7 +4148,7 @@ void zfInfraConnectNetwork(zdev_t* dev)
             wd->sta.bIsSharedKey = 0;
         }
 
-        /* Improve WEP/TKIP performace with HT AP, detail information please look bug#32495 */
+        /* Improve WEP/TKIP performance with HT AP, detail information please look bug#32495 */
         /*
         if ( (pBssInfo->broadcomHTAp == 1)
              && (wd->sta.SWEncryptEnable != 0) )

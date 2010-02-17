@@ -35,7 +35,7 @@ static unsigned long linkwatch_nextevent;
 static void linkwatch_event(struct work_struct *dummy);
 static DECLARE_DELAYED_WORK(linkwatch_work, linkwatch_event);
 
-static struct net_device *lweventlist;
+static LIST_HEAD(lweventlist);
 static DEFINE_SPINLOCK(lweventlist_lock);
 
 static unsigned char default_operstate(const struct net_device *dev)
@@ -89,8 +89,10 @@ static void linkwatch_add_event(struct net_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&lweventlist_lock, flags);
-	dev->link_watch_next = lweventlist;
-	lweventlist = dev;
+	if (list_empty(&dev->link_watch_list)) {
+		list_add_tail(&dev->link_watch_list, &lweventlist);
+		dev_hold(dev);
+	}
 	spin_unlock_irqrestore(&lweventlist_lock, flags);
 }
 
@@ -133,9 +135,35 @@ static void linkwatch_schedule_work(int urgent)
 }
 
 
+static void linkwatch_do_dev(struct net_device *dev)
+{
+	/*
+	 * Make sure the above read is complete since it can be
+	 * rewritten as soon as we clear the bit below.
+	 */
+	smp_mb__before_clear_bit();
+
+	/* We are about to handle this device,
+	 * so new events can be accepted
+	 */
+	clear_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state);
+
+	rfc2863_policy(dev);
+	if (dev->flags & IFF_UP) {
+		if (netif_carrier_ok(dev))
+			dev_activate(dev);
+		else
+			dev_deactivate(dev);
+
+		netdev_state_change(dev);
+	}
+	dev_put(dev);
+}
+
 static void __linkwatch_run_queue(int urgent_only)
 {
-	struct net_device *next;
+	struct net_device *dev;
+	LIST_HEAD(wrk);
 
 	/*
 	 * Limit the number of linkwatch events to one
@@ -153,46 +181,40 @@ static void __linkwatch_run_queue(int urgent_only)
 	clear_bit(LW_URGENT, &linkwatch_flags);
 
 	spin_lock_irq(&lweventlist_lock);
-	next = lweventlist;
-	lweventlist = NULL;
-	spin_unlock_irq(&lweventlist_lock);
+	list_splice_init(&lweventlist, &wrk);
 
-	while (next) {
-		struct net_device *dev = next;
+	while (!list_empty(&wrk)) {
 
-		next = dev->link_watch_next;
+		dev = list_first_entry(&wrk, struct net_device, link_watch_list);
+		list_del_init(&dev->link_watch_list);
 
 		if (urgent_only && !linkwatch_urgent_event(dev)) {
-			linkwatch_add_event(dev);
+			list_add_tail(&dev->link_watch_list, &lweventlist);
 			continue;
 		}
-
-		/*
-		 * Make sure the above read is complete since it can be
-		 * rewritten as soon as we clear the bit below.
-		 */
-		smp_mb__before_clear_bit();
-
-		/* We are about to handle this device,
-		 * so new events can be accepted
-		 */
-		clear_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state);
-
-		rfc2863_policy(dev);
-		if (dev->flags & IFF_UP) {
-			if (netif_carrier_ok(dev))
-				dev_activate(dev);
-			else
-				dev_deactivate(dev);
-
-			netdev_state_change(dev);
-		}
-
-		dev_put(dev);
+		spin_unlock_irq(&lweventlist_lock);
+		linkwatch_do_dev(dev);
+		spin_lock_irq(&lweventlist_lock);
 	}
 
-	if (lweventlist)
+	if (!list_empty(&lweventlist))
 		linkwatch_schedule_work(0);
+	spin_unlock_irq(&lweventlist_lock);
+}
+
+void linkwatch_forget_dev(struct net_device *dev)
+{
+	unsigned long flags;
+	int clean = 0;
+
+	spin_lock_irqsave(&lweventlist_lock, flags);
+	if (!list_empty(&dev->link_watch_list)) {
+		list_del_init(&dev->link_watch_list);
+		clean = 1;
+	}
+	spin_unlock_irqrestore(&lweventlist_lock, flags);
+	if (clean)
+		linkwatch_do_dev(dev);
 }
 
 
@@ -216,8 +238,6 @@ void linkwatch_fire_event(struct net_device *dev)
 	bool urgent = linkwatch_urgent_event(dev);
 
 	if (!test_and_set_bit(__LINK_STATE_LINKWATCH_PENDING, &dev->state)) {
-		dev_hold(dev);
-
 		linkwatch_add_event(dev);
 	} else if (!urgent)
 		return;

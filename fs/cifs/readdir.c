@@ -77,6 +77,11 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 
 	cFYI(1, ("For %s", name->name));
 
+	if (parent->d_op && parent->d_op->d_hash)
+		parent->d_op->d_hash(parent, name);
+	else
+		name->hash = full_name_hash(name->name, name->len);
+
 	dentry = d_lookup(parent, name);
 	if (dentry) {
 		/* FIXME: check for inode number changes? */
@@ -666,12 +671,11 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 					   min(len, max_len), nlt,
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		pqst->len -= nls_nullsize(nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;
 	}
-	pqst->hash = full_name_hash(pqst->name, pqst->len);
-/*	cFYI(1, ("filldir on %s",pqst->name));  */
 	return rc;
 }
 
@@ -727,11 +731,12 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 		cifs_dir_info_to_fattr(&fattr, (FILE_DIRECTORY_INFO *)
 					pfindEntry, cifs_sb);
 
-	/* FIXME: make _to_fattr functions fill this out */
-	if (pCifsF->srch_inf.info_level == SMB_FIND_FILE_ID_FULL_DIR_INFO)
+	if (inum && (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		fattr.cf_uniqueid = inum;
-	else
+	} else {
 		fattr.cf_uniqueid = iunique(sb, ROOT_I);
+		cifs_autodisable_serverino(cifs_sb);
+	}
 
 	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
 	tmp_dentry = cifs_readdir_lookup(file->f_dentry, &qstring, &fattr);

@@ -728,6 +728,7 @@ int __init agp_amd64_init(void)
 
 	if (agp_off)
 		return -EINVAL;
+
 	err = pci_register_driver(&agp_amd64_pci_driver);
 	if (err < 0)
 		return err;
@@ -764,19 +765,28 @@ int __init agp_amd64_init(void)
 	return err;
 }
 
+static int __init agp_amd64_mod_init(void)
+{
+#ifndef MODULE
+	if (gart_iommu_aperture)
+		return agp_bridges_found ? 0 : -ENODEV;
+#endif
+	return agp_amd64_init();
+}
+
 static void __exit agp_amd64_cleanup(void)
 {
+#ifndef MODULE
+	if (gart_iommu_aperture)
+		return;
+#endif
 	if (aperture_resource)
 		release_resource(aperture_resource);
 	pci_unregister_driver(&agp_amd64_pci_driver);
 }
 
-/* On AMD64 the PCI driver needs to initialize this driver early
-   for the IOMMU, so it has to be called via a backdoor. */
-#ifndef CONFIG_GART_IOMMU
-module_init(agp_amd64_init);
+module_init(agp_amd64_mod_init);
 module_exit(agp_amd64_cleanup);
-#endif
 
 MODULE_AUTHOR("Dave Jones <davej@redhat.com>, Andi Kleen");
 module_param(agp_try_unsupported, bool, 0);

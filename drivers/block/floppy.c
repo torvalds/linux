@@ -3497,6 +3497,9 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 	    ((cmd & 0x80) && !capable(CAP_SYS_ADMIN)))
 		return -EPERM;
 
+	if (WARN_ON(size < 0 || size > sizeof(inparam)))
+		return -EINVAL;
+
 	/* copyin */
 	CLEARSTRUCT(&inparam);
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
@@ -4162,7 +4165,7 @@ static int floppy_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops floppy_pm_ops = {
+static const struct dev_pm_ops floppy_pm_ops = {
 	.resume = floppy_resume,
 	.restore = floppy_resume,
 };

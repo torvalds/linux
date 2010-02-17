@@ -249,11 +249,11 @@ static int __init el1_probe1(struct net_device *dev, int ioaddr)
 	 *	for the Sager NP943 prefix.
 	 */
 
-	if (station_addr[0] == 0x02  &&  station_addr[1] == 0x60
-						&& station_addr[2] == 0x8c)
+	if (station_addr[0] == 0x02 && station_addr[1] == 0x60 &&
+	    station_addr[2] == 0x8c)
 		mname = "3c501";
-	else if (station_addr[0] == 0x00  &&  station_addr[1] == 0x80
-						&& station_addr[2] == 0xC8)
+	else if (station_addr[0] == 0x00 && station_addr[1] == 0x80 &&
+		 station_addr[2] == 0xC8)
 		mname = "NP943";
 	else {
 		release_region(ioaddr, EL1_IO_EXTENT);
@@ -345,7 +345,7 @@ static int el_open(struct net_device *dev)
 	if (el_debug > 2)
 		pr_debug("%s: Doing el_open()...\n", dev->name);
 
-	retval = request_irq(dev->irq, &el_interrupt, 0, dev->name, dev);
+	retval = request_irq(dev->irq, el_interrupt, 0, dev->name, dev);
 	if (retval)
 		return retval;
 

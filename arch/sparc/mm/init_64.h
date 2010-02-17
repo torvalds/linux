@@ -45,7 +45,7 @@ extern void free_initmem(void);
 #define VMEMMAP_ALIGN(x)	(((x)+VMEMMAP_CHUNK-1UL)&VMEMMAP_CHUNK_MASK)
 
 #define VMEMMAP_SIZE	((((1UL << MAX_PHYSADDR_BITS) >> PAGE_SHIFT) * \
-			  sizeof(struct page *)) >> VMEMMAP_CHUNK_SHIFT)
+			  sizeof(struct page)) >> VMEMMAP_CHUNK_SHIFT)
 extern unsigned long vmemmap_table[VMEMMAP_SIZE];
 #endif
 

@@ -549,7 +549,7 @@ typedef struct comm_proc {
 
 /* USB Controller.
 */
-typedef struct usb_ctlr {
+typedef struct cpm_usb_ctlr {
 	u8	usb_usmod;
 	u8	usb_usadr;
 	u8	usb_uscom;

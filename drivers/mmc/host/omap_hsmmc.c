@@ -30,11 +30,11 @@
 #include <linux/mmc/core.h>
 #include <linux/io.h>
 #include <linux/semaphore.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <mach/hardware.h>
-#include <mach/board.h>
-#include <mach/mmc.h>
-#include <mach/cpu.h>
+#include <plat/board.h>
+#include <plat/mmc.h>
+#include <plat/cpu.h>
 
 /* OMAP HSMMC Host Controller Registers */
 #define OMAP_HSMMC_SYSCONFIG	0x0010
@@ -2013,7 +2013,7 @@ static struct platform_driver omap_hsmmc_driver = {
 static int __init omap_hsmmc_init(void)
 {
 	/* Register the MMC driver */
-	return platform_driver_register(&omap_hsmmc_driver);
+	return platform_driver_probe(&omap_hsmmc_driver, omap_hsmmc_probe);
 }
 
 static void __exit omap_hsmmc_cleanup(void)

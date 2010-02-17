@@ -32,11 +32,10 @@
 #include <plat/regs-ac97.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-clock.h>
-#include <plat/audio.h>
 #include <asm/dma.h>
 #include <mach/dma.h>
 
-#include "s3c24xx-pcm.h"
+#include "s3c-dma.h"
 #include "s3c24xx-ac97.h"
 
 struct s3c24xx_ac97_info {
@@ -189,21 +188,21 @@ static struct s3c2410_dma_client s3c2443_dma_client_micin = {
 	.name = "AC97 Mic Mono in"
 };
 
-static struct s3c24xx_pcm_dma_params s3c2443_ac97_pcm_stereo_out = {
+static struct s3c_dma_params s3c2443_ac97_pcm_stereo_out = {
 	.client		= &s3c2443_dma_client_out,
 	.channel	= DMACH_PCM_OUT,
 	.dma_addr	= S3C2440_PA_AC97 + S3C_AC97_PCM_DATA,
 	.dma_size	= 4,
 };
 
-static struct s3c24xx_pcm_dma_params s3c2443_ac97_pcm_stereo_in = {
+static struct s3c_dma_params s3c2443_ac97_pcm_stereo_in = {
 	.client		= &s3c2443_dma_client_in,
 	.channel	= DMACH_PCM_IN,
 	.dma_addr	= S3C2440_PA_AC97 + S3C_AC97_PCM_DATA,
 	.dma_size	= 4,
 };
 
-static struct s3c24xx_pcm_dma_params s3c2443_ac97_mic_mono_in = {
+static struct s3c_dma_params s3c2443_ac97_mic_mono_in = {
 	.client		= &s3c2443_dma_client_micin,
 	.channel	= DMACH_MIC_IN,
 	.dma_addr	= S3C2440_PA_AC97 + S3C_AC97_MIC_DATA,
@@ -291,7 +290,7 @@ static int s3c2443_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int channel = ((struct s3c24xx_pcm_dma_params *)
+	int channel = ((struct s3c_dma_params *)
 		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	ac_glbctrl = readl(s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);
@@ -340,7 +339,7 @@ static int s3c2443_ac97_mic_trigger(struct snd_pcm_substream *substream,
 {
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int channel = ((struct s3c24xx_pcm_dma_params *)
+	int channel = ((struct s3c_dma_params *)
 		  rtd->dai->cpu_dai->dma_data)->channel;
 
 	ac_glbctrl = readl(s3c24xx_ac97.regs + S3C_AC97_GLBCTRL);

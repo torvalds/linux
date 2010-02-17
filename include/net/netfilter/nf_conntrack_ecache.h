@@ -13,8 +13,7 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 
 /* Connection tracking event types */
-enum ip_conntrack_events
-{
+enum ip_conntrack_events {
 	IPCT_NEW		= 0,	/* new conntrack */
 	IPCT_RELATED		= 1,	/* related conntrack */
 	IPCT_DESTROY		= 2,	/* destroyed conntrack */

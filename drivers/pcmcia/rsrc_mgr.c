@@ -18,6 +18,7 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
+#include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
 
@@ -125,16 +126,16 @@ static void pcmcia_align(void *align_data, struct resource *res,
 	res->start = start;
 
 #ifdef CONFIG_X86
-        if (res->flags & IORESOURCE_IO) {
-                if (start & 0x300) {
-                        start = (start + 0x3ff) & ~0x3ff;
-                        res->start = start;
-                }
-        }
+	if (res->flags & IORESOURCE_IO) {
+		if (start & 0x300) {
+			start = (start + 0x3ff) & ~0x3ff;
+			res->start = start;
+		}
+	}
 #endif
 
 #ifdef CONFIG_M68K
-        if (res->flags & IORESOURCE_IO) {
+	if (res->flags & IORESOURCE_IO) {
 		if ((res->start + size - 1) >= 1024)
 			res->start = res->end;
 	}

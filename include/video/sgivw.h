@@ -351,7 +351,7 @@ typedef enum {
 struct dbe_timing_info
 {
   dbe_timing_t type;
-  int flags;				
+  int flags;
   short width;		    /* Monitor resolution		*/
   short height;
   int fields_sec;	    /* fields/sec  (Hz -3 dec. places */
@@ -389,11 +389,11 @@ struct dbe_timing_info dbeVTimings[] = {
   {
     DBE_VT_640_480_60,
     /*	flags,	width,			height,		fields_sec,		cfreq */
-    0,  	640,			480,		59940,			25175,
+    0,	        640,			480,		59940,			25175,
     /*	htotal,	hblank_start,	hblank_end,	hsync_start,	hsync_end */
-    800,	640,		    800,		656,	    	752,
+    800,	640,		        800,		656,		752,
     /*	vtotal,	vblank_start,	vblank_end,	vsync_start,	vsync_end */
-    525,	480,		    525,		490,		    492,
+    525,	480,		        525,		490,		    492,
     /*	pll_m,	pll_n,			pll_p */
     15,	    2,				3
   },
@@ -650,7 +650,7 @@ struct dbe_timing_info dbeVTimings[] = {
     /* pll_m,  pll_n,          pll_p */
     6,      1,              0
   },
-	
+
   {
     DBE_VT_1920_1200_60,
     /* flags,  width,          height,         fields_sec,     cfreq */
@@ -676,7 +676,6 @@ struct dbe_timing_info dbeVTimings[] = {
   }
 };
 
-#define DBE_VT_SIZE  (sizeof(dbeVTimings)/sizeof(dbeVTimings[0]))
 #endif // INCLUDE_TIMING_TABLE_DATA
 
 #endif // ! __SGIVWFB_H__

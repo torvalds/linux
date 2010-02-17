@@ -58,7 +58,7 @@
  *   i2400mu_rx_release()
  *   i2400mu_tx_release()
  *
- * i2400mu_bus_reset()            Called by i2400m->bus_reset
+ * i2400mu_bus_reset()            Called by i2400m_reset
  *   __i2400mu_reset()
  *     __i2400mu_send_barker()
  *   usb_reset_device()
@@ -71,13 +71,25 @@
 #define D_SUBMODULE usb
 #include "usb-debug-levels.h"
 
+static char i2400mu_debug_params[128];
+module_param_string(debug, i2400mu_debug_params, sizeof(i2400mu_debug_params),
+		    0644);
+MODULE_PARM_DESC(debug,
+		 "String of space-separated NAME:VALUE pairs, where NAMEs "
+		 "are the different debug submodules and VALUE are the "
+		 "initial debug value to set.");
 
 /* Our firmware file name */
-static const char *i2400mu_bus_fw_names[] = {
+static const char *i2400mu_bus_fw_names_5x50[] = {
 #define I2400MU_FW_FILE_NAME_v1_4 "i2400m-fw-usb-1.4.sbcf"
 	I2400MU_FW_FILE_NAME_v1_4,
-#define I2400MU_FW_FILE_NAME_v1_3 "i2400m-fw-usb-1.3.sbcf"
-	I2400MU_FW_FILE_NAME_v1_3,
+	NULL,
+};
+
+
+static const char *i2400mu_bus_fw_names_6050[] = {
+#define I6050U_FW_FILE_NAME_v1_5 "i6050-fw-usb-1.5.sbcf"
+	I6050U_FW_FILE_NAME_v1_5,
 	NULL,
 };
 
@@ -160,14 +172,59 @@ int __i2400mu_send_barker(struct i2400mu *i2400mu,
 	epd = usb_get_epd(i2400mu->usb_iface, endpoint);
 	pipe = usb_sndbulkpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 	memcpy(buffer, barker, barker_size);
+retry:
 	ret = usb_bulk_msg(i2400mu->usb_dev, pipe, buffer, barker_size,
-			   &actual_len, HZ);
-	if (ret < 0) {
-		if (ret != -EINVAL)
-			dev_err(dev, "E: barker error: %d\n", ret);
-	} else if (actual_len != barker_size) {
-		dev_err(dev, "E: only %d bytes transmitted\n", actual_len);
-		ret = -EIO;
+			   &actual_len, 200);
+	switch (ret) {
+	case 0:
+		if (actual_len != barker_size) {	/* Too short? drop it */
+			dev_err(dev, "E: %s: short write (%d B vs %zu "
+				"expected)\n",
+				__func__, actual_len, barker_size);
+			ret = -EIO;
+		}
+		break;
+	case -EPIPE:
+		/*
+		 * Stall -- maybe the device is choking with our
+		 * requests. Clear it and give it some time. If they
+		 * happen to often, it might be another symptom, so we
+		 * reset.
+		 *
+		 * No error handling for usb_clear_halt(0; if it
+		 * works, the retry works; if it fails, this switch
+		 * does the error handling for us.
+		 */
+		if (edc_inc(&i2400mu->urb_edc,
+			    10 * EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
+			dev_err(dev, "E: %s: too many stalls in "
+				"URB; resetting device\n", __func__);
+			usb_queue_reset_device(i2400mu->usb_iface);
+			/* fallthrough */
+		} else {
+			usb_clear_halt(i2400mu->usb_dev, pipe);
+			msleep(10);	/* give the device some time */
+			goto retry;
+		}
+	case -EINVAL:			/* while removing driver */
+	case -ENODEV:			/* dev disconnect ... */
+	case -ENOENT:			/* just ignore it */
+	case -ESHUTDOWN:		/* and exit */
+	case -ECONNRESET:
+		ret = -ESHUTDOWN;
+		break;
+	default:			/* Some error? */
+		if (edc_inc(&i2400mu->urb_edc,
+			    EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME)) {
+			dev_err(dev, "E: %s: maximum errors in URB "
+				"exceeded; resetting device\n",
+				__func__);
+			usb_queue_reset_device(i2400mu->usb_iface);
+		} else {
+			dev_warn(dev, "W: %s: cannot send URB: %d\n",
+				 __func__, ret);
+			goto retry;
+		}
 	}
 	kfree(buffer);
 error_kzalloc:
@@ -232,15 +289,16 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 
 	d_fnstart(3, dev, "(i2400m %p rt %u)\n", i2400m, rt);
 	if (rt == I2400M_RT_WARM)
-		result = __i2400mu_send_barker(i2400mu, i2400m_WARM_BOOT_BARKER,
-					       sizeof(i2400m_WARM_BOOT_BARKER),
-					       I2400MU_EP_BULK_OUT);
+		result = __i2400mu_send_barker(
+			i2400mu, i2400m_WARM_BOOT_BARKER,
+			sizeof(i2400m_WARM_BOOT_BARKER),
+			i2400mu->endpoint_cfg.bulk_out);
 	else if (rt == I2400M_RT_COLD)
-		result = __i2400mu_send_barker(i2400mu, i2400m_COLD_BOOT_BARKER,
-					       sizeof(i2400m_COLD_BOOT_BARKER),
-					       I2400MU_EP_RESET_COLD);
+		result = __i2400mu_send_barker(
+			i2400mu, i2400m_COLD_BOOT_BARKER,
+			sizeof(i2400m_COLD_BOOT_BARKER),
+			i2400mu->endpoint_cfg.reset_cold);
 	else if (rt == I2400M_RT_BUS) {
-do_bus_reset:
 		result = usb_reset_device(i2400mu->usb_dev);
 		switch (result) {
 		case 0:
@@ -248,7 +306,7 @@ do_bus_reset:
 		case -ENODEV:
 		case -ENOENT:
 		case -ESHUTDOWN:
-			result = rt == I2400M_RT_WARM ? -ENODEV : 0;
+			result = 0;
 			break;	/* We assume the device is disconnected */
 		default:
 			dev_err(dev, "USB reset failed (%d), giving up!\n",
@@ -261,10 +319,17 @@ do_bus_reset:
 	if (result < 0
 	    && result != -EINVAL	/* device is gone */
 	    && rt != I2400M_RT_BUS) {
+		/*
+		 * Things failed -- resort to lower level reset, that
+		 * we queue in another context; the reason for this is
+		 * that the pre and post reset functionality requires
+		 * the i2400m->init_mutex; RT_WARM and RT_COLD can
+		 * come from areas where i2400m->init_mutex is taken.
+		 */
 		dev_err(dev, "%s reset failed (%d); trying USB reset\n",
 			rt == I2400M_RT_WARM ? "warm" : "cold", result);
-		rt = I2400M_RT_BUS;
-		goto do_bus_reset;
+		usb_queue_reset_device(i2400mu->usb_iface);
+		result = -ENODEV;
 	}
 	d_fnend(3, dev, "(i2400m %p rt %u) = %d\n", i2400m, rt, result);
 	return result;
@@ -402,20 +467,42 @@ int i2400mu_probe(struct usb_interface *iface,
 
 	i2400m->bus_tx_block_size = I2400MU_BLK_SIZE;
 	i2400m->bus_pl_size_max = I2400MU_PL_SIZE_MAX;
+	i2400m->bus_setup = NULL;
 	i2400m->bus_dev_start = i2400mu_bus_dev_start;
 	i2400m->bus_dev_stop = i2400mu_bus_dev_stop;
+	i2400m->bus_release = NULL;
 	i2400m->bus_tx_kick = i2400mu_bus_tx_kick;
 	i2400m->bus_reset = i2400mu_bus_reset;
-	i2400m->bus_bm_retries = I2400M_BOOT_RETRIES;
+	i2400m->bus_bm_retries = I2400M_USB_BOOT_RETRIES;
 	i2400m->bus_bm_cmd_send = i2400mu_bus_bm_cmd_send;
 	i2400m->bus_bm_wait_for_ack = i2400mu_bus_bm_wait_for_ack;
-	i2400m->bus_fw_names = i2400mu_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 0;
 
+	switch (id->idProduct) {
+	case USB_DEVICE_ID_I6050:
+	case USB_DEVICE_ID_I6050_2:
+		i2400mu->i6050 = 1;
+		break;
+	default:
+		break;
+	}
+
+	if (i2400mu->i6050) {
+		i2400m->bus_fw_names = i2400mu_bus_fw_names_6050;
+		i2400mu->endpoint_cfg.bulk_out = 0;
+		i2400mu->endpoint_cfg.notification = 3;
+		i2400mu->endpoint_cfg.reset_cold = 2;
+		i2400mu->endpoint_cfg.bulk_in = 1;
+	} else {
+		i2400m->bus_fw_names = i2400mu_bus_fw_names_5x50;
+		i2400mu->endpoint_cfg.bulk_out = 0;
+		i2400mu->endpoint_cfg.notification = 1;
+		i2400mu->endpoint_cfg.reset_cold = 2;
+		i2400mu->endpoint_cfg.bulk_in = 3;
+	}
 #ifdef CONFIG_PM
 	iface->needs_remote_wakeup = 1;		/* autosuspend (15s delay) */
 	device_init_wakeup(dev, 1);
-	usb_autopm_enable(i2400mu->usb_iface);
 	usb_dev->autosuspend_delay = 15 * HZ;
 	usb_dev->autosuspend_disabled = 0;
 #endif
@@ -483,7 +570,10 @@ void i2400mu_disconnect(struct usb_interface *iface)
  * So at the end, the three cases require common handling.
  *
  * If at the time of this call the device's firmware is not loaded,
- * nothing has to be done.
+ * nothing has to be done. Note we can be "loose" about not reading
+ * i2400m->updown under i2400m->init_mutex. If it happens to change
+ * inmediately, other parts of the call flow will fail and effectively
+ * catch it.
  *
  * If the firmware is loaded, we need to:
  *
@@ -498,7 +588,7 @@ void i2400mu_disconnect(struct usb_interface *iface)
  *
  *    As well, the device might refuse going to sleep for whichever
  *    reason. In this case we just fail. For system suspend/hibernate,
- *    we *can't* fail. We look at usb_dev->auto_pm to see if the
+ *    we *can't* fail. We check PM_EVENT_AUTO to see if the
  *    suspend call comes from the USB stack or from the system and act
  *    in consequence.
  *
@@ -510,18 +600,16 @@ int i2400mu_suspend(struct usb_interface *iface, pm_message_t pm_msg)
 	int result = 0;
 	struct device *dev = &iface->dev;
 	struct i2400mu *i2400mu = usb_get_intfdata(iface);
-#ifdef CONFIG_PM
-	struct usb_device *usb_dev = i2400mu->usb_dev;
-#endif
 	unsigned is_autosuspend = 0;
 	struct i2400m *i2400m = &i2400mu->i2400m;
 
 #ifdef CONFIG_PM
-	if (usb_dev->auto_pm > 0)
+	if (pm_msg.event & PM_EVENT_AUTO)
 		is_autosuspend = 1;
 #endif
 
 	d_fnstart(3, dev, "(iface %p pm_msg %u)\n", iface, pm_msg.event);
+	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0)
 		goto no_firmware;
 	if (i2400m->state == I2400M_SS_DATA_PATH_CONNECTED && is_autosuspend) {
@@ -575,6 +663,7 @@ int i2400mu_resume(struct usb_interface *iface)
 	struct i2400m *i2400m = &i2400mu->i2400m;
 
 	d_fnstart(3, dev, "(iface %p)\n", iface);
+	rmb();		/* see i2400m->updown's documentation  */
 	if (i2400m->updown == 0) {
 		d_printf(1, dev, "fw was down, no resume neeed\n");
 		goto out;
@@ -591,7 +680,55 @@ out:
 
 
 static
+int i2400mu_reset_resume(struct usb_interface *iface)
+{
+	int result;
+	struct device *dev = &iface->dev;
+	struct i2400mu *i2400mu = usb_get_intfdata(iface);
+	struct i2400m *i2400m = &i2400mu->i2400m;
+
+	d_fnstart(3, dev, "(iface %p)\n", iface);
+	result = i2400m_dev_reset_handle(i2400m, "device reset on resume");
+	d_fnend(3, dev, "(iface %p) = %d\n", iface, result);
+	return result < 0 ? result : 0;
+}
+
+
+/*
+ * Another driver or user space is triggering a reset on the device
+ * which contains the interface passed as an argument. Cease IO and
+ * save any device state you need to restore.
+ *
+ * If you need to allocate memory here, use GFP_NOIO or GFP_ATOMIC, if
+ * you are in atomic context.
+ */
+static
+int i2400mu_pre_reset(struct usb_interface *iface)
+{
+	struct i2400mu *i2400mu = usb_get_intfdata(iface);
+	return i2400m_pre_reset(&i2400mu->i2400m);
+}
+
+
+/*
+ * The reset has completed.  Restore any saved device state and begin
+ * using the device again.
+ *
+ * If you need to allocate memory here, use GFP_NOIO or GFP_ATOMIC, if
+ * you are in atomic context.
+ */
+static
+int i2400mu_post_reset(struct usb_interface *iface)
+{
+	struct i2400mu *i2400mu = usb_get_intfdata(iface);
+	return i2400m_post_reset(&i2400mu->i2400m);
+}
+
+
+static
 struct usb_device_id i2400mu_id_table[] = {
+	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050) },
+	{ USB_DEVICE(0x8086, USB_DEVICE_ID_I6050_2) },
 	{ USB_DEVICE(0x8086, 0x0181) },
 	{ USB_DEVICE(0x8086, 0x1403) },
 	{ USB_DEVICE(0x8086, 0x1405) },
@@ -609,8 +746,11 @@ struct usb_driver i2400mu_driver = {
 	.name = KBUILD_MODNAME,
 	.suspend = i2400mu_suspend,
 	.resume = i2400mu_resume,
+	.reset_resume = i2400mu_reset_resume,
 	.probe = i2400mu_probe,
 	.disconnect = i2400mu_disconnect,
+	.pre_reset = i2400mu_pre_reset,
+	.post_reset = i2400mu_post_reset,
 	.id_table = i2400mu_id_table,
 	.supports_autosuspend = 1,
 };
@@ -618,6 +758,8 @@ struct usb_driver i2400mu_driver = {
 static
 int __init i2400mu_driver_init(void)
 {
+	d_parse_params(D_LEVEL, D_LEVEL_SIZE, i2400mu_debug_params,
+		       "i2400m_usb.debug");
 	return usb_register(&i2400mu_driver);
 }
 module_init(i2400mu_driver_init);
@@ -632,7 +774,7 @@ void __exit i2400mu_driver_exit(void)
 module_exit(i2400mu_driver_exit);
 
 MODULE_AUTHOR("Intel Corporation <linux-wimax@intel.com>");
-MODULE_DESCRIPTION("Intel 2400M WiMAX networking for USB");
+MODULE_DESCRIPTION("Driver for USB based Intel Wireless WiMAX Connection 2400M "
+		   "(5x50 & 6050)");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_4);
-MODULE_FIRMWARE(I2400MU_FW_FILE_NAME_v1_3);

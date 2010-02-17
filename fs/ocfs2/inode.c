@@ -475,7 +475,7 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	if (args->fi_flags & OCFS2_FI_FLAG_ORPHAN_RECOVERY) {
 		status = ocfs2_try_open_lock(inode, 0);
 		if (status) {
-			make_bad_inode(inode);	
+			make_bad_inode(inode);
 			return status;
 		}
 	}
@@ -684,7 +684,7 @@ bail:
 	return status;
 }
 
-/* 
+/*
  * Serialize with orphan dir recovery. If the process doing
  * recovery on this orphan dir does an iget() with the dir
  * i_mutex held, we'll deadlock here. Instead we detect this

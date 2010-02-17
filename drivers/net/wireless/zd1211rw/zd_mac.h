@@ -140,6 +140,21 @@ struct rx_status {
 #define ZD_RX_CRC16_ERROR		0x40
 #define ZD_RX_ERROR			0x80
 
+struct tx_retry_rate {
+	int count;	/* number of valid element in rate[] array */
+	int rate[10];	/* retry rates, described by an index in zd_rates[] */
+};
+
+struct tx_status {
+	u8 type;	/* must always be 0x01 : USB_INT_TYPE */
+	u8 id;		/* must always be 0xa0 : USB_INT_ID_RETRY_FAILED */
+	u8 rate;
+	u8 pad;
+	u8 mac[ETH_ALEN];
+	u8 retry;
+	u8 failure;
+} __attribute__((packed));
+
 enum mac_flags {
 	MAC_FIXED_CHANNEL = 0x01,
 };
@@ -150,7 +165,7 @@ struct housekeeping {
 
 #define ZD_MAC_STATS_BUFFER_SIZE 16
 
-#define ZD_MAC_MAX_ACK_WAITERS 10
+#define ZD_MAC_MAX_ACK_WAITERS 50
 
 struct zd_mac {
 	struct zd_chip chip;
@@ -184,6 +199,12 @@ struct zd_mac {
 
 	/* whether to pass control frames to stack */
 	unsigned int pass_ctrl:1;
+
+	/* whether we have received a 802.11 ACK that is pending */
+	unsigned int ack_pending:1;
+
+	/* signal strength of the last 802.11 ACK received */
+	int ack_signal;
 };
 
 #define ZD_REGDOMAIN_FCC	0x10
@@ -279,7 +300,7 @@ int zd_mac_preinit_hw(struct ieee80211_hw *hw);
 int zd_mac_init_hw(struct ieee80211_hw *hw);
 
 int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length);
-void zd_mac_tx_failed(struct ieee80211_hw *hw);
+void zd_mac_tx_failed(struct urb *urb);
 void zd_mac_tx_to_dev(struct sk_buff *skb, int error);
 
 #ifdef DEBUG

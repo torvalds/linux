@@ -19,7 +19,6 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/wait.h>
-#include <linux/wakelock.h>
 
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -34,7 +33,6 @@ static DEFINE_MUTEX(smd_tty_lock);
 struct smd_tty_info {
 	smd_channel_t *ch;
 	struct tty_struct *tty;
-	struct wake_lock wake_lock;
 	int open_count;
 };
 
@@ -69,7 +67,6 @@ static void smd_tty_notify(void *priv, unsigned event)
 			printk(KERN_ERR "OOPS - smd_tty_buffer mismatch?!");
 		}
 
-		wake_lock_timeout(&info->wake_lock, HZ / 2);
 		tty_flip_buffer_push(tty);
 	}
 
@@ -95,7 +92,6 @@ static int smd_tty_open(struct tty_struct *tty, struct file *f)
 	info = smd_tty + n;
 
 	mutex_lock(&smd_tty_lock);
-	wake_lock_init(&info->wake_lock, WAKE_LOCK_SUSPEND, name);
 	tty->driver_data = info;
 
 	if (info->open_count++ == 0) {
@@ -122,7 +118,6 @@ static void smd_tty_close(struct tty_struct *tty, struct file *f)
 	if (--info->open_count == 0) {
 		info->tty = 0;
 		tty->driver_data = 0;
-		wake_lock_destroy(&info->wake_lock);
 		if (info->ch) {
 			smd_close(info->ch);
 			info->ch = 0;

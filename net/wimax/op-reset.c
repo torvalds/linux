@@ -62,7 +62,7 @@
  * Called when wanting to reset the device for any reason. Device is
  * taken back to power on status.
  *
- * This call blocks; on succesful return, the device has completed the
+ * This call blocks; on successful return, the device has completed the
  * reset process and is ready to operate.
  */
 int wimax_reset(struct wimax_dev *wimax_dev)

@@ -764,13 +764,14 @@ static int corkscrew_open(struct net_device *dev)
 	/* Use the now-standard shared IRQ implementation. */
 	if (vp->capabilities == 0x11c7) {
 		/* Corkscrew: Cannot share ISA resources. */
-		if (dev->irq == 0
-		    || dev->dma == 0
-		    || request_irq(dev->irq, &corkscrew_interrupt, 0,
-				   vp->product_name, dev)) return -EAGAIN;
+		if (dev->irq == 0 ||
+		    dev->dma == 0 ||
+		    request_irq(dev->irq, corkscrew_interrupt, 0,
+				vp->product_name, dev))
+			return -EAGAIN;
 		enable_dma(dev->dma);
 		set_dma_mode(dev->dma, DMA_MODE_CASCADE);
-	} else if (request_irq(dev->irq, &corkscrew_interrupt, IRQF_SHARED,
+	} else if (request_irq(dev->irq, corkscrew_interrupt, IRQF_SHARED,
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}
@@ -1368,8 +1369,8 @@ static int boomerang_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
-			if (pkt_len < rx_copybreak
-			    && (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = dev_alloc_skb(pkt_len + 4)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				/* 'skb_put()' points to the start of sk_buff data area. */
 				memcpy(skb_put(skb, pkt_len),

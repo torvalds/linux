@@ -828,6 +828,9 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		if (!page)
 			break;
 
+		if (mapping_writably_mapped(mapping))
+			flush_dcache_page(page);
+
 		pagefault_disable();
 		tmp = iov_iter_copy_from_user_atomic(page, ii, offset, bytes);
 		pagefault_enable();
@@ -1063,7 +1066,8 @@ ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 				break;
 		}
 	}
-	fuse_put_request(fc, req);
+	if (!IS_ERR(req))
+		fuse_put_request(fc, req);
 	if (res > 0)
 		*ppos = pos;
 
@@ -1599,7 +1603,7 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
 			kaddr += copy;
 		}
 
-		kunmap(map);
+		kunmap(page);
 	}
 
 	return 0;

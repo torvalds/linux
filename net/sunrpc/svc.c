@@ -1103,8 +1103,9 @@ svc_process_common(struct svc_rqst *rqstp, struct kvec *argv, struct kvec *resv)
 				procp->pc_release(rqstp, NULL, rqstp->rq_resp);
 			goto dropit;
 		}
-		if (*statp == rpc_success && (xdr = procp->pc_encode)
-		 && !xdr(rqstp, resv->iov_base+resv->iov_len, rqstp->rq_resp)) {
+		if (*statp == rpc_success &&
+		    (xdr = procp->pc_encode) &&
+		    !xdr(rqstp, resv->iov_base+resv->iov_len, rqstp->rq_resp)) {
 			dprintk("svc: failed to encode reply\n");
 			/* serv->sv_stats->rpcsystemerr++; */
 			*statp = rpc_system_err;

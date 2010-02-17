@@ -212,7 +212,7 @@ static int netx_eth_open(struct net_device *ndev)
 	struct netx_eth_priv *priv = netdev_priv(ndev);
 
 	if (request_irq
-	    (ndev->irq, &netx_eth_interrupt, IRQF_SHARED, ndev->name, ndev))
+	    (ndev->irq, netx_eth_interrupt, IRQF_SHARED, ndev->name, ndev))
 		return -EAGAIN;
 
 	writel(ndev->dev_addr[0] |
@@ -510,3 +510,6 @@ module_exit(netx_eth_cleanup);
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" CARDNAME);
+MODULE_FIRMWARE("xc0.bin");
+MODULE_FIRMWARE("xc1.bin");
+MODULE_FIRMWARE("xc2.bin");

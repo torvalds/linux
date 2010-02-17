@@ -313,7 +313,7 @@ static void qe_uart_stop_tx(struct uart_port *port)
  * This function will attempt to stuff of all the characters from the
  * kernel's transmit buffer into TX BDs.
  *
- * A return value of non-zero indicates that it sucessfully stuffed all
+ * A return value of non-zero indicates that it successfully stuffed all
  * characters from the kernel buffer.
  *
  * A return value of zero indicates that there are still characters in the
@@ -1179,16 +1179,18 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 
 	if (firmware->header.length != fw->size) {
 		dev_err(dev, "invalid firmware\n");
-		return;
+		goto out;
 	}
 
 	ret = qe_upload_firmware(firmware);
 	if (ret) {
 		dev_err(dev, "could not load firmware\n");
-		return;
+		goto out;
 	}
 
 	firmware_loaded = 1;
+ out:
+	release_firmware(fw);
 }
 
 static int ucc_uart_probe(struct of_device *ofdev,
@@ -1247,7 +1249,7 @@ static int ucc_uart_probe(struct of_device *ofdev,
 			 */
 			ret = request_firmware_nowait(THIS_MODULE,
 				FW_ACTION_HOTPLUG, filename, &ofdev->dev,
-				&ofdev->dev, uart_firmware_cont);
+				GFP_KERNEL, &ofdev->dev, uart_firmware_cont);
 			if (ret) {
 				dev_err(&ofdev->dev,
 					"could not load firmware %s\n",

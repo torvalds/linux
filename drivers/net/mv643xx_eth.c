@@ -656,6 +656,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 		struct sk_buff *skb;
 		int rx;
 		struct rx_desc *rx_desc;
+		int size;
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
@@ -678,10 +679,11 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 
 		rx_desc = rxq->rx_desc_area + rx;
 
+		size = skb->end - skb->data;
 		rx_desc->buf_ptr = dma_map_single(mp->dev->dev.parent,
-						  skb->data, mp->skb_size,
+						  skb->data, size,
 						  DMA_FROM_DEVICE);
-		rx_desc->buf_size = mp->skb_size;
+		rx_desc->buf_size = size;
 		rxq->rx_skb[rx] = skb;
 		wmb();
 		rx_desc->cmd_sts = BUFFER_OWNED_BY_DMA | RX_ENABLE_INTERRUPT;
@@ -849,7 +851,7 @@ no_csum:
 	return 0;
 }
 
-static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int queue;
@@ -1826,6 +1828,9 @@ static void mv643xx_eth_set_rx_mode(struct net_device *dev)
 static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *sa = addr;
+
+	if (!is_valid_ether_addr(sa->sa_data))
+		return -EINVAL;
 
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 

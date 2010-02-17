@@ -20,9 +20,9 @@
 #include <linux/regulator/consumer.h>
 
 #include <mach/hardware.h>
-#include <mach/control.h>
-#include <mach/mmc.h>
-#include <mach/board.h>
+#include <plat/control.h>
+#include <plat/mmc.h>
+#include <plat/board.h>
 
 #include "mmc-twl4030.h"
 
@@ -213,7 +213,7 @@ static int twl4030_mmc_get_context_loss(struct device *dev)
 static int twl_mmc1_set_power(struct device *dev, int slot, int power_on,
 				int vdd)
 {
-	u32 reg;
+	u32 reg, prog_io;
 	int ret = 0;
 	struct twl_mmc_controller *c = &hsmmc[0];
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
@@ -245,7 +245,14 @@ static int twl_mmc1_set_power(struct device *dev, int slot, int power_on,
 		}
 
 		reg = omap_ctrl_readl(control_pbias_offset);
-		reg |= OMAP2_PBIASSPEEDCTRL0;
+		if (cpu_is_omap3630()) {
+			/* Set MMC I/O to 52Mhz */
+			prog_io = omap_ctrl_readl(OMAP343X_CONTROL_PROG_IO1);
+			prog_io |= OMAP3630_PRG_SDMMC1_SPEEDCTRL;
+			omap_ctrl_writel(prog_io, OMAP343X_CONTROL_PROG_IO1);
+		} else {
+			reg |= OMAP2_PBIASSPEEDCTRL0;
+		}
 		reg &= ~OMAP2_PBIASLITEPWRDNZ0;
 		omap_ctrl_writel(reg, control_pbias_offset);
 
@@ -401,6 +408,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 {
 	struct twl4030_hsmmc_info *c;
 	int nr_hsmmc = ARRAY_SIZE(hsmmc_data);
+	int i;
 
 	if (cpu_is_omap2430()) {
 		control_pbias_offset = OMAP243X_CONTROL_PBIAS_LITE;
@@ -427,7 +435,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 		mmc = kzalloc(sizeof(struct omap_mmc_platform_data), GFP_KERNEL);
 		if (!mmc) {
 			pr_err("Cannot allocate memory for mmc device!\n");
-			return;
+			goto done;
 		}
 
 		if (c->name)
@@ -489,6 +497,12 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			/* on-chip level shifting via PBIAS0/PBIAS1 */
 			mmc->slots[0].set_power = twl_mmc1_set_power;
 			mmc->slots[0].set_sleep = twl_mmc1_set_sleep;
+
+			/* Omap3630 HSMMC1 supports only 4-bit */
+			if (cpu_is_omap3630() && c->wires > 4) {
+				c->wires = 4;
+				mmc->slots[0].wires = c->wires;
+			}
 			break;
 		case 2:
 			if (c->ext_clock)
@@ -519,6 +533,10 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			continue;
 		c->dev = mmc->dev;
 	}
+
+done:
+	for (i = 0; i < nr_hsmmc; i++)
+		kfree(hsmmc_data[i]);
 }
 
 #endif

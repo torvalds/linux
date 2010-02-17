@@ -7,16 +7,19 @@
  * include/linux for final version.
  *
  */
-struct poch_cbuf_header {
-	__s32 group_size_bytes;
-	__s32 group_count;
-	__s32 group_offsets[0];
-};
+
+#include <linux/types.h>
 
 struct poch_counters {
 	__u32 fifo_empty;
 	__u32 fifo_overflow;
 	__u32 pll_unlock;
+};
+
+struct poch_consume {
+	__u32 __user *offsets;
+	__u32 nfetch;
+	__u32 nflush;
 };
 
 #define POCH_IOC_NUM			'9'
@@ -27,3 +30,6 @@ struct poch_counters {
 					     struct poch_counters)
 #define POCH_IOC_SYNC_GROUP_FOR_USER	_IO(POCH_IOC_NUM, 3)
 #define POCH_IOC_SYNC_GROUP_FOR_DEVICE	_IO(POCH_IOC_NUM, 4)
+
+#define POCH_IOC_CONSUME		_IOWR(POCH_IOC_NUM, 5, \
+					      struct poch_consume)

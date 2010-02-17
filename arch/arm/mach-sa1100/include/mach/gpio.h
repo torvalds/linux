@@ -49,20 +49,9 @@ static inline void gpio_set_value(unsigned gpio, int value)
 
 #define gpio_cansleep	__gpio_cansleep
 
-static inline unsigned gpio_to_irq(unsigned gpio)
-{
-	if (gpio < 11)
-		return IRQ_GPIO0 + gpio;
-	else
-		return IRQ_GPIO11 - 11 + gpio;
-}
-
-static inline unsigned irq_to_gpio(unsigned irq)
-{
-	if (irq < IRQ_GPIO11_27)
-		return irq - IRQ_GPIO0;
-	else
-		return irq - IRQ_GPIO11 + 11;
-}
+#define gpio_to_irq(gpio)	((gpio < 11) ? (IRQ_GPIO0 + gpio) : \
+					(IRQ_GPIO11 - 11 + gpio))
+#define irq_to_gpio(irq)	((irq < IRQ_GPIO11_27) ? (irq - IRQ_GPIO0) : \
+					(irq - IRQ_GPIO11 + 11))
 
 #endif

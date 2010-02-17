@@ -714,16 +714,13 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	struct davinci_pcm_dma_params *dma_params =
 					&dev->dma_params[substream->stream];
 	int word_length;
-	u8 numevt;
+	u8 fifo_level;
 
 	davinci_hw_common_param(dev, substream->stream);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		numevt = dev->txnumevt;
+		fifo_level = dev->txnumevt;
 	else
-		numevt = dev->rxnumevt;
-
-	if (!numevt)
-		numevt = 1;
+		fifo_level = dev->rxnumevt;
 
 	if (dev->op_mode == DAVINCI_MCASP_DIT_MODE)
 		davinci_hw_dit_param(dev);
@@ -751,12 +748,12 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (dev->version == MCASP_VERSION_2) {
-		dma_params->data_type *= numevt;
-		dma_params->acnt = 4 * numevt;
-	} else
+	if (dev->version == MCASP_VERSION_2 && !fifo_level)
+		dma_params->acnt = 4;
+	else
 		dma_params->acnt = dma_params->data_type;
 
+	dma_params->fifo_level = fifo_level;
 	davinci_config_channel_size(dev, word_length);
 
 	return 0;
@@ -907,6 +904,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	dma_data->channel = res->start;
 	davinci_mcasp_dai[pdata->op_mode].private_data = dev;
+	davinci_mcasp_dai[pdata->op_mode].dma_data = dev->dma_params;
 	davinci_mcasp_dai[pdata->op_mode].dev = &pdev->dev;
 	ret = snd_soc_register_dai(&davinci_mcasp_dai[pdata->op_mode]);
 

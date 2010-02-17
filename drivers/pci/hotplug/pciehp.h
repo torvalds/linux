@@ -91,7 +91,6 @@ struct controller {
 	struct slot *slot;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u32 slot_cap;
-	u8 cap_base;
 	struct timer_list poll_timer;
 	unsigned int cmd_busy:1;
 	unsigned int no_cmd_complete:1;

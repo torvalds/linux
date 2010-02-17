@@ -296,8 +296,6 @@ static void jsm_tty_close(struct uart_port *port)
 		bd->bd_ops->assert_modem_signals(channel);
 	}
 
-	channel->ch_old_baud = 0;
-
 	/* Turn off UART interrupts for this port */
 	channel->ch_bd->bd_ops->uart_off(channel);
 
@@ -432,7 +430,7 @@ int __devinit jsm_tty_init(struct jsm_board *brd)
 	return 0;
 }
 
-int __devinit jsm_uart_port_init(struct jsm_board *brd)
+int jsm_uart_port_init(struct jsm_board *brd)
 {
 	int i;
 	unsigned int line;
@@ -472,7 +470,7 @@ int __devinit jsm_uart_port_init(struct jsm_board *brd)
 		if (uart_add_one_port (&jsm_uart_driver, &brd->channels[i]->uart_port))
 			printk(KERN_INFO "jsm: add device failed\n");
 		else
-			printk(KERN_INFO "Added device \n");
+			printk(KERN_INFO "jsm: Port %d added\n", i);
 	}
 
 	jsm_printk(INIT, INFO, &brd->pci_dev, "finish\n");

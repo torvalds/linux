@@ -1450,12 +1450,11 @@ static int omap24xxcam_mmap(struct file *file, struct vm_area_struct *vma)
 
 static int omap24xxcam_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
 	struct omap24xxcam_device *cam = omap24xxcam.priv;
 	struct omap24xxcam_fh *fh;
 	struct v4l2_format format;
 
-	if (!cam || !cam->vfd || (cam->vfd->minor != minor))
+	if (!cam || !cam->vfd)
 		return -ENODEV;
 
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
@@ -1660,7 +1659,6 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 
 	strlcpy(vfd->name, CAM_NAME, sizeof(vfd->name));
 	vfd->fops		 = &omap24xxcam_fops;
-	vfd->minor		 = -1;
 	vfd->ioctl_ops		 = &omap24xxcam_ioctl_fops;
 
 	omap24xxcam_hwinit(cam);
@@ -1671,14 +1669,14 @@ static int omap24xxcam_device_register(struct v4l2_int_device *s)
 
 	if (video_register_device(vfd, VFL_TYPE_GRABBER, video_nr) < 0) {
 		dev_err(cam->dev, "could not register V4L device\n");
-		vfd->minor = -1;
 		rval = -EBUSY;
 		goto err;
 	}
 
 	omap24xxcam_poweron_reset(cam);
 
-	dev_info(cam->dev, "registered device video%d\n", vfd->minor);
+	dev_info(cam->dev, "registered device %s\n",
+		 video_device_node_name(vfd));
 
 	return 0;
 
@@ -1695,7 +1693,7 @@ static void omap24xxcam_device_unregister(struct v4l2_int_device *s)
 	omap24xxcam_sensor_exit(cam);
 
 	if (cam->vfd) {
-		if (cam->vfd->minor == -1) {
+		if (!video_is_registered(cam->vfd)) {
 			/*
 			 * The device was never registered, so release the
 			 * video_device struct directly.

@@ -83,7 +83,6 @@
 #include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/ethtool.h>
 #include <linux/suspend.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
@@ -161,8 +160,6 @@ static const u8 encaps_hdr[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 				 | HERMES_EV_TX | HERMES_EV_TXEXC \
 				 | HERMES_EV_WTERR | HERMES_EV_INFO \
 				 | HERMES_EV_INFDROP)
-
-static const struct ethtool_ops orinoco_ethtool_ops;
 
 /********************************************************************/
 /* Data types                                                       */
@@ -1994,7 +1991,9 @@ int orinoco_init(struct orinoco_private *priv)
 		goto out;
 	}
 
-	err = determine_fw_capabilities(priv);
+	err = determine_fw_capabilities(priv, wiphy->fw_version,
+					sizeof(wiphy->fw_version),
+					&wiphy->hw_version);
 	if (err != 0) {
 		dev_err(dev, "Incompatible firmware, aborting\n");
 		goto out;
@@ -2010,7 +2009,9 @@ int orinoco_init(struct orinoco_private *priv)
 			priv->do_fw_download = 0;
 
 		/* Check firmware version again */
-		err = determine_fw_capabilities(priv);
+		err = determine_fw_capabilities(priv, wiphy->fw_version,
+						sizeof(wiphy->fw_version),
+						&wiphy->hw_version);
 		if (err != 0) {
 			dev_err(dev, "Incompatible firmware, aborting\n");
 			goto out;
@@ -2212,7 +2213,6 @@ int orinoco_if_add(struct orinoco_private *priv,
 	dev->ieee80211_ptr = wdev;
 	dev->netdev_ops = &orinoco_netdev_ops;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
-	dev->ethtool_ops = &orinoco_ethtool_ops;
 	dev->wireless_handlers = &orinoco_handler_def;
 #ifdef WIRELESS_SPY
 	dev->wireless_data = &priv->wireless_data;
@@ -2225,6 +2225,7 @@ int orinoco_if_add(struct orinoco_private *priv,
 	netif_carrier_off(dev);
 
 	memcpy(dev->dev_addr, wiphy->perm_addr, ETH_ALEN);
+	memcpy(dev->perm_addr, wiphy->perm_addr, ETH_ALEN);
 
 	dev->base_addr = base_addr;
 	dev->irq = irq;
@@ -2347,27 +2348,6 @@ void orinoco_down(struct orinoco_private *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL(orinoco_down);
-
-static void orinoco_get_drvinfo(struct net_device *dev,
-				struct ethtool_drvinfo *info)
-{
-	struct orinoco_private *priv = ndev_priv(dev);
-
-	strncpy(info->driver, DRIVER_NAME, sizeof(info->driver) - 1);
-	strncpy(info->version, DRIVER_VERSION, sizeof(info->version) - 1);
-	strncpy(info->fw_version, priv->fw_name, sizeof(info->fw_version) - 1);
-	if (dev->dev.parent)
-		strncpy(info->bus_info, dev_name(dev->dev.parent),
-			sizeof(info->bus_info) - 1);
-	else
-		snprintf(info->bus_info, sizeof(info->bus_info) - 1,
-			 "PCMCIA %p", priv->hw.iobase);
-}
-
-static const struct ethtool_ops orinoco_ethtool_ops = {
-	.get_drvinfo = orinoco_get_drvinfo,
-	.get_link = ethtool_op_get_link,
-};
 
 /********************************************************************/
 /* Module initialization                                            */

@@ -138,7 +138,7 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
  * even though the following code utilizes external interrupt registers
  * to perform the speed calculation.
  */
-static void
+static void __devinit
 ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 {
 	union ioc4_int_out int_out;
@@ -230,7 +230,7 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
  * on the same PCI bus at slot number 3 to differentiate IO9 from IO10.
  * If neither is present, it's a PCI-RT.
  */
-static unsigned int
+static unsigned int __devinit
 ioc4_variant(struct ioc4_driver_data *idd)
 {
 	struct pci_dev *pdev = NULL;
@@ -269,7 +269,7 @@ ioc4_variant(struct ioc4_driver_data *idd)
 	return IOC4_VARIANT_PCI_RT;
 }
 
-static void
+static void __devinit
 ioc4_load_modules(struct work_struct *work)
 {
 	/* arg just has to be freed */
@@ -280,7 +280,7 @@ ioc4_load_modules(struct work_struct *work)
 }
 
 /* Adds a new instance of an IOC4 card */
-static int
+static int __devinit
 ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 {
 	struct ioc4_driver_data *idd;
@@ -425,7 +425,7 @@ out:
 }
 
 /* Removes a particular instance of an IOC4 card. */
-static void
+static void __devexit
 ioc4_remove(struct pci_dev *pdev)
 {
 	struct ioc4_submodule *is;
@@ -476,7 +476,7 @@ static struct pci_driver ioc4_driver = {
 	.name = "IOC4",
 	.id_table = ioc4_id_table,
 	.probe = ioc4_probe,
-	.remove = ioc4_remove,
+	.remove = __devexit_p(ioc4_remove),
 };
 
 MODULE_DEVICE_TABLE(pci, ioc4_id_table);
@@ -486,14 +486,14 @@ MODULE_DEVICE_TABLE(pci, ioc4_id_table);
  *********************/
 
 /* Module load */
-static int __devinit
+static int __init
 ioc4_init(void)
 {
 	return pci_register_driver(&ioc4_driver);
 }
 
 /* Module unload */
-static void __devexit
+static void __exit
 ioc4_exit(void)
 {
 	/* Ensure ioc4_load_modules() has completed before exiting */

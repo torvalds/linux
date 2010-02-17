@@ -30,6 +30,7 @@ struct smsc911x_platform_config {
 	unsigned int irq_type;
 	unsigned int flags;
 	phy_interface_t phy_interface;
+	unsigned char mac[6];
 };
 
 /* Constants for platform_device irq polarity configuration */

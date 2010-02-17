@@ -54,7 +54,8 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 		/* We do not accept a shared mapping if it would violate
 		 * cache aliasing constraints.
 		 */
-		if ((flags & MAP_SHARED) && (addr & shm_align_mask))
+		if ((flags & MAP_SHARED) &&
+		    ((addr - (pgoff << PAGE_SHIFT)) & shm_align_mask))
 			return -EINVAL;
 		return addr;
 	}

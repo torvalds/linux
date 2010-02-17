@@ -1,5 +1,5 @@
 /*
- * Platform defintions for Titan
+ * Platform definitions for Titan
  */
 #ifndef _ASM_SH_TITAN_H
 #define _ASM_SH_TITAN_H

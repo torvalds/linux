@@ -32,6 +32,7 @@ static int noresume = 0;
 static char resume_file[256] = CONFIG_PM_STD_PARTITION;
 dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
+int in_suspend __nosavedata = 0;
 
 enum {
 	HIBERNATION_INVALID,
@@ -199,6 +200,35 @@ static void platform_recover(int platform_mode)
 {
 	if (platform_mode && hibernation_ops && hibernation_ops->recover)
 		hibernation_ops->recover();
+}
+
+/**
+ *	swsusp_show_speed - print the time elapsed between two events.
+ *	@start: Starting event.
+ *	@stop: Final event.
+ *	@nr_pages -	number of pages processed between @start and @stop
+ *	@msg -		introductory message to print
+ */
+
+void swsusp_show_speed(struct timeval *start, struct timeval *stop,
+			unsigned nr_pages, char *msg)
+{
+	s64 elapsed_centisecs64;
+	int centisecs;
+	int k;
+	int kps;
+
+	elapsed_centisecs64 = timeval_to_ns(stop) - timeval_to_ns(start);
+	do_div(elapsed_centisecs64, NSEC_PER_SEC / 100);
+	centisecs = elapsed_centisecs64;
+	if (centisecs == 0)
+		centisecs = 1;	/* avoid div-by-zero */
+	k = nr_pages * (PAGE_SIZE / 1024);
+	kps = (k * 100) / centisecs;
+	printk(KERN_INFO "PM: %s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n",
+			msg, k,
+			centisecs / 100, centisecs % 100,
+			kps / 1000, (kps % 1000) / 10);
 }
 
 /**
@@ -693,21 +723,22 @@ static int software_resume(void)
 	/* The snapshot device should not be opened while we're running */
 	if (!atomic_add_unless(&snapshot_device_available, -1, 0)) {
 		error = -EBUSY;
+		swsusp_close(FMODE_READ);
 		goto Unlock;
 	}
 
 	pm_prepare_console();
 	error = pm_notifier_call_chain(PM_RESTORE_PREPARE);
 	if (error)
-		goto Finish;
+		goto close_finish;
 
 	error = usermodehelper_disable();
 	if (error)
-		goto Finish;
+		goto close_finish;
 
 	error = create_basic_memory_bitmaps();
 	if (error)
-		goto Finish;
+		goto close_finish;
 
 	pr_debug("PM: Preparing processes for restore.\n");
 	error = prepare_processes();
@@ -719,6 +750,7 @@ static int software_resume(void)
 	pr_debug("PM: Reading hibernation image.\n");
 
 	error = swsusp_read(&flags);
+	swsusp_close(FMODE_READ);
 	if (!error)
 		hibernation_restore(flags & SF_PLATFORM_MODE);
 
@@ -737,6 +769,9 @@ static int software_resume(void)
 	mutex_unlock(&pm_mutex);
 	pr_debug("PM: Resume from disk failed.\n");
 	return error;
+close_finish:
+	swsusp_close(FMODE_READ);
+	goto Finish;
 }
 
 late_initcall(software_resume);

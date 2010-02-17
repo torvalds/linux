@@ -202,9 +202,9 @@ static inline int expect_clash(const struct nf_conntrack_expect *a,
 static inline int expect_matches(const struct nf_conntrack_expect *a,
 				 const struct nf_conntrack_expect *b)
 {
-	return a->master == b->master && a->class == b->class
-		&& nf_ct_tuple_equal(&a->tuple, &b->tuple)
-		&& nf_ct_tuple_mask_equal(&a->mask, &b->mask);
+	return a->master == b->master && a->class == b->class &&
+		nf_ct_tuple_equal(&a->tuple, &b->tuple) &&
+		nf_ct_tuple_mask_equal(&a->mask, &b->mask);
 }
 
 /* Generally a bad idea to call this: could have matched already. */
@@ -569,7 +569,7 @@ static void exp_proc_remove(struct net *net)
 #endif /* CONFIG_PROC_FS */
 }
 
-module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0600);
+module_param_named(expect_hashsize, nf_ct_expect_hsize, uint, 0400);
 
 int nf_conntrack_expect_init(struct net *net)
 {
@@ -577,7 +577,7 @@ int nf_conntrack_expect_init(struct net *net)
 
 	if (net_eq(net, &init_net)) {
 		if (!nf_ct_expect_hsize) {
-			nf_ct_expect_hsize = nf_conntrack_htable_size / 256;
+			nf_ct_expect_hsize = net->ct.htable_size / 256;
 			if (!nf_ct_expect_hsize)
 				nf_ct_expect_hsize = 1;
 		}

@@ -76,6 +76,7 @@
                  Fix bug in twa_get_param() on 4GB+.
                  Use pci_resource_len() for ioremap().
    2.26.02.012 - Add power management support.
+   2.26.02.013 - Fix bug in twa_load_sgl().
 */
 
 #include <linux/module.h>
@@ -100,7 +101,7 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.012"
+#define TW_DRIVER_VERSION "2.26.02.013"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -186,8 +187,12 @@ static ssize_t twa_show_stats(struct device *dev,
 } /* End twa_show_stats() */
 
 /* This function will set a devices queue depth */
-static int twa_change_queue_depth(struct scsi_device *sdev, int queue_depth)
+static int twa_change_queue_depth(struct scsi_device *sdev, int queue_depth,
+				  int reason)
 {
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -EOPNOTSUPP;
+
 	if (queue_depth > TW_Q_LENGTH-2)
 		queue_depth = TW_Q_LENGTH-2;
 	scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG, queue_depth);
@@ -732,7 +737,7 @@ static int twa_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int
 		break;
 	case TW_IOCTL_GET_COMPATIBILITY_INFO:
 		tw_ioctl->driver_command.status = 0;
-		/* Copy compatiblity struct into ioctl data buffer */
+		/* Copy compatibility struct into ioctl data buffer */
 		tw_compat_info = (TW_Compatibility_Info *)tw_ioctl->data_buffer;
 		memcpy(tw_compat_info, &tw_dev->tw_compat_info, sizeof(TW_Compatibility_Info));
 		break;
@@ -1378,10 +1383,12 @@ static void twa_load_sgl(TW_Device_Extension *tw_dev, TW_Command_Full *full_comm
 		newcommand = &full_command_packet->command.newcommand;
 		newcommand->request_id__lunl =
 			cpu_to_le16(TW_REQ_LUN_IN(TW_LUN_OUT(newcommand->request_id__lunl), request_id));
-		newcommand->sg_list[0].address = TW_CPU_TO_SGL(dma_handle + sizeof(TW_Ioctl_Buf_Apache) - 1);
-		newcommand->sg_list[0].length = cpu_to_le32(length);
+		if (length) {
+			newcommand->sg_list[0].address = TW_CPU_TO_SGL(dma_handle + sizeof(TW_Ioctl_Buf_Apache) - 1);
+			newcommand->sg_list[0].length = cpu_to_le32(length);
+		}
 		newcommand->sgl_entries__lunh =
-			cpu_to_le16(TW_REQ_LUN_IN(TW_LUN_OUT(newcommand->sgl_entries__lunh), 1));
+			cpu_to_le16(TW_REQ_LUN_IN(TW_LUN_OUT(newcommand->sgl_entries__lunh), length ? 1 : 0));
 	} else {
 		oldcommand = &full_command_packet->command.oldcommand;
 		oldcommand->request_id = request_id;

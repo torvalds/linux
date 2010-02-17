@@ -16,6 +16,7 @@
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
+#include <linux/module.h>
 
 #include <asm/bugs.h>
 #include <asm/cpu.h>
@@ -23,7 +24,7 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 #include <asm/watch.h>
-
+#include <asm/spram.h>
 /*
  * Not all of the MIPS CPUs have the "wait" instruction available. Moreover,
  * the implementation of the "wait" feature differs between CPU families. This
@@ -32,6 +33,7 @@
  * the CPU very much.
  */
 void (*cpu_wait)(void);
+EXPORT_SYMBOL(cpu_wait);
 
 static void r3081_wait(void)
 {
@@ -280,6 +282,15 @@ static inline unsigned long cpu_get_fpu_id(void)
 static inline int __cpu_has_fpu(void)
 {
 	return ((cpu_get_fpu_id() & 0xff00) != FPIR_IMP_NONE);
+}
+
+static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
+{
+#ifdef __NEED_VMBITS_PROBE
+	write_c0_entryhi(0x3fffffffffffe000ULL);
+	back_to_back_c0_hazard();
+	c->vmbits = fls64(read_c0_entryhi() & 0x3fffffffffffe000ULL);
+#endif
 }
 
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
@@ -711,12 +722,6 @@ static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 	mips_probe_watch_registers(c);
 }
 
-#ifdef CONFIG_CPU_MIPSR2
-extern void spram_config(void);
-#else
-static inline void spram_config(void) {}
-#endif
-
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
@@ -973,6 +978,8 @@ __cpuinit void cpu_probe(void)
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
 	else
 		c->srsets = 1;
+
+	cpu_probe_vmbits(c);
 }
 
 __cpuinit void cpu_report(void)

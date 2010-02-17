@@ -29,10 +29,9 @@
 #include <linux/spi/ads7846.h>
 #include <asm/irq.h>
 
-
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
- * tested on other ads7846 devices (OSK/Mistral, Lubbock).
+ * tested on other ads7846 devices (OSK/Mistral, Lubbock, Spitz).
  * TSC2046 is just newer ads7846 silicon.
  * Support for ads7843 tested on Atmel at91sam926x-EK.
  * Support for ads7845 has only been stubbed in.
@@ -43,7 +42,7 @@
  * have to maintain our own SW IRQ disabled status. This should be
  * removed as soon as the affected platform's IRQ handling is fixed.
  *
- * app note sbaa036 talks in more detail about accurate sampling...
+ * App note sbaa036 talks in more detail about accurate sampling...
  * that ought to help in situations like LCDs inducing noise (which
  * can also be helped by using synch signals) and more generally.
  * This driver tries to utilize the measures described in the app
@@ -566,10 +565,8 @@ static void ads7846_rx(void *ads)
 	 * once more the measurement
 	 */
 	if (packet->tc.ignore || Rt > ts->pressure_max) {
-#ifdef VERBOSE
-		pr_debug("%s: ignored %d pressure %d\n",
-			dev_name(&ts->spi->dev), packet->tc.ignore, Rt);
-#endif
+		dev_vdbg(&ts->spi->dev, "ignored %d pressure %d\n",
+			 packet->tc.ignore, Rt);
 		hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
 			      HRTIMER_MODE_REL);
 		return;
@@ -598,9 +595,7 @@ static void ads7846_rx(void *ads)
 		if (!ts->pendown) {
 			input_report_key(input, BTN_TOUCH, 1);
 			ts->pendown = 1;
-#ifdef VERBOSE
-			dev_dbg(&ts->spi->dev, "DOWN\n");
-#endif
+			dev_vdbg(&ts->spi->dev, "DOWN\n");
 		}
 
 		if (ts->swap_xy)
@@ -608,12 +603,10 @@ static void ads7846_rx(void *ads)
 
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
-		input_report_abs(input, ABS_PRESSURE, Rt);
+		input_report_abs(input, ABS_PRESSURE, ts->pressure_max - Rt);
 
 		input_sync(input);
-#ifdef VERBOSE
-		dev_dbg(&ts->spi->dev, "%4d/%4d/%4d\n", x, y, Rt);
-#endif
+		dev_vdbg(&ts->spi->dev, "%4d/%4d/%4d\n", x, y, Rt);
 	}
 
 	hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
@@ -723,9 +716,7 @@ static enum hrtimer_restart ads7846_timer(struct hrtimer *handle)
 			input_sync(input);
 
 			ts->pendown = 0;
-#ifdef VERBOSE
-			dev_dbg(&ts->spi->dev, "UP\n");
-#endif
+			dev_vdbg(&ts->spi->dev, "UP\n");
 		}
 
 		/* measurement cycle ended */

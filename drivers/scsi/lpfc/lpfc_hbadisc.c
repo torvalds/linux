@@ -525,8 +525,6 @@ lpfc_work_done(struct lpfc_hba *phba)
 			spin_unlock_irq(&phba->hbalock);
 			lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
 		}
-		if (phba->hba_flag & HBA_RECEIVE_BUFFER)
-			lpfc_sli4_handle_received_buffer(phba);
 	}
 
 	vports = lpfc_create_vport_work_array(phba);
@@ -568,8 +566,9 @@ lpfc_work_done(struct lpfc_hba *phba)
 	pring = &phba->sli.ring[LPFC_ELS_RING];
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
 	status >>= (4*LPFC_ELS_RING);
-	if ((status & HA_RXMASK)
-		|| (pring->flag & LPFC_DEFERRED_RING_EVENT)) {
+	if ((status & HA_RXMASK) ||
+	    (pring->flag & LPFC_DEFERRED_RING_EVENT) ||
+	    (phba->hba_flag & HBA_SP_QUEUE_EVT)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Set the lpfc data pending flag */
@@ -688,7 +687,8 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 			lpfc_unreg_rpi(vport, ndlp);
 
 		/* Leave Fabric nodes alone on link down */
-		if (!remove && ndlp->nlp_type & NLP_FABRIC)
+		if ((phba->sli_rev < LPFC_SLI_REV4) &&
+		    (!remove && ndlp->nlp_type & NLP_FABRIC))
 			continue;
 		rc = lpfc_disc_state_machine(vport, ndlp, NULL,
 					     remove
@@ -706,6 +706,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 void
 lpfc_port_link_failure(struct lpfc_vport *vport)
 {
+	/* Cleanup any outstanding received buffers */
+	lpfc_cleanup_rcv_buffers(vport);
+
 	/* Cleanup any outstanding RSCN activity */
 	lpfc_els_flush_rscn(vport);
 
@@ -744,6 +747,10 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
+
+	/* Block all SCSI stack I/Os */
+	lpfc_scsi_dev_block(phba);
+
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_DISCOVERED);
 	if (phba->link_state > LPFC_LINK_DOWN) {
@@ -1015,13 +1022,12 @@ lpfc_mbx_cmpl_reg_fcfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		return;
 	}
-	if (vport->port_state != LPFC_FLOGI) {
-		spin_lock_irqsave(&phba->hbalock, flags);
-		phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
-		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_lock_irqsave(&phba->hbalock, flags);
+	phba->fcf.fcf_flag |= (FCF_DISCOVERED | FCF_IN_USE);
+	phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	if (vport->port_state != LPFC_FLOGI)
 		lpfc_initial_flogi(vport);
-	}
 
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return;
@@ -1199,6 +1205,7 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 
 	/* If the FCF is not availabe do nothing. */
 	if (!(phba->fcf.fcf_flag & FCF_AVAILABLE)) {
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return;
 	}
@@ -1216,15 +1223,23 @@ lpfc_register_fcf(struct lpfc_hba *phba)
 
 	fcf_mbxq = mempool_alloc(phba->mbox_mem_pool,
 		GFP_KERNEL);
-	if (!fcf_mbxq)
+	if (!fcf_mbxq) {
+		spin_lock_irqsave(&phba->hbalock, flags);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return;
+	}
 
 	lpfc_reg_fcfi(phba, fcf_mbxq);
 	fcf_mbxq->vport = phba->pport;
 	fcf_mbxq->mbox_cmpl = lpfc_mbx_cmpl_reg_fcfi;
 	rc = lpfc_sli_issue_mbox(phba, fcf_mbxq, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED)
+	if (rc == MBX_NOT_FINISHED) {
+		spin_lock_irqsave(&phba->hbalock, flags);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irqrestore(&phba->hbalock, flags);
 		mempool_free(fcf_mbxq, phba->mbox_mem_pool);
+	}
 
 	return;
 }
@@ -1253,13 +1268,27 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			uint16_t *vlan_id)
 {
 	struct lpfc_fcf_conn_entry *conn_entry;
+	int i, j, fcf_vlan_id = 0;
+
+	/* Find the lowest VLAN id in the FCF record */
+	for (i = 0; i < 512; i++) {
+		if (new_fcf_record->vlan_bitmap[i]) {
+			fcf_vlan_id = i * 8;
+			j = 0;
+			while (!((new_fcf_record->vlan_bitmap[i] >> j) & 1)) {
+				j++;
+				fcf_vlan_id++;
+			}
+			break;
+		}
+	}
 
 	/* If FCF not available return 0 */
 	if (!bf_get(lpfc_fcf_record_fcf_avail, new_fcf_record) ||
 		!bf_get(lpfc_fcf_record_fcf_valid, new_fcf_record))
 		return 0;
 
-	if (!phba->cfg_enable_fip) {
+	if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
 		*boot_flag = 0;
 		*addr_mode = bf_get(lpfc_fcf_record_mac_addr_prov,
 				new_fcf_record);
@@ -1286,7 +1315,11 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 		if (*addr_mode & LPFC_FCF_FPMA)
 			*addr_mode = LPFC_FCF_FPMA;
 
-		*vlan_id = 0xFFFF;
+		/* If FCF record report a vlan id use that vlan id */
+		if (fcf_vlan_id)
+			*vlan_id = fcf_vlan_id;
+		else
+			*vlan_id = 0xFFFF;
 		return 1;
 	}
 
@@ -1384,8 +1417,15 @@ lpfc_match_fcf_conn_list(struct lpfc_hba *phba,
 			(*addr_mode & LPFC_FCF_FPMA))
 				*addr_mode = LPFC_FCF_FPMA;
 
+		/* If matching connect list has a vlan id, use it */
 		if (conn_entry->conn_rec.flags & FCFCNCT_VLAN_VALID)
 			*vlan_id = conn_entry->conn_rec.vlan_tag;
+		/*
+		 * If no vlan id is specified in connect list, use the vlan id
+		 * in the FCF record
+		 */
+		else if (fcf_vlan_id)
+			*vlan_id = fcf_vlan_id;
 		else
 			*vlan_id = 0xFFFF;
 
@@ -1423,6 +1463,15 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 
 	if (phba->link_state >= LPFC_LINK_UP)
 		lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
+	else {
+		/*
+		 * Do not continue FCF discovery and clear FCF_DISC_INPROGRESS
+		 * flag
+		 */
+		spin_lock_irq(&phba->hbalock);
+		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
+		spin_unlock_irq(&phba->hbalock);
+	}
 
 	if (unreg_fcf) {
 		spin_lock_irq(&phba->hbalock);
@@ -1510,10 +1559,16 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	 * to book keeping the FCFIs can be used.
 	 */
 	if (shdr_status || shdr_add_status) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2521 READ_FCF_RECORD mailbox failed "
-				"with status x%x add_status x%x, mbx\n",
-				shdr_status, shdr_add_status);
+		if (shdr_status == STATUS_FCF_TABLE_EMPTY) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2726 READ_FCF_RECORD Indicates empty "
+					"FCF table.\n");
+		} else {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2521 READ_FCF_RECORD mailbox failed "
+					"with status x%x add_status x%x, mbx\n",
+					shdr_status, shdr_add_status);
+		}
 		goto out;
 	}
 	/* Interpreting the returned information of FCF records */
@@ -1653,15 +1708,16 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
 	}
+	spin_lock_irq(&phba->hbalock);
 	vport->fc_flag &= ~FC_VPORT_NEEDS_INIT_VPI;
+	spin_unlock_irq(&phba->hbalock);
 
 	if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
 		lpfc_initial_fdisc(vport);
 	else {
 		lpfc_vport_set_state(vport, FC_VPORT_NO_FABRIC_SUPP);
-		lpfc_printf_vlog(vport, KERN_ERR,
-			LOG_ELS,
-			"2606 No NPIV Fabric support\n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "2606 No NPIV Fabric support\n");
 	}
 	return;
 }
@@ -1756,8 +1812,8 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto fail_free_mem;
 	}
-	/* Mark the vport has registered with its VFI */
-	vport->vfi_state |= LPFC_VFI_REGISTERED;
+	/* The VPI is implicitly registered when the VFI is registered */
+	vport->vpi_state |= LPFC_VPI_REGISTERED;
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
 		lpfc_start_fdiscs(phba);
@@ -1861,7 +1917,10 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	if (phba->fc_topology == TOPOLOGY_LOOP) {
 		phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
-		if (phba->cfg_enable_npiv)
+		/* if npiv is enabled and this adapter supports npiv log
+		 * a message that npiv is not supported in this topology
+		 */
+		if (phba->cfg_enable_npiv && phba->max_vpi)
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 				"1309 Link Up Event npiv not supported in loop "
 				"topology\n");
@@ -1955,7 +2014,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		 * is phase 1 implementation that support FCF index 0 and driver
 		 * defaults.
 		 */
-		if (phba->cfg_enable_fip == 0) {
+		if (!(phba->hba_flag & HBA_FIP_SUPPORT)) {
 			fcf_record = kzalloc(sizeof(struct fcf_record),
 					GFP_KERNEL);
 			if (unlikely(!fcf_record)) {
@@ -2085,6 +2144,7 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	else
 		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
 
+	phba->link_events++;
 	if (la->attType == AT_LINK_UP && (!la->mm)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
@@ -2211,13 +2271,17 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				 mb->mbxStatus);
 		break;
 	}
+	spin_lock_irq(&phba->hbalock);
+	vport->vpi_state &= ~LPFC_VPI_REGISTERED;
+	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+	spin_unlock_irq(&phba->hbalock);
 	vport->unreg_vpi_cmpl = VPORT_OK;
 	mempool_free(pmb, phba->mbox_mem_pool);
 	/*
 	 * This shost reference might have been taken at the beginning of
 	 * lpfc_vport_delete()
 	 */
-	if (vport->load_flag & FC_UNLOADING)
+	if ((vport->load_flag & FC_UNLOADING) && (vport != phba->pport))
 		scsi_host_put(shost);
 }
 
@@ -2268,6 +2332,7 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		goto out;
 	}
 
+	vport->vpi_state |= LPFC_VPI_REGISTERED;
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
 	if (vport->fc_npr_cnt)
@@ -3077,7 +3142,7 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_iocbq *iocb, *next_iocb;
-	uint32_t rpi, i;
+	uint32_t i;
 
 	lpfc_fabric_abort_nport(ndlp);
 
@@ -3086,7 +3151,6 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	 * by firmware with a no rpi error.
 	 */
 	psli = &phba->sli;
-	rpi = ndlp->nlp_rpi;
 	if (ndlp->nlp_flag & NLP_RPI_VALID) {
 		/* Now process each ring */
 		for (i = 0; i < psli->num_rings; i++) {
@@ -4322,6 +4386,14 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 				ret = 1;
 				spin_unlock_irq(shost->host_lock);
 				goto out;
+			} else {
+				lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+					"2624 RPI %x DID %x flg %x still "
+					"logged in\n",
+					ndlp->nlp_rpi, ndlp->nlp_DID,
+					ndlp->nlp_flag);
+				if (ndlp->nlp_flag & NLP_RPI_VALID)
+					ret = 1;
 			}
 		}
 		spin_unlock_irq(shost->host_lock);
@@ -4400,7 +4472,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	 */
 	if (!(phba->hba_flag & HBA_FCOE_SUPPORT) ||
 		!(phba->fcf.fcf_flag & FCF_REGISTERED) ||
-		(phba->cfg_enable_fip == 0)) {
+		(!(phba->hba_flag & HBA_FIP_SUPPORT))) {
 		spin_unlock_irq(&phba->hbalock);
 		return;
 	}
@@ -4409,6 +4481,8 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 	if (lpfc_fcf_inuse(phba))
 		return;
 
+	/* At this point, all discovery is aborted */
+	phba->pport->port_state = LPFC_VPORT_UNKNOWN;
 
 	/* Unregister VPIs */
 	vports = lpfc_create_vport_work_array(phba);
@@ -4416,8 +4490,10 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 		(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED))
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			lpfc_mbx_unreg_vpi(vports[i]);
-			vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			vports[i]->vfi_state &= ~LPFC_VFI_REGISTERED;
+			spin_lock_irq(&phba->hbalock);
+			vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
+			spin_unlock_irq(&phba->hbalock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
@@ -4431,7 +4507,7 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 		return;
 	}
 
-	lpfc_unreg_vfi(mbox, phba->pport->vfi);
+	lpfc_unreg_vfi(mbox, phba->pport);
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_unregister_vfi_cmpl;
 
@@ -4512,8 +4588,10 @@ lpfc_read_fcf_conn_tbl(struct lpfc_hba *phba,
 
 	/* Free the current connect table */
 	list_for_each_entry_safe(conn_entry, next_conn_entry,
-		&phba->fcf_conn_rec_list, list)
+		&phba->fcf_conn_rec_list, list) {
+		list_del_init(&conn_entry->list);
 		kfree(conn_entry);
+	}
 
 	conn_hdr = (struct lpfc_fcf_conn_hdr *) buff;
 	record_count = conn_hdr->length * sizeof(uint32_t)/
@@ -4568,14 +4646,6 @@ lpfc_read_fcoe_param(struct lpfc_hba *phba,
 	if ((fcoe_param_hdr->parm_version != FIPP_VERSION) ||
 		(fcoe_param_hdr->length != FCOE_PARAM_LENGTH))
 		return;
-
-	if (bf_get(lpfc_fip_param_hdr_fipp_mode, fcoe_param_hdr) ==
-			FIPP_MODE_ON)
-		phba->cfg_enable_fip = 1;
-
-	if (bf_get(lpfc_fip_param_hdr_fipp_mode, fcoe_param_hdr) ==
-		FIPP_MODE_OFF)
-		phba->cfg_enable_fip = 0;
 
 	if (fcoe_param_hdr->parm_flags & FIPP_VLAN_VALID) {
 		phba->valid_vlan = 1;

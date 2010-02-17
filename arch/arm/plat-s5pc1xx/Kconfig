@@ -1,5 +1,3 @@
-# arch/arm/plat-s5pc1xx/Kconfig
-#
 # Copyright 2009 Samsung Electronics Co.
 #	Byungho Min <bhmin@samsung.com>
 #
@@ -15,6 +13,9 @@ config PLAT_S5PC1XX
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_GPIO_TRACK
 	select S3C_GPIO_PULL_UPDOWN
+	select S3C_GPIO_CFG_S3C24XX
+	select S3C_GPIO_CFG_S3C64XX
+	select S5P_GPIO_CFG_S5PC1XX
 	help
 	  Base platform code for any Samsung S5PC1XX device
 
@@ -34,7 +35,12 @@ config CPU_S5PC100_CLOCK
 
 # platform specific device setup
 
-config S5PC100_SETUP_I2C0
+config S5PC1XX_SETUP_FB_24BPP
+	bool
+	help
+          Common setup code for S5PC1XX with an 24bpp RGB display helper.
+
+config S5PC1XX_SETUP_I2C0
 	bool
 	default y
 	help
@@ -43,8 +49,14 @@ config S5PC100_SETUP_I2C0
 	  Note, currently since i2c0 is always compiled, this setup helper
 	  is always compiled with it.
 
-config S5PC100_SETUP_I2C1
+config S5PC1XX_SETUP_I2C1
 	bool
 	help
 	  Common setup code for i2c bus 1.
+
+config S5PC1XX_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
 endif

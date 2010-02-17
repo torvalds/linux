@@ -130,6 +130,7 @@ static int psc_ac97_hw_analog_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 
 	dev_dbg(psc_dma->dev, "%s(substream=%p) p_size=%i p_bytes=%i"
 		" periods=%i buffer_size=%i  buffer_bytes=%i channels=%i"
@@ -140,20 +141,10 @@ static int psc_ac97_hw_analog_params(struct snd_pcm_substream *substream,
 		params_channels(params), params_rate(params),
 		params_format(params));
 
-
-	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		if (params_channels(params) == 1)
-			psc_dma->slots |= 0x00000100;
-		else
-			psc_dma->slots |= 0x00000300;
-	} else {
-		if (params_channels(params) == 1)
-			psc_dma->slots |= 0x01000000;
-		else
-			psc_dma->slots |= 0x03000000;
-	}
-	out_be32(&psc_dma->psc_regs->ac97_slots, psc_dma->slots);
-
+	/* Determine the set of enable bits to turn on */
+	s->ac97_slot_bits = (params_channels(params) == 1) ? 0x100 : 0x300;
+	if (substream->pstr->stream != SNDRV_PCM_STREAM_CAPTURE)
+		s->ac97_slot_bits <<= 16;
 	return 0;
 }
 
@@ -162,6 +153,8 @@ static int psc_ac97_hw_digital_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct psc_dma *psc_dma = cpu_dai->private_data;
+
+	dev_dbg(psc_dma->dev, "%s(substream=%p)\n", __func__, substream);
 
 	if (params_channels(params) == 1)
 		out_be32(&psc_dma->psc_regs->ac97_slots, 0x01000000);
@@ -176,14 +169,24 @@ static int psc_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma_stream *s = to_psc_dma_stream(substream, psc_dma);
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_STOP:
-		if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-			psc_dma->slots &= 0xFFFF0000;
-		else
-			psc_dma->slots &= 0x0000FFFF;
+	case SNDRV_PCM_TRIGGER_START:
+		dev_dbg(psc_dma->dev, "AC97 START: stream=%i\n",
+			substream->pstr->stream);
 
+		/* Set the slot enable bits */
+		psc_dma->slots |= s->ac97_slot_bits;
+		out_be32(&psc_dma->psc_regs->ac97_slots, psc_dma->slots);
+		break;
+
+	case SNDRV_PCM_TRIGGER_STOP:
+		dev_dbg(psc_dma->dev, "AC97 STOP: stream=%i\n",
+			substream->pstr->stream);
+
+		/* Clear the slot enable bits */
+		psc_dma->slots &= ~(s->ac97_slot_bits);
 		out_be32(&psc_dma->psc_regs->ac97_slots, psc_dma->slots);
 		break;
 	}

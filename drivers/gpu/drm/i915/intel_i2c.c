@@ -39,7 +39,7 @@ void intel_i2c_quirk_set(struct drm_device *dev, bool enable)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	if (!IS_IGD(dev))
+	if (!IS_PINEVIEW(dev))
 		return;
 	if (enable)
 		I915_WRITE(DSPCLK_GATE_D,
@@ -118,6 +118,23 @@ static void set_data(void *data, int state_high)
 	udelay(I2C_RISEFALL_TIME); /* wait for the line to change state */
 }
 
+/* Clears the GMBUS setup.  Our driver doesn't make use of the GMBUS I2C
+ * engine, but if the BIOS leaves it enabled, then that can break our use
+ * of the bit-banging I2C interfaces.  This is notably the case with the
+ * Mac Mini in EFI mode.
+ */
+void
+intel_i2c_reset_gmbus(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_IRONLAKE(dev)) {
+		I915_WRITE(PCH_GMBUS0, 0);
+	} else {
+		I915_WRITE(GMBUS0, 0);
+	}
+}
+
 /**
  * intel_i2c_create - instantiate an Intel i2c bus using the specified GPIO reg
  * @dev: DRM device
@@ -167,6 +184,8 @@ struct i2c_adapter *intel_i2c_create(struct drm_device *dev, const u32 reg,
 
 	if(i2c_bit_add_bus(&chan->adapter))
 		goto out_free;
+
+	intel_i2c_reset_gmbus(dev);
 
 	/* JJJ:  raise SCL and SDA? */
 	intel_i2c_quirk_set(dev, true);

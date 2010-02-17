@@ -73,9 +73,6 @@ static int __cpuinit m4kc_tlbp_war(void)
 enum label_id {
 	label_second_part = 1,
 	label_leave,
-#ifdef MODULE_START
-	label_module_alloc,
-#endif
 	label_vmalloc,
 	label_vmalloc_done,
 	label_tlbw_hazard,
@@ -92,9 +89,6 @@ enum label_id {
 
 UASM_L_LA(_second_part)
 UASM_L_LA(_leave)
-#ifdef MODULE_START
-UASM_L_LA(_module_alloc)
-#endif
 UASM_L_LA(_vmalloc)
 UASM_L_LA(_vmalloc_done)
 UASM_L_LA(_tlbw_hazard)
@@ -160,6 +154,12 @@ static u32 tlb_handler[128] __cpuinitdata;
 static struct uasm_label labels[128] __cpuinitdata;
 static struct uasm_reloc relocs[128] __cpuinitdata;
 
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
+/*
+ * CONFIG_MIPS_PGD_C0_CONTEXT implies 64 bit and lack of pgd_current,
+ * we cannot do r3000 under these circumstances.
+ */
+
 /*
  * The R3000 TLB handler is simple.
  */
@@ -199,6 +199,7 @@ static void __cpuinit build_r3000_tlb_refill_handler(void)
 
 	dump_handler((u32 *)ebase, 32);
 }
+#endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
 /*
  * The R4000 TLB handler is much more complicated. We have two
@@ -497,8 +498,9 @@ static void __cpuinit
 build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 		 unsigned int tmp, unsigned int ptr)
 {
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 	long pgdc = (long)pgd_current;
-
+#endif
 	/*
 	 * The vmalloc handling is not in the hotpath.
 	 */
@@ -506,7 +508,15 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	uasm_il_bltz(p, r, tmp, label_vmalloc);
 	/* No uasm_i_nop needed here, since the next insn doesn't touch TMP. */
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+	/*
+	 * &pgd << 11 stored in CONTEXT [23..63].
+	 */
+	UASM_i_MFC0(p, ptr, C0_CONTEXT);
+	uasm_i_dins(p, ptr, 0, 0, 23); /* Clear lower 23 bits of context. */
+	uasm_i_ori(p, ptr, ptr, 0x540); /* 1 0  1 0 1  << 6  xkphys cached */
+	uasm_i_drotr(p, ptr, ptr, 11);
+#elif defined(CONFIG_SMP)
 # ifdef  CONFIG_MIPS_MT_SMTC
 	/*
 	 * SMTC uses TCBind value as "CPU" index
@@ -520,7 +530,7 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	 */
 	uasm_i_dmfc0(p, ptr, C0_CONTEXT);
 	uasm_i_dsrl(p, ptr, ptr, 23);
-#endif
+# endif
 	UASM_i_LA_mostly(p, tmp, pgdc);
 	uasm_i_daddu(p, ptr, ptr, tmp);
 	uasm_i_dmfc0(p, tmp, C0_BADVADDR);
@@ -802,8 +812,6 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	} else {
 #if defined(CONFIG_HUGETLB_PAGE)
 		const enum label_id ls = label_tlb_huge_update;
-#elif defined(MODULE_START)
-		const enum label_id ls = label_module_alloc;
 #else
 		const enum label_id ls = label_vmalloc;
 #endif
@@ -1033,6 +1041,7 @@ build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 	iPTE_LW(p, pte, ptr);
 }
 
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 /*
  * R3000 style TLB load/store/modify handlers.
  */
@@ -1184,6 +1193,7 @@ static void __cpuinit build_r3000_tlb_modify_handler(void)
 
 	dump_handler(handle_tlbm, ARRAY_SIZE(handle_tlbm));
 }
+#endif /* CONFIG_MIPS_PGD_C0_CONTEXT */
 
 /*
  * R4000 style TLB load/store/modify handlers.
@@ -1400,6 +1410,7 @@ void __cpuinit build_tlb_refill_handler(void)
 	case CPU_TX3912:
 	case CPU_TX3922:
 	case CPU_TX3927:
+#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
 		build_r3000_tlb_refill_handler();
 		if (!run_once) {
 			build_r3000_tlb_load_handler();
@@ -1407,6 +1418,9 @@ void __cpuinit build_tlb_refill_handler(void)
 			build_r3000_tlb_modify_handler();
 			run_once++;
 		}
+#else
+		panic("No R3000 TLB refill handler");
+#endif
 		break;
 
 	case CPU_R6000:

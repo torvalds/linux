@@ -209,19 +209,18 @@ static int vr41xx_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 
 static int vr41xx_rtc_irq_set_freq(struct device *dev, int freq)
 {
-	unsigned long count;
+	u64 count;
 
 	if (!is_power_of_2(freq))
 		return -EINVAL;
 	count = RTC_FREQUENCY;
 	do_div(count, freq);
 
-	periodic_count = count;
-
 	spin_lock_irq(&rtc_lock);
 
-	rtc1_write(RTCL1LREG, count);
-	rtc1_write(RTCL1HREG, count >> 16);
+	periodic_count = count;
+	rtc1_write(RTCL1LREG, periodic_count);
+	rtc1_write(RTCL1HREG, periodic_count >> 16);
 
 	spin_unlock_irq(&rtc_lock);
 
@@ -328,7 +327,7 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 	if (!res)
 		return -EBUSY;
 
-	rtc1_base = ioremap(res->start, res->end - res->start + 1);
+	rtc1_base = ioremap(res->start, resource_size(res));
 	if (!rtc1_base)
 		return -EBUSY;
 
@@ -338,7 +337,7 @@ static int __devinit rtc_probe(struct platform_device *pdev)
 		goto err_rtc1_iounmap;
 	}
 
-	rtc2_base = ioremap(res->start, res->end - res->start + 1);
+	rtc2_base = ioremap(res->start, resource_size(res));
 	if (!rtc2_base) {
 		retval = -EBUSY;
 		goto err_rtc1_iounmap;

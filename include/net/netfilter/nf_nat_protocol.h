@@ -6,8 +6,7 @@
 
 struct nf_nat_range;
 
-struct nf_nat_protocol
-{
+struct nf_nat_protocol {
 	/* Protocol number. */
 	unsigned int protonum;
 

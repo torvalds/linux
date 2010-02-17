@@ -1,7 +1,7 @@
 /*
  * Watchdog driver for SiByte SB1 SoCs
  *
- * Copyright (C) 2007 OnStor, Inc. * Andrew Sharp <andy.sharp@onstor.com>
+ * Copyright (C) 2007 OnStor, Inc. * Andrew Sharp <andy.sharp@lsi.com>
  *
  * This driver is intended to make the second of two hardware watchdogs
  * on the Sibyte 12XX and 11XX SoCs available to the user.  There are two
@@ -326,7 +326,7 @@ static void __exit sbwdog_exit(void)
 module_init(sbwdog_init);
 module_exit(sbwdog_exit);
 
-MODULE_AUTHOR("Andrew Sharp <andy.sharp@onstor.com>");
+MODULE_AUTHOR("Andrew Sharp <andy.sharp@lsi.com>");
 MODULE_DESCRIPTION("SiByte Watchdog");
 
 module_param(timeout, ulong, 0);

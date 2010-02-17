@@ -354,7 +354,7 @@ static struct resource jornada720_flash_resource = {
 
 static void __init jornada720_mach_init(void)
 {
-	sa11x0_set_flash_data(&jornada720_flash_data, &jornada720_flash_resource, 1);
+	sa11x0_register_mtd(&jornada720_flash_data, &jornada720_flash_resource, 1);
 }
 
 MACHINE_START(JORNADA720, "HP Jornada 720")

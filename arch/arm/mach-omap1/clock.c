@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mach-omap1/clock.c
  *
- *  Copyright (C) 2004 - 2005 Nokia corporation
+ *  Copyright (C) 2004 - 2005, 2009 Nokia corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
  *  Modified to use omap shared clock framework by
@@ -22,16 +22,21 @@
 #include <asm/mach-types.h>
 #include <asm/clkdev.h>
 
-#include <mach/cpu.h>
-#include <mach/usb.h>
-#include <mach/clock.h>
-#include <mach/sram.h>
-
-static const struct clkops clkops_generic;
-static const struct clkops clkops_uart;
-static const struct clkops clkops_dspck;
+#include <plat/cpu.h>
+#include <plat/usb.h>
+#include <plat/clock.h>
+#include <plat/sram.h>
+#include <plat/clkdev_omap.h>
 
 #include "clock.h"
+#include "opp.h"
+
+__u32 arm_idlect1_mask;
+struct clk *api_ck_p, *ck_dpll1_p, *ck_ref_p;
+
+/*-------------------------------------------------------------------------
+ * Omap1 specific clock functions
+ *-------------------------------------------------------------------------*/
 
 static int clk_omap1_dummy_enable(struct clk *clk)
 {
@@ -42,132 +47,24 @@ static void clk_omap1_dummy_disable(struct clk *clk)
 {
 }
 
-static const struct clkops clkops_dummy = {
-	.enable = clk_omap1_dummy_enable,
-	.disable = clk_omap1_dummy_disable,
+const struct clkops clkops_dummy = {
+	.enable		= clk_omap1_dummy_enable,
+	.disable	= clk_omap1_dummy_disable,
 };
 
-static struct clk dummy_ck = {
-	.name	= "dummy",
-	.ops	= &clkops_dummy,
-	.flags	= RATE_FIXED,
-};
-
-struct omap_clk {
-	u32		cpu;
-	struct clk_lookup lk;
-};
-
-#define CLK(dev, con, ck, cp) 		\
-	{				\
-		 .cpu = cp,		\
-		.lk = {			\
-			.dev_id = dev,	\
-			.con_id = con,	\
-			.clk = ck,	\
-		},			\
-	}
-
-#define CK_310	(1 << 0)
-#define CK_730	(1 << 1)
-#define CK_1510	(1 << 2)
-#define CK_16XX	(1 << 3)
-
-static struct omap_clk omap_clks[] = {
-	/* non-ULPD clocks */
-	CLK(NULL,	"ck_ref",	&ck_ref,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"ck_dpll1",	&ck_dpll1,	CK_16XX | CK_1510 | CK_310),
-	/* CK_GEN1 clocks */
-	CLK(NULL,	"ck_dpll1out",	&ck_dpll1out.clk, CK_16XX),
-	CLK(NULL,	"ck_sossi",	&sossi_ck,	CK_16XX),
-	CLK(NULL,	"arm_ck",	&arm_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"armper_ck",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"arm_gpio_ck",	&arm_gpio_ck,	CK_1510 | CK_310),
-	CLK(NULL,	"armxor_ck",	&armxor_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"armtim_ck",	&armtim_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK("omap_wdt",	"fck",		&armwdt_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK("omap_wdt",	"ick",		&armper_ck.clk,	CK_16XX),
-	CLK("omap_wdt", "ick",		&dummy_ck,	CK_1510 | CK_310),
-	CLK(NULL,	"arminth_ck",	&arminth_ck1510, CK_1510 | CK_310),
-	CLK(NULL,	"arminth_ck",	&arminth_ck16xx, CK_16XX),
-	/* CK_GEN2 clocks */
-	CLK(NULL,	"dsp_ck",	&dsp_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"dspmmu_ck",	&dspmmu_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"dspper_ck",	&dspper_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"dspxor_ck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"dsptim_ck",	&dsptim_ck,	CK_16XX | CK_1510 | CK_310),
-	/* CK_GEN3 clocks */
-	CLK(NULL,	"tc_ck",	&tc_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_730),
-	CLK(NULL,	"tipb_ck",	&tipb_ck,	CK_1510 | CK_310),
-	CLK(NULL,	"l3_ocpi_ck",	&l3_ocpi_ck,	CK_16XX),
-	CLK(NULL,	"tc1_ck",	&tc1_ck,	CK_16XX),
-	CLK(NULL,	"tc2_ck",	&tc2_ck,	CK_16XX),
-	CLK(NULL,	"dma_ck",	&dma_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"dma_lcdfree_ck", &dma_lcdfree_ck, CK_16XX),
-	CLK(NULL,	"api_ck",	&api_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"lb_ck",	&lb_ck.clk,	CK_1510 | CK_310),
-	CLK(NULL,	"rhea1_ck",	&rhea1_ck,	CK_16XX),
-	CLK(NULL,	"rhea2_ck",	&rhea2_ck,	CK_16XX),
-	CLK(NULL,	"lcd_ck",	&lcd_ck_16xx,	CK_16XX | CK_730),
-	CLK(NULL,	"lcd_ck",	&lcd_ck_1510.clk, CK_1510 | CK_310),
-	/* ULPD clocks */
-	CLK(NULL,	"uart1_ck",	&uart1_1510,	CK_1510 | CK_310),
-	CLK(NULL,	"uart1_ck",	&uart1_16xx.clk, CK_16XX),
-	CLK(NULL,	"uart2_ck",	&uart2_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"uart3_ck",	&uart3_1510,	CK_1510 | CK_310),
-	CLK(NULL,	"uart3_ck",	&uart3_16xx.clk, CK_16XX),
-	CLK(NULL,	"usb_clko",	&usb_clko,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"usb_hhc_ck",	&usb_hhc_ck1510, CK_1510 | CK_310),
-	CLK(NULL,	"usb_hhc_ck",	&usb_hhc_ck16xx, CK_16XX),
-	CLK(NULL,	"usb_dc_ck",	&usb_dc_ck,	CK_16XX),
-	CLK(NULL,	"mclk",		&mclk_1510,	CK_1510 | CK_310),
-	CLK(NULL,	"mclk",		&mclk_16xx,	CK_16XX),
-	CLK(NULL,	"bclk",		&bclk_1510,	CK_1510 | CK_310),
-	CLK(NULL,	"bclk",		&bclk_16xx,	CK_16XX),
-	CLK("mmci-omap.0", "fck",	&mmc1_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK("mmci-omap.0", "ick",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK("mmci-omap.1", "fck",	&mmc2_ck,	CK_16XX),
-	CLK("mmci-omap.1", "ick",	&armper_ck.clk,	CK_16XX),
-	/* Virtual clocks */
-	CLK(NULL,	"mpu",		&virtual_ck_mpu, CK_16XX | CK_1510 | CK_310),
-	CLK("i2c_omap.1", "fck",	&i2c_fck,	CK_16XX | CK_1510 | CK_310),
-	CLK("i2c_omap.1", "ick",	&i2c_ick,	CK_16XX),
-	CLK("i2c_omap.1", "ick",	&dummy_ck,	CK_1510 | CK_310),
-	CLK("omap_uwire", "fck",	&armxor_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK("omap-mcbsp.1", "ick",	&dspper_ck,	CK_16XX),
-	CLK("omap-mcbsp.1", "ick",	&dummy_ck,	CK_1510 | CK_310),
-	CLK("omap-mcbsp.2", "ick",	&armper_ck.clk,	CK_16XX),
-	CLK("omap-mcbsp.2", "ick",	&dummy_ck,	CK_1510 | CK_310),
-	CLK("omap-mcbsp.3", "ick",	&dspper_ck,	CK_16XX),
-	CLK("omap-mcbsp.3", "ick",	&dummy_ck,	CK_1510 | CK_310),
-	CLK("omap-mcbsp.1", "fck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
-	CLK("omap-mcbsp.2", "fck",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK("omap-mcbsp.3", "fck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
-};
-
-static int omap1_clk_enable_generic(struct clk * clk);
-static int omap1_clk_enable(struct clk *clk);
-static void omap1_clk_disable_generic(struct clk * clk);
-static void omap1_clk_disable(struct clk *clk);
-
-__u32 arm_idlect1_mask;
-
-/*-------------------------------------------------------------------------
- * Omap1 specific clock functions
- *-------------------------------------------------------------------------*/
-
-static unsigned long omap1_watchdog_recalc(struct clk *clk)
+/* XXX can be replaced with a fixed_divisor_recalc */
+unsigned long omap1_watchdog_recalc(struct clk *clk)
 {
 	return clk->parent->rate / 14;
 }
 
-static unsigned long omap1_uart_recalc(struct clk *clk)
+unsigned long omap1_uart_recalc(struct clk *clk)
 {
 	unsigned int val = __raw_readl(clk->enable_reg);
 	return val & clk->enable_bit ? 48000000 : 12000000;
 }
 
-static unsigned long omap1_sossi_recalc(struct clk *clk)
+unsigned long omap1_sossi_recalc(struct clk *clk)
 {
 	u32 div = omap_readl(MOD_CONF_CTRL_1);
 
@@ -176,64 +73,6 @@ static unsigned long omap1_sossi_recalc(struct clk *clk)
 
 	return clk->parent->rate / div;
 }
-
-static int omap1_clk_enable_dsp_domain(struct clk *clk)
-{
-	int retval;
-
-	retval = omap1_clk_enable(&api_ck.clk);
-	if (!retval) {
-		retval = omap1_clk_enable_generic(clk);
-		omap1_clk_disable(&api_ck.clk);
-	}
-
-	return retval;
-}
-
-static void omap1_clk_disable_dsp_domain(struct clk *clk)
-{
-	if (omap1_clk_enable(&api_ck.clk) == 0) {
-		omap1_clk_disable_generic(clk);
-		omap1_clk_disable(&api_ck.clk);
-	}
-}
-
-static const struct clkops clkops_dspck = {
-	.enable		= &omap1_clk_enable_dsp_domain,
-	.disable	= &omap1_clk_disable_dsp_domain,
-};
-
-static int omap1_clk_enable_uart_functional(struct clk *clk)
-{
-	int ret;
-	struct uart_clk *uclk;
-
-	ret = omap1_clk_enable_generic(clk);
-	if (ret == 0) {
-		/* Set smart idle acknowledgement mode */
-		uclk = (struct uart_clk *)clk;
-		omap_writeb((omap_readb(uclk->sysc_addr) & ~0x10) | 8,
-			    uclk->sysc_addr);
-	}
-
-	return ret;
-}
-
-static void omap1_clk_disable_uart_functional(struct clk *clk)
-{
-	struct uart_clk *uclk;
-
-	/* Set force idle acknowledgement mode */
-	uclk = (struct uart_clk *)clk;
-	omap_writeb((omap_readb(uclk->sysc_addr) & ~0x18), uclk->sysc_addr);
-
-	omap1_clk_disable_generic(clk);
-}
-
-static const struct clkops clkops_uart = {
-	.enable		= &omap1_clk_enable_uart_functional,
-	.disable	= &omap1_clk_disable_uart_functional,
-};
 
 static void omap1_clk_allow_idle(struct clk *clk)
 {
@@ -342,7 +181,7 @@ static int calc_dsor_exp(struct clk *clk, unsigned long rate)
 	return dsor_exp;
 }
 
-static unsigned long omap1_ckctl_recalc(struct clk *clk)
+unsigned long omap1_ckctl_recalc(struct clk *clk)
 {
 	/* Calculate divisor encoded as 2-bit exponent */
 	int dsor = 1 << (3 & (omap_readw(ARM_CKCTL) >> clk->rate_offset));
@@ -350,7 +189,7 @@ static unsigned long omap1_ckctl_recalc(struct clk *clk)
 	return clk->parent->rate / dsor;
 }
 
-static unsigned long omap1_ckctl_recalc_dsp_domain(struct clk *clk)
+unsigned long omap1_ckctl_recalc_dsp_domain(struct clk *clk)
 {
 	int dsor;
 
@@ -361,28 +200,29 @@ static unsigned long omap1_ckctl_recalc_dsp_domain(struct clk *clk)
 	 * Note that DSP_CKCTL virt addr = phys addr, so
 	 * we must use __raw_readw() instead of omap_readw().
 	 */
-	omap1_clk_enable(&api_ck.clk);
+	omap1_clk_enable(api_ck_p);
 	dsor = 1 << (3 & (__raw_readw(DSP_CKCTL) >> clk->rate_offset));
-	omap1_clk_disable(&api_ck.clk);
+	omap1_clk_disable(api_ck_p);
 
 	return clk->parent->rate / dsor;
 }
 
 /* MPU virtual clock functions */
-static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
+int omap1_select_table_rate(struct clk *clk, unsigned long rate)
 {
 	/* Find the highest supported frequency <= rate and switch to it */
 	struct mpu_rate * ptr;
+	unsigned long dpll1_rate, ref_rate;
 
-	if (clk != &virtual_ck_mpu)
-		return -EINVAL;
+	dpll1_rate = ck_dpll1_p->rate;
+	ref_rate = ck_ref_p->rate;
 
-	for (ptr = rate_table; ptr->rate; ptr++) {
-		if (ptr->xtal != ck_ref.rate)
+	for (ptr = omap1_rate_table; ptr->rate; ptr++) {
+		if (ptr->xtal != ref_rate)
 			continue;
 
 		/* DPLL1 cannot be reprogrammed without risking system crash */
-		if (likely(ck_dpll1.rate!=0) && ptr->pll_rate != ck_dpll1.rate)
+		if (likely(dpll1_rate != 0) && ptr->pll_rate != dpll1_rate)
 			continue;
 
 		/* Can check only after xtal frequency check */
@@ -398,16 +238,18 @@ static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
 	 * Reprogramming the DPLL is tricky, it must be done from SRAM.
 	 * (on 730, bit 13 must always be 1)
 	 */
-	if (cpu_is_omap730())
+	if (cpu_is_omap7xx())
 		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val | 0x2000);
 	else
 		omap_sram_reprogram_clock(ptr->dpllctl_val, ptr->ckctl_val);
 
-	ck_dpll1.rate = ptr->pll_rate;
+	/* XXX Do we need to recalculate the tree below DPLL1 at this point? */
+	ck_dpll1_p->rate = ptr->pll_rate;
+
 	return 0;
 }
 
-static int omap1_clk_set_rate_dsp_domain(struct clk *clk, unsigned long rate)
+int omap1_clk_set_rate_dsp_domain(struct clk *clk, unsigned long rate)
 {
 	int dsor_exp;
 	u16 regval;
@@ -427,7 +269,7 @@ static int omap1_clk_set_rate_dsp_domain(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static long omap1_clk_round_rate_ckctl_arm(struct clk *clk, unsigned long rate)
+long omap1_clk_round_rate_ckctl_arm(struct clk *clk, unsigned long rate)
 {
 	int dsor_exp = calc_dsor_exp(clk, rate);
 	if (dsor_exp < 0)
@@ -437,7 +279,7 @@ static long omap1_clk_round_rate_ckctl_arm(struct clk *clk, unsigned long rate)
 	return clk->parent->rate / (1 << dsor_exp);
 }
 
-static int omap1_clk_set_rate_ckctl_arm(struct clk *clk, unsigned long rate)
+int omap1_clk_set_rate_ckctl_arm(struct clk *clk, unsigned long rate)
 {
 	int dsor_exp;
 	u16 regval;
@@ -457,19 +299,19 @@ static int omap1_clk_set_rate_ckctl_arm(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static long omap1_round_to_table_rate(struct clk * clk, unsigned long rate)
+long omap1_round_to_table_rate(struct clk *clk, unsigned long rate)
 {
 	/* Find the highest supported frequency <= rate */
 	struct mpu_rate * ptr;
-	long  highest_rate;
+	long highest_rate;
+	unsigned long ref_rate;
 
-	if (clk != &virtual_ck_mpu)
-		return -EINVAL;
+	ref_rate = ck_ref_p->rate;
 
 	highest_rate = -EINVAL;
 
-	for (ptr = rate_table; ptr->rate; ptr++) {
-		if (ptr->xtal != ck_ref.rate)
+	for (ptr = omap1_rate_table; ptr->rate; ptr++) {
+		if (ptr->xtal != ref_rate)
 			continue;
 
 		highest_rate = ptr->rate;
@@ -504,8 +346,8 @@ static unsigned calc_ext_dsor(unsigned long rate)
 	return dsor;
 }
 
-/* Only needed on 1510 */
-static int omap1_set_uart_rate(struct clk * clk, unsigned long rate)
+/* XXX Only needed on 1510 */
+int omap1_set_uart_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned int val;
 
@@ -523,7 +365,7 @@ static int omap1_set_uart_rate(struct clk * clk, unsigned long rate)
 }
 
 /* External clock (MCLK & BCLK) functions */
-static int omap1_set_ext_clk_rate(struct clk * clk, unsigned long rate)
+int omap1_set_ext_clk_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned dsor;
 	__u16 ratio_bits;
@@ -541,7 +383,7 @@ static int omap1_set_ext_clk_rate(struct clk * clk, unsigned long rate)
 	return 0;
 }
 
-static int omap1_set_sossi_rate(struct clk *clk, unsigned long rate)
+int omap1_set_sossi_rate(struct clk *clk, unsigned long rate)
 {
 	u32 l;
 	int div;
@@ -564,12 +406,12 @@ static int omap1_set_sossi_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static long omap1_round_ext_clk_rate(struct clk * clk, unsigned long rate)
+long omap1_round_ext_clk_rate(struct clk *clk, unsigned long rate)
 {
 	return 96000000 / calc_ext_dsor(rate);
 }
 
-static void omap1_init_ext_clk(struct clk * clk)
+void omap1_init_ext_clk(struct clk *clk)
 {
 	unsigned dsor;
 	__u16 ratio_bits;
@@ -587,7 +429,7 @@ static void omap1_init_ext_clk(struct clk * clk)
 	clk-> rate = 96000000 / dsor;
 }
 
-static int omap1_clk_enable(struct clk *clk)
+int omap1_clk_enable(struct clk *clk)
 {
 	int ret = 0;
 
@@ -615,7 +457,7 @@ err:
 	return ret;
 }
 
-static void omap1_clk_disable(struct clk *clk)
+void omap1_clk_disable(struct clk *clk)
 {
 	if (clk->usecount > 0 && !(--clk->usecount)) {
 		clk->ops->disable(clk);
@@ -670,12 +512,70 @@ static void omap1_clk_disable_generic(struct clk *clk)
 	}
 }
 
-static const struct clkops clkops_generic = {
-	.enable		= &omap1_clk_enable_generic,
-	.disable	= &omap1_clk_disable_generic,
+const struct clkops clkops_generic = {
+	.enable		= omap1_clk_enable_generic,
+	.disable	= omap1_clk_disable_generic,
 };
 
-static long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
+static int omap1_clk_enable_dsp_domain(struct clk *clk)
+{
+	int retval;
+
+	retval = omap1_clk_enable(api_ck_p);
+	if (!retval) {
+		retval = omap1_clk_enable_generic(clk);
+		omap1_clk_disable(api_ck_p);
+	}
+
+	return retval;
+}
+
+static void omap1_clk_disable_dsp_domain(struct clk *clk)
+{
+	if (omap1_clk_enable(api_ck_p) == 0) {
+		omap1_clk_disable_generic(clk);
+		omap1_clk_disable(api_ck_p);
+	}
+}
+
+const struct clkops clkops_dspck = {
+	.enable		= omap1_clk_enable_dsp_domain,
+	.disable	= omap1_clk_disable_dsp_domain,
+};
+
+static int omap1_clk_enable_uart_functional(struct clk *clk)
+{
+	int ret;
+	struct uart_clk *uclk;
+
+	ret = omap1_clk_enable_generic(clk);
+	if (ret == 0) {
+		/* Set smart idle acknowledgement mode */
+		uclk = (struct uart_clk *)clk;
+		omap_writeb((omap_readb(uclk->sysc_addr) & ~0x10) | 8,
+			    uclk->sysc_addr);
+	}
+
+	return ret;
+}
+
+static void omap1_clk_disable_uart_functional(struct clk *clk)
+{
+	struct uart_clk *uclk;
+
+	/* Set force idle acknowledgement mode */
+	uclk = (struct uart_clk *)clk;
+	omap_writeb((omap_readb(uclk->sysc_addr) & ~0x18), uclk->sysc_addr);
+
+	omap1_clk_disable_generic(clk);
+}
+
+const struct clkops clkops_uart = {
+	.enable		= omap1_clk_enable_uart_functional,
+	.disable	= omap1_clk_disable_uart_functional,
+};
+
+long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	if (clk->flags & RATE_FIXED)
 		return clk->rate;
@@ -686,7 +586,7 @@ static long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 	return clk->rate;
 }
 
-static int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
+int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int  ret = -EINVAL;
 
@@ -701,7 +601,7 @@ static int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 
-static void __init omap1_clk_disable_unused(struct clk *clk)
+void __init omap1_clk_disable_unused(struct clk *clk)
 {
 	__u32 regval32;
 
@@ -722,184 +622,9 @@ static void __init omap1_clk_disable_unused(struct clk *clk)
 	if ((regval32 & (1 << clk->enable_bit)) == 0)
 		return;
 
-	/* FIXME: This clock seems to be necessary but no-one
-	 * has asked for its activation. */
-	if (clk == &tc2_ck		/* FIX: pm.c (SRAM), CCP, Camera */
-	    || clk == &ck_dpll1out.clk	/* FIX: SoSSI, SSR */
-	    || clk == &arm_gpio_ck	/* FIX: GPIO code for 1510 */
-		) {
-		printk(KERN_INFO "FIXME: Clock \"%s\" seems unused\n",
-		       clk->name);
-		return;
-	}
-
 	printk(KERN_INFO "Disabling unused clock \"%s\"... ", clk->name);
 	clk->ops->disable(clk);
 	printk(" done\n");
 }
 
-#else
-#define omap1_clk_disable_unused	NULL
 #endif
-
-static struct clk_functions omap1_clk_functions = {
-	.clk_enable		= omap1_clk_enable,
-	.clk_disable		= omap1_clk_disable,
-	.clk_round_rate		= omap1_clk_round_rate,
-	.clk_set_rate		= omap1_clk_set_rate,
-	.clk_disable_unused	= omap1_clk_disable_unused,
-};
-
-int __init omap1_clk_init(void)
-{
-	struct omap_clk *c;
-	const struct omap_clock_config *info;
-	int crystal_type = 0; /* Default 12 MHz */
-	u32 reg, cpu_mask;
-
-#ifdef CONFIG_DEBUG_LL
-	/* Resets some clocks that may be left on from bootloader,
-	 * but leaves serial clocks on.
- 	 */
-	omap_writel(0x3 << 29, MOD_CONF_CTRL_0);
-#endif
-
-	/* USB_REQ_EN will be disabled later if necessary (usb_dc_ck) */
-	reg = omap_readw(SOFT_REQ_REG) & (1 << 4);
-	omap_writew(reg, SOFT_REQ_REG);
-	if (!cpu_is_omap15xx())
-		omap_writew(0, SOFT_REQ_REG2);
-
-	clk_init(&omap1_clk_functions);
-
-	/* By default all idlect1 clocks are allowed to idle */
-	arm_idlect1_mask = ~0;
-
-	for (c = omap_clks; c < omap_clks + ARRAY_SIZE(omap_clks); c++)
-		clk_preinit(c->lk.clk);
-
-	cpu_mask = 0;
-	if (cpu_is_omap16xx())
-		cpu_mask |= CK_16XX;
-	if (cpu_is_omap1510())
-		cpu_mask |= CK_1510;
-	if (cpu_is_omap730())
-		cpu_mask |= CK_730;
-	if (cpu_is_omap310())
-		cpu_mask |= CK_310;
-
-	for (c = omap_clks; c < omap_clks + ARRAY_SIZE(omap_clks); c++)
-		if (c->cpu & cpu_mask) {
-			clkdev_add(&c->lk);
-			clk_register(c->lk.clk);
-		}
-
-	info = omap_get_config(OMAP_TAG_CLOCK, struct omap_clock_config);
-	if (info != NULL) {
-		if (!cpu_is_omap15xx())
-			crystal_type = info->system_clock_type;
-	}
-
-#if defined(CONFIG_ARCH_OMAP730)
-	ck_ref.rate = 13000000;
-#elif defined(CONFIG_ARCH_OMAP16XX)
-	if (crystal_type == 2)
-		ck_ref.rate = 19200000;
-#endif
-
-	printk("Clocks: ARM_SYSST: 0x%04x DPLL_CTL: 0x%04x ARM_CKCTL: 0x%04x\n",
-	       omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
-	       omap_readw(ARM_CKCTL));
-
-	/* We want to be in syncronous scalable mode */
-	omap_writew(0x1000, ARM_SYSST);
-
-#ifdef CONFIG_OMAP_CLOCKS_SET_BY_BOOTLOADER
-	/* Use values set by bootloader. Determine PLL rate and recalculate
-	 * dependent clocks as if kernel had changed PLL or divisors.
-	 */
-	{
-		unsigned pll_ctl_val = omap_readw(DPLL_CTL);
-
-		ck_dpll1.rate = ck_ref.rate; /* Base xtal rate */
-		if (pll_ctl_val & 0x10) {
-			/* PLL enabled, apply multiplier and divisor */
-			if (pll_ctl_val & 0xf80)
-				ck_dpll1.rate *= (pll_ctl_val & 0xf80) >> 7;
-			ck_dpll1.rate /= ((pll_ctl_val & 0x60) >> 5) + 1;
-		} else {
-			/* PLL disabled, apply bypass divisor */
-			switch (pll_ctl_val & 0xc) {
-			case 0:
-				break;
-			case 0x4:
-				ck_dpll1.rate /= 2;
-				break;
-			default:
-				ck_dpll1.rate /= 4;
-				break;
-			}
-		}
-	}
-#else
-	/* Find the highest supported frequency and enable it */
-	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
-		printk(KERN_ERR "System frequencies not set. Check your config.\n");
-		/* Guess sane values (60MHz) */
-		omap_writew(0x2290, DPLL_CTL);
-		omap_writew(cpu_is_omap730() ? 0x3005 : 0x1005, ARM_CKCTL);
-		ck_dpll1.rate = 60000000;
-	}
-#endif
-	propagate_rate(&ck_dpll1);
-	/* Cache rates for clocks connected to ck_ref (not dpll1) */
-	propagate_rate(&ck_ref);
-	printk(KERN_INFO "Clocking rate (xtal/DPLL1/MPU): "
-		"%ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
-	       ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
-	       ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
-	       arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
-
-#if defined(CONFIG_MACH_OMAP_PERSEUS2) || defined(CONFIG_MACH_OMAP_FSAMPLE)
-	/* Select slicer output as OMAP input clock */
-	omap_writew(omap_readw(OMAP730_PCC_UPLD_CTRL) & ~0x1, OMAP730_PCC_UPLD_CTRL);
-#endif
-
-	/* Amstrad Delta wants BCLK high when inactive */
-	if (machine_is_ams_delta())
-		omap_writel(omap_readl(ULPD_CLOCK_CTRL) |
-				(1 << SDW_MCLK_INV_BIT),
-				ULPD_CLOCK_CTRL);
-
-	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
-	/* (on 730, bit 13 must not be cleared) */
-	if (cpu_is_omap730())
-		omap_writew(omap_readw(ARM_CKCTL) & 0x2fff, ARM_CKCTL);
-	else
-		omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);
-
-	/* Put DSP/MPUI into reset until needed */
-	omap_writew(0, ARM_RSTCT1);
-	omap_writew(1, ARM_RSTCT2);
-	omap_writew(0x400, ARM_IDLECT1);
-
-	/*
-	 * According to OMAP5910 Erratum SYS_DMA_1, bit DMACK_REQ (bit 8)
-	 * of the ARM_IDLECT2 register must be set to zero. The power-on
-	 * default value of this bit is one.
-	 */
-	omap_writew(0x0000, ARM_IDLECT2);	/* Turn LCD clock off also */
-
-	/*
-	 * Only enable those clocks we will need, let the drivers
-	 * enable other clocks as necessary
-	 */
-	clk_enable(&armper_ck.clk);
-	clk_enable(&armxor_ck.clk);
-	clk_enable(&armtim_ck.clk); /* This should be done by timer code */
-
-	if (cpu_is_omap15xx())
-		clk_enable(&arm_gpio_ck);
-
-	return 0;
-}

@@ -51,7 +51,7 @@ static int enable_ecrc_checking(struct pci_dev *dev)
 	int pos;
 	u32 reg32;
 
-	if (!dev->is_pcie)
+	if (!pci_is_pcie(dev))
 		return -ENODEV;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
@@ -79,7 +79,7 @@ static int disable_ecrc_checking(struct pci_dev *dev)
 	int pos;
 	u32 reg32;
 
-	if (!dev->is_pcie)
+	if (!pci_is_pcie(dev))
 		return -ENODEV;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);

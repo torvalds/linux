@@ -168,19 +168,19 @@ static void line6_dump_urb(struct urb *urb)
 #endif
 
 /*
-	Send raw message in pieces of wMaxPacketSize bytes.
+	Send raw message in pieces of max_packet_size bytes.
 */
 int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 			   int size)
 {
 	int i, done = 0;
+	int actual_size;
 
 #if DO_DUMP_URB_SEND
 	line6_write_hexdump(line6, 'S', buffer, size);
 #endif
 
-	for (i = 0; i < size; i += line6->max_packet_size) {
-		int partial;
+	for (i = 0; i < size; i += actual_size) {
 		const char *frag_buf = buffer + i;
 		int frag_size = min(line6->max_packet_size, size - i);
 		int retval;
@@ -189,7 +189,7 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 					   usb_sndintpipe(line6->usbdev,
 							  line6->ep_control_write),
 					   (char *)frag_buf, frag_size,
-					   &partial, LINE6_TIMEOUT * HZ);
+					   &actual_size, LINE6_TIMEOUT * HZ);
 
 		if (retval) {
 			dev_err(line6->ifcdev,
@@ -197,7 +197,7 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 			break;
 		}
 
-		done += frag_size;
+		done += actual_size;
 	}
 
 	return done;
@@ -395,17 +395,44 @@ static void line6_data_received(struct urb *urb)
 	line6_start_listen(line6);
 }
 
+static int line6_send(struct usb_line6 *line6, unsigned char *buf, size_t len)
+{
+	int retval;
+	unsigned int partial;
+
+#if DO_DUMP_URB_SEND
+	line6_write_hexdump(line6, 'S', buf, len);
+#endif
+
+	retval = usb_interrupt_msg(line6->usbdev,
+				   usb_sndintpipe(line6->usbdev,
+						  line6->ep_control_write),
+				   buf, len, &partial,
+				   LINE6_TIMEOUT * HZ);
+
+	if (retval) {
+		dev_err(line6->ifcdev,
+			"usb_interrupt_msg failed (%d)\n", retval);
+	}
+
+	if (partial != len) {
+		dev_err(line6->ifcdev,
+			"usb_interrupt_msg sent partial message (%d)\n",
+			 retval);
+	}
+
+	return retval;
+}
+
 /*
 	Send channel number (i.e., switch to a different sound).
 */
 int line6_send_program(struct usb_line6 *line6, int value)
 {
-	int retval;
 	unsigned char *buffer;
-	unsigned int partial;
+	size_t len = 2;
 
-	buffer = kmalloc(2, GFP_KERNEL);
-
+	buffer = kmalloc(len, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(line6->ifcdev, "out of memory\n");
 		return -ENOMEM;
@@ -414,20 +441,7 @@ int line6_send_program(struct usb_line6 *line6, int value)
 	buffer[0] = LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST;
 	buffer[1] = value;
 
-#if DO_DUMP_URB_SEND
-	line6_write_hexdump(line6, 'S', buffer, 2);
-#endif
-
-	retval = usb_interrupt_msg(line6->usbdev,
-				   usb_sndintpipe(line6->usbdev,
-						  line6->ep_control_write),
-				   buffer, 2, &partial, LINE6_TIMEOUT * HZ);
-
-	if (retval)
-		dev_err(line6->ifcdev, "usb_interrupt_msg failed (%d)\n", retval);
-
-	kfree(buffer);
-	return retval;
+	return line6_send(line6, buffer, len);
 }
 
 /*
@@ -435,12 +449,10 @@ int line6_send_program(struct usb_line6 *line6, int value)
 */
 int line6_transmit_parameter(struct usb_line6 *line6, int param, int value)
 {
-	int retval;
 	unsigned char *buffer;
-	unsigned int partial;
+	size_t len = 3;
 
-	buffer = kmalloc(3, GFP_KERNEL);
-
+	buffer = kmalloc(len, GFP_KERNEL);
 	if (!buffer) {
 		dev_err(line6->ifcdev, "out of memory\n");
 		return -ENOMEM;
@@ -450,19 +462,7 @@ int line6_transmit_parameter(struct usb_line6 *line6, int param, int value)
 	buffer[1] = param;
 	buffer[2] = value;
 
-#if DO_DUMP_URB_SEND
-	line6_write_hexdump(line6, 'S', buffer, 3);
-#endif
-
-	retval = usb_interrupt_msg(line6->usbdev,
-														 usb_sndintpipe(line6->usbdev, line6->ep_control_write),
-														 buffer, 3, &partial, LINE6_TIMEOUT * HZ);
-
-	if (retval)
-		dev_err(line6->ifcdev, "usb_interrupt_msg failed (%d)\n", retval);
-
-	kfree(buffer);
-	return retval;
+	return line6_send(line6, buffer, len);
 }
 
 /*
@@ -476,8 +476,10 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data, size_t dat
 
 	/* query the serial number: */
 	ret = usb_control_msg(usbdev, usb_sndctrlpipe(usbdev, 0), 0x67,
-												USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-												(datalen << 8) | 0x21, address, NULL, 0, LINE6_TIMEOUT * HZ);
+				      USB_TYPE_VENDOR | USB_RECIP_DEVICE
+				      | USB_DIR_OUT,
+				      (datalen << 8) | 0x21, address,
+				      NULL, 0, LINE6_TIMEOUT * HZ);
 
 	if (ret < 0) {
 		dev_err(line6->ifcdev, "read request failed (error %d)\n", ret);
@@ -496,9 +498,7 @@ int line6_read_data(struct usb_line6 *line6, int address, void *data, size_t dat
 				"receive length failed (error %d)\n", ret);
 			return ret;
 		}
-	}
-	while (len == 0xff)
-		;
+	} while (len == 0xff);
 
 	if (len != datalen) {
 		/* should be equal or something went wrong */
@@ -682,10 +682,14 @@ static int line6_probe(struct usb_interface *interface, const struct usb_device_
 		return -ENODEV;
 
 	/* check vendor and product id */
-	for (devtype = ARRAY_SIZE(line6_id_table) - 1; devtype--;)
-		if ((le16_to_cpu(usbdev->descriptor.idVendor) == line6_id_table[devtype].idVendor) &&
-			 (le16_to_cpu(usbdev->descriptor.idProduct) == line6_id_table[devtype].idProduct))
+	for (devtype = ARRAY_SIZE(line6_id_table) - 1; devtype--;) {
+		u16 vendor = le16_to_cpu(usbdev->descriptor.idVendor);
+		u16 product = le16_to_cpu(usbdev->descriptor.idProduct);
+
+		if (vendor == line6_id_table[devtype].idVendor
+		     && product == line6_id_table[devtype].idProduct)
 			break;
+	}
 
 	if (devtype < 0)
 		return -ENODEV;
@@ -1036,9 +1040,10 @@ static void line6_disconnect(struct usb_interface *interface)
 
 		dev_info(&interface->dev, "Line6 %s now disconnected\n", line6->properties->name);
 
-		for (i = LINE6_MAX_DEVICES; i--;)
+		for (i = LINE6_MAX_DEVICES; i--;) {
 			if (line6_devices[i] == line6)
 				line6_devices[i] = NULL;
+		}
 	}
 
 	line6_destruct(interface);

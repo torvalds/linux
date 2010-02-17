@@ -229,6 +229,20 @@ typedef unsigned long pgprot_t;
 
 #endif
 
+typedef struct { signed long pd; } hugepd_t;
+#define HUGEPD_SHIFT_MASK     0x3f
+
+#ifdef CONFIG_HUGETLB_PAGE
+static inline int hugepd_ok(hugepd_t hpd)
+{
+	return (hpd.pd > 0);
+}
+
+#define is_hugepd(pdep)               (hugepd_ok(*((hugepd_t *)(pdep))))
+#else /* CONFIG_HUGETLB_PAGE */
+#define is_hugepd(pdep)			0
+#endif /* CONFIG_HUGETLB_PAGE */
+
 struct page;
 extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
 extern void copy_user_page(void *to, void *from, unsigned long vaddr,
