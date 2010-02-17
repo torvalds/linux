@@ -250,6 +250,7 @@ static const struct dmi_system_id __initdata mbp_device_table[] = {
 
 static int __init mbp_init(void)
 {
+	struct backlight_properties props;
 	if (!dmi_check_system(mbp_device_table))
 		return -ENODEV;
 
@@ -257,14 +258,17 @@ static int __init mbp_init(void)
 						"Macbook Pro backlight"))
 		return -ENXIO;
 
-	mbp_backlight_device = backlight_device_register("mbp_backlight",
-					NULL, NULL, &driver_data->backlight_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 15;
+	mbp_backlight_device = backlight_device_register("mbp_backlight", NULL,
+							 NULL,
+							 &driver_data->backlight_ops,
+							 &props);
 	if (IS_ERR(mbp_backlight_device)) {
 		release_region(driver_data->iostart, driver_data->iolen);
 		return PTR_ERR(mbp_backlight_device);
 	}
 
-	mbp_backlight_device->props.max_brightness = 15;
 	mbp_backlight_device->props.brightness =
 		driver_data->backlight_ops.get_brightness(mbp_backlight_device);
 	backlight_update_status(mbp_backlight_device);

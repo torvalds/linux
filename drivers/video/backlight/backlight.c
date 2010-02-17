@@ -269,7 +269,8 @@ EXPORT_SYMBOL(backlight_force_update);
  * ERR_PTR() or a pointer to the newly allocated device.
  */
 struct backlight_device *backlight_device_register(const char *name,
-		struct device *parent, void *devdata, const struct backlight_ops *ops)
+	struct device *parent, void *devdata, const struct backlight_ops *ops,
+	const struct backlight_properties *props)
 {
 	struct backlight_device *new_bd;
 	int rc;
@@ -288,6 +289,11 @@ struct backlight_device *backlight_device_register(const char *name,
 	new_bd->dev.release = bl_device_release;
 	dev_set_name(&new_bd->dev, name);
 	dev_set_drvdata(&new_bd->dev, devdata);
+
+	/* Set default properties */
+	if (props)
+		memcpy(&new_bd->props, props,
+		       sizeof(struct backlight_properties));
 
 	rc = device_register(&new_bd->dev);
 	if (rc) {

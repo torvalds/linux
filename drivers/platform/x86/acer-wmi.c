@@ -922,9 +922,13 @@ static struct backlight_ops acer_bl_ops = {
 
 static int __devinit acer_backlight_init(struct device *dev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 
-	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = max_brightness;
+	bd = backlight_device_register("acer-wmi", dev, NULL, &acer_bl_ops,
+				       &props);
 	if (IS_ERR(bd)) {
 		printk(ACER_ERR "Could not register Acer backlight device\n");
 		acer_backlight_device = NULL;
@@ -935,7 +939,6 @@ static int __devinit acer_backlight_init(struct device *dev)
 
 	bd->props.power = FB_BLANK_UNBLANK;
 	bd->props.brightness = read_brightness(bd);
-	bd->props.max_brightness = max_brightness;
 	backlight_update_status(bd);
 	return 0;
 }

@@ -70,6 +70,7 @@ static const struct backlight_ops adx_backlight_ops = {
 
 static int __devinit adx_backlight_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bldev;
 	struct resource *res;
 	struct adxbl *bl;
@@ -101,14 +102,15 @@ static int __devinit adx_backlight_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	bldev = backlight_device_register(dev_name(&pdev->dev), &pdev->dev, bl,
-			&adx_backlight_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 0xff;
+	bldev = backlight_device_register(dev_name(&pdev->dev), &pdev->dev,
+					  bl, &adx_backlight_ops, &props);
 	if (!bldev) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	bldev->props.max_brightness = 0xff;
 	bldev->props.brightness = 0xff;
 	bldev->props.power = FB_BLANK_UNBLANK;
 

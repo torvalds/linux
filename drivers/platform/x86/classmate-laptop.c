@@ -462,11 +462,13 @@ static struct backlight_ops cmpc_bl_ops = {
 
 static int cmpc_bl_add(struct acpi_device *acpi)
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 
-	bd = backlight_device_register("cmpc_bl", &acpi->dev,
-				       acpi->handle, &cmpc_bl_ops);
-	bd->props.max_brightness = 7;
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 7;
+	bd = backlight_device_register("cmpc_bl", &acpi->dev, acpi->handle,
+				       &cmpc_bl_ops, &props);
 	dev_set_drvdata(&acpi->dev, bd);
 	return 0;
 }

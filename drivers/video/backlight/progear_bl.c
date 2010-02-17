@@ -61,6 +61,7 @@ static const struct backlight_ops progearbl_ops = {
 
 static int progearbl_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	u8 temp;
 	struct backlight_device *progear_backlight_device;
 	int ret;
@@ -82,9 +83,12 @@ static int progearbl_probe(struct platform_device *pdev)
 	pci_read_config_byte(sb_dev, SB_MPS1, &temp);
 	pci_write_config_byte(sb_dev, SB_MPS1, temp | 0x20);
 
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
 	progear_backlight_device = backlight_device_register("progear-bl",
 							     &pdev->dev, NULL,
-							     &progearbl_ops);
+							     &progearbl_ops,
+							     &props);
 	if (IS_ERR(progear_backlight_device)) {
 		ret = PTR_ERR(progear_backlight_device);
 		goto put_sb;
@@ -94,7 +98,6 @@ static int progearbl_probe(struct platform_device *pdev)
 
 	progear_backlight_device->props.power = FB_BLANK_UNBLANK;
 	progear_backlight_device->props.brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
-	progear_backlight_device->props.max_brightness = HW_LEVEL_MAX - HW_LEVEL_MIN;
 	progearbl_set_intensity(progear_backlight_device);
 
 	return 0;

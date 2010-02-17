@@ -249,12 +249,15 @@ static int __init msi_wmi_init(void)
 		goto err_uninstall_notifier;
 
 	if (!acpi_video_backlight_support()) {
-		backlight = backlight_device_register(DRV_NAME,
-				NULL, NULL, &msi_backlight_ops);
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
+		backlight = backlight_device_register(DRV_NAME, NULL, NULL,
+						      &msi_backlight_ops,
+						      &props);
 		if (IS_ERR(backlight))
 			goto err_free_input;
 
-		backlight->props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
 		err = bl_get(NULL);
 		if (err < 0)
 			goto err_free_backlight;
