@@ -3062,8 +3062,9 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 
 	} else
 		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
-
-	if (sas_is_tlr_enabled(scmd->device))
+	/* Make sure Device is not raid volume */
+	if (!_scsih_is_raid(&scmd->device->sdev_gendev) &&
+	    sas_is_tlr_enabled(scmd->device))
 		mpi_control |= MPI2_SCSIIO_CONTROL_TLR_ON;
 
 	smid = mpt2sas_base_get_smid_scsiio(ioc, ioc->scsi_io_cb_idx, scmd);
@@ -3452,7 +3453,8 @@ _scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index, u32 reply)
 		    le32_to_cpu(mpi_reply->ResponseInfo) & 0xFF;
 	if (!sas_device_priv_data->tlr_snoop_check) {
 		sas_device_priv_data->tlr_snoop_check++;
-		if (sas_is_tlr_enabled(scmd->device) &&
+	if (!_scsih_is_raid(&scmd->device->sdev_gendev) &&
+		sas_is_tlr_enabled(scmd->device) &&
 		    response_code == MPI2_SCSITASKMGMT_RSP_INVALID_FRAME) {
 			sas_disable_tlr(scmd->device);
 			sdev_printk(KERN_INFO, scmd->device, "TLR disabled\n");
