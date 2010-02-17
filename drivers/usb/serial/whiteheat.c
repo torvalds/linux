@@ -1492,21 +1492,9 @@ static void rx_data_softint(struct work_struct *work)
 		wrap = list_entry(tmp, struct whiteheat_urb_wrap, list);
 		urb = wrap->urb;
 
-		if (tty && urb->actual_length) {
-			int len = tty_buffer_request_room(tty,
-							urb->actual_length);
-			/* This stuff can go away now I suspect */
-			if (unlikely(len < urb->actual_length)) {
-				spin_lock_irqsave(&info->lock, flags);
-				list_add(tmp, &info->rx_urb_q);
-				spin_unlock_irqrestore(&info->lock, flags);
-				tty_flip_buffer_push(tty);
-				schedule_work(&info->rx_work);
-				goto out;
-			}
-			tty_insert_flip_string(tty, urb->transfer_buffer, len);
-			sent += len;
-		}
+		if (tty && urb->actual_length)
+			sent += tty_insert_flip_string(tty,
+				urb->transfer_buffer, urb->actual_length);
 
 		urb->dev = port->serial->dev;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
