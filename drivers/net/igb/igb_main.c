@@ -1365,7 +1365,6 @@ void igb_reset(struct igb_adapter *adapter)
 	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
-	igb_reset_adaptive(hw);
 	igb_get_phy_info(hw);
 }
 
@@ -1508,7 +1507,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	igb_get_bus_info_pcie(hw);
 
 	hw->phy.autoneg_wait_to_complete = false;
-	hw->mac.adaptive_ifs = true;
 
 	/* Copper options */
 	if (hw->phy.media_type == e1000_media_type_copper) {
@@ -3159,7 +3157,6 @@ static void igb_watchdog_task(struct work_struct *work)
 	}
 
 	igb_update_stats(adapter);
-	igb_update_adaptive(hw);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct igb_ring *tx_ring = adapter->tx_ring[i];
@@ -4064,11 +4061,8 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.mptc += rd32(E1000_MPTC);
 	adapter->stats.bptc += rd32(E1000_BPTC);
 
-	/* used for adaptive IFS */
-	hw->mac.tx_packet_delta = rd32(E1000_TPT);
-	adapter->stats.tpt += hw->mac.tx_packet_delta;
-	hw->mac.collision_delta = rd32(E1000_COLC);
-	adapter->stats.colc += hw->mac.collision_delta;
+	adapter->stats.tpt += rd32(E1000_TPT);
+	adapter->stats.colc += rd32(E1000_COLC);
 
 	adapter->stats.algnerrc += rd32(E1000_ALGNERRC);
 	adapter->stats.rxerrc += rd32(E1000_RXERRC);

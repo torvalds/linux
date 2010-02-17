@@ -313,12 +313,6 @@
 #define E1000_PBA_34K 0x0022
 #define E1000_PBA_64K 0x0040    /* 64KB */
 
-#define IFS_MAX       80
-#define IFS_MIN       40
-#define IFS_RATIO     4
-#define IFS_STEP      10
-#define MIN_NUM_XMITS 1000
-
 /* SW Semaphore Register */
 #define E1000_SWSM_SMBI         0x00000001 /* Driver Semaphore bit */
 #define E1000_SWSM_SWESMBI      0x00000002 /* FW Semaphore bit */
