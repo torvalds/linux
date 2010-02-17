@@ -79,7 +79,7 @@ static void __init mxc_board_init(void)
 
 static void __init mx51_babbage_timer_init(void)
 {
-	mx51_clocks_init(32768, 24000000, 22579200, 24576000);
+	mx51_clocks_init(32768, 24000000, 22579200, 0);
 }
 
 static struct sys_timer mxc_timer = {
