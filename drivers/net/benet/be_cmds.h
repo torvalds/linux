@@ -937,6 +937,8 @@ extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_fw_init(struct be_adapter *adapter);
 extern int be_cmd_fw_clean(struct be_adapter *adapter);
+extern void be_async_mcc_enable(struct be_adapter *adapter);
+extern void be_async_mcc_disable(struct be_adapter *adapter);
 extern int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 				u32 loopback_type, u32 pkt_size,
 				u32 num_pkts, u64 pattern);

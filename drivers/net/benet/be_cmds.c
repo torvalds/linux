@@ -104,10 +104,26 @@ static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)
 	return NULL;
 }
 
+void be_async_mcc_enable(struct be_adapter *adapter)
+{
+	spin_lock_bh(&adapter->mcc_cq_lock);
+
+	be_cq_notify(adapter, adapter->mcc_obj.cq.id, true, 0);
+	adapter->mcc_obj.rearm_cq = true;
+
+	spin_unlock_bh(&adapter->mcc_cq_lock);
+}
+
+void be_async_mcc_disable(struct be_adapter *adapter)
+{
+	adapter->mcc_obj.rearm_cq = false;
+}
+
 int be_process_mcc(struct be_adapter *adapter)
 {
 	struct be_mcc_compl *compl;
 	int num = 0, status = 0;
+	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	spin_lock_bh(&adapter->mcc_cq_lock);
 	while ((compl = be_mcc_compl_get(adapter))) {
@@ -120,14 +136,14 @@ int be_process_mcc(struct be_adapter *adapter)
 				(struct be_async_event_link_state *) compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 				status = be_mcc_compl_process(adapter, compl);
-				atomic_dec(&adapter->mcc_obj.q.used);
+				atomic_dec(&mcc_obj->q.used);
 		}
 		be_mcc_compl_use(compl);
 		num++;
 	}
 
 	if (num)
-		be_cq_notify(adapter, adapter->mcc_obj.cq.id, true, num);
+		be_cq_notify(adapter, mcc_obj->cq.id, mcc_obj->rearm_cq, num);
 
 	spin_unlock_bh(&adapter->mcc_cq_lock);
 	return status;

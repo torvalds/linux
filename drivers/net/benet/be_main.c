@@ -1655,6 +1655,9 @@ static int be_open(struct net_device *netdev)
 	/* Rx compl queue may be in unarmed state; rearm it */
 	be_cq_notify(adapter, adapter->rx_obj.cq.id, true, 0);
 
+	/* Now that interrupts are on we can process async mcc */
+	be_async_mcc_enable(adapter);
+
 	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
 			&link_speed);
 	if (status)
@@ -1779,6 +1782,8 @@ static int be_close(struct net_device *netdev)
 	int vec;
 
 	cancel_delayed_work_sync(&adapter->work);
+
+	be_async_mcc_disable(adapter);
 
 	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
