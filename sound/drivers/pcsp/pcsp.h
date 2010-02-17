@@ -16,7 +16,7 @@
 #include <asm/i8253.h>
 #else
 #include <asm/8253pit.h>
-static DEFINE_SPINLOCK(i8253_lock);
+static DEFINE_RAW_SPINLOCK(i8253_lock);
 #endif
 
 #define PCSP_SOUND_VERSION 0x400	/* read 4.00 */
