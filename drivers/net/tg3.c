@@ -1035,6 +1035,17 @@ static void tg3_mdio_start(struct tg3 *tp)
 	tw32_f(MAC_MI_MODE, tp->mi_mode);
 	udelay(80);
 
+	if ((tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) &&
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
+		tg3_mdio_config_5785(tp);
+}
+
+static int tg3_mdio_init(struct tg3 *tp)
+{
+	int i;
+	u32 reg;
+	struct phy_device *phydev;
+
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
 		u32 funcnum, is_serdes;
 
@@ -1053,17 +1064,6 @@ static void tg3_mdio_start(struct tg3 *tp)
 			tp->phy_addr += 7;
 	} else
 		tp->phy_addr = TG3_PHY_MII_ADDR;
-
-	if ((tp->tg3_flags3 & TG3_FLG3_MDIOBUS_INITED) &&
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785)
-		tg3_mdio_config_5785(tp);
-}
-
-static int tg3_mdio_init(struct tg3 *tp)
-{
-	int i;
-	u32 reg;
-	struct phy_device *phydev;
 
 	tg3_mdio_start(tp);
 
