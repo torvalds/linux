@@ -173,12 +173,22 @@ static void __init igep2_init_irq(void)
 	omap_gpio_init();
 }
 
+static struct twl4030_codec_audio_data igep2_audio_data = {
+	.audio_mclk = 26000000,
+};
+
+static struct twl4030_codec_data igep2_codec_data = {
+	.audio_mclk = 26000000,
+	.audio = &igep2_audio_data,
+};
+
 static struct twl4030_platform_data igep2_twldata = {
 	.irq_base	= TWL4030_IRQ_BASE,
 	.irq_end	= TWL4030_IRQ_END,
 
 	/* platform_data for children goes here */
 	.usb		= &igep2_usb_data,
+	.codec		= &igep2_codec_data,
 	.gpio		= &igep2_gpio_data,
 	.vmmc1          = &igep2_vmmc1,
 
