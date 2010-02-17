@@ -224,6 +224,13 @@ static int temac_set_mac_address(struct net_device *ndev, void *address)
 	return 0;
 }
 
+static int netdev_set_mac_address(struct net_device *ndev, void *p)
+{
+	struct sockaddr *addr = p;
+
+	return temac_set_mac_address(ndev, addr->sa_data);
+}
+
 static void temac_set_multicast_list(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
@@ -768,7 +775,7 @@ static const struct net_device_ops temac_netdev_ops = {
 	.ndo_open = temac_open,
 	.ndo_stop = temac_stop,
 	.ndo_start_xmit = temac_start_xmit,
-	.ndo_set_mac_address = temac_set_mac_address,
+	.ndo_set_mac_address = netdev_set_mac_address,
 	//.ndo_set_multicast_list = temac_set_multicast_list,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = temac_poll_controller,
