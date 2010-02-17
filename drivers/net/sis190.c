@@ -47,7 +47,7 @@
 #define PHY_ID_ANY		0x1f
 #define MII_REG_ANY		0x1f
 
-#define DRV_VERSION		"1.3"
+#define DRV_VERSION		"1.4"
 #define DRV_NAME		"sis190"
 #define SIS190_DRIVER_NAME	DRV_NAME " Gigabit Ethernet driver " DRV_VERSION
 #define PFX DRV_NAME ": "
@@ -294,6 +294,7 @@ struct sis190_private {
 	struct mii_if_info mii_if;
 	struct list_head first_phy;
 	u32 features;
+	u32 negotiated_lpa;
 };
 
 struct sis190_phy {
@@ -1004,6 +1005,8 @@ static void sis190_phy_task(struct work_struct *work)
 			SIS_W32(RGDelay, 0x0440);
 		}
 
+		tp->negotiated_lpa = p->val;
+
 		net_link(tp, KERN_INFO "%s: link on %s mode.\n", dev->name,
 			 p->msg);
 		netif_carrier_on(dev);
@@ -1211,6 +1214,12 @@ static netdev_tx_t sis190_start_xmit(struct sk_buff *skb,
 	wmb();
 
 	desc->status = cpu_to_le32(OWNbit | INTbit | DEFbit | CRCbit | PADbit);
+	if (tp->negotiated_lpa & (LPA_1000HALF | LPA_100HALF | LPA_10HALF)) {
+		/* Half Duplex */
+		desc->status |= cpu_to_le32(COLEN | CRSEN | BKFEN);
+		if (tp->negotiated_lpa & (LPA_1000HALF | LPA_1000FULL))
+			desc->status |= cpu_to_le32(EXTEN | BSTEN); /* gigabit HD */
+	}
 
 	tp->cur_tx++;
 
