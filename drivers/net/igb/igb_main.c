@@ -2883,7 +2883,6 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 	struct e1000_hw *hw = &adapter->hw;
 	struct dev_mc_list *mc_ptr = netdev->mc_list;
 	u8  *mta_list;
-	u32 vmolr = 0;
 	int i;
 
 	if (netdev_mc_empty(netdev)) {
@@ -2896,9 +2895,6 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 	mta_list = kzalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
 	if (!mta_list)
 		return -ENOMEM;
-
-	/* set vmolr receive overflow multicast bit */
-	vmolr |= E1000_VMOLR_ROMPE;
 
 	/* The shared function expects a packed array of only addresses. */
 	mc_ptr = netdev->mc_list;
