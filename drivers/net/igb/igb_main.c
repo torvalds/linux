@@ -318,31 +318,35 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 		 */
 		if (adapter->vfs_allocated_count) {
 			for (; i < adapter->rss_queues; i++)
-				adapter->rx_ring[i].reg_idx = rbase_offset +
-				                              Q_IDX_82576(i);
+				adapter->rx_ring[i]->reg_idx = rbase_offset +
+				                               Q_IDX_82576(i);
 			for (; j < adapter->rss_queues; j++)
-				adapter->tx_ring[j].reg_idx = rbase_offset +
-				                              Q_IDX_82576(j);
+				adapter->tx_ring[j]->reg_idx = rbase_offset +
+				                               Q_IDX_82576(j);
 		}
 	case e1000_82575:
 	case e1000_82580:
 	default:
 		for (; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].reg_idx = rbase_offset + i;
+			adapter->rx_ring[i]->reg_idx = rbase_offset + i;
 		for (; j < adapter->num_tx_queues; j++)
-			adapter->tx_ring[j].reg_idx = rbase_offset + j;
+			adapter->tx_ring[j]->reg_idx = rbase_offset + j;
 		break;
 	}
 }
 
 static void igb_free_queues(struct igb_adapter *adapter)
 {
-	kfree(adapter->tx_ring);
-	kfree(adapter->rx_ring);
+	int i;
 
-	adapter->tx_ring = NULL;
-	adapter->rx_ring = NULL;
-
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		kfree(adapter->tx_ring[i]);
+		adapter->tx_ring[i] = NULL;
+	}
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		kfree(adapter->rx_ring[i]);
+		adapter->rx_ring[i] = NULL;
+	}
 	adapter->num_rx_queues = 0;
 	adapter->num_tx_queues = 0;
 }
@@ -356,20 +360,13 @@ static void igb_free_queues(struct igb_adapter *adapter)
  **/
 static int igb_alloc_queues(struct igb_adapter *adapter)
 {
+	struct igb_ring *ring;
 	int i;
 
-	adapter->tx_ring = kcalloc(adapter->num_tx_queues,
-				   sizeof(struct igb_ring), GFP_KERNEL);
-	if (!adapter->tx_ring)
-		goto err;
-
-	adapter->rx_ring = kcalloc(adapter->num_rx_queues,
-				   sizeof(struct igb_ring), GFP_KERNEL);
-	if (!adapter->rx_ring)
-		goto err;
-
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		struct igb_ring *ring = &(adapter->tx_ring[i]);
+		ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
+		if (!ring)
+			goto err;
 		ring->count = adapter->tx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
@@ -377,10 +374,13 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		/* For 82575, context index must be unique per ring. */
 		if (adapter->hw.mac.type == e1000_82575)
 			ring->flags = IGB_RING_FLAG_TX_CTX_IDX;
+		adapter->tx_ring[i] = ring;
 	}
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct igb_ring *ring = &(adapter->rx_ring[i]);
+		ring = kzalloc(sizeof(struct igb_ring), GFP_KERNEL);
+		if (!ring)
+			goto err;
 		ring->count = adapter->rx_ring_count;
 		ring->queue_index = i;
 		ring->pdev = adapter->pdev;
@@ -390,6 +390,7 @@ static int igb_alloc_queues(struct igb_adapter *adapter)
 		/* set flag indicating ring supports SCTP checksum offload */
 		if (adapter->hw.mac.type >= e1000_82576)
 			ring->flags |= IGB_RING_FLAG_RX_SCTP_CSUM;
+		adapter->rx_ring[i] = ring;
 	}
 
 	igb_cache_ring_register(adapter);
@@ -780,10 +781,9 @@ err_out:
 static void igb_map_rx_ring_to_vector(struct igb_adapter *adapter,
                                       int ring_idx, int v_idx)
 {
-	struct igb_q_vector *q_vector;
+	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
-	q_vector = adapter->q_vector[v_idx];
-	q_vector->rx_ring = &adapter->rx_ring[ring_idx];
+	q_vector->rx_ring = adapter->rx_ring[ring_idx];
 	q_vector->rx_ring->q_vector = q_vector;
 	q_vector->itr_val = adapter->rx_itr_setting;
 	if (q_vector->itr_val && q_vector->itr_val <= 3)
@@ -793,10 +793,9 @@ static void igb_map_rx_ring_to_vector(struct igb_adapter *adapter,
 static void igb_map_tx_ring_to_vector(struct igb_adapter *adapter,
                                       int ring_idx, int v_idx)
 {
-	struct igb_q_vector *q_vector;
+	struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 
-	q_vector = adapter->q_vector[v_idx];
-	q_vector->tx_ring = &adapter->tx_ring[ring_idx];
+	q_vector->tx_ring = adapter->tx_ring[ring_idx];
 	q_vector->tx_ring->q_vector = q_vector;
 	q_vector->itr_val = adapter->tx_itr_setting;
 	if (q_vector->itr_val && q_vector->itr_val <= 3)
@@ -1106,7 +1105,7 @@ static void igb_configure(struct igb_adapter *adapter)
 	 * at least 1 descriptor unused to make sure
 	 * next_to_use != next_to_clean */
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct igb_ring *ring = &adapter->rx_ring[i];
+		struct igb_ring *ring = adapter->rx_ring[i];
 		igb_alloc_rx_buffers_adv(ring, igb_desc_unused(ring));
 	}
 
@@ -2148,19 +2147,19 @@ static int igb_setup_all_tx_resources(struct igb_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		err = igb_setup_tx_resources(&adapter->tx_ring[i]);
+		err = igb_setup_tx_resources(adapter->tx_ring[i]);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Allocation for Tx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
-				igb_free_tx_resources(&adapter->tx_ring[i]);
+				igb_free_tx_resources(adapter->tx_ring[i]);
 			break;
 		}
 	}
 
 	for (i = 0; i < IGB_ABS_MAX_TX_QUEUES; i++) {
 		int r_idx = i % adapter->num_tx_queues;
-		adapter->multi_tx_table[i] = &adapter->tx_ring[r_idx];
+		adapter->multi_tx_table[i] = adapter->tx_ring[r_idx];
 	}
 	return err;
 }
@@ -2243,7 +2242,7 @@ static void igb_configure_tx(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_configure_tx_ring(adapter, &adapter->tx_ring[i]);
+		igb_configure_tx_ring(adapter, adapter->tx_ring[i]);
 }
 
 /**
@@ -2301,12 +2300,12 @@ static int igb_setup_all_rx_resources(struct igb_adapter *adapter)
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		err = igb_setup_rx_resources(&adapter->rx_ring[i]);
+		err = igb_setup_rx_resources(adapter->rx_ring[i]);
 		if (err) {
 			dev_err(&pdev->dev,
 				"Allocation for Rx Queue %u failed\n", i);
 			for (i--; i >= 0; i--)
-				igb_free_rx_resources(&adapter->rx_ring[i]);
+				igb_free_rx_resources(adapter->rx_ring[i]);
 			break;
 		}
 	}
@@ -2634,7 +2633,7 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring */
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_configure_rx_ring(adapter, &adapter->rx_ring[i]);
+		igb_configure_rx_ring(adapter, adapter->rx_ring[i]);
 }
 
 /**
@@ -2671,7 +2670,7 @@ static void igb_free_all_tx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_free_tx_resources(&adapter->tx_ring[i]);
+		igb_free_tx_resources(adapter->tx_ring[i]);
 }
 
 void igb_unmap_and_free_tx_resource(struct igb_ring *tx_ring,
@@ -2738,7 +2737,7 @@ static void igb_clean_all_tx_rings(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
-		igb_clean_tx_ring(&adapter->tx_ring[i]);
+		igb_clean_tx_ring(adapter->tx_ring[i]);
 }
 
 /**
@@ -2775,7 +2774,7 @@ static void igb_free_all_rx_resources(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_free_rx_resources(&adapter->rx_ring[i]);
+		igb_free_rx_resources(adapter->rx_ring[i]);
 }
 
 /**
@@ -2839,7 +2838,7 @@ static void igb_clean_all_rx_rings(struct igb_adapter *adapter)
 	int i;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		igb_clean_rx_ring(&adapter->rx_ring[i]);
+		igb_clean_rx_ring(adapter->rx_ring[i]);
 }
 
 /**
@@ -3163,7 +3162,7 @@ static void igb_watchdog_task(struct work_struct *work)
 	igb_update_adaptive(hw);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		struct igb_ring *tx_ring = &adapter->tx_ring[i];
+		struct igb_ring *tx_ring = adapter->tx_ring[i];
 		if (!netif_carrier_ok(netdev)) {
 			/* We've lost link, so the controller stops DMA,
 			 * but we've got queued Tx work that's never going
@@ -3359,13 +3358,13 @@ static void igb_set_itr(struct igb_adapter *adapter)
 
 	adapter->rx_itr = igb_update_itr(adapter,
 				    adapter->rx_itr,
-				    adapter->rx_ring->total_packets,
-				    adapter->rx_ring->total_bytes);
+				    q_vector->rx_ring->total_packets,
+				    q_vector->rx_ring->total_bytes);
 
 	adapter->tx_itr = igb_update_itr(adapter,
 				    adapter->tx_itr,
-				    adapter->tx_ring->total_packets,
-				    adapter->tx_ring->total_bytes);
+				    q_vector->tx_ring->total_packets,
+				    q_vector->tx_ring->total_bytes);
 	current_itr = max(adapter->rx_itr, adapter->tx_itr);
 
 	/* conservative mode (itr 3) eliminates the lowest_latency setting */
@@ -3388,10 +3387,10 @@ static void igb_set_itr(struct igb_adapter *adapter)
 	}
 
 set_itr_now:
-	adapter->rx_ring->total_bytes = 0;
-	adapter->rx_ring->total_packets = 0;
-	adapter->tx_ring->total_bytes = 0;
-	adapter->tx_ring->total_packets = 0;
+	q_vector->rx_ring->total_bytes = 0;
+	q_vector->rx_ring->total_packets = 0;
+	q_vector->tx_ring->total_bytes = 0;
+	q_vector->tx_ring->total_packets = 0;
 
 	if (new_itr != q_vector->itr_val) {
 		/* this attempts to bias the interrupt rate towards Bulk
@@ -3950,7 +3949,7 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
-		adapter->rx_ring[i].rx_buffer_len = rx_buffer_len;
+		adapter->rx_ring[i]->rx_buffer_len = rx_buffer_len;
 
 	if (netif_running(netdev))
 		igb_up(adapter);
@@ -3992,10 +3991,11 @@ void igb_update_stats(struct igb_adapter *adapter)
 	packets = 0;
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		u32 rqdpc_tmp = rd32(E1000_RQDPC(i)) & 0x0FFF;
-		adapter->rx_ring[i].rx_stats.drops += rqdpc_tmp;
+		struct igb_ring *ring = adapter->rx_ring[i];
+		ring->rx_stats.drops += rqdpc_tmp;
 		net_stats->rx_fifo_errors += rqdpc_tmp;
-		bytes += adapter->rx_ring[i].rx_stats.bytes;
-		packets += adapter->rx_ring[i].rx_stats.packets;
+		bytes += ring->rx_stats.bytes;
+		packets += ring->rx_stats.packets;
 	}
 
 	net_stats->rx_bytes = bytes;
@@ -4004,8 +4004,9 @@ void igb_update_stats(struct igb_adapter *adapter)
 	bytes = 0;
 	packets = 0;
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		bytes += adapter->tx_ring[i].tx_stats.bytes;
-		packets += adapter->tx_ring[i].tx_stats.packets;
+		struct igb_ring *ring = adapter->tx_ring[i];
+		bytes += ring->tx_stats.bytes;
+		packets += ring->tx_stats.packets;
 	}
 	net_stats->tx_bytes = bytes;
 	net_stats->tx_packets = packets;

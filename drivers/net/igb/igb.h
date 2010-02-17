@@ -240,7 +240,6 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 }
 
 /* board specific private data structure */
-
 struct igb_adapter {
 	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
@@ -266,12 +265,12 @@ struct igb_adapter {
 	unsigned long led_status;
 
 	/* TX */
-	struct igb_ring *tx_ring;      /* One per active queue */
+	struct igb_ring *tx_ring[16];
 	unsigned long tx_queue_len;
 	u32 tx_timeout_count;
 
 	/* RX */
-	struct igb_ring *rx_ring;      /* One per active queue */
+	struct igb_ring *rx_ring[16];
 	int num_tx_queues;
 	int num_rx_queues;
 

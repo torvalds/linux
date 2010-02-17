@@ -314,7 +314,7 @@ static int igb_set_pauseparam(struct net_device *netdev,
 static u32 igb_get_rx_csum(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	return !!(adapter->rx_ring[0].flags & IGB_RING_FLAG_RX_CSUM);
+	return !!(adapter->rx_ring[0]->flags & IGB_RING_FLAG_RX_CSUM);
 }
 
 static int igb_set_rx_csum(struct net_device *netdev, u32 data)
@@ -324,9 +324,9 @@ static int igb_set_rx_csum(struct net_device *netdev, u32 data)
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		if (data)
-			adapter->rx_ring[i].flags |= IGB_RING_FLAG_RX_CSUM;
+			adapter->rx_ring[i]->flags |= IGB_RING_FLAG_RX_CSUM;
 		else
-			adapter->rx_ring[i].flags &= ~IGB_RING_FLAG_RX_CSUM;
+			adapter->rx_ring[i]->flags &= ~IGB_RING_FLAG_RX_CSUM;
 	}
 
 	return 0;
@@ -789,9 +789,9 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].count = new_tx_count;
+			adapter->tx_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].count = new_rx_count;
+			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
 		goto clear_reset;
@@ -815,10 +815,10 @@ static int igb_set_ringparam(struct net_device *netdev,
 	 * to the tx and rx ring structs.
 	 */
 	if (new_tx_count != adapter->tx_ring_count) {
-		memcpy(temp_ring, adapter->tx_ring,
-		       adapter->num_tx_queues * sizeof(struct igb_ring));
-
 		for (i = 0; i < adapter->num_tx_queues; i++) {
+			memcpy(&temp_ring[i], adapter->tx_ring[i],
+			       sizeof(struct igb_ring));
+
 			temp_ring[i].count = new_tx_count;
 			err = igb_setup_tx_resources(&temp_ring[i]);
 			if (err) {
@@ -830,20 +830,21 @@ static int igb_set_ringparam(struct net_device *netdev,
 			}
 		}
 
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			igb_free_tx_resources(&adapter->tx_ring[i]);
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			igb_free_tx_resources(adapter->tx_ring[i]);
 
-		memcpy(adapter->tx_ring, temp_ring,
-		       adapter->num_tx_queues * sizeof(struct igb_ring));
+			memcpy(adapter->tx_ring[i], &temp_ring[i],
+			       sizeof(struct igb_ring));
+		}
 
 		adapter->tx_ring_count = new_tx_count;
 	}
 
-	if (new_rx_count != adapter->rx_ring->count) {
-		memcpy(temp_ring, adapter->rx_ring,
-		       adapter->num_rx_queues * sizeof(struct igb_ring));
-
+	if (new_rx_count != adapter->rx_ring_count) {
 		for (i = 0; i < adapter->num_rx_queues; i++) {
+			memcpy(&temp_ring[i], adapter->rx_ring[i],
+			       sizeof(struct igb_ring));
+
 			temp_ring[i].count = new_rx_count;
 			err = igb_setup_rx_resources(&temp_ring[i]);
 			if (err) {
@@ -856,11 +857,12 @@ static int igb_set_ringparam(struct net_device *netdev,
 
 		}
 
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			igb_free_rx_resources(&adapter->rx_ring[i]);
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			igb_free_rx_resources(adapter->rx_ring[i]);
 
-		memcpy(adapter->rx_ring, temp_ring,
-		       adapter->num_rx_queues * sizeof(struct igb_ring));
+			memcpy(adapter->rx_ring[i], &temp_ring[i],
+			       sizeof(struct igb_ring));
+		}
 
 		adapter->rx_ring_count = new_rx_count;
 	}
@@ -2036,12 +2038,12 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 			sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
-		queue_stat = (u64 *)&adapter->tx_ring[j].tx_stats;
+		queue_stat = (u64 *)&adapter->tx_ring[j]->tx_stats;
 		for (k = 0; k < IGB_TX_QUEUE_STATS_LEN; k++, i++)
 			data[i] = queue_stat[k];
 	}
 	for (j = 0; j < adapter->num_rx_queues; j++) {
-		queue_stat = (u64 *)&adapter->rx_ring[j].rx_stats;
+		queue_stat = (u64 *)&adapter->rx_ring[j]->rx_stats;
 		for (k = 0; k < IGB_RX_QUEUE_STATS_LEN; k++, i++)
 			data[i] = queue_stat[k];
 	}
