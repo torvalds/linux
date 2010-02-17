@@ -37,7 +37,7 @@ static int pci_conf1_mq_read(unsigned int seg, unsigned int bus,
 	if (!value || (bus >= MAX_MP_BUSSES) || (devfn > 255) || (reg > 255))
 		return -EINVAL;
 
-	spin_lock_irqsave(&pci_config_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
 	write_cf8(bus, devfn, reg);
 
@@ -62,7 +62,7 @@ static int pci_conf1_mq_read(unsigned int seg, unsigned int bus,
 		break;
 	}
 
-	spin_unlock_irqrestore(&pci_config_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
 }
@@ -76,7 +76,7 @@ static int pci_conf1_mq_write(unsigned int seg, unsigned int bus,
 	if ((bus >= MAX_MP_BUSSES) || (devfn > 255) || (reg > 255)) 
 		return -EINVAL;
 
-	spin_lock_irqsave(&pci_config_lock, flags);
+	raw_spin_lock_irqsave(&pci_config_lock, flags);
 
 	write_cf8(bus, devfn, reg);
 
@@ -101,7 +101,7 @@ static int pci_conf1_mq_write(unsigned int seg, unsigned int bus,
 		break;
 	}
 
-	spin_unlock_irqrestore(&pci_config_lock, flags);
+	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
 }
