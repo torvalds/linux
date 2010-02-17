@@ -59,4 +59,6 @@ int xfs_flush_pages(struct xfs_inode *ip, xfs_off_t first,
 		xfs_off_t last, uint64_t flags, int fiopt);
 int xfs_wait_on_pages(struct xfs_inode *ip, xfs_off_t first, xfs_off_t last);
 
+int xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);
+
 #endif /* _XFS_VNODEOPS_H */
