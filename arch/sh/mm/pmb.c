@@ -102,24 +102,36 @@ static void pmb_free(struct pmb_entry *pmbe)
 }
 
 /*
+ * Ensure that the PMB entries match our cache configuration.
+ *
+ * When we are in 32-bit address extended mode, CCR.CB becomes
+ * invalid, so care must be taken to manually adjust cacheable
+ * translations.
+ */
+static __always_inline unsigned long pmb_cache_flags(void)
+{
+	unsigned long flags = 0;
+
+#if defined(CONFIG_CACHE_WRITETHROUGH)
+	flags |= PMB_C | PMB_WT | PMB_UB;
+#elif defined(CONFIG_CACHE_WRITEBACK)
+	flags |= PMB_C;
+#endif
+
+	return flags;
+}
+
+/*
  * Must be run uncached.
  */
 static void set_pmb_entry(struct pmb_entry *pmbe)
 {
 	jump_to_uncached();
 
+	pmbe->flags &= ~PMB_CACHE_MASK;
+	pmbe->flags |= pmb_cache_flags();
+
 	__raw_writel(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
-
-#ifdef CONFIG_CACHE_WRITETHROUGH
-	/*
-	 * When we are in 32-bit address extended mode, CCR.CB becomes
-	 * invalid, so care must be taken to manually adjust cacheable
-	 * translations.
-	 */
-	if (likely(pmbe->flags & PMB_C))
-		pmbe->flags |= PMB_WT;
-#endif
-
 	__raw_writel(pmbe->ppn | pmbe->flags | PMB_V, mk_pmb_data(pmbe->entry));
 
 	back_to_cached();
@@ -163,14 +175,15 @@ long pmb_remap(unsigned long vaddr, unsigned long phys,
 
 	flags = pgprot_val(prot);
 
+	pmb_flags = PMB_WT | PMB_UB;
+
 	/* Convert typical pgprot value to the PMB equivalent */
 	if (flags & _PAGE_CACHABLE) {
-		if (flags & _PAGE_WT)
-			pmb_flags = PMB_WT;
-		else
-			pmb_flags = PMB_C;
-	} else
-		pmb_flags = PMB_WT | PMB_UB;
+		pmb_flags |= PMB_C;
+
+		if ((flags & _PAGE_WT) == 0)
+			pmb_flags &= ~(PMB_WT | PMB_UB);
+	}
 
 	pmbp = NULL;
 	wanted = size;
@@ -337,13 +350,8 @@ static int pmb_synchronize_mappings(void)
 		 * Update the caching attributes if necessary
 		 */
 		if (data_val & PMB_C) {
-#if defined(CONFIG_CACHE_WRITETHROUGH)
-			data_val |= PMB_WT;
-#elif defined(CONFIG_CACHE_WRITEBACK)
-			data_val &= ~PMB_WT;
-#else
-			data_val &= ~(PMB_C | PMB_WT);
-#endif
+			data_val &= ~PMB_CACHE_MASK;
+			data_val |= pmb_cache_flags();
 			__raw_writel(data_val, data);
 		}
 
