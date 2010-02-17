@@ -38,10 +38,13 @@ static int wm831x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
+	int val = WM831X_GPN_DIR;
+
+	if (wm831x->has_gpio_ena)
+		val |= WM831X_GPN_TRI;
 
 	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			       WM831X_GPN_DIR | WM831X_GPN_TRI,
-			       WM831X_GPN_DIR);
+			       WM831X_GPN_DIR | WM831X_GPN_TRI, val);
 }
 
 static int wm831x_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -74,10 +77,14 @@ static int wm831x_gpio_direction_out(struct gpio_chip *chip,
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
+	int val = 0;
 	int ret;
 
+	if (wm831x->has_gpio_ena)
+		val |= WM831X_GPN_TRI;
+
 	ret = wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			      WM831X_GPN_DIR | WM831X_GPN_TRI, 0);
+			      WM831X_GPN_DIR | WM831X_GPN_TRI, val);
 	if (ret < 0)
 		return ret;
 
@@ -103,7 +110,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {
 	struct wm831x_gpio *wm831x_gpio = to_wm831x_gpio(chip);
 	struct wm831x *wm831x = wm831x_gpio->wm831x;
-	int i;
+	int i, tristated;
 
 	for (i = 0; i < chip->ngpio; i++) {
 		int gpio = i + chip->base;
@@ -170,6 +177,10 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			break;
 		}
 
+		tristated = reg & WM831X_GPN_TRI;
+		if (wm831x->has_gpio_ena)
+			tristated = !tristated;
+
 		seq_printf(s, " %s %s %s %s%s\n"
 			   "                                  %s%s (0x%4x)\n",
 			   reg & WM831X_GPN_DIR ? "in" : "out",
@@ -178,7 +189,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			   powerdomain,
 			   reg & WM831X_GPN_POL ? "" : " inverted",
 			   reg & WM831X_GPN_OD ? "open-drain" : "CMOS",
-			   reg & WM831X_GPN_TRI ? " tristated" : "",
+			   tristated ? " tristated" : "",
 			   reg);
 	}
 }

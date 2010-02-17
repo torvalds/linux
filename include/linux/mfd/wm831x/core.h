@@ -254,6 +254,10 @@ struct wm831x {
 	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
 	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
 
+	/* Chip revision based flags */
+	unsigned has_gpio_ena:1;  /* Has GPIO enable bit */
+	unsigned has_cs_sts:1;    /* Has current sink status bit */
+
 	int num_gpio;
 
 	struct mutex auxadc_lock;
