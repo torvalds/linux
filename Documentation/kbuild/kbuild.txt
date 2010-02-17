@@ -65,7 +65,7 @@ CROSS_COMPILE
 Specify an optional fixed part of the binutils filename.
 CROSS_COMPILE can be a part of the filename or the full path.
 
-CROSS_COMPILE is also used for ccache is some setups.
+CROSS_COMPILE is also used for ccache in some setups.
 
 CF
 --------------------------------------------------
