@@ -791,27 +791,12 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 {
 	u32 reg;
-	u16 eeprom_data = 0;
 
-	if (hw->phy.media_type != e1000_media_type_internal_serdes ||
+	if (hw->phy.media_type != e1000_media_type_internal_serdes &&
 	    igb_sgmii_active_82575(hw))
 		return;
 
-	if (hw->bus.func == E1000_FUNC_0)
-		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
-	else if (hw->mac.type == e1000_82580)
-		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
-		                 NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
-		                 &eeprom_data);
-	else if (hw->bus.func == E1000_FUNC_1)
-		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
-
-	/*
-	 * If APM is not enabled in the EEPROM and management interface is
-	 * not enabled, then power down.
-	 */
-	if (!(eeprom_data & E1000_NVM_APME_82575) &&
-	    !igb_enable_mng_pass_thru(hw)) {
+	if (!igb_enable_mng_pass_thru(hw)) {
 		/* Disable PCS to turn off link */
 		reg = rd32(E1000_PCS_CFG0);
 		reg &= ~E1000_PCS_CFG_PCS_EN;
@@ -826,8 +811,6 @@ void igb_shutdown_serdes_link_82575(struct e1000_hw *hw)
 		wrfl();
 		msleep(1);
 	}
-
-	return;
 }
 
 /**
