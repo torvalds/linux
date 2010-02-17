@@ -33,6 +33,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/errno.h>
 #include <linux/threads.h>
+#include <asm/page.h>
 
 /* Default "unsigned long" context */
 typedef unsigned long mm_context_id_t[NR_CPUS];
@@ -71,13 +72,13 @@ struct pmb_entry {
 #ifdef CONFIG_PMB
 /* arch/sh/mm/pmb.c */
 long pmb_remap(unsigned long virt, unsigned long phys,
-	       unsigned long size, unsigned long flags);
+	       unsigned long size, pgprot_t prot);
 void pmb_unmap(unsigned long addr);
 int pmb_init(void);
 bool __in_29bit_mode(void);
 #else
 static inline long pmb_remap(unsigned long virt, unsigned long phys,
-			     unsigned long size, unsigned long flags)
+			     unsigned long size, pgprot_t prot)
 {
 	return -EINVAL;
 }

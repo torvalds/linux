@@ -24,6 +24,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -166,12 +167,15 @@ static struct {
 };
 
 long pmb_remap(unsigned long vaddr, unsigned long phys,
-	       unsigned long size, unsigned long flags)
+	       unsigned long size, pgprot_t prot)
 {
 	struct pmb_entry *pmbp, *pmbe;
 	unsigned long wanted;
 	int pmb_flags, i;
 	long err;
+	u64 flags;
+
+	flags = pgprot_val(prot);
 
 	/* Convert typical pgprot value to the PMB equivalent */
 	if (flags & _PAGE_CACHABLE) {
