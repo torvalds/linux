@@ -3,7 +3,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 /*
@@ -81,7 +81,7 @@ static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
 	flush_work(&unit->scsi_work);
 
 out_unit:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 out_port:
 	zfcp_ccw_adapter_put(adapter);
 out_ccw_device:
@@ -226,7 +226,7 @@ struct zfcp_unit *zfcp_get_unit_by_lun(struct zfcp_port *port, u64 fcp_lun)
 	read_lock_irqsave(&port->unit_list_lock, flags);
 	list_for_each_entry(unit, &port->unit_list, list)
 		if (unit->fcp_lun == fcp_lun) {
-			if (!get_device(&unit->sysfs_device))
+			if (!get_device(&unit->dev))
 				unit = NULL;
 			read_unlock_irqrestore(&port->unit_list_lock, flags);
 			return unit;
@@ -251,7 +251,7 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 	read_lock_irqsave(&adapter->port_list_lock, flags);
 	list_for_each_entry(port, &adapter->port_list, list)
 		if (port->wwpn == wwpn) {
-			if (!get_device(&port->sysfs_device))
+			if (!get_device(&port->dev))
 				port = NULL;
 			read_unlock_irqrestore(&adapter->port_list_lock, flags);
 			return port;
@@ -269,10 +269,9 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
  */
 static void zfcp_unit_release(struct device *dev)
 {
-	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit,
-					      sysfs_device);
+	struct zfcp_unit *unit = container_of(dev, struct zfcp_unit, dev);
 
-	put_device(&unit->port->sysfs_device);
+	put_device(&unit->port->dev);
 	kfree(unit);
 }
 
@@ -289,11 +288,11 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	struct zfcp_unit *unit;
 	int retval = -ENOMEM;
 
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 
 	unit = zfcp_get_unit_by_lun(port, fcp_lun);
 	if (unit) {
-		put_device(&unit->sysfs_device);
+		put_device(&unit->dev);
 		retval = -EEXIST;
 		goto err_out;
 	}
@@ -304,10 +303,10 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 
 	unit->port = port;
 	unit->fcp_lun = fcp_lun;
-	unit->sysfs_device.parent = &port->sysfs_device;
-	unit->sysfs_device.release = zfcp_unit_release;
+	unit->dev.parent = &port->dev;
+	unit->dev.release = zfcp_unit_release;
 
-	if (dev_set_name(&unit->sysfs_device, "0x%016llx",
+	if (dev_set_name(&unit->dev, "0x%016llx",
 			 (unsigned long long) fcp_lun)) {
 		kfree(unit);
 		goto err_out;
@@ -324,13 +323,12 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	unit->latencies.cmd.channel.min = 0xFFFFFFFF;
 	unit->latencies.cmd.fabric.min = 0xFFFFFFFF;
 
-	if (device_register(&unit->sysfs_device)) {
-		put_device(&unit->sysfs_device);
+	if (device_register(&unit->dev)) {
+		put_device(&unit->dev);
 		goto err_out;
 	}
 
-	if (sysfs_create_group(&unit->sysfs_device.kobj,
-			       &zfcp_sysfs_unit_attrs))
+	if (sysfs_create_group(&unit->dev.kobj, &zfcp_sysfs_unit_attrs))
 		goto err_out_put;
 
 	write_lock_irq(&port->unit_list_lock);
@@ -342,9 +340,9 @@ struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *port, u64 fcp_lun)
 	return unit;
 
 err_out_put:
-	device_unregister(&unit->sysfs_device);
+	device_unregister(&unit->dev);
 err_out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 	return ERR_PTR(retval);
 }
 
@@ -610,8 +608,7 @@ void zfcp_device_unregister(struct device *dev,
 
 static void zfcp_port_release(struct device *dev)
 {
-	struct zfcp_port *port = container_of(dev, struct zfcp_port,
-					      sysfs_device);
+	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 
 	zfcp_ccw_adapter_put(port->adapter);
 	kfree(port);
@@ -639,7 +636,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 
 	port = zfcp_get_port_by_wwpn(adapter, wwpn);
 	if (port) {
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 		retval = -EEXIST;
 		goto err_out;
 	}
@@ -659,22 +656,21 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	port->d_id = d_id;
 	port->wwpn = wwpn;
 	port->rport_task = RPORT_NONE;
-	port->sysfs_device.parent = &adapter->ccw_device->dev;
-	port->sysfs_device.release = zfcp_port_release;
+	port->dev.parent = &adapter->ccw_device->dev;
+	port->dev.release = zfcp_port_release;
 
-	if (dev_set_name(&port->sysfs_device, "0x%016llx",
-			 (unsigned long long)wwpn)) {
+	if (dev_set_name(&port->dev, "0x%016llx", (unsigned long long)wwpn)) {
 		kfree(port);
 		goto err_out;
 	}
 	retval = -EINVAL;
 
-	if (device_register(&port->sysfs_device)) {
-		put_device(&port->sysfs_device);
+	if (device_register(&port->dev)) {
+		put_device(&port->dev);
 		goto err_out;
 	}
 
-	if (sysfs_create_group(&port->sysfs_device.kobj,
+	if (sysfs_create_group(&port->dev.kobj,
 			       &zfcp_sysfs_port_attrs))
 		goto err_out_put;
 
@@ -687,7 +683,7 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	return port;
 
 err_out_put:
-	device_unregister(&port->sysfs_device);
+	device_unregister(&port->dev);
 err_out:
 	zfcp_ccw_adapter_put(adapter);
 	return ERR_PTR(retval);

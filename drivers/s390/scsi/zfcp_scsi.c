@@ -3,7 +3,7 @@
  *
  * Interface to Linux SCSI midlayer.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -44,7 +44,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 {
 	struct zfcp_unit *unit = (struct zfcp_unit *) sdpnt->hostdata;
 	unit->device = NULL;
-	put_device(&unit->sysfs_device);
+	put_device(&unit->dev);
 }
 
 static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
@@ -511,7 +511,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 
 	if (port) {
 		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 	}
 }
 
@@ -553,23 +553,23 @@ static void zfcp_scsi_rport_block(struct zfcp_port *port)
 
 void zfcp_scsi_schedule_rport_register(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	port->rport_task = RPORT_ADD;
 
 	if (!queue_work(port->adapter->work_queue, &port->rport_work))
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 }
 
 void zfcp_scsi_schedule_rport_block(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	port->rport_task = RPORT_DEL;
 
 	if (port->rport && queue_work(port->adapter->work_queue,
 				      &port->rport_work))
 		return;
 
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *adapter)
@@ -598,7 +598,7 @@ void zfcp_scsi_rport_work(struct work_struct *work)
 		}
 	}
 
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 
@@ -616,7 +616,7 @@ void zfcp_scsi_scan(struct work_struct *work)
 				 scsilun_to_int((struct scsi_lun *)
 						&unit->fcp_lun), 0);
 
-	put_device(&unit->sysfs_device);
+	put_device(&unit->dev);
 }
 
 struct fc_function_template zfcp_transport_functions = {

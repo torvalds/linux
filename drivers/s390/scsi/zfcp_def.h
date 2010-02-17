@@ -3,7 +3,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #ifndef ZFCP_DEF_H
@@ -237,7 +237,7 @@ struct zfcp_adapter {
 };
 
 struct zfcp_port {
-	struct device          sysfs_device;   /* sysfs device */
+	struct device          dev;
 	struct fc_rport        *rport;         /* rport of fc transport class */
 	struct list_head       list;	       /* list of remote ports */
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
@@ -259,7 +259,7 @@ struct zfcp_port {
 };
 
 struct zfcp_unit {
-	struct device          sysfs_device;   /* sysfs device */
+	struct device          dev;
 	struct list_head       list;	       /* list of logical units */
 	struct zfcp_port       *port;	       /* remote port of unit */
 	atomic_t	       status;	       /* status of this logical unit */

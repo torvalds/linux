@@ -3,7 +3,7 @@
  *
  * Implementation of FSF commands.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -1471,7 +1471,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	}
 
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 /**
@@ -1509,14 +1509,14 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	req->data = port;
 	req->erp_action = erp_action;
 	erp_action->fsf_req_id = req->req_id;
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
 		erp_action->fsf_req_id = 0;
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -2261,7 +2261,7 @@ skip_fsfstatus:
 	else {
 		zfcp_fsf_send_fcp_command_task_handler(req);
 		req->unit = NULL;
-		put_device(&unit->sysfs_device);
+		put_device(&unit->dev);
 	}
 }
 
@@ -2299,7 +2299,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	get_device(&unit->sysfs_device);
+	get_device(&unit->dev);
 	req->unit = unit;
 	req->data = scsi_cmnd;
 	req->handler = zfcp_fsf_send_fcp_command_handler;
@@ -2356,7 +2356,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	goto out;
 
 failed_scsi_cmnd:
-	put_device(&unit->sysfs_device);
+	put_device(&unit->dev);
 	zfcp_fsf_req_free(req);
 	scsi_cmnd->host_scribble = NULL;
 out:

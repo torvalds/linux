@@ -3,7 +3,7 @@
  *
  * Registration and callback for the s390 common I/O layer.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -123,12 +123,10 @@ static void zfcp_ccw_remove(struct ccw_device *cdev)
 	zfcp_ccw_adapter_put(adapter); /* put from zfcp_ccw_adapter_by_cdev */
 
 	list_for_each_entry_safe(unit, u, &unit_remove_lh, list)
-		zfcp_device_unregister(&unit->sysfs_device,
-				       &zfcp_sysfs_unit_attrs);
+		zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
 
 	list_for_each_entry_safe(port, p, &port_remove_lh, list)
-		zfcp_device_unregister(&port->sysfs_device,
-				       &zfcp_sysfs_port_attrs);
+		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
 
 	zfcp_adapter_unregister(adapter);
 }

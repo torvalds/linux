@@ -3,7 +3,7 @@
  *
  * sysfs attributes.
  *
- * Copyright IBM Corporation 2008, 2009
+ * Copyright IBM Corporation 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -19,8 +19,7 @@ static ssize_t zfcp_sysfs_##_feat##_##_name##_show(struct device *dev,	       \
 						   struct device_attribute *at,\
 						   char *buf)		       \
 {									       \
-	struct _feat_def *_feat = container_of(dev, struct _feat_def,	       \
-					       sysfs_device);		       \
+	struct _feat_def *_feat = container_of(dev, struct _feat_def, dev);    \
 									       \
 	return sprintf(buf, _format, _value);				       \
 }									       \
@@ -87,8 +86,7 @@ static ssize_t zfcp_sysfs_##_feat##_failed_show(struct device *dev,	       \
 						struct device_attribute *attr, \
 						char *buf)		       \
 {									       \
-	struct _feat_def *_feat = container_of(dev, struct _feat_def,	       \
-					       sysfs_device);		       \
+	struct _feat_def *_feat = container_of(dev, struct _feat_def, dev);    \
 									       \
 	if (atomic_read(&_feat->status) & ZFCP_STATUS_COMMON_ERP_FAILED)       \
 		return sprintf(buf, "1\n");				       \
@@ -99,12 +97,11 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 						 struct device_attribute *attr,\
 						 const char *buf, size_t count)\
 {									       \
-	struct _feat_def *_feat = container_of(dev, struct _feat_def,	       \
-					       sysfs_device);		       \
+	struct _feat_def *_feat = container_of(dev, struct _feat_def, dev);    \
 	unsigned long val;						       \
 	int retval = 0;							       \
 									       \
-	if (!(_feat && get_device(&_feat->sysfs_device)))		       \
+	if (!(_feat && get_device(&_feat->dev)))			       \
 		return -EBUSY;						       \
 									       \
 	if (strict_strtoul(buf, 0, &val) || val != 0) {			       \
@@ -118,7 +115,7 @@ static ssize_t zfcp_sysfs_##_feat##_failed_store(struct device *dev,	       \
 				  _reopen_id, NULL);			       \
 	zfcp_erp_wait(_adapter);					       \
 out:									       \
-	put_device(&_feat->sysfs_device);				       \
+	put_device(&_feat->dev);					       \
 	return retval ? retval : (ssize_t) count;			       \
 }									       \
 static ZFCP_DEV_ATTR(_feat, failed, S_IWUSR | S_IRUGO,			       \
@@ -224,10 +221,10 @@ static ssize_t zfcp_sysfs_port_remove_store(struct device *dev,
 	list_del(&port->list);
 	write_unlock_irq(&adapter->port_list_lock);
 
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 
 	zfcp_erp_port_shutdown(port, 0, "syprs_1", NULL);
-	zfcp_device_unregister(&port->sysfs_device, &zfcp_sysfs_port_attrs);
+	zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
  out:
 	zfcp_ccw_adapter_put(adapter);
 	return retval ? retval : (ssize_t) count;
@@ -258,13 +255,12 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	struct zfcp_port *port = container_of(dev, struct zfcp_port,
-					      sysfs_device);
+	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = -EINVAL;
 
-	if (!(port && get_device(&port->sysfs_device)))
+	if (!(port && get_device(&port->dev)))
 		return -EBUSY;
 
 	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
@@ -280,7 +276,7 @@ static ssize_t zfcp_sysfs_unit_add_store(struct device *dev,
 	zfcp_erp_wait(unit->port->adapter);
 	flush_work(&unit->scsi_work);
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_add, S_IWUSR, NULL, zfcp_sysfs_unit_add_store);
@@ -289,13 +285,12 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 					    struct device_attribute *attr,
 					    const char *buf, size_t count)
 {
-	struct zfcp_port *port = container_of(dev, struct zfcp_port,
-					      sysfs_device);
+	struct zfcp_port *port = container_of(dev, struct zfcp_port, dev);
 	struct zfcp_unit *unit;
 	u64 fcp_lun;
 	int retval = -EINVAL;
 
-	if (!(port && get_device(&port->sysfs_device)))
+	if (!(port && get_device(&port->dev)))
 		return -EBUSY;
 
 	if (strict_strtoull(buf, 0, (unsigned long long *) &fcp_lun))
@@ -314,12 +309,12 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 	list_del(&unit->list);
 	write_unlock_irq(&port->unit_list_lock);
 
-	put_device(&unit->sysfs_device);
+	put_device(&unit->dev);
 
 	zfcp_erp_unit_shutdown(unit, 0, "syurs_1", NULL);
-	zfcp_device_unregister(&unit->sysfs_device, &zfcp_sysfs_unit_attrs);
+	zfcp_device_unregister(&unit->dev, &zfcp_sysfs_unit_attrs);
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 	return retval ? retval : (ssize_t) count;
 }
 static DEVICE_ATTR(unit_remove, S_IWUSR, NULL, zfcp_sysfs_unit_remove_store);
