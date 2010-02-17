@@ -320,7 +320,6 @@ static int cpmac_config(struct net_device *dev, struct ifmap *map)
 static void cpmac_set_multicast_list(struct net_device *dev)
 {
 	struct dev_mc_list *iter;
-	int i;
 	u8 tmp;
 	u32 mbp, bit, hash[2] = { 0, };
 	struct cpmac_priv *priv = netdev_priv(dev);
@@ -340,8 +339,7 @@ static void cpmac_set_multicast_list(struct net_device *dev)
 			 * cpmac uses some strange mac address hashing
 			 * (not crc32)
 			 */
-			for (i = 0, iter = dev->mc_list; i < netdev_mc_count(dev);
-			     i++, iter = iter->next) {
+			netdev_for_each_mc_addr(iter, dev) {
 				bit = 0;
 				tmp = iter->dmi_addr[0];
 				bit  ^= (tmp >> 2) ^ (tmp << 4);

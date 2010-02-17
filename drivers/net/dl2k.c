@@ -1132,15 +1132,12 @@ set_multicast (struct net_device *dev)
 		/* Receive broadcast and multicast frames */
 		rx_mode = ReceiveBroadcast | ReceiveMulticast | ReceiveUnicast;
 	} else if (!netdev_mc_empty(dev)) {
-		int i;
 		struct dev_mc_list *mclist;
 		/* Receive broadcast frames and multicast frames filtering
 		   by Hashtable */
 		rx_mode =
 		    ReceiveBroadcast | ReceiveMulticastHash | ReceiveUnicast;
-		for (i=0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
-				i++, mclist=mclist->next)
-		{
+		netdev_for_each_mc_addr(mclist, dev) {
 			int bit, index = 0;
 			int crc = ether_crc_le (ETH_ALEN, mclist->dmi_addr);
 			/* The inverted high significant 6 bits of CRC are

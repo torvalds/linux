@@ -2240,12 +2240,11 @@ static void dfx_ctl_set_multicast_list(struct net_device *dev)
 
 		/* Copy addresses to multicast address table, then update adapter CAM */
 
-		dmi = dev->mc_list;				/* point to first multicast addr */
-		for (i=0; i < bp->mc_count; i++)
-			{
-			memcpy(&bp->mc_table[i*FDDI_K_ALEN], dmi->dmi_addr, FDDI_K_ALEN);
-			dmi = dmi->next;			/* point to next multicast addr */
-			}
+		i = 0;
+		netdev_for_each_mc_addr(dmi, dev)
+			memcpy(&bp->mc_table[i++ * FDDI_K_ALEN],
+			       dmi->dmi_addr, FDDI_K_ALEN);
+
 		if (dfx_ctl_update_cam(bp) != DFX_K_SUCCESS)
 			{
 			DBG_printk("%s: Could not update multicast address table!\n", dev->name);
