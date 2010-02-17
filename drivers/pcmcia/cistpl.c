@@ -83,6 +83,8 @@ void release_cis_mem(struct pcmcia_socket *s)
  * Map the card memory at "card_offset" into virtual space.
  * If flags & MAP_ATTRIB, map the attribute space, otherwise
  * map the memory space.
+ *
+ * Must be called with ops_mutex held.
  */
 static void __iomem *
 set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flags)
@@ -90,13 +92,11 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 	pccard_mem_map *mem = &s->cis_mem;
 	int ret;
 
-	mutex_lock(&s->ops_mutex);
 	if (!(s->features & SS_CAP_STATIC_MAP) && (mem->res == NULL)) {
 		mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
 		if (mem->res == NULL) {
 			dev_printk(KERN_NOTICE, &s->dev,
 				   "cs: unable to map card memory!\n");
-			mutex_unlock(&s->ops_mutex);
 			return NULL;
 		}
 		s->cis_virt = NULL;
@@ -112,7 +112,6 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 	if (ret) {
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
-		mutex_unlock(&s->ops_mutex);
 		return NULL;
 	}
 
@@ -122,7 +121,6 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 		s->cis_virt = ioremap(mem->static_start, s->map_size);
 	}
 
-	mutex_unlock(&s->ops_mutex);
 	return s->cis_virt;
 }
 
@@ -145,6 +143,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
     dev_dbg(&s->dev, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
+    mutex_lock(&s->ops_mutex);
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
 	   locations in common memory */
@@ -156,7 +155,9 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
 	sys = set_cis_map(s, 0, MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0));
 	if (!sys) {
+	    dev_dbg(&s->dev, "could not map memory\n");
 	    memset(ptr, 0xff, len);
+	    mutex_unlock(&s->ops_mutex);
 	    return -1;
 	}
 
@@ -170,6 +171,9 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
     } else {
 	u_int inc = 1, card_offset, flags;
 
+	if (addr > CISTPL_MAX_CIS_SIZE)
+		dev_dbg(&s->dev, "attempt to read CIS mem at addr %#x", addr);
+
 	flags = MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0);
 	if (attr) {
 	    flags |= MAP_ATTRIB;
@@ -181,7 +185,9 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	while (len) {
 	    sys = set_cis_map(s, card_offset, flags);
 	    if (!sys) {
+		dev_dbg(&s->dev, "could not map memory\n");
 		memset(ptr, 0xff, len);
+		mutex_unlock(&s->ops_mutex);
 		return -1;
 	    }
 	    end = sys + s->map_size;
@@ -195,6 +201,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
+    mutex_unlock(&s->ops_mutex);
     dev_dbg(&s->dev, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 	  *(u_char *)(ptr+0), *(u_char *)(ptr+1),
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
@@ -210,6 +217,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
     dev_dbg(&s->dev, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
+    mutex_lock(&s->ops_mutex);
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
 	   locations in common memory */
@@ -220,8 +228,11 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	}
 
 	sys = set_cis_map(s, 0, MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0));
-	if (!sys)
+	if (!sys) {
+		dev_dbg(&s->dev, "could not map memory\n");
+		mutex_unlock(&s->ops_mutex);
 		return; /* FIXME: Error */
+	}
 
 	writeb(flags, sys+CISREG_ICTRL0);
 	writeb(addr & 0xff, sys+CISREG_IADDR0);
@@ -243,8 +254,11 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	card_offset = addr & ~(s->map_size-1);
 	while (len) {
 	    sys = set_cis_map(s, card_offset, flags);
-	    if (!sys)
+	    if (!sys) {
+		dev_dbg(&s->dev, "could not map memory\n");
+		mutex_unlock(&s->ops_mutex);
 		return; /* FIXME: error */
+	    }
 
 	    end = sys + s->map_size;
 	    sys = sys + (addr & (s->map_size-1));
@@ -257,6 +271,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
+    mutex_unlock(&s->ops_mutex);
 }
 
 

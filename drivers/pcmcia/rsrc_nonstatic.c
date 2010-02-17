@@ -273,6 +273,11 @@ static int readable(struct pcmcia_socket *s, struct resource *res,
 {
 	int ret = -EINVAL;
 
+	if (s->fake_cis) {
+		dev_dbg(&s->dev, "fake CIS is being used: can't validate mem\n");
+		return 0;
+	}
+
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
