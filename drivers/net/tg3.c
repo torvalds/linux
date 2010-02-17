@@ -13588,6 +13588,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	      tp->pdev->device == PCI_DEVICE_ID_TIGON3_5753F ||
 	      tp->pdev->device == PCI_DEVICE_ID_TIGON3_5787F)) ||
 	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57790 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57791 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_57795 ||
 	    (tp->tg3_flags3 & TG3_FLG3_PHY_IS_FET))
 		tp->tg3_flags |= TG3_FLAG_10_100_ONLY;
 
