@@ -853,8 +853,6 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 		goto put;
 	}
 
-	tty_buffer_request_room(tty, size);
-
 	while (size > 0) {
 		read_mem32((u32 *) buf, addr + offset, RECEIVE_BUF_MAX);
 

@@ -1411,8 +1411,7 @@ static int receive_chars(struct uart_port *the_port)
 	read_count = do_read(the_port, ch, MAX_CHARS);
 	if (read_count > 0) {
 		flip = 1;
-		read_room = tty_buffer_request_room(tty, read_count);
-		tty_insert_flip_string(tty, ch, read_room);
+		read_room = tty_insert_flip_string(tty, ch, read_count);
 		the_port->icount.rx += read_count;
 	}
 	spin_unlock_irqrestore(&the_port->lock, pflags);
