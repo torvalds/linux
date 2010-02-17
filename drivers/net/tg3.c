@@ -12659,8 +12659,24 @@ out_not_found:
 	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 &&
 		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57788)
 		strcpy(tp->board_part_number, "BCM57788");
-	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57761)
+		strcpy(tp->board_part_number, "BCM57761");
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57765)
 		strcpy(tp->board_part_number, "BCM57765");
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57781)
+		strcpy(tp->board_part_number, "BCM57781");
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57785)
+		strcpy(tp->board_part_number, "BCM57785");
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57791)
+		strcpy(tp->board_part_number, "BCM57791");
+	else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+		 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57795)
+		strcpy(tp->board_part_number, "BCM57795");
 	else
 		strcpy(tp->board_part_number, "none");
 }
