@@ -110,7 +110,8 @@ int __init acpi_wakeup_device_init(void)
 						       struct acpi_device,
 						       wakeup_list);
 		/* In case user doesn't load button driver */
-		if (!dev->wakeup.flags.run_wake || dev->wakeup.state.enabled)
+		if (!dev->wakeup.flags.always_enabled ||
+		    dev->wakeup.state.enabled)
 			continue;
  		acpi_enable_gpe(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
  				ACPI_GPE_TYPE_WAKE);
