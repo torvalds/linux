@@ -2275,23 +2275,9 @@ int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(iwl_mac_beacon_update);
 
-int iwl_set_mode(struct iwl_priv *priv, int mode)
+static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
-	if (mode == NL80211_IFTYPE_ADHOC) {
-		const struct iwl_channel_info *ch_info;
-
-		ch_info = iwl_get_channel_info(priv,
-			priv->band,
-			le16_to_cpu(priv->staging_rxon.channel));
-
-		if (!ch_info || !is_channel_ibss(ch_info)) {
-			IWL_ERR(priv, "channel %d not IBSS channel\n",
-				  le16_to_cpu(priv->staging_rxon.channel));
-			return -EINVAL;
-		}
-	}
-
-	iwl_connection_init_rx_config(priv, mode);
+	iwl_connection_init_rx_config(priv, vif->type);
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv);
@@ -2300,18 +2286,10 @@ int iwl_set_mode(struct iwl_priv *priv, int mode)
 
 	iwl_clear_stations_table(priv);
 
-	/* dont commit rxon if rf-kill is on*/
-	if (!iwl_is_ready_rf(priv))
-		return -EAGAIN;
-
-	iwlcore_commit_rxon(priv);
-
-	return 0;
+	return iwlcore_commit_rxon(priv);
 }
-EXPORT_SYMBOL(iwl_set_mode);
 
-int iwl_mac_add_interface(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
+int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 	int err = 0;
@@ -2319,6 +2297,11 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", vif->type);
 
 	mutex_lock(&priv->mutex);
+
+	if (WARN_ON(!iwl_is_ready_rf(priv))) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	if (priv->vif) {
 		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
@@ -2329,15 +2312,17 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 	priv->vif = vif;
 	priv->iw_mode = vif->type;
 
-	if (vif->addr) {
-		IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
-		memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
-	}
+	IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
+	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 
-	if (iwl_set_mode(priv, vif->type) == -EAGAIN)
-		/* we are not ready, will run again when ready */
-		set_bit(STATUS_MODE_PENDING, &priv->status);
+	err = iwl_set_mode(priv, vif);
+	if (err)
+		goto out_err;
+	goto out;
 
+ out_err:
+	priv->vif = NULL;
+	priv->iw_mode = NL80211_IFTYPE_STATION;
  out:
 	mutex_unlock(&priv->mutex);
 
@@ -2347,7 +2332,7 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 EXPORT_SYMBOL(iwl_mac_add_interface);
 
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif)
+			      struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = hw->priv;
 
