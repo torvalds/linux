@@ -27,6 +27,8 @@
 #include <linux/jhash.h>
 #include <linux/ima.h>
 #include <asm/uaccess.h>
+#include <linux/exportfs.h>
+#include <linux/writeback.h>
 
 #ifdef CONFIG_NFSD_V3
 #include "xdr3.h"
@@ -271,6 +273,32 @@ out:
 	return err;
 }
 
+/*
+ * Commit metadata changes to stable storage.
+ */
+static int
+commit_metadata(struct svc_fh *fhp)
+{
+	struct inode *inode = fhp->fh_dentry->d_inode;
+	const struct export_operations *export_ops = inode->i_sb->s_export_op;
+	int error = 0;
+
+	if (!EX_ISSYNC(fhp->fh_export))
+		return 0;
+
+	if (export_ops->commit_metadata) {
+		error = export_ops->commit_metadata(inode);
+	} else {
+		struct writeback_control wbc = {
+			.sync_mode = WB_SYNC_ALL,
+			.nr_to_write = 0, /* metadata only */
+		};
+
+		error = sync_inode(inode, &wbc);
+	}
+
+	return error;
+}
 
 /*
  * Set various file attributes.
@@ -766,28 +794,6 @@ void
 nfsd_close(struct file *filp)
 {
 	fput(filp);
-}
-
-/*
- * Sync a directory to disk.
- *
- * We can't just call vfs_fsync because our requirements are slightly odd:
- *
- *  a) we do not have a file struct available
- *  b) we expect to have i_mutex already held by the caller
- */
-int
-nfsd_sync_dir(struct dentry *dentry)
-{
-	struct inode *inode = dentry->d_inode;
-	int error;
-
-	WARN_ON(!mutex_is_locked(&inode->i_mutex));
-
-	error = filemap_write_and_wait(inode->i_mapping);
-	if (!error && inode->i_fop->fsync)
-		error = inode->i_fop->fsync(NULL, dentry, 0);
-	return error;
 }
 
 /*
@@ -1331,12 +1337,14 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out_nfserr;
 	}
 
-	if (EX_ISSYNC(fhp->fh_export)) {
-		err = nfserrno(nfsd_sync_dir(dentry));
-		write_inode_now(dchild->d_inode, 1);
-	}
+	err = nfsd_create_setattr(rqstp, resfhp, iap);
 
-	err2 = nfsd_create_setattr(rqstp, resfhp, iap);
+	/*
+	 * nfsd_setattr already committed the child.  Transactional filesystems
+	 * had a chance to commit changes for both parent and child
+	 * simultaneously making the following commit_metadata a noop.
+	 */
+	err2 = nfserrno(commit_metadata(fhp));
 	if (err2)
 		err = err2;
 	mnt_drop_write(fhp->fh_export->ex_path.mnt);
@@ -1368,7 +1376,6 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct dentry	*dentry, *dchild = NULL;
 	struct inode	*dirp;
 	__be32		err;
-	__be32		err2;
 	int		host_err;
 	__u32		v_mtime=0, v_atime=0;
 
@@ -1463,11 +1470,6 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (created)
 		*created = 1;
 
-	if (EX_ISSYNC(fhp->fh_export)) {
-		err = nfserrno(nfsd_sync_dir(dentry));
-		/* setattr will sync the child (or not) */
-	}
-
 	nfsd_check_ignore_resizing(iap);
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
@@ -1482,9 +1484,13 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	}
 
  set_attr:
-	err2 = nfsd_create_setattr(rqstp, resfhp, iap);
-	if (err2)
-		err = err2;
+	err = nfsd_create_setattr(rqstp, resfhp, iap);
+
+	/*
+	 * nfsd_setattr already committed the child (and possibly also the parent).
+	 */
+	if (!err)
+		err = nfserrno(commit_metadata(fhp));
 
 	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 	/*
@@ -1599,12 +1605,9 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		}
 	} else
 		host_err = vfs_symlink(dentry->d_inode, dnew, path);
-
-	if (!host_err) {
-		if (EX_ISSYNC(fhp->fh_export))
-			host_err = nfsd_sync_dir(dentry);
-	}
 	err = nfserrno(host_err);
+	if (!err)
+		err = nfserrno(commit_metadata(fhp));
 	fh_unlock(fhp);
 
 	mnt_drop_write(fhp->fh_export->ex_path.mnt);
@@ -1666,11 +1669,9 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	}
 	host_err = vfs_link(dold, dirp, dnew);
 	if (!host_err) {
-		if (EX_ISSYNC(ffhp->fh_export)) {
-			err = nfserrno(nfsd_sync_dir(ddir));
-			write_inode_now(dest, 1);
-		}
-		err = 0;
+		err = nfserrno(commit_metadata(ffhp));
+		if (!err)
+			err = nfserrno(commit_metadata(tfhp));
 	} else {
 		if (host_err == -EXDEV && rqstp->rq_vers == 2)
 			err = nfserr_acces;
@@ -1766,10 +1767,10 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 		goto out_dput_new;
 
 	host_err = vfs_rename(fdir, odentry, tdir, ndentry);
-	if (!host_err && EX_ISSYNC(tfhp->fh_export)) {
-		host_err = nfsd_sync_dir(tdentry);
+	if (!host_err) {
+		host_err = commit_metadata(tfhp);
 		if (!host_err)
-			host_err = nfsd_sync_dir(fdentry);
+			host_err = commit_metadata(ffhp);
 	}
 
 	mnt_drop_write(ffhp->fh_export->ex_path.mnt);
@@ -1850,12 +1851,9 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 
 	dput(rdentry);
 
-	if (host_err)
-		goto out_drop;
-	if (EX_ISSYNC(fhp->fh_export))
-		host_err = nfsd_sync_dir(dentry);
+	if (!host_err)
+		host_err = commit_metadata(fhp);
 
-out_drop:
 	mnt_drop_write(fhp->fh_export->ex_path.mnt);
 out_nfserr:
 	err = nfserrno(host_err);
