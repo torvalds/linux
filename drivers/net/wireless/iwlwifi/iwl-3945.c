@@ -1607,7 +1607,7 @@ static int iwl3945_hw_reg_set_new_power(struct iwl_priv *priv,
 	int power;
 
 	/* Get this chnlgrp's rate-to-max/clip-powers table */
-	clip_pwrs = priv->clip39_groups[ch_info->group_index].clip_powers;
+	clip_pwrs = priv->_3945.clip_groups[ch_info->group_index].clip_powers;
 
 	/* Get this channel's rate-to-current-power settings table */
 	power_info = ch_info->power_info;
@@ -1733,7 +1733,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 		}
 
 		/* Get this chnlgrp's rate-to-max/clip-powers table */
-		clip_pwrs = priv->clip39_groups[ch_info->group_index].clip_powers;
+		clip_pwrs = priv->_3945.clip_groups[ch_info->group_index].clip_powers;
 
 		/* set scan tx power, 1Mbit for CCK, 6Mbit for OFDM */
 		for (scan_tbl_index = 0;
@@ -2140,7 +2140,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl_priv *priv)
 		 *   power peaks, without too much distortion (clipping).
 		 */
 		/* we'll fill in this array with h/w max power levels */
-		clip_pwrs = (s8 *) priv->clip39_groups[i].clip_powers;
+		clip_pwrs = (s8 *) priv->_3945.clip_groups[i].clip_powers;
 
 		/* divide factory saturation power by 2 to find -3dB level */
 		satur_pwr = (s8) (group->saturation_power >> 1);
@@ -2224,7 +2224,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 			iwl3945_hw_reg_get_ch_grp_index(priv, ch_info);
 
 		/* Get this chnlgrp's rate->max/clip-powers table */
-		clip_pwrs = priv->clip39_groups[ch_info->group_index].clip_powers;
+		clip_pwrs = priv->_3945.clip_groups[ch_info->group_index].clip_powers;
 
 		/* calculate power index *adjustment* value according to
 		 *  diff between current temperature and factory temperature */

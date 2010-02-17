@@ -1092,10 +1092,6 @@ struct iwl_priv {
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
-	/* each calibration channel group in the EEPROM has a derived
-	 * clip setting for each rate. 3945 only.*/
-	const struct iwl3945_clip_group clip39_groups[5];
-
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
 	s32 last_temperature;
@@ -1271,6 +1267,14 @@ struct iwl_priv {
 			/* Rx'd packet timing information */
 			u32 last_beacon_time;
 			u64 last_tsf;
+
+			/*
+			 * each calibration channel group in the
+			 * EEPROM has a derived clip setting for
+			 * each rate.
+			 */
+			const struct iwl3945_clip_group clip_groups[5];
+
 		} _3945;
 #endif
 #if defined(CONFIG_IWLAGN) || defined(CONFIG_IWLAGN_MODULE)
