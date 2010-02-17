@@ -3020,7 +3020,7 @@ static void igb_update_phy_info(unsigned long data)
  * igb_has_link - check shared code for link and determine up/down
  * @adapter: pointer to driver private info
  **/
-static bool igb_has_link(struct igb_adapter *adapter)
+bool igb_has_link(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
