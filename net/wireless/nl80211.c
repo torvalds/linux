@@ -148,6 +148,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_FRAME] = { .type = NLA_BINARY,
 				 .len = IEEE80211_MAX_DATA_LEN },
 	[NL80211_ATTR_FRAME_MATCH] = { .type = NLA_BINARY, },
+	[NL80211_ATTR_PS_STATE] = { .type = NLA_U32 },
 };
 
 /* policy for the attributes */
@@ -4663,6 +4664,124 @@ unlock_rtnl:
 	return err;
 }
 
+static int nl80211_set_power_save(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+	struct net_device *dev;
+	u8 ps_state;
+	bool state;
+	int err;
+
+	if (!info->attrs[NL80211_ATTR_PS_STATE]) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	ps_state = nla_get_u32(info->attrs[NL80211_ATTR_PS_STATE]);
+
+	if (ps_state != NL80211_PS_DISABLED && ps_state != NL80211_PS_ENABLED) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	rtnl_lock();
+
+	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
+	if (err)
+		goto unlock_rdev;
+
+	wdev = dev->ieee80211_ptr;
+
+	if (!rdev->ops->set_power_mgmt) {
+		err = -EOPNOTSUPP;
+		goto unlock_rdev;
+	}
+
+	state = (ps_state == NL80211_PS_ENABLED) ? true : false;
+
+	if (state == wdev->ps)
+		goto unlock_rdev;
+
+	wdev->ps = state;
+
+	if (rdev->ops->set_power_mgmt(wdev->wiphy, dev, wdev->ps,
+				      wdev->ps_timeout))
+		/* assume this means it's off */
+		wdev->ps = false;
+
+unlock_rdev:
+	cfg80211_unlock_rdev(rdev);
+	dev_put(dev);
+	rtnl_unlock();
+
+out:
+	return err;
+}
+
+static int nl80211_get_power_save(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev;
+	enum nl80211_ps_state ps_state;
+	struct wireless_dev *wdev;
+	struct net_device *dev;
+	struct sk_buff *msg;
+	void *hdr;
+	int err;
+
+	rtnl_lock();
+
+	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
+	if (err)
+		goto unlock_rtnl;
+
+	wdev = dev->ieee80211_ptr;
+
+	if (!rdev->ops->set_power_mgmt) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
+			     NL80211_CMD_GET_POWER_SAVE);
+	if (!hdr) {
+		err = -ENOMEM;
+		goto free_msg;
+	}
+
+	if (wdev->ps)
+		ps_state = NL80211_PS_ENABLED;
+	else
+		ps_state = NL80211_PS_DISABLED;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_PS_STATE, ps_state);
+
+	genlmsg_end(msg, hdr);
+	err = genlmsg_reply(msg, info);
+	goto out;
+
+nla_put_failure:
+	err = -ENOBUFS;
+
+free_msg:
+	nlmsg_free(msg);
+
+out:
+	cfg80211_unlock_rdev(rdev);
+	dev_put(dev);
+
+unlock_rtnl:
+	rtnl_unlock();
+
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -4954,6 +5073,18 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_action,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_POWER_SAVE,
+		.doit = nl80211_set_power_save,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_GET_POWER_SAVE,
+		.doit = nl80211_get_power_save,
+		.policy = nl80211_policy,
+		/* can be retrieved by unprivileged users */
 	},
 };
 

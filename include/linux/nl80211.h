@@ -416,6 +416,9 @@ enum nl80211_commands {
 	NL80211_CMD_ACTION,
 	NL80211_CMD_ACTION_TX_STATUS,
 
+	NL80211_CMD_SET_POWER_SAVE,
+	NL80211_CMD_GET_POWER_SAVE,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -836,6 +839,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_FRAME_MATCH,
 
 	NL80211_ATTR_ACK,
+
+	NL80211_ATTR_PS_STATE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1571,6 +1576,11 @@ enum nl80211_tx_rate_attributes {
 enum nl80211_band {
 	NL80211_BAND_2GHZ,
 	NL80211_BAND_5GHZ,
+};
+
+enum nl80211_ps_state {
+	NL80211_PS_DISABLED,
+	NL80211_PS_ENABLED,
 };
 
 #endif /* __LINUX_NL80211_H */

@@ -1099,8 +1099,8 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	bool ps = wdev->wext.ps;
-	int timeout = wdev->wext.ps_timeout;
+	bool ps = wdev->ps;
+	int timeout = wdev->ps_timeout;
 	int err;
 
 	if (wdev->iftype != NL80211_IFTYPE_STATION)
@@ -1133,8 +1133,8 @@ int cfg80211_wext_siwpower(struct net_device *dev,
 	if (err)
 		return err;
 
-	wdev->wext.ps = ps;
-	wdev->wext.ps_timeout = timeout;
+	wdev->ps = ps;
+	wdev->ps_timeout = timeout;
 
 	return 0;
 
@@ -1147,7 +1147,7 @@ int cfg80211_wext_giwpower(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
-	wrq->disabled = !wdev->wext.ps;
+	wrq->disabled = !wdev->ps;
 
 	return 0;
 }

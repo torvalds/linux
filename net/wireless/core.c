@@ -698,19 +698,21 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
+#endif
+
 		if (wdev->wiphy->flags & WIPHY_FLAG_PS_ON_BY_DEFAULT)
-			wdev->wext.ps = true;
+			wdev->ps = true;
 		else
-			wdev->wext.ps = false;
-		wdev->wext.ps_timeout = 100;
+			wdev->ps = false;
+		wdev->ps_timeout = 100;
 		if (rdev->ops->set_power_mgmt)
 			if (rdev->ops->set_power_mgmt(wdev->wiphy, dev,
-						      wdev->wext.ps,
-						      wdev->wext.ps_timeout)) {
+						      wdev->ps,
+						      wdev->ps_timeout)) {
 				/* assume this means it's off */
-				wdev->wext.ps = false;
+				wdev->ps = false;
 			}
-#endif
+
 		if (!dev->ethtool_ops)
 			dev->ethtool_ops = &cfg80211_ethtool_ops;
 
