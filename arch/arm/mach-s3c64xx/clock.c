@@ -151,6 +151,14 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_IIS1,
 	}, {
+#ifdef CONFIG_CPU_S3C6410
+		.name		= "iis",
+		.id		= -1,  /* There's only one IISv4 port */
+		.parent		= &clk_p,
+		.enable		= s3c64xx_pclk_ctrl,
+		.ctrlbit	= S3C6410_CLKCON_PCLK_IIS2,
+	}, {
+#endif
 		.name		= "spi",
 		.id		= 0,
 		.parent		= &clk_p,
