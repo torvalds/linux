@@ -256,7 +256,7 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->VBIOS;
 
-	if (index > DCB_MAX_NUM_I2C_ENTRIES)
+	if (index >= DCB_MAX_NUM_I2C_ENTRIES)
 		return NULL;
 
 	if (!bios->bdcb.dcb.i2c[index].chan) {
