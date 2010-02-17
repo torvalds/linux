@@ -2111,17 +2111,22 @@ static int omapfb_probe(struct platform_device *pdev)
 	fbdev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, fbdev);
 
+	r = 0;
 	fbdev->num_displays = 0;
 	dssdev = NULL;
 	for_each_dss_dev(dssdev) {
 		omap_dss_get_device(dssdev);
+
 		if (!dssdev->driver) {
 			dev_err(&pdev->dev, "no driver for display\n");
-			r = -EINVAL;
-			goto cleanup;
+			r = -ENODEV;
 		}
+
 		fbdev->displays[fbdev->num_displays++] = dssdev;
 	}
+
+	if (r)
+		goto cleanup;
 
 	if (fbdev->num_displays == 0) {
 		dev_err(&pdev->dev, "no displays\n");
