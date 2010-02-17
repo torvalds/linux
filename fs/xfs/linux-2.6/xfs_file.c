@@ -180,17 +180,12 @@ xfs_file_fsync(
 		 * disk yet, the inode will be still be pinned.  If it is,
 		 * force the log.
 		 */
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		if (xfs_ipincount(ip)) {
-			if (ip->i_itemp->ili_last_lsn) {
-				error = _xfs_log_force_lsn(ip->i_mount,
-						ip->i_itemp->ili_last_lsn,
-						XFS_LOG_SYNC, &log_flushed);
-			} else {
-				error = _xfs_log_force(ip->i_mount,
-						XFS_LOG_SYNC, &log_flushed);
-			}
+			error = _xfs_log_force_lsn(ip->i_mount,
+					ip->i_itemp->ili_last_lsn,
+					XFS_LOG_SYNC, &log_flushed);
 		}
+		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	}
 
 	if (ip->i_mount->m_flags & XFS_MOUNT_BARRIER) {
