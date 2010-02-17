@@ -2156,12 +2156,7 @@ static void zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *req)
 	zfcp_fsf_req_trace(req, scpnt);
 
 skip_fsfstatus:
-	if (scpnt->result != 0)
-		zfcp_dbf_scsi_result("erro", 3, req->adapter->dbf, scpnt, req);
-	else if (scpnt->retries > 0)
-		zfcp_dbf_scsi_result("retr", 4, req->adapter->dbf, scpnt, req);
-	else
-		zfcp_dbf_scsi_result("norm", 6, req->adapter->dbf, scpnt, req);
+	zfcp_dbf_scsi_result(req->adapter->dbf, scpnt, req);
 
 	scpnt->host_scribble = NULL;
 	(scpnt->scsi_done) (scpnt);

@@ -303,17 +303,31 @@ void zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 
 /**
  * zfcp_dbf_scsi_result - trace event for SCSI command completion
- * @tag: tag indicating success or failure of SCSI command
- * @level: trace level applicable for this event
- * @adapter: adapter that has been used to issue the SCSI command
+ * @dbf: adapter dbf trace
  * @scmd: SCSI command pointer
- * @fsf_req: request used to issue SCSI command (might be NULL)
+ * @req: FSF request used to issue SCSI command
  */
 static inline
-void zfcp_dbf_scsi_result(const char *tag, int level, struct zfcp_dbf *dbf,
-			  struct scsi_cmnd *scmd, struct zfcp_fsf_req *fsf_req)
+void zfcp_dbf_scsi_result(struct zfcp_dbf *dbf, struct scsi_cmnd *scmd,
+			  struct zfcp_fsf_req *req)
 {
-	zfcp_dbf_scsi("rslt", tag, level, dbf, scmd, fsf_req, 0);
+	if (scmd->result != 0)
+		zfcp_dbf_scsi("rslt", "erro", 3, dbf, scmd, req, 0);
+	else if (scmd->retries > 0)
+		zfcp_dbf_scsi("rslt", "retr", 4, dbf, scmd, req, 0);
+	else
+		zfcp_dbf_scsi("rslt", "norm", 6, dbf, scmd, req, 0);
+}
+
+/**
+ * zfcp_dbf_scsi_fail_send - trace event for failure to send SCSI command
+ * @dbf: adapter dbf trace
+ * @scmd: SCSI command pointer
+ */
+static inline
+void zfcp_dbf_scsi_fail_send(struct zfcp_dbf *dbf, struct scsi_cmnd *scmd)
+{
+	zfcp_dbf_scsi("rslt", "fail", 4, dbf, scmd, NULL, 0);
 }
 
 /**
