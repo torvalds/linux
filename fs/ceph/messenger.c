@@ -1808,7 +1808,7 @@ done:
 	clear_bit(BUSY, &con->state);
 	dout("con->state=%lu\n", con->state);
 	if (test_bit(QUEUED, &con->state)) {
-		if (!backoff) {
+		if (!backoff || test_bit(OPENING, &con->state)) {
 			dout("con_work %p QUEUED reset, looping\n", con);
 			goto more;
 		}
