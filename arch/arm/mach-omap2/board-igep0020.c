@@ -29,6 +29,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/onenand.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -40,6 +41,105 @@
 #define IGEP2_GPIO_LED0_GREEN 	27
 #define IGEP2_GPIO_LED1_RED   	28
 #define IGEP2_GPIO_DVI_PUP	170
+
+#if defined(CONFIG_MTD_ONENAND_OMAP2) || \
+	defined(CONFIG_MTD_ONENAND_OMAP2_MODULE)
+
+#define ONENAND_MAP             0x20000000
+
+/* NAND04GR4E1A ( x2 Flash built-in COMBO POP MEMORY )
+ * Since the device is equipped with two DataRAMs, and two-plane NAND
+ * Flash memory array, these two component enables simultaneous program
+ * of 4KiB. Plane1 has only even blocks such as block0, block2, block4
+ * while Plane2 has only odd blocks such as block1, block3, block5.
+ * So MTD regards it as 4KiB page size and 256KiB block size 64*(2*2048)
+ */
+
+static struct mtd_partition igep2_onenand_partitions[] = {
+	{
+		.name           = "X-Loader",
+		.offset         = 0,
+		.size           = 2 * (64*(2*2048))
+	},
+	{
+		.name           = "U-Boot",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 6 * (64*(2*2048)),
+	},
+	{
+		.name           = "Environment",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 2 * (64*(2*2048)),
+	},
+	{
+		.name           = "Kernel",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = 12 * (64*(2*2048)),
+	},
+	{
+		.name           = "File System",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = MTDPART_SIZ_FULL,
+	},
+};
+
+static int igep2_onenand_setup(void __iomem *onenand_base, int freq)
+{
+       /* nothing is required to be setup for onenand as of now */
+       return 0;
+}
+
+static struct omap_onenand_platform_data igep2_onenand_data = {
+	.parts = igep2_onenand_partitions,
+	.nr_parts = ARRAY_SIZE(igep2_onenand_partitions),
+	.onenand_setup = igep2_onenand_setup,
+	.dma_channel	= -1,	/* disable DMA in OMAP OneNAND driver */
+};
+
+static struct platform_device igep2_onenand_device = {
+	.name		= "omap2-onenand",
+	.id		= -1,
+	.dev = {
+		.platform_data = &igep2_onenand_data,
+	},
+};
+
+void __init igep2_flash_init(void)
+{
+	u8		cs = 0;
+	u8		onenandcs = GPMC_CS_NUM + 1;
+
+	while (cs < GPMC_CS_NUM) {
+		u32 ret = 0;
+		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
+
+		/* Check if NAND/oneNAND is configured */
+		if ((ret & 0xC00) == 0x800)
+			/* NAND found */
+			pr_err("IGEP v2: Unsupported NAND found\n");
+		else {
+			ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
+			if ((ret & 0x3F) == (ONENAND_MAP >> 24))
+				/* ONENAND found */
+				onenandcs = cs;
+		}
+		cs++;
+	}
+	if (onenandcs > GPMC_CS_NUM) {
+		pr_err("IGEP v2: Unable to find configuration in GPMC\n");
+		return;
+	}
+
+	if (onenandcs < GPMC_CS_NUM) {
+		igep2_onenand_data.cs = onenandcs;
+		if (platform_device_register(&igep2_onenand_device) < 0)
+			pr_err("IGEP v2: Unable to register OneNAND device\n");
+	}
+}
+
+#else
+void __init igep2_flash_init(void) {}
+#endif
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 
@@ -314,6 +414,7 @@ static void __init igep2_init(void)
 	usb_musb_init();
 	usb_ehci_init(&ehci_pdata);
 
+	igep2_flash_init();
 	igep2_display_init();
 	igep2_init_smsc911x();
 
