@@ -340,9 +340,9 @@ EXPORT_SYMBOL_GPL(usbnet_cdc_unbind);
 static void dumpspeed(struct usbnet *dev, __le32 *speeds)
 {
 	if (netif_msg_timer(dev))
-		devinfo(dev, "link speeds: %u kbps up, %u kbps down",
-			__le32_to_cpu(speeds[0]) / 1000,
-		__le32_to_cpu(speeds[1]) / 1000);
+		netdev_info(dev->net, "link speeds: %u kbps up, %u kbps down\n",
+			    __le32_to_cpu(speeds[0]) / 1000,
+			    __le32_to_cpu(speeds[1]) / 1000);
 }
 
 static void cdc_status(struct usbnet *dev, struct urb *urb)
@@ -362,8 +362,8 @@ static void cdc_status(struct usbnet *dev, struct urb *urb)
 	switch (event->bNotificationType) {
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
 		if (netif_msg_timer(dev))
-			devdbg(dev, "CDC: carrier %s",
-					event->wValue ? "on" : "off");
+			netdev_dbg(dev->net, "CDC: carrier %s\n",
+				   event->wValue ? "on" : "off");
 		if (event->wValue)
 			netif_carrier_on(dev->net);
 		else
@@ -371,8 +371,8 @@ static void cdc_status(struct usbnet *dev, struct urb *urb)
 		break;
 	case USB_CDC_NOTIFY_SPEED_CHANGE:	/* tx/rx rates */
 		if (netif_msg_timer(dev))
-			devdbg(dev, "CDC: speed change (len %d)",
-					urb->actual_length);
+			netdev_dbg(dev->net, "CDC: speed change (len %d)\n",
+				   urb->actual_length);
 		if (urb->actual_length != (sizeof *event + 8))
 			set_bit(EVENT_STS_SPLIT, &dev->flags);
 		else
@@ -382,8 +382,8 @@ static void cdc_status(struct usbnet *dev, struct urb *urb)
 	 * but there are no standard formats for the response data.
 	 */
 	default:
-		deverr(dev, "CDC: unexpected notification %02x!",
-				 event->bNotificationType);
+		netdev_err(dev->net, "CDC: unexpected notification %02x!\n",
+			   event->bNotificationType);
 		break;
 	}
 }

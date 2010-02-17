@@ -57,8 +57,8 @@
  */
 void rndis_status(struct usbnet *dev, struct urb *urb)
 {
-	devdbg(dev, "rndis status urb, len %d stat %d",
-		urb->actual_length, urb->status);
+	netdev_dbg(dev->net, "rndis status urb, len %d stat %d\n",
+		   urb->actual_length, urb->status);
 	// FIXME for keepalives, respond immediately (asynchronously)
 	// if not an RNDIS status, do like cdc_status(dev,urb) does
 }
@@ -497,9 +497,9 @@ int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			     skb->len < msg_len ||
 			     (data_offset + data_len + 8) > msg_len)) {
 			dev->net->stats.rx_frame_errors++;
-			devdbg(dev, "bad rndis message %d/%d/%d/%d, len %d",
-				le32_to_cpu(hdr->msg_type),
-				msg_len, data_offset, data_len, skb->len);
+			netdev_dbg(dev->net, "bad rndis message %d/%d/%d/%d, len %d\n",
+				   le32_to_cpu(hdr->msg_type),
+				   msg_len, data_offset, data_len, skb->len);
 			return 0;
 		}
 		skb_pull(skb, 8 + data_offset);
