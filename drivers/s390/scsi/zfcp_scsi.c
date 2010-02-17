@@ -60,10 +60,9 @@ static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 {
 	struct zfcp_adapter *adapter =
 		(struct zfcp_adapter *) scpnt->device->host->hostdata[0];
+
 	set_host_byte(scpnt, result);
-	if ((scpnt->device != NULL) && (scpnt->device->host != NULL))
-		zfcp_dbf_scsi_result("fail", 4, adapter->dbf, scpnt, NULL);
-	/* return directly */
+	zfcp_dbf_scsi_result("fail", 4, adapter->dbf, scpnt, NULL);
 	scpnt->scsi_done(scpnt);
 }
 
@@ -86,14 +85,6 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 	 */
 	adapter = (struct zfcp_adapter *) scpnt->device->host->hostdata[0];
 	unit = scpnt->device->hostdata;
-
-	BUG_ON(!adapter || (adapter != unit->port->adapter));
-	BUG_ON(!scpnt->scsi_done);
-
-	if (unlikely(!unit)) {
-		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
-		return 0;
-	}
 
 	scsi_result = fc_remote_port_chkready(rport);
 	if (unlikely(scsi_result)) {
