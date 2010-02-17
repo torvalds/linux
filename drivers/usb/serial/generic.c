@@ -20,6 +20,7 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
+#include <linux/serial.h>
 
 static int debug;
 
@@ -585,7 +586,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		if (!port->port.count)
+		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 			continue;
 
 		if (port->read_urb) {

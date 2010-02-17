@@ -1321,9 +1321,9 @@ static void cypress_read_int_callback(struct urb *urb)
 continue_read:
 	tty_kref_put(tty);
 
-	/* Continue trying to always read... unless the port has closed. */
+	/* Continue trying to always read */
 
-	if (port->port.count > 0 && priv->comm_is_ok) {
+	if (priv->comm_is_ok) {
 		usb_fill_int_urb(port->interrupt_in_urb, port->serial->dev,
 				usb_rcvintpipe(port->serial->dev,
 					port->interrupt_in_endpointAddress),
@@ -1332,7 +1332,7 @@ continue_read:
 				cypress_read_int_callback, port,
 				priv->read_urb_interval);
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
-		if (result) {
+		if (result && result != -EPERM) {
 			dev_err(&urb->dev->dev, "%s - failed resubmitting "
 					"read urb, error %d\n", __func__,
 					result);

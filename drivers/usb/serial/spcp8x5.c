@@ -686,8 +686,6 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 
 	/* check the urb status */
 	if (result) {
-		if (!port->port.count)
-			return;
 		if (result == -EPROTO) {
 			/* spcp8x5 mysteriously fails with -EPROTO */
 			/* reschedule the read */
@@ -734,16 +732,11 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 	}
 	tty_kref_put(tty);
 
-	/* Schedule the next read _if_ we are still open */
-	if (port->port.count) {
-		urb->dev = port->serial->dev;
-		result = usb_submit_urb(urb , GFP_ATOMIC);
-		if (result)
-			dev_dbg(&port->dev, "failed submitting read urb %d\n",
-				result);
-	}
-
-	return;
+	/* Schedule the next read */
+	urb->dev = port->serial->dev;
+	result = usb_submit_urb(urb , GFP_ATOMIC);
+	if (result)
+		dev_dbg(&port->dev, "failed submitting read urb %d\n", result);
 }
 
 /* get data from ring buffer and then write to usb bus */

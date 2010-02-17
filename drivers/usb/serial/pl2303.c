@@ -1071,10 +1071,6 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 
 	if (status) {
 		dbg("%s - urb status = %d", __func__, status);
-		if (!port->port.count) {
-			dbg("%s - port is closed, exiting.", __func__);
-			return;
-		}
 		if (status == -EPROTO) {
 			/* PL2303 mysteriously fails with -EPROTO reschedule
 			 * the read */
@@ -1107,15 +1103,11 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	}
 	tty_kref_put(tty);
 	/* Schedule the next read _if_ we are still open */
-	if (port->port.count) {
-		urb->dev = port->serial->dev;
-		result = usb_submit_urb(urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&urb->dev->dev, "%s - failed resubmitting"
-				" read urb, error %d\n", __func__, result);
-	}
-
-	return;
+	urb->dev = port->serial->dev;
+	result = usb_submit_urb(urb, GFP_ATOMIC);
+	if (result && result != -EPERM)
+		dev_err(&urb->dev->dev, "%s - failed resubmitting"
+			" read urb, error %d\n", __func__, result);
 }
 
 static void pl2303_write_bulk_callback(struct urb *urb)

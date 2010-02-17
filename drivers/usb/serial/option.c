@@ -971,9 +971,9 @@ static void option_indat_callback(struct urb *urb)
 		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
-		if (port->port.count && status != -ESHUTDOWN) {
+		if (status != -ESHUTDOWN) {
 			err = usb_submit_urb(urb, GFP_ATOMIC);
-			if (err)
+			if (err && err != -EPERM)
 				printk(KERN_ERR "%s: resubmit read urb failed. "
 					"(%d)", __func__, err);
 			else

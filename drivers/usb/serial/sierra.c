@@ -610,10 +610,10 @@ static void sierra_indat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	if (port->port.count && status != -ESHUTDOWN && status != -EPERM) {
+	if (status != -ESHUTDOWN && status != -EPERM) {
 		usb_mark_last_busy(port->serial->dev);
 		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err)
+		if (err && err != -EPERM)
 			dev_err(&port->dev, "resubmit read urb failed."
 				"(%d)\n", err);
 	}
@@ -672,11 +672,11 @@ static void sierra_instat_callback(struct urb *urb)
 		dev_dbg(&port->dev, "%s: error %d\n", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
-	if (port->port.count && status != -ESHUTDOWN && status != -ENOENT) {
+	if (status != -ESHUTDOWN && status != -ENOENT) {
 		usb_mark_last_busy(serial->dev);
 		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err)
+		if (err && err != -EPERM)
 			dev_err(&port->dev, "%s: resubmit intr urb "
 				"failed. (%d)\n", __func__, err);
 	}

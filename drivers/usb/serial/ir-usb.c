@@ -445,11 +445,6 @@ static void ir_read_bulk_callback(struct urb *urb)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (!port->port.count) {
-		dbg("%s - port closed.", __func__);
-		return;
-	}
-
 	switch (status) {
 	case 0: /* Successful */
 		/*
