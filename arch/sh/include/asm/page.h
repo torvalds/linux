@@ -50,12 +50,21 @@ extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
 extern unsigned long memory_start, memory_end;
 
+#ifdef CONFIG_UNCACHED_MAPPING
+extern unsigned long uncached_start, uncached_end;
+
+extern int virt_addr_uncached(unsigned long kaddr);
+extern void uncached_init(void);
+#else
+#define virt_addr_uncached(kaddr)	(0)
+#define uncached_init()			do { } while (0)
+#endif
+
 static inline unsigned long
 pages_do_alias(unsigned long addr1, unsigned long addr2)
 {
 	return (addr1 ^ addr2) & shm_align_mask;
 }
-
 
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, void *from);
@@ -133,6 +142,14 @@ typedef struct page *pgtable_t;
 #else
 #define __pa(x)	((unsigned long)(x)-PAGE_OFFSET)
 #define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET))
+#endif
+
+#ifdef CONFIG_UNCACHED_MAPPING
+#define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + uncached_start)
+#define CAC_ADDR(addr)		((addr) - uncached_start + PAGE_OFFSET)
+#else
+#define UNCAC_ADDR(addr)	((addr))
+#define CAC_ADDR(addr)		((addr))
 #endif
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)

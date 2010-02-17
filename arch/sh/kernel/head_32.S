@@ -152,6 +152,7 @@ ENTRY(_stext)
 
 	mov	#0, r10
 
+#ifdef CONFIG_UNCACHED_MAPPING
 	/*
 	 * Uncached mapping
 	 */
@@ -171,6 +172,7 @@ ENTRY(_stext)
 	add	r4, r1
 	add	r4, r3
 	add	#1, r10
+#endif
 
 /*
  * Iterate over all of the available sizes from largest to
@@ -216,6 +218,7 @@ ENTRY(_stext)
 	__PMB_ITER_BY_SIZE(64)
 	__PMB_ITER_BY_SIZE(16)
 
+#ifdef CONFIG_UNCACHED_MAPPING
 	/*
 	 * Now that we can access it, update cached_to_uncached and
 	 * uncached_size.
@@ -228,6 +231,7 @@ ENTRY(_stext)
 	shll16	r7
 	shll8	r7
 	mov.l	r7, @r0
+#endif
 
 	/*
 	 * Clear the remaining PMB entries.
@@ -306,7 +310,9 @@ ENTRY(stack_start)
 .LFIRST_ADDR_ENTRY:	.long	PAGE_OFFSET | PMB_V
 .LFIRST_DATA_ENTRY:	.long	__MEMORY_START | PMB_V
 .LMMUCR:		.long	MMUCR
+.LMEMORY_SIZE:		.long	__MEMORY_SIZE
+#ifdef CONFIG_UNCACHED_MAPPING
 .Lcached_to_uncached:	.long	cached_to_uncached
 .Luncached_size:	.long	uncached_size
-.LMEMORY_SIZE:		.long	__MEMORY_SIZE
+#endif
 #endif
