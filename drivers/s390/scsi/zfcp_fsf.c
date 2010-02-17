@@ -394,7 +394,7 @@ static void zfcp_fsf_protstatus_eval(struct zfcp_fsf_req *req)
 	case FSF_PROT_LINK_DOWN:
 		zfcp_fsf_link_down_info_eval(req, "fspse_5",
 					     &psq->link_down_info);
-		/* FIXME: reopening adapter now? better wait for link up */
+		/* go through reopen to flush pending requests */
 		zfcp_erp_adapter_reopen(adapter, 0, "fspse_6", req);
 		break;
 	case FSF_PROT_REEST_QUEUE:

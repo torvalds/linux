@@ -106,7 +106,7 @@ static void zfcp_qdio_resp_put_back(struct zfcp_qdio *qdio, int processed)
 
 	if (unlikely(retval)) {
 		atomic_set(&queue->count, count);
-		/* FIXME: Recover this with an adapter reopen? */
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdrpb_1", NULL);
 	} else {
 		queue->first += count;
 		queue->first %= QDIO_MAX_BUFFERS_PER_Q;
