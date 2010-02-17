@@ -615,7 +615,7 @@ static void ll_temac_recv(struct net_device *ndev)
 	while ((bdstat & STS_CTRL_APP0_CMPLT)) {
 
 		skb = lp->rx_skb[lp->rx_bd_ci];
-		length = cur_p->app4;
+		length = cur_p->app4 & 0x3FFF;
 
 		skb_vaddr = virt_to_bus(skb->data);
 		dma_unmap_single(ndev->dev.parent, skb_vaddr, length,
@@ -938,6 +938,9 @@ static int __devexit temac_of_remove(struct of_device *op)
 
 static struct of_device_id temac_of_match[] __devinitdata = {
 	{ .compatible = "xlnx,xps-ll-temac-1.01.b", },
+	{ .compatible = "xlnx,xps-ll-temac-2.00.a", },
+	{ .compatible = "xlnx,xps-ll-temac-2.02.a", },
+	{ .compatible = "xlnx,xps-ll-temac-2.03.a", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, temac_of_match);
