@@ -176,7 +176,6 @@ struct igb_q_vector {
 
 	u16 itr_val;
 	u8 set_itr;
-	u8 itr_shift;
 	void __iomem *itr_register;
 
 	char name[IFNAMSIZ + 9];
