@@ -3434,8 +3434,8 @@ static inline int igb_tso_adv(struct igb_ring *tx_ring,
 	int err;
 	struct igb_buffer *buffer_info;
 	u32 info = 0, tu_cmd = 0;
-	u32 mss_l4len_idx, l4len;
-	*hdr_len = 0;
+	u32 mss_l4len_idx;
+	u8 l4len;
 
 	if (skb_header_cloned(skb)) {
 		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
@@ -3671,7 +3671,7 @@ dma_error:
 }
 
 static inline void igb_tx_queue_adv(struct igb_ring *tx_ring,
-				    int tx_flags, int count, u32 paylen,
+				    u32 tx_flags, int count, u32 paylen,
 				    u8 hdr_len)
 {
 	union e1000_adv_tx_desc *tx_desc;
@@ -3770,10 +3770,10 @@ netdev_tx_t igb_xmit_frame_ring_adv(struct sk_buff *skb,
 				    struct igb_ring *tx_ring)
 {
 	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
-	unsigned int first;
-	unsigned int tx_flags = 0;
-	u8 hdr_len = 0;
 	int tso = 0, count;
+	u32 tx_flags = 0;
+	u16 first;
+	u8 hdr_len = 0;
 	union skb_shared_tx *shtx = skb_tx(skb);
 
 	/* need: 1 descriptor per page,
