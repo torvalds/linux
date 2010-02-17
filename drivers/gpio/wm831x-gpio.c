@@ -44,7 +44,8 @@ static int wm831x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 		val |= WM831X_GPN_TRI;
 
 	return wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			       WM831X_GPN_DIR | WM831X_GPN_TRI, val);
+			       WM831X_GPN_DIR | WM831X_GPN_TRI |
+			       WM831X_GPN_FN_MASK, val);
 }
 
 static int wm831x_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -84,7 +85,8 @@ static int wm831x_gpio_direction_out(struct gpio_chip *chip,
 		val |= WM831X_GPN_TRI;
 
 	ret = wm831x_set_bits(wm831x, WM831X_GPIO1_CONTROL + offset,
-			      WM831X_GPN_DIR | WM831X_GPN_TRI, val);
+			      WM831X_GPN_DIR | WM831X_GPN_TRI |
+			      WM831X_GPN_FN_MASK, val);
 	if (ret < 0)
 		return ret;
 
