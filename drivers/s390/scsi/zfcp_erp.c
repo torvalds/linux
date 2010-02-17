@@ -478,25 +478,26 @@ static void zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
+	struct zfcp_fsf_req *req;
 
-	if (!act->fsf_req)
+	if (!act->fsf_req_id)
 		return;
 
 	spin_lock(&adapter->req_list_lock);
-	if (zfcp_reqlist_find_safe(adapter, act->fsf_req) &&
-	    act->fsf_req->erp_action == act) {
+	req = zfcp_reqlist_find(adapter, act->fsf_req_id);
+	if (req && req->erp_action == act) {
 		if (act->status & (ZFCP_STATUS_ERP_DISMISSED |
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
-			act->fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
+			req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
 			zfcp_dbf_rec_action("erscf_1", act);
-			act->fsf_req->erp_action = NULL;
+			req->erp_action = NULL;
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			zfcp_dbf_rec_action("erscf_2", act);
-		if (act->fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
-			act->fsf_req = NULL;
+		if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
+			act->fsf_req_id = 0;
 	} else
-		act->fsf_req = NULL;
+		act->fsf_req_id = 0;
 	spin_unlock(&adapter->req_list_lock);
 }
 

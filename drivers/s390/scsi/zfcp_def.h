@@ -143,8 +143,7 @@ struct zfcp_erp_action {
 	struct zfcp_unit *unit;
 	u32		status;	      /* recovery status */
 	u32 step;	              /* active step of this erp action */
-	struct zfcp_fsf_req *fsf_req; /* fsf request currently pending
-					 for this action */
+	unsigned long		fsf_req_id;
 	struct timer_list timer;
 };
 
@@ -376,20 +375,6 @@ zfcp_reqlist_find(struct zfcp_adapter *adapter, unsigned long req_id)
 	list_for_each_entry(request, &adapter->req_list[idx], list)
 		if (request->req_id == req_id)
 			return request;
-	return NULL;
-}
-
-static inline struct zfcp_fsf_req *
-zfcp_reqlist_find_safe(struct zfcp_adapter *adapter, struct zfcp_fsf_req *req)
-{
-	struct zfcp_fsf_req *request;
-	unsigned int idx;
-
-	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++) {
-		list_for_each_entry(request, &adapter->req_list[idx], list)
-			if (request == req)
-				return request;
-	}
 	return NULL;
 }
 

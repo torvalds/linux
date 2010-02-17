@@ -773,10 +773,11 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 	unsigned long	     flags;
 	int		     idx;
 	int		     with_qtcb = (req->qtcb != NULL);
+	int req_id = req->req_id;
 
 	/* put allocated FSF request into hash table */
 	spin_lock_irqsave(&adapter->req_list_lock, flags);
-	idx = zfcp_reqlist_hash(req->req_id);
+	idx = zfcp_reqlist_hash(req_id);
 	list_add_tail(&req->list, &adapter->req_list[idx]);
 	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
@@ -786,7 +787,8 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 		del_timer(&req->timer);
 		spin_lock_irqsave(&adapter->req_list_lock, flags);
 		/* lookup request again, list might have changed */
-		if (zfcp_reqlist_find_safe(adapter, req))
+		req = zfcp_reqlist_find(adapter, req_id);
+		if (req)
 			zfcp_reqlist_remove(adapter, req);
 		spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 		zfcp_erp_adapter_reopen(adapter, 0, "fsrs__1", req);
@@ -1262,13 +1264,13 @@ int zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 			FSF_FEATURE_UPDATE_ALERT;
 	req->erp_action = erp_action;
 	req->handler = zfcp_fsf_exchange_config_data_handler;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -1355,13 +1357,13 @@ int zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 
 	req->handler = zfcp_fsf_exchange_port_data_handler;
 	req->erp_action = erp_action;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -1521,14 +1523,14 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	hton24(req->qtcb->bottom.support.d_id, port->d_id);
 	req->data = port;
 	req->erp_action = erp_action;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 	get_device(&port->sysfs_device);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 		put_device(&port->sysfs_device);
 	}
 out:
@@ -1591,13 +1593,13 @@ int zfcp_fsf_close_port(struct zfcp_erp_action *erp_action)
 	req->data = erp_action->port;
 	req->erp_action = erp_action;
 	req->qtcb->header.port_handle = erp_action->port->handle;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -1817,13 +1819,13 @@ int zfcp_fsf_close_physical_port(struct zfcp_erp_action *erp_action)
 	req->qtcb->header.port_handle = erp_action->port->handle;
 	req->erp_action = erp_action;
 	req->handler = zfcp_fsf_close_physical_port_handler;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -1991,7 +1993,7 @@ int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 	req->handler = zfcp_fsf_open_unit_handler;
 	req->data = erp_action->unit;
 	req->erp_action = erp_action;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 
 	if (!(adapter->connection_features & FSF_FEATURE_NPIV_MODE))
 		req->qtcb->bottom.support.option = FSF_OPEN_LUN_SUPPRESS_BOXING;
@@ -2000,7 +2002,7 @@ int zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);
@@ -2077,13 +2079,13 @@ int zfcp_fsf_close_unit(struct zfcp_erp_action *erp_action)
 	req->handler = zfcp_fsf_close_unit_handler;
 	req->data = erp_action->unit;
 	req->erp_action = erp_action;
-	erp_action->fsf_req = req;
+	erp_action->fsf_req_id = req->req_id;
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
-		erp_action->fsf_req = NULL;
+		erp_action->fsf_req_id = 0;
 	}
 out:
 	spin_unlock_bh(&qdio->req_q_lock);

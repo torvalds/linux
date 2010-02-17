@@ -668,7 +668,7 @@ void zfcp_dbf_rec_action(char *id2, struct zfcp_erp_action *erp_action)
 	r->u.action.action = (unsigned long)erp_action;
 	r->u.action.status = erp_action->status;
 	r->u.action.step = erp_action->step;
-	r->u.action.fsf_req = (unsigned long)erp_action->fsf_req;
+	r->u.action.fsf_req = erp_action->fsf_req_id;
 	debug_event(dbf->rec, 5, r, sizeof(*r));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
