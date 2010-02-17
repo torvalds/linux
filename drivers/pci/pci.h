@@ -35,6 +35,10 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *
  * @sleep_wake: enables/disables the system wake up capability of given device
  *
+ * @run_wake: enables/disables the platform to generate run-time wake-up events
+ *		for given device (the device's wake-up capability has to be
+ *		enabled by @sleep_wake for this feature to work)
+ *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
  */
@@ -44,12 +48,15 @@ struct pci_platform_pm_ops {
 	pci_power_t (*choose_state)(struct pci_dev *dev);
 	bool (*can_wakeup)(struct pci_dev *dev);
 	int (*sleep_wake)(struct pci_dev *dev, bool enable);
+	int (*run_wake)(struct pci_dev *dev, bool enable);
 };
 
 extern int pci_set_platform_pm(struct pci_platform_pm_ops *ops);
 extern void pci_update_current_state(struct pci_dev *dev, pci_power_t state);
 extern void pci_disable_enabled_device(struct pci_dev *dev);
 extern bool pci_check_pme_status(struct pci_dev *dev);
+extern int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
+extern void pci_pme_wakeup_bus(struct pci_bus *bus);
 extern void pci_pm_init(struct pci_dev *dev);
 extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);

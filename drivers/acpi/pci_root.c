@@ -30,6 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/acpi.h>
@@ -528,6 +529,10 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	if (flags != base_flags)
 		acpi_pci_osc_support(root, flags);
 
+	pci_acpi_add_bus_pm_notifier(device, root->bus);
+	if (device->wakeup.flags.run_wake)
+		device_set_run_wake(root->bus->bridge, true);
+
 	return 0;
 
 end:
@@ -548,6 +553,9 @@ static int acpi_pci_root_start(struct acpi_device *device)
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
 	struct acpi_pci_root *root = acpi_driver_data(device);
+
+	device_set_run_wake(root->bus->bridge, false);
+	pci_acpi_remove_bus_pm_notifier(device);
 
 	kfree(root);
 	return 0;
