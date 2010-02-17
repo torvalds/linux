@@ -45,23 +45,6 @@
 void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
-int rs600_mc_init(struct radeon_device *rdev)
-{
-	/* read back the MC value from the hw */
-	int r;
-	u32 tmp;
-
-	/* Setup GPU memory space */
-	tmp = RREG32_MC(R_000004_MC_FB_LOCATION);
-	rdev->mc.vram_location = G_000004_MC_FB_START(tmp) << 16;
-	rdev->mc.gtt_location = 0xffffffffUL;
-	r = radeon_mc_setup(rdev);
-	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
-	if (r)
-		return r;
-	return 0;
-}
-
 /* hpd for digital panel detect/disconnect */
 bool rs600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
@@ -475,22 +458,21 @@ void rs600_gpu_init(struct radeon_device *rdev)
 		dev_warn(rdev->dev, "Wait MC idle timeout before updating MC.\n");
 }
 
-void rs600_vram_info(struct radeon_device *rdev)
+void rs600_mc_init(struct radeon_device *rdev)
 {
+	u64 base;
+
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
-
 	rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
-
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
-		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
-		rdev->mc.real_vram_size = rdev->mc.aper_size;
+	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	base = RREG32_MC(R_000004_MC_FB_LOCATION);
+	base = G_000004_MC_FB_START(base) << 16;
+	radeon_vram_location(rdev, &rdev->mc, base);
+	radeon_gtt_location(rdev, &rdev->mc);
 }
 
 void rs600_bandwidth_update(struct radeon_device *rdev)
@@ -666,12 +648,8 @@ int rs600_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	rs600_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = rs600_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize memory controller */
+	rs600_mc_init(rdev);
 	rs600_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);

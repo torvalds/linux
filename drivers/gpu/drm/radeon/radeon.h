@@ -282,6 +282,7 @@ union radeon_gart_table {
 };
 
 #define RADEON_GPU_PAGE_SIZE 4096
+#define RADEON_GPU_PAGE_MASK (RADEON_GPU_PAGE_SIZE - 1)
 
 struct radeon_gart {
 	dma_addr_t			table_addr;
@@ -316,21 +317,19 @@ struct radeon_mc {
 	/* for some chips with <= 32MB we need to lie
 	 * about vram size near mc fb location */
 	u64			mc_vram_size;
-	u64			gtt_location;
+	u64			visible_vram_size;
 	u64			gtt_size;
 	u64			gtt_start;
 	u64			gtt_end;
-	u64			vram_location;
 	u64			vram_start;
 	u64			vram_end;
 	unsigned		vram_width;
 	u64			real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
-	bool                    igp_sideport_enabled;
+	bool			igp_sideport_enabled;
 };
 
-int radeon_mc_setup(struct radeon_device *rdev);
 bool radeon_combios_sideport_present(struct radeon_device *rdev);
 bool radeon_atombios_sideport_present(struct radeon_device *rdev);
 
@@ -1165,6 +1164,8 @@ extern void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enabl
 extern void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 extern void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain);
 extern bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo);
+extern void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base);
+extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 
 /* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
 struct r100_mc_save {
@@ -1219,7 +1220,7 @@ extern void r200_set_safe_registers(struct radeon_device *rdev);
 /* r300,r350,rv350,rv370,rv380 */
 extern void r300_set_reg_safe(struct radeon_device *rdev);
 extern void r300_mc_program(struct radeon_device *rdev);
-extern void r300_vram_info(struct radeon_device *rdev);
+extern void r300_mc_init(struct radeon_device *rdev);
 extern void r300_clock_startup(struct radeon_device *rdev);
 extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
 extern int rv370_pcie_gart_init(struct radeon_device *rdev);
@@ -1228,7 +1229,6 @@ extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
 extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
 
 /* r420,r423,rv410 */
-extern int r420_mc_init(struct radeon_device *rdev);
 extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
 extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
@@ -1270,6 +1270,7 @@ extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode2);
 
 /* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
+extern void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
 extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);

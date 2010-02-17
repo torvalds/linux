@@ -439,7 +439,6 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
-	int r;
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
@@ -475,48 +474,12 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	/* size in MB on evergreen */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+	/* FIXME remove this once we support unmappable VRAM */
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
 		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
-
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r)
-			return r;
-		/* gtt_size is setup by radeon_agp_init */
-		rdev->mc.gtt_location = rdev->mc.agp_base;
-		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
-		/* Try to put vram before or after AGP because we
-		 * we want SYSTEM_APERTURE to cover both VRAM and
-		 * AGP so that GPU can catch out of VRAM/AGP access
-		 */
-		if (rdev->mc.gtt_location > rdev->mc.mc_vram_size) {
-			/* Enought place before */
-			rdev->mc.vram_location = rdev->mc.gtt_location -
-							rdev->mc.mc_vram_size;
-		} else if (tmp > rdev->mc.mc_vram_size) {
-			/* Enought place after */
-			rdev->mc.vram_location = rdev->mc.gtt_location +
-							rdev->mc.gtt_size;
-		} else {
-			/* Try to setup VRAM then AGP might not
-			 * not work on some card
-			 */
-			rdev->mc.vram_location = 0x00000000UL;
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-		}
-	} else {
-		rdev->mc.vram_location = 0x00000000UL;
-		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 	}
-	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
-	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
+	r600_vram_gtt_location(rdev, &rdev->mc);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
@@ -525,6 +488,7 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
 	return 0;
 }
+
 int evergreen_gpu_reset(struct radeon_device *rdev)
 {
 	/* FIXME: implement for evergreen */
@@ -726,6 +690,13 @@ int evergreen_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r)
+			radeon_agp_disable(rdev);
+	}
+	/* initialize memory controller */
 	r = evergreen_mc_init(rdev);
 	if (r)
 		return r;

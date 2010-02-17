@@ -403,7 +403,7 @@ int radeon_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* if scanout was in GTT this really wouldn't work */
 	/* crtc offset is from display base addr not FB location */
-	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_location;
+	radeon_crtc->legacy_display_base_addr = rdev->mc.vram_start;
 
 	base -= radeon_crtc->legacy_display_base_addr;
 

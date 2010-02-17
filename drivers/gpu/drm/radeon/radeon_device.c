@@ -100,79 +100,102 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 	}
 }
 
-/*
- * MC common functions
+/**
+ * radeon_vram_location - try to find VRAM location
+ * @rdev: radeon device structure holding all necessary informations
+ * @mc: memory controller structure holding memory informations
+ * @base: base address at which to put VRAM
+ *
+ * Function will place try to place VRAM at base address provided
+ * as parameter (which is so far either PCI aperture address or
+ * for IGP TOM base address).
+ *
+ * If there is not enough space to fit the unvisible VRAM in the 32bits
+ * address space then we limit the VRAM size to the aperture.
+ *
+ * If we are using AGP and if the AGP aperture doesn't allow us to have
+ * room for all the VRAM than we restrict the VRAM to the PCI aperture
+ * size and print a warning.
+ *
+ * This function will never fails, worst case are limiting VRAM.
+ *
+ * Note: GTT start, end, size should be initialized before calling this
+ * function on AGP platform.
+ *
+ * Note: We don't explictly enforce VRAM start to be aligned on VRAM size,
+ * this shouldn't be a problem as we are using the PCI aperture as a reference.
+ * Otherwise this would be needed for rv280, all r3xx, and all r4xx, but
+ * not IGP.
+ *
+ * Note: we use mc_vram_size as on some board we need to program the mc to
+ * cover the whole aperture even if VRAM size is inferior to aperture size
+ * Novell bug 204882 + along with lots of ubuntu ones
+ *
+ * Note: when limiting vram it's safe to overwritte real_vram_size because
+ * we are not in case where real_vram_size is inferior to mc_vram_size (ie
+ * note afected by bogus hw of Novell bug 204882 + along with lots of ubuntu
+ * ones)
+ *
+ * Note: IGP TOM addr should be the same as the aperture addr, we don't
+ * explicitly check for that thought.
+ *
+ * FIXME: when reducing VRAM size align new size on power of 2.
  */
-int radeon_mc_setup(struct radeon_device *rdev)
+void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base)
 {
-	uint32_t tmp;
-
-	/* Some chips have an "issue" with the memory controller, the
-	 * location must be aligned to the size. We just align it down,
-	 * too bad if we walk over the top of system memory, we don't
-	 * use DMA without a remapped anyway.
-	 * Affected chips are rv280, all r3xx, and all r4xx, but not IGP
-	 */
-	/* FGLRX seems to setup like this, VRAM a 0, then GART.
-	 */
-	/*
-	 * Note: from R6xx the address space is 40bits but here we only
-	 * use 32bits (still have to see a card which would exhaust 4G
-	 * address space).
-	 */
-	if (rdev->mc.vram_location != 0xFFFFFFFFUL) {
-		/* vram location was already setup try to put gtt after
-		 * if it fits */
-		tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
-		tmp = (tmp + rdev->mc.gtt_size - 1) & ~(rdev->mc.gtt_size - 1);
-		if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
-			rdev->mc.gtt_location = tmp;
-		} else {
-			if (rdev->mc.gtt_size >= rdev->mc.vram_location) {
-				printk(KERN_ERR "[drm] GTT too big to fit "
-				       "before or after vram location.\n");
-				return -EINVAL;
-			}
-			rdev->mc.gtt_location = 0;
-		}
-	} else if (rdev->mc.gtt_location != 0xFFFFFFFFUL) {
-		/* gtt location was already setup try to put vram before
-		 * if it fits */
-		if (rdev->mc.mc_vram_size < rdev->mc.gtt_location) {
-			rdev->mc.vram_location = 0;
-		} else {
-			tmp = rdev->mc.gtt_location + rdev->mc.gtt_size;
-			tmp += (rdev->mc.mc_vram_size - 1);
-			tmp &= ~(rdev->mc.mc_vram_size - 1);
-			if ((0xFFFFFFFFUL - tmp) >= rdev->mc.mc_vram_size) {
-				rdev->mc.vram_location = tmp;
-			} else {
-				printk(KERN_ERR "[drm] vram too big to fit "
-				       "before or after GTT location.\n");
-				return -EINVAL;
-			}
-		}
-	} else {
-		rdev->mc.vram_location = 0;
-		tmp = rdev->mc.mc_vram_size;
-		tmp = (tmp + rdev->mc.gtt_size - 1) & ~(rdev->mc.gtt_size - 1);
-		rdev->mc.gtt_location = tmp;
+	mc->vram_start = base;
+	if (mc->mc_vram_size > (0xFFFFFFFF - base + 1)) {
+		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
+		mc->real_vram_size = mc->aper_size;
+		mc->mc_vram_size = mc->aper_size;
 	}
-	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
-	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
-	DRM_INFO("radeon: VRAM %uM\n", (unsigned)(rdev->mc.mc_vram_size >> 20));
-	DRM_INFO("radeon: VRAM from 0x%08X to 0x%08X\n",
-		 (unsigned)rdev->mc.vram_location,
-		 (unsigned)(rdev->mc.vram_location + rdev->mc.mc_vram_size - 1));
-	DRM_INFO("radeon: GTT %uM\n", (unsigned)(rdev->mc.gtt_size >> 20));
-	DRM_INFO("radeon: GTT from 0x%08X to 0x%08X\n",
-		 (unsigned)rdev->mc.gtt_location,
-		 (unsigned)(rdev->mc.gtt_location + rdev->mc.gtt_size - 1));
-	return 0;
+	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
+	if (rdev->flags & RADEON_IS_AGP && mc->vram_end > mc->gtt_start && mc->vram_end <= mc->gtt_end) {
+		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
+		mc->real_vram_size = mc->aper_size;
+		mc->mc_vram_size = mc->aper_size;
+	}
+	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
+	dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
+			mc->mc_vram_size >> 20, mc->vram_start,
+			mc->vram_end, mc->real_vram_size >> 20);
 }
 
+/**
+ * radeon_gtt_location - try to find GTT location
+ * @rdev: radeon device structure holding all necessary informations
+ * @mc: memory controller structure holding memory informations
+ *
+ * Function will place try to place GTT before or after VRAM.
+ *
+ * If GTT size is bigger than space left then we ajust GTT size.
+ * Thus function will never fails.
+ *
+ * FIXME: when reducing GTT size align new size on power of 2.
+ */
+void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+{
+	u64 size_af, size_bf;
+
+	size_af = 0xFFFFFFFF - mc->vram_end;
+	size_bf = mc->vram_start;
+	if (size_bf > size_af) {
+		if (mc->gtt_size > size_bf) {
+			dev_warn(rdev->dev, "limiting GTT\n");
+			mc->gtt_size = size_bf;
+		}
+		mc->gtt_start = mc->vram_start - mc->gtt_size;
+	} else {
+		if (mc->gtt_size > size_af) {
+			dev_warn(rdev->dev, "limiting GTT\n");
+			mc->gtt_size = size_af;
+		}
+		mc->gtt_start = mc->vram_end + 1;
+	}
+	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
+	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",
+			mc->gtt_size >> 20, mc->gtt_start, mc->gtt_end);
+}
 
 /*
  * GPU helpers function.

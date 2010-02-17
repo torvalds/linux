@@ -252,7 +252,7 @@ int radeonfb_create(struct drm_device *dev,
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
 
-	tmp = fb_gpuaddr - rdev->mc.vram_location;
+	tmp = fb_gpuaddr - rdev->mc.vram_start;
 	info->fix.smem_start = rdev->mc.aper_base + tmp;
 	info->fix.smem_len = size;
 	info->screen_base = fbptr;

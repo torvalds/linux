@@ -202,9 +202,8 @@ int r100_pci_gart_enable(struct radeon_device *rdev)
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_DIS_OUT_OF_PCI_GART_ACCESS;
 	WREG32(RADEON_AIC_CNTL, tmp);
 	/* set address range for PCI address translate */
-	WREG32(RADEON_AIC_LO_ADDR, rdev->mc.gtt_location);
-	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
-	WREG32(RADEON_AIC_HI_ADDR, tmp);
+	WREG32(RADEON_AIC_LO_ADDR, rdev->mc.gtt_start);
+	WREG32(RADEON_AIC_HI_ADDR, rdev->mc.gtt_end);
 	/* set PCI GART page-table base address */
 	WREG32(RADEON_AIC_PT_BASE, rdev->gart.table_addr);
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_PCIGART_TRANSLATE_EN;
@@ -1957,17 +1956,17 @@ static u32 r100_get_accessible_vram(struct radeon_device *rdev)
 void r100_vram_init_sizes(struct radeon_device *rdev)
 {
 	u64 config_aper_size;
-	u32 accessible;
 
+	/* work out accessible VRAM */
+	rdev->mc.visible_vram_size = r100_get_accessible_vram(rdev);
+	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
+	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
 	config_aper_size = RREG32(RADEON_CONFIG_APER_SIZE);
-
 	if (rdev->flags & RADEON_IS_IGP) {
 		uint32_t tom;
 		/* read NB_TOM to get the amount of ram stolen for the GPU */
 		tom = RREG32(RADEON_NB_TOM);
 		rdev->mc.real_vram_size = (((tom >> 16) - (tom & 0xffff) + 1) << 16);
-		/* for IGPs we need to keep VRAM where it was put by the BIOS */
-		rdev->mc.vram_location = (tom & 0xffff) << 16;
 		WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 		rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 	} else {
@@ -1979,30 +1978,19 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 			rdev->mc.real_vram_size = 8192 * 1024;
 			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 		}
-		/* let driver place VRAM */
-		rdev->mc.vram_location = 0xFFFFFFFFUL;
-		 /* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
-		  * Novell bug 204882 + along with lots of ubuntu ones */
+		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
+		 * Novell bug 204882 + along with lots of ubuntu ones
+		 */
 		if (config_aper_size > rdev->mc.real_vram_size)
 			rdev->mc.mc_vram_size = config_aper_size;
 		else
 			rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 	}
-
-	/* work out accessible VRAM */
-	accessible = r100_get_accessible_vram(rdev);
-
-	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
-	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
-
-	if (accessible > rdev->mc.aper_size)
-		accessible = rdev->mc.aper_size;
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+	/* FIXME remove this once we support unmappable VRAM */
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
 		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
+	}
 }
 
 void r100_vga_set_state(struct radeon_device *rdev, bool state)
@@ -2019,11 +2007,18 @@ void r100_vga_set_state(struct radeon_device *rdev, bool state)
 	WREG32(RADEON_CONFIG_CNTL, temp);
 }
 
-void r100_vram_info(struct radeon_device *rdev)
+void r100_mc_init(struct radeon_device *rdev)
 {
-	r100_vram_get_type(rdev);
+	u64 base;
 
+	r100_vram_get_type(rdev);
 	r100_vram_init_sizes(rdev);
+	base = rdev->mc.aper_base;
+	if (rdev->flags & RADEON_IS_IGP)
+		base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
+	radeon_vram_location(rdev, &rdev->mc, base);
+	if (!(rdev->flags & RADEON_IS_AGP))
+		radeon_gtt_location(rdev, &rdev->mc);
 }
 
 
@@ -3294,10 +3289,9 @@ void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save)
 void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save)
 {
 	/* Update base address for crtc */
-	WREG32(R_00023C_DISPLAY_BASE_ADDR, rdev->mc.vram_location);
+	WREG32(R_00023C_DISPLAY_BASE_ADDR, rdev->mc.vram_start);
 	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
-		WREG32(R_00033C_CRTC2_DISPLAY_BASE_ADDR,
-				rdev->mc.vram_location);
+		WREG32(R_00033C_CRTC2_DISPLAY_BASE_ADDR, rdev->mc.vram_start);
 	}
 	/* Restore CRTC registers */
 	WREG8(R_0003C2_GENMO_WT, save->GENMO_WT);
@@ -3458,32 +3452,6 @@ void r100_fini(struct radeon_device *rdev)
 	rdev->bios = NULL;
 }
 
-int r100_mc_init(struct radeon_device *rdev)
-{
-	int r;
-	u32 tmp;
-
-	/* Setup GPU memory space */
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	if (rdev->flags & RADEON_IS_IGP) {
-		tmp = G_00015C_MC_FB_START(RREG32(R_00015C_NB_TOM));
-		rdev->mc.vram_location = tmp << 16;
-	}
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r) {
-			radeon_agp_disable(rdev);
-		} else {
-			rdev->mc.gtt_location = rdev->mc.agp_base;
-		}
-	}
-	r = radeon_mc_setup(rdev);
-	if (r)
-		return r;
-	return 0;
-}
-
 int r100_init(struct radeon_device *rdev)
 {
 	int r;
@@ -3526,12 +3494,15 @@ int r100_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	r100_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = r100_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r) {
+			radeon_agp_disable(rdev);
+		}
+	}
+	/* initialize VRAM */
+	r100_mc_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

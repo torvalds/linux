@@ -611,6 +611,68 @@ static void r600_mc_program(struct radeon_device *rdev)
 	rv515_vga_render_disable(rdev);
 }
 
+/**
+ * r600_vram_gtt_location - try to find VRAM & GTT location
+ * @rdev: radeon device structure holding all necessary informations
+ * @mc: memory controller structure holding memory informations
+ *
+ * Function will place try to place VRAM at same place as in CPU (PCI)
+ * address space as some GPU seems to have issue when we reprogram at
+ * different address space.
+ *
+ * If there is not enough space to fit the unvisible VRAM after the
+ * aperture then we limit the VRAM size to the aperture.
+ *
+ * If we are using AGP then place VRAM adjacent to AGP aperture are we need
+ * them to be in one from GPU point of view so that we can program GPU to
+ * catch access outside them (weird GPU policy see ??).
+ *
+ * This function will never fails, worst case are limiting VRAM or GTT.
+ *
+ * Note: GTT start, end, size should be initialized before calling this
+ * function on AGP platform.
+ */
+void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+{
+	u64 size_bf, size_af;
+
+	if (mc->mc_vram_size > 0xE0000000) {
+		/* leave room for at least 512M GTT */
+		dev_warn(rdev->dev, "limiting VRAM\n");
+		mc->real_vram_size = 0xE0000000;
+		mc->mc_vram_size = 0xE0000000;
+	}
+	if (rdev->flags & RADEON_IS_AGP) {
+		size_bf = mc->gtt_start;
+		size_af = 0xFFFFFFFF - mc->gtt_end + 1;
+		if (size_bf > size_af) {
+			if (mc->mc_vram_size > size_bf) {
+				dev_warn(rdev->dev, "limiting VRAM\n");
+				mc->real_vram_size = size_bf;
+				mc->mc_vram_size = size_bf;
+			}
+			mc->vram_start = mc->gtt_start - mc->mc_vram_size;
+		} else {
+			if (mc->mc_vram_size > size_af) {
+				dev_warn(rdev->dev, "limiting VRAM\n");
+				mc->real_vram_size = size_af;
+				mc->mc_vram_size = size_af;
+			}
+			mc->vram_start = mc->gtt_end;
+		}
+		mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
+		dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
+				mc->mc_vram_size >> 20, mc->vram_start,
+				mc->vram_end, mc->real_vram_size >> 20);
+	} else {
+		u64 base = 0;
+		if (rdev->flags & RADEON_IS_IGP)
+			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
+		radeon_vram_location(rdev, &rdev->mc, base);
+		radeon_gtt_location(rdev, mc);
+	}
+}
+
 int r600_mc_init(struct radeon_device *rdev)
 {
 	fixed20_12 a;
@@ -650,75 +712,20 @@ int r600_mc_init(struct radeon_device *rdev)
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+	/* FIXME remove this once we support unmappable VRAM */
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
 		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
-
-	if (rdev->flags & RADEON_IS_AGP) {
-		/* gtt_size is setup by radeon_agp_init */
-		rdev->mc.gtt_location = rdev->mc.agp_base;
-		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
-		/* Try to put vram before or after AGP because we
-		 * we want SYSTEM_APERTURE to cover both VRAM and
-		 * AGP so that GPU can catch out of VRAM/AGP access
-		 */
-		if (rdev->mc.gtt_location > rdev->mc.mc_vram_size) {
-			/* Enought place before */
-			rdev->mc.vram_location = rdev->mc.gtt_location -
-							rdev->mc.mc_vram_size;
-		} else if (tmp > rdev->mc.mc_vram_size) {
-			/* Enought place after */
-			rdev->mc.vram_location = rdev->mc.gtt_location +
-							rdev->mc.gtt_size;
-		} else {
-			/* Try to setup VRAM then AGP might not
-			 * not work on some card
-			 */
-			rdev->mc.vram_location = 0x00000000UL;
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-		}
-	} else {
-		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-		rdev->mc.vram_location = (RREG32(MC_VM_FB_LOCATION) &
-							0xFFFF) << 24;
-		tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
-		if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
-			/* Enough place after vram */
-			rdev->mc.gtt_location = tmp;
-		} else if (rdev->mc.vram_location >= rdev->mc.gtt_size) {
-			/* Enough place before vram */
-			rdev->mc.gtt_location = 0;
-		} else {
-			/* Not enough place after or before shrink
-			 * gart size
-			 */
-			if (rdev->mc.vram_location > (0xFFFFFFFFUL - tmp)) {
-				rdev->mc.gtt_location = 0;
-				rdev->mc.gtt_size = rdev->mc.vram_location;
-			} else {
-				rdev->mc.gtt_location = tmp;
-				rdev->mc.gtt_size = 0xFFFFFFFFUL - tmp;
-			}
-		}
-		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	}
-	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
-	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
+	r600_vram_gtt_location(rdev, &rdev->mc);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
 	a.full = rfixed_const(100);
 	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
 	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
-
 	if (rdev->flags & RADEON_IS_IGP)
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
-
 	return 0;
 }
 

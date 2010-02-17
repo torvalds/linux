@@ -40,28 +40,6 @@ static void r420_set_reg_safe(struct radeon_device *rdev)
 	rdev->config.r300.reg_safe_bm_size = ARRAY_SIZE(r420_reg_safe_bm);
 }
 
-int r420_mc_init(struct radeon_device *rdev)
-{
-	int r;
-
-	/* Setup GPU memory space */
-	rdev->mc.vram_location = 0xFFFFFFFFUL;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r) {
-			radeon_agp_disable(rdev);
-		} else {
-			rdev->mc.gtt_location = rdev->mc.agp_base;
-		}
-	}
-	r = radeon_mc_setup(rdev);
-	if (r) {
-		return r;
-	}
-	return 0;
-}
-
 void r420_pipes_init(struct radeon_device *rdev)
 {
 	unsigned tmp;
@@ -349,13 +327,15 @@ int r420_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	r300_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = r420_mc_init(rdev);
-	if (r) {
-		return r;
+	/* initialize AGP */
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r) {
+			radeon_agp_disable(rdev);
+		}
 	}
+	/* initialize memory controller */
+	r300_mc_init(rdev);
 	r420_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
