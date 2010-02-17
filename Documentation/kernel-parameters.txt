@@ -2668,6 +2668,13 @@ and is between 256 and 4096 characters. It is defined in the file
 					medium is write-protected).
 			Example: quirks=0419:aaf5:rl,0421:0433:rc
 
+	userpte=
+			[X86] Flags controlling user PTE allocations.
+
+				nohigh = do not allocate PTE pages in
+					HIGHMEM regardless of setting
+					of CONFIG_HIGHPTE.
+
 	vdso=		[X86,SH]
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
