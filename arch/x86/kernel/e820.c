@@ -17,7 +17,6 @@
 #include <linux/firmware-map.h>
 
 #include <asm/e820.h>
-#include <asm/early_res.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
 
@@ -751,6 +750,15 @@ u64 __init find_e820_area(u64 start, u64 end, u64 size, u64 align)
 u64 __init find_fw_memmap_area(u64 start, u64 end, u64 size, u64 align)
 {
 	return find_e820_area(start, end, size, align);
+}
+
+u64 __init get_max_mapped(void)
+{
+	u64 end = max_pfn_mapped;
+
+	end <<= PAGE_SHIFT;
+
+	return end;
 }
 /*
  * Find next free range after *start
