@@ -75,8 +75,8 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x00, /* REG_BTPGA		(0x1F)	*/
 	0x00, /* REG_BTSTPGA		(0x20)	*/
 	0x00, /* REG_EAR_CTL		(0x21)	*/
-	0x24, /* REG_HS_SEL		(0x22)	*/
-	0x0a, /* REG_HS_GAIN_SET	(0x23)	*/
+	0x00, /* REG_HS_SEL		(0x22)	*/
+	0x00, /* REG_HS_GAIN_SET	(0x23)	*/
 	0x00, /* REG_HS_POPN_SET	(0x24)	*/
 	0x00, /* REG_PREDL_CTL		(0x25)	*/
 	0x00, /* REG_PREDR_CTL		(0x26)	*/
