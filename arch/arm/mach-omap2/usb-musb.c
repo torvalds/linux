@@ -88,10 +88,15 @@ static struct platform_device musb_device = {
 
 void __init usb_musb_init(struct omap_musb_board_data *board_data)
 {
-	if (cpu_is_omap243x())
+	if (cpu_is_omap243x()) {
 		musb_resources[0].start = OMAP243X_HS_BASE;
-	else
+	} else if (cpu_is_omap34xx()) {
 		musb_resources[0].start = OMAP34XX_HSUSB_OTG_BASE;
+	} else if (cpu_is_omap44xx()) {
+		musb_resources[0].start = OMAP44XX_HSUSB_OTG_BASE;
+		musb_resources[1].start = INT_44XX_HS_USB_MC;
+		musb_resources[2].start = INT_44XX_HS_USB_DMA;
+	}
 	musb_resources[0].end = musb_resources[0].start + SZ_4K - 1;
 
 	/*
