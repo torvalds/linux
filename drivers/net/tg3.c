@@ -6087,31 +6087,31 @@ static int tg3_rx_prodring_alloc(struct tg3 *tp,
 
 	memset(tpr->rx_jmb, 0, TG3_RX_JUMBO_RING_BYTES);
 
-	if (tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE) {
-		for (i = 0; i < TG3_RX_JUMBO_RING_SIZE; i++) {
-			struct tg3_rx_buffer_desc *rxd;
+	if (!(tp->tg3_flags & TG3_FLAG_JUMBO_RING_ENABLE))
+		goto done;
 
-			rxd = &tpr->rx_jmb[i].std;
-			rxd->idx_len = TG3_RX_JMB_DMA_SZ << RXD_LEN_SHIFT;
-			rxd->type_flags = (RXD_FLAG_END << RXD_FLAGS_SHIFT) |
-				RXD_FLAG_JUMBO;
-			rxd->opaque = (RXD_OPAQUE_RING_JUMBO |
-			       (i << RXD_OPAQUE_INDEX_SHIFT));
-		}
+	for (i = 0; i < TG3_RX_JUMBO_RING_SIZE; i++) {
+		struct tg3_rx_buffer_desc *rxd;
 
-		for (i = 0; i < tp->rx_jumbo_pending; i++) {
-			if (tg3_alloc_rx_skb(tp, tpr, RXD_OPAQUE_RING_JUMBO,
-					     i) < 0) {
-				printk(KERN_WARNING PFX
-				       "%s: Using a smaller RX jumbo ring, "
-				       "only %d out of %d buffers were "
-				       "allocated successfully.\n",
-				       tp->dev->name, i, tp->rx_jumbo_pending);
-				if (i == 0)
-					goto initfail;
-				tp->rx_jumbo_pending = i;
-				break;
-			}
+		rxd = &tpr->rx_jmb[i].std;
+		rxd->idx_len = TG3_RX_JMB_DMA_SZ << RXD_LEN_SHIFT;
+		rxd->type_flags = (RXD_FLAG_END << RXD_FLAGS_SHIFT) |
+				  RXD_FLAG_JUMBO;
+		rxd->opaque = (RXD_OPAQUE_RING_JUMBO |
+		       (i << RXD_OPAQUE_INDEX_SHIFT));
+	}
+
+	for (i = 0; i < tp->rx_jumbo_pending; i++) {
+		if (tg3_alloc_rx_skb(tp, tpr, RXD_OPAQUE_RING_JUMBO, i) < 0) {
+			printk(KERN_WARNING PFX
+			       "%s: Using a smaller RX jumbo ring, "
+			       "only %d out of %d buffers were "
+			       "allocated successfully.\n",
+			       tp->dev->name, i, tp->rx_jumbo_pending);
+			if (i == 0)
+				goto initfail;
+			tp->rx_jumbo_pending = i;
+			break;
 		}
 	}
 
