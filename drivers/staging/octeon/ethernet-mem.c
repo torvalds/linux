@@ -34,11 +34,12 @@
 #include "cvmx-fpa.h"
 
 /**
- * Fill the supplied hardware pool with skbuffs
- *
+ * cvm_oct_fill_hw_skbuff - fill the supplied hardware pool with skbuffs
  * @pool:     Pool to allocate an skbuff for
  * @size:     Size of the buffer needed for the pool
  * @elements: Number of buffers to allocate
+ *
+ * Returns the actual number of buffers allocated.
  */
 static int cvm_oct_fill_hw_skbuff(int pool, int size, int elements)
 {
@@ -62,8 +63,7 @@ static int cvm_oct_fill_hw_skbuff(int pool, int size, int elements)
 }
 
 /**
- * Free the supplied hardware pool of skbuffs
- *
+ * cvm_oct_free_hw_skbuff- free hardware pool skbuffs
  * @pool:     Pool to allocate an skbuff for
  * @size:     Size of the buffer needed for the pool
  * @elements: Number of buffers to allocate
@@ -91,11 +91,12 @@ static void cvm_oct_free_hw_skbuff(int pool, int size, int elements)
 }
 
 /**
- * This function fills a hardware pool with memory.
- *
+ * cvm_oct_fill_hw_memory - fill a hardware pool with memory.
  * @pool:     Pool to populate
  * @size:     Size of each buffer in the pool
  * @elements: Number of buffers to allocate
+ *
+ * Returns the actual number of buffers allocated.
  */
 static int cvm_oct_fill_hw_memory(int pool, int size, int elements)
 {
@@ -129,8 +130,7 @@ static int cvm_oct_fill_hw_memory(int pool, int size, int elements)
 }
 
 /**
- * Free memory previously allocated with cvm_oct_fill_hw_memory
- *
+ * cvm_oct_free_hw_memory - Free memory allocated by cvm_oct_fill_hw_memory
  * @pool:     FPA pool to free
  * @size:     Size of each buffer in the pool
  * @elements: Number of buffers that should be in the pool

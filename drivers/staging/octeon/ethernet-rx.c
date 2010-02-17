@@ -124,8 +124,9 @@ static void cvm_oct_no_more_work(void)
 }
 
 /**
- * Interrupt handler. The interrupt occurs whenever the POW
- * has packets in our group.
+ * cvm_oct_do_interrupt - interrupt handler.
+ *
+ * The interrupt occurs whenever the POW has packets in our group.
  *
  */
 static irqreturn_t cvm_oct_do_interrupt(int cpl, void *dev_id)
@@ -138,10 +139,9 @@ static irqreturn_t cvm_oct_do_interrupt(int cpl, void *dev_id)
 }
 
 /**
- * This is called on receive errors, and determines if the packet
- * can be dropped early-on in cvm_oct_tasklet_rx().
- *
+ * cvm_oct_check_rcv_error - process receive errors
  * @work: Work queue entry pointing to the packet.
+ *
  * Returns Non-zero if the packet can be dropped, zero otherwise.
  */
 static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
@@ -224,10 +224,11 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 }
 
 /**
- * The NAPI poll function.
- *
+ * cvm_oct_napi_poll - the NAPI poll function.
  * @napi: The NAPI instance, or null if called from cvm_oct_poll_controller
  * @budget: Maximum number of packets to receive.
+ *
+ * Returns the number of packets processed.
  */
 static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 {
@@ -484,7 +485,7 @@ static int cvm_oct_napi_poll(struct napi_struct *napi, int budget)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /**
- * This is called when the kernel needs to manually poll the
+ * cvm_oct_poll_controller - poll for receive packets
  * device.
  *
  * @dev:    Device to poll. Unused

@@ -61,13 +61,6 @@ struct octeon_ethernet {
 	struct work_struct	port_work;	/* may be unused. */
 };
 
-/**
- * Free a work queue entry received in a intercept callback.
- *
- * @work_queue_entry:
- *               Work queue entry to free
- * Returns Zero on success, Negative on failure.
- */
 int cvm_oct_free_work(void *work_queue_entry);
 
 extern int cvm_oct_rgmii_init(struct net_device *dev);

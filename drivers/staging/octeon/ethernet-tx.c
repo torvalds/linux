@@ -137,11 +137,11 @@ void cvm_oct_free_tx_skbs(struct net_device *dev)
 }
 
 /**
- * Packet transmit
- *
+ * cvm_oct_xmit - transmit a packet
  * @skb:    Packet to send
  * @dev:    Device info structure
- * Returns Always returns zero
+ *
+ * Returns Always returns NETDEV_TX_OK
  */
 int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -510,10 +510,10 @@ skip_xmit:
 }
 
 /**
- * Packet transmit to the POW
- *
+ * cvm_oct_xmit_pow - transmit a packet to the POW
  * @skb:    Packet to send
  * @dev:    Device info structure
+
  * Returns Always returns zero
  */
 int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
@@ -661,9 +661,9 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- * This function frees all skb that are currently queued for TX.
- *
+ * cvm_oct_tx_shutdown_dev - free all skb that are currently queued for TX.
  * @dev:    Device being shutdown
+ *
  */
 void cvm_oct_tx_shutdown_dev(struct net_device *dev)
 {

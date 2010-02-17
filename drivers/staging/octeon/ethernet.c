@@ -176,9 +176,6 @@ static void cvm_oct_periodic_worker(struct work_struct *work)
 		queue_delayed_work(cvm_oct_poll_queue, &priv->port_periodic_work, HZ);
  }
 
-/**
- * Configure common hardware for all interfaces
- */
 static __init void cvm_oct_configure_common_hw(void)
 {
 	/* Setup the FPA */
@@ -198,10 +195,10 @@ static __init void cvm_oct_configure_common_hw(void)
 }
 
 /**
- * Free a work queue entry received in a intercept callback.
+ * cvm_oct_free_work- Free a work queue entry
  *
- * @work_queue_entry:
- *               Work queue entry to free
+ * @work_queue_entry: Work queue entry to free
+ *
  * Returns Zero on success, Negative on failure.
  */
 int cvm_oct_free_work(void *work_queue_entry)
@@ -228,9 +225,9 @@ int cvm_oct_free_work(void *work_queue_entry)
 EXPORT_SYMBOL(cvm_oct_free_work);
 
 /**
- * Get the low level ethernet statistics
- *
+ * cvm_oct_common_get_stats - get the low level ethernet statistics
  * @dev:    Device to get the statistics from
+ *
  * Returns Pointer to the statistics
  */
 static struct net_device_stats *cvm_oct_common_get_stats(struct net_device *dev)
@@ -274,8 +271,7 @@ static struct net_device_stats *cvm_oct_common_get_stats(struct net_device *dev)
 }
 
 /**
- * Change the link MTU. Unimplemented
- *
+ * cvm_oct_common_change_mtu - change the link MTU
  * @dev:     Device to change
  * @new_mtu: The new MTU
  *
@@ -339,8 +335,7 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 /**
- * Set the multicast list. Currently unimplemented.
- *
+ * cvm_oct_common_set_multicast_list - set the multicast list
  * @dev:    Device to work on
  */
 static void cvm_oct_common_set_multicast_list(struct net_device *dev)
@@ -395,10 +390,10 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 }
 
 /**
- * Set the hardware MAC address for a device
- *
- * @dev:    Device to change the MAC address for
- * @addr:   Address structure to change it too. MAC address is addr + 2.
+ * cvm_oct_common_set_mac_address - set the hardware MAC address for a device
+ * @dev:    The device in question.
+ * @addr:   Address structure to change it too.
+
  * Returns Zero on success
  */
 static int cvm_oct_common_set_mac_address(struct net_device *dev, void *addr)
@@ -445,9 +440,9 @@ static int cvm_oct_common_set_mac_address(struct net_device *dev, void *addr)
 }
 
 /**
- * Per network device initialization
- *
+ * cvm_oct_common_init - per network device initialization
  * @dev:    Device to initialize
+ *
  * Returns Zero on success
  */
 int cvm_oct_common_init(struct net_device *dev)
@@ -603,12 +598,6 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 
 extern void octeon_mdiobus_force_mod_depencency(void);
 
-/**
- * Module/ driver initialization. Creates the linux network
- * devices.
- *
- * Returns Zero on success
- */
 static int __init cvm_oct_init_module(void)
 {
 	int num_interfaces;
@@ -802,11 +791,6 @@ static int __init cvm_oct_init_module(void)
 	return 0;
 }
 
-/**
- * Module / driver shutdown
- *
- * Returns Zero on success
- */
 static void __exit cvm_oct_cleanup_module(void)
 {
 	int port;
