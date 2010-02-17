@@ -324,11 +324,9 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 
 static void cxgb_set_rxmode(struct net_device *dev)
 {
-	struct t3_rx_mode rm;
 	struct port_info *pi = netdev_priv(dev);
 
-	init_rx_mode(&rm, dev, dev->mc_list);
-	t3_mac_set_rx_mode(&pi->mac, &rm);
+	t3_mac_set_rx_mode(&pi->mac, dev);
 }
 
 /**
@@ -339,17 +337,15 @@ static void cxgb_set_rxmode(struct net_device *dev)
  */
 static void link_start(struct net_device *dev)
 {
-	struct t3_rx_mode rm;
 	struct port_info *pi = netdev_priv(dev);
 	struct cmac *mac = &pi->mac;
 
-	init_rx_mode(&rm, dev, dev->mc_list);
 	t3_mac_reset(mac);
 	t3_mac_set_num_ucast(mac, MAX_MAC_IDX);
 	t3_mac_set_mtu(mac, dev->mtu);
 	t3_mac_set_address(mac, LAN_MAC_IDX, dev->dev_addr);
 	t3_mac_set_address(mac, SAN_MAC_IDX, pi->iscsic.mac_addr);
-	t3_mac_set_rx_mode(mac, &rm);
+	t3_mac_set_rx_mode(mac, dev);
 	t3_link_start(&pi->phy, mac, &pi->link_config);
 	t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
 }
