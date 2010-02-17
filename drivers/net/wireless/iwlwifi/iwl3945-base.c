@@ -2537,14 +2537,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
-	/* reassociate for ADHOC mode */
-	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
-		struct sk_buff *beacon = ieee80211_beacon_get(priv->hw,
-								priv->vif);
-		if (beacon)
-			iwl_mac_beacon_update(priv->hw, beacon);
-	}
-
 	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
 		iwl_set_mode(priv, priv->iw_mode);
 
