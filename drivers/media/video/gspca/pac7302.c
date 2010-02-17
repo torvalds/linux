@@ -24,33 +24,26 @@
  */
 
 /* Some documentation about various registers as determined by trial and error.
-   When the register addresses differ between the 7202 and the 7311 the 2
-   different addresses are written as 7302addr/7311addr, when one of the 2
-   addresses is a - sign that register description is not valid for the
-   matching IC.
 
    Register page 1:
 
    Address	Description
-   -/0x08	Unknown compressor related, must always be 8 except when not
-		in 640x480 resolution and page 4 reg 2 <= 3 then set it to 9 !
-   -/0x1b	Auto white balance related, bit 0 is AWB enable (inverted)
-		bits 345 seem to toggle per color gains on/off (inverted)
    0x78		Global control, bit 6 controls the LED (inverted)
-   -/0x80	JPEG compression ratio ? Best not touched
 
-   Register page 3/4:
+   Register page 3:
 
    Address	Description
-   0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
+   0x02		Clock divider 3-63, fps = 90 / val. Must be a multiple of 3 on
 		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
-   -/0x0f	Master gain 1-245, low value = high gain
-   0x10/-	Master gain 0-31
-   -/0x10	Another gain 0-15, limited influence (1-2x gain I guess)
+   0x03		Variable framerate ctrl reg2==3: 0 -> ~30 fps, 255 -> ~22fps
+   0x04		Another var framerate ctrl reg2==3, reg3==0: 0 -> ~30 fps,
+		63 -> ~27 fps, the 2 msb's must always be 1 !!
+   0x05		Another var framerate ctrl reg2==3, reg3==0, reg4==0xc0:
+		1 -> ~30 fps, 2 -> ~20 fps
+   0x0e		Exposure bits 0-7, 0-448, 0 = use full frame time
+   0x0f		Exposure bit 8, 0-448, 448 = no exposure at all
+   0x10		Master gain 0-31
    0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
-   -/0x27	Seems to toggle various gains on / off, Setting bit 7 seems to
-		completely disable the analog amplification block. Set to 0x68
-		for max gain, 0x14 for minimal gain.
 
    The registers are accessed in the following functions:
 
@@ -89,8 +82,8 @@ struct sd {
 	unsigned char red_balance;
 	unsigned char blue_balance;
 	unsigned char gain;
-	unsigned char exposure;
 	unsigned char autogain;
+	unsigned short exposure;
 	__u8 hflip;
 	__u8 vflip;
 	u8 flags;
@@ -128,7 +121,6 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
-/* This control is pac7302 only */
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -144,7 +136,6 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
-/* This control is for both the 7302 and the 7311 */
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -160,7 +151,6 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-/* This control is pac7302 only */
 	{
 	    {
 		.id      = V4L2_CID_SATURATION,
@@ -218,7 +208,6 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setbluebalance,
 	    .get = sd_getbluebalance,
 	},
-/* All controls below are for both the 7302 and the 7311 */
 	{
 	    {
 		.id      = V4L2_CID_GAIN,
@@ -241,11 +230,10 @@ static const struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Exposure",
 		.minimum = 0,
-#define EXPOSURE_MAX 255
-		.maximum = EXPOSURE_MAX,
+		.maximum = 1023,
 		.step    = 1,
-#define EXPOSURE_DEF  16 /*  32 ms / 30 fps */
-#define EXPOSURE_KNEE 50 /* 100 ms / 10 fps */
+#define EXPOSURE_DEF  66  /*  33 ms / 30 fps */
+#define EXPOSURE_KNEE 133 /*  66 ms / 15 fps */
 		.default_value = EXPOSURE_DEF,
 	    },
 	    .set = sd_setexposure,
@@ -381,7 +369,7 @@ static const __u8 start_7302[] = {
 #define SKIP		0xaa
 /* page 3 - the value SKIP says skip the index - see reg_w_page() */
 static const __u8 page3_7302[] = {
-	0x90, 0x40, 0x03, 0x50, 0xc2, 0x01, 0x14, 0x16,
+	0x90, 0x40, 0x03, 0x00, 0xc0, 0x01, 0x14, 0x16,
 	0x14, 0x12, 0x00, 0x00, 0x00, 0x02, 0x33, 0x00,
 	0x0f, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x47, 0x01, 0xb3, 0x01, 0x00,
@@ -653,23 +641,39 @@ static void setgain(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 reg;
+	__u8 clockdiv;
+	__u16 exposure;
 
-	/* register 2 of frame 3/4 contains the clock divider configuring the
-	   no fps according to the formula: 60 / reg. sd->exposure is the
-	   desired exposure time in ms. */
-	reg = 120 * sd->exposure / 1000;
-	if (reg < 2)
-		reg = 2;
-	else if (reg > 63)
-		reg = 63;
+	/* register 2 of frame 3 contains the clock divider configuring the
+	   no fps according to the formula: 90 / reg. sd->exposure is the
+	   desired exposure time in 0.5 ms. */
+	clockdiv = (90 * sd->exposure + 1999) / 2000;
 
-	/* On the pac7302 reg2 MUST be a multiple of 3, so round it to
-	   the nearest multiple of 3, except when between 6 and 12? */
-	if (reg < 6 || reg > 12)
-		reg = ((reg + 1) / 3) * 3;
+	/* Note clockdiv = 3 also works, but when running at 30 fps, depending
+	   on the scene being recorded, the camera switches to another
+	   quantization table for certain JPEG blocks, and we don't know how
+	   to decompress these blocks. So we cap the framerate at 15 fps */
+	if (clockdiv < 6)
+		clockdiv = 6;
+	else if (clockdiv > 63)
+		clockdiv = 63;
+
+	/* reg2 MUST be a multiple of 3, except when between 6 and 12?
+	   Always round up, otherwise we cannot get the desired frametime
+	   using the partial frame time exposure control */
+	if (clockdiv < 6 || clockdiv > 12)
+		clockdiv = ((clockdiv + 2) / 3) * 3;
+
+	/* frame exposure time in ms = 1000 * clockdiv / 90    ->
+	exposure = (sd->exposure / 2) * 448 / (1000 * clockdiv / 90) */
+	exposure = (sd->exposure * 45 * 448) / (1000 * clockdiv);
+	/* 0 = use full frametime, 448 = no exposure, reverse it */
+	exposure = 448 - exposure;
+
 	reg_w(gspca_dev, 0xff, 0x03);			/* page 3 */
-	reg_w(gspca_dev, 0x02, reg);
+	reg_w(gspca_dev, 0x02, clockdiv);
+	reg_w(gspca_dev, 0x0e, exposure & 0xff);
+	reg_w(gspca_dev, 0x0f, exposure >> 8);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
@@ -756,22 +760,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum = atomic_read(&sd->avg_lum);
-	int desired_lum, deadzone;
+	int desired_lum;
+	const int deadzone = 30;
 
 	if (avg_lum == -1)
 		return;
 
-	desired_lum = 270 + sd->brightness * 4;
-	/* Hack hack, with the 7202 the first exposure step is
-	   pretty large, so if we're about to make the first
-	   exposure increase make the deadzone large to avoid
-	   oscilating */
-	if (desired_lum > avg_lum && sd->gain == GAIN_DEF &&
-			sd->exposure > EXPOSURE_DEF &&
-			sd->exposure < 42)
-		deadzone = 90;
-	else
-		deadzone = 30;
+	desired_lum = 270 + sd->brightness;
 
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
