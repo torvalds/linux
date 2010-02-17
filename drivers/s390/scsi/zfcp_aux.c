@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
+#include "zfcp_reqlist.h"
 
 #define ZFCP_BUS_ID_SIZE	20
 
@@ -47,36 +48,6 @@ static struct kmem_cache *zfcp_cache_hw_align(const char *name,
 					      unsigned long size)
 {
 	return kmem_cache_create(name, size, roundup_pow_of_two(size), 0, NULL);
-}
-
-static int zfcp_reqlist_alloc(struct zfcp_adapter *adapter)
-{
-	int idx;
-
-	adapter->req_list = kcalloc(REQUEST_LIST_SIZE, sizeof(struct list_head),
-				    GFP_KERNEL);
-	if (!adapter->req_list)
-		return -ENOMEM;
-
-	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++)
-		INIT_LIST_HEAD(&adapter->req_list[idx]);
-	return 0;
-}
-
-/**
- * zfcp_reqlist_isempty - is the request list empty
- * @adapter: pointer to struct zfcp_adapter
- *
- * Returns: true if list is empty, false otherwise
- */
-int zfcp_reqlist_isempty(struct zfcp_adapter *adapter)
-{
-	unsigned int idx;
-
-	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++)
-		if (!list_empty(&adapter->req_list[idx]))
-			return 0;
-	return 1;
 }
 
 static void __init zfcp_init_device_configure(char *busid, u64 wwpn, u64 lun)
@@ -539,7 +510,8 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (zfcp_allocate_low_mem_buffers(adapter))
 		goto failed;
 
-	if (zfcp_reqlist_alloc(adapter))
+	adapter->req_list = zfcp_reqlist_alloc();
+	if (!adapter->req_list)
 		goto failed;
 
 	if (zfcp_dbf_adapter_register(adapter))
@@ -559,8 +531,6 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	INIT_LIST_HEAD(&adapter->erp_ready_head);
 	INIT_LIST_HEAD(&adapter->erp_running_head);
-
-	spin_lock_init(&adapter->req_list_lock);
 
 	rwlock_init(&adapter->erp_lock);
 	rwlock_init(&adapter->abort_lock);

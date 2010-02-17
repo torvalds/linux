@@ -11,6 +11,7 @@
 
 #include <linux/kthread.h>
 #include "zfcp_ext.h"
+#include "zfcp_reqlist.h"
 
 #define ZFCP_MAX_ERPS                   3
 
@@ -483,8 +484,8 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 	if (!act->fsf_req_id)
 		return;
 
-	spin_lock(&adapter->req_list_lock);
-	req = zfcp_reqlist_find(adapter, act->fsf_req_id);
+	spin_lock(&adapter->req_list->lock);
+	req = _zfcp_reqlist_find(adapter->req_list, act->fsf_req_id);
 	if (req && req->erp_action == act) {
 		if (act->status & (ZFCP_STATUS_ERP_DISMISSED |
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
@@ -498,7 +499,7 @@ static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 			act->fsf_req_id = 0;
 	} else
 		act->fsf_req_id = 0;
-	spin_unlock(&adapter->req_list_lock);
+	spin_unlock(&adapter->req_list->lock);
 }
 
 /**

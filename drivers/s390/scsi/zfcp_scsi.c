@@ -15,6 +15,7 @@
 #include "zfcp_ext.h"
 #include "zfcp_dbf.h"
 #include "zfcp_fc.h"
+#include "zfcp_reqlist.h"
 
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);
@@ -189,9 +190,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	/* avoid race condition between late normal completion and abort */
 	write_lock_irqsave(&adapter->abort_lock, flags);
 
-	spin_lock(&adapter->req_list_lock);
-	old_req = zfcp_reqlist_find(adapter, old_reqid);
-	spin_unlock(&adapter->req_list_lock);
+	old_req = zfcp_reqlist_find(adapter->req_list, old_reqid);
 	if (!old_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
 		zfcp_dbf_scsi_abort("lte1", adapter->dbf, scpnt, NULL,

@@ -14,6 +14,7 @@
 #include "zfcp_ext.h"
 #include "zfcp_fc.h"
 #include "zfcp_dbf.h"
+#include "zfcp_reqlist.h"
 
 static void zfcp_fsf_request_timeout_handler(unsigned long data)
 {
@@ -457,15 +458,10 @@ static void zfcp_fsf_req_complete(struct zfcp_fsf_req *req)
 void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
 {
 	struct zfcp_fsf_req *req, *tmp;
-	unsigned long flags;
 	LIST_HEAD(remove_queue);
-	unsigned int i;
 
 	BUG_ON(atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP);
-	spin_lock_irqsave(&adapter->req_list_lock, flags);
-	for (i = 0; i < REQUEST_LIST_SIZE; i++)
-		list_splice_init(&adapter->req_list[i], &remove_queue);
-	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+	zfcp_reqlist_move(adapter->req_list, &remove_queue);
 
 	list_for_each_entry_safe(req, tmp, &remove_queue, list) {
 		list_del(&req->list);
@@ -770,27 +766,17 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	struct zfcp_qdio *qdio = adapter->qdio;
-	unsigned long	     flags;
-	int		     idx;
-	int		     with_qtcb = (req->qtcb != NULL);
+	int with_qtcb = (req->qtcb != NULL);
 	int req_id = req->req_id;
 
-	/* put allocated FSF request into hash table */
-	spin_lock_irqsave(&adapter->req_list_lock, flags);
-	idx = zfcp_reqlist_hash(req_id);
-	list_add_tail(&req->list, &adapter->req_list[idx]);
-	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+	zfcp_reqlist_add(adapter->req_list, req);
 
 	req->queue_req.qdio_outb_usage = atomic_read(&qdio->req_q.count);
 	req->issued = get_clock();
 	if (zfcp_qdio_send(qdio, &req->queue_req)) {
 		del_timer(&req->timer);
-		spin_lock_irqsave(&adapter->req_list_lock, flags);
 		/* lookup request again, list might have changed */
-		req = zfcp_reqlist_find(adapter, req_id);
-		if (req)
-			zfcp_reqlist_remove(adapter, req);
-		spin_unlock_irqrestore(&adapter->req_list_lock, flags);
+		zfcp_reqlist_find_rm(adapter->req_list, req_id);
 		zfcp_erp_adapter_reopen(adapter, 0, "fsrs__1", req);
 		return -EIO;
 	}
@@ -2518,15 +2504,14 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 	struct qdio_buffer *sbal = qdio->resp_q.sbal[sbal_idx];
 	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *fsf_req;
-	unsigned long flags, req_id;
+	unsigned long req_id;
 	int idx;
 
 	for (idx = 0; idx < QDIO_MAX_ELEMENTS_PER_BUFFER; idx++) {
 
 		sbale = &sbal->element[idx];
 		req_id = (unsigned long) sbale->addr;
-		spin_lock_irqsave(&adapter->req_list_lock, flags);
-		fsf_req = zfcp_reqlist_find(adapter, req_id);
+		fsf_req = zfcp_reqlist_find_rm(adapter->req_list, req_id);
 
 		if (!fsf_req)
 			/*
@@ -2535,9 +2520,6 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 			 */
 			panic("error: unknown req_id (%lx) on adapter %s.\n",
 			      req_id, dev_name(&adapter->ccw_device->dev));
-
-		list_del(&fsf_req->list);
-		spin_unlock_irqrestore(&adapter->req_list_lock, flags);
 
 		fsf_req->queue_req.sbal_response = sbal_idx;
 		fsf_req->queue_req.qdio_inb_usage =

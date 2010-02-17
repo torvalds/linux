@@ -39,9 +39,7 @@
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
 
-/********************* GENERAL DEFINES *********************************/
-
-#define REQUEST_LIST_SIZE 128
+struct zfcp_reqlist;
 
 /********************* SCSI SPECIFIC DEFINES *********************************/
 #define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
@@ -206,8 +204,7 @@ struct zfcp_adapter {
 	struct list_head	port_list;	   /* remote port list */
 	rwlock_t		port_list_lock;    /* port list lock */
 	unsigned long		req_no;		   /* unique FSF req number */
-	struct list_head	*req_list;	   /* list of pending reqs */
-	spinlock_t		req_list_lock;	   /* request list lock */
+	struct zfcp_reqlist	*req_list;
 	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
 	rwlock_t		abort_lock;        /* Protects against SCSI
 						      stack abort/command
@@ -350,32 +347,5 @@ struct zfcp_data {
 
 #define ZFCP_SET                0x00000100
 #define ZFCP_CLEAR              0x00000200
-
-/*
- * Helper functions for request ID management.
- */
-static inline int zfcp_reqlist_hash(unsigned long req_id)
-{
-	return req_id % REQUEST_LIST_SIZE;
-}
-
-static inline void zfcp_reqlist_remove(struct zfcp_adapter *adapter,
-				       struct zfcp_fsf_req *fsf_req)
-{
-	list_del(&fsf_req->list);
-}
-
-static inline struct zfcp_fsf_req *
-zfcp_reqlist_find(struct zfcp_adapter *adapter, unsigned long req_id)
-{
-	struct zfcp_fsf_req *request;
-	unsigned int idx;
-
-	idx = zfcp_reqlist_hash(req_id);
-	list_for_each_entry(request, &adapter->req_list[idx], list)
-		if (request->req_id == req_id)
-			return request;
-	return NULL;
-}
 
 #endif /* ZFCP_DEF_H */

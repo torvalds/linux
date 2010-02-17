@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include "zfcp_ext.h"
+#include "zfcp_reqlist.h"
 
 #define ZFCP_MODEL_PRIV 0x4
 
@@ -162,7 +163,7 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 	}
 
 	/* initialize request counter */
-	BUG_ON(!zfcp_reqlist_isempty(adapter));
+	BUG_ON(!zfcp_reqlist_isempty(adapter->req_list));
 	adapter->req_no = 0;
 
 	zfcp_erp_modify_adapter_status(adapter, "ccsonl1", NULL,
