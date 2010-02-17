@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 #include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
@@ -33,6 +34,7 @@
 #endif
 
 #ifdef CONFIG_SMDK6410_WM1192_EV1
+#include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
 #endif
 
@@ -471,10 +473,37 @@ static struct wm8350_platform_data __initdata smdk6410_wm8350_pdata = {
 #endif
 
 #ifdef CONFIG_SMDK6410_WM1192_EV1
+static struct gpio_led wm1192_pmic_leds[] = {
+	{
+		.name = "PMIC:red:power",
+		.gpio = GPIO_BOARD_START + 3,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
+	},
+};
+
+static struct gpio_led_platform_data wm1192_pmic_led = {
+	.num_leds = ARRAY_SIZE(wm1192_pmic_leds),
+	.leds = wm1192_pmic_leds,
+};
+
+static struct platform_device wm1192_pmic_led_dev = {
+	.name          = "leds-gpio",
+	.id            = -1,
+	.dev = {
+		.platform_data = &wm1192_pmic_led,
+	},
+};
+
 static int wm1192_pre_init(struct wm831x *wm831x)
 {
+	int ret;
+
 	/* Configure the IRQ line */
 	s3c_gpio_setpull(S3C64XX_GPN(12), S3C_GPIO_PULL_UP);
+
+	ret = platform_device_register(&wm1192_pmic_led_dev);
+	if (ret != 0)
+		dev_err(wm831x->dev, "Failed to add PMIC LED: %d\n", ret);
 
 	return 0;
 }
@@ -522,6 +551,7 @@ static struct wm831x_pdata smdk6410_wm1192_pdata = {
 		&smdk6410_vddint,  /* DCDC2 */
 		&wm1192_dcdc3,
 	},
+	.gpio_base = GPIO_BOARD_START,
 	.ldo = {
 		 &wm1192_ldo1,        /* LDO1 */
 		 &smdk6410_vdduh_mmc, /* LDO2 */
