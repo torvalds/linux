@@ -4659,10 +4659,15 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			if (skb_size < 0)
 				goto drop_it;
 
-			ri->skb = NULL;
-
 			pci_unmap_single(tp->pdev, dma_addr, skb_size,
 					 PCI_DMA_FROMDEVICE);
+
+			/* Ensure that the update to the skb happens
+			 * after the usage of the old DMA mapping.
+			 */
+			smp_wmb();
+
+			ri->skb = NULL;
 
 			skb_put(skb, len);
 		} else {
