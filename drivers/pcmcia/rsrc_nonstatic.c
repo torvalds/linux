@@ -124,8 +124,10 @@ static int add_interval(struct resource_map *map, u_long base, u_long num)
 	struct resource_map *p, *q;
 
 	for (p = map; ; p = p->next) {
-		if ((p != map) && (p->base+p->num-1 >= base))
-			return -1;
+		if ((p != map) && (p->base+p->num >= base)) {
+			p->num = max(num + base - p->base, p->num);
+			return 0;
+		}
 		if ((p->next == map) || (p->next->base > base+num-1))
 			break;
 	}
