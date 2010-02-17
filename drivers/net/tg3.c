@@ -1995,7 +1995,7 @@ out:
 	}
 	/* Set Extended packet length bit (bit 14) on all chips that */
 	/* support jumbo frames */
-	if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
+	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5401) {
 		/* Cannot do read-modify-write on 5401 */
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x4c20);
 	} else if (tp->tg3_flags & TG3_FLAG_JUMBO_CAPABLE) {
@@ -2147,7 +2147,7 @@ static int tg3_5700_link_polarity(struct tg3 *tp, u32 speed)
 {
 	if (tp->led_ctrl == LED_CTRL_MODE_PHY_2)
 		return 1;
-	else if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5411) {
+	else if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5411) {
 		if (speed != SPEED_10)
 			return 1;
 	} else if (speed == SPEED_10)
@@ -3077,7 +3077,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 	if (force_reset)
 		tg3_phy_reset(tp);
 
-	if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
+	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5401) {
 		tg3_readphy(tp, MII_BMSR, &bmsr);
 		if (tg3_readphy(tp, MII_BMSR, &bmsr) ||
 		    !(tp->tg3_flags & TG3_FLAG_INIT_COMPLETE))
@@ -3098,7 +3098,8 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 				}
 			}
 
-			if ((tp->phy_id & PHY_ID_REV_MASK) == PHY_REV_BCM5401_B0 &&
+			if ((tp->phy_id & TG3_PHY_ID_REV_MASK) ==
+			    TG3_PHY_REV_BCM5401_B0 &&
 			    !(bmsr & BMSR_LSTATUS) &&
 			    tp->link_config.active_speed == SPEED_1000) {
 				err = tg3_phy_reset(tp);
@@ -3253,7 +3254,7 @@ relink:
 	/* ??? Without this setting Netgear GA302T PHY does not
 	 * ??? send/receive packets...
 	 */
-	if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5411 &&
+	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5411 &&
 	    tp->pci_chip_rev_id == CHIPREV_ID_5700_ALTIMA) {
 		tp->mi_mode |= MAC_MI_MODE_AUTO_POLL;
 		tw32_f(MAC_MI_MODE, tp->mi_mode);
@@ -3968,7 +3969,7 @@ static int tg3_setup_fiber_phy(struct tg3 *tp, int force_reset)
 	tw32_f(MAC_MODE, tp->mac_mode);
 	udelay(40);
 
-	if (tp->phy_id == PHY_ID_BCM8002)
+	if (tp->phy_id == TG3_PHY_ID_BCM8002)
 		tg3_init_bcm8002(tp);
 
 	/* Enable link change event even when serdes polling.  */
@@ -10854,9 +10855,10 @@ static int tg3_run_loopback(struct tg3 *tp, int loopback_mode)
 			tw32_f(MAC_RX_MODE, tp->rx_mode);
 		}
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700) {
-			if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)
+			u32 masked_phy_id = tp->phy_id & TG3_PHY_ID_MASK;
+			if (masked_phy_id == TG3_PHY_ID_BCM5401)
 				mac_mode &= ~MAC_MODE_LINK_POLARITY;
-			else if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5411)
+			else if (masked_phy_id == TG3_PHY_ID_BCM5411)
 				mac_mode |= MAC_MODE_LINK_POLARITY;
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
 				     MII_TG3_EXT_CTRL_LNK3_LED_MODE);
@@ -12115,61 +12117,61 @@ struct subsys_tbl_ent {
 static struct subsys_tbl_ent subsys_id_to_phy_id[] __devinitdata = {
 	/* Broadcom boards. */
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95700A6, PHY_ID_BCM5401 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95700A6, TG3_PHY_ID_BCM5401 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A5, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A5, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95700T6, PHY_ID_BCM8002 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95700T6, TG3_PHY_ID_BCM8002 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
 	  TG3PCI_SUBDEVICE_ID_BROADCOM_95700A9, 0 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701T1, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701T1, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701T8, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701T8, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
 	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A7, 0 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A10, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A10, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A12, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95701A12, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95703AX1, PHY_ID_BCM5703 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95703AX1, TG3_PHY_ID_BCM5703 },
 	{ TG3PCI_SUBVENDOR_ID_BROADCOM,
-	  TG3PCI_SUBDEVICE_ID_BROADCOM_95703AX2, PHY_ID_BCM5703 },
+	  TG3PCI_SUBDEVICE_ID_BROADCOM_95703AX2, TG3_PHY_ID_BCM5703 },
 
 	/* 3com boards. */
 	{ TG3PCI_SUBVENDOR_ID_3COM,
-	  TG3PCI_SUBDEVICE_ID_3COM_3C996T, PHY_ID_BCM5401 },
+	  TG3PCI_SUBDEVICE_ID_3COM_3C996T, TG3_PHY_ID_BCM5401 },
 	{ TG3PCI_SUBVENDOR_ID_3COM,
-	  TG3PCI_SUBDEVICE_ID_3COM_3C996BT, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_3COM_3C996BT, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_3COM,
 	  TG3PCI_SUBDEVICE_ID_3COM_3C996SX, 0 },
 	{ TG3PCI_SUBVENDOR_ID_3COM,
-	  TG3PCI_SUBDEVICE_ID_3COM_3C1000T, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_3COM_3C1000T, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_3COM,
-	  TG3PCI_SUBDEVICE_ID_3COM_3C940BR01, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_3COM_3C940BR01, TG3_PHY_ID_BCM5701 },
 
 	/* DELL boards. */
 	{ TG3PCI_SUBVENDOR_ID_DELL,
-	  TG3PCI_SUBDEVICE_ID_DELL_VIPER, PHY_ID_BCM5401 },
+	  TG3PCI_SUBDEVICE_ID_DELL_VIPER, TG3_PHY_ID_BCM5401 },
 	{ TG3PCI_SUBVENDOR_ID_DELL,
-	  TG3PCI_SUBDEVICE_ID_DELL_JAGUAR, PHY_ID_BCM5401 },
+	  TG3PCI_SUBDEVICE_ID_DELL_JAGUAR, TG3_PHY_ID_BCM5401 },
 	{ TG3PCI_SUBVENDOR_ID_DELL,
-	  TG3PCI_SUBDEVICE_ID_DELL_MERLOT, PHY_ID_BCM5411 },
+	  TG3PCI_SUBDEVICE_ID_DELL_MERLOT, TG3_PHY_ID_BCM5411 },
 	{ TG3PCI_SUBVENDOR_ID_DELL,
-	  TG3PCI_SUBDEVICE_ID_DELL_SLIM_MERLOT, PHY_ID_BCM5411 },
+	  TG3PCI_SUBDEVICE_ID_DELL_SLIM_MERLOT, TG3_PHY_ID_BCM5411 },
 
 	/* Compaq boards. */
 	{ TG3PCI_SUBVENDOR_ID_COMPAQ,
-	  TG3PCI_SUBDEVICE_ID_COMPAQ_BANSHEE, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_COMPAQ_BANSHEE, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_COMPAQ,
-	  TG3PCI_SUBDEVICE_ID_COMPAQ_BANSHEE_2, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_COMPAQ_BANSHEE_2, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_COMPAQ,
 	  TG3PCI_SUBDEVICE_ID_COMPAQ_CHANGELING, 0 },
 	{ TG3PCI_SUBVENDOR_ID_COMPAQ,
-	  TG3PCI_SUBDEVICE_ID_COMPAQ_NC7780, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_COMPAQ_NC7780, TG3_PHY_ID_BCM5701 },
 	{ TG3PCI_SUBVENDOR_ID_COMPAQ,
-	  TG3PCI_SUBDEVICE_ID_COMPAQ_NC7780_2, PHY_ID_BCM5701 },
+	  TG3PCI_SUBDEVICE_ID_COMPAQ_NC7780_2, TG3_PHY_ID_BCM5701 },
 
 	/* IBM boards. */
 	{ TG3PCI_SUBVENDOR_ID_IBM,
@@ -12217,7 +12219,7 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 	val = tr32(MEMARB_MODE);
 	tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
 
-	tp->phy_id = PHY_ID_INVALID;
+	tp->phy_id = TG3_PHY_ID_INVALID;
 	tp->led_ctrl = LED_CTRL_MODE_PHY_1;
 
 	/* Assume an onboard device and WOL capable by default.  */
@@ -12468,7 +12470,7 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 	err = 0;
 	if ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||
 	    (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)) {
-		hw_phy_id = hw_phy_id_masked = PHY_ID_INVALID;
+		hw_phy_id = hw_phy_id_masked = TG3_PHY_ID_INVALID;
 	} else {
 		/* Now read the physical PHY_ID from the chip and verify
 		 * that it is sane.  If it doesn't look good, we fall back
@@ -12482,17 +12484,17 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		hw_phy_id |= (hw_phy_id_2 & 0xfc00) << 16;
 		hw_phy_id |= (hw_phy_id_2 & 0x03ff) <<  0;
 
-		hw_phy_id_masked = hw_phy_id & PHY_ID_MASK;
+		hw_phy_id_masked = hw_phy_id & TG3_PHY_ID_MASK;
 	}
 
-	if (!err && KNOWN_PHY_ID(hw_phy_id_masked)) {
+	if (!err && TG3_KNOWN_PHY_ID(hw_phy_id_masked)) {
 		tp->phy_id = hw_phy_id;
-		if (hw_phy_id_masked == PHY_ID_BCM8002)
+		if (hw_phy_id_masked == TG3_PHY_ID_BCM8002)
 			tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
 		else
 			tp->tg3_flags2 &= ~TG3_FLG2_PHY_SERDES;
 	} else {
-		if (tp->phy_id != PHY_ID_INVALID) {
+		if (tp->phy_id != TG3_PHY_ID_INVALID) {
 			/* Do nothing, phy ID already set up in
 			 * tg3_get_eeprom_hw_cfg().
 			 */
@@ -12508,7 +12510,7 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 
 			tp->phy_id = p->phy_id;
 			if (!tp->phy_id ||
-			    tp->phy_id == PHY_ID_BCM8002)
+			    tp->phy_id == TG3_PHY_ID_BCM8002)
 				tp->tg3_flags2 |= TG3_FLG2_PHY_SERDES;
 		}
 	}
@@ -12560,13 +12562,11 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 	}
 
 skip_phy_reset:
-	if ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401) {
+	if ((tp->phy_id & TG3_PHY_ID_MASK) == TG3_PHY_ID_BCM5401) {
 		err = tg3_init_5401phy_dsp(tp);
 		if (err)
 			return err;
-	}
 
-	if (!err && ((tp->phy_id & PHY_ID_MASK) == PHY_ID_BCM5401)) {
 		err = tg3_init_5401phy_dsp(tp);
 	}
 
@@ -14317,28 +14317,28 @@ static void __devinit tg3_init_bufmgr_config(struct tg3 *tp)
 
 static char * __devinit tg3_phy_string(struct tg3 *tp)
 {
-	switch (tp->phy_id & PHY_ID_MASK) {
-	case PHY_ID_BCM5400:	return "5400";
-	case PHY_ID_BCM5401:	return "5401";
-	case PHY_ID_BCM5411:	return "5411";
-	case PHY_ID_BCM5701:	return "5701";
-	case PHY_ID_BCM5703:	return "5703";
-	case PHY_ID_BCM5704:	return "5704";
-	case PHY_ID_BCM5705:	return "5705";
-	case PHY_ID_BCM5750:	return "5750";
-	case PHY_ID_BCM5752:	return "5752";
-	case PHY_ID_BCM5714:	return "5714";
-	case PHY_ID_BCM5780:	return "5780";
-	case PHY_ID_BCM5755:	return "5755";
-	case PHY_ID_BCM5787:	return "5787";
-	case PHY_ID_BCM5784:	return "5784";
-	case PHY_ID_BCM5756:	return "5722/5756";
-	case PHY_ID_BCM5906:	return "5906";
-	case PHY_ID_BCM5761:	return "5761";
-	case PHY_ID_BCM5718C:	return "5718C";
-	case PHY_ID_BCM5718S:	return "5718S";
-	case PHY_ID_BCM57765:	return "57765";
-	case PHY_ID_BCM8002:	return "8002/serdes";
+	switch (tp->phy_id & TG3_PHY_ID_MASK) {
+	case TG3_PHY_ID_BCM5400:	return "5400";
+	case TG3_PHY_ID_BCM5401:	return "5401";
+	case TG3_PHY_ID_BCM5411:	return "5411";
+	case TG3_PHY_ID_BCM5701:	return "5701";
+	case TG3_PHY_ID_BCM5703:	return "5703";
+	case TG3_PHY_ID_BCM5704:	return "5704";
+	case TG3_PHY_ID_BCM5705:	return "5705";
+	case TG3_PHY_ID_BCM5750:	return "5750";
+	case TG3_PHY_ID_BCM5752:	return "5752";
+	case TG3_PHY_ID_BCM5714:	return "5714";
+	case TG3_PHY_ID_BCM5780:	return "5780";
+	case TG3_PHY_ID_BCM5755:	return "5755";
+	case TG3_PHY_ID_BCM5787:	return "5787";
+	case TG3_PHY_ID_BCM5784:	return "5784";
+	case TG3_PHY_ID_BCM5756:	return "5722/5756";
+	case TG3_PHY_ID_BCM5906:	return "5906";
+	case TG3_PHY_ID_BCM5761:	return "5761";
+	case TG3_PHY_ID_BCM5718C:	return "5718C";
+	case TG3_PHY_ID_BCM5718S:	return "5718S";
+	case TG3_PHY_ID_BCM57765:	return "57765";
+	case TG3_PHY_ID_BCM8002:	return "8002/serdes";
 	case 0:			return "serdes";
 	default:		return "unknown";
 	}

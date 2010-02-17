@@ -2921,44 +2921,58 @@ struct tg3 {
 
 	/* PHY info */
 	u32				phy_id;
-#define PHY_ID_MASK			0xfffffff0
-#define PHY_ID_BCM5400			0x60008040
-#define PHY_ID_BCM5401			0x60008050
-#define PHY_ID_BCM5411			0x60008070
-#define PHY_ID_BCM5701			0x60008110
-#define PHY_ID_BCM5703			0x60008160
-#define PHY_ID_BCM5704			0x60008190
-#define PHY_ID_BCM5705			0x600081a0
-#define PHY_ID_BCM5750			0x60008180
-#define PHY_ID_BCM5752			0x60008100
-#define PHY_ID_BCM5714			0x60008340
-#define PHY_ID_BCM5780			0x60008350
-#define PHY_ID_BCM5755			0xbc050cc0
-#define PHY_ID_BCM5787			0xbc050ce0
-#define PHY_ID_BCM5756			0xbc050ed0
-#define PHY_ID_BCM5784			0xbc050fa0
-#define PHY_ID_BCM5761			0xbc050fd0
-#define PHY_ID_BCM5718C			0x5c0d8a00
-#define PHY_ID_BCM5718S			0xbc050ff0
-#define PHY_ID_BCM57765			0x5c0d8a40
-#define PHY_ID_BCM5906			0xdc00ac40
-#define PHY_ID_BCM8002			0x60010140
-#define PHY_ID_INVALID			0xffffffff
-#define PHY_ID_REV_MASK			0x0000000f
-#define PHY_REV_BCM5401_B0		0x1
-#define PHY_REV_BCM5401_B2		0x3
-#define PHY_REV_BCM5401_C0		0x6
-#define PHY_REV_BCM5411_X0		0x1 /* Found on Netgear GA302T */
-#define TG3_PHY_ID_BCM50610		0x143bd60
-#define TG3_PHY_ID_BCM50610M	0x143bd70
-#define TG3_PHY_ID_BCMAC131		0x143bc70
+#define TG3_PHY_ID_MASK			0xfffffff0
+#define TG3_PHY_ID_BCM5400		0x60008040
+#define TG3_PHY_ID_BCM5401		0x60008050
+#define TG3_PHY_ID_BCM5411		0x60008070
+#define TG3_PHY_ID_BCM5701		0x60008110
+#define TG3_PHY_ID_BCM5703		0x60008160
+#define TG3_PHY_ID_BCM5704		0x60008190
+#define TG3_PHY_ID_BCM5705		0x600081a0
+#define TG3_PHY_ID_BCM5750		0x60008180
+#define TG3_PHY_ID_BCM5752		0x60008100
+#define TG3_PHY_ID_BCM5714		0x60008340
+#define TG3_PHY_ID_BCM5780		0x60008350
+#define TG3_PHY_ID_BCM5755		0xbc050cc0
+#define TG3_PHY_ID_BCM5787		0xbc050ce0
+#define TG3_PHY_ID_BCM5756		0xbc050ed0
+#define TG3_PHY_ID_BCM5784		0xbc050fa0
+#define TG3_PHY_ID_BCM5761		0xbc050fd0
+#define TG3_PHY_ID_BCM5718C		0x5c0d8a00
+#define TG3_PHY_ID_BCM5718S		0xbc050ff0
+#define TG3_PHY_ID_BCM57765		0x5c0d8a40
+#define TG3_PHY_ID_BCM5906		0xdc00ac40
+#define TG3_PHY_ID_BCM8002		0x60010140
+#define TG3_PHY_ID_BCM50610		0x0143bd60
+#define TG3_PHY_ID_BCM50610M		0x0143bd70
+#define TG3_PHY_ID_BCMAC131		0x0143bc70
 #define TG3_PHY_ID_RTL8211C		0x001cc910
 #define TG3_PHY_ID_RTL8201E		0x00008200
 #define TG3_PHY_ID_BCM57780		0x03625d90
+#define TG3_PHY_ID_INVALID		0xffffffff
+
+#define TG3_PHY_ID_REV_MASK		0x0000000f
+#define TG3_PHY_REV_BCM5401_B0		0x1
+
 #define TG3_PHY_OUI_MASK		0xfffffc00
 #define TG3_PHY_OUI_1			0x00206000
 #define TG3_PHY_OUI_2			0x0143bc00
 #define TG3_PHY_OUI_3			0x03625c00
+
+	/* This macro assumes the passed PHY ID is
+	 * already masked with TG3_PHY_ID_MASK.
+	 */
+#define TG3_KNOWN_PHY_ID(X)		\
+	((X) == TG3_PHY_ID_BCM5400 || (X) == TG3_PHY_ID_BCM5401 || \
+	 (X) == TG3_PHY_ID_BCM5411 || (X) == TG3_PHY_ID_BCM5701 || \
+	 (X) == TG3_PHY_ID_BCM5703 || (X) == TG3_PHY_ID_BCM5704 || \
+	 (X) == TG3_PHY_ID_BCM5705 || (X) == TG3_PHY_ID_BCM5750 || \
+	 (X) == TG3_PHY_ID_BCM5752 || (X) == TG3_PHY_ID_BCM5714 || \
+	 (X) == TG3_PHY_ID_BCM5780 || (X) == TG3_PHY_ID_BCM5787 || \
+	 (X) == TG3_PHY_ID_BCM5755 || (X) == TG3_PHY_ID_BCM5756 || \
+	 (X) == TG3_PHY_ID_BCM5906 || (X) == TG3_PHY_ID_BCM5761 || \
+	 (X) == TG3_PHY_ID_BCM5718C || (X) == TG3_PHY_ID_BCM5718S || \
+	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM8002)
 
 	u32				led_ctrl;
 	u32				phy_otp;
@@ -2970,21 +2984,6 @@ struct tg3 {
 	u32				nic_sram_data_cfg;
 	u32				pci_clock_ctrl;
 	struct pci_dev			*pdev_peer;
-
-	/* This macro assumes the passed PHY ID is already masked
-	 * with PHY_ID_MASK.
-	 */
-#define KNOWN_PHY_ID(X)		\
-	((X) == PHY_ID_BCM5400 || (X) == PHY_ID_BCM5401 || \
-	 (X) == PHY_ID_BCM5411 || (X) == PHY_ID_BCM5701 || \
-	 (X) == PHY_ID_BCM5703 || (X) == PHY_ID_BCM5704 || \
-	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
-	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5714 || \
-	 (X) == PHY_ID_BCM5780 || (X) == PHY_ID_BCM5787 || \
-	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM5756 || \
-	 (X) == PHY_ID_BCM5906 || (X) == PHY_ID_BCM5761 || \
-	 (X) == PHY_ID_BCM5718C || (X) == PHY_ID_BCM5718S || \
-	 (X) == PHY_ID_BCM57765 || (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
