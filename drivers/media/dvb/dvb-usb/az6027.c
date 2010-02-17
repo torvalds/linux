@@ -754,13 +754,13 @@ static int az6027_ci_init(struct dvb_usb_adapter *a)
 	return 0;
 }
 
-
+#if 0
 static int az6027_read_mac_addr(struct dvb_usb_device *d, u8 mac[6])
 {
 	az6027_usb_in_op(d, 0xb7, 6, 0, &mac[0], 6);
 	return 0;
 }
-
+#endif
 
 static int az6027_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
