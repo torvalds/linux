@@ -527,6 +527,12 @@ static void __init early_touchbook_revision(char **p)
 }
 __early_param("tbr=", early_touchbook_revision);
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+	.mode			= MUSB_OTG,
+	.power			= 100,
+};
+
 static void __init omap3_touchbook_init(void)
 {
 	pm_power_off = omap3_touchbook_poweroff;
@@ -545,7 +551,7 @@ static void __init omap3_touchbook_init(void)
 	spi_register_board_info(omap3_ads7846_spi_board_info,
 				ARRAY_SIZE(omap3_ads7846_spi_board_info));
 	omap3_ads7846_init();
-	usb_musb_init();
+	usb_musb_init(&musb_board_data);
 	usb_ehci_init(&ehci_pdata);
 	omap3touchbook_flash_init();
 
