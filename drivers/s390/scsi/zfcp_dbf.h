@@ -192,9 +192,9 @@ struct zfcp_dbf_san_record {
 		struct zfcp_dbf_san_record_ct_response ct_resp;
 		struct zfcp_dbf_san_record_els els;
 	} u;
-#define ZFCP_DBF_SAN_MAX_PAYLOAD 1024
-	u8 payload[32];
 } __attribute__ ((packed));
+
+#define ZFCP_DBF_SAN_MAX_PAYLOAD 1024
 
 struct zfcp_dbf_scsi_record {
 	u8 tag[ZFCP_DBF_TAG_SIZE];
