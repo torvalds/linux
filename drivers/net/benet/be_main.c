@@ -2449,6 +2449,26 @@ static int be_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+/*
+ * An FLR will stop BE from DMAing any data.
+ */
+static void be_shutdown(struct pci_dev *pdev)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev =  adapter->netdev;
+
+	netif_device_detach(netdev);
+
+	be_cmd_reset_function(adapter);
+
+	if (adapter->wol)
+		be_setup_wol(adapter, true);
+
+	pci_disable_device(pdev);
+
+	return;
+}
+
 static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 				pci_channel_state_t state)
 {
@@ -2544,6 +2564,7 @@ static struct pci_driver be_driver = {
 	.remove = be_remove,
 	.suspend = be_suspend,
 	.resume = be_resume,
+	.shutdown = be_shutdown,
 	.err_handler = &be_eeh_handlers
 };
 
