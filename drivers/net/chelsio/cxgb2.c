@@ -125,8 +125,6 @@ static void t1_set_rxmode(struct net_device *dev)
 	struct t1_rx_mode rm;
 
 	rm.dev = dev;
-	rm.idx = 0;
-	rm.list = dev->mc_list;
 	mac->ops->set_rx_mode(mac, &rm);
 }
 

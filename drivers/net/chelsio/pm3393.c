@@ -375,12 +375,12 @@ static int pm3393_set_rx_mode(struct cmac *cmac, struct t1_rx_mode *rm)
 		rx_mode |= SUNI1x10GEXP_BITMSK_RXXG_MHASH_EN;
 	} else if (t1_rx_mode_mc_cnt(rm)) {
 		/* Accept one or more multicast(s). */
-		u8 *addr;
+		struct dev_mc_list *dmi;
 		int bit;
 		u16 mc_filter[4] = { 0, };
 
-		while ((addr = t1_get_next_mcaddr(rm))) {
-			bit = (ether_crc(ETH_ALEN, addr) >> 23) & 0x3f;	/* bit[23:28] */
+		netdev_for_each_mc_addr(dmi, t1_get_netdev(rm)) {
+			bit = (ether_crc(ETH_ALEN, dmi->dmi_addr) >> 23) & 0x3f; /* bit[23:28] */
 			mc_filter[bit >> 4] |= 1 << (bit & 0xf);
 		}
 		pmwrite(cmac, SUNI1x10GEXP_REG_RXXG_MULTICAST_HASH_LOW, mc_filter[0]);

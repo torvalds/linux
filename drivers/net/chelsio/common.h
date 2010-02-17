@@ -90,25 +90,13 @@
 typedef struct adapter adapter_t;
 
 struct t1_rx_mode {
-	struct net_device *dev;
-	u32 idx;
-	struct dev_mc_list *list;
+       struct net_device *dev;
 };
 
 #define t1_rx_mode_promisc(rm)	(rm->dev->flags & IFF_PROMISC)
 #define t1_rx_mode_allmulti(rm)	(rm->dev->flags & IFF_ALLMULTI)
 #define t1_rx_mode_mc_cnt(rm)	(netdev_mc_count(rm->dev))
-
-static inline u8 *t1_get_next_mcaddr(struct t1_rx_mode *rm)
-{
-	u8 *addr = NULL;
-
-	if (rm->idx++ < t1_rx_mode_mc_cnt(rm)) {
-		addr = rm->list->dmi_addr;
-		rm->list = rm->list->next;
-	}
-	return addr;
-}
+#define t1_get_netdev(rm)	(rm->dev)
 
 #define	MAX_NPORTS 4
 #define PORT_MASK ((1 << MAX_NPORTS) - 1)
