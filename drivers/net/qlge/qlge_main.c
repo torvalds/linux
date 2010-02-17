@@ -2066,21 +2066,11 @@ static unsigned long ql_process_mac_rx_intr(struct ql_adapter *qdev,
 		ql_process_mac_rx_page(qdev, rx_ring, ib_mac_rsp,
 						length, vlan_id);
 	} else {
-		struct bq_desc *lbq_desc;
-
-		/* Free small buffer that holds the IAL */
-		lbq_desc = ql_get_curr_sbuf(rx_ring);
-		netif_err(qdev, rx_err, qdev->ndev,
-			  "Dropping frame, len %d > mtu %d\n",
-			  length, qdev->ndev->mtu);
-
-		/* Unwind the large buffers for this frame. */
-		while (length > 0) {
-			lbq_desc = ql_get_curr_lchunk(qdev, rx_ring);
-			length -= (length < rx_ring->lbq_buf_size) ?
-				length : rx_ring->lbq_buf_size;
-			put_page(lbq_desc->p.pg_chunk.page);
-		}
+		/* Non-TCP/UDP large frames that span multiple buffers
+		 * can be processed corrrectly by the split frame logic.
+		 */
+		ql_process_mac_split_rx_intr(qdev, rx_ring, ib_mac_rsp,
+						vlan_id);
 	}
 
 	return (unsigned long)length;
