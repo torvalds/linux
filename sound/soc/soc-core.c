@@ -136,7 +136,7 @@ static ssize_t pmdown_time_show(struct device *dev,
 	struct snd_soc_device *socdev = dev_get_drvdata(dev);
 	struct snd_soc_card *card = socdev->card;
 
-	return sprintf(buf, "%d\n", card->pmdown_time);
+	return sprintf(buf, "%ld\n", card->pmdown_time);
 }
 
 static ssize_t pmdown_time_set(struct device *dev,

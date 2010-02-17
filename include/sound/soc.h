@@ -521,7 +521,7 @@ struct snd_soc_card {
 	int (*set_bias_level)(struct snd_soc_card *,
 			      enum snd_soc_bias_level level);
 
-	int pmdown_time;
+	long pmdown_time;
 
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;
