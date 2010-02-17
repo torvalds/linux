@@ -55,8 +55,8 @@ struct resource_map {
 
 struct socket_data {
 	struct resource_map		mem_db;
+	struct resource_map		mem_db_valid;
 	struct resource_map		io_db;
-	unsigned int			rsrc_mem_probe;
 };
 
 #define MEM_PROBE_LOW	(1 << 0)
@@ -357,6 +357,7 @@ static int do_validate_mem(struct pcmcia_socket *s,
 					 struct resource *res,
 					 unsigned int *value))
 {
+	struct socket_data *s_data = s->resource_data;
 	struct resource *res1, *res2;
 	unsigned int info1 = 1, info2 = 1;
 	int ret = -EINVAL;
@@ -381,6 +382,12 @@ static int do_validate_mem(struct pcmcia_socket *s,
 
 	if ((ret) || (info1 != info2) || (info1 == 0))
 		return -EINVAL;
+
+	if (validate && !s->fake_cis) {
+		/* move it to the validated data set */
+		add_interval(&s_data->mem_db_valid, base, size);
+		sub_interval(&s_data->mem_db, base, size);
+	}
 
 	return 0;
 }
@@ -491,6 +498,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	if (probe_mask & MEM_PROBE_HIGH) {
 		if (inv_probe(s_data->mem_db.next, s) > 0)
 			return 0;
+		if (s_data->mem_db_valid.next != &s_data->mem_db_valid)
+			return 0;
 		dev_printk(KERN_NOTICE, &s->dev,
 			   "cs: warning: no high memory space available!\n");
 		return -ENODEV;
@@ -565,21 +574,18 @@ static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
 {
 	struct socket_data *s_data = s->resource_data;
 	unsigned int probe_mask = MEM_PROBE_LOW;
-	int ret = 0;
+	int ret;
 
-	if (!probe_mem)
+	if (!probe_mem || !(s->state & SOCKET_PRESENT))
 		return 0;
 
 	if (s->features & SS_CAP_PAGE_REGS)
 		probe_mask = MEM_PROBE_HIGH;
 
-	if (probe_mask & ~s_data->rsrc_mem_probe) {
-		if (s->state & SOCKET_PRESENT) {
-			ret = validate_mem(s, probe_mask);
-			if (!ret)
-				s_data->rsrc_mem_probe |= probe_mask;
-		}
-	}
+	ret = validate_mem(s, probe_mask);
+
+	if (s_data->mem_db_valid.next != &s_data->mem_db_valid)
+		return 0;
 
 	return ret;
 }
@@ -723,15 +729,15 @@ static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min, max;
-	int ret, i;
+	int ret, i, j;
 
 	low = low || !(s->features & SS_CAP_PAGE_REGS);
 
 	data.mask = align - 1;
 	data.offset = base & data.mask;
-	data.map = &s_data->mem_db;
 
 	for (i = 0; i < 2; i++) {
+		data.map = &s_data->mem_db_valid;
 		if (low) {
 			max = 0x100000UL;
 			min = base < max ? base : 0;
@@ -740,15 +746,23 @@ static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 			min = 0x100000UL + base;
 		}
 
+		for (j = 0; j < 2; j++) {
 #ifdef CONFIG_PCI
-		if (s->cb_dev) {
-			ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num,
-						     1, min, 0,
-						     pcmcia_align, &data);
-		} else
+			if (s->cb_dev) {
+				ret = pci_bus_alloc_resource(s->cb_dev->bus,
+							res, num, 1, min, 0,
+							pcmcia_align, &data);
+			} else
 #endif
-			ret = allocate_resource(&iomem_resource, res, num, min,
-						max, 1, pcmcia_align, &data);
+			{
+				ret = allocate_resource(&iomem_resource,
+							res, num, min, max, 1,
+							pcmcia_align, &data);
+			}
+			if (ret == 0)
+				break;
+			data.map = &s_data->mem_db;
+		}
 		if (ret == 0 || low)
 			break;
 		low = 1;
@@ -901,6 +915,7 @@ static int nonstatic_init(struct pcmcia_socket *s)
 		return -ENOMEM;
 
 	data->mem_db.next = &data->mem_db;
+	data->mem_db_valid.next = &data->mem_db_valid;
 	data->io_db.next = &data->io_db;
 
 	s->resource_data = (void *) data;
@@ -915,6 +930,10 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 	struct socket_data *data = s->resource_data;
 	struct resource_map *p, *q;
 
+	for (p = data->mem_db_valid.next; p != &data->mem_db_valid; p = q) {
+		q = p->next;
+		kfree(p);
+	}
 	for (p = data->mem_db.next; p != &data->mem_db; p = q) {
 		q = p->next;
 		kfree(p);
@@ -1009,6 +1028,16 @@ static ssize_t show_mem_db(struct device *dev,
 
 	mutex_lock(&s->ops_mutex);
 	data = s->resource_data;
+
+	for (p = data->mem_db_valid.next; p != &data->mem_db_valid;
+	     p = p->next) {
+		if (ret > (PAGE_SIZE - 10))
+			continue;
+		ret += snprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+				"0x%08lx - 0x%08lx\n",
+				((unsigned long) p->base),
+				((unsigned long) p->base + p->num - 1));
+	}
 
 	for (p = data->mem_db.next; p != &data->mem_db; p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
