@@ -176,7 +176,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			   wm831x_gpio_get(chip, i) ? "high" : "low",
 			   pull,
 			   powerdomain,
-			   reg & WM831X_GPN_POL ? " inverted" : "",
+			   reg & WM831X_GPN_POL ? "" : " inverted",
 			   reg & WM831X_GPN_OD ? "open-drain" : "CMOS",
 			   reg & WM831X_GPN_TRI ? " tristated" : "",
 			   reg);
