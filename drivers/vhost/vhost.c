@@ -1004,10 +1004,14 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 	if (unlikely(vq->log_used)) {
 		/* Make sure data is seen before log. */
 		smp_wmb();
-		log_write(vq->log_base, vq->log_addr + sizeof *vq->used->ring *
-			  (vq->last_used_idx % vq->num),
-			  sizeof *vq->used->ring);
-		log_write(vq->log_base, vq->log_addr, sizeof *vq->used->ring);
+		/* Log used ring entry write. */
+		log_write(vq->log_base,
+			  vq->log_addr + ((void *)used - (void *)vq->used),
+			  sizeof *used);
+		/* Log used index update. */
+		log_write(vq->log_base,
+			  vq->log_addr + offsetof(struct vring_used, idx),
+			  sizeof vq->used->idx);
 		if (vq->log_ctx)
 			eventfd_signal(vq->log_ctx, 1);
 	}
