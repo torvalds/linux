@@ -365,7 +365,7 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 
 	if ((mpc8xxx_spi->spibrg / hz) > 64) {
 		cs->hw_mode |= SPMODE_DIV16;
-		pm = mpc8xxx_spi->spibrg / (hz * 64);
+		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 64) + 1;
 
 		WARN_ONCE(pm > 16, "%s: Requested speed is too low: %d Hz. "
 			  "Will use %d Hz instead.\n", dev_name(&spi->dev),
@@ -373,7 +373,7 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		if (pm > 16)
 			pm = 16;
 	} else
-		pm = mpc8xxx_spi->spibrg / (hz * 4);
+		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 4) + 1;
 	if (pm)
 		pm--;
 
