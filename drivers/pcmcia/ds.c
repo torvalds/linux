@@ -1356,12 +1356,6 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 		return -ENODEV;
 	}
 
-	/*
-	 * Ugly. But we want to wait for the socket threads to have started up.
-	 * We really should let the drivers themselves drive some of this..
-	 */
-	msleep(250);
-
 	ret = sysfs_create_bin_file(&dev->kobj, &pccard_cis_attr);
 	if (ret) {
 		dev_printk(KERN_ERR, dev, "PCMCIA registration failed\n");

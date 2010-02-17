@@ -689,6 +689,9 @@ static int pccardd(void *__skt)
 
 	complete(&skt->thread_done);
 
+	/* wait for userspace to catch up */
+	msleep(250);
+
 	set_freezable();
 	for (;;) {
 		unsigned long flags;
