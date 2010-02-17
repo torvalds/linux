@@ -503,7 +503,8 @@ static int ql_run_loopback_test(struct ql_adapter *qdev)
 			return -EPIPE;
 		atomic_inc(&qdev->lb_count);
 	}
-
+	/* Give queue time to settle before testing results. */
+	msleep(2);
 	ql_clean_lb_rx_ring(&qdev->rx_ring[0], 128);
 	return atomic_read(&qdev->lb_count) ? -EIO : 0;
 }
@@ -536,6 +537,10 @@ static void ql_self_test(struct net_device *ndev,
 			data[0] = 0;
 		}
 		clear_bit(QL_SELFTEST, &qdev->flags);
+		/* Give link time to come up after
+		 * port configuration changes.
+		 */
+		msleep_interruptible(4 * 1000);
 	} else {
 		netif_err(qdev, drv, qdev->ndev,
 			  "is down, Loopback test will fail.\n");
