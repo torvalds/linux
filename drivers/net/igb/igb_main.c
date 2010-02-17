@@ -3260,6 +3260,10 @@ static void igb_update_ring_itr(struct igb_q_vector *q_vector)
 	else
 		new_val = avg_wire_size / 2;
 
+	/* when in itr mode 3 do not exceed 20K ints/sec */
+	if (adapter->rx_itr_setting == 3 && new_val < 196)
+		new_val = 196;
+
 set_itr_val:
 	if (new_val != q_vector->itr_val) {
 		q_vector->itr_val = new_val;
