@@ -649,6 +649,8 @@ static void igb_free_q_vectors(struct igb_adapter *adapter)
 	for (v_idx = 0; v_idx < adapter->num_q_vectors; v_idx++) {
 		struct igb_q_vector *q_vector = adapter->q_vector[v_idx];
 		adapter->q_vector[v_idx] = NULL;
+		if (!q_vector)
+			continue;
 		netif_napi_del(&q_vector->napi);
 		kfree(q_vector);
 	}
@@ -768,13 +770,7 @@ static int igb_alloc_q_vectors(struct igb_adapter *adapter)
 	return 0;
 
 err_out:
-	while (v_idx) {
-		v_idx--;
-		q_vector = adapter->q_vector[v_idx];
-		netif_napi_del(&q_vector->napi);
-		kfree(q_vector);
-		adapter->q_vector[v_idx] = NULL;
-	}
+	igb_free_q_vectors(adapter);
 	return -ENOMEM;
 }
 
