@@ -53,24 +53,6 @@ typedef struct {
 #endif
 } mm_context_t;
 
-struct pmb_entry;
-
-struct pmb_entry {
-	unsigned long vpn;
-	unsigned long ppn;
-	unsigned long flags;
-	unsigned long size;
-
-	/*
-	 * 0 .. NR_PMB_ENTRIES for specific entry selection, or
-	 * PMB_NO_ENTRY to search for a free one
-	 */
-	int entry;
-
-	/* Adjacent entry link for contiguous multi-entry mappings */
-	struct pmb_entry *link;
-};
-
 #ifdef CONFIG_PMB
 /* arch/sh/mm/pmb.c */
 long pmb_remap(unsigned long virt, unsigned long phys,
