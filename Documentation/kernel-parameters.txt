@@ -2003,6 +2003,8 @@ and is between 256 and 4096 characters. It is defined in the file
 		force	Use native PCIe PME signaling even if the BIOS refuses
 			to allow the kernel to control the relevant PCIe config
 			registers.
+		nomsi	Do not use MSI for native PCIe PME signaling (this makes
+			all PCIe root ports use INTx for everything).
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 

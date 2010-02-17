@@ -186,16 +186,24 @@ static int pcie_port_enable_msix(struct pci_dev *dev, int *vectors, int mask)
  */
 static int init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 {
-	int i, irq;
+	int i, irq = -1;
+
+	/* We have to use INTx if MSI cannot be used for PCIe PME. */
+	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_no_msi()) {
+		if (dev->pin)
+			irq = dev->irq;
+		goto no_msi;
+	}
 
 	/* Try to use MSI-X if supported */
 	if (!pcie_port_enable_msix(dev, irqs, mask))
 		return 0;
+
 	/* We're not going to use MSI-X, so try MSI and fall back to INTx */
-	irq = -1;
 	if (!pci_enable_msi(dev) || dev->pin)
 		irq = dev->irq;
 
+ no_msi:
 	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
 		irqs[i] = irq;
 	irqs[PCIE_PORT_SERVICE_VC_SHIFT] = -1;

@@ -53,12 +53,22 @@ static bool pcie_pme_disabled;
  */
 static bool pcie_pme_force_enable;
 
+/*
+ * If this switch is set, MSI will not be used for PCIe PME signaling.  This
+ * causes the PCIe port driver to use INTx interrupts only, but it turns out
+ * that using MSI for PCIe PME signaling doesn't play well with PCIe PME-based
+ * wake-up from system sleep states.
+ */
+bool pcie_pme_msi_disabled;
+
 static int __init pcie_pme_setup(char *str)
 {
 	if (!strcmp(str, "off"))
 		pcie_pme_disabled = true;
 	else if (!strcmp(str, "force"))
 		pcie_pme_force_enable = true;
+	else if (!strcmp(str, "nomsi"))
+		pcie_pme_msi_disabled = true;
 	return 1;
 }
 __setup("pcie_pme=", pcie_pme_setup);
@@ -73,7 +83,9 @@ __setup("pcie_pme=", pcie_pme_setup);
  */
 static bool pcie_pme_platform_setup(struct pcie_device *srv)
 {
-	return !pcie_pme_platform_notify(srv) || pcie_pme_force_enable;
+	if (!pcie_pme_platform_notify(srv))
+		return true;
+	return pcie_pme_force_enable;
 }
 
 struct pcie_pme_service_data {
