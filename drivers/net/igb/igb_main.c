@@ -3975,7 +3975,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	struct net_device_stats *net_stats = igb_get_stats(adapter->netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	u32 rnbc;
+	u32 rnbc, reg;
 	u16 phy_tmp;
 	int i;
 	u64 bytes, packets;
@@ -4072,8 +4072,13 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.colc += rd32(E1000_COLC);
 
 	adapter->stats.algnerrc += rd32(E1000_ALGNERRC);
-	adapter->stats.rxerrc += rd32(E1000_RXERRC);
-	adapter->stats.tncrs += rd32(E1000_TNCRS);
+	/* read internal phy specific stats */
+	reg = rd32(E1000_CTRL_EXT);
+	if (!(reg & E1000_CTRL_EXT_LINK_MODE_MASK)) {
+		adapter->stats.rxerrc += rd32(E1000_RXERRC);
+		adapter->stats.tncrs += rd32(E1000_TNCRS);
+	}
+
 	adapter->stats.tsctc += rd32(E1000_TSCTC);
 	adapter->stats.tsctfc += rd32(E1000_TSCTFC);
 
