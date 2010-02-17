@@ -609,16 +609,6 @@ struct ieee80211_hdr_2addr {
         u8 payload[0];
 } __attribute__ ((packed));
 
-struct ieee80211_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-        u8 payload[0];
-} __attribute__ ((packed));
-
 struct ieee80211_hdr_4addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
@@ -1672,7 +1662,7 @@ static inline u8 *ieee80211_get_payload(struct rtl_ieee80211_hdr *hdr)
         case IEEE80211_2ADDR_LEN:
                 return ((struct ieee80211_hdr_2addr *)hdr)->payload;
         case IEEE80211_3ADDR_LEN:
-                return ((struct ieee80211_hdr_3addr *)hdr)->payload;
+                return (void *)hdr+sizeof(struct ieee80211_hdr_3addr);
         case IEEE80211_4ADDR_LEN:
                 return ((struct ieee80211_hdr_4addr *)hdr)->payload;
         }
