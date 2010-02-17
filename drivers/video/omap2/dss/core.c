@@ -778,6 +778,7 @@ static int dss_driver_probe(struct device *dev)
 
 	if (r) {
 		DSSERR("driver probe failed: %d\n", r);
+		dss_uninit_device(core.pdev, dssdev);
 		return r;
 	}
 
