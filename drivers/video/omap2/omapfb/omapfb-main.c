@@ -2194,9 +2194,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 	if (def_display) {
 		struct omap_dss_driver *dssdrv = def_display->driver;
-#ifndef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
-		u16 w, h;
-#endif
+
 		r = def_display->driver->enable(def_display);
 		if (r) {
 			dev_warn(fbdev->dev, "Failed to enable display '%s'\n",
@@ -2204,25 +2202,16 @@ static int omapfb_probe(struct platform_device *pdev)
 			goto cleanup;
 		}
 
-		/* set the update mode */
 		if (def_display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
-#ifdef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
+			u16 w, h;
 			if (dssdrv->enable_te)
 				dssdrv->enable_te(def_display, 1);
 			if (dssdrv->set_update_mode)
 				dssdrv->set_update_mode(def_display,
-						OMAP_DSS_UPDATE_AUTO);
-#else /* MANUAL_UPDATE */
-			if (dssdrv->enable_te)
-				dssdrv->enable_te(def_display, 0);
-			if (dssdrv->set_update_mode)
-				dssdrv->set_update_mode(def_display,
 						OMAP_DSS_UPDATE_MANUAL);
 
-			dssdrv->get_resolution(def_display,
-					&w, &h);
+			dssdrv->get_resolution(def_display, &w, &h);
 			def_display->driver->update(def_display, 0, 0, w, h);
-#endif
 		} else {
 			if (dssdrv->set_update_mode)
 				dssdrv->set_update_mode(def_display,
