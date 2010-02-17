@@ -44,7 +44,6 @@
 /* error/debug prints */
 
 #define DRV_MODULE_NAME		"bnx2x"
-#define PFX DRV_MODULE_NAME	": "
 
 /* for messages that are currently off */
 #define BNX2X_MSG_OFF			0
@@ -58,30 +57,40 @@
 #define DP_LEVEL			KERN_NOTICE	/* was: KERN_DEBUG */
 
 /* regular debug print */
-#define DP(__mask, __fmt, __args...) do { \
-	if (bp->msglevel & (__mask)) \
-		printk(DP_LEVEL "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-			bp->dev ? (bp->dev->name) : "?", ##__args); \
-	} while (0)
+#define DP(__mask, __fmt, __args...)				\
+do {								\
+	if (bp->msg_enable & (__mask))				\
+		printk(DP_LEVEL "[%s:%d(%s)]" __fmt,		\
+		       __func__, __LINE__,			\
+		       bp->dev ? (bp->dev->name) : "?",		\
+		       ##__args);				\
+} while (0)
 
 /* errors debug print */
-#define BNX2X_DBG_ERR(__fmt, __args...) do { \
-	if (bp->msglevel & NETIF_MSG_PROBE) \
-		printk(KERN_ERR "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-			bp->dev ? (bp->dev->name) : "?", ##__args); \
-	} while (0)
+#define BNX2X_DBG_ERR(__fmt, __args...)				\
+do {								\
+	if (netif_msg_probe(bp))				\
+		pr_err("[%s:%d(%s)]" __fmt,			\
+		       __func__, __LINE__,			\
+		       bp->dev ? (bp->dev->name) : "?",		\
+		       ##__args);				\
+} while (0)
 
 /* for errors (never masked) */
-#define BNX2X_ERR(__fmt, __args...) do { \
-	printk(KERN_ERR "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-		bp->dev ? (bp->dev->name) : "?", ##__args); \
-	} while (0)
+#define BNX2X_ERR(__fmt, __args...)				\
+do {								\
+	pr_err("[%s:%d(%s)]" __fmt,				\
+	       __func__, __LINE__,				\
+	       bp->dev ? (bp->dev->name) : "?",			\
+	       ##__args);					\
+} while (0)
 
 /* before we have a dev->name use dev_info() */
-#define BNX2X_DEV_INFO(__fmt, __args...) do { \
-	if (bp->msglevel & NETIF_MSG_PROBE) \
-		dev_info(&bp->pdev->dev, __fmt, ##__args); \
-	} while (0)
+#define BNX2X_DEV_INFO(__fmt, __args...)			 \
+do {								 \
+	if (netif_msg_probe(bp))				 \
+		dev_info(&bp->pdev->dev, __fmt, ##__args);	 \
+} while (0)
 
 
 #ifdef BNX2X_STOP_ON_ERROR
@@ -882,7 +891,7 @@ struct bnx2x {
 	/* End of fields used in the performance code paths */
 
 	int			panic;
-	int			msglevel;
+	int			msg_enable;
 
 	u32			flags;
 #define PCIX_FLAG			1
