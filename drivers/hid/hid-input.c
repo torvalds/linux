@@ -193,7 +193,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		break;
 
 	case HID_UP_BUTTON:
-		code = ((usage->hid - 1) & 0xf);
+		code = ((usage->hid - 1) & HID_USAGE);
 
 		switch (field->application) {
 		case HID_GD_MOUSE:
