@@ -2595,6 +2595,9 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 		         E1000_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
+	/* Only set Drop Enable if we are supporting multiple queues */
+	if (adapter->vfs_allocated_count || adapter->num_rx_queues > 1)
+		srrctl |= E1000_SRRCTL_DROP_EN;
 
 	wr32(E1000_SRRCTL(reg_idx), srrctl);
 
