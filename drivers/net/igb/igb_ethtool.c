@@ -1722,6 +1722,9 @@ static void igb_diag_test(struct net_device *netdev,
 
 		dev_info(&adapter->pdev->dev, "offline testing starting\n");
 
+		/* power up link for link test */
+		igb_power_up_link(adapter);
+
 		/* Link test performed before hardware reset so autoneg doesn't
 		 * interfere with test result */
 		if (igb_link_test(adapter, &data[4]))
@@ -1745,6 +1748,8 @@ static void igb_diag_test(struct net_device *netdev,
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
 		igb_reset(adapter);
+		/* power up link for loopback test */
+		igb_power_up_link(adapter);
 		if (igb_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
@@ -1763,9 +1768,14 @@ static void igb_diag_test(struct net_device *netdev,
 			dev_open(netdev);
 	} else {
 		dev_info(&adapter->pdev->dev, "online testing starting\n");
-		/* Online tests */
-		if (igb_link_test(adapter, &data[4]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		/* PHY is powered down when interface is down */
+		if (!netif_carrier_ok(netdev)) {
+			data[4] = 0;
+		} else {
+			if (igb_link_test(adapter, &data[4]))
+				eth_test->flags |= ETH_TEST_FL_FAILED;
+		}
 
 		/* Online tests aren't run; pass by default */
 		data[0] = 0;

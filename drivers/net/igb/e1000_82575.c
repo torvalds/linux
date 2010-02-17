@@ -727,6 +727,34 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 }
 
 /**
+ *  igb_power_up_serdes_link_82575 - Power up the serdes link after shutdown
+ *  @hw: pointer to the HW structure
+ **/
+void igb_power_up_serdes_link_82575(struct e1000_hw *hw)
+{
+	u32 reg;
+
+
+	if ((hw->phy.media_type != e1000_media_type_internal_serdes) &&
+	    !igb_sgmii_active_82575(hw))
+		return;
+
+	/* Enable PCS to turn on link */
+	reg = rd32(E1000_PCS_CFG0);
+	reg |= E1000_PCS_CFG_PCS_EN;
+	wr32(E1000_PCS_CFG0, reg);
+
+	/* Power up the laser */
+	reg = rd32(E1000_CTRL_EXT);
+	reg &= ~E1000_CTRL_EXT_SDP3_DATA;
+	wr32(E1000_CTRL_EXT, reg);
+
+	/* flush the write to verify completion */
+	wrfl();
+	msleep(1);
+}
+
+/**
  *  igb_get_pcs_speed_and_duplex_82575 - Retrieve current speed/duplex
  *  @hw: pointer to the HW structure
  *  @speed: stores the current speed
@@ -1163,6 +1191,22 @@ static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
 
 out:
 	return ret_val;
+}
+
+/**
+ * igb_power_down_phy_copper_82575 - Remove link during PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, or wake on lan is not enabled, remove the link.
+ **/
+void igb_power_down_phy_copper_82575(struct e1000_hw *hw)
+{
+	/* If the management interface is not enabled, then power down */
+	if (!(igb_enable_mng_pass_thru(hw) || igb_check_reset_block(hw)))
+		igb_power_down_phy_copper(hw);
+
+	return;
 }
 
 /**

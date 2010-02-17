@@ -1114,6 +1114,29 @@ static void igb_configure(struct igb_adapter *adapter)
 	adapter->tx_queue_len = netdev->tx_queue_len;
 }
 
+/**
+ * igb_power_up_link - Power up the phy/serdes link
+ * @adapter: address of board private structure
+ **/
+void igb_power_up_link(struct igb_adapter *adapter)
+{
+	if (adapter->hw.phy.media_type == e1000_media_type_copper)
+		igb_power_up_phy_copper(&adapter->hw);
+	else
+		igb_power_up_serdes_link_82575(&adapter->hw);
+}
+
+/**
+ * igb_power_down_link - Power down the phy/serdes link
+ * @adapter: address of board private structure
+ */
+static void igb_power_down_link(struct igb_adapter *adapter)
+{
+	if (adapter->hw.phy.media_type == e1000_media_type_copper)
+		igb_power_down_phy_copper_82575(&adapter->hw);
+	else
+		igb_shutdown_serdes_link_82575(&adapter->hw);
+}
 
 /**
  * igb_up - Open the interface and prepare it to handle traffic
@@ -1335,6 +1358,9 @@ void igb_reset(struct igb_adapter *adapter)
 		wr32(E1000_PCIEMISC,
 		                reg & ~E1000_PCIEMISC_LX_DECISION);
 	}
+	if (!netif_running(adapter->netdev))
+		igb_power_down_link(adapter);
+
 	igb_update_mng_vlan(adapter);
 
 	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
@@ -1717,9 +1743,6 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	if (!igb_check_reset_block(hw))
-		igb_reset_phy(hw);
-
 	igb_clear_interrupt_scheme(adapter);
 
 #ifdef CONFIG_PCI_IOV
@@ -1995,7 +2018,7 @@ static int igb_open(struct net_device *netdev)
 	if (err)
 		goto err_setup_rx;
 
-	/* e1000_power_up_phy(adapter); */
+	igb_power_up_link(adapter);
 
 	/* before we allocate an interrupt, we must be ready to handle it.
 	 * Setting DEBUG_SHIRQ in the kernel makes it fire an interrupt
@@ -2037,7 +2060,7 @@ static int igb_open(struct net_device *netdev)
 
 err_req_irq:
 	igb_release_hw_control(adapter);
-	/* e1000_power_down_phy(adapter); */
+	igb_power_down_link(adapter);
 	igb_free_all_rx_resources(adapter);
 err_setup_rx:
 	igb_free_all_tx_resources(adapter);
@@ -5820,7 +5843,9 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake)
 
 	*enable_wake = wufc || adapter->en_mng_pt;
 	if (!*enable_wake)
-		igb_shutdown_serdes_link_82575(hw);
+		igb_power_down_link(adapter);
+	else
+		igb_power_up_link(adapter);
 
 	/* Release control of h/w to f/w.  If f/w is AMT enabled, this
 	 * would have already happened in close and is redundant. */
@@ -5876,8 +5901,6 @@ static int igb_resume(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
-
-	/* e1000_power_up_phy(adapter); */
 
 	igb_reset(adapter);
 

@@ -358,6 +358,7 @@ extern void igb_alloc_rx_buffers_adv(struct igb_ring *, int);
 extern void igb_update_stats(struct igb_adapter *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
+extern void igb_power_up_link(struct igb_adapter *);
 
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
