@@ -1247,10 +1247,10 @@ void ceph_queue_writeback(struct inode *inode)
 {
 	if (queue_work(ceph_inode_to_client(inode)->wb_wq,
 		       &ceph_inode(inode)->i_wb_work)) {
-		dout("ceph_queue_invalidate %p\n", inode);
+		dout("ceph_queue_writeback %p\n", inode);
 		igrab(inode);
 	} else {
-		dout("ceph_queue_invalidate %p failed\n", inode);
+		dout("ceph_queue_writeback %p failed\n", inode);
 	}
 }
 
