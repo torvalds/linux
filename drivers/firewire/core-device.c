@@ -33,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
-#include <linux/semaphore.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/workqueue.h>
@@ -828,9 +827,9 @@ static int update_unit(struct device *dev, void *data)
 	struct fw_driver *driver = (struct fw_driver *)dev->driver;
 
 	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL) {
-		down(&dev->sem);
+		device_lock(dev);
 		driver->update(unit);
-		up(&dev->sem);
+		device_unlock(dev);
 	}
 
 	return 0;
