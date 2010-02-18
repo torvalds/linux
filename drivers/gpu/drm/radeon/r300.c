@@ -461,7 +461,8 @@ int r300_gpu_reset(struct radeon_device *rdev)
  */
 void r300_mc_init(struct radeon_device *rdev)
 {
-	uint32_t tmp;
+	u64 base;
+	u32 tmp;
 
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
@@ -474,6 +475,10 @@ void r300_mc_init(struct radeon_device *rdev)
 	default:  rdev->mc.vram_width = 128; break;
 	}
 	r100_vram_init_sizes(rdev);
+	base = rdev->mc.aper_base;
+	if (rdev->flags & RADEON_IS_IGP)
+		base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
+	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
 }
