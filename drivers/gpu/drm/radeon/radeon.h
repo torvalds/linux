@@ -1014,6 +1014,8 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 #define WREG32_MC(reg, v) rdev->mc_wreg(rdev, (reg), (v))
 #define RREG32_PCIE(reg) rv370_pcie_rreg(rdev, (reg))
 #define WREG32_PCIE(reg, v) rv370_pcie_wreg(rdev, (reg), (v))
+#define RREG32_PCIE_P(reg) rdev->pciep_rreg(rdev, (reg))
+#define WREG32_PCIE_P(reg, v) rdev->pciep_wreg(rdev, (reg), (v))
 #define WREG32_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32(reg);			\

@@ -554,7 +554,10 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 
 	/* FIXME wait for idle */
 
-	link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	if (rdev->family < CHIP_R600)
+		link_width_cntl = RREG32_PCIE(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	else
+		link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
 
 	switch ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) >> RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT) {
 	case RADEON_PCIE_LC_LINK_WIDTH_X0:

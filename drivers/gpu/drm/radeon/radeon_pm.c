@@ -442,6 +442,8 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 	seq_printf(m, "default memory clock: %u0 kHz\n", rdev->clock.default_mclk);
 	if (rdev->asic->get_memory_clock)
 		seq_printf(m, "current memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
+	if (rdev->asic->get_pcie_lanes)
+		seq_printf(m, "PCIE lanes: %d\n", radeon_get_pcie_lanes(rdev));
 
 	return 0;
 }
