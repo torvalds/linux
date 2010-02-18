@@ -66,7 +66,7 @@
 
 #include "tehuti.h"
 
-static struct pci_device_id __devinitdata bdx_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(bdx_pci_tbl) = {
 	{0x1FC9, 0x3009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x1FC9, 0x3010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x1FC9, 0x3014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
