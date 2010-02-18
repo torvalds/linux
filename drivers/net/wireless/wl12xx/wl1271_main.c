@@ -562,6 +562,14 @@ static int wl1271_update_mac_addr(struct wl1271 *wl)
 		static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
 		memcpy(wl->mac_addr, nokia_oui, 3);
 		get_random_bytes(wl->mac_addr + 3, 3);
+
+		/* update this address to the NVS */
+		nvs_ptr[11] = wl->mac_addr[0];
+		nvs_ptr[10] = wl->mac_addr[1];
+		nvs_ptr[6] = wl->mac_addr[2];
+		nvs_ptr[5] = wl->mac_addr[3];
+		nvs_ptr[4] = wl->mac_addr[4];
+		nvs_ptr[3] = wl->mac_addr[5];
 	}
 
 	SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
