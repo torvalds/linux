@@ -46,6 +46,7 @@
 #include "wl1271_debugfs.h"
 #include "wl1271_cmd.h"
 #include "wl1271_boot.h"
+#include "wl1271_testmode.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -1955,6 +1956,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.bss_info_changed = wl1271_op_bss_info_changed,
 	.set_rts_threshold = wl1271_op_set_rts_threshold,
 	.conf_tx = wl1271_op_conf_tx,
+	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
 static int wl1271_register_hw(struct wl1271 *wl)

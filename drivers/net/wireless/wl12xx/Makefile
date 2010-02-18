@@ -11,4 +11,5 @@ wl1271-objs		= wl1271_main.o  wl1271_spi.o wl1271_cmd.o  \
 			  wl1271_event.o wl1271_tx.o  wl1271_rx.o   \
 			  wl1271_ps.o    wl1271_acx.o wl1271_boot.o \
 			  wl1271_init.o  wl1271_debugfs.o
+wl1271-$(CONFIG_NL80211_TESTMODE)	+= wl1271_testmode.o
 obj-$(CONFIG_WL1271)	+= wl1271.o
