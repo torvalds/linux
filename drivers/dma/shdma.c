@@ -587,6 +587,19 @@ static void sh_dmae_terminate_all(struct dma_chan *chan)
 	if (!chan)
 		return;
 
+	dmae_halt(sh_chan);
+
+	spin_lock_bh(&sh_chan->desc_lock);
+	if (!list_empty(&sh_chan->ld_queue)) {
+		/* Record partial transfer */
+		struct sh_desc *desc = list_entry(sh_chan->ld_queue.next,
+						  struct sh_desc, node);
+		desc->partial = (desc->hw.tcr - sh_dmae_readl(sh_chan, TCR)) <<
+			sh_chan->xmit_shift;
+
+	}
+	spin_unlock_bh(&sh_chan->desc_lock);
+
 	sh_dmae_chan_ld_cleanup(sh_chan, true);
 }
 
@@ -701,6 +714,9 @@ static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
 	/* Find the first not transferred desciptor */
 	list_for_each_entry(desc, &sh_chan->ld_queue, node)
 		if (desc->mark == DESC_SUBMITTED) {
+			dev_dbg(sh_chan->dev, "Queue #%d to %d: %u@%x -> %x\n",
+				desc->async_tx.cookie, sh_chan->id,
+				desc->hw.tcr, desc->hw.sar, desc->hw.dar);
 			/* Get the ld start address from ld_queue */
 			dmae_set_reg(sh_chan, &desc->hw);
 			dmae_start(sh_chan);

@@ -21,22 +21,6 @@
 
 #define SH_DMA_TCR_MAX 0x00FFFFFF	/* 16MB */
 
-struct sh_dmae_regs {
-	u32 sar; /* SAR / source address */
-	u32 dar; /* DAR / destination address */
-	u32 tcr; /* TCR / transfer count */
-};
-
-struct sh_desc {
-	struct sh_dmae_regs hw;
-	struct list_head node;
-	struct dma_async_tx_descriptor async_tx;
-	enum dma_data_direction direction;
-	dma_cookie_t cookie;
-	int chunks;
-	int mark;
-};
-
 struct device;
 
 struct sh_dmae_chan {

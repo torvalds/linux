@@ -10,6 +10,9 @@
 #ifndef ASM_DMAENGINE_H
 #define ASM_DMAENGINE_H
 
+#include <linux/dmaengine.h>
+#include <linux/list.h>
+
 #include <asm/dma-register.h>
 
 #define SH_DMAC_MAX_CHANNELS	6
@@ -68,6 +71,23 @@ struct sh_dmae_slave {
 	enum sh_dmae_slave_chan_id	slave_id; /* Set by the platform */
 	struct device			*dma_dev; /* Set by the platform */
 	struct sh_dmae_slave_config	*config;  /* Set by the driver */
+};
+
+struct sh_dmae_regs {
+	u32 sar; /* SAR / source address */
+	u32 dar; /* DAR / destination address */
+	u32 tcr; /* TCR / transfer count */
+};
+
+struct sh_desc {
+	struct sh_dmae_regs hw;
+	struct list_head node;
+	struct dma_async_tx_descriptor async_tx;
+	enum dma_data_direction direction;
+	dma_cookie_t cookie;
+	size_t partial;
+	int chunks;
+	int mark;
 };
 
 #endif
