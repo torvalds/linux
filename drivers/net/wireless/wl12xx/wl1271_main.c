@@ -265,7 +265,9 @@ static void wl1271_conf_init(struct wl1271 *wl)
 
 static int wl1271_plt_init(struct wl1271 *wl)
 {
-	int ret;
+	struct conf_tx_ac_category *conf_ac;
+	struct conf_tx_tid *conf_tid;
+	int ret, i;
 
 	ret = wl1271_cmd_general_parms(wl);
 	if (ret < 0)
@@ -275,15 +277,89 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	ret = wl1271_init_templates_config(wl);
+	if (ret < 0)
+		return ret;
+
 	ret = wl1271_acx_init_mem_config(wl);
 	if (ret < 0)
 		return ret;
 
+	/* PHY layer config */
+	ret = wl1271_init_phy_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	ret = wl1271_acx_dco_itrim_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Initialize connection monitoring thresholds */
+	ret = wl1271_acx_conn_monit_params(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Bluetooth WLAN coexistence */
+	ret = wl1271_init_pta(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Energy detection */
+	ret = wl1271_init_energy_detection(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Default fragmentation threshold */
+	ret = wl1271_acx_frag_threshold(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Default TID configuration */
+	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_tid = &wl->conf.tx.tid_conf[i];
+		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
+					 conf_tid->channel_type,
+					 conf_tid->tsid,
+					 conf_tid->ps_scheme,
+					 conf_tid->ack_policy,
+					 conf_tid->apsd_conf[0],
+					 conf_tid->apsd_conf[1]);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
+
+	/* Default AC configuration */
+	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
+
+	/* Enable data path */
 	ret = wl1271_cmd_data_path(wl, 1);
 	if (ret < 0)
-		return ret;
+		goto out_free_memmap;
+
+	/* Configure for CAM power saving (ie. always active) */
+	ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* configure PM */
+	ret = wl1271_acx_pm_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
 
 	return 0;
+
+ out_free_memmap:
+	kfree(wl->target_mem_map);
+	wl->target_mem_map = NULL;
+
+	return ret;
 }
 
 static void wl1271_disable_interrupts(struct wl1271 *wl)
@@ -650,11 +726,6 @@ int wl1271_plt_start(struct wl1271 *wl)
 			goto power_off;
 
 		ret = wl1271_plt_init(wl);
-		if (ret < 0)
-			goto irq_disable;
-
-		/* Make sure power saving is disabled */
-		ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
 		if (ret < 0)
 			goto irq_disable;
 
