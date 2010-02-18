@@ -4787,7 +4787,7 @@ static int kvm_load_realmode_segment(struct kvm_vcpu *vcpu, u16 selector, int se
 		.unusable = 0,
 	};
 	kvm_x86_ops->set_segment(vcpu, &segvar, seg);
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static int is_vm86_segment(struct kvm_vcpu *vcpu, int seg)
@@ -4797,43 +4797,112 @@ static int is_vm86_segment(struct kvm_vcpu *vcpu, int seg)
 		(kvm_get_rflags(vcpu) & X86_EFLAGS_VM);
 }
 
-static void kvm_check_segment_descriptor(struct kvm_vcpu *vcpu, int seg,
-					 u16 selector)
-{
-	/* NULL selector is not valid for CS and SS */
-	if (seg == VCPU_SREG_CS || seg == VCPU_SREG_SS)
-		if (!selector)
-			kvm_queue_exception_e(vcpu, TS_VECTOR, selector >> 3);
-}
-
-int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector,
-				int type_bits, int seg)
+int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg)
 {
 	struct kvm_segment kvm_seg;
 	struct desc_struct seg_desc;
+	u8 dpl, rpl, cpl;
+	unsigned err_vec = GP_VECTOR;
+	u32 err_code = 0;
+	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
+	int ret;
 
 	if (is_vm86_segment(vcpu, seg) || !is_protmode(vcpu))
 		return kvm_load_realmode_segment(vcpu, selector, seg);
 
-	if (load_guest_segment_descriptor(vcpu, selector, &seg_desc))
-		return 1;
+	/* NULL selector is not valid for TR, CS and SS */
+	if ((seg == VCPU_SREG_CS || seg == VCPU_SREG_SS || seg == VCPU_SREG_TR)
+	    && null_selector)
+		goto exception;
+
+	/* TR should be in GDT only */
+	if (seg == VCPU_SREG_TR && (selector & (1 << 2)))
+		goto exception;
+
+	ret = load_guest_segment_descriptor(vcpu, selector, &seg_desc);
+	if (ret)
+		return ret;
+
 	seg_desct_to_kvm_desct(&seg_desc, selector, &kvm_seg);
 
-	kvm_check_segment_descriptor(vcpu, seg, selector);
-	kvm_seg.type |= type_bits;
+	if (null_selector) { /* for NULL selector skip all following checks */
+		kvm_seg.unusable = 1;
+		goto load;
+	}
 
-	if (seg != VCPU_SREG_SS && seg != VCPU_SREG_CS &&
-	    seg != VCPU_SREG_LDTR)
-		if (!kvm_seg.s)
-			kvm_seg.unusable = 1;
+	err_code = selector & 0xfffc;
+	err_vec = GP_VECTOR;
 
-	kvm_set_segment(vcpu, &kvm_seg, seg);
-	if (selector && !kvm_seg.unusable && kvm_seg.s) {
+	/* can't load system descriptor into segment selecor */
+	if (seg <= VCPU_SREG_GS && !kvm_seg.s)
+		goto exception;
+
+	if (!kvm_seg.present) {
+		err_vec = (seg == VCPU_SREG_SS) ? SS_VECTOR : NP_VECTOR;
+		goto exception;
+	}
+
+	rpl = selector & 3;
+	dpl = kvm_seg.dpl;
+	cpl = kvm_x86_ops->get_cpl(vcpu);
+
+	switch (seg) {
+	case VCPU_SREG_SS:
+		/*
+		 * segment is not a writable data segment or segment
+		 * selector's RPL != CPL or segment selector's RPL != CPL
+		 */
+		if (rpl != cpl || (kvm_seg.type & 0xa) != 0x2 || dpl != cpl)
+			goto exception;
+		break;
+	case VCPU_SREG_CS:
+		if (!(kvm_seg.type & 8))
+			goto exception;
+
+		if (kvm_seg.type & 4) {
+			/* conforming */
+			if (dpl > cpl)
+				goto exception;
+		} else {
+			/* nonconforming */
+			if (rpl > cpl || dpl != cpl)
+				goto exception;
+		}
+		/* CS(RPL) <- CPL */
+		selector = (selector & 0xfffc) | cpl;
+            break;
+	case VCPU_SREG_TR:
+		if (kvm_seg.s || (kvm_seg.type != 1 && kvm_seg.type != 9))
+			goto exception;
+		break;
+	case VCPU_SREG_LDTR:
+		if (kvm_seg.s || kvm_seg.type != 2)
+			goto exception;
+		break;
+	default: /*  DS, ES, FS, or GS */
+		/*
+		 * segment is not a data or readable code segment or
+		 * ((segment is a data or nonconforming code segment)
+		 * and (both RPL and CPL > DPL))
+		 */
+		if ((kvm_seg.type & 0xa) == 0x8 ||
+		    (((kvm_seg.type & 0xc) != 0xc) && (rpl > dpl && cpl > dpl)))
+			goto exception;
+		break;
+	}
+
+	if (!kvm_seg.unusable && kvm_seg.s) {
 		/* mark segment as accessed */
+		kvm_seg.type |= 1;
 		seg_desc.type |= 1;
 		save_guest_segment_descriptor(vcpu, selector, &seg_desc);
 	}
-	return 0;
+load:
+	kvm_set_segment(vcpu, &kvm_seg, seg);
+	return X86EMUL_CONTINUE;
+exception:
+	kvm_queue_exception_e(vcpu, err_vec, err_code);
+	return X86EMUL_PROPAGATE_FAULT;
 }
 
 static void save_state_to_tss32(struct kvm_vcpu *vcpu,
@@ -4859,6 +4928,14 @@ static void save_state_to_tss32(struct kvm_vcpu *vcpu,
 	tss->ldt_selector = get_segment_selector(vcpu, VCPU_SREG_LDTR);
 }
 
+static void kvm_load_segment_selector(struct kvm_vcpu *vcpu, u16 sel, int seg)
+{
+	struct kvm_segment kvm_seg;
+	kvm_get_segment(vcpu, &kvm_seg, seg);
+	kvm_seg.selector = sel;
+	kvm_set_segment(vcpu, &kvm_seg, seg);
+}
+
 static int load_state_from_tss32(struct kvm_vcpu *vcpu,
 				  struct tss_segment_32 *tss)
 {
@@ -4876,25 +4953,41 @@ static int load_state_from_tss32(struct kvm_vcpu *vcpu,
 	kvm_register_write(vcpu, VCPU_REGS_RSI, tss->esi);
 	kvm_register_write(vcpu, VCPU_REGS_RDI, tss->edi);
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ldt_selector, 0, VCPU_SREG_LDTR))
+	/*
+	 * SDM says that segment selectors are loaded before segment
+	 * descriptors
+	 */
+	kvm_load_segment_selector(vcpu, tss->ldt_selector, VCPU_SREG_LDTR);
+	kvm_load_segment_selector(vcpu, tss->es, VCPU_SREG_ES);
+	kvm_load_segment_selector(vcpu, tss->cs, VCPU_SREG_CS);
+	kvm_load_segment_selector(vcpu, tss->ss, VCPU_SREG_SS);
+	kvm_load_segment_selector(vcpu, tss->ds, VCPU_SREG_DS);
+	kvm_load_segment_selector(vcpu, tss->fs, VCPU_SREG_FS);
+	kvm_load_segment_selector(vcpu, tss->gs, VCPU_SREG_GS);
+
+	/*
+	 * Now load segment descriptors. If fault happenes at this stage
+	 * it is handled in a context of new task
+	 */
+	if (kvm_load_segment_descriptor(vcpu, tss->ldt_selector, VCPU_SREG_LDTR))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->es, 1, VCPU_SREG_ES))
+	if (kvm_load_segment_descriptor(vcpu, tss->es, VCPU_SREG_ES))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->cs, 9, VCPU_SREG_CS))
+	if (kvm_load_segment_descriptor(vcpu, tss->cs, VCPU_SREG_CS))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ss, 1, VCPU_SREG_SS))
+	if (kvm_load_segment_descriptor(vcpu, tss->ss, VCPU_SREG_SS))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ds, 1, VCPU_SREG_DS))
+	if (kvm_load_segment_descriptor(vcpu, tss->ds, VCPU_SREG_DS))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->fs, 1, VCPU_SREG_FS))
+	if (kvm_load_segment_descriptor(vcpu, tss->fs, VCPU_SREG_FS))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->gs, 1, VCPU_SREG_GS))
+	if (kvm_load_segment_descriptor(vcpu, tss->gs, VCPU_SREG_GS))
 		return 1;
 	return 0;
 }
@@ -4934,19 +5027,33 @@ static int load_state_from_tss16(struct kvm_vcpu *vcpu,
 	kvm_register_write(vcpu, VCPU_REGS_RSI, tss->si);
 	kvm_register_write(vcpu, VCPU_REGS_RDI, tss->di);
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ldt, 0, VCPU_SREG_LDTR))
+	/*
+	 * SDM says that segment selectors are loaded before segment
+	 * descriptors
+	 */
+	kvm_load_segment_selector(vcpu, tss->ldt, VCPU_SREG_LDTR);
+	kvm_load_segment_selector(vcpu, tss->es, VCPU_SREG_ES);
+	kvm_load_segment_selector(vcpu, tss->cs, VCPU_SREG_CS);
+	kvm_load_segment_selector(vcpu, tss->ss, VCPU_SREG_SS);
+	kvm_load_segment_selector(vcpu, tss->ds, VCPU_SREG_DS);
+
+	/*
+	 * Now load segment descriptors. If fault happenes at this stage
+	 * it is handled in a context of new task
+	 */
+	if (kvm_load_segment_descriptor(vcpu, tss->ldt, VCPU_SREG_LDTR))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->es, 1, VCPU_SREG_ES))
+	if (kvm_load_segment_descriptor(vcpu, tss->es, VCPU_SREG_ES))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->cs, 9, VCPU_SREG_CS))
+	if (kvm_load_segment_descriptor(vcpu, tss->cs, VCPU_SREG_CS))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ss, 1, VCPU_SREG_SS))
+	if (kvm_load_segment_descriptor(vcpu, tss->ss, VCPU_SREG_SS))
 		return 1;
 
-	if (kvm_load_segment_descriptor(vcpu, tss->ds, 1, VCPU_SREG_DS))
+	if (kvm_load_segment_descriptor(vcpu, tss->ds, VCPU_SREG_DS))
 		return 1;
 	return 0;
 }
