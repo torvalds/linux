@@ -1234,8 +1234,16 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	/* if the channel changes while joined, join again */
-	if (channel != wl->channel && test_bit(WL1271_FLAG_JOINED, &wl->flags))
-		wl1271_join_channel(wl, channel);
+	if (channel != wl->channel &&
+	    test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
+		wl->channel = channel;
+		/* FIXME: maybe use CMD_CHANNEL_SWITCH for this? */
+		ret = wl1271_cmd_join(wl);
+		if (ret < 0)
+			wl1271_warning("cmd join to update channel failed %d",
+				       ret);
+	} else
+		wl->channel = channel;
 
 	if (conf->flags & IEEE80211_CONF_PS &&
 	    !test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
