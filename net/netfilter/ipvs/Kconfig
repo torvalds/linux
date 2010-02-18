@@ -104,6 +104,13 @@ config	IP_VS_PROTO_AH
 	  This option enables support for load balancing AH (Authentication
 	  Header) transport protocol. Say Y if unsure.
 
+config  IP_VS_PROTO_SCTP
+	bool "SCTP load balancing support"
+	select LIBCRC32C
+	---help---
+	  This option enables support for load balancing SCTP transport
+	  protocol. Say Y if unsure.
+
 comment "IPVS scheduler"
 
 config	IP_VS_RR

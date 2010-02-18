@@ -2132,8 +2132,9 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		}
 	}
 
-	/* Check for valid protocol: TCP or UDP, even for fwmark!=0 */
-	if (usvc.protocol != IPPROTO_TCP && usvc.protocol != IPPROTO_UDP) {
+	/* Check for valid protocol: TCP or UDP or SCTP, even for fwmark!=0 */
+	if (usvc.protocol != IPPROTO_TCP && usvc.protocol != IPPROTO_UDP &&
+	    usvc.protocol != IPPROTO_SCTP) {
 		pr_err("set_ctl: invalid protocol: %d %pI4:%d %s\n",
 		       usvc.protocol, &usvc.addr.ip,
 		       ntohs(usvc.port), usvc.sched_name);

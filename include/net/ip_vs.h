@@ -225,6 +225,26 @@ enum {
 };
 
 /*
+ *	SCTP State Values
+ */
+enum ip_vs_sctp_states {
+	IP_VS_SCTP_S_NONE,
+	IP_VS_SCTP_S_INIT_CLI,
+	IP_VS_SCTP_S_INIT_SER,
+	IP_VS_SCTP_S_INIT_ACK_CLI,
+	IP_VS_SCTP_S_INIT_ACK_SER,
+	IP_VS_SCTP_S_ECHO_CLI,
+	IP_VS_SCTP_S_ECHO_SER,
+	IP_VS_SCTP_S_ESTABLISHED,
+	IP_VS_SCTP_S_SHUT_CLI,
+	IP_VS_SCTP_S_SHUT_SER,
+	IP_VS_SCTP_S_SHUT_ACK_CLI,
+	IP_VS_SCTP_S_SHUT_ACK_SER,
+	IP_VS_SCTP_S_CLOSED,
+	IP_VS_SCTP_S_LAST
+};
+
+/*
  *	Delta sequence info structure
  *	Each ip_vs_conn has 2 (output AND input seq. changes).
  *      Only used in the VS/NAT.
@@ -741,7 +761,7 @@ extern struct ip_vs_protocol ip_vs_protocol_udp;
 extern struct ip_vs_protocol ip_vs_protocol_icmp;
 extern struct ip_vs_protocol ip_vs_protocol_esp;
 extern struct ip_vs_protocol ip_vs_protocol_ah;
-
+extern struct ip_vs_protocol ip_vs_protocol_sctp;
 
 /*
  *      Registering/unregistering scheduler functions
