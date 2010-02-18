@@ -3109,87 +3109,6 @@ static ssize_t store_tx_power(struct device *d,
 
 static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
 
-static ssize_t show_flags(struct device *d,
-			  struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%04X\n", priv->active_rxon.flags);
-}
-
-static ssize_t store_flags(struct device *d,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	unsigned long val;
-	u32 flags;
-	int ret = strict_strtoul(buf, 0, &val);
-	if (ret)
-		return ret;
-	flags = (u32)val;
-
-	mutex_lock(&priv->mutex);
-	if (le32_to_cpu(priv->staging_rxon.flags) != flags) {
-		/* Cancel any currently running scans... */
-		if (iwl_scan_cancel_timeout(priv, 100))
-			IWL_WARN(priv, "Could not cancel scan.\n");
-		else {
-			IWL_DEBUG_INFO(priv, "Commit rxon.flags = 0x%04X\n", flags);
-			priv->staging_rxon.flags = cpu_to_le32(flags);
-			iwlcore_commit_rxon(priv);
-		}
-	}
-	mutex_unlock(&priv->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(flags, S_IWUSR | S_IRUGO, show_flags, store_flags);
-
-static ssize_t show_filter_flags(struct device *d,
-				 struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%04X\n",
-		le32_to_cpu(priv->active_rxon.filter_flags));
-}
-
-static ssize_t store_filter_flags(struct device *d,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	unsigned long val;
-	u32 filter_flags;
-	int ret = strict_strtoul(buf, 0, &val);
-	if (ret)
-		return ret;
-	filter_flags = (u32)val;
-
-	mutex_lock(&priv->mutex);
-	if (le32_to_cpu(priv->staging_rxon.filter_flags) != filter_flags) {
-		/* Cancel any currently running scans... */
-		if (iwl_scan_cancel_timeout(priv, 100))
-			IWL_WARN(priv, "Could not cancel scan.\n");
-		else {
-			IWL_DEBUG_INFO(priv, "Committing rxon.filter_flags = "
-				       "0x%04X\n", filter_flags);
-			priv->staging_rxon.filter_flags =
-				cpu_to_le32(filter_flags);
-			iwlcore_commit_rxon(priv);
-		}
-	}
-	mutex_unlock(&priv->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
-		   store_filter_flags);
-
-
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
 {
@@ -3414,8 +3333,6 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 }
 
 static struct attribute *iwl_sysfs_entries[] = {
-	&dev_attr_flags.attr,
-	&dev_attr_filter_flags.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,

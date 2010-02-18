@@ -2093,6 +2093,31 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_rxon_flags_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int len = 0;
+	char buf[20];
+
+	len = sprintf(buf, "0x%04X\n", le32_to_cpu(priv->active_rxon.flags));
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t iwl_dbgfs_rxon_filter_flags_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int len = 0;
+	char buf[20];
+
+	len = sprintf(buf, "0x%04X\n",
+		      le32_to_cpu(priv->active_rxon.filter_flags));
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
 static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
@@ -2296,6 +2321,8 @@ DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
 DEBUGFS_WRITE_FILE_OPS(internal_scan);
 DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
 DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
+DEBUGFS_READ_FILE_OPS(rxon_flags);
+DEBUGFS_READ_FILE_OPS(rxon_filter_flags);
 
 /*
  * Create the debugfs files and directories
@@ -2358,6 +2385,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
 	}
+	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf, &priv->disable_sens_cal);
 	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 			 &priv->disable_chain_noise_cal);
