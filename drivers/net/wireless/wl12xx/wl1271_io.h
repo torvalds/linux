@@ -27,6 +27,8 @@
 
 struct wl1271;
 
+void wl1271_io_reset(struct wl1271 *wl);
+void wl1271_io_init(struct wl1271 *wl);
 
 /* Raw target IO, address is not translated */
 void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,

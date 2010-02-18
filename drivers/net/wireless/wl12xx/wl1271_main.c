@@ -648,8 +648,8 @@ static int wl1271_chip_wakeup(struct wl1271 *wl)
 	msleep(WL1271_PRE_POWER_ON_SLEEP);
 	wl1271_power_on(wl);
 	msleep(WL1271_POWER_ON_SLEEP);
-	wl1271_spi_reset(wl);
-	wl1271_spi_init(wl);
+	wl1271_io_reset(wl);
+	wl1271_io_init(wl);
 
 	/* We don't need a real memory partition here, because we only want
 	 * to use the registers at this point. */

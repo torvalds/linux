@@ -115,6 +115,16 @@ int wl1271_set_partition(struct wl1271 *wl,
 	return 0;
 }
 
+void wl1271_io_reset(struct wl1271 *wl)
+{
+	wl1271_spi_reset(wl);
+}
+
+void wl1271_io_init(struct wl1271 *wl)
+{
+	wl1271_spi_init(wl);
+}
+
 void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
 		      size_t len, bool fixed)
 {
