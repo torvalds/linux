@@ -1268,7 +1268,6 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	__u8 options = 0;
 	struct dev_mc_list *dmi;
 	unsigned char dev_mc_address[5];
-	int i;
 
 	writel(streamer_priv->srb, streamer_mmio + LAPA);
 	options = streamer_priv->streamer_copy_all_options;
@@ -1303,8 +1302,7 @@ static void streamer_set_rx_mode(struct net_device *dev)
 	writel(streamer_priv->srb,streamer_mmio+LAPA);
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ; 
   
-	for (i=0,dmi=dev->mc_list;i < netdev_mc_count(dev); i++,dmi = dmi->next)
-	{ 
+	netdev_for_each_mc_addr(dmi, dev) {
    	        dev_mc_address[0] |= dmi->dmi_addr[2] ; 
 		dev_mc_address[1] |= dmi->dmi_addr[3] ; 
 		dev_mc_address[2] |= dmi->dmi_addr[4] ; 
