@@ -1387,7 +1387,7 @@ static void wavelan_set_multicast_list(struct net_device * dev)
 		}
 	} else
 		/* Are there multicast addresses to send? */
-	if (dev->mc_list != (struct dev_mc_list *) NULL) {
+	if (!netdev_mc_empty(dev)) {
 		/*
 		 * Disable promiscuous mode, but receive all packets
 		 * in multicast list
@@ -3531,7 +3531,7 @@ static void wv_82586_config(struct net_device * dev)
 
 	/* Any address to set? */
 	if (lp->mc_count) {
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
+		netdev_for_each_mc_addr(dmi, dev)
 			outsw(PIOP1(ioaddr), (u16 *) dmi->dmi_addr,
 			      WAVELAN_ADDR_SIZE >> 1);
 
@@ -3539,7 +3539,7 @@ static void wv_82586_config(struct net_device * dev)
 		printk(KERN_DEBUG
 		       "%s: wv_82586_config(): set %d multicast addresses:\n",
 		       dev->name, lp->mc_count);
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
+		netdev_for_each_mc_addr(dmi, dev)
 			printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
 #endif
 	}

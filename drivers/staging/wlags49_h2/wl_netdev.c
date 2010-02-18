@@ -1049,7 +1049,7 @@ void wl_multicast( struct net_device *dev )
 //;?seems reasonable that even an AP-only driver could afford this small additional footprint
 
     int                 x;
-    struct dev_mc_list  *mclist;
+    struct dev_mc_list *mclist;
     struct wl_private   *lp = wl_priv(dev);
     unsigned long       flags;
     /*------------------------------------------------------------------------*/
@@ -1072,11 +1072,9 @@ void wl_multicast( struct net_device *dev )
 
         DBG_PRINT( "  mc_count: %d\n", netdev_mc_count(dev));
 
-        for( x = 0, mclist = dev->mc_list; mclist && x < netdev_mc_count(dev);
-             x++, mclist = mclist->next ) {
+	netdev_for_each_mc_addr(mclist, dev)
             DBG_PRINT( "    %s (%d)\n", DbgHwAddr(mclist->dmi_addr),
                        mclist->dmi_addrlen );
-        }
     }
 #endif /* DBG */
 
@@ -1120,12 +1118,10 @@ void wl_multicast( struct net_device *dev )
                 lp->ltvRecord.len = ( netdev_mc_count(dev) * 3 ) + 1;
                 lp->ltvRecord.typ = CFG_GROUP_ADDR;
 
-                for( x = 0, mclist = dev->mc_list;
-                ( x < netdev_mc_count(dev)) && ( mclist != NULL );
-                    x++, mclist = mclist->next ) {
-                    memcpy( &( lp->ltvRecord.u.u8[x * ETH_ALEN] ),
-                            mclist->dmi_addr, ETH_ALEN );
-                }
+		x = 0;
+		netdev_for_each_mc_addr(mclist, dev)
+                    memcpy(&(lp->ltvRecord.u.u8[x++ * ETH_ALEN]),
+                           mclist->dmi_addr, ETH_ALEN);
                 DBG_PRINT( "Setting multicast list\n" );
                 hcf_put_info( &( lp->hcfCtx ), (LTVP)&( lp->ltvRecord ));
             } else {

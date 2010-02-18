@@ -411,9 +411,9 @@ void et131x_multicast(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	uint32_t PacketFilter = 0;
-	uint32_t count;
 	unsigned long flags;
-	struct dev_mc_list *mclist = netdev->mc_list;
+	struct dev_mc_list *mclist;
+	int i;
 
 	spin_lock_irqsave(&adapter->Lock, flags);
 
@@ -456,12 +456,13 @@ void et131x_multicast(struct net_device *netdev)
 	}
 
 	/* Set values in the private adapter struct */
-	adapter->MCAddressCount = netdev_mc_count(netdev);
-
-	if (!netdev_mc_empty(netdev)) {
-		count = netdev_mc_count(netdev) - 1;
-		memcpy(adapter->MCList[count], mclist->dmi_addr, ETH_ALEN);
+	i = 0;
+	netdev_for_each_mc_addr(mclist, netdev) {
+		if (i == NIC_MAX_MCAST_LIST)
+			break;
+		memcpy(adapter->MCList[i++], mclist->dmi_addr, ETH_ALEN);
 	}
+	adapter->MCAddressCount = i;
 
 	/* Are the new flags different from the previous ones? If not, then no
 	 * action is required

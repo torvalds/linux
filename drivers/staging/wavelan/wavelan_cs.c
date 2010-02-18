@@ -1410,8 +1410,7 @@ wavelan_set_multicast_list(struct net_device *	dev)
       }
     else
       /* If there is some multicast addresses to send */
-      if(dev->mc_list != (struct dev_mc_list *) NULL)
-	{
+      if (!netdev_mc_empty(dev)) {
 	  /*
 	   * Disable promiscuous mode, but receive all packets
 	   * in multicast list
@@ -3598,13 +3597,13 @@ wv_82593_config(struct net_device *	dev)
   /* If any multicast address to set */
   if(lp->mc_count)
     {
-      struct dev_mc_list *	dmi;
+      struct dev_mc_list *dmi;
       int			addrs_len = WAVELAN_ADDR_SIZE * lp->mc_count;
 
 #ifdef DEBUG_CONFIG_INFO
       printk(KERN_DEBUG "%s: wv_hw_config(): set %d multicast addresses:\n",
 	     dev->name, lp->mc_count);
-      for(dmi=dev->mc_list; dmi; dmi=dmi->next)
+      netdev_for_each_mc_addr(dmi, dev)
 	printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
 #endif
 
@@ -3613,7 +3612,7 @@ wv_82593_config(struct net_device *	dev)
       outb(((TX_BASE >> 8) & PIORH_MASK) | PIORH_SEL_TX, PIORH(base));
       outb(addrs_len & 0xff, PIOP(base));	/* byte count lsb */
       outb((addrs_len >> 8), PIOP(base));	/* byte count msb */
-      for(dmi=dev->mc_list; dmi; dmi=dmi->next)
+      netdev_for_each_mc_addr(dmi, dev)
 	outsb(PIOP(base), dmi->dmi_addr, dmi->dmi_addrlen);
 
       /* reset transmit DMA pointer */
