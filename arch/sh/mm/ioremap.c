@@ -80,7 +80,7 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 	if (unlikely(phys_addr >= P1SEG)) {
 		unsigned long mapped;
 
-		mapped = pmb_remap(addr, phys_addr, size, pgprot_val(pgprot));
+		mapped = pmb_remap(addr, phys_addr, size, pgprot);
 		if (likely(mapped)) {
 			addr		+= mapped;
 			phys_addr	+= mapped;

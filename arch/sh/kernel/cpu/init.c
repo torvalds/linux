@@ -24,6 +24,7 @@
 #include <asm/elf.h>
 #include <asm/io.h>
 #include <asm/smp.h>
+#include <asm/sh_bios.h>
 
 #ifdef CONFIG_SH_FPU
 #define cpu_has_fpu	1
@@ -342,9 +343,21 @@ asmlinkage void __init sh_cpu_init(void)
 	speculative_execution_init();
 	expmask_init();
 
-	/*
-	 * Boot processor to setup the FP and extended state context info.
-	 */
-	if (raw_smp_processor_id() == 0)
+	/* Do the rest of the boot processor setup */
+	if (raw_smp_processor_id() == 0) {
+		/* Save off the BIOS VBR, if there is one */
+		sh_bios_vbr_init();
+
+		/*
+		 * Setup VBR for boot CPU. Secondary CPUs do this through
+		 * start_secondary().
+		 */
+		per_cpu_trap_init();
+
+		/*
+		 * Boot processor to setup the FP and extended state
+		 * context info.
+		 */
 		init_thread_xstate();
+	}
 }

@@ -30,7 +30,6 @@
 #include <asm/alignment.h>
 #include <asm/fpu.h>
 #include <asm/kprobes.h>
-#include <asm/sh_bios.h>
 
 #ifdef CONFIG_CPU_SH2
 # define TRAP_RESERVED_INST	4
@@ -848,12 +847,6 @@ void __init trap_init(void)
 #ifdef TRAP_UBC
 	set_exception_table_vec(TRAP_UBC, breakpoint_trap_handler);
 #endif
-
-	/* Save off the BIOS VBR, if there is one */
-	sh_bios_vbr_init();
-
-	/* Setup VBR for boot cpu */
-	per_cpu_trap_init();
 }
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)

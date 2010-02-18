@@ -14,11 +14,10 @@ OUTPUT_ARCH(sh)
 #include <asm/cache.h>
 #include <asm/vmlinux.lds.h>
 
-#if defined(CONFIG_29BIT) || defined(CONFIG_SUPERH64) || \
-    defined(CONFIG_PMB_LEGACY)
- #define MEMORY_OFFSET	__MEMORY_START
+#ifdef CONFIG_PMB
+ #define MEMORY_OFFSET	0
 #else
- #define MEMORY_OFFSET  0
+ #define MEMORY_OFFSET	__MEMORY_START
 #endif
 
 ENTRY(_start)

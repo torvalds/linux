@@ -421,6 +421,8 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	uncached_init();
+
 	plat_early_device_setup();
 
 	/* Let earlyprintk output early console messages */

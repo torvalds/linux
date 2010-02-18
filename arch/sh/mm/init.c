@@ -26,21 +26,6 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-#ifdef CONFIG_UNCACHED_MAPPING
-/*
- * This is the offset of the uncached section from its cached alias.
- *
- * Legacy platforms handle trivial transitions between cached and
- * uncached segments by making use of the 1:1 mapping relationship in
- * 512MB lowmem, others via a special uncached mapping.
- *
- * Default value only valid in 29 bit mode, in 32bit mode this will be
- * updated by the early PMB initialization code.
- */
-unsigned long cached_to_uncached = 0x20000000;
-unsigned long uncached_size = SZ_512M;
-#endif
-
 #ifdef CONFIG_MMU
 static pte_t *__get_pte_phys(unsigned long addr)
 {
@@ -260,7 +245,6 @@ void __init mem_init(void)
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
-	/* Initialize the vDSO */
 	vsyscall_init();
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
@@ -303,9 +287,7 @@ void __init mem_init(void)
 		((unsigned long)high_memory - (unsigned long)memory_start) >> 20,
 
 #ifdef CONFIG_UNCACHED_MAPPING
-		(unsigned long)memory_start + cached_to_uncached,
-		(unsigned long)memory_start + cached_to_uncached + uncached_size,
-		uncached_size >> 20,
+		uncached_start, uncached_end, uncached_size >> 20,
 #endif
 
 		(unsigned long)&__init_begin, (unsigned long)&__init_end,

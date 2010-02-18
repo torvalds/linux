@@ -139,15 +139,8 @@ static inline unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-#ifdef CONFIG_UNCACHED_MAPPING
-	/*
-	 * If PC points in to the uncached mapping, fix it up and hand
-	 * back the cached equivalent.
-	 */
-	if ((pc >= (memory_start + cached_to_uncached)) &&
-	    (pc <  (memory_start + cached_to_uncached + uncached_size)))
-		pc -= cached_to_uncached;
-#endif
+	if (virt_addr_uncached(pc))
+		return CAC_ADDR(pc);
 
 	return pc;
 }
