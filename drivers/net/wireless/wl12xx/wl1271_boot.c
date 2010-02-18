@@ -219,29 +219,22 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	size_t nvs_len, burst_len;
 	int i;
 	u32 dest_addr, val;
-	u8 *nvs_ptr, *nvs, *nvs_aligned;
+	u8 *nvs_ptr, *nvs_aligned;
 
-	nvs = wl->nvs;
-	if (nvs == NULL)
+	if (wl->nvs == NULL)
 		return -ENODEV;
 
-	if (wl->nvs_len < WL1271_NVS_LEN)
-		return -EINVAL;
-
-	nvs_ptr = nvs;
-
 	/* only the first part of the NVS needs to be uploaded */
-	nvs_len = WL1271_NVS_LEN;
-
-	/* FIXME: read init settings from the remaining part of the NVS */
+	nvs_len = sizeof(wl->nvs->nvs);
+	nvs_ptr = (u8 *)wl->nvs->nvs;
 
 	/* Update the device MAC address into the nvs */
-	nvs[11] = wl->mac_addr[0];
-	nvs[10] = wl->mac_addr[1];
-	nvs[6] = wl->mac_addr[2];
-	nvs[5] = wl->mac_addr[3];
-	nvs[4] = wl->mac_addr[4];
-	nvs[3] = wl->mac_addr[5];
+	nvs_ptr[11] = wl->mac_addr[0];
+	nvs_ptr[10] = wl->mac_addr[1];
+	nvs_ptr[6] = wl->mac_addr[2];
+	nvs_ptr[5] = wl->mac_addr[3];
+	nvs_ptr[4] = wl->mac_addr[4];
+	nvs_ptr[3] = wl->mac_addr[5];
 
 	/*
 	 * Layout before the actual NVS tables:
@@ -283,7 +276,7 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	 * is 7 bytes further.
 	 */
 	nvs_ptr += 7;
-	nvs_len -= nvs_ptr - nvs;
+	nvs_len -= nvs_ptr - (u8 *)wl->nvs->nvs;
 	nvs_len = ALIGN(nvs_len, 4);
 
 	/* FIXME: The driver sets the partition here, but this is not needed,

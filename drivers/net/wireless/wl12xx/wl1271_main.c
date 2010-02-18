@@ -229,93 +229,8 @@ static struct conf_drv_settings default_conf = {
 		.psm_entry_retries           = 3
 	},
 	.init = {
-		.genparam                    = {
-			.ref_clk             = CONF_REF_CLK_38_4_E,
-			.settling_time       = 5,
-			.clk_valid_on_wakeup = 0,
-			.dc2dcmode           = 0,
-			.single_dual_band    = CONF_SINGLE_BAND,
-			.tx_bip_fem_autodetect = 1,
-			.tx_bip_fem_manufacturer = 1,
-			.settings = 1,
-			.sr_state = 1,
-			.srf1 = { 0x07, 0x03, 0x18, 0x10, 0x05, 0xfb, 0xf0,
-				  0xe8, 0, 0, 0, 0, 0, 0, 0, 0 },
-			.srf2 = { 0x07, 0x03, 0x18, 0x10, 0x05, 0xfb, 0xf0,
-				  0xe8, 0, 0, 0, 0, 0, 0, 0, 0 },
-			.srf3 = { 0x07, 0x03, 0x18, 0x10, 0x05, 0xfb, 0xf0,
-				  0xe8, 0, 0, 0, 0, 0, 0, 0, 0 },
-			.sr_debug_table = { 0, 0, 0, 0, 0, 0, 0, 0,
-					    0, 0, 0, 0, 0, 0, 0, 0 },
-			.sr_sen_n_p = 0,
-			.sr_sen_n_p_gain = 0,
-			.sr_sen_nrn = 0,
-			.sr_sen_prn = 0,
-		},
 		.radioparam = {
-			.rx_trace_loss       = 0x24,
-			.tx_trace_loss       = 0x0,
-			.rx_rssi_and_proc_compens = {
-				0xec, 0xf6, 0x00, 0x0c, 0x18, 0xf8,
-				0xfc, 0x00, 0x80, 0x10, 0xf0, 0xf8,
-				0x00, 0x0a, 0x14 },
-			.rx_trace_loss_5     = { 0, 0, 0, 0, 0, 0, 0 },
-			.tx_trace_loss_5     = { 0, 0, 0, 0, 0, 0, 0 },
-			.rx_rssi_and_proc_compens_5 = {
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00 },
-			.tx_ref_pd_voltage   = 0x1a9,
-			.tx_ref_power        = 0x80,
-			.tx_offset_db        = 0x0,
-			.tx_rate_limits_normal = {
-				0x1d, 0x1f, 0x24, 0x28, 0x28, 0x29 },
-			.tx_rate_limits_degraded = {
-				0x19, 0x1f, 0x22, 0x23, 0x27, 0x28 },
-			.tx_rate_limits_extreme = {
-				0x19, 0x1c, 0x1e, 0x20, 0x24, 0x25 },
-			.tx_channel_limits_11b = {
-				0x22, 0x50, 0x50, 0x50, 0x50, 0x50,
-				0x50, 0x50, 0x50, 0x50, 0x22, 0x50,
-				0x22, 0x50 },
-			.tx_channel_limits_ofdm = {
-				0x20, 0x50, 0x50, 0x50, 0x50, 0x50,
-				0x50, 0x50, 0x50, 0x50, 0x20, 0x50,
-				0x20, 0x50 },
-			.tx_pdv_rate_offsets = {
-				0x07, 0x08, 0x04, 0x02, 0x02, 0x00 },
-			.tx_ibias            = {
-				0x11, 0x11, 0x15, 0x11, 0x15, 0x0f },
-			.rx_fem_insertion_loss = 0x0e,
-			.degraded_low_to_normal_threshold = 0x1e,
-			.degraded_normal_to_high_threshold = 0x2d,
-			.tx_ref_pd_voltage_5 = {
-				0x0190, 0x01a4, 0x01c3, 0x01d8,
-				0x020a, 0x021c },
-			.tx_ref_power_5      = {
-				0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80 },
-			.tx_offset_db_5      = {
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
-			.tx_rate_limits_normal_5 = {
-				0x1b, 0x1e, 0x21, 0x23, 0x27, 0x00 },
-			.tx_rate_limits_degraded_5 = {
-				0x1b, 0x1e, 0x21, 0x23, 0x27, 0x00 },
-			.tx_rate_limits_extreme_5 = {
-				0x1b, 0x1e, 0x21, 0x23, 0x27, 0x00 },
-			.tx_channel_limits_ofdm_5 = {
-				0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50,
-				0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50,
-				0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50,
-				0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50, 0x50,
-				0x50, 0x50, 0x50 },
-			.tx_pdv_rate_offsets_5 = {
-				0x01, 0x02, 0x02, 0x02, 0x02, 0x00 },
-			.tx_ibias_5          = {
-				0x10, 0x10, 0x10, 0x10, 0x10, 0x10 },
-			.rx_fem_insertion_loss_5 = {
-				0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10 },
-			.degraded_low_to_normal_threshold_5 = 0x00,
-			.degraded_normal_to_high_threshold_5 = 0x00
+			.fem                 = 1,
 		}
 	},
 	.itrim = {
@@ -345,9 +260,6 @@ static void wl1271_conf_init(struct wl1271 *wl)
 
 	/* apply driver default configuration */
 	memcpy(&wl->conf, &default_conf, sizeof(default_conf));
-
-	if (wl1271_11a_enabled())
-		wl->conf.init.genparam.single_dual_band = CONF_DUAL_BAND;
 }
 
 
@@ -567,15 +479,14 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	if (fw->size % 4) {
-		wl1271_error("nvs size is not multiple of 32 bits: %zu",
-			     fw->size);
+	if (fw->size != sizeof(struct wl1271_nvs_file)) {
+		wl1271_error("nvs size is not as expected: %zu != %zu",
+			     fw->size, sizeof(struct wl1271_nvs_file));
 		ret = -EILSEQ;
 		goto out;
 	}
 
-	wl->nvs_len = fw->size;
-	wl->nvs = kmalloc(wl->nvs_len, GFP_KERNEL);
+	wl->nvs = kmalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
@@ -583,7 +494,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		goto out;
 	}
 
-	memcpy(wl->nvs, fw->data, wl->nvs_len);
+	memcpy(wl->nvs, fw->data, sizeof(struct wl1271_nvs_file));
 
 	ret = 0;
 
