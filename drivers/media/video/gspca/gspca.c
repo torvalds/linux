@@ -40,8 +40,10 @@
 
 #include "gspca.h"
 
+#ifdef CONFIG_INPUT
 #include <linux/input.h>
 #include <linux/usb/input.h>
+#endif
 
 /* global values */
 #define DEF_NURBS 3		/* default number of URBs */
@@ -2329,7 +2331,9 @@ EXPORT_SYMBOL(gspca_dev_probe);
 void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+#ifdef CONFIG_INPUT
 	struct input_dev *input_dev;
+#endif
 
 	PDEBUG(D_PROBE, "%s disconnect",
 		video_device_node_name(&gspca_dev->vdev));
@@ -2341,12 +2345,14 @@ void gspca_disconnect(struct usb_interface *intf)
 		wake_up_interruptible(&gspca_dev->wq);
 	}
 
+#ifdef CONFIG_INPUT
 	gspca_input_destroy_urb(gspca_dev);
 	input_dev = gspca_dev->input_dev;
 	if (input_dev) {
 		gspca_dev->input_dev = NULL;
 		input_unregister_device(input_dev);
 	}
+#endif
 
 	/* the device is freed at exit of this function */
 	gspca_dev->dev = NULL;
