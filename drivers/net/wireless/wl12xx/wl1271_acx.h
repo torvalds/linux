@@ -2,7 +2,7 @@
  * This file is part of wl1271
  *
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
@@ -348,7 +348,7 @@ struct acx_beacon_filter_option {
  * ACXBeaconFilterEntry (not 221)
  * Byte Offset     Size (Bytes)    Definition
  * ===========     ============    ==========
- * 0				1               IE identifier
+ * 0               1               IE identifier
  * 1               1               Treatment bit mask
  *
  * ACXBeaconFilterEntry (221)
@@ -381,8 +381,8 @@ struct acx_beacon_filter_ie_table {
 	struct acx_header header;
 
 	u8 num_ie;
-	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 	u8 pad[3];
+	u8 table[BEACON_FILTER_TABLE_MAX_SIZE];
 } __attribute__ ((packed));
 
 struct acx_conn_monit_params {
