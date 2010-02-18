@@ -204,6 +204,9 @@
 #define OMAP3_PADCONF_SAD2D_MSTANDBY   0x250
 #define OMAP3_PADCONF_SAD2D_IDLEACK    0x254
 
+/* 44xx control status register offset */
+#define OMAP44XX_CONTROL_STATUS		0x2c4
+
 /*
  * REVISIT: This list of registers is not comprehensive - there are more
  * that should be added.
