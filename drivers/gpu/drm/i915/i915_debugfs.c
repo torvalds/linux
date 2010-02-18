@@ -350,6 +350,36 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static const char *pin_flag(int pinned)
+{
+	if (pinned > 0)
+		return " P";
+	else if (pinned < 0)
+		return " p";
+	else
+		return "";
+}
+
+static const char *tiling_flag(int tiling)
+{
+	switch (tiling) {
+	default:
+	case I915_TILING_NONE: return "";
+	case I915_TILING_X: return " X";
+	case I915_TILING_Y: return " Y";
+	}
+}
+
+static const char *dirty_flag(int dirty)
+{
+	return dirty ? " dirty" : "";
+}
+
+static const char *purgeable_flag(int purgeable)
+{
+	return purgeable ? " purgeable" : "";
+}
+
 static int i915_error_state(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -357,6 +387,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
+	int i, page, offset, elt;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (!dev_priv->first_error) {
@@ -368,6 +399,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 
 	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
+	seq_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
 	seq_printf(m, "  PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
@@ -378,6 +410,59 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	if (IS_I965G(dev)) {
 		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps);
 		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
+	}
+	seq_printf(m, "seqno: 0x%08x\n", error->seqno);
+
+	if (error->active_bo_count) {
+		seq_printf(m, "Buffers [%d]:\n", error->active_bo_count);
+
+		for (i = 0; i < error->active_bo_count; i++) {
+			seq_printf(m, "  %08x %8zd %08x %08x %08x%s%s%s%s",
+				   error->active_bo[i].gtt_offset,
+				   error->active_bo[i].size,
+				   error->active_bo[i].read_domains,
+				   error->active_bo[i].write_domain,
+				   error->active_bo[i].seqno,
+				   pin_flag(error->active_bo[i].pinned),
+				   tiling_flag(error->active_bo[i].tiling),
+				   dirty_flag(error->active_bo[i].dirty),
+				   purgeable_flag(error->active_bo[i].purgeable));
+
+			if (error->active_bo[i].name)
+				seq_printf(m, " (name: %d)", error->active_bo[i].name);
+			if (error->active_bo[i].fence_reg != I915_FENCE_REG_NONE)
+				seq_printf(m, " (fence: %d)", error->active_bo[i].fence_reg);
+
+			seq_printf(m, "\n");
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++) {
+		if (error->batchbuffer[i]) {
+			struct drm_i915_error_object *obj = error->batchbuffer[i];
+
+			seq_printf(m, "--- gtt_offset = 0x%08x\n", obj->gtt_offset);
+			offset = 0;
+			for (page = 0; page < obj->page_count; page++) {
+				for (elt = 0; elt < PAGE_SIZE/4; elt++) {
+					seq_printf(m, "%08x :  %08x\n", offset, obj->pages[page][elt]);
+					offset += 4;
+				}
+			}
+		}
+	}
+
+	if (error->ringbuffer) {
+		struct drm_i915_error_object *obj = error->ringbuffer;
+
+		seq_printf(m, "--- ringbuffer = 0x%08x\n", obj->gtt_offset);
+		offset = 0;
+		for (page = 0; page < obj->page_count; page++) {
+			for (elt = 0; elt < PAGE_SIZE/4; elt++) {
+				seq_printf(m, "%08x :  %08x\n", offset, obj->pages[page][elt]);
+				offset += 4;
+			}
+		}
 	}
 
 out:

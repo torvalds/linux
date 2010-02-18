@@ -432,6 +432,121 @@ static void i915_error_work_func(struct work_struct *work)
 	}
 }
 
+static struct drm_i915_error_object *
+i915_error_object_create(struct drm_device *dev,
+			 struct drm_gem_object *src)
+{
+	struct drm_i915_error_object *dst;
+	struct drm_i915_gem_object *src_priv;
+	int page, page_count;
+
+	if (src == NULL)
+		return NULL;
+
+	src_priv = src->driver_private;
+	if (src_priv->pages == NULL)
+		return NULL;
+
+	page_count = src->size / PAGE_SIZE;
+
+	dst = kmalloc(sizeof(*dst) + page_count * sizeof (u32 *), GFP_ATOMIC);
+	if (dst == NULL)
+		return NULL;
+
+	for (page = 0; page < page_count; page++) {
+		void *s, *d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
+		if (d == NULL)
+			goto unwind;
+		s = kmap_atomic(src_priv->pages[page], KM_USER0);
+		memcpy(d, s, PAGE_SIZE);
+		kunmap_atomic(s, KM_USER0);
+		dst->pages[page] = d;
+	}
+	dst->page_count = page_count;
+	dst->gtt_offset = src_priv->gtt_offset;
+
+	return dst;
+
+unwind:
+	while (page--)
+		kfree(dst->pages[page]);
+	kfree(dst);
+	return NULL;
+}
+
+static void
+i915_error_object_free(struct drm_i915_error_object *obj)
+{
+	int page;
+
+	if (obj == NULL)
+		return;
+
+	for (page = 0; page < obj->page_count; page++)
+		kfree(obj->pages[page]);
+
+	kfree(obj);
+}
+
+static void
+i915_error_state_free(struct drm_device *dev,
+		      struct drm_i915_error_state *error)
+{
+	i915_error_object_free(error->batchbuffer[0]);
+	i915_error_object_free(error->batchbuffer[1]);
+	i915_error_object_free(error->ringbuffer);
+	kfree(error->active_bo);
+	kfree(error);
+}
+
+static u32
+i915_get_bbaddr(struct drm_device *dev, u32 *ring)
+{
+	u32 cmd;
+
+	if (IS_I830(dev) || IS_845G(dev))
+		cmd = MI_BATCH_BUFFER;
+	else if (IS_I965G(dev))
+		cmd = (MI_BATCH_BUFFER_START | (2 << 6) |
+		       MI_BATCH_NON_SECURE_I965);
+	else
+		cmd = (MI_BATCH_BUFFER_START | (2 << 6));
+
+	return ring[0] == cmd ? ring[1] : 0;
+}
+
+static u32
+i915_ringbuffer_last_batch(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 head, bbaddr;
+	u32 *ring;
+
+	/* Locate the current position in the ringbuffer and walk back
+	 * to find the most recently dispatched batch buffer.
+	 */
+	bbaddr = 0;
+	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
+	ring = (u32 *)(dev_priv->ring.virtual_start + head);
+
+	while (--ring >= (u32 *)dev_priv->ring.virtual_start) {
+		bbaddr = i915_get_bbaddr(dev, ring);
+		if (bbaddr)
+			break;
+	}
+
+	if (bbaddr == 0) {
+		ring = (u32 *)(dev_priv->ring.virtual_start + dev_priv->ring.Size);
+		while (--ring >= (u32 *)dev_priv->ring.virtual_start) {
+			bbaddr = i915_get_bbaddr(dev, ring);
+			if (bbaddr)
+				break;
+		}
+	}
+
+	return bbaddr;
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -444,19 +559,26 @@ static void i915_error_work_func(struct work_struct *work)
 static void i915_capture_error_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv;
 	struct drm_i915_error_state *error;
+	struct drm_gem_object *batchbuffer[2];
 	unsigned long flags;
+	u32 bbaddr;
+	int count;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
-	if (dev_priv->first_error)
-		goto out;
+	error = dev_priv->first_error;
+	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+	if (error)
+		return;
 
 	error = kmalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
-		DRM_DEBUG_DRIVER("out ot memory, not capturing error state\n");
-		goto out;
+		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
+		return;
 	}
 
+	error->seqno = i915_get_gem_seqno(dev);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	error->pipeastat = I915_READ(PIPEASTAT);
@@ -467,6 +589,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->ipehr = I915_READ(IPEHR);
 		error->instdone = I915_READ(INSTDONE);
 		error->acthd = I915_READ(ACTHD);
+		error->bbaddr = 0;
 	} else {
 		error->ipeir = I915_READ(IPEIR_I965);
 		error->ipehr = I915_READ(IPEHR_I965);
@@ -474,14 +597,101 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->instps = I915_READ(INSTPS);
 		error->instdone1 = I915_READ(INSTDONE1);
 		error->acthd = I915_READ(ACTHD_I965);
+		error->bbaddr = I915_READ64(BB_ADDR);
+	}
+
+	bbaddr = i915_ringbuffer_last_batch(dev);
+
+	/* Grab the current batchbuffer, most likely to have crashed. */
+	batchbuffer[0] = NULL;
+	batchbuffer[1] = NULL;
+	count = 0;
+	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+		struct drm_gem_object *obj = obj_priv->obj;
+
+		if (batchbuffer[0] == NULL &&
+		    bbaddr >= obj_priv->gtt_offset &&
+		    bbaddr < obj_priv->gtt_offset + obj->size)
+			batchbuffer[0] = obj;
+
+		if (batchbuffer[1] == NULL &&
+		    error->acthd >= obj_priv->gtt_offset &&
+		    error->acthd < obj_priv->gtt_offset + obj->size &&
+		    batchbuffer[0] != obj)
+			batchbuffer[1] = obj;
+
+		count++;
+	}
+
+	/* We need to copy these to an anonymous buffer as the simplest
+	 * method to avoid being overwritten by userpace.
+	 */
+	error->batchbuffer[0] = i915_error_object_create(dev, batchbuffer[0]);
+	error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
+
+	/* Record the ringbuffer */
+	error->ringbuffer = i915_error_object_create(dev, dev_priv->ring.ring_obj);
+
+	/* Record buffers on the active list. */
+	error->active_bo = NULL;
+	error->active_bo_count = 0;
+
+	if (count)
+		error->active_bo = kmalloc(sizeof(*error->active_bo)*count,
+					   GFP_ATOMIC);
+
+	if (error->active_bo) {
+		int i = 0;
+		list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+			struct drm_gem_object *obj = obj_priv->obj;
+
+			error->active_bo[i].size = obj->size;
+			error->active_bo[i].name = obj->name;
+			error->active_bo[i].seqno = obj_priv->last_rendering_seqno;
+			error->active_bo[i].gtt_offset = obj_priv->gtt_offset;
+			error->active_bo[i].read_domains = obj->read_domains;
+			error->active_bo[i].write_domain = obj->write_domain;
+			error->active_bo[i].fence_reg = obj_priv->fence_reg;
+			error->active_bo[i].pinned = 0;
+			if (obj_priv->pin_count > 0)
+				error->active_bo[i].pinned = 1;
+			if (obj_priv->user_pin_count > 0)
+				error->active_bo[i].pinned = -1;
+			error->active_bo[i].tiling = obj_priv->tiling_mode;
+			error->active_bo[i].dirty = obj_priv->dirty;
+			error->active_bo[i].purgeable = obj_priv->madv != I915_MADV_WILLNEED;
+
+			if (++i == count)
+				break;
+		}
+		error->active_bo_count = i;
 	}
 
 	do_gettimeofday(&error->time);
 
-	dev_priv->first_error = error;
-
-out:
+	spin_lock_irqsave(&dev_priv->error_lock, flags);
+	if (dev_priv->first_error == NULL) {
+		dev_priv->first_error = error;
+		error = NULL;
+	}
 	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+
+	if (error)
+		i915_error_state_free(dev, error);
+}
+
+void i915_destroy_error_state(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_error_state *error;
+
+	spin_lock(&dev_priv->error_lock);
+	error = dev_priv->first_error;
+	dev_priv->first_error = NULL;
+	spin_unlock(&dev_priv->error_lock);
+
+	if (error)
+		i915_error_state_free(dev, error);
 }
 
 /**

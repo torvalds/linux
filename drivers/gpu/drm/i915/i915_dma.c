@@ -1644,6 +1644,8 @@ int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	i915_destroy_error_state(dev);
+
 	destroy_workqueue(dev_priv->wq);
 	del_timer_sync(&dev_priv->hangcheck_timer);
 
