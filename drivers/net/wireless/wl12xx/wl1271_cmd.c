@@ -30,6 +30,7 @@
 #include "wl1271.h"
 #include "wl1271_reg.h"
 #include "wl1271_spi.h"
+#include "wl1271_io.h"
 #include "wl1271_acx.h"
 #include "wl12xx_80211.h"
 #include "wl1271_cmd.h"
@@ -57,13 +58,13 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 	WARN_ON(len % 4 != 0);
 
-	wl1271_spi_write(wl, wl->cmd_box_addr, buf, len, false);
+	wl1271_write(wl, wl->cmd_box_addr, buf, len, false);
 
-	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
+	wl1271_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
-	intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+	intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	while (!(intr & WL1271_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
@@ -73,13 +74,13 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 		msleep(1);
 
-		intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
 
 	/* read back the status code of the command */
 	if (res_len == 0)
 		res_len = sizeof(struct wl1271_cmd_header);
-	wl1271_spi_read(wl, wl->cmd_box_addr, cmd, res_len, false);
+	wl1271_read(wl, wl->cmd_box_addr, cmd, res_len, false);
 
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
@@ -87,8 +88,8 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		ret = -EIO;
 	}
 
-	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_ACK,
-			   WL1271_ACX_INTR_CMD_COMPLETE);
+	wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
+		       WL1271_ACX_INTR_CMD_COMPLETE);
 
 out:
 	return ret;
