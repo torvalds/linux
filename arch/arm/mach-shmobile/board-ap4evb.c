@@ -147,6 +147,10 @@ static void __init ap4evb_init(void)
 {
 	sh7372_pinmux_init();
 
+	/* enable SCIFA0 */
+	gpio_request(GPIO_FN_SCIFA0_TXD, NULL);
+	gpio_request(GPIO_FN_SCIFA0_RXD, NULL);
+
 	/* enable SMSC911X */
 	gpio_request(GPIO_FN_CS5A,	NULL);
 	gpio_request(GPIO_FN_IRQ6_39,	NULL);
