@@ -192,6 +192,92 @@ void nouveau_mem_release(struct drm_file *file_priv, struct mem_block *heap)
 }
 
 /*
+ * NV10-NV40 tiling helpers
+ */
+
+static void
+nv10_mem_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			   uint32_t size, uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
+	struct nouveau_tile_reg *tile = &dev_priv->tile.reg[i];
+
+	tile->addr = addr;
+	tile->size = size;
+	tile->used = !!pitch;
+	nouveau_fence_unref((void **)&tile->fence);
+
+	if (!pfifo->cache_flush(dev))
+		return;
+
+	pfifo->reassign(dev, false);
+	pfifo->cache_flush(dev);
+	pfifo->cache_pull(dev, false);
+
+	nouveau_wait_for_idle(dev);
+
+	pgraph->set_region_tiling(dev, i, addr, size, pitch);
+	pfb->set_region_tiling(dev, i, addr, size, pitch);
+
+	pfifo->cache_pull(dev, true);
+	pfifo->reassign(dev, true);
+}
+
+struct nouveau_tile_reg *
+nv10_mem_set_tiling(struct drm_device *dev, uint32_t addr, uint32_t size,
+		    uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	struct nouveau_tile_reg *tile = dev_priv->tile.reg, *found = NULL;
+	int i;
+
+	spin_lock(&dev_priv->tile.lock);
+
+	for (i = 0; i < pfb->num_tiles; i++) {
+		if (tile[i].used)
+			/* Tile region in use. */
+			continue;
+
+		if (tile[i].fence &&
+		    !nouveau_fence_signalled(tile[i].fence, NULL))
+			/* Pending tile region. */
+			continue;
+
+		if (max(tile[i].addr, addr) <
+		    min(tile[i].addr + tile[i].size, addr + size))
+			/* Kill an intersecting tile region. */
+			nv10_mem_set_region_tiling(dev, i, 0, 0, 0);
+
+		if (pitch && !found) {
+			/* Free tile region. */
+			nv10_mem_set_region_tiling(dev, i, addr, size, pitch);
+			found = &tile[i];
+		}
+	}
+
+	spin_unlock(&dev_priv->tile.lock);
+
+	return found;
+}
+
+void
+nv10_mem_expire_tiling(struct drm_device *dev, struct nouveau_tile_reg *tile,
+		       struct nouveau_fence *fence)
+{
+	if (fence) {
+		/* Mark it as pending. */
+		tile->fence = fence;
+		nouveau_fence_ref(fence);
+	}
+
+	tile->used = false;
+}
+
+/*
  * NV50 VM helpers
  */
 int
@@ -297,9 +383,8 @@ void nouveau_mem_close(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->ttm.bdev.man[TTM_PL_PRIV0].has_type)
-		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_PRIV0);
-	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
+	nouveau_bo_unpin(dev_priv->vga_ram);
+	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
@@ -513,6 +598,7 @@ nouveau_mem_init(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&dev_priv->ttm.bo_list);
 	spin_lock_init(&dev_priv->ttm.bo_list_lock);
+	spin_lock_init(&dev_priv->tile.lock);
 
 	dev_priv->fb_available_size = nouveau_mem_fb_amount(dev);
 
@@ -533,6 +619,15 @@ nouveau_mem_init(struct drm_device *dev)
 	if (ret) {
 		NV_ERROR(dev, "Failed VRAM mm init: %d\n", ret);
 		return ret;
+	}
+
+	ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
+			     0, 0, true, true, &dev_priv->vga_ram);
+	if (ret == 0)
+		ret = nouveau_bo_pin(dev_priv->vga_ram, TTM_PL_FLAG_VRAM);
+	if (ret) {
+		NV_WARN(dev, "failed to reserve VGA memory\n");
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 	}
 
 	/* GART */
@@ -566,6 +661,7 @@ nouveau_mem_init(struct drm_device *dev)
 	dev_priv->fb_mtrr = drm_mtrr_add(drm_get_resource_start(dev, 1),
 					 drm_get_resource_len(dev, 1),
 					 DRM_MTRR_WC);
+
 	return 0;
 }
 

@@ -220,7 +220,6 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 }
 
 struct validate_op {
-	struct nouveau_fence *fence;
 	struct list_head vram_list;
 	struct list_head gart_list;
 	struct list_head both_list;
@@ -252,17 +251,11 @@ validate_fini_list(struct list_head *list, struct nouveau_fence *fence)
 }
 
 static void
-validate_fini(struct validate_op *op, bool success)
+validate_fini(struct validate_op *op, struct nouveau_fence* fence)
 {
-	struct nouveau_fence *fence = op->fence;
-
-	if (unlikely(!success))
-		op->fence = NULL;
-
-	validate_fini_list(&op->vram_list, op->fence);
-	validate_fini_list(&op->gart_list, op->fence);
-	validate_fini_list(&op->both_list, op->fence);
-	nouveau_fence_unref((void *)&fence);
+	validate_fini_list(&op->vram_list, fence);
+	validate_fini_list(&op->gart_list, fence);
+	validate_fini_list(&op->both_list, fence);
 }
 
 static int
@@ -328,6 +321,7 @@ retry:
 		else {
 			NV_ERROR(dev, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
+			list_add_tail(&nvbo->entry, &op->both_list);
 			validate_fini(op, NULL);
 			return -EINVAL;
 		}
@@ -420,10 +414,6 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	INIT_LIST_HEAD(&op->gart_list);
 	INIT_LIST_HEAD(&op->both_list);
 
-	ret = nouveau_fence_new(chan, &op->fence, false);
-	if (ret)
-		return ret;
-
 	if (nr_buffers == 0)
 		return 0;
 
@@ -477,13 +467,14 @@ u_memcpya(uint64_t user, unsigned nmemb, unsigned size)
 static int
 nouveau_gem_pushbuf_reloc_apply(struct nouveau_channel *chan, int nr_bo,
 				struct drm_nouveau_gem_pushbuf_bo *bo,
-				int nr_relocs, uint64_t ptr_relocs,
-				int nr_dwords, int first_dword,
+				unsigned nr_relocs, uint64_t ptr_relocs,
+				unsigned nr_dwords, unsigned first_dword,
 				uint32_t *pushbuf, bool is_iomem)
 {
 	struct drm_nouveau_gem_pushbuf_reloc *reloc = NULL;
 	struct drm_device *dev = chan->dev;
-	int ret = 0, i;
+	int ret = 0;
+	unsigned i;
 
 	reloc = u_memcpya(ptr_relocs, nr_relocs, sizeof(*reloc));
 	if (IS_ERR(reloc))
@@ -541,6 +532,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	struct drm_nouveau_gem_pushbuf_bo *bo = NULL;
 	struct nouveau_channel *chan;
 	struct validate_op op;
+	struct nouveau_fence* fence = 0;
 	uint32_t *pushbuf = NULL;
 	int ret = 0, do_reloc = 0, i;
 
@@ -597,7 +589,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 	OUT_RINGp(chan, pushbuf, req->nr_dwords);
 
-	ret = nouveau_fence_emit(op.fence);
+	ret = nouveau_fence_new(chan, &fence, true);
 	if (ret) {
 		NV_ERROR(dev, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
@@ -605,7 +597,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 	if (nouveau_gem_pushbuf_sync(chan)) {
-		ret = nouveau_fence_wait(op.fence, NULL, false, false);
+		ret = nouveau_fence_wait(fence, NULL, false, false);
 		if (ret) {
 			for (i = 0; i < req->nr_dwords; i++)
 				NV_ERROR(dev, "0x%08x\n", pushbuf[i]);
@@ -614,7 +606,8 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 out:
-	validate_fini(&op, ret == 0);
+	validate_fini(&op, fence);
+	nouveau_fence_unref((void**)&fence);
 	mutex_unlock(&dev->struct_mutex);
 	kfree(pushbuf);
 	kfree(bo);
@@ -634,6 +627,7 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem;
 	struct nouveau_bo *pbbo;
 	struct validate_op op;
+	struct nouveau_fence* fence = 0;
 	int i, ret = 0, do_reloc = 0;
 
 	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
@@ -674,6 +668,18 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 		goto out;
 	}
 	pbbo = nouveau_gem_object(gem);
+
+	if ((req->offset & 3) || req->nr_dwords < 2 ||
+	    (unsigned long)req->offset > (unsigned long)pbbo->bo.mem.size ||
+	    (unsigned long)req->nr_dwords >
+	     ((unsigned long)(pbbo->bo.mem.size - req->offset ) >> 2)) {
+		NV_ERROR(dev, "pb call misaligned or out of bounds: "
+			      "%d + %d * 4 > %ld\n",
+			 req->offset, req->nr_dwords, pbbo->bo.mem.size);
+		ret = -EINVAL;
+		drm_gem_object_unreference(gem);
+		goto out;
+	}
 
 	ret = ttm_bo_reserve(&pbbo->bo, false, false, true,
 			     chan->fence.sequence);
@@ -772,7 +778,7 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 			OUT_RING(chan, 0);
 	}
 
-	ret = nouveau_fence_emit(op.fence);
+	ret = nouveau_fence_new(chan, &fence, true);
 	if (ret) {
 		NV_ERROR(dev, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
@@ -780,7 +786,8 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 	}
 
 out:
-	validate_fini(&op, ret == 0);
+	validate_fini(&op, fence);
+	nouveau_fence_unref((void**)&fence);
 	mutex_unlock(&dev->struct_mutex);
 	kfree(bo);
 
@@ -918,7 +925,9 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	}
 
 	if (req->flags & NOUVEAU_GEM_CPU_PREP_NOBLOCK) {
+		spin_lock(&nvbo->bo.lock);
 		ret = ttm_bo_wait(&nvbo->bo, false, false, no_wait);
+		spin_unlock(&nvbo->bo.lock);
 	} else {
 		ret = ttm_bo_synccpu_write_grab(&nvbo->bo, no_wait);
 		if (ret == 0)

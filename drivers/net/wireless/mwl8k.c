@@ -3157,8 +3157,10 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 	/* Clear unsupported feature flags */
 	*total_flags &= FIF_ALLMULTI | FIF_BCN_PRBRESP_PROMISC;
 
-	if (mwl8k_fw_lock(hw))
+	if (mwl8k_fw_lock(hw)) {
+		kfree(cmd);
 		return;
+	}
 
 	if (priv->sniffer_enabled) {
 		mwl8k_enable_sniffer(hw, 0);

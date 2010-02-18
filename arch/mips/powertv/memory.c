@@ -42,8 +42,6 @@
 #define BOOT_MEM_SIZE		KIBIBYTE(256)	/* Memory reserved for bldr */
 #define PHYS_MEM_START		0x10000000	/* Start of physical memory */
 
-unsigned long ptv_memsize;
-
 char __initdata cmdline[COMMAND_LINE_SIZE];
 
 void __init prom_meminit(void)
@@ -86,9 +84,6 @@ void __init prom_meminit(void)
 			}
 		}
 	}
-
-	/* Store memsize for diagnostic purposes */
-	ptv_memsize = memsize;
 
 	physend = PFN_ALIGN(&_end) - 0x80000000;
 	if (memsize > LOW_MEM_MAX) {

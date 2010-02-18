@@ -542,11 +542,11 @@ DARFixed:/* Return from dcbx instruction bug workaround, r10 holds value of DAR 
 FixupDAR:/* Entry point for dcbx workaround. */
 	/* fetch instruction from memory. */
 	mfspr	r10, SPRN_SRR0
+	andis.	r11, r10, 0x8000	/* Address >= 0x80000000 */
 	DO_8xx_CPU6(0x3780, r3)
 	mtspr	SPRN_MD_EPN, r10
 	mfspr	r11, SPRN_M_TWB	/* Get level 1 table entry address */
-	cmplwi	cr0, r11, 0x0800
-	blt-	3f		/* Branch if user space */
+	beq-	3f		/* Branch if user space */
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@h
 	ori	r11, r11, (swapper_pg_dir-PAGE_OFFSET)@l
 	rlwimi	r11, r10, 32-20, 0xffc /* r11 = r11&~0xffc|(r10>>20)&0xffc */
@@ -768,12 +768,12 @@ start_here:
  */
 initial_mmu:
 	tlbia			/* Invalidate all TLB entries */
-#ifdef CONFIG_PIN_TLB
+/* Always pin the first 8 MB ITLB to prevent ITLB
+   misses while mucking around with SRR0/SRR1 in asm
+*/
 	lis	r8, MI_RSV4I@h
 	ori	r8, r8, 0x1c00
-#else
-	li	r8, 0
-#endif
+
 	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
 
 #ifdef CONFIG_PIN_TLB

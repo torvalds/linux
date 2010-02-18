@@ -522,22 +522,20 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
  */
 void truncate_pagecache(struct inode *inode, loff_t old, loff_t new)
 {
-	if (new < old) {
-		struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = inode->i_mapping;
 
-		/*
-		 * unmap_mapping_range is called twice, first simply for
-		 * efficiency so that truncate_inode_pages does fewer
-		 * single-page unmaps.  However after this first call, and
-		 * before truncate_inode_pages finishes, it is possible for
-		 * private pages to be COWed, which remain after
-		 * truncate_inode_pages finishes, hence the second
-		 * unmap_mapping_range call must be made for correctness.
-		 */
-		unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-		truncate_inode_pages(mapping, new);
-		unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
-	}
+	/*
+	 * unmap_mapping_range is called twice, first simply for
+	 * efficiency so that truncate_inode_pages does fewer
+	 * single-page unmaps.  However after this first call, and
+	 * before truncate_inode_pages finishes, it is possible for
+	 * private pages to be COWed, which remain after
+	 * truncate_inode_pages finishes, hence the second
+	 * unmap_mapping_range call must be made for correctness.
+	 */
+	unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
+	truncate_inode_pages(mapping, new);
+	unmap_mapping_range(mapping, new + PAGE_SIZE - 1, 0, 1);
 }
 EXPORT_SYMBOL(truncate_pagecache);
 

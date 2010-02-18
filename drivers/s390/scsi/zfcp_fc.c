@@ -258,7 +258,8 @@ static int zfcp_fc_ns_gid_pn_request(struct zfcp_port *port,
 	gid_pn->gid_pn_req.gid_pn.fn_wwpn = port->wwpn;
 
 	ret = zfcp_fsf_send_ct(&adapter->gs->ds, &gid_pn->ct,
-			       adapter->pool.gid_pn_req);
+			       adapter->pool.gid_pn_req,
+			       ZFCP_FC_CTELS_TMO);
 	if (!ret) {
 		wait_for_completion(&completion);
 		zfcp_fc_ns_gid_pn_eval(gid_pn);
@@ -421,7 +422,8 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	hton24(adisc->adisc_req.adisc_port_id,
 	       fc_host_port_id(adapter->scsi_host));
 
-	ret = zfcp_fsf_send_els(adapter, port->d_id, &adisc->els);
+	ret = zfcp_fsf_send_els(adapter, port->d_id, &adisc->els,
+				ZFCP_FC_CTELS_TMO);
 	if (ret)
 		kmem_cache_free(zfcp_data.adisc_cache, adisc);
 
@@ -532,7 +534,8 @@ static int zfcp_fc_send_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 	ct->req = &gpn_ft->sg_req;
 	ct->resp = gpn_ft->sg_resp;
 
-	ret = zfcp_fsf_send_ct(&adapter->gs->ds, ct, NULL);
+	ret = zfcp_fsf_send_ct(&adapter->gs->ds, ct, NULL,
+			       ZFCP_FC_CTELS_TMO);
 	if (!ret)
 		wait_for_completion(&completion);
 	return ret;
@@ -668,13 +671,50 @@ static void zfcp_fc_ct_els_job_handler(void *data)
 {
 	struct fc_bsg_job *job = data;
 	struct zfcp_fsf_ct_els *zfcp_ct_els = job->dd_data;
-	int status = zfcp_ct_els->status;
-	int reply_status;
+	struct fc_bsg_reply *jr = job->reply;
 
-	reply_status = status ? FC_CTELS_STATUS_REJECT : FC_CTELS_STATUS_OK;
-	job->reply->reply_data.ctels_reply.status = reply_status;
-	job->reply->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_payload_rcv_len = job->reply_payload.payload_len;
+	jr->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+	jr->result = zfcp_ct_els->status ? -EIO : 0;
 	job->job_done(job);
+}
+
+static struct zfcp_fc_wka_port *zfcp_fc_job_wka_port(struct fc_bsg_job *job)
+{
+	u32 preamble_word1;
+	u8 gs_type;
+	struct zfcp_adapter *adapter;
+
+	preamble_word1 = job->request->rqst_data.r_ct.preamble_word1;
+	gs_type = (preamble_word1 & 0xff000000) >> 24;
+
+	adapter = (struct zfcp_adapter *) job->shost->hostdata[0];
+
+	switch (gs_type) {
+	case FC_FST_ALIAS:
+		return &adapter->gs->as;
+	case FC_FST_MGMT:
+		return &adapter->gs->ms;
+	case FC_FST_TIME:
+		return &adapter->gs->ts;
+		break;
+	case FC_FST_DIR:
+		return &adapter->gs->ds;
+		break;
+	default:
+		return NULL;
+	}
+}
+
+static void zfcp_fc_ct_job_handler(void *data)
+{
+	struct fc_bsg_job *job = data;
+	struct zfcp_fc_wka_port *wka_port;
+
+	wka_port = zfcp_fc_job_wka_port(job);
+	zfcp_fc_wka_port_put(wka_port);
+
+	zfcp_fc_ct_els_job_handler(data);
 }
 
 static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
@@ -695,43 +735,27 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 	} else
 		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
 
-	return zfcp_fsf_send_els(adapter, d_id, els);
+	els->handler = zfcp_fc_ct_els_job_handler;
+	return zfcp_fsf_send_els(adapter, d_id, els, job->req->timeout / HZ);
 }
 
 static int zfcp_fc_exec_ct_job(struct fc_bsg_job *job,
 			       struct zfcp_adapter *adapter)
 {
 	int ret;
-	u8 gs_type;
 	struct zfcp_fsf_ct_els *ct = job->dd_data;
 	struct zfcp_fc_wka_port *wka_port;
-	u32 preamble_word1;
 
-	preamble_word1 = job->request->rqst_data.r_ct.preamble_word1;
-	gs_type = (preamble_word1 & 0xff000000) >> 24;
-
-	switch (gs_type) {
-	case FC_FST_ALIAS:
-		wka_port = &adapter->gs->as;
-		break;
-	case FC_FST_MGMT:
-		wka_port = &adapter->gs->ms;
-		break;
-	case FC_FST_TIME:
-		wka_port = &adapter->gs->ts;
-		break;
-	case FC_FST_DIR:
-		wka_port = &adapter->gs->ds;
-		break;
-	default:
-		return -EINVAL; /* no such service */
-	}
+	wka_port = zfcp_fc_job_wka_port(job);
+	if (!wka_port)
+		return -EINVAL;
 
 	ret = zfcp_fc_wka_port_get(wka_port);
 	if (ret)
 		return ret;
 
-	ret = zfcp_fsf_send_ct(wka_port, ct, NULL);
+	ct->handler = zfcp_fc_ct_job_handler;
+	ret = zfcp_fsf_send_ct(wka_port, ct, NULL, job->req->timeout / HZ);
 	if (ret)
 		zfcp_fc_wka_port_put(wka_port);
 
@@ -752,7 +776,6 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 
 	ct_els->req = job->request_payload.sg_list;
 	ct_els->resp = job->reply_payload.sg_list;
-	ct_els->handler = zfcp_fc_ct_els_job_handler;
 	ct_els->handler_data = job;
 
 	switch (job->request->msgcode) {
@@ -765,6 +788,12 @@ int zfcp_fc_exec_bsg_job(struct fc_bsg_job *job)
 	default:
 		return -EINVAL;
 	}
+}
+
+int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *job)
+{
+	/* hardware tracks timeout, reset bsg timeout to not interfere */
+	return -EAGAIN;
 }
 
 int zfcp_fc_gs_setup(struct zfcp_adapter *adapter)

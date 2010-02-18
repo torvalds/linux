@@ -48,11 +48,11 @@ for LILO parameters for doing this:
 This configures the first found 3c509 card for IRQ 10, base I/O 0x310, and
 transceiver type 3 (10base2). The flag "0x3c509" must be set to avoid conflicts
 with other card types when overriding the I/O address. When the driver is
-loaded as a module, only the IRQ and transceiver setting may be overridden.
-For example, setting two cards to 10base2/IRQ10 and AUI/IRQ11 is done by using
-the xcvr and irq module options:
+loaded as a module, only the IRQ may be overridden. For example,
+setting two cards to IRQ10 and IRQ11 is done by using the irq module
+option:
 
-   options 3c509 xcvr=3,1 irq=10,11
+   options 3c509 irq=10,11
 
 
 (2) Full-duplex mode
@@ -77,6 +77,8 @@ operation.
 itself full-duplex capable. This is almost certainly one of two things: a full-
 duplex-capable  Ethernet switch (*not* a hub), or a full-duplex-capable NIC on
 another system that's connected directly to the 3c509B via a crossover cable.
+
+Full-duplex mode can be enabled using 'ethtool'.
  
 /////Extremely important caution concerning full-duplex mode/////
 Understand that the 3c509B's hardware's full-duplex support is much more
@@ -113,6 +115,8 @@ This insured that merely upgrading the driver from an earlier version would
 never automatically enable full-duplex mode in an existing installation;
 it must always be explicitly enabled via one of these code in order to be
 activated.
+
+The transceiver type can be changed using 'ethtool'.
   
 
 (4a) Interpretation of error messages and common problems

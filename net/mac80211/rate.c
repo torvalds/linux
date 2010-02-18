@@ -245,6 +245,9 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 		info->control.rates[i].count = 1;
 	}
 
+	if (sdata->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
+		return;
+
 	if (sta && sdata->force_unicast_rateidx > -1) {
 		info->control.rates[0].idx = sdata->force_unicast_rateidx;
 	} else {

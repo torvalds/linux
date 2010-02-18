@@ -173,6 +173,7 @@ static void expio_unmask_irq(u32 irq)
 }
 
 static struct irq_chip expio_irq_chip = {
+	.name = "EXPIO(CPLD)",
 	.ack = expio_ack_irq,
 	.mask = expio_mask_irq,
 	.unmask = expio_unmask_irq,
@@ -302,6 +303,7 @@ static struct regulator_init_data ldo1_data = {
 		.min_uV = 2800000,
 		.max_uV = 2800000,
 		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = 1,
 	},
 };
@@ -322,6 +324,7 @@ static struct regulator_init_data ldo2_data = {
 		.min_uV = 3300000,
 		.max_uV = 3300000,
 		.valid_modes_mask = REGULATOR_MODE_NORMAL,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 		.apply_uV = 1,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(ldo2_consumers),
@@ -459,6 +462,7 @@ static int mx31_wm8350_init(struct wm8350 *wm8350)
 
 static struct wm8350_platform_data __initdata mx31_wm8350_pdata = {
 	.init = mx31_wm8350_init,
+	.irq_base = MXC_BOARD_IRQ_START + MXC_MAX_EXP_IO_LINES,
 };
 #endif
 
@@ -494,11 +498,6 @@ static void mxc_init_i2c(void)
  */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
-		.virtual	= SPBA0_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(SPBA0_BASE_ADDR),
-		.length		= SPBA0_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
 		.virtual	= CS4_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(CS4_BASE_ADDR),
 		.length		= CS4_SIZE / 2,

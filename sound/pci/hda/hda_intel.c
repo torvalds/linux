@@ -426,6 +426,7 @@ struct azx {
 
 	/* flags */
 	int position_fix;
+	int poll_count;
 	unsigned int running :1;
 	unsigned int initialized :1;
 	unsigned int single_cmd :1;
@@ -506,7 +507,7 @@ static char *driver_short_names[] __devinitdata = {
 #define get_azx_dev(substream) (substream->runtime->private_data)
 
 static int azx_acquire_irq(struct azx *chip, int do_disconnect);
-
+static int azx_send_cmd(struct hda_bus *bus, unsigned int val);
 /*
  * Interface for HD codec
  */
@@ -664,11 +665,12 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 {
 	struct azx *chip = bus->private_data;
 	unsigned long timeout;
+	int do_poll = 0;
 
  again:
 	timeout = jiffies + msecs_to_jiffies(1000);
 	for (;;) {
-		if (chip->polling_mode) {
+		if (chip->polling_mode || do_poll) {
 			spin_lock_irq(&chip->reg_lock);
 			azx_update_rirb(chip);
 			spin_unlock_irq(&chip->reg_lock);
@@ -676,6 +678,9 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 		if (!chip->rirb.cmds[addr]) {
 			smp_rmb();
 			bus->rirb_error = 0;
+
+			if (!do_poll)
+				chip->poll_count = 0;
 			return chip->rirb.res[addr]; /* the last value */
 		}
 		if (time_after(jiffies, timeout))
@@ -687,6 +692,16 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus,
 			cond_resched();
 		}
 	}
+
+	if (!chip->polling_mode && chip->poll_count < 2) {
+		snd_printdd(SFX "azx_get_response timeout, "
+			   "polling the codec once: last cmd=0x%08x\n",
+			   chip->last_cmd[addr]);
+		do_poll = 1;
+		chip->poll_count++;
+		goto again;
+	}
+
 
 	if (!chip->polling_mode) {
 		snd_printk(KERN_WARNING SFX "azx_get_response timeout, "
@@ -1878,6 +1893,9 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 
 	if (!bdl_pos_adj[chip->dev_index])
 		return 1; /* no delayed ack */
+	if (WARN_ONCE(!azx_dev->period_bytes,
+		      "hda-intel: zero azx_dev->period_bytes"))
+		return 0; /* this shouldn't happen! */
 	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
 		return 0; /* NG - it's below the period boundary */
 	return 1; /* OK, it's fine */
@@ -2043,7 +2061,7 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 {
 	if (request_irq(chip->pci->irq, azx_interrupt,
 			chip->msi ? 0 : IRQF_SHARED,
-			"HDA Intel", chip)) {
+			"hda_intel", chip)) {
 		printk(KERN_ERR "hda-intel: unable to grab IRQ %d, "
 		       "disabling device\n", chip->pci->irq);
 		if (do_disconnect)
@@ -2332,6 +2350,7 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
  */
 static struct snd_pci_quirk msi_black_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x81f2, "ASUS", 0), /* Athlon64 X2 + nvidia */
+	SND_PCI_QUIRK(0x1043, 0x81f6, "ASUS", 0), /* nvidia */
 	{}
 };
 

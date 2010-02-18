@@ -234,7 +234,7 @@ static const char *encoder_names[34] = {
 	"INTERNAL_UNIPHY2",
 };
 
-static const char *connector_names[13] = {
+static const char *connector_names[15] = {
 	"Unknown",
 	"VGA",
 	"DVI-I",
@@ -248,6 +248,8 @@ static const char *connector_names[13] = {
 	"DisplayPort",
 	"HDMI-A",
 	"HDMI-B",
+	"TV",
+	"eDP",
 };
 
 static const char *hpd_names[7] = {
@@ -276,7 +278,7 @@ static void radeon_print_display_setup(struct drm_device *dev)
 		DRM_INFO("  %s\n", connector_names[connector->connector_type]);
 		if (radeon_connector->hpd.hpd != RADEON_HPD_NONE)
 			DRM_INFO("  %s\n", hpd_names[radeon_connector->hpd.hpd]);
-		if (radeon_connector->ddc_bus)
+		if (radeon_connector->ddc_bus) {
 			DRM_INFO("  DDC: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 				 radeon_connector->ddc_bus->rec.mask_clk_reg,
 				 radeon_connector->ddc_bus->rec.mask_data_reg,
@@ -286,6 +288,15 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.en_data_reg,
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
+		} else {
+			if (connector->connector_type == DRM_MODE_CONNECTOR_VGA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_DVIA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+			    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
+				DRM_INFO("  DDC: no ddc bus - possible BIOS bug - please report to xorg-driver-ati@lists.x.org\n");
+		}
 		DRM_INFO("  Encoders:\n");
 		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 			radeon_encoder = to_radeon_encoder(encoder);
@@ -329,8 +340,11 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 				ret = radeon_get_atom_connector_info_from_object_table(dev);
 			else
 				ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
-		} else
+		} else {
 			ret = radeon_get_legacy_connector_info_from_bios(dev);
+			if (ret == false)
+				ret = radeon_get_legacy_connector_info_from_table(dev);
+		}
 	} else {
 		if (!ASIC_IS_AVIVO(rdev))
 			ret = radeon_get_legacy_connector_info_from_table(dev);
@@ -349,9 +363,11 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
 	int ret = 0;
 
-	if (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
+	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
-		if (dig->dp_i2c_bus)
+		if ((dig->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT ||
+		     dig->dp_sink_type == CONNECTOR_OBJECT_ID_eDP) && dig->dp_i2c_bus)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);
 	}
 	if (!radeon_connector->ddc_bus)
@@ -404,11 +420,12 @@ void radeon_compute_pll(struct radeon_pll *pll,
 			uint32_t *fb_div_p,
 			uint32_t *frac_fb_div_p,
 			uint32_t *ref_div_p,
-			uint32_t *post_div_p,
-			int flags)
+			uint32_t *post_div_p)
 {
 	uint32_t min_ref_div = pll->min_ref_div;
 	uint32_t max_ref_div = pll->max_ref_div;
+	uint32_t min_post_div = pll->min_post_div;
+	uint32_t max_post_div = pll->max_post_div;
 	uint32_t min_fractional_feed_div = 0;
 	uint32_t max_fractional_feed_div = 0;
 	uint32_t best_vco = pll->best_vco;
@@ -424,7 +441,7 @@ void radeon_compute_pll(struct radeon_pll *pll,
 	DRM_DEBUG("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
 
-	if (flags & RADEON_PLL_USE_REF_DIV)
+	if (pll->flags & RADEON_PLL_USE_REF_DIV)
 		min_ref_div = max_ref_div = pll->reference_div;
 	else {
 		while (min_ref_div < max_ref_div-1) {
@@ -439,19 +456,22 @@ void radeon_compute_pll(struct radeon_pll *pll,
 		}
 	}
 
-	if (flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+	if (pll->flags & RADEON_PLL_USE_POST_DIV)
+		min_post_div = max_post_div = pll->post_div;
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
 		min_fractional_feed_div = pll->min_frac_feedback_div;
 		max_fractional_feed_div = pll->max_frac_feedback_div;
 	}
 
-	for (post_div = pll->min_post_div; post_div <= pll->max_post_div; ++post_div) {
+	for (post_div = min_post_div; post_div <= max_post_div; ++post_div) {
 		uint32_t ref_div;
 
-		if ((flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
+		if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
 			continue;
 
 		/* legacy radeons only have a few post_divs */
-		if (flags & RADEON_PLL_LEGACY) {
+		if (pll->flags & RADEON_PLL_LEGACY) {
 			if ((post_div == 5) ||
 			    (post_div == 7) ||
 			    (post_div == 9) ||
@@ -498,7 +518,7 @@ void radeon_compute_pll(struct radeon_pll *pll,
 					tmp += (uint64_t)pll->reference_freq * 1000 * frac_feedback_div;
 					current_freq = radeon_div(tmp, ref_div * post_div);
 
-					if (flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
+					if (pll->flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
 						error = freq - current_freq;
 						error = error < 0 ? 0xffffffff : error;
 					} else
@@ -525,12 +545,12 @@ void radeon_compute_pll(struct radeon_pll *pll,
 							best_freq = current_freq;
 							best_error = error;
 							best_vco_diff = vco_diff;
-						} else if (((flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
-							   ((flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
-							   ((flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
-							   ((flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
-							   ((flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
-							   ((flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
+						} else if (((pll->flags & RADEON_PLL_PREFER_LOW_REF_DIV) && (ref_div < best_ref_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_REF_DIV) && (ref_div > best_ref_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_LOW_FB_DIV) && (feedback_div < best_feedback_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_FB_DIV) && (feedback_div > best_feedback_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_LOW_POST_DIV) && (post_div < best_post_div)) ||
+							   ((pll->flags & RADEON_PLL_PREFER_HIGH_POST_DIV) && (post_div > best_post_div))) {
 							best_post_div = post_div;
 							best_ref_div = ref_div;
 							best_feedback_div = feedback_div;
@@ -566,8 +586,7 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 			      uint32_t *fb_div_p,
 			      uint32_t *frac_fb_div_p,
 			      uint32_t *ref_div_p,
-			      uint32_t *post_div_p,
-			      int flags)
+			      uint32_t *post_div_p)
 {
 	fixed20_12 m, n, frac_n, p, f_vco, f_pclk, best_freq;
 	fixed20_12 pll_out_max, pll_out_min;
@@ -661,7 +680,6 @@ static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 		radeonfb_remove(dev, fb);
 
 	if (radeon_fb->obj) {
-		radeon_gem_object_unpin(radeon_fb->obj);
 		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(radeon_fb->obj);
 		mutex_unlock(&dev->struct_mutex);
@@ -709,7 +727,11 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	struct drm_gem_object *obj;
 
 	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
-
+	if (obj ==  NULL) {
+		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
+			"can't create framebuffer\n", mode_cmd->handle);
+		return NULL;
+	}
 	return radeon_framebuffer_create(dev, mode_cmd, obj);
 }
 

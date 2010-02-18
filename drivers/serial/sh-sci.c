@@ -1052,7 +1052,18 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->port.ops	= &sci_uart_ops;
 	sci_port->port.iotype	= UPIO_MEM;
 	sci_port->port.line	= index;
-	sci_port->port.fifosize	= 1;
+
+	switch (p->type) {
+	case PORT_SCIFA:
+		sci_port->port.fifosize = 64;
+		break;
+	case PORT_SCIF:
+		sci_port->port.fifosize = 16;
+		break;
+	default:
+		sci_port->port.fifosize = 1;
+		break;
+	}
 
 	if (dev) {
 		sci_port->iclk = p->clk ? clk_get(&dev->dev, p->clk) : NULL;

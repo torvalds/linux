@@ -881,15 +881,16 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 	return 0;
 }
 
-static int
+int
 nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
 		      struct nouveau_gpuobj **gpuobj_ret)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct drm_nouveau_private *dev_priv;
 	struct nouveau_gpuobj *gpuobj;
 
 	if (!chan || !gpuobj_ret || *gpuobj_ret != NULL)
 		return -EINVAL;
+	dev_priv = chan->dev->dev_private;
 
 	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
 	if (!gpuobj)

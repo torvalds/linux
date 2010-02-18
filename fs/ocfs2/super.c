@@ -1062,7 +1062,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 				     "file system, but write access is "
 				     "unavailable.\n");
 			else
-				mlog_errno(status);			
+				mlog_errno(status);
 			goto read_super_error;
 		}
 

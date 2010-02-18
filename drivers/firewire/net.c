@@ -893,20 +893,31 @@ static void fwnet_receive_broadcast(struct fw_iso_context *context,
 
 static struct kmem_cache *fwnet_packet_task_cache;
 
+static void fwnet_free_ptask(struct fwnet_packet_task *ptask)
+{
+	dev_kfree_skb_any(ptask->skb);
+	kmem_cache_free(fwnet_packet_task_cache, ptask);
+}
+
 static int fwnet_send_packet(struct fwnet_packet_task *ptask);
 
 static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 {
-	struct fwnet_device *dev;
+	struct fwnet_device *dev = ptask->dev;
 	unsigned long flags;
-
-	dev = ptask->dev;
+	bool free;
 
 	spin_lock_irqsave(&dev->lock, flags);
-	list_del(&ptask->pt_link);
-	spin_unlock_irqrestore(&dev->lock, flags);
 
-	ptask->outstanding_pkts--; /* FIXME access inside lock */
+	ptask->outstanding_pkts--;
+
+	/* Check whether we or the networking TX soft-IRQ is last user. */
+	free = (ptask->outstanding_pkts == 0 && !list_empty(&ptask->pt_link));
+
+	if (ptask->outstanding_pkts == 0)
+		list_del(&ptask->pt_link);
+
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	if (ptask->outstanding_pkts > 0) {
 		u16 dg_size;
@@ -951,10 +962,10 @@ static void fwnet_transmit_packet_done(struct fwnet_packet_task *ptask)
 			ptask->max_payload = skb->len + RFC2374_FRAG_HDR_SIZE;
 		}
 		fwnet_send_packet(ptask);
-	} else {
-		dev_kfree_skb_any(ptask->skb);
-		kmem_cache_free(fwnet_packet_task_cache, ptask);
 	}
+
+	if (free)
+		fwnet_free_ptask(ptask);
 }
 
 static void fwnet_write_complete(struct fw_card *card, int rcode,
@@ -977,6 +988,7 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 	unsigned tx_len;
 	struct rfc2734_header *bufhdr;
 	unsigned long flags;
+	bool free;
 
 	dev = ptask->dev;
 	tx_len = ptask->max_payload;
@@ -1022,12 +1034,16 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 				generation, SCODE_100, 0ULL, ptask->skb->data,
 				tx_len + 8, fwnet_write_complete, ptask);
 
-		/* FIXME race? */
 		spin_lock_irqsave(&dev->lock, flags);
-		list_add_tail(&ptask->pt_link, &dev->broadcasted_list);
+
+		/* If the AT tasklet already ran, we may be last user. */
+		free = (ptask->outstanding_pkts == 0 && list_empty(&ptask->pt_link));
+		if (!free)
+			list_add_tail(&ptask->pt_link, &dev->broadcasted_list);
+
 		spin_unlock_irqrestore(&dev->lock, flags);
 
-		return 0;
+		goto out;
 	}
 
 	fw_send_request(dev->card, &ptask->transaction,
@@ -1035,12 +1051,19 @@ static int fwnet_send_packet(struct fwnet_packet_task *ptask)
 			ptask->generation, ptask->speed, ptask->fifo_addr,
 			ptask->skb->data, tx_len, fwnet_write_complete, ptask);
 
-	/* FIXME race? */
 	spin_lock_irqsave(&dev->lock, flags);
-	list_add_tail(&ptask->pt_link, &dev->sent_list);
+
+	/* If the AT tasklet already ran, we may be last user. */
+	free = (ptask->outstanding_pkts == 0 && list_empty(&ptask->pt_link));
+	if (!free)
+		list_add_tail(&ptask->pt_link, &dev->sent_list);
+
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	dev->netdev->trans_start = jiffies;
+ out:
+	if (free)
+		fwnet_free_ptask(ptask);
 
 	return 0;
 }
@@ -1298,6 +1321,8 @@ static netdev_tx_t fwnet_tx(struct sk_buff *skb, struct net_device *net)
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	ptask->max_payload = max_payload;
+	INIT_LIST_HEAD(&ptask->pt_link);
+
 	fwnet_send_packet(ptask);
 
 	return NETDEV_TX_OK;

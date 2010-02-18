@@ -340,7 +340,7 @@ netxen_check_hw_init(struct netxen_adapter *adapter, int first_boot)
 		if (!(first_boot & 0x4)) {
 			first_boot |= 0x4;
 			NXWR32(adapter, NETXEN_PCIE_REG(0x4), first_boot);
-			first_boot = NXRD32(adapter, NETXEN_PCIE_REG(0x4));
+			NXRD32(adapter, NETXEN_PCIE_REG(0x4));
 		}
 
 		/* This is the first boot after power up */
@@ -1898,12 +1898,8 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 		linkup = (val == XG_LINK_UP_P3);
 	} else {
 		val = NXRD32(adapter, CRB_XG_STATE);
-		if (adapter->ahw.port_type == NETXEN_NIC_GBE)
-			linkup = (val >> port) & 1;
-		else {
-			val = (val >> port*8) & 0xff;
-			linkup = (val == XG_LINK_UP);
-		}
+		val = (val >> port*8) & 0xff;
+		linkup = (val == XG_LINK_UP);
 	}
 
 	netxen_advert_link_change(adapter, linkup);
@@ -1945,7 +1941,7 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 		netif_wake_queue(adapter->netdev);
 
 		clear_bit(__NX_RESETTING, &adapter->state);
-
+		return;
 	} else {
 		clear_bit(__NX_RESETTING, &adapter->state);
 		if (!netxen_nic_reset_context(adapter)) {
@@ -2244,7 +2240,9 @@ netxen_detach_work(struct work_struct *work)
 
 	netxen_nic_down(adapter, netdev);
 
+	rtnl_lock();
 	netxen_nic_detach(adapter);
+	rtnl_unlock();
 
 	status = NXRD32(adapter, NETXEN_PEG_HALT_STATUS1);
 

@@ -11,7 +11,7 @@
 #ifndef _ASM_UNIT_SERIAL_H
 #define _ASM_UNIT_SERIAL_H
 
-#include <asm/cpu/cpu-regs.h>
+#include <asm/cpu-regs.h>
 #include <proc/irq.h>
 #include <linux/serial_reg.h>
 

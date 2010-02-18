@@ -37,7 +37,12 @@
  * within sensible limits.
  */
 #define MXC_BOARD_IRQ_START	(MXC_INTERNAL_IRQS + MXC_GPIO_IRQS)
+
+#ifdef CONFIG_MACH_MX31ADS_WM1133_EV1
+#define MXC_BOARD_IRQS  80
+#else
 #define MXC_BOARD_IRQS	16
+#endif
 
 #define MXC_IPU_IRQ_START	(MXC_BOARD_IRQ_START + MXC_BOARD_IRQS)
 

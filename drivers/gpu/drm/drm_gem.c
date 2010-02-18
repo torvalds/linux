@@ -142,19 +142,6 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	if (IS_ERR(obj->filp))
 		goto free;
 
-	/* Basically we want to disable the OOM killer and handle ENOMEM
-	 * ourselves by sacrificing pages from cached buffers.
-	 * XXX shmem_file_[gs]et_gfp_mask()
-	 */
-	mapping_set_gfp_mask(obj->filp->f_path.dentry->d_inode->i_mapping,
-			     GFP_HIGHUSER |
-			     __GFP_COLD |
-			     __GFP_FS |
-			     __GFP_RECLAIMABLE |
-			     __GFP_NORETRY |
-			     __GFP_NOWARN |
-			     __GFP_NOMEMALLOC);
-
 	kref_init(&obj->refcount);
 	kref_init(&obj->handlecount);
 	obj->size = size;

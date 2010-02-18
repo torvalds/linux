@@ -1497,9 +1497,11 @@ struct inode *reiserfs_iget(struct super_block *s, const struct cpu_key *key)
 
 	args.objectid = key->on_disk_key.k_objectid;
 	args.dirid = key->on_disk_key.k_dir_id;
+	reiserfs_write_unlock(s);
 	inode = iget5_locked(s, key->on_disk_key.k_objectid,
 			     reiserfs_find_actor, reiserfs_init_locked_inode,
 			     (void *)(&args));
+	reiserfs_write_lock(s);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
@@ -3062,13 +3064,14 @@ static ssize_t reiserfs_direct_IO(int rw, struct kiocb *iocb,
 int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
-	int error;
 	unsigned int ia_valid;
+	int depth;
+	int error;
 
 	/* must be turned off for recursive notify_change calls */
 	ia_valid = attr->ia_valid &= ~(ATTR_KILL_SUID|ATTR_KILL_SGID);
 
-	reiserfs_write_lock(inode->i_sb);
+	depth = reiserfs_write_lock_once(inode->i_sb);
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* version 2 items will be caught by the s_maxbytes check
 		 ** done for us in vmtruncate
@@ -3149,8 +3152,17 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 				    journal_end(&th, inode->i_sb, jbegin_count);
 			}
 		}
-		if (!error)
+		if (!error) {
+			/*
+			 * Relax the lock here, as it might truncate the
+			 * inode pages and wait for inode pages locks.
+			 * To release such page lock, the owner needs the
+			 * reiserfs lock
+			 */
+			reiserfs_write_unlock_once(inode->i_sb, depth);
 			error = inode_setattr(inode, attr);
+			depth = reiserfs_write_lock_once(inode->i_sb);
+		}
 	}
 
 	if (!error && reiserfs_posixacl(inode->i_sb)) {
@@ -3159,7 +3171,8 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
       out:
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock_once(inode->i_sb, depth);
+
 	return error;
 }
 
