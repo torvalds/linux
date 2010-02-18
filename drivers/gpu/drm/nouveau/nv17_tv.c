@@ -579,6 +579,8 @@ static void nv17_tv_restore(struct drm_encoder *encoder)
 				nouveau_encoder(encoder)->restore.output);
 
 	nv17_tv_state_load(dev, &to_tv_enc(encoder)->saved_state);
+
+	nouveau_encoder(encoder)->last_dpms = NV_DPMS_CLEARED;
 }
 
 static int nv17_tv_create_resources(struct drm_encoder *encoder,

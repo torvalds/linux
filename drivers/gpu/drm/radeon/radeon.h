@@ -96,6 +96,7 @@ extern int radeon_audio;
  * symbol;
  */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
+/* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE		16
 #define RADEON_DEBUGFS_MAX_NUM_FILES	32
 #define RADEONFB_CONN_LIMIT		4
@@ -363,11 +364,12 @@ void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev);
  */
 struct radeon_ib {
 	struct list_head	list;
-	unsigned long		idx;
+	unsigned		idx;
 	uint64_t		gpu_addr;
 	struct radeon_fence	*fence;
-	uint32_t	*ptr;
+	uint32_t		*ptr;
 	uint32_t		length_dw;
+	bool			free;
 };
 
 /*
@@ -377,10 +379,9 @@ struct radeon_ib {
 struct radeon_ib_pool {
 	struct mutex		mutex;
 	struct radeon_bo	*robj;
-	struct list_head	scheduled_ibs;
 	struct radeon_ib	ibs[RADEON_IB_POOL_SIZE];
 	bool			ready;
-	DECLARE_BITMAP(alloc_bm, RADEON_IB_POOL_SIZE);
+	unsigned		head_id;
 };
 
 struct radeon_cp {
