@@ -133,6 +133,28 @@ static inline void ctrl_delay(void)
 	__raw_readw(generic_io_base);
 }
 
+#define __BUILD_UNCACHED_IO(bwlq, type)					\
+static inline type read##bwlq##_uncached(unsigned long addr)		\
+{									\
+	type ret;							\
+	jump_to_uncached();						\
+	ret = __raw_read##bwlq(addr);					\
+	back_to_cached();						\
+	return ret;							\
+}									\
+									\
+static inline void write##bwlq##_uncached(type v, unsigned long addr)	\
+{									\
+	jump_to_uncached();						\
+	__raw_write##bwlq(v, addr);					\
+	back_to_cached();						\
+}
+
+__BUILD_UNCACHED_IO(b, u8)
+__BUILD_UNCACHED_IO(w, u16)
+__BUILD_UNCACHED_IO(l, u32)
+__BUILD_UNCACHED_IO(q, u64)
+
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
 static inline void __raw_writes##bwlq(volatile void __iomem *mem,	\
