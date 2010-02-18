@@ -22,6 +22,7 @@
 #include <linux/if_packet.h>
 #include <linux/if_arp.h>
 #include <linux/if_tun.h>
+#include <linux/if_macvlan.h>
 
 #include <net/sock.h>
 
@@ -452,13 +453,16 @@ err:
 	return ERR_PTR(r);
 }
 
-static struct socket *get_tun_socket(int fd)
+static struct socket *get_tap_socket(int fd)
 {
 	struct file *file = fget(fd);
 	struct socket *sock;
 	if (!file)
 		return ERR_PTR(-EBADF);
 	sock = tun_get_socket(file);
+	if (!IS_ERR(sock))
+		return sock;
+	sock = macvtap_get_socket(file);
 	if (IS_ERR(sock))
 		fput(file);
 	return sock;
@@ -473,7 +477,7 @@ static struct socket *get_socket(int fd)
 	sock = get_raw_socket(fd);
 	if (!IS_ERR(sock))
 		return sock;
-	sock = get_tun_socket(fd);
+	sock = get_tap_socket(fd);
 	if (!IS_ERR(sock))
 		return sock;
 	return ERR_PTR(-ENOTSOCK);

@@ -7,6 +7,19 @@
 #include <linux/netlink.h>
 #include <net/netlink.h>
 
+#if defined(CONFIG_MACVTAP) || defined(CONFIG_MACVTAP_MODULE)
+struct socket *macvtap_get_socket(struct file *);
+#else
+#include <linux/err.h>
+#include <linux/errno.h>
+struct file;
+struct socket;
+static inline struct socket *macvtap_get_socket(struct file *f)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif /* CONFIG_MACVTAP */
+
 struct macvlan_port;
 struct macvtap_queue;
 
