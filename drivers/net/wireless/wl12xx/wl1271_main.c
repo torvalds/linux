@@ -1738,11 +1738,15 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
 
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
 	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
 				params->cw_min, params->cw_max,
 				params->aifs, params->txop);
 	if (ret < 0)
-		goto out;
+		goto out_sleep;
 
 	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
 				 CONF_CHANNEL_TYPE_EDCF,
@@ -1750,7 +1754,10 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 				 CONF_PS_SCHEME_LEGACY_PSPOLL,
 				 CONF_ACK_POLICY_LEGACY, 0, 0);
 	if (ret < 0)
-		goto out;
+		goto out_sleep;
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
 
 out:
 	mutex_unlock(&wl->mutex);
