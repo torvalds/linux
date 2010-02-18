@@ -2126,6 +2126,12 @@ special_insn:
 		int err;
 
 		sel = c->src.val;
+
+		if (c->modrm_reg == VCPU_SREG_CS) {
+			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			goto done;
+		}
+
 		if (c->modrm_reg == VCPU_SREG_SS)
 			toggle_interruptibility(ctxt, X86_SHADOW_INT_MOV_SS);
 
