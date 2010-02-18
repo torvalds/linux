@@ -1070,7 +1070,8 @@ int wl1271_acx_cts_protect(struct wl1271 *wl,
 			   enum acx_ctsprotect_type ctsprotect);
 int wl1271_acx_statistics(struct wl1271 *wl, struct acx_statistics *stats);
 int wl1271_acx_rate_policies(struct wl1271 *wl);
-int wl1271_acx_ac_cfg(struct wl1271 *wl);
+int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
+		      u8 aifsn, u16 txop);
 int wl1271_acx_tid_cfg(struct wl1271 *wl);
 int wl1271_acx_frag_threshold(struct wl1271 *wl);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
