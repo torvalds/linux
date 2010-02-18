@@ -1531,8 +1531,6 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 		fcport->vha->hw->isp_ops->fabric_logout(fcport->vha,
 			fcport->loop_id, fcport->d_id.b.domain,
 			fcport->d_id.b.area, fcport->d_id.b.al_pa);
-
-	qla2x00_abort_fcport_cmds(fcport);
 }
 
 static int
