@@ -2284,6 +2284,7 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 			"scsi(%ld) Vendor request %s failed\n", vha->host_no, type));
 		rval = 0;
 		bsg_job->reply->result = (DID_ERROR << 16);
+		bsg_job->reply->reply_payload_rcv_len = 0;
 		fw_sts_ptr = ((uint8_t*)bsg_job->req->sense) + sizeof(struct fc_bsg_reply);
 		memcpy( fw_sts_ptr, response, sizeof(response));
 		fw_sts_ptr += sizeof(response);
