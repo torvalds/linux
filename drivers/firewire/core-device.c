@@ -493,7 +493,6 @@ static int read_rom(struct fw_device *device,
 }
 
 #define READ_BIB_ROM_SIZE	256
-#define READ_BIB_STACK_SIZE	16
 
 /*
  * Read the bus info block, perform a speed probe, and read all of the rest of
@@ -510,7 +509,7 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 	int i, end, length, ret = -1;
 
 	rom = kmalloc(sizeof(*rom) * READ_BIB_ROM_SIZE +
-		      sizeof(*stack) * READ_BIB_STACK_SIZE, GFP_KERNEL);
+		      sizeof(*stack) * READ_BIB_ROM_SIZE, GFP_KERNEL);
 	if (rom == NULL)
 		return -ENOMEM;
 
@@ -612,8 +611,7 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 			    RCODE_COMPLETE)
 				goto out;
 
-			if ((key >> 30) != 3 || (rom[i] >> 30) < 2 ||
-			    sp >= READ_BIB_STACK_SIZE)
+			if ((key >> 30) != 3 || (rom[i] >> 30) < 2)
 				continue;
 			/*
 			 * Offset points outside the ROM.  May be a firmware
