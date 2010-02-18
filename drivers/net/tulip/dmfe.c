@@ -330,8 +330,8 @@ static void poll_dmfe (struct net_device *dev);
 static void dmfe_descriptor_init(struct dmfe_board_info *, unsigned long);
 static void allocate_rx_buffer(struct dmfe_board_info *);
 static void update_cr6(u32, unsigned long);
-static void send_filter_frame(struct DEVICE * ,int);
-static void dm9132_id_table(struct DEVICE * ,int);
+static void send_filter_frame(struct DEVICE *);
+static void dm9132_id_table(struct DEVICE *);
 static u16 phy_read(unsigned long, u8, u8, u32);
 static void phy_write(unsigned long, u8, u8, u16, u32);
 static void phy_write_1bit(unsigned long, u32);
@@ -658,9 +658,9 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 
 	/* Send setup frame */
 	if (db->chip_id == PCI_DM9132_ID)
-		dm9132_id_table(dev, netdev_mc_count(dev));	/* DM9132 */
+		dm9132_id_table(dev);	/* DM9132 */
 	else
-		send_filter_frame(dev, netdev_mc_count(dev));	/* DM9102/DM9102A */
+		send_filter_frame(dev);	/* DM9102/DM9102A */
 
 	/* Init CR7, interrupt active bit */
 	db->cr7_data = CR7_DEFAULT;
@@ -1075,9 +1075,9 @@ static void dmfe_set_filter_mode(struct DEVICE * dev)
 
 	DMFE_DBUG(0, "Set multicast address", mc_count);
 	if (db->chip_id == PCI_DM9132_ID)
-		dm9132_id_table(dev, mc_count);		/* DM9132 */
+		dm9132_id_table(dev);	/* DM9132 */
 	else
-		send_filter_frame(dev, mc_count);	/* DM9102/DM9102A */
+		send_filter_frame(dev);	/* DM9102/DM9102A */
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
@@ -1452,7 +1452,7 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
  *	This setup frame initilize DM910X address filter mode
 */
 
-static void dm9132_id_table(struct DEVICE *dev, int mc_cnt)
+static void dm9132_id_table(struct DEVICE *dev)
 {
 	struct dev_mc_list *mcptr;
 	u16 * addrptr;
@@ -1472,15 +1472,14 @@ static void dm9132_id_table(struct DEVICE *dev, int mc_cnt)
 	ioaddr += 4;
 
 	/* Clear Hash Table */
-	for (i = 0; i < 4; i++)
-		hash_table[i] = 0x0;
+	memset(hash_table, 0, sizeof(hash_table));
 
 	/* broadcast address */
 	hash_table[3] = 0x8000;
 
 	/* the multicast address in Hash Table : 64 bits */
-	for (mcptr = dev->mc_list, i = 0; i < mc_cnt; i++, mcptr = mcptr->next) {
-		hash_val = cal_CRC( (char *) mcptr->dmi_addr, 6, 0) & 0x3f;
+	netdev_for_each_mc_addr(mcptr, dev) {
+		hash_val = cal_CRC((char *) mcptr->dmi_addr, 6, 0) & 0x3f;
 		hash_table[hash_val / 16] |= (u16) 1 << (hash_val % 16);
 	}
 
@@ -1495,7 +1494,7 @@ static void dm9132_id_table(struct DEVICE *dev, int mc_cnt)
  *	This setup frame initilize DM910X address filter mode
  */
 
-static void send_filter_frame(struct DEVICE *dev, int mc_cnt)
+static void send_filter_frame(struct DEVICE *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
 	struct dev_mc_list *mcptr;
@@ -1521,14 +1520,14 @@ static void send_filter_frame(struct DEVICE *dev, int mc_cnt)
 	*suptr++ = 0xffff;
 
 	/* fit the multicast address */
-	for (mcptr = dev->mc_list, i = 0; i < mc_cnt; i++, mcptr = mcptr->next) {
+	netdev_for_each_mc_addr(mcptr, dev) {
 		addrptr = (u16 *) mcptr->dmi_addr;
 		*suptr++ = addrptr[0];
 		*suptr++ = addrptr[1];
 		*suptr++ = addrptr[2];
 	}
 
-	for (; i<14; i++) {
+	for (i = netdev_mc_count(dev); i < 14; i++) {
 		*suptr++ = 0xffff;
 		*suptr++ = 0xffff;
 		*suptr++ = 0xffff;

@@ -997,12 +997,10 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 	memset(hash_table, 0, sizeof(hash_table));
 	set_bit_le(255, hash_table); 			/* Broadcast entry */
 	/* This should work on big-endian machines as well. */
-	for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
-	     i++, mclist = mclist->next) {
+	netdev_for_each_mc_addr(mclist, dev) {
 		int index = ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x1ff;
 
 		set_bit_le(index, hash_table);
-
 	}
 	for (i = 0; i < 32; i++) {
 		*setup_frm++ = hash_table[i];
@@ -1021,20 +1019,18 @@ static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
 	struct dev_mc_list *mclist;
-	int i;
 	u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
-	for (i = 0, mclist = dev->mc_list; i < netdev_mc_count(dev);
-	     i++, mclist = mclist->next) {
+	netdev_for_each_mc_addr(mclist, dev) {
 		eaddrs = (u16 *)mclist->dmi_addr;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 	}
 	/* Fill the unused entries with the broadcast address. */
-	memset(setup_frm, 0xff, (15-i)*12);
+	memset(setup_frm, 0xff, (15 - netdev_mc_count(dev)) * 12);
 	setup_frm = &tp->setup_frame[15*6];
 
 	/* Fill the final entry with our physical address. */
@@ -1066,7 +1062,6 @@ static void set_rx_mode(struct net_device *dev)
 		/* Some work-alikes have only a 64-entry hash filter table. */
 		/* Should verify correctness on big-endian/__powerpc__ */
 		struct dev_mc_list *mclist;
-		int i;
 		if (netdev_mc_count(dev) > 64) {
 			/* Arbitrary non-effective limit. */
 			tp->csr6 |= AcceptAllMulticast;
@@ -1074,9 +1069,7 @@ static void set_rx_mode(struct net_device *dev)
 		} else {
 			u32 mc_filter[2] = {0, 0};		 /* Multicast hash filter */
 			int filterbit;
-			for (i = 0, mclist = dev->mc_list;
-			     mclist && i < netdev_mc_count(dev);
-			     i++, mclist = mclist->next) {
+			netdev_for_each_mc_addr(mclist, dev) {
 				if (tp->flags & COMET_MAC_ADDR)
 					filterbit = ether_crc_le(ETH_ALEN, mclist->dmi_addr);
 				else

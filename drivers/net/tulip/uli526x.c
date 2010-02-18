@@ -1415,14 +1415,14 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
 	*suptr++ = 0xffff << FLT_SHIFT;
 
 	/* fit the multicast address */
-	for (mcptr = dev->mc_list, i = 0; i < mc_cnt; i++, mcptr = mcptr->next) {
+	netdev_for_each_mc_addr(mcptr, dev) {
 		addrptr = (u16 *) mcptr->dmi_addr;
 		*suptr++ = addrptr[0] << FLT_SHIFT;
 		*suptr++ = addrptr[1] << FLT_SHIFT;
 		*suptr++ = addrptr[2] << FLT_SHIFT;
 	}
 
-	for (; i<14; i++) {
+	for (i = netdev_mc_count(dev); i < 14; i++) {
 		*suptr++ = 0xffff << FLT_SHIFT;
 		*suptr++ = 0xffff << FLT_SHIFT;
 		*suptr++ = 0xffff << FLT_SHIFT;
