@@ -2055,18 +2055,13 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
 {
 	int cnt;
 
-	do {
-		cnt = tty_buffer_request_room(tty, length);
-		if (cnt < length) {
-			dev_err(dev, "%s - dropping data, %d bytes lost\n",
-					__func__, length - cnt);
-			if (cnt == 0)
-				break;
-		}
-		tty_insert_flip_string(tty, data, cnt);
-		data += cnt;
-		length -= cnt;
-	} while (length > 0);
+	cnt = tty_insert_flip_string(tty, data, length);
+	if (cnt < length) {
+		dev_err(dev, "%s - dropping data, %d bytes lost\n",
+				__func__, length - cnt);
+	}
+	data += cnt;
+	length -= cnt;
 
 	tty_flip_buffer_push(tty);
 }

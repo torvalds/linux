@@ -388,7 +388,6 @@ static void kobil_read_int_callback(struct urb *urb)
 		*/
 		/* END DEBUG */
 
-		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}

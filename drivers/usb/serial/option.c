@@ -964,7 +964,6 @@ static void option_indat_callback(struct urb *urb)
 	} else {
 		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
-			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 		} else 

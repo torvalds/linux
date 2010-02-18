@@ -55,7 +55,6 @@ static void opticon_bulk_callback(struct urb *urb)
 	int status = urb->status;
 	struct tty_struct *tty;
 	int result;
-	int available_room = 0;
 	int data_length;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -96,13 +95,9 @@ static void opticon_bulk_callback(struct urb *urb)
 			/* real data, send it to the tty layer */
 			tty = tty_port_tty_get(&port->port);
 			if (tty) {
-				available_room = tty_buffer_request_room(tty,
-								data_length);
-				if (available_room) {
-					tty_insert_flip_string(tty, data,
-							       available_room);
-					tty_flip_buffer_push(tty);
-				}
+				tty_insert_flip_string(tty, data,
+							       data_length);
+				tty_flip_buffer_push(tty);
 				tty_kref_put(tty);
 			}
 		} else {

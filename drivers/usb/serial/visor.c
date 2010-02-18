@@ -503,13 +503,9 @@ static void visor_read_bulk_callback(struct urb *urb)
 	if (urb->actual_length) {
 		tty = tty_port_tty_get(&port->port);
 		if (tty) {
-			available_room = tty_buffer_request_room(tty,
-							urb->actual_length);
-			if (available_room) {
-				tty_insert_flip_string(tty, data,
-							available_room);
-				tty_flip_buffer_push(tty);
-			}
+			tty_insert_flip_string(tty, data,
+						urb->actual_length);
+			tty_flip_buffer_push(tty);
 			tty_kref_put(tty);
 		}
 		spin_lock(&priv->lock);

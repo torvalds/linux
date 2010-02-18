@@ -733,7 +733,6 @@ static void ark3116_read_bulk_callback(struct urb *urb)
 
 		tty = tty_port_tty_get(&port->port);
 		if (tty) {
-			tty_buffer_request_room(tty, urb->actual_length + 1);
 			/* overrun is special, not associated with a char */
 			if (unlikely(lsr & UART_LSR_OE))
 				tty_insert_flip_char(tty, 0, TTY_OVERRUN);

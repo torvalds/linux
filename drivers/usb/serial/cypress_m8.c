@@ -1307,13 +1307,9 @@ static void cypress_read_int_callback(struct urb *urb)
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* process read if there is data other than line status */
-	if (tty && (bytes > i)) {
-		bytes = tty_buffer_request_room(tty, bytes);
-		for (; i < bytes ; ++i) {
-			dbg("pushing byte number %d - %d - %c", i, data[i],
-					data[i]);
-			tty_insert_flip_char(tty, data[i], tty_flag);
-		}
+	if (tty && bytes > i) {
+		tty_insert_flip_string_fixed_flag(tty, data + i,
+				bytes - i, tty_flag);
 		tty_flip_buffer_push(tty);
 	}
 

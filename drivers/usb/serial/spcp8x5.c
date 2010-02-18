@@ -677,7 +677,6 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
-	int i;
 	int result = urb->status;
 	u8 status;
 	char tty_flag;
@@ -726,12 +725,11 @@ static void spcp8x5_read_bulk_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length + 1);
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		for (i = 0; i < urb->actual_length; ++i)
-			tty_insert_flip_char(tty, data[i], tty_flag);
+		tty_insert_flip_string_fixed_flag(tty, data,
+						urb->actual_length, tty_flag);
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);

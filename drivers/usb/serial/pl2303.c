@@ -1042,7 +1042,6 @@ static void pl2303_push_data(struct tty_struct *tty,
 		tty_flag = TTY_FRAME;
 	dbg("%s - tty_flag = %d", __func__, tty_flag);
 
-	tty_buffer_request_room(tty, urb->actual_length + 1);
 	/* overrun is special, not associated with a char */
 	if (line_status & UART_OVERRUN_ERROR)
 		tty_insert_flip_char(tty, 0, TTY_OVERRUN);

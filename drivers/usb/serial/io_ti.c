@@ -1820,7 +1820,6 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
 {
 	int queued;
 
-	tty_buffer_request_room(tty, length);
 	queued = tty_insert_flip_string(tty, data, length);
 	if (queued < length)
 		dev_err(dev, "%s - dropping data, %d bytes lost\n",

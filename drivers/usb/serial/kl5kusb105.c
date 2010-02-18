@@ -699,7 +699,6 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 			bytes_sent = urb->actual_length - 2;
 		}
 
-		tty_buffer_request_room(tty, bytes_sent);
 		tty_insert_flip_string(tty, data + 2, bytes_sent);
 		tty_flip_buffer_push(tty);
 		tty_kref_put(tty);

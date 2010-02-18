@@ -764,7 +764,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	if (urb->actual_length) {
 		tty = tty_port_tty_get(&mos7840_port->port->port);
 		if (tty) {
-			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			dbg(" %s ", data);
 			tty_flip_buffer_push(tty);
