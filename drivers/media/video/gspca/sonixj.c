@@ -282,7 +282,7 @@ static const struct ctrl sd_ctrls[] = {
 static __u32 ctrl_dis[] = {
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX) |
 			(1 << AUTOGAIN_IDX),	/* SENSOR_ADCM1700 0 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
+	(1 << INFRARED_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_HV7131R 1 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
 						/* SENSOR_MI0360 2 */
@@ -1780,23 +1780,34 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = -1;
 }
 
-/* ov7630/ov7648 only */
+/* hv7131r/ov7630/ov7648 only */
 static void setvflip(struct sd *sd)
 {
 	u8 comn;
 
 	if (sd->gspca_dev.ctrl_dis & (1 << VFLIP_IDX))
 		return;
-	if (sd->sensor == SENSOR_OV7630) {
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+		comn = 0x18;			/* clkdiv = 1, ablcen = 1 */
+		if (sd->vflip)
+			comn |= 0x01;
+		i2c_w1(&sd->gspca_dev, 0x01, comn);	/* sctra */
+		break;
+	case SENSOR_OV7630:
 		comn = 0x02;
 		if (!sd->vflip)
 			comn |= 0x80;
-	} else {
+		i2c_w1(&sd->gspca_dev, 0x75, comn);
+		break;
+	default:
+/*	case SENSOR_OV7648: */
 		comn = 0x06;
 		if (sd->vflip)
 			comn |= 0x80;
+		i2c_w1(&sd->gspca_dev, 0x75, comn);
+		break;
 	}
-	i2c_w1(&sd->gspca_dev, 0x75, comn);
 }
 
 static void setsharpness(struct sd *sd)
