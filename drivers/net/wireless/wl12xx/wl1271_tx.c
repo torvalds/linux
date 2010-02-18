@@ -203,6 +203,7 @@ static int wl1271_tx_frame(struct wl1271 *wl, struct sk_buff *skb)
 			ret = wl1271_cmd_set_default_wep_key(wl, idx);
 			if (ret < 0)
 				return ret;
+			wl->default_key = idx;
 		}
 	}
 

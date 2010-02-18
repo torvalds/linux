@@ -1475,6 +1475,14 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			wl1271_error("Could not add or replace key");
 			goto out_sleep;
 		}
+
+		/* the default WEP key needs to be configured at least once */
+		if (key_type == KEY_WEP) {
+			ret = wl1271_cmd_set_default_wep_key(wl,
+							     wl->default_key);
+			if (ret < 0)
+				goto out_sleep;
+		}
 		break;
 
 	case DISABLE_KEY:
