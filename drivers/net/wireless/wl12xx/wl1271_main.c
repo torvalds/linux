@@ -1,7 +1,7 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
@@ -1604,6 +1604,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	enum wl1271_cmd_ps_mode mode;
 	struct wl1271 *wl = hw->priv;
+	bool do_join = false;
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed");
@@ -1646,6 +1647,9 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			dev_kfree_skb(beacon);
 			if (ret < 0)
 				goto out_sleep;
+
+			/* Need to update the SSID (for filtering etc) */
+			do_join = true;
 		}
 	}
 
@@ -1664,12 +1668,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				goto out_sleep;
 			}
 
-			ret = wl1271_cmd_join(wl);
-			if (ret < 0) {
-				wl1271_warning("cmd join failed %d", ret);
-				goto out_sleep;
-			}
-			set_bit(WL1271_FLAG_JOINED, &wl->flags);
+			/* Need to update the BSSID (for filtering etc) */
+			do_join = true;
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
@@ -1734,6 +1734,15 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl1271_warning("Set ctsprotect failed %d", ret);
 			goto out_sleep;
 		}
+	}
+
+	if (do_join) {
+		ret = wl1271_cmd_join(wl);
+		if (ret < 0) {
+			wl1271_warning("cmd join failed %d", ret);
+			goto out_sleep;
+		}
+		set_bit(WL1271_FLAG_JOINED, &wl->flags);
 	}
 
 out_sleep:
