@@ -17,6 +17,7 @@
 #include <net/net_namespace.h>
 #include <net/rtnetlink.h>
 #include <net/sock.h>
+#include <linux/virtio_net.h>
 
 /*
  * A macvtap queue is the central object of this driver, it connects
@@ -37,6 +38,7 @@ struct macvtap_queue {
 	struct socket sock;
 	struct macvlan_dev *vlan;
 	struct file *file;
+	unsigned int flags;
 };
 
 static struct proto macvtap_proto = {
@@ -276,6 +278,7 @@ static int macvtap_open(struct inode *inode, struct file *file)
 	q->sock.ops = &macvtap_socket_ops;
 	sock_init_data(&q->sock, &q->sk);
 	q->sk.sk_write_space = macvtap_sock_write_space;
+	q->flags = IFF_VNET_HDR | IFF_NO_PI | IFF_TAP;
 
 	err = macvtap_set_queue(dev, file, q);
 	if (err)
@@ -318,6 +321,111 @@ out:
 	return mask;
 }
 
+static inline struct sk_buff *macvtap_alloc_skb(struct sock *sk, size_t prepad,
+						size_t len, size_t linear,
+						int noblock, int *err)
+{
+	struct sk_buff *skb;
+
+	/* Under a page?  Don't bother with paged skb. */
+	if (prepad + len < PAGE_SIZE || !linear)
+		linear = len;
+
+	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, noblock,
+				   err);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, prepad);
+	skb_put(skb, linear);
+	skb->data_len = len - linear;
+	skb->len += len - linear;
+
+	return skb;
+}
+
+/*
+ * macvtap_skb_from_vnet_hdr and macvtap_skb_to_vnet_hdr should
+ * be shared with the tun/tap driver.
+ */
+static int macvtap_skb_from_vnet_hdr(struct sk_buff *skb,
+				     struct virtio_net_hdr *vnet_hdr)
+{
+	unsigned short gso_type = 0;
+	if (vnet_hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+		switch (vnet_hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+		case VIRTIO_NET_HDR_GSO_TCPV4:
+			gso_type = SKB_GSO_TCPV4;
+			break;
+		case VIRTIO_NET_HDR_GSO_TCPV6:
+			gso_type = SKB_GSO_TCPV6;
+			break;
+		case VIRTIO_NET_HDR_GSO_UDP:
+			gso_type = SKB_GSO_UDP;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		if (vnet_hdr->gso_type & VIRTIO_NET_HDR_GSO_ECN)
+			gso_type |= SKB_GSO_TCP_ECN;
+
+		if (vnet_hdr->gso_size == 0)
+			return -EINVAL;
+	}
+
+	if (vnet_hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) {
+		if (!skb_partial_csum_set(skb, vnet_hdr->csum_start,
+					  vnet_hdr->csum_offset))
+			return -EINVAL;
+	}
+
+	if (vnet_hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
+		skb_shinfo(skb)->gso_size = vnet_hdr->gso_size;
+		skb_shinfo(skb)->gso_type = gso_type;
+
+		/* Header must be checked, and gso_segs computed. */
+		skb_shinfo(skb)->gso_type |= SKB_GSO_DODGY;
+		skb_shinfo(skb)->gso_segs = 0;
+	}
+	return 0;
+}
+
+static int macvtap_skb_to_vnet_hdr(const struct sk_buff *skb,
+				   struct virtio_net_hdr *vnet_hdr)
+{
+	memset(vnet_hdr, 0, sizeof(*vnet_hdr));
+
+	if (skb_is_gso(skb)) {
+		struct skb_shared_info *sinfo = skb_shinfo(skb);
+
+		/* This is a hint as to how much should be linear. */
+		vnet_hdr->hdr_len = skb_headlen(skb);
+		vnet_hdr->gso_size = sinfo->gso_size;
+		if (sinfo->gso_type & SKB_GSO_TCPV4)
+			vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
+		else if (sinfo->gso_type & SKB_GSO_TCPV6)
+			vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
+		else if (sinfo->gso_type & SKB_GSO_UDP)
+			vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_UDP;
+		else
+			BUG();
+		if (sinfo->gso_type & SKB_GSO_TCP_ECN)
+			vnet_hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
+	} else
+		vnet_hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		vnet_hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
+		vnet_hdr->csum_start = skb->csum_start -
+					skb_headroom(skb);
+		vnet_hdr->csum_offset = skb->csum_offset;
+	} /* else everything is zero */
+
+	return 0;
+}
+
+
 /* Get packet from user space buffer */
 static ssize_t macvtap_get_user(struct macvtap_queue *q,
 				const struct iovec *iv, size_t count,
@@ -327,22 +435,53 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 	struct macvlan_dev *vlan;
 	size_t len = count;
 	int err;
+	struct virtio_net_hdr vnet_hdr = { 0 };
+	int vnet_hdr_len = 0;
 
+	if (q->flags & IFF_VNET_HDR) {
+		vnet_hdr_len = sizeof(vnet_hdr);
+
+		err = -EINVAL;
+		if ((len -= vnet_hdr_len) < 0)
+			goto err;
+
+		err = memcpy_fromiovecend((void *)&vnet_hdr, iv, 0,
+					   vnet_hdr_len);
+		if (err < 0)
+			goto err;
+		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&
+		     vnet_hdr.csum_start + vnet_hdr.csum_offset + 2 >
+							vnet_hdr.hdr_len)
+			vnet_hdr.hdr_len = vnet_hdr.csum_start +
+						vnet_hdr.csum_offset + 2;
+		err = -EINVAL;
+		if (vnet_hdr.hdr_len > len)
+			goto err;
+	}
+
+	err = -EINVAL;
 	if (unlikely(len < ETH_HLEN))
-		return -EINVAL;
+		goto err;
 
-	skb = sock_alloc_send_skb(&q->sk, NET_IP_ALIGN + len, noblock, &err);
+	skb = macvtap_alloc_skb(&q->sk, NET_IP_ALIGN, len, vnet_hdr.hdr_len,
+				noblock, &err);
 	if (!skb)
 		goto err;
 
-	skb_reserve(skb, NET_IP_ALIGN);
-	skb_put(skb, count);
-
-	err = skb_copy_datagram_from_iovec(skb, 0, iv, 0, len);
+	err = skb_copy_datagram_from_iovec(skb, 0, iv, vnet_hdr_len, len);
 	if (err)
-		goto err;
+		goto err_kfree;
 
 	skb_set_network_header(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb->protocol = eth_hdr(skb)->h_proto;
+
+	if (vnet_hdr_len) {
+		err = macvtap_skb_from_vnet_hdr(skb, &vnet_hdr);
+		if (err)
+			goto err_kfree;
+	}
+
 	rcu_read_lock_bh();
 	vlan = rcu_dereference(q->vlan);
 	if (vlan)
@@ -353,14 +492,15 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q,
 
 	return count;
 
+err_kfree:
+	kfree_skb(skb);
+
 err:
 	rcu_read_lock_bh();
 	vlan = rcu_dereference(q->vlan);
 	if (vlan)
-		macvlan_count_rx(q->vlan, 0, false, false);
+		netdev_get_tx_queue(vlan->dev, 0)->tx_dropped++;
 	rcu_read_unlock_bh();
-
-	kfree_skb(skb);
 
 	return err;
 }
@@ -384,10 +524,25 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 {
 	struct macvlan_dev *vlan;
 	int ret;
+	int vnet_hdr_len = 0;
+
+	if (q->flags & IFF_VNET_HDR) {
+		struct virtio_net_hdr vnet_hdr;
+		vnet_hdr_len = sizeof (vnet_hdr);
+		if ((len -= vnet_hdr_len) < 0)
+			return -EINVAL;
+
+		ret = macvtap_skb_to_vnet_hdr(skb, &vnet_hdr);
+		if (ret)
+			return ret;
+
+		if (memcpy_toiovecend(iv, (void *)&vnet_hdr, 0, vnet_hdr_len))
+			return -EFAULT;
+	}
 
 	len = min_t(int, skb->len, len);
 
-	ret = skb_copy_datagram_const_iovec(skb, 0, iv, 0, len);
+	ret = skb_copy_datagram_const_iovec(skb, 0, iv, vnet_hdr_len, len);
 
 	rcu_read_lock_bh();
 	vlan = rcu_dereference(q->vlan);
@@ -395,7 +550,7 @@ static ssize_t macvtap_put_user(struct macvtap_queue *q,
 		macvlan_count_rx(vlan, len, ret == 0, 0);
 	rcu_read_unlock_bh();
 
-	return ret ? ret : len;
+	return ret ? ret : (len + vnet_hdr_len);
 }
 
 static ssize_t macvtap_do_read(struct macvtap_queue *q, struct kiocb *iocb,
@@ -473,9 +628,14 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		/* ignore the name, just look at flags */
 		if (get_user(u, &ifr->ifr_flags))
 			return -EFAULT;
-		if (u != (IFF_TAP | IFF_NO_PI))
-			return -EINVAL;
-		return 0;
+
+		ret = 0;
+		if ((u & ~IFF_VNET_HDR) != (IFF_NO_PI | IFF_TAP))
+			ret = -EINVAL;
+		else
+			q->flags = u;
+
+		return ret;
 
 	case TUNGETIFF:
 		rcu_read_lock_bh();
@@ -489,13 +649,13 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 
 		ret = 0;
 		if (copy_to_user(&ifr->ifr_name, q->vlan->dev->name, IFNAMSIZ) ||
-		    put_user((TUN_TAP_DEV | TUN_NO_PI), &ifr->ifr_flags))
+		    put_user(q->flags, &ifr->ifr_flags))
 			ret = -EFAULT;
 		dev_put(vlan->dev);
 		return ret;
 
 	case TUNGETFEATURES:
-		if (put_user((IFF_TAP | IFF_NO_PI), up))
+		if (put_user(IFF_TAP | IFF_NO_PI | IFF_VNET_HDR, up))
 			return -EFAULT;
 		return 0;
 
@@ -509,15 +669,13 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	case TUNSETOFFLOAD:
 		/* let the user check for future flags */
 		if (arg & ~(TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 |
-			  TUN_F_TSO_ECN | TUN_F_UFO))
+			    TUN_F_TSO_ECN | TUN_F_UFO))
 			return -EINVAL;
 
-		/* TODO: add support for these, so far we don't
-			 support any offload */
-		if (arg & (TUN_F_CSUM | TUN_F_TSO4 | TUN_F_TSO6 |
-			 TUN_F_TSO_ECN | TUN_F_UFO))
-			return -EINVAL;
-
+		/* TODO: only accept frames with the features that
+			 got enabled for forwarded frames */
+		if (!(q->flags & IFF_VNET_HDR))
+			return  -EINVAL;
 		return 0;
 
 	default:
