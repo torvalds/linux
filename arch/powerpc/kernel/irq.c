@@ -520,7 +520,7 @@ void do_softirq(void)
  */
 
 static LIST_HEAD(irq_hosts);
-static DEFINE_SPINLOCK(irq_big_lock);
+static DEFINE_RAW_SPINLOCK(irq_big_lock);
 static unsigned int revmap_trees_allocated;
 static DEFINE_MUTEX(revmap_trees_mutex);
 struct irq_map_entry irq_map[NR_IRQS];
@@ -566,14 +566,14 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	if (host->ops->match == NULL)
 		host->ops->match = default_irq_host_match;
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 
 	/* If it's a legacy controller, check for duplicates and
 	 * mark it as allocated (we use irq 0 host pointer for that
 	 */
 	if (revmap_type == IRQ_HOST_MAP_LEGACY) {
 		if (irq_map[0].host != NULL) {
-			spin_unlock_irqrestore(&irq_big_lock, flags);
+			raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 			/* If we are early boot, we can't free the structure,
 			 * too bad...
 			 * this will be fixed once slab is made available early
@@ -587,7 +587,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	}
 
 	list_add(&host->link, &irq_hosts);
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 
 	/* Additional setups per revmap type */
 	switch(revmap_type) {
@@ -638,13 +638,13 @@ struct irq_host *irq_find_host(struct device_node *node)
 	 * the absence of a device node. This isn't a problem so far
 	 * yet though...
 	 */
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	list_for_each_entry(h, &irq_hosts, link)
 		if (h->ops->match(h, node)) {
 			found = h;
 			break;
 		}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 	return found;
 }
 EXPORT_SYMBOL_GPL(irq_find_host);
@@ -1013,7 +1013,7 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 	if (count == 0 || count > (irq_virq_count - NUM_ISA_INTERRUPTS))
 		return NO_IRQ;
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 
 	/* Use hint for 1 interrupt if any */
 	if (count == 1 && hint >= NUM_ISA_INTERRUPTS &&
@@ -1037,7 +1037,7 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 		}
 	}
 	if (found == NO_IRQ) {
-		spin_unlock_irqrestore(&irq_big_lock, flags);
+		raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 		return NO_IRQ;
 	}
  hint_found:
@@ -1046,7 +1046,7 @@ unsigned int irq_alloc_virt(struct irq_host *host,
 		smp_wmb();
 		irq_map[i].host = host;
 	}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 	return found;
 }
 
@@ -1058,7 +1058,7 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 	WARN_ON (virq < NUM_ISA_INTERRUPTS);
 	WARN_ON (count == 0 || (virq + count) > irq_virq_count);
 
-	spin_lock_irqsave(&irq_big_lock, flags);
+	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	for (i = virq; i < (virq + count); i++) {
 		struct irq_host *host;
 
@@ -1071,7 +1071,7 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 		smp_wmb();
 		irq_map[i].host = NULL;
 	}
-	spin_unlock_irqrestore(&irq_big_lock, flags);
+	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 }
 
 int arch_early_irq_init(void)
