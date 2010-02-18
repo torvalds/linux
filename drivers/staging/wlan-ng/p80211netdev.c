@@ -586,7 +586,8 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 	}
 
 	/* Allocate a buf of size req->len */
-	if ((msgbuf = kmalloc(req->len, GFP_KERNEL))) {
+	msgbuf = kmalloc(req->len, GFP_KERNEL);
+	if (msgbuf) {
 		if (copy_from_user(msgbuf, (void __user *)req->data, req->len))
 			result = -EFAULT;
 		else

@@ -549,14 +549,14 @@ static int p80211wext_siwencode(netdevice_t *dev,
 	}
 
 	/* Check the Key index first. */
-	if ((i = (erq->flags & IW_ENCODE_INDEX))) {
-
+	i = (erq->flags & IW_ENCODE_INDEX);
+	if (i) {
 		if ((i < 1) || (i > NUM_WEPKEYS)) {
 			err = -EINVAL;
 			goto exit;
-		} else
+		} else {
 			i--;
-
+		}
 		/* Set current key number only if no keys are given */
 		if (erq->flags & IW_ENCODE_NOKEY) {
 			result =

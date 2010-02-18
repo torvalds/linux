@@ -1909,18 +1909,19 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 		return -EINVAL;
 
 	/* Retrieve the buffer loc&size and timeout */
-	if ((result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
-					     &(hw->bufinfo),
-					     sizeof(hw->bufinfo)))) {
+	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
+					&(hw->bufinfo), sizeof(hw->bufinfo));
+	if (result)
 		return result;
-	}
+
 	hw->bufinfo.page = le16_to_cpu(hw->bufinfo.page);
 	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
 	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
-	if ((result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
-					       &(hw->dltimeout)))) {
+	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
+					  &(hw->dltimeout));
+	if (result)
 		return result;
-	}
+
 	hw->dltimeout = le16_to_cpu(hw->dltimeout);
 
 	pr_debug("flashdl_enable\n");
@@ -3071,9 +3072,9 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 				  hfa384x_ctlxout_callback, hw);
 		hw->ctlx_urb.transfer_flags |= USB_QUEUE_BULK;
 
-		/* Now submit the URB and update the CTLX's state
-		 */
-		if ((result = SUBMIT_URB(&hw->ctlx_urb, GFP_ATOMIC)) == 0) {
+		/* Now submit the URB and update the CTLX's state */
+		result = SUBMIT_URB(&hw->ctlx_urb, GFP_ATOMIC);
+		if (result == 0) {
 			/* This CTLX is now running on the active queue */
 			head->state = CTLX_REQ_SUBMITTED;
 
@@ -3599,7 +3600,8 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 			 skblen - sizeof(p80211_caphdr_t));
 	}
 
-	if ((skb = dev_alloc_skb(skblen)) == NULL) {
+	skb = dev_alloc_skb(skblen);
+	if (skb == NULL) {
 		printk(KERN_ERR
 		       "alloc_skb failed trying to allocate %d bytes\n",
 		       skblen);
@@ -3870,9 +3872,9 @@ retry:
 
 delresp:
 	if (delete_resptimer) {
-		if ((timer_ok = del_timer(&hw->resptimer)) != 0) {
+		timer_ok = del_timer(&hw->resptimer);
+		if (timer_ok != 0)
 			hw->resp_timer_done = 1;
-		}
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
