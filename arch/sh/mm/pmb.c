@@ -161,32 +161,28 @@ static __always_inline unsigned long pmb_cache_flags(void)
  */
 static void __set_pmb_entry(struct pmb_entry *pmbe)
 {
-	jump_to_uncached();
-
 	pmbe->flags &= ~PMB_CACHE_MASK;
 	pmbe->flags |= pmb_cache_flags();
 
-	__raw_writel(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
-	__raw_writel(pmbe->ppn | pmbe->flags | PMB_V, mk_pmb_data(pmbe->entry));
-
-	back_to_cached();
+	writel_uncached(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
+	writel_uncached(pmbe->ppn | pmbe->flags | PMB_V,
+			mk_pmb_data(pmbe->entry));
 }
 
 static void __clear_pmb_entry(struct pmb_entry *pmbe)
 {
-	unsigned int entry = pmbe->entry;
-	unsigned long addr;
+	unsigned long addr, data;
+	unsigned long addr_val, data_val;
 
-	jump_to_uncached();
+	addr = mk_pmb_addr(pmbe->entry);
+	data = mk_pmb_data(pmbe->entry);
+
+	addr_val = __raw_readl(addr);
+	data_val = __raw_readl(data);
 
 	/* Clear V-bit */
-	addr = mk_pmb_addr(entry);
-	__raw_writel(__raw_readl(addr) & ~PMB_V, addr);
-
-	addr = mk_pmb_data(entry);
-	__raw_writel(__raw_readl(addr) & ~PMB_V, addr);
-
-	back_to_cached();
+	writel_uncached(addr_val & ~PMB_V, addr);
+	writel_uncached(data_val & ~PMB_V, data);
 }
 
 static void set_pmb_entry(struct pmb_entry *pmbe)
@@ -400,8 +396,8 @@ static int pmb_synchronize_mappings(void)
 			/*
 			 * Invalidate anything out of bounds.
 			 */
-			__raw_writel(addr_val & ~PMB_V, addr);
-			__raw_writel(data_val & ~PMB_V, data);
+			writel_uncached(addr_val & ~PMB_V, addr);
+			writel_uncached(data_val & ~PMB_V, data);
 			continue;
 		}
 
@@ -411,7 +407,8 @@ static int pmb_synchronize_mappings(void)
 		if (data_val & PMB_C) {
 			data_val &= ~PMB_CACHE_MASK;
 			data_val |= pmb_cache_flags();
-			__raw_writel(data_val, data);
+
+			writel_uncached(data_val, data);
 		}
 
 		size = data_val & PMB_SZ_MASK;
@@ -462,25 +459,20 @@ int pmb_init(void)
 {
 	int ret;
 
-	jump_to_uncached();
-
 	/*
 	 * Sync our software copy of the PMB mappings with those in
 	 * hardware. The mappings in the hardware PMB were either set up
 	 * by the bootloader or very early on by the kernel.
 	 */
 	ret = pmb_synchronize_mappings();
-	if (unlikely(ret == 0)) {
-		back_to_cached();
+	if (unlikely(ret == 0))
 		return 0;
-	}
 
-	__raw_writel(0, PMB_IRMCR);
+	writel_uncached(0, PMB_IRMCR);
 
 	/* Flush out the TLB */
 	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
-
-	back_to_cached();
+	ctrl_barrier();
 
 	return 0;
 }
