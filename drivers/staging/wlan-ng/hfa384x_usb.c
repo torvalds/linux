@@ -118,15 +118,15 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/byteorder/generic.h>
 
-#define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
+#define SUBMIT_URB(u, f)  usb_submit_urb(u, f)
 
 #include "p80211types.h"
 #include "p80211hdr.h"
@@ -627,7 +627,7 @@ static hfa384x_usbctlx_t *usbctlx_alloc(void)
 {
 	hfa384x_usbctlx_t *ctlx;
 
-	ctlx = kmalloc(sizeof(*ctlx), in_interrupt()? GFP_ATOMIC : GFP_KERNEL);
+	ctlx = kmalloc(sizeof(*ctlx), in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (ctlx != NULL) {
 		memset(ctlx, 0, sizeof(*ctlx));
 		init_completion(&ctlx->done);
@@ -675,7 +675,7 @@ struct usbctlx_cmd_completor {
 };
 typedef struct usbctlx_cmd_completor usbctlx_cmd_completor_t;
 
-static int usbctlx_cmd_completor_fn(usbctlx_completor_t * head)
+static int usbctlx_cmd_completor_fn(usbctlx_completor_t *head)
 {
 	usbctlx_cmd_completor_t *complete = (usbctlx_cmd_completor_t *) head;
 	return usbctlx_get_status(complete->cmdresp, complete->result);
@@ -3642,7 +3642,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 		/* check for unencrypted stuff if WEP bit set. */
 		if (*(datap - hdrlen + 1) & 0x40)	/* wep set */
 			if ((*(datap) == 0xaa) && (*(datap + 1) == 0xaa))
-				*(datap - hdrlen + 1) &= 0xbf;	// clear wep; it's the 802.2 header!
+				*(datap - hdrlen + 1) &= 0xbf;	/* clear wep; it's the 802.2 header! */
 	}
 
 	if (hw->sniff_fcs) {

@@ -646,7 +646,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 
 	/* Set up some convenience pointers. */
 	mibattr = &dot11req.mibattribute;
-	macaddr = (p80211item_pstr6_t *) & mibattr->data;
+	macaddr = (p80211item_pstr6_t *) &mibattr->data;
 	resultcode = &dot11req.resultcode;
 
 	/* Set up a dot11req_mibset */
@@ -674,7 +674,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode->data = 0;
 
 	/* now fire the request */
-	result = p80211req_dorequest(dev->ml_priv, (u8 *) & dot11req);
+	result = p80211req_dorequest(dev->ml_priv, (u8 *) &dot11req);
 
 	/* If the request wasn't successful, report an error and don't
 	 * change the netdev address

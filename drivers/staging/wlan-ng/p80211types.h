@@ -168,10 +168,10 @@
 					P80211DID_MASK_ISTABLE, \
 					P80211DID_LSB_ISTABLE)
 
-#define P80211DID_MKID(s,g,i,n,t,a)	(P80211DID_MKSECTION(s) | \
+#define P80211DID_MKID(s, g, i, n, t, a)	(P80211DID_MKSECTION(s) | \
 						P80211DID_MKGROUP(g) | \
-				 		P80211DID_MKITEM(i) | \
-				 		P80211DID_MKINDEX(n) | \
+						P80211DID_MKITEM(i) | \
+						P80211DID_MKINDEX(n) | \
 						P80211DID_MKISTABLE(t) | \
 						(a))
 
@@ -340,11 +340,11 @@ struct catlistitem;
 /*  metadata items.  Some components may choose to use more, */
 /*  less or different metadata items. */
 
-typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 * itembuf,
+typedef void (*p80211_totext_t) (struct catlistitem *, u32 did, u8 *itembuf,
 				 char *textbuf);
-typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 * itembuf,
+typedef void (*p80211_fromtext_t) (struct catlistitem *, u32 did, u8 *itembuf,
 				   char *textbuf);
-typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 * itembuf);
+typedef u32(*p80211_valid_t) (struct catlistitem *, u32 did, u8 *itembuf);
 
 /*----------------------------------------------------------------*/
 /* Enumeration Lists */
