@@ -86,7 +86,7 @@ static int gpio_set_irq_type(unsigned int irq, unsigned int type)
 	unsigned int reg_both, reg_level, reg_type;
 
 	reg_type = __raw_readl(base + GPIO_INT_TYPE);
-	reg_level = __raw_readl(base + GPIO_INT_BOTH_EDGE);
+	reg_level = __raw_readl(base + GPIO_INT_LEVEL);
 	reg_both = __raw_readl(base + GPIO_INT_BOTH_EDGE);
 
 	switch (type) {
@@ -117,7 +117,7 @@ static int gpio_set_irq_type(unsigned int irq, unsigned int type)
 	}
 
 	__raw_writel(reg_type, base + GPIO_INT_TYPE);
-	__raw_writel(reg_level, base + GPIO_INT_BOTH_EDGE);
+	__raw_writel(reg_level, base + GPIO_INT_LEVEL);
 	__raw_writel(reg_both, base + GPIO_INT_BOTH_EDGE);
 
 	gpio_ack_irq(irq);
