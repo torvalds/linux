@@ -1095,6 +1095,20 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	struct fc_port *fcport;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (ha->flags.enable_target_reset) {
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (fcport->port_type != FCT_TARGET)
+				continue;
+
+			ret = ha->isp_ops->target_reset(fcport, 0, 0);
+			if (ret != QLA_SUCCESS) {
+				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+				    "target_reset=%d d_id=%x.\n", __func__,
+				    vha->host_no, ret, fcport->d_id.b24));
+			}
+		}
+	}
+
 	if (ha->flags.enable_lip_full_login && !IS_QLA81XX(ha)) {
 		ret = qla2x00_full_login_lip(vha);
 		if (ret != QLA_SUCCESS) {
@@ -1117,19 +1131,6 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 			qla2x00_wait_for_loop_ready(vha);
 	}
 
-	if (ha->flags.enable_target_reset) {
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->port_type != FCT_TARGET)
-				continue;
-
-			ret = ha->isp_ops->target_reset(fcport, 0, 0);
-			if (ret != QLA_SUCCESS) {
-				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
-				    "target_reset=%d d_id=%x.\n", __func__,
-				    vha->host_no, ret, fcport->d_id.b24));
-			}
-		}
-	}
 	/* Issue marker command only when we are going to start the I/O */
 	vha->marker_needed = 1;
 
