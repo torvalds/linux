@@ -58,7 +58,7 @@ static int get_rdev_dev_by_info_ifindex(struct genl_info *info,
 }
 
 /* policy for the attributes */
-static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
+static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_WIPHY] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_NAME] = { .type = NLA_NUL_STRING,
 				      .len = 20-1 },
@@ -148,8 +148,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 };
 
 /* policy for the attributes */
-static struct nla_policy
-nl80211_key_policy[NL80211_KEY_MAX + 1] __read_mostly = {
+static const struct nla_policy nl80211_key_policy[NL80211_KEY_MAX + 1] = {
 	[NL80211_KEY_DATA] = { .type = NLA_BINARY, .len = WLAN_MAX_KEY_LEN },
 	[NL80211_KEY_IDX] = { .type = NLA_U8 },
 	[NL80211_KEY_CIPHER] = { .type = NLA_U32 },
@@ -2501,8 +2500,7 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
-static const struct nla_policy
-	reg_rule_policy[NL80211_REG_RULE_ATTR_MAX + 1] = {
+static const struct nla_policy reg_rule_policy[NL80211_REG_RULE_ATTR_MAX + 1] = {
 	[NL80211_ATTR_REG_RULE_FLAGS]		= { .type = NLA_U32 },
 	[NL80211_ATTR_FREQ_RANGE_START]		= { .type = NLA_U32 },
 	[NL80211_ATTR_FREQ_RANGE_END]		= { .type = NLA_U32 },
@@ -2671,8 +2669,7 @@ do {\
 	} \
 } while (0);\
 
-static struct nla_policy
-nl80211_meshconf_params_policy[NL80211_MESHCONF_ATTR_MAX+1] __read_mostly = {
+static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_ATTR_MAX+1] = {
 	[NL80211_MESHCONF_RETRY_TIMEOUT] = { .type = NLA_U16 },
 	[NL80211_MESHCONF_CONFIRM_TIMEOUT] = { .type = NLA_U16 },
 	[NL80211_MESHCONF_HOLDING_TIMEOUT] = { .type = NLA_U16 },
@@ -4470,8 +4467,7 @@ static u32 rateset_to_mask(struct ieee80211_supported_band *sband,
 	return mask;
 }
 
-static struct nla_policy
-nl80211_txattr_policy[NL80211_TXRATE_MAX + 1] __read_mostly = {
+static const struct nla_policy nl80211_txattr_policy[NL80211_TXRATE_MAX + 1] = {
 	[NL80211_TXRATE_LEGACY] = { .type = NLA_BINARY,
 				    .len = NL80211_MAX_SUPP_RATES },
 };
