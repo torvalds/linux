@@ -664,6 +664,8 @@ static int au8522_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct au8522_state *state = to_state(sd);
 
+	state->operational_mode = AU8522_ANALOG_MODE;
+
 	au8522_writereg(state, 0xa4, 1 << 5);
 
 	return 0;
