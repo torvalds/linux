@@ -118,7 +118,7 @@ int iio_push_event(struct iio_dev *dev_info,
 EXPORT_SYMBOL(iio_push_event);
 
 /* Generic interrupt line interrupt handler */
-irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
+static irqreturn_t iio_interrupt_handler(int irq, void *_int_info)
 {
 	struct iio_interrupt *int_info = _int_info;
 	struct iio_dev *dev_info = int_info->dev_info;
@@ -252,10 +252,10 @@ void iio_remove_event_from_list(struct iio_event_handler_list *el,
 }
 EXPORT_SYMBOL(iio_remove_event_from_list);
 
-ssize_t iio_event_chrdev_read(struct file *filep,
-			      char *buf,
-			      size_t count,
-			      loff_t *f_ps)
+static ssize_t iio_event_chrdev_read(struct file *filep,
+				     char __user *buf,
+				     size_t count,
+				     loff_t *f_ps)
 {
 	struct iio_event_interface *ev_int = filep->private_data;
 	struct iio_detected_event_list *el;
@@ -313,7 +313,7 @@ error_ret:
 	return ret;
 }
 
-int iio_event_chrdev_release(struct inode *inode, struct file *filep)
+static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 {
 	struct iio_handler *hand = iio_cdev_to_handler(inode->i_cdev);
 	struct iio_event_interface *ev_int = hand->private;
@@ -335,7 +335,7 @@ int iio_event_chrdev_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
-int iio_event_chrdev_open(struct inode *inode, struct file *filep)
+static int iio_event_chrdev_open(struct inode *inode, struct file *filep)
 {
 	struct iio_handler *hand = iio_cdev_to_handler(inode->i_cdev);
 	struct iio_event_interface *ev_int = hand->private;
