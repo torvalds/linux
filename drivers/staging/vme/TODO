@@ -58,7 +58,6 @@ Universe II (ca91c142)
 
 - DMA unsupported.
 - RMW transactions unsupported.
-- Location Monitors unsupported.
 - Mailboxes unsupported.
 - Error Detection.
 - Control of prefetch size, threshold.

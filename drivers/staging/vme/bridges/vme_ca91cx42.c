@@ -899,6 +899,206 @@ ssize_t ca91cx42_master_write(struct vme_master_resource *image, void *buf,
 	return retval;
 }
 
+/*
+ * All 4 location monitors reside at the same base - this is therefore a
+ * system wide configuration.
+ *
+ * This does not enable the LM monitor - that should be done when the first
+ * callback is attached and disabled when the last callback is removed.
+ */
+int ca91cx42_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
+	vme_address_t aspace, vme_cycle_t cycle)
+{
+	u32 temp_base, lm_ctl = 0;
+	int i;
+	struct ca91cx42_driver *bridge;
+	struct device *dev;
+
+	bridge = lm->parent->driver_priv;
+	dev = lm->parent->parent;
+
+	/* Check the alignment of the location monitor */
+	temp_base = (u32)lm_base;
+	if (temp_base & 0xffff) {
+		dev_err(dev, "Location monitor must be aligned to 64KB "
+			"boundary");
+		return -EINVAL;
+	}
+
+	mutex_lock(&(lm->mtx));
+
+	/* If we already have a callback attached, we can't move it! */
+	for (i = 0; i < lm->monitors; i++) {
+		if (bridge->lm_callback[i] != NULL) {
+			mutex_unlock(&(lm->mtx));
+			dev_err(dev, "Location monitor callback attached, "
+				"can't reset\n");
+			return -EBUSY;
+		}
+	}
+
+	switch (aspace) {
+	case VME_A16:
+		lm_ctl |= CA91CX42_LM_CTL_AS_A16;
+		break;
+	case VME_A24:
+		lm_ctl |= CA91CX42_LM_CTL_AS_A24;
+		break;
+	case VME_A32:
+		lm_ctl |= CA91CX42_LM_CTL_AS_A32;
+		break;
+	default:
+		mutex_unlock(&(lm->mtx));
+		dev_err(dev, "Invalid address space\n");
+		return -EINVAL;
+		break;
+	}
+
+	if (cycle & VME_SUPER)
+		lm_ctl |= CA91CX42_LM_CTL_SUPR;
+	if (cycle & VME_USER)
+		lm_ctl |= CA91CX42_LM_CTL_NPRIV;
+	if (cycle & VME_PROG)
+		lm_ctl |= CA91CX42_LM_CTL_PGM;
+	if (cycle & VME_DATA)
+		lm_ctl |= CA91CX42_LM_CTL_DATA;
+
+	iowrite32(lm_base, bridge->base + LM_BS);
+	iowrite32(lm_ctl, bridge->base + LM_CTL);
+
+	mutex_unlock(&(lm->mtx));
+
+	return 0;
+}
+
+/* Get configuration of the callback monitor and return whether it is enabled
+ * or disabled.
+ */
+int ca91cx42_lm_get(struct vme_lm_resource *lm, unsigned long long *lm_base,
+	vme_address_t *aspace, vme_cycle_t *cycle)
+{
+	u32 lm_ctl, enabled = 0;
+	struct ca91cx42_driver *bridge;
+
+	bridge = lm->parent->driver_priv;
+
+	mutex_lock(&(lm->mtx));
+
+	*lm_base = (unsigned long long)ioread32(bridge->base + LM_BS);
+	lm_ctl = ioread32(bridge->base + LM_CTL);
+
+	if (lm_ctl & CA91CX42_LM_CTL_EN)
+		enabled = 1;
+
+	if ((lm_ctl & CA91CX42_LM_CTL_AS_M) == CA91CX42_LM_CTL_AS_A16)
+		*aspace = VME_A16;
+	if ((lm_ctl & CA91CX42_LM_CTL_AS_M) == CA91CX42_LM_CTL_AS_A24)
+		*aspace = VME_A24;
+	if ((lm_ctl & CA91CX42_LM_CTL_AS_M) == CA91CX42_LM_CTL_AS_A32)
+		*aspace = VME_A32;
+
+	*cycle = 0;
+	if (lm_ctl & CA91CX42_LM_CTL_SUPR)
+		*cycle |= VME_SUPER;
+	if (lm_ctl & CA91CX42_LM_CTL_NPRIV)
+		*cycle |= VME_USER;
+	if (lm_ctl & CA91CX42_LM_CTL_PGM)
+		*cycle |= VME_PROG;
+	if (lm_ctl & CA91CX42_LM_CTL_DATA)
+		*cycle |= VME_DATA;
+
+	mutex_unlock(&(lm->mtx));
+
+	return enabled;
+}
+
+/*
+ * Attach a callback to a specific location monitor.
+ *
+ * Callback will be passed the monitor triggered.
+ */
+int ca91cx42_lm_attach(struct vme_lm_resource *lm, int monitor,
+	void (*callback)(int))
+{
+	u32 lm_ctl, tmp;
+	struct ca91cx42_driver *bridge;
+	struct device *dev;
+
+	bridge = lm->parent->driver_priv;
+	dev = lm->parent->parent;
+
+	mutex_lock(&(lm->mtx));
+
+	/* Ensure that the location monitor is configured - need PGM or DATA */
+	lm_ctl = ioread32(bridge->base + LM_CTL);
+	if ((lm_ctl & (CA91CX42_LM_CTL_PGM | CA91CX42_LM_CTL_DATA)) == 0) {
+		mutex_unlock(&(lm->mtx));
+		dev_err(dev, "Location monitor not properly configured\n");
+		return -EINVAL;
+	}
+
+	/* Check that a callback isn't already attached */
+	if (bridge->lm_callback[monitor] != NULL) {
+		mutex_unlock(&(lm->mtx));
+		dev_err(dev, "Existing callback attached\n");
+		return -EBUSY;
+	}
+
+	/* Attach callback */
+	bridge->lm_callback[monitor] = callback;
+
+	/* Enable Location Monitor interrupt */
+	tmp = ioread32(bridge->base + LINT_EN);
+	tmp |= CA91CX42_LINT_LM[monitor];
+	iowrite32(tmp, bridge->base + LINT_EN);
+
+	/* Ensure that global Location Monitor Enable set */
+	if ((lm_ctl & CA91CX42_LM_CTL_EN) == 0) {
+		lm_ctl |= CA91CX42_LM_CTL_EN;
+		iowrite32(lm_ctl, bridge->base + LM_CTL);
+	}
+
+	mutex_unlock(&(lm->mtx));
+
+	return 0;
+}
+
+/*
+ * Detach a callback function forn a specific location monitor.
+ */
+int ca91cx42_lm_detach(struct vme_lm_resource *lm, int monitor)
+{
+	u32 tmp;
+	struct ca91cx42_driver *bridge;
+
+	bridge = lm->parent->driver_priv;
+
+	mutex_lock(&(lm->mtx));
+
+	/* Disable Location Monitor and ensure previous interrupts are clear */
+	tmp = ioread32(bridge->base + LINT_EN);
+	tmp &= ~CA91CX42_LINT_LM[monitor];
+	iowrite32(tmp, bridge->base + LINT_EN);
+
+	iowrite32(CA91CX42_LINT_LM[monitor],
+		 bridge->base + LINT_STAT);
+
+	/* Detach callback */
+	bridge->lm_callback[monitor] = NULL;
+
+	/* If all location monitors disabled, disable global Location Monitor */
+	if ((tmp & (CA91CX42_LINT_LM0 | CA91CX42_LINT_LM1 | CA91CX42_LINT_LM2 |
+			CA91CX42_LINT_LM3)) == 0) {
+		tmp = ioread32(bridge->base + LM_CTL);
+		tmp &= ~CA91CX42_LM_CTL_EN;
+		iowrite32(tmp, bridge->base + LM_CTL);
+	}
+
+	mutex_unlock(&(lm->mtx));
+
+	return 0;
+}
+
 int ca91cx42_slot_get(struct vme_bridge *ca91cx42_bridge)
 {
 	u32 slot = 0;
@@ -1190,12 +1390,10 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 #endif
 	ca91cx42_bridge->irq_set = ca91cx42_irq_set;
 	ca91cx42_bridge->irq_generate = ca91cx42_irq_generate;
-#if 0
 	ca91cx42_bridge->lm_set = ca91cx42_lm_set;
 	ca91cx42_bridge->lm_get = ca91cx42_lm_get;
 	ca91cx42_bridge->lm_attach = ca91cx42_lm_attach;
 	ca91cx42_bridge->lm_detach = ca91cx42_lm_detach;
-#endif
 	ca91cx42_bridge->slot_get = ca91cx42_slot_get;
 
 	data = ioread32(ca91cx42_device->base + MISC_CTL);
@@ -1786,77 +1984,7 @@ int ca91cx42_do_dma(vmeDmaPacket_t *vmeDma)
 	return 0;
 }
 
-int ca91cx42_lm_set(vmeLmCfg_t *vmeLm)
-{
-	int temp_ctl = 0;
 
-	if (vmeLm->addrU)
-		return -EINVAL;
-
-	switch (vmeLm->addrSpace) {
-	case VME_A64:
-	case VME_USER3:
-	case VME_USER4:
-		return -EINVAL;
-	case VME_A16:
-		temp_ctl |= 0x00000;
-		break;
-	case VME_A24:
-		temp_ctl |= 0x10000;
-		break;
-	case VME_A32:
-		temp_ctl |= 0x20000;
-		break;
-	case VME_CRCSR:
-		temp_ctl |= 0x50000;
-		break;
-	case VME_USER1:
-		temp_ctl |= 0x60000;
-		break;
-	case VME_USER2:
-		temp_ctl |= 0x70000;
-		break;
-	}
-
-	/* Disable while we are mucking around */
-	iowrite32(0x00000000, bridge->base + LM_CTL);
-
-	iowrite32(vmeLm->addr, bridge->base + LM_BS);
-
-	/* Setup CTL register. */
-	if (vmeLm->userAccessType & VME_SUPER)
-		temp_ctl |= 0x00200000;
-	if (vmeLm->userAccessType & VME_USER)
-		temp_ctl |= 0x00100000;
-	if (vmeLm->dataAccessType & VME_PROG)
-		temp_ctl |= 0x00800000;
-	if (vmeLm->dataAccessType & VME_DATA)
-		temp_ctl |= 0x00400000;
-
-
-	/* Write ctl reg and enable */
-	iowrite32(0x80000000 | temp_ctl, bridge->base + LM_CTL);
-	temp_ctl = ioread32(bridge->base + LM_CTL);
-
-	return 0;
-}
-
-int ca91cx42_wait_lm(vmeLmCfg_t *vmeLm)
-{
-	unsigned long flags;
-	unsigned int tmp;
-
-	spin_lock_irqsave(&lm_lock, flags);
-	spin_unlock_irqrestore(&lm_lock, flags);
-	if (tmp == 0) {
-		if (vmeLm->lmWait < 10)
-			vmeLm->lmWait = 10;
-		interruptible_sleep_on_timeout(&lm_queue, vmeLm->lmWait);
-	}
-	iowrite32(0x00000000, bridge->base + LM_CTL);
-
-	return 0;
-}
 
 
 

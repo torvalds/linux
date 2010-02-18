@@ -491,6 +491,19 @@ static const int CA91CX42_LINT_LM[] = { CA91CX42_LINT_LM0, CA91CX42_LINT_LM1,
 #define CA91CX42_VSI_CTL_LAS_PCI_IO	(1<<0)
 #define CA91CX42_VSI_CTL_LAS_PCI_CONF	(1<<1)
 
+/* LM_CTL Register
+ * offset  F64
+ */
+#define CA91CX42_LM_CTL_EN		(1<<31)
+#define CA91CX42_LM_CTL_PGM		(1<<23)
+#define CA91CX42_LM_CTL_DATA		(1<<22)
+#define CA91CX42_LM_CTL_SUPR		(1<<21)
+#define CA91CX42_LM_CTL_NPRIV		(1<<20)
+#define CA91CX42_LM_CTL_AS_M		(5<<16)
+#define CA91CX42_LM_CTL_AS_A16		0
+#define CA91CX42_LM_CTL_AS_A24		(1<<16)
+#define CA91CX42_LM_CTL_AS_A32		(1<<17)
+
 /*
  * VRAI_CTL Register
  * offset  F70
