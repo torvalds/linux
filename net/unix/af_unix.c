@@ -144,7 +144,7 @@ static inline void unix_set_secdata(struct scm_cookie *scm, struct sk_buff *skb)
 /*
  *  SMP locking strategy:
  *    hash table is protected with spinlock unix_table_lock
- *    each socket state is protected by separate rwlock.
+ *    each socket state is protected by separate spin lock.
  */
 
 static inline unsigned unix_hash_fold(__wsum n)
