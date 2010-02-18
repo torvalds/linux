@@ -1606,6 +1606,28 @@ void uvc_ctrl_cleanup_device(struct uvc_device *dev)
 	}
 }
 
+void uvc_ctrl_cleanup(void)
+{
+	struct uvc_control_info *info;
+	struct uvc_control_info *ni;
+	struct uvc_control_mapping *mapping;
+	struct uvc_control_mapping *nm;
+
+	list_for_each_entry_safe(info, ni, &uvc_driver.controls, list) {
+		if (!(info->flags & UVC_CONTROL_EXTENSION))
+			continue;
+
+		list_for_each_entry_safe(mapping, nm, &info->mappings, list) {
+			list_del(&mapping->list);
+			kfree(mapping->menu_info);
+			kfree(mapping);
+		}
+
+		list_del(&info->list);
+		kfree(info);
+	}
+}
+
 void uvc_ctrl_init(void)
 {
 	struct uvc_control_info *ctrl = uvc_ctrls;

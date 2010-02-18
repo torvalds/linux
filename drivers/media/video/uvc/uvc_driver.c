@@ -2260,6 +2260,7 @@ static int __init uvc_init(void)
 static void __exit uvc_cleanup(void)
 {
 	usb_deregister(&uvc_driver.driver);
+	uvc_ctrl_cleanup();
 }
 
 module_init(uvc_init);
