@@ -93,21 +93,6 @@ static u32 ca91cx42_IACK_irqhandler(struct ca91cx42_driver *bridge)
 	return CA91CX42_LINT_SW_IACK;
 }
 
-#if 0
-int ca91cx42_bus_error_chk(int clrflag)
-{
-	int tmp;
-	tmp = ioread32(bridge->base + PCI_COMMAND);
-	if (tmp & 0x08000000) {	/* S_TA is Set */
-		if (clrflag)
-			iowrite32(tmp | 0x08000000,
-			       bridge->base + PCI_COMMAND);
-		return 1;
-	}
-	return 0;
-}
-#endif
-
 static u32 ca91cx42_VERR_irqhandler(struct ca91cx42_driver *bridge)
 {
 	int val;
@@ -379,10 +364,6 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	vme_bound = vme_base + size;
 	pci_offset = pci_base - vme_base;
 
-	/* XXX Need to check that vme_base, vme_bound and pci_offset aren't
-	 * too big for registers
-	 */
-
 	if ((i == 0) || (i == 4))
 		granularity = 0x1000;
 	else
@@ -410,18 +391,6 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	iowrite32(vme_base, bridge->base + CA91CX42_VSI_BS[i]);
 	iowrite32(vme_bound, bridge->base + CA91CX42_VSI_BD[i]);
 	iowrite32(pci_offset, bridge->base + CA91CX42_VSI_TO[i]);
-
-/* XXX Prefetch stuff currently unsupported */
-#if 0
-	if (vmeIn->wrPostEnable)
-		temp_ctl |= CA91CX42_VSI_CTL_PWEN;
-	if (vmeIn->prefetchEnable)
-		temp_ctl |= CA91CX42_VSI_CTL_PREN;
-	if (vmeIn->rmwLock)
-		temp_ctl |= CA91CX42_VSI_CTL_LLRMW;
-	if (vmeIn->data64BitCapable)
-		temp_ctl |= CA91CX42_VSI_CTL_LD64EN;
-#endif
 
 	/* Setup address space */
 	temp_ctl &= ~CA91CX42_VSI_CTL_VAS_M;
@@ -637,9 +606,6 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 
 	spin_lock(&(image->lock));
 
-	/* XXX We should do this much later, so that we can exit without
-	 *     needing to redo the mapping...
-	 */
 	/*
 	 * Let's allocate the resource here rather than further up the stack as
 	 * it avoids pushing loads of bus dependant stuff up the stack
@@ -666,12 +632,6 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 	temp_ctl = ioread32(bridge->base + CA91CX42_LSI_CTL[i]);
 	temp_ctl &= ~CA91CX42_LSI_CTL_EN;
 	iowrite32(temp_ctl, bridge->base + CA91CX42_LSI_CTL[i]);
-
-/* XXX Prefetch stuff currently unsupported */
-#if 0
-	if (vmeOut->wrPostEnable)
-		temp_ctl |= 0x40000000;
-#endif
 
 	/* Setup cycle types */
 	temp_ctl &= ~CA91CX42_LSI_CTL_VCT_M;
@@ -848,12 +808,6 @@ int __ca91cx42_master_get(struct vme_master_resource *image, int *enabled,
 		*dwidth = VME_D64;
 		break;
 	}
-
-/* XXX Prefetch stuff currently unsupported */
-#if 0
-	if (ctl & 0x40000000)
-		vmeOut->wrPostEnable = 1;
-#endif
 
 	return 0;
 }
@@ -1812,9 +1766,9 @@ void ca91cx42_remove(struct pci_dev *pdev)
 	iowrite32(0x00F00000, bridge->base + VSI7_CTL);
 
 	vme_unregister_bridge(ca91cx42_bridge);
-#if 0
-	ca91cx42_crcsr_exit(pdev);
-#endif
+
+	ca91cx42_crcsr_exit(ca91cx42_bridge, pdev);
+
 	/* resources are stored in link list */
 	list_for_each(pos, &(ca91cx42_bridge->lm_resources)) {
 		lm = list_entry(pos, struct vme_lm_resource, list);
@@ -1868,101 +1822,3 @@ MODULE_LICENSE("GPL");
 
 module_init(ca91cx42_init);
 module_exit(ca91cx42_exit);
-
-/*----------------------------------------------------------------------------
- * STAGING
- *--------------------------------------------------------------------------*/
-
-#if 0
-
-int ca91cx42_set_arbiter(vmeArbiterCfg_t *vmeArb)
-{
-	int temp_ctl = 0;
-	int vbto = 0;
-
-	temp_ctl = ioread32(bridge->base + MISC_CTL);
-	temp_ctl &= 0x00FFFFFF;
-
-	if (vmeArb->globalTimeoutTimer == 0xFFFFFFFF) {
-		vbto = 7;
-	} else if (vmeArb->globalTimeoutTimer > 1024) {
-		return -EINVAL;
-	} else if (vmeArb->globalTimeoutTimer == 0) {
-		vbto = 0;
-	} else {
-		vbto = 1;
-		while ((16 * (1 << (vbto - 1))) < vmeArb->globalTimeoutTimer)
-			vbto += 1;
-	}
-	temp_ctl |= (vbto << 28);
-
-	if (vmeArb->arbiterMode == VME_PRIORITY_MODE)
-		temp_ctl |= 1 << 26;
-
-	if (vmeArb->arbiterTimeoutFlag)
-		temp_ctl |= 2 << 24;
-
-	iowrite32(temp_ctl, bridge->base + MISC_CTL);
-	return 0;
-}
-
-int ca91cx42_get_arbiter(vmeArbiterCfg_t *vmeArb)
-{
-	int temp_ctl = 0;
-	int vbto = 0;
-
-	temp_ctl = ioread32(bridge->base + MISC_CTL);
-
-	vbto = (temp_ctl >> 28) & 0xF;
-	if (vbto != 0)
-		vmeArb->globalTimeoutTimer = (16 * (1 << (vbto - 1)));
-
-	if (temp_ctl & (1 << 26))
-		vmeArb->arbiterMode = VME_PRIORITY_MODE;
-	else
-		vmeArb->arbiterMode = VME_R_ROBIN_MODE;
-
-	if (temp_ctl & (3 << 24))
-		vmeArb->arbiterTimeoutFlag = 1;
-
-	return 0;
-}
-
-int ca91cx42_set_requestor(vmeRequesterCfg_t *vmeReq)
-{
-	int temp_ctl = 0;
-
-	temp_ctl = ioread32(bridge->base + MAST_CTL);
-	temp_ctl &= 0xFF0FFFFF;
-
-	if (vmeReq->releaseMode == 1)
-		temp_ctl |= (1 << 20);
-
-	if (vmeReq->fairMode == 1)
-		temp_ctl |= (1 << 21);
-
-	temp_ctl |= (vmeReq->requestLevel << 22);
-
-	iowrite32(temp_ctl, bridge->base + MAST_CTL);
-	return 0;
-}
-
-int ca91cx42_get_requestor(vmeRequesterCfg_t *vmeReq)
-{
-	int temp_ctl = 0;
-
-	temp_ctl = ioread32(bridge->base + MAST_CTL);
-
-	if (temp_ctl & (1 << 20))
-		vmeReq->releaseMode = 1;
-
-	if (temp_ctl & (1 << 21))
-		vmeReq->fairMode = 1;
-
-	vmeReq->requestLevel = (temp_ctl & 0xC00000) >> 22;
-
-	return 0;
-}
-
-
-#endif

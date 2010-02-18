@@ -165,16 +165,6 @@ struct vme_bridge {
 
 	/* CR/CSR space functions */
 	int (*slot_get) (struct vme_bridge *);
-	/* Use standard master read and write functions to access CR/CSR */
-
-#if 0
-	int (*set_prefetch) (void);
-	int (*get_prefetch) (void);
-	int (*set_arbiter) (void);
-	int (*get_arbiter) (void);
-	int (*set_requestor) (void);
-	int (*get_requestor) (void);
-#endif
 };
 
 void vme_irq_handler(struct vme_bridge *, int, int);
@@ -183,51 +173,3 @@ int vme_register_bridge(struct vme_bridge *);
 void vme_unregister_bridge(struct vme_bridge *);
 
 #endif /* _VME_BRIDGE_H_ */
-
-#if 0
-/*
- *  VMEbus GET INFO Arg Structure
- */
-struct vmeInfoCfg {
-	int vmeSlotNum;		/*  VME slot number of interest */
-	int boardResponded;	/* Board responded */
-	char sysConFlag;	/*  System controller flag */
-	int vmeControllerID;	/*  Vendor/device ID of VME bridge */
-	int vmeControllerRev;	/*  Revision of VME bridge */
-	char osName[8];		/*  Name of OS e.g. "Linux" */
-	int vmeSharedDataValid;	/*  Validity of data struct */
-	int vmeDriverRev;	/*  Revision of VME driver */
-	unsigned int vmeAddrHi[8];	/* Address on VME bus */
-	unsigned int vmeAddrLo[8];	/* Address on VME bus */
-	unsigned int vmeSize[8];	/* Size on VME bus */
-	unsigned int vmeAm[8];	/* Address modifier on VME bus */
-	int reserved;		/* For future use */
-};
-typedef struct vmeInfoCfg vmeInfoCfg_t;
-
-/*
- *  VMEbus Requester Arg Structure
- */
-struct vmeRequesterCfg {
-	int requestLevel;	/*  Requester Bus Request Level */
-	char fairMode;		/*  Requester Fairness Mode Indicator */
-	int releaseMode;	/*  Requester Bus Release Mode */
-	int timeonTimeoutTimer;	/*  Master Time-on Time-out Timer */
-	int timeoffTimeoutTimer;	/*  Master Time-off Time-out Timer */
-	int reserved;		/* For future use */
-};
-typedef struct vmeRequesterCfg vmeRequesterCfg_t;
-
-/*
- *  VMEbus Arbiter Arg Structure
- */
-struct vmeArbiterCfg {
-	vme_arbitration_t arbiterMode;	/*  Arbitration Scheduling Algorithm */
-	char arbiterTimeoutFlag;	/*  Arbiter Time-out Timer Indicator */
-	int globalTimeoutTimer;	/*  VMEbus Global Time-out Timer */
-	char noEarlyReleaseFlag;	/*  No Early Release on BBUSY */
-	int reserved;		/* For future use */
-};
-typedef struct vmeArbiterCfg vmeArbiterCfg_t;
-
-#endif

@@ -571,16 +571,6 @@ int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 
 	bridge = image->parent->driver_priv;
 
-#if 0
-        printk("Set slave image %d to:\n", image->number);
- 	printk("\tEnabled: %s\n", (enabled == 1)? "yes" : "no");
-	printk("\tVME Base:0x%llx\n", vme_base);
-	printk("\tWindow Size:0x%llx\n", size);
-	printk("\tPCI Base:0x%lx\n", (unsigned long)pci_base);
-	printk("\tAddress Space:0x%x\n", aspace);
-	printk("\tTransfer Cycle Properties:0x%x\n", cycle);
-#endif
-
 	i = image->number;
 
 	switch (aspace) {
@@ -636,11 +626,6 @@ int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 		return -EINVAL;
 	}
 
-#if 0
-	printk("\tVME Bound:0x%llx\n", vme_bound);
-	printk("\tPCI Offset:0x%llx\n", pci_offset);
-#endif
-
 	/*  Disable while we are mucking around */
 	temp_ctl = ioread32be(bridge->base + TSI148_LCSR_IT[i] +
 		TSI148_LCSR_OFFSET_ITAT);
@@ -661,23 +646,6 @@ int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 		TSI148_LCSR_OFFSET_ITOFU);
 	iowrite32be(pci_offset_low, bridge->base + TSI148_LCSR_IT[i] +
 		TSI148_LCSR_OFFSET_ITOFL);
-
-/* XXX Prefetch stuff currently unsupported */
-#if 0
-
-	for (x = 0; x < 4; x++) {
-		if ((64 << x) >= vmeIn->prefetchSize) {
-			break;
-		}
-	}
-	if (x == 4)
-		x--;
-	temp_ctl |= (x << 16);
-
-	if (vmeIn->prefetchThreshold)
-		if (vmeIn->prefetchThreshold)
-			temp_ctl |= 0x40000;
-#endif
 
 	/* Setup 2eSST speeds */
 	temp_ctl &= ~TSI148_LCSR_ITAT_2eSSTM_M;
@@ -735,8 +703,6 @@ int tsi148_slave_set(struct vme_slave_resource *image, int enabled,
 
 /*
  * Get slave window configuration.
- *
- * XXX Prefetch currently unsupported.
  */
 int tsi148_slave_get(struct vme_slave_resource *image, int *enabled,
 	unsigned long long *vme_base, unsigned long long *size,
@@ -1030,20 +996,6 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 	iowrite32be(temp_ctl, bridge->base + TSI148_LCSR_OT[i] +
 		TSI148_LCSR_OFFSET_OTAT);
 
-/* XXX Prefetch stuff currently unsupported */
-#if 0
-	if (vmeOut->prefetchEnable) {
-		temp_ctl |= 0x40000;
-		for (x = 0; x < 4; x++) {
-			if ((2 << x) >= vmeOut->prefetchSize)
-				break;
-		}
-		if (x == 4)
-			x = 3;
-		temp_ctl |= (x << 16);
-	}
-#endif
-
 	/* Setup 2eSST speeds */
 	temp_ctl &= ~TSI148_LCSR_OTAT_2eSSTM_M;
 	switch (cycle & (VME_2eSST160 | VME_2eSST267 | VME_2eSST320)) {
@@ -1155,12 +1107,6 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		TSI148_LCSR_OFFSET_OTOFU);
 	iowrite32be(vme_offset_low, bridge->base + TSI148_LCSR_OT[i] +
 		TSI148_LCSR_OFFSET_OTOFL);
-
-/* XXX We need to deal with OTBS */
-#if 0
-	iowrite32be(vmeOut->bcastSelect2esst, bridge->base +
-		TSI148_LCSR_OT[i] + TSI148_LCSR_OFFSET_OTBS);
-#endif
 
 	/* Write ctl reg without enable */
 	iowrite32be(temp_ctl, bridge->base + TSI148_LCSR_OT[i] +
@@ -1669,8 +1615,6 @@ static int tsi148_dma_set_vme_dest_attributes(u32 *attr, vme_address_t aspace,
 
 /*
  * Add a link list descriptor to the list
- *
- * XXX Need to handle 2eSST Broadcast select bits
  */
 int tsi148_dma_list_add (struct vme_dma_list *list, struct vme_dma_attr *src,
 	struct vme_dma_attr *dest, size_t count)
@@ -1683,7 +1627,7 @@ int tsi148_dma_list_add (struct vme_dma_list *list, struct vme_dma_attr *src,
 	dma_addr_t desc_ptr;
 	int retval = 0;
 
-	/* XXX descriptor must be aligned on 64-bit boundaries */
+	/* Descriptor must be aligned on 64-bit boundaries */
 	entry = (struct tsi148_dma_entry *)kmalloc(
 		sizeof(struct tsi148_dma_entry), GFP_KERNEL);
 	if (entry == NULL) {
@@ -1850,9 +1794,6 @@ int tsi148_dma_list_exec(struct vme_dma_list *list)
 	dma_addr_t bus_addr;
 	u32 bus_addr_high, bus_addr_low;
 	u32 val, dctlreg = 0;
-#if 0
-	int x;
-#endif
 	struct tsi148_driver *bridge;
 
 	ctrlr = list->parent;
@@ -1875,48 +1816,6 @@ int tsi148_dma_list_exec(struct vme_dma_list *list)
 	} else {
 		list_add(&(list->list), &(ctrlr->running));
 	}
-#if 0
-	/* XXX Still todo */
-	for (x = 0; x < 8; x++) {	/* vme block size */
-		if ((32 << x) >= vmeDma->maxVmeBlockSize) {
-			break;
-		}
-	}
-	if (x == 8)
-		x = 7;
-	dctlreg |= (x << 12);
-
-	for (x = 0; x < 8; x++) {	/* pci block size */
-		if ((32 << x) >= vmeDma->maxPciBlockSize) {
-			break;
-		}
-	}
-	if (x == 8)
-		x = 7;
-	dctlreg |= (x << 4);
-
-	if (vmeDma->vmeBackOffTimer) {
-		for (x = 1; x < 8; x++) {	/* vme timer */
-			if ((1 << (x - 1)) >= vmeDma->vmeBackOffTimer) {
-				break;
-			}
-		}
-		if (x == 8)
-			x = 7;
-		dctlreg |= (x << 8);
-	}
-
-	if (vmeDma->pciBackOffTimer) {
-		for (x = 1; x < 8; x++) {	/* pci timer */
-			if ((1 << (x - 1)) >= vmeDma->pciBackOffTimer) {
-				break;
-			}
-		}
-		if (x == 8)
-			x = 7;
-		dctlreg |= (x << 0);
-	}
-#endif
 
 	/* Get first bus address and write into registers */
 	entry = list_first_entry(&(list->entries), struct tsi148_dma_entry,
@@ -2738,251 +2637,3 @@ MODULE_LICENSE("GPL");
 
 module_init(tsi148_init);
 module_exit(tsi148_exit);
-
-/*----------------------------------------------------------------------------
- * STAGING
- *--------------------------------------------------------------------------*/
-
-#if 0
-/*
- * Direct Mode DMA transfer
- *
- * XXX Not looking at direct mode for now, we can always use link list mode
- *     with a single entry.
- */
-int tsi148_dma_run(struct vme_dma_resource *resource, struct vme_dma_attr src,
-	struct vme_dma_attr dest, size_t count)
-{
-	u32 dctlreg = 0;
-	unsigned int tmp;
-	int val;
-	int channel, x;
-	struct vmeDmaPacket *cur_dma;
-	struct tsi148_dma_descriptor *dmaLL;
-
-	/* direct mode */
-	dctlreg = 0x800000;
-
-	for (x = 0; x < 8; x++) {	/* vme block size */
-		if ((32 << x) >= vmeDma->maxVmeBlockSize) {
-			break;
-		}
-	}
-	if (x == 8)
-		x = 7;
-	dctlreg |= (x << 12);
-
-	for (x = 0; x < 8; x++) {	/* pci block size */
-		if ((32 << x) >= vmeDma->maxPciBlockSize) {
-			break;
-		}
-	}
-	if (x == 8)
-		x = 7;
-	dctlreg |= (x << 4);
-
-	if (vmeDma->vmeBackOffTimer) {
-		for (x = 1; x < 8; x++) {	/* vme timer */
-			if ((1 << (x - 1)) >= vmeDma->vmeBackOffTimer) {
-				break;
-			}
-		}
-		if (x == 8)
-			x = 7;
-		dctlreg |= (x << 8);
-	}
-
-	if (vmeDma->pciBackOffTimer) {
-		for (x = 1; x < 8; x++) {	/* pci timer */
-			if ((1 << (x - 1)) >= vmeDma->pciBackOffTimer) {
-				break;
-			}
-		}
-		if (x == 8)
-			x = 7;
-		dctlreg |= (x << 0);
-	}
-
-	/* Program registers for DMA transfer */
-	iowrite32be(dmaLL->dsau, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DSAU);
-	iowrite32be(dmaLL->dsal, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DSAL);
-	iowrite32be(dmaLL->ddau, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DDAU);
-	iowrite32be(dmaLL->ddal, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DDAL);
-	iowrite32be(dmaLL->dsat, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DSAT);
-	iowrite32be(dmaLL->ddat, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DDAT);
-	iowrite32be(dmaLL->dcnt, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCNT);
-	iowrite32be(dmaLL->ddbs, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DDBS);
-
-	/* Start the operation */
-	iowrite32be(dctlreg | 0x2000000, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCTL);
-
-	tmp = ioread32be(tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DSTA);
-	wait_event_interruptible(dma_queue[channel], (tmp & 0x1000000) == 0);
-
-	/*
-	 * Read status register, we should probably do this in some error
-	 * handler rather than here so that we can be sure we haven't kicked off
-	 * another DMA transfer.
-	 */
-	val = ioread32be(tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DSTA);
-
-	vmeDma->vmeDmaStatus = 0;
-	if (val & 0x10000000) {
-		printk(KERN_ERR
-			"DMA Error in DMA_tempe_irqhandler DSTA=%08X\n",
-			val);
-		vmeDma->vmeDmaStatus = val;
-
-	}
-	return (0);
-}
-#endif
-
-#if 0
-
-/* Global VME controller information */
-struct pci_dev *vme_pci_dev;
-
-/*
- * Set the VME bus arbiter with the requested attributes
- */
-int tempe_set_arbiter(vmeArbiterCfg_t * vmeArb)
-{
-	int temp_ctl = 0;
-	int gto = 0;
-
-	temp_ctl = ioread32be(tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_VCTRL);
-	temp_ctl &= 0xFFEFFF00;
-
-	if (vmeArb->globalTimeoutTimer == 0xFFFFFFFF) {
-		gto = 8;
-	} else if (vmeArb->globalTimeoutTimer > 2048) {
-		return (-EINVAL);
-	} else if (vmeArb->globalTimeoutTimer == 0) {
-		gto = 0;
-	} else {
-		gto = 1;
-		while ((16 * (1 << (gto - 1))) < vmeArb->globalTimeoutTimer) {
-			gto += 1;
-		}
-	}
-	temp_ctl |= gto;
-
-	if (vmeArb->arbiterMode != VME_PRIORITY_MODE) {
-		temp_ctl |= 1 << 6;
-	}
-
-	if (vmeArb->arbiterTimeoutFlag) {
-		temp_ctl |= 1 << 7;
-	}
-
-	if (vmeArb->noEarlyReleaseFlag) {
-		temp_ctl |= 1 << 20;
-	}
-	iowrite32be(temp_ctl, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_VCTRL);
-
-	return (0);
-}
-
-/*
- * Return the attributes of the VME bus arbiter.
- */
-int tempe_get_arbiter(vmeArbiterCfg_t * vmeArb)
-{
-	int temp_ctl = 0;
-	int gto = 0;
-
-
-	temp_ctl = ioread32be(tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_VCTRL);
-
-	gto = temp_ctl & 0xF;
-	if (gto != 0) {
-		vmeArb->globalTimeoutTimer = (16 * (1 << (gto - 1)));
-	}
-
-	if (temp_ctl & (1 << 6)) {
-		vmeArb->arbiterMode = VME_R_ROBIN_MODE;
-	} else {
-		vmeArb->arbiterMode = VME_PRIORITY_MODE;
-	}
-
-	if (temp_ctl & (1 << 7)) {
-		vmeArb->arbiterTimeoutFlag = 1;
-	}
-
-	if (temp_ctl & (1 << 20)) {
-		vmeArb->noEarlyReleaseFlag = 1;
-	}
-
-	return (0);
-}
-
-/*
- * Set the VME bus requestor with the requested attributes
- */
-int tempe_set_requestor(vmeRequesterCfg_t * vmeReq)
-{
-	int temp_ctl = 0;
-
-	temp_ctl = ioread32be(tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_VMCTRL);
-	temp_ctl &= 0xFFFF0000;
-
-	if (vmeReq->releaseMode == 1) {
-		temp_ctl |= (1 << 3);
-	}
-
-	if (vmeReq->fairMode == 1) {
-		temp_ctl |= (1 << 2);
-	}
-
-	temp_ctl |= (vmeReq->timeonTimeoutTimer & 7) << 8;
-	temp_ctl |= (vmeReq->timeoffTimeoutTimer & 7) << 12;
-	temp_ctl |= vmeReq->requestLevel;
-
-	iowrite32be(temp_ctl, tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_VMCTRL);
-	return (0);
-}
-
-/*
- * Return the attributes of the VME bus requestor
- */
-int tempe_get_requestor(vmeRequesterCfg_t * vmeReq)
-{
-	int temp_ctl = 0;
-
-	temp_ctl = ioread32be(tsi148_bridge->driver_priv->base +
-		TSI148_LCSR_VMCTRL);
-
-	if (temp_ctl & 0x18) {
-		vmeReq->releaseMode = 1;
-	}
-
-	if (temp_ctl & (1 << 2)) {
-		vmeReq->fairMode = 1;
-	}
-
-	vmeReq->requestLevel = temp_ctl & 3;
-	vmeReq->timeonTimeoutTimer = (temp_ctl >> 8) & 7;
-	vmeReq->timeoffTimeoutTimer = (temp_ctl >> 12) & 7;
-
-	return (0);
-}
-
-
-#endif

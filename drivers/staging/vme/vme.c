@@ -825,8 +825,6 @@ struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long address,
 	struct vme_dma_attr *attributes;
 	struct vme_dma_vme *vme_attr;
 
-	/* XXX Run some sanity checks here */
-
 	attributes = kmalloc(
 		sizeof(struct vme_dma_attr), GFP_KERNEL);
 	if (attributes == NULL) {
@@ -1190,8 +1188,6 @@ int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
 		printk(KERN_ERR "vme_lm_set not supported\n");
 		return -EINVAL;
 	}
-
-	/* XXX Check parameters */
 
 	return bridge->lm_set(lm, lm_base, aspace, cycle);
 }
