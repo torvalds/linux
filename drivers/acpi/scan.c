@@ -1336,8 +1336,24 @@ static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
 
 	if (child)
 		*child = device;
-	return 0;
+
+	if (device)
+		return 0;
+	else
+		return -ENODEV;
 }
+
+/*
+ * acpi_bus_add and acpi_bus_start
+ *
+ * scan a given ACPI tree and (probably recently hot-plugged)
+ * create and add or starts found devices.
+ *
+ * If no devices were found -ENODEV is returned which does not
+ * mean that this is a real error, there just have been no suitable
+ * ACPI objects in the table trunk from which the kernel could create
+ * a device and add/start an appropriate driver.
+ */
 
 int
 acpi_bus_add(struct acpi_device **child,
@@ -1348,8 +1364,7 @@ acpi_bus_add(struct acpi_device **child,
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_add = 1;
 
-	acpi_bus_scan(handle, &ops, child);
-	return 0;
+	return acpi_bus_scan(handle, &ops, child);
 }
 EXPORT_SYMBOL(acpi_bus_add);
 
@@ -1357,11 +1372,13 @@ int acpi_bus_start(struct acpi_device *device)
 {
 	struct acpi_bus_ops ops;
 
+	if (!device)
+		return -EINVAL;
+
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_start = 1;
 
-	acpi_bus_scan(device->handle, &ops, NULL);
-	return 0;
+	return acpi_bus_scan(device->handle, &ops, NULL);
 }
 EXPORT_SYMBOL(acpi_bus_start);
 
