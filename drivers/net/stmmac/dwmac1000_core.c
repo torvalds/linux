@@ -93,7 +93,6 @@ static void dwmac1000_set_filter(struct net_device *dev)
 		writel(0xffffffff, ioaddr + GMAC_HASH_HIGH);
 		writel(0xffffffff, ioaddr + GMAC_HASH_LOW);
 	} else if (!netdev_mc_empty(dev)) {
-		int i;
 		u32 mc_filter[2];
 		struct dev_mc_list *mclist;
 
@@ -101,8 +100,7 @@ static void dwmac1000_set_filter(struct net_device *dev)
 		value = GMAC_FRAME_FILTER_HMC;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list;
-		     mclist && i < netdev_mc_count(dev); i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			/* The upper 6 bits of the calculated CRC are used to
 			   index the contens of the hash table */
 			int bit_nr =

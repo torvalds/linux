@@ -1846,16 +1846,12 @@ static u32 gem_setup_multicast(struct gem *gp)
 	} else {
 		u16 hash_table[16];
 		u32 crc;
-		struct dev_mc_list *dmi = gp->dev->mc_list;
+		struct dev_mc_list *dmi;
 		int i;
 
-		for (i = 0; i < 16; i++)
-			hash_table[i] = 0;
-
-		for (i = 0; i < netdev_mc_count(gp->dev); i++) {
+		memset(hash_table, 0, sizeof(hash_table));
+		netdev_for_each_mc_addr(dmi, gp->dev) {
 			char *addrs = dmi->dmi_addr;
-
-			dmi = dmi->next;
 
 			if (!(*addrs & 1))
 				continue;

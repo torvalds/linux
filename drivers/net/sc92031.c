@@ -435,7 +435,7 @@ static void _sc92031_set_mar(struct net_device *dev)
 	else if (dev->flags & IFF_MULTICAST) {
 		struct dev_mc_list *mc_list;
 
-		for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+		netdev_for_each_mc_addr(mc_list, dev) {
 			u32 crc;
 			unsigned bit = 0;
 

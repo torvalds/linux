@@ -852,8 +852,7 @@ static void skfp_ctl_set_multicast_list(struct net_device *dev)
 static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 {
 	struct s_smc *smc = netdev_priv(dev);
-	struct dev_mc_list *dmi;	/* ptr to multicast addr entry */
-	int i;
+	struct dev_mc_list *dmi;
 
 	/* Enable promiscuous mode, if necessary */
 	if (dev->flags & IFF_PROMISC) {
@@ -877,17 +876,14 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 				/* use exact filtering */
 
 				// point to first multicast addr
-				dmi = dev->mc_list;
-
-				for (i = 0; i < netdev_mc_count(dev); i++) {
+				netdev_for_each_mc_addr(dmi, dev) {
 					mac_add_multicast(smc, 
 							  (struct fddi_addr *)dmi->dmi_addr, 
 							  1);
 
 					pr_debug(KERN_INFO "ENABLE MC ADDRESS: %pMF\n",
 						dmi->dmi_addr);
-					dmi = dmi->next;
-				}	// for
+				}
 
 			} else {	// more MC addresses than HW supports
 

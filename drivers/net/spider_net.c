@@ -646,7 +646,7 @@ spider_net_set_multi(struct net_device *netdev)
 	hash = spider_net_get_multicast_hash(netdev, netdev->broadcast); */
 	set_bit(0xfd, bitmask);
 
-	for (mc = netdev->mc_list; mc; mc = mc->next) {
+	netdev_for_each_mc_addr(mc, netdev) {
 		hash = spider_net_get_multicast_hash(netdev, mc->dmi_addr);
 		set_bit(hash, bitmask);
 	}

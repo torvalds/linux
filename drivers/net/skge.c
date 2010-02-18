@@ -2917,8 +2917,7 @@ static void genesis_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	int i, count = netdev_mc_count(dev);
-	struct dev_mc_list *list = dev->mc_list;
+	struct dev_mc_list *list;
 	u32 mode;
 	u8 filter[8];
 
@@ -2938,7 +2937,7 @@ static void genesis_set_multicast(struct net_device *dev)
 		    skge->flow_status == FLOW_STAT_SYMMETRIC)
 			genesis_add_filter(filter, pause_mc_addr);
 
-		for (i = 0; list && i < count; i++, list = list->next)
+		netdev_for_each_mc_addr(list, dev)
 			genesis_add_filter(filter, list->dmi_addr);
 	}
 
@@ -2957,7 +2956,7 @@ static void yukon_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	struct dev_mc_list *list = dev->mc_list;
+	struct dev_mc_list *list;
 	int rx_pause = (skge->flow_status == FLOW_STAT_REM_SEND ||
 			skge->flow_status == FLOW_STAT_SYMMETRIC);
 	u16 reg;
@@ -2975,13 +2974,12 @@ static void yukon_set_multicast(struct net_device *dev)
 	else if (netdev_mc_empty(dev) && !rx_pause)/* no multicast */
 		reg &= ~GM_RXCR_MCF_ENA;
 	else {
-		int i;
 		reg |= GM_RXCR_MCF_ENA;
 
 		if (rx_pause)
 			yukon_add_filter(filter, pause_mc_addr);
 
-		for (i = 0; list && i < netdev_mc_count(dev); i++, list = list->next)
+		netdev_for_each_mc_addr(list, dev)
 			yukon_add_filter(filter, list->dmi_addr);
 	}
 

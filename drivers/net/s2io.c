@@ -5092,8 +5092,8 @@ static void s2io_set_multicast(struct net_device *dev)
 		}
 
 		/* Create the new Rx filter list and update the same in H/W. */
-		for (i = 0, mclist = dev->mc_list; i < netdev_mc_count(dev);
-		     i++, mclist = mclist->next) {
+		i = 0;
+		netdev_for_each_mc_addr(mclist, dev) {
 			memcpy(sp->usr_addrs[i].addr, mclist->dmi_addr,
 			       ETH_ALEN);
 			mac_addr = 0;
@@ -5121,6 +5121,7 @@ static void s2io_set_multicast(struct net_device *dev)
 					  dev->name);
 				return;
 			}
+			i++;
 		}
 	}
 }

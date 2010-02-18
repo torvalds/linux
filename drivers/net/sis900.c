@@ -2300,9 +2300,8 @@ static void set_rx_mode(struct net_device *net_dev)
 		 * packets */
 		struct dev_mc_list *mclist;
 		rx_mode = RFAAB;
-		for (i = 0, mclist = net_dev->mc_list;
-			mclist && i < netdev_mc_count(net_dev);
-			i++, mclist = mclist->next) {
+
+		netdev_for_each_mc_addr(mclist, net_dev) {
 			unsigned int bit_nr =
 				sis900_mcast_bitnr(mclist->dmi_addr, sis_priv->chipset_rev);
 			mc_filter[bit_nr >> 4] |= (1 << (bit_nr & 0xf));

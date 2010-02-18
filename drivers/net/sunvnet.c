@@ -765,7 +765,7 @@ static void __update_mc_list(struct vnet *vp, struct net_device *dev)
 {
 	struct dev_addr_list *p;
 
-	for (p = dev->mc_list; p; p = p->next) {
+	netdev_for_each_mc_addr(p, dev) {
 		struct vnet_mcast_entry *m;
 
 		m = __vnet_mc_find(vp, p->dmi_addr);
