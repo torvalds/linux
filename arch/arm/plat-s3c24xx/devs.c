@@ -158,9 +158,27 @@ void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *pd)
 }
 
 /* Touchscreen */
+
+static struct resource s3c_ts_resource[] = {
+	[0] = {
+		.start = S3C24XX_PA_ADC,
+		.end   = S3C24XX_PA_ADC + S3C24XX_SZ_ADC - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_TC,
+		.end   = IRQ_TC,
+		.flags = IORESOURCE_IRQ,
+	},
+
+};
+
 struct platform_device s3c_device_ts = {
 	.name		  = "s3c2410-ts",
 	.id		  = -1,
+	.dev.parent	= &s3c_device_adc.dev,
+	.num_resources	  = ARRAY_SIZE(s3c_ts_resource),
+	.resource	  = s3c_ts_resource,
 };
 EXPORT_SYMBOL(s3c_device_ts);
 
