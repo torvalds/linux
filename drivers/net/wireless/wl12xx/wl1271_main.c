@@ -467,6 +467,32 @@ out:
 	return ret;
 }
 
+static int wl1271_update_mac_addr(struct wl1271 *wl)
+{
+	int ret = 0;
+	u8 *nvs_ptr = (u8 *)wl->nvs->nvs;
+
+	/* get mac address from the NVS */
+	wl->mac_addr[0] = nvs_ptr[11];
+	wl->mac_addr[1] = nvs_ptr[10];
+	wl->mac_addr[2] = nvs_ptr[6];
+	wl->mac_addr[3] = nvs_ptr[5];
+	wl->mac_addr[4] = nvs_ptr[4];
+	wl->mac_addr[5] = nvs_ptr[3];
+
+	/* FIXME: if it is a zero-address, we should bail out. Now, instead,
+	   we randomize an address */
+	if (is_zero_ether_addr(wl->mac_addr)) {
+		static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
+		memcpy(wl->mac_addr, nokia_oui, 3);
+		get_random_bytes(wl->mac_addr + 3, 3);
+	}
+
+	SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
+
+	return ret;
+}
+
 static int wl1271_fetch_nvs(struct wl1271 *wl)
 {
 	const struct firmware *fw;
@@ -496,7 +522,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 
 	memcpy(wl->nvs, fw->data, sizeof(struct wl1271_nvs_file));
 
-	ret = 0;
+	ret = wl1271_update_mac_addr(wl);
 
 out:
 	release_firmware(fw);
@@ -1893,7 +1919,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
 	int ret, i;
-	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
 
 	pdata = spi->dev.platform_data;
 	if (!pdata) {
@@ -1937,13 +1962,6 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 		wl->tx_frames[i] = NULL;
 
 	spin_lock_init(&wl->wl_lock);
-
-	/*
-	 * In case our MAC address is not correctly set,
-	 * we use a random but Nokia MAC.
-	 */
-	memcpy(wl->mac_addr, nokia_oui, 3);
-	get_random_bytes(wl->mac_addr + 3, 3);
 
 	wl->state = WL1271_STATE_OFF;
 	mutex_init(&wl->mutex);
