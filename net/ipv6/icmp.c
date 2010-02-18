@@ -67,11 +67,6 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6_statistics) __read_mostly;
-EXPORT_SYMBOL(icmpv6_statistics);
-DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics) __read_mostly;
-EXPORT_SYMBOL(icmpv6msg_statistics);
-
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
  *	our ICMP output as well as maintain a clean interface throughout
