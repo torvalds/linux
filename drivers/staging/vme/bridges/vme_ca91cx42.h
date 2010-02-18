@@ -316,6 +316,16 @@ static const int CA91CX42_VSI_TO[] = { VSI0_TO, VSI1_TO, VSI2_TO, VSI3_TO,
 #define CA91CX42_LSI_CTL_VCT_MBLT	(1<<8)
 #define CA91CX42_LSI_CTL_LAS		(1<<0)
 
+/*
+ * SCYC_CTL Register
+ * offset 178
+ */
+#define CA91CX42_SCYC_CTL_LAS_PCIMEM	0
+#define CA91CX42_SCYC_CTL_LAS_PCIIO	(1<<2)
+
+#define CA91CX42_SCYC_CTL_CYC_M		(3<<0)
+#define CA91CX42_SCYC_CTL_CYC_RMW	(1<<0)
+#define CA91CX42_SCYC_CTL_CYC_ADOH	(1<<1)
 
 /*
  * LMISC Register

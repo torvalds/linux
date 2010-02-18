@@ -904,6 +904,60 @@ ssize_t ca91cx42_master_write(struct vme_master_resource *image, void *buf,
 	return retval;
 }
 
+unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
+	unsigned int mask, unsigned int compare, unsigned int swap,
+	loff_t offset)
+{
+	u32 pci_addr, result;
+	int i;
+	struct ca91cx42_driver *bridge;
+	struct device *dev;
+
+	bridge = image->parent->driver_priv;
+	dev = image->parent->parent;
+
+	/* Find the PCI address that maps to the desired VME address */
+	i = image->number;
+
+	/* Locking as we can only do one of these at a time */
+	mutex_lock(&(bridge->vme_rmw));
+
+	/* Lock image */
+	spin_lock(&(image->lock));
+
+	pci_addr = (u32)image->kern_base + offset;
+
+	/* Address must be 4-byte aligned */
+	if (pci_addr & 0x3) {
+		dev_err(dev, "RMW Address not 4-byte aligned\n");
+		return -EINVAL;
+	}
+
+	/* Ensure RMW Disabled whilst configuring */
+	iowrite32(0, bridge->base + SCYC_CTL);
+
+	/* Configure registers */
+	iowrite32(mask, bridge->base + SCYC_EN);
+	iowrite32(compare, bridge->base + SCYC_CMP);
+	iowrite32(swap, bridge->base + SCYC_SWP);
+	iowrite32(pci_addr, bridge->base + SCYC_ADDR);
+
+	/* Enable RMW */
+	iowrite32(CA91CX42_SCYC_CTL_CYC_RMW, bridge->base + SCYC_CTL);
+
+	/* Kick process off with a read to the required address. */
+	result = ioread32(image->kern_base + offset);
+
+	/* Disable RMW */
+	iowrite32(0, bridge->base + SCYC_CTL);
+
+	spin_unlock(&(image->lock));
+
+	mutex_unlock(&(bridge->vme_rmw));
+
+	return result;
+}
+
 int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	struct vme_dma_attr *dest, size_t count)
 {
@@ -1640,9 +1694,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ca91cx42_bridge->master_set = ca91cx42_master_set;
 	ca91cx42_bridge->master_read = ca91cx42_master_read;
 	ca91cx42_bridge->master_write = ca91cx42_master_write;
-#if 0
 	ca91cx42_bridge->master_rmw = ca91cx42_master_rmw;
-#endif
 	ca91cx42_bridge->dma_list_add = ca91cx42_dma_list_add;
 	ca91cx42_bridge->dma_list_exec = ca91cx42_dma_list_exec;
 	ca91cx42_bridge->dma_list_empty = ca91cx42_dma_list_empty;
@@ -1831,88 +1883,6 @@ module_exit(ca91cx42_exit);
  *--------------------------------------------------------------------------*/
 
 #if 0
-
-int ca91cx42_master_rmw(vmeRmwCfg_t *vmeRmw)
-{
-	int temp_ctl = 0;
-	int tempBS = 0;
-	int tempBD = 0;
-	int tempTO = 0;
-	int vmeBS = 0;
-	int vmeBD = 0;
-	int *rmw_pci_data_ptr = NULL;
-	int *vaDataPtr = NULL;
-	int i;
-	vmeOutWindowCfg_t vmeOut;
-	if (vmeRmw->maxAttempts < 1) {
-		return -EINVAL;
-	}
-	if (vmeRmw->targetAddrU) {
-		return -EINVAL;
-	}
-	/* Find the PCI address that maps to the desired VME address */
-	for (i = 0; i < 8; i++) {
-		temp_ctl = ioread32(bridge->base +
-			CA91CX42_LSI_CTL[i]);
-		if ((temp_ctl & 0x80000000) == 0) {
-			continue;
-		}
-		memset(&vmeOut, 0, sizeof(vmeOut));
-		vmeOut.windowNbr = i;
-		ca91cx42_get_out_bound(&vmeOut);
-		if (vmeOut.addrSpace != vmeRmw->addrSpace) {
-			continue;
-		}
-		tempBS = ioread32(bridge->base + CA91CX42_LSI_BS[i]);
-		tempBD = ioread32(bridge->base + CA91CX42_LSI_BD[i]);
-		tempTO = ioread32(bridge->base + CA91CX42_LSI_TO[i]);
-		vmeBS = tempBS + tempTO;
-		vmeBD = tempBD + tempTO;
-		if ((vmeRmw->targetAddr >= vmeBS) &&
-		    (vmeRmw->targetAddr < vmeBD)) {
-			rmw_pci_data_ptr =
-			    (int *)(tempBS + (vmeRmw->targetAddr - vmeBS));
-			vaDataPtr =
-			    (int *)(out_image_va[i] +
-				    (vmeRmw->targetAddr - vmeBS));
-			break;
-		}
-	}
-
-	/* If no window - fail. */
-	if (rmw_pci_data_ptr == NULL) {
-		return -EINVAL;
-	}
-	/* Setup the RMW registers. */
-	iowrite32(0, bridge->base + SCYC_CTL);
-	iowrite32(SWIZZLE(vmeRmw->enableMask), bridge->base + SCYC_EN);
-	iowrite32(SWIZZLE(vmeRmw->compareData), bridge->base +
-		SCYC_CMP);
-	iowrite32(SWIZZLE(vmeRmw->swapData), bridge->base + SCYC_SWP);
-	iowrite32((int)rmw_pci_data_ptr, bridge->base + SCYC_ADDR);
-	iowrite32(1, bridge->base + SCYC_CTL);
-
-	/* Run the RMW cycle until either success or max attempts. */
-	vmeRmw->numAttempts = 1;
-	while (vmeRmw->numAttempts <= vmeRmw->maxAttempts) {
-
-		if ((ioread32(vaDataPtr) & vmeRmw->enableMask) ==
-		    (vmeRmw->swapData & vmeRmw->enableMask)) {
-
-			iowrite32(0, bridge->base + SCYC_CTL);
-			break;
-
-		}
-		vmeRmw->numAttempts++;
-	}
-
-	/* If no success, set num Attempts to be greater than max attempts */
-	if (vmeRmw->numAttempts > vmeRmw->maxAttempts) {
-		vmeRmw->numAttempts = vmeRmw->maxAttempts + 1;
-	}
-
-	return 0;
-}
 
 int ca91cx42_set_arbiter(vmeArbiterCfg_t *vmeArb)
 {

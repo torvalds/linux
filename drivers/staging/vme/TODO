@@ -56,7 +56,6 @@ Tempe (tsi148)
 Universe II (ca91c142)
 ----------------------
 
-- RMW transactions unsupported.
 - Mailboxes unsupported.
 - Error Detection.
 - Control of prefetch size, threshold.
