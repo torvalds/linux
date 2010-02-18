@@ -8,6 +8,16 @@ struct device_node;
 
 #ifdef CONFIG_NUMA
 
+/*
+ * Before going off node we want the VM to try and reclaim from the local
+ * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
+ * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
+ * 20, we never reclaim and go off node straight away.
+ *
+ * To fix this we choose a smaller value of RECLAIM_DISTANCE.
+ */
+#define RECLAIM_DISTANCE 10
+
 #include <asm/mmzone.h>
 
 static inline int cpu_to_node(int cpu)
