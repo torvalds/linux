@@ -216,8 +216,7 @@ resubmit:
 				IP6_INC_STATS_BH(net, idev,
 						 IPSTATS_MIB_INUNKNOWNPROTOS);
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
-					    ICMPV6_UNK_NEXTHDR, nhoff,
-					    skb->dev);
+					    ICMPV6_UNK_NEXTHDR, nhoff);
 			}
 		} else
 			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDELIVERS);

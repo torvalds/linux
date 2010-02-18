@@ -622,7 +622,7 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (rt && rt->rt6i_dev)
 			skb2->dev = rt->rt6i_dev;
 
-		icmpv6_send(skb2, rel_type, rel_code, rel_info, skb2->dev);
+		icmpv6_send(skb2, rel_type, rel_code, rel_info);
 
 		if (rt)
 			dst_release(&rt->u.dst);
@@ -1014,7 +1014,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		tel = (struct ipv6_tlv_tnl_enc_lim *)&skb_network_header(skb)[offset];
 		if (tel->encap_limit == 0) {
 			icmpv6_send(skb, ICMPV6_PARAMPROB,
-				    ICMPV6_HDR_FIELD, offset + 2, skb->dev);
+				    ICMPV6_HDR_FIELD, offset + 2);
 			return -1;
 		}
 		encap_limit = tel->encap_limit - 1;
@@ -1033,7 +1033,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	err = ip6_tnl_xmit2(skb, dev, dsfield, &fl, encap_limit, &mtu);
 	if (err != 0) {
 		if (err == -EMSGSIZE)
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, dev);
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		return -1;
 	}
 
