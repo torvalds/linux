@@ -45,20 +45,11 @@
 #endif
 
 #ifndef __ASSEMBLY__
+#include <asm/uncached.h>
 
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
 extern unsigned long memory_start, memory_end;
-
-#ifdef CONFIG_UNCACHED_MAPPING
-extern unsigned long uncached_start, uncached_end;
-
-extern int virt_addr_uncached(unsigned long kaddr);
-extern void uncached_init(void);
-#else
-#define virt_addr_uncached(kaddr)	(0)
-#define uncached_init()			do { } while (0)
-#endif
 
 static inline unsigned long
 pages_do_alias(unsigned long addr1, unsigned long addr2)

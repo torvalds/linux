@@ -245,7 +245,6 @@ void __init mem_init(void)
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
-	uncached_init();
 	vsyscall_init();
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;

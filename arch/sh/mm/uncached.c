@@ -26,3 +26,9 @@ void __init uncached_init(void)
 	uncached_start = memory_end;
 	uncached_end = uncached_start + uncached_size;
 }
+
+void __init uncached_resize(unsigned long size)
+{
+	uncached_size = size;
+	uncached_end = uncached_start + uncached_size;
+}

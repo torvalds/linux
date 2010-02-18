@@ -52,7 +52,7 @@ struct pmb_entry {
 	struct pmb_entry *link;
 };
 
-static void pmb_unmap_entry(struct pmb_entry *);
+static void pmb_unmap_entry(struct pmb_entry *, int depth);
 
 static DEFINE_RWLOCK(pmb_rwlock);
 static struct pmb_entry pmb_entry_list[NR_PMB_ENTRIES];
@@ -115,13 +115,14 @@ static struct pmb_entry *pmb_alloc(unsigned long vpn, unsigned long ppn,
 
 	pmbe = &pmb_entry_list[pos];
 
+	memset(pmbe, 0, sizeof(struct pmb_entry));
+
 	spin_lock_init(&pmbe->lock);
 
 	pmbe->vpn	= vpn;
 	pmbe->ppn	= ppn;
 	pmbe->flags	= flags;
 	pmbe->entry	= pos;
-	pmbe->size	= 0;
 
 	return pmbe;
 
@@ -133,7 +134,9 @@ out:
 static void pmb_free(struct pmb_entry *pmbe)
 {
 	__clear_bit(pmbe->entry, pmb_map);
-	pmbe->entry = PMB_NO_ENTRY;
+
+	pmbe->entry	= PMB_NO_ENTRY;
+	pmbe->link	= NULL;
 }
 
 /*
@@ -161,9 +164,6 @@ static __always_inline unsigned long pmb_cache_flags(void)
  */
 static void __set_pmb_entry(struct pmb_entry *pmbe)
 {
-	pmbe->flags &= ~PMB_CACHE_MASK;
-	pmbe->flags |= pmb_cache_flags();
-
 	writel_uncached(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
 	writel_uncached(pmbe->ppn | pmbe->flags | PMB_V,
 			mk_pmb_data(pmbe->entry));
@@ -280,7 +280,7 @@ again:
 	return wanted - size;
 
 out:
-	pmb_unmap_entry(pmbp);
+	pmb_unmap_entry(pmbp, NR_PMB_ENTRIES);
 
 	return err;
 }
@@ -302,18 +302,40 @@ void pmb_unmap(unsigned long addr)
 
 	read_unlock(&pmb_rwlock);
 
-	pmb_unmap_entry(pmbe);
+	pmb_unmap_entry(pmbe, NR_PMB_ENTRIES);
 }
 
-static void pmb_unmap_entry(struct pmb_entry *pmbe)
+static bool pmb_can_merge(struct pmb_entry *a, struct pmb_entry *b)
 {
-	unsigned long flags;
+	return (b->vpn == (a->vpn + a->size)) &&
+	       (b->ppn == (a->ppn + a->size)) &&
+	       (b->flags == a->flags);
+}
 
-	if (unlikely(!pmbe))
-		return;
+static bool pmb_size_valid(unsigned long size)
+{
+	int i;
 
-	write_lock_irqsave(&pmb_rwlock, flags);
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
+		if (pmb_sizes[i].size == size)
+			return true;
 
+	return false;
+}
+
+static int pmb_size_to_flags(unsigned long size)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
+		if (pmb_sizes[i].size == size)
+			return pmb_sizes[i].flag;
+
+	return 0;
+}
+
+static void __pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
+{
 	do {
 		struct pmb_entry *pmblink = pmbe;
 
@@ -332,8 +354,18 @@ static void pmb_unmap_entry(struct pmb_entry *pmbe)
 		pmbe = pmblink->link;
 
 		pmb_free(pmblink);
-	} while (pmbe);
+	} while (pmbe && --depth);
+}
 
+static void pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
+{
+	unsigned long flags;
+
+	if (unlikely(!pmbe))
+		return;
+
+	write_lock_irqsave(&pmb_rwlock, flags);
+	__pmb_unmap_entry(pmbe, depth);
 	write_unlock_irqrestore(&pmb_rwlock, flags);
 }
 
@@ -342,13 +374,39 @@ static __always_inline unsigned int pmb_ppn_in_range(unsigned long ppn)
 	return ppn >= __pa(memory_start) && ppn < __pa(memory_end);
 }
 
-static int pmb_synchronize_mappings(void)
+static void __init pmb_notify(void)
 {
-	unsigned int applied = 0;
-	struct pmb_entry *pmbp = NULL;
-	int i, j;
+	int i;
 
 	pr_info("PMB: boot mappings:\n");
+
+	read_lock(&pmb_rwlock);
+
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		struct pmb_entry *pmbe;
+
+		if (!test_bit(i, pmb_map))
+			continue;
+
+		pmbe = &pmb_entry_list[i];
+
+		pr_info("       0x%08lx -> 0x%08lx [ %4ldMB %2scached ]\n",
+			pmbe->vpn >> PAGE_SHIFT, pmbe->ppn >> PAGE_SHIFT,
+			pmbe->size >> 20, (pmbe->flags & PMB_C) ? "" : "un");
+	}
+
+	read_unlock(&pmb_rwlock);
+}
+
+/*
+ * Sync our software copy of the PMB mappings with those in hardware. The
+ * mappings in the hardware PMB were either set up by the bootloader or
+ * very early on by the kernel.
+ */
+static void __init pmb_synchronize(void)
+{
+	struct pmb_entry *pmbp = NULL;
+	int i, j;
 
 	/*
 	 * Run through the initial boot mappings, log the established
@@ -432,10 +490,10 @@ static int pmb_synchronize_mappings(void)
 			/*
 			 * Compare the previous entry against the current one to
 			 * see if the entries span a contiguous mapping. If so,
-			 * setup the entry links accordingly.
+			 * setup the entry links accordingly. Compound mappings
+			 * are later coalesced.
 			 */
-			if ((pmbe->vpn == (pmbp->vpn + pmbp->size)) &&
-			    (pmbe->ppn == (pmbp->ppn + pmbp->size)))
+			if (pmb_can_merge(pmbp, pmbe))
 				pmbp->link = pmbe;
 
 			spin_unlock(&pmbp->lock);
@@ -444,37 +502,150 @@ static int pmb_synchronize_mappings(void)
 		pmbp = pmbe;
 
 		spin_unlock_irqrestore(&pmbe->lock, irqflags);
-
-		pr_info("\t0x%08lx -> 0x%08lx [ %ldMB %scached ]\n",
-			vpn >> PAGE_SHIFT, ppn >> PAGE_SHIFT, pmbe->size >> 20,
-			(data_val & PMB_C) ? "" : "un");
-
-		applied++;
 	}
-
-	return (applied == 0);
 }
 
-int pmb_init(void)
+static void __init pmb_merge(struct pmb_entry *head)
 {
-	int ret;
+	unsigned long span, newsize;
+	struct pmb_entry *tail;
+	int i = 1, depth = 0;
+
+	span = newsize = head->size;
+
+	tail = head->link;
+	while (tail) {
+		span += tail->size;
+
+		if (pmb_size_valid(span)) {
+			newsize = span;
+			depth = i;
+		}
+
+		/* This is the end of the line.. */
+		if (!tail->link)
+			break;
+
+		tail = tail->link;
+		i++;
+	}
 
 	/*
-	 * Sync our software copy of the PMB mappings with those in
-	 * hardware. The mappings in the hardware PMB were either set up
-	 * by the bootloader or very early on by the kernel.
+	 * The merged page size must be valid.
 	 */
-	ret = pmb_synchronize_mappings();
-	if (unlikely(ret == 0))
-		return 0;
+	if (!pmb_size_valid(newsize))
+		return;
+
+	head->flags &= ~PMB_SZ_MASK;
+	head->flags |= pmb_size_to_flags(newsize);
+
+	head->size = newsize;
+
+	__pmb_unmap_entry(head->link, depth);
+	__set_pmb_entry(head);
+}
+
+static void __init pmb_coalesce(void)
+{
+	unsigned long flags;
+	int i;
+
+	write_lock_irqsave(&pmb_rwlock, flags);
+
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		struct pmb_entry *pmbe;
+
+		if (!test_bit(i, pmb_map))
+			continue;
+
+		pmbe = &pmb_entry_list[i];
+
+		/*
+		 * We're only interested in compound mappings
+		 */
+		if (!pmbe->link)
+			continue;
+
+		/*
+		 * Nothing to do if it already uses the largest possible
+		 * page size.
+		 */
+		if (pmbe->size == SZ_512M)
+			continue;
+
+		pmb_merge(pmbe);
+	}
+
+	write_unlock_irqrestore(&pmb_rwlock, flags);
+}
+
+#ifdef CONFIG_UNCACHED_MAPPING
+static void __init pmb_resize(void)
+{
+	int i;
+
+	/*
+	 * If the uncached mapping was constructed by the kernel, it will
+	 * already be a reasonable size.
+	 */
+	if (uncached_size == SZ_16M)
+		return;
+
+	read_lock(&pmb_rwlock);
+
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		struct pmb_entry *pmbe;
+		unsigned long flags;
+
+		if (!test_bit(i, pmb_map))
+			continue;
+
+		pmbe = &pmb_entry_list[i];
+
+		if (pmbe->vpn != uncached_start)
+			continue;
+
+		/*
+		 * Found it, now resize it.
+		 */
+		spin_lock_irqsave(&pmbe->lock, flags);
+
+		pmbe->size = SZ_16M;
+		pmbe->flags &= ~PMB_SZ_MASK;
+		pmbe->flags |= pmb_size_to_flags(pmbe->size);
+
+		uncached_resize(pmbe->size);
+
+		__set_pmb_entry(pmbe);
+
+		spin_unlock_irqrestore(&pmbe->lock, flags);
+	}
+
+	read_lock(&pmb_rwlock);
+}
+#endif
+
+void __init pmb_init(void)
+{
+	/* Synchronize software state */
+	pmb_synchronize();
+
+	/* Attempt to combine compound mappings */
+	pmb_coalesce();
+
+#ifdef CONFIG_UNCACHED_MAPPING
+	/* Resize initial mappings, if necessary */
+	pmb_resize();
+#endif
+
+	/* Log them */
+	pmb_notify();
 
 	writel_uncached(0, PMB_IRMCR);
 
 	/* Flush out the TLB */
 	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
 	ctrl_barrier();
-
-	return 0;
 }
 
 bool __in_29bit_mode(void)
