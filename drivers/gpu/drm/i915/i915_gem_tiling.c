@@ -180,39 +180,6 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 	dev_priv->mm.bit_6_swizzle_y = swizzle_y;
 }
 
-
-/**
- * Returns whether an object is currently fenceable.  If not, it may need
- * to be unbound and have its pitch adjusted.
- */
-bool
-i915_obj_fenceable(struct drm_device *dev, struct drm_gem_object *obj)
-{
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
-
-	if (IS_I965G(dev)) {
-		/* The 965 can have fences at any page boundary. */
-		if (obj->size & 4095)
-			return false;
-		return true;
-	} else if (IS_I9XX(dev)) {
-		if (obj_priv->gtt_offset & ~I915_FENCE_START_MASK)
-			return false;
-	} else {
-		if (obj_priv->gtt_offset & ~I830_FENCE_START_MASK)
-			return false;
-	}
-
-	/* Power of two sized... */
-	if (obj->size & (obj->size - 1))
-		return false;
-
-	/* Objects must be size aligned as well */
-	if (obj_priv->gtt_offset & (obj->size - 1))
-		return false;
-	return true;
-}
-
 /* Check pitch constriants for all chips & tiling formats */
 bool
 i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
@@ -269,7 +236,7 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	return true;
 }
 
-static bool
+bool
 i915_gem_object_fence_offset_ok(struct drm_gem_object *obj, int tiling_mode)
 {
 	struct drm_device *dev = obj->dev;

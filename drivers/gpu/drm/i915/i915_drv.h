@@ -914,7 +914,8 @@ void i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj);
 void i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj);
 bool i915_tiling_ok(struct drm_device *dev, int stride, int size,
 		    int tiling_mode);
-bool i915_obj_fenceable(struct drm_device *dev, struct drm_gem_object *obj);
+bool i915_gem_object_fence_offset_ok(struct drm_gem_object *obj,
+				     int tiling_mode);
 
 /* i915_gem_debug.c */
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
