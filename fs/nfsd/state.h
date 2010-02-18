@@ -70,6 +70,15 @@ struct nfsd4_cb_sequence {
 	struct nfs4_client	*cbs_clp;
 };
 
+struct nfs4_rpc_args {
+	void				*args_op;
+	struct nfsd4_cb_sequence	args_seq;
+};
+
+struct nfsd4_callback {
+	struct nfs4_rpc_args cb_args;
+};
+
 struct nfs4_delegation {
 	struct list_head	dl_perfile;
 	struct list_head	dl_perclnt;
@@ -86,6 +95,7 @@ struct nfs4_delegation {
 	stateid_t		dl_stateid;
 	struct knfsd_fh		dl_fh;
 	int			dl_retries;
+	struct nfsd4_callback	dl_recall;
 };
 
 /* client delegation callback info */

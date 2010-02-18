@@ -78,11 +78,6 @@ enum nfs_cb_opnum4 {
 					cb_sequence_dec_sz +            \
 					op_dec_sz)
 
-struct nfs4_rpc_args {
-	void				*args_op;
-	struct nfsd4_cb_sequence	args_seq;
-};
-
 /*
 * Generic encode routines from fs/nfs/nfs4xdr.c
 */
@@ -676,7 +671,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		break;
 	default:
 		/* success, or error we can't handle */
-		goto done;
+		return;
 	}
 	if (dp->dl_retries--) {
 		rpc_delay(task, 2*HZ);
@@ -687,8 +682,6 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		atomic_set(&clp->cl_cb_conn.cb_set, 0);
 		warn_no_callback_path(clp, task->tk_status);
 	}
-done:
-	kfree(task->tk_msg.rpc_argp);
 }
 
 static void nfsd4_cb_recall_release(void *calldata)
@@ -714,24 +707,19 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfs4_client *clp = dp->dl_client;
 	struct rpc_clnt *clnt = clp->cl_cb_conn.cb_client;
-	struct nfs4_rpc_args *args;
+	struct nfs4_rpc_args *args = &dp->dl_recall.cb_args;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
 		.rpc_cred = callback_cred
 	};
-	int status = -ENOMEM;
+	int status;
 
-	args = kzalloc(sizeof(*args), GFP_KERNEL);
-	if (!args)
-		goto out;
 	args->args_op = dp;
 	msg.rpc_argp = args;
 	dp->dl_retries = 1;
 	status = rpc_call_async(clnt, &msg, RPC_TASK_SOFT,
 				&nfsd4_cb_recall_ops, dp);
-out:
 	if (status) {
-		kfree(args);
 		put_nfs4_client(clp);
 		nfs4_put_delegation(dp);
 	}
