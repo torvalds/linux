@@ -231,9 +231,10 @@ int tty_buffer_request_room(struct tty_struct *tty, size_t size)
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
 /**
- *	tty_insert_flip_string	-	Add characters to the tty buffer
+ *	tty_insert_flip_string_fixed_flag - Add characters to the tty buffer
  *	@tty: tty structure
  *	@chars: characters
+ *	@flag: flag value for each character
  *	@size: size
  *
  *	Queue a series of bytes to the tty buffering. All the characters
@@ -242,8 +243,8 @@ EXPORT_SYMBOL_GPL(tty_buffer_request_room);
  *	Locking: Called functions may take tty->buf.lock
  */
 
-int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
-				size_t size)
+int tty_insert_flip_string_fixed_flag(struct tty_struct *tty,
+		const unsigned char *chars, char flag, size_t size)
 {
 	int copied = 0;
 	do {
@@ -253,7 +254,7 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
 		if (unlikely(space == 0))
 			break;
 		memcpy(tb->char_buf_ptr + tb->used, chars, space);
-		memset(tb->flag_buf_ptr + tb->used, TTY_NORMAL, space);
+		memset(tb->flag_buf_ptr + tb->used, flag, space);
 		tb->used += space;
 		copied += space;
 		chars += space;
@@ -262,7 +263,7 @@ int tty_insert_flip_string(struct tty_struct *tty, const unsigned char *chars,
 	} while (unlikely(size > copied));
 	return copied;
 }
-EXPORT_SYMBOL(tty_insert_flip_string);
+EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
 
 /**
  *	tty_insert_flip_string_flags	-	Add characters to the tty buffer
