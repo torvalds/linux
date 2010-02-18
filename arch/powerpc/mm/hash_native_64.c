@@ -37,7 +37,7 @@
 
 #define HPTE_LOCK_BIT 3
 
-static DEFINE_SPINLOCK(native_tlbie_lock);
+static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
 static inline void __tlbie(unsigned long va, int psize, int ssize)
 {
@@ -104,7 +104,7 @@ static inline void tlbie(unsigned long va, int psize, int ssize, int local)
 	if (use_local)
 		use_local = mmu_psize_defs[psize].tlbiel;
 	if (lock_tlbie && !use_local)
-		spin_lock(&native_tlbie_lock);
+		raw_spin_lock(&native_tlbie_lock);
 	asm volatile("ptesync": : :"memory");
 	if (use_local) {
 		__tlbiel(va, psize, ssize);
@@ -114,7 +114,7 @@ static inline void tlbie(unsigned long va, int psize, int ssize, int local)
 		asm volatile("eieio; tlbsync; ptesync": : :"memory");
 	}
 	if (lock_tlbie && !use_local)
-		spin_unlock(&native_tlbie_lock);
+		raw_spin_unlock(&native_tlbie_lock);
 }
 
 static inline void native_lock_hpte(struct hash_pte *hptep)
@@ -433,7 +433,7 @@ static void native_hpte_clear(void)
 	/* we take the tlbie lock and hold it.  Some hardware will
 	 * deadlock if we try to tlbie from two processors at once.
 	 */
-	spin_lock(&native_tlbie_lock);
+	raw_spin_lock(&native_tlbie_lock);
 
 	slots = pteg_count * HPTES_PER_GROUP;
 
@@ -457,7 +457,7 @@ static void native_hpte_clear(void)
 	}
 
 	asm volatile("eieio; tlbsync; ptesync":::"memory");
-	spin_unlock(&native_tlbie_lock);
+	raw_spin_unlock(&native_tlbie_lock);
 	local_irq_restore(flags);
 }
 
@@ -520,7 +520,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		int lock_tlbie = !cpu_has_feature(CPU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
-			spin_lock(&native_tlbie_lock);
+			raw_spin_lock(&native_tlbie_lock);
 
 		asm volatile("ptesync":::"memory");
 		for (i = 0; i < number; i++) {
@@ -535,7 +535,7 @@ static void native_flush_hash_range(unsigned long number, int local)
 		asm volatile("eieio; tlbsync; ptesync":::"memory");
 
 		if (lock_tlbie)
-			spin_unlock(&native_tlbie_lock);
+			raw_spin_unlock(&native_tlbie_lock);
 	}
 
 	local_irq_restore(flags);
