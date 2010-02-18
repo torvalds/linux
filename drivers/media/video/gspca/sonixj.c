@@ -2082,7 +2082,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg17 = 0x64;		/* 640 MCKSIZE */
 		break;
 	case SENSOR_OV7630:
-		setvflip(sd);
 		reg17 = 0xe2;
 		reg1 = 0x44;
 		break;
@@ -2154,11 +2153,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg_w1(gspca_dev, 0x01, reg1);
 
-	switch (sd->sensor) {
-	case SENSOR_OV7630:
-		setvflip(sd);
-		break;
-	}
+	setvflip(sd);
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 	setautogain(gspca_dev);
