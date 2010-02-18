@@ -58,6 +58,8 @@
 #define ZEUS_EXT1_GPIO(x)	(ZEUS_EXT1_GPIO_BASE + (x))
 #define ZEUS_USER_GPIO(x)	(ZEUS_USER_GPIO_BASE + (x))
 
+#define	ZEUS_CAN_SHDN_GPIO	ZEUS_EXT1_GPIO(2)
+
 /*
  * CPLD registers:
  * Only 4 registers, but spreaded over a 32MB address space.
