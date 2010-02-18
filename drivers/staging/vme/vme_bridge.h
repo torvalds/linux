@@ -113,7 +113,7 @@ struct vme_bridge {
 
 	/* Bridge Info - XXX Move to private structure? */
 	struct device *parent;	/* Generic device struct (pdev->dev for PCI) */
-	void *base;		/* Base Address of device registers */
+	void *driver_priv;	/* Private pointer for the bridge driver */
 
 	struct device dev[VME_SLOTS_MAX];	/* Device registered with
 						 * device model on VME bus
@@ -152,8 +152,8 @@ struct vme_bridge {
 	int (*dma_list_empty) (struct vme_dma_list *);
 
 	/* Interrupt Functions */
-	void (*irq_set) (int, int, int);
-	int (*irq_generate) (int, int);
+	void (*irq_set) (struct vme_bridge *, int, int, int);
+	int (*irq_generate) (struct vme_bridge *, int, int);
 
 	/* Location monitor functions */
 	int (*lm_set) (struct vme_lm_resource *, unsigned long long,
@@ -164,7 +164,7 @@ struct vme_bridge {
 	int (*lm_detach) (struct vme_lm_resource *, int);
 
 	/* CR/CSR space functions */
-	int (*slot_get) (void);
+	int (*slot_get) (struct vme_bridge *);
 	/* Use standard master read and write functions to access CR/CSR */
 
 #if 0

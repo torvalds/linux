@@ -47,7 +47,6 @@ Bridge Support
 Tempe (tsi148)
 --------------
 
-- Driver can currently only support a single bridge.
 - 2eSST Broadcast mode.
 - Mailboxes unsupported.
 - Improve error detection.
@@ -58,7 +57,6 @@ Tempe (tsi148)
 Universe II (ca91c142)
 ----------------------
 
-- Driver can currently only support a single bridge.
 - DMA unsupported.
 - RMW transactions unsupported.
 - Location Monitors unsupported.

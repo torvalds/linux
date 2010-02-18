@@ -37,6 +37,22 @@
 #define CA91C142_MAX_DMA		1	/* Max DMA Controllers */
 #define CA91C142_MAX_MAILBOX		4	/* Max Mail Box registers */
 
+/* Structure used to hold driver specific information */
+struct ca91cx42_driver {
+	void *base;	/* Base Address of device registers */
+	wait_queue_head_t dma_queue;
+	wait_queue_head_t iack_queue;
+	wait_queue_head_t mbox_queue;
+	void (*lm_callback[4])(int);	/* Called in interrupt handler */
+	void *crcsr_kernel;
+	dma_addr_t crcsr_bus;
+	struct mutex vme_rmw;		/* Only one RMW cycle at a time */
+	struct mutex vme_int;		/*
+					 * Only one VME interrupt can be
+					 * generated at a time, provide locking
+					 */
+};
+
 /* See Page 2-77 in the Universe User Manual */
 struct ca91cx42_dma_descriptor {
 	unsigned int dctl;      /* DMA Control */

@@ -993,7 +993,7 @@ void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 EXPORT_SYMBOL(vme_irq_handler);
 
 int vme_irq_request(struct device *dev, int level, int statid,
-	void (*callback)(int level, int vector, void *priv_data),
+	void (*callback)(int, int, void *),
 	void *priv_data)
 {
 	struct vme_bridge *bridge;
@@ -1027,7 +1027,7 @@ int vme_irq_request(struct device *dev, int level, int statid,
 	bridge->irq[level - 1].callback[statid].func = callback;
 
 	/* Enable IRQ level */
-	bridge->irq_set(level, 1, 1);
+	bridge->irq_set(bridge, level, 1, 1);
 
 	mutex_unlock(&(bridge->irq_mtx));
 
@@ -1061,7 +1061,7 @@ void vme_irq_free(struct device *dev, int level, int statid)
 
 	/* Disable IRQ level if no more interrupts attached at this level*/
 	if (bridge->irq[level - 1].count == 0)
-		bridge->irq_set(level, 0, 1);
+		bridge->irq_set(bridge, level, 0, 1);
 
 	bridge->irq[level - 1].callback[statid].func = NULL;
 	bridge->irq[level - 1].callback[statid].priv_data = NULL;
@@ -1090,7 +1090,7 @@ int vme_irq_generate(struct device *dev, int level, int statid)
 		return -EINVAL;
 	}
 
-	return bridge->irq_generate(level, statid);
+	return bridge->irq_generate(bridge, level, statid);
 }
 EXPORT_SYMBOL(vme_irq_generate);
 
@@ -1303,7 +1303,7 @@ int vme_slot_get(struct device *bus)
 		return -EINVAL;
 	}
 
-	return bridge->slot_get();
+	return bridge->slot_get(bridge);
 }
 EXPORT_SYMBOL(vme_slot_get);
 
