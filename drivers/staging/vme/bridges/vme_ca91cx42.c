@@ -337,7 +337,7 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	unsigned long long vme_base, unsigned long long size,
 	dma_addr_t pci_base, vme_address_t aspace, vme_cycle_t cycle)
 {
-	unsigned int i, addr = 0, granularity = 0;
+	unsigned int i, addr = 0, granularity;
 	unsigned int temp_ctl = 0;
 	unsigned int vme_bound, pci_offset;
 	struct ca91cx42_driver *bridge;
@@ -376,7 +376,7 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	 * Bound address is a valid address for the window, adjust
 	 * accordingly
 	 */
-	vme_bound = vme_base + size - granularity;
+	vme_bound = vme_base + size;
 	pci_offset = pci_base - vme_base;
 
 	/* XXX Need to check that vme_base, vme_bound and pci_offset aren't
@@ -609,20 +609,27 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 	vme_address_t aspace, vme_cycle_t cycle, vme_width_t dwidth)
 {
 	int retval = 0;
-	unsigned int i;
+	unsigned int i, granularity = 0;
 	unsigned int temp_ctl = 0;
 	unsigned long long pci_bound, vme_offset, pci_base;
 	struct ca91cx42_driver *bridge;
 
 	bridge = image->parent->driver_priv;
 
+	i = image->number;
+
+	if ((i == 0) || (i == 4))
+		granularity = 0x1000;
+	else
+		granularity = 0x10000;
+
 	/* Verify input data */
-	if (vme_base & 0xFFF) {
+	if (vme_base & (granularity - 1)) {
 		printk(KERN_ERR "Invalid VME Window alignment\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
-	if (size & 0xFFF) {
+	if (size & (granularity - 1)) {
 		printk(KERN_ERR "Invalid VME Window alignment\n");
 		retval = -EINVAL;
 		goto err_window;
@@ -652,10 +659,8 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 	 * Bound address is a valid address for the window, adjust
 	 * according to window granularity.
 	 */
-	pci_bound = pci_base + (size - 0x1000);
+	pci_bound = pci_base + size;
 	vme_offset = vme_base - pci_base;
-
-	i = image->number;
 
 	/* Disable while we are mucking around */
 	temp_ctl = ioread32(bridge->base + CA91CX42_LSI_CTL[i]);
@@ -779,7 +784,7 @@ int __ca91cx42_master_get(struct vme_master_resource *image, int *enabled,
 	pci_bound = ioread32(bridge->base + CA91CX42_LSI_BD[i]);
 
 	*vme_base = pci_base + vme_offset;
-	*size = (pci_bound - pci_base) + 0x1000;
+	*size = (unsigned long long)(pci_bound - pci_base);
 
 	*enabled = 0;
 	*aspace = 0;
@@ -872,7 +877,7 @@ int ca91cx42_master_get(struct vme_master_resource *image, int *enabled,
 ssize_t ca91cx42_master_read(struct vme_master_resource *image, void *buf,
 	size_t count, loff_t offset)
 {
-	int retval;
+	ssize_t retval;
 
 	spin_lock(&(image->lock));
 
