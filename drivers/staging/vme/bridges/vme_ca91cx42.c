@@ -592,8 +592,8 @@ err_name:
 }
 
 /*
- *  * Free and unmap PCI Resource
- *   */
+ * Free and unmap PCI Resource
+ */
 static void ca91cx42_free_resource(struct vme_master_resource *image)
 {
 	iounmap(image->kern_base);
@@ -897,6 +897,261 @@ ssize_t ca91cx42_master_write(struct vme_master_resource *image, void *buf,
 	spin_unlock(&(image->lock));
 
 	return retval;
+}
+
+int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
+	struct vme_dma_attr *dest, size_t count)
+{
+	struct ca91cx42_dma_entry *entry, *prev;
+	struct vme_dma_pci *pci_attr;
+	struct vme_dma_vme *vme_attr;
+	dma_addr_t desc_ptr;
+	int retval = 0;
+
+	/* XXX descriptor must be aligned on 64-bit boundaries */
+	entry = (struct ca91cx42_dma_entry *)
+		kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
+	if (entry == NULL) {
+		printk(KERN_ERR "Failed to allocate memory for dma resource "
+			"structure\n");
+		retval = -ENOMEM;
+		goto err_mem;
+	}
+
+	/* Test descriptor alignment */
+	if ((unsigned long)&(entry->descriptor) & CA91CX42_DCPP_M) {
+		printk("Descriptor not aligned to 16 byte boundary as "
+			"required: %p\n", &(entry->descriptor));
+		retval = -EINVAL;
+		goto err_align;
+	}
+
+	memset(&(entry->descriptor), 0, sizeof(struct ca91cx42_dma_descriptor));
+
+	if (dest->type == VME_DMA_VME) {
+		entry->descriptor.dctl |= CA91CX42_DCTL_L2V;
+		vme_attr = (struct vme_dma_vme *)dest->private;
+		pci_attr = (struct vme_dma_pci *)src->private;
+	} else {
+		vme_attr = (struct vme_dma_vme *)src->private;
+		pci_attr = (struct vme_dma_pci *)dest->private;
+	}
+
+	/* Check we can do fullfill required attributes */
+	if ((vme_attr->aspace & ~(VME_A16 | VME_A24 | VME_A32 | VME_USER1 |
+		VME_USER2)) != 0) {
+
+		printk(KERN_ERR "Unsupported cycle type\n");
+		retval = -EINVAL;
+		goto err_aspace;
+	}
+
+	if ((vme_attr->cycle & ~(VME_SCT | VME_BLT | VME_SUPER | VME_USER |
+		VME_PROG | VME_DATA)) != 0) {
+
+		printk(KERN_ERR "Unsupported cycle type\n");
+		retval = -EINVAL;
+		goto err_cycle;
+	}
+
+	/* Check to see if we can fullfill source and destination */
+	if (!(((src->type == VME_DMA_PCI) && (dest->type == VME_DMA_VME)) ||
+		((src->type == VME_DMA_VME) && (dest->type == VME_DMA_PCI)))) {
+
+		printk(KERN_ERR "Cannot perform transfer with this "
+			"source-destination combination\n");
+		retval = -EINVAL;
+		goto err_direct;
+	}
+
+	/* Setup cycle types */
+	if (vme_attr->cycle & VME_BLT)
+		entry->descriptor.dctl |= CA91CX42_DCTL_VCT_BLT;
+
+	/* Setup data width */
+	switch (vme_attr->dwidth) {
+	case VME_D8:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VDW_D8;
+		break;
+	case VME_D16:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VDW_D16;
+		break;
+	case VME_D32:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VDW_D32;
+		break;
+	case VME_D64:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VDW_D64;
+		break;
+	default:
+		printk(KERN_ERR "Invalid data width\n");
+		return -EINVAL;
+	}
+
+	/* Setup address space */
+	switch (vme_attr->aspace) {
+	case VME_A16:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VAS_A16;
+		break;
+	case VME_A24:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VAS_A24;
+		break;
+	case VME_A32:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VAS_A32;
+		break;
+	case VME_USER1:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VAS_USER1;
+		break;
+	case VME_USER2:
+		entry->descriptor.dctl |= CA91CX42_DCTL_VAS_USER2;
+		break;
+	default:
+		printk(KERN_ERR "Invalid address space\n");
+		return -EINVAL;
+		break;
+	}
+
+	if (vme_attr->cycle & VME_SUPER)
+		entry->descriptor.dctl |= CA91CX42_DCTL_SUPER_SUPR;
+	if (vme_attr->cycle & VME_PROG)
+		entry->descriptor.dctl |= CA91CX42_DCTL_PGM_PGM;
+
+	entry->descriptor.dtbc = count;
+	entry->descriptor.dla = pci_attr->address;
+	entry->descriptor.dva = vme_attr->address;
+	entry->descriptor.dcpp = CA91CX42_DCPP_NULL;
+
+	/* Add to list */
+	list_add_tail(&(entry->list), &(list->entries));
+
+	/* Fill out previous descriptors "Next Address" */
+	if (entry->list.prev != &(list->entries)) {
+		prev = list_entry(entry->list.prev, struct ca91cx42_dma_entry,
+			list);
+		/* We need the bus address for the pointer */
+		desc_ptr = virt_to_bus(&(entry->descriptor));
+		prev->descriptor.dcpp = desc_ptr & ~CA91CX42_DCPP_M;
+	}
+
+	return 0;
+
+err_cycle:
+err_aspace:
+err_direct:
+err_align:
+	kfree(entry);
+err_mem:
+	return retval;
+}
+
+static int ca91cx42_dma_busy(struct vme_bridge *ca91cx42_bridge)
+{
+	u32 tmp;
+	struct ca91cx42_driver *bridge;
+
+	bridge = ca91cx42_bridge->driver_priv;
+
+	tmp = ioread32(bridge->base + DGCS);
+
+	if (tmp & CA91CX42_DGCS_ACT)
+		return 0;
+	else
+		return 1;
+}
+
+int ca91cx42_dma_list_exec(struct vme_dma_list *list)
+{
+	struct vme_dma_resource *ctrlr;
+	struct ca91cx42_dma_entry *entry;
+	int retval = 0;
+	dma_addr_t bus_addr;
+	u32 val;
+
+	struct ca91cx42_driver *bridge;
+
+	ctrlr = list->parent;
+
+	bridge = ctrlr->parent->driver_priv;
+
+	mutex_lock(&(ctrlr->mtx));
+
+	if (!(list_empty(&(ctrlr->running)))) {
+		/*
+		 * XXX We have an active DMA transfer and currently haven't
+		 *     sorted out the mechanism for "pending" DMA transfers.
+		 *     Return busy.
+		 */
+		/* Need to add to pending here */
+		mutex_unlock(&(ctrlr->mtx));
+		return -EBUSY;
+	} else {
+		list_add(&(list->list), &(ctrlr->running));
+	}
+
+	/* Get first bus address and write into registers */
+	entry = list_first_entry(&(list->entries), struct ca91cx42_dma_entry,
+		list);
+
+	bus_addr = virt_to_bus(&(entry->descriptor));
+
+	mutex_unlock(&(ctrlr->mtx));
+
+	iowrite32(0, bridge->base + DTBC);
+	iowrite32(bus_addr & ~CA91CX42_DCPP_M, bridge->base + DCPP);
+
+	/* Start the operation */
+	val = ioread32(bridge->base + DGCS);
+
+	/* XXX Could set VMEbus On and Off Counters here */
+	val &= (CA91CX42_DGCS_VON_M | CA91CX42_DGCS_VOFF_M);
+
+	val |= (CA91CX42_DGCS_CHAIN | CA91CX42_DGCS_STOP | CA91CX42_DGCS_HALT |
+		CA91CX42_DGCS_DONE | CA91CX42_DGCS_LERR | CA91CX42_DGCS_VERR |
+		CA91CX42_DGCS_PERR);
+
+	iowrite32(val, bridge->base + DGCS);
+
+	val |= CA91CX42_DGCS_GO;
+
+	iowrite32(val, bridge->base + DGCS);
+
+	wait_event_interruptible(bridge->dma_queue,
+		ca91cx42_dma_busy(ctrlr->parent));
+
+	/*
+	 * Read status register, this register is valid until we kick off a
+	 * new transfer.
+	 */
+	val = ioread32(bridge->base + DGCS);
+
+	if (val & (CA91CX42_DGCS_LERR | CA91CX42_DGCS_VERR |
+		CA91CX42_DGCS_PERR)) {
+
+		printk(KERN_ERR "ca91c042: DMA Error. DGCS=%08X\n", val);
+		val = ioread32(bridge->base + DCTL);
+	}
+
+	/* Remove list from running list */
+	mutex_lock(&(ctrlr->mtx));
+	list_del(&(list->list));
+	mutex_unlock(&(ctrlr->mtx));
+
+	return retval;
+
+}
+
+int ca91cx42_dma_list_empty(struct vme_dma_list *list)
+{
+	struct list_head *pos, *temp;
+	struct ca91cx42_dma_entry *entry;
+
+	/* detach and free each entry */
+	list_for_each_safe(pos, temp, &(list->entries)) {
+		list_del(pos);
+		entry = list_entry(pos, struct ca91cx42_dma_entry, list);
+		kfree(entry);
+	}
+
+	return 0;
 }
 
 /*
@@ -1203,9 +1458,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct ca91cx42_driver *ca91cx42_device;
 	struct vme_master_resource *master_image;
 	struct vme_slave_resource *slave_image;
-#if 0
 	struct vme_dma_resource *dma_ctrlr;
-#endif
 	struct vme_lm_resource *lm;
 
 	/* We want to support more than one of each bridge so we need to
@@ -1336,7 +1589,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		list_add_tail(&(slave_image->list),
 			&(ca91cx42_bridge->slave_resources));
 	}
-#if 0
+
 	/* Add dma engines to list */
 	INIT_LIST_HEAD(&(ca91cx42_bridge->dma_resources));
 	for (i = 0; i < CA91C142_MAX_DMA; i++) {
@@ -1359,7 +1612,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		list_add_tail(&(dma_ctrlr->list),
 			&(ca91cx42_bridge->dma_resources));
 	}
-#endif
+
 	/* Add location monitor to list */
 	INIT_LIST_HEAD(&(ca91cx42_bridge->lm_resources));
 	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
@@ -1384,10 +1637,10 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ca91cx42_bridge->master_write = ca91cx42_master_write;
 #if 0
 	ca91cx42_bridge->master_rmw = ca91cx42_master_rmw;
+#endif
 	ca91cx42_bridge->dma_list_add = ca91cx42_dma_list_add;
 	ca91cx42_bridge->dma_list_exec = ca91cx42_dma_list_exec;
 	ca91cx42_bridge->dma_list_empty = ca91cx42_dma_list_empty;
-#endif
 	ca91cx42_bridge->irq_set = ca91cx42_irq_set;
 	ca91cx42_bridge->irq_generate = ca91cx42_irq_generate;
 	ca91cx42_bridge->lm_set = ca91cx42_lm_set;
@@ -1436,7 +1689,6 @@ err_lm:
 		list_del(pos);
 		kfree(lm);
 	}
-#if 0
 err_dma:
 	/* resources are stored in link list */
 	list_for_each(pos, &(ca91cx42_bridge->dma_resources)) {
@@ -1444,7 +1696,6 @@ err_dma:
 		list_del(pos);
 		kfree(dma_ctrlr);
 	}
-#endif
 err_slave:
 	/* resources are stored in link list */
 	list_for_each(pos, &(ca91cx42_bridge->slave_resources)) {
@@ -1575,7 +1826,6 @@ module_exit(ca91cx42_exit);
  *--------------------------------------------------------------------------*/
 
 #if 0
-#define	SWIZZLE(X) ( ((X & 0xFF000000) >> 24) | ((X & 0x00FF0000) >>  8) | ((X & 0x0000FF00) <<  8) | ((X & 0x000000FF) << 24))
 
 int ca91cx42_master_rmw(vmeRmwCfg_t *vmeRmw)
 {
@@ -1658,335 +1908,6 @@ int ca91cx42_master_rmw(vmeRmwCfg_t *vmeRmw)
 
 	return 0;
 }
-
-int uniSetupDctlReg(vmeDmaPacket_t * vmeDma, int *dctlregreturn)
-{
-	unsigned int dctlreg = 0x80;
-	struct vmeAttr *vmeAttr;
-
-	if (vmeDma->srcBus == VME_DMA_VME) {
-		dctlreg = 0;
-		vmeAttr = &vmeDma->srcVmeAttr;
-	} else {
-		dctlreg = 0x80000000;
-		vmeAttr = &vmeDma->dstVmeAttr;
-	}
-
-	switch (vmeAttr->maxDataWidth) {
-	case VME_D8:
-		break;
-	case VME_D16:
-		dctlreg |= 0x00400000;
-		break;
-	case VME_D32:
-		dctlreg |= 0x00800000;
-		break;
-	case VME_D64:
-		dctlreg |= 0x00C00000;
-		break;
-	}
-
-	switch (vmeAttr->addrSpace) {
-	case VME_A16:
-		break;
-	case VME_A24:
-		dctlreg |= 0x00010000;
-		break;
-	case VME_A32:
-		dctlreg |= 0x00020000;
-		break;
-	case VME_USER1:
-		dctlreg |= 0x00060000;
-		break;
-	case VME_USER2:
-		dctlreg |= 0x00070000;
-		break;
-
-	case VME_A64:		/* not supported in Universe DMA */
-	case VME_CRCSR:
-	case VME_USER3:
-	case VME_USER4:
-		return -EINVAL;
-		break;
-	}
-	if (vmeAttr->userAccessType == VME_PROG) {
-		dctlreg |= 0x00004000;
-	}
-	if (vmeAttr->dataAccessType == VME_SUPER) {
-		dctlreg |= 0x00001000;
-	}
-	if (vmeAttr->xferProtocol != VME_SCT) {
-		dctlreg |= 0x00000100;
-	}
-	*dctlregreturn = dctlreg;
-	return 0;
-}
-
-unsigned int
-ca91cx42_start_dma(int channel, unsigned int dgcsreg, TDMA_Cmd_Packet *vmeLL)
-{
-	unsigned int val;
-
-	/* Setup registers as needed for direct or chained. */
-	if (dgcsreg & 0x8000000) {
-		iowrite32(0, bridge->base + DTBC);
-		iowrite32((unsigned int)vmeLL, bridge->base + DCPP);
-	} else {
-#if	0
-		printk(KERN_ERR "Starting: DGCS = %08x\n", dgcsreg);
-		printk(KERN_ERR "Starting: DVA  = %08x\n",
-			ioread32(&vmeLL->dva));
-		printk(KERN_ERR "Starting: DLV  = %08x\n",
-			ioread32(&vmeLL->dlv));
-		printk(KERN_ERR "Starting: DTBC = %08x\n",
-			ioread32(&vmeLL->dtbc));
-		printk(KERN_ERR "Starting: DCTL = %08x\n",
-			ioread32(&vmeLL->dctl));
-#endif
-		/* Write registers */
-		iowrite32(ioread32(&vmeLL->dva), bridge->base + DVA);
-		iowrite32(ioread32(&vmeLL->dlv), bridge->base + DLA);
-		iowrite32(ioread32(&vmeLL->dtbc), bridge->base + DTBC);
-		iowrite32(ioread32(&vmeLL->dctl), bridge->base + DCTL);
-		iowrite32(0, bridge->base + DCPP);
-	}
-
-	/* Start the operation */
-	iowrite32(dgcsreg, bridge->base + DGCS);
-	val = get_tbl();
-	iowrite32(dgcsreg | 0x8000000F, bridge->base + DGCS);
-	return val;
-}
-
-TDMA_Cmd_Packet *ca91cx42_setup_dma(vmeDmaPacket_t * vmeDma)
-{
-	vmeDmaPacket_t *vmeCur;
-	int maxPerPage;
-	int currentLLcount;
-	TDMA_Cmd_Packet *startLL;
-	TDMA_Cmd_Packet *currentLL;
-	TDMA_Cmd_Packet *nextLL;
-	unsigned int dctlreg = 0;
-
-	maxPerPage = PAGESIZE / sizeof(TDMA_Cmd_Packet) - 1;
-	startLL = (TDMA_Cmd_Packet *) __get_free_pages(GFP_KERNEL, 0);
-	if (startLL == 0) {
-		return startLL;
-	}
-	/* First allocate pages for descriptors and create linked list */
-	vmeCur = vmeDma;
-	currentLL = startLL;
-	currentLLcount = 0;
-	while (vmeCur != 0) {
-		if (vmeCur->pNextPacket != 0) {
-			currentLL->dcpp = (unsigned int)(currentLL + 1);
-			currentLLcount++;
-			if (currentLLcount >= maxPerPage) {
-				currentLL->dcpp =
-				    __get_free_pages(GFP_KERNEL, 0);
-				currentLLcount = 0;
-			}
-			currentLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
-		} else {
-			currentLL->dcpp = (unsigned int)0;
-		}
-		vmeCur = vmeCur->pNextPacket;
-	}
-
-	/* Next fill in information for each descriptor */
-	vmeCur = vmeDma;
-	currentLL = startLL;
-	while (vmeCur != 0) {
-		if (vmeCur->srcBus == VME_DMA_VME) {
-			iowrite32(vmeCur->srcAddr, &currentLL->dva);
-			iowrite32(vmeCur->dstAddr, &currentLL->dlv);
-		} else {
-			iowrite32(vmeCur->srcAddr, &currentLL->dlv);
-			iowrite32(vmeCur->dstAddr, &currentLL->dva);
-		}
-		uniSetupDctlReg(vmeCur, &dctlreg);
-		iowrite32(dctlreg, &currentLL->dctl);
-		iowrite32(vmeCur->byteCount, &currentLL->dtbc);
-
-		currentLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
-		vmeCur = vmeCur->pNextPacket;
-	}
-
-	/* Convert Links to PCI addresses. */
-	currentLL = startLL;
-	while (currentLL != 0) {
-		nextLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
-		if (nextLL == 0) {
-			iowrite32(1, &currentLL->dcpp);
-		} else {
-			iowrite32((unsigned int)virt_to_bus(nextLL),
-			       &currentLL->dcpp);
-		}
-		currentLL = nextLL;
-	}
-
-	/* Return pointer to descriptors list */
-	return startLL;
-}
-
-int ca91cx42_free_dma(TDMA_Cmd_Packet *startLL)
-{
-	TDMA_Cmd_Packet *currentLL;
-	TDMA_Cmd_Packet *prevLL;
-	TDMA_Cmd_Packet *nextLL;
-	unsigned int dcppreg;
-
-	/* Convert Links to virtual addresses. */
-	currentLL = startLL;
-	while (currentLL != 0) {
-		dcppreg = ioread32(&currentLL->dcpp);
-		dcppreg &= ~6;
-		if (dcppreg & 1) {
-			currentLL->dcpp = 0;
-		} else {
-			currentLL->dcpp = (unsigned int)bus_to_virt(dcppreg);
-		}
-		currentLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
-	}
-
-	/* Free all pages associated with the descriptors. */
-	currentLL = startLL;
-	prevLL = currentLL;
-	while (currentLL != 0) {
-		nextLL = (TDMA_Cmd_Packet *) currentLL->dcpp;
-		if (currentLL + 1 != nextLL) {
-			free_pages((int)prevLL, 0);
-			prevLL = nextLL;
-		}
-		currentLL = nextLL;
-	}
-
-	/* Return pointer to descriptors list */
-	return 0;
-}
-
-int ca91cx42_do_dma(vmeDmaPacket_t *vmeDma)
-{
-	unsigned int dgcsreg = 0;
-	unsigned int dctlreg = 0;
-	int val;
-	int channel, x;
-	vmeDmaPacket_t *curDma;
-	TDMA_Cmd_Packet *dmaLL;
-
-	/* Sanity check the VME chain. */
-	channel = vmeDma->channel_number;
-	if (channel > 0) {
-		return -EINVAL;
-	}
-	curDma = vmeDma;
-	while (curDma != 0) {
-		if (curDma->byteCount == 0) {
-			return -EINVAL;
-		}
-		if (curDma->byteCount >= 0x1000000) {
-			return -EINVAL;
-		}
-		if ((curDma->srcAddr & 7) != (curDma->dstAddr & 7)) {
-			return -EINVAL;
-		}
-		switch (curDma->srcBus) {
-		case VME_DMA_PCI:
-			if (curDma->dstBus != VME_DMA_VME) {
-				return -EINVAL;
-			}
-			break;
-		case VME_DMA_VME:
-			if (curDma->dstBus != VME_DMA_PCI) {
-				return -EINVAL;
-			}
-			break;
-		default:
-			return -EINVAL;
-			break;
-		}
-		if (uniSetupDctlReg(curDma, &dctlreg) < 0) {
-			return -EINVAL;
-		}
-
-		curDma = curDma->pNextPacket;
-		if (curDma == vmeDma) {	/* Endless Loop! */
-			return -EINVAL;
-		}
-	}
-
-	/* calculate control register */
-	if (vmeDma->pNextPacket != 0) {
-		dgcsreg = 0x8000000;
-	} else {
-		dgcsreg = 0;
-	}
-
-	for (x = 0; x < 8; x++) {	/* vme block size */
-		if ((256 << x) >= vmeDma->maxVmeBlockSize) {
-			break;
-		}
-	}
-	if (x == 8)
-		x = 7;
-	dgcsreg |= (x << 20);
-
-	if (vmeDma->vmeBackOffTimer) {
-		for (x = 1; x < 8; x++) {	/* vme timer */
-			if ((16 << (x - 1)) >= vmeDma->vmeBackOffTimer) {
-				break;
-			}
-		}
-		if (x == 8)
-			x = 7;
-		dgcsreg |= (x << 16);
-	}
-	/*` Setup the dma chain */
-	dmaLL = ca91cx42_setup_dma(vmeDma);
-
-	/* Start the DMA */
-	if (dgcsreg & 0x8000000) {
-		vmeDma->vmeDmaStartTick =
-		    ca91cx42_start_dma(channel, dgcsreg,
-				  (TDMA_Cmd_Packet *) virt_to_phys(dmaLL));
-	} else {
-		vmeDma->vmeDmaStartTick =
-		    ca91cx42_start_dma(channel, dgcsreg, dmaLL);
-	}
-
-	wait_event_interruptible(dma_queue,
-		ioread32(bridge->base + DGCS) & 0x800);
-
-	val = ioread32(bridge->base + DGCS);
-	iowrite32(val | 0xF00, bridge->base + DGCS);
-
-	vmeDma->vmeDmaStatus = 0;
-
-	if (!(val & 0x00000800)) {
-		vmeDma->vmeDmaStatus = val & 0x700;
-		printk(KERN_ERR "ca91c042: DMA Error in ca91cx42_DMA_irqhandler"
-			" DGCS=%08X\n", val);
-		val = ioread32(bridge->base + DCPP);
-		printk(KERN_ERR "ca91c042: DCPP=%08X\n", val);
-		val = ioread32(bridge->base + DCTL);
-		printk(KERN_ERR "ca91c042: DCTL=%08X\n", val);
-		val = ioread32(bridge->base + DTBC);
-		printk(KERN_ERR "ca91c042: DTBC=%08X\n", val);
-		val = ioread32(bridge->base + DLA);
-		printk(KERN_ERR "ca91c042: DLA=%08X\n", val);
-		val = ioread32(bridge->base + DVA);
-		printk(KERN_ERR "ca91c042: DVA=%08X\n", val);
-
-	}
-	/* Free the dma chain */
-	ca91cx42_free_dma(dmaLL);
-
-	return 0;
-}
-
-
-
-
 
 int ca91cx42_set_arbiter(vmeArbiterCfg_t *vmeArb)
 {

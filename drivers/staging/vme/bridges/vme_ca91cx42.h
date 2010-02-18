@@ -57,7 +57,7 @@ struct ca91cx42_driver {
 struct ca91cx42_dma_descriptor {
 	unsigned int dctl;      /* DMA Control */
 	unsigned int dtbc;      /* Transfer Byte Count */
-	unsigned int dlv;       /* PCI Address */
+	unsigned int dla;       /* PCI Address */
 	unsigned int res1;      /* Reserved */
 	unsigned int dva;       /* Vme Address */
 	unsigned int res2;      /* Reserved */
@@ -253,32 +253,6 @@ static const int CA91CX42_VSI_TO[] = { VSI0_TO, VSI1_TO, VSI2_TO, VSI3_TO,
 #define VCSR_SET		0x0FF8
 #define VCSR_BS			0x0FFC
 
-// DMA General Control/Status Register DGCS (0x220)
-// 32-24 ||  GO   | STOPR | HALTR |   0   || CHAIN |   0   |   0   |   0   ||
-// 23-16 ||              VON              ||             VOFF              ||
-// 15-08 ||  ACT  | STOP  | HALT  |   0   || DONE  | LERR  | VERR  | P_ERR ||
-// 07-00 ||   0   | INT_S | INT_H |   0   || I_DNE | I_LER | I_VER | I_PER ||
-
-// VON - Length Per DMA VMEBus Transfer
-//  0000 = None
-//  0001 = 256 Bytes
-//  0010 = 512
-//  0011 = 1024
-//  0100 = 2048
-//  0101 = 4096
-//  0110 = 8192
-//  0111 = 16384
-
-// VOFF - wait between DMA tenures
-//  0000 = 0    us
-//  0001 = 16
-//  0010 = 32
-//  0011 = 64
-//  0100 = 128
-//  0101 = 256
-//  0110 = 512
-//  0111 = 1024
-
 /*
  * PCI Class Register
  * offset 008
@@ -369,6 +343,71 @@ static const int CA91CX42_VSI_TO[] = { VSI0_TO, VSI1_TO, VSI2_TO, VSI3_TO,
 #define CA91CX42_BM_SLSI_LAS                0x00000003
 #define CA91CX42_OF_SLSI_LAS                0
 #define CA91CX42_BM_SLSI_RESERVED           0x3F0F0000
+
+/*
+ * DCTL Register
+ * offset 200
+ */
+#define CA91CX42_DCTL_L2V		(1<<31)
+#define CA91CX42_DCTL_VDW_M		(3<<22)
+#define CA91CX42_DCTL_VDW_M		(3<<22)
+#define CA91CX42_DCTL_VDW_D8		0
+#define CA91CX42_DCTL_VDW_D16		(1<<22)
+#define CA91CX42_DCTL_VDW_D32		(1<<23)
+#define CA91CX42_DCTL_VDW_D64		(3<<22)
+
+#define CA91CX42_DCTL_VAS_M		(7<<16)
+#define CA91CX42_DCTL_VAS_A16		0
+#define CA91CX42_DCTL_VAS_A24		(1<<16)
+#define CA91CX42_DCTL_VAS_A32		(1<<17)
+#define CA91CX42_DCTL_VAS_USER1		(3<<17)
+#define CA91CX42_DCTL_VAS_USER2		(7<<16)
+
+#define CA91CX42_DCTL_PGM_M		(1<<14)
+#define CA91CX42_DCTL_PGM_DATA		0
+#define CA91CX42_DCTL_PGM_PGM		(1<<14)
+
+#define CA91CX42_DCTL_SUPER_M		(1<<12)
+#define CA91CX42_DCTL_SUPER_NPRIV	0
+#define CA91CX42_DCTL_SUPER_SUPR	(1<<12)
+
+#define CA91CX42_DCTL_VCT_M		(1<<8)
+#define CA91CX42_DCTL_VCT_BLT		(1<<8)
+#define CA91CX42_DCTL_LD64EN		(1<<7)
+
+/*
+ * DCPP Register
+ * offset 218
+ */
+#define CA91CX42_DCPP_M			0xf
+#define CA91CX42_DCPP_NULL		(1<<0)
+
+/*
+ * DMA General Control/Status Register (DGCS)
+ * offset 220
+ */
+#define CA91CX42_DGCS_GO		(1<<31)
+#define CA91CX42_DGCS_STOP_REQ		(1<<30)
+#define CA91CX42_DGCS_HALT_REQ		(1<<29)
+#define CA91CX42_DGCS_CHAIN		(1<<27)
+
+#define CA91CX42_DGCS_VON_M		(7<<20)
+
+#define CA91CX42_DGCS_VOFF_M		(0xf<<16)
+
+#define CA91CX42_DGCS_ACT		(1<<15)
+#define CA91CX42_DGCS_STOP		(1<<14)
+#define CA91CX42_DGCS_HALT		(1<<13)
+#define CA91CX42_DGCS_DONE		(1<<11)
+#define CA91CX42_DGCS_LERR		(1<<10)
+#define CA91CX42_DGCS_VERR		(1<<9)
+#define CA91CX42_DGCS_PERR		(1<<8)
+#define CA91CX42_DGCS_INT_STOP		(1<<6)
+#define CA91CX42_DGCS_INT_HALT		(1<<5)
+#define CA91CX42_DGCS_INT_DONE		(1<<3)
+#define CA91CX42_DGCS_INT_LERR		(1<<2)
+#define CA91CX42_DGCS_INT_VERR		(1<<1)
+#define CA91CX42_DGCS_INT_PERR		(1<<0)
 
 /*
  * PCI Interrupt Enable Register

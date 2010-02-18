@@ -2,6 +2,7 @@ comment "VME Bridge Drivers"
 
 config VME_CA91CX42
 	tristate "Universe II"
+	depends on VIRT_TO_BUS
 	help
 	 If you say Y here you get support for the Tundra CA91C142
 	 (Universe II) VME bridge chip.
