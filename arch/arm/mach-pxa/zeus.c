@@ -849,7 +849,7 @@ static void __init zeus_map_io(void)
 	PCFR = PCFR_OPDE | PCFR_DC_EN | PCFR_FS | PCFR_FP;
 }
 
-MACHINE_START(ARCOM_ZEUS, "Arcom ZEUS")
+MACHINE_START(ARCOM_ZEUS, "Arcom/Eurotech ZEUS")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= ((io_p2v(0x40000000) >> 18) & 0xfffc),
