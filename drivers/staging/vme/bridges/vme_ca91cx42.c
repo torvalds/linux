@@ -1452,14 +1452,12 @@ static int ca91cx42_crcsr_init(struct vme_bridge *ca91cx42_bridge,
 
 	bridge = ca91cx42_bridge->driver_priv;
 
-/* XXX We may need to set this somehow as the Universe II does not support
- *     geographical addressing.
- */
-#if 0
-	if (vme_slotnum != -1)
-		iowrite32(vme_slotnum << 27, bridge->base + VCSR_BS);
-#endif
 	slot = ca91cx42_slot_get(ca91cx42_bridge);
+
+	/* Write CSR Base Address if slot ID is supplied as a module param */
+	if (geoid)
+		iowrite32(geoid << 27, bridge->base + VCSR_BS);
+
 	dev_info(&pdev->dev, "CR/CSR Offset: %d\n", slot);
 	if (slot == 0) {
 		dev_err(&pdev->dev, "Slot number is unset, not configuring "
@@ -1714,10 +1712,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (ca91cx42_crcsr_init(ca91cx42_bridge, pdev)) {
 		dev_err(&pdev->dev, "CR/CSR configuration failed.\n");
-		retval = -EINVAL;
-#if 0
-		goto err_crcsr;
-#endif
 	}
 
 	/* Need to save ca91cx42_bridge pointer locally in link list for use in
@@ -1736,9 +1730,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	vme_unregister_bridge(ca91cx42_bridge);
 err_reg:
 	ca91cx42_crcsr_exit(ca91cx42_bridge, pdev);
-#if 0
-err_crcsr:
-#endif
 err_lm:
 	/* resources are stored in link list */
 	list_for_each(pos, &(ca91cx42_bridge->lm_resources)) {
