@@ -1549,6 +1549,23 @@ out:
 	return ret;
 }
 
+static void wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *beacon)
+{
+	u8 *ptr = beacon->data +
+		offsetof(struct ieee80211_mgmt, u.beacon.variable);
+
+	/* find the location of the ssid in the beacon */
+	while (ptr < beacon->data + beacon->len) {
+		if (ptr[0] == WLAN_EID_SSID) {
+			wl->ssid_len = ptr[1];
+			memcpy(wl->ssid, ptr+2, wl->ssid_len);
+			return;
+		}
+		ptr += ptr[1];
+	}
+	wl1271_error("ad-hoc beacon template has no SSID!\n");
+}
+
 static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
@@ -1566,40 +1583,17 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if ((changed & BSS_CHANGED_BSSID) &&
-	    /*
-	     * Now we know the correct bssid, so we send a new join command
-	     * and enable the BSSID filter
-	     */
-	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
-			wl->rx_config |= CFG_BSSID_FILTER_EN;
-			memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
-			ret = wl1271_cmd_build_null_data(wl);
-			if (ret < 0) {
-				wl1271_warning("cmd buld null data failed %d",
-					       ret);
-				goto out_sleep;
-			}
-			ret = wl1271_cmd_join(wl);
-			if (ret < 0) {
-				wl1271_warning("cmd join failed %d", ret);
-				goto out_sleep;
-			}
-			set_bit(WL1271_FLAG_JOINED, &wl->flags);
-	}
-
 	if (wl->bss_type == BSS_TYPE_IBSS) {
 		/* FIXME: This implements rudimentary ad-hoc support -
 		   proper templates are on the wish list and notification
 		   on when they change. This patch will update the templates
-		   on every call to this function. Also, the firmware will not
-		   answer to probe-requests as it does not have the proper
-		   SSID set in the JOIN command. The probe-response template
-		   is set nevertheless, as the FW will ASSERT without it */
+		   on every call to this function. */
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
 
 		if (beacon) {
 			struct ieee80211_hdr *hdr;
+
+			wl1271_ssid_set(wl, beacon);
 			ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
 						      beacon->data,
 						      beacon->len);
@@ -1622,6 +1616,29 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 		}
+	}
+
+	if ((changed & BSS_CHANGED_BSSID) &&
+	    /*
+	     * Now we know the correct bssid, so we send a new join command
+	     * and enable the BSSID filter
+	     */
+	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
+			wl->rx_config |= CFG_BSSID_FILTER_EN;
+			memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
+			ret = wl1271_cmd_build_null_data(wl);
+			if (ret < 0) {
+				wl1271_warning("cmd buld null data failed %d",
+					       ret);
+				goto out_sleep;
+			}
+
+			ret = wl1271_cmd_join(wl);
+			if (ret < 0) {
+				wl1271_warning("cmd join failed %d", ret);
+				goto out_sleep;
+			}
+			set_bit(WL1271_FLAG_JOINED, &wl->flags);
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {

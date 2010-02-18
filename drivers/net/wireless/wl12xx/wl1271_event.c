@@ -92,7 +92,12 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 						 true);
 		} else {
 			wl1271_error("PSM entry failed, giving up.\n");
-			/* make sure the firmware goes into active mode */
+			/* FIXME: this may need to be reconsidered. for now it
+			   is not possible to indicate to the mac80211
+			   afterwards that PSM entry failed. To maximize
+			   functionality (receiving data and remaining
+			   associated) make sure that we are in sync with the
+			   AP in regard of PSM mode. */
 			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
 						 false);
 			wl->psm_entry_retry = 0;
@@ -124,7 +129,8 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 			break;
 		}
 
-		/* make sure the firmware goes to active mode */
+		/* make sure the firmware goes to active mode - the frame to
+		   be sent next will indicate to the AP, that we are active. */
 		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
 					 false);
 		break;
