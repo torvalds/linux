@@ -1599,7 +1599,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 
 	/* syscall is not available in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL || ctxt->mode == X86EMUL_MODE_VM86)
-		return -1;
+		return X86EMUL_UNHANDLEABLE;
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
@@ -1636,7 +1636,7 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 		ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
 	}
 
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static int
@@ -1649,14 +1649,14 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL) {
 		kvm_inject_gp(ctxt->vcpu, 0);
-		return -1;
+		return X86EMUL_UNHANDLEABLE;
 	}
 
 	/* XXX sysenter/sysexit have not been tested in 64bit mode.
 	* Therefore, we inject an #UD.
 	*/
 	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		return -1;
+		return X86EMUL_UNHANDLEABLE;
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
@@ -1665,13 +1665,13 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	case X86EMUL_MODE_PROT32:
 		if ((msr_data & 0xfffc) == 0x0) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			return -1;
+			return X86EMUL_PROPAGATE_FAULT;
 		}
 		break;
 	case X86EMUL_MODE_PROT64:
 		if (msr_data == 0x0) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			return -1;
+			return X86EMUL_PROPAGATE_FAULT;
 		}
 		break;
 	}
@@ -1696,7 +1696,7 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	kvm_x86_ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_ESP, &msr_data);
 	c->regs[VCPU_REGS_RSP] = msr_data;
 
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static int
@@ -1711,7 +1711,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
 	    ctxt->mode == X86EMUL_MODE_VM86) {
 		kvm_inject_gp(ctxt->vcpu, 0);
-		return -1;
+		return X86EMUL_UNHANDLEABLE;
 	}
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
@@ -1729,7 +1729,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 		cs.selector = (u16)(msr_data + 16);
 		if ((msr_data & 0xfffc) == 0x0) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			return -1;
+			return X86EMUL_PROPAGATE_FAULT;
 		}
 		ss.selector = (u16)(msr_data + 24);
 		break;
@@ -1737,7 +1737,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 		cs.selector = (u16)(msr_data + 32);
 		if (msr_data == 0x0) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			return -1;
+			return X86EMUL_PROPAGATE_FAULT;
 		}
 		ss.selector = cs.selector + 8;
 		cs.db = 0;
@@ -1753,7 +1753,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	c->eip = ctxt->vcpu->arch.regs[VCPU_REGS_RDX];
 	c->regs[VCPU_REGS_RSP] = ctxt->vcpu->arch.regs[VCPU_REGS_RCX];
 
-	return 0;
+	return X86EMUL_CONTINUE;
 }
 
 static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt)
@@ -2476,8 +2476,9 @@ twobyte_insn:
 		}
 		break;
 	case 0x05: 		/* syscall */
-		if (emulate_syscall(ctxt) == -1)
-			goto cannot_emulate;
+		rc = emulate_syscall(ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 		else
 			goto writeback;
 		break;
@@ -2548,14 +2549,16 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x34:		/* sysenter */
-		if (emulate_sysenter(ctxt) == -1)
-			goto cannot_emulate;
+		rc = emulate_sysenter(ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 		else
 			goto writeback;
 		break;
 	case 0x35:		/* sysexit */
-		if (emulate_sysexit(ctxt) == -1)
-			goto cannot_emulate;
+		rc = emulate_sysexit(ctxt);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 		else
 			goto writeback;
 		break;
