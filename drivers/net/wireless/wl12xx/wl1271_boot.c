@@ -277,9 +277,14 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	wl1271_set_partition(wl, &part_table[PART_WORK]);
 
 	/* Copy the NVS tables to a new block to ensure alignment */
-	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
-	if (!nvs_aligned)
-		return -ENOMEM;
+	/* FIXME: We jump 3 more bytes before uploading the NVS.  It seems
+	that our NVS files have three extra zeros here.  I'm not sure whether
+	the problem is in our NVS generation or we should really jumpt these
+	3 bytes here */
+	nvs_ptr += 3;
+
+	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL); if
+	(!nvs_aligned) return -ENOMEM;
 
 	/* And finally we upload the NVS tables */
 	/* FIXME: In wl1271, we upload everything at once.
