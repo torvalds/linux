@@ -103,6 +103,7 @@ enum {
 #define TCP_CONGESTION		13	/* Congestion control algorithm */
 #define TCP_MD5SIG		14	/* TCP MD5 Signature (RFC2385) */
 #define TCP_COOKIE_TRANSACTIONS	15	/* TCP Cookie Transactions */
+#define TCP_THIN_LINEAR_TIMEOUTS 16      /* Use linear timeouts for thin streams*/
 
 /* for TCP_INFO socket option */
 #define TCPI_OPT_TIMESTAMPS	1
@@ -340,7 +341,9 @@ struct tcp_sock {
 	u32	frto_highmark;	/* snd_nxt when RTO occurred */
 	u16	advmss;		/* Advertised MSS			*/
 	u8	frto_counter;	/* Number of new acks after RTO */
-	u8	nonagle;	/* Disable Nagle algorithm?             */
+	u8	nonagle     : 4,/* Disable Nagle algorithm?             */
+		thin_lto    : 1,/* Use linear timeouts for thin streams */
+		unused      : 3;
 
 /* RTT measurement */
 	u32	srtt;		/* smoothed round trip time << 3	*/

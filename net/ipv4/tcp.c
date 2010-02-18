@@ -2229,6 +2229,13 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		}
 		break;
 
+	case TCP_THIN_LINEAR_TIMEOUTS:
+		if (val < 0 || val > 1)
+			err = -EINVAL;
+		else
+			tp->thin_lto = val;
+		break;
+
 	case TCP_CORK:
 		/* When set indicates to always queue non-full frames.
 		 * Later the user clears this option and we transmit

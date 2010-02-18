@@ -196,6 +196,9 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_NAGLE_CORK		2	/* Socket is corked	    */
 #define TCP_NAGLE_PUSH		4	/* Cork is overridden for already queued data */
 
+/* TCP thin-stream limits */
+#define TCP_THIN_LINEAR_RETRIES 6       /* After 6 linear retries, do exp. backoff */
+
 extern struct inet_timewait_death_row tcp_death_row;
 
 /* sysctl variables for tcp */
@@ -241,6 +244,7 @@ extern int sysctl_tcp_workaround_signed_windows;
 extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_max_ssthresh;
 extern int sysctl_tcp_cookie_size;
+extern int sysctl_tcp_thin_linear_timeouts;
 
 extern atomic_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
