@@ -457,6 +457,19 @@ static struct platform_device zeus_pcmcia_device = {
 	},
 };
 
+static struct resource zeus_max6369_resource = {
+	.start		= ZEUS_CPLD_EXTWDOG_PHYS,
+	.end		= ZEUS_CPLD_EXTWDOG_PHYS,
+	.flags		= IORESOURCE_MEM,
+};
+
+struct platform_device zeus_max6369_device = {
+	.name		= "max6369_wdt",
+	.id		= -1,
+	.resource	= &zeus_max6369_resource,
+	.num_resources	= 1,
+};
+
 static struct platform_device *zeus_devices[] __initdata = {
 	&zeus_serial_device,
 	&zeus_mtd_devices[0],
@@ -466,6 +479,7 @@ static struct platform_device *zeus_devices[] __initdata = {
 	&pxa2xx_spi_ssp3_device,
 	&zeus_leds_device,
 	&zeus_pcmcia_device,
+	&zeus_max6369_device,
 };
 
 /* AC'97 */
@@ -815,12 +829,6 @@ static struct map_desc zeus_io_desc[] __initdata = {
 	{
 		.virtual = ZEUS_CPLD_CONTROL,
 		.pfn     = __phys_to_pfn(ZEUS_CPLD_CONTROL_PHYS),
-		.length  = 0x1000,
-		.type    = MT_DEVICE,
-	},
-	{
-		.virtual = ZEUS_CPLD_EXTWDOG,
-		.pfn     = __phys_to_pfn(ZEUS_CPLD_EXTWDOG_PHYS),
 		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
