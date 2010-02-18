@@ -19,7 +19,7 @@ struct vme_master_resource {
 	vme_address_t address_attr;
 	vme_cycle_t cycle_attr;
 	vme_width_t width_attr;
-	struct resource pci_resource;	/* XXX Rename to be bus agnostic */
+	struct resource bus_resource;
 	void *kern_base;
 };
 

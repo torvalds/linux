@@ -855,8 +855,8 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
         }
         pdev = container_of(tsi148_bridge->parent, struct pci_dev, dev);
 
-	existing_size = (unsigned long long)(image->pci_resource.end -
-		image->pci_resource.start);
+	existing_size = (unsigned long long)(image->bus_resource.end -
+		image->bus_resource.start);
 
 	/* If the existing size is OK, return */
 	if ((size != 0) && (existing_size == (size - 1)))
@@ -865,10 +865,10 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 	if (existing_size != 0) {
 		iounmap(image->kern_base);
 		image->kern_base = NULL;
-		if (image->pci_resource.name != NULL)
-			kfree(image->pci_resource.name);
-		release_resource(&(image->pci_resource));
-		memset(&(image->pci_resource), 0, sizeof(struct resource));
+		if (image->bus_resource.name != NULL)
+			kfree(image->bus_resource.name);
+		release_resource(&(image->bus_resource));
+		memset(&(image->bus_resource), 0, sizeof(struct resource));
 	}
 
 	/* Exit here if size is zero */
@@ -876,9 +876,9 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		return 0;
 	}
 
-	if (image->pci_resource.name == NULL) {
-		image->pci_resource.name = kmalloc(VMENAMSIZ+3, GFP_KERNEL);
-		if (image->pci_resource.name == NULL) {
+	if (image->bus_resource.name == NULL) {
+		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_KERNEL);
+		if (image->bus_resource.name == NULL) {
 			printk(KERN_ERR "Unable to allocate memory for resource"
 				" name\n");
 			retval = -ENOMEM;
@@ -886,26 +886,26 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		}
 	}
 
-	sprintf((char *)image->pci_resource.name, "%s.%d", tsi148_bridge->name,
+	sprintf((char *)image->bus_resource.name, "%s.%d", tsi148_bridge->name,
 		image->number);
 
-	image->pci_resource.start = 0;
-	image->pci_resource.end = (unsigned long)size;
-	image->pci_resource.flags = IORESOURCE_MEM;
+	image->bus_resource.start = 0;
+	image->bus_resource.end = (unsigned long)size;
+	image->bus_resource.flags = IORESOURCE_MEM;
 
 	retval = pci_bus_alloc_resource(pdev->bus,
-		&(image->pci_resource), size, size, PCIBIOS_MIN_MEM,
+		&(image->bus_resource), size, size, PCIBIOS_MIN_MEM,
 		0, NULL, NULL);
 	if (retval) {
 		printk(KERN_ERR "Failed to allocate mem resource for "
 			"window %d size 0x%lx start 0x%lx\n",
 			image->number, (unsigned long)size,
-			(unsigned long)image->pci_resource.start);
+			(unsigned long)image->bus_resource.start);
 		goto err_resource;
 	}
 
 	image->kern_base = ioremap_nocache(
-		image->pci_resource.start, size);
+		image->bus_resource.start, size);
 	if (image->kern_base == NULL) {
 		printk(KERN_ERR "Failed to remap resource\n");
 		retval = -ENOMEM;
@@ -917,10 +917,10 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 	iounmap(image->kern_base);
 	image->kern_base = NULL;
 err_remap:
-	release_resource(&(image->pci_resource));
+	release_resource(&(image->bus_resource));
 err_resource:
-	kfree(image->pci_resource.name);
-	memset(&(image->pci_resource), 0, sizeof(struct resource));
+	kfree(image->bus_resource.name);
+	memset(&(image->bus_resource), 0, sizeof(struct resource));
 err_name:
 	return retval;
 }
@@ -932,9 +932,9 @@ static void tsi148_free_resource(struct vme_master_resource *image)
 {
 	iounmap(image->kern_base);
 	image->kern_base = NULL;
-	release_resource(&(image->pci_resource));
-	kfree(image->pci_resource.name);
-	memset(&(image->pci_resource), 0, sizeof(struct resource));
+	release_resource(&(image->bus_resource));
+	kfree(image->bus_resource.name);
+	memset(&(image->bus_resource), 0, sizeof(struct resource));
 }
 
 /*
@@ -987,7 +987,7 @@ int tsi148_master_set( struct vme_master_resource *image, int enabled,
 		pci_bound = 0;
 		vme_offset = 0;
 	} else {
-		pci_base = (unsigned long long)image->pci_resource.start;
+		pci_base = (unsigned long long)image->bus_resource.start;
 
 		/*
 		 * Bound address is a valid address for the window, adjust
@@ -2423,7 +2423,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			VME_2eSST160 | VME_2eSST267 | VME_2eSST320 | VME_SUPER |
 			VME_USER | VME_PROG | VME_DATA;
 		tsi148_device->flush_image->width_attr = VME_D16 | VME_D32;
-		memset(&(tsi148_device->flush_image->pci_resource), 0,
+		memset(&(tsi148_device->flush_image->bus_resource), 0,
 			sizeof(struct resource));
 		tsi148_device->flush_image->kern_base  = NULL;
 	}
@@ -2450,7 +2450,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			VME_2eSST267 | VME_2eSST320 | VME_SUPER | VME_USER |
 			VME_PROG | VME_DATA;
 		master_image->width_attr = VME_D16 | VME_D32;
-		memset(&(master_image->pci_resource), 0,
+		memset(&(master_image->bus_resource), 0,
 			sizeof(struct resource));
 		master_image->kern_base  = NULL;
 		list_add_tail(&(master_image->list),

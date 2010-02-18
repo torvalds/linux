@@ -37,7 +37,6 @@ chips. They are currently not supported at all by the API.
 Core
 ====
 
-- Rename vme_master_resource's "pci_resource" to be bus agnostic.
 - Improve generic sanity checks (Such as does an offset and size fit within a
   window and parameter checking).
 
