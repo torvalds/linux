@@ -509,7 +509,9 @@ static void zeus_ohci_exit(struct device *dev)
 
 static struct pxaohci_platform_data zeus_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
-	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
+	/* Clear Power Control Polarity Low and set Power Sense
+	 * Polarity Low. Supply power to USB ports. */
+	.flags		= ENABLE_PORT_ALL | POWER_SENSE_LOW,
 	.init		= zeus_ohci_init,
 	.exit		= zeus_ohci_exit,
 };
