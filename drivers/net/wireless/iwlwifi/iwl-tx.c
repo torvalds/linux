@@ -761,16 +761,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		IWL_DEBUG_TX(priv, "Sending REASSOC frame\n");
 #endif
 
-	/* drop all non-injected data frame if we are not associated */
-	if (ieee80211_is_data(fc) &&
-	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
-	    (!iwl_is_associated(priv) ||
-	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id) ||
-	     !priv->assoc_station_added)) {
-		IWL_DEBUG_DROP(priv, "Dropping - !iwl_is_associated\n");
-		goto drop_unlock;
-	}
-
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find (or create) index into station table for destination station */
