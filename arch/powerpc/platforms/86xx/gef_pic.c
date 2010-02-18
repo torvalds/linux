@@ -49,7 +49,7 @@
 #define gef_irq_to_hw(virq)    ((unsigned int)irq_map[virq].hwirq)
 
 
-static DEFINE_SPINLOCK(gef_pic_lock);
+static DEFINE_RAW_SPINLOCK(gef_pic_lock);
 
 static void __iomem *gef_pic_irq_reg_base;
 static struct irq_host *gef_pic_irq_host;
@@ -118,11 +118,11 @@ static void gef_pic_mask(unsigned int virq)
 
 	hwirq = gef_irq_to_hw(virq);
 
-	spin_lock_irqsave(&gef_pic_lock, flags);
+	raw_spin_lock_irqsave(&gef_pic_lock, flags);
 	mask = in_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0));
 	mask &= ~(1 << hwirq);
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0), mask);
-	spin_unlock_irqrestore(&gef_pic_lock, flags);
+	raw_spin_unlock_irqrestore(&gef_pic_lock, flags);
 }
 
 static void gef_pic_mask_ack(unsigned int virq)
@@ -141,11 +141,11 @@ static void gef_pic_unmask(unsigned int virq)
 
 	hwirq = gef_irq_to_hw(virq);
 
-	spin_lock_irqsave(&gef_pic_lock, flags);
+	raw_spin_lock_irqsave(&gef_pic_lock, flags);
 	mask = in_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0));
 	mask |= (1 << hwirq);
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_INTR_MASK(0), mask);
-	spin_unlock_irqrestore(&gef_pic_lock, flags);
+	raw_spin_unlock_irqrestore(&gef_pic_lock, flags);
 }
 
 static struct irq_chip gef_pic_chip = {
@@ -199,7 +199,7 @@ void __init gef_pic_init(struct device_node *np)
 	/* Map the devices registers into memory */
 	gef_pic_irq_reg_base = of_iomap(np, 0);
 
-	spin_lock_irqsave(&gef_pic_lock, flags);
+	raw_spin_lock_irqsave(&gef_pic_lock, flags);
 
 	/* Initialise everything as masked. */
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_CPU0_INTR_MASK, 0);
@@ -208,7 +208,7 @@ void __init gef_pic_init(struct device_node *np)
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_CPU0_MCP_MASK, 0);
 	out_be32(gef_pic_irq_reg_base + GEF_PIC_CPU1_MCP_MASK, 0);
 
-	spin_unlock_irqrestore(&gef_pic_lock, flags);
+	raw_spin_unlock_irqrestore(&gef_pic_lock, flags);
 
 	/* Map controller */
 	gef_pic_cascade_irq = irq_of_parse_and_map(np, 0);
