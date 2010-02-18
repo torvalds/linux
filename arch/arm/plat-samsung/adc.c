@@ -412,6 +412,7 @@ static int s3c_adc_suspend(struct platform_device *pdev, pm_message_t state)
 	con |= S3C2410_ADCCON_STDBM;
 	writel(con, adc->regs + S3C2410_ADCCON);
 
+	disable_irq(adc->irq);
 	clk_disable(adc->clk);
 
 	return 0;
@@ -422,6 +423,7 @@ static int s3c_adc_resume(struct platform_device *pdev)
 	struct adc_device *adc = platform_get_drvdata(pdev);
 
 	clk_enable(adc->clk);
+	enable_irq(adc->irq);
 
 	writel(adc->prescale | S3C2410_ADCCON_PRSCEN,
 	       adc->regs + S3C2410_ADCCON);
