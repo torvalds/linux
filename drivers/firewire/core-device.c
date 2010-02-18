@@ -588,15 +588,19 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
 			goto out;
 		end = i + (rom[i] >> 16) + 1;
-		i++;
-		if (end > READ_BIB_ROM_SIZE)
+		if (end > READ_BIB_ROM_SIZE) {
 			/*
-			 * This block extends outside standard config
-			 * area (and the array we're reading it
-			 * into).  That's broken, so ignore this
-			 * device.
+			 * This block extends outside the config ROM which is
+			 * a firmware bug.  Ignore this whole block, i.e.
+			 * simply set a fake block length of 0.
 			 */
-			goto out;
+			fw_error("skipped invalid ROM block %x at %llx\n",
+				 rom[i],
+				 i * 4 | CSR_REGISTER_BASE | CSR_CONFIG_ROM);
+			rom[i] = 0;
+			end = i;
+		}
+		i++;
 
 		/*
 		 * Now read in the block.  If this is a directory
