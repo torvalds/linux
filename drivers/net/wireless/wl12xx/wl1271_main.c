@@ -1478,6 +1478,13 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 
 	case DISABLE_KEY:
+		/* The wl1271 does not allow to remove unicast keys - they
+		   will be cleared automatically on next CMD_JOIN. Ignore the
+		   request silently, as we dont want the mac80211 to emit
+		   an error message. */
+		if (!is_broadcast_ether_addr(addr))
+			break;
+
 		ret = wl1271_cmd_set_key(wl, KEY_REMOVE,
 					 key_conf->keyidx, key_type,
 					 key_conf->keylen, key_conf->key,
