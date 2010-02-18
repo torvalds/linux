@@ -68,6 +68,14 @@ typedef u32 vme_pattern_t;
 #define VME_DMA_PATTERN_WORD		(1<<1)
 #define VME_DMA_PATTERN_INCREMENT	(1<<2)
 
+typedef u32 vme_dma_route_t;
+#define VME_DMA_VME_TO_MEM		(1<<0)
+#define VME_DMA_MEM_TO_VME		(1<<1)
+#define VME_DMA_VME_TO_VME		(1<<2)
+#define VME_DMA_MEM_TO_MEM		(1<<3)
+#define VME_DMA_PATTERN_TO_VME		(1<<4)
+#define VME_DMA_PATTERN_TO_MEM		(1<<5)
+
 struct vme_dma_attr {
 	vme_dma_t type;
 	void *private;
@@ -124,7 +132,7 @@ unsigned int vme_master_rmw(struct vme_resource *, unsigned int, unsigned int,
 	unsigned int, loff_t);
 void vme_master_free(struct vme_resource *);
 
-struct vme_resource *vme_dma_request(struct device *);
+struct vme_resource *vme_dma_request(struct device *, vme_dma_route_t);
 struct vme_dma_list *vme_new_dma_list(struct vme_resource *);
 struct vme_dma_attr *vme_dma_pattern_attribute(u32, vme_pattern_t);
 struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t);

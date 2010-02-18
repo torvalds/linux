@@ -1109,6 +1109,8 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		mutex_init(&(dma_ctrlr->mtx));
 		dma_ctrlr->locked = 0;
 		dma_ctrlr->number = i;
+		dma_ctrlr->route_attr = VME_DMA_VME_TO_MEM |
+			VME_DMA_MEM_TO_VME;
 		INIT_LIST_HEAD(&(dma_ctrlr->pending));
 		INIT_LIST_HEAD(&(dma_ctrlr->running));
 		list_add_tail(&(dma_ctrlr->list),

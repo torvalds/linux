@@ -64,6 +64,7 @@ struct vme_dma_resource {
 	int number;
 	struct list_head pending;
 	struct list_head running;
+	vme_dma_route_t route_attr;
 };
 
 struct vme_lm_resource {

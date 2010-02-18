@@ -643,7 +643,7 @@ EXPORT_SYMBOL(vme_master_free);
  * Request a DMA controller with specific attributes, return some unique
  * identifier.
  */
-struct vme_resource *vme_dma_request(struct device *dev)
+struct vme_resource *vme_dma_request(struct device *dev, vme_dma_route_t route)
 {
 	struct vme_bridge *bridge;
 	struct list_head *dma_pos = NULL;
@@ -670,9 +670,11 @@ struct vme_resource *vme_dma_request(struct device *dev)
 			continue;
 		}
 
-		/* Find an unlocked controller */
+		/* Find an unlocked and compatible controller */
 		mutex_lock(&(dma_ctrlr->mtx));
-		if (dma_ctrlr->locked == 0) {
+		if (((dma_ctrlr->route_attr & route) == route) &&
+			(dma_ctrlr->locked == 0)) {
+
 			dma_ctrlr->locked = 1;
 			mutex_unlock(&(dma_ctrlr->mtx));
 			allocated_ctrlr = dma_ctrlr;
