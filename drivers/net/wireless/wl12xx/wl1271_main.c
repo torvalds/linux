@@ -1712,6 +1712,36 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
+static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
+			     const struct ieee80211_tx_queue_params *params)
+{
+	struct wl1271 *wl = hw->priv;
+	int ret;
+
+	mutex_lock(&wl->mutex);
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 conf tx %d", queue);
+
+	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
+				params->cw_min, params->cw_max,
+				params->aifs, params->txop);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
+				 CONF_CHANNEL_TYPE_EDCF,
+				 wl1271_tx_get_queue(queue),
+				 CONF_PS_SCHEME_LEGACY_PSPOLL,
+				 CONF_ACK_POLICY_LEGACY, 0, 0);
+	if (ret < 0)
+		goto out;
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
+
 
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_rate wl1271_rates[] = {
@@ -1877,6 +1907,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.hw_scan = wl1271_op_hw_scan,
 	.bss_info_changed = wl1271_op_bss_info_changed,
 	.set_rts_threshold = wl1271_op_set_rts_threshold,
+	.conf_tx = wl1271_op_conf_tx,
 };
 
 static int wl1271_register_hw(struct wl1271 *wl)

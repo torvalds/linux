@@ -87,7 +87,7 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 			      u32 extra, struct ieee80211_tx_info *control)
 {
 	struct wl1271_tx_hw_descr *desc;
-	int pad;
+	int pad, ac;
 	u16 tx_attr;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
@@ -107,9 +107,11 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 
 	/* configure the tx attributes */
 	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
-	/* FIXME: do we know the packet priority? can we identify mgmt
-	   packets, and use max prio for them at least? */
-	desc->tid = 0;
+
+	/* queue */
+	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+	desc->tid = wl1271_tx_ac_to_tid(ac);
+
 	desc->aid = TX_HW_DEFAULT_AID;
 	desc->reserved = 0;
 
