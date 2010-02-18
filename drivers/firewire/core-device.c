@@ -18,6 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/bug.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -580,11 +581,7 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 		 */
 		key = stack[--sp];
 		i = key & 0xffffff;
-		if (i >= READ_BIB_ROM_SIZE)
-			/*
-			 * The reference points outside the standard
-			 * config rom area, something's fishy.
-			 */
+		if (WARN_ON(i >= READ_BIB_ROM_SIZE))
 			goto out;
 
 		/* Read header quadlet for the block to get the length. */
@@ -606,14 +603,29 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 		 * block, check the entries as we read them to see if
 		 * it references another block, and push it in that case.
 		 */
-		while (i < end) {
+		for (; i < end; i++) {
 			if (read_rom(device, generation, i, &rom[i]) !=
 			    RCODE_COMPLETE)
 				goto out;
-			if ((key >> 30) == 3 && (rom[i] >> 30) > 1 &&
-			    sp < READ_BIB_STACK_SIZE)
-				stack[sp++] = i + rom[i];
-			i++;
+
+			if ((key >> 30) != 3 || (rom[i] >> 30) < 2 ||
+			    sp >= READ_BIB_STACK_SIZE)
+				continue;
+			/*
+			 * Offset points outside the ROM.  May be a firmware
+			 * bug or an Extended ROM entry (IEEE 1212-2001 clause
+			 * 7.7.18).  Simply overwrite this pointer here by a
+			 * fake immediate entry so that later iterators over
+			 * the ROM don't have to check offsets all the time.
+			 */
+			if (i + (rom[i] & 0xffffff) >= READ_BIB_ROM_SIZE) {
+				fw_error("skipped unsupported ROM entry %x at %llx\n",
+					 rom[i],
+					 i * 4 | CSR_REGISTER_BASE | CSR_CONFIG_ROM);
+				rom[i] = 0;
+				continue;
+			}
+			stack[sp++] = i + rom[i];
 		}
 		if (length < i)
 			length = i;
