@@ -618,6 +618,11 @@ int au8522_init(struct dvb_frontend *fe)
 
 	state->operational_mode = AU8522_DIGITAL_MODE;
 
+	/* Clear out any state associated with the digital side of the
+	   chip, so that when it gets powered back up it won't think
+	   that it is already tuned */
+	state->current_frequency = 0;
+
 	au8522_writereg(state, 0xa4, 1 << 5);
 
 	au8522_i2c_gate_ctrl(fe, 1);
