@@ -2266,7 +2266,7 @@ static void snd_cs46xx_codec_reset (struct snd_ac97 * ac97)
 			return;
 
 		/* test if we can write to the record gain volume register */
-		snd_ac97_write_cache(ac97, AC97_REC_GAIN, 0x8a05);
+		snd_ac97_write(ac97, AC97_REC_GAIN, 0x8a05);
 		if ((err = snd_ac97_read(ac97, AC97_REC_GAIN)) == 0x8a05)
 			return;
 
