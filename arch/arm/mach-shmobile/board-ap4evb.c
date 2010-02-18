@@ -35,6 +35,48 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+/*
+ * Address	Interface		BusWidth	note
+ * ------------------------------------------------------------------
+ * 0x0000_0000	NOR Flash ROM (MCP)	16bit		SW7 : bit1 = ON
+ * 0x0800_0000	user area		-
+ * 0x1000_0000	NOR Flash ROM (MCP)	16bit		SW7 : bit1 = OFF
+ * 0x1400_0000	Ether (LAN9220)		16bit
+ * 0x1600_0000	user area		-		cannot use with NAND
+ * 0x1800_0000	user area		-
+ * 0x1A00_0000	-
+ * 0x4000_0000	LPDDR2-SDRAM (POP)	32bit
+ */
+
+/*
+ * NOR Flash ROM
+ *
+ *  SW1  |     SW2    | SW7  | NOR Flash ROM
+ *  bit1 | bit1  bit2 | bit1 | Memory allocation
+ * ------+------------+------+------------------
+ *  OFF  | ON     OFF | ON   |    Area 0
+ *  OFF  | ON     OFF | OFF  |    Area 4
+ */
+
+/*
+ * NAND Flash ROM
+ *
+ *  SW1  |     SW2    | SW7  | NAND Flash ROM
+ *  bit1 | bit1  bit2 | bit2 | Memory allocation
+ * ------+------------+------+------------------
+ *  OFF  | ON     OFF | ON   |    FCE 0
+ *  OFF  | ON     OFF | OFF  |    FCE 1
+ */
+
+/*
+ * SMSC 9220
+ *
+ *  SW1		SMSC 9220
+ * -----------------------
+ *  ON		access disable
+ *  OFF		access enable
+ */
+
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
 	{
