@@ -4892,6 +4892,15 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 }
 
 void
-qla81xx_update_fw_options(scsi_qla_host_t *ha)
+qla81xx_update_fw_options(scsi_qla_host_t *vha)
 {
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ql2xetsenable)
+		return;
+
+	/* Enable ETS Burst. */
+	memset(ha->fw_options, 0, sizeof(ha->fw_options));
+	ha->fw_options[2] |= BIT_9;
+	qla2x00_set_fw_options(vha, ha->fw_options);
 }
