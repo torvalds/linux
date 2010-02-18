@@ -78,24 +78,55 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 	switch (mbox->ps_status) {
 	case EVENT_ENTER_POWER_SAVE_FAIL:
+		wl1271_debug(DEBUG_PSM, "PSM entry failed");
+
 		if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+			/* remain in active mode */
 			wl->psm_entry_retry = 0;
 			break;
 		}
 
 		if (wl->psm_entry_retry < wl->conf.conn.psm_entry_retries) {
 			wl->psm_entry_retry++;
-			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+						 true);
 		} else {
 			wl1271_error("PSM entry failed, giving up.\n");
+			/* make sure the firmware goes into active mode */
+			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+						 false);
 			wl->psm_entry_retry = 0;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
 		wl->psm_entry_retry = 0;
+
+		/* enable beacon filtering */
+		ret = wl1271_acx_beacon_filter_opt(wl, true);
+		if (ret < 0)
+			break;
+
+		/* enable beacon early termination */
+		ret = wl1271_acx_bet_enable(wl, true);
+		if (ret < 0)
+			break;
+
+		/* go to extremely low power mode */
+		wl1271_ps_elp_sleep(wl);
+		if (ret < 0)
+			break;
 		break;
 	case EVENT_EXIT_POWER_SAVE_FAIL:
-		wl1271_info("PSM exit failed");
+		wl1271_debug(DEBUG_PSM, "PSM exit failed");
+
+		if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+			wl->psm_entry_retry = 0;
+			break;
+		}
+
+		/* make sure the firmware goes to active mode */
+		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+					 false);
 		break;
 	case EVENT_EXIT_POWER_SAVE_SUCCESS:
 	default:

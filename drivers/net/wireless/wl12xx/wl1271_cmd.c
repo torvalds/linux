@@ -555,7 +555,7 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
@@ -576,7 +576,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
 	}
 
 	ps_params->ps_mode = ps_mode;
-	ps_params->send_null_data = 1;
+	ps_params->send_null_data = send;
 	ps_params->retries = 5;
 	ps_params->hang_over_period = 128;
 	ps_params->null_data_rate = cpu_to_le32(1); /* 1 Mbps */

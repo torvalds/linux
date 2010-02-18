@@ -1248,7 +1248,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 */
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
 			wl1271_info("psm enabled");
-			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+						 true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
@@ -1257,7 +1258,8 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		clear_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
 
 		if (test_bit(WL1271_FLAG_PSM, &wl->flags))
-			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE);
+			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+						 true);
 	}
 
 	if (conf->power_level != wl->power_level) {
@@ -1637,7 +1639,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags) &&
 			    !test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 				mode = STATION_POWER_SAVE_MODE;
-				ret = wl1271_ps_set_mode(wl, mode);
+				ret = wl1271_ps_set_mode(wl, mode, true);
 				if (ret < 0)
 					goto out_sleep;
 			}
