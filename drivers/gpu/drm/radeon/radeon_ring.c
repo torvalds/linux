@@ -100,6 +100,8 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 	if (tmp == NULL) {
 		return;
 	}
+	if (!tmp->fence->emited)
+		radeon_fence_unref(&tmp->fence);
 	mutex_lock(&rdev->ib_pool.mutex);
 	tmp->free = true;
 	mutex_unlock(&rdev->ib_pool.mutex);
