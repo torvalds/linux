@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/timex.h>
+#include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
@@ -37,7 +38,6 @@
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/mach/irq.h>
 
 #include <asm/hardware/vic.h>
 
