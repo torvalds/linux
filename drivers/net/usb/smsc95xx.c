@@ -384,29 +384,19 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 		pdata->mac_cr |= MAC_CR_MCPAS_;
 		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_HPFILT_);
 	} else if (!netdev_mc_empty(dev->net)) {
-		struct dev_mc_list *mc_list = dev->net->mc_list;
-		int count = 0;
+		struct dev_mc_list *mc_list;
 
 		pdata->mac_cr |= MAC_CR_HPFILT_;
 		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_MCPAS_);
 
-		while (mc_list) {
-			count++;
-			if (mc_list->dmi_addrlen == ETH_ALEN) {
-				u32 bitnum = smsc95xx_hash(mc_list->dmi_addr);
-				u32 mask = 0x01 << (bitnum & 0x1F);
-				if (bitnum & 0x20)
-					hash_hi |= mask;
-				else
-					hash_lo |= mask;
-			} else {
-				netdev_warn(dev->net, "dmi_addrlen != 6\n");
-			}
-			mc_list = mc_list->next;
+		netdev_for_each_mc_addr(mc_list, netdev) {
+			u32 bitnum = smsc95xx_hash(mc_list->dmi_addr);
+			u32 mask = 0x01 << (bitnum & 0x1F);
+			if (bitnum & 0x20)
+				hash_hi |= mask;
+			else
+				hash_lo |= mask;
 		}
-
-		if (count != ((u32) netdev_mc_count(dev->net)))
-			netdev_warn(dev->net, "mc_count != dev->mc_count\n");
 
 		netif_dbg(dev, drv, dev->net, "HASHH=0x%08X, HASHL=0x%08X\n",
 				   hash_hi, hash_lo);

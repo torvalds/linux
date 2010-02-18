@@ -452,15 +452,13 @@ static void mcs7830_data_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list = net->mc_list;
+		struct dev_mc_list *mc_list;
 		u32 crc_bits;
-		int i;
 
 		/* Build the multicast hash filter. */
-		for (i = 0; i < netdev_mc_count(net); i++) {
+		netdev_for_each_mc_addr(mc_list, net) {
 			crc_bits = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |= 1 << (crc_bits & 7);
-			mc_list = mc_list->next;
 		}
 	}
 }
