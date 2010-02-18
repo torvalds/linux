@@ -7,8 +7,8 @@
  * Updated by Ajit Prem
  * Copyright 2004 Motorola Inc.
  *
- * Further updated by Martyn Welch <martyn.welch@gefanuc.com>
- * Copyright 2009 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Further updated by Martyn Welch <martyn.welch@ge.com>
+ * Copyright 2009 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * Derived from ca91c042.h by Michael Wyrick
  *
