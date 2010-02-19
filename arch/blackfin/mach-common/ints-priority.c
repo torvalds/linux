@@ -325,7 +325,6 @@ static int error_int_mask;
 static void bfin_generic_error_mask_irq(unsigned int irq)
 {
 	error_int_mask &= ~(1L << (irq - IRQ_PPI_ERROR));
-
 	if (!error_int_mask)
 		bfin_internal_mask_irq(IRQ_GENERIC_ERROR);
 }
@@ -415,6 +414,127 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
+
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+static int mac_stat_int_mask;
+
+static void bfin_mac_status_ack_irq(unsigned int irq)
+{
+	switch (irq) {
+	case IRQ_MAC_MMCINT:
+		bfin_write_EMAC_MMC_TIRQS(
+			bfin_read_EMAC_MMC_TIRQE() &
+			bfin_read_EMAC_MMC_TIRQS());
+		bfin_write_EMAC_MMC_RIRQS(
+			bfin_read_EMAC_MMC_RIRQE() &
+			bfin_read_EMAC_MMC_RIRQS());
+		break;
+	case IRQ_MAC_RXFSINT:
+		bfin_write_EMAC_RX_STKY(
+			bfin_read_EMAC_RX_IRQE() &
+			bfin_read_EMAC_RX_STKY());
+		break;
+	case IRQ_MAC_TXFSINT:
+		bfin_write_EMAC_TX_STKY(
+			bfin_read_EMAC_TX_IRQE() &
+			bfin_read_EMAC_TX_STKY());
+		break;
+	case IRQ_MAC_WAKEDET:
+		 bfin_write_EMAC_WKUP_CTL(
+			bfin_read_EMAC_WKUP_CTL() | MPKS | RWKS);
+		break;
+	default:
+		/* These bits are W1C */
+		bfin_write_EMAC_SYSTAT(1L << (irq - IRQ_MAC_PHYINT));
+		break;
+	}
+}
+
+static void bfin_mac_status_mask_irq(unsigned int irq)
+{
+	mac_stat_int_mask &= ~(1L << (irq - IRQ_MAC_PHYINT));
+#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+	switch (irq) {
+	case IRQ_MAC_PHYINT:
+		bfin_write_EMAC_SYSCTL(bfin_read_EMAC_SYSCTL() & ~PHYIE);
+		break;
+	default:
+		break;
+	}
+#else
+	if (!mac_stat_int_mask)
+		bfin_internal_mask_irq(IRQ_MAC_ERROR);
+#endif
+	bfin_mac_status_ack_irq(irq);
+}
+
+static void bfin_mac_status_unmask_irq(unsigned int irq)
+{
+#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+	switch (irq) {
+	case IRQ_MAC_PHYINT:
+		bfin_write_EMAC_SYSCTL(bfin_read_EMAC_SYSCTL() | PHYIE);
+		break;
+	default:
+		break;
+	}
+#else
+	if (!mac_stat_int_mask)
+		bfin_internal_unmask_irq(IRQ_MAC_ERROR);
+#endif
+	mac_stat_int_mask |= 1L << (irq - IRQ_MAC_PHYINT);
+}
+
+#ifdef CONFIG_PM
+int bfin_mac_status_set_wake(unsigned int irq, unsigned int state)
+{
+#ifdef BF537_GENERIC_ERROR_INT_DEMUX
+	return bfin_internal_set_wake(IRQ_GENERIC_ERROR, state);
+#else
+	return bfin_internal_set_wake(IRQ_MAC_ERROR, state);
+#endif
+}
+#endif
+
+static struct irq_chip bfin_mac_status_irqchip = {
+	.name = "MACST",
+	.ack = bfin_ack_noop,
+	.mask_ack = bfin_mac_status_mask_irq,
+	.mask = bfin_mac_status_mask_irq,
+	.unmask = bfin_mac_status_unmask_irq,
+#ifdef CONFIG_PM
+	.set_wake = bfin_mac_status_set_wake,
+#endif
+};
+
+static void bfin_demux_mac_status_irq(unsigned int int_err_irq,
+				 struct irq_desc *inta_desc)
+{
+	int i, irq = 0;
+	u32 status = bfin_read_EMAC_SYSTAT();
+
+	for (i = 0; i < (IRQ_MAC_STMDONE - IRQ_MAC_PHYINT); i++)
+		if (status & (1L << i)) {
+			irq = IRQ_MAC_PHYINT + i;
+			break;
+		}
+
+	if (irq) {
+		if (mac_stat_int_mask & (1L << (irq - IRQ_MAC_PHYINT))) {
+			bfin_handle_irq(irq);
+		} else {
+			bfin_mac_status_ack_irq(irq);
+			pr_debug("IRQ %d:"
+				 " MASKED MAC ERROR INTERRUPT ASSERTED\n",
+				 irq);
+		}
+	} else
+		printk(KERN_ERR
+		       "%s : %s : LINE %d :\nIRQ ?: MAC ERROR"
+		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
+		       __func__, __FILE__, __LINE__);
+}
+#endif
 
 static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 {
@@ -1070,7 +1190,11 @@ int __init init_arch_irq(void)
 			set_irq_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
-
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+		case IRQ_MAC_ERROR:
+			set_irq_chained_handler(irq, bfin_demux_mac_status_irq);
+			break;
+#endif
 #ifdef CONFIG_SMP
 		case IRQ_SUPPLE_0:
 		case IRQ_SUPPLE_1:
@@ -1111,13 +1235,21 @@ int __init init_arch_irq(void)
 	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++)
 		set_irq_chip_and_handler(irq, &bfin_generic_error_irqchip,
 					 handle_level_irq);
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+	set_irq_chained_handler(IRQ_MAC_ERROR, bfin_demux_mac_status_irq);
+#endif
 #endif
 
+#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+	for (irq = IRQ_MAC_PHYINT; irq <= IRQ_MAC_STMDONE; irq++)
+		set_irq_chip_and_handler(irq, &bfin_mac_status_irqchip,
+					 handle_level_irq);
+#endif
 	/* if configured as edge, then will be changed to do_edge_IRQ */
-	for (irq = GPIO_IRQ_BASE; irq < NR_MACH_IRQS; irq++)
+	for (irq = GPIO_IRQ_BASE;
+		irq < (GPIO_IRQ_BASE + MAX_BLACKFIN_GPIOS); irq++)
 		set_irq_chip_and_handler(irq, &bfin_gpio_irqchip,
 					 handle_level_irq);
-
 
 	bfin_write_IMASK(0);
 	CSYNC();
