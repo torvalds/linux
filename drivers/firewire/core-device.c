@@ -492,29 +492,29 @@ static int read_rom(struct fw_device *device,
 	return rcode;
 }
 
-#define READ_BIB_ROM_SIZE	256
+#define MAX_CONFIG_ROM_SIZE 256
 
 /*
  * Read the bus info block, perform a speed probe, and read all of the rest of
  * the config ROM.  We do all this with a cached bus generation.  If the bus
- * generation changes under us, read_bus_info_block will fail and get retried.
+ * generation changes under us, read_config_rom will fail and get retried.
  * It's better to start all over in this case because the node from which we
  * are reading the ROM may have changed the ROM during the reset.
  */
-static int read_bus_info_block(struct fw_device *device, int generation)
+static int read_config_rom(struct fw_device *device, int generation)
 {
 	const u32 *old_rom, *new_rom;
 	u32 *rom, *stack;
 	u32 sp, key;
 	int i, end, length, ret = -1;
 
-	rom = kmalloc(sizeof(*rom) * READ_BIB_ROM_SIZE +
-		      sizeof(*stack) * READ_BIB_ROM_SIZE, GFP_KERNEL);
+	rom = kmalloc(sizeof(*rom) * MAX_CONFIG_ROM_SIZE +
+		      sizeof(*stack) * MAX_CONFIG_ROM_SIZE, GFP_KERNEL);
 	if (rom == NULL)
 		return -ENOMEM;
 
-	stack = &rom[READ_BIB_ROM_SIZE];
-	memset(rom, 0, sizeof(*rom) * READ_BIB_ROM_SIZE);
+	stack = &rom[MAX_CONFIG_ROM_SIZE];
+	memset(rom, 0, sizeof(*rom) * MAX_CONFIG_ROM_SIZE);
 
 	device->max_speed = SCODE_100;
 
@@ -581,14 +581,14 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 		 */
 		key = stack[--sp];
 		i = key & 0xffffff;
-		if (WARN_ON(i >= READ_BIB_ROM_SIZE))
+		if (WARN_ON(i >= MAX_CONFIG_ROM_SIZE))
 			goto out;
 
 		/* Read header quadlet for the block to get the length. */
 		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
 			goto out;
 		end = i + (rom[i] >> 16) + 1;
-		if (end > READ_BIB_ROM_SIZE) {
+		if (end > MAX_CONFIG_ROM_SIZE) {
 			/*
 			 * This block extends outside the config ROM which is
 			 * a firmware bug.  Ignore this whole block, i.e.
@@ -621,7 +621,7 @@ static int read_bus_info_block(struct fw_device *device, int generation)
 			 * fake immediate entry so that later iterators over
 			 * the ROM don't have to check offsets all the time.
 			 */
-			if (i + (rom[i] & 0xffffff) >= READ_BIB_ROM_SIZE) {
+			if (i + (rom[i] & 0xffffff) >= MAX_CONFIG_ROM_SIZE) {
 				fw_error("skipped unsupported ROM entry %x at %llx\n",
 					 rom[i],
 					 i * 4 | CSR_REGISTER_BASE | CSR_CONFIG_ROM);
@@ -971,7 +971,7 @@ static void fw_device_init(struct work_struct *work)
 	 * device.
 	 */
 
-	if (read_bus_info_block(device, device->generation) < 0) {
+	if (read_config_rom(device, device->generation) < 0) {
 		if (device->config_rom_retries < MAX_RETRIES &&
 		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
 			device->config_rom_retries++;
@@ -1088,7 +1088,7 @@ enum {
 };
 
 /* Reread and compare bus info block and header of root directory */
-static int reread_bus_info_block(struct fw_device *device, int generation)
+static int reread_config_rom(struct fw_device *device, int generation)
 {
 	u32 q;
 	int i;
@@ -1114,7 +1114,7 @@ static void fw_device_refresh(struct work_struct *work)
 	struct fw_card *card = device->card;
 	int node_id = device->node_id;
 
-	switch (reread_bus_info_block(device, device->generation)) {
+	switch (reread_config_rom(device, device->generation)) {
 	case REREAD_BIB_ERROR:
 		if (device->config_rom_retries < MAX_RETRIES / 2 &&
 		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
@@ -1148,7 +1148,7 @@ static void fw_device_refresh(struct work_struct *work)
 	 */
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 
-	if (read_bus_info_block(device, device->generation) < 0) {
+	if (read_config_rom(device, device->generation) < 0) {
 		if (device->config_rom_retries < MAX_RETRIES &&
 		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
 			device->config_rom_retries++;
