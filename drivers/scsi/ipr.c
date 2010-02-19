@@ -1079,7 +1079,7 @@ static char *ipr_format_resource_path(u8 *res_path, char *buffer)
 
 	sprintf(buffer, "%02X", res_path[0]);
 	for (i=1; res_path[i] != 0xff; i++)
-		sprintf(buffer, "%s:%02X", buffer, res_path[i]);
+		sprintf(buffer, "%s-%02X", buffer, res_path[i]);
 
 	return buffer;
 }
@@ -1385,8 +1385,12 @@ static void ipr_log_ext_vpd(struct ipr_ext_vpd *vpd)
 static void ipr_log_enhanced_cache_error(struct ipr_ioa_cfg *ioa_cfg,
 					 struct ipr_hostrcb *hostrcb)
 {
-	struct ipr_hostrcb_type_12_error *error =
-		&hostrcb->hcam.u.error.u.type_12_error;
+	struct ipr_hostrcb_type_12_error *error;
+
+	if (ioa_cfg->sis64)
+		error = &hostrcb->hcam.u.error64.u.type_12_error;
+	else
+		error = &hostrcb->hcam.u.error.u.type_12_error;
 
 	ipr_err("-----Current Configuration-----\n");
 	ipr_err("Cache Directory Card Information:\n");
@@ -1465,6 +1469,48 @@ static void ipr_log_enhanced_config_error(struct ipr_ioa_cfg *ioa_cfg,
 		ipr_err_separator;
 
 		ipr_phys_res_err(ioa_cfg, dev_entry->dev_res_addr, "Device %d", i + 1);
+		ipr_log_ext_vpd(&dev_entry->vpd);
+
+		ipr_err("-----New Device Information-----\n");
+		ipr_log_ext_vpd(&dev_entry->new_vpd);
+
+		ipr_err("Cache Directory Card Information:\n");
+		ipr_log_ext_vpd(&dev_entry->ioa_last_with_dev_vpd);
+
+		ipr_err("Adapter Card Information:\n");
+		ipr_log_ext_vpd(&dev_entry->cfc_last_with_dev_vpd);
+	}
+}
+
+/**
+ * ipr_log_sis64_config_error - Log a device error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_sis64_config_error(struct ipr_ioa_cfg *ioa_cfg,
+				       struct ipr_hostrcb *hostrcb)
+{
+	int errors_logged, i;
+	struct ipr_hostrcb64_device_data_entry_enhanced *dev_entry;
+	struct ipr_hostrcb_type_23_error *error;
+	char buffer[IPR_MAX_RES_PATH_LENGTH];
+
+	error = &hostrcb->hcam.u.error64.u.type_23_error;
+	errors_logged = be32_to_cpu(error->errors_logged);
+
+	ipr_err("Device Errors Detected/Logged: %d/%d\n",
+		be32_to_cpu(error->errors_detected), errors_logged);
+
+	dev_entry = error->dev;
+
+	for (i = 0; i < errors_logged; i++, dev_entry++) {
+		ipr_err_separator;
+
+		ipr_err("Device %d : %s", i + 1,
+			 ipr_format_resource_path(&dev_entry->res_path[0], &buffer[0]));
 		ipr_log_ext_vpd(&dev_entry->vpd);
 
 		ipr_err("-----New Device Information-----\n");
@@ -1672,7 +1718,11 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 {
 	struct ipr_hostrcb_type_17_error *error;
 
-	error = &hostrcb->hcam.u.error.u.type_17_error;
+	if (ioa_cfg->sis64)
+		error = &hostrcb->hcam.u.error64.u.type_17_error;
+	else
+		error = &hostrcb->hcam.u.error.u.type_17_error;
+
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
 	strim(error->failure_reason);
 
@@ -1777,6 +1827,42 @@ static void ipr_log_fabric_path(struct ipr_hostrcb *hostrcb,
 
 	ipr_err("Path state=%02X IOA Port=%d Cascade=%d Phy=%d\n", path_state,
 		fabric->ioa_port, fabric->cascaded_expander, fabric->phy);
+}
+
+/**
+ * ipr_log64_fabric_path - Log a fabric path error
+ * @hostrcb:	hostrcb struct
+ * @fabric:		fabric descriptor
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log64_fabric_path(struct ipr_hostrcb *hostrcb,
+				  struct ipr_hostrcb64_fabric_desc *fabric)
+{
+	int i, j;
+	u8 path_state = fabric->path_state;
+	u8 active = path_state & IPR_PATH_ACTIVE_MASK;
+	u8 state = path_state & IPR_PATH_STATE_MASK;
+	char buffer[IPR_MAX_RES_PATH_LENGTH];
+
+	for (i = 0; i < ARRAY_SIZE(path_active_desc); i++) {
+		if (path_active_desc[i].active != active)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(path_state_desc); j++) {
+			if (path_state_desc[j].state != state)
+				continue;
+
+			ipr_hcam_err(hostrcb, "%s %s: Resource Path=%s\n",
+				     path_active_desc[i].desc, path_state_desc[j].desc,
+				     ipr_format_resource_path(&fabric->res_path[0], &buffer[0]));
+			return;
+		}
+	}
+
+	ipr_err("Path state=%02X Resource Path=%s\n", path_state,
+		ipr_format_resource_path(&fabric->res_path[0], &buffer[0]));
 }
 
 static const struct {
@@ -1888,6 +1974,49 @@ static void ipr_log_path_elem(struct ipr_hostrcb *hostrcb,
 }
 
 /**
+ * ipr_log64_path_elem - Log a fabric path element.
+ * @hostrcb:	hostrcb struct
+ * @cfg:		fabric path element struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log64_path_elem(struct ipr_hostrcb *hostrcb,
+				struct ipr_hostrcb64_config_element *cfg)
+{
+	int i, j;
+	u8 desc_id = cfg->descriptor_id & IPR_DESCRIPTOR_MASK;
+	u8 type = cfg->type_status & IPR_PATH_CFG_TYPE_MASK;
+	u8 status = cfg->type_status & IPR_PATH_CFG_STATUS_MASK;
+	char buffer[IPR_MAX_RES_PATH_LENGTH];
+
+	if (type == IPR_PATH_CFG_NOT_EXIST || desc_id != IPR_DESCRIPTOR_SIS64)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(path_type_desc); i++) {
+		if (path_type_desc[i].type != type)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(path_status_desc); j++) {
+			if (path_status_desc[j].status != status)
+				continue;
+
+			ipr_hcam_err(hostrcb, "%s %s: Resource Path=%s, Link rate=%s, WWN=%08X%08X\n",
+				     path_status_desc[j].desc, path_type_desc[i].desc,
+				     ipr_format_resource_path(&cfg->res_path[0], &buffer[0]),
+				     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+				     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+			return;
+		}
+	}
+	ipr_hcam_err(hostrcb, "Path element=%02X: Resource Path=%s, Link rate=%s "
+		     "WWN=%08X%08X\n", cfg->type_status,
+		     ipr_format_resource_path(&cfg->res_path[0], &buffer[0]),
+		     link_rate[cfg->link_rate & IPR_PHY_LINK_RATE_MASK],
+		     be32_to_cpu(cfg->wwid[0]), be32_to_cpu(cfg->wwid[1]));
+}
+
+/**
  * ipr_log_fabric_error - Log a fabric error.
  * @ioa_cfg:	ioa config struct
  * @hostrcb:	hostrcb struct
@@ -1918,6 +2047,96 @@ static void ipr_log_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
 
 		add_len -= be16_to_cpu(fabric->length);
 		fabric = (struct ipr_hostrcb_fabric_desc *)
+			((unsigned long)fabric + be16_to_cpu(fabric->length));
+	}
+
+	ipr_log_hex_data(ioa_cfg, (u32 *)fabric, add_len);
+}
+
+/**
+ * ipr_log_sis64_array_error - Log a sis64 array error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_sis64_array_error(struct ipr_ioa_cfg *ioa_cfg,
+				      struct ipr_hostrcb *hostrcb)
+{
+	int i, num_entries;
+	struct ipr_hostrcb_type_24_error *error;
+	struct ipr_hostrcb64_array_data_entry *array_entry;
+	char buffer[IPR_MAX_RES_PATH_LENGTH];
+	const u8 zero_sn[IPR_SERIAL_NUM_LEN] = { [0 ... IPR_SERIAL_NUM_LEN-1] = '0' };
+
+	error = &hostrcb->hcam.u.error64.u.type_24_error;
+
+	ipr_err_separator;
+
+	ipr_err("RAID %s Array Configuration: %s\n",
+		error->protection_level,
+		ipr_format_resource_path(&error->last_res_path[0], &buffer[0]));
+
+	ipr_err_separator;
+
+	array_entry = error->array_member;
+	num_entries = min_t(u32, be32_to_cpu(error->num_entries),
+			    sizeof(error->array_member));
+
+	for (i = 0; i < num_entries; i++, array_entry++) {
+
+		if (!memcmp(array_entry->vpd.vpd.sn, zero_sn, IPR_SERIAL_NUM_LEN))
+			continue;
+
+		if (error->exposed_mode_adn == i)
+			ipr_err("Exposed Array Member %d:\n", i);
+		else
+			ipr_err("Array Member %d:\n", i);
+
+		ipr_err("Array Member %d:\n", i);
+		ipr_log_ext_vpd(&array_entry->vpd);
+		ipr_err("Current Location: %s",
+			 ipr_format_resource_path(&array_entry->res_path[0], &buffer[0]));
+		ipr_err("Expected Location: %s",
+			 ipr_format_resource_path(&array_entry->expected_res_path[0], &buffer[0]));
+
+		ipr_err_separator;
+	}
+}
+
+/**
+ * ipr_log_sis64_fabric_error - Log a sis64 fabric error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_sis64_fabric_error(struct ipr_ioa_cfg *ioa_cfg,
+				       struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_30_error *error;
+	struct ipr_hostrcb64_fabric_desc *fabric;
+	struct ipr_hostrcb64_config_element *cfg;
+	int i, add_len;
+
+	error = &hostrcb->hcam.u.error64.u.type_30_error;
+
+	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+	ipr_hcam_err(hostrcb, "%s\n", error->failure_reason);
+
+	add_len = be32_to_cpu(hostrcb->hcam.length) -
+		(offsetof(struct ipr_hostrcb64_error, u) +
+		 offsetof(struct ipr_hostrcb_type_30_error, desc));
+
+	for (i = 0, fabric = error->desc; i < error->num_entries; i++) {
+		ipr_log64_fabric_path(hostrcb, fabric);
+		for_each_fabric_cfg(fabric, cfg)
+			ipr_log64_path_elem(hostrcb, cfg);
+
+		add_len -= be16_to_cpu(fabric->length);
+		fabric = (struct ipr_hostrcb64_fabric_desc *)
 			((unsigned long)fabric + be16_to_cpu(fabric->length));
 	}
 
@@ -1983,13 +2202,16 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	if (hostrcb->hcam.notifications_lost == IPR_HOST_RCB_NOTIFICATIONS_LOST)
 		dev_err(&ioa_cfg->pdev->dev, "Error notifications lost\n");
 
-	ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
+	if (ioa_cfg->sis64)
+		ioasc = be32_to_cpu(hostrcb->hcam.u.error64.fd_ioasc);
+	else
+		ioasc = be32_to_cpu(hostrcb->hcam.u.error.fd_ioasc);
 
-	if (ioasc == IPR_IOASC_BUS_WAS_RESET ||
-	    ioasc == IPR_IOASC_BUS_WAS_RESET_BY_OTHER) {
+	if (!ioa_cfg->sis64 && (ioasc == IPR_IOASC_BUS_WAS_RESET ||
+	    ioasc == IPR_IOASC_BUS_WAS_RESET_BY_OTHER)) {
 		/* Tell the midlayer we had a bus reset so it will handle the UA properly */
 		scsi_report_bus_reset(ioa_cfg->host,
-				      hostrcb->hcam.u.error.failing_dev_res_addr.bus);
+				      hostrcb->hcam.u.error.fd_res_addr.bus);
 	}
 
 	error_index = ipr_get_error(ioasc);
@@ -2037,6 +2259,16 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	case IPR_HOST_RCB_OVERLAY_ID_20:
 		ipr_log_fabric_error(ioa_cfg, hostrcb);
 		break;
+	case IPR_HOST_RCB_OVERLAY_ID_23:
+		ipr_log_sis64_config_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_24:
+	case IPR_HOST_RCB_OVERLAY_ID_26:
+		ipr_log_sis64_array_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_30:
+		ipr_log_sis64_fabric_error(ioa_cfg, hostrcb);
+		break;
 	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:
 	default:
@@ -2061,7 +2293,12 @@ static void ipr_process_error(struct ipr_cmnd *ipr_cmd)
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_hostrcb *hostrcb = ipr_cmd->u.hostrcb;
 	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
-	u32 fd_ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
+	u32 fd_ioasc;
+
+	if (ioa_cfg->sis64)
+		fd_ioasc = be32_to_cpu(hostrcb->hcam.u.error64.fd_ioasc);
+	else
+		fd_ioasc = be32_to_cpu(hostrcb->hcam.u.error.fd_ioasc);
 
 	list_del(&hostrcb->queue);
 	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
@@ -6996,7 +7233,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 
 	if (!rc) {
 		ipr_handle_log_data(ioa_cfg, hostrcb);
-		ioasc = be32_to_cpu(hostrcb->hcam.u.error.failing_dev_ioasc);
+		ioasc = be32_to_cpu(hostrcb->hcam.u.error.fd_ioasc);
 		if (ioasc == IPR_IOASC_NR_IOA_RESET_REQUIRED &&
 		    ioa_cfg->sdt_state == GET_DUMP)
 			ioa_cfg->sdt_state = WAIT_FOR_DUMP;

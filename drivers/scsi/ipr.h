@@ -754,10 +754,27 @@ struct ipr_hostrcb_device_data_entry_enhanced {
 	struct ipr_ext_vpd cfc_last_with_dev_vpd;
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb64_device_data_entry_enhanced {
+	struct ipr_ext_vpd vpd;
+	u8 ccin[4];
+	u8 res_path[8];
+	struct ipr_ext_vpd new_vpd;
+	u8 new_ccin[4];
+	struct ipr_ext_vpd ioa_last_with_dev_vpd;
+	struct ipr_ext_vpd cfc_last_with_dev_vpd;
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_array_data_entry {
 	struct ipr_vpd vpd;
 	struct ipr_res_addr expected_dev_res_addr;
 	struct ipr_res_addr dev_res_addr;
+}__attribute__((packed, aligned (4)));
+
+struct ipr_hostrcb64_array_data_entry {
+	struct ipr_ext_vpd vpd;
+	u8 ccin[4];
+	u8 expected_res_path[8];
+	u8 res_path[8];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_array_data_entry_enhanced {
@@ -811,6 +828,14 @@ struct ipr_hostrcb_type_13_error {
 	struct ipr_hostrcb_device_data_entry_enhanced dev[3];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_type_23_error {
+	struct ipr_ext_vpd ioa_vpd;
+	struct ipr_ext_vpd cfc_vpd;
+	__be32 errors_detected;
+	__be32 errors_logged;
+	struct ipr_hostrcb64_device_data_entry_enhanced dev[3];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_type_04_error {
 	struct ipr_vpd ioa_vpd;
 	struct ipr_vpd cfc_vpd;
@@ -836,6 +861,22 @@ struct ipr_hostrcb_type_14_error {
 	u8 protection_level[8];
 	__be32 num_entries;
 	struct ipr_hostrcb_array_data_entry_enhanced array_member[18];
+}__attribute__((packed, aligned (4)));
+
+struct ipr_hostrcb_type_24_error {
+	struct ipr_ext_vpd ioa_vpd;
+	struct ipr_ext_vpd cfc_vpd;
+	u8 reserved[2];
+	u8 exposed_mode_adn;
+#define IPR_INVALID_ARRAY_DEV_NUM		0xff
+	u8 array_id;
+	u8 last_res_path[8];
+	u8 protection_level[8];
+	struct ipr_ext_vpd array_vpd;
+	u8 description[16];
+	u8 reserved2[3];
+	u8 num_entries;
+	struct ipr_hostrcb64_array_data_entry array_member[32];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_07_error {
@@ -875,6 +916,22 @@ struct ipr_hostrcb_config_element {
 	__be32 wwid[2];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb64_config_element {
+	__be16 length;
+	u8 descriptor_id;
+#define IPR_DESCRIPTOR_MASK		0xC0
+#define IPR_DESCRIPTOR_SIS64		0x00
+
+	u8 reserved;
+	u8 type_status;
+
+	u8 reserved2[2];
+	u8 link_rate;
+
+	u8 res_path[8];
+	__be32 wwid[2];
+}__attribute__((packed, aligned (8)));
+
 struct ipr_hostrcb_fabric_desc {
 	__be16 length;
 	u8 ioa_port;
@@ -896,6 +953,20 @@ struct ipr_hostrcb_fabric_desc {
 	struct ipr_hostrcb_config_element elem[1];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb64_fabric_desc {
+	__be16 length;
+	u8 descriptor_id;
+
+	u8 reserved;
+	u8 path_state;
+
+	u8 reserved2[2];
+	u8 res_path[8];
+	u8 reserved3[6];
+	__be16 num_entries;
+	struct ipr_hostrcb64_config_element elem[1];
+}__attribute__((packed, aligned (8)));
+
 #define for_each_fabric_cfg(fabric, cfg) \
 		for (cfg = (fabric)->elem; \
 			cfg < ((fabric)->elem + be16_to_cpu((fabric)->num_entries)); \
@@ -908,10 +979,17 @@ struct ipr_hostrcb_type_20_error {
 	struct ipr_hostrcb_fabric_desc desc[1];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_type_30_error {
+	u8 failure_reason[64];
+	u8 reserved[3];
+	u8 num_entries;
+	struct ipr_hostrcb64_fabric_desc desc[1];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_error {
-	__be32 failing_dev_ioasc;
-	struct ipr_res_addr failing_dev_res_addr;
-	__be32 failing_dev_res_handle;
+	__be32 fd_ioasc;
+	struct ipr_res_addr fd_res_addr;
+	__be32 fd_res_handle;
 	__be32 prc;
 	union {
 		struct ipr_hostrcb_type_ff_error type_ff_error;
@@ -927,6 +1005,26 @@ struct ipr_hostrcb_error {
 		struct ipr_hostrcb_type_20_error type_20_error;
 	} u;
 }__attribute__((packed, aligned (4)));
+
+struct ipr_hostrcb64_error {
+	__be32 fd_ioasc;
+	__be32 ioa_fw_level;
+	__be32 fd_res_handle;
+	__be32 prc;
+	__be64 fd_dev_id;
+	__be64 fd_lun;
+	u8 fd_res_path[8];
+	__be64 time_stamp;
+	u8 reserved[2];
+	union {
+		struct ipr_hostrcb_type_ff_error type_ff_error;
+		struct ipr_hostrcb_type_12_error type_12_error;
+		struct ipr_hostrcb_type_17_error type_17_error;
+		struct ipr_hostrcb_type_23_error type_23_error;
+		struct ipr_hostrcb_type_24_error type_24_error;
+		struct ipr_hostrcb_type_30_error type_30_error;
+	} u;
+}__attribute__((packed, aligned (8)));
 
 struct ipr_hostrcb_raw {
 	__be32 data[sizeof(struct ipr_hostrcb_error)/sizeof(__be32)];
@@ -965,7 +1063,11 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OVERLAY_ID_16				0x16
 #define IPR_HOST_RCB_OVERLAY_ID_17				0x17
 #define IPR_HOST_RCB_OVERLAY_ID_20				0x20
-#define IPR_HOST_RCB_OVERLAY_ID_DEFAULT			0xFF
+#define IPR_HOST_RCB_OVERLAY_ID_23				0x23
+#define IPR_HOST_RCB_OVERLAY_ID_24				0x24
+#define IPR_HOST_RCB_OVERLAY_ID_26				0x26
+#define IPR_HOST_RCB_OVERLAY_ID_30				0x30
+#define IPR_HOST_RCB_OVERLAY_ID_DEFAULT				0xFF
 
 	u8 reserved1[3];
 	__be32 ilid;
@@ -975,6 +1077,7 @@ struct ipr_hcam {
 
 	union {
 		struct ipr_hostrcb_error error;
+		struct ipr_hostrcb64_error error64;
 		struct ipr_hostrcb_cfg_ch_not ccn;
 		struct ipr_hostrcb_raw raw;
 	} u;
@@ -985,6 +1088,7 @@ struct ipr_hostrcb {
 	dma_addr_t hostrcb_dma;
 	struct list_head queue;
 	struct ipr_ioa_cfg *ioa_cfg;
+	char rp_buffer[IPR_MAX_RES_PATH_LENGTH];
 };
 
 /* IPR smart dump table structures */
@@ -1521,14 +1625,21 @@ struct ipr_ucode_image_header {
 }
 
 #define ipr_hcam_err(hostrcb, fmt, ...)					\
-{													\
-	if (ipr_is_device(&(hostrcb)->hcam.u.error.failing_dev_res_addr)) {		\
-		ipr_ra_err((hostrcb)->ioa_cfg,							\
-				(hostrcb)->hcam.u.error.failing_dev_res_addr,			\
-				fmt, ##__VA_ARGS__);							\
-	} else {											\
-		dev_err(&(hostrcb)->ioa_cfg->pdev->dev, fmt, ##__VA_ARGS__);		\
-	}												\
+{									\
+	if (ipr_is_device(hostrcb)) {					\
+		if ((hostrcb)->ioa_cfg->sis64) {			\
+			printk(KERN_ERR IPR_NAME ": %s: " fmt, 		\
+				ipr_format_resource_path(&hostrcb->hcam.u.error64.fd_res_path[0], \
+					&hostrcb->rp_buffer[0]),	\
+				__VA_ARGS__);				\
+		} else {						\
+			ipr_ra_err((hostrcb)->ioa_cfg,			\
+				(hostrcb)->hcam.u.error.fd_res_addr,	\
+				fmt, __VA_ARGS__);			\
+		}							\
+	} else {							\
+		dev_err(&(hostrcb)->ioa_cfg->pdev->dev, fmt, __VA_ARGS__); \
+	}								\
 }
 
 #define ipr_trace ipr_dbg("%s: %s: Line: %d\n",\
@@ -1637,18 +1748,29 @@ static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
 }
 
 /**
- * ipr_is_device - Determine if resource address is that of a device
- * @res_addr:	resource address struct
+ * ipr_is_device - Determine if the hostrcb structure is related to a device
+ * @hostrcb:	host resource control blocks struct
  *
  * Return value:
  * 	1 if AF / 0 if not AF
  **/
-static inline int ipr_is_device(struct ipr_res_addr *res_addr)
+static inline int ipr_is_device(struct ipr_hostrcb *hostrcb)
 {
-	if ((res_addr->bus < IPR_MAX_NUM_BUSES) &&
-	    (res_addr->target < (IPR_MAX_NUM_TARGETS_PER_BUS - 1)))
-		return 1;
+	struct ipr_res_addr *res_addr;
+	u8 *res_path;
 
+	if (hostrcb->ioa_cfg->sis64) {
+		res_path = &hostrcb->hcam.u.error64.fd_res_path[0];
+		if ((res_path[0] == 0x00 || res_path[0] == 0x80 ||
+		    res_path[0] == 0x81) && res_path[2] != 0xFF)
+			return 1;
+	} else {
+		res_addr = &hostrcb->hcam.u.error.fd_res_addr;
+
+		if ((res_addr->bus < IPR_MAX_NUM_BUSES) &&
+		    (res_addr->target < (IPR_MAX_NUM_TARGETS_PER_BUS - 1)))
+			return 1;
+	}
 	return 0;
 }
 
