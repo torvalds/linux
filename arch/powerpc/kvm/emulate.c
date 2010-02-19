@@ -62,6 +62,8 @@
 #define OP_STBU 39
 #define OP_LHZ  40
 #define OP_LHZU 41
+#define OP_LHA  42
+#define OP_LHAU 43
 #define OP_STH  44
 #define OP_STHU 45
 
@@ -447,6 +449,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ra = get_ra(inst);
 		rt = get_rt(inst);
 		emulated = kvmppc_handle_load(run, vcpu, rt, 2, 1);
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
+		break;
+
+	case OP_LHA:
+		rt = get_rt(inst);
+		emulated = kvmppc_handle_loads(run, vcpu, rt, 2, 1);
+		break;
+
+	case OP_LHAU:
+		ra = get_ra(inst);
+		rt = get_rt(inst);
+		emulated = kvmppc_handle_loads(run, vcpu, rt, 2, 1);
 		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 

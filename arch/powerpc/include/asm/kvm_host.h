@@ -270,6 +270,7 @@ struct kvm_vcpu_arch {
 
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
+	u8 mmio_sign_extend;
 	u8 dcr_needed;
 	u8 dcr_is_write;
 

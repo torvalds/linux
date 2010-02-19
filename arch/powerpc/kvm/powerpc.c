@@ -301,6 +301,22 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 		}
 	}
 
+	if (vcpu->arch.mmio_sign_extend) {
+		switch (run->mmio.len) {
+#ifdef CONFIG_PPC64
+		case 4:
+			gpr = (s64)(s32)gpr;
+			break;
+#endif
+		case 2:
+			gpr = (s64)(s16)gpr;
+			break;
+		case 1:
+			gpr = (s64)(s8)gpr;
+			break;
+		}
+	}
+
 	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
 
 	switch (vcpu->arch.io_gpr & KVM_REG_EXT_MASK) {
@@ -338,8 +354,21 @@ int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	vcpu->arch.mmio_is_bigendian = is_bigendian;
 	vcpu->mmio_needed = 1;
 	vcpu->mmio_is_write = 0;
+	vcpu->arch.mmio_sign_extend = 0;
 
 	return EMULATE_DO_MMIO;
+}
+
+/* Same as above, but sign extends */
+int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
+                        unsigned int rt, unsigned int bytes, int is_bigendian)
+{
+	int r;
+
+	r = kvmppc_handle_load(run, vcpu, rt, bytes, is_bigendian);
+	vcpu->arch.mmio_sign_extend = 1;
+
+	return r;
 }
 
 int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,

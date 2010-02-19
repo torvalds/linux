@@ -48,6 +48,9 @@ extern void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu);
 extern int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
                               unsigned int rt, unsigned int bytes,
                               int is_bigendian);
+extern int kvmppc_handle_loads(struct kvm_run *run, struct kvm_vcpu *vcpu,
+                               unsigned int rt, unsigned int bytes,
+                               int is_bigendian);
 extern int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
                                u64 val, unsigned int bytes, int is_bigendian);
 
