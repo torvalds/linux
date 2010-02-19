@@ -45,8 +45,8 @@
 #include "iwl-sta.h"
 #include "iwl-3945.h"
 #include "iwl-eeprom.h"
-#include "iwl-helpers.h"
 #include "iwl-core.h"
+#include "iwl-helpers.h"
 #include "iwl-led.h"
 #include "iwl-3945-led.h"
 

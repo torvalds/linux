@@ -53,8 +53,8 @@
 #include "iwl-commands.h"
 #include "iwl-sta.h"
 #include "iwl-3945.h"
-#include "iwl-helpers.h"
 #include "iwl-core.h"
+#include "iwl-helpers.h"
 #include "iwl-dev.h"
 #include "iwl-spectrum.h"
 
