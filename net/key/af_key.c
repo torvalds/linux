@@ -1768,8 +1768,11 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	audit_info.secid = 0;
 	err = xfrm_state_flush(net, proto, &audit_info);
 	err2 = unicast_flush_resp(sk, hdr);
-	if (err || err2)
+	if (err || err2) {
+		if (err == -ESRCH) /* empty table - go quietly */
+			err = 0;
 		return err ? err : err2;
+	}
 
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
