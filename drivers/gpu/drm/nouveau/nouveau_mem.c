@@ -291,7 +291,13 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 
 	virt = ((virt - dev_priv->vm_vram_base) >> 16) << 1;
 	size = (size >> 16) << 1;
-	phys |= ((uint64_t)flags << 32) | 1;
+
+	phys |= ((uint64_t)flags << 32);
+	phys |= 1;
+	if (dev_priv->vram_sys_base) {
+		phys += dev_priv->vram_sys_base;
+		phys |= 0x30;
+	}
 
 	dev_priv->engine.instmem.prepare_access(dev, true);
 	while (size) {
