@@ -979,6 +979,7 @@ static void svm_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 
 static void update_cr0_intercept(struct vcpu_svm *svm)
 {
+	struct vmcb *vmcb = svm->vmcb;
 	ulong gcr0 = svm->vcpu.arch.cr0;
 	u64 *hcr0 = &svm->vmcb->save.cr0;
 
@@ -990,11 +991,25 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 
 
 	if (gcr0 == *hcr0 && svm->vcpu.fpu_active) {
-		svm->vmcb->control.intercept_cr_read &= ~INTERCEPT_CR0_MASK;
-		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR0_MASK;
+		vmcb->control.intercept_cr_read &= ~INTERCEPT_CR0_MASK;
+		vmcb->control.intercept_cr_write &= ~INTERCEPT_CR0_MASK;
+		if (is_nested(svm)) {
+			struct vmcb *hsave = svm->nested.hsave;
+
+			hsave->control.intercept_cr_read  &= ~INTERCEPT_CR0_MASK;
+			hsave->control.intercept_cr_write &= ~INTERCEPT_CR0_MASK;
+			vmcb->control.intercept_cr_read  |= svm->nested.intercept_cr_read;
+			vmcb->control.intercept_cr_write |= svm->nested.intercept_cr_write;
+		}
 	} else {
 		svm->vmcb->control.intercept_cr_read |= INTERCEPT_CR0_MASK;
 		svm->vmcb->control.intercept_cr_write |= INTERCEPT_CR0_MASK;
+		if (is_nested(svm)) {
+			struct vmcb *hsave = svm->nested.hsave;
+
+			hsave->control.intercept_cr_read |= INTERCEPT_CR0_MASK;
+			hsave->control.intercept_cr_write |= INTERCEPT_CR0_MASK;
+		}
 	}
 }
 
@@ -1269,7 +1284,22 @@ static int ud_interception(struct vcpu_svm *svm)
 static void svm_fpu_activate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
+	u32 excp;
+
+	if (is_nested(svm)) {
+		u32 h_excp, n_excp;
+
+		h_excp  = svm->nested.hsave->control.intercept_exceptions;
+		n_excp  = svm->nested.intercept_exceptions;
+		h_excp &= ~(1 << NM_VECTOR);
+		excp    = h_excp | n_excp;
+	} else {
+		excp  = svm->vmcb->control.intercept_exceptions;
+	        excp &= ~(1 << NM_VECTOR);
+	}
+
+	svm->vmcb->control.intercept_exceptions = excp;
+
 	svm->vcpu.fpu_active = 1;
 	update_cr0_intercept(svm);
 }
@@ -1512,6 +1542,9 @@ static int nested_svm_exit_special(struct vcpu_svm *svm)
 	case SVM_EXIT_EXCP_BASE + PF_VECTOR:
 		if (!npt_enabled)
 			return NESTED_EXIT_HOST;
+		break;
+	case SVM_EXIT_EXCP_BASE + NM_VECTOR:
+		nm_interception(svm);
 		break;
 	default:
 		break;
@@ -2980,8 +3013,10 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	update_cr0_intercept(svm);
 	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
+	if (is_nested(svm))
+		svm->nested.hsave->control.intercept_exceptions |= 1 << NM_VECTOR;
+	update_cr0_intercept(svm);
 }
 
 static struct kvm_x86_ops svm_x86_ops = {
