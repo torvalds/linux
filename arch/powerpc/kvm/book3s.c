@@ -1112,8 +1112,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	struct kvm_vcpu *vcpu;
 	int err;
 
-	vcpu_book3s = (struct kvmppc_vcpu_book3s *)__get_free_pages( GFP_KERNEL | __GFP_ZERO,
-			get_order(sizeof(struct kvmppc_vcpu_book3s)));
+	vcpu_book3s = vmalloc(sizeof(struct kvmppc_vcpu_book3s));
 	if (!vcpu_book3s) {
 		err = -ENOMEM;
 		goto out;
@@ -1151,7 +1150,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	return vcpu;
 
 free_vcpu:
-	free_pages((long)vcpu_book3s, get_order(sizeof(struct kvmppc_vcpu_book3s)));
+	vfree(vcpu_book3s);
 out:
 	return ERR_PTR(err);
 }
@@ -1162,7 +1161,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 
 	__destroy_context(vcpu_book3s->context_id);
 	kvm_vcpu_uninit(vcpu);
-	free_pages((long)vcpu_book3s, get_order(sizeof(struct kvmppc_vcpu_book3s)));
+	vfree(vcpu_book3s);
 }
 
 extern int __kvmppc_vcpu_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
