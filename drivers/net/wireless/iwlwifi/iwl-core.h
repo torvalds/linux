@@ -603,7 +603,7 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
 #define STATUS_HCMD_ACTIVE	0	/* host command in progress */
-#define STATUS_HCMD_SYNC_ACTIVE	1	/* sync host command in progress */
+/* 1 is unused (used to be STATUS_HCMD_SYNC_ACTIVE) */
 #define STATUS_INT_ENABLED	2
 #define STATUS_RF_KILL_HW	3
 #define STATUS_CT_KILL		4
