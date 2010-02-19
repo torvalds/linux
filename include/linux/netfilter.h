@@ -212,8 +212,9 @@ NF_HOOK_COND(uint8_t pf, unsigned int hook, struct sk_buff *skb,
 	     struct net_device *in, struct net_device *out,
 	     int (*okfn)(struct sk_buff *), bool cond)
 {
-	int ret = 1;
-	if (cond ||
+	int ret;
+
+	if (!cond ||
 	    (ret = nf_hook_thresh(pf, hook, skb, in, out, okfn, INT_MIN) == 1))
 		ret = okfn(skb);
 	return ret;
