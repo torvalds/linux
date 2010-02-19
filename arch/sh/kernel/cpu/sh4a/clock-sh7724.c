@@ -127,6 +127,16 @@ struct clk *main_clks[] = {
 	&div3_clk,
 };
 
+static void div4_kick(struct clk *clk)
+{
+	unsigned long value;
+
+	/* set KICK bit in FRQCRA to update hardware setting */
+	value = __raw_readl(FRQCRA);
+	value |= (1 << 31);
+	__raw_writel(value, FRQCRA);
+}
+
 static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 0, 24, 32, 36, 48, 0, 72 };
 
 static struct clk_div_mult_table div4_div_mult_table = {
@@ -136,6 +146,7 @@ static struct clk_div_mult_table div4_div_mult_table = {
 
 static struct clk_div4_table div4_table = {
 	.div_mult_table = &div4_div_mult_table,
+	.kick = div4_kick,
 };
 
 enum { DIV4_I, DIV4_SH, DIV4_B, DIV4_P, DIV4_M1, DIV4_NR };

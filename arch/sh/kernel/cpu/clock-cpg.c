@@ -188,6 +188,7 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 
 static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 {
+	struct clk_div4_table *d4t = clk->priv;
 	unsigned long value;
 	int idx = clk_rate_table_find(clk, clk->freq_table, rate);
 	if (idx < 0)
@@ -197,6 +198,9 @@ static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate, int algo_id
 	value &= ~(0xf << clk->enable_bit);
 	value |= (idx << clk->enable_bit);
 	__raw_writel(value, clk->enable_reg);
+
+	if (d4t->kick)
+		d4t->kick(clk);
 
 	return 0;
 }

@@ -148,6 +148,7 @@ int sh_clk_mstp32_register(struct clk *clks, int nr);
 
 struct clk_div4_table {
 	struct clk_div_mult_table *div_mult_table;
+	void (*kick)(struct clk *clk);
 };
 
 int sh_clk_div4_register(struct clk *clks, int nr,
