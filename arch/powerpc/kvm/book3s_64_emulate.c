@@ -42,6 +42,15 @@
 /* DCBZ is actually 1014, but we patch it to 1010 so we get a trap */
 #define OP_31_XOP_DCBZ		1010
 
+#define SPRN_GQR0		912
+#define SPRN_GQR1		913
+#define SPRN_GQR2		914
+#define SPRN_GQR3		915
+#define SPRN_GQR4		916
+#define SPRN_GQR5		917
+#define SPRN_GQR6		918
+#define SPRN_GQR7		919
+
 int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                            unsigned int inst, int *advance)
 {
@@ -268,7 +277,29 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_HID2:
 		to_book3s(vcpu)->hid[2] = spr_val;
 		break;
+	case SPRN_HID2_GEKKO:
+		to_book3s(vcpu)->hid[2] = spr_val;
+		/* HID2.PSE controls paired single on gekko */
+		switch (vcpu->arch.pvr) {
+		case 0x00080200:	/* lonestar 2.0 */
+		case 0x00088202:	/* lonestar 2.2 */
+		case 0x70000100:	/* gekko 1.0 */
+		case 0x00080100:	/* gekko 2.0 */
+		case 0x00083203:	/* gekko 2.3a */
+		case 0x00083213:	/* gekko 2.3b */
+		case 0x00083204:	/* gekko 2.4 */
+		case 0x00083214:	/* gekko 2.4e (8SE) - retail HW2 */
+			if (spr_val & (1 << 29)) { /* HID2.PSE */
+				vcpu->arch.hflags |= BOOK3S_HFLAG_PAIRED_SINGLE;
+				kvmppc_giveup_ext(vcpu, MSR_FP);
+			} else {
+				vcpu->arch.hflags &= ~BOOK3S_HFLAG_PAIRED_SINGLE;
+			}
+			break;
+		}
+		break;
 	case SPRN_HID4:
+	case SPRN_HID4_GEKKO:
 		to_book3s(vcpu)->hid[4] = spr_val;
 		break;
 	case SPRN_HID5:
@@ -278,12 +309,30 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		    (mfmsr() & MSR_HV))
 			vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
 		break;
+	case SPRN_GQR0:
+	case SPRN_GQR1:
+	case SPRN_GQR2:
+	case SPRN_GQR3:
+	case SPRN_GQR4:
+	case SPRN_GQR5:
+	case SPRN_GQR6:
+	case SPRN_GQR7:
+		to_book3s(vcpu)->gqr[sprn - SPRN_GQR0] = spr_val;
+		break;
 	case SPRN_ICTC:
 	case SPRN_THRM1:
 	case SPRN_THRM2:
 	case SPRN_THRM3:
 	case SPRN_CTRLF:
 	case SPRN_CTRLT:
+	case SPRN_L2CR:
+	case SPRN_MMCR0_GEKKO:
+	case SPRN_MMCR1_GEKKO:
+	case SPRN_PMC1_GEKKO:
+	case SPRN_PMC2_GEKKO:
+	case SPRN_PMC3_GEKKO:
+	case SPRN_PMC4_GEKKO:
+	case SPRN_WPAR_GEKKO:
 		break;
 	default:
 		printk(KERN_INFO "KVM: invalid SPR write: %d\n", sprn);
@@ -320,19 +369,40 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[1]);
 		break;
 	case SPRN_HID2:
+	case SPRN_HID2_GEKKO:
 		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[2]);
 		break;
 	case SPRN_HID4:
+	case SPRN_HID4_GEKKO:
 		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[4]);
 		break;
 	case SPRN_HID5:
 		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[5]);
+		break;
+	case SPRN_GQR0:
+	case SPRN_GQR1:
+	case SPRN_GQR2:
+	case SPRN_GQR3:
+	case SPRN_GQR4:
+	case SPRN_GQR5:
+	case SPRN_GQR6:
+	case SPRN_GQR7:
+		kvmppc_set_gpr(vcpu, rt,
+			       to_book3s(vcpu)->gqr[sprn - SPRN_GQR0]);
 		break;
 	case SPRN_THRM1:
 	case SPRN_THRM2:
 	case SPRN_THRM3:
 	case SPRN_CTRLF:
 	case SPRN_CTRLT:
+	case SPRN_L2CR:
+	case SPRN_MMCR0_GEKKO:
+	case SPRN_MMCR1_GEKKO:
+	case SPRN_PMC1_GEKKO:
+	case SPRN_PMC2_GEKKO:
+	case SPRN_PMC3_GEKKO:
+	case SPRN_PMC4_GEKKO:
+	case SPRN_WPAR_GEKKO:
 		kvmppc_set_gpr(vcpu, rt, 0);
 		break;
 	default:

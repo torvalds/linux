@@ -82,6 +82,7 @@ struct kvmppc_vcpu_book3s {
 	struct kvmppc_bat ibat[8];
 	struct kvmppc_bat dbat[8];
 	u64 hid[6];
+	u64 gqr[8];
 	int slb_nr;
 	u64 sdr1;
 	u64 dsisr;

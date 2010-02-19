@@ -293,10 +293,12 @@
 #define HID1_ABE	(1<<10)		/* 7450 Address Broadcast Enable */
 #define HID1_PS		(1<<16)		/* 750FX PLL selection */
 #define SPRN_HID2	0x3F8		/* Hardware Implementation Register 2 */
+#define SPRN_HID2_GEKKO	0x398		/* Gekko HID2 Register */
 #define SPRN_IABR	0x3F2	/* Instruction Address Breakpoint Register */
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
+#define SPRN_HID4_GEKKO	0x3F3		/* Gekko HID4 */
 #define SPRN_HID5	0x3F6		/* 970 HID5 */
 #define SPRN_HID6	0x3F9	/* BE HID 6 */
 #define   HID6_LB	(0x0F<<12) /* Concurrent Large Page Modes */
@@ -464,6 +466,14 @@
 #define SPRN_USIA	0x3AB	/* User Sampled Instruction Address Register */
 #define SPRN_VRSAVE	0x100	/* Vector Register Save Register */
 #define SPRN_XER	0x001	/* Fixed Point Exception Register */
+
+#define SPRN_MMCR0_GEKKO 0x3B8 /* Gekko Monitor Mode Control Register 0 */
+#define SPRN_MMCR1_GEKKO 0x3BC /* Gekko Monitor Mode Control Register 1 */
+#define SPRN_PMC1_GEKKO  0x3B9 /* Gekko Performance Monitor Control 1 */
+#define SPRN_PMC2_GEKKO  0x3BA /* Gekko Performance Monitor Control 2 */
+#define SPRN_PMC3_GEKKO  0x3BD /* Gekko Performance Monitor Control 3 */
+#define SPRN_PMC4_GEKKO  0x3BE /* Gekko Performance Monitor Control 4 */
+#define SPRN_WPAR_GEKKO  0x399 /* Gekko Write Pipe Address Register */
 
 #define SPRN_SCOMC	0x114	/* SCOM Access Control */
 #define SPRN_SCOMD	0x115	/* SCOM Access DATA */
