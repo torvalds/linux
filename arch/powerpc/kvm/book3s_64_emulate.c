@@ -28,6 +28,7 @@
 #define OP_31_XOP_MFMSR		83
 #define OP_31_XOP_MTMSR		146
 #define OP_31_XOP_MTMSRD	178
+#define OP_31_XOP_MTSR		210
 #define OP_31_XOP_MTSRIN	242
 #define OP_31_XOP_TLBIEL	274
 #define OP_31_XOP_TLBIE		306
@@ -101,6 +102,11 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			}
 			break;
 		}
+		case OP_31_XOP_MTSR:
+			vcpu->arch.mmu.mtsrin(vcpu,
+				(inst >> 16) & 0xf,
+				kvmppc_get_gpr(vcpu, get_rs(inst)));
+			break;
 		case OP_31_XOP_MTSRIN:
 			vcpu->arch.mmu.mtsrin(vcpu,
 				(kvmppc_get_gpr(vcpu, get_rb(inst)) >> 28) & 0xf,
