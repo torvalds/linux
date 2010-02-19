@@ -948,6 +948,8 @@ static int onenand_get_device(struct mtd_info *mtd, int new_state)
 		if (this->state == FL_READY) {
 			this->state = new_state;
 			spin_unlock(&this->chip_lock);
+			if (new_state != FL_PM_SUSPENDED && this->enable)
+				this->enable(mtd);
 			break;
 		}
 		if (new_state == FL_PM_SUSPENDED) {
@@ -974,6 +976,8 @@ static void onenand_release_device(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
 
+	if (this->state != FL_PM_SUSPENDED && this->disable)
+		this->disable(mtd);
 	/* Release the chip */
 	spin_lock(&this->chip_lock);
 	this->state = FL_READY;
