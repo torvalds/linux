@@ -38,6 +38,7 @@
  */
 #define MODULE_NAME "ov519"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
@@ -69,6 +70,9 @@ struct sd {
 
 	char invert_led;
 #define BRIDGE_INVERT_LED	8
+
+	char snapshot_pressed;
+	char snapshot_needs_reset;
 
 	/* Determined by sensor type */
 	__u8 sif;
@@ -2685,6 +2689,26 @@ static void ov51x_led_control(struct sd *sd, int on)
 	}
 }
 
+static void sd_reset_snapshot(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (!sd->snapshot_needs_reset)
+		return;
+
+	/* Note it is important that we clear sd->snapshot_needs_reset,
+	   before actually clearing the snapshot state in the bridge
+	   otherwise we might race with the pkt_scan interrupt handler */
+	sd->snapshot_needs_reset = 0;
+
+	switch (sd->bridge) {
+	case BRIDGE_OV519:
+		reg_w(sd, R51x_SYS_RESET, 0x40);
+		reg_w(sd, R51x_SYS_RESET, 0x00);
+		break;
+	}
+}
+
 static int ov51x_upload_quan_tables(struct sd *sd)
 {
 	const unsigned char yQuanTable511[] = {
@@ -3921,6 +3945,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setautobrightness(sd);
 	setfreq(sd);
 
+	/* Force clear snapshot state in case the snapshot button was
+	   pressed while we weren't streaming */
+	sd->snapshot_needs_reset = 1;
+	sd_reset_snapshot(gspca_dev);
+	sd->snapshot_pressed = 0;
+
 	ret = ov51x_restart(sd);
 	if (ret < 0)
 		goto out;
@@ -4033,6 +4063,30 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
+static void ov519_handle_button(struct gspca_dev *gspca_dev, u8 state)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* This should never happen, but better to check */
+	if (state != 0 && state != 1)
+		return;
+
+	/* We may need to reset the button state multiple times, as resetting
+	   does not work as long as the button stays pressed, so always set
+	   snapshot_needs_reset (instead of only on a state change to 1). */
+	if (state)
+		sd->snapshot_needs_reset = 1;
+
+	if (sd->snapshot_pressed != state) {
+#ifdef CONFIG_INPUT
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, state);
+		input_sync(gspca_dev->input_dev);
+#endif
+
+		sd->snapshot_pressed = state;
+	}
+}
+
 static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
@@ -4052,6 +4106,9 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 	if (data[0] == 0xff && data[1] == 0xff && data[2] == 0xff) {
 		switch (data[3]) {
 		case 0x50:		/* start of frame */
+			/* Don't check the button state here, as the state
+			   usually (always ?) changes at EOF and checking it
+			   here leads to unnecessary snapshot state resets. */
 #define HDRSZ 16
 			data += HDRSZ;
 			len -= HDRSZ;
@@ -4063,6 +4120,7 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		case 0x51:		/* end of frame */
+			ov519_handle_button(gspca_dev, data[11]);
 			if (data[9] != 0)
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 			gspca_frame_add(gspca_dev, LAST_PACKET,
@@ -4505,9 +4563,13 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+	.dq_callback = sd_reset_snapshot,
 	.querymenu = sd_querymenu,
 	.get_jcomp = sd_get_jcomp,
 	.set_jcomp = sd_set_jcomp,
+#ifdef CONFIG_INPUT
+	.other_input = 1,
+#endif
 };
 
 /* -- module initialisation -- */
