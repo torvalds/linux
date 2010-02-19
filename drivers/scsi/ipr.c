@@ -128,6 +128,21 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 			.clr_uproc_interrupt_reg = 0x00294
 		}
 	},
+	{ /* CRoC */
+		.mailbox = 0x00040,
+		.cache_line_size = 0x20,
+		{
+			.set_interrupt_mask_reg = 0x00010,
+			.clr_interrupt_mask_reg = 0x00018,
+			.sense_interrupt_mask_reg = 0x00010,
+			.clr_interrupt_reg = 0x00008,
+			.sense_interrupt_reg = 0x00000,
+			.ioarrin_reg = 0x00070,
+			.sense_uproc_interrupt_reg = 0x00020,
+			.set_uproc_interrupt_reg = 0x00020,
+			.clr_uproc_interrupt_reg = 0x00028
+		}
+	},
 };
 
 static const struct ipr_chip_t ipr_chip[] = {
