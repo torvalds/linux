@@ -2382,6 +2382,58 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 	I915_WRITE(FENCE_REG_830_0 + (regnum * 4), val);
 }
 
+static int i915_find_fence_reg(struct drm_device *dev)
+{
+	struct drm_i915_fence_reg *reg = NULL;
+	struct drm_i915_gem_object *obj_priv = NULL;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_gem_object *obj = NULL;
+	int i, avail, ret;
+
+	/* First try to find a free reg */
+	avail = 0;
+	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
+		reg = &dev_priv->fence_regs[i];
+		if (!reg->obj)
+			return i;
+
+		obj_priv = reg->obj->driver_private;
+		if (!obj_priv->pin_count)
+		    avail++;
+	}
+
+	if (avail == 0)
+		return -ENOSPC;
+
+	/* None available, try to steal one or wait for a user to finish */
+	i = I915_FENCE_REG_NONE;
+	list_for_each_entry(obj_priv, &dev_priv->mm.fence_list,
+			    fence_list) {
+		obj = obj_priv->obj;
+
+		if (obj_priv->pin_count)
+			continue;
+
+		/* found one! */
+		i = obj_priv->fence_reg;
+		break;
+	}
+
+	BUG_ON(i == I915_FENCE_REG_NONE);
+
+	/* We only have a reference on obj from the active list. put_fence_reg
+	 * might drop that one, causing a use-after-free in it. So hold a
+	 * private reference to obj like the other callers of put_fence_reg
+	 * (set_tiling ioctl) do. */
+	drm_gem_object_reference(obj);
+	ret = i915_gem_object_put_fence_reg(obj);
+	drm_gem_object_unreference(obj);
+	if (ret != 0)
+		return ret;
+
+	return i;
+}
+
 /**
  * i915_gem_object_get_fence_reg - set up a fence reg for an object
  * @obj: object to map through a fence reg
@@ -2402,8 +2454,7 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	struct drm_i915_fence_reg *reg = NULL;
-	struct drm_i915_gem_object *old_obj_priv = NULL;
-	int i, ret, avail;
+	int ret;
 
 	/* Just update our place in the LRU if our fence is getting used. */
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
@@ -2431,51 +2482,12 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 		break;
 	}
 
-	/* First try to find a free reg */
-	avail = 0;
-	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
-		reg = &dev_priv->fence_regs[i];
-		if (!reg->obj)
-			break;
+	ret = i915_find_fence_reg(dev);
+	if (ret < 0)
+		return ret;
 
-		old_obj_priv = reg->obj->driver_private;
-		if (!old_obj_priv->pin_count)
-		    avail++;
-	}
-
-	/* None available, try to steal one or wait for a user to finish */
-	if (i == dev_priv->num_fence_regs) {
-		struct drm_gem_object *old_obj = NULL;
-
-		if (avail == 0)
-			return -ENOSPC;
-
-		list_for_each_entry(old_obj_priv, &dev_priv->mm.fence_list,
-				    fence_list) {
-			old_obj = old_obj_priv->obj;
-
-			if (old_obj_priv->pin_count)
-				continue;
-
-			/* Take a reference, as otherwise the wait_rendering
-			 * below may cause the object to get freed out from
-			 * under us.
-			 */
-			drm_gem_object_reference(old_obj);
-
-			break;
-		}
-
-		i = old_obj_priv->fence_reg;
-		reg = &dev_priv->fence_regs[i];
-
-		ret = i915_gem_object_put_fence_reg(old_obj);
-		drm_gem_object_unreference(old_obj);
-		if (ret != 0) 
-			return ret;
-	}
-
-	obj_priv->fence_reg = i;
+	obj_priv->fence_reg = ret;
+	reg = &dev_priv->fence_regs[obj_priv->fence_reg];
 	list_add_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
 
 	reg->obj = obj;
@@ -2489,7 +2501,8 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 	else
 		i830_write_fence_reg(reg);
 
-	trace_i915_gem_object_get_fence(obj, i, obj_priv->tiling_mode);
+	trace_i915_gem_object_get_fence(obj, obj_priv->fence_reg,
+			obj_priv->tiling_mode);
 
 	return 0;
 }
