@@ -101,6 +101,8 @@ EXPORT_SYMBOL(pci_dram_offset);
 EXPORT_SYMBOL(start_thread);
 EXPORT_SYMBOL(kernel_thread);
 
+EXPORT_SYMBOL_GPL(cvt_df);
+EXPORT_SYMBOL_GPL(cvt_fd);
 EXPORT_SYMBOL(giveup_fpu);
 #ifdef CONFIG_ALTIVEC
 EXPORT_SYMBOL(giveup_altivec);

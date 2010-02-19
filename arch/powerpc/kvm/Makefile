@@ -40,6 +40,7 @@ kvm-objs-$(CONFIG_KVM_E500) := $(kvm-e500-objs)
 
 kvm-book3s_64-objs := \
 	$(common-objs-y) \
+	fpu.o \
 	book3s.o \
 	book3s_64_emulate.o \
 	book3s_64_interrupts.o \
