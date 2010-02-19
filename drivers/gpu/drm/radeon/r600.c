@@ -980,6 +980,9 @@ void r600_gpu_init(struct radeon_device *rdev)
 {
 	u32 tiling_config;
 	u32 ramcfg;
+	u32 backend_map;
+	u32 cc_rb_backend_disable;
+	u32 cc_gc_shader_pipe_config;
 	u32 tmp;
 	int i, j;
 	u32 sq_config;
@@ -1076,23 +1079,20 @@ void r600_gpu_init(struct radeon_device *rdev)
 	switch (rdev->config.r600.max_tile_pipes) {
 	case 1:
 		tiling_config |= PIPE_TILING(0);
-		rdev->config.r600.tiling_npipes = 1;
 		break;
 	case 2:
 		tiling_config |= PIPE_TILING(1);
-		rdev->config.r600.tiling_npipes = 2;
 		break;
 	case 4:
 		tiling_config |= PIPE_TILING(2);
-		rdev->config.r600.tiling_npipes = 4;
 		break;
 	case 8:
 		tiling_config |= PIPE_TILING(3);
-		rdev->config.r600.tiling_npipes = 8;
 		break;
 	default:
 		break;
 	}
+	rdev->config.r600.tiling_npipes = rdev->config.r600.max_tile_pipes;
 	rdev->config.r600.tiling_nbanks = 4 << ((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= BANK_TILING((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= GROUP_SIZE(0);
@@ -1106,24 +1106,33 @@ void r600_gpu_init(struct radeon_device *rdev)
 		tiling_config |= SAMPLE_SPLIT(tmp);
 	}
 	tiling_config |= BANK_SWAPS(1);
-	tmp = r600_get_tile_pipe_to_backend_map(rdev->config.r600.max_tile_pipes,
-						rdev->config.r600.max_backends,
-						(0xff << rdev->config.r600.max_backends) & 0xff);
-	tiling_config |= BACKEND_MAP(tmp);
+
+	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE) & 0x00ff0000;
+	cc_rb_backend_disable |=
+		BACKEND_DISABLE((R6XX_MAX_BACKENDS_MASK << rdev->config.r600.max_backends) & R6XX_MAX_BACKENDS_MASK);
+
+	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0xffffff00;
+	cc_gc_shader_pipe_config |=
+		INACTIVE_QD_PIPES((R6XX_MAX_PIPES_MASK << rdev->config.r600.max_pipes) & R6XX_MAX_PIPES_MASK);
+	cc_gc_shader_pipe_config |=
+		INACTIVE_SIMDS((R6XX_MAX_SIMDS_MASK << rdev->config.r600.max_simds) & R6XX_MAX_SIMDS_MASK);
+
+	backend_map = r600_get_tile_pipe_to_backend_map(rdev->config.r600.max_tile_pipes,
+							(R6XX_MAX_BACKENDS -
+							 r600_count_pipe_bits((cc_rb_backend_disable &
+									       R6XX_MAX_BACKENDS_MASK) >> 16)),
+							(cc_rb_backend_disable >> 16));
+
+	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
 	WREG32(HDP_TILING_CONFIG, tiling_config & 0xffff);
 
-	tmp = BACKEND_DISABLE((R6XX_MAX_BACKENDS_MASK << rdev->config.r600.max_backends) & R6XX_MAX_BACKENDS_MASK);
-	WREG32(CC_RB_BACKEND_DISABLE, tmp);
-
 	/* Setup pipes */
-	tmp = INACTIVE_QD_PIPES((R6XX_MAX_PIPES_MASK << rdev->config.r600.max_pipes) & R6XX_MAX_PIPES_MASK);
-	tmp |= INACTIVE_SIMDS((R6XX_MAX_SIMDS_MASK << rdev->config.r600.max_simds) & R6XX_MAX_SIMDS_MASK);
-	WREG32(CC_GC_SHADER_PIPE_CONFIG, tmp);
-	WREG32(GC_USER_SHADER_PIPE_CONFIG, tmp);
+	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
+	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
-	tmp = R6XX_MAX_BACKENDS - r600_count_pipe_bits(tmp & INACTIVE_QD_PIPES_MASK);
+	tmp = R6XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
 	WREG32(VGT_OUT_DEALLOC_CNTL, (tmp * 4) & DEALLOC_DIST_MASK);
 	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, ((tmp * 4) - 2) & VTX_REUSE_DEPTH_MASK);
 
