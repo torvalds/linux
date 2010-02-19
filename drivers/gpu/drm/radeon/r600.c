@@ -712,6 +712,7 @@ int r600_mc_init(struct radeon_device *rdev)
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	/* FIXME remove this once we support unmappable VRAM */
 	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
 		rdev->mc.mc_vram_size = rdev->mc.aper_size;

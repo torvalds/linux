@@ -141,6 +141,7 @@ void rs690_mc_init(struct radeon_device *rdev)
 	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rs690_pm_info(rdev);
