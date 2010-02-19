@@ -149,7 +149,8 @@ EXPORT_SYMBOL(soc_mbus_bytes_per_line);
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code)
 {
-	if ((unsigned int)(code - V4L2_MBUS_FMT_FIXED) > ARRAY_SIZE(mbus_fmt))
+	if (code - V4L2_MBUS_FMT_FIXED > ARRAY_SIZE(mbus_fmt) ||
+	    code <= V4L2_MBUS_FMT_FIXED)
 		return NULL;
 	return mbus_fmt + code - V4L2_MBUS_FMT_FIXED - 1;
 }
