@@ -103,6 +103,39 @@ extern void kvmppc_booke_exit(void);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 
+/*
+ * Cuts out inst bits with ordering according to spec.
+ * That means the leftmost bit is zero. All given bits are included.
+ */
+static inline u32 kvmppc_get_field(u64 inst, int msb, int lsb)
+{
+	u32 r;
+	u32 mask;
+
+	BUG_ON(msb > lsb);
+
+	mask = (1 << (lsb - msb + 1)) - 1;
+	r = (inst >> (63 - lsb)) & mask;
+
+	return r;
+}
+
+/*
+ * Replaces inst bits with ordering according to spec.
+ */
+static inline u32 kvmppc_set_field(u64 inst, int msb, int lsb, int value)
+{
+	u32 r;
+	u32 mask;
+
+	BUG_ON(msb > lsb);
+
+	mask = ((1 << (lsb - msb + 1)) - 1) << (63 - lsb);
+	r = (inst & ~mask) | ((value << (63 - lsb)) & mask);
+
+	return r;
+}
+
 #ifdef CONFIG_PPC_BOOK3S
 
 /* We assume we're always acting on the current vcpu */
