@@ -37,6 +37,8 @@
 /* #define DEBUG_EXT */
 
 static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
+static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
+			     ulong msr);
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exits",       VCPU_STAT(sum_exits) },
@@ -629,6 +631,30 @@ static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 	kvmppc_recalc_shadow_msr(vcpu);
 }
 
+static int kvmppc_check_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr)
+{
+	ulong srr0 = vcpu->arch.pc;
+	int ret;
+
+	/* Need to do paired single emulation? */
+	if (!(vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE))
+		return EMULATE_DONE;
+
+	/* Read out the instruction */
+	ret = kvmppc_ld(vcpu, &srr0, sizeof(u32), &vcpu->arch.last_inst, false);
+	if (ret == -ENOENT) {
+		vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 33, 33, 1);
+		vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 34, 36, 0);
+		vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 42, 47, 0);
+		kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_INST_STORAGE);
+	} else if(ret == EMULATE_DONE) {
+		/* Need to emulate */
+		return EMULATE_FAIL;
+	}
+
+	return EMULATE_AGAIN;
+}
+
 /* Handle external providers (FPU, Altivec, VSX) */
 static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr)
@@ -773,6 +799,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		enum emulation_result er;
 		ulong flags;
 
+program_interrupt:
 		flags = vcpu->arch.shadow_srr1 & 0x1f0000ull;
 
 		if (vcpu->arch.msr & MSR_PR) {
@@ -816,14 +843,32 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_FP_UNAVAIL:
-		r = kvmppc_handle_ext(vcpu, exit_nr, MSR_FP);
-		break;
 	case BOOK3S_INTERRUPT_ALTIVEC:
-		r = kvmppc_handle_ext(vcpu, exit_nr, MSR_VEC);
-		break;
 	case BOOK3S_INTERRUPT_VSX:
-		r = kvmppc_handle_ext(vcpu, exit_nr, MSR_VSX);
+	{
+		int ext_msr = 0;
+
+		switch (exit_nr) {
+		case BOOK3S_INTERRUPT_FP_UNAVAIL: ext_msr = MSR_FP;  break;
+		case BOOK3S_INTERRUPT_ALTIVEC:    ext_msr = MSR_VEC; break;
+		case BOOK3S_INTERRUPT_VSX:        ext_msr = MSR_VSX; break;
+		}
+
+		switch (kvmppc_check_ext(vcpu, exit_nr)) {
+		case EMULATE_DONE:
+			/* everything ok - let's enable the ext */
+			r = kvmppc_handle_ext(vcpu, exit_nr, ext_msr);
+			break;
+		case EMULATE_FAIL:
+			/* we need to emulate this instruction */
+			goto program_interrupt;
+			break;
+		default:
+			/* nothing to worry about - go again */
+			break;
+		}
 		break;
+	}
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
 	case BOOK3S_INTERRUPT_TRACE:
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
