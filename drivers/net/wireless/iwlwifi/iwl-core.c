@@ -1356,7 +1356,7 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_irq_handle_error);
 
-int iwl_apm_stop_master(struct iwl_priv *priv)
+static int iwl_apm_stop_master(struct iwl_priv *priv)
 {
 	int ret = 0;
 
@@ -1372,7 +1372,6 @@ int iwl_apm_stop_master(struct iwl_priv *priv)
 
 	return ret;
 }
-EXPORT_SYMBOL(iwl_apm_stop_master);
 
 void iwl_apm_stop(struct iwl_priv *priv)
 {

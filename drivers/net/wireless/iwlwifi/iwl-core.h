@@ -675,7 +675,6 @@ extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
 void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb);
 void iwl_apm_stop(struct iwl_priv *priv);
-int iwl_apm_stop_master(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 void iwl_setup_rxon_timing(struct iwl_priv *priv);
