@@ -129,9 +129,13 @@ struct clk *main_clks[] = {
 
 static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 0, 24, 32, 36, 48, 0, 72 };
 
-static struct clk_div_mult_table div4_table = {
+static struct clk_div_mult_table div4_div_mult_table = {
 	.divisors = divisors,
 	.nr_divisors = ARRAY_SIZE(divisors),
+};
+
+static struct clk_div4_table div4_table = {
+	.div_mult_table = &div4_div_mult_table,
 };
 
 enum { DIV4_I, DIV4_SH, DIV4_B, DIV4_P, DIV4_M1, DIV4_NR };
