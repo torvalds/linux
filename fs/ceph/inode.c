@@ -10,6 +10,7 @@
 #include <linux/namei.h>
 #include <linux/writeback.h>
 #include <linux/vmalloc.h>
+#include <linux/pagevec.h>
 
 #include "super.h"
 #include "decode.h"
@@ -1280,6 +1281,49 @@ void ceph_queue_invalidate(struct inode *inode)
 }
 
 /*
+ * invalidate any pages that are not dirty or under writeback.  this
+ * includes pages that are clean and mapped.
+ */
+static void ceph_invalidate_nondirty_pages(struct address_space *mapping)
+{
+	struct pagevec pvec;
+	pgoff_t next = 0;
+	int i;
+
+	pagevec_init(&pvec, 0);
+	while (pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+			pgoff_t index;
+			int skip_page =
+				(PageDirty(page) || PageWriteback(page));
+
+			if (!skip_page)
+				skip_page = !trylock_page(page);
+
+			/*
+			 * We really shouldn't be looking at the ->index of an
+			 * unlocked page.  But we're not allowed to lock these
+			 * pages.  So we rely upon nobody altering the ->index
+			 * of this (pinned-by-us) page.
+			 */
+			index = page->index;
+			if (index > next)
+				next = index;
+			next++;
+
+			if (skip_page)
+				continue;
+
+			generic_error_remove_page(mapping, page);
+			unlock_page(page);
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	}
+}
+
+/*
  * Invalidate inode pages in a worker thread.  (This can't be done
  * in the message handler context.)
  */
@@ -1305,7 +1349,7 @@ static void ceph_invalidate_work(struct work_struct *work)
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&inode->i_lock);
 
-	truncate_inode_pages(&inode->i_data, 0);
+	ceph_invalidate_nondirty_pages(inode->i_mapping);
 
 	spin_lock(&inode->i_lock);
 	if (orig_gen == ci->i_rdcache_gen) {
