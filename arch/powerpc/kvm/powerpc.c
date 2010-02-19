@@ -148,6 +148,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 
 	switch (ext) {
 	case KVM_CAP_PPC_SEGSTATE:
+	case KVM_CAP_PPC_PAIRED_SINGLES:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
