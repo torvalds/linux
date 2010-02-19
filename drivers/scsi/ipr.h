@@ -37,8 +37,8 @@
 /*
  * Literals
  */
-#define IPR_DRIVER_VERSION "2.4.3"
-#define IPR_DRIVER_DATE "(June 10, 2009)"
+#define IPR_DRIVER_VERSION "2.5.0"
+#define IPR_DRIVER_DATE "(February 11, 2010)"
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
@@ -55,7 +55,9 @@
 #define IPR_NUM_BASE_CMD_BLKS				100
 
 #define PCI_DEVICE_ID_IBM_OBSIDIAN_E	0x0339
-#define PCI_DEVICE_ID_IBM_SCAMP_E		0x034A
+
+#define PCI_DEVICE_ID_IBM_CROC_FPGA_E2          0x033D
+#define PCI_DEVICE_ID_IBM_CROC_ASIC_E2          0x034A
 
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
@@ -70,14 +72,23 @@
 #define IPR_SUBS_DEV_ID_572A	0x02C1
 #define IPR_SUBS_DEV_ID_572B	0x02C2
 #define IPR_SUBS_DEV_ID_572F	0x02C3
-#define IPR_SUBS_DEV_ID_574D	0x030B
 #define IPR_SUBS_DEV_ID_574E	0x030A
 #define IPR_SUBS_DEV_ID_575B	0x030D
 #define IPR_SUBS_DEV_ID_575C	0x0338
-#define IPR_SUBS_DEV_ID_575D	0x033E
 #define IPR_SUBS_DEV_ID_57B3	0x033A
 #define IPR_SUBS_DEV_ID_57B7	0x0360
 #define IPR_SUBS_DEV_ID_57B8	0x02C2
+
+#define IPR_SUBS_DEV_ID_57B4    0x033B
+#define IPR_SUBS_DEV_ID_57B2    0x035F
+#define IPR_SUBS_DEV_ID_57C6    0x0357
+
+#define IPR_SUBS_DEV_ID_57B5    0x033C
+#define IPR_SUBS_DEV_ID_57CE    0x035E
+#define IPR_SUBS_DEV_ID_57B1    0x0355
+
+#define IPR_SUBS_DEV_ID_574D    0x0356
+#define IPR_SUBS_DEV_ID_575D    0x035D
 
 #define IPR_NAME				"ipr"
 
