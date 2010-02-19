@@ -939,7 +939,6 @@ int recv_vis_packet(struct sk_buff *skb)
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;
 	int hdr_size = sizeof(struct vis_packet);
-	int ret;
 
 	if (skb_headlen(skb) < hdr_size)
 		return NET_RX_DROP;
@@ -962,18 +961,18 @@ int recv_vis_packet(struct sk_buff *skb)
 	case VIS_TYPE_SERVER_SYNC:
 		/* TODO: handle fragmented skbs properly */
 		receive_server_sync_packet(vis_packet, skb_headlen(skb));
-		ret = NET_RX_SUCCESS;
 		break;
 
 	case VIS_TYPE_CLIENT_UPDATE:
 		/* TODO: handle fragmented skbs properly */
 		receive_client_update_packet(vis_packet, skb_headlen(skb));
-		ret = NET_RX_SUCCESS;
 		break;
 
 	default:	/* ignore unknown packet */
-		ret = NET_RX_DROP;
 		break;
 	}
-	return ret;
+
+	/* We take a copy of the data in the packet, so we should
+	   always free the skbuf. */
+	return NET_RX_DROP;
 }
