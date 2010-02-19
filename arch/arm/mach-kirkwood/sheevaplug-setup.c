@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/ata_platform.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
@@ -40,6 +41,10 @@ static struct mtd_partition sheevaplug_nand_parts[] = {
 
 static struct mv643xx_eth_platform_data sheevaplug_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
+};
+
+static struct mv_sata_platform_data sheeva_esata_sata_data = {
+	.n_ports	= 2,
 };
 
 static struct mvsdio_platform_data sheevaplug_mvsdio_data = {
@@ -91,6 +96,11 @@ static void __init sheevaplug_init(void)
 	kirkwood_ehci_init();
 
 	kirkwood_ge00_init(&sheevaplug_ge00_data);
+
+	/* honor lower power consumption for plugs with out eSATA */
+	if (machine_is_sheeva_esata())
+		kirkwood_sata_init(&sheeva_esata_sata_data);
+
 	kirkwood_sdio_init(&sheevaplug_mvsdio_data);
 
 	platform_device_register(&sheevaplug_leds);
