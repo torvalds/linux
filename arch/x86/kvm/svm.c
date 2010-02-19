@@ -1633,6 +1633,9 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	if (!nested_vmcb)
 		return 1;
 
+	/* Exit nested SVM mode */
+	svm->nested.vmcb = 0;
+
 	/* Give the current vmcb to the guest */
 	disable_gif(svm);
 
@@ -1720,9 +1723,6 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->vmcb->save.cpl = 0;
 	svm->vmcb->control.exit_int_info = 0;
 
-	/* Exit nested SVM mode */
-	svm->nested.vmcb = 0;
-
 	nested_svm_unmap(page);
 
 	kvm_mmu_reset_context(&svm->vcpu);
@@ -1757,13 +1757,13 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	struct vmcb *hsave = svm->nested.hsave;
 	struct vmcb *vmcb = svm->vmcb;
 	struct page *page;
+	u64 vmcb_gpa;
+
+	vmcb_gpa = svm->vmcb->save.rax;
 
 	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
 	if (!nested_vmcb)
 		return false;
-
-	/* nested_vmcb is our indicator if nested SVM is activated */
-	svm->nested.vmcb = svm->vmcb->save.rax;
 
 	trace_kvm_nested_vmrun(svm->vmcb->save.rip - 3, svm->nested.vmcb,
 			       nested_vmcb->save.rip,
@@ -1878,6 +1878,9 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->vmcb->control.event_inj_err = nested_vmcb->control.event_inj_err;
 
 	nested_svm_unmap(page);
+
+	/* nested_vmcb is our indicator if nested SVM is activated */
+	svm->nested.vmcb = vmcb_gpa;
 
 	enable_gif(svm);
 
