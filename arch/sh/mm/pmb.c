@@ -871,7 +871,7 @@ static int __init pmb_debugfs_init(void)
 
 	return 0;
 }
-postcore_initcall(pmb_debugfs_init);
+subsys_initcall(pmb_debugfs_init);
 
 #ifdef CONFIG_PM
 static int pmb_sysdev_suspend(struct sys_device *dev, pm_message_t state)
