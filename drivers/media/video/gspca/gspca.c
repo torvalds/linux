@@ -158,7 +158,7 @@ static int gspca_input_connect(struct gspca_dev *dev)
 	int err = 0;
 
 	dev->input_dev = NULL;
-	if (dev->sd_desc->int_pkt_scan)  {
+	if (dev->sd_desc->int_pkt_scan || dev->sd_desc->other_input)  {
 		input_dev = input_allocate_device();
 		if (!input_dev)
 			return -ENOMEM;

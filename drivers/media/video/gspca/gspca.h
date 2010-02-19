@@ -131,6 +131,9 @@ struct sd_desc {
 	cam_ident_op get_chip_ident;
 #ifdef CONFIG_INPUT
 	cam_int_pkt_op int_pkt_scan;
+	/* other_input makes the gspca core create gspca_dev->input even when
+	   int_pkt_scan is NULL, for cams with non interrupt driven buttons */
+	u8 other_input;
 #endif
 };
 
