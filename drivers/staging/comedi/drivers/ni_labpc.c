@@ -642,9 +642,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
 #ifdef LABPC_DEBUG
 		printk(" eeprom:");
-		for (i = 0; i < EEPROM_SIZE; i++) {
+		for (i = 0; i < EEPROM_SIZE; i++)
 			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
-		}
 		printk("\n");
 #endif
 	} else
@@ -676,9 +675,8 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	case pci_bustype:
 #ifdef CONFIG_COMEDI_PCI
 		retval = labpc_find_device(dev, it->options[0], it->options[1]);
-		if (retval < 0) {
+		if (retval < 0)
 			return retval;
-		}
 		retval = mite_setup(devpriv->mite);
 		if (retval < 0)
 			return retval;
@@ -1005,9 +1003,9 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 		err++;
 	}
 
-	if (!cmd->chanlist_len) {
+	if (!cmd->chanlist_len)
 		err++;
-	}
+
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -1102,9 +1100,9 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->write_byte(devpriv->command3_bits, dev->iobase + COMMAND3_REG);
 
 	/*  initialize software conversion count */
-	if (cmd->stop_src == TRIG_COUNT) {
+	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
-	}
+
 	/*  setup hardware conversion counter */
 	if (cmd->stop_src == TRIG_EXT) {
 		/*  load counter a1 with count of 3 (pc+ manual says this is minimum allowed) using mode 0 */
@@ -1476,9 +1474,9 @@ static void labpc_drain_dma(struct comedi_device *dev)
 	}
 
 	/* write data to comedi buffer */
-	for (i = 0; i < num_points; i++) {
+	for (i = 0; i < num_points; i++)
 		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
-	}
+
 	if (async->cmd.stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
 
@@ -1861,9 +1859,9 @@ static unsigned int labpc_serial_in(struct comedi_device *dev)
 		udelay(1);
 		devpriv->status2_bits =
 		    devpriv->read_byte(dev->iobase + STATUS2_REG);
-		if (devpriv->status2_bits & EEPROM_OUT_BIT) {
+		if (devpriv->status2_bits & EEPROM_OUT_BIT)
 			value |= 1 << (value_width - i);
-		}
+
 	}
 
 	return value;
