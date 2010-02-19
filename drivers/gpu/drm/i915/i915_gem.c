@@ -1987,6 +1987,7 @@ int
 i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int ret = 0;
 
@@ -2042,8 +2043,10 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	}
 
 	/* Remove ourselves from the LRU list if present. */
+	spin_lock(&dev_priv->mm.active_list_lock);
 	if (!list_empty(&obj_priv->list))
 		list_del_init(&obj_priv->list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	if (i915_gem_object_is_purgeable(obj_priv))
 		i915_gem_object_truncate(obj);
