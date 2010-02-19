@@ -233,13 +233,13 @@ static void kvmppc_write_bat(struct kvm_vcpu *vcpu, int sprn, u32 val)
 		bat = &vcpu_book3s->ibat[(sprn - SPRN_IBAT0U) / 2];
 		break;
 	case SPRN_IBAT4U ... SPRN_IBAT7L:
-		bat = &vcpu_book3s->ibat[(sprn - SPRN_IBAT4U) / 2];
+		bat = &vcpu_book3s->ibat[4 + ((sprn - SPRN_IBAT4U) / 2)];
 		break;
 	case SPRN_DBAT0U ... SPRN_DBAT3L:
 		bat = &vcpu_book3s->dbat[(sprn - SPRN_DBAT0U) / 2];
 		break;
 	case SPRN_DBAT4U ... SPRN_DBAT7L:
-		bat = &vcpu_book3s->dbat[(sprn - SPRN_DBAT4U) / 2];
+		bat = &vcpu_book3s->dbat[4 + ((sprn - SPRN_DBAT4U) / 2)];
 		break;
 	default:
 		BUG();
