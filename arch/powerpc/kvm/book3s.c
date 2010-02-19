@@ -138,6 +138,10 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 		kvmppc_mmu_flush_segments(vcpu);
 		kvmppc_mmu_map_segment(vcpu, vcpu->arch.pc);
 	}
+
+	/* Preload FPU if it's enabled */
+	if (vcpu->arch.msr & MSR_FP)
+		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 }
 
 void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags)
@@ -1195,6 +1199,10 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	/* XXX we get called with irq disabled - change that! */
 	local_irq_enable();
+
+	/* Preload FPU if it's enabled */
+	if (vcpu->arch.msr & MSR_FP)
+		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
 	ret = __kvmppc_vcpu_entry(kvm_run, vcpu);
 
