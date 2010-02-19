@@ -35,8 +35,6 @@
 
 DECLARE_WAIT_QUEUE_HEAD(thread_wait);
 
-atomic_t exit_cond;
-
 void slide_own_bcast_window(struct batman_if *batman_if)
 {
 	HASHIT(hashit);
