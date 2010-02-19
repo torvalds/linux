@@ -841,6 +841,10 @@ program_interrupt:
 			kvmppc_core_queue_program(vcpu, flags);
 			r = RESUME_GUEST;
 			break;
+		case EMULATE_DO_MMIO:
+			run->exit_reason = KVM_EXIT_MMIO;
+			r = RESUME_HOST_NV;
+			break;
 		default:
 			BUG();
 		}
