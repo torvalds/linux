@@ -1077,9 +1077,8 @@ ctnetlink_change_helper(struct nf_conn *ct, const struct nlattr * const cda[])
 		/* need to zero data of old helper */
 		memset(&help->help, 0, sizeof(help->help));
 	} else {
-		help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
-		if (help == NULL)
-			return -ENOMEM;
+		/* we cannot set a helper for an existing conntrack */
+		return -EOPNOTSUPP;
 	}
 
 	rcu_assign_pointer(help->helper, helper);
@@ -1263,7 +1262,6 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 	ct->timeout.expires = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
-	ct->status |= IPS_CONFIRMED;
 
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {
@@ -1314,14 +1312,19 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 			goto err2;
 	}
 
-	if (cda[CTA_STATUS]) {
-		err = ctnetlink_change_status(ct, cda);
+	if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
+		err = ctnetlink_change_nat(ct, cda);
 		if (err < 0)
 			goto err2;
 	}
 
-	if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
-		err = ctnetlink_change_nat(ct, cda);
+	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
+	nf_ct_ecache_ext_add(ct, 0, 0, GFP_ATOMIC);
+	/* we must add conntrack extensions before confirmation. */
+	ct->status |= IPS_CONFIRMED;
+
+	if (cda[CTA_STATUS]) {
+		err = ctnetlink_change_status(ct, cda);
 		if (err < 0)
 			goto err2;
 	}
@@ -1339,9 +1342,6 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 		if (err < 0)
 			goto err2;
 	}
-
-	nf_ct_acct_ext_add(ct, GFP_ATOMIC);
-	nf_ct_ecache_ext_add(ct, 0, 0, GFP_ATOMIC);
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
