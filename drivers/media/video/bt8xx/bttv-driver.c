@@ -4468,6 +4468,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		request_modules(btv);
 	}
 
+	init_bttv_i2c_ir(btv);
 	bttv_input_init(btv);
 
 	/* everything is fine */
