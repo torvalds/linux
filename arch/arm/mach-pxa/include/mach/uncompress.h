@@ -60,6 +60,12 @@ static inline void arch_decomp_setup(void)
 	    || machine_is_csb726() || machine_is_stargate2()
 	    || machine_is_cm_x300() || machine_is_balloon3())
 		uart_base = STUART_BASE;
+
+	if (machine_is_arcom_zeus()) {
+		uart_base = 0x10000000;	/* nCS4 */
+		uart_shift = 1;
+		uart_is_pxa = 0;
+	}
 }
 
 /*
