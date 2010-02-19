@@ -281,7 +281,7 @@ static void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
 }
 #else
 #define gspca_input_connect(gspca_dev)		0
-#define gspca_input_create_urb(gspca_dev)	0
+#define gspca_input_create_urb(gspca_dev)
 #define gspca_input_destroy_urb(gspca_dev)
 #endif
 
@@ -2315,8 +2315,10 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	return 0;
 out:
+#ifdef CONFIG_INPUT
 	if (gspca_dev->input_dev)
 		input_unregister_device(gspca_dev->input_dev);
+#endif
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
