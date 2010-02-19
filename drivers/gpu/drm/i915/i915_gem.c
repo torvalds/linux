@@ -2095,11 +2095,34 @@ i915_gem_find_inactive_object(struct drm_device *dev, int min_size)
 }
 
 static int
+i915_gpu_idle(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	bool lists_empty;
+	uint32_t seqno;
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
+		      list_empty(&dev_priv->mm.active_list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
+	if (lists_empty)
+		return 0;
+
+	/* Flush everything onto the inactive list. */
+	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
+	if (seqno == 0)
+		return -ENOMEM;
+
+	return i915_wait_request(dev, seqno);
+}
+
+static int
 i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
-	uint32_t seqno;
 	bool lists_empty;
 
 	spin_lock(&dev_priv->mm.active_list_lock);
@@ -2112,12 +2135,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 		return -ENOSPC;
 
 	/* Flush everything (on to the inactive lists) and evict */
-	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
-	if (seqno == 0)
-		return -ENOMEM;
-
-	ret = i915_wait_request(dev, seqno);
+	ret = i915_gpu_idle(dev);
 	if (ret)
 		return ret;
 
@@ -4473,30 +4491,6 @@ i915_gem_evict_from_inactive_list(struct drm_device *dev)
 	}
 
 	return 0;
-}
-
-static int
-i915_gpu_idle(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	bool lists_empty;
-	uint32_t seqno;
-
-	spin_lock(&dev_priv->mm.active_list_lock);
-	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
-		      list_empty(&dev_priv->mm.active_list);
-	spin_unlock(&dev_priv->mm.active_list_lock);
-
-	if (lists_empty)
-		return 0;
-
-	/* Flush everything onto the inactive list. */
-	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
-	if (seqno == 0)
-		return -ENOMEM;
-
-	return i915_wait_request(dev, seqno);
 }
 
 int
