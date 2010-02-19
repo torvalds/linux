@@ -36,7 +36,6 @@
 /* #define EXIT_DEBUG_SIMPLE */
 /* #define DEBUG_EXT */
 
-static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
 static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 			     ulong msr);
 
@@ -598,7 +597,7 @@ static inline int get_fpr_index(int i)
 }
 
 /* Give up external provider (FPU, Altivec, VSX) */
-static void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
+void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 {
 	struct thread_struct *t = &current->thread;
 	u64 *vcpu_fpr = vcpu->arch.fpr;

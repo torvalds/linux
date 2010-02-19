@@ -120,6 +120,7 @@ extern int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, b
 extern void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec);
 extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 			   bool upper, u32 val);
+extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
 
 extern u32 kvmppc_trampoline_lowmem;
 extern u32 kvmppc_trampoline_enter;
