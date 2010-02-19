@@ -1135,11 +1135,13 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 
 	/* All S-code tables need a 200kHz shift */
 	if (priv->ctrl.demod) {
+		demod = priv->ctrl.demod;
+
 		/*
 		 * Newer firmwares require a 200 kHz offset only for ATSC
 		 */
 		if (type == ATSC || priv->firm_version < 0x0302)
-			demod = priv->ctrl.demod + 200;
+			demod += 200;
 		/*
 		 * The DTV7 S-code table needs a 700 kHz shift.
 		 *
