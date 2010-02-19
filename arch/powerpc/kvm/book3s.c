@@ -639,6 +639,10 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 	u64 *thread_fpr = (u64*)t->fpr;
 	int i;
 
+	/* When we have paired singles, we emulate in software */
+	if (vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE)
+		return RESUME_GUEST;
+
 	if (!(vcpu->arch.msr & msr)) {
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
 		return RESUME_GUEST;
