@@ -34,9 +34,6 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 
-#define IWL_STA_DRIVER_ACTIVE BIT(0) /* driver entry is active */
-#define IWL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
-
 u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 {
 	int i;
@@ -495,37 +492,102 @@ out:
 }
 
 /**
- * iwl_clear_stations_table - Clear the driver's station table
- *
- * NOTE:  This does not clear or otherwise alter the device's station table.
+ * iwl_clear_ucode_stations() - clear entire station table driver and/or ucode
+ * @priv:
+ * @force: If set then the uCode station table needs to be cleared here. If
+ *         not set then the uCode station table has already been cleared,
+ *         for example after sending it a RXON command without ASSOC bit
+ *         set, and we just need to change driver state here.
  */
-void iwl_clear_stations_table(struct iwl_priv *priv)
+void iwl_clear_ucode_stations(struct iwl_priv *priv, bool force)
 {
-	unsigned long flags;
 	int i;
+	unsigned long flags_spin;
+	bool cleared = false;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	IWL_DEBUG_INFO(priv, "Clearing ucode stations in driver%s\n",
+			force ? " and ucode" : "");
 
-	if (iwl_is_alive(priv) &&
-	   !test_bit(STATUS_EXIT_PENDING, &priv->status) &&
-	   iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL))
-		IWL_ERR(priv, "Couldn't clear the station table\n");
-
-	priv->num_stations = 0;
-	memset(priv->stations, 0, sizeof(priv->stations));
-
-	/* clean ucode key table bit map */
-	priv->ucode_key_table = 0;
-
-	/* keep track of static keys */
-	for (i = 0; i < WEP_KEYS_MAX ; i++) {
-		if (priv->wep_keys[i].key_size)
-			set_bit(i, &priv->ucode_key_table);
+	if (force) {
+		if (!iwl_is_ready(priv)) {
+			/*
+			 * If device is not ready at this point the station
+			 * table is likely already empty (uCode not ready
+			 * to receive station requests) or will soon be
+			 * due to interface going down.
+			 */
+			IWL_DEBUG_INFO(priv, "Unable to remove stations from device - device not ready\n");
+		} else {
+			iwl_send_cmd_pdu_async(priv, REPLY_REMOVE_ALL_STA, 0, NULL, NULL);
+		}
 	}
 
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	if (force) {
+		IWL_DEBUG_INFO(priv, "Clearing all station information in driver\n");
+		priv->num_stations = 0;
+		memset(priv->stations, 0, sizeof(priv->stations));
+	} else {
+		for (i = 0; i < priv->hw_params.max_stations; i++) {
+			if (priv->stations[i].used & IWL_STA_UCODE_ACTIVE) {
+				IWL_DEBUG_INFO(priv, "Clearing ucode active for station %d \n", i);
+				priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
+				cleared = true;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+
+	if (!cleared)
+		IWL_DEBUG_INFO(priv, "No active stations found to be cleared\n");
 }
-EXPORT_SYMBOL(iwl_clear_stations_table);
+EXPORT_SYMBOL(iwl_clear_ucode_stations);
+
+/**
+ * iwl_restore_stations() - Restore driver known stations to device
+ *
+ * All stations considered active by driver, but not present in ucode, is
+ * restored.
+ */
+void iwl_restore_stations(struct iwl_priv *priv)
+{
+	unsigned long flags_spin;
+	int i;
+	bool found = false;
+
+	if (!iwl_is_ready(priv)) {
+		IWL_DEBUG_INFO(priv, "Not ready yet, not restoring any stations.\n");
+		return;
+	}
+
+	IWL_DEBUG_ASSOC(priv, "Restoring all known stations ... start.\n");
+	spin_lock_irqsave(&priv->sta_lock, flags_spin);
+	for (i = 0; i < priv->hw_params.max_stations; i++) {
+		if ((priv->stations[i].used & IWL_STA_DRIVER_ACTIVE) &&
+			    !(priv->stations[i].used & IWL_STA_UCODE_ACTIVE)) {
+			IWL_DEBUG_ASSOC(priv, "Restoring sta %pM\n",
+					priv->stations[i].sta.sta.addr);
+			priv->stations[i].sta.mode = 0;
+			priv->stations[i].used |= IWL_STA_UCODE_INPROGRESS;
+			found = true;
+		}
+	}
+
+	for (i = 0; i < priv->hw_params.max_stations; i++) {
+		if ((priv->stations[i].used & IWL_STA_UCODE_INPROGRESS)) {
+			iwl_send_add_sta(priv, &priv->stations[i].sta,
+					 CMD_ASYNC);
+			priv->stations[i].used &= ~IWL_STA_UCODE_INPROGRESS;
+		}
+	}
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+	if (!found)
+		IWL_DEBUG_INFO(priv, "Restoring all known stations .... no stations to be restored.\n");
+	else
+		IWL_DEBUG_INFO(priv, "Restoring all known stations .... in progress.\n");
+}
+EXPORT_SYMBOL(iwl_restore_stations);
 
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {

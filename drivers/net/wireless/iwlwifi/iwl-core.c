@@ -2283,8 +2283,6 @@ static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
-	iwl_clear_stations_table(priv);
-
 	return iwlcore_commit_rxon(priv);
 }
 
@@ -2317,6 +2315,10 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	err = iwl_set_mode(priv, vif);
 	if (err)
 		goto out_err;
+
+	/* Add the broadcast address so we can send broadcast frames */
+	priv->cfg->ops->lib->add_bcast_station(priv);
+
 	goto out;
 
  out_err:
@@ -2338,6 +2340,8 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	mutex_lock(&priv->mutex);
+
+	iwl_clear_ucode_stations(priv, true);
 
 	if (iwl_is_ready_rf(priv)) {
 		iwl_scan_cancel_timeout(priv, 100);

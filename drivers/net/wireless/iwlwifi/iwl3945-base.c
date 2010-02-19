@@ -2480,8 +2480,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	iwl_clear_stations_table(priv);
-
 	rfkill = iwl_read_prph(priv, APMG_RFKILL_REG);
 	IWL_DEBUG_INFO(priv, "RFKILL status: 0x%x\n", rfkill);
 
@@ -2558,7 +2556,8 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
 
-	iwl_clear_stations_table(priv);
+	/* Station information will now be cleared in device */
+	iwl_clear_ucode_stations(priv, true);
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
@@ -2691,8 +2690,6 @@ static int __iwl3945_up(struct iwl_priv *priv)
 		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
-
-		iwl_clear_stations_table(priv);
 
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
@@ -3834,9 +3831,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->sync_cmd_mutex);
 
-	/* Clear the driver's (not device's) station table */
-	iwl_clear_stations_table(priv);
-
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;
@@ -4196,7 +4190,6 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	iwl3945_hw_txq_ctx_free(priv);
 
 	iwl3945_unset_hw_params(priv);
-	iwl_clear_stations_table(priv);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);

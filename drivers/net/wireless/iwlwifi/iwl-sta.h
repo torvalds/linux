@@ -32,6 +32,12 @@
 #define HW_KEY_DYNAMIC 0
 #define HW_KEY_DEFAULT 1
 
+#define IWL_STA_DRIVER_ACTIVE BIT(0) /* driver entry is active */
+#define IWL_STA_UCODE_ACTIVE  BIT(1) /* ucode entry is active */
+#define IWL_STA_UCODE_INPROGRESS  BIT(2) /* ucode entry is in process of
+					    being activated */
+
+
 /**
  * iwl_find_station - Find station id for a given BSSID
  * @bssid: MAC address of station ID to find
@@ -55,7 +61,8 @@ int iwl_rxon_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
 void iwl_add_bcast_station(struct iwl_priv *priv);
 void iwl3945_add_bcast_station(struct iwl_priv *priv);
 int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, bool is_ap);
-void iwl_clear_stations_table(struct iwl_priv *priv);
+void iwl_restore_stations(struct iwl_priv *priv);
+void iwl_clear_ucode_stations(struct iwl_priv *priv, bool force);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
 int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr);
