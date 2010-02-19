@@ -360,117 +360,58 @@ bool FirmwareDownload92S(struct net_device *dev)
 
 	RT_TRACE(COMP_FIRMWARE, " --->FirmwareDownload92S()\n");
 
-	//3//
-	//3 //<1> Open Image file, and map file to contineous memory if open file success.
-	//3  //        or read image file from array. Default load from BIN file
-	//3//
-	priv->firmware_source = FW_SOURCE_IMG_FILE;// We should decided by Reg.
-
-	switch( priv->firmware_source )
+/*
+* Load the firmware from RTL8192SU/rtl8192sfw.bin
+*/
+	if(pFirmware->szFwTmpBufferLen == 0)
 	{
-		case FW_SOURCE_IMG_FILE:
-			if(pFirmware->szFwTmpBufferLen == 0)
-			{
-
-				rc = request_firmware(&fw_entry, pFwImageFileName[ulInitStep],&priv->udev->dev);//===>1
-				if(rc < 0 ) {
-					RT_TRACE(COMP_ERR, "request firmware fail!\n");
-					goto DownloadFirmware_Fail;
-				}
-
-				if(fw_entry->size > sizeof(pFirmware->szFwTmpBuffer))
-				{
-					RT_TRACE(COMP_ERR, "img file size exceed the container buffer fail!\n");
-					release_firmware(fw_entry);
-					goto DownloadFirmware_Fail;
-				}
-
-				memcpy(pFirmware->szFwTmpBuffer,fw_entry->data,fw_entry->size);
-				pFirmware->szFwTmpBufferLen = fw_entry->size;
-				release_firmware(fw_entry);
-
-				pucMappedFile = pFirmware->szFwTmpBuffer;
-				file_length = pFirmware->szFwTmpBufferLen;
-
-				//Retrieve FW header.
-				pFirmware->pFwHeader = (PRT_8192S_FIRMWARE_HDR) pucMappedFile;
-				pFwHdr = pFirmware->pFwHeader;
-				RT_TRACE(COMP_FIRMWARE,"signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n", \
-						pFwHdr->Signature, pFwHdr->Version, pFwHdr->DMEMSize, \
-						pFwHdr->IMG_IMEM_SIZE, pFwHdr->IMG_SRAM_SIZE);
-				pFirmware->FirmwareVersion =  byte(pFwHdr->Version ,0);
-				if ((pFwHdr->IMG_IMEM_SIZE==0) || (pFwHdr->IMG_IMEM_SIZE > sizeof(pFirmware->FwIMEM)))
-				{
-					RT_TRACE(COMP_ERR, "%s: memory for data image is less than IMEM required\n",\
-							__FUNCTION__);
-					goto DownloadFirmware_Fail;
-				} else {
-					pucMappedFile+=FwHdrSize;
-
-					//Retrieve IMEM image.
-					memcpy(pFirmware->FwIMEM, pucMappedFile, pFwHdr->IMG_IMEM_SIZE);
-					pFirmware->FwIMEMLen = pFwHdr->IMG_IMEM_SIZE;
-				}
-
-				if (pFwHdr->IMG_SRAM_SIZE > sizeof(pFirmware->FwEMEM))
-				{
-					RT_TRACE(COMP_ERR, "%s: memory for data image is less than EMEM required\n",\
-							__FUNCTION__);
-					goto DownloadFirmware_Fail;
-				} else {
-					pucMappedFile += pFirmware->FwIMEMLen;
-
-					/* Retriecve EMEM image */
-					memcpy(pFirmware->FwEMEM, pucMappedFile, pFwHdr->IMG_SRAM_SIZE);//===>6
-					pFirmware->FwEMEMLen = pFwHdr->IMG_SRAM_SIZE;
-				}
-
-
+		rc = request_firmware(&fw_entry, pFwImageFileName[ulInitStep],&priv->udev->dev);
+			if(rc < 0 ) {
+				RT_TRACE(COMP_ERR, "request firmware fail!\n");
+				goto DownloadFirmware_Fail;
 			}
-			break;
 
-		case FW_SOURCE_HEADER_FILE:
-#if 1
-#define Rtl819XFwImageArray Rtl8192SUFwImgArray
-			//2008.11.10 Add by tynli.
-			pucMappedFile = Rtl819XFwImageArray;
-			ulFileLength = ImgArrayLength;
+			if(fw_entry->size > sizeof(pFirmware->szFwTmpBuffer)) {
+				RT_TRACE(COMP_ERR, "img file size exceed the container buffer fail!\n");
+				release_firmware(fw_entry);
+				goto DownloadFirmware_Fail;
+			}
 
-			RT_TRACE(COMP_INIT,"Fw download from header.\n");
-			/* Retrieve FW header*/
+			memcpy(pFirmware->szFwTmpBuffer,fw_entry->data,fw_entry->size);
+			pFirmware->szFwTmpBufferLen = fw_entry->size;
+			release_firmware(fw_entry);
+
+			pucMappedFile = pFirmware->szFwTmpBuffer;
+			file_length = pFirmware->szFwTmpBufferLen;
+
+			/* Retrieve FW header. */
 			pFirmware->pFwHeader = (PRT_8192S_FIRMWARE_HDR) pucMappedFile;
 			pFwHdr = pFirmware->pFwHeader;
 			RT_TRACE(COMP_FIRMWARE,"signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n", \
 					pFwHdr->Signature, pFwHdr->Version, pFwHdr->DMEMSize, \
 					pFwHdr->IMG_IMEM_SIZE, pFwHdr->IMG_SRAM_SIZE);
 			pFirmware->FirmwareVersion =  byte(pFwHdr->Version ,0);
-
-			if ((pFwHdr->IMG_IMEM_SIZE==0) || (pFwHdr->IMG_IMEM_SIZE > sizeof(pFirmware->FwIMEM)))
-			{
-				printk("FirmwareDownload92S(): memory for data image is less than IMEM required\n");
+			if ((pFwHdr->IMG_IMEM_SIZE==0) || (pFwHdr->IMG_IMEM_SIZE > sizeof(pFirmware->FwIMEM))) {
+				RT_TRACE(COMP_ERR, "%s: memory for data image is less than IMEM required\n",\
+					__FUNCTION__);
 				goto DownloadFirmware_Fail;
 			} else {
 				pucMappedFile+=FwHdrSize;
-				//Retrieve IMEM image.
+				/* Retrieve IMEM image. */
 				memcpy(pFirmware->FwIMEM, pucMappedFile, pFwHdr->IMG_IMEM_SIZE);
 				pFirmware->FwIMEMLen = pFwHdr->IMG_IMEM_SIZE;
 			}
 
-			if (pFwHdr->IMG_SRAM_SIZE > sizeof(pFirmware->FwEMEM))
-			{
-				printk(" FirmwareDownload92S(): memory for data image is less than EMEM required\n");
-				goto DownloadFirmware_Fail;
-			} else {
-				pucMappedFile+= pFirmware->FwIMEMLen;
-
-				//Retriecve EMEM image.
-				memcpy(pFirmware->FwEMEM, pucMappedFile, pFwHdr->IMG_SRAM_SIZE);
-				pFirmware->FwEMEMLen = pFwHdr->IMG_SRAM_SIZE;
-			}
-#endif
-			break;
-		default:
-			break;
+			if (pFwHdr->IMG_SRAM_SIZE > sizeof(pFirmware->FwEMEM)) {
+				RT_TRACE(COMP_ERR, "%s: memory for data image is less than EMEM required\n",\
+					__FUNCTION__);
+					goto DownloadFirmware_Fail;
+				} else {
+					pucMappedFile += pFirmware->FwIMEMLen;
+					/* Retriecve EMEM image */
+					memcpy(pFirmware->FwEMEM, pucMappedFile, pFwHdr->IMG_SRAM_SIZE);//===>6
+					pFirmware->FwEMEMLen = pFwHdr->IMG_SRAM_SIZE;
+				}
 	}
 
 	FwStatus = FirmwareGetNextStatus(pFirmware->FWStatus);
