@@ -514,6 +514,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	u64 bytes = 0;
 	struct ceph_client *client = ceph_inode_to_client(inode);
 	long writeback_stat;
+	unsigned issued = __ceph_caps_issued(ci, NULL);
 
 	/* parse reply */
 	replyhead = msg->front.iov_base;
@@ -559,6 +560,16 @@ static void writepages_finish(struct ceph_osd_request *req,
 		ceph_put_snap_context(snapc);
 		dout("unlocking %d %p\n", i, page);
 		end_page_writeback(page);
+
+		/*
+		 * We lost the cache cap, need to truncate the page before
+		 * it is unlocked, otherwise we'd truncate it later in the
+		 * page truncation thread, possibly losing some data that
+		 * raced its way in
+		 */
+		if ((issued & CEPH_CAP_FILE_CACHE) == 0)
+			generic_error_remove_page(inode->i_mapping, page);
+
 		unlock_page(page);
 	}
 	dout("%p wrote+cleaned %d pages\n", inode, wrote);
