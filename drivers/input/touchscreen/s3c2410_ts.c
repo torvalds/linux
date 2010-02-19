@@ -401,6 +401,7 @@ static int s3c2410ts_resume(struct device *dev)
 	struct s3c2410_ts_mach_info *info = pdev->dev.platform_data;
 
 	clk_enable(ts.clock);
+	enable_irq(ts.irq_tc);
 
 	/* Initialise registers */
 	if ((info->delay & 0xffff) > 0)
