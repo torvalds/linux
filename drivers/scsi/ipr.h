@@ -136,7 +136,7 @@
 
 /* We need resources for HCAMS, IOA reset, IOA bringdown, and ERP */
 #define IPR_NUM_INTERNAL_CMD_BLKS	(IPR_NUM_HCAMS + \
-                                     ((IPR_NUM_RESET_RELOAD_RETRIES + 1) * 2) + 3)
+                                     ((IPR_NUM_RESET_RELOAD_RETRIES + 1) * 2) + 4)
 
 #define IPR_MAX_COMMANDS		IPR_NUM_BASE_CMD_BLKS
 #define IPR_NUM_CMD_BLKS		(IPR_NUM_BASE_CMD_BLKS + \
@@ -1284,13 +1284,6 @@ enum ipr_sdt_state {
 	DUMP_OBTAINED
 };
 
-enum ipr_cache_state {
-	CACHE_NONE,
-	CACHE_DISABLED,
-	CACHE_ENABLED,
-	CACHE_INVALID
-};
-
 /* Per-controller data */
 struct ipr_ioa_cfg {
 	char eye_catcher[8];
@@ -1321,7 +1314,6 @@ struct ipr_ioa_cfg {
 	unsigned long *array_ids;
 	unsigned long *vset_ids;
 
-	enum ipr_cache_state cache_state;
 	u16 type; /* CCIN of the card */
 
 	u8 log_level;
