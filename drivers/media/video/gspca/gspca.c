@@ -184,8 +184,7 @@ static int gspca_input_connect(struct gspca_dev *dev)
 		} else {
 			dev->input_dev = input_dev;
 		}
-	} else
-		err = -EINVAL;
+	}
 
 	return err;
 }
@@ -243,9 +242,8 @@ error:
 	return ret;
 }
 
-static int gspca_input_create_urb(struct gspca_dev *gspca_dev)
+static void gspca_input_create_urb(struct gspca_dev *gspca_dev)
 {
-	int ret = -EINVAL;
 	struct usb_interface *intf;
 	struct usb_host_interface *intf_desc;
 	struct usb_endpoint_descriptor *ep;
@@ -259,12 +257,11 @@ static int gspca_input_create_urb(struct gspca_dev *gspca_dev)
 			if (usb_endpoint_dir_in(ep) &&
 			    usb_endpoint_xfer_int(ep)) {
 
-				ret = alloc_and_submit_int_urb(gspca_dev, ep);
+				alloc_and_submit_int_urb(gspca_dev, ep);
 				break;
 			}
 		}
 	}
-	return ret;
 }
 
 static void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
@@ -2289,6 +2286,10 @@ int gspca_dev_probe(struct usb_interface *intf,
 		goto out;
 	gspca_set_default_mode(gspca_dev);
 
+	ret = gspca_input_connect(gspca_dev);
+	if (ret)
+		goto out;
+
 	mutex_init(&gspca_dev->usb_lock);
 	mutex_init(&gspca_dev->read_lock);
 	mutex_init(&gspca_dev->queue_lock);
@@ -2310,12 +2311,12 @@ int gspca_dev_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, gspca_dev);
 	PDEBUG(D_PROBE, "%s created", video_device_node_name(&gspca_dev->vdev));
 
-	ret = gspca_input_connect(gspca_dev);
-	if (ret == 0)
-		ret = gspca_input_create_urb(gspca_dev);
+	gspca_input_create_urb(gspca_dev);
 
 	return 0;
 out:
+	if (gspca_dev->input_dev)
+		input_unregister_device(gspca_dev->input_dev);
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
