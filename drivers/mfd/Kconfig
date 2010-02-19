@@ -389,6 +389,15 @@ config MFD_TIMBERDALE
 
 	The timberdale FPGA can be found on the Intel Atom development board
 	for in-vehicle infontainment, called Russellville.
+
+config LPC_SCH
+	tristate "Intel SCH LPC"
+	depends on PCI
+	select MFD_CORE
+	help
+	  LPC bridge function of the Intel SCH provides support for
+	  System Management Bus and General Purpose I/O.
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"
