@@ -3367,6 +3367,16 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 		}
 
 		/* Validate that the target is in a valid r/w GPU domain */
+		if (reloc->write_domain & (reloc->write_domain - 1)) {
+			DRM_ERROR("reloc with multiple write domains: "
+				  "obj %p target %d offset %d "
+				  "read %08x write %08x",
+				  obj, reloc->target_handle,
+				  (int) reloc->offset,
+				  reloc->read_domains,
+				  reloc->write_domain);
+			return -EINVAL;
+		}
 		if (reloc->write_domain & I915_GEM_DOMAIN_CPU ||
 		    reloc->read_domains & I915_GEM_DOMAIN_CPU) {
 			DRM_ERROR("reloc with read/write CPU domains: "
