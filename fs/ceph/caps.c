@@ -2210,7 +2210,6 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int writeback = 0;
 	int revoked_rdcache = 0;
 	int queue_invalidate = 0;
-	int tried_invalidate = 0;
 
 	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
 	     inode, cap, mds, seq, ceph_cap_string(newcaps));
@@ -2222,10 +2221,8 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	 * try to invalidate (once).  (If there are dirty buffers, we
 	 * will invalidate _after_ writeback.)
 	 */
-restart:
 	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
-	    !ci->i_wrbuffer_ref && !tried_invalidate) {
-		tried_invalidate = 1;
+	    !ci->i_wrbuffer_ref) {
 		if (try_nonblocking_invalidate(inode) == 0) {
 			revoked_rdcache = 1;
 		} else {
@@ -2236,7 +2233,6 @@ restart:
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
 			}
 		}
-		goto restart;
 	}
 
 	/* side effects now are allowed */
