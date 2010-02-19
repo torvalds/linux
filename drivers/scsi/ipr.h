@@ -118,6 +118,10 @@
 #define IPR_NUM_LOG_HCAMS				2
 #define IPR_NUM_CFG_CHG_HCAMS				2
 #define IPR_NUM_HCAMS	(IPR_NUM_LOG_HCAMS + IPR_NUM_CFG_CHG_HCAMS)
+
+#define IPR_MAX_SIS64_TARGETS_PER_BUS			1024
+#define IPR_MAX_SIS64_LUNS_PER_TARGET			0xffffffff
+
 #define IPR_MAX_NUM_TARGETS_PER_BUS			256
 #define IPR_MAX_NUM_LUNS_PER_TARGET			256
 #define IPR_MAX_NUM_VSET_LUNS_PER_TARGET	8
@@ -139,6 +143,8 @@
 						IPR_NUM_INTERNAL_CMD_BLKS)
 
 #define IPR_MAX_PHYSICAL_DEVS				192
+#define IPR_DEFAULT_SIS64_DEVS				1024
+#define IPR_MAX_SIS64_DEVS				4096
 
 #define IPR_MAX_SGLIST					64
 #define IPR_IOA_MAX_SECTORS				32767
@@ -173,6 +179,7 @@
 #define	IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE	0x01
 #define	IPR_HCAM_CDB_OP_CODE_LOG_DATA		0x02
 #define IPR_SET_SUPPORTED_DEVICES			0xFB
+#define IPR_SET_ALL_SUPPORTED_DEVICES			0x80
 #define IPR_IOA_SHUTDOWN				0xF7
 #define	IPR_WR_BUF_DOWNLOAD_AND_SAVE			0x05
 
@@ -318,27 +325,27 @@ struct ipr_std_inq_data {
 	u8 serial_num[IPR_SERIAL_NUM_LEN];
 }__attribute__ ((packed));
 
+#define IPR_RES_TYPE_AF_DASD		0x00
+#define IPR_RES_TYPE_GENERIC_SCSI	0x01
+#define IPR_RES_TYPE_VOLUME_SET		0x02
+#define IPR_RES_TYPE_REMOTE_AF_DASD	0x03
+#define IPR_RES_TYPE_GENERIC_ATA	0x04
+#define IPR_RES_TYPE_ARRAY		0x05
+#define IPR_RES_TYPE_IOAFP		0xff
+
 struct ipr_config_table_entry {
 	u8 proto;
 #define IPR_PROTO_SATA			0x02
 #define IPR_PROTO_SATA_ATAPI		0x03
 #define IPR_PROTO_SAS_STP		0x06
-#define IPR_PROTO_SAS_STP_ATAPI	0x07
+#define IPR_PROTO_SAS_STP_ATAPI		0x07
 	u8 array_id;
 	u8 flags;
-#define IPR_IS_IOA_RESOURCE	0x80
-#define IPR_IS_ARRAY_MEMBER 0x20
-#define IPR_IS_HOT_SPARE	0x10
-
+#define IPR_IS_IOA_RESOURCE		0x80
 	u8 rsvd_subtype;
-#define IPR_RES_SUBTYPE(res) (((res)->cfgte.rsvd_subtype) & 0x0f)
-#define IPR_SUBTYPE_AF_DASD			0
-#define IPR_SUBTYPE_GENERIC_SCSI	1
-#define IPR_SUBTYPE_VOLUME_SET		2
-#define IPR_SUBTYPE_GENERIC_ATA	4
 
-#define IPR_QUEUEING_MODEL(res)	((((res)->cfgte.flags) & 0x70) >> 4)
-#define IPR_QUEUE_FROZEN_MODEL	0
+#define IPR_QUEUEING_MODEL(res)	((((res)->flags) & 0x70) >> 4)
+#define IPR_QUEUE_FROZEN_MODEL		0
 #define IPR_QUEUE_NACA_MODEL		1
 
 	struct ipr_res_addr res_addr;
@@ -347,6 +354,28 @@ struct ipr_config_table_entry {
 	struct ipr_std_inq_data std_inq_data;
 }__attribute__ ((packed, aligned (4)));
 
+struct ipr_config_table_entry64 {
+	u8 res_type;
+	u8 proto;
+	u8 vset_num;
+	u8 array_id;
+	__be16 flags;
+	__be16 res_flags;
+#define IPR_QUEUEING_MODEL64(res) ((((res)->res_flags) & 0x7000) >> 12)
+	__be32 res_handle;
+	u8 dev_id_type;
+	u8 reserved[3];
+	__be64 dev_id;
+	__be64 lun;
+	__be64 lun_wwn[2];
+#define IPR_MAX_RES_PATH_LENGTH		24
+	__be64 res_path;
+	struct ipr_std_inq_data std_inq_data;
+	u8 reserved2[4];
+	__be64 reserved3[2]; // description text
+	u8 reserved4[8];
+}__attribute__ ((packed, aligned (8)));
+
 struct ipr_config_table_hdr {
 	u8 num_entries;
 	u8 flags;
@@ -354,13 +383,35 @@ struct ipr_config_table_hdr {
 	__be16 reserved;
 }__attribute__((packed, aligned (4)));
 
-struct ipr_config_table {
-	struct ipr_config_table_hdr hdr;
-	struct ipr_config_table_entry dev[IPR_MAX_PHYSICAL_DEVS];
+struct ipr_config_table_hdr64 {
+	__be16 num_entries;
+	__be16 reserved;
+	u8 flags;
+	u8 reserved2[11];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_config_table {
+	struct ipr_config_table_hdr hdr;
+	struct ipr_config_table_entry dev[0];
+}__attribute__((packed, aligned (4)));
+
+struct ipr_config_table64 {
+	struct ipr_config_table_hdr64 hdr64;
+	struct ipr_config_table_entry64 dev[0];
+}__attribute__((packed, aligned (8)));
+
+struct ipr_config_table_entry_wrapper {
+	union {
+		struct ipr_config_table_entry *cfgte;
+		struct ipr_config_table_entry64 *cfgte64;
+	} u;
+};
+
 struct ipr_hostrcb_cfg_ch_not {
-	struct ipr_config_table_entry cfgte;
+	union {
+		struct ipr_config_table_entry cfgte;
+		struct ipr_config_table_entry64 cfgte64;
+	} u;
 	u8 reserved[936];
 }__attribute__((packed, aligned (4)));
 
@@ -987,26 +1038,46 @@ struct ipr_sata_port {
 };
 
 struct ipr_resource_entry {
-	struct ipr_config_table_entry cfgte;
 	u8 needs_sync_complete:1;
 	u8 in_erp:1;
 	u8 add_to_ml:1;
 	u8 del_from_ml:1;
 	u8 resetting_device:1;
 
+	u32 bus;		/* AKA channel */
+	u32 target;		/* AKA id */
+	u32 lun;
+#define IPR_ARRAY_VIRTUAL_BUS			0x1
+#define IPR_VSET_VIRTUAL_BUS			0x2
+#define IPR_IOAFP_VIRTUAL_BUS			0x3
+
+#define IPR_GET_RES_PHYS_LOC(res) \
+	(((res)->bus << 24) | ((res)->target << 8) | (res)->lun)
+
+	u8 ata_class;
+
+	u8 flags;
+	__be16 res_flags;
+
+	__be32 type;
+
+	u8 qmodel;
+	struct ipr_std_inq_data std_inq_data;
+
+	__be32 res_handle;
+	__be64 dev_id;
+	struct scsi_lun dev_lun;
+	u8 res_path[8];
+
+	struct ipr_ioa_cfg *ioa_cfg;
 	struct scsi_device *sdev;
 	struct ipr_sata_port *sata_port;
 	struct list_head queue;
-};
+}; /* struct ipr_resource_entry */
 
 struct ipr_resource_hdr {
 	u16 num_entries;
 	u16 reserved;
-};
-
-struct ipr_resource_table {
-	struct ipr_resource_hdr hdr;
-	struct ipr_resource_entry dev[IPR_MAX_PHYSICAL_DEVS];
 };
 
 struct ipr_misc_cbs {
@@ -1133,6 +1204,13 @@ struct ipr_ioa_cfg {
 
 	u8 revid;
 
+	/*
+	 * Bitmaps for SIS64 generated target values
+	 */
+	unsigned long *target_ids;
+	unsigned long *array_ids;
+	unsigned long *vset_ids;
+
 	enum ipr_cache_state cache_state;
 	u16 type; /* CCIN of the card */
 
@@ -1164,8 +1242,13 @@ struct ipr_ioa_cfg {
 
 	char cfg_table_start[8];
 #define IPR_CFG_TBL_START		"cfg"
-	struct ipr_config_table *cfg_table;
+	union {
+		struct ipr_config_table *cfg_table;
+		struct ipr_config_table64 *cfg_table64;
+	} u;
 	dma_addr_t cfg_table_dma;
+	u32 cfg_table_size;
+	u32 max_devs_supported;
 
 	char resource_table_label[8];
 #define IPR_RES_TABLE_LABEL		"res_tbl"
@@ -1234,7 +1317,7 @@ struct ipr_ioa_cfg {
 #define IPR_CMD_LABEL		"ipr_cmd"
 	struct ipr_cmnd *ipr_cmnd_list[IPR_NUM_CMD_BLKS];
 	dma_addr_t ipr_cmnd_list_dma[IPR_NUM_CMD_BLKS];
-};
+}; /* struct ipr_ioa_cfg */
 
 struct ipr_cmnd {
 	struct ipr_ioarcb ioarcb;
@@ -1412,15 +1495,19 @@ struct ipr_ucode_image_header {
 #define ipr_info(...) printk(KERN_INFO IPR_NAME ": "__VA_ARGS__)
 #define ipr_dbg(...) IPR_DBG_CMD(printk(KERN_INFO IPR_NAME ": "__VA_ARGS__))
 
+#define ipr_res_printk(level, ioa_cfg, bus, target, lun, fmt, ...) \
+	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
+		bus, target, lun, ##__VA_ARGS__)
+
+#define ipr_res_err(ioa_cfg, res, fmt, ...) \
+	ipr_res_printk(KERN_ERR, ioa_cfg, (res)->bus, (res)->target, (res)->lun, fmt, ##__VA_ARGS__)
+
 #define ipr_ra_printk(level, ioa_cfg, ra, fmt, ...) \
 	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
 		(ra).bus, (ra).target, (ra).lun, ##__VA_ARGS__)
 
 #define ipr_ra_err(ioa_cfg, ra, fmt, ...) \
 	ipr_ra_printk(KERN_ERR, ioa_cfg, ra, fmt, ##__VA_ARGS__)
-
-#define ipr_res_err(ioa_cfg, res, fmt, ...) \
-	ipr_ra_err(ioa_cfg, (res)->cfgte.res_addr, fmt, ##__VA_ARGS__)
 
 #define ipr_phys_res_err(ioa_cfg, res, fmt, ...)			\
 {									\
@@ -1467,7 +1554,7 @@ ipr_err("----------------------------------------------------------\n")
  **/
 static inline int ipr_is_ioa_resource(struct ipr_resource_entry *res)
 {
-	return (res->cfgte.flags & IPR_IS_IOA_RESOURCE) ? 1 : 0;
+	return res->type == IPR_RES_TYPE_IOAFP;
 }
 
 /**
@@ -1479,12 +1566,8 @@ static inline int ipr_is_ioa_resource(struct ipr_resource_entry *res)
  **/
 static inline int ipr_is_af_dasd_device(struct ipr_resource_entry *res)
 {
-	if (IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data) &&
-	    !ipr_is_ioa_resource(res) &&
-	    IPR_RES_SUBTYPE(res) == IPR_SUBTYPE_AF_DASD)
-		return 1;
-	else
-		return 0;
+	return res->type == IPR_RES_TYPE_AF_DASD ||
+		res->type == IPR_RES_TYPE_REMOTE_AF_DASD;
 }
 
 /**
@@ -1496,12 +1579,7 @@ static inline int ipr_is_af_dasd_device(struct ipr_resource_entry *res)
  **/
 static inline int ipr_is_vset_device(struct ipr_resource_entry *res)
 {
-	if (IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data) &&
-	    !ipr_is_ioa_resource(res) &&
-	    IPR_RES_SUBTYPE(res) == IPR_SUBTYPE_VOLUME_SET)
-		return 1;
-	else
-		return 0;
+	return res->type == IPR_RES_TYPE_VOLUME_SET;
 }
 
 /**
@@ -1513,11 +1591,7 @@ static inline int ipr_is_vset_device(struct ipr_resource_entry *res)
  **/
 static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
 {
-	if (!ipr_is_ioa_resource(res) &&
-	    IPR_RES_SUBTYPE(res) == IPR_SUBTYPE_GENERIC_SCSI)
-		return 1;
-	else
-		return 0;
+	return res->type == IPR_RES_TYPE_GENERIC_SCSI;
 }
 
 /**
@@ -1530,7 +1604,7 @@ static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
 static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
 {
 	if (ipr_is_af_dasd_device(res) ||
-	    (ipr_is_gscsi(res) && IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data)))
+	    (ipr_is_gscsi(res) && IPR_IS_DASD_DEVICE(res->std_inq_data)))
 		return 1;
 	else
 		return 0;
@@ -1545,11 +1619,7 @@ static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
  **/
 static inline int ipr_is_gata(struct ipr_resource_entry *res)
 {
-	if (!ipr_is_ioa_resource(res) &&
-	    IPR_RES_SUBTYPE(res) == IPR_SUBTYPE_GENERIC_ATA)
-		return 1;
-	else
-		return 0;
+	return res->type == IPR_RES_TYPE_GENERIC_ATA;
 }
 
 /**
@@ -1561,7 +1631,7 @@ static inline int ipr_is_gata(struct ipr_resource_entry *res)
  **/
 static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
 {
-	if (ipr_is_gscsi(res) && IPR_QUEUEING_MODEL(res) == IPR_QUEUE_NACA_MODEL)
+	if (ipr_is_gscsi(res) && res->qmodel == IPR_QUEUE_NACA_MODEL)
 		return 1;
 	return 0;
 }
