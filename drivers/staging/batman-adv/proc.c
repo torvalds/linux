@@ -63,7 +63,7 @@ static ssize_t proc_interfaces_write(struct file *instance,
 				     size_t count, loff_t *data)
 {
 	char *if_string, *colon_ptr = NULL, *cr_ptr = NULL;
-	int not_copied = 0, if_num = 0;
+	int not_copied = 0, if_num = 0, add_success;
 	struct batman_if *batman_if = NULL;
 
 	if_string = kmalloc(count, GFP_KERNEL);
@@ -109,22 +109,17 @@ static ssize_t proc_interfaces_write(struct file *instance,
 	}
 	rcu_read_unlock();
 
-	hardif_add_interface(if_string, if_num);
+	add_success = hardif_add_interface(if_string, if_num);
+	if (add_success < 0)
+		goto end;
+
+	num_ifs = if_num + 1;
 
 	if ((atomic_read(&module_state) == MODULE_INACTIVE) &&
 	    (hardif_get_active_if_num() > 0))
 		activate_module();
 
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
-		goto end;
-	}
-	rcu_read_unlock();
-
-	num_ifs = if_num + 1;
 	return count;
-
 end:
 	kfree(if_string);
 	return count;

@@ -432,6 +432,9 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	if (!skb)
 		goto err_out;
 
+	if (atomic_read(&module_state) != MODULE_ACTIVE)
+		goto err_free;
+
 	/* packet should hold at least type and version */
 	if (unlikely(skb_headlen(skb) < 2))
 		goto err_free;
@@ -443,6 +446,10 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	batman_if = find_batman_if(skb->dev);
 	if (!batman_if)
+		goto err_free;
+
+	/* discard frames on not active interfaces */
+	if (batman_if->if_active != IF_ACTIVE)
 		goto err_free;
 
 	stats = (struct net_device_stats *)dev_get_stats(skb->dev);
