@@ -175,7 +175,7 @@ struct kvm_vcpu_arch {
 	ulong gpr[32];
 
 	u64 fpr[32];
-	u32 fpscr;
+	u64 fpscr;
 
 #ifdef CONFIG_ALTIVEC
 	vector128 vr[32];
