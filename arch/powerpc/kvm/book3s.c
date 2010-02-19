@@ -789,6 +789,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case EMULATE_DONE:
 			r = RESUME_GUEST_NV;
 			break;
+		case EMULATE_AGAIN:
+			r = RESUME_GUEST;
+			break;
 		case EMULATE_FAIL:
 			printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
 			       __func__, vcpu->arch.pc, vcpu->arch.last_inst);
