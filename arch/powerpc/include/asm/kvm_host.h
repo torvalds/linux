@@ -186,6 +186,11 @@ struct kvm_vcpu_arch {
 	u64 vsr[32];
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S
+	/* For Gekko paired singles */
+	u32 qpr[32];
+#endif
+
 	ulong pc;
 	ulong ctr;
 	ulong lr;
