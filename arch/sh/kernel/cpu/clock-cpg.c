@@ -192,8 +192,8 @@ static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate, int algo_id
 		return idx;
 
 	value = __raw_readl(clk->enable_reg);
-	value &= ~0xf;
-	value |= idx;
+	value &= ~(0xf << clk->enable_bit);
+	value |= (idx << clk->enable_bit);
 	__raw_writel(value, clk->enable_reg);
 
 	return 0;
