@@ -31,7 +31,8 @@ enum fields {
 	BIMM = 0x040,
 	JIMM = 0x080,
 	FUNC = 0x100,
-	SET = 0x200
+	SET = 0x200,
+	SCIMM = 0x400
 };
 
 #define OP_MASK		0x3f
@@ -52,6 +53,8 @@ enum fields {
 #define FUNC_SH		0
 #define SET_MASK	0x7
 #define SET_SH		0
+#define SCIMM_MASK	0xfffff
+#define SCIMM_SH	6
 
 enum opcode {
 	insn_invalid,
@@ -64,7 +67,7 @@ enum opcode {
 	insn_mtc0, insn_ori, insn_pref, insn_rfe, insn_sc, insn_scd,
 	insn_sd, insn_sll, insn_sra, insn_srl, insn_rotr, insn_subu, insn_sw,
 	insn_tlbp, insn_tlbr, insn_tlbwi, insn_tlbwr, insn_xor, insn_xori,
-	insn_dins
+	insn_dins, insn_syscall
 };
 
 struct insn {
@@ -136,6 +139,7 @@ static struct insn insn_table[] __cpuinitdata = {
 	{ insn_xor,  M(spec_op, 0, 0, 0, 0, xor_op),  RS | RT | RD },
 	{ insn_xori,  M(xori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_dins, M(spec3_op, 0, 0, 0, 0, dins_op), RS | RT | RD | RE },
+	{ insn_syscall, M(spec_op, 0, 0, 0, 0, syscall_op), SCIMM},
 	{ insn_invalid, 0, 0 }
 };
 
@@ -208,6 +212,14 @@ static inline __cpuinit u32 build_jimm(u32 arg)
 	return (arg >> 2) & JIMM_MASK;
 }
 
+static inline __cpuinit u32 build_scimm(u32 arg)
+{
+	if (arg & ~SCIMM_MASK)
+		printk(KERN_WARNING "Micro-assembler field overflow\n");
+
+	return (arg & SCIMM_MASK) << SCIMM_SH;
+}
+
 static inline __cpuinit u32 build_func(u32 arg)
 {
 	if (arg & ~FUNC_MASK)
@@ -266,6 +278,8 @@ static void __cpuinit build_insn(u32 **buf, enum opcode opc, ...)
 		op |= build_func(va_arg(ap, u32));
 	if (ip->fields & SET)
 		op |= build_set(va_arg(ap, u32));
+	if (ip->fields & SCIMM)
+		op |= build_scimm(va_arg(ap, u32));
 	va_end(ap);
 
 	**buf = op;
@@ -391,6 +405,7 @@ I_0(_tlbwr)
 I_u3u1u2(_xor)
 I_u2u1u3(_xori)
 I_u2u1msbu3(_dins);
+I_u1(_syscall);
 
 /* Handle labels. */
 void __cpuinit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid)
