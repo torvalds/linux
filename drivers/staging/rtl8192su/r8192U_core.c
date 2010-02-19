@@ -2340,25 +2340,24 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 				    skb->len, rtl8192_tx_isr, skb);
 
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
-	if (!status){
-//we need to send 0 byte packet whenever 512N bytes/64N(HIGN SPEED/NORMAL SPEED) bytes packet has been transmitted. Otherwise, it will be halt to wait for another packet. WB. 2008.08.27
+	if (!status) {
+		/*
+		 * we need to send 0 byte packet whenever 512N bytes/64N(HIGN SPEED/NORMAL SPEED) bytes packet has been transmitted.
+		 * Otherwise, it will be halt to wait for another packet. WB. 2008.08.27
+		 */
 		bool bSend0Byte = false;
 		u8 zero = 0;
-		if(udev->speed == USB_SPEED_HIGH)
-		{
+		if(udev->speed == USB_SPEED_HIGH) {
 			if (skb->len > 0 && skb->len % 512 == 0)
 				bSend0Byte = true;
 		}
-		else
-		{
+		else {
 			if (skb->len > 0 && skb->len % 64 == 0)
 				bSend0Byte = true;
 		}
-		if (bSend0Byte)
-		{
-#if 1
+		if (bSend0Byte) {
 			tx_urb_zero = usb_alloc_urb(0,GFP_ATOMIC);
-			if(!tx_urb_zero){
+			if(!tx_urb_zero) {
 				RT_TRACE(COMP_ERR, "can't alloc urb for zero byte\n");
 				return -ENOMEM;
 			}
@@ -2366,16 +2365,23 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 					usb_sndbulkpipe(udev,idx_pipe), &zero,
 					0, tx_zero_isr, dev);
 			status = usb_submit_urb(tx_urb_zero, GFP_ATOMIC);
-			if (status){
-			RT_TRACE(COMP_ERR, "Error TX URB for zero byte %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]), status);
-			return -1;
+			switch (status) {
+				case 0:
+					break;
+				case -ECONNRESET:
+				case -ENOENT:
+				case -ESHUTDOWN:
+					break;
+				default:
+					RT_TRACE(COMP_ERR, "Error TX URB for zero byte %d, error %d",
+						atomic_read(&priv->tx_pending[tcb_desc->queue_index]), status);
+					return -1;
 			}
-#endif
 		}
 		dev->trans_start = jiffies;
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
 		return 0;
-	}else{
+	} else {
 		RT_TRACE(COMP_ERR, "Error TX URB %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]),
 				status);
 		return -1;
