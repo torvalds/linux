@@ -2128,7 +2128,7 @@ special_insn:
 		}
 
 		if (c->modrm_reg == VCPU_SREG_SS)
-			toggle_interruptibility(ctxt, X86_SHADOW_INT_MOV_SS);
+			toggle_interruptibility(ctxt, KVM_X86_SHADOW_INT_MOV_SS);
 
 		rc = kvm_load_segment_descriptor(ctxt->vcpu, sel, c->modrm_reg);
 
@@ -2366,7 +2366,7 @@ special_insn:
 		if (emulator_bad_iopl(ctxt))
 			kvm_inject_gp(ctxt->vcpu, 0);
 		else {
-			toggle_interruptibility(ctxt, X86_SHADOW_INT_STI);
+			toggle_interruptibility(ctxt, KVM_X86_SHADOW_INT_STI);
 			ctxt->eflags |= X86_EFLAGS_IF;
 			c->dst.type = OP_NONE;	/* Disable writeback. */
 		}

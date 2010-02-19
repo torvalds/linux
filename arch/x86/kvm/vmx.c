@@ -846,9 +846,9 @@ static u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
 	int ret = 0;
 
 	if (interruptibility & GUEST_INTR_STATE_STI)
-		ret |= X86_SHADOW_INT_STI;
+		ret |= KVM_X86_SHADOW_INT_STI;
 	if (interruptibility & GUEST_INTR_STATE_MOV_SS)
-		ret |= X86_SHADOW_INT_MOV_SS;
+		ret |= KVM_X86_SHADOW_INT_MOV_SS;
 
 	return ret & mask;
 }
@@ -860,9 +860,9 @@ static void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
 
 	interruptibility &= ~(GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS);
 
-	if (mask & X86_SHADOW_INT_MOV_SS)
+	if (mask & KVM_X86_SHADOW_INT_MOV_SS)
 		interruptibility |= GUEST_INTR_STATE_MOV_SS;
-	if (mask & X86_SHADOW_INT_STI)
+	else if (mask & KVM_X86_SHADOW_INT_STI)
 		interruptibility |= GUEST_INTR_STATE_STI;
 
 	if ((interruptibility != interruptibility_old))

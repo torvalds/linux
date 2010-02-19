@@ -2111,6 +2111,9 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 		vcpu->arch.interrupt.pending && !vcpu->arch.interrupt.soft;
 	events->interrupt.nr = vcpu->arch.interrupt.nr;
 	events->interrupt.soft = 0;
+	events->interrupt.shadow =
+		kvm_x86_ops->get_interrupt_shadow(vcpu,
+			KVM_X86_SHADOW_INT_MOV_SS | KVM_X86_SHADOW_INT_STI);
 
 	events->nmi.injected = vcpu->arch.nmi_injected;
 	events->nmi.pending = vcpu->arch.nmi_pending;
@@ -2119,7 +2122,8 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->sipi_vector = vcpu->arch.sipi_vector;
 
 	events->flags = (KVM_VCPUEVENT_VALID_NMI_PENDING
-			 | KVM_VCPUEVENT_VALID_SIPI_VECTOR);
+			 | KVM_VCPUEVENT_VALID_SIPI_VECTOR
+			 | KVM_VCPUEVENT_VALID_SHADOW);
 
 	vcpu_put(vcpu);
 }
@@ -2128,7 +2132,8 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 					      struct kvm_vcpu_events *events)
 {
 	if (events->flags & ~(KVM_VCPUEVENT_VALID_NMI_PENDING
-			      | KVM_VCPUEVENT_VALID_SIPI_VECTOR))
+			      | KVM_VCPUEVENT_VALID_SIPI_VECTOR
+			      | KVM_VCPUEVENT_VALID_SHADOW))
 		return -EINVAL;
 
 	vcpu_load(vcpu);
@@ -2143,6 +2148,9 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 	vcpu->arch.interrupt.soft = events->interrupt.soft;
 	if (vcpu->arch.interrupt.pending && irqchip_in_kernel(vcpu->kvm))
 		kvm_pic_clear_isr_ack(vcpu->kvm);
+	if (events->flags & KVM_VCPUEVENT_VALID_SHADOW)
+		kvm_x86_ops->set_interrupt_shadow(vcpu,
+						  events->interrupt.shadow);
 
 	vcpu->arch.nmi_injected = events->nmi.injected;
 	if (events->flags & KVM_VCPUEVENT_VALID_NMI_PENDING)

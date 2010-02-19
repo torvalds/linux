@@ -656,6 +656,7 @@ struct kvm_clock_data {
 4.29 KVM_GET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
+Extended by: KVM_CAP_INTR_SHADOW
 Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_vcpu_event (out)
@@ -676,7 +677,7 @@ struct kvm_vcpu_events {
 		__u8 injected;
 		__u8 nr;
 		__u8 soft;
-		__u8 pad;
+		__u8 shadow;
 	} interrupt;
 	struct {
 		__u8 injected;
@@ -688,9 +689,13 @@ struct kvm_vcpu_events {
 	__u32 flags;
 };
 
+KVM_VCPUEVENT_VALID_SHADOW may be set in the flags field to signal that
+interrupt.shadow contains a valid state. Otherwise, this field is undefined.
+
 4.30 KVM_SET_VCPU_EVENTS
 
 Capability: KVM_CAP_VCPU_EVENTS
+Extended by: KVM_CAP_INTR_SHADOW
 Architectures: x86
 Type: vm ioctl
 Parameters: struct kvm_vcpu_event (in)
@@ -708,6 +713,10 @@ current in-kernel state. The bits are:
 
 KVM_VCPUEVENT_VALID_NMI_PENDING - transfer nmi.pending to the kernel
 KVM_VCPUEVENT_VALID_SIPI_VECTOR - transfer sipi_vector
+
+If KVM_CAP_INTR_SHADOW is available, KVM_VCPUEVENT_VALID_SHADOW can be set in
+the flags field to signal that interrupt.shadow contains a valid state and
+shall be written into the VCPU.
 
 
 5. The kvm_run structure

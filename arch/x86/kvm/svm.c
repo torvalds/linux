@@ -265,7 +265,7 @@ static u32 svm_get_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
 	u32 ret = 0;
 
 	if (svm->vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK)
-		ret |= X86_SHADOW_INT_STI | X86_SHADOW_INT_MOV_SS;
+		ret |= KVM_X86_SHADOW_INT_STI | KVM_X86_SHADOW_INT_MOV_SS;
 	return ret & mask;
 }
 
