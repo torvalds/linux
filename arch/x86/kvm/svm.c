@@ -1423,7 +1423,7 @@ static inline int nested_svm_intr(struct vcpu_svm *svm)
 	return 0;
 }
 
-static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, enum km_type idx)
+static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, struct page **_page)
 {
 	struct page *page;
 
@@ -1431,7 +1431,9 @@ static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, enum km_type idx)
 	if (is_error_page(page))
 		goto error;
 
-	return kmap_atomic(page, idx);
+	*_page = page;
+
+	return kmap(page);
 
 error:
 	kvm_release_page_clean(page);
@@ -1440,16 +1442,9 @@ error:
 	return NULL;
 }
 
-static void nested_svm_unmap(void *addr, enum km_type idx)
+static void nested_svm_unmap(struct page *page)
 {
-	struct page *page;
-
-	if (!addr)
-		return;
-
-	page = kmap_atomic_to_page(addr);
-
-	kunmap_atomic(addr, idx);
+	kunmap(page);
 	kvm_release_page_dirty(page);
 }
 
@@ -1457,6 +1452,7 @@ static bool nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 {
 	u32 param = svm->vmcb->control.exit_info_1 & 1;
 	u32 msr = svm->vcpu.arch.regs[VCPU_REGS_RCX];
+	struct page *page;
 	bool ret = false;
 	u32 t0, t1;
 	u8 *msrpm;
@@ -1464,7 +1460,7 @@ static bool nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
 		return false;
 
-	msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, KM_USER0);
+	msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, &page);
 
 	if (!msrpm)
 		goto out;
@@ -1492,7 +1488,7 @@ static bool nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 	ret = msrpm[t1] & ((1 << param) << t0);
 
 out:
-	nested_svm_unmap(msrpm, KM_USER0);
+	nested_svm_unmap(page);
 
 	return ret;
 }
@@ -1615,6 +1611,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	struct vmcb *nested_vmcb;
 	struct vmcb *hsave = svm->nested.hsave;
 	struct vmcb *vmcb = svm->vmcb;
+	struct page *page;
 
 	trace_kvm_nested_vmexit_inject(vmcb->control.exit_code,
 				       vmcb->control.exit_info_1,
@@ -1622,7 +1619,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 				       vmcb->control.exit_int_info,
 				       vmcb->control.exit_int_info_err);
 
-	nested_vmcb = nested_svm_map(svm, svm->nested.vmcb, KM_USER0);
+	nested_vmcb = nested_svm_map(svm, svm->nested.vmcb, &page);
 	if (!nested_vmcb)
 		return 1;
 
@@ -1712,7 +1709,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	/* Exit nested SVM mode */
 	svm->nested.vmcb = 0;
 
-	nested_svm_unmap(nested_vmcb, KM_USER0);
+	nested_svm_unmap(page);
 
 	kvm_mmu_reset_context(&svm->vcpu);
 	kvm_mmu_load(&svm->vcpu);
@@ -1723,9 +1720,10 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 {
 	u32 *nested_msrpm;
+	struct page *page;
 	int i;
 
-	nested_msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, KM_USER0);
+	nested_msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, &page);
 	if (!nested_msrpm)
 		return false;
 
@@ -1734,7 +1732,7 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 
 	svm->vmcb->control.msrpm_base_pa = __pa(svm->nested.msrpm);
 
-	nested_svm_unmap(nested_msrpm, KM_USER0);
+	nested_svm_unmap(page);
 
 	return true;
 }
@@ -1744,8 +1742,9 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	struct vmcb *nested_vmcb;
 	struct vmcb *hsave = svm->nested.hsave;
 	struct vmcb *vmcb = svm->vmcb;
+	struct page *page;
 
-	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, KM_USER0);
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
 	if (!nested_vmcb)
 		return false;
 
@@ -1857,7 +1856,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->vmcb->control.event_inj = nested_vmcb->control.event_inj;
 	svm->vmcb->control.event_inj_err = nested_vmcb->control.event_inj_err;
 
-	nested_svm_unmap(nested_vmcb, KM_USER0);
+	nested_svm_unmap(page);
 
 	enable_gif(svm);
 
@@ -1883,6 +1882,7 @@ static void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb)
 static int vmload_interception(struct vcpu_svm *svm)
 {
 	struct vmcb *nested_vmcb;
+	struct page *page;
 
 	if (nested_svm_check_permissions(svm))
 		return 1;
@@ -1890,12 +1890,12 @@ static int vmload_interception(struct vcpu_svm *svm)
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	skip_emulated_instruction(&svm->vcpu);
 
-	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, KM_USER0);
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
 	if (!nested_vmcb)
 		return 1;
 
 	nested_svm_vmloadsave(nested_vmcb, svm->vmcb);
-	nested_svm_unmap(nested_vmcb, KM_USER0);
+	nested_svm_unmap(page);
 
 	return 1;
 }
@@ -1903,6 +1903,7 @@ static int vmload_interception(struct vcpu_svm *svm)
 static int vmsave_interception(struct vcpu_svm *svm)
 {
 	struct vmcb *nested_vmcb;
+	struct page *page;
 
 	if (nested_svm_check_permissions(svm))
 		return 1;
@@ -1910,12 +1911,12 @@ static int vmsave_interception(struct vcpu_svm *svm)
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	skip_emulated_instruction(&svm->vcpu);
 
-	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, KM_USER0);
+	nested_vmcb = nested_svm_map(svm, svm->vmcb->save.rax, &page);
 	if (!nested_vmcb)
 		return 1;
 
 	nested_svm_vmloadsave(svm->vmcb, nested_vmcb);
-	nested_svm_unmap(nested_vmcb, KM_USER0);
+	nested_svm_unmap(page);
 
 	return 1;
 }
