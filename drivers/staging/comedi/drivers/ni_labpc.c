@@ -638,9 +638,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		s->insn_read = labpc_eeprom_read_insn;
 		s->insn_write = labpc_eeprom_write_insn;
 
-		for (i = 0; i < EEPROM_SIZE; i++) {
+		for (i = 0; i < EEPROM_SIZE; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
-		}
 #ifdef LABPC_DEBUG
 		printk(" eeprom:");
 		for (i = 0; i < EEPROM_SIZE; i++) {
