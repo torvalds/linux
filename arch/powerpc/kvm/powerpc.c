@@ -278,7 +278,7 @@ static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	ulong gpr;
+	u64 gpr;
 
 	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
@@ -287,6 +287,7 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 
 	if (vcpu->arch.mmio_is_bigendian) {
 		switch (run->mmio.len) {
+		case 8: gpr = *(u64 *)run->mmio.data; break;
 		case 4: gpr = *(u32 *)run->mmio.data; break;
 		case 2: gpr = *(u16 *)run->mmio.data; break;
 		case 1: gpr = *(u8 *)run->mmio.data; break;
@@ -301,6 +302,24 @@ static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
 	}
 
 	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
+
+	switch (vcpu->arch.io_gpr & KVM_REG_EXT_MASK) {
+	case KVM_REG_GPR:
+		kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
+		break;
+	case KVM_REG_FPR:
+		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		break;
+	case KVM_REG_QPR:
+		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		break;
+	case KVM_REG_FQPR:
+		vcpu->arch.fpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		vcpu->arch.qpr[vcpu->arch.io_gpr & KVM_REG_MASK] = gpr;
+		break;
+	default:
+		BUG();
+	}
 }
 
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -324,7 +343,7 @@ int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
 }
 
 int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
-                        u32 val, unsigned int bytes, int is_bigendian)
+                        u64 val, unsigned int bytes, int is_bigendian)
 {
 	void *data = run->mmio.data;
 
@@ -342,6 +361,7 @@ int kvmppc_handle_store(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* Store the value at the lowest bytes in 'data'. */
 	if (is_bigendian) {
 		switch (bytes) {
+		case 8: *(u64 *)data = val; break;
 		case 4: *(u32 *)data = val; break;
 		case 2: *(u16 *)data = val; break;
 		case 1: *(u8  *)data = val; break;
