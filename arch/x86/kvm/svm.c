@@ -1461,18 +1461,12 @@ static bool nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 {
 	u32 param = svm->vmcb->control.exit_info_1 & 1;
 	u32 msr = svm->vcpu.arch.regs[VCPU_REGS_RCX];
-	struct page *page;
 	bool ret = false;
 	u32 t0, t1;
-	u8 *msrpm;
+	u8 val;
 
 	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
 		return false;
-
-	msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, &page);
-
-	if (!msrpm)
-		goto out;
 
 	switch (msr) {
 	case 0 ... 0x1fff:
@@ -1494,11 +1488,10 @@ static bool nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 		goto out;
 	}
 
-	ret = msrpm[t1] & ((1 << param) << t0);
+	if (!kvm_read_guest(svm->vcpu.kvm, svm->nested.vmcb_msrpm + t1, &val, 1))
+		ret = val & ((1 << param) << t0);
 
 out:
-	nested_svm_unmap(page);
-
 	return ret;
 }
 
