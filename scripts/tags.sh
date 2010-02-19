@@ -5,7 +5,7 @@
 # mode may be any of: tags, TAGS, cscope
 #
 # Uses the following environment variables:
-# ARCH, SUBARCH, srctree, src, obj
+# ARCH, SUBARCH, SRCARCH, srctree, src, obj
 
 if [ "$KBUILD_VERBOSE" = "1" ]; then
 	set -x
@@ -70,7 +70,7 @@ find_sources()
 
 all_sources()
 {
-	find_arch_include_sources ${ARCH} '*.[chS]'
+	find_arch_include_sources ${SRCARCH} '*.[chS]'
 	if [ ! -z "$archinclude" ]; then
 		find_arch_include_sources $archinclude '*.[chS]'
 	fi
