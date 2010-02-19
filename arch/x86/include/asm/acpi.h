@@ -85,7 +85,6 @@ extern int acpi_ioapic;
 extern int acpi_noirq;
 extern int acpi_strict;
 extern int acpi_disabled;
-extern int acpi_ht;
 extern int acpi_pci_disabled;
 extern int acpi_skip_timer_override;
 extern int acpi_use_timer_override;
@@ -97,7 +96,6 @@ void acpi_pic_sci_set_trigger(unsigned int, u16);
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
-	acpi_ht = 0;
 	acpi_pci_disabled = 1;
 	acpi_noirq = 1;
 }

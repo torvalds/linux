@@ -143,11 +143,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi=		[HW,ACPI,X86]
 			Advanced Configuration and Power Interface
-			Format: { force | off | ht | strict | noirq | rsdt }
+			Format: { force | off | strict | noirq | rsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
-			ht -- run only enough ACPI to enable Hyper Threading
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT

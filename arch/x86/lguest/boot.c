@@ -1391,7 +1391,6 @@ __init void lguest_init(void)
 #endif
 #ifdef CONFIG_ACPI
 	acpi_disabled = 1;
-	acpi_ht = 0;
 #endif
 
 	/*
