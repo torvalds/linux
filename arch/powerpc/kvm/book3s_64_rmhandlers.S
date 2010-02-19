@@ -164,24 +164,15 @@ _GLOBAL(kvmppc_rmcall)
 #define define_load_up(what) 				\
 							\
 _GLOBAL(kvmppc_load_up_ ## what);			\
-	subi	r1, r1, INT_FRAME_SIZE;			\
+	stdu	r1, -INT_FRAME_SIZE(r1);		\
 	mflr	r3;					\
 	std	r3, _LINK(r1);				\
-	mfmsr	r4;					\
-	std	r31, GPR3(r1);				\
-	mr	r31, r4;				\
-	li	r5, MSR_DR;				\
-	oris	r5, r5, MSR_EE@h;			\
-	andc	r4, r4, r5;				\
-	mtmsr	r4;					\
 							\
 	bl	.load_up_ ## what;			\
 							\
-	mtmsr	r31;					\
 	ld	r3, _LINK(r1);				\
-	ld	r31, GPR3(r1);				\
-	addi	r1, r1, INT_FRAME_SIZE;			\
 	mtlr	r3;					\
+	addi	r1, r1, INT_FRAME_SIZE;			\
 	blr
 
 define_load_up(fpu)
