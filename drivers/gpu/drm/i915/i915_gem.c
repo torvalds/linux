@@ -1558,6 +1558,38 @@ i915_gem_object_move_to_inactive(struct drm_gem_object *obj)
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 }
 
+static void
+i915_gem_process_flushing_list(struct drm_device *dev,
+			       uint32_t flush_domains, uint32_t seqno)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv, *next;
+
+	list_for_each_entry_safe(obj_priv, next,
+				 &dev_priv->mm.gpu_write_list,
+				 gpu_write_list) {
+		struct drm_gem_object *obj = obj_priv->obj;
+
+		if ((obj->write_domain & flush_domains) ==
+		    obj->write_domain) {
+			uint32_t old_write_domain = obj->write_domain;
+
+			obj->write_domain = 0;
+			list_del_init(&obj_priv->gpu_write_list);
+			i915_gem_object_move_to_active(obj, seqno);
+
+			/* update the fence lru list */
+			if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
+				list_move_tail(&obj_priv->fence_list,
+						&dev_priv->mm.fence_list);
+
+			trace_i915_gem_object_change_domain(obj,
+							    obj->read_domains,
+							    old_write_domain);
+		}
+	}
+}
+
 /**
  * Creates a new sequence number, emitting a write of it to the status page
  * plus an interrupt, which will trigger i915_user_interrupt_handler.
@@ -1616,29 +1648,8 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	/* Associate any objects on the flushing list matching the write
 	 * domain we're flushing with our flush.
 	 */
-	if (flush_domains != 0) {
-		struct drm_i915_gem_object *obj_priv, *next;
-
-		list_for_each_entry_safe(obj_priv, next,
-					 &dev_priv->mm.gpu_write_list,
-					 gpu_write_list) {
-			struct drm_gem_object *obj = obj_priv->obj;
-
-			if ((obj->write_domain & flush_domains) ==
-			    obj->write_domain) {
-				uint32_t old_write_domain = obj->write_domain;
-
-				obj->write_domain = 0;
-				list_del_init(&obj_priv->gpu_write_list);
-				i915_gem_object_move_to_active(obj, seqno);
-
-				trace_i915_gem_object_change_domain(obj,
-								    obj->read_domains,
-								    old_write_domain);
-			}
-		}
-
-	}
+	if (flush_domains != 0) 
+		i915_gem_process_flushing_list(dev, flush_domains, seqno);
 
 	if (!dev_priv->mm.suspended) {
 		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
