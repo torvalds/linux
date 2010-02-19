@@ -2460,39 +2460,16 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 			 */
 			drm_gem_object_reference(old_obj);
 
-			/* i915 uses fences for GPU access to tiled buffers */
-			if (IS_I965G(dev) || !old_obj_priv->active)
-				break;
-
-			/* This brings the object to the head of the LRU if it
-			 * had been written to.  The only way this should
-			 * result in us waiting longer than the expected
-			 * optimal amount of time is if there was a
-			 * fence-using buffer later that was read-only.
-			 */
-			i915_gem_object_flush_gpu_write_domain(old_obj);
-			ret = i915_gem_object_wait_rendering(old_obj);
-			if (ret != 0) {
-				drm_gem_object_unreference(old_obj);
-				return ret;
-			}
-
 			break;
 		}
-
-		/*
-		 * Zap this virtual mapping so we can set up a fence again
-		 * for this object next time we need it.
-		 */
-		i915_gem_release_mmap(old_obj);
 
 		i = old_obj_priv->fence_reg;
 		reg = &dev_priv->fence_regs[i];
 
-		old_obj_priv->fence_reg = I915_FENCE_REG_NONE;
-		list_del_init(&old_obj_priv->fence_list);
-
+		ret = i915_gem_object_put_fence_reg(old_obj);
 		drm_gem_object_unreference(old_obj);
+		if (ret != 0) 
+			return ret;
 	}
 
 	obj_priv->fence_reg = i;
