@@ -257,16 +257,9 @@ map_again:
 
 	if (ret < 0) {
 		/* If we couldn't map a primary PTE, try a secondary */
-#ifdef USE_SECONDARY
 		hash = ~hash;
+		vflags ^= HPTE_V_SECONDARY;
 		attempt++;
-		if (attempt % 2)
-			vflags = HPTE_V_SECONDARY;
-		else
-			vflags = 0;
-#else
-		attempt = 2;
-#endif
 		goto map_again;
 	} else {
 		int hpte_id = kvmppc_mmu_hpte_cache_next(vcpu);
