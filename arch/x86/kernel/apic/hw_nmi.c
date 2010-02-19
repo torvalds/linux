@@ -92,6 +92,7 @@ u64 hw_nmi_get_sample_period(void)
         return cpu_khz * 1000;
 }
 
+#ifdef ARCH_HAS_NMI_WATCHDOG
 void arch_trigger_all_cpu_backtrace(void)
 {
 	int i;
@@ -108,6 +109,7 @@ void arch_trigger_all_cpu_backtrace(void)
 		mdelay(1);
 	}
 }
+#endif
 
 /* STUB calls to mimic old nmi_watchdog behaviour */
 #if defined(CONFIG_X86_LOCAL_APIC)
