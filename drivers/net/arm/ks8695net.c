@@ -327,25 +327,24 @@ ks8695_refill_rxbuffers(struct ks8695_priv *ksp)
  */
 static void
 ks8695_init_partial_multicast(struct ks8695_priv *ksp,
-			      struct dev_mc_list *addr,
-			      int nr_addr)
+			      struct net_device *ndev)
 {
 	u32 low, high;
 	int i;
+	struct dev_mc_list *dmi;
 
-	for (i = 0; i < nr_addr; i++, addr = addr->next) {
-		/* Ran out of addresses? */
-		if (!addr)
-			break;
+	i = 0;
+	netdev_for_each_mc_addr(dmi, ndev) {
 		/* Ran out of space in chip? */
 		BUG_ON(i == KS8695_NR_ADDRESSES);
 
-		low = (addr->dmi_addr[2] << 24) | (addr->dmi_addr[3] << 16) |
-			(addr->dmi_addr[4] << 8) | (addr->dmi_addr[5]);
-		high = (addr->dmi_addr[0] << 8) | (addr->dmi_addr[1]);
+		low = (dmi->dmi_addr[2] << 24) | (dmi->dmi_addr[3] << 16) |
+		      (dmi->dmi_addr[4] << 8) | (dmi->dmi_addr[5]);
+		high = (dmi->dmi_addr[0] << 8) | (dmi->dmi_addr[1]);
 
 		ks8695_writereg(ksp, KS8695_AAL_(i), low);
 		ks8695_writereg(ksp, KS8695_AAH_(i), AAH_E | high);
+		i++;
 	}
 
 	/* Clear the remaining Additional Station Addresses */
@@ -1215,8 +1214,7 @@ ks8695_set_multicast(struct net_device *ndev)
 	} else {
 		/* enable specific multicasts */
 		ctrl &= ~DRXC_RM;
-		ks8695_init_partial_multicast(ksp, ndev->mc_list,
-					      netdev_mc_count(ndev));
+		ks8695_init_partial_multicast(ksp, ndev);
 	}
 
 	ks8695_writereg(ksp, KS8695_DRXC, ctrl);
