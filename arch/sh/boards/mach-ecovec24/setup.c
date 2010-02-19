@@ -1121,6 +1121,11 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_INTC_IRQ1, NULL);
 	gpio_direction_input(GPIO_FN_INTC_IRQ1);
 
+	/* set VPU clock to 166 MHz */
+	clk = clk_get(NULL, "vpu_clk");
+	clk_set_rate(clk, clk_round_rate(clk, 166000000));
+	clk_put(clk);
+
 	/* enable I2C device */
 	i2c_register_board_info(0, i2c0_devices,
 				ARRAY_SIZE(i2c0_devices));
