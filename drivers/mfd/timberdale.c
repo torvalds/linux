@@ -37,6 +37,8 @@
 #include <linux/spi/max7301.h>
 #include <linux/spi/mc33880.h>
 
+#include <media/timb_radio.h>
+
 #include "timberdale.h"
 
 #define DRIVER_NAME "timberdale"
@@ -213,6 +215,40 @@ const static __devinitconst struct resource timberdale_uartlite_resources[] = {
 	},
 };
 
+const static __devinitconst struct resource timberdale_radio_resources[] = {
+	{
+		.start	= RDSOFFSET,
+		.end	= RDSEND,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_TIMBERDALE_RDS,
+		.end	= IRQ_TIMBERDALE_RDS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static __devinitdata struct i2c_board_info timberdale_tef6868_i2c_board_info = {
+	I2C_BOARD_INFO("tef6862", 0x60)
+};
+
+static __devinitdata struct i2c_board_info timberdale_saa7706_i2c_board_info = {
+	I2C_BOARD_INFO("saa7706h", 0x1C)
+};
+
+static __devinitdata struct timb_radio_platform_data
+	timberdale_radio_platform_data = {
+	.i2c_adapter = 0,
+	.tuner = {
+		.module_name = "tef6862",
+		.info = &timberdale_tef6868_i2c_board_info
+	},
+	.dsp = {
+		.module_name = "saa7706h",
+		.info = &timberdale_saa7706_i2c_board_info
+	}
+};
+
 const static __devinitconst struct resource timberdale_dma_resources[] = {
 	{
 		.start	= DMAOFFSET,
@@ -238,6 +274,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 		.resources = timberdale_gpio_resources,
 		.platform_data = &timberdale_gpio_platform_data,
 		.data_size = sizeof(timberdale_gpio_platform_data),
+	},
+	{
+		.name = "timb-radio",
+		.num_resources = ARRAY_SIZE(timberdale_radio_resources),
+		.resources = timberdale_radio_resources,
+		.platform_data = &timberdale_radio_platform_data,
+		.data_size = sizeof(timberdale_radio_platform_data),
 	},
 	{
 		.name = "xilinx_spi",
@@ -282,6 +325,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 		.resources = timberdale_mlogicore_resources,
 	},
 	{
+		.name = "timb-radio",
+		.num_resources = ARRAY_SIZE(timberdale_radio_resources),
+		.resources = timberdale_radio_resources,
+		.platform_data = &timberdale_radio_platform_data,
+		.data_size = sizeof(timberdale_radio_platform_data),
+	},
+	{
 		.name = "xilinx_spi",
 		.num_resources = ARRAY_SIZE(timberdale_spi_resources),
 		.resources = timberdale_spi_resources,
@@ -312,6 +362,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 		.resources = timberdale_gpio_resources,
 		.platform_data = &timberdale_gpio_platform_data,
 		.data_size = sizeof(timberdale_gpio_platform_data),
+	},
+	{
+		.name = "timb-radio",
+		.num_resources = ARRAY_SIZE(timberdale_radio_resources),
+		.resources = timberdale_radio_resources,
+		.platform_data = &timberdale_radio_platform_data,
+		.data_size = sizeof(timberdale_radio_platform_data),
 	},
 	{
 		.name = "xilinx_spi",
@@ -346,6 +403,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 		.resources = timberdale_gpio_resources,
 		.platform_data = &timberdale_gpio_platform_data,
 		.data_size = sizeof(timberdale_gpio_platform_data),
+	},
+	{
+		.name = "timb-radio",
+		.num_resources = ARRAY_SIZE(timberdale_radio_resources),
+		.resources = timberdale_radio_resources,
+		.platform_data = &timberdale_radio_platform_data,
+		.data_size = sizeof(timberdale_radio_platform_data),
 	},
 	{
 		.name = "xilinx_spi",
