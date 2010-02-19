@@ -221,8 +221,8 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 /*
  * Sleep control
  */
-int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
-		bool set_chip, u16 sleep_duration)
+static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
+			      bool set_chip, u16 sleep_duration)
 {
 	unsigned int i;
 	u32 staid, data;

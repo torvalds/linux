@@ -516,6 +516,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	return 0;
 }
 
+#if 0
 /*
  * Get slot time from DCU
  */
@@ -532,6 +533,7 @@ unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah)
 
 	return ath5k_hw_clocktoh(ah, slot_time_clock & 0xffff);
 }
+#endif
 
 /*
  * Set slot time on DCU

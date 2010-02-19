@@ -1190,7 +1190,7 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
  * The median of the values in the history is then loaded into the
  * hardware for its own use for RSSI and CCA measurements.
  */
-void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
+static void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 val;
@@ -1767,7 +1767,7 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan)
 * Antenna control *
 \*****************/
 
-void /*TODO:Boundary check*/
+static void /*TODO:Boundary check*/
 ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 {
 	ATH5K_TRACE(ah->ah_sc);
@@ -1776,6 +1776,7 @@ ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 		ath5k_hw_reg_write(ah, ant & 0x7, AR5K_DEFAULT_ANTENNA);
 }
 
+#if 0
 unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
@@ -1785,6 +1786,7 @@ unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah)
 
 	return false; /*XXX: What do we return for 5210 ?*/
 }
+#endif
 
 /*
  * Enable/disable fast rx antenna diversity

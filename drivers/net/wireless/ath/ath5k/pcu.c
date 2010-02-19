@@ -178,6 +178,7 @@ void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high)
 * ACK/CTS Timeouts *
 \******************/
 
+#if 0
 /**
  * ath5k_hw_het_ack_timeout - Get ACK timeout from PCU in usec
  *
@@ -190,6 +191,7 @@ unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah)
 	return ath5k_hw_clocktoh(ah, AR5K_REG_MS(ath5k_hw_reg_read(ah,
 			AR5K_TIME_OUT), AR5K_TIME_OUT_ACK));
 }
+#endif
 
 /**
  * ath5k_hw_set_ack_timeout - Set ACK timeout on PCU
@@ -197,7 +199,7 @@ unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah)
  * @ah: The &struct ath5k_hw
  * @timeout: Timeout in usec
  */
-int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
+static int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
 {
 	ATH5K_TRACE(ah->ah_sc);
 	if (ath5k_hw_clocktoh(ah, AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_ACK))
@@ -210,6 +212,7 @@ int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
 	return 0;
 }
 
+#if 0
 /**
  * ath5k_hw_get_cts_timeout - Get CTS timeout from PCU in usec
  *
@@ -221,6 +224,7 @@ unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah)
 	return ath5k_hw_clocktoh(ah, AR5K_REG_MS(ath5k_hw_reg_read(ah,
 			AR5K_TIME_OUT), AR5K_TIME_OUT_CTS));
 }
+#endif
 
 /**
  * ath5k_hw_set_cts_timeout - Set CTS timeout on PCU
@@ -228,7 +232,7 @@ unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah)
  * @ah: The &struct ath5k_hw
  * @timeout: Timeout in usec
  */
-int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
+static int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout)
 {
 	ATH5K_TRACE(ah->ah_sc);
 	if (ath5k_hw_clocktoh(ah, AR5K_REG_MS(0xffffffff, AR5K_TIME_OUT_CTS))
@@ -290,7 +294,7 @@ unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah)
  *
  * @ah: The &struct ath5k_hw
  */
-unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
+static unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 
@@ -308,7 +312,7 @@ unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
  *
  * @ah: The &struct ath5k_hw
  */
-unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
+static unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 
@@ -451,6 +455,7 @@ void ath5k_hw_set_mcast_filter(struct ath5k_hw *ah, u32 filter0, u32 filter1)
 	ath5k_hw_reg_write(ah, filter1, AR5K_MCAST_FILTER1);
 }
 
+#if 0
 /*
  * Set multicast filter by index
  */
@@ -486,6 +491,7 @@ int ath5k_hw_clear_mcast_filter_idx(struct ath5k_hw *ah, u32 index)
 
 	return 0;
 }
+#endif
 
 /**
  * ath5k_hw_get_rx_filter - Get current rx filter
@@ -570,19 +576,6 @@ void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter)
 /****************\
 * Beacon control *
 \****************/
-
-/**
- * ath5k_hw_get_tsf32 - Get a 32bit TSF
- *
- * @ah: The &struct ath5k_hw
- *
- * Returns lower 32 bits of current TSF
- */
-u32 ath5k_hw_get_tsf32(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-	return ath5k_hw_reg_read(ah, AR5K_TSF_L32);
-}
 
 /**
  * ath5k_hw_get_tsf64 - Get the full 64bit TSF
@@ -971,6 +964,7 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	return 0;
 }
 
+#if 0
 /*
  * Check if a table entry is valid
  */
@@ -983,6 +977,7 @@ int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry)
 	return ath5k_hw_reg_read(ah, AR5K_KEYTABLE_MAC1(entry)) &
 		AR5K_KEYTABLE_VALID;
 }
+#endif
 
 static
 int ath5k_keycache_type(const struct ieee80211_key_conf *key)
