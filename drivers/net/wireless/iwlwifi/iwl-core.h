@@ -117,6 +117,7 @@ struct iwl_apm_ops {
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 	void (*set_ct_kill)(struct iwl_priv *priv);
+	void (*set_calib_version)(struct iwl_priv *priv);
 };
 
 struct iwl_ucode_ops {
