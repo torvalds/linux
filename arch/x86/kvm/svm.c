@@ -1432,16 +1432,17 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 	return vmexit;
 }
 
-static inline int nested_svm_intr(struct vcpu_svm *svm)
+/* This function returns true if it is save to enable the irq window */
+static inline bool nested_svm_intr(struct vcpu_svm *svm)
 {
 	if (!is_nested(svm))
-		return 0;
+		return true;
 
 	if (!(svm->vcpu.arch.hflags & HF_VINTR_MASK))
-		return 0;
+		return true;
 
 	if (!(svm->vcpu.arch.hflags & HF_HIF_MASK))
-		return 0;
+		return false;
 
 	svm->vmcb->control.exit_code = SVM_EXIT_INTR;
 
@@ -1454,10 +1455,10 @@ static inline int nested_svm_intr(struct vcpu_svm *svm)
 		 */
 		svm->nested.exit_required = true;
 		trace_kvm_nested_intr_vmexit(svm->vmcb->save.rip);
-		return 1;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 
 static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, struct page **_page)
@@ -2629,13 +2630,11 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	nested_svm_intr(svm);
-
 	/* In case GIF=0 we can't rely on the CPU to tell us when
 	 * GIF becomes 1, because that's a separate STGI/VMRUN intercept.
 	 * The next time we get that intercept, this function will be
 	 * called again though and we'll get the vintr intercept. */
-	if (gif_set(svm)) {
+	if (gif_set(svm) && nested_svm_intr(svm)) {
 		svm_set_vintr(svm);
 		svm_inject_irq(svm, 0x0);
 	}
