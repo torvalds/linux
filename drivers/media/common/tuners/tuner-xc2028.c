@@ -917,30 +917,68 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 * that xc2028 will be in a safe state.
 	 * Maybe this might also be needed for DTV.
 	 */
-	if (new_mode == T_ANALOG_TV)
+	if (new_mode == T_ANALOG_TV) {
 		rc = send_seq(priv, {0x00, 0x00});
 
-	/*
-	 * Digital modes require an offset to adjust to the
-	 * proper frequency.
-	 * Analog modes require offset = 0
-	 */
-	if (new_mode == T_DIGITAL_TV) {
-		/* Sets the offset according with firmware */
+		/* Analog modes require offset = 0 */
+	} else {
+		/*
+		 * Digital modes require an offset to adjust to the
+		 * proper frequency. The offset depends on what
+		 * firmware version is used.
+		 */
+
+		/*
+		 * Adjust to the center frequency. This is calculated by the
+		 * formula: offset = 1.25MHz - BW/2
+		 * For DTV 7/8, the firmware uses BW = 8000, so it needs a
+		 * further adjustment to get the frequency center on VHF
+		 */
 		if (priv->cur_fw.type & DTV6)
 			offset = 1750000;
 		else if (priv->cur_fw.type & DTV7)
 			offset = 2250000;
 		else	/* DTV8 or DTV78 */
 			offset = 2750000;
-
-		/*
-		 * We must adjust the offset by 500kHz  when
-		 * tuning a 7MHz VHF channel with DTV78 firmware
-		 * (used in Australia, Italy and Germany)
-		 */
 		if ((priv->cur_fw.type & DTV78) && freq < 470000000)
 			offset -= 500000;
+
+		/*
+		 * xc3028 additional "magic"
+		 * Depending on the firmware version, it needs some adjustments
+		 * to properly centralize the frequency. This seems to be
+		 * needed to compensate the SCODE table adjustments made by
+		 * newer firmwares
+		 */
+
+#if 1
+		/*
+		 * The proper adjustment would be to do it at s-code table.
+		 * However, this didn't work, as reported by
+		 * Robert Lowery <rglowery@exemail.com.au>
+		 */
+
+		if (priv->cur_fw.type & DTV7)
+			offset += 500000;
+
+#else
+		/*
+		 * Still need tests for XC3028L (firmware 3.2 or upper)
+		 * So, for now, let's just comment the per-firmware
+		 * version of this change. Reports with xc3028l working
+		 * with and without the lines bellow are welcome
+		 */
+
+		if (priv->firm_version < 0x0302) {
+			if (priv->cur_fw.type & DTV7)
+				offset += 500000;
+		} else {
+			if (priv->cur_fw.type & DTV7)
+				offset -= 300000;
+			else if (type != ATSC) /* DVB @6MHz, DTV 8 and DTV 7/8 */
+				offset += 200000;
+		}
+#endif
 	}
 
 	div = (freq - offset + DIV / 2) / DIV;
@@ -1097,17 +1135,22 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 
 	/* All S-code tables need a 200kHz shift */
 	if (priv->ctrl.demod) {
-		demod = priv->ctrl.demod + 200;
+		/*
+		 * Newer firmwares require a 200 kHz offset only for ATSC
+		 */
+		if (type == ATSC || priv->firm_version < 0x0302)
+			demod = priv->ctrl.demod + 200;
 		/*
 		 * The DTV7 S-code table needs a 700 kHz shift.
-		 * Thanks to Terry Wu <terrywu2009@gmail.com> for reporting this
 		 *
 		 * DTV7 is only used in Australia.  Germany or Italy may also
 		 * use this firmware after initialization, but a tune to a UHF
 		 * channel should then cause DTV78 to be used.
+		 *
+		 * Unfortunately, on real-field tests, the s-code offset
+		 * didn't work as expected, as reported by
+		 * Robert Lowery <rglowery@exemail.com.au>
 		 */
-		if (type & DTV7)
-			demod += 500;
 	}
 
 	return generic_set_freq(fe, p->frequency,
