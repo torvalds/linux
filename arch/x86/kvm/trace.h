@@ -413,7 +413,7 @@ TRACE_EVENT(kvm_nested_vmrun,
 	),
 
 	TP_printk("rip: 0x%016llx vmcb: 0x%016llx nrip: 0x%016llx int_ctl: 0x%08x "
-		  "event_inj: 0x%08x npt: %s\n",
+		  "event_inj: 0x%08x npt: %s",
 		__entry->rip, __entry->vmcb, __entry->nested_rip,
 		__entry->int_ctl, __entry->event_inj,
 		__entry->npt ? "on" : "off")
@@ -447,7 +447,7 @@ TRACE_EVENT(kvm_nested_vmexit,
 		__entry->exit_int_info_err	= exit_int_info_err;
 	),
 	TP_printk("rip: 0x%016llx reason: %s ext_inf1: 0x%016llx "
-		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x\n",
+		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
 		  __entry->rip,
 		  ftrace_print_symbols_seq(p, __entry->exit_code,
 					   kvm_x86_ops->exit_reasons_str),
@@ -482,7 +482,7 @@ TRACE_EVENT(kvm_nested_vmexit_inject,
 	),
 
 	TP_printk("reason: %s ext_inf1: 0x%016llx "
-		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x\n",
+		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
 		  ftrace_print_symbols_seq(p, __entry->exit_code,
 					   kvm_x86_ops->exit_reasons_str),
 		__entry->exit_info1, __entry->exit_info2,
@@ -504,7 +504,7 @@ TRACE_EVENT(kvm_nested_intr_vmexit,
 		__entry->rip	=	rip
 	),
 
-	TP_printk("rip: 0x%016llx\n", __entry->rip)
+	TP_printk("rip: 0x%016llx", __entry->rip)
 );
 
 /*
@@ -526,7 +526,7 @@ TRACE_EVENT(kvm_invlpga,
 		__entry->address	=	address;
 	),
 
-	TP_printk("rip: 0x%016llx asid: %d address: 0x%016llx\n",
+	TP_printk("rip: 0x%016llx asid: %d address: 0x%016llx",
 		  __entry->rip, __entry->asid, __entry->address)
 );
 
@@ -547,7 +547,7 @@ TRACE_EVENT(kvm_skinit,
 		__entry->slb		=	slb;
 	),
 
-	TP_printk("rip: 0x%016llx slb: 0x%08x\n",
+	TP_printk("rip: 0x%016llx slb: 0x%08x",
 		  __entry->rip, __entry->slb)
 );
 
