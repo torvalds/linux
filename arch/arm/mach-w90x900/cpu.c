@@ -45,6 +45,7 @@ static struct map_desc nuc900_iodesc[] __initdata = {
 	IODESC_ENT(UART),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(EBI),
+	IODESC_ENT(GPIO),
 };
 
 /* Initial clock declarations. */
