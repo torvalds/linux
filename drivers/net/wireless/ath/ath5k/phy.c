@@ -20,8 +20,6 @@
  *
  */
 
-#define _ATH5K_PHY
-
 #include <linux/delay.h>
 
 #include "ath5k.h"
@@ -3144,5 +3142,3 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 
 	return ath5k_hw_txpower(ah, channel, ee_mode, txpower);
 }
-
-#undef _ATH5K_PHY

@@ -1172,6 +1172,8 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
 int ath5k_hw_on_hold(struct ath5k_hw *ah);
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		   struct ieee80211_channel *channel, bool change_channel);
+int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
+			      bool is_set);
 /* Power management functions */
 
 /* DMA Related Functions */
@@ -1327,29 +1329,6 @@ static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
 	iowrite32(val, ah->ah_iobase + reg);
 }
-
-#if defined(_ATH5K_RESET) || defined(_ATH5K_PHY)
-/*
- * Check if a register write has been completed
- */
-static int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag,
-		u32 val, bool is_set)
-{
-	int i;
-	u32 data;
-
-	for (i = AR5K_TUNE_REGISTER_TIMEOUT; i > 0; i--) {
-		data = ath5k_hw_reg_read(ah, reg);
-		if (is_set && (data & flag))
-			break;
-		else if ((data & flag) == val)
-			break;
-		udelay(15);
-	}
-
-	return (i <= 0) ? -EAGAIN : 0;
-}
-#endif
 
 static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 {
