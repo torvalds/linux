@@ -37,7 +37,7 @@
 #define dprintk(X...) do { } while(0)
 #endif
 
-#ifdef DEBUG_PTE
+#ifdef DEBUG_MMU_PTE
 #define dprintk_pte(X...) printk(KERN_INFO X)
 #else
 #define dprintk_pte(X...) do { } while(0)
