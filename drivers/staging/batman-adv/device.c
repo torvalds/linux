@@ -25,6 +25,7 @@
 #include "send.h"
 #include "types.h"
 #include "hash.h"
+#include "hard-interface.h"
 
 static struct class *batman_class;
 
@@ -206,6 +207,7 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	struct icmp_packet icmp_packet;
 	struct orig_node *orig_node;
 	struct batman_if *batman_if;
+	uint8_t dstaddr[ETH_ALEN];
 	unsigned long flags;
 
 	if (len < sizeof(struct icmp_packet)) {
@@ -251,9 +253,15 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 		goto unlock;
 
 	batman_if = orig_node->batman_if;
+	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
+
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	if (!batman_if)
-		goto unlock;
+		goto dst_unreach;
+
+	if (batman_if->if_active != IF_ACTIVE)
+		goto dst_unreach;
 
 	memcpy(icmp_packet.orig,
 	       batman_if->net_dev->dev_addr,
@@ -261,9 +269,8 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 
 	send_raw_packet((unsigned char *)&icmp_packet,
 			sizeof(struct icmp_packet),
-			batman_if, orig_node->router->addr);
+			batman_if, dstaddr);
 
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	goto out;
 
 unlock:
