@@ -483,12 +483,10 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	printk("comedi%d: ni_labpc: %s, io 0x%lx", dev->minor, thisboard->name,
 	       iobase);
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
-	if (dma_chan) {
+	if (dma_chan)
 		printk(", dma %u", dma_chan);
-	}
 	printk("\n");
 
 	if (iobase == 0) {
